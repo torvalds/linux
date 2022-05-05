@@ -210,13 +210,13 @@ int mdp5_mdss_init(struct platform_device *pdev)
 
 	mdp5_mdss->base.dev = &pdev->dev;
 
-	mdp5_mdss->mmio = msm_ioremap(pdev, "mdss_phys", "MDSS");
+	mdp5_mdss->mmio = msm_ioremap(pdev, "mdss_phys");
 	if (IS_ERR(mdp5_mdss->mmio)) {
 		ret = PTR_ERR(mdp5_mdss->mmio);
 		goto fail;
 	}
 
-	mdp5_mdss->vbif = msm_ioremap(pdev, "vbif_phys", "VBIF");
+	mdp5_mdss->vbif = msm_ioremap(pdev, "vbif_phys");
 	if (IS_ERR(mdp5_mdss->vbif)) {
 		ret = PTR_ERR(mdp5_mdss->vbif);
 		goto fail;

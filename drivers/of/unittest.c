@@ -44,7 +44,7 @@ static struct unittest_results {
 		pr_err("FAIL %s():%i " fmt, __func__, __LINE__, ##__VA_ARGS__); \
 	} else { \
 		unittest_results.passed++; \
-		pr_debug("pass %s():%i\n", __func__, __LINE__); \
+		pr_info("pass %s():%i\n", __func__, __LINE__); \
 	} \
 	failed; \
 })

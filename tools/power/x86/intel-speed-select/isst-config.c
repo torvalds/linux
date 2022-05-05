@@ -15,7 +15,8 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.11";
+static const char *version_str = "v1.12";
+
 static const int supported_api_ver = 1;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
@@ -368,7 +369,7 @@ int get_topo_max_cpus(void)
 	return topo_max_cpus;
 }
 
-static void set_cpu_online_offline(int cpu, int state)
+void set_cpu_online_offline(int cpu, int state)
 {
 	char buffer[128];
 	int fd, ret;
@@ -409,12 +410,10 @@ static void force_all_cpus_online(void)
 	unlink("/var/run/isst_cpu_topology.dat");
 }
 
-#define MAX_PACKAGE_COUNT 8
-#define MAX_DIE_PER_PACKAGE 2
-static void for_each_online_package_in_set(void (*callback)(int, void *, void *,
-							    void *, void *),
-					   void *arg1, void *arg2, void *arg3,
-					   void *arg4)
+void for_each_online_package_in_set(void (*callback)(int, void *, void *,
+						     void *, void *),
+				    void *arg1, void *arg2, void *arg3,
+				    void *arg4)
 {
 	int max_packages[MAX_PACKAGE_COUNT * MAX_PACKAGE_COUNT];
 	int pkg_index = 0, i;
@@ -2803,7 +2802,9 @@ static void usage(void)
 	printf("\t[-p|--pause] : Delay between two mail box commands in milliseconds\n");
 	printf("\t[-r|--retry] : Retry count for mail box commands on failure, default 3\n");
 	printf("\t[-v|--version] : Print version\n");
-
+	printf("\t[-b|--oob : Start a daemon to process HFI events for perf profile change from Out of Band agent.\n");
+	printf("\t[-n|--no-daemon : Don't run as daemon. By default --oob will turn on daemon mode\n");
+	printf("\t[-w|--delay : Delay for reading config level state change in OOB poll mode.\n");
 	printf("\nResult format\n");
 	printf("\tResult display uses a common format for each command:\n");
 	printf("\tResults are formatted in text/JSON with\n");
@@ -2837,6 +2838,9 @@ static void cmdline(int argc, char **argv)
 	int opt, force_cpus_online = 0;
 	int option_index = 0;
 	int ret;
+	int oob_mode = 0;
+	int poll_interval = -1;
+	int no_daemon = 0;
 
 	static struct option long_options[] = {
 		{ "all-cpus-online", no_argument, 0, 'a' },
@@ -2849,6 +2853,9 @@ static void cmdline(int argc, char **argv)
 		{ "out", required_argument, 0, 'o' },
 		{ "retry", required_argument, 0, 'r' },
 		{ "version", no_argument, 0, 'v' },
+		{ "oob", no_argument, 0, 'b' },
+		{ "no-daemon", no_argument, 0, 'n' },
+		{ "poll-interval", required_argument, 0, 'w' },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -2875,7 +2882,7 @@ static void cmdline(int argc, char **argv)
 	}
 
 	progname = argv[0];
-	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:va", long_options,
+	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:vabw:n", long_options,
 				       &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -2920,12 +2927,26 @@ static void cmdline(int argc, char **argv)
 		case 'v':
 			print_version();
 			break;
+		case 'b':
+			oob_mode = 1;
+			break;
+		case 'n':
+			no_daemon = 1;
+			break;
+		case 'w':
+			ret = strtol(optarg, &ptr, 10);
+			if (!ret) {
+				fprintf(stderr, "Invalid poll interval count\n");
+				exit(0);
+			}
+			poll_interval = ret;
+			break;
 		default:
 			usage();
 		}
 	}
 
-	if (optind > (argc - 2)) {
+	if (optind > (argc - 2) && !oob_mode) {
 		usage();
 		exit(0);
 	}
@@ -2935,6 +2956,17 @@ static void cmdline(int argc, char **argv)
 	store_cpu_topology();
 	set_cpu_present_cpu_mask();
 	set_cpu_target_cpu_mask();
+
+	if (oob_mode) {
+		create_cpu_map();
+		if (debug_flag)
+			fprintf(stderr, "OOB mode is enabled in debug mode\n");
+
+		ret = isst_daemon(debug_flag, poll_interval, no_daemon);
+		if (ret)
+			fprintf(stderr, "OOB mode enable failed\n");
+		goto out;
+	}
 
 	if (!is_clx_n_platform()) {
 		ret = isst_fill_platform_info();

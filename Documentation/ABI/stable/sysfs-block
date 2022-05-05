@@ -155,6 +155,55 @@ Description:
 		last zone of the device which may be smaller.
 
 
+What:		/sys/block/<disk>/queue/crypto/
+Date:		February 2022
+Contact:	linux-block@vger.kernel.org
+Description:
+		The presence of this subdirectory of /sys/block/<disk>/queue/
+		indicates that the device supports inline encryption.  This
+		subdirectory contains files which describe the inline encryption
+		capabilities of the device.  For more information about inline
+		encryption, refer to Documentation/block/inline-encryption.rst.
+
+
+What:		/sys/block/<disk>/queue/crypto/max_dun_bits
+Date:		February 2022
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RO] This file shows the maximum length, in bits, of data unit
+		numbers accepted by the device in inline encryption requests.
+
+
+What:		/sys/block/<disk>/queue/crypto/modes/<mode>
+Date:		February 2022
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RO] For each crypto mode (i.e., encryption/decryption
+		algorithm) the device supports with inline encryption, a file
+		will exist at this location.  It will contain a hexadecimal
+		number that is a bitmask of the supported data unit sizes, in
+		bytes, for that crypto mode.
+
+		Currently, the crypto modes that may be supported are:
+
+		   * AES-256-XTS
+		   * AES-128-CBC-ESSIV
+		   * Adiantum
+
+		For example, if a device supports AES-256-XTS inline encryption
+		with data unit sizes of 512 and 4096 bytes, the file
+		/sys/block/<disk>/queue/crypto/modes/AES-256-XTS will exist and
+		will contain "0x1200".
+
+
+What:		/sys/block/<disk>/queue/crypto/num_keyslots
+Date:		February 2022
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RO] This file shows the number of keyslots the device has for
+		use with inline encryption.
+
+
 What:		/sys/block/<disk>/queue/dax
 Date:		June 2016
 Contact:	linux-block@vger.kernel.org

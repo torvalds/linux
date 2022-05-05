@@ -18,7 +18,6 @@
 
 static void sun4i_backend_layer_reset(struct drm_plane *plane)
 {
-	struct sun4i_layer *layer = plane_to_sun4i_layer(plane);
 	struct sun4i_layer_state *state;
 
 	if (plane->state) {
@@ -31,10 +30,8 @@ static void sun4i_backend_layer_reset(struct drm_plane *plane)
 	}
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
+	if (state)
 		__drm_atomic_helper_plane_reset(plane, &state->state);
-		plane->state->zpos = layer->id;
-	}
 }
 
 static struct drm_plane_state *
@@ -192,7 +189,8 @@ static const uint64_t sun4i_layer_modifiers[] = {
 
 static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 						struct sun4i_backend *backend,
-						enum drm_plane_type type)
+						enum drm_plane_type type,
+						unsigned int id)
 {
 	const uint64_t *modifiers = sun4i_layer_modifiers;
 	const uint32_t *formats = sun4i_layer_formats;
@@ -204,6 +202,7 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 	if (!layer)
 		return ERR_PTR(-ENOMEM);
 
+	layer->id = id;
 	layer->backend = backend;
 
 	if (IS_ERR_OR_NULL(backend->frontend)) {
@@ -226,8 +225,8 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 			     &sun4i_backend_layer_helper_funcs);
 
 	drm_plane_create_alpha_property(&layer->plane);
-	drm_plane_create_zpos_property(&layer->plane, 0, 0,
-				       SUN4I_BACKEND_NUM_LAYERS - 1);
+	drm_plane_create_zpos_property(&layer->plane, layer->id,
+				       0, SUN4I_BACKEND_NUM_LAYERS - 1);
 
 	return layer;
 }
@@ -249,14 +248,13 @@ struct drm_plane **sun4i_layers_init(struct drm_device *drm,
 		enum drm_plane_type type = i ? DRM_PLANE_TYPE_OVERLAY : DRM_PLANE_TYPE_PRIMARY;
 		struct sun4i_layer *layer;
 
-		layer = sun4i_layer_init_one(drm, backend, type);
+		layer = sun4i_layer_init_one(drm, backend, type, i);
 		if (IS_ERR(layer)) {
 			dev_err(drm->dev, "Couldn't initialize %s plane\n",
 				i ? "overlay" : "primary");
 			return ERR_CAST(layer);
 		}
 
-		layer->id = i;
 		planes[i] = &layer->plane;
 	}
 

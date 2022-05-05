@@ -1,8 +1,0 @@
-TODO:
-	- sparse fixes
-	- rename files to be not so "generic"
-	- add proper arch dependencies as needed
-	- audit userspace interfaces to make sure they are sane
-
-Please send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc:
-Arve Hjønnevåg <arve@android.com> and Riley Andrews <riandrews@android.com>

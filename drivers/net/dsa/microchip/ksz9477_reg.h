@@ -176,6 +176,7 @@
 #define REG_SW_MAC_ADDR_5		0x0307
 
 #define REG_SW_MTU__2			0x0308
+#define REG_SW_MTU_MASK			GENMASK(13, 0)
 
 #define REG_SW_ISP_TPID__2		0x030A
 
@@ -1661,5 +1662,7 @@
 
 /* 148,800 frames * 67 ms / 100 */
 #define BROADCAST_STORM_VALUE		9969
+
+#define KSZ9477_MAX_FRAME_SIZE		9000
 
 #endif /* KSZ9477_REGS_H */

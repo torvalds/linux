@@ -103,6 +103,7 @@
 static int use_dma = 1;
 
 struct pch_spi_dma_ctrl {
+	struct pci_dev		*dma_dev;
 	struct dma_async_tx_descriptor	*desc_tx;
 	struct dma_async_tx_descriptor	*desc_rx;
 	struct pch_dma_slave		param_tx;
@@ -876,8 +877,7 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 	if (!chan) {
 		dev_err(&data->master->dev,
 			"ERROR: dma_request_channel FAILS(Tx)\n");
-		data->use_dma = 0;
-		return;
+		goto out;
 	}
 	dma->chan_tx = chan;
 
@@ -893,10 +893,15 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 			"ERROR: dma_request_channel FAILS(Rx)\n");
 		dma_release_channel(dma->chan_tx);
 		dma->chan_tx = NULL;
-		data->use_dma = 0;
-		return;
+		goto out;
 	}
 	dma->chan_rx = chan;
+
+	dma->dma_dev = dma_dev;
+	return;
+out:
+	pci_dev_put(dma_dev);
+	data->use_dma = 0;
 }
 
 static void pch_spi_release_dma(struct pch_spi_data *data)
@@ -912,6 +917,8 @@ static void pch_spi_release_dma(struct pch_spi_data *data)
 		dma_release_channel(dma->chan_rx);
 		dma->chan_rx = NULL;
 	}
+
+	pci_dev_put(dma->dma_dev);
 }
 
 static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)

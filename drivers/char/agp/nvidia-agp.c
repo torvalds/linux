@@ -261,7 +261,8 @@ static int nvidia_remove_memory(struct agp_memory *mem, off_t pg_start, int type
 static void nvidia_tlbflush(struct agp_memory *mem)
 {
 	unsigned long end;
-	u32 wbc_reg, temp;
+	u32 wbc_reg;
+	u32 __maybe_unused temp;
 	int i;
 
 	/* flush chipset */

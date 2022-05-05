@@ -130,6 +130,16 @@ void *gsi_trans_pool_alloc_dma(struct gsi_trans_pool *pool, dma_addr_t *addr);
 void gsi_trans_pool_exit_dma(struct device *dev, struct gsi_trans_pool *pool);
 
 /**
+ * gsi_channel_trans_idle() - Return whether no transactions are allocated
+ * @gsi:	GSI pointer
+ * @channel_id:	Channel the transaction is associated with
+ *
+ * Return:	True if no transactions are allocated, false otherwise
+ *
+ */
+bool gsi_channel_trans_idle(struct gsi *gsi, u32 channel_id);
+
+/**
  * gsi_channel_trans_alloc() - Allocate a GSI transaction on a channel
  * @gsi:	GSI pointer
  * @channel_id:	Channel the transaction is associated with

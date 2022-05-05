@@ -2,7 +2,6 @@
 /* Copyright (c) 2015 - 2021 Intel Corporation */
 #ifndef IRDMA_TYPE_H
 #define IRDMA_TYPE_H
-#include "status.h"
 #include "osdep.h"
 #include "irdma.h"
 #include "user.h"
@@ -402,8 +401,8 @@ struct irdma_sc_cqp {
 	u64 host_ctx_pa;
 	void *back_cqp;
 	struct irdma_sc_dev *dev;
-	enum irdma_status_code (*process_cqp_sds)(struct irdma_sc_dev *dev,
-						  struct irdma_update_sds_info *info);
+	int (*process_cqp_sds)(struct irdma_sc_dev *dev,
+			       struct irdma_update_sds_info *info);
 	struct irdma_dma_mem sdbuf;
 	struct irdma_ring sq_ring;
 	struct irdma_cqp_quanta *sq_base;
@@ -605,12 +604,14 @@ struct irdma_sc_vsi {
 	struct irdma_qos qos[IRDMA_MAX_USER_PRIORITY];
 	struct irdma_vsi_pestat *pestat;
 	atomic_t qp_suspend_reqs;
-	enum irdma_status_code (*register_qset)(struct irdma_sc_vsi *vsi,
-						struct irdma_ws_node *tc_node);
+	int (*register_qset)(struct irdma_sc_vsi *vsi,
+			     struct irdma_ws_node *tc_node);
 	void (*unregister_qset)(struct irdma_sc_vsi *vsi,
 				struct irdma_ws_node *tc_node);
 	u8 qos_rel_bw;
 	u8 qos_prio_type;
+	u8 dscp_map[IIDC_MAX_DSCP_MAPPING];
+	bool dscp_mode:1;
 };
 
 struct irdma_sc_dev {
@@ -655,7 +656,7 @@ struct irdma_sc_dev {
 	bool vchnl_up:1;
 	bool ceq_valid:1;
 	u8 pci_rev;
-	enum irdma_status_code (*ws_add)(struct irdma_sc_vsi *vsi, u8 user_pri);
+	int (*ws_add)(struct irdma_sc_vsi *vsi, u8 user_pri);
 	void (*ws_remove)(struct irdma_sc_vsi *vsi, u8 user_pri);
 	void (*ws_reset)(struct irdma_sc_vsi *vsi);
 };
@@ -735,11 +736,13 @@ struct irdma_l2params {
 	u16 qs_handle_list[IRDMA_MAX_USER_PRIORITY];
 	u16 mtu;
 	u8 up2tc[IRDMA_MAX_USER_PRIORITY];
+	u8 dscp_map[IIDC_MAX_DSCP_MAPPING];
 	u8 num_tc;
 	u8 vsi_rel_bw;
 	u8 vsi_prio_type;
 	bool mtu_changed:1;
 	bool tc_changed:1;
+	bool dscp_mode:1;
 };
 
 struct irdma_vsi_init_info {
@@ -750,8 +753,8 @@ struct irdma_vsi_init_info {
 	u16 pf_data_vsi_num;
 	enum irdma_vm_vf_type vm_vf_type;
 	u16 vm_id;
-	enum irdma_status_code (*register_qset)(struct irdma_sc_vsi *vsi,
-						struct irdma_ws_node *tc_node);
+	int (*register_qset)(struct irdma_sc_vsi *vsi,
+			     struct irdma_ws_node *tc_node);
 	void (*unregister_qset)(struct irdma_sc_vsi *vsi,
 				struct irdma_ws_node *tc_node);
 };
@@ -1198,29 +1201,27 @@ struct irdma_irq_ops {
 };
 
 void irdma_sc_ccq_arm(struct irdma_sc_cq *ccq);
-enum irdma_status_code irdma_sc_ccq_create(struct irdma_sc_cq *ccq, u64 scratch,
-					   bool check_overflow, bool post_sq);
-enum irdma_status_code irdma_sc_ccq_destroy(struct irdma_sc_cq *ccq, u64 scratch,
-					    bool post_sq);
-enum irdma_status_code irdma_sc_ccq_get_cqe_info(struct irdma_sc_cq *ccq,
-						 struct irdma_ccq_cqe_info *info);
-enum irdma_status_code irdma_sc_ccq_init(struct irdma_sc_cq *ccq,
-					 struct irdma_ccq_init_info *info);
+int irdma_sc_ccq_create(struct irdma_sc_cq *ccq, u64 scratch,
+			bool check_overflow, bool post_sq);
+int irdma_sc_ccq_destroy(struct irdma_sc_cq *ccq, u64 scratch, bool post_sq);
+int irdma_sc_ccq_get_cqe_info(struct irdma_sc_cq *ccq,
+			      struct irdma_ccq_cqe_info *info);
+int irdma_sc_ccq_init(struct irdma_sc_cq *ccq,
+		      struct irdma_ccq_init_info *info);
 
-enum irdma_status_code irdma_sc_cceq_create(struct irdma_sc_ceq *ceq, u64 scratch);
-enum irdma_status_code irdma_sc_cceq_destroy_done(struct irdma_sc_ceq *ceq);
+int irdma_sc_cceq_create(struct irdma_sc_ceq *ceq, u64 scratch);
+int irdma_sc_cceq_destroy_done(struct irdma_sc_ceq *ceq);
 
-enum irdma_status_code irdma_sc_ceq_destroy(struct irdma_sc_ceq *ceq, u64 scratch,
-					    bool post_sq);
-enum irdma_status_code irdma_sc_ceq_init(struct irdma_sc_ceq *ceq,
-					 struct irdma_ceq_init_info *info);
+int irdma_sc_ceq_destroy(struct irdma_sc_ceq *ceq, u64 scratch, bool post_sq);
+int irdma_sc_ceq_init(struct irdma_sc_ceq *ceq,
+		      struct irdma_ceq_init_info *info);
 void irdma_sc_cleanup_ceqes(struct irdma_sc_cq *cq, struct irdma_sc_ceq *ceq);
 void *irdma_sc_process_ceq(struct irdma_sc_dev *dev, struct irdma_sc_ceq *ceq);
 
-enum irdma_status_code irdma_sc_aeq_init(struct irdma_sc_aeq *aeq,
-					 struct irdma_aeq_init_info *info);
-enum irdma_status_code irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
-					      struct irdma_aeqe_info *info);
+int irdma_sc_aeq_init(struct irdma_sc_aeq *aeq,
+		      struct irdma_aeq_init_info *info);
+int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
+			   struct irdma_aeqe_info *info);
 void irdma_sc_repost_aeq_entries(struct irdma_sc_dev *dev, u32 count);
 
 void irdma_sc_pd_init(struct irdma_sc_dev *dev, struct irdma_sc_pd *pd, u32 pd_id,
@@ -1228,31 +1229,27 @@ void irdma_sc_pd_init(struct irdma_sc_dev *dev, struct irdma_sc_pd *pd, u32 pd_i
 void irdma_cfg_aeq(struct irdma_sc_dev *dev, u32 idx, bool enable);
 void irdma_check_cqp_progress(struct irdma_cqp_timeout *cqp_timeout,
 			      struct irdma_sc_dev *dev);
-enum irdma_status_code irdma_sc_cqp_create(struct irdma_sc_cqp *cqp, u16 *maj_err,
-					   u16 *min_err);
-enum irdma_status_code irdma_sc_cqp_destroy(struct irdma_sc_cqp *cqp);
-enum irdma_status_code irdma_sc_cqp_init(struct irdma_sc_cqp *cqp,
-					 struct irdma_cqp_init_info *info);
+int irdma_sc_cqp_create(struct irdma_sc_cqp *cqp, u16 *maj_err, u16 *min_err);
+int irdma_sc_cqp_destroy(struct irdma_sc_cqp *cqp);
+int irdma_sc_cqp_init(struct irdma_sc_cqp *cqp,
+		      struct irdma_cqp_init_info *info);
 void irdma_sc_cqp_post_sq(struct irdma_sc_cqp *cqp);
-enum irdma_status_code irdma_sc_poll_for_cqp_op_done(struct irdma_sc_cqp *cqp, u8 opcode,
-						     struct irdma_ccq_cqe_info *cmpl_info);
-enum irdma_status_code irdma_sc_fast_register(struct irdma_sc_qp *qp,
-					      struct irdma_fast_reg_stag_info *info,
-					      bool post_sq);
-enum irdma_status_code irdma_sc_qp_create(struct irdma_sc_qp *qp,
-					  struct irdma_create_qp_info *info,
-					  u64 scratch, bool post_sq);
-enum irdma_status_code irdma_sc_qp_destroy(struct irdma_sc_qp *qp,
-					   u64 scratch, bool remove_hash_idx,
-					   bool ignore_mw_bnd, bool post_sq);
-enum irdma_status_code irdma_sc_qp_flush_wqes(struct irdma_sc_qp *qp,
-					      struct irdma_qp_flush_info *info,
-					      u64 scratch, bool post_sq);
-enum irdma_status_code irdma_sc_qp_init(struct irdma_sc_qp *qp,
-					struct irdma_qp_init_info *info);
-enum irdma_status_code irdma_sc_qp_modify(struct irdma_sc_qp *qp,
-					  struct irdma_modify_qp_info *info,
-					  u64 scratch, bool post_sq);
+int irdma_sc_poll_for_cqp_op_done(struct irdma_sc_cqp *cqp, u8 opcode,
+				  struct irdma_ccq_cqe_info *cmpl_info);
+int irdma_sc_fast_register(struct irdma_sc_qp *qp,
+			   struct irdma_fast_reg_stag_info *info, bool post_sq);
+int irdma_sc_qp_create(struct irdma_sc_qp *qp,
+		       struct irdma_create_qp_info *info, u64 scratch,
+		       bool post_sq);
+int irdma_sc_qp_destroy(struct irdma_sc_qp *qp, u64 scratch,
+			bool remove_hash_idx, bool ignore_mw_bnd, bool post_sq);
+int irdma_sc_qp_flush_wqes(struct irdma_sc_qp *qp,
+			   struct irdma_qp_flush_info *info, u64 scratch,
+			   bool post_sq);
+int irdma_sc_qp_init(struct irdma_sc_qp *qp, struct irdma_qp_init_info *info);
+int irdma_sc_qp_modify(struct irdma_sc_qp *qp,
+		       struct irdma_modify_qp_info *info, u64 scratch,
+		       bool post_sq);
 void irdma_sc_send_lsmm(struct irdma_sc_qp *qp, void *lsmm_buf, u32 size,
 			irdma_stag stag);
 
@@ -1261,14 +1258,12 @@ void irdma_sc_qp_setctx(struct irdma_sc_qp *qp, __le64 *qp_ctx,
 			struct irdma_qp_host_ctx_info *info);
 void irdma_sc_qp_setctx_roce(struct irdma_sc_qp *qp, __le64 *qp_ctx,
 			     struct irdma_qp_host_ctx_info *info);
-enum irdma_status_code irdma_sc_cq_destroy(struct irdma_sc_cq *cq, u64 scratch,
-					   bool post_sq);
-enum irdma_status_code irdma_sc_cq_init(struct irdma_sc_cq *cq,
-					struct irdma_cq_init_info *info);
+int irdma_sc_cq_destroy(struct irdma_sc_cq *cq, u64 scratch, bool post_sq);
+int irdma_sc_cq_init(struct irdma_sc_cq *cq, struct irdma_cq_init_info *info);
 void irdma_sc_cq_resize(struct irdma_sc_cq *cq, struct irdma_modify_cq_info *info);
-enum irdma_status_code irdma_sc_static_hmc_pages_allocated(struct irdma_sc_cqp *cqp,
-							   u64 scratch, u8 hmc_fn_id,
-							   bool post_sq, bool poll_registers);
+int irdma_sc_static_hmc_pages_allocated(struct irdma_sc_cqp *cqp, u64 scratch,
+					u8 hmc_fn_id, bool post_sq,
+					bool poll_registers);
 
 void sc_vsi_update_stats(struct irdma_sc_vsi *vsi);
 struct cqp_info {

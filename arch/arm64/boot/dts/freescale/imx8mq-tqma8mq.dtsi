@@ -253,7 +253,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <84000000>;
-		spi-tx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <4>;
 	};
 };
@@ -269,10 +269,6 @@
 	no-sdio;
 	vmmc-supply = <&reg_vcc3v3>;
 	vqmmc-supply = <&reg_vcc1v8>;
-	status = "okay";
-};
-
-&vpu {
 	status = "okay";
 };
 

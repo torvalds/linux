@@ -181,7 +181,7 @@
 };
 
 &gpio2 {
-	touch-interrupt {
+	touch-interrupt-hog {
 		gpio-hog;
 		gpios = <12 GPIO_ACTIVE_LOW>;
 		input;

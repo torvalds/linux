@@ -91,8 +91,8 @@ extern u64 PERF_REG_EXTENDED_MASK;
 
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int power10_event_alternatives[][MAX_ALT] = {
-	{ PM_CYC_ALT,			PM_CYC },
 	{ PM_INST_CMPL_ALT,		PM_INST_CMPL },
+	{ PM_CYC_ALT,			PM_CYC },
 };
 
 static int power10_get_alternatives(u64 event, unsigned int flags, u64 alt[])
@@ -200,12 +200,12 @@ static struct attribute *power10_events_attr[] = {
 	NULL
 };
 
-static struct attribute_group power10_pmu_events_group_dd1 = {
+static const struct attribute_group power10_pmu_events_group_dd1 = {
 	.name = "events",
 	.attrs = power10_events_attr_dd1,
 };
 
-static struct attribute_group power10_pmu_events_group = {
+static const struct attribute_group power10_pmu_events_group = {
 	.name = "events",
 	.attrs = power10_events_attr,
 };
@@ -253,7 +253,7 @@ static struct attribute *power10_pmu_format_attr[] = {
 	NULL,
 };
 
-static struct attribute_group power10_pmu_format_group = {
+static const struct attribute_group power10_pmu_format_group = {
 	.name = "format",
 	.attrs = power10_pmu_format_attr,
 };

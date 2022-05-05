@@ -3,6 +3,7 @@ config DRM_ANALOGIX_ANX6345
 	tristate "Analogix ANX6345 bridge"
 	depends on OF
 	select DRM_ANALOGIX_DP
+	select DRM_DP_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	help
@@ -14,6 +15,7 @@ config DRM_ANALOGIX_ANX6345
 config DRM_ANALOGIX_ANX78XX
 	tristate "Analogix ANX78XX bridge"
 	select DRM_ANALOGIX_DP
+	select DRM_DP_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	help
@@ -30,6 +32,8 @@ config DRM_ANALOGIX_ANX7625
 	tristate "Analogix Anx7625 MIPI to DP interface support"
 	depends on DRM
 	depends on OF
+	select DRM_DP_AUX_BUS
+	select DRM_DP_HELPER
 	select DRM_MIPI_DSI
 	help
 	  ANX7625 is an ultra-low power 4K mobile HD transmitter

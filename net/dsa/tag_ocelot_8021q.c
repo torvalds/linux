@@ -32,6 +32,13 @@ static struct sk_buff *ocelot_defer_xmit(struct dsa_port *dp,
 	if (!xmit_work_fn || !xmit_worker)
 		return NULL;
 
+	/* PTP over IP packets need UDP checksumming. We may have inherited
+	 * NETIF_F_HW_CSUM from the DSA master, but these packets are not sent
+	 * through the DSA master, so calculate the checksum here.
+	 */
+	if (skb->ip_summed == CHECKSUM_PARTIAL && skb_checksum_help(skb))
+		return NULL;
+
 	xmit_work = kzalloc(sizeof(*xmit_work), GFP_ATOMIC);
 	if (!xmit_work)
 		return NULL;
@@ -55,7 +62,7 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
-	u16 tx_vid = dsa_tag_8021q_tx_vid(dp);
+	u16 tx_vid = dsa_tag_8021q_standalone_vid(dp);
 	struct ethhdr *hdr = eth_hdr(skb);
 
 	if (ocelot_ptp_rew_op(skb) || is_link_local_ether_addr(hdr->h_dest))
@@ -70,7 +77,7 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 {
 	int src_port, switch_id;
 
-	dsa_8021q_rcv(skb, &src_port, &switch_id);
+	dsa_8021q_rcv(skb, &src_port, &switch_id, NULL);
 
 	skb->dev = dsa_master_find_slave(netdev, switch_id, src_port);
 	if (!skb->dev)

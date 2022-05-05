@@ -341,8 +341,8 @@ KABI_W	_bbsi.l	a2, 3, 1f
 	/* Copy spill slots of a0 and a1 to imitate movsp
 	 * in order to keep exception stack continuous
 	 */
-	l32i	a3, a1, PT_SIZE
-	l32i	a0, a1, PT_SIZE + 4
+	l32i	a3, a1, PT_KERNEL_SIZE
+	l32i	a0, a1, PT_KERNEL_SIZE + 4
 	s32e	a3, a1, -16
 	s32e	a0, a1, -12
 #endif
@@ -488,11 +488,12 @@ KABI_W	or	a3, a3, a2
 common_exception_return:
 
 #if XTENSA_FAKE_NMI
-	l32i	a2, a1, PT_EXCCAUSE
-	movi	a3, EXCCAUSE_MAPPED_NMI
-	beq	a2, a3, .LNMIexit
+	l32i	abi_tmp0, a1, PT_EXCCAUSE
+	movi	abi_tmp1, EXCCAUSE_MAPPED_NMI
+	l32i	abi_saved1, a1, PT_PS
+	beq	abi_tmp0, abi_tmp1, .Lrestore_state
 #endif
-1:
+.Ltif_loop:
 	irq_save a2, a3
 #ifdef CONFIG_TRACE_IRQFLAGS
 	abi_call	trace_hardirqs_off
@@ -503,7 +504,7 @@ common_exception_return:
 	l32i	abi_saved1, a1, PT_PS
 	GET_THREAD_INFO(a2, a1)
 	l32i	a4, a2, TI_FLAGS
-	_bbci.l	abi_saved1, PS_UM_BIT, 6f
+	_bbci.l	abi_saved1, PS_UM_BIT, .Lexit_tif_loop_kernel
 
 	/* Specific to a user exception exit:
 	 * We need to check some flags for signal handling and rescheduling,
@@ -512,12 +513,12 @@ common_exception_return:
 	 * Note that we don't disable interrupts here. 
 	 */
 
-	_bbsi.l	a4, TIF_NEED_RESCHED, 3f
+	_bbsi.l	a4, TIF_NEED_RESCHED, .Lresched
 	movi	a2, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NOTIFY_SIGNAL
-	bnone	a4, a2, 5f
+	bnone	a4, a2, .Lexit_tif_loop_user
 
-2:	l32i	a4, a1, PT_DEPC
-	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 4f
+	l32i	a4, a1, PT_DEPC
+	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, .Lrestore_state
 
 	/* Call do_signal() */
 
@@ -527,48 +528,41 @@ common_exception_return:
 	rsil	a2, 0
 	mov	abi_arg0, a1
 	abi_call	do_notify_resume	# int do_notify_resume(struct pt_regs*)
-	j	1b
+	j	.Ltif_loop
 
-3:	/* Reschedule */
-
+.Lresched:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	abi_call	trace_hardirqs_on
 #endif
 	rsil	a2, 0
 	abi_call	schedule	# void schedule (void)
-	j	1b
+	j	.Ltif_loop
 
+.Lexit_tif_loop_kernel:
 #ifdef CONFIG_PREEMPTION
-6:
-	_bbci.l	a4, TIF_NEED_RESCHED, 4f
+	_bbci.l	a4, TIF_NEED_RESCHED, .Lrestore_state
 
 	/* Check current_thread_info->preempt_count */
 
 	l32i	a4, a2, TI_PRE_COUNT
-	bnez	a4, 4f
+	bnez	a4, .Lrestore_state
 	abi_call	preempt_schedule_irq
-	j	4f
 #endif
+	j	.Lrestore_state
 
-#if XTENSA_FAKE_NMI
-.LNMIexit:
-	l32i	abi_saved1, a1, PT_PS
-	_bbci.l	abi_saved1, PS_UM_BIT, 4f
-#endif
-
-5:
+.Lexit_tif_loop_user:
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-	_bbci.l	a4, TIF_DB_DISABLED, 7f
+	_bbci.l	a4, TIF_DB_DISABLED, 1f
 	abi_call	restore_dbreak
-7:
+1:
 #endif
 #ifdef CONFIG_DEBUG_TLB_SANITY
 	l32i	a4, a1, PT_DEPC
-	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 4f
+	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, .Lrestore_state
 	abi_call	check_tlb_sanity
 #endif
-6:
-4:
+
+.Lrestore_state:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	extui	a4, abi_saved1, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
 	bgei	a4, LOCKLEVEL, 1f
@@ -606,7 +600,7 @@ user_exception_exit:
 	rsr	a1, depc		# restore stack pointer
 	l32i	a2, a1, PT_WMASK	# register frames saved (in bits 4...9)
 	rotw	-1			# we restore a4..a7
-	_bltui	a6, 16, 1f		# only have to restore current window?
+	_bltui	a6, 16, .Lclear_regs	# only have to restore current window?
 
 	/* The working registers are a0 and a3.  We are restoring to
 	 * a4..a7.  Be careful not to destroy what we have just restored.
@@ -618,18 +612,19 @@ user_exception_exit:
 	mov	a2, a6
 	mov	a3, a5
 
-2:	rotw	-1			# a0..a3 become a4..a7
+1:	rotw	-1			# a0..a3 become a4..a7
 	addi	a3, a7, -4*4		# next iteration
 	addi	a2, a6, -16		# decrementing Y in WMASK
 	l32i	a4, a3, PT_AREG_END + 0
 	l32i	a5, a3, PT_AREG_END + 4
 	l32i	a6, a3, PT_AREG_END + 8
 	l32i	a7, a3, PT_AREG_END + 12
-	_bgeui	a2, 16, 2b
+	_bgeui	a2, 16, 1b
 
 	/* Clear unrestored registers (don't leak anything to user-land */
 
-1:	rsr	a0, windowbase
+.Lclear_regs:
+	rsr	a0, windowbase
 	rsr	a3, sar
 	sub	a3, a0, a3
 	beqz	a3, 2f
@@ -706,12 +701,12 @@ kernel_exception_exit:
 	addi    a0, a1, -16
 	l32i    a3, a0, 0
 	l32i    a4, a0, 4
-	s32i    a3, a1, PT_SIZE+0
-	s32i    a4, a1, PT_SIZE+4
+	s32i    a3, a1, PT_KERNEL_SIZE + 0
+	s32i    a4, a1, PT_KERNEL_SIZE + 4
 	l32i    a3, a0, 8
 	l32i    a4, a0, 12
-	s32i    a3, a1, PT_SIZE+8
-	s32i    a4, a1, PT_SIZE+12
+	s32i    a3, a1, PT_KERNEL_SIZE + 8
+	s32i    a4, a1, PT_KERNEL_SIZE + 12
 
 	/* Common exception exit.
 	 * We restore the special register and the current window frame, and
@@ -821,7 +816,7 @@ ENTRY(debug_exception)
 
 	bbsi.l	a2, PS_UM_BIT, 2f	# jump if user mode
 
-	addi	a2, a1, -16-PT_SIZE	# assume kernel stack
+	addi	a2, a1, -16 - PT_KERNEL_SIZE	# assume kernel stack
 3:
 	l32i	a0, a3, DT_DEBUG_SAVE
 	s32i	a1, a2, PT_AREG1

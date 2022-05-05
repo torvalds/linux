@@ -31,10 +31,12 @@
  */
 extern struct auth_ops svcauth_null;
 extern struct auth_ops svcauth_unix;
+extern struct auth_ops svcauth_tls;
 
 static struct auth_ops __rcu *authtab[RPC_AUTH_MAXFLAVOR] = {
 	[RPC_AUTH_NULL] = (struct auth_ops __force __rcu *)&svcauth_null,
 	[RPC_AUTH_UNIX] = (struct auth_ops __force __rcu *)&svcauth_unix,
+	[RPC_AUTH_TLS]  = (struct auth_ops __force __rcu *)&svcauth_tls,
 };
 
 static struct auth_ops *

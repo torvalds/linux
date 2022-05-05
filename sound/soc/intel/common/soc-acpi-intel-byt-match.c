@@ -91,7 +91,6 @@ static struct snd_soc_acpi_mach byt_rt5672 = {
 	.drv_name = "cht-bsw-rt5672",
 	.fw_filename = "intel/fw_sst_0f28.bin",
 	.board = "cht-bsw",
-	.sof_fw_filename = "sof-byt.ri",
 	.sof_tplg_filename = "sof-byt-rt5670.tplg",
 };
 
@@ -100,7 +99,6 @@ static struct snd_soc_acpi_mach byt_pov_p1006w = {
 	.drv_name = "bytcr_rt5651",
 	.fw_filename = "intel/fw_sst_0f28.bin",
 	.board = "bytcr_rt5651",
-	.sof_fw_filename = "sof-byt.ri",
 	.sof_tplg_filename = "sof-byt-rt5651.tplg",
 };
 
@@ -127,7 +125,7 @@ static const struct snd_soc_acpi_codecs rt5640_comp_ids = {
 
 static const struct snd_soc_acpi_codecs wm5102_comp_ids = {
 	.num_codecs = 2,
-	.codecs = { "WM510204", "WM510205"},
+	.codecs = { "10WM5102", "WM510204", "WM510205"},
 };
 
 static const struct snd_soc_acpi_codecs da7213_comp_ids = {
@@ -147,7 +145,6 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcr_rt5640",
 		.machine_quirk = byt_quirk,
-		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt-rt5640.tplg",
 	},
 	{
@@ -155,7 +152,6 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.drv_name = "bytcr_rt5651",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcr_rt5651",
-		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt-rt5651.tplg",
 	},
 	{
@@ -163,7 +159,6 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.drv_name = "bytcr_wm5102",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcr_wm5102",
-		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt-wm5102.tplg",
 	},
 	{
@@ -171,7 +166,6 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.drv_name = "bytcht_da7213",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcht_da7213",
-		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt-da7213.tplg",
 	},
 	{
@@ -179,13 +173,11 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.drv_name = "bytcht_es8316",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcht_es8316",
-		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt-es8316.tplg",
 	},
 	{
 		.id = "10EC5682",
 		.drv_name = "sof_rt5682",
-		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt-rt5682.tplg",
 	},
 	/* some Baytrail platforms rely on RT5645, use CHT machine driver */
@@ -194,7 +186,6 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.drv_name = "cht-bsw-rt5645",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "cht-bsw",
-		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt-rt5645.tplg",
 	},
 	/* use CHT driver to Baytrail Chromebooks */
@@ -203,7 +194,6 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.drv_name = "cht-bsw-max98090",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "cht-bsw",
-		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt-max98090.tplg",
 	},
 	{
@@ -211,7 +201,6 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.drv_name = "bytcht_cx2072x",
 		.fw_filename = "intel/fw_sst_0f28.bin",
 		.board = "bytcht_cx2072x",
-		.sof_fw_filename = "sof-byt.ri",
 		.sof_tplg_filename = "sof-byt-cx2072x.tplg",
 	},
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH)

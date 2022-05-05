@@ -94,7 +94,7 @@ int main(void)
 	OFFSET(TASK_CPU, task_struct, thread_info.cpu);
 #endif
 
-#ifdef CONFIG_LIVEPATCH
+#ifdef CONFIG_LIVEPATCH_64
 	OFFSET(TI_livepatch_sp, thread_info, livepatch_sp);
 #endif
 

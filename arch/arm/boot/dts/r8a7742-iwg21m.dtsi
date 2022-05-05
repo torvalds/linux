@@ -37,7 +37,7 @@
 
 &gpio0 {
 	/* GP0_18 set low to select QSPI. Doing so will disable VIN2 */
-	qspi_en {
+	qspi-en-hog {
 		gpio-hog;
 		gpios = <18 GPIO_ACTIVE_HIGH>;
 		output-low;

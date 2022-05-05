@@ -4,7 +4,6 @@
 #include <linux/init.h>
 #include <asm/unistd.h>
 #include <asm/setup.h>
-#include <asm/segment.h>
 #include <asm/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>

@@ -8,7 +8,6 @@
 #include <linux/major.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
-#include <linux/genhd.h>
 #include <linux/vmalloc.h>
 #include <linux/blktrace_api.h>
 #include <linux/raid/detect.h>

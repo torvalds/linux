@@ -16,6 +16,7 @@
 #include "adf_transport_internal.h"
 
 #define ADF_MAX_NUM_VFS	32
+static struct workqueue_struct *adf_misc_wq;
 
 static int adf_enable_msix(struct adf_accel_dev *accel_dev)
 {
@@ -123,6 +124,17 @@ static bool adf_handle_vf2pf_int(struct adf_accel_dev *accel_dev)
 }
 #endif /* CONFIG_PCI_IOV */
 
+static bool adf_handle_pm_int(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+
+	if (hw_data->handle_pm_interrupt &&
+	    hw_data->handle_pm_interrupt(accel_dev))
+		return true;
+
+	return false;
+}
+
 static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 {
 	struct adf_accel_dev *accel_dev = dev_ptr;
@@ -132,6 +144,9 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 	if (accel_dev->pf.vf_info && adf_handle_vf2pf_int(accel_dev))
 		return IRQ_HANDLED;
 #endif /* CONFIG_PCI_IOV */
+
+	if (adf_handle_pm_int(accel_dev))
+		return IRQ_HANDLED;
 
 	dev_dbg(&GET_DEV(accel_dev), "qat_dev%d spurious AE interrupt\n",
 		accel_dev->accel_id);
@@ -341,3 +356,30 @@ err_out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(adf_isr_resource_alloc);
+
+/**
+ * adf_init_misc_wq() - Init misc workqueue
+ *
+ * Function init workqueue 'qat_misc_wq' for general purpose.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int __init adf_init_misc_wq(void)
+{
+	adf_misc_wq = alloc_workqueue("qat_misc_wq", WQ_MEM_RECLAIM, 0);
+
+	return !adf_misc_wq ? -ENOMEM : 0;
+}
+
+void adf_exit_misc_wq(void)
+{
+	if (adf_misc_wq)
+		destroy_workqueue(adf_misc_wq);
+
+	adf_misc_wq = NULL;
+}
+
+bool adf_misc_wq_queue_work(struct work_struct *work)
+{
+	return queue_work(adf_misc_wq, work);
+}

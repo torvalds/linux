@@ -23,7 +23,6 @@
 #include <asm/r4kcache.h>
 #include <asm/traps.h>
 #include <asm/mmu_context.h>
-#include <asm/war.h>
 
 #include <asm/octeon/octeon.h>
 

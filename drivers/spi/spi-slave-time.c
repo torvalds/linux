@@ -106,13 +106,12 @@ static int spi_slave_time_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int spi_slave_time_remove(struct spi_device *spi)
+static void spi_slave_time_remove(struct spi_device *spi)
 {
 	struct spi_slave_time_priv *priv = spi_get_drvdata(spi);
 
 	spi_slave_abort(spi);
 	wait_for_completion(&priv->finished);
-	return 0;
 }
 
 static struct spi_driver spi_slave_time_driver = {

@@ -319,7 +319,7 @@ repeat:
 	if (res_ins)
 		list_add(&res_ins->list, res_list);
 	else {
-		res_ins = kmalloc(sizeof(*res), GFP_KERNEL);
+		res_ins = kmalloc(sizeof(*res_ins), GFP_KERNEL);
 		if (!res_ins)
 			return -ENOMEM;
 		res_ins->start = start;

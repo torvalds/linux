@@ -1835,8 +1835,6 @@ struct phys_mem_desc *qed_fw_overlay_mem_alloc(struct qed_hwfn *p_hwfn,
 	if (!allocated_mem)
 		return NULL;
 
-	memset(allocated_mem, 0, NUM_STORMS * sizeof(struct phys_mem_desc));
-
 	/* For each Storm, set physical address in RAM */
 	while (buf_offset < buf_size) {
 		struct phys_mem_desc *storm_mem_desc;

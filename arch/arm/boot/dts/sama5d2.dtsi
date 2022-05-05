@@ -306,7 +306,7 @@
 				status = "disabled";
 			};
 
-			sha@f0028000 {
+			sha: crypto@f0028000 {
 				compatible = "atmel,at91sam9g46-sha";
 				reg = <0xf0028000 0x100>;
 				interrupts = <12 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -316,10 +316,9 @@
 				dma-names = "tx";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 12>;
 				clock-names = "sha_clk";
-				status = "okay";
 			};
 
-			aes@f002c000 {
+			aes: crypto@f002c000 {
 				compatible = "atmel,at91sam9g46-aes";
 				reg = <0xf002c000 0x100>;
 				interrupts = <9 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -332,7 +331,6 @@
 				dma-names = "tx", "rx";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 9>;
 				clock-names = "aes_clk";
-				status = "okay";
 			};
 
 			spi0: spi@f8000000 {
@@ -415,7 +413,7 @@
 				pmecc: ecc-engine@f8014070 {
 					compatible = "atmel,sama5d2-pmecc";
 					reg = <0xf8014070 0x490>,
-					      <0xf8014500 0x100>;
+					      <0xf8014500 0x200>;
 				};
 			};
 
@@ -1084,7 +1082,7 @@
 				#gpio-cells = <2>;
 			};
 
-			tdes@fc044000 {
+			tdes: crypto@fc044000 {
 				compatible = "atmel,at91sam9g46-tdes";
 				reg = <0xfc044000 0x100>;
 				interrupts = <11 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -1097,7 +1095,6 @@
 				dma-names = "tx", "rx";
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 11>;
 				clock-names = "tdes_clk";
-				status = "okay";
 			};
 
 			classd: classd@fc048000 {

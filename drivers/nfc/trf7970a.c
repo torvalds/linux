@@ -2144,7 +2144,7 @@ err_destroy_lock:
 	return ret;
 }
 
-static int trf7970a_remove(struct spi_device *spi)
+static void trf7970a_remove(struct spi_device *spi)
 {
 	struct trf7970a *trf = spi_get_drvdata(spi);
 
@@ -2160,8 +2160,6 @@ static int trf7970a_remove(struct spi_device *spi)
 	regulator_disable(trf->regulator);
 
 	mutex_destroy(&trf->lock);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

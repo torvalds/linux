@@ -125,11 +125,10 @@ static int dmz_submit_bio(struct dmz_target *dmz, struct dm_zone *zone,
 	if (dev->flags & DMZ_BDEV_DYING)
 		return -EIO;
 
-	clone = bio_clone_fast(bio, GFP_NOIO, &dmz->bio_set);
+	clone = bio_alloc_clone(dev->bdev, bio, GFP_NOIO, &dmz->bio_set);
 	if (!clone)
 		return -ENOMEM;
 
-	bio_set_dev(clone, dev->bdev);
 	bioctx->dev = dev;
 	clone->bi_iter.bi_sector =
 		dmz_start_sect(dmz->metadata, zone) + dmz_blk2sect(chunk_block);
@@ -731,7 +730,6 @@ static int dmz_get_zoned_device(struct dm_target *ti, char *path,
 	}
 	dev->bdev = bdev;
 	dev->dev_idx = idx;
-	(void)bdevname(dev->bdev, dev->name);
 
 	dev->capacity = bdev_nr_sectors(bdev);
 	if (ti->begin) {

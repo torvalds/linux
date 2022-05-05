@@ -100,7 +100,8 @@ enum vsc_packet_revision {
 //PB7 = MD0
 #define MASK_VTEM_MD0__VRR_EN         0x01
 #define MASK_VTEM_MD0__M_CONST        0x02
-#define MASK_VTEM_MD0__RESERVED2      0x0C
+#define MASK_VTEM_MD0__QMS_EN         0x04
+#define MASK_VTEM_MD0__RESERVED2      0x08
 #define MASK_VTEM_MD0__FVA_FACTOR_M1  0xF0
 
 //MD1
@@ -109,7 +110,7 @@ enum vsc_packet_revision {
 //MD2
 #define MASK_VTEM_MD2__BASE_REFRESH_RATE_98  0x03
 #define MASK_VTEM_MD2__RB                    0x04
-#define MASK_VTEM_MD2__RESERVED3             0xF8
+#define MASK_VTEM_MD2__NEXT_TFR              0xF8
 
 //MD3
 #define MASK_VTEM_MD3__BASE_REFRESH_RATE_07  0xFF
@@ -130,7 +131,8 @@ enum ColorimetryYCCDP {
 };
 
 void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
-		struct dc_info_packet *info_packet)
+		struct dc_info_packet *info_packet,
+		enum dc_color_space cs)
 {
 	unsigned int vsc_packet_revision = vsc_packet_undefined;
 	unsigned int i;
@@ -331,13 +333,13 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		/* Set Colorimetry format based on pixel encoding */
 		switch (stream->timing.pixel_encoding) {
 		case PIXEL_ENCODING_RGB:
-			if ((stream->output_color_space == COLOR_SPACE_SRGB) ||
-					(stream->output_color_space == COLOR_SPACE_SRGB_LIMITED))
+			if ((cs == COLOR_SPACE_SRGB) ||
+					(cs == COLOR_SPACE_SRGB_LIMITED))
 				colorimetryFormat = ColorimetryRGB_DP_sRGB;
-			else if (stream->output_color_space == COLOR_SPACE_ADOBERGB)
+			else if (cs == COLOR_SPACE_ADOBERGB)
 				colorimetryFormat = ColorimetryRGB_DP_AdobeRGB;
-			else if ((stream->output_color_space == COLOR_SPACE_2020_RGB_FULLRANGE) ||
-					(stream->output_color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE))
+			else if ((cs == COLOR_SPACE_2020_RGB_FULLRANGE) ||
+					(cs == COLOR_SPACE_2020_RGB_LIMITEDRANGE))
 				colorimetryFormat = ColorimetryRGB_DP_ITU_R_BT2020RGB;
 			break;
 
@@ -347,13 +349,13 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 			/* Note: xvYCC probably not supported correctly here on DP since colorspace translation
 			 * loses distinction between BT601 vs xvYCC601 in translation
 			 */
-			if (stream->output_color_space == COLOR_SPACE_YCBCR601)
+			if (cs == COLOR_SPACE_YCBCR601)
 				colorimetryFormat = ColorimetryYCC_DP_ITU601;
-			else if (stream->output_color_space == COLOR_SPACE_YCBCR709)
+			else if (cs == COLOR_SPACE_YCBCR709)
 				colorimetryFormat = ColorimetryYCC_DP_ITU709;
-			else if (stream->output_color_space == COLOR_SPACE_ADOBERGB)
+			else if (cs == COLOR_SPACE_ADOBERGB)
 				colorimetryFormat = ColorimetryYCC_DP_AdobeYCC;
-			else if (stream->output_color_space == COLOR_SPACE_2020_YCBCR)
+			else if (cs == COLOR_SPACE_2020_YCBCR)
 				colorimetryFormat = ColorimetryYCC_DP_ITU2020YCbCr;
 			break;
 
@@ -391,8 +393,8 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		}
 
 		/* all YCbCr are always limited range */
-		if ((stream->output_color_space == COLOR_SPACE_SRGB_LIMITED) ||
-				(stream->output_color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE) ||
+		if ((cs == COLOR_SPACE_SRGB_LIMITED) ||
+				(cs == COLOR_SPACE_2020_RGB_LIMITEDRANGE) ||
 				(pixelEncoding != 0x0)) {
 			info_packet->sb[17] |= 0x80; /* DB17 bit 7 set to 1 for CEA timing. */
 		}

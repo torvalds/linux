@@ -338,62 +338,6 @@ static int ndtest_ctl(struct nvdimm_bus_descriptor *nd_desc,
 	return 0;
 }
 
-static int ndtest_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
-		void *iobuf, u64 len, int rw)
-{
-	struct ndtest_dimm *dimm = ndbr->blk_provider_data;
-	struct ndtest_blk_mmio *mmio = dimm->mmio;
-	struct nd_region *nd_region = &ndbr->nd_region;
-	unsigned int lane;
-
-	if (!mmio)
-		return -ENOMEM;
-
-	lane = nd_region_acquire_lane(nd_region);
-	if (rw)
-		memcpy(mmio->base + dpa, iobuf, len);
-	else {
-		memcpy(iobuf, mmio->base + dpa, len);
-		arch_invalidate_pmem(mmio->base + dpa, len);
-	}
-
-	nd_region_release_lane(nd_region, lane);
-
-	return 0;
-}
-
-static int ndtest_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
-				    struct device *dev)
-{
-	struct nd_blk_region *ndbr = to_nd_blk_region(dev);
-	struct nvdimm *nvdimm;
-	struct ndtest_dimm *dimm;
-	struct ndtest_blk_mmio *mmio;
-
-	nvdimm = nd_blk_region_to_dimm(ndbr);
-	dimm = nvdimm_provider_data(nvdimm);
-
-	nd_blk_region_set_provider_data(ndbr, dimm);
-	dimm->blk_region = to_nd_region(dev);
-
-	mmio = devm_kzalloc(dev, sizeof(struct ndtest_blk_mmio), GFP_KERNEL);
-	if (!mmio)
-		return -ENOMEM;
-
-	mmio->base = (void __iomem *) devm_nvdimm_memremap(
-		dev, dimm->address, 12, nd_blk_memremap_flags(ndbr));
-	if (!mmio->base) {
-		dev_err(dev, "%s failed to map blk dimm\n", nvdimm_name(nvdimm));
-		return -ENOMEM;
-	}
-	mmio->size = dimm->size;
-	mmio->base_offset = 0;
-
-	dimm->mmio = mmio;
-
-	return 0;
-}
-
 static struct nfit_test_resource *ndtest_resource_lookup(resource_size_t addr)
 {
 	int i;
@@ -523,17 +467,16 @@ static int ndtest_create_region(struct ndtest_priv *p,
 				struct ndtest_region *region)
 {
 	struct nd_mapping_desc mappings[NDTEST_MAX_MAPPING];
-	struct nd_blk_region_desc ndbr_desc;
+	struct nd_region_desc *ndr_desc, _ndr_desc;
 	struct nd_interleave_set *nd_set;
-	struct nd_region_desc *ndr_desc;
 	struct resource res;
 	int i, ndimm = region->mapping[0].dimm;
 	u64 uuid[2];
 
 	memset(&res, 0, sizeof(res));
 	memset(&mappings, 0, sizeof(mappings));
-	memset(&ndbr_desc, 0, sizeof(ndbr_desc));
-	ndr_desc = &ndbr_desc.ndr_desc;
+	memset(&_ndr_desc, 0, sizeof(_ndr_desc));
+	ndr_desc = &_ndr_desc;
 
 	if (!ndtest_alloc_resource(p, region->size, &res.start))
 		return -ENOMEM;
@@ -857,10 +800,8 @@ static int ndtest_dimm_register(struct ndtest_priv *priv,
 	struct device *dev = &priv->pdev.dev;
 	unsigned long dimm_flags = dimm->flags;
 
-	if (dimm->num_formats > 1) {
-		set_bit(NDD_ALIASING, &dimm_flags);
+	if (dimm->num_formats > 1)
 		set_bit(NDD_LABELING, &dimm_flags);
-	}
 
 	if (dimm->flags & PAPR_PMEM_UNARMED_MASK)
 		set_bit(NDD_UNARMED, &dimm_flags);

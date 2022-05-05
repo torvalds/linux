@@ -85,7 +85,7 @@ struct intel_uc_fw {
 	 * threaded as it done during driver load (inherently single threaded)
 	 * or during a GT reset (mutex guarantees single threaded).
 	 */
-	struct i915_vma dummy;
+	struct i915_vma_resource dummy;
 	struct i915_vma *rsa_data;
 
 	/*

@@ -36,7 +36,7 @@
 
 #define IBMVSCSIS_VERSION	"v0.2"
 
-#define	INITIAL_SRP_LIMIT	800
+#define	INITIAL_SRP_LIMIT	1024
 #define	DEFAULT_MAX_SECTORS	256
 #define MAX_TXU			1024 * 1024
 
@@ -1872,11 +1872,8 @@ static void srp_snd_msg_failed(struct scsi_info *vscsi, long rc)
  */
 static void ibmvscsis_send_messages(struct scsi_info *vscsi)
 {
-	u64 msg_hi = 0;
-	/* note do not attempt to access the IU_data_ptr with this pointer
-	 * it is not valid
-	 */
-	struct viosrp_crq *crq = (struct viosrp_crq *)&msg_hi;
+	struct viosrp_crq empty_crq = { };
+	struct viosrp_crq *crq = &empty_crq;
 	struct ibmvscsis_cmd *cmd, *nxt;
 	long rc = ADAPT_SUCCESS;
 	bool retry = false;
@@ -1940,7 +1937,7 @@ static void ibmvscsis_send_messages(struct scsi_info *vscsi)
 					crq->IU_length = cpu_to_be16(cmd->rsp.len);
 
 					rc = h_send_crq(vscsi->dma_dev->unit_address,
-							be64_to_cpu(msg_hi),
+							be64_to_cpu(crq->high),
 							be64_to_cpu(cmd->rsp.tag));
 
 					dev_dbg(&vscsi->dev, "send_messages: cmd %p, tag 0x%llx, rc %ld\n",

@@ -525,7 +525,6 @@ struct clk_hw *imx_clk_hw_sscg_pll(const char *name,
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
-	pll->base = base;
 	pll->hw.init = &init;
 
 	hw = &pll->hw;

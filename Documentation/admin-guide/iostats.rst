@@ -76,7 +76,7 @@ Field  3 -- # of sectors read (unsigned long)
 
 Field  4 -- # of milliseconds spent reading (unsigned int)
     This is the total number of milliseconds spent by all reads (as
-    measured from __make_request() to end_that_request_last()).
+    measured from blk_mq_alloc_request() to __blk_mq_end_request()).
 
 Field  5 -- # of writes completed (unsigned long)
     This is the total number of writes completed successfully.
@@ -89,7 +89,7 @@ Field  7 -- # of sectors written (unsigned long)
 
 Field  8 -- # of milliseconds spent writing (unsigned int)
     This is the total number of milliseconds spent by all writes (as
-    measured from __make_request() to end_that_request_last()).
+    measured from blk_mq_alloc_request() to __blk_mq_end_request()).
 
 Field  9 -- # of I/Os currently in progress (unsigned int)
     The only field that should go to zero. Incremented as requests are
@@ -120,7 +120,7 @@ Field 14 -- # of sectors discarded (unsigned long)
 
 Field 15 -- # of milliseconds spent discarding (unsigned int)
     This is the total number of milliseconds spent by all discards (as
-    measured from __make_request() to end_that_request_last()).
+    measured from blk_mq_alloc_request() to __blk_mq_end_request()).
 
 Field 16 -- # of flush requests completed
     This is the total number of flush requests completed successfully.

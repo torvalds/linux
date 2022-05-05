@@ -2,12 +2,15 @@
 #include "debug.h"
 #include "dsos.h"
 #include "dso.h"
+#include "util.h"
 #include "vdso.h"
 #include "namespaces.h"
+#include <errno.h>
 #include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
 #include <symbol.h> // filename__read_build_id
+#include <unistd.h>
 
 static int __dso_id__cmp(struct dso_id *a, struct dso_id *b)
 {
@@ -76,6 +79,16 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 		if (filename__read_build_id(pos->long_name, &pos->bid) > 0) {
 			have_build_id	  = true;
 			pos->has_build_id = true;
+		} else if (errno == ENOENT && pos->nsinfo) {
+			char *new_name = filename_with_chroot(pos->nsinfo->pid,
+							      pos->long_name);
+
+			if (new_name && filename__read_build_id(new_name,
+								&pos->bid) > 0) {
+				have_build_id = true;
+				pos->has_build_id = true;
+			}
+			free(new_name);
 		}
 		nsinfo__mountns_exit(&nsc);
 	}

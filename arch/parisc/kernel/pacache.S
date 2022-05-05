@@ -1264,7 +1264,7 @@ ENTRY_CFI(flush_kernel_icache_range_asm)
 	nop
 ENDPROC_CFI(flush_kernel_icache_range_asm)
 
-	__INIT
+	.text
 
 	/* align should cover use of rfi in disable_sr_hashing_asm and
 	 * srdis_done.

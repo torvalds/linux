@@ -38,34 +38,6 @@ required:
   - reg
   - ranges
 
-patternProperties:
-  "^.*@[0-9a-f]+$":
-    type: object
-
-    properties:
-      reg:
-        maxItems: 1
-        description:
-          Offset and size in bytes within the storage device.
-
-      bits:
-        $ref: /schemas/types.yaml#/definitions/uint32-array
-        maxItems: 1
-        items:
-          items:
-            - minimum: 0
-              maximum: 7
-              description:
-                Offset in bit within the address range specified by reg.
-            - minimum: 1
-              description:
-                Size in bit within the address range specified by reg.
-
-    required:
-      - reg
-
-    additionalProperties: false
-
 unevaluatedProperties: false
 
 examples:

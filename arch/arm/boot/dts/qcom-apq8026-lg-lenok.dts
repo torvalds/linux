@@ -16,10 +16,34 @@
 
 	aliases {
 		serial0 = &blsp1_uart3;
+		serial1 = &blsp1_uart4;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	vreg_wlan: wlan-regulator {
+		compatible = "regulator-fixed";
+
+		regulator-name = "wl-reg";
+		regulator-min-microvolt = <2950000>;
+		regulator-max-microvolt = <2950000>;
+
+		gpio = <&tlmm 46 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_regulator_default_state>;
+	};
+};
+
+&blsp1_i2c1 {
+	status = "okay";
+
+	fuel-gauge@55 {
+		compatible = "ti,bq27421";
+		reg = <0x55>;
 	};
 };
 
@@ -57,14 +81,30 @@
 	status = "okay";
 };
 
+&blsp1_uart4 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&blsp1_uart4_default_state>;
+
+	bluetooth {
+		compatible = "brcm,bcm43430a0-bt";
+
+		max-speed = <3000000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&bluetooth_default_state>;
+
+		host-wakeup-gpios = <&tlmm 48 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&tlmm 47 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&tlmm 45 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &rpm_requests {
 	pm8226-regulators {
 		compatible = "qcom,rpm-pm8226-regulators";
 
-		pm8226_s1: s1 {
-			regulator-min-microvolt = <500000>;
-			regulator-max-microvolt = <1275000>;
-		};
 		pm8226_s3: s3 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1350000>;
@@ -195,24 +235,55 @@
 
 	bus-width = <8>;
 	non-removable;
+};
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdhc1_pin_a>;
+&sdhc_3 {
+	status = "okay";
+
+	max-frequency = <100000000>;
+	non-removable;
+
+	vmmc-supply = <&vreg_wlan>;
+	vqmmc-supply = <&pm8226_l6>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	wifi@1 {
+		compatible = "brcm,bcm43430a0-fmac", "brcm,bcm4329-fmac";
+		reg = <1>;
+
+		interrupts-extended = <&tlmm 37 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-names = "host-wake";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_hostwake_default_state>;
+	};
+};
+
+&smbb {
+	qcom,fast-charge-safe-current = <450000>;
+	qcom,fast-charge-current-limit = <400000>;
+	qcom,fast-charge-safe-voltage = <4350000>;
+	qcom,fast-charge-high-threshold-voltage = <4350000>;
+	qcom,auto-recharge-threshold-voltage = <4240000>;
+	qcom,minimum-input-voltage = <4450000>;
 };
 
 &tlmm {
-	sdhc1_pin_a: sdhc1-pin-active {
-		clk {
-			pins = "sdc1_clk";
-			drive-strength = <10>;
-			bias-disable;
-		};
+	blsp1_uart4_default_state: blsp1-uart4-default-state {
+		pins = "gpio12", "gpio13", "gpio14", "gpio15";
+		function = "blsp_uart4";
+		drive-strength = <8>;
+		bias-disable;
+	};
 
-		cmd-data {
-			pins = "sdc1_cmd", "sdc1_data";
-			drive-strength = <10>;
-			bias-pull-up;
-		};
+	bluetooth_default_state: bluetooth-default-state {
+		pins = "gpio47", "gpio48";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
 	};
 
 	touch_pins: touch {
@@ -234,4 +305,31 @@
 			output-high;
 		};
 	};
+
+	wlan_hostwake_default_state: wlan-hostwake-default-state {
+		pins = "gpio37";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
+
+	wlan_regulator_default_state: wlan-regulator-default-state {
+		pins = "gpio46";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+};
+
+&usb {
+	status = "okay";
+	extcon = <&smbb>;
+	dr_mode = "peripheral";
+};
+
+&usb_hs_phy {
+	extcon = <&smbb>;
+	v1p8-supply = <&pm8226_l10>;
+	v3p3-supply = <&pm8226_l20>;
 };

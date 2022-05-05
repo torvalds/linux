@@ -22,6 +22,7 @@
 
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_cpp.h"
+#include "nfpcore/nfp_dev.h"
 #include "nfpcore/nfp_nffw.h"
 #include "nfpcore/nfp_nsp.h"
 #include "nfpcore/nfp6000_pcie.h"
@@ -116,13 +117,12 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
 	n_rx_rings = readl(ctrl_bar + NFP_NET_CFG_MAX_RXRINGS);
 
 	/* Allocate and initialise the vNIC */
-	nn = nfp_net_alloc(pf->pdev, ctrl_bar, needs_netdev,
+	nn = nfp_net_alloc(pf->pdev, pf->dev_info, ctrl_bar, needs_netdev,
 			   n_tx_rings, n_rx_rings);
 	if (IS_ERR(nn))
 		return nn;
 
 	nn->app = pf->app;
-	nfp_net_get_fw_version(&nn->fw_ver, ctrl_bar);
 	nn->tx_bar = qc_bar + tx_base * NFP_QCP_QUEUE_ADDR_SZ;
 	nn->rx_bar = qc_bar + rx_base * NFP_QCP_QUEUE_ADDR_SZ;
 	nn->dp.is_vf = 0;
@@ -307,6 +307,7 @@ err_prev_deinit:
 static int
 nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 {
+	struct devlink *devlink = priv_to_devlink(pf);
 	u8 __iomem *ctrl_bar;
 	int err;
 
@@ -314,9 +315,9 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 	if (IS_ERR(pf->app))
 		return PTR_ERR(pf->app);
 
-	mutex_lock(&pf->lock);
+	devl_lock(devlink);
 	err = nfp_app_init(pf->app);
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 	if (err)
 		goto err_free;
 
@@ -343,9 +344,9 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 err_unmap:
 	nfp_cpp_area_release_free(pf->ctrl_vnic_bar);
 err_app_clean:
-	mutex_lock(&pf->lock);
+	devl_lock(devlink);
 	nfp_app_clean(pf->app);
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 err_free:
 	nfp_app_free(pf->app);
 	pf->app = NULL;
@@ -354,14 +355,16 @@ err_free:
 
 static void nfp_net_pf_app_clean(struct nfp_pf *pf)
 {
+	struct devlink *devlink = priv_to_devlink(pf);
+
 	if (pf->ctrl_vnic) {
 		nfp_net_pf_free_vnic(pf, pf->ctrl_vnic);
 		nfp_cpp_area_release_free(pf->ctrl_vnic_bar);
 	}
 
-	mutex_lock(&pf->lock);
+	devl_lock(devlink);
 	nfp_app_clean(pf->app);
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 
 	nfp_app_free(pf->app);
 	pf->app = NULL;
@@ -495,8 +498,9 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 	}
 
 	cpp_id = NFP_CPP_ISLAND_ID(0, NFP_CPP_ACTION_RW, 0, 0);
-	mem = nfp_cpp_map_area(pf->cpp, "net.qc", cpp_id, NFP_PCIE_QUEUE(0),
-			       NFP_QCP_QUEUE_AREA_SZ, &pf->qc_area);
+	mem = nfp_cpp_map_area(pf->cpp, "net.qc", cpp_id,
+			       nfp_qcp_queue_offset(pf->dev_info, 0),
+			       pf->dev_info->qc_area_sz, &pf->qc_area);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
 		err = PTR_ERR(mem);
@@ -546,12 +550,13 @@ nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 
 int nfp_net_refresh_port_table_sync(struct nfp_pf *pf)
 {
+	struct devlink *devlink = priv_to_devlink(pf);
 	struct nfp_eth_table *eth_table;
 	struct nfp_net *nn, *next;
 	struct nfp_port *port;
 	int err;
 
-	lockdep_assert_held(&pf->lock);
+	devl_assert_locked(devlink);
 
 	/* Check for nfp_net_pci_remove() racing against us */
 	if (list_empty(&pf->vnics))
@@ -600,10 +605,11 @@ static void nfp_net_refresh_vnics(struct work_struct *work)
 {
 	struct nfp_pf *pf = container_of(work, struct nfp_pf,
 					 port_refresh_work);
+	struct devlink *devlink = priv_to_devlink(pf);
 
-	mutex_lock(&pf->lock);
+	devl_lock(devlink);
 	nfp_net_refresh_port_table_sync(pf);
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 }
 
 void nfp_net_refresh_port_table(struct nfp_port *port)
@@ -672,9 +678,11 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	}
 
 	nfp_net_get_fw_version(&fw_ver, ctrl_bar);
-	if (fw_ver.resv || fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
+	if (fw_ver.extend & NFP_NET_CFG_VERSION_RESERVED_MASK ||
+	    fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
 		nfp_err(pf->cpp, "Unknown Firmware ABI %d.%d.%d.%d\n",
-			fw_ver.resv, fw_ver.class, fw_ver.major, fw_ver.minor);
+			fw_ver.extend, fw_ver.class,
+			fw_ver.major, fw_ver.minor);
 		err = -EINVAL;
 		goto err_unmap;
 	}
@@ -690,7 +698,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 			break;
 		default:
 			nfp_err(pf->cpp, "Unsupported Firmware ABI %d.%d.%d.%d\n",
-				fw_ver.resv, fw_ver.class,
+				fw_ver.extend, fw_ver.class,
 				fw_ver.major, fw_ver.minor);
 			err = -EINVAL;
 			goto err_unmap;
@@ -709,7 +717,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_shared_buf_unreg;
 
-	mutex_lock(&pf->lock);
+	devl_lock(devlink);
 	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
 
 	/* Allocate the vnics and do basic init */
@@ -729,7 +737,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_stop_app;
 
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 	devlink_register(devlink);
 
 	return 0;
@@ -742,7 +750,7 @@ err_free_vnics:
 	nfp_net_pf_free_vnics(pf);
 err_clean_ddir:
 	nfp_net_debugfs_dir_clean(&pf->ddir);
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 	nfp_devlink_params_unregister(pf);
 err_shared_buf_unreg:
 	nfp_shared_buf_unregister(pf);
@@ -756,10 +764,11 @@ err_unmap:
 
 void nfp_net_pci_remove(struct nfp_pf *pf)
 {
+	struct devlink *devlink = priv_to_devlink(pf);
 	struct nfp_net *nn, *next;
 
 	devlink_unregister(priv_to_devlink(pf));
-	mutex_lock(&pf->lock);
+	devl_lock(devlink);
 	list_for_each_entry_safe(nn, next, &pf->vnics, vnic_list) {
 		if (!nfp_net_is_data_vnic(nn))
 			continue;
@@ -771,7 +780,7 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 	/* stop app first, to avoid double free of ctrl vNIC's ddir */
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 
 	nfp_devlink_params_unregister(pf);
 	nfp_shared_buf_unregister(pf);

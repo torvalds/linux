@@ -116,7 +116,7 @@ Description:
 					    <value>[ForceIf:<attribute>=<value>]
 					    <value>[ForceIfNot:<attribute>=<value>]
 
-					For example:
+					For example::
 
 					    LegacyOrom/dell_value_modifier has value:
 						    Disabled[ForceIf:SecureBoot=Enabled]
@@ -212,7 +212,7 @@ Description:
 		the next boot.
 
 		Lenovo specific class extensions
-		------------------------------
+		--------------------------------
 
 		On Lenovo systems the following additional settings are available:
 
@@ -246,6 +246,55 @@ Description:
 					that is being referenced (e.g hdd0, hdd1 etc)
 					This attribute defaults to device 0.
 
+		certificate, signature, save_signature:
+					These attributes are used for certificate based authentication. This is
+					used in conjunction with a signing server as an alternative to password
+					based authentication.
+					The user writes to the attribute(s) with a BASE64 encoded string obtained
+					from the signing server.
+					The attributes can be displayed to check the stored value.
+
+					Some usage examples:
+
+						Installing a certificate to enable feature::
+
+							echo "supervisor password" > authentication/Admin/current_password
+							echo "signed certificate" > authentication/Admin/certificate
+
+						Updating the installed certificate::
+
+							echo "signature" > authentication/Admin/signature
+							echo "signed certificate" > authentication/Admin/certificate
+
+						Removing the installed certificate::
+
+							echo "signature" > authentication/Admin/signature
+							echo "" > authentication/Admin/certificate
+
+						Changing a BIOS setting::
+
+							echo "signature" > authentication/Admin/signature
+							echo "save signature" > authentication/Admin/save_signature
+							echo Enable > attribute/PasswordBeep/current_value
+
+					You cannot enable certificate authentication if a supervisor password
+					has not been set.
+					Clearing the certificate results in no bios-admin authentication method
+					being configured allowing anyone to make changes.
+					After any of these operations the system must reboot for the changes to
+					take effect.
+
+		certificate_thumbprint:
+					Read only attribute used to display the MD5, SHA1 and SHA256 thumbprints
+					for the certificate installed in the BIOS.
+
+		certificate_to_password:
+					Write only attribute used to switch from certificate based authentication
+					back to password based.
+					Usage::
+
+						echo "signature" > authentication/Admin/signature
+						echo "password" > authentication/Admin/certificate_to_password
 
 
 What:		/sys/class/firmware-attributes/*/attributes/pending_reboot
@@ -300,7 +349,7 @@ Description:
 
 		    # echo "factory" > /sys/class/firmware-attributes/*/device/attributes/reset_bios
 		    # cat /sys/class/firmware-attributes/*/device/attributes/reset_bios
-		    # builtinsafe lastknowngood [factory] custom
+		    builtinsafe lastknowngood [factory] custom
 
 		Note that any changes to this attribute requires a reboot
 		for changes to take effect.

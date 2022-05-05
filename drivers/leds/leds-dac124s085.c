@@ -85,15 +85,13 @@ eledcr:
 	return ret;
 }
 
-static int dac124s085_remove(struct spi_device *spi)
+static void dac124s085_remove(struct spi_device *spi)
 {
 	struct dac124s085	*dac = spi_get_drvdata(spi);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dac->leds); i++)
 		led_classdev_unregister(&dac->leds[i].ldev);
-
-	return 0;
 }
 
 static struct spi_driver dac124s085_driver = {

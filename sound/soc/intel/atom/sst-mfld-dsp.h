@@ -427,7 +427,7 @@ struct snd_sst_drop_response {
 
 struct snd_sst_async_msg {
 	u32 msg_id; /* Async msg id */
-	u32 payload[0];
+	u32 payload[];
 };
 
 struct snd_sst_async_err_msg {
@@ -514,7 +514,7 @@ struct snd_sst_bytes_v2 {
 	u8 pipe_id;
 	u8 rsvd;
 	u16 len;
-	char bytes[0];
+	char bytes[];
 };
 
 #define MAX_VTSV_FILES 2

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -92,8 +92,8 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.psoc_pci_pll_od = prop->psoc_pci_pll_od;
 	hw_ip.psoc_pci_pll_div_factor = prop->psoc_pci_pll_div_factor;
 
-	hw_ip.first_available_interrupt_id =
-			prop->first_available_user_msix_interrupt;
+	hw_ip.first_available_interrupt_id = prop->first_available_user_msix_interrupt;
+	hw_ip.number_of_user_interrupts = prop->user_interrupt_count;
 	hw_ip.server_type = prop->server_type;
 
 	return copy_to_user(out, &hw_ip,
@@ -251,13 +251,12 @@ static int get_clk_rate(struct hl_device *hdev, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	rc = hdev->asic_funcs->get_clk_rate(hdev, &clk_rate.cur_clk_rate_mhz,
-						&clk_rate.max_clk_rate_mhz);
+	rc = hl_fw_get_clk_rate(hdev, &clk_rate.cur_clk_rate_mhz, &clk_rate.max_clk_rate_mhz);
 	if (rc)
 		return rc;
 
-	return copy_to_user(out, &clk_rate,
-		min((size_t) max_size, sizeof(clk_rate))) ? -EFAULT : 0;
+	return copy_to_user(out, &clk_rate, min_t(size_t, max_size, sizeof(clk_rate)))
+										? -EFAULT : 0;
 }
 
 static int get_reset_count(struct hl_device *hdev, struct hl_info_args *args)

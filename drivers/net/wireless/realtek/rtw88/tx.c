@@ -353,7 +353,7 @@ static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
 
 	bw = si->bw_mode;
 	rate_id = si->rate_id;
-	stbc = si->stbc_en;
+	stbc = rtwdev->hal.txrx_1ss ? false : si->stbc_en;
 	ldpc = si->ldpc_en;
 
 out:

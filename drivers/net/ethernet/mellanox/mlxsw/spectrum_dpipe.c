@@ -266,10 +266,10 @@ static int mlxsw_sp_dpipe_table_erif_counters_update(void *priv, bool enable)
 		if (!rif)
 			continue;
 		if (enable)
-			mlxsw_sp_rif_counter_alloc(mlxsw_sp, rif,
+			mlxsw_sp_rif_counter_alloc(rif,
 						   MLXSW_SP_RIF_COUNTER_EGRESS);
 		else
-			mlxsw_sp_rif_counter_free(mlxsw_sp, rif,
+			mlxsw_sp_rif_counter_free(rif,
 						  MLXSW_SP_RIF_COUNTER_EGRESS);
 	}
 	mutex_unlock(&mlxsw_sp->router->lock);

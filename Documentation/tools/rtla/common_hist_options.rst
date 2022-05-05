@@ -2,7 +2,7 @@
 
         Set the histogram bucket size (default *1*).
 
-**-e**, **--entries** *N*
+**-E**, **--entries** *N*
 
         Set the number of entries of the histogram (default 256).
 

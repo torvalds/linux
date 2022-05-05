@@ -45,6 +45,10 @@ properties:
 
   syscon-phy-power:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to the system control module
+          - description: register offset to power on/off the PHY
     description:
       phandle/offset pair. Phandle to the system control module and
       register offset to power on/off the PHY.

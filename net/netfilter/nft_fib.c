@@ -156,5 +156,47 @@ void nft_fib_store_result(void *reg, const struct nft_fib *priv,
 }
 EXPORT_SYMBOL_GPL(nft_fib_store_result);
 
+bool nft_fib_reduce(struct nft_regs_track *track,
+		    const struct nft_expr *expr)
+{
+	const struct nft_fib *priv = nft_expr_priv(expr);
+	unsigned int len = NFT_REG32_SIZE;
+	const struct nft_fib *fib;
+
+	switch (priv->result) {
+	case NFT_FIB_RESULT_OIF:
+		break;
+	case NFT_FIB_RESULT_OIFNAME:
+		if (priv->flags & NFTA_FIB_F_PRESENT)
+			len = NFT_REG32_SIZE;
+		else
+			len = IFNAMSIZ;
+		break;
+	case NFT_FIB_RESULT_ADDRTYPE:
+	     break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
+
+	if (!nft_reg_track_cmp(track, expr, priv->dreg)) {
+		nft_reg_track_update(track, expr, priv->dreg, len);
+		return false;
+	}
+
+	fib = nft_expr_priv(track->regs[priv->dreg].selector);
+	if (priv->result != fib->result ||
+	    priv->flags != fib->flags) {
+		nft_reg_track_update(track, expr, priv->dreg, len);
+		return false;
+	}
+
+	if (!track->regs[priv->dreg].bitwise)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(nft_fib_reduce);
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Florian Westphal <fw@strlen.de>");

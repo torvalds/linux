@@ -83,6 +83,12 @@ static struct devfreq_dev_profile msm_devfreq_profile = {
 static void msm_devfreq_boost_work(struct kthread_work *work);
 static void msm_devfreq_idle_work(struct kthread_work *work);
 
+static bool has_devfreq(struct msm_gpu *gpu)
+{
+	struct msm_gpu_devfreq *df = &gpu->devfreq;
+	return !!df->devfreq;
+}
+
 void msm_devfreq_init(struct msm_gpu *gpu)
 {
 	struct msm_gpu_devfreq *df = &gpu->devfreq;
@@ -149,6 +155,9 @@ void msm_devfreq_cleanup(struct msm_gpu *gpu)
 {
 	struct msm_gpu_devfreq *df = &gpu->devfreq;
 
+	if (!has_devfreq(gpu))
+		return;
+
 	devfreq_cooling_unregister(gpu->cooling);
 	dev_pm_qos_remove_request(&df->boost_freq);
 	dev_pm_qos_remove_request(&df->idle_freq);
@@ -156,15 +165,23 @@ void msm_devfreq_cleanup(struct msm_gpu *gpu)
 
 void msm_devfreq_resume(struct msm_gpu *gpu)
 {
-	gpu->devfreq.busy_cycles = 0;
-	gpu->devfreq.time = ktime_get();
+	struct msm_gpu_devfreq *df = &gpu->devfreq;
 
-	devfreq_resume_device(gpu->devfreq.devfreq);
+	if (!has_devfreq(gpu))
+		return;
+
+	df->busy_cycles = 0;
+	df->time = ktime_get();
+
+	devfreq_resume_device(df->devfreq);
 }
 
 void msm_devfreq_suspend(struct msm_gpu *gpu)
 {
 	struct msm_gpu_devfreq *df = &gpu->devfreq;
+
+	if (!has_devfreq(gpu))
+		return;
 
 	devfreq_suspend_device(df->devfreq);
 
@@ -184,6 +201,9 @@ void msm_devfreq_boost(struct msm_gpu *gpu, unsigned factor)
 {
 	struct msm_gpu_devfreq *df = &gpu->devfreq;
 	uint64_t freq;
+
+	if (!has_devfreq(gpu))
+		return;
 
 	freq = get_freq(gpu);
 	freq *= factor;
@@ -207,7 +227,7 @@ void msm_devfreq_active(struct msm_gpu *gpu)
 	struct devfreq_dev_status status;
 	unsigned int idle_time;
 
-	if (!df->devfreq)
+	if (!has_devfreq(gpu))
 		return;
 
 	/*
@@ -253,7 +273,7 @@ void msm_devfreq_idle(struct msm_gpu *gpu)
 {
 	struct msm_gpu_devfreq *df = &gpu->devfreq;
 
-	if (!df->devfreq)
+	if (!has_devfreq(gpu))
 		return;
 
 	msm_hrtimer_queue_work(&df->idle_work, ms_to_ktime(1),

@@ -15,8 +15,6 @@
 #define VMWARE_BACKDOOR_PMC_REAL_TIME		0x10001
 #define VMWARE_BACKDOOR_PMC_APPARENT_TIME	0x10002
 
-#define MAX_FIXED_COUNTERS	3
-
 struct kvm_event_hw_type_mapping {
 	u8 eventsel;
 	u8 unit_mask;
@@ -138,6 +136,15 @@ static inline u64 get_sample_period(struct kvm_pmc *pmc, u64 counter_value)
 	if (!sample_period)
 		sample_period = pmc_bitmask(pmc) + 1;
 	return sample_period;
+}
+
+static inline void pmc_update_sample_period(struct kvm_pmc *pmc)
+{
+	if (!pmc->perf_event || pmc->is_paused)
+		return;
+
+	perf_event_period(pmc->perf_event,
+			  get_sample_period(pmc, pmc->counter));
 }
 
 void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel);

@@ -12,8 +12,7 @@
 #include "sta.h"
 #include "hif_tx_mib.h"
 
-static void __ieee80211_scan_completed_compat(struct ieee80211_hw *hw,
-					      bool aborted)
+static void wfx_ieee80211_scan_completed_compat(struct ieee80211_hw *hw, bool aborted)
 {
 	struct cfg80211_scan_info info = {
 		.aborted = aborted,
@@ -22,24 +21,21 @@ static void __ieee80211_scan_completed_compat(struct ieee80211_hw *hw,
 	ieee80211_scan_completed(hw, &info);
 }
 
-static int update_probe_tmpl(struct wfx_vif *wvif,
-			     struct cfg80211_scan_request *req)
+static int update_probe_tmpl(struct wfx_vif *wvif, struct cfg80211_scan_request *req)
 {
 	struct sk_buff *skb;
 
-	skb = ieee80211_probereq_get(wvif->wdev->hw, wvif->vif->addr,
-				     NULL, 0, req->ie_len);
+	skb = ieee80211_probereq_get(wvif->wdev->hw, wvif->vif->addr, NULL, 0, req->ie_len);
 	if (!skb)
 		return -ENOMEM;
 
 	skb_put_data(skb, req->ie, req->ie_len);
-	hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBREQ, 0);
+	wfx_hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBREQ, 0);
 	dev_kfree_skb(skb);
 	return 0;
 }
 
-static int send_scan_req(struct wfx_vif *wvif,
-			 struct cfg80211_scan_request *req, int start_idx)
+static int send_scan_req(struct wfx_vif *wvif, struct cfg80211_scan_request *req, int start_idx)
 {
 	int i, ret;
 	struct ieee80211_channel *ch_start, *ch_cur;
@@ -56,14 +52,14 @@ static int send_scan_req(struct wfx_vif *wvif,
 	wfx_tx_lock_flush(wvif->wdev);
 	wvif->scan_abort = false;
 	reinit_completion(&wvif->scan_complete);
-	ret = hif_scan(wvif, req, start_idx, i - start_idx);
+	ret = wfx_hif_scan(wvif, req, start_idx, i - start_idx);
 	if (ret) {
 		wfx_tx_unlock(wvif->wdev);
 		return -EIO;
 	}
 	ret = wait_for_completion_timeout(&wvif->scan_complete, 1 * HZ);
 	if (!ret) {
-		hif_stop_scan(wvif);
+		wfx_hif_stop_scan(wvif);
 		ret = wait_for_completion_timeout(&wvif->scan_complete, 1 * HZ);
 		dev_dbg(wvif->wdev->dev, "scan timeout (%d channels done)\n",
 			wvif->scan_nb_chan_done);
@@ -80,7 +76,7 @@ static int send_scan_req(struct wfx_vif *wvif,
 		ret = wvif->scan_nb_chan_done;
 	}
 	if (req->channels[start_idx]->max_power != wvif->vif->bss_conf.txpower)
-		hif_set_output_power(wvif, wvif->vif->bss_conf.txpower);
+		wfx_hif_set_output_power(wvif, wvif->vif->bss_conf.txpower);
 	wfx_tx_unlock(wvif->wdev);
 	return ret;
 }
@@ -98,8 +94,7 @@ void wfx_hw_scan_work(struct work_struct *work)
 	mutex_lock(&wvif->wdev->conf_mutex);
 	mutex_lock(&wvif->scan_lock);
 	if (wvif->join_in_progress) {
-		dev_info(wvif->wdev->dev, "%s: abort in-progress REQ_JOIN",
-			 __func__);
+		dev_info(wvif->wdev->dev, "abort in-progress REQ_JOIN");
 		wfx_reset(wvif);
 	}
 	update_probe_tmpl(wvif, &hw_req->req);
@@ -120,7 +115,7 @@ void wfx_hw_scan_work(struct work_struct *work)
 	} while (ret >= 0 && chan_cur < hw_req->req.n_channels);
 	mutex_unlock(&wvif->scan_lock);
 	mutex_unlock(&wvif->wdev->conf_mutex);
-	__ieee80211_scan_completed_compat(wvif->wdev->hw, ret < 0);
+	wfx_ieee80211_scan_completed_compat(wvif->wdev->hw, ret < 0);
 }
 
 int wfx_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -139,7 +134,7 @@ void wfx_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	wvif->scan_abort = true;
-	hif_stop_scan(wvif);
+	wfx_hif_stop_scan(wvif);
 }
 
 void wfx_scan_complete(struct wfx_vif *wvif, int nb_chan_done)

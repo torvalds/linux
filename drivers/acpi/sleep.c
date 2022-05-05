@@ -758,6 +758,8 @@ bool acpi_s2idle_wake(void)
 			return true;
 		}
 
+		pm_pr_dbg("Rearming ACPI SCI for wakeup\n");
+
 		pm_wakeup_clear(acpi_sci_irq);
 		rearm_wake_irq(acpi_sci_irq);
 	}
@@ -869,12 +871,7 @@ static inline void acpi_sleep_syscore_init(void) {}
 #ifdef CONFIG_HIBERNATION
 static unsigned long s4_hardware_signature;
 static struct acpi_table_facs *facs;
-static int sigcheck = -1; /* Default behaviour is just to warn */
-
-void __init acpi_check_s4_hw_signature(int check)
-{
-	sigcheck = check;
-}
+int acpi_check_s4_hw_signature = -1; /* Default behaviour is just to warn */
 
 static int acpi_hibernation_begin(pm_message_t stage)
 {
@@ -999,7 +996,7 @@ static void acpi_sleep_hibernate_setup(void)
 	hibernation_set_ops(old_suspend_ordering ?
 			&acpi_hibernation_ops_old : &acpi_hibernation_ops);
 	sleep_states[ACPI_STATE_S4] = 1;
-	if (!sigcheck)
+	if (!acpi_check_s4_hw_signature)
 		return;
 
 	acpi_get_table(ACPI_SIG_FACS, 1, (struct acpi_table_header **)&facs);
@@ -1011,7 +1008,7 @@ static void acpi_sleep_hibernate_setup(void)
 		 */
 		s4_hardware_signature = facs->hardware_signature;
 
-		if (sigcheck > 0) {
+		if (acpi_check_s4_hw_signature > 0) {
 			/*
 			 * If we're actually obeying the ACPI specification
 			 * then the signature is written out as part of the

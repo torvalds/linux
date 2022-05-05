@@ -56,6 +56,7 @@ perf-y += debug.o
 perf-y += fncache.o
 perf-y += machine.o
 perf-y += map.o
+perf-y += maps.o
 perf-y += pstack.o
 perf-y += session.o
 perf-y += sample-raw.o

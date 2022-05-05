@@ -125,10 +125,10 @@ struct ifobject {
 	struct xsk_socket_info *xsk;
 	struct xsk_socket_info *xsk_arr;
 	struct xsk_umem_info *umem;
-	struct xsk_umem_info *umem_arr;
 	thread_func_t func_ptr;
 	struct pkt_stream *pkt_stream;
 	int ns_fd;
+	int xsk_map_fd;
 	u32 dst_ip;
 	u32 src_ip;
 	u32 xdp_flags;

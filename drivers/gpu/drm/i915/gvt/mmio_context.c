@@ -35,7 +35,9 @@
 
 #include "i915_drv.h"
 #include "gt/intel_context.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_ring.h"
 #include "gvt.h"
 #include "trace.h"
@@ -44,7 +46,7 @@
 
 /* Raw offset is appened to each line for convenience. */
 static struct engine_mmio gen8_engine_mmio_list[] __cacheline_aligned = {
-	{RCS0, GFX_MODE_GEN7, 0xffff, false}, /* 0x229c */
+	{RCS0, RING_MODE_GEN7(RENDER_RING_BASE), 0xffff, false}, /* 0x229c */
 	{RCS0, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
 	{RCS0, HWSTAM, 0x0, false}, /* 0x2098 */
 	{RCS0, INSTPM, 0xffff, true}, /* 0x20c0 */
@@ -76,7 +78,7 @@ static struct engine_mmio gen8_engine_mmio_list[] __cacheline_aligned = {
 };
 
 static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
-	{RCS0, GFX_MODE_GEN7, 0xffff, false}, /* 0x229c */
+	{RCS0, RING_MODE_GEN7(RENDER_RING_BASE), 0xffff, false}, /* 0x229c */
 	{RCS0, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
 	{RCS0, HWSTAM, 0x0, false}, /* 0x2098 */
 	{RCS0, INSTPM, 0xffff, true}, /* 0x20c0 */

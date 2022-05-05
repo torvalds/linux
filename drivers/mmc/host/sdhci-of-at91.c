@@ -308,17 +308,15 @@ static const struct dev_pm_ops sdhci_at91_dev_pm_ops = {
 
 static int sdhci_at91_probe(struct platform_device *pdev)
 {
-	const struct of_device_id	*match;
 	const struct sdhci_at91_soc_data	*soc_data;
 	struct sdhci_host		*host;
 	struct sdhci_pltfm_host		*pltfm_host;
 	struct sdhci_at91_priv		*priv;
 	int				ret;
 
-	match = of_match_device(sdhci_at91_dt_match, &pdev->dev);
-	if (!match)
+	soc_data = of_device_get_match_data(&pdev->dev);
+	if (!soc_data)
 		return -EINVAL;
-	soc_data = match->data;
 
 	host = sdhci_pltfm_init(pdev, soc_data->pdata, sizeof(*priv));
 	if (IS_ERR(host))

@@ -8,7 +8,7 @@
 #ifndef DRM_DSC_H_
 #define DRM_DSC_H_
 
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 
 /* VESA Display Stream Compression DSC 1.2 constants */
 #define DSC_NUM_BUF_RANGES			15

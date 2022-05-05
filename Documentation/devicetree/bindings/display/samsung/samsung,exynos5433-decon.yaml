@@ -1,0 +1,148 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/samsung/samsung,exynos5433-decon.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos5433 SoC Display and Enhancement Controller (DECON)
+
+maintainers:
+  - Inki Dae <inki.dae@samsung.com>
+  - Joonyoung Shim <jy0922.shim@samsung.com>
+  - Seung-Woo Kim <sw0312.kim@samsung.com>
+  - Kyungmin Park <kyungmin.park@samsung.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |
+  DECON (Display and Enhancement Controller) is the Display Controller for the
+  Exynos5433 series of SoCs which transfers the image data from a video memory
+  buffer to an external LCD interface.
+
+properties:
+  compatible:
+    enum:
+      - samsung,exynos5433-decon
+      - samsung,exynos5433-decon-tv
+
+  clocks:
+    minItems: 11
+    maxItems: 11
+
+  clock-names:
+    items:
+      - const: pclk
+      - const: aclk_decon
+      - const: aclk_smmu_decon0x
+      - const: aclk_xiu_decon0x
+      - const: pclk_smmu_decon0x
+      - const: aclk_smmu_decon1x
+      - const: aclk_xiu_decon1x
+      - const: pclk_smmu_decon1x
+      - const: sclk_decon_vclk
+      - const: sclk_decon_eclk
+      - const: dsd
+
+  interrupts:
+    minItems: 3
+    maxItems: 4
+    description: |
+      Interrupts depend on mode of work:
+       - video mode: vsync
+       - command mode: lcd_sys
+       - command mode with software trigger: lcd_sys, te
+
+  interrupt-names:
+    minItems: 3
+    items:
+      - const: fifo
+      - const: vsync
+      - const: lcd_sys
+      - const: te
+
+  iommus:
+    minItems: 2
+    maxItems: 2
+
+  iommu-names:
+    items:
+      - const: m0
+      - const: m1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description:
+      Contains a port which is connected to mic node.
+
+  power-domains:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+  samsung,disp-sysreg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to DISP system controller interface.
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - interrupts
+  - interrupt-names
+  - ports
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos5433.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    display-controller@13800000 {
+        compatible = "samsung,exynos5433-decon";
+        reg = <0x13800000 0x2104>;
+        clocks = <&cmu_disp CLK_PCLK_DECON>,
+                 <&cmu_disp CLK_ACLK_DECON>,
+                 <&cmu_disp CLK_ACLK_SMMU_DECON0X>,
+                 <&cmu_disp CLK_ACLK_XIU_DECON0X>,
+                 <&cmu_disp CLK_PCLK_SMMU_DECON0X>,
+                 <&cmu_disp CLK_ACLK_SMMU_DECON1X>,
+                 <&cmu_disp CLK_ACLK_XIU_DECON1X>,
+                 <&cmu_disp CLK_PCLK_SMMU_DECON1X>,
+                 <&cmu_disp CLK_SCLK_DECON_VCLK>,
+                 <&cmu_disp CLK_SCLK_DECON_ECLK>,
+                 <&cmu_disp CLK_SCLK_DSD>;
+        clock-names = "pclk",
+                      "aclk_decon",
+                      "aclk_smmu_decon0x",
+                      "aclk_xiu_decon0x",
+                      "pclk_smmu_decon0x",
+                      "aclk_smmu_decon1x",
+                      "aclk_xiu_decon1x",
+                      "pclk_smmu_decon1x",
+                      "sclk_decon_vclk",
+                      "sclk_decon_eclk",
+                      "dsd";
+        power-domains = <&pd_disp>;
+        interrupt-names = "fifo", "vsync", "lcd_sys";
+        interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>;
+        samsung,disp-sysreg = <&syscon_disp>;
+        iommus = <&sysmmu_decon0x>, <&sysmmu_decon1x>;
+        iommu-names = "m0", "m1";
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
+                reg = <0>;
+                decon_to_mic: endpoint {
+                    remote-endpoint = <&mic_to_decon>;
+                };
+            };
+        };
+    };

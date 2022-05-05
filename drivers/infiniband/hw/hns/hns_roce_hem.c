@@ -488,7 +488,7 @@ static int set_mhop_hem(struct hns_roce_dev *hr_dev,
 			struct hns_roce_hem_index *index)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
-	int step_idx;
+	u32 step_idx;
 	int ret = 0;
 
 	if (index->inited & HEM_INDEX_L0) {
@@ -618,7 +618,7 @@ static void clear_mhop_hem(struct hns_roce_dev *hr_dev,
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	u32 hop_num = mhop->hop_num;
 	u32 chunk_ba_num;
-	int step_idx;
+	u32 step_idx;
 
 	index->inited = HEM_INDEX_BUF;
 	chunk_ba_num = mhop->bt_chunk_size / BA_BYTE_LEN;

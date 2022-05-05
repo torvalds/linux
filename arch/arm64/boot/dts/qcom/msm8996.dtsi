@@ -134,7 +134,7 @@
 		};
 	};
 
-	cluster0_opp: opp_table0 {
+	cluster0_opp: opp-table-cluster0 {
 		compatible = "operating-points-v2-kryo-cpu";
 		nvmem-cells = <&speedbin_efuse>;
 		opp-shared;
@@ -222,7 +222,7 @@
 		};
 	};
 
-	cluster1_opp: opp_table1 {
+	cluster1_opp: opp-table-cluster1 {
 		compatible = "operating-points-v2-kryo-cpu";
 		nvmem-cells = <&speedbin_efuse>;
 		opp-shared;
@@ -679,8 +679,10 @@
 			#power-domain-cells = <1>;
 			reg = <0x00300000 0x90000>;
 
-			clocks = <&rpmcc RPM_SMD_LN_BB_CLK>;
-			clock-names = "cxo2";
+			clocks = <&rpmcc RPM_SMD_BB_CLK1>,
+				 <&rpmcc RPM_SMD_LN_BB_CLK>,
+				 <&sleep_clk>;
+			clock-names = "cxo", "cxo2", "sleep_clk";
 		};
 
 		tsens0: thermal-sensor@4a9000 {
@@ -713,7 +715,7 @@
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
 			qcom,ee = <0>;
-			qcom,controlled-remotely = <1>;
+			qcom,controlled-remotely;
 		};
 
 		crypto: crypto@67a000 {
@@ -887,7 +889,7 @@
 				#clock-cells = <1>;
 				#phy-cells = <0>;
 
-				clocks = <&mmcc MDSS_AHB_CLK>, <&xo_board>;
+				clocks = <&mmcc MDSS_AHB_CLK>, <&rpmcc RPM_SMD_BB_CLK1>;
 				clock-names = "iface", "ref";
 				status = "disabled";
 			};
@@ -1247,14 +1249,14 @@
 				pins = "gpio47", "gpio48";
 				function = "blsp_i2c3";
 				drive-strength = <16>;
-				bias-disable = <0>;
+				bias-disable;
 			};
 
 			blsp1_i2c3_sleep: blsp1-i2c2-sleep {
 				pins = "gpio47", "gpio48";
 				function = "gpio";
 				drive-strength = <2>;
-				bias-disable = <0>;
+				bias-disable;
 			};
 
 			blsp2_uart3_4pins_default: blsp2-uart2-4pins {
@@ -1546,7 +1548,7 @@
 			reg = <0x00290000 0x10000>;
 		};
 
-		spmi_bus: qcom,spmi@400f000 {
+		spmi_bus: spmi@400f000 {
 			compatible = "qcom,spmi-pmic-arb";
 			reg = <0x0400f000 0x1000>,
 			      <0x04400000 0x800000>,
@@ -2593,7 +2595,7 @@
 			reg = <0x06400000 0x90000>;
 
 			clock-names = "xo";
-			clocks = <&xo_board>;
+			clocks = <&rpmcc RPM_SMD_BB_CLK1>;
 
 			#clock-cells = <1>;
 		};
@@ -2693,7 +2695,7 @@
 		};
 
 		sdhc1: sdhci@7464900 {
-			compatible = "qcom,sdhci-msm-v4";
+			compatible = "qcom,msm8996-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0x07464900 0x11c>, <0x07464000 0x800>;
 			reg-names = "hc_mem", "core_mem";
 
@@ -2704,7 +2706,7 @@
 			clock-names = "iface", "core", "xo";
 			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
 				<&gcc GCC_SDCC1_APPS_CLK>,
-				<&xo_board>;
+				<&rpmcc RPM_SMD_BB_CLK1>;
 
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdc1_state_on>;
@@ -2716,7 +2718,7 @@
 		};
 
 		sdhc2: sdhci@74a4900 {
-			compatible = "qcom,sdhci-msm-v4";
+			compatible = "qcom,msm8996-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0x074a4900 0x314>, <0x074a4000 0x800>;
 			reg-names = "hc_mem", "core_mem";
 
@@ -2727,7 +2729,7 @@
 			clock-names = "iface", "core", "xo";
 			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
 				<&gcc GCC_SDCC2_APPS_CLK>,
-				<&xo_board>;
+				<&rpmcc RPM_SMD_BB_CLK1>;
 
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdc2_state_on>;
@@ -3028,7 +3030,7 @@
 			interrupt-names = "wdog", "fatal", "ready",
 					  "handover", "stop-ack";
 
-			clocks = <&xo_board>;
+			clocks = <&rpmcc RPM_SMD_BB_CLK1>;
 			clock-names = "xo";
 
 			memory-region = <&adsp_region>;
@@ -3054,7 +3056,7 @@
 					power-domains = <&gcc HLOS1_VOTE_LPASS_ADSP_GDSC>;
 					compatible = "qcom,apr-v2";
 					qcom,smd-channels = "apr_audio_svc";
-					qcom,apr-domain = <APR_DOMAIN_ADSP>;
+					qcom,domain = <APR_DOMAIN_ADSP>;
 					#address-cells = <1>;
 					#size-cells = <0>;
 
@@ -3273,7 +3275,7 @@
 			};
 		};
 
-		gpu-thermal-top {
+		gpu-top-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -3295,7 +3297,7 @@
 			};
 		};
 
-		gpu-thermal-bottom {
+		gpu-bottom-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 

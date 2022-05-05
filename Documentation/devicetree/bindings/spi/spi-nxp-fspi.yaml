@@ -7,7 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: NXP Flex Serial Peripheral Interface (FSPI)
 
 maintainers:
-  - Kuldeep Singh <kuldeep.singh@nxp.com>
+  - Han Xu <han.xu@nxp.com>
+  - Kuldeep Singh <singh.kuldeep87k@gmail.com>
 
 allOf:
   - $ref: "spi-controller.yaml#"

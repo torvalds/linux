@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/fsl,layerscape-sfp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Layerscape Security Fuse Processor
+
+maintainers:
+  - Michael Walle <michael@walle.cc>
+
+description: |
+  SFP is the security fuse processor which among other things provide a
+  unique identifier per part.
+
+allOf:
+  - $ref: "nvmem.yaml#"
+
+properties:
+  compatible:
+    enum:
+      - fsl,ls1028a-sfp
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    efuse@1e80000 {
+        compatible = "fsl,ls1028a-sfp";
+        reg = <0x1e80000 0x8000>;
+    };

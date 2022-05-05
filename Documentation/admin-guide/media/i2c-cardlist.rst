@@ -284,7 +284,7 @@ tda9887       TDA 9885/6/7 analog IF demodulator
 tea5761       TEA 5761 radio tuner
 tea5767       TEA 5767 radio tuner
 tua9001       Infineon TUA9001 silicon tuner
-tuner-xc2028  XCeive xc2028/xc3028 tuners
+xc2028        XCeive xc2028/xc3028 tuners
 xc4000        Xceive XC4000 silicon tuner
 xc5000        Xceive XC5000 silicon tuner
 ============  ==================================================

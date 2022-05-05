@@ -590,7 +590,7 @@
 };
 
 &pinctrl_0 {
-	s5m8767_irq: s5m8767-irq {
+	s5m8767_irq: s5m8767-irq-pins {
 		samsung,pins = "gpx3-2";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
@@ -631,4 +631,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
+};
+
+&usbdrd {
+	vdd10-supply = <&ldo15_reg>;
+	vdd33-supply = <&ldo12_reg>;
 };

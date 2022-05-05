@@ -71,4 +71,24 @@ patternProperties:
         description: CPU to Codec rate channels.
         $ref: /schemas/types.yaml#/definitions/uint32
 
+      dai-tdm-slot-width-map:
+        description: Mapping of sample widths to slot widths. For hardware
+          that cannot support a fixed slot width or a slot width always
+          equal to sample width. A matrix of one or more 3-tuples.
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
+        items:
+          items:
+            -
+              description: Sample width in bits
+              minimum: 8
+              maximum: 64
+            -
+              description: Slot width in bits
+              minimum: 8
+              maximum: 256
+            -
+              description: Slot count
+              minimum: 1
+              maximum: 64
+
 additionalProperties: true

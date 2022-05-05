@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/mctp-i2c-controller.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MCTP I2C transport binding
+
+maintainers:
+  - Matt Johnston <matt@codeconstruct.com.au>
+
+description: |
+  An mctp-i2c-controller defines a local MCTP endpoint on an I2C controller.
+  MCTP I2C is specified by DMTF DSP0237.
+
+  An mctp-i2c-controller must be attached to an I2C adapter which supports
+  slave functionality. I2C busses (either directly or as subordinate mux
+  busses) are attached to the mctp-i2c-controller with a 'mctp-controller'
+  property on each used bus. Each mctp-controller I2C bus will be presented
+  to the host system as a separate MCTP I2C instance.
+
+properties:
+  compatible:
+    const: mctp-i2c-controller
+
+  reg:
+    minimum: 0x40000000
+    maximum: 0x4000007f
+    description: |
+      7 bit I2C address of the local endpoint.
+      I2C_OWN_SLAVE_ADDRESS (1<<30) flag must be set.
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    // Basic case of a single I2C bus
+    #include <dt-bindings/i2c/i2c.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      mctp-controller;
+
+      mctp@30 {
+        compatible = "mctp-i2c-controller";
+        reg = <(0x30 | I2C_OWN_SLAVE_ADDRESS)>;
+      };
+    };
+
+  - |
+    // Mux topology with multiple MCTP-handling busses under
+    // a single mctp-i2c-controller.
+    // i2c1 and i2c6 can have MCTP devices, i2c5 does not.
+    #include <dt-bindings/i2c/i2c.h>
+
+    i2c1: i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      mctp-controller;
+
+      mctp@50 {
+        compatible = "mctp-i2c-controller";
+        reg = <(0x50 | I2C_OWN_SLAVE_ADDRESS)>;
+      };
+    };
+
+    i2c-mux {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      i2c-parent = <&i2c1>;
+
+      i2c5: i2c@0 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <0>;
+        eeprom@33 {
+          reg = <0x33>;
+        };
+      };
+
+      i2c6: i2c@1 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <1>;
+        mctp-controller;
+      };
+    };

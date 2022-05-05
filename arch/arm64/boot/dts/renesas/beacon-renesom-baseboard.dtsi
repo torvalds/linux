@@ -359,11 +359,10 @@
 		clocks = <&x304_clk>;
 		clock-names = "xin";
 
-		assigned-clocks = <&versaclock6_bb 1>,
-				   <&versaclock6_bb 2>,
-				   <&versaclock6_bb 3>,
-				   <&versaclock6_bb 4>;
-		assigned-clock-rates =	<24000000>, <24000000>, <24000000>, <24576000>;
+		assigned-clocks = <&versaclock6_bb 1>, <&versaclock6_bb 2>,
+				  <&versaclock6_bb 3>, <&versaclock6_bb 4>;
+		assigned-clock-rates = <24000000>, <24000000>, <24000000>,
+				       <24576000>;
 
 		OUT1 {
 			idt,mode = <VC5_CMOS>;

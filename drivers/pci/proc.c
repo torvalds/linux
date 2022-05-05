@@ -99,9 +99,7 @@ static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
 		unsigned char val;
 		pci_user_read_config_byte(dev, pos, &val);
 		__put_user(val, buf);
-		buf++;
 		pos++;
-		cnt--;
 	}
 
 	pci_config_pm_runtime_put(dev);
@@ -176,9 +174,7 @@ static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 		unsigned char val;
 		__get_user(val, buf);
 		pci_user_write_config_byte(dev, pos, val);
-		buf++;
 		pos++;
-		cnt--;
 	}
 
 	pci_config_pm_runtime_put(dev);
@@ -188,10 +184,12 @@ static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 	return nbytes;
 }
 
+#ifdef HAVE_PCI_MMAP
 struct pci_filp_private {
 	enum pci_mmap_state mmap_state;
 	int write_combine;
 };
+#endif /* HAVE_PCI_MMAP */
 
 static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 			       unsigned long arg)

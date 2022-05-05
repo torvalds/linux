@@ -14,6 +14,7 @@
 
 /* Device ID */
 #define INTEL_CP_DEVICE_7560_ID 0x7560
+#define INTEL_CP_DEVICE_7360_ID 0x7360
 
 /* Define for BAR area usage */
 #define IPC_DOORBELL_BAR0 0

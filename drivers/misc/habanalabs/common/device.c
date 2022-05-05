@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2021 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -12,6 +12,8 @@
 
 #include <linux/pci.h>
 #include <linux/hwmon.h>
+
+#define HL_RESET_DELAY_USEC		10000	/* 10ms */
 
 enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
@@ -145,6 +147,7 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	hl_release_pending_user_interrupts(hpriv->hdev);
 
 	hl_cb_mgr_fini(hdev, &hpriv->cb_mgr);
+	hl_ts_mgr_fini(hpriv->hdev, &hpriv->ts_mem_mgr);
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
 
 	if (!hl_hpriv_put(hpriv))
@@ -209,6 +212,9 @@ static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	case HL_MMAP_TYPE_BLOCK:
 		return hl_hw_block_mmap(hpriv, vma);
+
+	case HL_MMAP_TYPE_TS_BUFF:
+		return hl_ts_mmap(hpriv, vma);
 	}
 
 	return -EINVAL;
@@ -410,10 +416,10 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_cq_wq;
 	}
 
-	hdev->sob_reset_wq = alloc_workqueue("hl-sob-reset", WQ_UNBOUND, 0);
-	if (!hdev->sob_reset_wq) {
+	hdev->ts_free_obj_wq = alloc_workqueue("hl-ts-free-obj", WQ_UNBOUND, 0);
+	if (!hdev->ts_free_obj_wq) {
 		dev_err(hdev->dev,
-			"Failed to allocate SOB reset workqueue\n");
+			"Failed to allocate Timestamp registration free workqueue\n");
 		rc = -ENOMEM;
 		goto free_eq_wq;
 	}
@@ -422,7 +428,7 @@ static int device_early_init(struct hl_device *hdev)
 					GFP_KERNEL);
 	if (!hdev->hl_chip_info) {
 		rc = -ENOMEM;
-		goto free_sob_reset_wq;
+		goto free_ts_free_wq;
 	}
 
 	rc = hl_mmu_if_set_funcs(hdev);
@@ -461,8 +467,8 @@ free_cb_mgr:
 	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
 free_chip_info:
 	kfree(hdev->hl_chip_info);
-free_sob_reset_wq:
-	destroy_workqueue(hdev->sob_reset_wq);
+free_ts_free_wq:
+	destroy_workqueue(hdev->ts_free_obj_wq);
 free_eq_wq:
 	destroy_workqueue(hdev->eq_wq);
 free_cq_wq:
@@ -501,7 +507,7 @@ static void device_early_fini(struct hl_device *hdev)
 
 	kfree(hdev->hl_chip_info);
 
-	destroy_workqueue(hdev->sob_reset_wq);
+	destroy_workqueue(hdev->ts_free_obj_wq);
 	destroy_workqueue(hdev->eq_wq);
 	destroy_workqueue(hdev->device_reset_work.wq);
 
@@ -610,7 +616,7 @@ int hl_device_utilization(struct hl_device *hdev, u32 *utilization)
 	u64 max_power, curr_power, dc_power, dividend;
 	int rc;
 
-	max_power = hdev->asic_prop.max_power_default;
+	max_power = hdev->max_power;
 	dc_power = hdev->asic_prop.dc_power_default;
 	rc = hl_fw_cpucp_power_get(hdev, &curr_power);
 
@@ -644,9 +650,6 @@ int hl_device_set_debug_mode(struct hl_device *hdev, struct hl_ctx *ctx, bool en
 
 		hdev->in_debug = 0;
 
-		if (!hdev->reset_info.hard_reset_pending)
-			hdev->asic_funcs->set_clock_gating(hdev);
-
 		goto out;
 	}
 
@@ -657,7 +660,6 @@ int hl_device_set_debug_mode(struct hl_device *hdev, struct hl_ctx *ctx, bool en
 		goto out;
 	}
 
-	hdev->asic_funcs->disable_clock_gating(hdev);
 	hdev->in_debug = 1;
 
 out:
@@ -685,7 +687,8 @@ static void take_release_locks(struct hl_device *hdev)
 	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 }
 
-static void cleanup_resources(struct hl_device *hdev, bool hard_reset, bool fw_reset)
+static void cleanup_resources(struct hl_device *hdev, bool hard_reset, bool fw_reset,
+				bool skip_wq_flush)
 {
 	if (hard_reset)
 		device_late_fini(hdev);
@@ -698,7 +701,7 @@ static void cleanup_resources(struct hl_device *hdev, bool hard_reset, bool fw_r
 	hdev->asic_funcs->halt_engines(hdev, hard_reset, fw_reset);
 
 	/* Go over all the queues, release all CS and their jobs */
-	hl_cs_rollback_all(hdev);
+	hl_cs_rollback_all(hdev, skip_wq_flush);
 
 	/* Release all pending user interrupts, each pending user interrupt
 	 * holds a reference to user context
@@ -978,7 +981,8 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 int hl_device_reset(struct hl_device *hdev, u32 flags)
 {
 	bool hard_reset, from_hard_reset_thread, fw_reset, hard_instead_soft = false,
-			reset_upon_device_release = false, schedule_hard_reset = false;
+			reset_upon_device_release = false, schedule_hard_reset = false,
+			skip_wq_flush, delay_reset;
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	struct hl_ctx *ctx;
 	int i, rc;
@@ -991,6 +995,8 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	hard_reset = !!(flags & HL_DRV_RESET_HARD);
 	from_hard_reset_thread = !!(flags & HL_DRV_RESET_FROM_RESET_THR);
 	fw_reset = !!(flags & HL_DRV_RESET_BYPASS_REQ_TO_FW);
+	skip_wq_flush = !!(flags & HL_DRV_RESET_DEV_RELEASE);
+	delay_reset = !!(flags & HL_DRV_RESET_DELAY);
 
 	if (!hard_reset && !hdev->asic_prop.supports_soft_reset) {
 		hard_instead_soft = true;
@@ -1040,6 +1046,9 @@ do_reset:
 		hdev->reset_info.in_reset = 1;
 		spin_unlock(&hdev->reset_info.lock);
 
+		if (delay_reset)
+			usleep_range(HL_RESET_DELAY_USEC, HL_RESET_DELAY_USEC << 1);
+
 		handle_reset_trigger(hdev, flags);
 
 		/* This still allows the completion of some KDMA ops */
@@ -1076,7 +1085,7 @@ again:
 		return 0;
 	}
 
-	cleanup_resources(hdev, hard_reset, fw_reset);
+	cleanup_resources(hdev, hard_reset, fw_reset, skip_wq_flush);
 
 kill_processes:
 	if (hard_reset) {
@@ -1232,7 +1241,7 @@ kill_processes:
 			goto out_err;
 		}
 
-		hl_set_max_power(hdev);
+		hl_fw_set_max_power(hdev);
 	} else {
 		rc = hdev->asic_funcs->non_hard_reset_late_init(hdev);
 		if (rc) {
@@ -1297,11 +1306,14 @@ out_err:
 		hdev->reset_info.hard_reset_cnt++;
 	} else if (reset_upon_device_release) {
 		dev_err(hdev->dev, "Failed to reset device after user release\n");
+		flags |= HL_DRV_RESET_HARD;
+		flags &= ~HL_DRV_RESET_DEV_RELEASE;
 		hard_reset = true;
 		goto again;
 	} else {
 		dev_err(hdev->dev, "Failed to do soft-reset\n");
 		hdev->reset_info.soft_reset_cnt++;
+		flags |= HL_DRV_RESET_HARD;
 		hard_reset = true;
 		goto again;
 	}
@@ -1538,7 +1550,8 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	/* Need to call this again because the max power might change,
 	 * depending on card type for certain ASICs
 	 */
-	hl_set_max_power(hdev);
+	if (hdev->asic_prop.set_max_power_on_device_init)
+		hl_fw_set_max_power(hdev);
 
 	/*
 	 * hl_hwmon_init() must be called after device_late_init(), because only
@@ -1682,7 +1695,7 @@ void hl_device_fini(struct hl_device *hdev)
 
 	hl_hwmon_fini(hdev);
 
-	cleanup_resources(hdev, true, false);
+	cleanup_resources(hdev, true, false, false);
 
 	/* Kill processes here after CS rollback. This is because the process
 	 * can't really exit until all its CSs are done, which is what we

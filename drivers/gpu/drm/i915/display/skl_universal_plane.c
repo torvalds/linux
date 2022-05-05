@@ -961,6 +961,7 @@ static u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 static u32 skl_surf_address(const struct intel_plane_state *plane_state,
 			    int color_plane)
 {
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	u32 offset = plane_state->view.color_plane[color_plane].offset;
 
@@ -969,11 +970,11 @@ static u32 skl_surf_address(const struct intel_plane_state *plane_state,
 		 * The DPT object contains only one vma, so the VMA's offset
 		 * within the DPT is always 0.
 		 */
-		WARN_ON(plane_state->dpt_vma->node.start);
-		WARN_ON(offset & 0x1fffff);
+		drm_WARN_ON(&i915->drm, plane_state->dpt_vma->node.start);
+		drm_WARN_ON(&i915->drm, offset & 0x1fffff);
 		return offset >> 9;
 	} else {
-		WARN_ON(offset & 0xfff);
+		drm_WARN_ON(&i915->drm, offset & 0xfff);
 		return offset;
 	}
 }
@@ -990,6 +991,54 @@ static u32 skl_plane_surf(const struct intel_plane_state *plane_state,
 		plane_surf |= PLANE_SURF_DECRYPT;
 
 	return plane_surf;
+}
+
+static u32 skl_plane_aux_dist(const struct intel_plane_state *plane_state,
+			      int color_plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	int aux_plane = skl_main_to_aux_plane(fb, color_plane);
+	u32 aux_dist;
+
+	if (!aux_plane)
+		return 0;
+
+	aux_dist = skl_surf_address(plane_state, aux_plane) -
+		skl_surf_address(plane_state, color_plane);
+
+	if (DISPLAY_VER(i915) < 12)
+		aux_dist |= PLANE_AUX_STRIDE(skl_plane_stride(plane_state, aux_plane));
+
+	return aux_dist;
+}
+
+static u32 skl_plane_keyval(const struct intel_plane_state *plane_state)
+{
+	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
+
+	return key->min_value;
+}
+
+static u32 skl_plane_keymax(const struct intel_plane_state *plane_state)
+{
+	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
+	u8 alpha = plane_state->hw.alpha >> 8;
+
+	return (key->max_value & 0xffffff) | PLANE_KEYMAX_ALPHA(alpha);
+}
+
+static u32 skl_plane_keymsk(const struct intel_plane_state *plane_state)
+{
+	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
+	u8 alpha = plane_state->hw.alpha >> 8;
+	u32 keymsk;
+
+	keymsk = key->channel_mask & 0x7ffffff;
+	if (alpha < 0xff)
+		keymsk |= PLANE_KEYMSK_ALPHA_ENABLE;
+
+	return keymsk;
 }
 
 static void icl_plane_csc_load_black(struct intel_plane *plane)
@@ -1016,15 +1065,24 @@ static void icl_plane_csc_load_black(struct intel_plane *plane)
 	intel_de_write_fw(i915, PLANE_CSC_POSTOFF(pipe, plane_id, 2), 0);
 }
 
+static int skl_plane_color_plane(const struct intel_plane_state *plane_state)
+{
+	/* Program the UV plane on planar master */
+	if (plane_state->planar_linked_plane && !plane_state->planar_slave)
+		return 1;
+	else
+		return 0;
+}
+
 static void
-skl_program_plane_noarm(struct intel_plane *plane,
-			const struct intel_crtc_state *crtc_state,
-			const struct intel_plane_state *plane_state,
-			int color_plane)
+skl_plane_update_noarm(struct intel_plane *plane,
+		       const struct intel_crtc_state *crtc_state,
+		       const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
+	int color_plane = skl_plane_color_plane(plane_state);
 	u32 stride = skl_plane_stride(plane_state, color_plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int crtc_x = plane_state->uapi.dst.x1;
@@ -1048,11 +1106,12 @@ skl_program_plane_noarm(struct intel_plane *plane,
 	if (plane_state->force_black)
 		icl_plane_csc_load_black(plane);
 
-	intel_de_write_fw(dev_priv, PLANE_STRIDE(pipe, plane_id), stride);
+	intel_de_write_fw(dev_priv, PLANE_STRIDE(pipe, plane_id),
+			  PLANE_STRIDE_(stride));
 	intel_de_write_fw(dev_priv, PLANE_POS(pipe, plane_id),
-			  (crtc_y << 16) | crtc_x);
+			  PLANE_POS_Y(crtc_y) | PLANE_POS_X(crtc_x));
 	intel_de_write_fw(dev_priv, PLANE_SIZE(pipe, plane_id),
-			  ((src_h - 1) << 16) | (src_w - 1));
+			  PLANE_HEIGHT(src_h - 1) | PLANE_WIDTH(src_w - 1));
 
 	if (intel_fb_is_rc_ccs_cc_modifier(fb->modifier)) {
 		intel_de_write_fw(dev_priv, PLANE_CC_VAL(pipe, plane_id, 0),
@@ -1076,21 +1135,17 @@ skl_program_plane_noarm(struct intel_plane *plane,
 }
 
 static void
-skl_program_plane_arm(struct intel_plane *plane,
-		      const struct intel_crtc_state *crtc_state,
-		      const struct intel_plane_state *plane_state,
-		      int color_plane)
+skl_plane_update_arm(struct intel_plane *plane,
+		     const struct intel_crtc_state *crtc_state,
+		     const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
-	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	int aux_plane = skl_main_to_aux_plane(fb, color_plane);
+	int color_plane = skl_plane_color_plane(plane_state);
 	u32 x = plane_state->view.color_plane[color_plane].x;
 	u32 y = plane_state->view.color_plane[color_plane].y;
-	u32 keymsk, keymax, aux_dist = 0, plane_color_ctl = 0;
-	u8 alpha = plane_state->hw.alpha >> 8;
+	u32 plane_color_ctl = 0;
 	u32 plane_ctl = plane_state->ctl;
 	unsigned long irqflags;
 
@@ -1100,36 +1155,22 @@ skl_program_plane_arm(struct intel_plane *plane,
 		plane_color_ctl = plane_state->color_ctl |
 			glk_plane_color_ctl_crtc(crtc_state);
 
-	keymax = (key->max_value & 0xffffff) | PLANE_KEYMAX_ALPHA(alpha);
-
-	keymsk = key->channel_mask & 0x7ffffff;
-	if (alpha < 0xff)
-		keymsk |= PLANE_KEYMSK_ALPHA_ENABLE;
-
-	if (aux_plane) {
-		aux_dist = skl_surf_address(plane_state, aux_plane) -
-			skl_surf_address(plane_state, color_plane);
-
-		if (DISPLAY_VER(dev_priv) < 12)
-			aux_dist |= skl_plane_stride(plane_state, aux_plane);
-	}
-
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	intel_de_write_fw(dev_priv, PLANE_KEYVAL(pipe, plane_id),
-			  key->min_value);
-	intel_de_write_fw(dev_priv, PLANE_KEYMSK(pipe, plane_id), keymsk);
-	intel_de_write_fw(dev_priv, PLANE_KEYMAX(pipe, plane_id), keymax);
+	intel_de_write_fw(dev_priv, PLANE_KEYVAL(pipe, plane_id), skl_plane_keyval(plane_state));
+	intel_de_write_fw(dev_priv, PLANE_KEYMSK(pipe, plane_id), skl_plane_keymsk(plane_state));
+	intel_de_write_fw(dev_priv, PLANE_KEYMAX(pipe, plane_id), skl_plane_keymax(plane_state));
 
 	intel_de_write_fw(dev_priv, PLANE_OFFSET(pipe, plane_id),
-			  (y << 16) | x);
+			  PLANE_OFFSET_Y(y) | PLANE_OFFSET_X(x));
 
-	intel_de_write_fw(dev_priv, PLANE_AUX_DIST(pipe, plane_id), aux_dist);
+	intel_de_write_fw(dev_priv, PLANE_AUX_DIST(pipe, plane_id),
+			  skl_plane_aux_dist(plane_state, color_plane));
 
 	if (DISPLAY_VER(dev_priv) < 11)
 		intel_de_write_fw(dev_priv, PLANE_AUX_OFFSET(pipe, plane_id),
-				  (plane_state->view.color_plane[1].y << 16) |
-				   plane_state->view.color_plane[1].x);
+				  PLANE_OFFSET_Y(plane_state->view.color_plane[1].y) |
+				  PLANE_OFFSET_X(plane_state->view.color_plane[1].x));
 
 	if (DISPLAY_VER(dev_priv) >= 10)
 		intel_de_write_fw(dev_priv, PLANE_COLOR_CTL(pipe, plane_id), plane_color_ctl);
@@ -1180,34 +1221,6 @@ skl_plane_async_flip(struct intel_plane *plane,
 			  skl_plane_surf(plane_state, 0));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
-}
-
-static void
-skl_plane_update_noarm(struct intel_plane *plane,
-		       const struct intel_crtc_state *crtc_state,
-		       const struct intel_plane_state *plane_state)
-{
-	int color_plane = 0;
-
-	if (plane_state->planar_linked_plane && !plane_state->planar_slave)
-		/* Program the UV plane on planar master */
-		color_plane = 1;
-
-	skl_program_plane_noarm(plane, crtc_state, plane_state, color_plane);
-}
-
-static void
-skl_plane_update_arm(struct intel_plane *plane,
-		     const struct intel_crtc_state *crtc_state,
-		     const struct intel_plane_state *plane_state)
-{
-	int color_plane = 0;
-
-	if (plane_state->planar_linked_plane && !plane_state->planar_slave)
-		/* Program the UV plane on planar master */
-		color_plane = 1;
-
-	skl_program_plane_arm(plane, crtc_state, plane_state, color_plane);
 }
 
 static bool intel_format_is_p01x(u32 format)
@@ -1338,6 +1351,7 @@ static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_s
 
 static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_state)
 {
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int rotation = plane_state->hw.rotation;
 	int src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
@@ -1347,7 +1361,7 @@ static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_s
 	    src_w & 3 &&
 	    (rotation == DRM_MODE_ROTATE_270 ||
 	     rotation == (DRM_MODE_REFLECT_X | DRM_MODE_ROTATE_90))) {
-		DRM_DEBUG_KMS("src width must be multiple of 4 for rotated planar YUV\n");
+		drm_dbg_kms(&i915->drm, "src width must be multiple of 4 for rotated planar YUV\n");
 		return -EINVAL;
 	}
 
@@ -1816,20 +1830,27 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
-			      enum pipe pipe, enum plane_id plane_id)
+static enum intel_fbc_id skl_fbc_id_for_pipe(enum pipe pipe)
 {
-	if (!HAS_FBC(dev_priv))
+	return pipe - PIPE_A + INTEL_FBC_A;
+}
+
+static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
+			      enum intel_fbc_id fbc_id, enum plane_id plane_id)
+{
+	if ((INTEL_INFO(dev_priv)->display.fbc_mask & BIT(fbc_id)) == 0)
 		return false;
 
-	return pipe == PIPE_A && plane_id == PLANE_PRIMARY;
+	return plane_id == PLANE_PRIMARY;
 }
 
 static struct intel_fbc *skl_plane_fbc(struct drm_i915_private *dev_priv,
 				       enum pipe pipe, enum plane_id plane_id)
 {
-	if (skl_plane_has_fbc(dev_priv, pipe, plane_id))
-		return dev_priv->fbc;
+	enum intel_fbc_id fbc_id = skl_fbc_id_for_pipe(pipe);
+
+	if (skl_plane_has_fbc(dev_priv, fbc_id, plane_id))
+		return dev_priv->fbc[fbc_id];
 	else
 		return NULL;
 }
@@ -2282,16 +2303,17 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	val = intel_de_read(dev_priv, PLANE_CTL(pipe, plane_id));
 
 	if (DISPLAY_VER(dev_priv) >= 11)
-		pixel_format = val & ICL_PLANE_CTL_FORMAT_MASK;
+		pixel_format = val & PLANE_CTL_FORMAT_MASK_ICL;
 	else
-		pixel_format = val & PLANE_CTL_FORMAT_MASK;
+		pixel_format = val & PLANE_CTL_FORMAT_MASK_SKL;
 
 	if (DISPLAY_VER(dev_priv) >= 10) {
-		alpha = intel_de_read(dev_priv,
-				      PLANE_COLOR_CTL(pipe, plane_id));
-		alpha &= PLANE_COLOR_ALPHA_MASK;
+		u32 color_ctl;
+
+		color_ctl = intel_de_read(dev_priv, PLANE_COLOR_CTL(pipe, plane_id));
+		alpha = REG_FIELD_GET(PLANE_COLOR_ALPHA_MASK, color_ctl);
 	} else {
-		alpha = val & PLANE_CTL_ALPHA_MASK;
+		alpha = REG_FIELD_GET(PLANE_CTL_ALPHA_MASK, val);
 	}
 
 	fourcc = skl_format_to_fourcc(pixel_format,
@@ -2355,22 +2377,19 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	if (drm_rotation_90_or_270(plane_config->rotation))
 		goto error;
 
-	base = intel_de_read(dev_priv, PLANE_SURF(pipe, plane_id)) & 0xfffff000;
+	base = intel_de_read(dev_priv, PLANE_SURF(pipe, plane_id)) & PLANE_SURF_ADDR_MASK;
 	plane_config->base = base;
 
 	offset = intel_de_read(dev_priv, PLANE_OFFSET(pipe, plane_id));
 
 	val = intel_de_read(dev_priv, PLANE_SIZE(pipe, plane_id));
-	fb->height = ((val >> 16) & 0xffff) + 1;
-	fb->width = ((val >> 0) & 0xffff) + 1;
+	fb->height = REG_FIELD_GET(PLANE_HEIGHT_MASK, val) + 1;
+	fb->width = REG_FIELD_GET(PLANE_WIDTH_MASK, val) + 1;
 
 	val = intel_de_read(dev_priv, PLANE_STRIDE(pipe, plane_id));
 	stride_mult = skl_plane_stride_mult(fb, 0, DRM_MODE_ROTATE_0);
 
-	if (DISPLAY_VER(dev_priv) >= 13)
-		fb->pitches[0] = (val & PLANE_STRIDE_MASK_XELPD) * stride_mult;
-	else
-		fb->pitches[0] = (val & PLANE_STRIDE_MASK) * stride_mult;
+	fb->pitches[0] = REG_FIELD_GET(PLANE_STRIDE__MASK, val) * stride_mult;
 
 	aligned_height = intel_fb_align_height(fb, 0, fb->height);
 

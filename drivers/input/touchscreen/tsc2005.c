@@ -64,11 +64,9 @@ static int tsc2005_probe(struct spi_device *spi)
 			     tsc2005_cmd);
 }
 
-static int tsc2005_remove(struct spi_device *spi)
+static void tsc2005_remove(struct spi_device *spi)
 {
 	tsc200x_remove(&spi->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF

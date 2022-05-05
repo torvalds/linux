@@ -390,6 +390,7 @@ static struct attribute *overlay_sysfs_attrs[] = {
 	&overlay_attr_zorder.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(overlay_sysfs);
 
 static ssize_t overlay_attr_show(struct kobject *kobj, struct attribute *attr,
 		char *buf)
@@ -428,7 +429,7 @@ static const struct sysfs_ops overlay_sysfs_ops = {
 
 static struct kobj_type overlay_ktype = {
 	.sysfs_ops = &overlay_sysfs_ops,
-	.default_attrs = overlay_sysfs_attrs,
+	.default_groups = overlay_sysfs_groups,
 };
 
 int dss_overlay_kobj_init(struct omap_overlay *ovl,

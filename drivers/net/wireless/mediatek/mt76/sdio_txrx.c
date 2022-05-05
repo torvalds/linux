@@ -102,7 +102,10 @@ mt76s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 
 	buf = page_address(page);
 
+	sdio_claim_host(sdio->func);
 	err = sdio_readsb(sdio->func, buf, MCR_WRDR(qid), len);
+	sdio_release_host(sdio->func);
+
 	if (err < 0) {
 		dev_err(dev->dev, "sdio read data failed:%d\n", err);
 		put_page(page);
@@ -115,7 +118,7 @@ mt76s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 		__le32 *rxd = (__le32 *)buf;
 
 		/* parse rxd to get the actual packet length */
-		len = FIELD_GET(GENMASK(15, 0), le32_to_cpu(rxd[0]));
+		len = le32_get_bits(rxd[0], GENMASK(15, 0));
 		e->skb = mt76s_build_rx_skb(buf, len, round_up(len + 4, 4));
 		if (!e->skb)
 			break;
@@ -214,7 +217,10 @@ static int __mt76s_xmit_queue(struct mt76_dev *dev, u8 *data, int len)
 	if (len > sdio->func->cur_blksize)
 		len = roundup(len, sdio->func->cur_blksize);
 
+	sdio_claim_host(sdio->func);
 	err = sdio_writesb(sdio->func, MCR_WTDR1, data, len);
+	sdio_release_host(sdio->func);
+
 	if (err)
 		dev_err(dev->dev, "sdio write failed: %d\n", err);
 
@@ -223,12 +229,11 @@ static int __mt76s_xmit_queue(struct mt76_dev *dev, u8 *data, int len)
 
 static int mt76s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	int qid, err, nframes = 0, len = 0, pse_sz = 0, ple_sz = 0;
+	int err, nframes = 0, len = 0, pse_sz = 0, ple_sz = 0;
 	bool mcu = q == dev->q_mcu[MT_MCUQ_WM];
 	struct mt76_sdio *sdio = &dev->sdio;
 	u8 pad;
 
-	qid = mcu ? ARRAY_SIZE(sdio->xmit_buf) - 1 : q->qid;
 	while (q->first != q->head) {
 		struct mt76_queue_entry *e = &q->entry[q->first];
 		struct sk_buff *iter;
@@ -249,27 +254,25 @@ static int mt76s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 		}
 
 		pad = roundup(e->skb->len, 4) - e->skb->len;
-		if (len + e->skb->len + pad + 4 > MT76S_XMIT_BUF_SZ)
+		if (len + e->skb->len + pad + 4 > dev->sdio.xmit_buf_sz)
 			break;
 
 		if (mt76s_tx_pick_quota(sdio, mcu, e->buf_sz, &pse_sz,
 					&ple_sz))
 			break;
 
-		memcpy(sdio->xmit_buf[qid] + len, e->skb->data,
-		       skb_headlen(e->skb));
+		memcpy(sdio->xmit_buf + len, e->skb->data, skb_headlen(e->skb));
 		len += skb_headlen(e->skb);
 		nframes++;
 
 		skb_walk_frags(e->skb, iter) {
-			memcpy(sdio->xmit_buf[qid] + len, iter->data,
-			       iter->len);
+			memcpy(sdio->xmit_buf + len, iter->data, iter->len);
 			len += iter->len;
 			nframes++;
 		}
 
 		if (unlikely(pad)) {
-			memset(sdio->xmit_buf[qid] + len, 0, pad);
+			memset(sdio->xmit_buf + len, 0, pad);
 			len += pad;
 		}
 next:
@@ -278,8 +281,8 @@ next:
 	}
 
 	if (nframes) {
-		memset(sdio->xmit_buf[qid] + len, 0, 4);
-		err = __mt76s_xmit_queue(dev, sdio->xmit_buf[qid], len + 4);
+		memset(sdio->xmit_buf + len, 0, 4);
+		err = __mt76s_xmit_queue(dev, sdio->xmit_buf, len + 4);
 		if (err)
 			return err;
 	}
@@ -298,6 +301,7 @@ void mt76s_txrx_worker(struct mt76_sdio *sdio)
 	/* disable interrupt */
 	sdio_claim_host(sdio->func);
 	sdio_writel(sdio->func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, NULL);
+	sdio_release_host(sdio->func);
 
 	do {
 		nframes = 0;
@@ -327,6 +331,7 @@ void mt76s_txrx_worker(struct mt76_sdio *sdio)
 	} while (nframes > 0);
 
 	/* enable interrupt */
+	sdio_claim_host(sdio->func);
 	sdio_writel(sdio->func, WHLPCR_INT_EN_SET, MCR_WHLPCR, NULL);
 	sdio_release_host(sdio->func);
 }
@@ -341,6 +346,7 @@ void mt76s_sdio_irq(struct sdio_func *func)
 	    test_bit(MT76_MCU_RESET, &dev->phy.state))
 		return;
 
+	sdio_writel(sdio->func, WHLPCR_INT_EN_CLR, MCR_WHLPCR, NULL);
 	mt76_worker_schedule(&sdio->txrx_worker);
 }
 EXPORT_SYMBOL_GPL(mt76s_sdio_irq);

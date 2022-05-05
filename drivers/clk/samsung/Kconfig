@@ -11,6 +11,7 @@ config COMMON_CLK_SAMSUNG
 	select EXYNOS_5410_COMMON_CLK if ARM && SOC_EXYNOS5410
 	select EXYNOS_5420_COMMON_CLK if ARM && SOC_EXYNOS5420
 	select EXYNOS_ARM64_COMMON_CLK if ARM64 && ARCH_EXYNOS
+	select TESLA_FSD_COMMON_CLK if ARM64 && ARCH_TESLA_FSD
 
 config S3C64XX_COMMON_CLK
 	bool "Samsung S3C64xx clock controller support" if COMPILE_TEST
@@ -124,3 +125,11 @@ config S3C2443_COMMON_CLK
 	help
 	  Support for the clock controller present on the Samsung
 	  S3C2416/S3C2443 SoCs. Choose Y here only if you build for this SoC.
+
+config TESLA_FSD_COMMON_CLK
+	bool "Tesla FSD clock controller support" if COMPILE_TEST
+	depends on COMMON_CLK_SAMSUNG
+	depends on EXYNOS_ARM64_COMMON_CLK
+	help
+	  Support for the clock controller present on the Tesla FSD SoC.
+	  Choose Y here only if you build for this SoC.

@@ -21,6 +21,8 @@ properties:
 
   ports:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description: |
       Should contain a list of phandles pointing to display interface port
       of vop devices. vop definitions as defined in

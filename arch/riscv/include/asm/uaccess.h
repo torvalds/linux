@@ -21,41 +21,12 @@
 #include <asm/byteorder.h>
 #include <asm/extable.h>
 #include <asm/asm.h>
+#include <asm-generic/access_ok.h>
 
 #define __enable_user_access()							\
 	__asm__ __volatile__ ("csrs sstatus, %0" : : "r" (SR_SUM) : "memory")
 #define __disable_user_access()							\
 	__asm__ __volatile__ ("csrc sstatus, %0" : : "r" (SR_SUM) : "memory")
-
-/**
- * access_ok: - Checks if a user space pointer is valid
- * @addr: User space pointer to start of block to check
- * @size: Size of block to check
- *
- * Context: User context only.  This function may sleep.
- *
- * Checks if a pointer to a block of memory in user space is valid.
- *
- * Returns true (nonzero) if the memory block may be valid, false (zero)
- * if it is definitely invalid.
- *
- * Note that, depending on architecture, this function probably just
- * checks that the pointer is in the user space range - after calling
- * this function, memory access functions may still return -EFAULT.
- */
-#define access_ok(addr, size) ({					\
-	__chk_user_ptr(addr);						\
-	likely(__access_ok((unsigned long __force)(addr), (size)));	\
-})
-
-/*
- * Ensure that the range [addr, addr+size) is within the process's
- * address space
- */
-static inline int __access_ok(unsigned long addr, unsigned long size)
-{
-	return size <= TASK_SIZE && addr <= TASK_SIZE - size;
-}
 
 /*
  * The exception table consists of pairs of addresses: the first is the
@@ -345,8 +316,6 @@ unsigned long __must_check clear_user(void __user *to, unsigned long n)
 	return access_ok(to, n) ?
 		__clear_user(to, n) : n;
 }
-
-#define HAVE_GET_KERNEL_NOFAULT
 
 #define __get_kernel_nofault(dst, src, type, err_label)			\
 do {									\

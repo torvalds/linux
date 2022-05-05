@@ -28,7 +28,7 @@ static void syntax(char *argv[])
 	fprintf(stderr, "\tadd [flags signal|subflow|backup|fullmesh] [id <nr>] [dev <name>] <ip>\n");
 	fprintf(stderr, "\tdel <id> [<ip>]\n");
 	fprintf(stderr, "\tget <id>\n");
-	fprintf(stderr, "\tset <ip> [flags backup|nobackup]\n");
+	fprintf(stderr, "\tset [<ip>] [id <nr>] flags [no]backup|[no]fullmesh [port <nr>]\n");
 	fprintf(stderr, "\tflush\n");
 	fprintf(stderr, "\tdump\n");
 	fprintf(stderr, "\tlimits [<rcv addr max> <subflow max>]\n");
@@ -436,6 +436,13 @@ static void print_addr(struct rtattr *attrs, int len)
 					printf(",");
 			}
 
+			if (flags & MPTCP_PM_ADDR_FLAG_IMPLICIT) {
+				printf("implicit");
+				flags &= ~MPTCP_PM_ADDR_FLAG_IMPLICIT;
+				if (flags)
+					printf(",");
+			}
+
 			/* bump unknown flags, if any */
 			if (flags)
 				printf("0x%x", flags);
@@ -657,8 +664,10 @@ int set_flags(int fd, int pm_family, int argc, char *argv[])
 	u_int32_t flags = 0;
 	u_int16_t family;
 	int nest_start;
+	int use_id = 0;
+	u_int8_t id;
 	int off = 0;
-	int arg;
+	int arg = 2;
 
 	memset(data, 0, sizeof(data));
 	nh = (void *)data;
@@ -674,29 +683,45 @@ int set_flags(int fd, int pm_family, int argc, char *argv[])
 	nest->rta_len = RTA_LENGTH(0);
 	off += NLMSG_ALIGN(nest->rta_len);
 
-	/* addr data */
-	rta = (void *)(data + off);
-	if (inet_pton(AF_INET, argv[2], RTA_DATA(rta))) {
-		family = AF_INET;
-		rta->rta_type = MPTCP_PM_ADDR_ATTR_ADDR4;
-		rta->rta_len = RTA_LENGTH(4);
-	} else if (inet_pton(AF_INET6, argv[2], RTA_DATA(rta))) {
-		family = AF_INET6;
-		rta->rta_type = MPTCP_PM_ADDR_ATTR_ADDR6;
-		rta->rta_len = RTA_LENGTH(16);
+	if (!strcmp(argv[arg], "id")) {
+		if (++arg >= argc)
+			error(1, 0, " missing id value");
+
+		use_id = 1;
+		id = atoi(argv[arg]);
+		rta = (void *)(data + off);
+		rta->rta_type = MPTCP_PM_ADDR_ATTR_ID;
+		rta->rta_len = RTA_LENGTH(1);
+		memcpy(RTA_DATA(rta), &id, 1);
+		off += NLMSG_ALIGN(rta->rta_len);
 	} else {
-		error(1, errno, "can't parse ip %s", argv[2]);
+		/* addr data */
+		rta = (void *)(data + off);
+		if (inet_pton(AF_INET, argv[arg], RTA_DATA(rta))) {
+			family = AF_INET;
+			rta->rta_type = MPTCP_PM_ADDR_ATTR_ADDR4;
+			rta->rta_len = RTA_LENGTH(4);
+		} else if (inet_pton(AF_INET6, argv[arg], RTA_DATA(rta))) {
+			family = AF_INET6;
+			rta->rta_type = MPTCP_PM_ADDR_ATTR_ADDR6;
+			rta->rta_len = RTA_LENGTH(16);
+		} else {
+			error(1, errno, "can't parse ip %s", argv[arg]);
+		}
+		off += NLMSG_ALIGN(rta->rta_len);
+
+		/* family */
+		rta = (void *)(data + off);
+		rta->rta_type = MPTCP_PM_ADDR_ATTR_FAMILY;
+		rta->rta_len = RTA_LENGTH(2);
+		memcpy(RTA_DATA(rta), &family, 2);
+		off += NLMSG_ALIGN(rta->rta_len);
 	}
-	off += NLMSG_ALIGN(rta->rta_len);
 
-	/* family */
-	rta = (void *)(data + off);
-	rta->rta_type = MPTCP_PM_ADDR_ATTR_FAMILY;
-	rta->rta_len = RTA_LENGTH(2);
-	memcpy(RTA_DATA(rta), &family, 2);
-	off += NLMSG_ALIGN(rta->rta_len);
+	if (++arg >= argc)
+		error(1, 0, " missing flags keyword");
 
-	for (arg = 3; arg < argc; arg++) {
+	for (; arg < argc; arg++) {
 		if (!strcmp(argv[arg], "flags")) {
 			char *tok, *str;
 
@@ -704,12 +729,14 @@ int set_flags(int fd, int pm_family, int argc, char *argv[])
 			if (++arg >= argc)
 				error(1, 0, " missing flags value");
 
-			/* do not support flag list yet */
 			for (str = argv[arg]; (tok = strtok(str, ","));
 			     str = NULL) {
 				if (!strcmp(tok, "backup"))
 					flags |= MPTCP_PM_ADDR_FLAG_BACKUP;
-				else if (strcmp(tok, "nobackup"))
+				else if (!strcmp(tok, "fullmesh"))
+					flags |= MPTCP_PM_ADDR_FLAG_FULLMESH;
+				else if (strcmp(tok, "nobackup") &&
+					 strcmp(tok, "nofullmesh"))
 					error(1, errno,
 					      "unknown flag %s", argv[arg]);
 			}
@@ -718,6 +745,21 @@ int set_flags(int fd, int pm_family, int argc, char *argv[])
 			rta->rta_type = MPTCP_PM_ADDR_ATTR_FLAGS;
 			rta->rta_len = RTA_LENGTH(4);
 			memcpy(RTA_DATA(rta), &flags, 4);
+			off += NLMSG_ALIGN(rta->rta_len);
+		} else if (!strcmp(argv[arg], "port")) {
+			u_int16_t port;
+
+			if (use_id)
+				error(1, 0, " port can't be used with id");
+
+			if (++arg >= argc)
+				error(1, 0, " missing port value");
+
+			port = atoi(argv[arg]);
+			rta = (void *)(data + off);
+			rta->rta_type = MPTCP_PM_ADDR_ATTR_PORT;
+			rta->rta_len = RTA_LENGTH(2);
+			memcpy(RTA_DATA(rta), &port, 2);
 			off += NLMSG_ALIGN(rta->rta_len);
 		} else {
 			error(1, 0, "unknown keyword %s", argv[arg]);

@@ -226,7 +226,7 @@ static void return_all_buffers(struct sun4i_csi *csi,
 static int sun4i_csi_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct sun4i_csi *csi = vb2_get_drv_priv(vq);
-	struct v4l2_fwnode_bus_parallel *bus = &csi->bus;
+	struct v4l2_mbus_config_parallel *bus = &csi->bus;
 	const struct sun4i_csi_format *csi_fmt;
 	unsigned long href_pol, pclk_pol, vref_pol;
 	unsigned long flags;

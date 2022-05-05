@@ -8,7 +8,7 @@
 
 #include <linux/of_platform.h>
 
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_edid.h>
 
 #include "dp_catalog.h"

@@ -78,7 +78,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
-#include <linux/genhd.h>
 #include <linux/blkdev.h>
 #include <linux/mm.h>
 #include <linux/string.h>

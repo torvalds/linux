@@ -166,7 +166,9 @@ static int jl2005c_get_firmware_id(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *)gspca_dev;
 	int i = 0;
 	int retval;
-	unsigned char regs_to_read[] = {0x57, 0x02, 0x03, 0x5d, 0x5e, 0x5f};
+	static const unsigned char regs_to_read[] = {
+		0x57, 0x02, 0x03, 0x5d, 0x5e, 0x5f
+	};
 
 	gspca_dbg(gspca_dev, D_PROBE, "Running jl2005c_get_firmware_id\n");
 	/* Read the first ID byte once for warmup */

@@ -145,6 +145,9 @@ static void panfrost_gpu_init_quirks(struct panfrost_device *pfdev)
 		quirks |= (COHERENCY_ACE_LITE | COHERENCY_ACE) <<
 			   JM_FORCE_COHERENCY_FEATURES_SHIFT;
 
+	if (panfrost_has_hw_feature(pfdev, HW_FEATURE_IDVS_GROUP_SIZE))
+		quirks |= JM_DEFAULT_IDVS_GROUP_SIZE << JM_IDVS_GROUP_SIZE_SHIFT;
+
 	if (quirks)
 		gpu_write(pfdev, GPU_JM_CONFIG, quirks);
 
@@ -320,19 +323,36 @@ void panfrost_gpu_power_on(struct panfrost_device *pfdev)
 {
 	int ret;
 	u32 val;
+	u64 core_mask = U64_MAX;
 
 	panfrost_gpu_init_quirks(pfdev);
 
-	/* Just turn on everything for now */
-	gpu_write(pfdev, L2_PWRON_LO, pfdev->features.l2_present);
+	if (pfdev->features.l2_present != 1) {
+		/*
+		 * Only support one core group now.
+		 * ~(l2_present - 1) unsets all bits in l2_present except
+		 * the bottom bit. (l2_present - 2) has all the bits in
+		 * the first core group set. AND them together to generate
+		 * a mask of cores in the first core group.
+		 */
+		core_mask = ~(pfdev->features.l2_present - 1) &
+			     (pfdev->features.l2_present - 2);
+		dev_info_once(pfdev->dev, "using only 1st core group (%lu cores from %lu)\n",
+			      hweight64(core_mask),
+			      hweight64(pfdev->features.shader_present));
+	}
+	gpu_write(pfdev, L2_PWRON_LO, pfdev->features.l2_present & core_mask);
 	ret = readl_relaxed_poll_timeout(pfdev->iomem + L2_READY_LO,
-		val, val == pfdev->features.l2_present, 100, 20000);
+		val, val == (pfdev->features.l2_present & core_mask),
+		100, 20000);
 	if (ret)
 		dev_err(pfdev->dev, "error powering up gpu L2");
 
-	gpu_write(pfdev, SHADER_PWRON_LO, pfdev->features.shader_present);
+	gpu_write(pfdev, SHADER_PWRON_LO,
+		  pfdev->features.shader_present & core_mask);
 	ret = readl_relaxed_poll_timeout(pfdev->iomem + SHADER_READY_LO,
-		val, val == pfdev->features.shader_present, 100, 20000);
+		val, val == (pfdev->features.shader_present & core_mask),
+		100, 20000);
 	if (ret)
 		dev_err(pfdev->dev, "error powering up gpu shader");
 
@@ -360,8 +380,11 @@ int panfrost_gpu_init(struct panfrost_device *pfdev)
 
 	panfrost_gpu_init_features(pfdev);
 
-	dma_set_mask_and_coherent(pfdev->dev,
+	err = dma_set_mask_and_coherent(pfdev->dev,
 		DMA_BIT_MASK(FIELD_GET(0xff00, pfdev->features.mmu_features)));
+	if (err)
+		return err;
+
 	dma_set_max_seg_size(pfdev->dev, UINT_MAX);
 
 	irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "gpu");

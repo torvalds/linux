@@ -29,7 +29,7 @@ static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 
 static void cleanup(int sig)
 {
-	bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+	bpf_xdp_detach(ifindex, xdp_flags, NULL);
 	if (sig)
 		exit(1);
 }
@@ -203,7 +203,7 @@ int main(int argc, char **argv)
 
 	printf("XDP setup disrupts network connectivity, hit Ctrl+C to quit\n");
 
-	if (bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags) < 0) {
+	if (bpf_xdp_attach(ifindex, prog_fd, xdp_flags, NULL) < 0) {
 		fprintf(stderr, "Link set xdp fd failed for %s\n", ifname);
 		goto done;
 	}

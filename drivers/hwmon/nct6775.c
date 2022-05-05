@@ -308,6 +308,7 @@ static void superio_exit(struct nct6775_sio_data *sio_data)
 
 #define NUM_TEMP	10	/* Max number of temp attribute sets w/ limits*/
 #define NUM_TEMP_FIXED	6	/* Max number of fixed temp attribute sets */
+#define NUM_TSI_TEMP	8	/* Max number of TSI temp register pairs */
 
 #define NUM_REG_ALARM	7	/* Max number of alarm registers */
 #define NUM_REG_BEEP	5	/* Max number of beep registers */
@@ -498,6 +499,8 @@ static const u16 NCT6775_REG_TEMP_CRIT[32] = {
 	[11] = 0xa07
 };
 
+static const u16 NCT6775_REG_TSI_TEMP[] = { 0x669 };
+
 /* NCT6776 specific data */
 
 /* STEP_UP_TIME and STEP_DOWN_TIME regs are swapped for all chips but NCT6775 */
@@ -580,6 +583,9 @@ static const u16 NCT6776_REG_TEMP_CRIT[32] = {
 	[11] = 0x709,
 	[12] = 0x70a,
 };
+
+static const u16 NCT6776_REG_TSI_TEMP[] = {
+	0x409, 0x40b, 0x40d, 0x40f, 0x411, 0x413, 0x415, 0x417 };
 
 /* NCT6779 specific data */
 
@@ -864,6 +870,8 @@ static const char *const nct6796_temp_label[] = {
 #define NCT6796_TEMP_MASK	0xbfff0ffe
 #define NCT6796_VIRT_TEMP_MASK	0x80000c00
 
+static const u16 NCT6796_REG_TSI_TEMP[] = { 0x409, 0x40b };
+
 static const char *const nct6798_temp_label[] = {
 	"",
 	"SYSTIN",
@@ -1005,6 +1013,8 @@ static const u16 NCT6106_REG_TEMP_CRIT[32] = {
 	[12] = 0x205,
 };
 
+static const u16 NCT6106_REG_TSI_TEMP[] = { 0x59, 0x5b, 0x5d, 0x5f, 0x61, 0x63, 0x65, 0x67 };
+
 /* NCT6112D/NCT6114D/NCT6116D specific data */
 
 static const u16 NCT6116_REG_FAN[] = { 0x20, 0x22, 0x24, 0x26, 0x28 };
@@ -1068,6 +1078,8 @@ static const s8 NCT6116_BEEP_BITS[] = {
 	16, 17, 18, -1, -1, -1,		/* temp1..temp6 */
 	34, -1				/* intrusion0, intrusion1 */
 };
+
+static const u16 NCT6116_REG_TSI_TEMP[] = { 0x59, 0x5b };
 
 static enum pwm_enable reg_to_pwm_enable(int pwm, int mode)
 {
@@ -1169,6 +1181,12 @@ static inline u8 in_to_reg(u32 val, u8 nr)
 	return clamp_val(DIV_ROUND_CLOSEST(val * 100, scale_in[nr]), 0, 255);
 }
 
+/* TSI temperatures are in 8.3 format */
+static inline unsigned int tsi_temp_from_reg(unsigned int reg)
+{
+	return (reg >> 5) * 125;
+}
+
 /*
  * Data structures and manipulation thereof
  */
@@ -1179,7 +1197,7 @@ struct nct6775_data {
 	enum kinds kind;
 	const char *name;
 
-	const struct attribute_group *groups[6];
+	const struct attribute_group *groups[7];
 
 	u16 reg_temp[5][NUM_TEMP]; /* 0=temp, 1=temp_over, 2=temp_hyst,
 				    * 3=temp_crit, 4=temp_lcrit
@@ -1240,6 +1258,8 @@ struct nct6775_data {
 	const u16 *REG_ALARM;
 	const u16 *REG_BEEP;
 
+	const u16 *REG_TSI_TEMP;
+
 	unsigned int (*fan_from_reg)(u16 reg, unsigned int divreg);
 	unsigned int (*fan_from_reg_min)(u16 reg, unsigned int divreg);
 
@@ -1267,6 +1287,7 @@ struct nct6775_data {
 	s8 temp_offset[NUM_TEMP_FIXED];
 	s16 temp[5][NUM_TEMP]; /* 0=temp, 1=temp_over, 2=temp_hyst,
 				* 3=temp_crit, 4=temp_lcrit */
+	s16 tsi_temp[NUM_TSI_TEMP];
 	u64 alarms;
 	u64 beeps;
 
@@ -1315,6 +1336,7 @@ struct nct6775_data {
 
 	u16 have_temp;
 	u16 have_temp_fixed;
+	u16 have_tsi_temp;
 	u16 have_in;
 
 	/* Remember extra register values over suspend/resume */
@@ -1464,13 +1486,15 @@ static bool is_word_sized(struct nct6775_data *data, u16 reg)
 	switch (data->kind) {
 	case nct6106:
 		return reg == 0x20 || reg == 0x22 || reg == 0x24 ||
+		  (reg >= 0x59 && reg < 0x69 && (reg & 1)) ||
 		  reg == 0xe0 || reg == 0xe2 || reg == 0xe4 ||
 		  reg == 0x111 || reg == 0x121 || reg == 0x131;
 	case nct6116:
 		return reg == 0x20 || reg == 0x22 || reg == 0x24 ||
-		  reg == 0x26 || reg == 0x28 || reg == 0xe0 || reg == 0xe2 ||
-		  reg == 0xe4 || reg == 0xe6 || reg == 0xe8 || reg == 0x111 ||
-		  reg == 0x121 || reg == 0x131 || reg == 0x191 || reg == 0x1a1;
+		  reg == 0x26 || reg == 0x28 || reg == 0x59 || reg == 0x5b ||
+		  reg == 0xe0 || reg == 0xe2 || reg == 0xe4 || reg == 0xe6 ||
+		  reg == 0xe8 || reg == 0x111 || reg == 0x121 || reg == 0x131 ||
+		  reg == 0x191 || reg == 0x1a1;
 	case nct6775:
 		return (((reg & 0xff00) == 0x100 ||
 		    (reg & 0xff00) == 0x200) &&
@@ -1479,7 +1503,7 @@ static bool is_word_sized(struct nct6775_data *data, u16 reg)
 		    (reg & 0x00ff) == 0x55)) ||
 		  (reg & 0xfff0) == 0x630 ||
 		  reg == 0x640 || reg == 0x642 ||
-		  reg == 0x662 ||
+		  reg == 0x662 || reg == 0x669 ||
 		  ((reg & 0xfff0) == 0x650 && (reg & 0x000f) >= 0x06) ||
 		  reg == 0x73 || reg == 0x75 || reg == 0x77;
 	case nct6776:
@@ -1490,6 +1514,7 @@ static bool is_word_sized(struct nct6775_data *data, u16 reg)
 		    (reg & 0x00ff) == 0x55)) ||
 		  (reg & 0xfff0) == 0x630 ||
 		  reg == 0x402 ||
+		  (reg >= 0x409 && reg < 0x419 && (reg & 1)) ||
 		  reg == 0x640 || reg == 0x642 ||
 		  ((reg & 0xfff0) == 0x650 && (reg & 0x000f) >= 0x06) ||
 		  reg == 0x73 || reg == 0x75 || reg == 0x77;
@@ -1504,6 +1529,7 @@ static bool is_word_sized(struct nct6775_data *data, u16 reg)
 		return reg == 0x150 || reg == 0x153 || reg == 0x155 ||
 		  (reg & 0xfff0) == 0x4c0 ||
 		  reg == 0x402 ||
+		  (reg >= 0x409 && reg < 0x419 && (reg & 1)) ||
 		  reg == 0x63a || reg == 0x63c || reg == 0x63e ||
 		  reg == 0x640 || reg == 0x642 || reg == 0x64a ||
 		  reg == 0x64c ||
@@ -1985,6 +2011,12 @@ static struct nct6775_data *nct6775_update_device(struct device *dev)
 				continue;
 			data->temp_offset[i] = data->read_value(data,
 								   data->REG_TEMP_OFFSET[i]);
+		}
+
+		for (i = 0; i < NUM_TSI_TEMP; i++) {
+			if (!(data->have_tsi_temp & BIT(i)))
+				continue;
+			data->tsi_temp[i] = data->read_value(data, data->REG_TSI_TEMP[i]);
 		}
 
 		data->alarms = 0;
@@ -2668,6 +2700,44 @@ static const struct sensor_template_group nct6775_temp_template_group = {
 	.templates = nct6775_attributes_temp_template,
 	.is_visible = nct6775_temp_is_visible,
 	.base = 1,
+};
+
+static ssize_t show_tsi_temp(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct nct6775_data *data = nct6775_update_device(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+
+	return sysfs_emit(buf, "%u\n", tsi_temp_from_reg(data->tsi_temp[sattr->index]));
+}
+
+static ssize_t show_tsi_temp_label(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+
+	return sysfs_emit(buf, "TSI%d_TEMP\n", sattr->index);
+}
+
+SENSOR_TEMPLATE(tsi_temp_input, "temp%d_input", 0444, show_tsi_temp, NULL, 0);
+SENSOR_TEMPLATE(tsi_temp_label, "temp%d_label", 0444, show_tsi_temp_label, NULL, 0);
+
+static umode_t nct6775_tsi_temp_is_visible(struct kobject *kobj, struct attribute *attr,
+					       int index)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct nct6775_data *data = dev_get_drvdata(dev);
+	int temp = index / 2;
+
+	return (data->have_tsi_temp & BIT(temp)) ? attr->mode : 0;
+}
+
+/*
+ * The index calculation in nct6775_tsi_temp_is_visible() must be kept in
+ * sync with the size of this array.
+ */
+static struct sensor_device_template *nct6775_tsi_temp_template[] = {
+	&sensor_dev_template_tsi_temp_input,
+	&sensor_dev_template_tsi_temp_label,
+	NULL
 };
 
 static ssize_t
@@ -3948,10 +4018,11 @@ static int nct6775_probe(struct platform_device *pdev)
 	const u16 *reg_temp, *reg_temp_over, *reg_temp_hyst, *reg_temp_config;
 	const u16 *reg_temp_mon, *reg_temp_alternate, *reg_temp_crit;
 	const u16 *reg_temp_crit_l = NULL, *reg_temp_crit_h = NULL;
-	int num_reg_temp, num_reg_temp_mon;
+	int num_reg_temp, num_reg_temp_mon, num_reg_tsi_temp;
 	u8 cr2a;
 	struct attribute_group *group;
 	struct device *hwmon_dev;
+	struct sensor_template_group tsi_temp_tg;
 	int num_attr_groups = 0;
 
 	if (sio_data->access == access_direct) {
@@ -4043,11 +4114,13 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->ALARM_BITS = NCT6106_ALARM_BITS;
 		data->REG_BEEP = NCT6106_REG_BEEP;
 		data->BEEP_BITS = NCT6106_BEEP_BITS;
+		data->REG_TSI_TEMP = NCT6106_REG_TSI_TEMP;
 
 		reg_temp = NCT6106_REG_TEMP;
 		reg_temp_mon = NCT6106_REG_TEMP_MON;
 		num_reg_temp = ARRAY_SIZE(NCT6106_REG_TEMP);
 		num_reg_temp_mon = ARRAY_SIZE(NCT6106_REG_TEMP_MON);
+		num_reg_tsi_temp = ARRAY_SIZE(NCT6106_REG_TSI_TEMP);
 		reg_temp_over = NCT6106_REG_TEMP_OVER;
 		reg_temp_hyst = NCT6106_REG_TEMP_HYST;
 		reg_temp_config = NCT6106_REG_TEMP_CONFIG;
@@ -4116,11 +4189,13 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->ALARM_BITS = NCT6116_ALARM_BITS;
 		data->REG_BEEP = NCT6106_REG_BEEP;
 		data->BEEP_BITS = NCT6116_BEEP_BITS;
+		data->REG_TSI_TEMP = NCT6116_REG_TSI_TEMP;
 
 		reg_temp = NCT6106_REG_TEMP;
 		reg_temp_mon = NCT6106_REG_TEMP_MON;
 		num_reg_temp = ARRAY_SIZE(NCT6106_REG_TEMP);
 		num_reg_temp_mon = ARRAY_SIZE(NCT6106_REG_TEMP_MON);
+		num_reg_tsi_temp = ARRAY_SIZE(NCT6116_REG_TSI_TEMP);
 		reg_temp_over = NCT6106_REG_TEMP_OVER;
 		reg_temp_hyst = NCT6106_REG_TEMP_HYST;
 		reg_temp_config = NCT6106_REG_TEMP_CONFIG;
@@ -4191,11 +4266,13 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_WEIGHT_TEMP[2] = NCT6775_REG_WEIGHT_TEMP_BASE;
 		data->REG_ALARM = NCT6775_REG_ALARM;
 		data->REG_BEEP = NCT6775_REG_BEEP;
+		data->REG_TSI_TEMP = NCT6775_REG_TSI_TEMP;
 
 		reg_temp = NCT6775_REG_TEMP;
 		reg_temp_mon = NCT6775_REG_TEMP_MON;
 		num_reg_temp = ARRAY_SIZE(NCT6775_REG_TEMP);
 		num_reg_temp_mon = ARRAY_SIZE(NCT6775_REG_TEMP_MON);
+		num_reg_tsi_temp = ARRAY_SIZE(NCT6775_REG_TSI_TEMP);
 		reg_temp_over = NCT6775_REG_TEMP_OVER;
 		reg_temp_hyst = NCT6775_REG_TEMP_HYST;
 		reg_temp_config = NCT6775_REG_TEMP_CONFIG;
@@ -4264,11 +4341,13 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_WEIGHT_TEMP[2] = NCT6775_REG_WEIGHT_TEMP_BASE;
 		data->REG_ALARM = NCT6775_REG_ALARM;
 		data->REG_BEEP = NCT6776_REG_BEEP;
+		data->REG_TSI_TEMP = NCT6776_REG_TSI_TEMP;
 
 		reg_temp = NCT6775_REG_TEMP;
 		reg_temp_mon = NCT6775_REG_TEMP_MON;
 		num_reg_temp = ARRAY_SIZE(NCT6775_REG_TEMP);
 		num_reg_temp_mon = ARRAY_SIZE(NCT6775_REG_TEMP_MON);
+		num_reg_tsi_temp = ARRAY_SIZE(NCT6776_REG_TSI_TEMP);
 		reg_temp_over = NCT6775_REG_TEMP_OVER;
 		reg_temp_hyst = NCT6775_REG_TEMP_HYST;
 		reg_temp_config = NCT6776_REG_TEMP_CONFIG;
@@ -4341,11 +4420,13 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->REG_WEIGHT_TEMP[2] = NCT6775_REG_WEIGHT_TEMP_BASE;
 		data->REG_ALARM = NCT6779_REG_ALARM;
 		data->REG_BEEP = NCT6776_REG_BEEP;
+		data->REG_TSI_TEMP = NCT6776_REG_TSI_TEMP;
 
 		reg_temp = NCT6779_REG_TEMP;
 		reg_temp_mon = NCT6779_REG_TEMP_MON;
 		num_reg_temp = ARRAY_SIZE(NCT6779_REG_TEMP);
 		num_reg_temp_mon = ARRAY_SIZE(NCT6779_REG_TEMP_MON);
+		num_reg_tsi_temp = ARRAY_SIZE(NCT6776_REG_TSI_TEMP);
 		reg_temp_over = NCT6779_REG_TEMP_OVER;
 		reg_temp_hyst = NCT6779_REG_TEMP_HYST;
 		reg_temp_config = NCT6779_REG_TEMP_CONFIG;
@@ -4460,6 +4541,24 @@ static int nct6775_probe(struct platform_device *pdev)
 			data->REG_BEEP = NCT6776_REG_BEEP;
 		else
 			data->REG_BEEP = NCT6792_REG_BEEP;
+		switch (data->kind) {
+		case nct6791:
+		case nct6792:
+		case nct6793:
+			data->REG_TSI_TEMP = NCT6776_REG_TSI_TEMP;
+			num_reg_tsi_temp = ARRAY_SIZE(NCT6776_REG_TSI_TEMP);
+			break;
+		case nct6795:
+		case nct6796:
+		case nct6797:
+		case nct6798:
+			data->REG_TSI_TEMP = NCT6796_REG_TSI_TEMP;
+			num_reg_tsi_temp = ARRAY_SIZE(NCT6796_REG_TSI_TEMP);
+			break;
+		default:
+			num_reg_tsi_temp = 0;
+			break;
+		}
 
 		reg_temp = NCT6779_REG_TEMP;
 		num_reg_temp = ARRAY_SIZE(NCT6779_REG_TEMP);
@@ -4659,6 +4758,12 @@ static int nct6775_probe(struct platform_device *pdev)
 	}
 #endif /* USE_ALTERNATE */
 
+	/* Check which TSIx_TEMP registers are active */
+	for (i = 0; i < num_reg_tsi_temp; i++) {
+		if (data->read_value(data, data->REG_TSI_TEMP[i]))
+			data->have_tsi_temp |= BIT(i);
+	}
+
 	/* Initialize the chip */
 	nct6775_init_device(data);
 
@@ -4766,6 +4871,18 @@ static int nct6775_probe(struct platform_device *pdev)
 		return PTR_ERR(group);
 
 	data->groups[num_attr_groups++] = group;
+
+	if (data->have_tsi_temp) {
+		tsi_temp_tg.templates = nct6775_tsi_temp_template;
+		tsi_temp_tg.is_visible = nct6775_tsi_temp_is_visible;
+		tsi_temp_tg.base = fls(data->have_temp) + 1;
+		group = nct6775_create_attr_group(dev, &tsi_temp_tg, fls(data->have_tsi_temp));
+		if (IS_ERR(group))
+			return PTR_ERR(group);
+
+		data->groups[num_attr_groups++] = group;
+	}
+
 	data->groups[num_attr_groups++] = &nct6775_group_other;
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, data->name,
@@ -4985,9 +5102,14 @@ static struct platform_device *pdev[2];
 
 static const char * const asus_wmi_boards[] = {
 	"ProArt X570-CREATOR WIFI",
+	"Pro B550M-C",
 	"Pro WS X570-ACE",
 	"PRIME B360-PLUS",
 	"PRIME B460-PLUS",
+	"PRIME B550-PLUS",
+	"PRIME B550M-A",
+	"PRIME B550M-A (WI-FI)",
+	"PRIME X570-P",
 	"PRIME X570-PRO",
 	"ROG CROSSHAIR VIII DARK HERO",
 	"ROG CROSSHAIR VIII FORMULA",
@@ -4997,10 +5119,22 @@ static const char * const asus_wmi_boards[] = {
 	"ROG STRIX B550-E GAMING",
 	"ROG STRIX B550-F GAMING",
 	"ROG STRIX B550-F GAMING (WI-FI)",
+	"ROG STRIX B550-F GAMING WIFI II",
 	"ROG STRIX B550-I GAMING",
+	"ROG STRIX B550-XE GAMING (WI-FI)",
+	"ROG STRIX X570-E GAMING",
 	"ROG STRIX X570-F GAMING",
 	"ROG STRIX X570-I GAMING",
 	"ROG STRIX Z390-E GAMING",
+	"ROG STRIX Z390-F GAMING",
+	"ROG STRIX Z390-H GAMING",
+	"ROG STRIX Z390-I GAMING",
+	"ROG STRIX Z490-A GAMING",
+	"ROG STRIX Z490-E GAMING",
+	"ROG STRIX Z490-F GAMING",
+	"ROG STRIX Z490-G GAMING",
+	"ROG STRIX Z490-G GAMING (WI-FI)",
+	"ROG STRIX Z490-H GAMING",
 	"ROG STRIX Z490-I GAMING",
 	"TUF GAMING B550M-PLUS",
 	"TUF GAMING B550M-PLUS (WI-FI)",

@@ -39,7 +39,7 @@
 
 #include <drm/drm_vma_manager.h>
 
-struct dma_buf_map;
+struct iosys_map;
 struct drm_gem_object;
 
 /**
@@ -139,7 +139,7 @@ struct drm_gem_object_funcs {
 	 *
 	 * This callback is optional.
 	 */
-	int (*vmap)(struct drm_gem_object *obj, struct dma_buf_map *map);
+	int (*vmap)(struct drm_gem_object *obj, struct iosys_map *map);
 
 	/**
 	 * @vunmap:
@@ -149,7 +149,7 @@ struct drm_gem_object_funcs {
 	 *
 	 * This callback is optional.
 	 */
-	void (*vunmap)(struct drm_gem_object *obj, struct dma_buf_map *map);
+	void (*vunmap)(struct drm_gem_object *obj, struct iosys_map *map);
 
 	/**
 	 * @mmap:

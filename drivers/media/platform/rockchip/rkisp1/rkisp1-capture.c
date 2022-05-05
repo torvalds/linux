@@ -249,7 +249,7 @@ static const struct rkisp1_capture_fmt_cfg rkisp1_sp_fmts[] = {
 		.fourcc = V4L2_PIX_FMT_GREY,
 		.uv_swap = 0,
 		.write_format = RKISP1_MI_CTRL_SP_WRITE_PLA,
-		.output_format = RKISP1_MI_CTRL_SP_OUTPUT_YUV400,
+		.output_format = RKISP1_MI_CTRL_SP_OUTPUT_YUV422,
 		.mbus = MEDIA_BUS_FMT_YUYV8_2X8,
 	},
 	/* rgb */
@@ -631,12 +631,26 @@ static void rkisp1_set_next_buf(struct rkisp1_capture *cap)
 		rkisp1_write(cap->rkisp1,
 			     buff_addr[RKISP1_PLANE_Y],
 			     cap->config->mi.y_base_ad_init);
-		rkisp1_write(cap->rkisp1,
-			     buff_addr[RKISP1_PLANE_CB],
-			     cap->config->mi.cb_base_ad_init);
-		rkisp1_write(cap->rkisp1,
-			     buff_addr[RKISP1_PLANE_CR],
-			     cap->config->mi.cr_base_ad_init);
+		/*
+		 * In order to support grey format we capture
+		 * YUV422 planar format from the camera and
+		 * set the U and V planes to the dummy buffer
+		 */
+		if (cap->pix.cfg->fourcc == V4L2_PIX_FMT_GREY) {
+			rkisp1_write(cap->rkisp1,
+				     cap->buf.dummy.dma_addr,
+				     cap->config->mi.cb_base_ad_init);
+			rkisp1_write(cap->rkisp1,
+				     cap->buf.dummy.dma_addr,
+				     cap->config->mi.cr_base_ad_init);
+		} else {
+			rkisp1_write(cap->rkisp1,
+				     buff_addr[RKISP1_PLANE_CB],
+				     cap->config->mi.cb_base_ad_init);
+			rkisp1_write(cap->rkisp1,
+				     buff_addr[RKISP1_PLANE_CR],
+				     cap->config->mi.cr_base_ad_init);
+		}
 	} else {
 		/*
 		 * Use the dummy space allocated by dma_alloc_coherent to

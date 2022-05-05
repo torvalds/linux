@@ -653,7 +653,6 @@ static void apr_remove(struct rpmsg_device *rpdev)
 
 	pdr_handle_release(apr->pdr);
 	device_for_each_child(&rpdev->dev, NULL, apr_remove_device);
-	flush_workqueue(apr->rxwq);
 	destroy_workqueue(apr->rxwq);
 }
 

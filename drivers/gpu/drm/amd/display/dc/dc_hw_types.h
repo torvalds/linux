@@ -745,6 +745,7 @@ struct dc_dsc_config {
 	bool is_frl; /* indicate if DSC is applied based on HDMI FRL sink's capability */
 #endif
 	bool is_dp; /* indicate if DSC is applied based on DP's capability */
+	uint32_t mst_pbn; /* pbn of display on dsc mst hub */
 };
 struct dc_crtc_timing {
 	uint32_t h_total;

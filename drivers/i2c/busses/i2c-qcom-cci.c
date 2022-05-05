@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
-// Copyright (c) 2017-20 Linaro Limited.
+// Copyright (c) 2017-2022 Linaro Limited.
 
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -776,6 +776,7 @@ static const struct of_device_id cci_dt_match[] = {
 	{ .compatible = "qcom,msm8996-cci", .data = &cci_v2_data},
 	{ .compatible = "qcom,sdm845-cci", .data = &cci_v2_data},
 	{ .compatible = "qcom,sm8250-cci", .data = &cci_v2_data},
+	{ .compatible = "qcom,sm8450-cci", .data = &cci_v2_data},
 	{}
 };
 MODULE_DEVICE_TABLE(of, cci_dt_match);

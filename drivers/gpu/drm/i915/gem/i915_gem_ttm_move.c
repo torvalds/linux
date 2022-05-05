@@ -142,7 +142,16 @@ int i915_ttm_move_notify(struct ttm_buffer_object *bo)
 	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
 	int ret;
 
-	ret = i915_gem_object_unbind(obj, I915_GEM_OBJECT_UNBIND_ACTIVE);
+	/*
+	 * Note: The async unbinding here will actually transform the
+	 * blocking wait for unbind into a wait before finally submitting
+	 * evict / migration blit and thus stall the migration timeline
+	 * which may not be good for overall throughput. We should make
+	 * sure we await the unbind fences *after* the migration blit
+	 * instead of *before* as we currently do.
+	 */
+	ret = i915_gem_object_unbind(obj, I915_GEM_OBJECT_UNBIND_ACTIVE |
+				     I915_GEM_OBJECT_UNBIND_ASYNC);
 	if (ret)
 		return ret;
 
@@ -531,7 +540,7 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 			return ret;
 		}
 
-		migration_fence = __i915_ttm_move(bo, ctx, clear, dst_mem, bo->ttm,
+		migration_fence = __i915_ttm_move(bo, ctx, clear, dst_mem, ttm,
 						  dst_rsgt, true, &deps);
 		i915_deps_fini(&deps);
 	}

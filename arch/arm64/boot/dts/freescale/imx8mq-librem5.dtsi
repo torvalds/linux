@@ -278,6 +278,7 @@
 
 &ddrc {
 	operating-points-v2 = <&ddrc_opp_table>;
+	status = "okay";
 
 	ddrc_opp_table: opp-table {
 		compatible = "operating-points-v2";

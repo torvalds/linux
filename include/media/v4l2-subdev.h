@@ -715,17 +715,6 @@ struct v4l2_subdev_state {
  *		     this operation as close as possible to stream on time. The
  *		     operation shall fail if the pad index it has been called on
  *		     is not valid or in case of unrecoverable failures.
- *
- * @set_mbus_config: set the media bus configuration of a remote sub-device.
- *		     This operations is intended to allow, in combination with
- *		     the get_mbus_config operation, the negotiation of media bus
- *		     configuration parameters between media sub-devices. The
- *		     operation shall not fail if the requested configuration is
- *		     not supported, but the driver shall update the content of
- *		     the %config argument to reflect what has been actually
- *		     applied to the hardware. The operation shall fail if the
- *		     pad index it has been called on is not valid or in case of
- *		     unrecoverable failures.
  */
 struct v4l2_subdev_pad_ops {
 	int (*init_cfg)(struct v4l2_subdev *sd,
@@ -767,8 +756,6 @@ struct v4l2_subdev_pad_ops {
 	int (*set_frame_desc)(struct v4l2_subdev *sd, unsigned int pad,
 			      struct v4l2_mbus_frame_desc *fd);
 	int (*get_mbus_config)(struct v4l2_subdev *sd, unsigned int pad,
-			       struct v4l2_mbus_config *config);
-	int (*set_mbus_config)(struct v4l2_subdev *sd, unsigned int pad,
 			       struct v4l2_mbus_config *config);
 };
 

@@ -16,8 +16,10 @@
 #include <linux/hdlc.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/poll.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
@@ -1389,9 +1391,28 @@ static int ixp4xx_hss_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct net_device *ndev;
 	struct device_node *np;
+	struct regmap *rmap;
 	struct port *port;
 	hdlc_device *hdlc;
 	int err;
+	u32 val;
+
+	/*
+	 * Go into the syscon and check if we have the HSS and HDLC
+	 * features available, else this will not work.
+	 */
+	rmap = syscon_regmap_lookup_by_compatible("syscon");
+	if (IS_ERR(rmap))
+		return dev_err_probe(dev, PTR_ERR(rmap),
+				     "failed to look up syscon\n");
+
+	val = cpu_ixp4xx_features(rmap);
+
+	if ((val & (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS)) !=
+	    (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS)) {
+		dev_err(dev, "HDLC and HSS feature unavailable in platform\n");
+		return -ENODEV;
+	}
 
 	np = dev->of_node;
 
@@ -1516,25 +1537,9 @@ static struct platform_driver ixp4xx_hss_driver = {
 	.probe		= ixp4xx_hss_probe,
 	.remove		= ixp4xx_hss_remove,
 };
-
-static int __init hss_init_module(void)
-{
-	if ((ixp4xx_read_feature_bits() &
-	     (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS)) !=
-	    (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS))
-		return -ENODEV;
-
-	return platform_driver_register(&ixp4xx_hss_driver);
-}
-
-static void __exit hss_cleanup_module(void)
-{
-	platform_driver_unregister(&ixp4xx_hss_driver);
-}
+module_platform_driver(ixp4xx_hss_driver);
 
 MODULE_AUTHOR("Krzysztof Halasa");
 MODULE_DESCRIPTION("Intel IXP4xx HSS driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:ixp4xx_hss");
-module_init(hss_init_module);
-module_exit(hss_cleanup_module);

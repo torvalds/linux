@@ -23,6 +23,7 @@
 #include "ef100_rx.h"
 #include "ef100_tx.h"
 #include "ef100_netdev.h"
+#include "rx_common.h"
 
 #define EF100_MAX_VIS 4096
 #define EF100_NUM_MCDI_BUFFERS	1
@@ -696,6 +697,12 @@ static unsigned int ef100_check_caps(const struct efx_nic *efx,
 	}
 }
 
+static unsigned int efx_ef100_recycle_ring_size(const struct efx_nic *efx)
+{
+	/* Maximum link speed for Riverhead is 100G */
+	return 10 * EFX_RECYCLE_RING_SIZE_10G;
+}
+
 /*	NIC level access functions
  */
 #define EF100_OFFLOAD_FEATURES	(NETIF_F_HW_CSUM | NETIF_F_RXCSUM |	\
@@ -770,6 +777,7 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.rx_push_rss_context_config = efx_mcdi_rx_push_rss_context_config,
 	.rx_pull_rss_context_config = efx_mcdi_rx_pull_rss_context_config,
 	.rx_restore_rss_contexts = efx_mcdi_rx_restore_rss_contexts,
+	.rx_recycle_ring_size = efx_ef100_recycle_ring_size,
 
 	.reconfigure_mac = ef100_reconfigure_mac,
 	.reconfigure_port = efx_mcdi_port_reconfigure,
@@ -849,6 +857,7 @@ const struct efx_nic_type ef100_vf_nic_type = {
 	.rx_pull_rss_config = efx_mcdi_rx_pull_rss_config,
 	.rx_push_rss_config = efx_mcdi_pf_rx_push_rss_config,
 	.rx_restore_rss_contexts = efx_mcdi_rx_restore_rss_contexts,
+	.rx_recycle_ring_size = efx_ef100_recycle_ring_size,
 
 	.reconfigure_mac = ef100_reconfigure_mac,
 	.test_nvram = efx_new_mcdi_nvram_test_all,

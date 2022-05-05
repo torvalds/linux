@@ -115,6 +115,8 @@ struct ath11k_pdev_mon_stats {
 	u32 dest_mpdu_drop;
 	u32 dup_mon_linkdesc_cnt;
 	u32 dup_mon_buf_cnt;
+	u32 dest_mon_stuck;
+	u32 dest_mon_not_reaped;
 };
 
 struct dp_full_mon_mpdu {
@@ -167,6 +169,7 @@ struct ath11k_mon_data {
 
 struct ath11k_pdev_dp {
 	u32 mac_id;
+	u32 mon_dest_ring_stuck_cnt;
 	atomic_t num_tx_pending;
 	wait_queue_head_t tx_empty_waitq;
 	struct dp_rxdma_ring rx_refill_buf_ring;
@@ -1170,12 +1173,12 @@ struct ath11k_htt_ppdu_stats_msg {
 	u32 ppdu_id;
 	u32 timestamp;
 	u32 rsvd;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct htt_tlv {
 	u32 header;
-	u8 value[0];
+	u8 value[];
 } __packed;
 
 #define HTT_TLV_TAG			GENMASK(11, 0)
@@ -1362,7 +1365,7 @@ struct htt_ppdu_stats_usr_cmn_array {
 	 * tx_ppdu_stats_info is variable length, with length =
 	 *     number_of_ppdu_stats * sizeof (struct htt_tx_ppdu_stats_info)
 	 */
-	struct htt_tx_ppdu_stats_info tx_ppdu_info[0];
+	struct htt_tx_ppdu_stats_info tx_ppdu_info[];
 } __packed;
 
 struct htt_ppdu_user_stats {
@@ -1424,7 +1427,7 @@ struct htt_ppdu_stats_info {
  */
 struct htt_pktlog_msg {
 	u32 hdr;
-	u8 payload[0];
+	u8 payload[];
 };
 
 /**
@@ -1645,7 +1648,7 @@ struct ath11k_htt_extd_stats_msg {
 	u32 info0;
 	u64 cookie;
 	u32 info1;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define	HTT_MAC_ADDR_L32_0	GENMASK(7, 0)

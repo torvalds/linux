@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-ifdef CONFIG_FUNCTION_TRACER
-CFLAGS_REMOVE_clock.o = $(CC_FLAGS_FTRACE)
-endif
 
 # The compilers are complaining about unused variables inside an if(0) scope
 # block. This is daft, shut them up.
@@ -25,18 +22,13 @@ ifneq ($(CONFIG_SCHED_OMIT_FRAME_POINTER),y)
 CFLAGS_core.o := $(PROFILING) -fno-omit-frame-pointer
 endif
 
-obj-y += core.o loadavg.o clock.o cputime.o
-obj-y += idle.o fair.o rt.o deadline.o
-obj-y += wait.o wait_bit.o swait.o completion.o
-
-obj-$(CONFIG_SMP) += cpupri.o cpudeadline.o topology.o stop_task.o pelt.o
-obj-$(CONFIG_SCHED_AUTOGROUP) += autogroup.o
-obj-$(CONFIG_SCHEDSTATS) += stats.o
-obj-$(CONFIG_SCHED_DEBUG) += debug.o
-obj-$(CONFIG_CGROUP_CPUACCT) += cpuacct.o
-obj-$(CONFIG_CPU_FREQ) += cpufreq.o
-obj-$(CONFIG_CPU_FREQ_GOV_SCHEDUTIL) += cpufreq_schedutil.o
-obj-$(CONFIG_MEMBARRIER) += membarrier.o
-obj-$(CONFIG_CPU_ISOLATION) += isolation.o
-obj-$(CONFIG_PSI) += psi.o
-obj-$(CONFIG_SCHED_CORE) += core_sched.o
+#
+# Build efficiency:
+#
+# These compilation units have roughly the same size and complexity - so their
+# build parallelizes well and finishes roughly at once:
+#
+obj-y += core.o
+obj-y += fair.o
+obj-y += build_policy.o
+obj-y += build_utility.o

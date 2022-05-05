@@ -12,7 +12,6 @@
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/gpio/consumer.h>
-#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -129,7 +128,7 @@ static int secocec_adap_enable(struct cec_adapter *adap, bool enable)
 		if (status)
 			goto err;
 
-		dev_dbg(dev, "Device enabled");
+		dev_dbg(dev, "Device enabled\n");
 	} else {
 		/* Clear the status register */
 		status = smb_rd16(SECOCEC_STATUS_REG_1, &val);
@@ -141,7 +140,7 @@ static int secocec_adap_enable(struct cec_adapter *adap, bool enable)
 				  ~SECOCEC_ENABLE_REG_1_CEC &
 				  ~SECOCEC_ENABLE_REG_1_IR);
 
-		dev_dbg(dev, "Device disabled");
+		dev_dbg(dev, "Device disabled\n");
 	}
 
 	return 0;
@@ -264,12 +263,12 @@ static void secocec_rx_done(struct cec_adapter *adap, u16 status_val)
 
 	if (status_val & SECOCEC_STATUS_RX_OVERFLOW_MASK) {
 		/* NOTE: Untested, it also might not be necessary */
-		dev_warn(dev, "Received more than 16 bytes. Discarding");
+		dev_warn(dev, "Received more than 16 bytes. Discarding\n");
 		flag_overflow = true;
 	}
 
 	if (status_val & SECOCEC_STATUS_RX_ERROR_MASK) {
-		dev_warn(dev, "Message received with errors. Discarding");
+		dev_warn(dev, "Message received with errors. Discarding\n");
 		status = -EIO;
 		goto rxerr;
 	}
@@ -390,12 +389,12 @@ static int secocec_ir_probe(void *priv)
 	if (status != 0)
 		goto err;
 
-	dev_dbg(dev, "IR enabled");
+	dev_dbg(dev, "IR enabled\n");
 
 	status = devm_rc_register_device(dev, cec->ir);
 
 	if (status) {
-		dev_err(dev, "Failed to prepare input device");
+		dev_err(dev, "Failed to prepare input device\n");
 		cec->ir = NULL;
 		goto err;
 	}
@@ -408,7 +407,7 @@ err:
 	smb_wr16(SECOCEC_ENABLE_REG_1,
 		 val & ~SECOCEC_ENABLE_REG_1_IR);
 
-	dev_dbg(dev, "IR disabled");
+	dev_dbg(dev, "IR disabled\n");
 	return status;
 }
 
@@ -431,13 +430,13 @@ static int secocec_ir_rx(struct secocec_data *priv)
 
 	rc_keydown(cec->ir, RC_PROTO_RC5, RC_SCANCODE_RC5(addr, key), toggle);
 
-	dev_dbg(dev, "IR key pressed: 0x%02x addr 0x%02x toggle 0x%02x", key,
+	dev_dbg(dev, "IR key pressed: 0x%02x addr 0x%02x toggle 0x%02x\n", key,
 		addr, toggle);
 
 	return 0;
 
 err:
-	dev_err(dev, "IR Receive message failed (%d)", status);
+	dev_err(dev, "IR Receive message failed (%d)\n", status);
 	return -EIO;
 }
 #else
@@ -497,7 +496,7 @@ static irqreturn_t secocec_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 
 err:
-	dev_err_once(dev, "IRQ: R/W SMBus operation failed (%d)", status);
+	dev_err_once(dev, "IRQ: R/W SMBus operation failed %d\n", status);
 
 	/*  Reset status register */
 	val = SECOCEC_STATUS_REG_1_CEC | SECOCEC_STATUS_REG_1_IR;
@@ -551,18 +550,18 @@ static int secocec_acpi_probe(struct secocec_data *sdev)
 	struct gpio_desc *gpio;
 	int irq = 0;
 
-	gpio = devm_gpiod_get(dev, NULL, GPIOF_IN);
+	gpio = devm_gpiod_get(dev, NULL, GPIOD_IN);
 	if (IS_ERR(gpio)) {
-		dev_err(dev, "Cannot request interrupt gpio");
+		dev_err(dev, "Cannot request interrupt gpio\n");
 		return PTR_ERR(gpio);
 	}
 
 	irq = gpiod_to_irq(gpio);
 	if (irq < 0) {
-		dev_err(dev, "Cannot find valid irq");
+		dev_err(dev, "Cannot find valid irq\n");
 		return -ENODEV;
 	}
-	dev_dbg(dev, "irq-gpio is bound to IRQ %d", irq);
+	dev_dbg(dev, "irq-gpio is bound to IRQ %d\n", irq);
 
 	sdev->irq = irq;
 
@@ -590,7 +589,7 @@ static int secocec_probe(struct platform_device *pdev)
 
 	/* Request SMBus regions */
 	if (!request_muxed_region(BRA_SMB_BASE_ADDR, 7, "CEC00001")) {
-		dev_err(dev, "Request memory region failed");
+		dev_err(dev, "Request memory region failed\n");
 		return -ENXIO;
 	}
 
@@ -598,14 +597,14 @@ static int secocec_probe(struct platform_device *pdev)
 	secocec->dev = dev;
 
 	if (!has_acpi_companion(dev)) {
-		dev_dbg(dev, "Cannot find any ACPI companion");
+		dev_dbg(dev, "Cannot find any ACPI companion\n");
 		ret = -ENODEV;
 		goto err;
 	}
 
 	ret = secocec_acpi_probe(secocec);
 	if (ret) {
-		dev_err(dev, "Cannot assign gpio to IRQ");
+		dev_err(dev, "Cannot assign gpio to IRQ\n");
 		ret = -ENODEV;
 		goto err;
 	}
@@ -613,11 +612,11 @@ static int secocec_probe(struct platform_device *pdev)
 	/* Firmware version check */
 	ret = smb_rd16(SECOCEC_VERSION, &val);
 	if (ret) {
-		dev_err(dev, "Cannot check fw version");
+		dev_err(dev, "Cannot check fw version\n");
 		goto err;
 	}
 	if (val < SECOCEC_LATEST_FW) {
-		dev_err(dev, "CEC Firmware not supported (v.%04x). Use ver > v.%04x",
+		dev_err(dev, "CEC Firmware not supported (v.%04x). Use ver > v.%04x\n",
 			val, SECOCEC_LATEST_FW);
 		ret = -EINVAL;
 		goto err;
@@ -631,7 +630,7 @@ static int secocec_probe(struct platform_device *pdev)
 					dev_name(&pdev->dev), secocec);
 
 	if (ret) {
-		dev_err(dev, "Cannot request IRQ %d", secocec->irq);
+		dev_err(dev, "Cannot request IRQ %d\n", secocec->irq);
 		ret = -EIO;
 		goto err;
 	}
@@ -666,7 +665,7 @@ static int secocec_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, secocec);
 
-	dev_dbg(dev, "Device registered");
+	dev_dbg(dev, "Device registered\n");
 
 	return ret;
 
@@ -691,14 +690,14 @@ static int secocec_remove(struct platform_device *pdev)
 
 		smb_wr16(SECOCEC_ENABLE_REG_1, val & ~SECOCEC_ENABLE_REG_1_IR);
 
-		dev_dbg(&pdev->dev, "IR disabled");
+		dev_dbg(&pdev->dev, "IR disabled\n");
 	}
 	cec_notifier_cec_adap_unregister(secocec->notifier, secocec->cec_adap);
 	cec_unregister_adapter(secocec->cec_adap);
 
 	release_region(BRA_SMB_BASE_ADDR, 7);
 
-	dev_dbg(&pdev->dev, "CEC device removed");
+	dev_dbg(&pdev->dev, "CEC device removed\n");
 
 	return 0;
 }
@@ -709,7 +708,7 @@ static int secocec_suspend(struct device *dev)
 	int status;
 	u16 val;
 
-	dev_dbg(dev, "Device going to suspend, disabling");
+	dev_dbg(dev, "Device going to suspend, disabling\n");
 
 	/* Clear the status register */
 	status = smb_rd16(SECOCEC_STATUS_REG_1, &val);
@@ -733,7 +732,7 @@ static int secocec_suspend(struct device *dev)
 	return 0;
 
 err:
-	dev_err(dev, "Suspend failed (err: %d)", status);
+	dev_err(dev, "Suspend failed: %d\n", status);
 	return status;
 }
 
@@ -742,7 +741,7 @@ static int secocec_resume(struct device *dev)
 	int status;
 	u16 val;
 
-	dev_dbg(dev, "Resuming device from suspend");
+	dev_dbg(dev, "Resuming device from suspend\n");
 
 	/* Clear the status register */
 	status = smb_rd16(SECOCEC_STATUS_REG_1, &val);
@@ -762,12 +761,12 @@ static int secocec_resume(struct device *dev)
 	if (status)
 		goto err;
 
-	dev_dbg(dev, "Device resumed from suspend");
+	dev_dbg(dev, "Device resumed from suspend\n");
 
 	return 0;
 
 err:
-	dev_err(dev, "Resume failed (err: %d)", status);
+	dev_err(dev, "Resume failed: %d\n", status);
 	return status;
 }
 

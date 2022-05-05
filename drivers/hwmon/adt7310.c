@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/regmap.h>
 #include <linux/spi/spi.h>
 #include <asm/unaligned.h>
 
@@ -38,16 +39,13 @@ static const u8 adt7310_reg_table[] = {
 
 #define AD7310_COMMAND(reg) (adt7310_reg_table[(reg)] << ADT7310_CMD_REG_OFFSET)
 
-static int adt7310_spi_read_word(struct device *dev, u8 reg)
+static int adt7310_spi_read_word(struct spi_device *spi, u8 reg)
 {
-	struct spi_device *spi = to_spi_device(dev);
-
 	return spi_w8r16be(spi, AD7310_COMMAND(reg) | ADT7310_CMD_READ);
 }
 
-static int adt7310_spi_write_word(struct device *dev, u8 reg, u16 data)
+static int adt7310_spi_write_word(struct spi_device *spi, u8 reg, u16 data)
 {
-	struct spi_device *spi = to_spi_device(dev);
 	u8 buf[3];
 
 	buf[0] = AD7310_COMMAND(reg);
@@ -56,17 +54,13 @@ static int adt7310_spi_write_word(struct device *dev, u8 reg, u16 data)
 	return spi_write(spi, buf, sizeof(buf));
 }
 
-static int adt7310_spi_read_byte(struct device *dev, u8 reg)
+static int adt7310_spi_read_byte(struct spi_device *spi, u8 reg)
 {
-	struct spi_device *spi = to_spi_device(dev);
-
 	return spi_w8r8(spi, AD7310_COMMAND(reg) | ADT7310_CMD_READ);
 }
 
-static int adt7310_spi_write_byte(struct device *dev, u8 reg,
-	u8 data)
+static int adt7310_spi_write_byte(struct spi_device *spi, u8 reg, u8 data)
 {
-	struct spi_device *spi = to_spi_device(dev);
 	u8 buf[2];
 
 	buf[0] = AD7310_COMMAND(reg);
@@ -75,23 +69,77 @@ static int adt7310_spi_write_byte(struct device *dev, u8 reg,
 	return spi_write(spi, buf, sizeof(buf));
 }
 
-static const struct adt7x10_ops adt7310_spi_ops = {
-	.read_word = adt7310_spi_read_word,
-	.write_word = adt7310_spi_write_word,
-	.read_byte = adt7310_spi_read_byte,
-	.write_byte = adt7310_spi_write_byte,
+static bool adt7310_regmap_is_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case ADT7X10_TEMPERATURE:
+	case ADT7X10_STATUS:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int adt7310_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct spi_device *spi = context;
+	int regval;
+
+	switch (reg) {
+	case ADT7X10_TEMPERATURE:
+	case ADT7X10_T_ALARM_HIGH:
+	case ADT7X10_T_ALARM_LOW:
+	case ADT7X10_T_CRIT:
+		regval = adt7310_spi_read_word(spi, reg);
+		break;
+	default:
+		regval = adt7310_spi_read_byte(spi, reg);
+		break;
+	}
+	if (regval < 0)
+		return regval;
+	*val = regval;
+	return 0;
+}
+
+static int adt7310_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct spi_device *spi = context;
+	int ret;
+
+	switch (reg) {
+	case ADT7X10_TEMPERATURE:
+	case ADT7X10_T_ALARM_HIGH:
+	case ADT7X10_T_ALARM_LOW:
+	case ADT7X10_T_CRIT:
+		ret = adt7310_spi_write_word(spi, reg, val);
+		break;
+	default:
+		ret = adt7310_spi_write_byte(spi, reg, val);
+		break;
+	}
+	return ret;
+}
+
+static const struct regmap_config adt7310_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 16,
+	.cache_type = REGCACHE_RBTREE,
+	.volatile_reg = adt7310_regmap_is_volatile,
+	.reg_read = adt7310_reg_read,
+	.reg_write = adt7310_reg_write,
 };
 
 static int adt7310_spi_probe(struct spi_device *spi)
 {
-	return adt7x10_probe(&spi->dev, spi_get_device_id(spi)->name, spi->irq,
-			&adt7310_spi_ops);
-}
+	struct regmap *regmap;
 
-static int adt7310_spi_remove(struct spi_device *spi)
-{
-	adt7x10_remove(&spi->dev, spi->irq);
-	return 0;
+	regmap = devm_regmap_init(&spi->dev, NULL, spi, &adt7310_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	return adt7x10_probe(&spi->dev, spi_get_device_id(spi)->name, spi->irq,
+			     regmap);
 }
 
 static const struct spi_device_id adt7310_id[] = {
@@ -107,7 +155,6 @@ static struct spi_driver adt7310_driver = {
 		.pm	= ADT7X10_DEV_PM_OPS,
 	},
 	.probe		= adt7310_spi_probe,
-	.remove		= adt7310_spi_remove,
 	.id_table	= adt7310_id,
 };
 module_spi_driver(adt7310_driver);

@@ -40,12 +40,3 @@ examples:
         reg = <0x10027000 0x800>;
         #clock-cells = <1>;
     };
-
-    serial@1000a000 {
-        compatible = "fsl,imx21-uart";
-        reg = <0x1000a000 0x1000>;
-        interrupts = <20>;
-        clocks = <&clks IMX21_CLK_UART1_IPG_GATE>,
-                 <&clks IMX21_CLK_PER1>;
-        clock-names = "ipg", "per";
-    };

@@ -15,6 +15,46 @@
 #include "spectrum.h"
 #include "core_acl_flex_keys.h"
 
+static int mlxsw_sp_policer_validate(const struct flow_action *action,
+				     const struct flow_action_entry *act,
+				     struct netlink_ext_ack *extack)
+{
+	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, act)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is ok, but action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.peakrate_bytes_ps ||
+	    act->police.avrate || act->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "QoS offload not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_flow_block *block,
 					 struct mlxsw_sp_acl_rule_info *rulei,
@@ -191,10 +231,9 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 				return -EOPNOTSUPP;
 			}
 
-			if (act->police.rate_pkt_ps) {
-				NL_SET_ERR_MSG_MOD(extack, "QoS offload not support packets per second");
-				return -EOPNOTSUPP;
-			}
+			err = mlxsw_sp_policer_validate(flow_action, act, extack);
+			if (err)
+				return err;
 
 			/* The kernel might adjust the requested burst size so
 			 * that it is not exactly a power of two. Re-adjust it
@@ -233,6 +272,12 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			return -EOPNOTSUPP;
 		}
 	}
+
+	if (rulei->ipv6_valid) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported mangle field");
+		return -EOPNOTSUPP;
+	}
+
 	return 0;
 }
 

@@ -76,17 +76,21 @@ properties:
 
   renesas,cmms:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    items:
+      maxItems: 1
     description:
       A list of phandles to the CMM instances present in the SoC, one for each
       available DU channel.
 
   renesas,vsps:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    items:
+      items:
+        - description: phandle to VSP instance that serves the DU channel
+        - description: Channel index identifying the LIF instance in that VSP
     description:
       A list of phandle and channel index tuples to the VSPs that handle the
-      memory interfaces for the DU channels. The phandle identifies the VSP
-      instance that serves the DU channel, and the channel index identifies
-      the LIF instance in that VSP.
+      memory interfaces for the DU channels.
 
 required:
   - compatible

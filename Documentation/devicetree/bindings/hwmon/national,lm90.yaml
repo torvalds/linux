@@ -60,7 +60,6 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/gpio/tegra-gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
     i2c {
@@ -71,8 +70,7 @@ examples:
             compatible = "onnn,nct1008";
             reg = <0x4c>;
             vcc-supply = <&palmas_ldo6_reg>;
-            interrupt-parent = <&gpio>;
-            interrupts = <TEGRA_GPIO(O, 4) IRQ_TYPE_LEVEL_LOW>;
+            interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
             #thermal-sensor-cells = <1>;
         };
     };

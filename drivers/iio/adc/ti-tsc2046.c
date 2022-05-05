@@ -82,6 +82,11 @@
 #define TI_TSC2046_DATA_12BIT			GENMASK(14, 3)
 
 #define TI_TSC2046_MAX_CHAN			8
+#define TI_TSC2046_MIN_POLL_CNT			3
+#define TI_TSC2046_EXT_POLL_CNT			3
+#define TI_TSC2046_POLL_CNT \
+	(TI_TSC2046_MIN_POLL_CNT + TI_TSC2046_EXT_POLL_CNT)
+#define TI_TSC2046_INT_VREF			2500
 
 /* Represents a HW sample */
 struct tsc2046_adc_atom {
@@ -123,14 +128,23 @@ struct tsc2046_adc_ch_cfg {
 	unsigned int oversampling_ratio;
 };
 
+enum tsc2046_state {
+	TSC2046_STATE_SHUTDOWN,
+	TSC2046_STATE_STANDBY,
+	TSC2046_STATE_POLL,
+	TSC2046_STATE_POLL_IRQ_DISABLE,
+	TSC2046_STATE_ENABLE_IRQ,
+};
+
 struct tsc2046_adc_priv {
 	struct spi_device *spi;
 	const struct tsc2046_adc_dcfg *dcfg;
 
 	struct iio_trigger *trig;
 	struct hrtimer trig_timer;
-	spinlock_t trig_lock;
-	unsigned int trig_more_count;
+	enum tsc2046_state state;
+	int poll_cnt;
+	spinlock_t state_lock;
 
 	struct spi_transfer xfer;
 	struct spi_message msg;
@@ -153,9 +167,6 @@ struct tsc2046_adc_priv {
 	struct tsc2046_adc_atom *rx;
 	struct tsc2046_adc_atom *tx;
 
-	struct tsc2046_adc_atom *rx_one;
-	struct tsc2046_adc_atom *tx_one;
-
 	unsigned int count;
 	unsigned int groups;
 	u32 effective_speed_hz;
@@ -171,6 +182,8 @@ struct tsc2046_adc_priv {
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.channel = index,					\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 	.datasheet_name = "#name",				\
 	.scan_index = index,					\
 	.scan_type = {						\
@@ -234,6 +247,14 @@ static u8 tsc2046_adc_get_cmd(struct tsc2046_adc_priv *priv, int ch_idx,
 	else
 		pd = 0;
 
+	switch (ch_idx) {
+	case TI_TSC2046_ADDR_TEMP1:
+	case TI_TSC2046_ADDR_AUX:
+	case TI_TSC2046_ADDR_VBAT:
+	case TI_TSC2046_ADDR_TEMP0:
+		pd |= TI_TSC2046_SER | TI_TSC2046_PD1_VREF_ON;
+	}
+
 	return TI_TSC2046_START | FIELD_PREP(TI_TSC2046_ADDR, ch_idx) | pd;
 }
 
@@ -245,16 +266,50 @@ static u16 tsc2046_adc_get_value(struct tsc2046_adc_atom *buf)
 static int tsc2046_adc_read_one(struct tsc2046_adc_priv *priv, int ch_idx,
 				u32 *effective_speed_hz)
 {
+	struct tsc2046_adc_ch_cfg *ch = &priv->ch_cfg[ch_idx];
+	struct tsc2046_adc_atom *rx_buf, *tx_buf;
+	unsigned int val, val_normalized = 0;
+	int ret, i, count_skip = 0, max_count;
 	struct spi_transfer xfer;
 	struct spi_message msg;
-	int ret;
+	u8 cmd;
+
+	if (!effective_speed_hz) {
+		count_skip = tsc2046_adc_time_to_count(priv, ch->settling_time_us);
+		max_count = count_skip + ch->oversampling_ratio;
+	} else {
+		max_count = 1;
+	}
+
+	if (sizeof(*tx_buf) * max_count > PAGE_SIZE)
+		return -ENOSPC;
+
+	tx_buf = kcalloc(max_count, sizeof(*tx_buf), GFP_KERNEL);
+	if (!tx_buf)
+		return -ENOMEM;
+
+	rx_buf = kcalloc(max_count, sizeof(*rx_buf), GFP_KERNEL);
+	if (!rx_buf) {
+		ret = -ENOMEM;
+		goto free_tx;
+	}
+
+	/*
+	 * Do not enable automatic power down on working samples. Otherwise the
+	 * plates will never be completely charged.
+	 */
+	cmd = tsc2046_adc_get_cmd(priv, ch_idx, true);
+
+	for (i = 0; i < max_count - 1; i++)
+		tx_buf[i].cmd = cmd;
+
+	/* automatically power down on last sample */
+	tx_buf[i].cmd = tsc2046_adc_get_cmd(priv, ch_idx, false);
 
 	memset(&xfer, 0, sizeof(xfer));
-	priv->tx_one->cmd = tsc2046_adc_get_cmd(priv, ch_idx, false);
-	priv->tx_one->data = 0;
-	xfer.tx_buf = priv->tx_one;
-	xfer.rx_buf = priv->rx_one;
-	xfer.len = sizeof(*priv->tx_one);
+	xfer.tx_buf = tx_buf;
+	xfer.rx_buf = rx_buf;
+	xfer.len = sizeof(*tx_buf) * max_count;
 	spi_message_init_with_transfers(&msg, &xfer, 1);
 
 	/*
@@ -265,13 +320,25 @@ static int tsc2046_adc_read_one(struct tsc2046_adc_priv *priv, int ch_idx,
 	if (ret) {
 		dev_err_ratelimited(&priv->spi->dev, "SPI transfer failed %pe\n",
 				    ERR_PTR(ret));
-		return ret;
+		goto free_bufs;
 	}
 
 	if (effective_speed_hz)
 		*effective_speed_hz = xfer.effective_speed_hz;
 
-	return tsc2046_adc_get_value(priv->rx_one);
+	for (i = 0; i < max_count - count_skip; i++) {
+		val = tsc2046_adc_get_value(&rx_buf[count_skip + i]);
+		val_normalized += val;
+	}
+
+	ret = DIV_ROUND_UP(val_normalized, max_count - count_skip);
+
+free_bufs:
+	kfree(rx_buf);
+free_tx:
+	kfree(tx_buf);
+
+	return ret;
 }
 
 static size_t tsc2046_adc_group_set_layout(struct tsc2046_adc_priv *priv,
@@ -378,6 +445,37 @@ static irqreturn_t tsc2046_adc_trigger_handler(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
+static int tsc2046_adc_read_raw(struct iio_dev *indio_dev,
+				struct iio_chan_spec const *chan,
+				int *val, int *val2, long m)
+{
+	struct tsc2046_adc_priv *priv = iio_priv(indio_dev);
+	int ret;
+
+	switch (m) {
+	case IIO_CHAN_INFO_RAW:
+		ret = tsc2046_adc_read_one(priv, chan->channel, NULL);
+		if (ret < 0)
+			return ret;
+
+		*val = ret;
+
+		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SCALE:
+		/*
+		 * Note: the TSC2046 has internal voltage divider on the VBAT
+		 * line. This divider can be influenced by external divider.
+		 * So, it is better to use external voltage-divider driver
+		 * instead, which is calculating complete chain.
+		 */
+		*val = TI_TSC2046_INT_VREF;
+		*val2 = chan->scan_type.realbits;
+		return IIO_VAL_FRACTIONAL_LOG2;
+	}
+
+	return -EINVAL;
+}
+
 static int tsc2046_adc_update_scan_mode(struct iio_dev *indio_dev,
 					const unsigned long *active_scan_mask)
 {
@@ -408,24 +506,67 @@ static int tsc2046_adc_update_scan_mode(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info tsc2046_adc_info = {
+	.read_raw	  = tsc2046_adc_read_raw,
 	.update_scan_mode = tsc2046_adc_update_scan_mode,
 };
 
-static enum hrtimer_restart tsc2046_adc_trig_more(struct hrtimer *hrtimer)
+static enum hrtimer_restart tsc2046_adc_timer(struct hrtimer *hrtimer)
 {
 	struct tsc2046_adc_priv *priv = container_of(hrtimer,
 						     struct tsc2046_adc_priv,
 						     trig_timer);
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->trig_lock, flags);
+	/*
+	 * This state machine should address following challenges :
+	 * - the interrupt source is based on level shifter attached to the X
+	 *   channel of ADC. It will change the state every time we switch
+	 *   between channels. So, we need to disable IRQ if we do
+	 *   iio_trigger_poll().
+	 * - we should do iio_trigger_poll() at some reduced sample rate
+	 * - we should still trigger for some amount of time after last
+	 *   interrupt with enabled IRQ was processed.
+	 */
 
-	disable_irq_nosync(priv->spi->irq);
+	spin_lock_irqsave(&priv->state_lock, flags);
+	switch (priv->state) {
+	case TSC2046_STATE_ENABLE_IRQ:
+		if (priv->poll_cnt < TI_TSC2046_POLL_CNT) {
+			priv->poll_cnt++;
+			hrtimer_start(&priv->trig_timer,
+				      ns_to_ktime(priv->scan_interval_us *
+						  NSEC_PER_USEC),
+				      HRTIMER_MODE_REL_SOFT);
 
-	priv->trig_more_count++;
-	iio_trigger_poll(priv->trig);
-
-	spin_unlock_irqrestore(&priv->trig_lock, flags);
+			if (priv->poll_cnt >= TI_TSC2046_MIN_POLL_CNT) {
+				priv->state = TSC2046_STATE_POLL_IRQ_DISABLE;
+				enable_irq(priv->spi->irq);
+			} else {
+				priv->state = TSC2046_STATE_POLL;
+			}
+		} else {
+			priv->state = TSC2046_STATE_STANDBY;
+			enable_irq(priv->spi->irq);
+		}
+		break;
+	case TSC2046_STATE_POLL_IRQ_DISABLE:
+		disable_irq_nosync(priv->spi->irq);
+		fallthrough;
+	case TSC2046_STATE_POLL:
+		priv->state = TSC2046_STATE_ENABLE_IRQ;
+		/* iio_trigger_poll() starts hrtimer */
+		iio_trigger_poll(priv->trig);
+		break;
+	case TSC2046_STATE_SHUTDOWN:
+		break;
+	case TSC2046_STATE_STANDBY:
+		fallthrough;
+	default:
+		dev_warn(&priv->spi->dev, "Got unexpected state: %i\n",
+			 priv->state);
+		break;
+	}
+	spin_unlock_irqrestore(&priv->state_lock, flags);
 
 	return HRTIMER_NORESTART;
 }
@@ -434,16 +575,20 @@ static irqreturn_t tsc2046_adc_irq(int irq, void *dev_id)
 {
 	struct iio_dev *indio_dev = dev_id;
 	struct tsc2046_adc_priv *priv = iio_priv(indio_dev);
-
-	spin_lock(&priv->trig_lock);
+	unsigned long flags;
 
 	hrtimer_try_to_cancel(&priv->trig_timer);
 
-	priv->trig_more_count = 0;
-	disable_irq_nosync(priv->spi->irq);
-	iio_trigger_poll(priv->trig);
+	spin_lock_irqsave(&priv->state_lock, flags);
+	if (priv->state != TSC2046_STATE_SHUTDOWN) {
+		priv->state = TSC2046_STATE_ENABLE_IRQ;
+		priv->poll_cnt = 0;
 
-	spin_unlock(&priv->trig_lock);
+		/* iio_trigger_poll() starts hrtimer */
+		disable_irq_nosync(priv->spi->irq);
+		iio_trigger_poll(priv->trig);
+	}
+	spin_unlock_irqrestore(&priv->state_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -452,49 +597,42 @@ static void tsc2046_adc_reenable_trigger(struct iio_trigger *trig)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	struct tsc2046_adc_priv *priv = iio_priv(indio_dev);
-	unsigned long flags;
-	int delta;
+	ktime_t tim;
 
 	/*
 	 * We can sample it as fast as we can, but usually we do not need so
 	 * many samples. Reduce the sample rate for default (touchscreen) use
 	 * case.
-	 * Currently we do not need a highly precise sample rate. It is enough
-	 * to have calculated numbers.
 	 */
-	delta = priv->scan_interval_us - priv->time_per_scan_us;
-	if (delta > 0)
-		fsleep(delta);
-
-	spin_lock_irqsave(&priv->trig_lock, flags);
-
-	/*
-	 * We need to trigger at least one extra sample to detect state
-	 * difference on ADC side.
-	 */
-	if (!priv->trig_more_count) {
-		int timeout_ms = DIV_ROUND_UP(priv->scan_interval_us,
-					      USEC_PER_MSEC);
-
-		hrtimer_start(&priv->trig_timer, ms_to_ktime(timeout_ms),
-			      HRTIMER_MODE_REL_SOFT);
-	}
-
-	enable_irq(priv->spi->irq);
-
-	spin_unlock_irqrestore(&priv->trig_lock, flags);
+	tim = ns_to_ktime((priv->scan_interval_us - priv->time_per_scan_us) *
+			  NSEC_PER_USEC);
+	hrtimer_start(&priv->trig_timer, tim, HRTIMER_MODE_REL_SOFT);
 }
 
 static int tsc2046_adc_set_trigger_state(struct iio_trigger *trig, bool enable)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	struct tsc2046_adc_priv *priv = iio_priv(indio_dev);
+	unsigned long flags;
 
 	if (enable) {
-		enable_irq(priv->spi->irq);
+		spin_lock_irqsave(&priv->state_lock, flags);
+		if (priv->state == TSC2046_STATE_SHUTDOWN) {
+			priv->state = TSC2046_STATE_STANDBY;
+			enable_irq(priv->spi->irq);
+		}
+		spin_unlock_irqrestore(&priv->state_lock, flags);
 	} else {
-		disable_irq(priv->spi->irq);
-		hrtimer_try_to_cancel(&priv->trig_timer);
+		spin_lock_irqsave(&priv->state_lock, flags);
+
+		if (priv->state == TSC2046_STATE_STANDBY ||
+		    priv->state == TSC2046_STATE_POLL_IRQ_DISABLE)
+			disable_irq_nosync(priv->spi->irq);
+
+		priv->state = TSC2046_STATE_SHUTDOWN;
+		spin_unlock_irqrestore(&priv->state_lock, flags);
+
+		hrtimer_cancel(&priv->trig_timer);
 	}
 
 	return 0;
@@ -510,16 +648,6 @@ static int tsc2046_adc_setup_spi_msg(struct tsc2046_adc_priv *priv)
 	unsigned int ch_idx;
 	size_t size;
 	int ret;
-
-	priv->tx_one = devm_kzalloc(&priv->spi->dev, sizeof(*priv->tx_one),
-				    GFP_KERNEL);
-	if (!priv->tx_one)
-		return -ENOMEM;
-
-	priv->rx_one = devm_kzalloc(&priv->spi->dev, sizeof(*priv->rx_one),
-				    GFP_KERNEL);
-	if (!priv->rx_one)
-		return -ENOMEM;
 
 	/*
 	 * Make dummy read to set initial power state and get real SPI clock
@@ -550,6 +678,12 @@ static int tsc2046_adc_setup_spi_msg(struct tsc2046_adc_priv *priv)
 	size = 0;
 	for (ch_idx = 0; ch_idx < ARRAY_SIZE(priv->l); ch_idx++)
 		size += tsc2046_adc_group_set_layout(priv, ch_idx, ch_idx);
+
+	if (size > PAGE_SIZE) {
+		dev_err(&priv->spi->dev,
+			"Calculated scan buffer is too big. Try to reduce spi-max-frequency, settling-time-us or oversampling-ratio\n");
+		return -ENOSPC;
+	}
 
 	priv->tx = devm_kzalloc(&priv->spi->dev, size, GFP_KERNEL);
 	if (!priv->tx)
@@ -668,10 +802,11 @@ static int tsc2046_adc_probe(struct spi_device *spi)
 	iio_trigger_set_drvdata(trig, indio_dev);
 	trig->ops = &tsc2046_adc_trigger_ops;
 
-	spin_lock_init(&priv->trig_lock);
+	spin_lock_init(&priv->state_lock);
+	priv->state = TSC2046_STATE_SHUTDOWN;
 	hrtimer_init(&priv->trig_timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_REL_SOFT);
-	priv->trig_timer.function = tsc2046_adc_trig_more;
+	priv->trig_timer.function = tsc2046_adc_timer;
 
 	ret = devm_iio_trigger_register(dev, trig);
 	if (ret) {

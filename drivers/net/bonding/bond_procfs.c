@@ -307,7 +307,6 @@ void __net_init bond_create_proc_dir(struct bond_net *bn)
 }
 
 /* Destroy the bonding directory under /proc/net, if empty.
- * Caller must hold rtnl_lock.
  */
 void __net_exit bond_destroy_proc_dir(struct bond_net *bn)
 {

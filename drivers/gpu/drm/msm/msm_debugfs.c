@@ -201,9 +201,9 @@ shrink_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(shrink_fops,
-			shrink_get, shrink_set,
-			"0x%08llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(shrink_fops,
+			 shrink_get, shrink_set,
+			 "0x%08llx\n");
 
 
 static int msm_gem_show(struct seq_file *m, void *arg)

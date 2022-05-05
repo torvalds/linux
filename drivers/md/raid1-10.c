@@ -28,6 +28,11 @@ struct resync_pages {
 	struct page	*pages[RESYNC_PAGES];
 };
 
+struct raid1_plug_cb {
+	struct blk_plug_cb	cb;
+	struct bio_list		pending;
+};
+
 static void rbio_pool_free(void *rbio, void *data)
 {
 	kfree(rbio);

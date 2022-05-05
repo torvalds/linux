@@ -218,8 +218,6 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 	if (exfat_free_cluster(inode, &clu))
 		return -EIO;
 
-	exfat_clear_volume_dirty(sb);
-
 	return 0;
 }
 

@@ -362,9 +362,24 @@ const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg_ald = {
 
 static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 {
+	uint32_t baco_cntl;
+
 	if (amdgpu_sriov_vf(adev))
 		adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
 			mmBIF_BX_DEV0_EPF0_VF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
+
+	if (adev->ip_versions[NBIO_HWIP][0] == IP_VERSION(7, 4, 4) &&
+	    !amdgpu_sriov_vf(adev)) {
+		baco_cntl = RREG32_SOC15(NBIO, 0, mmBACO_CNTL);
+		if (baco_cntl &
+		    (BACO_CNTL__BACO_DUMMY_EN_MASK | BACO_CNTL__BACO_EN_MASK)) {
+			baco_cntl &= ~(BACO_CNTL__BACO_DUMMY_EN_MASK |
+				       BACO_CNTL__BACO_EN_MASK);
+			dev_dbg(adev->dev, "Unsetting baco dummy mode %x",
+				baco_cntl);
+			WREG32_SOC15(NBIO, 0, mmBACO_CNTL, baco_cntl);
+		}
+	}
 }
 
 static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)
@@ -658,15 +673,26 @@ static void nbio_v7_4_enable_doorbell_interrupt(struct amdgpu_device *adev,
 		       DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
 }
 
-const struct amdgpu_nbio_ras_funcs nbio_v7_4_ras_funcs = {
+const struct amdgpu_ras_block_hw_ops nbio_v7_4_ras_hw_ops = {
+	.query_ras_error_count = nbio_v7_4_query_ras_error_count,
+};
+
+struct amdgpu_nbio_ras nbio_v7_4_ras = {
+	.ras_block = {
+		.ras_comm = {
+			.name = "pcie_bif",
+			.block = AMDGPU_RAS_BLOCK__PCIE_BIF,
+			.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
+		},
+		.hw_ops = &nbio_v7_4_ras_hw_ops,
+		.ras_late_init = amdgpu_nbio_ras_late_init,
+	},
 	.handle_ras_controller_intr_no_bifring = nbio_v7_4_handle_ras_controller_intr_no_bifring,
 	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring,
 	.init_ras_controller_interrupt = nbio_v7_4_init_ras_controller_interrupt,
 	.init_ras_err_event_athub_interrupt = nbio_v7_4_init_ras_err_event_athub_interrupt,
-	.query_ras_error_count = nbio_v7_4_query_ras_error_count,
-	.ras_late_init = amdgpu_nbio_ras_late_init,
-	.ras_fini = amdgpu_nbio_ras_fini,
 };
+
 
 static void nbio_v7_4_program_ltr(struct amdgpu_device *adev)
 {

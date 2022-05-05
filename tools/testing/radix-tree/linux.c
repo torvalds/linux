@@ -14,7 +14,6 @@
 
 int nr_allocated;
 int preempt_count;
-int kmalloc_verbose;
 int test_verbose;
 
 struct kmem_cache {
@@ -26,7 +25,8 @@ struct kmem_cache {
 	void (*ctor)(void *);
 };
 
-void *kmem_cache_alloc(struct kmem_cache *cachep, int gfp)
+void *kmem_cache_alloc_lru(struct kmem_cache *cachep, struct list_lru *lru,
+		int gfp)
 {
 	void *p;
 
@@ -76,32 +76,6 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 		cachep->objs = node;
 	}
 	pthread_mutex_unlock(&cachep->lock);
-}
-
-void *kmalloc(size_t size, gfp_t gfp)
-{
-	void *ret;
-
-	if (!(gfp & __GFP_DIRECT_RECLAIM))
-		return NULL;
-
-	ret = malloc(size);
-	uatomic_inc(&nr_allocated);
-	if (kmalloc_verbose)
-		printf("Allocating %p from malloc\n", ret);
-	if (gfp & __GFP_ZERO)
-		memset(ret, 0, size);
-	return ret;
-}
-
-void kfree(void *p)
-{
-	if (!p)
-		return;
-	uatomic_dec(&nr_allocated);
-	if (kmalloc_verbose)
-		printf("Freeing %p to malloc\n", p);
-	free(p);
 }
 
 struct kmem_cache *

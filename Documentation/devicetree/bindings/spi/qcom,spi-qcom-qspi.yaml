@@ -16,7 +16,7 @@ description: The QSPI controller allows SPI protocol communication in single,
   as NOR flash.
 
 allOf:
-  - $ref: /spi/spi-controller.yaml#
+  - $ref: /schemas/spi/spi-controller.yaml#
 
 properties:
   compatible:

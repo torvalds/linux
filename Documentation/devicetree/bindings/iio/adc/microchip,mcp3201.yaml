@@ -10,7 +10,7 @@ maintainers:
   - Oskar Andero <oskar.andero@gmail.com>
 
 description: |
-   Family of simple ADCs with an I2C inteface.
+   Family of simple ADCs with a SPI interface.
 
 properties:
   compatible:

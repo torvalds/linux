@@ -13,25 +13,14 @@
 /*
  * User space memory access functions
  */
+#include <asm/asm-extable.h>
 #include <asm/processor.h>
 #include <asm/ctl_reg.h>
 #include <asm/extable.h>
 #include <asm/facility.h>
+#include <asm-generic/access_ok.h>
 
 void debug_user_asce(int exit);
-
-static inline int __range_ok(unsigned long addr, unsigned long size)
-{
-	return 1;
-}
-
-#define __access_ok(addr, size)				\
-({							\
-	__chk_user_ptr(addr);				\
-	__range_ok((unsigned long)(addr), (size));	\
-})
-
-#define access_ok(addr, size) __access_ok(addr, size)
 
 unsigned long __must_check
 raw_copy_from_user(void *to, const void __user *from, unsigned long n);
@@ -43,6 +32,28 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n);
 #define INLINE_COPY_FROM_USER
 #define INLINE_COPY_TO_USER
 #endif
+
+unsigned long __must_check
+_copy_from_user_key(void *to, const void __user *from, unsigned long n, unsigned long key);
+
+static __always_inline unsigned long __must_check
+copy_from_user_key(void *to, const void __user *from, unsigned long n, unsigned long key)
+{
+	if (likely(check_copy_size(to, n, false)))
+		n = _copy_from_user_key(to, from, n, key);
+	return n;
+}
+
+unsigned long __must_check
+_copy_to_user_key(void __user *to, const void *from, unsigned long n, unsigned long key);
+
+static __always_inline unsigned long __must_check
+copy_to_user_key(void __user *to, const void *from, unsigned long n, unsigned long key)
+{
+	if (likely(check_copy_size(from, n, true)))
+		n = _copy_to_user_key(to, from, n, key);
+	return n;
+}
 
 int __put_user_bad(void) __attribute__((noreturn));
 int __get_user_bad(void) __attribute__((noreturn));
@@ -69,8 +80,6 @@ union oac {
 	};
 };
 
-#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
-
 #define __put_get_user_asm(to, from, size, oac_spec)			\
 ({									\
 	int __rc;							\
@@ -80,14 +89,10 @@ union oac {
 		"0:	mvcos	%[_to],%[_from],%[_size]\n"		\
 		"1:	xr	%[rc],%[rc]\n"				\
 		"2:\n"							\
-		".pushsection .fixup, \"ax\"\n"				\
-		"3:	lhi	%[rc],%[retval]\n"			\
-		"	jg	2b\n"					\
-		".popsection\n"						\
-		EX_TABLE(0b,3b) EX_TABLE(1b,3b)				\
+		EX_TABLE_UA(0b,2b,%[rc]) EX_TABLE_UA(1b,2b,%[rc])	\
 		: [rc] "=&d" (__rc), [_to] "+Q" (*(to))			\
 		: [_size] "d" (size), [_from] "Q" (*(from)),		\
-		  [retval] "K" (-EFAULT), [spec] "d" (oac_spec.val)	\
+		  [spec] "d" (oac_spec.val)				\
 		: "cc", "0");						\
 	__rc;								\
 })
@@ -167,22 +172,6 @@ static __always_inline int __get_user_fn(void *x, const void __user *ptr, unsign
 	}
 	return rc;
 }
-
-#else /* CONFIG_HAVE_MARCH_Z10_FEATURES */
-
-static inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
-{
-	size = raw_copy_to_user(ptr, x, size);
-	return size ? -EFAULT : 0;
-}
-
-static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long size)
-{
-	size = raw_copy_from_user(x, ptr, size);
-	return size ? -EFAULT : 0;
-}
-
-#endif /* CONFIG_HAVE_MARCH_Z10_FEATURES */
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -279,10 +268,8 @@ static inline unsigned long __must_check clear_user(void __user *to, unsigned lo
 	return __clear_user(to, n);
 }
 
-int copy_to_user_real(void __user *dest, void *src, unsigned long count);
+int copy_to_user_real(void __user *dest, unsigned long src, unsigned long count);
 void *s390_kernel_write(void *dst, const void *src, size_t size);
-
-#define HAVE_GET_KERNEL_NOFAULT
 
 int __noreturn __put_kernel_bad(void);
 
@@ -294,13 +281,9 @@ int __noreturn __put_kernel_bad(void);
 		"0:   " insn "  %2,%1\n"				\
 		"1:	xr	%0,%0\n"				\
 		"2:\n"							\
-		".pushsection .fixup, \"ax\"\n"				\
-		"3:	lhi	%0,%3\n"				\
-		"	jg	2b\n"					\
-		".popsection\n"						\
-		EX_TABLE(0b,3b) EX_TABLE(1b,3b)				\
+		EX_TABLE_UA(0b,2b,%0) EX_TABLE_UA(1b,2b,%0)		\
 		: "=d" (__rc), "+Q" (*(to))				\
-		: "d" (val), "K" (-EFAULT)				\
+		: "d" (val)						\
 		: "cc");						\
 	__rc;								\
 })
@@ -341,13 +324,9 @@ int __noreturn __get_kernel_bad(void);
 		"0:   " insn "  %1,%2\n"				\
 		"1:	xr	%0,%0\n"				\
 		"2:\n"							\
-		".pushsection .fixup, \"ax\"\n"				\
-		"3:	lhi	%0,%3\n"				\
-		"	jg	2b\n"					\
-		".popsection\n"						\
-		EX_TABLE(0b,3b) EX_TABLE(1b,3b)				\
+		EX_TABLE_UA(0b,2b,%0) EX_TABLE_UA(1b,2b,%0)		\
 		: "=d" (__rc), "+d" (val)				\
-		: "Q" (*(from)), "K" (-EFAULT)				\
+		: "Q" (*(from))						\
 		: "cc");						\
 	__rc;								\
 })

@@ -675,7 +675,8 @@ static int hellcreek_bridge_flags(struct dsa_switch *ds, int port,
 
 static int hellcreek_port_bridge_join(struct dsa_switch *ds, int port,
 				      struct dsa_bridge bridge,
-				      bool *tx_fwd_offload)
+				      bool *tx_fwd_offload,
+				      struct netlink_ext_ack *extack)
 {
 	struct hellcreek *hellcreek = ds->priv;
 
@@ -827,7 +828,8 @@ static int hellcreek_fdb_get(struct hellcreek *hellcreek,
 }
 
 static int hellcreek_fdb_add(struct dsa_switch *ds, int port,
-			     const unsigned char *addr, u16 vid)
+			     const unsigned char *addr, u16 vid,
+			     struct dsa_db db)
 {
 	struct hellcreek_fdb_entry entry = { 0 };
 	struct hellcreek *hellcreek = ds->priv;
@@ -872,7 +874,8 @@ out:
 }
 
 static int hellcreek_fdb_del(struct dsa_switch *ds, int port,
-			     const unsigned char *addr, u16 vid)
+			     const unsigned char *addr, u16 vid,
+			     struct dsa_db db)
 {
 	struct hellcreek_fdb_entry entry = { 0 };
 	struct hellcreek *hellcreek = ds->priv;

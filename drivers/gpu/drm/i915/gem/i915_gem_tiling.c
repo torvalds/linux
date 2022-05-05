@@ -12,6 +12,8 @@
 #include "i915_gem_ioctls.h"
 #include "i915_gem_mman.h"
 #include "i915_gem_object.h"
+#include "i915_gem_tiling.h"
+#include "i915_reg.h"
 
 /**
  * DOC: buffer object tiling
@@ -181,7 +183,8 @@ static int
 i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj,
 			      int tiling_mode, unsigned int stride)
 {
-	struct i915_ggtt *ggtt = &to_i915(obj->base.dev)->ggtt;
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	struct i915_vma *vma, *vn;
 	LIST_HEAD(unbind);
 	int ret = 0;
@@ -336,7 +339,7 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int err;
 
-	if (!dev_priv->ggtt.num_fences)
+	if (!to_gt(dev_priv)->ggtt->num_fences)
 		return -EOPNOTSUPP;
 
 	obj = i915_gem_object_lookup(file, args->handle);
@@ -362,9 +365,9 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 		args->stride = 0;
 	} else {
 		if (args->tiling_mode == I915_TILING_X)
-			args->swizzle_mode = to_i915(dev)->ggtt.bit_6_swizzle_x;
+			args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_x;
 		else
-			args->swizzle_mode = to_i915(dev)->ggtt.bit_6_swizzle_y;
+			args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_y;
 
 		/* Hide bit 17 swizzling from the user.  This prevents old Mesa
 		 * from aborting the application on sw fallbacks to bit 17,
@@ -419,7 +422,7 @@ i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int err = -ENOENT;
 
-	if (!dev_priv->ggtt.num_fences)
+	if (!to_gt(dev_priv)->ggtt->num_fences)
 		return -EOPNOTSUPP;
 
 	rcu_read_lock();
@@ -435,10 +438,10 @@ i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->tiling_mode) {
 	case I915_TILING_X:
-		args->swizzle_mode = dev_priv->ggtt.bit_6_swizzle_x;
+		args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_x;
 		break;
 	case I915_TILING_Y:
-		args->swizzle_mode = dev_priv->ggtt.bit_6_swizzle_y;
+		args->swizzle_mode = to_gt(dev_priv)->ggtt->bit_6_swizzle_y;
 		break;
 	default:
 	case I915_TILING_NONE:

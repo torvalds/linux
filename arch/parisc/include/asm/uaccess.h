@@ -11,15 +11,9 @@
 #include <linux/bug.h>
 #include <linux/string.h>
 
-/*
- * Note that since kernel addresses are in a separate address space on
- * parisc, we don't need to do anything for access_ok().
- * We just let the page fault handler do the right thing. This also means
- * that put_user is the same as __put_user, etc.
- */
-
-#define access_ok(uaddr, size)	\
-	( (uaddr) == (uaddr) )
+#define TASK_SIZE_MAX DEFAULT_TASK_SIZE
+#include <asm/pgtable.h>
+#include <asm-generic/access_ok.h>
 
 #define put_user __put_user
 #define get_user __get_user
@@ -79,28 +73,27 @@ struct exception_table_entry {
 
 #define __get_user(val, ptr)				\
 ({							\
-	__get_user_internal("%%sr3,", val, ptr);	\
+	__get_user_internal(SR_USER, val, ptr);	\
 })
 
 #define __get_user_asm(sr, val, ldx, ptr)		\
 {							\
 	register long __gu_val;				\
 							\
-	__asm__("1: " ldx " 0(" sr "%2),%0\n"		\
+	__asm__("1: " ldx " 0(%%sr%2,%3),%0\n"		\
 		"9:\n"					\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 9b)	\
 		: "=r"(__gu_val), "+r"(__gu_err)        \
-		: "r"(ptr));				\
+		: "i"(sr), "r"(ptr));			\
 							\
 	(val) = (__force __typeof__(*(ptr))) __gu_val;	\
 }
 
-#define HAVE_GET_KERNEL_NOFAULT
 #define __get_kernel_nofault(dst, src, type, err_label)	\
 {							\
 	type __z;					\
 	long __err;					\
-	__err = __get_user_internal("%%sr0,", __z, (type *)(src)); \
+	__err = __get_user_internal(SR_KERNEL, __z, (type *)(src)); \
 	if (unlikely(__err))				\
 		goto err_label;				\
 	else						\
@@ -118,13 +111,13 @@ struct exception_table_entry {
 	} __gu_tmp;					\
 							\
 	__asm__("   copy %%r0,%R0\n"			\
-		"1: ldw 0(" sr "%2),%0\n"		\
-		"2: ldw 4(" sr "%2),%R0\n"		\
+		"1: ldw 0(%%sr%2,%3),%0\n"		\
+		"2: ldw 4(%%sr%2,%3),%R0\n"		\
 		"9:\n"					\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 9b)	\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 9b)	\
 		: "=&r"(__gu_tmp.l), "+r"(__gu_err)	\
-		: "r"(ptr));				\
+		: "i"(sr), "r"(ptr));			\
 							\
 	(val) = __gu_tmp.t;				\
 }
@@ -151,14 +144,14 @@ struct exception_table_entry {
 ({								\
 	__typeof__(&*(ptr)) __ptr = ptr;			\
 	__typeof__(*(__ptr)) __x = (__typeof__(*(__ptr)))(x);	\
-	__put_user_internal("%%sr3,", __x, __ptr);		\
+	__put_user_internal(SR_USER, __x, __ptr);		\
 })
 
 #define __put_kernel_nofault(dst, src, type, err_label)		\
 {								\
 	type __z = *(type *)(src);				\
 	long __err;						\
-	__err = __put_user_internal("%%sr0,", __z, (type *)(dst)); \
+	__err = __put_user_internal(SR_KERNEL, __z, (type *)(dst)); \
 	if (unlikely(__err))					\
 		goto err_label;					\
 }
@@ -178,24 +171,24 @@ struct exception_table_entry {
 
 #define __put_user_asm(sr, stx, x, ptr)				\
 	__asm__ __volatile__ (					\
-		"1: " stx " %2,0(" sr "%1)\n"			\
+		"1: " stx " %1,0(%%sr%2,%3)\n"			\
 		"9:\n"						\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 9b)		\
 		: "+r"(__pu_err)				\
-		: "r"(ptr), "r"(x))
+		: "r"(x), "i"(sr), "r"(ptr))
 
 
 #if !defined(CONFIG_64BIT)
 
 #define __put_user_asm64(sr, __val, ptr) do {			\
 	__asm__ __volatile__ (					\
-		"1: stw %2,0(" sr "%1)\n"			\
-		"2: stw %R2,4(" sr "%1)\n"			\
+		"1: stw %1,0(%%sr%2,%3)\n"			\
+		"2: stw %R1,4(%%sr%2,%3)\n"			\
 		"9:\n"						\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 9b)		\
 		ASM_EXCEPTIONTABLE_ENTRY_EFAULT(2b, 9b)		\
 		: "+r"(__pu_err)				\
-		: "r"(ptr), "r"(__val));			\
+		: "r"(__val), "i"(sr), "r"(ptr));		\
 } while (0)
 
 #endif /* !defined(CONFIG_64BIT) */

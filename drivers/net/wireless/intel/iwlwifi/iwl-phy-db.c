@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2020 Intel Corporation
+ * Copyright (C) 2005-2014, 2020-2021 Intel Corporation
  * Copyright (C) 2016 Intel Deutschland GmbH
  */
 #include <linux/slab.h>
@@ -12,8 +12,6 @@
 #include "iwl-debug.h"
 #include "iwl-op-mode.h"
 #include "iwl-trans.h"
-
-#define CHANNEL_NUM_SIZE	4	/* num of channels in calib_ch size */
 
 struct iwl_phy_db_entry {
 	u16	size;

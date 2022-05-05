@@ -457,6 +457,7 @@ static struct attribute *manager_sysfs_attrs[] = {
 	&manager_attr_cpr_coef.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(manager_sysfs);
 
 static ssize_t manager_attr_show(struct kobject *kobj, struct attribute *attr,
 		char *buf)
@@ -495,7 +496,7 @@ static const struct sysfs_ops manager_sysfs_ops = {
 
 static struct kobj_type manager_ktype = {
 	.sysfs_ops = &manager_sysfs_ops,
-	.default_attrs = manager_sysfs_attrs,
+	.default_groups = manager_sysfs_groups,
 };
 
 int dss_manager_kobj_init(struct omap_overlay_manager *mgr,

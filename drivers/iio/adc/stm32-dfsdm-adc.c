@@ -1632,7 +1632,7 @@ static int stm32_dfsdm_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused stm32_dfsdm_adc_suspend(struct device *dev)
+static int stm32_dfsdm_adc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
@@ -1642,7 +1642,7 @@ static int __maybe_unused stm32_dfsdm_adc_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused stm32_dfsdm_adc_resume(struct device *dev)
+static int stm32_dfsdm_adc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
@@ -1665,14 +1665,15 @@ static int __maybe_unused stm32_dfsdm_adc_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(stm32_dfsdm_adc_pm_ops,
-			 stm32_dfsdm_adc_suspend, stm32_dfsdm_adc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(stm32_dfsdm_adc_pm_ops,
+				stm32_dfsdm_adc_suspend,
+				stm32_dfsdm_adc_resume);
 
 static struct platform_driver stm32_dfsdm_adc_driver = {
 	.driver = {
 		.name = "stm32-dfsdm-adc",
 		.of_match_table = stm32_dfsdm_adc_match,
-		.pm = &stm32_dfsdm_adc_pm_ops,
+		.pm = pm_sleep_ptr(&stm32_dfsdm_adc_pm_ops),
 	},
 	.probe = stm32_dfsdm_adc_probe,
 	.remove = stm32_dfsdm_adc_remove,

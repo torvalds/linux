@@ -424,8 +424,8 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	union hl_cb_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
+	u64 handle = 0, device_va = 0;
 	enum hl_device_status status;
-	u64 handle = 0, device_va;
 	u32 usage_cnt = 0;
 	int rc;
 
@@ -464,6 +464,8 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 				args->in.flags,
 				&usage_cnt,
 				&device_va);
+		if (rc)
+			break;
 
 		memset(&args->out, 0, sizeof(args->out));
 

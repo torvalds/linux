@@ -502,6 +502,15 @@ pcim_iomap()
 Not using these wrappers may make drivers unusable on certain platforms with
 stricter rules for mapping I/O memory.
 
+Generalizing Access to System and I/O Memory
+============================================
+
+.. kernel-doc:: include/linux/iosys-map.h
+   :doc: overview
+
+.. kernel-doc:: include/linux/iosys-map.h
+   :internal:
+
 Public Functions Provided
 =========================
 

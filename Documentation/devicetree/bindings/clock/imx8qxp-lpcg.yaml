@@ -101,14 +101,3 @@ examples:
                              "sdhc0_lpcg_ahb_clk";
         power-domains = <&pd IMX_SC_R_SDHC_0>;
     };
-
-    mmc@5b010000 {
-        compatible = "fsl,imx8qxp-usdhc", "fsl,imx7d-usdhc";
-        interrupts = <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
-        reg = <0x5b010000 0x10000>;
-        clocks = <&sdhc0_lpcg IMX_LPCG_CLK_4>,
-                 <&sdhc0_lpcg IMX_LPCG_CLK_5>,
-                 <&sdhc0_lpcg IMX_LPCG_CLK_0>;
-        clock-names = "ipg", "ahb", "per";
-        power-domains = <&pd IMX_SC_R_SDHC_0>;
-    };

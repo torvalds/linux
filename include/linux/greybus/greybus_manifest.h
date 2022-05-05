@@ -100,7 +100,7 @@ enum {
 struct greybus_descriptor_string {
 	__u8	length;
 	__u8	id;
-	__u8	string[0];
+	__u8	string[];
 } __packed;
 
 /*
@@ -175,7 +175,7 @@ struct greybus_manifest_header {
 
 struct greybus_manifest {
 	struct greybus_manifest_header		header;
-	struct greybus_descriptor		descriptors[0];
+	struct greybus_descriptor		descriptors[];
 } __packed;
 
 #endif /* __GREYBUS_MANIFEST_H */

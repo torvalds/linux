@@ -1,0 +1,388 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Device Tree file for Ctera C200-V2
+ *
+ * Copyright (C) 2022 Pawel Dembicki <paweldembicki@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "armada-370.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/leds/common.h>
+
+/ {
+	model = "Ctera C200 V2";
+	compatible = "ctera,c200-v2", "marvell,armada370", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x40000000>; /* 1024 MB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
+	};
+
+	thermal-zones {
+		ethphy-thermal {
+			polling-delay = <20000>;
+			polling-delay-passive = <2000>;
+
+			thermal-sensors = <&ethphy0>;
+
+			trips {
+				ethphy_alert1: trip1 {
+					temperature = <65000>;
+					hysteresis = <4000>;
+					type = "passive";
+				};
+
+				ethphy_crit: trip2 {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+
+	beeper {
+		compatible = "pwm-beeper";
+		pinctrl-0 = <&pmx_beeper>;
+		pinctrl-names = "default";
+		pwms = <&gpio1 31 4000>;
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&pmx_poweroff>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+	};
+
+	keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&pmx_buttons>;
+		pinctrl-names = "default";
+
+		power {
+			label = "Power Button";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio0 10 GPIO_ACTIVE_HIGH>;
+		};
+
+		reset {
+			label = "Reset Button";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+		};
+
+		usb1 {
+			label = "USB1 Button";
+			linux,code = <BTN_0>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+		};
+
+		usb2 {
+			label = "USB2 Button";
+			linux,code = <BTN_1>;
+			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_leds1 &pmx_leds2>;
+		pinctrl-names = "default";
+
+		led-0 {
+			function = LED_FUNCTION_USB;
+			function-enumerator = <2>;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
+		};
+
+		led-1 {
+			function = LED_FUNCTION_USB;
+			function-enumerator = <2>;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
+		};
+
+		led-2 {
+			function = LED_FUNCTION_USB;
+			function-enumerator = <1>;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
+		};
+
+		led-3 {
+			function = LED_FUNCTION_USB;
+			function-enumerator = <1>;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
+		};
+
+		led-4 {
+			function = LED_FUNCTION_DISK;
+			function-enumerator = <2>;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+		};
+
+		led-5 {
+			function = LED_FUNCTION_DISK;
+			function-enumerator = <1>;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio1 18 GPIO_ACTIVE_LOW>;
+		};
+
+		led-6 {
+			function = LED_FUNCTION_DISK;
+			function-enumerator = <2>;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
+		};
+
+		led-7 {
+			function = LED_FUNCTION_INDICATOR;
+			color = <LED_COLOR_ID_BLUE>;
+			gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-8 {
+			function = LED_FUNCTION_DISK_ERR;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
+		};
+
+		led-9 {
+			function = LED_FUNCTION_DISK_ERR;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
+		};
+
+		led-10 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
+		};
+
+		led-11 {
+			function = LED_FUNCTION_DISK;
+			function-enumerator = <1>;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
+		};
+
+		led-12 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio1 26 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&coherencyfab {
+	broken-idle;
+};
+
+&eth1 {
+	pinctrl-0 = <&ge1_rgmii_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	phy-handle = <&ethphy0>;
+	phy-connection-type = "rgmii-id";
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <100000>;
+	status = "okay";
+
+	hwmon@2a {
+		compatible = "nuvoton,nct7802";
+		reg = <0x2a>;
+	};
+
+	rtc@30 {
+		compatible = "sii,s35390a";
+		reg = <0x30>;
+	};
+};
+
+&mdio {
+	pinctrl-0 = <&mdio_pins>;
+	pinctrl-names = "default";
+
+	ethphy0: ethernet-phy@0 { /* Marvell 88E1318 */
+		reg = <0>;
+		#thermal-sensor-cells = <0>;
+	};
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x0000000 0x200000>;
+				read-only;
+			};
+
+			partition@200000 {
+				label = "certificate";
+				reg = <0x0200000 0x100000>;
+				read-only;
+			};
+
+			partition@300000 {
+				label = "preset_cfg";
+				reg = <0x0300000 0x100000>;
+				read-only;
+			};
+
+			partition@400000 {
+				label = "dev_params";
+				reg = <0x0400000 0x100000>;
+				read-only;
+			};
+			partition@500000 {
+				label = "active_bank";
+				reg = <0x0500000 0x0100000>;
+			};
+
+			partition@600000 {
+				label = "magic";
+				reg = <0x0600000 0x0100000>;
+				read-only;
+			};
+
+			partition@700000 {
+				label = "bank1";
+				reg = <0x0700000 0x2800000>;
+			};
+
+			partition@2f00000 {
+				label = "bank2";
+				reg = <0x2f00000 0x2800000>;
+			};
+
+			/* 0x5700000-0x5a00000 undefined in vendor firmware */
+
+			partition@5a00000 {
+				label = "reserved";
+				reg = <0x5a00000 0x2000000>;
+			};
+
+			partition@7a00000 {
+				label = "rootfs";
+				reg = <0x7a00000 0x8600000>;
+			};
+		};
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	pcie@1,0 { /* Renesas uPD720202 USB 3.0 controller */
+		pinctrl-0 = <&pmx_pcie>;
+		pinctrl-names = "default";
+		status = "okay";
+		reset-gpios = <&gpio1 27 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pinctrl {
+	pmx_poweroff: pmx-poweroff {
+		marvell,pins = "mpp7";
+		marvell,function = "gpo";
+	};
+
+	pmx_power_cpu: pmx-power-cpu {
+		marvell,pins = "mpp4";
+		marvell,function = "vdd";
+	};
+
+	pmx_buttons: pmx-buttons {
+		marvell,pins = "mpp6", "mpp10", "mpp14", "mpp32";
+		marvell,function = "gpio";
+	};
+
+	pmx_leds1: pmx-leds1 {
+		marvell,pins = "mpp47";
+		marvell,function = "gpo";
+	};
+
+	pmx_leds2: pmx-leds2 {
+		marvell,pins = "mpp12", "mpp13", "mpp15", "mpp16", "mpp50", "mpp51",
+			       "mpp52", "mpp53", "mpp55", "mpp56", "mpp57", "mpp58";
+		marvell,function = "gpio";
+	};
+
+	pmx_pcie: pmx-pcie {
+		marvell,pins = "mpp59";
+		marvell,function = "gpio";
+	};
+
+	pmx_beeper: pmx-beeper {
+		marvell,pins = "mpp63";
+		marvell,function = "gpio";
+	};
+};
+
+&pmsu {
+	pinctrl-0 = <&pmx_power_cpu>;
+	pinctrl-names = "default";
+};
+
+&rtc {
+	status = "disabled";
+};
+
+&sata {
+	nr-ports = <2>;
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hdd0_temp: sata-port@0 {
+		reg = <0>;
+		#thermal-sensor-cells = <0>;
+	};
+
+	hdd1_temp: sata-port@1 {
+		reg = <1>;
+		#thermal-sensor-cells = <0>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

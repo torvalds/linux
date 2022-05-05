@@ -5,8 +5,8 @@
 void test_get_func_args_test(void)
 {
 	struct get_func_args_test *skel = NULL;
-	__u32 duration = 0, retval;
 	int err, prog_fd;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
 	skel = get_func_args_test__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "get_func_args_test__open_and_load"))
@@ -20,19 +20,17 @@ void test_get_func_args_test(void)
 	 * fentry/fexit programs.
 	 */
 	prog_fd = bpf_program__fd(skel->progs.test1);
-	err = bpf_prog_test_run(prog_fd, 1, NULL, 0,
-				NULL, NULL, &retval, &duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	ASSERT_OK(err, "test_run");
-	ASSERT_EQ(retval, 0, "test_run");
+	ASSERT_EQ(topts.retval, 0, "test_run");
 
 	/* This runs bpf_modify_return_test function and triggers
 	 * fmod_ret_test and fexit_test programs.
 	 */
 	prog_fd = bpf_program__fd(skel->progs.fmod_ret_test);
-	err = bpf_prog_test_run(prog_fd, 1, NULL, 0,
-				NULL, NULL, &retval, &duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	ASSERT_OK(err, "test_run");
-	ASSERT_EQ(retval, 1234, "test_run");
+	ASSERT_EQ(topts.retval, 1234, "test_run");
 
 	ASSERT_EQ(skel->bss->test1_result, 1, "test1_result");
 	ASSERT_EQ(skel->bss->test2_result, 1, "test2_result");

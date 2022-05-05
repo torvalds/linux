@@ -5,6 +5,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/filter.h>
 #include <linux/bpf.h>
+#include <linux/rcupdate_trace.h>
 
 struct bpf_iter_target_info {
 	struct list_head list;
@@ -684,11 +685,20 @@ int bpf_iter_run_prog(struct bpf_prog *prog, void *ctx)
 {
 	int ret;
 
-	rcu_read_lock();
-	migrate_disable();
-	ret = bpf_prog_run(prog, ctx);
-	migrate_enable();
-	rcu_read_unlock();
+	if (prog->aux->sleepable) {
+		rcu_read_lock_trace();
+		migrate_disable();
+		might_fault();
+		ret = bpf_prog_run(prog, ctx);
+		migrate_enable();
+		rcu_read_unlock_trace();
+	} else {
+		rcu_read_lock();
+		migrate_disable();
+		ret = bpf_prog_run(prog, ctx);
+		migrate_enable();
+		rcu_read_unlock();
+	}
 
 	/* bpf program can only return 0 or 1:
 	 *  0 : okay

@@ -94,7 +94,7 @@ struct ocxl_link {
 	struct spa *spa;
 	void *platform_data;
 };
-static struct list_head links_list = LIST_HEAD_INIT(links_list);
+static LIST_HEAD(links_list);
 static DEFINE_MUTEX(links_list_lock);
 
 enum xsl_response {

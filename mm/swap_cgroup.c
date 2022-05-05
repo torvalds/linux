@@ -167,14 +167,12 @@ unsigned short lookup_swap_cgroup_id(swp_entry_t ent)
 int swap_cgroup_swapon(int type, unsigned long max_pages)
 {
 	void *array;
-	unsigned long array_size;
 	unsigned long length;
 	struct swap_cgroup_ctrl *ctrl;
 
 	length = DIV_ROUND_UP(max_pages, SC_PER_PAGE);
-	array_size = length * sizeof(void *);
 
-	array = vzalloc(array_size);
+	array = vcalloc(length, sizeof(void *));
 	if (!array)
 		goto nomem;
 

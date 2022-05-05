@@ -781,7 +781,7 @@ static void npcm_i2c_set_fifo(struct npcm_i2c *bus, int nread, int nwrite)
 		/*
 		 * if we are about to read the first byte in blk rd mode,
 		 * don't NACK it. If slave returns zero size HW can't NACK
-		 * it immidiattly, it will read extra byte and then NACK.
+		 * it immediately, it will read extra byte and then NACK.
 		 */
 		if (bus->rd_ind == 0 && bus->read_block_use) {
 			/* set fifo to read one byte, no last: */
@@ -981,7 +981,7 @@ static void npcm_i2c_slave_xmit(struct npcm_i2c *bus, u16 nwrite,
 /*
  * npcm_i2c_slave_wr_buf_sync:
  * currently slave IF only supports single byte operations.
- * in order to utilyze the npcm HW FIFO, the driver will ask for 16 bytes
+ * in order to utilize the npcm HW FIFO, the driver will ask for 16 bytes
  * at a time, pack them in buffer, and then transmit them all together
  * to the FIFO and onward to the bus.
  * NACK on read will be once reached to bus->adap->quirks->max_read_len.
@@ -1175,7 +1175,7 @@ static irqreturn_t npcm_i2c_int_slave_handler(struct npcm_i2c *bus)
 				/*
 				 * the i2c module can response to 10 own SA.
 				 * check which one was addressed by the master.
-				 * repond to the first one.
+				 * respond to the first one.
 				 */
 				addr = ((i2ccst3 & 0x07) << 7) |
 					(i2ccst2 & 0x7F);
@@ -1753,8 +1753,8 @@ static void npcm_i2c_recovery_init(struct i2c_adapter *_adap)
 	/*
 	 * npcm i2c HW allows direct reading of SCL and SDA.
 	 * However, it does not support setting SCL and SDA directly.
-	 * The recovery function can togle SCL when SDA is low (but not set)
-	 * Getter functions used internally, and can be used externaly.
+	 * The recovery function can toggle SCL when SDA is low (but not set)
+	 * Getter functions used internally, and can be used externally.
 	 */
 	rinfo->get_scl = npcm_i2c_get_SCL;
 	rinfo->get_sda = npcm_i2c_get_SDA;
@@ -1768,10 +1768,10 @@ static void npcm_i2c_recovery_init(struct i2c_adapter *_adap)
 
 /*
  * npcm_i2c_init_clk: init HW timing parameters.
- * NPCM7XX i2c module timing parameters are depenent on module core clk (APB)
+ * NPCM7XX i2c module timing parameters are dependent on module core clk (APB)
  * and bus frequency.
- * 100kHz bus requires tSCL = 4 * SCLFRQ * tCLK. LT and HT are simetric.
- * 400kHz bus requires assymetric HT and LT. A different equation is recomended
+ * 100kHz bus requires tSCL = 4 * SCLFRQ * tCLK. LT and HT are symmetric.
+ * 400kHz bus requires asymmetric HT and LT. A different equation is recommended
  * by the HW designer, given core clock range (equations in comments below).
  *
  */

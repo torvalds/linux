@@ -83,6 +83,18 @@ struct dsi_pll_10nm {
 
 #define to_pll_10nm(x)	container_of(x, struct dsi_pll_10nm, clk_hw)
 
+/**
+ * struct dsi_phy_10nm_tuning_cfg - Holds 10nm PHY tuning config parameters.
+ * @rescode_offset_top: Offset for pull-up legs rescode.
+ * @rescode_offset_bot: Offset for pull-down legs rescode.
+ * @vreg_ctrl: vreg ctrl to drive LDO level
+ */
+struct dsi_phy_10nm_tuning_cfg {
+	u8 rescode_offset_top[DSI_LANE_MAX];
+	u8 rescode_offset_bot[DSI_LANE_MAX];
+	u8 vreg_ctrl;
+};
+
 /*
  * Global list of private DSI PLL struct pointers. We need this for bonded DSI
  * mode, where the master PLL's clk_ops needs access the slave's private data
@@ -562,7 +574,9 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm, struct clk_hw **prov
 	char clk_name[32], parent[32], vco_name[32];
 	char parent2[32], parent3[32], parent4[32];
 	struct clk_init_data vco_init = {
-		.parent_names = (const char *[]){ "xo" },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "ref",
+		},
 		.num_parents = 1,
 		.name = vco_name,
 		.flags = CLK_IGNORE_UNUSED,
@@ -747,6 +761,7 @@ static void dsi_phy_hw_v3_0_lane_settings(struct msm_dsi_phy *phy)
 	int i;
 	u8 tx_dctrl[] = { 0x00, 0x00, 0x00, 0x04, 0x01 };
 	void __iomem *lane_base = phy->lane_base;
+	struct dsi_phy_10nm_tuning_cfg *tuning_cfg = phy->tuning_cfg;
 
 	if (phy->cfg->quirks & DSI_PHY_10NM_QUIRK_OLD_TIMINGS)
 		tx_dctrl[3] = 0x02;
@@ -775,10 +790,13 @@ static void dsi_phy_hw_v3_0_lane_settings(struct msm_dsi_phy *phy)
 		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_CFG2(i), 0x0);
 		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_CFG3(i),
 			      i == 4 ? 0x80 : 0x0);
-		dsi_phy_write(lane_base +
-			      REG_DSI_10nm_PHY_LN_OFFSET_TOP_CTRL(i), 0x0);
-		dsi_phy_write(lane_base +
-			      REG_DSI_10nm_PHY_LN_OFFSET_BOT_CTRL(i), 0x0);
+
+		/* platform specific dsi phy drive strength adjustment */
+		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_OFFSET_TOP_CTRL(i),
+				tuning_cfg->rescode_offset_top[i]);
+		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_OFFSET_BOT_CTRL(i),
+				tuning_cfg->rescode_offset_bot[i]);
+
 		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_TX_DCTRL(i),
 			      tx_dctrl[i]);
 	}
@@ -799,6 +817,7 @@ static int dsi_10nm_phy_enable(struct msm_dsi_phy *phy,
 	u32 const timeout_us = 1000;
 	struct msm_dsi_dphy_timing *timing = &phy->timing;
 	void __iomem *base = phy->base;
+	struct dsi_phy_10nm_tuning_cfg *tuning_cfg = phy->tuning_cfg;
 	u32 data;
 
 	DBG("");
@@ -834,8 +853,9 @@ static int dsi_10nm_phy_enable(struct msm_dsi_phy *phy,
 	/* Select MS1 byte-clk */
 	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_GLBL_CTRL, 0x10);
 
-	/* Enable LDO */
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_VREG_CTRL, 0x59);
+	/* Enable LDO with platform specific drive level/amplitude adjustment */
+	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_VREG_CTRL,
+		      tuning_cfg->vreg_ctrl);
 
 	/* Configure PHY lane swap (TODO: we need to calculate this) */
 	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_LANE_CFG0, 0x21);
@@ -922,6 +942,92 @@ static void dsi_10nm_phy_disable(struct msm_dsi_phy *phy)
 	DBG("DSI%d PHY disabled", phy->id);
 }
 
+static int dsi_10nm_phy_parse_dt(struct msm_dsi_phy *phy)
+{
+	struct device *dev = &phy->pdev->dev;
+	struct dsi_phy_10nm_tuning_cfg *tuning_cfg;
+	s8 offset_top[DSI_LANE_MAX] = { 0 }; /* No offset */
+	s8 offset_bot[DSI_LANE_MAX] = { 0 }; /* No offset */
+	u32 ldo_level = 400; /* 400mV */
+	u8 level;
+	int ret, i;
+
+	tuning_cfg = devm_kzalloc(dev, sizeof(*tuning_cfg), GFP_KERNEL);
+	if (!tuning_cfg)
+		return -ENOMEM;
+
+	/* Drive strength adjustment parameters */
+	ret = of_property_read_u8_array(dev->of_node, "qcom,phy-rescode-offset-top",
+					offset_top, DSI_LANE_MAX);
+	if (ret && ret != -EINVAL) {
+		DRM_DEV_ERROR(dev, "failed to parse qcom,phy-rescode-offset-top, %d\n", ret);
+		return ret;
+	}
+
+	for (i = 0; i < DSI_LANE_MAX; i++) {
+		if (offset_top[i] < -32 || offset_top[i] > 31) {
+			DRM_DEV_ERROR(dev,
+				"qcom,phy-rescode-offset-top value %d is not in range [-32..31]\n",
+				offset_top[i]);
+			return -EINVAL;
+		}
+		tuning_cfg->rescode_offset_top[i] = 0x3f & offset_top[i];
+	}
+
+	ret = of_property_read_u8_array(dev->of_node, "qcom,phy-rescode-offset-bot",
+					offset_bot, DSI_LANE_MAX);
+	if (ret && ret != -EINVAL) {
+		DRM_DEV_ERROR(dev, "failed to parse qcom,phy-rescode-offset-bot, %d\n", ret);
+		return ret;
+	}
+
+	for (i = 0; i < DSI_LANE_MAX; i++) {
+		if (offset_bot[i] < -32 || offset_bot[i] > 31) {
+			DRM_DEV_ERROR(dev,
+				"qcom,phy-rescode-offset-bot value %d is not in range [-32..31]\n",
+				offset_bot[i]);
+			return -EINVAL;
+		}
+		tuning_cfg->rescode_offset_bot[i] = 0x3f & offset_bot[i];
+	}
+
+	/* Drive level/amplitude adjustment parameters */
+	ret = of_property_read_u32(dev->of_node, "qcom,phy-drive-ldo-level", &ldo_level);
+	if (ret && ret != -EINVAL) {
+		DRM_DEV_ERROR(dev, "failed to parse qcom,phy-drive-ldo-level, %d\n", ret);
+		return ret;
+	}
+
+	switch (ldo_level) {
+	case 375:
+		level = 0;
+		break;
+	case 400:
+		level = 1;
+		break;
+	case 425:
+		level = 2;
+		break;
+	case 450:
+		level = 3;
+		break;
+	case 475:
+		level = 4;
+		break;
+	case 500:
+		level = 5;
+		break;
+	default:
+		DRM_DEV_ERROR(dev, "qcom,phy-drive-ldo-level %d is not supported\n", ldo_level);
+		return -EINVAL;
+	}
+	tuning_cfg->vreg_ctrl = 0x58 | (0x7 & level);
+
+	phy->tuning_cfg = tuning_cfg;
+
+	return 0;
+}
+
 const struct msm_dsi_phy_cfg dsi_phy_10nm_cfgs = {
 	.has_phy_lane = true,
 	.reg_cfg = {
@@ -936,6 +1042,7 @@ const struct msm_dsi_phy_cfg dsi_phy_10nm_cfgs = {
 		.pll_init = dsi_pll_10nm_init,
 		.save_pll_state = dsi_10nm_pll_save_state,
 		.restore_pll_state = dsi_10nm_pll_restore_state,
+		.parse_dt_properties = dsi_10nm_phy_parse_dt,
 	},
 	.min_pll_rate = 1000000000UL,
 	.max_pll_rate = 3500000000UL,
@@ -957,6 +1064,7 @@ const struct msm_dsi_phy_cfg dsi_phy_10nm_8998_cfgs = {
 		.pll_init = dsi_pll_10nm_init,
 		.save_pll_state = dsi_10nm_pll_save_state,
 		.restore_pll_state = dsi_10nm_pll_restore_state,
+		.parse_dt_properties = dsi_10nm_phy_parse_dt,
 	},
 	.min_pll_rate = 1000000000UL,
 	.max_pll_rate = 3500000000UL,

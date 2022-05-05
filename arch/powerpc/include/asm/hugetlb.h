@@ -15,7 +15,7 @@
 
 extern bool hugetlb_disabled;
 
-void __init hugetlbpage_init_default(void);
+void __init hugetlbpage_init_defaultsize(void);
 
 int slice_is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 			   unsigned long len);
@@ -76,6 +76,9 @@ static inline void __init gigantic_hugetlb_cma_reserve(void)
 {
 }
 
+static inline void __init hugetlbpage_init_defaultsize(void)
+{
+}
 #endif /* CONFIG_HUGETLB_PAGE */
 
 #endif /* _ASM_POWERPC_HUGETLB_H */

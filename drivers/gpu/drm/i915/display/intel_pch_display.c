@@ -88,6 +88,50 @@ static void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 			pipe_name(pipe));
 }
 
+static void intel_pch_transcoder_set_m1_n1(struct intel_crtc *crtc,
+					   const struct intel_link_m_n *m_n)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	intel_set_m_n(dev_priv, m_n,
+		      PCH_TRANS_DATA_M1(pipe), PCH_TRANS_DATA_N1(pipe),
+		      PCH_TRANS_LINK_M1(pipe), PCH_TRANS_LINK_N1(pipe));
+}
+
+static void intel_pch_transcoder_set_m2_n2(struct intel_crtc *crtc,
+					   const struct intel_link_m_n *m_n)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	intel_set_m_n(dev_priv, m_n,
+		      PCH_TRANS_DATA_M2(pipe), PCH_TRANS_DATA_N2(pipe),
+		      PCH_TRANS_LINK_M2(pipe), PCH_TRANS_LINK_N2(pipe));
+}
+
+void intel_pch_transcoder_get_m1_n1(struct intel_crtc *crtc,
+				    struct intel_link_m_n *m_n)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	intel_get_m_n(dev_priv, m_n,
+		      PCH_TRANS_DATA_M1(pipe), PCH_TRANS_DATA_N1(pipe),
+		      PCH_TRANS_LINK_M1(pipe), PCH_TRANS_LINK_N1(pipe));
+}
+
+void intel_pch_transcoder_get_m2_n2(struct intel_crtc *crtc,
+				    struct intel_link_m_n *m_n)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	intel_get_m_n(dev_priv, m_n,
+		      PCH_TRANS_DATA_M2(pipe), PCH_TRANS_DATA_N2(pipe),
+		      PCH_TRANS_LINK_M2(pipe), PCH_TRANS_LINK_N2(pipe));
+}
+
 static void ilk_pch_transcoder_set_timings(const struct intel_crtc_state *crtc_state,
 					   enum pipe pch_transcoder)
 {
@@ -157,20 +201,20 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 		 */
 		val &= ~PIPECONF_BPC_MASK;
 		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-			val |= PIPECONF_8BPC;
+			val |= PIPECONF_BPC_8;
 		else
 			val |= pipeconf_val & PIPECONF_BPC_MASK;
 	}
 
 	val &= ~TRANS_INTERLACE_MASK;
-	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK) {
+	if ((pipeconf_val & PIPECONF_INTERLACE_MASK_ILK) == PIPECONF_INTERLACE_IF_ID_ILK) {
 		if (HAS_PCH_IBX(dev_priv) &&
 		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO))
-			val |= TRANS_LEGACY_INTERLACED_ILK;
+			val |= TRANS_INTERLACE_LEGACY_VSYNC_IBX;
 		else
-			val |= TRANS_INTERLACED;
+			val |= TRANS_INTERLACE_INTERLACED;
 	} else {
-		val |= TRANS_PROGRESSIVE;
+		val |= TRANS_INTERLACE_PROGRESSIVE;
 	}
 
 	intel_de_write(dev_priv, reg, val | TRANS_ENABLE);
@@ -209,6 +253,20 @@ static void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 		val &= ~TRANS_CHICKEN2_TIMING_OVERRIDE;
 		intel_de_write(dev_priv, reg, val);
 	}
+}
+
+void ilk_pch_pre_enable(struct intel_atomic_state *state,
+			struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	/*
+	 * Note: FDI PLL enabling _must_ be done before we enable the
+	 * cpu pipes, hence this is separate from all the other fdi/pch
+	 * enabling.
+	 */
+	ilk_fdi_pll_enable(crtc_state);
 }
 
 /*
@@ -264,6 +322,10 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 
 	/* set transcoder timing, panel must allow it */
 	assert_pps_unlocked(dev_priv, pipe);
+	if (intel_crtc_has_dp_encoder(crtc_state)) {
+		intel_pch_transcoder_set_m1_n1(crtc, &crtc_state->dp_m_n);
+		intel_pch_transcoder_set_m2_n2(crtc, &crtc_state->dp_m2_n2);
+	}
 	ilk_pch_transcoder_set_timings(crtc_state, pipe);
 
 	intel_fdi_normal_train(crtc);
@@ -279,7 +341,8 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 
 		temp = intel_de_read(dev_priv, reg);
 		temp &= ~(TRANS_DP_PORT_SEL_MASK |
-			  TRANS_DP_SYNC_MASK |
+			  TRANS_DP_VSYNC_ACTIVE_HIGH |
+			  TRANS_DP_HSYNC_ACTIVE_HIGH |
 			  TRANS_DP_BPC_MASK);
 		temp |= TRANS_DP_OUTPUT_ENABLE;
 		temp |= bpc << 9; /* same format but at 11:9 */
@@ -371,7 +434,8 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 	crtc_state->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
 				 FDI_DP_PORT_WIDTH_SHIFT) + 1;
 
-	ilk_get_fdi_m_n_config(crtc, crtc_state);
+	intel_cpu_transcoder_get_m1_n1(crtc, crtc_state->cpu_transcoder,
+				       &crtc_state->fdi_m_n);
 
 	if (HAS_PCH_IBX(dev_priv)) {
 		/*
@@ -422,11 +486,10 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	val = TRANS_ENABLE;
 	pipeconf_val = intel_de_read(dev_priv, PIPECONF(cpu_transcoder));
 
-	if ((pipeconf_val & PIPECONF_INTERLACE_MASK_HSW) ==
-	    PIPECONF_INTERLACED_ILK)
-		val |= TRANS_INTERLACED;
+	if ((pipeconf_val & PIPECONF_INTERLACE_MASK_HSW) == PIPECONF_INTERLACE_IF_ID_ILK)
+		val |= TRANS_INTERLACE_INTERLACED;
 	else
-		val |= TRANS_PROGRESSIVE;
+		val |= TRANS_INTERLACE_PROGRESSIVE;
 
 	intel_de_write(dev_priv, LPT_TRANSCONF, val);
 	if (intel_de_wait_for_set(dev_priv, LPT_TRANSCONF,
@@ -495,7 +558,8 @@ void lpt_pch_get_config(struct intel_crtc_state *crtc_state)
 	crtc_state->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
 				 FDI_DP_PORT_WIDTH_SHIFT) + 1;
 
-	ilk_get_fdi_m_n_config(crtc, crtc_state);
+	intel_cpu_transcoder_get_m1_n1(crtc, crtc_state->cpu_transcoder,
+				       &crtc_state->fdi_m_n);
 
 	crtc_state->hw.adjusted_mode.crtc_clock = lpt_get_iclkip(dev_priv);
 }

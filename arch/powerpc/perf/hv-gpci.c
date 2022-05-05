@@ -65,12 +65,12 @@ static struct attribute *format_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group format_group = {
+static const struct attribute_group format_group = {
 	.name = "format",
 	.attrs = format_attrs,
 };
 
-static struct attribute_group event_group = {
+static const struct attribute_group event_group = {
 	.name  = "events",
 	.attrs = hv_gpci_event_attrs,
 };
@@ -126,11 +126,11 @@ static struct attribute *cpumask_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group cpumask_attr_group = {
+static const struct attribute_group cpumask_attr_group = {
 	.attrs = cpumask_attrs,
 };
 
-static struct attribute_group interface_group = {
+static const struct attribute_group interface_group = {
 	.name = "interface",
 	.attrs = interface_attrs,
 };

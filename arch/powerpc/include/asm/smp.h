@@ -60,6 +60,9 @@ struct smp_ops_t {
 #endif
 };
 
+extern struct task_struct *secondary_current;
+
+void start_secondary(void *unused);
 extern int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us);
 extern int smp_send_safe_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us);
 extern void smp_send_debugger_break(void);

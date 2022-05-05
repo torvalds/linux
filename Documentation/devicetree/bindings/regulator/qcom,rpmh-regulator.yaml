@@ -48,6 +48,7 @@ description: |
       For PMI8998, bob
       For PMR735A, smps1 - smps3, ldo1 - ldo7
       For PMX55, smps1 - smps7, ldo1 - ldo16
+      For PMX65, smps1 - smps8, ldo1 - ldo21
 
 properties:
   compatible:
@@ -70,6 +71,7 @@ properties:
       - qcom,pmm8155au-rpmh-regulators
       - qcom,pmr735a-rpmh-regulators
       - qcom,pmx55-rpmh-regulators
+      - qcom,pmx65-rpmh-regulators
 
   qcom,pmic-id:
     description: |

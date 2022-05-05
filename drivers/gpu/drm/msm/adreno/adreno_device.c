@@ -318,7 +318,6 @@ static const struct adreno_info gpulist[] = {
 		.hwcg = a660_hwcg,
 	}, {
 		.rev = ADRENO_REV(6, 3, 5, ANY_ID),
-		.name = "Adreno 7c Gen 3",
 		.fw = {
 			[ADRENO_FW_SQE] = "a660_sqe.fw",
 			[ADRENO_FW_GMU] = "a660_gmu.bin",
@@ -600,43 +599,91 @@ static const struct of_device_id dt_match[] = {
 	{}
 };
 
-#ifdef CONFIG_PM
-static int adreno_resume(struct device *dev)
+static int adreno_runtime_resume(struct device *dev)
 {
 	struct msm_gpu *gpu = dev_to_gpu(dev);
 
 	return gpu->funcs->pm_resume(gpu);
 }
 
-static int active_submits(struct msm_gpu *gpu)
-{
-	int active_submits;
-	mutex_lock(&gpu->active_lock);
-	active_submits = gpu->active_submits;
-	mutex_unlock(&gpu->active_lock);
-	return active_submits;
-}
-
-static int adreno_suspend(struct device *dev)
+static int adreno_runtime_suspend(struct device *dev)
 {
 	struct msm_gpu *gpu = dev_to_gpu(dev);
-	int remaining;
 
-	remaining = wait_event_timeout(gpu->retire_event,
-				       active_submits(gpu) == 0,
-				       msecs_to_jiffies(1000));
-	if (remaining == 0) {
-		dev_err(dev, "Timeout waiting for GPU to suspend\n");
-		return -EBUSY;
-	}
+	/*
+	 * We should be holding a runpm ref, which will prevent
+	 * runtime suspend.  In the system suspend path, we've
+	 * already waited for active jobs to complete.
+	 */
+	WARN_ON_ONCE(gpu->active_submits);
 
 	return gpu->funcs->pm_suspend(gpu);
 }
-#endif
+
+static void suspend_scheduler(struct msm_gpu *gpu)
+{
+	int i;
+
+	/*
+	 * Shut down the scheduler before we force suspend, so that
+	 * suspend isn't racing with scheduler kthread feeding us
+	 * more work.
+	 *
+	 * Note, we just want to park the thread, and let any jobs
+	 * that are already on the hw queue complete normally, as
+	 * opposed to the drm_sched_stop() path used for handling
+	 * faulting/timed-out jobs.  We can't really cancel any jobs
+	 * already on the hw queue without racing with the GPU.
+	 */
+	for (i = 0; i < gpu->nr_rings; i++) {
+		struct drm_gpu_scheduler *sched = &gpu->rb[i]->sched;
+		kthread_park(sched->thread);
+	}
+}
+
+static void resume_scheduler(struct msm_gpu *gpu)
+{
+	int i;
+
+	for (i = 0; i < gpu->nr_rings; i++) {
+		struct drm_gpu_scheduler *sched = &gpu->rb[i]->sched;
+		kthread_unpark(sched->thread);
+	}
+}
+
+static int adreno_system_suspend(struct device *dev)
+{
+	struct msm_gpu *gpu = dev_to_gpu(dev);
+	int remaining, ret;
+
+	suspend_scheduler(gpu);
+
+	remaining = wait_event_timeout(gpu->retire_event,
+				       gpu->active_submits == 0,
+				       msecs_to_jiffies(1000));
+	if (remaining == 0) {
+		dev_err(dev, "Timeout waiting for GPU to suspend\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	ret = pm_runtime_force_suspend(dev);
+out:
+	if (ret)
+		resume_scheduler(gpu);
+
+	return ret;
+}
+
+static int adreno_system_resume(struct device *dev)
+{
+	resume_scheduler(dev_to_gpu(dev));
+	return pm_runtime_force_resume(dev);
+}
 
 static const struct dev_pm_ops adreno_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(adreno_suspend, adreno_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(adreno_system_suspend, adreno_system_resume)
+	RUNTIME_PM_OPS(adreno_runtime_suspend, adreno_runtime_resume, NULL)
 };
 
 static struct platform_driver adreno_driver = {

@@ -42,6 +42,12 @@ properties:
     description:
       Set if the output SYNCLKO frequency should be set to 125MHz instead of 25MHz.
 
+  microchip,synclko-disable:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set if the output SYNCLKO clock should be disabled. Do not mix with
+      microchip,synclko-125.
+
 required:
   - compatible
   - reg

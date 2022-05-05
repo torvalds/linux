@@ -111,6 +111,15 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[] = {
 		.sof_tplg_filename = "sof-rn-rt5682-max98360.tplg",
 	},
 	{
+		.id = "RTL5682",
+		.drv_name = "rt5682s-rt1019",
+		.pdata = (void *)&acp_quirk_data,
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &amp_rt1019,
+		.fw_filename = "sof-rn.ri",
+		.sof_tplg_filename = "sof-rn-rt5682-rt1019.tplg",
+	},
+	{
 		.id = "AMDI1019",
 		.drv_name = "renoir-dsp",
 		.pdata = (void *)&acp_quirk_data,

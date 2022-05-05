@@ -608,7 +608,6 @@ static s32 nps_enet_probe(struct platform_device *pdev)
 	/* Get IRQ number */
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq < 0) {
-		dev_err(dev, "failed to retrieve <irq Rx-Tx> value from device tree\n");
 		err = -ENODEV;
 		goto out_netdev;
 	}

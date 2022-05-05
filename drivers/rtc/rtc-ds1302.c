@@ -185,10 +185,9 @@ static int ds1302_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ds1302_remove(struct spi_device *spi)
+static void ds1302_remove(struct spi_device *spi)
 {
 	spi_set_drvdata(spi, NULL);
-	return 0;
 }
 
 #ifdef CONFIG_OF

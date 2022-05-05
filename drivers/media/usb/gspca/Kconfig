@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig USB_GSPCA
 	tristate "GSPCA based webcams"
-	depends on VIDEO_V4L2
+	depends on VIDEO_DEV
 	depends on INPUT || INPUT=n
 	select VIDEOBUF2_VMALLOC
 	help
@@ -16,16 +16,11 @@ menuconfig USB_GSPCA
 	  To compile this driver as modules, choose M here: the
 	  module will be called gspca_main.
 
-
-if USB_GSPCA && VIDEO_V4L2
-
-source "drivers/media/usb/gspca/m5602/Kconfig"
-source "drivers/media/usb/gspca/stv06xx/Kconfig"
-source "drivers/media/usb/gspca/gl860/Kconfig"
+if USB_GSPCA && VIDEO_DEV
 
 config USB_GSPCA_BENQ
 	tristate "Benq USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for the Benq DC E300 camera.
 
@@ -34,7 +29,7 @@ config USB_GSPCA_BENQ
 
 config USB_GSPCA_CONEX
 	tristate "Conexant Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the Conexant chip.
 
@@ -43,7 +38,7 @@ config USB_GSPCA_CONEX
 
 config USB_GSPCA_CPIA1
 	tristate "cpia CPiA (version 1) Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for USB cameras based on the cpia
 	  CPiA chip. Note that you need at least version 0.6.4 of libv4l for
@@ -54,7 +49,7 @@ config USB_GSPCA_CPIA1
 
 config USB_GSPCA_DTCS033
 	tristate "DTCS033 (Scopium) USB Astro-Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for the Scopium camera
 	  for planetary astrophotography.
@@ -64,7 +59,7 @@ config USB_GSPCA_DTCS033
 
 config USB_GSPCA_ETOMS
 	tristate "Etoms USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the Etoms chip.
 
@@ -73,7 +68,7 @@ config USB_GSPCA_ETOMS
 
 config USB_GSPCA_FINEPIX
 	tristate "Fujifilm FinePix USB V4L2 driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the FinePix chip.
 
@@ -82,7 +77,7 @@ config USB_GSPCA_FINEPIX
 
 config USB_GSPCA_JEILINJ
 	tristate "Jeilin JPEG USB V4L2 driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on this Jeilin chip.
 
@@ -91,7 +86,7 @@ config USB_GSPCA_JEILINJ
 
 config USB_GSPCA_JL2005BCD
 	tristate "JL2005B/C/D USB V4L2 driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based the
 	  JL2005B, JL2005C, or JL2005D chip.
@@ -101,7 +96,7 @@ config USB_GSPCA_JL2005BCD
 
 config USB_GSPCA_KINECT
 	tristate "Kinect sensor device USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for the Microsoft Kinect sensor device.
 
@@ -110,7 +105,7 @@ config USB_GSPCA_KINECT
 
 config USB_GSPCA_KONICA
 	tristate "Konica USB Camera V4L2 driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the Konica chip.
 
@@ -119,7 +114,7 @@ config USB_GSPCA_KONICA
 
 config USB_GSPCA_MARS
 	tristate "Mars USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the Mars chip.
 
@@ -128,7 +123,7 @@ config USB_GSPCA_MARS
 
 config USB_GSPCA_MR97310A
 	tristate "Mars-Semi MR97310A USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the MR97310A chip.
 
@@ -137,7 +132,7 @@ config USB_GSPCA_MR97310A
 
 config USB_GSPCA_NW80X
 	tristate "Divio based (NW80x) USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the NW80x chips.
 
@@ -146,7 +141,7 @@ config USB_GSPCA_NW80X
 
 config USB_GSPCA_OV519
 	tristate "OV51x / OVFX2 / W996xCF USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on one of these:
 	  OV511(+), OV518(+), OV519, OVFX2, W9967CF, W9968CF
@@ -156,7 +151,7 @@ config USB_GSPCA_OV519
 
 config USB_GSPCA_OV534
 	tristate "OV534 OV772x USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the OV534 chip
 	  and sensor OV772x (e.g. Sony Playstation EYE)
@@ -166,7 +161,7 @@ config USB_GSPCA_OV534
 
 config USB_GSPCA_OV534_9
 	tristate "OV534 OV965x USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the OV534 chip
 	  and sensor OV965x (e.g. Hercules Dualpix)
@@ -176,7 +171,7 @@ config USB_GSPCA_OV534_9
 
 config USB_GSPCA_PAC207
 	tristate "Pixart PAC207 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the PAC207 chip.
 
@@ -185,7 +180,7 @@ config USB_GSPCA_PAC207
 
 config USB_GSPCA_PAC7302
 	tristate "Pixart PAC7302 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the PAC7302 chip.
 
@@ -194,7 +189,7 @@ config USB_GSPCA_PAC7302
 
 config USB_GSPCA_PAC7311
 	tristate "Pixart PAC7311 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the PAC7311 chip.
 
@@ -203,7 +198,7 @@ config USB_GSPCA_PAC7311
 
 config USB_GSPCA_SE401
 	tristate "SE401 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the
 	  Endpoints (formerly known as AOX) se401 chip.
@@ -213,7 +208,7 @@ config USB_GSPCA_SE401
 
 config USB_GSPCA_SN9C2028
 	tristate "SONIX Dual-Mode USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want streaming support for Sonix SN9C2028 cameras.
 	  These are supported as stillcams in libgphoto2/camlibs/sonix.
@@ -223,7 +218,7 @@ config USB_GSPCA_SN9C2028
 
 config USB_GSPCA_SN9C20X
 	tristate "SN9C20X USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the
 	  sn9c20x chips (SN9C201 and SN9C202).
@@ -233,7 +228,7 @@ config USB_GSPCA_SN9C20X
 
 config USB_GSPCA_SONIXB
 	tristate "SONIX Bayer USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the Sonix
 	  chips with Bayer format (SN9C101, SN9C102 and SN9C103).
@@ -243,7 +238,7 @@ config USB_GSPCA_SONIXB
 
 config USB_GSPCA_SONIXJ
 	tristate "SONIX JPEG USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the Sonix
 	  chips with JPEG format (SN9C102P, SN9C105 and >= SN9C110).
@@ -251,9 +246,18 @@ config USB_GSPCA_SONIXJ
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_sonixj
 
+config USB_GSPCA_SPCA1528
+	tristate "SPCA1528 USB Camera Driver"
+	depends on VIDEO_DEV && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the SPCA1528 chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_spca1528.
+
 config USB_GSPCA_SPCA500
 	tristate "SPCA500 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the SPCA500 chip.
 
@@ -262,7 +266,7 @@ config USB_GSPCA_SPCA500
 
 config USB_GSPCA_SPCA501
 	tristate "SPCA501 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the SPCA501 chip.
 
@@ -271,7 +275,7 @@ config USB_GSPCA_SPCA501
 
 config USB_GSPCA_SPCA505
 	tristate "SPCA505 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the SPCA505 chip.
 
@@ -280,7 +284,7 @@ config USB_GSPCA_SPCA505
 
 config USB_GSPCA_SPCA506
 	tristate "SPCA506 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the SPCA506 chip.
 
@@ -289,7 +293,7 @@ config USB_GSPCA_SPCA506
 
 config USB_GSPCA_SPCA508
 	tristate "SPCA508 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the SPCA508 chip.
 
@@ -298,25 +302,16 @@ config USB_GSPCA_SPCA508
 
 config USB_GSPCA_SPCA561
 	tristate "SPCA561 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the SPCA561 chip.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_spca561.
 
-config USB_GSPCA_SPCA1528
-	tristate "SPCA1528 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
-	help
-	  Say Y here if you want support for cameras based on the SPCA1528 chip.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called gspca_spca1528.
-
 config USB_GSPCA_SQ905
 	tristate "SQ Technologies SQ905 based USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the SQ905 chip.
 
@@ -325,7 +320,7 @@ config USB_GSPCA_SQ905
 
 config USB_GSPCA_SQ905C
 	tristate "SQ Technologies SQ905C based USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the SQ905C chip.
 
@@ -334,7 +329,7 @@ config USB_GSPCA_SQ905C
 
 config USB_GSPCA_SQ930X
 	tristate "SQ Technologies SQ930X based USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the SQ930X chip.
 
@@ -343,7 +338,7 @@ config USB_GSPCA_SQ930X
 
 config USB_GSPCA_STK014
 	tristate "Syntek DV4000 (STK014) USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the STK014 chip.
 
@@ -352,7 +347,7 @@ config USB_GSPCA_STK014
 
 config USB_GSPCA_STK1135
 	tristate "Syntek STK1135 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the STK1135 chip.
 
@@ -361,7 +356,7 @@ config USB_GSPCA_STK1135
 
 config USB_GSPCA_STV0680
 	tristate "STV0680 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the STV0680 chip.
 
@@ -370,7 +365,7 @@ config USB_GSPCA_STV0680
 
 config USB_GSPCA_SUNPLUS
 	tristate "SUNPLUS USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the Sunplus
 	  SPCA504(abc) SPCA533 SPCA536 chips.
@@ -380,7 +375,7 @@ config USB_GSPCA_SUNPLUS
 
 config USB_GSPCA_T613
 	tristate "T613 (JPEG Compliance) USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the T613 chip.
 
@@ -389,7 +384,7 @@ config USB_GSPCA_T613
 
 config USB_GSPCA_TOPRO
 	tristate "TOPRO USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the
 	  TP6800 and TP6810 Topro chips.
@@ -399,7 +394,7 @@ config USB_GSPCA_TOPRO
 
 config USB_GSPCA_TOUPTEK
 	tristate "Touptek USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the ToupTek UCMOS
 	  / AmScope MU series camera.
@@ -409,7 +404,7 @@ config USB_GSPCA_TOUPTEK
 
 config USB_GSPCA_TV8532
 	tristate "TV8532 USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the TV8531 chip.
 
@@ -418,7 +413,7 @@ config USB_GSPCA_TV8532
 
 config USB_GSPCA_VC032X
 	tristate "VC032X USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the VC032X chip.
 
@@ -427,7 +422,7 @@ config USB_GSPCA_VC032X
 
 config USB_GSPCA_VICAM
 	tristate "ViCam USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for the 3com homeconnect camera
 	  (vicam).
@@ -437,7 +432,7 @@ config USB_GSPCA_VICAM
 
 config USB_GSPCA_XIRLINK_CIT
 	tristate "Xirlink C-It USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for Xirlink C-It bases cameras.
 
@@ -446,11 +441,15 @@ config USB_GSPCA_XIRLINK_CIT
 
 config USB_GSPCA_ZC3XX
 	tristate "ZC3XX USB Camera Driver"
-	depends on VIDEO_V4L2 && USB_GSPCA
+	depends on VIDEO_DEV && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the ZC3XX chip.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_zc3xx.
+
+source "drivers/media/usb/gspca/gl860/Kconfig"
+source "drivers/media/usb/gspca/m5602/Kconfig"
+source "drivers/media/usb/gspca/stv06xx/Kconfig"
 
 endif

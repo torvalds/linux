@@ -76,6 +76,25 @@
 		method = "smc";
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		smem@4ab00000 {
+			compatible = "qcom,smem";
+			reg = <0x0 0x4ab00000 0x0 0x00100000>;
+			no-map;
+
+			hwlocks = <&tcsr_mutex 0>;
+		};
+
+		memory@4ac00000 {
+			no-map;
+			reg = <0x0 0x4ac00000 0x0 0x00400000>;
+		};
+	};
+
 	firmware {
 		scm {
 			compatible = "qcom,scm-ipq8074", "qcom,scm";
@@ -329,6 +348,12 @@
 			reg = <0x01800000 0x80000>;
 			#clock-cells = <0x1>;
 			#reset-cells = <0x1>;
+		};
+
+		tcsr_mutex: hwlock@1905000 {
+			compatible = "qcom,tcsr-mutex";
+			reg = <0x01905000 0x20000>;
+			#hwlock-cells = <1>;
 		};
 
 		spmi_bus: spmi@200f000 {
@@ -609,9 +634,18 @@
 
 		intc: interrupt-controller@b000000 {
 			compatible = "qcom,msm-qgic2";
+			#address-cells = <1>;
+			#size-cells = <1>;
 			interrupt-controller;
 			#interrupt-cells = <0x3>;
 			reg = <0x0b000000 0x1000>, <0x0b002000 0x1000>;
+			ranges = <0 0xb00a000 0xffd>;
+
+			v2m@0 {
+				compatible = "arm,gic-v2m-frame";
+				msi-controller;
+				reg = <0x0 0xffd>;
+			};
 		};
 
 		timer {
@@ -636,7 +670,6 @@
 			ranges;
 			compatible = "arm,armv7-timer-mem";
 			reg = <0x0b120000 0x1000>;
-			clock-frequency = <19200000>;
 
 			frame@b120000 {
 				frame-number = <0>;

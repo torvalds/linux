@@ -633,8 +633,8 @@ static bool is_cppc_supported(int revision, int num_ent)
  *  )
  */
 
-#ifndef init_freq_invariance_cppc
-static inline void init_freq_invariance_cppc(void) { }
+#ifndef arch_init_invariance_cppc
+static inline void arch_init_invariance_cppc(void) { }
 #endif
 
 /**
@@ -654,7 +654,10 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	unsigned int num_ent, i, cpc_rev;
 	int pcc_subspace_id = -1;
 	acpi_status status;
-	int ret = -EFAULT;
+	int ret = -ENODATA;
+
+	if (osc_sb_cppc_not_supported)
+		return -ENODEV;
 
 	/* Parse the ACPI _CPC table for this CPU. */
 	status = acpi_evaluate_object_typed(handle, "_CPC", NULL, &output,
@@ -676,9 +679,14 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	cpc_obj = &out_obj->package.elements[0];
 	if (cpc_obj->type == ACPI_TYPE_INTEGER)	{
 		num_ent = cpc_obj->integer.value;
+		if (num_ent <= 1) {
+			pr_debug("Unexpected _CPC NumEntries value (%d) for CPU:%d\n",
+				 num_ent, pr->id);
+			goto out_free;
+		}
 	} else {
-		pr_debug("Unexpected entry type(%d) for NumEntries\n",
-				cpc_obj->type);
+		pr_debug("Unexpected _CPC NumEntries entry type (%d) for CPU:%d\n",
+			 cpc_obj->type, pr->id);
 		goto out_free;
 	}
 	cpc_ptr->num_entries = num_ent;
@@ -688,8 +696,8 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	if (cpc_obj->type == ACPI_TYPE_INTEGER)	{
 		cpc_rev = cpc_obj->integer.value;
 	} else {
-		pr_debug("Unexpected entry type(%d) for Revision\n",
-				cpc_obj->type);
+		pr_debug("Unexpected _CPC Revision entry type (%d) for CPU:%d\n",
+			 cpc_obj->type, pr->id);
 		goto out_free;
 	}
 	cpc_ptr->version = cpc_rev;
@@ -720,7 +728,8 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 					if (pcc_data_alloc(pcc_subspace_id))
 						goto out_free;
 				} else if (pcc_subspace_id != gas_t->access_width) {
-					pr_debug("Mismatched PCC ids.\n");
+					pr_debug("Mismatched PCC ids in _CPC for CPU:%d\n",
+						 pr->id);
 					goto out_free;
 				}
 			} else if (gas_t->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
@@ -739,20 +748,21 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 					 * SystemIO doesn't implement 64-bit
 					 * registers.
 					 */
-					pr_debug("Invalid access width %d for SystemIO register\n",
-						gas_t->access_width);
+					pr_debug("Invalid access width %d for SystemIO register in _CPC\n",
+						 gas_t->access_width);
 					goto out_free;
 				}
 				if (gas_t->address & OVER_16BTS_MASK) {
 					/* SystemIO registers use 16-bit integer addresses */
-					pr_debug("Invalid IO port %llu for SystemIO register\n",
-						gas_t->address);
+					pr_debug("Invalid IO port %llu for SystemIO register in _CPC\n",
+						 gas_t->address);
 					goto out_free;
 				}
 			} else {
 				if (gas_t->space_id != ACPI_ADR_SPACE_FIXED_HARDWARE || !cpc_ffh_supported()) {
 					/* Support only PCC, SystemMemory, SystemIO, and FFH type regs. */
-					pr_debug("Unsupported register type: %d\n", gas_t->space_id);
+					pr_debug("Unsupported register type (%d) in _CPC\n",
+						 gas_t->space_id);
 					goto out_free;
 				}
 			}
@@ -760,7 +770,8 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 			cpc_ptr->cpc_regs[i-2].type = ACPI_TYPE_BUFFER;
 			memcpy(&cpc_ptr->cpc_regs[i-2].cpc_entry.reg, gas_t, sizeof(*gas_t));
 		} else {
-			pr_debug("Err in entry:%d in CPC table of CPU:%d\n", i, pr->id);
+			pr_debug("Invalid entry type (%d) in _CPC for CPU:%d\n",
+				 i, pr->id);
 			goto out_free;
 		}
 	}
@@ -816,7 +827,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 		goto out_free;
 	}
 
-	init_freq_invariance_cppc();
+	arch_init_invariance_cppc();
 
 	kfree(output.pointer);
 	return 0;

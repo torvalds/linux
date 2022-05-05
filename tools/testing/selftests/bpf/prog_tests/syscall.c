@@ -20,20 +20,20 @@ void test_syscall(void)
 		.log_buf = (uintptr_t) verifier_log,
 		.log_size = sizeof(verifier_log),
 	};
-	struct bpf_prog_test_run_attr tattr = {
+	LIBBPF_OPTS(bpf_test_run_opts, tattr,
 		.ctx_in = &ctx,
 		.ctx_size_in = sizeof(ctx),
-	};
+	);
 	struct syscall *skel = NULL;
 	__u64 key = 12, value = 0;
-	int err;
+	int err, prog_fd;
 
 	skel = syscall__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "skel_load"))
 		goto cleanup;
 
-	tattr.prog_fd = bpf_program__fd(skel->progs.bpf_prog);
-	err = bpf_prog_test_run_xattr(&tattr);
+	prog_fd = bpf_program__fd(skel->progs.bpf_prog);
+	err = bpf_prog_test_run_opts(prog_fd, &tattr);
 	ASSERT_EQ(err, 0, "err");
 	ASSERT_EQ(tattr.retval, 1, "retval");
 	ASSERT_GT(ctx.map_fd, 0, "ctx.map_fd");

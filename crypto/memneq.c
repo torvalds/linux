@@ -60,6 +60,7 @@
  */
 
 #include <crypto/algapi.h>
+#include <asm/unaligned.h>
 
 #ifndef __HAVE_ARCH_CRYPTO_MEMNEQ
 
@@ -71,7 +72,8 @@ __crypto_memneq_generic(const void *a, const void *b, size_t size)
 
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
 	while (size >= sizeof(unsigned long)) {
-		neq |= *(unsigned long *)a ^ *(unsigned long *)b;
+		neq |= get_unaligned((unsigned long *)a) ^
+		       get_unaligned((unsigned long *)b);
 		OPTIMIZER_HIDE_VAR(neq);
 		a += sizeof(unsigned long);
 		b += sizeof(unsigned long);
@@ -95,18 +97,24 @@ static inline unsigned long __crypto_memneq_16(const void *a, const void *b)
 
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	if (sizeof(unsigned long) == 8) {
-		neq |= *(unsigned long *)(a)   ^ *(unsigned long *)(b);
+		neq |= get_unaligned((unsigned long *)a) ^
+		       get_unaligned((unsigned long *)b);
 		OPTIMIZER_HIDE_VAR(neq);
-		neq |= *(unsigned long *)(a+8) ^ *(unsigned long *)(b+8);
+		neq |= get_unaligned((unsigned long *)(a + 8)) ^
+		       get_unaligned((unsigned long *)(b + 8));
 		OPTIMIZER_HIDE_VAR(neq);
 	} else if (sizeof(unsigned int) == 4) {
-		neq |= *(unsigned int *)(a)    ^ *(unsigned int *)(b);
+		neq |= get_unaligned((unsigned int *)a) ^
+		       get_unaligned((unsigned int *)b);
 		OPTIMIZER_HIDE_VAR(neq);
-		neq |= *(unsigned int *)(a+4)  ^ *(unsigned int *)(b+4);
+		neq |= get_unaligned((unsigned int *)(a + 4)) ^
+		       get_unaligned((unsigned int *)(b + 4));
 		OPTIMIZER_HIDE_VAR(neq);
-		neq |= *(unsigned int *)(a+8)  ^ *(unsigned int *)(b+8);
+		neq |= get_unaligned((unsigned int *)(a + 8)) ^
+		       get_unaligned((unsigned int *)(b + 8));
 		OPTIMIZER_HIDE_VAR(neq);
-		neq |= *(unsigned int *)(a+12) ^ *(unsigned int *)(b+12);
+		neq |= get_unaligned((unsigned int *)(a + 12)) ^
+		       get_unaligned((unsigned int *)(b + 12));
 		OPTIMIZER_HIDE_VAR(neq);
 	} else
 #endif /* CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */

@@ -154,6 +154,10 @@ static int intel_guc_multi_lrc_basic(void *arg)
 	int ret;
 
 	for (class = 0; class < MAX_ENGINE_CLASS + 1; ++class) {
+		/* We don't support breadcrumb handshake on these classes */
+		if (class == COMPUTE_CLASS || class == RENDER_CLASS)
+			continue;
+
 		ret = __intel_guc_multi_lrc_basic(gt, class);
 		if (ret)
 			return ret;

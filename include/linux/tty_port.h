@@ -2,6 +2,7 @@
 #ifndef _LINUX_TTY_PORT_H
 #define _LINUX_TTY_PORT_H
 
+#include <linux/kfifo.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/tty_buffer.h>
@@ -67,6 +68,7 @@ extern const struct tty_port_client_operations tty_port_default_client_ops;
  * @mutex: locking, for open, shutdown and other port operations
  * @buf_mutex: @xmit_buf alloc lock
  * @xmit_buf: optional xmit buffer used by some drivers
+ * @xmit_fifo: optional xmit buffer used by some drivers
  * @close_delay: delay in jiffies to wait when closing the port
  * @closing_wait: delay in jiffies for output to be sent before closing
  * @drain_delay: set to zero if no pure time based drain is needed else set to
@@ -110,6 +112,7 @@ struct tty_port {
 	struct mutex		mutex;
 	struct mutex		buf_mutex;
 	unsigned char		*xmit_buf;
+	DECLARE_KFIFO_PTR(xmit_fifo, unsigned char);
 	unsigned int		close_delay;
 	unsigned int		closing_wait;
 	int			drain_delay;

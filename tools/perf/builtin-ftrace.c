@@ -301,7 +301,7 @@ static int set_tracing_cpumask(struct perf_cpu_map *cpumap)
 
 static int set_tracing_cpu(struct perf_ftrace *ftrace)
 {
-	struct perf_cpu_map *cpumap = ftrace->evlist->core.cpus;
+	struct perf_cpu_map *cpumap = ftrace->evlist->core.user_requested_cpus;
 
 	if (!target__has_cpu(&ftrace->target))
 		return 0;
@@ -680,7 +680,8 @@ out:
 	return (done && !workload_exec_errno) ? 0 : -1;
 }
 
-static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf)
+static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf,
+			   bool use_nsec)
 {
 	char *p, *q;
 	char *unit;
@@ -727,6 +728,9 @@ static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf)
 		if (!unit || strncmp(unit, " us", 3))
 			goto next;
 
+		if (use_nsec)
+			num *= 1000;
+
 		i = log2(num);
 		if (i < 0)
 			i = 0;
@@ -744,7 +748,7 @@ next:
 	strcat(linebuf, p);
 }
 
-static void display_histogram(int buckets[])
+static void display_histogram(int buckets[], bool use_nsec)
 {
 	int i;
 	int total = 0;
@@ -770,12 +774,12 @@ static void display_histogram(int buckets[])
 	for (i = 1; i < NUM_BUCKET - 1; i++) {
 		int start = (1 << (i - 1));
 		int stop = 1 << i;
-		const char *unit = "us";
+		const char *unit = use_nsec ? "ns" : "us";
 
 		if (start >= 1024) {
 			start >>= 10;
 			stop >>= 10;
-			unit = "ms";
+			unit = use_nsec ? "us" : "ms";
 		}
 		bar_len = buckets[i] * bar_total / total;
 		printf("  %4d - %-4d %s | %10d | %.*s%*s |\n",
@@ -785,8 +789,8 @@ static void display_histogram(int buckets[])
 
 	bar_len = buckets[NUM_BUCKET - 1] * bar_total / total;
 	printf("  %4d - %-4s %s | %10d | %.*s%*s |\n",
-	       1, "...", " s", buckets[NUM_BUCKET - 1], bar_len, bar,
-	       bar_total - bar_len, "");
+	       1, "...", use_nsec ? "ms" : " s", buckets[NUM_BUCKET - 1],
+	       bar_len, bar, bar_total - bar_len, "");
 
 }
 
@@ -913,7 +917,7 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 			if (n < 0)
 				break;
 
-			make_histogram(buckets, buf, n, line);
+			make_histogram(buckets, buf, n, line, ftrace->use_nsec);
 		}
 	}
 
@@ -930,12 +934,12 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 		int n = read(trace_fd, buf, sizeof(buf) - 1);
 		if (n <= 0)
 			break;
-		make_histogram(buckets, buf, n, line);
+		make_histogram(buckets, buf, n, line, ftrace->use_nsec);
 	}
 
 	read_func_latency(ftrace, buckets);
 
-	display_histogram(buckets);
+	display_histogram(buckets, ftrace->use_nsec);
 
 out:
 	close(trace_fd);
@@ -1171,6 +1175,8 @@ int cmd_ftrace(int argc, const char **argv)
 	OPT_BOOLEAN('b', "use-bpf", &ftrace.target.use_bpf,
 		    "Use BPF to measure function latency"),
 #endif
+	OPT_BOOLEAN('n', "--use-nsec", &ftrace.use_nsec,
+		    "Use nano-second histogram"),
 	OPT_PARENT(common_options),
 	};
 	const struct option *options = ftrace_options;

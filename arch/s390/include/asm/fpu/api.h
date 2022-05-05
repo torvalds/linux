@@ -45,6 +45,7 @@
 #define _ASM_S390_FPU_API_H
 
 #include <linux/preempt.h>
+#include <asm/asm-extable.h>
 
 void save_fpu_regs(void);
 void load_fpu_regs(void);

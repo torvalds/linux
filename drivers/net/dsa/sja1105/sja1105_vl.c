@@ -296,6 +296,19 @@ static bool sja1105_vl_key_lower(struct sja1105_vl_lookup_entry *a,
 	return false;
 }
 
+/* FIXME: this should change when the bridge upper of the port changes. */
+static u16 sja1105_port_get_tag_8021q_vid(struct dsa_port *dp)
+{
+	unsigned long bridge_num;
+
+	if (!dp->bridge)
+		return dsa_tag_8021q_standalone_vid(dp);
+
+	bridge_num = dsa_port_bridge_num_get(dp);
+
+	return dsa_tag_8021q_bridge_vid(bridge_num);
+}
+
 static int sja1105_init_virtual_links(struct sja1105_private *priv,
 				      struct netlink_ext_ack *extack)
 {
@@ -394,8 +407,9 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 				vl_lookup[k].vlanid = rule->key.vl.vid;
 				vl_lookup[k].vlanprior = rule->key.vl.pcp;
 			} else {
+				/* FIXME */
 				struct dsa_port *dp = dsa_to_port(priv->ds, port);
-				u16 vid = dsa_tag_8021q_rx_vid(dp);
+				u16 vid = sja1105_port_get_tag_8021q_vid(dp);
 
 				vl_lookup[k].vlanid = vid;
 				vl_lookup[k].vlanprior = 0;

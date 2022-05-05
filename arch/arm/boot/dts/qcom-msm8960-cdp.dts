@@ -279,7 +279,7 @@
 			pinctrl-0 = <&spi1_default>;
 			spi@16080000 {
 				status = "okay";
-				eth@0 {
+				ethernet@0 {
 					compatible = "micrel,ks8851";
 					reg = <0>;
 					interrupt-parent = <&msmgpio>;

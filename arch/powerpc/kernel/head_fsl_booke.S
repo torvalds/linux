@@ -54,8 +54,8 @@
  *
  */
 	__HEAD
-_ENTRY(_stext);
-_ENTRY(_start);
+_GLOBAL(_stext);
+_GLOBAL(_start);
 	/*
 	 * Reserve a word at a fixed location to store the address
 	 * of abatron_pteptrs
@@ -154,7 +154,7 @@ _ENTRY(_start);
  * if needed
  */
 
-_ENTRY(__early_start)
+_GLOBAL(__early_start)
 	LOAD_REG_ADDR_PIC(r20, kernstart_virt_addr)
 	lwz     r20,0(r20)
 

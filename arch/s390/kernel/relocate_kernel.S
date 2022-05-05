@@ -2,8 +2,7 @@
 /*
  * Copyright IBM Corp. 2005
  *
- * Author(s): Rolf Adelsberger,
- *	      Heiko Carstens <heiko.carstens@de.ibm.com>
+ * Author(s): Rolf Adelsberger
  *
  */
 

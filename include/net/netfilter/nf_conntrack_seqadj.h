@@ -42,7 +42,4 @@ int nf_ct_seq_adjust(struct sk_buff *skb, struct nf_conn *ct,
 		     enum ip_conntrack_info ctinfo, unsigned int protoff);
 s32 nf_ct_seq_offset(const struct nf_conn *ct, enum ip_conntrack_dir, u32 seq);
 
-int nf_conntrack_seqadj_init(void);
-void nf_conntrack_seqadj_fini(void);
-
 #endif /* _NF_CONNTRACK_SEQADJ_H */
