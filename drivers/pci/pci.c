@@ -1341,15 +1341,8 @@ static int pci_set_low_power_state(struct pci_dev *dev, pci_power_t state)
 {
 	u16 pmcsr;
 
-	/* Check if we're already there */
-	if (dev->current_state == state)
-		return 0;
-
 	if (!dev->pm_cap)
 		return -EIO;
-
-	if (state < PCI_D1 || state > PCI_D3hot)
-		return -EINVAL;
 
 	/*
 	 * Validate transition: We can enter D0 from any state, but if
@@ -1358,7 +1351,7 @@ static int pci_set_low_power_state(struct pci_dev *dev, pci_power_t state)
 	 * we'd have to go from D3 to D0, then to D1.
 	 */
 	if (dev->current_state <= PCI_D3cold && dev->current_state > state) {
-		pci_err(dev, "invalid power transition (from %s to %s)\n",
+		pci_dbg(dev, "Invalid power transition (from %s to %s)\n",
 			pci_power_name(dev->current_state),
 			pci_power_name(state));
 		return -EINVAL;
