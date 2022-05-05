@@ -67,6 +67,12 @@ struct bma400_sample_freq {
 	int uhz;
 };
 
+enum bma400_activity {
+	BMA400_STILL,
+	BMA400_WALKING,
+	BMA400_RUNNING,
+};
+
 struct bma400_data {
 	struct device *dev;
 	struct regmap *regmap;
@@ -80,6 +86,7 @@ struct bma400_data {
 	struct iio_trigger *trig;
 	int steps_enabled;
 	bool step_event_en;
+	bool activity_event_en;
 	/* Correct time stamp alignment */
 	struct {
 		__le16 buff[3];
@@ -184,6 +191,12 @@ static const struct iio_event_spec bma400_step_detect_event = {
 	.mask_separate = BIT(IIO_EV_INFO_ENABLE),
 };
 
+static const struct iio_event_spec bma400_activity_event = {
+	.type = IIO_EV_TYPE_CHANGE,
+	.dir = IIO_EV_DIR_NONE,
+	.mask_shared_by_type = BIT(IIO_EV_INFO_ENABLE),
+};
+
 #define BMA400_ACC_CHANNEL(_index, _axis) { \
 	.type = IIO_ACCEL, \
 	.modified = 1, \
@@ -203,6 +216,16 @@ static const struct iio_event_spec bma400_step_detect_event = {
 		.storagebits = 16,	\
 		.endianness = IIO_LE,	\
 	},				\
+}
+
+#define BMA400_ACTIVITY_CHANNEL(_chan2) {	\
+	.type = IIO_ACTIVITY,			\
+	.modified = 1,				\
+	.channel2 = _chan2,			\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),	\
+	.scan_index = -1, /* No buffer support */		\
+	.event_spec = &bma400_activity_event,			\
+	.num_event_specs = 1,					\
 }
 
 static const struct iio_chan_spec bma400_channels[] = {
@@ -229,6 +252,9 @@ static const struct iio_chan_spec bma400_channels[] = {
 		.event_spec = &bma400_step_detect_event,
 		.num_event_specs = 1,
 	},
+	BMA400_ACTIVITY_CHANNEL(IIO_MOD_STILL),
+	BMA400_ACTIVITY_CHANNEL(IIO_MOD_WALKING),
+	BMA400_ACTIVITY_CHANNEL(IIO_MOD_RUNNING),
 	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
@@ -669,6 +695,20 @@ static void bma400_power_disable(void *data_ptr)
 			 ERR_PTR(ret));
 }
 
+static enum iio_modifier bma400_act_to_mod(enum bma400_activity activity)
+{
+	switch (activity) {
+	case BMA400_STILL:
+		return IIO_MOD_STILL;
+	case BMA400_WALKING:
+		return IIO_MOD_WALKING;
+	case BMA400_RUNNING:
+		return IIO_MOD_RUNNING;
+	default:
+		return IIO_NO_MOD;
+	}
+}
+
 static int bma400_init(struct bma400_data *data)
 {
 	unsigned int val;
@@ -766,6 +806,7 @@ static int bma400_read_raw(struct iio_dev *indio_dev,
 			   int *val2, long mask)
 {
 	struct bma400_data *data = iio_priv(indio_dev);
+	unsigned int activity;
 	int ret;
 
 	switch (mask) {
@@ -778,6 +819,21 @@ static int bma400_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		case IIO_STEPS:
 			return bma400_get_steps_reg(data, val);
+		case IIO_ACTIVITY:
+			ret = regmap_read(data->regmap, BMA400_STEP_STAT_REG,
+					  &activity);
+			if (ret)
+				return ret;
+			/*
+			 * The device does not support confidence value levels,
+			 * so we will always have 100% for current activity and
+			 * 0% for the others.
+			 */
+			if (chan->channel2 == bma400_act_to_mod(activity))
+				*val = 100;
+			else
+				*val = 0;
+			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
 		}
@@ -927,6 +983,8 @@ static int bma400_read_event_config(struct iio_dev *indio_dev,
 	switch (chan->type) {
 	case IIO_STEPS:
 		return data->step_event_en;
+	case IIO_ACTIVITY:
+		return data->activity_event_en;
 	default:
 		return -EINVAL;
 	}
@@ -964,6 +1022,18 @@ static int bma400_write_event_config(struct iio_dev *indio_dev,
 		ret = bma400_steps_event_enable(data, state);
 		mutex_unlock(&data->mutex);
 		return ret;
+	case IIO_ACTIVITY:
+		mutex_lock(&data->mutex);
+		if (!data->step_event_en) {
+			ret = bma400_steps_event_enable(data, true);
+			if (ret) {
+				mutex_unlock(&data->mutex);
+				return ret;
+			}
+		}
+		data->activity_event_en = state;
+		mutex_unlock(&data->mutex);
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1049,6 +1119,7 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 	struct iio_dev *indio_dev = private;
 	struct bma400_data *data = iio_priv(indio_dev);
 	s64 timestamp = iio_get_time_ns(indio_dev);
+	unsigned int act;
 	int ret;
 
 	/* Lock to protect the data->status */
@@ -1069,6 +1140,20 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 						  IIO_EV_TYPE_CHANGE,
 						  IIO_EV_DIR_NONE),
 			       timestamp);
+
+		if (data->activity_event_en) {
+			ret = regmap_read(data->regmap, BMA400_STEP_STAT_REG,
+					  &act);
+			if (ret)
+				goto unlock_err;
+
+			iio_push_event(indio_dev,
+				       IIO_MOD_EVENT_CODE(IIO_ACTIVITY, 0,
+							  bma400_act_to_mod(act),
+							  IIO_EV_TYPE_CHANGE,
+							  IIO_EV_DIR_NONE),
+				       timestamp);
+		}
 	}
 
 	if (FIELD_GET(BMA400_INT_DRDY_MSK, le16_to_cpu(data->status))) {
