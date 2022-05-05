@@ -58,6 +58,8 @@ properties:
           - st,stm32mp1-rcc-secure
           - st,stm32mp1-rcc
       - const: syscon
+  clocks: true
+  clock-names: true
 
   reg:
     maxItems: 1
@@ -67,6 +69,38 @@ required:
   - "#reset-cells"
   - compatible
   - reg
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - st,stm32mp1-rcc-secure
+then:
+  properties:
+    clocks:
+      description: Specifies oscillators.
+      maxItems: 5
+
+    clock-names:
+      items:
+        - const: hse
+        - const: hsi
+        - const: csi
+        - const: lse
+        - const: lsi
+  required:
+    - clocks
+    - clock-names
+else:
+  properties:
+    clocks:
+      description:
+        Specifies the external RX clock for ethernet MAC.
+      maxItems: 1
+
+    clock-names:
+      const: ETH_RX_CLK/ETH_REF_CLK
 
 additionalProperties: false
 
