@@ -1293,7 +1293,9 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_DP20(dev_priv)	(IS_DG2(dev_priv))
 
 #define HAS_CDCLK_CRAWL(dev_priv)	 (INTEL_INFO(dev_priv)->display.has_cdclk_crawl)
-#define HAS_DDI(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_ddi)
+#define HAS_DDI(dev_priv)		 (DISPLAY_VER(dev_priv) >= 9 || \
+					  IS_BROADWELL(dev_priv) || \
+					  IS_HASWELL(dev_priv))
 #define HAS_FPGA_DBG_UNCLAIMED(dev_priv) (INTEL_INFO(dev_priv)->display.has_fpga_dbg)
 #define HAS_PSR(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_psr)
 #define HAS_PSR_HW_TRACKING(dev_priv) \
