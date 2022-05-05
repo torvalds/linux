@@ -2008,7 +2008,7 @@ __i915_gpu_coredump(struct intel_gt *gt, intel_engine_mask_t engine_mask, u32 du
 			return ERR_PTR(-ENOMEM);
 		}
 
-		if (INTEL_INFO(i915)->has_gt_uc) {
+		if (HAS_GT_UC(i915)) {
 			error->gt->uc = gt_record_uc(error->gt, compress);
 			if (error->gt->uc) {
 				if (dump_flags & CORE_DUMP_FLAG_IS_GUC_CAPTURE)
