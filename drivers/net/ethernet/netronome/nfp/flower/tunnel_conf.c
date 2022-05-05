@@ -445,123 +445,6 @@ void nfp_tun_unlink_and_update_nn_entries(struct nfp_app *app,
 	}
 }
 
-static bool
-__nfp_tun_has_route(struct list_head *route_list, spinlock_t *list_lock,
-		    void *add, int add_len)
-{
-	struct nfp_offloaded_route *entry;
-
-	spin_lock_bh(list_lock);
-	list_for_each_entry(entry, route_list, list)
-		if (!memcmp(entry->ip_add, add, add_len)) {
-			spin_unlock_bh(list_lock);
-			return true;
-		}
-	spin_unlock_bh(list_lock);
-	return false;
-}
-
-static int
-__nfp_tun_add_route_to_cache(struct list_head *route_list,
-			     spinlock_t *list_lock, void *add, int add_len)
-{
-	struct nfp_offloaded_route *entry;
-
-	spin_lock_bh(list_lock);
-	list_for_each_entry(entry, route_list, list)
-		if (!memcmp(entry->ip_add, add, add_len)) {
-			spin_unlock_bh(list_lock);
-			return 0;
-		}
-
-	entry = kmalloc(struct_size(entry, ip_add, add_len), GFP_ATOMIC);
-	if (!entry) {
-		spin_unlock_bh(list_lock);
-		return -ENOMEM;
-	}
-
-	memcpy(entry->ip_add, add, add_len);
-	list_add_tail(&entry->list, route_list);
-	spin_unlock_bh(list_lock);
-
-	return 0;
-}
-
-static void
-__nfp_tun_del_route_from_cache(struct list_head *route_list,
-			       spinlock_t *list_lock, void *add, int add_len)
-{
-	struct nfp_offloaded_route *entry;
-
-	spin_lock_bh(list_lock);
-	list_for_each_entry(entry, route_list, list)
-		if (!memcmp(entry->ip_add, add, add_len)) {
-			list_del(&entry->list);
-			kfree(entry);
-			break;
-		}
-	spin_unlock_bh(list_lock);
-}
-
-static bool nfp_tun_has_route_v4(struct nfp_app *app, __be32 *ipv4_addr)
-{
-	struct nfp_flower_priv *priv = app->priv;
-
-	return __nfp_tun_has_route(&priv->tun.neigh_off_list_v4,
-				   &priv->tun.neigh_off_lock_v4, ipv4_addr,
-				   sizeof(*ipv4_addr));
-}
-
-static bool
-nfp_tun_has_route_v6(struct nfp_app *app, struct in6_addr *ipv6_addr)
-{
-	struct nfp_flower_priv *priv = app->priv;
-
-	return __nfp_tun_has_route(&priv->tun.neigh_off_list_v6,
-				   &priv->tun.neigh_off_lock_v6, ipv6_addr,
-				   sizeof(*ipv6_addr));
-}
-
-static void
-nfp_tun_add_route_to_cache_v4(struct nfp_app *app, __be32 *ipv4_addr)
-{
-	struct nfp_flower_priv *priv = app->priv;
-
-	__nfp_tun_add_route_to_cache(&priv->tun.neigh_off_list_v4,
-				     &priv->tun.neigh_off_lock_v4, ipv4_addr,
-				     sizeof(*ipv4_addr));
-}
-
-static void
-nfp_tun_add_route_to_cache_v6(struct nfp_app *app, struct in6_addr *ipv6_addr)
-{
-	struct nfp_flower_priv *priv = app->priv;
-
-	__nfp_tun_add_route_to_cache(&priv->tun.neigh_off_list_v6,
-				     &priv->tun.neigh_off_lock_v6, ipv6_addr,
-				     sizeof(*ipv6_addr));
-}
-
-static void
-nfp_tun_del_route_from_cache_v4(struct nfp_app *app, __be32 *ipv4_addr)
-{
-	struct nfp_flower_priv *priv = app->priv;
-
-	__nfp_tun_del_route_from_cache(&priv->tun.neigh_off_list_v4,
-				       &priv->tun.neigh_off_lock_v4, ipv4_addr,
-				       sizeof(*ipv4_addr));
-}
-
-static void
-nfp_tun_del_route_from_cache_v6(struct nfp_app *app, struct in6_addr *ipv6_addr)
-{
-	struct nfp_flower_priv *priv = app->priv;
-
-	__nfp_tun_del_route_from_cache(&priv->tun.neigh_off_list_v6,
-				       &priv->tun.neigh_off_lock_v6, ipv6_addr,
-				       sizeof(*ipv6_addr));
-}
-
 static void
 nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 		    void *flow, struct neighbour *neigh, bool is_ipv6)
@@ -628,19 +511,6 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 					   neigh_table_params))
 			goto err;
 
-		/* Add entries to the relevant route cache */
-		if (is_ipv6) {
-			struct nfp_tun_neigh_v6 *payload;
-
-			payload = (struct nfp_tun_neigh_v6 *)nn_entry->payload;
-			nfp_tun_add_route_to_cache_v6(app, &payload->dst_ipv6);
-		} else {
-			struct nfp_tun_neigh_v4 *payload;
-
-			payload = (struct nfp_tun_neigh_v4 *)nn_entry->payload;
-			nfp_tun_add_route_to_cache_v4(app, &payload->dst_ipv4);
-		}
-
 		nfp_tun_link_predt_entries(app, nn_entry);
 		nfp_flower_xmit_tun_conf(app, mtype, neigh_size,
 					 nn_entry->payload,
@@ -654,8 +524,6 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 			memset(payload, 0, sizeof(struct nfp_tun_neigh_v6));
 			payload->dst_ipv6 = flowi6->daddr;
 			mtype = NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6;
-			nfp_tun_del_route_from_cache_v6(app,
-							&payload->dst_ipv6);
 		} else {
 			struct flowi4 *flowi4 = (struct flowi4 *)flow;
 			struct nfp_tun_neigh_v4 *payload;
@@ -664,8 +532,6 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 			memset(payload, 0, sizeof(struct nfp_tun_neigh_v4));
 			payload->dst_ipv4 = flowi4->daddr;
 			mtype = NFP_FLOWER_CMSG_TYPE_TUN_NEIGH;
-			nfp_tun_del_route_from_cache_v4(app,
-							&payload->dst_ipv4);
 		}
 		/* Trigger ARP to verify invalid neighbour state. */
 		neigh_event_send(neigh, NULL);
@@ -732,11 +598,6 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 
 	if (!nfp_netdev_is_nfp_repr(n->dev) &&
 	    !nfp_flower_internal_port_can_offload(app, n->dev))
-		return NOTIFY_DONE;
-
-	/* Only concerned with changes to routes already added to NFP. */
-	if ((ipv6 && !nfp_tun_has_route_v6(app, &flow6.daddr)) ||
-	    (!ipv6 && !nfp_tun_has_route_v4(app, &flow4.daddr)))
 		return NOTIFY_DONE;
 
 #if IS_ENABLED(CONFIG_INET)
@@ -1557,10 +1418,6 @@ int nfp_tunnel_config_start(struct nfp_app *app)
 	INIT_LIST_HEAD(&priv->tun.ipv6_off_list);
 
 	/* Initialise priv data for neighbour offloading. */
-	spin_lock_init(&priv->tun.neigh_off_lock_v4);
-	INIT_LIST_HEAD(&priv->tun.neigh_off_list_v4);
-	spin_lock_init(&priv->tun.neigh_off_lock_v6);
-	INIT_LIST_HEAD(&priv->tun.neigh_off_list_v6);
 	priv->tun.neigh_nb.notifier_call = nfp_tun_neigh_event_handler;
 
 	err = register_netevent_notifier(&priv->tun.neigh_nb);
@@ -1575,11 +1432,8 @@ int nfp_tunnel_config_start(struct nfp_app *app)
 
 void nfp_tunnel_config_stop(struct nfp_app *app)
 {
-	struct nfp_offloaded_route *route_entry, *temp;
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_ipv4_addr_entry *ip_entry;
-	struct nfp_tun_neigh_v6 ipv6_route;
-	struct nfp_tun_neigh_v4 ipv4_route;
 	struct list_head *ptr, *storage;
 
 	unregister_netevent_notifier(&priv->tun.neigh_nb);
@@ -1594,35 +1448,6 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 	}
 
 	mutex_destroy(&priv->tun.ipv6_off_lock);
-
-	/* Free memory in the route list and remove entries from fw cache. */
-	list_for_each_entry_safe(route_entry, temp,
-				 &priv->tun.neigh_off_list_v4, list) {
-		memset(&ipv4_route, 0, sizeof(ipv4_route));
-		memcpy(&ipv4_route.dst_ipv4, &route_entry->ip_add,
-		       sizeof(ipv4_route.dst_ipv4));
-		list_del(&route_entry->list);
-		kfree(route_entry);
-
-		nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_NEIGH,
-					 sizeof(struct nfp_tun_neigh_v4),
-					 (unsigned char *)&ipv4_route,
-					 GFP_KERNEL);
-	}
-
-	list_for_each_entry_safe(route_entry, temp,
-				 &priv->tun.neigh_off_list_v6, list) {
-		memset(&ipv6_route, 0, sizeof(ipv6_route));
-		memcpy(&ipv6_route.dst_ipv6, &route_entry->ip_add,
-		       sizeof(ipv6_route.dst_ipv6));
-		list_del(&route_entry->list);
-		kfree(route_entry);
-
-		nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6,
-					 sizeof(struct nfp_tun_neigh_v6),
-					 (unsigned char *)&ipv6_route,
-					 GFP_KERNEL);
-	}
 
 	/* Destroy rhash. Entries should be cleaned on netdev notifier unreg. */
 	rhashtable_free_and_destroy(&priv->tun.offloaded_macs,

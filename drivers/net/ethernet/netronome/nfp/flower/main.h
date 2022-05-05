@@ -87,12 +87,8 @@ struct nfp_fl_stats_id {
  * @offloaded_macs:	Hashtable of the offloaded MAC addresses
  * @ipv4_off_list:	List of IPv4 addresses to offload
  * @ipv6_off_list:	List of IPv6 addresses to offload
- * @neigh_off_list_v4:	List of IPv4 neighbour offloads
- * @neigh_off_list_v6:	List of IPv6 neighbour offloads
  * @ipv4_off_lock:	Lock for the IPv4 address list
  * @ipv6_off_lock:	Lock for the IPv6 address list
- * @neigh_off_lock_v4:	Lock for the IPv4 neighbour address list
- * @neigh_off_lock_v6:	Lock for the IPv6 neighbour address list
  * @mac_off_ids:	IDA to manage id assignment for offloaded MACs
  * @neigh_nb:		Notifier to monitor neighbour state
  */
@@ -100,12 +96,8 @@ struct nfp_fl_tunnel_offloads {
 	struct rhashtable offloaded_macs;
 	struct list_head ipv4_off_list;
 	struct list_head ipv6_off_list;
-	struct list_head neigh_off_list_v4;
-	struct list_head neigh_off_list_v6;
 	struct mutex ipv4_off_lock;
 	struct mutex ipv6_off_lock;
-	spinlock_t neigh_off_lock_v4;
-	spinlock_t neigh_off_lock_v6;
 	struct ida mac_off_ids;
 	struct notifier_block neigh_nb;
 };
