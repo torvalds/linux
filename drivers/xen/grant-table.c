@@ -207,6 +207,10 @@ static inline void check_free_callbacks(void)
 static void put_free_entry(grant_ref_t ref)
 {
 	unsigned long flags;
+
+	if (unlikely(ref < GNTTAB_NR_RESERVED_ENTRIES))
+		return;
+
 	spin_lock_irqsave(&gnttab_list_lock, flags);
 	gnttab_entry(ref) = gnttab_free_head;
 	gnttab_free_head = ref;
