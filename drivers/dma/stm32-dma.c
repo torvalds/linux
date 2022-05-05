@@ -535,6 +535,13 @@ static void stm32_dma_dump_reg(struct stm32_dma_chan *chan)
 	dev_dbg(chan2dev(chan), "SFCR:  0x%08x\n", sfcr);
 }
 
+static void stm32_dma_sg_inc(struct stm32_dma_chan *chan)
+{
+	chan->next_sg++;
+	if (chan->desc->cyclic && (chan->next_sg == chan->desc->num_sgs))
+		chan->next_sg = 0;
+}
+
 static void stm32_dma_configure_next_sg(struct stm32_dma_chan *chan);
 
 static void stm32_dma_start_transfer(struct stm32_dma_chan *chan)
@@ -575,7 +582,7 @@ static void stm32_dma_start_transfer(struct stm32_dma_chan *chan)
 	stm32_dma_write(dmadev, STM32_DMA_SM1AR(chan->id), reg->dma_sm1ar);
 	stm32_dma_write(dmadev, STM32_DMA_SNDTR(chan->id), reg->dma_sndtr);
 
-	chan->next_sg++;
+	stm32_dma_sg_inc(chan);
 
 	/* Clear interrupt status if it is there */
 	status = stm32_dma_irq_status(chan);
@@ -606,9 +613,6 @@ static void stm32_dma_configure_next_sg(struct stm32_dma_chan *chan)
 	dma_scr = stm32_dma_read(dmadev, STM32_DMA_SCR(id));
 
 	if (dma_scr & STM32_DMA_SCR_DBM) {
-		if (chan->next_sg == chan->desc->num_sgs)
-			chan->next_sg = 0;
-
 		sg_req = &chan->desc->sg_req[chan->next_sg];
 
 		if (dma_scr & STM32_DMA_SCR_CT) {
@@ -630,7 +634,7 @@ static void stm32_dma_handle_chan_done(struct stm32_dma_chan *chan)
 	if (chan->desc) {
 		if (chan->desc->cyclic) {
 			vchan_cyclic_callback(&chan->desc->vdesc);
-			chan->next_sg++;
+			stm32_dma_sg_inc(chan);
 			stm32_dma_configure_next_sg(chan);
 		} else {
 			chan->busy = false;
