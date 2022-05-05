@@ -537,18 +537,18 @@
 			compatible = "starfive,pl080";
 			reg = <0x0 0x16008000 0x0 0x4000>;
 			reg-names = "sec_dma";
-			interrupt-parent = <&plic>;
 			interrupts = <29>;
-			clocks = <&oscclk>;
-			clock-names = "apb_pclk";
+			clocks = <&clkgen JH7110_SEC_HCLK>,
+					<&clkgen JH7110_SEC_MISCAHB_CLK>;
+			clock-names = "sec_hclk","sec_ahb";
+			resets = <&rstgen RSTN_U0_SEC_TOP_HRESETN>;
+			reset-names = "sec_hre";
 			lli-bus-interface-ahb1;
-			/*lli-bus-interface-ahb2;*/
 			mem-bus-interface-ahb1;
-			/*mem-bus-interface-ahb2;*/
 			memcpy-burst-size = <256>;
 			memcpy-bus-width = <32>;
 			#dma-cells = <2>;
-			/*status = "disabled";*/
+			status = "disabled";
 		};
 
 		crypto: crypto@16000000 {
@@ -564,6 +564,10 @@
 			clock-names = "sec_hclk","sec_ahb";
 			resets = <&rstgen RSTN_U0_SEC_TOP_HRESETN>;
 			reset-names = "sec_hre";
+			enable-dma = "true";
+			dmas = <&sec_dma 1 2>,
+			       <&sec_dma 0 2>;
+			dma-names = "sec_m","sec_p";
 			status = "disabled";
 		};
 
