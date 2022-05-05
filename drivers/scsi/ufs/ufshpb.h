@@ -211,9 +211,9 @@ struct ufshpb_params {
 struct ufshpb_stats {
 	u64 hit_cnt;
 	u64 miss_cnt;
-	u64 rb_noti_cnt;
-	u64 rb_active_cnt;
-	u64 rb_inactive_cnt;
+	u64 rcmd_noti_cnt;
+	u64 rcmd_active_cnt;
+	u64 rcmd_inactive_cnt;
 	u64 map_req_cnt;
 	u64 pre_req_cnt;
 	u64 umap_req_cnt;

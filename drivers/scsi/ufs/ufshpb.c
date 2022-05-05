@@ -563,7 +563,7 @@ static void ufshpb_update_active_info(struct ufshpb_lu *hpb, int rgn_idx,
 	if (list_empty(&srgn->list_act_srgn))
 		list_add_tail(&srgn->list_act_srgn, &hpb->lh_act_srgn);
 
-	hpb->stats.rb_active_cnt++;
+	hpb->stats.rcmd_active_cnt++;
 }
 
 static void ufshpb_update_inactive_info(struct ufshpb_lu *hpb, int rgn_idx)
@@ -580,7 +580,7 @@ static void ufshpb_update_inactive_info(struct ufshpb_lu *hpb, int rgn_idx)
 	if (list_empty(&rgn->list_inact_rgn))
 		list_add_tail(&rgn->list_inact_rgn, &hpb->lh_inact_rgn);
 
-	hpb->stats.rb_inactive_cnt++;
+	hpb->stats.rcmd_inactive_cnt++;
 }
 
 static void ufshpb_activate_subregion(struct ufshpb_lu *hpb,
@@ -1321,7 +1321,7 @@ void ufshpb_rsp_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	if (!ufshpb_is_hpb_rsp_valid(hba, lrbp, rsp_field))
 		return;
 
-	hpb->stats.rb_noti_cnt++;
+	hpb->stats.rcmd_noti_cnt++;
 
 	switch (rsp_field->hpb_op) {
 	case HPB_RSP_REQ_REGION_UPDATE:
@@ -1724,18 +1724,18 @@ static DEVICE_ATTR_RO(__name)
 
 ufshpb_sysfs_attr_show_func(hit_cnt);
 ufshpb_sysfs_attr_show_func(miss_cnt);
-ufshpb_sysfs_attr_show_func(rb_noti_cnt);
-ufshpb_sysfs_attr_show_func(rb_active_cnt);
-ufshpb_sysfs_attr_show_func(rb_inactive_cnt);
+ufshpb_sysfs_attr_show_func(rcmd_noti_cnt);
+ufshpb_sysfs_attr_show_func(rcmd_active_cnt);
+ufshpb_sysfs_attr_show_func(rcmd_inactive_cnt);
 ufshpb_sysfs_attr_show_func(map_req_cnt);
 ufshpb_sysfs_attr_show_func(umap_req_cnt);
 
 static struct attribute *hpb_dev_stat_attrs[] = {
 	&dev_attr_hit_cnt.attr,
 	&dev_attr_miss_cnt.attr,
-	&dev_attr_rb_noti_cnt.attr,
-	&dev_attr_rb_active_cnt.attr,
-	&dev_attr_rb_inactive_cnt.attr,
+	&dev_attr_rcmd_noti_cnt.attr,
+	&dev_attr_rcmd_active_cnt.attr,
+	&dev_attr_rcmd_inactive_cnt.attr,
 	&dev_attr_map_req_cnt.attr,
 	&dev_attr_umap_req_cnt.attr,
 	NULL,
@@ -2098,9 +2098,9 @@ static void ufshpb_stat_init(struct ufshpb_lu *hpb)
 {
 	hpb->stats.hit_cnt = 0;
 	hpb->stats.miss_cnt = 0;
-	hpb->stats.rb_noti_cnt = 0;
-	hpb->stats.rb_active_cnt = 0;
-	hpb->stats.rb_inactive_cnt = 0;
+	hpb->stats.rcmd_noti_cnt = 0;
+	hpb->stats.rcmd_active_cnt = 0;
+	hpb->stats.rcmd_inactive_cnt = 0;
 	hpb->stats.map_req_cnt = 0;
 	hpb->stats.umap_req_cnt = 0;
 }
