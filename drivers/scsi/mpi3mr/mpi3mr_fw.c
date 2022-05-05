@@ -3754,8 +3754,10 @@ retry_init:
 		mrioc->pel_seqnum_virt = dma_alloc_coherent(&mrioc->pdev->dev,
 		    mrioc->pel_seqnum_sz, &mrioc->pel_seqnum_dma,
 		    GFP_KERNEL);
-		if (!mrioc->pel_seqnum_virt)
+		if (!mrioc->pel_seqnum_virt) {
+			retval = -ENOMEM;
 			goto out_failed_noretry;
+		}
 	}
 
 	retval = mpi3mr_enable_events(mrioc);
@@ -3873,8 +3875,10 @@ retry_init:
 		mrioc->pel_seqnum_virt = dma_alloc_coherent(&mrioc->pdev->dev,
 		    mrioc->pel_seqnum_sz, &mrioc->pel_seqnum_dma,
 		    GFP_KERNEL);
-		if (!mrioc->pel_seqnum_virt)
+		if (!mrioc->pel_seqnum_virt) {
+			retval = -ENOMEM;
 			goto out_failed_noretry;
+		}
 	}
 
 	if (mrioc->shost->nr_hw_queues > mrioc->num_op_reply_q) {
