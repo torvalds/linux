@@ -61,6 +61,8 @@
 #define OV7251_ACTIVE_WIDTH		648
 #define OV7251_ACTIVE_HEIGHT		488
 
+#define OV7251_FIXED_PPL		928
+
 struct reg_value {
 	u16 reg;
 	u8 val;
@@ -139,6 +141,7 @@ struct ov7251 {
 	struct v4l2_ctrl *link_freq;
 	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl *gain;
+	struct v4l2_ctrl *hblank;
 
 	/* Cached register values */
 	u8 aec_pk_manual;
@@ -1488,6 +1491,7 @@ static int ov7251_detect_chip(struct ov7251 *ov7251)
 static int ov7251_init_ctrls(struct ov7251 *ov7251)
 {
 	s64 pixel_rate;
+	int hblank;
 
 	v4l2_ctrl_handler_init(&ov7251->ctrls, 7);
 	ov7251->ctrls.lock = &ov7251->lock;
@@ -1521,6 +1525,13 @@ static int ov7251_init_ctrls(struct ov7251 *ov7251)
 		ov7251->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	if (ov7251->pixel_clock)
 		ov7251->pixel_clock->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	hblank = OV7251_FIXED_PPL - ov7251->current_mode->width;
+	ov7251->hblank = v4l2_ctrl_new_std(&ov7251->ctrls, &ov7251_ctrl_ops,
+					   V4L2_CID_HBLANK, hblank, hblank, 1,
+					   hblank);
+	if (ov7251->hblank)
+		ov7251->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	ov7251->sd.ctrl_handler = &ov7251->ctrls;
 
@@ -1617,6 +1628,7 @@ static int ov7251_probe(struct i2c_client *client)
 
 	mutex_init(&ov7251->lock);
 
+	ov7251->current_mode = &ov7251_mode_info_data[0];
 	ret = ov7251_init_ctrls(ov7251);
 	if (ret) {
 		dev_err_probe(dev, ret, "error during v4l2 ctrl init\n");
