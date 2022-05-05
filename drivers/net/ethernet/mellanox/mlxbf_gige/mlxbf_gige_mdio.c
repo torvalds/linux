@@ -105,7 +105,8 @@ static int mlxbf_gige_mdio_read(struct mii_bus *bus, int phy_add, int phy_reg)
 	writel(cmd, priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET);
 
 	ret = readl_poll_timeout_atomic(priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET,
-					val, !(val & MLXBF_GIGE_MDIO_GW_BUSY_MASK), 100, 1000000);
+					val, !(val & MLXBF_GIGE_MDIO_GW_BUSY_MASK),
+					5, 1000000);
 
 	if (ret) {
 		writel(0, priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET);
@@ -137,7 +138,8 @@ static int mlxbf_gige_mdio_write(struct mii_bus *bus, int phy_add,
 
 	/* If the poll timed out, drop the request */
 	ret = readl_poll_timeout_atomic(priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET,
-					temp, !(temp & MLXBF_GIGE_MDIO_GW_BUSY_MASK), 100, 1000000);
+					temp, !(temp & MLXBF_GIGE_MDIO_GW_BUSY_MASK),
+					5, 1000000);
 
 	return ret;
 }
