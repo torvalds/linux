@@ -148,6 +148,24 @@
 		};
 	};
 
+	pdm0_pins: pdm0-pins {
+		pdm0-pins-mclk {
+			sf,pins = <PAD_GPIO31>;
+			sf,pinmux = <PAD_GPIO31_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_PDM_4MIC0_DMIC_MCLK>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		pdm0-pins-sdin {
+			sf,pins = <PAD_GPIO26>;
+			sf,pinmux = <PAD_GPIO26_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_PDM_4MIC0_DMIC0_DIN>;
+		};
+	};
+
 	i2s_clk_pins: i2s-clk0 {
 		i2s-clk0_mclk {
 			sf,pins = <PAD_GPIO32>;
@@ -740,6 +758,12 @@
 &pwmdac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwmdac0_pins>;
+	status = "okay";
+};
+
+&pdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pdm0_pins>;
 	status = "okay";
 };
 
