@@ -1342,6 +1342,7 @@ static void imx7_csi_media_cleanup(struct imx7_csi *csi)
 static int imx7_csi_media_init(struct imx7_csi *csi)
 {
 	struct imx_media_dev *imxmd;
+	unsigned int i;
 	int ret;
 
 	/* add media device */
@@ -1352,19 +1353,44 @@ static int imx7_csi_media_init(struct imx7_csi *csi)
 	csi->imxmd = imxmd;
 
 	ret = imx_media_of_add_csi(imxmd, csi->dev->of_node);
-	if (ret < 0 && ret != -ENODEV && ret != -EEXIST) {
-		imx7_csi_media_cleanup(csi);
-		return ret;
-	}
+	if (ret < 0 && ret != -ENODEV && ret != -EEXIST)
+		goto error;
+
+	v4l2_subdev_init(&csi->sd, &imx7_csi_subdev_ops);
+	v4l2_set_subdevdata(&csi->sd, csi);
+	csi->sd.internal_ops = &imx7_csi_internal_ops;
+	csi->sd.entity.ops = &imx7_csi_entity_ops;
+	csi->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	csi->sd.dev = csi->dev;
+	csi->sd.owner = THIS_MODULE;
+	csi->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	snprintf(csi->sd.name, sizeof(csi->sd.name), "csi");
+
+	for (i = 0; i < IMX7_CSI_PADS_NUM; i++)
+		csi->pad[i].flags = (i == IMX7_CSI_PAD_SINK) ?
+			MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
+
+	ret = media_entity_pads_init(&csi->sd.entity, IMX7_CSI_PADS_NUM,
+				     csi->pad);
+	if (ret)
+		goto error;
+
+	ret = v4l2_device_register_subdev(&csi->imxmd->v4l2_dev, &csi->sd);
+	if (ret)
+		goto error;
 
 	return 0;
+
+error:
+	imx7_csi_media_cleanup(csi);
+	return ret;
 }
 
 static int imx7_csi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct imx7_csi *csi;
-	int i, ret;
+	int ret;
 
 	csi = devm_kzalloc(&pdev->dev, sizeof(*csi), GFP_KERNEL);
 	if (!csi)
@@ -1410,28 +1436,9 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	if (ret)
 		goto destroy_mutex;
 
-	v4l2_subdev_init(&csi->sd, &imx7_csi_subdev_ops);
-	v4l2_set_subdevdata(&csi->sd, csi);
-	csi->sd.internal_ops = &imx7_csi_internal_ops;
-	csi->sd.entity.ops = &imx7_csi_entity_ops;
-	csi->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
-	csi->sd.dev = &pdev->dev;
-	csi->sd.owner = THIS_MODULE;
-	csi->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
-	snprintf(csi->sd.name, sizeof(csi->sd.name), "csi");
-
-	for (i = 0; i < IMX7_CSI_PADS_NUM; i++)
-		csi->pad[i].flags = (i == IMX7_CSI_PAD_SINK) ?
-			MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
-
-	ret = media_entity_pads_init(&csi->sd.entity, IMX7_CSI_PADS_NUM,
-				     csi->pad);
-	if (ret < 0)
-		goto cleanup;
-
 	ret = v4l2_device_register_subdev(&csi->imxmd->v4l2_dev, &csi->sd);
 	if (ret)
-		goto cleanup;
+		goto media_cleanup;
 
 	ret = imx7_csi_async_register(csi);
 	if (ret)
@@ -1442,8 +1449,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 subdev_notifier_cleanup:
 	v4l2_async_nf_unregister(&csi->notifier);
 	v4l2_async_nf_cleanup(&csi->notifier);
-
-cleanup:
+media_cleanup:
 	imx7_csi_media_cleanup(csi);
 
 destroy_mutex:
