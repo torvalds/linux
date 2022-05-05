@@ -33,6 +33,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/reset.h>
 
 /*
  * This macro is used to define some register default values.
@@ -370,6 +371,7 @@ struct pl022 {
 	resource_size_t			phybase;
 	void __iomem			*virtbase;
 	struct clk			*clk;
+	struct reset_control	*rst;
 	struct spi_master		*master;
 	struct pl022_ssp_controller	*master_info;
 	/* Message per-transfer pump */
@@ -2182,6 +2184,19 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_no_clk_en;
 	}
 
+	pl022->rst = devm_reset_control_get_exclusive(&adev->dev, "rst_apb");
+	if (!IS_ERR(pl022->rst)) {
+		status = reset_control_deassert(pl022->rst);
+		if(status){
+			dev_err(&adev->dev, "could not deassert SSP/SPI bus reset\n");
+			goto err_no_rst_clr;
+		}
+	} else {
+		status = PTR_ERR(pl022->rst);
+		dev_err(&adev->dev, "could not retrieve SSP/SPI bus reset\n");
+		goto err_no_rst;
+	}
+
 	/* Initialize transfer pump */
 	tasklet_init(&pl022->pump_transfers, pump_transfers,
 		     (unsigned long)pl022);
@@ -2241,6 +2256,9 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	if (platform_info->enable_dma)
 		pl022_dma_remove(pl022);
  err_no_irq:
+	reset_control_assert(pl022->rst);
+ err_no_rst_clr:
+ err_no_rst:
 	clk_disable_unprepare(pl022->clk);
  err_no_clk_en:
  err_no_clk:

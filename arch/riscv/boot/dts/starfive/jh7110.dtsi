@@ -1029,8 +1029,10 @@
 		spi0: spi0@10060000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x0 0x10060000 0x0 0x10000>;
-			clocks = <&ahb1clk>;
+			clocks = <&clkgen JH7110_SPI0_CLK_APB>;
 			clock-names = "apb_pclk";
+			resets = <&rstgen RSTN_U0_SSP_SPI_APB>;
+			reset-names = "rst_apb";
 			interrupts = <38>;
 			dmas = <&dma 14 1>, <&dma 15 1>;
 			dma-names = "rx","tx";
