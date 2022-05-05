@@ -1486,7 +1486,7 @@ static int stm32_dma_runtime_resume(struct device *dev)
 #endif
 
 #ifdef CONFIG_PM_SLEEP
-static int stm32_dma_suspend(struct device *dev)
+static int stm32_dma_pm_suspend(struct device *dev)
 {
 	struct stm32_dma_device *dmadev = dev_get_drvdata(dev);
 	int id, ret, scr;
@@ -1510,14 +1510,14 @@ static int stm32_dma_suspend(struct device *dev)
 	return 0;
 }
 
-static int stm32_dma_resume(struct device *dev)
+static int stm32_dma_pm_resume(struct device *dev)
 {
 	return pm_runtime_force_resume(dev);
 }
 #endif
 
 static const struct dev_pm_ops stm32_dma_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(stm32_dma_suspend, stm32_dma_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(stm32_dma_pm_suspend, stm32_dma_pm_resume)
 	SET_RUNTIME_PM_OPS(stm32_dma_runtime_suspend,
 			   stm32_dma_runtime_resume, NULL)
 };
