@@ -686,6 +686,34 @@ static void engine_mask_apply_compute_fuses(struct intel_gt *gt)
 	}
 }
 
+static void engine_mask_apply_copy_fuses(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_gt_info *info = &gt->info;
+	unsigned long meml3_mask;
+	unsigned long quad;
+
+	meml3_mask = intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3);
+	meml3_mask = REG_FIELD_GET(GEN12_MEML3_EN_MASK, meml3_mask);
+
+	/*
+	 * Link Copy engines may be fused off according to meml3_mask. Each
+	 * bit is a quad that houses 2 Link Copy and two Sub Copy engines.
+	 */
+	for_each_clear_bit(quad, &meml3_mask, GEN12_MAX_MSLICES) {
+		unsigned int instance = quad * 2 + 1;
+		intel_engine_mask_t mask = GENMASK(_BCS(instance + 1),
+						   _BCS(instance));
+
+		if (mask & info->engine_mask) {
+			drm_dbg(&i915->drm, "bcs%u fused off\n", instance);
+			drm_dbg(&i915->drm, "bcs%u fused off\n", instance + 1);
+
+			info->engine_mask &= ~mask;
+		}
+	}
+}
+
 /*
  * Determine which engines are fused off in our particular hardware.
  * Note that we have a catch-22 situation where we need to be able to access
@@ -768,6 +796,7 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 	GEM_BUG_ON(vebox_mask != VEBOX_MASK(gt));
 
 	engine_mask_apply_compute_fuses(gt);
+	engine_mask_apply_copy_fuses(gt);
 
 	return info->engine_mask;
 }
