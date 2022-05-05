@@ -1614,6 +1614,10 @@ int stm32_pctl_probe(struct platform_device *pdev)
 		ret = stm32_gpiolib_register_bank(pctl, child);
 		if (ret) {
 			fwnode_handle_put(child);
+
+			for (i = 0; i < pctl->nbanks; i++)
+				clk_disable_unprepare(pctl->banks[i].clk);
+
 			return ret;
 		}
 
