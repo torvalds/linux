@@ -6155,6 +6155,11 @@ void ath11k_mac_11d_scan_stop(struct ath11k *ar)
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "mac stop 11d vdev id %d\n",
 		   ar->vdev_id_11d_scan);
 
+	if (ar->state_11d == ATH11K_11D_PREPARING) {
+		ar->state_11d = ATH11K_11D_IDLE;
+		complete(&ar->completed_11d_scan);
+	}
+
 	if (ar->vdev_id_11d_scan != ATH11K_11D_INVALID_VDEV_ID) {
 		vdev_id = ar->vdev_id_11d_scan;
 

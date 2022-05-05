@@ -1620,6 +1620,7 @@ static void ath11k_core_pre_reconfigure_recovery(struct ath11k_base *ab)
 
 		ieee80211_stop_queues(ar->hw);
 		ath11k_mac_drain_tx(ar);
+		ar->state_11d = ATH11K_11D_IDLE;
 		complete(&ar->completed_11d_scan);
 		complete(&ar->scan.started);
 		complete(&ar->scan.completed);
