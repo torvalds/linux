@@ -1170,6 +1170,11 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 		return -EOPNOTSUPP;
 	}
 
+	if (key_layer & NFP_FLOWER_LAYER_IPV6)
+		flow->pre_tun_rule.is_ipv6 = true;
+	else
+		flow->pre_tun_rule.is_ipv6 = false;
+
 	/* Skip fields known to exist. */
 	mask += sizeof(struct nfp_flower_meta_tci);
 	ext += sizeof(struct nfp_flower_meta_tci);
@@ -1180,13 +1185,6 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 	mask += sizeof(struct nfp_flower_in_port);
 	ext += sizeof(struct nfp_flower_in_port);
 
-	/* Ensure destination MAC address matches pre_tun_dev. */
-	mac = (struct nfp_flower_mac_mpls *)ext;
-	if (memcmp(&mac->mac_dst[0], flow->pre_tun_rule.dev->dev_addr, 6)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: dest MAC must match output dev MAC");
-		return -EOPNOTSUPP;
-	}
-
 	/* Ensure destination MAC address is fully matched. */
 	mac = (struct nfp_flower_mac_mpls *)mask;
 	if (!is_broadcast_ether_addr(&mac->mac_dst[0])) {
@@ -1194,10 +1192,35 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 		return -EOPNOTSUPP;
 	}
 
+	/* Ensure source MAC address is fully matched. This is only needed
+	 * for firmware with the DECAP_V2 feature enabled. Don't do this
+	 * for firmware without this feature to keep old behaviour.
+	 */
+	if (priv->flower_ext_feats & NFP_FL_FEATS_DECAP_V2) {
+		mac = (struct nfp_flower_mac_mpls *)mask;
+		if (!is_broadcast_ether_addr(&mac->mac_src[0])) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "unsupported pre-tunnel rule: source MAC field must not be masked");
+			return -EOPNOTSUPP;
+		}
+	}
+
 	if (mac->mpls_lse) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: MPLS not supported");
 		return -EOPNOTSUPP;
 	}
+
+	/* Ensure destination MAC address matches pre_tun_dev. */
+	mac = (struct nfp_flower_mac_mpls *)ext;
+	if (memcmp(&mac->mac_dst[0], flow->pre_tun_rule.dev->dev_addr, 6)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "unsupported pre-tunnel rule: dest MAC must match output dev MAC");
+		return -EOPNOTSUPP;
+	}
+
+	/* Save mac addresses in pre_tun_rule entry for later use */
+	memcpy(&flow->pre_tun_rule.loc_mac, &mac->mac_dst[0], ETH_ALEN);
+	memcpy(&flow->pre_tun_rule.rem_mac, &mac->mac_src[0], ETH_ALEN);
 
 	mask += sizeof(struct nfp_flower_mac_mpls);
 	ext += sizeof(struct nfp_flower_mac_mpls);
@@ -1227,17 +1250,21 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 	if ((priv->flower_ext_feats & NFP_FL_FEATS_VLAN_QINQ)) {
 		if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_QINQ) {
 			struct nfp_flower_vlan *vlan_tags;
+			u16 vlan_tpid;
 			u16 vlan_tci;
 
 			vlan_tags = (struct nfp_flower_vlan *)ext;
 
 			vlan_tci = be16_to_cpu(vlan_tags->outer_tci);
+			vlan_tpid = be16_to_cpu(vlan_tags->outer_tpid);
 
 			vlan_tci &= ~NFP_FLOWER_MASK_VLAN_PRESENT;
 			flow->pre_tun_rule.vlan_tci = cpu_to_be16(vlan_tci);
+			flow->pre_tun_rule.vlan_tpid = cpu_to_be16(vlan_tpid);
 			vlan = true;
 		} else {
 			flow->pre_tun_rule.vlan_tci = cpu_to_be16(0xffff);
+			flow->pre_tun_rule.vlan_tpid = cpu_to_be16(0xffff);
 		}
 	}
 
