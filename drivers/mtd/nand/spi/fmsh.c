@@ -108,6 +108,15 @@ static const struct spinand_info fmsh_spinand_table[] = {
 					      &update_cache_variants),
 		     0,
 		     SPINAND_ECCINFO(&fm25s01_ooblayout, NULL)),
+	SPINAND_INFO("FM25LS01",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xA5),
+		     NAND_MEMORG(1, 2048, 64, 64, 1024, 20, 1, 1, 1),
+		     NAND_ECCREQ(1, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     0,
+		     SPINAND_ECCINFO(&fm25s01_ooblayout, NULL)),
 };
 
 static const struct spinand_manufacturer_ops fmsh_spinand_manuf_ops = {
