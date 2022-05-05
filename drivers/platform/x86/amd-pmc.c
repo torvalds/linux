@@ -164,7 +164,6 @@ static int amd_pmc_read_stb(struct amd_pmc_dev *dev, u32 *buf);
 #ifdef CONFIG_SUSPEND
 static int amd_pmc_write_stb(struct amd_pmc_dev *dev, u32 data);
 #endif
-static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev);
 
 static inline u32 amd_pmc_reg_read(struct amd_pmc_dev *dev, int reg_offset)
 {
@@ -275,6 +274,40 @@ static const struct file_operations amd_pmc_stb_debugfs_fops_v2 = {
 	.release = amd_pmc_stb_debugfs_release_v2,
 };
 
+#if defined(CONFIG_SUSPEND) || defined(CONFIG_DEBUG_FS)
+static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
+{
+	if (dev->cpu_id == AMD_CPU_ID_PCO) {
+		dev_warn_once(dev->dev, "SMU debugging info not supported on this platform\n");
+		return -EINVAL;
+	}
+
+	/* Get Active devices list from SMU */
+	if (!dev->active_ips)
+		amd_pmc_send_cmd(dev, 0, &dev->active_ips, SMU_MSG_GET_SUP_CONSTRAINTS, 1);
+
+	/* Get dram address */
+	if (!dev->smu_virt_addr) {
+		u32 phys_addr_low, phys_addr_hi;
+		u64 smu_phys_addr;
+
+		amd_pmc_send_cmd(dev, 0, &phys_addr_low, SMU_MSG_LOG_GETDRAM_ADDR_LO, 1);
+		amd_pmc_send_cmd(dev, 0, &phys_addr_hi, SMU_MSG_LOG_GETDRAM_ADDR_HI, 1);
+		smu_phys_addr = ((u64)phys_addr_hi << 32 | phys_addr_low);
+
+		dev->smu_virt_addr = devm_ioremap(dev->dev, smu_phys_addr,
+						  sizeof(struct smu_metrics));
+		if (!dev->smu_virt_addr)
+			return -ENOMEM;
+	}
+
+	/* Start the logging */
+	amd_pmc_send_cmd(dev, 0, NULL, SMU_MSG_LOG_RESET, 0);
+	amd_pmc_send_cmd(dev, 0, NULL, SMU_MSG_LOG_START, 0);
+
+	return 0;
+}
+
 static int amd_pmc_idlemask_read(struct amd_pmc_dev *pdev, struct device *dev,
 				 struct seq_file *s)
 {
@@ -314,6 +347,7 @@ static int get_metrics_table(struct amd_pmc_dev *pdev, struct smu_metrics *table
 	memcpy_fromio(table, pdev->smu_virt_addr, sizeof(struct smu_metrics));
 	return 0;
 }
+#endif /* CONFIG_SUSPEND || CONFIG_DEBUG_FS */
 
 #ifdef CONFIG_SUSPEND
 static void amd_pmc_validate_deepest(struct amd_pmc_dev *pdev)
@@ -474,39 +508,6 @@ static inline void amd_pmc_dbgfs_unregister(struct amd_pmc_dev *dev)
 {
 }
 #endif /* CONFIG_DEBUG_FS */
-
-static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
-{
-	if (dev->cpu_id == AMD_CPU_ID_PCO) {
-		dev_warn_once(dev->dev, "SMU debugging info not supported on this platform\n");
-		return -EINVAL;
-	}
-
-	/* Get Active devices list from SMU */
-	if (!dev->active_ips)
-		amd_pmc_send_cmd(dev, 0, &dev->active_ips, SMU_MSG_GET_SUP_CONSTRAINTS, 1);
-
-	/* Get dram address */
-	if (!dev->smu_virt_addr) {
-		u32 phys_addr_low, phys_addr_hi;
-		u64 smu_phys_addr;
-
-		amd_pmc_send_cmd(dev, 0, &phys_addr_low, SMU_MSG_LOG_GETDRAM_ADDR_LO, 1);
-		amd_pmc_send_cmd(dev, 0, &phys_addr_hi, SMU_MSG_LOG_GETDRAM_ADDR_HI, 1);
-		smu_phys_addr = ((u64)phys_addr_hi << 32 | phys_addr_low);
-
-		dev->smu_virt_addr = devm_ioremap(dev->dev, smu_phys_addr,
-						  sizeof(struct smu_metrics));
-		if (!dev->smu_virt_addr)
-			return -ENOMEM;
-	}
-
-	/* Start the logging */
-	amd_pmc_send_cmd(dev, 0, NULL, SMU_MSG_LOG_RESET, 0);
-	amd_pmc_send_cmd(dev, 0, NULL, SMU_MSG_LOG_START, 0);
-
-	return 0;
-}
 
 static void amd_pmc_dump_registers(struct amd_pmc_dev *dev)
 {
