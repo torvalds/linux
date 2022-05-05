@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2019 Manivannan Sadhasivam <mani@kernel.org>
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/reset/bitmain,bm1880-reset.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Bitmain BM1880 SoC Reset Controller
+
+maintainers:
+  - Manivannan Sadhasivam <mani@kernel.org>
+
+properties:
+  compatible:
+    const: bitmain,bm1880-reset
+
+  reg:
+    maxItems: 1
+
+  "#reset-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - "#reset-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    rst: reset-controller@c00 {
+        compatible = "bitmain,bm1880-reset";
+        reg = <0xc00 0x8>;
+        #reset-cells = <1>;
+    };
