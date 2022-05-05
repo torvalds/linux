@@ -179,6 +179,7 @@ struct rk_pcie {
 	int				legacy_parent_irq;
 	raw_spinlock_t			intx_lock;
 	u16				aspm;
+	u32				l1ss_ctl1;
 };
 
 struct rk_pcie_of_data {
@@ -1971,13 +1972,14 @@ static void rk_pcie_downstream_dev_to_d0(struct rk_pcie *rk_pcie, bool enable)
 {
 	struct pcie_port *pp = &rk_pcie->pci->pp;
 	struct pci_bus *child, *root_bus = NULL;
-	struct pci_dev *pdev;
-	u32 reg, val;
+	struct pci_dev *pdev, *bridge;
+	u32 val;
 
 	list_for_each_entry(child, &pp->bridge->bus->children, node) {
 		/* Bring downstream devices to D3 if they are not already in */
 		if (child->parent == pp->bridge->bus) {
 			root_bus = child;
+			bridge = root_bus->self;
 			break;
 		}
 	}
@@ -1988,15 +1990,23 @@ static void rk_pcie_downstream_dev_to_d0(struct rk_pcie *rk_pcie, bool enable)
 	}
 
 	/* Save and restore root bus ASPM */
-	reg = dw_pcie_find_capability(rk_pcie->pci, PCI_CAP_ID_EXP);
-	val = dw_pcie_readl_dbi(rk_pcie->pci, reg + PCI_EXP_LNKCTL);
 	if (enable) {
+		if (rk_pcie->l1ss_ctl1)
+			dw_pcie_writel_dbi(rk_pcie->pci, bridge->l1ss + PCI_L1SS_CTL1, rk_pcie->l1ss_ctl1);
+
 		/* rk_pcie->aspm woule be saved in advance when enable is false */
-		dw_pcie_writel_dbi(rk_pcie->pci, reg + PCI_EXP_LNKCTL, rk_pcie->aspm);
+		dw_pcie_writel_dbi(rk_pcie->pci, bridge->pcie_cap + PCI_EXP_LNKCTL, rk_pcie->aspm);
 	} else {
+		val = dw_pcie_readl_dbi(rk_pcie->pci, bridge->l1ss + PCI_L1SS_CTL1);
+		if (val & PCI_L1SS_CTL1_L1SS_MASK)
+			rk_pcie->l1ss_ctl1 = val;
+		else
+			rk_pcie->l1ss_ctl1 = 0;
+
+		val = dw_pcie_readl_dbi(rk_pcie->pci, bridge->pcie_cap + PCI_EXP_LNKCTL);
 		rk_pcie->aspm = val & PCI_EXP_LNKCTL_ASPMC;
 		val &= ~(PCI_EXP_LNKCAP_ASPM_L1 | PCI_EXP_LNKCAP_ASPM_L0S);
-		dw_pcie_writel_dbi(rk_pcie->pci, reg + PCI_EXP_LNKCTL, val);
+		dw_pcie_writel_dbi(rk_pcie->pci, bridge->pcie_cap + PCI_EXP_LNKCTL, val);
 	}
 
 	list_for_each_entry(pdev, &root_bus->devices, bus_list) {
@@ -2005,11 +2015,19 @@ static void rk_pcie_downstream_dev_to_d0(struct rk_pcie *rk_pcie, bool enable)
 				dev_err(rk_pcie->pci->dev,
 					"Failed to transition %s to D3hot state\n",
 					dev_name(&pdev->dev));
-			if (enable)
+			if (enable) {
+				if (rk_pcie->l1ss_ctl1) {
+					pci_read_config_dword(pdev, pdev->l1ss + PCI_L1SS_CTL1, &val);
+					val &= ~PCI_L1SS_CTL1_L1SS_MASK;
+					val |= (rk_pcie->l1ss_ctl1 & PCI_L1SS_CTL1_L1SS_MASK);
+					pci_write_config_dword(pdev, pdev->l1ss + PCI_L1SS_CTL1, val);
+				}
+
 				pcie_capability_clear_and_set_word(pdev, PCI_EXP_LNKCTL,
 								   PCI_EXP_LNKCTL_ASPMC, rk_pcie->aspm);
-			else
+			} else {
 				pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
+			}
 		}
 	}
 }
