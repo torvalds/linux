@@ -1194,8 +1194,15 @@ int pci_power_up(struct pci_dev *dev)
 {
 	bool need_restore = false;
 	u16 pmcsr;
+	int ret;
 
-	pci_platform_power_transition(dev, PCI_D0);
+	ret = platform_pci_set_power_state(dev, PCI_D0);
+	if (!ret) {
+		pci_update_current_state(dev, PCI_D0);
+	} else if (!dev->pm_cap) { /* Fall back to PCI_D0 */
+		dev->current_state = PCI_D0;
+		return 0;
+	}
 
 	if (dev->current_state == PCI_D0)
 		return 0;
