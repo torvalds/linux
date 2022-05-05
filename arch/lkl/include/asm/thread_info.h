@@ -8,15 +8,10 @@
 #include <asm/processor.h>
 #include <asm/host_ops.h>
 
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
-
 struct thread_info {
 	struct task_struct *task;
 	unsigned long flags;
 	int preempt_count;
-	mm_segment_t addr_limit;
 	struct lkl_sem *sched_sem;
 	struct lkl_jmp_buf sched_jb;
 	bool dead;
@@ -30,7 +25,6 @@ struct thread_info {
 	.task		= &tsk,				\
 	.preempt_count	= INIT_PREEMPT_COUNT,		\
 	.flags		= 0,				\
-	.addr_limit	= KERNEL_DS,			\
 }
 
 /* how to get the thread information struct from C */

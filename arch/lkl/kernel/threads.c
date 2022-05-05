@@ -48,7 +48,6 @@ void setup_thread_stack(struct task_struct *p, struct task_struct *org)
 
 	ti->flags = org_ti->flags;
 	ti->preempt_count = org_ti->preempt_count;
-	ti->addr_limit = org_ti->addr_limit;
 }
 
 static void kill_thread(struct thread_info *ti)
@@ -162,7 +161,8 @@ static void thread_bootstrap(void *_tba)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long esp,
-		unsigned long unused, struct task_struct *p)
+		unsigned long unused, struct task_struct *p,
+		unsigned long tls)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct thread_bootstrap_arg *tba;
