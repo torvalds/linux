@@ -379,7 +379,7 @@ static int imx8mp_blk_ctrl_power_on(struct generic_pm_domain *genpd)
 	}
 
 	/* enable upstream clocks */
-	ret = clk_bulk_prepare_enable(data->num_clks, domain->clks);;
+	ret = clk_bulk_prepare_enable(data->num_clks, domain->clks);
 	if (ret) {
 		dev_err(bc->dev, "failed to enable clocks\n");
 		goto bus_put;
@@ -414,7 +414,7 @@ static int imx8mp_blk_ctrl_power_off(struct generic_pm_domain *genpd)
 	struct imx8mp_blk_ctrl *bc = domain->bc;
 	int ret;
 
-	ret = clk_bulk_prepare_enable(data->num_clks, domain->clks);;
+	ret = clk_bulk_prepare_enable(data->num_clks, domain->clks);
 	if (ret) {
 		dev_err(bc->dev, "failed to enable clocks\n");
 		return ret;
