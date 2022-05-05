@@ -54,6 +54,13 @@
 #define OV7251_PLL2_SYS_DIV_REG		0x309a
 #define OV7251_PLL2_ADC_DIV_REG		0x309b
 
+#define OV7251_NATIVE_WIDTH		656
+#define OV7251_NATIVE_HEIGHT		496
+#define OV7251_ACTIVE_START_LEFT	4
+#define OV7251_ACTIVE_START_TOP		4
+#define OV7251_ACTIVE_WIDTH		648
+#define OV7251_ACTIVE_HEIGHT		488
+
 struct reg_value {
 	u16 reg;
 	u8 val;
@@ -1248,13 +1255,29 @@ static int ov7251_get_selection(struct v4l2_subdev *sd,
 {
 	struct ov7251 *ov7251 = to_ov7251(sd);
 
-	if (sel->target != V4L2_SEL_TGT_CROP)
-		return -EINVAL;
-
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP:
 	mutex_lock(&ov7251->lock);
-	sel->r = *__ov7251_get_pad_crop(ov7251, sd_state, sel->pad,
-					sel->which);
-	mutex_unlock(&ov7251->lock);
+		sel->r = *__ov7251_get_pad_crop(ov7251, sd_state, sel->pad,
+						sel->which);
+		mutex_unlock(&ov7251->lock);
+		break;
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = OV7251_NATIVE_WIDTH;
+		sel->r.height = OV7251_NATIVE_HEIGHT;
+		break;
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		sel->r.top = OV7251_ACTIVE_START_TOP;
+		sel->r.left = OV7251_ACTIVE_START_LEFT;
+		sel->r.width = OV7251_ACTIVE_WIDTH;
+		sel->r.height = OV7251_ACTIVE_HEIGHT;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
 }
