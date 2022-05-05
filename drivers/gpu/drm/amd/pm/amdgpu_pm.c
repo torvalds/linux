@@ -2025,6 +2025,8 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	} else if (DEVICE_ATTR_IS(pp_power_profile_mode)) {
 		if (amdgpu_dpm_get_power_profile_mode(adev, NULL) == -EOPNOTSUPP)
 			*states = ATTR_STATE_UNSUPPORTED;
+		else if (gc_ver == IP_VERSION(10, 3, 0) && amdgpu_sriov_vf(adev))
+			*states = ATTR_STATE_UNSUPPORTED;
 	}
 
 	switch (gc_ver) {
@@ -2035,6 +2037,13 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		    DEVICE_ATTR_IS(pp_dpm_socclk) ||
 		    DEVICE_ATTR_IS(pp_dpm_fclk)) {
 			dev_attr->attr.mode &= ~S_IWUGO;
+			dev_attr->store = NULL;
+		}
+		break;
+	case IP_VERSION(10, 3, 0):
+		if (DEVICE_ATTR_IS(power_dpm_force_performance_level) &&
+		    amdgpu_sriov_vf(adev)) {
+			dev_attr->attr.mode &= ~0222;
 			dev_attr->store = NULL;
 		}
 		break;
