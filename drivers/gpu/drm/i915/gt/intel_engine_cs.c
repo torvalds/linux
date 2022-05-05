@@ -71,6 +71,62 @@ static const struct engine_info intel_engines[] = {
 			{ .graphics_ver = 6, .base = BLT_RING_BASE }
 		},
 	},
+	[BCS1] = {
+		.class = COPY_ENGINE_CLASS,
+		.instance = 1,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS1_RING_BASE }
+		},
+	},
+	[BCS2] = {
+		.class = COPY_ENGINE_CLASS,
+		.instance = 2,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS2_RING_BASE }
+		},
+	},
+	[BCS3] = {
+		.class = COPY_ENGINE_CLASS,
+		.instance = 3,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS3_RING_BASE }
+		},
+	},
+	[BCS4] = {
+		.class = COPY_ENGINE_CLASS,
+		.instance = 4,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS4_RING_BASE }
+		},
+	},
+	[BCS5] = {
+		.class = COPY_ENGINE_CLASS,
+		.instance = 5,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS5_RING_BASE }
+		},
+	},
+	[BCS6] = {
+		.class = COPY_ENGINE_CLASS,
+		.instance = 6,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS6_RING_BASE }
+		},
+	},
+	[BCS7] = {
+		.class = COPY_ENGINE_CLASS,
+		.instance = 7,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS7_RING_BASE }
+		},
+	},
+	[BCS8] = {
+		.class = COPY_ENGINE_CLASS,
+		.instance = 8,
+		.mmio_bases = {
+			{ .graphics_ver = 12, .base = XEHPC_BCS8_RING_BASE }
+		},
+	},
 	[VCS0] = {
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 0,

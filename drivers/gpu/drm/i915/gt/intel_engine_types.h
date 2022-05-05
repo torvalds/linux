@@ -35,7 +35,7 @@
 #define OTHER_CLASS		4
 #define COMPUTE_CLASS		5
 #define MAX_ENGINE_CLASS	5
-#define MAX_ENGINE_INSTANCE	7
+#define MAX_ENGINE_INSTANCE	8
 
 #define I915_MAX_SLICES	3
 #define I915_MAX_SUBSLICES 8
@@ -99,6 +99,7 @@ struct i915_ctx_workarounds {
 #define I915_MAX_SFC	(I915_MAX_VCS / 2)
 #define I915_MAX_CCS	4
 #define I915_MAX_RCS	1
+#define I915_MAX_BCS	9
 
 /*
  * Engine IDs definitions.
@@ -107,6 +108,15 @@ struct i915_ctx_workarounds {
 enum intel_engine_id {
 	RCS0 = 0,
 	BCS0,
+	BCS1,
+	BCS2,
+	BCS3,
+	BCS4,
+	BCS5,
+	BCS6,
+	BCS7,
+	BCS8,
+#define _BCS(n) (BCS0 + (n))
 	VCS0,
 	VCS1,
 	VCS2,
