@@ -397,8 +397,8 @@
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&spi_0>;
-			clocks = <&axi81_clk>;
-			clock-names = "apb_pclk";
+			clocks = <&axi81_clk>, <&axi81_clk>;
+			clock-names = "sspclk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -409,8 +409,8 @@
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&spi_1>;
-			clocks = <&axi81_clk>;
-			clock-names = "apb_pclk";
+			clocks = <&axi81_clk>, <&axi81_clk>;
+			clock-names = "sspclk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -421,8 +421,8 @@
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-0 = <&spi_2>;
-			clocks = <&axi81_clk>;
-			clock-names = "apb_pclk";
+			clocks = <&axi81_clk>, <&axi81_clk>;
+			clock-names = "sspclk", "apb_pclk";
 			status = "disabled";
 		};
 

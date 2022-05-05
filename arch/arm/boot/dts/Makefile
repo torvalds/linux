@@ -103,6 +103,8 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm4708-asus-rt-ac56u.dtb \
 	bcm4708-asus-rt-ac68u.dtb \
 	bcm4708-buffalo-wzr-1750dhp.dtb \
+	bcm4708-buffalo-wzr-1166dhp.dtb \
+	bcm4708-buffalo-wzr-1166dhp2.dtb \
 	bcm4708-linksys-ea6300-v1.dtb \
 	bcm4708-linksys-ea6500-v2.dtb \
 	bcm4708-luxul-xap-1510.dtb \
@@ -179,6 +181,8 @@ dtb-$(CONFIG_ARCH_BERLIN) += \
 	berlin2q-marvell-dmp.dtb
 dtb-$(CONFIG_ARCH_BRCMSTB) += \
 	bcm7445-bcm97445svmb.dtb
+dtb-$(CONFIG_ARCH_BCMBCA) += \
+	bcm947622.dtb
 dtb-$(CONFIG_ARCH_CLPS711X) += \
 	ep7211-edb7211.dtb
 dtb-$(CONFIG_ARCH_DAVINCI) += \
