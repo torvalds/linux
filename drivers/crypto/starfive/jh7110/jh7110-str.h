@@ -14,11 +14,11 @@
 
 #include "jh7110-regs.h"
 
-#define JH7110_MSG_BUFFER_SIZE					(16 * 1024)
-#define MAX_KEY_SIZE							SHA512_BLOCK_SIZE
+#define JH7110_MSG_BUFFER_SIZE			(16 * 1024)
+#define MAX_KEY_SIZE				SHA512_BLOCK_SIZE
 
-#define JH7110_AES_IV_LEN						AES_BLOCK_SIZE
-#define JH7110_AES_CTR_LEN						AES_BLOCK_SIZE
+#define JH7110_AES_IV_LEN			AES_BLOCK_SIZE
+#define JH7110_AES_CTR_LEN			AES_BLOCK_SIZE
 
 
 struct jh7110_rsa_key {
@@ -42,25 +42,25 @@ struct jh7110_rsa_key {
 	int					e_bitlen;
 	int					d_bitlen;
 	int					bitlen;
-	size_t				key_sz;
-	bool				crt_mode;
+	size_t					key_sz;
+	bool					crt_mode;
 };
 
 struct jh7110_sec_ctx {
 	struct crypto_engine_ctx		enginectx;
 
-	struct jh7110_sec_request_ctx	*rctx;
+	struct jh7110_sec_request_ctx		*rctx;
 	struct jh7110_sec_dev			*sdev;
 
 	unsigned int				sha_mode;
 
-	u8							key[MAX_KEY_SIZE];
-	int							keylen;
-	int							sec_init;
+	u8					key[MAX_KEY_SIZE];
+	int					keylen;
+	int					sec_init;
 	struct scatterlist			sg[2];
-	struct jh7110_rsa_key		rsa_key;
-	size_t						sha_len_total;
-	u8							*buffer;
+	struct jh7110_rsa_key			rsa_key;
+	size_t					sha_len_total;
+	u8					*buffer;
 };
 
 struct jh7110_sec_dev {
@@ -69,28 +69,28 @@ struct jh7110_sec_dev {
 
 	struct clk				*sec_hclk;
 	struct clk				*sec_ahb;
-	struct reset_control	*rst_hresetn;
+	struct reset_control			*rst_hresetn;
 
 	struct jh7110_pl08x_device		*pl080;
 
 	void __iomem				*io_base;
 	void __iomem				*dma_base;
-	phys_addr_t					io_phys_base;
-	void						*sha_data;
-	void						*aes_data;
-	void						*des_data;
-	void						*pka_data;
+	phys_addr_t				io_phys_base;
+	void					*sha_data;
+	void					*aes_data;
+	void					*des_data;
+	void					*pka_data;
 	unsigned int				secirq;
 	unsigned int				irq;
 
-	size_t						data_buf_len;
-	int							pages_count;
-	u32							use_dma;
-	u32							dma_maxburst;
+	size_t					data_buf_len;
+	int					pages_count;
+	u32					use_dma;
+	u32					dma_maxburst;
 	struct dma_chan				*sec_xm_m;
 	struct dma_chan				*sec_xm_p;
-	struct dma_slave_config		cfg_in;
-	struct dma_slave_config		cfg_out;
+	struct dma_slave_config			cfg_in;
+	struct dma_slave_config			cfg_out;
 	struct completion			sec_comp_m;
 	struct completion			sec_comp_p;
 	struct scatterlist			in_sg;
@@ -107,22 +107,22 @@ struct jh7110_sec_dev {
 	struct mutex				aes_lock;
 	struct mutex				rsa_lock;
 
-#define JH7110_SHA_KEY_DONE					BIT(0)
-#define JH7110_SHA_HMAC_DONE				BIT(1)
-#define JH7110_SHA_SHA_DONE					BIT(2)
-#define JH7110_AES_DONE						BIT(3)
-#define JH7110_DES_DONE						BIT(4)
-#define JH7110_PKA_DONE						BIT(5)
+#define JH7110_SHA_KEY_DONE			BIT(0)
+#define JH7110_SHA_HMAC_DONE			BIT(1)
+#define JH7110_SHA_SHA_DONE			BIT(2)
+#define JH7110_AES_DONE				BIT(3)
+#define JH7110_DES_DONE				BIT(4)
+#define JH7110_PKA_DONE				BIT(5)
 	u32					done_flags;
-#define JH7110_SHA_TYPE						0x1
-#define JH7110_AES_TYPE						0x2
-#define JH7110_DES_TYPE						0x3
-#define JH7110_PKA_TYPE						0x4
+#define JH7110_SHA_TYPE				0x1
+#define JH7110_AES_TYPE				0x2
+#define JH7110_DES_TYPE				0x3
+#define JH7110_PKA_TYPE				0x4
 	u32					cry_type;
 
 	struct crypto_engine			*engine;
 
-	union jh7110_alg_cr				alg_cr;
+	union jh7110_alg_cr			alg_cr;
 	union jh7110_ie_mask			ie_mask;
 	union jh7110_ie_flag			ie_flag;
 };
@@ -137,16 +137,16 @@ struct jh7110_sec_request_ctx {
 		struct aead_request		*areq;
 	} req;
 
-#define JH7110_AHASH_REQ					0
-#define JH7110_ABLK_REQ						1
-#define JH7110_AEAD_REQ						2
+#define JH7110_AHASH_REQ			0
+#define JH7110_ABLK_REQ				1
+#define JH7110_AEAD_REQ				2
 	unsigned int				req_type;
 
 	union {
 		union jh7110_crypto_cacr	pka_csr;
-		union jh7110_des_daecsr	des_csr;
+		union jh7110_des_daecsr		des_csr;
 		union jh7110_aes_csr		aes_csr;
-		union jh7110_sha_shacsr	sha_csr;
+		union jh7110_sha_shacsr		sha_csr;
 	} csr;
 
 	struct scatterlist			*sg;
@@ -188,12 +188,12 @@ struct jh7110_sec_request_ctx {
 struct jh7110_sec_dma {
 	struct dma_slave_config			cfg;
 	union  jh7110_alg_cr			alg_cr;
-	struct dma_chan					*chan;
-	struct completion				*dma_comp;
-	struct scatterlist				*sg;
+	struct dma_chan				*chan;
+	struct completion			*dma_comp;
+	struct scatterlist			*sg;
 	struct jh7110_sec_ctx			*ctx;
-	void							*data;
-	size_t							total;
+	void					*data;
+	size_t					total;
 };
 
 static inline u64 jh7110_sec_readq(struct jh7110_sec_dev *sdev, u32 offset)
