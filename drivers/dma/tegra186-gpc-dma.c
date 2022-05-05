@@ -1328,7 +1328,6 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	struct iommu_fwspec *iommu_spec;
 	unsigned int stream_id, i;
 	struct tegra_dma *tdma;
-	struct resource	*res;
 	int ret;
 
 	cdata = of_device_get_match_data(&pdev->dev);
@@ -1367,16 +1366,13 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	for (i = 0; i < cdata->nr_channels; i++) {
 		struct tegra_dma_channel *tdc = &tdma->channels[i];
 
+		tdc->irq = platform_get_irq(pdev, i);
+		if (tdc->irq < 0)
+			return tdc->irq;
+
 		tdc->chan_base_offset = TEGRA_GPCDMA_CHANNEL_BASE_ADD_OFFSET +
 					i * cdata->channel_reg_size;
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
-		if (!res) {
-			dev_err(&pdev->dev, "No irq resource for chan %d\n", i);
-			return -EINVAL;
-		}
-		tdc->irq = res->start;
 		snprintf(tdc->name, sizeof(tdc->name), "gpcdma.%d", i);
-
 		tdc->tdma = tdma;
 		tdc->id = i;
 		tdc->slave_id = -1;
