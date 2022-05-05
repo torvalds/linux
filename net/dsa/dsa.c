@@ -458,46 +458,6 @@ struct dsa_port *dsa_port_from_netdev(struct net_device *netdev)
 }
 EXPORT_SYMBOL_GPL(dsa_port_from_netdev);
 
-int dsa_port_walk_fdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb)
-{
-	struct dsa_port *dp = dsa_to_port(ds, port);
-	struct dsa_mac_addr *a;
-	int err = 0;
-
-	mutex_lock(&dp->addr_lists_lock);
-
-	list_for_each_entry(a, &dp->fdbs, list) {
-		err = cb(ds, port, a->addr, a->vid, a->db);
-		if (err)
-			break;
-	}
-
-	mutex_unlock(&dp->addr_lists_lock);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(dsa_port_walk_fdbs);
-
-int dsa_port_walk_mdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb)
-{
-	struct dsa_port *dp = dsa_to_port(ds, port);
-	struct dsa_mac_addr *a;
-	int err = 0;
-
-	mutex_lock(&dp->addr_lists_lock);
-
-	list_for_each_entry(a, &dp->mdbs, list) {
-		err = cb(ds, port, a->addr, a->vid, a->db);
-		if (err)
-			break;
-	}
-
-	mutex_unlock(&dp->addr_lists_lock);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(dsa_port_walk_mdbs);
-
 bool dsa_db_equal(const struct dsa_db *a, const struct dsa_db *b)
 {
 	if (a->type != b->type)

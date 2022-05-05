@@ -1239,12 +1239,6 @@ struct dsa_switch_driver {
 
 struct net_device *dsa_dev_to_net_device(struct device *dev);
 
-typedef int dsa_fdb_walk_cb_t(struct dsa_switch *ds, int port,
-			      const unsigned char *addr, u16 vid,
-			      struct dsa_db db);
-
-int dsa_port_walk_fdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb);
-int dsa_port_walk_mdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb);
 bool dsa_fdb_present_in_other_db(struct dsa_switch *ds, int port,
 				 const unsigned char *addr, u16 vid,
 				 struct dsa_db db);
