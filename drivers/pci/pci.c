@@ -1068,10 +1068,11 @@ static inline bool platform_pci_bridge_d3(struct pci_dev *dev)
 }
 
 /**
- * pci_raw_set_power_state - Use PCI PM registers to set the power state of
- *			     given PCI device
+ * pci_set_low_power_state - Put a PCI device into a low-power state.
  * @dev: PCI device to handle.
- * @state: PCI power state (D0, D1, D2, D3hot) to put the device into.
+ * @state: PCI power state (D1, D2, D3hot) to put the device into.
+ *
+ * Use the device's PCI_PM_CTRL register to put it into a low-power state.
  *
  * RETURN VALUE:
  * -EINVAL if the requested state is invalid.
@@ -1080,10 +1081,9 @@ static inline bool platform_pci_bridge_d3(struct pci_dev *dev)
  * 0 if device already is in the requested state.
  * 0 if device's power state has been successfully changed.
  */
-static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
+static int pci_set_low_power_state(struct pci_dev *dev, pci_power_t state)
 {
 	u16 pmcsr;
-	bool need_restore = false;
 
 	/* Check if we're already there */
 	if (dev->current_state == state)
@@ -1092,7 +1092,7 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (!dev->pm_cap)
 		return -EIO;
 
-	if (state < PCI_D0 || state > PCI_D3hot)
+	if (state < PCI_D1 || state > PCI_D3hot)
 		return -EINVAL;
 
 	/*
@@ -1101,8 +1101,7 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 * we can go from D1 to D3, but we can't go directly from D3 to D1;
 	 * we'd have to go from D3 to D0, then to D1.
 	 */
-	if (state != PCI_D0 && dev->current_state <= PCI_D3cold
-	    && dev->current_state > state) {
+	if (dev->current_state <= PCI_D3cold && dev->current_state > state) {
 		pci_err(dev, "invalid power transition (from %s to %s)\n",
 			pci_power_name(dev->current_state),
 			pci_power_name(state));
@@ -1116,70 +1115,30 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 	if (PCI_POSSIBLE_ERROR(pmcsr)) {
-		pci_err(dev, "can't change power state from %s to %s (config space inaccessible)\n",
+		pci_err(dev, "Unable to change power state from %s to %s, device inaccessible\n",
 			pci_power_name(dev->current_state),
 			pci_power_name(state));
 		return -EIO;
 	}
 
-	/*
-	 * If we're (effectively) in D3, force entire word to 0.
-	 * This doesn't affect PME_Status, disables PME_En, and
-	 * sets PowerState to 0.
-	 */
-	switch (dev->current_state) {
-	case PCI_D0:
-	case PCI_D1:
-	case PCI_D2:
-		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
-		pmcsr |= state;
-		break;
-	case PCI_D3hot:
-	case PCI_D3cold:
-	case PCI_UNKNOWN: /* Boot-up */
-		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot
-		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
-			need_restore = true;
-		fallthrough;	/* force to D0 */
-	default:
-		pmcsr = 0;
-		break;
-	}
+	pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+	pmcsr |= state;
 
 	/* Enter specified state */
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
 
-	/*
-	 * Mandatory power management transition delays; see PCI PM 1.1
-	 * 5.6.1 table 18
-	 */
-	if (state == PCI_D3hot || dev->current_state == PCI_D3hot)
+	/* Mandatory power management transition delays; see PCI PM 1.2. */
+	if (state == PCI_D3hot)
 		pci_dev_d3_sleep(dev);
-	else if (state == PCI_D2 || dev->current_state == PCI_D2)
+	else if (state == PCI_D2)
 		udelay(PCI_PM_D2_DELAY);
 
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
-	dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
+	dev->current_state = pmcsr & PCI_PM_CTRL_STATE_MASK;
 	if (dev->current_state != state)
-		pci_info_ratelimited(dev, "refused to change power state from %s to %s\n",
-			 pci_power_name(dev->current_state),
-			 pci_power_name(state));
-
-	/*
-	 * According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
-	 * INTERFACE SPECIFICATION, REV. 1.2", a device transitioning
-	 * from D3hot to D0 _may_ perform an internal reset, thereby
-	 * going to "D0 Uninitialized" rather than "D0 Initialized".
-	 * For example, at least some versions of the 3c905B and the
-	 * 3c556B exhibit this behaviour.
-	 *
-	 * At least some laptop BIOSen (e.g. the Thinkpad T21) leave
-	 * devices in a D3hot state at boot.  Consequently, we need to
-	 * restore at least the BARs so that the device will be
-	 * accessible to its driver.
-	 */
-	if (need_restore)
-		pci_restore_bars(dev);
+		pci_info_ratelimited(dev, "Refused to change power state from %s to %s\n",
+				     pci_power_name(dev->current_state),
+				     pci_power_name(state));
 
 	if (dev->bus->self)
 		pcie_aspm_pm_state_change(dev->bus->self);
@@ -1312,8 +1271,72 @@ static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
  */
 int pci_power_up(struct pci_dev *dev)
 {
+	bool need_restore = false;
+	u16 pmcsr;
+
 	pci_platform_power_transition(dev, PCI_D0);
-	return pci_raw_set_power_state(dev, PCI_D0);
+
+	if (dev->current_state == PCI_D0)
+		return 0;
+
+	if (!dev->pm_cap)
+		return -EIO;
+
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	if (PCI_POSSIBLE_ERROR(pmcsr)) {
+		pci_err(dev, "Unable to change power state from %s to D0, device inaccessible\n",
+			pci_power_name(dev->current_state));
+		return -EIO;
+	}
+
+	/*
+	 * If we're (effectively) in D3, force entire word to 0. This doesn't
+	 * affect PME_Status, disables PME_En, and sets PowerState to 0.
+	 */
+	if (dev->current_state >= PCI_D3hot) {
+		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot &&
+		    !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
+			need_restore = true;
+
+		pmcsr = 0;
+	} else {
+		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+	}
+
+	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
+
+	/* Mandatory transition delays; see PCI PM 1.2. */
+	if (dev->current_state == PCI_D3hot)
+		pci_dev_d3_sleep(dev);
+	else if (dev->current_state == PCI_D2)
+		udelay(PCI_PM_D2_DELAY);
+
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	dev->current_state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+	if (dev->current_state != PCI_D0)
+		pci_info_ratelimited(dev, "Refused to change power state from %s to D0\n",
+				     pci_power_name(dev->current_state));
+
+	/*
+	 * According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
+	 * INTERFACE SPECIFICATION, REV. 1.2", a device transitioning
+	 * from D3hot to D0 _may_ perform an internal reset, thereby
+	 * going to "D0 Uninitialized" rather than "D0 Initialized".
+	 * For example, at least some versions of the 3c905B and the
+	 * 3c556B exhibit this behaviour.
+	 *
+	 * At least some laptop BIOSen (e.g. the Thinkpad T21) leave
+	 * devices in a D3hot state at boot.  Consequently, we need to
+	 * restore at least the BARs so that the device will be
+	 * accessible to its driver.
+	 */
+	if (need_restore)
+		pci_restore_bars(dev);
+
+	if (dev->bus->self)
+		pcie_aspm_pm_state_change(dev->bus->self);
+
+	return 0;
 }
 
 /**
@@ -1394,7 +1417,7 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 * To put device in D3cold, we put device into D3hot in native
 	 * way, then put device into D3cold with platform ops
 	 */
-	error = pci_raw_set_power_state(dev, state > PCI_D3hot ?
+	error = pci_set_low_power_state(dev, state > PCI_D3hot ?
 					PCI_D3hot : state);
 
 	if (pci_platform_power_transition(dev, state))
