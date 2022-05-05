@@ -167,6 +167,8 @@ static int csi2_dphy_update_sensor_mbus(struct v4l2_subdev *sd)
 					dphy->lane_mode = LANE_MODE_SPLIT;
 				}
 			}
+			if (!ret)
+				dphy->dphy_hw->lane_mode = dphy->lane_mode;
 		} else {
 			ret = 0;
 		}
