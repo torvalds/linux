@@ -553,7 +553,7 @@
 		};
 
 		qfprom: qfprom@780000 {
-			compatible = "qcom,qfprom";
+			compatible = "qcom,sdm630-qfprom", "qcom,qfprom";
 			reg = <0x00780000 0x621c>;
 			#address-cells = <1>;
 			#size-cells = <1>;

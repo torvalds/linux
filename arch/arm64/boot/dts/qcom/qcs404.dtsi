@@ -366,7 +366,7 @@
 		};
 
 		qfprom: qfprom@a4000 {
-			compatible = "qcom,qfprom";
+			compatible = "qcom,qcs404-qfprom", "qcom,qfprom";
 			reg = <0x000a4000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
