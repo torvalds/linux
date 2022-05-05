@@ -176,6 +176,14 @@ enum offs_rev {
 #define MT_MDP_TO_HIF			0
 #define MT_MDP_TO_WM			1
 
+/* TRB: band 0(0x820e1000), band 1(0x820f1000) */
+#define MT_WF_TRB_BASE(_band)		((_band) ? 0x820f1000 : 0x820e1000)
+#define MT_WF_TRB(_band, ofs)		(MT_WF_TRB_BASE(_band) + (ofs))
+
+#define MT_TRB_RXPSR0(_band)		MT_WF_TRB(_band, 0x03c)
+#define MT_TRB_RXPSR0_RX_WTBL_PTR	GENMASK(25, 16)
+#define MT_TRB_RXPSR0_RX_RMAC_PTR	GENMASK(9, 0)
+
 /* TMAC: band 0(0x820e4000), band 1(0x820f4000) */
 #define MT_WF_TMAC_BASE(_band)		((_band) ? 0x820f4000 : 0x820e4000)
 #define MT_WF_TMAC(_band, ofs)		(MT_WF_TMAC_BASE(_band) + (ofs))

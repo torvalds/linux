@@ -2305,6 +2305,32 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	}
 }
 
+static void mt7915_mac_severe_check(struct mt7915_phy *phy)
+{
+	struct mt7915_dev *dev = phy->dev;
+	bool ext_phy = phy != &dev->phy;
+	u32 trb;
+
+	if (!phy->omac_mask)
+		return;
+
+	/* In rare cases, TRB pointers might be out of sync leads to RMAC
+	 * stopping Rx, so check status periodically to see if TRB hardware
+	 * requires minimal recovery.
+	 */
+	trb = mt76_rr(dev, MT_TRB_RXPSR0(phy->band_idx));
+
+	if ((FIELD_GET(MT_TRB_RXPSR0_RX_RMAC_PTR, trb) !=
+	     FIELD_GET(MT_TRB_RXPSR0_RX_WTBL_PTR, trb)) &&
+	    (FIELD_GET(MT_TRB_RXPSR0_RX_RMAC_PTR, phy->trb_ts) !=
+	     FIELD_GET(MT_TRB_RXPSR0_RX_WTBL_PTR, phy->trb_ts)) &&
+	    trb == phy->trb_ts)
+		mt7915_mcu_set_ser(dev, SER_RECOVER, SER_SET_RECOVER_L3_RX_ABORT,
+				   ext_phy);
+
+	phy->trb_ts = trb;
+}
+
 void mt7915_mac_sta_rc_work(struct work_struct *work)
 {
 	struct mt7915_dev *dev = container_of(work, struct mt7915_dev, rc_work);
@@ -2357,6 +2383,7 @@ void mt7915_mac_work(struct work_struct *work)
 		mphy->mac_work_count = 0;
 
 		mt7915_mac_update_stats(phy);
+		mt7915_mac_severe_check(phy);
 	}
 
 	mutex_unlock(&mphy->dev->mutex);

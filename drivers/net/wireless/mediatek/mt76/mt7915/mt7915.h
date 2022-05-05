@@ -248,6 +248,8 @@ struct mt7915_phy {
 
 	u8 rdd_state;
 
+	u32 trb_ts;
+
 	u32 rx_ampdu_ts;
 	u32 ampdu_ref;
 
