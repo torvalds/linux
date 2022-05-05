@@ -310,25 +310,37 @@
 			clock-names = "apb";
 		};
 
-		USB30: usb@10100000 {
-			compatible = "cdns,usb3";
-			reg = <0x0 0x10100000 0x0 0x10000>,
-				<0x0 0x10110000 0x0 0x10000>,
-				<0x0 0x10120000 0x0 0x10000>;
-			reg-names = "otg", "xhci", "dev";
-			phy-names = "cdns3,usb3-phy", "cnds3,usb2-phy";
+		usbdrd30: usbdrd{
+			compatible = "starfive,jh7110-cdns3";
+			#address-cells = <2>;
+			#size-cells = <2>;
 			clocks = <&clkgen JH7110_USB0_CLK_APP_125>,
-				<&clkgen JH7110_USB0_CLK_LPM>,
-				<&clkgen JH7110_USB0_CLK_STB>,
-				<&clkgen JH7110_USB0_CLK_USB_APB>,
-				<&clkgen JH7110_USB0_CLK_AXI>,
-				<&clkgen JH7110_USB0_CLK_UTMI_APB>;
+					<&clkgen JH7110_USB0_CLK_LPM>,
+					<&clkgen JH7110_USB0_CLK_STB>,
+					<&clkgen JH7110_USB0_CLK_USB_APB>,
+					<&clkgen JH7110_USB0_CLK_AXI>,
+					<&clkgen JH7110_USB0_CLK_UTMI_APB>;
 			clock-names = "app","lpm","stb","apb","axi","utmi";
 			resets = <&rstgen RSTN_U0_CDN_USB_PWRUP>,
 					<&rstgen RSTN_U0_CDN_USB_APB>,
 					<&rstgen RSTN_U0_CDN_USB_AXI>,
 					<&rstgen RSTN_U0_CDN_USB_UTMI_APB>;
-			reset-names = "rst_pwrup","rst_apb","rst_axi","rst_utmi";
+			reset-names = "pwrup","apb","axi","utmi";
+			starfive,stg-syscon = <&stg_syscon 0x4>;
+			starfive,sys-syscon = <&sys_syscon 0x18>;
+			status = "disabled";
+
+			usbdrd_cdns3: usb@10100000 {
+				compatible = "cdns,usb3";
+				reg = <0x0 0x10100000 0x0 0x10000>,
+					<0x0 0x10110000 0x0 0x10000>,
+					<0x0 0x10120000 0x0 0x10000>;
+				reg-names = "otg", "xhci", "dev";
+				interrupts = <108>, <109>, <110>;
+				interrupt-names = "host", "peripheral", "otg";
+				phy-names = "cdns3,usb3-phy", "cnds3,usb2-phy";
+				maximum-speed = "super-speed";
+			};
 		};
 
 		timer: timer@13050000 {
