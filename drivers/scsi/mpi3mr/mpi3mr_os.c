@@ -3725,6 +3725,10 @@ static int mpi3mr_slave_configure(struct scsi_device *sdev)
 		return -ENXIO;
 
 	mpi3mr_change_queue_depth(sdev, tgt_dev->q_depth);
+
+	sdev->eh_timeout = MPI3MR_EH_SCMD_TIMEOUT;
+	blk_queue_rq_timeout(sdev->request_queue, MPI3MR_SCMD_TIMEOUT);
+
 	switch (tgt_dev->dev_type) {
 	case MPI3_DEVICE_DEVFORM_PCIE:
 		/*The block layer hw sector size = 512*/

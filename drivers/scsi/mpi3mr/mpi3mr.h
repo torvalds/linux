@@ -124,6 +124,9 @@ extern atomic64_t event_counter;
 
 #define MPI3MR_WATCHDOG_INTERVAL		1000 /* in milli seconds */
 
+#define MPI3MR_SCMD_TIMEOUT    (60 * HZ)
+#define MPI3MR_EH_SCMD_TIMEOUT (60 * HZ)
+
 /* Internal admin command state definitions*/
 #define MPI3MR_CMD_NOTUSED	0x8000
 #define MPI3MR_CMD_COMPLETE	0x0001
