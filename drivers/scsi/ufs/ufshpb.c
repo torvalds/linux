@@ -2349,11 +2349,9 @@ void ufshpb_suspend(struct ufs_hba *hba)
 
 	shost_for_each_device(sdev, hba->host) {
 		hpb = ufshpb_get_hpb_data(sdev);
-		if (!hpb)
+		if (!hpb || ufshpb_get_state(hpb) != HPB_PRESENT)
 			continue;
 
-		if (ufshpb_get_state(hpb) != HPB_PRESENT)
-			continue;
 		ufshpb_set_state(hpb, HPB_SUSPEND);
 		ufshpb_cancel_jobs(hpb);
 	}
@@ -2366,20 +2364,15 @@ void ufshpb_resume(struct ufs_hba *hba)
 
 	shost_for_each_device(sdev, hba->host) {
 		hpb = ufshpb_get_hpb_data(sdev);
-		if (!hpb)
+		if (!hpb || ufshpb_get_state(hpb) != HPB_SUSPEND)
 			continue;
 
-		if ((ufshpb_get_state(hpb) != HPB_PRESENT) &&
-		    (ufshpb_get_state(hpb) != HPB_SUSPEND))
-			continue;
 		ufshpb_set_state(hpb, HPB_PRESENT);
 		ufshpb_kick_map_work(hpb);
 		if (hpb->is_hcm) {
-			unsigned int poll =
-				hpb->params.timeout_polling_interval_ms;
+			unsigned int poll = hpb->params.timeout_polling_interval_ms;
 
-			schedule_delayed_work(&hpb->ufshpb_read_to_work,
-				msecs_to_jiffies(poll));
+			schedule_delayed_work(&hpb->ufshpb_read_to_work, msecs_to_jiffies(poll));
 		}
 	}
 }
