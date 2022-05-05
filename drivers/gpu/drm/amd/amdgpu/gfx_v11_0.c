@@ -1243,7 +1243,7 @@ static void gfx_v11_0_parse_rlc_toc(struct amdgpu_device *adev, void *rlc_toc)
 		rlc_autoload_info[ucode->id].size = ucode->size * 4;
 
 		ucode++;
-	};
+	}
 }
 
 static uint32_t gfx_v11_0_calc_toc_total_size(struct amdgpu_device *adev)
