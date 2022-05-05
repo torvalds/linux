@@ -1302,7 +1302,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_PSR2_SEL_FETCH(dev_priv)	 (DISPLAY_VER(dev_priv) >= 12)
 #define HAS_TRANSCODER(dev_priv, trans)	 ((INTEL_INFO(dev_priv)->display.cpu_transcoder_mask & BIT(trans)) != 0)
 
-#define HAS_RC6(dev_priv)		 (INTEL_INFO(dev_priv)->has_rc6)
+/* ilk does support rc6, but we do not implement [power] contexts */
+#define HAS_RC6(dev_priv)		 (GRAPHICS_VER(dev_priv) >= 6)
 #define HAS_RC6p(dev_priv)		 (INTEL_INFO(dev_priv)->has_rc6p)
 #define HAS_RC6pp(dev_priv)		 (false) /* HW was never validated */
 
