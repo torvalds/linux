@@ -42,6 +42,16 @@
 			};
 		};
 
+		pmi8998_lpg: lpg {
+			compatible = "qcom,pmi8998-lpg";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#pwm-cells = <2>;
+
+			status = "disabled";
+		};
+
 		pmi8998_wled: leds@d800 {
 			compatible = "qcom,pmi8998-wled";
 			reg = <0xd800>, <0xd900>;
@@ -52,6 +62,5 @@
 
 			status = "disabled";
 		};
-
 	};
 };
