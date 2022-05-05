@@ -2654,6 +2654,12 @@ void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
 	if (hweight8(msta->twt.flowid_mask) == ARRAY_SIZE(msta->twt.flow))
 		goto unlock;
 
+	if (twt_agrt->min_twt_dur < MT7915_MIN_TWT_DUR) {
+		setup_cmd = TWT_SETUP_CMD_DICTATE;
+		twt_agrt->min_twt_dur = MT7915_MIN_TWT_DUR;
+		goto unlock;
+	}
+
 	flowid = ffs(~msta->twt.flowid_mask) - 1;
 	le16p_replace_bits(&twt_agrt->req_type, flowid,
 			   IEEE80211_TWT_REQTYPE_FLOWID);
