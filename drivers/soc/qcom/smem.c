@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, Sony Mobile Communications AB.
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, 2020, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/hwspinlock.h>
@@ -1195,3 +1195,4 @@ module_exit(qcom_smem_exit)
 MODULE_AUTHOR("Bjorn Andersson <bjorn.andersson@sonymobile.com>");
 MODULE_DESCRIPTION("Qualcomm Shared Memory Manager");
 MODULE_LICENSE("GPL v2");
+MODULE_SOFTDEP("pre: qcom_hwspinlock");
