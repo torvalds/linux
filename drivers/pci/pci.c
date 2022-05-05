@@ -1273,25 +1273,25 @@ static int pci_set_full_power_state(struct pci_dev *dev)
 
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 	dev->current_state = pmcsr & PCI_PM_CTRL_STATE_MASK;
-	if (dev->current_state != PCI_D0)
+	if (dev->current_state != PCI_D0) {
 		pci_info_ratelimited(dev, "Refused to change power state from %s to D0\n",
 				     pci_power_name(dev->current_state));
-
-	/*
-	 * According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
-	 * INTERFACE SPECIFICATION, REV. 1.2", a device transitioning
-	 * from D3hot to D0 _may_ perform an internal reset, thereby
-	 * going to "D0 Uninitialized" rather than "D0 Initialized".
-	 * For example, at least some versions of the 3c905B and the
-	 * 3c556B exhibit this behaviour.
-	 *
-	 * At least some laptop BIOSen (e.g. the Thinkpad T21) leave
-	 * devices in a D3hot state at boot.  Consequently, we need to
-	 * restore at least the BARs so that the device will be
-	 * accessible to its driver.
-	 */
-	if (ret > 0)
+	} else if (ret > 0) {
+		/*
+		 * According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
+		 * INTERFACE SPECIFICATION, REV. 1.2", a device transitioning
+		 * from D3hot to D0 _may_ perform an internal reset, thereby
+		 * going to "D0 Uninitialized" rather than "D0 Initialized".
+		 * For example, at least some versions of the 3c905B and the
+		 * 3c556B exhibit this behaviour.
+		 *
+		 * At least some laptop BIOSen (e.g. the Thinkpad T21) leave
+		 * devices in a D3hot state at boot.  Consequently, we need to
+		 * restore at least the BARs so that the device will be
+		 * accessible to its driver.
+		 */
 		pci_restore_bars(dev);
+	}
 
 	if (dev->bus->self)
 		pcie_aspm_pm_state_change(dev->bus->self);
