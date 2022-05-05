@@ -1225,7 +1225,10 @@ out:
 		queue_work(ufshpb_wq, &hpb->map_work);
 }
 
-static void ufshpb_dev_reset_handler(struct ufshpb_lu *hpb)
+/*
+ * Set the flags of all active regions to RGN_FLAG_UPDATE to let host side reload L2P entries later
+ */
+static void ufshpb_set_regions_update(struct ufshpb_lu *hpb)
 {
 	struct victim_select_info *lru_info = &hpb->lru_info;
 	struct ufshpb_region *rgn;
@@ -1237,6 +1240,24 @@ static void ufshpb_dev_reset_handler(struct ufshpb_lu *hpb)
 		set_bit(RGN_FLAG_UPDATE, &rgn->rgn_flags);
 
 	spin_unlock_irqrestore(&hpb->rgn_state_lock, flags);
+}
+
+static void ufshpb_dev_reset_handler(struct ufs_hba *hba)
+{
+	struct scsi_device *sdev;
+	struct ufshpb_lu *hpb;
+
+	__shost_for_each_device(sdev, hba->host) {
+		hpb = ufshpb_get_hpb_data(sdev);
+		if (hpb && hpb->is_hcm)
+			/*
+			 * For the HPB host mode, in case device powered up and lost HPB
+			 * information, we will set the region flag to be RGN_FLAG_UPDATE,
+			 * it will let host reload its L2P entries(re-activate the region
+			 * in the UFS device).
+			 */
+			ufshpb_set_regions_update(hpb);
+	}
 }
 
 /*
@@ -1313,17 +1334,7 @@ void ufshpb_rsp_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	case HPB_RSP_DEV_RESET:
 		dev_warn(&hpb->sdev_ufs_lu->sdev_dev,
 			 "UFS device lost HPB information during PM.\n");
-
-		if (hpb->is_hcm) {
-			struct scsi_device *sdev;
-
-			__shost_for_each_device(sdev, hba->host) {
-				struct ufshpb_lu *h = sdev->hostdata;
-
-				if (h)
-					ufshpb_dev_reset_handler(h);
-			}
-		}
+		ufshpb_dev_reset_handler(hba);
 
 		break;
 	default:
