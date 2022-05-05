@@ -166,6 +166,48 @@
 		};
 	};
 
+	tdm0_pins: tdm0-pins {
+		tdm0-pins-tx {
+			sf,pins = <PAD_GPIO21>;
+			sf,pinmux = <PAD_GPIO21_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_TDM0_PCM_TXD>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		tdm0-pins-rx {
+			sf,pins = <PAD_GPIO15>;
+			sf,pinmux = <PAD_GPIO15_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_TDM0_PCM_RXD>;
+		};
+
+		tdm0-pins-sync {
+			sf,pins = <PAD_GPIO22>;
+			sf,pinmux = <PAD_GPIO22_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_TDM0_PCM_SYNCOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		tdm0-pins-mclk {
+			sf,pins = <PAD_GPIO30>;
+			sf,pinmux = <PAD_GPIO30_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_CRG0_MCLK_OUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		tdm0-pins-mst {
+			sf,pins = <PAD_GPIO39>;
+			sf,pinmux = <PAD_GPIO39_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_TDM0_CLK_MST>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
 	i2s_clk_pins: i2s-clk0 {
 		i2s-clk0_mclk {
 			sf,pins = <PAD_GPIO32>;
@@ -770,6 +812,18 @@
 &ptc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm_ch0_pins>;
+	status = "okay";
+};
+
+&pdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pdm0_pins>;
+	status = "okay";
+};
+
+&tdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&tdm0_pins>;
 	status = "okay";
 };
 

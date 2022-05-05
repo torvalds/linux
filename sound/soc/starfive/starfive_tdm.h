@@ -1,23 +1,9 @@
-/**
-  ******************************************************************************
-  * @file  sf_tdm.h
-  * @author  StarFive Technology
-  * @version  V1.0
-  * @date  08/2/2021
-  * @brief
-  ******************************************************************************
-  * @copy
-  *
-  * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
-  * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
-  * TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE FOR ANY
-  * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
-  * FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
-  * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
-  *
-  * <h2><center>&copy; COPYRIGHT 20120 Shanghai StarFive Technology Co., Ltd. </center></h2>
-  */
-
+/* SPDX-License-Identifier: GPL-2.0
+ *
+ * TDM driver for the StarFive JH7110 SoC
+ *
+ * Copyright (C) 2021 StarFive Technology Co., Ltd.
+ */
 #ifndef __SND_SOC_STARFIVE_TDM_H
 #define __SND_SOC_STARFIVE_TDM_H
 
@@ -29,92 +15,98 @@
 #include <linux/dmaengine.h>
 #include <linux/types.h>
 
-#define TDM_PCMGBCR		(0x00)
-#define TDM_PCMTXCR		(0x04)
-#define TDM_PCMRXCR		(0x08)
-#define TDM_PCMDIV		(0x0c)
+#define TDM_PCMGBCR			0x00
+#define TDM_PCMTXCR			0x04
+#define TDM_PCMRXCR			0x08
+#define TDM_PCMDIV			0x0c
 
 /*  DMA registers */
-#define TDM_RXDMA		(0xc0)
-#define TDM_TXDMA		(0xd0)
+#define TDM_RXDMA			0xc0
+#define TDM_TXDMA			0xd0
 
-#define TDM_FIFO_DEPTH			(16)
+#define TDM_FIFO_DEPTH			16
 
 #define TDM_MAX_CHANNEL_NUM		8
 #define TDM_MIN_CHANNEL_NUM		2
 
 #define TWO_CHANNEL_SUPPORT		2	
-#define FOUR_CHANNEL_SUPPORT	4	
-#define SIX_CHANNEL_SUPPORT		6	
-#define EIGHT_CHANNEL_SUPPORT	8	
+#define FOUR_CHANNEL_SUPPORT		4
+#define SIX_CHANNEL_SUPPORT		6
+#define EIGHT_CHANNEL_SUPPORT		8
 
-enum TDM_MODE
-{
-    TDM_AS_MASTER = 0,
-    TDM_AS_SLAVE,
+enum TDM_MODE {
+	TDM_AS_MASTER = 0,
+	TDM_AS_SLAVE,
 };
 
 enum TDM_CLKPOL {
-    /* tx raising and rx falling */
-    TDM_TX_RASING_RX_FALLING = 0,
-    /* tx raising and rx falling */
-    TDM_TX_FALLING_RX_RASING,
+	/* tx raising and rx falling */
+	TDM_TX_RASING_RX_FALLING = 0,
+	/* tx raising and rx falling */
+	TDM_TX_FALLING_RX_RASING,
 };
 
 enum TDM_ELM {
-    /* only work while SYNCM=0 */
-    TDM_ELM_LATE = 0,
-    TDM_ELM_EARLY,
+	/* only work while SYNCM=0 */
+	TDM_ELM_LATE = 0,
+	TDM_ELM_EARLY,
 };
 
 enum TDM_SYNCM {
-    /* short frame sync */
-    TDM_SYNCM_SHORT = 0,
-    /* long frame sync */
-    TDM_SYNCM_LONG,
+	/* short frame sync */
+	TDM_SYNCM_SHORT = 0,
+	/* long frame sync */
+	TDM_SYNCM_LONG,
 };
 
 enum TDM_IFL {
-    /* FIFO to send or recieve : half-1/2, Quarter-1/4*/
-    TDM_FIFO_HALF = 0,
-    TDM_FIFO_QUARTER,
+	/* FIFO to send or received : half-1/2, Quarter-1/4 */
+	TDM_FIFO_HALF = 0,
+	TDM_FIFO_QUARTER,
 };
 
 enum TDM_WL {
-    /* send or recieve word length */
-    TDM_8BIT_WORD_LEN = 0,
-    TDM_16BIT_WORD_LEN,
-    TDM_20BIT_WORD_LEN,
-    TDM_24BIT_WORD_LEN,
-    TDM_32BIT_WORD_LEN,
+	/* send or received word length */
+	TDM_8BIT_WORD_LEN = 0,
+	TDM_16BIT_WORD_LEN,
+	TDM_20BIT_WORD_LEN,
+	TDM_24BIT_WORD_LEN,
+	TDM_32BIT_WORD_LEN,
 };
 
 enum TDM_SL {
-    /* send or recieve slot length */
-    TDM_8BIT_SLOT_LEN = 0,
-    TDM_16BIT_SLOT_LEN,
-    TDM_32BIT_SLOT_LEN,
+	/* send or received slot length */
+	TDM_8BIT_SLOT_LEN = 0,
+	TDM_16BIT_SLOT_LEN,
+	TDM_32BIT_SLOT_LEN,
 };
 
 enum TDM_LRJ {
-    /* left-justify or right-justify */
-    TDM_RIGHT_JUSTIFY = 0,
-    TDM_LEFT_JUSTIFT,
+	/* left-justify or right-justify */
+	TDM_RIGHT_JUSTIFY = 0,
+	TDM_LEFT_JUSTIFT,
 };
 
 typedef struct tdm_chan_cfg {
-    enum TDM_IFL ifl;
-    enum TDM_WL  wl;
-    unsigned char sscale;
-    enum TDM_SL  sl;
-    enum TDM_LRJ lrj;
-    unsigned char enable;
-}tdm_chan_cfg_t;
+	enum TDM_IFL ifl;
+	enum TDM_WL  wl;
+	unsigned char sscale;
+	enum TDM_SL  sl;
+	enum TDM_LRJ lrj;
+	unsigned char enable;
+} tdm_chan_cfg_t;
 
 struct sf_tdm_dev {
 	void __iomem *tdm_base;
 	struct device *dev;
-	struct clk *clk;
+	struct clk *clk_ahb0;
+	struct clk *clk_tdm_ahb;
+	struct clk *clk_apb0;
+	struct clk *clk_tdm_apb;
+	struct clk *clk_tdm_intl;
+	struct reset_control *rst_ahb;
+	struct reset_control *rst_apb;
+	struct reset_control *rst_tdm;
 	int active;
 	
 	enum TDM_CLKPOL clkpolity;
@@ -123,8 +115,8 @@ struct sf_tdm_dev {
 	enum TDM_MODE	mode;
 	unsigned char	tritxen;
 	
-    tdm_chan_cfg_t tx;
-    tdm_chan_cfg_t rx;
+	tdm_chan_cfg_t tx;
+	tdm_chan_cfg_t rx;
 	
 	u16 syncdiv;
 	u32 samplerate;
