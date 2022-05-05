@@ -4002,6 +4002,12 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 	int iprio_class;
 	u8 is_pcie_dev = 0;
 
+	if (mrioc->unrecoverable) {
+		scmd->result = DID_ERROR << 16;
+		scsi_done(scmd);
+		goto out;
+	}
+
 	sdev_priv_data = scmd->device->hostdata;
 	if (!sdev_priv_data || !sdev_priv_data->tgt_priv_data) {
 		scmd->result = DID_NO_CONNECT << 16;
