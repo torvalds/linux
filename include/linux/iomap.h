@@ -320,6 +320,16 @@ struct iomap_dio_ops {
 		      unsigned flags);
 	void (*submit_io)(const struct iomap_iter *iter, struct bio *bio,
 		          loff_t file_offset);
+
+	/*
+	 * Filesystems wishing to attach private information to a direct io bio
+	 * must provide a ->submit_io method that attaches the additional
+	 * information to the bio and changes the ->bi_end_io callback to a
+	 * custom function.  This function should, at a minimum, perform any
+	 * relevant post-processing of the bio and end with a call to
+	 * iomap_dio_bio_end_io.
+	 */
+	struct bio_set *bio_set;
 };
 
 /*
@@ -349,6 +359,7 @@ struct iomap_dio *__iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		const struct iomap_ops *ops, const struct iomap_dio_ops *dops,
 		unsigned int dio_flags, size_t done_before);
 ssize_t iomap_dio_complete(struct iomap_dio *dio);
+void iomap_dio_bio_end_io(struct bio *bio);
 
 #ifdef CONFIG_SWAP
 struct file;
