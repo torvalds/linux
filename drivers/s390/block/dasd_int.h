@@ -188,6 +188,7 @@ struct dasd_ccw_req {
 	void (*callback)(struct dasd_ccw_req *, void *data);
 	void *callback_data;
 	unsigned int proc_bytes;	/* bytes for partial completion */
+	unsigned int trkcount;		/* count formatted tracks */
 };
 
 /*
@@ -611,6 +612,7 @@ struct dasd_block {
 
 	struct list_head format_list;
 	spinlock_t format_lock;
+	atomic_t trkcount;
 };
 
 struct dasd_attention_data {

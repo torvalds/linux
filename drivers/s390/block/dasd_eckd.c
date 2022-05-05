@@ -3095,13 +3095,24 @@ static int dasd_eckd_format_device(struct dasd_device *base,
 }
 
 static bool test_and_set_format_track(struct dasd_format_entry *to_format,
-				      struct dasd_block *block)
+				      struct dasd_ccw_req *cqr)
 {
+	struct dasd_block *block = cqr->block;
 	struct dasd_format_entry *format;
 	unsigned long flags;
 	bool rc = false;
 
 	spin_lock_irqsave(&block->format_lock, flags);
+	if (cqr->trkcount != atomic_read(&block->trkcount)) {
+		/*
+		 * The number of formatted tracks has changed after request
+		 * start and we can not tell if the current track was involved.
+		 * To avoid data corruption treat it as if the current track is
+		 * involved
+		 */
+		rc = true;
+		goto out;
+	}
 	list_for_each_entry(format, &block->format_list, list) {
 		if (format->track == to_format->track) {
 			rc = true;
@@ -3121,6 +3132,7 @@ static void clear_format_track(struct dasd_format_entry *format,
 	unsigned long flags;
 
 	spin_lock_irqsave(&block->format_lock, flags);
+	atomic_inc(&block->trkcount);
 	list_del_init(&format->list);
 	spin_unlock_irqrestore(&block->format_lock, flags);
 }
@@ -3182,8 +3194,11 @@ dasd_eckd_ese_format(struct dasd_device *startdev, struct dasd_ccw_req *cqr,
 	}
 	format->track = curr_trk;
 	/* test if track is already in formatting by another thread */
-	if (test_and_set_format_track(format, block))
+	if (test_and_set_format_track(format, cqr)) {
+		/* this is no real error so do not count down retries */
+		cqr->retries++;
 		return ERR_PTR(-EEXIST);
+	}
 
 	fdata.start_unit = curr_trk;
 	fdata.stop_unit = curr_trk;
