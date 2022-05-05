@@ -915,11 +915,21 @@
 		};
 
 		tdm: tdm@10090000 {
-			compatible = "starfive,tdm";
+			compatible = "starfive,sf-tdm";
 			reg = <0x0 0x10090000 0x0 0x1000>;
 			reg-names = "tdm";
-			clocks = <&audioclk>;
-			clock-names = "audioclk";
+			clocks = <&clkgen JH7110_AHB0>,
+				<&clkgen JH7110_TDM_CLK_AHB>,
+				<&clkgen JH7110_APB0>,
+				<&clkgen JH7110_TDM_CLK_APB>,
+				<&clkgen JH7110_TDM_INTERNAL>;
+			clock-names = "clk_ahb0", "clk_tdm_ahb",
+				      "clk_apb0", "clk_tdm_apb",
+				      "clk_tdm_intl";
+			resets = <&rstgen RSTN_U0_TDM16SLOT_AHB>,
+				 <&rstgen RSTN_U0_TDM16SLOT_APB>,
+				 <&rstgen RSTN_U0_TDM16SLOT_TDM>;
+			reset-names = "tdm_ahb", "tdm_apb", "tdm_rst";
 			dmas = <&dma 20 1>, <&dma 21 1>;
 			dma-names = "rx","tx";
 			#sound-dai-cells = <0>;
