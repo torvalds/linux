@@ -12,3 +12,66 @@ config DMABUF_HEAPS_CMA
 	  Choose this option to enable dma-buf CMA heap. This heap is backed
 	  by the Contiguous Memory Allocator (CMA). If your system has these
 	  regions, you should say Y here.
+
+config QCOM_DMABUF_HEAPS
+	tristate "QCOM DMA-BUF Heaps"
+	depends on DMABUF_HEAPS
+	help
+	  Choose this option to build the dma-buf heap module. Other
+	  heaps can subsequently be compiled into this module by enabling
+	  the appropriate defconfig option.
+	  If in doubt, say M here.
+
+config QCOM_DMABUF_HEAPS_SYSTEM
+	bool "QCOM DMA-BUF System Heap"
+	depends on QCOM_DMABUF_HEAPS
+	help
+	  Choose this option to build the QCOM DMA-BUF system
+	  heap. This heap combines the built-in system heap
+	  along with other optimizatons. If in doubt, say Y
+	  here.
+
+config QCOM_DMABUF_HEAPS_PAGE_POOL_REFILL
+	bool "QCOM DMA-BUF Page Pool Refill"
+	depends on QCOM_DMABUF_HEAPS_SYSTEM
+	help
+	  Choose this option to enable the page pool auto refill
+	  feature for the system heap's page pools. When enabled,
+	  a thread is created which wakes up to refill the page pools
+	  when they fall below a particular threshold, which in turn
+	  results in smaller allocation latencies. If in doubt, say Y
+	  here.
+
+config QCOM_DMABUF_HEAPS_SYSTEM_SECURE
+	bool "QCOM DMA-BUF System Secure Heap"
+	depends on QCOM_DMABUF_HEAPS && QCOM_SECURE_BUFFER
+	depends on QCOM_DMABUF_HEAPS_SYSTEM
+	help
+	  Choose this option to build the QCOM DMA-BUF system
+	  secure heap. This heap, which combines the built-in
+	  system heap along with other optimizations, assigns
+	  memory that is secure by default. If in doubt, say Y
+	  here.
+
+config QCOM_DMABUF_HEAPS_SYSTEM_UNCACHED
+	bool "QCOM DMA-BUF Uncached System Heap"
+	depends on QCOM_DMABUF_HEAPS && QCOM_DMABUF_HEAPS_SYSTEM
+	help
+	  Choose this option to create an uncached QCOM DMA-BUF
+	  system heap. This heap is equivalent to our system heap,
+	  such that the memory is mapped as uncached. If in doubt,
+	  say Y here.
+
+config QCOM_DMABUF_HEAPS_CMA
+	bool "QCOM DMA-BUF CMA Heap"
+	depends on QCOM_DMABUF_HEAPS && DMA_CMA
+	help
+	  Choose this option to build the QCOM DMA-BUF CMA heap.
+	  If in doubt, say Y here.
+
+config QCOM_DMABUF_HEAPS_CARVEOUT
+	bool "QCOM dma-buf Carveout Heap"
+	depends on QCOM_DMABUF_HEAPS
+	help
+	  Choose this option to build the QCOM DMA-BUF Carveout heap.
+	  If in doubt, say Y here.
