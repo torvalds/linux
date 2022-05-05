@@ -392,9 +392,9 @@ static int nv_read_register(struct amdgpu_device *adev, u32 se_num,
 	*value = 0;
 	for (i = 0; i < ARRAY_SIZE(nv_allowed_read_registers); i++) {
 		en = &nv_allowed_read_registers[i];
-		if ((i == 7 && (adev->sdma.num_instances == 1)) || /* some asics don't have SDMA1 */
-		    reg_offset !=
-		    (adev->reg_offset[en->hwip][en->inst][en->seg] + en->reg_offset))
+		if (adev->reg_offset[en->hwip][en->inst] &&
+		    reg_offset != (adev->reg_offset[en->hwip][en->inst][en->seg]
+				   + en->reg_offset))
 			continue;
 
 		*value = nv_get_register_value(adev,
