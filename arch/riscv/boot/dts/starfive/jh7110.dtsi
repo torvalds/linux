@@ -857,7 +857,8 @@
 
 		gpu: gpu@18000000 {
 			compatible = "img-gpu";
-			reg = <0x0 0x18000000 0x0 0x100000 0x0 0x130C000 0x0 0x10000>;
+			reg = <0x0 0x18000000 0x0 0x100000>,
+				<0x0 0x130C000 0x0 0x10000>;
 			clocks = <&gpu_core_clk>, <&gpu_sys_clk>,
 				<&clkgen JH7110_GPU_CLK_APB>,
 				<&clkgen JH7110_GPU_RTC_TOGGLE>,
@@ -1398,13 +1399,13 @@
 
 		co_process: e24@0 {
 			compatible = "starfive,e24";
-			reg = <0x0 0xc0110000 0x0 0x00001000
-			0x0 0xc0111000 0x0 0x0001f000>;
-			reg-names = "ecmd","espace";
+			reg = <0x0 0xc0110000 0x0 0x00001000>,
+				<0x0 0xc0111000 0x0 0x0001f000>;
+			reg-names = "ecmd", "espace";
 			clocks = <&clkgen JH7110_E2_RTC_CLK>,
 				<&clkgen JH7110_E2_CLK_CORE>,
 				<&clkgen JH7110_E2_CLK_DBG>;
-			clock-names = "clk_rtc","clk_core","clk_dbg";
+			clock-names = "clk_rtc", "clk_core", "clk_dbg";
 			resets = <&rstgen RSTN_U0_E24_CORE>;
 			reset-names = "e24_core";
 			starfive,stg-syscon = <&stg_syscon>;
