@@ -191,8 +191,12 @@ static int genphy_c45_baset1_an_config_aneg(struct phy_device *phydev)
 	case MASTER_SLAVE_CFG_MASTER_PREFERRED:
 	case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
 		break;
+	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNSUPPORTED:
+		return 0;
 	default:
-		break;
+		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
+		return -EOPNOTSUPP;
 	}
 
 	switch (phydev->master_slave_set) {
