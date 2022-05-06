@@ -7708,10 +7708,10 @@ return_did_out:
 static int
 lpfc_rscn_recovery_check(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_nodelist *ndlp = NULL, *n;
 
 	/* Move all affected nodes by pending RSCNs to NPR state. */
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry_safe(ndlp, n, &vport->fc_nodes, nlp_listp) {
 		if ((ndlp->nlp_state == NLP_STE_UNUSED_NODE) ||
 		    !lpfc_rscn_payload_check(vport, ndlp->nlp_DID))
 			continue;
