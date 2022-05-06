@@ -101,7 +101,21 @@ static int lsdma_v6_0_fill_mem(struct amdgpu_device *adev,
 	return ret;
 }
 
+static void lsdma_v6_0_update_memory_power_gating(struct amdgpu_device *adev,
+						 bool enable)
+{
+	uint32_t tmp;
+
+	tmp = RREG32_SOC15(LSDMA, 0, regLSDMA_MEM_POWER_CTRL);
+	tmp = REG_SET_FIELD(tmp, LSDMA_MEM_POWER_CTRL, MEM_POWER_CTRL_EN, 0);
+	WREG32_SOC15(LSDMA, 0, regLSDMA_MEM_POWER_CTRL, tmp);
+
+	tmp = REG_SET_FIELD(tmp, LSDMA_MEM_POWER_CTRL, MEM_POWER_CTRL_EN, enable);
+	WREG32_SOC15(LSDMA, 0, regLSDMA_MEM_POWER_CTRL, tmp);
+}
+
 const struct amdgpu_lsdma_funcs lsdma_v6_0_funcs = {
 	.copy_mem = lsdma_v6_0_copy_mem,
-	.fill_mem = lsdma_v6_0_fill_mem
+	.fill_mem = lsdma_v6_0_fill_mem,
+	.update_memory_power_gating = lsdma_v6_0_update_memory_power_gating
 };

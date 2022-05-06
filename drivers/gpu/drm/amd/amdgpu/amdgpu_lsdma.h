@@ -33,6 +33,7 @@ struct amdgpu_lsdma_funcs {
 			uint64_t dst_addr, uint64_t size);
 	int (*fill_mem)(struct amdgpu_device *adev, uint64_t dst_addr,
 			uint32_t data, uint64_t size);
+	void (*update_memory_power_gating)(struct amdgpu_device *adev, bool enable);
 };
 
 int amdgpu_lsdma_copy_mem(struct amdgpu_device *adev, uint64_t src_addr,

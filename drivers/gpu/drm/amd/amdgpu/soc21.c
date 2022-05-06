@@ -676,7 +676,17 @@ static int soc21_common_set_clockgating_state(void *handle,
 static int soc21_common_set_powergating_state(void *handle,
 					   enum amd_powergating_state state)
 {
-	/* TODO */
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	switch (adev->ip_versions[LSDMA_HWIP][0]) {
+	case IP_VERSION(6, 0, 0):
+		adev->lsdma.funcs->update_memory_power_gating(adev,
+				state == AMD_PG_STATE_GATE);
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 }
 
