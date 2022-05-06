@@ -71,6 +71,35 @@ int genphy_c45_pma_suspend(struct phy_device *phydev)
 EXPORT_SYMBOL_GPL(genphy_c45_pma_suspend);
 
 /**
+ * genphy_c45_pma_baset1_setup_master_slave - configures forced master/slave
+ * role of BaseT1 devices.
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_pma_baset1_setup_master_slave(struct phy_device *phydev)
+{
+	int ctl = 0;
+
+	switch (phydev->master_slave_set) {
+	case MASTER_SLAVE_CFG_MASTER_PREFERRED:
+	case MASTER_SLAVE_CFG_MASTER_FORCE:
+		ctl = MDIO_PMA_PMD_BT1_CTRL_CFG_MST;
+		break;
+	case MASTER_SLAVE_CFG_SLAVE_FORCE:
+	case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
+	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNSUPPORTED:
+		break;
+	default:
+		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
+		return -EOPNOTSUPP;
+	}
+
+	return phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL,
+			     MDIO_PMA_PMD_BT1_CTRL_CFG_MST, ctl);
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_baset1_setup_master_slave);
+
+/**
  * genphy_c45_pma_setup_forced - configures a forced speed
  * @phydev: target phy_device struct
  */
@@ -141,25 +170,7 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 		return ret;
 
 	if (genphy_c45_baset1_able(phydev)) {
-		int ctl = 0;
-
-		switch (phydev->master_slave_set) {
-		case MASTER_SLAVE_CFG_MASTER_PREFERRED:
-		case MASTER_SLAVE_CFG_MASTER_FORCE:
-			ctl = MDIO_PMA_PMD_BT1_CTRL_CFG_MST;
-			break;
-		case MASTER_SLAVE_CFG_SLAVE_FORCE:
-		case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
-		case MASTER_SLAVE_CFG_UNKNOWN:
-		case MASTER_SLAVE_CFG_UNSUPPORTED:
-			break;
-		default:
-			phydev_warn(phydev, "Unsupported Master/Slave mode\n");
-			return -EOPNOTSUPP;
-		}
-
-		ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL,
-				     MDIO_PMA_PMD_BT1_CTRL_CFG_MST, ctl);
+		ret = genphy_c45_pma_baset1_setup_master_slave(phydev);
 		if (ret < 0)
 			return ret;
 	}
