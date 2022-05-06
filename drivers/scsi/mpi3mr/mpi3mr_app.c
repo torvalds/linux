@@ -1540,7 +1540,7 @@ void mpi3mr_bsg_init(struct mpi3mr_ioc *mrioc)
 
 	mrioc->bsg_queue = bsg_setup_queue(mrioc->bsg_dev, dev_name(mrioc->bsg_dev),
 			mpi3mr_bsg_request, NULL, 0);
-	if (!mrioc->bsg_queue) {
+	if (IS_ERR(mrioc->bsg_queue)) {
 		ioc_err(mrioc, "%s: bsg registration failed\n",
 		    dev_name(mrioc->bsg_dev));
 		goto err_setup_queue;
