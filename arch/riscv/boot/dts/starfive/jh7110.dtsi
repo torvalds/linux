@@ -1118,14 +1118,23 @@
 			status = "disabled";
 		};
 
-		pcie0: pcie0@2B000000 {
+		pcie0: pcie@2B000000 {
 			compatible = "plda,pci-xpressrich3-axi";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
 			reg = <0x0 0x2B000000 0x0 0x1000000
 			       0x9 0x40000000 0x0 0x10000000>;
 			reg-names = "reg", "config";
+			device_type = "pci";
+			starfive,stg-syscon = <&stg_syscon 0xc0 0xc4 0x130>;
+			bus-range = <0x0 0xff>;
+			ranges = <0x82000000  0x0 0x30000000  0x0 0x30000000 0x0 0x06000000>;
+			msi-parent = <&plic>;
 			interrupts = <56>;
 			interrupt-controller;
 			interrupt-names = "msi";
+			interrupt-parent = <&plic>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
 			interrupt-map = <0x0 0x0 0x0 0x1 &plic 0x1>,
 					<0x0 0x0 0x0 0x2 &plic 0x2>,
@@ -1143,28 +1152,20 @@
 				 <&clkgen JH7110_PCIE0_CLK_AXI_MST0>,
 				 <&clkgen JH7110_PCIE0_CLK_APB>;
 			clock-names =  "tl", "axi_mst0", "apb";
-			#interrupt-cells = <1>;
-			device_type = "pci";
-			starfive,stg-syscon = <&stg_syscon 0xc0 0xc4 0x130>;
-			bus-range = <0x0 0xff>;
-			msi-parent = <&plic>;
-			#address-cells = <3>;
-			#size-cells = <2>;
-			ranges = <0x82000000  0x0 0x30000000  0x0 0x30000000 0x0 0x06000000>;
 			status = "disabled";
 		};
 
-		pcie1:pcie1@2C000000 {
+		pcie1:pcie@2C000000 {
 			compatible = "plda,pci-xpressrich3-axi";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
 			reg = <0x0 0x2C000000 0x0 0x1000000
 			       0x9 0xc0000000 0x0 0x10000000>;
 			reg-names = "reg", "config";
 			device_type = "pci";
 			starfive,stg-syscon = <&stg_syscon 0x270 0x274 0x2e0>;
 			bus-range = <0x0 0xff>;
-			#address-cells = <3>;
-			#size-cells = <2>;
-			#interrupt-cells = <1>;
 			ranges = <0x82000000  0x0 0x38000000  0x0 0x38000000 0x0 0x06000000>;
 			msi-parent = <&plic>;
 			interrupts = <57>;
