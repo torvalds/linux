@@ -135,7 +135,7 @@ static int amdgpu_mes_doorbell_init(struct amdgpu_device *adev)
 	adev->mes.doorbell_id_offset = doorbell_start_offset / sizeof(u32);
 	adev->mes.max_doorbell_slices = doorbell_process_limit;
 
-	DRM_INFO("max_doorbell_slices=%ld\n", doorbell_process_limit);
+	DRM_INFO("max_doorbell_slices=%zu\n", doorbell_process_limit);
 	return 0;
 }
 
