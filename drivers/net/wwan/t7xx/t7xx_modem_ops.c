@@ -34,6 +34,8 @@
 #include "t7xx_modem_ops.h"
 #include "t7xx_pci.h"
 #include "t7xx_pcie_mac.h"
+#include "t7xx_port.h"
+#include "t7xx_port_proxy.h"
 #include "t7xx_reg.h"
 #include "t7xx_state_monitor.h"
 
@@ -273,6 +275,7 @@ static void t7xx_md_exception(struct t7xx_modem *md, enum hif_ex_stage stage)
 	if (stage == HIF_EX_CLEARQ_DONE) {
 		/* Give DHL time to flush data */
 		msleep(PORT_RESET_DELAY_MS);
+		t7xx_port_proxy_reset(md->port_prox);
 	}
 
 	t7xx_cldma_exception(md->md_ctrl[CLDMA_ID_MD], stage);
@@ -426,6 +429,7 @@ int t7xx_md_reset(struct t7xx_pci_dev *t7xx_dev)
 	md->exp_id = 0;
 	t7xx_fsm_reset(md);
 	t7xx_cldma_reset(md->md_ctrl[CLDMA_ID_MD]);
+	t7xx_port_proxy_reset(md->port_prox);
 	md->md_init_finish = true;
 	return 0;
 }
@@ -462,13 +466,20 @@ int t7xx_md_init(struct t7xx_pci_dev *t7xx_dev)
 	if (ret)
 		goto err_uninit_fsm;
 
+	ret = t7xx_port_proxy_init(md);
+	if (ret)
+		goto err_uninit_md_cldma;
+
 	ret = t7xx_fsm_append_cmd(md->fsm_ctl, FSM_CMD_START, 0);
 	if (ret) /* fsm_uninit flushes cmd queue */
-		goto err_uninit_md_cldma;
+		goto err_uninit_proxy;
 
 	t7xx_md_sys_sw_init(t7xx_dev);
 	md->md_init_finish = true;
 	return 0;
+
+err_uninit_proxy:
+	t7xx_port_proxy_uninit(md->port_prox);
 
 err_uninit_md_cldma:
 	t7xx_cldma_exit(md->md_ctrl[CLDMA_ID_MD]);
@@ -492,6 +503,7 @@ void t7xx_md_exit(struct t7xx_pci_dev *t7xx_dev)
 		return;
 
 	t7xx_fsm_append_cmd(md->fsm_ctl, FSM_CMD_PRE_STOP, FSM_CMD_FLAG_WAIT_FOR_COMPLETION);
+	t7xx_port_proxy_uninit(md->port_prox);
 	t7xx_cldma_exit(md->md_ctrl[CLDMA_ID_MD]);
 	t7xx_fsm_uninit(md);
 	destroy_workqueue(md->handshake_wq);
