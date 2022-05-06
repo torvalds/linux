@@ -5,7 +5,6 @@
  * Author: Dipen Patel <dipenp@nvidia.com>
  */
 
-#include <linux/version.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
