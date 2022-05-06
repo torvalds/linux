@@ -560,15 +560,19 @@ int genphy_c45_pma_baset1_read_master_slave(struct phy_device *phydev)
 	int val;
 
 	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKNOWN;
+	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKNOWN;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL);
 	if (val < 0)
 		return val;
 
-	if (val & MDIO_PMA_PMD_BT1_CTRL_CFG_MST)
+	if (val & MDIO_PMA_PMD_BT1_CTRL_CFG_MST) {
+		phydev->master_slave_get = MASTER_SLAVE_CFG_MASTER_FORCE;
 		phydev->master_slave_state = MASTER_SLAVE_STATE_MASTER;
-	else
+	} else {
+		phydev->master_slave_get = MASTER_SLAVE_CFG_SLAVE_FORCE;
 		phydev->master_slave_state = MASTER_SLAVE_STATE_SLAVE;
+	}
 
 	return 0;
 }
