@@ -29,17 +29,6 @@
 		clock-frequency = <16000000>;
 	};
 
-	panel: panel {
-		compatible = "edt,et057090dhu";
-		backlight = <&bl>;
-		power-supply = <&reg_3v3>;
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&lcdif_out>;
-			};
-		};
-	};
 
 	reg_3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
@@ -71,14 +60,6 @@
 	status = "okay";
 };
 
-&bl {
-	brightness-levels = <0 4 8 16 32 64 128 255>;
-	default-brightness-level = <6>;
-	power-supply = <&reg_3v3>;
-	pwms = <&pwm4 0 5000000 1>;
-	status = "okay";
-};
-
 &ecspi1 {
 	status = "okay";
 
@@ -104,16 +85,6 @@
 	m41t0m6: rtc@68 {
 		compatible = "st,m41t0";
 		reg = <0x68>;
-	};
-};
-
-&lcdif {
-	status = "okay";
-
-	port {
-		lcdif_out: endpoint {
-			remote-endpoint = <&panel_in>;
-		};
 	};
 };
 
