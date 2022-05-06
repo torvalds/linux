@@ -275,8 +275,8 @@
 			status = "disabled";
 		};
 
-		qspi: qspi@13010000 {
-			compatible = "cadence,qspi","cdns,qspi-nor";
+		qspi: spi@13010000 {
+			compatible = "cdns,qspi-nor";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x13010000 0x0 0x10000
@@ -1101,7 +1101,7 @@
 			status = "disabled";
 		};
 
-		spi0: spi0@10060000 {
+		spi0: spi@10060000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x0 0x10060000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_SPI0_CLK_APB>;
