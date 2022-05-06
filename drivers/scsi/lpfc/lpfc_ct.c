@@ -960,9 +960,15 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 	if (lpfc_error_lost_link(ulp_status, ulp_word4)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "0226 NS query failed due to link event\n");
+				 "0226 NS query failed due to link event: "
+				 "ulp_status x%x ulp_word4 x%x fc_flag x%x "
+				 "port_state x%x gidft_inp x%x\n",
+				 ulp_status, ulp_word4, vport->fc_flag,
+				 vport->port_state, vport->gidft_inp);
 		if (vport->fc_flag & FC_RSCN_MODE)
 			lpfc_els_flush_rscn(vport);
+		if (vport->gidft_inp)
+			vport->gidft_inp--;
 		goto out;
 	}
 
@@ -1177,9 +1183,15 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 	if (lpfc_error_lost_link(ulp_status, ulp_word4)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "4166 NS query failed due to link event\n");
+				 "4166 NS query failed due to link event: "
+				 "ulp_status x%x ulp_word4 x%x fc_flag x%x "
+				 "port_state x%x gidft_inp x%x\n",
+				 ulp_status, ulp_word4, vport->fc_flag,
+				 vport->port_state, vport->gidft_inp);
 		if (vport->fc_flag & FC_RSCN_MODE)
 			lpfc_els_flush_rscn(vport);
+		if (vport->gidft_inp)
+			vport->gidft_inp--;
 		goto out;
 	}
 

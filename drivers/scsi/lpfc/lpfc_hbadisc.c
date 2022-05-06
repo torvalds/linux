@@ -6355,8 +6355,9 @@ restart_disc:
 			lpfc_printf_vlog(vport, KERN_ERR,
 					 LOG_TRACE_EVENT,
 					 "0231 RSCN timeout Data: x%x "
-					 "x%x\n",
-					 vport->fc_ns_retry, LPFC_MAX_NS_RETRY);
+					 "x%x x%x x%x\n",
+					 vport->fc_ns_retry, LPFC_MAX_NS_RETRY,
+					 vport->port_state, vport->gidft_inp);
 
 			/* Cleanup any outstanding ELS commands */
 			lpfc_els_flush_cmd(vport);
