@@ -5344,9 +5344,9 @@ static void lpfc_vmid_update_entry(struct lpfc_vport *vport, struct scsi_cmnd
 {
 	u64 *lta;
 
-	if (vport->vmid_priority_tagging)
+	if (vport->phba->pport->vmid_flag & LPFC_VMID_TYPE_PRIO)
 		tag->cs_ctl_vmid = vmp->un.cs_ctl_vmid;
-	else
+	else if (vport->phba->cfg_vmid_app_header)
 		tag->app_id = vmp->un.app_id;
 
 	if (cmd->sc_data_direction == DMA_TO_DEVICE)
@@ -5391,11 +5391,12 @@ static int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid, struct
 			       scsi_cmnd * cmd, union lpfc_vmid_io_tag *tag)
 {
 	struct lpfc_vmid *vmp = NULL;
-	int hash, len, rc, i;
+	int hash, len, rc = -EPERM, i;
 
 	/* check if QFPA is complete */
-	if (lpfc_vmid_is_type_priority_tag(vport) && !(vport->vmid_flag &
-	      LPFC_VMID_QFPA_CMPL)) {
+	if (lpfc_vmid_is_type_priority_tag(vport) &&
+	    !(vport->vmid_flag & LPFC_VMID_QFPA_CMPL) &&
+	    (vport->vmid_flag & LPFC_VMID_ISSUE_QFPA)) {
 		vport->work_port_events |= WORKER_CHECK_VMID_ISSUE_QFPA;
 		return -EAGAIN;
 	}
@@ -5469,7 +5470,7 @@ static int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid, struct
 			vport->vmid_inactivity_timeout ? 1 : 0;
 
 		/* if type priority tag, get next available VMID */
-		if (lpfc_vmid_is_type_priority_tag(vport))
+		if (vport->phba->pport->vmid_flag & LPFC_VMID_TYPE_PRIO)
 			lpfc_vmid_assign_cs_ctl(vport, vmp);
 
 		/* allocate the per cpu variable for holding */
@@ -5488,9 +5489,9 @@ static int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid, struct
 		write_unlock(&vport->vmid_lock);
 
 		/* complete transaction with switch */
-		if (lpfc_vmid_is_type_priority_tag(vport))
+		if (vport->phba->pport->vmid_flag & LPFC_VMID_TYPE_PRIO)
 			rc = lpfc_vmid_uvem(vport, vmp, true);
-		else
+		else if (vport->phba->cfg_vmid_app_header)
 			rc = lpfc_vmid_cmd(vport, SLI_CTAS_RAPP_IDENT, vmp);
 		if (!rc) {
 			write_lock(&vport->vmid_lock);

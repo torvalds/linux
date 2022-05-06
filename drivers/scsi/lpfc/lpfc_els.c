@@ -1105,7 +1105,8 @@ stop_rr_fcf_flogi:
 			 sp->cmn.priority_tagging, kref_read(&ndlp->kref));
 
 	if (sp->cmn.priority_tagging)
-		vport->vmid_flag |= LPFC_VMID_ISSUE_QFPA;
+		vport->phba->pport->vmid_flag |= (LPFC_VMID_ISSUE_QFPA |
+						  LPFC_VMID_TYPE_PRIO);
 
 	if (vport->port_state == LPFC_FLOGI) {
 		/*

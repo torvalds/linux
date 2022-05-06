@@ -10377,11 +10377,11 @@ lpfc_prep_embed_io(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 
 	/* add the VMID tags as per switch response */
 	if (unlikely(piocb->cmd_flag & LPFC_IO_VMID)) {
-		if (phba->pport->vmid_priority_tagging) {
+		if (phba->pport->vmid_flag & LPFC_VMID_TYPE_PRIO) {
 			bf_set(wqe_ccpe, &wqe->fcp_iwrite.wqe_com, 1);
 			bf_set(wqe_ccp, &wqe->fcp_iwrite.wqe_com,
 					(piocb->vmid_tag.cs_ctl_vmid));
-		} else {
+		} else if (phba->cfg_vmid_app_header) {
 			bf_set(wqe_appid, &wqe->fcp_iwrite.wqe_com, 1);
 			bf_set(wqe_wqes, &wqe->fcp_iwrite.wqe_com, 1);
 			wqe->words[31] = piocb->vmid_tag.app_id;

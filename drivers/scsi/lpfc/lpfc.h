@@ -714,6 +714,7 @@ struct lpfc_vport {
 #define LPFC_VMID_QFPA_CMPL		0x4
 #define LPFC_VMID_QOS_ENABLED		0x8
 #define LPFC_VMID_TIMER_ENBLD		0x10
+#define LPFC_VMID_TYPE_PRIO		0x20
 	struct fc_qfpa_res *qfpa_res;
 
 	struct fc_vport *fc_vport;
