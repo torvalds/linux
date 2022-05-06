@@ -47,8 +47,8 @@ struct at91_pm_bu {
 	unsigned long ddr_phy_calibration[BACKUP_DDR_PHY_CALIBRATION];
 };
 
-/*
- * struct at91_pm_sfrbu_offsets: registers mapping for SFRBU
+/**
+ * struct at91_pm_sfrbu_regs - registers mapping for SFRBU
  * @pswbu: power switch BU control registers
  */
 struct at91_pm_sfrbu_regs {
@@ -81,7 +81,7 @@ struct at91_soc_pm {
 };
 
 /**
- * enum at91_pm_iomaps:	IOs that needs to be mapped for different PM modes
+ * enum at91_pm_iomaps - IOs that needs to be mapped for different PM modes
  * @AT91_PM_IOMAP_SHDWC:	SHDWC controller
  * @AT91_PM_IOMAP_SFRBU:	SFRBU controller
  */
