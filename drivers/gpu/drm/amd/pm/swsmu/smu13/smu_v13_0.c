@@ -295,6 +295,9 @@ int smu_v13_0_check_fw_version(struct smu_context *smu)
 	case IP_VERSION(13, 0, 8):
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_YELLOW_CARP;
 		break;
+	case IP_VERSION(13, 0, 4):
+		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_SMU_V13_0_4;
+		break;
 	case IP_VERSION(13, 0, 5):
 		smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_SMU_V13_0_5;
 		break;
@@ -1516,19 +1519,6 @@ int smu_v13_0_wait_for_event(struct smu_context *smu, enum smu_event_type event,
 	return ret;
 }
 
-int smu_v13_0_mode2_reset(struct smu_context *smu)
-{
-	int ret;
-
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset,
-			SMU_RESET_MODE_2, NULL);
-	/*TODO: mode2 reset wait time should be shorter, add ASIC specific func if required */
-	if (!ret)
-		msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);
-
-	return ret;
-}
-
 int smu_v13_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
 				    uint32_t *min, uint32_t *max)
 {
@@ -2281,4 +2271,94 @@ int smu_v13_0_baco_exit(struct smu_context *smu)
 {
 	return smu_v13_0_baco_set_state(smu,
 					SMU_BACO_STATE_EXIT);
+}
+
+int smu_v13_0_od_edit_dpm_table(struct smu_context *smu,
+				enum PP_OD_DPM_TABLE_COMMAND type,
+				long input[], uint32_t size)
+{
+	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
+	int ret = 0;
+
+	/* Only allowed in manual mode */
+	if (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+		return -EINVAL;
+
+	switch (type) {
+	case PP_OD_EDIT_SCLK_VDDC_TABLE:
+		if (size != 2) {
+			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			return -EINVAL;
+		}
+
+		if (input[0] == 0) {
+			if (input[1] < smu->gfx_default_hard_min_freq) {
+				dev_warn(smu->adev->dev,
+					 "Fine grain setting minimum sclk (%ld) MHz is less than the minimum allowed (%d) MHz\n",
+					 input[1], smu->gfx_default_hard_min_freq);
+				return -EINVAL;
+			}
+			smu->gfx_actual_hard_min_freq = input[1];
+		} else if (input[0] == 1) {
+			if (input[1] > smu->gfx_default_soft_max_freq) {
+				dev_warn(smu->adev->dev,
+					 "Fine grain setting maximum sclk (%ld) MHz is greater than the maximum allowed (%d) MHz\n",
+					 input[1], smu->gfx_default_soft_max_freq);
+				return -EINVAL;
+			}
+			smu->gfx_actual_soft_max_freq = input[1];
+		} else {
+			return -EINVAL;
+		}
+		break;
+	case PP_OD_RESTORE_DEFAULT_TABLE:
+		if (size != 0) {
+			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			return -EINVAL;
+		}
+		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
+		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
+		break;
+	case PP_OD_COMMIT_DPM_TABLE:
+		if (size != 0) {
+			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			return -EINVAL;
+		}
+		if (smu->gfx_actual_hard_min_freq > smu->gfx_actual_soft_max_freq) {
+			dev_err(smu->adev->dev,
+				"The setting minimum sclk (%d) MHz is greater than the setting maximum sclk (%d) MHz\n",
+				smu->gfx_actual_hard_min_freq,
+				smu->gfx_actual_soft_max_freq);
+			return -EINVAL;
+		}
+
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinGfxClk,
+						      smu->gfx_actual_hard_min_freq,
+						      NULL);
+		if (ret) {
+			dev_err(smu->adev->dev, "Set hard min sclk failed!");
+			return ret;
+		}
+
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk,
+						      smu->gfx_actual_soft_max_freq,
+						      NULL);
+		if (ret) {
+			dev_err(smu->adev->dev, "Set soft max sclk failed!");
+			return ret;
+		}
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return ret;
+}
+
+int smu_v13_0_set_default_dpm_tables(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+
+	return smu_cmn_update_table(smu, SMU_TABLE_DPMCLOCKS, 0,
+				    smu_table->clocks_table, false);
 }

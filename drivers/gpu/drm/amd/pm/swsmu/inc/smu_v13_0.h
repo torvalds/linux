@@ -28,6 +28,7 @@
 #define SMU13_DRIVER_IF_VERSION_INV 0xFFFFFFFF
 #define SMU13_DRIVER_IF_VERSION_YELLOW_CARP 0x04
 #define SMU13_DRIVER_IF_VERSION_ALDE 0x08
+#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_4 0x04
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_5 0x04
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_0 0x27
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_7 0x28
@@ -224,8 +225,6 @@ int smu_v13_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 int smu_v13_0_baco_enter(struct smu_context *smu);
 int smu_v13_0_baco_exit(struct smu_context *smu);
 
-int smu_v13_0_mode2_reset(struct smu_context *smu);
-
 int smu_v13_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
 				    uint32_t *min, uint32_t *max);
 
@@ -293,5 +292,11 @@ int smu_v13_0_baco_enter(struct smu_context *smu);
 
 int smu_v13_0_baco_exit(struct smu_context *smu);
 
+int smu_v13_0_od_edit_dpm_table(struct smu_context *smu,
+				enum PP_OD_DPM_TABLE_COMMAND type,
+				long input[],
+				uint32_t size);
+
+int smu_v13_0_set_default_dpm_tables(struct smu_context *smu);
 #endif
 #endif
