@@ -1086,6 +1086,7 @@ static void mix_interrupt_randomness(struct work_struct *work)
 	 * we don't wind up "losing" some.
 	 */
 	unsigned long pool[2];
+	unsigned int count;
 
 	/* Check to see if we're running on the wrong CPU due to hotplug. */
 	local_irq_disable();
@@ -1099,12 +1100,13 @@ static void mix_interrupt_randomness(struct work_struct *work)
 	 * consistent view, before we reenable irqs again.
 	 */
 	memcpy(pool, fast_pool->pool, sizeof(pool));
+	count = fast_pool->count;
 	fast_pool->count = 0;
 	fast_pool->last = jiffies;
 	local_irq_enable();
 
 	mix_pool_bytes(pool, sizeof(pool));
-	credit_init_bits(1);
+	credit_init_bits(max(1u, (count & U16_MAX) / 64));
 
 	memzero_explicit(pool, sizeof(pool));
 }
@@ -1144,22 +1146,30 @@ struct timer_rand_state {
 
 /*
  * This function adds entropy to the entropy "pool" by using timing
- * delays.  It uses the timer_rand_state structure to make an estimate
- * of how many bits of entropy this call has added to the pool.
- *
- * The number "num" is also added to the pool - it should somehow describe
- * the type of event which just happened.  This is currently 0-255 for
- * keyboard scan codes, and 256 upwards for interrupts.
+ * delays. It uses the timer_rand_state structure to make an estimate
+ * of how many bits of entropy this call has added to the pool. The
+ * value "num" is also added to the pool; it should somehow describe
+ * the type of event that just happened.
  */
 static void add_timer_randomness(struct timer_rand_state *state, unsigned int num)
 {
 	unsigned long entropy = random_get_entropy(), now = jiffies, flags;
 	long delta, delta2, delta3;
+	unsigned int bits;
 
-	spin_lock_irqsave(&input_pool.lock, flags);
-	_mix_pool_bytes(&entropy, sizeof(entropy));
-	_mix_pool_bytes(&num, sizeof(num));
-	spin_unlock_irqrestore(&input_pool.lock, flags);
+	/*
+	 * If we're in a hard IRQ, add_interrupt_randomness() will be called
+	 * sometime after, so mix into the fast pool.
+	 */
+	if (in_hardirq()) {
+		fast_mix(this_cpu_ptr(&irq_randomness)->pool,
+			 (unsigned long[2]){ entropy, num });
+	} else {
+		spin_lock_irqsave(&input_pool.lock, flags);
+		_mix_pool_bytes(&entropy, sizeof(entropy));
+		_mix_pool_bytes(&num, sizeof(num));
+		spin_unlock_irqrestore(&input_pool.lock, flags);
+	}
 
 	if (crng_ready())
 		return;
@@ -1190,11 +1200,22 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned int nu
 		delta = delta3;
 
 	/*
-	 * delta is now minimum absolute delta.
-	 * Round down by 1 bit on general principles,
-	 * and limit entropy estimate to 12 bits.
+	 * delta is now minimum absolute delta. Round down by 1 bit
+	 * on general principles, and limit entropy estimate to 11 bits.
 	 */
-	credit_init_bits(min_t(unsigned int, fls(delta >> 1), 11));
+	bits = min(fls(delta >> 1), 11);
+
+	/*
+	 * As mentioned above, if we're in a hard IRQ, add_interrupt_randomness()
+	 * will run after this, which uses a different crediting scheme of 1 bit
+	 * per every 64 interrupts. In order to let that function do accounting
+	 * close to the one in this function, we credit a full 64/64 bit per bit,
+	 * and then subtract one to account for the extra one added.
+	 */
+	if (in_hardirq())
+		this_cpu_ptr(&irq_randomness)->count += max(1u, bits * 64) - 1;
+	else
+		credit_init_bits(bits);
 }
 
 void add_input_randomness(unsigned int type, unsigned int code,
