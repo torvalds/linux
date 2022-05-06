@@ -285,10 +285,16 @@
 #define I3C_BUS_SDR4_SCL_RATE		2000000
 #define I3C_BUS_I2C_STD_TLOW_MIN_NS	4700
 #define I3C_BUS_I2C_STD_THIGH_MIN_NS	4000
+#define I3C_BUS_I2C_STD_TR_MAX_NS	1000
+#define I3C_BUS_I2C_STD_TF_MAX_NS	300
 #define I3C_BUS_I2C_FM_TLOW_MIN_NS	1300
 #define I3C_BUS_I2C_FM_THIGH_MIN_NS	600
+#define I3C_BUS_I2C_FM_TR_MAX_NS	300
+#define I3C_BUS_I2C_FM_TF_MAX_NS	300
 #define I3C_BUS_I2C_FMP_TLOW_MIN_NS	500
 #define I3C_BUS_I2C_FMP_THIGH_MIN_NS	260
+#define I3C_BUS_I2C_FMP_TR_MAX_NS	120
+#define I3C_BUS_I2C_FMP_TF_MAX_NS	120
 #define I3C_BUS_THIGH_MAX_NS		41
 #define I3C_BUS_JESD300_OP_TLOW_MIN_NS	500
 #define I3C_BUS_JESD300_OP_THIGH_MIN_NS	260
@@ -899,24 +905,33 @@ static int aspeed_i2c_fm_clk(struct aspeed_i3c_master *master)
 	u32 scl_timing;
 	u16 hcnt, lcnt, period_cnt, hcnt_min, lcnt_min;
 
-	core_rate = clk_get_rate(master->core_clk);
-	if (!core_rate)
-		return -EINVAL;
-
-	core_period = DIV_ROUND_UP(1000000000, core_rate);
+	core_rate = master->timing.core_rate;
+	core_period = master->timing.core_period;
 
 	if (!master->base.bus.scl_rate.i2c)
 		master->base.bus.scl_rate.i2c = I3C_BUS_I2C_FM_PLUS_SCL_RATE;
 
 	if (master->base.bus.scl_rate.i2c <= 100000) {
-		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_STD_TLOW_MIN_NS, core_period);
-		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_STD_THIGH_MIN_NS, core_period);
+		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_STD_TLOW_MIN_NS +
+						I3C_BUS_I2C_STD_TF_MAX_NS,
+					core_period);
+		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_STD_THIGH_MIN_NS +
+						I3C_BUS_I2C_STD_TR_MAX_NS,
+					core_period);
 	} else if (master->base.bus.scl_rate.i2c <= 400000) {
-		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS, core_period);
-		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FM_THIGH_MIN_NS, core_period);
+		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS +
+						I3C_BUS_I2C_FM_TF_MAX_NS,
+					core_period);
+		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FM_THIGH_MIN_NS +
+						I3C_BUS_I2C_FM_TR_MAX_NS,
+					core_period);
 	} else {
-		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FMP_TLOW_MIN_NS, core_period);
-		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FMP_THIGH_MIN_NS, core_period);
+		lcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FMP_TLOW_MIN_NS +
+						I3C_BUS_I2C_FMP_TF_MAX_NS,
+					core_period);
+		hcnt_min = DIV_ROUND_UP(I3C_BUS_I2C_FMP_THIGH_MIN_NS +
+						I3C_BUS_I2C_FMP_TR_MAX_NS,
+					core_period);
 	}
 
 	/* try to keep 50/50 duty but also meet the timing constrain */
