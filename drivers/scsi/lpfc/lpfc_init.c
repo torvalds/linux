@@ -9003,6 +9003,36 @@ lpfc_hba_free(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_setup_fdmi_mask - Setup initial FDMI mask for HBA and Port attributes
+ * @vport: pointer to lpfc vport data structure.
+ *
+ * This routine is will setup initial FDMI attribute masks for
+ * FDMI2 or SmartSAN depending on module parameters. The driver will attempt
+ * to get these attributes first before falling back, the attribute
+ * fallback hierarchy is SmartSAN -> FDMI2 -> FMDI1
+ **/
+void
+lpfc_setup_fdmi_mask(struct lpfc_vport *vport)
+{
+	struct lpfc_hba *phba = vport->phba;
+
+	vport->load_flag |= FC_ALLOW_FDMI;
+	if (phba->cfg_enable_SmartSAN ||
+	    phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT) {
+		/* Setup appropriate attribute masks */
+		vport->fdmi_hba_mask = LPFC_FDMI2_HBA_ATTR;
+		if (phba->cfg_enable_SmartSAN)
+			vport->fdmi_port_mask = LPFC_FDMI2_SMART_ATTR;
+		else
+			vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
+	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
+			"6077 Setup FDMI mask: hba x%x port x%x\n",
+			vport->fdmi_hba_mask, vport->fdmi_port_mask);
+}
+
+/**
  * lpfc_create_shost - Create hba physical port with associated scsi host.
  * @phba: pointer to lpfc hba data structure.
  *
@@ -9045,21 +9075,12 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	/* Put reference to SCSI host to driver's device private data */
 	pci_set_drvdata(phba->pcidev, shost);
 
+	lpfc_setup_fdmi_mask(vport);
+
 	/*
 	 * At this point we are fully registered with PSA. In addition,
 	 * any initial discovery should be completed.
 	 */
-	vport->load_flag |= FC_ALLOW_FDMI;
-	if (phba->cfg_enable_SmartSAN ||
-	    (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) {
-
-		/* Setup appropriate attribute masks */
-		vport->fdmi_hba_mask = LPFC_FDMI2_HBA_ATTR;
-		if (phba->cfg_enable_SmartSAN)
-			vport->fdmi_port_mask = LPFC_FDMI2_SMART_ATTR;
-		else
-			vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
-	}
 	return 0;
 }
 
