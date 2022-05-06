@@ -1282,10 +1282,11 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 			return err;
 
 		/*
-		 * The message was aborted due to a disconnect or
+		 * The message was aborted or timed out due to a disconnect or
 		 * unconfigure, just bail out.
 		 */
-		if (msg.tx_status & CEC_TX_STATUS_ABORTED)
+		if (msg.tx_status &
+		    (CEC_TX_STATUS_ABORTED | CEC_TX_STATUS_TIMEOUT))
 			return -EINTR;
 		if (msg.tx_status & CEC_TX_STATUS_OK)
 			return 0;
