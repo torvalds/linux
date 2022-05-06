@@ -5,6 +5,7 @@
  * Copyright 2021 NXP
  */
 #include <linux/slab.h>
+#include <linux/hashtable.h>
 #include "ptp_private.h"
 
 #define PTP_VCLOCK_CC_SHIFT		31
@@ -12,6 +13,32 @@
 #define PTP_VCLOCK_FADJ_SHIFT		9
 #define PTP_VCLOCK_FADJ_DENOMINATOR	15625ULL
 #define PTP_VCLOCK_REFRESH_INTERVAL	(HZ * 2)
+
+/* protects vclock_hash addition/deletion */
+static DEFINE_SPINLOCK(vclock_hash_lock);
+
+static DEFINE_READ_MOSTLY_HASHTABLE(vclock_hash, 8);
+
+static void ptp_vclock_hash_add(struct ptp_vclock *vclock)
+{
+	spin_lock(&vclock_hash_lock);
+
+	hlist_add_head_rcu(&vclock->vclock_hash_node,
+			   &vclock_hash[vclock->clock->index % HASH_SIZE(vclock_hash)]);
+
+	spin_unlock(&vclock_hash_lock);
+}
+
+static void ptp_vclock_hash_del(struct ptp_vclock *vclock)
+{
+	spin_lock(&vclock_hash_lock);
+
+	hlist_del_init_rcu(&vclock->vclock_hash_node);
+
+	spin_unlock(&vclock_hash_lock);
+
+	synchronize_rcu();
+}
 
 static int ptp_vclock_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
@@ -176,6 +203,8 @@ struct ptp_vclock *ptp_vclock_register(struct ptp_clock *pclock)
 	snprintf(vclock->info.name, PTP_CLOCK_NAME_LEN, "ptp%d_virt",
 		 pclock->index);
 
+	INIT_HLIST_NODE(&vclock->vclock_hash_node);
+
 	spin_lock_init(&vclock->lock);
 
 	vclock->clock = ptp_clock_register(&vclock->info, &pclock->dev);
@@ -187,11 +216,15 @@ struct ptp_vclock *ptp_vclock_register(struct ptp_clock *pclock)
 	timecounter_init(&vclock->tc, &vclock->cc, 0);
 	ptp_schedule_worker(vclock->clock, PTP_VCLOCK_REFRESH_INTERVAL);
 
+	ptp_vclock_hash_add(vclock);
+
 	return vclock;
 }
 
 void ptp_vclock_unregister(struct ptp_vclock *vclock)
 {
+	ptp_vclock_hash_del(vclock);
+
 	ptp_clock_unregister(vclock->clock);
 	kfree(vclock);
 }
@@ -234,34 +267,29 @@ EXPORT_SYMBOL(ptp_get_vclocks_index);
 
 ktime_t ptp_convert_timestamp(const ktime_t *hwtstamp, int vclock_index)
 {
-	char name[PTP_CLOCK_NAME_LEN] = "";
+	unsigned int hash = vclock_index % HASH_SIZE(vclock_hash);
 	struct ptp_vclock *vclock;
-	struct ptp_clock *ptp;
 	unsigned long flags;
-	struct device *dev;
 	u64 ns;
-
-	snprintf(name, PTP_CLOCK_NAME_LEN, "ptp%d", vclock_index);
-	dev = class_find_device_by_name(ptp_class, name);
-	if (!dev)
-		return 0;
-
-	ptp = dev_get_drvdata(dev);
-	if (!ptp->is_virtual_clock) {
-		put_device(dev);
-		return 0;
-	}
-
-	vclock = info_to_vclock(ptp->info);
+	u64 vclock_ns = 0;
 
 	ns = ktime_to_ns(*hwtstamp);
 
-	spin_lock_irqsave(&vclock->lock, flags);
-	ns = timecounter_cyc2time(&vclock->tc, ns);
-	spin_unlock_irqrestore(&vclock->lock, flags);
+	rcu_read_lock();
 
-	put_device(dev);
-	return ns_to_ktime(ns);
+	hlist_for_each_entry_rcu(vclock, &vclock_hash[hash], vclock_hash_node) {
+		if (vclock->clock->index != vclock_index)
+			continue;
+
+		spin_lock_irqsave(&vclock->lock, flags);
+		vclock_ns = timecounter_cyc2time(&vclock->tc, ns);
+		spin_unlock_irqrestore(&vclock->lock, flags);
+		break;
+	}
+
+	rcu_read_unlock();
+
+	return ns_to_ktime(vclock_ns);
 }
 EXPORT_SYMBOL(ptp_convert_timestamp);
 #endif

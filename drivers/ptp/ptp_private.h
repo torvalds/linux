@@ -63,6 +63,7 @@ struct ptp_vclock {
 	struct ptp_clock *pclock;
 	struct ptp_clock_info info;
 	struct ptp_clock *clock;
+	struct hlist_node vclock_hash_node;
 	struct cyclecounter cc;
 	struct timecounter tc;
 	spinlock_t lock;	/* protects tc/cc */
