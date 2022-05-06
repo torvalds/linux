@@ -84,6 +84,7 @@ struct ctrl_msg_header {
 #define PORT_ENUM_VER_MISMATCH	0x00657272
 
 /* Port operations mapping */
+extern struct port_ops wwan_sub_port_ops;
 extern struct port_ops ctl_port_ops;
 
 void t7xx_port_proxy_reset(struct port_proxy *port_prox);
