@@ -99,6 +99,7 @@ For 32-bit we have the following conventions - kernel is built with
 	 * well before they could be put to use in a speculative execution
 	 * gadget.
 	 */
+	xorl	%esi,  %esi	/* nospec si  */
 	xorl	%edx,  %edx	/* nospec dx  */
 	xorl	%ecx,  %ecx	/* nospec cx  */
 	xorl	%r8d,  %r8d	/* nospec r8  */
