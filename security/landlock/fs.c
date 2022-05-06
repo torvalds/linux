@@ -141,10 +141,12 @@ retry:
 }
 
 /* All access rights that can be tied to files. */
+/* clang-format off */
 #define ACCESS_FILE ( \
 	LANDLOCK_ACCESS_FS_EXECUTE | \
 	LANDLOCK_ACCESS_FS_WRITE_FILE | \
 	LANDLOCK_ACCESS_FS_READ_FILE)
+/* clang-format on */
 
 /*
  * @path: Should have been checked by get_path_from_fd().
