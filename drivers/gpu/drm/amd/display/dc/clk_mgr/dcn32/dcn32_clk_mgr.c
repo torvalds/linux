@@ -325,6 +325,26 @@ static void dcn32_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr,
 	}
 }
 
+/* Since DPPCLK request to PMFW needs to be exact (due to DPP DTO programming),
+ * update DPPCLK to be the exact frequency that will be set after the DPPCLK
+ * divider is updated. This will prevent rounding issues that could cause DPP
+ * refclk and DPP DTO to not match up.
+ */
+static void dcn32_update_dppclk_dispclk_freq(struct clk_mgr_internal *clk_mgr, struct dc_clocks *new_clocks)
+{
+	int dpp_divider = 0;
+	int disp_divider = 0;
+
+	dpp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+			* clk_mgr->base.dentist_vco_freq_khz / new_clocks->dppclk_khz;
+	disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+			* clk_mgr->base.dentist_vco_freq_khz / new_clocks->dispclk_khz;
+
+	// Divide back the previous result to round up to the actual clock value that will be set from divider
+	new_clocks->dppclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR * clk_mgr->base.dentist_vco_freq_khz) / dpp_divider;
+	new_clocks->dispclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR * clk_mgr->base.dentist_vco_freq_khz) / disp_divider;
+}
+
 static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
 			bool safe_to_lower)
@@ -448,13 +468,14 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 		}
 	}
 
+	dcn32_update_dppclk_dispclk_freq(clk_mgr, new_clocks);
 	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr_base->clks.dppclk_khz)) {
 		if (clk_mgr_base->clks.dppclk_khz > new_clocks->dppclk_khz)
 			dpp_clock_lowered = true;
 
 		clk_mgr_base->clks.dppclk_khz = new_clocks->dppclk_khz;
 
-		if (clk_mgr->smu_present)
+		if (clk_mgr->smu_present && !dpp_clock_lowered)
 			dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DPPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dppclk_khz));
 
 		update_dppclk = true;
@@ -488,6 +509,8 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			/* if clock is being lowered, increase DTO before lowering refclk */
 			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 			dcn20_update_clocks_update_dentist(clk_mgr, context);
+			if (clk_mgr->smu_present)
+				dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DPPCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dppclk_khz));
 		} else {
 			/* if clock is being raised, increase refclk before lowering DTO */
 			if (update_dppclk || update_dispclk)
