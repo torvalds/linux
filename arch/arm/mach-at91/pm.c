@@ -15,6 +15,7 @@
 #include <linux/parser.h>
 #include <linux/suspend.h>
 
+#include <linux/clk.h>
 #include <linux/clk/at91_pmc.h>
 #include <linux/platform_data/atmel.h>
 
@@ -61,11 +62,62 @@ struct at91_pm_sfrbu_regs {
 };
 
 /**
+ * enum at91_pm_eth_clk - Ethernet clock indexes
+ * @AT91_PM_ETH_PCLK: pclk index
+ * @AT91_PM_ETH_HCLK: hclk index
+ * @AT91_PM_ETH_MAX_CLK: max index
+ */
+enum at91_pm_eth_clk {
+	AT91_PM_ETH_PCLK,
+	AT91_PM_ETH_HCLK,
+	AT91_PM_ETH_MAX_CLK,
+};
+
+/**
+ * enum at91_pm_eth - Ethernet controller indexes
+ * @AT91_PM_G_ETH: gigabit Ethernet controller index
+ * @AT91_PM_E_ETH: megabit Ethernet controller index
+ * @AT91_PM_MAX_ETH: max index
+ */
+enum at91_pm_eth {
+	AT91_PM_G_ETH,
+	AT91_PM_E_ETH,
+	AT91_PM_MAX_ETH,
+};
+
+/**
+ * struct at91_pm_quirk_eth - AT91 PM Ethernet quirks
+ * @dev: Ethernet device
+ * @np: Ethernet device node
+ * @clks: Ethernet clocks
+ * @modes: power management mode that this quirk applies to
+ * @dns_modes: do not suspend modes: stop suspending if Ethernet is configured
+ *	       as wakeup source but buggy and no other wakeup source is
+ *	       available
+ */
+struct at91_pm_quirk_eth {
+	struct device *dev;
+	struct device_node *np;
+	struct clk_bulk_data clks[AT91_PM_ETH_MAX_CLK];
+	u32 modes;
+	u32 dns_modes;
+};
+
+/**
+ * struct at91_pm_quirks - AT91 PM quirks
+ * @eth: Ethernet quirks
+ */
+struct at91_pm_quirks {
+	struct at91_pm_quirk_eth eth[AT91_PM_MAX_ETH];
+};
+
+/**
  * struct at91_soc_pm - AT91 SoC power management data structure
  * @config_shdwc_ws: wakeup sources configuration function for SHDWC
  * @config_pmc_ws: wakeup srouces configuration function for PMC
  * @ws_ids: wakup sources of_device_id array
  * @bu: backup unit mapped data (for backup mode)
+ * @quirks: PM quirks
  * @data: PM data to be used on last phase of suspend
  * @sfrbu_regs: SFRBU registers mapping
  * @memcs: memory chip select
@@ -75,6 +127,7 @@ struct at91_soc_pm {
 	int (*config_pmc_ws)(void __iomem *pmc, u32 mode, u32 polarity);
 	const struct of_device_id *ws_ids;
 	struct at91_pm_bu *bu;
+	struct at91_pm_quirks quirks;
 	struct at91_pm_data data;
 	struct at91_pm_sfrbu_regs sfrbu_regs;
 	void *memcs;
@@ -84,10 +137,12 @@ struct at91_soc_pm {
  * enum at91_pm_iomaps - IOs that needs to be mapped for different PM modes
  * @AT91_PM_IOMAP_SHDWC:	SHDWC controller
  * @AT91_PM_IOMAP_SFRBU:	SFRBU controller
+ * @AT91_PM_IOMAP_ETHC:		Ethernet controller
  */
 enum at91_pm_iomaps {
 	AT91_PM_IOMAP_SHDWC,
 	AT91_PM_IOMAP_SFRBU,
+	AT91_PM_IOMAP_ETHC,
 };
 
 #define AT91_PM_IOMAP(name)	BIT(AT91_PM_IOMAP_##name)
@@ -263,6 +318,141 @@ static int at91_sam9x60_config_pmc_ws(void __iomem *pmc, u32 mode, u32 polarity)
 	return 0;
 }
 
+static bool at91_pm_eth_quirk_is_valid(struct at91_pm_quirk_eth *eth)
+{
+	struct platform_device *pdev;
+
+	/* Interface NA in DT. */
+	if (!eth->np)
+		return false;
+
+	/* No quirks for this interface and current suspend mode. */
+	if (!(eth->modes & BIT(soc_pm.data.mode)))
+		return false;
+
+	if (!eth->dev) {
+		/* Driver not probed. */
+		pdev = of_find_device_by_node(eth->np);
+		if (!pdev)
+			return false;
+		eth->dev = &pdev->dev;
+	}
+
+	/* No quirks if device isn't a wakeup source. */
+	if (!device_may_wakeup(eth->dev)) {
+		put_device(eth->dev);
+		return false;
+	}
+
+	/* put_device(eth->dev) is called at the end of suspend. */
+	return true;
+}
+
+static int at91_pm_config_quirks(bool suspend)
+{
+	struct at91_pm_quirk_eth *eth;
+	int i, j, ret, tmp;
+
+	/*
+	 * Ethernet IPs who's device_node pointers are stored into
+	 * soc_pm.quirks.eth[].np cannot handle WoL packets while in ULP0, ULP1
+	 * or both due to a hardware bug. If they receive WoL packets while in
+	 * ULP0 or ULP1 IPs could stop working or the whole system could stop
+	 * working. We cannot handle this scenario in the ethernet driver itself
+	 * as the driver is common to multiple vendors and also we only know
+	 * here, in this file, if we suspend to ULP0 or ULP1 mode. Thus handle
+	 * these scenarios here, as quirks.
+	 */
+	for (i = 0; i < AT91_PM_MAX_ETH; i++) {
+		eth = &soc_pm.quirks.eth[i];
+
+		if (!at91_pm_eth_quirk_is_valid(eth))
+			continue;
+
+		/*
+		 * For modes in dns_modes mask the system blocks if quirk is not
+		 * applied but if applied the interface doesn't act at WoL
+		 * events. Thus take care to avoid suspending if this interface
+		 * is the only configured wakeup source.
+		 */
+		if (suspend && eth->dns_modes & BIT(soc_pm.data.mode)) {
+			int ws_count = 0;
+#ifdef CONFIG_PM_SLEEP
+			struct wakeup_source *ws;
+
+			for_each_wakeup_source(ws) {
+				if (ws->dev == eth->dev)
+					continue;
+
+				ws_count++;
+				break;
+			}
+#endif
+
+			/*
+			 * Checking !ws is good for all platforms with issues
+			 * even when both G_ETH and E_ETH are available as dns_modes
+			 * is populated only on G_ETH interface.
+			 */
+			if (!ws_count) {
+				pr_err("AT91: PM: Ethernet cannot resume from WoL!");
+				ret = -EPERM;
+				put_device(eth->dev);
+				eth->dev = NULL;
+				/* No need to revert clock settings for this eth. */
+				i--;
+				goto clk_unconfigure;
+			}
+		}
+
+		if (suspend) {
+			clk_bulk_disable_unprepare(AT91_PM_ETH_MAX_CLK, eth->clks);
+		} else {
+			ret = clk_bulk_prepare_enable(AT91_PM_ETH_MAX_CLK,
+						      eth->clks);
+			if (ret)
+				goto clk_unconfigure;
+			/*
+			 * Release the reference to eth->dev taken in
+			 * at91_pm_eth_quirk_is_valid().
+			 */
+			put_device(eth->dev);
+			eth->dev = NULL;
+		}
+	}
+
+	return 0;
+
+clk_unconfigure:
+	/*
+	 * In case of resume we reach this point if clk_prepare_enable() failed.
+	 * we don't want to revert the previous clk_prepare_enable() for the
+	 * other IP.
+	 */
+	for (j = i; j >= 0; j--) {
+		eth = &soc_pm.quirks.eth[j];
+		if (suspend) {
+			if (!at91_pm_eth_quirk_is_valid(eth))
+				continue;
+
+			tmp = clk_bulk_prepare_enable(AT91_PM_ETH_MAX_CLK, eth->clks);
+			if (tmp) {
+				pr_err("AT91: PM: failed to enable %s clocks\n",
+				       j == AT91_PM_G_ETH ? "geth" : "eth");
+			}
+		} else {
+			/*
+			 * Release the reference to eth->dev taken in
+			 * at91_pm_eth_quirk_is_valid().
+			 */
+			put_device(eth->dev);
+			eth->dev = NULL;
+		}
+	}
+
+	return ret;
+}
+
 /*
  * Called after processes are frozen, but before we shutdown devices.
  */
@@ -427,6 +617,12 @@ static void at91_pm_suspend(suspend_state_t state)
  */
 static int at91_pm_enter(suspend_state_t state)
 {
+	int ret;
+
+	ret = at91_pm_config_quirks(true);
+	if (ret)
+		return ret;
+
 #ifdef CONFIG_PINCTRL_AT91
 	/*
 	 * FIXME: this is needed to communicate between the pinctrl driver and
@@ -464,6 +660,7 @@ error:
 #ifdef CONFIG_PINCTRL_AT91
 	at91_pinctrl_gpio_resume();
 #endif
+	at91_pm_config_quirks(false);
 	return 0;
 }
 
@@ -888,6 +1085,20 @@ static const struct of_device_id atmel_shdwc_ids[] = {
 	{ /* sentinel. */ }
 };
 
+static const struct of_device_id gmac_ids[] __initconst = {
+	{ .compatible = "atmel,sama5d3-gem" },
+	{ .compatible = "atmel,sama5d2-gem" },
+	{ .compatible = "atmel,sama5d29-gem" },
+	{ .compatible = "microchip,sama7g5-gem" },
+	{ },
+};
+
+static const struct of_device_id emac_ids[] __initconst = {
+	{ .compatible = "atmel,sama5d3-macb" },
+	{ .compatible = "microchip,sama7g5-emac" },
+	{ },
+};
+
 /*
  * Replaces _mode_to_replace with a supported mode that doesn't depend
  * on controller pointed by _map_bitmask
@@ -941,8 +1152,30 @@ static const struct of_device_id atmel_shdwc_ids[] = {
 				     (soc_pm.data.standby_mode));	\
 	} while (0)
 
+static int __init at91_pm_get_eth_clks(struct device_node *np,
+				       struct clk_bulk_data *clks)
+{
+	clks[AT91_PM_ETH_PCLK].clk = of_clk_get_by_name(np, "pclk");
+	if (IS_ERR(clks[AT91_PM_ETH_PCLK].clk))
+		return PTR_ERR(clks[AT91_PM_ETH_PCLK].clk);
+
+	clks[AT91_PM_ETH_HCLK].clk = of_clk_get_by_name(np, "hclk");
+	if (IS_ERR(clks[AT91_PM_ETH_HCLK].clk))
+		return PTR_ERR(clks[AT91_PM_ETH_HCLK].clk);
+
+	return 0;
+}
+
+static int __init at91_pm_eth_clks_empty(struct clk_bulk_data *clks)
+{
+	return IS_ERR(clks[AT91_PM_ETH_PCLK].clk) ||
+	       IS_ERR(clks[AT91_PM_ETH_HCLK].clk);
+}
+
 static void __init at91_pm_modes_init(const u32 *maps, int len)
 {
+	struct at91_pm_quirk_eth *gmac = &soc_pm.quirks.eth[AT91_PM_G_ETH];
+	struct at91_pm_quirk_eth *emac = &soc_pm.quirks.eth[AT91_PM_E_ETH];
 	struct device_node *np;
 	int ret;
 
@@ -978,6 +1211,41 @@ static void __init at91_pm_modes_init(const u32 *maps, int len)
 		}
 	}
 
+	if ((at91_is_pm_mode_active(AT91_PM_ULP1) ||
+	     at91_is_pm_mode_active(AT91_PM_ULP0) ||
+	     at91_is_pm_mode_active(AT91_PM_ULP0_FAST)) &&
+	    (maps[soc_pm.data.standby_mode] & AT91_PM_IOMAP(ETHC) ||
+	     maps[soc_pm.data.suspend_mode] & AT91_PM_IOMAP(ETHC))) {
+		np = of_find_matching_node(NULL, gmac_ids);
+		if (!np) {
+			np = of_find_matching_node(NULL, emac_ids);
+			if (np)
+				goto get_emac_clks;
+			AT91_PM_REPLACE_MODES(maps, ETHC);
+			goto unmap_unused_nodes;
+		} else {
+			gmac->np = np;
+			at91_pm_get_eth_clks(np, gmac->clks);
+		}
+
+		np = of_find_matching_node(NULL, emac_ids);
+		if (!np) {
+			if (at91_pm_eth_clks_empty(gmac->clks))
+				AT91_PM_REPLACE_MODES(maps, ETHC);
+		} else {
+get_emac_clks:
+			emac->np = np;
+			ret = at91_pm_get_eth_clks(np, emac->clks);
+			if (ret && at91_pm_eth_clks_empty(gmac->clks)) {
+				of_node_put(gmac->np);
+				of_node_put(emac->np);
+				gmac->np = NULL;
+				emac->np = NULL;
+			}
+		}
+	}
+
+unmap_unused_nodes:
 	/* Unmap all unnecessary. */
 	if (soc_pm.data.shdwc &&
 	    !(maps[soc_pm.data.standby_mode] & AT91_PM_IOMAP(SHDWC) ||
@@ -1213,17 +1481,30 @@ void __init sama5_pm_init(void)
 	static const int modes[] __initconst = {
 		AT91_PM_STANDBY, AT91_PM_ULP0, AT91_PM_ULP0_FAST,
 	};
+	static const u32 iomaps[] __initconst = {
+		[AT91_PM_ULP0]		= AT91_PM_IOMAP(ETHC),
+		[AT91_PM_ULP0_FAST]	= AT91_PM_IOMAP(ETHC),
+	};
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_SOC_SAMA5))
 		return;
 
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
+	at91_pm_modes_init(iomaps, ARRAY_SIZE(iomaps));
 	ret = at91_dt_ramc(false);
 	if (ret)
 		return;
 
 	at91_pm_init(NULL);
+
+	/* Quirks applies to ULP0, ULP0 fast and ULP1 modes. */
+	soc_pm.quirks.eth[AT91_PM_G_ETH].modes = BIT(AT91_PM_ULP0) |
+						 BIT(AT91_PM_ULP0_FAST) |
+						 BIT(AT91_PM_ULP1);
+	/* Do not suspend in ULP0, ULP0 fast if GETH is the only wakeup source. */
+	soc_pm.quirks.eth[AT91_PM_G_ETH].dns_modes = BIT(AT91_PM_ULP0) |
+						     BIT(AT91_PM_ULP0_FAST);
 }
 
 void __init sama5d2_pm_init(void)
@@ -1233,7 +1514,10 @@ void __init sama5d2_pm_init(void)
 		AT91_PM_BACKUP,
 	};
 	static const u32 iomaps[] __initconst = {
-		[AT91_PM_ULP1]		= AT91_PM_IOMAP(SHDWC),
+		[AT91_PM_ULP0]		= AT91_PM_IOMAP(ETHC),
+		[AT91_PM_ULP0_FAST]	= AT91_PM_IOMAP(ETHC),
+		[AT91_PM_ULP1]		= AT91_PM_IOMAP(SHDWC) |
+					  AT91_PM_IOMAP(ETHC),
 		[AT91_PM_BACKUP]	= AT91_PM_IOMAP(SHDWC) |
 					  AT91_PM_IOMAP(SFRBU),
 	};
@@ -1258,6 +1542,17 @@ void __init sama5d2_pm_init(void)
 	soc_pm.sfrbu_regs.pswbu.ctrl = BIT(0);
 	soc_pm.sfrbu_regs.pswbu.softsw = BIT(1);
 	soc_pm.sfrbu_regs.pswbu.state = BIT(3);
+
+	/* Quirk applies to ULP0, ULP0 fast and ULP1 modes. */
+	soc_pm.quirks.eth[AT91_PM_G_ETH].modes = BIT(AT91_PM_ULP0) |
+						 BIT(AT91_PM_ULP0_FAST) |
+						 BIT(AT91_PM_ULP1);
+	/*
+	 * Do not suspend in ULP0, ULP0 fast if GETH is the only wakeup
+	 * source.
+	 */
+	soc_pm.quirks.eth[AT91_PM_G_ETH].dns_modes = BIT(AT91_PM_ULP0) |
+						     BIT(AT91_PM_ULP0_FAST);
 }
 
 void __init sama7_pm_init(void)
@@ -1268,7 +1563,8 @@ void __init sama7_pm_init(void)
 	static const u32 iomaps[] __initconst = {
 		[AT91_PM_ULP0]		= AT91_PM_IOMAP(SFRBU),
 		[AT91_PM_ULP1]		= AT91_PM_IOMAP(SFRBU) |
-					  AT91_PM_IOMAP(SHDWC),
+					  AT91_PM_IOMAP(SHDWC) |
+					  AT91_PM_IOMAP(ETHC),
 		[AT91_PM_BACKUP]	= AT91_PM_IOMAP(SFRBU) |
 					  AT91_PM_IOMAP(SHDWC),
 	};
@@ -1293,6 +1589,10 @@ void __init sama7_pm_init(void)
 	soc_pm.sfrbu_regs.pswbu.ctrl = BIT(0);
 	soc_pm.sfrbu_regs.pswbu.softsw = BIT(1);
 	soc_pm.sfrbu_regs.pswbu.state = BIT(2);
+
+	/* Quirks applies to ULP1 for both Ethernet interfaces. */
+	soc_pm.quirks.eth[AT91_PM_E_ETH].modes = BIT(AT91_PM_ULP1);
+	soc_pm.quirks.eth[AT91_PM_G_ETH].modes = BIT(AT91_PM_ULP1);
 }
 
 static int __init at91_pm_modes_select(char *str)
