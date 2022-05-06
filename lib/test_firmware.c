@@ -1392,7 +1392,8 @@ static ssize_t upload_read_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	struct test_firmware_upload *tst;
+	struct test_firmware_upload *tst = NULL;
+	struct test_firmware_upload *tst_iter;
 	int ret = -EINVAL;
 
 	if (!test_fw_config->upload_name) {
@@ -1401,11 +1402,13 @@ static ssize_t upload_read_show(struct device *dev,
 	}
 
 	mutex_lock(&test_fw_mutex);
-	list_for_each_entry(tst, &test_upload_list, node)
-		if (tst->name == test_fw_config->upload_name)
+	list_for_each_entry(tst_iter, &test_upload_list, node)
+		if (tst_iter->name == test_fw_config->upload_name) {
+			tst = tst_iter;
 			break;
+		}
 
-	if (tst->name != test_fw_config->upload_name) {
+	if (!tst) {
 		pr_err("Firmware name not found: %s\n",
 		       test_fw_config->upload_name);
 		goto out;
