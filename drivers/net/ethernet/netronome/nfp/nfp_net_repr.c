@@ -286,8 +286,7 @@ nfp_repr_transfer_features(struct net_device *netdev, struct net_device *lower)
 	if (repr->dst->u.port_info.lower_dev != lower)
 		return;
 
-	netif_set_gso_max_size(netdev, lower->gso_max_size);
-	netif_set_gso_max_segs(netdev, lower->gso_max_segs);
+	netif_inherit_tso_max(netdev, lower);
 
 	netdev_update_features(netdev);
 }

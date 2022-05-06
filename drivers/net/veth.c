@@ -1758,8 +1758,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	if (ifmp && (dev->ifindex != 0))
 		peer->ifindex = ifmp->ifi_index;
 
-	netif_set_gso_max_size(peer, dev->gso_max_size);
-	netif_set_gso_max_segs(peer, dev->gso_max_segs);
+	netif_inherit_tso_max(peer, dev);
 
 	err = register_netdevice(peer);
 	put_net(net);
