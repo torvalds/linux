@@ -279,9 +279,6 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 	rxrpc_seq_t top = READ_ONCE(call->tx_top);
 
 	if (call->ackr_reason) {
-		spin_lock_bh(&call->lock);
-		call->ackr_reason = 0;
-		spin_unlock_bh(&call->lock);
 		now = jiffies;
 		timo = now + MAX_JIFFY_OFFSET;
 		WRITE_ONCE(call->resend_at, timo);

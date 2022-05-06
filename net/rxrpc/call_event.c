@@ -26,24 +26,19 @@ void rxrpc_propose_ping(struct rxrpc_call *call, u32 serial,
 	unsigned long now = jiffies;
 	unsigned long ping_at = now + rxrpc_idle_ack_delay;
 
-	spin_lock_bh(&call->lock);
-
 	if (time_before(ping_at, call->ping_at)) {
 		WRITE_ONCE(call->ping_at, ping_at);
 		rxrpc_reduce_call_timer(call, ping_at, now,
 					rxrpc_timer_set_for_ping);
 		trace_rxrpc_propose_ack(call, why, RXRPC_ACK_PING, serial);
 	}
-
-	spin_unlock_bh(&call->lock);
 }
 
 /*
  * Propose a DELAY ACK be sent in the future.
  */
-static void __rxrpc_propose_delay_ACK(struct rxrpc_call *call,
-				      rxrpc_serial_t serial,
-				      enum rxrpc_propose_ack_trace why)
+void rxrpc_propose_delay_ACK(struct rxrpc_call *call, rxrpc_serial_t serial,
+			     enum rxrpc_propose_ack_trace why)
 {
 	unsigned long expiry = rxrpc_soft_ack_delay;
 	unsigned long now = jiffies, ack_at;
@@ -66,17 +61,6 @@ static void __rxrpc_propose_delay_ACK(struct rxrpc_call *call,
 	}
 
 	trace_rxrpc_propose_ack(call, why, RXRPC_ACK_DELAY, serial);
-}
-
-/*
- * Propose a DELAY ACK be sent, locking the call structure
- */
-void rxrpc_propose_delay_ACK(struct rxrpc_call *call, rxrpc_serial_t  serial,
-			     enum rxrpc_propose_ack_trace why)
-{
-	spin_lock_bh(&call->lock);
-	__rxrpc_propose_delay_ACK(call, serial, why);
-	spin_unlock_bh(&call->lock);
 }
 
 /*
@@ -204,10 +188,8 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 	 * retransmitting data.
 	 */
 	if (list_empty(&retrans_queue)) {
-		spin_lock_bh(&call->lock);
 		rxrpc_reduce_call_timer(call, resend_at, now_j,
 					rxrpc_timer_set_for_resend);
-		spin_unlock_bh(&call->lock);
 		ack_ts = ktime_sub(now, call->acks_latest_ts);
 		if (ktime_to_us(ack_ts) < (call->peer->srtt_us >> 3))
 			goto out;

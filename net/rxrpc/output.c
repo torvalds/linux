@@ -229,13 +229,9 @@ static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *
 	if (txb->ack.reason == RXRPC_ACK_IDLE)
 		clear_bit(RXRPC_CALL_IDLE_ACK_PENDING, &call->flags);
 
-	spin_lock_bh(&call->lock);
 	n = rxrpc_fill_out_ack(conn, call, txb);
-	spin_unlock_bh(&call->lock);
-	if (n == 0) {
-		kfree(pkt);
+	if (n == 0)
 		return 0;
-	}
 
 	iov[0].iov_base	= &txb->wire;
 	iov[0].iov_len	= sizeof(txb->wire) + sizeof(txb->ack) + n;
