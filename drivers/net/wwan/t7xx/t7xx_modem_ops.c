@@ -35,6 +35,7 @@
 #include "t7xx_hif_cldma.h"
 #include "t7xx_mhccif.h"
 #include "t7xx_modem_ops.h"
+#include "t7xx_netdev.h"
 #include "t7xx_pci.h"
 #include "t7xx_pcie_mac.h"
 #include "t7xx_port.h"
@@ -670,9 +671,13 @@ int t7xx_md_init(struct t7xx_pci_dev *t7xx_dev)
 	if (ret)
 		goto err_destroy_hswq;
 
-	ret = t7xx_cldma_init(md->md_ctrl[CLDMA_ID_MD]);
+	ret = t7xx_ccmni_init(t7xx_dev);
 	if (ret)
 		goto err_uninit_fsm;
+
+	ret = t7xx_cldma_init(md->md_ctrl[CLDMA_ID_MD]);
+	if (ret)
+		goto err_uninit_ccmni;
 
 	ret = t7xx_port_proxy_init(md);
 	if (ret)
@@ -691,6 +696,9 @@ err_uninit_proxy:
 
 err_uninit_md_cldma:
 	t7xx_cldma_exit(md->md_ctrl[CLDMA_ID_MD]);
+
+err_uninit_ccmni:
+	t7xx_ccmni_exit(t7xx_dev);
 
 err_uninit_fsm:
 	t7xx_fsm_uninit(md);
@@ -713,6 +721,7 @@ void t7xx_md_exit(struct t7xx_pci_dev *t7xx_dev)
 	t7xx_fsm_append_cmd(md->fsm_ctl, FSM_CMD_PRE_STOP, FSM_CMD_FLAG_WAIT_FOR_COMPLETION);
 	t7xx_port_proxy_uninit(md->port_prox);
 	t7xx_cldma_exit(md->md_ctrl[CLDMA_ID_MD]);
+	t7xx_ccmni_exit(t7xx_dev);
 	t7xx_fsm_uninit(md);
 	destroy_workqueue(md->handshake_wq);
 }
