@@ -17,6 +17,9 @@
  * core will update results of the test.
  */
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/intel_ifs.h>
+
 /* Max retries on the same chunk */
 #define MAX_IFS_RETRIES  5
 
@@ -190,6 +193,8 @@ static void ifs_test_core(int cpu, struct device *dev)
 		stop_core_cpuslocked(cpu, doscan, msrvals);
 
 		status.data = msrvals[1];
+
+		trace_ifs_status(cpu, activate, status);
 
 		/* Some cases can be retried, give up for others */
 		if (!can_restart(status))
