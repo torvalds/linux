@@ -228,7 +228,7 @@ void idxd_unregister_dma_device(struct idxd_device *idxd)
 	dma_async_device_unregister(&idxd->idxd_dma->dma);
 }
 
-int idxd_register_dma_channel(struct idxd_wq *wq)
+static int idxd_register_dma_channel(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
 	struct dma_device *dma = &idxd->idxd_dma->dma;
@@ -265,7 +265,7 @@ int idxd_register_dma_channel(struct idxd_wq *wq)
 	return 0;
 }
 
-void idxd_unregister_dma_channel(struct idxd_wq *wq)
+static void idxd_unregister_dma_channel(struct idxd_wq *wq)
 {
 	struct idxd_dma_chan *idxd_chan = wq->idxd_chan;
 	struct dma_chan *chan = &idxd_chan->chan;
