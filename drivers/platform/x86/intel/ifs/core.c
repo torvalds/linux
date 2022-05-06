@@ -3,6 +3,7 @@
 
 #include <linux/module.h>
 #include <linux/kdev_t.h>
+#include <linux/semaphore.h>
 
 #include <asm/cpu_device_id.h>
 
@@ -47,9 +48,13 @@ static int __init ifs_init(void)
 	if (rdmsrl_safe(MSR_INTEGRITY_CAPS, &msrval))
 		return -ENODEV;
 
+	ifs_device.misc.groups = ifs_get_groups();
+
 	if ((msrval & BIT(ifs_device.data.integrity_cap_bit)) &&
 	    !misc_register(&ifs_device.misc)) {
+		down(&ifs_sem);
 		ifs_load_firmware(ifs_device.misc.this_device);
+		up(&ifs_sem);
 		return 0;
 	}
 
