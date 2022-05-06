@@ -207,45 +207,67 @@ find_rule(const struct landlock_ruleset *const domain,
 	return rule;
 }
 
-static inline layer_mask_t unmask_layers(const struct landlock_rule *const rule,
-					 const access_mask_t access_request,
-					 layer_mask_t layer_mask)
+/*
+ * @layer_masks is read and may be updated according to the access request and
+ * the matching rule.
+ *
+ * Returns true if the request is allowed (i.e. relevant layer masks for the
+ * request are empty).
+ */
+static inline bool
+unmask_layers(const struct landlock_rule *const rule,
+	      const access_mask_t access_request,
+	      layer_mask_t (*const layer_masks)[LANDLOCK_NUM_ACCESS_FS])
 {
 	size_t layer_level;
 
+	if (!access_request || !layer_masks)
+		return true;
 	if (!rule)
-		return layer_mask;
+		return false;
 
 	/*
 	 * An access is granted if, for each policy layer, at least one rule
-	 * encountered on the pathwalk grants the requested accesses,
-	 * regardless of their position in the layer stack.  We must then check
+	 * encountered on the pathwalk grants the requested access,
+	 * regardless of its position in the layer stack.  We must then check
 	 * the remaining layers for each inode, from the first added layer to
-	 * the last one.
+	 * the last one.  When there is multiple requested accesses, for each
+	 * policy layer, the full set of requested accesses may not be granted
+	 * by only one rule, but by the union (binary OR) of multiple rules.
+	 * E.g. /a/b <execute> + /a <read> => /a/b <execute + read>
 	 */
 	for (layer_level = 0; layer_level < rule->num_layers; layer_level++) {
 		const struct landlock_layer *const layer =
 			&rule->layers[layer_level];
 		const layer_mask_t layer_bit = BIT_ULL(layer->level - 1);
+		const unsigned long access_req = access_request;
+		unsigned long access_bit;
+		bool is_empty;
 
-		/* Checks that the layer grants access to the full request. */
-		if ((layer->access & access_request) == access_request) {
-			layer_mask &= ~layer_bit;
-
-			if (layer_mask == 0)
-				return layer_mask;
+		/*
+		 * Records in @layer_masks which layer grants access to each
+		 * requested access.
+		 */
+		is_empty = true;
+		for_each_set_bit(access_bit, &access_req,
+				 ARRAY_SIZE(*layer_masks)) {
+			if (layer->access & BIT_ULL(access_bit))
+				(*layer_masks)[access_bit] &= ~layer_bit;
+			is_empty = is_empty && !(*layer_masks)[access_bit];
 		}
+		if (is_empty)
+			return true;
 	}
-	return layer_mask;
+	return false;
 }
 
 static int check_access_path(const struct landlock_ruleset *const domain,
 			     const struct path *const path,
 			     const access_mask_t access_request)
 {
-	bool allowed = false;
+	layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {};
+	bool allowed = false, has_access = false;
 	struct path walker_path;
-	layer_mask_t layer_mask;
 	size_t i;
 
 	if (!access_request)
@@ -265,13 +287,20 @@ static int check_access_path(const struct landlock_ruleset *const domain,
 		return -EACCES;
 
 	/* Saves all layers handling a subset of requested accesses. */
-	layer_mask = 0;
 	for (i = 0; i < domain->num_layers; i++) {
-		if (domain->fs_access_masks[i] & access_request)
-			layer_mask |= BIT_ULL(i);
+		const unsigned long access_req = access_request;
+		unsigned long access_bit;
+
+		for_each_set_bit(access_bit, &access_req,
+				 ARRAY_SIZE(layer_masks)) {
+			if (domain->fs_access_masks[i] & BIT_ULL(access_bit)) {
+				layer_masks[access_bit] |= BIT_ULL(i);
+				has_access = true;
+			}
+		}
 	}
 	/* An access request not handled by the domain is allowed. */
-	if (layer_mask == 0)
+	if (!has_access)
 		return 0;
 
 	walker_path = *path;
@@ -283,14 +312,11 @@ static int check_access_path(const struct landlock_ruleset *const domain,
 	while (true) {
 		struct dentry *parent_dentry;
 
-		layer_mask =
-			unmask_layers(find_rule(domain, walker_path.dentry),
-				      access_request, layer_mask);
-		if (layer_mask == 0) {
+		allowed = unmask_layers(find_rule(domain, walker_path.dentry),
+					access_request, &layer_masks);
+		if (allowed)
 			/* Stops when a rule from each layer grants access. */
-			allowed = true;
 			break;
-		}
 
 jump_up:
 		if (walker_path.dentry == walker_path.mnt->mnt_root) {
