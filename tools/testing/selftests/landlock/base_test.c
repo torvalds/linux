@@ -97,14 +97,17 @@ TEST(abi_version)
 	ASSERT_EQ(EINVAL, errno);
 }
 
-TEST(inval_create_ruleset_flags)
+/* Tests ordering of syscall argument checks. */
+TEST(create_ruleset_checks_ordering)
 {
 	const int last_flag = LANDLOCK_CREATE_RULESET_VERSION;
 	const int invalid_flag = last_flag << 1;
+	int ruleset_fd;
 	const struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
 	};
 
+	/* Checks priority for invalid flags. */
 	ASSERT_EQ(-1, landlock_create_ruleset(NULL, 0, invalid_flag));
 	ASSERT_EQ(EINVAL, errno);
 
@@ -119,6 +122,22 @@ TEST(inval_create_ruleset_flags)
 		  landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr),
 					  invalid_flag));
 	ASSERT_EQ(EINVAL, errno);
+
+	/* Checks too big ruleset_attr size. */
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, -1, 0));
+	ASSERT_EQ(E2BIG, errno);
+
+	/* Checks too small ruleset_attr size. */
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 0, 0));
+	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 1, 0));
+	ASSERT_EQ(EINVAL, errno);
+
+	/* Checks valid call. */
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
 }
 
 /* Tests ordering of syscall argument checks. */
