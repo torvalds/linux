@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2018 StarFive, Inc
+ * PWM driver for the StarFive JH7110 SoC
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2, as published
- * by the Free Software Foundation.
+ * Copyright (C) 2018 StarFive Technology Co., Ltd.
  */
 
 #include <dt-bindings/pwm/pwm.h>
@@ -33,8 +31,6 @@
 
 #define NS_1							1000000000
 
-#define PTC_DEBUG						0
-
 /*
  * Access PTC register (cntr hrc lrc and ctrl),
  * need to replace PWM_BASE_ADDR
@@ -61,7 +57,7 @@
 struct starfive_pwm_ptc_device {
 	struct pwm_chip		chip;
 	struct clk		*clk;
-	struct reset_control 	*rst;
+	struct reset_control	*rst;
 	void __iomem		*regs;
 	int			irq;
 	/* apb clock frequency, from dts */
@@ -81,7 +77,6 @@ static void starfive_pwm_ptc_get_state(struct pwm_chip *chip,
 	struct starfive_pwm_ptc_device *pwm = chip_to_starfive_ptc(chip);
 	u32 data_lrc;
 	u32 data_hrc;
-	u32 period;
 	u32 pwm_clk_ns = 0;
 
 	/* get lrc and hrc data from registe*/
@@ -102,14 +97,6 @@ static void starfive_pwm_ptc_get_state(struct pwm_chip *chip,
 
 	/* enabled or not */
 	state->enabled = 1;
-#if PTC_DEBUG
-	dev_info(chip->dev, "%s in,no:%d....\r\n", __func__, dev->hwpwm);
-	dev_info(chip->dev, "data_hrc:0x%x 0x%x\n", data_hrc, data_lrc);
-	dev_info(chip->dev, "period:%d\r\n", state->period);
-	dev_info(chip->dev, "duty_cycle:%d\r\n", state->duty_cycle);
-	dev_info(chip->dev, "polarity:%d\r\n", state->polarity);
-	dev_info(chip->dev, "enabled:%d\r\n", state->enabled);
-#endif
 }
 
 static int starfive_pwm_ptc_apply(struct pwm_chip *chip,
@@ -124,25 +111,12 @@ static int starfive_pwm_ptc_apply(struct pwm_chip *chip,
 	u32 duty_data = 0;
 	void __iomem *reg_addr;
 
-#if PTC_DEBUG
-	dev_info(chip->dev, "%s in,no:%d....\r\n", __func__, dev->hwpwm);
-	dev_info(chip->dev, "set parameter......\r\n");
-	dev_info(chip->dev, "period:%d\r\n", state->period);
-	dev_info(chip->dev, "duty_cycle:%d\r\n", state->duty_cycle);
-	dev_info(chip->dev, "polarity:%d\r\n", state->polarity);
-	dev_info(chip->dev, "enabled:%d\r\n", state->enabled);
-#endif
 	/* duty_cycle should be less or equal than period */
 	if (state->duty_cycle > state->period)
 		state->duty_cycle = state->period;
 
 	/* calculate pwm real period (ns) */
 	pwm_clk_ns = NS_1 / pwm->approx_period;
-
-#if PTC_DEBUG
-	dev_info(chip->dev, "approx_period,:%d,pwm_clk_ns:%d\r\n",
-		 pwm->approx_period, pwm_clk_ns);
-#endif
 
 	/* calculate period count */
 	period_data = state->period / pwm_clk_ns;
@@ -155,11 +129,6 @@ static int starfive_pwm_ptc_apply(struct pwm_chip *chip,
 		duty_data = state->duty_cycle / pwm_clk_ns;
 	}
 
-#if PTC_DEBUG
-	dev_info(chip->dev, "period_data:%d,duty_data:%d\r\n",
-		 period_data, duty_data);
-#endif
-
 	if (state->polarity == PWM_POLARITY_NORMAL) {
 		/* calculate data_hrc */
 		data_hrc = period_data - duty_data;
@@ -171,18 +140,10 @@ static int starfive_pwm_ptc_apply(struct pwm_chip *chip,
 
 	/* set hrc */
 	reg_addr = REG_PTC_RPTC_HRC(pwm->regs, dev->hwpwm);
-#if PTC_DEBUG
-	dev_info(chip->dev, "[pwm_reg]reg_addr:0x%lx,HRC data:0x%x....\n",
-		 reg_addr, data_hrc);
-#endif
 	iowrite32(data_hrc, reg_addr);
 
 	/* set lrc */
 	reg_addr = REG_PTC_RPTC_LRC(pwm->regs, dev->hwpwm);
-#if PTC_DEBUG
-	dev_info(chip->dev, "[pwm_reg]reg_addr:0x%lx,LRC data:0x%x....\n",
-		 reg_addr, data_lrc);
-#endif
 	iowrite32(data_lrc, reg_addr);
 
 	/* set REG_RPTC_CNTR*/
@@ -209,17 +170,12 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 	struct starfive_pwm_ptc_device *pwm;
 	struct pwm_chip *chip;
 	struct resource *res;
-	unsigned long clk_tree_freq;
+	unsigned int clk_apb_freq;
 	int ret;
 
-#if PTC_DEBUG
-	dev_info(dev, "%s in....\r\n", __func__);
-#endif
 	pwm = devm_kzalloc(dev, sizeof(*pwm), GFP_KERNEL);
-	if (!pwm) {
-		dev_err(dev, "Out of memory\n");
+	if (!pwm)
 		return -ENOMEM;
-	}
 
 	chip = &pwm->chip;
 	chip->dev = dev;
@@ -233,24 +189,14 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(node, "starfive,npwm", &chip->npwm);
 	if (ret < 0 || chip->npwm > MAX_PWM)
 		chip->npwm = MAX_PWM;
-#if PTC_DEBUG
-	dev_info(dev, "[%s] npwm:0x%lx....\r\n", __func__, chip->npwm);
-#endif
 
 	/* get IO base address*/
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-#if PTC_DEBUG
-	dev_info(dev, "[%s] res start:0x%lx,end:0x%lx....\r\n",
-		 __func__, res->start, res->end);
-#endif
 	pwm->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(pwm->regs)) {
 		dev_err(dev, "Unable to map IO resources\n");
 		return PTR_ERR(pwm->regs);
 	}
-#if PTC_DEBUG
-	dev_info(dev, "[%s] regs:0x%lx....\r\n", __func__, pwm->regs);
-#endif
 
 	/* get and enable clocks/resets */
 	pwm->clk = devm_clk_get(dev, NULL);
@@ -274,21 +220,19 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 
 	/* get apb clock frequency */
 	ret = of_property_read_u32(node, "starfive,approx-period",
-				   &pwm->approx_period);
-	if (ret)
+				   &clk_apb_freq);
+	if (!ret)
+		pwm->approx_period = clk_apb_freq;
+	else
 		pwm->approx_period = 2000000;
-#if PTC_DEBUG
-	dev_info(dev, "[%s] approx_period:%d....\r\n",
-		 __func__, pwm->approx_period);
-#endif
 
 #ifndef HWBOARD_FPGA
-	clk_tree_freq = clk_get_rate(pwm->clk);
-	if (!clk_tree_freq)
+	clk_apb_freq = (unsigned int)clk_get_rate(pwm->clk);
+	if (!clk_apb_freq)
 		dev_warn(dev,
-			"get pwm apb clock rate failed.\n");
+			 "get pwm apb clock rate failed.\n");
 	else
-		pwm->approx_period = (unsigned int)clk_tree_freq;
+		pwm->approx_period = clk_apb_freq;
 #endif
 
 	/*
@@ -302,11 +246,6 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, pwm);
-
-#if PTC_DEBUG
-	dev_info(dev, "starfive PWM PTC chip registered %d PWMs\n",
-		 chip->npwm);
-#endif
 
 	return 0;
 }
@@ -338,5 +277,7 @@ static struct platform_driver starfive_pwm_ptc_driver = {
 };
 module_platform_driver(starfive_pwm_ptc_driver);
 
+MODULE_AUTHOR("Jenny Zhang <jenny.zhang@starfivetech.com>");
+MODULE_AUTHOR("Hal Feng <hal.feng@starfivetech.com>");
 MODULE_DESCRIPTION("StarFive PWM PTC driver");
 MODULE_LICENSE("GPL v2");
