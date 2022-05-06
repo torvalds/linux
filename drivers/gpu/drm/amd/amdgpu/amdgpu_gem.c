@@ -645,6 +645,8 @@ uint64_t amdgpu_gem_va_map_flags(struct amdgpu_device *adev, uint32_t flags)
 		pte_flag |= AMDGPU_PTE_WRITEABLE;
 	if (flags & AMDGPU_VM_PAGE_PRT)
 		pte_flag |= AMDGPU_PTE_PRT;
+	if (flags & AMDGPU_VM_PAGE_NOALLOC)
+		pte_flag |= AMDGPU_PTE_NOALLOC;
 
 	if (adev->gmc.gmc_funcs->map_mtype)
 		pte_flag |= amdgpu_gmc_map_mtype(adev,
@@ -658,7 +660,8 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 {
 	const uint32_t valid_flags = AMDGPU_VM_DELAY_UPDATE |
 		AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE |
-		AMDGPU_VM_PAGE_EXECUTABLE | AMDGPU_VM_MTYPE_MASK;
+		AMDGPU_VM_PAGE_EXECUTABLE | AMDGPU_VM_MTYPE_MASK |
+		AMDGPU_VM_PAGE_NOALLOC;
 	const uint32_t prt_flags = AMDGPU_VM_DELAY_UPDATE |
 		AMDGPU_VM_PAGE_PRT;
 
