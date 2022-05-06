@@ -183,10 +183,10 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 
 /* Access-control management */
 
-static inline u64 unmask_layers(const struct landlock_ruleset *const domain,
-				const struct path *const path,
-				const access_mask_t access_request,
-				u64 layer_mask)
+static inline layer_mask_t
+unmask_layers(const struct landlock_ruleset *const domain,
+	      const struct path *const path, const access_mask_t access_request,
+	      layer_mask_t layer_mask)
 {
 	const struct landlock_rule *rule;
 	const struct inode *inode;
@@ -212,11 +212,11 @@ static inline u64 unmask_layers(const struct landlock_ruleset *const domain,
 	 */
 	for (i = 0; i < rule->num_layers; i++) {
 		const struct landlock_layer *const layer = &rule->layers[i];
-		const u64 layer_level = BIT_ULL(layer->level - 1);
+		const layer_mask_t layer_bit = BIT_ULL(layer->level - 1);
 
 		/* Checks that the layer grants access to the full request. */
 		if ((layer->access & access_request) == access_request) {
-			layer_mask &= ~layer_level;
+			layer_mask &= ~layer_bit;
 
 			if (layer_mask == 0)
 				return layer_mask;
@@ -231,11 +231,8 @@ static int check_access_path(const struct landlock_ruleset *const domain,
 {
 	bool allowed = false;
 	struct path walker_path;
-	u64 layer_mask;
+	layer_mask_t layer_mask;
 	size_t i;
-
-	/* Make sure all layers can be checked. */
-	BUILD_BUG_ON(BITS_PER_TYPE(layer_mask) < LANDLOCK_MAX_NUM_LAYERS);
 
 	if (!access_request)
 		return 0;
