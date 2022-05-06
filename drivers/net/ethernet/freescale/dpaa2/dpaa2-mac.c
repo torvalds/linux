@@ -108,9 +108,6 @@ static struct fwnode_handle *dpaa2_mac_get_node(struct device *dev,
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	if (!parent)
-		return NULL;
-
 	fwnode_for_each_child_node(parent, child) {
 		err = -EINVAL;
 		if (is_acpi_device_node(child))
