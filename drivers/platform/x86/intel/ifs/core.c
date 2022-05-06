@@ -6,6 +6,8 @@
 
 #include <asm/cpu_device_id.h>
 
+#include "ifs.h"
+
 #define X86_MATCH(model)				\
 	X86_MATCH_VENDOR_FAM_MODEL_FEATURE(INTEL, 6,	\
 		INTEL_FAM6_##model, X86_FEATURE_CORE_CAPABILITIES, NULL)
@@ -15,6 +17,17 @@ static const struct x86_cpu_id ifs_cpu_ids[] __initconst = {
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, ifs_cpu_ids);
+
+static struct ifs_device ifs_device = {
+	.data = {
+		.integrity_cap_bit = MSR_INTEGRITY_CAPS_PERIODIC_BIST_BIT,
+	},
+	.misc = {
+		.name = "intel_ifs_0",
+		.nodename = "intel_ifs/0",
+		.minor = MISC_DYNAMIC_MINOR,
+	},
+};
 
 static int __init ifs_init(void)
 {
@@ -34,11 +47,18 @@ static int __init ifs_init(void)
 	if (rdmsrl_safe(MSR_INTEGRITY_CAPS, &msrval))
 		return -ENODEV;
 
-	return 0;
+	if ((msrval & BIT(ifs_device.data.integrity_cap_bit)) &&
+	    !misc_register(&ifs_device.misc)) {
+		ifs_load_firmware(ifs_device.misc.this_device);
+		return 0;
+	}
+
+	return -ENODEV;
 }
 
 static void __exit ifs_exit(void)
 {
+	misc_deregister(&ifs_device.misc);
 }
 
 module_init(ifs_init);
