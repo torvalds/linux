@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# clang-format configuration file. Intended for clang-format >= 6.
+# clang-format configuration file. Intended for clang-format >= 10.
 #
 # For more information, see:
 #
@@ -633,6 +633,7 @@ IncludeCategories:
     Priority: 1
 IncludeIsMainRegex: '(Test)?$'
 IndentCaseLabels: false
+IndentGotoLabels: false
 IndentPPDirectives: None
 IndentWidth: 8
 IndentWrappedFunctionNames: false
