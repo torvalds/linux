@@ -666,10 +666,13 @@ enum amd_hw_ip_block_type {
 	MAX_HWIP
 };
 
-#define HWIP_MAX_INSTANCE	10
+#define HWIP_MAX_INSTANCE	11
 
 #define HW_ID_MAX		300
 #define IP_VERSION(mj, mn, rv) (((mj) << 16) | ((mn) << 8) | (rv))
+#define IP_VERSION_MAJ(ver) ((ver) >> 16)
+#define IP_VERSION_MIN(ver) (((ver) >> 8) & 0xFF)
+#define IP_VERSION_REV(ver) ((ver) & 0xFF)
 
 struct amd_powerplay {
 	void *pp_handle;

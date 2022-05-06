@@ -272,6 +272,7 @@ struct kfd_dev {
 
 	struct kgd2kfd_shared_resources shared_resources;
 	struct kfd_vmid_info vm_info;
+	struct kfd_local_mem_info local_mem_info;
 
 	const struct kfd2kgd_calls *kfd2kgd;
 	struct mutex doorbell_mutex;
@@ -1295,7 +1296,7 @@ extern const struct kfd_event_interrupt_class event_interrupt_class_v9;
 
 extern const struct kfd_device_global_init_class device_global_init_class_cik;
 
-void kfd_event_init_process(struct kfd_process *p);
+int kfd_event_init_process(struct kfd_process *p);
 void kfd_event_free_process(struct kfd_process *p);
 int kfd_event_mmap(struct kfd_process *process, struct vm_area_struct *vma);
 int kfd_wait_on_events(struct kfd_process *p,

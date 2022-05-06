@@ -552,7 +552,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		if (r) {
 			kvfree(e->user_pages);
 			e->user_pages = NULL;
-			return r;
+			goto out_free_user_pages;
 		}
 
 		for (i = 0; i < bo->tbo.ttm->num_pages; i++) {
@@ -569,7 +569,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("ttm_eu_reserve_buffers failed.\n");
-		goto out;
+		goto out_free_user_pages;
 	}
 
 	amdgpu_bo_list_for_each_entry(e, p->bo_list) {
@@ -638,7 +638,19 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 error_validate:
 	if (r)
 		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
-out:
+
+out_free_user_pages:
+	if (r) {
+		amdgpu_bo_list_for_each_userptr_entry(e, p->bo_list) {
+			struct amdgpu_bo *bo = ttm_to_amdgpu_bo(e->tv.bo);
+
+			if (!e->user_pages)
+				continue;
+			amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
+			kvfree(e->user_pages);
+			e->user_pages = NULL;
+		}
+	}
 	return r;
 }
 

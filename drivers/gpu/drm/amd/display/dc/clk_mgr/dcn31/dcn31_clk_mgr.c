@@ -615,7 +615,7 @@ static void dcn31_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *clk
 	}
 }
 
-void dcn31_set_low_power_state(struct clk_mgr *clk_mgr_base)
+static void dcn31_set_low_power_state(struct clk_mgr *clk_mgr_base)
 {
 	int display_count;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);

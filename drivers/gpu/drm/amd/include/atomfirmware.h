@@ -3,7 +3,7 @@
 *  File Name      atomfirmware.h
 *  Project        This is an interface header file between atombios and OS GPU drivers for SoC15 products
 *
-*  Description    header file of general definitions for OS nd pre-OS video drivers 
+*  Description    header file of general definitions for OS and pre-OS video drivers
 *
 *  Copyright 2014 Advanced Micro Devices, Inc.
 *
@@ -1673,6 +1673,39 @@ struct atom_gfx_info_v2_7 {
 	uint32_t reserved2[6];
 };
 
+struct atom_gfx_info_v3_0 {
+	struct atom_common_table_header table_header;
+	uint8_t gfxip_min_ver;
+	uint8_t gfxip_max_ver;
+	uint8_t max_shader_engines;
+	uint8_t max_tile_pipes;
+	uint8_t max_cu_per_sh;
+	uint8_t max_sh_per_se;
+	uint8_t max_backends_per_se;
+	uint8_t max_texture_channel_caches;
+	uint32_t regaddr_lsdma_queue0_rb_rptr;
+	uint32_t regaddr_lsdma_queue0_rb_rptr_hi;
+	uint32_t regaddr_lsdma_queue0_rb_wptr;
+	uint32_t regaddr_lsdma_queue0_rb_wptr_hi;
+	uint32_t regaddr_lsdma_command;
+	uint32_t regaddr_lsdma_status;
+	uint32_t regaddr_golden_tsc_count_lower;
+	uint32_t golden_tsc_count_lower_refclk;
+	uint8_t active_wgp_per_se;
+	uint8_t active_rb_per_se;
+	uint8_t active_se;
+	uint8_t reserved1;
+	uint32_t sram_rm_fuses_val;
+	uint32_t sram_custom_rm_fuses_val;
+	uint32_t inactive_sa_mask;
+	uint32_t gc_config;
+	uint8_t inactive_wgp[16];
+	uint8_t inactive_rb[16];
+	uint32_t gdfll_as_wait_ctrl_val;
+	uint32_t gdfll_as_step_ctrl_val;
+	uint32_t reserved[8];
+};
+
 /* 
   ***************************************************************************
     Data Table smu_info  structure
@@ -2790,6 +2823,51 @@ struct atom_vram_info_header_v2_3 {
   uint8_t  umcip_max_ver;
   uint8_t  mc_phy_tile_num;                              // indicate the MCD tile number which use in DramDataRemapTbl and usMcAdjustPerTileTblOffset
   struct   atom_vram_module_v9  vram_module[16];         // just for allocation, real number of blocks is in ucNumOfVRAMModule;
+};
+
+/*
+  ***************************************************************************
+    Data Table vram_info v3.0  structure
+  ***************************************************************************
+*/
+struct atom_vram_module_v3_0 {
+	uint8_t density;
+	uint8_t tunningset_id;
+	uint8_t ext_memory_id;
+	uint8_t dram_vendor_id;
+	uint16_t dram_info_offset;
+	uint16_t mem_tuning_offset;
+	uint16_t tmrs_seq_offset;
+	uint16_t reserved1;
+	uint32_t dram_size_per_ch;
+	uint32_t reserved[3];
+	char dram_pnstring[40];
+};
+
+struct atom_vram_info_header_v3_0 {
+	struct atom_common_table_header table_header;
+	uint16_t mem_tuning_table_offset;
+	uint16_t dram_info_table_offset;
+	uint16_t tmrs_table_offset;
+	uint16_t mc_init_table_offset;
+	uint16_t dram_data_remap_table_offset;
+	uint16_t umc_emuinittable_offset;
+	uint16_t reserved_sub_table_offset[2];
+	uint8_t vram_module_num;
+	uint8_t umcip_min_ver;
+	uint8_t umcip_max_ver;
+	uint8_t mc_phy_tile_num;
+	uint8_t memory_type;
+	uint8_t channel_num;
+	uint8_t channel_width;
+	uint8_t reserved1;
+	uint32_t channel_enable;
+	uint32_t channel1_enable;
+	uint32_t feature_enable;
+	uint32_t feature1_enable;
+	uint32_t hardcode_mem_size;
+	uint32_t reserved4[4];
+	struct atom_vram_module_v3_0 vram_module[8];
 };
 
 struct atom_umc_register_addr_info{

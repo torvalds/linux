@@ -234,6 +234,8 @@ enum DC_FEATURE_MASK {
 	DC_EDP_NO_POWER_SEQUENCING = (1 << 4), //0x10, disabled by default
 	DC_DISABLE_LTTPR_DP1_4A = (1 << 5), //0x20, disabled by default
 	DC_DISABLE_LTTPR_DP2_0 = (1 << 6), //0x40, disabled by default
+	DC_PSR_ALLOW_SMU_OPT = (1 << 7), //0x80, disabled by default
+	DC_PSR_ALLOW_MULTI_DISP_OPT = (1 << 8), //0x100, disabled by default
 };
 
 enum DC_DEBUG_MASK {

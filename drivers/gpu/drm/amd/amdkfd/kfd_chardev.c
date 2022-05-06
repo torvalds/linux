@@ -944,8 +944,6 @@ err_drm_file:
 
 bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 {
-	struct kfd_local_mem_info mem_info;
-
 	if (debug_largebar) {
 		pr_debug("Simulate large-bar allocation on non large-bar machine\n");
 		return true;
@@ -954,9 +952,8 @@ bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 	if (dev->use_iommu_v2)
 		return false;
 
-	amdgpu_amdkfd_get_local_mem_info(dev->adev, &mem_info);
-	if (mem_info.local_mem_size_private == 0 &&
-			mem_info.local_mem_size_public > 0)
+	if (dev->local_mem_info.local_mem_size_private == 0 &&
+			dev->local_mem_info.local_mem_size_public > 0)
 		return true;
 	return false;
 }
