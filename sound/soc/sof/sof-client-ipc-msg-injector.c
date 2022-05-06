@@ -67,14 +67,39 @@ static ssize_t sof_msg_inject_dfs_read(struct file *file, char __user *buffer,
 	return count;
 }
 
+static int sof_msg_inject_send_message(struct sof_client_dev *cdev)
+{
+	struct sof_msg_inject_priv *priv = cdev->data;
+	struct device *dev = &cdev->auxdev.dev;
+	int ret, err;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0 && ret != -EACCES) {
+		dev_err_ratelimited(dev, "debugfs write failed to resume %d\n", ret);
+		return ret;
+	}
+
+	/* send the message */
+	ret = sof_client_ipc_tx_message(cdev, priv->tx_buffer, priv->rx_buffer,
+					priv->max_msg_size);
+	if (ret)
+		dev_err(dev, "IPC message send failed: %d\n", ret);
+
+	pm_runtime_mark_last_busy(dev);
+	err = pm_runtime_put_autosuspend(dev);
+	if (err < 0)
+		dev_err_ratelimited(dev, "debugfs write failed to idle %d\n", err);
+
+	return ret;
+}
+
 static ssize_t sof_msg_inject_dfs_write(struct file *file, const char __user *buffer,
 					size_t count, loff_t *ppos)
 {
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_msg_inject_priv *priv = cdev->data;
-	struct device *dev = &cdev->auxdev.dev;
-	int ret, err;
 	size_t size;
+	int ret;
 
 	if (*ppos)
 		return 0;
@@ -84,26 +109,15 @@ static ssize_t sof_msg_inject_dfs_write(struct file *file, const char __user *bu
 	if (size != count)
 		return size > 0 ? -EFAULT : size;
 
-	ret = pm_runtime_resume_and_get(dev);
-	if (ret < 0 && ret != -EACCES) {
-		dev_err_ratelimited(dev, "debugfs write failed to resume %d\n", ret);
-		return ret;
-	}
-
-	/* send the message */
 	memset(priv->rx_buffer, 0, priv->max_msg_size);
-	ret = sof_client_ipc_tx_message(cdev, priv->tx_buffer, priv->rx_buffer,
-					priv->max_msg_size);
-	pm_runtime_mark_last_busy(dev);
-	err = pm_runtime_put_autosuspend(dev);
-	if (err < 0)
-		dev_err_ratelimited(dev, "debugfs write failed to idle %d\n", err);
 
-	/* return size if test is successful */
-	if (ret >= 0)
-		ret = size;
+	ret = sof_msg_inject_send_message(cdev);
 
-	return ret;
+	/* return the error code if test failed */
+	if (ret < 0)
+		size = ret;
+
+	return size;
 };
 
 static int sof_msg_inject_dfs_release(struct inode *inode, struct file *file)
