@@ -70,10 +70,14 @@ static int parse_path(char *env_path, const char ***const path_list)
 	return num_paths;
 }
 
+/* clang-format off */
+
 #define ACCESS_FILE ( \
 	LANDLOCK_ACCESS_FS_EXECUTE | \
 	LANDLOCK_ACCESS_FS_WRITE_FILE | \
 	LANDLOCK_ACCESS_FS_READ_FILE)
+
+/* clang-format on */
 
 static int populate_ruleset(
 		const char *const env_var, const int ruleset_fd,
@@ -139,6 +143,8 @@ out_free_name:
 	return ret;
 }
 
+/* clang-format off */
+
 #define ACCESS_FS_ROUGHLY_READ ( \
 	LANDLOCK_ACCESS_FS_EXECUTE | \
 	LANDLOCK_ACCESS_FS_READ_FILE | \
@@ -155,6 +161,8 @@ out_free_name:
 	LANDLOCK_ACCESS_FS_MAKE_FIFO | \
 	LANDLOCK_ACCESS_FS_MAKE_BLOCK | \
 	LANDLOCK_ACCESS_FS_MAKE_SYM)
+
+/* clang-format on */
 
 int main(const int argc, char *const argv[], char *const *const envp)
 {
