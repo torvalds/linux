@@ -734,7 +734,7 @@ static size_t iomap_write_end(struct iomap_iter *iter, loff_t pos, size_t len,
 	folio_put(folio);
 
 	if (ret < len)
-		iomap_write_failed(iter->inode, pos, len);
+		iomap_write_failed(iter->inode, pos + ret, len - ret);
 	return ret;
 }
 
