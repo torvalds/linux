@@ -211,7 +211,7 @@
 	assigned-clock-parents = <&tbg 1>;
 	assigned-clock-rates = <20000000>;
 
-	spi-flash@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
