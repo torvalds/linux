@@ -1185,7 +1185,9 @@ static inline int busy_to_bucket(u16 normalized_rt)
  * A new predicted busy time is returned for task @p based on @runtime
  * passed in. The function searches through buckets that represent busy
  * time equal to or bigger than @runtime and attempts to find the bucket
- * to use for prediction. Once found, it returns the midpoint of that bucket.
+ * to use for prediction. Once found, it searches through historical busy
+ * time and returns the latest that falls into the bucket. If no such busy
+ * time exists, it returns the medium of that bucket.
  */
 static u32 get_pred_busy(struct task_struct *p,
 				int start, u16 runtime_scaled, u16 bucket_bitmask)
@@ -1195,6 +1197,8 @@ static u32 get_pred_busy(struct task_struct *p,
 	int first = NUM_BUSY_BUCKETS, final = NUM_BUSY_BUCKETS;
 	u16 ret = runtime_scaled;
 	u16 next_mask = bucket_bitmask >> start;
+	u16 *hist_util = wts->sum_history_util;
+	int i;
 
 	/* skip prediction for new tasks due to lack of history */
 	if (unlikely(is_new_task(p)))
@@ -1222,10 +1226,23 @@ static u32 get_pred_busy(struct task_struct *p,
 	dmax = (final + 1) << (SCHED_CAPACITY_SHIFT - NUM_BUSY_BUCKETS_SHIFT);
 
 	/*
+	 * search through runtime history and return first runtime that falls
+	 * into the range of predicted bucket.
+	 */
+	for (i = 0; i < RAVG_HIST_SIZE; i++) {
+		if (hist_util[i] >= dmin && hist_util[i] < dmax) {
+			ret = hist_util[i];
+			break;
+		}
+	}
+	/* no historical runtime within bucket found, use average of the bin */
+	if (ret < dmin)
+		ret = (u16) (((u32)dmin + dmax) / 2);
+	/*
 	 * when updating in middle of a window, runtime could be higher
 	 * than all recorded history. Always predict at least runtime.
 	 */
-	ret = max(runtime_scaled, (u16) (((u32)dmin + dmax) / 2));
+	ret = max(runtime_scaled, ret);
 out:
 	trace_sched_update_pred_demand(p, runtime_scaled,
 		ret, start, first, final, wts);
@@ -1896,19 +1913,23 @@ static void update_history(struct rq *rq, struct task_struct *p,
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 	u32 *hist = &wts->sum_history[0];
+	u16 *hist_util = &wts->sum_history_util[0];
 	int i;
 	u32 max = 0, avg, demand;
 	u64 sum = 0;
-	u16 demand_scaled, pred_demand_scaled;
+	u16 demand_scaled, pred_demand_scaled, runtime_scaled;
+
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 
 	/* Ignore windows where task had no activity */
 	if (!runtime || is_idle_task(p) || !samples)
 		goto done;
 
+	runtime_scaled = scale_time_to_util(runtime);
 	/* Push new 'runtime' value onto stack */
 	for (; samples > 0; samples--) {
 		hist[wts->cidx] = runtime;
+		hist_util[wts->cidx] = runtime_scaled;
 		wts->cidx = ++(wts->cidx) & RAVG_HIST_MASK;
 	}
 
@@ -1931,7 +1952,7 @@ static void update_history(struct rq *rq, struct task_struct *p,
 		else
 			demand = max(avg, runtime);
 	}
-	pred_demand_scaled = predict_and_update_buckets(p, scale_time_to_util(runtime));
+	pred_demand_scaled = predict_and_update_buckets(p, runtime_scaled);
 	demand_scaled = scale_time_to_util(demand);
 
 	/*

@@ -97,6 +97,7 @@ struct walt_task_struct {
 	u32				sum, demand;
 	u32				coloc_demand;
 	u32				sum_history[RAVG_HIST_SIZE];
+	u16				sum_history_util[RAVG_HIST_SIZE];
 	u32				curr_window_cpu[WALT_NR_CPUS];
 	u32				prev_window_cpu[WALT_NR_CPUS];
 	u32				curr_window, prev_window;
