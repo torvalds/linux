@@ -572,7 +572,7 @@ int hte_ts_get(struct device *dev, struct hte_ts_desc *desc, int index)
 	struct of_phandle_args args;
 	u32 xlated_id;
 	int ret;
-	bool free_name;
+	bool free_name = false;
 
 	if (!desc)
 		return -EINVAL;
