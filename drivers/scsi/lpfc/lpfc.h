@@ -1025,6 +1025,7 @@ struct lpfc_hba {
 #define LS_MDS_LINK_DOWN      0x8	/* MDS Diagnostics Link Down */
 #define LS_MDS_LOOPBACK       0x10	/* MDS Diagnostics Link Up (Loopback) */
 #define LS_CT_VEN_RPA         0x20	/* Vendor RPA sent to switch */
+#define LS_EXTERNAL_LOOPBACK  0x40	/* External loopback plug inserted */
 
 	uint32_t hba_flag;	/* hba generic flags */
 #define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */

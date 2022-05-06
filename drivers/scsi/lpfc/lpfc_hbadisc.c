@@ -1229,6 +1229,9 @@ lpfc_linkdown(struct lpfc_hba *phba)
 
 	phba->defer_flogi_acc_flag = false;
 
+	/* Clear external loopback plug detected flag */
+	phba->link_flag &= ~LS_EXTERNAL_LOOPBACK;
+
 	spin_lock_irq(&phba->hbalock);
 	phba->fcf.fcf_flag &= ~(FCF_AVAILABLE | FCF_SCAN_DONE);
 	spin_unlock_irq(&phba->hbalock);

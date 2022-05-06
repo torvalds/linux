@@ -12201,7 +12201,8 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	if (phba->link_state < LPFC_LINK_UP ||
 	    (phba->sli_rev == LPFC_SLI_REV4 &&
-	     phba->sli4_hba.link_state.status == LPFC_FC_LA_TYPE_LINK_DOWN))
+	     phba->sli4_hba.link_state.status == LPFC_FC_LA_TYPE_LINK_DOWN) ||
+	    (phba->link_flag & LS_EXTERNAL_LOOPBACK))
 		ia = true;
 	else
 		ia = false;
@@ -12660,7 +12661,8 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		ndlp = lpfc_cmd->rdata->pnode;
 
 		if (lpfc_is_link_up(phba) &&
-		    (ndlp && ndlp->nlp_state == NLP_STE_MAPPED_NODE))
+		    (ndlp && ndlp->nlp_state == NLP_STE_MAPPED_NODE) &&
+		    !(phba->link_flag & LS_EXTERNAL_LOOPBACK))
 			ia = false;
 		else
 			ia = true;
@@ -21112,7 +21114,7 @@ lpfc_sli4_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	abtswqe = &abtsiocb->wqe;
 	memset(abtswqe, 0, sizeof(*abtswqe));
 
-	if (!lpfc_is_link_up(phba))
+	if (!lpfc_is_link_up(phba) || (phba->link_flag & LS_EXTERNAL_LOOPBACK))
 		bf_set(abort_cmd_ia, &abtswqe->abort_cmd, 1);
 	bf_set(abort_cmd_criteria, &abtswqe->abort_cmd, T_XRI_TAG);
 	abtswqe->abort_cmd.rsrvd5 = 0;
