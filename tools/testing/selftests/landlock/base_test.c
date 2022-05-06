@@ -121,20 +121,50 @@ TEST(inval_create_ruleset_flags)
 	ASSERT_EQ(EINVAL, errno);
 }
 
-TEST(empty_path_beneath_attr)
+/* Tests ordering of syscall argument checks. */
+TEST(add_rule_checks_ordering)
 {
 	const struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,
+	};
+	struct landlock_path_beneath_attr path_beneath_attr = {
+		.allowed_access = LANDLOCK_ACCESS_FS_EXECUTE,
+		.parent_fd = -1,
 	};
 	const int ruleset_fd =
 		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
 
 	ASSERT_LE(0, ruleset_fd);
 
-	/* Similar to struct landlock_path_beneath_attr.parent_fd = 0 */
+	/* Checks invalid flags. */
+	ASSERT_EQ(-1, landlock_add_rule(-1, 0, NULL, 1));
+	ASSERT_EQ(EINVAL, errno);
+
+	/* Checks invalid ruleset FD. */
+	ASSERT_EQ(-1, landlock_add_rule(-1, 0, NULL, 0));
+	ASSERT_EQ(EBADF, errno);
+
+	/* Checks invalid rule type. */
+	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, 0, NULL, 0));
+	ASSERT_EQ(EINVAL, errno);
+
+	/* Checks invalid rule attr. */
 	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
 					NULL, 0));
 	ASSERT_EQ(EFAULT, errno);
+
+	/* Checks invalid path_beneath.parent_fd. */
+	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+					&path_beneath_attr, 0));
+	ASSERT_EQ(EBADF, errno);
+
+	/* Checks valid call. */
+	path_beneath_attr.parent_fd =
+		open("/tmp", O_PATH | O_NOFOLLOW | O_DIRECTORY | O_CLOEXEC);
+	ASSERT_LE(0, path_beneath_attr.parent_fd);
+	ASSERT_EQ(0, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+				       &path_beneath_attr, 0));
+	ASSERT_EQ(0, close(path_beneath_attr.parent_fd));
 	ASSERT_EQ(0, close(ruleset_fd));
 }
 
