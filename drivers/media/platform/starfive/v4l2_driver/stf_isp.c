@@ -174,9 +174,6 @@ static int isp_set_ctrl_vflip(struct stf_isp_dev *isp_dev, int value)
 
 static int isp_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
-	int val;
-
 	switch (ctrl->id) {
 	case V4L2_CID_AUTOGAIN:
 		break;
@@ -874,7 +871,6 @@ int stf_isp_register(struct stf_isp_dev *isp_dev,
 		struct v4l2_device *v4l2_dev)
 {
 	struct v4l2_subdev *sd = &isp_dev->subdev;
-	struct device *dev = isp_dev->stfcamss->dev;
 	struct media_pad *pads = isp_dev->pads;
 	int ret;
 

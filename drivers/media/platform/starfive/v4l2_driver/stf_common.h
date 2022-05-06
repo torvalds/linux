@@ -154,31 +154,6 @@ static inline void reg_clear(void __iomem * base, u32 reg, u32 mask)
 	iowrite32(ioread32(base + reg) & ~mask, base + reg);
 }
 
-static inline void reg_clear_rst(void __iomem * base, u32 reg1, u32 reg2, uint32_t mask)
-{
-	u32 val;
-
-	val = ioread32(base + reg1);
-	val &= ~mask;
-	iowrite32(val, base + reg1);
-    do{
-		val = ioread32(base + reg2);
-    }while((val&mask)!=mask);
-
-}
-
-static void reg_assert_rst(void __iomem * base, u32 reg1, u32 reg2, uint32_t mask)
-{
-	u32 val;
-
-    val = ioread32(base + reg1);
-    val |= mask;
-  	iowrite32(val, base + reg1);
-    do{
-        val = ioread32(base + reg2);
-    }while((val&mask)!=0);
-}
-
 static inline void reg_set_highest_bit(void __iomem * base, u32 reg)
 {
 	u32 val;
@@ -201,8 +176,8 @@ static inline void reg_clr_highest_bit(void __iomem * base, u32 reg)
 
 static inline void print_reg(unsigned int module, void __iomem * base, u32 reg)
 {
-	st_debug(module, "REG 0x%x = 0x%x\n",
-			base + reg, ioread32(base + reg));
+	// st_debug(module, "REG 0x%x = 0x%x\n",
+	// 		base + reg, ioread32(base + reg));
 }
 
 #endif /* STF_COMMON_H */

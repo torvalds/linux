@@ -37,9 +37,9 @@ int stf_csiphy_subdev_init(struct stfcamss *stfcamss, int id)
 
 static int csiphy_set_power(struct v4l2_subdev *sd, int on)
 {
+#ifdef CONFIG_VIDEO_CADENCE_CSI2RX
 	struct stf_csiphy_dev *csiphy_dev = v4l2_get_subdevdata(sd);
 
-#ifdef CONFIG_VIDEO_CADENCE_CSI2RX
 	if (on)
 		csiphy_dev->hw_ops->cdns_csi_power(csiphy_dev, on);
 #endif

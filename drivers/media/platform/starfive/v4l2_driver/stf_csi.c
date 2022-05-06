@@ -50,8 +50,6 @@ int stf_csi_subdev_init(struct stfcamss *stfcamss, int id)
 
 static int csi_set_power(struct v4l2_subdev *sd, int on)
 {
-	struct stf_csi_dev *csi_dev = v4l2_get_subdevdata(sd);
-
 	return 0;
 }
 
@@ -239,7 +237,6 @@ static int csi_set_format(struct v4l2_subdev *sd,
 {
 	struct stf_csi_dev *csi_dev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
-	int ret;
 
 	format = __csi_get_format(csi_dev, state, fmt->pad, fmt->which);
 	if (format == NULL)

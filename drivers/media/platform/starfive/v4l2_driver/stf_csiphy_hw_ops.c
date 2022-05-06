@@ -7,6 +7,7 @@
 
 static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 {
+	struct stfcamss *stfcamss = csiphy_dev->stfcamss;
 	struct stf_vin_dev *vin = csiphy_dev->stfcamss->vin;
 	static int init_flag;
 	static struct mutex count_lock;
@@ -31,48 +32,13 @@ static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
             M31DPHY_APBCFGSAIF__SYSCFG_188,
             BIT(7), 0x2<<7);
 #endif
-#if 0
-		if (count == 0) {
-			reg_set_bit(vin->clkgen_base,
-				CLK_DPHY_CFGCLK_ISPCORE_2X_CTRL,
-				0x1F, 0x08);
-			reg_set_bit(vin->clkgen_base,
-				CLK_DPHY_CFGCLK_ISPCORE_2X_CTRL,
-				1 << 31, 1 << 31);
-
-			reg_set_bit(vin->clkgen_base,
-				CLK_DPHY_REFCLK_ISPCORE_2X_CTRL,
-				0x1F, 0x10);
-			reg_set_bit(vin->clkgen_base,
-				CLK_DPHY_REFCLK_ISPCORE_2X_CTRL,
-				1 << 31, 1 << 31);
-
-			reg_set_bit(vin->clkgen_base,
-				CLK_DPHY_TXCLKESC_IN_CTRL,
-				0x3F, 0x28);
-			reg_set_bit(vin->clkgen_base,
-				CLK_DPHY_TXCLKESC_IN_CTRL,
-				1 << 31, 1 << 31);
-		}
-#endif
 		count++;
 	} else {
 		if (count == 0)
 			goto exit;
 		if (count == 1) {
-#if 0
-			reg_set_bit(vin->clkgen_base,
-				CLK_DPHY_CFGCLK_ISPCORE_2X_CTRL,
-				1 << 31, 0 << 31);
-
-			reg_set_bit(vin->clkgen_base,
-				CLK_DPHY_REFCLK_ISPCORE_2X_CTRL,
-				1 << 31, 0 << 31);
-
-			reg_set_bit(vin->clkgen_base,
-				CLK_DPHY_TXCLKESC_IN_CTRL,
-				1 << 31, 0 << 31);
-#endif
+			reset_control_assert(stfcamss->sys_rst[STFRST_M31DPHY_HW].rstc);
+			reset_control_assert(stfcamss->sys_rst[STFRST_M31DPHY_B09_ALWAYS_ON].rstc);
 		}
 		count--;
 	}
@@ -170,9 +136,7 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 		&csiphy_dev->stfcamss->csiphy_dev[1];
 	struct csi2phy_cfg *phy0cfg = csiphy0_dev->csiphy;
 	struct csi2phy_cfg *phy1cfg = csiphy1_dev->csiphy;
-	int i;
 	int id = csiphy_dev->id;
-	u32 reg = 0;
 
 	if (!phy0cfg && !phy1cfg)
 		return -EINVAL;

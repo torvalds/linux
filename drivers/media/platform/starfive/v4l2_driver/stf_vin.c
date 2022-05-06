@@ -199,7 +199,6 @@ exit:
 static int vin_enable_output(struct vin_line *line)
 {
 	struct vin_output *output = &line->output;
-	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
 	unsigned long flags;
 	unsigned int frame_skip = 0;
 	struct media_entity *sensor;
@@ -462,7 +461,6 @@ static void vin_output_init_addrs(struct vin_line *line)
 	dma_addr_t ping_addr;
 	dma_addr_t pong_addr;
 	dma_addr_t y_addr, uv_addr;
-	struct v4l2_mbus_framefmt *format;
 
 	output->active_buf = 0;
 
@@ -538,10 +536,10 @@ static struct stfcamss_buffer *vin_buf_get_pending(struct vin_output *output)
 	return buffer;
 }
 
+#if 0
 static void vin_output_checkpending(struct vin_line *line)
 {
 	struct vin_output *output = &line->output;
-	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
 
 	if (output->state == VIN_OUTPUT_STOPPING) {
 		/* Release last buffer when hw is idle */
@@ -576,10 +574,10 @@ static void vin_output_checkpending(struct vin_line *line)
 		vin_output_init_addrs(line);
 	}
 }
+#endif
 
 static void vin_buf_update_on_last(struct vin_line *line)
 {
-	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
 	struct vin_output *output = &line->output;
 
 	switch (output->state) {
@@ -600,7 +598,6 @@ static void vin_buf_update_on_last(struct vin_line *line)
 
 static void vin_buf_update_on_next(struct vin_line *line)
 {
-	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
 	struct vin_output *output = &line->output;
 
 	switch (output->state) {
@@ -623,13 +620,10 @@ static void vin_buf_update_on_new(struct vin_line *line,
 				struct vin_output *output,
 				struct stfcamss_buffer *new_buf)
 {
-	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
-	int inactive_idx;
-
 	switch (output->state) {
 	case VIN_OUTPUT_SINGLE:
 #ifdef VIN_TWO_BUFFER
-		inactive_idx = !output->active_buf;
+		int inactive_idx = !output->active_buf;
 
 		if (!output->buf[inactive_idx] && line->id == VIN_LINE_WR) {
 			output->buf[inactive_idx] = new_buf;
@@ -695,8 +689,7 @@ static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 	struct stfcamss_buffer *ready_buf;
 	struct vin_output *output = &line->output;
 	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
-	struct v4l2_mbus_framefmt *format;
-	dma_addr_t *new_addr, y_addr, uv_addr;
+	dma_addr_t *new_addr;
 	unsigned long flags;
 	u32 active_index;
 	u64 ts = ktime_get_ns();
@@ -886,7 +879,6 @@ static const struct media_entity_operations vin_media_ops = {
 int stf_vin_register(struct stf_vin2_dev *vin_dev, struct v4l2_device *v4l2_dev)
 {
 	struct v4l2_subdev *sd;
-	struct device *dev = vin_dev->stfcamss->dev;
 	struct stfcamss_video *video_out;
 	struct media_pad *pads;
 	int ret;

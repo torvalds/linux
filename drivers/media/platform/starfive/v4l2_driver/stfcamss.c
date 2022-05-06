@@ -80,13 +80,14 @@ static struct reset_control_bulk_data stfcamss_resets[] = {
 	{ .id = "rst_pixel_clk_if1" },
 	{ .id = "rst_pixel_clk_if2" },
 	{ .id = "rst_pixel_clk_if3" },
+	{ .id = "rst_m31dphy_hw" },
+	{ .id = "rst_m31dphy_b09_always_on" },
 };
 
 int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
 {
 	struct device *dev = &pdev->dev;
 	struct resource	*res;
-	void __iomem *regs;
 	char *name;
 	int i;
 
@@ -184,7 +185,6 @@ static int stfcamss_of_parse_endpoint_node(struct device *dev,
 	struct v4l2_fwnode_bus_mipi_csi2 *csi2_bus = &vep.bus.mipi_csi2;
 	struct dvp_cfg *dvp = &csd->interface.dvp;
 	struct csi2phy_cfg *csiphy = &csd->interface.csiphy;
-	int ret;
 
 	v4l2_fwnode_endpoint_parse(of_fwnode_handle(node), &vep);
 	st_debug(ST_CAMSS, "%s: vep.base.port = 0x%x, id = 0x%x\n",
@@ -550,7 +550,6 @@ static int stfcamss_register_mediadevice_subdevnodes(
 {
 	struct stfcamss *stfcamss =
 		container_of(async, struct stfcamss, notifier);
-	struct v4l2_device *v4l2_dev = &stfcamss->v4l2_dev;
 	int ret;
 
 	if (sd->host_priv) {
@@ -599,13 +598,10 @@ static int stfcamss_subdev_notifier_bound(struct v4l2_async_notifier *async,
 	struct stfcamss_async_subdev *csd =
 		container_of(asd, struct stfcamss_async_subdev, asd);
 	enum port_num port = csd->port;
-	struct stf_vin2_dev *vin_dev = stfcamss->vin_dev;
 	struct stf_dvp_dev *dvp_dev = stfcamss->dvp_dev;
 	struct stf_csiphy_dev *csiphy_dev = stfcamss->csiphy_dev;
-	struct stf_csi_dev *csi_dev = stfcamss->csi_dev;
 	struct stf_isp_dev *isp_dev = stfcamss->isp_dev;
-	int ret;
-	u32 id, isp_id;
+	u32 id;
 
 	switch (port) {
 	case CSI2RX0_PORT_NUMBER:
@@ -634,6 +630,7 @@ static int stfcamss_subdev_notifier_bound(struct v4l2_async_notifier *async,
 	return 0;
 }
 
+#if 0
 static int stfcamss_subdev_notifier_complete(
 		struct v4l2_async_notifier *async)
 {
@@ -677,6 +674,7 @@ static int stfcamss_subdev_notifier_complete(
 
 	return media_device_register(&stfcamss->media_dev);
 }
+#endif
 
 static const struct v4l2_async_notifier_operations
 stfcamss_subdev_notifier_ops = {
@@ -714,10 +712,7 @@ void dump_clk_reg(void __iomem *reg_base)
 static ssize_t vin_debug_read(struct file *file, char __user *user_buf,
 			size_t count, loff_t *ppos)
 {
-	char buf[256];
-	int ret, len = 0, i;
 	struct device *dev = file->private_data;
-	u32 val = 0;
 	void __iomem *reg_base;
 	struct stfcamss *stfcamss = dev_get_drvdata(dev);
 	struct stf_vin_dev *vin = stfcamss->vin;
@@ -905,7 +900,6 @@ static ssize_t vin_debug_write(struct file *file, const char __user *user_buf,
 {
 	struct device *dev = file->private_data;
 	struct stfcamss *stfcamss = dev_get_drvdata(dev);
-	struct stf_vin_dev *vin = stfcamss->vin;
 	char *buf;
 	char *line;
 	char *p;
@@ -917,7 +911,7 @@ static ssize_t vin_debug_write(struct file *file, const char __user *user_buf,
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 	p = buf;
-	st_debug(ST_CAMSS, "dup buf: %s, len: %d, count: %d\n", p, strlen(p), count);
+	st_debug(ST_CAMSS, "dup buf: %s, len: %lu, count: %lu\n", p, strlen(p), count);
 	while (p && *p) {
 		p = skip_spaces(p);
 		line = strsep(&p, "\n");
@@ -955,10 +949,8 @@ static int stfcamss_probe(struct platform_device *pdev)
 {
 	struct stfcamss *stfcamss;
 	struct stf_vin_dev *vin;
-	struct device_node *node;
-	struct resource res_mem;
 	struct device *dev = &pdev->dev;
-	int ret = 0, i, num_subdevs;
+	int ret = 0, num_subdevs;
 
 	printk("stfcamss probe enter!\n");
 
