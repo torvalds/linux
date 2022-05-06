@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2021 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (C) 2021-2022, NVIDIA CORPORATION.  All rights reserved.
  */
 
 #include <soc/tegra/mc.h>
@@ -68,6 +68,26 @@ static const struct tegra_mc_client tegra234_mc_clients[] = {
 			.sid = {
 				.override = 0x4b0,
 				.security = 0x4b4,
+			},
+		},
+	}, {
+		.id = TEGRA234_MEMORY_CLIENT_APEDMAR,
+		.name = "apedmar",
+		.sid = TEGRA234_SID_APE,
+		.regs = {
+			.sid = {
+				.override = 0x4f8,
+				.security = 0x4fc,
+			},
+		},
+	}, {
+		.id = TEGRA234_MEMORY_CLIENT_APEDMAW,
+		.name = "apedmaw",
+		.sid = TEGRA234_SID_APE,
+		.regs = {
+			.sid = {
+				.override = 0x500,
+				.security = 0x504,
 			},
 		},
 	},
