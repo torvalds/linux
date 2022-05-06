@@ -622,10 +622,12 @@ static int hook_path_link(struct dentry *const old_dentry,
 static int hook_path_rename(const struct path *const old_dir,
 			    struct dentry *const old_dentry,
 			    const struct path *const new_dir,
-			    struct dentry *const new_dentry)
+			    struct dentry *const new_dentry,
+			    const unsigned int flags)
 {
 	const struct landlock_ruleset *const dom =
 		landlock_get_current_domain();
+	u32 exchange_access = 0;
 
 	if (!dom)
 		return 0;
@@ -633,12 +635,19 @@ static int hook_path_rename(const struct path *const old_dir,
 	if (old_dir->dentry != new_dir->dentry)
 		/* Gracefully forbids reparenting. */
 		return -EXDEV;
+	if (flags & RENAME_EXCHANGE) {
+		if (unlikely(d_is_negative(new_dentry)))
+			return -ENOENT;
+		exchange_access =
+			get_mode_access(d_backing_inode(new_dentry)->i_mode);
+	}
 	if (unlikely(d_is_negative(old_dentry)))
 		return -ENOENT;
 	/* RENAME_EXCHANGE is handled because directories are the same. */
 	return check_access_path(
 		dom, old_dir,
 		maybe_remove(old_dentry) | maybe_remove(new_dentry) |
+			exchange_access |
 			get_mode_access(d_backing_inode(old_dentry)->i_mode));
 }
 
