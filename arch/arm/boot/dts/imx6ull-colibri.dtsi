@@ -52,6 +52,8 @@
 &adc1 {
 	num-channels = <10>;
 	vref-supply = <&reg_module_3v3_avdd>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc1>;
 };
 
 &can1 {
@@ -214,6 +216,16 @@
 };
 
 &iomuxc {
+
+	pinctrl_adc1: adc1grp {
+		fsl,pins = <
+			MX6UL_PAD_GPIO1_IO00__GPIO1_IO00        0x3000 /* SODIMM 8 */
+			MX6UL_PAD_GPIO1_IO01__GPIO1_IO01        0x3000 /* SODIMM 6 */
+			MX6UL_PAD_GPIO1_IO08__GPIO1_IO08        0x3000 /* SODIMM 4 */
+			MX6UL_PAD_GPIO1_IO09__GPIO1_IO09        0x3000 /* SODIMM 2 */
+		>;
+	};
+
 	pinctrl_can_int: canint-grp {
 		fsl,pins = <
 			MX6UL_PAD_ENET1_TX_DATA1__GPIO2_IO04	0x13010	/* SODIMM 73 */
