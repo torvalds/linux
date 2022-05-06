@@ -888,7 +888,7 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 	    (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
 	    !skb_is_swtx_tstamp(skb, false_tstamp)) {
 		if (sk->sk_tsflags & SOF_TIMESTAMPING_BIND_PHC)
-			hwtstamp = ptp_convert_timestamp(shhwtstamps,
+			hwtstamp = ptp_convert_timestamp(&shhwtstamps->hwtstamp,
 							 sk->sk_bind_phc);
 		else
 			hwtstamp = shhwtstamps->hwtstamp;

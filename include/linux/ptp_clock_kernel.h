@@ -384,17 +384,16 @@ int ptp_get_vclocks_index(int pclock_index, int **vclock_index);
 /**
  * ptp_convert_timestamp() - convert timestamp to a ptp vclock time
  *
- * @hwtstamps:    skb_shared_hwtstamps structure pointer
+ * @hwtstamp:     timestamp
  * @vclock_index: phc index of ptp vclock.
  *
  * Returns converted timestamp, or 0 on error.
  */
-ktime_t ptp_convert_timestamp(const struct skb_shared_hwtstamps *hwtstamps,
-			      int vclock_index);
+ktime_t ptp_convert_timestamp(const ktime_t *hwtstamp, int vclock_index);
 #else
 static inline int ptp_get_vclocks_index(int pclock_index, int **vclock_index)
 { return 0; }
-static inline ktime_t ptp_convert_timestamp(const struct skb_shared_hwtstamps *hwtstamps,
+static inline ktime_t ptp_convert_timestamp(const ktime_t *hwtstamp,
 					    int vclock_index)
 { return 0; }
 
