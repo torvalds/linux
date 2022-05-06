@@ -1381,19 +1381,72 @@ static void rtw8852c_set_nbi_tone_idx(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void rtw8852c_spur_notch(struct rtw89_dev *rtwdev, u32 val,
+				enum rtw89_phy_idx phy_idx)
+{
+	u32 notch;
+	u32 notch2;
+
+	if (phy_idx == RTW89_PHY_0) {
+		notch = R_PATH0_NOTCH;
+		notch2 = R_PATH0_NOTCH2;
+	} else {
+		notch = R_PATH1_NOTCH;
+		notch2 = R_PATH1_NOTCH2;
+	}
+
+	rtw89_phy_write32_mask(rtwdev, notch,
+			       B_PATH0_NOTCH_VAL | B_PATH0_NOTCH_EN, val);
+	rtw89_phy_write32_set(rtwdev, notch, B_PATH0_NOTCH_EN);
+	rtw89_phy_write32_mask(rtwdev, notch2,
+			       B_PATH0_NOTCH2_VAL | B_PATH0_NOTCH2_EN, val);
+	rtw89_phy_write32_set(rtwdev, notch2, B_PATH0_NOTCH2_EN);
+}
+
 static void rtw8852c_spur_elimination(struct rtw89_dev *rtwdev,
 				      struct rtw89_channel_params *param,
+				      u8 pri_ch_idx,
 				      enum rtw89_phy_idx phy_idx)
 {
 	rtw8852c_set_csi_tone_idx(rtwdev, param, phy_idx);
 
 	if (phy_idx == RTW89_PHY_0) {
-		rtw8852c_set_nbi_tone_idx(rtwdev, param, RF_PATH_A);
-		if (!rtwdev->dbcc_en)
-			rtw8852c_set_nbi_tone_idx(rtwdev, param, RF_PATH_B);
+		if (param->bandwidth == RTW89_CHANNEL_WIDTH_160 &&
+		    (pri_ch_idx == RTW89_SC_20_LOWER ||
+		     pri_ch_idx == RTW89_SC_20_UP3X)) {
+			rtw8852c_spur_notch(rtwdev, 0xe7f, RTW89_PHY_0);
+			if (!rtwdev->dbcc_en)
+				rtw8852c_spur_notch(rtwdev, 0xe7f, RTW89_PHY_1);
+		} else if (param->bandwidth == RTW89_CHANNEL_WIDTH_160 &&
+			   (pri_ch_idx == RTW89_SC_20_UPPER ||
+			    pri_ch_idx == RTW89_SC_20_LOW3X)) {
+			rtw8852c_spur_notch(rtwdev, 0x280, RTW89_PHY_0);
+			if (!rtwdev->dbcc_en)
+				rtw8852c_spur_notch(rtwdev, 0x280, RTW89_PHY_1);
+		} else {
+			rtw8852c_set_nbi_tone_idx(rtwdev, param, RF_PATH_A);
+			if (!rtwdev->dbcc_en)
+				rtw8852c_set_nbi_tone_idx(rtwdev, param,
+							  RF_PATH_B);
+		}
 	} else {
-		rtw8852c_set_nbi_tone_idx(rtwdev, param, RF_PATH_B);
+		if (param->bandwidth == RTW89_CHANNEL_WIDTH_160 &&
+		    (pri_ch_idx == RTW89_SC_20_LOWER ||
+		     pri_ch_idx == RTW89_SC_20_UP3X)) {
+			rtw8852c_spur_notch(rtwdev, 0xe7f, RTW89_PHY_1);
+		} else if (param->bandwidth == RTW89_CHANNEL_WIDTH_160 &&
+			   (pri_ch_idx == RTW89_SC_20_UPPER ||
+			    pri_ch_idx == RTW89_SC_20_LOW3X)) {
+			rtw8852c_spur_notch(rtwdev, 0x280, RTW89_PHY_1);
+		} else {
+			rtw8852c_set_nbi_tone_idx(rtwdev, param, RF_PATH_B);
+		}
 	}
+
+	if (pri_ch_idx == RTW89_SC_20_UP3X || pri_ch_idx == RTW89_SC_20_LOW3X)
+		rtw89_phy_write32_idx(rtwdev, R_PD_BOOST_EN, B_PD_BOOST_EN, 0, phy_idx);
+	else
+		rtw89_phy_write32_idx(rtwdev, R_PD_BOOST_EN, B_PD_BOOST_EN, 1, phy_idx);
 }
 
 static void rtw8852c_5m_mask(struct rtw89_dev *rtwdev,
@@ -1664,7 +1717,7 @@ static void rtw8852c_set_channel_bb(struct rtw89_dev *rtwdev,
 				      B_PD_ARBITER_OFF, 0x1, phy_idx);
 	}
 
-	rtw8852c_spur_elimination(rtwdev, param, phy_idx);
+	rtw8852c_spur_elimination(rtwdev, param, pri_ch_idx, phy_idx);
 	rtw8852c_ctrl_btg(rtwdev, param->band_type == RTW89_BAND_2G);
 	rtw8852c_5m_mask(rtwdev, param, phy_idx);
 
