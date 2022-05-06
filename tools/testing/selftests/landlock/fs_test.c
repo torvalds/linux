@@ -654,17 +654,23 @@ TEST_F_FORK(layout1, effective_access)
 	enforce_ruleset(_metadata, ruleset_fd);
 	ASSERT_EQ(0, close(ruleset_fd));
 
-	/* Tests on a directory. */
+	/* Tests on a directory (with or without O_PATH). */
 	ASSERT_EQ(EACCES, test_open("/", O_RDONLY));
+	ASSERT_EQ(0, test_open("/", O_RDONLY | O_PATH));
 	ASSERT_EQ(EACCES, test_open(dir_s1d1, O_RDONLY));
+	ASSERT_EQ(0, test_open(dir_s1d1, O_RDONLY | O_PATH));
 	ASSERT_EQ(EACCES, test_open(file1_s1d1, O_RDONLY));
+	ASSERT_EQ(0, test_open(file1_s1d1, O_RDONLY | O_PATH));
+
 	ASSERT_EQ(0, test_open(dir_s1d2, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s1d2, O_RDONLY));
 	ASSERT_EQ(0, test_open(dir_s1d3, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s1d3, O_RDONLY));
 
-	/* Tests on a file. */
+	/* Tests on a file (with or without O_PATH). */
 	ASSERT_EQ(EACCES, test_open(dir_s2d2, O_RDONLY));
+	ASSERT_EQ(0, test_open(dir_s2d2, O_RDONLY | O_PATH));
+
 	ASSERT_EQ(0, test_open(file1_s2d2, O_RDONLY));
 
 	/* Checks effective read and write actions. */
