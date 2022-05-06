@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2017-2022 Toradex
+ * Copyright 2018-2022 Toradex
  */
 
 / {
@@ -21,14 +21,6 @@
 			wakeup-source;
 		};
 	};
-
-	/* fixed crystal dedicated to mcp2515 */
-	clk16m: clk16m {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <16000000>;
-	};
-
 
 	reg_3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
@@ -60,21 +52,25 @@
 	status = "okay";
 };
 
-&ecspi1 {
-	status = "okay";
+&gpio1 {
+	/*
+	 * uart25_tx_on turns the UART transceiver on. If one wants to turn the
+	 * transceiver off, that property has to be deleted and the gpio handled
+	 * in userspace.
+	 * The same applies to uart1_tx_on.
+	 */
+	uart25_tx_on {
+		gpio-hog;
+		gpios = <15 0>;
+		output-high;
+	};
+};
 
-	mcp2515: can@0 {
-		compatible = "microchip,mcp2515";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_can_int>;
-		reg = <0>;
-		clocks = <&clk16m>;
-		interrupt-parent = <&gpio2>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
-		spi-max-frequency = <10000000>;
-		vdd-supply = <&reg_3v3>;
-		xceiver-supply = <&reg_5v0>;
-		status = "okay";
+&gpio2 {
+	uart1_tx_on {
+		gpio-hog;
+		gpios = <7 0>;
+		output-high;
 	};
 };
 
