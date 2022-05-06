@@ -318,19 +318,23 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 	if (flags)
 		return -EINVAL;
 
-	if (rule_type != LANDLOCK_RULE_PATH_BENEATH)
-		return -EINVAL;
-
-	/* Copies raw user space buffer, only one type for now. */
-	res = copy_from_user(&path_beneath_attr, rule_attr,
-			     sizeof(path_beneath_attr));
-	if (res)
-		return -EFAULT;
-
 	/* Gets and checks the ruleset. */
 	ruleset = get_ruleset_from_fd(ruleset_fd, FMODE_CAN_WRITE);
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
+
+	if (rule_type != LANDLOCK_RULE_PATH_BENEATH) {
+		err = -EINVAL;
+		goto out_put_ruleset;
+	}
+
+	/* Copies raw user space buffer, only one type for now. */
+	res = copy_from_user(&path_beneath_attr, rule_attr,
+			     sizeof(path_beneath_attr));
+	if (res) {
+		err = -EFAULT;
+		goto out_put_ruleset;
+	}
 
 	/*
 	 * Informs about useless rule: empty allowed_access (i.e. deny rules)
