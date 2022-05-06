@@ -521,7 +521,7 @@ mmap_per_thread(struct perf_evlist *evlist, struct perf_evlist_mmap_ops *ops,
 		int output_overwrite = -1;
 
 		if (ops->idx)
-			ops->idx(evlist, mp, thread, false);
+			ops->idx(evlist, mp, thread);
 
 		if (mmap_per_evsel(evlist, ops, thread, mp, 0, thread,
 				   &output, &output_overwrite))
@@ -548,7 +548,7 @@ mmap_per_cpu(struct perf_evlist *evlist, struct perf_evlist_mmap_ops *ops,
 		int output_overwrite = -1;
 
 		if (ops->idx)
-			ops->idx(evlist, mp, cpu, true);
+			ops->idx(evlist, mp, cpu);
 
 		for (thread = 0; thread < nr_threads; thread++) {
 			if (mmap_per_evsel(evlist, ops, cpu, mp, cpu,
