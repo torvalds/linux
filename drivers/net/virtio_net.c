@@ -3313,8 +3313,8 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 	INIT_DELAYED_WORK(&vi->refill, refill_work);
 	for (i = 0; i < vi->max_queue_pairs; i++) {
 		vi->rq[i].pages = NULL;
-		netif_napi_add(vi->dev, &vi->rq[i].napi, virtnet_poll,
-			       napi_weight);
+		netif_napi_add_weight(vi->dev, &vi->rq[i].napi, virtnet_poll,
+				      napi_weight);
 		netif_napi_add_tx_weight(vi->dev, &vi->sq[i].napi,
 					 virtnet_poll_tx,
 					 napi_tx ? napi_weight : 0);
