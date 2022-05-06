@@ -187,6 +187,7 @@
 			port@0 {
 				reg = <0>;
 				adv7513_0_in: endpoint {
+					remote-endpoint = <&hdmi_out>;
 				};
 			};
 
@@ -390,8 +391,8 @@
 			remote-endpoint = <&hdmi_input0>;
 		};
 		dc_out_dpi1: endpoint@1 {
-			//reg = <1>;
-			//remote-endpoint = <&hdmi_input1>;
+			reg = <1>;
+			remote-endpoint = <&hdmi_in_lcdc>;
 		};
 	};
 };

@@ -1373,7 +1373,7 @@
 					#size-cells = <0>;
 					hdmi_in_lcdc: endpoint@0 {
 							reg = <0>;
-							remote-endpoint = <&dc_out_dpi0>;
+							remote-endpoint = <&dc_out_dpi1>;
 					};
 			};
 		};
