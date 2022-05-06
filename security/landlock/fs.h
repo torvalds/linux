@@ -50,14 +50,14 @@ struct landlock_superblock_security {
 	atomic_long_t inode_refs;
 };
 
-static inline struct landlock_inode_security *landlock_inode(
-		const struct inode *const inode)
+static inline struct landlock_inode_security *
+landlock_inode(const struct inode *const inode)
 {
 	return inode->i_security + landlock_blob_sizes.lbs_inode;
 }
 
-static inline struct landlock_superblock_security *landlock_superblock(
-		const struct super_block *const superblock)
+static inline struct landlock_superblock_security *
+landlock_superblock(const struct super_block *const superblock)
 {
 	return superblock->s_security + landlock_blob_sizes.lbs_superblock;
 }
@@ -65,6 +65,7 @@ static inline struct landlock_superblock_security *landlock_superblock(
 __init void landlock_add_fs_hooks(void);
 
 int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
-		const struct path *const path, u32 access_hierarchy);
+			    const struct path *const path,
+			    u32 access_hierarchy);
 
 #endif /* _SECURITY_LANDLOCK_FS_H */

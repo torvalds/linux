@@ -146,15 +146,16 @@ void landlock_put_ruleset(struct landlock_ruleset *const ruleset);
 void landlock_put_ruleset_deferred(struct landlock_ruleset *const ruleset);
 
 int landlock_insert_rule(struct landlock_ruleset *const ruleset,
-		struct landlock_object *const object, const u32 access);
+			 struct landlock_object *const object,
+			 const u32 access);
 
-struct landlock_ruleset *landlock_merge_ruleset(
-		struct landlock_ruleset *const parent,
-		struct landlock_ruleset *const ruleset);
+struct landlock_ruleset *
+landlock_merge_ruleset(struct landlock_ruleset *const parent,
+		       struct landlock_ruleset *const ruleset);
 
-const struct landlock_rule *landlock_find_rule(
-		const struct landlock_ruleset *const ruleset,
-		const struct landlock_object *const object);
+const struct landlock_rule *
+landlock_find_rule(const struct landlock_ruleset *const ruleset,
+		   const struct landlock_object *const object);
 
 static inline void landlock_get_ruleset(struct landlock_ruleset *const ruleset)
 {
