@@ -11,6 +11,7 @@
 #include "lkdtm.h"
 #include <linux/stackleak.h>
 
+#if defined(CONFIG_GCC_PLUGIN_STACKLEAK)
 /*
  * Check that stackleak tracks the lowest stack pointer and erases the stack
  * below this as expected.
@@ -109,7 +110,6 @@ static void noinstr check_stackleak_irqoff(void)
 out:
 	if (test_failed) {
 		pr_err("FAIL: the thread stack is NOT properly erased!\n");
-		pr_expected_config(CONFIG_GCC_PLUGIN_STACKLEAK);
 	} else {
 		pr_info("OK: the rest of the thread stack is properly erased\n");
 	}
@@ -123,3 +123,13 @@ void lkdtm_STACKLEAK_ERASING(void)
 	check_stackleak_irqoff();
 	local_irq_restore(flags);
 }
+#else /* defined(CONFIG_GCC_PLUGIN_STACKLEAK) */
+void lkdtm_STACKLEAK_ERASING(void)
+{
+	if (IS_ENABLED(CONFIG_HAVE_ARCH_STACKLEAK)) {
+		pr_err("XFAIL: stackleak is not enabled (CONFIG_GCC_PLUGIN_STACKLEAK=n)\n");
+	} else {
+		pr_err("XFAIL: stackleak is not supported on this arch (HAVE_ARCH_STACKLEAK=n)\n");
+	}
+}
+#endif /* defined(CONFIG_GCC_PLUGIN_STACKLEAK) */
