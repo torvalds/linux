@@ -293,6 +293,9 @@ static int fsm_routine_starting(struct t7xx_fsm_ctl *ctl)
 
 	if (!md->core_md.ready) {
 		dev_err(dev, "MD handshake timeout\n");
+		if (md->core_md.handshake_ongoing)
+			t7xx_fsm_append_event(ctl, FSM_EVENT_MD_HS2_EXIT, NULL, 0);
+
 		fsm_routine_exception(ctl, NULL, EXCEPTION_HS_TIMEOUT);
 		return -ETIMEDOUT;
 	}

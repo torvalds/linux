@@ -16,6 +16,8 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bits.h>
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>
@@ -26,6 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 
 #include "t7xx_cldma.h"
@@ -39,10 +42,23 @@
 #include "t7xx_reg.h"
 #include "t7xx_state_monitor.h"
 
+#define RT_ID_MD_PORT_ENUM	0
+/* Modem feature query identification code - "ICCC" */
+#define MD_FEATURE_QUERY_ID	0x49434343
+
+#define FEATURE_VER		GENMASK(7, 4)
+#define FEATURE_MSK		GENMASK(3, 0)
+
 #define RGU_RESET_DELAY_MS	10
 #define PORT_RESET_DELAY_MS	2000
 #define EX_HS_TIMEOUT_MS	5000
 #define EX_HS_POLL_DELAY_MS	10
+
+enum mtk_feature_support_type {
+	MTK_FEATURE_DOES_NOT_EXIST,
+	MTK_FEATURE_NOT_SUPPORTED,
+	MTK_FEATURE_MUST_BE_SUPPORTED,
+};
 
 static unsigned int t7xx_get_interrupt_status(struct t7xx_pci_dev *t7xx_dev)
 {
@@ -314,16 +330,205 @@ static void t7xx_md_sys_sw_init(struct t7xx_pci_dev *t7xx_dev)
 	t7xx_pcie_register_rgu_isr(t7xx_dev);
 }
 
+struct feature_query {
+	__le32 head_pattern;
+	u8 feature_set[FEATURE_COUNT];
+	__le32 tail_pattern;
+};
+
+static void t7xx_prepare_host_rt_data_query(struct t7xx_sys_info *core)
+{
+	struct feature_query *ft_query;
+	struct sk_buff *skb;
+
+	skb = t7xx_ctrl_alloc_skb(sizeof(*ft_query));
+	if (!skb)
+		return;
+
+	ft_query = skb_put(skb, sizeof(*ft_query));
+	ft_query->head_pattern = cpu_to_le32(MD_FEATURE_QUERY_ID);
+	memcpy(ft_query->feature_set, core->feature_set, FEATURE_COUNT);
+	ft_query->tail_pattern = cpu_to_le32(MD_FEATURE_QUERY_ID);
+
+	/* Send HS1 message to device */
+	t7xx_port_send_ctl_skb(core->ctl_port, skb, CTL_ID_HS1_MSG, 0);
+}
+
+static int t7xx_prepare_device_rt_data(struct t7xx_sys_info *core, struct device *dev,
+				       void *data)
+{
+	struct feature_query *md_feature = data;
+	struct mtk_runtime_feature *rt_feature;
+	unsigned int i, rt_data_len = 0;
+	struct sk_buff *skb;
+
+	/* Parse MD runtime data query */
+	if (le32_to_cpu(md_feature->head_pattern) != MD_FEATURE_QUERY_ID ||
+	    le32_to_cpu(md_feature->tail_pattern) != MD_FEATURE_QUERY_ID) {
+		dev_err(dev, "Invalid feature pattern: head 0x%x, tail 0x%x\n",
+			le32_to_cpu(md_feature->head_pattern),
+			le32_to_cpu(md_feature->tail_pattern));
+		return -EINVAL;
+	}
+
+	for (i = 0; i < FEATURE_COUNT; i++) {
+		if (FIELD_GET(FEATURE_MSK, md_feature->feature_set[i]) !=
+		    MTK_FEATURE_MUST_BE_SUPPORTED)
+			rt_data_len += sizeof(*rt_feature);
+	}
+
+	skb = t7xx_ctrl_alloc_skb(rt_data_len);
+	if (!skb)
+		return -ENOMEM;
+
+	rt_feature = skb_put(skb, rt_data_len);
+	memset(rt_feature, 0, rt_data_len);
+
+	/* Fill runtime feature */
+	for (i = 0; i < FEATURE_COUNT; i++) {
+		u8 md_feature_mask = FIELD_GET(FEATURE_MSK, md_feature->feature_set[i]);
+
+		if (md_feature_mask == MTK_FEATURE_MUST_BE_SUPPORTED)
+			continue;
+
+		rt_feature->feature_id = i;
+		if (md_feature_mask == MTK_FEATURE_DOES_NOT_EXIST)
+			rt_feature->support_info = md_feature->feature_set[i];
+
+		rt_feature++;
+	}
+
+	/* Send HS3 message to device */
+	t7xx_port_send_ctl_skb(core->ctl_port, skb, CTL_ID_HS3_MSG, 0);
+	return 0;
+}
+
+static int t7xx_parse_host_rt_data(struct t7xx_fsm_ctl *ctl, struct t7xx_sys_info *core,
+				   struct device *dev, void *data, int data_length)
+{
+	enum mtk_feature_support_type ft_spt_st, ft_spt_cfg;
+	struct mtk_runtime_feature *rt_feature;
+	int i, offset;
+
+	offset = sizeof(struct feature_query);
+	for (i = 0; i < FEATURE_COUNT && offset < data_length; i++) {
+		rt_feature = data + offset;
+		offset += sizeof(*rt_feature) + le32_to_cpu(rt_feature->data_len);
+
+		ft_spt_cfg = FIELD_GET(FEATURE_MSK, core->feature_set[i]);
+		if (ft_spt_cfg != MTK_FEATURE_MUST_BE_SUPPORTED)
+			continue;
+
+		ft_spt_st = FIELD_GET(FEATURE_MSK, rt_feature->support_info);
+		if (ft_spt_st != MTK_FEATURE_MUST_BE_SUPPORTED)
+			return -EINVAL;
+
+		if (i == RT_ID_MD_PORT_ENUM)
+			t7xx_port_enum_msg_handler(ctl->md, rt_feature->data);
+	}
+
+	return 0;
+}
+
+static int t7xx_core_reset(struct t7xx_modem *md)
+{
+	struct device *dev = &md->t7xx_dev->pdev->dev;
+	struct t7xx_fsm_ctl *ctl = md->fsm_ctl;
+
+	md->core_md.ready = false;
+
+	if (!ctl) {
+		dev_err(dev, "FSM is not initialized\n");
+		return -EINVAL;
+	}
+
+	if (md->core_md.handshake_ongoing) {
+		int ret = t7xx_fsm_append_event(ctl, FSM_EVENT_MD_HS2_EXIT, NULL, 0);
+
+		if (ret)
+			return ret;
+	}
+
+	md->core_md.handshake_ongoing = false;
+	return 0;
+}
+
+static void t7xx_core_hk_handler(struct t7xx_modem *md, struct t7xx_fsm_ctl *ctl,
+				 enum t7xx_fsm_event_state event_id,
+				 enum t7xx_fsm_event_state err_detect)
+{
+	struct t7xx_sys_info *core_info = &md->core_md;
+	struct device *dev = &md->t7xx_dev->pdev->dev;
+	struct t7xx_fsm_event *event, *event_next;
+	unsigned long flags;
+	int ret;
+
+	t7xx_prepare_host_rt_data_query(core_info);
+
+	while (!kthread_should_stop()) {
+		bool event_received = false;
+
+		spin_lock_irqsave(&ctl->event_lock, flags);
+		list_for_each_entry_safe(event, event_next, &ctl->event_queue, entry) {
+			if (event->event_id == err_detect) {
+				list_del(&event->entry);
+				spin_unlock_irqrestore(&ctl->event_lock, flags);
+				dev_err(dev, "Core handshake error event received\n");
+				goto err_free_event;
+			} else if (event->event_id == event_id) {
+				list_del(&event->entry);
+				event_received = true;
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&ctl->event_lock, flags);
+
+		if (event_received)
+			break;
+
+		wait_event_interruptible(ctl->event_wq, !list_empty(&ctl->event_queue) ||
+					 kthread_should_stop());
+		if (kthread_should_stop())
+			goto err_free_event;
+	}
+
+	if (ctl->exp_flg)
+		goto err_free_event;
+
+	ret = t7xx_parse_host_rt_data(ctl, core_info, dev, event->data, event->length);
+	if (ret) {
+		dev_err(dev, "Host failure parsing runtime data: %d\n", ret);
+		goto err_free_event;
+	}
+
+	if (ctl->exp_flg)
+		goto err_free_event;
+
+	ret = t7xx_prepare_device_rt_data(core_info, dev, event->data);
+	if (ret) {
+		dev_err(dev, "Device failure parsing runtime data: %d", ret);
+		goto err_free_event;
+	}
+
+	core_info->ready = true;
+	core_info->handshake_ongoing = false;
+	wake_up(&ctl->async_hk_wq);
+err_free_event:
+	kfree(event);
+}
+
 static void t7xx_md_hk_wq(struct work_struct *work)
 {
 	struct t7xx_modem *md = container_of(work, struct t7xx_modem, handshake_work);
 	struct t7xx_fsm_ctl *ctl = md->fsm_ctl;
 
+	/* Clear the HS2 EXIT event appended in core_reset() */
+	t7xx_fsm_clr_event(ctl, FSM_EVENT_MD_HS2_EXIT);
 	t7xx_cldma_switch_cfg(md->md_ctrl[CLDMA_ID_MD]);
 	t7xx_cldma_start(md->md_ctrl[CLDMA_ID_MD]);
 	t7xx_fsm_broadcast_state(ctl, MD_STATE_WAITING_FOR_HS2);
-	md->core_md.ready = true;
-	wake_up(&ctl->async_hk_wq);
+	md->core_md.handshake_ongoing = true;
+	t7xx_core_hk_handler(md, ctl, FSM_EVENT_MD_HS2, FSM_EVENT_MD_HS2_EXIT);
 }
 
 void t7xx_md_event_notify(struct t7xx_modem *md, enum md_event_id evt_id)
@@ -418,6 +623,9 @@ static struct t7xx_modem *t7xx_md_alloc(struct t7xx_pci_dev *t7xx_dev)
 		return NULL;
 
 	INIT_WORK(&md->handshake_work, t7xx_md_hk_wq);
+	md->core_md.feature_set[RT_ID_MD_PORT_ENUM] &= ~FEATURE_MSK;
+	md->core_md.feature_set[RT_ID_MD_PORT_ENUM] |=
+		FIELD_PREP(FEATURE_MSK, MTK_FEATURE_MUST_BE_SUPPORTED);
 	return md;
 }
 
@@ -431,7 +639,7 @@ int t7xx_md_reset(struct t7xx_pci_dev *t7xx_dev)
 	t7xx_cldma_reset(md->md_ctrl[CLDMA_ID_MD]);
 	t7xx_port_proxy_reset(md->port_prox);
 	md->md_init_finish = true;
-	return 0;
+	return t7xx_core_reset(md);
 }
 
 /**

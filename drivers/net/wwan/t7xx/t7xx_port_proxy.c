@@ -49,6 +49,15 @@
 	     i++, (p) = &(proxy)->ports[i])
 
 static const struct t7xx_port_conf t7xx_md_port_conf[] = {
+	{
+		.tx_ch = PORT_CH_CONTROL_TX,
+		.rx_ch = PORT_CH_CONTROL_RX,
+		.txq_index = Q_IDX_CTRL,
+		.rxq_index = Q_IDX_CTRL,
+		.path_id = CLDMA_ID_MD,
+		.ops = &ctl_port_ops,
+		.name = "t7xx_ctrl",
+	},
 };
 
 static struct t7xx_port *t7xx_proxy_get_port_by_ch(struct port_proxy *port_prox, enum port_ch ch)
@@ -129,6 +138,16 @@ struct sk_buff *t7xx_port_alloc_skb(int payload)
 	return skb;
 }
 
+struct sk_buff *t7xx_ctrl_alloc_skb(int payload)
+{
+	struct sk_buff *skb = t7xx_port_alloc_skb(payload + sizeof(struct ctrl_msg_header));
+
+	if (skb)
+		skb_reserve(skb, sizeof(struct ctrl_msg_header));
+
+	return skb;
+}
+
 /**
  * t7xx_port_enqueue_skb() - Enqueue the received skb into the port's rx_skb_list.
  * @port: port context.
@@ -192,6 +211,24 @@ static int t7xx_port_send_ccci_skb(struct t7xx_port *port, struct sk_buff *skb,
 
 	port->seq_nums[MTK_TX]++;
 	return 0;
+}
+
+int t7xx_port_send_ctl_skb(struct t7xx_port *port, struct sk_buff *skb, unsigned int msg,
+			   unsigned int ex_msg)
+{
+	struct ctrl_msg_header *ctrl_msg_h;
+	unsigned int msg_len = skb->len;
+	u32 pkt_header = 0;
+
+	ctrl_msg_h = skb_push(skb, sizeof(*ctrl_msg_h));
+	ctrl_msg_h->ctrl_msg_id = cpu_to_le32(msg);
+	ctrl_msg_h->ex_msg = cpu_to_le32(ex_msg);
+	ctrl_msg_h->data_length = cpu_to_le32(msg_len);
+
+	if (!msg_len)
+		pkt_header = CCCI_HEADER_NO_DATA;
+
+	return t7xx_port_send_ccci_skb(port, skb, pkt_header, ex_msg);
 }
 
 int t7xx_port_send_skb(struct t7xx_port *port, struct sk_buff *skb, unsigned int pkt_header,
@@ -358,6 +395,9 @@ static void t7xx_proxy_init_all_ports(struct t7xx_modem *md)
 		const struct t7xx_port_conf *port_conf = port->port_conf;
 
 		t7xx_port_struct_init(port);
+
+		if (port_conf->tx_ch == PORT_CH_CONTROL_TX)
+			md->core_md.ctl_port = port;
 
 		port->t7xx_dev = md->t7xx_dev;
 		port->dev = &md->t7xx_dev->pdev->dev;

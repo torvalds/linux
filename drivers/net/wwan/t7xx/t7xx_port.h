@@ -125,8 +125,11 @@ struct t7xx_port {
 };
 
 struct sk_buff *t7xx_port_alloc_skb(int payload);
+struct sk_buff *t7xx_ctrl_alloc_skb(int payload);
 int t7xx_port_enqueue_skb(struct t7xx_port *port, struct sk_buff *skb);
 int t7xx_port_send_skb(struct t7xx_port *port, struct sk_buff *skb, unsigned int pkt_header,
 		       unsigned int ex_msg);
+int t7xx_port_send_ctl_skb(struct t7xx_port *port, struct sk_buff *skb, unsigned int msg,
+			   unsigned int ex_msg);
 
 #endif /* __T7XX_PORT_H__ */
