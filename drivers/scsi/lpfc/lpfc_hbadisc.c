@@ -5235,7 +5235,6 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (!ndlp)
 		return;
 	lpfc_issue_els_logo(vport, ndlp, 0);
-	mempool_free(pmb, phba->mbox_mem_pool);
 
 	/* Check to see if there are any deferred events to process */
 	if ((ndlp->nlp_flag & NLP_UNREG_INP) &&
@@ -5262,6 +5261,13 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		ndlp->nlp_flag &= ~NLP_UNREG_INP;
 		spin_unlock_irq(&ndlp->lock);
 	}
+
+	/* The node has an outstanding reference for the unreg. Now
+	 * that the LOGO action and cleanup are finished, release
+	 * resources.
+	 */
+	lpfc_nlp_put(ndlp);
+	mempool_free(pmb, phba->mbox_mem_pool);
 }
 
 /*
