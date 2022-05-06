@@ -1278,6 +1278,10 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 		if (adap->phys_addr == CEC_PHYS_ADDR_INVALID)
 			return -EINTR;
 
+		/* Also bail out if the PA changed while configuring. */
+		if (adap->must_reconfigure)
+			return -EINTR;
+
 		if (err)
 			return err;
 
@@ -1405,6 +1409,7 @@ static int cec_config_thread_func(void *arg)
 	if (las->log_addr_type[0] == CEC_LOG_ADDR_TYPE_UNREGISTERED)
 		goto configured;
 
+reconfigure:
 	for (i = 0; i < las->num_log_addrs; i++) {
 		unsigned int type = las->log_addr_type[i];
 		const u8 *la_list;
@@ -1427,6 +1432,13 @@ static int cec_config_thread_func(void *arg)
 			last_la = la_list[0];
 
 		err = cec_config_log_addr(adap, i, last_la);
+
+		if (adap->must_reconfigure) {
+			adap->must_reconfigure = false;
+			las->log_addr_mask = 0;
+			goto reconfigure;
+		}
+
 		if (err > 0) /* Reused last LA */
 			continue;
 
@@ -1472,6 +1484,7 @@ configured:
 		las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 	adap->is_configured = true;
 	adap->is_configuring = false;
+	adap->must_reconfigure = false;
 	cec_post_state_event(adap);
 
 	/*
@@ -1526,6 +1539,7 @@ unconfigure:
 		las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 	cec_adap_unconfigure(adap);
 	adap->is_configuring = false;
+	adap->must_reconfigure = false;
 	adap->kthread_config = NULL;
 	complete(&adap->config_completion);
 	mutex_unlock(&adap->lock);
@@ -1649,7 +1663,11 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 
 	adap->phys_addr = phys_addr;
 	cec_post_state_event(adap);
-	if (adap->log_addrs.num_log_addrs)
+	if (!adap->log_addrs.num_log_addrs)
+		return;
+	if (adap->is_configuring)
+		adap->must_reconfigure = true;
+	else
 		cec_claim_log_addrs(adap, block);
 }
 
