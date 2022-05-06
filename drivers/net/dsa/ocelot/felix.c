@@ -403,6 +403,7 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
+	struct ocelot_vcap_block *block_vcap_is2;
 	struct ocelot_vcap_filter *trap;
 	enum ocelot_mask_mode mask_mode;
 	unsigned long port_mask;
@@ -422,9 +423,13 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 	/* We are sure that "cpu" was found, otherwise
 	 * dsa_tree_setup_default_cpu() would have failed earlier.
 	 */
+	block_vcap_is2 = &ocelot->block[VCAP_IS2];
 
 	/* Make sure all traps are set up for that destination */
-	list_for_each_entry(trap, &ocelot->traps, trap_list) {
+	list_for_each_entry(trap, &block_vcap_is2->rules, list) {
+		if (!trap->is_trap)
+			continue;
+
 		/* Figure out the current trapping destination */
 		if (using_tag_8021q) {
 			/* Redirect to the tag_8021q CPU port. If timestamps
