@@ -551,6 +551,30 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 EXPORT_SYMBOL_GPL(genphy_c45_read_lpa);
 
 /**
+ * genphy_c45_pma_baset1_read_master_slave - read forced master/slave
+ * configuration
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_pma_baset1_read_master_slave(struct phy_device *phydev)
+{
+	int val;
+
+	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKNOWN;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL);
+	if (val < 0)
+		return val;
+
+	if (val & MDIO_PMA_PMD_BT1_CTRL_CFG_MST)
+		phydev->master_slave_state = MASTER_SLAVE_STATE_MASTER;
+	else
+		phydev->master_slave_state = MASTER_SLAVE_STATE_SLAVE;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_baset1_read_master_slave);
+
+/**
  * genphy_c45_read_pma - read link speed etc from PMA
  * @phydev: target phy_device struct
  */
@@ -591,14 +615,9 @@ int genphy_c45_read_pma(struct phy_device *phydev)
 	phydev->duplex = DUPLEX_FULL;
 
 	if (genphy_c45_baset1_able(phydev)) {
-		val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL);
+		val = genphy_c45_pma_baset1_read_master_slave(phydev);
 		if (val < 0)
 			return val;
-
-		if (MDIO_PMA_PMD_BT1_CTRL_CFG_MST)
-			phydev->master_slave_state = MASTER_SLAVE_STATE_MASTER;
-		else
-			phydev->master_slave_state = MASTER_SLAVE_STATE_SLAVE;
 	}
 
 	return 0;
