@@ -35,7 +35,7 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	reg_sd1_vmmc: regulator-sd1-vmmc {
+	reg_sd1_vqmmc: regulator-sd1-vqmmc {
 		compatible = "regulator-gpio";
 		gpio = <&gpio5 9 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
@@ -232,9 +232,21 @@
 };
 
 &usdhc1 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
+	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_snvs_usdhc1_cd>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz &pinctrl_snvs_usdhc1_cd>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz &pinctrl_snvs_usdhc1_cd>;
+	pinctrl-3 = <&pinctrl_usdhc1 &pinctrl_snvs_usdhc1_sleep_cd>;
 	assigned-clocks = <&clks IMX6UL_CLK_USDHC1_SEL>, <&clks IMX6UL_CLK_USDHC1>;
 	assigned-clock-parents = <&clks IMX6UL_CLK_PLL2_PFD2>;
 	assigned-clock-rates = <0>, <198000000>;
+	bus-width = <4>;
+	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	keep-power-in-suspend;
+	no-1-8-v;
+	vqmmc-supply = <&reg_sd1_vqmmc>;
+	wakeup-source;
 };
 
 &wdog1 {
@@ -550,8 +562,8 @@
 
 	pinctrl_usdhc1: usdhc1-grp {
 		fsl,pins = <
-			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x17059 /* SODIMM 47 */
-			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x10059 /* SODIMM 190 */
+			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x10059 /* SODIMM 47 */
+			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x17059 /* SODIMM 190 */
 			MX6UL_PAD_SD1_DATA0__USDHC1_DATA0	0x17059 /* SODIMM 192 */
 			MX6UL_PAD_SD1_DATA1__USDHC1_DATA1	0x17059 /* SODIMM 49 */
 			MX6UL_PAD_SD1_DATA2__USDHC1_DATA2	0x17059 /* SODIMM 51 */
@@ -561,8 +573,8 @@
 
 	pinctrl_usdhc1_100mhz: usdhc1-100mhz-grp {
 		fsl,pins = <
-			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x170b9
-			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x100b9
+			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x100b9
+			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x170b9
 			MX6UL_PAD_SD1_DATA0__USDHC1_DATA0	0x170b9
 			MX6UL_PAD_SD1_DATA1__USDHC1_DATA1	0x170b9
 			MX6UL_PAD_SD1_DATA2__USDHC1_DATA2	0x170b9
@@ -572,12 +584,12 @@
 
 	pinctrl_usdhc1_200mhz: usdhc1-200mhz-grp {
 		fsl,pins = <
-			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x170f9
-			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x100f9
-			MX6UL_PAD_SD1_DATA0__USDHC1_DATA0	0x170b9
-			MX6UL_PAD_SD1_DATA1__USDHC1_DATA1	0x170b9
-			MX6UL_PAD_SD1_DATA2__USDHC1_DATA2	0x170b9
-			MX6UL_PAD_SD1_DATA3__USDHC1_DATA3	0x170b9
+			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x100f9
+			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x170f9
+			MX6UL_PAD_SD1_DATA0__USDHC1_DATA0	0x170f9
+			MX6UL_PAD_SD1_DATA1__USDHC1_DATA1	0x170f9
+			MX6UL_PAD_SD1_DATA2__USDHC1_DATA2	0x170f9
+			MX6UL_PAD_SD1_DATA3__USDHC1_DATA3	0x170f9
 		>;
 	};
 
@@ -588,7 +600,7 @@
 			MX6UL_PAD_CSI_DATA02__USDHC2_DATA2	0x17069
 			MX6UL_PAD_CSI_DATA03__USDHC2_DATA3	0x17069
 			MX6UL_PAD_CSI_HSYNC__USDHC2_CMD		0x17069
-			MX6UL_PAD_CSI_VSYNC__USDHC2_CLK		0x17069
+			MX6UL_PAD_CSI_VSYNC__USDHC2_CLK		0x10069
 
 			MX6UL_PAD_GPIO1_IO03__OSC32K_32K_OUT	0x10
 		>;
