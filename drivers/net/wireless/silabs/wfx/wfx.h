@@ -62,7 +62,6 @@ struct wfx_dev {
 
 struct wfx_vif {
 	struct wfx_dev             *wdev;
-	struct ieee80211_vif       *vif;
 	struct ieee80211_channel   *channel;
 	int                        id;
 
@@ -91,6 +90,11 @@ struct wfx_vif {
 
 	struct completion          set_pm_mode_complete;
 };
+
+static inline struct ieee80211_vif *wvif_to_vif(struct wfx_vif *wvif)
+{
+	return container_of((void *)wvif, struct ieee80211_vif, drv_priv);
+}
 
 static inline struct wfx_vif *wdev_to_wvif(struct wfx_dev *wdev, int vif_id)
 {
