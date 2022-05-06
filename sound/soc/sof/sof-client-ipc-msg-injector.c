@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <sound/sof/header.h>
+#include <sound/sof/ipc4/header.h>
 
 #include "sof-client.h"
 
@@ -23,6 +24,7 @@
 struct sof_msg_inject_priv {
 	struct dentry *dfs_file;
 	size_t max_msg_size;
+	enum sof_ipc_type ipc_type;
 
 	void *tx_buffer;
 	void *rx_buffer;
@@ -64,6 +66,49 @@ static ssize_t sof_msg_inject_dfs_read(struct file *file, char __user *buffer,
 		return -EFAULT;
 
 	*ppos += count;
+	return count;
+}
+
+static ssize_t sof_msg_inject_ipc4_dfs_read(struct file *file,
+					    char __user *buffer,
+					    size_t count, loff_t *ppos)
+{
+	struct sof_client_dev *cdev = file->private_data;
+	struct sof_msg_inject_priv *priv = cdev->data;
+	struct sof_ipc4_msg *ipc4_msg = priv->rx_buffer;
+	size_t remaining;
+
+	if (!ipc4_msg->header_u64 || !count || *ppos)
+		return 0;
+
+	remaining = sizeof(ipc4_msg->header_u64);
+
+	/* Only get large config have payload */
+	if (SOF_IPC4_MSG_IS_MODULE_MSG(ipc4_msg->primary) &&
+	    (SOF_IPC4_MSG_TYPE_GET(ipc4_msg->primary) == SOF_IPC4_MOD_LARGE_CONFIG_GET))
+		remaining += ipc4_msg->data_size;
+
+	if (count > remaining)
+		count = remaining;
+
+	/* copy the header first */
+	if (copy_to_user(buffer, &ipc4_msg->header_u64, sizeof(ipc4_msg->header_u64)))
+		return -EFAULT;
+
+	*ppos += sizeof(ipc4_msg->header_u64);
+	remaining -= sizeof(ipc4_msg->header_u64);
+
+	if (!remaining)
+		return count;
+
+	if (remaining > ipc4_msg->data_size)
+		remaining = ipc4_msg->data_size;
+
+	/* Copy the payload */
+	if (copy_to_user(buffer + *ppos, ipc4_msg->data_ptr, remaining))
+		return -EFAULT;
+
+	*ppos += remaining;
 	return count;
 }
 
@@ -120,6 +165,56 @@ static ssize_t sof_msg_inject_dfs_write(struct file *file, const char __user *bu
 	return size;
 };
 
+static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
+					     const char __user *buffer,
+					     size_t count, loff_t *ppos)
+{
+	struct sof_client_dev *cdev = file->private_data;
+	struct sof_msg_inject_priv *priv = cdev->data;
+	struct sof_ipc4_msg *ipc4_msg = priv->tx_buffer;
+	size_t size;
+	int ret;
+
+	if (*ppos)
+		return 0;
+
+	if (count < sizeof(ipc4_msg->header_u64))
+		return -EINVAL;
+
+	/* copy the header first */
+	size = simple_write_to_buffer(&ipc4_msg->header_u64,
+				      sizeof(ipc4_msg->header_u64),
+				      ppos, buffer, count);
+	if (size != sizeof(ipc4_msg->header_u64))
+		return size > 0 ? -EFAULT : size;
+
+	count -= size;
+	if (!count) {
+		/* Copy the payload */
+		size = simple_write_to_buffer(ipc4_msg->data_ptr,
+					      priv->max_msg_size, ppos, buffer,
+					      count);
+		if (size != count)
+			return size > 0 ? -EFAULT : size;
+	}
+
+	ipc4_msg->data_size = count;
+
+	/* Initialize the reply storage */
+	ipc4_msg = priv->rx_buffer;
+	ipc4_msg->header_u64 = 0;
+	ipc4_msg->data_size = priv->max_msg_size;
+	memset(ipc4_msg->data_ptr, 0, priv->max_msg_size);
+
+	ret = sof_msg_inject_send_message(cdev);
+
+	/* return the error code if test failed */
+	if (ret < 0)
+		size = ret;
+
+	return size;
+};
+
 static int sof_msg_inject_dfs_release(struct inode *inode, struct file *file)
 {
 	debugfs_file_put(file->f_path.dentry);
@@ -137,29 +232,61 @@ static const struct file_operations sof_msg_inject_fops = {
 	.owner = THIS_MODULE,
 };
 
+static const struct file_operations sof_msg_inject_ipc4_fops = {
+	.open = sof_msg_inject_dfs_open,
+	.read = sof_msg_inject_ipc4_dfs_read,
+	.write = sof_msg_inject_ipc4_dfs_write,
+	.llseek = default_llseek,
+	.release = sof_msg_inject_dfs_release,
+
+	.owner = THIS_MODULE,
+};
+
 static int sof_msg_inject_probe(struct auxiliary_device *auxdev,
 				const struct auxiliary_device_id *id)
 {
 	struct sof_client_dev *cdev = auxiliary_dev_to_sof_client_dev(auxdev);
 	struct dentry *debugfs_root = sof_client_get_debugfs_root(cdev);
+	static const struct file_operations *fops;
 	struct device *dev = &auxdev->dev;
 	struct sof_msg_inject_priv *priv;
+	size_t alloc_size;
 
 	/* allocate memory for client data */
 	priv = devm_kzalloc(&auxdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
+	priv->ipc_type = sof_client_get_ipc_type(cdev);
 	priv->max_msg_size = sof_client_get_ipc_max_payload_size(cdev);
-	priv->tx_buffer = devm_kmalloc(dev, priv->max_msg_size, GFP_KERNEL);
-	priv->rx_buffer = devm_kzalloc(dev, priv->max_msg_size, GFP_KERNEL);
+	alloc_size = priv->max_msg_size;
+
+	if (priv->ipc_type == SOF_INTEL_IPC4)
+		alloc_size += sizeof(struct sof_ipc4_msg);
+
+	priv->tx_buffer = devm_kmalloc(dev, alloc_size, GFP_KERNEL);
+	priv->rx_buffer = devm_kzalloc(dev, alloc_size, GFP_KERNEL);
 	if (!priv->tx_buffer || !priv->rx_buffer)
 		return -ENOMEM;
+
+	if (priv->ipc_type == SOF_INTEL_IPC4) {
+		struct sof_ipc4_msg *ipc4_msg;
+
+		ipc4_msg = priv->tx_buffer;
+		ipc4_msg->data_ptr = priv->tx_buffer + sizeof(struct sof_ipc4_msg);
+
+		ipc4_msg = priv->rx_buffer;
+		ipc4_msg->data_ptr = priv->rx_buffer + sizeof(struct sof_ipc4_msg);
+
+		fops = &sof_msg_inject_ipc4_fops;
+	} else {
+		fops = &sof_msg_inject_fops;
+	}
 
 	cdev->data = priv;
 
 	priv->dfs_file = debugfs_create_file("ipc_msg_inject", 0644, debugfs_root,
-					     cdev, &sof_msg_inject_fops);
+					     cdev, fops);
 
 	/* enable runtime PM */
 	pm_runtime_set_autosuspend_delay(dev, SOF_IPC_CLIENT_SUSPEND_DELAY_MS);
