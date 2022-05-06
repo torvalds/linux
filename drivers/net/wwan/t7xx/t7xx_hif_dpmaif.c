@@ -398,6 +398,90 @@ static int t7xx_dpmaif_stop(struct dpmaif_ctrl *dpmaif_ctrl)
 	return 0;
 }
 
+static int t7xx_dpmaif_suspend(struct t7xx_pci_dev *t7xx_dev, void *param)
+{
+	struct dpmaif_ctrl *dpmaif_ctrl = param;
+
+	t7xx_dpmaif_tx_stop(dpmaif_ctrl);
+	t7xx_dpmaif_hw_stop_all_txq(&dpmaif_ctrl->hw_info);
+	t7xx_dpmaif_hw_stop_all_rxq(&dpmaif_ctrl->hw_info);
+	t7xx_dpmaif_disable_irq(dpmaif_ctrl);
+	t7xx_dpmaif_rx_stop(dpmaif_ctrl);
+	return 0;
+}
+
+static void t7xx_dpmaif_unmask_dlq_intr(struct dpmaif_ctrl *dpmaif_ctrl)
+{
+	int qno;
+
+	for (qno = 0; qno < DPMAIF_RXQ_NUM; qno++)
+		t7xx_dpmaif_dlq_unmask_rx_done(&dpmaif_ctrl->hw_info, qno);
+}
+
+static void t7xx_dpmaif_start_txrx_qs(struct dpmaif_ctrl *dpmaif_ctrl)
+{
+	struct dpmaif_rx_queue *rxq;
+	struct dpmaif_tx_queue *txq;
+	unsigned int que_cnt;
+
+	for (que_cnt = 0; que_cnt < DPMAIF_TXQ_NUM; que_cnt++) {
+		txq = &dpmaif_ctrl->txq[que_cnt];
+		txq->que_started = true;
+	}
+
+	for (que_cnt = 0; que_cnt < DPMAIF_RXQ_NUM; que_cnt++) {
+		rxq = &dpmaif_ctrl->rxq[que_cnt];
+		rxq->que_started = true;
+	}
+}
+
+static int t7xx_dpmaif_resume(struct t7xx_pci_dev *t7xx_dev, void *param)
+{
+	struct dpmaif_ctrl *dpmaif_ctrl = param;
+
+	if (!dpmaif_ctrl)
+		return 0;
+
+	t7xx_dpmaif_start_txrx_qs(dpmaif_ctrl);
+	t7xx_dpmaif_enable_irq(dpmaif_ctrl);
+	t7xx_dpmaif_unmask_dlq_intr(dpmaif_ctrl);
+	t7xx_dpmaif_start_hw(&dpmaif_ctrl->hw_info);
+	wake_up(&dpmaif_ctrl->tx_wq);
+	return 0;
+}
+
+static int t7xx_dpmaif_pm_entity_init(struct dpmaif_ctrl *dpmaif_ctrl)
+{
+	struct md_pm_entity *dpmaif_pm_entity = &dpmaif_ctrl->dpmaif_pm_entity;
+	int ret;
+
+	INIT_LIST_HEAD(&dpmaif_pm_entity->entity);
+	dpmaif_pm_entity->suspend = &t7xx_dpmaif_suspend;
+	dpmaif_pm_entity->suspend_late = NULL;
+	dpmaif_pm_entity->resume_early = NULL;
+	dpmaif_pm_entity->resume = &t7xx_dpmaif_resume;
+	dpmaif_pm_entity->id = PM_ENTITY_ID_DATA;
+	dpmaif_pm_entity->entity_param = dpmaif_ctrl;
+
+	ret = t7xx_pci_pm_entity_register(dpmaif_ctrl->t7xx_dev, dpmaif_pm_entity);
+	if (ret)
+		dev_err(dpmaif_ctrl->dev, "dpmaif register pm_entity fail\n");
+
+	return ret;
+}
+
+static int t7xx_dpmaif_pm_entity_release(struct dpmaif_ctrl *dpmaif_ctrl)
+{
+	struct md_pm_entity *dpmaif_pm_entity = &dpmaif_ctrl->dpmaif_pm_entity;
+	int ret;
+
+	ret = t7xx_pci_pm_entity_unregister(dpmaif_ctrl->t7xx_dev, dpmaif_pm_entity);
+	if (ret < 0)
+		dev_err(dpmaif_ctrl->dev, "dpmaif register pm_entity fail\n");
+
+	return ret;
+}
+
 int t7xx_dpmaif_md_state_callback(struct dpmaif_ctrl *dpmaif_ctrl, enum md_state state)
 {
 	int ret = 0;
@@ -461,11 +545,16 @@ struct dpmaif_ctrl *t7xx_dpmaif_hif_init(struct t7xx_pci_dev *t7xx_dev,
 	dpmaif_ctrl->hw_info.pcie_base = t7xx_dev->base_addr.pcie_ext_reg_base -
 					 t7xx_dev->base_addr.pcie_dev_reg_trsl_addr;
 
+	ret = t7xx_dpmaif_pm_entity_init(dpmaif_ctrl);
+	if (ret)
+		return NULL;
+
 	t7xx_dpmaif_register_pcie_irq(dpmaif_ctrl);
 	t7xx_dpmaif_disable_irq(dpmaif_ctrl);
 
 	ret = t7xx_dpmaif_rxtx_sw_allocs(dpmaif_ctrl);
 	if (ret) {
+		t7xx_dpmaif_pm_entity_release(dpmaif_ctrl);
 		dev_err(dev, "Failed to allocate RX/TX SW resources: %d\n", ret);
 		return NULL;
 	}
@@ -478,6 +567,7 @@ void t7xx_dpmaif_hif_exit(struct dpmaif_ctrl *dpmaif_ctrl)
 {
 	if (dpmaif_ctrl->dpmaif_sw_init_done) {
 		t7xx_dpmaif_stop(dpmaif_ctrl);
+		t7xx_dpmaif_pm_entity_release(dpmaif_ctrl);
 		t7xx_dpmaif_sw_release(dpmaif_ctrl);
 		dpmaif_ctrl->dpmaif_sw_init_done = false;
 	}

@@ -188,6 +188,7 @@ static void fsm_routine_exception(struct t7xx_fsm_ctl *ctl, struct t7xx_fsm_comm
 	case EXCEPTION_EVENT:
 		dev_err(dev, "Exception event\n");
 		t7xx_fsm_broadcast_state(ctl, MD_STATE_EXCEPTION);
+		t7xx_pci_pm_exp_detected(ctl->md->t7xx_dev);
 		t7xx_md_exception_handshake(ctl->md);
 
 		fsm_wait_for_event(ctl, FSM_EVENT_MD_EX_REC_OK, FSM_EVENT_MD_EX,
@@ -300,6 +301,7 @@ static int fsm_routine_starting(struct t7xx_fsm_ctl *ctl)
 		return -ETIMEDOUT;
 	}
 
+	t7xx_pci_pm_init_late(md->t7xx_dev);
 	fsm_routine_ready(ctl);
 	return 0;
 }

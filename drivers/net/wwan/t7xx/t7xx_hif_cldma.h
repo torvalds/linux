@@ -98,6 +98,7 @@ struct cldma_ctrl {
 	struct dma_pool *gpd_dmapool;
 	struct cldma_ring tx_ring[CLDMA_TXQ_NUM];
 	struct cldma_ring rx_ring[CLDMA_RXQ_NUM];
+	struct md_pm_entity *pm_entity;
 	struct t7xx_cldma_hw hw_info;
 	bool is_late_init;
 	int (*recv_skb)(struct cldma_queue *queue, struct sk_buff *skb);

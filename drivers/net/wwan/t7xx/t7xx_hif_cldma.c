@@ -1076,6 +1076,120 @@ int t7xx_cldma_alloc(enum cldma_id hif_id, struct t7xx_pci_dev *t7xx_dev)
 	return 0;
 }
 
+static void t7xx_cldma_resume_early(struct t7xx_pci_dev *t7xx_dev, void *entity_param)
+{
+	struct cldma_ctrl *md_ctrl = entity_param;
+	struct t7xx_cldma_hw *hw_info;
+	unsigned long flags;
+	int qno_t;
+
+	hw_info = &md_ctrl->hw_info;
+
+	spin_lock_irqsave(&md_ctrl->cldma_lock, flags);
+	t7xx_cldma_hw_restore(hw_info);
+	for (qno_t = 0; qno_t < CLDMA_TXQ_NUM; qno_t++) {
+		t7xx_cldma_hw_set_start_addr(hw_info, qno_t, md_ctrl->txq[qno_t].tx_next->gpd_addr,
+					     MTK_TX);
+		t7xx_cldma_hw_set_start_addr(hw_info, qno_t, md_ctrl->rxq[qno_t].tr_done->gpd_addr,
+					     MTK_RX);
+	}
+	t7xx_cldma_enable_irq(md_ctrl);
+	t7xx_cldma_hw_start_queue(hw_info, CLDMA_ALL_Q, MTK_RX);
+	md_ctrl->rxq_active |= TXRX_STATUS_BITMASK;
+	t7xx_cldma_hw_irq_en_eq(hw_info, CLDMA_ALL_Q, MTK_RX);
+	t7xx_cldma_hw_irq_en_txrx(hw_info, CLDMA_ALL_Q, MTK_RX);
+	spin_unlock_irqrestore(&md_ctrl->cldma_lock, flags);
+}
+
+static int t7xx_cldma_resume(struct t7xx_pci_dev *t7xx_dev, void *entity_param)
+{
+	struct cldma_ctrl *md_ctrl = entity_param;
+	unsigned long flags;
+
+	spin_lock_irqsave(&md_ctrl->cldma_lock, flags);
+	md_ctrl->txq_active |= TXRX_STATUS_BITMASK;
+	t7xx_cldma_hw_irq_en_txrx(&md_ctrl->hw_info, CLDMA_ALL_Q, MTK_TX);
+	t7xx_cldma_hw_irq_en_eq(&md_ctrl->hw_info, CLDMA_ALL_Q, MTK_TX);
+	spin_unlock_irqrestore(&md_ctrl->cldma_lock, flags);
+
+	if (md_ctrl->hif_id == CLDMA_ID_MD)
+		t7xx_mhccif_mask_clr(t7xx_dev, D2H_SW_INT_MASK);
+
+	return 0;
+}
+
+static void t7xx_cldma_suspend_late(struct t7xx_pci_dev *t7xx_dev, void *entity_param)
+{
+	struct cldma_ctrl *md_ctrl = entity_param;
+	struct t7xx_cldma_hw *hw_info;
+	unsigned long flags;
+
+	hw_info = &md_ctrl->hw_info;
+
+	spin_lock_irqsave(&md_ctrl->cldma_lock, flags);
+	t7xx_cldma_hw_irq_dis_eq(hw_info, CLDMA_ALL_Q, MTK_RX);
+	t7xx_cldma_hw_irq_dis_txrx(hw_info, CLDMA_ALL_Q, MTK_RX);
+	md_ctrl->rxq_active &= ~TXRX_STATUS_BITMASK;
+	t7xx_cldma_hw_stop_all_qs(hw_info, MTK_RX);
+	t7xx_cldma_clear_ip_busy(hw_info);
+	t7xx_cldma_disable_irq(md_ctrl);
+	spin_unlock_irqrestore(&md_ctrl->cldma_lock, flags);
+}
+
+static int t7xx_cldma_suspend(struct t7xx_pci_dev *t7xx_dev, void *entity_param)
+{
+	struct cldma_ctrl *md_ctrl = entity_param;
+	struct t7xx_cldma_hw *hw_info;
+	unsigned long flags;
+
+	if (md_ctrl->hif_id == CLDMA_ID_MD)
+		t7xx_mhccif_mask_set(t7xx_dev, D2H_SW_INT_MASK);
+
+	hw_info = &md_ctrl->hw_info;
+
+	spin_lock_irqsave(&md_ctrl->cldma_lock, flags);
+	t7xx_cldma_hw_irq_dis_eq(hw_info, CLDMA_ALL_Q, MTK_TX);
+	t7xx_cldma_hw_irq_dis_txrx(hw_info, CLDMA_ALL_Q, MTK_TX);
+	md_ctrl->txq_active &= ~TXRX_STATUS_BITMASK;
+	t7xx_cldma_hw_stop_all_qs(hw_info, MTK_TX);
+	md_ctrl->txq_started = 0;
+	spin_unlock_irqrestore(&md_ctrl->cldma_lock, flags);
+
+	return 0;
+}
+
+static int t7xx_cldma_pm_init(struct cldma_ctrl *md_ctrl)
+{
+	md_ctrl->pm_entity = kzalloc(sizeof(*md_ctrl->pm_entity), GFP_KERNEL);
+	if (!md_ctrl->pm_entity)
+		return -ENOMEM;
+
+	md_ctrl->pm_entity->entity_param = md_ctrl;
+
+	if (md_ctrl->hif_id == CLDMA_ID_MD)
+		md_ctrl->pm_entity->id = PM_ENTITY_ID_CTRL1;
+	else
+		md_ctrl->pm_entity->id = PM_ENTITY_ID_CTRL2;
+
+	md_ctrl->pm_entity->suspend = t7xx_cldma_suspend;
+	md_ctrl->pm_entity->suspend_late = t7xx_cldma_suspend_late;
+	md_ctrl->pm_entity->resume = t7xx_cldma_resume;
+	md_ctrl->pm_entity->resume_early = t7xx_cldma_resume_early;
+
+	return t7xx_pci_pm_entity_register(md_ctrl->t7xx_dev, md_ctrl->pm_entity);
+}
+
+static int t7xx_cldma_pm_uninit(struct cldma_ctrl *md_ctrl)
+{
+	if (!md_ctrl->pm_entity)
+		return -EINVAL;
+
+	t7xx_pci_pm_entity_unregister(md_ctrl->t7xx_dev, md_ctrl->pm_entity);
+	kfree(md_ctrl->pm_entity);
+	md_ctrl->pm_entity = NULL;
+	return 0;
+}
+
 void t7xx_cldma_hif_hw_init(struct cldma_ctrl *md_ctrl)
 {
 	struct t7xx_cldma_hw *hw_info = &md_ctrl->hw_info;
@@ -1126,6 +1240,7 @@ static void t7xx_cldma_destroy_wqs(struct cldma_ctrl *md_ctrl)
  * t7xx_cldma_init() - Initialize CLDMA.
  * @md_ctrl: CLDMA context structure.
  *
+ * Allocate and initialize device power management entity.
  * Initialize HIF TX/RX queue structure.
  * Register CLDMA callback ISR with PCIe driver.
  *
@@ -1136,11 +1251,15 @@ static void t7xx_cldma_destroy_wqs(struct cldma_ctrl *md_ctrl)
 int t7xx_cldma_init(struct cldma_ctrl *md_ctrl)
 {
 	struct t7xx_cldma_hw *hw_info = &md_ctrl->hw_info;
-	int i;
+	int ret, i;
 
 	md_ctrl->txq_active = 0;
 	md_ctrl->rxq_active = 0;
 	md_ctrl->is_late_init = false;
+
+	ret = t7xx_cldma_pm_init(md_ctrl);
+	if (ret)
+		return ret;
 
 	spin_lock_init(&md_ctrl->cldma_lock);
 
@@ -1176,6 +1295,7 @@ int t7xx_cldma_init(struct cldma_ctrl *md_ctrl)
 
 err_workqueue:
 	t7xx_cldma_destroy_wqs(md_ctrl);
+	t7xx_cldma_pm_uninit(md_ctrl);
 	return -ENOMEM;
 }
 
@@ -1190,4 +1310,5 @@ void t7xx_cldma_exit(struct cldma_ctrl *md_ctrl)
 	t7xx_cldma_stop(md_ctrl);
 	t7xx_cldma_late_release(md_ctrl);
 	t7xx_cldma_destroy_wqs(md_ctrl);
+	t7xx_cldma_pm_uninit(md_ctrl);
 }

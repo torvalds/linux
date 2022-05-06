@@ -174,6 +174,7 @@ struct dpmaif_callbacks {
 struct dpmaif_ctrl {
 	struct device			*dev;
 	struct t7xx_pci_dev		*t7xx_dev;
+	struct md_pm_entity		dpmaif_pm_entity;
 	enum dpmaif_state		state;
 	bool				dpmaif_sw_init_done;
 	struct dpmaif_hw_info		hw_info;
