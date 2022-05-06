@@ -1326,6 +1326,12 @@ static int kvmppc_hcall_impl_hv(unsigned long cmd)
 	case H_CONFER:
 	case H_REGISTER_VPA:
 	case H_SET_MODE:
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+	case H_GET_TCE:
+	case H_PUT_TCE:
+	case H_PUT_TCE_INDIRECT:
+	case H_STUFF_TCE:
+#endif
 	case H_LOGICAL_CI_LOAD:
 	case H_LOGICAL_CI_STORE:
 #ifdef CONFIG_KVM_XICS
