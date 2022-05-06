@@ -31,13 +31,6 @@
 #define TO_DCN30_MMHUBBUB(mcif_wb_base) \
 	container_of(mcif_wb_base, struct dcn30_mmhubbub, base)
 
-/* DCN */
-#define BASE_INNER(seg) \
-	DCE_BASE__INST0_SEG ## seg
-
-#define BASE(seg) \
-	BASE_INNER(seg)
-
 #define MCIF_WB_COMMON_REG_LIST_DCN3_0(inst) \
 	SRI(MCIF_WB_BUFMGR_SW_CONTROL, MCIF_WB, inst),\
 	SRI(MCIF_WB_BUFMGR_STATUS, MCIF_WB, inst),\

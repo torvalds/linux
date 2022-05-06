@@ -109,8 +109,6 @@ enum dcn321_clk_src_array_id {
  */
 
 /* DCN */
-/* TODO awful hack. fixup dcn20_dwb.h */
-#undef BASE_INNER
 #define BASE_INNER(seg) ctx->dcn_reg_offsets[seg]
 
 #define BASE(seg) BASE_INNER(seg)
@@ -173,6 +171,9 @@ enum dcn321_clk_src_array_id {
 #define DCCG_SRII(reg_name, block, id)\
 	REG_STRUCT.block ## _ ## reg_name[id] = BASE(reg ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 		reg ## block ## id ## _ ## reg_name
+
+#define SF_DWB2(reg_name, block, id, field_name, post_fix) \
+	.field_name = reg_name ## __ ## field_name ## post_fix
 
 #define VUPDATE_SRII(reg_name, block, id)\
 	REG_STRUCT.reg_name[id] = BASE(reg ## reg_name ## _ ## block ## id ## _BASE_IDX) + \
