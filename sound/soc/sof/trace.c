@@ -457,6 +457,10 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 {
 	int ret;
 
+	/* dtrace is only supported with SOF_IPC */
+	if (sdev->pdata->ipc_type != SOF_IPC)
+		sdev->dtrace_is_supported = false;
+
 	if (!sdev->dtrace_is_supported)
 		return 0;
 
