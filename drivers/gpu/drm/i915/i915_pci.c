@@ -1037,7 +1037,8 @@ static const struct intel_device_info xehpsdv_info = {
 		BIT(RCS0) | BIT(BCS0) |
 		BIT(VECS0) | BIT(VECS1) | BIT(VECS2) | BIT(VECS3) |
 		BIT(VCS0) | BIT(VCS1) | BIT(VCS2) | BIT(VCS3) |
-		BIT(VCS4) | BIT(VCS5) | BIT(VCS6) | BIT(VCS7),
+		BIT(VCS4) | BIT(VCS5) | BIT(VCS6) | BIT(VCS7) |
+		BIT(CCS0) | BIT(CCS1) | BIT(CCS2) | BIT(CCS3),
 	.require_force_probe = 1,
 };
 
@@ -1056,7 +1057,8 @@ static const struct intel_device_info xehpsdv_info = {
 	.platform_engine_mask = \
 		BIT(RCS0) | BIT(BCS0) | \
 		BIT(VECS0) | BIT(VECS1) | \
-		BIT(VCS0) | BIT(VCS2)
+		BIT(VCS0) | BIT(VCS2) | \
+		BIT(CCS0) | BIT(CCS1) | BIT(CCS2) | BIT(CCS3)
 
 __maybe_unused
 static const struct intel_device_info dg2_info = {
@@ -1071,6 +1073,27 @@ __maybe_unused
 static const struct intel_device_info ats_m_info = {
 	DG2_FEATURES,
 	.display = { 0 },
+	.require_force_probe = 1,
+};
+
+#define XE_HPC_FEATURES \
+	XE_HP_FEATURES, \
+	.dma_mask_size = 52
+
+__maybe_unused
+static const struct intel_device_info pvc_info = {
+	XE_HPC_FEATURES,
+	XE_HPM_FEATURES,
+	DGFX_FEATURES,
+	.graphics.rel = 60,
+	.media.rel = 60,
+	PLATFORM(INTEL_PONTEVECCHIO),
+	.display = { 0 },
+	.has_flat_ccs = 0,
+	.platform_engine_mask =
+		BIT(BCS0) |
+		BIT(VCS0) |
+		BIT(CCS0) | BIT(CCS1) | BIT(CCS2) | BIT(CCS3),
 	.require_force_probe = 1,
 };
 
