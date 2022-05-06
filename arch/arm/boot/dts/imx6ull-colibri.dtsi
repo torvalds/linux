@@ -6,6 +6,7 @@
 #include "imx6ull.dtsi"
 
 / {
+	/* Ethernet aliases to ensure correct MAC addresses */
 	aliases {
 		ethernet0 = &fec2;
 		ethernet1 = &fec1;
@@ -104,6 +105,7 @@
 	pinctrl-0 = <&pinctrl_ecspi1 &pinctrl_ecspi1_cs>;
 };
 
+/* Ethernet */
 &fec2 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_enet2>;
@@ -125,6 +127,7 @@
 	};
 };
 
+/* NAND */
 &gpmi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpmi_nand>;
@@ -136,6 +139,7 @@
 	status = "okay";
 };
 
+/* I2C3_SDA/SCL on SODIMM 194/196 (e.g. RTC on carrier board) */
 &i2c1 {
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1>;
@@ -157,6 +161,10 @@
 	};
 };
 
+/*
+ * PWR_I2C: power I2C to audio codec, PMIC, temperature sensor and
+ * touch screen controller
+ */
 &i2c2 {
 	/* Use low frequency to compensate for the high pull-up values. */
 	clock-frequency = <40000>;
@@ -196,21 +204,25 @@
 	};
 };
 
+/* PWM <A> */
 &pwm4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm4>;
 };
 
+/* PWM <B> */
 &pwm5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm5>;
 };
 
+/* PWM <C> */
 &pwm6 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm6>;
 };
 
+/* PWM <D> */
 &pwm7 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm7>;
@@ -224,6 +236,7 @@
 	status = "disabled";
 };
 
+/* Colibri UART_A */
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1 &pinctrl_uart1_ctrl1>;
@@ -231,6 +244,7 @@
 	fsl,dte-mode;
 };
 
+/* Colibri UART_B */
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
@@ -238,12 +252,14 @@
 	fsl,dte-mode;
 };
 
+/* Colibri UART_C */
 &uart5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart5>;
 	fsl,dte-mode;
 };
 
+/* Colibri USBC */
 &usbotg1 {
 	dr_mode = "otg";
 	srp-disable;
@@ -251,10 +267,12 @@
 	adp-disable;
 };
 
+/* Colibri USBH */
 &usbotg2 {
 	dr_mode = "host";
 };
 
+/* Colibri MMC/SD */
 &usdhc1 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_snvs_usdhc1_cd>;
@@ -265,7 +283,7 @@
 	assigned-clock-parents = <&clks IMX6UL_CLK_PLL2_PFD2>;
 	assigned-clock-rates = <0>, <198000000>;
 	bus-width = <4>;
-	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>; /* MMC_CD */
 	disable-wp;
 	keep-power-in-suspend;
 	no-1-8-v;
@@ -431,7 +449,7 @@
 
 	/*
 	 * With an eMMC instead of a raw NAND device the following pins
-	 * are available at SODIMM pins
+	 * are available at SODIMM pins.
 	 */
 	pinctrl_gpmi_gpio: gpmi-gpio-grp {
 		fsl,pins = <
@@ -556,10 +574,10 @@
 
 	pinctrl_uart1_ctrl1: uart1-ctrl1-grp { /* Additional DTR, DCD */
 		fsl,pins = <
-			MX6UL_PAD_JTAG_TDI__GPIO1_IO13		0x70a0 /* SODIMM 31 */
-			MX6UL_PAD_LCD_DATA18__GPIO3_IO23	0x10b0 /* SODIMM 29 */
-			MX6UL_PAD_JTAG_TDO__GPIO1_IO12		0x90b1 /* SODIMM 23 */
-			MX6UL_PAD_LCD_DATA19__GPIO3_IO24        0x10b0 /* SODIMM 37 */
+			MX6UL_PAD_JTAG_TDI__GPIO1_IO13		0x70a0 /* SODIMM 31 / DCD */
+			MX6UL_PAD_LCD_DATA18__GPIO3_IO23	0x10b0 /* SODIMM 29 / DSR */
+			MX6UL_PAD_JTAG_TDO__GPIO1_IO12		0x90b1 /* SODIMM 23 / DTR */
+			MX6UL_PAD_LCD_DATA19__GPIO3_IO24        0x10b0 /* SODIMM 37 / RI */
 		>;
 	};
 
@@ -580,7 +598,7 @@
 
 	pinctrl_usbh_reg: gpio-usbh-reg {
 		fsl,pins = <
-			MX6UL_PAD_GPIO1_IO02__GPIO1_IO02	0x10b0 /* SODIMM 129 */
+			MX6UL_PAD_GPIO1_IO02__GPIO1_IO02	0x10b0 /* SODIMM 129 / USBH_PEN */
 		>;
 	};
 
@@ -658,7 +676,7 @@
 			MX6ULL_PAD_SNVS_TAMPER6__GPIO5_IO06	0x110a0	/* SODIMM 93 */
 			MX6ULL_PAD_SNVS_TAMPER3__GPIO5_IO03	0x110a0	/* SODIMM 95 */
 			MX6ULL_PAD_BOOT_MODE0__GPIO5_IO10	0x1b0a0	/* SODIMM 105 */
-			MX6ULL_PAD_SNVS_TAMPER5__GPIO5_IO05	0x0b0a0	/* SODIMM 131 */
+			MX6ULL_PAD_SNVS_TAMPER5__GPIO5_IO05	0x0b0a0	/* SODIMM 131 / USBH_OC */
 			MX6ULL_PAD_SNVS_TAMPER8__GPIO5_IO08	0x110a0	/* SODIMM 138 */
 		>;
 	};
@@ -695,7 +713,7 @@
 
 	pinctrl_snvs_usdhc1_cd: snvs-usdhc1-cd-grp {
 		fsl,pins = <
-			MX6ULL_PAD_SNVS_TAMPER0__GPIO5_IO00	0x1b0a0 /* SODIMM 43 */
+			MX6ULL_PAD_SNVS_TAMPER0__GPIO5_IO00	0x1b0a0 /* SODIMM 43 / MMC_CD */
 		>;
 	};
 
