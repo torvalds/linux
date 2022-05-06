@@ -73,6 +73,9 @@ static int sof_register_ipc_flood_test(struct snd_sof_dev *sdev)
 	int ret = 0;
 	int i;
 
+	if (sdev->pdata->ipc_type != SOF_IPC)
+		return 0;
+
 	for (i = 0; i < CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST_NUM; i++) {
 		ret = sof_client_dev_register(sdev, "ipc_flood", i, NULL, 0);
 		if (ret < 0)
