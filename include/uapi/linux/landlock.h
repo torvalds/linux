@@ -21,8 +21,14 @@ struct landlock_ruleset_attr {
 	/**
 	 * @handled_access_fs: Bitmask of actions (cf. `Filesystem flags`_)
 	 * that is handled by this ruleset and should then be forbidden if no
-	 * rule explicitly allow them.  This is needed for backward
-	 * compatibility reasons.
+	 * rule explicitly allow them: it is a deny-by-default list that should
+	 * contain as much Landlock access rights as possible. Indeed, all
+	 * Landlock filesystem access rights that are not part of
+	 * handled_access_fs are allowed.  This is needed for backward
+	 * compatibility reasons.  One exception is the
+	 * LANDLOCK_ACCESS_FS_REFER access right, which is always implicitly
+	 * handled, but must still be explicitly handled to add new rules with
+	 * this access right.
 	 */
 	__u64 handled_access_fs;
 };
@@ -112,6 +118,22 @@ struct landlock_path_beneath_attr {
  * - %LANDLOCK_ACCESS_FS_MAKE_FIFO: Create (or rename or link) a named pipe.
  * - %LANDLOCK_ACCESS_FS_MAKE_BLOCK: Create (or rename or link) a block device.
  * - %LANDLOCK_ACCESS_FS_MAKE_SYM: Create (or rename or link) a symbolic link.
+ * - %LANDLOCK_ACCESS_FS_REFER: Link or rename a file from or to a different
+ *   directory (i.e. reparent a file hierarchy).  This access right is
+ *   available since the second version of the Landlock ABI.  This is also the
+ *   only access right which is always considered handled by any ruleset in
+ *   such a way that reparenting a file hierarchy is always denied by default.
+ *   To avoid privilege escalation, it is not enough to add a rule with this
+ *   access right.  When linking or renaming a file, the destination directory
+ *   hierarchy must also always have the same or a superset of restrictions of
+ *   the source hierarchy.  If it is not the case, or if the domain doesn't
+ *   handle this access right, such actions are denied by default with errno
+ *   set to EXDEV.  Linking also requires a LANDLOCK_ACCESS_FS_MAKE_* access
+ *   right on the destination directory, and renaming also requires a
+ *   LANDLOCK_ACCESS_FS_REMOVE_* access right on the source's (file or
+ *   directory) parent.  Otherwise, such actions are denied with errno set to
+ *   EACCES.  The EACCES errno prevails over EXDEV to let user space
+ *   efficiently deal with an unrecoverable error.
  *
  * .. warning::
  *
@@ -137,6 +159,7 @@ struct landlock_path_beneath_attr {
 #define LANDLOCK_ACCESS_FS_MAKE_FIFO			(1ULL << 10)
 #define LANDLOCK_ACCESS_FS_MAKE_BLOCK			(1ULL << 11)
 #define LANDLOCK_ACCESS_FS_MAKE_SYM			(1ULL << 12)
+#define LANDLOCK_ACCESS_FS_REFER			(1ULL << 13)
 /* clang-format on */
 
 #endif /* _UAPI_LINUX_LANDLOCK_H */
