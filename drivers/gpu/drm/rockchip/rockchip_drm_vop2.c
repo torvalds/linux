@@ -3463,6 +3463,7 @@ static int vop2_extend_clk_init(struct vop2 *vop2)
 {
 	const char * const extend_clk_name[] = {
 		"hdmi0_phy_pll", "hdmi1_phy_pll"};
+	struct drm_device *drm_dev = vop2->drm_dev;
 	struct clk *clk;
 	struct vop2_extend_pll *extend_pll;
 	int i;
@@ -3473,14 +3474,14 @@ static int vop2_extend_clk_init(struct vop2 *vop2)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(extend_clk_name); i++) {
-		clk = devm_clk_get(vop2->dev, extend_clk_name[i]);
+		clk = devm_clk_get(drm_dev->dev, extend_clk_name[i]);
 		if (IS_ERR(clk)) {
-			dev_warn(vop2->dev, "failed to get %s: %ld\n",
+			dev_warn(drm_dev->dev, "failed to get %s: %ld\n",
 				 extend_clk_name[i], PTR_ERR(clk));
 			continue;
 		}
 
-		extend_pll = devm_kzalloc(vop2->dev, sizeof(*extend_pll), GFP_KERNEL);
+		extend_pll = devm_kzalloc(drm_dev->dev, sizeof(*extend_pll), GFP_KERNEL);
 		if (!extend_pll)
 			return -ENOMEM;
 
