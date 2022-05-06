@@ -23,3 +23,29 @@
 
 #include "amdgpu.h"
 #include "amdgpu_lsdma.h"
+
+#define AMDGPU_LSDMA_MAX_SIZE	0x2000000ULL
+
+int amdgpu_lsdma_copy_mem(struct amdgpu_device *adev,
+			  uint64_t src_addr,
+			  uint64_t dst_addr,
+			  uint64_t mem_size)
+{
+	int ret;
+
+	if (mem_size == 0)
+		return -EINVAL;
+
+	while (mem_size > 0) {
+		uint64_t current_copy_size = min(mem_size, AMDGPU_LSDMA_MAX_SIZE);
+
+		ret = adev->lsdma.funcs->copy_mem(adev, src_addr, dst_addr, current_copy_size);
+		if (ret)
+			return ret;
+		src_addr += current_copy_size;
+		dst_addr += current_copy_size;
+		mem_size -= current_copy_size;
+	}
+
+	return 0;
+}

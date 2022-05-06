@@ -29,6 +29,11 @@ struct amdgpu_lsdma {
 };
 
 struct amdgpu_lsdma_funcs {
+	int (*copy_mem)(struct amdgpu_device *adev, uint64_t src_addr,
+			uint64_t dst_addr, uint64_t size);
 };
+
+int amdgpu_lsdma_copy_mem(struct amdgpu_device *adev, uint64_t src_addr,
+			  uint64_t dst_addr, uint64_t mem_size);
 
 #endif
