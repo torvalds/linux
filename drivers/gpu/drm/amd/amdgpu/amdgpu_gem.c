@@ -296,8 +296,8 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		      AMDGPU_GEM_CREATE_VRAM_CLEARED |
 		      AMDGPU_GEM_CREATE_VM_ALWAYS_VALID |
 		      AMDGPU_GEM_CREATE_EXPLICIT_SYNC |
-		      AMDGPU_GEM_CREATE_ENCRYPTED))
-
+		      AMDGPU_GEM_CREATE_ENCRYPTED |
+		      AMDGPU_GEM_CREATE_DISCARDABLE))
 		return -EINVAL;
 
 	/* reject invalid gem domains */

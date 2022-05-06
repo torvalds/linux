@@ -140,6 +140,10 @@ extern "C" {
  * not require GTT memory accounting
  */
 #define AMDGPU_GEM_CREATE_PREEMPTIBLE		(1 << 11)
+/* Flag that BO can be discarded under memory pressure without keeping the
+ * content.
+ */
+#define AMDGPU_GEM_CREATE_DISCARDABLE		(1 << 12)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
