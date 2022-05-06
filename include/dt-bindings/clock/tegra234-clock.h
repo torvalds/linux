@@ -140,6 +140,14 @@
 #define TEGRA234_CLK_PEX2_C9_CORE		173U
 /** @brief output of gate CLK_ENB_PEX2_CORE_10 */
 #define TEGRA234_CLK_PEX2_C10_CORE		187U
+/** @brief CLK_RST_CONTROLLER_CLK_SOURCE_QSPI0 switch divider output */
+#define TEGRA234_CLK_QSPI0_2X_PM		192U
+/** @brief CLK_RST_CONTROLLER_CLK_SOURCE_QSPI1 switch divider output */
+#define TEGRA234_CLK_QSPI1_2X_PM		193U
+/** @brief output of the divider QSPI_CLK_DIV2_SEL in CLK_RST_CONTROLLER_CLK_SOURCE_QSPI0 */
+#define TEGRA234_CLK_QSPI0_PM			194U
+/** @brief output of the divider QSPI_CLK_DIV2_SEL in CLK_RST_CONTROLLER_CLK_SOURCE_QSPI1 */
+#define TEGRA234_CLK_QSPI1_PM			195U
 /** @brief CLK_RST_CONTROLLER_CLK_SOURCE_SDMMC_LEGACY_TM switch divider output */
 #define TEGRA234_CLK_SDMMC_LEGACY_TM		219U
 /** @brief output of gate CLK_ENB_PEX0_CORE_0 */
