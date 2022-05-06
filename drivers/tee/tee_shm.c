@@ -430,56 +430,6 @@ void tee_shm_free(struct tee_shm *shm)
 EXPORT_SYMBOL_GPL(tee_shm_free);
 
 /**
- * tee_shm_va2pa() - Get physical address of a virtual address
- * @shm:	Shared memory handle
- * @va:		Virtual address to tranlsate
- * @pa:		Returned physical address
- * @returns 0 on success and < 0 on failure
- */
-int tee_shm_va2pa(struct tee_shm *shm, void *va, phys_addr_t *pa)
-{
-	if (!shm->kaddr)
-		return -EINVAL;
-	/* Check that we're in the range of the shm */
-	if ((char *)va < (char *)shm->kaddr)
-		return -EINVAL;
-	if ((char *)va >= ((char *)shm->kaddr + shm->size))
-		return -EINVAL;
-
-	return tee_shm_get_pa(
-			shm, (unsigned long)va - (unsigned long)shm->kaddr, pa);
-}
-EXPORT_SYMBOL_GPL(tee_shm_va2pa);
-
-/**
- * tee_shm_pa2va() - Get virtual address of a physical address
- * @shm:	Shared memory handle
- * @pa:		Physical address to tranlsate
- * @va:		Returned virtual address
- * @returns 0 on success and < 0 on failure
- */
-int tee_shm_pa2va(struct tee_shm *shm, phys_addr_t pa, void **va)
-{
-	if (!shm->kaddr)
-		return -EINVAL;
-	/* Check that we're in the range of the shm */
-	if (pa < shm->paddr)
-		return -EINVAL;
-	if (pa >= (shm->paddr + shm->size))
-		return -EINVAL;
-
-	if (va) {
-		void *v = tee_shm_get_va(shm, pa - shm->paddr);
-
-		if (IS_ERR(v))
-			return PTR_ERR(v);
-		*va = v;
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(tee_shm_pa2va);
-
-/**
  * tee_shm_get_va() - Get virtual address of a shared memory plus an offset
  * @shm:	Shared memory handle
  * @offs:	Offset from start of this shared memory
