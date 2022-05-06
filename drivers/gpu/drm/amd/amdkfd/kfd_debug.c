@@ -24,6 +24,8 @@
 #include "kfd_device_queue_manager.h"
 #include <linux/file.h>
 
+#define MAX_WATCH_ADDRESSES	4
+
 void debug_event_write_work_handler(struct work_struct *work)
 {
 	struct kfd_process *process;
@@ -289,6 +291,139 @@ int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd)
 						pdd->watch_points, flags);
 }
 
+#define KFD_DEBUGGER_INVALID_WATCH_POINT_ID -1
+static int kfd_dbg_get_dev_watch_id(struct kfd_process_device *pdd, int *watch_id)
+{
+	int i;
+
+	*watch_id = KFD_DEBUGGER_INVALID_WATCH_POINT_ID;
+
+	spin_lock(&pdd->dev->kfd->watch_points_lock);
+
+	for (i = 0; i < MAX_WATCH_ADDRESSES; i++) {
+		/* device watchpoint in use so skip */
+		if ((pdd->dev->kfd->alloc_watch_ids >> i) & 0x1)
+			continue;
+
+		pdd->alloc_watch_ids |= 0x1 << i;
+		pdd->dev->kfd->alloc_watch_ids |= 0x1 << i;
+		*watch_id = i;
+		spin_unlock(&pdd->dev->kfd->watch_points_lock);
+		return 0;
+	}
+
+	spin_unlock(&pdd->dev->kfd->watch_points_lock);
+
+	return -ENOMEM;
+}
+
+static void kfd_dbg_clear_dev_watch_id(struct kfd_process_device *pdd, int watch_id)
+{
+	spin_lock(&pdd->dev->kfd->watch_points_lock);
+
+	/* process owns device watch point so safe to clear */
+	if ((pdd->alloc_watch_ids >> watch_id) & 0x1) {
+		pdd->alloc_watch_ids &= ~(0x1 << watch_id);
+		pdd->dev->kfd->alloc_watch_ids &= ~(0x1 << watch_id);
+	}
+
+	spin_unlock(&pdd->dev->kfd->watch_points_lock);
+}
+
+static bool kfd_dbg_owns_dev_watch_id(struct kfd_process_device *pdd, int watch_id)
+{
+	bool owns_watch_id = false;
+
+	spin_lock(&pdd->dev->kfd->watch_points_lock);
+	owns_watch_id = watch_id < MAX_WATCH_ADDRESSES &&
+			((pdd->alloc_watch_ids >> watch_id) & 0x1);
+
+	spin_unlock(&pdd->dev->kfd->watch_points_lock);
+
+	return owns_watch_id;
+}
+
+int kfd_dbg_trap_clear_dev_address_watch(struct kfd_process_device *pdd,
+					uint32_t watch_id)
+{
+	int r;
+
+	if (!kfd_dbg_owns_dev_watch_id(pdd, watch_id))
+		return -EINVAL;
+
+	if (!pdd->dev->kfd->shared_resources.enable_mes) {
+		r = debug_lock_and_unmap(pdd->dev->dqm);
+		if (r)
+			return r;
+	}
+
+	amdgpu_gfx_off_ctrl(pdd->dev->adev, false);
+	pdd->watch_points[watch_id] = pdd->dev->kfd2kgd->clear_address_watch(
+							pdd->dev->adev,
+							watch_id);
+	amdgpu_gfx_off_ctrl(pdd->dev->adev, true);
+
+	if (!pdd->dev->kfd->shared_resources.enable_mes)
+		r = debug_map_and_unlock(pdd->dev->dqm);
+	else
+		r = kfd_dbg_set_mes_debug_mode(pdd);
+
+	kfd_dbg_clear_dev_watch_id(pdd, watch_id);
+
+	return r;
+}
+
+int kfd_dbg_trap_set_dev_address_watch(struct kfd_process_device *pdd,
+					uint64_t watch_address,
+					uint32_t watch_address_mask,
+					uint32_t *watch_id,
+					uint32_t watch_mode)
+{
+	int r = kfd_dbg_get_dev_watch_id(pdd, watch_id);
+
+	if (r)
+		return r;
+
+	if (!pdd->dev->kfd->shared_resources.enable_mes) {
+		r = debug_lock_and_unmap(pdd->dev->dqm);
+		if (r) {
+			kfd_dbg_clear_dev_watch_id(pdd, *watch_id);
+			return r;
+		}
+	}
+
+	amdgpu_gfx_off_ctrl(pdd->dev->adev, false);
+	pdd->watch_points[*watch_id] = pdd->dev->kfd2kgd->set_address_watch(
+				pdd->dev->adev,
+				watch_address,
+				watch_address_mask,
+				*watch_id,
+				watch_mode,
+				pdd->dev->vm_info.last_vmid_kfd);
+	amdgpu_gfx_off_ctrl(pdd->dev->adev, true);
+
+	if (!pdd->dev->kfd->shared_resources.enable_mes)
+		r = debug_map_and_unlock(pdd->dev->dqm);
+	else
+		r = kfd_dbg_set_mes_debug_mode(pdd);
+
+	/* HWS is broken so no point in HW rollback but release the watchpoint anyways */
+	if (r)
+		kfd_dbg_clear_dev_watch_id(pdd, *watch_id);
+
+	return 0;
+}
+
+static void kfd_dbg_clear_process_address_watch(struct kfd_process *target)
+{
+	int i, j;
+
+	for (i = 0; i < target->n_pdds; i++)
+		for (j = 0; j < MAX_WATCH_ADDRESSES; j++)
+			kfd_dbg_trap_clear_dev_address_watch(target->pdds[i], j);
+}
+
+
 /* kfd_dbg_trap_deactivate:
  *	target: target process
  *	unwind: If this is unwinding a failed kfd_dbg_trap_enable()
@@ -303,6 +438,7 @@ void kfd_dbg_trap_deactivate(struct kfd_process *target, bool unwind, int unwind
 
 	if (!unwind) {
 		cancel_work_sync(&target->debug_event_workarea);
+		kfd_dbg_clear_process_address_watch(target);
 		kfd_dbg_trap_set_wave_launch_mode(target, 0);
 	}
 

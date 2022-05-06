@@ -811,6 +811,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	if (kfd_resume_iommu(kfd))
 		goto kfd_resume_iommu_error;
 
+	spin_lock_init(&kfd->watch_points_lock);
+
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device %x:%x\n", kfd->adev->pdev->vendor,
 		 kfd->adev->pdev->device);
