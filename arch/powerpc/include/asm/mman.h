@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/pkeys.h>
 #include <asm/cpu_has_feature.h>
+#include <asm/firmware.h>
 
 static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
 		unsigned long pkey)

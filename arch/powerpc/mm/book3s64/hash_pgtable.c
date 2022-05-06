@@ -13,6 +13,7 @@
 #include <asm/sections.h>
 #include <asm/mmu.h>
 #include <asm/tlb.h>
+#include <asm/firmware.h>
 
 #include <mm/mmu_decl.h>
 

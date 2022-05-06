@@ -22,6 +22,7 @@
 #include <asm/ultravisor.h>
 #include <asm/kvm_book3s_uvmem.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/firmware.h>
 
 /*
  * Supported radix tree geometry.

@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <asm/irq.h>
 #include <linux/atomic.h>
+#include <asm/firmware.h>
 
 /* These includes should be removed once implicit includes are cleaned up. */
 #include <linux/of.h>
