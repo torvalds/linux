@@ -360,6 +360,21 @@ int perf_evsel__enable_cpu(struct perf_evsel *evsel, int cpu_map_idx)
 	return perf_evsel__run_ioctl(evsel, PERF_EVENT_IOC_ENABLE, NULL, cpu_map_idx);
 }
 
+int perf_evsel__enable_thread(struct perf_evsel *evsel, int thread)
+{
+	struct perf_cpu cpu __maybe_unused;
+	int idx;
+	int err;
+
+	perf_cpu_map__for_each_cpu(cpu, idx, evsel->cpus) {
+		err = perf_evsel__ioctl(evsel, PERF_EVENT_IOC_ENABLE, NULL, idx, thread);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 int perf_evsel__enable(struct perf_evsel *evsel)
 {
 	int i;
