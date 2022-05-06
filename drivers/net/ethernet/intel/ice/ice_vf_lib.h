@@ -176,7 +176,7 @@ static inline u16 ice_vf_get_port_vlan_tpid(struct ice_vf *vf)
  * ice_for_each_vf - Iterate over each VF entry
  * @pf: pointer to the PF private structure
  * @bkt: bucket index used for iteration
- * @vf: pointer to the VF entry currently being processed in the loop.
+ * @vf: pointer to the VF entry currently being processed in the loop
  *
  * The bkt variable is an unsigned integer iterator used to traverse the VF
  * entries. It is *not* guaranteed to be the VF's vf_id. Do not assume it is.
@@ -192,7 +192,7 @@ static inline u16 ice_vf_get_port_vlan_tpid(struct ice_vf *vf)
  * ice_for_each_vf_rcu - Iterate over each VF entry protected by RCU
  * @pf: pointer to the PF private structure
  * @bkt: bucket index used for iteration
- * @vf: pointer to the VF entry currently being processed in the loop.
+ * @vf: pointer to the VF entry currently being processed in the loop
  *
  * The bkt variable is an unsigned integer iterator used to traverse the VF
  * entries. It is *not* guaranteed to be the VF's vf_id. Do not assume it is.

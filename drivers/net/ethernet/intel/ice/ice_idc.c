@@ -48,21 +48,6 @@ void ice_send_event_to_aux(struct ice_pf *pf, struct iidc_event *event)
 }
 
 /**
- * ice_find_vsi - Find the VSI from VSI ID
- * @pf: The PF pointer to search in
- * @vsi_num: The VSI ID to search for
- */
-static struct ice_vsi *ice_find_vsi(struct ice_pf *pf, u16 vsi_num)
-{
-	int i;
-
-	ice_for_each_vsi(pf, i)
-		if (pf->vsi[i] && pf->vsi[i]->vsi_num == vsi_num)
-			return  pf->vsi[i];
-	return NULL;
-}
-
-/**
  * ice_add_rdma_qset - Add Leaf Node for RDMA Qset
  * @pf: PF struct
  * @qset: Resource to be allocated
