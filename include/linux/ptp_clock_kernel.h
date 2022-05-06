@@ -108,6 +108,32 @@ struct ptp_system_timestamp {
  * @settime64:  Set the current time on the hardware clock.
  *              parameter ts: Time value to set.
  *
+ * @getcycles64:  Reads the current free running cycle counter from the hardware
+ *                clock.
+ *                If @getcycles64 and @getcyclesx64 are not supported, then
+ *                @gettime64 or @gettimex64 will be used as default
+ *                implementation.
+ *                parameter ts: Holds the result.
+ *
+ * @getcyclesx64:  Reads the current free running cycle counter from the
+ *                 hardware clock and optionally also the system clock.
+ *                 If @getcycles64 and @getcyclesx64 are not supported, then
+ *                 @gettimex64 will be used as default implementation if
+ *                 available.
+ *                 parameter ts: Holds the PHC timestamp.
+ *                 parameter sts: If not NULL, it holds a pair of timestamps
+ *                 from the system clock. The first reading is made right before
+ *                 reading the lowest bits of the PHC timestamp and the second
+ *                 reading immediately follows that.
+ *
+ * @getcrosscycles:  Reads the current free running cycle counter from the
+ *                   hardware clock and system clock simultaneously.
+ *                   If @getcycles64 and @getcyclesx64 are not supported, then
+ *                   @getcrosststamp will be used as default implementation if
+ *                   available.
+ *                   parameter cts: Contains timestamp (device,system) pair,
+ *                   where system time is realtime and monotonic.
+ *
  * @enable:   Request driver to enable or disable an ancillary feature.
  *            parameter request: Desired resource to enable or disable.
  *            parameter on: Caller passes one to enable or zero to disable.
@@ -155,6 +181,11 @@ struct ptp_clock_info {
 	int (*getcrosststamp)(struct ptp_clock_info *ptp,
 			      struct system_device_crosststamp *cts);
 	int (*settime64)(struct ptp_clock_info *p, const struct timespec64 *ts);
+	int (*getcycles64)(struct ptp_clock_info *ptp, struct timespec64 *ts);
+	int (*getcyclesx64)(struct ptp_clock_info *ptp, struct timespec64 *ts,
+			    struct ptp_system_timestamp *sts);
+	int (*getcrosscycles)(struct ptp_clock_info *ptp,
+			      struct system_device_crosststamp *cts);
 	int (*enable)(struct ptp_clock_info *ptp,
 		      struct ptp_clock_request *request, int on);
 	int (*verify)(struct ptp_clock_info *ptp, unsigned int pin,

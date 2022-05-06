@@ -52,6 +52,7 @@ struct ptp_clock {
 	int *vclock_index;
 	struct mutex n_vclocks_mux; /* protect concurrent n_vclocks access */
 	bool is_virtual_clock;
+	bool has_cycles;
 };
 
 #define info_to_vclock(d) container_of((d), struct ptp_vclock, info)
@@ -94,6 +95,15 @@ static inline bool ptp_vclock_in_use(struct ptp_clock *ptp)
 	mutex_unlock(&ptp->n_vclocks_mux);
 
 	return in_use;
+}
+
+/* Check if ptp clock shall be free running */
+static inline bool ptp_clock_freerun(struct ptp_clock *ptp)
+{
+	if (ptp->has_cycles)
+		return false;
+
+	return ptp_vclock_in_use(ptp);
 }
 
 extern struct class *ptp_class;
