@@ -375,7 +375,7 @@ static int qcom_mpm_init(struct device_node *np, struct device_node *parent)
 	raw_spin_lock_init(&priv->lock);
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
-	if (!priv->base)
+	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
 	for (i = 0; i < priv->reg_stride; i++) {

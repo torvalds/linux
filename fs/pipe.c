@@ -804,7 +804,7 @@ struct pipe_inode_info *alloc_pipe_info(void)
 	if (too_many_pipe_buffers_hard(user_bufs) && pipe_is_unprivileged_user())
 		goto out_revert_acct;
 
-	pipe->bufs = kvcalloc(pipe_bufs, sizeof(struct pipe_buffer),
+	pipe->bufs = kcalloc(pipe_bufs, sizeof(struct pipe_buffer),
 			     GFP_KERNEL_ACCOUNT);
 
 	if (pipe->bufs) {
@@ -849,7 +849,7 @@ void free_pipe_info(struct pipe_inode_info *pipe)
 #endif
 	if (pipe->tmp_page)
 		__free_page(pipe->tmp_page);
-	kvfree(pipe->bufs);
+	kfree(pipe->bufs);
 	kfree(pipe);
 }
 
@@ -1264,7 +1264,8 @@ int pipe_resize_ring(struct pipe_inode_info *pipe, unsigned int nr_slots)
 	if (nr_slots < n)
 		return -EBUSY;
 
-	bufs = kvcalloc(nr_slots, sizeof(*bufs), GFP_KERNEL_ACCOUNT);
+	bufs = kcalloc(nr_slots, sizeof(*bufs),
+		       GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
 	if (unlikely(!bufs))
 		return -ENOMEM;
 
@@ -1291,7 +1292,7 @@ int pipe_resize_ring(struct pipe_inode_info *pipe, unsigned int nr_slots)
 	head = n;
 	tail = 0;
 
-	kvfree(pipe->bufs);
+	kfree(pipe->bufs);
 	pipe->bufs = bufs;
 	pipe->ring_size = nr_slots;
 	if (pipe->max_usage > nr_slots)

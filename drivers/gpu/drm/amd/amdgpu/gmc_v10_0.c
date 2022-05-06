@@ -814,7 +814,7 @@ static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
 
 #ifdef CONFIG_X86_64
-	if (adev->flags & AMD_IS_APU) {
+	if ((adev->flags & AMD_IS_APU) && !amdgpu_passthrough(adev)) {
 		adev->gmc.aper_base = adev->gfxhub.funcs->get_mc_fb_offset(adev);
 		adev->gmc.aper_size = adev->gmc.real_vram_size;
 	}
@@ -1150,6 +1150,16 @@ static int gmc_v10_0_set_clockgating_state(void *handle,
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	/*
+	 * The issue mmhub can't disconnect from DF with MMHUB clock gating being disabled
+	 * is a new problem observed at DF 3.0.3, however with the same suspend sequence not
+	 * seen any issue on the DF 3.0.2 series platform.
+	 */
+	if (adev->in_s0ix && adev->ip_versions[DF_HWIP][0] > IP_VERSION(3, 0, 2)) {
+		dev_dbg(adev->dev, "keep mmhub clock gating being enabled for s0ix\n");
+		return 0;
+	}
 
 	r = adev->mmhub.funcs->set_clockgating(adev, state);
 	if (r)

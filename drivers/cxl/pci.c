@@ -436,7 +436,6 @@ static int wait_for_media_ready(struct cxl_dev_state *cxlds)
 
 	for (i = mbox_ready_timeout; i; i--) {
 		u32 temp;
-		int rc;
 
 		rc = pci_read_config_dword(
 			pdev, d + CXL_DVSEC_RANGE_SIZE_LOW(0), &temp);

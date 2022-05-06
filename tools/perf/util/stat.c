@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
+#include <linux/err.h>
 #include <inttypes.h>
 #include <math.h>
 #include <string.h>
@@ -311,7 +312,7 @@ static int check_per_pkg(struct evsel *counter, struct perf_counts_values *vals,
 
 	if (!mask) {
 		mask = hashmap__new(pkg_id_hash, pkg_id_equal, NULL);
-		if (!mask)
+		if (IS_ERR(mask))
 			return -ENOMEM;
 
 		counter->per_pkg_mask = mask;

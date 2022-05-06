@@ -1103,7 +1103,7 @@ struct kfd_criu_queue_priv_data {
 	uint32_t priority;
 	uint32_t q_percent;
 	uint32_t doorbell_id;
-	uint32_t is_gws;
+	uint32_t gws;
 	uint32_t sdma_id;
 	uint32_t eop_ring_buffer_size;
 	uint32_t ctx_save_restore_area_size;

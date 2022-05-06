@@ -2957,8 +2957,9 @@ out:
 	return ret;
 }
 
-static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
+static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 {
+	struct inode *inode = file_inode(file);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_state *cached_state = NULL;
@@ -2989,6 +2990,10 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		ret = 0;
 		goto out_only_mutex;
 	}
+
+	ret = file_modified(file);
+	if (ret)
+		goto out_only_mutex;
 
 	lockstart = round_up(offset, btrfs_inode_sectorsize(BTRFS_I(inode)));
 	lockend = round_down(offset + len,
@@ -3430,7 +3435,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 		return -EOPNOTSUPP;
 
 	if (mode & FALLOC_FL_PUNCH_HOLE)
-		return btrfs_punch_hole(inode, offset, len);
+		return btrfs_punch_hole(file, offset, len);
 
 	/*
 	 * Only trigger disk allocation, don't trigger qgroup reserve
@@ -3451,6 +3456,10 @@ static long btrfs_fallocate(struct file *file, int mode,
 		if (ret)
 			goto out;
 	}
+
+	ret = file_modified(file);
+	if (ret)
+		goto out;
 
 	/*
 	 * TODO: Move these two operations after we have checked
