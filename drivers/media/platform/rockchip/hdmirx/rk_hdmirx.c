@@ -594,13 +594,34 @@ static void hdmirx_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 
 	v4l2_dbg(1, debug, v4l2_dev, "get timings from %s\n", from_dma ? "dma" : "ctrl");
 	v4l2_dbg(1, debug, v4l2_dev,
-		 "act:%dx%d, total:%dx%d, fps:%d, pixclk:%llu\n",
+		 "act:%ux%u, total:%ux%u, fps:%u, pixclk:%llu\n",
 		 bt->width, bt->height, htotal, vtotal, fps, bt->pixelclock);
 
 	v4l2_dbg(2, debug, v4l2_dev,
-		 "hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d\n",
+		 "hfp:%u, hs:%u, hbp:%u, vfp:%u, vs:%u, vbp:%u\n",
 		 bt->hfrontporch, bt->hsync, bt->hbackporch,
 		 bt->vfrontporch, bt->vsync, bt->vbackporch);
+}
+
+static bool hdmirx_check_timing_valid(struct v4l2_bt_timings *bt)
+{
+	if (bt->width < 100 || bt->width > 5000 ||
+	    bt->height < 100 || bt->height > 5000)
+		return false;
+
+	if (bt->hsync == 0 || bt->hsync > 200 ||
+	    bt->vsync == 0 || bt->vsync > 100)
+		return false;
+
+	if (bt->hbackporch == 0 || bt->hbackporch > 2000 ||
+	    bt->vbackporch == 0 || bt->vbackporch > 2000)
+		return false;
+
+	if (bt->hfrontporch == 0 || bt->hfrontporch > 2000 ||
+	    bt->vfrontporch == 0 || bt->vfrontporch > 2000)
+		return false;
+
+	return true;
 }
 
 static int hdmirx_get_detected_timings(struct rk_hdmirx_dev *hdmirx_dev,
@@ -639,16 +660,14 @@ static int hdmirx_get_detected_timings(struct rk_hdmirx_dev *hdmirx_dev,
 		bt->il_vsync = bt->vsync + 1;
 	}
 
-	v4l2_dbg(2, debug, v4l2_dev, "tmds_clk:%lld\n", tmds_clk);
+	v4l2_dbg(2, debug, v4l2_dev, "tmds_clk:%llu\n", tmds_clk);
 	v4l2_dbg(1, debug, v4l2_dev, "interlace:%d, fmt:%d, vic:%d, color:%d, mode:%s\n",
 		 bt->interlaced, hdmirx_dev->pix_fmt,
 		 hdmirx_dev->cur_vic, hdmirx_dev->color_depth,
 		 hdmirx_dev->is_dvi_mode ? "dvi" : "hdmi");
 	v4l2_dbg(2, debug, v4l2_dev, "deframer_st:%#x\n", deframer_st);
 
-	if (bt->hsync > 200 || bt->vsync > 100 ||
-	    bt->hbackporch > 1000 || bt->vbackporch > 1000 ||
-	    bt->width < 100 || bt->height < 100)
+	if (!hdmirx_check_timing_valid(bt))
 		return -EINVAL;
 
 	return 0;
