@@ -1206,10 +1206,6 @@ static int imx7_csi_media_init(struct imx7_csi *csi)
 
 	csi->imxmd = imxmd;
 
-	ret = imx_media_of_add_csi(imxmd, csi->dev->of_node);
-	if (ret < 0 && ret != -ENODEV && ret != -EEXIST)
-		goto error;
-
 	v4l2_subdev_init(&csi->sd, &imx7_csi_subdev_ops);
 	v4l2_set_subdevdata(&csi->sd, csi);
 	csi->sd.internal_ops = &imx7_csi_internal_ops;
