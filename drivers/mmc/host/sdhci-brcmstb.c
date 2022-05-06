@@ -48,7 +48,7 @@ static inline void enable_clock_gating(struct sdhci_host *host)
 	sdhci_writel(host, reg, SDHCI_VENDOR);
 }
 
-void brcmstb_reset(struct sdhci_host *host, u8 mask)
+static void brcmstb_reset(struct sdhci_host *host, u8 mask)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_brcmstb_priv *priv = sdhci_pltfm_priv(pltfm_host);
