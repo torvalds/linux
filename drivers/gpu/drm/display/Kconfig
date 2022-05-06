@@ -31,7 +31,8 @@ config DRM_DISPLAY_HDMI_HELPER
 
 config DRM_DP_AUX_CHARDEV
 	bool "DRM DP AUX Interface"
-	depends on DRM
+	depends on DRM && DRM_DISPLAY_HELPER
+	select DRM_DISPLAY_DP_HELPER
 	help
 	  Choose this option to enable a /dev/drm_dp_auxN node that allows to
 	  read and write values to arbitrary DPCD registers on the DP aux
@@ -39,7 +40,8 @@ config DRM_DP_AUX_CHARDEV
 
 config DRM_DP_CEC
 	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
-	depends on DRM
+	depends on DRM && DRM_DISPLAY_HELPER
+	select DRM_DISPLAY_DP_HELPER
 	select CEC_CORE
 	help
 	  Choose this option if you want to enable HDMI CEC support for

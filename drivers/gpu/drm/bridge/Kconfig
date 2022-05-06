@@ -75,6 +75,14 @@ config DRM_DISPLAY_CONNECTOR
 	  on ARM-based platforms. Saying Y here when this driver is not needed
 	  will not cause any issue.
 
+config DRM_FSL_LDB
+	tristate "Freescale i.MX8MP LDB bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select DRM_PANEL_BRIDGE
+	help
+	  Support for i.MX8MP DPI-to-LVDS on-SoC encoder.
+
 config DRM_ITE_IT6505
         tristate "ITE IT6505 DisplayPort bridge"
         depends on OF

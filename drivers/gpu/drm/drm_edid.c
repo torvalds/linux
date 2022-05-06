@@ -1610,7 +1610,7 @@ static void edid_header_fix(void *edid)
 
 /**
  * drm_edid_header_is_valid - sanity check the header of the base EDID block
- * @raw_edid: pointer to raw base EDID block
+ * @_edid: pointer to raw base EDID block
  *
  * Sanity check the header of the base EDID block.
  *
@@ -1827,7 +1827,7 @@ static void edid_block_dump(const char *level, const void *block, int block_num)
 
 /**
  * drm_edid_block_valid - Sanity check the EDID block (base or extension)
- * @raw_edid: pointer to raw EDID block
+ * @_block: pointer to raw EDID block
  * @block_num: type of block to validate (0 for base, extension otherwise)
  * @print_bad_edid: if true, dump bad EDID blocks to the console
  * @edid_corrupt: if true, the header or checksum is invalid
@@ -2112,8 +2112,8 @@ static enum edid_block_status edid_block_read(void *block, unsigned int block_nu
 /**
  * drm_do_get_edid - get EDID data using a custom EDID block read function
  * @connector: connector we're probing
- * @get_edid_block: EDID block read function
- * @data: private data passed to the block read function
+ * @read_block: EDID block read function
+ * @context: private data passed to the block read function
  *
  * When the I2C adapter connected to the DDC bus is hidden behind a device that
  * exposes a different interface to read EDID blocks this function can be used
@@ -2384,13 +2384,9 @@ static u32 edid_get_quirks(const struct edid *edid)
 #define MODE_SIZE(m) ((m)->hdisplay * (m)->vdisplay)
 #define MODE_REFRESH_DIFF(c,t) (abs((c) - (t)))
 
-/**
- * edid_fixup_preferred - set preferred modes based on quirk list
- * @connector: has mode list to fix up
- * @quirks: quirks list
- *
- * Walk the mode list for @connector, clearing the preferred status
- * on existing modes and setting it anew for the right mode ala @quirks.
+/*
+ * Walk the mode list for connector, clearing the preferred status on existing
+ * modes and setting it anew for the right mode ala quirks.
  */
 static void edid_fixup_preferred(struct drm_connector *connector,
 				 u32 quirks)
@@ -2659,10 +2655,7 @@ drm_gtf2_2j(const struct edid *edid)
 	return descriptor ? descriptor->data.other_data.data.range.formula.gtf2.j : 0;
 }
 
-/**
- * standard_timing_level - get std. timing level(CVT/GTF/DMT)
- * @edid: EDID block to scan
- */
+/* Get standard timing level (CVT/GTF/DMT). */
 static int standard_timing_level(const struct edid *edid)
 {
 	if (edid->revision >= 2) {
@@ -2696,12 +2689,7 @@ static int drm_mode_hsync(const struct drm_display_mode *mode)
 	return DIV_ROUND_CLOSEST(mode->clock, mode->htotal);
 }
 
-/**
- * drm_mode_std - convert standard mode info (width, height, refresh) into mode
- * @connector: connector of for the EDID block
- * @edid: EDID block to scan
- * @t: standard timing params
- *
+/*
  * Take the standard timing params (in this case width, aspect, and refresh)
  * and convert them into a real mode using CVT/GTF/DMT.
  */
@@ -2857,15 +2845,10 @@ drm_mode_do_interlace_quirk(struct drm_display_mode *mode,
 	mode->flags |= DRM_MODE_FLAG_INTERLACE;
 }
 
-/**
- * drm_mode_detailed - create a new mode from an EDID detailed timing section
- * @dev: DRM device (needed to create new mode)
- * @edid: EDID block
- * @timing: EDID detailed timing info
- * @quirks: quirks to apply
- *
- * An EDID detailed timing block contains enough info for us to create and
- * return a new struct drm_display_mode.
+/*
+ * Create a new mode from an EDID detailed timing section. An EDID detailed
+ * timing block contains enough info for us to create and return a new struct
+ * drm_display_mode.
  */
 static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 						  const struct edid *edid,
@@ -3247,13 +3230,10 @@ do_established_modes(const struct detailed_timing *timing, void *c)
 	closure->modes += drm_est3_modes(closure->connector, timing);
 }
 
-/**
- * add_established_modes - get est. modes from EDID and add them
- * @connector: connector to add mode(s) to
- * @edid: EDID block to scan
- *
- * Each EDID block contains a bitmap of the supported "established modes" list
- * (defined above).  Tease them out and add them to the global modes list.
+/*
+ * Get established modes from EDID and add them. Each EDID block contains a
+ * bitmap of the supported "established modes" list (defined above). Tease them
+ * out and add them to the global modes list.
  */
 static int
 add_established_modes(struct drm_connector *connector, const struct edid *edid)
@@ -3311,13 +3291,10 @@ do_standard_modes(const struct detailed_timing *timing, void *c)
 	}
 }
 
-/**
- * add_standard_modes - get std. modes from EDID and add them
- * @connector: connector to add mode(s) to
- * @edid: EDID block to scan
- *
- * Standard modes can be calculated using the appropriate standard (DMT,
- * GTF or CVT. Grab them from @edid and add them to the list.
+/*
+ * Get standard modes from EDID and add them. Standard modes can be calculated
+ * using the appropriate standard (DMT, GTF, or CVT). Grab them from EDID and
+ * add them to the list.
  */
 static int
 add_standard_modes(struct drm_connector *connector, const struct edid *edid)
