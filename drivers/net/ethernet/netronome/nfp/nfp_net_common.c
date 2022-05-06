@@ -2320,7 +2320,7 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = nn->max_mtu;
 
-	netif_set_gso_max_segs(netdev, NFP_NET_LSO_MAX_SEGS);
+	netif_set_tso_max_segs(netdev, NFP_NET_LSO_MAX_SEGS);
 
 	netif_carrier_off(netdev);
 

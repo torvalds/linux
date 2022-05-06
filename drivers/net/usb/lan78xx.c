@@ -4372,7 +4372,7 @@ static int lan78xx_probe(struct usb_interface *intf,
 	/* MTU range: 68 - 9000 */
 	netdev->max_mtu = MAX_SINGLE_PACKET_SIZE;
 
-	netif_set_gso_max_size(netdev, LAN78XX_TSO_SIZE(dev));
+	netif_set_tso_max_size(netdev, LAN78XX_TSO_SIZE(dev));
 
 	netif_napi_add(netdev, &dev->napi, lan78xx_poll, NAPI_POLL_WEIGHT);
 
