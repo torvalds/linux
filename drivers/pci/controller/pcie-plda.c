@@ -142,11 +142,6 @@ static inline u32 plda_readl(struct plda_pcie *pcie, const u32 reg)
 	return readl_relaxed(pcie->reg_base + reg);
 }
 
-static bool plda_pcie_link_is_up(struct plda_pcie *pcie)
-{
-	return !!((plda_readl(pcie, PCIE_BASIC_STATUS) & LINK_UP_MASK));
-}
-
 static bool plda_pcie_hide_rc_bar(struct pci_bus *bus, unsigned int  devfn,
 				  int offset)
 {
@@ -155,19 +150,6 @@ static bool plda_pcie_hide_rc_bar(struct pci_bus *bus, unsigned int  devfn,
 		return true;
 
 	return false;
-}
-
-static void __iomem *plda_map_bus(struct plda_pcie *pcie, unsigned char busno,
-				  unsigned int devfn,
-				  int where, u8 byte_en)
-{
-	plda_writel(pcie, (busno << CFGNUM_BUS_SHIFT) |
-			(devfn << CFGNUM_DEVFN_SHIFT) |
-			(byte_en << CFGNUM_BE_SHIFT) |
-			(1 << CFGNUM_FBE_SHIFT),
-			PCIE_CFGNUM);
-
-	return pcie->reg_base + CFG_SPACE + where;
 }
 
 static int _plda_pcie_config_read(struct plda_pcie *pcie, unsigned char busno,
