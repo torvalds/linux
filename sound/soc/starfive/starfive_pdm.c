@@ -61,14 +61,14 @@ static int sf_pdm_set_mclk(struct sf_pdm *priv, unsigned int clk,
 	3M   1M    32K
 	3M   0.5M  16K
 	3M   0.25M  8K
-	
+
 	bit width 24, set lrclk_div as 32
 	mclk bclk  lrclk
 	3M   1.5M  48K
 	3M   1M    32K
 	3M   0.5M  16K
 	3M   0.25M  8K
-	
+
 	bit width 16
 	mclk bclk   lrclk
 	3M   0.75M  48K
@@ -78,10 +78,10 @@ static int sf_pdm_set_mclk(struct sf_pdm *priv, unsigned int clk,
 	*/
 
 	switch (clk) {
-	case 8000:		
-	case 16000:		
-	case 32000:		
-	case 48000:		
+	case 8000:
+	case 16000:
+	case 32000:
+	case 48000:
 		break;
 	default:
 		pr_err("PDM: not support sample rate:%d\n", clk);
@@ -89,9 +89,9 @@ static int sf_pdm_set_mclk(struct sf_pdm *priv, unsigned int clk,
 	}
 
 	switch (width) {
-	case 16:		
-	case 24:		
-	case 32:		
+	case 16:
+	case 24:
+	case 32:
 		break;
 	default:
 		pr_err("PDM: not support bit width %d\n", width);
@@ -104,7 +104,8 @@ static int sf_pdm_set_mclk(struct sf_pdm *priv, unsigned int clk,
 	/* PDM MCLK = 128 * LRCLK */
 	clk_set_rate(priv->clk_dmic0_bclk, clk*width);
 	clk_set_rate(priv->clk_dmic0_lrck, clk);
-	clk_set_rate(priv->clk_pdm_dmic, PDM_MUL * clk); //MCLK
+	/* MCLK */
+	clk_set_rate(priv->clk_pdm_dmic, PDM_MUL * clk);
 
 	return 0;
 }
@@ -112,16 +113,16 @@ static int sf_pdm_set_mclk(struct sf_pdm *priv, unsigned int clk,
 static void sf_pdm_enable(struct regmap *map)
 {
 	/* Enable PDM */
-	regmap_update_bits(map, PDM_DMIC_CTRL0, 0x01 << PDM_DMIC_RVOL_OFFSET, 0);
-	regmap_update_bits(map, PDM_DMIC_CTRL0, 0x01 << PDM_DMIC_LVOL_OFFSET, 0);
+	regmap_update_bits(map, PDM_DMIC_CTRL0, PDM_DMIC_RVOL_MASK, 0);
+	regmap_update_bits(map, PDM_DMIC_CTRL0, PDM_DMIC_LVOL_MASK, 0);
 }
 
 static void sf_pdm_disable(struct regmap *map)
 {
-	regmap_update_bits(map, PDM_DMIC_CTRL0, 
-		0x01 << PDM_DMIC_RVOL_OFFSET, 0x01 << PDM_DMIC_RVOL_OFFSET);
-	regmap_update_bits(map, PDM_DMIC_CTRL0, 
-		0x01 << PDM_DMIC_LVOL_OFFSET, 0x01 << PDM_DMIC_LVOL_OFFSET);
+	regmap_update_bits(map, PDM_DMIC_CTRL0,
+			PDM_DMIC_RVOL_MASK, PDM_DMIC_RVOL_MASK);
+	regmap_update_bits(map, PDM_DMIC_CTRL0,
+			PDM_DMIC_LVOL_MASK, PDM_DMIC_LVOL_MASK);
 }
 
 static int sf_pdm_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -155,10 +156,10 @@ static int sf_pdm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate = params_rate(params);
 	unsigned int width;
 	int ret;
-	
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return 0;
-	
+
 	width = params_width(params);
 	switch (width) {
 	case 16:
@@ -189,48 +190,49 @@ static int sf_pdm_dai_probe(struct snd_soc_dai *dai)
 	struct sf_pdm *priv = snd_soc_dai_get_drvdata(dai);
 
 	/* Reset */
-	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0, 
-		0x01 << PDM_DMIC_SW_RSTN_OFFSET, 0x00);
-	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0, 
-		0x01 << PDM_DMIC_SW_RSTN_OFFSET, 0x01 << PDM_DMIC_SW_RSTN_OFFSET);
+	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
+			PDM_DMIC_SW_RSTN_MASK, 0x00);
+	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
+			PDM_DMIC_SW_RSTN_MASK, PDM_DMIC_SW_RSTN_MASK);
 
 	/* Make sure the device is initially disabled */
 	sf_pdm_disable(priv->pdm_map);
 
 	/* MUTE */
-	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0, 
-		0x3F << PDM_DMIC_VOL_OFFSET, 0x3F << PDM_DMIC_VOL_OFFSET);
+	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
+			PDM_DMIC_VOL_MASK, PDM_DMIC_VOL_MASK);
 
 	/* UNMUTE */
-	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0, 
-		0x3F << PDM_DMIC_VOL_OFFSET, 0);
+	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
+			PDM_DMIC_VOL_MASK, 0);
 
 	/* enable high pass filter */
-	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0, 
-		0x01 << PDM_DMIC_ENHPF_OFFSET, 0x01 << PDM_DMIC_ENHPF_OFFSET);
+	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
+			PDM_DMIC_HPF_EN, PDM_DMIC_HPF_EN);
 
-	/* i2s slaver mode */
-	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0, 
-		0x01 << PDM_DMIC_I2SMODE_OFFSET, 0x01 << PDM_DMIC_I2SMODE_OFFSET);
+	/* i2s slave mode */
+	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
+			PDM_DMIC_I2S_SLAVE, PDM_DMIC_I2S_SLAVE);
 
 	/* disable fast mode */
-	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0, 
-		0x01 << PDM_DMIC_FASTMODE_OFFSET, 0);
+	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
+			PDM_DMIC_FASTMODE_MASK, 0);
 
 	/* enable dc bypass mode */
-	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0, 
-		0x01 << PDM_DMIC_DCBPS_OFFSET, 0);
+	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
+			PDM_DMIC_DC_BYPASS_MASK, 0);
 
 	/* dmic msb shift 0 */
-	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0, 
-		0x07 << PDM_DMIC_MSB_SHIFT_OFFSET, 0);
+	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
+			PDM_DMIC_MSB_MASK, 0);
 
 	/* scale:0 */
-	regmap_update_bits(priv->pdm_map, PDM_DC_SCALE0, 0x3F, 0x08);
-	
+	regmap_update_bits(priv->pdm_map, PDM_DC_SCALE0,
+			PDM_DC_SCALE0_MASK, 0x08);
+
 	/* DC offset:0 */
-	regmap_update_bits(priv->pdm_map, PDM_DC_SCALE0, 
-		0xFFFFF << PDM_DMIC_DCOFF1_OFFSET, 0xC0005 << PDM_DMIC_DCOFF1_OFFSET);
+	regmap_update_bits(priv->pdm_map, PDM_DC_SCALE0,
+			PDM_DMIC_DCOFF1_MASK, PDM_DMIC_DCOFF1_EN);
 
 	return 0;
 }
@@ -238,10 +240,10 @@ static int sf_pdm_dai_probe(struct snd_soc_dai *dai)
 static int sf_pdm_dai_remove(struct snd_soc_dai *dai)
 {
 	struct sf_pdm *priv = snd_soc_dai_get_drvdata(dai);
-	
+
 	/* MUTE */
-	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0, 
-		0x3F << PDM_DMIC_VOL_OFFSET, 0x3F << PDM_DMIC_VOL_OFFSET);
+	regmap_update_bits(priv->pdm_map, PDM_DMIC_CTRL0,
+			PDM_DMIC_VOL_MASK, PDM_DMIC_VOL_MASK);
 
 	return 0;
 }
@@ -259,16 +261,16 @@ static struct snd_soc_dai_driver sf_pdm_dai_drv = {
 		.channels_min	= 2,
 		.channels_max	= 2,
 		.rates		= SF_PCM_RATE,
-		.formats	= SNDRV_PCM_FMTBIT_S16_LE|\
-				  SNDRV_PCM_FMTBIT_S24_LE|\
+		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S24_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
 	},
-	.ops		= &sf_pdm_dai_ops,
-	.probe		= sf_pdm_dai_probe,
-	.remove		= sf_pdm_dai_remove,	
+	.ops = &sf_pdm_dai_ops,
+	.probe = sf_pdm_dai_probe,
+	.remove	= sf_pdm_dai_remove,
 	.symmetric_rate = 1,
 };
-		
+
 static int pdm_probe(struct snd_soc_component *component)
 {
 	struct sf_pdm *priv = snd_soc_component_get_drvdata(component);
@@ -298,11 +300,10 @@ static const struct regmap_config sf_audio_clk_regmap_cfg = {
 	.reg_stride	= 4,
 	.max_register	= 0x100,
 };
- 
+
 static int sf_pdm_clock_init(struct platform_device *pdev, struct sf_pdm *priv)
 {
 	int ret;
-	unsigned int val = 0;
 
 	priv->rst_pdm_dmic = devm_reset_control_get_exclusive(&pdev->dev, "pdm_dmic");
 	if (IS_ERR(priv->rst_pdm_dmic)) {
@@ -412,13 +413,13 @@ static int sf_pdm_clock_init(struct platform_device *pdev, struct sf_pdm *priv)
 		goto err_clk_disable;
 	}
 
-	ret = reset_control_deassert(dev->rst_pdm_dmic);
+	ret = reset_control_deassert(priv->rst_pdm_dmic);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to deassert pdm_dmic\n");
 		goto err_clk_disable;
 	}
 
-	ret = reset_control_deassert(dev->rst_pdm_apb);
+	ret = reset_control_deassert(priv->rst_pdm_apb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to deassert pdm_apb\n");
 		goto err_clk_disable;
@@ -442,7 +443,7 @@ static int sf_pdm_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, priv);
-	
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pdm");
 	regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(regs))
@@ -469,8 +470,9 @@ static int sf_pdm_dev_remove(struct platform_device *pdev)
 {
 	return 0;
 }
+
 static const struct of_device_id sf_pdm_of_match[] = {
-	{.compatible = "starfive,sf-pdm",}, 
+	{.compatible = "starfive,sf-pdm",},
 	{}
 };
 MODULE_DEVICE_TABLE(of, sf_pdm_of_match);
