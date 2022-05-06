@@ -31,6 +31,7 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/pm_wakeup.h>
 
 #include "t7xx_mhccif.h"
@@ -44,6 +45,7 @@
 #define T7XX_PCI_EREG_BASE		2
 
 #define PM_ACK_TIMEOUT_MS		1500
+#define PM_AUTOSUSPEND_MS		20000
 #define PM_RESOURCE_POLL_TIMEOUT_US	10000
 #define PM_RESOURCE_POLL_STEP_US	100
 
@@ -82,6 +84,8 @@ static int t7xx_pci_pm_init(struct t7xx_pci_dev *t7xx_dev)
 				DPM_FLAG_NO_DIRECT_COMPLETE);
 
 	iowrite32(T7XX_L1_BIT(0), IREG_BASE(t7xx_dev) + DISABLE_ASPM_LOWPWR);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, PM_AUTOSUSPEND_MS);
+	pm_runtime_use_autosuspend(&pdev->dev);
 
 	return t7xx_wait_pm_config(t7xx_dev);
 }
@@ -96,6 +100,8 @@ void t7xx_pci_pm_init_late(struct t7xx_pci_dev *t7xx_dev)
 			     D2H_INT_RESUME_ACK_AP);
 	iowrite32(T7XX_L1_BIT(0), IREG_BASE(t7xx_dev) + ENABLE_ASPM_LOWPWR);
 	atomic_set(&t7xx_dev->md_pm_state, MTK_PM_RESUMED);
+
+	pm_runtime_put_noidle(&t7xx_dev->pdev->dev);
 }
 
 static int t7xx_pci_pm_reinit(struct t7xx_pci_dev *t7xx_dev)
@@ -104,6 +110,9 @@ static int t7xx_pci_pm_reinit(struct t7xx_pci_dev *t7xx_dev)
 	 * so just roll back PM setting to the init setting.
 	 */
 	atomic_set(&t7xx_dev->md_pm_state, MTK_PM_INIT);
+
+	pm_runtime_get_noresume(&t7xx_dev->pdev->dev);
+
 	iowrite32(T7XX_L1_BIT(0), IREG_BASE(t7xx_dev) + DISABLE_ASPM_LOWPWR);
 	return t7xx_wait_pm_config(t7xx_dev);
 }
@@ -403,6 +412,7 @@ static int __t7xx_pci_pm_resume(struct pci_dev *pdev, bool state_check)
 	t7xx_dev->rgu_pci_irq_en = true;
 	t7xx_pcie_mac_set_int(t7xx_dev, SAP_RGU_INT);
 	iowrite32(T7XX_L1_BIT(0), IREG_BASE(t7xx_dev) + ENABLE_ASPM_LOWPWR);
+	pm_runtime_mark_last_busy(&pdev->dev);
 	atomic_set(&t7xx_dev->md_pm_state, MTK_PM_RESUMED);
 
 	return ret;
@@ -439,6 +449,16 @@ static int t7xx_pci_pm_thaw(struct device *dev)
 	return __t7xx_pci_pm_resume(to_pci_dev(dev), false);
 }
 
+static int t7xx_pci_pm_runtime_suspend(struct device *dev)
+{
+	return __t7xx_pci_pm_suspend(to_pci_dev(dev));
+}
+
+static int t7xx_pci_pm_runtime_resume(struct device *dev)
+{
+	return __t7xx_pci_pm_resume(to_pci_dev(dev), true);
+}
+
 static const struct dev_pm_ops t7xx_pci_pm_ops = {
 	.suspend = t7xx_pci_pm_suspend,
 	.resume = t7xx_pci_pm_resume,
@@ -448,6 +468,8 @@ static const struct dev_pm_ops t7xx_pci_pm_ops = {
 	.poweroff = t7xx_pci_pm_suspend,
 	.restore = t7xx_pci_pm_resume,
 	.restore_noirq = t7xx_pci_pm_resume_noirq,
+	.runtime_suspend = t7xx_pci_pm_runtime_suspend,
+	.runtime_resume = t7xx_pci_pm_runtime_resume
 };
 
 static int t7xx_request_irq(struct pci_dev *pdev)
