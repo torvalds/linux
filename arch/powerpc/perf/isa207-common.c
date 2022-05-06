@@ -108,7 +108,7 @@ static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 		*mmcra |= MMCRA_SDAR_MODE_TLB;
 }
 
-static u64 p10_thresh_cmp_val(u64 value)
+static int p10_thresh_cmp_val(u64 value)
 {
 	int exp = 0;
 	u64 result = value;
@@ -139,7 +139,7 @@ static u64 p10_thresh_cmp_val(u64 value)
 		 * exponent is also zero.
 		 */
 		if (!(value & 0xC0) && exp)
-			result = 0;
+			result = -1;
 		else
 			result = (exp << 8) | value;
 	}
@@ -187,7 +187,7 @@ static bool is_thresh_cmp_valid(u64 event)
 	unsigned int cmp, exp;
 
 	if (cpu_has_feature(CPU_FTR_ARCH_31))
-		return p10_thresh_cmp_val(event) != 0;
+		return p10_thresh_cmp_val(event) >= 0;
 
 	/*
 	 * Check the mantissa upper two bits are not zero, unless the
@@ -456,7 +456,8 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp, 
 			value |= CNST_THRESH_CTL_SEL_VAL(event >> EVENT_THRESH_SHIFT);
 			mask  |= p10_CNST_THRESH_CMP_MASK;
 			value |= p10_CNST_THRESH_CMP_VAL(p10_thresh_cmp_val(event_config1));
-		}
+		} else if (event_is_threshold(event))
+			return -1;
 	} else if (cpu_has_feature(CPU_FTR_ARCH_300))  {
 		if (event_is_threshold(event) && is_thresh_cmp_valid(event)) {
 			mask  |= CNST_THRESH_MASK;
