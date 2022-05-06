@@ -950,7 +950,12 @@ static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 	core_period = master->timing.core_period;
 
 	/* I3C PP mode */
-	if (master->base.jdec_spd) {
+	if (master->timing.i3c_pp_scl_high && master->timing.i3c_pp_scl_low) {
+		hcnt = DIV_ROUND_CLOSEST(master->timing.i3c_pp_scl_high,
+					 core_period);
+		lcnt = DIV_ROUND_CLOSEST(master->timing.i3c_pp_scl_low,
+					 core_period);
+	} else if (master->base.jdec_spd) {
 		struct i3c_scl_timing_cfg *pp_timing;
 
 		pp_timing = ast2600_i3c_jesd403_scl_search(
@@ -966,6 +971,8 @@ static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 		if (lcnt < SCL_I3C_TIMING_CNT_MIN)
 			lcnt = SCL_I3C_TIMING_CNT_MIN;
 	}
+	hcnt = min_t(u16, hcnt, FIELD_MAX(SCL_I3C_TIMING_HCNT));
+	lcnt = min_t(u16, lcnt, FIELD_MAX(SCL_I3C_TIMING_LCNT));
 	scl_timing = FIELD_PREP(SCL_I3C_TIMING_HCNT, hcnt) |
 		     FIELD_PREP(SCL_I3C_TIMING_LCNT, lcnt);
 	writel(scl_timing, master->regs + SCL_I3C_PP_TIMING);
@@ -977,13 +984,21 @@ static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 	}
 
 	/* I3C OD mode:
+	 * User defined
+	 *     check if hcnt/lcnt exceed the max value of the register
+	 *
 	 * JESD403 timing constrain for I2C/I3C OP mode
 	 *     tHIGH > 260, tLOW > 500 (same with MIPI 1.1 FMP constrain)
 	 *
 	 * MIPI 1.1 timing constrain for I3C OP mode
 	 *     tHIGH < 41, tLOW > 200
 	 */
-	if (master->base.jdec_spd) {
+	if (master->timing.i3c_od_scl_high && master->timing.i3c_od_scl_low) {
+		hcnt = DIV_ROUND_CLOSEST(master->timing.i3c_od_scl_high,
+					 core_period);
+		lcnt = DIV_ROUND_CLOSEST(master->timing.i3c_od_scl_low,
+					 core_period);
+	} else if (master->base.jdec_spd) {
 		calc_i2c_clk(master, I3C_BUS_I2C_FM_PLUS_SCL_RATE, &hcnt, &lcnt);
 	} else {
 		lcnt = DIV_ROUND_UP(I3C_BUS_TLOW_OD_MIN_NS, core_period);
@@ -2084,6 +2099,18 @@ static int aspeed_i3c_master_timing_config(struct aspeed_i3c_master *master,
 	timed_reset_scl_low_ns = JESD403_TIMED_RESET_NS_DEF;
 
 	/* parse configurations from DT */
+	if (!of_property_read_u32(np, "i3c-pp-scl-hi-period-ns", &val))
+		master->timing.i3c_pp_scl_high = val;
+
+	if (!of_property_read_u32(np, "i3c-pp-scl-lo-period-ns", &val))
+		master->timing.i3c_pp_scl_low = val;
+
+	if (!of_property_read_u32(np, "i3c-od-scl-hi-period-ns", &val))
+		master->timing.i3c_od_scl_high = val;
+
+	if (!of_property_read_u32(np, "i3c-od-scl-lo-period-ns", &val))
+		master->timing.i3c_od_scl_low = val;
+
 	if (!of_property_read_u32(np, "sda-tx-hold-ns", &val))
 		sda_tx_hold_ns = val;
 
