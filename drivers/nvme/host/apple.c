@@ -112,10 +112,10 @@ struct apple_nvmmu_tcb {
 
 	u8 command_id;
 	u8 _unk0;
-	u32 length;
-	u8 _unk1[16];
-	u64 prp1;
-	u64 prp2;
+	__le16 length;
+	u8 _unk1[18];
+	__le64 prp1;
+	__le64 prp2;
 	u8 _unk2[16];
 	u8 aes_iv[8];
 	u8 _aes_unk[64];
@@ -348,7 +348,7 @@ static void apple_nvme_free_prps(struct apple_nvme *anv, struct request *req)
 
 	for (i = 0; i < iod->npages; i++) {
 		__le64 *prp_list = apple_nvme_iod_list(req)[i];
-		dma_addr_t next_dma_addr = prp_list[last_prp];
+		dma_addr_t next_dma_addr = le64_to_cpu(prp_list[last_prp]);
 
 		dma_pool_free(anv->prp_page_pool, prp_list, dma_addr);
 		dma_addr = next_dma_addr;
@@ -453,10 +453,10 @@ static blk_status_t apple_nvme_setup_prps(struct apple_nvme *anv,
 				goto free_prps;
 			list[iod->npages++] = prp_list;
 			prp_list[0] = old_prp_list[i - 1];
-			old_prp_list[i - 1] = prp_dma;
+			old_prp_list[i - 1] = cpu_to_le64(prp_dma);
 			i = 1;
 		}
-		prp_list[i++] = dma_addr;
+		prp_list[i++] = cpu_to_le64(dma_addr);
 		dma_len -= NVME_CTRL_PAGE_SIZE;
 		dma_addr += NVME_CTRL_PAGE_SIZE;
 		length -= NVME_CTRL_PAGE_SIZE;
@@ -471,8 +471,8 @@ static blk_status_t apple_nvme_setup_prps(struct apple_nvme *anv,
 		dma_len = sg_dma_len(sg);
 	}
 done:
-	cmnd->dptr.prp1 = sg_dma_address(iod->sg);
-	cmnd->dptr.prp2 = iod->first_dma;
+	cmnd->dptr.prp1 = cpu_to_le64(sg_dma_address(iod->sg));
+	cmnd->dptr.prp2 = cpu_to_le64(iod->first_dma);
 	return BLK_STS_OK;
 free_prps:
 	apple_nvme_free_prps(anv, req);
@@ -498,9 +498,9 @@ static blk_status_t apple_nvme_setup_prp_simple(struct apple_nvme *anv,
 		return BLK_STS_RESOURCE;
 	iod->dma_len = bv->bv_len;
 
-	cmnd->dptr.prp1 = iod->first_dma;
+	cmnd->dptr.prp1 = cpu_to_le64(iod->first_dma);
 	if (bv->bv_len > first_prp_len)
-		cmnd->dptr.prp2 = iod->first_dma + first_prp_len;
+		cmnd->dptr.prp2 = cpu_to_le64(iod->first_dma + first_prp_len);
 	return BLK_STS_OK;
 }
 
@@ -570,7 +570,7 @@ static inline bool apple_nvme_cqe_pending(struct apple_nvme_queue *q)
 {
 	struct nvme_completion *hcqe = &q->cqes[q->cq_head];
 
-	return (READ_ONCE(hcqe->status) & 1) == q->cq_phase;
+	return (le16_to_cpu(READ_ONCE(hcqe->status)) & 1) == q->cq_phase;
 }
 
 static inline struct blk_mq_tags *
@@ -682,11 +682,11 @@ static int apple_nvme_create_cq(struct apple_nvme *anv)
 	 * is attached to the request.
 	 */
 	c.create_cq.opcode = nvme_admin_create_cq;
-	c.create_cq.prp1 = anv->ioq.cq_dma_addr;
-	c.create_cq.cqid = 1;
-	c.create_cq.qsize = APPLE_ANS_MAX_QUEUE_DEPTH - 1;
-	c.create_cq.cq_flags = NVME_QUEUE_PHYS_CONTIG | NVME_CQ_IRQ_ENABLED;
-	c.create_cq.irq_vector = 0;
+	c.create_cq.prp1 = cpu_to_le64(anv->ioq.cq_dma_addr);
+	c.create_cq.cqid = cpu_to_le16(1);
+	c.create_cq.qsize = cpu_to_le16(APPLE_ANS_MAX_QUEUE_DEPTH - 1);
+	c.create_cq.cq_flags = cpu_to_le16(NVME_QUEUE_PHYS_CONTIG | NVME_CQ_IRQ_ENABLED);
+	c.create_cq.irq_vector = cpu_to_le16(0);
 
 	return nvme_submit_sync_cmd(anv->ctrl.admin_q, &c, NULL, 0);
 }
@@ -696,7 +696,7 @@ static int apple_nvme_remove_cq(struct apple_nvme *anv)
 	struct nvme_command c = {};
 
 	c.delete_queue.opcode = nvme_admin_delete_cq;
-	c.delete_queue.qid = 1;
+	c.delete_queue.qid = cpu_to_le16(1);
 
 	return nvme_submit_sync_cmd(anv->ctrl.admin_q, &c, NULL, 0);
 }
@@ -710,11 +710,11 @@ static int apple_nvme_create_sq(struct apple_nvme *anv)
 	 * is attached to the request.
 	 */
 	c.create_sq.opcode = nvme_admin_create_sq;
-	c.create_sq.prp1 = anv->ioq.sq_dma_addr;
-	c.create_sq.sqid = 1;
-	c.create_sq.qsize = APPLE_ANS_MAX_QUEUE_DEPTH - 1;
-	c.create_sq.sq_flags = NVME_QUEUE_PHYS_CONTIG;
-	c.create_sq.cqid = 1;
+	c.create_sq.prp1 = cpu_to_le64(anv->ioq.sq_dma_addr);
+	c.create_sq.sqid = cpu_to_le16(1);
+	c.create_sq.qsize = cpu_to_le16(APPLE_ANS_MAX_QUEUE_DEPTH - 1);
+	c.create_sq.sq_flags = cpu_to_le16(NVME_QUEUE_PHYS_CONTIG);
+	c.create_sq.cqid = cpu_to_le16(1);
 
 	return nvme_submit_sync_cmd(anv->ctrl.admin_q, &c, NULL, 0);
 }
@@ -724,7 +724,7 @@ static int apple_nvme_remove_sq(struct apple_nvme *anv)
 	struct nvme_command c = {};
 
 	c.delete_queue.opcode = nvme_admin_delete_sq;
-	c.delete_queue.qid = 1;
+	c.delete_queue.qid = cpu_to_le16(1);
 
 	return nvme_submit_sync_cmd(anv->ctrl.admin_q, &c, NULL, 0);
 }
