@@ -31,9 +31,15 @@ struct amdgpu_lsdma {
 struct amdgpu_lsdma_funcs {
 	int (*copy_mem)(struct amdgpu_device *adev, uint64_t src_addr,
 			uint64_t dst_addr, uint64_t size);
+	int (*fill_mem)(struct amdgpu_device *adev, uint64_t dst_addr,
+			uint32_t data, uint64_t size);
 };
 
 int amdgpu_lsdma_copy_mem(struct amdgpu_device *adev, uint64_t src_addr,
 			  uint64_t dst_addr, uint64_t mem_size);
+int amdgpu_lsdma_fill_mem(struct amdgpu_device *adev, uint64_t dst_addr,
+			  uint32_t data, uint64_t mem_size);
+int amdgpu_lsdma_wait_for(struct amdgpu_device *adev, uint32_t reg_index,
+			  uint32_t reg_val, uint32_t mask);
 
 #endif
