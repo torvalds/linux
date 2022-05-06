@@ -86,9 +86,10 @@ int genphy_c45_pma_baset1_setup_master_slave(struct phy_device *phydev)
 		break;
 	case MASTER_SLAVE_CFG_SLAVE_FORCE:
 	case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
+		break;
 	case MASTER_SLAVE_CFG_UNKNOWN:
 	case MASTER_SLAVE_CFG_UNSUPPORTED:
-		break;
+		return 0;
 	default:
 		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
 		return -EOPNOTSUPP;
