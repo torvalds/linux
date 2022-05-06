@@ -33,6 +33,7 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_wakeup.h>
+#include <linux/spinlock.h>
 
 #include "t7xx_mhccif.h"
 #include "t7xx_modem_ops.h"
@@ -44,6 +45,7 @@
 #define T7XX_PCI_IREG_BASE		0
 #define T7XX_PCI_EREG_BASE		2
 
+#define PM_SLEEP_DIS_TIMEOUT_MS		20
 #define PM_ACK_TIMEOUT_MS		1500
 #define PM_AUTOSUSPEND_MS		20000
 #define PM_RESOURCE_POLL_TIMEOUT_US	10000
@@ -55,6 +57,21 @@ enum t7xx_pm_state {
 	MTK_PM_SUSPENDED,
 	MTK_PM_RESUMED,
 };
+
+static void t7xx_dev_set_sleep_capability(struct t7xx_pci_dev *t7xx_dev, bool enable)
+{
+	void __iomem *ctrl_reg = IREG_BASE(t7xx_dev) + T7XX_PCIE_MISC_CTRL;
+	u32 value;
+
+	value = ioread32(ctrl_reg);
+
+	if (enable)
+		value &= ~T7XX_PCIE_MISC_MAC_SLEEP_DIS;
+	else
+		value |= T7XX_PCIE_MISC_MAC_SLEEP_DIS;
+
+	iowrite32(value, ctrl_reg);
+}
 
 static int t7xx_wait_pm_config(struct t7xx_pci_dev *t7xx_dev)
 {
@@ -76,6 +93,8 @@ static int t7xx_pci_pm_init(struct t7xx_pci_dev *t7xx_dev)
 
 	INIT_LIST_HEAD(&t7xx_dev->md_pm_entities);
 	mutex_init(&t7xx_dev->md_pm_entity_mtx);
+	spin_lock_init(&t7xx_dev->md_pm_lock);
+	init_completion(&t7xx_dev->sleep_lock_acquire);
 	init_completion(&t7xx_dev->pm_sr_ack);
 	atomic_set(&t7xx_dev->md_pm_state, MTK_PM_INIT);
 
@@ -94,6 +113,7 @@ void t7xx_pci_pm_init_late(struct t7xx_pci_dev *t7xx_dev)
 {
 	/* Enable the PCIe resource lock only after MD deep sleep is done */
 	t7xx_mhccif_mask_clr(t7xx_dev,
+			     D2H_INT_DS_LOCK_ACK |
 			     D2H_INT_SUSPEND_ACK |
 			     D2H_INT_RESUME_ACK |
 			     D2H_INT_SUSPEND_ACK_AP |
@@ -157,6 +177,79 @@ int t7xx_pci_pm_entity_unregister(struct t7xx_pci_dev *t7xx_dev, struct md_pm_en
 	mutex_unlock(&t7xx_dev->md_pm_entity_mtx);
 
 	return -ENXIO;
+}
+
+int t7xx_pci_sleep_disable_complete(struct t7xx_pci_dev *t7xx_dev)
+{
+	struct device *dev = &t7xx_dev->pdev->dev;
+	int ret;
+
+	ret = wait_for_completion_timeout(&t7xx_dev->sleep_lock_acquire,
+					  msecs_to_jiffies(PM_SLEEP_DIS_TIMEOUT_MS));
+	if (!ret)
+		dev_err_ratelimited(dev, "Resource wait complete timed out\n");
+
+	return ret;
+}
+
+/**
+ * t7xx_pci_disable_sleep() - Disable deep sleep capability.
+ * @t7xx_dev: MTK device.
+ *
+ * Lock the deep sleep capability, note that the device can still go into deep sleep
+ * state while device is in D0 state, from the host's point-of-view.
+ *
+ * If device is in deep sleep state, wake up the device and disable deep sleep capability.
+ */
+void t7xx_pci_disable_sleep(struct t7xx_pci_dev *t7xx_dev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&t7xx_dev->md_pm_lock, flags);
+	t7xx_dev->sleep_disable_count++;
+	if (atomic_read(&t7xx_dev->md_pm_state) < MTK_PM_RESUMED)
+		goto unlock_and_complete;
+
+	if (t7xx_dev->sleep_disable_count == 1) {
+		u32 status;
+
+		reinit_completion(&t7xx_dev->sleep_lock_acquire);
+		t7xx_dev_set_sleep_capability(t7xx_dev, false);
+
+		status = ioread32(IREG_BASE(t7xx_dev) + T7XX_PCIE_RESOURCE_STATUS);
+		if (status & T7XX_PCIE_RESOURCE_STS_MSK)
+			goto unlock_and_complete;
+
+		t7xx_mhccif_h2d_swint_trigger(t7xx_dev, H2D_CH_DS_LOCK);
+	}
+	spin_unlock_irqrestore(&t7xx_dev->md_pm_lock, flags);
+	return;
+
+unlock_and_complete:
+	spin_unlock_irqrestore(&t7xx_dev->md_pm_lock, flags);
+	complete_all(&t7xx_dev->sleep_lock_acquire);
+}
+
+/**
+ * t7xx_pci_enable_sleep() - Enable deep sleep capability.
+ * @t7xx_dev: MTK device.
+ *
+ * After enabling deep sleep, device can enter into deep sleep state.
+ */
+void t7xx_pci_enable_sleep(struct t7xx_pci_dev *t7xx_dev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&t7xx_dev->md_pm_lock, flags);
+	t7xx_dev->sleep_disable_count--;
+	if (atomic_read(&t7xx_dev->md_pm_state) < MTK_PM_RESUMED)
+		goto unlock;
+
+	if (t7xx_dev->sleep_disable_count == 0)
+		t7xx_dev_set_sleep_capability(t7xx_dev, true);
+
+unlock:
+	spin_unlock_irqrestore(&t7xx_dev->md_pm_lock, flags);
 }
 
 static int t7xx_send_pm_request(struct t7xx_pci_dev *t7xx_dev, u32 request)

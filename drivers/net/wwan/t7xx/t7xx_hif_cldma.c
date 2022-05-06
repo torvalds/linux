@@ -934,6 +934,7 @@ int t7xx_cldma_send_skb(struct cldma_ctrl *md_ctrl, int qno, struct sk_buff *skb
 	if (ret < 0 && ret != -EACCES)
 		return ret;
 
+	t7xx_pci_disable_sleep(md_ctrl->t7xx_dev);
 	queue = &md_ctrl->txq[qno];
 
 	spin_lock_irqsave(&md_ctrl->cldma_lock, flags);
@@ -955,6 +956,11 @@ int t7xx_cldma_send_skb(struct cldma_ctrl *md_ctrl, int qno, struct sk_buff *skb
 			queue->tx_next = list_next_entry_circular(tx_req, gpd_ring, entry);
 			spin_unlock_irqrestore(&queue->ring_lock, flags);
 
+			if (!t7xx_pci_sleep_disable_complete(md_ctrl->t7xx_dev)) {
+				ret = -ETIMEDOUT;
+				break;
+			}
+
 			/* Protect the access to the modem for queues operations (resume/start)
 			 * which access shared locations by all the queues.
 			 * cldma_lock is independent of ring_lock which is per queue.
@@ -967,6 +973,11 @@ int t7xx_cldma_send_skb(struct cldma_ctrl *md_ctrl, int qno, struct sk_buff *skb
 		}
 		spin_unlock_irqrestore(&queue->ring_lock, flags);
 
+		if (!t7xx_pci_sleep_disable_complete(md_ctrl->t7xx_dev)) {
+			ret = -ETIMEDOUT;
+			break;
+		}
+
 		if (!t7xx_cldma_hw_queue_status(&md_ctrl->hw_info, qno, MTK_TX)) {
 			spin_lock_irqsave(&md_ctrl->cldma_lock, flags);
 			t7xx_cldma_hw_resume_queue(&md_ctrl->hw_info, qno, MTK_TX);
@@ -977,6 +988,7 @@ int t7xx_cldma_send_skb(struct cldma_ctrl *md_ctrl, int qno, struct sk_buff *skb
 	} while (!ret);
 
 allow_sleep:
+	t7xx_pci_enable_sleep(md_ctrl->t7xx_dev);
 	pm_runtime_mark_last_busy(md_ctrl->dev);
 	pm_runtime_put_autosuspend(md_ctrl->dev);
 	return ret;

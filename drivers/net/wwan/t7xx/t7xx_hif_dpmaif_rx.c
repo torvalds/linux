@@ -927,8 +927,11 @@ static void t7xx_dpmaif_rxq_work(struct work_struct *work)
 	if (ret < 0 && ret != -EACCES)
 		return;
 
-	t7xx_dpmaif_do_rx(dpmaif_ctrl, rxq);
+	t7xx_pci_disable_sleep(dpmaif_ctrl->t7xx_dev);
+	if (t7xx_pci_sleep_disable_complete(dpmaif_ctrl->t7xx_dev))
+		t7xx_dpmaif_do_rx(dpmaif_ctrl, rxq);
 
+	t7xx_pci_enable_sleep(dpmaif_ctrl->t7xx_dev);
 	pm_runtime_mark_last_busy(dpmaif_ctrl->dev);
 	pm_runtime_put_autosuspend(dpmaif_ctrl->dev);
 	atomic_set(&rxq->rx_processing, 0);
@@ -1138,11 +1141,16 @@ static void t7xx_dpmaif_bat_release_work(struct work_struct *work)
 	if (ret < 0 && ret != -EACCES)
 		return;
 
+	t7xx_pci_disable_sleep(dpmaif_ctrl->t7xx_dev);
+
 	/* ALL RXQ use one BAT table, so choose DPF_RX_QNO_DFT */
 	rxq = &dpmaif_ctrl->rxq[DPF_RX_QNO_DFT];
-	t7xx_dpmaif_bat_release_and_add(rxq);
-	t7xx_dpmaif_frag_bat_release_and_add(rxq);
+	if (t7xx_pci_sleep_disable_complete(dpmaif_ctrl->t7xx_dev)) {
+		t7xx_dpmaif_bat_release_and_add(rxq);
+		t7xx_dpmaif_frag_bat_release_and_add(rxq);
+	}
 
+	t7xx_pci_enable_sleep(dpmaif_ctrl->t7xx_dev);
 	pm_runtime_mark_last_busy(dpmaif_ctrl->dev);
 	pm_runtime_put_autosuspend(dpmaif_ctrl->dev);
 }

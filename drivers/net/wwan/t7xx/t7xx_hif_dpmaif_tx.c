@@ -166,20 +166,25 @@ static void t7xx_dpmaif_tx_done(struct work_struct *work)
 	if (ret < 0 && ret != -EACCES)
 		return;
 
-	hw_info = &dpmaif_ctrl->hw_info;
-	ret = t7xx_dpmaif_tx_release(dpmaif_ctrl, txq->index, txq->drb_size_cnt);
-	if (ret == -EAGAIN ||
-	    (t7xx_dpmaif_ul_clr_done(hw_info, txq->index) &&
-	     t7xx_dpmaif_drb_ring_not_empty(txq))) {
-		queue_work(dpmaif_ctrl->txq[txq->index].worker,
-			   &dpmaif_ctrl->txq[txq->index].dpmaif_tx_work);
-		/* Give the device time to enter the low power state */
-		t7xx_dpmaif_clr_ip_busy_sts(hw_info);
-	} else {
-		t7xx_dpmaif_clr_ip_busy_sts(hw_info);
-		t7xx_dpmaif_unmask_ulq_intr(hw_info, txq->index);
+	/* The device may be in low power state. Disable sleep if needed */
+	t7xx_pci_disable_sleep(dpmaif_ctrl->t7xx_dev);
+	if (t7xx_pci_sleep_disable_complete(dpmaif_ctrl->t7xx_dev)) {
+		hw_info = &dpmaif_ctrl->hw_info;
+		ret = t7xx_dpmaif_tx_release(dpmaif_ctrl, txq->index, txq->drb_size_cnt);
+		if (ret == -EAGAIN ||
+		    (t7xx_dpmaif_ul_clr_done(hw_info, txq->index) &&
+		     t7xx_dpmaif_drb_ring_not_empty(txq))) {
+			queue_work(dpmaif_ctrl->txq[txq->index].worker,
+				   &dpmaif_ctrl->txq[txq->index].dpmaif_tx_work);
+			/* Give the device time to enter the low power state */
+			t7xx_dpmaif_clr_ip_busy_sts(hw_info);
+		} else {
+			t7xx_dpmaif_clr_ip_busy_sts(hw_info);
+			t7xx_dpmaif_unmask_ulq_intr(hw_info, txq->index);
+		}
 	}
 
+	t7xx_pci_enable_sleep(dpmaif_ctrl->t7xx_dev);
 	pm_runtime_mark_last_busy(dpmaif_ctrl->dev);
 	pm_runtime_put_autosuspend(dpmaif_ctrl->dev);
 }
@@ -405,6 +410,8 @@ static int t7xx_txq_burst_send_skb(struct dpmaif_tx_queue *txq)
 
 static void t7xx_do_tx_hw_push(struct dpmaif_ctrl *dpmaif_ctrl)
 {
+	bool wait_disable_sleep = true;
+
 	do {
 		struct dpmaif_tx_queue *txq;
 		int drb_send_cnt;
@@ -418,6 +425,14 @@ static void t7xx_do_tx_hw_push(struct dpmaif_ctrl *dpmaif_ctrl)
 			usleep_range(10, 20);
 			cond_resched();
 			continue;
+		}
+
+		/* Wait for the PCIe resource to unlock */
+		if (wait_disable_sleep) {
+			if (!t7xx_pci_sleep_disable_complete(dpmaif_ctrl->t7xx_dev))
+				return;
+
+			wait_disable_sleep = false;
 		}
 
 		t7xx_dpmaif_ul_update_hw_drb_cnt(&dpmaif_ctrl->hw_info, txq->index,
@@ -450,7 +465,9 @@ static int t7xx_dpmaif_tx_hw_push_thread(void *arg)
 		if (ret < 0 && ret != -EACCES)
 			return ret;
 
+		t7xx_pci_disable_sleep(dpmaif_ctrl->t7xx_dev);
 		t7xx_do_tx_hw_push(dpmaif_ctrl);
+		t7xx_pci_enable_sleep(dpmaif_ctrl->t7xx_dev);
 		pm_runtime_mark_last_busy(dpmaif_ctrl->dev);
 		pm_runtime_put_autosuspend(dpmaif_ctrl->dev);
 	}
