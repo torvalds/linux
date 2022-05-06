@@ -9732,10 +9732,8 @@ static int rtl8152_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, tp);
 
-	if (tp->support_2500full)
-		netif_napi_add(netdev, &tp->napi, r8152_poll, 256);
-	else
-		netif_napi_add(netdev, &tp->napi, r8152_poll, 64);
+	netif_napi_add_weight(netdev, &tp->napi, r8152_poll,
+			      tp->support_2500full ? 256 : 64);
 
 	ret = register_netdev(netdev);
 	if (ret != 0) {
