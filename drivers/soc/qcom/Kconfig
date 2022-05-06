@@ -242,12 +242,20 @@ config QTI_PMIC_GLINK_CLIENT_DEBUG
 config QTI_BATTERY_GLINK_DEBUG
 	tristate "Enable support for QTI battery glink debug driver"
 	depends on QTI_PMIC_GLINK
-	depends on DEBUG_FS
 	help
 	  Qualcomm Technologies, Inc. battery glink debug driver helps to
 	  obtain debug information for battery charging and gauging over PMIC
 	  Glink from charger and gauging firmware running on a remote subsystem
 	  (e.g. DSP).
+
+config QTI_ALTMODE_GLINK
+	tristate "Type-C alternate mode over GLINK"
+	depends on QTI_PMIC_GLINK
+	help
+	  The Qualcomm Technologies, Inc. Type-C alternate mode driver provides
+	  an interface for Type-C alternate mode clients to receive data such
+	  as Pin Assignment Notifications from the Type-C stack running on a
+	  remote subsystem (e.g. DSP) via the PMIC GLINK interface.
 
 config QCOM_SECURE_BUFFER
 	tristate "Helper functions for secure buffers through TZ"
