@@ -65,6 +65,7 @@
 #include <asm/smp.h>
 #include <asm/hw_irq.h>
 #include <asm/softirq_stack.h>
+#include <asm/ppc_asm.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
