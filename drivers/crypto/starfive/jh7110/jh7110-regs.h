@@ -95,23 +95,23 @@ union jh7110_crypto_cacr {
 		u32 reset			:1;
 		u32 ie				:1;
 		u32 rsvd_0			:1;
-		u32 fifo_mode		:1;
+		u32 fifo_mode			:1;
 		u32 not_r2			:1;
 		u32 ecc_sub			:1;
-		u32 pre_expf		:1;
+		u32 pre_expf			:1;
 
 		u32 cmd				:4;
 		u32 rsvd_1			:1;
-		u32 ctrl_dummy		:1;
-		u32 ctrl_false		:1;
-		u32 cln_done		:1;
+		u32 ctrl_dummy			:1;
+		u32 ctrl_false			:1;
+		u32 cln_done			:1;
 
 		u32 opsize			:6;
 		u32 rsvd_2			:2;
 
-		u32 exposize		:6;
+		u32 exposize			:6;
 		u32 rsvd_3			:1;
-		u32 bigendian		:1;
+		u32 bigendian			:1;
 	};
 };
 
@@ -134,16 +134,16 @@ union jh7110_crypto_casr {
 #define JH7110_DES_DAEKIN3R_LO_OFFSET				(JH7110_DES_REGS_OFFSET + 0x1C)
 #define JH7110_DES_DAEIVINR_HI_OFFSET				(JH7110_DES_REGS_OFFSET + 0x20)
 #define JH7110_DES_DAEIVINR_LO_OFFSET				(JH7110_DES_REGS_OFFSET + 0x24)
-#define JH7110_DES_DAECSR_OFFSET					(JH7110_DES_REGS_OFFSET + 0x28)
-#define JH7110_DES_KEY0							(JH7110_DES_REGS_OFFSET + 0X2C)
-#define	JH7110_DES_KEY1							(JH7110_DES_REGS_OFFSET + 0X30)
-#define JH7110_DES_IV0								(JH7110_DES_REGS_OFFSET + 0X34)
-#define JH7110_DES_IV1								(JH7110_DES_REGS_OFFSET + 0X38)
+#define JH7110_DES_DAECSR_OFFSET				(JH7110_DES_REGS_OFFSET + 0x28)
+#define JH7110_DES_KEY0						(JH7110_DES_REGS_OFFSET + 0X2C)
+#define	JH7110_DES_KEY1						(JH7110_DES_REGS_OFFSET + 0X30)
+#define JH7110_DES_IV0						(JH7110_DES_REGS_OFFSET + 0X34)
+#define JH7110_DES_IV1						(JH7110_DES_REGS_OFFSET + 0X38)
 
 union jh7110_des_daecsr {
 	u32 v;
 	struct {
-#define JH7110_DES_BUSY					BIT(0)
+#define JH7110_DES_BUSY						BIT(0)
 		u32 busy			:1;
 		u32 en				:1;
 		u32 encryt			:1;
@@ -170,15 +170,15 @@ union jh7110_des_daecsr {
 	};
 };
 
-#define JH7110_AES_AESDIO0R				(JH7110_AES_REGS_OFFSET + 0x0)
-#define JH7110_AES_KEY0					(JH7110_AES_REGS_OFFSET + 0x4)
-#define JH7110_AES_KEY1					(JH7110_AES_REGS_OFFSET + 0x8)
-#define JH7110_AES_KEY2					(JH7110_AES_REGS_OFFSET + 0xC)
-#define JH7110_AES_KEY3					(JH7110_AES_REGS_OFFSET + 0x10)
-#define JH7110_AES_KEY4					(JH7110_AES_REGS_OFFSET + 0x14)
-#define JH7110_AES_KEY5					(JH7110_AES_REGS_OFFSET + 0x18)
-#define JH7110_AES_KEY6					(JH7110_AES_REGS_OFFSET + 0x1C)
-#define JH7110_AES_KEY7					(JH7110_AES_REGS_OFFSET + 0x20)
+#define JH7110_AES_AESDIO0R					(JH7110_AES_REGS_OFFSET + 0x0)
+#define JH7110_AES_KEY0						(JH7110_AES_REGS_OFFSET + 0x4)
+#define JH7110_AES_KEY1						(JH7110_AES_REGS_OFFSET + 0x8)
+#define JH7110_AES_KEY2						(JH7110_AES_REGS_OFFSET + 0xC)
+#define JH7110_AES_KEY3						(JH7110_AES_REGS_OFFSET + 0x10)
+#define JH7110_AES_KEY4						(JH7110_AES_REGS_OFFSET + 0x14)
+#define JH7110_AES_KEY5						(JH7110_AES_REGS_OFFSET + 0x18)
+#define JH7110_AES_KEY6						(JH7110_AES_REGS_OFFSET + 0x1C)
+#define JH7110_AES_KEY7						(JH7110_AES_REGS_OFFSET + 0x20)
 #define JH7110_AES_CSR						(JH7110_AES_REGS_OFFSET + 0x24)
 #define JH7110_AES_IV0						(JH7110_AES_REGS_OFFSET + 0x28)
 #define JH7110_AES_IV1						(JH7110_AES_REGS_OFFSET + 0x2C)
@@ -211,7 +211,7 @@ union jh7110_aes_csr {
 		u32 aesie			:1;
 
 #define JH7110_AES_CCM_START					BIT(8)
-		u32 ccm_start		:1;
+		u32 ccm_start			:1;
 #define JH7110_AES_MODE_ECB					0x0
 #define JH7110_AES_MODE_CBC					0x1
 #define JH7110_AES_MODE_CFB					0x2
@@ -230,7 +230,7 @@ union jh7110_aes_csr {
 		u32 rsvd_0			:8;
 
 #define JH7110_AES_MODE_XFB_1					0x0
-#define JH7110_AES_MODE_XFB_128				0x5
+#define JH7110_AES_MODE_XFB_128					0x5
 		u32 stream_mode			:3;
 		u32 rsvd_1			:5;
 	};
@@ -240,12 +240,12 @@ union jh7110_aes_csr {
 #define JH7110_SHA_SHAWDR					(JH7110_SHA_REGS_OFFSET + 0x4)
 #define JH7110_SHA_SHARDR					(JH7110_SHA_REGS_OFFSET + 0x8)
 #define JH7110_SHA_SHAWSR					(JH7110_SHA_REGS_OFFSET + 0xC)
-#define JH7110_SHA_SHAWLEN3				(JH7110_SHA_REGS_OFFSET + 0x10)
-#define JH7110_SHA_SHAWLEN2				(JH7110_SHA_REGS_OFFSET + 0x14)
-#define JH7110_SHA_SHAWLEN1				(JH7110_SHA_REGS_OFFSET + 0x18)
-#define JH7110_SHA_SHAWLEN0				(JH7110_SHA_REGS_OFFSET + 0x1C)
+#define JH7110_SHA_SHAWLEN3					(JH7110_SHA_REGS_OFFSET + 0x10)
+#define JH7110_SHA_SHAWLEN2					(JH7110_SHA_REGS_OFFSET + 0x14)
+#define JH7110_SHA_SHAWLEN1					(JH7110_SHA_REGS_OFFSET + 0x18)
+#define JH7110_SHA_SHAWLEN0					(JH7110_SHA_REGS_OFFSET + 0x1C)
 #define JH7110_SHA_SHAWKR					(JH7110_SHA_REGS_OFFSET + 0x20)
-#define JH7110_SHA_SHAWKLEN				(JH7110_SHA_REGS_OFFSET + 0x24)
+#define JH7110_SHA_SHAWKLEN					(JH7110_SHA_REGS_OFFSET + 0x24)
 
 union jh7110_sha_shacsr {
 	u32 v;
@@ -255,13 +255,13 @@ union jh7110_sha_shacsr {
 		u32 ie				:1;
 		u32 firstb			:1;
 #define JH7110_SHA_SM3						0x0
-#define JH7110_SHA_SHA0					0x1
-#define JH7110_SHA_SHA1					0x2
+#define JH7110_SHA_SHA0						0x1
+#define JH7110_SHA_SHA1						0x2
 #define JH7110_SHA_SHA224					0x3
 #define JH7110_SHA_SHA256					0x4
 #define JH7110_SHA_SHA384					0x5
 #define JH7110_SHA_SHA512					0x6
-#define JH7110_SHA_MODE_MASK				0x7
+#define JH7110_SHA_MODE_MASK					0x7
 		u32 mode			:3;
 		u32 rsvd_0			:1;
 
@@ -270,11 +270,11 @@ union jh7110_sha_shacsr {
 #define JH7110_SHA_HMAC_FLAGS					0x800
 		u32 hmac			:1;
 		u32 rsvd_2			:1;
-		u32 key_done		:1;
-		u32 key_flag		:1;
-		u32 hmac_done		:1;
+		u32 key_done			:1;
+		u32 key_flag			:1;
+		u32 hmac_done			:1;
 
-#define JH7110_SHA_BUSY					BIT(16)
+#define JH7110_SHA_BUSY						BIT(16)
 		u32 busy			:1;
 		u32 shadone			:1;
 		u32 rsvd_3			:14;
