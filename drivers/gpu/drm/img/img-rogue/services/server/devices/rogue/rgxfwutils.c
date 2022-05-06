@@ -171,7 +171,7 @@ const IMG_UINT32 gaui32FwOsIrqCntRegAddr[RGXFW_MAX_NUM_OS] = {IRQ_COUNTER_STORAG
  * are often run on EMU, FPGA or in CSim.
  */
 #if defined(FPGA) || defined(EMULATOR) || defined(VIRTUAL_PLATFORM) || defined(PDUMP)
-#warning "Using FPGA WORKLOAD_DEADLINE!!!!!!!!!!!!!!!!!!"
+/*#warning "Using FPGA WORKLOAD_DEADLINE!!!!!!!!!!!!!!!!!!"*/
 #define RGXFWIF_MAX_WORKLOAD_DEADLINE_MS     (800000)//(80000)
 #define RGXFWIF_MAX_CDM_WORKLOAD_DEADLINE_MS (2500000)//(1000000)
 #else

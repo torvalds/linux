@@ -106,7 +106,7 @@ void do_invalid_range(unsigned long start, unsigned long len)
 {
 	unsigned long sz = 2 * 1024 * 1024;
 	unsigned long *pv = NULL;
-	
+
 	if(NULL == g_zero_page)
 	{
 		g_zero_page = alloc_pages(GFP_KERNEL, get_order(sz));
@@ -232,25 +232,25 @@ static int create_sf7110_cfg(struct device *dev)
 		return -ENOMEM;
 	psf->gpu_reg_start = STARFIVE_7110_GPU_PBASE;
 	psf->gpu_reg_size = STARFIVE_7110_GPU_SIZE;
-	
+
 	psf->clk_apb = devm_clk_get_optional(dev, "clk_apb");
 	if (IS_ERR(psf->clk_apb)) {
 		dev_err(dev, "failed to get gpu clk_apb\n");
 		goto err_gpu_unmap;
 	}
-	
+
 	psf->clk_rtc = devm_clk_get_optional(dev, "clk_rtc");
 	if (IS_ERR(psf->clk_rtc)) {
 		dev_err(dev, "failed to get gpu clk_rtc\n");
 		goto err_gpu_unmap;
 	}
-	
+
 	psf->clk_core = devm_clk_get_optional(dev, "clk_core");
 	if (IS_ERR(psf->clk_core)) {
 		dev_err(dev, "failed to get gpu clk_core\n");
 		goto err_gpu_unmap;
 	}
-	
+
 	psf->clk_sys = devm_clk_get_optional(dev, "clk_sys");
 	if (IS_ERR(psf->clk_sys)) {
 		dev_err(dev, "failed to get gpu clk_sys\n");
@@ -277,7 +277,7 @@ static int create_sf7110_cfg(struct device *dev)
 
 	return 0;
 err_gpu_unmap:
-	iounmap(psf->gpu_reg_base);	
+	iounmap(psf->gpu_reg_base);
 	return -ENOMEM;
 }
 
@@ -290,7 +290,6 @@ void u0_img_gpu_enable(void)
 	clk_prepare_enable(sf_cfg_t.clk_rtc);
 	clk_prepare_enable(sf_cfg_t.clk_core);
 	clk_prepare_enable(sf_cfg_t.clk_sys);
-	printk("%s:%d  enable pmu\n",__func__,__LINE__);
 }
 
 
@@ -303,7 +302,6 @@ void u0_img_gpu_disable(void)
 	clk_disable_unprepare(sf_cfg_t.clk_rtc);
 	clk_disable_unprepare(sf_cfg_t.clk_core);
 	clk_disable_unprepare(sf_cfg_t.clk_sys);
-	printk("%s:%d  disable\n",__func__,__LINE__);
 }
 
 
