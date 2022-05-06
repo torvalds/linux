@@ -219,7 +219,7 @@ static int tegra_hte_test_remove(struct platform_device *pdev)
 	free_irq(hte.gpio_in_irq, &hte);
 	gpiod_put(hte.gpio_in);
 	gpiod_put(hte.gpio_out);
-	del_timer(&hte.timer);
+	del_timer_sync(&hte.timer);
 
 	return 0;
 }
