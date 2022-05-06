@@ -3032,8 +3032,8 @@ EXPORT_SYMBOL(netif_set_tso_max_segs);
  */
 void netif_inherit_tso_max(struct net_device *to, const struct net_device *from)
 {
-	netif_set_gso_max_size(to, from->gso_max_size);
-	netif_set_gso_max_segs(to, from->gso_max_segs);
+	netif_set_tso_max_size(to, from->tso_max_size);
+	netif_set_tso_max_segs(to, from->tso_max_segs);
 }
 EXPORT_SYMBOL(netif_inherit_tso_max);
 

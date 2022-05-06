@@ -1431,7 +1431,7 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 	 */
 	net->features &= ~NETVSC_SUPPORTED_HW_FEATURES | net->hw_features;
 
-	netif_set_gso_max_size(net, gso_max_size);
+	netif_set_tso_max_size(net, gso_max_size);
 
 	ret = rndis_filter_set_offload_params(net, nvdev, &offloads);
 
