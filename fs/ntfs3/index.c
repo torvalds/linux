@@ -1042,18 +1042,15 @@ int indx_find(struct ntfs_index *indx, struct ntfs_inode *ni,
 {
 	int err;
 	struct NTFS_DE *e;
-	const struct INDEX_HDR *hdr;
 	struct indx_node *node;
 
 	if (!root)
 		root = indx_get_root(&ni->dir, ni, NULL, NULL);
 
 	if (!root) {
-		err = -EINVAL;
-		goto out;
+		/* Should not happen. */
+		return -EINVAL;
 	}
-
-	hdr = &root->ihdr;
 
 	/* Check cache. */
 	e = fnd->level ? fnd->de[fnd->level - 1] : fnd->root_de;
@@ -1068,39 +1065,35 @@ int indx_find(struct ntfs_index *indx, struct ntfs_inode *ni,
 	fnd_clear(fnd);
 
 	/* Lookup entry that is <= to the search value. */
-	e = hdr_find_e(indx, hdr, key, key_len, ctx, diff);
+	e = hdr_find_e(indx, &root->ihdr, key, key_len, ctx, diff);
 	if (!e)
 		return -EINVAL;
 
 	fnd->root_de = e;
-	err = 0;
 
 	for (;;) {
 		node = NULL;
-		if (*diff >= 0 || !de_has_vcn_ex(e)) {
-			*entry = e;
-			goto out;
-		}
+		if (*diff >= 0 || !de_has_vcn_ex(e))
+			break;
 
 		/* Read next level. */
 		err = indx_read(indx, ni, de_get_vbn(e), &node);
 		if (err)
-			goto out;
+			return err;
 
 		/* Lookup entry that is <= to the search value. */
 		e = hdr_find_e(indx, &node->index->ihdr, key, key_len, ctx,
 			       diff);
 		if (!e) {
-			err = -EINVAL;
 			put_indx_node(node);
-			goto out;
+			return -EINVAL;
 		}
 
 		fnd_push(fnd, node, e);
 	}
 
-out:
-	return err;
+	*entry = e;
+	return 0;
 }
 
 int indx_find_sort(struct ntfs_index *indx, struct ntfs_inode *ni,
