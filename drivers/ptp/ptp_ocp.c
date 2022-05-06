@@ -1557,7 +1557,7 @@ ptp_ocp_signal_set(struct ptp_ocp *bp, int gen, struct ptp_ocp_signal *s)
 	start_ns = ktime_set(ts.tv_sec, ts.tv_nsec) + NSEC_PER_MSEC;
 	if (!s->start) {
 		/* roundup() does not work on 32-bit systems */
-		s->start = DIV_ROUND_UP_ULL(start_ns, s->period);
+		s->start = DIV64_U64_ROUND_UP(start_ns, s->period);
 		s->start = ktime_add(s->start, s->phase);
 	}
 
