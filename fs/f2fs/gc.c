@@ -37,7 +37,8 @@ static int gc_thread_func(void *data)
 	unsigned int wait_ms;
 	struct f2fs_gc_control gc_control = {
 		.victim_segno = NULL_SEGNO,
-		.should_migrate_blocks = false };
+		.should_migrate_blocks = false,
+		.err_gc_skipped = false };
 
 	wait_ms = gc_th->min_sleep_time;
 
@@ -146,7 +147,6 @@ do_gc:
 
 		gc_control.init_gc_type = sync_mode ? FG_GC : BG_GC;
 		gc_control.no_bg_gc = foreground;
-		gc_control.err_gc_skipped = sync_mode;
 
 		/* if return value is not zero, no victim was selected */
 		if (f2fs_gc(sbi, &gc_control))
