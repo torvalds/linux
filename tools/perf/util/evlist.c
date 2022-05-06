@@ -747,6 +747,7 @@ static struct mmap *evlist__alloc_mmap(struct evlist *evlist,
 
 static void
 perf_evlist__mmap_cb_idx(struct perf_evlist *_evlist,
+			 struct perf_evsel *_evsel __maybe_unused,
 			 struct perf_mmap_param *_mp,
 			 int idx)
 {

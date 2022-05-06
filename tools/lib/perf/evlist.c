@@ -479,7 +479,7 @@ mmap_per_evsel(struct perf_evlist *evlist, struct perf_evlist_mmap_ops *ops,
 			refcount_set(&map->refcnt, 2);
 
 			if (ops->idx)
-				ops->idx(evlist, mp, idx);
+				ops->idx(evlist, evsel, mp, idx);
 
 			if (ops->mmap(map, mp, *output, evlist_cpu) < 0)
 				return -1;
