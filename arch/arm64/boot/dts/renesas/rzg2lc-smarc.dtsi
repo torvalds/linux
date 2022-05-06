@@ -60,6 +60,10 @@
 };
 #endif
 
+&cpu_dai {
+	sound-dai = <&ssi0>;
+};
+
 &i2c2 {
 	pinctrl-0 = <&i2c2_pins>;
 	pinctrl-names = "default";
@@ -90,6 +94,13 @@
 	status = "okay";
 };
 #endif
+
+&ssi0 {
+	pinctrl-0 = <&ssi0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
 
 #if (SW_RSPI_CAN)
 &spi1 {
