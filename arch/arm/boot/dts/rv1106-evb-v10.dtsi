@@ -93,3 +93,7 @@
 &pwm0 {
 	status = "okay";
 };
+
+&rtc {
+	status = "okay";
+};
