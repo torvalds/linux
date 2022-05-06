@@ -235,7 +235,10 @@
     status = "okay";
 
 	ports {
-		port@3 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@2 {
 			reg = <2>;
 
 			/* Parallel bus endpoint */
@@ -251,7 +254,7 @@
 			};
 		};
 
-		port@4 {
+		port@3 {
 			reg = <3>;
 
 			/* Parallel bus endpoint */

@@ -203,7 +203,7 @@ const struct reg_table  isp_format_settings[] = {
 	ARRAY_SIZE(isp_format_reg_list)},
 };
 
-static struct reg_table  *isp_settings = isp_1920_1080_settings;
+const static struct reg_table *isp_settings = isp_1920_1080_settings;
 
 static void isp_load_regs(void __iomem *ispbase, const struct reg_table *table)
 {
@@ -232,46 +232,36 @@ static void isp_load_regs(void __iomem *ispbase, const struct reg_table *table)
 
 static int stf_isp_clk_enable(struct stf_isp_dev *isp_dev)
 {
-	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	struct stfcamss *stfcamss = isp_dev->stfcamss;
 
 	if (isp_dev->id == 0) {
-		reg_set_highest_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C);
-		reg_clear_rst(vin->clkgen_base,SOFTWARE_RESET_ASSERT0_ASSERT_SET, 
-			SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, 
-			RST_U0_ISPV2_TOP_WRAPPER_RST_C);
-		reg_clear_rst(vin->clkgen_base,SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-			SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, 
-			RST_U0_ISPV2_TOP_WRAPPER_RST_P);
+		clk_prepare_enable(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk);
+		reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
+		reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_P].rstc);
 	} else {
 		st_err(ST_ISP, "please check isp id :%d\n", isp_dev->id);
 	}
 	
-
 	return 0;
 }
 
 static int stf_isp_clk_disable(struct stf_isp_dev *isp_dev)
 {
-	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
+	struct stfcamss *stfcamss = isp_dev->stfcamss;
 
 	if (isp_dev->id == 0) {
-		reg_assert_rst(vin->clkgen_base,SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-			SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, 
-			RST_U0_ISPV2_TOP_WRAPPER_RST_C);
-		reg_assert_rst(vin->clkgen_base,SOFTWARE_RESET_ASSERT0_ASSERT_SET, 
-			SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, 
-			RST_U0_ISPV2_TOP_WRAPPER_RST_P);
-		reg_set_bit(vin->clkgen_base,	CLK_U0_ISPV2_TOP_WRAPPER_CLK_C,	CLK_U0_ISPV2_CLK_ICG, 0x0);
+		reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
+		reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_P].rstc);
+		clk_disable_unprepare(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk);
 	} else {
 		st_err(ST_ISP, "please check isp id :%d\n", isp_dev->id);
 	}
+
 	return 0;
 }
 
 static int stf_isp_reset(struct stf_isp_dev *isp_dev)
 {
-	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
-
 	return 0;
 }
 
@@ -390,8 +380,6 @@ static int stf_isp_set_format(struct stf_isp_dev *isp_dev,
 
 static int stf_isp_stream_set(struct stf_isp_dev *isp_dev, int on)
 {
-	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
-
 	return 0;
 }
 

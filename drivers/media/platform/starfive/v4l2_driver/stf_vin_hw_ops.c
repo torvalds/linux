@@ -7,41 +7,9 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
-#include <linux/clk-provider.h>
-
-static int vin_rstgen_assert_reset(struct stf_vin_dev *vin)
-{
-	u32 val;
-	/*
-	 *      Software_RESET_assert1 (0x11840004)
-	 *      ------------------------------------
-	 *      bit[15]         rstn_vin_src
-	 *      bit[16]         rstn_ispslv_axi
-	 *      bit[17]         rstn_vin_axi
-	 *      bit[18]         rstn_vinnoc_axi
-	 *      bit[19]         rstn_isp0_axi
-	 *      bit[20]         rstn_isp0noc_axi
-	 *      bit[21]         rstn_isp1_axi
-	 *      bit[22]         rstn_isp1noc_axi
-	 *
-	 */
-	u32 val_reg_reset_config = 0x7f8000;
-
-	val = ioread32(vin->vin_top_rstgen_base + SOFTWARE_RESET_ASSERT1);
-	val |= val_reg_reset_config;
-	iowrite32(val, vin->vin_top_rstgen_base + SOFTWARE_RESET_ASSERT1);
-
-	val = ioread32(vin->vin_top_rstgen_base + SOFTWARE_RESET_ASSERT1);
-	val &= ~(val_reg_reset_config);
-
-	iowrite32(val, vin->vin_top_rstgen_base + SOFTWARE_RESET_ASSERT1);
-
-	return 0;
-}
 
 static void vin_intr_clear(void __iomem * sysctrl_base)
 {
-
 	reg_set_bit(sysctrl_base, SYSCONSAIF_SYSCFG_28, 
 		U0_VIN_CNFG_AXIWR0_INTR_CLEAN, 
 		0x1);
@@ -53,7 +21,6 @@ static void vin_intr_clear(void __iomem * sysctrl_base)
 static irqreturn_t stf_vin_wr_irq_handler(int irq, void *priv)
 {
 	static struct vin_params params;
-	static struct vin_params vparams;
 	struct stf_vin2_dev *vin_dev = priv;
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
@@ -97,14 +64,11 @@ static irqreturn_t stf_vin_isp_irq_handler(int irq, void *priv)
 
 static int stf_vin_clk_init(struct stf_vin2_dev *vin_dev)
 {
-	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 	return 0;
-
 }
 
 static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 {
-	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
 	reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
@@ -137,7 +101,6 @@ static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 
 static int stf_vin_clk_disable(struct stf_vin2_dev *vin_dev)
 {
-	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
 	reset_control_assert(stfcamss->sys_rst[STFRST_PCLK].rstc);
@@ -152,22 +115,19 @@ static int stf_vin_clk_disable(struct stf_vin2_dev *vin_dev)
 
 static int stf_vin_config_set(struct stf_vin2_dev *vin_dev)
 {
-	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
-
 	return 0;
 }
 
 static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 {
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
 	print_reg(ST_VIN, vin->sysctrl_base, SYSCONSAIF_SYSCFG_20);
 	if (on) {
 		reg_set(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);	  
 	} else {
-		reg_assert_rst(vin->clkgen_base,SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-			SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, 
-			RSTN_U0_VIN_RST_P_AXIWR); 
+		reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 		usleep_range(500, 1000);
 		reg_clear(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
 	}
@@ -205,9 +165,8 @@ static void stf_vin_wr_irq_enable(struct stf_vin2_dev *vin_dev,
 static void stf_vin_wr_rd_set_addr(struct stf_vin2_dev *vin_dev,
 		dma_addr_t wr_addr, dma_addr_t rd_addr)
 {
-	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
-
 #if 0
+	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
 	/* set the start address*/
 	reg_write(vin->sysctrl_base,

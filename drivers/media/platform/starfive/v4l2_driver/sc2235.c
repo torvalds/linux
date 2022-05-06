@@ -432,6 +432,7 @@ static int sc2235_mod_reg(struct sc2235_dev *sensor, u16 reg,
 #define SC2235_PLL_MULT_MIN	0
 #define SC2235_PLL_MULT_MAX	63
 
+#if 0
 static unsigned long sc2235_compute_sys_clk(struct sc2235_dev *sensor,
 					u8 pll_pre, u8 pll_mult,
 					u8 sysdiv)
@@ -499,6 +500,7 @@ out:
 
 	return best;
 }
+#endif
 
 static int sc2235_set_timings(struct sc2235_dev *sensor,
 				const struct sc2235_mode_info *mode)
@@ -607,16 +609,7 @@ static int sc2235_set_stream_dvp(struct sc2235_dev *sensor, bool on)
 	return 0;
 }
 
-static int sc2235_get_sysclk(struct sc2235_dev *sensor)
-{
-	return 0;
-}
-
-static int sc2235_set_night_mode(struct sc2235_dev *sensor)
-{
-	return 0;
-}
-
+#if 0
 static int sc2235_get_hts(struct sc2235_dev *sensor)
 {
 	u16 hts;
@@ -627,6 +620,7 @@ static int sc2235_get_hts(struct sc2235_dev *sensor)
 		return ret;
 	return hts;
 }
+#endif
 
 static int sc2235_get_vts(struct sc2235_dev *sensor)
 {
@@ -639,35 +633,12 @@ static int sc2235_get_vts(struct sc2235_dev *sensor)
 	return vts;
 }
 
+#if 0
 static int sc2235_set_vts(struct sc2235_dev *sensor, int vts)
 {
 	return sc2235_write_reg16(sensor, SC2235_REG_TIMING_VTS, vts);
 }
-
-static int sc2235_get_light_freq(struct sc2235_dev *sensor)
-{
-	return 0;
-}
-
-static int sc2235_set_bandingfilter(struct sc2235_dev *sensor)
-{
-	return 0;
-}
-
-static int sc2235_set_ae_target(struct sc2235_dev *sensor, int target)
-{
-	return 0;
-}
-
-static int sc2235_get_binning(struct sc2235_dev *sensor)
-{
-	return 0;
-}
-
-static int sc2235_set_binning(struct sc2235_dev *sensor, bool enable)
-{
-	return 0;
-}
+#endif
 
 static const struct sc2235_mode_info *
 sc2235_find_mode(struct sc2235_dev *sensor, enum sc2235_frame_rate fr,
@@ -701,6 +672,7 @@ static u64 sc2235_calc_pixel_rate(struct sc2235_dev *sensor)
 	return rate;
 }
 
+#if 0
 /*
  * sc2235_set_dvp_pclk() - Calculate the clock tree configuration values
  *				for the dvp output.
@@ -720,8 +692,6 @@ static u64 sc2235_calc_pixel_rate(struct sc2235_dev *sensor)
 static int sc2235_set_dvp_pclk(struct sc2235_dev *sensor,
 				unsigned long rate)
 {
-	const struct sc2235_mode_info *mode = sensor->current_mode;
-	const struct sc2235_mode_info *orig_mode = sensor->last_mode;
 	u8 prediv, mult, sysdiv;
 	int ret = 0;
 
@@ -753,14 +723,15 @@ static int sc2235_set_mode_direct(struct sc2235_dev *sensor,
 	/* Write capture setting */
 	return sc2235_load_regs(sensor, mode);
 }
+#endif
 
 static int sc2235_set_mode(struct sc2235_dev *sensor)
 {
-	const struct sc2235_mode_info *mode = sensor->current_mode;
-	const struct sc2235_mode_info *orig_mode = sensor->last_mode;
-	bool auto_gain = sensor->ctrls.auto_gain->val == 1;
+#if 0
 	bool auto_exp =  sensor->ctrls.auto_exp->val == V4L2_EXPOSURE_AUTO;
-	unsigned long rate;
+	const struct sc2235_mode_info *mode = sensor->current_mode;
+#endif
+	bool auto_gain = sensor->ctrls.auto_gain->val == 1;
 	int ret = 0;
 	
 	/* auto gain and exposure must be turned off when changing modes */
@@ -921,9 +892,7 @@ static void sc2235_set_power_off(struct sc2235_dev *sensor)
 static int sc2235_set_power_dvp(struct sc2235_dev *sensor, bool on)
 {
 	unsigned int flags = sensor->ep.bus.parallel.flags;
-	bool bt656 = sensor->ep.bus_type == V4L2_MBUS_BT656;
 	u8 polarities = 0;
-	int ret;
 
 	/*
 	 * configure parallel port control lines polarity
@@ -1706,7 +1675,6 @@ static int sc2235_probe(struct i2c_client *client)
 	struct v4l2_mbus_framefmt *fmt;
 	u32 rotation;
 	int ret;
-	u8 chip_id_high, chip_id_low;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)

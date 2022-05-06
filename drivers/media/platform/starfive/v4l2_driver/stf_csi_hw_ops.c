@@ -35,41 +35,8 @@
 #define CSI2RX_LANES_MAX	4
 #define CSI2RX_STREAMS_MAX	4
 
-static int apb_clk_set(struct stf_vin_dev *vin, int on)
-{
-#if 0
-	static int init_flag;
-	static struct mutex count_lock;
-	static int count;
-
-	if (!init_flag) {
-		init_flag = 1;
-		mutex_init(&count_lock);
-	}
-	mutex_lock(&count_lock);
-	if (on) {
-		if (count == 0)
-			reg_set_highest_bit(vin->clkgen_base,
-					CLK_CSI2RX0_APB_CTRL);
-		count++;
-	} else {
-		if (count == 0)
-			goto exit;
-		if (count == 1)
-			reg_clr_highest_bit(vin->clkgen_base,
-					CLK_CSI2RX0_APB_CTRL);
-		count--;
-	}
-exit:
-	mutex_unlock(&count_lock);
-#endif
-
-	return 0;
-}
-
 static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 {
-	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 
 	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rstc);
@@ -99,7 +66,6 @@ static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 
 static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 {
-	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 
 	reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
@@ -210,41 +176,14 @@ static void csi2rx_reset(void *reg_base)
 	writel(0, reg_base + CSI2RX_SOFT_RESET_REG);
 }
 
-static void csi2rx_debug_config(void *reg_base, u32 frame_lines)
-{
-	// data_id, ecc, crc error to irq
-	union error_bypass_cfg err_bypass_cfg = {
-		.data_id = 0,
-		.ecc     = 0,
-		.crc     = 0,
-	};
-	union stream_monitor_ctrl stream0_monitor_ctrl = {
-		.frame_length = frame_lines,
-		.frame_mon_en = 1,
-		.frame_mon_vc = 0,
-		.lb_en = 1,
-		.lb_vc = 0,
-	};
-	reg_write(reg_base, ERROR_BYPASS_CFG, err_bypass_cfg.value);
-	reg_write(reg_base, MONITOR_IRQS_MASK_CFG, 0xffffffff);
-	reg_write(reg_base, INFO_IRQS_MASK_CFG, 0xffffffff);
-	reg_write(reg_base, ERROR_IRQS_MASK_CFG, 0xffffffff);
-	reg_write(reg_base, DPHY_ERR_IRQ_MASK_CFG, 0xffffffff);
-
-	reg_write(reg_base, STREAM0_MONITOR_CTRL, stream0_monitor_ctrl.value);
-	reg_write(reg_base, STREAM0_FCC_CTRL, (0x0 << 1) | 0x1);
-}
-
 static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 {
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
-	struct stf_vin_dev *vin = stfcamss->vin;
 	struct csi2phy_cfg *csiphy =
 		stfcamss->csiphy_dev[csi_dev->csiphy_id].csiphy;
 	unsigned int i;
 	unsigned long lanes_used = 0;
 	u32 reg;
-	int ret;
 
 	if (!csiphy) {
 		st_err(ST_CSI, "csiphy%d sensor not exist use csiphy%d init.\n",
@@ -300,8 +239,6 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 	reg |= 1 << 4 | 1 << 16;
 	writel(reg, reg_base + CSI2RX_DPHY_LANE_CONTROL);
 
-	// csi2rx_debug_config(reg_base, 1080);
-
 	/*
 	 * Create a static mapping between the CSI virtual channels
 	 * and the output stream.
@@ -329,11 +266,7 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 
 static void csi2rx_stop(struct stf_csi_dev *csi_dev, void *reg_base)
 {
-    struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 	unsigned int i;
-
-    reg_assert_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, BIT(2)|BIT(3));
 
 	for (i = 0; i < CSI2RX_STREAMS_MAX; i++)
 		writel(0, reg_base + CSI2RX_STREAM_CTRL_REG(i));
@@ -367,6 +300,7 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
         reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(16)|BIT(15)|BIT(14)|BIT(13),
 			0<<13);
+		break;
     case SENSOR_ISP1:
     	st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
 		break;

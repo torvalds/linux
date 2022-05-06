@@ -49,8 +49,6 @@ int stf_dvp_subdev_init(struct stfcamss *stfcamss)
 
 static int dvp_set_power(struct v4l2_subdev *sd, int on)
 {
-	struct stf_dvp_dev *dvp_dev = v4l2_get_subdevdata(sd);
-
 	return 0;
 }
 
@@ -221,7 +219,6 @@ static int dvp_set_format(struct v4l2_subdev *sd,
 {
 	struct stf_dvp_dev *dvp_dev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
-	int ret;
 
 	format = __dvp_get_format(dvp_dev, state, fmt->pad, fmt->which);
 	if (format == NULL)
@@ -324,7 +321,6 @@ int stf_dvp_register(struct stf_dvp_dev *dvp_dev,
 		struct v4l2_device *v4l2_dev)
 {
 	struct v4l2_subdev *sd = &dvp_dev->subdev;
-	struct device *dev = dvp_dev->stfcamss->dev;
 	struct media_pad *pads = dvp_dev->pads;
 	int ret;
 

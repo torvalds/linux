@@ -680,10 +680,13 @@
 				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF0>,
 				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF1>,
 				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF2>,
-				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF3>;
+				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF3>,
+				<&rstgen RSTN_U0_M31DPHY_HW>,
+				<&rstgen RSTN_U0_M31DPHY_B09_ALWAYS_ON>;
 			reset-names = "rst_wrapper_p", "rst_wrapper_c", "rst_pclk",
 				"rst_sys_clk", "rst_axird", "rst_axiwr", "rst_pixel_clk_if0",
-				"rst_pixel_clk_if1", "rst_pixel_clk_if2", "rst_pixel_clk_if3";
+				"rst_pixel_clk_if1", "rst_pixel_clk_if2", "rst_pixel_clk_if3",
+				"rst_m31dphy_hw", "rst_m31dphy_b09_always_on";
 			interrupts = <92 87 86>;
 			status = "disabled";
 		};

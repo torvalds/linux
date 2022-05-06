@@ -670,16 +670,16 @@ static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 
 	return 0;
 }
-static struct v4l2_subdev *get_senname(struct file *file, char *name) {
+
+static struct v4l2_subdev *get_senname(struct file *file, const char *name) {
 	struct stfcamss_video *video = video_drvdata(file);
 	struct video_device *vdev = &video->vdev;
 	struct media_entity *entity = &vdev->entity;
 	struct v4l2_subdev *subdev;
 	struct media_pad *pad;
 	char vin_name[40];
-	int ret;
 
-	strcpy(vin_name,entity->name);
+	strcpy(vin_name, entity->name);
 	while (1) {
 		pad = &entity->pads[0];
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
@@ -689,7 +689,7 @@ static struct v4l2_subdev *get_senname(struct file *file, char *name) {
 			break;
 		entity = pad->entity;		
 	}	
-	if(strncmp(vin_name,entity->name,13)==0) {
+	if (strncmp(vin_name, entity->name, 13)==0) {
 		st_err(ST_VIDEO, "===== [%s] Please configure pipeline first =====\n", name);
 		return NULL;	
 	} 
@@ -1186,7 +1186,7 @@ int video_g_ctrl(struct file *file, void *fh,
 	struct v4l2_subdev *subdev;
 	int ret;
 
-	subdev = get_senname(file,__func__);
+	subdev = get_senname(file, __func__);
 	if( subdev == NULL)
 		return -EINVAL; 
 
@@ -1202,7 +1202,7 @@ static int video_s_ctrl(struct file *file, void *fh,
 	struct v4l2_fh *vfh;
 	int ret;
 
-	subdev = get_senname(file,__func__);
+	subdev = get_senname(file, __func__);
 	if( subdev == NULL)
 		return -EINVAL; 
 
@@ -1215,13 +1215,14 @@ static int video_s_ctrl(struct file *file, void *fh,
 	return ret;
 }
 
+#if 0
 static int video_query_ext_ctrl(struct file *file, void *fh,
 				    struct v4l2_query_ext_ctrl *qec)
 {
 	struct v4l2_subdev *subdev;
 	int ret;
 
-	subdev = get_senname(file,__func__);
+	subdev = get_senname(file, __func__);
 	if( subdev == NULL)
 		return -EINVAL; 
 
@@ -1229,7 +1230,8 @@ static int video_query_ext_ctrl(struct file *file, void *fh,
 
 	return ret;
 }
-					
+#endif
+
 static int video_g_ext_ctrls(struct file *file, void *fh,
 				 struct v4l2_ext_controls *ctrls)
 {
@@ -1238,7 +1240,7 @@ static int video_g_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_subdev *subdev;
 	int ret;
 
-	subdev = get_senname(file,__func__);
+	subdev = get_senname(file, __func__);
 	if( subdev == NULL)
 		return -EINVAL; 
 
@@ -1276,7 +1278,7 @@ static int video_queryctrl(struct file *file, void *fh,
 	struct v4l2_fh *vfh;
 	int ret;
 
-	subdev = get_senname(file,__func__);
+	subdev = get_senname(file, __func__);
 	if( subdev == NULL )
 		return -EINVAL; 
 
@@ -1296,7 +1298,7 @@ static int video_s_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_fh *vfh;
 	int ret;
 
-	subdev = get_senname(file,__func__);
+	subdev = get_senname(file, __func__);
 	if( subdev == NULL )
 		return -EINVAL; 
 
@@ -1318,7 +1320,7 @@ static int video_try_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_fh *vfh;
 	int ret;
 
-	subdev = get_senname(file,__func__);
+	subdev = get_senname(file, __func__);
 	if( subdev == NULL )
 		return -EINVAL; 
 
@@ -1331,20 +1333,21 @@ static int video_try_ext_ctrls(struct file *file, void *fh,
 	return ret;
 }
 
+#if 0
 static int video_querymenu(struct file *file, void *fh,
 			       struct v4l2_querymenu *qm)
 {
 	struct v4l2_subdev *subdev;
-	struct v4l2_fh *vfh;
 	int ret;
 
-	subdev = get_senname(file,__func__);
+	subdev = get_senname(file, __func__);
 	if( subdev == NULL )
 		return -EINVAL; 
 	ret = v4l2_querymenu(subdev->ctrl_handler, qm);
 
 	return ret;
 }
+#endif
 
 static const struct v4l2_ioctl_ops stf_vid_ioctl_ops = {
 	.vidioc_querycap                = video_querycap,
