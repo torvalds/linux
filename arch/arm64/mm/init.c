@@ -137,6 +137,7 @@ static void __init reserve_crashkernel(void)
 	kmemleak_ignore_phys(crash_base);
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
+	insert_resource(&iomem_resource, &crashk_res);
 }
 
 /*
