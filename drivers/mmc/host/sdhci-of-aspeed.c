@@ -137,6 +137,7 @@ static void aspeed_sdc_configure_8bit_mode(struct aspeed_sdc *sdc,
 		info |= sdhci->width_mask;
 	else
 		info &= ~sdhci->width_mask;
+
 	writel(info, sdc->regs + ASPEED_SDC_INFO);
 	spin_unlock(&sdc->lock);
 }
@@ -360,6 +361,12 @@ static void aspeed_sdhci_set_bus_width(struct sdhci_host *host, int width)
 	/* Set/clear 8-bit mode */
 	aspeed_sdc_configure_8bit_mode(aspeed_sdc, aspeed_sdhci,
 				       width == MMC_BUS_WIDTH_8);
+
+	/* E2600-08 A1/A2/A3
+	 * Errata 75, eMMC Auto Tuning limitation in 8-bit mode.
+	 */
+	if (width == MMC_BUS_WIDTH_8)
+		host->mmc_host_ops.execute_tuning = NULL;
 
 	/* Set/clear 1 or 4 bit mode */
 	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
