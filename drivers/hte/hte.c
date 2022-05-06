@@ -811,7 +811,7 @@ int hte_push_ts_ns(const struct hte_chip *chip, u32 xlated_id,
 	if (!chip || !data || !chip->gdev)
 		return -EINVAL;
 
-	if (xlated_id > chip->nlines)
+	if (xlated_id >= chip->nlines)
 		return -EINVAL;
 
 	ei = &chip->gdev->ei[xlated_id];
