@@ -319,6 +319,14 @@ const struct sof_ipc_fw_version *sof_client_get_fw_version(struct sof_client_dev
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_get_fw_version, SND_SOC_SOF_CLIENT);
 
+size_t sof_client_get_ipc_max_payload_size(struct sof_client_dev *cdev)
+{
+	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
+
+	return sdev->ipc->max_payload_size;
+}
+EXPORT_SYMBOL_NS_GPL(sof_client_get_ipc_max_payload_size, SND_SOC_SOF_CLIENT);
+
 /* module refcount management of SOF core */
 int sof_client_core_module_get(struct sof_client_dev *cdev)
 {
