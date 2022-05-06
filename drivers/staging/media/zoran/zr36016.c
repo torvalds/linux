@@ -22,17 +22,6 @@
 /* amount of chips attached via this driver */
 static int zr36016_codecs;
 
-static int zr36016_debug;
-module_param(zr36016_debug, int, 0);
-MODULE_PARM_DESC(zr36016_debug, "Debug level (0-4)");
-
-
-#define dprintk(num, format, args...) \
-	do { \
-		if (zr36016_debug >= num) \
-			printk(format, ##args); \
-	} while (0)
-
 /* =========================================================================
    Local hardware I/O functions:
 
@@ -51,7 +40,7 @@ static u8 zr36016_read(struct zr36016 *ptr, u16 reg)
 	else
 		zrdev_err(zr, "%s: invalid I/O setup, nothing read!\n", ptr->name);
 
-	dprintk(4, "%s: reading from 0x%04x: %02x\n", ptr->name, reg, value);
+	zrdev_dbg(zr, "%s: reading from 0x%04x: %02x\n", ptr->name, reg, value);
 
 	return value;
 }
@@ -60,7 +49,7 @@ static void zr36016_write(struct zr36016 *ptr, u16 reg, u8 value)
 {
 	struct zoran *zr = videocodec_to_zoran(ptr->codec);
 
-	dprintk(4, "%s: writing 0x%02x to 0x%04x\n", ptr->name, value, reg);
+	zrdev_dbg(zr, "%s: writing 0x%02x to 0x%04x\n", ptr->name, value, reg);
 
 	// just in case something is wrong...
 	if (ptr->codec->master_data->writereg)
@@ -85,7 +74,8 @@ static u8 zr36016_readi(struct zr36016 *ptr, u16 reg)
 		zrdev_err(zr, "%s: invalid I/O setup, nothing read (i)!\n", ptr->name);
 	}
 
-	dprintk(4, "%s: reading indirect from 0x%04x: %02x\n", ptr->name, reg, value);
+	zrdev_dbg(zr, "%s: reading indirect from 0x%04x: %02x\n",
+		  ptr->name, reg, value);
 	return value;
 }
 
@@ -93,8 +83,8 @@ static void zr36016_writei(struct zr36016 *ptr, u16 reg, u8 value)
 {
 	struct zoran *zr = videocodec_to_zoran(ptr->codec);
 
-	dprintk(4, "%s: writing indirect 0x%02x to 0x%04x\n", ptr->name,
-		value, reg);
+	zrdev_dbg(zr, "%s: writing indirect 0x%02x to 0x%04x\n", ptr->name,
+		  value, reg);
 
 	/* just in case something is wrong... */
 	if (ptr->codec->master_data->writereg) {
@@ -128,14 +118,14 @@ static int zr36016_basic_test(struct zr36016 *ptr)
 {
 	struct zoran *zr = videocodec_to_zoran(ptr->codec);
 
-	if (zr36016_debug) {
+	if (*KERN_INFO <= CONSOLE_LOGLEVEL_DEFAULT) {
 		int i;
 
 		zr36016_writei(ptr, ZR016I_PAX_LO, 0x55);
-		dprintk(1, KERN_INFO "%s: registers: ", ptr->name);
+		zrdev_dbg(zr, "%s: registers: ", ptr->name);
 		for (i = 0; i <= 0x0b; i++)
-			dprintk(1, "%02x ", zr36016_readi(ptr, i));
-		dprintk(1, "\n");
+			zrdev_dbg(zr, "%02x ", zr36016_readi(ptr, i));
+		zrdev_dbg(zr, "\n");
 	}
 	// for testing just write 0, then the default value to a register and read
 	// it back in both cases
@@ -172,10 +162,11 @@ static int zr36016_pushit(struct zr36016 *ptr,
 			   u16             len,
 			   const char     *data)
 {
+	struct zoran *zr = videocodec_to_zoran(ptr->codec);
 	int i = 0;
 
-	dprintk(4, "%s: write data block to 0x%04x (len=%d)\n",
-		ptr->name, startreg, len);
+	zrdev_dbg(zr, "%s: write data block to 0x%04x (len=%d)\n",
+		  ptr->name, startreg, len);
 	while (i < len) {
 		zr36016_writei(ptr, startreg++,  data[i++]);
 	}
@@ -233,8 +224,9 @@ static void zr36016_init(struct zr36016 *ptr)
 static int zr36016_set_mode(struct videocodec *codec, int mode)
 {
 	struct zr36016 *ptr = (struct zr36016 *)codec->data;
+	struct zoran *zr = videocodec_to_zoran(codec);
 
-	dprintk(2, "%s: set_mode %d call\n", ptr->name, mode);
+	zrdev_dbg(zr, "%s: set_mode %d call\n", ptr->name, mode);
 
 	if ((mode != CODEC_DO_EXPANSION) && (mode != CODEC_DO_COMPRESSION))
 		return -EINVAL;
@@ -250,11 +242,12 @@ static int zr36016_set_video(struct videocodec *codec, const struct tvnorm *norm
 			     struct vfe_settings *cap, struct vfe_polarity *pol)
 {
 	struct zr36016 *ptr = (struct zr36016 *)codec->data;
+	struct zoran *zr = videocodec_to_zoran(codec);
 
-	dprintk(2, "%s: set_video %d.%d, %d/%d-%dx%d (0x%x) call\n",
-		ptr->name, norm->h_start, norm->v_start,
-		cap->x, cap->y, cap->width, cap->height,
-		cap->decimation);
+	zrdev_dbg(zr, "%s: set_video %d.%d, %d/%d-%dx%d (0x%x) call\n",
+		  ptr->name, norm->h_start, norm->v_start,
+		  cap->x, cap->y, cap->width, cap->height,
+		  cap->decimation);
 
 	/* if () return -EINVAL;
 	 * trust the master driver that it knows what it does - so
@@ -284,9 +277,11 @@ static int zr36016_set_video(struct videocodec *codec, const struct tvnorm *norm
 static int zr36016_control(struct videocodec *codec, int type, int size, void *data)
 {
 	struct zr36016 *ptr = (struct zr36016 *)codec->data;
+	struct zoran *zr = videocodec_to_zoran(codec);
 	int *ival = (int *)data;
 
-	dprintk(2, "%s: control %d call with %d byte\n", ptr->name, type, size);
+	zrdev_dbg(zr, "%s: control %d call with %d byte\n",
+		  ptr->name, type, size);
 
 	switch (type) {
 	case CODEC_G_STATUS:	/* get last status - we don't know it ... */
@@ -333,11 +328,12 @@ static int zr36016_control(struct videocodec *codec, int type, int size, void *d
 static int zr36016_unset(struct videocodec *codec)
 {
 	struct zr36016 *ptr = codec->data;
+	struct zoran *zr = videocodec_to_zoran(codec);
 
 	if (ptr) {
 		/* do wee need some codec deinit here, too ???? */
 
-		dprintk(1, "%s: finished codec #%d\n", ptr->name, ptr->num);
+		zrdev_dbg(zr, "%s: finished codec #%d\n", ptr->name, ptr->num);
 		kfree(ptr);
 		codec->data = NULL;
 
@@ -363,7 +359,7 @@ static int zr36016_setup(struct videocodec *codec)
 	struct zoran *zr = videocodec_to_zoran(codec);
 	int res;
 
-	dprintk(2, "zr36016: initializing VFE subsystem #%d.\n", zr36016_codecs);
+	zrdev_dbg(zr, "zr36016: initializing VFE subsystem #%d.\n", zr36016_codecs);
 
 	if (zr36016_codecs == MAX_CODECS) {
 		zrdev_err(zr, "zr36016: Can't attach more codecs!\n");
@@ -393,7 +389,8 @@ static int zr36016_setup(struct videocodec *codec)
 	ptr->ydec = 0;
 	zr36016_init(ptr);
 
-	dprintk(1, KERN_INFO "%s: codec v%d attached and running\n", ptr->name, ptr->version);
+	zrdev_dbg(zr, "%s: codec v%d attached and running\n",
+		  ptr->name, ptr->version);
 
 	return 0;
 }
@@ -426,9 +423,8 @@ int zr36016_init_module(void)
 void zr36016_cleanup_module(void)
 {
 	if (zr36016_codecs) {
-		dprintk(1,
-			"zr36016: something's wrong - %d codecs left somehow.\n",
-			zr36016_codecs);
+		pr_debug("zr36016: something's wrong - %d codecs left somehow.\n",
+			 zr36016_codecs);
 	}
 	videocodec_unregister(&zr36016_codec);
 }
