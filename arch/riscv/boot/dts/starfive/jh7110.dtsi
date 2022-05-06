@@ -952,7 +952,7 @@
 		};
 
 		pwmdac: pwmdac@100b0000 {
-			compatible = "sf,pwmdac";
+			compatible = "starfive,pwmdac";
 			reg = <0x0 0x100b0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_APB0>,
 				<&clkgen JH7110_PWMDAC_CLK_APB>,
