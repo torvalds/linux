@@ -1,22 +1,9 @@
-/**
-  ******************************************************************************
-  * @file  pinctrl-starfive.h
-  * @author  StarFive Technology
-  * @version  V1.0
-  * @date  11/30/2021
-  * @brief
-  ******************************************************************************
-  * @copy
-  *
-  * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
-  * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
-  * TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE FOR ANY
-  * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
-  * FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
-  * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
-  *
-  * <h2><center>&copy; COPYRIGHT 20120 Shanghai StarFive Technology Co., Ltd. </center></h2>
-  */
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Pinctrl / GPIO driver for StarFive JH7110 SoC
+ *
+ * Copyright (C) 2022 Shanghai StarFive Technology Co., Ltd.
+ */
 
 #ifndef __DRIVERS_PINCTRL_STARFIVE_H
 #define __DRIVERS_PINCTRL_STARFIVE_H
@@ -26,13 +13,13 @@
 
 #define MAX_GPIO				64
 
-#define STARFIVE_PINS_SIZE 			4
+#define STARFIVE_PINS_SIZE			4
 
 #define STARFIVE_USE_SCU			BIT(0)
 
 struct platform_device;
 
-extern struct pinmux_ops starfive_pmx_ops;
+extern const struct pinmux_ops starfive_pmx_ops;
 extern const struct dev_pm_ops starfive_pinctrl_pm_ops;
 
 struct starfive_pin_config {
@@ -54,8 +41,8 @@ struct starfive_pin {
 
 struct starfive_pin_reg {
 	s32 io_conf_reg;
-	s32 gpo_dout_reg; 
-	s32 gpo_doen_reg; 
+	s32 gpo_dout_reg;
+	s32 gpo_doen_reg;
 	s32 func_sel_reg;
 	s32 func_sel_shift;
 	s32 func_sel_mask;
@@ -80,21 +67,21 @@ struct starfive_pinctrl {
 	const struct starfive_pinctrl_soc_info *info;
 	struct starfive_pin_reg *pin_regs;
 	unsigned int group_index;
-	
+
 	struct mutex mutex;
 	raw_spinlock_t lock;
-	
+
 	struct gpio_chip gc;
 	struct pinctrl_gpio_range gpios;
 	unsigned long enabled;
-	unsigned trigger[MAX_GPIO];
+	unsigned int trigger[MAX_GPIO];
 };
 
 struct starfive_pinctrl_soc_info {
 	const struct pinctrl_pin_desc *pins;
 	unsigned int npins;
 	unsigned int flags;
-	
+
 	/*gpio dout/doen/din register*/
 	unsigned int dout_reg_base;
 	unsigned int dout_reg_offset;
@@ -102,7 +89,7 @@ struct starfive_pinctrl_soc_info {
 	unsigned int doen_reg_offset;
 	unsigned int din_reg_base;
 	unsigned int din_reg_offset;
-	
+
 	/* sel-function */
 	int (*starfive_iopad_sel_func)(struct platform_device *pdev,
 					struct starfive_pinctrl *ipctl,
@@ -111,9 +98,9 @@ struct starfive_pinctrl_soc_info {
 	int (*starfive_pinconf_get)(struct pinctrl_dev *pctldev, unsigned int pin_id,
 			       unsigned long *config);
 	int (*starfive_pinconf_set)(struct pinctrl_dev *pctldev,
-				unsigned pin_id, unsigned long *configs,
-				unsigned num_configs);
-	
+				unsigned int pin_id, unsigned long *configs,
+				unsigned int num_configs);
+
 	/* generic pinmux */
 	int (*starfive_pmx_set_one_pin_mux)(struct starfive_pinctrl *ipctl,
 				struct starfive_pin *pin);

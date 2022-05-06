@@ -1,22 +1,9 @@
-/**
-  ******************************************************************************
-  * @file  pinctrl-starfive.c
-  * @author  StarFive Technology
-  * @version  V1.0
-  * @date  11/30/2021
-  * @brief
-  ******************************************************************************
-  * @copy
-  *
-  * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
-  * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
-  * TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE FOR ANY
-  * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
-  * FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
-  * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
-  *
-  * <h2><center>&copy; COPYRIGHT 20120 Shanghai StarFive Technology Co., Ltd. </center></h2>
-  */
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Pinctrl / GPIO driver for StarFive JH7110 SoC
+ *
+ * Copyright (C) 2022 Shanghai StarFive Technology Co., Ltd.
+ */
 
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
@@ -46,7 +33,7 @@ static inline const struct group_desc *starfive_pinctrl_find_group_by_name(
 {
 	const struct group_desc *grp = NULL;
 	int i;
-	
+
 	for (i = 0; i < pctldev->num_groups; i++) {
 		grp = pinctrl_generic_get_group(pctldev, i);
 		if (grp && !strcmp(grp->name, name))
@@ -57,14 +44,14 @@ static inline const struct group_desc *starfive_pinctrl_find_group_by_name(
 }
 
 static void starfive_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
-			unsigned offset)
+			unsigned int offset)
 {
 	seq_printf(s, "%s", dev_name(pctldev->dev));
 }
 
 static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 			struct device_node *np,
-			struct pinctrl_map **map, unsigned *num_maps)
+			struct pinctrl_map **map, unsigned int *num_maps)
 {
 	struct starfive_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct group_desc *grp;
@@ -72,14 +59,14 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 	struct device_node *parent;
 	struct starfive_pin *pin;
 	int map_num = 1;
-	int i, j;	
+	int i, j;
 
 	grp = starfive_pinctrl_find_group_by_name(pctldev, np->name);
 	if (!grp) {
 		dev_err(pctl->dev, "unable to find group for node %pOFn\n", np);
 		return -EINVAL;
 	}
-	 	
+
 	map_num = grp->num_pins + 1;
 	new_map = kmalloc_array(map_num, sizeof(struct pinctrl_map),
 				GFP_KERNEL);
@@ -116,7 +103,7 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 }
 
 static void starfive_dt_free_map(struct pinctrl_dev *pctldev,
-				struct pinctrl_map *map, unsigned num_maps)
+				struct pinctrl_map *map, unsigned int num_maps)
 {
 	kfree(map);
 }
@@ -131,8 +118,8 @@ static const struct pinctrl_ops starfive_pctrl_ops = {
 };
 
 
-static int starfive_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
-			unsigned group)
+static int starfive_pmx_set(struct pinctrl_dev *pctldev, unsigned int selector,
+			unsigned int group)
 {
 	struct starfive_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct starfive_pinctrl_soc_info *info = pctl->info;
@@ -157,7 +144,7 @@ static int starfive_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 
 	for (i = 0; i < npins; i++) {
 		pin = &((struct starfive_pin *)(grp->data))[i];
-		if(info->starfive_pmx_set_one_pin_mux){
+		if (info->starfive_pmx_set_one_pin_mux) {
 			err = info->starfive_pmx_set_one_pin_mux(pctl, pin);
 			if (err)
 				return err;
@@ -167,7 +154,7 @@ static int starfive_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-struct pinmux_ops starfive_pmx_ops = {
+const struct pinmux_ops starfive_pmx_ops = {
 	.get_functions_count = pinmux_generic_get_function_count,
 	.get_function_name = pinmux_generic_get_function_name,
 	.get_function_groups = pinmux_generic_get_function_groups,
@@ -176,33 +163,33 @@ struct pinmux_ops starfive_pmx_ops = {
 
 
 static int starfive_pinconf_get(struct pinctrl_dev *pctldev,
-				unsigned pin_id, unsigned long *config)
+				unsigned int pin_id, unsigned long *config)
 {
 	struct starfive_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct starfive_pinctrl_soc_info *info = pctl->info;
-		
-	if(info->starfive_pinconf_get)
+
+	if (info->starfive_pinconf_get)
 		return info->starfive_pinconf_get(pctldev, pin_id, config);
-		
+
 	return 0;
 }
 
 static int starfive_pinconf_set(struct pinctrl_dev *pctldev,
-				unsigned pin_id, unsigned long *configs,
-				unsigned num_configs)
+				unsigned int pin_id, unsigned long *configs,
+				unsigned int num_configs)
 {
 	struct starfive_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct starfive_pinctrl_soc_info *info = pctl->info;
 
-	
-	if(info->starfive_pinconf_set)
+
+	if (info->starfive_pinconf_set)
 		return info->starfive_pinconf_set(pctldev, pin_id,
 				configs, num_configs);
 	return 0;
 }
 
 static void starfive_pinconf_dbg_show(struct pinctrl_dev *pctldev,
-				struct seq_file *s, unsigned pin_id)
+				struct seq_file *s, unsigned int pin_id)
 {
 	struct starfive_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct starfive_pin_reg *pin_reg;
@@ -214,7 +201,7 @@ static void starfive_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 		seq_puts(s, "N/A");
 		return;
 	}
-	
+
 	ret = starfive_pinconf_get(pctldev, pin_id, &config);
 	if (ret)
 		return;
@@ -222,7 +209,7 @@ static void starfive_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 }
 
 static void starfive_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
-				struct seq_file *s, unsigned group)
+				struct seq_file *s, unsigned int group)
 {
 	struct group_desc *grp;
 	unsigned long config;
@@ -270,12 +257,12 @@ static int starfive_pinctrl_parse_groups(struct device_node *np,
 	int offset = 0;
 	const __be32 *list;
 	int j, child_num_pins;
-	
+
 	pin_size = STARFIVE_PINS_SIZE;
 
 	/* Initialise group */
 	grp->name = np->name;
-	
+
 	for_each_child_of_node(np, child) {
 		list = of_get_property(child, "sf,pins", &psize);
 		if (!list) {
@@ -291,7 +278,7 @@ static int starfive_pinctrl_parse_groups(struct device_node *np,
 			"Invalid sf,pins or pins property in node %pOF\n", np);
 		return -EINVAL;
 	}
-	
+
 	grp->num_pins = size / pin_size;
 	grp->data = devm_kcalloc(pctl->dev,
 				 grp->num_pins, sizeof(struct starfive_pin),
@@ -300,8 +287,8 @@ static int starfive_pinctrl_parse_groups(struct device_node *np,
 				 grp->num_pins, sizeof(int),
 				 GFP_KERNEL);
 	if (!grp->pins || !grp->data)
-		return -ENOMEM;	
-		
+		return -ENOMEM;
+
 	for_each_child_of_node(np, child) {
 		list = of_get_property(child, "sf,pins", &psize);
 		if (!list) {
@@ -309,24 +296,24 @@ static int starfive_pinctrl_parse_groups(struct device_node *np,
 				"no sf,pins and pins property in node %pOF\n", np);
 			return -EINVAL;
 		}
-		
+
 		child_num_pins = psize / pin_size;
 
 		for (j = 0; j < child_num_pins; j++) {
 			pin_data = &((struct starfive_pin *)(grp->data))[j + offset];
 			pins_id =  &(grp->pins)[j + offset];
-			
-			if (!info->starfive_pinctrl_parse_pin){
+
+			if (!info->starfive_pinctrl_parse_pin) {
 				dev_err(pctl->dev, "pinmux ops lacks necessary functions\n");
 				return -EINVAL;
 			}
-				
-			info->starfive_pinctrl_parse_pin(pctl, pins_id,pin_data, list, child);
+
+			info->starfive_pinctrl_parse_pin(pctl, pins_id, pin_data, list, child);
 			list++;
 		}
 		offset += j;
 	}
-	
+
 	return 0;
 }
 
@@ -338,7 +325,7 @@ static int starfive_pinctrl_parse_functions(struct device_node *np,
 	struct device_node *child;
 	struct function_desc *func;
 	struct group_desc *grp;
-	u32 i = 0;	
+	u32 i = 0;
 	int ret;
 
 	func = pinmux_generic_get_function(pctldev, index);
@@ -355,7 +342,7 @@ static int starfive_pinctrl_parse_functions(struct device_node *np,
 					 sizeof(char *), GFP_KERNEL);
 	if (!func->group_names)
 		return -ENOMEM;
-	
+
 	for_each_child_of_node(np, child) {
 		func->group_names[i] = child->name;
 		grp = devm_kzalloc(pctl->dev, sizeof(struct group_desc),
@@ -364,14 +351,14 @@ static int starfive_pinctrl_parse_functions(struct device_node *np,
 			of_node_put(child);
 			return -ENOMEM;
 		}
-		
+
 		mutex_lock(&pctl->mutex);
 		radix_tree_insert(&pctldev->pin_group_tree,
 				  pctl->group_index++, grp);
 		mutex_unlock(&pctl->mutex);
 
 		ret = starfive_pinctrl_parse_groups(child, grp, pctl, i++);
-		if (ret < 0){
+		if (ret < 0) {
 			dev_err(pctl->dev, "parse groups failed\n");
 			return ret;
 		}
@@ -403,13 +390,13 @@ static int starfive_pinctrl_probe_dt(struct platform_device *pdev,
 		radix_tree_insert(&pctldev->pin_function_tree, i, function);
 		mutex_unlock(&pctl->mutex);
 	}
-	
+
 	pctldev->num_functions = nfuncs;
 	pctl->group_index = 0;
 	pctldev->num_groups = of_get_child_count(np);
 	starfive_pinctrl_parse_functions(np, pctl, 0);
 
- 	return 0;
+	return 0;
 }
 
 int starfive_pinctrl_probe(struct platform_device *pdev,
@@ -445,7 +432,7 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 		pctl->pin_regs[i].syscon_reg = -1;
 		pctl->pin_regs[i].pad_sel_reg = -1;
 	}
-	
+
 	pctl->padctl_base = devm_platform_ioremap_resource_byname(pdev, "control");
 	if (IS_ERR(pctl->padctl_base))
 		return PTR_ERR(pctl->padctl_base);
@@ -456,10 +443,10 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 		if (IS_ERR(pctl->gpio_base))
 			return PTR_ERR(pctl->gpio_base);
 	}
-	
+
 	if (info->starfive_iopad_sel_func) {
-		ret = info->starfive_iopad_sel_func(pdev,pctl,value);
-		if (ret) 
+		ret = info->starfive_iopad_sel_func(pdev, pctl, value);
+		if (ret)
 			return ret;
 	}
 
@@ -467,7 +454,7 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 					GFP_KERNEL);
 	if (!starfive_pinctrl_desc)
 		return -ENOMEM;
-	
+
 	raw_spin_lock_init(&pctl->lock);
 
 	starfive_pinctrl_desc->name = dev_name(&pdev->dev);
@@ -488,27 +475,27 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 					     starfive_pinctrl_desc, pctl,
 					     &pctl->pctl_dev);
 	if (ret) {
-		dev_err(&pdev->dev, 
+		dev_err(&pdev->dev,
 			"could not register starfive pinctrl driver\n");
 		return ret;
 	}
 
 	ret = starfive_pinctrl_probe_dt(pdev, pctl);
 	if (ret) {
-		dev_err(&pdev->dev, 
+		dev_err(&pdev->dev,
 			"fail to probe dt properties\n");
 		return ret;
 	}
-	
+
 	ret = pinctrl_enable(pctl->pctl_dev);
 	if (ret) {
-		dev_err(&pdev->dev, 
+		dev_err(&pdev->dev,
 			"pin controller failed to start\n");
 		return ret;
 	}
 
-	if(info->starfive_gpio_register){
-		ret = info->starfive_gpio_register(pdev,pctl);
+	if (info->starfive_gpio_register) {
+		ret = info->starfive_gpio_register(pdev, pctl);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"starfive_gpio_register failed to register\n");
@@ -539,5 +526,6 @@ const struct dev_pm_ops starfive_pinctrl_pm_ops = {
 					starfive_pinctrl_resume)
 };
 EXPORT_SYMBOL_GPL(starfive_pinctrl_pm_ops);
+MODULE_DESCRIPTION("Pinctrl driver for StarFive JH7110 SoC");
 MODULE_AUTHOR("jenny.zhang <jenny.zhang@starfivetech.com>");
 MODULE_LICENSE("GPL v2");
