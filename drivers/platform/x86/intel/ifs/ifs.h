@@ -4,6 +4,116 @@
 #ifndef _IFS_H_
 #define _IFS_H_
 
+/**
+ * DOC: In-Field Scan
+ *
+ * =============
+ * In-Field Scan
+ * =============
+ *
+ * Introduction
+ * ------------
+ *
+ * In Field Scan (IFS) is a hardware feature to run circuit level tests on
+ * a CPU core to detect problems that are not caught by parity or ECC checks.
+ * Future CPUs will support more than one type of test which will show up
+ * with a new platform-device instance-id, for now only .0 is exposed.
+ *
+ *
+ * IFS Image
+ * ---------
+ *
+ * Intel provides a firmware file containing the scan tests via
+ * github [#f1]_.  Similar to microcode there is a separate file for each
+ * family-model-stepping.
+ *
+ * IFS Image Loading
+ * -----------------
+ *
+ * The driver loads the tests into memory reserved BIOS local to each CPU
+ * socket in a two step process using writes to MSRs to first load the
+ * SHA hashes for the test. Then the tests themselves. Status MSRs provide
+ * feedback on the success/failure of these steps. When a new test file
+ * is installed it can be loaded by writing to the driver reload file::
+ *
+ *   # echo 1 > /sys/devices/virtual/misc/intel_ifs_0/reload
+ *
+ * Similar to microcode, the current version of the scan tests is stored
+ * in a fixed location: /lib/firmware/intel/ifs.0/family-model-stepping.scan
+ *
+ * Running tests
+ * -------------
+ *
+ * Tests are run by the driver synchronizing execution of all threads on a
+ * core and then writing to the ACTIVATE_SCAN MSR on all threads. Instruction
+ * execution continues when:
+ *
+ * 1) All tests have completed.
+ * 2) Execution was interrupted.
+ * 3) A test detected a problem.
+ *
+ * Note that ALL THREADS ON THE CORE ARE EFFECTIVELY OFFLINE FOR THE
+ * DURATION OF THE TEST. This can be up to 200 milliseconds. If the system
+ * is running latency sensitive applications that cannot tolerate an
+ * interruption of this magnitude, the system administrator must arrange
+ * to migrate those applications to other cores before running a core test.
+ * It may also be necessary to redirect interrupts to other CPUs.
+ *
+ * In all cases reading the SCAN_STATUS MSR provides details on what
+ * happened. The driver makes the value of this MSR visible to applications
+ * via the "details" file (see below). Interrupted tests may be restarted.
+ *
+ * The IFS driver provides sysfs interfaces via /sys/devices/virtual/misc/intel_ifs_0/
+ * to control execution:
+ *
+ * Test a specific core::
+ *
+ *   # echo <cpu#> > /sys/devices/virtual/misc/intel_ifs_0/run_test
+ *
+ * when HT is enabled any of the sibling cpu# can be specified to test
+ * its corresponding physical core. Since the tests are per physical core,
+ * the result of testing any thread is same. All siblings must be online
+ * to run a core test. It is only necessary to test one thread.
+ *
+ * For e.g. to test core corresponding to cpu5
+ *
+ *   # echo 5 > /sys/devices/virtual/misc/intel_ifs_0/run_test
+ *
+ * Results of the last test is provided in /sys::
+ *
+ *   $ cat /sys/devices/virtual/misc/intel_ifs_0/status
+ *   pass
+ *
+ * Status can be one of pass, fail, untested
+ *
+ * Additional details of the last test is provided by the details file::
+ *
+ *   $ cat /sys/devices/virtual/misc/intel_ifs_0/details
+ *   0x8081
+ *
+ * The details file reports the hex value of the SCAN_STATUS MSR.
+ * Hardware defined error codes are documented in volume 4 of the Intel
+ * Software Developer's Manual but the error_code field may contain one of
+ * the following driver defined software codes:
+ *
+ * +------+--------------------+
+ * | 0xFD | Software timeout   |
+ * +------+--------------------+
+ * | 0xFE | Partial completion |
+ * +------+--------------------+
+ *
+ * Driver design choices
+ * ---------------------
+ *
+ * 1) The ACTIVATE_SCAN MSR allows for running any consecutive subrange of
+ * available tests. But the driver always tries to run all tests and only
+ * uses the subrange feature to restart an interrupted test.
+ *
+ * 2) Hardware allows for some number of cores to be tested in parallel.
+ * The driver does not make use of this, it only tests one core at a time.
+ *
+ * .. [#f1] https://github.com/intel/TBD
+ */
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 
