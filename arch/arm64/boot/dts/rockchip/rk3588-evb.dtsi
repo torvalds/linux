@@ -132,6 +132,25 @@
 		};
 	};
 
+	spdif_tx0_dc: spdif-tx0-dc {
+		status = "disabled";
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_tx0_sound: spdif-tx0-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,name = "rockchip,spdif-tx0";
+		simple-audio-card,cpu {
+			sound-dai = <&spdif_tx0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&spdif_tx0_dc>;
+		};
+	};
+
 	spdif_tx1_dc: spdif-tx1-dc {
 		status = "disabled";
 		compatible = "linux,spdif-dit";
@@ -141,6 +160,7 @@
 	spdif_tx1_sound: spdif-tx1-sound {
 		status = "disabled";
 		compatible = "simple-audio-card";
+		simple-audio-card,mclk-fs = <128>;
 		simple-audio-card,name = "rockchip,spdif-tx1";
 		simple-audio-card,cpu {
 			sound-dai = <&spdif_tx1>;
