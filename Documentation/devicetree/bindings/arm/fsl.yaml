@@ -680,10 +680,10 @@ properties:
       - description: i.MX6ULL Boards with Toradex Colibri iMX6ULL 1GB (eMMC) Module
         items:
           - enum:
-              - toradex,colibri-imx6ull-emmc-aster     # Colibri iMX6ULL 1G (eMMC) on Aster Carrier Board
-              - toradex,colibri-imx6ull-emmc-eval      # Colibri iMX6ULL 1G (eMMC) on Colibri Evaluation B. V3
-              - toradex,colibri-imx6ull-emmc-iris      # Colibri iMX6ULL 1G (eMMC) on Iris Carrier Board
-              - toradex,colibri-imx6ull-emmc-iris-v2   # Colibri iMX6ULL 1G (eMMC) on Iris V2 Carrier Board
+              - toradex,colibri-imx6ull-emmc-aster     # Colibri iMX6ULL 1GB (eMMC) on Aster Carrier Board
+              - toradex,colibri-imx6ull-emmc-eval      # Colibri iMX6ULL 1GB (eMMC) on Colibri Evaluation B. V3
+              - toradex,colibri-imx6ull-emmc-iris      # Colibri iMX6ULL 1GB (eMMC) on Iris Carrier Board
+              - toradex,colibri-imx6ull-emmc-iris-v2   # Colibri iMX6ULL 1GB (eMMC) on Iris V2 Carrier Board
           - const: toradex,colibri-imx6ull-emmc        # Colibri iMX6ULL 1GB (eMMC) Module
           - const: fsl,imx6ull
 
