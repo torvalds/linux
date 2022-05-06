@@ -8725,19 +8725,18 @@ lpfc_issue_els_rrq(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	elsiocb->cmd_cmpl = lpfc_cmpl_els_rrq;
 
 	elsiocb->ndlp = lpfc_nlp_get(ndlp);
-	if (!elsiocb->ndlp) {
-		lpfc_els_free_iocb(phba, elsiocb);
-		return 1;
-	}
+	if (!elsiocb->ndlp)
+		goto io_err;
 
 	ret = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
-	if (ret == IOCB_ERROR)
+	if (ret == IOCB_ERROR) {
+		lpfc_nlp_put(ndlp);
 		goto io_err;
+	}
 	return 0;
 
  io_err:
 	lpfc_els_free_iocb(phba, elsiocb);
-	lpfc_nlp_put(ndlp);
 	return 1;
 }
 

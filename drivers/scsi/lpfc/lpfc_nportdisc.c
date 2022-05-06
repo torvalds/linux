@@ -513,6 +513,10 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_config_link(phba, link_mbox);
 			link_mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 			link_mbox->vport = vport;
+
+			/* The default completion handling for CONFIG_LINK
+			 * does not require the ndlp so no reference is needed.
+			 */
 			link_mbox->ctx_ndlp = ndlp;
 
 			rc = lpfc_sli_issue_mbox(phba, link_mbox, MBX_NOWAIT);
@@ -633,6 +637,9 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	 */
 	login_mbox->mbox_cmpl = lpfc_defer_plogi_acc;
 	login_mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
+	if (!login_mbox->ctx_ndlp)
+		goto out;
+
 	login_mbox->context3 = save_iocb; /* For PLOGI ACC */
 
 	spin_lock_irq(&ndlp->lock);
@@ -641,8 +648,10 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	/* Start the ball rolling by issuing REG_LOGIN here */
 	rc = lpfc_sli_issue_mbox(phba, login_mbox, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED)
+	if (rc == MBX_NOT_FINISHED) {
+		lpfc_nlp_put(ndlp);
 		goto out;
+	}
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_REG_LOGIN_ISSUE);
 
 	return 1;
@@ -1099,8 +1108,10 @@ lpfc_release_rpi(struct lpfc_hba *phba, struct lpfc_vport *vport,
 				 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag);
 
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
-		if (rc == MBX_NOT_FINISHED)
+		if (rc == MBX_NOT_FINISHED) {
+			lpfc_nlp_put(ndlp);
 			mempool_free(pmb, phba->mbox_mem_pool);
+		}
 	}
 }
 

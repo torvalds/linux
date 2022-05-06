@@ -2357,6 +2357,11 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		rpinfo.dev_loss_tmo = vport->cfg_devloss_tmo;
 
 	spin_lock_irq(&ndlp->lock);
+
+	/* If an oldrport exists, so does the ndlp reference.  If not
+	 * a new reference is needed because either the node has never
+	 * been registered or it's been unregistered and getting deleted.
+	 */
 	oldrport = lpfc_ndlp_get_nrport(ndlp);
 	if (oldrport) {
 		prev_ndlp = oldrport->ndlp;

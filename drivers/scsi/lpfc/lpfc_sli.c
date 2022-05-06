@@ -20684,8 +20684,12 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
 			act_mbx_ndlp = (struct lpfc_nodelist *)mb->ctx_ndlp;
-			/* Put reference count for delayed processing */
+
+			/* This reference is local to this routine.  The
+			 * reference is removed at routine exit.
+			 */
 			act_mbx_ndlp = lpfc_nlp_get(act_mbx_ndlp);
+
 			/* Unregister the RPI when mailbox complete */
 			mb->mbox_flag |= LPFC_MBX_IMED_UNREG;
 		}
