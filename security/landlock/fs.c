@@ -152,7 +152,8 @@ retry:
  * @path: Should have been checked by get_path_from_fd().
  */
 int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
-			    const struct path *const path, u32 access_rights)
+			    const struct path *const path,
+			    access_mask_t access_rights)
 {
 	int err;
 	struct landlock_object *object;
@@ -184,7 +185,8 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 
 static inline u64 unmask_layers(const struct landlock_ruleset *const domain,
 				const struct path *const path,
-				const u32 access_request, u64 layer_mask)
+				const access_mask_t access_request,
+				u64 layer_mask)
 {
 	const struct landlock_rule *rule;
 	const struct inode *inode;
@@ -224,7 +226,8 @@ static inline u64 unmask_layers(const struct landlock_ruleset *const domain,
 }
 
 static int check_access_path(const struct landlock_ruleset *const domain,
-			     const struct path *const path, u32 access_request)
+			     const struct path *const path,
+			     const access_mask_t access_request)
 {
 	bool allowed = false;
 	struct path walker_path;
@@ -309,7 +312,7 @@ jump_up:
 }
 
 static inline int current_check_access_path(const struct path *const path,
-					    const u32 access_request)
+					    const access_mask_t access_request)
 {
 	const struct landlock_ruleset *const dom =
 		landlock_get_current_domain();
@@ -512,7 +515,7 @@ static int hook_sb_pivotroot(const struct path *const old_path,
 
 /* Path hooks */
 
-static inline u32 get_mode_access(const umode_t mode)
+static inline access_mask_t get_mode_access(const umode_t mode)
 {
 	switch (mode & S_IFMT) {
 	case S_IFLNK:
@@ -565,7 +568,7 @@ static int hook_path_link(struct dentry *const old_dentry,
 		get_mode_access(d_backing_inode(old_dentry)->i_mode));
 }
 
-static inline u32 maybe_remove(const struct dentry *const dentry)
+static inline access_mask_t maybe_remove(const struct dentry *const dentry)
 {
 	if (d_is_negative(dentry))
 		return 0;
@@ -635,9 +638,9 @@ static int hook_path_rmdir(const struct path *const dir,
 
 /* File hooks */
 
-static inline u32 get_file_access(const struct file *const file)
+static inline access_mask_t get_file_access(const struct file *const file)
 {
-	u32 access = 0;
+	access_mask_t access = 0;
 
 	if (file->f_mode & FMODE_READ) {
 		/* A directory can only be opened in read mode. */
