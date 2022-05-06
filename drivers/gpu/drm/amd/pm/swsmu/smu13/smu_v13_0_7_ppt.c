@@ -292,7 +292,8 @@ static int smu_v13_0_7_store_powerplay_table(struct smu_context *smu)
 	return 0;
 }
 
-int smu_v13_0_7_check_fw_status(struct smu_context *smu) {
+static int smu_v13_0_7_check_fw_status(struct smu_context *smu)
+{
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t mp1_fw_flags;
 
