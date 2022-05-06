@@ -3947,7 +3947,7 @@ static const char * const usb3_lpm_names[]  = {
  * This function will fail if the SEL or PEL values for udev are greater than
  * the maximum allowed values for the link state to be enabled.
  */
-static int usb_req_set_sel(struct usb_device *udev, enum usb3_link_state state)
+static int usb_req_set_sel(struct usb_device *udev)
 {
 	struct usb_set_sel_req *sel_values;
 	unsigned long long u1_sel;
@@ -3956,7 +3956,7 @@ static int usb_req_set_sel(struct usb_device *udev, enum usb3_link_state state)
 	unsigned long long u2_pel;
 	int ret;
 
-	if (udev->state != USB_STATE_CONFIGURED)
+	if (!udev->parent || udev->speed < USB_SPEED_SUPER || !udev->lpm_capable)
 		return 0;
 
 	/* Convert SEL and PEL stored in ns to us */
@@ -3973,33 +3973,13 @@ static int usb_req_set_sel(struct usb_device *udev, enum usb3_link_state state)
 	 * latency for the link state, and could start a device-initiated
 	 * U1/U2 when the exit latencies are too high.
 	 */
-	if ((state == USB3_LPM_U1 &&
-				(u1_sel > USB3_LPM_MAX_U1_SEL_PEL ||
-				 u1_pel > USB3_LPM_MAX_U1_SEL_PEL)) ||
-			(state == USB3_LPM_U2 &&
-			 (u2_sel > USB3_LPM_MAX_U2_SEL_PEL ||
-			  u2_pel > USB3_LPM_MAX_U2_SEL_PEL))) {
-		dev_dbg(&udev->dev, "Device-initiated %s disabled due to long SEL %llu us or PEL %llu us\n",
-				usb3_lpm_names[state], u1_sel, u1_pel);
+	if (u1_sel > USB3_LPM_MAX_U1_SEL_PEL ||
+	    u1_pel > USB3_LPM_MAX_U1_SEL_PEL ||
+	    u2_sel > USB3_LPM_MAX_U2_SEL_PEL ||
+	    u2_pel > USB3_LPM_MAX_U2_SEL_PEL) {
+		dev_dbg(&udev->dev, "Device-initiated U1/U2 disabled due to long SEL or PEL\n");
 		return -EINVAL;
 	}
-
-	/*
-	 * If we're enabling device-initiated LPM for one link state,
-	 * but the other link state has a too high SEL or PEL value,
-	 * just set those values to the max in the Set SEL request.
-	 */
-	if (u1_sel > USB3_LPM_MAX_U1_SEL_PEL)
-		u1_sel = USB3_LPM_MAX_U1_SEL_PEL;
-
-	if (u1_pel > USB3_LPM_MAX_U1_SEL_PEL)
-		u1_pel = USB3_LPM_MAX_U1_SEL_PEL;
-
-	if (u2_sel > USB3_LPM_MAX_U2_SEL_PEL)
-		u2_sel = USB3_LPM_MAX_U2_SEL_PEL;
-
-	if (u2_pel > USB3_LPM_MAX_U2_SEL_PEL)
-		u2_pel = USB3_LPM_MAX_U2_SEL_PEL;
 
 	/*
 	 * usb_enable_lpm() can be called as part of a failed device reset,
@@ -4022,6 +4002,10 @@ static int usb_req_set_sel(struct usb_device *udev, enum usb3_link_state state)
 			sel_values, sizeof *(sel_values),
 			USB_CTRL_SET_TIMEOUT);
 	kfree(sel_values);
+
+	if (ret > 0)
+		udev->lpm_devinit_allow = 1;
+
 	return ret;
 }
 
@@ -4137,6 +4121,9 @@ static bool usb_device_may_initiate_lpm(struct usb_device *udev,
 	unsigned int sel;		/* us */
 	int i, j;
 
+	if (!udev->lpm_devinit_allow)
+		return false;
+
 	if (state == USB3_LPM_U1)
 		sel = DIV_ROUND_UP(udev->u1_params.sel, 1000);
 	else if (state == USB3_LPM_U2)
@@ -4185,7 +4172,7 @@ static bool usb_device_may_initiate_lpm(struct usb_device *udev,
 static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 		enum usb3_link_state state)
 {
-	int timeout, ret;
+	int timeout;
 	__u8 u1_mel = udev->bos->ss_cap->bU1devExitLat;
 	__le16 u2_mel = udev->bos->ss_cap->bU2DevExitLat;
 
@@ -4196,17 +4183,6 @@ static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 	if ((state == USB3_LPM_U1 && u1_mel == 0) ||
 			(state == USB3_LPM_U2 && u2_mel == 0))
 		return;
-
-	/*
-	 * First, let the device know about the exit latencies
-	 * associated with the link state we're about to enable.
-	 */
-	ret = usb_req_set_sel(udev, state);
-	if (ret < 0) {
-		dev_warn(&udev->dev, "Set SEL for device-initiated %s failed.\n",
-				usb3_lpm_names[state]);
-		return;
-	}
 
 	/* We allow the host controller to set the U1/U2 timeout internally
 	 * first, so that it can change its schedule to account for the
@@ -4483,6 +4459,11 @@ EXPORT_SYMBOL_GPL(usb_enable_ltm);
 
 static int hub_handle_remote_wakeup(struct usb_hub *hub, unsigned int port,
 		u16 portstatus, u16 portchange)
+{
+	return 0;
+}
+
+static int usb_req_set_sel(struct usb_device *udev)
 {
 	return 0;
 }
@@ -5012,6 +4993,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 			udev->lpm_capable = usb_device_supports_lpm(udev);
 			udev->lpm_disable_count = 1;
 			usb_set_lpm_parameters(udev);
+			usb_req_set_sel(udev);
 		}
 	}
 
