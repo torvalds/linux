@@ -635,6 +635,11 @@ static int rtw89_debug_priv_mac_reg_dump_get(struct seq_file *m, void *v)
 		start = 0x000;
 		end = 0x014;
 		break;
+	case RTW89_DBG_SEL_MAC_30:
+		seq_puts(m, "Debug selected MAC page 0x30\n");
+		start = 0x030;
+		end = 0x033;
+		break;
 	case RTW89_DBG_SEL_MAC_40:
 		seq_puts(m, "Debug selected MAC page 0x40\n");
 		start = 0x040;
