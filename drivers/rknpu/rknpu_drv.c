@@ -697,33 +697,33 @@ static int rknpu_power_off(struct rknpu_device *rknpu_dev)
 
 	pm_runtime_put_sync(dev);
 
-#ifndef FPGA_PLATFORM
-	/*
-	 * Because IOMMU's runtime suspend callback is asynchronous,
-	 * So it may be executed after the NPU is turned off after PD/CLK/VD,
-	 * and the runtime suspend callback has a register access.
-	 * If the PD/VD/CLK is closed, the register access will crash.
-	 * As a workaround, it's safe to close pd stuff until iommu disabled.
-	 * If pm runtime framework can handle this issue in the future, remove
-	 * this.
-	 */
-	ret = readx_poll_timeout(rockchip_iommu_is_enabled, dev, val, !val,
-				 NPU_MMU_DISABLED_POLL_PERIOD_US,
-				 NPU_MMU_DISABLED_POLL_TIMEOUT_US);
-	if (ret) {
-		LOG_DEV_ERROR(dev, "iommu still enabled\n");
-		pm_runtime_get_sync(dev);
-#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
-		rockchip_monitor_volt_adjust_unlock(rknpu_dev->mdev_info);
-#endif
-		return ret;
-	}
-#else
-	if (rknpu_dev->iommu_en)
-		msleep(20);
-#endif
-
 	if (rknpu_dev->multiple_domains) {
+#ifndef FPGA_PLATFORM
+		/*
+		 * Because IOMMU's runtime suspend callback is asynchronous,
+		 * So it may be executed after the NPU is turned off after PD/CLK/VD,
+		 * and the runtime suspend callback has a register access.
+		 * If the PD/VD/CLK is closed, the register access will crash.
+		 * As a workaround, it's safe to close pd stuff until iommu disabled.
+		 * If pm runtime framework can handle this issue in the future, remove
+		 * this.
+		 */
+		ret = readx_poll_timeout(rockchip_iommu_is_enabled, dev, val,
+					 !val, NPU_MMU_DISABLED_POLL_PERIOD_US,
+					 NPU_MMU_DISABLED_POLL_TIMEOUT_US);
+		if (ret) {
+			LOG_DEV_ERROR(dev, "iommu still enabled\n");
+			pm_runtime_get_sync(dev);
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+			rockchip_monitor_volt_adjust_unlock(
+				rknpu_dev->mdev_info);
+#endif
+			return ret;
+		}
+#else
+		if (rknpu_dev->iommu_en)
+			msleep(20);
+#endif
 		if (rknpu_dev->genpd_dev_npu2)
 			pm_runtime_put_sync(rknpu_dev->genpd_dev_npu2);
 		if (rknpu_dev->genpd_dev_npu1)
