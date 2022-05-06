@@ -2058,7 +2058,7 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
 {
 	unsigned int s_flags = sbi->sb->s_flags;
 	struct cp_control cpc;
-	unsigned int gc_mode;
+	unsigned int gc_mode = sbi->gc_mode;
 	int err = 0;
 	int ret;
 	block_t unusable;
@@ -2069,9 +2069,13 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
 	}
 	sbi->sb->s_flags |= SB_ACTIVE;
 
+	/* check if we need more GC first */
+	unusable = f2fs_get_unusable_blocks(sbi);
+	if (!f2fs_disable_cp_again(sbi, unusable))
+		goto skip_gc;
+
 	f2fs_update_time(sbi, DISABLE_TIME);
 
-	gc_mode = sbi->gc_mode;
 	sbi->gc_mode = GC_URGENT_HIGH;
 
 	while (!f2fs_time_over(sbi, DISABLE_TIME)) {
@@ -2097,6 +2101,7 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
 		goto restore_flag;
 	}
 
+skip_gc:
 	f2fs_down_write(&sbi->gc_lock);
 	cpc.reason = CP_PAUSE;
 	set_sbi_flag(sbi, SBI_CP_DISABLED);
