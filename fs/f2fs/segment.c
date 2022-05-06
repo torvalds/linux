@@ -404,7 +404,8 @@ void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need)
 				.init_gc_type = BG_GC,
 				.no_bg_gc = true,
 				.should_migrate_blocks = false,
-				.err_gc_skipped = false };
+				.err_gc_skipped = false,
+				.nr_free_secs = 1 };
 			f2fs_down_write(&sbi->gc_lock);
 			f2fs_gc(sbi, &gc_control);
 		}

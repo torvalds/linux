@@ -2080,7 +2080,8 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
 			.victim_segno = NULL_SEGNO,
 			.init_gc_type = FG_GC,
 			.should_migrate_blocks = false,
-			.err_gc_skipped = true };
+			.err_gc_skipped = true,
+			.nr_free_secs = 1 };
 
 		f2fs_down_write(&sbi->gc_lock);
 		err = f2fs_gc(sbi, &gc_control);

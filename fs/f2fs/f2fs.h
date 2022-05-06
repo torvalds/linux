@@ -1271,6 +1271,7 @@ struct f2fs_gc_control {
 	bool no_bg_gc;			/* check the space and stop bg_gc */
 	bool should_migrate_blocks;	/* should migrate blocks */
 	bool err_gc_skipped;		/* return EAGAIN if GC skipped */
+	unsigned int nr_free_secs;	/* # of free sections to do GC */
 };
 
 /* For s_flag in struct f2fs_sb_info */

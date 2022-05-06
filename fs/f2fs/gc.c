@@ -147,6 +147,7 @@ do_gc:
 
 		gc_control.init_gc_type = sync_mode ? FG_GC : BG_GC;
 		gc_control.no_bg_gc = foreground;
+		gc_control.nr_free_secs = foreground ? 1 : 0;
 
 		/* if return value is not zero, no victim was selected */
 		if (f2fs_gc(sbi, &gc_control))
@@ -1761,6 +1762,7 @@ int f2fs_gc(struct f2fs_sb_info *sbi, struct f2fs_gc_control *gc_control)
 	unsigned int skipped_round = 0, round = 0;
 
 	trace_f2fs_gc_begin(sbi->sb, gc_type, gc_control->no_bg_gc,
+				gc_control->nr_free_secs,
 				get_pages(sbi, F2FS_DIRTY_NODES),
 				get_pages(sbi, F2FS_DIRTY_DENTS),
 				get_pages(sbi, F2FS_DIRTY_IMETA),
@@ -1823,12 +1825,13 @@ retry:
 	if (gc_type == FG_GC)
 		sbi->cur_victim_sec = NULL_SEGNO;
 
-	if (gc_control->init_gc_type == FG_GC)
+	if (gc_control->init_gc_type == FG_GC ||
+	    !has_not_enough_free_secs(sbi,
+				(gc_type == FG_GC) ? sec_freed : 0, 0)) {
+		if (gc_type == FG_GC && sec_freed < gc_control->nr_free_secs)
+			goto go_gc_more;
 		goto stop;
-
-	if (!has_not_enough_free_secs(sbi,
-			(gc_type == FG_GC) ? sec_freed : 0, 0))
-		goto stop;
+	}
 
 	/* FG_GC stops GC by skip_count */
 	if (gc_type == FG_GC) {
@@ -1849,6 +1852,7 @@ retry:
 		if (ret)
 			goto stop;
 	}
+go_gc_more:
 	segno = NULL_SEGNO;
 	goto gc_more;
 

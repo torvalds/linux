@@ -645,18 +645,21 @@ TRACE_EVENT(f2fs_background_gc,
 TRACE_EVENT(f2fs_gc_begin,
 
 	TP_PROTO(struct super_block *sb, int gc_type, bool no_bg_gc,
+			unsigned int nr_free_secs,
 			long long dirty_nodes, long long dirty_dents,
 			long long dirty_imeta, unsigned int free_sec,
 			unsigned int free_seg, int reserved_seg,
 			unsigned int prefree_seg),
 
-	TP_ARGS(sb, gc_type, no_bg_gc, dirty_nodes, dirty_dents, dirty_imeta,
+	TP_ARGS(sb, gc_type, no_bg_gc, nr_free_secs, dirty_nodes,
+		dirty_dents, dirty_imeta,
 		free_sec, free_seg, reserved_seg, prefree_seg),
 
 	TP_STRUCT__entry(
 		__field(dev_t,		dev)
 		__field(int,		gc_type)
 		__field(bool,		no_bg_gc)
+		__field(unsigned int,	nr_free_secs)
 		__field(long long,	dirty_nodes)
 		__field(long long,	dirty_dents)
 		__field(long long,	dirty_imeta)
@@ -670,6 +673,7 @@ TRACE_EVENT(f2fs_gc_begin,
 		__entry->dev		= sb->s_dev;
 		__entry->gc_type	= gc_type;
 		__entry->no_bg_gc	= no_bg_gc;
+		__entry->nr_free_secs	= nr_free_secs;
 		__entry->dirty_nodes	= dirty_nodes;
 		__entry->dirty_dents	= dirty_dents;
 		__entry->dirty_imeta	= dirty_imeta;
@@ -679,12 +683,13 @@ TRACE_EVENT(f2fs_gc_begin,
 		__entry->prefree_seg	= prefree_seg;
 	),
 
-	TP_printk("dev = (%d,%d), gc_type = %s, no_background_GC = %d, nodes = %lld, "
-		"dents = %lld, imeta = %lld, free_sec:%u, free_seg:%u, "
+	TP_printk("dev = (%d,%d), gc_type = %s, no_background_GC = %d, nr_free_secs = %u, "
+		"nodes = %lld, dents = %lld, imeta = %lld, free_sec:%u, free_seg:%u, "
 		"rsv_seg:%d, prefree_seg:%u",
 		show_dev(__entry->dev),
 		show_gc_type(__entry->gc_type),
 		(__entry->gc_type == BG_GC) ? __entry->no_bg_gc : -1,
+		__entry->nr_free_secs,
 		__entry->dirty_nodes,
 		__entry->dirty_dents,
 		__entry->dirty_imeta,
