@@ -640,8 +640,14 @@ static int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, 
 {
 	bool per_cpu_mmaps = !perf_cpu_map__empty(evlist->core.user_requested_cpus);
 
-	if (per_cpu_mmaps)
-		return perf_evsel__enable_cpu(&evsel->core, idx);
+	if (per_cpu_mmaps) {
+		struct perf_cpu evlist_cpu = perf_cpu_map__cpu(evlist->core.all_cpus, idx);
+		int cpu_map_idx = perf_cpu_map__idx(evsel->core.cpus, evlist_cpu);
+
+		if (cpu_map_idx == -1)
+			return -EINVAL;
+		return perf_evsel__enable_cpu(&evsel->core, cpu_map_idx);
+	}
 
 	return perf_evsel__enable_thread(&evsel->core, idx);
 }
