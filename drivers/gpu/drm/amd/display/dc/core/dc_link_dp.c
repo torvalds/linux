@@ -5126,13 +5126,16 @@ static bool dpcd_read_sink_ext_caps(struct dc_link *link)
 	return true;
 }
 
-void dp_retrieve_lttpr_cap(struct dc_link *link)
+bool dp_retrieve_lttpr_cap(struct dc_link *link)
 {
+	uint8_t lttpr_dpcd_data[8];
 	bool allow_lttpr_non_transparent_mode = 0;
+	bool vbios_lttpr_enable = link->dc->caps.vbios_lttpr_enable;
 	bool vbios_lttpr_interop = link->dc->caps.vbios_lttpr_aware;
 	enum dc_status status = DC_ERROR_UNEXPECTED;
+	bool is_lttpr_present = false;
 
-	memset(link->lttpr_dpcd_data, '\0', sizeof(link->lttpr_dpcd_data));
+	memset(lttpr_dpcd_data, '\0', sizeof(lttpr_dpcd_data));
 
 	if ((link->dc->config.allow_lttpr_non_transparent_mode.bits.DP2_0 &&
 			link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED)) {
@@ -5142,116 +5145,82 @@ void dp_retrieve_lttpr_cap(struct dc_link *link)
 		allow_lttpr_non_transparent_mode = 1;
 	}
 
-	link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
-	link->lttpr_support = LTTPR_UNSUPPORTED;
-
 	/*
-	 * Logic to determine LTTPR support
+	 * Logic to determine LTTPR mode
 	 */
-	if (vbios_lttpr_interop)
-		link->lttpr_support = LTTPR_SUPPORTED;
-	else if (link->dc->config.allow_lttpr_non_transparent_mode.raw == 0
-			|| !link->dc->caps.extended_aux_timeout_support)
-			link->lttpr_support = LTTPR_UNSUPPORTED;
-	else
-		link->lttpr_support = LTTPR_CHECK_EXT_SUPPORT;
+	link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
+	if (vbios_lttpr_enable && vbios_lttpr_interop)
+		link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+	else if (!vbios_lttpr_enable && vbios_lttpr_interop) {
+		if (allow_lttpr_non_transparent_mode)
+			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+		else
+			link->lttpr_mode = LTTPR_MODE_TRANSPARENT;
+	} else if (!vbios_lttpr_enable && !vbios_lttpr_interop) {
+		if (!allow_lttpr_non_transparent_mode || !link->dc->caps.extended_aux_timeout_support)
+			link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
+		else
+			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+	}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* Check DP tunnel LTTPR mode debug option. */
 	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
 	    link->dc->debug.dpia_debug.bits.force_non_lttpr)
-		link->lttpr_support = LTTPR_UNSUPPORTED;
+		link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
+#endif
 
-	if (link->lttpr_support > LTTPR_UNSUPPORTED) {
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT || link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
 		/* By reading LTTPR capability, RX assumes that we will enable
 		 * LTTPR extended aux timeout if LTTPR is present.
 		 */
 		status = core_link_read_dpcd(
 				link,
 				DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
-				link->lttpr_dpcd_data,
-				sizeof(link->lttpr_dpcd_data));
+				lttpr_dpcd_data,
+				sizeof(lttpr_dpcd_data));
+
+		link->dpcd_caps.lttpr_caps.revision.raw =
+				lttpr_dpcd_data[DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.max_link_rate =
+				lttpr_dpcd_data[DP_MAX_LINK_RATE_PHY_REPEATER -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.phy_repeater_cnt =
+				lttpr_dpcd_data[DP_PHY_REPEATER_CNT -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.max_lane_count =
+				lttpr_dpcd_data[DP_MAX_LANE_COUNT_PHY_REPEATER -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.mode =
+				lttpr_dpcd_data[DP_PHY_REPEATER_MODE -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.max_ext_timeout =
+				lttpr_dpcd_data[DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+		link->dpcd_caps.lttpr_caps.main_link_channel_coding.raw =
+				lttpr_dpcd_data[DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.supported_128b_132b_rates.raw =
+				lttpr_dpcd_data[DP_PHY_REPEATER_128B132B_RATES -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		/* Attempt to train in LTTPR transparent mode if repeater count exceeds 8. */
+		is_lttpr_present = (link->dpcd_caps.lttpr_caps.max_lane_count > 0 &&
+				link->dpcd_caps.lttpr_caps.max_lane_count <= 4 &&
+				link->dpcd_caps.lttpr_caps.revision.raw >= 0x14);
+		if (is_lttpr_present) {
+			CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
+			configure_lttpr_mode_transparent(link);
+		} else
+			link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
 	}
-}
-
-bool dp_parse_lttpr_mode(struct dc_link *link)
-{
-	bool dpcd_allow_lttpr_non_transparent_mode = false;
-	bool is_lttpr_present = false;
-
-	bool vbios_lttpr_enable = link->dc->caps.vbios_lttpr_enable;
-
-	if ((link->dc->config.allow_lttpr_non_transparent_mode.bits.DP2_0 &&
-			link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED)) {
-		dpcd_allow_lttpr_non_transparent_mode = true;
-	} else if (link->dc->config.allow_lttpr_non_transparent_mode.bits.DP1_4A &&
-			!link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED) {
-		dpcd_allow_lttpr_non_transparent_mode = true;
-	}
-
-	/*
-	 * Logic to determine LTTPR mode
-	 */
-	if (link->lttpr_support == LTTPR_SUPPORTED)
-		if (vbios_lttpr_enable)
-			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
-		else if (dpcd_allow_lttpr_non_transparent_mode)
-			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
-		else
-			link->lttpr_mode = LTTPR_MODE_TRANSPARENT;
-	else	// lttpr_support == LTTPR_CHECK_EXT_SUPPORT
-		if (dpcd_allow_lttpr_non_transparent_mode) {
-			link->lttpr_support = LTTPR_SUPPORTED;
-			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
-		} else {
-			link->lttpr_support = LTTPR_UNSUPPORTED;
-		}
-
-	if (link->lttpr_support == LTTPR_UNSUPPORTED)
-		return false;
-
-	link->dpcd_caps.lttpr_caps.revision.raw =
-			link->lttpr_dpcd_data[DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.max_link_rate =
-			link->lttpr_dpcd_data[DP_MAX_LINK_RATE_PHY_REPEATER -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.phy_repeater_cnt =
-			link->lttpr_dpcd_data[DP_PHY_REPEATER_CNT -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.max_lane_count =
-			link->lttpr_dpcd_data[DP_MAX_LANE_COUNT_PHY_REPEATER -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.mode =
-			link->lttpr_dpcd_data[DP_PHY_REPEATER_MODE -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.max_ext_timeout =
-			link->lttpr_dpcd_data[DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.main_link_channel_coding.raw =
-			link->lttpr_dpcd_data[DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.supported_128b_132b_rates.raw =
-			link->lttpr_dpcd_data[DP_PHY_REPEATER_128B132B_RATES -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-
-	/* Attempt to train in LTTPR transparent mode if repeater count exceeds 8. */
-	is_lttpr_present = (link->dpcd_caps.lttpr_caps.max_lane_count > 0 &&
-			link->dpcd_caps.lttpr_caps.max_lane_count <= 4 &&
-			link->dpcd_caps.lttpr_caps.revision.raw >= 0x14);
-	if (is_lttpr_present) {
-		CONN_DATA_DETECT(link, link->lttpr_dpcd_data, sizeof(link->lttpr_dpcd_data), "LTTPR Caps: ");
-		configure_lttpr_mode_transparent(link);
-	} else
-		link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
-
 	return is_lttpr_present;
 }
 
@@ -5403,8 +5372,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 		status = wa_try_to_wake_dprx(link, timeout_ms);
 	}
 
-	dp_retrieve_lttpr_cap(link);
-
+	is_lttpr_present = dp_retrieve_lttpr_cap(link);
 	/* Read DP tunneling information. */
 	status = dpcd_get_tunneling_device_data(link);
 
@@ -5439,9 +5407,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 		dm_error("%s: Read receiver caps dpcd data failed.\n", __func__);
 		return false;
 	}
-
-	if (link->lttpr_support > LTTPR_UNSUPPORTED)
-		is_lttpr_present = dp_parse_lttpr_mode(link);
 
 	if (!is_lttpr_present)
 		dc_link_aux_try_to_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
