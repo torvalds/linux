@@ -38,13 +38,11 @@ struct altmode_pan_ack_msg {
 
 #if IS_ENABLED(CONFIG_QTI_ALTMODE_GLINK)
 
-struct notifier_block;
 struct device;
 
-int altmode_register_notifier(const char *amdev_name,
-			      struct notifier_block *nb);
-int altmode_deregister_notifier(struct altmode_client *client,
-				struct notifier_block *nb);
+int altmode_register_notifier(struct device *client_dev, void (*cb)(void *),
+			      void *priv);
+int altmode_deregister_notifier(struct device *client_dev, void *priv);
 struct altmode_client *altmode_register_client(struct device *dev,
 		const struct altmode_client_data *client_data);
 int altmode_deregister_client(struct altmode_client *client);
@@ -52,14 +50,14 @@ int altmode_send_data(struct altmode_client *client, void *data, size_t len);
 
 #else
 
-static inline int altmode_register_notifier(const char *amdev_name,
-					    struct notifier_block *nb)
+static inline int altmode_register_notifier(struct device *client_dev,
+					    void (*cb)(void *), void *priv)
 {
 	return -ENODEV;
 }
 
-static inline int altmode_deregister_notifier(struct altmode_client *client,
-				struct notifier_block *nb)
+static inline int altmode_deregister_notifier(struct device *client_dev,
+					      void *priv)
 {
 	return -ENODEV;
 }

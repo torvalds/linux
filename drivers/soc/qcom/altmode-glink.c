@@ -5,6 +5,7 @@
 
 #define pr_fmt(fmt)	"altmode-glink: %s: " fmt, __func__
 
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/ktime.h>
@@ -24,7 +25,11 @@
 #define USBC_CMD_WRITE_REQ	0x15
 #define USBC_NOTIFY_IND		0x16
 
-#define ALTMODE_NAME_MAX_LEN	10
+#define MAX_NUM_PORTS		4
+
+#define IDR_KEY_GEN(svid, ind)	(((svid) << 8) | (ind))
+#define IDR_KEY(client)		\
+	IDR_KEY_GEN((client)->data.svid, (client)->port_index)
 
 struct usbc_notify_ind_msg {
 	struct pmic_glink_hdr	hdr;
@@ -43,7 +48,6 @@ struct usbc_write_buffer_req_msg {
  *	Definition of an altmode device.
  *
  * @dev:		Altmode parent device for all client devices
- * @name:		Short descriptive name of this altmode device
  * @pgclient:		PMIC GLINK client to talk to remote subsystem
  * @client_idr:		idr list for altmode clients
  * @client_lock:	mutex protecting changes to client_idr
@@ -51,11 +55,13 @@ struct usbc_write_buffer_req_msg {
  * @client_list:	Linked list head keeping track of this device's clients
  * @pan_en_sent:	Flag to ensure PAN Enable msg is sent only once
  * @send_pan_en_work:	To schedule the sending of the PAN Enable message
- * @probe_notifier:	Inform clients of altmode probe completion
+ * @send_pan_ack_work:	To schedule the sending of the PAN Ack message
+ * @debugfs_dir:	Dentry for debugfs directory "altmode"
+ * @response_received:	To detect remote subsystem response failures
+ * @ack_port_index:	Port index to ack for a nonexistent client
  */
 struct altmode_dev {
 	struct device			*dev;
-	char				name[ALTMODE_NAME_MAX_LEN];
 	struct pmic_glink_client	*pgclient;
 	struct idr			client_idr;
 	struct mutex			client_lock;
@@ -63,7 +69,10 @@ struct altmode_dev {
 	struct list_head		client_list;
 	atomic_t			pan_en_sent;
 	struct delayed_work		send_pan_en_work;
-	struct raw_notifier_head	probe_notifier;
+	struct delayed_work		send_pan_ack_work;
+	struct dentry			*debugfs_dir;
+	struct completion		response_received;
+	u8				ack_port_index;
 };
 
 /**
@@ -74,12 +83,20 @@ struct altmode_dev {
  * @data:		Supplied by client driver during registration
  * @c_node:		Linked list node for parent altmode device's client list
  * @port_index:		Type-C port index assigned by remote subystem
+ *
+ * Note: The following members are for internal use only, clients should not
+ *	 use them.
+ *
+ * @client_cb_work:	Work to run client callback
+ * @msg:		Latest notify msg stashed to be retrieved in cb_work
  */
 struct altmode_client {
 	struct altmode_dev		*amdev;
 	struct altmode_client_data	data;
 	struct list_head		c_node;
 	u8				port_index;
+	struct work_struct		client_cb_work;
+	u8				msg[NOTIFY_PAYLOAD_SIZE];
 };
 
 /**
@@ -87,53 +104,61 @@ struct altmode_client {
  *	Linked list node to keep track of altmode clients who, by design,
  *	register with the altmode framework before altmode probes.
  *
- * @amdev_name:		Name of the altmode device client wants to bind to
- * @nb:			Client's notifier block
  * @node:		Linked list node for probe_notify_list
+ * @amdev_node:		device_node of the altmode device of the client
+ * @cb:			Client's probe completion callback function
+ * @priv:		Pointer to client's driver data struct
  */
 struct probe_notify_node {
-	char				*amdev_name;
-	struct notifier_block		*nb;
 	struct list_head		node;
+	struct device_node		*amdev_node;
+	void				(*cb)(void *priv);
+	void				*priv;
 };
-
-/**
- * struct list_head amdev_list
- *	List of altmode devices currently using this driver.
- */
-static LIST_HEAD(amdev_list);
-static DEFINE_MUTEX(amdev_lock);
 
 /**
  * struct list_head probe_notify_list
  *	List of altmode clients that register to get notified upon probe
- *	completion. This list is traversed and clients are removed from this
- *	list after they have been registered with the altmode device's
- *	raw_notifier_head.
+ *	completion.
  */
 static LIST_HEAD(probe_notify_list);
 static DEFINE_MUTEX(notify_lock);
 
-static struct altmode_dev *get_amdev_from_dev(struct device *dev)
-{
-	struct altmode_dev *pos, *tmp;
+static void altmode_send_pan_ack(struct work_struct *work);
 
-	mutex_lock(&amdev_lock);
-	list_for_each_entry_safe(pos, tmp, &amdev_list, d_node) {
-		if (pos->dev == dev) {
-			mutex_unlock(&amdev_lock);
-			return pos;
-		}
-	}
-	mutex_unlock(&amdev_lock);
+static struct altmode_dev *to_altmode_device(struct device_node *amdev_node)
+{
+	struct platform_device *altmode_pdev;
+
+	altmode_pdev = of_find_device_by_node(amdev_node);
+	if (altmode_pdev)
+		return platform_get_drvdata(altmode_pdev);
 
 	return NULL;
+}
+
+#define ALTMODE_WAIT_MS	1000
+static int altmode_write(struct altmode_dev *amdev, void *data, size_t len)
+{
+	int rc;
+
+	reinit_completion(&amdev->response_received);
+	rc = pmic_glink_write(amdev->pgclient, data, len);
+	if (!rc) {
+		rc = wait_for_completion_timeout(&amdev->response_received,
+				msecs_to_jiffies(ALTMODE_WAIT_MS));
+		rc = rc ? 0 : -ETIMEDOUT;
+	}
+
+	if (rc)
+		pr_err("Error in sending message: %d\n", rc);
+
+	return rc;
 }
 
 static int __altmode_send_data(struct altmode_dev *amdev, void *data,
 			       size_t len)
 {
-	int rc;
 	struct usbc_write_buffer_req_msg msg = { { 0 } };
 
 	if (len > sizeof(msg.buf)) {
@@ -148,42 +173,65 @@ static int __altmode_send_data(struct altmode_dev *amdev, void *data,
 
 	memcpy(msg.buf, data, len);
 
-	rc = pmic_glink_write(amdev->pgclient, &msg, sizeof(msg));
-	if (rc < 0)
-		pr_err("Error in sending message: %d\n", rc);
-
-	return rc;
+	return altmode_write(amdev, &msg, sizeof(msg));
 }
 
 /**
  * altmode_register_notifier()
- *	Register to be notified when altmode probes.
+ *	Register to be notified when altmode device probes.
  *
- * @amdev_name:		The altmode device being registered with by client
- * @nb:			Notifier block to get notified upon probe completion
+ * @client_dev:		Client device pointer
+ * @cb:			Callback function to execute when altmode device of
+ *			interest probes successfully
+ * @priv:		Client's private data which is passed back when cb() is
+ *			called
  *
  * Returns:		0 upon success, negative upon errors.
  */
-int altmode_register_notifier(const char *amdev_name, struct notifier_block *nb)
+int altmode_register_notifier(struct device *client_dev, void (*cb)(void *),
+			      void *priv)
 {
+	int rc;
 	struct probe_notify_node *notify_node;
+	struct device_node *amdev_node;
+	struct of_phandle_args pargs;
+	struct altmode_dev *amdev;
 
-	if (!amdev_name || !nb)
+	if (!client_dev || !cb || !priv)
 		return -EINVAL;
 
-	notify_node = kzalloc(sizeof(*notify_node), GFP_KERNEL);
-	if (!notify_node)
-		return -ENOMEM;
-
-	notify_node->nb = nb;
-	notify_node->amdev_name = kstrdup(amdev_name, GFP_KERNEL);
-	if (!notify_node->amdev_name) {
-		kfree(notify_node);
-		return -ENOMEM;
+	rc = of_parse_phandle_with_args(client_dev->of_node,
+			"qcom,altmode-dev", "#altmode-cells", 0, &pargs);
+	if (rc) {
+		dev_err(client_dev, "Error parsing qcom,altmode-dev property: %d\n",
+				rc);
+		return rc;
 	}
 
+	amdev_node = pargs.np;
+
 	mutex_lock(&notify_lock);
-	list_add(&notify_node->node, &probe_notify_list);
+	amdev = to_altmode_device(amdev_node);
+	if (amdev) {
+		/*
+		 * If altmode device has probed already, notify
+		 * immediately.
+		 */
+		of_node_put(amdev_node);
+		cb(priv);
+	} else {
+		notify_node = kzalloc(sizeof(*notify_node), GFP_KERNEL);
+		if (!notify_node) {
+			mutex_unlock(&notify_lock);
+			return -ENOMEM;
+		}
+
+		notify_node->cb = cb;
+		notify_node->priv = priv;
+		notify_node->amdev_node = amdev_node;
+
+		list_add(&notify_node->node, &probe_notify_list);
+	}
 	mutex_unlock(&notify_lock);
 
 	return 0;
@@ -194,24 +242,45 @@ EXPORT_SYMBOL(altmode_register_notifier);
  * altmode_deregister_notifier()
  *	Deregister probe completion notifier.
  *
- * @client:		The altmode client obtained during registration
- * @nb:			Notifier block used for registration
+ * @client_dev:		Client device pointer
+ * @priv:		Client's private data
  *
  * Returns:		0 upon success, negative upon errors.
  */
-int altmode_deregister_notifier(struct altmode_client *client,
-				struct notifier_block *nb)
+int altmode_deregister_notifier(struct device *client_dev, void *priv)
 {
-	struct altmode_dev *amdev;
+	int rc;
+	struct device_node *amdev_node;
+	struct probe_notify_node *pos, *tmp;
+	struct of_phandle_args pargs;
 
-	if (!client || !nb)
+	if (!client_dev)
 		return -EINVAL;
 
-	amdev = client->amdev;
-	if (!amdev)
-		return -ENODEV;
+	rc = of_parse_phandle_with_args(client_dev->of_node,
+			"qcom,altmode-dev", "#altmode-cells", 0, &pargs);
+	if (rc) {
+		dev_err(client_dev, "Error parsing qcom,altmode-dev property: %d\n",
+				rc);
+		return rc;
+	}
 
-	return raw_notifier_chain_unregister(&amdev->probe_notifier, nb);
+	amdev_node = pargs.np;
+
+	mutex_lock(&notify_lock);
+	list_for_each_entry_safe(pos, tmp, &probe_notify_list, node) {
+		if (pos->amdev_node == amdev_node && pos->priv == priv) {
+			of_node_put(pos->amdev_node);
+			list_del(&pos->node);
+			kfree(pos);
+			break;
+		}
+	}
+	mutex_unlock(&notify_lock);
+
+	of_node_put(amdev_node);
+
+	return 0;
 }
 EXPORT_SYMBOL(altmode_deregister_notifier);
 
@@ -235,12 +304,21 @@ int altmode_send_data(struct altmode_client *client, void *data,
 }
 EXPORT_SYMBOL(altmode_send_data);
 
+static void client_cb_work(struct work_struct *work)
+{
+	struct altmode_client *amclient = container_of(work,
+			struct altmode_client, client_cb_work);
+
+	amclient->data.callback(amclient->data.priv, amclient->msg,
+			sizeof(amclient->msg));
+}
+
 /**
  * altmode_register_client()
  *	Register with altmode to receive PMIC GLINK messages from remote
  *	subsystem.
  *
- * @dev:		Device of the parent altmode (platform) device
+ * @client_dev:		Client device pointer
  * @client_data:	Details identifying altmode client uniquely
  *
  * Returns:		Valid altmode client pointer upon success, ERR_PTRs
@@ -248,35 +326,58 @@ EXPORT_SYMBOL(altmode_send_data);
  *
  * Notes:		client_data should contain a unique SVID.
  */
-struct altmode_client *altmode_register_client(struct device *dev,
+struct altmode_client *altmode_register_client(struct device *client_dev,
 		const struct altmode_client_data *client_data)
 {
-	int rc;
+	int rc, key;
 	struct altmode_dev *amdev;
+	struct of_phandle_args pargs;
+	struct device_node *amdev_node;
 	struct altmode_client *amclient;
 
-	if (!dev || !dev->parent)
-		return ERR_PTR(-ENODEV);
+	if (!client_dev || !client_data)
+		return ERR_PTR(-EINVAL);
 
 	if (!client_data->name || !client_data->priv || !client_data->callback
 			|| !client_data->svid)
 		return ERR_PTR(-EINVAL);
 
-	amdev = get_amdev_from_dev(dev);
-	if (!amdev) {
-		pr_err("No alt mode device exists for %s\n", client_data->name);
-		return ERR_PTR(-ENODEV);
+	rc = of_parse_phandle_with_args(client_dev->of_node,
+			"qcom,altmode-dev", "#altmode-cells", 0, &pargs);
+	if (rc) {
+		dev_err(client_dev, "Error parsing qcom,altmode-dev property: %d\n",
+				rc);
+		return ERR_PTR(rc);
 	}
+
+	if (pargs.args_count != 1) {
+		dev_err(client_dev, "Error in port_index specification\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (pargs.args[0] >= MAX_NUM_PORTS) {
+		dev_err(client_dev, "Invalid port_index: %d, max is %d\n",
+				pargs.args[0], MAX_NUM_PORTS - 1);
+		return ERR_PTR(-EINVAL);
+	}
+
+	amdev_node = pargs.np;
+
+	amdev = to_altmode_device(amdev_node);
+	of_node_put(amdev_node);
+	if (!amdev)
+		return ERR_PTR(-EPROBE_DEFER);
 
 	amclient = kzalloc(sizeof(*amclient), GFP_KERNEL);
 	if (!amclient)
 		return ERR_PTR(-ENOMEM);
 
 	amclient->amdev = amdev;
-	amclient->port_index = U8_MAX; /* invalid */
+	amclient->port_index = pargs.args[0];
 	amclient->data.svid = client_data->svid;
 	amclient->data.priv = client_data->priv;
 	amclient->data.callback = client_data->callback;
+	INIT_WORK(&amclient->client_cb_work, client_cb_work);
 	amclient->data.name = kstrdup(client_data->name, GFP_KERNEL);
 	if (!amclient->data.name) {
 		kfree(amclient);
@@ -284,8 +385,8 @@ struct altmode_client *altmode_register_client(struct device *dev,
 	}
 
 	mutex_lock(&amdev->client_lock);
-	rc = idr_alloc(&amdev->client_idr, amclient, amclient->data.svid,
-			amclient->data.svid + 1, GFP_KERNEL);
+	key = IDR_KEY(amclient);
+	rc = idr_alloc(&amdev->client_idr, amclient, key, key + 1, GFP_KERNEL);
 	if (rc < 0) {
 		pr_err("Error in allocating idr for client %s: %d\n",
 				client_data->name, rc);
@@ -329,8 +430,10 @@ int altmode_deregister_client(struct altmode_client *client)
 
 	amdev = client->amdev;
 
+	cancel_work_sync(&client->client_cb_work);
+
 	mutex_lock(&amdev->client_lock);
-	idr_remove(&amdev->client_idr, client->data.svid);
+	idr_remove(&amdev->client_idr, IDR_KEY(client));
 
 	list_for_each_entry_safe(pos, tmp, &amdev->client_list, c_node) {
 		if (pos == client)
@@ -372,11 +475,11 @@ static int altmode_send_ack(struct altmode_dev *amdev, u8 port_index)
 
 	rc = __altmode_send_data(amdev, &ack, sizeof(ack));
 	if (rc < 0) {
-		pr_err("port %u: Failed to send PAN ACK\n", port_index);
+		pr_err("port %u: Failed to send PAN ACK: %d\n", port_index, rc);
 		return rc;
 	}
 
-	pr_debug("port %d: Sent PAN ACK\n", port_index);
+	pr_debug("port %u: Sent PAN ACK\n", port_index);
 
 	return rc;
 }
@@ -403,6 +506,14 @@ static void altmode_state_cb(void *priv, enum pmic_glink_state state)
 	}
 }
 
+static void altmode_send_pan_ack(struct work_struct *work)
+{
+	struct altmode_dev *amdev = container_of(work, struct altmode_dev,
+			send_pan_ack_work.work);
+
+	altmode_send_ack(amdev, amdev->ack_port_index);
+}
+
 #define USBC_NOTIFY_IND_MASK	GENMASK(7, 0)
 #define GET_OP(opcode)		(opcode & USBC_NOTIFY_IND_MASK)
 #define GET_SVID(opcode)	(opcode >> 16)
@@ -410,8 +521,8 @@ static void altmode_state_cb(void *priv, enum pmic_glink_state state)
 static int altmode_callback(void *priv, void *data, size_t len)
 {
 	u16 svid, op;
-	struct usbc_notify_ind_msg *notify_msg = data;
-	struct pmic_glink_hdr *hdr = &notify_msg->hdr;
+	struct usbc_notify_ind_msg *notify_msg;
+	struct pmic_glink_hdr *hdr = data;
 	struct altmode_dev *amdev = priv;
 	struct altmode_client *amclient;
 	u8 port_index;
@@ -426,71 +537,154 @@ static int altmode_callback(void *priv, void *data, size_t len)
 	 */
 	op = GET_OP(hdr->opcode);
 	svid = GET_SVID(hdr->opcode);
-	port_index = notify_msg->payload[0];
 
-	mutex_lock(&amdev->client_lock);
-	amclient = idr_find(&amdev->client_idr, svid);
-	mutex_unlock(&amdev->client_lock);
+	switch (op) {
+	case USBC_CMD_WRITE_REQ:
+		complete(&amdev->response_received);
+		break;
+	case USBC_NOTIFY_IND:
+		if (len != sizeof(*notify_msg)) {
+			pr_debug("Expected length %u, got: %zu\n",
+					sizeof(*notify_msg), len);
+			return -EINVAL;
+		}
 
-	if (op == USBC_NOTIFY_IND) {
+		notify_msg = data;
+		port_index = notify_msg->payload[0];
+
+		mutex_lock(&amdev->client_lock);
+		amclient = idr_find(&amdev->client_idr, IDR_KEY_GEN(svid,
+					port_index));
+		mutex_unlock(&amdev->client_lock);
+
 		if (!amclient) {
-			pr_debug("No client associated with SVID %#x\n", svid);
-			altmode_send_ack(amdev, port_index);
+			pr_debug("No client associated with SVID %#x port %u\n",
+					svid, port_index);
+			amdev->ack_port_index = port_index;
+			schedule_delayed_work(&amdev->send_pan_ack_work,
+					msecs_to_jiffies(20));
 			return 0;
 		}
 
-		if (amclient->port_index == U8_MAX)
-			amclient->port_index = port_index;
-
 		pr_debug("Payload: %*ph\n", NOTIFY_PAYLOAD_SIZE,
 				notify_msg->payload);
-		amclient->data.callback(amclient->data.priv,
-					notify_msg->payload, len);
 
+		cancel_work_sync(&amclient->client_cb_work);
+		memcpy(&amclient->msg, notify_msg->payload,
+				sizeof(amclient->msg));
+		schedule_work(&amclient->client_cb_work);
+		break;
+	default:
+		break;
 	}
 
 	return 0;
 }
 
-static void altmode_gather_clients(struct altmode_dev *amdev)
+static void altmode_notify_clients(struct altmode_dev *amdev)
 {
+	struct altmode_dev *pos_amdev;
 	struct probe_notify_node *pos, *tmp;
 
 	mutex_lock(&notify_lock);
 	list_for_each_entry_safe(pos, tmp, &probe_notify_list, node) {
-		if (!strcmp(pos->amdev_name, amdev->name)) {
-			raw_notifier_chain_register(&amdev->probe_notifier,
-					pos->nb);
-			/*
-			 * Client's nb has been added to amdev's notifier, so
-			 * it may be removed from the global list.
-			 */
+		pos_amdev = to_altmode_device(pos->amdev_node);
+		if (!pos_amdev)
+			continue;
+
+		if (pos_amdev == amdev) {
+			pos->cb(pos->priv);
+			of_node_put(pos->amdev_node);
 			list_del(&pos->node);
-			kfree(pos->amdev_name);
 			kfree(pos);
 		}
 	}
 	mutex_unlock(&notify_lock);
 }
 
-static void altmode_notify_clients(struct altmode_dev *amdev,
-					  struct platform_device *pdev)
+#ifdef CONFIG_QTI_PMIC_GLINK_CLIENT_DEBUG
+static int pan_en_write(void *data, u64 val)
 {
-	altmode_gather_clients(amdev);
-	raw_notifier_call_chain(&amdev->probe_notifier, 0, pdev);
-}
+	struct altmode_dev *amdev = data;
 
-static void altmode_device_add(struct altmode_dev *amdev)
-{
-	mutex_lock(&amdev_lock);
-	list_add(&amdev->d_node, &amdev_list);
-	mutex_unlock(&amdev_lock);
+	schedule_delayed_work(&amdev->send_pan_en_work,
+				msecs_to_jiffies(20));
+	return 0;
 }
+DEFINE_DEBUGFS_ATTRIBUTE(pan_en_fops, NULL, pan_en_write, "%llu\n");
+
+static int send_ack_write(void *data, u64 val)
+{
+	int rc;
+	struct altmode_dev *amdev = data;
+	struct altmode_pan_ack_msg ack;
+
+	if (val >= MAX_NUM_PORTS)
+		return -EINVAL;
+
+	ack.cmd_type = ALTMODE_PAN_ACK;
+	ack.port_index = val;
+
+	rc = __altmode_send_data(amdev, &ack, sizeof(ack));
+	if (rc < 0) {
+		dev_err(amdev->dev, "port %d: Failed sending PAN ACK: %llu\n",
+				val, rc);
+		return rc;
+	}
+
+	dev_dbg(amdev->dev, "port %llu: Sent PAN ACK via debugfs\n", val);
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(send_ack_fops, NULL, send_ack_write, "%llu\n");
+
+static int altmode_setup_debugfs(struct altmode_dev *amdev)
+{
+	int rc;
+	struct dentry *am_dir, *file;
+
+	am_dir = debugfs_create_dir("altmode", NULL);
+	if (IS_ERR(am_dir)) {
+		rc = PTR_ERR(am_dir);
+		dev_err(amdev->dev, "Failed to create altmode directory: %d\n",
+				rc);
+		return rc;
+	}
+
+	file = debugfs_create_file_unsafe("send_pan_en", 0200, am_dir, amdev,
+					  &pan_en_fops);
+	if (IS_ERR(file)) {
+		rc = PTR_ERR(file);
+		dev_err(amdev->dev, "Failed to create send_pan_en: %d\n", rc);
+		goto error;
+	}
+
+	file = debugfs_create_file_unsafe("send_pan_ack", 0200, am_dir,
+					  amdev, &send_ack_fops);
+	if (IS_ERR(file)) {
+		rc = PTR_ERR(file);
+		dev_err(amdev->dev, "Failed to create send_pan_ack: %d\n", rc);
+		goto error;
+	}
+
+	amdev->debugfs_dir = am_dir;
+
+	return 0;
+
+error:
+	debugfs_remove_recursive(am_dir);
+	return rc;
+}
+#else
+static int altmode_setup_debugfs(struct altmode_dev *amdev)
+{
+	return 0;
+}
+#endif
 
 static int altmode_probe(struct platform_device *pdev)
 {
 	int rc;
-	const char *str = NULL;
 	struct altmode_dev *amdev;
 	struct pmic_glink_client_data pgclient_data = { };
 	struct device *dev = &pdev->dev;
@@ -499,27 +693,13 @@ static int altmode_probe(struct platform_device *pdev)
 	if (!amdev)
 		return -ENOMEM;
 
-	rc = of_property_read_string(dev->of_node, "qcom,altmode-name",
-				     &str);
-	if (rc < 0) {
-		dev_err(dev, "No altmode device name specified: %d\n", rc);
-		return rc;
-	}
-
-	if (!str || (strlen(str) >= ALTMODE_NAME_MAX_LEN) ||
-			!str_has_prefix(str, "altmode_")) {
-		dev_err(dev, "Incorrect altmode device name format\n");
-		return -EINVAL;
-	}
-
 	amdev->dev = dev;
-	strlcpy(amdev->name, str, ALTMODE_NAME_MAX_LEN);
-
-	RAW_INIT_NOTIFIER_HEAD(&amdev->probe_notifier);
 
 	mutex_init(&amdev->client_lock);
 	idr_init(&amdev->client_idr);
+	init_completion(&amdev->response_received);
 	INIT_DELAYED_WORK(&amdev->send_pan_en_work, altmode_send_pan_en);
+	INIT_DELAYED_WORK(&amdev->send_pan_ack_work, altmode_send_pan_ack);
 	INIT_LIST_HEAD(&amdev->d_node);
 	INIT_LIST_HEAD(&amdev->client_list);
 
@@ -541,28 +721,21 @@ static int altmode_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, amdev);
 
-	altmode_device_add(amdev);
-	altmode_notify_clients(amdev, pdev);
+	rc = altmode_setup_debugfs(amdev);
+	if (rc < 0) {
+		dev_err(amdev->dev, "Failed to create debugfs: %d\n", rc);
+		goto unreg_pmic_glink;
+	}
+
+	altmode_notify_clients(amdev);
 
 	return 0;
 
+unreg_pmic_glink:
+	pmic_glink_unregister_client(amdev->pgclient);
 error_register:
 	idr_destroy(&amdev->client_idr);
 	return rc;
-}
-
-static void altmode_device_remove(struct altmode_dev *amdev)
-{
-	struct altmode_dev *pos, *tmp;
-
-	atomic_set(&amdev->pan_en_sent, 0);
-
-	mutex_lock(&amdev_lock);
-	list_for_each_entry_safe(pos, tmp, &amdev_list, d_node) {
-		if (pos == amdev)
-			list_del(&pos->d_node);
-	}
-	mutex_unlock(&amdev_lock);
 }
 
 static int altmode_remove(struct platform_device *pdev)
@@ -570,16 +743,27 @@ static int altmode_remove(struct platform_device *pdev)
 	int rc;
 	struct altmode_dev *amdev = platform_get_drvdata(pdev);
 	struct altmode_client *client, *tmp;
+	struct probe_notify_node *npos, *ntmp;
+
+	debugfs_remove_recursive(amdev->debugfs_dir);
 
 	cancel_delayed_work_sync(&amdev->send_pan_en_work);
+	cancel_delayed_work_sync(&amdev->send_pan_ack_work);
 	idr_destroy(&amdev->client_idr);
+	atomic_set(&amdev->pan_en_sent, 0);
+
+	mutex_lock(&notify_lock);
+	list_for_each_entry_safe(npos, ntmp, &probe_notify_list, node) {
+		of_node_put(npos->amdev_node);
+		list_del(&npos->node);
+		kfree(npos);
+	}
+	mutex_unlock(&notify_lock);
 
 	mutex_lock(&amdev->client_lock);
 	list_for_each_entry_safe(client, tmp, &amdev->client_list, c_node)
 		list_del(&client->c_node);
 	mutex_unlock(&amdev->client_lock);
-
-	altmode_device_remove(amdev);
 
 	rc = pmic_glink_unregister_client(amdev->pgclient);
 	if (rc < 0)
