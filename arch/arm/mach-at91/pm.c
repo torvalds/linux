@@ -888,10 +888,63 @@ static const struct of_device_id atmel_shdwc_ids[] = {
 	{ /* sentinel. */ }
 };
 
+/*
+ * Replaces _mode_to_replace with a supported mode that doesn't depend
+ * on controller pointed by _map_bitmask
+ * @_maps: u32 array containing AT91_PM_IOMAP() flags and indexed by AT91
+ * PM mode
+ * @_map_bitmask: AT91_PM_IOMAP() bitmask; if _mode_to_replace depends on
+ * controller represented by _map_bitmask, _mode_to_replace needs to be
+ * updated
+ * @_mode_to_replace: standby_mode or suspend_mode that need to be
+ * updated
+ * @_mode_to_check: standby_mode or suspend_mode; this is needed here
+ * to avoid having standby_mode and suspend_mode set with the same AT91
+ * PM mode
+ */
+#define AT91_PM_REPLACE_MODE(_maps, _map_bitmask, _mode_to_replace,	\
+			     _mode_to_check)				\
+	do {								\
+		if (((_maps)[(_mode_to_replace)]) & (_map_bitmask)) {	\
+			int _mode_to_use, _mode_complementary;		\
+			/* Use ULP0 if it doesn't need _map_bitmask. */	\
+			if (!((_maps)[AT91_PM_ULP0] & (_map_bitmask))) {\
+				_mode_to_use = AT91_PM_ULP0;		\
+				_mode_complementary = AT91_PM_STANDBY;	\
+			} else {					\
+				_mode_to_use = AT91_PM_STANDBY;		\
+				_mode_complementary = AT91_PM_STANDBY;	\
+			}						\
+									\
+			if ((_mode_to_check) != _mode_to_use)		\
+				(_mode_to_replace) = _mode_to_use;	\
+			else						\
+				(_mode_to_replace) = _mode_complementary;\
+		}							\
+	} while (0)
+
+/*
+ * Replaces standby and suspend modes with default supported modes:
+ * ULP0 and STANDBY.
+ * @_maps: u32 array indexed by AT91 PM mode containing AT91_PM_IOMAP()
+ * flags
+ * @_map: controller specific name; standby and suspend mode need to be
+ * replaced in order to not depend on this controller
+ */
+#define AT91_PM_REPLACE_MODES(_maps, _map)				\
+	do {								\
+		AT91_PM_REPLACE_MODE((_maps), BIT(AT91_PM_IOMAP_##_map),\
+				     (soc_pm.data.standby_mode),	\
+				     (soc_pm.data.suspend_mode));	\
+		AT91_PM_REPLACE_MODE((_maps), BIT(AT91_PM_IOMAP_##_map),\
+				     (soc_pm.data.suspend_mode),	\
+				     (soc_pm.data.standby_mode));	\
+	} while (0)
+
 static void __init at91_pm_modes_init(const u32 *maps, int len)
 {
 	struct device_node *np;
-	int ret, mode;
+	int ret;
 
 	ret = at91_pm_backup_init();
 	if (ret) {
@@ -906,17 +959,7 @@ static void __init at91_pm_modes_init(const u32 *maps, int len)
 		np = of_find_matching_node(NULL, atmel_shdwc_ids);
 		if (!np) {
 			pr_warn("%s: failed to find shdwc!\n", __func__);
-
-			/* Use ULP0 if it doesn't needs SHDWC.*/
-			if (!(maps[AT91_PM_ULP0] & AT91_PM_IOMAP(SHDWC)))
-				mode = AT91_PM_ULP0;
-			else
-				mode = AT91_PM_STANDBY;
-
-			if (maps[soc_pm.data.standby_mode] & AT91_PM_IOMAP(SHDWC))
-				soc_pm.data.standby_mode = mode;
-			if (maps[soc_pm.data.suspend_mode] & AT91_PM_IOMAP(SHDWC))
-				soc_pm.data.suspend_mode = mode;
+			AT91_PM_REPLACE_MODES(maps, SHDWC);
 		} else {
 			soc_pm.data.shdwc = of_iomap(np, 0);
 			of_node_put(np);
@@ -928,21 +971,7 @@ static void __init at91_pm_modes_init(const u32 *maps, int len)
 		np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-sfrbu");
 		if (!np) {
 			pr_warn("%s: failed to find sfrbu!\n", __func__);
-
-			/*
-			 * Use ULP0 if it doesn't need SHDWC or if SHDWC
-			 * was already located.
-			 */
-			if (!(maps[AT91_PM_ULP0] & AT91_PM_IOMAP(SHDWC)) ||
-			    soc_pm.data.shdwc)
-				mode = AT91_PM_ULP0;
-			else
-				mode = AT91_PM_STANDBY;
-
-			if (maps[soc_pm.data.standby_mode] & AT91_PM_IOMAP(SFRBU))
-				soc_pm.data.standby_mode = mode;
-			if (maps[soc_pm.data.suspend_mode] & AT91_PM_IOMAP(SFRBU))
-				soc_pm.data.suspend_mode = mode;
+			AT91_PM_REPLACE_MODES(maps, SFRBU);
 		} else {
 			soc_pm.data.sfrbu = of_iomap(np, 0);
 			of_node_put(np);
