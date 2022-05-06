@@ -785,7 +785,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_pma_read_abilities);
  * is forced or not, it is read from BASE-T1 AN advertisement
  * register 7.514.
  */
-static int genphy_c45_baset1_read_status(struct phy_device *phydev)
+int genphy_c45_baset1_read_status(struct phy_device *phydev)
 {
 	int ret;
 	int cfg;
@@ -815,6 +815,7 @@ static int genphy_c45_baset1_read_status(struct phy_device *phydev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(genphy_c45_baset1_read_status);
 
 /**
  * genphy_c45_read_status - read PHY status
