@@ -1709,9 +1709,10 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 		return -ENODEV;
 
 	if (!log_addrs || log_addrs->num_log_addrs == 0) {
-		if (!adap->is_configuring && !adap->is_configured)
+		if (!adap->log_addrs.num_log_addrs)
 			return 0;
-		cec_adap_unconfigure(adap);
+		if (adap->is_configuring || adap->is_configured)
+			cec_adap_unconfigure(adap);
 		adap->log_addrs.num_log_addrs = 0;
 		for (i = 0; i < CEC_MAX_LOG_ADDRS; i++)
 			adap->log_addrs.log_addr[i] = CEC_LOG_ADDR_INVALID;
