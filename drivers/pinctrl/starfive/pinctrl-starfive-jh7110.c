@@ -808,15 +808,6 @@ static int starfive_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 					     unsigned int *parent,
 					     unsigned int *parent_type)
 {
-	struct starfive_pinctrl *chip;// = gpiochip_get_data(gc);
-	struct irq_data *d;// = irq_get_irq_data(chip->irq_parent[child]);
-
-#if 0
-	chip = gpiochip_get_data(gc);
-	d = irq_get_irq_data(chip->irq_parent[child]);
-	*parent_type = IRQ_TYPE_NONE;
-	*parent = irqd_to_hwirq(d);
-#endif
 	return 0;
 }
 
