@@ -362,26 +362,25 @@ SYM_CODE_START(entry_INT80_compat)
 
 	/* switch to thread stack expects orig_ax and rdi to be pushed */
 	pushq	%rax			/* pt_regs->orig_ax */
-	pushq	%rdi			/* pt_regs->di */
 
 	/* Need to switch before accessing the thread stack. */
-	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi
+	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
 
 	/* In the Xen PV case we already run on the thread stack. */
 	ALTERNATIVE "", "jmp .Lint80_keep_stack", X86_FEATURE_XENPV
 
-	movq	%rsp, %rdi
+	movq	%rsp, %rax
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
-	pushq	6*8(%rdi)		/* regs->ss */
-	pushq	5*8(%rdi)		/* regs->rsp */
-	pushq	4*8(%rdi)		/* regs->eflags */
-	pushq	3*8(%rdi)		/* regs->cs */
-	pushq	2*8(%rdi)		/* regs->ip */
-	pushq	1*8(%rdi)		/* regs->orig_ax */
-	pushq	(%rdi)			/* pt_regs->di */
+	pushq	5*8(%rax)		/* regs->ss */
+	pushq	4*8(%rax)		/* regs->rsp */
+	pushq	3*8(%rax)		/* regs->eflags */
+	pushq	2*8(%rax)		/* regs->cs */
+	pushq	1*8(%rax)		/* regs->ip */
+	pushq	0*8(%rax)		/* regs->orig_ax */
 .Lint80_keep_stack:
 
+	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
 	xorl	%esi, %esi		/* nospec   si */
 	pushq	%rdx			/* pt_regs->dx */
