@@ -22,6 +22,7 @@
 
 struct sof_msg_inject_priv {
 	struct dentry *dfs_file;
+	size_t max_msg_size;
 
 	void *tx_buffer;
 	void *rx_buffer;
@@ -78,7 +79,7 @@ static ssize_t sof_msg_inject_dfs_write(struct file *file, const char __user *bu
 	if (*ppos)
 		return 0;
 
-	size = simple_write_to_buffer(priv->tx_buffer, SOF_IPC_MSG_MAX_SIZE,
+	size = simple_write_to_buffer(priv->tx_buffer, priv->max_msg_size,
 				      ppos, buffer, count);
 	if (size != count)
 		return size > 0 ? -EFAULT : size;
@@ -90,9 +91,9 @@ static ssize_t sof_msg_inject_dfs_write(struct file *file, const char __user *bu
 	}
 
 	/* send the message */
-	memset(priv->rx_buffer, 0, SOF_IPC_MSG_MAX_SIZE);
+	memset(priv->rx_buffer, 0, priv->max_msg_size);
 	ret = sof_client_ipc_tx_message(cdev, priv->tx_buffer, priv->rx_buffer,
-					SOF_IPC_MSG_MAX_SIZE);
+					priv->max_msg_size);
 	pm_runtime_mark_last_busy(dev);
 	err = pm_runtime_put_autosuspend(dev);
 	if (err < 0)
@@ -135,8 +136,9 @@ static int sof_msg_inject_probe(struct auxiliary_device *auxdev,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->tx_buffer = devm_kmalloc(dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
-	priv->rx_buffer = devm_kzalloc(dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	priv->max_msg_size = sof_client_get_ipc_max_payload_size(cdev);
+	priv->tx_buffer = devm_kmalloc(dev, priv->max_msg_size, GFP_KERNEL);
+	priv->rx_buffer = devm_kzalloc(dev, priv->max_msg_size, GFP_KERNEL);
 	if (!priv->tx_buffer || !priv->rx_buffer)
 		return -ENOMEM;
 
