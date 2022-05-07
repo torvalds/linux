@@ -237,6 +237,8 @@ static int msm_irq_postinstall(struct drm_device *dev)
 
 static int msm_irq_install(struct drm_device *dev, unsigned int irq)
 {
+	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_kms *kms = priv->kms;
 	int ret;
 
 	if (irq == IRQ_NOTCONNECTED)
@@ -247,6 +249,8 @@ static int msm_irq_install(struct drm_device *dev, unsigned int irq)
 	ret = request_irq(irq, msm_irq, 0, dev->driver->name, dev);
 	if (ret)
 		return ret;
+
+	kms->irq_requested = true;
 
 	ret = msm_irq_postinstall(dev);
 	if (ret) {
@@ -263,7 +267,8 @@ static void msm_irq_uninstall(struct drm_device *dev)
 	struct msm_kms *kms = priv->kms;
 
 	kms->funcs->irq_uninstall(kms);
-	free_irq(kms->irq, dev);
+	if (kms->irq_requested)
+		free_irq(kms->irq, dev);
 }
 
 struct msm_vblank_work {
