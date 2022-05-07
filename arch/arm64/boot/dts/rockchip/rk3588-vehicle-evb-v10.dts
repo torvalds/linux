@@ -8,6 +8,7 @@
 
 #include "rk3588-vehicle-evb.dtsi"
 #include "rk3588-evb7-imx415.dtsi"
+#include "rk3588-vehicle-serdes-display.dtsi"
 #include "rk3588-android.dtsi"
 
 / {
