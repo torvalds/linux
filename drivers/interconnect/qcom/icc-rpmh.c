@@ -3,15 +3,21 @@
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/clk.h>
 #include <linux/interconnect.h>
 #include <linux/interconnect-provider.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
 
 #include "bcm-voter.h"
 #include "icc-rpmh.h"
+#include "qnoc-qos.h"
+
+static LIST_HEAD(qnoc_probe_list);
+static DEFINE_MUTEX(probe_list_lock);
 
 /**
  * qcom_icc_pre_aggregate - cleans up stale values from prior icc_set
@@ -32,7 +38,8 @@ void qcom_icc_pre_aggregate(struct icc_node *node)
 	}
 
 	for (i = 0; i < qn->num_bcms; i++)
-		qcom_icc_bcm_voter_add(qp->voter, qn->bcms[i]);
+		qcom_icc_bcm_voter_add(qp->voters[qn->bcms[i]->voter_idx],
+				       qn->bcms[i]);
 }
 EXPORT_SYMBOL_GPL(qcom_icc_pre_aggregate);
 
@@ -75,6 +82,13 @@ int qcom_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
 }
 EXPORT_SYMBOL_GPL(qcom_icc_aggregate);
 
+int qcom_icc_aggregate_stub(struct icc_node *node, u32 tag, u32 avg_bw,
+			    u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
+{
+	return 0;
+}
+EXPORT_SYMBOL(qcom_icc_aggregate_stub);
+
 /**
  * qcom_icc_set - set the constraints based on path
  * @src: source node for the path to set constraints on
@@ -86,6 +100,7 @@ int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 {
 	struct qcom_icc_provider *qp;
 	struct icc_node *node;
+	int i;
 
 	if (!src)
 		node = dst;
@@ -94,11 +109,18 @@ int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 
 	qp = to_qcom_provider(node->provider);
 
-	qcom_icc_bcm_voter_commit(qp->voter);
+	for (i = 0; i < qp->num_voters; i++)
+		qcom_icc_bcm_voter_commit(qp->voters[i]);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_icc_set);
+
+int qcom_icc_set_stub(struct icc_node *src, struct icc_node *dst)
+{
+	return 0;
+}
+EXPORT_SYMBOL(qcom_icc_set_stub);
 
 struct icc_node_data *qcom_icc_xlate_extended(struct of_phandle_args *spec, void *data)
 {
@@ -183,6 +205,24 @@ int qcom_icc_bcm_init(struct qcom_icc_bcm *bcm, struct device *dev)
 }
 EXPORT_SYMBOL_GPL(qcom_icc_bcm_init);
 
+static struct regmap *qcom_icc_rpmh_map(struct platform_device *pdev,
+					const struct qcom_icc_desc *desc)
+{
+	void __iomem *base;
+	struct resource *res;
+	struct device *dev = &pdev->dev;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return NULL;
+
+	base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	return devm_regmap_init_mmio(dev, base, desc->config);
+}
+
 int qcom_icc_rpmh_probe(struct platform_device *pdev)
 {
 	const struct qcom_icc_desc *desc;
@@ -212,9 +252,9 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 
 	provider = &qp->provider;
 	provider->dev = dev;
-	provider->set = qcom_icc_set;
+	provider->set = qcom_icc_set_stub;
 	provider->pre_aggregate = qcom_icc_pre_aggregate;
-	provider->aggregate = qcom_icc_aggregate;
+	provider->aggregate = qcom_icc_aggregate_stub;
 	provider->xlate_extended = qcom_icc_xlate_extended;
 	INIT_LIST_HEAD(&provider->nodes);
 	provider->data = data;
@@ -223,13 +263,36 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	qp->bcms = desc->bcms;
 	qp->num_bcms = desc->num_bcms;
 
-	qp->voter = of_bcm_voter_get(qp->dev, NULL);
-	if (IS_ERR(qp->voter))
-		return PTR_ERR(qp->voter);
+	qp->num_voters = desc->num_voters;
+	qp->voters = devm_kcalloc(&pdev->dev, qp->num_voters,
+				  sizeof(*qp->voters), GFP_KERNEL);
+
+	if (!qp->voters)
+		return -ENOMEM;
+
+	for (i = 0; i < qp->num_voters; i++) {
+		qp->voters[i] = of_bcm_voter_get(qp->dev, desc->voters[i]);
+		if (IS_ERR(qp->voters[i]))
+			return PTR_ERR(qp->voters[i]);
+	}
+
+	qp->regmap = qcom_icc_rpmh_map(pdev, desc);
+	if (IS_ERR(qp->regmap))
+		return PTR_ERR(qp->regmap);
 
 	ret = icc_provider_add(provider);
 	if (ret)
 		return ret;
+
+	qp->num_clks = devm_clk_bulk_get_all(qp->dev, &qp->clks);
+	if (qp->num_clks < 0)
+		return qp->num_clks;
+
+	ret = clk_bulk_prepare_enable(qp->num_clks, qp->clks);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable clocks\n");
+		return ret;
+	}
 
 	for (i = 0; i < qp->num_bcms; i++)
 		qcom_icc_bcm_init(qp->bcms[i], dev);
@@ -239,11 +302,16 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 		if (!qn)
 			continue;
 
+		qn->regmap = dev_get_regmap(qp->dev, NULL);
+
 		node = icc_node_create(qn->id);
 		if (IS_ERR(node)) {
 			ret = PTR_ERR(node);
 			goto err;
 		}
+
+		if (qn->qosbox)
+			qn->noc_ops->set_qos(qn);
 
 		node->name = qn->name;
 		node->data = qn;
@@ -258,8 +326,17 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	data->num_nodes = num_nodes;
 	platform_set_drvdata(pdev, qp);
 
+	provider->set = qcom_icc_set;
+	provider->aggregate = qcom_icc_aggregate;
+
+	mutex_lock(&probe_list_lock);
+	list_add_tail(&qp->probe_list, &qnoc_probe_list);
+	mutex_unlock(&probe_list_lock);
+
 	return 0;
 err:
+	clk_bulk_disable_unprepare(qp->num_clks, qp->clks);
+	clk_bulk_put_all(qp->num_clks, qp->clks);
 	icc_nodes_remove(provider);
 	icc_provider_del(provider);
 	return ret;
@@ -270,9 +347,53 @@ int qcom_icc_rpmh_remove(struct platform_device *pdev)
 {
 	struct qcom_icc_provider *qp = platform_get_drvdata(pdev);
 
+	clk_bulk_put_all(qp->num_clks, qp->clks);
+
 	icc_nodes_remove(&qp->provider);
 	return icc_provider_del(&qp->provider);
 }
 EXPORT_SYMBOL_GPL(qcom_icc_rpmh_remove);
+
+void qcom_icc_rpmh_sync_state(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	const struct of_device_id *oft = dev->driver->of_match_table;
+	struct qcom_icc_provider *qp = platform_get_drvdata(pdev);
+	struct qcom_icc_bcm *bcm;
+	struct bcm_voter *voter;
+	static int probe_count;
+	int num_providers;
+
+	for (num_providers = 0; oft[num_providers].data; num_providers++)
+		;
+
+	mutex_lock(&probe_list_lock);
+	probe_count++;
+
+	if (probe_count < num_providers) {
+		mutex_unlock(&probe_list_lock);
+		return;
+	}
+
+	list_for_each_entry(qp, &qnoc_probe_list, probe_list) {
+		int i;
+
+		for (i = 0; i < qp->num_voters; i++)
+			qcom_icc_bcm_voter_clear_init(qp->voters[i]);
+
+		for (i = 0; i < qp->num_bcms; i++) {
+			bcm = qp->bcms[i];
+			if (!bcm->keepalive)
+				continue;
+
+			voter = qp->voters[bcm->voter_idx];
+			qcom_icc_bcm_voter_add(voter, bcm);
+			qcom_icc_bcm_voter_commit(voter);
+		}
+	}
+
+	mutex_unlock(&probe_list_lock);
+}
+EXPORT_SYMBOL(qcom_icc_rpmh_sync_state);
 
 MODULE_LICENSE("GPL v2");
