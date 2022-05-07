@@ -12,7 +12,7 @@
 	aliases {
 		spi0="/soc/spi@13010000";
 		gpio0="/soc/gpio@13040000";
-		ethernet0="/soc/gmac0@16030000";
+		ethernet0="/soc/ethernet@16030000";
 		mmc0="/soc/sdio0@16010000";
 		mmc1="/soc/sdio1@16020000";
 	};

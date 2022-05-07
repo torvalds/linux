@@ -2187,7 +2187,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->rst = devm_reset_control_get_exclusive(&adev->dev, "rst_apb");
 	if (!IS_ERR(pl022->rst)) {
 		status = reset_control_deassert(pl022->rst);
-		if(status){
+		if (status) {
 			dev_err(&adev->dev, "could not deassert SSP/SPI bus reset\n");
 			goto err_no_rst_clr;
 		}
