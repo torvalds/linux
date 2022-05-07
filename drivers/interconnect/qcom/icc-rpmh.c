@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 
 #include "bcm-voter.h"
+#include "icc-debug.h"
 #include "icc-rpmh.h"
 #include "qnoc-qos.h"
 
@@ -35,6 +36,7 @@ void qcom_icc_pre_aggregate(struct icc_node *node)
 	for (i = 0; i < QCOM_ICC_NUM_BUCKETS; i++) {
 		qn->sum_avg[i] = 0;
 		qn->max_peak[i] = 0;
+		qn->perf_mode[i] = false;
 	}
 
 	for (i = 0; i < qn->num_bcms; i++)
@@ -67,6 +69,8 @@ int qcom_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
 		if (tag & BIT(i)) {
 			qn->sum_avg[i] += avg_bw;
 			qn->max_peak[i] = max_t(u32, qn->max_peak[i], peak_bw);
+			if (tag & QCOM_ICC_TAG_PERF_MODE && (avg_bw || peak_bw))
+				qn->perf_mode[i] = true;
 		}
 
 		if (node->init_avg || node->init_peak) {
@@ -121,6 +125,15 @@ int qcom_icc_set_stub(struct icc_node *src, struct icc_node *dst)
 	return 0;
 }
 EXPORT_SYMBOL(qcom_icc_set_stub);
+
+int qcom_icc_get_bw_stub(struct icc_node *node, u32 *avg, u32 *peak)
+{
+	*avg = 0;
+	*peak = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL(qcom_icc_get_bw_stub);
 
 struct icc_node_data *qcom_icc_xlate_extended(struct of_phandle_args *spec, void *data)
 {
@@ -184,8 +197,8 @@ int qcom_icc_bcm_init(struct qcom_icc_bcm *bcm, struct device *dev)
 		return -EINVAL;
 	}
 
-	bcm->aux_data.unit = le32_to_cpu(data->unit);
-	bcm->aux_data.width = le16_to_cpu(data->width);
+	bcm->aux_data.unit = max_t(u32, 1, le32_to_cpu(data->unit));
+	bcm->aux_data.width = max_t(u16, 1, le16_to_cpu(data->width));
 	bcm->aux_data.vcd = data->vcd;
 	bcm->aux_data.reserved = data->reserved;
 	INIT_LIST_HEAD(&bcm->list);
@@ -250,6 +263,8 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
+	qp->stub = of_property_read_bool(pdev->dev.of_node, "qcom,stub");
+
 	provider = &qp->provider;
 	provider->dev = dev;
 	provider->set = qcom_icc_set_stub;
@@ -258,22 +273,26 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	provider->xlate_extended = qcom_icc_xlate_extended;
 	INIT_LIST_HEAD(&provider->nodes);
 	provider->data = data;
+	provider->get_bw = qcom_icc_get_bw_stub;
 
 	qp->dev = dev;
 	qp->bcms = desc->bcms;
-	qp->num_bcms = desc->num_bcms;
 
-	qp->num_voters = desc->num_voters;
-	qp->voters = devm_kcalloc(&pdev->dev, qp->num_voters,
-				  sizeof(*qp->voters), GFP_KERNEL);
+	if (!qp->stub) {
+		qp->num_bcms = desc->num_bcms;
+		qp->num_voters = desc->num_voters;
 
-	if (!qp->voters)
-		return -ENOMEM;
+		qp->voters = devm_kcalloc(&pdev->dev, qp->num_voters,
+					  sizeof(*qp->voters), GFP_KERNEL);
 
-	for (i = 0; i < qp->num_voters; i++) {
-		qp->voters[i] = of_bcm_voter_get(qp->dev, desc->voters[i]);
-		if (IS_ERR(qp->voters[i]))
-			return PTR_ERR(qp->voters[i]);
+		if (!qp->voters)
+			return -ENOMEM;
+
+		for (i = 0; i < qp->num_voters; i++) {
+			qp->voters[i] = of_bcm_voter_get(qp->dev, desc->voters[i]);
+			if (IS_ERR(qp->voters[i]))
+				return PTR_ERR(qp->voters[i]);
+		}
 	}
 
 	qp->regmap = qcom_icc_rpmh_map(pdev, desc);
@@ -326,8 +345,12 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	data->num_nodes = num_nodes;
 	platform_set_drvdata(pdev, qp);
 
-	provider->set = qcom_icc_set;
-	provider->aggregate = qcom_icc_aggregate;
+	if (!qp->stub) {
+		provider->set = qcom_icc_set;
+		provider->aggregate = qcom_icc_aggregate;
+	}
+
+	qcom_icc_debug_register(provider);
 
 	mutex_lock(&probe_list_lock);
 	list_add_tail(&qp->probe_list, &qnoc_probe_list);
@@ -347,6 +370,7 @@ int qcom_icc_rpmh_remove(struct platform_device *pdev)
 {
 	struct qcom_icc_provider *qp = platform_get_drvdata(pdev);
 
+	qcom_icc_debug_unregister(&qp->provider);
 	clk_bulk_put_all(qp->num_clks, qp->clks);
 
 	icc_nodes_remove(&qp->provider);

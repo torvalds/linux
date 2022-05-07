@@ -178,3 +178,11 @@ config INTERCONNECT_QCOM_SMD_RPM
 
 config INTERCONNECT_QCOM_QOS
 	tristate
+
+config INTERCONNECT_QCOM_DEBUG
+	tristate "QCOM-specific interconnect debug features"
+	depends on INTERCONNECT_QCOM
+	help
+          This driver provides QCOM-specific interconnect debug features. These
+          features include optionally printing all enabled interconnect votes
+          when entering suspend.
