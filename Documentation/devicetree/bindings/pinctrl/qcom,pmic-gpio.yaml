@@ -75,6 +75,10 @@ properties:
   gpio-ranges:
     maxItems: 1
 
+  gpio-line-names:
+    minItems: 2
+    maxItems: 44
+
   '#gpio-cells':
     const: 2
     description:
@@ -90,6 +94,223 @@ required:
   - '#gpio-cells'
   - gpio-ranges
   - interrupt-controller
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8008-gpio
+              - qcom,pmi8950-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 2
+          maxItems: 2
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8005-gpio
+              - qcom,pm8450-gpio
+              - qcom,pm8916-gpio
+              - qcom,pmk8350-gpio
+              - qcom,pmr735a-gpio
+              - qcom,pmr735b-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 4
+          maxItems: 4
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8018-gpio
+              - qcom,pm8019-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 6
+          maxItems: 6
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8350b-gpio
+              - qcom,pm8950-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 8
+          maxItems: 8
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm6350-gpio
+              - qcom,pm8350c-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 9
+          maxItems: 9
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm2250-gpio
+              - qcom,pm6150-gpio
+              - qcom,pm7325-gpio
+              - qcom,pm8150-gpio
+              - qcom,pm8350-gpio
+              - qcom,pmc8180-gpio
+              - qcom,pmi8994-gpio
+              - qcom,pmm8155au-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 10
+          maxItems: 10
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pmx55-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 11
+          maxItems: 11
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm660l-gpio
+              - qcom,pm6150l-gpio
+              - qcom,pm8038-gpio
+              - qcom,pm8150b-gpio
+              - qcom,pm8150l-gpio
+              - qcom,pmc8180c-gpio
+              - qcom,pms405-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 12
+          maxItems: 12
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm660-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 13
+          maxItems: 13
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pmi8998-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 14
+          maxItems: 14
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pmx65-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 16
+          maxItems: 16
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8994-gpio
+              - qcom,pma8084-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 22
+          maxItems: 22
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8998-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 26
+          maxItems: 26
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8941-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 36
+          maxItems: 36
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8917-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 38
+          maxItems: 38
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8058-gpio
+              - qcom,pm8921-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 44
+          maxItems: 44
 
 patternProperties:
   '-state$':
