@@ -10,7 +10,7 @@
 #include <linux/mm_types.h>
 
 #include <drm/drm_modes.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
+#if KERNEL_VERSION(5, 5, 0) > LINUX_VERSION_CODE
 #include <drm/drmP.h>
 #endif
 
@@ -23,23 +23,23 @@
 #endif
 
 struct vs_dc_funcs {
-    void (*dump_enable)(struct device *dev, dma_addr_t addr,
-                unsigned int pitch);
-    void (*dump_disable)(struct device *dev);
+	void (*dump_enable)(struct device *dev, dma_addr_t addr,
+				unsigned int pitch);
+	void (*dump_disable)(struct device *dev);
 };
 
 struct vs_dc_plane {
-    enum dc_hw_plane_id id;
+	enum dc_hw_plane_id id;
 };
 
 struct vs_dc {
-    struct vs_crtc      *crtc[DC_DISPLAY_NUM];
-    struct dc_hw        hw;
+	struct vs_crtc		*crtc[DC_DISPLAY_NUM];
+	struct dc_hw		hw;
 #ifdef CONFIG_VERISILICON_DEC
-    struct dc_dec400l   dec400l;
+	struct dc_dec400l	dec400l;
 #endif
 
-	void __iomem 	*pmu_base;
+	void __iomem	*pmu_base;
 
 	unsigned int	 pix_clk_rate; /* in KHz */
 
@@ -48,11 +48,11 @@ struct vs_dc {
 	int num_clks;
 
 
-    bool            first_frame;
+	bool			first_frame;
 
-    struct vs_dc_plane planes[PLANE_NUM];
+	struct vs_dc_plane planes[PLANE_NUM];
 
-    const struct vs_dc_funcs *funcs;
+	const struct vs_dc_funcs *funcs;
 };
 
 extern struct platform_driver dc_platform_driver;

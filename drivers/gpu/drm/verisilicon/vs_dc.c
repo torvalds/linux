@@ -22,7 +22,7 @@
 #include "vs_drv.h"
 #include <soc/starfive/vic7100.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0)
+#if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
 #include <drm/drm_fourcc.h>
 #include <drm/drm_vblank.h>
 #endif
@@ -515,7 +515,7 @@ static void update_scale(struct drm_plane_state *state, struct dc_hw_roi *roi,
 	int dst_w = drm_rect_width(&state->dst);
 	int dst_h = drm_rect_height(&state->dst);
 	int src_w, src_h, temp;
-	
+
 	scale->enable = false;
 
 	if (roi->enable) {
@@ -571,8 +571,8 @@ static void update_fb(struct vs_plane *plane, u8 display_id,
 	fb->width = drm_rect_width(src) >> 16;
 	fb->height = drm_rect_height(src) >> 16;
 	fb->tile_mode = to_vs_tile_mode(drm_fb->modifier);
-	printk("update_fb tile_mode = %d\n",to_vs_tile_mode(drm_fb->modifier));
-	//fb->tile_mode = 0x04;	
+	printk("update_fb tile_mode = %d\n", to_vs_tile_mode(drm_fb->modifier));
+	//fb->tile_mode = 0x04;
 	fb->rotation = to_vs_rotation(state->rotation);
 	fb->yuv_color_space = to_vs_yuv_color_space(state->color_encoding);
 	fb->zpos = state->zpos;
@@ -940,8 +940,8 @@ static irqreturn_t dc_isr(int irq, void *data)
 
 	ret = dc_hw_get_interrupt(&dc->hw);
 
-	for (i = 0; i < dc_info->panel_num; i ++ )
-		vs_crtc_handle_vblank(&dc->crtc[i]->base, dc_hw_check_underflow(&dc->hw));	
+	for (i = 0; i < dc_info->panel_num; i++)
+		vs_crtc_handle_vblank(&dc->crtc[i]->base, dc_hw_check_underflow(&dc->hw));
 
 	starfive_flush_dcache(dc->hw.plane[0].fb.y_address,
 			dc->hw.plane[0].fb.width  * dc->hw.plane[0].fb.height*2);
@@ -979,17 +979,17 @@ static void vs_dc_commit(struct device *dev)
 }
 
 static const struct vs_crtc_funcs dc_crtc_funcs = {
-	.enable 		= vs_dc_enable,
+	.enable			= vs_dc_enable,
 	.disable		= vs_dc_disable,
-	.mode_fixup 	= vs_dc_mode_fixup,
+	.mode_fixup		= vs_dc_mode_fixup,
 	.set_gamma		= vs_dc_set_gamma,
 	.enable_gamma	= vs_dc_enable_gamma,
 	.enable_vblank	= vs_dc_enable_vblank,
-	.commit 		= vs_dc_commit,
+	.commit			= vs_dc_commit,
 };
 
 static const struct vs_plane_funcs dc_plane_funcs = {
-	.update 		= vs_dc_update_plane,
+	.update			= vs_dc_update_plane,
 	.disable		= vs_dc_disable_plane,
 	.check			= vs_dc_check_plane,
 };
@@ -1070,19 +1070,18 @@ static int dc_bind(struct device *dev, struct device *master, void *data)
 		dc->crtc[i] = crtc;
 		ctrc_mask |= drm_crtc_mask(&crtc->base);
 	}
-	
+
 	for (i = 0; i < dc_info->plane_num; i++) {
 		plane_info = (struct vs_plane_info *)&dc_info->planes[i];
 
 		if (!strcmp(plane_info->name, "Primary") || !strcmp(plane_info->name, "Cursor")) {
 			plane = vs_plane_create(drm_dev, plane_info, dc_info->layer_num,
 					drm_crtc_mask(&dc->crtc[0]->base));
-		} else if(!strcmp(plane_info->name, "Primary_1") ||
+		} else if (!strcmp(plane_info->name, "Primary_1") ||
 				 !strcmp(plane_info->name, "Cursor_1")) {
 			plane = vs_plane_create(drm_dev, plane_info, dc_info->layer_num,
 					drm_crtc_mask(&dc->crtc[1]->base));
-		}	
-		else {
+		} else {
 			plane = vs_plane_create(drm_dev, plane_info,
 					dc_info->layer_num, ctrc_mask);
 		}
@@ -1123,7 +1122,7 @@ static int dc_bind(struct device *dev, struct device *master, void *data)
 	dc->funcs = &dc_funcs;
 
 	vs_drm_update_pitch_alignment(drm_dev, dc_info->pitch_alignment);
-	
+
 	return 0;
 
 err_cleanup_planes:
@@ -1175,13 +1174,12 @@ static int dc_probe(struct platform_device *pdev)
 	dc->hw.hi_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dc->hw.hi_base))
 		return PTR_ERR(dc->hw.hi_base);
-	
 
 	dc->hw.reg_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dc->hw.reg_base))
 		return PTR_ERR(dc->hw.reg_base);
 
-	dc->pmu_base = devm_platform_ioremap_resource(pdev, 2);
+	dc->pmu_base = ioremap(0x17030000, 0x10000);
 	if (IS_ERR(dc->pmu_base))
 		return PTR_ERR(dc->pmu_base);
 

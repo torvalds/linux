@@ -5,7 +5,7 @@
 #include <linux/version.h>
 #include <linux/component.h>
 #include <linux/of_device.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0)
+#if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
 #include <linux/module.h>
 
 #include <drm/drm_bridge.h>
@@ -106,11 +106,11 @@ err:
 
 #define DOM_VOUT_SYSCON_8									0x8U
 #define U0_LCD_DATA_MAPPING_DPI_DP_SEL_SHIFT				0x2U
-#define U0_LCD_DATA_MAPPING_DPI_DP_SEL_MASK 				0x4U
+#define U0_LCD_DATA_MAPPING_DPI_DP_SEL_MASK					0x4U
 
 #define DOM_VOUT_SYSCON_4									0x4U
 #define U0_DISPLAY_PANEL_MUX_PANEL_SEL_SHIFT				0x14U
-#define U0_DISPLAY_PANEL_MUX_PANEL_SEL_MASK 				0x100000U
+#define U0_DISPLAY_PANEL_MUX_PANEL_SEL_MASK					0x100000U
 
 void encoder_atomic_enable(struct drm_encoder *encoder,
 						struct drm_atomic_state *state)
@@ -139,14 +139,14 @@ int encoder_atomic_check(struct drm_encoder *encoder,
 	struct vs_crtc_state *vs_crtc_state = to_vs_crtc_state(crtc_state);
 	struct drm_connector *connector = conn_state->connector;
 	int ret = 0;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+#if KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE
 	struct drm_bridge *first_bridge = drm_bridge_chain_get_first_bridge(encoder);
 	struct drm_bridge_state *bridge_state = ERR_PTR(-EINVAL);
 #endif
 
 	vs_crtc_state->encoder_type = encoder->encoder_type;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+#if KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE
 	if (first_bridge && first_bridge->funcs->atomic_duplicate_state)
 		bridge_state = drm_atomic_get_bridge_state(
 					   crtc_state->state, first_bridge);
@@ -224,7 +224,7 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		goto err;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
+#if KERNEL_VERSION(5, 7, 0) <= LINUX_VERSION_CODE
 	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 #else
 	ret = drm_bridge_attach(encoder, bridge, NULL);
