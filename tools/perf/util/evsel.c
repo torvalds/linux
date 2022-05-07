@@ -59,6 +59,33 @@ struct perf_missing_features perf_missing_features;
 
 static clockid_t clockid;
 
+static const char *const perf_tool_event__tool_names[PERF_TOOL_MAX] = {
+	NULL,
+	"duration_time",
+	"user_time",
+	"system_time",
+};
+
+const char *perf_tool_event__to_str(enum perf_tool_event ev)
+{
+	if (ev > PERF_TOOL_NONE && ev < PERF_TOOL_MAX)
+		return perf_tool_event__tool_names[ev];
+
+	return NULL;
+}
+
+enum perf_tool_event perf_tool_event__from_str(const char *str)
+{
+	int i;
+
+	perf_tool_event__for_each_event(i) {
+		if (!strcmp(str, perf_tool_event__tool_names[i]))
+			return i;
+	}
+	return PERF_TOOL_NONE;
+}
+
+
 static int evsel__no_extra_init(struct evsel *evsel __maybe_unused)
 {
 	return 0;
@@ -597,15 +624,9 @@ static int evsel__sw_name(struct evsel *evsel, char *bf, size_t size)
 	return r + evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
-static const char *const evsel__tool_names[PERF_TOOL_MAX] = {
-	"duration_time",
-	"user_time",
-	"system_time",
-};
-
 static int evsel__tool_name(enum perf_tool_event ev, char *bf, size_t size)
 {
-	return scnprintf(bf, size, "%s", evsel__tool_names[ev]);
+	return scnprintf(bf, size, "%s", perf_tool_event__to_str(ev));
 }
 
 static int __evsel__bp_name(char *bf, size_t size, u64 addr, u64 type)
@@ -758,7 +779,7 @@ const char *evsel__name(struct evsel *evsel)
 		break;
 
 	case PERF_TYPE_SOFTWARE:
-		if (evsel->tool_event)
+		if (evsel__is_tool(evsel))
 			evsel__tool_name(evsel->tool_event, bf, sizeof(bf));
 		else
 			evsel__sw_name(evsel, bf, sizeof(bf));
@@ -791,8 +812,8 @@ const char *evsel__metric_id(const struct evsel *evsel)
 	if (evsel->metric_id)
 		return evsel->metric_id;
 
-	if (evsel->core.attr.type == PERF_TYPE_SOFTWARE && evsel->tool_event)
-		return "duration_time";
+	if (evsel__is_tool(evsel))
+		return perf_tool_event__to_str(evsel->tool_event);
 
 	return "unknown";
 }

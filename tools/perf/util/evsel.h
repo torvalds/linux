@@ -36,6 +36,12 @@ enum perf_tool_event {
 	PERF_TOOL_MAX,
 };
 
+const char *perf_tool_event__to_str(enum perf_tool_event ev);
+enum perf_tool_event perf_tool_event__from_str(const char *str);
+
+#define perf_tool_event__for_each_event(ev)		\
+	for ((ev) = PERF_TOOL_DURATION_TIME; (ev) < PERF_TOOL_MAX; ev++)
+
 /** struct evsel - event selector
  *
  * @evlist - evlist this evsel is in, if it is in one.
@@ -268,6 +274,11 @@ bool evsel__match_bpf_counter_events(const char *name);
 int __evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result, char *bf, size_t size);
 const char *evsel__name(struct evsel *evsel);
 const char *evsel__metric_id(const struct evsel *evsel);
+
+static inline bool evsel__is_tool(const struct evsel *evsel)
+{
+	return evsel->tool_event != PERF_TOOL_NONE;
+}
 
 const char *evsel__group_name(struct evsel *evsel);
 int evsel__group_desc(struct evsel *evsel, char *buf, size_t size);
