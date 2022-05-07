@@ -30,6 +30,12 @@ config BCMDHD_PCIE
 
 endchoice
 
+config PCIEASPM_ROCKCHIP_WIFI_EXTENSION
+	bool "Extend ASPM function"
+	depends on BCMDHD_PCIE && PCIEASPM_EXT
+	help
+	  This enables the extensions APIs for ASPM control.
+
 config BCMDHD_FW_PATH
 	depends on BCMDHD
 	string "Firmware path"

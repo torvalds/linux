@@ -65,6 +65,7 @@
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 #include <dhd_linux_priv.h>
+#include <rk_dhd_pcie_linux.h>
 
 #include <epivers.h>
 #include <bcmutils.h>
@@ -12517,6 +12518,9 @@ dhd_bus_start(dhd_pub_t *dhdp)
 	/* Enable L1SS of RC and EP */
 	dhd_bus_l1ss_enable_rc_ep(dhdp->bus, TRUE);
 #endif /* BT_OVER_PCIE */
+
+	if (IS_ENABLED(CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION))
+		rk_dhd_bus_l1ss_enable_rc_ep(dhdp->bus, TRUE);
 
 #if defined(CONFIG_ARCH_EXYNOS) && defined(BCMPCIE)
 #if !defined(CONFIG_SOC_EXYNOS8890) && !defined(SUPPORT_EXYNOS7420)
