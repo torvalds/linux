@@ -403,6 +403,7 @@ $defs:
 
       bias-high-impedance: true
       input-enable: true
+      input-disable: true
       output-high: true
       output-low: true
       output-enable: true
