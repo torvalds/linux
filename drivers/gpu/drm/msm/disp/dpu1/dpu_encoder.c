@@ -2142,10 +2142,10 @@ static int dpu_encoder_virt_add_phys_encs(
 	if (disp_info->capabilities & MSM_DISPLAY_CAP_VID_MODE) {
 		enc = dpu_encoder_phys_vid_init(params);
 
-		if (IS_ERR_OR_NULL(enc)) {
+		if (IS_ERR(enc)) {
 			DPU_ERROR_ENC(dpu_enc, "failed to init vid enc: %ld\n",
 				PTR_ERR(enc));
-			return enc == NULL ? -EINVAL : PTR_ERR(enc);
+			return PTR_ERR(enc);
 		}
 
 		dpu_enc->phys_encs[dpu_enc->num_phys_encs] = enc;
@@ -2155,10 +2155,10 @@ static int dpu_encoder_virt_add_phys_encs(
 	if (disp_info->capabilities & MSM_DISPLAY_CAP_CMD_MODE) {
 		enc = dpu_encoder_phys_cmd_init(params);
 
-		if (IS_ERR_OR_NULL(enc)) {
+		if (IS_ERR(enc)) {
 			DPU_ERROR_ENC(dpu_enc, "failed to init cmd enc: %ld\n",
 				PTR_ERR(enc));
-			return enc == NULL ? -EINVAL : PTR_ERR(enc);
+			return PTR_ERR(enc);
 		}
 
 		dpu_enc->phys_encs[dpu_enc->num_phys_encs] = enc;
@@ -2168,10 +2168,10 @@ static int dpu_encoder_virt_add_phys_encs(
 	if (disp_info->intf_type == DRM_MODE_ENCODER_VIRTUAL) {
 		enc = dpu_encoder_phys_wb_init(params);
 
-		if (IS_ERR_OR_NULL(enc)) {
+		if (IS_ERR(enc)) {
 			DPU_ERROR_ENC(dpu_enc, "failed to init wb enc: %ld\n",
 					PTR_ERR(enc));
-			return enc == NULL ? -EINVAL : PTR_ERR(enc);
+			return PTR_ERR(enc);
 		}
 
 		dpu_enc->phys_encs[dpu_enc->num_phys_encs] = enc;
