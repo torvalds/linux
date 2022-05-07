@@ -112,7 +112,7 @@
 		};
 
 		pm8150b_gpios: gpio@c000 {
-			compatible = "qcom,pm8150b-gpio";
+			compatible = "qcom,pm8150b-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
 			#gpio-cells = <2>;

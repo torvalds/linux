@@ -36,7 +36,7 @@
 		};
 
 		pm6350_gpios: gpios@c000 {
-			compatible = "qcom,pm6350-gpio";
+			compatible = "qcom,pm6350-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
 			#gpio-cells = <2>;

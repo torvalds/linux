@@ -45,7 +45,7 @@
 		};
 
 		pm8350b_gpios: gpio@8800 {
-			compatible = "qcom,pm8350b-gpio";
+			compatible = "qcom,pm8350b-gpio", "qcom,spmi-gpio";
 			reg = <0x8800>;
 			gpio-controller;
 			#gpio-cells = <2>;

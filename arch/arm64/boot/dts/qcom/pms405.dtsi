@@ -38,7 +38,7 @@
 		#size-cells = <0>;
 
 		pms405_gpios: gpio@c000 {
-			compatible = "qcom,pms405-gpio";
+			compatible = "qcom,pms405-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
 			#gpio-cells = <2>;
