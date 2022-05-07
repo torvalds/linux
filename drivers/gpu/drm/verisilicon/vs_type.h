@@ -8,66 +8,68 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
+#if KERNEL_VERSION(5, 5, 0) > LINUX_VERSION_CODE
 #include <drm/drmP.h>
 #endif
 #include <drm/drm_plane.h>
 #include <drm/drm_plane_helper.h>
 
 struct vs_plane_info {
-    const char *name;
-    u8 id;
-    enum drm_plane_type type;
-    unsigned int num_formats;
-    const u32 *formats;
-    u8 num_modifiers;
-    const u64 *modifiers;
-    unsigned int min_width;
-    unsigned int min_height;
-    unsigned int max_width;
-    unsigned int max_height;
-    unsigned int rotation;
-    unsigned int blend_mode;
-    unsigned int color_encoding;
+	const char *name;
+	u8 id;
+	enum drm_plane_type type;
+	unsigned int num_formats;
+	const u32 *formats;
+	u8 num_modifiers;
+	const u64 *modifiers;
+	unsigned int min_width;
+	unsigned int min_height;
+	unsigned int max_width;
+	unsigned int max_height;
+	unsigned int rotation;
+	unsigned int blend_mode;
+	unsigned int color_encoding;
 
-    /* 0 means no de-gamma LUT */
-    unsigned int degamma_size;
+	/* 0 means no de-gamma LUT */
+	unsigned int degamma_size;
 
-    int min_scale; /* 16.16 fixed point */
-    int max_scale; /* 16.16 fixed point */
+	int min_scale; /* 16.16 fixed point */
+	int max_scale; /* 16.16 fixed point */
 
-    u8   zpos; /* default zorder value,
-                * and 255 means unsupported zorder capability */
+	/* default zorder value,
+	 * and 255 means unsupported zorder capability
+	 */
+	u8	 zpos;
 
-    bool watermark;
-    bool color_mgmt;
-    bool roi;
+	bool watermark;
+	bool color_mgmt;
+	bool roi;
 };
 
 struct vs_dc_info {
-    const char *name;
+	const char *name;
 
-    u8 panel_num;
+	u8 panel_num;
 
-    /* planes */
-    u8 plane_num;
-    const struct vs_plane_info *planes;
+	/* planes */
+	u8 plane_num;
+	const struct vs_plane_info *planes;
 
-    u8 layer_num;
-    unsigned int max_bpc;
-    unsigned int color_formats;
+	u8 layer_num;
+	unsigned int max_bpc;
+	unsigned int color_formats;
 
-    /* 0 means no gamma LUT */
-    u16 gamma_size;
-    u8 gamma_bits;
+	/* 0 means no gamma LUT */
+	u16 gamma_size;
+	u8 gamma_bits;
 
-    u16 pitch_alignment;
+	u16 pitch_alignment;
 
-    bool pipe_sync;
-    bool mmu_prefetch;
-    bool background;
-    bool panel_sync;
-    bool cap_dec;
+	bool pipe_sync;
+	bool mmu_prefetch;
+	bool background;
+	bool panel_sync;
+	bool cap_dec;
 };
 
 #endif /* __VS_TYPE_H__ */
