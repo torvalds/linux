@@ -1364,8 +1364,9 @@ err_clk:
 	return err;
 }
 
-static struct irq_domain *stm32_pctrl_get_irq_domain(struct device_node *np)
+static struct irq_domain *stm32_pctrl_get_irq_domain(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct device_node *parent;
 	struct irq_domain *domain;
 
@@ -1482,23 +1483,19 @@ static int stm32_pctrl_create_pins_tab(struct stm32_pinctrl *pctl,
 
 int stm32_pctl_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	const struct stm32_pinctrl_match_data *match_data;
 	struct fwnode_handle *child;
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct stm32_pinctrl *pctl;
 	struct pinctrl_pin_desc *pins;
 	int i, ret, hwlock_id;
 	unsigned int banks;
 
-	if (!np)
+	match_data = device_get_match_data(dev);
+	if (!match_data)
 		return -EINVAL;
 
-	match = of_match_device(dev->driver->of_match_table, dev);
-	if (!match || !match->data)
-		return -EINVAL;
-
-	if (!of_find_property(np, "pins-are-numbered", NULL)) {
+	if (!device_property_present(dev, "pins-are-numbered")) {
 		dev_err(dev, "only support pins-are-numbered format\n");
 		return -EINVAL;
 	}
@@ -1510,7 +1507,7 @@ int stm32_pctl_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pctl);
 
 	/* check for IRQ controller (may require deferred probe) */
-	pctl->domain = stm32_pctrl_get_irq_domain(np);
+	pctl->domain = stm32_pctrl_get_irq_domain(pdev);
 	if (IS_ERR(pctl->domain))
 		return PTR_ERR(pctl->domain);
 
@@ -1526,10 +1523,10 @@ int stm32_pctl_probe(struct platform_device *pdev)
 	spin_lock_init(&pctl->irqmux_lock);
 
 	pctl->dev = dev;
-	pctl->match_data = match->data;
+	pctl->match_data = match_data;
 
 	/*  get optional package information */
-	if (!of_property_read_u32(np, "st,package", &pctl->pkg))
+	if (!device_property_read_u32(dev, "st,package", &pctl->pkg))
 		dev_dbg(pctl->dev, "package detected: %x\n", pctl->pkg);
 
 	pctl->pins = devm_kcalloc(pctl->dev, pctl->match_data->npins,
