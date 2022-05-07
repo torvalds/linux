@@ -539,8 +539,7 @@ static void aggr_update_shadow(struct perf_stat_config *config,
 	}
 }
 
-static void uniquify_event_name(struct evsel *counter,
-				struct perf_stat_config *stat_config)
+static void uniquify_event_name(struct evsel *counter)
 {
 	char *new_name;
 	char *config;
@@ -559,8 +558,7 @@ static void uniquify_event_name(struct evsel *counter,
 			counter->name = new_name;
 		}
 	} else {
-		if (perf_pmu__has_hybrid() &&
-		    stat_config->metric_events.nr_entries == 0) {
+		if (perf_pmu__has_hybrid()) {
 			ret = asprintf(&new_name, "%s/%s/",
 				       counter->pmu_name, counter->name);
 		} else {
@@ -634,7 +632,7 @@ static bool collect_data(struct perf_stat_config *config, struct evsel *counter,
 		return false;
 	cb(config, counter, data, true);
 	if (config->no_merge || hybrid_merge(counter, config, false))
-		uniquify_event_name(counter, config);
+		uniquify_event_name(counter);
 	else if (counter->auto_merge_stats || hybrid_merge(counter, config, true))
 		collect_all_aliases(config, counter, cb, data);
 	return true;
