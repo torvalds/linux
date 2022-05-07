@@ -99,6 +99,18 @@ static int jpeg_v2_5_sw_init(void *handle)
 				VCN_2_0__SRCID__JPEG_DECODE, &adev->jpeg.inst[i].irq);
 		if (r)
 			return r;
+
+		/* JPEG DJPEG POISON EVENT */
+		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_jpeg[i],
+			VCN_2_6__SRCID_DJPEG0_POISON, &adev->jpeg.inst[i].irq);
+		if (r)
+			return r;
+
+		/* JPEG EJPEG POISON EVENT */
+		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_jpeg[i],
+			VCN_2_6__SRCID_EJPEG0_POISON, &adev->jpeg.inst[i].irq);
+		if (r)
+			return r;
 	}
 
 	r = amdgpu_jpeg_sw_init(adev);
@@ -572,6 +584,10 @@ static int jpeg_v2_5_process_interrupt(struct amdgpu_device *adev,
 	switch (entry->src_id) {
 	case VCN_2_0__SRCID__JPEG_DECODE:
 		amdgpu_fence_process(&adev->jpeg.inst[ip_instance].ring_dec);
+		break;
+	case VCN_2_6__SRCID_DJPEG0_POISON:
+	case VCN_2_6__SRCID_EJPEG0_POISON:
+		amdgpu_jpeg_process_poison_irq(adev, source, entry);
 		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",
