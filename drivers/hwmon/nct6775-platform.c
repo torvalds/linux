@@ -1042,6 +1042,7 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 static struct platform_device *pdev[2];
 
 static const char * const asus_wmi_boards[] = {
+	"PRO H410T",
 	"ProArt X570-CREATOR WIFI",
 	"Pro B550M-C",
 	"Pro WS X570-ACE",
@@ -1050,6 +1051,7 @@ static const char * const asus_wmi_boards[] = {
 	"PRIME B550-PLUS",
 	"PRIME B550M-A",
 	"PRIME B550M-A (WI-FI)",
+	"PRIME H410M-R",
 	"PRIME X570-P",
 	"PRIME X570-PRO",
 	"ROG CROSSHAIR VIII DARK HERO",
@@ -1064,6 +1066,7 @@ static const char * const asus_wmi_boards[] = {
 	"ROG STRIX B550-I GAMING",
 	"ROG STRIX B550-XE GAMING (WI-FI)",
 	"ROG STRIX X570-E GAMING",
+	"ROG STRIX X570-E GAMING WIFI II",
 	"ROG STRIX X570-F GAMING",
 	"ROG STRIX X570-I GAMING",
 	"ROG STRIX Z390-E GAMING",
