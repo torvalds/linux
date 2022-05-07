@@ -19,6 +19,7 @@
 #include <linux/moduleparam.h>
 #include <linux/mfd/syscon.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -31,6 +32,9 @@
 #include <linux/reset.h>
 #include <linux/reset-controller.h>
 
+#define WDT_INT_DIS	BIT(0)
+#define DELAY_US	0
+#define TIMEOUT_US	10000
 
 /* JH7100 WatchDog register define */
 #define JH7100_WDGINTSTAUS	0x000
@@ -61,9 +65,10 @@
 #define JH7110_WDOGLOCK		0xc00	/* RO: Enable write access to all other registers by writing 0x1ACCE551 */
 #define JH7110_WDOGITCR		0xf00	/* RW: When set HIGH, places the Watchdog into integraeion test mode */
 #define JH7110_WDOGITOP		0xf04	/* WO:	[0] Integration Test WDOGRES value Integration Test Mode
-						Value output on WDOGRES when in Integration Test Mode
-						[1] Integration Test WDOGINT value
-						Value output on WDOGINT when in Integration Test Mode */
+					 * Value output on WDOGRES when in Integration Test Mode
+					 * [1] Integration Test WDOGINT value
+					 * Value output on WDOGINT when in Integration Test Mode
+					 */
 
 #define JH7110_UNLOCK_KEY	0x1acce551
 #define JH7110_RESEN_SHIFT	1
@@ -210,8 +215,7 @@ static int si5wdt_get_clock_rate(struct stf_si5_wdt *wdt)
 		wdt->freq = (u64)freq;
 		return 0;
 	}
-	else
-		dev_err(wdt->dev, "get rate failed, need clock-frequency define in dts.\n");
+	dev_err(wdt->dev, "get rate failed, need clock-frequency define in dts.\n");
 #else
 	if (!IS_ERR(wdt->core_clk)) {
 		wdt->freq = clk_get_rate(wdt->core_clk);
@@ -229,14 +233,14 @@ static int si5wdt_enable_clock(struct stf_si5_wdt *wdt)
 	wdt->apb_clk = devm_clk_get(wdt->dev, "apb_clk");
 	if (!IS_ERR(wdt->apb_clk)) {
 		err = clk_prepare_enable(wdt->apb_clk);
-		if(err)
+		if (err)
 			dev_warn(wdt->dev, "enable core_clk error.\n");
 	}
 
 	wdt->core_clk = devm_clk_get(wdt->dev, "core_clk");
 	if (!IS_ERR(wdt->core_clk)) {
 		err = clk_prepare_enable(wdt->core_clk);
-		if(err)
+		if (err)
 			dev_warn(wdt->dev, "enable apb_clk error.\n");
 	}
 
@@ -250,13 +254,13 @@ static int si5wdt_reset_init(struct stf_si5_wdt *wdt)
 	wdt->rst_apb = devm_reset_control_get_exclusive(wdt->dev, "rst_apb");
 	if (!IS_ERR(wdt->rst_apb)) {
 		err = reset_control_deassert(wdt->rst_apb);
-		if(err)
+		if (err)
 			dev_warn(wdt->dev, "deassert apb_rst error.\n");
 	}
 	wdt->rst_core = devm_reset_control_get_exclusive(wdt->dev, "rst_core");
 	if (!IS_ERR(wdt->rst_core)) {
 		err = reset_control_deassert(wdt->rst_core);
-		if(err)
+		if (err)
 			dev_warn(wdt->dev, "deassert core_rst error.\n");
 	}
 
@@ -319,7 +323,7 @@ static inline void si5wdt_int_enable(struct stf_si5_wdt *wdt)
 
 	if (wdt->drv_data->int_mask) {
 		val = readl(wdt->base + wdt->drv_data->int_mask);
-		val &= ~(1<<0);
+		val &= ~WDT_INT_DIS;
 		writel(val, wdt->base + wdt->drv_data->int_mask);
 	}
 }
@@ -330,7 +334,7 @@ static inline void si5wdt_int_disable(struct stf_si5_wdt *wdt)
 
 	if (wdt->drv_data->int_mask) {
 		val = readl(wdt->base + wdt->drv_data->int_mask);
-		val |= (1<<0);
+		val |= WDT_INT_DIS;
 		writel(val, wdt->base + wdt->drv_data->int_mask);
 	}
 }
@@ -360,18 +364,21 @@ static void si5wdt_int_clr(struct stf_si5_wdt *wdt)
 	void __iomem *addr;
 	u8 clr_check;
 	u8 clr_ava_shift;
+	u32 value;
+	int ret = 0;
 
 	addr = wdt->base + wdt->drv_data->int_clr;
 	clr_ava_shift = wdt->drv_data->variant->intclr_ava_shift;
 	clr_check = wdt->drv_data->variant->intclr_check;
 	if (clr_check) {
 		/* waiting interrupt can be to clearing */
-		do {
-
-		} while (readl(addr) & BIT(clr_ava_shift));
+		value = readl(addr);
+		ret = readl_poll_timeout_atomic(addr, value,
+				!(value & BIT(clr_ava_shift)), DELAY_US, TIMEOUT_US);
 	}
 
-	writel(SI5_WATCHDOG_INTCLR, addr);
+	if (!ret)
+		writel(SI5_WATCHDOG_INTCLR, addr);
 }
 
 static inline void si5wdt_set_count(struct stf_si5_wdt *wdt, u32 val)
@@ -409,7 +416,8 @@ si5wdt_set_relod_count(struct stf_si5_wdt *wdt, u32 count)
 	if (wdt->drv_data->reload)
 		writel(0x1, wdt->base + wdt->drv_data->reload);
 	else
-		si5wdt_enable(wdt); /* jh7110 need enable controller to reload counter */
+		/* jh7110 need enable controller to reload counter */
+		si5wdt_enable(wdt);
 }
 
 static int si5wdt_mask_and_disable_reset(struct stf_si5_wdt *wdt, bool mask)
