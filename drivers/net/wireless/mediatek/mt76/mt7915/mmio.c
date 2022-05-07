@@ -610,7 +610,7 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
 		mt76_wr(dev, MT_MCU_CMD, val);
 		if (val & MT_MCU_CMD_ERROR_MASK) {
 			dev->reset_state = val;
-			ieee80211_queue_work(mt76_hw(dev), &dev->reset_work);
+			queue_work(dev->mt76.wq, &dev->reset_work);
 			wake_up(&dev->reset_wait);
 		}
 	}
