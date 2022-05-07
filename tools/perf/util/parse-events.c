@@ -426,7 +426,7 @@ static int add_event_tool(struct list_head *list, int *idx,
 	return 0;
 }
 
-static int parse_aliases(char *str, const char *names[][EVSEL__MAX_ALIASES], int size)
+static int parse_aliases(char *str, const char *const names[][EVSEL__MAX_ALIASES], int size)
 {
 	int i, j;
 	int n, longest = -1;
