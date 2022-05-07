@@ -398,7 +398,7 @@
 };
 
 &pma8084_gpios {
-	gpio_keys_pin_a: gpio-keys-active {
+	gpio_keys_pin_a: gpio-keys-active-state {
 		pins = "gpio2", "gpio3", "gpio5";
 		function = "normal";
 
@@ -406,7 +406,7 @@
 		power-source = <PMA8084_GPIO_S4>;
 	};
 
-	touchkey_pin: touchkey-int-pin {
+	touchkey_pin: touchkey-int-state {
 		pins = "gpio6";
 		function = "normal";
 		bias-disable;
@@ -414,7 +414,7 @@
 		power-source = <PMA8084_GPIO_S4>;
 	};
 
-	touch_pin: touchscreen-int-pin {
+	touch_pin: touchscreen-int-state {
 		pins = "gpio8";
 		function = "normal";
 		bias-disable;
@@ -422,7 +422,7 @@
 		power-source = <PMA8084_GPIO_S4>;
 	};
 
-	panel_en_pin: panel-en-pin {
+	panel_en_pin: panel-en-state {
 		pins = "gpio14";
 		function = "normal";
 		bias-pull-up;
@@ -430,7 +430,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 	};
 
-	wlan_sleep_clk_pin: wlan-sleep-clk-pin {
+	wlan_sleep_clk_pin: wlan-sleep-clk-state {
 		pins = "gpio16";
 		function = "func2";
 
@@ -439,7 +439,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
 	};
 
-	panel_rst_pin: panel-rst-pin {
+	panel_rst_pin: panel-rst-state {
 		pins = "gpio17";
 		function = "normal";
 		bias-disable;
@@ -447,7 +447,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 	};
 
-	fuelgauge_pin: fuelgauge-int-pin {
+	fuelgauge_pin: fuelgauge-int-state {
 		pins = "gpio21";
 		function = "normal";
 		bias-disable;

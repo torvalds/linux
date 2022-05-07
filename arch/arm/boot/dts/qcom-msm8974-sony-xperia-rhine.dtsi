@@ -163,7 +163,7 @@
 };
 
 &pm8941_gpios {
-	gpio_keys_pin_a: gpio-keys-active {
+	gpio_keys_pin_a: gpio-keys-active-state {
 		pins = "gpio2", "gpio3", "gpio4", "gpio5";
 		function = "normal";
 

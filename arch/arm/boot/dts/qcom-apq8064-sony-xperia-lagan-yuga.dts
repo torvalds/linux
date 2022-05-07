@@ -334,7 +334,7 @@
 		qcom,ssbi@500000 {
 			pmic@0 {
 				gpio@150 {
-					gpio_keys_pin_a: gpio-keys-pin-active {
+					gpio_keys_pin_a: gpio-keys-active-state {
 						pins = "gpio3", "gpio4", "gpio29", "gpio35";
 						function = "normal";
 

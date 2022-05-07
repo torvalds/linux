@@ -196,8 +196,8 @@
 		qcom,ssbi@500000 {
 			pmic@0 {
 				gpio@150 {
-					wlan_default_gpios: wlan-gpios {
-						pios {
+					wlan_default_gpios: wlan-gpios-state {
+						pinconf {
 							pins = "gpio43";
 							function = "normal";
 							bias-disable;
