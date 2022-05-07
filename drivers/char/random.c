@@ -51,6 +51,7 @@
 #include <linux/completion.h>
 #include <linux/uuid.h>
 #include <linux/uaccess.h>
+#include <linux/siphash.h>
 #include <crypto/chacha.h>
 #include <crypto/blake2s.h>
 #include <asm/processor.h>
@@ -1016,12 +1017,11 @@ struct fast_pool {
 
 static DEFINE_PER_CPU(struct fast_pool, irq_randomness) = {
 #ifdef CONFIG_64BIT
-	/* SipHash constants */
-	.pool = { 0x736f6d6570736575UL, 0x646f72616e646f6dUL,
-		  0x6c7967656e657261UL, 0x7465646279746573UL }
+#define FASTMIX_PERM SIPHASH_PERMUTATION
+	.pool = { SIPHASH_CONST_0, SIPHASH_CONST_1, SIPHASH_CONST_2, SIPHASH_CONST_3 }
 #else
-	/* HalfSipHash constants */
-	.pool = { 0, 0, 0x6c796765U, 0x74656462U }
+#define FASTMIX_PERM HSIPHASH_PERMUTATION
+	.pool = { HSIPHASH_CONST_0, HSIPHASH_CONST_1, HSIPHASH_CONST_2, HSIPHASH_CONST_3 }
 #endif
 };
 
@@ -1033,27 +1033,11 @@ static DEFINE_PER_CPU(struct fast_pool, irq_randomness) = {
  */
 static void fast_mix(unsigned long s[4], unsigned long v1, unsigned long v2)
 {
-#ifdef CONFIG_64BIT
-#define PERM() do { \
-	s[0] += s[1]; s[1] = rol64(s[1], 13); s[1] ^= s[0]; s[0] = rol64(s[0], 32); \
-	s[2] += s[3]; s[3] = rol64(s[3], 16); s[3] ^= s[2]; \
-	s[0] += s[3]; s[3] = rol64(s[3], 21); s[3] ^= s[0]; \
-	s[2] += s[1]; s[1] = rol64(s[1], 17); s[1] ^= s[2]; s[2] = rol64(s[2], 32); \
-} while (0)
-#else
-#define PERM() do { \
-	s[0] += s[1]; s[1] = rol32(s[1],  5); s[1] ^= s[0]; s[0] = rol32(s[0], 16); \
-	s[2] += s[3]; s[3] = rol32(s[3],  8); s[3] ^= s[2]; \
-	s[0] += s[3]; s[3] = rol32(s[3],  7); s[3] ^= s[0]; \
-	s[2] += s[1]; s[1] = rol32(s[1], 13); s[1] ^= s[2]; s[2] = rol32(s[2], 16); \
-} while (0)
-#endif
-
 	s[3] ^= v1;
-	PERM();
+	FASTMIX_PERM(s[0], s[1], s[2], s[3]);
 	s[0] ^= v1;
 	s[3] ^= v2;
-	PERM();
+	FASTMIX_PERM(s[0], s[1], s[2], s[3]);
 	s[0] ^= v2;
 }
 
