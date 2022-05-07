@@ -71,11 +71,11 @@
 };
 
 &dma {
-    status = "okay";
+	status = "okay";
 };
 
 &trng {
-    status = "okay";
+	status = "okay";
 };
 
 &i2c6 {
@@ -233,7 +233,7 @@
 };
 
 &vin_sysctl {
-    status = "okay";
+	status = "okay";
 
 	ports {
 		#address-cells = <1>;
@@ -271,15 +271,15 @@
 };
 
 &jpu {
-    status = "okay";
+	status = "okay";
 };
 
 &vpu_dec {
-    status = "okay";
+	status = "okay";
 };
 
 &vpu_enc {
-    status = "okay";
+	status = "okay";
 };
 
 &gmac0 {
@@ -287,47 +287,47 @@
 };
 
 &gpu {
-    status = "okay";
+	status = "okay";
 };
 
 &can0 {
-    status = "okay";
+	status = "okay";
 };
 
 &can1 {
-    status = "okay";
+	status = "okay";
 };
 
 &tdm {
-    status = "okay";
+	status = "okay";
 };
 
 &spdif0 {
-    status = "okay";
+	status = "okay";
 };
 
 &pwmdac {
-    status = "okay";
+	status = "okay";
 };
 
 &i2stx {
-    status = "okay";
+	status = "disabled";
 };
 
 &pdm {
-    status = "okay";
+	status = "okay";
 };
 
 &i2srx_3ch {
-    status = "okay";
+	status = "okay";
 };
 
 &i2stx_4ch0 {
-    status = "okay";
+	status = "okay";
 };
 
 &i2stx_4ch1 {
-    status = "okay";
+	status = "okay";
 };
 
 &ptc {
@@ -335,19 +335,19 @@
 };
 
 &spdif_transmitter {
-    status = "okay";
+	status = "okay";
 };
 
 &spdif_receiver {
-    status = "okay";
+	status = "okay";
 };
 
 &pwmdac_codec {
-    status = "okay";
+	status = "okay";
 };
 
 &dmic_codec {
-    status = "okay";
+	status = "okay";
 };
 
 &spi0 {
@@ -363,19 +363,30 @@
 };
 
 &pcie0 {
-    status = "okay";
+	status = "okay";
 };
 
 &mailbox_contrl0 {
-    status = "okay";
+	status = "okay";
 };
 
 &mailbox_client0 {
-    status = "okay";
+	status = "okay";
 };
 
 &display {
 	status = "okay";
+};
+
+&hdmi {
+	hdmi_in: port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		hdmi_in_lcdc: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dc_out_dpi1>;
+		};
+	};
 };
 
 &dc8200 {

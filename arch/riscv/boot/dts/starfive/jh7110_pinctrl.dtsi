@@ -254,7 +254,6 @@
 		};
 	};
 
-
 	can0_pins: can0-pins {
 		can0-pins0 {
 			sf,pins = <PAD_GPIO28>;
@@ -842,7 +841,7 @@
 &vin_sysctl {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dvp_pins>;
-	status = "okay";	
+	status = "okay";
 };
 
 &spi0 {

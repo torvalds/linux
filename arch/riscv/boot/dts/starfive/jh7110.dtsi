@@ -225,13 +225,13 @@
 				<0x0 0x17000000 0x0 0x10000>;
 			reg-names = "sys", "stg", "aon";
 			clocks = <&osc>, <&gmac1_rmii_refin>,
-				<&gmac1_rgmii_rxin>,
-				<&i2stx_bclk_ext>, <&i2stx_lrck_ext>,
-				<&i2srx_bclk_ext>, <&i2srx_lrck_ext>,
-				<&tdm_ext>, <&mclk_ext>,
-				<&jtag_tck_inner>, <&bist_apb>,
-				<&stg_apb>, <&clk_rtc>,
-				<&gmac0_rmii_refin>, <&gmac0_rgmii_rxin>;
+				 <&gmac1_rgmii_rxin>,
+				 <&i2stx_bclk_ext>, <&i2stx_lrck_ext>,
+				 <&i2srx_bclk_ext>, <&i2srx_lrck_ext>,
+				 <&tdm_ext>, <&mclk_ext>,
+				 <&jtag_tck_inner>, <&bist_apb>,
+				 <&stg_apb>, <&clk_rtc>,
+				 <&gmac0_rmii_refin>, <&gmac0_rgmii_rxin>;
 			clock-names = "osc", "gmac1_rmii_refin",
 				"gmac1_rgmii_rxin",
 				"i2stx_bclk_ext", "i2stx_lrck_ext",
@@ -249,8 +249,8 @@
 			reg = <0x0 0x295C0000 0x0 0x10000>;
 			reg-names = "vout";
 			clocks = <&hdmitx0_pixelclk>,
-				<&mipitx_dphy_rxesc>,
-				<&mipitx_dphy_txbytehs>;
+				 <&mipitx_dphy_rxesc>,
+				 <&mipitx_dphy_txbytehs>;
 			clock-names = "hdmitx0_pixelclk",
 				"mipitx_dphy_rxesc",
 				"mipitx_dphy_txbytehs";
@@ -284,8 +284,8 @@
 			clocks = <&clkgen JH7110_QSPI_CLK_REF>;
 			clock-names = "clk_ref";
 			resets = <&rstgen RSTN_U0_CDNS_QSPI_APB>,
-					<&rstgen RSTN_U0_CDNS_QSPI_AHB>,
-					<&rstgen RSTN_U0_CDNS_QSPI_REF>;
+				 <&rstgen RSTN_U0_CDNS_QSPI_AHB>,
+				 <&rstgen RSTN_U0_CDNS_QSPI_REF>;
 			resets-names = "rst_apb", "rst_ahb", "rst_ref";
 			cdns,fifo-depth = <256>;
 			cdns,fifo-width = <4>;
@@ -315,16 +315,16 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			clocks = <&clkgen JH7110_USB0_CLK_APP_125>,
-					<&clkgen JH7110_USB0_CLK_LPM>,
-					<&clkgen JH7110_USB0_CLK_STB>,
-					<&clkgen JH7110_USB0_CLK_USB_APB>,
-					<&clkgen JH7110_USB0_CLK_AXI>,
-					<&clkgen JH7110_USB0_CLK_UTMI_APB>;
+				 <&clkgen JH7110_USB0_CLK_LPM>,
+				 <&clkgen JH7110_USB0_CLK_STB>,
+				 <&clkgen JH7110_USB0_CLK_USB_APB>,
+				 <&clkgen JH7110_USB0_CLK_AXI>,
+				 <&clkgen JH7110_USB0_CLK_UTMI_APB>;
 			clock-names = "app","lpm","stb","apb","axi","utmi";
 			resets = <&rstgen RSTN_U0_CDN_USB_PWRUP>,
-					<&rstgen RSTN_U0_CDN_USB_APB>,
-					<&rstgen RSTN_U0_CDN_USB_AXI>,
-					<&rstgen RSTN_U0_CDN_USB_UTMI_APB>;
+				 <&rstgen RSTN_U0_CDN_USB_APB>,
+				 <&rstgen RSTN_U0_CDN_USB_AXI>,
+				 <&rstgen RSTN_U0_CDN_USB_UTMI_APB>;
 			reset-names = "pwrup","apb","axi","utmi";
 			starfive,stg-syscon = <&stg_syscon 0x4>;
 			starfive,sys-syscon = <&sys_syscon 0x18>;
@@ -333,8 +333,8 @@
 			usbdrd_cdns3: usb@10100000 {
 				compatible = "cdns,usb3";
 				reg = <0x0 0x10100000 0x0 0x10000>,
-					<0x0 0x10110000 0x0 0x10000>,
-					<0x0 0x10120000 0x0 0x10000>;
+				      <0x0 0x10110000 0x0 0x10000>,
+				      <0x0 0x10120000 0x0 0x10000>;
 				reg-names = "otg", "xhci", "dev";
 				interrupts = <108>, <109>, <110>;
 				interrupt-names = "host", "peripheral", "otg";
@@ -405,7 +405,7 @@
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&clkgen JH7110_UART0_CLK_CORE>,
-					<&clkgen JH7110_UART0_CLK_APB>;
+				 <&clkgen JH7110_UART0_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
 			resets = <&rstgen RSTN_U0_DW_UART_APB>;
 			interrupts = <32>;
@@ -418,7 +418,7 @@
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&clkgen JH7110_UART1_CLK_CORE>,
-					<&clkgen JH7110_UART1_CLK_APB>;
+				 <&clkgen JH7110_UART1_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
 			resets = <&rstgen RSTN_U1_DW_UART_APB>;
 			interrupts = <33>;
@@ -431,7 +431,7 @@
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&clkgen JH7110_UART2_CLK_CORE>,
-					<&clkgen JH7110_UART2_CLK_APB>;
+				 <&clkgen JH7110_UART2_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
 			resets = <&rstgen RSTN_U2_DW_UART_APB>;
 			interrupts = <34>;
@@ -444,7 +444,7 @@
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&clkgen JH7110_UART3_CLK_CORE>,
-					<&clkgen JH7110_UART3_CLK_APB>;
+				 <&clkgen JH7110_UART3_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
 			resets = <&rstgen RSTN_U3_DW_UART_APB>;
 			interrupts = <45>;
@@ -457,7 +457,7 @@
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&clkgen JH7110_UART4_CLK_CORE>,
-					<&clkgen JH7110_UART4_CLK_APB>;
+				 <&clkgen JH7110_UART4_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
 			resets = <&rstgen RSTN_U4_DW_UART_APB>;
 			interrupts = <46>;
@@ -470,7 +470,7 @@
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&clkgen JH7110_UART5_CLK_CORE>,
-					<&clkgen JH7110_UART5_CLK_APB>;
+				 <&clkgen JH7110_UART5_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
 			resets = <&rstgen RSTN_U5_DW_UART_APB>;
 			interrupts = <47>;
@@ -481,12 +481,11 @@
 			compatible = "starfive,axi-dma";
 			reg = <0x0 0x16050000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_DMA1P_CLK_AXI>,
-				<&clkgen JH7110_DMA1P_CLK_AHB>;
+				 <&clkgen JH7110_DMA1P_CLK_AHB>;
 			clock-names = "core-clk", "cfgr-clk";
 			resets = <&rstgen RSTN_U0_DW_DMA1P_AXI>,
-				<&rstgen RSTN_U0_DW_DMA1P_AHB>;
-			reset-names = "rst_axi",
-				"rst_ahb";
+				 <&rstgen RSTN_U0_DW_DMA1P_AHB>;
+			reset-names = "rst_axi", "rst_ahb";
 			interrupts = <73>;
 			#dma-cells = <2>;
 			dma-channels = <4>;
@@ -525,7 +524,7 @@
 			compatible = "starfive,trng";
 			reg = <0x0 0x1600C000 0x0 0x4000>;
 			clocks = <&clkgen JH7110_SEC_HCLK>,
-				<&clkgen JH7110_SEC_MISCAHB_CLK>;
+				 <&clkgen JH7110_SEC_MISCAHB_CLK>;
 			clock-names = "hclk", "miscahb_clk";
 			resets = <&rstgen RSTN_U0_SEC_TOP_HRESETN>;
 			interrupts = <30>;
@@ -539,7 +538,7 @@
 			reg-names = "sec_dma";
 			interrupts = <29>;
 			clocks = <&clkgen JH7110_SEC_HCLK>,
-					<&clkgen JH7110_SEC_MISCAHB_CLK>;
+				 <&clkgen JH7110_SEC_MISCAHB_CLK>;
 			clock-names = "sec_hclk","sec_ahb";
 			resets = <&rstgen RSTN_U0_SEC_TOP_HRESETN>;
 			reset-names = "sec_hre";
@@ -557,10 +556,9 @@
 			      <0x0 0x16008000 0x0 0x4000>;
 			reg-names = "secreg","secdma";
 			interrupts = <28>, <29>;
-			interrupt-names = "secirq",
-					"dmairq";
+			interrupt-names = "secirq", "dmairq";
 			clocks = <&clkgen JH7110_SEC_HCLK>,
-					<&clkgen JH7110_SEC_MISCAHB_CLK>;
+				 <&clkgen JH7110_SEC_MISCAHB_CLK>;
 			clock-names = "sec_hclk","sec_ahb";
 			resets = <&rstgen RSTN_U0_SEC_TOP_HRESETN>;
 			reset-names = "sec_hre";
@@ -656,33 +654,33 @@
 			reg-names = "mipi0", "vclk", "vrst", "mipi1", "sctrl",
 				"isp0", "isp1", "trst", "pmu", "syscrg";
 			clocks = <&clkisp JH7110_DOM4_APB_FUNC>,
-				<&clkisp JH7110_U0_VIN_PCLK>,
-				<&clkisp JH7110_U0_VIN_SYS_CLK>,
-				<&clkisp JH7110_U0_ISPV2_TOP_WRAPPER_CLK_C>,
-				<&clkisp JH7110_DVP_INV>,
-				<&clkisp JH7110_U0_VIN_CLK_P_AXIWR>,
-				<&clkisp JH7110_MIPI_RX0_PXL>,
-				<&clkisp JH7110_U0_VIN_PIXEL_CLK_IF0>,
-				<&clkisp JH7110_U0_VIN_PIXEL_CLK_IF1>,
-				<&clkisp JH7110_U0_VIN_PIXEL_CLK_IF2>,
-				<&clkisp JH7110_U0_VIN_PIXEL_CLK_IF3>;
+				 <&clkisp JH7110_U0_VIN_PCLK>,
+				 <&clkisp JH7110_U0_VIN_SYS_CLK>,
+				 <&clkisp JH7110_U0_ISPV2_TOP_WRAPPER_CLK_C>,
+				 <&clkisp JH7110_DVP_INV>,
+				 <&clkisp JH7110_U0_VIN_CLK_P_AXIWR>,
+				 <&clkisp JH7110_MIPI_RX0_PXL>,
+				 <&clkisp JH7110_U0_VIN_PIXEL_CLK_IF0>,
+				 <&clkisp JH7110_U0_VIN_PIXEL_CLK_IF1>,
+				 <&clkisp JH7110_U0_VIN_PIXEL_CLK_IF2>,
+				 <&clkisp JH7110_U0_VIN_PIXEL_CLK_IF3>;
 			clock-names = "clk_apb_func", "clk_pclk", "clk_sys_clk",
 				"clk_wrapper_clk_c", "clk_dvp_inv", "clk_axiwr",
 				"clk_mipi_rx0_pxl", "clk_pixel_clk_if0",
 				"clk_pixel_clk_if1", "clk_pixel_clk_if2",
 				"clk_pixel_clk_if3";
 			resets = <&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_P>,
-				<&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_C>,
-				<&rstgen RSTN_U0_VIN_N_PCLK>,
-				<&rstgen RSTN_U0_VIN_N_SYS_CLK>,
-				<&rstgen RSTN_U0_VIN_P_AXIRD>,
-				<&rstgen RSTN_U0_VIN_P_AXIWR>,
-				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF0>,
-				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF1>,
-				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF2>,
-				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF3>,
-				<&rstgen RSTN_U0_M31DPHY_HW>,
-				<&rstgen RSTN_U0_M31DPHY_B09_ALWAYS_ON>;
+				 <&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_C>,
+				 <&rstgen RSTN_U0_VIN_N_PCLK>,
+				 <&rstgen RSTN_U0_VIN_N_SYS_CLK>,
+				 <&rstgen RSTN_U0_VIN_P_AXIRD>,
+				 <&rstgen RSTN_U0_VIN_P_AXIWR>,
+				 <&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF0>,
+				 <&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF1>,
+				 <&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF2>,
+				 <&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF3>,
+				 <&rstgen RSTN_U0_M31DPHY_HW>,
+				 <&rstgen RSTN_U0_M31DPHY_B09_ALWAYS_ON>;
 			reset-names = "rst_wrapper_p", "rst_wrapper_c", "rst_pclk",
 				"rst_sys_clk", "rst_axird", "rst_axiwr", "rst_pixel_clk_if0",
 				"rst_pixel_clk_if1", "rst_pixel_clk_if2", "rst_pixel_clk_if3",
@@ -696,12 +694,12 @@
 			reg = <0x0 0x13090000 0x0 0x300>;
 			interrupts = <14>;
 			clocks = <&clkgen JH7110_CODAJ12_CLK_AXI>,
-				<&clkgen JH7110_CODAJ12_CLK_CORE>,
-				<&clkgen JH7110_CODAJ12_CLK_APB>;
+				 <&clkgen JH7110_CODAJ12_CLK_CORE>,
+				 <&clkgen JH7110_CODAJ12_CLK_APB>;
 			clock-names = "axi_clk", "core_clk", "apb_clk";
 			resets = <&rstgen RSTN_U0_CODAJ12_AXI>,
-				<&rstgen RSTN_U0_CODAJ12_CORE>,
-				<&rstgen RSTN_U0_CODAJ12_APB>;
+				 <&rstgen RSTN_U0_CODAJ12_CORE>,
+				 <&rstgen RSTN_U0_CODAJ12_APB>;
 			reset-names = "rst_axi", "rst_core", "rst_apb";
 			status = "disabled";
 		};
@@ -711,10 +709,10 @@
 			reg = <0x0 0x130A0000 0x0 0x10000>;
 			interrupts = <13>;
 			clocks = <&clkgen JH7110_WAVE511_CLK_AXI>,
-				<&clkgen JH7110_WAVE511_CLK_BPU>,
-				<&clkgen JH7110_WAVE511_CLK_VCE>,
-				<&clkgen JH7110_WAVE511_CLK_APB>,
-				<&clkgen JH7110_NOC_BUS_CLK_VDEC_AXI>;
+				 <&clkgen JH7110_WAVE511_CLK_BPU>,
+				 <&clkgen JH7110_WAVE511_CLK_VCE>,
+				 <&clkgen JH7110_WAVE511_CLK_APB>,
+				 <&clkgen JH7110_NOC_BUS_CLK_VDEC_AXI>;
 			clock-names = "axi_clk",
 				"bpu_clk",
 				"vce_clk",
@@ -739,20 +737,20 @@
 			reg = <0x0 0x130B0000 0x0 0x10000>;
 			interrupts = <15>;
 			clocks = <&clkgen JH7110_WAVE420L_CLK_AXI>,
-				<&clkgen JH7110_WAVE420L_CLK_BPU>,
-				<&clkgen JH7110_WAVE420L_CLK_VCE>,
-				<&clkgen JH7110_WAVE420L_CLK_APB>,
-				<&clkgen JH7110_NOC_BUS_CLK_VENC_AXI>;
+				 <&clkgen JH7110_WAVE420L_CLK_BPU>,
+				 <&clkgen JH7110_WAVE420L_CLK_VCE>,
+				 <&clkgen JH7110_WAVE420L_CLK_APB>,
+				 <&clkgen JH7110_NOC_BUS_CLK_VENC_AXI>;
 			clock-names = "axi_clk",
 				"bpu_clk",
 				"vce_clk",
 				"apb_clk",
 				"noc_bus";
 			resets = <&rstgen RSTN_U0_WAVE420L_AXI>,
-				<&rstgen RSTN_U0_WAVE420L_BPU>,
-				<&rstgen RSTN_U0_WAVE420L_VCE>,
-				<&rstgen RSTN_U0_WAVE420L_APB>,
-				<&rstgen RSTN_U1_AXIMEM_128B_AXI>;
+				 <&rstgen RSTN_U0_WAVE420L_BPU>,
+				 <&rstgen RSTN_U0_WAVE420L_VCE>,
+				 <&rstgen RSTN_U0_WAVE420L_APB>,
+				 <&rstgen RSTN_U1_AXIMEM_128B_AXI>;
 			reset-names = "rst_axi",
 				"rst_bpu",
 				"rst_vce",
@@ -789,12 +787,12 @@
 				"stmmaceth",
 				"pclk";
 			clocks = <&clkgen JH7110_GMAC0_GTXCLK>,
-				<&clkgen JH7110_U0_GMAC5_CLK_TX>,
-				<&clkgen JH7110_GMAC0_PTP>,
-				<&clkgen JH7110_U0_GMAC5_CLK_AHB>,
-				<&clkgen JH7110_U0_GMAC5_CLK_AXI>;
+				 <&clkgen JH7110_U0_GMAC5_CLK_TX>,
+				 <&clkgen JH7110_GMAC0_PTP>,
+				 <&clkgen JH7110_U0_GMAC5_CLK_AHB>,
+				 <&clkgen JH7110_U0_GMAC5_CLK_AXI>;
 			resets = <&rstgen RSTN_U0_DW_GMAC5_AXI64_AHB>,
-					<&rstgen RSTN_U0_DW_GMAC5_AXI64_AXI>;
+				 <&rstgen RSTN_U0_DW_GMAC5_AXI64_AXI>;
 			reset-names = "ahb", "stmmaceth";
 			interrupts = <7>, <6>, <5> ;
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
@@ -828,12 +826,12 @@
 				"stmmaceth",
 				"pclk";
 			clocks = <&clkgen JH7110_GMAC1_GTXCLK>,
-				<&clkgen JH7110_GMAC5_CLK_TX>,
-				<&clkgen JH7110_GMAC5_CLK_PTP>,
-				<&clkgen JH7110_GMAC5_CLK_AHB>,
-				<&clkgen JH7110_GMAC5_CLK_AXI>;
+				 <&clkgen JH7110_GMAC5_CLK_TX>,
+				 <&clkgen JH7110_GMAC5_CLK_PTP>,
+				 <&clkgen JH7110_GMAC5_CLK_AHB>,
+				 <&clkgen JH7110_GMAC5_CLK_AXI>;
 			resets = <&rstgen RSTN_U1_DW_GMAC5_AXI64_H_N>,
-					<&rstgen RSTN_U1_DW_GMAC5_AXI64_A_I>;
+				 <&rstgen RSTN_U1_DW_GMAC5_AXI64_A_I>;
 			reset-names = "ahb", "stmmaceth";
 			interrupts = <78>, <77>, <76> ;
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
@@ -862,18 +860,15 @@
 			compatible = "img-gpu";
 			reg = <0x0 0x18000000 0x0 0x100000>,
 				<0x0 0x130C000 0x0 0x10000>;
-			clocks = <&gpu_core_clk>, <&gpu_sys_clk>,
-				<&clkgen JH7110_GPU_CLK_APB>,
-				<&clkgen JH7110_GPU_RTC_TOGGLE>,
-				<&clkgen JH7110_GPU_CORE_CLK>,
-				<&clkgen JH7110_GPU_SYS_CLK>,
-				<&clkgen JH7110_NOC_BUS_CLK_GPU_AXI>;
-			clock-names = "gpu_core_clk", "gpu_sys_clk",
-				"clk_apb", "clk_rtc",
-				"clk_core", "clk_sys",
-				"clk_axi";
+			clocks = <&clkgen JH7110_GPU_CLK_APB>,
+				 <&clkgen JH7110_GPU_RTC_TOGGLE>,
+				 <&clkgen JH7110_GPU_CORE_CLK>,
+				 <&clkgen JH7110_GPU_SYS_CLK>,
+				 <&clkgen JH7110_NOC_BUS_CLK_GPU_AXI>;
+			clock-names = "clk_apb", "clk_rtc", "clk_core",
+					"clk_sys", "clk_axi";
 			resets = <&rstgen RSTN_U0_IMG_GPU_APB>,
-				<&rstgen RSTN_U0_IMG_GPU_DOMA>;
+				 <&rstgen RSTN_U0_IMG_GPU_DOMA>;
 			reset-names = "rst_apb", "rst_doma";
 			interrupts = <82>;
 			current-clock = <8000000>;
@@ -885,17 +880,13 @@
 			reg = <0x0 0x130d0000 0x0 0x1000>;
 			interrupts = <112>;
 			clocks = <&clkgen JH7110_CAN0_CTRL_CLK_APB>,
-				<&clkgen JH7110_CAN0_CTRL_CLK_CAN>,
-				<&clkgen JH7110_CAN0_CTRL_CLK_TIMER>;
-			clock-names = "apb_clk",
-					"core_clk",
-					"timer_clk";
+				 <&clkgen JH7110_CAN0_CTRL_CLK_CAN>,
+				 <&clkgen JH7110_CAN0_CTRL_CLK_TIMER>;
+			clock-names = "apb_clk", "core_clk", "timer_clk";
 			resets = <&rstgen RSTN_U0_CAN_CTRL_APB>,
-				<&rstgen RSTN_U0_CAN_CTRL_CORE>,
-				<&rstgen RSTN_U0_CAN_CTRL_TIMER>;
-			reset-names = "rst_apb",
-					"rst_core",
-					"rst_timer";
+				 <&rstgen RSTN_U0_CAN_CTRL_CORE>,
+				 <&rstgen RSTN_U0_CAN_CTRL_TIMER>;
+			reset-names = "rst_apb", "rst_core", "rst_timer";
 			starfive,sys-syscon = <&sys_syscon 0x10 0x3 0x8>;
 			syscon,can_or_canfd = <0>;
 			status = "disabled";
@@ -906,17 +897,13 @@
 			reg = <0x0 0x130e0000 0x0 0x1000>;
 			interrupts = <113>;
 			clocks = <&clkgen JH7110_CAN1_CTRL_CLK_APB>,
-				<&clkgen JH7110_CAN1_CTRL_CLK_CAN>,
-				<&clkgen JH7110_CAN1_CTRL_CLK_TIMER>;
-			clock-names = "apb_clk",
-					"core_clk",
-					"timer_clk";
+				 <&clkgen JH7110_CAN1_CTRL_CLK_CAN>,
+				 <&clkgen JH7110_CAN1_CTRL_CLK_TIMER>;
+			clock-names = "apb_clk", "core_clk", "timer_clk";
 			resets = <&rstgen RSTN_U1_CAN_CTRL_APB>,
-				<&rstgen RSTN_U1_CAN_CTRL_CORE>,
-				<&rstgen RSTN_U1_CAN_CTRL_TIMER>;
-			reset-names = "rst_apb",
-					"rst_core",
-					"rst_timer";
+				 <&rstgen RSTN_U1_CAN_CTRL_CORE>,
+				 <&rstgen RSTN_U1_CAN_CTRL_TIMER>;
+			reset-names = "rst_apb", "rst_core", "rst_timer";
 			starfive,sys-syscon = <&sys_syscon 0x88 0x12 0x40000>;
 			syscon,can_or_canfd = <0>;
 			status = "disabled";
@@ -927,10 +914,10 @@
 			reg = <0x0 0x10090000 0x0 0x1000>;
 			reg-names = "tdm";
 			clocks = <&clkgen JH7110_AHB0>,
-				<&clkgen JH7110_TDM_CLK_AHB>,
-				<&clkgen JH7110_APB0>,
-				<&clkgen JH7110_TDM_CLK_APB>,
-				<&clkgen JH7110_TDM_INTERNAL>;
+				 <&clkgen JH7110_TDM_CLK_AHB>,
+				 <&clkgen JH7110_APB0>,
+				 <&clkgen JH7110_TDM_CLK_APB>,
+				 <&clkgen JH7110_TDM_INTERNAL>;
 			clock-names = "clk_ahb0", "clk_tdm_ahb",
 				      "clk_apb0", "clk_tdm_apb",
 				      "clk_tdm_intl";
@@ -948,8 +935,8 @@
 			compatible = "starfive,sf-spdif";
 			reg = <0x0 0x100a0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_SPDIF_CLK_APB>,
-				<&clkgen JH7110_SPDIF_CLK_CORE>,
-				<&clkgen JH7110_MCLK>;
+				 <&clkgen JH7110_SPDIF_CLK_CORE>,
+				 <&clkgen JH7110_MCLK>;
 			clock-names = "spdif-apb", "spdif-core", "audioclk";
 			resets = <&rstgen RSTN_U0_CDNS_SPDIF_APB>;
 			reset-names = "rst_apb";
@@ -963,8 +950,8 @@
 			compatible = "starfive,pwmdac";
 			reg = <0x0 0x100b0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_APB0>,
-				<&clkgen JH7110_PWMDAC_CLK_APB>,
-				<&clkgen JH7110_PWMDAC_CLK_CORE>;
+				 <&clkgen JH7110_PWMDAC_CLK_APB>,
+				 <&clkgen JH7110_PWMDAC_CLK_CORE>;
 			clock-names = "apb0", "pwmdac-apb", "pwmdac-core";
 			resets = <&rstgen RSTN_U0_PWMDAC_APB>;
 			reset-names = "rst-apb";
@@ -977,8 +964,6 @@
 		i2stx: i2stx@100c0000 {
 			compatible = "snps,designware-i2stx";
 			reg = <0x0 0x100c0000 0x0 0x1000>;
-			clocks = <&apb0clk>;
-			clock-names = "i2sclk";
 			interrupt-names = "tx";
 			#sound-dai-cells = <0>;
 			dmas = <&dma 28 1>;
@@ -1012,12 +997,12 @@
 			compatible = "snps,designware-i2srx";
 			reg = <0x0 0x100e0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_APB0>,
-				<&clkgen JH7110_I2SRX0_3CH_CLK_APB>,
-				<&clkgen JH7110_I2SRX_3CH_BCLK_MST>;
+				 <&clkgen JH7110_I2SRX0_3CH_CLK_APB>,
+				 <&clkgen JH7110_I2SRX_3CH_BCLK_MST>;
 			clock-names = "apb0", "3ch-apb",
 					"3ch-bclk";
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
-				<&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
+				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
 			reset-names = "rst_apb_rx", "rst_bclk_rx";
 			interrupts = <42>;
 			interrupt-names = "rx";
@@ -1031,17 +1016,17 @@
 			compatible = "snps,designware-i2stx-4ch0";
 			reg = <0x0 0x120b0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_MCLK_INNER>,
-				<&clkgen JH7110_I2STX_4CH0_BCLK_MST>,
-				<&clkgen JH7110_I2STX_4CH0_LRCK_MST>,
-				<&clkgen JH7110_MCLK>,
-				<&clkgen JH7110_I2STX0_4CHBCLK>,
-				<&clkgen JH7110_I2STX0_4CHLRCK>;
+				 <&clkgen JH7110_I2STX_4CH0_BCLK_MST>,
+				 <&clkgen JH7110_I2STX_4CH0_LRCK_MST>,
+				 <&clkgen JH7110_MCLK>,
+				 <&clkgen JH7110_I2STX0_4CHBCLK>,
+				 <&clkgen JH7110_I2STX0_4CHLRCK>;
 			clock-names = "inner", "bclk-mst",
 					"lrck-mst", "mclk",
 					"bclk0", "lrck0";
 			resets = <&rstgen RSTN_U0_I2STX_4CH_APB>,
-                                        <&rstgen RSTN_U0_I2STX_4CH_BCLK>;
-                        reset-names = "rst_apb0", "rst_bclk0";
+				 <&rstgen RSTN_U0_I2STX_4CH_BCLK>;
+			reset-names = "rst_apb0", "rst_bclk0";
 			interrupts = <58>;
 			interrupt-names = "tx";
 			dmas = <&dma 47 1>;
@@ -1054,17 +1039,17 @@
 			compatible = "snps,designware-i2stx-4ch1";
 			reg = <0x0 0x120c0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_MCLK_INNER>,
-				<&clkgen JH7110_I2STX_4CH1_BCLK_MST>,
-                                <&clkgen JH7110_I2STX_4CH1_LRCK_MST>,
-                                <&clkgen JH7110_MCLK>,
-                                <&clkgen JH7110_I2STX1_4CHBCLK>,
-                                <&clkgen JH7110_I2STX1_4CHLRCK>;
-                        clock-names = "inner", "bclk-mst1",
-                                        "lrck-mst1", "mclk",
-                                        "bclk1", "lrck1";
-                        resets = <&rstgen RSTN_U1_I2STX_4CH_APB>,
-				<&rstgen RSTN_U1_I2STX_4CH_BCLK>;
-                        reset-names = "rst_apb1", "rst_bclk1";
+				 <&clkgen JH7110_I2STX_4CH1_BCLK_MST>,
+				 <&clkgen JH7110_I2STX_4CH1_LRCK_MST>,
+				 <&clkgen JH7110_MCLK>,
+				 <&clkgen JH7110_I2STX1_4CHBCLK>,
+				 <&clkgen JH7110_I2STX1_4CHLRCK>;
+			clock-names = "inner", "bclk-mst1",
+					"lrck-mst1", "mclk",
+					"bclk1", "lrck1";
+			resets = <&rstgen RSTN_U1_I2STX_4CH_APB>,
+				 <&rstgen RSTN_U1_I2STX_4CH_BCLK>;
+			reset-names = "rst_apb1", "rst_bclk1";
 			interrupts = <59>;
 			interrupt-names = "tx";
 			dmas = <&dma 48 1>;
@@ -1163,7 +1148,7 @@
 			status = "disabled";
 		};
 
-		pcie1:pcie@2C000000 {
+		pcie1: pcie@2C000000 {
 			compatible = "plda,pci-xpressrich3-axi";
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -1246,64 +1231,58 @@
 			interrupts = <95>;
 			status = "disabled";
 			clocks = <&clkgen JH7110_NOC_BUS_CLK_CPU_AXI>,
-				<&clkgen JH7110_NOC_BUS_CLK_AXICFG0_AXI>,
-				<&clkgen JH7110_NOC_BUS_CLK_GPU_AXI>,
-				<&clkgen JH7110_NOC_BUS_CLK_VDEC_AXI>,
-				<&clkgen JH7110_NOC_BUS_CLK_VENC_AXI>,
-				<&clkgen JH7110_NOC_BUS_CLK_DISP_AXI>,
-				<&clkgen JH7110_NOC_BUS_CLK_ISP_AXI>,
-				<&clkgen JH7110_NOC_BUS_CLK_STG_AXI>,
-				<&clkgen JH7110_VOUT_SRC>,
-				<&clkgen JH7110_VOUT_TOP_CLK_VOUT_AXI>,
-				<&clkgen JH7110_AHB1>,
-				<&clkgen JH7110_VOUT_TOP_CLK_VOUT_AHB>,
-				<&clkgen JH7110_VOUT_TOP_CLK_HDMITX0_MCLK>,
-				<&clkgen JH7110_I2STX_4CH0_BCLK_MST>,
-
-				<&clkvout JH7110_U0_DC8200_CLK_PIX0>,
-				<&clkvout JH7110_U0_DC8200_CLK_PIX1>,
-				<&clkvout JH7110_U0_DC8200_CLK_AXI>,
-				<&clkvout JH7110_U0_DC8200_CLK_CORE>,
-				<&clkvout JH7110_U0_DC8200_CLK_AHB>;
+				 <&clkgen JH7110_NOC_BUS_CLK_AXICFG0_AXI>,
+				 <&clkgen JH7110_NOC_BUS_CLK_GPU_AXI>,
+				 <&clkgen JH7110_NOC_BUS_CLK_VDEC_AXI>,
+				 <&clkgen JH7110_NOC_BUS_CLK_VENC_AXI>,
+				 <&clkgen JH7110_NOC_BUS_CLK_DISP_AXI>,
+				 <&clkgen JH7110_NOC_BUS_CLK_ISP_AXI>,
+				 <&clkgen JH7110_NOC_BUS_CLK_STG_AXI>,
+				 <&clkgen JH7110_VOUT_SRC>,
+				 <&clkgen JH7110_VOUT_TOP_CLK_VOUT_AXI>,
+				 <&clkgen JH7110_AHB1>,
+				 <&clkgen JH7110_VOUT_TOP_CLK_VOUT_AHB>,
+				 <&clkgen JH7110_VOUT_TOP_CLK_HDMITX0_MCLK>,
+				 <&clkgen JH7110_I2STX_4CH0_BCLK_MST>,
+				 <&clkvout JH7110_U0_DC8200_CLK_PIX0>,
+				 <&clkvout JH7110_U0_DC8200_CLK_PIX1>,
+				 <&clkvout JH7110_U0_DC8200_CLK_AXI>,
+				 <&clkvout JH7110_U0_DC8200_CLK_CORE>,
+				 <&clkvout JH7110_U0_DC8200_CLK_AHB>;
 			clock-names = "noc_cpu","noc_cfg0","noc_gpu","noc_vdec","noc_venc",
-						  "noc_disp","noc_isp","noc_stg","vout_src",
-						  "top_vout_axi","ahb1","top_vout_ahb",
-						  "top_vout_hdmiTX0","i2stx","pix_clk","vout_pix1",
-						  "axi_clk","core_clk","vout_ahb";
+					"noc_disp","noc_isp","noc_stg","vout_src",
+					"top_vout_axi","ahb1","top_vout_ahb",
+					"top_vout_hdmiTX0","i2stx","pix_clk","vout_pix1",
+					"axi_clk","core_clk","vout_ahb";
 
 			resets = <&rstgen RSTN_U0_DOM_VOUT_TOP_SRC>,
-				<&rstgen RSTN_U0_DC8200_AXI>,
-				<&rstgen RSTN_U0_DC8200_AHB>,
-				<&rstgen RSTN_U0_DC8200_CORE>,
-				<&rstgen RSTN_U0_NOC_BUS_CPU_AXI_N>,
-				<&rstgen RSTN_U0_NOC_BUS_AXICFG0_AXI_N>,
-				<&rstgen RSTN_U0_NOC_BUS_APB_BUS_N>,
-				<&rstgen RSTN_U0_NOC_BUS_GPU_AXI_N>,
-				<&rstgen RSTN_U0_NOC_BUS_VDEC_AXI_N>,
-				<&rstgen RSTN_U0_JTAG2APB_PRESETN>,
-				<&rstgen RSTN_U0_NOC_BUS_DISP_AXI_N>,
-				<&rstgen RSTN_U0_NOC_BUS_ISP_AXI_N>,
-				<&rstgen RSTN_U0_NOC_BUS_STG_AXI_N>,
-				<&rstgen RSTN_U0_NOC_BUS_DDRC_N>;
+				 <&rstgen RSTN_U0_DC8200_AXI>,
+				 <&rstgen RSTN_U0_DC8200_AHB>,
+				 <&rstgen RSTN_U0_DC8200_CORE>,
+				 <&rstgen RSTN_U0_NOC_BUS_CPU_AXI_N>,
+				 <&rstgen RSTN_U0_NOC_BUS_AXICFG0_AXI_N>,
+				 <&rstgen RSTN_U0_NOC_BUS_APB_BUS_N>,
+				 <&rstgen RSTN_U0_NOC_BUS_GPU_AXI_N>,
+				 <&rstgen RSTN_U0_NOC_BUS_VDEC_AXI_N>,
+				 <&rstgen RSTN_U0_JTAG2APB_PRESETN>,
+				 <&rstgen RSTN_U0_NOC_BUS_DISP_AXI_N>,
+				 <&rstgen RSTN_U0_NOC_BUS_ISP_AXI_N>,
+				 <&rstgen RSTN_U0_NOC_BUS_STG_AXI_N>,
+				 <&rstgen RSTN_U0_NOC_BUS_DDRC_N>;
 			reset-names = "rst_vout_src","rst_axi","rst_ahb","rst_core",
 					"rst_noc_cpu","rst_noc_axicfg0","rst_noc_apb",
 					"rst_noc_gpu","rst_noc_vdec","rst_jtag2apb",
 					"rst_noc_disp","rst_noc_isp","rst_noc_stg","rst_noc_ddrc";
-
-
 		};
 
 		mipi_dphy: mipi-dphy@295e0000{
 			compatible = "starfive,jh7100-mipi-dphy-tx";
 			reg = <0x0 0x295e0000 0x0 0x10000>;
-			/*clocks = <&uartclk>, <&apb2clk>;*/
-			/*clock-names = "baudclk", "apb_pclk";*/
 			clocks = <&clkvout JH7110_U0_MIPITX_DPHY_CLK_TXESC>;
 			clock-names = "dphy_txesc";
 			resets = <&rstgen RSTN_U0_MIPITX_DPHY_SYS>,
-					<&rstgen RSTN_U0_MIPITX_DPHY_TXBYTEHS>;
-			reset-names = "dphy_sys",
-						"dphy_txbytehs";
+				 <&rstgen RSTN_U0_MIPITX_DPHY_TXBYTEHS>;
+			reset-names = "dphy_sys", "dphy_txbytehs";
 			#phy-cells = <0>;
 			status = "disabled";
 		};
@@ -1312,28 +1291,19 @@
 			compatible = "cdns,dsi";
 			reg = <0x0 0x295d0000 0x0 0x10000>;
 			reg-names = "dsi";
-			/*clocks = <&apb1clk>, <&apb2clk>;*/
-			/*clock-names = "dsi_p_clk", "dsi_sys_clk";*/
 			clocks = <&clkvout JH7110_U0_CDNS_DSITX_CLK_SYS>,
-					<&clkvout JH7110_U0_CDNS_DSITX_CLK_APB>,
-					<&clkvout JH7110_U0_CDNS_DSITX_CLK_TXESC>,
-					<&clkvout JH7110_U0_CDNS_DSITX_CLK_DPI>;
-			clock-names = "sys",
-						"apb",
-						"txesc",
-						"dpi";
+				 <&clkvout JH7110_U0_CDNS_DSITX_CLK_APB>,
+				 <&clkvout JH7110_U0_CDNS_DSITX_CLK_TXESC>,
+				 <&clkvout JH7110_U0_CDNS_DSITX_CLK_DPI>;
+			clock-names = "sys", "apb", "txesc", "dpi";
 			resets = <&rstgen RSTN_U0_CDNS_DSITX_DPI>,
-					<&rstgen RSTN_U0_CDNS_DSITX_APB>,
-					<&rstgen RSTN_U0_CDNS_DSITX_RXESC>,
-					<&rstgen RSTN_U0_CDNS_DSITX_SYS>,
-					<&rstgen RSTN_U0_CDNS_DSITX_TXBYTEHS>,
-					<&rstgen RSTN_U0_CDNS_DSITX_TXESC>;
-			reset-names = "dsi_dpi",
-						"dsi_apb",
-						"dsi_rxesc",
-						"dsi_sys",
-						"dsi_txbytehs",
-						"dsi_txesc";
+				 <&rstgen RSTN_U0_CDNS_DSITX_APB>,
+				 <&rstgen RSTN_U0_CDNS_DSITX_RXESC>,
+				 <&rstgen RSTN_U0_CDNS_DSITX_SYS>,
+				 <&rstgen RSTN_U0_CDNS_DSITX_TXBYTEHS>,
+				 <&rstgen RSTN_U0_CDNS_DSITX_TXESC>;
+			reset-names = "dsi_dpi", "dsi_apb", "dsi_rxesc",
+					"dsi_sys", "dsi_txbytehs", "dsi_txesc";
 			phys = <&mipi_dphy>;
 			phy-names = "dphy";
 			status = "disabled";
@@ -1360,25 +1330,14 @@
 			/*pinctrl-0 = <&hdmi_ctl>;*/
 			status = "disabled";
 			clocks = <&clkvout JH7110_U0_HDMI_TX_CLK_SYS>,
-					<&clkvout JH7110_U0_HDMI_TX_CLK_MCLK>,
-					<&clkvout JH7110_U0_HDMI_TX_CLK_BCLK>;
-			clock-names = "sysclk",
-						"mclk",
-						"bclk";
+				 <&clkvout JH7110_U0_HDMI_TX_CLK_MCLK>,
+				 <&clkvout JH7110_U0_HDMI_TX_CLK_BCLK>;
+			clock-names = "sysclk", "mclk", "bclk";
 			resets = <&rstgen RSTN_U0_HDMI_TX_HDMI>;
 			reset-names = "hdmi_tx";
-
-			hdmi_in: port {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					hdmi_in_lcdc: endpoint@0 {
-							reg = <0>;
-							remote-endpoint = <&dc_out_dpi1>;
-					};
-			};
 		};
 
-		sound:snd-card {
+		sound: snd-card {
 			compatible = "simple-audio-card";
 			simple-audio-card,name = "Starfive-Multi-Sound-Card";
 			#address-cells = <1>;
@@ -1407,8 +1366,8 @@
 				<0x0 0xc0111000 0x0 0x0001f000>;
 			reg-names = "ecmd", "espace";
 			clocks = <&clkgen JH7110_E2_RTC_CLK>,
-				<&clkgen JH7110_E2_CLK_CORE>,
-				<&clkgen JH7110_E2_CLK_DBG>;
+				 <&clkgen JH7110_E2_CLK_CORE>,
+				 <&clkgen JH7110_E2_CLK_DBG>;
 			clock-names = "clk_rtc", "clk_core", "clk_dbg";
 			resets = <&rstgen RSTN_U0_E24_CORE>;
 			reset-names = "e24_core";
@@ -1433,7 +1392,7 @@
 			clocks = <&clkgen JH7110_HIFI4_CLK_CORE>;
 			clock-names = "core_clk";
 			resets = <&rstgen RSTN_U0_HIFI4_CORE>,
-			<&rstgen RSTN_U0_HIFI4_AXI>;
+				 <&rstgen RSTN_U0_HIFI4_AXI>;
 			reset-names = "rst_core","rst_axi";
 			firmware-name = "hifi4_elf";
 			#address-cells = <1>;
@@ -1444,6 +1403,5 @@
 			dsp@0 {
 			};
 		};
-
 	};
 };
