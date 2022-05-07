@@ -63,6 +63,15 @@ struct io_uring_sqe {
 	__u64	__pad2[2];
 };
 
+/*
+ * If sqe->file_index is set to this for opcodes that instantiate a new
+ * direct descriptor (like openat/openat2/accept), then io_uring will allocate
+ * an available direct descriptor instead of having the application pass one
+ * in. The picked direct descriptor will be returned in cqe->res, or -ENFILE
+ * if the space is full.
+ */
+#define IORING_FILE_INDEX_ALLOC		(~0U)
+
 enum {
 	IOSQE_FIXED_FILE_BIT,
 	IOSQE_IO_DRAIN_BIT,

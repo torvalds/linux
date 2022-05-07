@@ -4697,7 +4697,7 @@ static int io_openat2_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return __io_openat_prep(req, sqe);
 }
 
-static int __maybe_unused io_file_bitmap_get(struct io_ring_ctx *ctx)
+static int io_file_bitmap_get(struct io_ring_ctx *ctx)
 {
 	struct io_file_table *table = &ctx->file_table;
 	unsigned long nr = ctx->nr_user_files;
@@ -4720,6 +4720,36 @@ static int __maybe_unused io_file_bitmap_get(struct io_ring_ctx *ctx)
 	} while (1);
 
 	return -ENFILE;
+}
+
+static int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
+			       struct file *file, unsigned int file_slot)
+{
+	bool alloc_slot = file_slot == IORING_FILE_INDEX_ALLOC;
+	struct io_ring_ctx *ctx = req->ctx;
+	int ret;
+
+	if (alloc_slot) {
+		io_ring_submit_lock(ctx, issue_flags);
+		ret = io_file_bitmap_get(ctx);
+		if (unlikely(ret < 0)) {
+			io_ring_submit_unlock(ctx, issue_flags);
+			return ret;
+		}
+
+		file_slot = ret;
+	} else {
+		file_slot--;
+	}
+
+	ret = io_install_fixed_file(req, file, issue_flags, file_slot);
+	if (alloc_slot) {
+		io_ring_submit_unlock(ctx, issue_flags);
+		if (!ret)
+			return file_slot;
+	}
+
+	return ret;
 }
 
 static int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
@@ -4777,8 +4807,8 @@ static int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 	if (!fixed)
 		fd_install(ret, file);
 	else
-		ret = io_install_fixed_file(req, file, issue_flags,
-					    req->open.file_slot - 1);
+		ret = io_fixed_fd_install(req, issue_flags, file,
+						req->open.file_slot);
 err:
 	putname(req->open.filename);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
