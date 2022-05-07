@@ -521,19 +521,22 @@
 	 */
 	hd3ss460_pol: pol-low-state {
 		pins = "gpio8";
-		drive-strength = <3>;
+		function = PMIC_GPIO_FUNC_NORMAL;
+		qcom,drive-strength = <3>;
 		bias-pull-down;
 	};
 
 	hd3ss460_amsel: amsel-high-state {
 		pins = "gpio9";
-		drive-strength = <1>;
+		function = PMIC_GPIO_FUNC_NORMAL;
+		qcom,drive-strength = <1>;
 		bias-pull-up;
 	};
 
 	hd3ss460_en: en-high-state {
 		pins = "gpio10";
-		drive-strength = <1>;
+		function = PMIC_GPIO_FUNC_NORMAL;
+		qcom,drive-strength = <1>;
 		bias-pull-up;
 	};
 };
