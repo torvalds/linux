@@ -4468,15 +4468,8 @@ rkisp_params_info2ddr_cfg_v32(struct rkisp_isp_params_vdev *params_vdev, void *a
 	size = wsize * vsize;
 	for (i = 0; i < cfg->buf_cnt; i++) {
 		buf = &priv_val->buf_info[i];
-		if (buf->mem_priv) {
-			if (buf->size < size) {
-				rkisp_free_buffer(dev, buf);
-			} else {
-				*(u32 *)buf->vaddr = RKISP_INFO2DDR_BUF_INIT;
-				cfg->buf_fd[i] = buf->dma_fd;
-				continue;
-			}
-		}
+		if (buf->mem_priv)
+			rkisp_free_buffer(dev, buf);
 		buf->size = size;
 		buf->is_need_dbuf = true;
 		buf->is_need_dmafd = true;
@@ -4534,7 +4527,7 @@ rkisp_params_stream_stop_v32(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->buf_info_owner = 0;
 	priv_val->buf_info_cnt = 0;
 	priv_val->buf_info_idx = -1;
-	for (i = 0; i < priv_val->buf_info_cnt; i++)
+	for (i = 0; i < RKISP_INFO2DDR_BUF_MAX; i++)
 		rkisp_free_buffer(ispdev, &priv_val->buf_info[i]);
 }
 
