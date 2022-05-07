@@ -429,3 +429,7 @@
 	dr_mode = "host"; /*host or peripheral*/
 	status = "okay";
 };
+
+&xrp {
+	status = "okay";
+};
