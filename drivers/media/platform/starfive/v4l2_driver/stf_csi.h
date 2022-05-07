@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * Copyright (C) 2021 StarFive Technology Co., Ltd.
  */
 #ifndef STF_CSI_H

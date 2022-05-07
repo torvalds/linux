@@ -8,13 +8,13 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-static void vin_intr_clear(void __iomem * sysctrl_base)
+static void vin_intr_clear(void __iomem *sysctrl_base)
 {
-	reg_set_bit(sysctrl_base, SYSCONSAIF_SYSCFG_28, 
-		U0_VIN_CNFG_AXIWR0_INTR_CLEAN, 
+	reg_set_bit(sysctrl_base, SYSCONSAIF_SYSCFG_28,
+		U0_VIN_CNFG_AXIWR0_INTR_CLEAN,
 		0x1);
-	reg_set_bit(sysctrl_base, SYSCONSAIF_SYSCFG_28, 
-		U0_VIN_CNFG_AXIWR0_INTR_CLEAN, 
+	reg_set_bit(sysctrl_base, SYSCONSAIF_SYSCFG_28,
+		U0_VIN_CNFG_AXIWR0_INTR_CLEAN,
 		0x0);
 }
 
@@ -125,7 +125,7 @@ static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 
 	print_reg(ST_VIN, vin->sysctrl_base, SYSCONSAIF_SYSCFG_20);
 	if (on) {
-		reg_set(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);	  
+		reg_set(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
 	} else {
 		reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 		usleep_range(500, 1000);
@@ -144,20 +144,20 @@ static void stf_vin_wr_irq_enable(struct stf_vin2_dev *vin_dev,
 
 	if (enable) {
 		value = ~(0x1 << 1);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28, 
-			U0_VIN_CNFG_AXIWR0_MASK, 
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
+			U0_VIN_CNFG_AXIWR0_MASK,
 			value);
 	} else {
 		/* clear vin interrupt */
 		value = 0x1 << 1;
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28, 
-			U0_VIN_CNFG_AXIWR0_INTR_CLEAN, 
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
+			U0_VIN_CNFG_AXIWR0_INTR_CLEAN,
 			0x1);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28, 
-			U0_VIN_CNFG_AXIWR0_INTR_CLEAN, 
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
+			U0_VIN_CNFG_AXIWR0_INTR_CLEAN,
 			0x0);
-		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28, 
-			U0_VIN_CNFG_AXIWR0_MASK, 
+		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
+			U0_VIN_CNFG_AXIWR0_MASK,
 			value);
 	}
 }
@@ -165,7 +165,7 @@ static void stf_vin_wr_irq_enable(struct stf_vin2_dev *vin_dev,
 static void stf_vin_wr_rd_set_addr(struct stf_vin2_dev *vin_dev,
 		dma_addr_t wr_addr, dma_addr_t rd_addr)
 {
-#if 0
+#ifdef UNUSED_CODE
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
 	/* set the start address*/
@@ -210,8 +210,7 @@ void stf_vin_isp_set_yuv_addr(struct stf_vin2_dev *vin_dev, int isp_id,
 void stf_vin_isp_set_raw_addr(struct stf_vin2_dev *vin_dev, int isp_id,
 				dma_addr_t raw_addr)
 {
-
-#if 0
+#ifdef UNUSED_CODE
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 	void __iomem *ispbase =
 		isp_id ? vin->isp_isp1_base : vin->isp_isp0_base;

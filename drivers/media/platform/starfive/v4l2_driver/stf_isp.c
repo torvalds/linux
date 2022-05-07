@@ -87,10 +87,10 @@ static int isp_set_ctrl_white_balance(struct stf_isp_dev *isp_dev, int awb)
 		u16 blue = (u16)ctrls->blue_balance->val;
 
 		st_debug(ST_ISP, "red = 0x%x, blue = 0x%x\n", red, blue);
-		// isp_dev->hw_ops->isp_set_awb_r_gain(isp_dev, red);
-		// if (ret)
-		// 	return ret;
-		// isp_dev->hw_ops->isp_set_awb_b_gain(isp_dev, blue);
+		//isp_dev->hw_ops->isp_set_awb_r_gain(isp_dev, red);
+		//if (ret)
+		//	return ret;
+		//isp_dev->hw_ops->isp_set_awb_b_gain(isp_dev, blue);
 	}
 
 	return ret;
@@ -404,7 +404,7 @@ static void isp_try_format(struct stf_isp_dev *isp_dev,
 
 		fmt->width = clamp_t(u32,
 				fmt->width, 8, STFCAMSS_FRAME_MAX_WIDTH);
-		fmt->width &= ~0x7 ;
+		fmt->width &= ~0x7;
 		fmt->height = clamp_t(u32,
 				fmt->height, 1, STFCAMSS_FRAME_MAX_HEIGHT_PIX);
 
@@ -798,7 +798,7 @@ static int stf_isp_load_setfile(struct stf_isp_dev *isp_dev, char *file_name)
 	isp_dev->setfile.state = 1;
 	regval_num = (int *)&buf[fw->size - sizeof(unsigned int)];
 	isp_dev->setfile.settings.regval_num = *regval_num;
-	isp_dev->setfile.settings.regval = (regval_t *)buf;
+	isp_dev->setfile.settings.regval = (struct regval_t *)buf;
 	mutex_unlock(&isp_dev->setfile_lock);
 
 	st_debug(ST_ISP, "stf_isp setfile loaded size: %zu B, reg_nul: %d\n",

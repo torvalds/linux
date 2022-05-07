@@ -284,29 +284,29 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 	else
 		return 0;
 
-    switch (csi_dev->s_type) {
-    case SENSOR_VIN:
-    	st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
+	switch (csi_dev->s_type) {
+	case SENSOR_VIN:
+		st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
 		break;
-    case SENSOR_ISP0:
-        reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
+	case SENSOR_ISP0:
+		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(7)|BIT(6),
-			0<<6);        
+			0<<6);
 		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(11)|BIT(10)|BIT(9)|BIT(8),
 			0<<8);
-        reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
+		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(12), 0<<12);
-        reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
+		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(16)|BIT(15)|BIT(14)|BIT(13),
 			0<<13);
 		break;
-    case SENSOR_ISP1:
-    	st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
+	case SENSOR_ISP1:
+		st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
 		break;
-    default:
+	default:
 		break;
-    }
+	}
 
 	if (on)
 		csi2rx_start(csi_dev, reg_base);

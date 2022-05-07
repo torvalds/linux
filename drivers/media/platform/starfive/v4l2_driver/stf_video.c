@@ -129,10 +129,11 @@ static int __video_try_fmt(struct stfcamss_video *video,
 				pix_mp->colorspace, pix_mp->ycbcr_enc);
 		pix_mp->xfer_func =
 			V4L2_MAP_XFER_FUNC_DEFAULT(pix_mp->colorspace);
-		st_info(ST_VIDEO, "w, h = %d, %d, bpp = %d, "
-			"i = %d, p = %d, s = 0x%x\n",
-			pix_mp->width, pix_mp->height, fi->bpp[0], i,
-			pix_mp->num_planes, pix_mp->plane_fmt[0].sizeimage);
+
+		st_info(ST_VIDEO, "w, h = %d, %d, bpp = %d\n", pix_mp->width,
+				pix_mp->height, fi->bpp[0]);
+		st_info(ST_VIDEO, "i = %d, p = %d, s = 0x%x\n", i,
+				pix_mp->num_planes, pix_mp->plane_fmt[0].sizeimage);
 
 	} else {
 		for (i = 0; i < video->nformats; i++)
@@ -171,10 +172,10 @@ static int __video_try_fmt(struct stfcamss_video *video,
 				pix->colorspace, pix->ycbcr_enc);
 		pix->xfer_func =
 			V4L2_MAP_XFER_FUNC_DEFAULT(pix->colorspace);
-		st_info(ST_VIDEO, "w, h = %d, %d, bpp = %d, "
-				"i = %d, s = 0x%x\n",
-				pix->width, pix->height,
-				fi->bpp[0], i, pix->sizeimage);
+
+		st_info(ST_VIDEO, "w, h = %d, %d, bpp = %d\n", pix->width,
+				pix->height, fi->bpp[0]);
+		st_info(ST_VIDEO, "i = %d, s = 0x%x\n", i, pix->sizeimage);
 	}
 	return 0;
 }
@@ -664,14 +665,15 @@ static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 	}
 
 	if (i < 0)
-	        return -EINVAL;
+		return -EINVAL;
 
 	f->pixelformat = video->formats[i].pixelformat;
 
 	return 0;
 }
 
-static struct v4l2_subdev *get_senname(struct file *file, const char *name) {
+static struct v4l2_subdev *get_senname(struct file *file, const char *name)
+{
 	struct stfcamss_video *video = video_drvdata(file);
 	struct video_device *vdev = &video->vdev;
 	struct media_entity *entity = &vdev->entity;
@@ -687,13 +689,13 @@ static struct v4l2_subdev *get_senname(struct file *file, const char *name) {
 		pad = media_entity_remote_pad(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
-		entity = pad->entity;		
-	}	
-	if (strncmp(vin_name, entity->name, 13)==0) {
+		entity = pad->entity;
+	}
+	if (!strncmp(vin_name, entity->name, 13)) {
 		st_err(ST_VIDEO, "===== [%s] Please configure pipeline first =====\n", name);
-		return NULL;	
-	} 
-	subdev = media_entity_to_v4l2_subdev(entity);		
+		return NULL;
+	}
+	subdev = media_entity_to_v4l2_subdev(entity);
 
 	return subdev;
 }
@@ -726,13 +728,13 @@ static int video_enum_framesizes(struct file *file, void *fh,
 		code.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		ret = v4l2_subdev_call(subdev, pad, enum_mbus_code, NULL, &code);
 		if (ret < 0)
-				return -EINVAL;
+			return -EINVAL;
 		fse.index = fsize->index;
 		fse.code = code.code;
 		fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		ret = v4l2_subdev_call(subdev, pad, enum_frame_size, NULL,&fse);
+		ret = v4l2_subdev_call(subdev, pad, enum_frame_size, NULL, &fse);
 		if (ret < 0)
-			return -EINVAL;	
+			return -EINVAL;
 		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 		fsize->discrete.width = fse.min_width;
 		fsize->discrete.height = fse.min_height;
@@ -873,11 +875,11 @@ static int video_pipeline_s_fmt(struct stfcamss_video *video,
 				break;
 			if (mf->code != code ||
 			    mf->width != width || mf->height != height) {
-				st_warn(ST_VIDEO,
-					"\"%s\":%d pad fmt has been"
-					" changed to 0x%x %ux%u\n",
-					subdev->name, fmt.pad, mf->code,
-					mf->width, mf->height);
+				// st_warn(ST_VIDEO,
+				//	"\"%s\":%d pad fmt has been"
+				//	" changed to 0x%x %ux%u\n",
+				//	subdev->name, fmt.pad, mf->code,
+				//	mf->width, mf->height);
 			}
 		}
 
@@ -886,12 +888,12 @@ static int video_pipeline_s_fmt(struct stfcamss_video *video,
 	media_graph_walk_cleanup(&graph);
 
 	if (ret < 0 && ret != -ENOIOCTLCMD) {
-		st_err(ST_VIDEO,
-			"%s: Failed to set fmt 0x%x %ux%u"
-			" on \"%s\":%d pad (%d)\n",
-			__func__, mf->code,
-			mf->width, mf->height,
-			subdev->name, fmt.pad, ret);
+		// st_err(ST_VIDEO,
+		//	"%s: Failed to set fmt 0x%x %ux%u"
+		//	" on \"%s\":%d pad (%d)\n",
+		//	__func__, mf->code,
+		//	mf->width, mf->height,
+		//	subdev->name, fmt.pad, ret);
 		return ret;
 	}
 
@@ -1187,12 +1189,12 @@ int video_g_ctrl(struct file *file, void *fh,
 	int ret;
 
 	subdev = get_senname(file, __func__);
-	if( subdev == NULL)
-		return -EINVAL; 
+	if (!subdev)
+		return -EINVAL;
 
 	ret = v4l2_g_ctrl(subdev->ctrl_handler, ctrls);
 
-	return ret;	
+	return ret;
 }
 
 static int video_s_ctrl(struct file *file, void *fh,
@@ -1203,19 +1205,19 @@ static int video_s_ctrl(struct file *file, void *fh,
 	int ret;
 
 	subdev = get_senname(file, __func__);
-	if( subdev == NULL)
-		return -EINVAL; 
+	if (!subdev)
+		return -EINVAL;
 
-	vfh = container_of(&subdev->ctrl_handler, struct v4l2_fh , ctrl_handler);
+	vfh = container_of(&subdev->ctrl_handler, struct v4l2_fh, ctrl_handler);
 	if (!vfh->ctrl_handler)
 		return -ENOTTY;
 
-	ret = v4l2_s_ctrl(vfh,subdev->ctrl_handler, ctrl);
-	
+	ret = v4l2_s_ctrl(vfh, subdev->ctrl_handler, ctrl);
+
 	return ret;
 }
 
-#if 0
+#ifdef UNUSED_CODE
 static int video_query_ext_ctrl(struct file *file, void *fh,
 				    struct v4l2_query_ext_ctrl *qec)
 {
@@ -1223,8 +1225,8 @@ static int video_query_ext_ctrl(struct file *file, void *fh,
 	int ret;
 
 	subdev = get_senname(file, __func__);
-	if( subdev == NULL)
-		return -EINVAL; 
+	if (!subdev)
+		return -EINVAL;
 
 	ret = v4l2_query_ext_ctrl(subdev->ctrl_handler, qec);
 
@@ -1241,52 +1243,35 @@ static int video_g_ext_ctrls(struct file *file, void *fh,
 	int ret;
 
 	subdev = get_senname(file, __func__);
-	if( subdev == NULL)
-		return -EINVAL; 
+	if (!subdev)
+		return -EINVAL;
 
 	ret = v4l2_g_ext_ctrls(subdev->ctrl_handler,
 						vdev, subdev->v4l2_dev->mdev, ctrls);
-	
+
 	return ret;
 }
 
 static int video_queryctrl(struct file *file, void *fh,
 			       struct v4l2_queryctrl *qc)
 {
-#if 1
 	struct stfcamss_video *video = video_drvdata(file);
 	struct video_device *vdev = &video->vdev;
 	struct media_entity *entity = &vdev->entity;
 	struct media_entity *sensor;
 	struct v4l2_subdev *subdev;
 	int ret = 0;
-	
+
 	sensor = stfcamss_find_sensor(entity);
-	if(sensor) {
+	if (sensor) {
 		subdev = media_entity_to_v4l2_subdev(sensor);
-		ret= v4l2_queryctrl(subdev->ctrl_handler, qc);
+		ret = v4l2_queryctrl(subdev->ctrl_handler, qc);
 	} else {
 	//	st_err(ST_VIDEO, "== [%s] Please configure pipeline first ==\n", __func__);
-		return -EINVAL; 
+		return -EINVAL;
 	}
 
 	return ret;
-#else
-	struct stfcamss_video *video = video_drvdata(file);
-	struct video_device *vdev = &video->vdev;
-	struct v4l2_subdev *subdev;
-	struct v4l2_fh *vfh;
-	int ret;
-
-	subdev = get_senname(file, __func__);
-	if( subdev == NULL )
-		return -EINVAL; 
-
-	vfh = container_of(&subdev->ctrl_handler, struct v4l2_fh , ctrl_handler);
-	ret= v4l2_queryctrl(subdev->ctrl_handler, qc);
-
-	return ret;
-#endif
 }
 
 static int video_s_ext_ctrls(struct file *file, void *fh,
@@ -1299,10 +1284,10 @@ static int video_s_ext_ctrls(struct file *file, void *fh,
 	int ret;
 
 	subdev = get_senname(file, __func__);
-	if( subdev == NULL )
-		return -EINVAL; 
+	if (!subdev)
+		return -EINVAL;
 
-	vfh = container_of(&subdev->ctrl_handler, struct v4l2_fh , ctrl_handler);
+	vfh = container_of(&subdev->ctrl_handler, struct v4l2_fh, ctrl_handler);
 	if (!vfh->ctrl_handler)
 		return -ENOTTY;
 	ret = v4l2_s_ext_ctrls(vfh, subdev->ctrl_handler,
@@ -1321,10 +1306,10 @@ static int video_try_ext_ctrls(struct file *file, void *fh,
 	int ret;
 
 	subdev = get_senname(file, __func__);
-	if( subdev == NULL )
-		return -EINVAL; 
+	if (!subdev)
+		return -EINVAL;
 
-	vfh = container_of(&subdev->ctrl_handler, struct v4l2_fh , ctrl_handler);
+	vfh = container_of(&subdev->ctrl_handler, struct v4l2_fh, ctrl_handler);
 	if (!vfh->ctrl_handler)
 		return -ENOTTY;
 	ret = v4l2_try_ext_ctrls(vfh->ctrl_handler,
@@ -1333,7 +1318,7 @@ static int video_try_ext_ctrls(struct file *file, void *fh,
 	return ret;
 }
 
-#if 0
+#ifdef UNUSED_CODE
 static int video_querymenu(struct file *file, void *fh,
 			       struct v4l2_querymenu *qm)
 {
@@ -1341,8 +1326,8 @@ static int video_querymenu(struct file *file, void *fh,
 	int ret;
 
 	subdev = get_senname(file, __func__);
-	if( subdev == NULL )
-		return -EINVAL; 
+	if (!subdev)
+		return -EINVAL;
 	ret = v4l2_querymenu(subdev->ctrl_handler, qm);
 
 	return ret;
@@ -1625,7 +1610,8 @@ int stf_video_register(struct stfcamss_video *video,
 	vdev->vfl_dir = VFL_DIR_RX;
 	vdev->queue = &video->vb2_q;
 	vdev->lock = &video->lock;
-	strlcpy(vdev->name, name, sizeof(vdev->name));
+	//strlcpy(vdev->name, name, sizeof(vdev->name));
+	strscpy(vdev->name, name, sizeof(vdev->name));
 
 	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {

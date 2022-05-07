@@ -19,18 +19,18 @@ static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 	}
 	mutex_lock(&count_lock);
 	if (on) {
-        reg_set_bit(vin->rstgen_base,
-            M31DPHY_APBCFGSAIF__SYSCFG_188,
-            BIT(6), BIT(6));
+		reg_set_bit(vin->rstgen_base,
+			M31DPHY_APBCFGSAIF__SYSCFG_188,
+			BIT(6), BIT(6));
 //need to check one or two mipi input
 #ifdef USE_CSIDPHY_ONE_CLK_MODE	//one mipi input
-        reg_set_bit(vin->rstgen_base,
-            M31DPHY_APBCFGSAIF__SYSCFG_188,
-            BIT(7), BIT(7));
+		reg_set_bit(vin->rstgen_base,
+			M31DPHY_APBCFGSAIF__SYSCFG_188,
+			BIT(7), BIT(7));
 #else							//two mipi input
-        reg_set_bit(vin->rstgen_base,
-            M31DPHY_APBCFGSAIF__SYSCFG_188,
-            BIT(7), 0x2<<7);
+		reg_set_bit(vin->rstgen_base,
+			M31DPHY_APBCFGSAIF__SYSCFG_188,
+			BIT(7), 0x2<<7);
 #endif
 		count++;
 	} else {
@@ -156,113 +156,78 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 
 	id = cfg->num_clks == 2 ? 1 : 0;
 
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(0), 0<<0);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(1), 0<<1);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(2), 0<<2);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(3), 0<<3);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(4), 0<<4);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(5), 0<<5);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(0), 0<<0);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(1), 0<<1);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(2), 0<<2);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(3), 0<<3);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(4), 0<<4);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(5), 0<<5);
 
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(8), 1<<8);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(9), 1<<9);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(10), 1<<10);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(11), 1<<11);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(17)|BIT(16)|BIT(15)|BIT(14)|BIT(13)|BIT(12),
-        0<<12);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(18), 0<<18);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(19), 0<<19);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(8), 1<<8);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(9), 1<<9);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(10), 1<<10);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(11), 1<<11);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(17)|BIT(16)|BIT(15)|BIT(14)|BIT(13)|BIT(12),
+		0<<12);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(18), 0<<18);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(19), 0<<19);
 
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(22)|BIT(21)|BIT(20), cfg->clock_lane<<20);          //clock lane 0
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(25)|BIT(24)|BIT(23), cfg->clock1_lane<<23);         //clock lane 1
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(22)|BIT(21)|BIT(20), cfg->clock_lane<<20);          //clock lane 0
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(25)|BIT(24)|BIT(23), cfg->clock1_lane<<23);         //clock lane 1
 
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(28)|BIT(27)|BIT(26), cfg->data_lanes[0]<<26);       //data lane 0
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_188,
-        BIT(31)|BIT(30)|BIT(29), cfg->data_lanes[1]<<29);       //data lane 1
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_192,
-        BIT(2)|BIT(1)|BIT(0), cfg->data_lanes[2]<<0);           //data lane 2
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_192,
-        BIT(5)|BIT(4)|BIT(3), cfg->data_lanes[3]<<3);           //data lane 3
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(28)|BIT(27)|BIT(26), cfg->data_lanes[0]<<26);       //data lane 0
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(31)|BIT(30)|BIT(29), cfg->data_lanes[1]<<29);       //data lane 1
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_192,
+		BIT(2)|BIT(1)|BIT(0), cfg->data_lanes[2]<<0);           //data lane 2
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_192,
+		BIT(5)|BIT(4)|BIT(3), cfg->data_lanes[3]<<3);           //data lane 3
 
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_192,
-        BIT(6), 0<<6);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_192,
-        BIT(11)|BIT(10)|BIT(9)|BIT(8)|BIT(7), 0<<7);
-    reg_set_bit(vin->rstgen_base,
-        M31DPHY_APBCFGSAIF__SYSCFG_200,
-        BIT(8), 0<<8);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_192,
+		BIT(6), 0<<6);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_192,
+		BIT(11)|BIT(10)|BIT(9)|BIT(8)|BIT(7), 0<<7);
+	reg_set_bit(vin->rstgen_base,
+		M31DPHY_APBCFGSAIF__SYSCFG_200,
+		BIT(8), 0<<8);
 
-#if 0
-	reg = reg_read(vin->sysctrl_base, SYSCTRL_REG4);
-
-	st_debug(ST_CSIPHY, "id = %d, clock_lane = %d, SYSCTRL_REG4: 0x%x\n",
-			id, cfg->clock_lane, reg);
-	st_debug(ST_CSIPHY, "csiphy_dev: csi_id = %d, id = %d\n",
-			csiphy_dev->csi_id, csiphy_dev->id);
-
-	reg = set_bits(reg, id, 0, 0x1);
-	reg = set_bits(reg, cfg->clock_lane, 1, 0x7 << 1);
-	reg = set_bits(reg, cfg->lane_polarities[0], 19, 0x1 << 19);
-	reg = set_bits(reg, cfg->clock1_lane, 4, 0x7 << 4);
-	reg = set_bits(reg, cfg->lane_polarities[1], 20, 0x1 << 20);
-
-	for (i = 0; i < cfg->num_data_lanes; i++) {
-		reg = set_bits(reg, cfg->data_lanes[i], (7 + i * 3),
-				0x7 << (7 + i * 3));
-
-		reg = set_bits(reg, !!cfg->lane_polarities[i + 2],
-					(21 + i), 0x1 << (21 + i));
-	}
-
-	reg_write(vin->sysctrl_base, SYSCTRL_REG4, reg);
-
-	reg = reg_read(vin->sysctrl_base, SYSCTRL_DPHY_CTRL);
-	for (i = 0; i < cfg->num_data_lanes; i++) {
-		reg = set_bits(reg, 1, (11 + cfg->data_lanes[i]),
-				0x1 << (11 + cfg->data_lanes[i]));
-	}
-
-	reg_write(vin->sysctrl_base, SYSCTRL_DPHY_CTRL, reg);
-
-	print_reg(ST_CSIPHY, vin->sysctrl_base, SYSCTRL_REG4);
-	print_reg(ST_CSIPHY, vin->sysctrl_base, SYSCTRL_DPHY_CTRL);
-#endif
 	return 0;
 }
 
