@@ -345,7 +345,7 @@
 };
 
 &pm8998_gpio {
-	vol_up_pin_a: vol-up-active {
+	vol_up_pin_a: vol-up-active-state {
 		pins = "gpio6";
 		function = "normal";
 		bias-pull-up;
@@ -353,7 +353,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
-	cam_focus_pin_a: cam-focus-btn-active {
+	cam_focus_pin_a: cam-focus-btn-active-state {
 		pins = "gpio7";
 		function = "normal";
 		bias-pull-up;
@@ -361,7 +361,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
-	cam_snapshot_pin_a: cam-snapshot-btn-active {
+	cam_snapshot_pin_a: cam-snapshot-btn-active-state {
 		pins = "gpio8";
 		function = "normal";
 		bias-pull-up;

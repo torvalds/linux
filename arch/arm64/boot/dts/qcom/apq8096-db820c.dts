@@ -555,7 +555,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ls_exp_gpio_f &bt_en_gpios>;
 
-	ls_exp_gpio_f: pm8994_gpio5 {
+	ls_exp_gpio_f: pm8994-gpio5-state {
 		pinconf {
 			pins = "gpio5";
 			output-low;
@@ -563,7 +563,7 @@
 		};
 	};
 
-	bt_en_gpios: bt_en_gpios {
+	bt_en_gpios: bt-en-pios-state {
 		pinconf {
 			pins = "gpio19";
 			function = PMIC_GPIO_FUNC_NORMAL;
@@ -574,7 +574,7 @@
 		};
 	};
 
-	wlan_en_gpios: wlan_en_gpios {
+	wlan_en_gpios: wlan-en-gpios-state {
 		pinconf {
 			pins = "gpio8";
 			function = PMIC_GPIO_FUNC_NORMAL;
@@ -585,7 +585,7 @@
 		};
 	};
 
-	audio_mclk: clk_div1 {
+	audio_mclk: clk-div1-state {
 		pinconf {
 			pins = "gpio15";
 			function = "func1";
@@ -593,7 +593,7 @@
 		};
 	};
 
-	volume_up_gpio: pm8996_gpio2 {
+	volume_up_gpio: pm8996-gpio2-state {
 		pinconf {
 			pins = "gpio2";
 			function = "normal";
@@ -605,7 +605,7 @@
 		};
 	};
 
-	divclk4_pin_a: divclk4 {
+	divclk4_pin_a: divclk4-state {
 		pinconf {
 			pins = "gpio18";
 			function = PMIC_GPIO_FUNC_FUNC2;
@@ -615,7 +615,7 @@
 		};
 	};
 
-	usb3_vbus_det_gpio: pm8996_gpio22 {
+	usb3_vbus_det_gpio: pm8996-gpio22-state {
 		pinconf {
 			pins = "gpio22";
 			function = PMIC_GPIO_FUNC_NORMAL;
@@ -671,7 +671,7 @@
 		"NC",
 		"NC";
 
-	usb2_vbus_det_gpio: pmi8996_gpio6 {
+	usb2_vbus_det_gpio: pmi8996-gpio6-state {
 		pinconf {
 			pins = "gpio6";
 			function = PMIC_GPIO_FUNC_NORMAL;

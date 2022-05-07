@@ -257,7 +257,7 @@
 		"UIM_BATT_ALARM",	/* GPIO_21 */
 		"NC";			/* GPIO_22 */
 
-	divclk2_pin_a: divclk2 {
+	divclk2_pin_a: divclk2-state {
 		pins = "gpio16";
 		function = PMIC_GPIO_FUNC_FUNC2;
 		bias-disable;

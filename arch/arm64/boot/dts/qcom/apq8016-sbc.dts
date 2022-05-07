@@ -773,7 +773,7 @@
 		"USB_HUB_RESET_N_PM",
 		"USB_SW_SEL_PM";
 
-	usb_hub_reset_pm: usb-hub-reset-pm {
+	usb_hub_reset_pm: usb-hub-reset-pm-state {
 		pins = "gpio3";
 		function = PMIC_GPIO_FUNC_NORMAL;
 
@@ -781,14 +781,14 @@
 		output-high;
 	};
 
-	usb_hub_reset_pm_device: usb-hub-reset-pm-device {
+	usb_hub_reset_pm_device: usb-hub-reset-pm-device-state {
 		pins = "gpio3";
 		function = PMIC_GPIO_FUNC_NORMAL;
 
 		output-low;
 	};
 
-	usb_sw_sel_pm: usb-sw-sel-pm {
+	usb_sw_sel_pm: usb-sw-sel-pm-state {
 		pins = "gpio4";
 		function = PMIC_GPIO_FUNC_NORMAL;
 
@@ -797,7 +797,7 @@
 		output-high;
 	};
 
-	usb_sw_sel_pm_device: usb-sw-sel-pm-device {
+	usb_sw_sel_pm_device: usb-sw-sel-pm-device-state {
 		pins = "gpio4";
 		function = PMIC_GPIO_FUNC_NORMAL;
 
@@ -806,7 +806,7 @@
 		output-low;
 	};
 
-	pm8916_gpios_leds: pm8916-gpios-leds {
+	pm8916_gpios_leds: pm8916-gpios-leds-state {
 		pins = "gpio1", "gpio2";
 		function = PMIC_GPIO_FUNC_NORMAL;
 

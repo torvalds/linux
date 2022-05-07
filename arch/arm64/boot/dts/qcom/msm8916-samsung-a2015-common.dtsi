@@ -463,7 +463,7 @@
 };
 
 &pm8916_gpios {
-	nfc_clk_req: nfc-clk-req {
+	nfc_clk_req: nfc-clk-req-state {
 		pins = "gpio2";
 		function = "func1";
 

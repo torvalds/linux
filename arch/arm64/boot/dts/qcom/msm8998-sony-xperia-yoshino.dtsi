@@ -286,7 +286,7 @@
 };
 
 &pm8998_gpio {
-	vol_down_pin_a: vol-down-active {
+	vol_down_pin_a: vol-down-active-state {
 		pins = "gpio5";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-pull-up;
@@ -294,7 +294,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
-	cam_focus_pin_a: cam-focus-btn-active {
+	cam_focus_pin_a: cam-focus-btn-active-state {
 		pins = "gpio7";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-pull-up;
@@ -302,7 +302,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
-	cam_snapshot_pin_a: cam-snapshot-btn-active {
+	cam_snapshot_pin_a: cam-snapshot-btn-active-state {
 		pins = "gpio8";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-pull-up;
@@ -310,7 +310,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
-	audio_mclk_pin: audio-mclk-pin-active {
+	audio_mclk_pin: audio-mclk-pin-active-state {
 		pins = "gpio13";
 		function = "func2";
 		power-source = <0>;
@@ -318,7 +318,7 @@
 };
 
 &pmi8998_gpio {
-	cam_vio_default: cam-vio-active {
+	cam_vio_default: cam-vio-active-state {
 		pins = "gpio1";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-disable;
@@ -328,7 +328,7 @@
 		power-source = <1>;
 	};
 
-	vib_default: vib-en {
+	vib_default: vib-en-state {
 		pins = "gpio5";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-disable;

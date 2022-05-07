@@ -306,7 +306,7 @@
 };
 
 &pm8998_gpio {
-	vol_up_pin_a: vol-up-active {
+	vol_up_pin_a: vol-up-active-state {
 		pins = "gpio6";
 		function = "normal";
 		input-enable;

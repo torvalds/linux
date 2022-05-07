@@ -270,7 +270,7 @@
 };
 
 &pm8998_gpio {
-	vol_keys_default: vol-keys-default {
+	vol_keys_default: vol-keys-state {
 		pins = "gpio5", "gpio6";
 		function = "normal";
 		bias-pull-up;

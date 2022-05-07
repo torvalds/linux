@@ -444,7 +444,7 @@
 };
 
 &pm7325_gpios {
-	key_vol_up_default: key-vol-up-default {
+	key_vol_up_default: key-vol-up-state {
 		pins = "gpio6";
 		function = "normal";
 		input-enable;

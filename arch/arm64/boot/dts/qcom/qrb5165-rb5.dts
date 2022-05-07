@@ -796,7 +796,7 @@
 		"NC",
 		"PM3003A_MODE";
 
-	lt9611_rst_pin: lt9611-rst-pin {
+	lt9611_rst_pin: lt9611-rst-state {
 		pins = "gpio5";
 		function = "normal";
 

@@ -569,7 +569,7 @@
 		"OPTION2",
 		"PM845_SLB";
 
-	cam0_dvdd_1v2_en_default: cam0-dvdd-1v2-en {
+	cam0_dvdd_1v2_en_default: cam0-dvdd-1v2-en-state {
 		pins = "gpio12";
 		function = "normal";
 
@@ -578,7 +578,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
 	};
 
-	cam0_avdd_2v8_en_default: cam0-avdd-2v8-en {
+	cam0_avdd_2v8_en_default: cam0-avdd-2v8-en-state {
 		pins = "gpio10";
 		function = "normal";
 
@@ -587,7 +587,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
 	};
 
-	vol_up_pin_a: vol-up-active {
+	vol_up_pin_a: vol-up-active-state {
 		pins = "gpio6";
 		function = "normal";
 		input-enable;
