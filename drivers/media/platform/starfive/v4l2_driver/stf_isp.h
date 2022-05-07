@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * Copyright (C) 2021 StarFive Technology Co., Ltd.
  */
 #ifndef STF_ISP_H
@@ -33,22 +33,22 @@ struct stfisp_fw_info {
 };
 
 #define VIDIOC_STFISP_LOAD_FW \
-        _IOW('V', BASE_VIDIOC_PRIVATE + 1, struct stfisp_fw_info)
+		_IOW('V', BASE_VIDIOC_PRIVATE + 1, struct stfisp_fw_info)
 
 struct isp_format {
 	u32 code;
 	u8 bpp;
 };
 
-typedef struct {
+struct regval_t {
 	u32 addr;
 	u32 val;
 	u32 mask;
 	u32 delay_ms;
-} regval_t;
+};
 
 struct reg_table {
-	const regval_t *regval;
+	const struct regval_t *regval;
 	int regval_num;
 };
 

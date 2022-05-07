@@ -630,7 +630,7 @@ static int stfcamss_subdev_notifier_bound(struct v4l2_async_notifier *async,
 	return 0;
 }
 
-#if 0
+#ifdef UNUSED_CODE
 static int stfcamss_subdev_notifier_complete(
 		struct v4l2_async_notifier *async)
 {
@@ -952,7 +952,7 @@ static int stfcamss_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret = 0, num_subdevs;
 
-	printk("stfcamss probe enter!\n");
+	dev_info(dev, "stfcamss probe enter!\n");
 
 	stfcamss = devm_kzalloc(dev, sizeof(struct stfcamss), GFP_KERNEL);
 	if (!stfcamss)
@@ -1130,16 +1130,16 @@ static int stfcamss_probe(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	stfcamss->debugfs_entry = debugfs_create_dir("stfcamss", NULL);
 	stfcamss->vin_debugfs = debugfs_create_file("stf_vin",
-			S_IRUGO | S_IWUSR, stfcamss->debugfs_entry,
+			0644, stfcamss->debugfs_entry,
 			(void *)dev, &vin_debug_fops);
 	debugfs_create_u32("dbg_level",
-			S_IRUGO | S_IWUSR, stfcamss->debugfs_entry,
+			0644, stfcamss->debugfs_entry,
 			&stdbg_level);
 	debugfs_create_u32("dbg_mask",
-			S_IRUGO | S_IWUSR, stfcamss->debugfs_entry,
+			0644, stfcamss->debugfs_entry,
 			&stdbg_mask);
 #endif
-	printk("stfcamss probe out!\n");
+	dev_info(dev, "stfcamss probe success!\n");
 
 	return 0;
 

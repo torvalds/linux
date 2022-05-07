@@ -29,23 +29,23 @@
 #include "stfcamss.h"
 
 /* min/typical/max system clock (xclk) frequencies */
-#define SC2235_XCLK_MIN  6000000
-#define SC2235_XCLK_MAX 54000000
+#define SC2235_XCLK_MIN			6000000
+#define SC2235_XCLK_MAX			54000000
 
 #define SC2235_CHIP_ID		(0x2235)
 
-#define SC2235_REG_CHIP_ID              0x3107
-#define SC2235_REG_AEC_PK_MANUAL        0x3e03
-#define SC2235_REG_AEC_PK_EXPOSURE_HI   0x3e01
-#define SC2235_REG_AEC_PK_EXPOSURE_LO   0x3e02
-#define SC2235_REG_AEC_PK_REAL_GAIN     0x3e08
-#define SC2235_REG_TIMING_HTS           0x320c
-#define SC2235_REG_TIMING_VTS           0x320e
-#define SC2235_REG_TEST_SET0            0x4501
-#define SC2235_REG_TEST_SET1            0x3902
-#define SC2235_REG_TIMING_TC_REG21      0x3221
-#define SC2235_REG_SC_PLL_CTRL0         0x3039
-#define SC2235_REG_SC_PLL_CTRL1         0x303a
+#define SC2235_REG_CHIP_ID				0x3107
+#define SC2235_REG_AEC_PK_MANUAL		0x3e03
+#define SC2235_REG_AEC_PK_EXPOSURE_HI	0x3e01
+#define SC2235_REG_AEC_PK_EXPOSURE_LO	0x3e02
+#define SC2235_REG_AEC_PK_REAL_GAIN		0x3e08
+#define SC2235_REG_TIMING_HTS			0x320c
+#define SC2235_REG_TIMING_VTS			0x320e
+#define SC2235_REG_TEST_SET0			0x4501
+#define SC2235_REG_TEST_SET1			0x3902
+#define SC2235_REG_TIMING_TC_REG21		0x3221
+#define SC2235_REG_SC_PLL_CTRL0			0x3039
+#define SC2235_REG_SC_PLL_CTRL1			0x303a
 
 enum sc2235_mode_id {
 	SC2235_MODE_1080P_1920_1080 = 0,
@@ -173,19 +173,21 @@ struct sc2235_dev {
 };
 
 int sc2235_sensor_pinctrl_init(
-        struct sensor_pinctrl_info *sensor_pctrl, struct device *dev)
+	struct sensor_pinctrl_info *sensor_pctrl, struct device *dev)
 {
 	sensor_pctrl->pinctrl = devm_pinctrl_get(dev);
 	if (IS_ERR_OR_NULL(sensor_pctrl->pinctrl)) {
 		pr_err("Getting pinctrl handle failed\n");
 		return -EINVAL;
 	}
+
 	sensor_pctrl->reset_state_low
 		= pinctrl_lookup_state(sensor_pctrl->pinctrl, "reset_low");
 	if (IS_ERR_OR_NULL(sensor_pctrl->reset_state_low)) {
 		pr_err("Failed to get the reset_low pinctrl handle\n");
 		return -EINVAL;
 	}
+
 	sensor_pctrl->reset_state_high
 		= pinctrl_lookup_state(sensor_pctrl->pinctrl, "reset_high");
 	if (IS_ERR_OR_NULL(sensor_pctrl->reset_state_high)) {
@@ -211,93 +213,93 @@ static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
 
 /* sc2235 initial register */
 static struct reg_value sc2235_init_tbl_1080p_7fps[] = {
-	{0x0103,0x01,0,0},
-    {0x0100,0x00,0,0},
-    {0x3039,0x75,0,0},
-    {0x320c,0x08,0,0},
-    {0x320d,0x98,0,0},
-    {0x3222,0x29,0,0},
-    {0x3235,0x04,0,0},
-    {0x3236,0x63,0,0},
-    {0x3237,0x08,0,0},
-    {0x3238,0x68,0,0},
-    {0x3301,0x04,0,0},
-    {0x3303,0x20,0,0},
-    {0x3306,0x1a,0,0},
-    {0x3309,0xa0,0,0},
-    {0x330b,0x54,0,0},
-    {0x330e,0x30,0,0},
-    {0x3313,0x05,0,0},
-    {0x331e,0x0d,0,0},
-    {0x331f,0x8d,0,0},
-    {0x3320,0x0f,0,0},
-    {0x3321,0x8f,0,0},
-    {0x3340,0x06,0,0},
-    {0x3341,0x50,0,0},
-    {0x3342,0x04,0,0},
-    {0x3343,0x20,0,0},
-    {0x3348,0x07,0,0},
-    {0x3349,0x80,0,0},
-    {0x334a,0x04,0,0},
-    {0x334b,0x20,0,0},
-    {0x335e,0x01,0,0},
-    {0x335f,0x03,0,0},
-    {0x3364,0x05,0,0},
-    {0x3366,0x7c,0,0},
-    {0x3367,0x08,0,0},
-    {0x3368,0x02,0,0},
-    {0x3369,0x00,0,0},
-    {0x336a,0x00,0,0},
-    {0x336b,0x00,0,0},
-    {0x337c,0x04,0,0},
-    {0x337d,0x06,0,0},
-    {0x337f,0x03,0,0},
-    {0x3380,0x04,0,0},
-    {0x3381,0x0a,0,0},
-    {0x33a0,0x05,0,0},
-    {0x33b5,0x10,0,0},
-    {0x3621,0x28,0,0},
-    {0x3622,0x06,0,0},
-    {0x3625,0x02,0,0},
-    {0x3630,0x48,0,0},
-    {0x3631,0x84,0,0},
-    {0x3632,0x88,0,0},
-    {0x3633,0x42,0,0},
-    {0x3634,0x42,0,0},
-    {0x3636,0x24,0,0},
-    {0x3635,0xc1,0,0},
-    {0x3637,0x14,0,0},
-    {0x3638,0x1f,0,0},
-    {0x363b,0x09,0,0},
-    {0x3639,0x09,0,0},
-    {0x363c,0x07,0,0},
-    {0x366e,0x08,0,0},
-    {0x3670,0x08,0,0},
-    {0x366f,0x2f,0,0},
-    {0x3677,0x1f,0,0},
-    {0x3678,0x42,0,0},
-    {0x3679,0x43,0,0},
-    {0x367e,0x07,0,0},
-    {0x367f,0x0f,0,0},
-    {0x3802,0x01,0,0},
-    {0x3901,0x02,0,0},
-    {0x3908,0x11,0,0},
-    {0x391b,0x4d,0,0},
-    {0x391e,0x00,0,0},
-    {0x3e01,0x46,0,0},
-    {0x3e03,0x0b,0,0},
-    {0x3f00,0x07,0,0},
-    {0x3f04,0x08,0,0},
-    {0x3f05,0x74,0,0},
-    {0x4500,0x59,0,0},
-    {0x5780,0xff,0,0},
-    {0x5781,0x04,0,0},
-    {0x5785,0x18,0,0},
-    {0x0100,0x01,0,0},
-    {0x330b,0x5d,0,0},
-    {0x3301,0x0a,0,0},
-    {0x3631,0x88,0,0},
-    {0x366f,0x2f,0,0},
+	{0x0103, 0x01, 0, 0},
+	{0x0100, 0x00, 0, 0},
+	{0x3039, 0x75, 0, 0},
+	{0x320c, 0x08, 0, 0},
+	{0x320d, 0x98, 0, 0},
+	{0x3222, 0x29, 0, 0},
+	{0x3235, 0x04, 0, 0},
+	{0x3236, 0x63, 0, 0},
+	{0x3237, 0x08, 0, 0},
+	{0x3238, 0x68, 0, 0},
+	{0x3301, 0x04, 0, 0},
+	{0x3303, 0x20, 0, 0},
+	{0x3306, 0x1a, 0, 0},
+	{0x3309, 0xa0, 0, 0},
+	{0x330b, 0x54, 0, 0},
+	{0x330e, 0x30, 0, 0},
+	{0x3313, 0x05, 0, 0},
+	{0x331e, 0x0d, 0, 0},
+	{0x331f, 0x8d, 0, 0},
+	{0x3320, 0x0f, 0, 0},
+	{0x3321, 0x8f, 0, 0},
+	{0x3340, 0x06, 0, 0},
+	{0x3341, 0x50, 0, 0},
+	{0x3342, 0x04, 0, 0},
+	{0x3343, 0x20, 0, 0},
+	{0x3348, 0x07, 0, 0},
+	{0x3349, 0x80, 0, 0},
+	{0x334a, 0x04, 0, 0},
+	{0x334b, 0x20, 0, 0},
+	{0x335e, 0x01, 0, 0},
+	{0x335f, 0x03, 0, 0},
+	{0x3364, 0x05, 0, 0},
+	{0x3366, 0x7c, 0, 0},
+	{0x3367, 0x08, 0, 0},
+	{0x3368, 0x02, 0, 0},
+	{0x3369, 0x00, 0, 0},
+	{0x336a, 0x00, 0, 0},
+	{0x336b, 0x00, 0, 0},
+	{0x337c, 0x04, 0, 0},
+	{0x337d, 0x06, 0, 0},
+	{0x337f, 0x03, 0, 0},
+	{0x3380, 0x04, 0, 0},
+	{0x3381, 0x0a, 0, 0},
+	{0x33a0, 0x05, 0, 0},
+	{0x33b5, 0x10, 0, 0},
+	{0x3621, 0x28, 0, 0},
+	{0x3622, 0x06, 0, 0},
+	{0x3625, 0x02, 0, 0},
+	{0x3630, 0x48, 0, 0},
+	{0x3631, 0x84, 0, 0},
+	{0x3632, 0x88, 0, 0},
+	{0x3633, 0x42, 0, 0},
+	{0x3634, 0x42, 0, 0},
+	{0x3636, 0x24, 0, 0},
+	{0x3635, 0xc1, 0, 0},
+	{0x3637, 0x14, 0, 0},
+	{0x3638, 0x1f, 0, 0},
+	{0x363b, 0x09, 0, 0},
+	{0x3639, 0x09, 0, 0},
+	{0x363c, 0x07, 0, 0},
+	{0x366e, 0x08, 0, 0},
+	{0x3670, 0x08, 0, 0},
+	{0x366f, 0x2f, 0, 0},
+	{0x3677, 0x1f, 0, 0},
+	{0x3678, 0x42, 0, 0},
+	{0x3679, 0x43, 0, 0},
+	{0x367e, 0x07, 0, 0},
+	{0x367f, 0x0f, 0, 0},
+	{0x3802, 0x01, 0, 0},
+	{0x3901, 0x02, 0, 0},
+	{0x3908, 0x11, 0, 0},
+	{0x391b, 0x4d, 0, 0},
+	{0x391e, 0x00, 0, 0},
+	{0x3e01, 0x46, 0, 0},
+	{0x3e03, 0x0b, 0, 0},
+	{0x3f00, 0x07, 0, 0},
+	{0x3f04, 0x08, 0, 0},
+	{0x3f05, 0x74, 0, 0},
+	{0x4500, 0x59, 0, 0},
+	{0x5780, 0xff, 0, 0},
+	{0x5781, 0x04, 0, 0},
+	{0x5785, 0x18, 0, 0},
+	{0x0100, 0x01, 0, 0},
+	{0x330b, 0x5d, 0, 0},
+	{0x3301, 0x0a, 0, 0},
+	{0x3631, 0x88, 0, 0},
+	{0x366f, 0x2f, 0, 0},
 };
 
 static struct reg_value sc2235_setting_1080P_1920_1080[] = {
@@ -432,7 +434,7 @@ static int sc2235_mod_reg(struct sc2235_dev *sensor, u16 reg,
 #define SC2235_PLL_MULT_MIN	0
 #define SC2235_PLL_MULT_MAX	63
 
-#if 0
+#ifdef UNUSED_CODE
 static unsigned long sc2235_compute_sys_clk(struct sc2235_dev *sensor,
 					u8 pll_pre, u8 pll_mult,
 					u8 sysdiv)
@@ -609,7 +611,7 @@ static int sc2235_set_stream_dvp(struct sc2235_dev *sensor, bool on)
 	return 0;
 }
 
-#if 0
+#ifdef UNUSED_CODE
 static int sc2235_get_hts(struct sc2235_dev *sensor)
 {
 	u16 hts;
@@ -633,7 +635,7 @@ static int sc2235_get_vts(struct sc2235_dev *sensor)
 	return vts;
 }
 
-#if 0
+#ifdef UNUSED_CODE
 static int sc2235_set_vts(struct sc2235_dev *sensor, int vts)
 {
 	return sc2235_write_reg16(sensor, SC2235_REG_TIMING_VTS, vts);
@@ -672,7 +674,7 @@ static u64 sc2235_calc_pixel_rate(struct sc2235_dev *sensor)
 	return rate;
 }
 
-#if 0
+#ifdef UNUSED_CODE
 /*
  * sc2235_set_dvp_pclk() - Calculate the clock tree configuration values
  *				for the dvp output.
@@ -727,20 +729,20 @@ static int sc2235_set_mode_direct(struct sc2235_dev *sensor,
 
 static int sc2235_set_mode(struct sc2235_dev *sensor)
 {
-#if 0
+#ifdef UNUSED_CODE
 	bool auto_exp =  sensor->ctrls.auto_exp->val == V4L2_EXPOSURE_AUTO;
 	const struct sc2235_mode_info *mode = sensor->current_mode;
 #endif
 	bool auto_gain = sensor->ctrls.auto_gain->val == 1;
 	int ret = 0;
-	
+
 	/* auto gain and exposure must be turned off when changing modes */
 	if (auto_gain) {
 		ret = sc2235_set_autogain(sensor, false);
 		if (ret)
 			return ret;
 	}
-#if 0
+#ifdef UNUSED_CODE
 	/* This issue will be addressed in the EVB board*/
 	/* This action will result in poor image display 2021 1111*/
 	if (auto_exp) {
@@ -946,7 +948,7 @@ static int sc2235_set_power(struct sc2235_dev *sensor, bool on)
 
 power_off:
 	sc2235_set_power_off(sensor);
-	
+
 	return ret;
 }
 
@@ -1233,7 +1235,7 @@ static int sc2235_set_ctrl_test_pattern(struct sc2235_dev *sensor, int value)
 	/*
 	 *For 7110 platform, refer to 1125 FW code configuration. This operation will cause the image to be white.
 	 */
-#if 0
+#ifdef UNUSED_CODE
 	ret = sc2235_mod_reg(sensor, SC2235_REG_TEST_SET0, BIT(3),
 				!!value << 3);
 
@@ -1376,7 +1378,7 @@ static int sc2235_init_controls(struct sc2235_dev *sensor)
 	ctrls->red_balance = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_RED_BALANCE,
 						0, 4095, 1, 0);
 	/* Auto/manual exposure */
-#if 0
+#ifdef UNUSED_CODE
 	/*
 	 *For 7110 platform, This operation will cause the image to be white.
 	 */

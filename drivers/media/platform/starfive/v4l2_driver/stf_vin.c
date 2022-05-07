@@ -11,11 +11,11 @@
 
 #define STF_VIN_NAME "stf_vin"
 
-#define vin_line_array(ptr_line)        \
-        ((const struct vin_line (*)[]) &(ptr_line[-(ptr_line->id)]))
+#define vin_line_array(ptr_line)		\
+		((const struct vin_line (*)[]) &(ptr_line[-(ptr_line->id)]))
 
-#define line_to_vin2_dev(ptr_line)        \
-        container_of(vin_line_array(ptr_line), struct stf_vin2_dev, line)
+#define line_to_vin2_dev(ptr_line)		\
+		container_of(vin_line_array(ptr_line), struct stf_vin2_dev, line)
 
 #define VIN_FRAME_DROP_MAX_VAL 30
 #define VIN_FRAME_DROP_MIN_VAL 4
@@ -92,8 +92,8 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 		st_err(ST_VIN, "failed to request isp0 irq\n");
 		goto out;
 	}
-#if 0 
 
+#ifdef UNUSED_CODE
 	ret = devm_request_irq(dev,
 			vin->isp1_irq, vin_dev->hw_ops->vin_isp_irq_handler,
 			0, "vin_isp1_irq", vin_dev);
@@ -107,7 +107,8 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 
 	/* Reset device */
 	/*Do not configure the CLK before powering on the device,
-	add vin_power_on() to vin_set_power() 2021 1111 */
+	 *add vin_power_on() to vin_set_power() 2021 1111
+	 */
 	ret = vin_dev->hw_ops->vin_clk_init(vin_dev);
 	if (ret) {
 		st_err(ST_VIN, "Failed to reset device\n");
@@ -116,10 +117,10 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 
 	// /* set the sysctl config */
 	// ret = vin_dev->hw_ops->vin_config_set(vin_dev);
-//	 if (ret) {
-//		st_err(ST_VIN, "Failed to config device\n");
-//		goto out;
-//	 }
+	// if (ret) {
+	//	st_err(ST_VIN, "Failed to config device\n");
+	//	goto out;
+	// }
 #endif
 	mutex_init(&vin_dev->power_lock);
 	vin_dev->power_count = 0;
@@ -184,9 +185,8 @@ exit_line:
 				"vin_dev power off on power_count == 0\n");
 			goto exit;
 		}
-		if (vin_dev->power_count == 1) {
+		if (vin_dev->power_count == 1)
 			vin_dev->hw_ops->vin_clk_disable(vin_dev);
-		}
 		vin_dev->power_count--;
 	}
 exit:
@@ -536,7 +536,7 @@ static struct stfcamss_buffer *vin_buf_get_pending(struct vin_output *output)
 	return buffer;
 }
 
-#if 0
+#ifdef UNUSED_CODE
 static void vin_output_checkpending(struct vin_line *line)
 {
 	struct vin_output *output = &line->output;
