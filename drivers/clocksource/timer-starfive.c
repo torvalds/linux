@@ -1,14 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2021 StarFive, Inc <samin.guo@starfivetech.com>
+ * Starfive Timer driver
  *
- * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING
- * CUSTOMERS WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER
- * FOR THEM TO SAVE TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE
- * FOR ANY DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY
- * CLAIMS ARISING FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE
- * BY CUSTOMERS OF THE CODING INFORMATION CONTAINED HEREIN IN CONNECTION
- * WITH THEIR PRODUCTS.
+ * Copyright 2021 StarFive, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -19,13 +13,20 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_clk.h>
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
+#include <linux/module.h>
 
 #include "timer-starfive.h"
+
+#define CLOCK_SOURCE_RATE	200
+#define VALID_BITS		32
+#define DELAY_US	0
+#define TIMEOUT_US	10000
 
 struct starfive_timer __initdata jh7100_starfive_timer = {
 	.ctrl		= STF_TIMER_CTL,
@@ -69,11 +70,14 @@ static inline void timer_int_disable(struct starfive_clkevt *clkevt)
 static inline void timer_int_clear(struct starfive_clkevt *clkevt)
 {
 	/* waiting interrupt can be to clearing */
-	do {
+	u32 value;
+	int ret = 0;
 
-	} while (readl(clkevt->intclr) & INT_STATUS_CLR_AVA);
-
-	writel(1, clkevt->intclr);
+	value = readl(clkevt->intclr);
+	ret = readl_poll_timeout_atomic(clkevt->intclr, value,
+			!(value & INT_STATUS_CLR_AVA), DELAY_US, TIMEOUT_US);
+	if (!ret)
+		writel(1, clkevt->intclr);
 }
 
 /*
@@ -178,9 +182,8 @@ starfive_get_clock_rate(struct starfive_clkevt *clkevt, struct device_node *np)
 		pr_debug("Timer: try get clock-frequency:%d MHz\n", rate);
 		clkevt->rate = (u64)rate;
 		return 0;
-	} else {
-		pr_err("Timer: get rate failed, need clock-frequency define in dts.\n");
 	}
+	pr_err("Timer: get rate failed, need clock-frequency define in dts.\n");
 
 	return -ENOENT;
 }
@@ -195,8 +198,9 @@ static int starfive_clocksource_init(struct starfive_clkevt *clkevt,
 	timer_int_enable(clkevt);
 	timer_enable(clkevt);
 
-	clocksource_mmio_init(clkevt->value, name,
-		clkevt->rate, 200, 32, clocksource_mmio_readl_down);
+	clocksource_mmio_init(clkevt->value, name, clkevt->rate,
+			CLOCK_SOURCE_RATE, VALID_BITS,
+			clocksource_mmio_readl_down);
 
 	return 0;
 }
@@ -408,3 +412,8 @@ static int __init starfive_timer_of_init(struct device_node *np)
 	return do_starfive_timer_of_init(np, &jh7100_starfive_timer);
 }
 TIMER_OF_DECLARE(starfive_timer, "starfive,si5-timers", starfive_timer_of_init);
+
+MODULE_AUTHOR("xingyu.wu <xingyu.wu@starfivetech.com>");
+MODULE_AUTHOR("samin.guo <samin.guo@starfivetech.com>");
+MODULE_DESCRIPTION("StarFive Timer Device Driver");
+MODULE_LICENSE("GPL v2");
