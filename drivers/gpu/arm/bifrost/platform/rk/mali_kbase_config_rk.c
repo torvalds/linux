@@ -105,8 +105,10 @@ static void rk_pm_power_off_delay_work(struct work_struct *work)
 
 	rk_pm_disable_clk(kbdev);
 
-	rk_pm_disable_regulator(kbdev);
-	platform->is_regulator_on = false;
+	if (pm_runtime_suspended(kbdev->dev)) {
+		rk_pm_disable_regulator(kbdev);
+		platform->is_regulator_on = false;
+	}
 
 	platform->is_powered = false;
 	wake_unlock(&platform->wake_lock);
