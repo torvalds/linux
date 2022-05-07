@@ -258,6 +258,7 @@ struct io_rsrc_put {
 struct io_file_table {
 	struct io_fixed_file *files;
 	unsigned long *bitmap;
+	unsigned int alloc_hint;
 };
 
 struct io_rsrc_node {
@@ -4696,6 +4697,31 @@ static int io_openat2_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return __io_openat_prep(req, sqe);
 }
 
+static int __maybe_unused io_file_bitmap_get(struct io_ring_ctx *ctx)
+{
+	struct io_file_table *table = &ctx->file_table;
+	unsigned long nr = ctx->nr_user_files;
+	int ret;
+
+	if (table->alloc_hint >= nr)
+		table->alloc_hint = 0;
+
+	do {
+		ret = find_next_zero_bit(table->bitmap, nr, table->alloc_hint);
+		if (ret != nr) {
+			table->alloc_hint = ret + 1;
+			return ret;
+		}
+		if (!table->alloc_hint)
+			break;
+
+		nr = table->alloc_hint;
+		table->alloc_hint = 0;
+	} while (1);
+
+	return -ENFILE;
+}
+
 static int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct open_flags op;
@@ -8664,11 +8690,14 @@ static inline void io_file_bitmap_set(struct io_file_table *table, int bit)
 {
 	WARN_ON_ONCE(test_bit(bit, table->bitmap));
 	__set_bit(bit, table->bitmap);
+	if (bit == table->alloc_hint)
+		table->alloc_hint++;
 }
 
 static inline void io_file_bitmap_clear(struct io_file_table *table, int bit)
 {
 	__clear_bit(bit, table->bitmap);
+	table->alloc_hint = bit;
 }
 
 static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
