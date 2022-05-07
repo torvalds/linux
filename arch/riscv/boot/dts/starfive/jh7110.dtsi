@@ -1343,7 +1343,7 @@
 
 		hdmi: hdmi@29590000 {
 			compatible = "rockchip,rk3036-inno-hdmi";
-			reg = <0x29590000 0x4000>;
+			reg = <0x0 0x29590000 0x0 0x4000>;
 			/*interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;*/
 			/*clocks = <&cru  PCLK_HDMI>;*/
 			/*clock-names = "pclk";*/
