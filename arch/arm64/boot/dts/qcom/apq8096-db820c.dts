@@ -558,6 +558,7 @@
 	ls_exp_gpio_f: pm8994-gpio5-state {
 		pinconf {
 			pins = "gpio5";
+			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
 			power-source = <2>; // PM8994_GPIO_S4, 1.8V
 		};
