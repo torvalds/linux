@@ -41,14 +41,12 @@
  * struct bcm2835_dmadev - BCM2835 DMA controller
  * @ddev: DMA device
  * @base: base address of register map
- * @dma_parms: DMA parameters (to convey 1 GByte max segment size to clients)
  * @zero_page: bus address of zero page (to detect transactions copying from
  *	zero page and avoid accessing memory if so)
  */
 struct bcm2835_dmadev {
 	struct dma_device ddev;
 	void __iomem *base;
-	struct device_dma_parameters dma_parms;
 	dma_addr_t zero_page;
 };
 
@@ -797,10 +795,7 @@ static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 
 	/* stop DMA activity */
 	if (c->desc) {
-		if (c->desc->vd.tx.flags & DMA_PREP_INTERRUPT)
-			vchan_terminate_vdesc(&c->desc->vd);
-		else
-			vchan_vdesc_fini(&c->desc->vd);
+		vchan_terminate_vdesc(&c->desc->vd);
 		c->desc = NULL;
 		bcm2835_dma_abort(c);
 	}
@@ -905,7 +900,6 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 	if (!od)
 		return -ENOMEM;
 
-	pdev->dev.dma_parms = &od->dma_parms;
 	dma_set_max_seg_size(&pdev->dev, 0x3FFFFFFF);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

@@ -16,9 +16,10 @@
  *		MGA1064SG Mystique register file
  */
 
-
 #ifndef _MGA_REG_H_
 #define _MGA_REG_H_
+
+#include <linux/bits.h>
 
 #define	MGAREG_DWGCTL		0x1c00
 #define	MGAREG_MACCESS		0x1c04
@@ -221,20 +222,41 @@
 
 #define MGAREG_MISC_IOADSEL	(0x1 << 0)
 #define MGAREG_MISC_RAMMAPEN	(0x1 << 1)
+#define MGAREG_MISC_CLK_SEL_MASK	GENMASK(3, 2)
 #define MGAREG_MISC_CLK_SEL_VGA25	(0x0 << 2)
 #define MGAREG_MISC_CLK_SEL_VGA28	(0x1 << 2)
 #define MGAREG_MISC_CLK_SEL_MGA_PIX	(0x2 << 2)
 #define MGAREG_MISC_CLK_SEL_MGA_MSK	(0x3 << 2)
 #define MGAREG_MISC_VIDEO_DIS	(0x1 << 4)
 #define MGAREG_MISC_HIGH_PG_SEL	(0x1 << 5)
+#define MGAREG_MISC_HSYNCPOL		BIT(6)
+#define MGAREG_MISC_VSYNCPOL		BIT(7)
 
 /* MMIO VGA registers */
 #define MGAREG_SEQ_INDEX	0x1fc4
 #define MGAREG_SEQ_DATA		0x1fc5
+
+#define MGAREG_SEQ0_ASYNCRST	BIT(0)
+#define MGAREG_SEQ0_SYNCRST	BIT(1)
+
+#define MGAREG_SEQ1_SCROFF	BIT(5)
+
 #define MGAREG_CRTC_INDEX	0x1fd4
 #define MGAREG_CRTC_DATA	0x1fd5
+
+#define MGAREG_CRTC11_VINTCLR		BIT(4)
+#define MGAREG_CRTC11_VINTEN		BIT(5)
+#define MGAREG_CRTC11_CRTCPROTECT	BIT(7)
+
 #define MGAREG_CRTCEXT_INDEX	0x1fde
 #define MGAREG_CRTCEXT_DATA	0x1fdf
+
+#define MGAREG_CRTCEXT0_OFFSET_MASK	GENMASK(5, 4)
+
+#define MGAREG_CRTCEXT1_VSYNCOFF	BIT(5)
+#define MGAREG_CRTCEXT1_HSYNCOFF	BIT(4)
+
+#define MGAREG_CRTCEXT3_MGAMODE		BIT(7)
 
 /* Cursor X and Y position */
 #define MGA_CURPOSXL 0x3c0c
@@ -261,6 +283,8 @@
 #define PCI_MGA_OPTION		0x40
 #define PCI_MGA_OPTION2		0x50
 #define PCI_MGA_OPTION3		0x54
+
+#define PCI_MGA_OPTION_HARDPWMSK	BIT(14)
 
 #define RAMDAC_OFFSET		0x3c00
 

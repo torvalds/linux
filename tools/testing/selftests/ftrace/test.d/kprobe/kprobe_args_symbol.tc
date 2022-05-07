@@ -1,8 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Kprobe event symbol argument
-
-[ -f kprobe_events ] || exit_unsupported # this is configurable
+# requires: kprobe_events
 
 SYMBOL="linux_proc_banner"
 
@@ -15,12 +14,12 @@ elif ! grep "$SYMBOL\$" /proc/kallsyms; then
 fi
 
 : "Test get basic types symbol argument"
-echo "p:testprobe_u _do_fork arg1=@linux_proc_banner:u64 arg2=@linux_proc_banner:u32 arg3=@linux_proc_banner:u16 arg4=@linux_proc_banner:u8" > kprobe_events
-echo "p:testprobe_s _do_fork arg1=@linux_proc_banner:s64 arg2=@linux_proc_banner:s32 arg3=@linux_proc_banner:s16 arg4=@linux_proc_banner:s8" >> kprobe_events
+echo "p:testprobe_u $FUNCTION_FORK arg1=@linux_proc_banner:u64 arg2=@linux_proc_banner:u32 arg3=@linux_proc_banner:u16 arg4=@linux_proc_banner:u8" > kprobe_events
+echo "p:testprobe_s $FUNCTION_FORK arg1=@linux_proc_banner:s64 arg2=@linux_proc_banner:s32 arg3=@linux_proc_banner:s16 arg4=@linux_proc_banner:s8" >> kprobe_events
 if grep -q "x8/16/32/64" README; then
-  echo "p:testprobe_x _do_fork arg1=@linux_proc_banner:x64 arg2=@linux_proc_banner:x32 arg3=@linux_proc_banner:x16 arg4=@linux_proc_banner:x8" >> kprobe_events
+  echo "p:testprobe_x $FUNCTION_FORK arg1=@linux_proc_banner:x64 arg2=@linux_proc_banner:x32 arg3=@linux_proc_banner:x16 arg4=@linux_proc_banner:x8" >> kprobe_events
 fi
-echo "p:testprobe_bf _do_fork arg1=@linux_proc_banner:b8@4/32" >> kprobe_events
+echo "p:testprobe_bf $FUNCTION_FORK arg1=@linux_proc_banner:b8@4/32" >> kprobe_events
 echo 1 > events/kprobes/enable
 (echo "forked")
 echo 0 > events/kprobes/enable
@@ -28,7 +27,7 @@ grep "testprobe_[usx]:.* arg1=.* arg2=.* arg3=.* arg4=.*" trace
 grep "testprobe_bf:.* arg1=.*" trace
 
 : "Test get string symbol argument"
-echo "p:testprobe_str _do_fork arg1=@linux_proc_banner:string" > kprobe_events
+echo "p:testprobe_str $FUNCTION_FORK arg1=@linux_proc_banner:string" > kprobe_events
 echo 1 > events/kprobes/enable
 (echo "forked")
 echo 0 > events/kprobes/enable

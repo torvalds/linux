@@ -4,17 +4,19 @@
 #
 
 config X86_INTEL_PSTATE
-       bool "Intel P state control"
-       depends on X86
-       select ACPI_PROCESSOR if ACPI
-       select ACPI_CPPC_LIB if X86_64 && ACPI && SCHED_MC_PRIO
-       help
-          This driver provides a P state for Intel core processors.
+	bool "Intel P state control"
+	depends on X86
+	select ACPI_PROCESSOR if ACPI
+	select ACPI_CPPC_LIB if X86_64 && ACPI && SCHED_MC_PRIO
+	select CPU_FREQ_GOV_PERFORMANCE
+	select CPU_FREQ_GOV_SCHEDUTIL if SMP
+	help
+	  This driver provides a P state for Intel core processors.
 	  The driver implements an internal governor and will become
-          the scaling driver and governor for Sandy bridge processors.
+	  the scaling driver and governor for Sandy bridge processors.
 
 	  When this driver is enabled it will become the preferred
-          scaling driver for Sandy bridge processors.
+	  scaling driver for Sandy bridge processors.
 
 	  If in doubt, say N.
 
@@ -25,7 +27,7 @@ config X86_PCC_CPUFREQ
 	  This driver adds support for the PCC interface.
 
 	  For details, take a look at:
-	  <file:Documentation/cpu-freq/pcc-cpufreq.txt>.
+	  <file:Documentation/admin-guide/pm/cpufreq_drivers.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcc-cpufreq.
@@ -73,7 +75,7 @@ config X86_SFI_CPUFREQ
 config ELAN_CPUFREQ
 	tristate "AMD Elan SC400 and SC410"
 	depends on MELAN
-	---help---
+	help
 	  This adds the CPUFreq driver for AMD Elan SC400 and SC410
 	  processors.
 
@@ -88,7 +90,7 @@ config ELAN_CPUFREQ
 config SC520_CPUFREQ
 	tristate "AMD Elan SC520"
 	depends on MELAN
-	---help---
+	help
 	  This adds the CPUFreq driver for AMD Elan SC520 processor.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.

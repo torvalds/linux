@@ -27,6 +27,9 @@ properties:
           - const: allwinner,sun50i-a64-i2c
           - const: allwinner,sun6i-a31-i2c
       - items:
+          - const: allwinner,sun50i-a100-i2c
+          - const: allwinner,sun6i-a31-i2c
+      - items:
           - const: allwinner,sun50i-h6-i2c
           - const: allwinner,sun6i-a31-i2c
 
@@ -93,9 +96,7 @@ allOf:
       required:
         - resets
 
-# FIXME: We should set it, but it would report all the generic
-# properties as additional properties.
-# additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

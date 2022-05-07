@@ -172,15 +172,15 @@ static void mipsxx_cpu_setup(void *args)
 	case 4:
 		w_c0_perfctrl3(0);
 		w_c0_perfcntr3(reg.counter[3]);
-		/* fall through */
+		fallthrough;
 	case 3:
 		w_c0_perfctrl2(0);
 		w_c0_perfcntr2(reg.counter[2]);
-		/* fall through */
+		fallthrough;
 	case 2:
 		w_c0_perfctrl1(0);
 		w_c0_perfcntr1(reg.counter[1]);
-		/* fall through */
+		fallthrough;
 	case 1:
 		w_c0_perfctrl0(0);
 		w_c0_perfcntr0(reg.counter[0]);
@@ -198,13 +198,13 @@ static void mipsxx_cpu_start(void *args)
 	switch (counters) {
 	case 4:
 		w_c0_perfctrl3(WHAT | reg.control[3]);
-		/* fall through */
+		fallthrough;
 	case 3:
 		w_c0_perfctrl2(WHAT | reg.control[2]);
-		/* fall through */
+		fallthrough;
 	case 2:
 		w_c0_perfctrl1(WHAT | reg.control[1]);
-		/* fall through */
+		fallthrough;
 	case 1:
 		w_c0_perfctrl0(WHAT | reg.control[0]);
 	}
@@ -221,13 +221,13 @@ static void mipsxx_cpu_stop(void *args)
 	switch (counters) {
 	case 4:
 		w_c0_perfctrl3(0);
-		/* fall through */
+		fallthrough;
 	case 3:
 		w_c0_perfctrl2(0);
-		/* fall through */
+		fallthrough;
 	case 2:
 		w_c0_perfctrl1(0);
-		/* fall through */
+		fallthrough;
 	case 1:
 		w_c0_perfctrl0(0);
 	}
@@ -245,7 +245,6 @@ static int mipsxx_perfcount_handler(void)
 
 	switch (counters) {
 #define HANDLE_COUNTER(n)						\
-	/* fall through */						\
 	case n + 1:							\
 		control = r_c0_perfctrl ## n();				\
 		counter = r_c0_perfcntr ## n();				\
@@ -256,8 +255,11 @@ static int mipsxx_perfcount_handler(void)
 			handled = IRQ_HANDLED;				\
 		}
 	HANDLE_COUNTER(3)
+	fallthrough;
 	HANDLE_COUNTER(2)
+	fallthrough;
 	HANDLE_COUNTER(1)
+	fallthrough;
 	HANDLE_COUNTER(0)
 	}
 
@@ -307,15 +309,15 @@ static void reset_counters(void *arg)
 	case 4:
 		w_c0_perfctrl3(0);
 		w_c0_perfcntr3(0);
-		/* fall through */
+		fallthrough;
 	case 3:
 		w_c0_perfctrl2(0);
 		w_c0_perfcntr2(0);
-		/* fall through */
+		fallthrough;
 	case 2:
 		w_c0_perfctrl1(0);
 		w_c0_perfcntr1(0);
-		/* fall through */
+		fallthrough;
 	case 1:
 		w_c0_perfctrl0(0);
 		w_c0_perfcntr0(0);
@@ -420,7 +422,7 @@ static int __init mipsxx_init(void)
 		op_model_mipsxx_ops.cpu_type = "mips/sb1";
 		break;
 
-	case CPU_LOONGSON1:
+	case CPU_LOONGSON32:
 		op_model_mipsxx_ops.cpu_type = "mips/loongson1";
 		break;
 

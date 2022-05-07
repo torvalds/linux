@@ -16,15 +16,13 @@
 
 #include <rtl8188e_hal.h>
 
-int	rtw_hal_init_recv_priv(struct adapter *padapter)
+int rtw_hal_init_recv_priv(struct adapter *padapter)
 {
-	struct recv_priv	*precvpriv = &padapter->recvpriv;
-	int	i, res = _SUCCESS;
+	struct recv_priv *precvpriv = &padapter->recvpriv;
+	int i, res = _SUCCESS;
 	struct recv_buf *precvbuf;
 
-	tasklet_init(&precvpriv->recv_tasklet,
-		     (void(*)(unsigned long))rtl8188eu_recv_tasklet,
-		     (unsigned long)padapter);
+	tasklet_setup(&precvpriv->recv_tasklet, rtl8188eu_recv_tasklet);
 
 	/* init recv_buf */
 	_rtw_init_queue(&precvpriv->free_recv_buf_queue);
@@ -34,7 +32,7 @@ int	rtw_hal_init_recv_priv(struct adapter *padapter)
 	if (!precvpriv->precv_buf) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
-				("alloc recv_buf fail!\n"));
+			 ("alloc recv_buf fail!\n"));
 		goto exit;
 	}
 	precvbuf = precvpriv->precv_buf;
@@ -55,11 +53,11 @@ int	rtw_hal_init_recv_priv(struct adapter *padapter)
 
 		for (i = 0; i < NR_PREALLOC_RECV_SKB; i++) {
 			pskb = __netdev_alloc_skb(padapter->pnetdev,
-					MAX_RECVBUF_SZ, GFP_KERNEL);
+						  MAX_RECVBUF_SZ, GFP_KERNEL);
 			if (pskb) {
 				kmemleak_not_leak(pskb);
 				skb_queue_tail(&precvpriv->free_recv_skb_queue,
-						pskb);
+					       pskb);
 			}
 			pskb = NULL;
 		}
@@ -70,9 +68,9 @@ exit:
 
 void rtw_hal_free_recv_priv(struct adapter *padapter)
 {
-	int	i;
-	struct recv_buf	*precvbuf;
-	struct recv_priv	*precvpriv = &padapter->recvpriv;
+	int i;
+	struct recv_buf *precvbuf;
+	struct recv_priv *precvpriv = &padapter->recvpriv;
 
 	precvbuf = precvpriv->precv_buf;
 
@@ -89,7 +87,7 @@ void rtw_hal_free_recv_priv(struct adapter *padapter)
 
 	if (skb_queue_len(&precvpriv->free_recv_skb_queue))
 		DBG_88E(KERN_WARNING "free_recv_skb_queue not empty, %d\n",
-				skb_queue_len(&precvpriv->free_recv_skb_queue));
+			skb_queue_len(&precvpriv->free_recv_skb_queue));
 
 	skb_queue_purge(&precvpriv->free_recv_skb_queue);
 }

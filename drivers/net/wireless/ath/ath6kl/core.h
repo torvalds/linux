@@ -160,7 +160,7 @@ enum ath6kl_fw_capability {
 struct ath6kl_fw_ie {
 	__le32 id;
 	__le32 len;
-	u8 data[0];
+	u8 data[];
 };
 
 enum ath6kl_hw_flags {
@@ -406,7 +406,7 @@ struct ath6kl_mgmt_buff {
 	u32 id;
 	bool no_cck;
 	size_t len;
-	u8 buf[0];
+	u8 buf[];
 };
 
 struct ath6kl_sta {

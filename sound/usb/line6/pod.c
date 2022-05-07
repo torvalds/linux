@@ -110,7 +110,7 @@ enum {
 	POD_BUSY_MIDISEND
 };
 
-static struct snd_ratden pod_ratden = {
+static const struct snd_ratden pod_ratden = {
 	.num_min = 78125,
 	.num_max = 78125,
 	.num_step = 1,

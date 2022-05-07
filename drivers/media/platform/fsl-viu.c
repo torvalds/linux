@@ -32,7 +32,7 @@
 #define VIU_VERSION		"0.5.1"
 
 /* Allow building this driver with COMPILE_TEST */
-#if !defined(CONFIG_PPC) && !defined(CONFIG_MICROBLAZE)
+#if !defined(CONFIG_PPC) && !defined(CONFIG_MICROBLAZE) && !defined(CONFIG_M68K)
 #define out_be32(v, a)	iowrite32be(a, (void __iomem *)v)
 #define in_be32(a)	ioread32be((void __iomem *)a)
 #endif
@@ -1486,7 +1486,7 @@ static int viu_of_probe(struct platform_device *op)
 
 	mutex_lock(&viu_dev->lock);
 
-	ret = video_register_device(viu_dev->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(viu_dev->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		video_device_release(viu_dev->vdev);
 		goto err_unlock;

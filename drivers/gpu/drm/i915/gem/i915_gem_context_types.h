@@ -20,6 +20,7 @@
 #include "gt/intel_context_types.h"
 
 #include "i915_scheduler.h"
+#include "i915_sw_fence.h"
 
 struct pid;
 
@@ -30,7 +31,12 @@ struct intel_timeline;
 struct intel_ring;
 
 struct i915_gem_engines {
-	struct rcu_head rcu;
+	union {
+		struct list_head link;
+		struct rcu_head rcu;
+	};
+	struct i915_sw_fence fence;
+	struct i915_gem_context *ctx;
 	unsigned int num_engines;
 	struct intel_context *engines[];
 };
@@ -88,7 +94,7 @@ struct i915_gem_context {
 	 * In other modes, this is a NULL pointer with the expectation that
 	 * the caller uses the shared global GTT.
 	 */
-	struct i915_address_space *vm;
+	struct i915_address_space __rcu *vm;
 
 	/**
 	 * @pid: process id of creator
@@ -99,15 +105,6 @@ struct i915_gem_context {
 	 * explicitly by the client are expected to be isolated.
 	 */
 	struct pid *pid;
-
-	/**
-	 * @name: arbitrary name
-	 *
-	 * A name is constructed for the context from the creator's process
-	 * name, pid and user handle in order to uniquely identify the
-	 * context in messages.
-	 */
-	const char *name;
 
 	/** link: place with &drm_i915_private.context_list */
 	struct list_head link;
@@ -137,33 +134,14 @@ struct i915_gem_context {
 #define UCONTEXT_NO_ERROR_CAPTURE	1
 #define UCONTEXT_BANNABLE		2
 #define UCONTEXT_RECOVERABLE		3
+#define UCONTEXT_PERSISTENCE		4
 
 	/**
 	 * @flags: small set of booleans
 	 */
 	unsigned long flags;
-#define CONTEXT_BANNED			0
-#define CONTEXT_CLOSED			1
-#define CONTEXT_FORCE_SINGLE_SUBMISSION	2
-#define CONTEXT_USER_ENGINES		3
-
-	/**
-	 * @hw_id: - unique identifier for the context
-	 *
-	 * The hardware needs to uniquely identify the context for a few
-	 * functions like fault reporting, PASID, scheduling. The
-	 * &drm_i915_private.context_hw_ida is used to assign a unqiue
-	 * id for the lifetime of the context.
-	 *
-	 * @hw_id_pin_count: - number of times this context had been pinned
-	 * for use (should be, at most, once per engine).
-	 *
-	 * @hw_id_link: - all contexts with an assigned id are tracked
-	 * for possible repossession.
-	 */
-	unsigned int hw_id;
-	atomic_t hw_id_pin_count;
-	struct list_head hw_id_link;
+#define CONTEXT_CLOSED			0
+#define CONTEXT_USER_ENGINES		1
 
 	struct mutex mutex;
 
@@ -192,13 +170,21 @@ struct i915_gem_context {
 	 * per vm, which may be one per context or shared with the global GTT)
 	 */
 	struct radix_tree_root handles_vma;
+	struct mutex lut_mutex;
 
-	/** jump_whitelist: Bit array for tracking cmds during cmdparsing
-	 *  Guarded by struct_mutex
+	/**
+	 * @name: arbitrary name, used for user debug
+	 *
+	 * A name is constructed for the context from the creator's process
+	 * name, pid and user handle in order to uniquely identify the
+	 * context in messages.
 	 */
-	unsigned long *jump_whitelist;
-	/** jump_whitelist_cmds: No of cmd slots available */
-	u32 jump_whitelist_cmds;
+	char name[TASK_COMM_LEN + 8];
+
+	struct {
+		spinlock_t lock;
+		struct list_head engines;
+	} stale;
 };
 
 #endif /* __I915_GEM_CONTEXT_TYPES_H__ */

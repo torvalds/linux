@@ -54,7 +54,7 @@ struct ceph_connection_operations {
 	int (*check_message_signature) (struct ceph_msg *msg);
 };
 
-/* use format string %s%d */
+/* use format string %s%lld */
 #define ENTITY_NAME(n) ceph_entity_type_name((n).type), le64_to_cpu((n).num)
 
 struct ceph_messenger {
@@ -175,9 +175,10 @@ struct ceph_msg_data {
 #endif /* CONFIG_BLOCK */
 		struct ceph_bvec_iter	bvec_pos;
 		struct {
-			struct page	**pages;	/* NOT OWNER. */
+			struct page	**pages;
 			size_t		length;		/* total # bytes */
 			unsigned int	alignment;	/* first page */
+			bool		own_pages;
 		};
 		struct ceph_pagelist	*pagelist;
 	};
@@ -356,8 +357,8 @@ extern void ceph_con_keepalive(struct ceph_connection *con);
 extern bool ceph_con_keepalive_expired(struct ceph_connection *con,
 				       unsigned long interval);
 
-extern void ceph_msg_data_add_pages(struct ceph_msg *msg, struct page **pages,
-				size_t length, size_t alignment);
+void ceph_msg_data_add_pages(struct ceph_msg *msg, struct page **pages,
+			     size_t length, size_t alignment, bool own_pages);
 extern void ceph_msg_data_add_pagelist(struct ceph_msg *msg,
 				struct ceph_pagelist *pagelist);
 #ifdef CONFIG_BLOCK

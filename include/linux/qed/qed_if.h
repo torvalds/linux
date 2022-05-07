@@ -1,33 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #ifndef _QED_IF_H
@@ -47,6 +21,7 @@
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/qed_chain.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <net/devlink.h>
 
 enum dcbx_protocol_type {
 	DCBX_PROTOCOL_ISCSI,
@@ -159,6 +134,7 @@ struct qed_dcbx_get {
 enum qed_nvm_images {
 	QED_NVM_IMAGE_ISCSI_CFG,
 	QED_NVM_IMAGE_FCOE_CFG,
+	QED_NVM_IMAGE_MDUMP,
 	QED_NVM_IMAGE_NVM_CFG1,
 	QED_NVM_IMAGE_DEFAULT_CFG,
 	QED_NVM_IMAGE_NVM_META,
@@ -463,7 +439,7 @@ enum qed_db_rec_space {
 
 #define DIRECT_REG_RD(reg_addr) readl((void __iomem *)(reg_addr))
 
-#define DIRECT_REG_WR64(reg_addr, val) writeq((u32)val,	\
+#define DIRECT_REG_WR64(reg_addr, val) writeq((u64)val,	\
 					      (void __iomem *)(reg_addr))
 
 #define QED_COALESCE_MAX 0x1FF
@@ -523,7 +499,7 @@ struct qed_fcoe_pf_params {
 	u8 bdq_pbl_num_entries[2];
 };
 
-/* Most of the the parameters below are described in the FW iSCSI / TCP HSI */
+/* Most of the parameters below are described in the FW iSCSI / TCP HSI */
 struct qed_iscsi_pf_params {
 	u64 glbl_q_params_addr;
 	u64 bdq_pbl_base_addr[3];
@@ -606,9 +582,20 @@ struct qed_sb_info {
 	struct qed_dev *cdev;
 };
 
+enum qed_hw_err_type {
+	QED_HW_ERR_FAN_FAIL,
+	QED_HW_ERR_MFW_RESP_FAIL,
+	QED_HW_ERR_HW_ATTN,
+	QED_HW_ERR_DMAE_FAIL,
+	QED_HW_ERR_RAMROD_FAIL,
+	QED_HW_ERR_FW_ASSERT,
+	QED_HW_ERR_LAST,
+};
+
 enum qed_dev_type {
 	QED_DEV_TYPE_BB,
 	QED_DEV_TYPE_AH,
+	QED_DEV_TYPE_E5,
 };
 
 struct qed_dev_info {
@@ -637,6 +624,7 @@ struct qed_dev_info {
 #define QED_MFW_VERSION_3_OFFSET	24
 
 	u32		flash_size;
+	bool		b_arfs_capable;
 	bool		b_inter_pf_switch;
 	bool		tx_switching;
 	bool		rdma_supported;
@@ -676,87 +664,72 @@ enum qed_protocol {
 	QED_PROTOCOL_FCOE,
 };
 
-enum qed_link_mode_bits {
-	QED_LM_FIBRE_BIT = BIT(0),
-	QED_LM_Autoneg_BIT = BIT(1),
-	QED_LM_Asym_Pause_BIT = BIT(2),
-	QED_LM_Pause_BIT = BIT(3),
-	QED_LM_1000baseT_Full_BIT = BIT(4),
-	QED_LM_10000baseT_Full_BIT = BIT(5),
-	QED_LM_10000baseKR_Full_BIT = BIT(6),
-	QED_LM_20000baseKR2_Full_BIT = BIT(7),
-	QED_LM_25000baseKR_Full_BIT = BIT(8),
-	QED_LM_40000baseLR4_Full_BIT = BIT(9),
-	QED_LM_50000baseKR2_Full_BIT = BIT(10),
-	QED_LM_100000baseKR4_Full_BIT = BIT(11),
-	QED_LM_TP_BIT = BIT(12),
-	QED_LM_Backplane_BIT = BIT(13),
-	QED_LM_1000baseKX_Full_BIT = BIT(14),
-	QED_LM_10000baseKX4_Full_BIT = BIT(15),
-	QED_LM_10000baseR_FEC_BIT = BIT(16),
-	QED_LM_40000baseKR4_Full_BIT = BIT(17),
-	QED_LM_40000baseCR4_Full_BIT = BIT(18),
-	QED_LM_40000baseSR4_Full_BIT = BIT(19),
-	QED_LM_25000baseCR_Full_BIT = BIT(20),
-	QED_LM_25000baseSR_Full_BIT = BIT(21),
-	QED_LM_50000baseCR2_Full_BIT = BIT(22),
-	QED_LM_100000baseSR4_Full_BIT = BIT(23),
-	QED_LM_100000baseCR4_Full_BIT = BIT(24),
-	QED_LM_100000baseLR4_ER4_Full_BIT = BIT(25),
-	QED_LM_50000baseSR2_Full_BIT = BIT(26),
-	QED_LM_1000baseX_Full_BIT = BIT(27),
-	QED_LM_10000baseCR_Full_BIT = BIT(28),
-	QED_LM_10000baseSR_Full_BIT = BIT(29),
-	QED_LM_10000baseLR_Full_BIT = BIT(30),
-	QED_LM_10000baseLRM_Full_BIT = BIT(31),
-	QED_LM_COUNT = 32
+enum qed_fec_mode {
+	QED_FEC_MODE_NONE			= BIT(0),
+	QED_FEC_MODE_FIRECODE			= BIT(1),
+	QED_FEC_MODE_RS				= BIT(2),
+	QED_FEC_MODE_AUTO			= BIT(3),
+	QED_FEC_MODE_UNSUPPORTED		= BIT(4),
 };
 
 struct qed_link_params {
-	bool	link_up;
+	bool					link_up;
 
-#define QED_LINK_OVERRIDE_SPEED_AUTONEG         BIT(0)
-#define QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS      BIT(1)
-#define QED_LINK_OVERRIDE_SPEED_FORCED_SPEED    BIT(2)
-#define QED_LINK_OVERRIDE_PAUSE_CONFIG          BIT(3)
-#define QED_LINK_OVERRIDE_LOOPBACK_MODE         BIT(4)
-#define QED_LINK_OVERRIDE_EEE_CONFIG            BIT(5)
-	u32	override_flags;
-	bool	autoneg;
-	u32	adv_speeds;
-	u32	forced_speed;
-#define QED_LINK_PAUSE_AUTONEG_ENABLE           BIT(0)
-#define QED_LINK_PAUSE_RX_ENABLE                BIT(1)
-#define QED_LINK_PAUSE_TX_ENABLE                BIT(2)
-	u32	pause_config;
-#define QED_LINK_LOOPBACK_NONE                  BIT(0)
-#define QED_LINK_LOOPBACK_INT_PHY               BIT(1)
-#define QED_LINK_LOOPBACK_EXT_PHY               BIT(2)
-#define QED_LINK_LOOPBACK_EXT                   BIT(3)
-#define QED_LINK_LOOPBACK_MAC                   BIT(4)
-	u32	loopback_mode;
-	struct qed_link_eee_params eee;
+	u32					override_flags;
+#define QED_LINK_OVERRIDE_SPEED_AUTONEG		BIT(0)
+#define QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS	BIT(1)
+#define QED_LINK_OVERRIDE_SPEED_FORCED_SPEED	BIT(2)
+#define QED_LINK_OVERRIDE_PAUSE_CONFIG		BIT(3)
+#define QED_LINK_OVERRIDE_LOOPBACK_MODE		BIT(4)
+#define QED_LINK_OVERRIDE_EEE_CONFIG		BIT(5)
+#define QED_LINK_OVERRIDE_FEC_CONFIG		BIT(6)
+
+	bool					autoneg;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_speeds);
+	u32					forced_speed;
+
+	u32					pause_config;
+#define QED_LINK_PAUSE_AUTONEG_ENABLE		BIT(0)
+#define QED_LINK_PAUSE_RX_ENABLE		BIT(1)
+#define QED_LINK_PAUSE_TX_ENABLE		BIT(2)
+
+	u32					loopback_mode;
+#define QED_LINK_LOOPBACK_NONE			BIT(0)
+#define QED_LINK_LOOPBACK_INT_PHY		BIT(1)
+#define QED_LINK_LOOPBACK_EXT_PHY		BIT(2)
+#define QED_LINK_LOOPBACK_EXT			BIT(3)
+#define QED_LINK_LOOPBACK_MAC			BIT(4)
+#define QED_LINK_LOOPBACK_CNIG_AH_ONLY_0123	BIT(5)
+#define QED_LINK_LOOPBACK_CNIG_AH_ONLY_2301	BIT(6)
+#define QED_LINK_LOOPBACK_PCS_AH_ONLY		BIT(7)
+#define QED_LINK_LOOPBACK_REVERSE_MAC_AH_ONLY	BIT(8)
+#define QED_LINK_LOOPBACK_INT_PHY_FEA_AH_ONLY	BIT(9)
+
+	struct qed_link_eee_params		eee;
+	u32					fec;
 };
 
 struct qed_link_output {
-	bool	link_up;
+	bool					link_up;
 
-	/* In QED_LM_* defs */
-	u32	supported_caps;
-	u32	advertised_caps;
-	u32	lp_caps;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported_caps);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertised_caps);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_caps);
 
-	u32	speed;                  /* In Mb/s */
-	u8	duplex;                 /* In DUPLEX defs */
-	u8	port;                   /* In PORT defs */
-	bool	autoneg;
-	u32	pause_config;
+	u32					speed;	   /* In Mb/s */
+	u8					duplex;	   /* In DUPLEX defs */
+	u8					port;	   /* In PORT defs */
+	bool					autoneg;
+	u32					pause_config;
 
 	/* EEE - capability & param */
-	bool eee_supported;
-	bool eee_active;
-	u8 sup_caps;
-	struct qed_link_eee_params eee;
+	bool					eee_supported;
+	bool					eee_active;
+	u8					sup_caps;
+	struct qed_link_eee_params		eee;
+
+	u32					sup_fec;
+	u32					active_fec;
 };
 
 struct qed_probe_params {
@@ -808,14 +781,21 @@ enum qed_nvm_flash_cmd {
 	QED_NVM_FLASH_CMD_NVM_MAX,
 };
 
+struct qed_devlink {
+	struct qed_dev *cdev;
+	struct devlink_health_reporter *fw_reporter;
+};
+
 struct qed_common_cb_ops {
 	void (*arfs_filter_op)(void *dev, void *fltr, u8 fw_rc);
-	void	(*link_update)(void			*dev,
-			       struct qed_link_output	*link);
+	void (*link_update)(void *dev, struct qed_link_output *link);
 	void (*schedule_recovery_handler)(void *dev);
-	void	(*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
+	void (*schedule_hw_err_handler)(void *dev,
+					enum qed_hw_err_type err_type);
+	void (*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
 	void (*get_generic_tlv_data)(void *dev, struct qed_generic_tlvs *data);
 	void (*get_protocol_tlv_data)(void *dev, void *data);
+	void (*bw_update)(void *dev);
 };
 
 struct qed_selftest_ops {
@@ -871,10 +851,9 @@ struct qed_common_ops {
 	struct qed_dev*	(*probe)(struct pci_dev *dev,
 				 struct qed_probe_params *params);
 
-	void		(*remove)(struct qed_dev *cdev);
+	void (*remove)(struct qed_dev *cdev);
 
-	int		(*set_power_state)(struct qed_dev *cdev,
-					   pci_power_t state);
+	int (*set_power_state)(struct qed_dev *cdev, pci_power_t state);
 
 	void (*set_name) (struct qed_dev *cdev, char name[]);
 
@@ -882,50 +861,51 @@ struct qed_common_ops {
 	 * PF params required for the call before slowpath_start is
 	 * documented within the qed_pf_params structure definition.
 	 */
-	void		(*update_pf_params)(struct qed_dev *cdev,
-					    struct qed_pf_params *params);
-	int		(*slowpath_start)(struct qed_dev *cdev,
-					  struct qed_slowpath_params *params);
+	void (*update_pf_params)(struct qed_dev *cdev,
+				 struct qed_pf_params *params);
 
-	int		(*slowpath_stop)(struct qed_dev *cdev);
+	int (*slowpath_start)(struct qed_dev *cdev,
+			      struct qed_slowpath_params *params);
+
+	int (*slowpath_stop)(struct qed_dev *cdev);
 
 	/* Requests to use `cnt' interrupts for fastpath.
 	 * upon success, returns number of interrupts allocated for fastpath.
 	 */
-	int		(*set_fp_int)(struct qed_dev *cdev,
-				      u16 cnt);
+	int (*set_fp_int)(struct qed_dev *cdev, u16 cnt);
 
 	/* Fills `info' with pointers required for utilizing interrupts */
-	int		(*get_fp_int)(struct qed_dev *cdev,
-				      struct qed_int_info *info);
+	int (*get_fp_int)(struct qed_dev *cdev, struct qed_int_info *info);
 
-	u32		(*sb_init)(struct qed_dev *cdev,
-				   struct qed_sb_info *sb_info,
-				   void *sb_virt_addr,
-				   dma_addr_t sb_phy_addr,
-				   u16 sb_id,
-				   enum qed_sb_type type);
+	u32 (*sb_init)(struct qed_dev *cdev,
+		       struct qed_sb_info *sb_info,
+		       void *sb_virt_addr,
+		       dma_addr_t sb_phy_addr,
+		       u16 sb_id,
+		       enum qed_sb_type type);
 
-	u32		(*sb_release)(struct qed_dev *cdev,
-				      struct qed_sb_info *sb_info,
-				      u16 sb_id,
-				      enum qed_sb_type type);
+	u32 (*sb_release)(struct qed_dev *cdev,
+			  struct qed_sb_info *sb_info,
+			  u16 sb_id,
+			  enum qed_sb_type type);
 
-	void		(*simd_handler_config)(struct qed_dev *cdev,
-					       void *token,
-					       int index,
-					       void (*handler)(void *));
+	void (*simd_handler_config)(struct qed_dev *cdev,
+				    void *token,
+				    int index,
+				    void (*handler)(void *));
 
-	void		(*simd_handler_clean)(struct qed_dev *cdev,
-					      int index);
-	int (*dbg_grc)(struct qed_dev *cdev,
-		       void *buffer, u32 *num_dumped_bytes);
+	void (*simd_handler_clean)(struct qed_dev *cdev, int index);
+
+	int (*dbg_grc)(struct qed_dev *cdev, void *buffer, u32 *num_dumped_bytes);
 
 	int (*dbg_grc_size)(struct qed_dev *cdev);
 
-	int (*dbg_all_data) (struct qed_dev *cdev, void *buffer);
+	int (*dbg_all_data)(struct qed_dev *cdev, void *buffer);
 
-	int (*dbg_all_data_size) (struct qed_dev *cdev);
+	int (*dbg_all_data_size)(struct qed_dev *cdev);
+
+	int (*report_fatal_error)(struct devlink *devlink,
+				  enum qed_hw_err_type err_type);
 
 /**
  * @brief can_link_change - can the instance change the link or not
@@ -975,13 +955,8 @@ struct qed_common_ops {
 					 u8 dp_level);
 
 	int		(*chain_alloc)(struct qed_dev *cdev,
-				       enum qed_chain_use_mode intended_use,
-				       enum qed_chain_mode mode,
-				       enum qed_chain_cnt_type cnt_type,
-				       u32 num_elems,
-				       size_t elem_size,
-				       struct qed_chain *p_chain,
-				       struct qed_chain_ext_pbl *ext_pbl);
+				       struct qed_chain *chain,
+				       struct qed_chain_init_params *params);
 
 	void		(*chain_free)(struct qed_dev *cdev,
 				      struct qed_chain *p_chain);
@@ -1033,6 +1008,15 @@ struct qed_common_ops {
  */
 	int (*set_led)(struct qed_dev *cdev,
 		       enum qed_led_mode mode);
+
+/**
+ * @brief attn_clr_enable - Prevent attentions from being reasserted
+ *
+ * @param cdev
+ * @param clr_enable
+ */
+	void (*attn_clr_enable)(struct qed_dev *cdev, bool clr_enable);
+
 /**
  * @brief db_recovery_add - add doorbell information to the doorbell
  * recovery mechanism.
@@ -1160,6 +1144,10 @@ struct qed_common_ops {
  *
  */
 	int (*set_grc_config)(struct qed_dev *cdev, u32 cfg_id, u32 val);
+
+	struct devlink* (*devlink_register)(struct qed_dev *cdev);
+
+	void (*devlink_unregister)(struct devlink *devlink);
 };
 
 #define MASK_FIELD(_name, _value) \
@@ -1176,6 +1164,17 @@ struct qed_common_ops {
 
 #define GET_FIELD(value, name) \
 	(((value) >> (name ## _SHIFT)) & name ## _MASK)
+
+#define GET_MFW_FIELD(name, field) \
+	(((name) & (field ## _MASK)) >> (field ## _OFFSET))
+
+#define SET_MFW_FIELD(name, field, value)				 \
+	do {								 \
+		(name) &= ~(field ## _MASK);				 \
+		(name) |= (((value) << (field ## _OFFSET)) & (field ## _MASK));\
+	} while (0)
+
+#define DB_ADDR_SHIFT(addr) ((addr) << DB_PWM_ADDR_OFFSET_SHIFT)
 
 /* Debug print definitions */
 #define DP_ERR(cdev, fmt, ...)					\
@@ -1396,16 +1395,15 @@ static inline void qed_sb_ack(struct qed_sb_info *sb_info,
 			      enum igu_int_cmd int_cmd,
 			      u8 upd_flg)
 {
-	struct igu_prod_cons_update igu_ack = { 0 };
+	u32 igu_ack;
 
-	igu_ack.sb_id_and_flags =
-		((sb_info->sb_ack << IGU_PROD_CONS_UPDATE_SB_INDEX_SHIFT) |
-		 (upd_flg << IGU_PROD_CONS_UPDATE_UPDATE_FLAG_SHIFT) |
-		 (int_cmd << IGU_PROD_CONS_UPDATE_ENABLE_INT_SHIFT) |
-		 (IGU_SEG_ACCESS_REG <<
-		  IGU_PROD_CONS_UPDATE_SEGMENT_ACCESS_SHIFT));
+	igu_ack = ((sb_info->sb_ack << IGU_PROD_CONS_UPDATE_SB_INDEX_SHIFT) |
+		   (upd_flg << IGU_PROD_CONS_UPDATE_UPDATE_FLAG_SHIFT) |
+		   (int_cmd << IGU_PROD_CONS_UPDATE_ENABLE_INT_SHIFT) |
+		   (IGU_SEG_ACCESS_REG <<
+		    IGU_PROD_CONS_UPDATE_SEGMENT_ACCESS_SHIFT));
 
-	DIRECT_REG_WR(sb_info->igu_addr, igu_ack.sb_id_and_flags);
+	DIRECT_REG_WR(sb_info->igu_addr, igu_ack);
 
 	/* Both segments (interrupts & acks) are written to same place address;
 	 * Need to guarantee all commands will be received (in-order) by HW.

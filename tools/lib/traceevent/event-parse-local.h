@@ -13,6 +13,9 @@ struct func_map;
 struct func_list;
 struct event_handler;
 struct func_resolver;
+struct tep_plugins_dir;
+
+#define __hidden __attribute__((visibility ("hidden")))
 
 struct tep_handle {
 	int ref_count;
@@ -47,7 +50,6 @@ struct tep_handle {
 	struct printk_list *printklist;
 	unsigned int printk_count;
 
-
 	struct tep_event **events;
 	int nr_events;
 	struct tep_event **sort_events;
@@ -81,13 +83,41 @@ struct tep_handle {
 
 	/* cache */
 	struct tep_event *last_event;
+
+	struct tep_plugins_dir *plugins_dir;
 };
 
-void tep_free_event(struct tep_event *event);
-void tep_free_format_field(struct tep_format_field *field);
+enum tep_print_parse_type {
+	PRINT_FMT_STRING,
+	PRINT_FMT_ARG_DIGIT,
+	PRINT_FMT_ARG_POINTER,
+	PRINT_FMT_ARG_STRING,
+};
 
-unsigned short tep_data2host2(struct tep_handle *tep, unsigned short data);
-unsigned int tep_data2host4(struct tep_handle *tep, unsigned int data);
-unsigned long long tep_data2host8(struct tep_handle *tep, unsigned long long data);
+struct tep_print_parse {
+	struct tep_print_parse	*next;
+
+	char				*format;
+	int				ls;
+	enum tep_print_parse_type	type;
+	struct tep_print_arg		*arg;
+	struct tep_print_arg		*len_as_arg;
+};
+
+void free_tep_event(struct tep_event *event);
+void free_tep_format_field(struct tep_format_field *field);
+void free_tep_plugin_paths(struct tep_handle *tep);
+
+unsigned short data2host2(struct tep_handle *tep, unsigned short data);
+unsigned int data2host4(struct tep_handle *tep, unsigned int data);
+unsigned long long data2host8(struct tep_handle *tep, unsigned long long data);
+
+/* access to the internal parser */
+int peek_char(void);
+void init_input_buf(const char *buf, unsigned long long size);
+unsigned long long get_input_buf_ptr(void);
+const char *get_input_buf(void);
+enum tep_event_type read_token(char **tok);
+void free_token(char *tok);
 
 #endif /* _PARSE_EVENTS_INT_H */

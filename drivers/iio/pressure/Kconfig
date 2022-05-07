@@ -53,6 +53,18 @@ config IIO_CROS_EC_BARO
 	  To compile this driver as a module, choose M here: the module
 	  will be called cros_ec_baro.
 
+config DLHL60D
+	tristate "All Sensors DLHL60D and DLHL60G low voltage digital pressure sensors"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the All Sensors DLH series
+	  pressure sensors driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called dlhl60d.
+
 config DPS310
 	tristate "Infineon DPS310 pressure and temperature sensor"
 	depends on I2C
@@ -88,6 +100,17 @@ config HP03
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called hp03.
+
+config ICP10100
+	tristate "InvenSense ICP-101xx pressure and temperature sensor"
+	depends on I2C
+	select CRC8
+	help
+	  Say yes here to build support for InvenSense ICP-101xx barometric
+	  pressure and temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called icp10100.
 
 config MPL115
 	tristate

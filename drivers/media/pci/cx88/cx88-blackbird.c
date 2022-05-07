@@ -1138,7 +1138,7 @@ static int blackbird_register_video(struct cx8802_dev *dev)
 				    V4L2_CAP_VIDEO_CAPTURE;
 	if (dev->core->board.tuner_type != UNSET)
 		dev->mpeg_dev.device_caps |= V4L2_CAP_TUNER;
-	err = video_register_device(&dev->mpeg_dev, VFL_TYPE_GRABBER, -1);
+	err = video_register_device(&dev->mpeg_dev, VFL_TYPE_VIDEO, -1);
 	if (err < 0) {
 		pr_info("can't register mpeg device\n");
 		return err;

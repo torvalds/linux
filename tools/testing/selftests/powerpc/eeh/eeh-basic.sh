@@ -1,17 +1,19 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 
+KSELFTESTS_SKIP=4
+
 . ./eeh-functions.sh
 
 if ! eeh_supported ; then
 	echo "EEH not supported on this system, skipping"
-	exit 0;
+	exit $KSELFTESTS_SKIP;
 fi
 
 if [ ! -e "/sys/kernel/debug/powerpc/eeh_dev_check" ] && \
    [ ! -e "/sys/kernel/debug/powerpc/eeh_dev_break" ] ; then
 	echo "debugfs EEH testing files are missing. Is debugfs mounted?"
-	exit 1;
+	exit $KSELFTESTS_SKIP;
 fi
 
 pre_lspci=`mktemp`
@@ -39,6 +41,11 @@ for dev in `ls -1 /sys/bus/pci/devices/ | grep '\.0$'` ; do
 	if [ -e "/sys/bus/pci/devices/$dev/physfn" ] ; then
 		echo "$dev, Skipped: virtfn"
 		continue;
+	fi
+
+	if [ "ahci" = "$(basename $(realpath /sys/bus/pci/devices/$dev/driver))" ] ; then
+		echo "$dev, Skipped: ahci doesn't support recovery"
+		continue
 	fi
 
 	# Don't inject errosr into an already-frozen PE. This happens with
@@ -79,4 +86,5 @@ echo "$failed devices failed to recover ($dev_count tested)"
 lspci | diff -u $pre_lspci -
 rm -f $pre_lspci
 
-exit $failed
+test "$failed" == 0
+exit $?

@@ -1,10 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Uprobe event parser error log check
-
-[ -f uprobe_events ] || exit_unsupported # this is configurable
-
-[ -f error_log ] || exit_unsupported
+# requires: uprobe_events error_log
 
 check_error() { # command-with-error-pos-by-^
     ftrace_errlog_check 'trace_uprobe' "$1" 'uprobe_events'
@@ -19,5 +16,11 @@ check_error 'p /bin/sh:10(10)^a'	# BAD_REFCNT_SUFFIX
 
 check_error 'p /bin/sh:10 ^@+ab'	# BAD_FILE_OFFS
 check_error 'p /bin/sh:10 ^@symbol'	# SYM_ON_UPROBE
+
+# %return suffix error
+if grep -q "place (uprobe): .*%return.*" README; then
+check_error 'p /bin/sh:10^%hoge'	# BAD_ADDR_SUFFIX
+check_error 'p /bin/sh:10(10)^%return'	# BAD_REFCNT_SUFFIX
+fi
 
 exit 0

@@ -138,7 +138,7 @@ static int __init early_parse_ps3fb(char *p)
 	if (!p)
 		return 1;
 
-	ps3fb_videomemory.size = _ALIGN_UP(memparse(p, &p),
+	ps3fb_videomemory.size = ALIGN(memparse(p, &p),
 					   ps3fb_videomemory.align);
 	return 0;
 }
@@ -198,10 +198,6 @@ static void __init ps3_setup_arch(void)
 
 #ifdef CONFIG_SMP
 	smp_init_ps3();
-#endif
-
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
 #endif
 
 	prealloc_ps3fb_videomemory();

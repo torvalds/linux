@@ -133,7 +133,7 @@ When mounting an XFS filesystem, the following options are accepted.
 	logbsize must be an integer multiple of the log
 	stripe unit configured at **mkfs(8)** time.
 
-	The default value for for version 1 logs is 32768, while the
+	The default value for version 1 logs is 32768, while the
 	default value for version 2 logs is MAX(32768, log_sunit).
 
   logdev=device and rtdev=device
@@ -210,6 +210,28 @@ When mounting an XFS filesystem, the following options are accepted.
 	inconsistent namespace presentation during or after a
 	failover event.
 
+Deprecation of V4 Format
+========================
+
+The V4 filesystem format lacks certain features that are supported by
+the V5 format, such as metadata checksumming, strengthened metadata
+verification, and the ability to store timestamps past the year 2038.
+Because of this, the V4 format is deprecated.  All users should upgrade
+by backing up their files, reformatting, and restoring from the backup.
+
+Administrators and users can detect a V4 filesystem by running xfs_info
+against a filesystem mountpoint and checking for a string containing
+"crc=".  If no such string is found, please upgrade xfsprogs to the
+latest version and try again.
+
+The deprecation will take place in two parts.  Support for mounting V4
+filesystems can now be disabled at kernel build time via Kconfig option.
+The option will default to yes until September 2025, at which time it
+will be changed to default to no.  In September 2030, support will be
+removed from the codebase entirely.
+
+Note: Distributors may choose to withdraw V4 format support earlier than
+the dates listed above.
 
 Deprecated Mount Options
 ========================
@@ -217,6 +239,9 @@ Deprecated Mount Options
 ===========================     ================
   Name				Removal Schedule
 ===========================     ================
+Mounting with V4 filesystem     September 2030
+ikeep/noikeep			September 2025
+attr2/noattr2			September 2025
 ===========================     ================
 
 
@@ -253,7 +278,7 @@ The following sysctls are available for the XFS filesystem:
 	pool.
 
   fs.xfs.speculative_prealloc_lifetime
-		(Units: seconds   Min: 1  Default: 300  Max: 86400)
+	(Units: seconds   Min: 1  Default: 300  Max: 86400)
 	The interval at which the background scanning for inodes
 	with unused speculative preallocation runs. The scan
 	removes unused preallocation from clean inodes and releases
@@ -331,7 +356,12 @@ The following sysctls are available for the XFS filesystem:
 Deprecated Sysctls
 ==================
 
-None at present.
+===========================     ================
+  Name				Removal Schedule
+===========================     ================
+fs.xfs.irix_sgid_inherit        September 2025
+fs.xfs.irix_symlink_mode        September 2025
+===========================     ================
 
 
 Removed Sysctls

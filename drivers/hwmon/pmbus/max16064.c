@@ -15,17 +15,18 @@
 #define MAX16064_MFR_VOUT_PEAK		0xd4
 #define MAX16064_MFR_TEMPERATURE_PEAK	0xd6
 
-static int max16064_read_word_data(struct i2c_client *client, int page, int reg)
+static int max16064_read_word_data(struct i2c_client *client, int page,
+				   int phase, int reg)
 {
 	int ret;
 
 	switch (reg) {
 	case PMBUS_VIRT_READ_VOUT_MAX:
-		ret = pmbus_read_word_data(client, page,
+		ret = pmbus_read_word_data(client, page, phase,
 					   MAX16064_MFR_VOUT_PEAK);
 		break;
 	case PMBUS_VIRT_READ_TEMP_MAX:
-		ret = pmbus_read_word_data(client, page,
+		ret = pmbus_read_word_data(client, page, phase,
 					   MAX16064_MFR_TEMPERATURE_PEAK);
 		break;
 	case PMBUS_VIRT_RESET_VOUT_HISTORY:
@@ -84,10 +85,9 @@ static struct pmbus_driver_info max16064_info = {
 	.write_word_data = max16064_write_word_data,
 };
 
-static int max16064_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max16064_probe(struct i2c_client *client)
 {
-	return pmbus_do_probe(client, id, &max16064_info);
+	return pmbus_do_probe(client, &max16064_info);
 }
 
 static const struct i2c_device_id max16064_id[] = {
@@ -102,7 +102,7 @@ static struct i2c_driver max16064_driver = {
 	.driver = {
 		   .name = "max16064",
 		   },
-	.probe = max16064_probe,
+	.probe_new = max16064_probe,
 	.remove = pmbus_do_remove,
 	.id_table = max16064_id,
 };

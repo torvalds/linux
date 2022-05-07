@@ -9,6 +9,7 @@
  */
 
 #include <linux/async.h>
+#include <linux/device/bus.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -228,7 +229,7 @@ static DRIVER_ATTR_IGNORE_LOCKDEP(bind, S_IWUSR, NULL, bind_store);
 
 static ssize_t drivers_autoprobe_show(struct bus_type *bus, char *buf)
 {
-	return sprintf(buf, "%d\n", bus->p->drivers_autoprobe);
+	return sysfs_emit(buf, "%d\n", bus->p->drivers_autoprobe);
 }
 
 static ssize_t drivers_autoprobe_store(struct bus_type *bus,

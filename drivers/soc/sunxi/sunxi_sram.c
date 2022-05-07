@@ -194,7 +194,7 @@ static const struct sunxi_sram_data *sunxi_sram_of_parse(struct device_node *nod
 	if (!data) {
 		ret = -EINVAL;
 		goto err;
-	};
+	}
 
 	for (func = data->func; func->func; func++) {
 		if (val == func->val) {

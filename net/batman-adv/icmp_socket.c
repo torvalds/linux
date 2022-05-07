@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  */
@@ -134,9 +134,6 @@ static ssize_t batadv_socket_read(struct file *file, char __user *buf,
 
 	if (!buf || count < sizeof(struct batadv_icmp_packet))
 		return -EINVAL;
-
-	if (!access_ok(buf, count))
-		return -EFAULT;
 
 	error = wait_event_interruptible(socket_client->queue_wait,
 					 socket_client->queue_len);

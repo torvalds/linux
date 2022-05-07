@@ -194,7 +194,6 @@ static int abp060mg_probe(struct i2c_client *client,
 
 	abp060mg_init_device(indio_dev, cfg_id);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &abp060mg_info;

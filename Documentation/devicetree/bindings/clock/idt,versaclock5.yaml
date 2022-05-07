@@ -1,0 +1,156 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/idt,versaclock5.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Binding for IDT VersaClock 5 and 6 programmable I2C clock generators
+
+description: |
+  The IDT VersaClock 5 and VersaClock 6 are programmable I2C
+  clock generators providing from 3 to 12 output clocks.
+
+  When referencing the provided clock in the DT using phandle and clock
+  specifier, the following mapping applies:
+
+  - 5P49V5923:
+    0 -- OUT0_SEL_I2CB
+    1 -- OUT1
+    2 -- OUT2
+
+  - 5P49V5933:
+    0 -- OUT0_SEL_I2CB
+    1 -- OUT1
+    2 -- OUT4
+
+  - other parts:
+    0 -- OUT0_SEL_I2CB
+    1 -- OUT1
+    2 -- OUT2
+    3 -- OUT3
+    4 -- OUT4
+
+maintainers:
+  - Luca Ceresoli <luca@lucaceresoli.net>
+
+properties:
+  compatible:
+    enum:
+      - idt,5p49v5923
+      - idt,5p49v5925
+      - idt,5p49v5933
+      - idt,5p49v5935
+      - idt,5p49v6901
+      - idt,5p49v6965
+
+  reg:
+    description: I2C device address
+    enum: [ 0x68, 0x6a ]
+
+  '#clock-cells':
+    const: 1
+
+  clock-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      enum: [ xin, clkin ]
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+patternProperties:
+  "^OUT[1-4]$":
+    type: object
+    description:
+      Description of one of the outputs (OUT1..OUT4). See "Clock1 Output
+      Configuration" in the Versaclock 5/6/6E Family Register Description
+      and Programming Guide.
+    properties:
+      idt,mode:
+        description:
+          The output drive mode. Values defined in dt-bindings/clk/versaclock.h
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 6
+      idt,voltage-microvolt:
+        description: The output drive voltage.
+        enum: [ 1800000, 2500000, 3300000 ]
+      idt,slew-percent:
+        description: The Slew rate control for CMOS single-ended.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [ 80, 85, 90, 100 ]
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - idt,5p49v5933
+            - idt,5p49v5935
+    then:
+      # Devices with builtin crystal + optional external input
+      properties:
+        clock-names:
+          const: clkin
+        clocks:
+          maxItems: 1
+    else:
+      # Devices without builtin crystal
+      required:
+        - clock-names
+        - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clk/versaclock.h>
+
+    /* 25MHz reference crystal */
+    ref25: ref25m {
+        compatible = "fixed-clock";
+        #clock-cells = <0>;
+        clock-frequency = <25000000>;
+    };
+
+    i2c@0 {
+        reg = <0x0 0x100>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        /* IDT 5P49V5923 I2C clock generator */
+        vc5: clock-generator@6a {
+            compatible = "idt,5p49v5923";
+            reg = <0x6a>;
+            #clock-cells = <1>;
+
+            /* Connect XIN input to 25MHz reference */
+            clocks = <&ref25m>;
+            clock-names = "xin";
+
+            OUT1 {
+                idt,drive-mode = <VC5_CMOSD>;
+                idt,voltage-microvolts = <1800000>;
+                idt,slew-percent = <80>;
+            };
+
+            OUT4 {
+                idt,drive-mode = <VC5_LVDS>;
+            };
+        };
+    };
+
+    /* Consumer referencing the 5P49V5923 pin OUT1 */
+    consumer {
+        /* ... */
+        clocks = <&vc5 1>;
+        /* ... */
+    };
+
+...

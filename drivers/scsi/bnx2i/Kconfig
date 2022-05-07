@@ -4,11 +4,12 @@ config SCSI_BNX2_ISCSI
 	depends on NET
 	depends on PCI
 	depends on (IPV6 || IPV6=n)
+	depends on MMU
 	select SCSI_ISCSI_ATTRS
 	select NETDEVICES
 	select ETHERNET
 	select NET_VENDOR_BROADCOM
 	select CNIC
-	---help---
+	help
 	This driver supports iSCSI offload for the QLogic NetXtreme II
 	devices.

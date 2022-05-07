@@ -6,7 +6,7 @@
  *
  * partly based on the SDK published by Nebula Electronics
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "digitv.h"
 
@@ -90,9 +90,10 @@ static struct i2c_algorithm digitv_i2c_algo = {
 };
 
 /* Callbacks for DVB USB */
-static int digitv_identify_state (struct usb_device *udev, struct
-		dvb_usb_device_properties *props, struct dvb_usb_device_description **desc,
-		int *cold)
+static int digitv_identify_state(struct usb_device *udev,
+				 const struct dvb_usb_device_properties *props,
+				 const struct dvb_usb_device_description **desc,
+				 int *cold)
 {
 	*cold = udev->descriptor.iManufacturer == 0 && udev->descriptor.iProduct == 0;
 	return 0;
@@ -230,34 +231,40 @@ static struct rc_map_table rc_map_digitv_table[] = {
 
 static int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	int i;
-	u8 key[5];
+	struct rc_map_table *entry;
+	int ret, i;
+	u8 key[4];
 	u8 b[4] = { 0 };
 
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 
-	digitv_ctrl_msg(d,USB_READ_REMOTE,0,NULL,0,&key[1],4);
+	ret = digitv_ctrl_msg(d, USB_READ_REMOTE, 0, NULL, 0, key, 4);
+	if (ret)
+		return ret;
 
 	/* Tell the device we've read the remote. Not sure how necessary
 	   this is, but the Nebula SDK does it. */
-	digitv_ctrl_msg(d,USB_WRITE_REMOTE,0,b,4,NULL,0);
+	ret = digitv_ctrl_msg(d, USB_WRITE_REMOTE, 0, b, 4, NULL, 0);
+	if (ret)
+		return ret;
 
 	/* if something is inside the buffer, simulate key press */
-	if (key[1] != 0)
-	{
-		  for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
-			if (rc5_custom(&d->props.rc.legacy.rc_map_table[i]) == key[1] &&
-			    rc5_data(&d->props.rc.legacy.rc_map_table[i]) == key[2]) {
-				*event = d->props.rc.legacy.rc_map_table[i].keycode;
+	if (key[0] != 0) {
+		for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
+			entry = &d->props.rc.legacy.rc_map_table[i];
+
+			if (rc5_custom(entry) == key[0] &&
+			    rc5_data(entry) == key[1]) {
+				*event = entry->keycode;
 				*state = REMOTE_KEY_PRESSED;
 				return 0;
 			}
 		}
+
+		deb_rc("key: %*ph\n", 4, key);
 	}
 
-	if (key[0] != 0)
-		deb_rc("key: %*ph\n", 5, key);
 	return 0;
 }
 

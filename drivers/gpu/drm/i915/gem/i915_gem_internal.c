@@ -8,8 +8,6 @@
 #include <linux/slab.h>
 #include <linux/swiotlb.h>
 
-#include <drm/i915_drm.h>
-
 #include "i915_drv.h"
 #include "i915_gem.h"
 #include "i915_gem_object.h"
@@ -117,13 +115,6 @@ create_st:
 		goto err;
 	}
 
-	/* Mark the pages as dontneed whilst they are still pinned. As soon
-	 * as they are unpinned they are allowed to be reaped by the shrinker,
-	 * and the caller is expected to repopulate - the contents of this
-	 * object are only valid whilst active and pinned.
-	 */
-	obj->mm.madv = I915_MADV_DONTNEED;
-
 	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
 	return 0;
@@ -143,10 +134,10 @@ static void i915_gem_object_put_pages_internal(struct drm_i915_gem_object *obj,
 	internal_free_pages(pages);
 
 	obj->mm.dirty = false;
-	obj->mm.madv = I915_MADV_WILLNEED;
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_internal_ops = {
+	.name = "i915_gem_object_internal",
 	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
 		 I915_GEM_OBJECT_IS_SHRINKABLE,
 	.get_pages = i915_gem_object_get_pages_internal,
@@ -172,6 +163,7 @@ struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *i915,
 				phys_addr_t size)
 {
+	static struct lock_class_key lock_class;
 	struct drm_i915_gem_object *obj;
 	unsigned int cache_level;
 
@@ -186,7 +178,16 @@ i915_gem_object_create_internal(struct drm_i915_private *i915,
 		return ERR_PTR(-ENOMEM);
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
-	i915_gem_object_init(obj, &i915_gem_object_internal_ops);
+	i915_gem_object_init(obj, &i915_gem_object_internal_ops, &lock_class);
+
+	/*
+	 * Mark the object as volatile, such that the pages are marked as
+	 * dontneed whilst they are still pinned. As soon as they are unpinned
+	 * they are allowed to be reaped by the shrinker, and the caller is
+	 * expected to repopulate - the contents of this object are only valid
+	 * whilst active and pinned.
+	 */
+	i915_gem_object_set_volatile(obj);
 
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;

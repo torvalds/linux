@@ -2,10 +2,10 @@
 config DRM_UDL
 	tristate "DisplayLink"
 	depends on DRM
-	depends on USB_SUPPORT
+	depends on USB
 	depends on USB_ARCH_HAS_HCD
-	select USB
+	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
 	help
 	  This is a KMS driver for the USB displaylink video adapters.
-          Say M/Y to add support for these devices via drm/kms interfaces.
+	  Say M/Y to add support for these devices via drm/kms interfaces.

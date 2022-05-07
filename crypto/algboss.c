@@ -58,7 +58,6 @@ static int cryptomgr_probe(void *data)
 {
 	struct cryptomgr_param *param = data;
 	struct crypto_template *tmpl;
-	struct crypto_instance *inst;
 	int err;
 
 	tmpl = crypto_lookup_template(param->template);
@@ -66,16 +65,7 @@ static int cryptomgr_probe(void *data)
 		goto out;
 
 	do {
-		if (tmpl->create) {
-			err = tmpl->create(tmpl, param->tb);
-			continue;
-		}
-
-		inst = tmpl->alloc(param->tb);
-		if (IS_ERR(inst))
-			err = PTR_ERR(inst);
-		else if ((err = crypto_register_instance(tmpl, inst)))
-			tmpl->free(inst);
+		err = tmpl->create(tmpl, param->tb);
 	} while (err == -EAGAIN && !signal_pending(current));
 
 	crypto_tmpl_put(tmpl);
@@ -187,8 +177,6 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	thread = kthread_run(cryptomgr_probe, param, "cryptomgr_probe");
 	if (IS_ERR(thread))
 		goto err_put_larval;
-
-	wait_for_completion_interruptible(&larval->completion);
 
 	return NOTIFY_STOP;
 

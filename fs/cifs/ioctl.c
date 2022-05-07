@@ -65,7 +65,7 @@ static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
 
 	if (tcon->ses->server->ops->ioctl_query_info)
 		rc = tcon->ses->server->ops->ioctl_query_info(
-				xid, tcon, utf16_path,
+				xid, tcon, cifs_sb, utf16_path,
 				filep->private_data ? 0 : 1, p);
 	else
 		rc = -EOPNOTSUPP;
@@ -169,6 +169,8 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	unsigned int xid;
 	struct cifsFileInfo *pSMBFile = filep->private_data;
 	struct cifs_tcon *tcon;
+	struct tcon_link *tlink;
+	struct cifs_sb_info *cifs_sb;
 	__u64	ExtAttrBits = 0;
 	__u64   caps;
 
@@ -298,6 +300,27 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EFAULT;
 			else
 				rc = 0;
+			break;
+		case CIFS_IOC_NOTIFY:
+			if (!S_ISDIR(inode->i_mode)) {
+				/* Notify can only be done on directories */
+				rc = -EOPNOTSUPP;
+				break;
+			}
+			cifs_sb = CIFS_SB(inode->i_sb);
+			tlink = cifs_sb_tlink(cifs_sb);
+			if (IS_ERR(tlink)) {
+				rc = PTR_ERR(tlink);
+				break;
+			}
+			tcon = tlink_tcon(tlink);
+			if (tcon && tcon->ses->server->ops->notify) {
+				rc = tcon->ses->server->ops->notify(xid,
+						filep, (void __user *)arg);
+				cifs_dbg(FYI, "ioctl notify rc %d\n", rc);
+			} else
+				rc = -EOPNOTSUPP;
+			cifs_put_tlink(tlink);
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");

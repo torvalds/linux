@@ -17,11 +17,13 @@
 #include <linux/seq_file.h>
 #include <linux/kthread.h>
 #include <linux/initrd.h>
+#include <linux/pgtable.h>
+#include <linux/swap.h>
+#include <linux/swapops.h>
 
 #include <asm/pdc.h>
 #include <asm/pdcpat.h>
 #include <asm/sections.h>
-#include <asm/pgtable.h>
 
 enum pdt_access_type {
 	PDT_NONE,
@@ -230,6 +232,7 @@ void __init pdc_pdt_init(void)
 
 		/* mark memory page bad */
 		memblock_reserve(pdt_entry[i] & PAGE_MASK, PAGE_SIZE);
+		num_poisoned_pages_inc();
 	}
 }
 
@@ -327,8 +330,7 @@ static int pdt_mainloop(void *unused)
 			    ((pde & PDT_ADDR_SINGLE_ERR) == 0))
 				memory_failure(pde >> PAGE_SHIFT, 0);
 			else
-				soft_offline_page(
-					pfn_to_page(pde >> PAGE_SHIFT), 0);
+				soft_offline_page(pde >> PAGE_SHIFT, 0);
 #else
 			pr_crit("PDT: memory error at 0x%lx ignored.\n"
 				"Rebuild kernel with CONFIG_MEMORY_FAILURE=y "

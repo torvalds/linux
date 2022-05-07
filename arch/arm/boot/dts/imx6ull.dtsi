@@ -51,7 +51,7 @@
 
 / {
 	soc {
-		aips3: aips-bus@2200000 {
+		aips3: bus@2200000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -66,6 +66,13 @@
 					     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6ULL_CLK_DCP_CLK>;
 				clock-names = "dcp";
+			};
+
+			rngb: rng@2284000 {
+				compatible = "fsl,imx6ull-rngb", "fsl,imx25-rngb";
+				reg = <0x02284000 0x4000>;
+				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6UL_CLK_DUMMY>;
 			};
 
 			iomuxc_snvs: iomuxc-snvs@2290000 {

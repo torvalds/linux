@@ -16,6 +16,7 @@ properties:
       - amlogic,meson8b-reset # Reset Controller on Meson8b and compatible SoCs
       - amlogic,meson-gxbb-reset # Reset Controller on GXBB and compatible SoCs
       - amlogic,meson-axg-reset # Reset Controller on AXG and compatible SoCs
+      - amlogic,meson-a1-reset # Reset Controller on A1 and compatible SoCs
 
   reg:
     maxItems: 1
@@ -27,6 +28,8 @@ required:
   - compatible
   - reg
   - "#reset-cells"
+
+additionalProperties: false
 
 examples:
   - |

@@ -5,15 +5,14 @@
 #define __LIBBPF_BTF_H
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <linux/btf.h>
 #include <linux/types.h>
 
+#include "libbpf_common.h"
+
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifndef LIBBPF_API
-#define LIBBPF_API __attribute__((visibility("default")))
 #endif
 
 #define BTF_ELF_SEC ".BTF"
@@ -26,60 +25,38 @@ struct btf_type;
 
 struct bpf_object;
 
-/*
- * The .BTF.ext ELF section layout defined as
- *   struct btf_ext_header
- *   func_info subsection
- *
- * The func_info subsection layout:
- *   record size for struct bpf_func_info in the func_info subsection
- *   struct btf_sec_func_info for section #1
- *   a list of bpf_func_info records for section #1
- *     where struct bpf_func_info mimics one in include/uapi/linux/bpf.h
- *     but may not be identical
- *   struct btf_sec_func_info for section #2
- *   a list of bpf_func_info records for section #2
- *   ......
- *
- * Note that the bpf_func_info record size in .BTF.ext may not
- * be the same as the one defined in include/uapi/linux/bpf.h.
- * The loader should ensure that record_size meets minimum
- * requirement and pass the record as is to the kernel. The
- * kernel will handle the func_info properly based on its contents.
- */
-struct btf_ext_header {
-	__u16	magic;
-	__u8	version;
-	__u8	flags;
-	__u32	hdr_len;
-
-	/* All offsets are in bytes relative to the end of this header */
-	__u32	func_info_off;
-	__u32	func_info_len;
-	__u32	line_info_off;
-	__u32	line_info_len;
-
-	/* optional part of .BTF.ext header */
-	__u32	offset_reloc_off;
-	__u32	offset_reloc_len;
+enum btf_endianness {
+	BTF_LITTLE_ENDIAN = 0,
+	BTF_BIG_ENDIAN = 1,
 };
 
 LIBBPF_API void btf__free(struct btf *btf);
-LIBBPF_API struct btf *btf__new(__u8 *data, __u32 size);
-LIBBPF_API struct btf *btf__parse_elf(const char *path,
-				      struct btf_ext **btf_ext);
+LIBBPF_API struct btf *btf__new(const void *data, __u32 size);
+LIBBPF_API struct btf *btf__new_empty(void);
+LIBBPF_API struct btf *btf__parse(const char *path, struct btf_ext **btf_ext);
+LIBBPF_API struct btf *btf__parse_elf(const char *path, struct btf_ext **btf_ext);
+LIBBPF_API struct btf *btf__parse_raw(const char *path);
 LIBBPF_API int btf__finalize_data(struct bpf_object *obj, struct btf *btf);
 LIBBPF_API int btf__load(struct btf *btf);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
 				   const char *type_name);
+LIBBPF_API __s32 btf__find_by_name_kind(const struct btf *btf,
+					const char *type_name, __u32 kind);
 LIBBPF_API __u32 btf__get_nr_types(const struct btf *btf);
 LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 						  __u32 id);
+LIBBPF_API size_t btf__pointer_size(const struct btf *btf);
+LIBBPF_API int btf__set_pointer_size(struct btf *btf, size_t ptr_sz);
+LIBBPF_API enum btf_endianness btf__endianness(const struct btf *btf);
+LIBBPF_API int btf__set_endianness(struct btf *btf, enum btf_endianness endian);
 LIBBPF_API __s64 btf__resolve_size(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__resolve_type(const struct btf *btf, __u32 type_id);
+LIBBPF_API int btf__align_of(const struct btf *btf, __u32 id);
 LIBBPF_API int btf__fd(const struct btf *btf);
+LIBBPF_API void btf__set_fd(struct btf *btf, int fd);
 LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
+LIBBPF_API const char *btf__str_by_offset(const struct btf *btf, __u32 offset);
 LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
 LIBBPF_API int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 				    __u32 expected_key_size,
@@ -90,16 +67,61 @@ LIBBPF_API struct btf_ext *btf_ext__new(__u8 *data, __u32 size);
 LIBBPF_API void btf_ext__free(struct btf_ext *btf_ext);
 LIBBPF_API const void *btf_ext__get_raw_data(const struct btf_ext *btf_ext,
 					     __u32 *size);
-LIBBPF_API int btf_ext__reloc_func_info(const struct btf *btf,
-					const struct btf_ext *btf_ext,
-					const char *sec_name, __u32 insns_cnt,
-					void **func_info, __u32 *cnt);
-LIBBPF_API int btf_ext__reloc_line_info(const struct btf *btf,
-					const struct btf_ext *btf_ext,
-					const char *sec_name, __u32 insns_cnt,
-					void **line_info, __u32 *cnt);
+LIBBPF_API LIBBPF_DEPRECATED("btf_ext__reloc_func_info was never meant as a public API and has wrong assumptions embedded in it; it will be removed in the future libbpf versions")
+int btf_ext__reloc_func_info(const struct btf *btf,
+			     const struct btf_ext *btf_ext,
+			     const char *sec_name, __u32 insns_cnt,
+			     void **func_info, __u32 *cnt);
+LIBBPF_API LIBBPF_DEPRECATED("btf_ext__reloc_line_info was never meant as a public API and has wrong assumptions embedded in it; it will be removed in the future libbpf versions")
+int btf_ext__reloc_line_info(const struct btf *btf,
+			     const struct btf_ext *btf_ext,
+			     const char *sec_name, __u32 insns_cnt,
+			     void **line_info, __u32 *cnt);
 LIBBPF_API __u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
 LIBBPF_API __u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
+
+LIBBPF_API struct btf *libbpf_find_kernel_btf(void);
+
+LIBBPF_API int btf__find_str(struct btf *btf, const char *s);
+LIBBPF_API int btf__add_str(struct btf *btf, const char *s);
+
+LIBBPF_API int btf__add_int(struct btf *btf, const char *name, size_t byte_sz, int encoding);
+LIBBPF_API int btf__add_ptr(struct btf *btf, int ref_type_id);
+LIBBPF_API int btf__add_array(struct btf *btf,
+			      int index_type_id, int elem_type_id, __u32 nr_elems);
+/* struct/union construction APIs */
+LIBBPF_API int btf__add_struct(struct btf *btf, const char *name, __u32 sz);
+LIBBPF_API int btf__add_union(struct btf *btf, const char *name, __u32 sz);
+LIBBPF_API int btf__add_field(struct btf *btf, const char *name, int field_type_id,
+			      __u32 bit_offset, __u32 bit_size);
+
+/* enum construction APIs */
+LIBBPF_API int btf__add_enum(struct btf *btf, const char *name, __u32 bytes_sz);
+LIBBPF_API int btf__add_enum_value(struct btf *btf, const char *name, __s64 value);
+
+enum btf_fwd_kind {
+	BTF_FWD_STRUCT = 0,
+	BTF_FWD_UNION = 1,
+	BTF_FWD_ENUM = 2,
+};
+
+LIBBPF_API int btf__add_fwd(struct btf *btf, const char *name, enum btf_fwd_kind fwd_kind);
+LIBBPF_API int btf__add_typedef(struct btf *btf, const char *name, int ref_type_id);
+LIBBPF_API int btf__add_volatile(struct btf *btf, int ref_type_id);
+LIBBPF_API int btf__add_const(struct btf *btf, int ref_type_id);
+LIBBPF_API int btf__add_restrict(struct btf *btf, int ref_type_id);
+
+/* func and func_proto construction APIs */
+LIBBPF_API int btf__add_func(struct btf *btf, const char *name,
+			     enum btf_func_linkage linkage, int proto_type_id);
+LIBBPF_API int btf__add_func_proto(struct btf *btf, int ret_type_id);
+LIBBPF_API int btf__add_func_param(struct btf *btf, const char *name, int type_id);
+
+/* var & datasec construction APIs */
+LIBBPF_API int btf__add_var(struct btf *btf, const char *name, int linkage, int type_id);
+LIBBPF_API int btf__add_datasec(struct btf *btf, const char *name, __u32 byte_sz);
+LIBBPF_API int btf__add_datasec_var_info(struct btf *btf, int var_type_id,
+					 __u32 offset, __u32 byte_sz);
 
 struct btf_dedup_opts {
 	unsigned int dedup_table_size;
@@ -125,6 +147,30 @@ LIBBPF_API void btf_dump__free(struct btf_dump *d);
 
 LIBBPF_API int btf_dump__dump_type(struct btf_dump *d, __u32 id);
 
+struct btf_dump_emit_type_decl_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+	/* optional field name for type declaration, e.g.:
+	 * - struct my_struct <FNAME>
+	 * - void (*<FNAME>)(int)
+	 * - char (*<FNAME>)[123]
+	 */
+	const char *field_name;
+	/* extra indentation level (in number of tabs) to emit for multi-line
+	 * type declarations (e.g., anonymous struct); applies for lines
+	 * starting from the second one (first line is assumed to have
+	 * necessary indentation already
+	 */
+	int indent_level;
+	/* strip all the const/volatile/restrict mods */
+	bool strip_mods;
+};
+#define btf_dump_emit_type_decl_opts__last_field strip_mods
+
+LIBBPF_API int
+btf_dump__emit_type_decl(struct btf_dump *d, __u32 id,
+			 const struct btf_dump_emit_type_decl_opts *opts);
+
 /*
  * A set of helpers for easier BTF types handling
  */
@@ -141,6 +187,11 @@ static inline __u16 btf_vlen(const struct btf_type *t)
 static inline bool btf_kflag(const struct btf_type *t)
 {
 	return BTF_INFO_KFLAG(t->info);
+}
+
+static inline bool btf_is_void(const struct btf_type *t)
+{
+	return btf_kind(t) == BTF_KIND_UNKN;
 }
 
 static inline bool btf_is_int(const struct btf_type *t)

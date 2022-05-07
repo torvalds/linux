@@ -27,26 +27,46 @@ enum NPC_LID_E {
 enum npc_kpu_la_ltype {
 	NPC_LT_LA_8023 = 1,
 	NPC_LT_LA_ETHER,
+	NPC_LT_LA_IH_NIX_ETHER,
+	NPC_LT_LA_IH_8_ETHER,
+	NPC_LT_LA_IH_4_ETHER,
+	NPC_LT_LA_IH_2_ETHER,
+	NPC_LT_LA_HIGIG2_ETHER,
+	NPC_LT_LA_IH_NIX_HIGIG2_ETHER,
+	NPC_LT_LA_CUSTOM0 = 0xE,
+	NPC_LT_LA_CUSTOM1 = 0xF,
 };
 
 enum npc_kpu_lb_ltype {
 	NPC_LT_LB_ETAG = 1,
 	NPC_LT_LB_CTAG,
-	NPC_LT_LB_STAG,
+	NPC_LT_LB_STAG_QINQ,
 	NPC_LT_LB_BTAG,
-	NPC_LT_LB_QINQ,
 	NPC_LT_LB_ITAG,
+	NPC_LT_LB_DSA,
+	NPC_LT_LB_DSA_VLAN,
+	NPC_LT_LB_EDSA,
+	NPC_LT_LB_EDSA_VLAN,
+	NPC_LT_LB_EXDSA,
+	NPC_LT_LB_EXDSA_VLAN,
+	NPC_LT_LB_FDSA,
+	NPC_LT_LB_CUSTOM0 = 0xE,
+	NPC_LT_LB_CUSTOM1 = 0xF,
 };
 
 enum npc_kpu_lc_ltype {
 	NPC_LT_LC_IP = 1,
+	NPC_LT_LC_IP_OPT,
 	NPC_LT_LC_IP6,
+	NPC_LT_LC_IP6_EXT,
 	NPC_LT_LC_ARP,
 	NPC_LT_LC_RARP,
 	NPC_LT_LC_MPLS,
 	NPC_LT_LC_NSH,
 	NPC_LT_LC_PTP,
 	NPC_LT_LC_FCOE,
+	NPC_LT_LC_CUSTOM0 = 0xE,
+	NPC_LT_LC_CUSTOM1 = 0xF,
 };
 
 /* Don't modify Ltypes upto SCTP, otherwise it will
@@ -57,49 +77,67 @@ enum npc_kpu_ld_ltype {
 	NPC_LT_LD_UDP,
 	NPC_LT_LD_ICMP,
 	NPC_LT_LD_SCTP,
-	NPC_LT_LD_IGMP,
 	NPC_LT_LD_ICMP6,
-	NPC_LT_LD_ESP,
+	NPC_LT_LD_CUSTOM0,
+	NPC_LT_LD_CUSTOM1,
+	NPC_LT_LD_IGMP = 8,
 	NPC_LT_LD_AH,
 	NPC_LT_LD_GRE,
-	NPC_LT_LD_GRE_MPLS,
-	NPC_LT_LD_GRE_NSH,
-	NPC_LT_LD_TU_MPLS,
+	NPC_LT_LD_NVGRE,
+	NPC_LT_LD_NSH,
+	NPC_LT_LD_TU_MPLS_IN_NSH,
+	NPC_LT_LD_TU_MPLS_IN_IP,
 };
 
 enum npc_kpu_le_ltype {
-	NPC_LT_LE_TU_ETHER = 1,
-	NPC_LT_LE_TU_PPP,
-	NPC_LT_LE_TU_MPLS_IN_NSH,
-	NPC_LT_LE_TU_3RD_NSH,
+	NPC_LT_LE_VXLAN = 1,
+	NPC_LT_LE_GENEVE,
+	NPC_LT_LE_ESP,
+	NPC_LT_LE_GTPU = 4,
+	NPC_LT_LE_VXLANGPE,
+	NPC_LT_LE_GTPC,
+	NPC_LT_LE_NSH,
+	NPC_LT_LE_TU_MPLS_IN_GRE,
+	NPC_LT_LE_TU_NSH_IN_GRE,
+	NPC_LT_LE_TU_MPLS_IN_UDP,
+	NPC_LT_LE_CUSTOM0 = 0xE,
+	NPC_LT_LE_CUSTOM1 = 0xF,
 };
 
 enum npc_kpu_lf_ltype {
-	NPC_LT_LF_TU_IP = 1,
-	NPC_LT_LF_TU_IP6,
-	NPC_LT_LF_TU_ARP,
-	NPC_LT_LF_TU_MPLS_IP,
-	NPC_LT_LF_TU_MPLS_IP6,
-	NPC_LT_LF_TU_MPLS_ETHER,
+	NPC_LT_LF_TU_ETHER = 1,
+	NPC_LT_LF_TU_PPP,
+	NPC_LT_LF_TU_MPLS_IN_VXLANGPE,
+	NPC_LT_LF_TU_NSH_IN_VXLANGPE,
+	NPC_LT_LF_TU_MPLS_IN_NSH,
+	NPC_LT_LF_TU_3RD_NSH,
+	NPC_LT_LF_CUSTOM0 = 0xE,
+	NPC_LT_LF_CUSTOM1 = 0xF,
 };
 
 enum npc_kpu_lg_ltype {
-	NPC_LT_LG_TU_TCP = 1,
-	NPC_LT_LG_TU_UDP,
-	NPC_LT_LG_TU_SCTP,
-	NPC_LT_LG_TU_ICMP,
-	NPC_LT_LG_TU_IGMP,
-	NPC_LT_LG_TU_ICMP6,
-	NPC_LT_LG_TU_ESP,
-	NPC_LT_LG_TU_AH,
+	NPC_LT_LG_TU_IP = 1,
+	NPC_LT_LG_TU_IP6,
+	NPC_LT_LG_TU_ARP,
+	NPC_LT_LG_TU_ETHER_IN_NSH,
+	NPC_LT_LG_CUSTOM0 = 0xE,
+	NPC_LT_LG_CUSTOM1 = 0xF,
 };
 
+/* Don't modify Ltypes upto SCTP, otherwise it will
+ * effect flow tag calculation and thus RSS.
+ */
 enum npc_kpu_lh_ltype {
-	NPC_LT_LH_TCP_DATA = 1,
-	NPC_LT_LH_HTTP_DATA,
-	NPC_LT_LH_HTTPS_DATA,
-	NPC_LT_LH_PPTP_DATA,
-	NPC_LT_LH_UDP_DATA,
+	NPC_LT_LH_TU_TCP = 1,
+	NPC_LT_LH_TU_UDP,
+	NPC_LT_LH_TU_ICMP,
+	NPC_LT_LH_TU_SCTP,
+	NPC_LT_LH_TU_ICMP6,
+	NPC_LT_LH_TU_IGMP = 8,
+	NPC_LT_LH_TU_ESP,
+	NPC_LT_LH_TU_AH,
+	NPC_LT_LH_CUSTOM0 = 0xE,
+	NPC_LT_LH_CUSTOM1 = 0xF,
 };
 
 struct npc_kpu_profile_cam {
@@ -136,8 +174,8 @@ struct npc_kpu_profile_action {
 struct npc_kpu_profile {
 	int cam_entries;
 	int action_entries;
-	struct npc_kpu_profile_cam *cam;
-	struct npc_kpu_profile_action *action;
+	const struct npc_kpu_profile_cam *cam;
+	const struct npc_kpu_profile_action *action;
 };
 
 /* NPC KPU register formats */
@@ -259,6 +297,9 @@ struct nix_rx_action {
 #endif
 };
 
+/* NPC_AF_INTFX_KEX_CFG field masks */
+#define NPC_PARSE_NIBBLE		GENMASK_ULL(30, 0)
+
 /* NIX Receive Vtag Action Structure */
 #define VTAG0_VALID_BIT		BIT_ULL(15)
 #define VTAG0_TYPE_MASK		GENMASK_ULL(14, 12)
@@ -282,5 +323,38 @@ struct npc_mcam_kex {
 	/* NPC_AF_INTF(0..1)_LDATA(0..1)_FLAGS(0..15)_CFG */
 	u64 intf_ld_flags[NPC_MAX_INTF][NPC_MAX_LD][NPC_MAX_LFL];
 } __packed;
+
+struct npc_lt_def {
+	u8	ltype_mask;
+	u8	ltype_match;
+	u8	lid;
+};
+
+struct npc_lt_def_ipsec {
+	u8	ltype_mask;
+	u8	ltype_match;
+	u8	lid;
+	u8	spi_offset;
+	u8	spi_nz;
+};
+
+struct npc_lt_def_cfg {
+	struct npc_lt_def	rx_ol2;
+	struct npc_lt_def	rx_oip4;
+	struct npc_lt_def	rx_iip4;
+	struct npc_lt_def	rx_oip6;
+	struct npc_lt_def	rx_iip6;
+	struct npc_lt_def	rx_otcp;
+	struct npc_lt_def	rx_itcp;
+	struct npc_lt_def	rx_oudp;
+	struct npc_lt_def	rx_iudp;
+	struct npc_lt_def	rx_osctp;
+	struct npc_lt_def	rx_isctp;
+	struct npc_lt_def_ipsec	rx_ipsec[2];
+	struct npc_lt_def	pck_ol2;
+	struct npc_lt_def	pck_oip4;
+	struct npc_lt_def	pck_oip6;
+	struct npc_lt_def	pck_iip4;
+};
 
 #endif /* NPC_H */

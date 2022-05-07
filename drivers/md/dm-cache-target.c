@@ -74,22 +74,19 @@ static bool __iot_idle_for(struct io_tracker *iot, unsigned long jifs)
 static bool iot_idle_for(struct io_tracker *iot, unsigned long jifs)
 {
 	bool r;
-	unsigned long flags;
 
-	spin_lock_irqsave(&iot->lock, flags);
+	spin_lock_irq(&iot->lock);
 	r = __iot_idle_for(iot, jifs);
-	spin_unlock_irqrestore(&iot->lock, flags);
+	spin_unlock_irq(&iot->lock);
 
 	return r;
 }
 
 static void iot_io_begin(struct io_tracker *iot, sector_t len)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&iot->lock, flags);
+	spin_lock_irq(&iot->lock);
 	iot->in_flight += len;
-	spin_unlock_irqrestore(&iot->lock, flags);
+	spin_unlock_irq(&iot->lock);
 }
 
 static void __iot_io_end(struct io_tracker *iot, sector_t len)
@@ -172,7 +169,6 @@ static void __commit(struct work_struct *_ws)
 {
 	struct batcher *b = container_of(_ws, struct batcher, commit_work);
 	blk_status_t r;
-	unsigned long flags;
 	struct list_head work_items;
 	struct work_struct *ws, *tmp;
 	struct continuation *k;
@@ -186,12 +182,12 @@ static void __commit(struct work_struct *_ws)
 	 * We have to grab these before the commit_op to avoid a race
 	 * condition.
 	 */
-	spin_lock_irqsave(&b->lock, flags);
+	spin_lock_irq(&b->lock);
 	list_splice_init(&b->work_items, &work_items);
 	bio_list_merge(&bios, &b->bios);
 	bio_list_init(&b->bios);
 	b->commit_scheduled = false;
-	spin_unlock_irqrestore(&b->lock, flags);
+	spin_unlock_irq(&b->lock);
 
 	r = b->commit_op(b->commit_context);
 
@@ -238,13 +234,12 @@ static void async_commit(struct batcher *b)
 
 static void continue_after_commit(struct batcher *b, struct continuation *k)
 {
-	unsigned long flags;
 	bool commit_scheduled;
 
-	spin_lock_irqsave(&b->lock, flags);
+	spin_lock_irq(&b->lock);
 	commit_scheduled = b->commit_scheduled;
 	list_add_tail(&k->ws.entry, &b->work_items);
-	spin_unlock_irqrestore(&b->lock, flags);
+	spin_unlock_irq(&b->lock);
 
 	if (commit_scheduled)
 		async_commit(b);
@@ -255,13 +250,12 @@ static void continue_after_commit(struct batcher *b, struct continuation *k)
  */
 static void issue_after_commit(struct batcher *b, struct bio *bio)
 {
-       unsigned long flags;
        bool commit_scheduled;
 
-       spin_lock_irqsave(&b->lock, flags);
+       spin_lock_irq(&b->lock);
        commit_scheduled = b->commit_scheduled;
        bio_list_add(&b->bios, bio);
-       spin_unlock_irqrestore(&b->lock, flags);
+       spin_unlock_irq(&b->lock);
 
        if (commit_scheduled)
 	       async_commit(b);
@@ -273,12 +267,11 @@ static void issue_after_commit(struct batcher *b, struct bio *bio)
 static void schedule_commit(struct batcher *b)
 {
 	bool immediate;
-	unsigned long flags;
 
-	spin_lock_irqsave(&b->lock, flags);
+	spin_lock_irq(&b->lock);
 	immediate = !list_empty(&b->work_items) || !bio_list_empty(&b->bios);
 	b->commit_scheduled = true;
-	spin_unlock_irqrestore(&b->lock, flags);
+	spin_unlock_irq(&b->lock);
 
 	if (immediate)
 		async_commit(b);
@@ -427,8 +420,6 @@ struct cache {
 	struct bio_list deferred_bios;
 
 	struct rw_semaphore quiesce_lock;
-
-	struct dm_target_callbacks callbacks;
 
 	/*
 	 * origin_blocks entries, discarded if set.
@@ -630,23 +621,19 @@ static struct per_bio_data *init_per_bio_data(struct bio *bio)
 
 static void defer_bio(struct cache *cache, struct bio *bio)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&cache->lock, flags);
+	spin_lock_irq(&cache->lock);
 	bio_list_add(&cache->deferred_bios, bio);
-	spin_unlock_irqrestore(&cache->lock, flags);
+	spin_unlock_irq(&cache->lock);
 
 	wake_deferred_bio_worker(cache);
 }
 
 static void defer_bios(struct cache *cache, struct bio_list *bios)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&cache->lock, flags);
+	spin_lock_irq(&cache->lock);
 	bio_list_merge(&cache->deferred_bios, bios);
 	bio_list_init(bios);
-	spin_unlock_irqrestore(&cache->lock, flags);
+	spin_unlock_irq(&cache->lock);
 
 	wake_deferred_bio_worker(cache);
 }
@@ -725,10 +712,6 @@ static bool block_size_is_power_of_two(struct cache *cache)
 	return cache->sectors_per_block_shift >= 0;
 }
 
-/* gcc on ARM generates spurious references to __udivdi3 and __umoddi3 */
-#if defined(CONFIG_ARM) && __GNUC__ == 4 && __GNUC_MINOR__ <= 6
-__always_inline
-#endif
 static dm_block_t block_div(dm_block_t b, uint32_t n)
 {
 	do_div(b, n);
@@ -756,33 +739,27 @@ static dm_dblock_t oblock_to_dblock(struct cache *cache, dm_oblock_t oblock)
 
 static void set_discard(struct cache *cache, dm_dblock_t b)
 {
-	unsigned long flags;
-
 	BUG_ON(from_dblock(b) >= from_dblock(cache->discard_nr_blocks));
 	atomic_inc(&cache->stats.discard_count);
 
-	spin_lock_irqsave(&cache->lock, flags);
+	spin_lock_irq(&cache->lock);
 	set_bit(from_dblock(b), cache->discard_bitset);
-	spin_unlock_irqrestore(&cache->lock, flags);
+	spin_unlock_irq(&cache->lock);
 }
 
 static void clear_discard(struct cache *cache, dm_dblock_t b)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&cache->lock, flags);
+	spin_lock_irq(&cache->lock);
 	clear_bit(from_dblock(b), cache->discard_bitset);
-	spin_unlock_irqrestore(&cache->lock, flags);
+	spin_unlock_irq(&cache->lock);
 }
 
 static bool is_discarded(struct cache *cache, dm_dblock_t b)
 {
 	int r;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cache->lock, flags);
+	spin_lock_irq(&cache->lock);
 	r = test_bit(from_dblock(b), cache->discard_bitset);
-	spin_unlock_irqrestore(&cache->lock, flags);
+	spin_unlock_irq(&cache->lock);
 
 	return r;
 }
@@ -790,12 +767,10 @@ static bool is_discarded(struct cache *cache, dm_dblock_t b)
 static bool is_discarded_oblock(struct cache *cache, dm_oblock_t b)
 {
 	int r;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cache->lock, flags);
+	spin_lock_irq(&cache->lock);
 	r = test_bit(from_dblock(oblock_to_dblock(cache, b)),
 		     cache->discard_bitset);
-	spin_unlock_irqrestore(&cache->lock, flags);
+	spin_unlock_irq(&cache->lock);
 
 	return r;
 }
@@ -827,17 +802,16 @@ static void remap_to_cache(struct cache *cache, struct bio *bio,
 
 static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
 {
-	unsigned long flags;
 	struct per_bio_data *pb;
 
-	spin_lock_irqsave(&cache->lock, flags);
+	spin_lock_irq(&cache->lock);
 	if (cache->need_tick_bio && !op_is_flush(bio->bi_opf) &&
 	    bio_op(bio) != REQ_OP_DISCARD) {
 		pb = get_per_bio_data(bio);
 		pb->tick = true;
 		cache->need_tick_bio = false;
 	}
-	spin_unlock_irqrestore(&cache->lock, flags);
+	spin_unlock_irq(&cache->lock);
 }
 
 static void __remap_to_origin_clear_discard(struct cache *cache, struct bio *bio,
@@ -906,7 +880,7 @@ static void accounted_complete(struct cache *cache, struct bio *bio)
 static void accounted_request(struct cache *cache, struct bio *bio)
 {
 	accounted_begin(cache, bio);
-	generic_make_request(bio);
+	submit_bio_noacct(bio);
 }
 
 static void issue_op(struct bio *bio, void *context)
@@ -947,7 +921,7 @@ static enum cache_metadata_mode get_cache_mode(struct cache *cache)
 
 static const char *cache_device_name(struct cache *cache)
 {
-	return dm_device_name(dm_table_get_md(cache->ti->table));
+	return dm_table_device_name(cache->ti->table);
 }
 
 static void notify_mode_switch(struct cache *cache, enum cache_metadata_mode mode)
@@ -1812,7 +1786,7 @@ static bool process_bio(struct cache *cache, struct bio *bio)
 	bool commit_needed;
 
 	if (map_bio(cache, bio, get_bio_block(cache, bio), &commit_needed) == DM_MAPIO_REMAPPED)
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 
 	return commit_needed;
 }
@@ -1878,7 +1852,7 @@ static bool process_discard_bio(struct cache *cache, struct bio *bio)
 
 	if (cache->features.discard_passdown) {
 		remap_to_origin(cache, bio);
-		generic_make_request(bio);
+		submit_bio_noacct(bio);
 	} else
 		bio_endio(bio);
 
@@ -1889,17 +1863,16 @@ static void process_deferred_bios(struct work_struct *ws)
 {
 	struct cache *cache = container_of(ws, struct cache, deferred_bio_worker);
 
-	unsigned long flags;
 	bool commit_needed = false;
 	struct bio_list bios;
 	struct bio *bio;
 
 	bio_list_init(&bios);
 
-	spin_lock_irqsave(&cache->lock, flags);
+	spin_lock_irq(&cache->lock);
 	bio_list_merge(&bios, &cache->deferred_bios);
 	bio_list_init(&cache->deferred_bios);
-	spin_unlock_irqrestore(&cache->lock, flags);
+	spin_unlock_irq(&cache->lock);
 
 	while ((bio = bio_list_pop(&bios))) {
 		if (bio->bi_opf & REQ_PREFLUSH)
@@ -2444,20 +2417,6 @@ static void set_cache_size(struct cache *cache, dm_cblock_t size)
 	cache->cache_size = size;
 }
 
-static int is_congested(struct dm_dev *dev, int bdi_bits)
-{
-	struct request_queue *q = bdev_get_queue(dev->bdev);
-	return bdi_congested(q->backing_dev_info, bdi_bits);
-}
-
-static int cache_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
-{
-	struct cache *cache = container_of(cb, struct cache, callbacks);
-
-	return is_congested(cache->origin_dev, bdi_bits) ||
-		is_congested(cache->cache_dev, bdi_bits);
-}
-
 #define DEFAULT_MIGRATION_THRESHOLD 2048
 
 static int cache_create(struct cache_args *ca, struct cache **result)
@@ -2491,9 +2450,6 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 		if (r)
 			goto bad;
 	}
-
-	cache->callbacks.congested_fn = cache_is_congested;
-	dm_table_add_target_callbacks(ti->table, &cache->callbacks);
 
 	cache->metadata_dev = ca->metadata_dev;
 	cache->origin_dev = ca->origin_dev;
@@ -2867,8 +2823,8 @@ static void cache_postsuspend(struct dm_target *ti)
 	prevent_background_work(cache);
 	BUG_ON(atomic_read(&cache->nr_io_migrations));
 
-	cancel_delayed_work(&cache->waker);
-	flush_workqueue(cache->wq);
+	cancel_delayed_work_sync(&cache->waker);
+	drain_workqueue(cache->wq);
 	WARN_ON(cache->tracker.in_flight);
 
 	/*
@@ -3513,7 +3469,7 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type cache_target = {
 	.name = "cache",
-	.version = {2, 1, 0},
+	.version = {2, 2, 0},
 	.module = THIS_MODULE,
 	.ctr = cache_ctr,
 	.dtr = cache_dtr,

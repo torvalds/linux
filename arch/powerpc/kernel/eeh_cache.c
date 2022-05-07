@@ -159,18 +159,10 @@ eeh_addr_cache_insert(struct pci_dev *dev, resource_size_t alo,
 
 static void __eeh_addr_cache_insert_dev(struct pci_dev *dev)
 {
-	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 	int i;
 
-	pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
-	if (!pdn) {
-		pr_warn("PCI: no pci dn found for dev=%s\n",
-			pci_name(dev));
-		return;
-	}
-
-	edev = pdn_to_eeh_dev(pdn);
+	edev = pci_dev_to_eeh_dev(dev);
 	if (!edev) {
 		pr_warn("PCI: no EEH dev found for %s\n",
 			pci_name(dev));
@@ -272,8 +264,9 @@ static int eeh_addr_cache_show(struct seq_file *s, void *v)
 {
 	struct pci_io_addr_range *piar;
 	struct rb_node *n;
+	unsigned long flags;
 
-	spin_lock(&pci_io_addr_cache_root.piar_lock);
+	spin_lock_irqsave(&pci_io_addr_cache_root.piar_lock, flags);
 	for (n = rb_first(&pci_io_addr_cache_root.rb_root); n; n = rb_next(n)) {
 		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
 
@@ -281,7 +274,7 @@ static int eeh_addr_cache_show(struct seq_file *s, void *v)
 		       (piar->flags & IORESOURCE_IO) ? "i/o" : "mem",
 		       &piar->addr_lo, &piar->addr_hi, pci_name(piar->pcidev));
 	}
-	spin_unlock(&pci_io_addr_cache_root.piar_lock);
+	spin_unlock_irqrestore(&pci_io_addr_cache_root.piar_lock, flags);
 
 	return 0;
 }

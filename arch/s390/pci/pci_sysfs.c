@@ -13,6 +13,8 @@
 #include <linux/stat.h>
 #include <linux/pci.h>
 
+#include "../../../drivers/pci/pci.h"
+
 #include <asm/sclp.h>
 
 #define zpci_attr(name, fmt, member)					\
@@ -31,6 +33,7 @@ zpci_attr(pchid, "0x%04x\n", pchid);
 zpci_attr(pfgid, "0x%02x\n", pfgid);
 zpci_attr(vfn, "0x%04x\n", vfn);
 zpci_attr(pft, "0x%02x\n", pft);
+zpci_attr(port, "%d\n", port);
 zpci_attr(uid, "0x%x\n", uid);
 zpci_attr(segment0, "0x%02x\n", pfip[0]);
 zpci_attr(segment1, "0x%02x\n", pfip[1]);
@@ -49,31 +52,50 @@ static DEVICE_ATTR_RO(mio_enabled);
 static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
+	struct kernfs_node *kn;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct zpci_dev *zdev = to_zpci(pdev);
-	int ret;
+	int ret = 0;
 
-	if (!device_remove_file_self(dev, attr))
-		return count;
+	/* Can't use device_remove_self() here as that would lead us to lock
+	 * the pci_rescan_remove_lock while holding the device' kernfs lock.
+	 * This would create a possible deadlock with disable_slot() which is
+	 * not directly protected by the device' kernfs lock but takes it
+	 * during the device removal which happens under
+	 * pci_rescan_remove_lock.
+	 *
+	 * This is analogous to sdev_store_delete() in
+	 * drivers/scsi/scsi_sysfs.c
+	 */
+	kn = sysfs_break_active_protection(&dev->kobj, &attr->attr);
+	WARN_ON_ONCE(!kn);
+	/* device_remove_file() serializes concurrent calls ignoring all but
+	 * the first
+	 */
+	device_remove_file(dev, attr);
 
+	/* A concurrent call to recover_store() may slip between
+	 * sysfs_break_active_protection() and the sysfs file removal.
+	 * Once it unblocks from pci_lock_rescan_remove() the original pdev
+	 * will already be removed.
+	 */
 	pci_lock_rescan_remove();
-	pci_stop_and_remove_bus_device(pdev);
-	ret = zpci_disable_device(zdev);
-	if (ret)
-		goto error;
+	if (pci_dev_is_added(pdev)) {
+		pci_stop_and_remove_bus_device(pdev);
+		ret = zpci_disable_device(zdev);
+		if (ret)
+			goto out;
 
-	ret = zpci_enable_device(zdev);
-	if (ret)
-		goto error;
-
-	pci_rescan_bus(zdev->bus);
+		ret = zpci_enable_device(zdev);
+		if (ret)
+			goto out;
+		pci_rescan_bus(zdev->zbus->bus);
+	}
+out:
 	pci_unlock_rescan_remove();
-
-	return count;
-
-error:
-	pci_unlock_rescan_remove();
-	return ret;
+	if (kn)
+		sysfs_unbreak_active_protection(kn);
+	return ret ? ret : count;
 }
 static DEVICE_ATTR_WO(recover);
 
@@ -121,6 +143,7 @@ static struct attribute *zpci_dev_attrs[] = {
 	&dev_attr_pchid.attr,
 	&dev_attr_pfgid.attr,
 	&dev_attr_pft.attr,
+	&dev_attr_port.attr,
 	&dev_attr_vfn.attr,
 	&dev_attr_uid.attr,
 	&dev_attr_recover.attr,

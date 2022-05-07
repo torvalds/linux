@@ -14,7 +14,6 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
-#include <linux/vermagic.h>
 #include <linux/vmalloc.h>
 #include <net/devlink.h>
 
@@ -31,7 +30,6 @@
 #include "nfp_net.h"
 
 static const char nfp_driver_name[] = "nfp";
-const char nfp_driver_version[] = VERMAGIC_STRING;
 
 static const struct pci_device_id nfp_pci_device_ids[] = {
 	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP6000,
@@ -920,4 +918,3 @@ MODULE_FIRMWARE("netronome/nic_AMDA0099-0001_1x10_1x25.nffw");
 MODULE_AUTHOR("Netronome Systems <oss-drivers@netronome.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("The Netronome Flow Processor (NFP) driver.");
-MODULE_VERSION(UTS_RELEASE);

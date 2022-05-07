@@ -17,6 +17,10 @@
 
 	memory@40000000 {
 		device_type = "memory";
-		reg =  <0x40000000 0x40000000>;
+		reg = <0x40000000 0x40000000>;
 	};
+};
+
+&sound {
+	fm-sel-gpios = <&gpl0 3 GPIO_ACTIVE_HIGH>;
 };

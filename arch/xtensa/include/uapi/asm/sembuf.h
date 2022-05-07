@@ -22,6 +22,7 @@
 #define _XTENSA_SEMBUF_H
 
 #include <asm/byteorder.h>
+#include <asm/ipcbuf.h>
 
 struct semid64_ds {
 	struct ipc64_perm sem_perm;		/* permissions .. see ipc.h */

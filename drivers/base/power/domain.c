@@ -123,7 +123,7 @@ static const struct genpd_lock_ops genpd_spin_ops = {
 #define genpd_lock_interruptible(p)	p->lock_ops->lock_interruptible(p)
 #define genpd_unlock(p)			p->lock_ops->unlock(p)
 
-#define genpd_status_on(genpd)		(genpd->status == GPD_STATE_ACTIVE)
+#define genpd_status_on(genpd)		(genpd->status == GENPD_STATE_ON)
 #define genpd_is_irq_safe(genpd)	(genpd->flags & GENPD_FLAG_IRQ_SAFE)
 #define genpd_is_always_on(genpd)	(genpd->flags & GENPD_FLAG_ALWAYS_ON)
 #define genpd_is_active_wakeup(genpd)	(genpd->flags & GENPD_FLAG_ACTIVE_WAKEUP)
@@ -222,7 +222,7 @@ static void genpd_update_accounting(struct generic_pm_domain *genpd)
 	 * out of off and so update the idle time and vice
 	 * versa.
 	 */
-	if (genpd->status == GPD_STATE_ACTIVE) {
+	if (genpd->status == GENPD_STATE_ON) {
 		int state_idx = genpd->state_idx;
 
 		genpd->states[state_idx].idle_time =
@@ -263,18 +263,18 @@ static int _genpd_reeval_performance_state(struct generic_pm_domain *genpd,
 	/*
 	 * Traverse all sub-domains within the domain. This can be
 	 * done without any additional locking as the link->performance_state
-	 * field is protected by the master genpd->lock, which is already taken.
+	 * field is protected by the parent genpd->lock, which is already taken.
 	 *
 	 * Also note that link->performance_state (subdomain's performance state
-	 * requirement to master domain) is different from
-	 * link->slave->performance_state (current performance state requirement
+	 * requirement to parent domain) is different from
+	 * link->child->performance_state (current performance state requirement
 	 * of the devices/sub-domains of the subdomain) and so can have a
 	 * different value.
 	 *
 	 * Note that we also take vote from powered-off sub-domains into account
 	 * as the same is done for devices right now.
 	 */
-	list_for_each_entry(link, &genpd->master_links, master_node) {
+	list_for_each_entry(link, &genpd->parent_links, parent_node) {
 		if (link->performance_state > state)
 			state = link->performance_state;
 	}
@@ -285,40 +285,40 @@ static int _genpd_reeval_performance_state(struct generic_pm_domain *genpd,
 static int _genpd_set_performance_state(struct generic_pm_domain *genpd,
 					unsigned int state, int depth)
 {
-	struct generic_pm_domain *master;
+	struct generic_pm_domain *parent;
 	struct gpd_link *link;
-	int master_state, ret;
+	int parent_state, ret;
 
 	if (state == genpd->performance_state)
 		return 0;
 
-	/* Propagate to masters of genpd */
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
-		master = link->master;
+	/* Propagate to parents of genpd */
+	list_for_each_entry(link, &genpd->child_links, child_node) {
+		parent = link->parent;
 
-		if (!master->set_performance_state)
+		if (!parent->set_performance_state)
 			continue;
 
-		/* Find master's performance state */
+		/* Find parent's performance state */
 		ret = dev_pm_opp_xlate_performance_state(genpd->opp_table,
-							 master->opp_table,
+							 parent->opp_table,
 							 state);
 		if (unlikely(ret < 0))
 			goto err;
 
-		master_state = ret;
+		parent_state = ret;
 
-		genpd_lock_nested(master, depth + 1);
+		genpd_lock_nested(parent, depth + 1);
 
 		link->prev_performance_state = link->performance_state;
-		link->performance_state = master_state;
-		master_state = _genpd_reeval_performance_state(master,
-						master_state);
-		ret = _genpd_set_performance_state(master, master_state, depth + 1);
+		link->performance_state = parent_state;
+		parent_state = _genpd_reeval_performance_state(parent,
+						parent_state);
+		ret = _genpd_set_performance_state(parent, parent_state, depth + 1);
 		if (ret)
 			link->performance_state = link->prev_performance_state;
 
-		genpd_unlock(master);
+		genpd_unlock(parent);
 
 		if (ret)
 			goto err;
@@ -333,26 +333,26 @@ static int _genpd_set_performance_state(struct generic_pm_domain *genpd,
 
 err:
 	/* Encountered an error, lets rollback */
-	list_for_each_entry_continue_reverse(link, &genpd->slave_links,
-					     slave_node) {
-		master = link->master;
+	list_for_each_entry_continue_reverse(link, &genpd->child_links,
+					     child_node) {
+		parent = link->parent;
 
-		if (!master->set_performance_state)
+		if (!parent->set_performance_state)
 			continue;
 
-		genpd_lock_nested(master, depth + 1);
+		genpd_lock_nested(parent, depth + 1);
 
-		master_state = link->prev_performance_state;
-		link->performance_state = master_state;
+		parent_state = link->prev_performance_state;
+		link->performance_state = parent_state;
 
-		master_state = _genpd_reeval_performance_state(master,
-						master_state);
-		if (_genpd_set_performance_state(master, master_state, depth + 1)) {
+		parent_state = _genpd_reeval_performance_state(parent,
+						parent_state);
+		if (_genpd_set_performance_state(parent, parent_state, depth + 1)) {
 			pr_err("%s: Failed to roll back to %d performance state\n",
-			       master->name, master_state);
+			       parent->name, parent_state);
 		}
 
-		genpd_unlock(master);
+		genpd_unlock(parent);
 	}
 
 	return ret;
@@ -415,26 +415,45 @@ static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 	s64 elapsed_ns;
 	int ret;
 
-	if (!genpd->power_on)
-		return 0;
+	/* Notify consumers that we are about to power on. */
+	ret = raw_notifier_call_chain_robust(&genpd->power_notifiers,
+					     GENPD_NOTIFY_PRE_ON,
+					     GENPD_NOTIFY_OFF, NULL);
+	ret = notifier_to_errno(ret);
+	if (ret)
+		return ret;
 
-	if (!timed)
-		return genpd->power_on(genpd);
+	if (!genpd->power_on)
+		goto out;
+
+	if (!timed) {
+		ret = genpd->power_on(genpd);
+		if (ret)
+			goto err;
+
+		goto out;
+	}
 
 	time_start = ktime_get();
 	ret = genpd->power_on(genpd);
 	if (ret)
-		return ret;
+		goto err;
 
 	elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
 	if (elapsed_ns <= genpd->states[state_idx].power_on_latency_ns)
-		return ret;
+		goto out;
 
 	genpd->states[state_idx].power_on_latency_ns = elapsed_ns;
 	genpd->max_off_time_changed = true;
 	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
 		 genpd->name, "on", elapsed_ns);
 
+out:
+	raw_notifier_call_chain(&genpd->power_notifiers, GENPD_NOTIFY_ON, NULL);
+	return 0;
+err:
+	raw_notifier_call_chain(&genpd->power_notifiers, GENPD_NOTIFY_OFF,
+				NULL);
 	return ret;
 }
 
@@ -445,27 +464,46 @@ static int _genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 	s64 elapsed_ns;
 	int ret;
 
-	if (!genpd->power_off)
-		return 0;
+	/* Notify consumers that we are about to power off. */
+	ret = raw_notifier_call_chain_robust(&genpd->power_notifiers,
+					     GENPD_NOTIFY_PRE_OFF,
+					     GENPD_NOTIFY_ON, NULL);
+	ret = notifier_to_errno(ret);
+	if (ret)
+		return ret;
 
-	if (!timed)
-		return genpd->power_off(genpd);
+	if (!genpd->power_off)
+		goto out;
+
+	if (!timed) {
+		ret = genpd->power_off(genpd);
+		if (ret)
+			goto busy;
+
+		goto out;
+	}
 
 	time_start = ktime_get();
 	ret = genpd->power_off(genpd);
 	if (ret)
-		return ret;
+		goto busy;
 
 	elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
 	if (elapsed_ns <= genpd->states[state_idx].power_off_latency_ns)
-		return 0;
+		goto out;
 
 	genpd->states[state_idx].power_off_latency_ns = elapsed_ns;
 	genpd->max_off_time_changed = true;
 	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
 		 genpd->name, "off", elapsed_ns);
 
+out:
+	raw_notifier_call_chain(&genpd->power_notifiers, GENPD_NOTIFY_OFF,
+				NULL);
 	return 0;
+busy:
+	raw_notifier_call_chain(&genpd->power_notifiers, GENPD_NOTIFY_ON, NULL);
+	return ret;
 }
 
 /**
@@ -497,6 +535,7 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	struct pm_domain_data *pdd;
 	struct gpd_link *link;
 	unsigned int not_suspended = 0;
+	int ret;
 
 	/*
 	 * Do not try to power off the domain in the following situations:
@@ -544,44 +583,36 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	if (!genpd->gov)
 		genpd->state_idx = 0;
 
-	if (genpd->power_off) {
-		int ret;
+	/* Don't power off, if a child domain is waiting to power on. */
+	if (atomic_read(&genpd->sd_count) > 0)
+		return -EBUSY;
 
-		if (atomic_read(&genpd->sd_count) > 0)
-			return -EBUSY;
-
-		/*
-		 * If sd_count > 0 at this point, one of the subdomains hasn't
-		 * managed to call genpd_power_on() for the master yet after
-		 * incrementing it.  In that case genpd_power_on() will wait
-		 * for us to drop the lock, so we can call .power_off() and let
-		 * the genpd_power_on() restore power for us (this shouldn't
-		 * happen very often).
-		 */
-		ret = _genpd_power_off(genpd, true);
-		if (ret)
-			return ret;
+	ret = _genpd_power_off(genpd, true);
+	if (ret) {
+		genpd->states[genpd->state_idx].rejected++;
+		return ret;
 	}
 
-	genpd->status = GPD_STATE_POWER_OFF;
+	genpd->status = GENPD_STATE_OFF;
 	genpd_update_accounting(genpd);
+	genpd->states[genpd->state_idx].usage++;
 
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
-		genpd_sd_counter_dec(link->master);
-		genpd_lock_nested(link->master, depth + 1);
-		genpd_power_off(link->master, false, depth + 1);
-		genpd_unlock(link->master);
+	list_for_each_entry(link, &genpd->child_links, child_node) {
+		genpd_sd_counter_dec(link->parent);
+		genpd_lock_nested(link->parent, depth + 1);
+		genpd_power_off(link->parent, false, depth + 1);
+		genpd_unlock(link->parent);
 	}
 
 	return 0;
 }
 
 /**
- * genpd_power_on - Restore power to a given PM domain and its masters.
+ * genpd_power_on - Restore power to a given PM domain and its parents.
  * @genpd: PM domain to power up.
  * @depth: nesting count for lockdep.
  *
- * Restore power to @genpd and all of its masters so that it is possible to
+ * Restore power to @genpd and all of its parents so that it is possible to
  * resume a device belonging to it.
  */
 static int genpd_power_on(struct generic_pm_domain *genpd, unsigned int depth)
@@ -594,20 +625,20 @@ static int genpd_power_on(struct generic_pm_domain *genpd, unsigned int depth)
 
 	/*
 	 * The list is guaranteed not to change while the loop below is being
-	 * executed, unless one of the masters' .power_on() callbacks fiddles
+	 * executed, unless one of the parents' .power_on() callbacks fiddles
 	 * with it.
 	 */
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
-		struct generic_pm_domain *master = link->master;
+	list_for_each_entry(link, &genpd->child_links, child_node) {
+		struct generic_pm_domain *parent = link->parent;
 
-		genpd_sd_counter_inc(master);
+		genpd_sd_counter_inc(parent);
 
-		genpd_lock_nested(master, depth + 1);
-		ret = genpd_power_on(master, depth + 1);
-		genpd_unlock(master);
+		genpd_lock_nested(parent, depth + 1);
+		ret = genpd_power_on(parent, depth + 1);
+		genpd_unlock(parent);
 
 		if (ret) {
-			genpd_sd_counter_dec(master);
+			genpd_sd_counter_dec(parent);
 			goto err;
 		}
 	}
@@ -616,22 +647,29 @@ static int genpd_power_on(struct generic_pm_domain *genpd, unsigned int depth)
 	if (ret)
 		goto err;
 
-	genpd->status = GPD_STATE_ACTIVE;
+	genpd->status = GENPD_STATE_ON;
 	genpd_update_accounting(genpd);
 
 	return 0;
 
  err:
 	list_for_each_entry_continue_reverse(link,
-					&genpd->slave_links,
-					slave_node) {
-		genpd_sd_counter_dec(link->master);
-		genpd_lock_nested(link->master, depth + 1);
-		genpd_power_off(link->master, false, depth + 1);
-		genpd_unlock(link->master);
+					&genpd->child_links,
+					child_node) {
+		genpd_sd_counter_dec(link->parent);
+		genpd_lock_nested(link->parent, depth + 1);
+		genpd_power_off(link->parent, false, depth + 1);
+		genpd_unlock(link->parent);
 	}
 
 	return ret;
+}
+
+static int genpd_dev_pm_start(struct device *dev)
+{
+	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+
+	return genpd_start_dev(genpd, dev);
 }
 
 static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
@@ -922,34 +960,16 @@ static int __init genpd_power_off_unused(void)
 }
 late_initcall(genpd_power_off_unused);
 
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_GENERIC_DOMAINS_OF)
-
-static bool genpd_present(const struct generic_pm_domain *genpd)
-{
-	const struct generic_pm_domain *gpd;
-
-	if (IS_ERR_OR_NULL(genpd))
-		return false;
-
-	list_for_each_entry(gpd, &gpd_list, gpd_list_node)
-		if (gpd == genpd)
-			return true;
-
-	return false;
-}
-
-#endif
-
 #ifdef CONFIG_PM_SLEEP
 
 /**
- * genpd_sync_power_off - Synchronously power off a PM domain and its masters.
+ * genpd_sync_power_off - Synchronously power off a PM domain and its parents.
  * @genpd: PM domain to power off, if possible.
  * @use_lock: use the lock.
  * @depth: nesting count for lockdep.
  *
  * Check if the given PM domain can be powered off (during system suspend or
- * hibernation) and do that if so.  Also, in that case propagate to its masters.
+ * hibernation) and do that if so.  Also, in that case propagate to its parents.
  *
  * This function is only called in "noirq" and "syscore" stages of system power
  * transitions. The "noirq" callbacks may be executed asynchronously, thus in
@@ -972,23 +992,23 @@ static void genpd_sync_power_off(struct generic_pm_domain *genpd, bool use_lock,
 	if (_genpd_power_off(genpd, false))
 		return;
 
-	genpd->status = GPD_STATE_POWER_OFF;
+	genpd->status = GENPD_STATE_OFF;
 
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
-		genpd_sd_counter_dec(link->master);
-
-		if (use_lock)
-			genpd_lock_nested(link->master, depth + 1);
-
-		genpd_sync_power_off(link->master, use_lock, depth + 1);
+	list_for_each_entry(link, &genpd->child_links, child_node) {
+		genpd_sd_counter_dec(link->parent);
 
 		if (use_lock)
-			genpd_unlock(link->master);
+			genpd_lock_nested(link->parent, depth + 1);
+
+		genpd_sync_power_off(link->parent, use_lock, depth + 1);
+
+		if (use_lock)
+			genpd_unlock(link->parent);
 	}
 }
 
 /**
- * genpd_sync_power_on - Synchronously power on a PM domain and its masters.
+ * genpd_sync_power_on - Synchronously power on a PM domain and its parents.
  * @genpd: PM domain to power on.
  * @use_lock: use the lock.
  * @depth: nesting count for lockdep.
@@ -1005,21 +1025,20 @@ static void genpd_sync_power_on(struct generic_pm_domain *genpd, bool use_lock,
 	if (genpd_status_on(genpd))
 		return;
 
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
-		genpd_sd_counter_inc(link->master);
+	list_for_each_entry(link, &genpd->child_links, child_node) {
+		genpd_sd_counter_inc(link->parent);
 
 		if (use_lock)
-			genpd_lock_nested(link->master, depth + 1);
+			genpd_lock_nested(link->parent, depth + 1);
 
-		genpd_sync_power_on(link->master, use_lock, depth + 1);
+		genpd_sync_power_on(link->parent, use_lock, depth + 1);
 
 		if (use_lock)
-			genpd_unlock(link->master);
+			genpd_unlock(link->parent);
 	}
 
 	_genpd_power_on(genpd, false);
-
-	genpd->status = GPD_STATE_ACTIVE;
+	genpd->status = GENPD_STATE_ON;
 }
 
 /**
@@ -1292,13 +1311,14 @@ static int genpd_restore_noirq(struct device *dev)
 	 * first time for the given domain in the present cycle.
 	 */
 	genpd_lock(genpd);
-	if (genpd->suspended_count++ == 0)
+	if (genpd->suspended_count++ == 0) {
 		/*
 		 * The boot kernel might put the domain into arbitrary state,
 		 * so make it appear as powered off to genpd_sync_power_on(),
 		 * so that it tries to power it on in case it was really off.
 		 */
-		genpd->status = GPD_STATE_POWER_OFF;
+		genpd->status = GENPD_STATE_OFF;
+	}
 
 	genpd_sync_power_on(genpd, true, 0);
 	genpd_unlock(genpd);
@@ -1354,8 +1374,8 @@ static void genpd_syscore_switch(struct device *dev, bool suspend)
 {
 	struct generic_pm_domain *genpd;
 
-	genpd = dev_to_genpd(dev);
-	if (!genpd_present(genpd))
+	genpd = dev_to_genpd_safe(dev);
+	if (!genpd)
 		return;
 
 	if (suspend) {
@@ -1454,12 +1474,12 @@ static void genpd_update_cpumask(struct generic_pm_domain *genpd,
 	if (!genpd_is_cpu_domain(genpd))
 		return;
 
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
-		struct generic_pm_domain *master = link->master;
+	list_for_each_entry(link, &genpd->child_links, child_node) {
+		struct generic_pm_domain *parent = link->parent;
 
-		genpd_lock_nested(master, depth + 1);
-		genpd_update_cpumask(master, cpu, set, depth + 1);
-		genpd_unlock(master);
+		genpd_lock_nested(parent, depth + 1);
+		genpd_update_cpumask(parent, cpu, set, depth + 1);
+		genpd_unlock(parent);
 	}
 
 	if (set)
@@ -1614,6 +1634,101 @@ int pm_genpd_remove_device(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(pm_genpd_remove_device);
 
+/**
+ * dev_pm_genpd_add_notifier - Add a genpd power on/off notifier for @dev
+ *
+ * @dev: Device that should be associated with the notifier
+ * @nb: The notifier block to register
+ *
+ * Users may call this function to add a genpd power on/off notifier for an
+ * attached @dev. Only one notifier per device is allowed. The notifier is
+ * sent when genpd is powering on/off the PM domain.
+ *
+ * It is assumed that the user guarantee that the genpd wouldn't be detached
+ * while this routine is getting called.
+ *
+ * Returns 0 on success and negative error values on failures.
+ */
+int dev_pm_genpd_add_notifier(struct device *dev, struct notifier_block *nb)
+{
+	struct generic_pm_domain *genpd;
+	struct generic_pm_domain_data *gpd_data;
+	int ret;
+
+	genpd = dev_to_genpd_safe(dev);
+	if (!genpd)
+		return -ENODEV;
+
+	if (WARN_ON(!dev->power.subsys_data ||
+		     !dev->power.subsys_data->domain_data))
+		return -EINVAL;
+
+	gpd_data = to_gpd_data(dev->power.subsys_data->domain_data);
+	if (gpd_data->power_nb)
+		return -EEXIST;
+
+	genpd_lock(genpd);
+	ret = raw_notifier_chain_register(&genpd->power_notifiers, nb);
+	genpd_unlock(genpd);
+
+	if (ret) {
+		dev_warn(dev, "failed to add notifier for PM domain %s\n",
+			 genpd->name);
+		return ret;
+	}
+
+	gpd_data->power_nb = nb;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dev_pm_genpd_add_notifier);
+
+/**
+ * dev_pm_genpd_remove_notifier - Remove a genpd power on/off notifier for @dev
+ *
+ * @dev: Device that is associated with the notifier
+ *
+ * Users may call this function to remove a genpd power on/off notifier for an
+ * attached @dev.
+ *
+ * It is assumed that the user guarantee that the genpd wouldn't be detached
+ * while this routine is getting called.
+ *
+ * Returns 0 on success and negative error values on failures.
+ */
+int dev_pm_genpd_remove_notifier(struct device *dev)
+{
+	struct generic_pm_domain *genpd;
+	struct generic_pm_domain_data *gpd_data;
+	int ret;
+
+	genpd = dev_to_genpd_safe(dev);
+	if (!genpd)
+		return -ENODEV;
+
+	if (WARN_ON(!dev->power.subsys_data ||
+		     !dev->power.subsys_data->domain_data))
+		return -EINVAL;
+
+	gpd_data = to_gpd_data(dev->power.subsys_data->domain_data);
+	if (!gpd_data->power_nb)
+		return -ENODEV;
+
+	genpd_lock(genpd);
+	ret = raw_notifier_chain_unregister(&genpd->power_notifiers,
+					    gpd_data->power_nb);
+	genpd_unlock(genpd);
+
+	if (ret) {
+		dev_warn(dev, "failed to remove notifier for PM domain %s\n",
+			 genpd->name);
+		return ret;
+	}
+
+	gpd_data->power_nb = NULL;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dev_pm_genpd_remove_notifier);
+
 static int genpd_add_subdomain(struct generic_pm_domain *genpd,
 			       struct generic_pm_domain *subdomain)
 {
@@ -1647,17 +1762,17 @@ static int genpd_add_subdomain(struct generic_pm_domain *genpd,
 		goto out;
 	}
 
-	list_for_each_entry(itr, &genpd->master_links, master_node) {
-		if (itr->slave == subdomain && itr->master == genpd) {
+	list_for_each_entry(itr, &genpd->parent_links, parent_node) {
+		if (itr->child == subdomain && itr->parent == genpd) {
 			ret = -EINVAL;
 			goto out;
 		}
 	}
 
-	link->master = genpd;
-	list_add_tail(&link->master_node, &genpd->master_links);
-	link->slave = subdomain;
-	list_add_tail(&link->slave_node, &subdomain->slave_links);
+	link->parent = genpd;
+	list_add_tail(&link->parent_node, &genpd->parent_links);
+	link->child = subdomain;
+	list_add_tail(&link->child_node, &subdomain->child_links);
 	if (genpd_status_on(subdomain))
 		genpd_sd_counter_inc(genpd);
 
@@ -1671,7 +1786,7 @@ static int genpd_add_subdomain(struct generic_pm_domain *genpd,
 
 /**
  * pm_genpd_add_subdomain - Add a subdomain to an I/O PM domain.
- * @genpd: Master PM domain to add the subdomain to.
+ * @genpd: Leader PM domain to add the subdomain to.
  * @subdomain: Subdomain to be added.
  */
 int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
@@ -1689,7 +1804,7 @@ EXPORT_SYMBOL_GPL(pm_genpd_add_subdomain);
 
 /**
  * pm_genpd_remove_subdomain - Remove a subdomain from an I/O PM domain.
- * @genpd: Master PM domain to remove the subdomain from.
+ * @genpd: Leader PM domain to remove the subdomain from.
  * @subdomain: Subdomain to be removed.
  */
 int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
@@ -1704,19 +1819,19 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 	genpd_lock(subdomain);
 	genpd_lock_nested(genpd, SINGLE_DEPTH_NESTING);
 
-	if (!list_empty(&subdomain->master_links) || subdomain->device_count) {
+	if (!list_empty(&subdomain->parent_links) || subdomain->device_count) {
 		pr_warn("%s: unable to remove subdomain %s\n",
 			genpd->name, subdomain->name);
 		ret = -EBUSY;
 		goto out;
 	}
 
-	list_for_each_entry_safe(link, l, &genpd->master_links, master_node) {
-		if (link->slave != subdomain)
+	list_for_each_entry_safe(link, l, &genpd->parent_links, parent_node) {
+		if (link->child != subdomain)
 			continue;
 
-		list_del(&link->master_node);
-		list_del(&link->slave_node);
+		list_del(&link->parent_node);
+		list_del(&link->child_node);
 		kfree(link);
 		if (genpd_status_on(subdomain))
 			genpd_sd_counter_dec(genpd);
@@ -1781,14 +1896,15 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 	if (IS_ERR_OR_NULL(genpd))
 		return -EINVAL;
 
-	INIT_LIST_HEAD(&genpd->master_links);
-	INIT_LIST_HEAD(&genpd->slave_links);
+	INIT_LIST_HEAD(&genpd->parent_links);
+	INIT_LIST_HEAD(&genpd->child_links);
 	INIT_LIST_HEAD(&genpd->dev_list);
+	RAW_INIT_NOTIFIER_HEAD(&genpd->power_notifiers);
 	genpd_lock_init(genpd);
 	genpd->gov = gov;
 	INIT_WORK(&genpd->power_off_work, genpd_power_off_work_fn);
 	atomic_set(&genpd->sd_count, 0);
-	genpd->status = is_off ? GPD_STATE_POWER_OFF : GPD_STATE_ACTIVE;
+	genpd->status = is_off ? GENPD_STATE_OFF : GENPD_STATE_ON;
 	genpd->device_count = 0;
 	genpd->max_off_time_ns = -1;
 	genpd->max_off_time_changed = true;
@@ -1805,6 +1921,7 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->domain.ops.poweroff_noirq = genpd_poweroff_noirq;
 	genpd->domain.ops.restore_noirq = genpd_restore_noirq;
 	genpd->domain.ops.complete = genpd_complete;
+	genpd->domain.start = genpd_dev_pm_start;
 
 	if (genpd->flags & GENPD_FLAG_PM_CLK) {
 		genpd->dev_ops.stop = pm_clk_suspend;
@@ -1858,15 +1975,15 @@ static int genpd_remove(struct generic_pm_domain *genpd)
 		return -EBUSY;
 	}
 
-	if (!list_empty(&genpd->master_links) || genpd->device_count) {
+	if (!list_empty(&genpd->parent_links) || genpd->device_count) {
 		genpd_unlock(genpd);
 		pr_err("%s: unable to remove %s\n", __func__, genpd->name);
 		return -EBUSY;
 	}
 
-	list_for_each_entry_safe(link, l, &genpd->slave_links, slave_node) {
-		list_del(&link->master_node);
-		list_del(&link->slave_node);
+	list_for_each_entry_safe(link, l, &genpd->child_links, child_node) {
+		list_del(&link->parent_node);
+		list_del(&link->child_node);
 		kfree(link);
 	}
 
@@ -2020,6 +2137,16 @@ static int genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
 	return 0;
 }
 
+static bool genpd_present(const struct generic_pm_domain *genpd)
+{
+	const struct generic_pm_domain *gpd;
+
+	list_for_each_entry(gpd, &gpd_list, gpd_list_node)
+		if (gpd == genpd)
+			return true;
+	return false;
+}
+
 /**
  * of_genpd_add_provider_simple() - Register a simple PM domain provider
  * @np: Device node pointer associated with the PM domain provider.
@@ -2044,8 +2171,9 @@ int of_genpd_add_provider_simple(struct device_node *np,
 	if (genpd->set_performance_state) {
 		ret = dev_pm_opp_of_add_table(&genpd->dev);
 		if (ret) {
-			dev_err(&genpd->dev, "Failed to add OPP table: %d\n",
-				ret);
+			if (ret != -EPROBE_DEFER)
+				dev_err(&genpd->dev, "Failed to add OPP table: %d\n",
+					ret);
 			goto unlock;
 		}
 
@@ -2054,7 +2182,7 @@ int of_genpd_add_provider_simple(struct device_node *np,
 		 * state.
 		 */
 		genpd->opp_table = dev_pm_opp_get_opp_table(&genpd->dev);
-		WARN_ON(!genpd->opp_table);
+		WARN_ON(IS_ERR(genpd->opp_table));
 	}
 
 	ret = genpd_add_provider(np, genpd_xlate_simple, genpd);
@@ -2111,8 +2239,9 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 		if (genpd->set_performance_state) {
 			ret = dev_pm_opp_of_add_table_indexed(&genpd->dev, i);
 			if (ret) {
-				dev_err(&genpd->dev, "Failed to add OPP table for index %d: %d\n",
-					i, ret);
+				if (ret != -EPROBE_DEFER)
+					dev_err(&genpd->dev, "Failed to add OPP table for index %d: %d\n",
+						i, ret);
 				goto error;
 			}
 
@@ -2121,7 +2250,7 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 			 * performance state.
 			 */
 			genpd->opp_table = dev_pm_opp_get_opp_table_indexed(&genpd->dev, i);
-			WARN_ON(!genpd->opp_table);
+			WARN_ON(IS_ERR(genpd->opp_table));
 		}
 
 		genpd->provider = &np->fwnode;
@@ -2301,6 +2430,44 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(of_genpd_add_subdomain);
+
+/**
+ * of_genpd_remove_subdomain - Remove a subdomain from an I/O PM domain.
+ * @parent_spec: OF phandle args to use for parent PM domain look-up
+ * @subdomain_spec: OF phandle args to use for subdomain look-up
+ *
+ * Looks-up a parent PM domain and subdomain based upon phandle args
+ * provided and removes the subdomain from the parent PM domain. Returns a
+ * negative error code on failure.
+ */
+int of_genpd_remove_subdomain(struct of_phandle_args *parent_spec,
+			      struct of_phandle_args *subdomain_spec)
+{
+	struct generic_pm_domain *parent, *subdomain;
+	int ret;
+
+	mutex_lock(&gpd_list_lock);
+
+	parent = genpd_get_from_provider(parent_spec);
+	if (IS_ERR(parent)) {
+		ret = PTR_ERR(parent);
+		goto out;
+	}
+
+	subdomain = genpd_get_from_provider(subdomain_spec);
+	if (IS_ERR(subdomain)) {
+		ret = PTR_ERR(subdomain);
+		goto out;
+	}
+
+	ret = pm_genpd_remove_subdomain(parent, subdomain);
+
+out:
+	mutex_unlock(&gpd_list_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_genpd_remove_subdomain);
 
 /**
  * of_genpd_remove_last - Remove the last PM domain registered for a provider
@@ -2615,7 +2782,7 @@ static int genpd_iterate_idle_states(struct device_node *dn,
 
 	ret = of_count_phandle_with_args(dn, "domain-idle-states", NULL);
 	if (ret <= 0)
-		return ret;
+		return ret == -ENOENT ? 0 : ret;
 
 	/* Loop over the phandles until all the requested entry is found */
 	of_for_each_phandle(&it, ret, dn, "domain-idle-states", NULL, 0) {
@@ -2764,8 +2931,8 @@ static int genpd_summary_one(struct seq_file *s,
 			struct generic_pm_domain *genpd)
 {
 	static const char * const status_lookup[] = {
-		[GPD_STATE_ACTIVE] = "on",
-		[GPD_STATE_POWER_OFF] = "off"
+		[GENPD_STATE_ON] = "on",
+		[GENPD_STATE_OFF] = "off"
 	};
 	struct pm_domain_data *pm_data;
 	const char *kobj_path;
@@ -2789,12 +2956,12 @@ static int genpd_summary_one(struct seq_file *s,
 
 	/*
 	 * Modifications on the list require holding locks on both
-	 * master and slave, so we are safe.
+	 * parent and child, so we are safe.
 	 * Also genpd->name is immutable.
 	 */
-	list_for_each_entry(link, &genpd->master_links, master_node) {
-		seq_printf(s, "%s", link->slave->name);
-		if (!list_is_last(&link->master_node, &genpd->master_links))
+	list_for_each_entry(link, &genpd->parent_links, parent_node) {
+		seq_printf(s, "%s", link->child->name);
+		if (!list_is_last(&link->parent_node, &genpd->parent_links))
 			seq_puts(s, ", ");
 	}
 
@@ -2822,7 +2989,7 @@ static int summary_show(struct seq_file *s, void *data)
 	struct generic_pm_domain *genpd;
 	int ret = 0;
 
-	seq_puts(s, "domain                          status          slaves\n");
+	seq_puts(s, "domain                          status          children\n");
 	seq_puts(s, "    /device                                             runtime status\n");
 	seq_puts(s, "----------------------------------------------------------------------\n");
 
@@ -2843,8 +3010,8 @@ static int summary_show(struct seq_file *s, void *data)
 static int status_show(struct seq_file *s, void *data)
 {
 	static const char * const status_lookup[] = {
-		[GPD_STATE_ACTIVE] = "on",
-		[GPD_STATE_POWER_OFF] = "off"
+		[GENPD_STATE_ON] = "on",
+		[GENPD_STATE_OFF] = "off"
 	};
 
 	struct generic_pm_domain *genpd = s->private;
@@ -2857,7 +3024,7 @@ static int status_show(struct seq_file *s, void *data)
 	if (WARN_ON_ONCE(genpd->status >= ARRAY_SIZE(status_lookup)))
 		goto exit;
 
-	if (genpd->status == GPD_STATE_POWER_OFF)
+	if (genpd->status == GENPD_STATE_OFF)
 		seq_printf(s, "%s-%u\n", status_lookup[genpd->status],
 			genpd->state_idx);
 	else
@@ -2877,8 +3044,8 @@ static int sub_domains_show(struct seq_file *s, void *data)
 	if (ret)
 		return -ERESTARTSYS;
 
-	list_for_each_entry(link, &genpd->master_links, master_node)
-		seq_printf(s, "%s\n", link->slave->name);
+	list_for_each_entry(link, &genpd->parent_links, parent_node)
+		seq_printf(s, "%s\n", link->child->name);
 
 	genpd_unlock(genpd);
 	return ret;
@@ -2894,19 +3061,20 @@ static int idle_states_show(struct seq_file *s, void *data)
 	if (ret)
 		return -ERESTARTSYS;
 
-	seq_puts(s, "State          Time Spent(ms)\n");
+	seq_puts(s, "State          Time Spent(ms) Usage          Rejected\n");
 
 	for (i = 0; i < genpd->state_count; i++) {
 		ktime_t delta = 0;
 		s64 msecs;
 
-		if ((genpd->status == GPD_STATE_POWER_OFF) &&
+		if ((genpd->status == GENPD_STATE_OFF) &&
 				(genpd->state_idx == i))
 			delta = ktime_sub(ktime_get(), genpd->accounting_time);
 
 		msecs = ktime_to_ms(
 			ktime_add(genpd->states[i].idle_time, delta));
-		seq_printf(s, "S%-13i %lld\n", i, msecs);
+		seq_printf(s, "S%-13i %-14lld %-14llu %llu\n", i, msecs,
+			      genpd->states[i].usage, genpd->states[i].rejected);
 	}
 
 	genpd_unlock(genpd);
@@ -2923,7 +3091,7 @@ static int active_time_show(struct seq_file *s, void *data)
 	if (ret)
 		return -ERESTARTSYS;
 
-	if (genpd->status == GPD_STATE_ACTIVE)
+	if (genpd->status == GENPD_STATE_ON)
 		delta = ktime_sub(ktime_get(), genpd->accounting_time);
 
 	seq_printf(s, "%lld ms\n", ktime_to_ms(
@@ -2946,7 +3114,7 @@ static int total_idle_time_show(struct seq_file *s, void *data)
 
 	for (i = 0; i < genpd->state_count; i++) {
 
-		if ((genpd->status == GPD_STATE_POWER_OFF) &&
+		if ((genpd->status == GENPD_STATE_OFF) &&
 				(genpd->state_idx == i))
 			delta = ktime_sub(ktime_get(), genpd->accounting_time);
 

@@ -163,11 +163,7 @@ static ssize_t auxdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			break;
 		}
 
-		if (aux_dev->aux->is_remote)
-			res = drm_dp_mst_dpcd_read(aux_dev->aux, pos, buf,
-						   todo);
-		else
-			res = drm_dp_dpcd_read(aux_dev->aux, pos, buf, todo);
+		res = drm_dp_dpcd_read(aux_dev->aux, pos, buf, todo);
 
 		if (res <= 0)
 			break;
@@ -215,11 +211,7 @@ static ssize_t auxdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			break;
 		}
 
-		if (aux_dev->aux->is_remote)
-			res = drm_dp_mst_dpcd_write(aux_dev->aux, pos, buf,
-						    todo);
-		else
-			res = drm_dp_dpcd_write(aux_dev->aux, pos, buf, todo);
+		res = drm_dp_dpcd_write(aux_dev->aux, pos, buf, todo);
 
 		if (res <= 0)
 			break;

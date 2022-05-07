@@ -29,8 +29,6 @@
  * or shader programs (if not emitted inline in cmdstream).
  */
 
-#ifdef CONFIG_DEBUG_FS
-
 #include <linux/circ_buf.h>
 #include <linux/debugfs.h>
 #include <linux/kfifo.h>
@@ -43,9 +41,11 @@
 #include "msm_gpu.h"
 #include "msm_gem.h"
 
-static bool rd_full = false;
+bool rd_full = false;
 MODULE_PARM_DESC(rd_full, "If true, $debugfs/.../rd will snapshot all buffer contents");
 module_param_named(rd_full, rd_full, bool, 0600);
+
+#ifdef CONFIG_DEBUG_FS
 
 enum rd_sect_type {
 	RD_NONE,
@@ -298,7 +298,7 @@ void msm_rd_debugfs_cleanup(struct msm_drm_private *priv)
 
 static void snapshot_buf(struct msm_rd_state *rd,
 		struct msm_gem_submit *submit, int idx,
-		uint64_t iova, uint32_t size)
+		uint64_t iova, uint32_t size, bool full)
 {
 	struct msm_gem_object *obj = submit->bos[idx].obj;
 	unsigned offset = 0;
@@ -318,6 +318,9 @@ static void snapshot_buf(struct msm_rd_state *rd,
 	rd_write_section(rd, RD_GPUADDR,
 			(uint32_t[3]){ iova, size, iova >> 32 }, 12);
 
+	if (!full)
+		return;
+
 	/* But only dump the contents of buffers marked READ */
 	if (!(submit->bos[idx].flags & MSM_SUBMIT_BO_READ))
 		return;
@@ -331,12 +334,6 @@ static void snapshot_buf(struct msm_rd_state *rd,
 	rd_write_section(rd, RD_BUFFER_CONTENTS, buf, size);
 
 	msm_gem_put_vaddr(&obj->base);
-}
-
-static bool
-should_dump(struct msm_gem_submit *submit, int idx)
-{
-	return rd_full || (submit->bos[idx].flags & MSM_SUBMIT_BO_DUMP);
 }
 
 /* called under struct_mutex */
@@ -381,18 +378,21 @@ void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 	rd_write_section(rd, RD_CMD, msg, ALIGN(n, 4));
 
 	for (i = 0; i < submit->nr_bos; i++)
-		if (should_dump(submit, i))
-			snapshot_buf(rd, submit, i, 0, 0);
+		snapshot_buf(rd, submit, i, 0, 0, should_dump(submit, i));
 
 	for (i = 0; i < submit->nr_cmds; i++) {
-		uint64_t iova = submit->cmd[i].iova;
 		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 
 		/* snapshot cmdstream bo's (if we haven't already): */
 		if (!should_dump(submit, i)) {
 			snapshot_buf(rd, submit, submit->cmd[i].idx,
-					submit->cmd[i].iova, szd * 4);
+					submit->cmd[i].iova, szd * 4, true);
 		}
+	}
+
+	for (i = 0; i < submit->nr_cmds; i++) {
+		uint64_t iova = submit->cmd[i].iova;
+		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 
 		switch (submit->cmd[i].type) {
 		case MSM_SUBMIT_CMD_IB_TARGET_BUF:

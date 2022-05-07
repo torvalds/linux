@@ -376,8 +376,6 @@ static int stk8ba50_buffer_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops stk8ba50_buffer_setup_ops = {
 	.preenable   = stk8ba50_buffer_preenable,
-	.postenable  = iio_triggered_buffer_postenable,
-	.predisable  = iio_triggered_buffer_predisable,
 	.postdisable = stk8ba50_buffer_postdisable,
 };
 
@@ -399,7 +397,6 @@ static int stk8ba50_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &stk8ba50_info;
 	indio_dev->name = STK8BA50_DRIVER_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;

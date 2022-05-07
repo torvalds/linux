@@ -65,4 +65,6 @@ extern void __fsnotify_update_child_dentry_flags(struct inode *inode);
 extern struct fsnotify_event_holder *fsnotify_alloc_event_holder(void);
 extern void fsnotify_destroy_event_holder(struct fsnotify_event_holder *holder);
 
+extern struct kmem_cache *fsnotify_mark_connector_cachep;
+
 #endif	/* __FS_NOTIFY_FSNOTIFY_H_ */

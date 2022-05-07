@@ -25,6 +25,10 @@
 #ifndef DC_TYPES_H_
 #define DC_TYPES_H_
 
+/* AND EdidUtility only needs a portion
+ * of this file, including the rest only
+ * causes additional issues.
+ */
 #include "os_types.h"
 #include "fixed31_32.h"
 #include "irq_types.h"
@@ -33,12 +37,17 @@
 #include "dal_types.h"
 #include "grph_object_defs.h"
 
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+#include "dm_cp_psp.h"
+#endif
+
 /* forward declarations */
 struct dc_plane_state;
 struct dc_stream_state;
 struct dc_link;
 struct dc_sink;
 struct dal;
+struct dc_dmub_srv;
 
 /********************************
  * Environment definitions
@@ -51,7 +60,12 @@ enum dce_environment {
 	DCE_ENV_FPGA_MAXIMUS,
 	/* Emulation on real HW or on FPGA. Used by Diagnostics, enforces
 	 * requirements of Diagnostics team. */
-	DCE_ENV_DIAG
+	DCE_ENV_DIAG,
+	/*
+	 * Guest VM system, DC HW may exist but is not virtualized and
+	 * should not be used.  SW support for VDI only.
+	 */
+	DCE_ENV_VIRTUAL_HW
 };
 
 /* Note: use these macro definitions instead of direct comparison! */
@@ -100,13 +114,19 @@ struct dc_context {
 	uint32_t dc_sink_id_count;
 	uint32_t dc_stream_id_count;
 	uint64_t fbc_gpu_addr;
+	struct dc_dmub_srv *dmub_srv;
+
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	struct cp_psp cp_psp;
+#endif
 };
 
 
-#define DC_MAX_EDID_BUFFER_SIZE 1024
+#define DC_MAX_EDID_BUFFER_SIZE 1280
 #define DC_EDID_BLOCK_SIZE 128
 #define MAX_SURFACE_NUM 4
 #define NUM_PIXEL_FORMATS 10
+#define MAX_REPEATER_CNT 8
 
 #include "dc_ddc_types.h"
 
@@ -157,6 +177,13 @@ enum dc_edid_status {
 	EDID_NO_RESPONSE,
 	EDID_BAD_CHECKSUM,
 	EDID_THE_SAME,
+	EDID_FALL_BACK,
+};
+
+enum act_return_status {
+	ACT_SUCCESS,
+	ACT_LINK_LOST,
+	ACT_FAILED
 };
 
 /* audio capability from EDID*/
@@ -203,6 +230,10 @@ struct dc_panel_patch {
 	unsigned int extra_t12_ms;
 	unsigned int extra_delay_backlight_off;
 	unsigned int extra_t7_ms;
+	unsigned int skip_scdc_overwrite;
+	unsigned int delay_ignore_msa;
+	unsigned int disable_fec;
+	unsigned int extra_t3_ms;
 };
 
 struct dc_edid_caps {
@@ -225,6 +256,8 @@ struct dc_edid_caps {
 
 	uint8_t qs_bit;
 	uint8_t qy_bit;
+
+	uint32_t max_tmds_clk_mhz;
 
 	/*HDMI 2.0 caps*/
 	bool lte_340mcsc_scramble;
@@ -384,6 +417,30 @@ enum dpcd_downstream_port_max_bpc {
 	DOWN_STREAM_MAX_12BPC,
 	DOWN_STREAM_MAX_16BPC
 };
+
+
+enum link_training_offset {
+	DPRX                = 0,
+	LTTPR_PHY_REPEATER1 = 1,
+	LTTPR_PHY_REPEATER2 = 2,
+	LTTPR_PHY_REPEATER3 = 3,
+	LTTPR_PHY_REPEATER4 = 4,
+	LTTPR_PHY_REPEATER5 = 5,
+	LTTPR_PHY_REPEATER6 = 6,
+	LTTPR_PHY_REPEATER7 = 7,
+	LTTPR_PHY_REPEATER8 = 8
+};
+
+struct dc_lttpr_caps {
+	union dpcd_rev revision;
+	uint8_t mode;
+	uint8_t max_lane_count;
+	uint8_t max_link_rate;
+	uint8_t phy_repeater_cnt;
+	uint8_t max_ext_timeout;
+	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
+};
+
 struct dc_dongle_caps {
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
@@ -422,7 +479,19 @@ enum display_content_type {
 	DISPLAY_CONTENT_TYPE_GAME = 8
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+enum cm_gamut_adjust_type {
+	CM_GAMUT_ADJUST_TYPE_BYPASS = 0,
+	CM_GAMUT_ADJUST_TYPE_HW, /* without adjustments */
+	CM_GAMUT_ADJUST_TYPE_SW /* use adjustments */
+};
+
+struct cm_grph_csc_adjustment {
+	struct fixed31_32 temperature_matrix[12];
+	enum cm_gamut_adjust_type gamut_adjust_type;
+	enum cm_gamut_coef_format gamut_coef_format;
+};
+#endif
 /* writeback */
 struct dwb_stereo_params {
 	bool				stereo_enabled;		/* false: normal mode, true: 3D stereo */
@@ -440,9 +509,21 @@ struct dc_dwb_cnv_params {
 	unsigned int		crop_x;		/* cropped window start x value at cnv output */
 	unsigned int		crop_y;		/* cropped window start y value at cnv output */
 	enum dwb_cnv_out_bpc cnv_out_bpc;	/* cnv output pixel depth - 8bpc or 10bpc */
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	enum dwb_out_format	fc_out_format;	/* dwb output pixel format - 2101010 or 16161616 and ARGB or RGBA */
+	enum dwb_out_denorm	out_denorm_mode;/* dwb output denormalization mode */
+	unsigned int		out_max_pix_val;/* pixel values greater than out_max_pix_val are clamped to out_max_pix_val */
+	unsigned int		out_min_pix_val;/* pixel values less than out_min_pix_val are clamped to out_min_pix_val */
+#endif
 };
 
 struct dc_dwb_params {
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	unsigned int			dwbscl_black_color; /* must be in FP1.5.10 */
+	unsigned int			hdr_mult;	/* must be in FP1.6.12 */
+	struct cm_grph_csc_adjustment	csc_params;
+	struct dwb_stereo_params	stereo_params;
+#endif
 	struct dc_dwb_cnv_params	cnv_params;	/* CNV source size and cropping window parameters */
 	unsigned int			dest_width;	/* Destination width */
 	unsigned int			dest_height;	/* Destination height */
@@ -453,7 +534,6 @@ struct dc_dwb_params {
 	enum dwb_subsample_position	subsample_position;
 	struct dc_transfer_func *out_transfer_func;
 };
-#endif
 
 /* audio*/
 
@@ -555,15 +635,17 @@ struct audio_info {
 	/* this field must be last in this struct */
 	struct audio_mode modes[DC_MAX_AUDIO_DESC_COUNT];
 };
-
+struct audio_check {
+	unsigned int audio_packet_type;
+	unsigned int max_audiosample_rate;
+	unsigned int acat;
+};
 enum dc_infoframe_type {
 	DC_HDMI_INFOFRAME_TYPE_VENDOR = 0x81,
 	DC_HDMI_INFOFRAME_TYPE_AVI = 0x82,
 	DC_HDMI_INFOFRAME_TYPE_SPD = 0x83,
 	DC_HDMI_INFOFRAME_TYPE_AUDIO = 0x84,
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	DC_DP_INFOFRAME_TYPE_PPS = 0x10,
-#endif
 };
 
 struct dc_info_packet {
@@ -678,7 +760,7 @@ struct psr_context {
 	/* The VSync rate in Hz used to calculate the
 	 * step size for smooth brightness feature
 	 */
-	unsigned int vsyncRateHz;
+	unsigned int vsync_rate_hz;
 	unsigned int skipPsrWaitForPllLock;
 	unsigned int numberOfControllers;
 	/* Unused, for future use. To indicate that first changed frame from
@@ -739,7 +821,6 @@ struct dc_clock_config {
 	uint32_t current_clock_khz;/*current clock in use*/
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 /* DSC DPCD capabilities */
 union dsc_slice_caps1 {
 	struct {
@@ -809,5 +890,33 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_overall_throughput_1_mps; /* In MPs */
 	uint32_t branch_max_line_width;
 };
+
+struct dc_golden_table {
+	uint16_t dc_golden_table_ver;
+	uint32_t aux_dphy_rx_control0_val;
+	uint32_t aux_dphy_tx_control_val;
+	uint32_t aux_dphy_rx_control1_val;
+	uint32_t dc_gpio_aux_ctrl_0_val;
+	uint32_t dc_gpio_aux_ctrl_1_val;
+	uint32_t dc_gpio_aux_ctrl_2_val;
+	uint32_t dc_gpio_aux_ctrl_3_val;
+	uint32_t dc_gpio_aux_ctrl_4_val;
+	uint32_t dc_gpio_aux_ctrl_5_val;
+};
+
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+enum dc_gpu_mem_alloc_type {
+	DC_MEM_ALLOC_TYPE_GART,
+	DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+	DC_MEM_ALLOC_TYPE_INVISIBLE_FRAME_BUFFER,
+	DC_MEM_ALLOC_TYPE_AGP
+};
+
 #endif
+enum dc_psr_version {
+	DC_PSR_VERSION_1			= 0,
+	DC_PSR_VERSION_UNSUPPORTED		= 0xFFFFFFFF,
+};
+
 #endif /* DC_TYPES_H_ */

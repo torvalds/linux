@@ -25,8 +25,8 @@
 #ifndef __DC_DWBC_H__
 #define __DC_DWBC_H__
 
+#include "dal_types.h"
 #include "dc_hw_types.h"
-
 
 #define DWB_SW_V2	1
 #define DWB_MCIF_BUF_COUNT 4
@@ -34,7 +34,6 @@
 /* forward declaration of mcif_wb struct */
 struct mcif_wb;
 
-enum dce_version;
 
 enum dwb_sw_version {
 	dwb_ver_1_0 = 1,
@@ -51,20 +50,15 @@ enum dwb_source {
 	dwb_src_otg3,		/* for DCN1.x/DCN2.x */
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 /* DCN1.x, DCN2.x support 2 pipes */
-#else
-/* DCN1.x supports 2 pipes */
-#endif
 enum dwb_pipe {
 	dwb_pipe0 = 0,
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dwb_pipe1,
 #endif
 	dwb_pipe_max_num,
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 enum dwb_frame_capture_enable {
 	DWB_FRAME_CAPTURE_DISABLE = 0,
 	DWB_FRAME_CAPTURE_ENABLE = 1,
@@ -77,9 +71,68 @@ enum wbscl_coef_filter_type_sel {
 	WBSCL_COEF_CHROMA_HORZ_FILTER = 3
 };
 
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+enum dwb_boundary_mode {
+	DWBSCL_BOUNDARY_MODE_EDGE  = 0,
+	DWBSCL_BOUNDARY_MODE_BLACK = 1
+};
 #endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+enum dwb_output_csc_mode {
+	DWB_OUTPUT_CSC_DISABLE = 0,
+	DWB_OUTPUT_CSC_COEF_A = 1,
+	DWB_OUTPUT_CSC_COEF_B = 2
+};
+
+enum dwb_ogam_lut_mode {
+	DWB_OGAM_MODE_BYPASS,
+	DWB_OGAM_RAMA_LUT,
+	DWB_OGAM_RAMB_LUT
+};
+
+enum dwb_color_volume {
+	DWB_SRGB_BT709 = 0,	//SDR
+	DWB_PQ = 1,	//HDR
+	DWB_HLG = 2,	//HDR
+};
+
+enum dwb_color_space {
+	DWB_SRGB = 0,	//SDR
+	DWB_BT709 = 1,	//SDR
+	DWB_BT2020 = 2,	//HDR
+};
+
+struct dwb_efc_hdr_metadata {
+	/*display chromaticities and white point in units of 0.00001 */
+	unsigned int	chromaticity_green_x;
+	unsigned int	chromaticity_green_y;
+	unsigned int	chromaticity_blue_x;
+	unsigned int	chromaticity_blue_y;
+	unsigned int	chromaticity_red_x;
+	unsigned int	chromaticity_red_y;
+	unsigned int	chromaticity_white_point_x;
+	unsigned int	chromaticity_white_point_y;
+
+	/*in units of candelas per square meter */
+	unsigned int	min_luminance;
+	unsigned int	max_luminance;
+
+	/*in units of nits */
+	unsigned int	maximum_content_light_level;
+	unsigned int	maximum_frame_average_light_level;
+};
+
+struct dwb_efc_display_settings {
+	unsigned int	inputColorVolume;
+	unsigned int	inputColorSpace;
+	unsigned int	inputBitDepthMinus8;
+	struct dwb_efc_hdr_metadata	hdr_metadata;
+	unsigned int	dwbOutputBlack;	// 0 - Normal, 1 - Output Black
+};
+
+#endif
 struct dwb_warmup_params {
 	bool	warmup_en;	/* false: normal mode, true: enable pattern generator */
 	bool	warmup_mode;	/* false: 420, true: 444 */
@@ -88,7 +141,6 @@ struct dwb_warmup_params {
 	int	warmup_width;	/* Pattern width (pixels) */
 	int	warmup_height;	/* Pattern height (lines) */
 };
-#endif
 
 struct dwb_caps {
 	enum dce_version hw_version;	/* DCN engine version. */
@@ -121,7 +173,8 @@ struct dwbc {
 	int wb_src_plane_inst;/*hubp, mpcc, inst*/
 	bool update_privacymask;
 	uint32_t mask_id;
-
+        int otg_inst;
+        bool mvc_cfg;
 };
 
 struct dwbc_funcs {
@@ -150,14 +203,34 @@ struct dwbc_funcs {
 		struct dwbc *dwbc,
 		bool is_new_content);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 
 	void (*set_warmup)(
 		struct dwbc *dwbc,
 		struct dwb_warmup_params *warmup_params);
 
-#endif
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+
+	void (*dwb_program_output_csc)(
+		struct dwbc *dwbc,
+		enum dc_color_space color_space,
+		enum dwb_output_csc_mode mode);
+
+	bool (*dwb_ogam_set_output_transfer_func)(
+		struct dwbc *dwbc,
+		const struct dc_transfer_func *in_transfer_func_dwb_ogam);
+
+	void (*get_privacy_mask)(
+		struct dwbc *dwbc, uint32_t *mask_id);
+
+	void (*set_privacy_mask)(
+		struct dwbc *dwbc, uint32_t mask_id);
+
+	//TODO: merge with output_transfer_func?
+	bool (*dwb_ogam_set_input_transfer_func)(
+		struct dwbc *dwbc,
+		const struct dc_transfer_func *in_transfer_func_dwb_ogam);
+#endif
 	bool (*get_dwb_status)(
 		struct dwbc *dwbc);
 	void (*dwb_set_scaler)(

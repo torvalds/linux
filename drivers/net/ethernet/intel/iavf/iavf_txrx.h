@@ -454,7 +454,6 @@ bool __iavf_chk_linearize(struct sk_buff *skb);
 /**
  * iavf_xmit_descriptor_count - calculate number of Tx descriptors needed
  * @skb:     send buffer
- * @tx_ring: ring to send buffer on
  *
  * Returns number of data descriptors needed for this skb. Returns 0 to indicate
  * there is not enough descriptors available in this ring since we need at least
@@ -514,6 +513,7 @@ static inline bool iavf_chk_linearize(struct sk_buff *skb, int count)
 	return count != IAVF_MAX_BUFFER_TXD;
 }
 /**
+ * txring_txq - helper to convert from a ring to a queue
  * @ring: Tx ring to find the netdev equivalent of
  **/
 static inline struct netdev_queue *txring_txq(const struct iavf_ring *ring)

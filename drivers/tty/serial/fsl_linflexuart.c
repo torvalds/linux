@@ -1,15 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Freescale linflexuart serial port driver
+ * Freescale LINFlexD UART serial port driver
  *
  * Copyright 2012-2016 Freescale Semiconductor, Inc.
  * Copyright 2017-2019 NXP
  */
-
-#if defined(CONFIG_SERIAL_FSL_LINFLEXUART_CONSOLE) && \
-	defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
 
 #include <linux/console.h>
 #include <linux/io.h>
@@ -279,10 +274,8 @@ static irqreturn_t linflex_rxint(int irq, void *dev_id)
 		if (brk) {
 			uart_handle_break(sport);
 		} else {
-#ifdef SUPPORT_SYSRQ
 			if (uart_handle_sysrq_char(sport, (unsigned char)rx))
 				continue;
-#endif
 			tty_insert_flip_char(port, rx, flg);
 		}
 	}
@@ -863,6 +856,7 @@ static int linflex_probe(struct platform_device *pdev)
 	sport->irq = platform_get_irq(pdev, 0);
 	sport->ops = &linflex_pops;
 	sport->flags = UPF_BOOT_AUTOCONF;
+	sport->has_sysrq = IS_ENABLED(CONFIG_SERIAL_FSL_LINFLEXUART_CONSOLE);
 
 	linflex_ports[sport->line] = sport;
 
@@ -940,5 +934,5 @@ static void __exit linflex_serial_exit(void)
 module_init(linflex_serial_init);
 module_exit(linflex_serial_exit);
 
-MODULE_DESCRIPTION("Freescale linflex serial port driver");
+MODULE_DESCRIPTION("Freescale LINFlexD serial port driver");
 MODULE_LICENSE("GPL v2");

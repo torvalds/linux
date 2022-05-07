@@ -235,7 +235,7 @@ nv50_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	struct nvkm_device *device = vmm->mmu->subdev.device;
 	struct nvkm_ram *ram = device->fb->ram;
 	struct nvkm_memory *memory = map->memory;
-	u8  aper, kind, comp, priv, ro;
+	u8  aper, kind, kind_inv, comp, priv, ro;
 	int kindn, ret = -ENOSYS;
 	const u8 *kindm;
 
@@ -278,8 +278,8 @@ nv50_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 		return -EINVAL;
 	}
 
-	kindm = vmm->mmu->func->kind(vmm->mmu, &kindn);
-	if (kind >= kindn || kindm[kind] == 0x7f) {
+	kindm = vmm->mmu->func->kind(vmm->mmu, &kindn, &kind_inv);
+	if (kind >= kindn || kindm[kind] == kind_inv) {
 		VMM_DEBUG(vmm, "kind %02x", kind);
 		return -EINVAL;
 	}

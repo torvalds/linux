@@ -124,32 +124,32 @@ static int devbus_get_timing_params(struct devbus *devbus,
 	 * The bus width is encoded into the register as 0 for 8 bits,
 	 * and 1 for 16 bits, so we do the necessary conversion here.
 	 */
-	if (r->bus_width == 8)
+	if (r->bus_width == 8) {
 		r->bus_width = 0;
-	else if (r->bus_width == 16)
+	} else if (r->bus_width == 16) {
 		r->bus_width = 1;
-	else {
+	} else {
 		dev_err(devbus->dev, "invalid bus width %d\n", r->bus_width);
 		return -EINVAL;
 	}
 
 	err = get_timing_param_ps(devbus, node, "devbus,badr-skew-ps",
-				 &r->badr_skew);
+				  &r->badr_skew);
 	if (err < 0)
 		return err;
 
 	err = get_timing_param_ps(devbus, node, "devbus,turn-off-ps",
-				 &r->turn_off);
+				  &r->turn_off);
 	if (err < 0)
 		return err;
 
 	err = get_timing_param_ps(devbus, node, "devbus,acc-first-ps",
-				 &r->acc_first);
+				  &r->acc_first);
 	if (err < 0)
 		return err;
 
 	err = get_timing_param_ps(devbus, node, "devbus,acc-next-ps",
-				 &r->acc_next);
+				  &r->acc_next);
 	if (err < 0)
 		return err;
 
@@ -175,17 +175,17 @@ static int devbus_get_timing_params(struct devbus *devbus,
 	}
 
 	err = get_timing_param_ps(devbus, node, "devbus,ale-wr-ps",
-				 &w->ale_wr);
+				  &w->ale_wr);
 	if (err < 0)
 		return err;
 
 	err = get_timing_param_ps(devbus, node, "devbus,wr-low-ps",
-				 &w->wr_low);
+				  &w->wr_low);
 	if (err < 0)
 		return err;
 
 	err = get_timing_param_ps(devbus, node, "devbus,wr-high-ps",
-				 &w->wr_high);
+				  &w->wr_high);
 	if (err < 0)
 		return err;
 
@@ -267,7 +267,6 @@ static int mvebu_devbus_probe(struct platform_device *pdev)
 	struct devbus_read_params r;
 	struct devbus_write_params w;
 	struct devbus *devbus;
-	struct resource *res;
 	struct clk *clk;
 	unsigned long rate;
 	int err;
@@ -277,8 +276,7 @@ static int mvebu_devbus_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	devbus->dev = dev;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	devbus->base = devm_ioremap_resource(&pdev->dev, res);
+	devbus->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(devbus->base))
 		return PTR_ERR(devbus->base);
 

@@ -106,7 +106,7 @@
 	 *			  int blocks)
 	 */
 	.text
-ENTRY(sha512_ce_transform)
+SYM_FUNC_START(sha512_ce_transform)
 	frame_push	3
 
 	mov		x19, x0
@@ -216,4 +216,4 @@ CPU_LE(	rev64		v19.16b, v19.16b	)
 3:	st1		{v8.2d-v11.2d}, [x19]
 	frame_pop
 	ret
-ENDPROC(sha512_ce_transform)
+SYM_FUNC_END(sha512_ce_transform)

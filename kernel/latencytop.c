@@ -255,22 +255,22 @@ static int lstats_open(struct inode *inode, struct file *filp)
 	return single_open(filp, lstats_show, NULL);
 }
 
-static const struct file_operations lstats_fops = {
-	.open		= lstats_open,
-	.read		= seq_read,
-	.write		= lstats_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops lstats_proc_ops = {
+	.proc_open	= lstats_open,
+	.proc_read	= seq_read,
+	.proc_write	= lstats_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int __init init_lstats_procfs(void)
 {
-	proc_create("latency_stats", 0644, NULL, &lstats_fops);
+	proc_create("latency_stats", 0644, NULL, &lstats_proc_ops);
 	return 0;
 }
 
-int sysctl_latencytop(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
+int sysctl_latencytop(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos)
 {
 	int err;
 

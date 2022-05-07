@@ -125,34 +125,23 @@ struct __name##_back_ring {						\
     memset((_s)->pad, 0, sizeof((_s)->pad));				\
 } while(0)
 
-#define FRONT_RING_INIT(_r, _s, __size) do {				\
-    (_r)->req_prod_pvt = 0;						\
-    (_r)->rsp_cons = 0;							\
+#define FRONT_RING_ATTACH(_r, _s, _i, __size) do {			\
+    (_r)->req_prod_pvt = (_i);						\
+    (_r)->rsp_cons = (_i);						\
     (_r)->nr_ents = __RING_SIZE(_s, __size);				\
     (_r)->sring = (_s);							\
 } while (0)
 
-#define BACK_RING_INIT(_r, _s, __size) do {				\
-    (_r)->rsp_prod_pvt = 0;						\
-    (_r)->req_cons = 0;							\
+#define FRONT_RING_INIT(_r, _s, __size) FRONT_RING_ATTACH(_r, _s, 0, __size)
+
+#define BACK_RING_ATTACH(_r, _s, _i, __size) do {			\
+    (_r)->rsp_prod_pvt = (_i);						\
+    (_r)->req_cons = (_i);						\
     (_r)->nr_ents = __RING_SIZE(_s, __size);				\
     (_r)->sring = (_s);							\
 } while (0)
 
-/* Initialize to existing shared indexes -- for recovery */
-#define FRONT_RING_ATTACH(_r, _s, __size) do {				\
-    (_r)->sring = (_s);							\
-    (_r)->req_prod_pvt = (_s)->req_prod;				\
-    (_r)->rsp_cons = (_s)->rsp_prod;					\
-    (_r)->nr_ents = __RING_SIZE(_s, __size);				\
-} while (0)
-
-#define BACK_RING_ATTACH(_r, _s, __size) do {				\
-    (_r)->sring = (_s);							\
-    (_r)->rsp_prod_pvt = (_s)->rsp_prod;				\
-    (_r)->req_cons = (_s)->req_prod;					\
-    (_r)->nr_ents = __RING_SIZE(_s, __size);				\
-} while (0)
+#define BACK_RING_INIT(_r, _s, __size) BACK_RING_ATTACH(_r, _s, 0, __size)
 
 /* How big is this ring? */
 #define RING_SIZE(_r)							\

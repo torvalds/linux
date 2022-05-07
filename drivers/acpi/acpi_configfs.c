@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/configfs.h>
 #include <linux/acpi.h>
+#include <linux/security.h>
 
 #include "acpica/accommon.h"
 #include "acpica/actables.h"
@@ -28,7 +29,10 @@ static ssize_t acpi_table_aml_write(struct config_item *cfg,
 {
 	const struct acpi_table_header *header = data;
 	struct acpi_table *table;
-	int ret;
+	int ret = security_locked_down(LOCKDOWN_ACPI_TABLES);
+
+	if (ret)
+		return ret;
 
 	table = container_of(cfg, struct acpi_table, cfg);
 
@@ -53,7 +57,7 @@ static ssize_t acpi_table_aml_write(struct config_item *cfg,
 	if (!table->header)
 		return -ENOMEM;
 
-	ret = acpi_load_table(table->header);
+	ret = acpi_load_table(table->header, &table->index);
 	if (ret) {
 		kfree(table->header);
 		table->header = NULL;
@@ -223,7 +227,8 @@ static void acpi_table_drop_item(struct config_group *group,
 	struct acpi_table *table = container_of(cfg, struct acpi_table, cfg);
 
 	ACPI_INFO(("Host-directed Dynamic ACPI Table Unload"));
-	acpi_tb_unload_table(table->index);
+	acpi_unload_table(table->index);
+	config_item_put(cfg);
 }
 
 static struct configfs_group_operations acpi_table_group_ops = {

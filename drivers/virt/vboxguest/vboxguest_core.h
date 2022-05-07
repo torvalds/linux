@@ -15,6 +15,21 @@
 #include <linux/vboxguest.h>
 #include "vmmdev.h"
 
+/*
+ * The mainline kernel version (this version) of the vboxguest module
+ * contained a bug where it defined VBGL_IOCTL_VMMDEV_REQUEST_BIG and
+ * VBGL_IOCTL_LOG using _IOC(_IOC_READ | _IOC_WRITE, 'V', ...) instead
+ * of _IO(V, ...) as the out of tree VirtualBox upstream version does.
+ *
+ * These _ALT definitions keep compatibility with the wrong defines the
+ * mainline kernel version used for a while.
+ * Note the VirtualBox userspace bits have always been built against
+ * VirtualBox upstream's headers, so this is likely not necessary. But
+ * we must never break our ABI so we keep these around to be 100% sure.
+ */
+#define VBG_IOCTL_VMMDEV_REQUEST_BIG_ALT _IOC(_IOC_READ | _IOC_WRITE, 'V', 3, 0)
+#define VBG_IOCTL_LOG_ALT(s)             _IOC(_IOC_READ | _IOC_WRITE, 'V', 9, s)
+
 struct vbg_session;
 
 /** VBox guest memory balloon. */
@@ -103,11 +118,21 @@ struct vbg_dev {
 	u32 event_filter_host;
 
 	/**
-	 * Usage counters for guest capabilities. Indexed by capability bit
+	 * Guest capabilities which have been switched to acquire_mode.
+	 */
+	u32 acquire_mode_guest_caps;
+	/**
+	 * Guest capabilities acquired by vbg_acquire_session_capabilities().
+	 * Only one session can acquire a capability at a time.
+	 */
+	u32 acquired_guest_caps;
+	/**
+	 * Usage counters for guest capabilities requested through
+	 * vbg_set_session_capabilities(). Indexed by capability bit
 	 * number, one count per session using a capability.
 	 * Protected by session_mutex.
 	 */
-	struct vbg_bit_usage_tracker guest_caps_tracker;
+	struct vbg_bit_usage_tracker set_guest_caps_tracker;
 	/**
 	 * The guest capabilities last reported to the host (or UINT32_MAX).
 	 * Protected by session_mutex.
@@ -149,11 +174,16 @@ struct vbg_session {
 	 */
 	u32 event_filter;
 	/**
-	 * Guest capabilities for this session.
+	 * Guest capabilities acquired by vbg_acquire_session_capabilities().
+	 * Only one session can acquire a capability at a time.
+	 */
+	u32 acquired_guest_caps;
+	/**
+	 * Guest capabilities set through vbg_set_session_capabilities().
 	 * A capability claimed by any guest session will be reported to the
 	 * host. Protected by vbg_gdev.session_mutex.
 	 */
-	u32 guest_caps;
+	u32 set_guest_caps;
 	/** VMMDEV_REQUESTOR_* flags */
 	u32 requestor;
 	/** Set on CANCEL_ALL_WAITEVENTS, protected by vbg_devevent_spinlock. */

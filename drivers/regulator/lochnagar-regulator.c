@@ -36,7 +36,7 @@ static const struct regulator_ops lochnagar_micvdd_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 };
 
-static const struct regulator_linear_range lochnagar_micvdd_ranges[] = {
+static const struct linear_range lochnagar_micvdd_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1000000, 0,    0xC, 50000),
 	REGULATOR_LINEAR_RANGE(1700000, 0xD, 0x1F, 100000),
 };
@@ -97,7 +97,8 @@ static const struct regulator_ops lochnagar_vddcore_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 };
 
-static const struct regulator_linear_range lochnagar_vddcore_ranges[] = {
+static const struct linear_range lochnagar_vddcore_ranges[] = {
+	REGULATOR_LINEAR_RANGE(600000, 0,    0x7, 0),
 	REGULATOR_LINEAR_RANGE(600000, 0x8, 0x41, 12500),
 };
 

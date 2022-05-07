@@ -5,13 +5,13 @@
  * Copyright (C) 2012 ARM Ltd.
  * Copyright (C) 2017 SiFive
  */
-#ifndef __UAPI_ASM_HWCAP_H
-#define __UAPI_ASM_HWCAP_H
+#ifndef _UAPI_ASM_RISCV_HWCAP_H
+#define _UAPI_ASM_RISCV_HWCAP_H
 
 /*
  * Linux saves the floating-point registers according to the ISA Linux is
  * executing on, as opposed to the ISA the user program is compiled for.  This
- * is necessary for a handful of esoteric use cases: for example, userpsace
+ * is necessary for a handful of esoteric use cases: for example, userspace
  * threading libraries must be able to examine the actual machine state in
  * order to fully reconstruct the state of a thread.
  */
@@ -22,4 +22,4 @@
 #define COMPAT_HWCAP_ISA_D	(1 << ('D' - 'A'))
 #define COMPAT_HWCAP_ISA_C	(1 << ('C' - 'A'))
 
-#endif
+#endif /* _UAPI_ASM_RISCV_HWCAP_H */

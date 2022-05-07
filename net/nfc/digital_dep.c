@@ -38,9 +38,6 @@
 
 #define DIGITAL_GB_BIT	0x02
 
-#define DIGITAL_NFC_DEP_REQ_RES_HEADROOM	2 /* SoD: [SB (NFC-A)] + LEN */
-#define DIGITAL_NFC_DEP_REQ_RES_TAILROOM	2 /* EoD: 2-byte CRC */
-
 #define DIGITAL_NFC_DEP_PFB_TYPE(pfb) ((pfb) & 0xE0)
 
 #define DIGITAL_NFC_DEP_PFB_TIMEOUT_BIT 0x10
@@ -71,7 +68,7 @@ struct digital_atr_req {
 	u8 bs;
 	u8 br;
 	u8 pp;
-	u8 gb[0];
+	u8 gb[];
 } __packed;
 
 struct digital_atr_res {
@@ -83,7 +80,7 @@ struct digital_atr_res {
 	u8 br;
 	u8 to;
 	u8 pp;
-	u8 gb[0];
+	u8 gb[];
 } __packed;
 
 struct digital_psl_req {

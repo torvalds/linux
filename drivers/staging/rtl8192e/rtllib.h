@@ -728,14 +728,14 @@ struct rtllib_pspoll_hdr {
 struct rtllib_hdr {
 	__le16 frame_ctl;
 	__le16 duration_id;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtllib_hdr_1addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtllib_hdr_2addr {
@@ -743,7 +743,7 @@ struct rtllib_hdr_2addr {
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtllib_hdr_3addr {
@@ -753,7 +753,7 @@ struct rtllib_hdr_3addr {
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
 	__le16 seq_ctl;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtllib_hdr_4addr {
@@ -764,7 +764,7 @@ struct rtllib_hdr_4addr {
 	u8 addr3[ETH_ALEN];
 	__le16 seq_ctl;
 	u8 addr4[ETH_ALEN];
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtllib_hdr_3addrqos {
@@ -775,7 +775,7 @@ struct rtllib_hdr_3addrqos {
 	u8 addr3[ETH_ALEN];
 	__le16 seq_ctl;
 	__le16 qos_ctl;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtllib_hdr_4addrqos {
@@ -787,13 +787,13 @@ struct rtllib_hdr_4addrqos {
 	__le16 seq_ctl;
 	u8 addr4[ETH_ALEN];
 	__le16 qos_ctl;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtllib_info_element {
 	u8 id;
 	u8 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct rtllib_authentication {
@@ -802,7 +802,7 @@ struct rtllib_authentication {
 	__le16 transaction;
 	__le16 status;
 	/*challenge*/
-	struct rtllib_info_element info_element[0];
+	struct rtllib_info_element info_element[];
 } __packed;
 
 struct rtllib_disauth {
@@ -818,7 +818,7 @@ struct rtllib_disassoc {
 struct rtllib_probe_request {
 	struct rtllib_hdr_3addr header;
 	/* SSID, supported rates */
-	struct rtllib_info_element info_element[0];
+	struct rtllib_info_element info_element[];
 } __packed;
 
 struct rtllib_probe_response {
@@ -829,7 +829,7 @@ struct rtllib_probe_response {
 	/* SSID, supported rates, FH params, DS params,
 	 * CF params, IBSS params, TIM (if beacon), RSN
 	 */
-	struct rtllib_info_element info_element[0];
+	struct rtllib_info_element info_element[];
 } __packed;
 
 /* Alias beacon for probe_response */
@@ -840,7 +840,7 @@ struct rtllib_assoc_request_frame {
 	__le16 capability;
 	__le16 listen_interval;
 	/* SSID, supported rates, RSN */
-	struct rtllib_info_element info_element[0];
+	struct rtllib_info_element info_element[];
 } __packed;
 
 struct rtllib_assoc_response_frame {
@@ -848,7 +848,7 @@ struct rtllib_assoc_response_frame {
 	__le16 capability;
 	__le16 status;
 	__le16 aid;
-	struct rtllib_info_element info_element[0]; /* supported rates */
+	struct rtllib_info_element info_element[]; /* supported rates */
 } __packed;
 
 struct rtllib_txb {
@@ -859,7 +859,7 @@ struct rtllib_txb {
 	u16 reserved;
 	__le16 frag_size;
 	__le16 payload_size;
-	struct sk_buff *fragments[0];
+	struct sk_buff *fragments[];
 };
 
 #define MAX_SUBFRAME_COUNT		  64
@@ -1792,7 +1792,7 @@ struct rtllib_device {
 	/* This must be the last item so that it points to the data
 	 * allocated beyond this structure by alloc_rtllib
 	 */
-	u8 priv[0];
+	u8 priv[];
 };
 
 #define IEEE_A	    (1<<0)

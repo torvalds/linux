@@ -8,7 +8,7 @@ config MLX4_EN
 	depends on PCI && NETDEVICES && ETHERNET && INET
 	select MLX4_CORE
 	imply PTP_1588_CLOCK
-	---help---
+	help
 	  This driver supports Mellanox Technologies ConnectX Ethernet
 	  devices.
 
@@ -16,7 +16,7 @@ config MLX4_EN_DCB
 	bool "Data Center Bridging (DCB) Support"
 	default y
 	depends on MLX4_EN && DCB
-	---help---
+	help
 	  Say Y here if you want to use Data Center Bridging (DCB) in the
 	  driver.
 	  If set to N, will not be able to configure QoS and ratelimit attributes.
@@ -34,7 +34,7 @@ config MLX4_DEBUG
 	bool "Verbose debugging output" if (MLX4_CORE && EXPERT)
 	depends on MLX4_CORE
 	default y
-	---help---
+	help
 	  This option causes debugging code to be compiled into the
 	  mlx4_core driver.  The output can be turned on via the
 	  debug_level module parameter (which can also be set after
@@ -44,6 +44,6 @@ config MLX4_CORE_GEN2
 	bool "Support for old gen2 Mellanox PCI IDs" if (MLX4_CORE)
 	depends on MLX4_CORE
 	default y
-	---help---
+	help
 	  Say Y here if you want to use old gen2 Mellanox devices in the
 	  driver.

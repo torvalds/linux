@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "efa_com.h"
@@ -76,6 +76,7 @@ int efa_com_modify_qp(struct efa_com_dev *edev,
 	cmd.qkey = params->qkey;
 	cmd.sq_psn = params->sq_psn;
 	cmd.sq_drained_async_notify = params->sq_drained_async_notify;
+	cmd.rnr_retry = params->rnr_retry;
 
 	err = efa_com_cmd_exec(aq,
 			       (struct efa_admin_aq_entry *)&cmd,
@@ -121,6 +122,7 @@ int efa_com_query_qp(struct efa_com_dev *edev,
 	result->qkey = resp.qkey;
 	result->sq_draining = resp.sq_draining;
 	result->sq_psn = resp.sq_psn;
+	result->rnr_retry = resp.rnr_retry;
 
 	return 0;
 }
@@ -161,8 +163,9 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 	int err;
 
 	create_cmd.aq_common_desc.opcode = EFA_ADMIN_CREATE_CQ;
-	create_cmd.cq_caps_2 = (params->entry_size_in_bytes / 4) &
-				EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS_MASK;
+	EFA_SET(&create_cmd.cq_caps_2,
+		EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS,
+		params->entry_size_in_bytes / 4);
 	create_cmd.cq_depth = params->cq_depth;
 	create_cmd.num_sub_cqs = params->num_sub_cqs;
 	create_cmd.uar = params->uarn;
@@ -227,11 +230,10 @@ int efa_com_register_mr(struct efa_com_dev *edev,
 	mr_cmd.aq_common_desc.opcode = EFA_ADMIN_REG_MR;
 	mr_cmd.pd = params->pd;
 	mr_cmd.mr_length = params->mr_length_in_bytes;
-	mr_cmd.flags |= params->page_shift &
-		EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT_MASK;
+	EFA_SET(&mr_cmd.flags, EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT,
+		params->page_shift);
 	mr_cmd.iova = params->iova;
-	mr_cmd.permissions |= params->permissions &
-			      EFA_ADMIN_REG_MR_CMD_LOCAL_WRITE_ENABLE_MASK;
+	mr_cmd.permissions = params->permissions;
 
 	if (params->inline_pbl) {
 		memcpy(mr_cmd.pbl.inline_pbl_array,
@@ -243,11 +245,11 @@ int efa_com_register_mr(struct efa_com_dev *edev,
 			params->pbl.pbl.address.mem_addr_low;
 		mr_cmd.pbl.pbl.address.mem_addr_high =
 			params->pbl.pbl.address.mem_addr_high;
-		mr_cmd.aq_common_desc.flags |=
-			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_MASK;
+		EFA_SET(&mr_cmd.aq_common_desc.flags,
+			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
 		if (params->indirect)
-			mr_cmd.aq_common_desc.flags |=
-				EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT_MASK;
+			EFA_SET(&mr_cmd.aq_common_desc.flags,
+				EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT, 1);
 	}
 
 	err = efa_com_cmd_exec(aq,
@@ -351,7 +353,7 @@ int efa_com_destroy_ah(struct efa_com_dev *edev,
 	return 0;
 }
 
-static bool
+bool
 efa_com_check_supported_feature_id(struct efa_com_dev *edev,
 				   enum efa_admin_aq_feature_id feature_id)
 {
@@ -387,9 +389,8 @@ static int efa_com_get_feature_ex(struct efa_com_dev *edev,
 	get_cmd.aq_common_descriptor.opcode = EFA_ADMIN_GET_FEATURE;
 
 	if (control_buff_size)
-		get_cmd.aq_common_descriptor.flags =
-			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT_MASK;
-
+		EFA_SET(&get_cmd.aq_common_descriptor.flags,
+			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
 
 	efa_com_set_dma_addr(control_buf_dma_addr,
 			     &get_cmd.control_buffer.address.mem_addr_high,
@@ -423,28 +424,6 @@ static int efa_com_get_feature(struct efa_com_dev *edev,
 	return efa_com_get_feature_ex(edev, get_resp, feature_id, 0, 0);
 }
 
-int efa_com_get_network_attr(struct efa_com_dev *edev,
-			     struct efa_com_get_network_attr_result *result)
-{
-	struct efa_admin_get_feature_resp resp;
-	int err;
-
-	err = efa_com_get_feature(edev, &resp,
-				  EFA_ADMIN_NETWORK_ATTR);
-	if (err) {
-		ibdev_err_ratelimited(edev->efa_dev,
-				      "Failed to get network attributes %d\n",
-				      err);
-		return err;
-	}
-
-	memcpy(result->addr, resp.u.network_attr.addr,
-	       sizeof(resp.u.network_attr.addr));
-	result->mtu = resp.u.network_attr.mtu;
-
-	return 0;
-}
-
 int efa_com_get_device_attr(struct efa_com_dev *edev,
 			    struct efa_com_get_device_attr_result *result)
 {
@@ -467,6 +446,8 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->phys_addr_width = resp.u.device_attr.phys_addr_width;
 	result->virt_addr_width = resp.u.device_attr.virt_addr_width;
 	result->db_bar = resp.u.device_attr.db_bar;
+	result->max_rdma_size = resp.u.device_attr.max_rdma_size;
+	result->device_caps = resp.u.device_attr.device_caps;
 
 	if (result->admin_api_version < 1) {
 		ibdev_err_ratelimited(
@@ -500,6 +481,21 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->max_ah = resp.u.queue_attr.max_ah;
 	result->max_llq_size = resp.u.queue_attr.max_llq_size;
 	result->sub_cqs_per_cq = resp.u.queue_attr.sub_cqs_per_cq;
+	result->max_wr_rdma_sge = resp.u.queue_attr.max_wr_rdma_sges;
+	result->max_tx_batch = resp.u.queue_attr.max_tx_batch;
+	result->min_sq_depth = resp.u.queue_attr.min_sq_depth;
+
+	err = efa_com_get_feature(edev, &resp, EFA_ADMIN_NETWORK_ATTR);
+	if (err) {
+		ibdev_err_ratelimited(edev->efa_dev,
+				      "Failed to get network attributes %d\n",
+				      err);
+		return err;
+	}
+
+	memcpy(result->addr, resp.u.network_attr.addr,
+	       sizeof(resp.u.network_attr.addr));
+	result->mtu = resp.u.network_attr.mtu;
 
 	return 0;
 }
@@ -525,12 +521,12 @@ int efa_com_get_hw_hints(struct efa_com_dev *edev,
 	return 0;
 }
 
-static int efa_com_set_feature_ex(struct efa_com_dev *edev,
-				  struct efa_admin_set_feature_resp *set_resp,
-				  struct efa_admin_set_feature_cmd *set_cmd,
-				  enum efa_admin_aq_feature_id feature_id,
-				  dma_addr_t control_buf_dma_addr,
-				  u32 control_buff_size)
+int efa_com_set_feature_ex(struct efa_com_dev *edev,
+			   struct efa_admin_set_feature_resp *set_resp,
+			   struct efa_admin_set_feature_cmd *set_cmd,
+			   enum efa_admin_aq_feature_id feature_id,
+			   dma_addr_t control_buf_dma_addr,
+			   u32 control_buff_size)
 {
 	struct efa_com_admin_queue *aq;
 	int err;
@@ -546,8 +542,9 @@ static int efa_com_set_feature_ex(struct efa_com_dev *edev,
 
 	set_cmd->aq_common_descriptor.opcode = EFA_ADMIN_SET_FEATURE;
 	if (control_buff_size) {
-		set_cmd->aq_common_descriptor.flags =
-			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT_MASK;
+		set_cmd->aq_common_descriptor.flags = 0;
+		EFA_SET(&set_cmd->aq_common_descriptor.flags,
+			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
 		efa_com_set_dma_addr(control_buf_dma_addr,
 				     &set_cmd->control_buffer.address.mem_addr_high,
 				     &set_cmd->control_buffer.address.mem_addr_low);
@@ -755,11 +752,27 @@ int efa_com_get_stats(struct efa_com_dev *edev,
 		return err;
 	}
 
-	result->basic_stats.tx_bytes = resp.basic_stats.tx_bytes;
-	result->basic_stats.tx_pkts = resp.basic_stats.tx_pkts;
-	result->basic_stats.rx_bytes = resp.basic_stats.rx_bytes;
-	result->basic_stats.rx_pkts = resp.basic_stats.rx_pkts;
-	result->basic_stats.rx_drops = resp.basic_stats.rx_drops;
+	switch (cmd.type) {
+	case EFA_ADMIN_GET_STATS_TYPE_BASIC:
+		result->basic_stats.tx_bytes = resp.u.basic_stats.tx_bytes;
+		result->basic_stats.tx_pkts = resp.u.basic_stats.tx_pkts;
+		result->basic_stats.rx_bytes = resp.u.basic_stats.rx_bytes;
+		result->basic_stats.rx_pkts = resp.u.basic_stats.rx_pkts;
+		result->basic_stats.rx_drops = resp.u.basic_stats.rx_drops;
+		break;
+	case EFA_ADMIN_GET_STATS_TYPE_MESSAGES:
+		result->messages_stats.send_bytes = resp.u.messages_stats.send_bytes;
+		result->messages_stats.send_wrs = resp.u.messages_stats.send_wrs;
+		result->messages_stats.recv_bytes = resp.u.messages_stats.recv_bytes;
+		result->messages_stats.recv_wrs = resp.u.messages_stats.recv_wrs;
+		break;
+	case EFA_ADMIN_GET_STATS_TYPE_RDMA_READ:
+		result->rdma_read_stats.read_wrs = resp.u.rdma_read_stats.read_wrs;
+		result->rdma_read_stats.read_bytes = resp.u.rdma_read_stats.read_bytes;
+		result->rdma_read_stats.read_wr_err = resp.u.rdma_read_stats.read_wr_err;
+		result->rdma_read_stats.read_resp_bytes = resp.u.rdma_read_stats.read_resp_bytes;
+		break;
+	}
 
 	return 0;
 }

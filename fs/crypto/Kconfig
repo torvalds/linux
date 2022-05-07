@@ -2,13 +2,9 @@
 config FS_ENCRYPTION
 	bool "FS Encryption (Per-file encryption)"
 	select CRYPTO
-	select CRYPTO_AES
-	select CRYPTO_CBC
-	select CRYPTO_ECB
-	select CRYPTO_XTS
-	select CRYPTO_CTS
-	select CRYPTO_SHA512
-	select CRYPTO_HMAC
+	select CRYPTO_HASH
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_SHA256
 	select KEYS
 	help
 	  Enable encryption of files and directories.  This
@@ -16,3 +12,21 @@ config FS_ENCRYPTION
 	  efficient since it avoids caching the encrypted and
 	  decrypted pages in the page cache.  Currently Ext4,
 	  F2FS and UBIFS make use of this feature.
+
+# Filesystems supporting encryption must select this if FS_ENCRYPTION.  This
+# allows the algorithms to be built as modules when all the filesystems are.
+config FS_ENCRYPTION_ALGS
+	tristate
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	select CRYPTO_CTS
+	select CRYPTO_ECB
+	select CRYPTO_HMAC
+	select CRYPTO_SHA512
+	select CRYPTO_XTS
+
+config FS_ENCRYPTION_INLINE_CRYPT
+	bool "Enable fscrypt to use inline crypto"
+	depends on FS_ENCRYPTION && BLK_INLINE_ENCRYPTION
+	help
+	  Enable fscrypt to use inline encryption hardware if available.

@@ -412,6 +412,7 @@ static const struct file_operations intel_scu_fops = {
 	.llseek         = no_llseek,
 	.write          = intel_scu_write,
 	.unlocked_ioctl = intel_scu_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open           = intel_scu_open,
 	.release        = intel_scu_release,
 };
@@ -462,7 +463,7 @@ static int __init intel_scu_watchdog_init(void)
 		return -ENODEV;
 	}
 
-	tmp_addr = ioremap_nocache(watchdog_device.timer_tbl_ptr->phys_addr,
+	tmp_addr = ioremap(watchdog_device.timer_tbl_ptr->phys_addr,
 			20);
 
 	if (tmp_addr == NULL) {

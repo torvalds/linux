@@ -150,8 +150,7 @@
 
 		gpios = <&gpio5 29 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi2: regulator-vcc-sdhi2 {
@@ -174,8 +173,7 @@
 
 		gpios = <&gpio5 30 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	audio_clock: audio_clock {
@@ -325,10 +323,10 @@
 		#size-cells = <0>;
 	};
 
-        /*
-         * IIC2 and I2C2 may be switched using pinmux.
-         * A fallback to GPIO is also provided.
-         */
+	/*
+	 * IIC2 and I2C2 may be switched using pinmux.
+	 * A fallback to GPIO is also provided.
+	 */
 	i2chdmi: i2c-12 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&iic2>, <&i2c2>, <&gpioi2c2>;
@@ -345,7 +343,6 @@
 		composite-in@20 {
 			compatible = "adi,adv7180";
 			reg = <0x20>;
-			remote = <&vin1>;
 
 			port {
 				adv7180: endpoint {
@@ -366,8 +363,6 @@
 			adi,input-depth = <8>;
 			adi,input-colorspace = "rgb";
 			adi,input-clock = "1x";
-			adi,input-style = <1>;
-			adi,input-justification = "evenly";
 
 			ports {
 				#address-cells = <1>;
@@ -676,6 +671,7 @@
 		interrupt-parent = <&irqc0>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
+		reset-gpios = <&gpio5 31 GPIO_ACTIVE_LOW>;
 	};
 };
 

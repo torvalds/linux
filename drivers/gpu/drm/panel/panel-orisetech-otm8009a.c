@@ -17,7 +17,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #define OTM8009A_BACKLIGHT_DEFAULT	240
 #define OTM8009A_BACKLIGHT_MAX		255
@@ -81,7 +80,6 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start = 800 + 15,
 	.vsync_end = 800 + 15 + 10,
 	.vtotal = 800 + 15 + 10 + 14,
-	.vrefresh = 50,
 	.flags = 0,
 	.width_mm = 52,
 	.height_mm = 86,
@@ -98,7 +96,7 @@ static void otm8009a_dcs_write_buf(struct otm8009a *ctx, const void *data,
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 
 	if (mipi_dsi_dcs_write_buffer(dsi, data, len) < 0)
-		DRM_WARN("mipi dsi dcs write buffer failed\n");
+		dev_warn(ctx->dev, "mipi dsi dcs write buffer failed\n");
 }
 
 static void otm8009a_dcs_write_buf_hs(struct otm8009a *ctx, const void *data,
@@ -314,7 +312,7 @@ static int otm8009a_prepare(struct drm_panel *panel)
 
 	ret = regulator_enable(ctx->supply);
 	if (ret < 0) {
-		DRM_ERROR("failed to enable supply: %d\n", ret);
+		dev_err(panel->dev, "failed to enable supply: %d\n", ret);
 		return ret;
 	}
 
@@ -349,25 +347,26 @@ static int otm8009a_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int otm8009a_get_modes(struct drm_panel *panel)
+static int otm8009a_get_modes(struct drm_panel *panel,
+			      struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
-		DRM_ERROR("failed to add mode %ux%ux@%u\n",
-			  default_mode.hdisplay, default_mode.vdisplay,
-			  default_mode.vrefresh);
+		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
+			default_mode.hdisplay, default_mode.vdisplay,
+			drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 
 	drm_mode_set_name(mode);
 
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(connector, mode);
 
-	panel->connector->display_info.width_mm = mode->width_mm;
-	panel->connector->display_info.height_mm = mode->height_mm;
+	connector->display_info.width_mm = mode->width_mm;
+	connector->display_info.height_mm = mode->height_mm;
 
 	return 1;
 }
@@ -390,7 +389,7 @@ static int otm8009a_backlight_update_status(struct backlight_device *bd)
 	u8 data[2];
 
 	if (!ctx->prepared) {
-		DRM_DEBUG("lcd not ready yet for setting its backlight!\n");
+		dev_dbg(&bd->dev, "lcd not ready yet for setting its backlight!\n");
 		return -ENXIO;
 	}
 
@@ -455,9 +454,8 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_LPM;
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &otm8009a_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &otm8009a_drm_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	ctx->bl_dev = devm_backlight_device_register(dev, dev_name(dev),
 						     dsi->host->dev, ctx,
@@ -480,7 +478,6 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 	if (ret < 0) {
 		dev_err(dev, "mipi_dsi_attach failed. Is host ready?\n");
 		drm_panel_remove(&ctx->panel);
-		backlight_device_unregister(ctx->bl_dev);
 		return ret;
 	}
 

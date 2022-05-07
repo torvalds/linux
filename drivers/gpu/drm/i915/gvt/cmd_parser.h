@@ -38,6 +38,10 @@
 
 #define GVT_CMD_HASH_BITS 7
 
+struct intel_gvt;
+struct intel_shadow_wa_ctx;
+struct intel_vgpu_workload;
+
 void intel_gvt_clean_cmd_parser(struct intel_gvt *gvt);
 
 int intel_gvt_init_cmd_parser(struct intel_gvt *gvt);

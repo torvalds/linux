@@ -173,6 +173,7 @@ static int  isl29020_probe(struct i2c_client *client,
 
 static int isl29020_remove(struct i2c_client *client)
 {
+	pm_runtime_disable(&client->dev);
 	sysfs_remove_group(&client->dev.kobj, &m_als_gr);
 	return 0;
 }

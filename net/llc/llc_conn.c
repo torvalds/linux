@@ -284,8 +284,8 @@ out:;
 /**
  *	llc_conn_remove_acked_pdus - Removes acknowledged pdus from tx queue
  *	@sk: active connection
- *	nr: NR
- *	how_many_unacked: size of pdu_unack_q after removing acked pdus
+ *	@nr: NR
+ *	@how_many_unacked: size of pdu_unack_q after removing acked pdus
  *
  *	Removes acknowledged pdus from transmit queue (pdu_unack_q). Returns
  *	the number of pdus that removed from queue.
@@ -906,6 +906,7 @@ static void llc_sk_init(struct sock *sk)
 
 /**
  *	llc_sk_alloc - Allocates LLC sock
+ *	@net: network namespace
  *	@family: upper layer protocol family
  *	@priority: for allocation (%GFP_KERNEL, %GFP_ATOMIC, etc)
  *
@@ -951,7 +952,7 @@ void llc_sk_stop_all_timers(struct sock *sk, bool sync)
 
 /**
  *	llc_sk_free - Frees a LLC socket
- *	@sk - socket to free
+ *	@sk: - socket to free
  *
  *	Frees a LLC socket
  */

@@ -38,6 +38,7 @@
 
 /* Interrupt Status */
 #define UCS1002_REG_INTERRUPT_STATUS	0x10
+#  define F_ERR				BIT(7)
 #  define F_DISCHARGE_ERR		BIT(6)
 #  define F_RESET			BIT(5)
 #  define F_MIN_KEEP_OUT		BIT(4)
@@ -100,7 +101,12 @@ struct ucs1002_info {
 	struct i2c_client *client;
 	struct regmap *regmap;
 	struct regulator_desc *regulator_descriptor;
+	struct regulator_dev *rdev;
 	bool present;
+	bool output_disable;
+	struct delayed_work health_poll;
+	int health;
+
 };
 
 static enum power_supply_property ucs1002_props[] = {
@@ -233,6 +239,11 @@ static int ucs1002_get_max_current(struct ucs1002_info *info,
 	unsigned int reg;
 	int ret;
 
+	if (info->output_disable) {
+		val->intval = 0;
+		return 0;
+	}
+
 	ret = regmap_read(info->regmap, UCS1002_REG_ILIMIT, &reg);
 	if (ret)
 		return ret;
@@ -246,6 +257,12 @@ static int ucs1002_set_max_current(struct ucs1002_info *info, u32 val)
 {
 	unsigned int reg;
 	int ret, idx;
+
+	if (val == 0) {
+		info->output_disable = true;
+		regulator_disable_regmap(info->rdev);
+		return 0;
+	}
 
 	for (idx = 0; idx < ARRAY_SIZE(ucs1002_current_limit_uA); idx++) {
 		if (val == ucs1002_current_limit_uA[idx])
@@ -269,6 +286,12 @@ static int ucs1002_set_max_current(struct ucs1002_info *info, u32 val)
 
 	if (reg != idx)
 		return -EINVAL;
+
+	info->output_disable = false;
+
+	if (info->rdev && info->rdev->use_count &&
+	    !regulator_is_enabled_regmap(info->rdev))
+		regulator_enable_regmap(info->rdev);
 
 	return 0;
 }
@@ -343,32 +366,6 @@ static int ucs1002_get_usb_type(struct ucs1002_info *info,
 	return 0;
 }
 
-static int ucs1002_get_health(struct ucs1002_info *info,
-			      union power_supply_propval *val)
-{
-	unsigned int reg;
-	int ret, health;
-
-	ret = regmap_read(info->regmap, UCS1002_REG_INTERRUPT_STATUS, &reg);
-	if (ret)
-		return ret;
-
-	if (reg & F_TSD)
-		health = POWER_SUPPLY_HEALTH_OVERHEAT;
-	else if (reg & (F_OVER_VOLT | F_BACK_VOLT))
-		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
-	else if (reg & F_OVER_ILIM)
-		health = POWER_SUPPLY_HEALTH_OVERCURRENT;
-	else if (reg & (F_DISCHARGE_ERR | F_MIN_KEEP_OUT))
-		health = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
-	else
-		health = POWER_SUPPLY_HEALTH_GOOD;
-
-	val->intval = health;
-
-	return 0;
-}
-
 static int ucs1002_get_property(struct power_supply *psy,
 				enum power_supply_property psp,
 				union power_supply_propval *val)
@@ -387,7 +384,7 @@ static int ucs1002_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		return ucs1002_get_usb_type(info, val);
 	case POWER_SUPPLY_PROP_HEALTH:
-		return ucs1002_get_health(info, val);
+		return val->intval = info->health;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = info->present;
 		return 0;
@@ -439,6 +436,38 @@ static const struct power_supply_desc ucs1002_charger_desc = {
 	.num_properties		= ARRAY_SIZE(ucs1002_props),
 };
 
+static void ucs1002_health_poll(struct work_struct *work)
+{
+	struct ucs1002_info *info = container_of(work, struct ucs1002_info,
+						 health_poll.work);
+	int ret;
+	u32 reg;
+
+	ret = regmap_read(info->regmap, UCS1002_REG_INTERRUPT_STATUS, &reg);
+	if (ret)
+		return;
+
+	/* bad health and no status change, just schedule us again in a while */
+	if ((reg & F_ERR) && info->health != POWER_SUPPLY_HEALTH_GOOD) {
+		schedule_delayed_work(&info->health_poll,
+				      msecs_to_jiffies(2000));
+		return;
+	}
+
+	if (reg & F_TSD)
+		info->health = POWER_SUPPLY_HEALTH_OVERHEAT;
+	else if (reg & (F_OVER_VOLT | F_BACK_VOLT))
+		info->health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+	else if (reg & F_OVER_ILIM)
+		info->health = POWER_SUPPLY_HEALTH_OVERCURRENT;
+	else if (reg & (F_DISCHARGE_ERR | F_MIN_KEEP_OUT))
+		info->health = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+	else
+		info->health = POWER_SUPPLY_HEALTH_GOOD;
+
+	sysfs_notify(&info->charger->dev.kobj, NULL, "health");
+}
+
 static irqreturn_t ucs1002_charger_irq(int irq, void *data)
 {
 	int ret, regval;
@@ -465,14 +494,29 @@ static irqreturn_t ucs1002_alert_irq(int irq, void *data)
 {
 	struct ucs1002_info *info = data;
 
-	power_supply_changed(info->charger);
+	mod_delayed_work(system_wq, &info->health_poll, 0);
 
 	return IRQ_HANDLED;
 }
 
+static int ucs1002_regulator_enable(struct regulator_dev *rdev)
+{
+	struct ucs1002_info *info = rdev_get_drvdata(rdev);
+
+	/*
+	 * If the output is disabled due to 0 maximum current, just pretend the
+	 * enable did work. The regulator will be enabled as soon as we get a
+	 * a non-zero maximum current budget.
+	 */
+	if (info->output_disable)
+		return 0;
+
+	return regulator_enable_regmap(rdev);
+}
+
 static const struct regulator_ops ucs1002_regulator_ops = {
 	.is_enabled	= regulator_is_enabled_regmap,
-	.enable		= regulator_enable_regmap,
+	.enable		= ucs1002_regulator_enable,
 	.disable	= regulator_disable_regmap,
 };
 
@@ -499,7 +543,6 @@ static int ucs1002_probe(struct i2c_client *client,
 	};
 	struct regulator_config regulator_config = {};
 	int irq_a_det, irq_alert, ret;
-	struct regulator_dev *rdev;
 	struct ucs1002_info *info;
 	unsigned int regval;
 
@@ -589,14 +632,18 @@ static int ucs1002_probe(struct i2c_client *client,
 	regulator_config.dev = dev;
 	regulator_config.of_node = dev->of_node;
 	regulator_config.regmap = info->regmap;
+	regulator_config.driver_data = info;
 
-	rdev = devm_regulator_register(dev, info->regulator_descriptor,
+	info->rdev = devm_regulator_register(dev, info->regulator_descriptor,
 				       &regulator_config);
-	ret = PTR_ERR_OR_ZERO(rdev);
+	ret = PTR_ERR_OR_ZERO(info->rdev);
 	if (ret) {
 		dev_err(dev, "Failed to register VBUS regulator: %d\n", ret);
 		return ret;
 	}
+
+	info->health = POWER_SUPPLY_HEALTH_GOOD;
+	INIT_DELAYED_WORK(&info->health_poll, ucs1002_health_poll);
 
 	if (irq_a_det > 0) {
 		ret = devm_request_threaded_irq(dev, irq_a_det, NULL,
@@ -611,10 +658,8 @@ static int ucs1002_probe(struct i2c_client *client,
 	}
 
 	if (irq_alert > 0) {
-		ret = devm_request_threaded_irq(dev, irq_alert, NULL,
-						ucs1002_alert_irq,
-						IRQF_ONESHOT,
-						"ucs1002-alert", info);
+		ret = devm_request_irq(dev, irq_alert, ucs1002_alert_irq,
+				       0,"ucs1002-alert", info);
 		if (ret) {
 			dev_err(dev, "Failed to request ALERT threaded irq: %d\n",
 				ret);

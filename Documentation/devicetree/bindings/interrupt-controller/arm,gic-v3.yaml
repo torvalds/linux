@@ -91,18 +91,16 @@ properties:
     description:
       If using padding pages, specifies the stride of consecutive
       redistributors. Must be a multiple of 64kB.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint64
-      - multipleOf: 0x10000
-        exclusiveMinimum: 0
+    $ref: /schemas/types.yaml#/definitions/uint64
+    multipleOf: 0x10000
+    exclusiveMinimum: 0
 
   "#redistributor-regions":
     description:
       The number of independent contiguous regions occupied by the
       redistributors. Required if more than one such region is present.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - maximum: 4096   # Should be enough?
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 4096
 
   msi-controller:
     description:
@@ -114,22 +112,20 @@ properties:
       A list of pairs <intid span>, where "intid" is the first SPI of a range
       that can be used an MBI, and "span" the size of that range. Multiple
       ranges can be provided.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-matrix
-      - items:
-          minItems: 2
-          maxItems: 2
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    items:
+      minItems: 2
+      maxItems: 2
 
   mbi-alias:
     description:
       Address property. Base address of an alias of the GICD region containing
       only the {SET,CLR}SPI registers to be used if isolation is required,
       and if supported by the HW.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - items:
-          minItems: 1
-          maxItems: 2
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      minItems: 1
+      maxItems: 2
 
   ppi-partitions:
     type: object
@@ -138,6 +134,7 @@ properties:
       containing a set of sub-nodes.
     patternProperties:
       "^interrupt-partition-[0-9]+$":
+        type: object
         properties:
           affinity:
             $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -187,11 +184,10 @@ patternProperties:
         description:
           (u32, u32) tuple describing the untranslated
           address and size of the pre-ITS window.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
-          - items:
-              minItems: 2
-              maxItems: 2
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        items:
+          minItems: 2
+          maxItems: 2
 
     required:
       - compatible

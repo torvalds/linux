@@ -17,7 +17,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x4000000>;
 	};
 };
@@ -44,10 +44,6 @@
 
 &clk32k {
 	atmel,osc-bypass;
-};
-
-&usart1_clk {
-	atmel,clk-output-range = <0 132000000>;
 };
 
 &mmc0 {

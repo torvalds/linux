@@ -20,48 +20,42 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
-
-#include <subdev/top.h>
-#include <engine/falcon.h>
-
-static int
-nvkm_nvdec_oneinit(struct nvkm_engine *engine)
-{
-	struct nvkm_nvdec *nvdec = nvkm_nvdec(engine);
-	struct nvkm_subdev *subdev = &nvdec->engine.subdev;
-
-	nvdec->addr = nvkm_top_addr(subdev->device, subdev->index);
-	if (!nvdec->addr)
-		return -EINVAL;
-
-	/*XXX: fix naming of this when adding support for multiple-NVDEC */
-	return nvkm_falcon_v1_new(subdev, "NVDEC", nvdec->addr,
-				  &nvdec->falcon);
-}
+#include <core/firmware.h>
 
 static void *
 nvkm_nvdec_dtor(struct nvkm_engine *engine)
 {
 	struct nvkm_nvdec *nvdec = nvkm_nvdec(engine);
-	nvkm_falcon_del(&nvdec->falcon);
+	nvkm_falcon_dtor(&nvdec->falcon);
 	return nvdec;
 }
 
 static const struct nvkm_engine_func
 nvkm_nvdec = {
 	.dtor = nvkm_nvdec_dtor,
-	.oneinit = nvkm_nvdec_oneinit,
 };
 
 int
-nvkm_nvdec_new_(struct nvkm_device *device, int index,
-		struct nvkm_nvdec **pnvdec)
+nvkm_nvdec_new_(const struct nvkm_nvdec_fwif *fwif, struct nvkm_device *device,
+		int index, struct nvkm_nvdec **pnvdec)
 {
 	struct nvkm_nvdec *nvdec;
+	int ret;
 
 	if (!(nvdec = *pnvdec = kzalloc(sizeof(*nvdec), GFP_KERNEL)))
 		return -ENOMEM;
 
-	return nvkm_engine_ctor(&nvkm_nvdec, device, index, true,
-				&nvdec->engine);
+	ret = nvkm_engine_ctor(&nvkm_nvdec, device, index, true,
+			       &nvdec->engine);
+	if (ret)
+		return ret;
+
+	fwif = nvkm_firmware_load(&nvdec->engine.subdev, fwif, "Nvdec", nvdec);
+	if (IS_ERR(fwif))
+		return -ENODEV;
+
+	nvdec->func = fwif->func;
+
+	return nvkm_falcon_ctor(nvdec->func->flcn, &nvdec->engine.subdev,
+				nvkm_subdev_name[index], 0, &nvdec->falcon);
 };

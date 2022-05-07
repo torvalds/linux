@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Roseapple Pi
+ *
+ * Copyright (C) 2020 Cristian Ciocaltea <cristian.ciocaltea@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "owl-s500.dtsi"
+
+/ {
+	compatible = "roseapplepi,roseapplepi", "actions,s500";
+	model = "Roseapple Pi";
+
+	aliases {
+		serial2 = &uart2;
+	};
+
+	chosen {
+		stdout-path = "serial2:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x80000000>; /* 2GB */
+	};
+
+	uart2_clk: uart2-clk {
+		compatible = "fixed-clock";
+		clock-frequency = <921600>;
+		#clock-cells = <0>;
+	};
+};
+
+&twd_timer {
+	status = "okay";
+};
+
+&timer {
+	clocks = <&hosc>;
+};
+
+&uart2 {
+	status = "okay";
+	clocks = <&uart2_clk>;
+};

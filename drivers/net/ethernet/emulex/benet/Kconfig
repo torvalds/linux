@@ -49,4 +49,4 @@ config BE2NET_SKYHAWK
 
 comment "WARNING: be2net is useless without any enabled chip"
 	depends on BE2NET_BE2=n && BE2NET_BE3=n && BE2NET_LANCER=n && \
-	BE2NET_SKYHAWK=n && BE2NET
+		BE2NET_SKYHAWK=n && BE2NET

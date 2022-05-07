@@ -1575,7 +1575,7 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 
 int ath6kl_init_hw_params(struct ath6kl *ar)
 {
-	const struct ath6kl_hw *uninitialized_var(hw);
+	const struct ath6kl_hw *hw;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hw_list); i++) {
@@ -1752,7 +1752,7 @@ static int __ath6kl_init_hw_start(struct ath6kl *ar)
 
 	ret = ath6kl_init_service_ep(ar);
 	if (ret) {
-		ath6kl_err("Endpoint service initilisation failed: %d\n", ret);
+		ath6kl_err("Endpoint service initialization failed: %d\n", ret);
 		goto err_cleanup_scatter;
 	}
 

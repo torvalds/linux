@@ -41,14 +41,22 @@ static inline bool intel_huc_is_supported(struct intel_huc *huc)
 	return intel_uc_fw_is_supported(&huc->fw);
 }
 
-static inline bool intel_huc_is_enabled(struct intel_huc *huc)
+static inline bool intel_huc_is_wanted(struct intel_huc *huc)
 {
 	return intel_uc_fw_is_enabled(&huc->fw);
+}
+
+static inline bool intel_huc_is_used(struct intel_huc *huc)
+{
+	GEM_BUG_ON(__intel_uc_fw_status(&huc->fw) == INTEL_UC_FIRMWARE_SELECTED);
+	return intel_uc_fw_is_available(&huc->fw);
 }
 
 static inline bool intel_huc_is_authenticated(struct intel_huc *huc)
 {
 	return intel_uc_fw_is_running(&huc->fw);
 }
+
+void intel_huc_load_status(struct intel_huc *huc, struct drm_printer *p);
 
 #endif

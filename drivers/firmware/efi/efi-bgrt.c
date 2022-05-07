@@ -42,7 +42,12 @@ void __init efi_bgrt_init(struct acpi_table_header *table)
 		return;
 	}
 	*bgrt = *(struct acpi_table_bgrt *)table;
-	if (bgrt->version != 1) {
+	/*
+	 * Only version 1 is defined but some older laptops (seen on Lenovo
+	 * Ivy Bridge models) have a correct version 1 BGRT table with the
+	 * version set to 0, so we accept version 0 and 1.
+	 */
+	if (bgrt->version > 1) {
 		pr_notice("Ignoring BGRT: invalid version %u (expected 1)\n",
 		       bgrt->version);
 		goto out;

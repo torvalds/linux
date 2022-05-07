@@ -32,6 +32,108 @@
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_debugfs.h"
 #include "dm_helpers.h"
+#include "dmub/dmub_srv.h"
+#include "resource.h"
+#include "dsc.h"
+#include "dc_link_dp.h"
+
+struct dmub_debugfs_trace_header {
+	uint32_t entry_count;
+	uint32_t reserved[3];
+};
+
+struct dmub_debugfs_trace_entry {
+	uint32_t trace_code;
+	uint32_t tick_count;
+	uint32_t param0;
+	uint32_t param1;
+};
+
+static inline const char *yesno(bool v)
+{
+	return v ? "yes" : "no";
+}
+
+/* parse_write_buffer_into_params - Helper function to parse debugfs write buffer into an array
+ *
+ * Function takes in attributes passed to debugfs write entry
+ * and writes into param array.
+ * The user passes max_param_num to identify maximum number of
+ * parameters that could be parsed.
+ *
+ */
+static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
+					  long *param, const char __user *buf,
+					  int max_param_num,
+					  uint8_t *param_nums)
+{
+	char *wr_buf_ptr = NULL;
+	uint32_t wr_buf_count = 0;
+	int r;
+	char *sub_str = NULL;
+	const char delimiter[3] = {' ', '\n', '\0'};
+	uint8_t param_index = 0;
+
+	*param_nums = 0;
+
+	wr_buf_ptr = wr_buf;
+
+	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
+
+		/* r is bytes not be copied */
+	if (r >= wr_buf_size) {
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		return -EINVAL;
+	}
+
+	/* check number of parameters. isspace could not differ space and \n */
+	while ((*wr_buf_ptr != 0xa) && (wr_buf_count < wr_buf_size)) {
+		/* skip space*/
+		while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
+			wr_buf_ptr++;
+			wr_buf_count++;
+			}
+
+		if (wr_buf_count == wr_buf_size)
+			break;
+
+		/* skip non-space*/
+		while ((!isspace(*wr_buf_ptr)) && (wr_buf_count < wr_buf_size)) {
+			wr_buf_ptr++;
+			wr_buf_count++;
+		}
+
+		(*param_nums)++;
+
+		if (wr_buf_count == wr_buf_size)
+			break;
+	}
+
+	if (*param_nums > max_param_num)
+		*param_nums = max_param_num;
+
+	wr_buf_ptr = wr_buf; /* reset buf pointer */
+	wr_buf_count = 0; /* number of char already checked */
+
+	while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
+		wr_buf_ptr++;
+		wr_buf_count++;
+	}
+
+	while (param_index < *param_nums) {
+		/* after strsep, wr_buf_ptr will be moved to after space */
+		sub_str = strsep(&wr_buf_ptr, delimiter);
+
+		r = kstrtol(sub_str, 16, &(param[param_index]));
+
+		if (r)
+			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
+
+		param_index++;
+	}
+
+	return 0;
+}
 
 /* function description
  * get/ set DP configuration: lane_count, link_rate, spread_spectrum
@@ -148,15 +250,11 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	struct dc *dc = (struct dc *)link->dc;
 	struct dc_link_settings prefer_link_settings;
 	char *wr_buf = NULL;
-	char *wr_buf_ptr = NULL;
 	const uint32_t wr_buf_size = 40;
-	int r;
-	int bytes_from_user;
-	char *sub_str;
 	/* 0: lane_count; 1: link_rate */
-	uint8_t param_index = 0;
+	int max_param_num = 2;
+	uint8_t param_nums = 0;
 	long param[2];
-	const char delimiter[3] = {' ', '\n', '\0'};
 	bool valid_input = false;
 
 	if (size == 0)
@@ -164,35 +262,20 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return -EINVAL;
-	wr_buf_ptr = wr_buf;
+		return -ENOSPC;
 
-	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
-
-	/* r is bytes not be copied */
-	if (r >= wr_buf_size) {
+	if (parse_write_buffer_into_params(wr_buf, size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not read\n");
 		return -EINVAL;
 	}
 
-	bytes_from_user = wr_buf_size - r;
-
-	while (isspace(*wr_buf_ptr))
-		wr_buf_ptr++;
-
-	while ((*wr_buf_ptr != '\0') && (param_index < 2)) {
-
-		sub_str = strsep(&wr_buf_ptr, delimiter);
-
-		r = kstrtol(sub_str, 16, &param[param_index]);
-
-		if (r)
-			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
-
-		param_index++;
-		while (isspace(*wr_buf_ptr))
-			wr_buf_ptr++;
+	if (param_nums <= 0) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		return -EINVAL;
 	}
 
 	switch (param[0]) {
@@ -220,7 +303,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	if (!valid_input) {
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("Invalid Input value No HW will be programmed\n");
-		return bytes_from_user;
+		return size;
 	}
 
 	/* save user force lane_count, link_rate to preferred settings
@@ -233,7 +316,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	dc_link_set_preferred_link_settings(dc, &prefer_link_settings, link);
 
 	kfree(wr_buf);
-	return bytes_from_user;
+	return size;
 }
 
 /* function: get current DP PHY settings: voltage swing, pre-emphasis,
@@ -324,51 +407,34 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 	struct dc_link *link = connector->dc_link;
 	struct dc *dc = (struct dc *)link->dc;
 	char *wr_buf = NULL;
-	char *wr_buf_ptr = NULL;
 	uint32_t wr_buf_size = 40;
-	int r;
-	int bytes_from_user;
-	char *sub_str;
-	uint8_t param_index = 0;
 	long param[3];
-	const char delimiter[3] = {' ', '\n', '\0'};
 	bool use_prefer_link_setting;
 	struct link_training_settings link_lane_settings;
+	int max_param_num = 3;
+	uint8_t param_nums = 0;
+	int r = 0;
+
 
 	if (size == 0)
-		return 0;
+		return -EINVAL;
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return 0;
-	wr_buf_ptr = wr_buf;
+		return -ENOSPC;
 
-	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
-
-	/* r is bytes not be copied */
-	if (r >= wr_buf_size) {
+	if (parse_write_buffer_into_params(wr_buf, size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not be read\n");
-		return 0;
+		return -EINVAL;
 	}
 
-	bytes_from_user = wr_buf_size - r;
-
-	while (isspace(*wr_buf_ptr))
-		wr_buf_ptr++;
-
-	while ((*wr_buf_ptr != '\0') && (param_index < 3)) {
-
-		sub_str = strsep(&wr_buf_ptr, delimiter);
-
-		r = kstrtol(sub_str, 16, &param[param_index]);
-
-		if (r)
-			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
-
-		param_index++;
-		while (isspace(*wr_buf_ptr))
-			wr_buf_ptr++;
+	if (param_nums <= 0) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		return -EINVAL;
 	}
 
 	if ((param[0] > VOLTAGE_SWING_MAX_LEVEL) ||
@@ -376,7 +442,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 			(param[2] > POST_CURSOR2_MAX_LEVEL)) {
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("Invalid Input No HW will be programmed\n");
-		return bytes_from_user;
+		return size;
 	}
 
 	/* get link settings: lane count, link rate */
@@ -416,7 +482,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 	dc_link_set_drive_settings(dc, &link_lane_settings, link);
 
 	kfree(wr_buf);
-	return bytes_from_user;
+	return size;
 }
 
 /* function description
@@ -483,19 +549,13 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	char *wr_buf = NULL;
-	char *wr_buf_ptr = NULL;
 	uint32_t wr_buf_size = 100;
-	uint32_t wr_buf_count = 0;
-	int r;
-	int bytes_from_user;
-	char *sub_str = NULL;
-	uint8_t param_index = 0;
-	uint8_t param_nums = 0;
 	long param[11] = {0x0};
-	const char delimiter[3] = {' ', '\n', '\0'};
+	int max_param_num = 11;
 	enum dp_test_pattern test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 	bool disable_hpd = false;
 	bool valid_test_pattern = false;
+	uint8_t param_nums = 0;
 	/* init with defalut 80bit custom pattern */
 	uint8_t custom_pattern[10] = {
 			0x1f, 0x7c, 0xf0, 0xc1, 0x07,
@@ -509,70 +569,26 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	int i;
 
 	if (size == 0)
-		return 0;
+		return -EINVAL;
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return 0;
-	wr_buf_ptr = wr_buf;
+		return -ENOSPC;
 
-	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
+	if (parse_write_buffer_into_params(wr_buf, size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
 
-	/* r is bytes not be copied */
-	if (r >= wr_buf_size) {
+	if (param_nums <= 0) {
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("user data not be read\n");
-		return 0;
+		return -EINVAL;
 	}
 
-	bytes_from_user = wr_buf_size - r;
-
-	/* check number of parameters. isspace could not differ space and \n */
-	while ((*wr_buf_ptr != 0xa) && (wr_buf_count < wr_buf_size)) {
-		/* skip space*/
-		while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
-			wr_buf_ptr++;
-			wr_buf_count++;
-			}
-
-		if (wr_buf_count == wr_buf_size)
-			break;
-
-		/* skip non-space*/
-		while ((!isspace(*wr_buf_ptr)) && (wr_buf_count < wr_buf_size)) {
-			wr_buf_ptr++;
-			wr_buf_count++;
-			}
-
-		param_nums++;
-
-		if (wr_buf_count == wr_buf_size)
-			break;
-	}
-
-	/* max 11 parameters */
-	if (param_nums > 11)
-		param_nums = 11;
-
-	wr_buf_ptr = wr_buf; /* reset buf pinter */
-	wr_buf_count = 0; /* number of char already checked */
-
-	while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
-		wr_buf_ptr++;
-		wr_buf_count++;
-	}
-
-	while (param_index < param_nums) {
-		/* after strsep, wr_buf_ptr will be moved to after space */
-		sub_str = strsep(&wr_buf_ptr, delimiter);
-
-		r = kstrtol(sub_str, 16, &param[param_index]);
-
-		if (r)
-			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
-
-		param_index++;
-	}
 
 	test_pattern = param[0];
 
@@ -605,7 +621,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	if (!valid_test_pattern) {
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("Invalid Test Pattern Parameters\n");
-		return bytes_from_user;
+		return size;
 	}
 
 	if (test_pattern == DP_TEST_PATTERN_80BIT_CUSTOM) {
@@ -657,6 +673,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	dc_link_set_test_pattern(
 		link,
 		test_pattern,
+		DP_TEST_PATTERN_COLOR_SPACE_RGB,
 		&link_training_settings,
 		custom_pattern,
 		10);
@@ -671,7 +688,74 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 
 	kfree(wr_buf);
 
-	return bytes_from_user;
+	return size;
+}
+
+/**
+ * Returns the DMCUB tracebuffer contents.
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dmub_tracebuffer
+ */
+static int dmub_tracebuffer_show(struct seq_file *m, void *data)
+{
+	struct amdgpu_device *adev = m->private;
+	struct dmub_srv_fb_info *fb_info = adev->dm.dmub_fb_info;
+	struct dmub_debugfs_trace_entry *entries;
+	uint8_t *tbuf_base;
+	uint32_t tbuf_size, max_entries, num_entries, i;
+
+	if (!fb_info)
+		return 0;
+
+	tbuf_base = (uint8_t *)fb_info->fb[DMUB_WINDOW_5_TRACEBUFF].cpu_addr;
+	if (!tbuf_base)
+		return 0;
+
+	tbuf_size = fb_info->fb[DMUB_WINDOW_5_TRACEBUFF].size;
+	max_entries = (tbuf_size - sizeof(struct dmub_debugfs_trace_header)) /
+		      sizeof(struct dmub_debugfs_trace_entry);
+
+	num_entries =
+		((struct dmub_debugfs_trace_header *)tbuf_base)->entry_count;
+
+	num_entries = min(num_entries, max_entries);
+
+	entries = (struct dmub_debugfs_trace_entry
+			   *)(tbuf_base +
+			      sizeof(struct dmub_debugfs_trace_header));
+
+	for (i = 0; i < num_entries; ++i) {
+		struct dmub_debugfs_trace_entry *entry = &entries[i];
+
+		seq_printf(m,
+			   "trace_code=%u tick_count=%u param0=%u param1=%u\n",
+			   entry->trace_code, entry->tick_count, entry->param0,
+			   entry->param1);
+	}
+
+	return 0;
+}
+
+/**
+ * Returns the DMCUB firmware state contents.
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dmub_fw_state
+ */
+static int dmub_fw_state_show(struct seq_file *m, void *data)
+{
+	struct amdgpu_device *adev = m->private;
+	struct dmub_srv_fb_info *fb_info = adev->dm.dmub_fb_info;
+	uint8_t *state_base;
+	uint32_t state_size;
+
+	if (!fb_info)
+		return 0;
+
+	state_base = (uint8_t *)fb_info->fb[DMUB_WINDOW_6_FW_STATE].cpu_addr;
+	if (!state_base)
+		return 0;
+
+	state_size = fb_info->fb[DMUB_WINDOW_6_FW_STATE].size;
+
+	return seq_write(m, state_base, state_size);
 }
 
 /*
@@ -739,24 +823,44 @@ unlock:
 	return res;
 }
 
+#ifdef CONFIG_DRM_AMD_DC_HDCP
 /*
- * Returns the min and max vrr vfreq through the connector's debugfs file.
- * Example usage: cat /sys/kernel/debug/dri/0/DP-1/vrr_range
+ * Returns the HDCP capability of the Display (1.4 for now).
+ *
+ * NOTE* Not all HDMI displays report their HDCP caps even when they are capable.
+ * Since its rare for a display to not be HDCP 1.4 capable, we set HDMI as always capable.
+ *
+ * Example usage: cat /sys/kernel/debug/dri/0/DP-1/hdcp_sink_capability
+ *		or cat /sys/kernel/debug/dri/0/HDMI-A-1/hdcp_sink_capability
  */
-static int vrr_range_show(struct seq_file *m, void *data)
+static int hdcp_sink_capability_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	bool hdcp_cap, hdcp2_cap;
 
 	if (connector->status != connector_status_connected)
 		return -ENODEV;
 
-	seq_printf(m, "Min: %u\n", (unsigned int)aconnector->min_vfreq);
-	seq_printf(m, "Max: %u\n", (unsigned int)aconnector->max_vfreq);
+	seq_printf(m, "%s:%d HDCP version: ", connector->name, connector->base.id);
+
+	hdcp_cap = dc_link_is_hdcp14(aconnector->dc_link, aconnector->dc_sink->sink_signal);
+	hdcp2_cap = dc_link_is_hdcp22(aconnector->dc_link, aconnector->dc_sink->sink_signal);
+
+
+	if (hdcp_cap)
+		seq_printf(m, "%s ", "HDCP1.4");
+	if (hdcp2_cap)
+		seq_printf(m, "%s ", "HDCP2.2");
+
+	if (!hdcp_cap && !hdcp2_cap)
+		seq_printf(m, "%s ", "None");
+
+	seq_puts(m, "\n");
 
 	return 0;
 }
-
+#endif
 /* function description
  *
  * generic SDP message access for testing
@@ -804,7 +908,7 @@ static ssize_t dp_dpcd_address_write(struct file *f, const char __user *buf,
 	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
 
 	if (size < sizeof(connector->debugfs_dpcd_address))
-		return 0;
+		return -EINVAL;
 
 	r = copy_from_user(&connector->debugfs_dpcd_address,
 			buf, sizeof(connector->debugfs_dpcd_address));
@@ -819,7 +923,7 @@ static ssize_t dp_dpcd_size_write(struct file *f, const char __user *buf,
 	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
 
 	if (size < sizeof(connector->debugfs_dpcd_size))
-		return 0;
+		return -EINVAL;
 
 	r = copy_from_user(&connector->debugfs_dpcd_size,
 			buf, sizeof(connector->debugfs_dpcd_size));
@@ -839,8 +943,8 @@ static ssize_t dp_dpcd_data_write(struct file *f, const char __user *buf,
 	struct dc_link *link = connector->dc_link;
 	uint32_t write_size = connector->debugfs_dpcd_size;
 
-	if (size < write_size)
-		return 0;
+	if (!write_size || size < write_size)
+		return -EINVAL;
 
 	data = kzalloc(write_size, GFP_KERNEL);
 	if (!data)
@@ -863,7 +967,7 @@ static ssize_t dp_dpcd_data_read(struct file *f, char __user *buf,
 	struct dc_link *link = connector->dc_link;
 	uint32_t read_size = connector->debugfs_dpcd_size;
 
-	if (size < read_size)
+	if (!read_size || size < read_size)
 		return 0;
 
 	data = kzalloc(read_size, GFP_KERNEL);
@@ -879,8 +983,1118 @@ static ssize_t dp_dpcd_data_read(struct file *f, char __user *buf,
 	return read_size - r;
 }
 
+/* function: Read link's DSC & FEC capabilities
+ *
+ *
+ * Access it with the following command (you need to specify
+ * connector like DP-1):
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dp_dsc_fec_support
+ *
+ */
+static int dp_dsc_fec_support_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_device *dev = connector->dev;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	int ret = 0;
+	bool try_again = false;
+	bool is_fec_supported = false;
+	bool is_dsc_supported = false;
+	struct dpcd_caps dpcd_caps;
+
+	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
+	do {
+		try_again = false;
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
+		if (ret) {
+			if (ret == -EDEADLK) {
+				ret = drm_modeset_backoff(&ctx);
+				if (!ret) {
+					try_again = true;
+					continue;
+				}
+			}
+			break;
+		}
+		if (connector->status != connector_status_connected) {
+			ret = -ENODEV;
+			break;
+		}
+		dpcd_caps = aconnector->dc_link->dpcd_caps;
+		if (aconnector->port) {
+			/* aconnector sets dsc_aux during get_modes call
+			 * if MST connector has it means it can either
+			 * enable DSC on the sink device or on MST branch
+			 * its connected to.
+			 */
+			if (aconnector->dsc_aux) {
+				is_fec_supported = true;
+				is_dsc_supported = true;
+			}
+		} else {
+			is_fec_supported = dpcd_caps.fec_cap.raw & 0x1;
+			is_dsc_supported = dpcd_caps.dsc_caps.dsc_basic_caps.raw[0] & 0x1;
+		}
+	} while (try_again);
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
+	seq_printf(m, "FEC_Sink_Support: %s\n", yesno(is_fec_supported));
+	seq_printf(m, "DSC_Sink_Support: %s\n", yesno(is_dsc_supported));
+
+	return ret;
+}
+
+/* function: Trigger virtual HPD redetection on connector
+ *
+ * This function will perform link rediscovery, link disable
+ * and enable, and dm connector state update.
+ *
+ * Retrigger HPD on an existing connector by echoing 1 into
+ * its respectful "trigger_hotplug" debugfs entry:
+ *
+ *	echo 1 > /sys/kernel/debug/dri/0/DP-X/trigger_hotplug
+ *
+ * This function can perform HPD unplug:
+ *
+ *	echo 0 > /sys/kernel/debug/dri/0/DP-X/trigger_hotplug
+ *
+ */
+static ssize_t dp_trigger_hotplug(struct file *f, const char __user *buf,
+							size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct drm_connector *connector = &aconnector->base;
+	struct dc_link *link = NULL;
+	struct drm_device *dev = connector->dev;
+	enum dc_connection_type new_connection_type = dc_connection_none;
+	char *wr_buf = NULL;
+	uint32_t wr_buf_size = 42;
+	int max_param_num = 1;
+	long param[1] = {0};
+	uint8_t param_nums = 0;
+
+	if (!aconnector || !aconnector->dc_link)
+		return -EINVAL;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!wr_buf) {
+		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
+		return -ENOSPC;
+	}
+
+	if (parse_write_buffer_into_params(wr_buf, size,
+						(long *)param, buf,
+						max_param_num,
+						&param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param[0] == 1) {
+		mutex_lock(&aconnector->hpd_lock);
+
+		if (!dc_link_detect_sink(aconnector->dc_link, &new_connection_type) &&
+			new_connection_type != dc_connection_none)
+			goto unlock;
+
+		if (!dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD))
+			goto unlock;
+
+		amdgpu_dm_update_connector_after_detect(aconnector);
+
+		drm_modeset_lock_all(dev);
+		dm_restore_drm_connector_state(dev, connector);
+		drm_modeset_unlock_all(dev);
+
+		drm_kms_helper_hotplug_event(dev);
+	} else if (param[0] == 0) {
+		if (!aconnector->dc_link)
+			goto unlock;
+
+		link = aconnector->dc_link;
+
+		if (link->local_sink) {
+			dc_sink_release(link->local_sink);
+			link->local_sink = NULL;
+		}
+
+		link->dpcd_sink_count = 0;
+		link->type = dc_connection_none;
+		link->dongle_max_pix_clk = 0;
+
+		amdgpu_dm_update_connector_after_detect(aconnector);
+
+		drm_modeset_lock_all(dev);
+		dm_restore_drm_connector_state(dev, connector);
+		drm_modeset_unlock_all(dev);
+
+		drm_kms_helper_hotplug_event(dev);
+	}
+
+unlock:
+	mutex_unlock(&aconnector->hpd_lock);
+
+	kfree(wr_buf);
+	return size;
+}
+
+/* function: read DSC status on the connector
+ *
+ * The read function: dp_dsc_clock_en_read
+ * returns current status of DSC clock on the connector.
+ * The return is a boolean flag: 1 or 0.
+ *
+ * Access it with the following command (you need to specify
+ * connector like DP-1):
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dsc_clock_en
+ *
+ * Expected output:
+ * 1 - means that DSC is currently enabled
+ * 0 - means that DSC is disabled
+ */
+static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	char *rd_buf = NULL;
+	char *rd_buf_ptr = NULL;
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct display_stream_compressor *dsc;
+	struct dcn_dsc_state dsc_state = {0};
+	const uint32_t rd_buf_size = 10;
+	struct pipe_ctx *pipe_ctx;
+	ssize_t result = 0;
+	int i, r, str_len = 30;
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!rd_buf)
+		return -ENOMEM;
+
+	rd_buf_ptr = rd_buf;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx)
+		return -ENXIO;
+
+	dsc = pipe_ctx->stream_res.dsc;
+	if (dsc)
+		dsc->funcs->dsc_read_state(dsc, &dsc_state);
+
+	snprintf(rd_buf_ptr, str_len,
+		"%d\n",
+		dsc_state.dsc_clock_en);
+	rd_buf_ptr += str_len;
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+
+		r = put_user(*(rd_buf + result), buf);
+		if (r)
+			return r; /* r = -EFAULT */
+
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+
+	kfree(rd_buf);
+	return result;
+}
+
+/* function: write force DSC on the connector
+ *
+ * The write function: dp_dsc_clock_en_write
+ * enables to force DSC on the connector.
+ * User can write to either force enable or force disable DSC
+ * on the next modeset or set it to driver default
+ *
+ * Accepted inputs:
+ * 0 - default DSC enablement policy
+ * 1 - force enable DSC on the connector
+ * 2 - force disable DSC on the connector (might cause fail in atomic_check)
+ *
+ * Writing DSC settings is done with the following command:
+ * - To force enable DSC (you need to specify
+ * connector like DP-1):
+ *
+ *	echo 0x1 > /sys/kernel/debug/dri/0/DP-X/dsc_clock_en
+ *
+ * - To return to default state set the flag to zero and
+ * let driver deal with DSC automatically
+ * (you need to specify connector like DP-1):
+ *
+ *	echo 0x0 > /sys/kernel/debug/dri/0/DP-X/dsc_clock_en
+ *
+ */
+static ssize_t dp_dsc_clock_en_write(struct file *f, const char __user *buf,
+				     size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct pipe_ctx *pipe_ctx;
+	int i;
+	char *wr_buf = NULL;
+	uint32_t wr_buf_size = 42;
+	int max_param_num = 1;
+	long param[1] = {0};
+	uint8_t param_nums = 0;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!wr_buf) {
+		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
+		return -ENOSPC;
+	}
+
+	if (parse_write_buffer_into_params(wr_buf, size,
+					    (long *)param, buf,
+					    max_param_num,
+					    &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx || !pipe_ctx->stream)
+		goto done;
+
+	if (param[0] == 1)
+		aconnector->dsc_settings.dsc_force_enable = DSC_CLK_FORCE_ENABLE;
+	else if (param[0] == 2)
+		aconnector->dsc_settings.dsc_force_enable = DSC_CLK_FORCE_DISABLE;
+	else
+		aconnector->dsc_settings.dsc_force_enable = DSC_CLK_FORCE_DEFAULT;
+
+done:
+	kfree(wr_buf);
+	return size;
+}
+
+/* function: read DSC slice width parameter on the connector
+ *
+ * The read function: dp_dsc_slice_width_read
+ * returns dsc slice width used in the current configuration
+ * The return is an integer: 0 or other positive number
+ *
+ * Access the status with the following command:
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dsc_slice_width
+ *
+ * 0 - means that DSC is disabled
+ *
+ * Any other number more than zero represents the
+ * slice width currently used by DSC in pixels
+ *
+ */
+static ssize_t dp_dsc_slice_width_read(struct file *f, char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	char *rd_buf = NULL;
+	char *rd_buf_ptr = NULL;
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct display_stream_compressor *dsc;
+	struct dcn_dsc_state dsc_state = {0};
+	const uint32_t rd_buf_size = 100;
+	struct pipe_ctx *pipe_ctx;
+	ssize_t result = 0;
+	int i, r, str_len = 30;
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!rd_buf)
+		return -ENOMEM;
+
+	rd_buf_ptr = rd_buf;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx)
+		return -ENXIO;
+
+	dsc = pipe_ctx->stream_res.dsc;
+	if (dsc)
+		dsc->funcs->dsc_read_state(dsc, &dsc_state);
+
+	snprintf(rd_buf_ptr, str_len,
+		"%d\n",
+		dsc_state.dsc_slice_width);
+	rd_buf_ptr += str_len;
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+
+		r = put_user(*(rd_buf + result), buf);
+		if (r)
+			return r; /* r = -EFAULT */
+
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+
+	kfree(rd_buf);
+	return result;
+}
+
+/* function: write DSC slice width parameter
+ *
+ * The write function: dp_dsc_slice_width_write
+ * overwrites automatically generated DSC configuration
+ * of slice width.
+ *
+ * The user has to write the slice width divisible by the
+ * picture width.
+ *
+ * Also the user has to write width in hexidecimal
+ * rather than in decimal.
+ *
+ * Writing DSC settings is done with the following command:
+ * - To force overwrite slice width: (example sets to 1920 pixels)
+ *
+ *	echo 0x780 > /sys/kernel/debug/dri/0/DP-X/dsc_slice_width
+ *
+ *  - To stop overwriting and let driver find the optimal size,
+ * set the width to zero:
+ *
+ *	echo 0x0 > /sys/kernel/debug/dri/0/DP-X/dsc_slice_width
+ *
+ */
+static ssize_t dp_dsc_slice_width_write(struct file *f, const char __user *buf,
+				     size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct pipe_ctx *pipe_ctx;
+	int i;
+	char *wr_buf = NULL;
+	uint32_t wr_buf_size = 42;
+	int max_param_num = 1;
+	long param[1] = {0};
+	uint8_t param_nums = 0;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!wr_buf) {
+		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
+		return -ENOSPC;
+	}
+
+	if (parse_write_buffer_into_params(wr_buf, size,
+					    (long *)param, buf,
+					    max_param_num,
+					    &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx || !pipe_ctx->stream)
+		goto done;
+
+	if (param[0] > 0)
+		aconnector->dsc_settings.dsc_num_slices_h = DIV_ROUND_UP(
+					pipe_ctx->stream->timing.h_addressable,
+					param[0]);
+	else
+		aconnector->dsc_settings.dsc_num_slices_h = 0;
+
+done:
+	kfree(wr_buf);
+	return size;
+}
+
+/* function: read DSC slice height parameter on the connector
+ *
+ * The read function: dp_dsc_slice_height_read
+ * returns dsc slice height used in the current configuration
+ * The return is an integer: 0 or other positive number
+ *
+ * Access the status with the following command:
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dsc_slice_height
+ *
+ * 0 - means that DSC is disabled
+ *
+ * Any other number more than zero represents the
+ * slice height currently used by DSC in pixels
+ *
+ */
+static ssize_t dp_dsc_slice_height_read(struct file *f, char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	char *rd_buf = NULL;
+	char *rd_buf_ptr = NULL;
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct display_stream_compressor *dsc;
+	struct dcn_dsc_state dsc_state = {0};
+	const uint32_t rd_buf_size = 100;
+	struct pipe_ctx *pipe_ctx;
+	ssize_t result = 0;
+	int i, r, str_len = 30;
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!rd_buf)
+		return -ENOMEM;
+
+	rd_buf_ptr = rd_buf;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx)
+		return -ENXIO;
+
+	dsc = pipe_ctx->stream_res.dsc;
+	if (dsc)
+		dsc->funcs->dsc_read_state(dsc, &dsc_state);
+
+	snprintf(rd_buf_ptr, str_len,
+		"%d\n",
+		dsc_state.dsc_slice_height);
+	rd_buf_ptr += str_len;
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+
+		r = put_user(*(rd_buf + result), buf);
+		if (r)
+			return r; /* r = -EFAULT */
+
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+
+	kfree(rd_buf);
+	return result;
+}
+
+/* function: write DSC slice height parameter
+ *
+ * The write function: dp_dsc_slice_height_write
+ * overwrites automatically generated DSC configuration
+ * of slice height.
+ *
+ * The user has to write the slice height divisible by the
+ * picture height.
+ *
+ * Also the user has to write height in hexidecimal
+ * rather than in decimal.
+ *
+ * Writing DSC settings is done with the following command:
+ * - To force overwrite slice height (example sets to 128 pixels):
+ *
+ *	echo 0x80 > /sys/kernel/debug/dri/0/DP-X/dsc_slice_height
+ *
+ *  - To stop overwriting and let driver find the optimal size,
+ * set the height to zero:
+ *
+ *	echo 0x0 > /sys/kernel/debug/dri/0/DP-X/dsc_slice_height
+ *
+ */
+static ssize_t dp_dsc_slice_height_write(struct file *f, const char __user *buf,
+				     size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct pipe_ctx *pipe_ctx;
+	int i;
+	char *wr_buf = NULL;
+	uint32_t wr_buf_size = 42;
+	int max_param_num = 1;
+	uint8_t param_nums = 0;
+	long param[1] = {0};
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!wr_buf) {
+		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
+		return -ENOSPC;
+	}
+
+	if (parse_write_buffer_into_params(wr_buf, size,
+					    (long *)param, buf,
+					    max_param_num,
+					    &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx || !pipe_ctx->stream)
+		goto done;
+
+	if (param[0] > 0)
+		aconnector->dsc_settings.dsc_num_slices_v = DIV_ROUND_UP(
+					pipe_ctx->stream->timing.v_addressable,
+					param[0]);
+	else
+		aconnector->dsc_settings.dsc_num_slices_v = 0;
+
+done:
+	kfree(wr_buf);
+	return size;
+}
+
+/* function: read DSC target rate on the connector in bits per pixel
+ *
+ * The read function: dp_dsc_bits_per_pixel_read
+ * returns target rate of compression in bits per pixel
+ * The return is an integer: 0 or other positive integer
+ *
+ * Access it with the following command:
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dsc_bits_per_pixel
+ *
+ *  0 - means that DSC is disabled
+ */
+static ssize_t dp_dsc_bits_per_pixel_read(struct file *f, char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	char *rd_buf = NULL;
+	char *rd_buf_ptr = NULL;
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct display_stream_compressor *dsc;
+	struct dcn_dsc_state dsc_state = {0};
+	const uint32_t rd_buf_size = 100;
+	struct pipe_ctx *pipe_ctx;
+	ssize_t result = 0;
+	int i, r, str_len = 30;
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!rd_buf)
+		return -ENOMEM;
+
+	rd_buf_ptr = rd_buf;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx)
+		return -ENXIO;
+
+	dsc = pipe_ctx->stream_res.dsc;
+	if (dsc)
+		dsc->funcs->dsc_read_state(dsc, &dsc_state);
+
+	snprintf(rd_buf_ptr, str_len,
+		"%d\n",
+		dsc_state.dsc_bits_per_pixel);
+	rd_buf_ptr += str_len;
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+
+		r = put_user(*(rd_buf + result), buf);
+		if (r)
+			return r; /* r = -EFAULT */
+
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+
+	kfree(rd_buf);
+	return result;
+}
+
+/* function: write DSC target rate in bits per pixel
+ *
+ * The write function: dp_dsc_bits_per_pixel_write
+ * overwrites automatically generated DSC configuration
+ * of DSC target bit rate.
+ *
+ * Also the user has to write bpp in hexidecimal
+ * rather than in decimal.
+ *
+ * Writing DSC settings is done with the following command:
+ * - To force overwrite rate (example sets to 256 bpp x 1/16):
+ *
+ *	echo 0x100 > /sys/kernel/debug/dri/0/DP-X/dsc_bits_per_pixel
+ *
+ *  - To stop overwriting and let driver find the optimal rate,
+ * set the rate to zero:
+ *
+ *	echo 0x0 > /sys/kernel/debug/dri/0/DP-X/dsc_bits_per_pixel
+ *
+ */
+static ssize_t dp_dsc_bits_per_pixel_write(struct file *f, const char __user *buf,
+				     size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct pipe_ctx *pipe_ctx;
+	int i;
+	char *wr_buf = NULL;
+	uint32_t wr_buf_size = 42;
+	int max_param_num = 1;
+	uint8_t param_nums = 0;
+	long param[1] = {0};
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!wr_buf) {
+		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
+		return -ENOSPC;
+	}
+
+	if (parse_write_buffer_into_params(wr_buf, size,
+					    (long *)param, buf,
+					    max_param_num,
+					    &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx || !pipe_ctx->stream)
+		goto done;
+
+	aconnector->dsc_settings.dsc_bits_per_pixel = param[0];
+
+done:
+	kfree(wr_buf);
+	return size;
+}
+
+/* function: read DSC picture width parameter on the connector
+ *
+ * The read function: dp_dsc_pic_width_read
+ * returns dsc picture width used in the current configuration
+ * It is the same as h_addressable of the current
+ * display's timing
+ * The return is an integer: 0 or other positive integer
+ * If 0 then DSC is disabled.
+ *
+ * Access it with the following command:
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dsc_pic_width
+ *
+ * 0 - means that DSC is disabled
+ */
+static ssize_t dp_dsc_pic_width_read(struct file *f, char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	char *rd_buf = NULL;
+	char *rd_buf_ptr = NULL;
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct display_stream_compressor *dsc;
+	struct dcn_dsc_state dsc_state = {0};
+	const uint32_t rd_buf_size = 100;
+	struct pipe_ctx *pipe_ctx;
+	ssize_t result = 0;
+	int i, r, str_len = 30;
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!rd_buf)
+		return -ENOMEM;
+
+	rd_buf_ptr = rd_buf;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx)
+		return -ENXIO;
+
+	dsc = pipe_ctx->stream_res.dsc;
+	if (dsc)
+		dsc->funcs->dsc_read_state(dsc, &dsc_state);
+
+	snprintf(rd_buf_ptr, str_len,
+		"%d\n",
+		dsc_state.dsc_pic_width);
+	rd_buf_ptr += str_len;
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+
+		r = put_user(*(rd_buf + result), buf);
+		if (r)
+			return r; /* r = -EFAULT */
+
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+
+	kfree(rd_buf);
+	return result;
+}
+
+static ssize_t dp_dsc_pic_height_read(struct file *f, char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	char *rd_buf = NULL;
+	char *rd_buf_ptr = NULL;
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct display_stream_compressor *dsc;
+	struct dcn_dsc_state dsc_state = {0};
+	const uint32_t rd_buf_size = 100;
+	struct pipe_ctx *pipe_ctx;
+	ssize_t result = 0;
+	int i, r, str_len = 30;
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!rd_buf)
+		return -ENOMEM;
+
+	rd_buf_ptr = rd_buf;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx)
+		return -ENXIO;
+
+	dsc = pipe_ctx->stream_res.dsc;
+	if (dsc)
+		dsc->funcs->dsc_read_state(dsc, &dsc_state);
+
+	snprintf(rd_buf_ptr, str_len,
+		"%d\n",
+		dsc_state.dsc_pic_height);
+	rd_buf_ptr += str_len;
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+
+		r = put_user(*(rd_buf + result), buf);
+		if (r)
+			return r; /* r = -EFAULT */
+
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+
+	kfree(rd_buf);
+	return result;
+}
+
+/* function: read DSC chunk size parameter on the connector
+ *
+ * The read function: dp_dsc_chunk_size_read
+ * returns dsc chunk size set in the current configuration
+ * The value is calculated automatically by DSC code
+ * and depends on slice parameters and bpp target rate
+ * The return is an integer: 0 or other positive integer
+ * If 0 then DSC is disabled.
+ *
+ * Access it with the following command:
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dsc_chunk_size
+ *
+ * 0 - means that DSC is disabled
+ */
+static ssize_t dp_dsc_chunk_size_read(struct file *f, char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	char *rd_buf = NULL;
+	char *rd_buf_ptr = NULL;
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct display_stream_compressor *dsc;
+	struct dcn_dsc_state dsc_state = {0};
+	const uint32_t rd_buf_size = 100;
+	struct pipe_ctx *pipe_ctx;
+	ssize_t result = 0;
+	int i, r, str_len = 30;
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!rd_buf)
+		return -ENOMEM;
+
+	rd_buf_ptr = rd_buf;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx)
+		return -ENXIO;
+
+	dsc = pipe_ctx->stream_res.dsc;
+	if (dsc)
+		dsc->funcs->dsc_read_state(dsc, &dsc_state);
+
+	snprintf(rd_buf_ptr, str_len,
+		"%d\n",
+		dsc_state.dsc_chunk_size);
+	rd_buf_ptr += str_len;
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+
+		r = put_user(*(rd_buf + result), buf);
+		if (r)
+			return r; /* r = -EFAULT */
+
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+
+	kfree(rd_buf);
+	return result;
+}
+
+/* function: read DSC slice bpg offset on the connector
+ *
+ * The read function: dp_dsc_slice_bpg_offset_read
+ * returns dsc bpg slice offset set in the current configuration
+ * The value is calculated automatically by DSC code
+ * and depends on slice parameters and bpp target rate
+ * The return is an integer: 0 or other positive integer
+ * If 0 then DSC is disabled.
+ *
+ * Access it with the following command:
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dsc_slice_bpg_offset
+ *
+ * 0 - means that DSC is disabled
+ */
+static ssize_t dp_dsc_slice_bpg_offset_read(struct file *f, char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	char *rd_buf = NULL;
+	char *rd_buf_ptr = NULL;
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct display_stream_compressor *dsc;
+	struct dcn_dsc_state dsc_state = {0};
+	const uint32_t rd_buf_size = 100;
+	struct pipe_ctx *pipe_ctx;
+	ssize_t result = 0;
+	int i, r, str_len = 30;
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+
+	if (!rd_buf)
+		return -ENOMEM;
+
+	rd_buf_ptr = rd_buf;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &aconnector->dc_link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream &&
+			    pipe_ctx->stream->link == aconnector->dc_link)
+				break;
+	}
+
+	if (!pipe_ctx)
+		return -ENXIO;
+
+	dsc = pipe_ctx->stream_res.dsc;
+	if (dsc)
+		dsc->funcs->dsc_read_state(dsc, &dsc_state);
+
+	snprintf(rd_buf_ptr, str_len,
+		"%d\n",
+		dsc_state.dsc_slice_bpg_offset);
+	rd_buf_ptr += str_len;
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+
+		r = put_user(*(rd_buf + result), buf);
+		if (r)
+			return r; /* r = -EFAULT */
+
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+
+	kfree(rd_buf);
+	return result;
+}
+
+DEFINE_SHOW_ATTRIBUTE(dp_dsc_fec_support);
+DEFINE_SHOW_ATTRIBUTE(dmub_fw_state);
+DEFINE_SHOW_ATTRIBUTE(dmub_tracebuffer);
 DEFINE_SHOW_ATTRIBUTE(output_bpc);
-DEFINE_SHOW_ATTRIBUTE(vrr_range);
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+DEFINE_SHOW_ATTRIBUTE(hdcp_sink_capability);
+#endif
+
+static const struct file_operations dp_dsc_clock_en_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.read = dp_dsc_clock_en_read,
+	.write = dp_dsc_clock_en_write,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dsc_slice_width_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.read = dp_dsc_slice_width_read,
+	.write = dp_dsc_slice_width_write,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dsc_slice_height_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.read = dp_dsc_slice_height_read,
+	.write = dp_dsc_slice_height_write,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dsc_bits_per_pixel_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.read = dp_dsc_bits_per_pixel_read,
+	.write = dp_dsc_bits_per_pixel_write,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dsc_pic_width_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.read = dp_dsc_pic_width_read,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dsc_pic_height_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.read = dp_dsc_pic_height_read,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dsc_chunk_size_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.read = dp_dsc_chunk_size_read,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dsc_slice_bpg_offset_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.read = dp_dsc_slice_bpg_offset_read,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_trigger_hotplug_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.write = dp_trigger_hotplug,
+	.llseek = default_llseek
+};
 
 static const struct file_operations dp_link_settings_debugfs_fops = {
 	.owner = THIS_MODULE,
@@ -932,15 +2146,80 @@ static const struct {
 	const struct file_operations *fops;
 } dp_debugfs_entries[] = {
 		{"link_settings", &dp_link_settings_debugfs_fops},
+		{"trigger_hotplug", &dp_trigger_hotplug_debugfs_fops},
 		{"phy_settings", &dp_phy_settings_debugfs_fop},
 		{"test_pattern", &dp_phy_test_pattern_fops},
-		{"output_bpc", &output_bpc_fops},
-		{"vrr_range", &vrr_range_fops},
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+		{"hdcp_sink_capability", &hdcp_sink_capability_fops},
+#endif
 		{"sdp_message", &sdp_message_fops},
 		{"aux_dpcd_address", &dp_dpcd_address_debugfs_fops},
 		{"aux_dpcd_size", &dp_dpcd_size_debugfs_fops},
-		{"aux_dpcd_data", &dp_dpcd_data_debugfs_fops}
+		{"aux_dpcd_data", &dp_dpcd_data_debugfs_fops},
+		{"dsc_clock_en", &dp_dsc_clock_en_debugfs_fops},
+		{"dsc_slice_width", &dp_dsc_slice_width_debugfs_fops},
+		{"dsc_slice_height", &dp_dsc_slice_height_debugfs_fops},
+		{"dsc_bits_per_pixel", &dp_dsc_bits_per_pixel_debugfs_fops},
+		{"dsc_pic_width", &dp_dsc_pic_width_debugfs_fops},
+		{"dsc_pic_height", &dp_dsc_pic_height_debugfs_fops},
+		{"dsc_chunk_size", &dp_dsc_chunk_size_debugfs_fops},
+		{"dsc_slice_bpg", &dp_dsc_slice_bpg_offset_debugfs_fops},
+		{"dp_dsc_fec_support", &dp_dsc_fec_support_fops}
 };
+
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+static const struct {
+	char *name;
+	const struct file_operations *fops;
+} hdmi_debugfs_entries[] = {
+		{"hdcp_sink_capability", &hdcp_sink_capability_fops}
+};
+#endif
+/*
+ * Force YUV420 output if available from the given mode
+ */
+static int force_yuv420_output_set(void *data, u64 val)
+{
+	struct amdgpu_dm_connector *connector = data;
+
+	connector->force_yuv420_output = (bool)val;
+
+	return 0;
+}
+
+/*
+ * Check if YUV420 is forced when available from the given mode
+ */
+static int force_yuv420_output_get(void *data, u64 *val)
+{
+	struct amdgpu_dm_connector *connector = data;
+
+	*val = connector->force_yuv420_output;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(force_yuv420_output_fops, force_yuv420_output_get,
+			 force_yuv420_output_set, "%llu\n");
+
+/*
+ *  Read PSR state
+ */
+static int psr_get(void *data, u64 *val)
+{
+	struct amdgpu_dm_connector *connector = data;
+	struct dc_link *link = connector->dc_link;
+	uint32_t psr_state = 0;
+
+	dc_link_get_psr_state(link, &psr_state);
+
+	*val = psr_state;
+
+	return 0;
+}
+
+
+DEFINE_DEBUGFS_ATTRIBUTE(psr_fops, psr_get, NULL, "%llu\n");
 
 void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 {
@@ -955,6 +2234,27 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 					    dp_debugfs_entries[i].fops);
 		}
 	}
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
+		debugfs_create_file_unsafe("psr_state", 0444, dir, connector, &psr_fops);
+
+	debugfs_create_file_unsafe("force_yuv420_output", 0644, dir, connector,
+				   &force_yuv420_output_fops);
+
+	debugfs_create_file("output_bpc", 0644, dir, connector,
+			    &output_bpc_fops);
+
+	connector->debugfs_dpcd_address = 0;
+	connector->debugfs_dpcd_size = 0;
+
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+		for (i = 0; i < ARRAY_SIZE(hdmi_debugfs_entries); i++) {
+			debugfs_create_file(hdmi_debugfs_entries[i].name,
+					    0644, dir, connector,
+					    hdmi_debugfs_entries[i].fops);
+		}
+	}
+#endif
 }
 
 /*
@@ -1028,9 +2328,10 @@ static int current_backlight_read(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = dev->dev_private;
-	struct dc *dc = adev->dm.dc;
-	unsigned int backlight = dc_get_current_backlight_pwm(dc);
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_display_manager *dm = &adev->dm;
+
+	unsigned int backlight = dc_link_get_backlight_level(dm->backlight_link);
 
 	seq_printf(m, "0x%x\n", backlight);
 	return 0;
@@ -1045,9 +2346,10 @@ static int target_backlight_read(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = dev->dev_private;
-	struct dc *dc = adev->dm.dc;
-	unsigned int backlight = dc_get_target_backlight_pwm(dc);
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_display_manager *dm = &adev->dm;
+
+	unsigned int backlight = dc_link_get_target_backlight_pwm(dm->backlight_link);
 
 	seq_printf(m, "0x%x\n", backlight);
 	return 0;
@@ -1081,6 +2383,38 @@ static const struct drm_info_list amdgpu_dm_debugfs_list[] = {
 	{"amdgpu_target_backlight_pwm", &target_backlight_read},
 	{"amdgpu_mst_topology", &mst_topo},
 };
+
+/*
+ * Sets the force_timing_sync debug optino from the given string.
+ * All connected displays will be force synchronized immediately.
+ * Usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_force_timing_sync
+ */
+static int force_timing_sync_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+
+	adev->dm.force_timing_sync = (bool)val;
+
+	amdgpu_dm_trigger_timing_sync(adev_to_drm(adev));
+
+	return 0;
+}
+
+/*
+ * Gets the force_timing_sync debug option value into the given buffer.
+ * Usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_force_timing_sync
+ */
+static int force_timing_sync_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = data;
+
+	*val = adev->dm.force_timing_sync;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(force_timing_sync_ops, force_timing_sync_get,
+			 force_timing_sync_set, "%llu\n");
 
 /*
  * Sets the DC visual confirm debug option from the given string.
@@ -1120,7 +2454,7 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 		.llseek = default_llseek
 	};
 
-	struct drm_minor *minor = adev->ddev->primary;
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
 	struct dentry *root = minor->debugfs_root;
 	int ret;
 
@@ -1134,6 +2468,15 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 
 	debugfs_create_file_unsafe("amdgpu_dm_visual_confirm", 0644, root, adev,
 				   &visual_confirm_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_dmub_tracebuffer", 0644, root,
+				   adev, &dmub_tracebuffer_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_dmub_fw_state", 0644, root,
+				   adev, &dmub_fw_state_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_force_timing_sync", 0644, root,
+				   adev, &force_timing_sync_ops);
 
 	return 0;
 }

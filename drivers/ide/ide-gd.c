@@ -225,8 +225,12 @@ static int ide_gd_open(struct block_device *bdev, fmode_t mode)
 		 * and the door_lock is irrelevant at this point.
 		 */
 		drive->disk_ops->set_doorlock(drive, disk, 1);
-		drive->dev_flags |= IDE_DFLAG_MEDIA_CHANGED;
-		check_disk_change(bdev);
+		if (__invalidate_device(bdev, true))
+			pr_warn("VFS: busy inodes on changed media %s\n",
+				bdev->bd_disk->disk_name);
+		drive->disk_ops->get_capacity(drive);
+		set_capacity(disk, ide_gd_capacity(drive));
+		set_bit(GD_NEED_PART_SCAN, &disk->state);
 	} else if (drive->dev_flags & IDE_DFLAG_FORMAT_IN_PROGRESS) {
 		ret = -EBUSY;
 		goto out_put_idkp;
@@ -284,32 +288,6 @@ static int ide_gd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static unsigned int ide_gd_check_events(struct gendisk *disk,
-					unsigned int clearing)
-{
-	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
-	ide_drive_t *drive = idkp->drive;
-	bool ret;
-
-	/* do not scan partitions twice if this is a removable device */
-	if (drive->dev_flags & IDE_DFLAG_ATTACH) {
-		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
-		return 0;
-	}
-
-	/*
-	 * The following is used to force revalidation on the first open on
-	 * removeable devices, and never gets reported to userland as
-	 * DISK_EVENT_FLAG_UEVENT isn't set in genhd->event_flags.
-	 * This is intended as removable ide disk can't really detect
-	 * MEDIA_CHANGE events.
-	 */
-	ret = drive->dev_flags & IDE_DFLAG_MEDIA_CHANGED;
-	drive->dev_flags &= ~IDE_DFLAG_MEDIA_CHANGED;
-
-	return ret ? DISK_EVENT_MEDIA_CHANGE : 0;
-}
-
 static void ide_gd_unlock_native_capacity(struct gendisk *disk)
 {
 	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
@@ -318,18 +296,6 @@ static void ide_gd_unlock_native_capacity(struct gendisk *disk)
 
 	if (disk_ops->unlock_native_capacity)
 		disk_ops->unlock_native_capacity(drive);
-}
-
-static int ide_gd_revalidate_disk(struct gendisk *disk)
-{
-	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
-	ide_drive_t *drive = idkp->drive;
-
-	if (ide_gd_check_events(disk, 0))
-		drive->disk_ops->get_capacity(drive);
-
-	set_capacity(disk, ide_gd_capacity(drive));
-	return 0;
 }
 
 static int ide_gd_ioctl(struct block_device *bdev, fmode_t mode,
@@ -341,15 +307,30 @@ static int ide_gd_ioctl(struct block_device *bdev, fmode_t mode,
 	return drive->disk_ops->ioctl(drive, bdev, mode, cmd, arg);
 }
 
+#ifdef CONFIG_COMPAT
+static int ide_gd_compat_ioctl(struct block_device *bdev, fmode_t mode,
+			       unsigned int cmd, unsigned long arg)
+{
+	struct ide_disk_obj *idkp = ide_drv_g(bdev->bd_disk, ide_disk_obj);
+	ide_drive_t *drive = idkp->drive;
+
+	if (!drive->disk_ops->compat_ioctl)
+		return -ENOIOCTLCMD;
+
+	return drive->disk_ops->compat_ioctl(drive, bdev, mode, cmd, arg);
+}
+#endif
+
 static const struct block_device_operations ide_gd_ops = {
 	.owner			= THIS_MODULE,
 	.open			= ide_gd_unlocked_open,
 	.release		= ide_gd_release,
 	.ioctl			= ide_gd_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl		= ide_gd_compat_ioctl,
+#endif
 	.getgeo			= ide_gd_getgeo,
-	.check_events		= ide_gd_check_events,
 	.unlock_native_capacity	= ide_gd_unlock_native_capacity,
-	.revalidate_disk	= ide_gd_revalidate_disk
 };
 
 static int ide_gd_probe(ide_drive_t *drive)

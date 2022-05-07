@@ -295,7 +295,7 @@ static s32 pch_gbe_mac_read_mac_addr(struct pch_gbe_hw *hw)
 /**
  * pch_gbe_wait_clr_bit - Wait to clear a bit
  * @reg:	Pointer of register
- * @busy:	Busy bit
+ * @bit:	Busy bit
  */
 static void pch_gbe_wait_clr_bit(void *reg, u32 bit)
 {
@@ -1034,7 +1034,7 @@ static void pch_gbe_set_mode(struct pch_gbe_adapter *adapter, u16 speed,
 
 /**
  * pch_gbe_watchdog - Watchdog process
- * @data:  Board private structure
+ * @t:  timer list containing a Board private structure
  */
 static void pch_gbe_watchdog(struct timer_list *t)
 {
@@ -2064,7 +2064,7 @@ static int pch_gbe_stop(struct net_device *netdev)
  *	- NETDEV_TX_OK:   Normal end
  *	- NETDEV_TX_BUSY: Error end
  */
-static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_tx_ring *tx_ring = adapter->tx_ring;
@@ -2270,8 +2270,9 @@ static int pch_gbe_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 /**
  * pch_gbe_tx_timeout - Respond to a Tx Hang
  * @netdev:   Network interface device structure
+ * @txqueue: index of hanging queue
  */
-static void pch_gbe_tx_timeout(struct net_device *netdev)
+static void pch_gbe_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 

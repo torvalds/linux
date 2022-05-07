@@ -39,7 +39,6 @@
 #include <linux/numa.h>
 #include <linux/refcount.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <linux/atomic.h>
 #include <asm/tlbflush.h>
 #include <asm/uncached.h>
@@ -65,7 +64,7 @@ enum mspec_page_type {
  * This structure is shared by all vma's that are split off from the
  * original vma when split_vma()'s are done.
  *
- * The refcnt is incremented atomically because mm->mmap_sem does not
+ * The refcnt is incremented atomically because mm->mmap_lock does not
  * protect in fork case where multiple tasks share the vma_data.
  */
 struct vma_data {
@@ -75,7 +74,7 @@ struct vma_data {
 	enum mspec_page_type type; /* Type of pages allocated. */
 	unsigned long vm_start;	/* Original (unsplit) base. */
 	unsigned long vm_end;	/* Original (unsplit) end. */
-	unsigned long maddr[0];	/* Array of MSPEC addresses. */
+	unsigned long maddr[];	/* Array of MSPEC addresses. */
 };
 
 /*
@@ -196,10 +195,7 @@ mspec_mmap(struct file *file, struct vm_area_struct *vma,
 
 	pages = vma_pages(vma);
 	vdata_size = sizeof(struct vma_data) + pages * sizeof(long);
-	if (vdata_size <= PAGE_SIZE)
-		vdata = kzalloc(vdata_size, GFP_KERNEL);
-	else
-		vdata = vzalloc(vdata_size);
+	vdata = kvzalloc(vdata_size, GFP_KERNEL);
 	if (!vdata)
 		return -ENOMEM;
 

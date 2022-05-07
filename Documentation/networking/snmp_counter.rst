@@ -792,7 +792,7 @@ counters to indicate the ACK is skipped in which scenario. The ACK
 would only be skipped if the received packet is either a SYN packet or
 it has no data.
 
-.. _sysctl document: https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt
+.. _sysctl document: https://www.kernel.org/doc/Documentation/networking/ip-sysctl.rst
 
 * TcpExtTCPACKSkippedSynRecv
 
@@ -908,8 +908,8 @@ A TLP probe packet is sent.
 
 A packet loss is detected and recovered by TLP.
 
-TCP Fast Open
-=============
+TCP Fast Open description
+=========================
 TCP Fast Open is a technology which allows data transfer before the
 3-way handshake complete. Please refer the `TCP Fast Open wiki`_ for a
 general description.

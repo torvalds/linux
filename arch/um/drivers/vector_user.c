@@ -18,9 +18,7 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <net/ethernet.h>
 #include <netinet/ip.h>
-#include <netinet/ether.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
 #include <sys/wait.h>
@@ -29,6 +27,7 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <os.h>
+#include <limits.h>
 #include <um_malloc.h>
 #include "vector_user.h"
 
@@ -38,17 +37,25 @@
 #define ID_MAX 2
 
 #define TOKEN_IFNAME "ifname"
+#define TOKEN_SCRIPT "ifup"
 
 #define TRANS_RAW "raw"
 #define TRANS_RAW_LEN strlen(TRANS_RAW)
+
+#define TRANS_FD "fd"
+#define TRANS_FD_LEN strlen(TRANS_FD)
 
 #define VNET_HDR_FAIL "could not enable vnet headers on fd %d"
 #define TUN_GET_F_FAIL "tapraw: TUNGETFEATURES failed: %s"
 #define L2TPV3_BIND_FAIL "l2tpv3_open : could not bind socket err=%i"
 #define UNIX_BIND_FAIL "unix_open : could not bind socket err=%i"
-#define BPF_ATTACH_FAIL "Failed to attach filter size %d to %d, err %d\n"
+#define BPF_ATTACH_FAIL "Failed to attach filter size %d prog %px to %d, err %d\n"
+#define BPF_DETACH_FAIL "Failed to detach filter size %d prog %px to %d, err %d\n"
 
 #define MAX_UN_LEN 107
+
+static const char padchar[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+static const char *template = "tapXXXXXX";
 
 /* This is very ugly and brute force lookup, but it is done
  * only once at initialization so not worth doing hashes or
@@ -186,16 +193,21 @@ raw_fd_cleanup:
 	return err;
 }
 
+
 static struct vector_fds *user_init_tap_fds(struct arglist *ifspec)
 {
-	int fd = -1;
+	int fd = -1, i;
 	char *iface;
 	struct vector_fds *result = NULL;
+	bool dynamic = false;
+	char dynamic_ifname[IFNAMSIZ];
+	char *argv[] = {NULL, NULL, NULL, NULL};
 
 	iface = uml_vector_fetch_arg(ifspec, TOKEN_IFNAME);
 	if (iface == NULL) {
-		printk(UM_KERN_ERR "uml_tap: failed to parse interface spec\n");
-		goto tap_cleanup;
+		dynamic = true;
+		iface = dynamic_ifname;
+		srand(getpid());
 	}
 
 	result = uml_kmalloc(sizeof(struct vector_fds), UM_GFP_KERNEL);
@@ -209,19 +221,34 @@ static struct vector_fds *user_init_tap_fds(struct arglist *ifspec)
 	result->remote_addr_size = 0;
 
 	/* TAP */
+	do {
+		if (dynamic) {
+			strcpy(iface, template);
+			for (i = 0; i < strlen(iface); i++) {
+				if (iface[i] == 'X') {
+					iface[i] = padchar[rand() % strlen(padchar)];
+				}
+			}
+		}
+		fd = create_tap_fd(iface);
+		if ((fd < 0) && (!dynamic)) {
+			printk(UM_KERN_ERR "uml_tap: failed to create tun interface\n");
+			goto tap_cleanup;
+		}
+		result->tx_fd = fd;
+		result->rx_fd = fd;
+	} while (fd < 0);
 
-	fd = create_tap_fd(iface);
-	if (fd < 0) {
-		printk(UM_KERN_ERR "uml_tap: failed to create tun interface\n");
-		goto tap_cleanup;
+	argv[0] = uml_vector_fetch_arg(ifspec, TOKEN_SCRIPT);
+	if (argv[0]) {
+		argv[1] = iface;
+		run_helper(NULL, NULL, argv);
 	}
-	result->tx_fd = fd;
-	result->rx_fd = fd;
+
 	return result;
 tap_cleanup:
 	printk(UM_KERN_ERR "user_init_tap: init failed, error %d", fd);
-	if (result != NULL)
-		kfree(result);
+	kfree(result);
 	return NULL;
 }
 
@@ -229,6 +256,7 @@ static struct vector_fds *user_init_hybrid_fds(struct arglist *ifspec)
 {
 	char *iface;
 	struct vector_fds *result = NULL;
+	char *argv[] = {NULL, NULL, NULL, NULL};
 
 	iface = uml_vector_fetch_arg(ifspec, TOKEN_IFNAME);
 	if (iface == NULL) {
@@ -262,11 +290,16 @@ static struct vector_fds *user_init_hybrid_fds(struct arglist *ifspec)
 			"uml_tap: failed to create paired raw socket: %i\n", result->rx_fd);
 		goto hybrid_cleanup;
 	}
+
+	argv[0] = uml_vector_fetch_arg(ifspec, TOKEN_SCRIPT);
+	if (argv[0]) {
+		argv[1] = iface;
+		run_helper(NULL, NULL, argv);
+	}
 	return result;
 hybrid_cleanup:
 	printk(UM_KERN_ERR "user_init_hybrid: init failed");
-	if (result != NULL)
-		kfree(result);
+	kfree(result);
 	return NULL;
 }
 
@@ -329,7 +362,7 @@ static struct vector_fds *user_init_unix_fds(struct arglist *ifspec, int id)
 	}
 	switch (id) {
 	case ID_BESS:
-		if (connect(fd, remote_addr, sizeof(struct sockaddr_un)) < 0) {
+		if (connect(fd, (const struct sockaddr *) remote_addr, sizeof(struct sockaddr_un)) < 0) {
 			printk(UM_KERN_ERR "bess open:cannot connect to %s %i", remote_addr->sun_path, -errno);
 			goto unix_cleanup;
 		}
@@ -343,10 +376,60 @@ static struct vector_fds *user_init_unix_fds(struct arglist *ifspec, int id)
 unix_cleanup:
 	if (fd >= 0)
 		os_close_file(fd);
-	if (remote_addr != NULL)
-		kfree(remote_addr);
-	if (result != NULL)
-		kfree(result);
+	kfree(remote_addr);
+	kfree(result);
+	return NULL;
+}
+
+static int strtofd(const char *nptr)
+{
+	long fd;
+	char *endptr;
+
+	if (nptr == NULL)
+		return -1;
+
+	errno = 0;
+	fd = strtol(nptr, &endptr, 10);
+	if (nptr == endptr ||
+		errno != 0 ||
+		*endptr != '\0' ||
+		fd < 0 ||
+		fd > INT_MAX) {
+		return -1;
+	}
+	return fd;
+}
+
+static struct vector_fds *user_init_fd_fds(struct arglist *ifspec)
+{
+	int fd = -1;
+	char *fdarg = NULL;
+	struct vector_fds *result = NULL;
+
+	fdarg = uml_vector_fetch_arg(ifspec, "fd");
+	fd = strtofd(fdarg);
+	if (fd == -1) {
+		printk(UM_KERN_ERR "fd open: bad or missing fd argument");
+		goto fd_cleanup;
+	}
+
+	result = uml_kmalloc(sizeof(struct vector_fds), UM_GFP_KERNEL);
+	if (result == NULL) {
+		printk(UM_KERN_ERR "fd open: allocation failed");
+		goto fd_cleanup;
+	}
+
+	result->rx_fd = fd;
+	result->tx_fd = fd;
+	result->remote_addr_size = 0;
+	result->remote_addr = NULL;
+	return result;
+
+fd_cleanup:
+	if (fd >= 0)
+		os_close_file(fd);
+	kfree(result);
 	return NULL;
 }
 
@@ -356,6 +439,7 @@ static struct vector_fds *user_init_raw_fds(struct arglist *ifspec)
 	int err = -ENOMEM;
 	char *iface;
 	struct vector_fds *result = NULL;
+	char *argv[] = {NULL, NULL, NULL, NULL};
 
 	iface = uml_vector_fetch_arg(ifspec, TOKEN_IFNAME);
 	if (iface == NULL)
@@ -378,11 +462,15 @@ static struct vector_fds *user_init_raw_fds(struct arglist *ifspec)
 		result->remote_addr = NULL;
 		result->remote_addr_size = 0;
 	}
+	argv[0] = uml_vector_fetch_arg(ifspec, TOKEN_SCRIPT);
+	if (argv[0]) {
+		argv[1] = iface;
+		run_helper(NULL, NULL, argv);
+	}
 	return result;
 raw_cleanup:
 	printk(UM_KERN_ERR "user_init_raw: init failed, error %d", err);
-	if (result != NULL)
-		kfree(result);
+	kfree(result);
 	return NULL;
 }
 
@@ -582,6 +670,8 @@ struct vector_fds *uml_vector_user_open(
 		return user_init_socket_fds(parsed, ID_L2TPV3);
 	if (strncmp(transport, TRANS_BESS, TRANS_BESS_LEN) == 0)
 		return user_init_unix_fds(parsed, ID_BESS);
+	if (strncmp(transport, TRANS_FD, TRANS_FD_LEN) == 0)
+		return user_init_fd_fds(parsed);
 	return NULL;
 }
 
@@ -660,31 +750,44 @@ int uml_vector_recvmmsg(
 	else
 		return -errno;
 }
-int uml_vector_attach_bpf(int fd, void *bpf, int bpf_len)
+int uml_vector_attach_bpf(int fd, void *bpf)
 {
-	int err = setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, bpf, bpf_len);
+	struct sock_fprog *prog = bpf;
+
+	int err = setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, bpf, sizeof(struct sock_fprog));
 
 	if (err < 0)
-		printk(KERN_ERR BPF_ATTACH_FAIL, bpf_len, fd, -errno);
+		printk(KERN_ERR BPF_ATTACH_FAIL, prog->len, prog->filter, fd, -errno);
 	return err;
 }
 
-#define DEFAULT_BPF_LEN 6
+int uml_vector_detach_bpf(int fd, void *bpf)
+{
+	struct sock_fprog *prog = bpf;
 
-void *uml_vector_default_bpf(int fd, void *mac)
+	int err = setsockopt(fd, SOL_SOCKET, SO_DETACH_FILTER, bpf, sizeof(struct sock_fprog));
+	if (err < 0)
+		printk(KERN_ERR BPF_DETACH_FAIL, prog->len, prog->filter, fd, -errno);
+	return err;
+}
+void *uml_vector_default_bpf(void *mac)
 {
 	struct sock_filter *bpf;
 	uint32_t *mac1 = (uint32_t *)(mac + 2);
 	uint16_t *mac2 = (uint16_t *) mac;
-	struct sock_fprog bpf_prog = {
-		.len = 6,
-		.filter = NULL,
-	};
+	struct sock_fprog *bpf_prog;
 
+	bpf_prog = uml_kmalloc(sizeof(struct sock_fprog), UM_GFP_KERNEL);
+	if (bpf_prog) {
+		bpf_prog->len = DEFAULT_BPF_LEN;
+		bpf_prog->filter = NULL;
+	} else {
+		return NULL;
+	}
 	bpf = uml_kmalloc(
 		sizeof(struct sock_filter) * DEFAULT_BPF_LEN, UM_GFP_KERNEL);
-	if (bpf != NULL) {
-		bpf_prog.filter = bpf;
+	if (bpf) {
+		bpf_prog->filter = bpf;
 		/* ld	[8] */
 		bpf[0] = (struct sock_filter){ 0x20, 0, 0, 0x00000008 };
 		/* jeq	#0xMAC[2-6] jt 2 jf 5*/
@@ -697,12 +800,58 @@ void *uml_vector_default_bpf(int fd, void *mac)
 		bpf[4] = (struct sock_filter){ 0x6, 0, 0, 0x00000000 };
 		/* ret	#0x40000 */
 		bpf[5] = (struct sock_filter){ 0x6, 0, 0, 0x00040000 };
-		if (uml_vector_attach_bpf(
-			fd, &bpf_prog, sizeof(struct sock_fprog)) < 0) {
-			kfree(bpf);
-			bpf = NULL;
-		}
+	} else {
+		kfree(bpf_prog);
+		bpf_prog = NULL;
 	}
-	return bpf;
+	return bpf_prog;
 }
 
+/* Note - this function requires a valid mac being passed as an arg */
+
+void *uml_vector_user_bpf(char *filename)
+{
+	struct sock_filter *bpf;
+	struct sock_fprog *bpf_prog;
+	struct stat statbuf;
+	int res, ffd = -1;
+
+	if (filename == NULL)
+		return NULL;
+
+	if (stat(filename, &statbuf) < 0) {
+		printk(KERN_ERR "Error %d reading bpf file", -errno);
+		return false;
+	}
+	bpf_prog = uml_kmalloc(sizeof(struct sock_fprog), UM_GFP_KERNEL);
+	if (bpf_prog == NULL) {
+		printk(KERN_ERR "Failed to allocate bpf prog buffer");
+		return NULL;
+	}
+	bpf_prog->len = statbuf.st_size / sizeof(struct sock_filter);
+	bpf_prog->filter = NULL;
+	ffd = os_open_file(filename, of_read(OPENFLAGS()), 0);
+	if (ffd < 0) {
+		printk(KERN_ERR "Error %d opening bpf file", -errno);
+		goto bpf_failed;
+	}
+	bpf = uml_kmalloc(statbuf.st_size, UM_GFP_KERNEL);
+	if (bpf == NULL) {
+		printk(KERN_ERR "Failed to allocate bpf buffer");
+		goto bpf_failed;
+	}
+	bpf_prog->filter = bpf;
+	res = os_read_file(ffd, bpf, statbuf.st_size);
+	if (res < statbuf.st_size) {
+		printk(KERN_ERR "Failed to read bpf program %s, error %d", filename, res);
+		kfree(bpf);
+		goto bpf_failed;
+	}
+	os_close_file(ffd);
+	return bpf_prog;
+bpf_failed:
+	if (ffd > 0)
+		os_close_file(ffd);
+	kfree(bpf_prog);
+	return NULL;
+}

@@ -2004,7 +2004,7 @@ static void reg_w(struct sd *sd, u16 index, u16 value)
 		break;
 	case BRIDGE_OVFX2:
 		req = 0x0a;
-		/* fall through */
+		fallthrough;
 	case BRIDGE_W9968CF:
 		gspca_dbg(gspca_dev, D_USBO, "SET %02x %04x %04x\n",
 			  req, value, index);
@@ -3477,6 +3477,11 @@ static void ov511_mode_init_regs(struct sd *sd)
 		return;
 	}
 
+	if (alt->desc.bNumEndpoints < 1) {
+		sd->gspca_dev.usb_err = -ENODEV;
+		return;
+	}
+
 	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
 	reg_w(sd, R51x_FIFO_PSIZE, packet_size >> 5);
 
@@ -3523,7 +3528,7 @@ static void ov511_mode_init_regs(struct sd *sd)
 	case SEN_OV76BE:
 		if (sd->gspca_dev.pixfmt.width == 320)
 			interlaced = 1;
-		/* Fall through */
+		fallthrough;
 	case SEN_OV6630:
 	case SEN_OV7610:
 	case SEN_OV7670:
@@ -3536,7 +3541,7 @@ static void ov511_mode_init_regs(struct sd *sd)
 				break;
 			}
 			/* For 640x480 case */
-			/* fall through */
+			fallthrough;
 		default:
 /*		case 20: */
 /*		case 15: */
@@ -3600,6 +3605,11 @@ static void ov518_mode_init_regs(struct sd *sd)
 	if (!alt) {
 		gspca_err(gspca_dev, "Couldn't get altsetting\n");
 		sd->gspca_dev.usb_err = -EIO;
+		return;
+	}
+
+	if (alt->desc.bNumEndpoints < 1) {
+		sd->gspca_dev.usb_err = -ENODEV;
 		return;
 	}
 

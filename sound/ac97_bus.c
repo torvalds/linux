@@ -55,7 +55,7 @@ static bool snd_ac97_check_id(struct snd_ac97 *ac97, unsigned int id,
 int snd_ac97_reset(struct snd_ac97 *ac97, bool try_warm, unsigned int id,
 	unsigned int id_mask)
 {
-	struct snd_ac97_bus_ops *ops = ac97->bus->ops;
+	const struct snd_ac97_bus_ops *ops = ac97->bus->ops;
 
 	if (try_warm && ops->warm_reset) {
 		ops->warm_reset(ac97);

@@ -15,7 +15,7 @@
 #include <linux/export.h>
 #include <linux/stringify.h>
 
-#if !defined(CONFIG_CPU_MIPSR2) && !defined(CONFIG_CPU_MIPSR6)
+#if !defined(CONFIG_CPU_HAS_DIEI)
 
 /*
  * For cli() we have to insert nops to make sure that the new value
@@ -110,4 +110,4 @@ notrace void arch_local_irq_restore(unsigned long flags)
 }
 EXPORT_SYMBOL(arch_local_irq_restore);
 
-#endif /* !CONFIG_CPU_MIPSR2 && !CONFIG_CPU_MIPSR6 */
+#endif /* !CONFIG_CPU_HAS_DIEI */

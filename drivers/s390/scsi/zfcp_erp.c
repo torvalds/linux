@@ -4,7 +4,7 @@
  *
  * Error Recovery Procedures (ERP).
  *
- * Copyright IBM Corp. 2002, 2017
+ * Copyright IBM Corp. 2002, 2020
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -14,6 +14,7 @@
 #include <linux/bug.h>
 #include "zfcp_ext.h"
 #include "zfcp_reqlist.h"
+#include "zfcp_diag.h"
 
 #define ZFCP_MAX_ERPS                   3
 
@@ -67,7 +68,7 @@ static void zfcp_erp_action_ready(struct zfcp_erp_action *act)
 {
 	struct zfcp_adapter *adapter = act->adapter;
 
-	list_move(&act->list, &act->adapter->erp_ready_head);
+	list_move(&act->list, &adapter->erp_ready_head);
 	zfcp_dbf_rec_run("erardy1", act);
 	wake_up(&adapter->erp_ready_wq);
 	zfcp_dbf_rec_run("erardy2", act);
@@ -174,29 +175,29 @@ static enum zfcp_erp_act_type zfcp_erp_required_act(enum zfcp_erp_act_type want,
 			return 0;
 		p_status = atomic_read(&port->status);
 		if (!(p_status & ZFCP_STATUS_COMMON_RUNNING) ||
-		      p_status & ZFCP_STATUS_COMMON_ERP_FAILED)
+		    p_status & ZFCP_STATUS_COMMON_ERP_FAILED)
 			return 0;
 		if (!(p_status & ZFCP_STATUS_COMMON_UNBLOCKED))
 			need = ZFCP_ERP_ACTION_REOPEN_PORT;
-		/* fall through */
+		fallthrough;
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 		p_status = atomic_read(&port->status);
 		if (!(p_status & ZFCP_STATUS_COMMON_OPEN))
 			need = ZFCP_ERP_ACTION_REOPEN_PORT;
-		/* fall through */
+		fallthrough;
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		p_status = atomic_read(&port->status);
 		if (p_status & ZFCP_STATUS_COMMON_ERP_INUSE)
 			return 0;
 		a_status = atomic_read(&adapter->status);
 		if (!(a_status & ZFCP_STATUS_COMMON_RUNNING) ||
-		      a_status & ZFCP_STATUS_COMMON_ERP_FAILED)
+		    a_status & ZFCP_STATUS_COMMON_ERP_FAILED)
 			return 0;
 		if (p_status & ZFCP_STATUS_COMMON_NOESC)
 			return need;
 		if (!(a_status & ZFCP_STATUS_COMMON_UNBLOCKED))
 			need = ZFCP_ERP_ACTION_REOPEN_ADAPTER;
-		/* fall through */
+		fallthrough;
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		a_status = atomic_read(&adapter->status);
 		if (a_status & ZFCP_STATUS_COMMON_ERP_INUSE)
@@ -576,7 +577,10 @@ static void zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *act)
 				   ZFCP_STATUS_ERP_TIMEDOUT)) {
 			req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
 			zfcp_dbf_rec_run("erscf_1", act);
-			req->erp_action = NULL;
+			/* lock-free concurrent access with
+			 * zfcp_erp_timeout_handler()
+			 */
+			WRITE_ONCE(req->erp_action, NULL);
 		}
 		if (act->status & ZFCP_STATUS_ERP_TIMEDOUT)
 			zfcp_dbf_rec_run("erscf_2", act);
@@ -612,8 +616,14 @@ void zfcp_erp_notify(struct zfcp_erp_action *erp_action, unsigned long set_mask)
 void zfcp_erp_timeout_handler(struct timer_list *t)
 {
 	struct zfcp_fsf_req *fsf_req = from_timer(fsf_req, t, timer);
-	struct zfcp_erp_action *act = fsf_req->erp_action;
+	struct zfcp_erp_action *act;
 
+	if (fsf_req->status & ZFCP_STATUS_FSFREQ_DISMISSED)
+		return;
+	/* lock-free concurrent access with zfcp_erp_strategy_check_fsfreq() */
+	act = READ_ONCE(fsf_req->erp_action);
+	if (!act)
+		return;
 	zfcp_erp_notify(act, ZFCP_STATUS_ERP_TIMEDOUT);
 }
 
@@ -725,7 +735,7 @@ static void zfcp_erp_enqueue_ptp_port(struct zfcp_adapter *adapter)
 				 adapter->peer_d_id);
 	if (IS_ERR(port)) /* error or port already attached */
 		return;
-	_zfcp_erp_port_reopen(port, 0, "ereptp1");
+	zfcp_erp_port_reopen(port, 0, "ereptp1");
 }
 
 static enum zfcp_erp_act_result zfcp_erp_adapter_strat_fsf_xconf(
@@ -768,10 +778,14 @@ static enum zfcp_erp_act_result zfcp_erp_adapter_strat_fsf_xconf(
 	if (!(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_XCONFIG_OK))
 		return ZFCP_ERP_FAILED;
 
+	return ZFCP_ERP_SUCCEEDED;
+}
+
+static void
+zfcp_erp_adapter_strategy_open_ptp_port(struct zfcp_adapter *const adapter)
+{
 	if (fc_host_port_type(adapter->scsi_host) == FC_PORTTYPE_PTP)
 		zfcp_erp_enqueue_ptp_port(adapter);
-
-	return ZFCP_ERP_SUCCEEDED;
 }
 
 static enum zfcp_erp_act_result zfcp_erp_adapter_strategy_open_fsf_xport(
@@ -800,6 +814,59 @@ static enum zfcp_erp_act_result zfcp_erp_adapter_strategy_open_fsf_xport(
 	return ZFCP_ERP_SUCCEEDED;
 }
 
+static enum zfcp_erp_act_result
+zfcp_erp_adapter_strategy_alloc_shost(struct zfcp_adapter *const adapter)
+{
+	struct zfcp_diag_adapter_config_data *const config_data =
+		&adapter->diagnostics->config_data;
+	struct zfcp_diag_adapter_port_data *const port_data =
+		&adapter->diagnostics->port_data;
+	unsigned long flags;
+	int rc;
+
+	rc = zfcp_scsi_adapter_register(adapter);
+	if (rc == -EEXIST)
+		return ZFCP_ERP_SUCCEEDED;
+	else if (rc)
+		return ZFCP_ERP_FAILED;
+
+	/*
+	 * We allocated the shost for the first time. Before it was NULL,
+	 * and so we deferred all updates in the xconf- and xport-data
+	 * handlers. We need to make up for that now, and make all the updates
+	 * that would have been done before.
+	 *
+	 * We can be sure that xconf- and xport-data succeeded, because
+	 * otherwise this function is not called. But they might have been
+	 * incomplete.
+	 */
+
+	spin_lock_irqsave(&config_data->header.access_lock, flags);
+	zfcp_scsi_shost_update_config_data(adapter, &config_data->data,
+					   !!config_data->header.incomplete);
+	spin_unlock_irqrestore(&config_data->header.access_lock, flags);
+
+	if (adapter->adapter_features & FSF_FEATURE_HBAAPI_MANAGEMENT) {
+		spin_lock_irqsave(&port_data->header.access_lock, flags);
+		zfcp_scsi_shost_update_port_data(adapter, &port_data->data);
+		spin_unlock_irqrestore(&port_data->header.access_lock, flags);
+	}
+
+	/*
+	 * There is a remote possibility that the 'Exchange Port Data' request
+	 * reports a different connectivity status than 'Exchange Config Data'.
+	 * But any change to the connectivity status of the local optic that
+	 * happens after the initial xconf request is expected to be reported
+	 * to us, as soon as we post Status Read Buffers to the FCP channel
+	 * firmware after this function. So any resulting inconsistency will
+	 * only be momentary.
+	 */
+	if (config_data->header.incomplete)
+		zfcp_fsf_fc_host_link_down(adapter);
+
+	return ZFCP_ERP_SUCCEEDED;
+}
+
 static enum zfcp_erp_act_result zfcp_erp_adapter_strategy_open_fsf(
 	struct zfcp_erp_action *act)
 {
@@ -808,6 +875,12 @@ static enum zfcp_erp_act_result zfcp_erp_adapter_strategy_open_fsf(
 
 	if (zfcp_erp_adapter_strategy_open_fsf_xport(act) == ZFCP_ERP_FAILED)
 		return ZFCP_ERP_FAILED;
+
+	if (zfcp_erp_adapter_strategy_alloc_shost(act->adapter) ==
+	    ZFCP_ERP_FAILED)
+		return ZFCP_ERP_FAILED;
+
+	zfcp_erp_adapter_strategy_open_ptp_port(act->adapter);
 
 	if (mempool_resize(act->adapter->pool.sr_data,
 			   act->adapter->stat_read_buf_num))
@@ -1086,7 +1159,7 @@ static enum zfcp_erp_act_result zfcp_erp_lun_strategy(
 		if (atomic_read(&zfcp_sdev->status) & ZFCP_STATUS_COMMON_OPEN)
 			return zfcp_erp_lun_strategy_close(erp_action);
 		/* already closed */
-		/* fall through */
+		fallthrough;
 	case ZFCP_ERP_STEP_LUN_CLOSING:
 		if (atomic_read(&zfcp_sdev->status) & ZFCP_STATUS_COMMON_OPEN)
 			return ZFCP_ERP_FAILED;
@@ -1415,7 +1488,7 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act,
 		if (act->step != ZFCP_ERP_STEP_UNINITIALIZED)
 			if (result == ZFCP_ERP_SUCCEEDED)
 				zfcp_erp_try_rport_unblock(port);
-		/* fall through */
+		fallthrough;
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 		put_device(&port->dev);
 		break;
@@ -1534,7 +1607,6 @@ check_target:
 static int zfcp_erp_thread(void *data)
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) data;
-	struct list_head *next;
 	struct zfcp_erp_action *act;
 	unsigned long flags;
 
@@ -1547,12 +1619,11 @@ static int zfcp_erp_thread(void *data)
 			break;
 
 		write_lock_irqsave(&adapter->erp_lock, flags);
-		next = adapter->erp_ready_head.next;
+		act = list_first_entry_or_null(&adapter->erp_ready_head,
+					       struct zfcp_erp_action, list);
 		write_unlock_irqrestore(&adapter->erp_lock, flags);
 
-		if (next != &adapter->erp_ready_head) {
-			act = list_entry(next, struct zfcp_erp_action, list);
-
+		if (act) {
 			/* there is more to come after dismission, no notify */
 			if (zfcp_erp_strategy(act) != ZFCP_ERP_DISMISSED)
 				zfcp_erp_wakeup(adapter);
@@ -1636,6 +1707,13 @@ void zfcp_erp_set_adapter_status(struct zfcp_adapter *adapter, u32 mask)
 		atomic_or(common_mask, &port->status);
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 
+	/*
+	 * if `scsi_host` is missing, xconfig/xport data has never completed
+	 * yet, so we can't access it, but there are also no SDEVs yet
+	 */
+	if (adapter->scsi_host == NULL)
+		return;
+
 	spin_lock_irqsave(adapter->scsi_host->host_lock, flags);
 	__shost_for_each_device(sdev, adapter->scsi_host)
 		atomic_or(common_mask, &sdev_to_zfcp(sdev)->status);
@@ -1672,6 +1750,13 @@ void zfcp_erp_clear_adapter_status(struct zfcp_adapter *adapter, u32 mask)
 			atomic_set(&port->erp_counter, 0);
 	}
 	read_unlock_irqrestore(&adapter->port_list_lock, flags);
+
+	/*
+	 * if `scsi_host` is missing, xconfig/xport data has never completed
+	 * yet, so we can't access it, but there are also no SDEVs yet
+	 */
+	if (adapter->scsi_host == NULL)
+		return;
 
 	spin_lock_irqsave(adapter->scsi_host->host_lock, flags);
 	__shost_for_each_device(sdev, adapter->scsi_host) {

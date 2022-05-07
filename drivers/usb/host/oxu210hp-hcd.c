@@ -24,6 +24,7 @@
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 
 #include <asm/irq.h>
 #include <asm/unaligned.h>
@@ -676,12 +677,12 @@ static int oxu_hub_control(struct usb_hcd *hcd,
  */
 
 /* Low level read/write registers functions */
-static inline u32 oxu_readl(void *base, u32 reg)
+static inline u32 oxu_readl(void __iomem *base, u32 reg)
 {
 	return readl(base + reg);
 }
 
-static inline void oxu_writel(void *base, u32 reg, u32 val)
+static inline void oxu_writel(void __iomem *base, u32 reg, u32 val)
 {
 	writel(val, base + reg);
 }
@@ -748,18 +749,16 @@ static int handshake(struct oxu_hcd *oxu, void __iomem *ptr,
 					u32 mask, u32 done, int usec)
 {
 	u32 result;
+	int ret;
 
-	do {
-		result = readl(ptr);
-		if (result == ~(u32)0)		/* card removed */
-			return -ENODEV;
-		result &= mask;
-		if (result == done)
-			return 0;
-		udelay(1);
-		usec--;
-	} while (usec > 0);
-	return -ETIMEDOUT;
+	ret = readl_poll_timeout_atomic(ptr, result,
+					((result & mask) == done ||
+					 result == U32_MAX),
+					1, usec);
+	if (result == U32_MAX)		/* card removed */
+		return -ENODEV;
+
+	return ret;
 }
 
 /* Force HC to halt state from unknown (EHCI spec section 2.3) */
@@ -1858,7 +1857,7 @@ static struct ehci_qh *qh_make(struct oxu_hcd *oxu,
 	switch (urb->dev->speed) {
 	case USB_SPEED_LOW:
 		info1 |= (1 << 12);	/* EPS "low" */
-		/* FALL THROUGH */
+		fallthrough;
 
 	case USB_SPEED_FULL:
 		/* EPS 0 means "full" */
@@ -2037,16 +2036,15 @@ static struct ehci_qh *qh_append_tds(struct oxu_hcd *oxu,
 static int submit_async(struct oxu_hcd	*oxu, struct urb *urb,
 			struct list_head *qtd_list, gfp_t mem_flags)
 {
-	struct ehci_qtd	*qtd;
-	int epnum;
+	int epnum = urb->ep->desc.bEndpointAddress;
 	unsigned long flags;
 	struct ehci_qh *qh = NULL;
 	int rc = 0;
+#ifdef OXU_URB_TRACE
+	struct ehci_qtd	*qtd;
 
 	qtd = list_entry(qtd_list->next, struct ehci_qtd, qtd_list);
-	epnum = urb->ep->desc.bEndpointAddress;
 
-#ifdef OXU_URB_TRACE
 	oxu_dbg(oxu, "%s %s urb %p ep%d%s len %d, qtd %p [qh %p]\n",
 		__func__, urb->dev->devpath, urb,
 		epnum & 0x0f, (epnum & USB_DIR_IN) ? "in" : "out",
@@ -2783,11 +2781,15 @@ static void ehci_port_power(struct oxu_hcd *oxu, int is_on)
 		return;
 
 	oxu_dbg(oxu, "...power%s ports...\n", is_on ? "up" : "down");
-	for (port = HCS_N_PORTS(oxu->hcs_params); port > 0; )
-		(void) oxu_hub_control(oxu_to_hcd(oxu),
-				is_on ? SetPortFeature : ClearPortFeature,
-				USB_PORT_FEAT_POWER,
-				port--, NULL, 0);
+	for (port = HCS_N_PORTS(oxu->hcs_params); port > 0; ) {
+		if (is_on)
+			oxu_hub_control(oxu_to_hcd(oxu), SetPortFeature,
+				USB_PORT_FEAT_POWER, port--, NULL, 0);
+		else
+			oxu_hub_control(oxu_to_hcd(oxu), ClearPortFeature,
+				USB_PORT_FEAT_POWER, port--, NULL, 0);
+	}
+
 	msleep(20);
 }
 
@@ -3374,7 +3376,7 @@ static int oxu_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
 			intr_deschedule(oxu, qh);
-			/* FALL THROUGH */
+			fallthrough;
 		case QH_STATE_IDLE:
 			qh_completions(oxu, qh);
 			break;
@@ -3446,7 +3448,7 @@ rescan:
 		if (!tmp)
 			goto nogood;
 		unlink_async(oxu, qh);
-		/* FALL THROUGH */
+		fallthrough;
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 idle_timeout:
 		spin_unlock_irqrestore(&oxu->lock, flags);
@@ -3457,7 +3459,7 @@ idle_timeout:
 			qh_put(qh);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 nogood:
 		/* caller was supposed to have unlinked any requests;
@@ -4063,7 +4065,7 @@ static const struct hc_driver oxu_hc_driver = {
  * Module stuff
  */
 
-static void oxu_configuration(struct platform_device *pdev, void *base)
+static void oxu_configuration(struct platform_device *pdev, void __iomem *base)
 {
 	u32 tmp;
 
@@ -4093,7 +4095,7 @@ static void oxu_configuration(struct platform_device *pdev, void *base)
 	oxu_writel(base, OXU_CHIPIRQEN_SET, OXU_USBSPHLPWUI | OXU_USBOTGLPWUI);
 }
 
-static int oxu_verify_id(struct platform_device *pdev, void *base)
+static int oxu_verify_id(struct platform_device *pdev, void __iomem *base)
 {
 	u32 id;
 	static const char * const bo[] = {
@@ -4121,7 +4123,7 @@ static int oxu_verify_id(struct platform_device *pdev, void *base)
 static const struct hc_driver oxu_hc_driver;
 static struct usb_hcd *oxu_create(struct platform_device *pdev,
 				unsigned long memstart, unsigned long memlen,
-				void *base, int irq, int otg)
+				void __iomem *base, int irq, int otg)
 {
 	struct device *dev = &pdev->dev;
 
@@ -4158,7 +4160,7 @@ static struct usb_hcd *oxu_create(struct platform_device *pdev,
 
 static int oxu_init(struct platform_device *pdev,
 				unsigned long memstart, unsigned long memlen,
-				void *base, int irq)
+				void __iomem *base, int irq)
 {
 	struct oxu_info *info = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd;
@@ -4207,7 +4209,7 @@ error_create_otg:
 static int oxu_drv_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	void *base;
+	void __iomem *base;
 	unsigned long memstart, memlen;
 	int irq, ret;
 	struct oxu_info *info;

@@ -354,9 +354,16 @@ static int max77650_charger_remove(struct platform_device *pdev)
 	return max77650_charger_disable(chg);
 }
 
+static const struct of_device_id max77650_charger_of_match[] = {
+	{ .compatible = "maxim,max77650-charger" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, max77650_charger_of_match);
+
 static struct platform_driver max77650_charger_driver = {
 	.driver = {
 		.name = "max77650-charger",
+		.of_match_table = max77650_charger_of_match,
 	},
 	.probe = max77650_charger_probe,
 	.remove = max77650_charger_remove,

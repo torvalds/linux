@@ -31,10 +31,11 @@ properties:
 
   spi-cpha: true
 
-  avcc-supply:
-    description:
-      Phandle to the Avcc power supply
-    maxItems: 1
+  spi-cpol: true
+
+  spi-max-frequency: true
+
+  avcc-supply: true
 
   interrupts:
     maxItems: 1
@@ -56,10 +57,10 @@ properties:
 
   standby-gpios:
     description:
-       Must be the device tree identifier of the STBY pin. This pin is used
-       to place the AD7606 into one of two power-down modes, Standby mode or
-       Shutdown mode. As the line is active low, it should be marked
-       GPIO_ACTIVE_LOW.
+      Must be the device tree identifier of the STBY pin. This pin is used
+      to place the AD7606 into one of two power-down modes, Standby mode or
+      Shutdown mode. As the line is active low, it should be marked
+      GPIO_ACTIVE_LOW.
     maxItems: 1
 
   adi,first-data-gpios:
@@ -85,7 +86,7 @@ properties:
       Must be the device tree identifier of the over-sampling
       mode pins. As the line is active high, it should be marked
       GPIO_ACTIVE_HIGH.
-    maxItems: 1
+    maxItems: 3
 
   adi,sw-mode:
     description:
@@ -104,6 +105,8 @@ required:
   - avcc-supply
   - interrupts
   - adi,conversion-start-gpios
+
+additionalProperties: false
 
 examples:
   - |
@@ -128,9 +131,9 @@ examples:
                 adi,conversion-start-gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
                 reset-gpios = <&gpio 27 GPIO_ACTIVE_HIGH>;
                 adi,first-data-gpios = <&gpio 22 GPIO_ACTIVE_HIGH>;
-                adi,oversampling-ratio-gpios = <&gpio 18 GPIO_ACTIVE_HIGH
-                                                &gpio 23 GPIO_ACTIVE_HIGH
-                                                &gpio 26 GPIO_ACTIVE_HIGH>;
+                adi,oversampling-ratio-gpios = <&gpio 18 GPIO_ACTIVE_HIGH>,
+                                               <&gpio 23 GPIO_ACTIVE_HIGH>,
+                                               <&gpio 26 GPIO_ACTIVE_HIGH>;
                 standby-gpios = <&gpio 24 GPIO_ACTIVE_LOW>;
                 adi,sw-mode;
         };

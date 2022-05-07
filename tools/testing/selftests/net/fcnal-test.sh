@@ -32,12 +32,17 @@
 #      lo2: 127.0.0.1/8, ::1/128
 #           172.16.2.2/32, 2001:db8:2::2/128
 #
+# ns-A to ns-C connection - only for VRF and same config
+# as ns-A to ns-B
+#
 # server / client nomenclature relative to ns-A
 
 VERBOSE=0
 
 NSA_DEV=eth1
+NSA_DEV2=eth2
 NSB_DEV=eth1
+NSC_DEV=eth2
 VRF=red
 VRF_TABLE=1101
 
@@ -45,16 +50,21 @@ VRF_TABLE=1101
 NSA_IP=172.16.1.1
 NSB_IP=172.16.1.2
 VRF_IP=172.16.3.1
+NS_NET=172.16.1.0/24
 
 # IPv6 config
 NSA_IP6=2001:db8:1::1
 NSB_IP6=2001:db8:1::2
 VRF_IP6=2001:db8:3::1
+NS_NET6=2001:db8:1::/120
 
 NSA_LO_IP=172.16.2.1
 NSB_LO_IP=172.16.2.2
 NSA_LO_IP6=2001:db8:2::1
 NSB_LO_IP6=2001:db8:2::2
+
+MD5_PW=abc123
+MD5_WRONG_PW=abc1234
 
 MCAST=ff02::1
 # set after namespace create
@@ -63,9 +73,11 @@ NSB_LINKIP6=
 
 NSA=ns-A
 NSB=ns-B
+NSC=ns-C
 
 NSA_CMD="ip netns exec ${NSA}"
 NSB_CMD="ip netns exec ${NSB}"
+NSC_CMD="ip netns exec ${NSC}"
 
 which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
 
@@ -195,6 +207,11 @@ run_cmd_nsb()
 	do_run_cmd ${NSB_CMD} $*
 }
 
+run_cmd_nsc()
+{
+	do_run_cmd ${NSC_CMD} $*
+}
+
 setup_cmd()
 {
 	local cmd="$*"
@@ -223,6 +240,28 @@ setup_cmd_nsb()
 	local rc
 
 	run_cmd_nsb ${cmd}
+	rc=$?
+	if [ $rc -ne 0 ]; then
+		# show user the command if not done so already
+		if [ "$VERBOSE" = "0" ]; then
+			echo "setup command: $cmd"
+		fi
+		echo "failed. stopping tests"
+		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+			echo
+			echo "hit enter to continue"
+			read a
+		fi
+		exit $rc
+	fi
+}
+
+setup_cmd_nsc()
+{
+	local cmd="$*"
+	local rc
+
+	run_cmd_nsc ${cmd}
 	rc=$?
 	if [ $rc -ne 0 ]; then
 		# show user the command if not done so already
@@ -401,6 +440,7 @@ cleanup()
 	fi
 
 	ip netns del ${NSB}
+	ip netns del ${NSC} >/dev/null 2>&1
 }
 
 setup()
@@ -432,6 +472,12 @@ setup()
 
 		ip -netns ${NSB} ro add ${VRF_IP}/32 via ${NSA_IP} dev ${NSB_DEV}
 		ip -netns ${NSB} -6 ro add ${VRF_IP6}/128 via ${NSA_IP6} dev ${NSB_DEV}
+
+		# some VRF tests use ns-C which has the same config as
+		# ns-B but for a device NOT in the VRF
+		create_ns ${NSC} "-" "-"
+		connect_ns ${NSA} ${NSA_DEV2} ${NSA_IP}/24 ${NSA_IP6}/64 \
+			   ${NSC} ${NSC_DEV} ${NSB_IP}/24 ${NSB_IP6}/64
 	else
 		ip -netns ${NSA} ro add ${NSB_LO_IP}/32 via ${NSB_IP} dev ${NSA_DEV}
 		ip -netns ${NSA} ro add ${NSB_LO_IP6}/128 via ${NSB_IP6} dev ${NSA_DEV}
@@ -441,6 +487,36 @@ setup()
 	# tell ns-B how to get to remote addresses of ns-A
 	ip -netns ${NSB} ro add ${NSA_LO_IP}/32 via ${NSA_IP} dev ${NSB_DEV}
 	ip -netns ${NSB} ro add ${NSA_LO_IP6}/128 via ${NSA_IP6} dev ${NSB_DEV}
+
+	set +e
+
+	sleep 1
+}
+
+setup_lla_only()
+{
+	# make sure we are starting with a clean slate
+	kill_procs
+	cleanup 2>/dev/null
+
+	log_debug "Configuring network namespaces"
+	set -e
+
+	create_ns ${NSA} "-" "-"
+	create_ns ${NSB} "-" "-"
+	create_ns ${NSC} "-" "-"
+	connect_ns ${NSA} ${NSA_DEV} "-" "-" \
+		   ${NSB} ${NSB_DEV} "-" "-"
+	connect_ns ${NSA} ${NSA_DEV2} "-" "-" \
+		   ${NSC} ${NSC_DEV}  "-" "-"
+
+	NSA_LINKIP6=$(get_linklocal ${NSA} ${NSA_DEV})
+	NSB_LINKIP6=$(get_linklocal ${NSB} ${NSB_DEV})
+	NSC_LINKIP6=$(get_linklocal ${NSC} ${NSC_DEV})
+
+	create_vrf ${NSA} ${VRF} ${VRF_TABLE} "-" "-"
+	ip -netns ${NSA} link set dev ${NSA_DEV} vrf ${VRF}
+	ip -netns ${NSA} link set dev ${NSA_DEV2} vrf ${VRF}
 
 	set +e
 
@@ -714,6 +790,218 @@ ipv4_ping()
 ################################################################################
 # IPv4 TCP
 
+#
+# MD5 tests without VRF
+#
+ipv4_tcp_md5_novrf()
+{
+	#
+	# single address
+	#
+
+	# basic use case
+	log_start
+	run_cmd nettest -s -M ${MD5_PW} -r ${NSB_IP} &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 0 "MD5: Single address config"
+
+	# client sends MD5, server not configured
+	log_start
+	show_hint "Should timeout due to MD5 mismatch"
+	run_cmd nettest -s &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 2 "MD5: Server no config, client uses password"
+
+	# wrong password
+	log_start
+	show_hint "Should timeout since client uses wrong password"
+	run_cmd nettest -s -M ${MD5_PW} -r ${NSB_IP} &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: Client uses wrong password"
+
+	# client from different address
+	log_start
+	show_hint "Should timeout due to MD5 mismatch"
+	run_cmd nettest -s -M ${MD5_PW} -r ${NSB_LO_IP} &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 2 "MD5: Client address does not match address configured with password"
+
+	#
+	# MD5 extension - prefix length
+	#
+
+	# client in prefix
+	log_start
+	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} &
+	sleep 1
+	run_cmd_nsb nettest  -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 0 "MD5: Prefix config"
+
+	# client in prefix, wrong password
+	log_start
+	show_hint "Should timeout since client uses wrong password"
+	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: Prefix config, client uses wrong password"
+
+	# client outside of prefix
+	log_start
+	show_hint "Should timeout due to MD5 mismatch"
+	run_cmd nettest -s -M ${MD5_PW} -m ${NS_NET} &
+	sleep 1
+	run_cmd_nsb nettest -l ${NSB_LO_IP} -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 2 "MD5: Prefix config, client address not in configured prefix"
+}
+
+#
+# MD5 tests with VRF
+#
+ipv4_tcp_md5()
+{
+	#
+	# single address
+	#
+
+	# basic use case
+	log_start
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP} &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 0 "MD5: VRF: Single address config"
+
+	# client sends MD5, server not configured
+	log_start
+	show_hint "Should timeout since server does not have MD5 auth"
+	run_cmd nettest -s -d ${VRF} &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 2 "MD5: VRF: Server no config, client uses password"
+
+	# wrong password
+	log_start
+	show_hint "Should timeout since client uses wrong password"
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP} &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: VRF: Client uses wrong password"
+
+	# client from different address
+	log_start
+	show_hint "Should timeout since server config differs from client"
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -r ${NSB_LO_IP} &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 2 "MD5: VRF: Client address does not match address configured with password"
+
+	#
+	# MD5 extension - prefix length
+	#
+
+	# client in prefix
+	log_start
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET} &
+	sleep 1
+	run_cmd_nsb nettest  -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 0 "MD5: VRF: Prefix config"
+
+	# client in prefix, wrong password
+	log_start
+	show_hint "Should timeout since client uses wrong password"
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET} &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: VRF: Prefix config, client uses wrong password"
+
+	# client outside of prefix
+	log_start
+	show_hint "Should timeout since client address is outside of prefix"
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET} &
+	sleep 1
+	run_cmd_nsb nettest -l ${NSB_LO_IP} -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 2 "MD5: VRF: Prefix config, client address not in configured prefix"
+
+	#
+	# duplicate config between default VRF and a VRF
+	#
+
+	log_start
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP} &
+	run_cmd nettest -s -M ${MD5_WRONG_PW} -r ${NSB_IP} &
+	sleep 1
+	run_cmd_nsb nettest  -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 0 "MD5: VRF: Single address config in default VRF and VRF, conn in VRF"
+
+	log_start
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP} &
+	run_cmd nettest -s -M ${MD5_WRONG_PW} -r ${NSB_IP} &
+	sleep 1
+	run_cmd_nsc nettest  -r ${NSA_IP} -M ${MD5_WRONG_PW}
+	log_test $? 0 "MD5: VRF: Single address config in default VRF and VRF, conn in default VRF"
+
+	log_start
+	show_hint "Should timeout since client in default VRF uses VRF password"
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP} &
+	run_cmd nettest -s -M ${MD5_WRONG_PW} -r ${NSB_IP} &
+	sleep 1
+	run_cmd_nsc nettest -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 2 "MD5: VRF: Single address config in default VRF and VRF, conn in default VRF with VRF pw"
+
+	log_start
+	show_hint "Should timeout since client in VRF uses default VRF password"
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP} &
+	run_cmd nettest -s -M ${MD5_WRONG_PW} -r ${NSB_IP} &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: VRF: Single address config in default VRF and VRF, conn in VRF with default VRF pw"
+
+	log_start
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET} &
+	run_cmd nettest -s -M ${MD5_WRONG_PW} -m ${NS_NET} &
+	sleep 1
+	run_cmd_nsb nettest  -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 0 "MD5: VRF: Prefix config in default VRF and VRF, conn in VRF"
+
+	log_start
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET} &
+	run_cmd nettest -s -M ${MD5_WRONG_PW} -m ${NS_NET} &
+	sleep 1
+	run_cmd_nsc nettest  -r ${NSA_IP} -M ${MD5_WRONG_PW}
+	log_test $? 0 "MD5: VRF: Prefix config in default VRF and VRF, conn in default VRF"
+
+	log_start
+	show_hint "Should timeout since client in default VRF uses VRF password"
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET} &
+	run_cmd nettest -s -M ${MD5_WRONG_PW} -m ${NS_NET} &
+	sleep 1
+	run_cmd_nsc nettest -r ${NSA_IP} -M ${MD5_PW}
+	log_test $? 2 "MD5: VRF: Prefix config in default VRF and VRF, conn in default VRF with VRF pw"
+
+	log_start
+	show_hint "Should timeout since client in VRF uses default VRF password"
+	run_cmd nettest -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET} &
+	run_cmd nettest -s -M ${MD5_WRONG_PW} -m ${NS_NET} &
+	sleep 1
+	run_cmd_nsb nettest -r ${NSA_IP} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: VRF: Prefix config in default VRF and VRF, conn in VRF with default VRF pw"
+
+	#
+	# negative tests
+	#
+	log_start
+	run_cmd nettest -s -d ${NSA_DEV} -M ${MD5_PW} -r ${NSB_IP}
+	log_test $? 1 "MD5: VRF: Device must be a VRF - single address"
+
+	log_start
+	run_cmd nettest -s -d ${NSA_DEV} -M ${MD5_PW} -m ${NS_NET}
+	log_test $? 1 "MD5: VRF: Device must be a VRF - prefix"
+
+}
+
 ipv4_tcp_novrf()
 {
 	local a
@@ -831,6 +1119,8 @@ ipv4_tcp_novrf()
 	show_hint "Should fail 'Connection refused'"
 	run_cmd nettest -d ${NSA_DEV} -r ${a}
 	log_test_addr ${a} $? 1 "No server, device client, local conn"
+
+	ipv4_tcp_md5_novrf
 }
 
 ipv4_tcp_vrf()
@@ -883,6 +1173,9 @@ ipv4_tcp_vrf()
 	run_cmd nettest -r ${a} -d ${NSA_DEV}
 	log_test_addr ${a} $? 1 "Global server, local connection"
 
+	# run MD5 tests
+	ipv4_tcp_md5
+
 	#
 	# enable VRF global server
 	#
@@ -924,8 +1217,8 @@ ipv4_tcp_vrf()
 	for a in ${NSA_IP} ${VRF_IP}
 	do
 		log_start
-		show_hint "Should fail 'No route to host' since client is not bound to VRF"
-		run_cmd nettest -s -2 ${VRF} &
+		show_hint "Should fail 'Connection refused' since client is not bound to VRF"
+		run_cmd nettest -s -d ${VRF} &
 		sleep 1
 		run_cmd nettest -r ${a}
 		log_test_addr ${a} $? 1 "Global server, local connection"
@@ -1961,6 +2254,218 @@ ipv6_ping()
 ################################################################################
 # IPv6 TCP
 
+#
+# MD5 tests without VRF
+#
+ipv6_tcp_md5_novrf()
+{
+	#
+	# single address
+	#
+
+	# basic use case
+	log_start
+	run_cmd nettest -6 -s -M ${MD5_PW} -r ${NSB_IP6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 0 "MD5: Single address config"
+
+	# client sends MD5, server not configured
+	log_start
+	show_hint "Should timeout due to MD5 mismatch"
+	run_cmd nettest -6 -s &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 2 "MD5: Server no config, client uses password"
+
+	# wrong password
+	log_start
+	show_hint "Should timeout since client uses wrong password"
+	run_cmd nettest -6 -s -M ${MD5_PW} -r ${NSB_IP6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: Client uses wrong password"
+
+	# client from different address
+	log_start
+	show_hint "Should timeout due to MD5 mismatch"
+	run_cmd nettest -6 -s -M ${MD5_PW} -r ${NSB_LO_IP6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 2 "MD5: Client address does not match address configured with password"
+
+	#
+	# MD5 extension - prefix length
+	#
+
+	# client in prefix
+	log_start
+	run_cmd nettest -6 -s -M ${MD5_PW} -m ${NS_NET6} &
+	sleep 1
+	run_cmd_nsb nettest -6  -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 0 "MD5: Prefix config"
+
+	# client in prefix, wrong password
+	log_start
+	show_hint "Should timeout since client uses wrong password"
+	run_cmd nettest -6 -s -M ${MD5_PW} -m ${NS_NET6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: Prefix config, client uses wrong password"
+
+	# client outside of prefix
+	log_start
+	show_hint "Should timeout due to MD5 mismatch"
+	run_cmd nettest -6 -s -M ${MD5_PW} -m ${NS_NET6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -l ${NSB_LO_IP6} -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 2 "MD5: Prefix config, client address not in configured prefix"
+}
+
+#
+# MD5 tests with VRF
+#
+ipv6_tcp_md5()
+{
+	#
+	# single address
+	#
+
+	# basic use case
+	log_start
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 0 "MD5: VRF: Single address config"
+
+	# client sends MD5, server not configured
+	log_start
+	show_hint "Should timeout since server does not have MD5 auth"
+	run_cmd nettest -6 -s -d ${VRF} &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 2 "MD5: VRF: Server no config, client uses password"
+
+	# wrong password
+	log_start
+	show_hint "Should timeout since client uses wrong password"
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: VRF: Client uses wrong password"
+
+	# client from different address
+	log_start
+	show_hint "Should timeout since server config differs from client"
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -r ${NSB_LO_IP6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 2 "MD5: VRF: Client address does not match address configured with password"
+
+	#
+	# MD5 extension - prefix length
+	#
+
+	# client in prefix
+	log_start
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET6} &
+	sleep 1
+	run_cmd_nsb nettest -6  -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 0 "MD5: VRF: Prefix config"
+
+	# client in prefix, wrong password
+	log_start
+	show_hint "Should timeout since client uses wrong password"
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: VRF: Prefix config, client uses wrong password"
+
+	# client outside of prefix
+	log_start
+	show_hint "Should timeout since client address is outside of prefix"
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -l ${NSB_LO_IP6} -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 2 "MD5: VRF: Prefix config, client address not in configured prefix"
+
+	#
+	# duplicate config between default VRF and a VRF
+	#
+
+	log_start
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP6} &
+	run_cmd nettest -6 -s -M ${MD5_WRONG_PW} -r ${NSB_IP6} &
+	sleep 1
+	run_cmd_nsb nettest -6  -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 0 "MD5: VRF: Single address config in default VRF and VRF, conn in VRF"
+
+	log_start
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP6} &
+	run_cmd nettest -6 -s -M ${MD5_WRONG_PW} -r ${NSB_IP6} &
+	sleep 1
+	run_cmd_nsc nettest -6  -r ${NSA_IP6} -M ${MD5_WRONG_PW}
+	log_test $? 0 "MD5: VRF: Single address config in default VRF and VRF, conn in default VRF"
+
+	log_start
+	show_hint "Should timeout since client in default VRF uses VRF password"
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP6} &
+	run_cmd nettest -6 -s -M ${MD5_WRONG_PW} -r ${NSB_IP6} &
+	sleep 1
+	run_cmd_nsc nettest -6 -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 2 "MD5: VRF: Single address config in default VRF and VRF, conn in default VRF with VRF pw"
+
+	log_start
+	show_hint "Should timeout since client in VRF uses default VRF password"
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -r ${NSB_IP6} &
+	run_cmd nettest -6 -s -M ${MD5_WRONG_PW} -r ${NSB_IP6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: VRF: Single address config in default VRF and VRF, conn in VRF with default VRF pw"
+
+	log_start
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET6} &
+	run_cmd nettest -6 -s -M ${MD5_WRONG_PW} -m ${NS_NET6} &
+	sleep 1
+	run_cmd_nsb nettest -6  -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 0 "MD5: VRF: Prefix config in default VRF and VRF, conn in VRF"
+
+	log_start
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET6} &
+	run_cmd nettest -6 -s -M ${MD5_WRONG_PW} -m ${NS_NET6} &
+	sleep 1
+	run_cmd_nsc nettest -6  -r ${NSA_IP6} -M ${MD5_WRONG_PW}
+	log_test $? 0 "MD5: VRF: Prefix config in default VRF and VRF, conn in default VRF"
+
+	log_start
+	show_hint "Should timeout since client in default VRF uses VRF password"
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET6} &
+	run_cmd nettest -6 -s -M ${MD5_WRONG_PW} -m ${NS_NET6} &
+	sleep 1
+	run_cmd_nsc nettest -6 -r ${NSA_IP6} -M ${MD5_PW}
+	log_test $? 2 "MD5: VRF: Prefix config in default VRF and VRF, conn in default VRF with VRF pw"
+
+	log_start
+	show_hint "Should timeout since client in VRF uses default VRF password"
+	run_cmd nettest -6 -s -d ${VRF} -M ${MD5_PW} -m ${NS_NET6} &
+	run_cmd nettest -6 -s -M ${MD5_WRONG_PW} -m ${NS_NET6} &
+	sleep 1
+	run_cmd_nsb nettest -6 -r ${NSA_IP6} -M ${MD5_WRONG_PW}
+	log_test $? 2 "MD5: VRF: Prefix config in default VRF and VRF, conn in VRF with default VRF pw"
+
+	#
+	# negative tests
+	#
+	log_start
+	run_cmd nettest -6 -s -d ${NSA_DEV} -M ${MD5_PW} -r ${NSB_IP6}
+	log_test $? 1 "MD5: VRF: Device must be a VRF - single address"
+
+	log_start
+	run_cmd nettest -6 -s -d ${NSA_DEV} -M ${MD5_PW} -m ${NS_NET6}
+	log_test $? 1 "MD5: VRF: Device must be a VRF - prefix"
+
+}
+
 ipv6_tcp_novrf()
 {
 	local a
@@ -2077,6 +2582,8 @@ ipv6_tcp_novrf()
 		run_cmd nettest -6 -d ${NSA_DEV} -r ${a}
 		log_test_addr ${a} $? 1 "No server, device client, local conn"
 	done
+
+	ipv6_tcp_md5_novrf
 }
 
 ipv6_tcp_vrf()
@@ -2145,6 +2652,9 @@ ipv6_tcp_vrf()
 	run_cmd nettest -6 -r ${a} -d ${NSA_DEV}
 	log_test_addr ${a} $? 1 "Global server, local connection"
 
+	# run MD5 tests
+	ipv6_tcp_md5
+
 	#
 	# enable VRF global server
 	#
@@ -2205,8 +2715,8 @@ ipv6_tcp_vrf()
 	for a in ${NSA_IP6} ${VRF_IP6}
 	do
 		log_start
-		show_hint "Fails 'No route to host' since client is not in VRF"
-		run_cmd nettest -6 -s -2 ${VRF} &
+		show_hint "Fails 'Connection refused' since client is not in VRF"
+		run_cmd nettest -6 -s -d ${VRF} &
 		sleep 1
 		run_cmd nettest -6 -r ${a}
 		log_test_addr ${a} $? 1 "Global server, local connection"
@@ -3329,10 +3839,53 @@ use_case_br()
 	setup_cmd_nsb ip li del vlan100 2>/dev/null
 }
 
+# VRF only.
+# ns-A device is connected to both ns-B and ns-C on a single VRF but only has
+# LLA on the interfaces
+use_case_ping_lla_multi()
+{
+	setup_lla_only
+	# only want reply from ns-A
+	setup_cmd_nsb sysctl -qw net.ipv6.icmp.echo_ignore_multicast=1
+	setup_cmd_nsc sysctl -qw net.ipv6.icmp.echo_ignore_multicast=1
+
+	log_start
+	run_cmd_nsb ping -c1 -w1 ${MCAST}%${NSB_DEV}
+	log_test_addr ${MCAST}%${NSB_DEV} $? 0 "Pre cycle, ping out ns-B"
+
+	run_cmd_nsc ping -c1 -w1 ${MCAST}%${NSC_DEV}
+	log_test_addr ${MCAST}%${NSC_DEV} $? 0 "Pre cycle, ping out ns-C"
+
+	# cycle/flap the first ns-A interface
+	setup_cmd ip link set ${NSA_DEV} down
+	setup_cmd ip link set ${NSA_DEV} up
+	sleep 1
+
+	log_start
+	run_cmd_nsb ping -c1 -w1 ${MCAST}%${NSB_DEV}
+	log_test_addr ${MCAST}%${NSB_DEV} $? 0 "Post cycle ${NSA} ${NSA_DEV}, ping out ns-B"
+	run_cmd_nsc ping -c1 -w1 ${MCAST}%${NSC_DEV}
+	log_test_addr ${MCAST}%${NSC_DEV} $? 0 "Post cycle ${NSA} ${NSA_DEV}, ping out ns-C"
+
+	# cycle/flap the second ns-A interface
+	setup_cmd ip link set ${NSA_DEV2} down
+	setup_cmd ip link set ${NSA_DEV2} up
+	sleep 1
+
+	log_start
+	run_cmd_nsb ping -c1 -w1 ${MCAST}%${NSB_DEV}
+	log_test_addr ${MCAST}%${NSB_DEV} $? 0 "Post cycle ${NSA} ${NSA_DEV2}, ping out ns-B"
+	run_cmd_nsc ping -c1 -w1 ${MCAST}%${NSC_DEV}
+	log_test_addr ${MCAST}%${NSC_DEV} $? 0 "Post cycle ${NSA} ${NSA_DEV2}, ping out ns-C"
+}
+
 use_cases()
 {
 	log_section "Use cases"
+	log_subsection "Device enslaved to bridge"
 	use_case_br
+	log_subsection "Ping LLA with multiple interfaces"
+	use_case_ping_lla_multi
 }
 
 ################################################################################

@@ -7,7 +7,7 @@ menuconfig BLK_DEV
 	bool "Block devices"
 	depends on BLOCK
 	default y
-	---help---
+	help
 	  Say Y here to get to see options for various different block device
 	  drivers. This option alone does not add any kernel code.
 
@@ -27,7 +27,7 @@ config BLK_DEV_NULL_BLK_FAULT_INJECTION
 config BLK_DEV_FD
 	tristate "Normal floppy disk support"
 	depends on ARCH_MAY_HAVE_PC_FDC
-	---help---
+	help
 	  If you want to use the floppy disk drive(s) of your PC under Linux,
 	  say Y. Information about this driver, especially important for IBM
 	  Thinkpad users, is contained in
@@ -91,7 +91,7 @@ config GDROM
 config PARIDE
 	tristate "Parallel port IDE device support"
 	depends on PARPORT_PC
-	---help---
+	help
 	  There are many external CD-ROM and disk devices that connect through
 	  your computer's parallel port. Most of them are actually IDE devices
 	  using a parallel port IDE adapter. This option enables the PARIDE
@@ -124,7 +124,7 @@ source "drivers/block/zram/Kconfig"
 config BLK_DEV_UMEM
 	tristate "Micro Memory MM5415 Battery Backed RAM support"
 	depends on PCI
-	---help---
+	help
 	  Saying Y here will include support for the MM5415 family of
 	  battery backed (Non-volatile) RAM cards.
 	  <http://www.umem.com/>
@@ -141,7 +141,7 @@ config BLK_DEV_UMEM
 config BLK_DEV_UBD
 	bool "Virtual block device"
 	depends on UML
-	---help---
+	help
           The User-Mode Linux port includes a driver called UBD which will let
           you access arbitrary files on the host computer as block devices.
           Unless you know that you do not need such virtual block devices say
@@ -150,7 +150,7 @@ config BLK_DEV_UBD
 config BLK_DEV_UBD_SYNC
 	bool "Always do synchronous disk IO for UBD"
 	depends on BLK_DEV_UBD
-	---help---
+	help
 	  Writes to the virtual block device are not immediately written to the
 	  host's disk; this may cause problems if, for example, the User-Mode
 	  Linux 'Virtual Machine' uses a journalling filesystem and the host
@@ -173,7 +173,7 @@ config BLK_DEV_COW_COMMON
 
 config BLK_DEV_LOOP
 	tristate "Loopback device support"
-	---help---
+	help
 	  Saying Y here will allow you to use a regular file as a block
 	  device; you can then create a file system on that block device and
 	  mount it just as you would mount other block devices such as hard
@@ -234,7 +234,7 @@ config BLK_DEV_CRYPTOLOOP
 	select CRYPTO
 	select CRYPTO_CBC
 	depends on BLK_DEV_LOOP
-	---help---
+	help
 	  Say Y here if you want to be able to use the ciphers that are 
 	  provided by the CryptoAPI as loop transformation. This might be
 	  used as hard disk encryption.
@@ -249,7 +249,7 @@ source "drivers/block/drbd/Kconfig"
 config BLK_DEV_NBD
 	tristate "Network block device support"
 	depends on NET
-	---help---
+	help
 	  Saying Y here will allow your computer to be a client for network
 	  block devices, i.e. it will be able to use block devices exported by
 	  servers (mount file systems on them etc.). Communication between
@@ -277,7 +277,7 @@ config BLK_DEV_SKD
 	tristate "STEC S1120 Block Driver"
 	depends on PCI
 	depends on 64BIT
-	---help---
+	help
 	Saying Y or M here will enable support for the
 	STEC, Inc. S1120 PCIe SSD.
 
@@ -286,7 +286,7 @@ config BLK_DEV_SKD
 config BLK_DEV_SX8
 	tristate "Promise SATA SX8 support"
 	depends on PCI
-	---help---
+	help
 	  Saying Y or M here will enable support for the 
 	  Promise SATA SX8 controllers.
 
@@ -294,7 +294,7 @@ config BLK_DEV_SX8
 
 config BLK_DEV_RAM
 	tristate "RAM block device support"
-	---help---
+	help
 	  Saying Y here will allow you to use a portion of your RAM memory as
 	  a block device, so that you can make file systems on it, read and
 	  write to it and do all the other things that you can do with normal
@@ -428,19 +428,9 @@ config XEN_BLKDEV_BACKEND
 config VIRTIO_BLK
 	tristate "Virtio block driver"
 	depends on VIRTIO
-	---help---
+	help
 	  This is the virtual block driver for virtio.  It can be used with
           QEMU based VMMs (like KVM or Xen).  Say Y or M.
-
-config VIRTIO_BLK_SCSI
-	bool "SCSI passthrough request for the Virtio block driver"
-	depends on VIRTIO_BLK
-	select BLK_SCSI_REQUEST
-	---help---
-	  Enable support for SCSI passthrough (e.g. the SG_IO ioctl) on
-	  virtio-blk devices.  This is only supported for the legacy
-	  virtio protocol and not enabled by default by any hypervisor.
-	  You probably want to use virtio-scsi instead.
 
 config BLK_DEV_RBD
 	tristate "Rados block device (RBD)"
@@ -467,5 +457,7 @@ config BLK_DEV_RSXX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rsxx.
+
+source "drivers/block/rnbd/Kconfig"
 
 endif # BLK_DEV

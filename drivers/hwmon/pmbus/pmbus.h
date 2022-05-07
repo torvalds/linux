@@ -22,6 +22,8 @@ enum pmbus_regs {
 	PMBUS_CLEAR_FAULTS		= 0x03,
 	PMBUS_PHASE			= 0x04,
 
+	PMBUS_WRITE_PROTECT		= 0x10,
+
 	PMBUS_CAPABILITY		= 0x19,
 	PMBUS_QUERY			= 0x1A,
 
@@ -116,6 +118,22 @@ enum pmbus_regs {
 	PMBUS_MFR_LOCATION		= 0x9C,
 	PMBUS_MFR_DATE			= 0x9D,
 	PMBUS_MFR_SERIAL		= 0x9E,
+
+	PMBUS_MFR_VIN_MIN		= 0xA0,
+	PMBUS_MFR_VIN_MAX		= 0xA1,
+	PMBUS_MFR_IIN_MAX		= 0xA2,
+	PMBUS_MFR_PIN_MAX		= 0xA3,
+	PMBUS_MFR_VOUT_MIN		= 0xA4,
+	PMBUS_MFR_VOUT_MAX		= 0xA5,
+	PMBUS_MFR_IOUT_MAX		= 0xA6,
+	PMBUS_MFR_POUT_MAX		= 0xA7,
+
+	PMBUS_IC_DEVICE_ID		= 0xAD,
+	PMBUS_IC_DEVICE_REV		= 0xAE,
+
+	PMBUS_MFR_MAX_TEMP_1		= 0xC0,
+	PMBUS_MFR_MAX_TEMP_2		= 0xC1,
+	PMBUS_MFR_MAX_TEMP_3		= 0xC2,
 
 /*
  * Virtual registers.
@@ -224,6 +242,15 @@ enum pmbus_regs {
  * OPERATION
  */
 #define PB_OPERATION_CONTROL_ON		BIT(7)
+
+/*
+ * WRITE_PROTECT
+ */
+#define PB_WP_ALL	BIT(7)	/* all but WRITE_PROTECT */
+#define PB_WP_OP	BIT(6)	/* all but WP, OPERATION, PAGE */
+#define PB_WP_VOUT	BIT(5)	/* all but WP, OPERATION, PAGE, VOUT, ON_OFF */
+
+#define PB_WP_ANY	(PB_WP_ALL | PB_WP_OP | PB_WP_VOUT)
 
 /*
  * CAPABILITY
@@ -348,6 +375,7 @@ enum pmbus_sensor_classes {
 };
 
 #define PMBUS_PAGES	32	/* Per PMBus specification */
+#define PMBUS_PHASES	8	/* Maximum number of phases per page */
 
 /* Functionality bit mask */
 #define PMBUS_HAVE_VIN		BIT(0)
@@ -374,15 +402,17 @@ enum pmbus_sensor_classes {
 #define PMBUS_HAVE_PWM34	BIT(21)
 #define PMBUS_HAVE_SAMPLES	BIT(22)
 
-#define PMBUS_PAGE_VIRTUAL	BIT(31)
+#define PMBUS_PHASE_VIRTUAL	BIT(30)	/* Phases on this page are virtual */
+#define PMBUS_PAGE_VIRTUAL	BIT(31)	/* Page is virtual */
 
 enum pmbus_data_format { linear = 0, direct, vid };
-enum vrm_version { vr11 = 0, vr12, vr13 };
+enum vrm_version { vr11 = 0, vr12, vr13, imvp9, amd625mv };
 
 struct pmbus_driver_info {
 	int pages;		/* Total number of pages */
+	u8 phases[PMBUS_PAGES];	/* Number of phases per page */
 	enum pmbus_data_format format[PSC_NUM_CLASSES];
-	enum vrm_version vrm_version;
+	enum vrm_version vrm_version[PMBUS_PAGES]; /* vrm version per page */
 	/*
 	 * Support one set of coefficients for each sensor type
 	 * Used for chips providing data in direct mode.
@@ -392,6 +422,7 @@ struct pmbus_driver_info {
 	int R[PSC_NUM_CLASSES];	/* exponent */
 
 	u32 func[PMBUS_PAGES];	/* Functionality, per page */
+	u32 pfunc[PMBUS_PHASES];/* Functionality, per phase */
 	/*
 	 * The following functions map manufacturing specific register values
 	 * to PMBus standard register values. Specify only if mapping is
@@ -404,7 +435,8 @@ struct pmbus_driver_info {
 	 * the standard register.
 	 */
 	int (*read_byte_data)(struct i2c_client *client, int page, int reg);
-	int (*read_word_data)(struct i2c_client *client, int page, int reg);
+	int (*read_word_data)(struct i2c_client *client, int page, int phase,
+			      int reg);
 	int (*write_word_data)(struct i2c_client *client, int page, int reg,
 			       u16 word);
 	int (*write_byte)(struct i2c_client *client, int page, u8 value);
@@ -443,9 +475,11 @@ extern const struct regulator_ops pmbus_regulator_ops;
 /* Function declarations */
 
 void pmbus_clear_cache(struct i2c_client *client);
-int pmbus_set_page(struct i2c_client *client, int page);
-int pmbus_read_word_data(struct i2c_client *client, int page, u8 reg);
-int pmbus_write_word_data(struct i2c_client *client, int page, u8 reg, u16 word);
+int pmbus_set_page(struct i2c_client *client, int page, int phase);
+int pmbus_read_word_data(struct i2c_client *client, int page, int phase,
+			 u8 reg);
+int pmbus_write_word_data(struct i2c_client *client, int page, u8 reg,
+			  u16 word);
 int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg);
 int pmbus_write_byte(struct i2c_client *client, int page, u8 value);
 int pmbus_write_byte_data(struct i2c_client *client, int page, u8 reg,
@@ -455,8 +489,7 @@ int pmbus_update_byte_data(struct i2c_client *client, int page, u8 reg,
 void pmbus_clear_faults(struct i2c_client *client);
 bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg);
 bool pmbus_check_word_register(struct i2c_client *client, int page, int reg);
-int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
-		   struct pmbus_driver_info *info);
+int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info);
 int pmbus_do_remove(struct i2c_client *client);
 const struct pmbus_driver_info *pmbus_get_driver_info(struct i2c_client
 						      *client);

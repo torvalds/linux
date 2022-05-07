@@ -44,7 +44,7 @@ static inline int liblockdep_pthread_rwlock_rdlock(liblockdep_pthread_rwlock_t *
 
 static inline int liblockdep_pthread_rwlock_unlock(liblockdep_pthread_rwlock_t *lock)
 {
-	lock_release(&lock->dep_map, 0, (unsigned long)_RET_IP_);
+	lock_release(&lock->dep_map, (unsigned long)_RET_IP_);
 	return pthread_rwlock_unlock(&lock->rwlock);
 }
 

@@ -232,15 +232,14 @@ fail:
 
 static int efx_ef10_vadaptor_alloc_set_features(struct efx_nic *efx)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	u32 port_flags;
 	int rc;
 
-	rc = efx_ef10_vadaptor_alloc(efx, nic_data->vport_id);
+	rc = efx_ef10_vadaptor_alloc(efx, efx->vport_id);
 	if (rc)
 		goto fail_vadaptor_alloc;
 
-	rc = efx_ef10_vadaptor_query(efx, nic_data->vport_id,
+	rc = efx_ef10_vadaptor_query(efx, efx->vport_id,
 				     &port_flags, NULL, NULL);
 	if (rc)
 		goto fail_vadaptor_query;
@@ -281,11 +280,11 @@ int efx_ef10_vswitching_probe_pf(struct efx_nic *efx)
 
 	rc = efx_ef10_vport_alloc(efx, EVB_PORT_ID_ASSIGNED,
 				  MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_NORMAL,
-				  EFX_EF10_NO_VLAN, &nic_data->vport_id);
+				  EFX_EF10_NO_VLAN, &efx->vport_id);
 	if (rc)
 		goto fail2;
 
-	rc = efx_ef10_vport_add_mac(efx, nic_data->vport_id, net_dev->dev_addr);
+	rc = efx_ef10_vport_add_mac(efx, efx->vport_id, net_dev->dev_addr);
 	if (rc)
 		goto fail3;
 	ether_addr_copy(nic_data->vport_mac, net_dev->dev_addr);
@@ -296,11 +295,11 @@ int efx_ef10_vswitching_probe_pf(struct efx_nic *efx)
 
 	return 0;
 fail4:
-	efx_ef10_vport_del_mac(efx, nic_data->vport_id, nic_data->vport_mac);
+	efx_ef10_vport_del_mac(efx, efx->vport_id, nic_data->vport_mac);
 	eth_zero_addr(nic_data->vport_mac);
 fail3:
-	efx_ef10_vport_free(efx, nic_data->vport_id);
-	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
+	efx_ef10_vport_free(efx, efx->vport_id);
+	efx->vport_id = EVB_PORT_ID_ASSIGNED;
 fail2:
 	efx_ef10_vswitch_free(efx, EVB_PORT_ID_ASSIGNED);
 fail1:
@@ -355,22 +354,22 @@ void efx_ef10_vswitching_remove_pf(struct efx_nic *efx)
 
 	efx_ef10_sriov_free_vf_vswitching(efx);
 
-	efx_ef10_vadaptor_free(efx, nic_data->vport_id);
+	efx_ef10_vadaptor_free(efx, efx->vport_id);
 
-	if (nic_data->vport_id == EVB_PORT_ID_ASSIGNED)
+	if (efx->vport_id == EVB_PORT_ID_ASSIGNED)
 		return; /* No vswitch was ever created */
 
 	if (!is_zero_ether_addr(nic_data->vport_mac)) {
-		efx_ef10_vport_del_mac(efx, nic_data->vport_id,
+		efx_ef10_vport_del_mac(efx, efx->vport_id,
 				       efx->net_dev->dev_addr);
 		eth_zero_addr(nic_data->vport_mac);
 	}
-	efx_ef10_vport_free(efx, nic_data->vport_id);
-	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
+	efx_ef10_vport_free(efx, efx->vport_id);
+	efx->vport_id = EVB_PORT_ID_ASSIGNED;
 
 	/* Only free the vswitch if no VFs are assigned */
 	if (!pci_vfs_assigned(efx->pci_dev))
-		efx_ef10_vswitch_free(efx, nic_data->vport_id);
+		efx_ef10_vswitch_free(efx, efx->vport_id);
 }
 
 void efx_ef10_vswitching_remove_vf(struct efx_nic *efx)
@@ -522,10 +521,9 @@ int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
 
 	if (!is_zero_ether_addr(mac)) {
 		rc = efx_ef10_vport_add_mac(efx, vf->vport_id, mac);
-		if (rc) {
-			eth_zero_addr(vf->mac);
+		if (rc)
 			goto fail;
-		}
+
 		if (vf->efx)
 			ether_addr_copy(vf->efx->net_dev->dev_addr, mac);
 	}
@@ -686,10 +684,70 @@ reset_nic:
 	return rc ? rc : rc2;
 }
 
-int efx_ef10_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf_i,
-				   bool spoofchk)
+static int efx_ef10_sriov_set_privilege_mask(struct efx_nic *efx, int vf_i,
+					     u32 mask, u32 value)
 {
-	return spoofchk ? -EOPNOTSUPP : 0;
+	MCDI_DECLARE_BUF(pm_outbuf, MC_CMD_PRIVILEGE_MASK_OUT_LEN);
+	MCDI_DECLARE_BUF(pm_inbuf, MC_CMD_PRIVILEGE_MASK_IN_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	u32 old_mask, new_mask;
+	size_t outlen;
+	int rc;
+
+	EFX_WARN_ON_PARANOID((value & ~mask) != 0);
+
+	/* Get privilege mask */
+	MCDI_POPULATE_DWORD_2(pm_inbuf, PRIVILEGE_MASK_IN_FUNCTION,
+			      PRIVILEGE_MASK_IN_FUNCTION_PF, nic_data->pf_index,
+			      PRIVILEGE_MASK_IN_FUNCTION_VF, vf_i);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_PRIVILEGE_MASK,
+			  pm_inbuf, sizeof(pm_inbuf),
+			  pm_outbuf, sizeof(pm_outbuf), &outlen);
+
+	if (rc != 0)
+		return rc;
+	if (outlen != MC_CMD_PRIVILEGE_MASK_OUT_LEN)
+		return -EIO;
+
+	old_mask = MCDI_DWORD(pm_outbuf, PRIVILEGE_MASK_OUT_OLD_MASK);
+
+	new_mask = old_mask & ~mask;
+	new_mask |= value;
+
+	if (new_mask == old_mask)
+		return 0;
+
+	new_mask |= MC_CMD_PRIVILEGE_MASK_IN_DO_CHANGE;
+
+	/* Set privilege mask */
+	MCDI_SET_DWORD(pm_inbuf, PRIVILEGE_MASK_IN_NEW_MASK, new_mask);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_PRIVILEGE_MASK,
+			  pm_inbuf, sizeof(pm_inbuf),
+			  pm_outbuf, sizeof(pm_outbuf), &outlen);
+
+	if (rc != 0)
+		return rc;
+	if (outlen != MC_CMD_PRIVILEGE_MASK_OUT_LEN)
+		return -EIO;
+
+	return 0;
+}
+
+int efx_ef10_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf_i, bool spoofchk)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	/* Can't enable spoofchk if firmware doesn't support it. */
+	if (!(nic_data->datapath_caps &
+	      BIT(MC_CMD_GET_CAPABILITIES_OUT_TX_MAC_SECURITY_FILTERING_LBN)) &&
+	    spoofchk)
+		return -EOPNOTSUPP;
+
+	return efx_ef10_sriov_set_privilege_mask(efx, vf_i,
+		MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING_TX,
+		spoofchk ? 0 : MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING_TX);
 }
 
 int efx_ef10_sriov_set_vf_link_state(struct efx_nic *efx, int vf_i,

@@ -14,6 +14,7 @@ properties:
   compatible:
     enum:
       - amlogic,meson-g12a-usb2-phy
+      - amlogic,meson-a1-usb2-phy
 
   reg:
     maxItems: 1
@@ -36,10 +37,9 @@ properties:
     const: 0
 
   phy-supply:
-     maxItems: 1
-     description:
-       Phandle to a regulator that provides power to the PHY. This
-       regulator will be managed during the PHY power on/off sequence.
+    description:
+      Phandle to a regulator that provides power to the PHY. This
+      regulator will be managed during the PHY power on/off sequence.
 
 required:
   - compatible
@@ -49,6 +49,21 @@ required:
   - resets
   - reset-names
   - "#phy-cells"
+
+if:
+  properties:
+    compatible:
+      enum:
+        - amlogic,meson-a1-usb-ctrl
+
+then:
+  properties:
+    power-domains:
+      maxItems: 1
+  required:
+    - power-domains
+
+additionalProperties: false
 
 examples:
   - |

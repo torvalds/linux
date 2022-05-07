@@ -86,6 +86,7 @@ enum MCE_TlbErrorType {
 enum MCE_UserErrorType {
 	MCE_USER_ERROR_INDETERMINATE = 0,
 	MCE_USER_ERROR_TLBIE = 1,
+	MCE_USER_ERROR_SCV = 2,
 };
 
 enum MCE_RaErrorType {
@@ -209,6 +210,9 @@ struct mce_error_info {
 #define MCE_EVENT_RELEASE	true
 #define MCE_EVENT_DONTRELEASE	false
 
+struct pt_regs;
+struct notifier_block;
+
 extern void save_mce_event(struct pt_regs *regs, long handled,
 			   struct mce_error_info *mce_err, uint64_t nip,
 			   uint64_t addr, uint64_t phys_addr);
@@ -218,7 +222,15 @@ extern void machine_check_queue_event(void);
 extern void machine_check_print_event_info(struct machine_check_event *evt,
 					   bool user_mode, bool in_guest);
 unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr);
+extern void mce_common_process_ue(struct pt_regs *regs,
+				  struct mce_error_info *mce_err);
+int mce_register_notifier(struct notifier_block *nb);
+int mce_unregister_notifier(struct notifier_block *nb);
 #ifdef CONFIG_PPC_BOOK3S_64
 void flush_and_reload_slb(void);
+long __machine_check_early_realmode_p7(struct pt_regs *regs);
+long __machine_check_early_realmode_p8(struct pt_regs *regs);
+long __machine_check_early_realmode_p9(struct pt_regs *regs);
+long __machine_check_early_realmode_p10(struct pt_regs *regs);
 #endif /* CONFIG_PPC_BOOK3S_64 */
 #endif /* __ASM_PPC64_MCE_H__ */

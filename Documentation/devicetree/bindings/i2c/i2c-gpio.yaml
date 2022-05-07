@@ -52,15 +52,15 @@ properties:
     description: sda and scl gpio, alternative for {sda,scl}-gpios
 
   i2c-gpio,sda-open-drain:
-    # Generate a warning if present
-    not: true
+    type: boolean
+    deprecated: true
     description: this means that something outside of our control has put
       the GPIO line used for SDA into open drain mode, and that something is
       not the GPIO chip. It is essentially an inconsistency flag.
 
   i2c-gpio,scl-open-drain:
-    # Generate a warning if present
-    not: true
+    type: boolean
+    deprecated: true
     description: this means that something outside of our control has put the
       GPIO line used for SCL into open drain mode, and that something is not
       the GPIO chip. It is essentially an inconsistency flag.
@@ -69,5 +69,7 @@ required:
   - compatible
   - sda-gpios
   - scl-gpios
+
+unevaluatedProperties: false
 
 ...

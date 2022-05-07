@@ -493,16 +493,17 @@ static int as3645a_parse_node(struct as3645a *flash,
 		switch (id) {
 		case AS_LED_FLASH:
 			flash->flash_node = child;
+			fwnode_handle_get(child);
 			break;
 		case AS_LED_INDICATOR:
 			flash->indicator_node = child;
+			fwnode_handle_get(child);
 			break;
 		default:
 			dev_warn(&flash->client->dev,
 				 "unknown LED %u encountered, ignoring\n", id);
 			break;
 		}
-		fwnode_handle_get(child);
 	}
 
 	if (!flash->flash_node) {

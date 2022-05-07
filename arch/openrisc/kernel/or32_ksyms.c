@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
 #include <linux/semaphore.h>
+#include <linux/pgtable.h>
 
 #include <asm/processor.h>
 #include <linux/uaccess.h>
@@ -25,8 +26,6 @@
 #include <asm/io.h>
 #include <asm/hardirq.h>
 #include <asm/delay.h>
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 
 #define DECLARE_EXPORT(name) extern void name(void); EXPORT_SYMBOL(name)
 

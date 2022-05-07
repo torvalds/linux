@@ -47,6 +47,7 @@ enum {
 	CPL_CLOSE_LISTSRV_REQ = 0x9,
 	CPL_ABORT_REQ         = 0xA,
 	CPL_ABORT_RPL         = 0xB,
+	CPL_TX_DATA           = 0xC,
 	CPL_RX_DATA_ACK       = 0xD,
 	CPL_TX_PKT            = 0xE,
 	CPL_L2T_WRITE_REQ     = 0x12,
@@ -698,6 +699,14 @@ struct cpl_get_tcb_rpl {
 
 struct cpl_set_tcb_field {
 	WR_HDR;
+	union opcode_tid ot;
+	__be16 reply_ctrl;
+	__be16 word_cookie;
+	__be64 mask;
+	__be64 val;
+};
+
+struct cpl_set_tcb_field_core {
 	union opcode_tid ot;
 	__be16 reply_ctrl;
 	__be16 word_cookie;
@@ -1421,6 +1430,11 @@ enum {
 	CPL_FW4_ACK_FLAGS_FLOWC		= 0x4,	/* fw_flowc_wr complete */
 };
 
+#define CPL_FW4_ACK_FLOWID_S    0
+#define CPL_FW4_ACK_FLOWID_M    0xffffff
+#define CPL_FW4_ACK_FLOWID_G(x) \
+	(((x) >> CPL_FW4_ACK_FLOWID_S) & CPL_FW4_ACK_FLOWID_M)
+
 struct cpl_fw6_msg {
 	u8 opcode;
 	u8 type;
@@ -1457,6 +1471,16 @@ struct cpl_tx_data {
 #define TX_FORCE_S	13
 #define TX_FORCE_V(x)	((x) << TX_FORCE_S)
 
+#define TX_DATA_MSS_S    16
+#define TX_DATA_MSS_M    0xFFFF
+#define TX_DATA_MSS_V(x) ((x) << TX_DATA_MSS_S)
+#define TX_DATA_MSS_G(x) (((x) >> TX_DATA_MSS_S) & TX_DATA_MSS_M)
+
+#define TX_LENGTH_S    0
+#define TX_LENGTH_M    0xFFFF
+#define TX_LENGTH_V(x) ((x) << TX_LENGTH_S)
+#define TX_LENGTH_G(x) (((x) >> TX_LENGTH_S) & TX_LENGTH_M)
+
 #define T6_TX_FORCE_S		20
 #define T6_TX_FORCE_V(x)	((x) << T6_TX_FORCE_S)
 #define T6_TX_FORCE_F		T6_TX_FORCE_V(1U)
@@ -1466,6 +1490,15 @@ struct cpl_tx_data {
 
 #define TX_SHOVE_S    14
 #define TX_SHOVE_V(x) ((x) << TX_SHOVE_S)
+#define TX_SHOVE_F    TX_SHOVE_V(1U)
+
+#define TX_BYPASS_S    21
+#define TX_BYPASS_V(x) ((x) << TX_BYPASS_S)
+#define TX_BYPASS_F    TX_BYPASS_V(1U)
+
+#define TX_PUSH_S    22
+#define TX_PUSH_V(x) ((x) << TX_PUSH_S)
+#define TX_PUSH_F    TX_PUSH_V(1U)
 
 #define TX_ULP_MODE_S    10
 #define TX_ULP_MODE_M    0x7
@@ -1506,7 +1539,7 @@ struct ulptx_sgl {
 	__be32 cmd_nsge;
 	__be32 len0;
 	__be64 addr0;
-	struct ulptx_sge_pair sge[0];
+	struct ulptx_sge_pair sge[];
 };
 
 struct ulptx_idata {

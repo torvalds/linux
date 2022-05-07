@@ -147,7 +147,7 @@ static int pcm1681_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int pcm1681_digital_mute(struct snd_soc_dai *dai, int mute)
+static int pcm1681_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct pcm1681_private *priv = snd_soc_component_get_drvdata(component);
@@ -205,7 +205,8 @@ static int pcm1681_hw_params(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops pcm1681_dai_ops = {
 	.set_fmt	= pcm1681_set_dai_fmt,
 	.hw_params	= pcm1681_hw_params,
-	.digital_mute	= pcm1681_digital_mute,
+	.mute_stream	= pcm1681_mute,
+	.no_capture_mute = 1,
 };
 
 static const struct snd_soc_dapm_widget pcm1681_dapm_widgets[] = {

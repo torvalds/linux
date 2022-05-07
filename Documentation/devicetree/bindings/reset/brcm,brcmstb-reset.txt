@@ -22,6 +22,6 @@ Example:
 	};
 
 	&ethernet_switch {
-		resets = <&reset>;
+		resets = <&reset 26>;
 		reset-names = "switch";
 	};

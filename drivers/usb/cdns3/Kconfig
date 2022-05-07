@@ -43,4 +43,24 @@ config USB_CDNS3_PCI_WRAP
 	  If you choose to build this driver as module it will
 	  be dynamically linked and module will be called cdns3-pci.ko
 
+config USB_CDNS3_TI
+	tristate "Cadence USB3 support on TI platforms"
+	depends on ARCH_K3 || COMPILE_TEST
+	default USB_CDNS3
+	help
+	  Say 'Y' or 'M' here if you are building for Texas Instruments
+	  platforms that contain Cadence USB3 controller core.
+
+	  e.g. J721e.
+
+config USB_CDNS3_IMX
+	tristate "Cadence USB3 support on NXP i.MX platforms"
+	depends on ARCH_MXC || COMPILE_TEST
+	default USB_CDNS3
+	help
+	  Say 'Y' or 'M' here if you are building for NXP i.MX
+	  platforms that contain Cadence USB3 controller core.
+
+	  For example, imx8qm and imx8qxp.
+
 endif

@@ -6,13 +6,14 @@
 #ifndef GPIO_DW_APB_H
 #define GPIO_DW_APB_H
 
+#define DWAPB_MAX_GPIOS		32
+
 struct dwapb_port_property {
 	struct fwnode_handle *fwnode;
 	unsigned int	idx;
 	unsigned int	ngpio;
 	unsigned int	gpio_base;
-	int		irq[32];
-	bool		has_irq;
+	int		irq[DWAPB_MAX_GPIOS];
 	bool		irq_shared;
 };
 

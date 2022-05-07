@@ -55,5 +55,5 @@ audio-codec@10 {
 	compatible = "maxim,max98090";
 	reg = <0x10>;
 	interrupt-parent = <&gpio>;
-	interrupts = <TEGRA_GPIO(H, 4) GPIO_ACTIVE_HIGH>;
+	interrupts = <TEGRA_GPIO(H, 4) IRQ_TYPE_LEVEL_HIGH>;
 };

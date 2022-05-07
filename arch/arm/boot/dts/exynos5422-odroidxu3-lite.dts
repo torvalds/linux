@@ -26,6 +26,68 @@
 	status = "disabled";
 };
 
+&chipid {
+	samsung,asv-bin = <2>;
+};
+
+/*
+ * Odroid XU3-Lite board uses SoC revision with lower maximum frequencies
+ * than Odroid XU3/XU4 boards: 1.8 GHz for A15 cores & 1.3 GHz for A7 cores.
+ * Therefore we need to update OPPs tables and thermal maps accordingly.
+ */
+&cluster_a15_opp_table {
+	/delete-node/opp-2000000000;
+	/delete-node/opp-1900000000;
+};
+
+&cluster_a7_opp_table {
+	/delete-node/opp-1400000000;
+};
+
+&cpu0_cooling_map4 {
+	cooling-device = <&cpu0 3 7>,
+			 <&cpu1 3 7>,
+			 <&cpu2 3 7>,
+			 <&cpu3 3 7>,
+			 <&cpu4 3 12>,
+			 <&cpu5 3 12>,
+			 <&cpu6 3 12>,
+			 <&cpu7 3 12>;
+};
+
+&cpu1_cooling_map4 {
+	cooling-device = <&cpu0 3 7>,
+			 <&cpu1 3 7>,
+			 <&cpu2 3 7>,
+			 <&cpu3 3 7>,
+			 <&cpu4 3 12>,
+			 <&cpu5 3 12>,
+			 <&cpu6 3 12>,
+			 <&cpu7 3 12>;
+};
+
+&cpu2_cooling_map4 {
+	cooling-device = <&cpu0 3 7>,
+			 <&cpu1 3 7>,
+			 <&cpu2 3 7>,
+			 <&cpu3 3 7>,
+			 <&cpu4 3 12>,
+			 <&cpu5 3 12>,
+			 <&cpu6 3 12>,
+			 <&cpu7 3 12>;
+};
+
+&cpu3_cooling_map4 {
+	cooling-device = <&cpu0 3 7>,
+			 <&cpu1 3 7>,
+			 <&cpu2 3 7>,
+			 <&cpu3 3 7>,
+			 <&cpu4 3 12>,
+			 <&cpu5 3 12>,
+			 <&cpu6 3 12>,
+			 <&cpu7 3 12>;
+};
+
 &pwm {
 	/*
 	 * PWM 0 -- fan

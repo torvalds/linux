@@ -82,7 +82,7 @@ struct ishtp_msg_hdr {
 
 struct ishtp_bus_message {
 	uint8_t hbm_cmd;
-	uint8_t data[0];
+	uint8_t data[];
 } __packed;
 
 /**

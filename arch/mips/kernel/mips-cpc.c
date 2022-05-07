@@ -78,7 +78,7 @@ int mips_cpc_probe(void)
 	if (!addr)
 		return -ENODEV;
 
-	mips_cpc_base = ioremap_nocache(addr, 0x8000);
+	mips_cpc_base = ioremap(addr, 0x8000);
 	if (!mips_cpc_base)
 		return -ENXIO;
 

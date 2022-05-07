@@ -37,7 +37,7 @@ static void ls1x_power_off(void)
 
 static int __init ls1x_reboot_setup(void)
 {
-	wdt_reg_base = ioremap_nocache(LS1X_WDT_BASE, (SZ_4 + SZ_8));
+	wdt_reg_base = ioremap(LS1X_WDT_BASE, (SZ_4 + SZ_8));
 	if (!wdt_reg_base)
 		panic("Failed to remap watchdog registers");
 

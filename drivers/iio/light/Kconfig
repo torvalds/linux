@@ -32,6 +32,27 @@ config ADJD_S311
 	  This driver can also be built as a module.  If so, the module
 	  will be called adjd_s311.
 
+config ADUX1020
+	tristate "ADUX1020 photometric sensor"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	 Say Y here if you want to build a driver for the Analog Devices
+	 ADUX1020 photometric sensor.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called adux1020.
+
+config AL3010
+	tristate "AL3010 ambient light sensor"
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Dyna Image AL3010
+	  ambient light sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called al3010.
+
 config AL3320A
 	tristate "AL3320A ambient light sensor"
 	depends on I2C
@@ -64,6 +85,21 @@ config APDS9960
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called apds9960
+
+config AS73211
+	tristate "AMS AS73211 XYZ color sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	 If you say yes here you get support for the AMS AS73211
+	 JENCOLOR(R) Digital XYZ Sensor.
+
+	 For triggered measurements, you will need an additional trigger driver
+	 like IIO_HRTIMER_TRIGGER or IIO_SYSFS_TRIGGER.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called as73211.
 
 config BH1750
 	tristate "ROHM BH1750 ambient light sensor"
@@ -148,6 +184,17 @@ config IIO_CROS_EC_LIGHT_PROX
 	  To compile this driver as a module, choose M here:
 	  the module will be called cros_ec_light_prox.
 
+config GP2AP002
+	tristate "Sharp GP2AP002 Proximity/ALS sensor"
+	depends on I2C
+	select REGMAP
+	help
+	  Say Y here if you have a Sharp GP2AP002 proximity/ALS combo-chip
+	  hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gp2ap002.
+
 config GP2AP020A00F
 	tristate "Sharp GP2AP020A00F Proximity/ALS sensor"
 	depends on I2C
@@ -161,6 +208,16 @@ config GP2AP020A00F
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gp2ap020a00f.
+
+config IQS621_ALS
+	tristate "Azoteq IQS621/622 ambient light sensors"
+	depends on MFD_IQS62X || COMPILE_TEST
+	help
+	  Say Y here if you want to build support for the Azoteq IQS621
+	  and IQS622 ambient light sensors.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called iqs621-als.
 
 config SENSORS_ISL29018
 	tristate "Intersil 29018 light and proximity sensor"
@@ -474,6 +531,8 @@ config US5182D
 
 config VCNL4000
 	tristate "VCNL4000/4010/4020/4200 combined ALS and proximity sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	depends on I2C
 	help
 	  Say Y here if you want to build a driver for the Vishay VCNL4000,
@@ -485,6 +544,7 @@ config VCNL4000
 
 config VCNL4035
 	tristate "VCNL4035 combined ALS and proximity sensor"
+	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select REGMAP_I2C
 	depends on I2C
@@ -495,6 +555,17 @@ config VCNL4035
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vcnl4035.
+
+config VEML6030
+	tristate "VEML6030 ambient light sensor"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Vishay VEML6030
+	  ambient light sensor (ALS).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called veml6030.
 
 config VEML6070
 	tristate "VEML6070 UV A light sensor"

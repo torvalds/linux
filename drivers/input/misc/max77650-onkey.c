@@ -108,9 +108,16 @@ static int max77650_onkey_probe(struct platform_device *pdev)
 	return input_register_device(onkey->input);
 }
 
+static const struct of_device_id max77650_onkey_of_match[] = {
+	{ .compatible = "maxim,max77650-onkey" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, max77650_onkey_of_match);
+
 static struct platform_driver max77650_onkey_driver = {
 	.driver = {
 		.name = "max77650-onkey",
+		.of_match_table = max77650_onkey_of_match,
 	},
 	.probe = max77650_onkey_probe,
 };

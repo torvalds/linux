@@ -266,9 +266,9 @@ int crypto_register_scomp(struct scomp_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_register_scomp);
 
-int crypto_unregister_scomp(struct scomp_alg *alg)
+void crypto_unregister_scomp(struct scomp_alg *alg)
 {
-	return crypto_unregister_alg(&alg->base);
+	crypto_unregister_alg(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_scomp);
 

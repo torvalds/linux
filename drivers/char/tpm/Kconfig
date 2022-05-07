@@ -9,7 +9,7 @@ menuconfig TCG_TPM
 	imply SECURITYFS
 	select CRYPTO
 	select CRYPTO_HASH_INFO
-	---help---
+	help
 	  If you have a TPM security chip in your system, which
 	  implements the Trusted Computing Group's specification,
 	  say Yes and it will be accessible from within Linux.  For
@@ -31,7 +31,7 @@ config HW_RANDOM_TPM
 	bool "TPM HW Random Number Generator support"
 	depends on TCG_TPM && HW_RANDOM && !(TCG_TPM=y && HW_RANDOM=m)
 	default y
-	---help---
+	help
 	  This setting exposes the TPM's Random Number Generator as a hwrng
 	  device. This allows the kernel to collect randomness from the TPM at
 	  boot, and provides the TPM randomines in /dev/hwrng.
@@ -40,7 +40,7 @@ config HW_RANDOM_TPM
 
 config TCG_TIS_CORE
 	tristate
-	---help---
+	help
 	TCG TIS TPM core driver. It implements the TPM TCG TIS logic and hooks
 	into the TPM kernel APIs. Physical layers will register against it.
 
@@ -48,7 +48,7 @@ config TCG_TIS
 	tristate "TPM Interface Specification 1.2 Interface / TPM 2.0 FIFO Interface"
 	depends on X86 || OF
 	select TCG_TIS_CORE
-	---help---
+	help
 	  If you have a TPM security chip that is compliant with the
 	  TCG TIS 1.2 TPM specification (TPM1.2) or the TCG PTP FIFO
 	  specification (TPM2.0) say Yes and it will be accessible from
@@ -59,7 +59,7 @@ config TCG_TIS_SPI
 	tristate "TPM Interface Specification 1.3 Interface / TPM 2.0 FIFO Interface - (SPI)"
 	depends on SPI
 	select TCG_TIS_CORE
-	---help---
+	help
 	  If you have a TPM security chip which is connected to a regular,
 	  non-tcg SPI master (i.e. most embedded platforms) that is compliant with the
 	  TCG TIS 1.3 TPM specification (TPM1.2) or the TCG PTP FIFO
@@ -67,10 +67,29 @@ config TCG_TIS_SPI
 	  within Linux. To compile this driver as a module, choose  M here;
 	  the module will be called tpm_tis_spi.
 
+config TCG_TIS_SPI_CR50
+	bool "Cr50 SPI Interface"
+	depends on TCG_TIS_SPI
+	help
+	  If you have a H1 secure module running Cr50 firmware on SPI bus,
+	  say Yes and it will be accessible from within Linux.
+
+config TCG_TIS_SYNQUACER
+	tristate "TPM Interface Specification 1.2 Interface / TPM 2.0 FIFO Interface (MMIO - SynQuacer)"
+	depends on ARCH_SYNQUACER
+	select TCG_TIS_CORE
+	help
+	  If you have a TPM security chip that is compliant with the
+	  TCG TIS 1.2 TPM specification (TPM1.2) or the TCG PTP FIFO
+	  specification (TPM2.0) say Yes and it will be accessible from
+	  within Linux on Socionext SynQuacer platform.
+	  To compile this driver as a module, choose  M here;
+	  the module will be called tpm_tis_synquacer.
+
 config TCG_TIS_I2C_ATMEL
 	tristate "TPM Interface Specification 1.2 Interface (I2C - Atmel)"
 	depends on I2C
-	---help---
+	help
 	  If you have an Atmel I2C TPM security chip say Yes and it will be
 	  accessible from within Linux.
 	  To compile this driver as a module, choose M here; the module will
@@ -79,7 +98,7 @@ config TCG_TIS_I2C_ATMEL
 config TCG_TIS_I2C_INFINEON
 	tristate "TPM Interface Specification 1.2 Interface (I2C - Infineon)"
 	depends on I2C
-	---help---
+	help
 	  If you have a TPM security chip that is compliant with the
 	  TCG TIS 1.2 TPM specification and Infineon's I2C Protocol Stack
 	  Specification 0.20 say Yes and it will be accessible from within
@@ -90,7 +109,7 @@ config TCG_TIS_I2C_INFINEON
 config TCG_TIS_I2C_NUVOTON
 	tristate "TPM Interface Specification 1.2 Interface (I2C - Nuvoton)"
 	depends on I2C
-	---help---
+	help
 	  If you have a TPM security chip with an I2C interface from
 	  Nuvoton Technology Corp. say Yes and it will be accessible
 	  from within Linux.
@@ -100,7 +119,7 @@ config TCG_TIS_I2C_NUVOTON
 config TCG_NSC
 	tristate "National Semiconductor TPM Interface"
 	depends on X86
-	---help---
+	help
 	  If you have a TPM security chip from National Semiconductor 
 	  say Yes and it will be accessible from within Linux.  To 
 	  compile this driver as a module, choose M here; the module 
@@ -109,7 +128,7 @@ config TCG_NSC
 config TCG_ATMEL
 	tristate "Atmel TPM Interface"
 	depends on PPC64 || HAS_IOPORT_MAP
-	---help---
+	help
 	  If you have a TPM security chip from Atmel say Yes and it 
 	  will be accessible from within Linux.  To compile this driver 
 	  as a module, choose M here; the module will be called tpm_atmel.
@@ -117,7 +136,7 @@ config TCG_ATMEL
 config TCG_INFINEON
 	tristate "Infineon Technologies TPM Interface"
 	depends on PNP
-	---help---
+	help
 	  If you have a TPM security chip from Infineon Technologies
 	  (either SLD 9630 TT 1.1 or SLB 9635 TT 1.2) say Yes and it
 	  will be accessible from within Linux.
@@ -129,7 +148,7 @@ config TCG_INFINEON
 config TCG_IBMVTPM
 	tristate "IBM VTPM Interface"
 	depends on PPC_PSERIES
-	---help---
+	help
 	  If you have IBM virtual TPM (VTPM) support say Yes and it
 	  will be accessible from within Linux.  To compile this driver
 	  as a module, choose M here; the module will be called tpm_ibmvtpm.
@@ -138,7 +157,7 @@ config TCG_XEN
 	tristate "XEN TPM Interface"
 	depends on TCG_TPM && XEN
 	select XEN_XENBUS_FRONTEND
-	---help---
+	help
 	  If you want to make TPM support available to a Xen user domain,
 	  say Yes and it will be accessible from within Linux. See
 	  the manpages for xl, xl.conf, and docs/misc/vtpm.txt in
@@ -149,7 +168,7 @@ config TCG_XEN
 config TCG_CRB
 	tristate "TPM 2.0 CRB Interface"
 	depends on ACPI
-	---help---
+	help
 	  If you have a TPM security chip that is compliant with the
 	  TCG CRB 2.0 TPM specification say Yes and it will be accessible
 	  from within Linux.  To compile this driver as a module, choose
@@ -158,7 +177,7 @@ config TCG_CRB
 config TCG_VTPM_PROXY
 	tristate "VTPM Proxy Interface"
 	depends on TCG_TPM
-	---help---
+	help
 	  This driver proxies for an emulated TPM (vTPM) running in userspace.
 	  A device /dev/vtpmx is provided that creates a device pair
 	  /dev/vtpmX and a server-side file descriptor on which the vTPM

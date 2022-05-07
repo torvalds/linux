@@ -40,9 +40,11 @@
 #include <linux/skbuff.h>
 #include <linux/inetdevice.h>
 #include <linux/atomic.h>
+#include <net/tls.h>
 #include "cxgb4.h"
 
 #define MAX_ULD_QSETS 16
+#define MAX_ULD_NPORTS 4
 
 /* CPL message priority levels */
 enum {
@@ -89,23 +91,35 @@ union aopen_entry {
 	union aopen_entry *next;
 };
 
+struct eotid_entry {
+	void *data;
+};
+
 /*
  * Holds the size, base address, free list start, etc of the TID, server TID,
  * and active-open TID tables.  The tables themselves are allocated dynamically.
  */
 struct tid_info {
 	void **tid_tab;
+	unsigned int tid_base;
 	unsigned int ntids;
 
 	struct serv_entry *stid_tab;
 	unsigned long *stid_bmap;
 	unsigned int nstids;
 	unsigned int stid_base;
+
+	unsigned int nhash;
 	unsigned int hash_base;
 
 	union aopen_entry *atid_tab;
 	unsigned int natids;
 	unsigned int atid_base;
+
+	struct filter_entry *hpftid_tab;
+	unsigned long *hpftid_bmap;
+	unsigned int nhpftids;
+	unsigned int hpftid_base;
 
 	struct filter_entry *ftid_tab;
 	unsigned long *ftid_bmap;
@@ -126,18 +140,35 @@ struct tid_info {
 	unsigned int v6_stids_in_use;
 	unsigned int sftids_in_use;
 
+	/* ETHOFLD range */
+	struct eotid_entry *eotid_tab;
+	unsigned long *eotid_bmap;
+	unsigned int eotid_base;
+	unsigned int neotids;
+
 	/* TIDs in the TCAM */
 	atomic_t tids_in_use;
 	/* TIDs in the HASH */
 	atomic_t hash_tids_in_use;
 	atomic_t conns_in_use;
+	/* ETHOFLD TIDs used for rate limiting */
+	atomic_t eotids_in_use;
+
 	/* lock for setting/clearing filter bitmap */
 	spinlock_t ftid_lock;
+
+	unsigned int tc_hash_tids_max_prio;
 };
 
 static inline void *lookup_tid(const struct tid_info *t, unsigned int tid)
 {
+	tid -= t->tid_base;
 	return tid < t->ntids ? t->tid_tab[tid] : NULL;
+}
+
+static inline bool tid_out_of_range(const struct tid_info *t, unsigned int tid)
+{
+	return ((tid - t->tid_base) >= t->ntids);
 }
 
 static inline void *lookup_atid(const struct tid_info *t, unsigned int atid)
@@ -161,7 +192,7 @@ static inline void *lookup_stid(const struct tid_info *t, unsigned int stid)
 static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
 				    unsigned int tid, unsigned short family)
 {
-	t->tid_tab[tid] = data;
+	t->tid_tab[tid - t->tid_base] = data;
 	if (t->hash_base && (tid >= t->hash_base)) {
 		if (family == AF_INET6)
 			atomic_add(2, &t->hash_tids_in_use);
@@ -174,6 +205,37 @@ static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
 			atomic_inc(&t->tids_in_use);
 	}
 	atomic_inc(&t->conns_in_use);
+}
+
+static inline struct eotid_entry *cxgb4_lookup_eotid(struct tid_info *t,
+						     u32 eotid)
+{
+	return eotid < t->neotids ? &t->eotid_tab[eotid] : NULL;
+}
+
+static inline int cxgb4_get_free_eotid(struct tid_info *t)
+{
+	int eotid;
+
+	eotid = find_first_zero_bit(t->eotid_bmap, t->neotids);
+	if (eotid >= t->neotids)
+		eotid = -1;
+
+	return eotid;
+}
+
+static inline void cxgb4_alloc_eotid(struct tid_info *t, u32 eotid, void *data)
+{
+	set_bit(eotid, t->eotid_bmap);
+	t->eotid_tab[eotid].data = data;
+	atomic_inc(&t->eotids_in_use);
+}
+
+static inline void cxgb4_free_eotid(struct tid_info *t, u32 eotid)
+{
+	clear_bit(eotid, t->eotid_bmap);
+	t->eotid_tab[eotid].data = NULL;
+	atomic_dec(&t->eotids_in_use);
 }
 
 int cxgb4_alloc_atid(struct tid_info *t, void *data);
@@ -210,9 +272,14 @@ struct filter_ctx {
 	u32 tid;			/* to store tid */
 };
 
+struct chcr_ktls {
+	refcount_t ktls_refcount;
+};
+
 struct ch_filter_specification;
 
-int cxgb4_get_free_ftid(struct net_device *dev, int family);
+int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
+			u32 tc_prio);
 int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 		       struct ch_filter_specification *fs,
 		       struct filter_ctx *ctx);
@@ -237,7 +304,9 @@ enum cxgb4_uld {
 	CXGB4_ULD_ISCSI,
 	CXGB4_ULD_ISCSIT,
 	CXGB4_ULD_CRYPTO,
+	CXGB4_ULD_IPSEC,
 	CXGB4_ULD_TLS,
+	CXGB4_ULD_KTLS,
 	CXGB4_ULD_MAX
 };
 
@@ -268,6 +337,7 @@ enum cxgb4_control {
 	CXGB4_CONTROL_DB_DROP,
 };
 
+struct adapter;
 struct pci_dev;
 struct l2t_data;
 struct net_device;
@@ -295,6 +365,33 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	struct cxgb4_range ppod_edram;
 };
 
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
+struct ch_ktls_port_stats_debug {
+	atomic64_t ktls_tx_connection_open;
+	atomic64_t ktls_tx_connection_fail;
+	atomic64_t ktls_tx_connection_close;
+	atomic64_t ktls_tx_encrypted_packets;
+	atomic64_t ktls_tx_encrypted_bytes;
+	atomic64_t ktls_tx_ctx;
+	atomic64_t ktls_tx_ooo;
+	atomic64_t ktls_tx_skip_no_sync_data;
+	atomic64_t ktls_tx_drop_no_sync_data;
+	atomic64_t ktls_tx_drop_bypass_req;
+};
+
+struct ch_ktls_stats_debug {
+	struct ch_ktls_port_stats_debug ktls_port[MAX_ULD_NPORTS];
+	atomic64_t ktls_tx_send_records;
+	atomic64_t ktls_tx_end_pkts;
+	atomic64_t ktls_tx_start_pkts;
+	atomic64_t ktls_tx_middle_pkts;
+	atomic64_t ktls_tx_retransmit_pkts;
+	atomic64_t ktls_tx_complete_pkts;
+	atomic64_t ktls_tx_trimmed_pkts;
+	atomic64_t ktls_tx_fallback;
+};
+#endif
+
 struct chcr_stats_debug {
 	atomic_t cipher_rqst;
 	atomic_t digest_rqst;
@@ -302,11 +399,16 @@ struct chcr_stats_debug {
 	atomic_t complete;
 	atomic_t error;
 	atomic_t fallback;
-	atomic_t ipsec_cnt;
 	atomic_t tls_pdu_tx;
 	atomic_t tls_pdu_rx;
 	atomic_t tls_key;
 };
+
+#if IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
+struct ch_ipsec_stats_debug {
+	atomic_t ipsec_cnt;
+};
+#endif
 
 #define OCQ_WIN_OFFSET(pdev, vres) \
 	(pci_resource_len((pdev), 2) - roundup_pow_of_two((vres)->ocq.size))
@@ -384,8 +486,20 @@ struct cxgb4_uld_info {
 			      struct napi_struct *napi);
 	void (*lro_flush)(struct t4_lro_mgr *);
 	int (*tx_handler)(struct sk_buff *skb, struct net_device *dev);
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
+	const struct tlsdev_ops *tlsdev_ops;
+#endif
+#if IS_ENABLED(CONFIG_XFRM_OFFLOAD)
+	const struct xfrmdev_ops *xfrmdev_ops;
+#endif
 };
 
+static inline bool cxgb4_is_ktls_skb(struct sk_buff *skb)
+{
+	return skb->sk && tls_is_sk_tx_device_offloaded(skb->sk);
+}
+
+void cxgb4_uld_enable(struct adapter *adap);
 void cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);

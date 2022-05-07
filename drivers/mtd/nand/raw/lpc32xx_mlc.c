@@ -648,6 +648,9 @@ static int lpc32xx_nand_attach_chip(struct nand_chip *chip)
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 	struct device *dev = &host->pdev->dev;
 
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
 	host->dma_buf = devm_kzalloc(dev, mtd->writesize, GFP_KERNEL);
 	if (!host->dma_buf)
 		return -ENOMEM;
@@ -656,8 +659,17 @@ static int lpc32xx_nand_attach_chip(struct nand_chip *chip)
 	if (!host->dummy_buf)
 		return -ENOMEM;
 
-	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.size = 512;
+	chip->ecc.hwctl = lpc32xx_ecc_enable;
+	chip->ecc.read_page_raw = lpc32xx_read_page;
+	chip->ecc.read_page = lpc32xx_read_page;
+	chip->ecc.write_page_raw = lpc32xx_write_page_lowlevel;
+	chip->ecc.write_page = lpc32xx_write_page_lowlevel;
+	chip->ecc.write_oob = lpc32xx_write_oob;
+	chip->ecc.read_oob = lpc32xx_read_oob;
+	chip->ecc.strength = 4;
+	chip->ecc.bytes = 10;
+
 	mtd_set_ooblayout(mtd, &lpc32xx_ooblayout_ops);
 	host->mlcsubpages = mtd->writesize / 512;
 
@@ -741,15 +753,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 
 	/* Initialize function pointers */
-	nand_chip->ecc.hwctl = lpc32xx_ecc_enable;
-	nand_chip->ecc.read_page_raw = lpc32xx_read_page;
-	nand_chip->ecc.read_page = lpc32xx_read_page;
-	nand_chip->ecc.write_page_raw = lpc32xx_write_page_lowlevel;
-	nand_chip->ecc.write_page = lpc32xx_write_page_lowlevel;
-	nand_chip->ecc.write_oob = lpc32xx_write_oob;
-	nand_chip->ecc.read_oob = lpc32xx_read_oob;
-	nand_chip->ecc.strength = 4;
-	nand_chip->ecc.bytes = 10;
 	nand_chip->legacy.waitfunc = lpc32xx_waitfunc;
 
 	nand_chip->options = NAND_NO_SUBPAGE_WRITE;
@@ -773,7 +776,6 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	host->irq = platform_get_irq(pdev, 0);
 	if (host->irq < 0) {
-		dev_err(&pdev->dev, "failed to get platform irq\n");
 		res = -EINVAL;
 		goto release_dma_chan;
 	}
@@ -827,8 +829,13 @@ free_gpio:
 static int lpc32xx_nand_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_nand_host *host = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &host->nand_chip;
+	int ret;
 
-	nand_release(&host->nand_chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
+
 	free_irq(host->irq, host);
 	if (use_dma)
 		dma_release_channel(host->dma_chan);

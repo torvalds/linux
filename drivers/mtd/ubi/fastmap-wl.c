@@ -39,6 +39,13 @@ static struct ubi_wl_entry *find_anchor_wl_entry(struct rb_root *root)
 	return victim;
 }
 
+static inline void return_unused_peb(struct ubi_device *ubi,
+				     struct ubi_wl_entry *e)
+{
+	wl_tree_add(e, &ubi->free);
+	ubi->free_count++;
+}
+
 /**
  * return_unused_pool_pebs - returns unused PEB to the free tree.
  * @ubi: UBI device description object
@@ -52,21 +59,8 @@ static void return_unused_pool_pebs(struct ubi_device *ubi,
 
 	for (i = pool->used; i < pool->size; i++) {
 		e = ubi->lookuptbl[pool->pebs[i]];
-		wl_tree_add(e, &ubi->free);
-		ubi->free_count++;
+		return_unused_peb(ubi, e);
 	}
-}
-
-static int anchor_pebs_available(struct rb_root *root)
-{
-	struct rb_node *p;
-	struct ubi_wl_entry *e;
-
-	ubi_rb_for_each_entry(p, e, root, u.rb)
-		if (e->pnum < UBI_FM_MAX_START)
-			return 1;
-
-	return 0;
 }
 
 /**
@@ -121,6 +115,21 @@ void ubi_refill_pools(struct ubi_device *ubi)
 
 	wl_pool->size = 0;
 	pool->size = 0;
+
+	if (ubi->fm_anchor) {
+		wl_tree_add(ubi->fm_anchor, &ubi->free);
+		ubi->free_count++;
+	}
+	if (ubi->fm_next_anchor) {
+		wl_tree_add(ubi->fm_next_anchor, &ubi->free);
+		ubi->free_count++;
+	}
+
+	/* All available PEBs are in ubi->free, now is the time to get
+	 * the best anchor PEBs.
+	 */
+	ubi->fm_anchor = ubi_wl_get_fm_peb(ubi, 1);
+	ubi->fm_next_anchor = ubi_wl_get_fm_peb(ubi, 1);
 
 	for (;;) {
 		enough = 0;
@@ -279,6 +288,18 @@ int ubi_ensure_anchor_pebs(struct ubi_device *ubi)
 	struct ubi_work *wrk;
 
 	spin_lock(&ubi->wl_lock);
+
+	/* Do we have a next anchor? */
+	if (!ubi->fm_next_anchor) {
+		ubi->fm_next_anchor = ubi_wl_get_fm_peb(ubi, 1);
+		if (!ubi->fm_next_anchor)
+			/* Tell wear leveling to produce a new anchor PEB */
+			ubi->fm_do_produce_anchor = 1;
+	}
+
+	/* Do wear leveling to get a new anchor PEB or check the
+	 * existing next anchor candidate.
+	 */
 	if (ubi->wl_scheduled) {
 		spin_unlock(&ubi->wl_lock);
 		return 0;
@@ -294,7 +315,6 @@ int ubi_ensure_anchor_pebs(struct ubi_device *ubi)
 		return -ENOMEM;
 	}
 
-	wrk->anchor = 1;
 	wrk->func = &wear_leveling_worker;
 	__schedule_ubi_work(ubi, wrk);
 	return 0;
@@ -355,6 +375,16 @@ static void ubi_fastmap_close(struct ubi_device *ubi)
 
 	return_unused_pool_pebs(ubi, &ubi->fm_pool);
 	return_unused_pool_pebs(ubi, &ubi->fm_wl_pool);
+
+	if (ubi->fm_anchor) {
+		return_unused_peb(ubi, ubi->fm_anchor);
+		ubi->fm_anchor = NULL;
+	}
+
+	if (ubi->fm_next_anchor) {
+		return_unused_peb(ubi, ubi->fm_next_anchor);
+		ubi->fm_next_anchor = NULL;
+	}
 
 	if (ubi->fm) {
 		for (i = 0; i < ubi->fm->used_blocks; i++)

@@ -88,7 +88,6 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 	if (!madera)
 		return -ENOMEM;
 
-
 	madera->regmap = devm_regmap_init_i2c(i2c, regmap_16bit_config);
 	if (IS_ERR(madera->regmap)) {
 		ret = PTR_ERR(madera->regmap);

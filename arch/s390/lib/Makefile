@@ -11,3 +11,8 @@ lib-$(CONFIG_UPROBES) += probes.o
 # Instrumenting memory accesses to __user data (in different address space)
 # produce false positives
 KASAN_SANITIZE_uaccess.o := n
+
+obj-$(CONFIG_S390_UNWIND_SELFTEST) += test_unwind.o
+CFLAGS_test_unwind.o += -fno-optimize-sibling-calls
+
+lib-$(CONFIG_FUNCTION_ERROR_INJECTION) += error-inject.o

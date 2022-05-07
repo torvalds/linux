@@ -46,24 +46,22 @@ properties:
         0: LOW
         1: HIGH
       Default is LOW if nothing else is specified.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - maxItems: 8
-        items:
-          enum: [ 0, 1 ]
-          default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    maxItems: 8
+    items:
+      enum: [0, 1]
+      default: 0
 
   states:
     description: Selection of available voltages/currents provided by this
       regulator and matching GPIO configurations to achieve them. If there are
       no states in the "states" array, use a fixed regulator instead.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-matrix
-      - maxItems: 8
-        items:
-          items:
-            - description: Voltage in microvolts
-            - description: GPIO group state value
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    maxItems: 8
+    items:
+      items:
+        - description: Voltage in microvolts
+        - description: GPIO group state value
 
   startup-delay-us:
     description: startup time in microseconds
@@ -81,18 +79,19 @@ properties:
 
   regulator-type:
     description: Specifies what is being regulated.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string
-      - enum:
-          - voltage
-          - current
-        default: voltage
+    $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - voltage
+      - current
+    default: voltage
 
 required:
   - compatible
   - regulator-name
   - gpios
   - states
+
+unevaluatedProperties: false
 
 examples:
   - |

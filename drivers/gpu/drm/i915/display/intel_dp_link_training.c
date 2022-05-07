@@ -34,10 +34,25 @@ intel_dp_dump_link_status(const u8 link_status[DP_LINK_STATUS_SIZE])
 		      link_status[3], link_status[4], link_status[5]);
 }
 
-static void
-intel_get_adjust_train(struct intel_dp *intel_dp,
-		       const u8 link_status[DP_LINK_STATUS_SIZE])
+static u8 dp_voltage_max(u8 preemph)
 {
+	switch (preemph & DP_TRAIN_PRE_EMPHASIS_MASK) {
+	case DP_TRAIN_PRE_EMPH_LEVEL_0:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
+	case DP_TRAIN_PRE_EMPH_LEVEL_1:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
+	case DP_TRAIN_PRE_EMPH_LEVEL_2:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_1;
+	case DP_TRAIN_PRE_EMPH_LEVEL_3:
+	default:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
+	}
+}
+
+void intel_dp_get_adjust_train(struct intel_dp *intel_dp,
+			       const u8 link_status[DP_LINK_STATUS_SIZE])
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 v = 0;
 	u8 p = 0;
 	int lane;
@@ -45,22 +60,27 @@ intel_get_adjust_train(struct intel_dp *intel_dp,
 	u8 preemph_max;
 
 	for (lane = 0; lane < intel_dp->lane_count; lane++) {
-		u8 this_v = drm_dp_get_adjust_request_voltage(link_status, lane);
-		u8 this_p = drm_dp_get_adjust_request_pre_emphasis(link_status, lane);
-
-		if (this_v > v)
-			v = this_v;
-		if (this_p > p)
-			p = this_p;
+		v = max(v, drm_dp_get_adjust_request_voltage(link_status, lane));
+		p = max(p, drm_dp_get_adjust_request_pre_emphasis(link_status, lane));
 	}
 
-	voltage_max = intel_dp_voltage_max(intel_dp);
-	if (v >= voltage_max)
-		v = voltage_max | DP_TRAIN_MAX_SWING_REACHED;
+	preemph_max = intel_dp->preemph_max(intel_dp);
+	drm_WARN_ON_ONCE(&i915->drm,
+			 preemph_max != DP_TRAIN_PRE_EMPH_LEVEL_2 &&
+			 preemph_max != DP_TRAIN_PRE_EMPH_LEVEL_3);
 
-	preemph_max = intel_dp_pre_emphasis_max(intel_dp, v);
 	if (p >= preemph_max)
 		p = preemph_max | DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
+
+	v = min(v, dp_voltage_max(p));
+
+	voltage_max = intel_dp->voltage_max(intel_dp);
+	drm_WARN_ON_ONCE(&i915->drm,
+			 voltage_max != DP_TRAIN_VOLTAGE_SWING_LEVEL_2 &&
+			 voltage_max != DP_TRAIN_VOLTAGE_SWING_LEVEL_3);
+
+	if (v >= voltage_max)
+		v = voltage_max | DP_TRAIN_MAX_SWING_REACHED;
 
 	for (lane = 0; lane < 4; lane++)
 		intel_dp->train_set[lane] = v | p;
@@ -130,6 +150,7 @@ static bool intel_dp_link_max_vswing_reached(struct intel_dp *intel_dp)
 static bool
 intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 voltage;
 	int voltage_tries, cr_tries, max_cr_tries;
 	bool max_vswing_reached = false;
@@ -143,9 +164,11 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 			      &link_bw, &rate_select);
 
 	if (link_bw)
-		DRM_DEBUG_KMS("Using LINK_BW_SET value %02x\n", link_bw);
+		drm_dbg_kms(&i915->drm,
+			    "Using LINK_BW_SET value %02x\n", link_bw);
 	else
-		DRM_DEBUG_KMS("Using LINK_RATE_SET value %02x\n", rate_select);
+		drm_dbg_kms(&i915->drm,
+			    "Using LINK_RATE_SET value %02x\n", rate_select);
 
 	/* Write the link configuration data */
 	link_config[0] = link_bw;
@@ -169,7 +192,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 	if (!intel_dp_reset_link_train(intel_dp,
 				       DP_TRAINING_PATTERN_1 |
 				       DP_LINK_SCRAMBLING_DISABLE)) {
-		DRM_ERROR("failed to enable link training\n");
+		drm_err(&i915->drm, "failed to enable link training\n");
 		return false;
 	}
 
@@ -193,31 +216,33 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 		drm_dp_link_train_clock_recovery_delay(intel_dp->dpcd);
 
 		if (!intel_dp_get_link_status(intel_dp, link_status)) {
-			DRM_ERROR("failed to get link status\n");
+			drm_err(&i915->drm, "failed to get link status\n");
 			return false;
 		}
 
 		if (drm_dp_clock_recovery_ok(link_status, intel_dp->lane_count)) {
-			DRM_DEBUG_KMS("clock recovery OK\n");
+			drm_dbg_kms(&i915->drm, "clock recovery OK\n");
 			return true;
 		}
 
 		if (voltage_tries == 5) {
-			DRM_DEBUG_KMS("Same voltage tried 5 times\n");
+			drm_dbg_kms(&i915->drm,
+				    "Same voltage tried 5 times\n");
 			return false;
 		}
 
 		if (max_vswing_reached) {
-			DRM_DEBUG_KMS("Max Voltage Swing reached\n");
+			drm_dbg_kms(&i915->drm, "Max Voltage Swing reached\n");
 			return false;
 		}
 
 		voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
 
 		/* Update training set as requested by target */
-		intel_get_adjust_train(intel_dp, link_status);
+		intel_dp_get_adjust_train(intel_dp, link_status);
 		if (!intel_dp_update_link_train(intel_dp)) {
-			DRM_ERROR("failed to update link training\n");
+			drm_err(&i915->drm,
+				"failed to update link training\n");
 			return false;
 		}
 
@@ -231,7 +256,8 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 			max_vswing_reached = true;
 
 	}
-	DRM_ERROR("Failed clock recovery %d times, giving up!\n", max_cr_tries);
+	drm_err(&i915->drm,
+		"Failed clock recovery %d times, giving up!\n", max_cr_tries);
 	return false;
 }
 
@@ -256,9 +282,11 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 		return DP_TRAINING_PATTERN_4;
 	} else if (intel_dp->link_rate == 810000) {
 		if (!source_tps4)
-			DRM_DEBUG_KMS("8.1 Gbps link rate without source HBR3/TPS4 support\n");
+			drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
+				    "8.1 Gbps link rate without source HBR3/TPS4 support\n");
 		if (!sink_tps4)
-			DRM_DEBUG_KMS("8.1 Gbps link rate without sink TPS4 support\n");
+			drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
+				    "8.1 Gbps link rate without sink TPS4 support\n");
 	}
 	/*
 	 * Intel platforms that support HBR2 also support TPS3. TPS3 support is
@@ -271,9 +299,11 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 		return  DP_TRAINING_PATTERN_3;
 	} else if (intel_dp->link_rate >= 540000) {
 		if (!source_tps3)
-			DRM_DEBUG_KMS(">=5.4/6.48 Gbps link rate without source HBR2/TPS3 support\n");
+			drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
+				    ">=5.4/6.48 Gbps link rate without source HBR2/TPS3 support\n");
 		if (!sink_tps3)
-			DRM_DEBUG_KMS(">=5.4/6.48 Gbps link rate without sink TPS3 support\n");
+			drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
+				    ">=5.4/6.48 Gbps link rate without sink TPS3 support\n");
 	}
 
 	return DP_TRAINING_PATTERN_2;
@@ -282,6 +312,7 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 static bool
 intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	int tries;
 	u32 training_pattern;
 	u8 link_status[DP_LINK_STATUS_SIZE];
@@ -295,7 +326,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 	/* channel equalization */
 	if (!intel_dp_set_link_train(intel_dp,
 				     training_pattern)) {
-		DRM_ERROR("failed to start channel equalization\n");
+		drm_err(&i915->drm, "failed to start channel equalization\n");
 		return false;
 	}
 
@@ -303,7 +334,8 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 
 		drm_dp_link_train_channel_eq_delay(intel_dp->dpcd);
 		if (!intel_dp_get_link_status(intel_dp, link_status)) {
-			DRM_ERROR("failed to get link status\n");
+			drm_err(&i915->drm,
+				"failed to get link status\n");
 			break;
 		}
 
@@ -311,23 +343,25 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 		if (!drm_dp_clock_recovery_ok(link_status,
 					      intel_dp->lane_count)) {
 			intel_dp_dump_link_status(link_status);
-			DRM_DEBUG_KMS("Clock recovery check failed, cannot "
-				      "continue channel equalization\n");
+			drm_dbg_kms(&i915->drm,
+				    "Clock recovery check failed, cannot "
+				    "continue channel equalization\n");
 			break;
 		}
 
 		if (drm_dp_channel_eq_ok(link_status,
 					 intel_dp->lane_count)) {
 			channel_eq = true;
-			DRM_DEBUG_KMS("Channel EQ done. DP Training "
-				      "successful\n");
+			drm_dbg_kms(&i915->drm, "Channel EQ done. DP Training "
+				    "successful\n");
 			break;
 		}
 
 		/* Update training set as requested by target */
-		intel_get_adjust_train(intel_dp, link_status);
+		intel_dp_get_adjust_train(intel_dp, link_status);
 		if (!intel_dp_update_link_train(intel_dp)) {
-			DRM_ERROR("failed to update link training\n");
+			drm_err(&i915->drm,
+				"failed to update link training\n");
 			break;
 		}
 	}
@@ -335,7 +369,8 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 	/* Try 5 times, else fail and try at lower BW */
 	if (tries == 5) {
 		intel_dp_dump_link_status(link_status);
-		DRM_DEBUG_KMS("Channel equalization failed 5 times\n");
+		drm_dbg_kms(&i915->drm,
+			    "Channel equalization failed 5 times\n");
 	}
 
 	intel_dp_set_idle_link_train(intel_dp);
@@ -362,21 +397,30 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	if (!intel_dp_link_training_channel_equalization(intel_dp))
 		goto failure_handling;
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Link Training Passed at Link Rate = %d, Lane count = %d",
-		      intel_connector->base.base.id,
-		      intel_connector->base.name,
-		      intel_dp->link_rate, intel_dp->lane_count);
+	drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
+		    "[CONNECTOR:%d:%s] Link Training Passed at Link Rate = %d, Lane count = %d",
+		    intel_connector->base.base.id,
+		    intel_connector->base.name,
+		    intel_dp->link_rate, intel_dp->lane_count);
 	return;
 
  failure_handling:
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Link Training failed at link rate = %d, lane count = %d",
-		      intel_connector->base.base.id,
-		      intel_connector->base.name,
-		      intel_dp->link_rate, intel_dp->lane_count);
-	if (!intel_dp_get_link_train_fallback_values(intel_dp,
-						     intel_dp->link_rate,
-						     intel_dp->lane_count))
-		/* Schedule a Hotplug Uevent to userspace to start modeset */
-		schedule_work(&intel_connector->modeset_retry_work);
-	return;
+	drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
+		    "[CONNECTOR:%d:%s] Link Training failed at link rate = %d, lane count = %d",
+		    intel_connector->base.base.id,
+		    intel_connector->base.name,
+		    intel_dp->link_rate, intel_dp->lane_count);
+
+	if (intel_dp->hobl_active) {
+		drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
+			    "Link Training failed with HOBL active, not enabling it from now on");
+		intel_dp->hobl_failed = true;
+	} else if (intel_dp_get_link_train_fallback_values(intel_dp,
+							   intel_dp->link_rate,
+							   intel_dp->lane_count)) {
+		return;
+	}
+
+	/* Schedule a Hotplug Uevent to userspace to start modeset */
+	schedule_work(&intel_connector->modeset_retry_work);
 }

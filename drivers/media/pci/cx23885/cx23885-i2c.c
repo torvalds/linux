@@ -337,8 +337,8 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 		strscpy(info.type, "ir_video", I2C_NAME_SIZE);
 		/* Use quick read command for probe, some IR chips don't
 		 * support writes */
-		i2c_new_probed_device(&bus->i2c_adap, &info, addr_list,
-				      i2c_probe_func_quick_read);
+		i2c_new_scanned_device(&bus->i2c_adap, &info, addr_list,
+				       i2c_probe_func_quick_read);
 	}
 
 	return bus->i2c_rc;

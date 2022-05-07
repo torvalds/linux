@@ -46,34 +46,18 @@
 
 struct gpio;
 
-static void dal_hw_hpd_construct(
-	struct hw_hpd *pin,
-	enum gpio_id id,
-	uint32_t en,
-	struct dc_context *ctx)
-{
-	dal_hw_gpio_construct(&pin->base, id, en, ctx);
-}
-
 static void dal_hw_hpd_destruct(
 	struct hw_hpd *pin)
 {
 	dal_hw_gpio_destruct(&pin->base);
 }
 
-
-static void destruct(
-	struct hw_hpd *hpd)
-{
-	dal_hw_hpd_destruct(hpd);
-}
-
-static void destroy(
+static void dal_hw_hpd_destroy(
 	struct hw_gpio_pin **ptr)
 {
 	struct hw_hpd *hpd = HW_HPD_FROM_BASE(*ptr);
 
-	destruct(hpd);
+	dal_hw_hpd_destruct(hpd);
 
 	kfree(hpd);
 
@@ -120,7 +104,7 @@ static enum gpio_result set_config(
 }
 
 static const struct hw_gpio_pin_funcs funcs = {
-	.destroy = destroy,
+	.destroy = dal_hw_hpd_destroy,
 	.open = dal_hw_gpio_open,
 	.get_value = get_value,
 	.set_value = dal_hw_gpio_set_value,
@@ -129,14 +113,14 @@ static const struct hw_gpio_pin_funcs funcs = {
 	.close = dal_hw_gpio_close,
 };
 
-static void construct(
-	struct hw_hpd *hpd,
+static void dal_hw_hpd_construct(
+	struct hw_hpd *pin,
 	enum gpio_id id,
 	uint32_t en,
 	struct dc_context *ctx)
 {
-	dal_hw_hpd_construct(hpd, id, en, ctx);
-	hpd->base.base.funcs = &funcs;
+	dal_hw_gpio_construct(&pin->base, id, en, ctx);
+	pin->base.base.funcs = &funcs;
 }
 
 void dal_hw_hpd_init(
@@ -156,7 +140,7 @@ void dal_hw_hpd_init(
 		return;
 	}
 
-	construct(*hw_hpd, id, en, ctx);
+	dal_hw_hpd_construct(*hw_hpd, id, en, ctx);
 }
 
 struct hw_gpio_pin *dal_hw_hpd_get_pin(struct gpio *gpio)

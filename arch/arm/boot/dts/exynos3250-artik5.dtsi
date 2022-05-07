@@ -23,7 +23,7 @@
 
 	memory@40000000 {
 		device_type = "memory";
-		reg = <0x40000000 0x1ff00000>;
+		reg = <0x40000000 0x1f800000>;
 	};
 
 	firmware@205f000 {
@@ -53,6 +53,10 @@
 	vdd-supply = <&ldo7_reg>;
 	assigned-clocks = <&cmu CLK_SCLK_TSADC>;
 	assigned-clock-rates = <6000000>;
+};
+
+&cmu {
+	clocks = <&xusbxti>;
 };
 
 &cpu0 {
@@ -352,6 +356,14 @@
 };
 
 &pinctrl_1 {
+	bten: bten {
+		samsung,pins ="gpx1-7";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+
 	wlanen: wlanen {
 		samsung,pins = "gpx2-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
@@ -364,12 +376,45 @@
 		samsung,pins = "gpx3-5";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
+
+	bthostwake: bthostwake {
+		samsung,pins = "gpx3-6";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	btwake: btwake {
+		samsung,pins = "gpx3-7";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_OUT0>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
 };
 
 &rtc {
 	clocks = <&cmu CLK_RTC>, <&s2mps14_osc S2MPS11_CLK_AP>;
 	clock-names = "rtc", "rtc_src";
 	status = "okay";
+};
+
+&serial_0 {
+	assigned-clocks = <&cmu CLK_SCLK_UART0>;
+	assigned-clock-rates = <100000000>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm4330-bt";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bten &btwake &bthostwake>;
+		max-speed = <3000000>;
+		shutdown-gpios = <&gpx1 7 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpx3 6 GPIO_ACTIVE_HIGH>;
+		clocks = <&s2mps14_osc S2MPS11_CLK_BT>;
+	};
 };
 
 &tmu {

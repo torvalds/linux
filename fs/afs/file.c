@@ -33,6 +33,7 @@ const struct file_operations afs_file_operations = {
 	.write_iter	= afs_file_write,
 	.mmap		= afs_file_mmap,
 	.splice_read	= generic_file_splice_read,
+	.splice_write	= iter_file_splice_write,
 	.fsync		= afs_fsync,
 	.lock		= afs_lock,
 	.flock		= afs_flock,
@@ -69,7 +70,7 @@ static const struct vm_operations_struct afs_vm_ops = {
  */
 void afs_put_wb_key(struct afs_wb_key *wbk)
 {
-	if (refcount_dec_and_test(&wbk->usage)) {
+	if (wbk && refcount_dec_and_test(&wbk->usage)) {
 		key_put(wbk->key);
 		kfree(wbk);
 	}
@@ -220,14 +221,35 @@ static void afs_file_readpage_read_complete(struct page *page,
 }
 #endif
 
+static void afs_fetch_data_success(struct afs_operation *op)
+{
+	struct afs_vnode *vnode = op->file[0].vnode;
+
+	_enter("op=%08x", op->debug_id);
+	afs_vnode_commit_status(op, &op->file[0]);
+	afs_stat_v(vnode, n_fetches);
+	atomic_long_add(op->fetch.req->actual_len, &op->net->n_fetch_bytes);
+}
+
+static void afs_fetch_data_put(struct afs_operation *op)
+{
+	afs_put_read(op->fetch.req);
+}
+
+static const struct afs_operation_ops afs_fetch_data_operation = {
+	.issue_afs_rpc	= afs_fs_fetch_data,
+	.issue_yfs_rpc	= yfs_fs_fetch_data,
+	.success	= afs_fetch_data_success,
+	.aborted	= afs_check_for_remote_deletion,
+	.put		= afs_fetch_data_put,
+};
+
 /*
  * Fetch file data from the volume.
  */
-int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *desc)
+int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *req)
 {
-	struct afs_fs_cursor fc;
-	struct afs_status_cb *scb;
-	int ret;
+	struct afs_operation *op;
 
 	_enter("%s{%llx:%llu.%u},%x,,,",
 	       vnode->volume->name,
@@ -236,34 +258,15 @@ int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *de
 	       vnode->fid.unique,
 	       key_serial(key));
 
-	scb = kzalloc(sizeof(struct afs_status_cb), GFP_KERNEL);
-	if (!scb)
-		return -ENOMEM;
+	op = afs_alloc_operation(key, vnode->volume);
+	if (IS_ERR(op))
+		return PTR_ERR(op);
 
-	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
-		afs_dataversion_t data_version = vnode->status.data_version;
+	afs_op_set_vnode(op, 0, vnode);
 
-		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
-			afs_fs_fetch_data(&fc, scb, desc);
-		}
-
-		afs_check_for_remote_deletion(&fc, vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break,
-					&data_version, scb);
-		ret = afs_end_vnode_operation(&fc);
-	}
-
-	if (ret == 0) {
-		afs_stat_v(vnode, n_fetches);
-		atomic_long_add(desc->actual_len,
-				&afs_v2net(vnode)->n_fetch_bytes);
-	}
-
-	kfree(scb);
-	_leave(" = %d", ret);
-	return ret;
+	op->fetch.req	= afs_get_read(req);
+	op->ops		= &afs_fetch_data_operation;
+	return afs_do_sync_operation(op);
 }
 
 /*
@@ -309,7 +312,7 @@ int afs_page_filler(void *data, struct page *page)
 	case -ENOBUFS:
 		_debug("cache said ENOBUFS");
 
-		/* fall through */
+		fallthrough;
 	default:
 	go_on:
 		req = kzalloc(struct_size(req, array, 1), GFP_KERNEL);
@@ -599,6 +602,63 @@ static int afs_readpages(struct file *file, struct address_space *mapping,
 }
 
 /*
+ * Adjust the dirty region of the page on truncation or full invalidation,
+ * getting rid of the markers altogether if the region is entirely invalidated.
+ */
+static void afs_invalidate_dirty(struct page *page, unsigned int offset,
+				 unsigned int length)
+{
+	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
+	unsigned long priv;
+	unsigned int f, t, end = offset + length;
+
+	priv = page_private(page);
+
+	/* we clean up only if the entire page is being invalidated */
+	if (offset == 0 && length == thp_size(page))
+		goto full_invalidate;
+
+	 /* If the page was dirtied by page_mkwrite(), the PTE stays writable
+	  * and we don't get another notification to tell us to expand it
+	  * again.
+	  */
+	if (afs_is_page_dirty_mmapped(priv))
+		return;
+
+	/* We may need to shorten the dirty region */
+	f = afs_page_dirty_from(priv);
+	t = afs_page_dirty_to(priv);
+
+	if (t <= offset || f >= end)
+		return; /* Doesn't overlap */
+
+	if (f < offset && t > end)
+		return; /* Splits the dirty region - just absorb it */
+
+	if (f >= offset && t <= end)
+		goto undirty;
+
+	if (f < offset)
+		t = offset;
+	else
+		f = end;
+	if (f == t)
+		goto undirty;
+
+	priv = afs_page_dirty(f, t);
+	set_page_private(page, priv);
+	trace_afs_page_dirty(vnode, tracepoint_string("trunc"), page->index, priv);
+	return;
+
+undirty:
+	trace_afs_page_dirty(vnode, tracepoint_string("undirty"), page->index, priv);
+	clear_page_dirty_for_io(page);
+full_invalidate:
+	priv = (unsigned long)detach_page_private(page);
+	trace_afs_page_dirty(vnode, tracepoint_string("inval"), page->index, priv);
+}
+
+/*
  * invalidate part or all of a page
  * - release a page and clean up its private data if offset is 0 (indicating
  *   the entire page)
@@ -606,31 +666,23 @@ static int afs_readpages(struct file *file, struct address_space *mapping,
 static void afs_invalidatepage(struct page *page, unsigned int offset,
 			       unsigned int length)
 {
-	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
-	unsigned long priv;
-
 	_enter("{%lu},%u,%u", page->index, offset, length);
 
 	BUG_ON(!PageLocked(page));
 
+#ifdef CONFIG_AFS_FSCACHE
 	/* we clean up only if the entire page is being invalidated */
 	if (offset == 0 && length == PAGE_SIZE) {
-#ifdef CONFIG_AFS_FSCACHE
 		if (PageFsCache(page)) {
 			struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
 			fscache_wait_on_page_write(vnode->cache, page);
 			fscache_uncache_page(vnode->cache, page);
 		}
+	}
 #endif
 
-		if (PagePrivate(page)) {
-			priv = page_private(page);
-			trace_afs_page_dirty(vnode, tracepoint_string("inval"),
-					     page->index, priv);
-			set_page_private(page, 0);
-			ClearPagePrivate(page);
-		}
-	}
+	if (PagePrivate(page))
+		afs_invalidate_dirty(page, offset, length);
 
 	_leave("");
 }
@@ -658,11 +710,9 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 #endif
 
 	if (PagePrivate(page)) {
-		priv = page_private(page);
+		priv = (unsigned long)detach_page_private(page);
 		trace_afs_page_dirty(vnode, tracepoint_string("rel"),
 				     page->index, priv);
-		set_page_private(page, 0);
-		ClearPagePrivate(page);
 	}
 
 	/* indicate that the page can be released */

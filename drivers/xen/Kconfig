@@ -13,11 +13,15 @@ config XEN_BALLOON
 config XEN_BALLOON_MEMORY_HOTPLUG
 	bool "Memory hotplug support for Xen balloon driver"
 	depends on XEN_BALLOON && MEMORY_HOTPLUG
+	default y
 	help
 	  Memory hotplug support for Xen balloon driver allows expanding memory
 	  available for the system above limit declared at system startup.
 	  It is very useful on critical systems which require long
 	  run without rebooting.
+
+	  It's also very useful for non PV domains to obtain unpopulated physical
+	  memory ranges to use in order to map foreign memory or grants.
 
 	  Memory could be hotplugged in following steps:
 
@@ -48,9 +52,7 @@ config XEN_BALLOON_MEMORY_HOTPLUG
 
 config XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
 	int "Hotplugged memory limit (in GiB) for a PV guest"
-	default 512 if X86_64
-	default 4 if X86_32
-	range 0 64 if X86_32
+	default 512
 	depends on XEN_HAVE_PVMMU
 	depends on XEN_BALLOON_MEMORY_HOTPLUG
 	help
@@ -106,27 +108,27 @@ config XENFS
 	  If in doubt, say yes.
 
 config XEN_COMPAT_XENFS
-       bool "Create compatibility mount point /proc/xen"
-       depends on XENFS
-       default y
-       help
-         The old xenstore userspace tools expect to find "xenbus"
-         under /proc/xen, but "xenbus" is now found at the root of the
-         xenfs filesystem.  Selecting this causes the kernel to create
-         the compatibility mount point /proc/xen if it is running on
-         a xen platform.
-         If in doubt, say yes.
+	bool "Create compatibility mount point /proc/xen"
+	depends on XENFS
+	default y
+	help
+	  The old xenstore userspace tools expect to find "xenbus"
+	  under /proc/xen, but "xenbus" is now found at the root of the
+	  xenfs filesystem.  Selecting this causes the kernel to create
+	  the compatibility mount point /proc/xen if it is running on
+	  a xen platform.
+	  If in doubt, say yes.
 
 config XEN_SYS_HYPERVISOR
-       bool "Create xen entries under /sys/hypervisor"
-       depends on SYSFS
-       select SYS_HYPERVISOR
-       default y
-       help
-         Create entries under /sys/hypervisor describing the Xen
-	 hypervisor environment.  When running native or in another
-	 virtual environment, /sys/hypervisor will still be present,
-	 but will have no xen contents.
+	bool "Create xen entries under /sys/hypervisor"
+	depends on SYSFS
+	select SYS_HYPERVISOR
+	default y
+	help
+	  Create entries under /sys/hypervisor describing the Xen
+	  hypervisor environment.  When running native or in another
+	  virtual environment, /sys/hypervisor will still be present,
+	  but will have no xen contents.
 
 config XEN_XENBUS_FRONTEND
 	tristate
@@ -141,7 +143,8 @@ config XEN_GNTDEV
 
 config XEN_GNTDEV_DMABUF
 	bool "Add support for dma-buf grant access device driver extension"
-	depends on XEN_GNTDEV && XEN_GRANT_DMA_ALLOC && DMA_SHARED_BUFFER
+	depends on XEN_GNTDEV && XEN_GRANT_DMA_ALLOC
+	select DMA_SHARED_BUFFER
 	help
 	  Allows userspace processes and kernel modules to use Xen backed
 	  dma-buf implementation. With this extension grant references to
@@ -174,6 +177,7 @@ config XEN_GRANT_DMA_ALLOC
 
 config SWIOTLB_XEN
 	def_bool y
+	select DMA_OPS
 	select SWIOTLB
 
 config XEN_PCIDEV_BACKEND
@@ -270,7 +274,7 @@ config XEN_ACPI_PROCESSOR
 	depends on XEN && XEN_DOM0 && X86 && ACPI_PROCESSOR && CPU_FREQ
 	default m
 	help
-          This ACPI processor uploads Power Management information to the Xen
+	  This ACPI processor uploads Power Management information to the Xen
 	  hypervisor.
 
 	  To do that the driver parses the Power Management data and uploads
@@ -279,19 +283,19 @@ config XEN_ACPI_PROCESSOR
 	  SMM so that other drivers (such as ACPI cpufreq scaling driver) will
 	  not load.
 
-          To compile this driver as a module, choose M here: the module will be
+	  To compile this driver as a module, choose M here: the module will be
 	  called xen_acpi_processor  If you do not know what to choose, select
 	  M here. If the CPUFREQ drivers are built in, select Y here.
 
 config XEN_MCE_LOG
 	bool "Xen platform mcelog"
-	depends on XEN_DOM0 && X86_64 && X86_MCE
+	depends on XEN_DOM0 && X86_MCE
 	help
 	  Allow kernel fetching MCE error from Xen platform and
 	  converting it into Linux mcelog format for mcelog tools
 
 config XEN_HAVE_PVMMU
-       bool
+	bool
 
 config XEN_EFI
 	def_bool y
@@ -308,17 +312,27 @@ config XEN_ACPI
 	depends on X86 && ACPI
 
 config XEN_SYMS
-       bool "Xen symbols"
-       depends on X86 && XEN_DOM0 && XENFS
-       default y if KALLSYMS
-       help
-          Exports hypervisor symbols (along with their types and addresses) via
-          /proc/xen/xensyms file, similar to /proc/kallsyms
+	bool "Xen symbols"
+	depends on X86 && XEN_DOM0 && XENFS
+	default y if KALLSYMS
+	help
+	  Exports hypervisor symbols (along with their types and addresses) via
+	  /proc/xen/xensyms file, similar to /proc/kallsyms
 
 config XEN_HAVE_VPMU
-       bool
+	bool
 
 config XEN_FRONT_PGDIR_SHBUF
 	tristate
+
+config XEN_UNPOPULATED_ALLOC
+	bool "Use unpopulated memory ranges for guest mappings"
+	depends on X86 && ZONE_DEVICE
+	default XEN_BACKEND || XEN_GNTDEV || XEN_DOM0
+	help
+	  Use unpopulated memory ranges in order to create mappings for guest
+	  memory regions, including grant maps and foreign pages. This avoids
+	  having to balloon out RAM regions in order to obtain physical memory
+	  space to create such mappings.
 
 endmenu

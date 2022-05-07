@@ -42,12 +42,10 @@ struct tegra_ehci_soc_config {
 };
 
 struct tegra_ehci_hcd {
-	struct tegra_usb_phy *phy;
 	struct clk *clk;
 	struct reset_control *rst;
 	int port_resuming;
 	bool needs_double_reset;
-	enum tegra_usb_phy_port_speed port_speed;
 };
 
 static int tegra_reset_usb_controller(struct platform_device *pdev)
@@ -284,7 +282,7 @@ done:
 struct dma_aligned_buffer {
 	void *kmalloc_ptr;
 	void *old_xfer_buffer;
-	u8 data[0];
+	u8 data[];
 };
 
 static void free_dma_aligned_buffer(struct urb *urb)
@@ -480,16 +478,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	}
 	u_phy->otg->host = hcd_to_bus(hcd);
 
-	err = usb_phy_set_suspend(hcd->usb_phy, 0);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to power on the phy\n");
-		goto cleanup_phy;
-	}
-
 	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
-		dev_err(&pdev->dev, "Failed to get IRQ\n");
-		err = -ENODEV;
+	if (irq < 0) {
+		err = irq;
 		goto cleanup_phy;
 	}
 
@@ -521,16 +512,10 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	struct tegra_ehci_hcd *tegra =
 		(struct tegra_ehci_hcd *)hcd_to_ehci(hcd)->priv;
 
-	otg_set_host(hcd->usb_phy->otg, NULL);
-
-	usb_phy_shutdown(hcd->usb_phy);
 	usb_remove_hcd(hcd);
-
-	reset_control_assert(tegra->rst);
-	udelay(1);
-
+	otg_set_host(hcd->usb_phy->otg, NULL);
+	usb_phy_shutdown(hcd->usb_phy);
 	clk_disable_unprepare(tegra->clk);
-
 	usb_put_hcd(hcd);
 
 	return 0;

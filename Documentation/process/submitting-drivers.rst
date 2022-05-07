@@ -5,8 +5,8 @@ Submitting Drivers For The Linux Kernel
 
 This document is intended to explain how to submit device drivers to the
 various kernel trees. Note that if you are interested in video card drivers
-you should probably talk to XFree86 (http://www.xfree86.org/) and/or X.Org
-(http://x.org/) instead.
+you should probably talk to XFree86 (https://www.xfree86.org/) and/or X.Org
+(https://x.org/) instead.
 
 .. note::
 
@@ -25,7 +25,7 @@ Allocating Device Numbers
 
 Major and minor numbers for block and character devices are allocated
 by the Linux assigned name and number authority (currently this is
-Torben Mathiasen). The site is http://www.lanana.org/. This
+Torben Mathiasen). The site is https://www.lanana.org/. This
 also deals with allocating numbers for devices that are not going to
 be submitted to the mainstream kernel.
 See :ref:`Documentation/admin-guide/devices.rst <admin_devices>`
@@ -60,10 +60,11 @@ What Criteria Determine Acceptance
 
 Licensing:
 		The code must be released to us under the
-		GNU General Public License. We don't insist on any kind
-		of exclusive GPL licensing, and if you wish the driver
-		to be useful to other communities such as BSD you may well
-		wish to release under multiple licenses.
+		GNU General Public License. If you wish the driver to be
+		useful to other communities such as BSD you may release
+		under multiple licenses. If you choose to release under
+		licenses other than the GPL, you should include your
+		rationale for your license choices in your cover letter.
 		See accepted licenses at include/linux/module.h
 
 Copyright:
@@ -155,30 +156,30 @@ Linux kernel master tree:
 	where *country_code* == your country code, such as
 	**us**, **uk**, **fr**, etc.
 
-	http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git
+	https://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git
 
 Linux kernel mailing list:
 	linux-kernel@vger.kernel.org
 	[mail majordomo@vger.kernel.org to subscribe]
 
 Linux Device Drivers, Third Edition (covers 2.6.10):
-	http://lwn.net/Kernel/LDD3/  (free version)
+	https://lwn.net/Kernel/LDD3/  (free version)
 
 LWN.net:
-	Weekly summary of kernel development activity - http://lwn.net/
+	Weekly summary of kernel development activity - https://lwn.net/
 
 	2.6 API changes:
 
-		http://lwn.net/Articles/2.6-kernel-api/
+		https://lwn.net/Articles/2.6-kernel-api/
 
 	Porting drivers from prior kernels to 2.6:
 
-		http://lwn.net/Articles/driver-porting/
+		https://lwn.net/Articles/driver-porting/
 
 KernelNewbies:
 	Documentation and assistance for new kernel programmers
 
-		http://kernelnewbies.org/
+		https://kernelnewbies.org/
 
 Linux USB project:
 	http://www.linux-usb.org/
@@ -187,7 +188,7 @@ How to NOT write kernel driver by Arjan van de Ven:
 	http://www.fenrus.org/how-to-not-write-a-device-driver-paper.pdf
 
 Kernel Janitor:
-	http://kernelnewbies.org/KernelJanitors
+	https://kernelnewbies.org/KernelJanitors
 
 GIT, Fast Version Control System:
-	http://git-scm.com/
+	https://git-scm.com/

@@ -35,7 +35,7 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	int vport_index;
 
 	if (rep->vport == MLX5_VPORT_UPLINK)
-		profile = &uplink_rep_profile;
+		profile = &raw_eth_profile;
 	else
 		return mlx5_ib_set_vport_rep(dev, rep);
 

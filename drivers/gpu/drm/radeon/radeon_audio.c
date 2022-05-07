@@ -288,7 +288,7 @@ static void radeon_audio_interface_init(struct radeon_device *rdev)
 	} else {
 		rdev->audio.funcs = &r600_funcs;
 		rdev->audio.hdmi_funcs = &r600_hdmi_funcs;
-		rdev->audio.dp_funcs = 0;
+		rdev->audio.dp_funcs = NULL;
 	}
 }
 
@@ -367,10 +367,10 @@ static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 		return;
 
 	sad_count = drm_edid_to_sad(radeon_connector_edid(connector), &sads);
-	if (sad_count <= 0) {
+	if (sad_count < 0)
 		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
+	if (sad_count <= 0)
 		return;
-	}
 	BUG_ON(!sads);
 
 	if (radeon_encoder->audio && radeon_encoder->audio->write_sad_regs)

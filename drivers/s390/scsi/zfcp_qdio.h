@@ -122,14 +122,14 @@ void zfcp_qdio_req_init(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 					% QDIO_MAX_BUFFERS_PER_Q;
 
 	sbale = zfcp_qdio_sbale_req(qdio, q_req);
-	sbale->addr = (void *) req_id;
+	sbale->addr = req_id;
 	sbale->eflags = 0;
 	sbale->sflags = SBAL_SFLAGS0_COMMAND | sbtype;
 
 	if (unlikely(!data))
 		return;
 	sbale++;
-	sbale->addr = data;
+	sbale->addr = virt_to_phys(data);
 	sbale->length = len;
 }
 
@@ -152,7 +152,7 @@ void zfcp_qdio_fill_next(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 	BUG_ON(q_req->sbale_curr == qdio->max_sbale_per_sbal - 1);
 	q_req->sbale_curr++;
 	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
-	sbale->addr = data;
+	sbale->addr = virt_to_phys(data);
 	sbale->length = len;
 }
 

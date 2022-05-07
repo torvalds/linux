@@ -362,4 +362,18 @@
 			#clock-cells = <2>;
 		};
 	};
+
+	alwon_ethernet_cm: alwon_ethernet_cm@15d4 {
+		compatible = "ti,omap4-cm";
+		reg = <0x15d4 0x4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x15d4 0x4>;
+
+		alwon_ethernet_clkctrl: clk@0 {
+			compatible = "ti,clkctrl";
+			reg = <0 0x4>;
+			#clock-cells = <2>;
+		};
+	};
 };

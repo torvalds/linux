@@ -50,10 +50,11 @@
 #include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/vmalloc.h>
+#include <linux/pgtable.h>
 
 #include <linux/uaccess.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/cache.h>
 #include <asm/prom.h>
@@ -69,6 +70,7 @@
 #include <asm/paca.h>
 #include <asm/firmware.h>
 #include <asm/lv1call.h>
+#include <asm/dbell.h>
 #endif
 #define CREATE_TRACE_POINTS
 #include <asm/trace.h>
@@ -102,14 +104,16 @@ static inline notrace unsigned long get_irq_happened(void)
 
 static inline notrace int decrementer_check_overflow(void)
 {
- 	u64 now = get_tb_or_rtc();
+	u64 now = get_tb();
 	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
  
 	return now >= *next_tb;
 }
 
+#ifdef CONFIG_PPC_BOOK3E
+
 /* This is called whenever we are re-enabling interrupts
- * and returns either 0 (nothing to do) or 500/900/280/a00/e80 if
+ * and returns either 0 (nothing to do) or 500/900/280 if
  * there's an EE, DEC or DBELL to generate.
  *
  * This is called in two contexts: From arch_local_irq_restore()
@@ -167,6 +171,76 @@ notrace unsigned int __check_irq_replay(void)
 		}
 	}
 
+	if (happened & PACA_IRQ_DEC) {
+		local_paca->irq_happened &= ~PACA_IRQ_DEC;
+		return 0x900;
+	}
+
+	if (happened & PACA_IRQ_EE) {
+		local_paca->irq_happened &= ~PACA_IRQ_EE;
+		return 0x500;
+	}
+
+	if (happened & PACA_IRQ_DBELL) {
+		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
+		return 0x280;
+	}
+
+	/* There should be nothing left ! */
+	BUG_ON(local_paca->irq_happened != 0);
+
+	return 0;
+}
+
+/*
+ * This is specifically called by assembly code to re-enable interrupts
+ * if they are currently disabled. This is typically called before
+ * schedule() or do_signal() when returning to userspace. We do it
+ * in C to avoid the burden of dealing with lockdep etc...
+ *
+ * NOTE: This is called with interrupts hard disabled but not marked
+ * as such in paca->irq_happened, so we need to resync this.
+ */
+void notrace restore_interrupts(void)
+{
+	if (irqs_disabled()) {
+		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+		local_irq_enable();
+	} else
+		__hard_irq_enable();
+}
+
+#endif /* CONFIG_PPC_BOOK3E */
+
+void replay_soft_interrupts(void)
+{
+	/*
+	 * We use local_paca rather than get_paca() to avoid all
+	 * the debug_smp_processor_id() business in this low level
+	 * function
+	 */
+	unsigned char happened = local_paca->irq_happened;
+	struct pt_regs regs;
+
+	ppc_save_regs(&regs);
+	regs.softe = IRQS_ENABLED;
+
+again:
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
+		WARN_ON_ONCE(mfmsr() & MSR_EE);
+
+	if (happened & PACA_IRQ_HARD_DIS) {
+		/*
+		 * We may have missed a decrementer interrupt if hard disabled.
+		 * Check the decrementer register in case we had a rollover
+		 * while hard disabled.
+		 */
+		if (!(happened & PACA_IRQ_DEC)) {
+			if (decrementer_check_overflow())
+				happened |= PACA_IRQ_DEC;
+		}
+	}
+
 	/*
 	 * Force the delivery of pending soft-disabled interrupts on PS3.
 	 * Any HV call will have this side effect.
@@ -181,58 +255,65 @@ notrace unsigned int __check_irq_replay(void)
 	 * This is a higher priority interrupt than the others, so
 	 * replay it first.
 	 */
-	if (happened & PACA_IRQ_HMI) {
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S) && (happened & PACA_IRQ_HMI)) {
 		local_paca->irq_happened &= ~PACA_IRQ_HMI;
-		return 0xe60;
+		regs.trap = 0xe60;
+		handle_hmi_exception(&regs);
+		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
+			hard_irq_disable();
 	}
 
 	if (happened & PACA_IRQ_DEC) {
 		local_paca->irq_happened &= ~PACA_IRQ_DEC;
-		return 0x900;
-	}
-
-	if (happened & PACA_IRQ_PMI) {
-		local_paca->irq_happened &= ~PACA_IRQ_PMI;
-		return 0xf00;
+		regs.trap = 0x900;
+		timer_interrupt(&regs);
+		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
+			hard_irq_disable();
 	}
 
 	if (happened & PACA_IRQ_EE) {
 		local_paca->irq_happened &= ~PACA_IRQ_EE;
-		return 0x500;
+		regs.trap = 0x500;
+		do_IRQ(&regs);
+		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
+			hard_irq_disable();
 	}
 
-#ifdef CONFIG_PPC_BOOK3E
-	/*
-	 * Check if an EPR external interrupt happened this bit is typically
-	 * set if we need to handle another "edge" interrupt from within the
-	 * MPIC "EPR" handler.
-	 */
-	if (happened & PACA_IRQ_EE_EDGE) {
-		local_paca->irq_happened &= ~PACA_IRQ_EE_EDGE;
-		return 0x500;
-	}
-
-	if (happened & PACA_IRQ_DBELL) {
+	if (IS_ENABLED(CONFIG_PPC_DOORBELL) && (happened & PACA_IRQ_DBELL)) {
 		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
-		return 0x280;
+		if (IS_ENABLED(CONFIG_PPC_BOOK3E))
+			regs.trap = 0x280;
+		else
+			regs.trap = 0xa00;
+		doorbell_exception(&regs);
+		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
+			hard_irq_disable();
 	}
-#else
-	if (happened & PACA_IRQ_DBELL) {
-		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
-		return 0xa00;
+
+	/* Book3E does not support soft-masking PMI interrupts */
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S) && (happened & PACA_IRQ_PMI)) {
+		local_paca->irq_happened &= ~PACA_IRQ_PMI;
+		regs.trap = 0xf00;
+		performance_monitor_exception(&regs);
+		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
+			hard_irq_disable();
 	}
-#endif /* CONFIG_PPC_BOOK3E */
 
-	/* There should be nothing left ! */
-	BUG_ON(local_paca->irq_happened != 0);
-
-	return 0;
+	happened = local_paca->irq_happened;
+	if (happened & ~PACA_IRQ_HARD_DIS) {
+		/*
+		 * We are responding to the next interrupt, so interrupt-off
+		 * latencies should be reset here.
+		 */
+		trace_hardirqs_on();
+		trace_hardirqs_off();
+		goto again;
+	}
 }
 
 notrace void arch_local_irq_restore(unsigned long mask)
 {
 	unsigned char irq_happened;
-	unsigned int replay;
 
 	/* Write the new soft-enabled value */
 	irq_soft_mask_set(mask);
@@ -254,24 +335,16 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	 */
 	irq_happened = get_irq_happened();
 	if (!irq_happened) {
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-		WARN_ON_ONCE(!(mfmsr() & MSR_EE));
-#endif
+		if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
+			WARN_ON_ONCE(!(mfmsr() & MSR_EE));
 		return;
 	}
 
-	/*
-	 * We need to hard disable to get a trusted value from
-	 * __check_irq_replay(). We also need to soft-disable
-	 * again to avoid warnings in there due to the use of
-	 * per-cpu variables.
-	 */
+	/* We need to hard disable to replay. */
 	if (!(irq_happened & PACA_IRQ_HARD_DIS)) {
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-		WARN_ON_ONCE(!(mfmsr() & MSR_EE));
-#endif
+		if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
+			WARN_ON_ONCE(!(mfmsr() & MSR_EE));
 		__hard_irq_disable();
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
 	} else {
 		/*
 		 * We should already be hard disabled here. We had bugs
@@ -279,56 +352,36 @@ notrace void arch_local_irq_restore(unsigned long mask)
 		 * warn if we are wrong. Only do that when IRQ tracing
 		 * is enabled as mfmsr() can be costly.
 		 */
-		if (WARN_ON_ONCE(mfmsr() & MSR_EE))
-			__hard_irq_disable();
-#endif
+		if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG)) {
+			if (WARN_ON_ONCE(mfmsr() & MSR_EE))
+				__hard_irq_disable();
+		}
+
+		if (irq_happened == PACA_IRQ_HARD_DIS) {
+			local_paca->irq_happened = 0;
+			__hard_irq_enable();
+			return;
+		}
 	}
 
+	/*
+	 * Disable preempt here, so that the below preempt_enable will
+	 * perform resched if required (a replayed interrupt may set
+	 * need_resched).
+	 */
+	preempt_disable();
 	irq_soft_mask_set(IRQS_ALL_DISABLED);
 	trace_hardirqs_off();
 
-	/*
-	 * Check if anything needs to be re-emitted. We haven't
-	 * soft-enabled yet to avoid warnings in decrementer_check_overflow
-	 * accessing per-cpu variables
-	 */
-	replay = __check_irq_replay();
+	replay_soft_interrupts();
+	local_paca->irq_happened = 0;
 
-	/* We can soft-enable now */
 	trace_hardirqs_on();
 	irq_soft_mask_set(IRQS_ENABLED);
-
-	/*
-	 * And replay if we have to. This will return with interrupts
-	 * hard-enabled.
-	 */
-	if (replay) {
-		__replay_interrupt(replay);
-		return;
-	}
-
-	/* Finally, let's ensure we are hard enabled */
 	__hard_irq_enable();
+	preempt_enable();
 }
 EXPORT_SYMBOL(arch_local_irq_restore);
-
-/*
- * This is specifically called by assembly code to re-enable interrupts
- * if they are currently disabled. This is typically called before
- * schedule() or do_signal() when returning to userspace. We do it
- * in C to avoid the burden of dealing with lockdep etc...
- *
- * NOTE: This is called with interrupts hard disabled but not marked
- * as such in paca->irq_happened, so we need to resync this.
- */
-void notrace restore_interrupts(void)
-{
-	if (irqs_disabled()) {
-		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
-		local_irq_enable();
-	} else
-		__hard_irq_enable();
-}
 
 /*
  * This is a helper to use when about to go into idle low-power
@@ -459,6 +512,19 @@ void irq_set_pending_from_srr1(unsigned long srr1)
 		return;
 	}
 
+	if (reason == PACA_IRQ_DBELL) {
+		/*
+		 * When doorbell triggers a system reset wakeup, the message
+		 * is not cleared, so if the doorbell interrupt is replayed
+		 * and the IPI handled, the doorbell interrupt would still
+		 * fire when EE is enabled.
+		 *
+		 * To avoid taking the superfluous doorbell interrupt,
+		 * execute a msgclr here before the interrupt is replayed.
+		 */
+		ppc_msgclr(PPC_DBELL_MSGTYPE);
+	}
+
 	/*
 	 * The 0 index (SRR1[42:45]=b0000) must always evaluate to 0,
 	 * so this can be called unconditionally with the SRR1 wake
@@ -540,13 +606,14 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).mce_exceptions);
 	seq_printf(p, "  Machine check exceptions\n");
 
+#ifdef CONFIG_PPC_BOOK3S_64
 	if (cpu_has_feature(CPU_FTR_HVMODE)) {
 		seq_printf(p, "%*s: ", prec, "HMI");
 		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-					per_cpu(irq_stat, j).hmi_exceptions);
+			seq_printf(p, "%10u ", paca_ptrs[j]->hmi_irqs);
 		seq_printf(p, "  Hypervisor Maintenance Interrupts\n");
 	}
+#endif
 
 	seq_printf(p, "%*s: ", prec, "NMI");
 	for_each_online_cpu(j)
@@ -584,7 +651,9 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	sum += per_cpu(irq_stat, cpu).mce_exceptions;
 	sum += per_cpu(irq_stat, cpu).spurious_irqs;
 	sum += per_cpu(irq_stat, cpu).timer_irqs_others;
-	sum += per_cpu(irq_stat, cpu).hmi_exceptions;
+#ifdef CONFIG_PPC_BOOK3S_64
+	sum += paca_ptrs[cpu]->hmi_irqs;
+#endif
 	sum += per_cpu(irq_stat, cpu).sreset_irqs;
 #ifdef CONFIG_PPC_WATCHDOG
 	sum += per_cpu(irq_stat, cpu).soft_nmi_irqs;
@@ -598,17 +667,18 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 
 static inline void check_stack_overflow(void)
 {
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
 	long sp;
 
-	sp = current_stack_pointer() & (THREAD_SIZE-1);
+	if (!IS_ENABLED(CONFIG_DEBUG_STACKOVERFLOW))
+		return;
+
+	sp = current_stack_pointer & (THREAD_SIZE - 1);
 
 	/* check for stack overflow: is there less than 2KB free? */
 	if (unlikely(sp < 2048)) {
 		pr_err("do_IRQ: stack overflow: %ld\n", sp);
 		dump_stack();
 	}
-#endif
 }
 
 void __do_irq(struct pt_regs *regs)
@@ -618,8 +688,6 @@ void __do_irq(struct pt_regs *regs)
 	irq_enter();
 
 	trace_irq_entry(regs);
-
-	check_stack_overflow();
 
 	/*
 	 * Query the platform PIC for the interrupt & ack it.
@@ -648,9 +716,11 @@ void do_IRQ(struct pt_regs *regs)
 	void *cursp, *irqsp, *sirqsp;
 
 	/* Switch to the irq stack to handle this */
-	cursp = (void *)(current_stack_pointer() & ~(THREAD_SIZE - 1));
+	cursp = (void *)(current_stack_pointer & ~(THREAD_SIZE - 1));
 	irqsp = hardirq_ctx[raw_smp_processor_id()];
 	sirqsp = softirq_ctx[raw_smp_processor_id()];
+
+	check_stack_overflow();
 
 	/* Already there ? */
 	if (unlikely(cursp == irqsp || cursp == sirqsp)) {
@@ -664,8 +734,28 @@ void do_IRQ(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
+static void *__init alloc_vm_stack(void)
+{
+	return __vmalloc_node(THREAD_SIZE, THREAD_ALIGN, THREADINFO_GFP,
+			      NUMA_NO_NODE, (void *)_RET_IP_);
+}
+
+static void __init vmap_irqstack_init(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		softirq_ctx[i] = alloc_vm_stack();
+		hardirq_ctx[i] = alloc_vm_stack();
+	}
+}
+
+
 void __init init_IRQ(void)
 {
+	if (IS_ENABLED(CONFIG_VMAP_STACK))
+		vmap_irqstack_init();
+
 	if (ppc_md.init_IRQ)
 		ppc_md.init_IRQ();
 }

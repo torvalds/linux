@@ -1,0 +1,9 @@
+What:		/sys/class/leds/<led>/repeat
+Date:		September 2019
+KernelVersion:	5.5
+Description:
+		EL15203000 supports only indefinitely patterns,
+		so this file should always store -1.
+
+		For more info, please see:
+		Documentation/ABI/testing/sysfs-class-led-trigger-pattern

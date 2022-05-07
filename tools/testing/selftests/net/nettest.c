@@ -74,7 +74,14 @@ struct sock_args {
 	int use_cmsg;
 	const char *dev;
 	int ifindex;
+
 	const char *password;
+	/* prefix for MD5 password */
+	union {
+		struct sockaddr_in v4;
+		struct sockaddr_in6 v6;
+	} md5_prefix;
+	unsigned int prefix_len;
 
 	/* expected addresses and device index for connection */
 	int expected_ifindex;
@@ -200,20 +207,33 @@ static void log_address(const char *desc, struct sockaddr *sa)
 	fflush(stdout);
 }
 
-static int tcp_md5sig(int sd, void *addr, socklen_t alen, const char *password)
+static int tcp_md5sig(int sd, void *addr, socklen_t alen, struct sock_args *args)
 {
-	struct tcp_md5sig md5sig;
-	int keylen = password ? strlen(password) : 0;
+	int keylen = strlen(args->password);
+	struct tcp_md5sig md5sig = {};
+	int opt = TCP_MD5SIG;
 	int rc;
 
-	memset(&md5sig, 0, sizeof(md5sig));
-	memcpy(&md5sig.tcpm_addr, addr, alen);
 	md5sig.tcpm_keylen = keylen;
+	memcpy(md5sig.tcpm_key, args->password, keylen);
 
-	if (keylen)
-		memcpy(md5sig.tcpm_key, password, keylen);
+	if (args->prefix_len) {
+		opt = TCP_MD5SIG_EXT;
+		md5sig.tcpm_flags |= TCP_MD5SIG_FLAG_PREFIX;
 
-	rc = setsockopt(sd, IPPROTO_TCP, TCP_MD5SIG, &md5sig, sizeof(md5sig));
+		md5sig.tcpm_prefixlen = args->prefix_len;
+		addr = &args->md5_prefix;
+	}
+	memcpy(&md5sig.tcpm_addr, addr, alen);
+
+	if (args->ifindex) {
+		opt = TCP_MD5SIG_EXT;
+		md5sig.tcpm_flags |= TCP_MD5SIG_FLAG_IFINDEX;
+
+		md5sig.tcpm_ifindex = args->ifindex;
+	}
+
+	rc = setsockopt(sd, IPPROTO_TCP, opt, &md5sig, sizeof(md5sig));
 	if (rc < 0) {
 		/* ENOENT is harmless. Returned when a password is cleared */
 		if (errno == ENOENT)
@@ -254,7 +274,7 @@ static int tcp_md5_remote(int sd, struct sock_args *args)
 		exit(1);
 	}
 
-	if (tcp_md5sig(sd, addr, alen, args->password))
+	if (tcp_md5sig(sd, addr, alen, args))
 		return -1;
 
 	return 0;
@@ -1194,7 +1214,7 @@ static int do_server(struct sock_args *args)
 
 	if (args->password && tcp_md5_remote(lsd, args)) {
 		close(lsd);
-		return -1;
+		return 1;
 	}
 
 	while (1) {
@@ -1313,7 +1333,7 @@ static int connectsock(void *addr, socklen_t alen, struct sock_args *args)
 	if (args->type != SOCK_STREAM)
 		goto out;
 
-	if (args->password && tcp_md5sig(sd, addr, alen, args->password))
+	if (args->password && tcp_md5sig(sd, addr, alen, args))
 		goto err;
 
 	if (args->bind_test_only)
@@ -1405,16 +1425,18 @@ enum addr_type {
 	ADDR_TYPE_MCAST,
 	ADDR_TYPE_EXPECTED_LOCAL,
 	ADDR_TYPE_EXPECTED_REMOTE,
+	ADDR_TYPE_MD5_PREFIX,
 };
 
 static int convert_addr(struct sock_args *args, const char *_str,
 			enum addr_type atype)
 {
+	int pfx_len_max = args->version == AF_INET6 ? 128 : 32;
 	int family = args->version;
+	char *str, *dev, *sep;
 	struct in6_addr *in6;
 	struct in_addr  *in;
 	const char *desc;
-	char *str, *dev;
 	void *addr;
 	int rc = 0;
 
@@ -1442,6 +1464,30 @@ static int convert_addr(struct sock_args *args, const char *_str,
 	case ADDR_TYPE_EXPECTED_REMOTE:
 		desc = "expected remote";
 		addr = &args->expected_raddr;
+		break;
+	case ADDR_TYPE_MD5_PREFIX:
+		desc = "md5 prefix";
+		if (family == AF_INET) {
+			args->md5_prefix.v4.sin_family = AF_INET;
+			addr = &args->md5_prefix.v4.sin_addr;
+		} else if (family == AF_INET6) {
+			args->md5_prefix.v6.sin6_family = AF_INET6;
+			addr = &args->md5_prefix.v6.sin6_addr;
+		} else
+			return 1;
+
+		sep = strchr(str, '/');
+		if (sep) {
+			*sep = '\0';
+			sep++;
+			if (str_to_uint(sep, 1, pfx_len_max,
+					&args->prefix_len) != 0) {
+				fprintf(stderr, "Invalid port\n");
+				return 1;
+			}
+		} else {
+			args->prefix_len = pfx_len_max;
+		}
 		break;
 	default:
 		log_error("unknown address type");
@@ -1522,7 +1568,7 @@ static char *random_msg(int len)
 	return m;
 }
 
-#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:d:SCi6L:0:1:2:Fbq"
+#define GETOPT_STR  "sr:l:p:t:g:P:DRn:M:m:d:SCi6L:0:1:2:Fbq"
 
 static void print_usage(char *prog)
 {
@@ -1551,6 +1597,7 @@ static void print_usage(char *prog)
 	"    -n num        number of times to send message\n"
 	"\n"
 	"    -M password   use MD5 sum protection\n"
+	"    -m prefix/len prefix and length to use for MD5 key\n"
 	"    -g grp        multicast group (e.g., 239.1.1.1)\n"
 	"    -i            interactive mode (default is echo and terminate)\n"
 	"\n"
@@ -1620,6 +1667,8 @@ int main(int argc, char *argv[])
 		case 'R':
 			args.type = SOCK_RAW;
 			args.port = 0;
+			if (!args.protocol)
+				args.protocol = IPPROTO_RAW;
 			break;
 		case 'P':
 			pe = getprotobyname(optarg);
@@ -1641,6 +1690,10 @@ int main(int argc, char *argv[])
 			break;
 		case 'M':
 			args.password = optarg;
+			break;
+		case 'm':
+			if (convert_addr(&args, optarg, ADDR_TYPE_MD5_PREFIX) < 0)
+				return 1;
 			break;
 		case 'S':
 			args.use_setsockopt = 1;
@@ -1706,8 +1759,13 @@ int main(int argc, char *argv[])
 	}
 
 	if (args.password &&
-	    (!args.has_remote_ip || args.type != SOCK_STREAM)) {
+	    ((!args.has_remote_ip && !args.prefix_len) || args.type != SOCK_STREAM)) {
 		log_error("MD5 passwords apply to TCP only and require a remote ip for the password\n");
+		return 1;
+	}
+
+	if (args.prefix_len && !args.password) {
+		log_error("Prefix range for MD5 protection specified without a password\n");
 		return 1;
 	}
 

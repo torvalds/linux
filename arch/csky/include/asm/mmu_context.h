@@ -43,5 +43,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
 	write_mmu_entryhi(next->context.asid.counter);
+
+	flush_icache_deferred(next);
 }
 #endif /* __ASM_CSKY_MMU_CONTEXT_H */

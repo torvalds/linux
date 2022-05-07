@@ -17,7 +17,9 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
+#include <linux/device.h>
 #include <linux/of_graph.h>
+#include <linux/of_platform.h>
 #include <linux/wait.h>
 
 #include "rcar_du_crtc.h"
@@ -38,6 +40,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.v4l2 = V4L2_PIX_FMT_RGB565,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 		.pnmr = PnMR_SPIM_TP | PnMR_DDDF_16BPP,
 		.edf = PnDDCR4_EDF_NONE,
 	}, {
@@ -45,6 +48,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.v4l2 = V4L2_PIX_FMT_ARGB555,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 		.pnmr = PnMR_SPIM_ALP | PnMR_DDDF_ARGB,
 		.edf = PnDDCR4_EDF_NONE,
 	}, {
@@ -59,6 +63,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.v4l2 = V4L2_PIX_FMT_XBGR32,
 		.bpp = 32,
 		.planes = 1,
+		.hsub = 1,
 		.pnmr = PnMR_SPIM_TP | PnMR_DDDF_16BPP,
 		.edf = PnDDCR4_EDF_RGB888,
 	}, {
@@ -66,6 +71,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.v4l2 = V4L2_PIX_FMT_ABGR32,
 		.bpp = 32,
 		.planes = 1,
+		.hsub = 1,
 		.pnmr = PnMR_SPIM_ALP | PnMR_DDDF_16BPP,
 		.edf = PnDDCR4_EDF_ARGB8888,
 	}, {
@@ -73,6 +79,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.v4l2 = V4L2_PIX_FMT_UYVY,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 2,
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
 		.edf = PnDDCR4_EDF_NONE,
 	}, {
@@ -80,6 +87,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.v4l2 = V4L2_PIX_FMT_YUYV,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 2,
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
 		.edf = PnDDCR4_EDF_NONE,
 	}, {
@@ -87,6 +95,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.v4l2 = V4L2_PIX_FMT_NV12M,
 		.bpp = 12,
 		.planes = 2,
+		.hsub = 2,
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
 		.edf = PnDDCR4_EDF_NONE,
 	}, {
@@ -94,6 +103,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.v4l2 = V4L2_PIX_FMT_NV21M,
 		.bpp = 12,
 		.planes = 2,
+		.hsub = 2,
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
 		.edf = PnDDCR4_EDF_NONE,
 	}, {
@@ -101,6 +111,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.v4l2 = V4L2_PIX_FMT_NV16M,
 		.bpp = 16,
 		.planes = 2,
+		.hsub = 2,
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
 		.edf = PnDDCR4_EDF_NONE,
 	},
@@ -113,156 +124,187 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.v4l2 = V4L2_PIX_FMT_RGB332,
 		.bpp = 8,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_ARGB4444,
 		.v4l2 = V4L2_PIX_FMT_ARGB444,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_XRGB4444,
 		.v4l2 = V4L2_PIX_FMT_XRGB444,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_RGBA4444,
 		.v4l2 = V4L2_PIX_FMT_RGBA444,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_RGBX4444,
 		.v4l2 = V4L2_PIX_FMT_RGBX444,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_ABGR4444,
 		.v4l2 = V4L2_PIX_FMT_ABGR444,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_XBGR4444,
 		.v4l2 = V4L2_PIX_FMT_XBGR444,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_BGRA4444,
 		.v4l2 = V4L2_PIX_FMT_BGRA444,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_BGRX4444,
 		.v4l2 = V4L2_PIX_FMT_BGRX444,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_RGBA5551,
 		.v4l2 = V4L2_PIX_FMT_RGBA555,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_RGBX5551,
 		.v4l2 = V4L2_PIX_FMT_RGBX555,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_ABGR1555,
 		.v4l2 = V4L2_PIX_FMT_ABGR555,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_XBGR1555,
 		.v4l2 = V4L2_PIX_FMT_XBGR555,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_BGRA5551,
 		.v4l2 = V4L2_PIX_FMT_BGRA555,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_BGRX5551,
 		.v4l2 = V4L2_PIX_FMT_BGRX555,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_BGR888,
 		.v4l2 = V4L2_PIX_FMT_RGB24,
 		.bpp = 24,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_RGB888,
 		.v4l2 = V4L2_PIX_FMT_BGR24,
 		.bpp = 24,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_RGBA8888,
 		.v4l2 = V4L2_PIX_FMT_BGRA32,
 		.bpp = 32,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_RGBX8888,
 		.v4l2 = V4L2_PIX_FMT_BGRX32,
 		.bpp = 32,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_ABGR8888,
 		.v4l2 = V4L2_PIX_FMT_RGBA32,
 		.bpp = 32,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_XBGR8888,
 		.v4l2 = V4L2_PIX_FMT_RGBX32,
 		.bpp = 32,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_BGRA8888,
 		.v4l2 = V4L2_PIX_FMT_ARGB32,
 		.bpp = 32,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_BGRX8888,
 		.v4l2 = V4L2_PIX_FMT_XRGB32,
 		.bpp = 32,
 		.planes = 1,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_YVYU,
 		.v4l2 = V4L2_PIX_FMT_YVYU,
 		.bpp = 16,
 		.planes = 1,
+		.hsub = 2,
 	}, {
 		.fourcc = DRM_FORMAT_NV61,
 		.v4l2 = V4L2_PIX_FMT_NV61M,
 		.bpp = 16,
 		.planes = 2,
+		.hsub = 2,
 	}, {
 		.fourcc = DRM_FORMAT_YUV420,
 		.v4l2 = V4L2_PIX_FMT_YUV420M,
 		.bpp = 12,
 		.planes = 3,
+		.hsub = 2,
 	}, {
 		.fourcc = DRM_FORMAT_YVU420,
 		.v4l2 = V4L2_PIX_FMT_YVU420M,
 		.bpp = 12,
 		.planes = 3,
+		.hsub = 2,
 	}, {
 		.fourcc = DRM_FORMAT_YUV422,
 		.v4l2 = V4L2_PIX_FMT_YUV422M,
 		.bpp = 16,
 		.planes = 3,
+		.hsub = 2,
 	}, {
 		.fourcc = DRM_FORMAT_YVU422,
 		.v4l2 = V4L2_PIX_FMT_YVU422M,
 		.bpp = 16,
 		.planes = 3,
+		.hsub = 2,
 	}, {
 		.fourcc = DRM_FORMAT_YUV444,
 		.v4l2 = V4L2_PIX_FMT_YUV444M,
 		.bpp = 24,
 		.planes = 3,
+		.hsub = 1,
 	}, {
 		.fourcc = DRM_FORMAT_YVU444,
 		.v4l2 = V4L2_PIX_FMT_YVU444M,
 		.bpp = 24,
 		.planes = 3,
+		.hsub = 1,
 	},
 };
 
@@ -309,6 +351,7 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 {
 	struct rcar_du_device *rcdu = dev->dev_private;
 	const struct rcar_du_format_info *format;
+	unsigned int chroma_pitch;
 	unsigned int max_pitch;
 	unsigned int align;
 	unsigned int i;
@@ -351,10 +394,19 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		return ERR_PTR(-EINVAL);
 	}
 
+	/*
+	 * Calculate the chroma plane(s) pitch using the horizontal subsampling
+	 * factor. For semi-planar formats, the U and V planes are combined, the
+	 * pitch must thus be doubled.
+	 */
+	chroma_pitch = mode_cmd->pitches[0] / format->hsub;
+	if (format->planes == 2)
+		chroma_pitch *= 2;
+
 	for (i = 1; i < format->planes; ++i) {
-		if (mode_cmd->pitches[i] != mode_cmd->pitches[0]) {
+		if (mode_cmd->pitches[i] != chroma_pitch) {
 			dev_dbg(dev->dev,
-				"luma and chroma pitches do not match\n");
+				"luma and chroma pitches are not compatible\n");
 			return ERR_PTR(-EINVAL);
 		}
 	}
@@ -542,6 +594,7 @@ static int rcar_du_properties_init(struct rcar_du_device *rcdu)
 static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 {
 	const struct device_node *np = rcdu->dev->of_node;
+	const char *vsps_prop_name = "renesas,vsps";
 	struct of_phandle_args args;
 	struct {
 		struct device_node *np;
@@ -557,15 +610,21 @@ static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 	 * entry contains a pointer to the VSP DT node and a bitmask of the
 	 * connected DU CRTCs.
 	 */
-	cells = of_property_count_u32_elems(np, "vsps") / rcdu->num_crtcs - 1;
+	ret = of_property_count_u32_elems(np, vsps_prop_name);
+	if (ret < 0) {
+		/* Backward compatibility with old DTBs. */
+		vsps_prop_name = "vsps";
+		ret = of_property_count_u32_elems(np, vsps_prop_name);
+	}
+	cells = ret / rcdu->num_crtcs - 1;
 	if (cells > 1)
 		return -EINVAL;
 
 	for (i = 0; i < rcdu->num_crtcs; ++i) {
 		unsigned int j;
 
-		ret = of_parse_phandle_with_fixed_args(np, "vsps", cells, i,
-						       &args);
+		ret = of_parse_phandle_with_fixed_args(np, vsps_prop_name,
+						       cells, i, &args);
 		if (ret < 0)
 			goto error;
 
@@ -585,7 +644,11 @@ static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 
 		vsps[j].crtcs_mask |= BIT(i);
 
-		/* Store the VSP pointer and pipe index in the CRTC. */
+		/*
+		 * Store the VSP pointer and pipe index in the CRTC. If the
+		 * second cell of the 'renesas,vsps' specifier isn't present,
+		 * default to 0 to remain compatible with older DT bindings.
+		 */
 		rcdu->crtcs[i].vsp = &rcdu->vsps[j];
 		rcdu->crtcs[i].vsp_pipe = cells >= 1 ? args.args[0] : 0;
 	}
@@ -614,6 +677,75 @@ error:
 	return ret;
 }
 
+static int rcar_du_cmm_init(struct rcar_du_device *rcdu)
+{
+	const struct device_node *np = rcdu->dev->of_node;
+	unsigned int i;
+	int cells;
+
+	cells = of_property_count_u32_elems(np, "renesas,cmms");
+	if (cells == -EINVAL)
+		return 0;
+
+	if (cells > rcdu->num_crtcs) {
+		dev_err(rcdu->dev,
+			"Invalid number of entries in 'renesas,cmms'\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < cells; ++i) {
+		struct platform_device *pdev;
+		struct device_link *link;
+		struct device_node *cmm;
+		int ret;
+
+		cmm = of_parse_phandle(np, "renesas,cmms", i);
+		if (IS_ERR(cmm)) {
+			dev_err(rcdu->dev,
+				"Failed to parse 'renesas,cmms' property\n");
+			return PTR_ERR(cmm);
+		}
+
+		if (!of_device_is_available(cmm)) {
+			/* It's fine to have a phandle to a non-enabled CMM. */
+			of_node_put(cmm);
+			continue;
+		}
+
+		pdev = of_find_device_by_node(cmm);
+		if (IS_ERR(pdev)) {
+			dev_err(rcdu->dev, "No device found for CMM%u\n", i);
+			of_node_put(cmm);
+			return PTR_ERR(pdev);
+		}
+
+		of_node_put(cmm);
+
+		/*
+		 * -ENODEV is used to report that the CMM config option is
+		 * disabled: return 0 and let the DU continue probing.
+		 */
+		ret = rcar_cmm_init(pdev);
+		if (ret)
+			return ret == -ENODEV ? 0 : ret;
+
+		/*
+		 * Enforce suspend/resume ordering by making the CMM a provider
+		 * of the DU: CMM is suspended after and resumed before the DU.
+		 */
+		link = device_link_add(rcdu->dev, &pdev->dev, DL_FLAG_STATELESS);
+		if (!link) {
+			dev_err(rcdu->dev,
+				"Failed to create device link to CMM%u\n", i);
+			return -EINVAL;
+		}
+
+		rcdu->cmms[i] = pdev;
+	}
+
+	return 0;
+}
+
 int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 {
 	static const unsigned int mmio_offsets[] = {
@@ -630,7 +762,9 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	unsigned int i;
 	int ret;
 
-	drm_mode_config_init(dev);
+	ret = drmm_mode_config_init(dev);
+	if (ret)
+		return ret;
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
@@ -703,6 +837,11 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		if (ret < 0)
 			return ret;
 	}
+
+	/* Initialize the Color Management Modules. */
+	ret = rcar_du_cmm_init(rcdu);
+	if (ret)
+		return ret;
 
 	/* Create the CRTCs. */
 	for (swindex = 0, hwindex = 0; swindex < rcdu->num_crtcs; ++hwindex) {

@@ -260,7 +260,6 @@ static void __init asm9260_acc_init(struct device_node *np)
 	const char *ref_clk, *pll_clk = "pll";
 	u32 rate;
 	int n;
-	u32 accuracy = 0;
 
 	clk_data = kzalloc(struct_size(clk_data, hws, MAX_CLKS), GFP_KERNEL);
 	if (!clk_data)
@@ -275,10 +274,11 @@ static void __init asm9260_acc_init(struct device_node *np)
 	/* register pll */
 	rate = (ioread32(base + HW_SYSPLLCTRL) & 0xffff) * 1000000;
 
+	/* TODO: Convert to DT parent scheme */
 	ref_clk = of_clk_get_parent_name(np, 0);
-	accuracy = clk_get_accuracy(__clk_lookup(ref_clk));
-	hw = clk_hw_register_fixed_rate_with_accuracy(NULL, pll_clk,
-			ref_clk, 0, rate, accuracy);
+	hw = __clk_hw_register_fixed_rate(NULL, NULL, pll_clk,
+			ref_clk, NULL, NULL, 0, rate, 0,
+			CLK_FIXED_RATE_PARENT_ACCURACY);
 
 	if (IS_ERR(hw))
 		panic("%pOFn: can't register REFCLK. Check DT!", np);

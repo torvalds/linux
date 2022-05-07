@@ -191,7 +191,16 @@ static void aac_src_enable_interrupt_message(struct aac_dev *dev)
  *	@dev: Adapter
  *	@command: Command to execute
  *	@p1: first parameter
- *	@ret: adapter status
+ *	@p2: second parameter
+ *	@p3: third parameter
+ *	@p4: forth parameter
+ *	@p5: fifth parameter
+ *	@p6: sixth parameter
+ *	@status: adapter status
+ *	@r1: first return value
+ *	@r2: second return valu
+ *	@r3: third return value
+ *	@r4: forth return value
  *
  *	This routine will send a synchronous command to the adapter and wait
  *	for its	completion.
@@ -602,6 +611,7 @@ static int aac_src_deliver_message(struct fib *fib)
 
 /**
  *	aac_src_ioremap
+ *	@dev: device ioremap
  *	@size: mapping resize request
  *
  */
@@ -632,6 +642,7 @@ static int aac_src_ioremap(struct aac_dev *dev, u32 size)
 
 /**
  *  aac_srcv_ioremap
+ *	@dev: device ioremap
  *	@size: mapping resize request
  *
  */
@@ -733,10 +744,20 @@ static bool aac_is_ctrl_up_and_running(struct aac_dev *dev)
 	return ctrl_up;
 }
 
+static void aac_src_drop_io(struct aac_dev *dev)
+{
+	if (!dev->soft_reset_support)
+		return;
+
+	aac_adapter_sync_cmd(dev, DROP_IO,
+			0, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL);
+}
+
 static void aac_notify_fw_of_iop_reset(struct aac_dev *dev)
 {
 	aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS, 0, 0, 0, 0, 0, 0, NULL,
 						NULL, NULL, NULL, NULL);
+	aac_src_drop_io(dev);
 }
 
 static void aac_send_iop_reset(struct aac_dev *dev)

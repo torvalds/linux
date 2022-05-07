@@ -131,7 +131,7 @@ enum max77693_pmic_reg {
 #define FLASH_INT_FLED1_SHORT	BIT(3)
 #define FLASH_INT_OVER_CURRENT	BIT(4)
 
-/* Fast charge timer in in hours */
+/* Fast charge timer in hours */
 #define DEFAULT_FAST_CHARGE_TIMER		4
 /* microamps */
 #define DEFAULT_TOP_OFF_THRESHOLD_CURRENT	150000

@@ -838,11 +838,11 @@ static int lpc18xx_pconf_get_pin(struct pinctrl_dev *pctldev, unsigned param,
 		*arg = (reg & LPC18XX_SCU_PIN_EHD_MASK) >> LPC18XX_SCU_PIN_EHD_POS;
 		switch (*arg) {
 		case 3: *arg += 5;
-			/* fall through */
+			fallthrough;
 		case 2: *arg += 5;
-			/* fall through */
+			fallthrough;
 		case 1: *arg += 3;
-			/* fall through */
+			fallthrough;
 		case 0: *arg += 4;
 		}
 		break;
@@ -1057,11 +1057,11 @@ static int lpc18xx_pconf_set_pin(struct pinctrl_dev *pctldev, unsigned param,
 
 		switch (param_val) {
 		case 20: param_val -= 5;
-			 /* fall through */
+			fallthrough;
 		case 14: param_val -= 5;
-			 /* fall through */
+			fallthrough;
 		case  8: param_val -= 3;
-			 /* fall through */
+			fallthrough;
 		case  4: param_val -= 4;
 			 break;
 		default:
@@ -1324,15 +1324,13 @@ static int lpc18xx_create_group_func_map(struct device *dev,
 static int lpc18xx_scu_probe(struct platform_device *pdev)
 {
 	struct lpc18xx_scu_data *scu;
-	struct resource *res;
 	int ret;
 
 	scu = devm_kzalloc(&pdev->dev, sizeof(*scu), GFP_KERNEL);
 	if (!scu)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	scu->base = devm_ioremap_resource(&pdev->dev, res);
+	scu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(scu->base))
 		return PTR_ERR(scu->base);
 

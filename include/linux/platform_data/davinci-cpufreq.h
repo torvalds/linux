@@ -2,7 +2,7 @@
 /*
  * TI DaVinci CPUFreq platform support.
  *
- * Copyright (C) 2009 Texas Instruments, Inc. http://www.ti.com/
+ * Copyright (C) 2009 Texas Instruments, Inc. https://www.ti.com/
  */
 
 #ifndef _MACH_DAVINCI_CPUFREQ_H

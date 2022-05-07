@@ -26,7 +26,6 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/inst.h>
 #include <asm/frame.h>
 #include <asm/nospec-branch.h>
 
@@ -201,7 +200,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	mov	\SUBKEY, %r12
 	movdqu	(%r12), \TMP3
 	movdqa	SHUF_MASK(%rip), \TMP2
-	PSHUFB_XMM \TMP2, \TMP3
+	pshufb	\TMP2, \TMP3
 
 	# precompute HashKey<<1 mod poly from the HashKey (required for GHASH)
 
@@ -263,10 +262,10 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	movdqu %xmm0, OrigIV(%arg2) # ctx_data.orig_IV = iv
 
 	movdqa  SHUF_MASK(%rip), %xmm2
-	PSHUFB_XMM %xmm2, %xmm0
+	pshufb %xmm2, %xmm0
 	movdqu %xmm0, CurCount(%arg2) # ctx_data.current_counter = iv
 
-	PRECOMPUTE \SUBKEY, %xmm1, %xmm2, %xmm3, %xmm4, %xmm5, %xmm6, %xmm7,
+	PRECOMPUTE \SUBKEY, %xmm1, %xmm2, %xmm3, %xmm4, %xmm5, %xmm6, %xmm7
 	movdqu HashKey(%arg2), %xmm13
 
 	CALC_AAD_HASH %xmm13, \AAD, \AADLEN, %xmm0, %xmm1, %xmm2, %xmm3, \
@@ -347,7 +346,7 @@ _zero_cipher_left_\@:
 	paddd ONE(%rip), %xmm0                # INCR CNT to get Yn
 	movdqu %xmm0, CurCount(%arg2)
 	movdqa SHUF_MASK(%rip), %xmm10
-	PSHUFB_XMM %xmm10, %xmm0
+	pshufb %xmm10, %xmm0
 
 	ENCRYPT_SINGLE_BLOCK	%xmm0, %xmm1        # Encrypt(K, Yn)
 	movdqu %xmm0, PBlockEncKey(%arg2)
@@ -377,7 +376,7 @@ _large_enough_update_\@:
 	# get the appropriate shuffle mask
 	movdqu	(%r12), %xmm2
 	# shift right 16-r13 bytes
-	PSHUFB_XMM  %xmm2, %xmm1
+	pshufb  %xmm2, %xmm1
 
 _data_read_\@:
 	lea ALL_F+16(%rip), %r12
@@ -393,12 +392,12 @@ _data_read_\@:
 .ifc \operation, dec
 	pand    %xmm1, %xmm2
 	movdqa SHUF_MASK(%rip), %xmm10
-	PSHUFB_XMM %xmm10 ,%xmm2
+	pshufb %xmm10 ,%xmm2
 
 	pxor %xmm2, %xmm8
 .else
 	movdqa SHUF_MASK(%rip), %xmm10
-	PSHUFB_XMM %xmm10,%xmm0
+	pshufb %xmm10,%xmm0
 
 	pxor	%xmm0, %xmm8
 .endif
@@ -408,17 +407,17 @@ _data_read_\@:
 	# GHASH computation for the last <16 byte block
 	movdqa SHUF_MASK(%rip), %xmm10
 	# shuffle xmm0 back to output as ciphertext
-	PSHUFB_XMM %xmm10, %xmm0
+	pshufb %xmm10, %xmm0
 .endif
 
 	# Output %r13 bytes
-	MOVQ_R64_XMM %xmm0, %rax
+	movq %xmm0, %rax
 	cmp $8, %r13
 	jle _less_than_8_bytes_left_\@
 	mov %rax, (%arg3 , %r11, 1)
 	add $8, %r11
 	psrldq $8, %xmm0
-	MOVQ_R64_XMM %xmm0, %rax
+	movq %xmm0, %rax
 	sub $8, %r13
 _less_than_8_bytes_left_\@:
 	mov %al,  (%arg3, %r11, 1)
@@ -449,7 +448,7 @@ _partial_done\@:
 	movd	%r12d, %xmm15		  # len(A) in %xmm15
 	mov InLen(%arg2), %r12
 	shl     $3, %r12                  # len(C) in bits (*128)
-	MOVQ_R64_XMM    %r12, %xmm1
+	movq    %r12, %xmm1
 
 	pslldq	$8, %xmm15		  # %xmm15 = len(A)||0x0000000000000000
 	pxor	%xmm1, %xmm15		  # %xmm15 = len(A)||len(C)
@@ -457,7 +456,7 @@ _partial_done\@:
 	GHASH_MUL	%xmm8, %xmm13, %xmm9, %xmm10, %xmm11, %xmm5, %xmm6
 	# final GHASH computation
 	movdqa SHUF_MASK(%rip), %xmm10
-	PSHUFB_XMM %xmm10, %xmm8
+	pshufb %xmm10, %xmm8
 
 	movdqu OrigIV(%arg2), %xmm0       # %xmm0 = Y0
 	ENCRYPT_SINGLE_BLOCK	%xmm0,  %xmm1	  # E(K, Y0)
@@ -470,7 +469,7 @@ _return_T_\@:
 	cmp	$8, %r11
 	jl	_T_4_\@
 _T_8_\@:
-	MOVQ_R64_XMM	%xmm0, %rax
+	movq	%xmm0, %rax
 	mov	%rax, (%r10)
 	add	$8, %r10
 	sub	$8, %r11
@@ -518,9 +517,9 @@ _return_T_done_\@:
 	pshufd	  $78, \HK, \TMP3
 	pxor	  \GH, \TMP2            # TMP2 = a1+a0
 	pxor	  \HK, \TMP3            # TMP3 = b1+b0
-	PCLMULQDQ 0x11, \HK, \TMP1     # TMP1 = a1*b1
-	PCLMULQDQ 0x00, \HK, \GH       # GH = a0*b0
-	PCLMULQDQ 0x00, \TMP3, \TMP2   # TMP2 = (a0+a1)*(b1+b0)
+	pclmulqdq $0x11, \HK, \TMP1     # TMP1 = a1*b1
+	pclmulqdq $0x00, \HK, \GH       # GH = a0*b0
+	pclmulqdq $0x00, \TMP3, \TMP2   # TMP2 = (a0+a1)*(b1+b0)
 	pxor	  \GH, \TMP2
 	pxor	  \TMP1, \TMP2          # TMP2 = (a0*b0)+(a1*b0)
 	movdqa	  \TMP2, \TMP3
@@ -570,7 +569,7 @@ _return_T_done_\@:
         cmp $8, \DLEN
         jl _read_lt8_\@
         mov (\DPTR), %rax
-        MOVQ_R64_XMM %rax, \XMMDst
+        movq %rax, \XMMDst
         sub $8, \DLEN
         jz _done_read_partial_block_\@
 	xor %eax, %eax
@@ -579,7 +578,7 @@ _read_next_byte_\@:
         mov 7(\DPTR, \DLEN, 1), %al
         dec \DLEN
         jnz _read_next_byte_\@
-        MOVQ_R64_XMM %rax, \XMM1
+        movq %rax, \XMM1
 	pslldq $8, \XMM1
         por \XMM1, \XMMDst
 	jmp _done_read_partial_block_\@
@@ -590,7 +589,7 @@ _read_next_byte_lt8_\@:
         mov -1(\DPTR, \DLEN, 1), %al
         dec \DLEN
         jnz _read_next_byte_lt8_\@
-        MOVQ_R64_XMM %rax, \XMMDst
+        movq %rax, \XMMDst
 _done_read_partial_block_\@:
 .endm
 
@@ -608,7 +607,7 @@ _done_read_partial_block_\@:
 	jl	   _get_AAD_rest\@
 _get_AAD_blocks\@:
 	movdqu	   (%r10), \TMP7
-	PSHUFB_XMM   %xmm14, \TMP7 # byte-reflect the AAD data
+	pshufb	   %xmm14, \TMP7 # byte-reflect the AAD data
 	pxor	   \TMP7, \TMP6
 	GHASH_MUL  \TMP6, \HASHKEY, \TMP1, \TMP2, \TMP3, \TMP4, \TMP5
 	add	   $16, %r10
@@ -624,7 +623,7 @@ _get_AAD_rest\@:
 	je	   _get_AAD_done\@
 
 	READ_PARTIAL_BLOCK %r10, %r11, \TMP1, \TMP7
-	PSHUFB_XMM   %xmm14, \TMP7 # byte-reflect the AAD data
+	pshufb	   %xmm14, \TMP7 # byte-reflect the AAD data
 	pxor	   \TMP6, \TMP7
 	GHASH_MUL  \TMP7, \HASHKEY, \TMP1, \TMP2, \TMP3, \TMP4, \TMP5
 	movdqu \TMP7, \TMP6
@@ -667,7 +666,7 @@ _data_read_\@:				# Finished reading in data
 	# r16-r13 is the number of bytes in plaintext mod 16)
 	add	%r13, %r12
 	movdqu	(%r12), %xmm2		# get the appropriate shuffle mask
-	PSHUFB_XMM %xmm2, %xmm9		# shift right r13 bytes
+	pshufb	%xmm2, %xmm9		# shift right r13 bytes
 
 .ifc \operation, dec
 	movdqa	%xmm1, %xmm3
@@ -689,8 +688,8 @@ _no_extra_mask_1_\@:
 
 	pand	%xmm1, %xmm3
 	movdqa	SHUF_MASK(%rip), %xmm10
-	PSHUFB_XMM	%xmm10, %xmm3
-	PSHUFB_XMM	%xmm2, %xmm3
+	pshufb	%xmm10, %xmm3
+	pshufb	%xmm2, %xmm3
 	pxor	%xmm3, \AAD_HASH
 
 	cmp	$0, %r10
@@ -724,8 +723,8 @@ _no_extra_mask_2_\@:
 	pand	%xmm1, %xmm9
 
 	movdqa	SHUF_MASK(%rip), %xmm1
-	PSHUFB_XMM %xmm1, %xmm9
-	PSHUFB_XMM %xmm2, %xmm9
+	pshufb	%xmm1, %xmm9
+	pshufb	%xmm2, %xmm9
 	pxor	%xmm9, \AAD_HASH
 
 	cmp	$0, %r10
@@ -744,8 +743,8 @@ _encode_done_\@:
 
 	movdqa	SHUF_MASK(%rip), %xmm10
 	# shuffle xmm9 back to output as ciphertext
-	PSHUFB_XMM	%xmm10, %xmm9
-	PSHUFB_XMM	%xmm2, %xmm9
+	pshufb	%xmm10, %xmm9
+	pshufb	%xmm2, %xmm9
 .endif
 	# output encrypted Bytes
 	cmp	$0, %r10
@@ -759,14 +758,14 @@ _partial_fill_\@:
 	mov	\PLAIN_CYPH_LEN, %r13
 _count_set_\@:
 	movdqa	%xmm9, %xmm0
-	MOVQ_R64_XMM	%xmm0, %rax
+	movq	%xmm0, %rax
 	cmp	$8, %r13
 	jle	_less_than_8_bytes_left_\@
 
 	mov	%rax, (\CYPH_PLAIN_OUT, \DATA_OFFSET, 1)
 	add	$8, \DATA_OFFSET
 	psrldq	$8, %xmm0
-	MOVQ_R64_XMM	%xmm0, %rax
+	movq	%xmm0, %rax
 	sub	$8, %r13
 _less_than_8_bytes_left_\@:
 	movb	%al, (\CYPH_PLAIN_OUT, \DATA_OFFSET, 1)
@@ -810,7 +809,7 @@ _partial_block_done_\@:
 .else
 	MOVADQ		\XMM0, %xmm\index
 .endif
-	PSHUFB_XMM	%xmm14, %xmm\index      # perform a 16 byte swap
+	pshufb	%xmm14, %xmm\index      # perform a 16 byte swap
 	pxor		\TMP2, %xmm\index
 .endr
 	lea	0x10(%arg1),%r10
@@ -821,7 +820,7 @@ _partial_block_done_\@:
 aes_loop_initial_\@:
 	MOVADQ	(%r10),\TMP1
 .irpc	index, \i_seq
-	AESENC	\TMP1, %xmm\index
+	aesenc	\TMP1, %xmm\index
 .endr
 	add	$16,%r10
 	sub	$1,%eax
@@ -829,7 +828,7 @@ aes_loop_initial_\@:
 
 	MOVADQ	(%r10), \TMP1
 .irpc index, \i_seq
-	AESENCLAST \TMP1, %xmm\index         # Last Round
+	aesenclast \TMP1, %xmm\index         # Last Round
 .endr
 .irpc index, \i_seq
 	movdqu	   (%arg4 , %r11, 1), \TMP1
@@ -841,7 +840,7 @@ aes_loop_initial_\@:
 .ifc \operation, dec
 	movdqa     \TMP1, %xmm\index
 .endif
-	PSHUFB_XMM	   %xmm14, %xmm\index
+	pshufb	   %xmm14, %xmm\index
 
 		# prepare plaintext/ciphertext for GHASH computation
 .endr
@@ -876,19 +875,19 @@ aes_loop_initial_\@:
 	MOVADQ	   ONE(%RIP),\TMP1
 	paddd	   \TMP1, \XMM0              # INCR Y0
 	MOVADQ	   \XMM0, \XMM1
-	PSHUFB_XMM  %xmm14, \XMM1        # perform a 16 byte swap
+	pshufb  %xmm14, \XMM1        # perform a 16 byte swap
 
 	paddd	   \TMP1, \XMM0              # INCR Y0
 	MOVADQ	   \XMM0, \XMM2
-	PSHUFB_XMM  %xmm14, \XMM2        # perform a 16 byte swap
+	pshufb  %xmm14, \XMM2        # perform a 16 byte swap
 
 	paddd	   \TMP1, \XMM0              # INCR Y0
 	MOVADQ	   \XMM0, \XMM3
-	PSHUFB_XMM %xmm14, \XMM3        # perform a 16 byte swap
+	pshufb %xmm14, \XMM3        # perform a 16 byte swap
 
 	paddd	   \TMP1, \XMM0              # INCR Y0
 	MOVADQ	   \XMM0, \XMM4
-	PSHUFB_XMM %xmm14, \XMM4        # perform a 16 byte swap
+	pshufb %xmm14, \XMM4        # perform a 16 byte swap
 
 	MOVADQ	   0(%arg1),\TMP1
 	pxor	   \TMP1, \XMM1
@@ -897,17 +896,17 @@ aes_loop_initial_\@:
 	pxor	   \TMP1, \XMM4
 .irpc index, 1234 # do 4 rounds
 	movaps 0x10*\index(%arg1), \TMP1
-	AESENC	   \TMP1, \XMM1
-	AESENC	   \TMP1, \XMM2
-	AESENC	   \TMP1, \XMM3
-	AESENC	   \TMP1, \XMM4
+	aesenc	   \TMP1, \XMM1
+	aesenc	   \TMP1, \XMM2
+	aesenc	   \TMP1, \XMM3
+	aesenc	   \TMP1, \XMM4
 .endr
 .irpc index, 56789 # do next 5 rounds
 	movaps 0x10*\index(%arg1), \TMP1
-	AESENC	   \TMP1, \XMM1
-	AESENC	   \TMP1, \XMM2
-	AESENC	   \TMP1, \XMM3
-	AESENC	   \TMP1, \XMM4
+	aesenc	   \TMP1, \XMM1
+	aesenc	   \TMP1, \XMM2
+	aesenc	   \TMP1, \XMM3
+	aesenc	   \TMP1, \XMM4
 .endr
 	lea	   0xa0(%arg1),%r10
 	mov	   keysize,%eax
@@ -918,7 +917,7 @@ aes_loop_initial_\@:
 aes_loop_pre_\@:
 	MOVADQ	   (%r10),\TMP2
 .irpc	index, 1234
-	AESENC	   \TMP2, %xmm\index
+	aesenc	   \TMP2, %xmm\index
 .endr
 	add	   $16,%r10
 	sub	   $1,%eax
@@ -926,10 +925,10 @@ aes_loop_pre_\@:
 
 aes_loop_pre_done\@:
 	MOVADQ	   (%r10), \TMP2
-	AESENCLAST \TMP2, \XMM1
-	AESENCLAST \TMP2, \XMM2
-	AESENCLAST \TMP2, \XMM3
-	AESENCLAST \TMP2, \XMM4
+	aesenclast \TMP2, \XMM1
+	aesenclast \TMP2, \XMM2
+	aesenclast \TMP2, \XMM3
+	aesenclast \TMP2, \XMM4
 	movdqu	   16*0(%arg4 , %r11 , 1), \TMP1
 	pxor	   \TMP1, \XMM1
 .ifc \operation, dec
@@ -961,12 +960,12 @@ aes_loop_pre_done\@:
 .endif
 
 	add	   $64, %r11
-	PSHUFB_XMM %xmm14, \XMM1 # perform a 16 byte swap
+	pshufb %xmm14, \XMM1 # perform a 16 byte swap
 	pxor	   \XMMDst, \XMM1
 # combine GHASHed value with the corresponding ciphertext
-	PSHUFB_XMM %xmm14, \XMM2 # perform a 16 byte swap
-	PSHUFB_XMM %xmm14, \XMM3 # perform a 16 byte swap
-	PSHUFB_XMM %xmm14, \XMM4 # perform a 16 byte swap
+	pshufb %xmm14, \XMM2 # perform a 16 byte swap
+	pshufb %xmm14, \XMM3 # perform a 16 byte swap
+	pshufb %xmm14, \XMM4 # perform a 16 byte swap
 
 _initial_blocks_done\@:
 
@@ -978,7 +977,7 @@ _initial_blocks_done\@:
 * arg1, %arg3, %arg4 are used as pointers only, not modified
 * %r11 is the data offset value
 */
-.macro GHASH_4_ENCRYPT_4_PARALLEL_ENC TMP1 TMP2 TMP3 TMP4 TMP5 \
+.macro GHASH_4_ENCRYPT_4_PARALLEL_enc TMP1 TMP2 TMP3 TMP4 TMP5 \
 TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 
 	movdqa	  \XMM1, \XMM5
@@ -994,7 +993,7 @@ TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 	pxor	  \XMM5, \TMP6
 	paddd     ONE(%rip), \XMM0		# INCR CNT
 	movdqu	  HashKey_4(%arg2), \TMP5
-	PCLMULQDQ 0x11, \TMP5, \TMP4           # TMP4 = a1*b1
+	pclmulqdq $0x11, \TMP5, \TMP4           # TMP4 = a1*b1
 	movdqa    \XMM0, \XMM1
 	paddd     ONE(%rip), \XMM0		# INCR CNT
 	movdqa    \XMM0, \XMM2
@@ -1002,51 +1001,51 @@ TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 	movdqa    \XMM0, \XMM3
 	paddd     ONE(%rip), \XMM0		# INCR CNT
 	movdqa    \XMM0, \XMM4
-	PSHUFB_XMM %xmm15, \XMM1	# perform a 16 byte swap
-	PCLMULQDQ 0x00, \TMP5, \XMM5           # XMM5 = a0*b0
-	PSHUFB_XMM %xmm15, \XMM2	# perform a 16 byte swap
-	PSHUFB_XMM %xmm15, \XMM3	# perform a 16 byte swap
-	PSHUFB_XMM %xmm15, \XMM4	# perform a 16 byte swap
+	pshufb %xmm15, \XMM1	# perform a 16 byte swap
+	pclmulqdq $0x00, \TMP5, \XMM5           # XMM5 = a0*b0
+	pshufb %xmm15, \XMM2	# perform a 16 byte swap
+	pshufb %xmm15, \XMM3	# perform a 16 byte swap
+	pshufb %xmm15, \XMM4	# perform a 16 byte swap
 
 	pxor	  (%arg1), \XMM1
 	pxor	  (%arg1), \XMM2
 	pxor	  (%arg1), \XMM3
 	pxor	  (%arg1), \XMM4
 	movdqu	  HashKey_4_k(%arg2), \TMP5
-	PCLMULQDQ 0x00, \TMP5, \TMP6           # TMP6 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP5, \TMP6       # TMP6 = (a1+a0)*(b1+b0)
 	movaps 0x10(%arg1), \TMP1
-	AESENC	  \TMP1, \XMM1              # Round 1
-	AESENC	  \TMP1, \XMM2
-	AESENC	  \TMP1, \XMM3
-	AESENC	  \TMP1, \XMM4
+	aesenc	  \TMP1, \XMM1              # Round 1
+	aesenc	  \TMP1, \XMM2
+	aesenc	  \TMP1, \XMM3
+	aesenc	  \TMP1, \XMM4
 	movaps 0x20(%arg1), \TMP1
-	AESENC	  \TMP1, \XMM1              # Round 2
-	AESENC	  \TMP1, \XMM2
-	AESENC	  \TMP1, \XMM3
-	AESENC	  \TMP1, \XMM4
+	aesenc	  \TMP1, \XMM1              # Round 2
+	aesenc	  \TMP1, \XMM2
+	aesenc	  \TMP1, \XMM3
+	aesenc	  \TMP1, \XMM4
 	movdqa	  \XMM6, \TMP1
 	pshufd	  $78, \XMM6, \TMP2
 	pxor	  \XMM6, \TMP2
 	movdqu	  HashKey_3(%arg2), \TMP5
-	PCLMULQDQ 0x11, \TMP5, \TMP1           # TMP1 = a1 * b1
+	pclmulqdq $0x11, \TMP5, \TMP1       # TMP1 = a1 * b1
 	movaps 0x30(%arg1), \TMP3
-	AESENC    \TMP3, \XMM1              # Round 3
-	AESENC    \TMP3, \XMM2
-	AESENC    \TMP3, \XMM3
-	AESENC    \TMP3, \XMM4
-	PCLMULQDQ 0x00, \TMP5, \XMM6           # XMM6 = a0*b0
+	aesenc    \TMP3, \XMM1              # Round 3
+	aesenc    \TMP3, \XMM2
+	aesenc    \TMP3, \XMM3
+	aesenc    \TMP3, \XMM4
+	pclmulqdq $0x00, \TMP5, \XMM6       # XMM6 = a0*b0
 	movaps 0x40(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1              # Round 4
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
+	aesenc	  \TMP3, \XMM1              # Round 4
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
 	movdqu	  HashKey_3_k(%arg2), \TMP5
-	PCLMULQDQ 0x00, \TMP5, \TMP2           # TMP2 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP5, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
 	movaps 0x50(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1              # Round 5
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
+	aesenc	  \TMP3, \XMM1              # Round 5
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
 	pxor	  \TMP1, \TMP4
 # accumulate the results in TMP4:XMM5, TMP6 holds the middle part
 	pxor	  \XMM6, \XMM5
@@ -1058,25 +1057,25 @@ TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 
         # Multiply TMP5 * HashKey using karatsuba
 
-	PCLMULQDQ 0x11, \TMP5, \TMP1           # TMP1 = a1*b1
+	pclmulqdq $0x11, \TMP5, \TMP1       # TMP1 = a1*b1
 	movaps 0x60(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1              # Round 6
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
-	PCLMULQDQ 0x00, \TMP5, \XMM7           # XMM7 = a0*b0
+	aesenc	  \TMP3, \XMM1              # Round 6
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
+	pclmulqdq $0x00, \TMP5, \XMM7       # XMM7 = a0*b0
 	movaps 0x70(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1             # Round 7
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
+	aesenc	  \TMP3, \XMM1              # Round 7
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
 	movdqu	  HashKey_2_k(%arg2), \TMP5
-	PCLMULQDQ 0x00, \TMP5, \TMP2           # TMP2 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP5, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
 	movaps 0x80(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1             # Round 8
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
+	aesenc	  \TMP3, \XMM1              # Round 8
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
 	pxor	  \TMP1, \TMP4
 # accumulate the results in TMP4:XMM5, TMP6 holds the middle part
 	pxor	  \XMM7, \XMM5
@@ -1089,13 +1088,13 @@ TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 	pshufd	  $78, \XMM8, \TMP2
 	pxor	  \XMM8, \TMP2
 	movdqu	  HashKey(%arg2), \TMP5
-	PCLMULQDQ 0x11, \TMP5, \TMP1          # TMP1 = a1*b1
+	pclmulqdq $0x11, \TMP5, \TMP1      # TMP1 = a1*b1
 	movaps 0x90(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1            # Round 9
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
-	PCLMULQDQ 0x00, \TMP5, \XMM8          # XMM8 = a0*b0
+	aesenc	  \TMP3, \XMM1             # Round 9
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
+	pclmulqdq $0x00, \TMP5, \XMM8      # XMM8 = a0*b0
 	lea	  0xa0(%arg1),%r10
 	mov	  keysize,%eax
 	shr	  $2,%eax			# 128->4, 192->6, 256->8
@@ -1105,7 +1104,7 @@ TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 aes_loop_par_enc\@:
 	MOVADQ	  (%r10),\TMP3
 .irpc	index, 1234
-	AESENC	  \TMP3, %xmm\index
+	aesenc	  \TMP3, %xmm\index
 .endr
 	add	  $16,%r10
 	sub	  $1,%eax
@@ -1113,12 +1112,12 @@ aes_loop_par_enc\@:
 
 aes_loop_par_enc_done\@:
 	MOVADQ	  (%r10), \TMP3
-	AESENCLAST \TMP3, \XMM1           # Round 10
-	AESENCLAST \TMP3, \XMM2
-	AESENCLAST \TMP3, \XMM3
-	AESENCLAST \TMP3, \XMM4
+	aesenclast \TMP3, \XMM1           # Round 10
+	aesenclast \TMP3, \XMM2
+	aesenclast \TMP3, \XMM3
+	aesenclast \TMP3, \XMM4
 	movdqu    HashKey_k(%arg2), \TMP5
-	PCLMULQDQ 0x00, \TMP5, \TMP2          # TMP2 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP5, \TMP2          # TMP2 = (a1+a0)*(b1+b0)
 	movdqu	  (%arg4,%r11,1), \TMP3
 	pxor	  \TMP3, \XMM1                 # Ciphertext/Plaintext XOR EK
 	movdqu	  16(%arg4,%r11,1), \TMP3
@@ -1131,10 +1130,10 @@ aes_loop_par_enc_done\@:
         movdqu    \XMM2, 16(%arg3,%r11,1)      # Write to the ciphertext buffer
         movdqu    \XMM3, 32(%arg3,%r11,1)      # Write to the ciphertext buffer
         movdqu    \XMM4, 48(%arg3,%r11,1)      # Write to the ciphertext buffer
-	PSHUFB_XMM %xmm15, \XMM1        # perform a 16 byte swap
-	PSHUFB_XMM %xmm15, \XMM2	# perform a 16 byte swap
-	PSHUFB_XMM %xmm15, \XMM3	# perform a 16 byte swap
-	PSHUFB_XMM %xmm15, \XMM4	# perform a 16 byte swap
+	pshufb %xmm15, \XMM1        # perform a 16 byte swap
+	pshufb %xmm15, \XMM2	# perform a 16 byte swap
+	pshufb %xmm15, \XMM3	# perform a 16 byte swap
+	pshufb %xmm15, \XMM4	# perform a 16 byte swap
 
 	pxor	  \TMP4, \TMP1
 	pxor	  \XMM8, \XMM5
@@ -1186,7 +1185,7 @@ aes_loop_par_enc_done\@:
 * arg1, %arg3, %arg4 are used as pointers only, not modified
 * %r11 is the data offset value
 */
-.macro GHASH_4_ENCRYPT_4_PARALLEL_DEC TMP1 TMP2 TMP3 TMP4 TMP5 \
+.macro GHASH_4_ENCRYPT_4_PARALLEL_dec TMP1 TMP2 TMP3 TMP4 TMP5 \
 TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 
 	movdqa	  \XMM1, \XMM5
@@ -1202,7 +1201,7 @@ TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 	pxor	  \XMM5, \TMP6
 	paddd     ONE(%rip), \XMM0		# INCR CNT
 	movdqu	  HashKey_4(%arg2), \TMP5
-	PCLMULQDQ 0x11, \TMP5, \TMP4           # TMP4 = a1*b1
+	pclmulqdq $0x11, \TMP5, \TMP4           # TMP4 = a1*b1
 	movdqa    \XMM0, \XMM1
 	paddd     ONE(%rip), \XMM0		# INCR CNT
 	movdqa    \XMM0, \XMM2
@@ -1210,51 +1209,51 @@ TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 	movdqa    \XMM0, \XMM3
 	paddd     ONE(%rip), \XMM0		# INCR CNT
 	movdqa    \XMM0, \XMM4
-	PSHUFB_XMM %xmm15, \XMM1	# perform a 16 byte swap
-	PCLMULQDQ 0x00, \TMP5, \XMM5           # XMM5 = a0*b0
-	PSHUFB_XMM %xmm15, \XMM2	# perform a 16 byte swap
-	PSHUFB_XMM %xmm15, \XMM3	# perform a 16 byte swap
-	PSHUFB_XMM %xmm15, \XMM4	# perform a 16 byte swap
+	pshufb %xmm15, \XMM1	# perform a 16 byte swap
+	pclmulqdq $0x00, \TMP5, \XMM5           # XMM5 = a0*b0
+	pshufb %xmm15, \XMM2	# perform a 16 byte swap
+	pshufb %xmm15, \XMM3	# perform a 16 byte swap
+	pshufb %xmm15, \XMM4	# perform a 16 byte swap
 
 	pxor	  (%arg1), \XMM1
 	pxor	  (%arg1), \XMM2
 	pxor	  (%arg1), \XMM3
 	pxor	  (%arg1), \XMM4
 	movdqu	  HashKey_4_k(%arg2), \TMP5
-	PCLMULQDQ 0x00, \TMP5, \TMP6           # TMP6 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP5, \TMP6       # TMP6 = (a1+a0)*(b1+b0)
 	movaps 0x10(%arg1), \TMP1
-	AESENC	  \TMP1, \XMM1              # Round 1
-	AESENC	  \TMP1, \XMM2
-	AESENC	  \TMP1, \XMM3
-	AESENC	  \TMP1, \XMM4
+	aesenc	  \TMP1, \XMM1              # Round 1
+	aesenc	  \TMP1, \XMM2
+	aesenc	  \TMP1, \XMM3
+	aesenc	  \TMP1, \XMM4
 	movaps 0x20(%arg1), \TMP1
-	AESENC	  \TMP1, \XMM1              # Round 2
-	AESENC	  \TMP1, \XMM2
-	AESENC	  \TMP1, \XMM3
-	AESENC	  \TMP1, \XMM4
+	aesenc	  \TMP1, \XMM1              # Round 2
+	aesenc	  \TMP1, \XMM2
+	aesenc	  \TMP1, \XMM3
+	aesenc	  \TMP1, \XMM4
 	movdqa	  \XMM6, \TMP1
 	pshufd	  $78, \XMM6, \TMP2
 	pxor	  \XMM6, \TMP2
 	movdqu	  HashKey_3(%arg2), \TMP5
-	PCLMULQDQ 0x11, \TMP5, \TMP1           # TMP1 = a1 * b1
+	pclmulqdq $0x11, \TMP5, \TMP1       # TMP1 = a1 * b1
 	movaps 0x30(%arg1), \TMP3
-	AESENC    \TMP3, \XMM1              # Round 3
-	AESENC    \TMP3, \XMM2
-	AESENC    \TMP3, \XMM3
-	AESENC    \TMP3, \XMM4
-	PCLMULQDQ 0x00, \TMP5, \XMM6           # XMM6 = a0*b0
+	aesenc    \TMP3, \XMM1              # Round 3
+	aesenc    \TMP3, \XMM2
+	aesenc    \TMP3, \XMM3
+	aesenc    \TMP3, \XMM4
+	pclmulqdq $0x00, \TMP5, \XMM6       # XMM6 = a0*b0
 	movaps 0x40(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1              # Round 4
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
+	aesenc	  \TMP3, \XMM1              # Round 4
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
 	movdqu	  HashKey_3_k(%arg2), \TMP5
-	PCLMULQDQ 0x00, \TMP5, \TMP2           # TMP2 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP5, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
 	movaps 0x50(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1              # Round 5
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
+	aesenc	  \TMP3, \XMM1              # Round 5
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
 	pxor	  \TMP1, \TMP4
 # accumulate the results in TMP4:XMM5, TMP6 holds the middle part
 	pxor	  \XMM6, \XMM5
@@ -1266,25 +1265,25 @@ TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 
         # Multiply TMP5 * HashKey using karatsuba
 
-	PCLMULQDQ 0x11, \TMP5, \TMP1           # TMP1 = a1*b1
+	pclmulqdq $0x11, \TMP5, \TMP1       # TMP1 = a1*b1
 	movaps 0x60(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1              # Round 6
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
-	PCLMULQDQ 0x00, \TMP5, \XMM7           # XMM7 = a0*b0
+	aesenc	  \TMP3, \XMM1              # Round 6
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
+	pclmulqdq $0x00, \TMP5, \XMM7       # XMM7 = a0*b0
 	movaps 0x70(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1             # Round 7
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
+	aesenc	  \TMP3, \XMM1              # Round 7
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
 	movdqu	  HashKey_2_k(%arg2), \TMP5
-	PCLMULQDQ 0x00, \TMP5, \TMP2           # TMP2 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP5, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
 	movaps 0x80(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1             # Round 8
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
+	aesenc	  \TMP3, \XMM1              # Round 8
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
 	pxor	  \TMP1, \TMP4
 # accumulate the results in TMP4:XMM5, TMP6 holds the middle part
 	pxor	  \XMM7, \XMM5
@@ -1297,13 +1296,13 @@ TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 	pshufd	  $78, \XMM8, \TMP2
 	pxor	  \XMM8, \TMP2
 	movdqu	  HashKey(%arg2), \TMP5
-	PCLMULQDQ 0x11, \TMP5, \TMP1          # TMP1 = a1*b1
+	pclmulqdq $0x11, \TMP5, \TMP1      # TMP1 = a1*b1
 	movaps 0x90(%arg1), \TMP3
-	AESENC	  \TMP3, \XMM1            # Round 9
-	AESENC	  \TMP3, \XMM2
-	AESENC	  \TMP3, \XMM3
-	AESENC	  \TMP3, \XMM4
-	PCLMULQDQ 0x00, \TMP5, \XMM8          # XMM8 = a0*b0
+	aesenc	  \TMP3, \XMM1             # Round 9
+	aesenc	  \TMP3, \XMM2
+	aesenc	  \TMP3, \XMM3
+	aesenc	  \TMP3, \XMM4
+	pclmulqdq $0x00, \TMP5, \XMM8      # XMM8 = a0*b0
 	lea	  0xa0(%arg1),%r10
 	mov	  keysize,%eax
 	shr	  $2,%eax		        # 128->4, 192->6, 256->8
@@ -1313,7 +1312,7 @@ TMP6 XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 operation
 aes_loop_par_dec\@:
 	MOVADQ	  (%r10),\TMP3
 .irpc	index, 1234
-	AESENC	  \TMP3, %xmm\index
+	aesenc	  \TMP3, %xmm\index
 .endr
 	add	  $16,%r10
 	sub	  $1,%eax
@@ -1321,12 +1320,12 @@ aes_loop_par_dec\@:
 
 aes_loop_par_dec_done\@:
 	MOVADQ	  (%r10), \TMP3
-	AESENCLAST \TMP3, \XMM1           # last round
-	AESENCLAST \TMP3, \XMM2
-	AESENCLAST \TMP3, \XMM3
-	AESENCLAST \TMP3, \XMM4
+	aesenclast \TMP3, \XMM1           # last round
+	aesenclast \TMP3, \XMM2
+	aesenclast \TMP3, \XMM3
+	aesenclast \TMP3, \XMM4
 	movdqu    HashKey_k(%arg2), \TMP5
-	PCLMULQDQ 0x00, \TMP5, \TMP2          # TMP2 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP5, \TMP2          # TMP2 = (a1+a0)*(b1+b0)
 	movdqu	  (%arg4,%r11,1), \TMP3
 	pxor	  \TMP3, \XMM1                 # Ciphertext/Plaintext XOR EK
 	movdqu	  \XMM1, (%arg3,%r11,1)        # Write to plaintext buffer
@@ -1343,10 +1342,10 @@ aes_loop_par_dec_done\@:
 	pxor	  \TMP3, \XMM4                 # Ciphertext/Plaintext XOR EK
 	movdqu	  \XMM4, 48(%arg3,%r11,1)      # Write to plaintext buffer
 	movdqa    \TMP3, \XMM4
-	PSHUFB_XMM %xmm15, \XMM1        # perform a 16 byte swap
-	PSHUFB_XMM %xmm15, \XMM2	# perform a 16 byte swap
-	PSHUFB_XMM %xmm15, \XMM3	# perform a 16 byte swap
-	PSHUFB_XMM %xmm15, \XMM4	# perform a 16 byte swap
+	pshufb %xmm15, \XMM1        # perform a 16 byte swap
+	pshufb %xmm15, \XMM2	# perform a 16 byte swap
+	pshufb %xmm15, \XMM3	# perform a 16 byte swap
+	pshufb %xmm15, \XMM4	# perform a 16 byte swap
 
 	pxor	  \TMP4, \TMP1
 	pxor	  \XMM8, \XMM5
@@ -1402,10 +1401,10 @@ TMP7 XMM1 XMM2 XMM3 XMM4 XMMDst
 	pshufd	  $78, \XMM1, \TMP2
 	pxor	  \XMM1, \TMP2
 	movdqu	  HashKey_4(%arg2), \TMP5
-	PCLMULQDQ 0x11, \TMP5, \TMP6       # TMP6 = a1*b1
-	PCLMULQDQ 0x00, \TMP5, \XMM1       # XMM1 = a0*b0
+	pclmulqdq $0x11, \TMP5, \TMP6       # TMP6 = a1*b1
+	pclmulqdq $0x00, \TMP5, \XMM1       # XMM1 = a0*b0
 	movdqu	  HashKey_4_k(%arg2), \TMP4
-	PCLMULQDQ 0x00, \TMP4, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP4, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
 	movdqa	  \XMM1, \XMMDst
 	movdqa	  \TMP2, \XMM1              # result in TMP6, XMMDst, XMM1
 
@@ -1415,10 +1414,10 @@ TMP7 XMM1 XMM2 XMM3 XMM4 XMMDst
 	pshufd	  $78, \XMM2, \TMP2
 	pxor	  \XMM2, \TMP2
 	movdqu	  HashKey_3(%arg2), \TMP5
-	PCLMULQDQ 0x11, \TMP5, \TMP1       # TMP1 = a1*b1
-	PCLMULQDQ 0x00, \TMP5, \XMM2       # XMM2 = a0*b0
+	pclmulqdq $0x11, \TMP5, \TMP1       # TMP1 = a1*b1
+	pclmulqdq $0x00, \TMP5, \XMM2       # XMM2 = a0*b0
 	movdqu	  HashKey_3_k(%arg2), \TMP4
-	PCLMULQDQ 0x00, \TMP4, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP4, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
 	pxor	  \TMP1, \TMP6
 	pxor	  \XMM2, \XMMDst
 	pxor	  \TMP2, \XMM1
@@ -1430,10 +1429,10 @@ TMP7 XMM1 XMM2 XMM3 XMM4 XMMDst
 	pshufd	  $78, \XMM3, \TMP2
 	pxor	  \XMM3, \TMP2
 	movdqu	  HashKey_2(%arg2), \TMP5
-	PCLMULQDQ 0x11, \TMP5, \TMP1       # TMP1 = a1*b1
-	PCLMULQDQ 0x00, \TMP5, \XMM3       # XMM3 = a0*b0
+	pclmulqdq $0x11, \TMP5, \TMP1       # TMP1 = a1*b1
+	pclmulqdq $0x00, \TMP5, \XMM3       # XMM3 = a0*b0
 	movdqu	  HashKey_2_k(%arg2), \TMP4
-	PCLMULQDQ 0x00, \TMP4, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP4, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
 	pxor	  \TMP1, \TMP6
 	pxor	  \XMM3, \XMMDst
 	pxor	  \TMP2, \XMM1   # results accumulated in TMP6, XMMDst, XMM1
@@ -1443,10 +1442,10 @@ TMP7 XMM1 XMM2 XMM3 XMM4 XMMDst
 	pshufd	  $78, \XMM4, \TMP2
 	pxor	  \XMM4, \TMP2
 	movdqu	  HashKey(%arg2), \TMP5
-	PCLMULQDQ 0x11, \TMP5, \TMP1	    # TMP1 = a1*b1
-	PCLMULQDQ 0x00, \TMP5, \XMM4       # XMM4 = a0*b0
+	pclmulqdq $0x11, \TMP5, \TMP1	    # TMP1 = a1*b1
+	pclmulqdq $0x00, \TMP5, \XMM4       # XMM4 = a0*b0
 	movdqu	  HashKey_k(%arg2), \TMP4
-	PCLMULQDQ 0x00, \TMP4, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
+	pclmulqdq $0x00, \TMP4, \TMP2       # TMP2 = (a1+a0)*(b1+b0)
 	pxor	  \TMP1, \TMP6
 	pxor	  \XMM4, \XMMDst
 	pxor	  \XMM1, \TMP2
@@ -1504,13 +1503,13 @@ TMP7 XMM1 XMM2 XMM3 XMM4 XMMDst
 
 _esb_loop_\@:
 	MOVADQ		(%r10),\TMP1
-	AESENC		\TMP1,\XMM0
+	aesenc		\TMP1,\XMM0
 	add		$16,%r10
 	sub		$1,%eax
 	jnz		_esb_loop_\@
 
 	MOVADQ		(%r10),\TMP1
-	AESENCLAST	\TMP1,\XMM0
+	aesenclast	\TMP1,\XMM0
 .endm
 /*****************************************************************************
 * void aesni_gcm_dec(void *aes_ctx,    // AES Key schedule. Starts on a 16 byte boundary.
@@ -1592,7 +1591,7 @@ _esb_loop_\@:
 * poly = x^128 + x^127 + x^126 + x^121 + 1
 *
 *****************************************************************************/
-ENTRY(aesni_gcm_dec)
+SYM_FUNC_START(aesni_gcm_dec)
 	FUNC_SAVE
 
 	GCM_INIT %arg6, arg7, arg8, arg9
@@ -1600,7 +1599,7 @@ ENTRY(aesni_gcm_dec)
 	GCM_COMPLETE arg10, arg11
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_dec)
+SYM_FUNC_END(aesni_gcm_dec)
 
 
 /*****************************************************************************
@@ -1680,7 +1679,7 @@ ENDPROC(aesni_gcm_dec)
 *
 * poly = x^128 + x^127 + x^126 + x^121 + 1
 ***************************************************************************/
-ENTRY(aesni_gcm_enc)
+SYM_FUNC_START(aesni_gcm_enc)
 	FUNC_SAVE
 
 	GCM_INIT %arg6, arg7, arg8, arg9
@@ -1689,7 +1688,7 @@ ENTRY(aesni_gcm_enc)
 	GCM_COMPLETE arg10, arg11
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_enc)
+SYM_FUNC_END(aesni_gcm_enc)
 
 /*****************************************************************************
 * void aesni_gcm_init(void *aes_ctx,      // AES Key schedule. Starts on a 16 byte boundary.
@@ -1702,12 +1701,12 @@ ENDPROC(aesni_gcm_enc)
 *                     const u8 *aad,      // Additional Authentication Data (AAD)
 *                     u64 aad_len)        // Length of AAD in bytes.
 */
-ENTRY(aesni_gcm_init)
+SYM_FUNC_START(aesni_gcm_init)
 	FUNC_SAVE
 	GCM_INIT %arg3, %arg4,%arg5, %arg6
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_init)
+SYM_FUNC_END(aesni_gcm_init)
 
 /*****************************************************************************
 * void aesni_gcm_enc_update(void *aes_ctx,      // AES Key schedule. Starts on a 16 byte boundary.
@@ -1717,12 +1716,12 @@ ENDPROC(aesni_gcm_init)
 *                    const u8 *in,       // Plaintext input
 *                    u64 plaintext_len,  // Length of data in bytes for encryption.
 */
-ENTRY(aesni_gcm_enc_update)
+SYM_FUNC_START(aesni_gcm_enc_update)
 	FUNC_SAVE
 	GCM_ENC_DEC enc
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_enc_update)
+SYM_FUNC_END(aesni_gcm_enc_update)
 
 /*****************************************************************************
 * void aesni_gcm_dec_update(void *aes_ctx,      // AES Key schedule. Starts on a 16 byte boundary.
@@ -1732,12 +1731,12 @@ ENDPROC(aesni_gcm_enc_update)
 *                    const u8 *in,       // Plaintext input
 *                    u64 plaintext_len,  // Length of data in bytes for encryption.
 */
-ENTRY(aesni_gcm_dec_update)
+SYM_FUNC_START(aesni_gcm_dec_update)
 	FUNC_SAVE
 	GCM_ENC_DEC dec
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_dec_update)
+SYM_FUNC_END(aesni_gcm_dec_update)
 
 /*****************************************************************************
 * void aesni_gcm_finalize(void *aes_ctx,      // AES Key schedule. Starts on a 16 byte boundary.
@@ -1747,19 +1746,18 @@ ENDPROC(aesni_gcm_dec_update)
 *                    u64 auth_tag_len);  // Authenticated Tag Length in bytes. Valid values are 16 (most likely),
 *                                        // 12 or 8.
 */
-ENTRY(aesni_gcm_finalize)
+SYM_FUNC_START(aesni_gcm_finalize)
 	FUNC_SAVE
 	GCM_COMPLETE %arg3 %arg4
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_finalize)
+SYM_FUNC_END(aesni_gcm_finalize)
 
 #endif
 
 
-.align 4
-_key_expansion_128:
-_key_expansion_256a:
+SYM_FUNC_START_LOCAL_ALIAS(_key_expansion_128)
+SYM_FUNC_START_LOCAL(_key_expansion_256a)
 	pshufd $0b11111111, %xmm1, %xmm1
 	shufps $0b00010000, %xmm0, %xmm4
 	pxor %xmm4, %xmm0
@@ -1769,11 +1767,10 @@ _key_expansion_256a:
 	movaps %xmm0, (TKEYP)
 	add $0x10, TKEYP
 	ret
-ENDPROC(_key_expansion_128)
-ENDPROC(_key_expansion_256a)
+SYM_FUNC_END(_key_expansion_256a)
+SYM_FUNC_END_ALIAS(_key_expansion_128)
 
-.align 4
-_key_expansion_192a:
+SYM_FUNC_START_LOCAL(_key_expansion_192a)
 	pshufd $0b01010101, %xmm1, %xmm1
 	shufps $0b00010000, %xmm0, %xmm4
 	pxor %xmm4, %xmm0
@@ -1795,10 +1792,9 @@ _key_expansion_192a:
 	movaps %xmm1, 0x10(TKEYP)
 	add $0x20, TKEYP
 	ret
-ENDPROC(_key_expansion_192a)
+SYM_FUNC_END(_key_expansion_192a)
 
-.align 4
-_key_expansion_192b:
+SYM_FUNC_START_LOCAL(_key_expansion_192b)
 	pshufd $0b01010101, %xmm1, %xmm1
 	shufps $0b00010000, %xmm0, %xmm4
 	pxor %xmm4, %xmm0
@@ -1815,10 +1811,9 @@ _key_expansion_192b:
 	movaps %xmm0, (TKEYP)
 	add $0x10, TKEYP
 	ret
-ENDPROC(_key_expansion_192b)
+SYM_FUNC_END(_key_expansion_192b)
 
-.align 4
-_key_expansion_256b:
+SYM_FUNC_START_LOCAL(_key_expansion_256b)
 	pshufd $0b10101010, %xmm1, %xmm1
 	shufps $0b00010000, %xmm2, %xmm4
 	pxor %xmm4, %xmm2
@@ -1828,13 +1823,13 @@ _key_expansion_256b:
 	movaps %xmm2, (TKEYP)
 	add $0x10, TKEYP
 	ret
-ENDPROC(_key_expansion_256b)
+SYM_FUNC_END(_key_expansion_256b)
 
 /*
  * int aesni_set_key(struct crypto_aes_ctx *ctx, const u8 *in_key,
  *                   unsigned int key_len)
  */
-ENTRY(aesni_set_key)
+SYM_FUNC_START(aesni_set_key)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl KEYP
@@ -1853,72 +1848,72 @@ ENTRY(aesni_set_key)
 	movups 0x10(UKEYP), %xmm2	# other user key
 	movaps %xmm2, (TKEYP)
 	add $0x10, TKEYP
-	AESKEYGENASSIST 0x1 %xmm2 %xmm1		# round 1
+	aeskeygenassist $0x1, %xmm2, %xmm1	# round 1
 	call _key_expansion_256a
-	AESKEYGENASSIST 0x1 %xmm0 %xmm1
+	aeskeygenassist $0x1, %xmm0, %xmm1
 	call _key_expansion_256b
-	AESKEYGENASSIST 0x2 %xmm2 %xmm1		# round 2
+	aeskeygenassist $0x2, %xmm2, %xmm1	# round 2
 	call _key_expansion_256a
-	AESKEYGENASSIST 0x2 %xmm0 %xmm1
+	aeskeygenassist $0x2, %xmm0, %xmm1
 	call _key_expansion_256b
-	AESKEYGENASSIST 0x4 %xmm2 %xmm1		# round 3
+	aeskeygenassist $0x4, %xmm2, %xmm1	# round 3
 	call _key_expansion_256a
-	AESKEYGENASSIST 0x4 %xmm0 %xmm1
+	aeskeygenassist $0x4, %xmm0, %xmm1
 	call _key_expansion_256b
-	AESKEYGENASSIST 0x8 %xmm2 %xmm1		# round 4
+	aeskeygenassist $0x8, %xmm2, %xmm1	# round 4
 	call _key_expansion_256a
-	AESKEYGENASSIST 0x8 %xmm0 %xmm1
+	aeskeygenassist $0x8, %xmm0, %xmm1
 	call _key_expansion_256b
-	AESKEYGENASSIST 0x10 %xmm2 %xmm1	# round 5
+	aeskeygenassist $0x10, %xmm2, %xmm1	# round 5
 	call _key_expansion_256a
-	AESKEYGENASSIST 0x10 %xmm0 %xmm1
+	aeskeygenassist $0x10, %xmm0, %xmm1
 	call _key_expansion_256b
-	AESKEYGENASSIST 0x20 %xmm2 %xmm1	# round 6
+	aeskeygenassist $0x20, %xmm2, %xmm1	# round 6
 	call _key_expansion_256a
-	AESKEYGENASSIST 0x20 %xmm0 %xmm1
+	aeskeygenassist $0x20, %xmm0, %xmm1
 	call _key_expansion_256b
-	AESKEYGENASSIST 0x40 %xmm2 %xmm1	# round 7
+	aeskeygenassist $0x40, %xmm2, %xmm1	# round 7
 	call _key_expansion_256a
 	jmp .Ldec_key
 .Lenc_key192:
 	movq 0x10(UKEYP), %xmm2		# other user key
-	AESKEYGENASSIST 0x1 %xmm2 %xmm1		# round 1
+	aeskeygenassist $0x1, %xmm2, %xmm1	# round 1
 	call _key_expansion_192a
-	AESKEYGENASSIST 0x2 %xmm2 %xmm1		# round 2
+	aeskeygenassist $0x2, %xmm2, %xmm1	# round 2
 	call _key_expansion_192b
-	AESKEYGENASSIST 0x4 %xmm2 %xmm1		# round 3
+	aeskeygenassist $0x4, %xmm2, %xmm1	# round 3
 	call _key_expansion_192a
-	AESKEYGENASSIST 0x8 %xmm2 %xmm1		# round 4
+	aeskeygenassist $0x8, %xmm2, %xmm1	# round 4
 	call _key_expansion_192b
-	AESKEYGENASSIST 0x10 %xmm2 %xmm1	# round 5
+	aeskeygenassist $0x10, %xmm2, %xmm1	# round 5
 	call _key_expansion_192a
-	AESKEYGENASSIST 0x20 %xmm2 %xmm1	# round 6
+	aeskeygenassist $0x20, %xmm2, %xmm1	# round 6
 	call _key_expansion_192b
-	AESKEYGENASSIST 0x40 %xmm2 %xmm1	# round 7
+	aeskeygenassist $0x40, %xmm2, %xmm1	# round 7
 	call _key_expansion_192a
-	AESKEYGENASSIST 0x80 %xmm2 %xmm1	# round 8
+	aeskeygenassist $0x80, %xmm2, %xmm1	# round 8
 	call _key_expansion_192b
 	jmp .Ldec_key
 .Lenc_key128:
-	AESKEYGENASSIST 0x1 %xmm0 %xmm1		# round 1
+	aeskeygenassist $0x1, %xmm0, %xmm1	# round 1
 	call _key_expansion_128
-	AESKEYGENASSIST 0x2 %xmm0 %xmm1		# round 2
+	aeskeygenassist $0x2, %xmm0, %xmm1	# round 2
 	call _key_expansion_128
-	AESKEYGENASSIST 0x4 %xmm0 %xmm1		# round 3
+	aeskeygenassist $0x4, %xmm0, %xmm1	# round 3
 	call _key_expansion_128
-	AESKEYGENASSIST 0x8 %xmm0 %xmm1		# round 4
+	aeskeygenassist $0x8, %xmm0, %xmm1	# round 4
 	call _key_expansion_128
-	AESKEYGENASSIST 0x10 %xmm0 %xmm1	# round 5
+	aeskeygenassist $0x10, %xmm0, %xmm1	# round 5
 	call _key_expansion_128
-	AESKEYGENASSIST 0x20 %xmm0 %xmm1	# round 6
+	aeskeygenassist $0x20, %xmm0, %xmm1	# round 6
 	call _key_expansion_128
-	AESKEYGENASSIST 0x40 %xmm0 %xmm1	# round 7
+	aeskeygenassist $0x40, %xmm0, %xmm1	# round 7
 	call _key_expansion_128
-	AESKEYGENASSIST 0x80 %xmm0 %xmm1	# round 8
+	aeskeygenassist $0x80, %xmm0, %xmm1	# round 8
 	call _key_expansion_128
-	AESKEYGENASSIST 0x1b %xmm0 %xmm1	# round 9
+	aeskeygenassist $0x1b, %xmm0, %xmm1	# round 9
 	call _key_expansion_128
-	AESKEYGENASSIST 0x36 %xmm0 %xmm1	# round 10
+	aeskeygenassist $0x36, %xmm0, %xmm1	# round 10
 	call _key_expansion_128
 .Ldec_key:
 	sub $0x10, TKEYP
@@ -1931,7 +1926,7 @@ ENTRY(aesni_set_key)
 .align 4
 .Ldec_key_loop:
 	movaps (KEYP), %xmm0
-	AESIMC %xmm0 %xmm1
+	aesimc %xmm0, %xmm1
 	movaps %xmm1, (UKEYP)
 	add $0x10, KEYP
 	sub $0x10, UKEYP
@@ -1943,12 +1938,12 @@ ENTRY(aesni_set_key)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_set_key)
+SYM_FUNC_END(aesni_set_key)
 
 /*
- * void aesni_enc(struct crypto_aes_ctx *ctx, u8 *dst, const u8 *src)
+ * void aesni_enc(const void *ctx, u8 *dst, const u8 *src)
  */
-ENTRY(aesni_enc)
+SYM_FUNC_START(aesni_enc)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl KEYP
@@ -1967,7 +1962,7 @@ ENTRY(aesni_enc)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_enc)
+SYM_FUNC_END(aesni_enc)
 
 /*
  * _aesni_enc1:		internal ABI
@@ -1981,8 +1976,7 @@ ENDPROC(aesni_enc)
  *	KEY
  *	TKEYP (T1)
  */
-.align 4
-_aesni_enc1:
+SYM_FUNC_START_LOCAL(_aesni_enc1)
 	movaps (KEYP), KEY		# key
 	mov KEYP, TKEYP
 	pxor KEY, STATE		# round 0
@@ -1993,39 +1987,39 @@ _aesni_enc1:
 	je .Lenc192
 	add $0x20, TKEYP
 	movaps -0x60(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 	movaps -0x50(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 .align 4
 .Lenc192:
 	movaps -0x40(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 	movaps -0x30(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 .align 4
 .Lenc128:
 	movaps -0x20(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 	movaps -0x10(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 	movaps (TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 	movaps 0x10(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 	movaps 0x20(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 	movaps 0x30(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 	movaps 0x40(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 	movaps 0x50(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 	movaps 0x60(TKEYP), KEY
-	AESENC KEY STATE
+	aesenc KEY, STATE
 	movaps 0x70(TKEYP), KEY
-	AESENCLAST KEY STATE
+	aesenclast KEY, STATE
 	ret
-ENDPROC(_aesni_enc1)
+SYM_FUNC_END(_aesni_enc1)
 
 /*
  * _aesni_enc4:	internal ABI
@@ -2045,8 +2039,7 @@ ENDPROC(_aesni_enc1)
  *	KEY
  *	TKEYP (T1)
  */
-.align 4
-_aesni_enc4:
+SYM_FUNC_START_LOCAL(_aesni_enc4)
 	movaps (KEYP), KEY		# key
 	mov KEYP, TKEYP
 	pxor KEY, STATE1		# round 0
@@ -2060,86 +2053,86 @@ _aesni_enc4:
 	je .L4enc192
 	add $0x20, TKEYP
 	movaps -0x60(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 	movaps -0x50(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 #.align 4
 .L4enc192:
 	movaps -0x40(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 	movaps -0x30(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 #.align 4
 .L4enc128:
 	movaps -0x20(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 	movaps -0x10(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 	movaps (TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 	movaps 0x10(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 	movaps 0x20(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 	movaps 0x30(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 	movaps 0x40(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 	movaps 0x50(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 	movaps 0x60(TKEYP), KEY
-	AESENC KEY STATE1
-	AESENC KEY STATE2
-	AESENC KEY STATE3
-	AESENC KEY STATE4
+	aesenc KEY, STATE1
+	aesenc KEY, STATE2
+	aesenc KEY, STATE3
+	aesenc KEY, STATE4
 	movaps 0x70(TKEYP), KEY
-	AESENCLAST KEY STATE1		# last round
-	AESENCLAST KEY STATE2
-	AESENCLAST KEY STATE3
-	AESENCLAST KEY STATE4
+	aesenclast KEY, STATE1		# last round
+	aesenclast KEY, STATE2
+	aesenclast KEY, STATE3
+	aesenclast KEY, STATE4
 	ret
-ENDPROC(_aesni_enc4)
+SYM_FUNC_END(_aesni_enc4)
 
 /*
- * void aesni_dec (struct crypto_aes_ctx *ctx, u8 *dst, const u8 *src)
+ * void aesni_dec (const void *ctx, u8 *dst, const u8 *src)
  */
-ENTRY(aesni_dec)
+SYM_FUNC_START(aesni_dec)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl KEYP
@@ -2159,7 +2152,7 @@ ENTRY(aesni_dec)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_dec)
+SYM_FUNC_END(aesni_dec)
 
 /*
  * _aesni_dec1:		internal ABI
@@ -2173,8 +2166,7 @@ ENDPROC(aesni_dec)
  *	KEY
  *	TKEYP (T1)
  */
-.align 4
-_aesni_dec1:
+SYM_FUNC_START_LOCAL(_aesni_dec1)
 	movaps (KEYP), KEY		# key
 	mov KEYP, TKEYP
 	pxor KEY, STATE		# round 0
@@ -2185,39 +2177,39 @@ _aesni_dec1:
 	je .Ldec192
 	add $0x20, TKEYP
 	movaps -0x60(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 	movaps -0x50(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 .align 4
 .Ldec192:
 	movaps -0x40(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 	movaps -0x30(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 .align 4
 .Ldec128:
 	movaps -0x20(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 	movaps -0x10(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 	movaps (TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 	movaps 0x10(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 	movaps 0x20(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 	movaps 0x30(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 	movaps 0x40(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 	movaps 0x50(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 	movaps 0x60(TKEYP), KEY
-	AESDEC KEY STATE
+	aesdec KEY, STATE
 	movaps 0x70(TKEYP), KEY
-	AESDECLAST KEY STATE
+	aesdeclast KEY, STATE
 	ret
-ENDPROC(_aesni_dec1)
+SYM_FUNC_END(_aesni_dec1)
 
 /*
  * _aesni_dec4:	internal ABI
@@ -2237,8 +2229,7 @@ ENDPROC(_aesni_dec1)
  *	KEY
  *	TKEYP (T1)
  */
-.align 4
-_aesni_dec4:
+SYM_FUNC_START_LOCAL(_aesni_dec4)
 	movaps (KEYP), KEY		# key
 	mov KEYP, TKEYP
 	pxor KEY, STATE1		# round 0
@@ -2252,87 +2243,87 @@ _aesni_dec4:
 	je .L4dec192
 	add $0x20, TKEYP
 	movaps -0x60(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 	movaps -0x50(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 .align 4
 .L4dec192:
 	movaps -0x40(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 	movaps -0x30(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 .align 4
 .L4dec128:
 	movaps -0x20(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 	movaps -0x10(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 	movaps (TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 	movaps 0x10(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 	movaps 0x20(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 	movaps 0x30(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 	movaps 0x40(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 	movaps 0x50(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 	movaps 0x60(TKEYP), KEY
-	AESDEC KEY STATE1
-	AESDEC KEY STATE2
-	AESDEC KEY STATE3
-	AESDEC KEY STATE4
+	aesdec KEY, STATE1
+	aesdec KEY, STATE2
+	aesdec KEY, STATE3
+	aesdec KEY, STATE4
 	movaps 0x70(TKEYP), KEY
-	AESDECLAST KEY STATE1		# last round
-	AESDECLAST KEY STATE2
-	AESDECLAST KEY STATE3
-	AESDECLAST KEY STATE4
+	aesdeclast KEY, STATE1		# last round
+	aesdeclast KEY, STATE2
+	aesdeclast KEY, STATE3
+	aesdeclast KEY, STATE4
 	ret
-ENDPROC(_aesni_dec4)
+SYM_FUNC_END(_aesni_dec4)
 
 /*
  * void aesni_ecb_enc(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
  *		      size_t len)
  */
-ENTRY(aesni_ecb_enc)
+SYM_FUNC_START(aesni_ecb_enc)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl LEN
@@ -2386,13 +2377,13 @@ ENTRY(aesni_ecb_enc)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_ecb_enc)
+SYM_FUNC_END(aesni_ecb_enc)
 
 /*
  * void aesni_ecb_dec(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
  *		      size_t len);
  */
-ENTRY(aesni_ecb_dec)
+SYM_FUNC_START(aesni_ecb_dec)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl LEN
@@ -2447,13 +2438,13 @@ ENTRY(aesni_ecb_dec)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_ecb_dec)
+SYM_FUNC_END(aesni_ecb_dec)
 
 /*
  * void aesni_cbc_enc(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
  *		      size_t len, u8 *iv)
  */
-ENTRY(aesni_cbc_enc)
+SYM_FUNC_START(aesni_cbc_enc)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl IVP
@@ -2491,13 +2482,13 @@ ENTRY(aesni_cbc_enc)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_cbc_enc)
+SYM_FUNC_END(aesni_cbc_enc)
 
 /*
  * void aesni_cbc_dec(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
  *		      size_t len, u8 *iv)
  */
-ENTRY(aesni_cbc_dec)
+SYM_FUNC_START(aesni_cbc_dec)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl IVP
@@ -2584,7 +2575,7 @@ ENTRY(aesni_cbc_dec)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_cbc_dec)
+SYM_FUNC_END(aesni_cbc_dec)
 
 #ifdef __x86_64__
 .pushsection .rodata
@@ -2604,16 +2595,15 @@ ENDPROC(aesni_cbc_dec)
  *	INC:	== 1, in little endian
  *	BSWAP_MASK == endian swapping mask
  */
-.align 4
-_aesni_inc_init:
+SYM_FUNC_START_LOCAL(_aesni_inc_init)
 	movaps .Lbswap_mask, BSWAP_MASK
 	movaps IV, CTR
-	PSHUFB_XMM BSWAP_MASK CTR
+	pshufb BSWAP_MASK, CTR
 	mov $1, TCTR_LOW
-	MOVQ_R64_XMM TCTR_LOW INC
-	MOVQ_R64_XMM CTR TCTR_LOW
+	movq TCTR_LOW, INC
+	movq CTR, TCTR_LOW
 	ret
-ENDPROC(_aesni_inc_init)
+SYM_FUNC_END(_aesni_inc_init)
 
 /*
  * _aesni_inc:		internal ABI
@@ -2630,8 +2620,7 @@ ENDPROC(_aesni_inc_init)
  *	CTR:	== output IV, in little endian
  *	TCTR_LOW: == lower qword of CTR
  */
-.align 4
-_aesni_inc:
+SYM_FUNC_START_LOCAL(_aesni_inc)
 	paddq INC, CTR
 	add $1, TCTR_LOW
 	jnc .Linc_low
@@ -2640,15 +2629,15 @@ _aesni_inc:
 	psrldq $8, INC
 .Linc_low:
 	movaps CTR, IV
-	PSHUFB_XMM BSWAP_MASK IV
+	pshufb BSWAP_MASK, IV
 	ret
-ENDPROC(_aesni_inc)
+SYM_FUNC_END(_aesni_inc)
 
 /*
  * void aesni_ctr_enc(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
  *		      size_t len, u8 *iv)
  */
-ENTRY(aesni_ctr_enc)
+SYM_FUNC_START(aesni_ctr_enc)
 	FRAME_BEGIN
 	cmp $16, LEN
 	jb .Lctr_enc_just_ret
@@ -2705,7 +2694,7 @@ ENTRY(aesni_ctr_enc)
 .Lctr_enc_just_ret:
 	FRAME_END
 	ret
-ENDPROC(aesni_ctr_enc)
+SYM_FUNC_END(aesni_ctr_enc)
 
 /*
  * _aesni_gf128mul_x_ble:		internal ABI
@@ -2726,10 +2715,10 @@ ENDPROC(aesni_ctr_enc)
 	pxor CTR, IV;
 
 /*
- * void aesni_xts_crypt8(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
- *			 bool enc, u8 *iv)
+ * void aesni_xts_crypt8(const struct crypto_aes_ctx *ctx, u8 *dst,
+ *			 const u8 *src, bool enc, le128 *iv)
  */
-ENTRY(aesni_xts_crypt8)
+SYM_FUNC_START(aesni_xts_crypt8)
 	FRAME_BEGIN
 	cmpb $0, %cl
 	movl $0, %ecx
@@ -2768,7 +2757,7 @@ ENTRY(aesni_xts_crypt8)
 	pxor INC, STATE4
 	movdqu IV, 0x30(OUTP)
 
-	CALL_NOSPEC %r11
+	CALL_NOSPEC r11
 
 	movdqu 0x00(OUTP), INC
 	pxor INC, STATE1
@@ -2813,7 +2802,7 @@ ENTRY(aesni_xts_crypt8)
 	_aesni_gf128mul_x_ble()
 	movups IV, (IVP)
 
-	CALL_NOSPEC %r11
+	CALL_NOSPEC r11
 
 	movdqu 0x40(OUTP), INC
 	pxor INC, STATE1
@@ -2833,6 +2822,6 @@ ENTRY(aesni_xts_crypt8)
 
 	FRAME_END
 	ret
-ENDPROC(aesni_xts_crypt8)
+SYM_FUNC_END(aesni_xts_crypt8)
 
 #endif

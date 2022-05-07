@@ -26,7 +26,7 @@
 struct hynix_read_retry {
 	int nregs;
 	const u8 *regs;
-	u8 values[0];
+	u8 values[];
 };
 
 /**
@@ -337,7 +337,7 @@ static int hynix_mlc_1xnm_rr_init(struct nand_chip *chip,
 	rr->nregs = nregs;
 	rr->regs = hynix_1xnm_mlc_read_retry_regs;
 	hynix->read_retry = rr;
-	chip->setup_read_retry = hynix_nand_setup_read_retry;
+	chip->ops.setup_read_retry = hynix_nand_setup_read_retry;
 	chip->read_retries = nmodes;
 
 out:
@@ -495,34 +495,36 @@ static void hynix_nand_extract_oobsize(struct nand_chip *chip,
 static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 						bool valid_jedecid)
 {
+	struct nand_device *base = &chip->base;
+	struct nand_ecc_props requirements = {};
 	u8 ecc_level = (chip->id.data[4] >> 4) & 0x7;
 
 	if (valid_jedecid) {
 		/* Reference: H27UCG8T2E datasheet */
-		chip->base.eccreq.step_size = 1024;
+		requirements.step_size = 1024;
 
 		switch (ecc_level) {
 		case 0:
-			chip->base.eccreq.step_size = 0;
-			chip->base.eccreq.strength = 0;
+			requirements.step_size = 0;
+			requirements.strength = 0;
 			break;
 		case 1:
-			chip->base.eccreq.strength = 4;
+			requirements.strength = 4;
 			break;
 		case 2:
-			chip->base.eccreq.strength = 24;
+			requirements.strength = 24;
 			break;
 		case 3:
-			chip->base.eccreq.strength = 32;
+			requirements.strength = 32;
 			break;
 		case 4:
-			chip->base.eccreq.strength = 40;
+			requirements.strength = 40;
 			break;
 		case 5:
-			chip->base.eccreq.strength = 50;
+			requirements.strength = 50;
 			break;
 		case 6:
-			chip->base.eccreq.strength = 60;
+			requirements.strength = 60;
 			break;
 		default:
 			/*
@@ -543,14 +545,14 @@ static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 		if (nand_tech < 3) {
 			/* > 26nm, reference: H27UBG8T2A datasheet */
 			if (ecc_level < 5) {
-				chip->base.eccreq.step_size = 512;
-				chip->base.eccreq.strength = 1 << ecc_level;
+				requirements.step_size = 512;
+				requirements.strength = 1 << ecc_level;
 			} else if (ecc_level < 7) {
 				if (ecc_level == 5)
-					chip->base.eccreq.step_size = 2048;
+					requirements.step_size = 2048;
 				else
-					chip->base.eccreq.step_size = 1024;
-				chip->base.eccreq.strength = 24;
+					requirements.step_size = 1024;
+				requirements.strength = 24;
 			} else {
 				/*
 				 * We should never reach this case, but if that
@@ -563,18 +565,20 @@ static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 		} else {
 			/* <= 26nm, reference: H27UBG8T2B datasheet */
 			if (!ecc_level) {
-				chip->base.eccreq.step_size = 0;
-				chip->base.eccreq.strength = 0;
+				requirements.step_size = 0;
+				requirements.strength = 0;
 			} else if (ecc_level < 5) {
-				chip->base.eccreq.step_size = 512;
-				chip->base.eccreq.strength = 1 << (ecc_level - 1);
+				requirements.step_size = 512;
+				requirements.strength = 1 << (ecc_level - 1);
 			} else {
-				chip->base.eccreq.step_size = 1024;
-				chip->base.eccreq.strength = 24 +
+				requirements.step_size = 1024;
+				requirements.strength = 24 +
 							(8 * (ecc_level - 5));
 			}
 		}
 	}
+
+	nanddev_set_ecc_requirements(base, &requirements);
 }
 
 static void hynix_nand_extract_scrambling_requirements(struct nand_chip *chip,
@@ -673,6 +677,15 @@ static void hynix_nand_cleanup(struct nand_chip *chip)
 	nand_set_manufacturer_data(chip, NULL);
 }
 
+static int
+h27ucg8t2atrbc_choose_interface_config(struct nand_chip *chip,
+				       struct nand_interface_config *iface)
+{
+	onfi_fill_interface_config(chip, iface, NAND_SDR_IFACE, 4);
+
+	return nand_choose_best_sdr_timings(chip, iface, NULL);
+}
+
 static int hynix_nand_init(struct nand_chip *chip)
 {
 	struct hynix_nand *hynix;
@@ -688,6 +701,11 @@ static int hynix_nand_init(struct nand_chip *chip)
 		return -ENOMEM;
 
 	nand_set_manufacturer_data(chip, hynix);
+
+	if (!strncmp("H27UCG8T2ATR-BC", chip->parameters.model,
+		     sizeof("H27UCG8T2ATR-BC") - 1))
+		chip->ops.choose_interface_config =
+			h27ucg8t2atrbc_choose_interface_config;
 
 	ret = hynix_nand_rr_init(chip);
 	if (ret)

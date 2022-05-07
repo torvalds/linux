@@ -29,15 +29,27 @@
 
 #include "i915_active.h"
 #include "i915_syncmap.h"
-#include "gt/intel_timeline_types.h"
-
-int intel_timeline_init(struct intel_timeline *tl,
-			struct intel_gt *gt,
-			struct i915_vma *hwsp);
-void intel_timeline_fini(struct intel_timeline *tl);
+#include "intel_timeline_types.h"
 
 struct intel_timeline *
-intel_timeline_create(struct intel_gt *gt, struct i915_vma *global_hwsp);
+__intel_timeline_create(struct intel_gt *gt,
+			struct i915_vma *global_hwsp,
+			unsigned int offset);
+
+static inline struct intel_timeline *
+intel_timeline_create(struct intel_gt *gt)
+{
+	return __intel_timeline_create(gt, NULL, 0);
+}
+
+static inline struct intel_timeline *
+intel_timeline_create_from_engine(struct intel_engine_cs *engine,
+				  unsigned int offset)
+{
+	return __intel_timeline_create(engine->gt,
+				       engine->status_page.vma,
+				       offset);
+}
 
 static inline struct intel_timeline *
 intel_timeline_get(struct intel_timeline *timeline)
@@ -76,7 +88,8 @@ static inline bool intel_timeline_sync_is_later(struct intel_timeline *tl,
 	return __intel_timeline_sync_is_later(tl, fence->context, fence->seqno);
 }
 
-int intel_timeline_pin(struct intel_timeline *tl);
+void __intel_timeline_pin(struct intel_timeline *tl);
+int intel_timeline_pin(struct intel_timeline *tl, struct i915_gem_ww_ctx *ww);
 void intel_timeline_enter(struct intel_timeline *tl);
 int intel_timeline_get_seqno(struct intel_timeline *tl,
 			     struct i915_request *rq,
@@ -84,11 +97,13 @@ int intel_timeline_get_seqno(struct intel_timeline *tl,
 void intel_timeline_exit(struct intel_timeline *tl);
 void intel_timeline_unpin(struct intel_timeline *tl);
 
+void intel_timeline_reset_seqno(const struct intel_timeline *tl);
+
 int intel_timeline_read_hwsp(struct i915_request *from,
 			     struct i915_request *until,
 			     u32 *hwsp_offset);
 
-void intel_timelines_init(struct drm_i915_private *i915);
-void intel_timelines_fini(struct drm_i915_private *i915);
+void intel_gt_init_timelines(struct intel_gt *gt);
+void intel_gt_fini_timelines(struct intel_gt *gt);
 
 #endif

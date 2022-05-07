@@ -108,7 +108,8 @@ enum ab8500_usb_mode {
 	USB_IDLE = 0,
 	USB_PERIPHERAL,
 	USB_HOST,
-	USB_DEDICATED_CHG
+	USB_DEDICATED_CHG,
+	USB_UART
 };
 
 /* Register USB_LINK_STATUS interrupt */
@@ -330,7 +331,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 	switch (lsts) {
 	case USB_LINK_ACA_RID_B_8505:
 		event = UX500_MUSB_RIDB;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_NOT_CONFIGURED_8505:
 	case USB_LINK_RESERVED0_8505:
 	case USB_LINK_RESERVED1_8505:
@@ -351,7 +352,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 
 	case USB_LINK_ACA_RID_C_NM_8505:
 		event = UX500_MUSB_RIDC;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_STD_HOST_NC_8505:
 	case USB_LINK_STD_HOST_C_NS_8505:
 	case USB_LINK_STD_HOST_C_S_8505:
@@ -370,7 +371,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 	case USB_LINK_ACA_RID_A_8505:
 	case USB_LINK_ACA_DOCK_CHGR_8505:
 		event = UX500_MUSB_RIDA;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_HM_IDGND_8505:
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_HOST;
@@ -391,6 +392,24 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 		atomic_notifier_call_chain(&ab->phy.notifier,
 				event, &ab->vbus_draw);
 		usb_phy_set_event(&ab->phy, USB_EVENT_CHARGER);
+		break;
+
+	/*
+	 * FIXME: For now we rely on the boot firmware to set up the necessary
+	 * PHY/pin configuration for UART mode.
+	 *
+	 * AB8505 does not seem to report any status change for UART cables,
+	 * possibly because it cannot detect them autonomously.
+	 * We may need to measure the ID resistance manually to reliably
+	 * detect UART cables after bootup.
+	 */
+	case USB_LINK_SAMSUNG_UART_CBL_PHY_EN_8505:
+	case USB_LINK_SAMSUNG_UART_CBL_PHY_DISB_8505:
+		if (ab->mode == USB_IDLE) {
+			ab->mode = USB_UART;
+			ab8500_usb_peri_phy_en(ab);
+		}
+
 		break;
 
 	default:
@@ -425,7 +444,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 	switch (lsts) {
 	case USB_LINK_ACA_RID_B_8500:
 		event = UX500_MUSB_RIDB;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_NOT_CONFIGURED_8500:
 	case USB_LINK_NOT_VALID_LINK_8500:
 		ab->mode = USB_IDLE;
@@ -442,7 +461,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 	case USB_LINK_ACA_RID_C_HS_8500:
 	case USB_LINK_ACA_RID_C_HS_CHIRP_8500:
 		event = UX500_MUSB_RIDC;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_STD_HOST_NC_8500:
 	case USB_LINK_STD_HOST_C_NS_8500:
 	case USB_LINK_STD_HOST_C_S_8500:
@@ -462,7 +481,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 
 	case USB_LINK_ACA_RID_A_8500:
 		event = UX500_MUSB_RIDA;
-		/* Fall through */
+		fallthrough;
 	case USB_LINK_HM_IDGND_8500:
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_HOST;
@@ -499,7 +518,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
  *   3. Enable AB regulators
  *   4. Enable USB phy
  *   5. Reset the musb controller
- *   6. Switch the ULPI GPIO pins to fucntion mode
+ *   6. Switch the ULPI GPIO pins to function mode
  *   7. Enable the musb Peripheral5 clock
  *   8. Restore MUSB context
  */
@@ -564,6 +583,11 @@ static irqreturn_t ab8500_usb_disconnect_irq(int irq, void *data)
 		ab->mode = USB_IDLE;
 		ab->phy.otg->default_a = false;
 		ab->vbus_draw = 0;
+	}
+
+	if (ab->mode == USB_UART) {
+		ab8500_usb_peri_phy_dis(ab);
+		ab->mode = USB_IDLE;
 	}
 
 	if (is_ab8500_2p0(ab->ab8500)) {

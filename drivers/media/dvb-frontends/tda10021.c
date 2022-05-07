@@ -137,26 +137,36 @@ static int tda10021_set_symbolrate (struct tda10021_state* state, u32 symbolrate
 {
 	s32 BDR;
 	s32 BDRI;
-	s16 SFIL=0;
+	s16 SFIL = 0;
 	u16 NDEC = 0;
 	u32 tmp, ratio;
 
-	if (symbolrate > XIN/2)
-		symbolrate = XIN/2;
-	if (symbolrate < 500000)
+	if (symbolrate > XIN / 2)
+		symbolrate = XIN / 2;
+	else if (symbolrate < 500000)
 		symbolrate = 500000;
 
-	if (symbolrate < XIN/16) NDEC = 1;
-	if (symbolrate < XIN/32) NDEC = 2;
-	if (symbolrate < XIN/64) NDEC = 3;
+	if (symbolrate < XIN / 16)
+		NDEC = 1;
+	if (symbolrate < XIN / 32)
+		NDEC = 2;
+	if (symbolrate < XIN / 64)
+		NDEC = 3;
 
-	if (symbolrate < (u32)(XIN/12.3)) SFIL = 1;
-	if (symbolrate < (u32)(XIN/16))	 SFIL = 0;
-	if (symbolrate < (u32)(XIN/24.6)) SFIL = 1;
-	if (symbolrate < (u32)(XIN/32))	 SFIL = 0;
-	if (symbolrate < (u32)(XIN/49.2)) SFIL = 1;
-	if (symbolrate < (u32)(XIN/64))	 SFIL = 0;
-	if (symbolrate < (u32)(XIN/98.4)) SFIL = 1;
+	if (symbolrate < XIN * 10 / 123)
+		SFIL = 1;
+	if (symbolrate < XIN * 10 / 160)
+		SFIL = 0;
+	if (symbolrate < XIN * 10 / 246)
+		SFIL = 1;
+	if (symbolrate < XIN * 10 / 320)
+		SFIL = 0;
+	if (symbolrate < XIN * 10 / 492)
+		SFIL = 1;
+	if (symbolrate < XIN * 10 / 640)
+		SFIL = 0;
+	if (symbolrate < XIN * 10 / 984)
+		SFIL = 1;
 
 	symbolrate <<= NDEC;
 	ratio = (symbolrate << 4) / FIN;

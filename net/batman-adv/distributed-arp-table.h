@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2011-2019  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2020  B.A.T.M.A.N. contributors:
  *
  * Antonio Quartulli
  */
@@ -160,11 +160,6 @@ batadv_dat_init_orig_node_addr(struct batadv_orig_node *orig_node)
 
 static inline void batadv_dat_init_own_addr(struct batadv_priv *bat_priv,
 					    struct batadv_hard_iface *iface)
-{
-}
-
-static inline void batadv_arp_change_timeout(struct net_device *soft_iface,
-					     const char *name)
 {
 }
 

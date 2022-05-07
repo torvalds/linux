@@ -10,7 +10,7 @@ config HERMES
 	select FW_LOADER
 	select CRYPTO
 	select CRYPTO_MICHAEL_MIC
-	---help---
+	help
 	  A driver for 802.11b wireless cards based on the "Hermes" or
 	  Intersil HFA384x (Prism 2) MAC controller.  This includes the vast
 	  majority of the PCMCIA 802.11b cards (which are nearly all rebadges)
@@ -27,12 +27,12 @@ config HERMES
 
 	  You will also very likely also need the Wireless Tools in order to
 	  configure your card and that /etc/pcmcia/wireless.opts works :
-	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>
+	  <https://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>
 
 config HERMES_PRISM
 	bool "Support Prism 2/2.5 chipset"
 	depends on HERMES
-	---help---
+	help
 
 	  Say Y to enable support for Prism 2 and 2.5 chipsets.  These
 	  chipsets are better handled by the hostap driver.  This driver
@@ -44,7 +44,7 @@ config HERMES_CACHE_FW_ON_INIT
 	bool "Cache Hermes firmware on driver initialisation"
 	depends on HERMES
 	default y
-	---help---
+	help
 	  Say Y to cache any firmware required by the Hermes drivers
 	  on startup.  The firmware will remain cached until the
 	  driver is unloaded.  The cache uses 64K of RAM.
@@ -110,7 +110,7 @@ config PCI_HERMES
 config PCMCIA_HERMES
 	tristate "Hermes PCMCIA card support"
 	depends on PCMCIA && HERMES && HAS_IOPORT_MAP
-	---help---
+	help
 	  A driver for "Hermes" chipset based PCMCIA wireless adaptors, such
 	  as the Lucent WavelanIEEE/Orinoco cards and their OEM (Cabletron/
 	  EnteraSys RoamAbout 802.11, ELSA Airlancer, Melco Buffalo and
@@ -120,12 +120,12 @@ config PCMCIA_HERMES
 
 	  You will very likely need the Wireless Tools in order to
 	  configure your card and that /etc/pcmcia/wireless.opts works:
-	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+	  <https://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
 
 config PCMCIA_SPECTRUM
 	tristate "Symbol Spectrum24 Trilogy PCMCIA card support"
 	depends on PCMCIA && HERMES && HAS_IOPORT_MAP
-	---help---
+	help
 
 	  This is a driver for 802.11b cards using RAM-loadable Symbol
 	  firmware, such as Symbol Wireless Networker LA4100, CompactFlash
@@ -139,5 +139,5 @@ config ORINOCO_USB
 	tristate "Agere Orinoco USB support"
 	depends on USB && HERMES
 	select FW_LOADER
-	---help---
+	help
 	  This driver is for USB versions of the Agere Orinoco card.

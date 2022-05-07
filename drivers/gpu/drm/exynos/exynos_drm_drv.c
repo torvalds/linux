@@ -76,7 +76,6 @@ static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 }
 
 static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
-	.fault = exynos_drm_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
 };
@@ -270,7 +269,7 @@ static int exynos_drm_bind(struct device *dev)
 	struct drm_encoder *encoder;
 	struct drm_device *drm;
 	unsigned int clone_mask;
-	int cnt, ret;
+	int ret;
 
 	drm = drm_dev_alloc(&exynos_drm_driver, dev);
 	if (IS_ERR(drm))
@@ -293,10 +292,9 @@ static int exynos_drm_bind(struct device *dev)
 	exynos_drm_mode_config_init(drm);
 
 	/* setup possible_clones. */
-	cnt = 0;
 	clone_mask = 0;
 	list_for_each_entry(encoder, &drm->mode_config.encoder_list, head)
-		clone_mask |= (1 << (cnt++));
+		clone_mask |= drm_encoder_mask(encoder);
 
 	list_for_each_entry(encoder, &drm->mode_config.encoder_list, head)
 		encoder->possible_clones = clone_mask;

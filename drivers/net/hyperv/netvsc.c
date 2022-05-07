@@ -99,7 +99,7 @@ static struct netvsc_device *alloc_net_device(void)
 
 	init_waitqueue_head(&net_device->wait_drain);
 	net_device->destroy = false;
-	net_device->tx_disable = false;
+	net_device->tx_disable = true;
 
 	net_device->max_pkt = RNDIS_MAX_PKT_DEFAULT;
 	net_device->pkt_align = RNDIS_PKT_ALIGN_DEFAULT;
@@ -122,8 +122,10 @@ static void free_netvsc_device(struct rcu_head *head)
 	vfree(nvdev->send_buf);
 	kfree(nvdev->send_section_map);
 
-	for (i = 0; i < VRSS_CHANNEL_MAX; i++)
+	for (i = 0; i < VRSS_CHANNEL_MAX; i++) {
+		xdp_rxq_info_unreg(&nvdev->chan_table[i].xdp_rxq);
 		vfree(nvdev->chan_table[i].mrc.slots);
+	}
 
 	kfree(nvdev);
 }
@@ -386,10 +388,20 @@ static int netvsc_init_buf(struct hv_device *device,
 	net_device->recv_section_size = resp->sections[0].sub_alloc_size;
 	net_device->recv_section_cnt = resp->sections[0].num_sub_allocs;
 
-	/* Setup receive completion ring */
-	net_device->recv_completion_cnt
-		= round_up(net_device->recv_section_cnt + 1,
-			   PAGE_SIZE / sizeof(u64));
+	/* Ensure buffer will not overflow */
+	if (net_device->recv_section_size < NETVSC_MTU_MIN || (u64)net_device->recv_section_size *
+	    (u64)net_device->recv_section_cnt > (u64)buf_size) {
+		netdev_err(ndev, "invalid recv_section_size %u\n",
+			   net_device->recv_section_size);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	/* Setup receive completion ring.
+	 * Add 1 to the recv_section_cnt because at least one entry in a
+	 * ring buffer has to be empty.
+	 */
+	net_device->recv_completion_cnt = net_device->recv_section_cnt + 1;
 	ret = netvsc_alloc_recv_comp_ring(net_device, 0);
 	if (ret)
 		goto cleanup;
@@ -457,6 +469,12 @@ static int netvsc_init_buf(struct hv_device *device,
 	/* Parse the response */
 	net_device->send_section_size = init_packet->msg.
 				v1_msg.send_send_buf_complete.section_size;
+	if (net_device->send_section_size < NETVSC_MTU_MIN) {
+		netdev_err(ndev, "invalid send_section_size %u\n",
+			   net_device->send_section_size);
+		ret = -EINVAL;
+		goto cleanup;
+	}
 
 	/* Section count is simply the size divided by the section size. */
 	net_device->send_section_cnt = buf_size / net_device->send_section_size;
@@ -633,9 +651,12 @@ void netvsc_device_remove(struct hv_device *device)
 
 	RCU_INIT_POINTER(net_device_ctx->nvdev, NULL);
 
-	/* And disassociate NAPI context from device */
-	for (i = 0; i < net_device->num_chn; i++)
+	/* Disable NAPI and disassociate its context from the device. */
+	for (i = 0; i < net_device->num_chn; i++) {
+		/* See also vmbus_reset_channel_cb(). */
+		napi_disable(&net_device->chan_table[i].napi);
 		netif_napi_del(&net_device->chan_table[i].napi);
+	}
 
 	/*
 	 * At this point, no one should be accessing net_device
@@ -725,12 +746,49 @@ static void netvsc_send_completion(struct net_device *ndev,
 				   int budget)
 {
 	const struct nvsp_message *nvsp_packet = hv_pkt_data(desc);
+	u32 msglen = hv_pkt_datalen(desc);
+
+	/* Ensure packet is big enough to read header fields */
+	if (msglen < sizeof(struct nvsp_message_header)) {
+		netdev_err(ndev, "nvsp_message length too small: %u\n", msglen);
+		return;
+	}
 
 	switch (nvsp_packet->hdr.msg_type) {
 	case NVSP_MSG_TYPE_INIT_COMPLETE:
+		if (msglen < sizeof(struct nvsp_message_header) +
+				sizeof(struct nvsp_message_init_complete)) {
+			netdev_err(ndev, "nvsp_msg length too small: %u\n",
+				   msglen);
+			return;
+		}
+		fallthrough;
+
 	case NVSP_MSG1_TYPE_SEND_RECV_BUF_COMPLETE:
+		if (msglen < sizeof(struct nvsp_message_header) +
+				sizeof(struct nvsp_1_message_send_receive_buffer_complete)) {
+			netdev_err(ndev, "nvsp_msg1 length too small: %u\n",
+				   msglen);
+			return;
+		}
+		fallthrough;
+
 	case NVSP_MSG1_TYPE_SEND_SEND_BUF_COMPLETE:
+		if (msglen < sizeof(struct nvsp_message_header) +
+				sizeof(struct nvsp_1_message_send_send_buffer_complete)) {
+			netdev_err(ndev, "nvsp_msg1 length too small: %u\n",
+				   msglen);
+			return;
+		}
+		fallthrough;
+
 	case NVSP_MSG5_TYPE_SUBCHANNEL:
+		if (msglen < sizeof(struct nvsp_message_header) +
+				sizeof(struct nvsp_5_subchannel_complete)) {
+			netdev_err(ndev, "nvsp_msg5 length too small: %u\n",
+				   msglen);
+			return;
+		}
 		/* Copy the response back */
 		memcpy(&net_device->channel_init_pkt, nvsp_packet,
 		       sizeof(struct nvsp_message));
@@ -788,7 +846,7 @@ static void netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 	}
 
 	for (i = 0; i < page_count; i++) {
-		char *src = phys_to_virt(pb[i].pfn << PAGE_SHIFT);
+		char *src = phys_to_virt(pb[i].pfn << HV_HYP_PAGE_SHIFT);
 		u32 offset = pb[i].offset;
 		u32 len = pb[i].len;
 
@@ -900,7 +958,8 @@ int netvsc_send(struct net_device *ndev,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
 		struct hv_page_buffer *pb,
-		struct sk_buff *skb)
+		struct sk_buff *skb,
+		bool xdp_tx)
 {
 	struct net_device_context *ndev_ctx = netdev_priv(ndev);
 	struct netvsc_device *net_device
@@ -923,10 +982,11 @@ int netvsc_send(struct net_device *ndev,
 	packet->send_buf_index = NETVSC_INVALID_INDEX;
 	packet->cp_partial = false;
 
-	/* Send control message directly without accessing msd (Multi-Send
-	 * Data) field which may be changed during data packet processing.
+	/* Send a control message or XDP packet directly without accessing
+	 * msd (Multi-Send Data) field which may be changed during data packet
+	 * processing.
 	 */
-	if (!skb)
+	if (!skb || xdp_tx)
 		return netvsc_send_pkt(device, packet, net_device, pb, skb);
 
 	/* batch packets in send buffer if possible */
@@ -1109,24 +1169,41 @@ static void enq_receive_complete(struct net_device *ndev,
 static int netvsc_receive(struct net_device *ndev,
 			  struct netvsc_device *net_device,
 			  struct netvsc_channel *nvchan,
-			  const struct vmpacket_descriptor *desc,
-			  const struct nvsp_message *nvsp)
+			  const struct vmpacket_descriptor *desc)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
 	struct vmbus_channel *channel = nvchan->channel;
 	const struct vmtransfer_page_packet_header *vmxferpage_packet
 		= container_of(desc, const struct vmtransfer_page_packet_header, d);
+	const struct nvsp_message *nvsp = hv_pkt_data(desc);
+	u32 msglen = hv_pkt_datalen(desc);
 	u16 q_idx = channel->offermsg.offer.sub_channel_index;
 	char *recv_buf = net_device->recv_buf;
 	u32 status = NVSP_STAT_SUCCESS;
 	int i;
 	int count = 0;
 
+	/* Ensure packet is big enough to read header fields */
+	if (msglen < sizeof(struct nvsp_message_header)) {
+		netif_err(net_device_ctx, rx_err, ndev,
+			  "invalid nvsp header, length too small: %u\n",
+			  msglen);
+		return 0;
+	}
+
 	/* Make sure this is a valid nvsp packet */
 	if (unlikely(nvsp->hdr.msg_type != NVSP_MSG1_TYPE_SEND_RNDIS_PKT)) {
 		netif_err(net_device_ctx, rx_err, ndev,
 			  "Unknown nvsp packet type received %u\n",
 			  nvsp->hdr.msg_type);
+		return 0;
+	}
+
+	/* Validate xfer page pkt header */
+	if ((desc->offset8 << 3) < sizeof(struct vmtransfer_page_packet_header)) {
+		netif_err(net_device_ctx, rx_err, ndev,
+			  "Invalid xfer page pkt, offset too small: %u\n",
+			  desc->offset8 << 3);
 		return 0;
 	}
 
@@ -1140,6 +1217,14 @@ static int netvsc_receive(struct net_device *ndev,
 
 	count = vmxferpage_packet->range_cnt;
 
+	/* Check count for a valid value */
+	if (NETVSC_XFER_HEADER_SIZE(count) > desc->offset8 << 3) {
+		netif_err(net_device_ctx, rx_err, ndev,
+			  "Range count is not valid: %d\n",
+			  count);
+		return 0;
+	}
+
 	/* Each range represents 1 RNDIS pkt that contains 1 ethernet frame */
 	for (i = 0; i < count; i++) {
 		u32 offset = vmxferpage_packet->ranges[i].byte_offset;
@@ -1147,7 +1232,8 @@ static int netvsc_receive(struct net_device *ndev,
 		void *data;
 		int ret;
 
-		if (unlikely(offset + buflen > net_device->recv_buf_size)) {
+		if (unlikely(offset > net_device->recv_buf_size ||
+			     buflen > net_device->recv_buf_size - offset)) {
 			nvchan->rsc.cnt = 0;
 			status = NVSP_STAT_FAIL;
 			netif_err(net_device_ctx, rx_err, ndev,
@@ -1186,6 +1272,13 @@ static void netvsc_send_table(struct net_device *ndev,
 	u32 count, offset, *tab;
 	int i;
 
+	/* Ensure packet is big enough to read send_table fields */
+	if (msglen < sizeof(struct nvsp_message_header) +
+		     sizeof(struct nvsp_5_send_indirect_table)) {
+		netdev_err(ndev, "nvsp_v5_msg length too small: %u\n", msglen);
+		return;
+	}
+
 	count = nvmsg->msg.v5_msg.send_table.count;
 	offset = nvmsg->msg.v5_msg.send_table.offset;
 
@@ -1217,9 +1310,17 @@ static void netvsc_send_table(struct net_device *ndev,
 }
 
 static void netvsc_send_vf(struct net_device *ndev,
-			   const struct nvsp_message *nvmsg)
+			   const struct nvsp_message *nvmsg,
+			   u32 msglen)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
+
+	/* Ensure packet is big enough to read its fields */
+	if (msglen < sizeof(struct nvsp_message_header) +
+		     sizeof(struct nvsp_4_send_vf_association)) {
+		netdev_err(ndev, "nvsp_v4_msg length too small: %u\n", msglen);
+		return;
+	}
 
 	net_device_ctx->vf_alloc = nvmsg->msg.v4_msg.vf_assoc.allocated;
 	net_device_ctx->vf_serial = nvmsg->msg.v4_msg.vf_assoc.serial;
@@ -1230,16 +1331,24 @@ static void netvsc_send_vf(struct net_device *ndev,
 
 static void netvsc_receive_inband(struct net_device *ndev,
 				  struct netvsc_device *nvscdev,
-				  const struct nvsp_message *nvmsg,
-				  u32 msglen)
+				  const struct vmpacket_descriptor *desc)
 {
+	const struct nvsp_message *nvmsg = hv_pkt_data(desc);
+	u32 msglen = hv_pkt_datalen(desc);
+
+	/* Ensure packet is big enough to read header fields */
+	if (msglen < sizeof(struct nvsp_message_header)) {
+		netdev_err(ndev, "inband nvsp_message length too small: %u\n", msglen);
+		return;
+	}
+
 	switch (nvmsg->hdr.msg_type) {
 	case NVSP_MSG5_TYPE_SEND_INDIRECTION_TABLE:
 		netvsc_send_table(ndev, nvscdev, nvmsg, msglen);
 		break;
 
 	case NVSP_MSG4_TYPE_SEND_VF_ASSOCIATION:
-		netvsc_send_vf(ndev, nvmsg);
+		netvsc_send_vf(ndev, nvmsg, msglen);
 		break;
 	}
 }
@@ -1253,23 +1362,20 @@ static int netvsc_process_raw_pkt(struct hv_device *device,
 {
 	struct vmbus_channel *channel = nvchan->channel;
 	const struct nvsp_message *nvmsg = hv_pkt_data(desc);
-	u32 msglen = hv_pkt_datalen(desc);
 
 	trace_nvsp_recv(ndev, channel, nvmsg);
 
 	switch (desc->type) {
 	case VM_PKT_COMP:
-		netvsc_send_completion(ndev, net_device, channel,
-				       desc, budget);
+		netvsc_send_completion(ndev, net_device, channel, desc, budget);
 		break;
 
 	case VM_PKT_DATA_USING_XFER_PAGES:
-		return netvsc_receive(ndev, net_device, nvchan,
-				      desc, nvmsg);
+		return netvsc_receive(ndev, net_device, nvchan, desc);
 		break;
 
 	case VM_PKT_DATA_INBAND:
-		netvsc_receive_inband(ndev, net_device, nvmsg, msglen);
+		netvsc_receive_inband(ndev, net_device, desc);
 		break;
 
 	default:
@@ -1392,6 +1498,21 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 		nvchan->net_device = net_device;
 		u64_stats_init(&nvchan->tx_stats.syncp);
 		u64_stats_init(&nvchan->rx_stats.syncp);
+
+		ret = xdp_rxq_info_reg(&nvchan->xdp_rxq, ndev, i);
+
+		if (ret) {
+			netdev_err(ndev, "xdp_rxq_info_reg fail: %d\n", ret);
+			goto cleanup2;
+		}
+
+		ret = xdp_rxq_info_reg_mem_model(&nvchan->xdp_rxq,
+						 MEM_TYPE_PAGE_SHARED, NULL);
+
+		if (ret) {
+			netdev_err(ndev, "xdp reg_mem_model fail: %d\n", ret);
+			goto cleanup2;
+		}
 	}
 
 	/* Enable NAPI handler before init callbacks */
@@ -1437,6 +1558,8 @@ close:
 
 cleanup:
 	netif_napi_del(&net_device->chan_table[0].napi);
+
+cleanup2:
 	free_netvsc_device(&net_device->rcu);
 
 	return ERR_PTR(ret);

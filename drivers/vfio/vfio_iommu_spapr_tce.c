@@ -79,7 +79,7 @@ static long tce_iommu_mm_set(struct tce_container *container)
 	}
 	BUG_ON(!current->mm);
 	container->mm = current->mm;
-	atomic_inc(&container->mm->mm_count);
+	mmgrab(container->mm);
 
 	return 0;
 }
@@ -383,7 +383,7 @@ static void tce_iommu_unuse_page(struct tce_container *container,
 	struct page *page;
 
 	page = pfn_to_page(hpa >> PAGE_SHIFT);
-	put_page(page);
+	unpin_user_page(page);
 }
 
 static int tce_iommu_prereg_ua_to_hpa(struct tce_container *container,
@@ -486,7 +486,7 @@ static int tce_iommu_use_page(unsigned long tce, unsigned long *hpa)
 	struct page *page = NULL;
 	enum dma_data_direction direction = iommu_tce_direction(tce);
 
-	if (get_user_pages_fast(tce & PAGE_MASK, 1,
+	if (pin_user_pages_fast(tce & PAGE_MASK, 1,
 			direction != DMA_TO_DEVICE ? FOLL_WRITE : 0,
 			&page) != 1)
 		return -EFAULT;

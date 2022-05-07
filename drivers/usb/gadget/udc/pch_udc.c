@@ -12,11 +12,8 @@
 #include <linux/interrupt.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/irq.h>
-
-/* GPIO port for VBUS detecting */
-static int vbus_gpio_port = -1;		/* GPIO port number (-1:Not used) */
 
 #define PCH_VBUS_PERIOD		3000	/* VBUS polling period (msec) */
 #define PCH_VBUS_INTERVAL	10	/* VBUS polling interval (msec) */
@@ -229,8 +226,7 @@ struct pch_udc_data_dma_desc {
  *				 for control data
  * @status:	Status
  * @reserved:	Reserved
- * @data12:	First setup word
- * @data34:	Second setup word
+ * @request:	Control Request
  */
 struct pch_udc_stp_dma_desc {
 	u32 status;
@@ -302,13 +298,13 @@ struct pch_udc_ep {
 /**
  * struct pch_vbus_gpio_data - Structure holding GPIO informaton
  *					for detecting VBUS
- * @port:		gpio port number
+ * @port:		gpio descriptor for the VBUS GPIO
  * @intr:		gpio interrupt number
- * @irq_work_fall	Structure for WorkQueue
- * @irq_work_rise	Structure for WorkQueue
+ * @irq_work_fall:	Structure for WorkQueue
+ * @irq_work_rise:	Structure for WorkQueue
  */
 struct pch_vbus_gpio_data {
-	int			port;
+	struct gpio_desc	*port;
 	int			intr;
 	struct work_struct	irq_work_fall;
 	struct work_struct	irq_work_rise;
@@ -475,7 +471,7 @@ static void pch_udc_csr_busy(struct pch_udc_dev *dev)
  * pch_udc_write_csr() - Write the command and status registers.
  * @dev:	Reference to pch_udc_dev structure
  * @val:	value to be written to CSR register
- * @addr:	address of CSR register
+ * @ep:		end-point number
  */
 static void pch_udc_write_csr(struct pch_udc_dev *dev, unsigned long val,
 			       unsigned int ep)
@@ -490,7 +486,7 @@ static void pch_udc_write_csr(struct pch_udc_dev *dev, unsigned long val,
 /**
  * pch_udc_read_csr() - Read the command and status registers.
  * @dev:	Reference to pch_udc_dev structure
- * @addr:	address of CSR register
+ * @ep:		end-point number
  *
  * Return codes:	content of CSR register
  */
@@ -656,6 +652,7 @@ static inline void pch_udc_ep_set_trfr_type(struct pch_udc_ep *ep,
  * pch_udc_ep_set_bufsz() - Set the maximum packet size for the endpoint
  * @ep:		Reference to structure of type pch_udc_ep_regs
  * @buf_size:	The buffer word size
+ * @ep_in:	EP is IN
  */
 static void pch_udc_ep_set_bufsz(struct pch_udc_ep *ep,
 						 u32 buf_size, u32 ep_in)
@@ -968,7 +965,8 @@ static void pch_udc_ep_fifo_flush(struct pch_udc_ep *ep, int dir)
 
 /**
  * pch_udc_ep_enable() - This api enables endpoint
- * @regs:	Reference to structure pch_udc_ep_regs
+ * @ep:		reference to structure of type pch_udc_ep_regs
+ * @cfg:	current configuration information
  * @desc:	endpoint descriptor
  */
 static void pch_udc_ep_enable(struct pch_udc_ep *ep,
@@ -1004,7 +1002,7 @@ static void pch_udc_ep_enable(struct pch_udc_ep *ep,
 
 /**
  * pch_udc_ep_disable() - This api disables endpoint
- * @regs:	Reference to structure pch_udc_ep_regs
+ * @ep:		reference to structure of type pch_udc_ep_regs
  */
 static void pch_udc_ep_disable(struct pch_udc_ep *ep)
 {
@@ -1024,7 +1022,7 @@ static void pch_udc_ep_disable(struct pch_udc_ep *ep)
 
 /**
  * pch_udc_wait_ep_stall() - Wait EP stall.
- * @dev:	Reference to pch_udc_dev structure
+ * @ep:		reference to structure of type pch_udc_ep_regs
  */
 static void pch_udc_wait_ep_stall(struct pch_udc_ep *ep)
 {
@@ -1253,7 +1251,7 @@ static int pch_vbus_gpio_get_value(struct pch_udc_dev *dev)
 	int vbus = 0;
 
 	if (dev->vbus_gpio.port)
-		vbus = gpio_get_value(dev->vbus_gpio.port) ? 1 : 0;
+		vbus = gpiod_get_value(dev->vbus_gpio.port) ? 1 : 0;
 	else
 		vbus = -1;
 
@@ -1331,7 +1329,7 @@ static void pch_vbus_gpio_work_rise(struct work_struct *irq_work)
 /**
  * pch_vbus_gpio_irq() - IRQ handler for GPIO interrupt for changing VBUS
  * @irq:	Interrupt request number
- * @dev:	Reference to the device structure
+ * @data:	Reference to the device structure
  *
  * Return codes:
  *	0: Success
@@ -1354,43 +1352,31 @@ static irqreturn_t pch_vbus_gpio_irq(int irq, void *data)
 
 /**
  * pch_vbus_gpio_init() - This API initializes GPIO port detecting VBUS.
- * @dev:	Reference to the driver structure
- * @vbus_gpio	Number of GPIO port to detect gpio
+ * @dev:		Reference to the driver structure
  *
  * Return codes:
  *	0: Success
  *	-EINVAL: GPIO port is invalid or can't be initialized.
  */
-static int pch_vbus_gpio_init(struct pch_udc_dev *dev, int vbus_gpio_port)
+static int pch_vbus_gpio_init(struct pch_udc_dev *dev)
 {
 	int err;
 	int irq_num = 0;
+	struct gpio_desc *gpiod;
 
-	dev->vbus_gpio.port = 0;
+	dev->vbus_gpio.port = NULL;
 	dev->vbus_gpio.intr = 0;
 
-	if (vbus_gpio_port <= -1)
-		return -EINVAL;
+	/* Retrieve the GPIO line from the USB gadget device */
+	gpiod = devm_gpiod_get(dev->gadget.dev.parent, NULL, GPIOD_IN);
+	if (IS_ERR(gpiod))
+		return PTR_ERR(gpiod);
+	gpiod_set_consumer_name(gpiod, "pch_vbus");
 
-	err = gpio_is_valid(vbus_gpio_port);
-	if (!err) {
-		pr_err("%s: gpio port %d is invalid\n",
-			__func__, vbus_gpio_port);
-		return -EINVAL;
-	}
-
-	err = gpio_request(vbus_gpio_port, "pch_vbus");
-	if (err) {
-		pr_err("%s: can't request gpio port %d, err: %d\n",
-			__func__, vbus_gpio_port, err);
-		return -EINVAL;
-	}
-
-	dev->vbus_gpio.port = vbus_gpio_port;
-	gpio_direction_input(vbus_gpio_port);
+	dev->vbus_gpio.port = gpiod;
 	INIT_WORK(&dev->vbus_gpio.irq_work_fall, pch_vbus_gpio_work_fall);
 
-	irq_num = gpio_to_irq(vbus_gpio_port);
+	irq_num = gpiod_to_irq(gpiod);
 	if (irq_num > 0) {
 		irq_set_irq_type(irq_num, IRQ_TYPE_EDGE_BOTH);
 		err = request_irq(irq_num, pch_vbus_gpio_irq, 0,
@@ -1416,9 +1402,6 @@ static void pch_vbus_gpio_free(struct pch_udc_dev *dev)
 {
 	if (dev->vbus_gpio.intr)
 		free_irq(dev->vbus_gpio.intr, dev);
-
-	if (dev->vbus_gpio.port)
-		gpio_free(dev->vbus_gpio.port);
 }
 
 /**
@@ -1499,8 +1482,8 @@ static void empty_req_queue(struct pch_udc_ep *ep)
 /**
  * pch_udc_free_dma_chain() - This function frees the DMA chain created
  *				for the request
- * @dev		Reference to the driver structure
- * @req		Reference to the request to be freed
+ * @dev:	Reference to the driver structure
+ * @req:	Reference to the request to be freed
  *
  * Return codes:
  *	0: Success
@@ -1519,7 +1502,6 @@ static void pch_udc_free_dma_chain(struct pch_udc_dev *dev,
 		td = phys_to_virt(addr);
 		addr2 = (dma_addr_t)td->next;
 		dma_pool_free(dev->data_requests, td, addr);
-		td->next = 0x00;
 		addr = addr2;
 	}
 	req->chain_len = 1;
@@ -1708,7 +1690,7 @@ static int pch_udc_pcd_ep_enable(struct usb_ep *usbep,
 /**
  * pch_udc_pcd_ep_disable() - This API disables endpoint and is called
  *				from gadget driver
- * @usbep	Reference to the USB endpoint structure
+ * @usbep:	Reference to the USB endpoint structure
  *
  * Return codes:
  *	0:		Success
@@ -1997,7 +1979,6 @@ static int pch_udc_pcd_set_halt(struct usb_ep *usbep, int halt)
  * pch_udc_pcd_set_wedge() - This function Sets or clear the endpoint
  *				halt feature
  * @usbep:	Reference to the USB endpoint structure
- * @halt:	Specifies whether to set or clear the feature
  *
  * Return codes:
  *	0:			Success
@@ -2751,7 +2732,7 @@ static void pch_udc_dev_isr(struct pch_udc_dev *dev, u32 dev_intr)
 /**
  * pch_udc_isr() - This function handles interrupts from the PCH USB Device
  * @irq:	Interrupt request number
- * @dev:	Reference to the device structure
+ * @pdev:	Reference to the device structure
  */
 static irqreturn_t pch_udc_isr(int irq, void *pdev)
 {
@@ -2895,13 +2876,13 @@ static int pch_udc_pcd_init(struct pch_udc_dev *dev)
 {
 	pch_udc_init(dev);
 	pch_udc_pcd_reinit(dev);
-	pch_vbus_gpio_init(dev, vbus_gpio_port);
+	pch_vbus_gpio_init(dev);
 	return 0;
 }
 
 /**
  * init_dma_pools() - create dma pools during initialization
- * @pdev:	reference to struct pci_dev
+ * @dev:	reference to struct pci_dev
  */
 static int init_dma_pools(struct pch_udc_dev *dev)
 {
@@ -3096,6 +3077,13 @@ static int pch_udc_probe(struct pci_dev *pdev,
 		return retval;
 
 	dev->base_addr = pcim_iomap_table(pdev)[bar];
+
+	/*
+	 * FIXME: add a GPIO descriptor table to pdev.dev using
+	 * gpiod_add_descriptor_table() from <linux/gpio/machine.h> based on
+	 * the PCI subsystem ID. The system-dependent GPIO is necessary for
+	 * VBUS operation.
+	 */
 
 	/* initialize the hardware */
 	if (pch_udc_pcd_init(dev))

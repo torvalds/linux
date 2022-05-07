@@ -131,7 +131,7 @@ static void bgmac_nicpm_speed_set(struct net_device *net_dev)
 	switch (bgmac->net_dev->phydev->speed) {
 	default:
 		netdev_err(net_dev, "Unsupported speed. Defaulting to 1000Mb\n");
-		/* fall through */
+		fallthrough;
 	case SPEED_1000:
 		val |= NICPM_IOMUX_CTRL_SPD_1000M << NICPM_IOMUX_CTRL_SPD_SHIFT;
 		break;
@@ -202,13 +202,8 @@ static int bgmac_probe(struct platform_device *pdev)
 	if (bgmac->irq < 0)
 		return bgmac->irq;
 
-	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "amac_base");
-	if (!regs) {
-		dev_err(&pdev->dev, "Unable to obtain base resource\n");
-		return -EINVAL;
-	}
-
-	bgmac->plat.base = devm_ioremap_resource(&pdev->dev, regs);
+	bgmac->plat.base =
+		devm_platform_ioremap_resource_byname(pdev, "amac_base");
 	if (IS_ERR(bgmac->plat.base))
 		return PTR_ERR(bgmac->plat.base);
 

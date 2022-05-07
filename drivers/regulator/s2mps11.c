@@ -749,37 +749,37 @@ static const struct regulator_ops s2mps15_reg_buck_ops = {
 }
 
 /* voltage range for s2mps15 LDO 3, 5, 15, 16, 18, 20, 23 and 27 */
-static const struct regulator_linear_range s2mps15_ldo_voltage_ranges1[] = {
+static const struct linear_range s2mps15_ldo_voltage_ranges1[] = {
 	REGULATOR_LINEAR_RANGE(1000000, 0xc, 0x38, 25000),
 };
 
 /* voltage range for s2mps15 LDO 2, 6, 14, 17, 19, 21, 24 and 25 */
-static const struct regulator_linear_range s2mps15_ldo_voltage_ranges2[] = {
+static const struct linear_range s2mps15_ldo_voltage_ranges2[] = {
 	REGULATOR_LINEAR_RANGE(1800000, 0x0, 0x3f, 25000),
 };
 
 /* voltage range for s2mps15 LDO 4, 11, 12, 13, 22 and 26 */
-static const struct regulator_linear_range s2mps15_ldo_voltage_ranges3[] = {
+static const struct linear_range s2mps15_ldo_voltage_ranges3[] = {
 	REGULATOR_LINEAR_RANGE(700000, 0x0, 0x34, 12500),
 };
 
 /* voltage range for s2mps15 LDO 7, 8, 9 and 10 */
-static const struct regulator_linear_range s2mps15_ldo_voltage_ranges4[] = {
+static const struct linear_range s2mps15_ldo_voltage_ranges4[] = {
 	REGULATOR_LINEAR_RANGE(700000, 0x10, 0x20, 25000),
 };
 
 /* voltage range for s2mps15 LDO 1 */
-static const struct regulator_linear_range s2mps15_ldo_voltage_ranges5[] = {
+static const struct linear_range s2mps15_ldo_voltage_ranges5[] = {
 	REGULATOR_LINEAR_RANGE(500000, 0x0, 0x20, 12500),
 };
 
 /* voltage range for s2mps15 BUCK 1, 2, 3, 4, 5, 6 and 7 */
-static const struct regulator_linear_range s2mps15_buck_voltage_ranges1[] = {
+static const struct linear_range s2mps15_buck_voltage_ranges1[] = {
 	REGULATOR_LINEAR_RANGE(500000, 0x20, 0xc0, 6250),
 };
 
 /* voltage range for s2mps15 BUCK 8, 9 and 10 */
-static const struct regulator_linear_range s2mps15_buck_voltage_ranges2[] = {
+static const struct linear_range s2mps15_buck_voltage_ranges2[] = {
 	REGULATOR_LINEAR_RANGE(1000000, 0x20, 0x78, 12500),
 };
 
@@ -844,10 +844,9 @@ static void s2mps14_pmic_dt_parse_ext_control_gpio(struct platform_device *pdev,
 		if (!rdata[reg].init_data || !rdata[reg].of_node)
 			continue;
 
-		gpio[reg] = devm_gpiod_get_from_of_node(&pdev->dev,
-				rdata[reg].of_node,
-				"samsung,ext-control-gpios",
-				0,
+		gpio[reg] = devm_fwnode_gpiod_get(&pdev->dev,
+				of_fwnode_handle(rdata[reg].of_node),
+				"samsung,ext-control",
 				GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
 				"s2mps11-regulator");
 		if (PTR_ERR(gpio[reg]) == -ENOENT)
@@ -1266,5 +1265,5 @@ module_platform_driver(s2mps11_pmic_driver);
 
 /* Module information */
 MODULE_AUTHOR("Sangbeom Kim <sbkim73@samsung.com>");
-MODULE_DESCRIPTION("SAMSUNG S2MPS11/S2MPS14/S2MPS15/S2MPU02 Regulator Driver");
+MODULE_DESCRIPTION("Samsung S2MPS11/S2MPS14/S2MPS15/S2MPU02 Regulator Driver");
 MODULE_LICENSE("GPL");

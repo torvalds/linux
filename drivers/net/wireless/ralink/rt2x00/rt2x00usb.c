@@ -522,7 +522,7 @@ EXPORT_SYMBOL_GPL(rt2x00usb_flush_queue);
 
 static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 {
-	rt2x00_warn(queue->rt2x00dev, "TX queue %d DMA timed out, invoke forced forced reset\n",
+	rt2x00_warn(queue->rt2x00dev, "TX queue %d DMA timed out, invoke forced reset\n",
 		    queue->qid);
 
 	rt2x00queue_stop_queue(queue);
@@ -886,7 +886,7 @@ int rt2x00usb_suspend(struct usb_interface *usb_intf, pm_message_t state)
 	struct ieee80211_hw *hw = usb_get_intfdata(usb_intf);
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 
-	return rt2x00lib_suspend(rt2x00dev, state);
+	return rt2x00lib_suspend(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_suspend);
 

@@ -19,15 +19,6 @@ struct vdso_data *__mips_get_k_vdso_data(void)
 }
 #define __arch_get_k_vdso_data __mips_get_k_vdso_data
 
-static __always_inline
-int __mips_get_clock_mode(struct timekeeper *tk)
-{
-	u32 clock_mode = tk->tkr_mono.clock->archdata.vdso_clock_mode;
-
-	return clock_mode;
-}
-#define __arch_get_clock_mode __mips_get_clock_mode
-
 /* The asm-generic header needs to be included after the definitions above */
 #include <asm-generic/vdso/vsyscall.h>
 

@@ -25,7 +25,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/completion.h>
 #include <linux/scatterlist.h>
-#include <linux/version.h>
 #include <linux/err.h>
 #include <linux/aer.h>
 #include <linux/wait.h>
@@ -1417,7 +1416,8 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 	case SKD_CHECK_STATUS_REPORT_GOOD:
 	case SKD_CHECK_STATUS_REPORT_SMART_ALERT:
 		skreq->status = BLK_STS_OK;
-		blk_mq_complete_request(req);
+		if (likely(!blk_should_fake_timeout(req->q)))
+			blk_mq_complete_request(req);
 		break;
 
 	case SKD_CHECK_STATUS_BUSY_IMMINENT:
@@ -1435,12 +1435,13 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 			blk_mq_requeue_request(req, true);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 
 	case SKD_CHECK_STATUS_REPORT_ERROR:
 	default:
 		skreq->status = BLK_STS_IOERR;
-		blk_mq_complete_request(req);
+		if (likely(!blk_should_fake_timeout(req->q)))
+			blk_mq_complete_request(req);
 		break;
 	}
 }
@@ -1560,7 +1561,8 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 		 */
 		if (likely(cmp_status == SAM_STAT_GOOD)) {
 			skreq->status = BLK_STS_OK;
-			blk_mq_complete_request(rq);
+			if (likely(!blk_should_fake_timeout(rq->q)))
+				blk_mq_complete_request(rq);
 		} else {
 			skd_resolve_req_exception(skdev, skreq, rq);
 		}

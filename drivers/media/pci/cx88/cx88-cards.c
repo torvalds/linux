@@ -1781,6 +1781,41 @@ static const struct cx88_board cx88_boards[] = {
 		},
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_NOTONLYTV_LV3H] = {
+		.name           = "NotOnlyTV LV3H",
+		.tuner_type     = TUNER_XC2028,
+		.radio_type     = UNSET,
+		.tuner_addr     = 0x61,
+		.radio_addr     = ADDR_UNSET,
+		/* if gpio1:bit9 is enabled, DVB-T won't work */
+
+		.input          = { {
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x0000,
+			.gpio1  = 0xa141,
+			.gpio2  = 0x0000,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x0000,
+			.gpio1  = 0xa161,
+			.gpio2  = 0x0000,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x0000,
+			.gpio1  = 0xa161,
+			.gpio2  = 0x0000,
+		} },
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0  = 0x0000,
+			.gpio1  = 0xa141,
+			.gpio2  = 0x0000,
+		},
+		.mpeg           = CX88_MPEG_DVB,
+	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO] = {
 		.name           = "DViCO FusionHDTV DVB-T PRO",
 		.tuner_type     = TUNER_XC2028,
@@ -2654,6 +2689,7 @@ static const struct cx88_subid cx88_subids[] = {
 		.subdevice = 0x6f18,
 		.card      = CX88_BOARD_WINFAST_TV2000_XP_GLOBAL,
 	}, {
+		/* Also NotOnlyTV LV3H (version 1.11 is silkscreened on the board) */
 		.subvendor = 0x14f1,
 		.subdevice = 0x8852,
 		.card      = CX88_BOARD_GENIATECH_X8000_MT,
@@ -3121,6 +3157,7 @@ static int cx88_xc2028_tuner_callback(struct cx88_core *core,
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		return cx88_dvico_xc2028_callback(core, command, arg);
+	case CX88_BOARD_NOTONLYTV_LV3H:
 	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
 	case CX88_BOARD_WINFAST_DTV1800H:
 		return cx88_xc3028_winfast1800h_callback(core, command, arg);
@@ -3322,6 +3359,7 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 		udelay(1000);
 		break;
 
+	case CX88_BOARD_NOTONLYTV_LV3H:
 	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
 	case CX88_BOARD_WINFAST_DTV1800H:
 		cx88_xc3028_winfast1800h_callback(core, XC2028_TUNER_RESET, 0);
@@ -3377,6 +3415,11 @@ void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl)
 		 * power management for now
 		 */
 		ctl->disable_power_mgmt = 1;
+		break;
+	case CX88_BOARD_NOTONLYTV_LV3H:
+		ctl->demod			= XC3028_FE_ZARLINK456;
+		ctl->fname			= XC3028L_DEFAULT_FIRMWARE;
+		ctl->read_not_reliable	= 1;
 		break;
 	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
 	case CX88_BOARD_PROLINK_PV_GLOBAL_XTREME:
@@ -3456,7 +3499,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		cx_clear(MO_GP0_IO, 0x00000040);
 		msleep(1000);
 		cx_set(MO_GP0_IO, 0x00004040);
-		/* FALLTHROUGH */
+		fallthrough;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:

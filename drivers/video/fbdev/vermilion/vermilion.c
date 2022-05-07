@@ -317,7 +317,7 @@ static int vmlfb_enable_mmio(struct vml_par *par)
 		       ": Could not claim display controller MMIO.\n");
 		return -EBUSY;
 	}
-	par->vdc_mem = ioremap_nocache(par->vdc_mem_base, par->vdc_mem_size);
+	par->vdc_mem = ioremap(par->vdc_mem_base, par->vdc_mem_size);
 	if (par->vdc_mem == NULL) {
 		printk(KERN_ERR MODULE_NAME
 		       ": Could not map display controller MMIO.\n");
@@ -332,7 +332,7 @@ static int vmlfb_enable_mmio(struct vml_par *par)
 		err = -EBUSY;
 		goto out_err_1;
 	}
-	par->gpu_mem = ioremap_nocache(par->gpu_mem_base, par->gpu_mem_size);
+	par->gpu_mem = ioremap(par->gpu_mem_base, par->gpu_mem_size);
 	if (par->gpu_mem == NULL) {
 		printk(KERN_ERR MODULE_NAME ": Could not map GPU MMIO.\n");
 		err = -ENOMEM;

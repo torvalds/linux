@@ -1,9 +1,24 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+config NO_DMA
+	bool
+
 config HAS_DMA
 	bool
 	depends on !NO_DMA
 	default y
+
+config DMA_OPS
+	depends on HAS_DMA
+	bool
+
+#
+# IOMMU drivers that can bypass the IOMMU code and optionally use the direct
+# mapping fast path should select this option and set the dma_ops_bypass
+# flag in struct device where applicable
+#
+config DMA_OPS_BYPASS
+	bool
 
 config NEED_SG_DMA_LENGTH
 	bool
@@ -29,6 +44,12 @@ config ARCH_HAS_DMA_SET_MASK
 config ARCH_HAS_DMA_WRITE_COMBINE
 	bool
 
+#
+# Select if the architectures provides the arch_dma_mark_clean hook
+#
+config ARCH_HAS_DMA_MARK_CLEAN
+	bool
+
 config DMA_DECLARE_COHERENT
 	bool
 
@@ -51,31 +72,40 @@ config ARCH_HAS_SYNC_DMA_FOR_CPU_ALL
 config ARCH_HAS_DMA_PREP_COHERENT
 	bool
 
-config ARCH_HAS_DMA_COHERENT_TO_PFN
-	bool
-
 config ARCH_HAS_FORCE_DMA_UNENCRYPTED
-	bool
-
-config DMA_NONCOHERENT_CACHE_SYNC
 	bool
 
 config DMA_VIRT_OPS
 	bool
 	depends on HAS_DMA
+	select DMA_OPS
 
 config SWIOTLB
 	bool
 	select NEED_DMA_MAP_STATE
 
-config DMA_REMAP
-	depends on MMU
+#
+# Should be selected if we can mmap non-coherent mappings to userspace.
+# The only thing that is really required is a way to set an uncached bit
+# in the pagetables
+#
+config DMA_NONCOHERENT_MMAP
+	default y if !MMU
+	bool
+
+config DMA_COHERENT_POOL
 	select GENERIC_ALLOCATOR
 	bool
+
+config DMA_REMAP
+	bool
+	depends on MMU
+	select DMA_NONCOHERENT_MMAP
 
 config DMA_DIRECT_REMAP
 	bool
 	select DMA_REMAP
+	select DMA_COHERENT_POOL
 
 config DMA_CMA
 	bool "DMA Contiguous Memory Allocator"
@@ -88,10 +118,21 @@ config DMA_CMA
 	  You can disable CMA by specifying "cma=0" on the kernel's command
 	  line.
 
-	  For more information see <include/linux/dma-contiguous.h>.
+	  For more information see <kernel/dma/contiguous.c>.
 	  If unsure, say "n".
 
 if  DMA_CMA
+
+config DMA_PERNUMA_CMA
+	bool "Enable separate DMA Contiguous Memory Area for each NUMA Node"
+	default NUMA && ARM64
+	help
+	  Enable this option to get pernuma CMA areas so that devices like
+	  ARM64 SMMU can get local memory by DMA coherent APIs.
+
+	  You can set the size of pernuma CMA by specifying "cma_pernuma=size"
+	  on the kernel's command line.
+
 comment "Default contiguous memory area size:"
 
 config CMA_SIZE_MBYTES
@@ -136,7 +177,7 @@ endchoice
 
 config CMA_ALIGNMENT
 	int "Maximum PAGE_SIZE order of alignment for contiguous buffers"
-	range 4 12
+	range 2 12
 	default 8
 	help
 	  DMA mapping framework by default aligns all buffers to the smallest
@@ -162,11 +203,6 @@ config DMA_API_DEBUG
 	  With this option you will be able to detect common bugs in device
 	  drivers like double-freeing of DMA mappings or freeing mappings that
 	  were never allocated.
-
-	  This also attempts to catch cases where a page owned by DMA is
-	  accessed by the cpu in a way that could cause data corruption.  For
-	  example, this enables cow_user_page() to check that the source page is
-	  not undergoing DMA.
 
 	  This option causes a performance degradation.  Use only if you want to
 	  debug device drivers and dma interactions.

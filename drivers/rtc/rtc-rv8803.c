@@ -411,6 +411,7 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rv8803_data *rv8803 = dev_get_drvdata(dev);
+	unsigned int vl = 0;
 	int flags, ret = 0;
 
 	switch (cmd) {
@@ -419,18 +420,15 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		if (flags < 0)
 			return flags;
 
-		if (flags & RV8803_FLAG_V1F)
+		if (flags & RV8803_FLAG_V1F) {
 			dev_warn(&client->dev, "Voltage low, temperature compensation stopped.\n");
+			vl = RTC_VL_ACCURACY_LOW;
+		}
 
 		if (flags & RV8803_FLAG_V2F)
-			dev_warn(&client->dev, "Voltage low, data loss detected.\n");
+			vl |= RTC_VL_DATA_INVALID;
 
-		flags &= RV8803_FLAG_V1F | RV8803_FLAG_V2F;
-
-		if (copy_to_user((void __user *)arg, &flags, sizeof(int)))
-			return -EFAULT;
-
-		return 0;
+		return put_user(vl, (unsigned int __user *)arg);
 
 	case RTC_VL_CLR:
 		mutex_lock(&rv8803->flags_lock);
@@ -440,7 +438,7 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 			return flags;
 		}
 
-		flags &= ~(RV8803_FLAG_V1F | RV8803_FLAG_V2F);
+		flags &= ~RV8803_FLAG_V1F;
 		ret = rv8803_write_reg(client, RV8803_FLAG, flags);
 		mutex_unlock(&rv8803->flags_lock);
 		if (ret)
@@ -456,13 +454,7 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 static int rv8803_nvram_write(void *priv, unsigned int offset, void *val,
 			      size_t bytes)
 {
-	int ret;
-
-	ret = rv8803_write_reg(priv, RV8803_RAM, *(u8 *)val);
-	if (ret)
-		return ret;
-
-	return 0;
+	return rv8803_write_reg(priv, RV8803_RAM, *(u8 *)val);
 }
 
 static int rv8803_nvram_read(void *priv, unsigned int offset,

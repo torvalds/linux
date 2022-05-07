@@ -8,12 +8,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <bpf.h>
-#include <libbpf.h>
+#include <bpf/bpf.h>
+#include <bpf/btf.h>
+#include <bpf/libbpf.h>
 #include <linux/btf.h>
 #include <linux/hashtable.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
-#include "btf.h"
 #include "json_writer.h"
 #include "main.h"
 
@@ -69,6 +71,20 @@ static const char *btf_var_linkage_str(__u32 linkage)
 		return "static";
 	case BTF_VAR_GLOBAL_ALLOCATED:
 		return "global-alloc";
+	default:
+		return "(unknown)";
+	}
+}
+
+static const char *btf_func_linkage_str(const struct btf_type *t)
+{
+	switch (btf_vlen(t)) {
+	case BTF_FUNC_STATIC:
+		return "static";
+	case BTF_FUNC_GLOBAL:
+		return "global";
+	case BTF_FUNC_EXTERN:
+		return "extern";
 	default:
 		return "(unknown)";
 	}
@@ -228,12 +244,17 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 			printf(" fwd_kind=%s", fwd_kind);
 		break;
 	}
-	case BTF_KIND_FUNC:
-		if (json_output)
+	case BTF_KIND_FUNC: {
+		const char *linkage = btf_func_linkage_str(t);
+
+		if (json_output) {
 			jsonw_uint_field(w, "type_id", t->type);
-		else
-			printf(" type_id=%u", t->type);
+			jsonw_string_field(w, "linkage", linkage);
+		} else {
+			printf(" type_id=%u linkage=%s", t->type, linkage);
+		}
 		break;
+	}
 	case BTF_KIND_FUNC_PROTO: {
 		const struct btf_param *p = (const void *)(t + 1);
 		__u16 vlen = BTF_INFO_VLEN(t->info);
@@ -367,6 +388,13 @@ static int dump_btf_c(const struct btf *btf,
 	if (IS_ERR(d))
 		return PTR_ERR(d);
 
+	printf("#ifndef __VMLINUX_H__\n");
+	printf("#define __VMLINUX_H__\n");
+	printf("\n");
+	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
+	printf("#pragma clang attribute push (__attribute__((preserve_access_index)), apply_to = record)\n");
+	printf("#endif\n\n");
+
 	if (root_type_cnt) {
 		for (i = 0; i < root_type_cnt; i++) {
 			err = btf_dump__dump_type(d, root_type_ids[i]);
@@ -382,6 +410,12 @@ static int dump_btf_c(const struct btf *btf,
 				goto done;
 		}
 	}
+
+	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
+	printf("#pragma clang attribute pop\n");
+	printf("#endif\n");
+	printf("\n");
+	printf("#endif /* __VMLINUX_H__ */\n");
 
 done:
 	btf_dump__free(d);
@@ -465,11 +499,11 @@ static int do_dump(int argc, char **argv)
 		}
 		NEXT_ARG();
 	} else if (is_prefix(src, "file")) {
-		btf = btf__parse_elf(*argv, NULL);
+		btf = btf__parse(*argv, NULL);
 		if (IS_ERR(btf)) {
-			err = PTR_ERR(btf);
+			err = -PTR_ERR(btf);
 			btf = NULL;
-			p_err("failed to load BTF from %s: %s", 
+			p_err("failed to load BTF from %s: %s",
 			      *argv, strerror(err));
 			goto done;
 		}
@@ -510,7 +544,7 @@ static int do_dump(int argc, char **argv)
 			goto done;
 		}
 		if (!btf) {
-			err = ENOENT;
+			err = -ENOENT;
 			p_err("can't find btf with ID (%u)", btf_id);
 			goto done;
 		}
@@ -659,6 +693,7 @@ build_btf_type_table(struct btf_attach_table *tab, enum bpf_obj_type type,
 		obj_node = calloc(1, sizeof(*obj_node));
 		if (!obj_node) {
 			p_err("failed to allocate memory: %s", strerror(errno));
+			err = -ENOMEM;
 			goto err_free;
 		}
 
@@ -723,6 +758,7 @@ show_btf_plain(struct bpf_btf_info *info, int fd,
 			printf("%s%u", n++ == 0 ? "  map_ids " : ",",
 			       obj->obj_id);
 	}
+	emit_obj_refs_plain(&refs_table, info->id, "\n\tpids ");
 
 	printf("\n");
 }
@@ -755,6 +791,9 @@ show_btf_json(struct bpf_btf_info *info, int fd,
 			jsonw_uint(json_wtr, obj->obj_id);
 	}
 	jsonw_end_array(json_wtr);	/* map_ids */
+
+	emit_obj_refs_json(&refs_table, info->id, json_wtr); /* pids */
+
 	jsonw_end_object(json_wtr);	/* btf object */
 }
 
@@ -807,6 +846,7 @@ static int do_show(int argc, char **argv)
 			close(fd);
 		return err;
 	}
+	build_obj_refs_table(&refs_table, BPF_OBJ_BTF);
 
 	if (fd >= 0) {
 		err = show_btf(fd, &btf_prog_table, &btf_map_table);
@@ -853,6 +893,7 @@ static int do_show(int argc, char **argv)
 exit_free:
 	delete_btf_table(&btf_prog_table);
 	delete_btf_table(&btf_map_table);
+	delete_obj_refs_table(&refs_table);
 
 	return err;
 }
@@ -865,9 +906,9 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s btf { show | list } [id BTF_ID]\n"
-		"       %s btf dump BTF_SRC [format FORMAT]\n"
-		"       %s btf help\n"
+		"Usage: %1$s %2$s { show | list } [id BTF_ID]\n"
+		"       %1$s %2$s dump BTF_SRC [format FORMAT]\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       BTF_SRC := { id BTF_ID | prog PROG | map MAP [{key | value | kv | all}] | file FILE }\n"
 		"       FORMAT  := { raw | c }\n"
@@ -875,7 +916,7 @@ static int do_help(int argc, char **argv)
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
-		bin_name, bin_name, bin_name);
+		bin_name, "btf");
 
 	return 0;
 }

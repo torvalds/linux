@@ -14,18 +14,19 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 
 #include "i2c-designware-core.h"
 
 static void i2c_dw_configure_fifo_slave(struct dw_i2c_dev *dev)
 {
 	/* Configure Tx/Rx FIFO threshold levels. */
-	dw_writel(dev, 0, DW_IC_TX_TL);
-	dw_writel(dev, 0, DW_IC_RX_TL);
+	regmap_write(dev->map, DW_IC_TX_TL, 0);
+	regmap_write(dev->map, DW_IC_RX_TL, 0);
 
 	/* Configure the I2C slave. */
-	dw_writel(dev, dev->slave_cfg, DW_IC_CON);
-	dw_writel(dev, DW_IC_INTR_SLAVE_MASK, DW_IC_INTR_MASK);
+	regmap_write(dev->map, DW_IC_CON, dev->slave_cfg);
+	regmap_write(dev->map, DW_IC_INTR_MASK, DW_IC_INTR_SLAVE_MASK);
 }
 
 /**
@@ -49,7 +50,7 @@ static int i2c_dw_init_slave(struct dw_i2c_dev *dev)
 
 	/* Write SDA hold time if supported */
 	if (dev->sda_hold_time)
-		dw_writel(dev, dev->sda_hold_time, DW_IC_SDA_HOLD);
+		regmap_write(dev->map, DW_IC_SDA_HOLD, dev->sda_hold_time);
 
 	i2c_dw_configure_fifo_slave(dev);
 	i2c_dw_release_lock(dev);
@@ -72,7 +73,7 @@ static int i2c_dw_reg_slave(struct i2c_client *slave)
 	 * the address to which the DW_apb_i2c responds.
 	 */
 	__i2c_dw_disable_nowait(dev);
-	dw_writel(dev, slave->addr, DW_IC_SAR);
+	regmap_write(dev->map, DW_IC_SAR, slave->addr);
 	dev->slave = slave;
 
 	__i2c_dw_enable(dev);
@@ -103,47 +104,47 @@ static int i2c_dw_unreg_slave(struct i2c_client *slave)
 
 static u32 i2c_dw_read_clear_intrbits_slave(struct dw_i2c_dev *dev)
 {
-	u32 stat;
+	u32 stat, dummy;
 
 	/*
 	 * The IC_INTR_STAT register just indicates "enabled" interrupts.
-	 * Ths unmasked raw version of interrupt status bits are available
+	 * The unmasked raw version of interrupt status bits is available
 	 * in the IC_RAW_INTR_STAT register.
 	 *
 	 * That is,
-	 *   stat = dw_readl(IC_INTR_STAT);
+	 *   stat = readl(IC_INTR_STAT);
 	 * equals to,
-	 *   stat = dw_readl(IC_RAW_INTR_STAT) & dw_readl(IC_INTR_MASK);
+	 *   stat = readl(IC_RAW_INTR_STAT) & readl(IC_INTR_MASK);
 	 *
 	 * The raw version might be useful for debugging purposes.
 	 */
-	stat = dw_readl(dev, DW_IC_INTR_STAT);
+	regmap_read(dev->map, DW_IC_INTR_STAT, &stat);
 
 	/*
 	 * Do not use the IC_CLR_INTR register to clear interrupts, or
 	 * you'll miss some interrupts, triggered during the period from
-	 * dw_readl(IC_INTR_STAT) to dw_readl(IC_CLR_INTR).
+	 * readl(IC_INTR_STAT) to readl(IC_CLR_INTR).
 	 *
 	 * Instead, use the separately-prepared IC_CLR_* registers.
 	 */
 	if (stat & DW_IC_INTR_TX_ABRT)
-		dw_readl(dev, DW_IC_CLR_TX_ABRT);
+		regmap_read(dev->map, DW_IC_CLR_TX_ABRT, &dummy);
 	if (stat & DW_IC_INTR_RX_UNDER)
-		dw_readl(dev, DW_IC_CLR_RX_UNDER);
+		regmap_read(dev->map, DW_IC_CLR_RX_UNDER, &dummy);
 	if (stat & DW_IC_INTR_RX_OVER)
-		dw_readl(dev, DW_IC_CLR_RX_OVER);
+		regmap_read(dev->map, DW_IC_CLR_RX_OVER, &dummy);
 	if (stat & DW_IC_INTR_TX_OVER)
-		dw_readl(dev, DW_IC_CLR_TX_OVER);
+		regmap_read(dev->map, DW_IC_CLR_TX_OVER, &dummy);
 	if (stat & DW_IC_INTR_RX_DONE)
-		dw_readl(dev, DW_IC_CLR_RX_DONE);
+		regmap_read(dev->map, DW_IC_CLR_RX_DONE, &dummy);
 	if (stat & DW_IC_INTR_ACTIVITY)
-		dw_readl(dev, DW_IC_CLR_ACTIVITY);
+		regmap_read(dev->map, DW_IC_CLR_ACTIVITY, &dummy);
 	if (stat & DW_IC_INTR_STOP_DET)
-		dw_readl(dev, DW_IC_CLR_STOP_DET);
+		regmap_read(dev->map, DW_IC_CLR_STOP_DET, &dummy);
 	if (stat & DW_IC_INTR_START_DET)
-		dw_readl(dev, DW_IC_CLR_START_DET);
+		regmap_read(dev->map, DW_IC_CLR_START_DET, &dummy);
 	if (stat & DW_IC_INTR_GEN_CALL)
-		dw_readl(dev, DW_IC_CLR_GEN_CALL);
+		regmap_read(dev->map, DW_IC_CLR_GEN_CALL, &dummy);
 
 	return stat;
 }
@@ -155,68 +156,57 @@ static u32 i2c_dw_read_clear_intrbits_slave(struct dw_i2c_dev *dev)
 
 static int i2c_dw_irq_handler_slave(struct dw_i2c_dev *dev)
 {
-	u32 raw_stat, stat, enabled;
-	u8 val, slave_activity;
+	u32 raw_stat, stat, enabled, tmp;
+	u8 val = 0, slave_activity;
 
-	stat = dw_readl(dev, DW_IC_INTR_STAT);
-	enabled = dw_readl(dev, DW_IC_ENABLE);
-	raw_stat = dw_readl(dev, DW_IC_RAW_INTR_STAT);
-	slave_activity = ((dw_readl(dev, DW_IC_STATUS) &
-		DW_IC_STATUS_SLAVE_ACTIVITY) >> 6);
+	regmap_read(dev->map, DW_IC_ENABLE, &enabled);
+	regmap_read(dev->map, DW_IC_RAW_INTR_STAT, &raw_stat);
+	regmap_read(dev->map, DW_IC_STATUS, &tmp);
+	slave_activity = ((tmp & DW_IC_STATUS_SLAVE_ACTIVITY) >> 6);
 
 	if (!enabled || !(raw_stat & ~DW_IC_INTR_ACTIVITY) || !dev->slave)
 		return 0;
 
+	stat = i2c_dw_read_clear_intrbits_slave(dev);
 	dev_dbg(dev->dev,
 		"%#x STATUS SLAVE_ACTIVITY=%#x : RAW_INTR_STAT=%#x : INTR_STAT=%#x\n",
 		enabled, slave_activity, raw_stat, stat);
 
-	if ((stat & DW_IC_INTR_RX_FULL) && (stat & DW_IC_INTR_STOP_DET))
-		i2c_slave_event(dev->slave, I2C_SLAVE_WRITE_REQUESTED, &val);
+	if (stat & DW_IC_INTR_RX_FULL) {
+		if (dev->status != STATUS_WRITE_IN_PROGRESS) {
+			dev->status = STATUS_WRITE_IN_PROGRESS;
+			i2c_slave_event(dev->slave, I2C_SLAVE_WRITE_REQUESTED,
+					&val);
+		}
+
+		regmap_read(dev->map, DW_IC_DATA_CMD, &tmp);
+		val = tmp;
+		if (!i2c_slave_event(dev->slave, I2C_SLAVE_WRITE_RECEIVED,
+				     &val))
+			dev_vdbg(dev->dev, "Byte %X acked!", val);
+	}
 
 	if (stat & DW_IC_INTR_RD_REQ) {
 		if (slave_activity) {
-			if (stat & DW_IC_INTR_RX_FULL) {
-				val = dw_readl(dev, DW_IC_DATA_CMD);
+			regmap_read(dev->map, DW_IC_CLR_RD_REQ, &tmp);
 
-				if (!i2c_slave_event(dev->slave,
-						     I2C_SLAVE_WRITE_RECEIVED,
-						     &val)) {
-					dev_vdbg(dev->dev, "Byte %X acked!",
-						 val);
-				}
-				dw_readl(dev, DW_IC_CLR_RD_REQ);
-				stat = i2c_dw_read_clear_intrbits_slave(dev);
-			} else {
-				dw_readl(dev, DW_IC_CLR_RD_REQ);
-				dw_readl(dev, DW_IC_CLR_RX_UNDER);
-				stat = i2c_dw_read_clear_intrbits_slave(dev);
-			}
+			dev->status = STATUS_READ_IN_PROGRESS;
 			if (!i2c_slave_event(dev->slave,
 					     I2C_SLAVE_READ_REQUESTED,
 					     &val))
-				dw_writel(dev, val, DW_IC_DATA_CMD);
+				regmap_write(dev->map, DW_IC_DATA_CMD, val);
 		}
 	}
 
 	if (stat & DW_IC_INTR_RX_DONE) {
 		if (!i2c_slave_event(dev->slave, I2C_SLAVE_READ_PROCESSED,
 				     &val))
-			dw_readl(dev, DW_IC_CLR_RX_DONE);
-
-		i2c_slave_event(dev->slave, I2C_SLAVE_STOP, &val);
-		stat = i2c_dw_read_clear_intrbits_slave(dev);
-		return 1;
+			regmap_read(dev->map, DW_IC_CLR_RX_DONE, &tmp);
 	}
 
-	if (stat & DW_IC_INTR_RX_FULL) {
-		val = dw_readl(dev, DW_IC_DATA_CMD);
-		if (!i2c_slave_event(dev->slave, I2C_SLAVE_WRITE_RECEIVED,
-				     &val))
-			dev_vdbg(dev->dev, "Byte %X acked!", val);
-	} else {
+	if (stat & DW_IC_INTR_STOP_DET) {
+		dev->status = STATUS_IDLE;
 		i2c_slave_event(dev->slave, I2C_SLAVE_STOP, &val);
-		stat = i2c_dw_read_clear_intrbits_slave(dev);
 	}
 
 	return 1;
@@ -227,7 +217,6 @@ static irqreturn_t i2c_dw_isr_slave(int this_irq, void *dev_id)
 	struct dw_i2c_dev *dev = dev_id;
 	int ret;
 
-	i2c_dw_read_clear_intrbits_slave(dev);
 	ret = i2c_dw_irq_handler_slave(dev);
 	if (ret > 0)
 		complete(&dev->cmd_complete);
@@ -241,6 +230,17 @@ static const struct i2c_algorithm i2c_dw_algo = {
 	.unreg_slave = i2c_dw_unreg_slave,
 };
 
+void i2c_dw_configure_slave(struct dw_i2c_dev *dev)
+{
+	dev->functionality = I2C_FUNC_SLAVE | DW_IC_DEFAULT_FUNCTIONALITY;
+
+	dev->slave_cfg = DW_IC_CON_RX_FIFO_FULL_HLD_CTRL |
+			 DW_IC_CON_RESTART_EN | DW_IC_CON_STOP_DET_IFADDRESSED;
+
+	dev->mode = DW_IC_SLAVE;
+}
+EXPORT_SYMBOL_GPL(i2c_dw_configure_slave);
+
 int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 {
 	struct i2c_adapter *adap = &dev->adapter;
@@ -252,11 +252,15 @@ int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 	dev->disable = i2c_dw_disable;
 	dev->disable_int = i2c_dw_disable_int;
 
-	ret = i2c_dw_set_reg_access(dev);
+	ret = i2c_dw_init_regmap(dev);
 	if (ret)
 		return ret;
 
 	ret = i2c_dw_set_sda_hold(dev);
+	if (ret)
+		return ret;
+
+	ret = i2c_dw_set_fifo_size(dev);
 	if (ret)
 		return ret;
 

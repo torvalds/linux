@@ -11,8 +11,6 @@
 #ifndef _SUNRPC_XDR_H_
 #define _SUNRPC_XDR_H_
 
-#ifdef __KERNEL__
-
 #include <linux/uio.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
@@ -186,23 +184,9 @@ xdr_adjust_iovec(struct kvec *iov, __be32 *p)
 extern void xdr_shift_buf(struct xdr_buf *, size_t);
 extern void xdr_buf_from_iov(struct kvec *, struct xdr_buf *);
 extern int xdr_buf_subsegment(struct xdr_buf *, struct xdr_buf *, unsigned int, unsigned int);
-extern int xdr_buf_read_mic(struct xdr_buf *, struct xdr_netobj *, unsigned int);
+extern void xdr_buf_trim(struct xdr_buf *, unsigned int);
 extern int read_bytes_from_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
 extern int write_bytes_to_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
-
-/*
- * Helper structure for copying from an sk_buff.
- */
-struct xdr_skb_reader {
-	struct sk_buff	*skb;
-	unsigned int	offset;
-	size_t		count;
-	__wsum		csum;
-};
-
-typedef size_t (*xdr_skb_read_actor)(struct xdr_skb_reader *desc, void *to, size_t len);
-
-extern int csum_partial_copy_to_xdr(struct xdr_buf *, struct sk_buff *);
 
 extern int xdr_encode_word(struct xdr_buf *, unsigned int, u32);
 extern int xdr_decode_word(struct xdr_buf *, unsigned int, u32 *);
@@ -250,12 +234,15 @@ typedef int	(*kxdrdproc_t)(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 extern void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf,
 			    __be32 *p, struct rpc_rqst *rqst);
 extern __be32 *xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes);
+extern int xdr_reserve_space_vec(struct xdr_stream *xdr, struct kvec *vec,
+		size_t nbytes);
 extern void xdr_commit_encode(struct xdr_stream *xdr);
 extern void xdr_truncate_encode(struct xdr_stream *xdr, size_t len);
 extern int xdr_restrict_buflen(struct xdr_stream *xdr, int newbuflen);
 extern void xdr_write_pages(struct xdr_stream *xdr, struct page **pages,
 		unsigned int base, unsigned int len);
 extern unsigned int xdr_stream_pos(const struct xdr_stream *xdr);
+extern unsigned int xdr_page_pos(const struct xdr_stream *xdr);
 extern void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf,
 			    __be32 *p, struct rpc_rqst *rqst);
 extern void xdr_init_decode_pages(struct xdr_stream *xdr, struct xdr_buf *buf,
@@ -265,6 +252,8 @@ extern __be32 *xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes);
 extern unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len);
 extern void xdr_enter_page(struct xdr_stream *xdr, unsigned int len);
 extern int xdr_process_buf(struct xdr_buf *buf, unsigned int offset, unsigned int len, int (*actor)(struct scatterlist *, void *), void *data);
+extern uint64_t xdr_align_data(struct xdr_stream *, uint64_t, uint32_t);
+extern uint64_t xdr_expand_hole(struct xdr_stream *, uint64_t, uint64_t);
 
 /**
  * xdr_stream_remaining - Return the number of bytes remaining in the stream
@@ -300,6 +289,59 @@ xdr_align_size(size_t n)
 	const size_t mask = sizeof(__u32) - 1;
 
 	return (n + mask) & ~mask;
+}
+
+/**
+ * xdr_pad_size - Calculate size of an object's pad
+ * @n: Size of an object being XDR encoded (in bytes)
+ *
+ * This implementation avoids the need for conditional
+ * branches or modulo division.
+ *
+ * Return value:
+ *   Size (in bytes) of the needed XDR pad
+ */
+static inline size_t xdr_pad_size(size_t n)
+{
+	return xdr_align_size(n) - n;
+}
+
+/**
+ * xdr_stream_encode_item_present - Encode a "present" list item
+ * @xdr: pointer to xdr_stream
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EMSGSIZE on XDR buffer overflow
+ */
+static inline ssize_t xdr_stream_encode_item_present(struct xdr_stream *xdr)
+{
+	const size_t len = sizeof(__be32);
+	__be32 *p = xdr_reserve_space(xdr, len);
+
+	if (unlikely(!p))
+		return -EMSGSIZE;
+	*p = xdr_one;
+	return len;
+}
+
+/**
+ * xdr_stream_encode_item_absent - Encode a "not present" list item
+ * @xdr: pointer to xdr_stream
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EMSGSIZE on XDR buffer overflow
+ */
+static inline int xdr_stream_encode_item_absent(struct xdr_stream *xdr)
+{
+	const size_t len = sizeof(__be32);
+	__be32 *p = xdr_reserve_space(xdr, len);
+
+	if (unlikely(!p))
+		return -EMSGSIZE;
+	*p = xdr_zero;
+	return len;
 }
 
 /**
@@ -438,6 +480,32 @@ xdr_stream_encode_uint32_array(struct xdr_stream *xdr,
 }
 
 /**
+ * xdr_item_is_absent - symbolically handle XDR discriminators
+ * @p: pointer to undecoded discriminator
+ *
+ * Return values:
+ *   %true if the following XDR item is absent
+ *   %false if the following XDR item is present
+ */
+static inline bool xdr_item_is_absent(const __be32 *p)
+{
+	return *p == xdr_zero;
+}
+
+/**
+ * xdr_item_is_present - symbolically handle XDR discriminators
+ * @p: pointer to undecoded discriminator
+ *
+ * Return values:
+ *   %true if the following XDR item is present
+ *   %false if the following XDR item is absent
+ */
+static inline bool xdr_item_is_present(const __be32 *p)
+{
+	return *p != xdr_zero;
+}
+
+/**
  * xdr_stream_decode_u32 - Decode a 32-bit integer
  * @xdr: pointer to xdr_stream
  * @ptr: location to store integer
@@ -552,6 +620,5 @@ xdr_stream_decode_uint32_array(struct xdr_stream *xdr,
 		*array = be32_to_cpup(p);
 	return retval;
 }
-#endif /* __KERNEL__ */
 
 #endif /* _SUNRPC_XDR_H_ */

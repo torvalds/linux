@@ -116,14 +116,14 @@ static const unsigned int ldo_vbus[] = {
 };
 
 /* DCDC group CSR: supported voltages in microvolts */
-static const struct regulator_linear_range dcdc_csr_ranges[] = {
+static const struct linear_range dcdc_csr_ranges[] = {
 	REGULATOR_LINEAR_RANGE(860000, 2, 50, 10000),
 	REGULATOR_LINEAR_RANGE(1360000, 51, 55, 20000),
 	REGULATOR_LINEAR_RANGE(900000, 56, 63, 0),
 };
 
 /* DCDC group IOSR1: supported voltages in microvolts */
-static const struct regulator_linear_range dcdc_iosr1_ranges[] = {
+static const struct linear_range dcdc_iosr1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(860000, 2, 51, 10000),
 	REGULATOR_LINEAR_RANGE(1500000, 52, 52, 0),
 	REGULATOR_LINEAR_RANGE(1800000, 53, 53, 0),
@@ -131,7 +131,7 @@ static const struct regulator_linear_range dcdc_iosr1_ranges[] = {
 };
 
 /* DCDC group SDSR1: supported voltages in microvolts */
-static const struct regulator_linear_range dcdc_sdsr1_ranges[] = {
+static const struct linear_range dcdc_sdsr1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(860000, 2, 50, 10000),
 	REGULATOR_LINEAR_RANGE(1340000, 51, 51, 0),
 	REGULATOR_LINEAR_RANGE(900000, 52, 63, 0),
@@ -143,7 +143,7 @@ struct bcm590xx_info {
 	u8 n_voltages;
 	const unsigned int *volt_table;
 	u8 n_linear_ranges;
-	const struct regulator_linear_range *linear_ranges;
+	const struct linear_range *linear_ranges;
 };
 
 #define BCM590XX_REG_TABLE(_name, _table) \

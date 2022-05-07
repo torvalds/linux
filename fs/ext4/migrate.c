@@ -50,29 +50,9 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	needed = ext4_ext_calc_credits_for_single_extent(inode,
 		    lb->last_block - lb->first_block + 1, path);
 
-	/*
-	 * Make sure the credit we accumalated is not really high
-	 */
-	if (needed && ext4_handle_has_enough_credits(handle,
-						EXT4_RESERVE_TRANS_BLOCKS)) {
-		up_write((&EXT4_I(inode)->i_data_sem));
-		retval = ext4_journal_restart(handle, needed);
-		down_write((&EXT4_I(inode)->i_data_sem));
-		if (retval)
-			goto err_out;
-	} else if (needed) {
-		retval = ext4_journal_extend(handle, needed);
-		if (retval) {
-			/*
-			 * IF not able to extend the journal restart the journal
-			 */
-			up_write((&EXT4_I(inode)->i_data_sem));
-			retval = ext4_journal_restart(handle, needed);
-			down_write((&EXT4_I(inode)->i_data_sem));
-			if (retval)
-				goto err_out;
-		}
-	}
+	retval = ext4_datasem_ensure_credits(handle, inode, needed, needed, 0);
+	if (retval < 0)
+		goto err_out;
 	retval = ext4_ext_insert_extent(handle, inode, &path, &newext, 0);
 err_out:
 	up_write((&EXT4_I(inode)->i_data_sem));
@@ -196,42 +176,30 @@ static int update_tind_extent_range(handle_t *handle, struct inode *inode,
 
 }
 
-static int extend_credit_for_blkdel(handle_t *handle, struct inode *inode)
-{
-	int retval = 0, needed;
-
-	if (ext4_handle_has_enough_credits(handle, EXT4_RESERVE_TRANS_BLOCKS+1))
-		return 0;
-	/*
-	 * We are freeing a blocks. During this we touch
-	 * superblock, group descriptor and block bitmap.
-	 * So allocate a credit of 3. We may update
-	 * quota (user and group).
-	 */
-	needed = 3 + EXT4_MAXQUOTAS_TRANS_BLOCKS(inode->i_sb);
-
-	if (ext4_journal_extend(handle, needed) != 0)
-		retval = ext4_journal_restart(handle, needed);
-
-	return retval;
-}
-
 static int free_dind_blocks(handle_t *handle,
 				struct inode *inode, __le32 i_data)
 {
 	int i;
 	__le32 *tmp_idata;
 	struct buffer_head *bh;
+	struct super_block *sb = inode->i_sb;
 	unsigned long max_entries = inode->i_sb->s_blocksize >> 2;
+	int err;
 
-	bh = ext4_sb_bread(inode->i_sb, le32_to_cpu(i_data), 0);
+	bh = ext4_sb_bread(sb, le32_to_cpu(i_data), 0);
 	if (IS_ERR(bh))
 		return PTR_ERR(bh);
 
 	tmp_idata = (__le32 *)bh->b_data;
 	for (i = 0; i < max_entries; i++) {
 		if (tmp_idata[i]) {
-			extend_credit_for_blkdel(handle, inode);
+			err = ext4_journal_ensure_credits(handle,
+				EXT4_RESERVE_TRANS_BLOCKS,
+				ext4_free_metadata_revoke_credits(sb, 1));
+			if (err < 0) {
+				put_bh(bh);
+				return err;
+			}
 			ext4_free_blocks(handle, inode, NULL,
 					 le32_to_cpu(tmp_idata[i]), 1,
 					 EXT4_FREE_BLOCKS_METADATA |
@@ -239,7 +207,10 @@ static int free_dind_blocks(handle_t *handle,
 		}
 	}
 	put_bh(bh);
-	extend_credit_for_blkdel(handle, inode);
+	err = ext4_journal_ensure_credits(handle, EXT4_RESERVE_TRANS_BLOCKS,
+				ext4_free_metadata_revoke_credits(sb, 1));
+	if (err < 0)
+		return err;
 	ext4_free_blocks(handle, inode, NULL, le32_to_cpu(i_data), 1,
 			 EXT4_FREE_BLOCKS_METADATA |
 			 EXT4_FREE_BLOCKS_FORGET);
@@ -270,7 +241,10 @@ static int free_tind_blocks(handle_t *handle,
 		}
 	}
 	put_bh(bh);
-	extend_credit_for_blkdel(handle, inode);
+	retval = ext4_journal_ensure_credits(handle, EXT4_RESERVE_TRANS_BLOCKS,
+			ext4_free_metadata_revoke_credits(inode->i_sb, 1));
+	if (retval < 0)
+		return retval;
 	ext4_free_blocks(handle, inode, NULL, le32_to_cpu(i_data), 1,
 			 EXT4_FREE_BLOCKS_METADATA |
 			 EXT4_FREE_BLOCKS_FORGET);
@@ -283,7 +257,11 @@ static int free_ind_block(handle_t *handle, struct inode *inode, __le32 *i_data)
 
 	/* ei->i_data[EXT4_IND_BLOCK] */
 	if (i_data[0]) {
-		extend_credit_for_blkdel(handle, inode);
+		retval = ext4_journal_ensure_credits(handle,
+			EXT4_RESERVE_TRANS_BLOCKS,
+			ext4_free_metadata_revoke_credits(inode->i_sb, 1));
+		if (retval < 0)
+			return retval;
 		ext4_free_blocks(handle, inode, NULL,
 				le32_to_cpu(i_data[0]), 1,
 				 EXT4_FREE_BLOCKS_METADATA |
@@ -309,7 +287,7 @@ static int free_ind_block(handle_t *handle, struct inode *inode, __le32 *i_data)
 static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 						struct inode *tmp_inode)
 {
-	int retval;
+	int retval, retval2 = 0;
 	__le32	i_data[3];
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct ext4_inode_info *tmp_ei = EXT4_I(tmp_inode);
@@ -318,12 +296,9 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * One credit accounted for writing the
 	 * i_data field of the original inode
 	 */
-	retval = ext4_journal_extend(handle, 1);
-	if (retval) {
-		retval = ext4_journal_restart(handle, 1);
-		if (retval)
-			goto err_out;
-	}
+	retval = ext4_journal_ensure_credits(handle, 1, 0);
+	if (retval < 0)
+		goto err_out;
 
 	i_data[0] = ei->i_data[EXT4_IND_BLOCK];
 	i_data[1] = ei->i_data[EXT4_DIND_BLOCK];
@@ -367,7 +342,9 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * i_blocks when freeing the indirect meta-data blocks
 	 */
 	retval = free_ind_block(handle, inode, i_data);
-	ext4_mark_inode_dirty(handle, inode);
+	retval2 = ext4_mark_inode_dirty(handle, inode);
+	if (unlikely(retval2 && !retval))
+		retval = retval2;
 
 err_out:
 	return retval;
@@ -391,15 +368,20 @@ static int free_ext_idx(handle_t *handle, struct inode *inode,
 		ix = EXT_FIRST_INDEX(eh);
 		for (i = 0; i < le16_to_cpu(eh->eh_entries); i++, ix++) {
 			retval = free_ext_idx(handle, inode, ix);
-			if (retval)
-				break;
+			if (retval) {
+				put_bh(bh);
+				return retval;
+			}
 		}
 	}
 	put_bh(bh);
-	extend_credit_for_blkdel(handle, inode);
+	retval = ext4_journal_ensure_credits(handle, EXT4_RESERVE_TRANS_BLOCKS,
+			ext4_free_metadata_revoke_credits(inode->i_sb, 1));
+	if (retval < 0)
+		return retval;
 	ext4_free_blocks(handle, inode, NULL, block, 1,
 			 EXT4_FREE_BLOCKS_METADATA | EXT4_FREE_BLOCKS_FORGET);
-	return retval;
+	return 0;
 }
 
 /*
@@ -427,6 +409,7 @@ static int free_ext_block(handle_t *handle, struct inode *inode)
 
 int ext4_ext_migrate(struct inode *inode)
 {
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	handle_t *handle;
 	int retval = 0, i;
 	__le32 *i_data;
@@ -451,6 +434,8 @@ int ext4_ext_migrate(struct inode *inode)
 		 */
 		return retval;
 
+	percpu_down_write(&sbi->s_writepages_rwsem);
+
 	/*
 	 * Worst case we can touch the allocation bitmaps, a bgd
 	 * block, and a block to link in the orphan list.  We do need
@@ -461,7 +446,7 @@ int ext4_ext_migrate(struct inode *inode)
 
 	if (IS_ERR(handle)) {
 		retval = PTR_ERR(handle);
-		return retval;
+		goto out_unlock;
 	}
 	goal = (((inode->i_ino - 1) / EXT4_INODES_PER_GROUP(inode->i_sb)) *
 		EXT4_INODES_PER_GROUP(inode->i_sb)) + 1;
@@ -472,7 +457,7 @@ int ext4_ext_migrate(struct inode *inode)
 	if (IS_ERR(tmp_inode)) {
 		retval = PTR_ERR(tmp_inode);
 		ext4_journal_stop(handle);
-		return retval;
+		goto out_unlock;
 	}
 	i_size_write(tmp_inode, i_size_read(inode));
 	/*
@@ -514,7 +499,7 @@ int ext4_ext_migrate(struct inode *inode)
 		 */
 		ext4_orphan_del(NULL, tmp_inode);
 		retval = PTR_ERR(handle);
-		goto out;
+		goto out_tmp_inode;
 	}
 
 	ei = EXT4_I(inode);
@@ -574,9 +559,9 @@ err_out:
 	}
 
 	/* We mark the tmp_inode dirty via ext4_ext_tree_init. */
-	if (ext4_journal_extend(handle, 1) != 0)
-		ext4_journal_restart(handle, 1);
-
+	retval = ext4_journal_ensure_credits(handle, 1, 0);
+	if (retval < 0)
+		goto out_stop;
 	/*
 	 * Mark the tmp_inode as of size zero
 	 */
@@ -594,11 +579,13 @@ err_out:
 
 	/* Reset the extent details */
 	ext4_ext_tree_init(handle, tmp_inode);
+out_stop:
 	ext4_journal_stop(handle);
-out:
+out_tmp_inode:
 	unlock_new_inode(tmp_inode);
 	iput(tmp_inode);
-
+out_unlock:
+	percpu_up_write(&sbi->s_writepages_rwsem);
 	return retval;
 }
 
@@ -608,14 +595,15 @@ out:
 int ext4_ind_migrate(struct inode *inode)
 {
 	struct ext4_extent_header	*eh;
-	struct ext4_super_block		*es = EXT4_SB(inode->i_sb)->s_es;
+	struct ext4_sb_info		*sbi = EXT4_SB(inode->i_sb);
+	struct ext4_super_block		*es = sbi->s_es;
 	struct ext4_inode_info		*ei = EXT4_I(inode);
 	struct ext4_extent		*ex;
 	unsigned int			i, len;
 	ext4_lblk_t			start, end;
 	ext4_fsblk_t			blk;
 	handle_t			*handle;
-	int				ret;
+	int				ret, ret2 = 0;
 
 	if (!ext4_has_feature_extents(inode->i_sb) ||
 	    (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
@@ -632,9 +620,13 @@ int ext4_ind_migrate(struct inode *inode)
 	if (test_opt(inode->i_sb, DELALLOC))
 		ext4_alloc_da_blocks(inode);
 
+	percpu_down_write(&sbi->s_writepages_rwsem);
+
 	handle = ext4_journal_start(inode, EXT4_HT_MIGRATE, 1);
-	if (IS_ERR(handle))
-		return PTR_ERR(handle);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		goto out_unlock;
+	}
 
 	down_write(&EXT4_I(inode)->i_data_sem);
 	ret = ext4_ext_check_inode(inode);
@@ -665,9 +657,13 @@ int ext4_ind_migrate(struct inode *inode)
 	memset(ei->i_data, 0, sizeof(ei->i_data));
 	for (i = start; i <= end; i++)
 		ei->i_data[i] = cpu_to_le32(blk++);
-	ext4_mark_inode_dirty(handle, inode);
+	ret2 = ext4_mark_inode_dirty(handle, inode);
+	if (unlikely(ret2 && !ret))
+		ret = ret2;
 errout:
 	ext4_journal_stop(handle);
 	up_write(&EXT4_I(inode)->i_data_sem);
+out_unlock:
+	percpu_up_write(&sbi->s_writepages_rwsem);
 	return ret;
 }

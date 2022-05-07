@@ -40,6 +40,9 @@
 
 #undef DEPRECATED
 
+struct dmub_srv;
+struct dc_dmub_srv;
+
 irq_handler_idx dm_register_interrupt(
 	struct dc_context *ctx,
 	struct dc_interrupt_params *int_params,
@@ -138,6 +141,13 @@ uint32_t generic_reg_set_ex(const struct dc_context *ctx,
 uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 		uint32_t addr, int n,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1, ...);
+
+struct dc_dmub_srv *dc_dmub_srv_create(struct dc *dc, struct dmub_srv *dmub);
+void dc_dmub_srv_destroy(struct dc_dmub_srv **dmub_srv);
+
+void reg_sequence_start_gather(const struct dc_context *ctx);
+void reg_sequence_start_execute(const struct dc_context *ctx);
+void reg_sequence_wait_done(const struct dc_context *ctx);
 
 #define FD(reg_field)	reg_field ## __SHIFT, \
 						reg_field ## _MASK
@@ -250,75 +260,6 @@ struct persistent_data_flag {
 	bool save_per_link;
 	bool save_per_edid;
 };
-
-/* Call to write data in registry editor for persistent data storage.
- *
- * \inputs      sink - identify edid/link for registry folder creation
- *              module name - identify folders for registry
- *              key name - identify keys within folders for registry
- *              params - value to write in defined folder/key
- *              size - size of the input params
- *              flag - determine whether to save by link or edid
- *
- * \returns     true - call is successful
- *              false - call failed
- *
- * sink         module         key
- * -----------------------------------------------------------------------------
- * NULL         NULL           NULL     - failure
- * NULL         NULL           -        - create key with param value
- *                                                      under base folder
- * NULL         -              NULL     - create module folder under base folder
- * -            NULL           NULL     - failure
- * NULL         -              -        - create key under module folder
- *                                            with no edid/link identification
- * -            NULL           -        - create key with param value
- *                                                       under base folder
- * -            -              NULL     - create module folder under base folder
- * -            -              -        - create key under module folder
- *                                              with edid/link identification
- */
-bool dm_write_persistent_data(struct dc_context *ctx,
-		const struct dc_sink *sink,
-		const char *module_name,
-		const char *key_name,
-		void *params,
-		unsigned int size,
-		struct persistent_data_flag *flag);
-
-
-/* Call to read data in registry editor for persistent data storage.
- *
- * \inputs      sink - identify edid/link for registry folder creation
- *              module name - identify folders for registry
- *              key name - identify keys within folders for registry
- *              size - size of the output params
- *              flag - determine whether it was save by link or edid
- *
- * \returns     params - value read from defined folder/key
- *              true - call is successful
- *              false - call failed
- *
- * sink         module         key
- * -----------------------------------------------------------------------------
- * NULL         NULL           NULL     - failure
- * NULL         NULL           -        - read key under base folder
- * NULL         -              NULL     - failure
- * -            NULL           NULL     - failure
- * NULL         -              -        - read key under module folder
- *                                             with no edid/link identification
- * -            NULL           -        - read key under base folder
- * -            -              NULL     - failure
- * -            -              -        - read key under module folder
- *                                              with edid/link identification
- */
-bool dm_read_persistent_data(struct dc_context *ctx,
-		const struct dc_sink *sink,
-		const char *module_name,
-		const char *key_name,
-		void *params,
-		unsigned int size,
-		struct persistent_data_flag *flag);
 
 bool dm_query_extended_brightness_caps
 	(struct dc_context *ctx, enum dm_acpi_display_type display,

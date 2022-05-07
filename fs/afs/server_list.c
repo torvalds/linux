@@ -14,11 +14,9 @@ void afs_put_serverlist(struct afs_net *net, struct afs_server_list *slist)
 	int i;
 
 	if (slist && refcount_dec_and_test(&slist->usage)) {
-		for (i = 0; i < slist->nr_servers; i++) {
-			afs_put_cb_interest(net, slist->servers[i].cb_interest);
-			afs_put_server(net, slist->servers[i].server,
-				       afs_server_trace_put_slist);
-		}
+		for (i = 0; i < slist->nr_servers; i++)
+			afs_unuse_server(net, slist->servers[i].server,
+					 afs_server_trace_put_slist);
 		kfree(slist);
 	}
 }
@@ -46,12 +44,16 @@ struct afs_server_list *afs_alloc_server_list(struct afs_cell *cell,
 	refcount_set(&slist->usage, 1);
 	rwlock_init(&slist->lock);
 
+	for (i = 0; i < AFS_MAXTYPES; i++)
+		slist->vids[i] = vldb->vid[i];
+
 	/* Make sure a records exists for each server in the list. */
 	for (i = 0; i < vldb->nr_servers; i++) {
 		if (!(vldb->fs_mask[i] & type_mask))
 			continue;
 
-		server = afs_lookup_server(cell, key, &vldb->fs_server[i]);
+		server = afs_lookup_server(cell, key, &vldb->fs_server[i],
+					   vldb->addr_version[i]);
 		if (IS_ERR(server)) {
 			ret = PTR_ERR(server);
 			if (ret == -ENOENT ||
@@ -121,32 +123,6 @@ changed:
 			new->preferred = j;
 			break;
 		}
-	}
-
-	/* Keep the old callback interest records where possible so that we
-	 * maintain callback interception.
-	 */
-	i = 0;
-	j = 0;
-	while (i < old->nr_servers && j < new->nr_servers) {
-		if (new->servers[j].server == old->servers[i].server) {
-			struct afs_cb_interest *cbi = old->servers[i].cb_interest;
-			if (cbi) {
-				new->servers[j].cb_interest = cbi;
-				refcount_inc(&cbi->usage);
-			}
-			i++;
-			j++;
-			continue;
-		}
-
-		if (new->servers[j].server < old->servers[i].server) {
-			j++;
-			continue;
-		}
-
-		i++;
-		continue;
 	}
 
 	return true;

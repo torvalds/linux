@@ -1,34 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
- *
- *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include "rxe.h"
@@ -79,13 +52,8 @@ static void rxe_mem_init(int access, struct rxe_mem *mem)
 	u32 lkey = mem->pelem.index << 8 | rxe_get_key();
 	u32 rkey = (access & IB_ACCESS_REMOTE) ? lkey : 0;
 
-	if (mem->pelem.pool->type == RXE_TYPE_MR) {
-		mem->ibmr.lkey		= lkey;
-		mem->ibmr.rkey		= rkey;
-	}
-
-	mem->lkey		= lkey;
-	mem->rkey		= rkey;
+	mem->ibmr.lkey		= lkey;
+	mem->ibmr.rkey		= rkey;
 	mem->state		= RXE_MEM_STATE_INVALID;
 	mem->type		= RXE_MEM_TYPE_NONE;
 	mem->map_shift		= ilog2(RXE_BUF_PER_MAP);
@@ -144,17 +112,15 @@ err1:
 	return -ENOMEM;
 }
 
-int rxe_mem_init_dma(struct rxe_pd *pd,
-		     int access, struct rxe_mem *mem)
+void rxe_mem_init_dma(struct rxe_pd *pd,
+		      int access, struct rxe_mem *mem)
 {
 	rxe_mem_init(access, mem);
 
-	mem->pd			= pd;
+	mem->ibmr.pd		= &pd->ibpd;
 	mem->access		= access;
 	mem->state		= RXE_MEM_STATE_VALID;
 	mem->type		= RXE_MEM_TYPE_DMA;
-
-	return 0;
 }
 
 int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
@@ -169,7 +135,7 @@ int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 	void			*vaddr;
 	int err;
 
-	umem = ib_umem_get(udata, start, length, access, 0);
+	umem = ib_umem_get(pd->ibpd.device, start, length, access);
 	if (IS_ERR(umem)) {
 		pr_warn("err %d from rxe_umem_get\n",
 			(int)PTR_ERR(umem));
@@ -207,6 +173,7 @@ int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 			vaddr = page_address(sg_page_iter_page(&sg_iter));
 			if (!vaddr) {
 				pr_warn("null vaddr\n");
+				ib_umem_release(umem);
 				err = -ENOMEM;
 				goto err1;
 			}
@@ -219,7 +186,7 @@ int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 		}
 	}
 
-	mem->pd			= pd;
+	mem->ibmr.pd		= &pd->ibpd;
 	mem->umem		= umem;
 	mem->access		= access;
 	mem->length		= length;
@@ -249,7 +216,7 @@ int rxe_mem_init_fast(struct rxe_pd *pd,
 	if (err)
 		goto err1;
 
-	mem->pd			= pd;
+	mem->ibmr.pd		= &pd->ibpd;
 	mem->max_buf		= max_pages;
 	mem->state		= RXE_MEM_STATE_FREE;
 	mem->type		= RXE_MEM_TYPE_MR;
@@ -369,7 +336,7 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		memcpy(dest, src, length);
 
 		if (crcp)
-			*crcp = rxe_crc32(to_rdev(mem->pd->ibpd.device),
+			*crcp = rxe_crc32(to_rdev(mem->ibmr.device),
 					*crcp, dest, length);
 
 		return 0;
@@ -403,7 +370,7 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		memcpy(dest, src, bytes);
 
 		if (crcp)
-			crc = rxe_crc32(to_rdev(mem->pd->ibpd.device),
+			crc = rxe_crc32(to_rdev(mem->ibmr.device),
 					crc, dest, bytes);
 
 		length	-= bytes;
@@ -576,9 +543,9 @@ struct rxe_mem *lookup_mem(struct rxe_pd *pd, int access, u32 key,
 	if (!mem)
 		return NULL;
 
-	if (unlikely((type == lookup_local && mem->lkey != key) ||
-		     (type == lookup_remote && mem->rkey != key) ||
-		     mem->pd != pd ||
+	if (unlikely((type == lookup_local && mr_lkey(mem) != key) ||
+		     (type == lookup_remote && mr_rkey(mem) != key) ||
+		     mr_pd(mem) != pd ||
 		     (access && !(access & mem->access)) ||
 		     mem->state != RXE_MEM_STATE_VALID)) {
 		rxe_drop_ref(mem);
@@ -586,48 +553,4 @@ struct rxe_mem *lookup_mem(struct rxe_pd *pd, int access, u32 key,
 	}
 
 	return mem;
-}
-
-int rxe_mem_map_pages(struct rxe_dev *rxe, struct rxe_mem *mem,
-		      u64 *page, int num_pages, u64 iova)
-{
-	int i;
-	int num_buf;
-	int err;
-	struct rxe_map **map;
-	struct rxe_phys_buf *buf;
-	int page_size;
-
-	if (num_pages > mem->max_buf) {
-		err = -EINVAL;
-		goto err1;
-	}
-
-	num_buf		= 0;
-	page_size	= 1 << mem->page_shift;
-	map		= mem->map;
-	buf		= map[0]->buf;
-
-	for (i = 0; i < num_pages; i++) {
-		buf->addr = *page++;
-		buf->size = page_size;
-		buf++;
-		num_buf++;
-
-		if (num_buf == RXE_BUF_PER_MAP) {
-			map++;
-			buf = map[0]->buf;
-			num_buf = 0;
-		}
-	}
-
-	mem->iova	= iova;
-	mem->va		= iova;
-	mem->length	= num_pages << mem->page_shift;
-	mem->state	= RXE_MEM_STATE_VALID;
-
-	return 0;
-
-err1:
-	return err;
 }

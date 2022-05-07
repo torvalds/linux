@@ -121,35 +121,35 @@ void enc1_update_generic_info_packet(
 	switch (packet_index) {
 	case 0:
 		REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
-				AFMT_GENERIC0_FRAME_UPDATE, 1);
+				AFMT_GENERIC0_IMMEDIATE_UPDATE, 1);
 		break;
 	case 1:
 		REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
-				AFMT_GENERIC1_FRAME_UPDATE, 1);
+				AFMT_GENERIC1_IMMEDIATE_UPDATE, 1);
 		break;
 	case 2:
 		REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
-				AFMT_GENERIC2_FRAME_UPDATE, 1);
+				AFMT_GENERIC2_IMMEDIATE_UPDATE, 1);
 		break;
 	case 3:
 		REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
-				AFMT_GENERIC3_FRAME_UPDATE, 1);
+				AFMT_GENERIC3_IMMEDIATE_UPDATE, 1);
 		break;
 	case 4:
 		REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
-				AFMT_GENERIC4_FRAME_UPDATE, 1);
+				AFMT_GENERIC4_IMMEDIATE_UPDATE, 1);
 		break;
 	case 5:
 		REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
-				AFMT_GENERIC5_FRAME_UPDATE, 1);
+				AFMT_GENERIC5_IMMEDIATE_UPDATE, 1);
 		break;
 	case 6:
 		REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
-				AFMT_GENERIC6_FRAME_UPDATE, 1);
+				AFMT_GENERIC6_IMMEDIATE_UPDATE, 1);
 		break;
 	case 7:
 		REG_UPDATE(AFMT_VBI_PACKET_CONTROL1,
-				AFMT_GENERIC7_FRAME_UPDATE, 1);
+				AFMT_GENERIC7_IMMEDIATE_UPDATE, 1);
 		break;
 	default:
 		break;
@@ -247,6 +247,7 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	enum dc_color_space output_color_space,
+	bool use_vsc_sdp_for_colorimetry,
 	uint32_t enable_sdp_splitting)
 {
 	uint32_t h_active_start;
@@ -312,10 +313,7 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	 * Pixel Encoding/Colorimetry Format and that a Sink device shall ignore MISC1, bit 7,
 	 * and MISC0, bits 7:1 (MISC1, bit 7, and MISC0, bits 7:1, become "don't care").
 	 */
-	if ((hw_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) ||
-			(output_color_space == COLOR_SPACE_2020_YCBCR) ||
-			(output_color_space == COLOR_SPACE_2020_RGB_FULLRANGE) ||
-			(output_color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE))
+	if (use_vsc_sdp_for_colorimetry)
 		misc1 = misc1 | 0x40;
 	else
 		misc1 = misc1 & ~0x40;
@@ -621,7 +619,7 @@ void enc1_stream_encoder_dvi_set_stream_attribute(
 	enc1_stream_encoder_set_stream_attribute_helper(enc1, crtc_timing);
 }
 
-void enc1_stream_encoder_set_mst_bandwidth(
+void enc1_stream_encoder_set_throttled_vcp_size(
 	struct stream_encoder *enc,
 	struct fixed31_32 avg_time_slots_per_mtp)
 {
@@ -898,10 +896,10 @@ void enc1_stream_encoder_dp_blank(
 	 */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_DIS_DEFER, 2);
 	/* Larger delay to wait until VBLANK - use max retry of
-	 * 10us*5000=50ms. This covers 41.7ms of minimum 24 Hz mode +
+	 * 10us*10200=102ms. This covers 100.0ms of minimum 10 Hz mode +
 	 * a little more because we may not trust delay accuracy.
 	 */
-	max_retries = DP_BLANK_MAX_RETRY * 250;
+	max_retries = DP_BLANK_MAX_RETRY * 501;
 
 	/* disable DP stream */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, 0);
@@ -1276,7 +1274,6 @@ static void enc1_se_audio_setup(
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
-	uint32_t speakers = 0;
 	uint32_t channels = 0;
 
 	ASSERT(audio_info);
@@ -1284,7 +1281,6 @@ static void enc1_se_audio_setup(
 		/* This should not happen.it does so we don't get BSOD*/
 		return;
 
-	speakers = audio_info->flags.info.ALLSPEAKERS;
 	channels = speakers_to_channels(audio_info->flags.speaker_flags).all;
 
 	/* setup the audio stream source select (audio -> dig mapping) */
@@ -1553,6 +1549,66 @@ unsigned int enc1_dig_source_otg(
 	return tg_inst;
 }
 
+bool enc1_stream_encoder_dp_get_pixel_format(
+	struct stream_encoder *enc,
+	enum dc_pixel_encoding *encoding,
+	enum dc_color_depth *depth)
+{
+	uint32_t hw_encoding = 0;
+	uint32_t hw_depth = 0;
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	if (enc == NULL ||
+		encoding == NULL ||
+		depth == NULL)
+		return false;
+
+	REG_GET_2(DP_PIXEL_FORMAT,
+		DP_PIXEL_ENCODING, &hw_encoding,
+		DP_COMPONENT_DEPTH, &hw_depth);
+
+	switch (hw_depth) {
+	case DP_COMPONENT_PIXEL_DEPTH_6BPC:
+		*depth = COLOR_DEPTH_666;
+		break;
+	case DP_COMPONENT_PIXEL_DEPTH_8BPC:
+		*depth = COLOR_DEPTH_888;
+		break;
+	case DP_COMPONENT_PIXEL_DEPTH_10BPC:
+		*depth = COLOR_DEPTH_101010;
+		break;
+	case DP_COMPONENT_PIXEL_DEPTH_12BPC:
+		*depth = COLOR_DEPTH_121212;
+		break;
+	case DP_COMPONENT_PIXEL_DEPTH_16BPC:
+		*depth = COLOR_DEPTH_161616;
+		break;
+	default:
+		*depth = COLOR_DEPTH_UNDEFINED;
+		break;
+	}
+
+	switch (hw_encoding) {
+	case DP_PIXEL_ENCODING_TYPE_RGB444:
+		*encoding = PIXEL_ENCODING_RGB;
+		break;
+	case DP_PIXEL_ENCODING_TYPE_YCBCR422:
+		*encoding = PIXEL_ENCODING_YCBCR422;
+		break;
+	case DP_PIXEL_ENCODING_TYPE_YCBCR444:
+	case DP_PIXEL_ENCODING_TYPE_Y_ONLY:
+		*encoding = PIXEL_ENCODING_YCBCR444;
+		break;
+	case DP_PIXEL_ENCODING_TYPE_YCBCR420:
+		*encoding = PIXEL_ENCODING_YCBCR420;
+		break;
+	default:
+		*encoding = PIXEL_ENCODING_UNDEFINED;
+		break;
+	}
+	return true;
+}
+
 static const struct stream_encoder_funcs dcn10_str_enc_funcs = {
 	.dp_set_stream_attribute =
 		enc1_stream_encoder_dp_set_stream_attribute,
@@ -1560,8 +1616,8 @@ static const struct stream_encoder_funcs dcn10_str_enc_funcs = {
 		enc1_stream_encoder_hdmi_set_stream_attribute,
 	.dvi_set_stream_attribute =
 		enc1_stream_encoder_dvi_set_stream_attribute,
-	.set_mst_bandwidth =
-		enc1_stream_encoder_set_mst_bandwidth,
+	.set_throttled_vcp_size =
+		enc1_stream_encoder_set_throttled_vcp_size,
 	.update_hdmi_info_packets =
 		enc1_stream_encoder_update_hdmi_info_packets,
 	.stop_hdmi_info_packets =
@@ -1589,6 +1645,8 @@ static const struct stream_encoder_funcs dcn10_str_enc_funcs = {
 	.dig_connect_to_otg  = enc1_dig_connect_to_otg,
 	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
 	.dig_source_otg = enc1_dig_source_otg,
+
+	.dp_get_pixel_format  = enc1_stream_encoder_dp_get_pixel_format,
 };
 
 void dcn10_stream_encoder_construct(
@@ -1607,5 +1665,6 @@ void dcn10_stream_encoder_construct(
 	enc1->regs = regs;
 	enc1->se_shift = se_shift;
 	enc1->se_mask = se_mask;
+	enc1->base.stream_enc_inst = eng_id - ENGINE_ID_DIGA;
 }
 

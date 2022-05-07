@@ -13,7 +13,7 @@ considered "unstable". Any Marvell Berlin device tree binding may change at any
 time. Be sure to use a device tree binary and a kernel image generated from the
 same source tree.
 
-Please refer to Documentation/devicetree/bindings/ABI.txt for a definition of a
+Please refer to Documentation/devicetree/bindings/ABI.rst for a definition of a
 stable binding/ABI.
 
 ---------------------------------------------------------------

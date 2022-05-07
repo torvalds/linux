@@ -511,7 +511,7 @@ static int xvcu_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	xvcu->vcu_slcr_ba = devm_ioremap_nocache(&pdev->dev, res->start,
+	xvcu->vcu_slcr_ba = devm_ioremap(&pdev->dev, res->start,
 						 resource_size(res));
 	if (!xvcu->vcu_slcr_ba) {
 		dev_err(&pdev->dev, "vcu_slcr register mapping failed.\n");
@@ -524,7 +524,7 @@ static int xvcu_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	xvcu->logicore_reg_ba = devm_ioremap_nocache(&pdev->dev, res->start,
+	xvcu->logicore_reg_ba = devm_ioremap(&pdev->dev, res->start,
 						     resource_size(res));
 	if (!xvcu->logicore_reg_ba) {
 		dev_err(&pdev->dev, "logicore register mapping failed.\n");

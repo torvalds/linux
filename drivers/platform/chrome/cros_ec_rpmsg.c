@@ -13,6 +13,8 @@
 #include <linux/rpmsg.h>
 #include <linux/slab.h>
 
+#include "cros_ec.h"
+
 #define EC_MSG_TIMEOUT_MS	200
 #define HOST_COMMAND_MARK	1
 #define HOST_EVENT_MARK		2
@@ -36,12 +38,17 @@ struct cros_ec_rpmsg_response {
  * @rpdev:	rpmsg device we are connected to
  * @xfer_ack:	completion for host command transfer.
  * @host_event_work:	Work struct for pending host event.
+ * @ept: The rpmsg endpoint of this channel.
+ * @has_pending_host_event: Boolean used to check if there is a pending event.
+ * @probe_done: Flag to indicate that probe is done.
  */
 struct cros_ec_rpmsg {
 	struct rpmsg_device *rpdev;
 	struct completion xfer_ack;
 	struct work_struct host_event_work;
 	struct rpmsg_endpoint *ept;
+	bool has_pending_host_event;
+	bool probe_done;
 };
 
 /**
@@ -143,22 +150,11 @@ cros_ec_rpmsg_host_event_function(struct work_struct *host_event_work)
 						      struct cros_ec_rpmsg,
 						      host_event_work);
 	struct cros_ec_device *ec_dev = dev_get_drvdata(&ec_rpmsg->rpdev->dev);
-	bool wake_event = true;
-	int ret;
+	bool ec_has_more_events;
 
-	ret = cros_ec_get_next_event(ec_dev, &wake_event);
-
-	/*
-	 * Signal only if wake host events or any interrupt if
-	 * cros_ec_get_next_event() returned an error (default value for
-	 * wake_event is true)
-	 */
-	if (wake_event && device_may_wakeup(ec_dev->dev))
-		pm_wakeup_event(ec_dev->dev, 0);
-
-	if (ret > 0)
-		blocking_notifier_call_chain(&ec_dev->event_notifier,
-					     0, ec_dev);
+	do {
+		ec_has_more_events = cros_ec_handle_event(ec_dev);
+	} while (ec_has_more_events);
 }
 
 static int cros_ec_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
@@ -186,7 +182,14 @@ static int cros_ec_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
 		memcpy(ec_dev->din, resp->data, len);
 		complete(&ec_rpmsg->xfer_ack);
 	} else if (resp->type == HOST_EVENT_MARK) {
-		schedule_work(&ec_rpmsg->host_event_work);
+		/*
+		 * If the host event is sent before cros_ec_register is
+		 * finished, queue the host event.
+		 */
+		if (ec_rpmsg->probe_done)
+			schedule_work(&ec_rpmsg->host_event_work);
+		else
+			ec_rpmsg->has_pending_host_event = true;
 	} else {
 		dev_warn(ec_dev->dev, "rpmsg received invalid type = %d",
 			 resp->type);
@@ -248,6 +251,11 @@ static int cros_ec_rpmsg_probe(struct rpmsg_device *rpdev)
 		cancel_work_sync(&ec_rpmsg->host_event_work);
 		return ret;
 	}
+
+	ec_rpmsg->probe_done = true;
+
+	if (ec_rpmsg->has_pending_host_event)
+		schedule_work(&ec_rpmsg->host_event_work);
 
 	return 0;
 }

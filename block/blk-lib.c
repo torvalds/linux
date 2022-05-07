@@ -29,7 +29,7 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	struct request_queue *q = bdev_get_queue(bdev);
 	struct bio *bio = *biop;
 	unsigned int op;
-	sector_t bs_mask;
+	sector_t bs_mask, part_offset = 0;
 
 	if (!q)
 		return -ENXIO;
@@ -47,6 +47,15 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		op = REQ_OP_DISCARD;
 	}
 
+	/* In case the discard granularity isn't set by buggy device driver */
+	if (WARN_ON_ONCE(!q->limits.discard_granularity)) {
+		char dev_name[BDEVNAME_SIZE];
+
+		bdevname(bdev, dev_name);
+		pr_err_ratelimited("%s: Error: discard_granularity is 0.\n", dev_name);
+		return -EOPNOTSUPP;
+	}
+
 	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
 	if ((sector | nr_sects) & bs_mask)
 		return -EINVAL;
@@ -54,9 +63,34 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	if (!nr_sects)
 		return -EINVAL;
 
+	/* In case the discard request is in a partition */
+	if (bdev_is_partition(bdev))
+		part_offset = bdev->bd_part->start_sect;
+
 	while (nr_sects) {
-		sector_t req_sects = min_t(sector_t, nr_sects,
-				bio_allowed_max_sectors(q));
+		sector_t granularity_aligned_lba, req_sects;
+		sector_t sector_mapped = sector + part_offset;
+
+		granularity_aligned_lba = round_up(sector_mapped,
+				q->limits.discard_granularity >> SECTOR_SHIFT);
+
+		/*
+		 * Check whether the discard bio starts at a discard_granularity
+		 * aligned LBA,
+		 * - If no: set (granularity_aligned_lba - sector_mapped) to
+		 *   bi_size of the first split bio, then the second bio will
+		 *   start at a discard_granularity aligned LBA on the device.
+		 * - If yes: use bio_aligned_discard_max_sectors() as the max
+		 *   possible bi_size of the first split bio. Then when this bio
+		 *   is split in device drive, the split ones are very probably
+		 *   to be aligned to discard_granularity of the device's queue.
+		 */
+		if (granularity_aligned_lba == sector_mapped)
+			req_sects = min_t(sector_t, nr_sects,
+					  bio_aligned_discard_max_sectors(q));
+		else
+			req_sects = min_t(sector_t, nr_sects,
+					  granularity_aligned_lba - sector_mapped);
 
 		WARN_ON_ONCE((req_sects << 9) > UINT_MAX);
 

@@ -32,6 +32,7 @@
 #define __FSL_QMAN_H
 
 #include <linux/bitops.h>
+#include <linux/device.h>
 
 /* Hardware constants */
 #define QM_CHANNEL_SWPORTAL0 0
@@ -255,7 +256,7 @@ struct qm_dqrr_entry {
 	__be32 context_b;
 	struct qm_fd fd;
 	u8 __reserved4[32];
-} __packed;
+} __packed __aligned(64);
 #define QM_DQRR_VERB_VBIT		0x80
 #define QM_DQRR_VERB_MASK		0x7f	/* where the verb contains; */
 #define QM_DQRR_VERB_FRAME_DEQUEUE	0x60	/* "this format" */
@@ -288,7 +289,7 @@ union qm_mr_entry {
 		__be32 tag;
 		struct qm_fd fd;
 		u8 __reserved1[32];
-	} __packed ern;
+	} __packed __aligned(64) ern;
 	struct {
 		u8 verb;
 		u8 fqs;		/* Frame Queue Status */
@@ -913,6 +914,16 @@ u16 qman_affine_channel(int cpu);
  * @cpu: the cpu whose affine portal is the subject of the query
  */
 struct qman_portal *qman_get_affine_portal(int cpu);
+
+/**
+ * qman_start_using_portal - register a device link for the portal user
+ * @p: the portal that will be in use
+ * @dev: the device that will use the portal
+ *
+ * Makes sure that the devices that use the portal are unbound when the
+ * portal is unbound
+ */
+int qman_start_using_portal(struct qman_portal *p, struct device *dev);
 
 /**
  * qman_p_poll_dqrr - process DQRR (fast-path) entries

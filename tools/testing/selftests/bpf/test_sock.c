@@ -13,7 +13,7 @@
 #include <bpf/bpf.h>
 
 #include "cgroup_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_endian.h>
 #include "bpf_rlimit.h"
 #include "bpf_util.h"
 
@@ -464,14 +464,8 @@ int main(int argc, char **argv)
 	int cgfd = -1;
 	int err = 0;
 
-	if (setup_cgroup_environment())
-		goto err;
-
-	cgfd = create_and_get_cgroup(CG_PATH);
+	cgfd = cgroup_setup_and_join(CG_PATH);
 	if (cgfd < 0)
-		goto err;
-
-	if (join_cgroup(CG_PATH))
 		goto err;
 
 	if (run_tests(cgfd))

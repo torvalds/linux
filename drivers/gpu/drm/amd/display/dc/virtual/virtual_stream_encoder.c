@@ -32,6 +32,7 @@ static void virtual_stream_encoder_dp_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	enum dc_color_space output_color_space,
+	bool use_vsc_sdp_for_colorimetry,
 	uint32_t enable_sdp_splitting) {}
 
 static void virtual_stream_encoder_hdmi_set_stream_attribute(
@@ -45,9 +46,10 @@ static void virtual_stream_encoder_dvi_set_stream_attribute(
 	struct dc_crtc_timing *crtc_timing,
 	bool is_dual_link) {}
 
-static void virtual_stream_encoder_set_mst_bandwidth(
+static void virtual_stream_encoder_set_throttled_vcp_size(
 	struct stream_encoder *enc,
-	struct fixed31_32 avg_time_slots_per_mtp) {}
+	struct fixed31_32 avg_time_slots_per_mtp)
+{}
 
 static void virtual_stream_encoder_update_hdmi_info_packets(
 	struct stream_encoder *enc,
@@ -81,30 +83,39 @@ static void virtual_stream_encoder_reset_hdmi_stream_attribute(
 		struct stream_encoder *enc)
 {}
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 static void virtual_enc_dp_set_odm_combine(
 	struct stream_encoder *enc,
 	bool odm_combine)
 {}
-#endif
-#endif
+
+static void virtual_dig_connect_to_otg(
+		struct stream_encoder *enc,
+		int tg_inst)
+{}
+
+static void virtual_setup_stereo_sync(
+			struct stream_encoder *enc,
+			int tg_inst,
+			bool enable)
+{}
+
+static void virtual_stream_encoder_set_dsc_pps_info_packet(
+		struct stream_encoder *enc,
+		bool enable,
+		uint8_t *dsc_packed_pps)
+{}
 
 static const struct stream_encoder_funcs virtual_str_enc_funcs = {
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	.dp_set_odm_combine =
 		virtual_enc_dp_set_odm_combine,
-#endif
-#endif
 	.dp_set_stream_attribute =
 		virtual_stream_encoder_dp_set_stream_attribute,
 	.hdmi_set_stream_attribute =
 		virtual_stream_encoder_hdmi_set_stream_attribute,
 	.dvi_set_stream_attribute =
 		virtual_stream_encoder_dvi_set_stream_attribute,
-	.set_mst_bandwidth =
-		virtual_stream_encoder_set_mst_bandwidth,
+	.set_throttled_vcp_size =
+		virtual_stream_encoder_set_throttled_vcp_size,
 	.update_hdmi_info_packets =
 		virtual_stream_encoder_update_hdmi_info_packets,
 	.stop_hdmi_info_packets =
@@ -121,6 +132,9 @@ static const struct stream_encoder_funcs virtual_str_enc_funcs = {
 	.audio_mute_control = virtual_audio_mute_control,
 	.set_avmute = virtual_stream_encoder_set_avmute,
 	.hdmi_reset_stream_attribute = virtual_stream_encoder_reset_hdmi_stream_attribute,
+	.dig_connect_to_otg = virtual_dig_connect_to_otg,
+	.setup_stereo_sync = virtual_setup_stereo_sync,
+	.dp_set_dsc_pps_info_packet = virtual_stream_encoder_set_dsc_pps_info_packet,
 };
 
 bool virtual_stream_encoder_construct(

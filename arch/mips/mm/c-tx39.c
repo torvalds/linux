@@ -17,7 +17,6 @@
 
 #include <asm/cacheops.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include <asm/isadep.h>
 #include <asm/io.h>
@@ -169,8 +168,6 @@ static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page
 {
 	int exec = vma->vm_flags & VM_EXEC;
 	struct mm_struct *mm = vma->vm_mm;
-	pgd_t *pgdp;
-	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 
@@ -182,10 +179,8 @@ static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page
 		return;
 
 	page &= PAGE_MASK;
-	pgdp = pgd_offset(mm, page);
-	pudp = pud_offset(pgdp, page);
-	pmdp = pmd_offset(pudp, page);
-	ptep = pte_offset(pmdp, page);
+	pmdp = pmd_off(mm, page);
+	ptep = pte_offset_kernel(pmdp, page);
 
 	/*
 	 * If the page isn't marked valid, the page cannot possibly be
@@ -408,9 +403,9 @@ void tx39_cache_init(void)
 	current_cpu_data.icache.waybit = 0;
 	current_cpu_data.dcache.waybit = 0;
 
-	printk("Primary instruction cache %ldkB, linesize %d bytes\n",
+	pr_info("Primary instruction cache %ldkB, linesize %d bytes\n",
 		icache_size >> 10, current_cpu_data.icache.linesz);
-	printk("Primary data cache %ldkB, linesize %d bytes\n",
+	pr_info("Primary data cache %ldkB, linesize %d bytes\n",
 		dcache_size >> 10, current_cpu_data.dcache.linesz);
 
 	build_clear_page();

@@ -94,8 +94,6 @@
 
 	gpio-keys-polled {
 		compatible = "gpio-keys-polled";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		poll-interval = <1000>;
 
 		fan0-presence {
@@ -148,14 +146,48 @@
 	};
 
 	leds {
-	    compatible = "gpio-leds";
+		compatible = "gpio-leds";
 
-	    power {
-		    label = "power";
-		    /* TODO: dummy gpio */
-		    gpios = <&gpio ASPEED_GPIO(R, 1) GPIO_ACTIVE_LOW>;
-	    };
+		power {
+			label = "power";
+			/* TODO: dummy gpio */
+			gpios = <&gpio ASPEED_GPIO(R, 1) GPIO_ACTIVE_LOW>;
+		};
 
+		init-ok {
+			label = "init-ok";
+			gpios = <&gpio ASPEED_GPIO(B, 7) GPIO_ACTIVE_LOW>;
+		};
+
+		front-memory {
+			label = "front-memory";
+			gpios = <&gpio ASPEED_GPIO(F, 4) GPIO_ACTIVE_LOW>;
+		};
+
+		front-syshot {
+			label = "front-syshot";
+			gpios = <&gpio ASPEED_GPIO(I, 1) GPIO_ACTIVE_LOW>;
+		};
+
+		front-syshealth {
+			label = "front-syshealth";
+			gpios = <&gpio ASPEED_GPIO(I, 0) GPIO_ACTIVE_LOW>;
+		};
+
+		front-fan {
+			label = "front-fan";
+			gpios = <&gpio ASPEED_GPIO(H, 4) GPIO_ACTIVE_LOW>;
+		};
+
+		front-psu {
+			label = "front-psu";
+			gpios = <&gpio ASPEED_GPIO(B, 2) GPIO_ACTIVE_LOW>;
+		};
+
+		identify {
+			label = "identify";
+			gpios = <&gpio ASPEED_GPIO(Z, 7) GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	iio-hwmon-battery {
@@ -239,6 +271,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rmii1_default>;
+	clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>,
+		 <&syscon ASPEED_CLK_MAC1RCLK>;
+	clock-names = "MACCLK", "RCLK";
 	use-ncsi;
 };
 
@@ -747,15 +782,6 @@
 
 &pinctrl {
 	aspeed,external-nodes = <&gfx &lhc>;
-};
-
-&gpio {
-	pin_gpio_b7 {
-		gpio-hog;
-		gpios = <ASPEED_GPIO(B,7) GPIO_ACTIVE_LOW>;
-		output-high;
-		line-name = "BMC_INIT_OK";
-	};
 };
 
 &wdt1 {

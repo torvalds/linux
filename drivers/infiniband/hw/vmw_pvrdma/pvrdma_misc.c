@@ -182,17 +182,16 @@ int pvrdma_page_dir_insert_dma(struct pvrdma_page_dir *pdir, u64 idx,
 int pvrdma_page_dir_insert_umem(struct pvrdma_page_dir *pdir,
 				struct ib_umem *umem, u64 offset)
 {
+	struct ib_block_iter biter;
 	u64 i = offset;
 	int ret = 0;
-	struct sg_dma_page_iter sg_iter;
 
 	if (offset >= pdir->npages)
 		return -EINVAL;
 
-	for_each_sg_dma_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
-		dma_addr_t addr = sg_page_iter_dma_address(&sg_iter);
-
-		ret = pvrdma_page_dir_insert_dma(pdir, i, addr);
+	rdma_umem_for_each_dma_block (umem, &biter, PAGE_SIZE) {
+		ret = pvrdma_page_dir_insert_dma(
+			pdir, i, rdma_block_iter_dma_address(&biter));
 		if (ret)
 			goto exit;
 

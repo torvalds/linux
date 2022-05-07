@@ -13,6 +13,7 @@ struct ip_callchain;
 struct map;
 struct perf_sample;
 struct thread;
+struct hists;
 
 #define HELP_PAD "\t\t\t\t"
 
@@ -141,15 +142,22 @@ struct callchain_list {
  */
 struct callchain_cursor_node {
 	u64				ip;
-	struct map			*map;
-	struct symbol			*sym;
+	struct map_symbol		ms;
 	const char			*srcline;
+	/* Indicate valid cursor node for LBR stitch */
+	bool				valid;
+
 	bool				branch;
 	struct branch_flags		branch_flags;
 	u64				branch_from;
 	int				nr_loop_iter;
 	u64				iter_cycles;
 	struct callchain_cursor_node	*next;
+};
+
+struct stitch_list {
+	struct list_head		node;
+	struct callchain_cursor_node	cursor;
 };
 
 struct callchain_cursor {
@@ -195,7 +203,7 @@ int callchain_merge(struct callchain_cursor *cursor,
 void callchain_cursor_reset(struct callchain_cursor *cursor);
 
 int callchain_cursor_append(struct callchain_cursor *cursor, u64 ip,
-			    struct map *map, struct symbol *sym,
+			    struct map_symbol *ms,
 			    bool branch, struct branch_flags *flags,
 			    int nr_loop_iter, u64 iter_cycles, u64 branch_from,
 			    const char *srcline);
@@ -289,5 +297,14 @@ int callchain_node__make_parent_list(struct callchain_node *node);
 int callchain_branch_counts(struct callchain_root *root,
 			    u64 *branch_count, u64 *predicted_count,
 			    u64 *abort_count, u64 *cycles_count);
+
+void callchain_param_setup(u64 sample_type);
+
+bool callchain_cnode_matched(struct callchain_node *base_cnode,
+			     struct callchain_node *pair_cnode);
+
+u64 callchain_total_hits(struct hists *hists);
+
+s64 callchain_avg_cycles(struct callchain_node *cnode);
 
 #endif	/* __PERF_CALLCHAIN_H */

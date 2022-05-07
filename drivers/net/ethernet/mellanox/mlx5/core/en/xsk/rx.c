@@ -3,70 +3,9 @@
 
 #include "rx.h"
 #include "en/xdp.h"
-#include <net/xdp_sock.h>
+#include <net/xdp_sock_drv.h>
 
 /* RX data path */
-
-bool mlx5e_xsk_pages_enough_umem(struct mlx5e_rq *rq, int count)
-{
-	/* Check in advance that we have enough frames, instead of allocating
-	 * one-by-one, failing and moving frames to the Reuse Ring.
-	 */
-	return xsk_umem_has_addrs_rq(rq->umem, count);
-}
-
-int mlx5e_xsk_page_alloc_umem(struct mlx5e_rq *rq,
-			      struct mlx5e_dma_info *dma_info)
-{
-	struct xdp_umem *umem = rq->umem;
-	u64 handle;
-
-	if (!xsk_umem_peek_addr_rq(umem, &handle))
-		return -ENOMEM;
-
-	dma_info->xsk.handle = xsk_umem_adjust_offset(umem, handle,
-						      rq->buff.umem_headroom);
-	dma_info->xsk.data = xdp_umem_get_data(umem, dma_info->xsk.handle);
-
-	/* No need to add headroom to the DMA address. In striding RQ case, we
-	 * just provide pages for UMR, and headroom is counted at the setup
-	 * stage when creating a WQE. In non-striding RQ case, headroom is
-	 * accounted in mlx5e_alloc_rx_wqe.
-	 */
-	dma_info->addr = xdp_umem_get_dma(umem, handle);
-
-	xsk_umem_discard_addr_rq(umem);
-
-	dma_sync_single_for_device(rq->pdev, dma_info->addr, PAGE_SIZE,
-				   DMA_BIDIRECTIONAL);
-
-	return 0;
-}
-
-static inline void mlx5e_xsk_recycle_frame(struct mlx5e_rq *rq, u64 handle)
-{
-	xsk_umem_fq_reuse(rq->umem, handle & rq->umem->chunk_mask);
-}
-
-/* XSKRQ uses pages from UMEM, they must not be released. They are returned to
- * the userspace if possible, and if not, this function is called to reuse them
- * in the driver.
- */
-void mlx5e_xsk_page_release(struct mlx5e_rq *rq,
-			    struct mlx5e_dma_info *dma_info)
-{
-	mlx5e_xsk_recycle_frame(rq, dma_info->xsk.handle);
-}
-
-/* Return a frame back to the hardware to fill in again. It is used by XDP when
- * the XDP program returns XDP_TX or XDP_REDIRECT not to an XSKMAP.
- */
-void mlx5e_xsk_zca_free(struct zero_copy_allocator *zca, unsigned long handle)
-{
-	struct mlx5e_rq *rq = container_of(zca, struct mlx5e_rq, zca);
-
-	mlx5e_xsk_recycle_frame(rq, handle);
-}
 
 static struct sk_buff *mlx5e_xsk_construct_skb(struct mlx5e_rq *rq, void *data,
 					       u32 cqe_bcnt)
@@ -90,12 +29,8 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 						    u32 head_offset,
 						    u32 page_idx)
 {
-	struct mlx5e_dma_info *di = &wi->umr.dma_info[page_idx];
-	u16 rx_headroom = rq->buff.headroom - rq->buff.umem_headroom;
+	struct xdp_buff *xdp = wi->umr.dma_info[page_idx].xsk;
 	u32 cqe_bcnt32 = cqe_bcnt;
-	void *va, *data;
-	u32 frag_size;
-	bool consumed;
 
 	/* Check packet size. Note LRO doesn't use linear SKB */
 	if (unlikely(cqe_bcnt > rq->hw_mtu)) {
@@ -103,23 +38,17 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 		return NULL;
 	}
 
-	/* head_offset is not used in this function, because di->xsk.data and
-	 * di->addr point directly to the necessary place. Furthermore, in the
-	 * current implementation, UMR pages are mapped to XSK frames, so
+	/* head_offset is not used in this function, because xdp->data and the
+	 * DMA address point directly to the necessary place. Furthermore, in
+	 * the current implementation, UMR pages are mapped to XSK frames, so
 	 * head_offset should always be 0.
 	 */
 	WARN_ON_ONCE(head_offset);
 
-	va             = di->xsk.data;
-	data           = va + rx_headroom;
-	frag_size      = rq->buff.headroom + cqe_bcnt32;
-
-	dma_sync_single_for_cpu(rq->pdev, di->addr, frag_size, DMA_BIDIRECTIONAL);
-	prefetch(data);
-
-	rcu_read_lock();
-	consumed = mlx5e_xdp_handle(rq, di, va, &rx_headroom, &cqe_bcnt32, true);
-	rcu_read_unlock();
+	xdp->data_end = xdp->data + cqe_bcnt32;
+	xdp_set_data_meta_invalid(xdp);
+	xsk_buff_dma_sync_for_cpu(xdp, rq->xsk_pool);
+	net_prefetch(xdp->data);
 
 	/* Possible flows:
 	 * - XDP_REDIRECT to XSKMAP:
@@ -136,7 +65,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 	 * allocated first from the Reuse Ring, so it has enough space.
 	 */
 
-	if (likely(consumed)) {
+	if (likely(mlx5e_xdp_handle(rq, NULL, &cqe_bcnt32, xdp))) {
 		if (likely(__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)))
 			__set_bit(page_idx, wi->xdp_xmit_bitmap); /* non-atomic */
 		return NULL; /* page/packet was consumed by XDP */
@@ -145,7 +74,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 	/* XDP_PASS: copy the data from the UMEM to a new SKB and reuse the
 	 * frame. On SKB allocation failure, NULL is returned.
 	 */
-	return mlx5e_xsk_construct_skb(rq, data, cqe_bcnt32);
+	return mlx5e_xsk_construct_skb(rq, xdp->data, cqe_bcnt32);
 }
 
 struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
@@ -153,41 +82,31 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 					      struct mlx5e_wqe_frag_info *wi,
 					      u32 cqe_bcnt)
 {
-	struct mlx5e_dma_info *di = wi->di;
-	u16 rx_headroom = rq->buff.headroom - rq->buff.umem_headroom;
-	void *va, *data;
-	bool consumed;
-	u32 frag_size;
+	struct xdp_buff *xdp = wi->di->xsk;
 
-	/* wi->offset is not used in this function, because di->xsk.data and
-	 * di->addr point directly to the necessary place. Furthermore, in the
-	 * current implementation, one page = one packet = one frame, so
+	/* wi->offset is not used in this function, because xdp->data and the
+	 * DMA address point directly to the necessary place. Furthermore, the
+	 * XSK allocator allocates frames per packet, instead of pages, so
 	 * wi->offset should always be 0.
 	 */
 	WARN_ON_ONCE(wi->offset);
 
-	va             = di->xsk.data;
-	data           = va + rx_headroom;
-	frag_size      = rq->buff.headroom + cqe_bcnt;
-
-	dma_sync_single_for_cpu(rq->pdev, di->addr, frag_size, DMA_BIDIRECTIONAL);
-	prefetch(data);
+	xdp->data_end = xdp->data + cqe_bcnt;
+	xdp_set_data_meta_invalid(xdp);
+	xsk_buff_dma_sync_for_cpu(xdp, rq->xsk_pool);
+	net_prefetch(xdp->data);
 
 	if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)) {
 		rq->stats->wqe_err++;
 		return NULL;
 	}
 
-	rcu_read_lock();
-	consumed = mlx5e_xdp_handle(rq, di, va, &rx_headroom, &cqe_bcnt, true);
-	rcu_read_unlock();
-
-	if (likely(consumed))
+	if (likely(mlx5e_xdp_handle(rq, NULL, &cqe_bcnt, xdp)))
 		return NULL; /* page/packet was consumed by XDP */
 
 	/* XDP_PASS: copy the data from the UMEM to a new SKB. The frame reuse
 	 * will be handled by mlx5e_put_rx_frag.
 	 * On SKB allocation failure, NULL is returned.
 	 */
-	return mlx5e_xsk_construct_skb(rq, data, cqe_bcnt);
+	return mlx5e_xsk_construct_skb(rq, xdp->data, cqe_bcnt);
 }

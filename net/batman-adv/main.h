@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -13,7 +13,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2019.4"
+#define BATADV_SOURCE_VERSION "2020.4"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -308,7 +308,7 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  * @y: value to compare @x against
  *
  * It handles overflows/underflows and can correctly check for a predecessor
- * unless the variable sequence number has grown by more then
+ * unless the variable sequence number has grown by more than
  * 2**(bitwidth(x)-1)-1.
  *
  * This means that for a u8 with the maximum value 255, it would think:
@@ -330,11 +330,11 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
 
 /**
  * batadv_seq_after() - Checks if a sequence number x is a successor of y
- * @x: potential sucessor of @y
+ * @x: potential successor of @y
  * @y: value to compare @x against
  *
  * It handles overflows/underflows and can correctly check for a successor
- * unless the variable sequence number has grown by more then
+ * unless the variable sequence number has grown by more than
  * 2**(bitwidth(x)-1)-1.
  *
  * This means that for a u8 with the maximum value 255, it would think:

@@ -9,7 +9,6 @@ menuconfig ARCH_MESON
 	select CACHE_L2X0
 	select PINCTRL
 	select PINCTRL_MESON
-	select COMMON_CLK
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 

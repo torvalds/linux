@@ -22,8 +22,7 @@ int rtw_xmit_entry(struct sk_buff *pkt, struct  net_device *pnetdev);
 
 void rtw_os_xmit_schedule(struct adapter *padapter);
 
-int rtw_os_xmit_resource_alloc(struct adapter *padapter,
-			       struct xmit_buf *pxmitbuf, u32 alloc_sz);
+int rtw_os_xmit_resource_alloc(struct xmit_buf *pxmitbuf, u32 alloc_sz);
 void rtw_os_xmit_resource_free(struct xmit_buf *pxmitbuf);
 
 void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt);

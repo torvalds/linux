@@ -433,7 +433,7 @@ static long pc87413_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 		timeout = new_timeout;
 		pc87413_refresh();
-		/* fall through - and return the new timeout... */
+		fallthrough;	/* and return the new timeout */
 	case WDIOC_GETTIMEOUT:
 		new_timeout = timeout * 60;
 		return put_user(new_timeout, uarg.i);
@@ -473,6 +473,7 @@ static const struct file_operations pc87413_fops = {
 	.llseek		= no_llseek,
 	.write		= pc87413_write,
 	.unlocked_ioctl	= pc87413_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= pc87413_open,
 	.release	= pc87413_release,
 };

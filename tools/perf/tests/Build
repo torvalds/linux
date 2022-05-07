@@ -14,6 +14,7 @@ perf-y += evsel-roundtrip-name.o
 perf-y += evsel-tp-sched.o
 perf-y += fdarray.o
 perf-y += pmu.o
+perf-y += pmu-events.o
 perf-y += hists_common.o
 perf-y += hists_link.o
 perf-y += hists_filter.o
@@ -27,7 +28,7 @@ perf-y += wp.o
 perf-y += task-exit.o
 perf-y += sw-clock.o
 perf-y += mmap-thread-lookup.o
-perf-y += thread-mg-share.o
+perf-y += thread-maps-share.o
 perf-y += switch-tracking.o
 perf-y += keep-tracking.o
 perf-y += code-reading.o
@@ -52,8 +53,15 @@ perf-y += perf-hooks.o
 perf-y += clang.o
 perf-y += unit_number__scnprintf.o
 perf-y += mem2node.o
-perf-y += map_groups.o
+perf-y += maps.o
 perf-y += time-utils-test.o
+perf-y += genelf.o
+perf-y += api-io.o
+perf-y += demangle-java-test.o
+perf-y += pfm.o
+perf-y += parse-metric.o
+perf-y += pe-file-parsing.o
+perf-y += expand-cgroup.o
 
 $(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c tests/Build
 	$(call rule_mkdir)

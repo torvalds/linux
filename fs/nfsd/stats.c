@@ -84,17 +84,17 @@ static int nfsd_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, nfsd_proc_show, NULL);
 }
 
-static const struct file_operations nfsd_proc_fops = {
-	.open = nfsd_proc_open,
-	.read  = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+static const struct proc_ops nfsd_proc_ops = {
+	.proc_open	= nfsd_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 void
 nfsd_stat_init(void)
 {
-	svc_proc_register(&init_net, &nfsd_svcstats, &nfsd_proc_fops);
+	svc_proc_register(&init_net, &nfsd_svcstats, &nfsd_proc_ops);
 }
 
 void

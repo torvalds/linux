@@ -259,6 +259,11 @@ static void test_one_clock_gettime(int clock, const char *name)
 
 static void test_clock_gettime(void)
 {
+	if (!vdso_clock_gettime) {
+		printf("[SKIP]\tNo vDSO, so skipping clock_gettime() tests\n");
+		return;
+	}
+
 	for (int clock = 0; clock < sizeof(clocknames) / sizeof(clocknames[0]);
 	     clock++) {
 		test_one_clock_gettime(clock, clocknames[clock]);

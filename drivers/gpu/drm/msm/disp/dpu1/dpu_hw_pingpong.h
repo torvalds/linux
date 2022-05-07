@@ -10,6 +10,8 @@
 #include "dpu_hw_util.h"
 #include "dpu_hw_blk.h"
 
+#define DITHER_MATRIX_SZ 16
+
 struct dpu_hw_pingpong;
 
 struct dpu_hw_tear_check {
@@ -32,6 +34,26 @@ struct dpu_hw_pp_vsync_info {
 	u32 rd_ptr_frame_count;	/* num frames sent since enabling interface */
 	u32 rd_ptr_line_count;	/* current line on panel (rd ptr) */
 	u32 wr_ptr_line_count;	/* current line within pp fifo (wr ptr) */
+};
+
+/**
+ * struct dpu_hw_dither_cfg - dither feature structure
+ * @flags: for customizing operations
+ * @temporal_en: temperal dither enable
+ * @c0_bitdepth: c0 component bit depth
+ * @c1_bitdepth: c1 component bit depth
+ * @c2_bitdepth: c2 component bit depth
+ * @c3_bitdepth: c2 component bit depth
+ * @matrix: dither strength matrix
+ */
+struct dpu_hw_dither_cfg {
+	u64 flags;
+	u32 temporal_en;
+	u32 c0_bitdepth;
+	u32 c1_bitdepth;
+	u32 c2_bitdepth;
+	u32 c3_bitdepth;
+	u32 matrix[DITHER_MATRIX_SZ];
 };
 
 /**
@@ -82,6 +104,12 @@ struct dpu_hw_pingpong_ops {
 	 * Obtain current vertical line counter
 	 */
 	u32 (*get_line_count)(struct dpu_hw_pingpong *pp);
+
+	/**
+	 * Setup dither matix for pingpong block
+	 */
+	void (*setup_dither)(struct dpu_hw_pingpong *pp,
+			struct dpu_hw_dither_cfg *cfg);
 };
 
 struct dpu_hw_pingpong {
@@ -97,6 +125,16 @@ struct dpu_hw_pingpong {
 };
 
 /**
+ * to_dpu_hw_pingpong - convert base object dpu_hw_base to container
+ * @hw: Pointer to base hardware block
+ * return: Pointer to hardware block container
+ */
+static inline struct dpu_hw_pingpong *to_dpu_hw_pingpong(struct dpu_hw_blk *hw)
+{
+	return container_of(hw, struct dpu_hw_pingpong, base);
+}
+
+/**
  * dpu_hw_pingpong_init - initializes the pingpong driver for the passed
  *	pingpong idx.
  * @idx:  Pingpong index for which driver object is required
@@ -106,7 +144,7 @@ struct dpu_hw_pingpong {
  */
 struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m);
+		const struct dpu_mdss_cfg *m);
 
 /**
  * dpu_hw_pingpong_destroy - destroys pingpong driver context

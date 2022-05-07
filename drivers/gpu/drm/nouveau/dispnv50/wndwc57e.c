@@ -27,97 +27,120 @@
 #include <nouveau_bo.h>
 
 #include <nvif/clc37e.h>
+#include <nvif/pushc37b.h>
 
-static void
+#include <nvhw/class/clc57e.h>
+
+static int
 wndwc57e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
 
-	if (!(push = evo_wait(&wndw->wndw, 17)))
-		return;
+	if ((ret = PUSH_WAIT(push, 17)))
+		return ret;
 
-	evo_mthd(push, 0x0308, 1);
-	evo_data(push, asyw->image.mode << 4 | asyw->image.interval);
-	evo_mthd(push, 0x0224, 4);
-	evo_data(push, asyw->image.h << 16 | asyw->image.w);
-	evo_data(push, asyw->image.layout << 4 | asyw->image.blockh);
-	evo_data(push, asyw->image.colorspace << 8 |
-		       asyw->image.format);
-	evo_data(push, asyw->image.blocks[0] | (asyw->image.pitch[0] >> 6));
-	evo_mthd(push, 0x0240, 1);
-	evo_data(push, asyw->image.handle[0]);
-	evo_mthd(push, 0x0260, 1);
-	evo_data(push, asyw->image.offset[0] >> 8);
-	evo_mthd(push, 0x0290, 1);
-	evo_data(push, (asyw->state.src_y >> 16) << 16 |
-		       (asyw->state.src_x >> 16));
-	evo_mthd(push, 0x0298, 1);
-	evo_data(push, (asyw->state.src_h >> 16) << 16 |
-		       (asyw->state.src_w >> 16));
-	evo_mthd(push, 0x02a4, 1);
-	evo_data(push, asyw->state.crtc_h << 16 |
-		       asyw->state.crtc_w);
-	evo_kick(push, &wndw->wndw);
+	PUSH_MTHD(push, NVC57E, SET_PRESENT_CONTROL,
+		  NVVAL(NVC57E, SET_PRESENT_CONTROL, MIN_PRESENT_INTERVAL, asyw->image.interval) |
+		  NVVAL(NVC57E, SET_PRESENT_CONTROL, BEGIN_MODE, asyw->image.mode) |
+		  NVDEF(NVC57E, SET_PRESENT_CONTROL, TIMESTAMP_MODE, DISABLE));
+
+	PUSH_MTHD(push, NVC57E, SET_SIZE,
+		  NVVAL(NVC57E, SET_SIZE, WIDTH, asyw->image.w) |
+		  NVVAL(NVC57E, SET_SIZE, HEIGHT, asyw->image.h),
+
+				SET_STORAGE,
+		  NVVAL(NVC57E, SET_STORAGE, BLOCK_HEIGHT, asyw->image.blockh) |
+		  NVVAL(NVC57E, SET_STORAGE, MEMORY_LAYOUT, asyw->image.layout),
+
+				SET_PARAMS,
+		  NVVAL(NVC57E, SET_PARAMS, FORMAT, asyw->image.format) |
+		  NVDEF(NVC57E, SET_PARAMS, CLAMP_BEFORE_BLEND, DISABLE) |
+		  NVDEF(NVC57E, SET_PARAMS, SWAP_UV, DISABLE) |
+		  NVDEF(NVC57E, SET_PARAMS, FMT_ROUNDING_MODE, ROUND_TO_NEAREST),
+
+				SET_PLANAR_STORAGE(0),
+		  NVVAL(NVC57E, SET_PLANAR_STORAGE, PITCH, asyw->image.blocks[0]) |
+		  NVVAL(NVC57E, SET_PLANAR_STORAGE, PITCH, asyw->image.pitch[0] >> 6));
+
+	PUSH_MTHD(push, NVC57E, SET_CONTEXT_DMA_ISO(0), asyw->image.handle, 1);
+	PUSH_MTHD(push, NVC57E, SET_OFFSET(0), asyw->image.offset[0] >> 8);
+
+	PUSH_MTHD(push, NVC57E, SET_POINT_IN(0),
+		  NVVAL(NVC57E, SET_POINT_IN, X, asyw->state.src_x >> 16) |
+		  NVVAL(NVC57E, SET_POINT_IN, Y, asyw->state.src_y >> 16));
+
+	PUSH_MTHD(push, NVC57E, SET_SIZE_IN,
+		  NVVAL(NVC57E, SET_SIZE_IN, WIDTH, asyw->state.src_w >> 16) |
+		  NVVAL(NVC57E, SET_SIZE_IN, HEIGHT, asyw->state.src_h >> 16));
+
+	PUSH_MTHD(push, NVC57E, SET_SIZE_OUT,
+		  NVVAL(NVC57E, SET_SIZE_OUT, WIDTH, asyw->state.crtc_w) |
+		  NVVAL(NVC57E, SET_SIZE_OUT, HEIGHT, asyw->state.crtc_h));
+	return 0;
 }
 
-static void
+static int
 wndwc57e_csc_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 13))) {
-		 evo_mthd(push, 0x0400, 12);
-		 evo_data(push, 0x00010000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00010000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00010000);
-		 evo_data(push, 0x00000000);
-		 evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	const u32 identity[12] = {
+		0x00010000, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x00010000, 0x00000000, 0x00000000,
+		0x00000000, 0x00000000, 0x00010000, 0x00000000,
+	};
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 1 + ARRAY_SIZE(identity))))
+		return ret;
+
+	PUSH_MTHD(push, NVC57E, SET_FMT_COEFFICIENT_C00, identity, ARRAY_SIZE(identity));
+	return 0;
 }
 
-static void
+static int
 wndwc57e_csc_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push, i;
-	if ((push = evo_wait(&wndw->wndw, 13))) {
-		 evo_mthd(push, 0x0400, 12);
-		 for (i = 0; i < 12; i++)
-			  evo_data(push, asyw->csc.matrix[i]);
-		 evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 13)))
+		return ret;
+
+	PUSH_MTHD(push, NVC57E, SET_FMT_COEFFICIENT_C00, asyw->csc.matrix, 12);
+	return 0;
 }
 
-static void
+static int
 wndwc57e_ilut_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x0444, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NVC57E, SET_CONTEXT_DMA_ILUT, 0x00000000);
+	return 0;
 }
 
-static void
+static int
 wndwc57e_ilut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 4))) {
-		evo_mthd(push, 0x0440, 3);
-		evo_data(push, asyw->xlut.i.size << 8 |
-			       asyw->xlut.i.mode << 2 |
-			       asyw->xlut.i.output_mode);
-		evo_data(push, asyw->xlut.handle);
-		evo_data(push, asyw->xlut.i.offset >> 8);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_MTHD(push, NVC57E, SET_ILUT_CONTROL,
+		  NVVAL(NVC57E, SET_ILUT_CONTROL, SIZE, asyw->xlut.i.size) |
+		  NVVAL(NVC57E, SET_ILUT_CONTROL, MODE, asyw->xlut.i.mode) |
+		  NVVAL(NVC57E, SET_ILUT_CONTROL, INTERPOLATE, asyw->xlut.i.output_mode),
+
+				SET_CONTEXT_DMA_ILUT, asyw->xlut.handle,
+				SET_OFFSET_ILUT, asyw->xlut.i.offset >> 8);
+	return 0;
 }
 
 static u16
@@ -156,20 +179,39 @@ wndwc57e_ilut_load(struct drm_color_lut *in, int size, void __iomem *mem)
 	writew(readw(mem - 4), mem + 4);
 }
 
-static void
-wndwc57e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+static bool
+wndwc57e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 {
-	u16 size = asyw->ilut->length / sizeof(struct drm_color_lut);
-	if (size == 256) {
-		asyw->xlut.i.mode = 1; /* DIRECT8. */
-	} else {
-		asyw->xlut.i.mode = 2; /* DIRECT10. */
-		size = 1024;
-	}
+	if (size = size ? size : 1024, size != 256 && size != 1024)
+		return false;
+
+	if (size == 256)
+		asyw->xlut.i.mode = NVC57E_SET_ILUT_CONTROL_MODE_DIRECT8;
+	else
+		asyw->xlut.i.mode = NVC57E_SET_ILUT_CONTROL_MODE_DIRECT10;
+
 	asyw->xlut.i.size = 4 /* VSS header. */ + size + 1 /* Entries. */;
-	asyw->xlut.i.output_mode = 0; /* INTERPOLATE_DISABLE. */
+	asyw->xlut.i.output_mode = NVC57E_SET_ILUT_CONTROL_INTERPOLATE_DISABLE;
 	asyw->xlut.i.load = wndwc57e_ilut_load;
+	return true;
 }
+
+/****************************************************************
+ *            Log2(block height) ----------------------------+  *
+ *            Page Kind ----------------------------------+  |  *
+ *            Gob Height/Page Kind Generation ------+     |  |  *
+ *                          Sector layout -------+  |     |  |  *
+ *                          Compression ------+  |  |     |  |  */
+const u64 wndwc57e_modifiers[] = { /*         |  |  |     |  |  */
+	DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 1, 2, 0x06, 0),
+	DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 1, 2, 0x06, 1),
+	DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 1, 2, 0x06, 2),
+	DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 1, 2, 0x06, 3),
+	DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 1, 2, 0x06, 4),
+	DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 1, 2, 0x06, 5),
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
 
 static const struct nv50_wndw_func
 wndwc57e = {
@@ -183,6 +225,7 @@ wndwc57e = {
 	.ntfy_wait_begun = base507c_ntfy_wait_begun,
 	.ilut = wndwc57e_ilut,
 	.ilut_identity = true,
+	.ilut_size = 1024,
 	.xlut_set = wndwc57e_ilut_set,
 	.xlut_clr = wndwc57e_ilut_clr,
 	.csc = base907c_csc,

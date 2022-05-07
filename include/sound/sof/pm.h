@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -43,6 +43,14 @@ struct sof_ipc_pm_ctx {
 struct sof_ipc_pm_core_config {
 	struct sof_ipc_cmd_hdr hdr;
 	uint32_t enable_mask;
+} __packed;
+
+struct sof_ipc_pm_gate {
+	struct sof_ipc_cmd_hdr hdr;
+	uint32_t flags;	/* platform specific */
+
+	/* reserved for future use */
+	uint32_t reserved[5];
 } __packed;
 
 #endif

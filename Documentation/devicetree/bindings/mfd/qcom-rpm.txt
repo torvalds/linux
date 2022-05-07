@@ -61,6 +61,7 @@ Regulator nodes are identified by their compatible:
 		    "qcom,rpm-pm8901-regulators"
 		    "qcom,rpm-pm8921-regulators"
 		    "qcom,rpm-pm8018-regulators"
+		    "qcom,rpm-smb208-regulators"
 
 - vdd_l0_l1_lvs-supply:
 - vdd_l2_l11_l12-supply:
@@ -170,6 +171,9 @@ pm8921:
 pm8018:
 	s1, s2, s3, s4, s5, , l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
 	l12, l14, lvs1
+
+smb208:
+	s1a, s1b, s2a, s2b
 
 The content of each sub-node is defined by the standard binding for regulators -
 see regulator.txt - with additional custom properties described below:

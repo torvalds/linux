@@ -7,7 +7,7 @@
  *
  * 7-bit I2C slave address: 0x13
  *
- * Link to data sheet: http://www.onsemi.com/pub/Collateral/LV0104CS-D.PDF
+ * Link to data sheet: https://www.onsemi.com/pub/Collateral/LV0104CS-D.PDF
  */
 
 #include <linux/kernel.h>
@@ -502,7 +502,6 @@ static int lv0104cs_probe(struct i2c_client *client,
 		return ret;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = lv0104cs_channels;
 	indio_dev->num_channels = ARRAY_SIZE(lv0104cs_channels);
 	indio_dev->name = client->name;

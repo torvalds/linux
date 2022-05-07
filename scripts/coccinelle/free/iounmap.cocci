@@ -23,7 +23,7 @@ int ret;
 position p1,p2,p3;
 @@
 
-e = \(ioremap@p1\|ioremap_nocache@p1\)(...)
+e = \(ioremap@p1\)(...)
 ... when != iounmap(e)
 if (<+...e...+>) S
 ... when any

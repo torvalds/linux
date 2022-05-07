@@ -224,7 +224,7 @@ scripts/coccinelle目录下已经打包了相当多的内核“语义补丁”�
 或Blackfin开发板，您仍然可以执行编译步骤。可以在以下位置找到一组用于x86系统的
 大型交叉编译器：
 
-        http://www.kernel.org/pub/tools/crosstool/
+        https://www.kernel.org/pub/tools/crosstool/
 
 花一些时间安装和使用这些编译器将有助于避免以后的尴尬。
 

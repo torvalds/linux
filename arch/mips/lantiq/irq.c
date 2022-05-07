@@ -349,7 +349,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 					res.name))
 			pr_err("Failed to request icu%i memory\n", vpe);
 
-		ltq_icu_membase[vpe] = ioremap_nocache(res.start,
+		ltq_icu_membase[vpe] = ioremap(res.start,
 					resource_size(&res));
 
 		if (!ltq_icu_membase[vpe])
@@ -402,7 +402,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 							res.name))
 			pr_err("Failed to request eiu memory");
 
-		ltq_eiu_membase = ioremap_nocache(res.start,
+		ltq_eiu_membase = ioremap(res.start,
 							resource_size(&res));
 		if (!ltq_eiu_membase)
 			panic("Failed to remap eiu memory");

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
@@ -17,31 +17,28 @@
 
 #include <linux/firmware.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/hda_register.h>
 #include <sound/sof.h>
 #include "../ops.h"
 #include "hda.h"
 
 #define HDA_FW_BOOT_ATTEMPTS	3
+#define HDA_CL_STREAM_FORMAT 0x40
 
-static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
-			     unsigned int size, struct snd_dma_buffer *dmab,
-			     int direction)
+static struct hdac_ext_stream *cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
+						 unsigned int size, struct snd_dma_buffer *dmab,
+						 int direction)
 {
 	struct hdac_ext_stream *dsp_stream;
 	struct hdac_stream *hstream;
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	int ret;
 
-	if (direction != SNDRV_PCM_STREAM_PLAYBACK) {
-		dev_err(sdev->dev, "error: code loading DMA is playback only\n");
-		return -EINVAL;
-	}
-
 	dsp_stream = hda_dsp_stream_get(sdev, direction);
 
 	if (!dsp_stream) {
 		dev_err(sdev->dev, "error: no stream available\n");
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 	}
 	hstream = &dsp_stream->hstream;
 	hstream->substream = NULL;
@@ -57,20 +54,27 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 	hstream->format_val = format;
 	hstream->bufsize = size;
 
-	ret = hda_dsp_stream_hw_params(sdev, dsp_stream, dmab, NULL);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: hdac prepare failed: %x\n", ret);
-		goto error;
+	if (direction == SNDRV_PCM_STREAM_CAPTURE) {
+		ret = hda_dsp_iccmax_stream_hw_params(sdev, dsp_stream, dmab, NULL);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: iccmax stream prepare failed: %x\n", ret);
+			goto error;
+		}
+	} else {
+		ret = hda_dsp_stream_hw_params(sdev, dsp_stream, dmab, NULL);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: hdac prepare failed: %x\n", ret);
+			goto error;
+		}
+		hda_dsp_stream_spib_config(sdev, dsp_stream, HDA_DSP_SPIB_ENABLE, size);
 	}
 
-	hda_dsp_stream_spib_config(sdev, dsp_stream, HDA_DSP_SPIB_ENABLE, size);
-
-	return hstream->stream_tag;
+	return dsp_stream;
 
 error:
 	hda_dsp_stream_put(sdev, direction, hstream->stream_tag);
 	snd_dma_free_pages(dmab);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 /*
@@ -78,8 +82,7 @@ error:
  * status on core 1, so power up core 1 also momentarily, keep it in
  * reset/stall and then turn it off
  */
-static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
-		       u32 fwsize, int stream_tag)
+static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -88,9 +91,10 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	int i;
 
 	/* step 1: power up corex */
-	ret = hda_dsp_core_power_up(sdev, chip->cores_mask);
+	ret = hda_dsp_core_power_up(sdev, chip->host_managed_cores_mask);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: dsp core 0/1 power up failed\n");
+		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
+			dev_err(sdev->dev, "error: dsp core 0/1 power up failed\n");
 		goto err;
 	}
 
@@ -110,9 +114,11 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 			  ((stream_tag - 1) << 9)));
 
 	/* step 3: unset core 0 reset state & unstall/run core 0 */
-	ret = hda_dsp_core_run(sdev, HDA_DSP_CORE_MASK(0));
+	ret = hda_dsp_core_run(sdev, BIT(0));
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: dsp core start failed %d\n", ret);
+		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
+			dev_err(sdev->dev,
+				"error: dsp core start failed %d\n", ret);
 		ret = -EIO;
 		goto err;
 	}
@@ -126,15 +132,25 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 					    HDA_DSP_INIT_TIMEOUT_US);
 
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: waiting for HIPCIE done\n");
+		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
+			dev_err(sdev->dev,
+				"error: %s: timeout for HIPCIE done\n",
+				__func__);
 		goto err;
 	}
 
+	/* set DONE bit to clear the reply IPC message */
+	snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
+				       chip->ipc_ack,
+				       chip->ipc_ack_mask,
+				       chip->ipc_ack_mask);
+
 	/* step 5: power down corex */
-	ret = hda_dsp_core_power_down(sdev,
-				  chip->cores_mask & ~(HDA_DSP_CORE_MASK(0)));
+	ret = hda_dsp_core_power_down(sdev, chip->host_managed_cores_mask & ~(BIT(0)));
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: dsp core x power down failed\n");
+		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
+			dev_err(sdev->dev,
+				"error: dsp core x power down failed\n");
 		goto err;
 	}
 
@@ -152,9 +168,14 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	if (!ret)
 		return 0;
 
+	if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
+		dev_err(sdev->dev,
+			"error: %s: timeout HDA_DSP_SRAM_REG_ROM_STATUS read\n",
+			__func__);
+
 err:
 	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
-	hda_dsp_core_reset_power_down(sdev, chip->cores_mask);
+	hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
 
 	return ret;
 }
@@ -168,9 +189,6 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 	/* code loader is special case that reuses stream ops */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		wait_event_timeout(sdev->waitq, !sdev->code_loading,
-				   HDA_DSP_CL_TRIGGER_TIMEOUT);
-
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
 					1 << hstream->index,
 					1 << hstream->index);
@@ -189,34 +207,20 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 	}
 }
 
-static struct hdac_ext_stream *get_stream_with_tag(struct snd_sof_dev *sdev,
-						   int tag)
-{
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_stream *s;
-
-	/* get stream with tag */
-	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK &&
-		    s->stream_tag == tag) {
-			return stream_to_hdac_ext_stream(s);
-		}
-	}
-
-	return NULL;
-}
-
 static int cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 		      struct hdac_ext_stream *stream)
 {
 	struct hdac_stream *hstream = &stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
-	int ret;
+	int ret = 0;
 
-	ret = hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
+	if (hstream->direction == SNDRV_PCM_STREAM_PLAYBACK)
+		ret = hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
+	else
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
+					SOF_HDA_SD_CTL_DMA_START, 0);
 
-	hda_dsp_stream_put(sdev, SNDRV_PCM_STREAM_PLAYBACK,
-			   hstream->stream_tag);
+	hda_dsp_stream_put(sdev, hstream->direction, hstream->stream_tag);
 	hstream->running = 0;
 	hstream->substream = NULL;
 
@@ -253,51 +257,104 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream)
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					HDA_DSP_BASEFW_TIMEOUT_US);
 
+	/*
+	 * even in case of errors we still need to stop the DMAs,
+	 * but we return the initial error should the DMA stop also fail
+	 */
+
+	if (status < 0) {
+		dev_err(sdev->dev,
+			"error: %s: timeout HDA_DSP_SRAM_REG_ROM_STATUS read\n",
+			__func__);
+	}
+
 	ret = cl_trigger(sdev, stream, SNDRV_PCM_TRIGGER_STOP);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: DMA trigger stop failed\n");
-		return ret;
+		if (!status)
+			status = ret;
 	}
 
 	return status;
 }
 
+int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = sdev->pdata;
+	struct hdac_ext_stream *iccmax_stream;
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct firmware stripped_firmware;
+	int ret, ret1;
+	u8 original_gb;
+
+	/* save the original LTRP guardband value */
+	original_gb = snd_hdac_chip_readb(bus, VS_LTRP) & HDA_VS_INTEL_LTRP_GB_MASK;
+
+	if (plat_data->fw->size <= plat_data->fw_offset) {
+		dev_err(sdev->dev, "error: firmware size must be greater than firmware offset\n");
+		return -EINVAL;
+	}
+
+	stripped_firmware.size = plat_data->fw->size - plat_data->fw_offset;
+
+	/* prepare capture stream for ICCMAX */
+	iccmax_stream = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
+					  &sdev->dmab_bdl, SNDRV_PCM_STREAM_CAPTURE);
+	if (IS_ERR(iccmax_stream)) {
+		dev_err(sdev->dev, "error: dma prepare for ICCMAX stream failed\n");
+		return PTR_ERR(iccmax_stream);
+	}
+
+	ret = hda_dsp_cl_boot_firmware(sdev);
+
+	/*
+	 * Perform iccmax stream cleanup. This should be done even if firmware loading fails.
+	 * If the cleanup also fails, we return the initial error
+	 */
+	ret1 = cl_cleanup(sdev, &sdev->dmab_bdl, iccmax_stream);
+	if (ret1 < 0) {
+		dev_err(sdev->dev, "error: ICCMAX stream cleanup failed\n");
+
+		/* set return value to indicate cleanup failure */
+		if (!ret)
+			ret = ret1;
+	}
+
+	/* restore the original guardband value after FW boot */
+	snd_hdac_chip_updateb(bus, VS_LTRP, HDA_VS_INTEL_LTRP_GB_MASK, original_gb);
+
+	return ret;
+}
+
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const struct sof_dev_desc *desc = plat_data->desc;
 	const struct sof_intel_dsp_desc *chip_info;
 	struct hdac_ext_stream *stream;
 	struct firmware stripped_firmware;
-	int ret, ret1, tag, i;
+	int ret, ret1, i;
 
 	chip_info = desc->chip_info;
 
-	stripped_firmware.data = plat_data->fw->data;
-	stripped_firmware.size = plat_data->fw->size;
+	if (plat_data->fw->size <= plat_data->fw_offset) {
+		dev_err(sdev->dev, "error: firmware size must be greater than firmware offset\n");
+		return -EINVAL;
+	}
+
+	stripped_firmware.data = plat_data->fw->data + plat_data->fw_offset;
+	stripped_firmware.size = plat_data->fw->size - plat_data->fw_offset;
 
 	/* init for booting wait */
 	init_waitqueue_head(&sdev->boot_wait);
-	sdev->boot_complete = false;
 
 	/* prepare DMA for code loader stream */
-	tag = cl_stream_prepare(sdev, 0x40, stripped_firmware.size,
-				&sdev->dmab, SNDRV_PCM_STREAM_PLAYBACK);
-
-	if (tag < 0) {
-		dev_err(sdev->dev, "error: dma prepare for fw loading err: %x\n",
-			tag);
-		return tag;
-	}
-
-	/* get stream with tag */
-	stream = get_stream_with_tag(sdev, tag);
-	if (!stream) {
-		dev_err(sdev->dev,
-			"error: could not get stream with stream tag %d\n",
-			tag);
-		ret = -ENODEV;
-		goto err;
+	stream = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
+				   &sdev->dmab, SNDRV_PCM_STREAM_PLAYBACK);
+	if (IS_ERR(stream)) {
+		dev_err(sdev->dev, "error: dma prepare for fw loading failed\n");
+		return PTR_ERR(stream);
 	}
 
 	memcpy(sdev->dmab.area, stripped_firmware.data,
@@ -305,27 +362,45 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 
 	/* try ROM init a few times before giving up */
 	for (i = 0; i < HDA_FW_BOOT_ATTEMPTS; i++) {
-		ret = cl_dsp_init(sdev, stripped_firmware.data,
-				  stripped_firmware.size, tag);
+		dev_dbg(sdev->dev,
+			"Attempting iteration %d of Core En/ROM load...\n", i);
+
+		hda->boot_iteration = i + 1;
+		ret = cl_dsp_init(sdev, stream->hstream.stream_tag);
 
 		/* don't retry anymore if successful */
 		if (!ret)
 			break;
-
-		dev_err(sdev->dev, "error: Error code=0x%x: FW status=0x%x\n",
-			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 HDA_DSP_SRAM_REG_ROM_ERROR),
-			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-					 HDA_DSP_SRAM_REG_ROM_STATUS));
-		dev_err(sdev->dev, "error: iteration %d of Core En/ROM load failed: %d\n",
-			i, ret);
 	}
 
 	if (i == HDA_FW_BOOT_ATTEMPTS) {
 		dev_err(sdev->dev, "error: dsp init failed after %d attempts with err: %d\n",
 			i, ret);
+		dev_err(sdev->dev, "ROM error=0x%x: FW status=0x%x\n",
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 HDA_DSP_SRAM_REG_ROM_ERROR),
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 HDA_DSP_SRAM_REG_ROM_STATUS));
 		goto cleanup;
 	}
+
+	/*
+	 * When a SoundWire link is in clock stop state, a Slave
+	 * device may trigger in-band wakes for events such as jack
+	 * insertion or acoustic event detection. This event will lead
+	 * to a WAKEEN interrupt, handled by the PCI device and routed
+	 * to PME if the PCI device is in D3. The resume function in
+	 * audio PCI driver will be invoked by ACPI for PME event and
+	 * initialize the device and process WAKEEN interrupt.
+	 *
+	 * The WAKEEN interrupt should be processed ASAP to prevent an
+	 * interrupt flood, otherwise other interrupts, such IPC,
+	 * cannot work normally.  The WAKEEN is handled after the ROM
+	 * is initialized successfully, which ensures power rails are
+	 * enabled before accessing the SoundWire SHIM registers
+	 */
+	if (!sdev->first_boot)
+		hda_sdw_process_wakeen(sdev);
 
 	/*
 	 * at this point DSP ROM has been initialized and
@@ -341,24 +416,25 @@ cleanup:
 	/*
 	 * Perform codeloader stream cleanup.
 	 * This should be done even if firmware loading fails.
+	 * If the cleanup also fails, we return the initial error
 	 */
 	ret1 = cl_cleanup(sdev, &sdev->dmab, stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: Code loader DSP cleanup failed\n");
 
 		/* set return value to indicate cleanup failure */
-		ret = ret1;
+		if (!ret)
+			ret = ret1;
 	}
 
 	/*
-	 * return master core id if both fw copy
+	 * return primary core id if both fw copy
 	 * and stream clean up are successful
 	 */
 	if (!ret)
 		return chip_info->init_core_mask;
 
 	/* dump dsp registers and disable DSP upon error */
-err:
 	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
 
 	/* disable DSP */
@@ -378,6 +454,19 @@ int hda_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 /* post fw run operations */
 int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 {
+	int ret;
+
+	if (sdev->first_boot) {
+		ret = hda_sdw_startup(sdev);
+		if (ret < 0) {
+			dev_err(sdev->dev,
+				"error: could not startup SoundWire links\n");
+			return ret;
+		}
+	}
+
+	hda_sdw_int_enable(sdev, true);
+
 	/* re-enable clock gating and power gating */
 	return hda_dsp_ctrl_clock_power_gating(sdev, true);
 }

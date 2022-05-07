@@ -1,4 +1,3 @@
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 
 /*
  * Copyright 2017 Advanced Micro Devices, Inc.
@@ -703,4 +702,3 @@ const qp_table   qp_table_422_8bpc_max = {
 	{  16, { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 4} }
 };
 
-#endif

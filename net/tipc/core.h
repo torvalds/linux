@@ -59,6 +59,7 @@
 #include <net/netns/generic.h>
 #include <linux/rhashtable.h>
 #include <net/genetlink.h>
+#include <net/netns/hash.h>
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -73,6 +74,9 @@ struct tipc_link;
 struct tipc_name_table;
 struct tipc_topsrv;
 struct tipc_monitor;
+#ifdef CONFIG_TIPC_CRYPTO
+struct tipc_crypto;
+#endif
 
 #define TIPC_MOD_VER "2.0.0"
 
@@ -85,6 +89,12 @@ struct tipc_monitor;
 extern unsigned int tipc_net_id __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
 extern int sysctl_tipc_named_timeout __read_mostly;
+
+struct tipc_net_work {
+	struct work_struct work;
+	struct net *net;
+	u32 addr;
+};
 
 struct tipc_net {
 	u8  node_id[NODE_ID_LEN];
@@ -134,6 +144,13 @@ struct tipc_net {
 
 	/* Tracing of node internal messages */
 	struct packet_type loopback_pt;
+
+#ifdef CONFIG_TIPC_CRYPTO
+	/* TX crypto handler */
+	struct tipc_crypto *crypto_tx;
+#endif
+	/* Work item for net finalize */
+	struct tipc_net_work final_work;
 };
 
 static inline struct tipc_net *tipc_net(struct net *net)
@@ -189,6 +206,11 @@ static inline int less(u16 left, u16 right)
 static inline int in_range(u16 val, u16 min, u16 max)
 {
 	return !less(val, min) && !more(val, max);
+}
+
+static inline u32 tipc_net_hash_mixes(struct net *net, int tn_rand)
+{
+	return net_hash_mix(&init_net) ^ net_hash_mix(net) ^ tn_rand;
 }
 
 #ifdef CONFIG_SYSCTL

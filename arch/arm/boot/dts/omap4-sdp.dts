@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  */
 /dts-v1/;
 
@@ -428,7 +428,7 @@
 
 	/*
 	 * Temperature Sensor
-	 * http://www.ti.com/lit/ds/symlink/tmp105.pdf
+	 * https://www.ti.com/lit/ds/symlink/tmp105.pdf
 	 */
 	tmp105@48 {
 		compatible = "ti,tmp105";
@@ -453,7 +453,7 @@
 
 	/*
 	 * 3-Axis Digital Compass
-	 * http://www.sparkfun.com/datasheets/Sensors/Magneto/HMC5843.pdf
+	 * https://www.sparkfun.com/datasheets/Sensors/Magneto/HMC5843.pdf
 	 */
 	hmc5843@1e {
 		compatible = "honeywell,hmc5843";
@@ -648,11 +648,11 @@
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 };
 
 &dsi1 {
-	status = "ok";
+	status = "okay";
 	vdd-supply = <&vcxio>;
 
 	port {
@@ -662,8 +662,9 @@
 		};
 	};
 
-	lcd0: display {
+	lcd0: panel@0 {
 		compatible = "tpo,taal", "panel-dsi-cm";
+		reg = <0>;
 		label = "lcd0";
 
 		reset-gpios = <&gpio4 6 GPIO_ACTIVE_HIGH>;	/* 102 */
@@ -677,7 +678,7 @@
 };
 
 &dsi2 {
-	status = "ok";
+	status = "okay";
 	vdd-supply = <&vcxio>;
 
 	port {
@@ -687,8 +688,9 @@
 		};
 	};
 
-	lcd1: display {
+	lcd1: panel@0 {
 		compatible = "tpo,taal", "panel-dsi-cm";
+		reg = <0>;
 		label = "lcd1";
 
 		reset-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>;	/* 104 */
@@ -702,7 +704,7 @@
 };
 
 &hdmi {
-	status = "ok";
+	status = "okay";
 	vdda-supply = <&vdac>;
 
 	port {

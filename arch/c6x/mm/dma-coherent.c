@@ -15,7 +15,7 @@
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 #include <linux/memblock.h>
 
 #include <asm/cacheflush.h>
@@ -140,7 +140,7 @@ void __init coherent_mem_init(phys_addr_t start, u32 size)
 		      sizeof(long));
 }
 
-static void c6x_dma_sync(struct device *dev, phys_addr_t paddr, size_t size,
+static void c6x_dma_sync(phys_addr_t paddr, size_t size,
 		enum dma_data_direction dir)
 {
 	BUG_ON(!valid_dma_direction(dir));
@@ -160,14 +160,14 @@ static void c6x_dma_sync(struct device *dev, phys_addr_t paddr, size_t size,
 	}
 }
 
-void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
-	return c6x_dma_sync(dev, paddr, size, dir);
+	return c6x_dma_sync(paddr, size, dir);
 }
 
-void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
-	return c6x_dma_sync(dev, paddr, size, dir);
+	return c6x_dma_sync(paddr, size, dir);
 }

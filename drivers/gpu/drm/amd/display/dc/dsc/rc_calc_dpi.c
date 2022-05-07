@@ -1,4 +1,3 @@
-#if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
 /*
  * Copyright 2012-17 Advanced Micro Devices, Inc.
  *
@@ -27,8 +26,6 @@
 #include <drm/drm_dsc.h>
 #include "dscc_types.h"
 #include "rc_calc.h"
-
-double dsc_ceil(double num);
 
 static void copy_pps_fields(struct drm_dsc_config *to, const struct drm_dsc_config *from)
 {
@@ -101,34 +98,13 @@ static void copy_rc_to_cfg(struct drm_dsc_config *dsc_cfg, const struct rc_param
 
 int dscc_compute_dsc_parameters(const struct drm_dsc_config *pps, struct dsc_parameters *dsc_params)
 {
-	enum colour_mode  mode = pps->convert_rgb ? CM_RGB :
-							(pps->simple_422  ? CM_444 :
-							(pps->native_422  ? CM_422 :
-							pps->native_420  ? CM_420 : CM_444));
-	enum bits_per_comp bpc = (pps->bits_per_component == 8) ? BPC_8 :
-							(pps->bits_per_component == 10) ? BPC_10 : BPC_12;
-	float            bpp = ((float) pps->bits_per_pixel / 16.0);
-	int              slice_width  = pps->slice_width;
-	int              slice_height = pps->slice_height;
 	int              ret;
 	struct rc_params rc;
 	struct drm_dsc_config   dsc_cfg;
 
-	double d_bytes_per_pixel = dsc_ceil(bpp * slice_width / 8.0) / slice_width;
+	dsc_params->bytes_per_pixel = calc_dsc_bytes_per_pixel(pps);
 
-	// TODO: Make sure the formula for calculating this is precise (ceiling vs. floor, and at what point they should be applied)
-	if (pps->native_422 || pps->native_420)
-		d_bytes_per_pixel /= 2;
-
-	dsc_params->bytes_per_pixel = (uint32_t)dsc_ceil(d_bytes_per_pixel * 0x10000000);
-
-	/* in native_422 or native_420 modes, the bits_per_pixel is double the target bpp
-	 * (the latter is what calc_rc_params expects)
-	 */
-	if (pps->native_422 || pps->native_420)
-		bpp /= 2.0;
-
-	calc_rc_params(&rc, mode, bpc, bpp, slice_width, slice_height, pps->dsc_version_minor);
+	calc_rc_params(&rc, pps);
 	dsc_params->pps = *pps;
 	dsc_params->pps.initial_scale_value = 8 * rc.rc_model_size / (rc.rc_model_size - rc.initial_fullness_offset);
 
@@ -144,4 +120,3 @@ int dscc_compute_dsc_parameters(const struct drm_dsc_config *pps, struct dsc_par
 	return ret;
 }
 
-#endif

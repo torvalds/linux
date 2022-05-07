@@ -166,7 +166,9 @@ static ssize_t ixgbe_dbg_netdev_ops_write(struct file *filp,
 	ixgbe_dbg_netdev_ops_buf[len] = '\0';
 
 	if (strncmp(ixgbe_dbg_netdev_ops_buf, "tx_timeout", 10) == 0) {
-		adapter->netdev->netdev_ops->ndo_tx_timeout(adapter->netdev);
+		/* TX Queue number below is wrong, but ixgbe does not use it */
+		adapter->netdev->netdev_ops->ndo_tx_timeout(adapter->netdev,
+							    UINT_MAX);
 		e_dev_info("tx_timeout called\n");
 	} else {
 		e_dev_info("Unknown command: %s\n", ixgbe_dbg_netdev_ops_buf);

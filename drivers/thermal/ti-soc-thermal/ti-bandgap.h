@@ -12,6 +12,12 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/err.h>
+#include <linux/cpu_pm.h>
+#include <linux/device.h>
+#include <linux/pm_runtime.h>
+#include <linux/pm.h>
+
+struct gpio_desc;
 
 /**
  * DOC: bandgap driver data structure
@@ -199,8 +205,10 @@ struct ti_bandgap {
 	struct clk			*div_clk;
 	spinlock_t			lock; /* shields this struct */
 	int				irq;
-	int				tshut_gpio;
+	struct gpio_desc		*tshut_gpiod;
 	u32				clk_rate;
+	struct notifier_block		nb;
+	unsigned int is_suspended:1;
 };
 
 /**

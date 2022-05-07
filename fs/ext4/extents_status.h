@@ -209,6 +209,12 @@ static inline ext4_fsblk_t ext4_es_pblock(struct extent_status *es)
 	return es->es_pblk & ~ES_MASK;
 }
 
+static inline ext4_fsblk_t ext4_es_show_pblock(struct extent_status *es)
+{
+	ext4_fsblk_t pblock = ext4_es_pblock(es);
+	return pblock == ~ES_MASK ? 0 : pblock;
+}
+
 static inline void ext4_es_store_pblock(struct extent_status *es,
 					ext4_fsblk_t pb)
 {

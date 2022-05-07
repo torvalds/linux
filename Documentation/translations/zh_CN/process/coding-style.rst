@@ -826,7 +826,7 @@ inline gcc 也可以自动使其内联。而且其他用户可能会要求移除
 
 .. code-block:: c
 
-	#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+	#define sizeof_field(t, f) (sizeof(((t*)0)->f))
 
 还有可以做严格的类型检查的 min() 和 max() 宏，如果你需要可以使用它们。你可以
 自己看看那个头文件里还定义了什么你可以拿来用的东西，如果有定义的话，你就不应
@@ -946,7 +946,7 @@ Addison-Wesley, Inc., 1999.
 ISBN 0-201-61586-X.
 
 GNU 手册 - 遵循 K&R 标准和此文本 - cpp, gcc, gcc internals and indent,
-都可以从 http://www.gnu.org/manual/ 找到
+都可以从 https://www.gnu.org/manual/ 找到
 
 WG14 是 C 语言的国际标准化工作组，URL: http://www.open-std.org/JTC1/SC22/WG14/
 

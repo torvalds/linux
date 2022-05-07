@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: ISC
 
+#include <linux/of.h>
 #include "mt7603.h"
 #include "eeprom.h"
 
@@ -100,9 +101,13 @@ mt7603_apply_cal_free_data(struct mt7603_dev *dev, u8 *efuse)
 		MT_EE_TX_POWER_1_START_2G,
 		MT_EE_TX_POWER_1_START_2G + 1,
 	};
+	struct device_node *np = dev->mt76.dev->of_node;
 	u8 *eeprom = dev->mt76.eeprom.data;
 	int n = ARRAY_SIZE(cal_free_bytes);
 	int i;
+
+	if (!np || !of_property_read_bool(np, "mediatek,eeprom-merge-otp"))
+		return;
 
 	if (!mt7603_has_cal_free_data(dev, efuse))
 		return;
@@ -142,8 +147,14 @@ static int mt7603_check_eeprom(struct mt76_dev *dev)
 	}
 }
 
+static inline bool is_mt7688(struct mt7603_dev *dev)
+{
+	return mt76_rr(dev, MT_EFUSE_BASE + 0x64) & BIT(4);
+}
+
 int mt7603_eeprom_init(struct mt7603_dev *dev)
 {
+	u8 *eeprom;
 	int ret;
 
 	ret = mt7603_eeprom_load(dev);
@@ -158,9 +169,16 @@ int mt7603_eeprom_init(struct mt7603_dev *dev)
 			       MT7603_EEPROM_SIZE);
 	}
 
+	eeprom = (u8 *)dev->mt76.eeprom.data;
 	dev->mt76.cap.has_2ghz = true;
-	memcpy(dev->mt76.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
-	       ETH_ALEN);
+	memcpy(dev->mt76.macaddr, eeprom + MT_EE_MAC_ADDR, ETH_ALEN);
+
+	/* Check for 1SS devices */
+	dev->mphy.antenna_mask = 3;
+	if (FIELD_GET(MT_EE_NIC_CONF_0_RX_PATH, eeprom[MT_EE_NIC_CONF_0]) == 1 ||
+	    FIELD_GET(MT_EE_NIC_CONF_0_TX_PATH, eeprom[MT_EE_NIC_CONF_0]) == 1 ||
+	    is_mt7688(dev))
+		dev->mphy.antenna_mask = 1;
 
 	mt76_eeprom_override(&dev->mt76);
 

@@ -52,8 +52,8 @@ static int npa_aq_enqueue_wait(struct rvu *rvu, struct rvu_block *block,
 	return 0;
 }
 
-static int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
-			       struct npa_aq_enq_rsp *rsp)
+int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
+			struct npa_aq_enq_rsp *rsp)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
 	u16 pcifunc = req->hdr.pcifunc;
@@ -93,6 +93,11 @@ static int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 	 * so always choose first entry in result memory.
 	 */
 	inst.res_addr = (u64)aq->res->iova;
+
+	/* Hardware uses same aq->res->base for updating result of
+	 * previous instruction hence wait here till it is done.
+	 */
+	spin_lock(&aq->lock);
 
 	/* Clean result + context memory */
 	memset(aq->res->base, 0, aq->res->entry_sz);
@@ -138,10 +143,10 @@ static int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 		break;
 	}
 
-	if (rc)
+	if (rc) {
+		spin_unlock(&aq->lock);
 		return rc;
-
-	spin_lock(&aq->lock);
+	}
 
 	/* Submit the instruction to AQ */
 	rc = npa_aq_enqueue_wait(rvu, block, &inst);
@@ -218,6 +223,8 @@ static int npa_lf_hwctx_disable(struct rvu *rvu, struct hwctx_disable_req *req)
 	} else if (req->ctype == NPA_AQ_CTYPE_AURA) {
 		aq_req.aura.ena = 0;
 		aq_req.aura_mask.ena = 1;
+		aq_req.aura.bp_ena = 0;
+		aq_req.aura_mask.bp_ena = 1;
 		cnt = pfvf->aura_ctx->qsize;
 		bmap = pfvf->aura_bmap;
 	}
@@ -241,12 +248,50 @@ static int npa_lf_hwctx_disable(struct rvu *rvu, struct hwctx_disable_req *req)
 	return err;
 }
 
+#ifdef CONFIG_NDC_DIS_DYNAMIC_CACHING
+static int npa_lf_hwctx_lockdown(struct rvu *rvu, struct npa_aq_enq_req *req)
+{
+	struct npa_aq_enq_req lock_ctx_req;
+	int err;
+
+	if (req->op != NPA_AQ_INSTOP_INIT)
+		return 0;
+
+	memset(&lock_ctx_req, 0, sizeof(struct npa_aq_enq_req));
+	lock_ctx_req.hdr.pcifunc = req->hdr.pcifunc;
+	lock_ctx_req.ctype = req->ctype;
+	lock_ctx_req.op = NPA_AQ_INSTOP_LOCK;
+	lock_ctx_req.aura_id = req->aura_id;
+	err = rvu_npa_aq_enq_inst(rvu, &lock_ctx_req, NULL);
+	if (err)
+		dev_err(rvu->dev,
+			"PFUNC 0x%x: Failed to lock NPA context %s:%d\n",
+			req->hdr.pcifunc,
+			(req->ctype == NPA_AQ_CTYPE_AURA) ?
+			"Aura" : "Pool", req->aura_id);
+	return err;
+}
+
+int rvu_mbox_handler_npa_aq_enq(struct rvu *rvu,
+				struct npa_aq_enq_req *req,
+				struct npa_aq_enq_rsp *rsp)
+{
+	int err;
+
+	err = rvu_npa_aq_enq_inst(rvu, req, rsp);
+	if (!err)
+		err = npa_lf_hwctx_lockdown(rvu, req);
+	return err;
+}
+#else
+
 int rvu_mbox_handler_npa_aq_enq(struct rvu *rvu,
 				struct npa_aq_enq_req *req,
 				struct npa_aq_enq_rsp *rsp)
 {
 	return rvu_npa_aq_enq_inst(rvu, req, rsp);
 }
+#endif
 
 int rvu_mbox_handler_npa_hwctx_disable(struct rvu *rvu,
 				       struct hwctx_disable_req *req,
@@ -288,6 +333,9 @@ int rvu_mbox_handler_npa_lf_alloc(struct rvu *rvu,
 	if (req->aura_sz > NPA_AURA_SZ_MAX ||
 	    req->aura_sz == NPA_AURA_SZ_0 || !req->nr_pools)
 		return NPA_AF_ERR_PARAM;
+
+	if (req->way_mask)
+		req->way_mask &= 0xFFFF;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPA, pcifunc);
@@ -345,7 +393,8 @@ int rvu_mbox_handler_npa_lf_alloc(struct rvu *rvu,
 	/* Clear way partition mask and set aura offset to '0' */
 	cfg &= ~(BIT_ULL(34) - 1);
 	/* Set aura size & enable caching of contexts */
-	cfg |= (req->aura_sz << 16) | BIT_ULL(34);
+	cfg |= (req->aura_sz << 16) | BIT_ULL(34) | req->way_mask;
+
 	rvu_write64(rvu, blkaddr, NPA_AF_LFX_AURAS_CFG(npalf), cfg);
 
 	/* Configure aura HW context's base */
@@ -353,7 +402,8 @@ int rvu_mbox_handler_npa_lf_alloc(struct rvu *rvu,
 		    (u64)pfvf->aura_ctx->iova);
 
 	/* Enable caching of qints hw context */
-	rvu_write64(rvu, blkaddr, NPA_AF_LFX_QINTS_CFG(npalf), BIT_ULL(36));
+	rvu_write64(rvu, blkaddr, NPA_AF_LFX_QINTS_CFG(npalf),
+		    BIT_ULL(36) | req->way_mask << 20);
 	rvu_write64(rvu, blkaddr, NPA_AF_LFX_QINTS_BASE(npalf),
 		    (u64)pfvf->npa_qints_ctx->iova);
 
@@ -422,6 +472,10 @@ static int npa_aq_init(struct rvu *rvu, struct rvu_block *block)
 	/* Do not bypass NDC cache */
 	cfg = rvu_read64(rvu, block->addr, NPA_AF_NDC_CFG);
 	cfg &= ~0x03DULL;
+#ifdef CONFIG_NDC_DIS_DYNAMIC_CACHING
+	/* Disable caching of stack pages */
+	cfg |= 0x10ULL;
+#endif
 	rvu_write64(rvu, block->addr, NPA_AF_NDC_CFG, cfg);
 
 	/* Result structure can be followed by Aura/Pool context at

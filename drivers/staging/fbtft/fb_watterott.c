@@ -150,10 +150,17 @@ static int init_display(struct fbtft_par *par)
 
 	/* enable SPI interface by having CS and MOSI low during reset */
 	save_mode = par->spi->mode;
-	par->spi->mode |= SPI_CS_HIGH;
-	ret = spi_setup(par->spi); /* set CS inactive low */
+	/*
+	 * Set CS active inverse polarity: just setting SPI_CS_HIGH does not
+	 * work with GPIO based chip selects that are logically active high
+	 * but inverted inside the GPIO library, so enforce inverted
+	 * semantics.
+	 */
+	par->spi->mode ^= SPI_CS_HIGH;
+	ret = spi_setup(par->spi);
 	if (ret) {
-		dev_err(par->info->device, "Could not set SPI_CS_HIGH\n");
+		dev_err(par->info->device,
+			"Could not set inverse CS polarity\n");
 		return ret;
 	}
 	write_reg(par, 0x00); /* make sure mode is set */

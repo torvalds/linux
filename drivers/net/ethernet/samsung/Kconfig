@@ -6,7 +6,7 @@
 config NET_VENDOR_SAMSUNG
 	bool "Samsung Ethernet devices"
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
 
@@ -23,7 +23,7 @@ config SXGBE_ETH
 	select PHYLIB
 	select CRC32
 	imply PTP_1588_CLOCK
-	---help---
+	help
 	  This is the driver for the SXGBE 10G Ethernet IP block found on
 	  Samsung platforms.
 

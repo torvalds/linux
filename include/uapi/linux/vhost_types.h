@@ -60,6 +60,17 @@ struct vhost_iotlb_msg {
 #define VHOST_IOTLB_UPDATE         2
 #define VHOST_IOTLB_INVALIDATE     3
 #define VHOST_IOTLB_ACCESS_FAIL    4
+/*
+ * VHOST_IOTLB_BATCH_BEGIN and VHOST_IOTLB_BATCH_END allow modifying
+ * multiple mappings in one go: beginning with
+ * VHOST_IOTLB_BATCH_BEGIN, followed by any number of
+ * VHOST_IOTLB_UPDATE messages, and ending with VHOST_IOTLB_BATCH_END.
+ * When one of these two values is used as the message type, the rest
+ * of the fields in the message are ignored. There's no guarantee that
+ * these changes take place automatically in the device.
+ */
+#define VHOST_IOTLB_BATCH_BEGIN    5
+#define VHOST_IOTLB_BATCH_END      6
 	__u8 type;
 };
 
@@ -117,6 +128,23 @@ struct vhost_scsi_target {
 	char vhost_wwpn[224]; /* TRANSPORT_IQN_LEN */
 	unsigned short vhost_tpgt;
 	unsigned short reserved;
+};
+
+/* VHOST_VDPA specific definitions */
+
+struct vhost_vdpa_config {
+	__u32 off;
+	__u32 len;
+	__u8 buf[0];
+};
+
+/* vhost vdpa IOVA range
+ * @first: First address that can be mapped by vhost-vDPA
+ * @last: Last address that can be mapped by vhost-vDPA
+ */
+struct vhost_vdpa_iova_range {
+	__u64 first;
+	__u64 last;
 };
 
 /* Feature bits */

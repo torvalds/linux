@@ -324,7 +324,7 @@ static int ppl_log_stripe(struct ppl_log *log, struct stripe_head *sh)
 		 * be just after the last logged stripe and write to the same
 		 * disks. Use bit shift and logarithm to avoid 64-bit division.
 		 */
-		if ((sh->sector == sh_last->sector + STRIPE_SECTORS) &&
+		if ((sh->sector == sh_last->sector + RAID5_STRIPE_SECTORS(conf)) &&
 		    (data_sector >> ilog2(conf->chunk_sectors) ==
 		     data_sector_last >> ilog2(conf->chunk_sectors)) &&
 		    ((data_sector - data_sector_last) * data_disks ==
@@ -844,9 +844,9 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 
 	/* if start and end is 4k aligned, use a 4k block */
 	if (block_size == 512 &&
-	    (r_sector_first & (STRIPE_SECTORS - 1)) == 0 &&
-	    (r_sector_last & (STRIPE_SECTORS - 1)) == 0)
-		block_size = STRIPE_SIZE;
+	    (r_sector_first & (RAID5_STRIPE_SECTORS(conf) - 1)) == 0 &&
+	    (r_sector_last & (RAID5_STRIPE_SECTORS(conf) - 1)) == 0)
+		block_size = RAID5_STRIPE_SIZE(conf);
 
 	/* iterate through blocks in strip */
 	for (i = 0; i < strip_sectors; i += (block_size >> 9)) {
@@ -1037,7 +1037,7 @@ static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr,
 	}
 
 	/* flush the disk cache after recovery if necessary */
-	ret = blkdev_issue_flush(rdev->bdev, GFP_KERNEL, NULL);
+	ret = blkdev_issue_flush(rdev->bdev, GFP_KERNEL);
 out:
 	__free_page(page);
 	return ret;
@@ -1274,7 +1274,8 @@ static int ppl_validate_rdev(struct md_rdev *rdev)
 	ppl_data_sectors = rdev->ppl.size - (PPL_HEADER_SIZE >> 9);
 
 	if (ppl_data_sectors > 0)
-		ppl_data_sectors = rounddown(ppl_data_sectors, STRIPE_SECTORS);
+		ppl_data_sectors = rounddown(ppl_data_sectors,
+				RAID5_STRIPE_SECTORS((struct r5conf *)rdev->mddev->private));
 
 	if (ppl_data_sectors <= 0) {
 		pr_warn("md/raid:%s: PPL space too small on %s\n",
@@ -1360,7 +1361,7 @@ int ppl_init_log(struct r5conf *conf)
 		return -EINVAL;
 	}
 
-	max_disks = FIELD_SIZEOF(struct ppl_log, disk_flush_bitmap) *
+	max_disks = sizeof_field(struct ppl_log, disk_flush_bitmap) *
 		BITS_PER_BYTE;
 	if (conf->raid_disks > max_disks) {
 		pr_warn("md/raid:%s PPL doesn't support over %d disks in the array\n",
@@ -1404,7 +1405,7 @@ int ppl_init_log(struct r5conf *conf)
 	atomic64_set(&ppl_conf->seq, 0);
 	INIT_LIST_HEAD(&ppl_conf->no_mem_stripes);
 	spin_lock_init(&ppl_conf->no_mem_stripes_lock);
-	ppl_conf->write_hint = RWF_WRITE_LIFE_NOT_SET;
+	ppl_conf->write_hint = RWH_WRITE_LIFE_NOT_SET;
 
 	if (!mddev->external) {
 		ppl_conf->signature = ~crc32c_le(~0, mddev->uuid, sizeof(mddev->uuid));

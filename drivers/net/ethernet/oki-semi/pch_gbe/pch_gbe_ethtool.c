@@ -8,7 +8,7 @@
 #include "pch_gbe.h"
 #include "pch_gbe_phy.h"
 
-/**
+/*
  * pch_gbe_stats - Stats item information
  */
 struct pch_gbe_stats {
@@ -20,11 +20,11 @@ struct pch_gbe_stats {
 #define PCH_GBE_STAT(m)						\
 {								\
 	.string = #m,						\
-	.size = FIELD_SIZEOF(struct pch_gbe_hw_stats, m),	\
+	.size = sizeof_field(struct pch_gbe_hw_stats, m),	\
 	.offset = offsetof(struct pch_gbe_hw_stats, m),		\
 }
 
-/**
+/*
  * pch_gbe_gstrings_stats - ethtool information status name list
  */
 static const struct pch_gbe_stats pch_gbe_gstrings_stats[] = {

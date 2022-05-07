@@ -81,7 +81,7 @@ of queues to IRQs can be determined from /proc/interrupts. By default,
 an IRQ may be handled on any CPU. Because a non-negligible part of packet
 processing takes place in receive interrupt handling, it is advantageous
 to spread receive interrupts between CPUs. To manually adjust the IRQ
-affinity of each interrupt see Documentation/IRQ-affinity.txt. Some systems
+affinity of each interrupt see Documentation/core-api/irq/irq-affinity.rst. Some systems
 will be running irqbalance, a daemon that dynamically optimizes IRQ
 assignments and as a result may override any manual settings.
 
@@ -160,7 +160,7 @@ can be configured for each receive queue using a sysfs file entry::
 
 This file implements a bitmap of CPUs. RPS is disabled when it is zero
 (the default), in which case packets are processed on the interrupting
-CPU. Documentation/IRQ-affinity.txt explains how CPUs are assigned to
+CPU. Documentation/core-api/irq/irq-affinity.rst explains how CPUs are assigned to
 the bitmap.
 
 
@@ -465,9 +465,9 @@ XPS Configuration
 -----------------
 
 XPS is only available if the kconfig symbol CONFIG_XPS is enabled (on by
-default for SMP). The functionality remains disabled until explicitly
-configured. To enable XPS, the bitmap of CPUs/receive-queues that may
-use a transmit queue is configured using the sysfs file entry:
+default for SMP). If compiled in, it is driver dependent whether, and
+how, XPS is configured at device init. The mapping of CPUs/receive-queues
+to transmit queue can be inspected and configured using sysfs:
 
 For selection based on CPUs map::
 

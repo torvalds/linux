@@ -5,6 +5,8 @@
 #include <bpf/libbpf.h>
 #include <string.h>
 
+int extra_prog_load_log_flags = 0;
+
 int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 		       struct bpf_object **pobj, int *prog_fd)
 {
@@ -15,6 +17,7 @@ int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 	attr.prog_type = type;
 	attr.expected_attach_type = 0;
 	attr.prog_flags = BPF_F_TEST_RND_HI32;
+	attr.log_level = extra_prog_load_log_flags;
 
 	return bpf_prog_load_xattr(&attr, pobj, prog_fd);
 }
@@ -35,6 +38,7 @@ int bpf_test_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 	load_attr.license = license;
 	load_attr.kern_version = kern_version;
 	load_attr.prog_flags = BPF_F_TEST_RND_HI32;
+	load_attr.log_level = extra_prog_load_log_flags;
 
 	return bpf_load_program_xattr(&load_attr, log_buf, log_buf_sz);
 }

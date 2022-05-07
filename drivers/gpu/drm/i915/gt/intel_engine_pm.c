@@ -6,34 +6,53 @@
 
 #include "i915_drv.h"
 
+#include "intel_breadcrumbs.h"
+#include "intel_context.h"
 #include "intel_engine.h"
+#include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
-#include "intel_engine_pool.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
+#include "intel_rc6.h"
+#include "intel_ring.h"
+#include "shmem_utils.h"
 
 static int __engine_unpark(struct intel_wakeref *wf)
 {
 	struct intel_engine_cs *engine =
 		container_of(wf, typeof(*engine), wakeref);
-	void *map;
+	struct intel_context *ce;
 
-	GEM_TRACE("%s\n", engine->name);
+	ENGINE_TRACE(engine, "\n");
 
 	intel_gt_pm_get(engine->gt);
 
-	/* Pin the default state for fast resets from atomic context. */
-	map = NULL;
-	if (engine->default_state)
-		map = i915_gem_object_pin_map(engine->default_state,
-					      I915_MAP_WB);
-	if (!IS_ERR_OR_NULL(map))
-		engine->pinned_default_state = map;
+	/* Discard stale context state from across idling */
+	ce = engine->kernel_context;
+	if (ce) {
+		GEM_BUG_ON(test_bit(CONTEXT_VALID_BIT, &ce->flags));
+
+		/* First poison the image to verify we never fully trust it */
+		if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM) && ce->state) {
+			struct drm_i915_gem_object *obj = ce->state->obj;
+			int type = i915_coherent_map_type(engine->i915);
+			void *map;
+
+			map = i915_gem_object_pin_map(obj, type);
+			if (!IS_ERR(map)) {
+				memset(map, CONTEXT_REDZONE, obj->base.size);
+				i915_gem_object_flush_map(obj);
+				i915_gem_object_unpin_map(obj);
+			}
+		}
+
+		ce->ops->reset(ce);
+	}
 
 	if (engine->unpark)
 		engine->unpark(engine);
 
-	intel_engine_init_hangcheck(engine);
+	intel_engine_unpark_heartbeat(engine);
 	return 0;
 }
 
@@ -52,7 +71,7 @@ static inline unsigned long __timeline_mark_lock(struct intel_context *ce)
 static inline void __timeline_mark_unlock(struct intel_context *ce,
 					  unsigned long flags)
 {
-	mutex_release(&ce->timeline->mutex.dep_map, 0, _THIS_IP_);
+	mutex_release(&ce->timeline->mutex.dep_map, _THIS_IP_);
 	local_irq_restore(flags);
 }
 
@@ -70,18 +89,64 @@ static inline void __timeline_mark_unlock(struct intel_context *ce,
 
 #endif /* !IS_ENABLED(CONFIG_LOCKDEP) */
 
+static void duration(struct dma_fence *fence, struct dma_fence_cb *cb)
+{
+	struct i915_request *rq = to_request(fence);
+
+	ewma__engine_latency_add(&rq->engine->latency,
+				 ktime_us_delta(rq->fence.timestamp,
+						rq->duration.emitted));
+}
+
+static void
+__queue_and_release_pm(struct i915_request *rq,
+		       struct intel_timeline *tl,
+		       struct intel_engine_cs *engine)
+{
+	struct intel_gt_timelines *timelines = &engine->gt->timelines;
+
+	ENGINE_TRACE(engine, "parking\n");
+
+	/*
+	 * We have to serialise all potential retirement paths with our
+	 * submission, as we don't want to underflow either the
+	 * engine->wakeref.counter or our timeline->active_count.
+	 *
+	 * Equally, we cannot allow a new submission to start until
+	 * after we finish queueing, nor could we allow that submitter
+	 * to retire us before we are ready!
+	 */
+	spin_lock(&timelines->lock);
+
+	/* Let intel_gt_retire_requests() retire us (acquired under lock) */
+	if (!atomic_fetch_inc(&tl->active_count))
+		list_add_tail(&tl->link, &timelines->active_list);
+
+	/* Hand the request over to HW and so engine_retire() */
+	__i915_request_queue(rq, NULL);
+
+	/* Let new submissions commence (and maybe retire this timeline) */
+	__intel_wakeref_defer_park(&engine->wakeref);
+
+	spin_unlock(&timelines->lock);
+}
+
 static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 {
+	struct intel_context *ce = engine->kernel_context;
 	struct i915_request *rq;
 	unsigned long flags;
 	bool result = true;
 
-	/* Already inside the kernel context, safe to power down. */
-	if (engine->wakeref_serial == engine->serial)
-		return true;
-
 	/* GPU is pointing to the void, as good as in the kernel context. */
 	if (intel_gt_is_wedged(engine->gt))
+		return true;
+
+	GEM_BUG_ON(!intel_context_is_barrier(ce));
+	GEM_BUG_ON(ce->timeline->hwsp_ggtt != engine->status_page.vma);
+
+	/* Already inside the kernel context, safe to power down. */
+	if (engine->wakeref_serial == engine->serial)
 		return true;
 
 	/*
@@ -95,32 +160,70 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 	 * This should hold true as we can only park the engine after
 	 * retiring the last request, thus all rings should be empty and
 	 * all timelines idle.
+	 *
+	 * For unlocking, there are 2 other parties and the GPU who have a
+	 * stake here.
+	 *
+	 * A new gpu user will be waiting on the engine-pm to start their
+	 * engine_unpark. New waiters are predicated on engine->wakeref.count
+	 * and so intel_wakeref_defer_park() acts like a mutex_unlock of the
+	 * engine->wakeref.
+	 *
+	 * The other party is intel_gt_retire_requests(), which is walking the
+	 * list of active timelines looking for completions. Meanwhile as soon
+	 * as we call __i915_request_queue(), the GPU may complete our request.
+	 * Ergo, if we put ourselves on the timelines.active_list
+	 * (se intel_timeline_enter()) before we increment the
+	 * engine->wakeref.count, we may see the request completion and retire
+	 * it causing an underflow of the engine->wakeref.
 	 */
-	flags = __timeline_mark_lock(engine->kernel_context);
+	flags = __timeline_mark_lock(ce);
+	GEM_BUG_ON(atomic_read(&ce->timeline->active_count) < 0);
 
-	rq = __i915_request_create(engine->kernel_context, GFP_NOWAIT);
+	rq = __i915_request_create(ce, GFP_NOWAIT);
 	if (IS_ERR(rq))
 		/* Context switch failed, hope for the best! Maybe reset? */
 		goto out_unlock;
-
-	intel_timeline_enter(rq->timeline);
 
 	/* Check again on the next retirement. */
 	engine->wakeref_serial = engine->serial + 1;
 	i915_request_add_active_barriers(rq);
 
 	/* Install ourselves as a preemption barrier */
-	rq->sched.attr.priority = I915_PRIORITY_UNPREEMPTABLE;
-	__i915_request_commit(rq);
+	rq->sched.attr.priority = I915_PRIORITY_BARRIER;
+	if (likely(!__i915_request_commit(rq))) { /* engine should be idle! */
+		/*
+		 * Use an interrupt for precise measurement of duration,
+		 * otherwise we rely on someone else retiring all the requests
+		 * which may delay the signaling (i.e. we will likely wait
+		 * until the background request retirement running every
+		 * second or two).
+		 */
+		BUILD_BUG_ON(sizeof(rq->duration) > sizeof(rq->submitq));
+		dma_fence_add_callback(&rq->fence, &rq->duration.cb, duration);
+		rq->duration.emitted = ktime_get();
+	}
 
-	/* Release our exclusive hold on the engine */
-	__intel_wakeref_defer_park(&engine->wakeref);
-	__i915_request_queue(rq, NULL);
+	/* Expose ourselves to the world */
+	__queue_and_release_pm(rq, ce->timeline, engine);
 
 	result = false;
 out_unlock:
-	__timeline_mark_unlock(engine->kernel_context, flags);
+	__timeline_mark_unlock(ce, flags);
 	return result;
+}
+
+static void call_idle_barriers(struct intel_engine_cs *engine)
+{
+	struct llist_node *node, *next;
+
+	llist_for_each_safe(node, next, llist_del_all(&engine->barrier_tasks)) {
+		struct dma_fence_cb *cb =
+			container_of((struct list_head *)node,
+				     typeof(*cb), node);
+
+		cb->func(ERR_PTR(-EAGAIN), cb);
+	}
 }
 
 static int __engine_park(struct intel_wakeref *wf)
@@ -140,10 +243,12 @@ static int __engine_park(struct intel_wakeref *wf)
 	if (!switch_to_kernel_context(engine))
 		return -EBUSY;
 
-	GEM_TRACE("%s\n", engine->name);
+	ENGINE_TRACE(engine, "parked\n");
 
-	intel_engine_disarm_breadcrumbs(engine);
-	intel_engine_pool_park(&engine->pool);
+	call_idle_barriers(engine); /* cleanup after wedging */
+
+	intel_engine_park_heartbeat(engine);
+	intel_breadcrumbs_park(engine->breadcrumbs);
 
 	/* Must be reset upon idling, or we may miss the busy wakeup. */
 	GEM_BUG_ON(engine->execlists.queue_priority_hint != INT_MIN);
@@ -151,14 +256,10 @@ static int __engine_park(struct intel_wakeref *wf)
 	if (engine->park)
 		engine->park(engine);
 
-	if (engine->pinned_default_state) {
-		i915_gem_object_unpin_map(engine->default_state);
-		engine->pinned_default_state = NULL;
-	}
-
 	engine->execlists.no_priolist = false;
 
-	intel_gt_pm_put(engine->gt);
+	/* While gt calls i915_vma_parked(), we have to break the lock cycle */
+	intel_gt_pm_put_async(engine->gt);
 	return 0;
 }
 
@@ -169,9 +270,10 @@ static const struct intel_wakeref_ops wf_ops = {
 
 void intel_engine_init__pm(struct intel_engine_cs *engine)
 {
-	struct intel_runtime_pm *rpm = &engine->i915->runtime_pm;
+	struct intel_runtime_pm *rpm = engine->uncore->rpm;
 
 	intel_wakeref_init(&engine->wakeref, rpm, &wf_ops);
+	intel_engine_init_heartbeat(engine);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

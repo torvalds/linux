@@ -35,7 +35,7 @@ physical memory (demand paging) and provides a mechanism for the
 protection and controlled sharing of data between processes.
 
 With virtual memory, each and every memory access uses a virtual
-address. When the CPU decodes the an instruction that reads (or
+address. When the CPU decodes an instruction that reads (or
 writes) from (or to) the system memory, it translates the `virtual`
 address encoded in that instruction to a `physical` address that the
 memory controller can understand.

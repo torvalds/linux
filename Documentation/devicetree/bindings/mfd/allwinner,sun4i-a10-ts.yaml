@@ -8,7 +8,7 @@ title: Allwinner A10 Resistive Touchscreen Controller Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   "#thermal-sensor-cells":
@@ -31,19 +31,19 @@ properties:
     description: A touchscreen is attached to the controller
 
   allwinner,tp-sensitive-adjust:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-        maximum: 15
-        default: 15
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 15
+    default: 15
+
     description: Sensitivity of pen down detection
 
   allwinner,filter-type:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-        maximum: 3
-        default: 1
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 3
+    default: 1
+
     description: |
       Select median and averaging filter. Sample used for median /
       averaging filter:

@@ -27,6 +27,7 @@ properties:
               - rockchip,rk3066-uart
               - rockchip,rk3188-uart
               - rockchip,rk3288-uart
+              - rockchip,rk3308-uart
               - rockchip,rk3328-uart
               - rockchip,rk3368-uart
               - rockchip,rk3399-uart
@@ -99,6 +100,8 @@ required:
   - compatible
   - reg
   - interrupts
+
+unevaluatedProperties: false
 
 examples:
   - |

@@ -24,7 +24,7 @@ static void *get_ipc(struct ctl_table *table)
 
 #ifdef CONFIG_PROC_SYSCTL
 static int proc_ipc_dointvec(struct ctl_table *table, int write,
-	void __user *buffer, size_t *lenp, loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table ipc_table;
 
@@ -35,7 +35,7 @@ static int proc_ipc_dointvec(struct ctl_table *table, int write,
 }
 
 static int proc_ipc_dointvec_minmax(struct ctl_table *table, int write,
-	void __user *buffer, size_t *lenp, loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table ipc_table;
 
@@ -46,7 +46,7 @@ static int proc_ipc_dointvec_minmax(struct ctl_table *table, int write,
 }
 
 static int proc_ipc_dointvec_minmax_orphans(struct ctl_table *table, int write,
-	void __user *buffer, size_t *lenp, loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ipc_namespace *ns = current->nsproxy->ipc_ns;
 	int err = proc_ipc_dointvec_minmax(table, write, buffer, lenp, ppos);
@@ -59,7 +59,7 @@ static int proc_ipc_dointvec_minmax_orphans(struct ctl_table *table, int write,
 }
 
 static int proc_ipc_doulongvec_minmax(struct ctl_table *table, int write,
-	void __user *buffer, size_t *lenp, loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table ipc_table;
 	memcpy(&ipc_table, table, sizeof(ipc_table));
@@ -70,7 +70,7 @@ static int proc_ipc_doulongvec_minmax(struct ctl_table *table, int write,
 }
 
 static int proc_ipc_auto_msgmni(struct ctl_table *table, int write,
-	void __user *buffer, size_t *lenp, loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table ipc_table;
 	int dummy = 0;
@@ -85,7 +85,7 @@ static int proc_ipc_auto_msgmni(struct ctl_table *table, int write,
 }
 
 static int proc_ipc_sem_dointvec(struct ctl_table *table, int write,
-	void __user *buffer, size_t *lenp, loff_t *ppos)
+	void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret, semmni;
 	struct ipc_namespace *ns = current->nsproxy->ipc_ns;

@@ -10,31 +10,39 @@
 
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
-#include <linux/spi/spi.h>
 
 #include <video/mipi_display.h>
+
+#include "panel-samsung-s6e63m0.h"
 
 /* Manufacturer Command Set */
 #define MCS_ELVSS_ON                0xb1
 #define MCS_MIECTL1                0xc0
 #define MCS_BCMODE                              0xc1
+#define MCS_ERROR_CHECK		0xd5
+#define MCS_READ_ID1		0xda
+#define MCS_READ_ID2		0xdb
+#define MCS_READ_ID3		0xdc
+#define MCS_LEVEL_2_KEY		0xf0
+#define MCS_MTP_KEY		0xf1
 #define MCS_DISCTL   0xf2
 #define MCS_SRCCTL           0xf6
 #define MCS_IFCTL                       0xf7
 #define MCS_PANELCTL         0xF8
 #define MCS_PGAMMACTL                   0xfa
 
+#define S6E63M0_LCD_ID_VALUE_M2		0xA4
+#define S6E63M0_LCD_ID_VALUE_SM2	0xB4
+#define S6E63M0_LCD_ID_VALUE_SM2_1	0xB6
+
 #define NUM_GAMMA_LEVELS             11
 #define GAMMA_TABLE_COUNT           23
-
-#define DATA_MASK                                       0x100
 
 #define MAX_BRIGHTNESS              (NUM_GAMMA_LEVELS - 1)
 
@@ -88,8 +96,11 @@ static u8 const s6e63m0_gamma_22[NUM_GAMMA_LEVELS][GAMMA_TABLE_COUNT] = {
 
 struct s6e63m0 {
 	struct device *dev;
+	int (*dcs_read)(struct device *dev, const u8 cmd, u8 *val);
+	int (*dcs_write)(struct device *dev, const u8 *data, size_t len);
 	struct drm_panel panel;
 	struct backlight_device *bl_dev;
+	u8 lcd_type;
 
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset_gpio;
@@ -117,7 +128,6 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start	= 800 + 28,
 	.vsync_end	= 800 + 28 + 2,
 	.vtotal		= 800 + 28 + 2 + 1,
-	.vrefresh	= 60,
 	.width_mm	= 53,
 	.height_mm	= 89,
 	.flags		= DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
@@ -136,43 +146,20 @@ static int s6e63m0_clear_error(struct s6e63m0 *ctx)
 	return ret;
 }
 
-static int s6e63m0_spi_write_word(struct s6e63m0 *ctx, u16 data)
+static void s6e63m0_dcs_read(struct s6e63m0 *ctx, const u8 cmd, u8 *data)
 {
-	struct spi_device *spi = to_spi_device(ctx->dev);
-	struct spi_transfer xfer = {
-		.len	= 2,
-		.tx_buf = &data,
-	};
-	struct spi_message msg;
+	if (ctx->error < 0)
+		return;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-
-	return spi_sync(spi, &msg);
+	ctx->error = ctx->dcs_read(ctx->dev, cmd, data);
 }
 
 static void s6e63m0_dcs_write(struct s6e63m0 *ctx, const u8 *data, size_t len)
 {
-	int ret = 0;
-
 	if (ctx->error < 0 || len == 0)
 		return;
 
-	DRM_DEV_DEBUG(ctx->dev, "writing dcs seq: %*ph\n", (int)len, data);
-	ret = s6e63m0_spi_write_word(ctx, *data);
-
-	while (!ret && --len) {
-		++data;
-		ret = s6e63m0_spi_write_word(ctx, *data | DATA_MASK);
-	}
-
-	if (ret) {
-		DRM_DEV_ERROR(ctx->dev, "error %d writing dcs seq: %*ph\n", ret,
-			      (int)len, data);
-		ctx->error = ret;
-	}
-
-	usleep_range(300, 310);
+	ctx->error = ctx->dcs_write(ctx->dev, data, len);
 }
 
 #define s6e63m0_dcs_write_seq_static(ctx, seq ...) \
@@ -180,6 +167,43 @@ static void s6e63m0_dcs_write(struct s6e63m0 *ctx, const u8 *data, size_t len)
 		static const u8 d[] = { seq }; \
 		s6e63m0_dcs_write(ctx, d, ARRAY_SIZE(d)); \
 	})
+
+static int s6e63m0_check_lcd_type(struct s6e63m0 *ctx)
+{
+	u8 id1, id2, id3;
+	int ret;
+
+	s6e63m0_dcs_read(ctx, MCS_READ_ID1, &id1);
+	s6e63m0_dcs_read(ctx, MCS_READ_ID2, &id2);
+	s6e63m0_dcs_read(ctx, MCS_READ_ID3, &id3);
+
+	ret = s6e63m0_clear_error(ctx);
+	if (ret) {
+		dev_err(ctx->dev, "error checking LCD type (%d)\n", ret);
+		ctx->lcd_type = 0x00;
+		return ret;
+	}
+
+	dev_info(ctx->dev, "MTP ID: %02x %02x %02x\n", id1, id2, id3);
+
+	/* We attempt to detect what panel is mounted on the controller */
+	switch (id2) {
+	case S6E63M0_LCD_ID_VALUE_M2:
+		dev_info(ctx->dev, "detected LCD panel AMS397GE MIPI M2\n");
+		break;
+	case S6E63M0_LCD_ID_VALUE_SM2:
+	case S6E63M0_LCD_ID_VALUE_SM2_1:
+		dev_info(ctx->dev, "detected LCD panel AMS397GE MIPI SM2\n");
+		break;
+	default:
+		dev_info(ctx->dev, "unknown LCD panel type %02x\n", id2);
+		break;
+	}
+
+	ctx->lcd_type = id2;
+
+	return 0;
+}
 
 static void s6e63m0_init(struct s6e63m0 *ctx)
 {
@@ -252,8 +276,6 @@ static void s6e63m0_init(struct s6e63m0 *ctx)
 
 	s6e63m0_dcs_write_seq_static(ctx, MCS_ELVSS_ON,
 				     0x0b);
-
-	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_EXIT_SLEEP_MODE);
 }
 
 static int s6e63m0_power_on(struct s6e63m0 *ctx)
@@ -266,6 +288,9 @@ static int s6e63m0_power_on(struct s6e63m0 *ctx)
 
 	msleep(25);
 
+	/* Be sure to send a reset pulse */
+	gpiod_set_value(ctx->reset_gpio, 1);
+	msleep(5);
 	gpiod_set_value(ctx->reset_gpio, 0);
 	msleep(120);
 
@@ -295,8 +320,10 @@ static int s6e63m0_disable(struct drm_panel *panel)
 
 	backlight_disable(ctx->bl_dev);
 
+	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_SET_DISPLAY_OFF);
+	msleep(10);
 	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_ENTER_SLEEP_MODE);
-	msleep(200);
+	msleep(120);
 
 	ctx->enabled = false;
 
@@ -334,6 +361,15 @@ static int s6e63m0_prepare(struct drm_panel *panel)
 	if (ret < 0)
 		return ret;
 
+	/* Magic to unlock level 2 control of the display */
+	s6e63m0_dcs_write_seq_static(ctx, MCS_LEVEL_2_KEY, 0x5a, 0x5a);
+	/* Magic to unlock MTP reading */
+	s6e63m0_dcs_write_seq_static(ctx, MCS_MTP_KEY, 0x5a, 0x5a);
+
+	ret = s6e63m0_check_lcd_type(ctx);
+	if (ret < 0)
+		return ret;
+
 	s6e63m0_init(ctx);
 
 	ret = s6e63m0_clear_error(ctx);
@@ -353,7 +389,15 @@ static int s6e63m0_enable(struct drm_panel *panel)
 	if (ctx->enabled)
 		return 0;
 
+	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_EXIT_SLEEP_MODE);
+	msleep(120);
 	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_SET_DISPLAY_ON);
+	msleep(10);
+
+	s6e63m0_dcs_write_seq_static(ctx, MCS_ERROR_CHECK,
+				     0xE7, 0x14, 0x60, 0x17, 0x0A, 0x49, 0xC3,
+				     0x8F, 0x19, 0x64, 0x91, 0x84, 0x76, 0x20,
+				     0x0F, 0x00);
 
 	backlight_enable(ctx->bl_dev);
 
@@ -362,16 +406,16 @@ static int s6e63m0_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int s6e63m0_get_modes(struct drm_panel *panel)
+static int s6e63m0_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
-		DRM_ERROR("failed to add mode %ux%ux@%u\n",
-			  default_mode.hdisplay, default_mode.vdisplay,
-			  default_mode.vrefresh);
+		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
+			default_mode.hdisplay, default_mode.vdisplay,
+			drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 
@@ -426,16 +470,17 @@ static int s6e63m0_backlight_register(struct s6e63m0 *ctx)
 						     &props);
 	if (IS_ERR(ctx->bl_dev)) {
 		ret = PTR_ERR(ctx->bl_dev);
-		DRM_DEV_ERROR(dev, "error registering backlight device (%d)\n",
-			      ret);
+		dev_err(dev, "error registering backlight device (%d)\n", ret);
 	}
 
 	return ret;
 }
 
-static int s6e63m0_probe(struct spi_device *spi)
+int s6e63m0_probe(struct device *dev,
+		  int (*dcs_read)(struct device *dev, const u8 cmd, u8 *val),
+		  int (*dcs_write)(struct device *dev, const u8 *data, size_t len),
+		  bool dsi_mode)
 {
-	struct device *dev = &spi->dev;
 	struct s6e63m0 *ctx;
 	int ret;
 
@@ -443,7 +488,9 @@ static int s6e63m0_probe(struct spi_device *spi)
 	if (!ctx)
 		return -ENOMEM;
 
-	spi_set_drvdata(spi, ctx);
+	ctx->dcs_read = dcs_read;
+	ctx->dcs_write = dcs_write;
+	dev_set_drvdata(dev, ctx);
 
 	ctx->dev = dev;
 	ctx->enabled = false;
@@ -454,60 +501,39 @@ static int s6e63m0_probe(struct spi_device *spi)
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(ctx->supplies),
 				      ctx->supplies);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "failed to get regulators: %d\n", ret);
+		dev_err(dev, "failed to get regulators: %d\n", ret);
 		return ret;
 	}
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
-		DRM_DEV_ERROR(dev, "cannot get reset-gpios %ld\n",
-			      PTR_ERR(ctx->reset_gpio));
+		dev_err(dev, "cannot get reset-gpios %ld\n", PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
-	spi->bits_per_word = 9;
-	spi->mode = SPI_MODE_3;
-	ret = spi_setup(spi);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "spi setup failed.\n");
-		return ret;
-	}
-
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = &s6e63m0_drm_funcs;
+	drm_panel_init(&ctx->panel, dev, &s6e63m0_drm_funcs,
+		       dsi_mode ? DRM_MODE_CONNECTOR_DSI :
+		       DRM_MODE_CONNECTOR_DPI);
 
 	ret = s6e63m0_backlight_register(ctx);
 	if (ret < 0)
 		return ret;
 
-	return drm_panel_add(&ctx->panel);
-}
+	drm_panel_add(&ctx->panel);
 
-static int s6e63m0_remove(struct spi_device *spi)
+	return 0;
+}
+EXPORT_SYMBOL_GPL(s6e63m0_probe);
+
+int s6e63m0_remove(struct device *dev)
 {
-	struct s6e63m0 *ctx = spi_get_drvdata(spi);
+	struct s6e63m0 *ctx = dev_get_drvdata(dev);
 
 	drm_panel_remove(&ctx->panel);
 
 	return 0;
 }
-
-static const struct of_device_id s6e63m0_of_match[] = {
-	{ .compatible = "samsung,s6e63m0" },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, s6e63m0_of_match);
-
-static struct spi_driver s6e63m0_driver = {
-	.probe			= s6e63m0_probe,
-	.remove			= s6e63m0_remove,
-	.driver			= {
-		.name		= "panel-samsung-s6e63m0",
-		.of_match_table = s6e63m0_of_match,
-	},
-};
-module_spi_driver(s6e63m0_driver);
+EXPORT_SYMBOL_GPL(s6e63m0_remove);
 
 MODULE_AUTHOR("Paweł Chmiel <pawel.mikolaj.chmiel@gmail.com>");
 MODULE_DESCRIPTION("s6e63m0 LCD Driver");

@@ -23,7 +23,7 @@ error injections without having to know the details of the driver-specific
 commands.
 
 Note that the output of 'error-inj' shall be valid as input to 'error-inj'.
-So this must work:
+So this must work::
 
 	$ cat error-inj >einj.txt
 	$ cat einj.txt >error-inj
@@ -37,4 +37,4 @@ when changes are made.
 
 The following CEC error injection implementations exist:
 
-- Documentation/media/uapi/cec/cec-pin-error-inj.rst
+- Documentation/userspace-api/media/cec/cec-pin-error-inj.rst

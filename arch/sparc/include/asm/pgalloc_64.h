@@ -16,12 +16,12 @@
 
 extern struct kmem_cache *pgtable_cache;
 
-static inline void __pgd_populate(pgd_t *pgd, pud_t *pud)
+static inline void __p4d_populate(p4d_t *p4d, pud_t *pud)
 {
-	pgd_set(pgd, pud);
+	p4d_set(p4d, pud);
 }
 
-#define pgd_populate(MM, PGD, PUD)	__pgd_populate(PGD, PUD)
+#define p4d_populate(MM, P4D, PUD)	__p4d_populate(P4D, PUD)
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
@@ -67,7 +67,7 @@ void pte_free(struct mm_struct *mm, pgtable_t ptepage);
 
 #define pmd_populate_kernel(MM, PMD, PTE)	pmd_set(MM, PMD, PTE)
 #define pmd_populate(MM, PMD, PTE)		pmd_set(MM, PMD, PTE)
-#define pmd_pgtable(PMD)			((pte_t *)__pmd_page(PMD))
+#define pmd_pgtable(PMD)			((pte_t *)pmd_page_vaddr(PMD))
 
 void pgtable_free(void *table, bool is_page);
 

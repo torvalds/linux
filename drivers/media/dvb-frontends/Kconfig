@@ -1,4 +1,8 @@
-comment "DVB Frontend drivers hidden by 'Autoselect ancillary drivers'"
+# SPDX-License-Identifier: GPL-2.0
+
+if MEDIA_DIGITAL_TV_SUPPORT
+
+comment "DVB Frontend drivers auto-selected by 'Autoselect ancillary drivers'"
 	depends on MEDIA_HIDE_ANCILLARY_SUBDRV
 
 menu "Customise DVB Frontends"
@@ -943,9 +947,15 @@ config DVB_SP2
 	help
 	  CIMaX SP2/SP2HF Common Interface module.
 
+endmenu # Customise DVB Frontends
+
+endif # MEDIA_DIGITAL_TV_SUPPORT
+
 comment "Tools to develop new frontends"
+	depends on MEDIA_TEST_SUPPORT
 
 config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
-	depends on DVB_CORE
-endmenu
+	depends on MEDIA_TEST_SUPPORT && DVB_CORE
+	help
+	  Dummy skeleton frontend driver.

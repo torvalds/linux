@@ -254,7 +254,7 @@ static int  ni65_lance_reinit(struct net_device *dev);
 static void ni65_init_lance(struct priv *p,unsigned char*,int,int);
 static netdev_tx_t ni65_send_packet(struct sk_buff *skb,
 				    struct net_device *dev);
-static void  ni65_timeout(struct net_device *dev);
+static void  ni65_timeout(struct net_device *dev, unsigned int txqueue);
 static int  ni65_close(struct net_device *dev);
 static int  ni65_alloc_buffer(struct net_device *dev);
 static void ni65_free_buffer(struct priv *p);
@@ -1133,7 +1133,7 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
  * kick xmitter ..
  */
 
-static void ni65_timeout(struct net_device *dev)
+static void ni65_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	int i;
 	struct priv *p = dev->ml_priv;

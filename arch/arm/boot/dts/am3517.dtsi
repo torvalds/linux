@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for am3517 SoC
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -10,10 +10,45 @@
 
 #include "omap3.dtsi"
 
+/* AM3517 doesn't appear to have the crypto engines defined in omap3.dtsi */
+/delete-node/ &aes1_target;
+/delete-node/ &aes2_target;
+
 / {
 	aliases {
 		serial3 = &uart4;
 		can = &hecc;
+	};
+
+	cpus {
+		cpu: cpu@0 {
+			/* Based on OMAP3630 variants OPP50 and OPP100 */
+			operating-points-v2 = <&cpu0_opp_table>;
+
+			clock-latency = <300000>; /* From legacy driver */
+		};
+	};
+
+	cpu0_opp_table: opp-table {
+		compatible = "operating-points-v2-ti-cpu";
+		syscon = <&scm_conf>;
+		/*
+		 * AM3517 TRM only lists 600MHz @ 1.2V, but omap36xx
+		 * appear to operate at 300MHz as well. Since AM3517 only
+		 * lists one operating voltage, it will remain fixed at 1.2V
+		 */
+		opp50-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1200000>;
+			opp-supported-hw = <0xffffffff 0xffffffff>;
+			opp-suspend;
+		};
+
+		opp100-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1200000>;
+			opp-supported-hw = <0xffffffff 0xffffffff>;
+		};
 	};
 
 	ocp@68000000 {
@@ -43,7 +78,7 @@
 			clock-names = "ick";
 		};
 
-		davinci_mdio: ethernet@5c030000 {
+		davinci_mdio: mdio@5c030000 {
 			compatible = "ti,davinci_mdio";
 			ti,hwmods = "davinci_mdio";
 			status = "disabled";
@@ -115,6 +150,12 @@
 	};
 };
 
+/* Not currently working, probably needs at least different clocks */
+&rng_target {
+	status = "disabled";
+	/delete-property/ clocks;
+};
+
 /* Table Table 5-79 of the TRM shows 480ab000 is reserved */
 &usb_otg_hs {
 	status = "disabled";
@@ -132,5 +173,25 @@
 	status = "disabled";
 };
 
-/include/ "am35xx-clocks.dtsi"
-/include/ "omap36xx-am35xx-omap3430es2plus-clocks.dtsi"
+#include "am35xx-clocks.dtsi"
+#include "omap36xx-am35xx-omap3430es2plus-clocks.dtsi"
+
+/* Preferred always-on timer for clocksource */
+&timer1_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&gpt1_fck>;
+		assigned-clock-parents = <&sys_ck>;
+	};
+};
+
+/* Preferred timer for clockevent */
+&timer2_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		assigned-clocks = <&gpt2_fck>;
+		assigned-clock-parents = <&sys_ck>;
+	};
+};

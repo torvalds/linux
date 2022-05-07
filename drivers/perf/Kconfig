@@ -41,6 +41,13 @@ config ARM_CCN
 	  PMU (perf) driver supporting the ARM CCN (Cache Coherent Network)
 	  interconnect.
 
+config ARM_CMN
+	tristate "Arm CMN-600 PMU support"
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	help
+	  Support for PMU events monitoring on the Arm CMN-600 Coherent Mesh
+	  Network interconnect.
+
 config ARM_PMU
 	depends on ARM || ARM64
 	bool "ARM PMU framework"
@@ -79,16 +86,10 @@ config FSL_IMX8_DDR_PMU
 	  can give information about memory throughput and other related
 	  events.
 
-config HISI_PMU
-       bool "HiSilicon SoC PMU"
-       depends on ARM64 && ACPI
-       help
-         Support for HiSilicon SoC uncore performance monitoring
-         unit (PMU), such as: L3C, HHA and DDRC.
-
 config QCOM_L2_PMU
 	bool "Qualcomm Technologies L2-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI
+	select QCOM_KRYO_L2_ACCESSORS
 	  help
 	  Provides support for the L2 cache performance monitor unit (PMU)
 	  in Qualcomm Technologies processors.
@@ -128,5 +129,7 @@ config ARM_SPE_PMU
 	  Enable perf support for the ARMv8.2 Statistical Profiling
 	  Extension, which provides periodic sampling of operations in
 	  the CPU pipeline and reports this via the perf AUX interface.
+
+source "drivers/perf/hisilicon/Kconfig"
 
 endmenu

@@ -16,5 +16,9 @@
 #define PHY_TYPE_USB2		3
 #define PHY_TYPE_USB3		4
 #define PHY_TYPE_UFS		5
+#define PHY_TYPE_DP		6
+#define PHY_TYPE_XPCS		7
+#define PHY_TYPE_SGMII		8
+#define PHY_TYPE_QSGMII		9
 
 #endif /* _DT_BINDINGS_PHY */

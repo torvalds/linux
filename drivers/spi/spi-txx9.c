@@ -26,7 +26,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
+#include <linux/gpio/consumer.h>
 
 
 #define SPI_FIFO_SIZE 4
@@ -79,7 +80,7 @@ struct txx9spi {
 	void __iomem *membase;
 	int baseclk;
 	struct clk *clk;
-	int last_chipselect;
+	struct gpio_desc *last_chipselect;
 	int last_chipselect_val;
 };
 
@@ -95,20 +96,22 @@ static void txx9spi_wr(struct txx9spi *c, u32 val, int reg)
 static void txx9spi_cs_func(struct spi_device *spi, struct txx9spi *c,
 		int on, unsigned int cs_delay)
 {
-	int val = (spi->mode & SPI_CS_HIGH) ? on : !on;
-
+	/*
+	 * The GPIO descriptor will track polarity inversion inside
+	 * gpiolib.
+	 */
 	if (on) {
 		/* deselect the chip with cs_change hint in last transfer */
-		if (c->last_chipselect >= 0)
-			gpio_set_value(c->last_chipselect,
+		if (c->last_chipselect)
+			gpiod_set_value(c->last_chipselect,
 					!c->last_chipselect_val);
-		c->last_chipselect = spi->chip_select;
-		c->last_chipselect_val = val;
+		c->last_chipselect = spi->cs_gpiod;
+		c->last_chipselect_val = on;
 	} else {
-		c->last_chipselect = -1;
+		c->last_chipselect = NULL;
 		ndelay(cs_delay);	/* CS Hold Time */
 	}
-	gpio_set_value(spi->chip_select, val);
+	gpiod_set_value(spi->cs_gpiod, on);
 	ndelay(cs_delay);	/* CS Setup Time / CS Recovery Time */
 }
 
@@ -118,12 +121,6 @@ static int txx9spi_setup(struct spi_device *spi)
 
 	if (!spi->max_speed_hz)
 		return -EINVAL;
-
-	if (gpio_direction_output(spi->chip_select,
-			!(spi->mode & SPI_CS_HIGH))) {
-		dev_err(&spi->dev, "Cannot setup GPIO for chipselect.\n");
-		return -EINVAL;
-	}
 
 	/* deselect chip */
 	spin_lock(&c->lock);
@@ -248,8 +245,7 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 			len -= count * wsize;
 		}
 		m->actual_length += t->len;
-		if (t->delay_usecs)
-			udelay(t->delay_usecs);
+		spi_transfer_delay_exec(t);
 
 		if (!cs_change)
 			continue;
@@ -320,6 +316,47 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 	return 0;
 }
 
+/*
+ * Chip select uses GPIO only, further the driver is using the chip select
+ * numer (from the device tree "reg" property, and this can only come from
+ * device tree since this i MIPS and there is no way to pass platform data) as
+ * the GPIO number. As the platform has only one GPIO controller (the txx9 GPIO
+ * chip) it is thus using the chip select number as an offset into that chip.
+ * This chip has a maximum of 16 GPIOs 0..15 and this is what all platforms
+ * register.
+ *
+ * We modernized this behaviour by explicitly converting that offset to an
+ * offset on the GPIO chip using a GPIO descriptor machine table of the same
+ * size as the txx9 GPIO chip with a 1-to-1 mapping of chip select to GPIO
+ * offset.
+ *
+ * This is admittedly a hack, but it is countering the hack of using "reg" to
+ * contain a GPIO offset when it should be using "cs-gpios" as the SPI bindings
+ * state.
+ */
+static struct gpiod_lookup_table txx9spi_cs_gpio_table = {
+	.dev_id = "spi0",
+	.table = {
+		GPIO_LOOKUP_IDX("TXx9", 0, "cs", 0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 1, "cs", 1, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 2, "cs", 2, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 3, "cs", 3, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 4, "cs", 4, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 5, "cs", 5, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 6, "cs", 6, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 7, "cs", 7, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 8, "cs", 8, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 9, "cs", 9, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 10, "cs", 10, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 11, "cs", 11, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 12, "cs", 12, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 13, "cs", 13, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 14, "cs", 14, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("TXx9", 15, "cs", 15, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static int txx9spi_probe(struct platform_device *dev)
 {
 	struct spi_master *master;
@@ -373,11 +410,13 @@ static int txx9spi_probe(struct platform_device *dev)
 	if (ret)
 		goto exit;
 
-	c->last_chipselect = -1;
+	c->last_chipselect = NULL;
 
 	dev_info(&dev->dev, "at %#llx, irq %d, %dMHz\n",
 		 (unsigned long long)res->start, irq,
 		 (c->baseclk + 500000) / 1000000);
+
+	gpiod_add_lookup_table(&txx9spi_cs_gpio_table);
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CS_HIGH | SPI_CPOL | SPI_CPHA;
@@ -387,6 +426,7 @@ static int txx9spi_probe(struct platform_device *dev)
 	master->transfer = txx9spi_transfer;
 	master->num_chipselect = (u16)UINT_MAX; /* any GPIO numbers */
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
+	master->use_gpio_descriptors = true;
 
 	ret = devm_spi_register_master(&dev->dev, master);
 	if (ret)

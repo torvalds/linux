@@ -74,10 +74,13 @@ phylib to the sfp/phylink support.  Please send patches to improve
 this documentation.
 
 1. Optionally split the network driver's phylib update function into
-   three parts dealing with link-down, link-up and reconfiguring the
-   MAC settings. This can be done as a separate preparation commit.
+   two parts dealing with link-down and link-up. This can be done as
+   a separate preparation commit.
 
-   An example of this preparation can be found in git commit fc548b991fb0.
+   An older example of this preparation can be found in git commit
+   fc548b991fb0, although this was splitting into three parts; the
+   link-up part now includes configuring the MAC for the link settings.
+   Please see :c:func:`mac_link_up` for more information on this.
 
 2. Replace::
 
@@ -135,27 +138,27 @@ this documentation.
 
    .. code-block:: c
 
-    static int foo_ethtool_set_link_ksettings(struct net_device *dev,
-					     const struct ethtool_link_ksettings *cmd)
-    {
-	struct foo_priv *priv = netdev_priv(dev);
+	static int foo_ethtool_set_link_ksettings(struct net_device *dev,
+						  const struct ethtool_link_ksettings *cmd)
+	{
+		struct foo_priv *priv = netdev_priv(dev);
+	
+		return phylink_ethtool_ksettings_set(priv->phylink, cmd);
+	}
 
-	return phylink_ethtool_ksettings_set(priv->phylink, cmd);
-    }
+	static int foo_ethtool_get_link_ksettings(struct net_device *dev,
+						  struct ethtool_link_ksettings *cmd)
+	{
+		struct foo_priv *priv = netdev_priv(dev);
+	
+		return phylink_ethtool_ksettings_get(priv->phylink, cmd);
+	}
 
-    static int foo_ethtool_get_link_ksettings(struct net_device *dev,
-					     struct ethtool_link_ksettings *cmd)
-    {
-	struct foo_priv *priv = netdev_priv(dev);
-
-	return phylink_ethtool_ksettings_get(priv->phylink, cmd);
-    }
-
-7. Replace the call to:
+7. Replace the call to::
 
 	phy_dev = of_phy_connect(dev, node, link_func, flags, phy_interface);
 
-   and associated code with a call to:
+   and associated code with a call to::
 
 	err = phylink_of_phy_connect(priv->phylink, node, flags);
 
@@ -207,6 +210,14 @@ this documentation.
    using. This is particularly important for in-band negotiation
    methods such as 1000base-X and SGMII.
 
+   The :c:func:`mac_link_up` method is used to inform the MAC that the
+   link has come up. The call includes the negotiation mode and interface
+   for reference only. The finalised link parameters are also supplied
+   (speed, duplex and flow control/pause enablement settings) which
+   should be used to configure the MAC when the MAC and PCS are not
+   tightly integrated, or when the settings are not coming from in-band
+   negotiation.
+
    The :c:func:`mac_config` method is used to update the MAC with the
    requested state, and must avoid unnecessarily taking the link down
    when making changes to the MAC configuration.  This means the
@@ -251,7 +262,8 @@ this documentation.
 	phylink_mac_change(priv->phylink, link_is_up);
 
     where ``link_is_up`` is true if the link is currently up or false
-    otherwise.
+    otherwise. If a MAC is unable to provide these interrupts, then
+    it should set ``priv->phylink_config.pcs_poll = true;`` in step 9.
 
 11. Verify that the driver does not call::
 

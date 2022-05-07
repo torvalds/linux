@@ -106,7 +106,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	 * first NFP_NET_CFG_BAR_SZ of the BAR.  This keeps the code
 	 * the identical for PF and VF drivers.
 	 */
-	ctrl_bar = ioremap_nocache(pci_resource_start(pdev, NFP_NET_CTRL_BAR),
+	ctrl_bar = ioremap(pci_resource_start(pdev, NFP_NET_CTRL_BAR),
 				   NFP_NET_CFG_BAR_SZ);
 	if (!ctrl_bar) {
 		dev_err(&pdev->dev,
@@ -200,7 +200,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 			bar_sz = (rx_bar_off + rx_bar_sz) - bar_off;
 
 		map_addr = pci_resource_start(pdev, tx_bar_no) + bar_off;
-		vf->q_bar = ioremap_nocache(map_addr, bar_sz);
+		vf->q_bar = ioremap(map_addr, bar_sz);
 		if (!vf->q_bar) {
 			nn_err(nn, "Failed to map resource %d\n", tx_bar_no);
 			err = -EIO;
@@ -216,7 +216,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 
 		/* TX queues */
 		map_addr = pci_resource_start(pdev, tx_bar_no) + tx_bar_off;
-		nn->tx_bar = ioremap_nocache(map_addr, tx_bar_sz);
+		nn->tx_bar = ioremap(map_addr, tx_bar_sz);
 		if (!nn->tx_bar) {
 			nn_err(nn, "Failed to map resource %d\n", tx_bar_no);
 			err = -EIO;
@@ -225,7 +225,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 
 		/* RX queues */
 		map_addr = pci_resource_start(pdev, rx_bar_no) + rx_bar_off;
-		nn->rx_bar = ioremap_nocache(map_addr, rx_bar_sz);
+		nn->rx_bar = ioremap(map_addr, rx_bar_sz);
 		if (!nn->rx_bar) {
 			nn_err(nn, "Failed to map resource %d\n", rx_bar_no);
 			err = -EIO;

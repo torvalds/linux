@@ -8,7 +8,7 @@
 
 menuconfig AUXDISPLAY
 	bool "Auxiliary Display support"
-	---help---
+	help
 	  Say Y here to get to see options for auxiliary display drivers.
 	  This option alone does not add any kernel code.
 
@@ -20,7 +20,7 @@ config HD44780
 	tristate "HD44780 Character LCD support"
 	depends on GPIOLIB || COMPILE_TEST
 	select CHARLCD
-	---help---
+	help
 	  Enable support for Character LCDs using a HD44780 controller.
 	  The LCD is accessible through the /dev/lcd char device (10, 156).
 	  This code can either be compiled as a module, or linked into the
@@ -31,7 +31,7 @@ config KS0108
 	tristate "KS0108 LCD Controller"
 	depends on PARPORT_PC
 	default n
-	---help---
+	help
 	  If you have a LCD controlled by one or more KS0108
 	  controllers, say Y. You will need also another more specific
 	  driver for your LCD.
@@ -49,7 +49,7 @@ config KS0108_PORT
 	hex "Parallel port where the LCD is connected"
 	depends on KS0108
 	default 0x378
-	---help---
+	help
 	  The address of the parallel port where the LCD is connected.
 
 	  The first  standard parallel port address is 0x378.
@@ -71,7 +71,7 @@ config KS0108_DELAY
 	int "Delay between each control writing (microseconds)"
 	depends on KS0108
 	default "2"
-	---help---
+	help
 	  Amount of time the ks0108 should wait between each control write
 	  to the parallel port.
 
@@ -92,7 +92,7 @@ config CFAG12864B
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	default n
-	---help---
+	help
 	  If you have a Crystalfontz 128x64 2-color LCD, cfag12864b Series,
 	  say Y. You also need the ks0108 LCD Controller driver.
 
@@ -111,10 +111,10 @@ config CFAG12864B
 	  If unsure, say N.
 
 config CFAG12864B_RATE
-       int "Refresh rate (hertz)"
+	int "Refresh rate (hertz)"
 	depends on CFAG12864B
 	default "20"
-	---help---
+	help
 	  Refresh rate of the LCD.
 
 	  As the LCD is not memory mapped, the driver has to make the work by
@@ -168,7 +168,7 @@ menuconfig PARPORT_PANEL
 	tristate "Parallel port LCD/Keypad Panel support"
 	depends on PARPORT
 	select CHARLCD
-	---help---
+	help
 	  Say Y here if you have an HD44780 or KS-0074 LCD connected to your
 	  parallel port. This driver also features 4 and 6-key keypads. The LCD
 	  is accessible through the /dev/lcd char device (10, 156), and the
@@ -182,7 +182,7 @@ config PANEL_PARPORT
 	int "Default parallel port number (0=LPT1)"
 	range 0 255
 	default "0"
-	---help---
+	help
 	  This is the index of the parallel port the panel is connected to. One
 	  driver instance only supports one parallel port, so if your keypad
 	  and LCD are connected to two separate ports, you have to start two
@@ -193,7 +193,7 @@ config PANEL_PROFILE
 	int "Default panel profile (0-5, 0=custom)"
 	range 0 5
 	default "5"
-	---help---
+	help
 	  To ease configuration, the driver supports different configuration
 	  profiles for past and recent wirings. These profiles can also be
 	  used to define an approximative configuration, completed by a few
@@ -215,7 +215,7 @@ config PANEL_KEYPAD
 	int "Keypad type (0=none, 1=old 6 keys, 2=new 6 keys, 3=Nexcom 4 keys)"
 	range 0 3
 	default 0
-	---help---
+	help
 	  This enables and configures a keypad connected to the parallel port.
 	  The keys will be read from character device 10,185. Valid values are :
 
@@ -232,7 +232,7 @@ config PANEL_LCD
 	int "LCD type (0=none, 1=custom, 2=old //, 3=ks0074, 4=hantronix, 5=Nexcom)"
 	range 0 5
 	default 0
-	---help---
+	help
 	   This enables and configures an LCD connected to the parallel port.
 	   The driver includes an interpreter for escape codes starting with
 	   '\e[L' which are specific to the LCD, and a few ANSI codes. The
@@ -255,7 +255,7 @@ config PANEL_LCD_HEIGHT
 	int "Number of lines on the LCD (1-2)"
 	range 1 2
 	default 2
-	---help---
+	help
 	  This is the number of visible character lines on the LCD in custom profile.
 	  It can either be 1 or 2.
 
@@ -264,7 +264,7 @@ config PANEL_LCD_WIDTH
 	int "Number of characters per line on the LCD (1-40)"
 	range 1 40
 	default 40
-	---help---
+	help
 	  This is the number of characters per line on the LCD in custom profile.
 	  Common values are 16,20,24,40.
 
@@ -273,7 +273,7 @@ config PANEL_LCD_BWIDTH
 	int "Internal LCD line width (1-40, 40 by default)"
 	range 1 40
 	default 40
-	---help---
+	help
 	  Most LCDs use a standard controller which supports hardware lines of 40
 	  characters, although sometimes only 16, 20 or 24 of them are really wired
 	  to the terminal. This results in some non-visible but addressable characters,
@@ -289,7 +289,7 @@ config PANEL_LCD_HWIDTH
 	int "Hardware LCD line width (1-64, 64 by default)"
 	range 1 64
 	default 64
-	---help---
+	help
 	  Most LCDs use a single address bit to differentiate line 0 and line 1. Since
 	  some of them need to be able to address 40 chars with the lower bits, they
 	  often use the immediately superior power of 2, which is 64, to address the
@@ -303,7 +303,7 @@ config PANEL_LCD_CHARSET
 	int "LCD character set (0=normal, 1=KS0074)"
 	range 0 1
 	default 0
-	---help---
+	help
 	  Some controllers such as the KS0074 use a somewhat strange character set
 	  where many symbols are at unusual places. The driver knows how to map
 	  'standard' ASCII characters to the character sets used by these controllers.
@@ -319,7 +319,7 @@ config PANEL_LCD_PROTO
 	int "LCD communication mode (0=parallel 8 bits, 1=serial)"
 	range 0 1
 	default 0
-	---help---
+	help
 	  This driver now supports any serial or parallel LCD wired to a parallel
 	  port. But before assigning signals, the driver needs to know if it will
 	  be driving a serial LCD or a parallel one. Serial LCDs only use 2 wires
@@ -329,10 +329,10 @@ config PANEL_LCD_PROTO
 
 config PANEL_LCD_PIN_E
 	depends on PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
-        int "Parallel port pin number & polarity connected to the LCD E signal (-17...17) "
+	int "Parallel port pin number & polarity connected to the LCD E signal (-17...17) "
 	range -17 17
 	default 14
-	---help---
+	help
 	  This describes the number of the parallel port pin to which the LCD 'E'
 	  signal has been connected. It can be :
 
@@ -344,10 +344,10 @@ config PANEL_LCD_PIN_E
 
 config PANEL_LCD_PIN_RS
 	depends on PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
-        int "Parallel port pin number & polarity connected to the LCD RS signal (-17...17) "
+	int "Parallel port pin number & polarity connected to the LCD RS signal (-17...17) "
 	range -17 17
 	default 17
-	---help---
+	help
 	  This describes the number of the parallel port pin to which the LCD 'RS'
 	  signal has been connected. It can be :
 
@@ -359,10 +359,10 @@ config PANEL_LCD_PIN_RS
 
 config PANEL_LCD_PIN_RW
 	depends on PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
-        int "Parallel port pin number & polarity connected to the LCD RW signal (-17...17) "
+	int "Parallel port pin number & polarity connected to the LCD RW signal (-17...17) "
 	range -17 17
 	default 16
-	---help---
+	help
 	  This describes the number of the parallel port pin to which the LCD 'RW'
 	  signal has been connected. It can be :
 
@@ -374,10 +374,10 @@ config PANEL_LCD_PIN_RW
 
 config PANEL_LCD_PIN_SCL
 	depends on PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO!="0"
-        int "Parallel port pin number & polarity connected to the LCD SCL signal (-17...17) "
+	int "Parallel port pin number & polarity connected to the LCD SCL signal (-17...17) "
 	range -17 17
 	default 1
-	---help---
+	help
 	  This describes the number of the parallel port pin to which the serial
 	  LCD 'SCL' signal has been connected. It can be :
 
@@ -389,10 +389,10 @@ config PANEL_LCD_PIN_SCL
 
 config PANEL_LCD_PIN_SDA
 	depends on PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO!="0"
-        int "Parallel port pin number & polarity connected to the LCD SDA signal (-17...17) "
+	int "Parallel port pin number & polarity connected to the LCD SDA signal (-17...17) "
 	range -17 17
 	default 2
-	---help---
+	help
 	  This describes the number of the parallel port pin to which the serial
 	  LCD 'SDA' signal has been connected. It can be :
 
@@ -404,12 +404,12 @@ config PANEL_LCD_PIN_SDA
 
 config PANEL_LCD_PIN_BL
 	depends on PANEL_PROFILE="0" && PANEL_LCD="1"
-        int "Parallel port pin number & polarity connected to the LCD backlight signal (-17...17) "
+	int "Parallel port pin number & polarity connected to the LCD backlight signal (-17...17) "
 	range -17 17
 	default 0
-	---help---
+	help
 	  This describes the number of the parallel port pin to which the LCD 'BL' signal
-          has been connected. It can be :
+	  has been connected. It can be :
 
 	          0 : no connection (eg: connected to ground)
 	      1..17 : directly connected to any of these pins on the DB25 plug
@@ -423,7 +423,7 @@ config PANEL_CHANGE_MESSAGE
 	bool "Change LCD initialization message ?"
 	depends on CHARLCD
 	default "n"
-	---help---
+	help
 	  This allows you to replace the boot message indicating the kernel version
 	  and the driver version with a custom message. This is useful on appliances
 	  where a simple 'Starting system' message can be enough to stop a customer
@@ -436,7 +436,7 @@ config PANEL_BOOT_MESSAGE
 	depends on PANEL_CHANGE_MESSAGE="y"
 	string "New initialization message"
 	default ""
-	---help---
+	help
 	  This allows you to replace the boot message indicating the kernel version
 	  and the driver version with a custom message. This is useful on appliances
 	  where a simple 'Starting system' message can be enough to stop a customer
@@ -448,7 +448,7 @@ config PANEL_BOOT_MESSAGE
 choice
 	prompt "Backlight initial state"
 	default CHARLCD_BL_FLASH
-	---help---
+	help
 	  Select the initial backlight state on boot or module load.
 
 	  Previously, there was no option for this: the backlight flashed

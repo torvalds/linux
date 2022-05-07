@@ -10,6 +10,7 @@
 #define SDIO_LOCAL_OFFSET	0x10250000
 #define DDMA_POLLING_COUNT	1000
 #define C2H_PKT_BUF		256
+#define REPORT_BUF		128
 #define PHY_STATUS_SIZE		4
 #define ILLEGAL_KEY_GROUP	0xFAAAAA00
 
@@ -31,5 +32,11 @@ int rtw_mac_power_on(struct rtw_dev *rtwdev);
 void rtw_mac_power_off(struct rtw_dev *rtwdev);
 int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw);
 int rtw_mac_init(struct rtw_dev *rtwdev);
+void rtw_mac_flush_queues(struct rtw_dev *rtwdev, u32 queues, bool drop);
+
+static inline void rtw_mac_flush_all_queues(struct rtw_dev *rtwdev, bool drop)
+{
+	rtw_mac_flush_queues(rtwdev, BIT(rtwdev->hw->queues) - 1, drop);
+}
 
 #endif

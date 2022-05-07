@@ -171,6 +171,43 @@ TRACE_EVENT(devlink_health_reporter_state_update,
 		  __entry->new_state)
 );
 
+/*
+ * Tracepoint for devlink packet trap:
+ */
+TRACE_EVENT(devlink_trap_report,
+	TP_PROTO(const struct devlink *devlink, struct sk_buff *skb,
+		 const struct devlink_trap_metadata *metadata),
+
+	TP_ARGS(devlink, skb, metadata),
+
+	TP_STRUCT__entry(
+		__string(bus_name, devlink->dev->bus->name)
+		__string(dev_name, dev_name(devlink->dev))
+		__string(driver_name, devlink->dev->driver->name)
+		__string(trap_name, metadata->trap_name)
+		__string(trap_group_name, metadata->trap_group_name)
+		__dynamic_array(char, input_dev_name, IFNAMSIZ)
+	),
+
+	TP_fast_assign(
+		struct net_device *input_dev = metadata->input_dev;
+
+		__assign_str(bus_name, devlink->dev->bus->name);
+		__assign_str(dev_name, dev_name(devlink->dev));
+		__assign_str(driver_name, devlink->dev->driver->name);
+		__assign_str(trap_name, metadata->trap_name);
+		__assign_str(trap_group_name, metadata->trap_group_name);
+		__assign_str(input_dev_name,
+			     (input_dev ? input_dev->name : "NULL"));
+	),
+
+	TP_printk("bus_name=%s dev_name=%s driver_name=%s trap_name=%s "
+		  "trap_group_name=%s input_dev_name=%s", __get_str(bus_name),
+		  __get_str(dev_name), __get_str(driver_name),
+		  __get_str(trap_name), __get_str(trap_group_name),
+		  __get_str(input_dev_name))
+);
+
 #endif /* _TRACE_DEVLINK_H */
 
 /* This part must be outside protection */

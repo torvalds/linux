@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qede NIC Driver
-* Copyright (c) 2015 QLogic Corporation
-*/
+ * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2019-2020 Marvell International Ltd.
+ */
 
 #include <linux/types.h>
 #include <linux/netdevice.h>

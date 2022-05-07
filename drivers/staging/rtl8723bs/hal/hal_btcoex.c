@@ -12,49 +12,6 @@
 #include <Mp_Precomp.h>
 
 /* 		Global variables */
-static const char *const BtProfileString[] = {
-	"NONE",
-	"A2DP",
-	"PAN",
-	"HID",
-	"SCO",
-};
-
-static const char *const BtSpecString[] = {
-	"1.0b",
-	"1.1",
-	"1.2",
-	"2.0+EDR",
-	"2.1+EDR",
-	"3.0+HS",
-	"4.0",
-};
-
-static const char *const BtLinkRoleString[] = {
-	"Master",
-	"Slave",
-};
-
-static const char *const h2cStaString[] = {
-	"successful",
-	"h2c busy",
-	"rf off",
-	"fw not read",
-};
-
-static const char *const ioStaString[] = {
-	"success",
-	"can not IO",
-	"rf off",
-	"fw not read",
-	"wait io timeout",
-	"invalid len",
-	"idle Q empty",
-	"insert waitQ fail",
-	"unknown fail",
-	"wrong level",
-	"h2c stopped",
-};
 
 BTC_COEXIST GLBtCoexist;
 static u8 GLBtcWiFiInScanState;
@@ -450,7 +407,7 @@ static u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 		break;
 
 	case BTC_GET_BL_WIFI_ENABLE_ENCRYPTION:
-		*pu8 = padapter->securitypriv.dot11PrivacyAlgrthm == 0 ? false : true;
+		*pu8 = padapter->securitypriv.dot11PrivacyAlgrthm != 0;
 		break;
 
 	case BTC_GET_BL_WIFI_UNDER_B_MODE:
@@ -1315,7 +1272,7 @@ void EXhalbtcoutsrc_DisplayBtCoexInfo(PBTC_COEXIST pBtCoexist)
 
 /*
  * Description:
- *Run BT-Coexist mechansim or not
+ *Run BT-Coexist mechanism or not
  *
  */
 void hal_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist)

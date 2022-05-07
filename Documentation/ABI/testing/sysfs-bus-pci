@@ -7,8 +7,10 @@ Description:
 		this location.	This is useful for overriding default
 		bindings.  The format for the location is: DDDD:BB:DD.F.
 		That is Domain:Bus:Device.Function and is the same as
-		found in /sys/bus/pci/devices/.  For example:
-		# echo 0000:00:19.0 > /sys/bus/pci/drivers/foo/bind
+		found in /sys/bus/pci/devices/.  For example::
+
+		  # echo 0000:00:19.0 > /sys/bus/pci/drivers/foo/bind
+
 		(Note: kernels before 2.6.28 may require echo -n).
 
 What:		/sys/bus/pci/drivers/.../unbind
@@ -20,8 +22,10 @@ Description:
 		this location.	This may be useful when overriding default
 		bindings.  The format for the location is: DDDD:BB:DD.F.
 		That is Domain:Bus:Device.Function and is the same as
-		found in /sys/bus/pci/devices/. For example:
-		# echo 0000:00:19.0 > /sys/bus/pci/drivers/foo/unbind
+		found in /sys/bus/pci/devices/. For example::
+
+		  # echo 0000:00:19.0 > /sys/bus/pci/drivers/foo/unbind
+
 		(Note: kernels before 2.6.28 may require echo -n).
 
 What:		/sys/bus/pci/drivers/.../new_id
@@ -38,8 +42,9 @@ Description:
 		Class, Class Mask, and Private Driver Data.  The Vendor ID
 		and Device ID fields are required, the rest are optional.
 		Upon successfully adding an ID, the driver will probe
-		for the device and attempt to bind to it.  For example:
-		# echo "8086 10f5" > /sys/bus/pci/drivers/foo/new_id
+		for the device and attempt to bind to it.  For example::
+
+		  # echo "8086 10f5" > /sys/bus/pci/drivers/foo/new_id
 
 What:		/sys/bus/pci/drivers/.../remove_id
 Date:		February 2009
@@ -54,8 +59,9 @@ Description:
 		required, the rest are optional.  After successfully
 		removing an ID, the driver will no longer support the
 		device.  This is useful to ensure auto probing won't
-		match the driver to the device.  For example:
-		# echo "8086 10f5" > /sys/bus/pci/drivers/foo/remove_id
+		match the driver to the device.  For example::
+
+		  # echo "8086 10f5" > /sys/bus/pci/drivers/foo/remove_id
 
 What:		/sys/bus/pci/rescan
 Date:		January 2009
@@ -347,3 +353,16 @@ Description:
 		If the device has any Peer-to-Peer memory registered, this
 	        file contains a '1' if the memory has been published for
 		use outside the driver that owns the device.
+
+What:		/sys/bus/pci/devices/.../link/clkpm
+		/sys/bus/pci/devices/.../link/l0s_aspm
+		/sys/bus/pci/devices/.../link/l1_aspm
+		/sys/bus/pci/devices/.../link/l1_1_aspm
+		/sys/bus/pci/devices/.../link/l1_2_aspm
+		/sys/bus/pci/devices/.../link/l1_1_pcipm
+		/sys/bus/pci/devices/.../link/l1_2_pcipm
+Date:		October 2019
+Contact:	Heiner Kallweit <hkallweit1@gmail.com>
+Description:	If ASPM is supported for an endpoint, these files can be
+		used to disable or enable the individual power management
+		states. Write y/1/on to enable, n/0/off to disable.

@@ -4,44 +4,102 @@
  */
 
 #include "bcm-phy-lib.h"
+#include <linux/bitfield.h>
 #include <linux/brcmphy.h>
 #include <linux/export.h>
 #include <linux/mdio.h>
 #include <linux/module.h>
 #include <linux/phy.h>
 #include <linux/ethtool.h>
+#include <linux/ethtool_netlink.h>
 
 #define MII_BCM_CHANNEL_WIDTH     0x2000
 #define BCM_CL45VEN_EEE_ADV       0x3c
+
+int __bcm_phy_write_exp(struct phy_device *phydev, u16 reg, u16 val)
+{
+	int rc;
+
+	rc = __phy_write(phydev, MII_BCM54XX_EXP_SEL, reg);
+	if (rc < 0)
+		return rc;
+
+	return __phy_write(phydev, MII_BCM54XX_EXP_DATA, val);
+}
+EXPORT_SYMBOL_GPL(__bcm_phy_write_exp);
 
 int bcm_phy_write_exp(struct phy_device *phydev, u16 reg, u16 val)
 {
 	int rc;
 
-	rc = phy_write(phydev, MII_BCM54XX_EXP_SEL, reg);
-	if (rc < 0)
-		return rc;
+	phy_lock_mdio_bus(phydev);
+	rc = __bcm_phy_write_exp(phydev, reg, val);
+	phy_unlock_mdio_bus(phydev);
 
-	return phy_write(phydev, MII_BCM54XX_EXP_DATA, val);
+	return rc;
 }
 EXPORT_SYMBOL_GPL(bcm_phy_write_exp);
 
-int bcm_phy_read_exp(struct phy_device *phydev, u16 reg)
+int __bcm_phy_read_exp(struct phy_device *phydev, u16 reg)
 {
 	int val;
 
-	val = phy_write(phydev, MII_BCM54XX_EXP_SEL, reg);
+	val = __phy_write(phydev, MII_BCM54XX_EXP_SEL, reg);
 	if (val < 0)
 		return val;
 
-	val = phy_read(phydev, MII_BCM54XX_EXP_DATA);
+	val = __phy_read(phydev, MII_BCM54XX_EXP_DATA);
 
 	/* Restore default value.  It's O.K. if this write fails. */
-	phy_write(phydev, MII_BCM54XX_EXP_SEL, 0);
+	__phy_write(phydev, MII_BCM54XX_EXP_SEL, 0);
 
 	return val;
 }
+EXPORT_SYMBOL_GPL(__bcm_phy_read_exp);
+
+int bcm_phy_read_exp(struct phy_device *phydev, u16 reg)
+{
+	int rc;
+
+	phy_lock_mdio_bus(phydev);
+	rc = __bcm_phy_read_exp(phydev, reg);
+	phy_unlock_mdio_bus(phydev);
+
+	return rc;
+}
 EXPORT_SYMBOL_GPL(bcm_phy_read_exp);
+
+int __bcm_phy_modify_exp(struct phy_device *phydev, u16 reg, u16 mask, u16 set)
+{
+	int new, ret;
+
+	ret = __phy_write(phydev, MII_BCM54XX_EXP_SEL, reg);
+	if (ret < 0)
+		return ret;
+
+	ret = __phy_read(phydev, MII_BCM54XX_EXP_DATA);
+	if (ret < 0)
+		return ret;
+
+	new = (ret & ~mask) | set;
+	if (new == ret)
+		return 0;
+
+	return __phy_write(phydev, MII_BCM54XX_EXP_DATA, new);
+}
+EXPORT_SYMBOL_GPL(__bcm_phy_modify_exp);
+
+int bcm_phy_modify_exp(struct phy_device *phydev, u16 reg, u16 mask, u16 set)
+{
+	int ret;
+
+	phy_lock_mdio_bus(phydev);
+	ret = __bcm_phy_modify_exp(phydev, reg, mask, set);
+	phy_unlock_mdio_bus(phydev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(bcm_phy_modify_exp);
 
 int bcm54xx_auxctl_read(struct phy_device *phydev, u16 regnum)
 {
@@ -154,6 +212,86 @@ int bcm_phy_write_shadow(struct phy_device *phydev, u16 shadow,
 			 MII_BCM54XX_SHD_DATA(val));
 }
 EXPORT_SYMBOL_GPL(bcm_phy_write_shadow);
+
+int __bcm_phy_read_rdb(struct phy_device *phydev, u16 rdb)
+{
+	int val;
+
+	val = __phy_write(phydev, MII_BCM54XX_RDB_ADDR, rdb);
+	if (val < 0)
+		return val;
+
+	return __phy_read(phydev, MII_BCM54XX_RDB_DATA);
+}
+EXPORT_SYMBOL_GPL(__bcm_phy_read_rdb);
+
+int bcm_phy_read_rdb(struct phy_device *phydev, u16 rdb)
+{
+	int ret;
+
+	phy_lock_mdio_bus(phydev);
+	ret = __bcm_phy_read_rdb(phydev, rdb);
+	phy_unlock_mdio_bus(phydev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(bcm_phy_read_rdb);
+
+int __bcm_phy_write_rdb(struct phy_device *phydev, u16 rdb, u16 val)
+{
+	int ret;
+
+	ret = __phy_write(phydev, MII_BCM54XX_RDB_ADDR, rdb);
+	if (ret < 0)
+		return ret;
+
+	return __phy_write(phydev, MII_BCM54XX_RDB_DATA, val);
+}
+EXPORT_SYMBOL_GPL(__bcm_phy_write_rdb);
+
+int bcm_phy_write_rdb(struct phy_device *phydev, u16 rdb, u16 val)
+{
+	int ret;
+
+	phy_lock_mdio_bus(phydev);
+	ret = __bcm_phy_write_rdb(phydev, rdb, val);
+	phy_unlock_mdio_bus(phydev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(bcm_phy_write_rdb);
+
+int __bcm_phy_modify_rdb(struct phy_device *phydev, u16 rdb, u16 mask, u16 set)
+{
+	int new, ret;
+
+	ret = __phy_write(phydev, MII_BCM54XX_RDB_ADDR, rdb);
+	if (ret < 0)
+		return ret;
+
+	ret = __phy_read(phydev, MII_BCM54XX_RDB_DATA);
+	if (ret < 0)
+		return ret;
+
+	new = (ret & ~mask) | set;
+	if (new == ret)
+		return 0;
+
+	return __phy_write(phydev, MII_BCM54XX_RDB_DATA, new);
+}
+EXPORT_SYMBOL_GPL(__bcm_phy_modify_rdb);
+
+int bcm_phy_modify_rdb(struct phy_device *phydev, u16 rdb, u16 mask, u16 set)
+{
+	int ret;
+
+	phy_lock_mdio_bus(phydev);
+	ret = __bcm_phy_modify_rdb(phydev, rdb, mask, set);
+	phy_unlock_mdio_bus(phydev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(bcm_phy_modify_rdb);
 
 int bcm_phy_enable_apd(struct phy_device *phydev, bool dll_pwr_down)
 {
@@ -422,6 +560,213 @@ int bcm_phy_28nm_a0b0_afe_config_init(struct phy_device *phydev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bcm_phy_28nm_a0b0_afe_config_init);
+
+int bcm_phy_enable_jumbo(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = bcm54xx_auxctl_read(phydev, MII_BCM54XX_AUXCTL_SHDWSEL_AUXCTL);
+	if (ret < 0)
+		return ret;
+
+	/* Enable extended length packet reception */
+	ret = bcm54xx_auxctl_write(phydev, MII_BCM54XX_AUXCTL_SHDWSEL_AUXCTL,
+				   ret | MII_BCM54XX_AUXCTL_ACTL_EXT_PKT_LEN);
+	if (ret < 0)
+		return ret;
+
+	/* Enable the elastic FIFO for raising the transmission limit from
+	 * 4.5KB to 10KB, at the expense of an additional 16 ns in propagation
+	 * latency.
+	 */
+	return phy_set_bits(phydev, MII_BCM54XX_ECR, MII_BCM54XX_ECR_FIFOE);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_enable_jumbo);
+
+static int __bcm_phy_enable_rdb_access(struct phy_device *phydev)
+{
+	return __bcm_phy_write_exp(phydev, BCM54XX_EXP_REG7E, 0);
+}
+
+static int __bcm_phy_enable_legacy_access(struct phy_device *phydev)
+{
+	return __bcm_phy_write_rdb(phydev, BCM54XX_RDB_REG0087,
+				   BCM54XX_ACCESS_MODE_LEGACY_EN);
+}
+
+static int _bcm_phy_cable_test_start(struct phy_device *phydev, bool is_rdb)
+{
+	u16 mask, set;
+	int ret;
+
+	/* Auto-negotiation must be enabled for cable diagnostics to work, but
+	 * don't advertise any capabilities.
+	 */
+	phy_write(phydev, MII_BMCR, BMCR_ANENABLE);
+	phy_write(phydev, MII_ADVERTISE, ADVERTISE_CSMA);
+	phy_write(phydev, MII_CTRL1000, 0);
+
+	phy_lock_mdio_bus(phydev);
+	if (is_rdb) {
+		ret = __bcm_phy_enable_legacy_access(phydev);
+		if (ret)
+			goto out;
+	}
+
+	mask = BCM54XX_ECD_CTRL_CROSS_SHORT_DIS | BCM54XX_ECD_CTRL_UNIT_MASK;
+	set = BCM54XX_ECD_CTRL_RUN | BCM54XX_ECD_CTRL_BREAK_LINK |
+	      FIELD_PREP(BCM54XX_ECD_CTRL_UNIT_MASK,
+			 BCM54XX_ECD_CTRL_UNIT_CM);
+
+	ret = __bcm_phy_modify_exp(phydev, BCM54XX_EXP_ECD_CTRL, mask, set);
+
+out:
+	/* re-enable the RDB access even if there was an error */
+	if (is_rdb)
+		ret = __bcm_phy_enable_rdb_access(phydev) ? : ret;
+
+	phy_unlock_mdio_bus(phydev);
+
+	return ret;
+}
+
+static int bcm_phy_cable_test_report_trans(int result)
+{
+	switch (result) {
+	case BCM54XX_ECD_FAULT_TYPE_OK:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OK;
+	case BCM54XX_ECD_FAULT_TYPE_OPEN:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OPEN;
+	case BCM54XX_ECD_FAULT_TYPE_SAME_SHORT:
+		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
+	case BCM54XX_ECD_FAULT_TYPE_CROSS_SHORT:
+		return ETHTOOL_A_CABLE_RESULT_CODE_CROSS_SHORT;
+	case BCM54XX_ECD_FAULT_TYPE_INVALID:
+	case BCM54XX_ECD_FAULT_TYPE_BUSY:
+	default:
+		return ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC;
+	}
+}
+
+static bool bcm_phy_distance_valid(int result)
+{
+	switch (result) {
+	case BCM54XX_ECD_FAULT_TYPE_OPEN:
+	case BCM54XX_ECD_FAULT_TYPE_SAME_SHORT:
+	case BCM54XX_ECD_FAULT_TYPE_CROSS_SHORT:
+		return true;
+	}
+	return false;
+}
+
+static int bcm_phy_report_length(struct phy_device *phydev, int pair)
+{
+	int val;
+
+	val = __bcm_phy_read_exp(phydev,
+				 BCM54XX_EXP_ECD_PAIR_A_LENGTH_RESULTS + pair);
+	if (val < 0)
+		return val;
+
+	if (val == BCM54XX_ECD_LENGTH_RESULTS_INVALID)
+		return 0;
+
+	ethnl_cable_test_fault_length(phydev, pair, val);
+
+	return 0;
+}
+
+static int _bcm_phy_cable_test_get_status(struct phy_device *phydev,
+					  bool *finished, bool is_rdb)
+{
+	int pair_a, pair_b, pair_c, pair_d, ret;
+
+	*finished = false;
+
+	phy_lock_mdio_bus(phydev);
+
+	if (is_rdb) {
+		ret = __bcm_phy_enable_legacy_access(phydev);
+		if (ret)
+			goto out;
+	}
+
+	ret = __bcm_phy_read_exp(phydev, BCM54XX_EXP_ECD_CTRL);
+	if (ret < 0)
+		goto out;
+
+	if (ret & BCM54XX_ECD_CTRL_IN_PROGRESS) {
+		ret = 0;
+		goto out;
+	}
+
+	ret = __bcm_phy_read_exp(phydev, BCM54XX_EXP_ECD_FAULT_TYPE);
+	if (ret < 0)
+		goto out;
+
+	pair_a = FIELD_GET(BCM54XX_ECD_FAULT_TYPE_PAIR_A_MASK, ret);
+	pair_b = FIELD_GET(BCM54XX_ECD_FAULT_TYPE_PAIR_B_MASK, ret);
+	pair_c = FIELD_GET(BCM54XX_ECD_FAULT_TYPE_PAIR_C_MASK, ret);
+	pair_d = FIELD_GET(BCM54XX_ECD_FAULT_TYPE_PAIR_D_MASK, ret);
+
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A,
+				bcm_phy_cable_test_report_trans(pair_a));
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_B,
+				bcm_phy_cable_test_report_trans(pair_b));
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_C,
+				bcm_phy_cable_test_report_trans(pair_c));
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_D,
+				bcm_phy_cable_test_report_trans(pair_d));
+
+	if (bcm_phy_distance_valid(pair_a))
+		bcm_phy_report_length(phydev, 0);
+	if (bcm_phy_distance_valid(pair_b))
+		bcm_phy_report_length(phydev, 1);
+	if (bcm_phy_distance_valid(pair_c))
+		bcm_phy_report_length(phydev, 2);
+	if (bcm_phy_distance_valid(pair_d))
+		bcm_phy_report_length(phydev, 3);
+
+	ret = 0;
+	*finished = true;
+out:
+	/* re-enable the RDB access even if there was an error */
+	if (is_rdb)
+		ret = __bcm_phy_enable_rdb_access(phydev) ? : ret;
+
+	phy_unlock_mdio_bus(phydev);
+
+	return ret;
+}
+
+int bcm_phy_cable_test_start(struct phy_device *phydev)
+{
+	return _bcm_phy_cable_test_start(phydev, false);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_cable_test_start);
+
+int bcm_phy_cable_test_get_status(struct phy_device *phydev, bool *finished)
+{
+	return _bcm_phy_cable_test_get_status(phydev, finished, false);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_cable_test_get_status);
+
+/* We assume that all PHYs which support RDB access can be switched to legacy
+ * mode. If, in the future, this is not true anymore, we have to re-implement
+ * this with RDB access.
+ */
+int bcm_phy_cable_test_start_rdb(struct phy_device *phydev)
+{
+	return _bcm_phy_cable_test_start(phydev, true);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_cable_test_start_rdb);
+
+int bcm_phy_cable_test_get_status_rdb(struct phy_device *phydev,
+				      bool *finished)
+{
+	return _bcm_phy_cable_test_get_status(phydev, finished, true);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_cable_test_get_status_rdb);
 
 MODULE_DESCRIPTION("Broadcom PHY Library");
 MODULE_LICENSE("GPL v2");

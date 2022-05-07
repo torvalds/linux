@@ -232,9 +232,9 @@ unsigned int host1x_cdma_wait_locked(struct host1x_cdma *cdma,
  *
  * Must be called with the cdma lock held.
  */
-int host1x_cdma_wait_pushbuffer_space(struct host1x *host1x,
-				      struct host1x_cdma *cdma,
-				      unsigned int needed)
+static int host1x_cdma_wait_pushbuffer_space(struct host1x *host1x,
+					     struct host1x_cdma *cdma,
+					     unsigned int needed)
 {
 	while (true) {
 		struct push_buffer *pb = &cdma->push_buffer;

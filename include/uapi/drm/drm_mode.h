@@ -332,14 +332,19 @@ struct drm_mode_get_encoder {
 /* This is for connectors with multiple signal types. */
 /* Try to match DRM_MODE_CONNECTOR_X as closely as possible. */
 enum drm_mode_subconnector {
-	DRM_MODE_SUBCONNECTOR_Automatic = 0,
-	DRM_MODE_SUBCONNECTOR_Unknown = 0,
-	DRM_MODE_SUBCONNECTOR_DVID = 3,
-	DRM_MODE_SUBCONNECTOR_DVIA = 4,
-	DRM_MODE_SUBCONNECTOR_Composite = 5,
-	DRM_MODE_SUBCONNECTOR_SVIDEO = 6,
-	DRM_MODE_SUBCONNECTOR_Component = 8,
-	DRM_MODE_SUBCONNECTOR_SCART = 9,
+	DRM_MODE_SUBCONNECTOR_Automatic   = 0,  /* DVI-I, TV     */
+	DRM_MODE_SUBCONNECTOR_Unknown     = 0,  /* DVI-I, TV, DP */
+	DRM_MODE_SUBCONNECTOR_VGA	  = 1,  /*            DP */
+	DRM_MODE_SUBCONNECTOR_DVID	  = 3,  /* DVI-I      DP */
+	DRM_MODE_SUBCONNECTOR_DVIA	  = 4,  /* DVI-I         */
+	DRM_MODE_SUBCONNECTOR_Composite   = 5,  /*        TV     */
+	DRM_MODE_SUBCONNECTOR_SVIDEO	  = 6,  /*        TV     */
+	DRM_MODE_SUBCONNECTOR_Component   = 8,  /*        TV     */
+	DRM_MODE_SUBCONNECTOR_SCART	  = 9,  /*        TV     */
+	DRM_MODE_SUBCONNECTOR_DisplayPort = 10, /*            DP */
+	DRM_MODE_SUBCONNECTOR_HDMIA       = 11, /*            DP */
+	DRM_MODE_SUBCONNECTOR_Native      = 15, /*            DP */
+	DRM_MODE_SUBCONNECTOR_Wireless    = 18, /*            DP */
 };
 
 #define DRM_MODE_CONNECTOR_Unknown	0
@@ -497,7 +502,7 @@ struct drm_mode_fb_cmd2 {
 	 * In case of planar formats, this ioctl allows up to 4
 	 * buffer objects with offsets and pitches per plane.
 	 * The pitch and offset order is dictated by the fourcc,
-	 * e.g. NV12 (http://fourcc.org/yuv.php#NV12) is described as:
+	 * e.g. NV12 (https://fourcc.org/yuv.php#NV12) is described as:
 	 *
 	 *   YUV 4:2:0 image with a plane of 8 bit Y samples
 	 *   followed by an interleaved U/V plane containing

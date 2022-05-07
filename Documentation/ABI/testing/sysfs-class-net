@@ -4,10 +4,13 @@ KernelVersion:	3.17
 Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the name assignment type. Possible values are:
-		1: enumerated by the kernel, possibly in an unpredictable way
-		2: predictably named by the kernel
-		3: named by userspace
-		4: renamed
+
+		== ==========================================================
+		1  enumerated by the kernel, possibly in an unpredictable way
+		2  predictably named by the kernel
+		3  named by userspace
+		4  renamed
+		== ==========================================================
 
 What:		/sys/class/net/<iface>/addr_assign_type
 Date:		July 2010
@@ -15,10 +18,13 @@ KernelVersion:	3.2
 Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the address assignment type. Possible values are:
-		0: permanent address
-		1: randomly generated
-		2: stolen from another device
-		3: set using dev_set_mac_address
+
+		== =============================
+		0  permanent address
+		1  randomly generated
+		2  stolen from another device
+		3  set using dev_set_mac_address
+		== =============================
 
 What:		/sys/class/net/<iface>/addr_len
 Date:		April 2005
@@ -51,9 +57,12 @@ Description:
 		Default value 0 does not forward any link local frames.
 
 		Restricted bits:
-		0: 01-80-C2-00-00-00 Bridge Group Address used for STP
-		1: 01-80-C2-00-00-01 (MAC Control) 802.3 used for MAC PAUSE
-		2: 01-80-C2-00-00-02 (Link Aggregation) 802.3ad
+
+		== ========================================================
+		0  01-80-C2-00-00-00 Bridge Group Address used for STP
+		1  01-80-C2-00-00-01 (MAC Control) 802.3 used for MAC PAUSE
+		2  01-80-C2-00-00-02 (Link Aggregation) 802.3ad
+		== ========================================================
 
 		Any values not setting these bits can be used. Take special
 		care when forwarding control frames e.g. 802.1X-PAE or LLDP.
@@ -74,8 +83,11 @@ Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the current physical link state of the interface.
 		Posssible values are:
-		0: physical link is down
-		1: physical link is up
+
+		== =====================
+		0  physical link is down
+		1  physical link is up
+		== =====================
 
 		Note: some special devices, e.g: bonding and team drivers will
 		allow this attribute to be written to force a link state for
@@ -124,15 +136,34 @@ Description:
 		authentication is performed (e.g: 802.1x). 'link_mode' attribute
 		will also reflect the dormant state.
 
-What:		/sys/clas/net/<iface>/duplex
+What:		/sys/class/net/<iface>/testing
+Date:		April 2002
+KernelVersion:	5.8
+Contact:	netdev@vger.kernel.org
+Description:
+		Indicates whether the interface is under test. Possible
+		values are:
+
+		== =============================
+		0  interface is not being tested
+		1  interface is being tested
+		== =============================
+
+		When an interface is under test, it cannot be expected
+		to pass packets as normal.
+
+What:		/sys/class/net/<iface>/duplex
 Date:		October 2009
 KernelVersion:	2.6.33
 Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the interface latest or current duplex value. Possible
 		values are:
-		half: half duplex
-		full: full duplex
+
+		====  ===========
+		half  half duplex
+		full  full duplex
+		====  ===========
 
 		Note: This attribute is only valid for interfaces that implement
 		the ethtool get_link_ksettings method (mostly Ethernet).
@@ -183,8 +214,11 @@ Description:
 		Indicates the interface link mode, as a decimal number. This
 		attribute should be used in conjunction with 'dormant' attribute
 		to determine the interface usability. Possible values:
-		0: default link mode
-		1: dormant link mode
+
+		==  =================
+		0   default link mode
+		1   dormant link mode
+		==  =================
 
 What:		/sys/class/net/<iface>/mtu
 Date:		April 2005
@@ -213,7 +247,9 @@ KernelVersion:	2.6.17
 Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the interface RFC2863 operational state as a string.
+
 		Possible values are:
+
 		"unknown", "notpresent", "down", "lowerlayerdown", "testing",
 		"dormant", "up".
 

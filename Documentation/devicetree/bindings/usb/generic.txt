@@ -2,10 +2,11 @@ Generic USB Properties
 
 Optional properties:
  - maximum-speed: tells USB controllers we want to work up to a certain
-			speed. Valid arguments are "super-speed", "high-speed",
-			"full-speed" and "low-speed". In case this isn't passed
-			via DT, USB controllers should default to their maximum
-			HW capability.
+			speed. Valid arguments are "super-speed-plus",
+			"super-speed", "high-speed", "full-speed" and
+			"low-speed". In case this isn't passed via DT, USB
+			controllers should default to their maximum HW
+			capability.
  - dr_mode: tells Dual-Role USB controllers that we want to work on a
 			particular mode. Valid arguments are "host",
 			"peripheral" and "otg". In case this attribute isn't
@@ -33,7 +34,13 @@ Optional properties:
  - usb-role-switch: boolean, indicates that the device is capable of assigning
 			the USB data role (USB host or USB device) for a given
 			USB connector, such as Type-C, Type-B(micro).
-			see connector/usb-connector.txt.
+			see connector/usb-connector.yaml.
+ - role-switch-default-mode: indicating if usb-role-switch is enabled, the
+			device default operation mode of controller while usb
+			role is USB_ROLE_NONE. Valid arguments are "host" and
+			"peripheral". Defaults to "peripheral" if not
+			specified.
+
 
 This is an attribute to a USB controller such as:
 

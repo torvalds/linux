@@ -2,7 +2,7 @@
 config INFINIBAND_SRPT
 	tristate "InfiniBand SCSI RDMA Protocol target support"
 	depends on INFINIBAND && INFINIBAND_ADDR_TRANS && TARGET_CORE
-	---help---
+	help
 
 	  Support for the SCSI RDMA Protocol (SRP) Target driver. The
 	  SRP protocol is a protocol that allows an initiator to access

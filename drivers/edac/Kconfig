@@ -44,7 +44,7 @@ config EDAC_DECODE_MCE
 	tristate "Decode MCEs in human-readable form (only on AMD for now)"
 	depends on CPU_SUP_AMD && X86_MCE_AMD
 	default y
-	---help---
+	help
 	  Enable this option if you want to decode Machine Check Exceptions
 	  occurring on your machine in human-readable form.
 
@@ -99,6 +99,13 @@ config EDAC_AMD64_ERROR_INJECTION
 
 	  In addition, there are two control files, inject_read and inject_write,
 	  which trigger the DRAM ECC Read and Write respectively.
+
+config EDAC_AL_MC
+	tristate "Amazon's Annapurna Lab Memory Controller"
+	depends on (ARCH_ALPINE || COMPILE_TEST)
+	help
+	  Support for error detection and correction for Amazon's Annapurna
+	  Labs Alpine chips which allow 1 bit correction and 2 bits detection.
 
 config EDAC_AMD76X
 	tristate "AMD 76x (760, 762, 768)"
@@ -462,7 +469,7 @@ config EDAC_ALTERA_SDMMC
 
 config EDAC_SIFIVE
 	bool "Sifive platform EDAC driver"
-	depends on EDAC=y && RISCV
+	depends on EDAC=y && SIFIVE_L2
 	help
 	  Support for error detection and correction on the SiFive SoCs.
 
@@ -491,8 +498,7 @@ config EDAC_TI
 	tristate "Texas Instruments DDR3 ECC Controller"
 	depends on ARCH_KEYSTONE || SOC_DRA7XX
 	help
-	  Support for error detection and correction on the
-          TI SoCs.
+	  Support for error detection and correction on the TI SoCs.
 
 config EDAC_QCOM
 	tristate "QCOM EDAC Controller"
@@ -523,5 +529,12 @@ config EDAC_BLUEFIELD
 	help
 	  Support for error detection and correction on the
 	  Mellanox BlueField SoCs.
+
+config EDAC_DMC520
+	tristate "ARM DMC-520 ECC"
+	depends on ARM64
+	help
+	  Support for error detection and correction on the
+	  SoCs with ARM DMC-520 DRAM controller.
 
 endif # EDAC

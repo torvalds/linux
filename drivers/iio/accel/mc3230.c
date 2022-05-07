@@ -132,7 +132,6 @@ static int mc3230_probe(struct i2c_client *client,
 	data->client = client;
 	i2c_set_clientdata(client, indio_dev);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &mc3230_info;
 	indio_dev->name = "mc3230";
 	indio_dev->modes = INDIO_DIRECT_MODE;

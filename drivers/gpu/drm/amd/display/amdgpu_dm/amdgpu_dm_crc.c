@@ -101,7 +101,7 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 					struct dm_crtc_state *dm_crtc_state,
 					enum amdgpu_dm_pipe_crc_source source)
 {
-	struct amdgpu_device *adev = crtc->dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
 	struct dc_stream_state *stream_state = dm_crtc_state->stream;
 	bool enable = amdgpu_dm_is_valid_crc_source(source);
 	int ret = 0;
@@ -122,11 +122,16 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 	}
 
 	/* Configure dithering */
-	if (!dm_need_crc_dither(source))
+	if (!dm_need_crc_dither(source)) {
 		dc_stream_set_dither_option(stream_state, DITHER_OPTION_TRUN8);
-	else
+		dc_stream_set_dyn_expansion(stream_state->ctx->dc, stream_state,
+					    DYN_EXPANSION_DISABLE);
+	} else {
 		dc_stream_set_dither_option(stream_state,
 					    DITHER_OPTION_DEFAULT);
+		dc_stream_set_dyn_expansion(stream_state->ctx->dc, stream_state,
+					    DYN_EXPANSION_AUTO);
+	}
 
 unlock:
 	mutex_unlock(&adev->dm.dc_lock);

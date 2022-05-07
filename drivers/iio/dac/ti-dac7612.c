@@ -3,7 +3,7 @@
  * DAC7612 Dual, 12-Bit Serial input Digital-to-Analog Converter
  *
  * Copyright 2019 Qtechnology A/S
- * 2019 Ricardo Ribalda <ricardo@ribalda.com>
+ * 2019 Ricardo Ribalda <ribalda@kernel.org>
  *
  * Licensed under the GPL-2.
  */
@@ -21,6 +21,14 @@ struct dac7612 {
 	struct spi_device *spi;
 	struct gpio_desc *loaddacs;
 	uint16_t cache[2];
+
+	/*
+	 * Lock to protect the state of the device from potential concurrent
+	 * write accesses from userspace. The write operation requires an
+	 * SPI write, then toggling of a GPIO, so the lock aims to protect
+	 * the sanity of the entire sequence of operation.
+	 */
+	struct mutex lock;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -101,9 +109,9 @@ static int dac7612_write_raw(struct iio_dev *iio_dev,
 	if (val == priv->cache[chan->channel])
 		return 0;
 
-	mutex_lock(&iio_dev->mlock);
+	mutex_lock(&priv->lock);
 	ret = dac7612_cmd_single(priv, chan->channel, val);
-	mutex_unlock(&iio_dev->mlock);
+	mutex_unlock(&priv->lock);
 
 	return ret;
 }
@@ -139,12 +147,13 @@ static int dac7612_probe(struct spi_device *spi)
 		return PTR_ERR(priv->loaddacs);
 	priv->spi = spi;
 	spi_set_drvdata(spi, iio_dev);
-	iio_dev->dev.parent = &spi->dev;
 	iio_dev->info = &dac7612_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;
 	iio_dev->channels = dac7612_channels;
 	iio_dev->num_channels = ARRAY_SIZE(priv->cache);
 	iio_dev->name = spi_get_device_id(spi)->name;
+
+	mutex_init(&priv->lock);
 
 	for (i = 0; i < ARRAY_SIZE(priv->cache); i++) {
 		ret = dac7612_cmd_single(priv, i, 0);
@@ -179,6 +188,6 @@ static struct spi_driver dac7612_driver = {
 };
 module_spi_driver(dac7612_driver);
 
-MODULE_AUTHOR("Ricardo Ribalda <ricardo@ribalda.com>");
+MODULE_AUTHOR("Ricardo Ribalda <ribalda@kernel.org>");
 MODULE_DESCRIPTION("Texas Instruments DAC7612 DAC driver");
 MODULE_LICENSE("GPL v2");

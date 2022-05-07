@@ -10,7 +10,6 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
-#include "sun8i_csc.h"
 #include "sunxi_engine.h"
 
 #define SUN8I_MIXER_SIZE(w, h)			(((h) - 1) << 16 | ((w) - 1))
@@ -93,6 +92,10 @@
 #define SUN8I_MIXER_FBFMT_ABGR1555	17
 #define SUN8I_MIXER_FBFMT_RGBA5551	18
 #define SUN8I_MIXER_FBFMT_BGRA5551	19
+#define SUN8I_MIXER_FBFMT_ARGB2101010	20
+#define SUN8I_MIXER_FBFMT_ABGR2101010	21
+#define SUN8I_MIXER_FBFMT_RGBA1010102	22
+#define SUN8I_MIXER_FBFMT_BGRA1010102	23
 
 #define SUN8I_MIXER_FBFMT_YUYV		0
 #define SUN8I_MIXER_FBFMT_UYVY		1
@@ -109,6 +112,13 @@
 /* format 12 is semi-planar YUV411 UVUV */
 /* format 13 is semi-planar YUV411 VUVU */
 #define SUN8I_MIXER_FBFMT_YUV411	14
+/* format 15 doesn't exist */
+/* format 16 is P010 YVU */
+#define SUN8I_MIXER_FBFMT_P010_YUV	17
+/* format 18 is P210 YVU */
+#define SUN8I_MIXER_FBFMT_P210_YUV	19
+/* format 20 is packed YVU444 10-bit */
+/* format 21 is packed YUV444 10-bit */
 
 /*
  * Sub-engines listed bellow are unused for now. The EN registers are here only
@@ -132,13 +142,6 @@
 #define SUN50I_MIXER_FMT_EN			0xa8000
 #define SUN50I_MIXER_CDC0_EN			0xd0000
 #define SUN50I_MIXER_CDC1_EN			0xd8000
-
-struct de2_fmt_info {
-	u32			drm_fmt;
-	u32			de2_fmt;
-	bool			rgb;
-	enum sun8i_csc_mode	csc;
-};
 
 /**
  * struct sun8i_mixer_cfg - mixer HW configuration
@@ -199,5 +202,5 @@ sun8i_channel_base(struct sun8i_mixer *mixer, int channel)
 		return DE2_CH_BASE + channel * DE2_CH_SIZE;
 }
 
-const struct de2_fmt_info *sun8i_mixer_format_info(u32 format);
+int sun8i_mixer_drm_format_to_hw(u32 format, u32 *hw_format);
 #endif /* _SUN8I_MIXER_H_ */

@@ -12,18 +12,36 @@
 #include <linux/magic.h>
 #include <linux/ima.h>
 #include <linux/evm.h>
+#include <keys/system_keyring.h>
 
 #include "ima.h"
 
 static int __init default_appraise_setup(char *str)
 {
 #ifdef CONFIG_IMA_APPRAISE_BOOTPARAM
+	bool sb_state = arch_ima_get_secureboot();
+	int appraisal_state = ima_appraise;
+
 	if (strncmp(str, "off", 3) == 0)
-		ima_appraise = 0;
+		appraisal_state = 0;
 	else if (strncmp(str, "log", 3) == 0)
-		ima_appraise = IMA_APPRAISE_LOG;
+		appraisal_state = IMA_APPRAISE_LOG;
 	else if (strncmp(str, "fix", 3) == 0)
-		ima_appraise = IMA_APPRAISE_FIX;
+		appraisal_state = IMA_APPRAISE_FIX;
+	else if (strncmp(str, "enforce", 7) == 0)
+		appraisal_state = IMA_APPRAISE_ENFORCE;
+	else
+		pr_err("invalid \"%s\" appraise option", str);
+
+	/* If appraisal state was changed, but secure boot is enabled,
+	 * keep its default */
+	if (sb_state) {
+		if (!(appraisal_state & IMA_APPRAISE_ENFORCE))
+			pr_info("Secure boot enabled: ignoring ima_appraise=%s option",
+				str);
+	} else {
+		ima_appraise = appraisal_state;
+	}
 #endif
 	return 1;
 }
@@ -54,7 +72,7 @@ int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func)
 
 	security_task_getsecid(current, &secid);
 	return ima_match_policy(inode, current_cred(), secid, func, mask,
-				IMA_APPRAISE | IMA_HASH, NULL, NULL);
+				IMA_APPRAISE | IMA_HASH, NULL, NULL, NULL);
 }
 
 static int ima_fix_xattr(struct dentry *dentry,
@@ -216,7 +234,7 @@ static int xattr_verify(enum ima_hooks func, struct integrity_iint_cache *iint,
 	case IMA_XATTR_DIGEST_NG:
 		/* first byte contains algorithm id */
 		hash_start = 1;
-		/* fall through */
+		fallthrough;
 	case IMA_XATTR_DIGEST:
 		if (iint->flags & IMA_DIGSIG_REQUIRED) {
 			*cause = "IMA-signature-required";
@@ -304,6 +322,38 @@ static int modsig_verify(enum ima_hooks func, const struct modsig *modsig,
 }
 
 /*
+ * ima_check_blacklist - determine if the binary is blacklisted.
+ *
+ * Add the hash of the blacklisted binary to the measurement list, based
+ * on policy.
+ *
+ * Returns -EPERM if the hash is blacklisted.
+ */
+int ima_check_blacklist(struct integrity_iint_cache *iint,
+			const struct modsig *modsig, int pcr)
+{
+	enum hash_algo hash_algo;
+	const u8 *digest = NULL;
+	u32 digestsize = 0;
+	int rc = 0;
+
+	if (!(iint->flags & IMA_CHECK_BLACKLIST))
+		return 0;
+
+	if (iint->flags & IMA_MODSIG_ALLOWED && modsig) {
+		ima_get_modsig_digest(modsig, &hash_algo, &digest, &digestsize);
+
+		rc = is_binary_blacklisted(digest, digestsize);
+		if ((rc == -EPERM) && (iint->flags & IMA_MEASURE))
+			process_buffer_measurement(NULL, digest, digestsize,
+						   "blacklisted-hash", NONE,
+						   pcr, NULL);
+	}
+
+	return rc;
+}
+
+/*
  * ima_appraise_measurement - appraise file measurement
  *
  * Call evm_verifyxattr() to verify the integrity of 'security.ima'.
@@ -356,7 +406,7 @@ int ima_appraise_measurement(enum ima_hooks func,
 		/* It's fine not to have xattrs when using a modsig. */
 		if (try_modsig)
 			break;
-		/* fall through */
+		fallthrough;
 	case INTEGRITY_NOLABEL:		/* No security.evm xattr. */
 		cause = "missing-HMAC";
 		goto out;

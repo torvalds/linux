@@ -11,7 +11,6 @@
 #include <drv_types.h>
 #include <wlan_bssdef.h>
 
-
 /*	Commented by Albert 20101105 */
 /*	Increase the SURVEY_TO value from 100 to 150  ( 100ms to 150ms ) */
 /*	The Realtek 8188CE SoftAP will spend around 100ms to send the probe response after receiving the probe request. */
@@ -65,7 +64,6 @@
 #define _HW_STATE_ADHOC_		0x01
 #define _HW_STATE_STATION_	0x02
 #define _HW_STATE_AP_			0x03
-
 
 #define		_1M_RATE_	0
 #define		_2M_RATE_	1
@@ -450,7 +448,7 @@ void init_addba_retry_timer(struct adapter *adapt, struct sta_info *sta);
 struct xmit_frame *alloc_mgtxmitframe(struct xmit_priv *pxmitpriv);
 
 unsigned char networktype_to_raid(unsigned char network_type);
-u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int len);
+u8 judge_network_type(struct adapter *padapter, unsigned char *rate);
 void get_rate_set(struct adapter *padapter, unsigned char *pbssrate, int *len);
 void UpdateBrateTbl(struct adapter *padapter, u8 *mBratesOS);
 void UpdateBrateTblForSoftAP(u8 *bssrateset, u32 bssratelen);
@@ -570,9 +568,6 @@ void addba_timer_hdl(struct timer_list *t);
 	mod_timer(&mlmeext->link_timer, jiffies +	\
 		  msecs_to_jiffies(ms))
 
-bool cckrates_included(unsigned char *rate, int ratelen);
-bool cckratesonly_included(unsigned char *rate, int ratelen);
-
 void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr);
 
 void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len);
@@ -680,7 +675,6 @@ enum rtw_c2h_event {
 				 */
 	MAX_C2HEVT
 };
-
 
 #ifdef _RTW_MLME_EXT_C_
 

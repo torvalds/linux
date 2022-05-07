@@ -16,10 +16,12 @@ void rtw_set_channel_mac(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 	u8 value8;
 
 	txsc20 = primary_ch_idx;
-	if (txsc20 == 1 || txsc20 == 3)
-		txsc40 = 9;
-	else
-		txsc40 = 10;
+	if (bw == RTW_CHANNEL_WIDTH_80) {
+		if (txsc20 == RTW_SC_20_UPPER || txsc20 == RTW_SC_20_UPMOST)
+			txsc40 = RTW_SC_40_UPPER;
+		else
+			txsc40 = RTW_SC_40_LOWER;
+	}
 	rtw_write8(rtwdev, REG_DATA_SC,
 		   BIT_TXSC_20M(txsc20) | BIT_TXSC_40M(txsc40));
 
@@ -38,6 +40,9 @@ void rtw_set_channel_mac(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 	}
 	rtw_write32(rtwdev, REG_WMAC_TRXPTCL_CTL, value32);
 
+	if (rtw_chip_wcpu_11n(rtwdev))
+		return;
+
 	value32 = rtw_read32(rtwdev, REG_AFE_CTRL1) & ~(BIT_MAC_CLK_SEL);
 	value32 |= (MAC_CLK_HW_DEF_80M << BIT_SHIFT_MAC_CLK_SEL);
 	rtw_write32(rtwdev, REG_AFE_CTRL1, value32);
@@ -47,10 +52,11 @@ void rtw_set_channel_mac(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 
 	value8 = rtw_read8(rtwdev, REG_CCK_CHECK);
 	value8 = value8 & ~BIT_CHECK_CCK_EN;
-	if (channel > 35)
+	if (IS_CH_5G_BAND(channel))
 		value8 |= BIT_CHECK_CCK_EN;
 	rtw_write8(rtwdev, REG_CCK_CHECK, value8);
 }
+EXPORT_SYMBOL(rtw_set_channel_mac);
 
 static int rtw_mac_pre_system_cfg(struct rtw_dev *rtwdev)
 {
@@ -58,6 +64,14 @@ static int rtw_mac_pre_system_cfg(struct rtw_dev *rtwdev)
 	u8 value8;
 
 	rtw_write8(rtwdev, REG_RSV_CTRL, 0);
+
+	if (rtw_chip_wcpu_11n(rtwdev)) {
+		if (rtw_read32(rtwdev, REG_SYS_CFG1) & BIT_LDO)
+			rtw_write8(rtwdev, REG_LDO_SWR_CTRL, LDO_SEL);
+		else
+			rtw_write8(rtwdev, REG_LDO_SWR_CTRL, SPS_SEL);
+		return 0;
+	}
 
 	switch (rtw_hci_type(rtwdev)) {
 	case RTW_HCI_TYPE_PCIE:
@@ -98,48 +112,57 @@ static int rtw_mac_pre_system_cfg(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+static bool do_pwr_poll_cmd(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 target)
+{
+	u32 val;
+
+	target &= mask;
+
+	return read_poll_timeout_atomic(rtw_read8, val, (val & mask) == target,
+					50, 50 * RTW_PWR_POLLING_CNT, false,
+					rtwdev, addr) == 0;
+}
+
 static int rtw_pwr_cmd_polling(struct rtw_dev *rtwdev,
-			       struct rtw_pwr_seq_cmd *cmd)
+			       const struct rtw_pwr_seq_cmd *cmd)
 {
 	u8 value;
-	u8 flag = 0;
 	u32 offset;
-	u32 cnt = RTW_PWR_POLLING_CNT;
 
 	if (cmd->base == RTW_PWR_ADDR_SDIO)
 		offset = cmd->offset | SDIO_LOCAL_OFFSET;
 	else
 		offset = cmd->offset;
 
-	do {
-		cnt--;
-		value = rtw_read8(rtwdev, offset);
-		value &= cmd->mask;
-		if (value == (cmd->value & cmd->mask))
-			return 0;
-		if (cnt == 0) {
-			if (rtw_hci_type(rtwdev) == RTW_HCI_TYPE_PCIE &&
-			    flag == 0) {
-				value = rtw_read8(rtwdev, REG_SYS_PW_CTRL);
-				value |= BIT(3);
-				rtw_write8(rtwdev, REG_SYS_PW_CTRL, value);
-				value &= ~BIT(3);
-				rtw_write8(rtwdev, REG_SYS_PW_CTRL, value);
-				cnt = RTW_PWR_POLLING_CNT;
-				flag = 1;
-			} else {
-				return -EBUSY;
-			}
-		} else {
-			udelay(50);
-		}
-	} while (1);
+	if (do_pwr_poll_cmd(rtwdev, offset, cmd->mask, cmd->value))
+		return 0;
+
+	if (rtw_hci_type(rtwdev) != RTW_HCI_TYPE_PCIE)
+		goto err;
+
+	/* if PCIE, toggle BIT_PFM_WOWL and try again */
+	value = rtw_read8(rtwdev, REG_SYS_PW_CTRL);
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8723D)
+		rtw_write8(rtwdev, REG_SYS_PW_CTRL, value & ~BIT_PFM_WOWL);
+	rtw_write8(rtwdev, REG_SYS_PW_CTRL, value | BIT_PFM_WOWL);
+	rtw_write8(rtwdev, REG_SYS_PW_CTRL, value & ~BIT_PFM_WOWL);
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8723D)
+		rtw_write8(rtwdev, REG_SYS_PW_CTRL, value | BIT_PFM_WOWL);
+
+	if (do_pwr_poll_cmd(rtwdev, offset, cmd->mask, cmd->value))
+		return 0;
+
+err:
+	rtw_err(rtwdev, "failed to poll offset=0x%x mask=0x%x value=0x%x\n",
+		offset, cmd->mask, cmd->value);
+	return -EBUSY;
 }
 
 static int rtw_sub_pwr_seq_parser(struct rtw_dev *rtwdev, u8 intf_mask,
-				  u8 cut_mask, struct rtw_pwr_seq_cmd *cmd)
+				  u8 cut_mask,
+				  const struct rtw_pwr_seq_cmd *cmd)
 {
-	struct rtw_pwr_seq_cmd *cur_cmd;
+	const struct rtw_pwr_seq_cmd *cur_cmd;
 	u32 offset;
 	u8 value;
 
@@ -181,13 +204,13 @@ static int rtw_sub_pwr_seq_parser(struct rtw_dev *rtwdev, u8 intf_mask,
 }
 
 static int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
-			      struct rtw_pwr_seq_cmd **cmd_seq)
+			      const struct rtw_pwr_seq_cmd **cmd_seq)
 {
 	u8 cut_mask;
 	u8 intf_mask;
 	u8 cut;
 	u32 idx = 0;
-	struct rtw_pwr_seq_cmd *cmd;
+	const struct rtw_pwr_seq_cmd *cmd;
 	int ret;
 
 	cut = rtwdev->hal.cut_version;
@@ -221,16 +244,18 @@ static int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
 static int rtw_mac_power_switch(struct rtw_dev *rtwdev, bool pwr_on)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
-	struct rtw_pwr_seq_cmd **pwr_seq;
+	const struct rtw_pwr_seq_cmd **pwr_seq;
 	u8 rpwm;
 	bool cur_pwr;
 
-	rpwm = rtw_read8(rtwdev, rtwdev->hci.rpwm_addr);
+	if (rtw_chip_wcpu_11ac(rtwdev)) {
+		rpwm = rtw_read8(rtwdev, rtwdev->hci.rpwm_addr);
 
-	/* Check FW still exist or not */
-	if (rtw_read16(rtwdev, REG_MCUFW_CTRL) == 0xC078) {
-		rpwm = (rpwm ^ BIT_RPWM_TOGGLE) & BIT_RPWM_TOGGLE;
-		rtw_write8(rtwdev, rtwdev->hci.rpwm_addr, rpwm);
+		/* Check FW still exist or not */
+		if (rtw_read16(rtwdev, REG_MCUFW_CTRL) == 0xC078) {
+			rpwm = (rpwm ^ BIT_RPWM_TOGGLE) & BIT_RPWM_TOGGLE;
+			rtw_write8(rtwdev, rtwdev->hci.rpwm_addr, rpwm);
+		}
 	}
 
 	if (rtw_read8(rtwdev, REG_CR) == 0xea)
@@ -241,7 +266,7 @@ static int rtw_mac_power_switch(struct rtw_dev *rtwdev, bool pwr_on)
 	else
 		cur_pwr = true;
 
-	if (pwr_on && cur_pwr)
+	if (pwr_on == cur_pwr)
 		return -EALREADY;
 
 	pwr_seq = pwr_on ? chip->pwr_on_seq : chip->pwr_off_seq;
@@ -251,7 +276,7 @@ static int rtw_mac_power_switch(struct rtw_dev *rtwdev, bool pwr_on)
 	return 0;
 }
 
-static int rtw_mac_init_system_cfg(struct rtw_dev *rtwdev)
+static int __rtw_mac_init_system_cfg(struct rtw_dev *rtwdev)
 {
 	u8 sys_func_en = rtwdev->chip->sys_func_en;
 	u8 value8;
@@ -261,7 +286,7 @@ static int rtw_mac_init_system_cfg(struct rtw_dev *rtwdev)
 	value |= BIT_WL_PLATFORM_RST | BIT_DDMA_EN;
 	rtw_write32(rtwdev, REG_CPU_DMEM_CON, value);
 
-	rtw_write8(rtwdev, REG_SYS_FUNC_EN + 1, sys_func_en);
+	rtw_write8_set(rtwdev, REG_SYS_FUNC_EN + 1, sys_func_en);
 	value8 = (rtw_read8(rtwdev, REG_CR_EXT + 3) & 0xF0) | 0x0C;
 	rtw_write8(rtwdev, REG_CR_EXT + 3, value8);
 
@@ -274,6 +299,29 @@ static int rtw_mac_init_system_cfg(struct rtw_dev *rtwdev)
 	}
 
 	return 0;
+}
+
+static int __rtw_mac_init_system_cfg_legacy(struct rtw_dev *rtwdev)
+{
+	rtw_write8(rtwdev, REG_CR, 0xff);
+	mdelay(2);
+	rtw_write8(rtwdev, REG_HWSEQ_CTRL, 0x7f);
+	mdelay(2);
+
+	rtw_write8_set(rtwdev, REG_SYS_CLKR, BIT_WAKEPAD_EN);
+	rtw_write16_clr(rtwdev, REG_GPIO_MUXCFG, BIT_EN_SIC);
+
+	rtw_write16(rtwdev, REG_CR, 0x2ff);
+
+	return 0;
+}
+
+static int rtw_mac_init_system_cfg(struct rtw_dev *rtwdev)
+{
+	if (rtw_chip_wcpu_11n(rtwdev))
+		return __rtw_mac_init_system_cfg_legacy(rtwdev);
+
+	return __rtw_mac_init_system_cfg(rtwdev);
 }
 
 int rtw_mac_power_on(struct rtw_dev *rtwdev)
@@ -312,15 +360,16 @@ void rtw_mac_power_off(struct rtw_dev *rtwdev)
 
 static bool check_firmware_size(const u8 *data, u32 size)
 {
+	const struct rtw_fw_hdr *fw_hdr = (const struct rtw_fw_hdr *)data;
 	u32 dmem_size;
 	u32 imem_size;
 	u32 emem_size;
 	u32 real_size;
 
-	dmem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_DMEM_SIZE)));
-	imem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_IMEM_SIZE)));
-	emem_size = ((*(data + FW_HDR_MEM_USAGE)) & BIT(4)) ?
-		    le32_to_cpu(*((__le32 *)(data + FW_HDR_EMEM_SIZE))) : 0;
+	dmem_size = le32_to_cpu(fw_hdr->dmem_size);
+	imem_size = le32_to_cpu(fw_hdr->imem_size);
+	emem_size = (fw_hdr->mem_usage & BIT(4)) ?
+		    le32_to_cpu(fw_hdr->emem_size) : 0;
 
 	dmem_size += FW_HDR_CHKSUM_SIZE;
 	imem_size += FW_HDR_CHKSUM_SIZE;
@@ -566,27 +615,10 @@ download_firmware_to_mem(struct rtw_dev *rtwdev, const u8 *data,
 	return 0;
 }
 
-static void update_firmware_info(struct rtw_dev *rtwdev,
-				 struct rtw_fw_state *fw)
-{
-	const u8 *data = fw->firmware->data;
-
-	fw->h2c_version =
-		le16_to_cpu(*((__le16 *)(data + FW_HDR_H2C_FMT_VER)));
-	fw->version =
-		le16_to_cpu(*((__le16 *)(data + FW_HDR_VERSION)));
-	fw->sub_version = *(data + FW_HDR_SUBVERSION);
-	fw->sub_index = *(data + FW_HDR_SUBINDEX);
-
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw h2c version: %x\n", fw->h2c_version);
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw version:     %x\n", fw->version);
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw sub version: %x\n", fw->sub_version);
-	rtw_dbg(rtwdev, RTW_DBG_FW, "fw sub index:   %x\n", fw->sub_index);
-}
-
 static int
 start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 {
+	const struct rtw_fw_hdr *fw_hdr = (const struct rtw_fw_hdr *)data;
 	const u8 *cur_fw;
 	u16 val;
 	u32 imem_size;
@@ -595,10 +627,10 @@ start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 	u32 addr;
 	int ret;
 
-	dmem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_DMEM_SIZE)));
-	imem_size = le32_to_cpu(*((__le32 *)(data + FW_HDR_IMEM_SIZE)));
-	emem_size = ((*(data + FW_HDR_MEM_USAGE)) & BIT(4)) ?
-		    le32_to_cpu(*((__le32 *)(data + FW_HDR_EMEM_SIZE))) : 0;
+	dmem_size = le32_to_cpu(fw_hdr->dmem_size);
+	imem_size = le32_to_cpu(fw_hdr->imem_size);
+	emem_size = (fw_hdr->mem_usage & BIT(4)) ?
+		    le32_to_cpu(fw_hdr->emem_size) : 0;
 	dmem_size += FW_HDR_CHKSUM_SIZE;
 	imem_size += FW_HDR_CHKSUM_SIZE;
 	emem_size += emem_size ? FW_HDR_CHKSUM_SIZE : 0;
@@ -608,14 +640,14 @@ start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 	rtw_write16(rtwdev, REG_MCUFW_CTRL, val);
 
 	cur_fw = data + FW_HDR_SIZE;
-	addr = le32_to_cpu(*((__le32 *)(data + FW_HDR_DMEM_ADDR)));
+	addr = le32_to_cpu(fw_hdr->dmem_addr);
 	addr &= ~BIT(31);
 	ret = download_firmware_to_mem(rtwdev, cur_fw, 0, addr, dmem_size);
 	if (ret)
 		return ret;
 
 	cur_fw = data + FW_HDR_SIZE + dmem_size;
-	addr = le32_to_cpu(*((__le32 *)(data + FW_HDR_IMEM_ADDR)));
+	addr = le32_to_cpu(fw_hdr->imem_addr);
 	addr &= ~BIT(31);
 	ret = download_firmware_to_mem(rtwdev, cur_fw, 0, addr, imem_size);
 	if (ret)
@@ -623,7 +655,7 @@ start_download_firmware(struct rtw_dev *rtwdev, const u8 *data, u32 size)
 
 	if (emem_size) {
 		cur_fw = data + FW_HDR_SIZE + dmem_size + imem_size;
-		addr = le32_to_cpu(*((__le32 *)(data + FW_HDR_EMEM_ADDR)));
+		addr = le32_to_cpu(fw_hdr->emem_addr);
 		addr &= ~BIT(31);
 		ret = download_firmware_to_mem(rtwdev, cur_fw, 0, addr,
 					       emem_size);
@@ -663,7 +695,8 @@ static void download_firmware_end_flow(struct rtw_dev *rtwdev)
 	rtw_write16(rtwdev, REG_MCUFW_CTRL, fw_ctrl);
 }
 
-int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
+static int __rtw_download_firmware(struct rtw_dev *rtwdev,
+				   struct rtw_fw_state *fw)
 {
 	struct rtw_backup_info bckp[DLFW_RESTORE_REG_NUM];
 	const u8 *data = fw->firmware->data;
@@ -699,15 +732,13 @@ int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
 	if (ret)
 		goto dlfw_fail;
 
-	update_firmware_info(rtwdev, fw);
-
 	/* reset desc and index */
 	rtw_hci_setup(rtwdev);
 
 	rtwdev->h2c.last_box_num = 0;
 	rtwdev->h2c.seq = 0;
 
-	rtw_flag_set(rtwdev, RTW_FLAG_FW_RUNNING);
+	set_bit(RTW_FLAG_FW_RUNNING, rtwdev->flags);
 
 	return 0;
 
@@ -719,10 +750,235 @@ dlfw_fail:
 	return ret;
 }
 
+static void en_download_firmware_legacy(struct rtw_dev *rtwdev, bool en)
+{
+	int try;
+
+	if (en) {
+		wlan_cpu_enable(rtwdev, false);
+		wlan_cpu_enable(rtwdev, true);
+
+		rtw_write8_set(rtwdev, REG_MCUFW_CTRL, BIT_MCUFWDL_EN);
+
+		for (try = 0; try < 10; try++) {
+			if (rtw_read8(rtwdev, REG_MCUFW_CTRL) & BIT_MCUFWDL_EN)
+				goto fwdl_ready;
+			rtw_write8_set(rtwdev, REG_MCUFW_CTRL, BIT_MCUFWDL_EN);
+			msleep(20);
+		}
+		rtw_err(rtwdev, "failed to check fw download ready\n");
+fwdl_ready:
+		rtw_write32_clr(rtwdev, REG_MCUFW_CTRL, BIT_ROM_DLEN);
+	} else {
+		rtw_write8_clr(rtwdev, REG_MCUFW_CTRL, BIT_MCUFWDL_EN);
+	}
+}
+
+static void
+write_firmware_page(struct rtw_dev *rtwdev, u32 page, const u8 *data, u32 size)
+{
+	u32 val32;
+	u32 block_nr;
+	u32 remain_size;
+	u32 write_addr = FW_START_ADDR_LEGACY;
+	const __le32 *ptr = (const __le32 *)data;
+	u32 block;
+	__le32 remain_data = 0;
+
+	block_nr = size >> DLFW_BLK_SIZE_SHIFT_LEGACY;
+	remain_size = size & (DLFW_BLK_SIZE_LEGACY - 1);
+
+	val32 = rtw_read32(rtwdev, REG_MCUFW_CTRL);
+	val32 &= ~BIT_ROM_PGE;
+	val32 |= (page << BIT_SHIFT_ROM_PGE) & BIT_ROM_PGE;
+	rtw_write32(rtwdev, REG_MCUFW_CTRL, val32);
+
+	for (block = 0; block < block_nr; block++) {
+		rtw_write32(rtwdev, write_addr, le32_to_cpu(*ptr));
+
+		write_addr += DLFW_BLK_SIZE_LEGACY;
+		ptr++;
+	}
+
+	if (remain_size) {
+		memcpy(&remain_data, ptr, remain_size);
+		rtw_write32(rtwdev, write_addr, le32_to_cpu(remain_data));
+	}
+}
+
+static int
+download_firmware_legacy(struct rtw_dev *rtwdev, const u8 *data, u32 size)
+{
+	u32 page;
+	u32 total_page;
+	u32 last_page_size;
+
+	data += sizeof(struct rtw_fw_hdr_legacy);
+	size -= sizeof(struct rtw_fw_hdr_legacy);
+
+	total_page = size >> DLFW_PAGE_SIZE_SHIFT_LEGACY;
+	last_page_size = size & (DLFW_PAGE_SIZE_LEGACY - 1);
+
+	rtw_write8_set(rtwdev, REG_MCUFW_CTRL, BIT_FWDL_CHK_RPT);
+
+	for (page = 0; page < total_page; page++) {
+		write_firmware_page(rtwdev, page, data, DLFW_PAGE_SIZE_LEGACY);
+		data += DLFW_PAGE_SIZE_LEGACY;
+	}
+	if (last_page_size)
+		write_firmware_page(rtwdev, page, data, last_page_size);
+
+	if (!check_hw_ready(rtwdev, REG_MCUFW_CTRL, BIT_FWDL_CHK_RPT, 1)) {
+		rtw_err(rtwdev, "failed to check download firmware report\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int download_firmware_validate_legacy(struct rtw_dev *rtwdev)
+{
+	u32 val32;
+	int try;
+
+	val32 = rtw_read32(rtwdev, REG_MCUFW_CTRL);
+	val32 |= BIT_MCUFWDL_RDY;
+	val32 &= ~BIT_WINTINI_RDY;
+	rtw_write32(rtwdev, REG_MCUFW_CTRL, val32);
+
+	wlan_cpu_enable(rtwdev, false);
+	wlan_cpu_enable(rtwdev, true);
+
+	for (try = 0; try < 10; try++) {
+		val32 = rtw_read32(rtwdev, REG_MCUFW_CTRL);
+		if ((val32 & FW_READY_LEGACY) == FW_READY_LEGACY)
+			return 0;
+		msleep(20);
+	}
+
+	rtw_err(rtwdev, "failed to validate firmware\n");
+	return -EINVAL;
+}
+
+static int __rtw_download_firmware_legacy(struct rtw_dev *rtwdev,
+					  struct rtw_fw_state *fw)
+{
+	int ret = 0;
+
+	en_download_firmware_legacy(rtwdev, true);
+	ret = download_firmware_legacy(rtwdev, fw->firmware->data, fw->firmware->size);
+	en_download_firmware_legacy(rtwdev, false);
+	if (ret)
+		goto out;
+
+	ret = download_firmware_validate_legacy(rtwdev);
+	if (ret)
+		goto out;
+
+	/* reset desc and index */
+	rtw_hci_setup(rtwdev);
+
+	rtwdev->h2c.last_box_num = 0;
+	rtwdev->h2c.seq = 0;
+
+	set_bit(RTW_FLAG_FW_RUNNING, rtwdev->flags);
+
+out:
+	return ret;
+}
+
+int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
+{
+	if (rtw_chip_wcpu_11n(rtwdev))
+		return __rtw_download_firmware_legacy(rtwdev, fw);
+
+	return __rtw_download_firmware(rtwdev, fw);
+}
+
+static u32 get_priority_queues(struct rtw_dev *rtwdev, u32 queues)
+{
+	const struct rtw_rqpn *rqpn = rtwdev->fifo.rqpn;
+	u32 prio_queues = 0;
+
+	if (queues & BIT(IEEE80211_AC_VO))
+		prio_queues |= BIT(rqpn->dma_map_vo);
+	if (queues & BIT(IEEE80211_AC_VI))
+		prio_queues |= BIT(rqpn->dma_map_vi);
+	if (queues & BIT(IEEE80211_AC_BE))
+		prio_queues |= BIT(rqpn->dma_map_be);
+	if (queues & BIT(IEEE80211_AC_BK))
+		prio_queues |= BIT(rqpn->dma_map_bk);
+
+	return prio_queues;
+}
+
+static void __rtw_mac_flush_prio_queue(struct rtw_dev *rtwdev,
+				       u32 prio_queue, bool drop)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_prioq_addr *addr;
+	bool wsize;
+	u16 avail_page, rsvd_page;
+	int i;
+
+	if (prio_queue >= RTW_DMA_MAPPING_MAX)
+		return;
+
+	addr = &chip->prioq_addrs->prio[prio_queue];
+	wsize = chip->prioq_addrs->wsize;
+
+	/* check if all of the reserved pages are available for 100 msecs */
+	for (i = 0; i < 5; i++) {
+		rsvd_page = wsize ? rtw_read16(rtwdev, addr->rsvd) :
+				     rtw_read8(rtwdev, addr->rsvd);
+		avail_page = wsize ? rtw_read16(rtwdev, addr->avail) :
+				      rtw_read8(rtwdev, addr->avail);
+		if (rsvd_page == avail_page)
+			return;
+
+		msleep(20);
+	}
+
+	/* priority queue is still not empty, throw a warning,
+	 *
+	 * Note that if we want to flush the tx queue when having a lot of
+	 * traffic (ex, 100Mbps up), some of the packets could be dropped.
+	 * And it requires like ~2secs to flush the full priority queue.
+	 */
+	if (!drop)
+		rtw_warn(rtwdev, "timed out to flush queue %d\n", prio_queue);
+}
+
+static void rtw_mac_flush_prio_queues(struct rtw_dev *rtwdev,
+				      u32 prio_queues, bool drop)
+{
+	u32 q;
+
+	for (q = 0; q < RTW_DMA_MAPPING_MAX; q++)
+		if (prio_queues & BIT(q))
+			__rtw_mac_flush_prio_queue(rtwdev, q, drop);
+}
+
+void rtw_mac_flush_queues(struct rtw_dev *rtwdev, u32 queues, bool drop)
+{
+	u32 prio_queues = 0;
+
+	/* If all of the hardware queues are requested to flush,
+	 * or the priority queues are not mapped yet,
+	 * flush all of the priority queues
+	 */
+	if (queues == BIT(rtwdev->hw->queues) - 1 || !rtwdev->fifo.rqpn)
+		prio_queues = BIT(RTW_DMA_MAPPING_MAX) - 1;
+	else
+		prio_queues = get_priority_queues(rtwdev, queues);
+
+	rtw_mac_flush_prio_queues(rtwdev, prio_queues, drop);
+}
+
 static int txdma_queue_mapping(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
-	struct rtw_rqpn *rqpn = NULL;
+	const struct rtw_rqpn *rqpn = NULL;
 	u16 txdma_pq_map = 0;
 
 	switch (rtw_hci_type(rtwdev)) {
@@ -743,6 +999,7 @@ static int txdma_queue_mapping(struct rtw_dev *rtwdev)
 		return -EINVAL;
 	}
 
+	rtwdev->fifo.rqpn = rqpn;
 	txdma_pq_map |= BIT_TXDMA_HIQ_MAP(rqpn->dma_map_hi);
 	txdma_pq_map |= BIT_TXDMA_MGQ_MAP(rqpn->dma_map_mg);
 	txdma_pq_map |= BIT_TXDMA_BKQ_MAP(rqpn->dma_map_bk);
@@ -753,7 +1010,8 @@ static int txdma_queue_mapping(struct rtw_dev *rtwdev)
 
 	rtw_write8(rtwdev, REG_CR, 0);
 	rtw_write8(rtwdev, REG_CR, MAC_TRX_ENABLE);
-	rtw_write32(rtwdev, REG_H2CQ_CSR, BIT_H2CQ_FULL);
+	if (rtw_chip_wcpu_11ac(rtwdev))
+		rtw_write32(rtwdev, REG_H2CQ_CSR, BIT_H2CQ_FULL);
 
 	return 0;
 }
@@ -768,13 +1026,16 @@ static int set_trx_fifo_info(struct rtw_dev *rtwdev)
 	/* config rsvd page num */
 	fifo->rsvd_drv_pg_num = 8;
 	fifo->txff_pg_num = chip->txff_size >> 7;
-	fifo->rsvd_pg_num = fifo->rsvd_drv_pg_num +
-			   RSVD_PG_H2C_EXTRAINFO_NUM +
-			   RSVD_PG_H2C_STATICINFO_NUM +
-			   RSVD_PG_H2CQ_NUM +
-			   RSVD_PG_CPU_INSTRUCTION_NUM +
-			   RSVD_PG_FW_TXBUF_NUM +
-			   csi_buf_pg_num;
+	if (rtw_chip_wcpu_11n(rtwdev))
+		fifo->rsvd_pg_num = fifo->rsvd_drv_pg_num;
+	else
+		fifo->rsvd_pg_num = fifo->rsvd_drv_pg_num +
+				   RSVD_PG_H2C_EXTRAINFO_NUM +
+				   RSVD_PG_H2C_STATICINFO_NUM +
+				   RSVD_PG_H2CQ_NUM +
+				   RSVD_PG_CPU_INSTRUCTION_NUM +
+				   RSVD_PG_FW_TXBUF_NUM +
+				   csi_buf_pg_num;
 
 	if (fifo->rsvd_pg_num > fifo->txff_pg_num)
 		return -ENOMEM;
@@ -783,18 +1044,20 @@ static int set_trx_fifo_info(struct rtw_dev *rtwdev)
 	fifo->rsvd_boundary = fifo->txff_pg_num - fifo->rsvd_pg_num;
 
 	cur_pg_addr = fifo->txff_pg_num;
-	cur_pg_addr -= csi_buf_pg_num;
-	fifo->rsvd_csibuf_addr = cur_pg_addr;
-	cur_pg_addr -= RSVD_PG_FW_TXBUF_NUM;
-	fifo->rsvd_fw_txbuf_addr = cur_pg_addr;
-	cur_pg_addr -= RSVD_PG_CPU_INSTRUCTION_NUM;
-	fifo->rsvd_cpu_instr_addr = cur_pg_addr;
-	cur_pg_addr -= RSVD_PG_H2CQ_NUM;
-	fifo->rsvd_h2cq_addr = cur_pg_addr;
-	cur_pg_addr -= RSVD_PG_H2C_STATICINFO_NUM;
-	fifo->rsvd_h2c_sta_info_addr = cur_pg_addr;
-	cur_pg_addr -= RSVD_PG_H2C_EXTRAINFO_NUM;
-	fifo->rsvd_h2c_info_addr = cur_pg_addr;
+	if (rtw_chip_wcpu_11ac(rtwdev)) {
+		cur_pg_addr -= csi_buf_pg_num;
+		fifo->rsvd_csibuf_addr = cur_pg_addr;
+		cur_pg_addr -= RSVD_PG_FW_TXBUF_NUM;
+		fifo->rsvd_fw_txbuf_addr = cur_pg_addr;
+		cur_pg_addr -= RSVD_PG_CPU_INSTRUCTION_NUM;
+		fifo->rsvd_cpu_instr_addr = cur_pg_addr;
+		cur_pg_addr -= RSVD_PG_H2CQ_NUM;
+		fifo->rsvd_h2cq_addr = cur_pg_addr;
+		cur_pg_addr -= RSVD_PG_H2C_STATICINFO_NUM;
+		fifo->rsvd_h2c_sta_info_addr = cur_pg_addr;
+		cur_pg_addr -= RSVD_PG_H2C_EXTRAINFO_NUM;
+		fifo->rsvd_h2c_info_addr = cur_pg_addr;
+	}
 	cur_pg_addr -= fifo->rsvd_drv_pg_num;
 	fifo->rsvd_drv_addr = cur_pg_addr;
 
@@ -806,11 +1069,70 @@ static int set_trx_fifo_info(struct rtw_dev *rtwdev)
 	return 0;
 }
 
+static int __priority_queue_cfg(struct rtw_dev *rtwdev,
+				const struct rtw_page_table *pg_tbl,
+				u16 pubq_num)
+{
+	struct rtw_fifo_conf *fifo = &rtwdev->fifo;
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_1, pg_tbl->hq_num);
+	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_2, pg_tbl->lq_num);
+	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_3, pg_tbl->nq_num);
+	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_4, pg_tbl->exq_num);
+	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_5, pubq_num);
+	rtw_write32_set(rtwdev, REG_RQPN_CTRL_2, BIT_LD_RQPN);
+
+	rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2, fifo->rsvd_boundary);
+	rtw_write8_set(rtwdev, REG_FWHW_TXQ_CTRL + 2, BIT_EN_WR_FREE_TAIL >> 16);
+
+	rtw_write16(rtwdev, REG_BCNQ_BDNY_V1, fifo->rsvd_boundary);
+	rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2 + 2, fifo->rsvd_boundary);
+	rtw_write16(rtwdev, REG_BCNQ1_BDNY_V1, fifo->rsvd_boundary);
+	rtw_write32(rtwdev, REG_RXFF_BNDY, chip->rxff_size - C2H_PKT_BUF - 1);
+	rtw_write8_set(rtwdev, REG_AUTO_LLT_V1, BIT_AUTO_INIT_LLT_V1);
+
+	if (!check_hw_ready(rtwdev, REG_AUTO_LLT_V1, BIT_AUTO_INIT_LLT_V1, 0))
+		return -EBUSY;
+
+	rtw_write8(rtwdev, REG_CR + 3, 0);
+
+	return 0;
+}
+
+static int __priority_queue_cfg_legacy(struct rtw_dev *rtwdev,
+				       const struct rtw_page_table *pg_tbl,
+				       u16 pubq_num)
+{
+	struct rtw_fifo_conf *fifo = &rtwdev->fifo;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	u32 val32;
+
+	val32 = BIT_RQPN_NE(pg_tbl->nq_num, pg_tbl->exq_num);
+	rtw_write32(rtwdev, REG_RQPN_NPQ, val32);
+	val32 = BIT_RQPN_HLP(pg_tbl->hq_num, pg_tbl->lq_num, pubq_num);
+	rtw_write32(rtwdev, REG_RQPN, val32);
+
+	rtw_write8(rtwdev, REG_TRXFF_BNDY, fifo->rsvd_boundary);
+	rtw_write16(rtwdev, REG_TRXFF_BNDY + 2, chip->rxff_size - REPORT_BUF - 1);
+	rtw_write8(rtwdev, REG_DWBCN0_CTRL + 1, fifo->rsvd_boundary);
+	rtw_write8(rtwdev, REG_BCNQ_BDNY, fifo->rsvd_boundary);
+	rtw_write8(rtwdev, REG_MGQ_BDNY, fifo->rsvd_boundary);
+	rtw_write8(rtwdev, REG_WMAC_LBK_BF_HD, fifo->rsvd_boundary);
+
+	rtw_write32_set(rtwdev, REG_AUTO_LLT, BIT_AUTO_INIT_LLT);
+
+	if (!check_hw_ready(rtwdev, REG_AUTO_LLT, BIT_AUTO_INIT_LLT, 0))
+		return -EBUSY;
+
+	return 0;
+}
+
 static int priority_queue_cfg(struct rtw_dev *rtwdev)
 {
 	struct rtw_fifo_conf *fifo = &rtwdev->fifo;
 	struct rtw_chip_info *chip = rtwdev->chip;
-	struct rtw_page_table *pg_tbl = NULL;
+	const struct rtw_page_table *pg_tbl = NULL;
 	u16 pubq_num;
 	int ret;
 
@@ -838,28 +1160,10 @@ static int priority_queue_cfg(struct rtw_dev *rtwdev)
 
 	pubq_num = fifo->acq_pg_num - pg_tbl->hq_num - pg_tbl->lq_num -
 		   pg_tbl->nq_num - pg_tbl->exq_num - pg_tbl->gapq_num;
-	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_1, pg_tbl->hq_num);
-	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_2, pg_tbl->lq_num);
-	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_3, pg_tbl->nq_num);
-	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_4, pg_tbl->exq_num);
-	rtw_write16(rtwdev, REG_FIFOPAGE_INFO_5, pubq_num);
-	rtw_write32_set(rtwdev, REG_RQPN_CTRL_2, BIT_LD_RQPN);
-
-	rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2, fifo->rsvd_boundary);
-	rtw_write8_set(rtwdev, REG_FWHW_TXQ_CTRL + 2, BIT_EN_WR_FREE_TAIL >> 16);
-
-	rtw_write16(rtwdev, REG_BCNQ_BDNY_V1, fifo->rsvd_boundary);
-	rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2 + 2, fifo->rsvd_boundary);
-	rtw_write16(rtwdev, REG_BCNQ1_BDNY_V1, fifo->rsvd_boundary);
-	rtw_write32(rtwdev, REG_RXFF_BNDY, chip->rxff_size - C2H_PKT_BUF - 1);
-	rtw_write8_set(rtwdev, REG_AUTO_LLT_V1, BIT_AUTO_INIT_LLT_V1);
-
-	if (!check_hw_ready(rtwdev, REG_AUTO_LLT_V1, BIT_AUTO_INIT_LLT_V1, 0))
-		return -EBUSY;
-
-	rtw_write8(rtwdev, REG_CR + 3, 0);
-
-	return 0;
+	if (rtw_chip_wcpu_11n(rtwdev))
+		return __priority_queue_cfg_legacy(rtwdev, pg_tbl, pubq_num);
+	else
+		return __priority_queue_cfg(rtwdev, pg_tbl, pubq_num);
 }
 
 static int init_h2c(struct rtw_dev *rtwdev)
@@ -871,6 +1175,9 @@ static int init_h2c(struct rtw_dev *rtwdev)
 	u32 h2cq_size;
 	u32 h2cq_free;
 	u32 wp, rp;
+
+	if (rtw_chip_wcpu_11n(rtwdev))
+		return 0;
 
 	h2cq_addr = fifo->rsvd_h2cq_addr << TX_PAGE_SIZE_SHIFT;
 	h2cq_size = RSVD_PG_H2CQ_NUM << TX_PAGE_SIZE_SHIFT;
@@ -936,11 +1243,13 @@ static int rtw_drv_info_cfg(struct rtw_dev *rtwdev)
 	u8 value8;
 
 	rtw_write8(rtwdev, REG_RX_DRVINFO_SZ, PHY_STATUS_SIZE);
-	value8 = rtw_read8(rtwdev, REG_TRXFF_BNDY + 1);
-	value8 &= 0xF0;
-	/* For rxdesc len = 0 issue */
-	value8 |= 0xF;
-	rtw_write8(rtwdev, REG_TRXFF_BNDY + 1, value8);
+	if (rtw_chip_wcpu_11ac(rtwdev)) {
+		value8 = rtw_read8(rtwdev, REG_TRXFF_BNDY + 1);
+		value8 &= 0xF0;
+		/* For rxdesc len = 0 issue */
+		value8 |= 0xF;
+		rtw_write8(rtwdev, REG_TRXFF_BNDY + 1, value8);
+	}
 	rtw_write32_set(rtwdev, REG_RCR, BIT_APP_PHYSTS);
 	rtw_write32_clr(rtwdev, REG_WMAC_OPTION_FUNCTION + 4, BIT(8) | BIT(9));
 
@@ -963,6 +1272,8 @@ int rtw_mac_init(struct rtw_dev *rtwdev)
 	ret = rtw_drv_info_cfg(rtwdev);
 	if (ret)
 		return ret;
+
+	rtw_hci_interface_cfg(rtwdev);
 
 	return 0;
 }

@@ -49,10 +49,9 @@ static ssize_t isapnp_proc_bus_read(struct file *file, char __user * buf,
 	return nbytes;
 }
 
-static const struct file_operations isapnp_proc_bus_file_operations = {
-	.owner	= THIS_MODULE,
-	.llseek = isapnp_proc_bus_lseek,
-	.read = isapnp_proc_bus_read,
+static const struct proc_ops isapnp_proc_bus_proc_ops = {
+	.proc_lseek	= isapnp_proc_bus_lseek,
+	.proc_read	= isapnp_proc_bus_read,
 };
 
 static int isapnp_proc_attach_device(struct pnp_dev *dev)
@@ -69,7 +68,7 @@ static int isapnp_proc_attach_device(struct pnp_dev *dev)
 	}
 	sprintf(name, "%02x", dev->number);
 	e = dev->procent = proc_create_data(name, S_IFREG | S_IRUGO, de,
-			&isapnp_proc_bus_file_operations, dev);
+					    &isapnp_proc_bus_proc_ops, dev);
 	if (!e)
 		return -ENOMEM;
 	proc_set_size(e, 256);

@@ -661,6 +661,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 		goto err_card;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 	strcpy(card->driver, chip->model.chip);
 	strcpy(card->shortname, chip->model.shortname);
@@ -743,7 +744,6 @@ static int oxygen_pci_suspend(struct device *dev)
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
 	spin_unlock_irq(&chip->reg_lock);
 
-	synchronize_irq(chip->irq);
 	flush_work(&chip->spdif_input_bits_work);
 	flush_work(&chip->gpio_work);
 	chip->interrupt_mask = saved_interrupt_mask;

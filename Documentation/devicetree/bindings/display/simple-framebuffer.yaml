@@ -152,32 +152,28 @@ additionalProperties: false
 
 examples:
   - |
-    aliases {
-      display0 = &lcdc0;
-    };
+    / {
+        compatible = "foo";
+        model = "foo";
+        #address-cells = <1>;
+        #size-cells = <1>;
 
-    chosen {
-      #address-cells = <1>;
-      #size-cells = <1>;
-      stdout-path = "display0";
-      framebuffer0: framebuffer@1d385000 {
-        compatible = "allwinner,simple-framebuffer", "simple-framebuffer";
-        allwinner,pipeline = "de_be0-lcd0";
-        reg = <0x1d385000 3840000>;
-        width = <1600>;
-        height = <1200>;
-        stride = <3200>;
-        format = "r5g6b5";
-        clocks = <&ahb_gates 36>, <&ahb_gates 43>, <&ahb_gates 44>;
-        lcd-supply = <&reg_dc1sw>;
-        display = <&lcdc0>;
-      };
-    };
-
-    soc@1c00000 {
-      lcdc0: lcdc@1c0c000 {
-        compatible = "allwinner,sun4i-a10-lcdc";
-      };
+        chosen {
+            #address-cells = <1>;
+            #size-cells = <1>;
+            framebuffer0: framebuffer@1d385000 {
+                compatible = "allwinner,simple-framebuffer", "simple-framebuffer";
+                allwinner,pipeline = "de_be0-lcd0";
+                reg = <0x1d385000 3840000>;
+                width = <1600>;
+                height = <1200>;
+                stride = <3200>;
+                format = "r5g6b5";
+                clocks = <&ahb_gates 36>, <&ahb_gates 43>, <&ahb_gates 44>;
+                lcd-supply = <&reg_dc1sw>;
+                display = <&lcdc0>;
+            };
+        };
     };
 
 ...

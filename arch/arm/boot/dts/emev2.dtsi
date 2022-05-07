@@ -195,7 +195,7 @@
 		clock-names = "sclk";
 	};
 
-	pfc: pin-controller@e0140200 {
+	pfc: pinctrl@e0140200 {
 		compatible = "renesas,pfc-emev2";
 		reg = <0xe0140200 0x100>;
 	};
@@ -212,6 +212,7 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
+
 	gpio1: gpio@e0050080 {
 		compatible = "renesas,em-gio";
 		reg = <0xe0050080 0x2c>, <0xe00500c0 0x20>;
@@ -224,6 +225,7 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
+
 	gpio2: gpio@e0050100 {
 		compatible = "renesas,em-gio";
 		reg = <0xe0050100 0x2c>, <0xe0050140 0x20>;
@@ -236,6 +238,7 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
+
 	gpio3: gpio@e0050180 {
 		compatible = "renesas,em-gio";
 		reg = <0xe0050180 0x2c>, <0xe00501c0 0x20>;
@@ -248,6 +251,7 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
+
 	gpio4: gpio@e0050200 {
 		compatible = "renesas,em-gio";
 		reg = <0xe0050200 0x2c>, <0xe0050240 0x20>;

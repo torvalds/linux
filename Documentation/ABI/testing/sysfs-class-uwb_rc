@@ -66,11 +66,14 @@ Description:
                 <channel> <type> [<bpst offset>]
 
                 to start (or stop) scanning on a channel.  <type> is one of:
-                    0 - scan
-                    1 - scan outside BP
-                    2 - scan while inactive
-                    3 - scanning disabled
-                    4 - scan (with start time of <bpst offset>)
+
+		   ==   =======================================
+                    0   scan
+                    1   scan outside BP
+                    2   scan while inactive
+                    3   scanning disabled
+                    4   scan (with start time of <bpst offset>)
+		   ==   =======================================
 
 What:           /sys/class/uwb_rc/uwbN/mac_address
 Date:           July 2008

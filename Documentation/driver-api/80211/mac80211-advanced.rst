@@ -15,25 +15,14 @@ appropriate trigger, which will then be triggered appropriately by
 mac80211.
 
 .. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_get_tx_led_name
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_get_rx_led_name
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_get_assoc_led_name
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_get_radio_led_name
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_tpt_blink
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_tpt_led_trigger_flags
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_create_tpt_led_trigger
+   :functions:
+	ieee80211_get_tx_led_name
+	ieee80211_get_rx_led_name
+	ieee80211_get_assoc_led_name
+	ieee80211_get_radio_led_name
+	ieee80211_tpt_blink
+	ieee80211_tpt_led_trigger_flags
+	ieee80211_create_tpt_led_trigger
 
 Hardware crypto acceleration
 ============================
@@ -42,22 +31,13 @@ Hardware crypto acceleration
    :doc: Hardware crypto acceleration
 
 .. kernel-doc:: include/net/mac80211.h
-   :functions: set_key_cmd
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_key_conf
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_key_flags
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_get_tkip_p1k
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_get_tkip_p1k_iv
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_get_tkip_p2k
+   :functions:
+	set_key_cmd
+	ieee80211_key_conf
+	ieee80211_key_flags
+	ieee80211_get_tkip_p1k
+	ieee80211_get_tkip_p1k_iv
+	ieee80211_get_tkip_p2k
 
 Powersave support
 =================
@@ -99,28 +79,15 @@ support for powersaving clients
    :doc: AP support for powersaving clients
 
 .. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_get_buffered_bc
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_beacon_get
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_sta_eosp
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_frame_release_type
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_sta_ps_transition
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_sta_ps_transition_ni
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_sta_set_buffered
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_sta_block_awake
+   :functions:
+	ieee80211_get_buffered_bc
+	ieee80211_beacon_get
+	ieee80211_sta_eosp
+	ieee80211_frame_release_type
+	ieee80211_sta_ps_transition
+	ieee80211_sta_ps_transition_ni
+	ieee80211_sta_set_buffered
+	ieee80211_sta_block_awake
 
 Supporting multiple virtual interfaces
 ======================================
@@ -134,10 +101,9 @@ addresses here, note which configurations are supported by mac80211, add
 notes about supporting hw crypto with it.
 
 .. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_iterate_active_interfaces
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_iterate_active_interfaces_atomic
+   :functions:
+	ieee80211_iterate_active_interfaces
+	ieee80211_iterate_active_interfaces_atomic
 
 Station handling
 ================
@@ -145,16 +111,11 @@ Station handling
 TODO
 
 .. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_sta
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: sta_notify_cmd
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_find_sta
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_find_sta_by_ifaddr
+   :functions:
+	ieee80211_sta
+	sta_notify_cmd
+	ieee80211_find_sta
+	ieee80211_find_sta_by_ifaddr
 
 Hardware scan offload
 =====================
@@ -193,10 +154,9 @@ Spatial Multiplexing Powersave (SMPS)
    :doc: Spatial multiplexing power save
 
 .. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_request_smps
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_smps_mode
+   :functions:
+	ieee80211_request_smps
+	ieee80211_smps_mode
 
 TBD
 
@@ -209,22 +169,13 @@ Rate Control API
 TBD
 
 .. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_start_tx_ba_session
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_start_tx_ba_cb_irqsafe
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_stop_tx_ba_session
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_stop_tx_ba_cb_irqsafe
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_rate_control_changed
-
-.. kernel-doc:: include/net/mac80211.h
-   :functions: ieee80211_tx_rate_control
+   :functions:
+	ieee80211_start_tx_ba_session
+	ieee80211_start_tx_ba_cb_irqsafe
+	ieee80211_stop_tx_ba_session
+	ieee80211_stop_tx_ba_cb_irqsafe
+	ieee80211_rate_control_changed
+	ieee80211_tx_rate_control
 
 TBD
 
@@ -261,10 +212,9 @@ Programming information
 -----------------------
 
 .. kernel-doc:: net/mac80211/sta_info.h
-   :functions: sta_info
-
-.. kernel-doc:: net/mac80211/sta_info.h
-   :functions: ieee80211_sta_info_flags
+   :functions:
+	sta_info
+	ieee80211_sta_info_flags
 
 STA information lifetime rules
 ------------------------------
@@ -272,20 +222,17 @@ STA information lifetime rules
 .. kernel-doc:: net/mac80211/sta_info.c
    :doc: STA information lifetime rules
 
-Aggregation
-===========
+Aggregation Functions
+=====================
 
 .. kernel-doc:: net/mac80211/sta_info.h
-   :functions: sta_ampdu_mlme
+   :functions:
+	sta_ampdu_mlme
+	tid_ampdu_tx
+	tid_ampdu_rx
 
-.. kernel-doc:: net/mac80211/sta_info.h
-   :functions: tid_ampdu_tx
-
-.. kernel-doc:: net/mac80211/sta_info.h
-   :functions: tid_ampdu_rx
-
-Synchronisation
-===============
+Synchronisation Functions
+=========================
 
 TBD
 

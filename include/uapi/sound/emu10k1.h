@@ -23,8 +23,9 @@
 #ifndef _UAPI__SOUND_EMU10K1_H
 #define _UAPI__SOUND_EMU10K1_H
 
+#ifdef __linux__
 #include <linux/types.h>
-#include <sound/asound.h>
+#endif
 
 /*
  * ---- FX8010 ----
@@ -282,8 +283,22 @@ struct snd_emu10k1_fx8010_info {
 #define EMU10K1_GPR_TRANSLATION_TREBLE		3
 #define EMU10K1_GPR_TRANSLATION_ONOFF		4
 
+enum emu10k1_ctl_elem_iface {
+	EMU10K1_CTL_ELEM_IFACE_MIXER = 2,	/* virtual mixer device */
+	EMU10K1_CTL_ELEM_IFACE_PCM = 3,		/* PCM device */
+};
+
+struct emu10k1_ctl_elem_id {
+	unsigned int pad;		/* don't use */
+	int iface;			/* interface identifier */
+	unsigned int device;		/* device/client number */
+	unsigned int subdevice;		/* subdevice (substream) number */
+	unsigned char name[44];		/* ASCII name of item */
+	unsigned int index;		/* index of item */
+};
+
 struct snd_emu10k1_fx8010_control_gpr {
-	struct snd_ctl_elem_id id;		/* full control ID definition */
+	struct emu10k1_ctl_elem_id id;	/* full control ID definition */
 	unsigned int vcount;		/* visible count */
 	unsigned int count;		/* count of GPR (1..16) */
 	unsigned short gpr[32];		/* GPR number(s) */
@@ -296,7 +311,7 @@ struct snd_emu10k1_fx8010_control_gpr {
 
 /* old ABI without TLV support */
 struct snd_emu10k1_fx8010_control_old_gpr {
-	struct snd_ctl_elem_id id;
+	struct emu10k1_ctl_elem_id id;
 	unsigned int vcount;
 	unsigned int count;
 	unsigned short gpr[32];
@@ -310,24 +325,24 @@ struct snd_emu10k1_fx8010_code {
 	char name[128];
 
 	__EMU10K1_DECLARE_BITMAP(gpr_valid, 0x200); /* bitmask of valid initializers */
-	__u32 __user *gpr_map;		/* initializers */
+	__u32 *gpr_map;			/* initializers */
 
 	unsigned int gpr_add_control_count; /* count of GPR controls to add/replace */
-	struct snd_emu10k1_fx8010_control_gpr __user *gpr_add_controls; /* GPR controls to add/replace */
+	struct snd_emu10k1_fx8010_control_gpr *gpr_add_controls; /* GPR controls to add/replace */
 
 	unsigned int gpr_del_control_count; /* count of GPR controls to remove */
-	struct snd_ctl_elem_id __user *gpr_del_controls; /* IDs of GPR controls to remove */
+	struct emu10k1_ctl_elem_id *gpr_del_controls; /* IDs of GPR controls to remove */
 
 	unsigned int gpr_list_control_count; /* count of GPR controls to list */
 	unsigned int gpr_list_control_total; /* total count of GPR controls */
-	struct snd_emu10k1_fx8010_control_gpr __user *gpr_list_controls; /* listed GPR controls */
+	struct snd_emu10k1_fx8010_control_gpr *gpr_list_controls; /* listed GPR controls */
 
 	__EMU10K1_DECLARE_BITMAP(tram_valid, 0x100); /* bitmask of valid initializers */
-	__u32 __user *tram_data_map;	  /* data initializers */
-	__u32 __user *tram_addr_map;	  /* map initializers */
+	__u32 *tram_data_map;		  /* data initializers */
+	__u32 *tram_addr_map;		  /* map initializers */
 
 	__EMU10K1_DECLARE_BITMAP(code_valid, 1024); /* bitmask of valid instructions */
-	__u32 __user *code;		  /* one instruction - 64 bits */
+	__u32 *code;			  /* one instruction - 64 bits */
 };
 
 struct snd_emu10k1_fx8010_tram {
@@ -370,12 +385,5 @@ struct snd_emu10k1_fx8010_pcm_rec {
 #define SNDRV_EMU10K1_IOCTL_ZERO_TRAM_COUNTER _IO ('H', 0x82)
 #define SNDRV_EMU10K1_IOCTL_SINGLE_STEP	_IOW ('H', 0x83, int)
 #define SNDRV_EMU10K1_IOCTL_DBG_READ	_IOR ('H', 0x84, int)
-
-/* typedefs for compatibility to user-space */
-typedef struct snd_emu10k1_fx8010_info emu10k1_fx8010_info_t;
-typedef struct snd_emu10k1_fx8010_control_gpr emu10k1_fx8010_control_gpr_t;
-typedef struct snd_emu10k1_fx8010_code emu10k1_fx8010_code_t;
-typedef struct snd_emu10k1_fx8010_tram emu10k1_fx8010_tram_t;
-typedef struct snd_emu10k1_fx8010_pcm_rec emu10k1_fx8010_pcm_t;
 
 #endif /* _UAPI__SOUND_EMU10K1_H */

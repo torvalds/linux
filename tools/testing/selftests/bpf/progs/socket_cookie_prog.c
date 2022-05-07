@@ -4,8 +4,8 @@
 #include <linux/bpf.h>
 #include <sys/socket.h>
 
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 struct socket_cookie {
 	__u64 cookie_key;

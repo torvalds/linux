@@ -236,7 +236,7 @@ static int asd_init_sata_pm_table_ddb(struct domain_device *dev)
 
 /**
  * asd_init_sata_pm_port_ddb -- SATA Port Multiplier Port
- * dev: pointer to domain device
+ * @dev: pointer to domain device
  *
  * For SATA Port Multiplier Ports we need to allocate one SATA Port
  * Multiplier Port DDB and depending on whether the target on it
@@ -281,7 +281,7 @@ static int asd_init_initiator_ddb(struct domain_device *dev)
 
 /**
  * asd_init_sata_pm_ddb -- SATA Port Multiplier
- * dev: pointer to domain device
+ * @dev: pointer to domain device
  *
  * For STP and direct-attached SATA Port Multipliers we need
  * one target port DDB entry and one SATA PM table DDB entry.

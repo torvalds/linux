@@ -51,6 +51,13 @@ void rate_control_rate_init(struct sta_info *sta)
 
 	sband = local->hw.wiphy->bands[chanctx_conf->def.chan->band];
 
+	/* TODO: check for minstrel_s1g ? */
+	if (sband->band == NL80211_BAND_S1GHZ) {
+		ieee80211_s1g_sta_rate_init(sta);
+		rcu_read_unlock();
+		return;
+	}
+
 	spin_lock_bh(&sta->rate_ctrl_lock);
 	ref->ops->rate_init(ref->priv, sband, &chanctx_conf->def, ista,
 			    priv_sta);
@@ -214,17 +221,16 @@ static ssize_t rcname_read(struct file *file, char __user *userbuf,
 				       ref->ops->name, len);
 }
 
-static const struct file_operations rcname_ops = {
+const struct file_operations rcname_ops = {
 	.read = rcname_read,
 	.open = simple_open,
 	.llseek = default_llseek,
 };
 #endif
 
-static struct rate_control_ref *rate_control_alloc(const char *name,
-					    struct ieee80211_local *local)
+static struct rate_control_ref *
+rate_control_alloc(const char *name, struct ieee80211_local *local)
 {
-	struct dentry *debugfsdir = NULL;
 	struct rate_control_ref *ref;
 
 	ref = kmalloc(sizeof(struct rate_control_ref), GFP_KERNEL);
@@ -234,13 +240,7 @@ static struct rate_control_ref *rate_control_alloc(const char *name,
 	if (!ref->ops)
 		goto free;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	debugfsdir = debugfs_create_dir("rc", local->hw.wiphy->debugfsdir);
-	local->debugfs.rcdir = debugfsdir;
-	debugfs_create_file("name", 0400, debugfsdir, ref, &rcname_ops);
-#endif
-
-	ref->priv = ref->ops->alloc(&local->hw, debugfsdir);
+	ref->priv = ref->ops->alloc(&local->hw);
 	if (!ref->priv)
 		goto free;
 	return ref;
@@ -273,10 +273,15 @@ void ieee80211_check_rate_mask(struct ieee80211_sub_if_data *sdata)
 	if (WARN_ON(!sdata->vif.bss_conf.chandef.chan))
 		return;
 
+	band = sdata->vif.bss_conf.chandef.chan->band;
+	if (band == NL80211_BAND_S1GHZ) {
+		/* TODO */
+		return;
+	}
+
 	if (WARN_ON_ONCE(!basic_rates))
 		return;
 
-	band = sdata->vif.bss_conf.chandef.chan->band;
 	user_mask = sdata->rc_rateidx_mask[band];
 	sband = local->hw.wiphy->bands[band];
 
@@ -303,21 +308,29 @@ static bool rc_no_data_or_no_ack_use_min(struct ieee80211_tx_rate_control *txrc)
 		!ieee80211_is_data(fc);
 }
 
-static void rc_send_low_basicrate(s8 *idx, u32 basic_rates,
+static void rc_send_low_basicrate(struct ieee80211_tx_rate *rate,
+				  u32 basic_rates,
 				  struct ieee80211_supported_band *sband)
 {
 	u8 i;
 
+	if (sband->band == NL80211_BAND_S1GHZ) {
+		/* TODO */
+		rate->flags |= IEEE80211_TX_RC_S1G_MCS;
+		rate->idx = 0;
+		return;
+	}
+
 	if (basic_rates == 0)
 		return; /* assume basic rates unknown and accept rate */
-	if (*idx < 0)
+	if (rate->idx < 0)
 		return;
-	if (basic_rates & (1 << *idx))
+	if (basic_rates & (1 << rate->idx))
 		return; /* selected rate is a basic rate */
 
-	for (i = *idx + 1; i <= sband->n_bitrates; i++) {
+	for (i = rate->idx + 1; i <= sband->n_bitrates; i++) {
 		if (basic_rates & (1 << i)) {
-			*idx = i;
+			rate->idx = i;
 			return;
 		}
 	}
@@ -334,6 +347,12 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 	int i;
 	u32 rate_flags =
 		ieee80211_chandef_rate_flags(&hw->conf.chandef);
+
+	if (sband->band == NL80211_BAND_S1GHZ) {
+		info->control.rates[0].flags |= IEEE80211_TX_RC_S1G_MCS;
+		info->control.rates[0].idx = 0;
+		return;
+	}
 
 	if ((sband->band == NL80211_BAND_2GHZ) &&
 	    (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE))
@@ -395,7 +414,7 @@ static bool rate_control_send_low(struct ieee80211_sta *pubsta,
 		}
 
 		if (use_basicrate)
-			rc_send_low_basicrate(&info->control.rates[0].idx,
+			rc_send_low_basicrate(&info->control.rates[0],
 					      txrc->bss_conf->basic_rates,
 					      sband);
 

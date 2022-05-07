@@ -12,6 +12,8 @@
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
 #include "i915_vma.h"
+#include "i915_gem_lmem.h"
+#include "i915_gem_mman.h"
 
 static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 {
@@ -27,12 +29,18 @@ static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj)
 {
-	if (!READ_ONCE(obj->pin_global))
+	if (!i915_gem_object_is_framebuffer(obj))
 		return;
 
-	i915_gem_object_lock(obj);
+	i915_gem_object_lock(obj, NULL);
 	__i915_gem_object_flush_for_display(obj);
 	i915_gem_object_unlock(obj);
+}
+
+void i915_gem_object_flush_if_display_locked(struct drm_i915_gem_object *obj)
+{
+	if (i915_gem_object_is_framebuffer(obj))
+		__i915_gem_object_flush_for_display(obj);
 }
 
 /**
@@ -148,9 +156,17 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	GEM_BUG_ON((obj->write_domain & ~I915_GEM_DOMAIN_GTT) != 0);
 	obj->read_domains |= I915_GEM_DOMAIN_GTT;
 	if (write) {
+		struct i915_vma *vma;
+
 		obj->read_domains = I915_GEM_DOMAIN_GTT;
 		obj->write_domain = I915_GEM_DOMAIN_GTT;
 		obj->mm.dirty = true;
+
+		spin_lock(&obj->vma.lock);
+		for_each_ggtt_vma(vma, obj)
+			if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
+				i915_vma_set_ggtt_write(vma);
+		spin_unlock(&obj->vma.lock);
 	}
 
 	i915_gem_object_unpin_pages(obj);
@@ -175,131 +191,28 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level)
 {
-	struct i915_vma *vma;
 	int ret;
-
-	assert_object_held(obj);
 
 	if (obj->cache_level == cache_level)
 		return 0;
 
-	/* Inspect the list of currently bound VMA and unbind any that would
-	 * be invalid given the new cache-level. This is principally to
-	 * catch the issue of the CS prefetch crossing page boundaries and
-	 * reading an invalid PTE on older architectures.
-	 */
-restart:
-	list_for_each_entry(vma, &obj->vma.list, obj_link) {
-		if (!drm_mm_node_allocated(&vma->node))
-			continue;
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_ALL,
+				   MAX_SCHEDULE_TIMEOUT);
+	if (ret)
+		return ret;
 
-		if (i915_vma_is_pinned(vma)) {
-			DRM_DEBUG("can not change the cache level of pinned objects\n");
-			return -EBUSY;
-		}
-
-		if (!i915_vma_is_closed(vma) &&
-		    i915_gem_valid_gtt_space(vma, cache_level))
-			continue;
-
-		ret = i915_vma_unbind(vma);
-		if (ret)
-			return ret;
-
-		/* As unbinding may affect other elements in the
-		 * obj->vma_list (due to side-effects from retiring
-		 * an active vma), play safe and restart the iterator.
-		 */
-		goto restart;
+	/* Always invalidate stale cachelines */
+	if (obj->cache_level != cache_level) {
+		i915_gem_object_set_cache_coherency(obj, cache_level);
+		obj->cache_dirty = true;
 	}
 
-	/* We can reuse the existing drm_mm nodes but need to change the
-	 * cache-level on the PTE. We could simply unbind them all and
-	 * rebind with the correct cache-level on next use. However since
-	 * we already have a valid slot, dma mapping, pages etc, we may as
-	 * rewrite the PTE in the belief that doing so tramples upon less
-	 * state and so involves less work.
-	 */
-	if (atomic_read(&obj->bind_count)) {
-		struct drm_i915_private *i915 = to_i915(obj->base.dev);
-
-		/* Before we change the PTE, the GPU must not be accessing it.
-		 * If we wait upon the object, we know that all the bound
-		 * VMA are no longer active.
-		 */
-		ret = i915_gem_object_wait(obj,
-					   I915_WAIT_INTERRUPTIBLE |
-					   I915_WAIT_ALL,
-					   MAX_SCHEDULE_TIMEOUT);
-		if (ret)
-			return ret;
-
-		if (!HAS_LLC(i915) && cache_level != I915_CACHE_NONE) {
-			intel_wakeref_t wakeref =
-				intel_runtime_pm_get(&i915->runtime_pm);
-
-			/*
-			 * Access to snoopable pages through the GTT is
-			 * incoherent and on some machines causes a hard
-			 * lockup. Relinquish the CPU mmaping to force
-			 * userspace to refault in the pages and we can
-			 * then double check if the GTT mapping is still
-			 * valid for that pointer access.
-			 */
-			ret = mutex_lock_interruptible(&i915->ggtt.vm.mutex);
-			if (ret) {
-				intel_runtime_pm_put(&i915->runtime_pm,
-						     wakeref);
-				return ret;
-			}
-
-			if (obj->userfault_count)
-				__i915_gem_object_release_mmap(obj);
-
-			/*
-			 * As we no longer need a fence for GTT access,
-			 * we can relinquish it now (and so prevent having
-			 * to steal a fence from someone else on the next
-			 * fence request). Note GPU activity would have
-			 * dropped the fence as all snoopable access is
-			 * supposed to be linear.
-			 */
-			for_each_ggtt_vma(vma, obj) {
-				ret = i915_vma_revoke_fence(vma);
-				if (ret)
-					break;
-			}
-			mutex_unlock(&i915->ggtt.vm.mutex);
-			intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-			if (ret)
-				return ret;
-		} else {
-			/*
-			 * We either have incoherent backing store and
-			 * so no GTT access or the architecture is fully
-			 * coherent. In such cases, existing GTT mmaps
-			 * ignore the cache bit in the PTE and we can
-			 * rewrite it without confusing the GPU or having
-			 * to force userspace to fault back in its mmaps.
-			 */
-		}
-
-		list_for_each_entry(vma, &obj->vma.list, obj_link) {
-			if (!drm_mm_node_allocated(&vma->node))
-				continue;
-
-			ret = i915_vma_bind(vma, cache_level, PIN_UPDATE);
-			if (ret)
-				return ret;
-		}
-	}
-
-	list_for_each_entry(vma, &obj->vma.list, obj_link)
-		vma->node.color = cache_level;
-	i915_gem_object_set_cache_coherency(obj, cache_level);
-	obj->cache_dirty = true; /* Always invalidate stale cachelines */
-
-	return 0;
+	/* The cache-level will be applied when each vma is rebound. */
+	return i915_gem_object_unbind(obj,
+				      I915_GEM_OBJECT_UNBIND_ACTIVE |
+				      I915_GEM_OBJECT_UNBIND_BARRIER);
 }
 
 int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
@@ -380,25 +293,12 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	if (obj->cache_level == level)
-		goto out;
-
-	ret = i915_gem_object_wait(obj,
-				   I915_WAIT_INTERRUPTIBLE,
-				   MAX_SCHEDULE_TIMEOUT);
+	ret = i915_gem_object_lock_interruptible(obj, NULL);
 	if (ret)
 		goto out;
 
-	ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
-	if (ret)
-		goto out;
-
-	ret = i915_gem_object_lock_interruptible(obj);
-	if (ret == 0) {
-		ret = i915_gem_object_set_cache_level(obj, level);
-		i915_gem_object_unlock(obj);
-	}
-	mutex_unlock(&i915->drm.struct_mutex);
+	ret = i915_gem_object_set_cache_level(obj, level);
+	i915_gem_object_unlock(obj);
 
 out:
 	i915_gem_object_put(obj);
@@ -417,17 +317,22 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     const struct i915_ggtt_view *view,
 				     unsigned int flags)
 {
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
 	int ret;
 
-	assert_object_held(obj);
+	/* Frame buffer must be in LMEM (no migration yet) */
+	if (HAS_LMEM(i915) && !i915_gem_object_is_lmem(obj))
+		return ERR_PTR(-EINVAL);
 
-	/* Mark the global pin early so that we account for the
-	 * display coherency whilst setting up the cache domains.
-	 */
-	obj->pin_global++;
-
-	/* The display engine is not coherent with the LLC cache on gen6.  As
+	i915_gem_ww_ctx_init(&ww, true);
+retry:
+	ret = i915_gem_object_lock(obj, &ww);
+	if (ret)
+		goto err;
+	/*
+	 * The display engine is not coherent with the LLC cache on gen6.  As
 	 * a result, we make sure that the pinning that is about to occur is
 	 * done with uncached PTEs. This is lowest common denominator for all
 	 * chipsets.
@@ -437,14 +342,13 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * with that bit in the PTE to main memory with just one PIPE_CONTROL.
 	 */
 	ret = i915_gem_object_set_cache_level(obj,
-					      HAS_WT(to_i915(obj->base.dev)) ?
+					      HAS_WT(i915) ?
 					      I915_CACHE_WT : I915_CACHE_NONE);
-	if (ret) {
-		vma = ERR_PTR(ret);
-		goto err_unpin_global;
-	}
+	if (ret)
+		goto err;
 
-	/* As the user may map the buffer once pinned in the display plane
+	/*
+	 * As the user may map the buffer once pinned in the display plane
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
 	 * always use map_and_fenceable for all scanout buffers. However,
 	 * it may simply be too big to fit into mappable, in which case
@@ -454,28 +358,32 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	vma = ERR_PTR(-ENOSPC);
 	if ((flags & PIN_MAPPABLE) == 0 &&
 	    (!view || view->type == I915_GGTT_VIEW_NORMAL))
-		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment,
-					       flags |
-					       PIN_MAPPABLE |
-					       PIN_NONBLOCK);
-	if (IS_ERR(vma))
-		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment, flags);
-	if (IS_ERR(vma))
-		goto err_unpin_global;
+		vma = i915_gem_object_ggtt_pin_ww(obj, &ww, view, 0, alignment,
+						  flags | PIN_MAPPABLE |
+						  PIN_NONBLOCK);
+	if (IS_ERR(vma) && vma != ERR_PTR(-EDEADLK))
+		vma = i915_gem_object_ggtt_pin_ww(obj, &ww, view, 0,
+						  alignment, flags);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err;
+	}
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
-	__i915_gem_object_flush_for_display(obj);
+	i915_gem_object_flush_if_display_locked(obj);
 
-	/* It should now be out of any other write domains, and we can update
-	 * the domain values for our changes.
-	 */
-	obj->read_domains |= I915_GEM_DOMAIN_GTT;
+err:
+	if (ret == -EDEADLK) {
+		ret = i915_gem_ww_ctx_backoff(&ww);
+		if (!ret)
+			goto retry;
+	}
+	i915_gem_ww_ctx_fini(&ww);
 
-	return vma;
+	if (ret)
+		return ERR_PTR(ret);
 
-err_unpin_global:
-	obj->pin_global--;
 	return vma;
 }
 
@@ -484,15 +392,19 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_vma *vma;
 
-	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+	if (list_empty(&obj->vma.list))
+		return;
 
 	mutex_lock(&i915->ggtt.vm.mutex);
+	spin_lock(&obj->vma.lock);
 	for_each_ggtt_vma(vma, obj) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
+		GEM_BUG_ON(vma->vm != &i915->ggtt.vm);
 		list_move_tail(&vma->vm_link, &vma->vm->bound_list);
 	}
+	spin_unlock(&obj->vma.lock);
 	mutex_unlock(&i915->ggtt.vm.mutex);
 
 	if (i915_gem_object_is_shrinkable(obj)) {
@@ -500,7 +412,8 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 
 		spin_lock_irqsave(&i915->mm.obj_lock, flags);
 
-		if (obj->mm.madv == I915_MADV_WILLNEED)
+		if (obj->mm.madv == I915_MADV_WILLNEED &&
+		    !atomic_read(&obj->mm.shrink_pin))
 			list_move_tail(&obj->mm.link, &i915->mm.shrink_list);
 
 		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
@@ -510,18 +423,8 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 void
 i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 {
-	struct drm_i915_gem_object *obj = vma->obj;
-
-	assert_object_held(obj);
-
-	if (WARN_ON(obj->pin_global == 0))
-		return;
-
-	if (--obj->pin_global == 0)
-		vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
-
 	/* Bump the LRU to try and avoid premature eviction whilst flipping  */
-	i915_gem_object_bump_inactive_ggtt(obj);
+	i915_gem_object_bump_inactive_ggtt(vma->obj);
 
 	i915_vma_unpin(vma);
 }
@@ -606,21 +509,6 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	/*
-	 * Already in the desired write domain? Nothing for us to do!
-	 *
-	 * We apply a little bit of cunning here to catch a broader set of
-	 * no-ops. If obj->write_domain is set, we must be in the same
-	 * obj->read_domains, and only that domain. Therefore, if that
-	 * obj->write_domain matches the request read_domains, we are
-	 * already in the same read/write domain and can skip the operation,
-	 * without having to further check the requested write_domain.
-	 */
-	if (READ_ONCE(obj->write_domain) == read_domains) {
-		err = 0;
-		goto out;
-	}
-
-	/*
 	 * Try to flush the object off the GPU without holding the lock.
 	 * We will repeat the flush holding the lock in the normal manner
 	 * to catch cases where we are gazumped.
@@ -657,7 +545,20 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		goto out;
 
-	err = i915_gem_object_lock_interruptible(obj);
+	/*
+	 * Already in the desired write domain? Nothing for us to do!
+	 *
+	 * We apply a little bit of cunning here to catch a broader set of
+	 * no-ops. If obj->write_domain is set, we must be in the same
+	 * obj->read_domains, and only that domain. Therefore, if that
+	 * obj->write_domain matches the request read_domains, we are
+	 * already in the same read/write domain and can skip the operation,
+	 * without having to further check the requested write_domain.
+	 */
+	if (READ_ONCE(obj->write_domain) == read_domains)
+		goto out_unpin;
+
+	err = i915_gem_object_lock_interruptible(obj, NULL);
 	if (err)
 		goto out_unpin;
 
@@ -674,7 +575,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	i915_gem_object_unlock(obj);
 
 	if (write_domain)
-		intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
+		i915_gem_object_invalidate_frontbuffer(obj, ORIGIN_CPU);
 
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
@@ -697,19 +598,17 @@ int i915_gem_object_prepare_read(struct drm_i915_gem_object *obj,
 	if (!i915_gem_object_has_struct_page(obj))
 		return -ENODEV;
 
-	ret = i915_gem_object_lock_interruptible(obj);
-	if (ret)
-		return ret;
+	assert_object_held(obj);
 
 	ret = i915_gem_object_wait(obj,
 				   I915_WAIT_INTERRUPTIBLE,
 				   MAX_SCHEDULE_TIMEOUT);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ ||
 	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
@@ -737,8 +636,6 @@ out:
 
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
-err_unlock:
-	i915_gem_object_unlock(obj);
 	return ret;
 }
 
@@ -751,20 +648,18 @@ int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
 	if (!i915_gem_object_has_struct_page(obj))
 		return -ENODEV;
 
-	ret = i915_gem_object_lock_interruptible(obj);
-	if (ret)
-		return ret;
+	assert_object_held(obj);
 
 	ret = i915_gem_object_wait(obj,
 				   I915_WAIT_INTERRUPTIBLE |
 				   I915_WAIT_ALL,
 				   MAX_SCHEDULE_TIMEOUT);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE ||
 	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
@@ -794,14 +689,12 @@ int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
 	}
 
 out:
-	intel_frontbuffer_invalidate(obj->frontbuffer, ORIGIN_CPU);
+	i915_gem_object_invalidate_frontbuffer(obj, ORIGIN_CPU);
 	obj->mm.dirty = true;
 	/* return with the pages pinned */
 	return 0;
 
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
-err_unlock:
-	i915_gem_object_unlock(obj);
 	return ret;
 }

@@ -75,7 +75,7 @@ static int snd_pcm_timer_stop(struct snd_timer * timer)
 	return 0;
 }
 
-static struct snd_timer_hardware snd_pcm_timer =
+static const struct snd_timer_hardware snd_pcm_timer =
 {
 	.flags =	SNDRV_TIMER_HW_AUTO | SNDRV_TIMER_HW_SLAVE,
 	.resolution =	0,

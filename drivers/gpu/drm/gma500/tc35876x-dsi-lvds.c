@@ -25,7 +25,7 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/platform_data/tc35876x.h>
+#include <linux/gpio/consumer.h>
 
 #include <asm/intel_scu_ipc.h>
 
@@ -36,6 +36,11 @@
 
 static struct i2c_client *tc35876x_client;
 static struct i2c_client *cmi_lcd_i2c_client;
+/* Panel GPIOs */
+static struct gpio_desc *bridge_reset;
+static struct gpio_desc *bridge_bl_enable;
+static struct gpio_desc *backlight_voltage;
+
 
 #define FLD_MASK(start, end)	(((1 << ((start) - (end) + 1)) - 1) << (end))
 #define FLD_VAL(val, start, end) (((val) << (end)) & FLD_MASK(start, end))
@@ -316,27 +321,23 @@ static int tc35876x_regr(struct i2c_client *client, u16 reg, u32 *value)
 
 void tc35876x_set_bridge_reset_state(struct drm_device *dev, int state)
 {
-	struct tc35876x_platform_data *pdata;
-
 	if (WARN(!tc35876x_client, "%s called before probe", __func__))
 		return;
 
 	dev_dbg(&tc35876x_client->dev, "%s: state %d\n", __func__, state);
 
-	pdata = dev_get_platdata(&tc35876x_client->dev);
-
-	if (pdata->gpio_bridge_reset == -1)
+	if (!bridge_reset)
 		return;
 
 	if (state) {
-		gpio_set_value_cansleep(pdata->gpio_bridge_reset, 0);
+		gpiod_set_value_cansleep(bridge_reset, 0);
 		mdelay(10);
 	} else {
 		/* Pull MIPI Bridge reset pin to Low */
-		gpio_set_value_cansleep(pdata->gpio_bridge_reset, 0);
+		gpiod_set_value_cansleep(bridge_reset, 0);
 		mdelay(20);
 		/* Pull MIPI Bridge reset pin to High */
-		gpio_set_value_cansleep(pdata->gpio_bridge_reset, 1);
+		gpiod_set_value_cansleep(bridge_reset, 1);
 		mdelay(40);
 	}
 }
@@ -510,25 +511,20 @@ void tc35876x_brightness_control(struct drm_device *dev, int level)
 
 void tc35876x_toshiba_bridge_panel_off(struct drm_device *dev)
 {
-	struct tc35876x_platform_data *pdata;
-
 	if (WARN(!tc35876x_client, "%s called before probe", __func__))
 		return;
 
 	dev_dbg(&tc35876x_client->dev, "%s\n", __func__);
 
-	pdata = dev_get_platdata(&tc35876x_client->dev);
+	if (bridge_bl_enable)
+		gpiod_set_value_cansleep(bridge_bl_enable, 0);
 
-	if (pdata->gpio_panel_bl_en != -1)
-		gpio_set_value_cansleep(pdata->gpio_panel_bl_en, 0);
-
-	if (pdata->gpio_panel_vadd != -1)
-		gpio_set_value_cansleep(pdata->gpio_panel_vadd, 0);
+	if (backlight_voltage)
+		gpiod_set_value_cansleep(backlight_voltage, 0);
 }
 
 void tc35876x_toshiba_bridge_panel_on(struct drm_device *dev)
 {
-	struct tc35876x_platform_data *pdata;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
 	if (WARN(!tc35876x_client, "%s called before probe", __func__))
@@ -536,10 +532,8 @@ void tc35876x_toshiba_bridge_panel_on(struct drm_device *dev)
 
 	dev_dbg(&tc35876x_client->dev, "%s\n", __func__);
 
-	pdata = dev_get_platdata(&tc35876x_client->dev);
-
-	if (pdata->gpio_panel_vadd != -1) {
-		gpio_set_value_cansleep(pdata->gpio_panel_vadd, 1);
+	if (backlight_voltage) {
+		gpiod_set_value_cansleep(backlight_voltage, 1);
 		msleep(260);
 	}
 
@@ -571,8 +565,8 @@ void tc35876x_toshiba_bridge_panel_on(struct drm_device *dev)
 				"i2c write failed (%d)\n", ret);
 	}
 
-	if (pdata->gpio_panel_bl_en != -1)
-		gpio_set_value_cansleep(pdata->gpio_panel_bl_en, 1);
+	if (bridge_bl_enable)
+		gpiod_set_value_cansleep(bridge_bl_enable, 1);
 
 	tc35876x_brightness_control(dev, dev_priv->brightness_adjusted);
 }
@@ -635,8 +629,6 @@ static int tc35876x_get_panel_info(struct drm_device *dev, int pipe,
 static int tc35876x_bridge_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
-	struct tc35876x_platform_data *pdata;
-
 	dev_info(&client->dev, "%s\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -645,26 +637,23 @@ static int tc35876x_bridge_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	pdata = dev_get_platdata(&client->dev);
-	if (!pdata) {
-		dev_err(&client->dev, "%s: no platform data\n", __func__);
-		return -ENODEV;
-	}
+	bridge_reset = devm_gpiod_get_optional(&client->dev, "bridge-reset", GPIOD_OUT_LOW);
+	if (IS_ERR(bridge_reset))
+		return PTR_ERR(bridge_reset);
+	if (bridge_reset)
+		gpiod_set_consumer_name(bridge_reset, "tc35876x bridge reset");
 
-	if (pdata->gpio_bridge_reset != -1) {
-		gpio_request(pdata->gpio_bridge_reset, "tc35876x bridge reset");
-		gpio_direction_output(pdata->gpio_bridge_reset, 0);
-	}
+	bridge_bl_enable = devm_gpiod_get_optional(&client->dev, "bl-en", GPIOD_OUT_LOW);
+	if (IS_ERR(bridge_bl_enable))
+		return PTR_ERR(bridge_bl_enable);
+	if (bridge_bl_enable)
+		gpiod_set_consumer_name(bridge_bl_enable, "tc35876x panel bl en");
 
-	if (pdata->gpio_panel_bl_en != -1) {
-		gpio_request(pdata->gpio_panel_bl_en, "tc35876x panel bl en");
-		gpio_direction_output(pdata->gpio_panel_bl_en, 0);
-	}
-
-	if (pdata->gpio_panel_vadd != -1) {
-		gpio_request(pdata->gpio_panel_vadd, "tc35876x panel vadd");
-		gpio_direction_output(pdata->gpio_panel_vadd, 0);
-	}
+	backlight_voltage = devm_gpiod_get_optional(&client->dev, "vadd", GPIOD_OUT_LOW);
+	if (IS_ERR(backlight_voltage))
+		return PTR_ERR(backlight_voltage);
+	if (backlight_voltage)
+		gpiod_set_consumer_name(backlight_voltage, "tc35876x panel vadd");
 
 	tc35876x_client = client;
 
@@ -673,18 +662,7 @@ static int tc35876x_bridge_probe(struct i2c_client *client,
 
 static int tc35876x_bridge_remove(struct i2c_client *client)
 {
-	struct tc35876x_platform_data *pdata = dev_get_platdata(&client->dev);
-
 	dev_dbg(&client->dev, "%s\n", __func__);
-
-	if (pdata->gpio_bridge_reset != -1)
-		gpio_free(pdata->gpio_bridge_reset);
-
-	if (pdata->gpio_panel_bl_en != -1)
-		gpio_free(pdata->gpio_panel_bl_en);
-
-	if (pdata->gpio_panel_vadd != -1)
-		gpio_free(pdata->gpio_panel_vadd);
 
 	tc35876x_client = NULL;
 
@@ -769,11 +747,11 @@ static int cmi_lcd_hack_create_device(void)
 		return -EINVAL;
 	}
 
-	client = i2c_new_device(adapter, &info);
-	if (!client) {
-		pr_err("%s: i2c_new_device() failed\n", __func__);
+	client = i2c_new_client_device(adapter, &info);
+	if (IS_ERR(client)) {
+		pr_err("%s: creating I2C device failed\n", __func__);
 		i2c_put_adapter(adapter);
-		return -EINVAL;
+		return PTR_ERR(client);
 	}
 
 	return 0;
@@ -787,12 +765,7 @@ static const struct drm_encoder_helper_funcs tc35876x_encoder_helper_funcs = {
 	.commit = mdfld_dsi_dpi_commit,
 };
 
-static const struct drm_encoder_funcs tc35876x_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 const struct panel_funcs mdfld_tc35876x_funcs = {
-	.encoder_funcs = &tc35876x_encoder_funcs,
 	.encoder_helper_funcs = &tc35876x_encoder_helper_funcs,
 	.get_config_mode = tc35876x_get_config_mode,
 	.get_panel_info = tc35876x_get_panel_info,

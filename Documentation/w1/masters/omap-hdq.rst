@@ -44,7 +44,7 @@ that the ID used should be same for both master and slave driver loading.
 e.g::
 
   insmod omap_hdq.ko W1_ID=2
-  inamod w1_bq27000.ko F_ID=2
+  insmod w1_bq27000.ko F_ID=2
 
 The driver also supports 1-wire mode. In this mode, there is no need to
 pass slave ID as parameter. The driver will auto-detect slaves connected

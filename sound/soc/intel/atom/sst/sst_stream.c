@@ -23,7 +23,6 @@
 #include <asm/platform_sst_audio.h>
 #include "../sst-mfld-platform.h"
 #include "sst.h"
-#include "../../common/sst-dsp.h"
 
 int sst_alloc_stream_mrfld(struct intel_sst_drv *sst_drv_ctx, void *params)
 {
@@ -92,8 +91,8 @@ int sst_alloc_stream_mrfld(struct intel_sst_drv *sst_drv_ctx, void *params)
 
 /**
  * sst_realloc_stream - Send msg for (re-)allocating a stream using the
- * @sst_drv_ctx  intel_sst_drv context pointer
- * @str_id:	 stream ID
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
  *
  * Send a msg for (re-)allocating a stream using the parameters previously
  * passed to sst_alloc_stream_mrfld() for the same stream ID.
@@ -142,12 +141,13 @@ out:
 }
 
 /**
-* sst_start_stream - Send msg for a starting stream
-* @str_id:	 stream ID
-*
-* This function is called by any function which wants to start
-* a stream.
-*/
+ * sst_start_stream - Send msg for a starting stream
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
+ *
+ * This function is called by any function which wants to start
+ * a stream.
+ */
 int sst_start_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 {
 	int retval = 0;
@@ -234,7 +234,8 @@ out:
 
 /**
  * sst_pause_stream - Send msg for a pausing stream
- * @str_id:	 stream ID
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
  *
  * This function is called by any function which wants to pause
  * an already running stream.
@@ -278,7 +279,8 @@ int sst_pause_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 
 /**
  * sst_resume_stream - Send msg for resuming stream
- * @str_id:		stream ID
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
  *
  * This function is called by any function which wants to resume
  * an already paused stream.
@@ -345,7 +347,8 @@ int sst_resume_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 
 /**
  * sst_drop_stream - Send msg for stopping stream
- * @str_id:		stream ID
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
  *
  * This function is called by any function which wants to stop
  * a stream.
@@ -377,12 +380,14 @@ int sst_drop_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 }
 
 /**
-* sst_drain_stream - Send msg for draining stream
-* @str_id:		stream ID
-*
-* This function is called by any function which wants to drain
-* a stream.
-*/
+ * sst_drain_stream - Send msg for draining stream
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
+ * @partial_drain: boolean indicating if a gapless transition is taking place
+ *
+ * This function is called by any function which wants to drain
+ * a stream.
+ */
 int sst_drain_stream(struct intel_sst_drv *sst_drv_ctx,
 			int str_id, bool partial_drain)
 {
@@ -415,7 +420,8 @@ int sst_drain_stream(struct intel_sst_drv *sst_drv_ctx,
 
 /**
  * sst_free_stream - Frees a stream
- * @str_id:		stream ID
+ * @sst_drv_ctx: intel_sst_drv context pointer
+ * @str_id: stream ID
  *
  * This function is called by any function which wants to free
  * a stream.

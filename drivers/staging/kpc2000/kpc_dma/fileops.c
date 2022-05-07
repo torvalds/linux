@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+// SPDX-License-Identifier: GPL-2.0+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -18,8 +18,8 @@
 static inline
 unsigned int  count_pages(unsigned long iov_base, size_t iov_len)
 {
-	unsigned long first = (iov_base             & PAGE_MASK) >> PAGE_SHIFT;
-	unsigned long last  = ((iov_base+iov_len-1) & PAGE_MASK) >> PAGE_SHIFT;
+	unsigned long first = (iov_base                 & PAGE_MASK) >> PAGE_SHIFT;
+	unsigned long last  = ((iov_base + iov_len - 1) & PAGE_MASK) >> PAGE_SHIFT;
 
 	return last - first + 1;
 }
@@ -35,7 +35,7 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 			    unsigned long iov_base, size_t iov_len)
 {
 	unsigned int i = 0;
-	long rv = 0;
+	int rv = 0, nr_pages = 0;
 	struct kpc_dma_device *ldev;
 	struct aio_cb_data *acd;
 	DECLARE_COMPLETION_ONSTACK(done);
@@ -49,13 +49,11 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 	u64 dma_addr;
 	u64 user_ctl;
 
-	BUG_ON(priv == NULL);
 	ldev = priv->ldev;
-	BUG_ON(ldev == NULL);
 
 	acd = kzalloc(sizeof(*acd), GFP_KERNEL);
 	if (!acd) {
-		dev_err(&priv->ldev->pldev->dev, "Couldn't kmalloc space for for the aio data\n");
+		dev_err(&priv->ldev->pldev->dev, "Couldn't kmalloc space for the aio data\n");
 		return -ENOMEM;
 	}
 	memset(acd, 0x66, sizeof(struct aio_cb_data));
@@ -68,34 +66,40 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 	acd->page_count = count_pages(iov_base, iov_len);
 
 	// Allocate an array of page pointers
-	acd->user_pages = kzalloc(sizeof(struct page *) * acd->page_count, GFP_KERNEL);
+	acd->user_pages = kcalloc(acd->page_count, sizeof(struct page *),
+				  GFP_KERNEL);
 	if (!acd->user_pages) {
-		dev_err(&priv->ldev->pldev->dev, "Couldn't kmalloc space for for the page pointers\n");
+		dev_err(&priv->ldev->pldev->dev, "Couldn't kmalloc space for the page pointers\n");
 		rv = -ENOMEM;
 		goto err_alloc_userpages;
 	}
 
 	// Lock the user buffer pages in memory, and hold on to the page pointers (for the sglist)
-	down_read(&current->mm->mmap_sem);      /*  get memory map semaphore */
-	rv = get_user_pages(iov_base, acd->page_count, FOLL_TOUCH | FOLL_WRITE | FOLL_GET, acd->user_pages, NULL);
-	up_read(&current->mm->mmap_sem);        /*  release the semaphore */
+	mmap_read_lock(current->mm);      /*  get memory map semaphore */
+	rv = pin_user_pages(iov_base, acd->page_count, FOLL_TOUCH | FOLL_WRITE, acd->user_pages, NULL);
+	mmap_read_unlock(current->mm);        /*  release the semaphore */
 	if (rv != acd->page_count) {
-		dev_err(&priv->ldev->pldev->dev, "Couldn't get_user_pages (%ld)\n", rv);
-		goto err_get_user_pages;
+		nr_pages = rv;
+		if (rv > 0)
+			rv = -EFAULT;
+
+		dev_err(&priv->ldev->pldev->dev, "Couldn't pin_user_pages (%d)\n", rv);
+		goto unpin_pages;
 	}
+	nr_pages = acd->page_count;
 
 	// Allocate and setup the sg_table (scatterlist entries)
-	rv = sg_alloc_table_from_pages(&acd->sgt, acd->user_pages, acd->page_count, iov_base & (PAGE_SIZE-1), iov_len, GFP_KERNEL);
+	rv = sg_alloc_table_from_pages(&acd->sgt, acd->user_pages, acd->page_count, iov_base & (PAGE_SIZE - 1), iov_len, GFP_KERNEL);
 	if (rv) {
-		dev_err(&priv->ldev->pldev->dev, "Couldn't alloc sg_table (%ld)\n", rv);
-		goto err_alloc_sg_table;
+		dev_err(&priv->ldev->pldev->dev, "Couldn't alloc sg_table (%d)\n", rv);
+		goto unpin_pages;
 	}
 
 	// Setup the DMA mapping for all the sg entries
 	acd->mapped_entry_count = dma_map_sg(&ldev->pldev->dev, acd->sgt.sgl, acd->sgt.nents, ldev->dir);
 	if (acd->mapped_entry_count <= 0) {
 		dev_err(&priv->ldev->pldev->dev, "Couldn't dma_map_sg (%d)\n", acd->mapped_entry_count);
-		goto err_dma_map_sg;
+		goto free_table;
 	}
 
 	// Calculate how many descriptors are actually needed for this transfer.
@@ -126,19 +130,19 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 		pcnt = count_parts_for_sge(sg);
 		for (p = 0 ; p < pcnt ; p++) {
 			// Fill out the descriptor
-			BUG_ON(desc == NULL);
+			BUG_ON(!desc);
 			clear_desc(desc);
-			if (p != pcnt-1) {
+			if (p != pcnt - 1)
 				desc->DescByteCount = 0x80000;
-			} else {
+			else
 				desc->DescByteCount = sg_dma_len(sg) - (p * 0x80000);
-			}
+
 			desc->DescBufferByteCount = desc->DescByteCount;
 
 			desc->DescControlFlags |= DMA_DESC_CTL_IRQONERR;
 			if (i == 0 && p == 0)
 				desc->DescControlFlags |= DMA_DESC_CTL_SOP;
-			if (i == acd->mapped_entry_count-1 && p == pcnt-1)
+			if (i == acd->mapped_entry_count - 1 && p == pcnt - 1)
 				desc->DescControlFlags |= DMA_DESC_CTL_EOP | DMA_DESC_CTL_IRQONDONE;
 
 			desc->DescCardAddrLS = (card_addr & 0xFFFFFFFF);
@@ -150,13 +154,13 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 			desc->DescSystemAddrMS = (dma_addr & 0xFFFFFFFF00000000UL) >> 32;
 
 			user_ctl = acd->priv->user_ctl;
-			if (i == acd->mapped_entry_count-1 && p == pcnt-1) {
+			if (i == acd->mapped_entry_count - 1 && p == pcnt - 1)
 				user_ctl = acd->priv->user_ctl_last;
-			}
+
 			desc->DescUserControlLS = (user_ctl & 0x00000000FFFFFFFFUL) >>  0;
 			desc->DescUserControlMS = (user_ctl & 0xFFFFFFFF00000000UL) >> 32;
 
-			if (i == acd->mapped_entry_count-1 && p == pcnt-1)
+			if (i == acd->mapped_entry_count - 1 && p == pcnt - 1)
 				desc->acd = acd;
 
 			dev_dbg(&priv->ldev->pldev->dev, "  Filled descriptor %p (acd = %p)\n", desc, desc->acd);
@@ -187,17 +191,16 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
  err_descr_too_many:
 	unlock_engine(ldev);
 	dma_unmap_sg(&ldev->pldev->dev, acd->sgt.sgl, acd->sgt.nents, ldev->dir);
+ free_table:
 	sg_free_table(&acd->sgt);
- err_dma_map_sg:
- err_alloc_sg_table:
-	for (i = 0 ; i < acd->page_count ; i++) {
-		put_page(acd->user_pages[i]);
-	}
- err_get_user_pages:
+
+ unpin_pages:
+	if (nr_pages > 0)
+		unpin_user_pages(acd->user_pages, nr_pages);
 	kfree(acd->user_pages);
  err_alloc_userpages:
 	kfree(acd);
-	dev_dbg(&priv->ldev->pldev->dev, "%s returning with error %ld\n", __func__, rv);
+	dev_dbg(&priv->ldev->pldev->dev, "%s returning with error %d\n", __func__, rv);
 	return rv;
 }
 
@@ -205,23 +208,20 @@ void  transfer_complete_cb(struct aio_cb_data *acd, size_t xfr_count, u32 flags)
 {
 	unsigned int i;
 
-	BUG_ON(acd == NULL);
-	BUG_ON(acd->user_pages == NULL);
-	BUG_ON(acd->sgt.sgl == NULL);
-	BUG_ON(acd->ldev == NULL);
-	BUG_ON(acd->ldev->pldev == NULL);
-
-	for (i = 0 ; i < acd->page_count ; i++) {
-		if (!PageReserved(acd->user_pages[i])) {
-			set_page_dirty(acd->user_pages[i]);
-		}
-	}
+	BUG_ON(!acd);
+	BUG_ON(!acd->user_pages);
+	BUG_ON(!acd->sgt.sgl);
+	BUG_ON(!acd->ldev);
+	BUG_ON(!acd->ldev->pldev);
 
 	dma_unmap_sg(&acd->ldev->pldev->dev, acd->sgt.sgl, acd->sgt.nents, acd->ldev->dir);
 
 	for (i = 0 ; i < acd->page_count ; i++) {
-		put_page(acd->user_pages[i]);
+		if (!PageReserved(acd->user_pages[i]))
+			set_page_dirty_lock(acd->user_pages[i]);
 	}
+
+	unpin_user_pages(acd->user_pages, acd->page_count);
 
 	sg_free_table(&acd->sgt);
 
@@ -255,7 +255,7 @@ int  kpc_dma_open(struct inode *inode, struct file *filp)
 		return -EBUSY; /* already open */
 	}
 
-	priv = kzalloc(sizeof(struct dev_private_data), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

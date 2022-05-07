@@ -24,17 +24,14 @@ void test_vcpu_creation(int first_vcpu_id, int num_vcpus)
 	struct kvm_vm *vm;
 	int i;
 
-	printf("Testing creating %d vCPUs, with IDs %d...%d.\n",
-	       num_vcpus, first_vcpu_id, first_vcpu_id + num_vcpus - 1);
+	pr_info("Testing creating %d vCPUs, with IDs %d...%d.\n",
+		num_vcpus, first_vcpu_id, first_vcpu_id + num_vcpus - 1);
 
 	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
 
-	for (i = 0; i < num_vcpus; i++) {
-		int vcpu_id = first_vcpu_id + i;
-
+	for (i = first_vcpu_id; i < first_vcpu_id + num_vcpus; i++)
 		/* This asserts that the vCPU was created. */
-		vm_vcpu_add(vm, vcpu_id);
-	}
+		vm_vcpu_add(vm, i);
 
 	kvm_vm_free(vm);
 }
@@ -44,8 +41,8 @@ int main(int argc, char *argv[])
 	int kvm_max_vcpu_id = kvm_check_cap(KVM_CAP_MAX_VCPU_ID);
 	int kvm_max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
 
-	printf("KVM_CAP_MAX_VCPU_ID: %d\n", kvm_max_vcpu_id);
-	printf("KVM_CAP_MAX_VCPUS: %d\n", kvm_max_vcpus);
+	pr_info("KVM_CAP_MAX_VCPU_ID: %d\n", kvm_max_vcpu_id);
+	pr_info("KVM_CAP_MAX_VCPUS: %d\n", kvm_max_vcpus);
 
 	/*
 	 * Upstream KVM prior to 4.8 does not support KVM_CAP_MAX_VCPU_ID.

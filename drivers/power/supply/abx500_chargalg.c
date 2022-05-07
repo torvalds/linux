@@ -354,13 +354,13 @@ static int abx500_chargalg_check_charger_enable(struct abx500_chargalg *di)
 
 	if (di->chg_info.charger_type & USB_CHG) {
 		return di->usb_chg->ops.check_enable(di->usb_chg,
-                         di->bm->bat_type[di->bm->batt_id].normal_vol_lvl,
-                         di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
+			di->bm->bat_type[di->bm->batt_id].normal_vol_lvl,
+			di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
 	} else if ((di->chg_info.charger_type & AC_CHG) &&
 		   !(di->ac_chg->external)) {
 		return di->ac_chg->ops.check_enable(di->ac_chg,
-                         di->bm->bat_type[di->bm->batt_id].normal_vol_lvl,
-                         di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
+			di->bm->bat_type[di->bm->batt_id].normal_vol_lvl,
+			di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
 	}
 	return 0;
 }
@@ -1419,7 +1419,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 		abx500_chargalg_stop_charging(di);
 		di->charge_status = POWER_SUPPLY_STATUS_DISCHARGING;
 		abx500_chargalg_state_to(di, STATE_HANDHELD);
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case STATE_HANDHELD:
 		break;
@@ -1435,7 +1435,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 		di->maintenance_chg = false;
 		abx500_chargalg_state_to(di, STATE_SUSPENDED);
 		power_supply_changed(di->chargalg_psy);
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case STATE_SUSPENDED:
 		/* CHARGING is suspended */
@@ -1444,7 +1444,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 	case STATE_BATT_REMOVED_INIT:
 		abx500_chargalg_stop_charging(di);
 		abx500_chargalg_state_to(di, STATE_BATT_REMOVED);
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case STATE_BATT_REMOVED:
 		if (!di->events.batt_rem)
@@ -1454,7 +1454,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 	case STATE_HW_TEMP_PROTECT_INIT:
 		abx500_chargalg_stop_charging(di);
 		abx500_chargalg_state_to(di, STATE_HW_TEMP_PROTECT);
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case STATE_HW_TEMP_PROTECT:
 		if (!di->events.main_thermal_prot &&
@@ -1465,7 +1465,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 	case STATE_OVV_PROTECT_INIT:
 		abx500_chargalg_stop_charging(di);
 		abx500_chargalg_state_to(di, STATE_OVV_PROTECT);
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case STATE_OVV_PROTECT:
 		if (!di->events.vbus_ovv &&
@@ -1479,7 +1479,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 	case STATE_CHG_NOT_OK_INIT:
 		abx500_chargalg_stop_charging(di);
 		abx500_chargalg_state_to(di, STATE_CHG_NOT_OK);
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case STATE_CHG_NOT_OK:
 		if (!di->events.mainextchnotok &&
@@ -1490,7 +1490,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 	case STATE_SAFETY_TIMER_EXPIRED_INIT:
 		abx500_chargalg_stop_charging(di);
 		abx500_chargalg_state_to(di, STATE_SAFETY_TIMER_EXPIRED);
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case STATE_SAFETY_TIMER_EXPIRED:
 		/* We exit this state when charger is removed */
@@ -1537,7 +1537,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 	case STATE_WAIT_FOR_RECHARGE_INIT:
 		abx500_chargalg_hold_charging(di);
 		abx500_chargalg_state_to(di, STATE_WAIT_FOR_RECHARGE);
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case STATE_WAIT_FOR_RECHARGE:
 		if (di->batt_data.percent <=
@@ -1558,7 +1558,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 				di->bm->batt_id].maint_a_cur_lvl);
 		abx500_chargalg_state_to(di, STATE_MAINTENANCE_A);
 		power_supply_changed(di->chargalg_psy);
-		/* Intentional fallthrough*/
+		fallthrough;
 
 	case STATE_MAINTENANCE_A:
 		if (di->events.maintenance_timer_expired) {
@@ -1578,7 +1578,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 				di->bm->batt_id].maint_b_cur_lvl);
 		abx500_chargalg_state_to(di, STATE_MAINTENANCE_B);
 		power_supply_changed(di->chargalg_psy);
-		/* Intentional fallthrough*/
+		fallthrough;
 
 	case STATE_MAINTENANCE_B:
 		if (di->events.maintenance_timer_expired) {
@@ -1597,7 +1597,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 		di->charge_status = POWER_SUPPLY_STATUS_CHARGING;
 		abx500_chargalg_state_to(di, STATE_TEMP_LOWHIGH);
 		power_supply_changed(di->chargalg_psy);
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case STATE_TEMP_LOWHIGH:
 		if (!di->events.btemp_lowhigh)
@@ -1607,7 +1607,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 	case STATE_WD_EXPIRED_INIT:
 		abx500_chargalg_stop_charging(di);
 		abx500_chargalg_state_to(di, STATE_WD_EXPIRED);
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case STATE_WD_EXPIRED:
 		if (!di->events.ac_wd_expired &&
@@ -1618,7 +1618,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 	case STATE_TEMP_UNDEROVER_INIT:
 		abx500_chargalg_stop_charging(di);
 		abx500_chargalg_state_to(di, STATE_TEMP_UNDEROVER);
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case STATE_TEMP_UNDEROVER:
 		if (!di->events.btemp_underover)
@@ -1823,7 +1823,7 @@ static ssize_t abx500_chargalg_en_store(struct abx500_chargalg *di,
 			"Enter 0. Disable AC/USB Charging\n"
 			"1. Enable AC charging\n"
 			"2. Enable USB Charging\n");
-	};
+	}
 	return strlen(buf);
 }
 

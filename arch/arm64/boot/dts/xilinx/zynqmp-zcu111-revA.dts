@@ -2,7 +2,7 @@
 /*
  * dts file for Xilinx ZynqMP ZCU111
  *
- * (C) Copyright 2017 - 2018, Xilinx, Inc.
+ * (C) Copyright 2017 - 2019, Xilinx, Inc.
  *
  * Michal Simek <michal.simek@xilinx.com>
  */
@@ -10,7 +10,7 @@
 /dts-v1/;
 
 #include "zynqmp.dtsi"
-#include "zynqmp-clk.dtsi"
+#include "zynqmp-clk-ccf.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 
@@ -59,6 +59,63 @@
 			linux,default-trigger = "heartbeat";
 		};
 	};
+
+	ina226-u67 {
+		compatible = "iio-hwmon";
+		io-channels = <&u67 0>, <&u67 1>, <&u67 2>, <&u67 3>;
+	};
+	ina226-u59 {
+		compatible = "iio-hwmon";
+		io-channels = <&u59 0>, <&u59 1>, <&u59 2>, <&u59 3>;
+	};
+	ina226-u61 {
+		compatible = "iio-hwmon";
+		io-channels = <&u61 0>, <&u61 1>, <&u61 2>, <&u61 3>;
+	};
+	ina226-u60 {
+		compatible = "iio-hwmon";
+		io-channels = <&u60 0>, <&u60 1>, <&u60 2>, <&u60 3>;
+	};
+	ina226-u64 {
+		compatible = "iio-hwmon";
+		io-channels = <&u64 0>, <&u64 1>, <&u64 2>, <&u64 3>;
+	};
+	ina226-u69 {
+		compatible = "iio-hwmon";
+		io-channels = <&u69 0>, <&u69 1>, <&u69 2>, <&u69 3>;
+	};
+	ina226-u66 {
+		compatible = "iio-hwmon";
+		io-channels = <&u66 0>, <&u66 1>, <&u66 2>, <&u66 3>;
+	};
+	ina226-u65 {
+		compatible = "iio-hwmon";
+		io-channels = <&u65 0>, <&u65 1>, <&u65 2>, <&u65 3>;
+	};
+	ina226-u63 {
+		compatible = "iio-hwmon";
+		io-channels = <&u63 0>, <&u63 1>, <&u63 2>, <&u63 3>;
+	};
+	ina226-u3 {
+		compatible = "iio-hwmon";
+		io-channels = <&u3 0>, <&u3 1>, <&u3 2>, <&u3 3>;
+	};
+	ina226-u71 {
+		compatible = "iio-hwmon";
+		io-channels = <&u71 0>, <&u71 1>, <&u71 2>, <&u71 3>;
+	};
+	ina226-u77 {
+		compatible = "iio-hwmon";
+		io-channels = <&u77 0>, <&u77 1>, <&u77 2>, <&u77 3>;
+	};
+	ina226-u73 {
+		compatible = "iio-hwmon";
+		io-channels = <&u73 0>, <&u73 1>, <&u73 2>, <&u73 3>;
+	};
+	ina226-u79 {
+		compatible = "iio-hwmon";
+		io-channels = <&u79 0>, <&u79 1>, <&u79 2>, <&u79 3>;
+	};
 };
 
 &dcc {
@@ -101,7 +158,7 @@
 	status = "okay";
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
-	phy0: phy@c {
+	phy0: ethernet-phy@c {
 		reg = <0xc>;
 		ti,rx-internal-delay = <0x8>;
 		ti,tx-internal-delay = <0xa>;
@@ -152,73 +209,101 @@
 			reg = <0>;
 			/* PS_PMBUS */
 			/* PMBUS_ALERT done via pca9544 */
-			ina226@40 { /* u67 */
+			u67: ina226@40 { /* u67 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u67";
 				reg = <0x40>;
 				shunt-resistor = <2000>;
 			};
-			ina226@41 { /* u59 */
+			u59: ina226@41 { /* u59 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u59";
 				reg = <0x41>;
 				shunt-resistor = <5000>;
 			};
-			ina226@42 { /* u61 */
+			u61: ina226@42 { /* u61 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u61";
 				reg = <0x42>;
 				shunt-resistor = <5000>;
 			};
-			ina226@43 { /* u60 */
+			u60: ina226@43 { /* u60 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u60";
 				reg = <0x43>;
 				shunt-resistor = <5000>;
 			};
-			ina226@45 { /* u64 */
+			u64: ina226@45 { /* u64 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u64";
 				reg = <0x45>;
 				shunt-resistor = <5000>;
 			};
-			ina226@46 { /* u69 */
+			u69: ina226@46 { /* u69 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u69";
 				reg = <0x46>;
 				shunt-resistor = <2000>;
 			};
-			ina226@47 { /* u66 */
+			u66: ina226@47 { /* u66 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u66";
 				reg = <0x47>;
 				shunt-resistor = <5000>;
 			};
-			ina226@48 { /* u65 */
+			u65: ina226@48 { /* u65 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u65";
 				reg = <0x48>;
 				shunt-resistor = <5000>;
 			};
-			ina226@49 { /* u63 */
+			u63: ina226@49 { /* u63 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u63";
 				reg = <0x49>;
 				shunt-resistor = <5000>;
 			};
-			ina226@4a { /* u3 */
+			u3: ina226@4a { /* u3 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u3";
 				reg = <0x4a>;
 				shunt-resistor = <5000>;
 			};
-			ina226@4b { /* u71 */
+			u71: ina226@4b { /* u71 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u71";
 				reg = <0x4b>;
 				shunt-resistor = <5000>;
 			};
-			ina226@4c { /* u77 */
+			u77: ina226@4c { /* u77 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u77";
 				reg = <0x4c>;
 				shunt-resistor = <5000>;
 			};
-			ina226@4d { /* u73 */
+			u73: ina226@4d { /* u73 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u73";
 				reg = <0x4d>;
 				shunt-resistor = <5000>;
 			};
-			ina226@4e { /* u79 */
+			u79: ina226@4e { /* u79 */
 				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				label = "ina226-u79";
 				reg = <0x4e>;
 				shunt-resistor = <5000>;
 			};
@@ -304,6 +389,7 @@
 				temperature-stability = <50>;
 				factory-fout = <300000000>;
 				clock-frequency = <300000000>;
+				clock-output-names = "si570_user";
 			};
 		};
 		i2c@3 {
@@ -316,7 +402,8 @@
 				reg = <0x5d>;
 				temperature-stability = <50>;
 				factory-fout = <156250000>;
-				clock-frequency = <148500000>;
+				clock-frequency = <156250000>;
+				clock-output-names = "si570_mgt";
 			};
 		};
 		i2c@4 {
@@ -440,4 +527,5 @@
 /* ULPI SMSC USB3320 */
 &usb0 {
 	status = "okay";
+	dr_mode = "host";
 };

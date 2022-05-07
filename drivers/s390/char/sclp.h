@@ -229,7 +229,7 @@ static inline void sclp_fill_core_info(struct sclp_core_info *info,
 #define SCLP_HAS_CPU_INFO	(sclp.facilities & 0x0800000000000000ULL)
 #define SCLP_HAS_CPU_RECONFIG	(sclp.facilities & 0x0400000000000000ULL)
 #define SCLP_HAS_PCI_RECONFIG	(sclp.facilities & 0x0000000040000000ULL)
-
+#define SCLP_HAS_AP_RECONFIG	(sclp.facilities & 0x0000000100000000ULL)
 
 struct gds_subvector {
 	u8	length;
@@ -305,9 +305,7 @@ int sclp_deactivate(void);
 int sclp_reactivate(void);
 int sclp_sync_request(sclp_cmdw_t command, void *sccb);
 int sclp_sync_request_timeout(sclp_cmdw_t command, void *sccb, int timeout);
-
 int sclp_sdias_init(void);
-void sclp_sdias_exit(void);
 
 enum {
 	sclp_init_state_uninitialized,

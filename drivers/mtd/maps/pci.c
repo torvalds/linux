@@ -94,7 +94,7 @@ intel_iq80310_init(struct pci_dev *dev, struct map_pci_info *map)
 	map->map.write = mtd_pci_write8,
 
 	map->map.size     = 0x00800000;
-	map->base         = ioremap_nocache(pci_resource_start(dev, 0),
+	map->base         = ioremap(pci_resource_start(dev, 0),
 					    pci_resource_len(dev, 0));
 
 	if (!map->base)
@@ -188,7 +188,7 @@ intel_dc21285_init(struct pci_dev *dev, struct map_pci_info *map)
 	map->map.read = mtd_pci_read32,
 	map->map.write = mtd_pci_write32,
 	map->map.size     = len;
-	map->base         = ioremap_nocache(base, len);
+	map->base         = ioremap(base, len);
 
 	if (!map->base)
 		return -ENOMEM;

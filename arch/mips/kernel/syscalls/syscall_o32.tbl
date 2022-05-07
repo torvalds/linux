@@ -29,7 +29,7 @@
 18	o32	unused18			sys_ni_syscall
 19	o32	lseek				sys_lseek
 20	o32	getpid				sys_getpid
-21	o32	mount				sys_mount			compat_sys_mount
+21	o32	mount				sys_mount
 22	o32	umount				sys_oldumount
 23	o32	setuid				sys_setuid
 24	o32	getuid				sys_getuid
@@ -156,15 +156,15 @@
 142	o32	_newselect			sys_select			compat_sys_select
 143	o32	flock				sys_flock
 144	o32	msync				sys_msync
-145	o32	readv				sys_readv			compat_sys_readv
-146	o32	writev				sys_writev			compat_sys_writev
+145	o32	readv				sys_readv
+146	o32	writev				sys_writev
 147	o32	cacheflush			sys_cacheflush
 148	o32	cachectl			sys_cachectl
 149	o32	sysmips				__sys_sysmips
 150	o32	unused150			sys_ni_syscall
 151	o32	getsid				sys_getsid
 152	o32	fdatasync			sys_fdatasync
-153	o32	_sysctl				sys_sysctl			compat_sys_sysctl
+153	o32	_sysctl				sys_ni_syscall
 154	o32	mlock				sys_mlock
 155	o32	munlock				sys_munlock
 156	o32	mlockall			sys_mlockall
@@ -184,7 +184,7 @@
 170	o32	connect				sys_connect
 171	o32	getpeername			sys_getpeername
 172	o32	getsockname			sys_getsockname
-173	o32	getsockopt			sys_getsockopt			compat_sys_getsockopt
+173	o32	getsockopt			sys_getsockopt			sys_getsockopt
 174	o32	listen				sys_listen
 175	o32	recv				sys_recv			compat_sys_recv
 176	o32	recvfrom			sys_recvfrom			compat_sys_recvfrom
@@ -192,7 +192,7 @@
 178	o32	send				sys_send
 179	o32	sendmsg				sys_sendmsg			compat_sys_sendmsg
 180	o32	sendto				sys_sendto
-181	o32	setsockopt			sys_setsockopt			compat_sys_setsockopt
+181	o32	setsockopt			sys_setsockopt			sys_setsockopt
 182	o32	shutdown			sys_shutdown
 183	o32	socket				sys_socket
 184	o32	socketpair			sys_socketpair
@@ -318,7 +318,7 @@
 304	o32	splice				sys_splice
 305	o32	sync_file_range			sys_sync_file_range		sys32_sync_file_range
 306	o32	tee				sys_tee
-307	o32	vmsplice			sys_vmsplice			compat_sys_vmsplice
+307	o32	vmsplice			sys_vmsplice
 308	o32	move_pages			sys_move_pages			compat_sys_move_pages
 309	o32	set_robust_list			sys_set_robust_list		compat_sys_set_robust_list
 310	o32	get_robust_list			sys_get_robust_list		compat_sys_get_robust_list
@@ -356,8 +356,8 @@
 342	o32	syncfs				sys_syncfs
 343	o32	sendmmsg			sys_sendmmsg			compat_sys_sendmmsg
 344	o32	setns				sys_setns
-345	o32	process_vm_readv		sys_process_vm_readv		compat_sys_process_vm_readv
-346	o32	process_vm_writev		sys_process_vm_writev		compat_sys_process_vm_writev
+345	o32	process_vm_readv		sys_process_vm_readv
+346	o32	process_vm_writev		sys_process_vm_writev
 347	o32	kcmp				sys_kcmp
 348	o32	finit_module			sys_finit_module
 349	o32	sched_setattr			sys_sched_setattr
@@ -423,3 +423,8 @@
 433	o32	fspick				sys_fspick
 434	o32	pidfd_open			sys_pidfd_open
 435	o32	clone3				__sys_clone3
+436	o32	close_range			sys_close_range
+437	o32	openat2				sys_openat2
+438	o32	pidfd_getfd			sys_pidfd_getfd
+439	o32	faccessat2			sys_faccessat2
+440	o32	process_madvise			sys_process_madvise

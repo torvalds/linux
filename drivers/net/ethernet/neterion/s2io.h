@@ -1065,7 +1065,7 @@ static void s2io_txpic_intr_handle(struct s2io_nic *sp);
 static void tx_intr_handler(struct fifo_info *fifo_data);
 static void s2io_handle_errors(void * dev_id);
 
-static void s2io_tx_watchdog(struct net_device *dev);
+static void s2io_tx_watchdog(struct net_device *dev, unsigned int txqueue);
 static void s2io_set_multicast(struct net_device *dev);
 static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp);
 static void s2io_link(struct s2io_nic * sp, int link);

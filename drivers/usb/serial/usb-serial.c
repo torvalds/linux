@@ -288,7 +288,7 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 
 /**
  * serial_cleanup - free resources post close/hangup
- * @port: port to free up
+ * @tty: tty to clean up
  *
  * Do the resource freeing and refcount dropping for the port.
  * Avoid freeing the console.
@@ -1316,6 +1316,9 @@ static int usb_serial_register(struct usb_serial_driver *driver)
 				driver->description);
 		return -EINVAL;
 	}
+
+	/* Prevent individual ports from being unbound. */
+	driver->driver.suppress_bind_attrs = true;
 
 	usb_serial_operations_init(driver);
 

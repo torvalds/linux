@@ -103,6 +103,7 @@
 /*--------------------------------------------------------------------------*/
 
 struct tmio_nand {
+	struct nand_controller controller;
 	struct nand_chip chip;
 	struct completion comp;
 
@@ -355,6 +356,25 @@ static void tmio_hw_stop(struct platform_device *dev, struct tmio_nand *tmio)
 		cell->disable(dev);
 }
 
+static int tmio_attach_chip(struct nand_chip *chip)
+{
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
+	chip->ecc.size = 512;
+	chip->ecc.bytes = 6;
+	chip->ecc.strength = 2;
+	chip->ecc.hwctl = tmio_nand_enable_hwecc;
+	chip->ecc.calculate = tmio_nand_calculate_ecc;
+	chip->ecc.correct = tmio_nand_correct_data;
+
+	return 0;
+}
+
+static const struct nand_controller_ops tmio_ops = {
+	.attach_chip = tmio_attach_chip,
+};
+
 static int tmio_probe(struct platform_device *dev)
 {
 	struct tmio_nand_data *data = dev_get_platdata(&dev->dev);
@@ -385,6 +405,10 @@ static int tmio_probe(struct platform_device *dev)
 	mtd->name = "tmio-nand";
 	mtd->dev.parent = &dev->dev;
 
+	nand_controller_init(&tmio->controller);
+	tmio->controller.ops = &tmio_ops;
+	nand_chip->controller = &tmio->controller;
+
 	tmio->ccr = devm_ioremap(&dev->dev, ccr->start, resource_size(ccr));
 	if (!tmio->ccr)
 		return -EIO;
@@ -408,15 +432,6 @@ static int tmio_probe(struct platform_device *dev)
 	nand_chip->legacy.read_byte = tmio_nand_read_byte;
 	nand_chip->legacy.write_buf = tmio_nand_write_buf;
 	nand_chip->legacy.read_buf = tmio_nand_read_buf;
-
-	/* set eccmode using hardware ECC */
-	nand_chip->ecc.mode = NAND_ECC_HW;
-	nand_chip->ecc.size = 512;
-	nand_chip->ecc.bytes = 6;
-	nand_chip->ecc.strength = 2;
-	nand_chip->ecc.hwctl = tmio_nand_enable_hwecc;
-	nand_chip->ecc.calculate = tmio_nand_calculate_ecc;
-	nand_chip->ecc.correct = tmio_nand_correct_data;
 
 	if (data)
 		nand_chip->badblock_pattern = data->badblock_pattern;
@@ -448,7 +463,7 @@ static int tmio_probe(struct platform_device *dev)
 	if (!retval)
 		return retval;
 
-	nand_release(nand_chip);
+	nand_cleanup(nand_chip);
 
 err_irq:
 	tmio_hw_stop(dev, tmio);
@@ -458,8 +473,12 @@ err_irq:
 static int tmio_remove(struct platform_device *dev)
 {
 	struct tmio_nand *tmio = platform_get_drvdata(dev);
+	struct nand_chip *chip = &tmio->chip;
+	int ret;
 
-	nand_release(&tmio->chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 	tmio_hw_stop(dev, tmio);
 	return 0;
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Flash and torch driver for Texas Instruments LM3601X LED
 // Flash driver chip family
-// Copyright (C) 2018 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2018 Texas Instruments Incorporated - https://www.ti.com/
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -350,8 +350,7 @@ static int lm3601x_register_leds(struct lm3601x_led *led,
 	init_data.devicename = led->client->name;
 	init_data.default_label = (led->led_mode == LM3601X_LED_TORCH) ?
 					"torch" : "infrared";
-
-	return led_classdev_flash_register_ext(&led->client->dev,
+	return devm_led_classdev_flash_register_ext(&led->client->dev,
 						&led->fled_cdev, &init_data);
 }
 
@@ -445,7 +444,6 @@ static int lm3601x_remove(struct i2c_client *client)
 {
 	struct lm3601x_led *led = i2c_get_clientdata(client);
 
-	led_classdev_flash_unregister(&led->fled_cdev);
 	mutex_destroy(&led->lock);
 
 	return regmap_update_bits(led->regmap, LM3601X_ENABLE_REG,

@@ -16,31 +16,35 @@ properties:
     oneOf:
       - items:
           - enum:
-             - allwinner,sun50i-h6-mali
-          - const: arm,mali-t720
-      - items:
-          - enum:
-             - amlogic,meson-gxm-mali
-          - const: arm,mali-t820
-      - items:
-          - enum:
-             - rockchip,rk3288-mali
-          - const: arm,mali-t760
-      - items:
-          - enum:
-             - rockchip,rk3399-mali
-          - const: arm,mali-t860
-      - items:
-          - enum:
-             - samsung,exynos5250-mali
+              - samsung,exynos5250-mali
           - const: arm,mali-t604
       - items:
           - enum:
-             - samsung,exynos5433-mali
+              - samsung,exynos5420-mali
+          - const: arm,mali-t628
+      - items:
+          - enum:
+              - allwinner,sun50i-h6-mali
+          - const: arm,mali-t720
+      - items:
+          - enum:
+              - amlogic,meson-gxm-mali
+              - realtek,rtd1295-mali
+          - const: arm,mali-t820
+      - items:
+          - enum:
+              - arm,juno-mali
+          - const: arm,mali-t624
+      - items:
+          - enum:
+              - rockchip,rk3288-mali
+              - samsung,exynos5433-mali
           - const: arm,mali-t760
+      - items:
+          - enum:
+              - rockchip,rk3399-mali
+          - const: arm,mali-t860
 
-          # "arm,mali-t624"
-          # "arm,mali-t628"
           # "arm,mali-t830"
           # "arm,mali-t880"
 
@@ -69,7 +73,10 @@ properties:
       - const: core
       - const: bus
 
-  mali-supply:
+  mali-supply: true
+  opp-table: true
+
+  power-domains:
     maxItems: 1
 
   resets:
@@ -81,12 +88,16 @@ properties:
   "#cooling-cells":
     const: 2
 
+  dma-coherent: true
+
 required:
   - compatible
   - reg
   - interrupts
   - interrupt-names
   - clocks
+
+additionalProperties: false
 
 allOf:
   - if:
@@ -135,31 +146,31 @@ examples:
     gpu_opp_table: opp_table0 {
       compatible = "operating-points-v2";
 
-      opp@533000000 {
+      opp-533000000 {
         opp-hz = /bits/ 64 <533000000>;
         opp-microvolt = <1250000>;
       };
-      opp@450000000 {
+      opp-450000000 {
         opp-hz = /bits/ 64 <450000000>;
         opp-microvolt = <1150000>;
       };
-      opp@400000000 {
+      opp-400000000 {
         opp-hz = /bits/ 64 <400000000>;
         opp-microvolt = <1125000>;
       };
-      opp@350000000 {
+      opp-350000000 {
         opp-hz = /bits/ 64 <350000000>;
         opp-microvolt = <1075000>;
       };
-      opp@266000000 {
+      opp-266000000 {
         opp-hz = /bits/ 64 <266000000>;
         opp-microvolt = <1025000>;
       };
-      opp@160000000 {
+      opp-160000000 {
         opp-hz = /bits/ 64 <160000000>;
         opp-microvolt = <925000>;
       };
-      opp@100000000 {
+      opp-100000000 {
         opp-hz = /bits/ 64 <100000000>;
         opp-microvolt = <912500>;
       };

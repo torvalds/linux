@@ -1,0 +1,125 @@
+.. include:: ../disclaimer-zh_CN.rst
+
+:Original: :doc:`../../../admin-guide/index`
+:Translator: Alex Shi <alex.shi@linux.alibaba.com>
+
+
+Linux 内核用户和管理员指南
+==========================
+
+下面是一组随时间添加到内核中的面向用户的文档的集合。到目前为止，还没有一个
+整体的顺序或组织 - 这些材料不是一个单一的，连贯的文件！幸运的话，情况会随着
+时间的推移而迅速改善。
+
+这个初始部分包含总体信息，包括描述内核的README， 关于内核参数的文档等。
+
+Todolist:
+
+   README
+   kernel-parameters
+   devices
+   sysctl/index
+
+本节介绍CPU漏洞及其缓解措施。
+
+Todolist:
+
+   hw-vuln/index
+
+下面的一组文档，针对的是试图跟踪问题和bug的用户。
+
+Todolist:
+
+   reporting-bugs
+   security-bugs
+   bug-hunting
+   bug-bisect
+   tainted-kernels
+   ramoops
+   dynamic-debug-howto
+   init
+   kdump/index
+   perf/index
+
+这是应用程序开发人员感兴趣的章节的开始。可以在这里找到涵盖内核ABI各个
+方面的文档。
+
+Todolist:
+
+   sysfs-rules
+
+本手册的其余部分包括各种指南，介绍如何根据您的喜好配置内核的特定行为。
+
+
+.. toctree::
+   :maxdepth: 1
+
+   clearing-warn-once
+   cpu-load
+
+Todolist:
+
+   acpi/index
+   aoe/index
+   auxdisplay/index
+   bcache
+   binderfs
+   binfmt-misc
+   blockdev/index
+   bootconfig
+   braille-console
+   btmrvl
+   cgroup-v1/index
+   cgroup-v2
+   cifs/index
+   cputopology
+   dell_rbu
+   device-mapper/index
+   edid
+   efi-stub
+   ext4
+   nfs/index
+   gpio/index
+   highuid
+   hw_random
+   initrd
+   iostats
+   java
+   jfs
+   kernel-per-CPU-kthreads
+   laptops/index
+   lcd-panel-cgram
+   ldm
+   lockup-watchdogs
+   LSM/index
+   md
+   media/index
+   mm/index
+   module-signing
+   mono
+   namespaces/index
+   numastat
+   parport
+   perf-security
+   pm/index
+   pnp
+   rapidio
+   ras
+   rtc
+   serial-console
+   svga
+   sysrq
+   thunderbolt
+   ufs
+   unicode
+   vga-softcursor
+   video-output
+   wimax/index
+   xfs
+
+.. only::  subproject and html
+
+   Indices
+   =======
+
+   * :ref:`genindex`

@@ -45,6 +45,7 @@ ALL_TESTS="
 	blackhole_ipv6
 "
 NUM_NETIFS=4
+: ${TIMEOUT:=20000} # ms
 source $lib_dir/tc_common.sh
 source $lib_dir/lib.sh
 
@@ -123,7 +124,7 @@ blackhole_ipv4()
 		skip_hw dst_ip 198.51.100.1 src_ip 192.0.2.1 ip_proto icmp \
 		action pass
 
-	ip -4 route show 198.51.100.0/30 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload ip -4 route show 198.51.100.0/30
 	check_err $? "route not marked as offloaded when should"
 
 	ping_do $h1 198.51.100.1
@@ -147,7 +148,7 @@ blackhole_ipv6()
 		skip_hw dst_ip 2001:db8:2::1 src_ip 2001:db8:1::1 \
 		ip_proto icmpv6 action pass
 
-	ip -6 route show 2001:db8:2::/120 | grep -q offload
+	busywait "$TIMEOUT" wait_for_offload ip -6 route show 2001:db8:2::/120
 	check_err $? "route not marked as offloaded when should"
 
 	ping6_do $h1 2001:db8:2::1

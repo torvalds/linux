@@ -58,9 +58,8 @@ struct ttm_validate_buffer {
  * Undoes all buffer validation reservations for bos pointed to by
  * the list entries.
  */
-
-extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
-				       struct list_head *list);
+void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
+				struct list_head *list);
 
 /**
  * function ttm_eu_reserve_buffers
@@ -96,10 +95,9 @@ extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
  * ttm_eu_fence_buffer_objects() when command submission is complete or
  * has failed.
  */
-
-extern int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
-				  struct list_head *list, bool intr,
-				  struct list_head *dups, bool del_lru);
+int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
+			   struct list_head *list, bool intr,
+			   struct list_head *dups);
 
 /**
  * function ttm_eu_fence_buffer_objects.
@@ -113,9 +111,8 @@ extern int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
  * It also unreserves all buffers, putting them on lru lists.
  *
  */
-
-extern void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
-					struct list_head *list,
-					struct dma_fence *fence);
+void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
+				 struct list_head *list,
+				 struct dma_fence *fence);
 
 #endif

@@ -2,9 +2,10 @@
  * ecma_167.h
  *
  * This file is based on ECMA-167 3rd edition (June 1997)
- * http://www.ecma.ch
+ * https://www.ecma.ch
  *
- * Copyright (c) 2001-2002  Ben Fennema <bfennema@falcon.csc.calpoly.edu>
+ * Copyright (c) 2001-2002  Ben Fennema
+ * Copyright (c) 2017-2019  Pali Rohár <pali@kernel.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,10 +33,18 @@
  * SUCH DAMAGE.
  */
 
+/**
+ * @file
+ * ECMA-167r3 defines and structure definitions
+ */
+
 #include <linux/types.h>
 
 #ifndef _ECMA_167_H
 #define _ECMA_167_H 1
+
+/* Character sets and coding - d-characters (ECMA 167r3 1/7.2) */
+typedef uint8_t		dchars;
 
 /* Character set specification (ECMA 167r3 1/7.2.1) */
 struct charspec {
@@ -54,6 +63,7 @@ struct charspec {
 #define CHARSPEC_TYPE_CS7		0x07	/* (1/7.2.9) */
 #define CHARSPEC_TYPE_CS8		0x08	/* (1/7.2.10) */
 
+/* Fixed-length character fields - d-string (EMCA 167r3 1/7.2.12) */
 typedef uint8_t		dstring;
 
 /* Timestamp (ECMA 167r3 1/7.3) */
@@ -85,22 +95,8 @@ struct regid {
 } __packed;
 
 /* Flags (ECMA 167r3 1/7.4.1) */
-#define ENTITYID_FLAGS_DIRTY		0x00
-#define ENTITYID_FLAGS_PROTECTED	0x01
-
-/* OSTA UDF 2.1.5.2 */
-#define UDF_ID_COMPLIANT "*OSTA UDF Compliant"
-
-/* OSTA UDF 2.1.5.3 */
-struct domainEntityIDSuffix {
-	uint16_t	revision;
-	uint8_t		flags;
-	uint8_t		reserved[5];
-};
-
-/* OSTA UDF 2.1.5.3 */
-#define ENTITYIDSUFFIX_FLAGS_HARDWRITEPROTECT 0
-#define ENTITYIDSUFFIX_FLAGS_SOFTWRITEPROTECT 1
+#define ENTITYID_FLAGS_DIRTY		0x01
+#define ENTITYID_FLAGS_PROTECTED	0x02
 
 /* Volume Structure Descriptor (ECMA 167r3 2/9.1) */
 #define VSD_STD_ID_LEN			5
@@ -200,6 +196,13 @@ struct NSRDesc {
 	uint8_t		structVersion;
 	uint8_t		reserved;
 	uint8_t		structData[2040];
+} __packed;
+
+/* Generic Descriptor */
+struct genericDesc {
+	struct tag	descTag;
+	__le32		volDescSeqNum;
+	uint8_t		reserved[492];
 } __packed;
 
 /* Primary Volume Descriptor (ECMA 167r3 3/10.1) */
@@ -316,7 +319,7 @@ struct genericPartitionMap {
 
 /* Partition Map Type (ECMA 167r3 3/10.7.1.1) */
 #define GP_PARTITION_MAP_TYPE_UNDEF	0x00
-#define GP_PARTIITON_MAP_TYPE_1		0x01
+#define GP_PARTITION_MAP_TYPE_1		0x01
 #define GP_PARTITION_MAP_TYPE_2		0x02
 
 /* Type 1 Partition Map (ECMA 167r3 3/10.7.2) */
@@ -723,6 +726,7 @@ struct appUseExtAttr {
 #define EXTATTR_DEV_SPEC		12
 #define EXTATTR_IMP_USE			2048
 #define EXTATTR_APP_USE			65536
+#define EXTATTR_SUBTYPE			1
 
 /* Unallocated Space Entry (ECMA 167r3 4/14.11) */
 struct unallocSpaceEntry {
@@ -754,10 +758,12 @@ struct partitionIntegrityEntry {
 /* Short Allocation Descriptor (ECMA 167r3 4/14.14.1) */
 
 /* Extent Length (ECMA 167r3 4/14.14.1.1) */
+#define EXT_LENGTH_MASK			0x3FFFFFFF
+#define EXT_TYPE_MASK			0xC0000000
 #define EXT_RECORDED_ALLOCATED		0x00000000
 #define EXT_NOT_RECORDED_ALLOCATED	0x40000000
 #define EXT_NOT_RECORDED_NOT_ALLOCATED	0x80000000
-#define EXT_NEXT_EXTENT_ALLOCDECS	0xC0000000
+#define EXT_NEXT_EXTENT_ALLOCDESCS	0xC0000000
 
 /* Long Allocation Descriptor (ECMA 167r3 4/14.14.2) */
 
@@ -774,7 +780,7 @@ struct pathComponent {
 	uint8_t		componentType;
 	uint8_t		lengthComponentIdent;
 	__le16		componentFileVersionNum;
-	dstring		componentIdent[0];
+	dchars		componentIdent[0];
 } __packed;
 
 /* File Entry (ECMA 167r3 4/14.17) */

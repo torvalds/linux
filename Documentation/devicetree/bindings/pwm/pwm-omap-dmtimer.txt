@@ -4,7 +4,7 @@ Required properties:
 - compatible: Shall contain "ti,omap-dmtimer-pwm".
 - ti,timers: phandle to PWM capable OMAP timer. See timer/ti,timer.txt for info
   about these timers.
-- #pwm-cells: Should be 3. See pwm.txt in this directory for a description of
+- #pwm-cells: Should be 3. See pwm.yaml in this directory for a description of
   the cells format.
 
 Optional properties:

@@ -8,6 +8,7 @@ menu "Processor type and features"
 
 config IA64
 	bool
+	select ARCH_HAS_DMA_MARK_CLEAN
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ACPI
@@ -31,10 +32,7 @@ config IA64
 	select HAVE_FUNCTION_TRACER
 	select TTY
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_VIRT_CPU_ACCOUNTING
-	select ARCH_HAS_DMA_COHERENT_TO_PFN
-	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
@@ -57,6 +55,8 @@ config IA64
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
 	select NUMA if !FLATMEM
+	select PCI_MSI_ARCH_FALLBACKS if PCI_MSI
+	select SET_FS
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -193,6 +193,7 @@ config IA64_SGI_UV
 
 config IA64_HP_SBA_IOMMU
 	bool "HP SBA IOMMU support"
+	select DMA_OPS
 	default y
 	help
 	  Say Y here to add support for the SBA IOMMU found on HP zx1 and
@@ -244,7 +245,7 @@ config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
 	depends on SMP
 	default n
-	---help---
+	help
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
@@ -267,7 +268,7 @@ config PERMIT_BSP_REMOVE
 	bool "Support removal of Bootstrap Processor"
 	depends on HOTPLUG_CPU
 	default n
-	---help---
+	help
 	Say Y here if your platform SAL will support removal of BSP with HOTPLUG_CPU
 	support. 
 
@@ -275,7 +276,7 @@ config FORCE_CPEI_RETARGET
 	bool "Force assumption that CPEI can be re-targeted"
 	depends on PERMIT_BSP_REMOVE
 	default n
-	---help---
+	help
 	Say Y if you need to force the assumption that CPEI can be re-targeted to
 	any cpu in the system. This hint is available via ACPI 3.0 specifications.
 	Tiger4 systems are capable of re-directing CPEI to any CPU other than BSP.
@@ -361,15 +362,6 @@ config ARCH_PROC_KCORE_TEXT
 
 config IA64_MCA_RECOVERY
 	tristate "MCA recovery from errors other than TLB."
-
-config PERFMON
-	bool "Performance monitor support"
-	depends on BROKEN
-	help
-	  Selects whether support for the IA-64 performance monitor hardware
-	  is included in the kernel.  This makes some kernel data-structures a
-	  little bigger and slows down execution a bit, but it is generally
-	  a good idea to turn this on.  If you're unsure, say Y.
 
 config IA64_PALINFO
 	tristate "/proc/pal support"

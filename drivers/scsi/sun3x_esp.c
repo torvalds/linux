@@ -190,7 +190,7 @@ static int esp_sun3x_probe(struct platform_device *dev)
 	if (!res || !res->start)
 		goto fail_unlink;
 
-	esp->regs = ioremap_nocache(res->start, 0x20);
+	esp->regs = ioremap(res->start, 0x20);
 	if (!esp->regs)
 		goto fail_unmap_regs;
 
@@ -198,7 +198,7 @@ static int esp_sun3x_probe(struct platform_device *dev)
 	if (!res || !res->start)
 		goto fail_unmap_regs;
 
-	esp->dma_regs = ioremap_nocache(res->start, 0x10);
+	esp->dma_regs = ioremap(res->start, 0x10);
 
 	esp->command_block = dma_alloc_coherent(esp->dev, 16,
 						&esp->command_block_dma,
@@ -270,22 +270,10 @@ static struct platform_driver esp_sun3x_driver = {
 		.name   = "sun3x_esp",
 	},
 };
-
-static int __init sun3x_esp_init(void)
-{
-	return platform_driver_register(&esp_sun3x_driver);
-}
-
-static void __exit sun3x_esp_exit(void)
-{
-	platform_driver_unregister(&esp_sun3x_driver);
-}
+module_platform_driver(esp_sun3x_driver);
 
 MODULE_DESCRIPTION("Sun3x ESP SCSI driver");
 MODULE_AUTHOR("Thomas Bogendoerfer (tsbogend@alpha.franken.de)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(sun3x_esp_init);
-module_exit(sun3x_esp_exit);
 MODULE_ALIAS("platform:sun3x_esp");

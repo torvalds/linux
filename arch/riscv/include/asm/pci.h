@@ -3,8 +3,8 @@
  * Copyright (C) 2016 SiFive
  */
 
-#ifndef __ASM_RISCV_PCI_H
-#define __ASM_RISCV_PCI_H
+#ifndef _ASM_RISCV_PCI_H
+#define _ASM_RISCV_PCI_H
 
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -34,4 +34,4 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 }
 #endif  /* CONFIG_PCI */
 
-#endif  /* __ASM_PCI_H */
+#endif  /* _ASM_RISCV_PCI_H */

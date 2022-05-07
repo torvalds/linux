@@ -940,7 +940,8 @@ static void rtsx_monitor_aspm_config(struct rtsx_chip *chip)
 		if (maybe_support_aspm)
 			chip->aspm_l0s_l1_en = 0x03;
 
-		dev_dbg(rtsx_dev(chip), "aspm_level[0] = 0x%02x, aspm_level[1] = 0x%02x\n",
+		dev_dbg(rtsx_dev(chip),
+			"aspm_level[0] = 0x%02x, aspm_level[1] = 0x%02x\n",
 			chip->aspm_level[0], chip->aspm_level[1]);
 
 		if (chip->aspm_l0s_l1_en) {
@@ -1439,6 +1440,7 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 	u16 aligned_addr = addr - offset;
 	int dw_len, i, j;
 	int retval;
+	size_t size;
 
 	if (!buf)
 		return STATUS_NOMEM;
@@ -1450,11 +1452,12 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 
 	dev_dbg(rtsx_dev(chip), "dw_len = %d\n", dw_len);
 
-	data = vzalloc(array_size(dw_len, 4));
+	size = array_size(dw_len, 4);
+	data = vzalloc(size);
 	if (!data)
 		return STATUS_NOMEM;
 
-	mask = vzalloc(array_size(dw_len, 4));
+	mask = vzalloc(size);
 	if (!mask) {
 		vfree(data);
 		return STATUS_NOMEM;
@@ -1470,10 +1473,8 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 		}
 	}
 
-	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, mask,
-			     dw_len * 4);
-	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, data,
-			     dw_len * 4);
+	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, mask, size);
+	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, data, size);
 
 	for (i = 0; i < dw_len; i++) {
 		retval = rtsx_write_cfg_dw(chip, func, aligned_addr + i * 4,

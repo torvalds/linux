@@ -34,18 +34,6 @@ properties:
           - adi,adt7461
             # +/-1C TDM Extended Temp Range I.C
           - adt7461
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7473
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7475
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7476
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7490
-            # Three-Axis Digital Accelerometer
-          - adi,adxl345
-            # Three-Axis Digital Accelerometer (backward-compatibility value "adi,adxl345" must be listed too)
-          - adi,adxl346
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
             # i2c serial eeprom  (24cxx)
@@ -66,6 +54,8 @@ properties:
           - dallas,ds1682
             # Tiny Digital Thermometer and Thermostat
           - dallas,ds1775
+            # CPU Peripheral Monitor
+          - dallas,ds1780
             # CPU Supervisor with Nonvolatile Memory and Programmable I/O
           - dallas,ds4510
             # Digital Thermometer and Thermostat
@@ -92,8 +82,8 @@ properties:
           - fsl,mpl3115
             # MPR121: Proximity Capacitive Touch Sensor Controller
           - fsl,mpr121
-            # SGTL5000: Ultra Low-Power Audio Codec
-          - fsl,sgtl5000
+            # Monolithic Power Systems Inc. multi-phase controller mp2975
+          - mps,mp2975
             # G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire Interface
           - gmt,g751
             # Infineon IR38064 Voltage Regulator
@@ -104,6 +94,10 @@ properties:
           - infineon,slb9645tt
             # Infineon TLV493D-A1B6 I2C 3D Magnetic Sensor
           - infineon,tlv493d-a1b6
+            # Infineon Multi-phase Digital VR Controller xdpe12254
+          - infineon,xdpe12254
+            # Infineon Multi-phase Digital VR Controller xdpe12284
+          - infineon,xdpe12284
             # Inspur Power System power supply unit version 1
           - inspur,ipsps1
             # Intersil ISL29028 Ambient Light and Proximity Sensor
@@ -114,16 +108,46 @@ properties:
           - isil,isl68137
             # 5 Bit Programmable, Pulse-Width Modulator
           - maxim,ds1050
+            # 10-bit 8 channels 300ks/s SPI ADC with temperature sensor
+          - maxim,max1027
+            # 10-bit 12 channels 300ks/s SPI ADC with temperature sensor
+          - maxim,max1029
+            # 10-bit 16 channels 300ks/s SPI ADC with temperature sensor
+          - maxim,max1031
+            # 12-bit 8 channels 300ks/s SPI ADC with temperature sensor
+          - maxim,max1227
+            # 12-bit 12 channels 300ks/s SPI ADC with temperature sensor
+          - maxim,max1229
+            # 12-bit 16 channels 300ks/s SPI ADC with temperature sensor
+          - maxim,max1231
             # Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
           - maxim,max1237
             # PECI-to-I2C translator for PECI-to-SMBus/I2C protocol conversion
           - maxim,max6621
             # 9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
           - maxim,max6625
+            # 3-Channel Remote Temperature Sensor
+          - maxim,max31730
             # mCube 3-axis 8-bit digital accelerometer
           - mcube,mc3230
             # MEMSIC 2-axis 8-bit digital accelerometer
           - memsic,mxc6225
+            # Microchip differential I2C ADC, 1 Channel, 18 bit
+          - microchip,mcp3421
+            # Microchip differential I2C ADC, 2 Channel, 18 bit
+          - microchip,mcp3422
+            # Microchip differential I2C ADC, 2 Channel, 18 bit
+          - microchip,mcp3423
+            # Microchip differential I2C ADC, 4 Channel, 18 bit
+          - microchip,mcp3424
+            # Microchip differential I2C ADC, 1 Channel, 16 bit
+          - microchip,mcp3425
+            # Microchip differential I2C ADC, 2 Channel, 16 bit
+          - microchip,mcp3426
+            # Microchip differential I2C ADC, 2 Channel, 16 bit
+          - microchip,mcp3427
+            # Microchip differential I2C ADC, 4 Channel, 16 bit
+          - microchip,mcp3428
             # Microchip 7-bit Single I2C Digital POT (5k)
           - microchip,mcp4017-502
             # Microchip 7-bit Single I2C Digital POT (10k)
@@ -292,9 +316,11 @@ properties:
           - national,lm75
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
           - national,lm80
+            # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
+          - national,lm81
             # Temperature sensor with integrated fan control
           - national,lm85
-            # ±0.33°C Accurate, 12-Bit + Sign Temperature Sensor and Thermal Window Comparator with Two-Wire Interface
+            # I2C ±0.33°C Accurate, 12-Bit + Sign Temperature Sensor and Thermal Window Comparator
           - national,lm92
             # i2c trusted platform module (TPM)
           - nuvoton,npct501
@@ -302,10 +328,6 @@ properties:
           - nuvoton,npct601
             # Nuvoton Temperature Sensor
           - nuvoton,w83773g
-            # Octal SMBus and I2C registered interface
-          - nxp,pca9556
-            # 8-bit I2C-bus and SMBus I/O port with reset
-          - nxp,pca9557
             # OKI ML86V7667 video decoder
           - oki,ml86v7667
             # OV5642: Color CMOS QSXGA (5-megapixel) Image Sensor with OmniBSI and Embedded TrueFocus
@@ -322,6 +344,8 @@ properties:
           - silabs,si7020
             # Skyworks SKY81452: Six-Channel White LED Driver with Touch Panel Bias Supply
           - skyworks,sky81452
+            # Socionext SynQuacer TPM MMIO module
+          - socionext,synquacer-tpm-mmio
             # i2c serial eeprom  (24cxx)
           - st,24c256
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface
@@ -332,6 +356,8 @@ properties:
           - ti,ads7830
             # Temperature Monitoring and Fan Control
           - ti,amc6821
+            # Temperature sensor with 2-wire interface
+          - ti,lm73
             # Temperature sensor with integrated fan control
           - ti,lm96000
             # I2C Touch-Screen Controller
@@ -342,6 +368,10 @@ properties:
           - ti,tmp103
             # Digital Temperature Sensor
           - ti,tmp275
+            # TI Dual channel DCAP+ multiphase controller TPS53679
+          - ti,tps53679
+            # TI Dual channel DCAP+ multiphase controller TPS53688
+          - ti,tps53688
             # Winbond/Nuvoton H/W Monitor
           - winbond,w83793
             # i2c trusted platform module (TPM)
@@ -350,5 +380,7 @@ properties:
 required:
   - compatible
   - reg
+
+additionalProperties: false
 
 ...

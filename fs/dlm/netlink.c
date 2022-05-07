@@ -62,7 +62,7 @@ static int user_cmd(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-static const struct genl_ops dlm_nl_ops[] = {
+static const struct genl_small_ops dlm_nl_ops[] = {
 	{
 		.cmd	= DLM_CMD_HELLO,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -73,8 +73,8 @@ static const struct genl_ops dlm_nl_ops[] = {
 static struct genl_family family __ro_after_init = {
 	.name		= DLM_GENL_NAME,
 	.version	= DLM_GENL_VERSION,
-	.ops		= dlm_nl_ops,
-	.n_ops		= ARRAY_SIZE(dlm_nl_ops),
+	.small_ops	= dlm_nl_ops,
+	.n_small_ops	= ARRAY_SIZE(dlm_nl_ops),
 	.module		= THIS_MODULE,
 };
 
@@ -113,7 +113,7 @@ static void fill_data(struct dlm_lock_data *data, struct dlm_lkb *lkb)
 
 void dlm_timeout_warn(struct dlm_lkb *lkb)
 {
-	struct sk_buff *uninitialized_var(send_skb);
+	struct sk_buff *send_skb;
 	struct dlm_lock_data *data;
 	size_t size;
 	int rv;

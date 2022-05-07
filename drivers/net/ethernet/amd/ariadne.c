@@ -530,7 +530,7 @@ static inline void ariadne_reset(struct net_device *dev)
 	netif_start_queue(dev);
 }
 
-static void ariadne_tx_timeout(struct net_device *dev)
+static void ariadne_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	volatile struct Am79C960 *lance = (struct Am79C960 *)dev->base_addr;
 

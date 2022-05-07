@@ -5,8 +5,17 @@
 #define __LIMA_SCHED_H__
 
 #include <drm/gpu_scheduler.h>
+#include <linux/list.h>
+#include <linux/xarray.h>
 
+struct lima_device;
 struct lima_vm;
+
+struct lima_sched_error_task {
+	struct list_head list;
+	void *data;
+	u32 size;
+};
 
 struct lima_sched_task {
 	struct drm_sched_job base;
@@ -19,6 +28,9 @@ struct lima_sched_task {
 
 	struct lima_bo **bos;
 	int num_bos;
+
+	bool recoverable;
+	struct lima_bo *heap;
 
 	/* pipe fence */
 	struct dma_fence *fence;
@@ -40,6 +52,8 @@ struct lima_sched_pipe {
 	u64 fence_context;
 	u32 fence_seqno;
 	spinlock_t fence_lock;
+
+	struct lima_device *ldev;
 
 	struct lima_sched_task *current_task;
 	struct lima_vm *current_vm;
@@ -68,8 +82,9 @@ struct lima_sched_pipe {
 	void (*task_fini)(struct lima_sched_pipe *pipe);
 	void (*task_error)(struct lima_sched_pipe *pipe);
 	void (*task_mmu_error)(struct lima_sched_pipe *pipe);
+	int (*task_recover)(struct lima_sched_pipe *pipe);
 
-	struct work_struct error_work;
+	struct work_struct recover_work;
 };
 
 int lima_sched_task_init(struct lima_sched_task *task,

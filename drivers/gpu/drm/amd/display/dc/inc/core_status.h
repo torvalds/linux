@@ -43,10 +43,8 @@ enum dc_status {
 	DC_FAIL_BANDWIDTH_VALIDATE = 13, /* BW and Watermark validation */
 	DC_FAIL_SCALING = 14,
 	DC_FAIL_DP_LINK_TRAINING = 15,
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	DC_FAIL_DSC_VALIDATE = 16,
 	DC_NO_DSC_RESOURCE = 17,
-#endif
 	DC_FAIL_UNSUPPORTED_1 = 18,
 	DC_FAIL_CLK_EXCEED_MAX = 21,
 	DC_FAIL_CLK_BELOW_MIN = 22, /*THIS IS MIN PER IP*/
@@ -54,5 +52,7 @@ enum dc_status {
 
 	DC_ERROR_UNEXPECTED = -1
 };
+
+char *dc_status_to_str(enum dc_status status);
 
 #endif /* _CORE_STATUS_H_ */

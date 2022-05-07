@@ -103,15 +103,15 @@ struct snd_soc_dpcm_runtime {
 	int trigger_pending; /* trigger cmd + 1 if pending, 0 if not */
 };
 
-#define for_each_dpcm_fe(be, stream, dpcm)				\
-	list_for_each_entry(dpcm, &(be)->dpcm[stream].fe_clients, list_fe)
+#define for_each_dpcm_fe(be, stream, _dpcm)				\
+	list_for_each_entry(_dpcm, &(be)->dpcm[stream].fe_clients, list_fe)
 
-#define for_each_dpcm_be(fe, stream, dpcm)				\
-	list_for_each_entry(dpcm, &(fe)->dpcm[stream].be_clients, list_be)
-#define for_each_dpcm_be_safe(fe, stream, dpcm, _dpcm)			\
-	list_for_each_entry_safe(dpcm, _dpcm, &(fe)->dpcm[stream].be_clients, list_be)
-#define for_each_dpcm_be_rollback(fe, stream, dpcm)			\
-	list_for_each_entry_continue_reverse(dpcm, &(fe)->dpcm[stream].be_clients, list_be)
+#define for_each_dpcm_be(fe, stream, _dpcm)				\
+	list_for_each_entry(_dpcm, &(fe)->dpcm[stream].be_clients, list_be)
+#define for_each_dpcm_be_safe(fe, stream, _dpcm, __dpcm)			\
+	list_for_each_entry_safe(_dpcm, __dpcm, &(fe)->dpcm[stream].be_clients, list_be)
+#define for_each_dpcm_be_rollback(fe, stream, _dpcm)			\
+	list_for_each_entry_continue_reverse(_dpcm, &(fe)->dpcm[stream].be_clients, list_be)
 
 /* can this BE stop and free */
 int snd_soc_dpcm_can_be_free_stop(struct snd_soc_pcm_runtime *fe,
@@ -132,17 +132,8 @@ int snd_soc_dpcm_be_can_update(struct snd_soc_pcm_runtime *fe,
 struct snd_pcm_substream *
 	snd_soc_dpcm_get_substream(struct snd_soc_pcm_runtime *be, int stream);
 
-/* get the BE runtime state */
-enum snd_soc_dpcm_state
-	snd_soc_dpcm_be_get_state(struct snd_soc_pcm_runtime *be, int stream);
-
-/* set the BE runtime state */
-void snd_soc_dpcm_be_set_state(struct snd_soc_pcm_runtime *be, int stream,
-	enum snd_soc_dpcm_state state);
-
-/* internal use only */
-int soc_dpcm_be_digital_mute(struct snd_soc_pcm_runtime *fe, int mute);
-int soc_dpcm_runtime_update(struct snd_soc_card *);
+/* update audio routing between PCMs and any DAI links */
+int snd_soc_dpcm_runtime_update(struct snd_soc_card *card);
 
 #ifdef CONFIG_DEBUG_FS
 void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd);
@@ -154,6 +145,7 @@ static inline void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
 
 int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 	int stream, struct snd_soc_dapm_widget_list **list_);
+void dpcm_path_put(struct snd_soc_dapm_widget_list **list);
 int dpcm_process_paths(struct snd_soc_pcm_runtime *fe,
 	int stream, struct snd_soc_dapm_widget_list **list, int new);
 int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream);
@@ -166,11 +158,5 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream, int cmd);
 int dpcm_be_dai_prepare(struct snd_soc_pcm_runtime *fe, int stream);
 int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
 	int event);
-
-static inline void dpcm_path_put(struct snd_soc_dapm_widget_list **list)
-{
-	kfree(*list);
-}
-
 
 #endif

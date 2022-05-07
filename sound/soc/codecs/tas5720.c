@@ -2,7 +2,7 @@
 /*
  * tas5720.c - ALSA SoC Texas Instruments TAS5720 Mono Audio Amplifier
  *
- * Copyright (C)2015-2016 Texas Instruments Incorporated -  http://www.ti.com
+ * Copyright (C)2015-2016 Texas Instruments Incorporated -  https://www.ti.com
  *
  * Author: Andreas Dannenberg <dannenberg@ti.com>
  */
@@ -199,7 +199,7 @@ error_snd_soc_component_update_bits:
 	return ret;
 }
 
-static int tas5720_mute(struct snd_soc_dai *dai, int mute)
+static int tas5720_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int ret;
@@ -508,10 +508,10 @@ static int tas5722_volume_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	unsigned int val;
 
-	snd_soc_component_read(component, TAS5720_VOLUME_CTRL_REG, &val);
+	val = snd_soc_component_read(component, TAS5720_VOLUME_CTRL_REG);
 	ucontrol->value.integer.value[0] = val << 1;
 
-	snd_soc_component_read(component, TAS5722_DIGITAL_CTRL2_REG, &val);
+	val = snd_soc_component_read(component, TAS5722_DIGITAL_CTRL2_REG);
 	ucontrol->value.integer.value[0] |= val & TAS5722_VOL_CONTROL_LSB;
 
 	return 0;
@@ -604,7 +604,8 @@ static const struct snd_soc_dai_ops tas5720_speaker_dai_ops = {
 	.hw_params	= tas5720_hw_params,
 	.set_fmt	= tas5720_set_dai_fmt,
 	.set_tdm_slot	= tas5720_set_dai_tdm_slot,
-	.digital_mute	= tas5720_mute,
+	.mute_stream	= tas5720_mute,
+	.no_capture_mute = 1,
 };
 
 /*

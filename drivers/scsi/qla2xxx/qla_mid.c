@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
 #include "qla_gbl.h"
@@ -147,7 +146,7 @@ qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 		    "Marking port dead, loop_id=0x%04x : %x.\n",
 		    fcport->loop_id, fcport->vha->vp_idx);
 
-		qla2x00_mark_device_lost(vha, fcport, 0, 0);
+		qla2x00_mark_device_lost(vha, fcport, 0);
 		qla2x00_set_fcport_state(fcport, FCS_UNCONFIGURED);
 	}
 }
@@ -167,7 +166,7 @@ qla24xx_disable_vp(scsi_qla_host_t *vha)
 	list_for_each_entry(fcport, &vha->vp_fcports, list)
 		fcport->logout_on_delete = 0;
 
-	qla2x00_mark_all_devices_lost(vha, 0);
+	qla2x00_mark_all_devices_lost(vha);
 
 	/* Remove port id from vp target map */
 	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
@@ -327,7 +326,7 @@ qla2x00_vp_abort_isp(scsi_qla_host_t *vha)
 	 */
 	if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 		atomic_set(&vha->loop_state, LOOP_DOWN);
-		qla2x00_mark_all_devices_lost(vha, 0);
+		qla2x00_mark_all_devices_lost(vha);
 	} else {
 		if (!atomic_read(&vha->loop_down_timer))
 			atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
@@ -358,6 +357,13 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 			ql_dbg(ql_dbg_dpc, vha, 0x4015,
 			    "Configure VP end.\n");
 			return 0;
+		}
+	}
+
+	if (test_bit(PROCESS_PUREX_IOCB, &vha->dpc_flags)) {
+		if (atomic_read(&vha->loop_state) == LOOP_READY) {
+			qla24xx_process_purex_list(&vha->purex_list);
+			clear_bit(PROCESS_PUREX_IOCB, &vha->dpc_flags);
 		}
 	}
 
@@ -509,6 +515,9 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	vha->mgmt_svr_loop_id = qla2x00_reserve_mgmt_server_loop_id(vha);
 
 	vha->dpc_flags = 0L;
+	ha->dpc_active = 0;
+	set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
+	set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
 
 	/*
 	 * To fix the issue of processing a parent's RSCN for the vport before
@@ -760,7 +769,7 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	req->req_q_in = &reg->isp25mq.req_q_in;
 	req->req_q_out = &reg->isp25mq.req_q_out;
 	req->max_q_depth = ha->req_q_map[0]->max_q_depth;
-	req->out_ptr = (void *)(req->ring + req->length);
+	req->out_ptr = (uint16_t *)(req->ring + req->length);
 	mutex_unlock(&ha->mq_lock);
 	ql_dbg(ql_dbg_multiq, base_vha, 0xc004,
 	    "ring_ptr=%p ring_index=%d, "
@@ -798,11 +807,9 @@ static void qla_do_work(struct work_struct *work)
 {
 	unsigned long flags;
 	struct qla_qpair *qpair = container_of(work, struct qla_qpair, q_work);
-	struct scsi_qla_host *vha;
-	struct qla_hw_data *ha = qpair->hw;
+	struct scsi_qla_host *vha = qpair->vha;
 
 	spin_lock_irqsave(&qpair->qp_lock, flags);
-	vha = pci_get_drvdata(ha->pdev);
 	qla24xx_process_response_queue(vha, qpair->rsp);
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);
 
@@ -874,7 +881,7 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 	reg = ISP_QUE_REG(ha, que_id);
 	rsp->rsp_q_in = &reg->isp25mq.rsp_q_in;
 	rsp->rsp_q_out = &reg->isp25mq.rsp_q_out;
-	rsp->in_ptr = (void *)(rsp->ring + rsp->length);
+	rsp->in_ptr = (uint16_t *)(rsp->ring + rsp->length);
 	mutex_unlock(&ha->mq_lock);
 	ql_dbg(ql_dbg_multiq, base_vha, 0xc00b,
 	    "options=%x id=%d rsp_q_in=%p rsp_q_out=%p\n",
@@ -886,7 +893,8 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 	    rsp->rsp_q_out);
 
 	ret = qla25xx_request_irq(ha, qpair, qpair->msix,
-	    QLA_MSIX_QPAIR_MULTIQ_RSP_Q);
+		ha->flags.disable_msix_handshake ?
+		QLA_MSIX_QPAIR_MULTIQ_RSP_Q : QLA_MSIX_QPAIR_MULTIQ_RSP_Q_HS);
 	if (ret)
 		goto que_failed;
 
@@ -946,7 +954,7 @@ int qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 
 	sp = qla2x00_get_sp(base_vha, NULL, GFP_KERNEL);
 	if (!sp)
-		goto done;
+		return rval;
 
 	sp->type = SRB_CTRL_VP;
 	sp->name = "ctrl_vp";
@@ -962,7 +970,7 @@ int qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 		ql_dbg(ql_dbg_async, vha, 0xffff,
 		    "%s: %s Failed submission. %x.\n",
 		    __func__, sp->name, rval);
-		goto done_free_sp;
+		goto done;
 	}
 
 	ql_dbg(ql_dbg_vport, vha, 0x113f, "%s hndl %x submitted\n",
@@ -980,16 +988,13 @@ int qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 	case QLA_SUCCESS:
 		ql_dbg(ql_dbg_vport, vha, 0xffff, "%s: %s done.\n",
 		    __func__, sp->name);
-		goto done_free_sp;
+		break;
 	default:
 		ql_dbg(ql_dbg_vport, vha, 0xffff, "%s: %s Failed. %x.\n",
 		    __func__, sp->name, rval);
-		goto done_free_sp;
+		break;
 	}
 done:
-	return rval;
-
-done_free_sp:
 	sp->free(sp);
 	return rval;
 }

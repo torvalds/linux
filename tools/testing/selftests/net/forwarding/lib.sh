@@ -18,6 +18,8 @@ NETIF_CREATE=${NETIF_CREATE:=yes}
 MCD=${MCD:=smcrouted}
 MC_CLI=${MC_CLI:=smcroutectl}
 PING_TIMEOUT=${PING_TIMEOUT:=5}
+WAIT_TIMEOUT=${WAIT_TIMEOUT:=20}
+INTERFACE_TIMEOUT=${INTERFACE_TIMEOUT:=600}
 
 relative_path="${BASH_SOURCE%/*}"
 if [[ "$relative_path" == "${BASH_SOURCE}" ]]; then
@@ -54,6 +56,15 @@ check_tc_chain_support()
 	tc help 2>&1|grep chain &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: iproute2 too old; tc is missing chain support"
+		exit 1
+	fi
+}
+
+check_tc_action_hw_stats_support()
+{
+	tc actions help 2>&1 | grep -q hw_stats
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing action hw_stats support"
 		exit 1
 	fi
 }
@@ -223,27 +234,116 @@ log_info()
 	echo "INFO: $msg"
 }
 
+busywait()
+{
+	local timeout=$1; shift
+
+	local start_time="$(date -u +%s%3N)"
+	while true
+	do
+		local out
+		out=$("$@")
+		local ret=$?
+		if ((!ret)); then
+			echo -n "$out"
+			return 0
+		fi
+
+		local current_time="$(date -u +%s%3N)"
+		if ((current_time - start_time > timeout)); then
+			echo -n "$out"
+			return 1
+		fi
+	done
+}
+
+not()
+{
+	"$@"
+	[[ $? != 0 ]]
+}
+
+grep_bridge_fdb()
+{
+	local addr=$1; shift
+	local word
+	local flag
+
+	if [ "$1" == "self" ] || [ "$1" == "master" ]; then
+		word=$1; shift
+		if [ "$1" == "-v" ]; then
+			flag=$1; shift
+		fi
+	fi
+
+	$@ | grep $addr | grep $flag "$word"
+}
+
+wait_for_offload()
+{
+	"$@" | grep -q offload
+}
+
+until_counter_is()
+{
+	local expr=$1; shift
+	local current=$("$@")
+
+	echo $((current))
+	((current $expr))
+}
+
+busywait_for_counter()
+{
+	local timeout=$1; shift
+	local delta=$1; shift
+
+	local base=$("$@")
+	busywait "$timeout" until_counter_is ">= $((base + delta))" "$@"
+}
+
 setup_wait_dev()
 {
 	local dev=$1; shift
+	local wait_time=${1:-$WAIT_TIME}; shift
 
-	while true; do
+	setup_wait_dev_with_timeout "$dev" $INTERFACE_TIMEOUT $wait_time
+
+	if (($?)); then
+		check_err 1
+		log_test setup_wait_dev ": Interface $dev does not come up."
+		exit 1
+	fi
+}
+
+setup_wait_dev_with_timeout()
+{
+	local dev=$1; shift
+	local max_iterations=${1:-$WAIT_TIMEOUT}; shift
+	local wait_time=${1:-$WAIT_TIME}; shift
+	local i
+
+	for ((i = 1; i <= $max_iterations; ++i)); do
 		ip link show dev $dev up \
 			| grep 'state UP' &> /dev/null
 		if [[ $? -ne 0 ]]; then
 			sleep 1
 		else
-			break
+			sleep $wait_time
+			return 0
 		fi
 	done
+
+	return 1
 }
 
 setup_wait()
 {
 	local num_netifs=${1:-$NUM_NETIFS}
+	local i
 
 	for ((i = 1; i <= num_netifs; ++i)); do
-		setup_wait_dev ${NETIFS[p$i]}
+		setup_wait_dev ${NETIFS[p$i]} 0
 	done
 
 	# Make sure links are ready.
@@ -254,6 +354,7 @@ cmd_jq()
 {
 	local cmd=$1
 	local jq_exp=$2
+	local jq_opts=$3
 	local ret
 	local output
 
@@ -263,7 +364,11 @@ cmd_jq()
 	if [[ $ret -ne 0 ]]; then
 		return $ret
 	fi
-	output=$(echo $output | jq -r "$jq_exp")
+	output=$(echo $output | jq -r $jq_opts "$jq_exp")
+	ret=$?
+	if [[ $ret -ne 0 ]]; then
+		return $ret
+	fi
 	echo $output
 	# return success only in case of non-empty output
 	[ ! -z "$output" ]
@@ -524,9 +629,21 @@ tc_rule_stats_get()
 	local dev=$1; shift
 	local pref=$1; shift
 	local dir=$1; shift
+	local selector=${1:-.packets}; shift
 
 	tc -j -s filter show dev $dev ${dir:-ingress} pref $pref \
-	    | jq '.[1].options.actions[].stats.packets'
+	    | jq ".[1].options.actions[].stats$selector"
+}
+
+tc_rule_handle_stats_get()
+{
+	local id=$1; shift
+	local handle=$1; shift
+	local selector=${1:-.packets}; shift
+
+	tc -j -s filter show $id \
+	    | jq ".[] | select(.options.handle == $handle) | \
+		  .options.actions[0].stats$selector"
 }
 
 ethtool_stats_get()
@@ -535,6 +652,50 @@ ethtool_stats_get()
 	local stat=$1; shift
 
 	ethtool -S $dev | grep "^ *$stat:" | head -n 1 | cut -d: -f2
+}
+
+qdisc_stats_get()
+{
+	local dev=$1; shift
+	local handle=$1; shift
+	local selector=$1; shift
+
+	tc -j -s qdisc show dev "$dev" \
+	    | jq '.[] | select(.handle == "'"$handle"'") | '"$selector"
+}
+
+qdisc_parent_stats_get()
+{
+	local dev=$1; shift
+	local parent=$1; shift
+	local selector=$1; shift
+
+	tc -j -s qdisc show dev "$dev" invisible \
+	    | jq '.[] | select(.parent == "'"$parent"'") | '"$selector"
+}
+
+humanize()
+{
+	local speed=$1; shift
+
+	for unit in bps Kbps Mbps Gbps; do
+		if (($(echo "$speed < 1024" | bc))); then
+			break
+		fi
+
+		speed=$(echo "scale=1; $speed / 1024" | bc)
+	done
+
+	echo "$speed${unit}"
+}
+
+rate()
+{
+	local t0=$1; shift
+	local t1=$1; shift
+	local interval=$1; shift
+
+	echo $((8 * (t1 - t0) / interval))
 }
 
 mac_get()
@@ -1036,4 +1197,76 @@ flood_test()
 
 	flood_unicast_test $br_port $host1_if $host2_if
 	flood_multicast_test $br_port $host1_if $host2_if
+}
+
+__start_traffic()
+{
+	local proto=$1; shift
+	local h_in=$1; shift    # Where the traffic egresses the host
+	local sip=$1; shift
+	local dip=$1; shift
+	local dmac=$1; shift
+
+	$MZ $h_in -p 8000 -A $sip -B $dip -c 0 \
+		-a own -b $dmac -t "$proto" -q "$@" &
+	sleep 1
+}
+
+start_traffic()
+{
+	__start_traffic udp "$@"
+}
+
+start_tcp_traffic()
+{
+	__start_traffic tcp "$@"
+}
+
+stop_traffic()
+{
+	# Suppress noise from killing mausezahn.
+	{ kill %% && wait %%; } 2>/dev/null
+}
+
+tcpdump_start()
+{
+	local if_name=$1; shift
+	local ns=$1; shift
+
+	capfile=$(mktemp)
+	capout=$(mktemp)
+
+	if [ -z $ns ]; then
+		ns_cmd=""
+	else
+		ns_cmd="ip netns exec ${ns}"
+	fi
+
+	if [ -z $SUDO_USER ] ; then
+		capuser=""
+	else
+		capuser="-Z $SUDO_USER"
+	fi
+
+	$ns_cmd tcpdump -e -n -Q in -i $if_name \
+		-s 65535 -B 32768 $capuser -w $capfile > "$capout" 2>&1 &
+	cappid=$!
+
+	sleep 1
+}
+
+tcpdump_stop()
+{
+	$ns_cmd kill $cappid
+	sleep 1
+}
+
+tcpdump_cleanup()
+{
+	rm $capfile $capout
+}
+
+tcpdump_show()
+{
+	tcpdump -e -n -r $capfile 2>&1
 }

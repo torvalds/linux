@@ -30,6 +30,7 @@
 #include <asm/sclp.h>
 #include <asm/facility.h>
 #include <asm/boot_data.h>
+#include <asm/switch_to.h>
 #include "entry.h"
 
 static void __init reset_tod_clock(void)
@@ -169,6 +170,8 @@ static noinline __init void setup_lowcore_early(void)
 	psw_t psw;
 
 	psw.mask = PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA;
+	if (IS_ENABLED(CONFIG_KASAN))
+		psw.mask |= PSW_MASK_DAT;
 	psw.addr = (unsigned long) s390_base_ext_handler;
 	S390_lowcore.external_new_psw = psw;
 	psw.addr = (unsigned long) s390_base_pgm_handler;
@@ -203,21 +206,6 @@ static __init void detect_diag9c(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_DIAG9C;
 }
 
-static __init void detect_diag44(void)
-{
-	int rc;
-
-	diag_stat_inc(DIAG_STAT_X044);
-	asm volatile(
-		"	diag	0,0,0x44\n"
-		"0:	la	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "=d" (rc) : "0" (-EOPNOTSUPP) : "cc");
-	if (!rc)
-		S390_lowcore.machine_flags |= MACHINE_FLAG_DIAG44;
-}
-
 static __init void detect_machine_facilities(void)
 {
 	if (test_facility(8)) {
@@ -238,7 +226,7 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
 		__ctl_set_bit(0, 17);
 	}
-	if (test_facility(130)) {
+	if (test_facility(130) && !noexec_disabled) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_NX;
 		__ctl_set_bit(0, 20);
 	}
@@ -260,6 +248,24 @@ static inline void save_vector_registers(void)
 #endif
 }
 
+static inline void setup_control_registers(void)
+{
+	unsigned long reg;
+
+	__ctl_store(reg, 0, 0);
+	reg |= CR0_LOW_ADDRESS_PROTECTION;
+	reg |= CR0_EMERGENCY_SIGNAL_SUBMASK;
+	reg |= CR0_EXTERNAL_CALL_SUBMASK;
+	__ctl_load(reg, 0, 0);
+}
+
+static inline void setup_access_registers(void)
+{
+	unsigned int acrs[NUM_ACRS] = { 0 };
+
+	restore_access_regs(acrs);
+}
+
 static int __init disable_vector_extension(char *str)
 {
 	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
@@ -267,34 +273,6 @@ static int __init disable_vector_extension(char *str)
 	return 0;
 }
 early_param("novx", disable_vector_extension);
-
-static int __init noexec_setup(char *str)
-{
-	bool enabled;
-	int rc;
-
-	rc = kstrtobool(str, &enabled);
-	if (!rc && !enabled) {
-		/* Disable no-execute support */
-		S390_lowcore.machine_flags &= ~MACHINE_FLAG_NX;
-		__ctl_clear_bit(0, 20);
-	}
-	return rc;
-}
-early_param("noexec", noexec_setup);
-
-static int __init cad_setup(char *str)
-{
-	bool enabled;
-	int rc;
-
-	rc = kstrtobool(str, &enabled);
-	if (!rc && enabled && test_facility(128))
-		/* Enable problem state CAD. */
-		__ctl_set_bit(2, 3);
-	return rc;
-}
-early_param("cad", cad_setup);
 
 char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
 static void __init setup_boot_command_line(void)
@@ -327,10 +305,11 @@ void __init startup_init(void)
 	setup_arch_string();
 	setup_boot_command_line();
 	detect_diag9c();
-	detect_diag44();
 	detect_machine_facilities();
 	save_vector_registers();
 	setup_topology();
 	sclp_early_detect();
+	setup_control_registers();
+	setup_access_registers();
 	lockdep_on();
 }

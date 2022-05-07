@@ -13,6 +13,7 @@ It has subsequently been updated to reflect changes in the kernel
 including:
 
 - per-directory parallel name lookup.
+- ``openat2()`` resolution restriction flags.
 
 Introduction to pathname lookup
 ===============================
@@ -42,15 +43,15 @@ characters, and "components" that are sequences of one or more
 non-"``/``" characters.  These form two kinds of paths.  Those that
 start with slashes are "absolute" and start from the filesystem root.
 The others are "relative" and start from the current directory, or
-from some other location specified by a file descriptor given to a
-"``XXXat``" system call such as `openat() <openat_>`_.
+from some other location specified by a file descriptor given to
+"``*at()``" system calls such as `openat() <openat_>`_.
 
 .. _execveat: http://man7.org/linux/man-pages/man2/execveat.2.html
 
 It is tempting to describe the second kind as starting with a
 component, but that isn't always accurate: a pathname can lack both
 slashes and components, it can be empty, in other words.  This is
-generally forbidden in POSIX, but some of those "xxx``at``" system calls
+generally forbidden in POSIX, but some of those "``*at()``" system calls
 in Linux permit it when the ``AT_EMPTY_PATH`` flag is given.  For
 example, if you have an open file descriptor on an executable file you
 can execute it by calling `execveat() <execveat_>`_ passing
@@ -68,17 +69,17 @@ pathname that is just slashes have a final component.  If it does
 exist, it could be "``.``" or "``..``" which are handled quite differently
 from other components.
 
-.. _POSIX: http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_12
+.. _POSIX: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_12
 
 If a pathname ends with a slash, such as "``/tmp/foo/``" it might be
 tempting to consider that to have an empty final component.  In many
 ways that would lead to correct results, but not always.  In
 particular, ``mkdir()`` and ``rmdir()`` each create or remove a directory named
 by the final component, and they are required to work with pathnames
-ending in "``/``".  According to POSIX_
+ending in "``/``".  According to POSIX_:
 
-  A pathname that contains at least one non- &lt;slash> character and
-  that ends with one or more trailing &lt;slash> characters shall not
+  A pathname that contains at least one non-<slash> character and
+  that ends with one or more trailing <slash> characters shall not
   be resolved successfully unless the last pathname component before
   the trailing <slash> characters names an existing directory or a
   directory entry that is to be created for a directory immediately
@@ -228,12 +229,19 @@ happened to be looking at a dentry that was moved in this way,
 it might end up continuing the search down the wrong chain,
 and so miss out on part of the correct chain.
 
-The name-lookup process (``d_lookup()``) does _not_ try to prevent this
+The name-lookup process (``d_lookup()``) does *not* try to prevent this
 from happening, but only to detect when it happens.
 ``rename_lock`` is a seqlock that is updated whenever any dentry is
 renamed.  If ``d_lookup`` finds that a rename happened while it
 unsuccessfully scanned a chain in the hash table, it simply tries
 again.
+
+``rename_lock`` is also used to detect and defend against potential attacks
+against ``LOOKUP_BENEATH`` and ``LOOKUP_IN_ROOT`` when resolving ".." (where
+the parent directory is moved outside the root, bypassing the ``path_equal()``
+check). If ``rename_lock`` is updated during the lookup and the path encounters
+a "..", a potential attack occurred and ``handle_dots()`` will bail out with
+``-EAGAIN``.
 
 inode->i_rwsem
 ~~~~~~~~~~~~~~
@@ -348,6 +356,13 @@ any changes to any mount points while stepping up.  This locking is
 needed to stabilize the link to the mounted-on dentry, which the
 refcount on the mount itself doesn't ensure.
 
+``mount_lock`` is also used to detect and defend against potential attacks
+against ``LOOKUP_BENEATH`` and ``LOOKUP_IN_ROOT`` when resolving ".." (where
+the parent directory is moved outside the root, bypassing the ``path_equal()``
+check). If ``mount_lock`` is updated during the lookup and the path encounters
+a "..", a potential attack occurred and ``handle_dots()`` will bail out with
+``-EAGAIN``.
+
 RCU
 ~~~
 
@@ -361,7 +376,7 @@ table, and the mount point hash table.
 Bringing it together with ``struct nameidata``
 ----------------------------------------------
 
-.. _First edition Unix: http://minnie.tuhs.org/cgi-bin/utree.pl?file=V1/u2.s
+.. _First edition Unix: https://minnie.tuhs.org/cgi-bin/utree.pl?file=V1/u2.s
 
 Throughout the process of walking a path, the current status is stored
 in a ``struct nameidata``, "namei" being the traditional name - dating
@@ -383,17 +398,14 @@ held.
 ``struct qstr last``
 ~~~~~~~~~~~~~~~~~~~~
 
-This is a string together with a length (i.e. _not_ ``nul`` terminated)
+This is a string together with a length (i.e. *not* ``nul`` terminated)
 that is the "next" component in the pathname.
 
 ``int last_type``
 ~~~~~~~~~~~~~~~~~
 
-This is one of ``LAST_NORM``, ``LAST_ROOT``, ``LAST_DOT``, ``LAST_DOTDOT``, or
-``LAST_BIND``.  The ``last`` field is only valid if the type is
-``LAST_NORM``.  ``LAST_BIND`` is used when following a symlink and no
-components of the symlink have been processed yet.  Others should be
-fairly self-explanatory.
+This is one of ``LAST_NORM``, ``LAST_ROOT``, ``LAST_DOT`` or ``LAST_DOTDOT``.
+The ``last`` field is only valid if the type is ``LAST_NORM``.
 
 ``struct path root``
 ~~~~~~~~~~~~~~~~~~~~
@@ -404,6 +416,10 @@ only assigned the first time it is used, or when a non-standard root
 is requested.  Keeping a reference in the ``nameidata`` ensures that
 only one root is in effect for the entire path walk, even if it races
 with a ``chroot()`` system call.
+
+It should be noted that in the case of ``LOOKUP_IN_ROOT`` or
+``LOOKUP_BENEATH``, the effective root becomes the directory file descriptor
+passed to ``openat2()`` (which exposes these ``LOOKUP_`` flags).
 
 The root is needed when either of two conditions holds: (1) either the
 pathname or a symbolic link starts with a "'/'", or (2) a "``..``"
@@ -639,8 +655,8 @@ This pattern of "try RCU-walk, if that fails try REF-walk" can be
 clearly seen in functions like ``filename_lookup()``,
 ``filename_parentat()``, ``filename_mountpoint()``,
 ``do_filp_open()``, and ``do_file_open_root()``.  These five
-correspond roughly to the four ``path_``* functions we met earlier,
-each of which calls ``link_path_walk()``.  The ``path_*`` functions are
+correspond roughly to the four ``path_*()`` functions we met earlier,
+each of which calls ``link_path_walk()``.  The ``path_*()`` functions are
 called using different mode flags until a mode is found which works.
 They are first called with ``LOOKUP_RCU`` set to request "RCU-walk".  If
 that fails with the error ``ECHILD`` they are called again with no
@@ -704,7 +720,7 @@ against a dentry.  The length and name pointer are copied into local
 variables, then ``read_seqcount_retry()`` is called to confirm the two
 are consistent, and only then is ``->d_compare()`` called.  When
 standard filename comparison is used, ``dentry_cmp()`` is called
-instead.  Notably it does _not_ use ``read_seqcount_retry()``, but
+instead.  Notably it does *not* use ``read_seqcount_retry()``, but
 instead has a large comment explaining why the consistency guarantee
 isn't necessary.  A subsequent ``read_seqcount_retry()`` will be
 sufficient to catch any problem that could occur at this point.
@@ -912,7 +928,7 @@ if anything goes wrong it is much safer to just abort and try a more
 sedate approach.
 
 The emphasis here is "try quickly and check".  It should probably be
-"try quickly _and carefully,_ then check".  The fact that checking is
+"try quickly *and carefully*, then check".  The fact that checking is
 needed is a reminder that the system is dynamic and only a limited
 number of things are safe at all.  The most likely cause of errors in
 this whole process is assuming something is safe when in reality it
@@ -1149,7 +1165,7 @@ so ``NULL`` is returned to indicate that the symlink can be released and
 the stack frame discarded.
 
 The other case involves things in ``/proc`` that look like symlinks but
-aren't really::
+aren't really (and are therefore commonly referred to as "magic-links")::
 
      $ ls -l /proc/self/fd/1
      lrwx------ 1 neilb neilb 64 Jun 13 10:19 /proc/self/fd/1 -> /dev/pts/4
@@ -1249,7 +1265,7 @@ Symlinks are different it seems.  Both reading a symlink (with ``readlink()``)
 and looking up a symlink on the way to some other destination can
 update the atime on that symlink.
 
-.. _clearest statement: http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_08
+.. _clearest statement: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_08
 
 It is not clear why this is the case; POSIX has little to say on the
 subject.  The `clearest statement`_ is that, if a particular implementation
@@ -1286,7 +1302,9 @@ A few flags
 A suitable way to wrap up this tour of pathname walking is to list
 the various flags that can be stored in the ``nameidata`` to guide the
 lookup process.  Many of these are only meaningful on the final
-component, others reflect the current state of the pathname lookup.
+component, others reflect the current state of the pathname lookup, and some
+apply restrictions to all path components encountered in the path lookup.
+
 And then there is ``LOOKUP_EMPTY``, which doesn't fit conceptually with
 the others.  If this is not set, an empty pathname causes an error
 very early on.  If it is set, empty pathnames are not considered to be
@@ -1310,12 +1328,47 @@ longer needed.
 ``LOOKUP_JUMPED`` means that the current dentry was chosen not because
 it had the right name but for some other reason.  This happens when
 following "``..``", following a symlink to ``/``, crossing a mount point
-or accessing a "``/proc/$PID/fd/$FD``" symlink.  In this case the
-filesystem has not been asked to revalidate the name (with
-``d_revalidate()``).  In such cases the inode may still need to be
-revalidated, so ``d_op->d_weak_revalidate()`` is called if
+or accessing a "``/proc/$PID/fd/$FD``" symlink (also known as a "magic
+link"). In this case the filesystem has not been asked to revalidate the
+name (with ``d_revalidate()``).  In such cases the inode may still need
+to be revalidated, so ``d_op->d_weak_revalidate()`` is called if
 ``LOOKUP_JUMPED`` is set when the look completes - which may be at the
 final component or, when creating, unlinking, or renaming, at the penultimate component.
+
+Resolution-restriction flags
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to allow userspace to protect itself against certain race conditions
+and attack scenarios involving changing path components, a series of flags are
+available which apply restrictions to all path components encountered during
+path lookup. These flags are exposed through ``openat2()``'s ``resolve`` field.
+
+``LOOKUP_NO_SYMLINKS`` blocks all symlink traversals (including magic-links).
+This is distinctly different from ``LOOKUP_FOLLOW``, because the latter only
+relates to restricting the following of trailing symlinks.
+
+``LOOKUP_NO_MAGICLINKS`` blocks all magic-link traversals. Filesystems must
+ensure that they return errors from ``nd_jump_link()``, because that is how
+``LOOKUP_NO_MAGICLINKS`` and other magic-link restrictions are implemented.
+
+``LOOKUP_NO_XDEV`` blocks all ``vfsmount`` traversals (this includes both
+bind-mounts and ordinary mounts). Note that the ``vfsmount`` which contains the
+lookup is determined by the first mountpoint the path lookup reaches --
+absolute paths start with the ``vfsmount`` of ``/``, and relative paths start
+with the ``dfd``'s ``vfsmount``. Magic-links are only permitted if the
+``vfsmount`` of the path is unchanged.
+
+``LOOKUP_BENEATH`` blocks any path components which resolve outside the
+starting point of the resolution. This is done by blocking ``nd_jump_root()``
+as well as blocking ".." if it would jump outside the starting point.
+``rename_lock`` and ``mount_lock`` are used to detect attacks against the
+resolution of "..". Magic-links are also blocked.
+
+``LOOKUP_IN_ROOT`` resolves all path components as though the starting point
+were the filesystem root. ``nd_jump_root()`` brings the resolution back to
+the starting point, and ".." at the starting point will act as a no-op. As with
+``LOOKUP_BENEATH``, ``rename_lock`` and ``mount_lock`` are used to detect
+attacks against ".." resolution. Magic-links are also blocked.
 
 Final-component flags
 ~~~~~~~~~~~~~~~~~~~~~

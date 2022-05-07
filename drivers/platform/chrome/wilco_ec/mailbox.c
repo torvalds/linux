@@ -163,13 +163,13 @@ static int wilco_ec_transfer(struct wilco_ec_device *ec,
 	}
 
 	if (rs->data_size != EC_MAILBOX_DATA_SIZE) {
-		dev_dbg(ec->dev, "unexpected packet size (%u != %u)",
+		dev_dbg(ec->dev, "unexpected packet size (%u != %u)\n",
 			rs->data_size, EC_MAILBOX_DATA_SIZE);
 		return -EMSGSIZE;
 	}
 
 	if (rs->data_size < msg->response_size) {
-		dev_dbg(ec->dev, "EC didn't return enough data (%u < %zu)",
+		dev_dbg(ec->dev, "EC didn't return enough data (%u < %zu)\n",
 			rs->data_size, msg->response_size);
 		return -EMSGSIZE;
 	}

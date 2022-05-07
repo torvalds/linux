@@ -15,7 +15,6 @@
 #include <asm/iommu.h>
 
 #define STA2X11_SWIOTLB_SIZE (4*1024*1024)
-extern int swiotlb_late_init_with_default_size(size_t default_size);
 
 /*
  * We build a list of bus numbers that are under the ConneXt. The
@@ -30,7 +29,6 @@ struct sta2x11_ahb_regs { /* saved during suspend */
 };
 
 struct sta2x11_mapping {
-	u32 amba_base;
 	int is_suspended;
 	struct sta2x11_ahb_regs regs[STA2X11_NR_FUNCS];
 };
@@ -92,57 +90,12 @@ static int sta2x11_pdev_to_ep(struct pci_dev *pdev)
 	return pdev->bus->number - instance->bus0;
 }
 
-static struct sta2x11_mapping *sta2x11_pdev_to_mapping(struct pci_dev *pdev)
-{
-	struct sta2x11_instance *instance;
-	int ep;
-
-	instance = sta2x11_pdev_to_instance(pdev);
-	if (!instance)
-		return NULL;
-	ep = sta2x11_pdev_to_ep(pdev);
-	return instance->map + ep;
-}
-
 /* This is exported, as some devices need to access the MFD registers */
 struct sta2x11_instance *sta2x11_get_instance(struct pci_dev *pdev)
 {
 	return sta2x11_pdev_to_instance(pdev);
 }
 EXPORT_SYMBOL(sta2x11_get_instance);
-
-
-/**
- * p2a - Translate physical address to STA2x11 AMBA address,
- *       used for DMA transfers to STA2x11
- * @p: Physical address
- * @pdev: PCI device (must be hosted within the connext)
- */
-static dma_addr_t p2a(dma_addr_t p, struct pci_dev *pdev)
-{
-	struct sta2x11_mapping *map;
-	dma_addr_t a;
-
-	map = sta2x11_pdev_to_mapping(pdev);
-	a = p + map->amba_base;
-	return a;
-}
-
-/**
- * a2p - Translate STA2x11 AMBA address to physical address
- *       used for DMA transfers from STA2x11
- * @a: STA2x11 AMBA address
- * @pdev: PCI device (must be hosted within the connext)
- */
-static dma_addr_t a2p(dma_addr_t a, struct pci_dev *pdev)
-{
-	struct sta2x11_mapping *map;
-	dma_addr_t p;
-
-	map = sta2x11_pdev_to_mapping(pdev);
-	p = a - map->amba_base;
-	return p;
-}
 
 /* At setup time, we use our own ops if the device is a ConneXt one */
 static void sta2x11_setup_pdev(struct pci_dev *pdev)
@@ -151,69 +104,11 @@ static void sta2x11_setup_pdev(struct pci_dev *pdev)
 
 	if (!instance) /* either a sta2x11 bridge or another ST device */
 		return;
-	pci_set_consistent_dma_mask(pdev, STA2X11_AMBA_SIZE - 1);
-	pci_set_dma_mask(pdev, STA2X11_AMBA_SIZE - 1);
-	pdev->dev.archdata.is_sta2x11 = true;
 
 	/* We must enable all devices as master, for audio DMA to work */
 	pci_set_master(pdev);
 }
 DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_STMICRO, PCI_ANY_ID, sta2x11_setup_pdev);
-
-/*
- * The following three functions are exported (used in swiotlb: FIXME)
- */
-/**
- * dma_capable - Check if device can manage DMA transfers (FIXME: kill it)
- * @dev: device for a PCI device
- * @addr: DMA address
- * @size: DMA size
- */
-bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
-{
-	struct sta2x11_mapping *map;
-
-	if (!dev->archdata.is_sta2x11) {
-		if (!dev->dma_mask)
-			return false;
-		return addr + size - 1 <= *dev->dma_mask;
-	}
-
-	map = sta2x11_pdev_to_mapping(to_pci_dev(dev));
-
-	if (!map || (addr < map->amba_base))
-		return false;
-	if (addr + size >= map->amba_base + STA2X11_AMBA_SIZE) {
-		return false;
-	}
-
-	return true;
-}
-
-/**
- * __phys_to_dma - Return the DMA AMBA address used for this STA2x11 device
- * @dev: device for a PCI device
- * @paddr: Physical address
- */
-dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
-{
-	if (!dev->archdata.is_sta2x11)
-		return paddr;
-	return p2a(paddr, to_pci_dev(dev));
-}
-
-/**
- * dma_to_phys - Return the physical address used for this STA2x11 DMA address
- * @dev: device for a PCI device
- * @daddr: STA2x11 AMBA DMA address
- */
-phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t daddr)
-{
-	if (!dev->archdata.is_sta2x11)
-		return daddr;
-	return a2p(daddr, to_pci_dev(dev));
-}
-
 
 /*
  * At boot we must set up the mappings for the pcie-to-amba bridge.
@@ -234,12 +129,24 @@ phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t daddr)
 /* At probe time, enable mapping for each endpoint, using the pdev */
 static void sta2x11_map_ep(struct pci_dev *pdev)
 {
-	struct sta2x11_mapping *map = sta2x11_pdev_to_mapping(pdev);
-	int i;
+	struct sta2x11_instance *instance = sta2x11_pdev_to_instance(pdev);
+	struct device *dev = &pdev->dev;
+	u32 amba_base, max_amba_addr;
+	int i, ret;
 
-	if (!map)
+	if (!instance)
 		return;
-	pci_read_config_dword(pdev, AHB_BASE(0), &map->amba_base);
+
+	pci_read_config_dword(pdev, AHB_BASE(0), &amba_base);
+	max_amba_addr = amba_base + STA2X11_AMBA_SIZE - 1;
+
+	ret = dma_direct_set_offset(dev, 0, amba_base, STA2X11_AMBA_SIZE);
+	if (ret)
+		dev_err(dev, "sta2x11: could not set DMA offset\n");
+
+	dev->bus_dma_limit = max_amba_addr;
+	pci_set_consistent_dma_mask(pdev, max_amba_addr);
+	pci_set_dma_mask(pdev, max_amba_addr);
 
 	/* Configure AHB mapping */
 	pci_write_config_dword(pdev, AHB_PEXLBASE(0), 0);
@@ -253,12 +160,23 @@ static void sta2x11_map_ep(struct pci_dev *pdev)
 
 	dev_info(&pdev->dev,
 		 "sta2x11: Map EP %i: AMBA address %#8x-%#8x\n",
-		 sta2x11_pdev_to_ep(pdev),  map->amba_base,
-		 map->amba_base + STA2X11_AMBA_SIZE - 1);
+		 sta2x11_pdev_to_ep(pdev), amba_base, max_amba_addr);
 }
 DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_STMICRO, PCI_ANY_ID, sta2x11_map_ep);
 
 #ifdef CONFIG_PM /* Some register values must be saved and restored */
+
+static struct sta2x11_mapping *sta2x11_pdev_to_mapping(struct pci_dev *pdev)
+{
+	struct sta2x11_instance *instance;
+	int ep;
+
+	instance = sta2x11_pdev_to_instance(pdev);
+	if (!instance)
+		return NULL;
+	ep = sta2x11_pdev_to_ep(pdev);
+	return instance->map + ep;
+}
 
 static void suspend_mapping(struct pci_dev *pdev)
 {

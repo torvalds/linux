@@ -22,6 +22,8 @@ properties:
     description:
       Name specifier for the USB PHY
 
+additionalProperties: true
+
 examples:
   - |
     usb {

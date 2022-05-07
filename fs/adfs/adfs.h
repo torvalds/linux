@@ -26,14 +26,13 @@ static inline u16 adfs_filetype(u32 loadaddr)
 #define ADFS_NDA_PUBLIC_READ	(1 << 5)
 #define ADFS_NDA_PUBLIC_WRITE	(1 << 6)
 
-#include "dir_f.h"
-
 /*
  * adfs file system inode data in memory
  */
 struct adfs_inode_info {
 	loff_t		mmu_private;
 	__u32		parent_id;	/* parent indirect disc address	*/
+	__u32		indaddr;	/* object indirect disc address	*/
 	__u32		loadaddr;	/* RISC OS load address		*/
 	__u32		execaddr;	/* RISC OS exec address		*/
 	unsigned int	attr;		/* RISC OS permissions		*/
@@ -93,15 +92,19 @@ struct adfs_dir {
 
 	int			nr_buffers;
 	struct buffer_head	*bh[4];
-
-	/* big directories need allocated buffers */
-	struct buffer_head	**bh_fplus;
+	struct buffer_head	**bhs;
 
 	unsigned int		pos;
 	__u32			parent_id;
 
-	struct adfs_dirheader	dirhead;
-	union  adfs_dirtail	dirtail;
+	union {
+		struct adfs_dirheader	*dirhead;
+		struct adfs_bigdirheader *bighead;
+	};
+	union {
+		struct adfs_newdirtail	*newtail;
+		struct adfs_bigdirtail	*bigtail;
+	};
 };
 
 /*
@@ -122,13 +125,13 @@ struct object_info {
 struct adfs_dir_ops {
 	int	(*read)(struct super_block *sb, unsigned int indaddr,
 			unsigned int size, struct adfs_dir *dir);
+	int	(*iterate)(struct adfs_dir *dir, struct dir_context *ctx);
 	int	(*setpos)(struct adfs_dir *dir, unsigned int fpos);
 	int	(*getnext)(struct adfs_dir *dir, struct object_info *obj);
 	int	(*update)(struct adfs_dir *dir, struct object_info *obj);
 	int	(*create)(struct adfs_dir *dir, struct object_info *obj);
 	int	(*remove)(struct adfs_dir *dir, struct object_info *obj);
-	int	(*sync)(struct adfs_dir *dir);
-	void	(*free)(struct adfs_dir *dir);
+	int	(*commit)(struct adfs_dir *dir);
 };
 
 struct adfs_discmap {
@@ -145,7 +148,9 @@ int adfs_notify_change(struct dentry *dentry, struct iattr *attr);
 
 /* map.c */
 int adfs_map_lookup(struct super_block *sb, u32 frag_id, unsigned int offset);
-extern unsigned int adfs_map_free(struct super_block *sb);
+void adfs_map_statfs(struct super_block *sb, struct kstatfs *buf);
+struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_discrecord *dr);
+void adfs_free_map(struct super_block *sb);
 
 /* Misc */
 __printf(3, 4)
@@ -167,6 +172,13 @@ extern const struct dentry_operations adfs_dentry_operations;
 extern const struct adfs_dir_ops adfs_f_dir_ops;
 extern const struct adfs_dir_ops adfs_fplus_dir_ops;
 
+int adfs_dir_copyfrom(void *dst, struct adfs_dir *dir, unsigned int offset,
+		      size_t len);
+int adfs_dir_copyto(struct adfs_dir *dir, unsigned int offset, const void *src,
+		    size_t len);
+void adfs_dir_relse(struct adfs_dir *dir);
+int adfs_dir_read_buffers(struct super_block *sb, u32 indaddr,
+			  unsigned int size, struct adfs_dir *dir);
 void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj);
 extern int adfs_dir_update(struct super_block *sb, struct object_info *obj,
 			   int wait);

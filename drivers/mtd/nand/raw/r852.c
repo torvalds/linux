@@ -651,7 +651,8 @@ static int r852_register_nand_device(struct r852_device *dev)
 	dev->card_registered = 1;
 	return 0;
 error3:
-	nand_release(dev->chip);
+	WARN_ON(mtd_device_unregister(nand_to_mtd(dev->chip)));
+	nand_cleanup(dev->chip);
 error1:
 	/* Force card redetect */
 	dev->card_detected = 0;
@@ -670,7 +671,8 @@ static void r852_unregister_nand_device(struct r852_device *dev)
 		return;
 
 	device_remove_file(&mtd->dev, &dev_attr_media_type);
-	nand_release(dev->chip);
+	WARN_ON(mtd_device_unregister(mtd));
+	nand_cleanup(dev->chip);
 	r852_engine_disable(dev);
 	dev->card_registered = 0;
 }
@@ -815,6 +817,29 @@ out:
 	return ret;
 }
 
+static int r852_attach_chip(struct nand_chip *chip)
+{
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
+	chip->ecc.placement = NAND_ECC_PLACEMENT_INTERLEAVED;
+	chip->ecc.size = R852_DMA_LEN;
+	chip->ecc.bytes = SM_OOB_SIZE;
+	chip->ecc.strength = 2;
+	chip->ecc.hwctl = r852_ecc_hwctl;
+	chip->ecc.calculate = r852_ecc_calculate;
+	chip->ecc.correct = r852_ecc_correct;
+
+	/* TODO: hack */
+	chip->ecc.read_oob = r852_read_oob;
+
+	return 0;
+}
+
+static const struct nand_controller_ops r852_ops = {
+	.attach_chip = r852_attach_chip,
+};
+
 static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 {
 	int error;
@@ -856,18 +881,6 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	chip->legacy.read_buf = r852_read_buf;
 	chip->legacy.write_buf = r852_write_buf;
 
-	/* ecc */
-	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
-	chip->ecc.size = R852_DMA_LEN;
-	chip->ecc.bytes = SM_OOB_SIZE;
-	chip->ecc.strength = 2;
-	chip->ecc.hwctl = r852_ecc_hwctl;
-	chip->ecc.calculate = r852_ecc_calculate;
-	chip->ecc.correct = r852_ecc_correct;
-
-	/* TODO: hack */
-	chip->ecc.read_oob = r852_read_oob;
-
 	/* init our device structure */
 	dev = kzalloc(sizeof(struct r852_device), GFP_KERNEL);
 
@@ -878,6 +891,10 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	dev->chip = chip;
 	dev->pci_dev = pci_dev;
 	pci_set_drvdata(pci_dev, dev);
+
+	nand_controller_init(&dev->controller);
+	dev->controller.ops = &r852_ops;
+	chip->controller = &dev->controller;
 
 	dev->bounce_buffer = dma_alloc_coherent(&pci_dev->dev, R852_DMA_LEN,
 		&dev->phys_bounce_buffer, GFP_KERNEL);

@@ -25,10 +25,14 @@
 
 #define PCIE_PORT_DEVICE_MAXSERVICES   5
 
+extern bool pcie_ports_dpc_native;
+
 #ifdef CONFIG_PCIEAER
 int pcie_aer_init(void);
+int pcie_aer_is_native(struct pci_dev *dev);
 #else
 static inline int pcie_aer_init(void) { return 0; }
+static inline int pcie_aer_is_native(struct pci_dev *dev) { return 0; }
 #endif
 
 #ifdef CONFIG_HOTPLUG_PCI_PCIE
@@ -90,9 +94,6 @@ struct pcie_port_service_driver {
 	/* Device driver may resume normal operations */
 	void (*error_resume)(struct pci_dev *dev);
 
-	/* Link Reset Capability - AER service driver specific */
-	pci_ers_result_t (*reset_link)(struct pci_dev *dev);
-
 	int port_type;  /* Type of the port this driver can handle */
 	u32 service;    /* Port service this device represents */
 
@@ -148,18 +149,5 @@ static inline bool pcie_pme_no_msi(void) { return false; }
 static inline void pcie_pme_interrupt_enable(struct pci_dev *dev, bool en) {}
 #endif /* !CONFIG_PCIE_PME */
 
-#ifdef CONFIG_ACPI_APEI
-int pcie_aer_get_firmware_first(struct pci_dev *pci_dev);
-#else
-static inline int pcie_aer_get_firmware_first(struct pci_dev *pci_dev)
-{
-	if (pci_dev->__aer_firmware_first_valid)
-		return pci_dev->__aer_firmware_first;
-	return 0;
-}
-#endif
-
-struct pcie_port_service_driver *pcie_port_find_service(struct pci_dev *dev,
-							u32 service);
 struct device *pcie_port_find_device(struct pci_dev *dev, u32 service);
 #endif /* _PORTDRV_H_ */

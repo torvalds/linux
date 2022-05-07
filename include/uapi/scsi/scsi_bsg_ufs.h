@@ -68,14 +68,13 @@ struct utp_upiu_cmd {
  * @header:UPIU header structure DW-0 to DW-2
  * @sc: fields structure for scsi command DW-3 to DW-7
  * @qr: fields structure for query request DW-3 to DW-7
+ * @uc: use utp_upiu_query to host the 4 dwords of uic command
  */
 struct utp_upiu_req {
 	struct utp_upiu_header header;
 	union {
 		struct utp_upiu_cmd		sc;
 		struct utp_upiu_query		qr;
-		struct utp_upiu_query		tr;
-		/* use utp_upiu_query to host the 4 dwords of uic command */
 		struct utp_upiu_query		uc;
 	};
 };

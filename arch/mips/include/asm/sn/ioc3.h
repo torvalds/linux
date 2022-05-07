@@ -21,50 +21,50 @@ struct ioc3_serialregs {
 
 /* SUPERIO uart register map */
 struct ioc3_uartregs {
+	u8	iu_lcr;
 	union {
-		u8	iu_rbr;	/* read only, DLAB == 0 */
-		u8	iu_thr;	/* write only, DLAB == 0 */
-		u8	iu_dll;	/* DLAB == 1 */
+		u8	iu_iir;	/* read only */
+		u8	iu_fcr;	/* write only */
 	};
 	union {
 		u8	iu_ier;	/* DLAB == 0 */
 		u8	iu_dlm;	/* DLAB == 1 */
 	};
 	union {
-		u8	iu_iir;	/* read only */
-		u8	iu_fcr;	/* write only */
+		u8	iu_rbr;	/* read only, DLAB == 0 */
+		u8	iu_thr;	/* write only, DLAB == 0 */
+		u8	iu_dll;	/* DLAB == 1 */
 	};
-	u8	iu_lcr;
-	u8	iu_mcr;
-	u8	iu_lsr;
-	u8	iu_msr;
 	u8	iu_scr;
+	u8	iu_msr;
+	u8	iu_lsr;
+	u8	iu_mcr;
 };
 
 struct ioc3_sioregs {
 	u8	fill[0x141];	/* starts at 0x141 */
 
-	u8	uartc;
 	u8	kbdcg;
+	u8	uartc;
 
-	u8	fill0[0x150 - 0x142 - 1];
+	u8	fill0[0x151 - 0x142 - 1];
 
-	u8	pp_data;
-	u8	pp_dsr;
 	u8	pp_dcr;
+	u8	pp_dsr;
+	u8	pp_data;
 
-	u8	fill1[0x158 - 0x152 - 1];
+	u8	fill1[0x159 - 0x153 - 1];
 
-	u8	pp_fifa;
-	u8	pp_cfgb;
 	u8	pp_ecr;
+	u8	pp_cfgb;
+	u8	pp_fifa;
 
-	u8	fill2[0x168 - 0x15a - 1];
+	u8	fill2[0x16a - 0x15b - 1];
 
-	u8	rtcad;
 	u8	rtcdat;
+	u8	rtcad;
 
-	u8	fill3[0x170 - 0x169 - 1];
+	u8	fill3[0x170 - 0x16b - 1];
 
 	struct ioc3_uartregs	uartb;	/* 0x20170  */
 	struct ioc3_uartregs	uarta;	/* 0x20178  */
@@ -589,5 +589,18 @@ struct ioc3_etxd {
 #define MICR_BUSY		0x00000800
 
 #define MIDR_DATA_MASK		0x0000ffff
+
+/* subsystem IDs supplied by card detection in pci-xtalk-bridge */
+#define	IOC3_SUBSYS_IP27_BASEIO6G	0xc300
+#define	IOC3_SUBSYS_IP27_MIO		0xc301
+#define	IOC3_SUBSYS_IP27_BASEIO		0xc302
+#define	IOC3_SUBSYS_IP29_SYSBOARD	0xc303
+#define	IOC3_SUBSYS_IP30_SYSBOARD	0xc304
+#define	IOC3_SUBSYS_MENET		0xc305
+#define	IOC3_SUBSYS_MENET4		0xc306
+#define	IOC3_SUBSYS_IO7			0xc307
+#define	IOC3_SUBSYS_IO8			0xc308
+#define	IOC3_SUBSYS_IO9			0xc309
+#define	IOC3_SUBSYS_IP34_SYSBOARD	0xc30A
 
 #endif /* MIPS_SN_IOC3_H */

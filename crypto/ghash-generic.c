@@ -58,10 +58,8 @@ static int ghash_setkey(struct crypto_shash *tfm,
 	struct ghash_ctx *ctx = crypto_shash_ctx(tfm);
 	be128 k;
 
-	if (keylen != GHASH_BLOCK_SIZE) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
-	}
 
 	if (ctx->gf128)
 		gf128mul_free_4k(ctx->gf128);

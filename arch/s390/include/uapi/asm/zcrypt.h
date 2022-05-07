@@ -36,12 +36,12 @@
  * - length(n_modulus) = inputdatalength
  */
 struct ica_rsa_modexpo {
-	char __user  *inputdata;
-	unsigned int  inputdatalength;
-	char __user  *outputdata;
-	unsigned int  outputdatalength;
-	char __user  *b_key;
-	char __user  *n_modulus;
+	__u8 __user  *inputdata;
+	__u32	      inputdatalength;
+	__u8 __user  *outputdata;
+	__u32	      outputdatalength;
+	__u8 __user  *b_key;
+	__u8 __user  *n_modulus;
 };
 
 /**
@@ -59,15 +59,15 @@ struct ica_rsa_modexpo {
  * - length(u_mult_inv) = inputdatalength/2 + 8
  */
 struct ica_rsa_modexpo_crt {
-	char __user  *inputdata;
-	unsigned int  inputdatalength;
-	char __user  *outputdata;
-	unsigned int  outputdatalength;
-	char __user  *bp_key;
-	char __user  *bq_key;
-	char __user  *np_prime;
-	char __user  *nq_prime;
-	char __user  *u_mult_inv;
+	__u8 __user  *inputdata;
+	__u32	      inputdatalength;
+	__u8 __user  *outputdata;
+	__u32	      outputdatalength;
+	__u8 __user  *bp_key;
+	__u8 __user  *bq_key;
+	__u8 __user  *np_prime;
+	__u8 __user  *nq_prime;
+	__u8 __user  *u_mult_inv;
 };
 
 /**
@@ -83,67 +83,67 @@ struct ica_rsa_modexpo_crt {
  *	    key block
  */
 struct CPRBX {
-	unsigned short	cprb_len;	/* CPRB length	      220	 */
-	unsigned char	cprb_ver_id;	/* CPRB version id.   0x02	 */
-	unsigned char	pad_000[3];	/* Alignment pad bytes		 */
-	unsigned char	func_id[2];	/* function id	      0x5432	 */
-	unsigned char	cprb_flags[4];	/* Flags			 */
-	unsigned int	req_parml;	/* request parameter buffer len	 */
-	unsigned int	req_datal;	/* request data buffer		 */
-	unsigned int	rpl_msgbl;	/* reply  message block length	 */
-	unsigned int	rpld_parml;	/* replied parameter block len	 */
-	unsigned int	rpl_datal;	/* reply data block len		 */
-	unsigned int	rpld_datal;	/* replied data block len	 */
-	unsigned int	req_extbl;	/* request extension block len	 */
-	unsigned char	pad_001[4];	/* reserved			 */
-	unsigned int	rpld_extbl;	/* replied extension block len	 */
-	unsigned char	padx000[16 - sizeof(char *)];
-	unsigned char  *req_parmb;	/* request parm block 'address'	 */
-	unsigned char	padx001[16 - sizeof(char *)];
-	unsigned char  *req_datab;	/* request data block 'address'	 */
-	unsigned char	padx002[16 - sizeof(char *)];
-	unsigned char  *rpl_parmb;	/* reply parm block 'address'	 */
-	unsigned char	padx003[16 - sizeof(char *)];
-	unsigned char  *rpl_datab;	/* reply data block 'address'	 */
-	unsigned char	padx004[16 - sizeof(char *)];
-	unsigned char  *req_extb;	/* request extension block 'addr'*/
-	unsigned char	padx005[16 - sizeof(char *)];
-	unsigned char  *rpl_extb;	/* reply extension block 'address'*/
-	unsigned short	ccp_rtcode;	/* server return code		 */
-	unsigned short	ccp_rscode;	/* server reason code		 */
-	unsigned int	mac_data_len;	/* Mac Data Length		 */
-	unsigned char	logon_id[8];	/* Logon Identifier		 */
-	unsigned char	mac_value[8];	/* Mac Value			 */
-	unsigned char	mac_content_flgs;/* Mac content flag byte	 */
-	unsigned char	pad_002;	/* Alignment			 */
-	unsigned short	domain;		/* Domain			 */
-	unsigned char	usage_domain[4];/* Usage domain			 */
-	unsigned char	cntrl_domain[4];/* Control domain		 */
-	unsigned char	S390enf_mask[4];/* S/390 enforcement mask	 */
-	unsigned char	pad_004[36];	/* reserved			 */
+	__u16	     cprb_len;		/* CPRB length	      220	 */
+	__u8	     cprb_ver_id;	/* CPRB version id.   0x02	 */
+	__u8	     pad_000[3];	/* Alignment pad bytes		 */
+	__u8	     func_id[2];	/* function id	      0x5432	 */
+	__u8	     cprb_flags[4];	/* Flags			 */
+	__u32	     req_parml;		/* request parameter buffer len	 */
+	__u32	     req_datal;		/* request data buffer		 */
+	__u32	     rpl_msgbl;		/* reply  message block length	 */
+	__u32	     rpld_parml;	/* replied parameter block len	 */
+	__u32	     rpl_datal;		/* reply data block len		 */
+	__u32	     rpld_datal;	/* replied data block len	 */
+	__u32	     req_extbl;		/* request extension block len	 */
+	__u8	     pad_001[4];	/* reserved			 */
+	__u32	     rpld_extbl;	/* replied extension block len	 */
+	__u8	     padx000[16 - sizeof(__u8 *)];
+	__u8 __user *req_parmb;		/* request parm block 'address'	 */
+	__u8	     padx001[16 - sizeof(__u8 *)];
+	__u8 __user *req_datab;		/* request data block 'address'	 */
+	__u8	     padx002[16 - sizeof(__u8 *)];
+	__u8 __user *rpl_parmb;		/* reply parm block 'address'	 */
+	__u8	     padx003[16 - sizeof(__u8 *)];
+	__u8 __user *rpl_datab;		/* reply data block 'address'	 */
+	__u8	     padx004[16 - sizeof(__u8 *)];
+	__u8 __user *req_extb;		/* request extension block 'addr'*/
+	__u8	     padx005[16 - sizeof(__u8 *)];
+	__u8 __user *rpl_extb;		/* reply extension block 'address'*/
+	__u16	     ccp_rtcode;	/* server return code		 */
+	__u16	     ccp_rscode;	/* server reason code		 */
+	__u32	     mac_data_len;	/* Mac Data Length		 */
+	__u8	     logon_id[8];	/* Logon Identifier		 */
+	__u8	     mac_value[8];	/* Mac Value			 */
+	__u8	     mac_content_flgs;	/* Mac content flag byte	 */
+	__u8	     pad_002;		/* Alignment			 */
+	__u16	     domain;		/* Domain			 */
+	__u8	     usage_domain[4];	/* Usage domain			 */
+	__u8	     cntrl_domain[4];	/* Control domain		 */
+	__u8	     S390enf_mask[4];	/* S/390 enforcement mask	 */
+	__u8	     pad_004[36];	/* reserved			 */
 } __attribute__((packed));
 
 /**
  * xcRB
  */
 struct ica_xcRB {
-	unsigned short	agent_ID;
-	unsigned int	user_defined;
-	unsigned short	request_ID;
-	unsigned int	request_control_blk_length;
-	unsigned char	padding1[16 - sizeof(char *)];
-	char __user    *request_control_blk_addr;
-	unsigned int	request_data_length;
-	char		padding2[16 - sizeof(char *)];
-	char __user    *request_data_address;
-	unsigned int	reply_control_blk_length;
-	char		padding3[16 - sizeof(char *)];
-	char __user    *reply_control_blk_addr;
-	unsigned int	reply_data_length;
-	char		padding4[16 - sizeof(char *)];
-	char __user    *reply_data_addr;
-	unsigned short	priority_window;
-	unsigned int	status;
+	__u16	      agent_ID;
+	__u32	      user_defined;
+	__u16	      request_ID;
+	__u32	      request_control_blk_length;
+	__u8	      _padding1[16 - sizeof(__u8 *)];
+	__u8 __user  *request_control_blk_addr;
+	__u32	      request_data_length;
+	__u8	      _padding2[16 - sizeof(__u8 *)];
+	__u8 __user  *request_data_address;
+	__u32	      reply_control_blk_length;
+	__u8	      _padding3[16 - sizeof(__u8 *)];
+	__u8 __user  *reply_control_blk_addr;
+	__u32	      reply_data_length;
+	__u8	      __padding4[16 - sizeof(__u8 *)];
+	__u8 __user  *reply_data_addr;
+	__u16	      priority_window;
+	__u32	      status;
 } __attribute__((packed));
 
 /**
@@ -161,17 +161,17 @@ struct ica_xcRB {
  * @payload_len:	Payload length
  */
 struct ep11_cprb {
-	__u16		cprb_len;
-	unsigned char	cprb_ver_id;
-	unsigned char	pad_000[2];
-	unsigned char	flags;
-	unsigned char	func_id[2];
-	__u32		source_id;
-	__u32		target_id;
-	__u32		ret_code;
-	__u32		reserved1;
-	__u32		reserved2;
-	__u32		payload_len;
+	__u16	cprb_len;
+	__u8	cprb_ver_id;
+	__u8	pad_000[2];
+	__u8	flags;
+	__u8	func_id[2];
+	__u32	source_id;
+	__u32	target_id;
+	__u32	ret_code;
+	__u32	reserved1;
+	__u32	reserved2;
+	__u32	payload_len;
 } __attribute__((packed));
 
 /**
@@ -197,13 +197,13 @@ struct ep11_target_dev {
  */
 struct ep11_urb {
 	__u16		targets_num;
-	__u64		targets;
+	__u8 __user    *targets;
 	__u64		weight;
 	__u64		req_no;
 	__u64		req_len;
-	__u64		req;
+	__u8 __user    *req;
 	__u64		resp_len;
-	__u64		resp;
+	__u8 __user    *resp;
 } __attribute__((packed));
 
 /**
@@ -237,7 +237,9 @@ struct zcrypt_device_matrix_ext {
 	struct zcrypt_device_status_ext device[MAX_ZDEV_ENTRIES_EXT];
 };
 
-#define AUTOSELECT 0xFFFFFFFF
+#define AUTOSELECT  0xFFFFFFFF
+#define AUTOSEL_AP  ((__u16) 0xFFFF)
+#define AUTOSEL_DOM ((__u16) 0xFFFF)
 
 #define ZCRYPT_IOCTL_MAGIC 'z'
 

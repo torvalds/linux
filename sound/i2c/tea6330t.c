@@ -260,7 +260,7 @@ static int snd_tea6330t_put_treble(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_tea6330t_controls[] = {
+static const struct snd_kcontrol_new snd_tea6330t_controls[] = {
 TEA6330T_MASTER_SWITCH("Master Playback Switch", 0),
 TEA6330T_MASTER_VOLUME("Master Playback Volume", 0),
 TEA6330T_BASS("Tone Control - Bass", 0),
@@ -278,7 +278,7 @@ int snd_tea6330t_update_mixer(struct snd_card *card,
 {
 	struct snd_i2c_device *device;
 	struct tea6330t *tea;
-	struct snd_kcontrol_new *knew;
+	const struct snd_kcontrol_new *knew;
 	unsigned int idx;
 	int err = -ENOMEM;
 	u8 default_treble, default_bass;

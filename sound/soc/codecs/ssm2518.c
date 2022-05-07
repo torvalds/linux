@@ -388,7 +388,7 @@ static int ssm2518_hw_params(struct snd_pcm_substream *substream,
 				SSM2518_POWER1_MCS_MASK, mcs << 1);
 }
 
-static int ssm2518_mute(struct snd_soc_dai *dai, int mute)
+static int ssm2518_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct ssm2518 *ssm2518 = snd_soc_component_get_drvdata(dai->component);
 	unsigned int val;
@@ -623,9 +623,10 @@ static int ssm2518_startup(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops ssm2518_dai_ops = {
 	.startup = ssm2518_startup,
 	.hw_params	= ssm2518_hw_params,
-	.digital_mute	= ssm2518_mute,
+	.mute_stream	= ssm2518_mute,
 	.set_fmt	= ssm2518_set_dai_fmt,
 	.set_tdm_slot	= ssm2518_set_tdm_slot,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ssm2518_dai = {

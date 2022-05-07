@@ -4,7 +4,7 @@ config USB_SISUSBVGA
 	tristate "USB 2.0 SVGA dongle support (Net2280/SiS315)"
 	depends on (USB_MUSB_HDRC || USB_EHCI_HCD)
 	select FONT_SUPPORT if USB_SISUSBVGA_CON
-        ---help---
+	help
 	  Say Y here if you intend to attach a USB2VGA dongle based on a
 	  Net2280 and a SiS315 chip.
 
@@ -18,7 +18,7 @@ config USB_SISUSBVGA_CON
 	bool "Text console and mode switching support" if USB_SISUSBVGA
 	depends on VT
 	select FONT_8x16
-	---help---
+	help
 	  Say Y here if you want a VGA text console via the USB dongle or
 	  want to support userland applications that utilize the driver's
 	  display mode switching capabilities.

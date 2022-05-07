@@ -6,6 +6,7 @@ Description:	Interface for making ib_srp connect to a new target.
 		One can request ib_srp to connect to a new target by writing
 		a comma-separated list of login parameters to this sysfs
 		attribute. The supported parameters are:
+
 		* id_ext, a 16-digit hexadecimal number specifying the eight
 		  byte identifier extension in the 16-byte SRP target port
 		  identifier. The target port identifier is sent by ib_srp
@@ -67,6 +68,8 @@ Description:	Interface for making ib_srp connect to a new target.
 		  initiator is allowed to queue per SCSI host. The default
 		  value for this parameter is 62. The lowest supported value
 		  is 2.
+		* max_it_iu_size, a decimal number specifying the maximum
+		  initiator to target information unit length.
 
 What:		/sys/class/infiniband_srp/srp-<hca>-<port_number>/ibdev
 Date:		January 2, 2006

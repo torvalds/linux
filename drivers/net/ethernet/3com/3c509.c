@@ -60,8 +60,6 @@
 */
 
 #define DRV_NAME	"3c509"
-#define DRV_VERSION	"1.20"
-#define DRV_RELDATE	"04Feb2008"
 
 /* A few values that may be tweaked. */
 
@@ -91,8 +89,6 @@
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-
-static char version[] = DRV_NAME ".c:" DRV_VERSION " " DRV_RELDATE " becker@scyld.com\n";
 
 #ifdef EL3_DEBUG
 static int el3_debug = EL3_DEBUG;
@@ -196,7 +192,7 @@ static struct net_device_stats *el3_get_stats(struct net_device *dev);
 static int el3_rx(struct net_device *dev);
 static int el3_close(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
-static void el3_tx_timeout (struct net_device *dev);
+static void el3_tx_timeout (struct net_device *dev, unsigned int txqueue);
 static void el3_down(struct net_device *dev);
 static void el3_up(struct net_device *dev);
 static const struct ethtool_ops ethtool_ops;
@@ -547,8 +543,6 @@ static int el3_common_init(struct net_device *dev)
 	       dev->name, dev->base_addr, if_names[(dev->if_port & 0x03)],
 	       dev->dev_addr, dev->irq);
 
-	if (el3_debug > 0)
-		pr_info("%s", version);
 	return 0;
 
 }
@@ -689,7 +683,7 @@ el3_open(struct net_device *dev)
 }
 
 static void
-el3_tx_timeout (struct net_device *dev)
+el3_tx_timeout (struct net_device *dev, unsigned int txqueue)
 {
 	int ioaddr = dev->base_addr;
 
@@ -1143,7 +1137,6 @@ el3_netdev_set_ecmd(struct net_device *dev,
 static void el3_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
 static int el3_get_link_ksettings(struct net_device *dev,
@@ -1266,14 +1259,14 @@ el3_up(struct net_device *dev)
 					pr_cont("Forcing 3c5x9b full-duplex mode");
 					break;
 				}
-				/* fall through */
+				fallthrough;
 			case 8:
 				/* set full-duplex mode based on eeprom config setting */
 				if ((sw_info & 0x000f) && (sw_info & 0x8000)) {
 					pr_cont("Setting 3c5x9b full-duplex mode (from EEPROM configuration bit)");
 					break;
 				}
-				/* fall through */
+				fallthrough;
 			default:
 				/* xcvr=(0 || 4) OR user has an old 3c5x9 non "B" model */
 				pr_cont("Setting 3c5x9/3c5x9B half-duplex mode");

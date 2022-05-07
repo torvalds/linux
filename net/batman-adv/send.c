@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -461,7 +461,7 @@ int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
 /**
  * batadv_forw_packet_free() - free a forwarding packet
  * @forw_packet: The packet to free
- * @dropped: whether the packet is freed because is is dropped
+ * @dropped: whether the packet is freed because is dropped
  *
  * This frees a forwarding packet and releases any resources it might
  * have claimed.
@@ -605,8 +605,8 @@ bool batadv_forw_packet_steal(struct batadv_forw_packet *forw_packet,
  * given hard_iface. If hard_iface is NULL forwarding packets on all hard
  * interfaces will be claimed.
  *
- * The packets are being moved from the forw_list to the cleanup_list and
- * by that allows already running threads to notice the claiming.
+ * The packets are being moved from the forw_list to the cleanup_list. This
+ * makes it possible for already running threads to notice the claim.
  */
 static void
 batadv_forw_packet_list_steal(struct hlist_head *forw_list,

@@ -79,7 +79,7 @@
 		};
 	};
 
-	emc@7001b000 {
+	external-memory-controller@7001b000 {
 		emc-timings-3 {
 			nvidia,ram-code = <3>;
 

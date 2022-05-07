@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/bindings/arm/qcom.yaml#
+$id: http://devicetree.org/schemas/arm/qcom.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: QCOM device tree bindings
@@ -24,28 +24,37 @@ description: |
 
   The 'SoC' element must be one of the following strings:
 
-  	apq8016
-  	apq8074
-  	apq8084
-  	apq8096
-  	msm8916
-  	msm8974
-  	msm8992
-  	msm8994
-  	msm8996
-  	mdm9615
-  	ipq8074
-  	sdm845
+        apq8016
+        apq8074
+        apq8084
+        apq8096
+        ipq6018
+        ipq8074
+        mdm9615
+        msm8916
+        msm8974
+        msm8992
+        msm8994
+        msm8996
+        sc7180
+        sdm630
+        sdm660
+        sdm845
+        sm8250
 
   The 'board' element must be one of the following strings:
 
-  	cdp
-  	liquid
-  	dragonboard
-  	mtp
-  	sbc
-  	hk01
-  	qrd
+        cdp
+        cp01-c1
+        dragonboard
+        hk01
+        hk10-c1
+        hk10-c2
+        idp
+        liquid
+        mtp
+        qrd
+        sbc
 
   The 'soc_version' and 'board_version' elements take the form of v<Major>.<Minor>
   where the minor number may be omitted when it's zero, i.e.  v1.0 is the same
@@ -67,6 +76,8 @@ description: |
   foundry 2.
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     oneOf:
       - items:
@@ -142,6 +153,31 @@ properties:
       - items:
           - enum:
               - qcom,ipq8074-hk01
+              - qcom,ipq8074-hk10-c1
+              - qcom,ipq8074-hk10-c2
           - const: qcom,ipq8074
+
+      - items:
+          - enum:
+              - qcom,sc7180-idp
+          - const: qcom,sc7180
+
+      - items:
+          - enum:
+              - xiaomi,lavender
+          - const: qcom,sdm660
+
+      - items:
+          - enum:
+              - qcom,ipq6018-cp01-c1
+          - const: qcom,ipq6018
+
+      - items:
+          - enum:
+              - qcom,qrb5165-rb5
+              - qcom,sm8250-mtp
+          - const: qcom,sm8250
+
+additionalProperties: true
 
 ...

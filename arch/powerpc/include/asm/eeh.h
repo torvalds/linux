@@ -27,7 +27,6 @@ struct pci_dn;
 #define EEH_FORCE_DISABLED	0x02	/* EEH disabled			     */
 #define EEH_PROBE_MODE_DEV	0x04	/* From PCI device		     */
 #define EEH_PROBE_MODE_DEVTREE	0x08	/* From device tree		     */
-#define EEH_VALID_PE_ZERO	0x10	/* PE#0 is valid		     */
 #define EEH_ENABLE_IO_FOR_LOG	0x20	/* Enable IO for log		     */
 #define EEH_EARLY_DUMP_LOG	0x40	/* Dump log immediately		     */
 
@@ -74,7 +73,6 @@ struct pci_dn;
 struct eeh_pe {
 	int type;			/* PE type: PHB/Bus/Device	*/
 	int state;			/* PE EEH dependent mode	*/
-	int config_addr;		/* Traditional PCI address	*/
 	int addr;			/* PE configuration address	*/
 	struct pci_controller *phb;	/* Associated PHB		*/
 	struct pci_bus *bus;		/* Top PCI bus for bus PE	*/
@@ -133,7 +131,6 @@ static inline bool eeh_pe_passed(struct eeh_pe *pe)
 
 struct eeh_dev {
 	int mode;			/* EEH mode			*/
-	int class_code;			/* Class code of the device	*/
 	int bdfn;			/* bdfn of device (for cfg ops) */
 	struct pci_controller *controller;
 	int pe_config_addr;		/* PE config address		*/
@@ -148,7 +145,10 @@ struct eeh_dev {
 	struct pci_dn *pdn;		/* Associated PCI device node	*/
 	struct pci_dev *pdev;		/* Associated PCI device	*/
 	bool in_error;			/* Error flag for edev		*/
+
+	/* VF specific properties */
 	struct pci_dev *physfn;		/* Associated SRIOV PF		*/
+	int vf_index;			/* Index of this VF 		*/
 };
 
 /* "fmt" must be a simple literal string */
@@ -214,21 +214,19 @@ enum {
 
 struct eeh_ops {
 	char *name;
-	int (*init)(void);
-	void* (*probe)(struct pci_dn *pdn, void *data);
+	struct eeh_dev *(*probe)(struct pci_dev *pdev);
 	int (*set_option)(struct eeh_pe *pe, int option);
-	int (*get_pe_addr)(struct eeh_pe *pe);
 	int (*get_state)(struct eeh_pe *pe, int *delay);
 	int (*reset)(struct eeh_pe *pe, int option);
 	int (*get_log)(struct eeh_pe *pe, int severity, char *drv_log, unsigned long len);
 	int (*configure_bridge)(struct eeh_pe *pe);
 	int (*err_inject)(struct eeh_pe *pe, int type, int func,
 			  unsigned long addr, unsigned long mask);
-	int (*read_config)(struct pci_dn *pdn, int where, int size, u32 *val);
-	int (*write_config)(struct pci_dn *pdn, int where, int size, u32 val);
+	int (*read_config)(struct eeh_dev *edev, int where, int size, u32 *val);
+	int (*write_config)(struct eeh_dev *edev, int where, int size, u32 val);
 	int (*next_error)(struct eeh_pe **pe);
-	int (*restore_config)(struct pci_dn *pdn);
-	int (*notify_resume)(struct pci_dn *pdn);
+	int (*restore_config)(struct eeh_dev *edev);
+	int (*notify_resume)(struct eeh_dev *edev);
 };
 
 extern int eeh_subsystem_flags;
@@ -280,10 +278,9 @@ int eeh_phb_pe_create(struct pci_controller *phb);
 int eeh_wait_state(struct eeh_pe *pe, int max_wait);
 struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb);
 struct eeh_pe *eeh_pe_next(struct eeh_pe *pe, struct eeh_pe *root);
-struct eeh_pe *eeh_pe_get(struct pci_controller *phb,
-			  int pe_no, int config_addr);
-int eeh_add_to_parent_pe(struct eeh_dev *edev);
-int eeh_rmv_from_parent_pe(struct eeh_dev *edev);
+struct eeh_pe *eeh_pe_get(struct pci_controller *phb, int pe_no);
+int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent);
+int eeh_pe_tree_remove(struct eeh_dev *edev);
 void eeh_pe_update_time_stamp(struct eeh_pe *pe);
 void *eeh_pe_traverse(struct eeh_pe *root,
 		      eeh_pe_traverse_func fn, void *flag);
@@ -293,19 +290,12 @@ void eeh_pe_restore_bars(struct eeh_pe *pe);
 const char *eeh_pe_loc_get(struct eeh_pe *pe);
 struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe);
 
-struct eeh_dev *eeh_dev_init(struct pci_dn *pdn);
-void eeh_dev_phb_init_dynamic(struct pci_controller *phb);
 void eeh_show_enabled(void);
-int __init eeh_ops_register(struct eeh_ops *ops);
-int __exit eeh_ops_unregister(const char *name);
+int __init eeh_init(struct eeh_ops *ops);
 int eeh_check_failure(const volatile void __iomem *token);
 int eeh_dev_check_failure(struct eeh_dev *edev);
 void eeh_addr_cache_init(void);
-void eeh_add_device_early(struct pci_dn *);
-void eeh_add_device_tree_early(struct pci_dn *);
-void eeh_add_device_late(struct pci_dev *);
-void eeh_add_device_tree_late(struct pci_bus *);
-void eeh_add_sysfs_files(struct pci_bus *);
+void eeh_probe_device(struct pci_dev *pdev);
 void eeh_remove_device(struct pci_dev *);
 int eeh_unfreeze_pe(struct eeh_pe *pe);
 int eeh_pe_reset_and_recover(struct eeh_pe *pe);
@@ -318,7 +308,6 @@ int eeh_pe_reset(struct eeh_pe *pe, int option, bool include_passed);
 int eeh_pe_configure(struct eeh_pe *pe);
 int eeh_pe_inject_err(struct eeh_pe *pe, int type, int func,
 		      unsigned long addr, unsigned long mask);
-int eeh_restore_vf_config(struct pci_dn *pdn);
 
 /**
  * EEH_POSSIBLE_ERROR() -- test for possible MMIO failure.
@@ -344,11 +333,6 @@ static inline bool eeh_enabled(void)
 
 static inline void eeh_show_enabled(void) { }
 
-static inline void *eeh_dev_init(struct pci_dn *pdn, void *data)
-{
-	return NULL;
-}
-
 static inline void eeh_dev_phb_init_dynamic(struct pci_controller *phb) { }
 
 static inline int eeh_check_failure(const volatile void __iomem *token)
@@ -360,21 +344,22 @@ static inline int eeh_check_failure(const volatile void __iomem *token)
 
 static inline void eeh_addr_cache_init(void) { }
 
-static inline void eeh_add_device_early(struct pci_dn *pdn) { }
-
-static inline void eeh_add_device_tree_early(struct pci_dn *pdn) { }
-
-static inline void eeh_add_device_late(struct pci_dev *dev) { }
-
-static inline void eeh_add_device_tree_late(struct pci_bus *bus) { }
-
-static inline void eeh_add_sysfs_files(struct pci_bus *bus) { }
+static inline void eeh_probe_device(struct pci_dev *dev) { }
 
 static inline void eeh_remove_device(struct pci_dev *dev) { }
 
 #define EEH_POSSIBLE_ERROR(val, type) (0)
 #define EEH_IO_ERROR_VALUE(size) (-1UL)
+static inline int eeh_phb_pe_create(struct pci_controller *phb) { return 0; }
 #endif /* CONFIG_EEH */
+
+#if defined(CONFIG_PPC_PSERIES) && defined(CONFIG_EEH)
+void pseries_eeh_init_edev(struct pci_dn *pdn);
+void pseries_eeh_init_edev_recursive(struct pci_dn *pdn);
+#else
+static inline void pseries_eeh_add_device_early(struct pci_dn *pdn) { }
+static inline void pseries_eeh_add_device_tree_early(struct pci_dn *pdn) { }
+#endif
 
 #ifdef CONFIG_PPC64
 /*

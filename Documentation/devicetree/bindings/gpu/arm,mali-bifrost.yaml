@@ -17,6 +17,8 @@ properties:
     items:
       - enum:
           - amlogic,meson-g12a-mali
+          - realtek,rtd1619-mali
+          - rockchip,px30-mali
       - const: arm,mali-bifrost # Mali Bifrost GPU model/revision is fully discoverable
 
   reg:
@@ -37,10 +39,18 @@ properties:
   clocks:
     maxItems: 1
 
-  mali-supply:
-    maxItems: 1
+  mali-supply: true
 
   operating-points-v2: true
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 2
+
+  "#cooling-cells":
+    const: 2
 
 required:
   - compatible
@@ -49,6 +59,8 @@ required:
   - interrupt-names
   - clocks
 
+additionalProperties: false
+
 allOf:
   - if:
       properties:
@@ -56,9 +68,6 @@ allOf:
           contains:
             const: amlogic,meson-g12a-mali
     then:
-      properties:
-        resets:
-          minItems: 2
       required:
         - resets
 
@@ -83,31 +92,31 @@ examples:
     gpu_opp_table: opp_table0 {
       compatible = "operating-points-v2";
 
-      opp@533000000 {
+      opp-533000000 {
         opp-hz = /bits/ 64 <533000000>;
         opp-microvolt = <1250000>;
       };
-      opp@450000000 {
+      opp-450000000 {
         opp-hz = /bits/ 64 <450000000>;
         opp-microvolt = <1150000>;
       };
-      opp@400000000 {
+      opp-400000000 {
         opp-hz = /bits/ 64 <400000000>;
         opp-microvolt = <1125000>;
       };
-      opp@350000000 {
+      opp-350000000 {
         opp-hz = /bits/ 64 <350000000>;
         opp-microvolt = <1075000>;
       };
-      opp@266000000 {
+      opp-266000000 {
         opp-hz = /bits/ 64 <266000000>;
         opp-microvolt = <1025000>;
       };
-      opp@160000000 {
+      opp-160000000 {
         opp-hz = /bits/ 64 <160000000>;
         opp-microvolt = <925000>;
       };
-      opp@100000000 {
+      opp-100000000 {
         opp-hz = /bits/ 64 <100000000>;
         opp-microvolt = <912500>;
       };

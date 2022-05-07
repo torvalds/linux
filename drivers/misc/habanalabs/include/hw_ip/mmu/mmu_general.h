@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2016-2018 HabanaLabs, Ltd.
+ * Copyright 2016-2020 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -12,18 +12,16 @@
 #define PAGE_SHIFT_2MB			21
 #define PAGE_SIZE_2MB			(_AC(1, UL) << PAGE_SHIFT_2MB)
 #define PAGE_SIZE_4KB			(_AC(1, UL) << PAGE_SHIFT_4KB)
-#define PAGE_MASK_2MB			(~(PAGE_SIZE_2MB - 1))
 
 #define PAGE_PRESENT_MASK		0x0000000000001ull
 #define SWAP_OUT_MASK			0x0000000000004ull
 #define LAST_MASK			0x0000000000800ull
-#define PHYS_ADDR_MASK			0xFFFFFFFFFFFFF000ull
 #define HOP0_MASK			0x3000000000000ull
 #define HOP1_MASK			0x0FF8000000000ull
 #define HOP2_MASK			0x0007FC0000000ull
 #define HOP3_MASK			0x000003FE00000ull
 #define HOP4_MASK			0x00000001FF000ull
-#define OFFSET_MASK			0x0000000000FFFull
+#define FLAGS_MASK			0x0000000000FFFull
 
 #define HOP0_SHIFT			48
 #define HOP1_SHIFT			39
@@ -31,8 +29,9 @@
 #define HOP3_SHIFT			21
 #define HOP4_SHIFT			12
 
-#define PTE_PHYS_ADDR_SHIFT		12
-#define PTE_PHYS_ADDR_MASK		~OFFSET_MASK
+#define MMU_ARCH_5_HOPS			5
+
+#define HOP_PHYS_ADDR_MASK		(~FLAGS_MASK)
 
 #define HL_PTE_SIZE			sizeof(u64)
 #define HOP_TABLE_SIZE			PAGE_SIZE_4KB

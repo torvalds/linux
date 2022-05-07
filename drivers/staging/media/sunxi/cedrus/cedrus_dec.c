@@ -57,6 +57,17 @@ void cedrus_device_run(void *priv)
 			V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS);
 		run.h264.sps = cedrus_find_control_data(ctx,
 			V4L2_CID_MPEG_VIDEO_H264_SPS);
+		run.h264.pred_weights = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_H264_PRED_WEIGHTS);
+		break;
+
+	case V4L2_PIX_FMT_HEVC_SLICE:
+		run.h265.sps = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_HEVC_SPS);
+		run.h265.pps = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_HEVC_PPS);
+		run.h265.slice_params = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_HEVC_SLICE_PARAMS);
 		break;
 
 	default:
@@ -64,6 +75,8 @@ void cedrus_device_run(void *priv)
 	}
 
 	v4l2_m2m_buf_copy_metadata(run.src, run.dst, true);
+
+	cedrus_dst_format_set(dev, &ctx->dst_fmt);
 
 	dev->dec_ops[ctx->current_codec]->setup(ctx, &run);
 

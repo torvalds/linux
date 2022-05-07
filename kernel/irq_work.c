@@ -29,24 +29,16 @@ static DEFINE_PER_CPU(struct llist_head, lazy_list);
  */
 static bool irq_work_claim(struct irq_work *work)
 {
-	unsigned long flags, oflags, nflags;
+	int oflags;
 
+	oflags = atomic_fetch_or(IRQ_WORK_CLAIMED | CSD_TYPE_IRQ_WORK, &work->flags);
 	/*
-	 * Start with our best wish as a premise but only trust any
-	 * flag value after cmpxchg() result.
+	 * If the work is already pending, no need to raise the IPI.
+	 * The pairing atomic_fetch_andnot() in irq_work_run() makes sure
+	 * everything we did before is visible.
 	 */
-	flags = work->flags & ~IRQ_WORK_PENDING;
-	for (;;) {
-		nflags = flags | IRQ_WORK_CLAIMED;
-		oflags = cmpxchg(&work->flags, flags, nflags);
-		if (oflags == flags)
-			break;
-		if (oflags & IRQ_WORK_PENDING)
-			return false;
-		flags = oflags;
-		cpu_relax();
-	}
-
+	if (oflags & IRQ_WORK_PENDING)
+		return false;
 	return true;
 }
 
@@ -61,7 +53,7 @@ void __weak arch_irq_work_raise(void)
 static void __irq_work_queue_local(struct irq_work *work)
 {
 	/* If the work is "lazy", handle it from next tick if any */
-	if (work->flags & IRQ_WORK_LAZY) {
+	if (atomic_read(&work->flags) & IRQ_WORK_LAZY) {
 		if (llist_add(&work->llnode, this_cpu_ptr(&lazy_list)) &&
 		    tick_nohz_tick_stopped())
 			arch_irq_work_raise();
@@ -110,8 +102,7 @@ bool irq_work_queue_on(struct irq_work *work, int cpu)
 	if (cpu != smp_processor_id()) {
 		/* Arch remote IPI send/receive backend aren't NMI safe */
 		WARN_ON_ONCE(in_nmi());
-		if (llist_add(&work->llnode, &per_cpu(raised_list, cpu)))
-			arch_send_call_function_single_ipi(cpu);
+		__smp_call_single_queue(cpu, &work->llnode);
 	} else {
 		__irq_work_queue_local(work);
 	}
@@ -139,11 +130,35 @@ bool irq_work_needs_cpu(void)
 	return true;
 }
 
+void irq_work_single(void *arg)
+{
+	struct irq_work *work = arg;
+	int flags;
+
+	/*
+	 * Clear the PENDING bit, after this point the @work
+	 * can be re-used.
+	 * Make it immediately visible so that other CPUs trying
+	 * to claim that work don't rely on us to handle their data
+	 * while we are in the middle of the func.
+	 */
+	flags = atomic_fetch_andnot(IRQ_WORK_PENDING, &work->flags);
+
+	lockdep_irq_work_enter(work);
+	work->func(work);
+	lockdep_irq_work_exit(work);
+	/*
+	 * Clear the BUSY bit and return to the free state if
+	 * no-one else claimed it meanwhile.
+	 */
+	flags &= ~IRQ_WORK_PENDING;
+	(void)atomic_cmpxchg(&work->flags, flags, flags & ~IRQ_WORK_BUSY);
+}
+
 static void irq_work_run_list(struct llist_head *list)
 {
 	struct irq_work *work, *tmp;
 	struct llist_node *llnode;
-	unsigned long flags;
 
 	BUG_ON(!irqs_disabled());
 
@@ -151,24 +166,8 @@ static void irq_work_run_list(struct llist_head *list)
 		return;
 
 	llnode = llist_del_all(list);
-	llist_for_each_entry_safe(work, tmp, llnode, llnode) {
-		/*
-		 * Clear the PENDING bit, after this point the @work
-		 * can be re-used.
-		 * Make it immediately visible so that other CPUs trying
-		 * to claim that work don't rely on us to handle their data
-		 * while we are in the middle of the func.
-		 */
-		flags = work->flags & ~IRQ_WORK_PENDING;
-		xchg(&work->flags, flags);
-
-		work->func(work);
-		/*
-		 * Clear the BUSY bit and return to the free state if
-		 * no-one else claimed it meanwhile.
-		 */
-		(void)cmpxchg(&work->flags, flags, flags & ~IRQ_WORK_BUSY);
-	}
+	llist_for_each_entry_safe(work, tmp, llnode, llnode)
+		irq_work_single(work);
 }
 
 /*
@@ -199,7 +198,7 @@ void irq_work_sync(struct irq_work *work)
 {
 	lockdep_assert_irqs_enabled();
 
-	while (work->flags & IRQ_WORK_BUSY)
+	while (atomic_read(&work->flags) & IRQ_WORK_BUSY)
 		cpu_relax();
 }
 EXPORT_SYMBOL_GPL(irq_work_sync);

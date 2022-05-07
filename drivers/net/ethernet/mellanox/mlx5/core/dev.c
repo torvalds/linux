@@ -193,7 +193,7 @@ bool mlx5_device_registered(struct mlx5_core_dev *dev)
 	return found;
 }
 
-int mlx5_register_device(struct mlx5_core_dev *dev)
+void mlx5_register_device(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_interface *intf;
@@ -203,8 +203,6 @@ int mlx5_register_device(struct mlx5_core_dev *dev)
 	list_for_each_entry(intf, &intf_list, list)
 		mlx5_add_device(intf, priv);
 	mutex_unlock(&mlx5_intf_mutex);
-
-	return 0;
 }
 
 void mlx5_unregister_device(struct mlx5_core_dev *dev)

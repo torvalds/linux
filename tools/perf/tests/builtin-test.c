@@ -73,6 +73,17 @@ static struct test generic_tests[] = {
 		.func = test__pmu,
 	},
 	{
+		.desc = "PMU events",
+		.func = test__pmu_events,
+		.subtest = {
+			.skip_if_fail	= false,
+			.get_nr		= test__pmu_events_subtest_get_nr,
+			.get_desc	= test__pmu_events_subtest_get_desc,
+			.skip_reason	= test__pmu_events_subtest_skip_reason,
+		},
+
+	},
+	{
 		.desc = "DSO data read",
 		.func = test__dso_data,
 	},
@@ -121,7 +132,7 @@ static struct test generic_tests[] = {
 	{
 		.desc = "Breakpoint accounting",
 		.func = test__bp_accounting,
-		.is_supported = test__bp_signal_is_supported,
+		.is_supported = test__bp_account_is_supported,
 	},
 	{
 		.desc = "Watchpoint",
@@ -166,8 +177,8 @@ static struct test generic_tests[] = {
 		.func = test__mmap_thread_lookup,
 	},
 	{
-		.desc = "Share thread mg",
-		.func = test__thread_mg_share,
+		.desc = "Share thread maps",
+		.func = test__thread_maps_share,
 	},
 	{
 		.desc = "Sort output of hist entries",
@@ -260,6 +271,11 @@ static struct test generic_tests[] = {
 		.func = test__cpu_map_print,
 	},
 	{
+		.desc = "Merge cpu map",
+		.func = test__cpu_map_merge,
+	},
+
+	{
 		.desc = "Probe SDT events",
 		.func = test__sdt_event,
 	},
@@ -297,8 +313,41 @@ static struct test generic_tests[] = {
 		.func = test__time_utils,
 	},
 	{
-		.desc = "map_groups__merge_in",
-		.func = test__map_groups__merge_in,
+		.desc = "Test jit_write_elf",
+		.func = test__jit_write_elf,
+	},
+	{
+		.desc = "Test libpfm4 support",
+		.func = test__pfm,
+		.subtest = {
+			.skip_if_fail	= true,
+			.get_nr		= test__pfm_subtest_get_nr,
+			.get_desc	= test__pfm_subtest_get_desc,
+		}
+	},
+	{
+		.desc = "Test api io",
+		.func = test__api_io,
+	},
+	{
+		.desc = "maps__merge_in",
+		.func = test__maps__merge_in,
+	},
+	{
+		.desc = "Demangle Java",
+		.func = test__demangle_java,
+	},
+	{
+		.desc = "Parse and process metrics",
+		.func = test__parse_metric,
+	},
+	{
+		.desc = "PE file support",
+		.func = test__pe_file_parsing,
+	},
+	{
+		.desc = "Event expansion for cgroups",
+		.func = test__expand_cgroup_events,
 	},
 	{
 		.func = NULL,
@@ -310,7 +359,7 @@ static struct test *tests[] = {
 	arch_tests,
 };
 
-static bool perf_test__matches(struct test *test, int curr, int argc, const char *argv[])
+static bool perf_test__matches(const char *desc, int curr, int argc, const char *argv[])
 {
 	int i;
 
@@ -327,7 +376,7 @@ static bool perf_test__matches(struct test *test, int curr, int argc, const char
 			continue;
 		}
 
-		if (strcasestr(test->desc, argv[i]))
+		if (strcasestr(desc, argv[i]))
 			return true;
 	}
 
@@ -412,8 +461,15 @@ static int test_and_print(struct test *t, bool force_skip, int subtest)
 	case TEST_OK:
 		pr_info(" Ok\n");
 		break;
-	case TEST_SKIP:
-		color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip\n");
+	case TEST_SKIP: {
+		const char *skip_reason = NULL;
+		if (t->subtest.skip_reason)
+			skip_reason = t->subtest.skip_reason(subtest);
+		if (skip_reason)
+			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (%s)\n", skip_reason);
+		else
+			color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip\n");
+	}
 		break;
 	case TEST_FAIL:
 	default:
@@ -534,8 +590,11 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width)
 		return -1;
 
 	dir = opendir(st.dir);
-	if (!dir)
+	if (!dir) {
+		pr_err("failed to open shell test directory: %s\n",
+			st.dir);
 		return -1;
+	}
 
 	for_each_shell_test(dir, st.dir, ent) {
 		int curr = i++;
@@ -546,7 +605,7 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width)
 			.priv = &st,
 		};
 
-		if (!perf_test__matches(&test, curr, argc, argv))
+		if (!perf_test__matches(test.desc, curr, argc, argv))
 			continue;
 
 		st.file = ent->d_name;
@@ -574,9 +633,25 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 
 	for_each_test(j, t) {
 		int curr = i++, err;
+		int subi;
 
-		if (!perf_test__matches(t, curr, argc, argv))
-			continue;
+		if (!perf_test__matches(t->desc, curr, argc, argv)) {
+			bool skip = true;
+			int subn;
+
+			if (!t->subtest.get_nr)
+				continue;
+
+			subn = t->subtest.get_nr();
+
+			for (subi = 0; subi < subn; subi++) {
+				if (perf_test__matches(t->subtest.get_desc(subi), curr, argc, argv))
+					skip = false;
+			}
+
+			if (skip)
+				continue;
+		}
 
 		if (t->is_supported && !t->is_supported()) {
 			pr_debug("%2d: %-*s: Disabled\n", i, width, t->desc);
@@ -604,7 +679,6 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			 */
 			int subw = width > 2 ? width - 2 : width;
 			bool skip = false;
-			int subi;
 
 			if (subn <= 0) {
 				color_fprintf(stderr, PERF_COLOR_YELLOW,
@@ -621,6 +695,9 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			}
 
 			for (subi = 0; subi < subn; subi++) {
+				if (!perf_test__matches(t->subtest.get_desc(subi), curr, argc, argv))
+					continue;
+
 				pr_info("%2d.%1d: %-*s:", i, subi + 1, subw,
 					t->subtest.get_desc(subi));
 				err = test_and_print(t, skip, subi);
@@ -654,7 +731,7 @@ static int perf_test__list_shell(int argc, const char **argv, int i)
 			.desc = shell_test__description(bf, sizeof(bf), path, ent->d_name),
 		};
 
-		if (!perf_test__matches(&t, curr, argc, argv))
+		if (!perf_test__matches(t.desc, curr, argc, argv))
 			continue;
 
 		pr_info("%2d: %s\n", i, t.desc);
@@ -673,7 +750,7 @@ static int perf_test__list(int argc, const char **argv)
 	for_each_test(j, t) {
 		int curr = i++;
 
-		if (!perf_test__matches(t, curr, argc, argv) ||
+		if (!perf_test__matches(t->desc, curr, argc, argv) ||
 		    (t->is_supported && !t->is_supported()))
 			continue;
 

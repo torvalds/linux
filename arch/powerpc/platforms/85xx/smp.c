@@ -16,9 +16,9 @@
 #include <linux/highmem.h>
 #include <linux/cpu.h>
 #include <linux/fsl/guts.h>
+#include <linux/pgtable.h>
 
 #include <asm/machdep.h>
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/mpic.h>
 #include <asm/cacheflush.h>
@@ -112,7 +112,7 @@ static void mpc85xx_take_timebase(void)
 	local_irq_restore(flags);
 }
 
-static void smp_85xx_mach_cpu_die(void)
+static void smp_85xx_cpu_offline_self(void)
 {
 	unsigned int cpu = smp_processor_id();
 
@@ -252,6 +252,15 @@ static int smp_85xx_start_cpu(int cpu)
 	out_be64((u64 *)(&spin_table->addr_h),
 		__pa(ppc_function_entry(generic_secondary_smp_init)));
 #else
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+	/*
+	 * We need also to write addr_h to spin table for systems
+	 * in which their physical memory start address was configured
+	 * to above 4G, otherwise the secondary core can not get
+	 * correct entry to start from.
+	 */
+	out_be32(&spin_table->addr_h, __pa(__early_start) >> 32);
+#endif
 	out_be32(&spin_table->addr_l, __pa(__early_start));
 #endif
 	flush_spin_table(spin_table);
@@ -497,7 +506,7 @@ void __init mpc85xx_smp_init(void)
 	if (qoriq_pm_ops) {
 		smp_85xx_ops.give_timebase = mpc85xx_give_timebase;
 		smp_85xx_ops.take_timebase = mpc85xx_take_timebase;
-		ppc_md.cpu_die = smp_85xx_mach_cpu_die;
+		smp_85xx_ops.cpu_offline_self = smp_85xx_cpu_offline_self;
 		smp_85xx_ops.cpu_die = qoriq_cpu_kill;
 	}
 #endif

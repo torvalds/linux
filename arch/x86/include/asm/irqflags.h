@@ -9,7 +9,7 @@
 #include <asm/nospec-branch.h>
 
 /* Provide __cpuidle; we can't safely include <linux/cpu.h> */
-#define __cpuidle __attribute__((__section__(".cpuidle.text")))
+#define __cpuidle __section(".cpuidle.text")
 
 /*
  * Interrupt control:
@@ -17,7 +17,7 @@
 
 /* Declaration required for gcc < 4.9 to prevent -Werror=missing-prototypes */
 extern inline unsigned long native_save_fl(void);
-extern inline unsigned long native_save_fl(void)
+extern __always_inline unsigned long native_save_fl(void)
 {
 	unsigned long flags;
 
@@ -44,12 +44,12 @@ extern inline void native_restore_fl(unsigned long flags)
 		     :"memory", "cc");
 }
 
-static inline void native_irq_disable(void)
+static __always_inline void native_irq_disable(void)
 {
 	asm volatile("cli": : :"memory");
 }
 
-static inline void native_irq_enable(void)
+static __always_inline void native_irq_enable(void)
 {
 	asm volatile("sti": : :"memory");
 }
@@ -74,22 +74,22 @@ static inline __cpuidle void native_halt(void)
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
 
-static inline notrace unsigned long arch_local_save_flags(void)
+static __always_inline unsigned long arch_local_save_flags(void)
 {
 	return native_save_fl();
 }
 
-static inline notrace void arch_local_irq_restore(unsigned long flags)
+static __always_inline void arch_local_irq_restore(unsigned long flags)
 {
 	native_restore_fl(flags);
 }
 
-static inline notrace void arch_local_irq_disable(void)
+static __always_inline void arch_local_irq_disable(void)
 {
 	native_irq_disable();
 }
 
-static inline notrace void arch_local_irq_enable(void)
+static __always_inline void arch_local_irq_enable(void)
 {
 	native_irq_enable();
 }
@@ -115,7 +115,7 @@ static inline __cpuidle void halt(void)
 /*
  * For spinlocks, etc:
  */
-static inline notrace unsigned long arch_local_irq_save(void)
+static __always_inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags = arch_local_save_flags();
 	arch_local_irq_disable();
@@ -159,51 +159,17 @@ static inline notrace unsigned long arch_local_irq_save(void)
 #endif /* CONFIG_PARAVIRT_XXL */
 
 #ifndef __ASSEMBLY__
-static inline int arch_irqs_disabled_flags(unsigned long flags)
+static __always_inline int arch_irqs_disabled_flags(unsigned long flags)
 {
 	return !(flags & X86_EFLAGS_IF);
 }
 
-static inline int arch_irqs_disabled(void)
+static __always_inline int arch_irqs_disabled(void)
 {
 	unsigned long flags = arch_local_save_flags();
 
 	return arch_irqs_disabled_flags(flags);
 }
 #endif /* !__ASSEMBLY__ */
-
-#ifdef __ASSEMBLY__
-#ifdef CONFIG_TRACE_IRQFLAGS
-#  define TRACE_IRQS_ON		call trace_hardirqs_on_thunk;
-#  define TRACE_IRQS_OFF	call trace_hardirqs_off_thunk;
-#else
-#  define TRACE_IRQS_ON
-#  define TRACE_IRQS_OFF
-#endif
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-#  ifdef CONFIG_X86_64
-#    define LOCKDEP_SYS_EXIT		call lockdep_sys_exit_thunk
-#    define LOCKDEP_SYS_EXIT_IRQ \
-	TRACE_IRQS_ON; \
-	sti; \
-	call lockdep_sys_exit_thunk; \
-	cli; \
-	TRACE_IRQS_OFF;
-#  else
-#    define LOCKDEP_SYS_EXIT \
-	pushl %eax;				\
-	pushl %ecx;				\
-	pushl %edx;				\
-	call lockdep_sys_exit;			\
-	popl %edx;				\
-	popl %ecx;				\
-	popl %eax;
-#    define LOCKDEP_SYS_EXIT_IRQ
-#  endif
-#else
-#  define LOCKDEP_SYS_EXIT
-#  define LOCKDEP_SYS_EXIT_IRQ
-#endif
-#endif /* __ASSEMBLY__ */
 
 #endif

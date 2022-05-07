@@ -95,7 +95,7 @@ static struct cpufreq_driver sc520_freq_driver = {
 };
 
 static const struct x86_cpu_id sc520_ids[] = {
-	{ X86_VENDOR_AMD, 4, 9 },
+	X86_MATCH_VENDOR_FAM_MODEL(AMD, 4, 9, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, sc520_ids);

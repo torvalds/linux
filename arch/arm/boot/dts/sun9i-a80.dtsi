@@ -387,16 +387,16 @@
 		usbphy2: phy@a01800 {
 			compatible = "allwinner,sun9i-a80-usb-phy";
 			reg = <0x00a01800 0x4>;
-			clocks = <&usb_clocks CLK_USB1_HSIC>,
+			clocks = <&usb_clocks CLK_USB1_PHY>,
 				 <&usb_clocks CLK_USB_HSIC>,
-				 <&usb_clocks CLK_USB1_PHY>;
-			clock-names = "hsic_480M",
+				 <&usb_clocks CLK_USB1_HSIC>;
+			clock-names = "phy",
 				      "hsic_12M",
-				      "phy";
-			resets = <&usb_clocks RST_USB1_HSIC>,
-				 <&usb_clocks RST_USB1_PHY>;
-			reset-names = "hsic",
-				      "phy";
+				      "hsic_480M";
+			resets = <&usb_clocks RST_USB1_PHY>,
+				 <&usb_clocks RST_USB1_HSIC>;
+			reset-names = "phy",
+				      "hsic";
 			status = "disabled";
 			#phy-cells = <0>;
 			/* usb1 is always used with HSIC */
@@ -429,16 +429,16 @@
 		usbphy3: phy@a02800 {
 			compatible = "allwinner,sun9i-a80-usb-phy";
 			reg = <0x00a02800 0x4>;
-			clocks = <&usb_clocks CLK_USB2_HSIC>,
+			clocks = <&usb_clocks CLK_USB2_PHY>,
 				 <&usb_clocks CLK_USB_HSIC>,
-				 <&usb_clocks CLK_USB2_PHY>;
-			clock-names = "hsic_480M",
+				 <&usb_clocks CLK_USB2_HSIC>;
+			clock-names = "phy",
 				      "hsic_12M",
-				      "phy";
-			resets = <&usb_clocks RST_USB2_HSIC>,
-				 <&usb_clocks RST_USB2_PHY>;
-			reset-names = "hsic",
-				      "phy";
+				      "hsic_480M";
+			resets = <&usb_clocks RST_USB2_PHY>,
+				 <&usb_clocks RST_USB2_HSIC>;
+			reset-names = "phy",
+				      "hsic";
 			status = "disabled";
 			#phy-cells = <0>;
 		};
@@ -455,6 +455,15 @@
 		cpucfg@1700000 {
 			compatible = "allwinner,sun9i-a80-cpucfg";
 			reg = <0x01700000 0x100>;
+		};
+
+		crypto: crypto@1c02000 {
+			compatible = "allwinner,sun9i-a80-crypto";
+			reg = <0x01c02000 0x1000>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&ccu RST_BUS_SS>;
+			clocks = <&ccu CLK_BUS_SS>, <&ccu CLK_SS>;
+			clock-names = "bus", "mod";
 		};
 
 		mmc0: mmc@1c0f000 {
@@ -521,9 +530,7 @@
 			compatible = "allwinner,sun9i-a80-mmc-config-clk";
 			reg = <0x01c13000 0x10>;
 			clocks = <&ccu CLK_BUS_MMC>;
-			clock-names = "ahb";
 			resets = <&ccu RST_BUS_MMC>;
-			reset-names = "ahb";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			clock-output-names = "mmc0_config", "mmc1_config",
@@ -871,8 +878,12 @@
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_LCD0>, <&ccu CLK_LCD0>;
 			clock-names = "ahb", "tcon-ch0";
-			resets = <&ccu RST_BUS_LCD0>, <&ccu RST_BUS_EDP>;
-			reset-names = "lcd", "edp";
+			resets = <&ccu RST_BUS_LCD0>,
+				 <&ccu RST_BUS_EDP>,
+				 <&ccu RST_BUS_LVDS>;
+			reset-names = "lcd",
+				      "edp",
+				      "lvds";
 			clock-output-names = "tcon0-pixel-clock";
 			#clock-cells = <0>;
 
@@ -947,6 +958,7 @@
 			compatible = "allwinner,sun6i-a31-wdt";
 			reg = <0x06000ca0 0x20>;
 			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&osc24M>;
 		};
 
 		pio: pinctrl@6000800 {
@@ -1154,6 +1166,7 @@
 			compatible = "allwinner,sun6i-a31-wdt";
 			reg = <0x08001000 0x20>;
 			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&osc24M>;
 		};
 
 		prcm@8001400 {

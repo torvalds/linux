@@ -73,6 +73,7 @@ static int goldfish_rtc_set_alarm(struct device *dev,
 		rtc_alarm64 = rtc_tm_to_time64(&alrm->time) * NSEC_PER_SEC;
 		writel((rtc_alarm64 >> 32), base + TIMER_ALARM_HIGH);
 		writel(rtc_alarm64, base + TIMER_ALARM_LOW);
+		writel(1, base + TIMER_IRQ_ENABLED);
 	} else {
 		/*
 		 * if this function was called with enabled=0
@@ -165,7 +166,6 @@ static const struct rtc_class_ops goldfish_rtc_ops = {
 static int goldfish_rtc_probe(struct platform_device *pdev)
 {
 	struct goldfish_rtc *rtcdrv;
-	struct resource *r;
 	int err;
 
 	rtcdrv = devm_kzalloc(&pdev->dev, sizeof(*rtcdrv), GFP_KERNEL);
@@ -173,14 +173,9 @@ static int goldfish_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, rtcdrv);
-
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r)
-		return -ENODEV;
-
-	rtcdrv->base = devm_ioremap_resource(&pdev->dev, r);
+	rtcdrv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtcdrv->base))
-		return -ENODEV;
+		return PTR_ERR(rtcdrv->base);
 
 	rtcdrv->irq = platform_get_irq(pdev, 0);
 	if (rtcdrv->irq < 0)

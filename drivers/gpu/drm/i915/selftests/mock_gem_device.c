@@ -24,67 +24,61 @@
 
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
+#include <linux/iommu.h>
+
+#include <drm/drm_managed.h>
 
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_requests.h"
 #include "gt/mock_engine.h"
+#include "intel_memory_region.h"
 
 #include "mock_request.h"
 #include "mock_gem_device.h"
 #include "mock_gtt.h"
 #include "mock_uncore.h"
+#include "mock_region.h"
 
 #include "gem/selftests/mock_context.h"
 #include "gem/selftests/mock_gem_object.h"
 
 void mock_device_flush(struct drm_i915_private *i915)
 {
+	struct intel_gt *gt = &i915->gt;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	lockdep_assert_held(&i915->drm.struct_mutex);
-
 	do {
-		for_each_engine(engine, i915, id)
+		for_each_engine(engine, gt, id)
 			mock_engine_flush(engine);
-	} while (i915_retire_requests(i915));
+	} while (intel_gt_retire_requests_timeout(gt, MAX_SCHEDULE_TIMEOUT));
 }
 
 static void mock_device_release(struct drm_device *dev)
 {
 	struct drm_i915_private *i915 = to_i915(dev);
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 
-	mutex_lock(&i915->drm.struct_mutex);
+	if (!i915->do_release)
+		goto out;
+
 	mock_device_flush(i915);
-	mutex_unlock(&i915->drm.struct_mutex);
+	intel_gt_driver_remove(&i915->gt);
 
-	flush_work(&i915->gem.idle_work);
+	i915_gem_driver_release__contexts(i915);
+
 	i915_gem_drain_workqueue(i915);
-
-	mutex_lock(&i915->drm.struct_mutex);
-	for_each_engine(engine, i915, id)
-		mock_engine_free(engine);
-	i915_gem_contexts_fini(i915);
-	mutex_unlock(&i915->drm.struct_mutex);
-
-	intel_timelines_fini(i915);
-
-	drain_workqueue(i915->wq);
 	i915_gem_drain_freed_objects(i915);
 
-	mutex_lock(&i915->drm.struct_mutex);
 	mock_fini_ggtt(&i915->ggtt);
-	mutex_unlock(&i915->drm.struct_mutex);
-
 	destroy_workqueue(i915->wq);
 
-	i915_gemfs_fini(i915);
+	intel_gt_driver_late_release(&i915->gt);
+	intel_memory_regions_driver_release(i915);
 
 	drm_mode_config_cleanup(&i915->drm);
 
-	drm_dev_fini(&i915->drm);
-	put_device(&i915->drm.pdev->dev);
+out:
+	i915_params_free(&i915->params);
 }
 
 static struct drm_driver mock_driver = {
@@ -101,14 +95,6 @@ static void release_dev(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	kfree(pdev);
-}
-
-static void mock_retire_work_handler(struct work_struct *work)
-{
-}
-
-static void mock_idle_work_handler(struct work_struct *work)
-{
 }
 
 static int pm_domain_resume(struct device *dev)
@@ -130,14 +116,15 @@ static struct dev_pm_domain pm_domain = {
 
 struct drm_i915_private *mock_gem_device(void)
 {
+#if IS_ENABLED(CONFIG_IOMMU_API) && defined(CONFIG_INTEL_IOMMU)
+	static struct dev_iommu fake_iommu = { .priv = (void *)-1 };
+#endif
 	struct drm_i915_private *i915;
 	struct pci_dev *pdev;
-	int err;
 
-	pdev = kzalloc(sizeof(*pdev) + sizeof(*i915), GFP_KERNEL);
+	pdev = kzalloc(sizeof(*pdev), GFP_KERNEL);
 	if (!pdev)
-		goto err;
-
+		return NULL;
 	device_initialize(&pdev->dev);
 	pdev->class = PCI_BASE_CLASS_DISPLAY << 16;
 	pdev->dev.release = release_dev;
@@ -145,12 +132,26 @@ struct drm_i915_private *mock_gem_device(void)
 	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 
 #if IS_ENABLED(CONFIG_IOMMU_API) && defined(CONFIG_INTEL_IOMMU)
-	/* hack to disable iommu for the fake device; force identity mapping */
-	pdev->dev.archdata.iommu = (void *)-1;
+	/* HACK to disable iommu for the fake device; force identity mapping */
+	pdev->dev.iommu = &fake_iommu;
 #endif
+	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL)) {
+		put_device(&pdev->dev);
+		return NULL;
+	}
 
-	i915 = (struct drm_i915_private *)(pdev + 1);
+	i915 = devm_drm_dev_alloc(&pdev->dev, &mock_driver,
+				  struct drm_i915_private, drm);
+	if (IS_ERR(i915)) {
+		pr_err("Failed to allocate mock GEM device: err=%ld\n", PTR_ERR(i915));
+		devres_release_group(&pdev->dev, NULL);
+		put_device(&pdev->dev);
+
+		return NULL;
+	}
+
 	pci_set_drvdata(pdev, i915);
+	i915->drm.pdev = pdev;
 
 	dev_pm_domain_set(&pdev->dev, &pm_domain);
 	pm_runtime_enable(&pdev->dev);
@@ -158,13 +159,8 @@ struct drm_i915_private *mock_gem_device(void)
 	if (pm_runtime_enabled(&pdev->dev))
 		WARN_ON(pm_runtime_get_sync(&pdev->dev));
 
-	err = drm_dev_init(&i915->drm, &mock_driver, &pdev->dev);
-	if (err) {
-		pr_err("Failed to initialise mock GEM device: err=%d\n", err);
-		goto put_device;
-	}
-	i915->drm.pdev = pdev;
-	i915->drm.dev_private = i915;
+
+	i915_params_copy(&i915->params, &i915_modparams);
 
 	intel_runtime_pm_init_early(&i915->runtime_pm);
 
@@ -178,10 +174,15 @@ struct drm_i915_private *mock_gem_device(void)
 		I915_GTT_PAGE_SIZE_64K |
 		I915_GTT_PAGE_SIZE_2M;
 
-	mock_uncore_init(&i915->uncore);
+	mkwrite_device_info(i915)->memory_regions = REGION_SMEM;
+	intel_memory_regions_hw_probe(i915);
+
+	mock_uncore_init(&i915->uncore, i915);
+
 	i915_gem_init__mm(i915);
 	intel_gt_init_early(&i915->gt, i915);
 	atomic_inc(&i915->gt.wakeref.count); /* disable; no hw support */
+	i915->gt.awake = -ENODEV;
 
 	i915->wq = alloc_ordered_workqueue("mock", 0);
 	if (!i915->wq)
@@ -189,50 +190,43 @@ struct drm_i915_private *mock_gem_device(void)
 
 	mock_init_contexts(i915);
 
-	INIT_DELAYED_WORK(&i915->gem.retire_work, mock_retire_work_handler);
-	INIT_WORK(&i915->gem.idle_work, mock_idle_work_handler);
-
-	i915->gt.awake = true;
-
-	intel_timelines_init(i915);
-
-	mutex_lock(&i915->drm.struct_mutex);
-
 	mock_init_ggtt(i915, &i915->ggtt);
+	i915->gt.vm = i915_vm_get(&i915->ggtt.vm);
 
-	mkwrite_device_info(i915)->engine_mask = BIT(0);
+	mkwrite_device_info(i915)->platform_engine_mask = BIT(0);
+	i915->gt.info.engine_mask = BIT(0);
 
-	i915->engine[RCS0] = mock_engine(i915, "mock", RCS0);
-	if (!i915->engine[RCS0])
+	i915->gt.engine[RCS0] = mock_engine(i915, "mock", RCS0);
+	if (!i915->gt.engine[RCS0])
 		goto err_unlock;
 
-	i915->kernel_context = mock_context(i915, NULL);
-	if (!i915->kernel_context)
-		goto err_engine;
-
-	if (mock_engine_init(i915->engine[RCS0]))
+	if (mock_engine_init(i915->gt.engine[RCS0]))
 		goto err_context;
 
+	__clear_bit(I915_WEDGED, &i915->gt.reset.flags);
 	intel_engines_driver_register(i915);
-	mutex_unlock(&i915->drm.struct_mutex);
 
-	WARN_ON(i915_gemfs_init(i915));
+	i915->do_release = true;
 
 	return i915;
 
 err_context:
-	i915_gem_contexts_fini(i915);
-err_engine:
-	mock_engine_free(i915->engine[RCS0]);
+	intel_gt_driver_remove(&i915->gt);
 err_unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
-	intel_timelines_fini(i915);
 	destroy_workqueue(i915->wq);
 err_drv:
+	intel_gt_driver_late_release(&i915->gt);
+	intel_memory_regions_driver_release(i915);
 	drm_mode_config_cleanup(&i915->drm);
-	drm_dev_fini(&i915->drm);
-put_device:
-	put_device(&pdev->dev);
-err:
+	mock_destroy_device(i915);
+
 	return NULL;
+}
+
+void mock_destroy_device(struct drm_i915_private *i915)
+{
+	struct device *dev = i915->drm.dev;
+
+	devres_release_group(dev, NULL);
+	put_device(dev);
 }

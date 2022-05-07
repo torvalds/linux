@@ -27,7 +27,7 @@
 	};
 
 	panel: panel {
-		compatible = "foxlink,fl500wvr00-a0t", "simple-panel";
+		compatible = "foxlink,fl500wvr00-a0t";
 		backlight = <&backlight>;
 		power-supply = <&panel_reg>;
 		#address-cells = <1>;

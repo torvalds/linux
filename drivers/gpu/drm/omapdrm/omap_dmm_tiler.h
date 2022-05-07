@@ -113,7 +113,7 @@ extern struct platform_driver omap_dmm_driver;
 /* GEM bo flags -> tiler fmt */
 static inline enum tiler_fmt gem2fmt(u32 flags)
 {
-	switch (flags & OMAP_BO_TILED) {
+	switch (flags & OMAP_BO_TILED_MASK) {
 	case OMAP_BO_TILED_8:
 		return TILFMT_8BIT;
 	case OMAP_BO_TILED_16:

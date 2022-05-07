@@ -74,15 +74,15 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return ret;
 	}
 
-	denali->reg = ioremap_nocache(csr_base, csr_len);
+	denali->reg = ioremap(csr_base, csr_len);
 	if (!denali->reg) {
 		dev_err(&dev->dev, "Spectra: Unable to remap memory region\n");
 		return -ENOMEM;
 	}
 
-	denali->host = ioremap_nocache(mem_base, mem_len);
+	denali->host = ioremap(mem_base, mem_len);
 	if (!denali->host) {
-		dev_err(&dev->dev, "Spectra: ioremap_nocache failed!");
+		dev_err(&dev->dev, "Spectra: ioremap failed!");
 		ret = -ENOMEM;
 		goto out_unmap_reg;
 	}
@@ -100,7 +100,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto out_remove_denali;
 	}
 
-	dchip->chip.ecc.options |= NAND_ECC_MAXIMIZE;
+	dchip->chip.base.ecc.user_conf.flags |= NAND_ECC_MAXIMIZE_STRENGTH;
 
 	dchip->nsels = nsels;
 

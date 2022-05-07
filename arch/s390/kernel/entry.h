@@ -9,7 +9,6 @@
 #include <asm/idle.h>
 
 extern void *restart_stack;
-extern unsigned long suspend_zero_pages;
 
 void system_call(void);
 void pgm_check_handler(void);
@@ -17,13 +16,15 @@ void ext_int_handler(void);
 void io_int_handler(void);
 void mcck_int_handler(void);
 void restart_int_handler(void);
-void restart_call_handler(void);
 
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
 asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);
 
 void do_protection_exception(struct pt_regs *regs);
 void do_dat_exception(struct pt_regs *regs);
+void do_secure_storage_access(struct pt_regs *regs);
+void do_non_secure_storage_access(struct pt_regs *regs);
+void do_secure_storage_violation(struct pt_regs *regs);
 
 void addressing_exception(struct pt_regs *regs);
 void data_exception(struct pt_regs *regs);
@@ -45,6 +46,7 @@ void specification_exception(struct pt_regs *regs);
 void transaction_exception(struct pt_regs *regs);
 void translation_exception(struct pt_regs *regs);
 void vector_exception(struct pt_regs *regs);
+void monitor_event_exception(struct pt_regs *regs);
 
 void do_per_trap(struct pt_regs *regs);
 void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str);
@@ -58,12 +60,10 @@ void do_notify_resume(struct pt_regs *regs);
 void __init init_IRQ(void);
 void do_IRQ(struct pt_regs *regs, int irq);
 void do_restart(void);
-void __init startup_init_nobss(void);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);
 int setup_profiling_timer(unsigned int multiplier);
 void __init time_init(void);
-void s390_early_resume(void);
 unsigned long prepare_ftrace_return(unsigned long parent, unsigned long sp, unsigned long ip);
 
 struct s390_mmap_arg_struct;
@@ -87,5 +87,7 @@ void set_fs_fixup(void);
 
 unsigned long stack_alloc(void);
 void stack_free(unsigned long stack);
+
+extern char kprobes_insn_page[];
 
 #endif /* _ENTRY_H */

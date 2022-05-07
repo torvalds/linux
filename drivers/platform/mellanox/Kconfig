@@ -6,7 +6,7 @@
 menuconfig MELLANOX_PLATFORM
 	bool "Platform support for Mellanox hardware"
 	depends on X86 || ARM || ARM64 || COMPILE_TEST
-	---help---
+	help
 	  Say Y here to get to see options for platform support for
 	  Mellanox systems. This option alone does not add any kernel code.
 
@@ -19,7 +19,7 @@ config MLXREG_HOTPLUG
 	depends on REGMAP
 	depends on HWMON
 	depends on I2C
-	---help---
+	help
 	  This driver handles hot-plug events for the power suppliers, power
 	  cables and fans on the wide range Mellanox IB and Ethernet systems.
 
@@ -41,7 +41,19 @@ config MLXBF_TMFIFO
 	depends on VIRTIO_CONSOLE && VIRTIO_NET
 	help
 	  Say y here to enable TmFifo support. The TmFifo driver provides
-          platform driver support for the TmFifo which supports console
-          and networking based on the virtio framework.
+	  platform driver support for the TmFifo which supports console
+	  and networking based on the virtio framework.
+
+config MLXBF_BOOTCTL
+	tristate "Mellanox BlueField Firmware Boot Control driver"
+	depends on ARM64
+	depends on ACPI
+	help
+	  The Mellanox BlueField firmware implements functionality to
+	  request swapping the primary and alternate eMMC boot partition,
+	  and to set up a watchdog that can undo that swap if the system
+	  does not boot up correctly. This driver provides sysfs access
+	  to the userspace tools, to be used in conjunction with the eMMC
+	  device driver to do necessary initial swap of the boot partition.
 
 endif # MELLANOX_PLATFORM

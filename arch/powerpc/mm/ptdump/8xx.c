@@ -5,12 +5,22 @@
  *
  */
 #include <linux/kernel.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include "ptdump.h"
 
 static const struct flag_info flag_array[] = {
 	{
+#ifdef CONFIG_PPC_16K_PAGES
+		.mask	= _PAGE_HUGE,
+		.val	= _PAGE_HUGE,
+#else
+		.mask	= _PAGE_SPS,
+		.val	= _PAGE_SPS,
+#endif
+		.set	= "huge",
+		.clear	= "    ",
+	}, {
 		.mask	= _PAGE_SH,
 		.val	= 0,
 		.set	= "user",

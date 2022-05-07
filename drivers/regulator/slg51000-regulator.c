@@ -198,17 +198,14 @@ static int slg51000_of_parse_cb(struct device_node *np,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
 {
-	struct slg51000 *chip = config->driver_data;
 	struct gpio_desc *ena_gpiod;
-	enum gpiod_flags gflags = GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE;
 
-	ena_gpiod = devm_gpiod_get_from_of_node(chip->dev, np,
-						"enable-gpios", 0,
-						gflags, "gpio-en-ldo");
-	if (!IS_ERR(ena_gpiod)) {
+	ena_gpiod = fwnode_gpiod_get_index(of_fwnode_handle(np), "enable", 0,
+					   GPIOD_OUT_LOW |
+						GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+					   "gpio-en-ldo");
+	if (!IS_ERR(ena_gpiod))
 		config->ena_gpiod = ena_gpiod;
-		devm_gpiod_unhinge(chip->dev, config->ena_gpiod);
-	}
 
 	return 0;
 }
@@ -322,7 +319,7 @@ static int slg51000_regulator_init(struct slg51000 *chip)
 				rdesc->linear_min_sel = 0;
 				break;
 			}
-			/* Fall through - to the check below.*/
+			fallthrough;	/* to the check below */
 
 		default:
 			rdesc->linear_min_sel = vsel_range[0];
@@ -389,10 +386,8 @@ static irqreturn_t slg51000_irq_handler(int irq, void *data)
 	for (i = 0; i < SLG51000_MAX_REGULATORS; i++) {
 		if (!(evt[i][R2] & SLG51000_IRQ_ILIM_FLAG_MASK) &&
 		    (evt[i][R0] & SLG51000_EVT_ILIM_FLAG_MASK)) {
-			regulator_lock(chip->rdev[i]);
 			regulator_notifier_call_chain(chip->rdev[i],
 					    REGULATOR_EVENT_OVER_CURRENT, NULL);
-			regulator_unlock(chip->rdev[i]);
 
 			if (evt[i][R1] & SLG51000_STA_ILIM_FLAG_MASK)
 				dev_warn(chip->dev,
@@ -406,10 +401,8 @@ static irqreturn_t slg51000_irq_handler(int irq, void *data)
 		for (i = 0; i < SLG51000_MAX_REGULATORS; i++) {
 			if (!(evt[i][R1] & SLG51000_STA_ILIM_FLAG_MASK) &&
 			    (evt[i][R1] & SLG51000_STA_VOUT_OK_FLAG_MASK)) {
-				regulator_lock(chip->rdev[i]);
 				regulator_notifier_call_chain(chip->rdev[i],
 					       REGULATOR_EVENT_OVER_TEMP, NULL);
-				regulator_unlock(chip->rdev[i]);
 			}
 		}
 		handled = IRQ_HANDLED;
@@ -442,8 +435,7 @@ static void slg51000_clear_fault_log(struct slg51000 *chip)
 		dev_dbg(chip->dev, "Fault log: FLT_POR\n");
 }
 
-static int slg51000_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int slg51000_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct slg51000 *chip;
@@ -512,7 +504,7 @@ static struct i2c_driver slg51000_regulator_driver = {
 	.driver = {
 		.name = "slg51000-regulator",
 	},
-	.probe = slg51000_i2c_probe,
+	.probe_new = slg51000_i2c_probe,
 	.id_table = slg51000_i2c_id,
 };
 

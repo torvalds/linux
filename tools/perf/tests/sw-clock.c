@@ -15,6 +15,7 @@
 #include "util/mmap.h"
 #include "util/thread_map.h"
 #include <perf/evlist.h>
+#include <perf/mmap.h>
 
 #define NR_LOOPS  10000000
 
@@ -55,7 +56,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 
 	evsel = evsel__new(&attr);
 	if (evsel == NULL) {
-		pr_debug("perf_evsel__new\n");
+		pr_debug("evsel__new\n");
 		goto out_delete_evlist;
 	}
 	evlist__add(evlist, evsel);
@@ -99,10 +100,10 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	evlist__disable(evlist);
 
 	md = &evlist->mmap[0];
-	if (perf_mmap__read_init(md) < 0)
+	if (perf_mmap__read_init(&md->core) < 0)
 		goto out_init;
 
-	while ((event = perf_mmap__read_event(md)) != NULL) {
+	while ((event = perf_mmap__read_event(&md->core)) != NULL) {
 		struct perf_sample sample;
 
 		if (event->header.type != PERF_RECORD_SAMPLE)
@@ -117,9 +118,9 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		total_periods += sample.period;
 		nr_samples++;
 next_event:
-		perf_mmap__consume(md);
+		perf_mmap__consume(&md->core);
 	}
-	perf_mmap__read_done(md);
+	perf_mmap__read_done(&md->core);
 
 out_init:
 	if ((u64) nr_samples == total_periods) {

@@ -132,7 +132,7 @@ static int at91_usart_spi_configure_dma(struct spi_controller *ctlr,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	ctlr->dma_tx = dma_request_slave_channel_reason(dev, "tx");
+	ctlr->dma_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR_OR_NULL(ctlr->dma_tx)) {
 		if (IS_ERR(ctlr->dma_tx)) {
 			err = PTR_ERR(ctlr->dma_tx);
@@ -145,7 +145,7 @@ static int at91_usart_spi_configure_dma(struct spi_controller *ctlr,
 		goto at91_usart_spi_error_clear;
 	}
 
-	ctlr->dma_rx = dma_request_slave_channel_reason(dev, "rx");
+	ctlr->dma_rx = dma_request_chan(dev, "rx");
 	if (IS_ERR_OR_NULL(ctlr->dma_rx)) {
 		if (IS_ERR(ctlr->dma_rx)) {
 			err = PTR_ERR(ctlr->dma_rx);
@@ -680,13 +680,6 @@ static const struct dev_pm_ops at91_usart_spi_pm_ops = {
 	SET_RUNTIME_PM_OPS(at91_usart_spi_runtime_suspend,
 			   at91_usart_spi_runtime_resume, NULL)
 };
-
-static const struct of_device_id at91_usart_spi_dt_ids[] = {
-	{ .compatible = "microchip,at91sam9g45-usart-spi"},
-	{ /* sentinel */}
-};
-
-MODULE_DEVICE_TABLE(of, at91_usart_spi_dt_ids);
 
 static struct platform_driver at91_usart_spi_driver = {
 	.driver = {

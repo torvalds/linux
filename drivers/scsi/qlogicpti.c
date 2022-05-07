@@ -30,6 +30,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/firmware.h>
+#include <linux/pgtable.h>
 
 #include <asm/byteorder.h>
 
@@ -37,7 +38,6 @@
 
 #include <asm/dma.h>
 #include <asm/ptrace.h>
-#include <asm/pgtable.h>
 #include <asm/oplib.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -200,15 +200,15 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 	/* Write mailbox command registers. */
 	switch (mbox_param[param[0]] >> 4) {
 	case 6: sbus_writew(param[5], qpti->qregs + MBOX5);
-		/* Fall through */
+		fallthrough;
 	case 5: sbus_writew(param[4], qpti->qregs + MBOX4);
-		/* Fall through */
+		fallthrough;
 	case 4: sbus_writew(param[3], qpti->qregs + MBOX3);
-		/* Fall through */
+		fallthrough;
 	case 3: sbus_writew(param[2], qpti->qregs + MBOX2);
-		/* Fall through */
+		fallthrough;
 	case 2: sbus_writew(param[1], qpti->qregs + MBOX1);
-		/* Fall through */
+		fallthrough;
 	case 1: sbus_writew(param[0], qpti->qregs + MBOX0);
 	}
 
@@ -259,15 +259,15 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 	/* Read back output parameters. */
 	switch (mbox_param[param[0]] & 0xf) {
 	case 6: param[5] = sbus_readw(qpti->qregs + MBOX5);
-		/* Fall through */
+		fallthrough;
 	case 5: param[4] = sbus_readw(qpti->qregs + MBOX4);
-		/* Fall through */
+		fallthrough;
 	case 4: param[3] = sbus_readw(qpti->qregs + MBOX3);
-		/* Fall through */
+		fallthrough;
 	case 3: param[2] = sbus_readw(qpti->qregs + MBOX2);
-		/* Fall through */
+		fallthrough;
 	case 2: param[1] = sbus_readw(qpti->qregs + MBOX1);
-		/* Fall through */
+		fallthrough;
 	case 1: param[0] = sbus_readw(qpti->qregs + MBOX0);
 	}
 
@@ -1468,22 +1468,10 @@ static struct platform_driver qpti_sbus_driver = {
 	.probe		= qpti_sbus_probe,
 	.remove		= qpti_sbus_remove,
 };
-
-static int __init qpti_init(void)
-{
-	return platform_driver_register(&qpti_sbus_driver);
-}
-
-static void __exit qpti_exit(void)
-{
-	platform_driver_unregister(&qpti_sbus_driver);
-}
+module_platform_driver(qpti_sbus_driver);
 
 MODULE_DESCRIPTION("QlogicISP SBUS driver");
 MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("2.1");
 MODULE_FIRMWARE("qlogic/isp1000.bin");
-
-module_init(qpti_init);
-module_exit(qpti_exit);

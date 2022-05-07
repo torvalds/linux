@@ -11,7 +11,7 @@ config TLS
 	select STREAM_PARSER
 	select NET_SOCK_MSG
 	default n
-	---help---
+	help
 	Enable kernel support for TLS protocol. This allows symmetric
 	encryption handling of the TLS protocol to be done in-kernel.
 
@@ -24,5 +24,15 @@ config TLS_DEVICE
 	default n
 	help
 	Enable kernel support for HW offload of the TLS protocol.
+
+	If unsure, say N.
+
+config TLS_TOE
+	bool "Transport Layer Security TCP stack bypass"
+	depends on TLS
+	default n
+	help
+	Enable kernel support for legacy HW offload of the TLS protocol,
+	which is incompatible with the Linux networking stack semantics.
 
 	If unsure, say N.

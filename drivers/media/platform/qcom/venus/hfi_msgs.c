@@ -138,7 +138,7 @@ static void event_sys_error(struct venus_core *core, u32 event,
 			    struct hfi_msg_event_notify_pkt *pkt)
 {
 	if (pkt)
-		dev_dbg(core->dev,
+		dev_dbg(core->dev, VDBGH
 			"sys error (session id:%x, data1:%x, data2:%x)\n",
 			pkt->shdr.session_id, pkt->event_data1,
 			pkt->event_data2);
@@ -152,7 +152,7 @@ event_session_error(struct venus_core *core, struct venus_inst *inst,
 {
 	struct device *dev = core->dev;
 
-	dev_dbg(dev, "session error: event id:%x, session id:%x\n",
+	dev_dbg(dev, VDBGH "session error: event id:%x, session id:%x\n",
 		pkt->event_data1, pkt->shdr.session_id);
 
 	if (!inst)
@@ -247,7 +247,7 @@ sys_get_prop_image_version(struct device *dev,
 		/* bad packet */
 		return;
 
-	dev_dbg(dev, "F/W version: %s\n", (u8 *)&pkt->data[1]);
+	dev_dbg(dev, VDBGL "F/W version: %s\n", (u8 *)&pkt->data[1]);
 }
 
 static void hfi_sys_property_info(struct venus_core *core,
@@ -257,7 +257,7 @@ static void hfi_sys_property_info(struct venus_core *core,
 	struct device *dev = core->dev;
 
 	if (!pkt->num_properties) {
-		dev_dbg(dev, "%s: no properties\n", __func__);
+		dev_dbg(dev, VDBGL "no properties\n");
 		return;
 	}
 
@@ -266,7 +266,7 @@ static void hfi_sys_property_info(struct venus_core *core,
 		sys_get_prop_image_version(dev, pkt);
 		break;
 	default:
-		dev_dbg(dev, "%s: unknown property data\n", __func__);
+		dev_dbg(dev, VDBGL "unknown property data\n");
 		break;
 	}
 }
@@ -297,7 +297,7 @@ static void hfi_sys_ping_done(struct venus_core *core, struct venus_inst *inst,
 static void hfi_sys_idle_done(struct venus_core *core, struct venus_inst *inst,
 			      void *packet)
 {
-	dev_dbg(core->dev, "sys idle\n");
+	dev_dbg(core->dev, VDBGL "sys idle\n");
 }
 
 static void hfi_sys_pc_prepare_done(struct venus_core *core,
@@ -305,7 +305,8 @@ static void hfi_sys_pc_prepare_done(struct venus_core *core,
 {
 	struct hfi_msg_sys_pc_prep_done_pkt *pkt = packet;
 
-	dev_dbg(core->dev, "pc prepare done (error %x)\n", pkt->error_type);
+	dev_dbg(core->dev, VDBGL "pc prepare done (error %x)\n",
+		pkt->error_type);
 }
 
 static unsigned int
@@ -387,8 +388,7 @@ static void hfi_session_prop_info(struct venus_core *core,
 	case HFI_PROPERTY_CONFIG_VDEC_ENTROPY:
 		break;
 	default:
-		dev_dbg(dev, "%s: unknown property id:%x\n", __func__,
-			pkt->data[0]);
+		dev_dbg(dev, VDBGM "unknown property id:%x\n", pkt->data[0]);
 		return;
 	}
 
@@ -439,6 +439,8 @@ static void hfi_session_flush_done(struct venus_core *core,
 
 	inst->error = pkt->error_type;
 	complete(&inst->done);
+	if (inst->ops->flush_done)
+		inst->ops->flush_done(inst);
 }
 
 static void hfi_session_etb_done(struct venus_core *core,

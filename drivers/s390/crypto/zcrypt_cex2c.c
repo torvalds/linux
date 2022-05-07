@@ -25,6 +25,7 @@
 #include "zcrypt_msgtype6.h"
 #include "zcrypt_cex2c.h"
 #include "zcrypt_cca_key.h"
+#include "zcrypt_ccamisc.h"
 
 #define CEX2C_MIN_MOD_SIZE	 16	/*  128 bits	*/
 #define CEX2C_MAX_MOD_SIZE	256	/* 2048 bits	*/
@@ -58,6 +59,118 @@ static struct ap_device_id zcrypt_cex2c_queue_ids[] = {
 
 MODULE_DEVICE_TABLE(ap, zcrypt_cex2c_queue_ids);
 
+/*
+ * CCA card additional device attributes
+ */
+static ssize_t cca_serialnr_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct cca_info ci;
+	struct ap_card *ac = to_ap_card(dev);
+	struct zcrypt_card *zc = ac->private;
+
+	memset(&ci, 0, sizeof(ci));
+
+	if (ap_domain_index >= 0)
+		cca_get_info(ac->id, ap_domain_index, &ci, zc->online);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", ci.serial);
+}
+
+static struct device_attribute dev_attr_cca_serialnr =
+	__ATTR(serialnr, 0444, cca_serialnr_show, NULL);
+
+static struct attribute *cca_card_attrs[] = {
+	&dev_attr_cca_serialnr.attr,
+	NULL,
+};
+
+static const struct attribute_group cca_card_attr_grp = {
+	.attrs = cca_card_attrs,
+};
+
+ /*
+  * CCA queue additional device attributes
+  */
+static ssize_t cca_mkvps_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	int n = 0;
+	struct cca_info ci;
+	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
+	static const char * const cao_state[] = { "invalid", "valid" };
+	static const char * const new_state[] = { "empty", "partial", "full" };
+
+	memset(&ci, 0, sizeof(ci));
+
+	cca_get_info(AP_QID_CARD(zq->queue->qid),
+		     AP_QID_QUEUE(zq->queue->qid),
+		     &ci, zq->online);
+
+	if (ci.new_aes_mk_state >= '1' && ci.new_aes_mk_state <= '3')
+		n = scnprintf(buf, PAGE_SIZE, "AES NEW: %s 0x%016llx\n",
+			      new_state[ci.new_aes_mk_state - '1'],
+			      ci.new_aes_mkvp);
+	else
+		n = scnprintf(buf, PAGE_SIZE, "AES NEW: - -\n");
+
+	if (ci.cur_aes_mk_state >= '1' && ci.cur_aes_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "AES CUR: %s 0x%016llx\n",
+			       cao_state[ci.cur_aes_mk_state - '1'],
+			       ci.cur_aes_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "AES CUR: - -\n");
+
+	if (ci.old_aes_mk_state >= '1' && ci.old_aes_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "AES OLD: %s 0x%016llx\n",
+			       cao_state[ci.old_aes_mk_state - '1'],
+			       ci.old_aes_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "AES OLD: - -\n");
+
+	if (ci.new_apka_mk_state >= '1' && ci.new_apka_mk_state <= '3')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "APKA NEW: %s 0x%016llx\n",
+			       new_state[ci.new_apka_mk_state - '1'],
+			       ci.new_apka_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "APKA NEW: - -\n");
+
+	if (ci.cur_apka_mk_state >= '1' && ci.cur_apka_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "APKA CUR: %s 0x%016llx\n",
+			       cao_state[ci.cur_apka_mk_state - '1'],
+			       ci.cur_apka_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "APKA CUR: - -\n");
+
+	if (ci.old_apka_mk_state >= '1' && ci.old_apka_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "APKA OLD: %s 0x%016llx\n",
+			       cao_state[ci.old_apka_mk_state - '1'],
+			       ci.old_apka_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "APKA OLD: - -\n");
+
+	return n;
+}
+
+static struct device_attribute dev_attr_cca_mkvps =
+	__ATTR(mkvps, 0444, cca_mkvps_show, NULL);
+
+static struct attribute *cca_queue_attrs[] = {
+	&dev_attr_cca_mkvps.attr,
+	NULL,
+};
+
+static const struct attribute_group cca_queue_attr_grp = {
+	.attrs = cca_queue_attrs,
+};
+
 /**
  * Large random number detection function. Its sends a message to a CEX2C/CEX3C
  * card to find out if large random numbers are supported.
@@ -87,24 +200,23 @@ static int zcrypt_cex2c_rng_supported(struct ap_queue *aq)
 	int rc, i;
 
 	ap_init_message(&ap_msg);
-	ap_msg.message = (void *) get_zeroed_page(GFP_KERNEL);
-	if (!ap_msg.message)
+	ap_msg.msg = (void *) get_zeroed_page(GFP_KERNEL);
+	if (!ap_msg.msg)
 		return -ENOMEM;
 
 	rng_type6CPRB_msgX(&ap_msg, 4, &domain);
 
-	msg = ap_msg.message;
+	msg = ap_msg.msg;
 	msg->cprbx.domain = AP_QID_QUEUE(aq->qid);
 
-	rc = ap_send(aq->qid, 0x0102030405060708ULL, ap_msg.message,
-		     ap_msg.length);
+	rc = ap_send(aq->qid, 0x0102030405060708ULL, ap_msg.msg, ap_msg.len);
 	if (rc)
 		goto out_free;
 
 	/* Wait for the test message to complete. */
 	for (i = 0; i < 2 * HZ; i++) {
 		msleep(1000 / HZ);
-		rc = ap_recv(aq->qid, &psmid, ap_msg.message, 4096);
+		rc = ap_recv(aq->qid, &psmid, ap_msg.msg, 4096);
 		if (rc == 0 && psmid == 0x0102030405060708ULL)
 			break;
 	}
@@ -115,13 +227,13 @@ static int zcrypt_cex2c_rng_supported(struct ap_queue *aq)
 		goto out_free;
 	}
 
-	reply = ap_msg.message;
+	reply = ap_msg.msg;
 	if (reply->cprbx.ccp_rtcode == 0 && reply->cprbx.ccp_rscode == 0)
 		rc = 1;
 	else
 		rc = 0;
 out_free:
-	free_page((unsigned long) ap_msg.message);
+	free_page((unsigned long) ap_msg.msg);
 	return rc;
 }
 
@@ -154,8 +266,7 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 	case AP_DEVICE_TYPE_CEX2C:
 		zc->user_space_type = ZCRYPT_CEX2C;
 		zc->type_string = "CEX2C";
-		memcpy(zc->speed_rating, CEX2C_SPEED_IDX,
-		       sizeof(CEX2C_SPEED_IDX));
+		zc->speed_rating = CEX2C_SPEED_IDX;
 		zc->min_mod_size = CEX2C_MIN_MOD_SIZE;
 		zc->max_mod_size = CEX2C_MAX_MOD_SIZE;
 		zc->max_exp_bit_length = CEX2C_MAX_MOD_SIZE;
@@ -163,8 +274,7 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 	case AP_DEVICE_TYPE_CEX3C:
 		zc->user_space_type = ZCRYPT_CEX3C;
 		zc->type_string = "CEX3C";
-		memcpy(zc->speed_rating, CEX3C_SPEED_IDX,
-		       sizeof(CEX3C_SPEED_IDX));
+		zc->speed_rating = CEX3C_SPEED_IDX;
 		zc->min_mod_size = CEX3C_MIN_MOD_SIZE;
 		zc->max_mod_size = CEX3C_MAX_MOD_SIZE;
 		zc->max_exp_bit_length = CEX3C_MAX_MOD_SIZE;
@@ -179,6 +289,17 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 	if (rc) {
 		ac->private = NULL;
 		zcrypt_card_free(zc);
+		return rc;
+	}
+
+	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO)) {
+		rc = sysfs_create_group(&ap_dev->device.kobj,
+					&cca_card_attr_grp);
+		if (rc) {
+			zcrypt_card_unregister(zc);
+			ac->private = NULL;
+			zcrypt_card_free(zc);
+		}
 	}
 
 	return rc;
@@ -190,8 +311,11 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
  */
 static void zcrypt_cex2c_card_remove(struct ap_device *ap_dev)
 {
+	struct ap_card *ac = to_ap_card(&ap_dev->device);
 	struct zcrypt_card *zc = to_ap_card(&ap_dev->device)->private;
 
+	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO))
+		sysfs_remove_group(&ap_dev->device.kobj, &cca_card_attr_grp);
 	if (zc)
 		zcrypt_card_unregister(zc);
 }
@@ -220,6 +344,7 @@ static int zcrypt_cex2c_queue_probe(struct ap_device *ap_dev)
 	zq->queue = aq;
 	zq->online = 1;
 	atomic_set(&zq->load, 0);
+	ap_rapq(aq->qid);
 	rc = zcrypt_cex2c_rng_supported(aq);
 	if (rc < 0) {
 		zcrypt_queue_free(zq);
@@ -231,6 +356,7 @@ static int zcrypt_cex2c_queue_probe(struct ap_device *ap_dev)
 	else
 		zq->ops = zcrypt_msgtype(MSGTYPE06_NAME,
 					 MSGTYPE06_VARIANT_NORNG);
+	ap_queue_init_state(aq);
 	ap_queue_init_reply(aq, &zq->reply);
 	aq->request_timeout = CEX2C_CLEANUP_TIME;
 	aq->private = zq;
@@ -238,7 +364,19 @@ static int zcrypt_cex2c_queue_probe(struct ap_device *ap_dev)
 	if (rc) {
 		aq->private = NULL;
 		zcrypt_queue_free(zq);
+		return rc;
 	}
+
+	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO)) {
+		rc = sysfs_create_group(&ap_dev->device.kobj,
+					&cca_queue_attr_grp);
+		if (rc) {
+			zcrypt_queue_unregister(zq);
+			aq->private = NULL;
+			zcrypt_queue_free(zq);
+		}
+	}
+
 	return rc;
 }
 
@@ -251,6 +389,8 @@ static void zcrypt_cex2c_queue_remove(struct ap_device *ap_dev)
 	struct ap_queue *aq = to_ap_queue(&ap_dev->device);
 	struct zcrypt_queue *zq = aq->private;
 
+	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO))
+		sysfs_remove_group(&ap_dev->device.kobj, &cca_queue_attr_grp);
 	if (zq)
 		zcrypt_queue_unregister(zq);
 }
@@ -258,8 +398,6 @@ static void zcrypt_cex2c_queue_remove(struct ap_device *ap_dev)
 static struct ap_driver zcrypt_cex2c_queue_driver = {
 	.probe = zcrypt_cex2c_queue_probe,
 	.remove = zcrypt_cex2c_queue_remove,
-	.suspend = ap_queue_suspend,
-	.resume = ap_queue_resume,
 	.ids = zcrypt_cex2c_queue_ids,
 	.flags = AP_DRIVER_FLAG_DEFAULT,
 };

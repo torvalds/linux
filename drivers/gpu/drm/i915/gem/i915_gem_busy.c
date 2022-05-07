@@ -9,16 +9,16 @@
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
 
-static __always_inline u32 __busy_read_flag(u8 id)
+static __always_inline u32 __busy_read_flag(u16 id)
 {
-	if (id == (u8)I915_ENGINE_CLASS_INVALID)
+	if (id == (u16)I915_ENGINE_CLASS_INVALID)
 		return 0xffff0000u;
 
 	GEM_BUG_ON(id >= 16);
 	return 0x10000u << id;
 }
 
-static __always_inline u32 __busy_write_id(u8 id)
+static __always_inline u32 __busy_write_id(u16 id)
 {
 	/*
 	 * The uABI guarantees an active writer is also amongst the read
@@ -29,14 +29,14 @@ static __always_inline u32 __busy_write_id(u8 id)
 	 * last_read - hence we always set both read and write busy for
 	 * last_write.
 	 */
-	if (id == (u8)I915_ENGINE_CLASS_INVALID)
+	if (id == (u16)I915_ENGINE_CLASS_INVALID)
 		return 0xffffffffu;
 
 	return (id + 1) | __busy_read_flag(id);
 }
 
 static __always_inline unsigned int
-__busy_set_if_active(const struct dma_fence *fence, u32 (*flag)(u8 id))
+__busy_set_if_active(const struct dma_fence *fence, u32 (*flag)(u16 id))
 {
 	const struct i915_request *rq;
 
@@ -57,7 +57,7 @@ __busy_set_if_active(const struct dma_fence *fence, u32 (*flag)(u8 id))
 		return 0;
 
 	/* Beware type-expansion follies! */
-	BUILD_BUG_ON(!typecheck(u8, rq->engine->uabi_class));
+	BUILD_BUG_ON(!typecheck(u16, rq->engine->uabi_class));
 	return flag(rq->engine->uabi_class);
 }
 

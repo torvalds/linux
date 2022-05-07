@@ -74,6 +74,15 @@ enum blk_zone_cond {
 };
 
 /**
+ * enum blk_zone_report_flags - Feature flags of reported zone descriptors.
+ *
+ * @BLK_ZONE_REP_CAPACITY: Zone descriptor has capacity field.
+ */
+enum blk_zone_report_flags {
+	BLK_ZONE_REP_CAPACITY	= (1 << 0),
+};
+
+/**
  * struct blk_zone - Zone descriptor for BLKREPORTZONE ioctl.
  *
  * @start: Zone start in 512 B sector units
@@ -84,12 +93,15 @@ enum blk_zone_cond {
  * @non_seq: Flag indicating that the zone is using non-sequential resources
  *           (for host-aware zoned block devices only).
  * @reset: Flag indicating that a zone reset is recommended.
- * @reserved: Padding to 64 B to match the ZBC/ZAC defined zone descriptor size.
+ * @resv: Padding for 8B alignment.
+ * @capacity: Zone usable capacity in 512 B sector units
+ * @reserved: Padding to 64 B to match the ZBC, ZAC and ZNS defined zone
+ *            descriptor size.
  *
- * start, len and wp use the regular 512 B sector unit, regardless of the
- * device logical block size. The overall structure size is 64 B to match the
- * ZBC/ZAC defined zone descriptor and allow support for future additional
- * zone information.
+ * start, len, capacity and wp use the regular 512 B sector unit, regardless
+ * of the device logical block size. The overall structure size is 64 B to
+ * match the ZBC, ZAC and ZNS defined zone descriptor and allow support for
+ * future additional zone information.
  */
 struct blk_zone {
 	__u64	start;		/* Zone start sector */
@@ -99,7 +111,9 @@ struct blk_zone {
 	__u8	cond;		/* Zone condition */
 	__u8	non_seq;	/* Non-sequential write resources active */
 	__u8	reset;		/* Reset write pointer recommended */
-	__u8	reserved[36];
+	__u8	resv[4];
+	__u64	capacity;	/* Zone capacity in number of sectors */
+	__u8	reserved[24];
 };
 
 /**
@@ -107,7 +121,7 @@ struct blk_zone {
  *
  * @sector: starting sector of report
  * @nr_zones: IN maximum / OUT actual
- * @reserved: padding to 16 byte alignment
+ * @flags: one or more flags as defined by enum blk_zone_report_flags.
  * @zones: Space to hold @nr_zones @zones entries on reply.
  *
  * The array of at most @nr_zones must follow this structure in memory.
@@ -115,14 +129,16 @@ struct blk_zone {
 struct blk_zone_report {
 	__u64		sector;
 	__u32		nr_zones;
-	__u8		reserved[4];
+	__u32		flags;
 	struct blk_zone zones[0];
 };
 
 /**
- * struct blk_zone_range - BLKRESETZONE ioctl request
- * @sector: starting sector of the first zone to issue reset write pointer
- * @nr_sectors: Total number of sectors of 1 or more zones to reset
+ * struct blk_zone_range - BLKRESETZONE/BLKOPENZONE/
+ *                         BLKCLOSEZONE/BLKFINISHZONE ioctl
+ *                         requests
+ * @sector: Starting sector of the first zone to operate on.
+ * @nr_sectors: Total number of sectors of all zones to operate on.
  */
 struct blk_zone_range {
 	__u64		sector;
@@ -139,10 +155,19 @@ struct blk_zone_range {
  *                sector range. The sector range must be zone aligned.
  * @BLKGETZONESZ: Get the device zone size in number of 512 B sectors.
  * @BLKGETNRZONES: Get the total number of zones of the device.
+ * @BLKOPENZONE: Open the zones in the specified sector range.
+ *               The 512 B sector range must be zone aligned.
+ * @BLKCLOSEZONE: Close the zones in the specified sector range.
+ *                The 512 B sector range must be zone aligned.
+ * @BLKFINISHZONE: Mark the zones as full in the specified sector range.
+ *                 The 512 B sector range must be zone aligned.
  */
 #define BLKREPORTZONE	_IOWR(0x12, 130, struct blk_zone_report)
 #define BLKRESETZONE	_IOW(0x12, 131, struct blk_zone_range)
 #define BLKGETZONESZ	_IOR(0x12, 132, __u32)
 #define BLKGETNRZONES	_IOR(0x12, 133, __u32)
+#define BLKOPENZONE	_IOW(0x12, 134, struct blk_zone_range)
+#define BLKCLOSEZONE	_IOW(0x12, 135, struct blk_zone_range)
+#define BLKFINISHZONE	_IOW(0x12, 136, struct blk_zone_range)
 
 #endif /* _UAPI_BLKZONED_H */

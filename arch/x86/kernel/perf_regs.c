@@ -101,8 +101,7 @@ u64 perf_reg_abi(struct task_struct *task)
 }
 
 void perf_get_regs_user(struct perf_regs *regs_user,
-			struct pt_regs *regs,
-			struct pt_regs *regs_user_copy)
+			struct pt_regs *regs)
 {
 	regs_user->regs = task_pt_regs(current);
 	regs_user->abi = perf_reg_abi(current);
@@ -129,11 +128,19 @@ u64 perf_reg_abi(struct task_struct *task)
 		return PERF_SAMPLE_REGS_ABI_64;
 }
 
+static DEFINE_PER_CPU(struct pt_regs, nmi_user_regs);
+
 void perf_get_regs_user(struct perf_regs *regs_user,
-			struct pt_regs *regs,
-			struct pt_regs *regs_user_copy)
+			struct pt_regs *regs)
 {
+	struct pt_regs *regs_user_copy = this_cpu_ptr(&nmi_user_regs);
 	struct pt_regs *user_regs = task_pt_regs(current);
+
+	if (!in_nmi()) {
+		regs_user->regs = user_regs;
+		regs_user->abi = perf_reg_abi(current);
+		return;
+	}
 
 	/*
 	 * If we're in an NMI that interrupted task_pt_regs setup, then

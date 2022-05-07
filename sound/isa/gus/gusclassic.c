@@ -67,9 +67,9 @@ static int snd_gusclassic_create(struct snd_card *card,
 				 struct device *dev, unsigned int n,
 				 struct snd_gus_card **rgus)
 {
-	static long possible_ports[] = {0x220, 0x230, 0x240, 0x250, 0x260};
-	static int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, 4, -1};
-	static int possible_dmas[] = {5, 6, 7, 1, 3, -1};
+	static const long possible_ports[] = {0x220, 0x230, 0x240, 0x250, 0x260};
+	static const int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, 4, -1};
+	static const int possible_dmas[] = {5, 6, 7, 1, 3, -1};
 
 	int i, error;
 

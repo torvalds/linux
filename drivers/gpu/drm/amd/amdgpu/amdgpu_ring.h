@@ -30,10 +30,14 @@
 
 /* max number of rings */
 #define AMDGPU_MAX_RINGS		28
+#define AMDGPU_MAX_HWIP_RINGS		8
 #define AMDGPU_MAX_GFX_RINGS		2
 #define AMDGPU_MAX_COMPUTE_RINGS	8
 #define AMDGPU_MAX_VCE_RINGS		3
 #define AMDGPU_MAX_UVD_ENC_RINGS	2
+
+#define AMDGPU_RING_PRIO_DEFAULT	1
+#define AMDGPU_RING_PRIO_MAX		AMDGPU_GFX_PIPE_PRIO_MAX
 
 /* some special values for the owner field */
 #define AMDGPU_FENCE_OWNER_UNDEFINED	((void *)0ul)
@@ -46,17 +50,31 @@
 
 #define to_amdgpu_ring(s) container_of((s), struct amdgpu_ring, sched)
 
+#define AMDGPU_IB_POOL_SIZE	(1024 * 1024)
+
 enum amdgpu_ring_type {
-	AMDGPU_RING_TYPE_GFX,
-	AMDGPU_RING_TYPE_COMPUTE,
-	AMDGPU_RING_TYPE_SDMA,
-	AMDGPU_RING_TYPE_UVD,
-	AMDGPU_RING_TYPE_VCE,
+	AMDGPU_RING_TYPE_GFX		= AMDGPU_HW_IP_GFX,
+	AMDGPU_RING_TYPE_COMPUTE	= AMDGPU_HW_IP_COMPUTE,
+	AMDGPU_RING_TYPE_SDMA		= AMDGPU_HW_IP_DMA,
+	AMDGPU_RING_TYPE_UVD		= AMDGPU_HW_IP_UVD,
+	AMDGPU_RING_TYPE_VCE		= AMDGPU_HW_IP_VCE,
+	AMDGPU_RING_TYPE_UVD_ENC	= AMDGPU_HW_IP_UVD_ENC,
+	AMDGPU_RING_TYPE_VCN_DEC	= AMDGPU_HW_IP_VCN_DEC,
+	AMDGPU_RING_TYPE_VCN_ENC	= AMDGPU_HW_IP_VCN_ENC,
+	AMDGPU_RING_TYPE_VCN_JPEG	= AMDGPU_HW_IP_VCN_JPEG,
 	AMDGPU_RING_TYPE_KIQ,
-	AMDGPU_RING_TYPE_UVD_ENC,
-	AMDGPU_RING_TYPE_VCN_DEC,
-	AMDGPU_RING_TYPE_VCN_ENC,
-	AMDGPU_RING_TYPE_VCN_JPEG
+	AMDGPU_RING_TYPE_MES
+};
+
+enum amdgpu_ib_pool_type {
+	/* Normal submissions to the top of the pipeline. */
+	AMDGPU_IB_POOL_DELAYED,
+	/* Immediate submissions to the bottom of the pipeline. */
+	AMDGPU_IB_POOL_IMMEDIATE,
+	/* Direct submission to the ring buffer during init and reset. */
+	AMDGPU_IB_POOL_DIRECT,
+
+	AMDGPU_IB_POOL_MAX
 };
 
 struct amdgpu_device;
@@ -64,6 +82,11 @@ struct amdgpu_ring;
 struct amdgpu_ib;
 struct amdgpu_cs_parser;
 struct amdgpu_job;
+
+struct amdgpu_sched {
+	u32				num_scheds;
+	struct drm_gpu_scheduler	*sched[AMDGPU_MAX_HWIP_RINGS];
+};
 
 /*
  * Fences.
@@ -96,7 +119,8 @@ void amdgpu_fence_driver_suspend(struct amdgpu_device *adev);
 void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
 int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **fence,
 		      unsigned flags);
-int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s);
+int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s,
+			      uint32_t timeout);
 bool amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 signed long amdgpu_fence_wait_polling(struct amdgpu_ring *ring,
@@ -159,20 +183,20 @@ struct amdgpu_ring_funcs {
 	void (*end_use)(struct amdgpu_ring *ring);
 	void (*emit_switch_buffer) (struct amdgpu_ring *ring);
 	void (*emit_cntxcntl) (struct amdgpu_ring *ring, uint32_t flags);
-	void (*emit_rreg)(struct amdgpu_ring *ring, uint32_t reg);
+	void (*emit_rreg)(struct amdgpu_ring *ring, uint32_t reg,
+			  uint32_t reg_val_offs);
 	void (*emit_wreg)(struct amdgpu_ring *ring, uint32_t reg, uint32_t val);
 	void (*emit_reg_wait)(struct amdgpu_ring *ring, uint32_t reg,
 			      uint32_t val, uint32_t mask);
 	void (*emit_reg_write_reg_wait)(struct amdgpu_ring *ring,
 					uint32_t reg0, uint32_t reg1,
 					uint32_t ref, uint32_t mask);
-	void (*emit_tmz)(struct amdgpu_ring *ring, bool start);
-	/* priority functions */
-	void (*set_priority) (struct amdgpu_ring *ring,
-			      enum drm_sched_priority priority);
+	void (*emit_frame_cntl)(struct amdgpu_ring *ring, bool start,
+				bool secure);
 	/* Try to soft recover the ring to make the fence signal */
 	void (*soft_recovery)(struct amdgpu_ring *ring, unsigned vmid);
 	int (*preempt_ib)(struct amdgpu_ring *ring);
+	void (*emit_mem_sync)(struct amdgpu_ring *ring);
 };
 
 struct amdgpu_ring {
@@ -217,8 +241,9 @@ struct amdgpu_ring {
 	unsigned		vm_inv_eng;
 	struct dma_fence	*vmid_wait;
 	bool			has_compute_vm_bug;
+	bool			no_scheduler;
 
-	atomic_t		num_jobs[DRM_SCHED_PRIORITY_MAX];
+	atomic_t		num_jobs[DRM_SCHED_PRIORITY_COUNT];
 	struct mutex		priority_mutex;
 	/* protected by priority_mutex */
 	int			priority;
@@ -243,11 +268,11 @@ struct amdgpu_ring {
 #define amdgpu_ring_emit_hdp_flush(r) (r)->funcs->emit_hdp_flush((r))
 #define amdgpu_ring_emit_switch_buffer(r) (r)->funcs->emit_switch_buffer((r))
 #define amdgpu_ring_emit_cntxcntl(r, d) (r)->funcs->emit_cntxcntl((r), (d))
-#define amdgpu_ring_emit_rreg(r, d) (r)->funcs->emit_rreg((r), (d))
+#define amdgpu_ring_emit_rreg(r, d, o) (r)->funcs->emit_rreg((r), (d), (o))
 #define amdgpu_ring_emit_wreg(r, d, v) (r)->funcs->emit_wreg((r), (d), (v))
 #define amdgpu_ring_emit_reg_wait(r, d, v, m) (r)->funcs->emit_reg_wait((r), (d), (v), (m))
 #define amdgpu_ring_emit_reg_write_reg_wait(r, d0, d1, v, m) (r)->funcs->emit_reg_write_reg_wait((r), (d0), (d1), (v), (m))
-#define amdgpu_ring_emit_tmz(r, b) (r)->funcs->emit_tmz((r), (b))
+#define amdgpu_ring_emit_frame_cntl(r, b, s) (r)->funcs->emit_frame_cntl((r), (b), (s))
 #define amdgpu_ring_pad_ib(r, ib) ((r)->funcs->pad_ib((r), (ib)))
 #define amdgpu_ring_init_cond_exec(r) (r)->funcs->init_cond_exec((r))
 #define amdgpu_ring_patch_cond_exec(r,o) (r)->funcs->patch_cond_exec((r),(o))
@@ -258,13 +283,9 @@ void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
-void amdgpu_ring_priority_get(struct amdgpu_ring *ring,
-			      enum drm_sched_priority priority);
-void amdgpu_ring_priority_put(struct amdgpu_ring *ring,
-			      enum drm_sched_priority priority);
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
-		     unsigned ring_size, struct amdgpu_irq_src *irq_src,
-		     unsigned irq_type);
+		     unsigned int ring_size, struct amdgpu_irq_src *irq_src,
+		     unsigned int irq_type, unsigned int prio);
 void amdgpu_ring_fini(struct amdgpu_ring *ring);
 void amdgpu_ring_emit_reg_write_reg_wait_helper(struct amdgpu_ring *ring,
 						uint32_t reg0, uint32_t val0,
@@ -327,5 +348,9 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
 }
 
 int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
+
+int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
+			     struct amdgpu_ring *ring);
+void amdgpu_debugfs_ring_fini(struct amdgpu_ring *ring);
 
 #endif

@@ -44,7 +44,7 @@ intermediate::
             def_bool y
 
 Then, Kconfig moves onto the evaluation stage to resolve inter-symbol
-dependency as explained in kconfig-language.txt.
+dependency as explained in kconfig-language.rst.
 
 
 Variables

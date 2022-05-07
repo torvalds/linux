@@ -23,6 +23,7 @@ struct max8998_battery_data {
 static enum power_supply_property max8998_battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT, /* the presence of battery */
 	POWER_SUPPLY_PROP_ONLINE, /* charger is active or not */
+	POWER_SUPPLY_PROP_STATUS, /* charger is charging/discharging/full */
 };
 
 /* Note that the charger control is done by a current regulator "CHARGER" */
@@ -49,10 +50,28 @@ static int max8998_battery_get_property(struct power_supply *psy,
 		ret = max8998_read_reg(i2c, MAX8998_REG_STATUS2, &reg);
 		if (ret)
 			return ret;
-		if (reg & (1 << 3))
-			val->intval = 0;
-		else
+
+		if (reg & (1 << 5))
 			val->intval = 1;
+		else
+			val->intval = 0;
+
+		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		ret = max8998_read_reg(i2c, MAX8998_REG_STATUS2, &reg);
+		if (ret)
+			return ret;
+
+		if (!(reg & (1 << 5))) {
+			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		} else {
+			if (reg & (1 << 6))
+				val->intval = POWER_SUPPLY_STATUS_FULL;
+			else if (reg & (1 << 3))
+				val->intval = POWER_SUPPLY_STATUS_CHARGING;
+			else
+				val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		}
 		break;
 	default:
 		return -EINVAL;

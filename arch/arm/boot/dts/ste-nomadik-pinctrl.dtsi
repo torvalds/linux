@@ -25,6 +25,11 @@
 		ste,output = <OUTPUT_LOW>;
 	};
 
+	gpio_in_nopull: gpio_input_nopull {
+		ste,gpio = <GPIOMODE_ENABLED>;
+		ste,input = <INPUT_NOPULL>;
+	};
+
 	gpio_in_pu: gpio_input_pull_up {
 		ste,gpio = <GPIOMODE_ENABLED>;
 		ste,input = <INPUT_PULLUP>;

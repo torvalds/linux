@@ -10,6 +10,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/sched/signal.h>
@@ -360,7 +361,6 @@ static long rtc_dev_ioctl(struct file *file,
 	case RTC_IRQP_SET:
 		err = rtc_irq_set_freq(rtc, arg);
 		break;
-
 	case RTC_IRQP_READ:
 		err = put_user(rtc->irq_freq, (unsigned long __user *)uarg);
 		break;
@@ -399,6 +399,34 @@ done:
 	return err;
 }
 
+#ifdef CONFIG_COMPAT
+#define RTC_IRQP_SET32		_IOW('p', 0x0c, __u32)
+#define RTC_IRQP_READ32		_IOR('p', 0x0b, __u32)
+#define RTC_EPOCH_SET32		_IOW('p', 0x0e, __u32)
+
+static long rtc_dev_compat_ioctl(struct file *file,
+				 unsigned int cmd, unsigned long arg)
+{
+	struct rtc_device *rtc = file->private_data;
+	void __user *uarg = compat_ptr(arg);
+
+	switch (cmd) {
+	case RTC_IRQP_READ32:
+		return put_user(rtc->irq_freq, (__u32 __user *)uarg);
+
+	case RTC_IRQP_SET32:
+		/* arg is a plain integer, not pointer */
+		return rtc_dev_ioctl(file, RTC_IRQP_SET, arg);
+
+	case RTC_EPOCH_SET32:
+		/* arg is a plain integer, not pointer */
+		return rtc_dev_ioctl(file, RTC_EPOCH_SET, arg);
+	}
+
+	return rtc_dev_ioctl(file, cmd, (unsigned long)uarg);
+}
+#endif
+
 static int rtc_dev_fasync(int fd, struct file *file, int on)
 {
 	struct rtc_device *rtc = file->private_data;
@@ -434,6 +462,9 @@ static const struct file_operations rtc_dev_fops = {
 	.read		= rtc_dev_read,
 	.poll		= rtc_dev_poll,
 	.unlocked_ioctl	= rtc_dev_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= rtc_dev_compat_ioctl,
+#endif
 	.open		= rtc_dev_open,
 	.release	= rtc_dev_release,
 	.fasync		= rtc_dev_fasync,

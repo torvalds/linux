@@ -6,7 +6,6 @@ Kconfig Parameters:
 
 CONFIG_DEBUG_LOCK_ALLOC -- Do three, covering CONFIG_PROVE_LOCKING & not.
 CONFIG_DEBUG_OBJECTS_RCU_HEAD -- Do one.
-CONFIG_HOTPLUG_CPU -- Do half.  (Every second.)
 CONFIG_HZ_PERIODIC -- Do one.
 CONFIG_NO_HZ_IDLE -- Do those not otherwise specified. (Groups of two.)
 CONFIG_NO_HZ_FULL -- Do two, one with partial CPU enablement.

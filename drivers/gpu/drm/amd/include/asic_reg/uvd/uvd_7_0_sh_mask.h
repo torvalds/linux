@@ -807,5 +807,25 @@
 #define UVD_CONTEXT_ID2__CONTEXT_ID2__SHIFT                                                                   0x0
 #define UVD_CONTEXT_ID2__CONTEXT_ID2_MASK                                                                     0xFFFFFFFFL
 
+//UVD_FW_STATUS
+#define UVD_FW_STATUS__BUSY__SHIFT                                                                            0x0
+#define UVD_FW_STATUS__ACTIVE__SHIFT                                                                          0x1
+#define UVD_FW_STATUS__SEND_EFUSE_REQ__SHIFT                                                                  0x2
+#define UVD_FW_STATUS__DONE__SHIFT                                                                            0x8
+#define UVD_FW_STATUS__PASS__SHIFT                                                                            0x10
+#define UVD_FW_STATUS__FAIL__SHIFT                                                                            0x11
+#define UVD_FW_STATUS__INVALID_LEN__SHIFT                                                                     0x12
+#define UVD_FW_STATUS__INVALID_0_PADDING__SHIFT                                                               0x13
+#define UVD_FW_STATUS__INVALID_NONCE__SHIFT                                                                   0x14
+#define UVD_FW_STATUS__BUSY_MASK                                                                              0x00000001L
+#define UVD_FW_STATUS__ACTIVE_MASK                                                                            0x00000002L
+#define UVD_FW_STATUS__SEND_EFUSE_REQ_MASK                                                                    0x00000004L
+#define UVD_FW_STATUS__DONE_MASK                                                                              0x00000100L
+#define UVD_FW_STATUS__PASS_MASK                                                                              0x00010000L
+#define UVD_FW_STATUS__FAIL_MASK                                                                              0x00020000L
+#define UVD_FW_STATUS__INVALID_LEN_MASK                                                                       0x00040000L
+#define UVD_FW_STATUS__INVALID_0_PADDING_MASK                                                                 0x00080000L
+#define UVD_FW_STATUS__INVALID_NONCE_MASK                                                                     0x00100000L
+
 
 #endif

@@ -187,7 +187,7 @@ static int create_signal_event(struct file *devkfd,
 	if (p->signal_mapped_size &&
 	    p->signal_event_count == p->signal_mapped_size / 8) {
 		if (!p->signal_event_limit_reached) {
-			pr_warn("Signal event wasn't created because limit was reached\n");
+			pr_debug("Signal event wasn't created because limit was reached\n");
 			p->signal_event_limit_reached = true;
 		}
 		return -ENOSPC;
@@ -346,7 +346,6 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		ret = create_signal_event(devkfd, p, ev);
 		if (!ret) {
 			*event_page_offset = KFD_MMAP_TYPE_EVENTS;
-			*event_page_offset <<= PAGE_SHIFT;
 			*event_slot_index = ev->event_id;
 		}
 		break;
@@ -461,7 +460,7 @@ static void set_event_from_interrupt(struct kfd_process *p,
 	}
 }
 
-void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
+void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 				uint32_t valid_id_bits)
 {
 	struct kfd_event *ev = NULL;
@@ -852,8 +851,8 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 
 	if (type == KFD_EVENT_TYPE_MEMORY) {
 		dev_warn(kfd_device,
-			"Sending SIGSEGV to HSA Process with PID %d ",
-				p->lead_thread->pid);
+			"Sending SIGSEGV to process %d (pasid 0x%x)",
+				p->lead_thread->pid, p->pasid);
 		send_sig(SIGSEGV, p->lead_thread, 0);
 	}
 
@@ -861,19 +860,19 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 	if (send_signal) {
 		if (send_sigterm) {
 			dev_warn(kfd_device,
-				"Sending SIGTERM to HSA Process with PID %d ",
-					p->lead_thread->pid);
+				"Sending SIGTERM to process %d (pasid 0x%x)",
+					p->lead_thread->pid, p->pasid);
 			send_sig(SIGTERM, p->lead_thread, 0);
 		} else {
 			dev_err(kfd_device,
-				"HSA Process (PID %d) got unhandled exception",
-				p->lead_thread->pid);
+				"Process %d (pasid 0x%x) got unhandled exception",
+				p->lead_thread->pid, p->pasid);
 		}
 	}
 }
 
 #ifdef KFD_SUPPORT_IOMMU_V2
-void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
+void kfd_signal_iommu_event(struct kfd_dev *dev, u32 pasid,
 		unsigned long address, bool is_write_requested,
 		bool is_execute_requested)
 {
@@ -902,7 +901,7 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 
 	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	vma = find_vma(mm, address);
 
 	memory_exception_data.gpu_id = dev->id;
@@ -925,7 +924,7 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 			memory_exception_data.failure.NoExecute = 0;
 	}
 
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	mmput(mm);
 
 	pr_debug("notpresent %d, noexecute %d, readonly %d\n",
@@ -936,7 +935,8 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	/* Workaround on Raven to not kill the process when memory is freed
 	 * before IOMMU is able to finish processing all the excessive PPRs
 	 */
-	if (dev->device_info->asic_family != CHIP_RAVEN) {
+	if (dev->device_info->asic_family != CHIP_RAVEN &&
+	    dev->device_info->asic_family != CHIP_RENOIR) {
 		mutex_lock(&p->event_mutex);
 
 		/* Lookup events by type and signal them */
@@ -950,7 +950,7 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 }
 #endif /* KFD_SUPPORT_IOMMU_V2 */
 
-void kfd_signal_hw_exception_event(unsigned int pasid)
+void kfd_signal_hw_exception_event(u32 pasid)
 {
 	/*
 	 * Because we are called from arbitrary context (workqueue) as opposed
@@ -971,7 +971,7 @@ void kfd_signal_hw_exception_event(unsigned int pasid)
 	kfd_unref_process(p);
 }
 
-void kfd_signal_vm_fault_event(struct kfd_dev *dev, unsigned int pasid,
+void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
 				struct kfd_vm_fault_info *info)
 {
 	struct kfd_event *ev;

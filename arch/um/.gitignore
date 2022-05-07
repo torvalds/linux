@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 kernel/config.c
 kernel/config.tmp
 kernel/vmlinux.lds

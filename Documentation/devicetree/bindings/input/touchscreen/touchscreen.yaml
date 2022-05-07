@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/touchscreen.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Common touchscreen Bindings
+
+maintainers:
+  - Dmitry Torokhov <dmitry.torokhov@gmail.com>
+
+properties:
+  touchscreen-min-x:
+    description: minimum x coordinate reported
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0
+
+  touchscreen-min-y:
+    description: minimum y coordinate reported
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0
+
+  touchscreen-size-x:
+    description: horizontal resolution of touchscreen (maximum x coordinate reported + 1)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  touchscreen-size-y:
+    description: vertical resolution of touchscreen (maximum y coordinate reported + 1)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  touchscreen-max-pressure:
+    description: maximum reported pressure (arbitrary range dependent on the controller)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  touchscreen-min-pressure:
+    description: minimum pressure on the touchscreen to be achieved in order
+      for the touchscreen driver to report a touch event.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  touchscreen-fuzz-x:
+    description: horizontal noise value of the absolute input device (in pixels)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  touchscreen-fuzz-y:
+    description: vertical noise value of the absolute input device (in pixels)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  touchscreen-fuzz-pressure:
+    description: pressure noise value of the absolute input device (arbitrary
+      range dependent on the controller)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  touchscreen-average-samples:
+    description: Number of data samples which are averaged for each read (valid
+      values dependent on the controller)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  touchscreen-inverted-x:
+    description: X axis is inverted
+    type: boolean
+
+  touchscreen-inverted-y:
+    description: Y axis is inverted
+    type: boolean
+
+  touchscreen-swapped-x-y:
+    description: X and Y axis are swapped
+                 Swapping is done after inverting the axis
+    type: boolean
+
+  touchscreen-x-mm:
+    description: horizontal length in mm of the touchscreen
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  touchscreen-y-mm:
+    description: vertical length in mm of the touchscreen
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+dependencies:
+  touchscreen-size-x: [ touchscreen-size-y ]
+  touchscreen-size-y: [ touchscreen-size-x ]
+  touchscreen-x-mm: [ touchscreen-y-mm ]
+  touchscreen-y-mm: [ touchscreen-x-mm ]
+
+additionalProperties: true

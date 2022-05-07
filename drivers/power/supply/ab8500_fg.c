@@ -32,7 +32,7 @@
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500/ab8500-bm.h>
-#include <linux/mfd/abx500/ab8500-gpadc.h>
+#include <linux/iio/consumer.h>
 #include <linux/kernel.h>
 
 #define MILLI_TO_MICRO			1000
@@ -182,7 +182,7 @@ struct inst_curr_result_list {
  * @bat_cap:		Structure for battery capacity specific parameters
  * @avg_cap:		Average capacity filter
  * @parent:		Pointer to the struct ab8500
- * @gpadc:		Pointer to the struct gpadc
+ * @main_bat_v:		ADC channel for the main battery voltage
  * @bm:           	Platform specific battery management information
  * @fg_psy:		Structure that holds the FG specific battery properties
  * @fg_wq:		Work queue for running the FG algorithm
@@ -224,7 +224,7 @@ struct ab8500_fg {
 	struct ab8500_fg_battery_capacity bat_cap;
 	struct ab8500_fg_avg_cap avg_cap;
 	struct ab8500 *parent;
-	struct ab8500_gpadc *gpadc;
+	struct iio_channel *main_bat_v;
 	struct abx500_bm_data *bm;
 	struct power_supply *fg_psy;
 	struct workqueue_struct *fg_wq;
@@ -653,7 +653,7 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
 
 	/*
 	 * negative value for Discharging
-	 * convert 2's compliment into decimal
+	 * convert 2's complement into decimal
 	 */
 	if (high & 0x10)
 		val = (low | (high << 8) | 0xFFFFE000);
@@ -781,7 +781,7 @@ static void ab8500_fg_acc_cur_work(struct work_struct *work)
 	if (ret < 0)
 		goto exit;
 
-	/* Check for sign bit in case of negative value, 2's compliment */
+	/* Check for sign bit in case of negative value, 2's complement */
 	if (high & 0x10)
 		val = (low | (med << 8) | (high << 16) | 0xFFE00000);
 	else
@@ -829,13 +829,13 @@ exit:
  */
 static int ab8500_fg_bat_voltage(struct ab8500_fg *di)
 {
-	int vbat;
+	int vbat, ret;
 	static int prev;
 
-	vbat = ab8500_gpadc_convert(di->gpadc, MAIN_BAT_V);
-	if (vbat < 0) {
+	ret = iio_read_channel_processed(di->main_bat_v, &vbat);
+	if (ret < 0) {
 		dev_err(di->dev,
-			"%s gpadc conversion failed, using previous value\n",
+			"%s ADC conversion failed, using previous value\n",
 			__func__);
 		return prev;
 	}
@@ -1542,7 +1542,7 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 		ab8500_fg_discharge_state_to(di,
 			AB8500_FG_DISCHARGE_INITMEASURING);
 
-		/* Intentional fallthrough */
+		fallthrough;
 	case AB8500_FG_DISCHARGE_INITMEASURING:
 		/*
 		 * Discard a number of samples during startup.
@@ -1572,7 +1572,7 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 		ab8500_fg_discharge_state_to(di,
 			AB8500_FG_DISCHARGE_RECOVERY);
 
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case AB8500_FG_DISCHARGE_RECOVERY:
 		sleep_time = di->bm->fg_params->recovery_sleep_timer;
@@ -2221,10 +2221,10 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 						ab8500_fg_update_cap_scalers(di);
 					queue_work(di->fg_wq, &di->fg_work);
 					break;
-				};
+				}
 			default:
 				break;
-			};
+			}
 			break;
 		case POWER_SUPPLY_PROP_TECHNOLOGY:
 			switch (ext->desc->type) {
@@ -2331,7 +2331,7 @@ static int ab8500_fg_init_hw_registers(struct ab8500_fg *di)
 		if (ret) {
 			dev_err(di->dev, "%s write failed AB8505_RTC_PCUT_MAX_TIME_REG\n", __func__);
 			goto out;
-		};
+		}
 
 		ret = abx500_set_register_interruptible(di->dev, AB8500_RTC,
 			AB8505_RTC_PCUT_FLAG_TIME_REG, di->bm->fg_params->pcut_flag_time);
@@ -2339,7 +2339,7 @@ static int ab8500_fg_init_hw_registers(struct ab8500_fg *di)
 		if (ret) {
 			dev_err(di->dev, "%s write failed AB8505_RTC_PCUT_FLAG_TIME_REG\n", __func__);
 			goto out;
-		};
+		}
 
 		ret = abx500_set_register_interruptible(di->dev, AB8500_RTC,
 			AB8505_RTC_PCUT_RESTART_REG, di->bm->fg_params->pcut_max_restart);
@@ -2347,7 +2347,7 @@ static int ab8500_fg_init_hw_registers(struct ab8500_fg *di)
 		if (ret) {
 			dev_err(di->dev, "%s write failed AB8505_RTC_PCUT_RESTART_REG\n", __func__);
 			goto out;
-		};
+		}
 
 		ret = abx500_set_register_interruptible(di->dev, AB8500_RTC,
 			AB8505_RTC_PCUT_DEBOUNCE_REG, di->bm->fg_params->pcut_debounce_time);
@@ -2355,7 +2355,7 @@ static int ab8500_fg_init_hw_registers(struct ab8500_fg *di)
 		if (ret) {
 			dev_err(di->dev, "%s write failed AB8505_RTC_PCUT_DEBOUNCE_REG\n", __func__);
 			goto out;
-		};
+		}
 
 		ret = abx500_set_register_interruptible(di->dev, AB8500_RTC,
 			AB8505_RTC_PCUT_CTL_STATUS_REG, di->bm->fg_params->pcut_enable);
@@ -2363,7 +2363,7 @@ static int ab8500_fg_init_hw_registers(struct ab8500_fg *di)
 		if (ret) {
 			dev_err(di->dev, "%s write failed AB8505_RTC_PCUT_CTL_STATUS_REG\n", __func__);
 			goto out;
-		};
+		}
 	}
 out:
 	return ret;
@@ -2399,7 +2399,7 @@ static void ab8500_fg_reinit_work(struct work_struct *work)
 	struct ab8500_fg *di = container_of(work, struct ab8500_fg,
 		fg_reinit_work.work);
 
-	if (di->flags.calibrate == false) {
+	if (!di->flags.calibrate) {
 		dev_dbg(di->dev, "Resetting FG state machine to init.\n");
 		ab8500_fg_clear_cap_samples(di);
 		ab8500_fg_calc_cap_discharge_voltage(di, true);
@@ -3066,7 +3066,14 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	/* get parent data */
 	di->dev = &pdev->dev;
 	di->parent = dev_get_drvdata(pdev->dev.parent);
-	di->gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
+
+	di->main_bat_v = devm_iio_channel_get(&pdev->dev, "main_bat_v");
+	if (IS_ERR(di->main_bat_v)) {
+		if (PTR_ERR(di->main_bat_v) == -ENODEV)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "failed to get main battery ADC channel\n");
+		return PTR_ERR(di->main_bat_v);
+	}
 
 	psy_cfg.supplied_to = supply_interface;
 	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
@@ -3151,6 +3158,11 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	/* Register primary interrupt handlers */
 	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq_th); i++) {
 		irq = platform_get_irq_byname(pdev, ab8500_fg_irq_th[i].name);
+		if (irq < 0) {
+			ret = irq;
+			goto free_irq_th;
+		}
+
 		ret = request_irq(irq, ab8500_fg_irq_th[i].isr,
 				  IRQF_SHARED | IRQF_NO_SUSPEND,
 				  ab8500_fg_irq_th[i].name, di);
@@ -3158,7 +3170,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 		if (ret != 0) {
 			dev_err(di->dev, "failed to request %s IRQ %d: %d\n",
 				ab8500_fg_irq_th[i].name, irq, ret);
-			goto free_irq;
+			goto free_irq_th;
 		}
 		dev_dbg(di->dev, "Requested %s IRQ %d: %d\n",
 			ab8500_fg_irq_th[i].name, irq, ret);
@@ -3166,6 +3178,11 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 
 	/* Register threaded interrupt handler */
 	irq = platform_get_irq_byname(pdev, ab8500_fg_irq_bh[0].name);
+	if (irq < 0) {
+		ret = irq;
+		goto free_irq_th;
+	}
+
 	ret = request_threaded_irq(irq, NULL, ab8500_fg_irq_bh[0].isr,
 				IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
 			ab8500_fg_irq_bh[0].name, di);
@@ -3173,7 +3190,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(di->dev, "failed to request %s IRQ %d: %d\n",
 			ab8500_fg_irq_bh[0].name, irq, ret);
-		goto free_irq;
+		goto free_irq_th;
 	}
 	dev_dbg(di->dev, "Requested %s IRQ %d: %d\n",
 		ab8500_fg_irq_bh[0].name, irq, ret);
@@ -3212,15 +3229,17 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	return ret;
 
 free_irq:
-	power_supply_unregister(di->fg_psy);
-
 	/* We also have to free all registered irqs */
-	for (i = 0; i < ARRAY_SIZE(ab8500_fg_irq_th); i++) {
+	irq = platform_get_irq_byname(pdev, ab8500_fg_irq_bh[0].name);
+	free_irq(irq, di);
+free_irq_th:
+	while (--i >= 0) {
+		/* Last assignment of i from primary interrupt handlers */
 		irq = platform_get_irq_byname(pdev, ab8500_fg_irq_th[i].name);
 		free_irq(irq, di);
 	}
-	irq = platform_get_irq_byname(pdev, ab8500_fg_irq_bh[0].name);
-	free_irq(irq, di);
+
+	power_supply_unregister(di->fg_psy);
 free_inst_curr_wq:
 	destroy_workqueue(di->fg_wq);
 	return ret;

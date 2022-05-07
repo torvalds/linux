@@ -1,4 +1,4 @@
-.. hmm:
+.. _hmm:
 
 =====================================
 Heterogeneous Memory Management (HMM)
@@ -147,60 +147,25 @@ Address space mirroring implementation and API
 Address space mirroring's main objective is to allow duplication of a range of
 CPU page table into a device page table; HMM helps keep both synchronized. A
 device driver that wants to mirror a process address space must start with the
-registration of an hmm_mirror struct::
+registration of a mmu_interval_notifier::
 
- int hmm_mirror_register(struct hmm_mirror *mirror,
-                         struct mm_struct *mm);
+ int mmu_interval_notifier_insert(struct mmu_interval_notifier *interval_sub,
+				  struct mm_struct *mm, unsigned long start,
+				  unsigned long length,
+				  const struct mmu_interval_notifier_ops *ops);
 
-The mirror struct has a set of callbacks that are used
-to propagate CPU page tables::
-
- struct hmm_mirror_ops {
-     /* release() - release hmm_mirror
-      *
-      * @mirror: pointer to struct hmm_mirror
-      *
-      * This is called when the mm_struct is being released.  The callback
-      * must ensure that all access to any pages obtained from this mirror
-      * is halted before the callback returns. All future access should
-      * fault.
-      */
-     void (*release)(struct hmm_mirror *mirror);
-
-     /* sync_cpu_device_pagetables() - synchronize page tables
-      *
-      * @mirror: pointer to struct hmm_mirror
-      * @update: update information (see struct mmu_notifier_range)
-      * Return: -EAGAIN if update.blockable false and callback need to
-      *         block, 0 otherwise.
-      *
-      * This callback ultimately originates from mmu_notifiers when the CPU
-      * page table is updated. The device driver must update its page table
-      * in response to this callback. The update argument tells what action
-      * to perform.
-      *
-      * The device driver must not return from this callback until the device
-      * page tables are completely updated (TLBs flushed, etc); this is a
-      * synchronous call.
-      */
-     int (*sync_cpu_device_pagetables)(struct hmm_mirror *mirror,
-                                       const struct hmm_update *update);
- };
-
-The device driver must perform the update action to the range (mark range
-read only, or fully unmap, etc.). The device must complete the update before
-the driver callback returns.
+During the ops->invalidate() callback the device driver must perform the
+update action to the range (mark range read only, or fully unmap, etc.). The
+device must complete the update before the driver callback returns.
 
 When the device driver wants to populate a range of virtual addresses, it can
 use::
 
-  long hmm_range_fault(struct hmm_range *range, unsigned int flags);
+  int hmm_range_fault(struct hmm_range *range);
 
-With the HMM_RANGE_SNAPSHOT flag, it will only fetch present CPU page table
-entries and will not trigger a page fault on missing or non-present entries.
-Without that flag, it does trigger a page fault on missing or read-only entries
-if write access is requested (see below). Page faults use the generic mm page
-fault code path just like a CPU page fault.
+It will trigger a page fault on missing or read-only entries if write access is
+requested (see below). Page faults use the generic mm page fault code path just
+like a CPU page fault.
 
 Both functions copy CPU page table entries into their pfns array argument. Each
 entry in that array corresponds to an address in the virtual range. HMM
@@ -216,70 +181,43 @@ The usage pattern is::
       struct hmm_range range;
       ...
 
+      range.notifier = &interval_sub;
       range.start = ...;
       range.end = ...;
-      range.pfns = ...;
-      range.flags = ...;
-      range.values = ...;
-      range.pfn_shift = ...;
-      hmm_range_register(&range, mirror);
+      range.hmm_pfns = ...;
 
-      /*
-       * Just wait for range to be valid, safe to ignore return value as we
-       * will use the return value of hmm_range_fault() below under the
-       * mmap_sem to ascertain the validity of the range.
-       */
-      hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
+      if (!mmget_not_zero(interval_sub->notifier.mm))
+          return -EFAULT;
 
  again:
-      down_read(&mm->mmap_sem);
-      ret = hmm_range_fault(&range, HMM_RANGE_SNAPSHOT);
+      range.notifier_seq = mmu_interval_read_begin(&interval_sub);
+      mmap_read_lock(mm);
+      ret = hmm_range_fault(&range);
       if (ret) {
-          up_read(&mm->mmap_sem);
-          if (ret == -EBUSY) {
-            /*
-             * No need to check hmm_range_wait_until_valid() return value
-             * on retry we will get proper error with hmm_range_fault()
-             */
-            hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
-            goto again;
-          }
-          hmm_range_unregister(&range);
+          mmap_read_unlock(mm);
+          if (ret == -EBUSY)
+                 goto again;
           return ret;
       }
+      mmap_read_unlock(mm);
+
       take_lock(driver->update);
-      if (!hmm_range_valid(&range)) {
+      if (mmu_interval_read_retry(&ni, range.notifier_seq) {
           release_lock(driver->update);
-          up_read(&mm->mmap_sem);
           goto again;
       }
 
-      // Use pfns array content to update device page table
+      /* Use pfns array content to update device page table,
+       * under the update lock */
 
-      hmm_range_unregister(&range);
       release_lock(driver->update);
-      up_read(&mm->mmap_sem);
       return 0;
  }
 
 The driver->update lock is the same lock that the driver takes inside its
-sync_cpu_device_pagetables() callback. That lock must be held before calling
-hmm_range_valid() to avoid any race with a concurrent CPU page table update.
-
-HMM implements all this on top of the mmu_notifier API because we wanted a
-simpler API and also to be able to perform optimizations latter on like doing
-concurrent device updates in multi-devices scenario.
-
-HMM also serves as an impedance mismatch between how CPU page table updates
-are done (by CPU write to the page table and TLB flushes) and how devices
-update their own page table. Device updates are a multi-step process. First,
-appropriate commands are written to a buffer, then this buffer is scheduled for
-execution on the device. It is only once the device has executed commands in
-the buffer that the update is done. Creating and scheduling the update command
-buffer can happen concurrently for multiple devices. Waiting for each device to
-report commands as executed is serialized (there is no point in doing this
-concurrently).
-
+invalidate() callback. That lock must be held before calling
+mmu_interval_read_retry() to avoid any race with a concurrent CPU page table
+update.
 
 Leverage default_flags and pfn_flags_mask
 =========================================
@@ -288,15 +226,10 @@ The hmm_range struct has 2 fields, default_flags and pfn_flags_mask, that specif
 fault or snapshot policy for the whole range instead of having to set them
 for each entry in the pfns array.
 
-For instance, if the device flags for range.flags are::
+For instance if the device driver wants pages for a range with at least read
+permission, it sets::
 
-    range.flags[HMM_PFN_VALID] = (1 << 63);
-    range.flags[HMM_PFN_WRITE] = (1 << 62);
-
-and the device driver wants pages for a range with at least read permission,
-it sets::
-
-    range->default_flags = (1 << 63);
+    range->default_flags = HMM_PFN_REQ_FAULT;
     range->pfn_flags_mask = 0;
 
 and calls hmm_range_fault() as described above. This will fill fault all pages
@@ -305,18 +238,18 @@ in the range with at least read permission.
 Now let's say the driver wants to do the same except for one page in the range for
 which it wants to have write permission. Now driver set::
 
-    range->default_flags = (1 << 63);
-    range->pfn_flags_mask = (1 << 62);
-    range->pfns[index_of_write] = (1 << 62);
+    range->default_flags = HMM_PFN_REQ_FAULT;
+    range->pfn_flags_mask = HMM_PFN_REQ_WRITE;
+    range->pfns[index_of_write] = HMM_PFN_REQ_WRITE;
 
 With this, HMM will fault in all pages with at least read (i.e., valid) and for the
 address == range->start + (index_of_write << PAGE_SHIFT) it will fault with
 write permission i.e., if the CPU pte does not have write permission set then HMM
 will call handle_mm_fault().
 
-Note that HMM will populate the pfns array with write permission for any page
-that is mapped with CPU write permission no matter what values are set
-in default_flags or pfn_flags_mask.
+After hmm_range_fault completes the flag bits are set to the current state of
+the page tables, ie HMM_PFN_VALID | HMM_PFN_WRITE will be set if the page is
+writable.
 
 
 Represent and manage device memory from core kernel point of view
@@ -338,10 +271,139 @@ map those pages from the CPU side.
 Migration to and from device memory
 ===================================
 
-Because the CPU cannot access device memory, migration must use the device DMA
-engine to perform copy from and to device memory. For this we need to use
-migrate_vma_setup(), migrate_vma_pages(), and migrate_vma_finalize() helpers.
+Because the CPU cannot access device memory directly, the device driver must
+use hardware DMA or device specific load/store instructions to migrate data.
+The migrate_vma_setup(), migrate_vma_pages(), and migrate_vma_finalize()
+functions are designed to make drivers easier to write and to centralize common
+code across drivers.
 
+Before migrating pages to device private memory, special device private
+``struct page`` need to be created. These will be used as special "swap"
+page table entries so that a CPU process will fault if it tries to access
+a page that has been migrated to device private memory.
+
+These can be allocated and freed with::
+
+    struct resource *res;
+    struct dev_pagemap pagemap;
+
+    res = request_free_mem_region(&iomem_resource, /* number of bytes */,
+                                  "name of driver resource");
+    pagemap.type = MEMORY_DEVICE_PRIVATE;
+    pagemap.range.start = res->start;
+    pagemap.range.end = res->end;
+    pagemap.nr_range = 1;
+    pagemap.ops = &device_devmem_ops;
+    memremap_pages(&pagemap, numa_node_id());
+
+    memunmap_pages(&pagemap);
+    release_mem_region(pagemap.range.start, range_len(&pagemap.range));
+
+There are also devm_request_free_mem_region(), devm_memremap_pages(),
+devm_memunmap_pages(), and devm_release_mem_region() when the resources can
+be tied to a ``struct device``.
+
+The overall migration steps are similar to migrating NUMA pages within system
+memory (see :ref:`Page migration <page_migration>`) but the steps are split
+between device driver specific code and shared common code:
+
+1. ``mmap_read_lock()``
+
+   The device driver has to pass a ``struct vm_area_struct`` to
+   migrate_vma_setup() so the mmap_read_lock() or mmap_write_lock() needs to
+   be held for the duration of the migration.
+
+2. ``migrate_vma_setup(struct migrate_vma *args)``
+
+   The device driver initializes the ``struct migrate_vma`` fields and passes
+   the pointer to migrate_vma_setup(). The ``args->flags`` field is used to
+   filter which source pages should be migrated. For example, setting
+   ``MIGRATE_VMA_SELECT_SYSTEM`` will only migrate system memory and
+   ``MIGRATE_VMA_SELECT_DEVICE_PRIVATE`` will only migrate pages residing in
+   device private memory. If the latter flag is set, the ``args->pgmap_owner``
+   field is used to identify device private pages owned by the driver. This
+   avoids trying to migrate device private pages residing in other devices.
+   Currently only anonymous private VMA ranges can be migrated to or from
+   system memory and device private memory.
+
+   One of the first steps migrate_vma_setup() does is to invalidate other
+   device's MMUs with the ``mmu_notifier_invalidate_range_start(()`` and
+   ``mmu_notifier_invalidate_range_end()`` calls around the page table
+   walks to fill in the ``args->src`` array with PFNs to be migrated.
+   The ``invalidate_range_start()`` callback is passed a
+   ``struct mmu_notifier_range`` with the ``event`` field set to
+   ``MMU_NOTIFY_MIGRATE`` and the ``migrate_pgmap_owner`` field set to
+   the ``args->pgmap_owner`` field passed to migrate_vma_setup(). This is
+   allows the device driver to skip the invalidation callback and only
+   invalidate device private MMU mappings that are actually migrating.
+   This is explained more in the next section.
+
+   While walking the page tables, a ``pte_none()`` or ``is_zero_pfn()``
+   entry results in a valid "zero" PFN stored in the ``args->src`` array.
+   This lets the driver allocate device private memory and clear it instead
+   of copying a page of zeros. Valid PTE entries to system memory or
+   device private struct pages will be locked with ``lock_page()``, isolated
+   from the LRU (if system memory since device private pages are not on
+   the LRU), unmapped from the process, and a special migration PTE is
+   inserted in place of the original PTE.
+   migrate_vma_setup() also clears the ``args->dst`` array.
+
+3. The device driver allocates destination pages and copies source pages to
+   destination pages.
+
+   The driver checks each ``src`` entry to see if the ``MIGRATE_PFN_MIGRATE``
+   bit is set and skips entries that are not migrating. The device driver
+   can also choose to skip migrating a page by not filling in the ``dst``
+   array for that page.
+
+   The driver then allocates either a device private struct page or a
+   system memory page, locks the page with ``lock_page()``, and fills in the
+   ``dst`` array entry with::
+
+     dst[i] = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
+
+   Now that the driver knows that this page is being migrated, it can
+   invalidate device private MMU mappings and copy device private memory
+   to system memory or another device private page. The core Linux kernel
+   handles CPU page table invalidations so the device driver only has to
+   invalidate its own MMU mappings.
+
+   The driver can use ``migrate_pfn_to_page(src[i])`` to get the
+   ``struct page`` of the source and either copy the source page to the
+   destination or clear the destination device private memory if the pointer
+   is ``NULL`` meaning the source page was not populated in system memory.
+
+4. ``migrate_vma_pages()``
+
+   This step is where the migration is actually "committed".
+
+   If the source page was a ``pte_none()`` or ``is_zero_pfn()`` page, this
+   is where the newly allocated page is inserted into the CPU's page table.
+   This can fail if a CPU thread faults on the same page. However, the page
+   table is locked and only one of the new pages will be inserted.
+   The device driver will see that the ``MIGRATE_PFN_MIGRATE`` bit is cleared
+   if it loses the race.
+
+   If the source page was locked, isolated, etc. the source ``struct page``
+   information is now copied to destination ``struct page`` finalizing the
+   migration on the CPU side.
+
+5. Device driver updates device MMU page tables for pages still migrating,
+   rolling back pages not migrating.
+
+   If the ``src`` entry still has ``MIGRATE_PFN_MIGRATE`` bit set, the device
+   driver can update the device MMU and set the write enable bit if the
+   ``MIGRATE_PFN_WRITE`` bit is set.
+
+6. ``migrate_vma_finalize()``
+
+   This step replaces the special migration page table entry with the new
+   page's page table entry and releases the reference to the source and
+   destination ``struct page``.
+
+7. ``mmap_read_unlock()``
+
+   The lock can now be released.
 
 Memory cgroup (memcg) and rss accounting
 ========================================

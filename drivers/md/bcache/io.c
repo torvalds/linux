@@ -26,7 +26,7 @@ struct bio *bch_bbio_alloc(struct cache_set *c)
 	struct bbio *b = mempool_alloc(&c->bio_meta, GFP_NOIO);
 	struct bio *bio = &b->bio;
 
-	bio_init(bio, bio->bi_inline_vecs, bucket_pages(c));
+	bio_init(bio, bio->bi_inline_vecs, meta_bucket_pages(&c->cache->sb));
 
 	return bio;
 }
@@ -65,14 +65,14 @@ void bch_count_backing_io_errors(struct cached_dev *dc, struct bio *bio)
 	 * we shouldn't count failed REQ_RAHEAD bio to dc->io_errors.
 	 */
 	if (bio->bi_opf & REQ_RAHEAD) {
-		pr_warn_ratelimited("%s: Read-ahead I/O failed on backing device, ignore",
+		pr_warn_ratelimited("%s: Read-ahead I/O failed on backing device, ignore\n",
 				    dc->backing_dev_name);
 		return;
 	}
 
 	errors = atomic_add_return(1, &dc->io_errors);
 	if (errors < dc->error_limit)
-		pr_err("%s: IO error on backing device, unrecoverable",
+		pr_err("%s: IO error on backing device, unrecoverable\n",
 			dc->backing_dev_name);
 	else
 		bch_cached_dev_error(dc);
@@ -123,12 +123,12 @@ void bch_count_io_errors(struct cache *ca,
 		errors >>= IO_ERROR_SHIFT;
 
 		if (errors < ca->set->error_limit)
-			pr_err("%s: IO error on %s%s",
+			pr_err("%s: IO error on %s%s\n",
 			       ca->cache_dev_name, m,
 			       is_read ? ", recovering." : ".");
 		else
 			bch_cache_set_error(ca->set,
-					    "%s: too many IO errors %s",
+					    "%s: too many IO errors %s\n",
 					    ca->cache_dev_name, m);
 	}
 }

@@ -52,7 +52,7 @@ static void modify_qos(struct atm_vcc *vcc, struct atmsvc_msg *msg)
 			msg->type = as_okay;
 	}
 	/*
-	 * Should probably just turn around the old skb. But the, the buffer
+	 * Should probably just turn around the old skb. But then, the buffer
 	 * space accounting needs to follow the change too. Maybe later.
 	 */
 	while (!(skb = alloc_skb(sizeof(struct atmsvc_msg), GFP_KERNEL)))
@@ -109,7 +109,7 @@ static int sigd_send(struct atm_vcc *vcc, struct sk_buff *skb)
 			dev_kfree_skb(skb);
 			goto as_indicate_complete;
 		}
-		sk->sk_ack_backlog++;
+		sk_acceptq_added(sk);
 		skb_queue_tail(&sk->sk_receive_queue, skb);
 		pr_debug("waking sk_sleep(sk) 0x%p\n", sk_sleep(sk));
 		sk->sk_state_change(sk);

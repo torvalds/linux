@@ -158,7 +158,7 @@ MODULE_FIRMWARE("orinoco_ezusb_fw");
 
 
 #define EZUSB_REQUEST_FW_TRANS		0xA0
-#define EZUSB_REQUEST_TRIGER		0xAA
+#define EZUSB_REQUEST_TRIGGER		0xAA
 #define EZUSB_REQUEST_TRIG_AC		0xAC
 #define EZUSB_CPUCS_REG			0x7F92
 
@@ -202,7 +202,7 @@ struct ezusb_packet {
 	__le16 crc;		/* CRC up to here */
 	__le16 hermes_len;
 	__le16 hermes_rid;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /* Table of devices that work or may work with this driver */
@@ -365,17 +365,6 @@ static struct request_context *ezusb_alloc_ctx(struct ezusb_priv *upriv,
 	return ctx;
 }
 
-
-/* Hopefully the real complete_all will soon be exported, in the mean
- * while this should work. */
-static inline void ezusb_complete_all(struct completion *comp)
-{
-	complete(comp);
-	complete(comp);
-	complete(comp);
-	complete(comp);
-}
-
 static void ezusb_ctx_complete(struct request_context *ctx)
 {
 	struct ezusb_priv *upriv = ctx->upriv;
@@ -409,7 +398,7 @@ static void ezusb_ctx_complete(struct request_context *ctx)
 
 			netif_wake_queue(dev);
 		}
-		ezusb_complete_all(&ctx->done);
+		complete_all(&ctx->done);
 		ezusb_request_context_put(ctx);
 		break;
 
@@ -419,7 +408,7 @@ static void ezusb_ctx_complete(struct request_context *ctx)
 			/* This is normal, as all request contexts get flushed
 			 * when the device is disconnected */
 			err("Called, CTX not terminating, but device gone");
-			ezusb_complete_all(&ctx->done);
+			complete_all(&ctx->done);
 			ezusb_request_context_put(ctx);
 			break;
 		}
@@ -434,13 +423,13 @@ static void ezusb_ctx_complete(struct request_context *ctx)
 	}
 }
 
-/**
+/*
  * ezusb_req_queue_run:
  * Description:
  *	Note: Only one active CTX at any one time, because there's no
  *	other (reliable) way to match the response URB to the correct
  *	CTX.
- **/
+ */
 static void ezusb_req_queue_run(struct ezusb_priv *upriv)
 {
 	unsigned long flags;
@@ -546,7 +535,7 @@ static void ezusb_request_out_callback(struct urb *urb)
 						       flags);
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case EZUSB_CTX_RESP_RECEIVED:
 			/* IN already received before this OUT-ACK */
 			ctx->state = EZUSB_CTX_COMPLETE;
@@ -568,7 +557,7 @@ static void ezusb_request_out_callback(struct urb *urb)
 		case EZUSB_CTX_REQ_SUBMITTED:
 		case EZUSB_CTX_RESP_RECEIVED:
 			ctx->state = EZUSB_CTX_REQ_FAILED;
-			/* fall through */
+			fallthrough;
 
 		case EZUSB_CTX_REQ_FAILED:
 		case EZUSB_CTX_REQ_TIMEOUT:
@@ -690,11 +679,11 @@ static void ezusb_req_ctx_wait(struct ezusb_priv *upriv,
 			 * get the chance to run themselves. So we make sure
 			 * that we don't sleep for ever */
 			int msecs = DEF_TIMEOUT * (1000 / HZ);
-			while (!ctx->done.done && msecs--)
+
+			while (!try_wait_for_completion(&ctx->done) && msecs--)
 				udelay(1000);
 		} else {
-			wait_event_interruptible(ctx->done.wait,
-						 ctx->done.done);
+			wait_for_completion(&ctx->done);
 		}
 		break;
 	default:
@@ -715,7 +704,7 @@ static inline u16 build_crc(struct ezusb_packet *data)
 	return crc;
 }
 
-/**
+/*
  * ezusb_fill_req:
  *
  * if data == NULL and length > 0 the data is assumed to be already in
@@ -908,11 +897,11 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	case EZUSB_CTX_REQ_SUBMITTED:
 		if (!ctx->in_rid)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		err("%s: Unexpected context state %d", __func__,
 		    state);
-		/* fall through */
+		fallthrough;
 	case EZUSB_CTX_REQ_TIMEOUT:
 	case EZUSB_CTX_REQ_FAILED:
 	case EZUSB_CTX_RESP_TIMEOUT:
@@ -1329,12 +1318,12 @@ static int ezusb_hard_reset(struct orinoco_private *priv)
 	netdev_dbg(upriv->dev, "sending control message\n");
 	retval = usb_control_msg(upriv->udev,
 				 usb_sndctrlpipe(upriv->udev, 0),
-				 EZUSB_REQUEST_TRIGER,
+				 EZUSB_REQUEST_TRIGGER,
 				 USB_TYPE_VENDOR | USB_RECIP_DEVICE |
 				 USB_DIR_OUT, 0x0, 0x0, NULL, 0,
 				 DEF_TIMEOUT);
 	if (retval < 0) {
-		err("EZUSB_REQUEST_TRIGER failed retval %d", retval);
+		err("EZUSB_REQUEST_TRIGGER failed retval %d", retval);
 		return retval;
 	}
 #if 0
@@ -1361,7 +1350,8 @@ static int ezusb_init(struct hermes *hw)
 	int retval;
 
 	BUG_ON(in_interrupt());
-	BUG_ON(!upriv);
+	if (!upriv)
+		return -EINVAL;
 
 	upriv->reply_count = 0;
 	/* Write the MAGIC number on the simulated registers to keep
@@ -1608,9 +1598,9 @@ static int ezusb_probe(struct usb_interface *interface,
 	/* set up the endpoint information */
 	/* check out the endpoints */
 
-	iface_desc = &interface->altsetting[0].desc;
+	iface_desc = &interface->cur_altsetting->desc;
 	for (i = 0; i < iface_desc->bNumEndpoints; ++i) {
-		ep = &interface->altsetting[0].endpoint[i].desc;
+		ep = &interface->cur_altsetting->endpoint[i].desc;
 
 		if (usb_endpoint_is_bulk_in(ep)) {
 			/* we found a bulk in endpoint */

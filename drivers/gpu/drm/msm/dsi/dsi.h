@@ -9,6 +9,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
@@ -29,6 +30,8 @@ enum msm_dsi_phy_type {
 	MSM_DSI_PHY_28NM_8960,
 	MSM_DSI_PHY_14NM,
 	MSM_DSI_PHY_10NM,
+	MSM_DSI_PHY_7NM,
+	MSM_DSI_PHY_7NM_V4_1,
 	MSM_DSI_PHY_MAX
 };
 
@@ -177,6 +180,8 @@ int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 int msm_dsi_host_init(struct msm_dsi *msm_dsi);
 int msm_dsi_runtime_suspend(struct device *dev);
 int msm_dsi_runtime_resume(struct device *dev);
+int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host);
+int dsi_link_clk_set_rate_v2(struct msm_dsi_host *msm_host);
 int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host);
 int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host);
 void dsi_link_clk_disable_6g(struct msm_dsi_host *msm_host);

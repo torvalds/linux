@@ -200,7 +200,7 @@
 			interrupts = <59 2>;
 			interrupt-parent = <&mpic>;
 			mode = "cpu";
-			gpios = <&sdcsr_pio 7 0>;
+			cs-gpios = <&sdcsr_pio 7 0>;
 			sleep = <&pmc 0x00000800 0>;
 
 			mmc-slot@0 {

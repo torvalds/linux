@@ -21,8 +21,8 @@ static void tcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 	struct tcp_info *info = _info;
 
 	if (inet_sk_state_load(sk) == TCP_LISTEN) {
-		r->idiag_rqueue = sk->sk_ack_backlog;
-		r->idiag_wqueue = sk->sk_max_ack_backlog;
+		r->idiag_rqueue = READ_ONCE(sk->sk_ack_backlog);
+		r->idiag_wqueue = READ_ONCE(sk->sk_max_ack_backlog);
 	} else if (sk->sk_type == SOCK_STREAM) {
 		const struct tcp_sock *tp = tcp_sk(sk);
 
@@ -179,15 +179,15 @@ static size_t tcp_diag_get_aux_size(struct sock *sk, bool net_admin)
 }
 
 static void tcp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			  const struct inet_diag_req_v2 *r, struct nlattr *bc)
+			  const struct inet_diag_req_v2 *r)
 {
-	inet_diag_dump_icsk(&tcp_hashinfo, skb, cb, r, bc);
+	inet_diag_dump_icsk(&tcp_hashinfo, skb, cb, r);
 }
 
-static int tcp_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
+static int tcp_diag_dump_one(struct netlink_callback *cb,
 			     const struct inet_diag_req_v2 *req)
 {
-	return inet_diag_dump_one_icsk(&tcp_hashinfo, in_skb, nlh, req);
+	return inet_diag_dump_one_icsk(&tcp_hashinfo, cb, req);
 }
 
 #ifdef CONFIG_INET_DIAG_DESTROY

@@ -8,7 +8,6 @@
 
 struct intel_huc;
 
-void intel_huc_fw_init_early(struct intel_huc *huc);
 int intel_huc_fw_upload(struct intel_huc *huc);
 
 #endif

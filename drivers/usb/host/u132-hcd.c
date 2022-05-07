@@ -71,7 +71,7 @@ INT_MODULE_PARM(testing, 0);
 /* Some boards misreport power switching/overcurrent*/
 static bool distrust_firmware = true;
 module_param(distrust_firmware, bool, 0);
-MODULE_PARM_DESC(distrust_firmware, "true to distrust firmware power/overcurren"
+MODULE_PARM_DESC(distrust_firmware, "true to distrust firmware power/overcurrent"
 	"t setup");
 static DECLARE_WAIT_QUEUE_HEAD(u132_hcd_wait);
 /*
@@ -81,7 +81,6 @@ static DECLARE_WAIT_QUEUE_HEAD(u132_hcd_wait);
 static struct mutex u132_module_lock;
 static int u132_exiting;
 static int u132_instances;
-static struct list_head u132_static_list;
 /*
 * end of the global variables protected by u132_module_lock
 */
@@ -177,7 +176,6 @@ struct u132_ring {
 };
 struct u132 {
 	struct kref kref;
-	struct list_head u132_list;
 	struct mutex sw_lock;
 	struct mutex scheduler_lock;
 	struct u132_platform_data *board;
@@ -254,7 +252,6 @@ static void u132_hcd_delete(struct kref *kref)
 	struct usb_hcd *hcd = u132_to_hcd(u132);
 	u132->going += 1;
 	mutex_lock(&u132_module_lock);
-	list_del_init(&u132->u132_list);
 	u132_instances -= 1;
 	mutex_unlock(&u132_module_lock);
 	dev_warn(&u132->platform_dev->dev, "FREEING the hcd=%p and thus the u13"
@@ -3089,7 +3086,6 @@ static int u132_probe(struct platform_device *pdev)
 		retval = 0;
 		hcd->rsrc_start = 0;
 		mutex_lock(&u132_module_lock);
-		list_add_tail(&u132->u132_list, &u132_static_list);
 		u132->sequence_num = ++u132_instances;
 		mutex_unlock(&u132_module_lock);
 		u132_u132_init_kref(u132);
@@ -3192,7 +3188,6 @@ static struct platform_driver u132_platform_driver = {
 static int __init u132_hcd_init(void)
 {
 	int retval;
-	INIT_LIST_HEAD(&u132_static_list);
 	u132_instances = 0;
 	u132_exiting = 0;
 	mutex_init(&u132_module_lock);
@@ -3213,14 +3208,9 @@ static int __init u132_hcd_init(void)
 module_init(u132_hcd_init);
 static void __exit u132_hcd_exit(void)
 {
-	struct u132 *u132;
-	struct u132 *temp;
 	mutex_lock(&u132_module_lock);
 	u132_exiting += 1;
 	mutex_unlock(&u132_module_lock);
-	list_for_each_entry_safe(u132, temp, &u132_static_list, u132_list) {
-		platform_device_unregister(u132->platform_dev);
-	}
 	platform_driver_unregister(&u132_platform_driver);
 	printk(KERN_INFO "u132-hcd driver deregistered\n");
 	wait_event(u132_hcd_wait, u132_instances == 0);

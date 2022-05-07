@@ -26,7 +26,7 @@
  *  PCM support
  */
 
-static unsigned char rate_reg_tables[2][4][9] = {
+static const unsigned char rate_reg_tables[2][4][9] = {
 {
   /* standard rates */
   {
@@ -129,7 +129,7 @@ static unsigned char rate_reg_tables[2][4][9] = {
 }};
 
 /* FIXME: more various mappings for ADC? */
-static unsigned char rate_cregs[9] = {
+static const unsigned char rate_cregs[9] = {
 	AC97_PCM_LR_ADC_RATE,	/* 3 */
 	AC97_PCM_LR_ADC_RATE,	/* 4 */
 	0xff,			/* 5 */

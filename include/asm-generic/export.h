@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef __ASM_GENERIC_EXPORT_H
 #define __ASM_GENERIC_EXPORT_H
 
@@ -32,18 +33,19 @@
 .endm
 
 /*
- * note on .section use: @progbits vs %progbits nastiness doesn't matter,
- * since we immediately emit into those sections anyway.
+ * note on .section use: we specify progbits since usage of the "M" (SHF_MERGE)
+ * section flag requires it. Use '%progbits' instead of '@progbits' since the
+ * former apparently works on all arches according to the binutils source.
  */
+
 .macro ___EXPORT_SYMBOL name,val,sec
 #ifdef CONFIG_MODULES
-	.globl KSYM(__ksymtab_\name)
 	.section ___ksymtab\sec+\name,"a"
 	.balign KSYM_ALIGN
 KSYM(__ksymtab_\name):
 	__put \val, KSYM(__kstrtab_\name)
 	.previous
-	.section __ksymtab_strings,"a"
+	.section __ksymtab_strings,"aMS",%progbits,1
 KSYM(__kstrtab_\name):
 #ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
 	.asciz "_\name"
@@ -54,7 +56,6 @@ KSYM(__kstrtab_\name):
 #ifdef CONFIG_MODVERSIONS
 	.section ___kcrctab\sec+\name,"a"
 	.balign KCRC_ALIGN
-KSYM(__kcrctab_\name):
 #if defined(CONFIG_MODULE_REL_CRCS)
 	.long KSYM(__crc_\name) - .
 #else

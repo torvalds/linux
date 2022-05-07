@@ -39,11 +39,12 @@
 	SRII(MPCC_BG_G_Y, MPCC, inst),\
 	SRII(MPCC_BG_R_CR, MPCC, inst),\
 	SRII(MPCC_BG_B_CB, MPCC, inst),\
-	SRII(MPCC_BG_B_CB, MPCC, inst),\
-	SRII(MPCC_SM_CONTROL, MPCC, inst)
+	SRII(MPCC_SM_CONTROL, MPCC, inst),\
+	SRII(MPCC_UPDATE_LOCK_SEL, MPCC, inst)
 
 #define MPC_OUT_MUX_COMMON_REG_LIST_DCN1_0(inst) \
-	SRII(MUX, MPC_OUT, inst)
+	SRII(MUX, MPC_OUT, inst),\
+	VUPDATE_SRII(CUR, VUPDATE_LOCK_SET, inst)
 
 #define MPC_COMMON_REG_VARIABLE_LIST \
 	uint32_t MPCC_TOP_SEL[MAX_MPCC]; \
@@ -55,7 +56,9 @@
 	uint32_t MPCC_BG_R_CR[MAX_MPCC]; \
 	uint32_t MPCC_BG_B_CB[MAX_MPCC]; \
 	uint32_t MPCC_SM_CONTROL[MAX_MPCC]; \
-	uint32_t MUX[MAX_OPP];
+	uint32_t MUX[MAX_OPP]; \
+	uint32_t MPCC_UPDATE_LOCK_SEL[MAX_MPCC]; \
+	uint32_t CUR[MAX_OPP];
 
 #define MPC_COMMON_MASK_SH_LIST_DCN1_0(mask_sh)\
 	SF(MPCC0_MPCC_TOP_SEL, MPCC_TOP_SEL, mask_sh),\
@@ -78,7 +81,8 @@
 	SF(MPCC0_MPCC_SM_CONTROL, MPCC_SM_FIELD_ALT, mask_sh),\
 	SF(MPCC0_MPCC_SM_CONTROL, MPCC_SM_FORCE_NEXT_FRAME_POL, mask_sh),\
 	SF(MPCC0_MPCC_SM_CONTROL, MPCC_SM_FORCE_NEXT_TOP_POL, mask_sh),\
-	SF(MPC_OUT0_MUX, MPC_OUT_MUX, mask_sh)
+	SF(MPC_OUT0_MUX, MPC_OUT_MUX, mask_sh),\
+	SF(MPCC0_MPCC_UPDATE_LOCK_SEL, MPCC_UPDATE_LOCK_SEL, mask_sh)
 
 #define MPC_REG_FIELD_LIST(type) \
 	type MPCC_TOP_SEL;\
@@ -101,7 +105,9 @@
 	type MPCC_SM_FIELD_ALT;\
 	type MPCC_SM_FORCE_NEXT_FRAME_POL;\
 	type MPCC_SM_FORCE_NEXT_TOP_POL;\
-	type MPC_OUT_MUX;
+	type MPC_OUT_MUX;\
+	type MPCC_UPDATE_LOCK_SEL;\
+	type CUR_VUPDATE_LOCK_SET;
 
 struct dcn_mpc_registers {
 	MPC_COMMON_REG_VARIABLE_LIST
@@ -191,5 +197,7 @@ void mpc1_read_mpcc_state(
 		struct mpc *mpc,
 		int mpcc_inst,
 		struct mpcc_state *s);
+
+void mpc1_cursor_lock(struct mpc *mpc, int opp_id, bool lock);
 
 #endif

@@ -3,7 +3,7 @@
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -454,11 +454,18 @@ struct acpi_gpe_event_info {
 	u8 disable_for_dispatch;	/* Masked during dispatching */
 };
 
+/* GPE register address */
+
+struct acpi_gpe_address {
+	u8 space_id;	/* Address space where the register exists */
+	u64 address;	/* 64-bit address of the register */
+};
+
 /* Information about a GPE register pair, one per each status/enable pair in an array */
 
 struct acpi_gpe_register_info {
-	struct acpi_generic_address status_address;	/* Address of status reg */
-	struct acpi_generic_address enable_address;	/* Address of enable reg */
+	struct acpi_gpe_address status_address;	/* Address of status reg */
+	struct acpi_gpe_address enable_address;	/* Address of enable reg */
 	u16 base_gpe_number;	/* Base GPE number for this register */
 	u8 enable_for_wake;	/* GPEs to keep enabled when sleeping */
 	u8 enable_for_run;	/* GPEs to keep enabled when running */

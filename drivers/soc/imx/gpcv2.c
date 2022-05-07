@@ -14,6 +14,7 @@
 #include <linux/pm_domain.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/sizes.h>
 #include <dt-bindings/power/imx7-power.h>
 #include <dt-bindings/power/imx8mq-power.h>
 
@@ -486,22 +487,17 @@ static int imx_pgc_domain_probe(struct platform_device *pdev)
 
 	domain->regulator = devm_regulator_get_optional(domain->dev, "power");
 	if (IS_ERR(domain->regulator)) {
-		if (PTR_ERR(domain->regulator) != -ENODEV) {
-			if (PTR_ERR(domain->regulator) != -EPROBE_DEFER)
-				dev_err(domain->dev, "Failed to get domain's regulator\n");
-			return PTR_ERR(domain->regulator);
-		}
+		if (PTR_ERR(domain->regulator) != -ENODEV)
+			return dev_err_probe(domain->dev, PTR_ERR(domain->regulator),
+					     "Failed to get domain's regulator\n");
 	} else if (domain->voltage) {
 		regulator_set_voltage(domain->regulator,
 				      domain->voltage, domain->voltage);
 	}
 
 	ret = imx_pgc_get_clocks(domain);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(domain->dev, "Failed to get domain's clocks\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(domain->dev, ret, "Failed to get domain's clocks\n");
 
 	ret = pm_genpd_init(&domain->genpd, NULL, true);
 	if (ret) {

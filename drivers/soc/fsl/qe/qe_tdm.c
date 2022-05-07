@@ -169,10 +169,10 @@ void ucc_tdm_init(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info)
 				    &siram[siram_entry_id * 32 + 0x200 +  i]);
 	}
 
-	setbits16(&siram[(siram_entry_id * 32) + (utdm->num_of_ts - 1)],
-		  SIR_LAST);
-	setbits16(&siram[(siram_entry_id * 32) + 0x200 + (utdm->num_of_ts - 1)],
-		  SIR_LAST);
+	qe_setbits_be16(&siram[(siram_entry_id * 32) + (utdm->num_of_ts - 1)],
+			SIR_LAST);
+	qe_setbits_be16(&siram[(siram_entry_id * 32) + 0x200 + (utdm->num_of_ts - 1)],
+			SIR_LAST);
 
 	/* Set SIxMR register */
 	sixmr = SIMR_SAD(siram_entry_id);

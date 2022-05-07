@@ -43,6 +43,8 @@ enum {
 	HEADER_BPF_PROG_INFO,
 	HEADER_BPF_BTF,
 	HEADER_COMPRESSED,
+	HEADER_CPU_PMU_CAPS,
+	HEADER_CLOCK_DATA,
 	HEADER_LAST_FEATURE,
 	HEADER_FEAT_BITS	= 256,
 };
@@ -50,10 +52,6 @@ enum {
 enum perf_header_version {
 	PERF_HEADER_VERSION_1,
 	PERF_HEADER_VERSION_2,
-};
-
-enum perf_dir_version {
-	PERF_DIR_VERSION	= 1,
 };
 
 struct perf_file_section {

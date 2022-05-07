@@ -10,7 +10,6 @@ obj-$(CONFIG_CPU_SUBTYPE_SH7763)	+= pci-sh7780.o ops-sh4.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7780)	+= pci-sh7780.o ops-sh4.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7785)	+= pci-sh7780.o ops-sh4.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7786)	+= pcie-sh7786.o ops-sh7786.o
-obj-$(CONFIG_CPU_SH5)			+= pci-sh5.o ops-sh5.o
 
 obj-$(CONFIG_SH_DREAMCAST)		+= ops-dreamcast.o fixups-dreamcast.o \
 					   pci-dreamcast.o
@@ -26,4 +25,3 @@ obj-$(CONFIG_SH_7780_SOLUTION_ENGINE)	+= fixups-sdk7780.o
 obj-$(CONFIG_SH_TITAN)			+= fixups-titan.o
 obj-$(CONFIG_SH_LANDISK)		+= fixups-landisk.o
 obj-$(CONFIG_SH_LBOX_RE2)		+= fixups-rts7751r2d.o
-obj-$(CONFIG_SH_CAYMAN)			+= fixups-cayman.o

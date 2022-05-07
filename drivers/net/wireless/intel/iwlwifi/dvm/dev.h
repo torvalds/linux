@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014, 2020 Intel Corporation. All rights reserved.
  *
  * Contact Information:
  *  Intel Linux Wireless <linuxwifi@intel.com>
@@ -236,11 +236,6 @@ struct iwl_sensitivity_ranges {
 	u16 barker_corr_th_min_mrc;
 	u16 nrg_th_cca;
 };
-
-
-#define KELVIN_TO_CELSIUS(x) ((x)-273)
-#define CELSIUS_TO_KELVIN(x) ((x)+273)
-
 
 /******************************************************************************
  *
@@ -815,7 +810,6 @@ struct iwl_priv {
 	u8 bt_traffic_load, last_bt_traffic_load;
 	bool bt_ch_announce;
 	bool bt_full_concurrent;
-	bool bt_ant_couple_ok;
 	__le32 kill_ack_mask;
 	__le32 kill_cts_mask;
 	__le16 bt_valid;

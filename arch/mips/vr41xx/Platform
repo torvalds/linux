@@ -1,19 +1,16 @@
 #
 # NEC VR4100 series based machines
 #
-platform-$(CONFIG_MACH_VR41XX)	+= vr41xx/common/
 cflags-$(CONFIG_MACH_VR41XX)	+= -I$(srctree)/arch/mips/include/asm/mach-vr41xx
 
 #
 # CASIO CASSIPEIA E-55/65 (VR4111)
 #
-platform-$(CONFIG_CASIO_E55)	+= vr41xx/casio-e55/
 load-$(CONFIG_CASIO_E55)	+= 0xffffffff80004000
 
 #
 # IBM WorkPad z50 (VR4121)
 #
-platform-$(CONFIG_IBM_WORKPAD)	+= vr41xx/ibm-workpad/
 load-$(CONFIG_IBM_WORKPAD)	+= 0xffffffff80004000
 
 #

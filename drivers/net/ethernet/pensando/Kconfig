@@ -21,11 +21,12 @@ config IONIC
 	tristate "Pensando Ethernet IONIC Support"
 	depends on 64BIT && PCI
 	select NET_DEVLINK
+	select DIMLIB
 	help
 	  This enables the support for the Pensando family of Ethernet
 	  adapters.  More specific information on this driver can be
 	  found in
-	  <file:Documentation/networking/device_drivers/pensando/ionic.rst>.
+	  <file:Documentation/networking/device_drivers/ethernet/pensando/ionic.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ionic.

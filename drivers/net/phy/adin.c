@@ -106,8 +106,8 @@
 
 /**
  * struct adin_cfg_reg_map - map a config value to aregister value
- * @cfg		value in device configuration
- * @reg		value in the register
+ * @cfg:	value in device configuration
+ * @reg:	value in the register
  */
 struct adin_cfg_reg_map {
 	int cfg;
@@ -135,9 +135,9 @@ static const struct adin_cfg_reg_map adin_rmii_fifo_depths[] = {
 
 /**
  * struct adin_clause45_mmd_map - map to convert Clause 45 regs to Clause 22
- * @devad		device address used in Clause 45 access
- * @cl45_regnum		register address defined by Clause 45
- * @adin_regnum		equivalent register address accessible via Clause 22
+ * @devad:		device address used in Clause 45 access
+ * @cl45_regnum:	register address defined by Clause 45
+ * @adin_regnum:	equivalent register address accessible via Clause 22
  */
 struct adin_clause45_mmd_map {
 	int devad;
@@ -145,7 +145,7 @@ struct adin_clause45_mmd_map {
 	u16 adin_regnum;
 };
 
-static struct adin_clause45_mmd_map adin_clause45_mmd_map[] = {
+static const struct adin_clause45_mmd_map adin_clause45_mmd_map[] = {
 	{ MDIO_MMD_PCS,	MDIO_PCS_EEE_ABLE,	ADIN1300_EEE_CAP_REG },
 	{ MDIO_MMD_AN,	MDIO_AN_EEE_LPABLE,	ADIN1300_EEE_LPABLE_REG },
 	{ MDIO_MMD_AN,	MDIO_AN_EEE_ADV,	ADIN1300_EEE_ADV_REG },
@@ -159,7 +159,7 @@ struct adin_hw_stat {
 	u16 reg2;
 };
 
-static struct adin_hw_stat adin_hw_stats[] = {
+static const struct adin_hw_stat adin_hw_stats[] = {
 	{ "total_frames_checked_count",		0x940A, 0x940B }, /* hi + lo */
 	{ "length_error_frames_count",		0x940C },
 	{ "alignment_error_frames_count",	0x940D },
@@ -174,7 +174,7 @@ static struct adin_hw_stat adin_hw_stats[] = {
 
 /**
  * struct adin_priv - ADIN PHY driver private data
- * stats		statistic counters for the PHY
+ * @stats:		statistic counters for the PHY
  */
 struct adin_priv {
 	u64			stats[ARRAY_SIZE(adin_hw_stats)];
@@ -366,10 +366,10 @@ static int adin_set_edpd(struct phy_device *phydev, u16 tx_interval)
 
 	switch (tx_interval) {
 	case 1000: /* 1 second */
-		/* fallthrough */
+		fallthrough;
 	case ETHTOOL_PHY_EDPD_DFLT_TX_MSECS:
 		val |= ADIN1300_NRG_PD_TX_EN;
-		/* fallthrough */
+		fallthrough;
 	case ETHTOOL_PHY_EDPD_NO_TX:
 		break;
 	default:
@@ -456,7 +456,7 @@ static int adin_phy_config_intr(struct phy_device *phydev)
 static int adin_cl45_to_adin_reg(struct phy_device *phydev, int devad,
 				 u16 cl45_regnum)
 {
-	struct adin_clause45_mmd_map *m;
+	const struct adin_clause45_mmd_map *m;
 	int i;
 
 	if (devad == MDIO_MMD_VEND1)
@@ -625,7 +625,7 @@ static int adin_soft_reset(struct phy_device *phydev)
 	if (rc < 0)
 		return rc;
 
-	msleep(10);
+	msleep(20);
 
 	/* If we get a read error something may be wrong */
 	rc = phy_read_mmd(phydev, MDIO_MMD_VEND1,
@@ -650,7 +650,7 @@ static void adin_get_strings(struct phy_device *phydev, u8 *data)
 }
 
 static int adin_read_mmd_stat_regs(struct phy_device *phydev,
-				   struct adin_hw_stat *stat,
+				   const struct adin_hw_stat *stat,
 				   u32 *val)
 {
 	int ret;
@@ -676,7 +676,7 @@ static int adin_read_mmd_stat_regs(struct phy_device *phydev,
 
 static u64 adin_get_stat(struct phy_device *phydev, int i)
 {
-	struct adin_hw_stat *stat = &adin_hw_stats[i];
+	const struct adin_hw_stat *stat = &adin_hw_stats[i];
 	struct adin_priv *priv = phydev->priv;
 	u32 val;
 	int ret;

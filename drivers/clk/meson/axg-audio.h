@@ -50,6 +50,20 @@
 #define AUDIO_CLK_PDMIN_CTRL1	0x0B0
 #define AUDIO_CLK_SPDIFOUT_B_CTRL 0x0B4
 
+/* SM1 introduce new register and some shifts :( */
+#define AUDIO_CLK_GATE_EN1	0x004
+#define AUDIO_SM1_MCLK_A_CTRL	0x008
+#define AUDIO_SM1_MCLK_B_CTRL	0x00C
+#define AUDIO_SM1_MCLK_C_CTRL	0x010
+#define AUDIO_SM1_MCLK_D_CTRL	0x014
+#define AUDIO_SM1_MCLK_E_CTRL	0x018
+#define AUDIO_SM1_MCLK_F_CTRL	0x01C
+#define AUDIO_SM1_MST_PAD_CTRL0	0x020
+#define AUDIO_SM1_MST_PAD_CTRL1	0x024
+#define AUDIO_SM1_SW_RESET0	0x028
+#define AUDIO_SM1_SW_RESET1	0x02C
+#define AUDIO_CLK81_CTRL	0x030
+#define AUDIO_CLK81_EN		0x034
 /*
  * CLKID index values
  * These indices are entirely contrived and do not map onto the hardware.
@@ -115,10 +129,15 @@
 #define AUD_CLKID_TDMOUT_C_SCLK_POST_EN	150
 #define AUD_CLKID_SPDIFOUT_B_CLK_SEL	153
 #define AUD_CLKID_SPDIFOUT_B_CLK_DIV	154
+#define AUD_CLKID_CLK81_EN		173
+#define AUD_CLKID_SYSCLK_A_DIV		174
+#define AUD_CLKID_SYSCLK_B_DIV		175
+#define AUD_CLKID_SYSCLK_A_EN		176
+#define AUD_CLKID_SYSCLK_B_EN		177
 
 /* include the CLKIDs which are part of the DT bindings */
 #include <dt-bindings/clock/axg-audio-clkc.h>
 
-#define NR_CLKS	163
+#define NR_CLKS	178
 
 #endif /*__AXG_AUDIO_CLKC_H */

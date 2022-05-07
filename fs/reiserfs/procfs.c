@@ -15,6 +15,7 @@
 #include "reiserfs.h"
 #include <linux/init.h>
 #include <linux/proc_fs.h>
+#include <linux/blkdev.h>
 
 /*
  * LOCKING:
@@ -63,7 +64,6 @@ static int show_version(struct seq_file *m, void *unused)
 #define MAP( i ) D4C( objectid_map( sb, rs )[ i ] )
 
 #define DJF( x ) le32_to_cpu( rs -> x )
-#define DJV( x ) le32_to_cpu( s_v1 -> x )
 #define DJP( x ) le32_to_cpu( jp -> x )
 #define JF( x ) ( r -> s_journal -> x )
 

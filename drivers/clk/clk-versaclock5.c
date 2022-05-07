@@ -24,6 +24,8 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
+#include <dt-bindings/clk/versaclock.h>
+
 /* VersaClock5 registers */
 #define VC5_OTP_CONTROL				0x00
 
@@ -89,6 +91,28 @@
 
 /* Clock control register for clock 1,2 */
 #define VC5_CLK_OUTPUT_CFG(idx, n)	(0x60 + ((idx) * 0x2) + (n))
+#define VC5_CLK_OUTPUT_CFG0_CFG_SHIFT	5
+#define VC5_CLK_OUTPUT_CFG0_CFG_MASK GENMASK(7, VC5_CLK_OUTPUT_CFG0_CFG_SHIFT)
+
+#define VC5_CLK_OUTPUT_CFG0_CFG_LVPECL	(VC5_LVPECL)
+#define VC5_CLK_OUTPUT_CFG0_CFG_CMOS		(VC5_CMOS)
+#define VC5_CLK_OUTPUT_CFG0_CFG_HCSL33	(VC5_HCSL33)
+#define VC5_CLK_OUTPUT_CFG0_CFG_LVDS		(VC5_LVDS)
+#define VC5_CLK_OUTPUT_CFG0_CFG_CMOS2		(VC5_CMOS2)
+#define VC5_CLK_OUTPUT_CFG0_CFG_CMOSD		(VC5_CMOSD)
+#define VC5_CLK_OUTPUT_CFG0_CFG_HCSL25	(VC5_HCSL25)
+
+#define VC5_CLK_OUTPUT_CFG0_PWR_SHIFT	3
+#define VC5_CLK_OUTPUT_CFG0_PWR_MASK GENMASK(4, VC5_CLK_OUTPUT_CFG0_PWR_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_PWR_18	(0<<VC5_CLK_OUTPUT_CFG0_PWR_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_PWR_25	(2<<VC5_CLK_OUTPUT_CFG0_PWR_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_PWR_33	(3<<VC5_CLK_OUTPUT_CFG0_PWR_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT	0
+#define VC5_CLK_OUTPUT_CFG0_SLEW_MASK GENMASK(1, VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_SLEW_80	(0<<VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_SLEW_85	(1<<VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_SLEW_90	(2<<VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_SLEW_100	(3<<VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT)
 #define VC5_CLK_OUTPUT_CFG1_EN_CLKBUF	BIT(0)
 
 #define VC5_CLK_OE_SHDN				0x68
@@ -124,6 +148,7 @@ enum vc5_model {
 	IDT_VC5_5P49V5933,
 	IDT_VC5_5P49V5935,
 	IDT_VC6_5P49V6901,
+	IDT_VC6_5P49V6965,
 };
 
 /* Structure to describe features of a particular VC5 model */
@@ -144,6 +169,14 @@ struct vc5_hw_data {
 	unsigned int		num;
 };
 
+struct vc5_out_data {
+	struct clk_hw		hw;
+	struct vc5_driver_data	*vc5;
+	unsigned int		num;
+	unsigned int		clk_output_cfg0;
+	unsigned int		clk_output_cfg0_mask;
+};
+
 struct vc5_driver_data {
 	struct i2c_client	*client;
 	struct regmap		*regmap;
@@ -157,31 +190,7 @@ struct vc5_driver_data {
 	struct clk_hw		clk_pfd;
 	struct vc5_hw_data	clk_pll;
 	struct vc5_hw_data	clk_fod[VC5_MAX_FOD_NUM];
-	struct vc5_hw_data	clk_out[VC5_MAX_CLK_OUT_NUM];
-};
-
-static const char * const vc5_mux_names[] = {
-	"mux"
-};
-
-static const char * const vc5_dbl_names[] = {
-	"dbl"
-};
-
-static const char * const vc5_pfd_names[] = {
-	"pfd"
-};
-
-static const char * const vc5_pll_names[] = {
-	"pll"
-};
-
-static const char * const vc5_fod_names[] = {
-	"fod0", "fod1", "fod2", "fod3",
-};
-
-static const char * const vc5_clk_out_names[] = {
-	"out0_sel_i2cb", "out1", "out2", "out3", "out4",
+	struct vc5_out_data	clk_out[VC5_MAX_CLK_OUT_NUM];
 };
 
 /*
@@ -564,7 +573,7 @@ static const struct clk_ops vc5_fod_ops = {
 
 static int vc5_clk_out_prepare(struct clk_hw *hw)
 {
-	struct vc5_hw_data *hwdata = container_of(hw, struct vc5_hw_data, hw);
+	struct vc5_out_data *hwdata = container_of(hw, struct vc5_out_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
 	const u8 mask = VC5_OUT_DIV_CONTROL_SELB_NORM |
 			VC5_OUT_DIV_CONTROL_SEL_EXT |
@@ -590,12 +599,23 @@ static int vc5_clk_out_prepare(struct clk_hw *hw)
 	regmap_update_bits(vc5->regmap, VC5_CLK_OUTPUT_CFG(hwdata->num, 1),
 			   VC5_CLK_OUTPUT_CFG1_EN_CLKBUF,
 			   VC5_CLK_OUTPUT_CFG1_EN_CLKBUF);
+	if (hwdata->clk_output_cfg0_mask) {
+		dev_dbg(&vc5->client->dev, "Update output %d mask 0x%0X val 0x%0X\n",
+			hwdata->num, hwdata->clk_output_cfg0_mask,
+			hwdata->clk_output_cfg0);
+
+		regmap_update_bits(vc5->regmap,
+			VC5_CLK_OUTPUT_CFG(hwdata->num, 0),
+			hwdata->clk_output_cfg0_mask,
+			hwdata->clk_output_cfg0);
+	}
+
 	return 0;
 }
 
 static void vc5_clk_out_unprepare(struct clk_hw *hw)
 {
-	struct vc5_hw_data *hwdata = container_of(hw, struct vc5_hw_data, hw);
+	struct vc5_out_data *hwdata = container_of(hw, struct vc5_out_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
 
 	/* Disable the clock buffer */
@@ -605,7 +625,7 @@ static void vc5_clk_out_unprepare(struct clk_hw *hw)
 
 static unsigned char vc5_clk_out_get_parent(struct clk_hw *hw)
 {
-	struct vc5_hw_data *hwdata = container_of(hw, struct vc5_hw_data, hw);
+	struct vc5_out_data *hwdata = container_of(hw, struct vc5_out_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
 	const u8 mask = VC5_OUT_DIV_CONTROL_SELB_NORM |
 			VC5_OUT_DIV_CONTROL_SEL_EXT |
@@ -635,7 +655,7 @@ static unsigned char vc5_clk_out_get_parent(struct clk_hw *hw)
 
 static int vc5_clk_out_set_parent(struct clk_hw *hw, u8 index)
 {
-	struct vc5_hw_data *hwdata = container_of(hw, struct vc5_hw_data, hw);
+	struct vc5_out_data *hwdata = container_of(hw, struct vc5_out_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
 	const u8 mask = VC5_OUT_DIV_CONTROL_RESET |
 			VC5_OUT_DIV_CONTROL_SELB_NORM |
@@ -683,15 +703,131 @@ static int vc5_map_index_to_output(const enum vc5_model model,
 	case IDT_VC5_5P49V5925:
 	case IDT_VC5_5P49V5935:
 	case IDT_VC6_5P49V6901:
+	case IDT_VC6_5P49V6965:
 	default:
 		return n;
 	}
 }
 
+static int vc5_update_mode(struct device_node *np_output,
+			   struct vc5_out_data *clk_out)
+{
+	u32 value;
+
+	if (!of_property_read_u32(np_output, "idt,mode", &value)) {
+		clk_out->clk_output_cfg0_mask |= VC5_CLK_OUTPUT_CFG0_CFG_MASK;
+		switch (value) {
+		case VC5_CLK_OUTPUT_CFG0_CFG_LVPECL:
+		case VC5_CLK_OUTPUT_CFG0_CFG_CMOS:
+		case VC5_CLK_OUTPUT_CFG0_CFG_HCSL33:
+		case VC5_CLK_OUTPUT_CFG0_CFG_LVDS:
+		case VC5_CLK_OUTPUT_CFG0_CFG_CMOS2:
+		case VC5_CLK_OUTPUT_CFG0_CFG_CMOSD:
+		case VC5_CLK_OUTPUT_CFG0_CFG_HCSL25:
+			clk_out->clk_output_cfg0 |=
+			    value << VC5_CLK_OUTPUT_CFG0_CFG_SHIFT;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int vc5_update_power(struct device_node *np_output,
+			    struct vc5_out_data *clk_out)
+{
+	u32 value;
+
+	if (!of_property_read_u32(np_output,
+				  "idt,voltage-microvolts", &value)) {
+		clk_out->clk_output_cfg0_mask |= VC5_CLK_OUTPUT_CFG0_PWR_MASK;
+		switch (value) {
+		case 1800000:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_PWR_18;
+			break;
+		case 2500000:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_PWR_25;
+			break;
+		case 3300000:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_PWR_33;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int vc5_update_slew(struct device_node *np_output,
+			   struct vc5_out_data *clk_out)
+{
+	u32 value;
+
+	if (!of_property_read_u32(np_output, "idt,slew-percent", &value)) {
+		clk_out->clk_output_cfg0_mask |= VC5_CLK_OUTPUT_CFG0_SLEW_MASK;
+		switch (value) {
+		case 80:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_SLEW_80;
+			break;
+		case 85:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_SLEW_85;
+			break;
+		case 90:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_SLEW_90;
+			break;
+		case 100:
+			clk_out->clk_output_cfg0 |=
+			    VC5_CLK_OUTPUT_CFG0_SLEW_100;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int vc5_get_output_config(struct i2c_client *client,
+				 struct vc5_out_data *clk_out)
+{
+	struct device_node *np_output;
+	char *child_name;
+	int ret = 0;
+
+	child_name = kasprintf(GFP_KERNEL, "OUT%d", clk_out->num + 1);
+	if (!child_name)
+		return -ENOMEM;
+
+	np_output = of_get_child_by_name(client->dev.of_node, child_name);
+	kfree(child_name);
+	if (!np_output)
+		return 0;
+
+	ret = vc5_update_mode(np_output, clk_out);
+	if (ret)
+		goto output_error;
+
+	ret = vc5_update_power(np_output, clk_out);
+	if (ret)
+		goto output_error;
+
+	ret = vc5_update_slew(np_output, clk_out);
+
+output_error:
+	if (ret) {
+		dev_err(&client->dev,
+			"Invalid clock output configuration OUT%d\n",
+			clk_out->num + 1);
+	}
+
+	of_node_put(np_output);
+
+	return ret;
+}
+
 static const struct of_device_id clk_vc5_of_match[];
 
-static int vc5_probe(struct i2c_client *client,
-		     const struct i2c_device_id *id)
+static int vc5_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct vc5_driver_data *vc5;
 	struct clk_init_data init;
@@ -700,7 +836,7 @@ static int vc5_probe(struct i2c_client *client,
 	int ret;
 
 	vc5 = devm_kzalloc(&client->dev, sizeof(*vc5), GFP_KERNEL);
-	if (vc5 == NULL)
+	if (!vc5)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, vc5);
@@ -740,7 +876,7 @@ static int vc5_probe(struct i2c_client *client,
 	if (!IS_ERR(vc5->pin_clkin)) {
 		vc5->clk_mux_ins |= VC5_MUX_IN_CLKIN;
 		parent_names[init.num_parents++] =
-			__clk_get_name(vc5->pin_clkin);
+		    __clk_get_name(vc5->pin_clkin);
 	}
 
 	if (!init.num_parents) {
@@ -748,115 +884,116 @@ static int vc5_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	init.name = vc5_mux_names[0];
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.mux", client->dev.of_node);
 	init.ops = &vc5_mux_ops;
 	init.flags = 0;
 	init.parent_names = parent_names;
 	vc5->clk_mux.init = &init;
 	ret = devm_clk_hw_register(&client->dev, &vc5->clk_mux);
-	if (ret) {
-		dev_err(&client->dev, "unable to register %s\n", init.name);
-		goto err_clk;
-	}
+	if (ret)
+		goto err_clk_register;
+	kfree(init.name);	/* clock framework made a copy of the name */
 
 	if (vc5->chip_info->flags & VC5_HAS_PFD_FREQ_DBL) {
 		/* Register frequency doubler */
 		memset(&init, 0, sizeof(init));
-		init.name = vc5_dbl_names[0];
+		init.name = kasprintf(GFP_KERNEL, "%pOFn.dbl",
+				      client->dev.of_node);
 		init.ops = &vc5_dbl_ops;
 		init.flags = CLK_SET_RATE_PARENT;
-		init.parent_names = vc5_mux_names;
+		init.parent_names = parent_names;
+		parent_names[0] = clk_hw_get_name(&vc5->clk_mux);
 		init.num_parents = 1;
 		vc5->clk_mul.init = &init;
 		ret = devm_clk_hw_register(&client->dev, &vc5->clk_mul);
-		if (ret) {
-			dev_err(&client->dev, "unable to register %s\n",
-				init.name);
-			goto err_clk;
-		}
+		if (ret)
+			goto err_clk_register;
+		kfree(init.name); /* clock framework made a copy of the name */
 	}
 
 	/* Register PFD */
 	memset(&init, 0, sizeof(init));
-	init.name = vc5_pfd_names[0];
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.pfd", client->dev.of_node);
 	init.ops = &vc5_pfd_ops;
 	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = parent_names;
 	if (vc5->chip_info->flags & VC5_HAS_PFD_FREQ_DBL)
-		init.parent_names = vc5_dbl_names;
+		parent_names[0] = clk_hw_get_name(&vc5->clk_mul);
 	else
-		init.parent_names = vc5_mux_names;
+		parent_names[0] = clk_hw_get_name(&vc5->clk_mux);
 	init.num_parents = 1;
 	vc5->clk_pfd.init = &init;
 	ret = devm_clk_hw_register(&client->dev, &vc5->clk_pfd);
-	if (ret) {
-		dev_err(&client->dev, "unable to register %s\n", init.name);
-		goto err_clk;
-	}
+	if (ret)
+		goto err_clk_register;
+	kfree(init.name);	/* clock framework made a copy of the name */
 
 	/* Register PLL */
 	memset(&init, 0, sizeof(init));
-	init.name = vc5_pll_names[0];
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.pll", client->dev.of_node);
 	init.ops = &vc5_pll_ops;
 	init.flags = CLK_SET_RATE_PARENT;
-	init.parent_names = vc5_pfd_names;
+	init.parent_names = parent_names;
+	parent_names[0] = clk_hw_get_name(&vc5->clk_pfd);
 	init.num_parents = 1;
 	vc5->clk_pll.num = 0;
 	vc5->clk_pll.vc5 = vc5;
 	vc5->clk_pll.hw.init = &init;
 	ret = devm_clk_hw_register(&client->dev, &vc5->clk_pll.hw);
-	if (ret) {
-		dev_err(&client->dev, "unable to register %s\n", init.name);
-		goto err_clk;
-	}
+	if (ret)
+		goto err_clk_register;
+	kfree(init.name); /* clock framework made a copy of the name */
 
 	/* Register FODs */
 	for (n = 0; n < vc5->chip_info->clk_fod_cnt; n++) {
 		idx = vc5_map_index_to_output(vc5->chip_info->model, n);
 		memset(&init, 0, sizeof(init));
-		init.name = vc5_fod_names[idx];
+		init.name = kasprintf(GFP_KERNEL, "%pOFn.fod%d",
+				      client->dev.of_node, idx);
 		init.ops = &vc5_fod_ops;
 		init.flags = CLK_SET_RATE_PARENT;
-		init.parent_names = vc5_pll_names;
+		init.parent_names = parent_names;
+		parent_names[0] = clk_hw_get_name(&vc5->clk_pll.hw);
 		init.num_parents = 1;
 		vc5->clk_fod[n].num = idx;
 		vc5->clk_fod[n].vc5 = vc5;
 		vc5->clk_fod[n].hw.init = &init;
 		ret = devm_clk_hw_register(&client->dev, &vc5->clk_fod[n].hw);
-		if (ret) {
-			dev_err(&client->dev, "unable to register %s\n",
-				init.name);
-			goto err_clk;
-		}
+		if (ret)
+			goto err_clk_register;
+		kfree(init.name); /* clock framework made a copy of the name */
 	}
 
 	/* Register MUX-connected OUT0_I2C_SELB output */
 	memset(&init, 0, sizeof(init));
-	init.name = vc5_clk_out_names[0];
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.out0_sel_i2cb",
+			      client->dev.of_node);
 	init.ops = &vc5_clk_out_ops;
 	init.flags = CLK_SET_RATE_PARENT;
-	init.parent_names = vc5_mux_names;
+	init.parent_names = parent_names;
+	parent_names[0] = clk_hw_get_name(&vc5->clk_mux);
 	init.num_parents = 1;
 	vc5->clk_out[0].num = idx;
 	vc5->clk_out[0].vc5 = vc5;
 	vc5->clk_out[0].hw.init = &init;
 	ret = devm_clk_hw_register(&client->dev, &vc5->clk_out[0].hw);
-	if (ret) {
-		dev_err(&client->dev, "unable to register %s\n",
-			init.name);
-		goto err_clk;
-	}
+	if (ret)
+		goto err_clk_register;
+	kfree(init.name); /* clock framework made a copy of the name */
 
 	/* Register FOD-connected OUTx outputs */
 	for (n = 1; n < vc5->chip_info->clk_out_cnt; n++) {
 		idx = vc5_map_index_to_output(vc5->chip_info->model, n - 1);
-		parent_names[0] = vc5_fod_names[idx];
+		parent_names[0] = clk_hw_get_name(&vc5->clk_fod[idx].hw);
 		if (n == 1)
-			parent_names[1] = vc5_mux_names[0];
+			parent_names[1] = clk_hw_get_name(&vc5->clk_mux);
 		else
-			parent_names[1] = vc5_clk_out_names[n - 1];
+			parent_names[1] =
+			    clk_hw_get_name(&vc5->clk_out[n - 1].hw);
 
 		memset(&init, 0, sizeof(init));
-		init.name = vc5_clk_out_names[idx + 1];
+		init.name = kasprintf(GFP_KERNEL, "%pOFn.out%d",
+				      client->dev.of_node, idx + 1);
 		init.ops = &vc5_clk_out_ops;
 		init.flags = CLK_SET_RATE_PARENT;
 		init.parent_names = parent_names;
@@ -864,13 +1001,15 @@ static int vc5_probe(struct i2c_client *client,
 		vc5->clk_out[n].num = idx;
 		vc5->clk_out[n].vc5 = vc5;
 		vc5->clk_out[n].hw.init = &init;
-		ret = devm_clk_hw_register(&client->dev,
-					   &vc5->clk_out[n].hw);
-		if (ret) {
-			dev_err(&client->dev, "unable to register %s\n",
-				init.name);
+		ret = devm_clk_hw_register(&client->dev, &vc5->clk_out[n].hw);
+		if (ret)
+			goto err_clk_register;
+		kfree(init.name); /* clock framework made a copy of the name */
+
+		/* Fetch Clock Output configuration from DT (if specified) */
+		ret = vc5_get_output_config(client, &vc5->clk_out[n]);
+		if (ret)
 			goto err_clk;
-		}
 	}
 
 	ret = of_clk_add_hw_provider(client->dev.of_node, vc5_of_clk_get, vc5);
@@ -881,6 +1020,9 @@ static int vc5_probe(struct i2c_client *client,
 
 	return 0;
 
+err_clk_register:
+	dev_err(&client->dev, "unable to register %s\n", init.name);
+	kfree(init.name); /* clock framework made a copy of the name */
 err_clk:
 	if (vc5->chip_info->flags & VC5_HAS_INTERNAL_XTAL)
 		clk_unregister_fixed_rate(vc5->pin_xin);
@@ -956,12 +1098,20 @@ static const struct vc5_chip_info idt_5p49v6901_info = {
 	.flags = VC5_HAS_PFD_FREQ_DBL,
 };
 
+static const struct vc5_chip_info idt_5p49v6965_info = {
+	.model = IDT_VC6_5P49V6965,
+	.clk_fod_cnt = 4,
+	.clk_out_cnt = 5,
+	.flags = 0,
+};
+
 static const struct i2c_device_id vc5_id[] = {
 	{ "5p49v5923", .driver_data = IDT_VC5_5P49V5923 },
 	{ "5p49v5925", .driver_data = IDT_VC5_5P49V5925 },
 	{ "5p49v5933", .driver_data = IDT_VC5_5P49V5933 },
 	{ "5p49v5935", .driver_data = IDT_VC5_5P49V5935 },
 	{ "5p49v6901", .driver_data = IDT_VC6_5P49V6901 },
+	{ "5p49v6965", .driver_data = IDT_VC6_5P49V6965 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vc5_id);
@@ -972,6 +1122,7 @@ static const struct of_device_id clk_vc5_of_match[] = {
 	{ .compatible = "idt,5p49v5933", .data = &idt_5p49v5933_info },
 	{ .compatible = "idt,5p49v5935", .data = &idt_5p49v5935_info },
 	{ .compatible = "idt,5p49v6901", .data = &idt_5p49v6901_info },
+	{ .compatible = "idt,5p49v6965", .data = &idt_5p49v6965_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, clk_vc5_of_match);

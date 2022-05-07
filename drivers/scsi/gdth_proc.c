@@ -193,7 +193,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         for (i = 1;  i < MAX_RES_ARGS; i++) {
             if (reserve_list[i] == 0xff) 
                 break;
-            hlen += snprintf(hrec + hlen , 161 - hlen, ",%d", reserve_list[i]);
+	    hlen += scnprintf(hrec + hlen, 161 - hlen, ",%d", reserve_list[i]);
         }
     }
     seq_printf(m,

@@ -21,7 +21,7 @@ static const unsigned long max_jiffies = MAX_JIFFY_OFFSET;
 /*
  * RxRPC operating parameters.
  *
- * See Documentation/networking/rxrpc.txt and the variable definitions for more
+ * See Documentation/networking/rxrpc.rst and the variable definitions for more
  * information on the individual parameters.
  */
 static struct ctl_table rxrpc_sysctl_table[] = {
@@ -71,25 +71,8 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.extra1		= (void *)&one_jiffy,
 		.extra2		= (void *)&max_jiffies,
 	},
-	{
-		.procname	= "resend_timeout",
-		.data		= &rxrpc_resend_timeout,
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_ms_jiffies_minmax,
-		.extra1		= (void *)&one_jiffy,
-		.extra2		= (void *)&max_jiffies,
-	},
 
 	/* Non-time values */
-	{
-		.procname	= "max_client_conns",
-		.data		= &rxrpc_max_client_connections,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= (void *)&rxrpc_reap_client_connections,
-	},
 	{
 		.procname	= "reap_client_conns",
 		.data		= &rxrpc_reap_client_connections,
@@ -97,7 +80,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= (void *)SYSCTL_ONE,
-		.extra2		= (void *)&rxrpc_max_client_connections,
+		.extra2		= (void *)&n_65535,
 	},
 	{
 		.procname	= "max_backlog",

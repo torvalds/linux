@@ -4,18 +4,18 @@ ARM TCM (Tightly-Coupled Memory) handling in Linux
 
 Written by Linus Walleij <linus.walleij@stericsson.com>
 
-Some ARM SoC:s have a so-called TCM (Tightly-Coupled Memory).
+Some ARM SoCs have a so-called TCM (Tightly-Coupled Memory).
 This is usually just a few (4-64) KiB of RAM inside the ARM
 processor.
 
-Due to being embedded inside the CPU The TCM has a
+Due to being embedded inside the CPU, the TCM has a
 Harvard-architecture, so there is an ITCM (instruction TCM)
 and a DTCM (data TCM). The DTCM can not contain any
 instructions, but the ITCM can actually contain data.
 The size of DTCM or ITCM is minimum 4KiB so the typical
 minimum configuration is 4KiB ITCM and 4KiB DTCM.
 
-ARM CPU:s have special registers to read out status, physical
+ARM CPUs have special registers to read out status, physical
 location and size of TCM memories. arch/arm/include/asm/cputype.h
 defines a CPUID_TCM register that you can read out from the
 system control coprocessor. Documentation from ARM can be found

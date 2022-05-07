@@ -1002,7 +1002,7 @@ void sdma_engine_interrupt(struct sdma_engine *sde, u64 status);
  */
 struct sdma_map_elem {
 	u32 mask;
-	struct sdma_engine *sde[0];
+	struct sdma_engine *sde[];
 };
 
 /**
@@ -1024,7 +1024,7 @@ struct sdma_vl_map {
 	u32 mask;
 	u8 actual_vls;
 	u8 vls;
-	struct sdma_map_elem *map[0];
+	struct sdma_map_elem *map[];
 };
 
 int sdma_map_init(

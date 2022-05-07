@@ -162,9 +162,12 @@ Read byte from page <page>, register <reg>.
 
 ::
 
-  int (*read_word_data)(struct i2c_client *client, int page, int reg);
+  int (*read_word_data)(struct i2c_client *client, int page, int phase,
+                        int reg);
 
-Read word from page <page>, register <reg>.
+Read word from page <page>, phase <pase>, register <reg>. If the chip does not
+support multiple phases, the phase parameter can be ignored. If the chip
+supports multiple phases, a phase value of 0xff indicates all phases.
 
 ::
 
@@ -201,16 +204,21 @@ is mandatory.
 
 ::
 
-  int pmbus_set_page(struct i2c_client *client, u8 page);
+  int pmbus_set_page(struct i2c_client *client, u8 page, u8 phase);
 
-Set PMBus page register to <page> for subsequent commands.
+Set PMBus page register to <page> and <phase> for subsequent commands.
+If the chip does not support multiple phases, the phase parameter is
+ignored. Otherwise, a phase value of 0xff selects all phases.
 
 ::
 
-  int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg);
+  int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 phase,
+                           u8 reg);
 
-Read word data from <page>, <reg>. Similar to i2c_smbus_read_word_data(), but
-selects page first.
+Read word data from <page>, <phase>, <reg>. Similar to
+i2c_smbus_read_word_data(), but selects page and phase first. If the chip does
+not support multiple phases, the phase parameter is ignored. Otherwise, a phase
+value of 0xff selects all phases.
 
 ::
 
@@ -262,8 +270,7 @@ obtain the chip status. Therefore, it must _not_ be called from that function.
 
 ::
 
-  int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
-		     struct pmbus_driver_info *info);
+  int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info);
 
 Execute probe function. Similar to standard probe function for other drivers,
 with the pointer to struct pmbus_driver_info as additional argument. Calls

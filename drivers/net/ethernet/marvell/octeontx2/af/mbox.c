@@ -14,22 +14,34 @@
 
 #include "rvu_reg.h"
 #include "mbox.h"
+#include "rvu_trace.h"
 
 static const u16 msgs_offset = ALIGN(sizeof(struct mbox_hdr), MBOX_MSG_ALIGN);
+
+void __otx2_mbox_reset(struct otx2_mbox *mbox, int devid)
+{
+	void *hw_mbase = mbox->hwbase + (devid * MBOX_SIZE);
+	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
+	struct mbox_hdr *tx_hdr, *rx_hdr;
+
+	tx_hdr = hw_mbase + mbox->tx_start;
+	rx_hdr = hw_mbase + mbox->rx_start;
+
+	mdev->msg_size = 0;
+	mdev->rsp_size = 0;
+	tx_hdr->num_msgs = 0;
+	tx_hdr->msg_size = 0;
+	rx_hdr->num_msgs = 0;
+	rx_hdr->msg_size = 0;
+}
+EXPORT_SYMBOL(__otx2_mbox_reset);
 
 void otx2_mbox_reset(struct otx2_mbox *mbox, int devid)
 {
 	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
-	struct mbox_hdr *tx_hdr, *rx_hdr;
-
-	tx_hdr = mdev->mbase + mbox->tx_start;
-	rx_hdr = mdev->mbase + mbox->rx_start;
 
 	spin_lock(&mdev->mbox_lock);
-	mdev->msg_size = 0;
-	mdev->rsp_size = 0;
-	tx_hdr->num_msgs = 0;
-	rx_hdr->num_msgs = 0;
+	__otx2_mbox_reset(mbox, devid);
 	spin_unlock(&mdev->mbox_lock);
 }
 EXPORT_SYMBOL(otx2_mbox_reset);
@@ -133,16 +145,17 @@ EXPORT_SYMBOL(otx2_mbox_init);
 
 int otx2_mbox_wait_for_rsp(struct otx2_mbox *mbox, int devid)
 {
+	unsigned long timeout = jiffies + msecs_to_jiffies(MBOX_RSP_TIMEOUT);
 	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
-	int timeout = 0, sleep = 1;
+	struct device *sender = &mbox->pdev->dev;
 
-	while (mdev->num_msgs != mdev->msgs_acked) {
-		msleep(sleep);
-		timeout += sleep;
-		if (timeout >= MBOX_RSP_TIMEOUT)
-			return -EIO;
+	while (!time_after(jiffies, timeout)) {
+		if (mdev->num_msgs == mdev->msgs_acked)
+			return 0;
+		usleep_range(800, 1000);
 	}
-	return 0;
+	dev_dbg(sender, "timed out while waiting for rsp\n");
+	return -EIO;
 }
 EXPORT_SYMBOL(otx2_mbox_wait_for_rsp);
 
@@ -162,13 +175,25 @@ EXPORT_SYMBOL(otx2_mbox_busy_poll_for_rsp);
 
 void otx2_mbox_msg_send(struct otx2_mbox *mbox, int devid)
 {
+	void *hw_mbase = mbox->hwbase + (devid * MBOX_SIZE);
 	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
 	struct mbox_hdr *tx_hdr, *rx_hdr;
 
-	tx_hdr = mdev->mbase + mbox->tx_start;
-	rx_hdr = mdev->mbase + mbox->rx_start;
+	tx_hdr = hw_mbase + mbox->tx_start;
+	rx_hdr = hw_mbase + mbox->rx_start;
+
+	/* If bounce buffer is implemented copy mbox messages from
+	 * bounce buffer to hw mbox memory.
+	 */
+	if (mdev->mbase != hw_mbase)
+		memcpy(hw_mbase + mbox->tx_start + msgs_offset,
+		       mdev->mbase + mbox->tx_start + msgs_offset,
+		       mdev->msg_size);
 
 	spin_lock(&mdev->mbox_lock);
+
+	tx_hdr->msg_size = mdev->msg_size;
+
 	/* Reset header for next messages */
 	mdev->msg_size = 0;
 	mdev->rsp_size = 0;
@@ -183,6 +208,9 @@ void otx2_mbox_msg_send(struct otx2_mbox *mbox, int devid)
 	 */
 	tx_hdr->num_msgs = mdev->num_msgs;
 	rx_hdr->num_msgs = 0;
+
+	trace_otx2_msg_send(mbox->pdev, tx_hdr->num_msgs, tx_hdr->msg_size);
+
 	spin_unlock(&mdev->mbox_lock);
 
 	/* The interrupt should be fired after num_msgs is written
@@ -215,7 +243,7 @@ struct mbox_msghdr *otx2_mbox_alloc_msg_rsp(struct otx2_mbox *mbox, int devid,
 	msghdr = mdev->mbase + mbox->tx_start + msgs_offset + mdev->msg_size;
 
 	/* Clear the whole msg region */
-	memset(msghdr, 0, sizeof(*msghdr) + size);
+	memset(msghdr, 0, size);
 	/* Init message header with reset values */
 	msghdr->ver = OTX2_MBOX_VERSION;
 	mdev->msg_size += size;
@@ -236,8 +264,10 @@ struct mbox_msghdr *otx2_mbox_get_rsp(struct otx2_mbox *mbox, int devid,
 	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
 	u16 msgs;
 
+	spin_lock(&mdev->mbox_lock);
+
 	if (mdev->num_msgs != mdev->msgs_acked)
-		return ERR_PTR(-ENODEV);
+		goto error;
 
 	for (msgs = 0; msgs < mdev->msgs_acked; msgs++) {
 		struct mbox_msghdr *pmsg = mdev->mbase + imsg;
@@ -245,17 +275,59 @@ struct mbox_msghdr *otx2_mbox_get_rsp(struct otx2_mbox *mbox, int devid,
 
 		if (msg == pmsg) {
 			if (pmsg->id != prsp->id)
-				return ERR_PTR(-ENODEV);
+				goto error;
+			spin_unlock(&mdev->mbox_lock);
 			return prsp;
 		}
 
-		imsg = pmsg->next_msgoff;
-		irsp = prsp->next_msgoff;
+		imsg = mbox->tx_start + pmsg->next_msgoff;
+		irsp = mbox->rx_start + prsp->next_msgoff;
 	}
 
+error:
+	spin_unlock(&mdev->mbox_lock);
 	return ERR_PTR(-ENODEV);
 }
 EXPORT_SYMBOL(otx2_mbox_get_rsp);
+
+int otx2_mbox_check_rsp_msgs(struct otx2_mbox *mbox, int devid)
+{
+	unsigned long ireq = mbox->tx_start + msgs_offset;
+	unsigned long irsp = mbox->rx_start + msgs_offset;
+	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
+	int rc = -ENODEV;
+	u16 msgs;
+
+	spin_lock(&mdev->mbox_lock);
+
+	if (mdev->num_msgs != mdev->msgs_acked)
+		goto exit;
+
+	for (msgs = 0; msgs < mdev->msgs_acked; msgs++) {
+		struct mbox_msghdr *preq = mdev->mbase + ireq;
+		struct mbox_msghdr *prsp = mdev->mbase + irsp;
+
+		if (preq->id != prsp->id) {
+			trace_otx2_msg_check(mbox->pdev, preq->id,
+					     prsp->id, prsp->rc);
+			goto exit;
+		}
+		if (prsp->rc) {
+			rc = prsp->rc;
+			trace_otx2_msg_check(mbox->pdev, preq->id,
+					     prsp->id, prsp->rc);
+			goto exit;
+		}
+
+		ireq = mbox->tx_start + preq->next_msgoff;
+		irsp = mbox->rx_start + prsp->next_msgoff;
+	}
+	rc = 0;
+exit:
+	spin_unlock(&mdev->mbox_lock);
+	return rc;
+}
+EXPORT_SYMBOL(otx2_mbox_check_rsp_msgs);
 
 int
 otx2_reply_invalid_msg(struct otx2_mbox *mbox, int devid, u16 pcifunc, u16 id)

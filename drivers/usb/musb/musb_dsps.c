@@ -36,7 +36,7 @@
 
 static const struct of_device_id musb_dsps_of_match[];
 
-/**
+/*
  * DSPS musb wrapper register offset.
  * FIXME: This should be expanded to have all the wrapper registers from TI DSPS
  * musb ips.
@@ -96,7 +96,7 @@ struct dsps_context {
 	u32 rx_mode;
 };
 
-/**
+/*
  * DSPS glue structure.
  */
 struct dsps_glue {
@@ -162,7 +162,7 @@ static void dsps_mod_timer_optional(struct dsps_glue *glue)
 
 #define USBSS_IRQ_PD_COMP	(1 << 2)
 
-/**
+/*
  * dsps_musb_enable - enable interrupts
  */
 static void dsps_musb_enable(struct musb *musb)
@@ -188,7 +188,7 @@ static void dsps_musb_enable(struct musb *musb)
 		dsps_mod_timer(glue, -1);
 }
 
-/**
+/*
  * dsps_musb_disable - disable HDRC and flush interrupts
  */
 static void dsps_musb_disable(struct musb *musb)
@@ -232,7 +232,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 			dsps_mod_timer_optional(glue);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 
 	case OTG_STATE_A_WAIT_BCON:
 		/* keep VBUS on for host-only mode */
@@ -242,7 +242,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 		}
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 		skip_session = 1;
-		/* fall through */
+		fallthrough;
 
 	case OTG_STATE_A_IDLE:
 	case OTG_STATE_B_IDLE:
@@ -411,7 +411,7 @@ static int dsps_musb_dbg_init(struct musb *musb, struct dsps_glue *glue)
 	char buf[128];
 
 	sprintf(buf, "%s.dsps", dev_name(musb->controller));
-	root = debugfs_create_dir(buf, NULL);
+	root = debugfs_create_dir(buf, usb_debug_root);
 	glue->dbgfs_root = root;
 
 	glue->regset.regs = dsps_musb_regs;
@@ -795,7 +795,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	case USB_SPEED_SUPER:
 		dev_warn(dev, "ignore incorrect maximum_speed "
 				"(super-speed) setting in dts");
-		/* fall through */
+		fallthrough;
 	default:
 		config->maximum_speed = USB_SPEED_HIGH;
 	}

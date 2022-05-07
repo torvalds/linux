@@ -9,11 +9,11 @@
 
 / {
 	model = "Logic PD i.MX6QD SOM-M3";
-	compatible = "fsl,imx6q";
+	compatible = "logicpd,imx6q-logicpd", "fsl,imx6q";
 
 	backlight: backlight-lvds {
 		compatible = "pwm-backlight";
-		pwms = <&pwm3 0 20000>;
+		pwms = <&pwm3 0 20000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 		power-supply = <&reg_lcd>;
@@ -71,6 +71,16 @@
 &hdmi {
 	ddc-i2c-bus = <&i2c3>;
 	status = "okay";
+};
+
+&i2c1 {
+	touchscreen@26 {
+		compatible = "ilitek,ili2117";
+		reg = <0x26>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_touchscreen>;
+		interrupts-extended = <&gpio1 6 IRQ_TYPE_EDGE_RISING>;
+	};
 };
 
 &ldb {

@@ -10,10 +10,10 @@
  * Copyright (C) 2012 ARM Ltd.
  */
 
-#include <linux/kernel_stat.h>
 #include <linux/irq.h>
 #include <linux/memory.h>
 #include <linux/smp.h>
+#include <linux/hardirq.h>
 #include <linux/init.h>
 #include <linux/irqchip.h>
 #include <linux/kprobes.h>
@@ -22,19 +22,10 @@
 #include <asm/daifflags.h>
 #include <asm/vmap_stack.h>
 
-unsigned long irq_err_count;
-
 /* Only access this in an NMI enter/exit */
 DEFINE_PER_CPU(struct nmi_ctx, nmi_contexts);
 
 DEFINE_PER_CPU(unsigned long *, irq_stack_ptr);
-
-int arch_show_interrupts(struct seq_file *p, int prec)
-{
-	show_ipi_list(p, prec);
-	seq_printf(p, "%*s: %10lu\n", prec, "Err", irq_err_count);
-	return 0;
-}
 
 #ifdef CONFIG_VMAP_STACK
 static void init_irq_stacks(void)
@@ -76,18 +67,3 @@ void __init init_IRQ(void)
 		local_daif_restore(DAIF_PROCCTX_NOIRQ);
 	}
 }
-
-/*
- * Stubs to make nmi_enter/exit() code callable from ASM
- */
-asmlinkage void notrace asm_nmi_enter(void)
-{
-	nmi_enter();
-}
-NOKPROBE_SYMBOL(asm_nmi_enter);
-
-asmlinkage void notrace asm_nmi_exit(void)
-{
-	nmi_exit();
-}
-NOKPROBE_SYMBOL(asm_nmi_exit);

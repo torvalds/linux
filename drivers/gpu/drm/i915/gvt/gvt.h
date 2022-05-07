@@ -106,6 +106,7 @@ struct intel_vgpu_pci_bar {
 struct intel_vgpu_cfg_space {
 	unsigned char virtual_cfg_space[PCI_CFG_SPACE_EXP_SIZE];
 	struct intel_vgpu_pci_bar bar[INTEL_GVT_MAX_BAR_NUM];
+	u32 pmcsr_off;
 };
 
 #define vgpu_cfg_space(vgpu) ((vgpu)->cfg_space.virtual_cfg_space)
@@ -163,6 +164,11 @@ struct intel_vgpu_submission {
 	const struct intel_vgpu_submission_ops *ops;
 	int virtual_submission_interface;
 	bool active;
+	struct {
+		u32 lrca;
+		bool valid;
+		u64 ring_context_gpa;
+	} last_ctx[I915_NUM_ENGINES];
 };
 
 struct intel_vgpu {
@@ -193,43 +199,25 @@ struct intel_vgpu {
 	struct intel_vgpu_submission submission;
 	struct radix_tree_root page_track_tree;
 	u32 hws_pga[I915_NUM_ENGINES];
+	/* Set on PCI_D3, reset on DMLR, not reflecting the actual PM state */
+	bool d3_entered;
 
 	struct dentry *debugfs;
 
-#if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
-	struct {
-		struct mdev_device *mdev;
-		struct vfio_region *region;
-		int num_regions;
-		struct eventfd_ctx *intx_trigger;
-		struct eventfd_ctx *msi_trigger;
-
-		/*
-		 * Two caches are used to avoid mapping duplicated pages (eg.
-		 * scratch pages). This help to reduce dma setup overhead.
-		 */
-		struct rb_root gfn_cache;
-		struct rb_root dma_addr_cache;
-		unsigned long nr_cache_entries;
-		struct mutex cache_lock;
-
-		struct notifier_block iommu_notifier;
-		struct notifier_block group_notifier;
-		struct kvm *kvm;
-		struct work_struct release_work;
-		atomic_t released;
-		struct vfio_device *vfio_device;
-	} vdev;
-#endif
+	/* Hypervisor-specific device state. */
+	void *vdev;
 
 	struct list_head dmabuf_obj_list_head;
 	struct mutex dmabuf_lock;
 	struct idr object_idr;
 
-	struct completion vblank_done;
-
 	u32 scan_nonprivbb;
 };
+
+static inline void *intel_vgpu_vdev(struct intel_vgpu *vgpu)
+{
+	return vgpu->vdev;
+}
 
 /* validating GM healthy status*/
 #define vgpu_is_vm_unhealthy(ret_val) \
@@ -267,12 +255,12 @@ struct intel_gvt_mmio {
 #define F_CMD_ACCESS	(1 << 3)
 /* This reg has been accessed by a VM */
 #define F_ACCESSED	(1 << 4)
-/* This reg has been accessed through GPU commands */
-#define F_CMD_ACCESSED	(1 << 5)
 /* This reg could be accessed by unaligned address */
 #define F_UNALIGN	(1 << 6)
-/* This reg is saved/restored in context */
-#define F_IN_CTX	(1 << 7)
+/* This reg is in GVT's mmio save-restor list and in hardware
+ * logical context image
+ */
+#define F_SR_IN_CTX	(1 << 7)
 
 	struct gvt_mmio_block *mmio_block;
 	unsigned int num_mmio_block;
@@ -306,7 +294,7 @@ struct intel_gvt {
 	/* scheduler scope lock, protect gvt and vgpu schedule related data */
 	struct mutex sched_lock;
 
-	struct drm_i915_private *dev_priv;
+	struct intel_gt *gt;
 	struct idr vgpu_idr;	/* vGPU IDR pool */
 
 	struct intel_gvt_device_info device_info;
@@ -376,14 +364,15 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 #define HOST_HIGH_GM_SIZE MB_TO_BYTES(384)
 #define HOST_FENCE 4
 
-/* Aperture/GM space definitions for GVT device */
-#define gvt_aperture_sz(gvt)	  (gvt->dev_priv->ggtt.mappable_end)
-#define gvt_aperture_pa_base(gvt) (gvt->dev_priv->ggtt.gmadr.start)
+#define gvt_to_ggtt(gvt)	((gvt)->gt->ggtt)
 
-#define gvt_ggtt_gm_sz(gvt)	  (gvt->dev_priv->ggtt.vm.total)
-#define gvt_ggtt_sz(gvt) \
-	((gvt->dev_priv->ggtt.vm.total >> PAGE_SHIFT) << 3)
-#define gvt_hidden_sz(gvt)	  (gvt_ggtt_gm_sz(gvt) - gvt_aperture_sz(gvt))
+/* Aperture/GM space definitions for GVT device */
+#define gvt_aperture_sz(gvt)	  gvt_to_ggtt(gvt)->mappable_end
+#define gvt_aperture_pa_base(gvt) gvt_to_ggtt(gvt)->gmadr.start
+
+#define gvt_ggtt_gm_sz(gvt)	gvt_to_ggtt(gvt)->vm.total
+#define gvt_ggtt_sz(gvt)	(gvt_to_ggtt(gvt)->vm.total >> PAGE_SHIFT << 3)
+#define gvt_hidden_sz(gvt)	(gvt_ggtt_gm_sz(gvt) - gvt_aperture_sz(gvt))
 
 #define gvt_aperture_gmadr_base(gvt) (0)
 #define gvt_aperture_gmadr_end(gvt) (gvt_aperture_gmadr_base(gvt) \
@@ -394,7 +383,7 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 #define gvt_hidden_gmadr_end(gvt) (gvt_hidden_gmadr_base(gvt) \
 				   + gvt_hidden_sz(gvt) - 1)
 
-#define gvt_fence_sz(gvt) ((gvt)->dev_priv->ggtt.num_fences)
+#define gvt_fence_sz(gvt) (gvt_to_ggtt(gvt)->num_fences)
 
 /* Aperture/GM space definitions for vGPU */
 #define vgpu_aperture_offset(vgpu)	((vgpu)->gm.low_gm_node.start)
@@ -570,8 +559,7 @@ struct intel_gvt_ops {
 	void (*vgpu_deactivate)(struct intel_vgpu *);
 	struct intel_vgpu_type *(*gvt_find_vgpu_type)(struct intel_gvt *gvt,
 			const char *name);
-	bool (*get_gvt_attrs)(struct attribute ***type_attrs,
-			struct attribute_group ***intel_vgpu_type_groups);
+	bool (*get_gvt_attrs)(struct attribute_group ***intel_vgpu_type_groups);
 	int (*vgpu_query_plane)(struct intel_vgpu *vgpu, void *);
 	int (*vgpu_get_dmabuf)(struct intel_vgpu *vgpu, unsigned int);
 	int (*write_protect_handler)(struct intel_vgpu *, u64, void *,
@@ -586,14 +574,14 @@ enum {
 	GVT_FAILSAFE_GUEST_ERR,
 };
 
-static inline void mmio_hw_access_pre(struct drm_i915_private *dev_priv)
+static inline void mmio_hw_access_pre(struct intel_gt *gt)
 {
-	intel_runtime_pm_get(&dev_priv->runtime_pm);
+	intel_runtime_pm_get(gt->uncore->rpm);
 }
 
-static inline void mmio_hw_access_post(struct drm_i915_private *dev_priv)
+static inline void mmio_hw_access_post(struct intel_gt *gt)
 {
-	intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
+	intel_runtime_pm_put_unchecked(gt->uncore->rpm);
 }
 
 /**
@@ -609,15 +597,30 @@ static inline void intel_gvt_mmio_set_accessed(
 }
 
 /**
- * intel_gvt_mmio_is_cmd_accessed - mark a MMIO could be accessed by command
+ * intel_gvt_mmio_is_cmd_accessible - if a MMIO could be accessed by command
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ * Returns:
+ * True if an MMIO is able to be accessed by GPU commands
+ */
+static inline bool intel_gvt_mmio_is_cmd_accessible(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	return gvt->mmio.mmio_attribute[offset >> 2] & F_CMD_ACCESS;
+}
+
+/**
+ * intel_gvt_mmio_set_cmd_accessible -
+ *				mark a MMIO could be accessible by command
  * @gvt: a GVT device
  * @offset: register offset
  *
  */
-static inline bool intel_gvt_mmio_is_cmd_access(
+static inline void intel_gvt_mmio_set_cmd_accessible(
 			struct intel_gvt *gvt, unsigned int offset)
 {
-	return gvt->mmio.mmio_attribute[offset >> 2] & F_CMD_ACCESS;
+	gvt->mmio.mmio_attribute[offset >> 2] |= F_CMD_ACCESS;
 }
 
 /**
@@ -630,18 +633,6 @@ static inline bool intel_gvt_mmio_is_unalign(
 			struct intel_gvt *gvt, unsigned int offset)
 {
 	return gvt->mmio.mmio_attribute[offset >> 2] & F_UNALIGN;
-}
-
-/**
- * intel_gvt_mmio_set_cmd_accessed - mark a MMIO has been accessed by command
- * @gvt: a GVT device
- * @offset: register offset
- *
- */
-static inline void intel_gvt_mmio_set_cmd_accessed(
-			struct intel_gvt *gvt, unsigned int offset)
-{
-	gvt->mmio.mmio_attribute[offset >> 2] |= F_CMD_ACCESSED;
 }
 
 /**
@@ -660,30 +651,33 @@ static inline bool intel_gvt_mmio_has_mode_mask(
 }
 
 /**
- * intel_gvt_mmio_is_in_ctx - check if a MMIO has in-ctx mask
+ * intel_gvt_mmio_is_sr_in_ctx -
+ *		check if an MMIO has F_SR_IN_CTX mask
  * @gvt: a GVT device
  * @offset: register offset
  *
  * Returns:
- * True if a MMIO has a in-context mask, false if it isn't.
+ * True if an MMIO has an F_SR_IN_CTX  mask, false if it isn't.
  *
  */
-static inline bool intel_gvt_mmio_is_in_ctx(
+static inline bool intel_gvt_mmio_is_sr_in_ctx(
 			struct intel_gvt *gvt, unsigned int offset)
 {
-	return gvt->mmio.mmio_attribute[offset >> 2] & F_IN_CTX;
+	return gvt->mmio.mmio_attribute[offset >> 2] & F_SR_IN_CTX;
 }
 
 /**
- * intel_gvt_mmio_set_in_ctx - mask a MMIO in logical context
+ * intel_gvt_mmio_set_sr_in_ctx -
+ *		mask an MMIO in GVT's mmio save-restore list and also
+ *		in hardware logical context image
  * @gvt: a GVT device
  * @offset: register offset
  *
  */
-static inline void intel_gvt_mmio_set_in_ctx(
+static inline void intel_gvt_mmio_set_sr_in_ctx(
 			struct intel_gvt *gvt, unsigned int offset)
 {
-	gvt->mmio.mmio_attribute[offset >> 2] |= F_IN_CTX;
+	gvt->mmio.mmio_attribute[offset >> 2] |= F_SR_IN_CTX;
 }
 
 void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu);

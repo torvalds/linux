@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_ADMIN_H_
@@ -121,9 +121,7 @@ struct efa_admin_aenq_entry {
 /* aq_common_desc */
 #define EFA_ADMIN_AQ_COMMON_DESC_COMMAND_ID_MASK            GENMASK(11, 0)
 #define EFA_ADMIN_AQ_COMMON_DESC_PHASE_MASK                 BIT(0)
-#define EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_SHIFT            1
 #define EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_MASK             BIT(1)
-#define EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT_SHIFT   2
 #define EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT_MASK    BIT(2)
 
 /* acq_common_desc */

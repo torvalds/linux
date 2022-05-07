@@ -29,10 +29,8 @@
 #include <linux/slab.h>
 #include <linux/hugetlb.h>
 
-#include <asm/pgalloc.h>
 #include <asm/prom.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/smp.h>
 #include <asm/machdep.h>
@@ -55,11 +53,6 @@
 
 phys_addr_t total_memory;
 phys_addr_t total_lowmem;
-
-phys_addr_t memstart_addr = (phys_addr_t)~0ull;
-EXPORT_SYMBOL(memstart_addr);
-phys_addr_t kernstart_addr;
-EXPORT_SYMBOL(kernstart_addr);
 
 #ifdef CONFIG_RELOCATABLE
 /* Used in __va()/__pa() */
@@ -101,11 +94,13 @@ static void __init MMU_setup(void)
 	if (strstr(boot_command_line, "noltlbs")) {
 		__map_without_ltlbs = 1;
 	}
-	if (debug_pagealloc_enabled()) {
-		__map_without_bats = 1;
+	if (IS_ENABLED(CONFIG_PPC_8xx))
+		return;
+
+	if (debug_pagealloc_enabled())
 		__map_without_ltlbs = 1;
-	}
-	if (strict_kernel_rwx_enabled() && !IS_ENABLED(CONFIG_PPC_8xx))
+
+	if (strict_kernel_rwx_enabled())
 		__map_without_ltlbs = 1;
 }
 

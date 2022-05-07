@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (c) 2011 Jonathan Cameron
  *
  * Companion module to the iio simple dummy example driver.
@@ -27,18 +27,19 @@
 #define IIO_EVENTGEN_NO 10
 
 /**
+ * struct iio_dummy_eventgen - event generator specific state
  * @regs: irq regs we are faking
  * @lock: protect the evgen state
  * @inuse: mask of which irqs are connected
  * @irq_sim: interrupt simulator
  * @base: base of irq range
+ * @irq_sim_domain: irq simulator domain
  */
 struct iio_dummy_eventgen {
 	struct iio_dummy_regs regs[IIO_EVENTGEN_NO];
 	struct mutex lock;
 	bool inuse[IIO_EVENTGEN_NO];
-	struct irq_sim irq_sim;
-	int base;
+	struct irq_domain *irq_sim_domain;
 };
 
 /* We can only ever have one instance of this 'device' */
@@ -52,13 +53,14 @@ static int iio_dummy_evgen_create(void)
 	if (!iio_evgen)
 		return -ENOMEM;
 
-	ret = irq_sim_init(&iio_evgen->irq_sim, IIO_EVENTGEN_NO);
-	if (ret < 0) {
+	iio_evgen->irq_sim_domain = irq_domain_create_sim(NULL,
+							  IIO_EVENTGEN_NO);
+	if (IS_ERR(iio_evgen->irq_sim_domain)) {
+		ret = PTR_ERR(iio_evgen->irq_sim_domain);
 		kfree(iio_evgen);
 		return ret;
 	}
 
-	iio_evgen->base = irq_sim_irqnum(&iio_evgen->irq_sim, 0);
 	mutex_init(&iio_evgen->lock);
 
 	return 0;
@@ -80,7 +82,7 @@ int iio_dummy_evgen_get_irq(void)
 	mutex_lock(&iio_evgen->lock);
 	for (i = 0; i < IIO_EVENTGEN_NO; i++) {
 		if (!iio_evgen->inuse[i]) {
-			ret = irq_sim_irqnum(&iio_evgen->irq_sim, i);
+			ret = irq_create_mapping(iio_evgen->irq_sim_domain, i);
 			iio_evgen->inuse[i] = true;
 			break;
 		}
@@ -101,21 +103,27 @@ EXPORT_SYMBOL_GPL(iio_dummy_evgen_get_irq);
  */
 void iio_dummy_evgen_release_irq(int irq)
 {
+	struct irq_data *irqd = irq_get_irq_data(irq);
+
 	mutex_lock(&iio_evgen->lock);
-	iio_evgen->inuse[irq - iio_evgen->base] = false;
+	iio_evgen->inuse[irqd_to_hwirq(irqd)] = false;
+	irq_dispose_mapping(irq);
 	mutex_unlock(&iio_evgen->lock);
 }
 EXPORT_SYMBOL_GPL(iio_dummy_evgen_release_irq);
 
 struct iio_dummy_regs *iio_dummy_evgen_get_regs(int irq)
 {
-	return &iio_evgen->regs[irq - iio_evgen->base];
+	struct irq_data *irqd = irq_get_irq_data(irq);
+
+	return &iio_evgen->regs[irqd_to_hwirq(irqd)];
+
 }
 EXPORT_SYMBOL_GPL(iio_dummy_evgen_get_regs);
 
 static void iio_dummy_evgen_free(void)
 {
-	irq_sim_fini(&iio_evgen->irq_sim);
+	irq_domain_remove_sim(iio_evgen->irq_sim_domain);
 	kfree(iio_evgen);
 }
 
@@ -131,7 +139,7 @@ static ssize_t iio_evgen_poke(struct device *dev,
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	unsigned long event;
-	int ret;
+	int ret, irq;
 
 	ret = kstrtoul(buf, 10, &event);
 	if (ret)
@@ -140,7 +148,10 @@ static ssize_t iio_evgen_poke(struct device *dev,
 	iio_evgen->regs[this_attr->address].reg_id   = this_attr->address;
 	iio_evgen->regs[this_attr->address].reg_data = event;
 
-	irq_sim_fire(&iio_evgen->irq_sim, this_attr->address);
+	irq = irq_find_mapping(iio_evgen->irq_sim_domain, this_attr->address);
+	ret = irq_set_irqchip_state(irq, IRQCHIP_STATE_PENDING, true);
+	if (ret)
+		return ret;
 
 	return len;
 }

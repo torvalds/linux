@@ -14,7 +14,9 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-/**
+#include "cros_ec.h"
+
+/*
  * Request format for protocol v3
  * byte 0	0xda (EC_COMMAND_PROTOCOL_3)
  * byte 1-8	struct ec_host_request

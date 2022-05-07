@@ -104,7 +104,7 @@ typedef int (*ad5686_read_func)(struct ad5686_state *st, u8 addr);
 struct ad5686_chip_info {
 	u16				int_vref_mv;
 	unsigned int			num_channels;
-	struct iio_chan_spec		*channels;
+	const struct iio_chan_spec	*channels;
 	enum ad5686_regmap_type		regmap_type;
 };
 
@@ -117,6 +117,7 @@ struct ad5686_chip_info {
  * @pwr_down_mask:	power down mask
  * @pwr_down_mode:	current power down mode
  * @use_internal_vref:	set to true if the internal reference voltage is used
+ * @lock		lock to protect the data buffer during regmap ops
  * @data:		spi transfer buffers
  */
 
@@ -130,6 +131,7 @@ struct ad5686_state {
 	ad5686_write_func		write;
 	ad5686_read_func		read;
 	bool				use_internal_vref;
+	struct mutex			lock;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the

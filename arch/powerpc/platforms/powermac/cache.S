@@ -184,6 +184,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 	mtlr	r10
 	blr
+_ASM_NOKPROBE_SYMBOL(flush_disable_75x)
 
 /* This code is for 745x processors */
 flush_disable_745x:
@@ -351,4 +352,5 @@ END_FTR_SECTION_IFSET(CPU_FTR_L3CR)
 	mtmsr	r11		/* restore DR and EE */
 	isync
 	blr
+_ASM_NOKPROBE_SYMBOL(flush_disable_745x)
 #endif	/* CONFIG_PPC_BOOK3S_32 */

@@ -23,7 +23,7 @@
  *
  */
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 
 #include "reg_helper.h"
 #include "resource.h"
@@ -109,9 +109,7 @@ const struct dwbc_funcs dcn10_dwbc_funcs = {
 	.update				= NULL,
 	.set_stereo			= NULL,
 	.set_new_content		= NULL,
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	.set_warmup			= NULL,
-#endif
 	.dwb_set_scaler			= NULL,
 };
 

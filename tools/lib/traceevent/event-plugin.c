@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <errno.h>
 #include "event-parse.h"
 #include "event-parse-local.h"
 #include "event-utils.h"
@@ -36,6 +37,12 @@ struct tep_plugin_list {
 	struct tep_plugin_list	*next;
 	char			*name;
 	void			*handle;
+};
+
+struct tep_plugins_dir {
+	struct tep_plugins_dir		*next;
+	char				*path;
+	enum tep_plugin_load_priority	prio;
 };
 
 static void lower_case(char *str)
@@ -247,6 +254,170 @@ void tep_plugin_remove_options(struct tep_plugin_option *options)
 	}
 }
 
+static int parse_option_name(char **option, char **plugin)
+{
+	char *p;
+
+	*plugin = NULL;
+
+	if ((p = strstr(*option, ":"))) {
+		*plugin = *option;
+		*p = '\0';
+		*option = strdup(p + 1);
+		if (!*option)
+			return -1;
+	}
+	return 0;
+}
+
+static struct tep_plugin_option *
+find_registered_option(const char *plugin, const char *option)
+{
+	struct registered_plugin_options *reg;
+	struct tep_plugin_option *op;
+	const char *op_plugin;
+
+	for (reg = registered_options; reg; reg = reg->next) {
+		for (op = reg->options; op->name; op++) {
+			if (op->plugin_alias)
+				op_plugin = op->plugin_alias;
+			else
+				op_plugin = op->file;
+
+			if (plugin && strcmp(plugin, op_plugin) != 0)
+				continue;
+			if (strcmp(option, op->name) != 0)
+				continue;
+
+			return op;
+		}
+	}
+
+	return NULL;
+}
+
+static int process_option(const char *plugin, const char *option, const char *val)
+{
+	struct tep_plugin_option *op;
+
+	op = find_registered_option(plugin, option);
+	if (!op)
+		return 0;
+
+	return update_option_value(op, val);
+}
+
+/**
+ * tep_plugin_add_option - add an option/val pair to set plugin options
+ * @name: The name of the option (format: <plugin>:<option> or just <option>)
+ * @val: (optional) the value for the option
+ *
+ * Modify a plugin option. If @val is given than the value of the option
+ * is set (note, some options just take a boolean, so @val must be either
+ * "1" or "0" or "true" or "false").
+ */
+int tep_plugin_add_option(const char *name, const char *val)
+{
+	struct trace_plugin_options *op;
+	char *option_str;
+	char *plugin;
+
+	option_str = strdup(name);
+	if (!option_str)
+		return -ENOMEM;
+
+	if (parse_option_name(&option_str, &plugin) < 0)
+		return -ENOMEM;
+
+	/* If the option exists, update the val */
+	for (op = trace_plugin_options; op; op = op->next) {
+		/* Both must be NULL or not NULL */
+		if ((!plugin || !op->plugin) && plugin != op->plugin)
+			continue;
+		if (plugin && strcmp(plugin, op->plugin) != 0)
+			continue;
+		if (strcmp(op->option, option_str) != 0)
+			continue;
+
+		/* update option */
+		free(op->value);
+		if (val) {
+			op->value = strdup(val);
+			if (!op->value)
+				goto out_free;
+		} else
+			op->value = NULL;
+
+		/* plugin and option_str don't get freed at the end */
+		free(plugin);
+		free(option_str);
+
+		plugin = op->plugin;
+		option_str = op->option;
+		break;
+	}
+
+	/* If not found, create */
+	if (!op) {
+		op = malloc(sizeof(*op));
+		if (!op)
+			goto out_free;
+		memset(op, 0, sizeof(*op));
+		op->plugin = plugin;
+		op->option = option_str;
+		if (val) {
+			op->value = strdup(val);
+			if (!op->value) {
+				free(op);
+				goto out_free;
+			}
+		}
+		op->next = trace_plugin_options;
+		trace_plugin_options = op;
+	}
+
+	return process_option(plugin, option_str, val);
+
+out_free:
+	free(plugin);
+	free(option_str);
+	return -ENOMEM;
+}
+
+static void print_op_data(struct trace_seq *s, const char *name,
+			  const char *op)
+{
+	if (op)
+		trace_seq_printf(s, "%8s:\t%s\n", name, op);
+}
+
+/**
+ * tep_plugin_print_options - print out the registered plugin options
+ * @s: The trace_seq descriptor to write the plugin options into
+ *
+ * Writes a list of options into trace_seq @s.
+ */
+void tep_plugin_print_options(struct trace_seq *s)
+{
+	struct registered_plugin_options *reg;
+	struct tep_plugin_option *op;
+
+	for (reg = registered_options; reg; reg = reg->next) {
+		if (reg != registered_options)
+			trace_seq_printf(s, "============\n");
+		for (op = reg->options; op->name; op++) {
+			if (op != reg->options)
+				trace_seq_printf(s, "------------\n");
+			print_op_data(s, "file", op->file);
+			print_op_data(s, "plugin", op->plugin_alias);
+			print_op_data(s, "option", op->name);
+			print_op_data(s, "desc", op->description);
+			print_op_data(s, "value", op->value);
+			trace_seq_printf(s, "%8s:\t%d\n", "set", op->set);
+		}
+	}
+}
+
 /**
  * tep_print_plugins - print out the list of plugins loaded
  * @s: the trace_seq descripter to write to
@@ -273,6 +444,7 @@ load_plugin(struct tep_handle *tep, const char *path,
 	    const char *file, void *data)
 {
 	struct tep_plugin_list **plugin_list = data;
+	struct tep_plugin_option *options;
 	tep_plugin_load_func func;
 	struct tep_plugin_list *list;
 	const char *alias;
@@ -296,6 +468,16 @@ load_plugin(struct tep_handle *tep, const char *path,
 	alias = dlsym(handle, TEP_PLUGIN_ALIAS_NAME);
 	if (!alias)
 		alias = file;
+
+	options = dlsym(handle, TEP_PLUGIN_OPTIONS_NAME);
+	if (options) {
+		while (options->name) {
+			ret = update_option(alias, options);
+			if (ret < 0)
+				goto out_free;
+			options++;
+		}
+	}
 
 	func = dlsym(handle, TEP_PLUGIN_LOADER_NAME);
 	if (!func) {
@@ -365,28 +547,53 @@ load_plugins_dir(struct tep_handle *tep, const char *suffix,
 	closedir(dir);
 }
 
-static void
-load_plugins(struct tep_handle *tep, const char *suffix,
-	     void (*load_plugin)(struct tep_handle *tep,
-				 const char *path,
-				 const char *name,
-				 void *data),
-	     void *data)
+/**
+ * tep_load_plugins_hook - call a user specified callback to load a plugin
+ * @tep: handler to traceevent context
+ * @suffix: filter only plugin files with given suffix
+ * @load_plugin: user specified callback, called for each plugin file
+ * @data: custom context, passed to @load_plugin
+ *
+ * Searches for traceevent plugin files and calls @load_plugin for each
+ * The order of plugins search is:
+ *  - Directories, specified in @tep->plugins_dir and priority TEP_PLUGIN_FIRST
+ *  - Directory, specified at compile time with PLUGIN_TRACEEVENT_DIR
+ *  - Directory, specified by environment variable TRACEEVENT_PLUGIN_DIR
+ *  - In user's home: ~/.local/lib/traceevent/plugins/
+ *  - Directories, specified in @tep->plugins_dir and priority TEP_PLUGIN_LAST
+ *
+ */
+void tep_load_plugins_hook(struct tep_handle *tep, const char *suffix,
+			   void (*load_plugin)(struct tep_handle *tep,
+					       const char *path,
+					       const char *name,
+					       void *data),
+			   void *data)
 {
+	struct tep_plugins_dir *dir = NULL;
 	char *home;
 	char *path;
 	char *envdir;
 	int ret;
 
-	if (tep->flags & TEP_DISABLE_PLUGINS)
+	if (tep && tep->flags & TEP_DISABLE_PLUGINS)
 		return;
+
+	if (tep)
+		dir = tep->plugins_dir;
+	while (dir) {
+		if (dir->prio == TEP_PLUGIN_FIRST)
+			load_plugins_dir(tep, suffix, dir->path,
+					 load_plugin, data);
+		dir = dir->next;
+	}
 
 	/*
 	 * If a system plugin directory was defined,
 	 * check that first.
 	 */
 #ifdef PLUGIN_DIR
-	if (!(tep->flags & TEP_DISABLE_SYS_PLUGINS))
+	if (!tep || !(tep->flags & TEP_DISABLE_SYS_PLUGINS))
 		load_plugins_dir(tep, suffix, PLUGIN_DIR,
 				 load_plugin, data);
 #endif
@@ -415,6 +622,15 @@ load_plugins(struct tep_handle *tep, const char *suffix,
 
 	load_plugins_dir(tep, suffix, path, load_plugin, data);
 
+	if (tep)
+		dir = tep->plugins_dir;
+	while (dir) {
+		if (dir->prio == TEP_PLUGIN_LAST)
+			load_plugins_dir(tep, suffix, dir->path,
+					 load_plugin, data);
+		dir = dir->next;
+	}
+
 	free(path);
 }
 
@@ -423,8 +639,57 @@ tep_load_plugins(struct tep_handle *tep)
 {
 	struct tep_plugin_list *list = NULL;
 
-	load_plugins(tep, ".so", load_plugin, &list);
+	tep_load_plugins_hook(tep, ".so", load_plugin, &list);
 	return list;
+}
+
+/**
+ * tep_add_plugin_path - Add a new plugin directory.
+ * @tep: Trace event handler.
+ * @path: Path to a directory. All plugin files in that
+ *	  directory will be loaded.
+ *@prio: Load priority of the plugins in that directory.
+ *
+ * Returns -1 in case of an error, 0 otherwise.
+ */
+int tep_add_plugin_path(struct tep_handle *tep, char *path,
+			enum tep_plugin_load_priority prio)
+{
+	struct tep_plugins_dir *dir;
+
+	if (!tep || !path)
+		return -1;
+
+	dir = calloc(1, sizeof(*dir));
+	if (!dir)
+		return -1;
+
+	dir->path = strdup(path);
+	if (!dir->path) {
+		free(dir);
+		return -1;
+	}
+	dir->prio = prio;
+	dir->next = tep->plugins_dir;
+	tep->plugins_dir = dir;
+
+	return 0;
+}
+
+__hidden void free_tep_plugin_paths(struct tep_handle *tep)
+{
+	struct tep_plugins_dir *dir;
+
+	if (!tep)
+		return;
+
+	dir = tep->plugins_dir;
+	while (dir) {
+		tep->plugins_dir = tep->plugins_dir->next;
+		free(dir->path);
+		free(dir);
+		dir = tep->plugins_dir;
+	}
 }
 
 void

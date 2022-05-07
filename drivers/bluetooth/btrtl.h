@@ -38,13 +38,13 @@ struct rtl_epatch_header {
 struct rtl_vendor_config_entry {
 	__le16 offset;
 	__u8 len;
-	__u8 data[0];
+	__u8 data[];
 } __packed;
 
 struct rtl_vendor_config {
 	__le32 signature;
 	__le16 total_len;
-	struct rtl_vendor_config_entry entry[0];
+	struct rtl_vendor_config_entry entry[];
 } __packed;
 
 #if IS_ENABLED(CONFIG_BT_RTL)

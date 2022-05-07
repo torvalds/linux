@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2014 NovaTech LLC - http://www.novatechweb.com
+ * Copyright (C) 2014 NovaTech LLC - https://www.novatechweb.com
  */
 /dts-v1/;
 
@@ -160,11 +160,15 @@
 	serial_config1: serial_config1@20 {
 		compatible = "nxp,pca9539";
 		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
 	};
 
 	serial_config2: serial_config2@21 {
 		compatible = "nxp,pca9539";
 		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
 	};
 
 	tps: tps@2d {
@@ -283,34 +287,12 @@
 	status = "okay";
 };
 
-&usb {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
-};
-
-&usb1_phy {
-	status = "okay";
-};
-
 &usb0 {
-	status = "okay";
 	dr_mode = "host";
 };
 
 &usb1 {
-	status = "okay";
 	dr_mode = "host";
-};
-
-&cppi41dma  {
-	status = "okay";
 };
 
 &cpsw_emac0 {
@@ -361,7 +343,7 @@
 	pinctrl-0 = <&emmc_pins>;
 	vmmc-supply = <&vmmcsd_fixed>;
 	bus-width = <8>;
-	ti,non-removable;
+	non-removable;
 	status = "okay";
 };
 

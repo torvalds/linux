@@ -9,8 +9,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
-
-#include "reset-simple.h"
+#include <linux/reset/reset-simple.h>
 
 #define MAX_CLKS	2
 #define MAX_RSTS	2
@@ -138,6 +137,10 @@ static const struct uniphier_glue_reset_soc_data uniphier_pxs2_data = {
 static const struct of_device_id uniphier_glue_reset_match[] = {
 	{
 		.compatible = "socionext,uniphier-pro4-usb3-reset",
+		.data = &uniphier_pro4_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pro5-usb3-reset",
 		.data = &uniphier_pro4_data,
 	},
 	{

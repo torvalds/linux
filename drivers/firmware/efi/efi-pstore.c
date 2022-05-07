@@ -8,6 +8,8 @@
 
 #define DUMP_NAME_LEN 66
 
+#define EFIVARS_DATA_SIZE_MAX 1024
+
 static bool efivars_pstore_disable =
 	IS_ENABLED(CONFIG_EFI_VARS_PSTORE_DEFAULT_DISABLE);
 
@@ -17,6 +19,9 @@ module_param_named(pstore_disable, efivars_pstore_disable, bool, 0644);
 	(EFI_VARIABLE_NON_VOLATILE | \
 	 EFI_VARIABLE_BOOTSERVICE_ACCESS | \
 	 EFI_VARIABLE_RUNTIME_ACCESS)
+
+static LIST_HEAD(efi_pstore_list);
+static DECLARE_WORK(efivar_work, NULL);
 
 static int efi_pstore_open(struct pstore_info *psi)
 {
@@ -126,7 +131,7 @@ static inline int __efi_pstore_scan_sysfs_exit(struct efivar_entry *entry,
 	if (entry->deleting) {
 		list_del(&entry->list);
 		efivar_entry_iter_end();
-		efivar_unregister(entry);
+		kfree(entry);
 		if (efivar_entry_iter_begin())
 			return -EINTR;
 	} else if (turn_off_scanning)
@@ -161,7 +166,7 @@ static int efi_pstore_scan_sysfs_exit(struct efivar_entry *pos,
  *
  * @record: pstore record to pass to callback
  *
- * You MUST call efivar_enter_iter_begin() before this function, and
+ * You MUST call efivar_entry_iter_begin() before this function, and
  * efivar_entry_iter_end() afterwards.
  *
  */
@@ -169,7 +174,7 @@ static int efi_pstore_sysfs_entry_iter(struct pstore_record *record)
 {
 	struct efivar_entry **pos = (struct efivar_entry **)&record->psi->data;
 	struct efivar_entry *entry, *n;
-	struct list_head *head = &efivar_sysfs_list;
+	struct list_head *head = &efi_pstore_list;
 	int size = 0;
 	int ret;
 
@@ -263,8 +268,9 @@ static int efi_pstore_write(struct pstore_record *record)
 	ret = efivar_entry_set_safe(efi_name, vendor, PSTORE_EFI_ATTRIBUTES,
 			      preemptible(), record->size, record->psi->buf);
 
-	if (record->reason == KMSG_DUMP_OOPS)
-		efivar_run_worker();
+	if (record->reason == KMSG_DUMP_OOPS && try_module_get(THIS_MODULE))
+		if (!schedule_work(&efivar_work))
+			module_put(THIS_MODULE);
 
 	return ret;
 };
@@ -314,12 +320,12 @@ static int efi_pstore_erase_name(const char *name)
 	if (efivar_entry_iter_begin())
 		return -EINTR;
 
-	found = __efivar_entry_iter(efi_pstore_erase_func, &efivar_sysfs_list,
+	found = __efivar_entry_iter(efi_pstore_erase_func, &efi_pstore_list,
 				    efi_name, &entry);
 	efivar_entry_iter_end();
 
 	if (found && !entry->scanning)
-		efivar_unregister(entry);
+		kfree(entry);
 
 	return found ? 0 : -ENOENT;
 }
@@ -354,16 +360,76 @@ static struct pstore_info efi_pstore_info = {
 	.erase		= efi_pstore_erase,
 };
 
-static __init int efivars_pstore_init(void)
+static int efi_pstore_callback(efi_char16_t *name, efi_guid_t vendor,
+			       unsigned long name_size, void *data)
 {
-	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+	struct efivar_entry *entry;
+	int ret;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	memcpy(entry->var.VariableName, name, name_size);
+	entry->var.VendorGuid = vendor;
+
+	ret = efivar_entry_add(entry, &efi_pstore_list);
+	if (ret)
+		kfree(entry);
+
+	return ret;
+}
+
+static int efi_pstore_update_entry(efi_char16_t *name, efi_guid_t vendor,
+				   unsigned long name_size, void *data)
+{
+	struct efivar_entry *entry = data;
+
+	if (efivar_entry_find(name, vendor, &efi_pstore_list, false))
 		return 0;
 
-	if (!efivars_kobject())
+	memcpy(entry->var.VariableName, name, name_size);
+	memcpy(&(entry->var.VendorGuid), &vendor, sizeof(efi_guid_t));
+
+	return 1;
+}
+
+static void efi_pstore_update_entries(struct work_struct *work)
+{
+	struct efivar_entry *entry;
+	int err;
+
+	/* Add new sysfs entries */
+	while (1) {
+		entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+		if (!entry)
+			return;
+
+		err = efivar_init(efi_pstore_update_entry, entry,
+				  false, &efi_pstore_list);
+		if (!err)
+			break;
+
+		efivar_entry_add(entry, &efi_pstore_list);
+	}
+
+	kfree(entry);
+	module_put(THIS_MODULE);
+}
+
+static __init int efivars_pstore_init(void)
+{
+	int ret;
+
+	if (!efivars_kobject() || !efivar_supports_writes())
 		return 0;
 
 	if (efivars_pstore_disable)
 		return 0;
+
+	ret = efivar_init(efi_pstore_callback, NULL, true, &efi_pstore_list);
+	if (ret)
+		return ret;
 
 	efi_pstore_info.buf = kmalloc(4096, GFP_KERNEL);
 	if (!efi_pstore_info.buf)
@@ -376,6 +442,8 @@ static __init int efivars_pstore_init(void)
 		efi_pstore_info.buf = NULL;
 		efi_pstore_info.bufsize = 0;
 	}
+
+	INIT_WORK(&efivar_work, efi_pstore_update_entries);
 
 	return 0;
 }

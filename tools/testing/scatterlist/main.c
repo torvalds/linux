@@ -5,6 +5,15 @@
 
 #define MAX_PAGES (64)
 
+struct test {
+	int alloc_ret;
+	unsigned num_pages;
+	unsigned *pfn;
+	unsigned size;
+	unsigned int max_seg;
+	unsigned int expected_segments;
+};
+
 static void set_pages(struct page **pages, const unsigned *array, unsigned num)
 {
 	unsigned int i;
@@ -17,20 +26,35 @@ static void set_pages(struct page **pages, const unsigned *array, unsigned num)
 
 #define pfn(...) (unsigned []){ __VA_ARGS__ }
 
+static void fail(struct test *test, struct sg_table *st, const char *cond)
+{
+	unsigned int i;
+
+	fprintf(stderr, "Failed on '%s'!\n\n", cond);
+
+	printf("size = %u, max segment = %u, expected nents = %u\nst->nents = %u, st->orig_nents= %u\n",
+	       test->size, test->max_seg, test->expected_segments, st->nents,
+	       st->orig_nents);
+
+	printf("%u input PFNs:", test->num_pages);
+	for (i = 0; i < test->num_pages; i++)
+		printf(" %x", test->pfn[i]);
+	printf("\n");
+
+	exit(1);
+}
+
+#define VALIDATE(cond, st, test) \
+	if (!(cond)) \
+		fail((test), (st), #cond);
+
 int main(void)
 {
 	const unsigned int sgmax = SCATTERLIST_MAX_SEGMENT;
-	struct test {
-		int alloc_ret;
-		unsigned num_pages;
-		unsigned *pfn;
-		unsigned size;
-		unsigned int max_seg;
-		unsigned int expected_segments;
-	} *test, tests[] = {
-		{ -EINVAL, 1, pfn(0), PAGE_SIZE, PAGE_SIZE + 1, 1 },
+	struct test *test, tests[] = {
 		{ -EINVAL, 1, pfn(0), PAGE_SIZE, 0, 1 },
-		{ -EINVAL, 1, pfn(0), PAGE_SIZE, sgmax + 1, 1 },
+		{ 0, 1, pfn(0), PAGE_SIZE, PAGE_SIZE + 1, 1 },
+		{ 0, 1, pfn(0), PAGE_SIZE, sgmax + 1, 1 },
 		{ 0, 1, pfn(0), PAGE_SIZE, sgmax, 1 },
 		{ 0, 1, pfn(0), 1, sgmax, 1 },
 		{ 0, 2, pfn(0, 1), 2 * PAGE_SIZE, sgmax, 1 },
@@ -55,20 +79,19 @@ int main(void)
 	for (i = 0, test = tests; test->expected_segments; test++, i++) {
 		struct page *pages[MAX_PAGES];
 		struct sg_table st;
-		int ret;
+		struct scatterlist *sg;
 
 		set_pages(pages, test->pfn, test->num_pages);
 
-		ret = __sg_alloc_table_from_pages(&st, pages, test->num_pages,
-						  0, test->size, test->max_seg,
-						  GFP_KERNEL);
-		assert(ret == test->alloc_ret);
+		sg = __sg_alloc_table_from_pages(&st, pages, test->num_pages, 0,
+				test->size, test->max_seg, NULL, 0, GFP_KERNEL);
+		assert(PTR_ERR_OR_ZERO(sg) == test->alloc_ret);
 
 		if (test->alloc_ret)
 			continue;
 
-		assert(st.nents == test->expected_segments);
-		assert(st.orig_nents == test->expected_segments);
+		VALIDATE(st.nents == test->expected_segments, &st, test);
+		VALIDATE(st.orig_nents == test->expected_segments, &st, test);
 
 		sg_free_table(&st);
 	}

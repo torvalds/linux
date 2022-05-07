@@ -115,6 +115,6 @@ static struct comedi_driver rti802_driver = {
 };
 module_comedi_driver(rti802_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for Analog Devices RTI-802 board");
 MODULE_LICENSE("GPL");

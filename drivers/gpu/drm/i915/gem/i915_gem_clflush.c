@@ -20,33 +20,31 @@ static void __do_clflush(struct drm_i915_gem_object *obj)
 {
 	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
 	drm_clflush_sg(obj->mm.pages);
-	intel_frontbuffer_flush(obj->frontbuffer, ORIGIN_CPU);
+
+	i915_gem_object_flush_frontbuffer(obj, ORIGIN_CPU);
 }
 
 static int clflush_work(struct dma_fence_work *base)
 {
 	struct clflush *clflush = container_of(base, typeof(*clflush), base);
-	struct drm_i915_gem_object *obj = fetch_and_zero(&clflush->obj);
+	struct drm_i915_gem_object *obj = clflush->obj;
 	int err;
 
 	err = i915_gem_object_pin_pages(obj);
 	if (err)
-		goto put;
+		return err;
 
 	__do_clflush(obj);
 	i915_gem_object_unpin_pages(obj);
 
-put:
-	i915_gem_object_put(obj);
-	return err;
+	return 0;
 }
 
 static void clflush_release(struct dma_fence_work *base)
 {
 	struct clflush *clflush = container_of(base, typeof(*clflush), base);
 
-	if (clflush->obj)
-		i915_gem_object_put(clflush->obj);
+	i915_gem_object_put(clflush->obj);
 }
 
 static const struct dma_fence_work_ops clflush_ops = {
@@ -110,7 +108,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	if (clflush) {
 		i915_sw_fence_await_reservation(&clflush->base.chain,
 						obj->base.resv, NULL, true,
-						I915_FENCE_TIMEOUT,
+						i915_fence_timeout(to_i915(obj->base.dev)),
 						I915_FENCE_GFP);
 		dma_resv_add_excl_fence(obj->base.resv, &clflush->base.dma);
 		dma_fence_work_commit(&clflush->base);

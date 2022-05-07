@@ -157,7 +157,7 @@ static bool cfg_partition_funcs(struct cfg *cfg, struct bpf_insn *cur,
 	return false;
 }
 
-static bool is_jmp_insn(u8 code)
+static bool is_jmp_insn(__u8 code)
 {
 	return BPF_CLASS(code) == BPF_JMP || BPF_CLASS(code) == BPF_JMP32;
 }
@@ -176,7 +176,7 @@ static bool func_partition_bb_head(struct func_node *func)
 
 	for (; cur <= end; cur++) {
 		if (is_jmp_insn(cur->code)) {
-			u8 opcode = BPF_OP(cur->code);
+			__u8 opcode = BPF_OP(cur->code);
 
 			if (opcode == BPF_EXIT || opcode == BPF_CALL)
 				continue;

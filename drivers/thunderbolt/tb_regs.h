@@ -26,6 +26,7 @@
 #define TB_MAX_CONFIG_RW_LENGTH 60
 
 enum tb_switch_cap {
+	TB_SWITCH_CAP_TMU		= 0x03,
 	TB_SWITCH_CAP_VSE		= 0x05,
 };
 
@@ -38,9 +39,11 @@ enum tb_switch_vse_cap {
 
 enum tb_port_cap {
 	TB_PORT_CAP_PHY			= 0x01,
+	TB_PORT_CAP_POWER		= 0x02,
 	TB_PORT_CAP_TIME1		= 0x03,
 	TB_PORT_CAP_ADAP		= 0x04,
 	TB_PORT_CAP_VSE			= 0x05,
+	TB_PORT_CAP_USB4		= 0x06,
 };
 
 enum tb_port_state {
@@ -89,6 +92,20 @@ struct tb_cap_extended_long {
 	u8 zero2;
 	u16 next;
 	u16 length;
+} __packed;
+
+/**
+ * struct tb_cap_any - Structure capable of hold every capability
+ * @basic: Basic capability
+ * @extended_short: Vendor specific capability
+ * @extended_long: Vendor specific extended capability
+ */
+struct tb_cap_any {
+	union {
+		struct tb_cap_basic basic;
+		struct tb_cap_extended_short extended_short;
+		struct tb_cap_extended_long extended_long;
+	};
 } __packed;
 
 /* capabilities */
@@ -164,9 +181,55 @@ struct tb_regs_switch_header {
 				  * milliseconds. Writing 0x00 is interpreted
 				  * as 255ms.
 				  */
-	u32 __unknown4:16;
+	u32 cmuv:8;
+	u32 __unknown4:8;
 	u32 thunderbolt_version:8;
 } __packed;
+
+/* USB4 version 1.0 */
+#define USB4_VERSION_1_0			0x20
+
+#define ROUTER_CS_1				0x01
+#define ROUTER_CS_4				0x04
+#define ROUTER_CS_5				0x05
+#define ROUTER_CS_5_SLP				BIT(0)
+#define ROUTER_CS_5_WOP				BIT(1)
+#define ROUTER_CS_5_WOU				BIT(2)
+#define ROUTER_CS_5_C3S				BIT(23)
+#define ROUTER_CS_5_PTO				BIT(24)
+#define ROUTER_CS_5_UTO				BIT(25)
+#define ROUTER_CS_5_HCO				BIT(26)
+#define ROUTER_CS_5_CV				BIT(31)
+#define ROUTER_CS_6				0x06
+#define ROUTER_CS_6_SLPR			BIT(0)
+#define ROUTER_CS_6_TNS				BIT(1)
+#define ROUTER_CS_6_WOPS			BIT(2)
+#define ROUTER_CS_6_WOUS			BIT(3)
+#define ROUTER_CS_6_HCI				BIT(18)
+#define ROUTER_CS_6_CR				BIT(25)
+#define ROUTER_CS_7				0x07
+#define ROUTER_CS_9				0x09
+#define ROUTER_CS_25				0x19
+#define ROUTER_CS_26				0x1a
+#define ROUTER_CS_26_STATUS_MASK		GENMASK(29, 24)
+#define ROUTER_CS_26_STATUS_SHIFT		24
+#define ROUTER_CS_26_ONS			BIT(30)
+#define ROUTER_CS_26_OV				BIT(31)
+
+/* Router TMU configuration */
+#define TMU_RTR_CS_0				0x00
+#define TMU_RTR_CS_0_TD				BIT(27)
+#define TMU_RTR_CS_0_UCAP			BIT(30)
+#define TMU_RTR_CS_1				0x01
+#define TMU_RTR_CS_1_LOCAL_TIME_NS_MASK		GENMASK(31, 16)
+#define TMU_RTR_CS_1_LOCAL_TIME_NS_SHIFT	16
+#define TMU_RTR_CS_2				0x02
+#define TMU_RTR_CS_3				0x03
+#define TMU_RTR_CS_3_LOCAL_TIME_NS_MASK		GENMASK(15, 0)
+#define TMU_RTR_CS_3_TS_PACKET_INTERVAL_MASK	GENMASK(31, 16)
+#define TMU_RTR_CS_3_TS_PACKET_INTERVAL_SHIFT	16
+#define TMU_RTR_CS_22				0x16
+#define TMU_RTR_CS_24				0x18
 
 enum tb_port_type {
 	TB_TYPE_INACTIVE	= 0x000000,
@@ -178,7 +241,8 @@ enum tb_port_type {
 	TB_TYPE_DP_HDMI_OUT	= 0x0e0102,
 	TB_TYPE_PCIE_DOWN	= 0x100101,
 	TB_TYPE_PCIE_UP		= 0x100102,
-	/* TB_TYPE_USB		= 0x200000, lower order bits are not known */
+	TB_TYPE_USB3_DOWN	= 0x200101,
+	TB_TYPE_USB3_UP		= 0x200102,
 };
 
 /* Present on every port in TB_CF_PORT at address zero. */
@@ -189,7 +253,8 @@ struct tb_regs_port_header {
 	/* DWORD 1 */
 	u32 first_cap_offset:8;
 	u32 max_counters:11;
-	u32 __unknown1:5;
+	u32 counters_support:1;
+	u32 __unknown1:4;
 	u32 revision:8;
 	/* DWORD 2 */
 	enum tb_port_type type:24;
@@ -211,37 +276,123 @@ struct tb_regs_port_header {
 
 } __packed;
 
-/* DWORD 4 */
-#define TB_PORT_NFC_CREDITS_MASK	GENMASK(19, 0)
-#define TB_PORT_MAX_CREDITS_SHIFT	20
-#define TB_PORT_MAX_CREDITS_MASK	GENMASK(26, 20)
-/* DWORD 5 */
-#define TB_PORT_LCA_SHIFT		22
-#define TB_PORT_LCA_MASK		GENMASK(28, 22)
+/* Basic adapter configuration registers */
+#define ADP_CS_4				0x04
+#define ADP_CS_4_NFC_BUFFERS_MASK		GENMASK(9, 0)
+#define ADP_CS_4_TOTAL_BUFFERS_MASK		GENMASK(29, 20)
+#define ADP_CS_4_TOTAL_BUFFERS_SHIFT		20
+#define ADP_CS_4_LCK				BIT(31)
+#define ADP_CS_5				0x05
+#define ADP_CS_5_LCA_MASK			GENMASK(28, 22)
+#define ADP_CS_5_LCA_SHIFT			22
+
+/* TMU adapter registers */
+#define TMU_ADP_CS_3				0x03
+#define TMU_ADP_CS_3_UDM			BIT(29)
+
+/* Lane adapter registers */
+#define LANE_ADP_CS_0				0x00
+#define LANE_ADP_CS_0_SUPPORTED_WIDTH_MASK	GENMASK(25, 20)
+#define LANE_ADP_CS_0_SUPPORTED_WIDTH_SHIFT	20
+#define LANE_ADP_CS_1				0x01
+#define LANE_ADP_CS_1_TARGET_WIDTH_MASK		GENMASK(9, 4)
+#define LANE_ADP_CS_1_TARGET_WIDTH_SHIFT	4
+#define LANE_ADP_CS_1_TARGET_WIDTH_SINGLE	0x1
+#define LANE_ADP_CS_1_TARGET_WIDTH_DUAL		0x3
+#define LANE_ADP_CS_1_LD			BIT(14)
+#define LANE_ADP_CS_1_LB			BIT(15)
+#define LANE_ADP_CS_1_CURRENT_SPEED_MASK	GENMASK(19, 16)
+#define LANE_ADP_CS_1_CURRENT_SPEED_SHIFT	16
+#define LANE_ADP_CS_1_CURRENT_SPEED_GEN2	0x8
+#define LANE_ADP_CS_1_CURRENT_SPEED_GEN3	0x4
+#define LANE_ADP_CS_1_CURRENT_WIDTH_MASK	GENMASK(25, 20)
+#define LANE_ADP_CS_1_CURRENT_WIDTH_SHIFT	20
+
+/* USB4 port registers */
+#define PORT_CS_1				0x01
+#define PORT_CS_1_LENGTH_SHIFT			8
+#define PORT_CS_1_TARGET_MASK			GENMASK(18, 16)
+#define PORT_CS_1_TARGET_SHIFT			16
+#define PORT_CS_1_RETIMER_INDEX_SHIFT		20
+#define PORT_CS_1_WNR_WRITE			BIT(24)
+#define PORT_CS_1_NR				BIT(25)
+#define PORT_CS_1_RC				BIT(26)
+#define PORT_CS_1_PND				BIT(31)
+#define PORT_CS_2				0x02
+#define PORT_CS_18				0x12
+#define PORT_CS_18_BE				BIT(8)
+#define PORT_CS_18_TCM				BIT(9)
+#define PORT_CS_18_WOU4S			BIT(18)
+#define PORT_CS_19				0x13
+#define PORT_CS_19_PC				BIT(3)
+#define PORT_CS_19_PID				BIT(4)
+#define PORT_CS_19_WOC				BIT(16)
+#define PORT_CS_19_WOD				BIT(17)
+#define PORT_CS_19_WOU4				BIT(18)
 
 /* Display Port adapter registers */
-
-/* DWORD 0 */
-#define TB_DP_VIDEO_HOPID_SHIFT		16
-#define TB_DP_VIDEO_HOPID_MASK		GENMASK(26, 16)
-#define TB_DP_AUX_EN			BIT(30)
-#define TB_DP_VIDEO_EN			BIT(31)
-/* DWORD 1 */
-#define TB_DP_AUX_TX_HOPID_MASK		GENMASK(10, 0)
-#define TB_DP_AUX_RX_HOPID_SHIFT	11
-#define TB_DP_AUX_RX_HOPID_MASK		GENMASK(21, 11)
-/* DWORD 2 */
-#define TB_DP_HDP			BIT(6)
-/* DWORD 3 */
-#define TB_DP_HPDC			BIT(9)
-/* DWORD 4 */
-#define TB_DP_LOCAL_CAP			0x4
-/* DWORD 5 */
-#define TB_DP_REMOTE_CAP		0x5
+#define ADP_DP_CS_0				0x00
+#define ADP_DP_CS_0_VIDEO_HOPID_MASK		GENMASK(26, 16)
+#define ADP_DP_CS_0_VIDEO_HOPID_SHIFT		16
+#define ADP_DP_CS_0_AE				BIT(30)
+#define ADP_DP_CS_0_VE				BIT(31)
+#define ADP_DP_CS_1_AUX_TX_HOPID_MASK		GENMASK(10, 0)
+#define ADP_DP_CS_1_AUX_RX_HOPID_MASK		GENMASK(21, 11)
+#define ADP_DP_CS_1_AUX_RX_HOPID_SHIFT		11
+#define ADP_DP_CS_2				0x02
+#define ADP_DP_CS_2_HDP				BIT(6)
+#define ADP_DP_CS_3				0x03
+#define ADP_DP_CS_3_HDPC			BIT(9)
+#define DP_LOCAL_CAP				0x04
+#define DP_REMOTE_CAP				0x05
+#define DP_STATUS_CTRL				0x06
+#define DP_STATUS_CTRL_CMHS			BIT(25)
+#define DP_STATUS_CTRL_UF			BIT(26)
+#define DP_COMMON_CAP				0x07
+/*
+ * DP_COMMON_CAP offsets work also for DP_LOCAL_CAP and DP_REMOTE_CAP
+ * with exception of DPRX done.
+ */
+#define DP_COMMON_CAP_RATE_MASK			GENMASK(11, 8)
+#define DP_COMMON_CAP_RATE_SHIFT		8
+#define DP_COMMON_CAP_RATE_RBR			0x0
+#define DP_COMMON_CAP_RATE_HBR			0x1
+#define DP_COMMON_CAP_RATE_HBR2			0x2
+#define DP_COMMON_CAP_RATE_HBR3			0x3
+#define DP_COMMON_CAP_LANES_MASK		GENMASK(14, 12)
+#define DP_COMMON_CAP_LANES_SHIFT		12
+#define DP_COMMON_CAP_1_LANE			0x0
+#define DP_COMMON_CAP_2_LANES			0x1
+#define DP_COMMON_CAP_4_LANES			0x2
+#define DP_COMMON_CAP_DPRX_DONE			BIT(31)
 
 /* PCIe adapter registers */
+#define ADP_PCIE_CS_0				0x00
+#define ADP_PCIE_CS_0_PE			BIT(31)
 
-#define TB_PCI_EN			BIT(31)
+/* USB adapter registers */
+#define ADP_USB3_CS_0				0x00
+#define ADP_USB3_CS_0_V				BIT(30)
+#define ADP_USB3_CS_0_PE			BIT(31)
+#define ADP_USB3_CS_1				0x01
+#define ADP_USB3_CS_1_CUBW_MASK			GENMASK(11, 0)
+#define ADP_USB3_CS_1_CDBW_MASK			GENMASK(23, 12)
+#define ADP_USB3_CS_1_CDBW_SHIFT		12
+#define ADP_USB3_CS_1_HCA			BIT(31)
+#define ADP_USB3_CS_2				0x02
+#define ADP_USB3_CS_2_AUBW_MASK			GENMASK(11, 0)
+#define ADP_USB3_CS_2_ADBW_MASK			GENMASK(23, 12)
+#define ADP_USB3_CS_2_ADBW_SHIFT		12
+#define ADP_USB3_CS_2_CMR			BIT(31)
+#define ADP_USB3_CS_3				0x03
+#define ADP_USB3_CS_3_SCALE_MASK		GENMASK(5, 0)
+#define ADP_USB3_CS_4				0x04
+#define ADP_USB3_CS_4_ALR_MASK			GENMASK(6, 0)
+#define ADP_USB3_CS_4_ALR_20G			0x1
+#define ADP_USB3_CS_4_ULV			BIT(7)
+#define ADP_USB3_CS_4_MSLR_MASK			GENMASK(18, 12)
+#define ADP_USB3_CS_4_MSLR_SHIFT		12
+#define ADP_USB3_CS_4_MSLR_20G			0x1
 
 /* Hop register from TB_CFG_HOPS. 8 byte per entry. */
 struct tb_regs_hop {
@@ -278,11 +429,27 @@ struct tb_regs_hop {
 #define TB_LC_DESC_PORT_SIZE_SHIFT	16
 #define TB_LC_DESC_PORT_SIZE_MASK	GENMASK(27, 16)
 #define TB_LC_FUSE			0x03
+#define TB_LC_SNK_ALLOCATION		0x10
+#define TB_LC_SNK_ALLOCATION_SNK0_MASK	GENMASK(3, 0)
+#define TB_LC_SNK_ALLOCATION_SNK0_CM	0x1
+#define TB_LC_SNK_ALLOCATION_SNK1_SHIFT	4
+#define TB_LC_SNK_ALLOCATION_SNK1_MASK	GENMASK(7, 4)
+#define TB_LC_SNK_ALLOCATION_SNK1_CM	0x1
+#define TB_LC_POWER			0x740
 
 /* Link controller registers */
+#define TB_LC_PORT_ATTR			0x8d
+#define TB_LC_PORT_ATTR_BE		BIT(12)
+
 #define TB_LC_SX_CTRL			0x96
+#define TB_LC_SX_CTRL_WOC		BIT(1)
+#define TB_LC_SX_CTRL_WOD		BIT(2)
+#define TB_LC_SX_CTRL_WOU4		BIT(5)
+#define TB_LC_SX_CTRL_WOP		BIT(6)
 #define TB_LC_SX_CTRL_L1C		BIT(16)
+#define TB_LC_SX_CTRL_L1D		BIT(17)
 #define TB_LC_SX_CTRL_L2C		BIT(20)
+#define TB_LC_SX_CTRL_L2D		BIT(21)
 #define TB_LC_SX_CTRL_UPSTREAM		BIT(30)
 #define TB_LC_SX_CTRL_SLP		BIT(31)
 

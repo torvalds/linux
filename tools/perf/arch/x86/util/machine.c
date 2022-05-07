@@ -5,9 +5,9 @@
 #include <stdlib.h>
 
 #include <internal/lib.h> // page_size
-#include "../../util/machine.h"
-#include "../../util/map.h"
-#include "../../util/symbol.h"
+#include "../../../util/machine.h"
+#include "../../../util/map.h"
+#include "../../../util/symbol.h"
 #include <linux/ctype.h>
 
 #include <symbol/kallsyms.h>

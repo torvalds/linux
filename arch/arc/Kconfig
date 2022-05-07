@@ -6,7 +6,7 @@
 config ARC
 	def_bool y
 	select ARC_TIMERS
-	select ARCH_HAS_DMA_COHERENT_TO_PFN
+	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SETUP_DMA_OPS
@@ -14,7 +14,7 @@ config ARC
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
 	select ARCH_32BIT_OFF_T
-	select BUILDTIME_EXTABLE_SORT
+	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select DMA_DIRECT_REMAP
@@ -30,6 +30,7 @@ config ARC
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_IOREMAP_PROT
 	select HAVE_KERNEL_GZIP
@@ -46,6 +47,8 @@ config ARC
 	select OF_EARLY_FLATTREE
 	select PCI_SYSCALL if PCI
 	select PERF_USE_VMALLOC if ARC_CACHE_VIPT_ALIASING
+	select HAVE_ARCH_JUMP_LABEL if ISA_ARCV2 && !CPU_ENDIAN_BE32
+	select SET_FS
 
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
@@ -94,8 +97,6 @@ menu "ARC Platform/SoC/Board"
 
 source "arch/arc/plat-tb10x/Kconfig"
 source "arch/arc/plat-axs10x/Kconfig"
-#New platform adds here
-source "arch/arc/plat-eznps/Kconfig"
 source "arch/arc/plat-hsdk/Kconfig"
 
 endmenu
@@ -152,7 +153,7 @@ config ARC_CPU_HS
 	help
 	  Support for ARC HS38x Cores based on ARCv2 ISA
 	  The notable features are:
-	    - SMP configurations of upto 4 core with coherency
+	    - SMP configurations of up to 4 cores with coherency
 	    - Optional L2 Cache and IO-Coherency
 	    - Revised Interrupt Architecture (multiple priorites, reg banks,
 	        auto stack switch, auto regfile save/restore)
@@ -166,6 +167,15 @@ config ARC_CPU_HS
 		* SETcc, BMSKN, XBFU...
 
 endchoice
+
+config ARC_TUNE_MCPU
+	string "Override default -mcpu compiler flag"
+	default ""
+	help
+	  Override default -mcpu=xxx compiler flag (which is set depending on
+	  the ISA version) with the specified value.
+	  NOTE: If specified flag isn't supported by current compiler the
+	  ISA default value will be used as a fallback.
 
 config CPU_BIG_ENDIAN
 	bool "Enable Big Endian Mode"
@@ -190,7 +200,7 @@ config ARC_SMP_HALT_ON_RESET
 	help
 	  In SMP configuration cores can be configured as Halt-on-reset
 	  or they could all start at same time. For Halt-on-reset, non
-	  masters are parked until Master kicks them so they can start of
+	  masters are parked until Master kicks them so they can start off
 	  at designated entry point. For other case, all jump to common
 	  entry point and spin wait for Master's signal.
 
@@ -345,13 +355,12 @@ config NODES_SHIFT
 	default "0" if !DISCONTIGMEM
 	default "1" if DISCONTIGMEM
 	depends on NEED_MULTIPLE_NODES
-	---help---
+	help
 	  Accessing memory beyond 1GB (with or w/o PAE) requires 2 memory
 	  zones.
 
-if ISA_ARCOMPACT
-
 config ARC_COMPACT_IRQ_LEVELS
+	depends on ISA_ARCOMPACT
 	bool "Setup Timer IRQ as high Priority"
 	# if SMP, LV2 enabled ONLY if ARC implementation has LV2 re-entrancy
 	depends on !SMP
@@ -359,14 +368,10 @@ config ARC_COMPACT_IRQ_LEVELS
 config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
 	help
-	  Double Precision Floating Point unit had dedicated regs which
-	  need to be saved/restored across context-switch.
-	  Note that ARC FPU is overly simplistic, unlike say x86, which has
-	  hardware pieces to allow software to conditionally save/restore,
-	  based on actual usage of FPU by a task. Thus our implemn does
-	  this for all tasks in system.
-
-endif #ISA_ARCOMPACT
+	  ARCompact FPU has internal registers to assist with Double precision
+	  Floating Point operations. There are control and stauts registers
+	  for floating point exceptions and rounding modes. These are
+	  preserved across task context switch when enabled.
 
 config ARC_CANT_LLSC
 	def_bool n
@@ -404,12 +409,60 @@ config ARC_HAS_DIV_REM
 	default y
 
 config ARC_HAS_ACCL_REGS
-	bool "Reg Pair ACCL:ACCH (FPU and/or MPY > 6)"
+	bool "Reg Pair ACCL:ACCH (FPU and/or MPY > 6 and/or DSP)"
 	default y
 	help
 	  Depending on the configuration, CPU can contain accumulator reg-pair
 	  (also referred to as r58:r59). These can also be used by gcc as GPR so
 	  kernel needs to save/restore per process
+
+config ARC_DSP_HANDLED
+	def_bool n
+
+config ARC_DSP_SAVE_RESTORE_REGS
+	def_bool n
+
+choice
+	prompt "DSP support"
+	default ARC_DSP_NONE
+	help
+	  Depending on the configuration, CPU can contain DSP registers
+	  (ACC0_GLO, ACC0_GHI, DSP_BFLY0, DSP_CTRL, DSP_FFT_CTRL).
+	  Bellow is options describing how to handle these registers in
+	  interrupt entry / exit and in context switch.
+
+config ARC_DSP_NONE
+	bool "No DSP extension presence in HW"
+	help
+	  No DSP extension presence in HW
+
+config ARC_DSP_KERNEL
+	bool "DSP extension in HW, no support for userspace"
+	select ARC_HAS_ACCL_REGS
+	select ARC_DSP_HANDLED
+	help
+	  DSP extension presence in HW, no support for DSP-enabled userspace
+	  applications. We don't save / restore DSP registers and only do
+	  some minimal preparations so userspace won't be able to break kernel
+
+config ARC_DSP_USERSPACE
+	bool "Support DSP for userspace apps"
+	select ARC_HAS_ACCL_REGS
+	select ARC_DSP_HANDLED
+	select ARC_DSP_SAVE_RESTORE_REGS
+	help
+	  DSP extension presence in HW, support save / restore DSP registers to
+	  run DSP-enabled userspace applications
+
+config ARC_DSP_AGU_USERSPACE
+	bool "Support DSP with AGU for userspace apps"
+	select ARC_HAS_ACCL_REGS
+	select ARC_DSP_HANDLED
+	select ARC_DSP_SAVE_RESTORE_REGS
+	help
+	  DSP and AGU extensions presence in HW, support save / restore DSP
+	  and AGU registers to run DSP-enabled userspace applications
+endchoice
 
 config ARC_IRQ_NO_AUTOSAVE
 	bool "Disable hardware autosave regfile on interrupts"
@@ -418,6 +471,12 @@ config ARC_IRQ_NO_AUTOSAVE
 	  On HS cores, taken interrupt auto saves the regfile on stack.
 	  This is programmable and can be optionally disabled in which case
 	  software INTERRUPT_PROLOGUE/EPILGUE do the needed work
+
+config ARC_LPB_DISABLE
+	bool "Disable loop buffer (LPB)"
+	help
+	  On HS cores, loop buffer (LPB) is programmable in runtime and can
+	  be optionally disabled.
 
 endif # ISA_ARCV2
 
@@ -525,6 +584,13 @@ config ARC_DW2_UNWIND
 config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
 
+config ARC_DBG_JUMP_LABEL
+	bool "Paranoid checks in Static Keys (jump labels) code"
+	depends on JUMP_LABEL
+	default y if STATIC_KEYS_SELFTEST
+	help
+	  Enable paranoid checks and self-test of both ARC-specific and generic
+	  part of static keys (jump labels) related code.
 endif
 
 config ARC_BUILTIN_DTB_NAME

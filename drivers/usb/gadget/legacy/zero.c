@@ -11,8 +11,8 @@
  * can write a hardware-agnostic gadget driver running inside a USB device.
  * Some hardware details are visible, but don't affect most of the driver.
  *
- * Use it with the Linux host/master side "usbtest" driver to get a basic
- * functional test of your device-side usb stack, or with "usb-skeleton".
+ * Use it with the Linux host side "usbtest" driver to get a basic functional
+ * test of your device-side usb stack, or with "usb-skeleton".
  *
  * It supports two similar configurations.  One sinks whatever the usb host
  * writes, and in return sources zeroes.  The other loops whatever the host

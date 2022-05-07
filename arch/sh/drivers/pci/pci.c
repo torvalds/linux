@@ -13,7 +13,6 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/dma-debug.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -120,8 +119,7 @@ int register_pci_controller(struct pci_channel *hose)
 	 * Do not panic here but later - this might happen before console init.
 	 */
 	if (!hose->io_map_base) {
-		printk(KERN_WARNING
-		       "registering PCI controller with io_map_base unset\n");
+		pr_warn("registering PCI controller with io_map_base unset\n");
 	}
 
 	/*
@@ -145,7 +143,7 @@ out:
 	for (--i; i >= 0; i--)
 		release_resource(&hose->resources[i]);
 
-	printk(KERN_WARNING "Skipping PCI bus scan due to resource conflict\n");
+	pr_warn("Skipping PCI bus scan due to resource conflict\n");
 	return -1;
 }
 
@@ -213,8 +211,8 @@ pcibios_bus_report_status_early(struct pci_channel *hose,
 					pci_devfn, PCI_STATUS,
 					status & status_mask);
 		if (warn)
-			printk("(%02x:%02x: %04X) ", current_bus,
-			       pci_devfn, status);
+			pr_cont("(%02x:%02x: %04X) ", current_bus, pci_devfn,
+				status);
 	}
 }
 
@@ -249,7 +247,7 @@ pcibios_bus_report_status(struct pci_bus *bus, unsigned int status_mask,
 		pci_write_config_word(dev, PCI_STATUS, status & status_mask);
 
 		if (warn)
-			printk("(%s: %04X) ", pci_name(dev), status);
+			pr_cont("(%s: %04X) ", pci_name(dev), status);
 	}
 
 	list_for_each_entry(dev, &bus->devices, bus_list)

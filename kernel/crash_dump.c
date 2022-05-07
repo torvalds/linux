@@ -6,12 +6,6 @@
 #include <linux/export.h>
 
 /*
- * If we have booted due to a crash, max_pfn will be a very low value. We need
- * to know the amount of memory that the previous kernel used.
- */
-unsigned long saved_max_pfn;
-
-/*
  * stores the physical address of elf header of crash image
  *
  * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by

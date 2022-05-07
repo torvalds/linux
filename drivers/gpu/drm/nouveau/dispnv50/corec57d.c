@@ -22,36 +22,55 @@
 #include "core.h"
 #include "head.h"
 
-static void
+#include <nvif/pushc37b.h>
+
+#include <nvhw/class/clc57d.h>
+
+static int
 corec57d_init(struct nv50_core *core)
 {
+	struct nvif_push *push = core->chan.push;
 	const u32 windows = 8; /*XXX*/
-	u32 *push, i;
-	if ((push = evo_wait(&core->chan, 2 + 6 * windows + 2))) {
-		evo_mthd(push, 0x0208, 1);
-		evo_data(push, core->chan.sync.handle);
-		for (i = 0; i < windows; i++) {
-			evo_mthd(push, 0x1000 + (i * 0x080), 3);
-			evo_data(push, i >> 1);
-			evo_data(push, 0x0000000f);
-			evo_data(push, 0x00000000);
-			evo_mthd(push, 0x1010 + (i * 0x080), 1);
-			evo_data(push, 0x00117fff);
-		}
-		evo_mthd(push, 0x0200, 1);
-		evo_data(push, 0x00000001);
-		evo_kick(push, &core->chan);
+	int ret, i;
+
+	if ((ret = PUSH_WAIT(push, 2 + windows * 5)))
+		return ret;
+
+	PUSH_MTHD(push, NVC57D, SET_CONTEXT_DMA_NOTIFIER, core->chan.sync.handle);
+
+	for (i = 0; i < windows; i++) {
+		PUSH_MTHD(push, NVC57D, WINDOW_SET_WINDOW_FORMAT_USAGE_BOUNDS(i),
+			  NVDEF(NVC57D, WINDOW_SET_WINDOW_FORMAT_USAGE_BOUNDS, RGB_PACKED1BPP, TRUE) |
+			  NVDEF(NVC57D, WINDOW_SET_WINDOW_FORMAT_USAGE_BOUNDS, RGB_PACKED2BPP, TRUE) |
+			  NVDEF(NVC57D, WINDOW_SET_WINDOW_FORMAT_USAGE_BOUNDS, RGB_PACKED4BPP, TRUE) |
+			  NVDEF(NVC57D, WINDOW_SET_WINDOW_FORMAT_USAGE_BOUNDS, RGB_PACKED8BPP, TRUE),
+
+					WINDOW_SET_WINDOW_ROTATED_FORMAT_USAGE_BOUNDS(i), 0x00000000);
+
+		PUSH_MTHD(push, NVC57D, WINDOW_SET_WINDOW_USAGE_BOUNDS(i),
+			  NVVAL(NVC57D, WINDOW_SET_WINDOW_USAGE_BOUNDS, MAX_PIXELS_FETCHED_PER_LINE, 0x7fff) |
+			  NVDEF(NVC57D, WINDOW_SET_WINDOW_USAGE_BOUNDS, ILUT_ALLOWED, TRUE) |
+			  NVDEF(NVC57D, WINDOW_SET_WINDOW_USAGE_BOUNDS, INPUT_SCALER_TAPS, TAPS_2) |
+			  NVDEF(NVC57D, WINDOW_SET_WINDOW_USAGE_BOUNDS, UPSCALING_ALLOWED, FALSE));
 	}
+
+	core->assign_windows = true;
+	return PUSH_KICK(push);
 }
 
 static const struct nv50_core_func
 corec57d = {
 	.init = corec57d_init,
 	.ntfy_init = corec37d_ntfy_init,
+	.caps_init = corec37d_caps_init,
 	.ntfy_wait_done = corec37d_ntfy_wait_done,
 	.update = corec37d_update,
+	.wndw.owner = corec37d_wndw_owner,
 	.head = &headc57d,
 	.sor = &sorc37d,
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	.crc = &crcc37d,
+#endif
 };
 
 int

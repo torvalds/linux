@@ -3,7 +3,7 @@
  *
  * Name: aclinux.h - OS specific defines, etc. for Linux
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -118,6 +118,10 @@
 
 #define USE_NATIVE_ALLOCATE_ZEROED
 
+/* Use logical addresses for accessing GPE registers in system memory */
+
+#define ACPI_GPE_USE_LOGICAL_ADDRESSES
+
 /*
  * Overrides for in-kernel ACPICA
  */
@@ -190,7 +194,8 @@
 
 #if defined(__ia64__)    || (defined(__x86_64__) && !defined(__ILP32__)) ||\
 	defined(__aarch64__) || defined(__PPC64__) ||\
-	defined(__s390x__)
+	defined(__s390x__) ||\
+	(defined(__riscv) && (defined(__LP64__) || defined(_LP64)))
 #define ACPI_MACHINE_WIDTH          64
 #define COMPILER_DEPENDENT_INT64    long
 #define COMPILER_DEPENDENT_UINT64   unsigned long

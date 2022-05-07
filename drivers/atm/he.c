@@ -1944,14 +1944,14 @@ he_tasklet(unsigned long data)
 		switch (type) {
 			case ITYPE_RBRQ_THRESH:
 				HPRINTK("rbrq%d threshold\n", group);
-				/* fall through */
+				fallthrough;
 			case ITYPE_RBRQ_TIMER:
 				if (he_service_rbrq(he_dev, group))
 					he_service_rbpl(he_dev, group);
 				break;
 			case ITYPE_TBRQ_THRESH:
 				HPRINTK("tbrq%d threshold\n", group);
-				/* fall through */
+				fallthrough;
 			case ITYPE_TPD_COMPLETE:
 				he_service_tbrq(he_dev, group);
 				break;

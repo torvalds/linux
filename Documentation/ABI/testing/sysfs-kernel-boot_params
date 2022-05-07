@@ -23,16 +23,17 @@ Description:	The /sys/kernel/boot_params directory contains two
 		representation of setup_data type. "data" file is the binary
 		representation of setup_data payload.
 
-		The whole boot_params directory structure is like below:
-		/sys/kernel/boot_params
-		|__ data
-		|__ setup_data
-		|   |__ 0
-		|   |   |__ data
-		|   |   |__ type
-		|   |__ 1
-		|       |__ data
-		|       |__ type
-		|__ version
+		The whole boot_params directory structure is like below::
+
+		  /sys/kernel/boot_params
+		  |__ data
+		  |__ setup_data
+		  |   |__ 0
+		  |   |   |__ data
+		  |   |   |__ type
+		  |   |__ 1
+		  |       |__ data
+		  |       |__ type
+		  |__ version
 
 Users:		Kexec

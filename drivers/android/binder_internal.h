@@ -8,6 +8,7 @@
 #include <linux/list.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
+#include <linux/refcount.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/uidgid.h>
@@ -33,6 +34,7 @@ struct binder_device {
 	struct miscdevice miscdev;
 	struct binder_context context;
 	struct inode *binderfs_inode;
+	refcount_t ref;
 };
 
 /**

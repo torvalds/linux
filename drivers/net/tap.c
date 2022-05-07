@@ -341,6 +341,7 @@ rx_handler_result_t tap_handle_frame(struct sk_buff **pskb)
 		features |= tap->tap_features;
 	if (netif_needs_gso(skb, features)) {
 		struct sk_buff *segs = __skb_gso_segment(skb, features, false);
+		struct sk_buff *next;
 
 		if (IS_ERR(segs))
 			goto drop;
@@ -352,16 +353,13 @@ rx_handler_result_t tap_handle_frame(struct sk_buff **pskb)
 		}
 
 		consume_skb(skb);
-		while (segs) {
-			struct sk_buff *nskb = segs->next;
-
-			segs->next = NULL;
-			if (ptr_ring_produce(&q->ring, segs)) {
-				kfree_skb(segs);
-				kfree_skb_list(nskb);
+		skb_list_walk_safe(segs, skb, next) {
+			skb_mark_not_on_list(skb);
+			if (ptr_ring_produce(&q->ring, skb)) {
+				kfree_skb(skb);
+				kfree_skb_list(next);
 				break;
 			}
-			segs = nskb;
 		}
 	} else {
 		/* If we receive a partial checksum and the tap side
@@ -1123,14 +1121,6 @@ static long tap_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
-#ifdef CONFIG_COMPAT
-static long tap_compat_ioctl(struct file *file, unsigned int cmd,
-			     unsigned long arg)
-{
-	return tap_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
-}
-#endif
-
 static const struct file_operations tap_fops = {
 	.owner		= THIS_MODULE,
 	.open		= tap_open,
@@ -1140,9 +1130,7 @@ static const struct file_operations tap_fops = {
 	.poll		= tap_poll,
 	.llseek		= no_llseek,
 	.unlocked_ioctl	= tap_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= tap_compat_ioctl,
-#endif
+	.compat_ioctl	= compat_ptr_ioctl,
 };
 
 static int tap_get_user_xdp(struct tap_queue *q, struct xdp_buff *xdp)

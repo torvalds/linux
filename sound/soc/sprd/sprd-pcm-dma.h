@@ -6,7 +6,7 @@
 #define DRV_NAME		"sprd_pcm_dma"
 #define SPRD_PCM_CHANNEL_MAX	2
 
-extern const struct snd_compr_ops sprd_platform_compr_ops;
+extern const struct snd_compress_ops sprd_platform_compress_ops;
 
 struct sprd_pcm_dma_params {
 	dma_addr_t dev_phys[SPRD_PCM_CHANNEL_MAX];

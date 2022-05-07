@@ -16,6 +16,7 @@
 #ifndef __DEVICE_H__
 #define __DEVICE_H__
 
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -52,6 +53,8 @@
 #define RATE_AUTO	12
 
 #define MAX_RATE			12
+#define VNT_B_RATES	(BIT(RATE_1M) | BIT(RATE_2M) |\
+			BIT(RATE_5M) | BIT(RATE_11M))
 
 /*
  * device specific
@@ -69,6 +72,10 @@
 #define DEVICE_FULL_DRV_NAM		"VIA Networking Wireless LAN USB Driver"
 
 #define DEVICE_VERSION			"mac80211"
+
+#define FIRMWARE_VERSION		0x133		/* version 1.51 */
+#define FIRMWARE_NAME			"vntwusb.fw"
+#define FIRMWARE_CHUNK_SIZE		0x400
 
 #define CONFIG_PATH			"/etc/vntconfiguration.dat"
 
@@ -127,12 +134,12 @@
 #define EEP_OFS_OFDMA_PWR_TBL	0x50
 
 /* Bits in EEP_OFS_ANTENNA */
-#define EEP_ANTENNA_MAIN	0x1
-#define EEP_ANTENNA_AUX		0x2
-#define EEP_ANTINV		0x4
+#define EEP_ANTENNA_MAIN	BIT(0)
+#define EEP_ANTENNA_AUX		BIT(1)
+#define EEP_ANTINV		BIT(2)
 
 /* Bits in EEP_OFS_RADIOCTL */
-#define EEP_RADIOCTL_ENABLE	0x80
+#define EEP_RADIOCTL_ENABLE	BIT(7)
 
 /* control commands */
 #define MESSAGE_TYPE_READ		0x1
@@ -199,36 +206,45 @@ struct vnt_rsp_card_init {
  * Enum of context types for SendPacket
  */
 enum {
-	CONTEXT_DATA_PACKET = 1,
-	CONTEXT_MGMT_PACKET,
+	CONTEXT_DATA_PACKET = 0,
 	CONTEXT_BEACON_PACKET
 };
+
+struct vnt_rx_header {
+	u32 wbk_status;
+	u8 rx_sts;
+	u8 rx_rate;
+	u16 pay_load_len;
+} __packed;
+
+struct vnt_rx_tail {
+	__le64 tsf_time;
+	u8 sq;
+	u8 new_rsr;
+	u8 rssi;
+	u8 rsr;
+	u8 sq_3;
+} __packed;
 
 /* RCB (Receive Control Block) */
 struct vnt_rcb {
 	void *priv;
 	struct urb *urb;
 	struct sk_buff *skb;
-	int in_use;
 };
 
 /* used to track bulk out irps */
 struct vnt_usb_send_context {
 	void *priv;
 	struct sk_buff *skb;
-	struct urb *urb;
-	struct ieee80211_hdr *hdr;
-	unsigned int buf_len;
+	void *tx_buffer;
 	u32 frame_len;
 	u16 tx_hdr_size;
 	u16 tx_rate;
 	u8 type;
 	u8 pkt_no;
 	u8 pkt_type;
-	u8 need_ack;
-	u8 fb_option;
 	bool in_use;
-	unsigned char data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
 };
 
 /*
@@ -236,16 +252,6 @@ struct vnt_usb_send_context {
  */
 struct vnt_interrupt_buffer {
 	u8 *data_buf;
-	bool in_use;
-};
-
-/*++ NDIS related */
-
-enum {
-	STATUS_SUCCESS = 0,
-	STATUS_FAILURE,
-	STATUS_RESOURCES,
-	STATUS_PENDING,
 };
 
 /* flags for options */
@@ -259,9 +265,9 @@ struct vnt_private {
 	u8 mac_hw;
 	/* netdev */
 	struct usb_device *usb;
+	struct usb_interface *intf;
 
 	u64 tsf_time;
-	u8 rx_rate;
 
 	u32 rx_buf_sz;
 	int mc_list_count;
@@ -281,6 +287,7 @@ struct vnt_private {
 
 	/* Variables to track resources for the BULK Out Pipe */
 	struct vnt_usb_send_context *tx_context[CB_MAX_TX_DESC];
+	struct usb_anchor tx_submitted;
 	u32 num_tx_context;
 
 	/* Variables to track resources for the Interrupt In Pipe */
@@ -337,12 +344,8 @@ struct vnt_private {
 	u8 ofdm_pwr_tbl[14];
 	u8 ofdm_a_pwr_tbl[42];
 
-	u16 current_rate;
 	u16 tx_rate_fb0;
 	u16 tx_rate_fb1;
-
-	u8 short_retry_limit;
-	u8 long_retry_limit;
 
 	enum nl80211_iftype op_mode;
 
@@ -375,8 +378,6 @@ struct vnt_private {
 
 	u8 bb_pre_ed_rssi;
 	u8 bb_pre_ed_index;
-
-	u16 wake_up_count;
 
 	/* command timer */
 	struct delayed_work run_command_work;

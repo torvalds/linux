@@ -36,7 +36,7 @@
  *
  * Clobbers: w3, x10, v4, v12
  */
-chacha_permute:
+SYM_FUNC_START_LOCAL(chacha_permute)
 
 	adr_l		x10, ROT8
 	ld1		{v12.4s}, [x10]
@@ -104,9 +104,9 @@ chacha_permute:
 	b.ne		.Ldoubleround
 
 	ret
-ENDPROC(chacha_permute)
+SYM_FUNC_END(chacha_permute)
 
-ENTRY(chacha_block_xor_neon)
+SYM_FUNC_START(chacha_block_xor_neon)
 	// x0: Input state matrix, s
 	// x1: 1 data block output, o
 	// x2: 1 data block input, i
@@ -143,9 +143,9 @@ ENTRY(chacha_block_xor_neon)
 
 	ldp		x29, x30, [sp], #16
 	ret
-ENDPROC(chacha_block_xor_neon)
+SYM_FUNC_END(chacha_block_xor_neon)
 
-ENTRY(hchacha_block_neon)
+SYM_FUNC_START(hchacha_block_neon)
 	// x0: Input state matrix, s
 	// x1: output (8 32-bit words)
 	// w2: nrounds
@@ -163,7 +163,7 @@ ENTRY(hchacha_block_neon)
 
 	ldp		x29, x30, [sp], #16
 	ret
-ENDPROC(hchacha_block_neon)
+SYM_FUNC_END(hchacha_block_neon)
 
 	a0		.req	w12
 	a1		.req	w13
@@ -183,7 +183,7 @@ ENDPROC(hchacha_block_neon)
 	a15		.req	w28
 
 	.align		6
-ENTRY(chacha_4block_xor_neon)
+SYM_FUNC_START(chacha_4block_xor_neon)
 	frame_push	10
 
 	// x0: Input state matrix, s
@@ -845,7 +845,7 @@ CPU_BE(	  rev		a15, a15	)
 	eor		v31.16b, v31.16b, v3.16b
 	st1		{v28.16b-v31.16b}, [x1]
 	b		.Lout
-ENDPROC(chacha_4block_xor_neon)
+SYM_FUNC_END(chacha_4block_xor_neon)
 
 	.section	".rodata", "a", %progbits
 	.align		L1_CACHE_SHIFT

@@ -49,9 +49,9 @@ static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 
 static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct s3c24xx_uda134x *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	int ret = 0;
 
 	mutex_lock(&priv->clk_lock);
@@ -101,7 +101,7 @@ static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 
 static void s3c24xx_uda134x_shutdown(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct s3c24xx_uda134x *priv = snd_soc_card_get_drvdata(rtd->card);
 
 	mutex_lock(&priv->clk_lock);
@@ -118,9 +118,9 @@ static void s3c24xx_uda134x_shutdown(struct snd_pcm_substream *substream)
 static int s3c24xx_uda134x_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	unsigned int clk = 0;
 	int ret = 0;
 	int clk_source, fs_mode;

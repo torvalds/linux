@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_COM_CMD_H_
@@ -47,6 +47,7 @@ struct efa_com_modify_qp_params {
 	u32 qkey;
 	u32 sq_psn;
 	u8 sq_drained_async_notify;
+	u8 rnr_retry;
 };
 
 struct efa_com_query_qp_params {
@@ -58,6 +59,7 @@ struct efa_com_query_qp_result {
 	u32 qkey;
 	u32 sq_draining;
 	u32 sq_psn;
+	u8 rnr_retry;
 };
 
 struct efa_com_destroy_qp_params {
@@ -100,14 +102,11 @@ struct efa_com_destroy_ah_params {
 	u16 pdn;
 };
 
-struct efa_com_get_network_attr_result {
-	u8 addr[EFA_GID_SIZE];
-	u32 mtu;
-};
-
 struct efa_com_get_device_attr_result {
+	u8 addr[EFA_GID_SIZE];
 	u64 page_size_cap;
 	u64 max_mr_pages;
+	u32 mtu;
 	u32 fw_version;
 	u32 admin_api_version;
 	u32 device_version;
@@ -124,9 +123,14 @@ struct efa_com_get_device_attr_result {
 	u32 max_pd;
 	u32 max_ah;
 	u32 max_llq_size;
+	u32 max_rdma_size;
+	u32 device_caps;
 	u16 sub_cqs_per_cq;
 	u16 max_sq_sge;
 	u16 max_rq_sge;
+	u16 max_wr_rdma_sge;
+	u16 max_tx_batch;
+	u16 min_sq_depth;
 	u8 db_bar;
 };
 
@@ -181,12 +185,7 @@ struct efa_com_reg_mr_params {
 	 * address mapping
 	 */
 	u8 page_shift;
-	/*
-	 * permissions
-	 * 0: local_write_enable - Write permissions: value of 1 needed
-	 * for RQ buffers and for RDMA write:1: reserved1 - remote
-	 * access flags, etc
-	 */
+	/* see permissions field of struct efa_admin_reg_mr_cmd */
 	u8 permissions;
 	u8 inline_pbl;
 	u8 indirect;
@@ -241,8 +240,24 @@ struct efa_com_basic_stats {
 	u64 rx_drops;
 };
 
+struct efa_com_messages_stats {
+	u64 send_bytes;
+	u64 send_wrs;
+	u64 recv_bytes;
+	u64 recv_wrs;
+};
+
+struct efa_com_rdma_read_stats {
+	u64 read_wrs;
+	u64 read_bytes;
+	u64 read_wr_err;
+	u64 read_resp_bytes;
+};
+
 union efa_com_get_stats_result {
 	struct efa_com_basic_stats basic_stats;
+	struct efa_com_messages_stats messages_stats;
+	struct efa_com_rdma_read_stats rdma_read_stats;
 };
 
 void efa_com_set_dma_addr(dma_addr_t addr, u32 *addr_high, u32 *addr_low);
@@ -271,12 +286,19 @@ int efa_com_create_ah(struct efa_com_dev *edev,
 		      struct efa_com_create_ah_result *result);
 int efa_com_destroy_ah(struct efa_com_dev *edev,
 		       struct efa_com_destroy_ah_params *params);
-int efa_com_get_network_attr(struct efa_com_dev *edev,
-			     struct efa_com_get_network_attr_result *result);
 int efa_com_get_device_attr(struct efa_com_dev *edev,
 			    struct efa_com_get_device_attr_result *result);
 int efa_com_get_hw_hints(struct efa_com_dev *edev,
 			 struct efa_com_get_hw_hints_result *result);
+bool
+efa_com_check_supported_feature_id(struct efa_com_dev *edev,
+				   enum efa_admin_aq_feature_id feature_id);
+int efa_com_set_feature_ex(struct efa_com_dev *edev,
+			   struct efa_admin_set_feature_resp *set_resp,
+			   struct efa_admin_set_feature_cmd *set_cmd,
+			   enum efa_admin_aq_feature_id feature_id,
+			   dma_addr_t control_buf_dma_addr,
+			   u32 control_buff_size);
 int efa_com_set_aenq_config(struct efa_com_dev *edev, u32 groups);
 int efa_com_alloc_pd(struct efa_com_dev *edev,
 		     struct efa_com_alloc_pd_result *result);

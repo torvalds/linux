@@ -16,18 +16,23 @@ For more information, please see the Linux clock framework binding at
 Documentation/devicetree/bindings/clock/clock-bindings.txt.
 
 Required properties :
-- compatible : shall be "ti,clkctrl"
+- compatible : shall be "ti,clkctrl" or a clock domain specific name:
+	       "ti,clkctrl-l4-cfg"
+	       "ti,clkctrl-l4-per"
+	       "ti,clkctrl-l4-secure"
+	       "ti,clkctrl-l4-wkup"
 - #clock-cells : shall contain 2 with the first entry being the instance
 		 offset from the clock domain base and the second being the
 		 clock index
+- reg : clock registers
 
 Example: Clock controller node on omap 4430:
 
 &cm2 {
 	l4per: cm@1400 {
 		cm_l4per@0 {
-			cm_l4per_clkctrl: clk@20 {
-				compatible = "ti,clkctrl";
+			cm_l4per_clkctrl: clock@20 {
+				compatible = "ti,clkctrl-l4-per", "ti,clkctrl";
 				reg = <0x20 0x1b0>;
 				#clock-cells = <2>;
 			};

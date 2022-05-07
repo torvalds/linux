@@ -129,7 +129,7 @@ void b43legacy_phy_calibrate(struct b43legacy_wldev *dev)
 }
 
 /* initialize B PHY power control
- * as described in http://bcm-specs.sipsolutions.net/InitPowerControl
+ * as described in https://bcm-specs.sipsolutions.net/InitPowerControl
  */
 static void b43legacy_phy_init_pctl(struct b43legacy_wldev *dev)
 {
@@ -1461,7 +1461,7 @@ void b43legacy_phy_set_baseband_attenuation(struct b43legacy_wldev *dev,
 	b43legacy_phy_write(dev, 0x0060, value);
 }
 
-/* http://bcm-specs.sipsolutions.net/LocalOscillator/Measure */
+/* https://bcm-specs.sipsolutions.net/LocalOscillator/Measure */
 void b43legacy_phy_lo_g_measure(struct b43legacy_wldev *dev)
 {
 	static const u8 pairorder[10] = { 3, 1, 5, 7, 9, 2, 0, 4, 6, 8 };
@@ -1721,7 +1721,7 @@ void b43legacy_phy_lo_mark_all_unused(struct b43legacy_wldev *dev)
 	}
 }
 
-/* http://bcm-specs.sipsolutions.net/EstimatePowerOut
+/* https://bcm-specs.sipsolutions.net/EstimatePowerOut
  * This function converts a TSSI value to dBm in Q5.2
  */
 static s8 b43legacy_phy_estimate_power_out(struct b43legacy_wldev *dev, s8 tssi)
@@ -1747,7 +1747,7 @@ static s8 b43legacy_phy_estimate_power_out(struct b43legacy_wldev *dev, s8 tssi)
 	return dbm;
 }
 
-/* http://bcm-specs.sipsolutions.net/RecalculateTransmissionPower */
+/* https://bcm-specs.sipsolutions.net/RecalculateTransmissionPower */
 void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_phy *phy = &dev->phy;

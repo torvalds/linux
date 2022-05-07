@@ -30,17 +30,18 @@
 
 #include <drm/drm_drv.h>
 
+#include "i915_utils.h"
+
 struct drm_i915_private;
 
 #ifdef CONFIG_DRM_I915_DEBUG_GEM
 
-#define GEM_SHOW_DEBUG() (drm_debug & DRM_UT_DRIVER)
+#define GEM_SHOW_DEBUG() drm_debug_enabled(DRM_UT_DRIVER)
 
 #define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
-		pr_err("%s:%d GEM_BUG_ON(%s)\n", \
-		       __func__, __LINE__, __stringify(condition)); \
-		GEM_TRACE("%s:%d GEM_BUG_ON(%s)\n", \
-			  __func__, __LINE__, __stringify(condition)); \
+		GEM_TRACE_ERR("%s:%d GEM_BUG_ON(%s)\n", \
+			      __func__, __LINE__, __stringify(condition)); \
+		GEM_TRACE_DUMP(); \
 		BUG(); \
 		} \
 	} while(0)
@@ -66,11 +67,17 @@ struct drm_i915_private;
 
 #if IS_ENABLED(CONFIG_DRM_I915_TRACE_GEM)
 #define GEM_TRACE(...) trace_printk(__VA_ARGS__)
-#define GEM_TRACE_DUMP() ftrace_dump(DUMP_ALL)
+#define GEM_TRACE_ERR(...) do {						\
+	pr_err(__VA_ARGS__);						\
+	trace_printk(__VA_ARGS__);					\
+} while (0)
+#define GEM_TRACE_DUMP() \
+	do { ftrace_dump(DUMP_ALL); __add_taint_for_CI(TAINT_WARN); } while (0)
 #define GEM_TRACE_DUMP_ON(expr) \
-	do { if (expr) ftrace_dump(DUMP_ALL); } while (0)
+	do { if (expr) GEM_TRACE_DUMP(); } while (0)
 #else
 #define GEM_TRACE(...) do { } while (0)
+#define GEM_TRACE_ERR(...) do { } while (0)
 #define GEM_TRACE_DUMP() do { } while (0)
 #define GEM_TRACE_DUMP_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #endif
@@ -81,6 +88,11 @@ static inline void tasklet_lock(struct tasklet_struct *t)
 {
 	while (!tasklet_trylock(t))
 		cpu_relax();
+}
+
+static inline bool tasklet_is_locked(const struct tasklet_struct *t)
+{
+	return test_bit(TASKLET_STATE_RUN, &t->state);
 }
 
 static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
@@ -103,5 +115,17 @@ static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
 {
 	return test_bit(TASKLET_STATE_SCHED, &t->state);
 }
+
+struct i915_gem_ww_ctx {
+	struct ww_acquire_ctx ctx;
+	struct list_head obj_list;
+	bool intr;
+	struct drm_i915_gem_object *contended;
+};
+
+void i915_gem_ww_ctx_init(struct i915_gem_ww_ctx *ctx, bool intr);
+void i915_gem_ww_ctx_fini(struct i915_gem_ww_ctx *ctx);
+int __must_check i915_gem_ww_ctx_backoff(struct i915_gem_ww_ctx *ctx);
+void i915_gem_ww_unlock_single(struct drm_i915_gem_object *obj);
 
 #endif /* __I915_GEM_H__ */

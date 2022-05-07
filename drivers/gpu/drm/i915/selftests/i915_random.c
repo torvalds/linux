@@ -29,6 +29,7 @@
 #include <linux/types.h>
 
 #include "i915_random.h"
+#include "i915_utils.h"
 
 u64 i915_prandom_u64_state(struct rnd_state *rnd)
 {
@@ -86,4 +87,23 @@ unsigned int *i915_random_order(unsigned int count, struct rnd_state *state)
 
 	i915_random_reorder(order, count, state);
 	return order;
+}
+
+u64 igt_random_offset(struct rnd_state *state,
+		      u64 start, u64 end,
+		      u64 len, u64 align)
+{
+	u64 range, addr;
+
+	BUG_ON(range_overflows(start, len, end));
+	BUG_ON(round_up(start, align) > round_down(end - len, align));
+
+	range = round_down(end - len, align) - round_up(start, align);
+	if (range) {
+		addr = i915_prandom_u64_state(state);
+		div64_u64_rem(addr, range, &addr);
+		start += addr;
+	}
+
+	return round_up(start, align);
 }

@@ -79,8 +79,12 @@ gp100_vmm_pgt_pfn(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
 	dma_addr_t addr;
 
 	nvkm_kmap(pt->memory);
-	while (ptes--) {
+	for (; ptes; ptes--, map->pfn++) {
 		u64 data = 0;
+
+		if (!(*map->pfn & NVKM_VMM_PFN_V))
+			continue;
+
 		if (!(*map->pfn & NVKM_VMM_PFN_W))
 			data |= BIT_ULL(6); /* RO. */
 
@@ -100,7 +104,6 @@ gp100_vmm_pgt_pfn(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
 		}
 
 		VMM_WO064(pt, vmm, ptei++ * 8, data);
-		map->pfn++;
 	}
 	nvkm_done(pt->memory);
 }
@@ -258,12 +261,96 @@ gp100_vmm_pd0_unmap(struct nvkm_vmm *vmm,
 	VMM_FO128(pt, vmm, pdei * 0x10, 0ULL, 0ULL, pdes);
 }
 
+static void
+gp100_vmm_pd0_pfn_unmap(struct nvkm_vmm *vmm,
+			struct nvkm_mmu_pt *pt, u32 ptei, u32 ptes)
+{
+	struct device *dev = vmm->mmu->subdev.device->dev;
+	dma_addr_t addr;
+
+	nvkm_kmap(pt->memory);
+	while (ptes--) {
+		u32 datalo = nvkm_ro32(pt->memory, pt->base + ptei * 16 + 0);
+		u32 datahi = nvkm_ro32(pt->memory, pt->base + ptei * 16 + 4);
+		u64 data   = (u64)datahi << 32 | datalo;
+
+		if ((data & (3ULL << 1)) != 0) {
+			addr = (data >> 8) << 12;
+			dma_unmap_page(dev, addr, 1UL << 21, DMA_BIDIRECTIONAL);
+		}
+		ptei++;
+	}
+	nvkm_done(pt->memory);
+}
+
+static bool
+gp100_vmm_pd0_pfn_clear(struct nvkm_vmm *vmm,
+			struct nvkm_mmu_pt *pt, u32 ptei, u32 ptes)
+{
+	bool dma = false;
+
+	nvkm_kmap(pt->memory);
+	while (ptes--) {
+		u32 datalo = nvkm_ro32(pt->memory, pt->base + ptei * 16 + 0);
+		u32 datahi = nvkm_ro32(pt->memory, pt->base + ptei * 16 + 4);
+		u64 data   = (u64)datahi << 32 | datalo;
+
+		if ((data & BIT_ULL(0)) && (data & (3ULL << 1)) != 0) {
+			VMM_WO064(pt, vmm, ptei * 16, data & ~BIT_ULL(0));
+			dma = true;
+		}
+		ptei++;
+	}
+	nvkm_done(pt->memory);
+	return dma;
+}
+
+static void
+gp100_vmm_pd0_pfn(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
+		  u32 ptei, u32 ptes, struct nvkm_vmm_map *map)
+{
+	struct device *dev = vmm->mmu->subdev.device->dev;
+	dma_addr_t addr;
+
+	nvkm_kmap(pt->memory);
+	for (; ptes; ptes--, map->pfn++) {
+		u64 data = 0;
+
+		if (!(*map->pfn & NVKM_VMM_PFN_V))
+			continue;
+
+		if (!(*map->pfn & NVKM_VMM_PFN_W))
+			data |= BIT_ULL(6); /* RO. */
+
+		if (!(*map->pfn & NVKM_VMM_PFN_VRAM)) {
+			addr = *map->pfn >> NVKM_VMM_PFN_ADDR_SHIFT;
+			addr = dma_map_page(dev, pfn_to_page(addr), 0,
+					    1UL << 21, DMA_BIDIRECTIONAL);
+			if (!WARN_ON(dma_mapping_error(dev, addr))) {
+				data |= addr >> 4;
+				data |= 2ULL << 1; /* SYSTEM_COHERENT_MEMORY. */
+				data |= BIT_ULL(3); /* VOL. */
+				data |= BIT_ULL(0); /* VALID. */
+			}
+		} else {
+			data |= (*map->pfn & NVKM_VMM_PFN_ADDR) >> 4;
+			data |= BIT_ULL(0); /* VALID. */
+		}
+
+		VMM_WO064(pt, vmm, ptei++ * 16, data);
+	}
+	nvkm_done(pt->memory);
+}
+
 static const struct nvkm_vmm_desc_func
 gp100_vmm_desc_pd0 = {
 	.unmap = gp100_vmm_pd0_unmap,
 	.sparse = gp100_vmm_pd0_sparse,
 	.pde = gp100_vmm_pd0_pde,
 	.mem = gp100_vmm_pd0_mem,
+	.pfn = gp100_vmm_pd0_pfn,
+	.pfn_clear = gp100_vmm_pd0_pfn_clear,
+	.pfn_unmap = gp100_vmm_pd0_pfn_unmap,
 };
 
 static void
@@ -320,7 +407,7 @@ gp100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	} *args = argv;
 	struct nvkm_device *device = vmm->mmu->subdev.device;
 	struct nvkm_memory *memory = map->memory;
-	u8  kind, priv, ro, vol;
+	u8  kind, kind_inv, priv, ro, vol;
 	int kindn, aper, ret = -ENOSYS;
 	const u8 *kindm;
 
@@ -347,8 +434,8 @@ gp100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	if (WARN_ON(aper < 0))
 		return aper;
 
-	kindm = vmm->mmu->func->kind(vmm->mmu, &kindn);
-	if (kind >= kindn || kindm[kind] == 0xff) {
+	kindm = vmm->mmu->func->kind(vmm->mmu, &kindn, &kind_inv);
+	if (kind >= kindn || kindm[kind] == kind_inv) {
 		VMM_DEBUG(vmm, "kind %02x", kind);
 		return -EINVAL;
 	}
@@ -466,7 +553,6 @@ void
 gp100_vmm_flush(struct nvkm_vmm *vmm, int depth)
 {
 	u32 type = (5 /* CACHE_LEVEL_UP_TO_PDE3 */ - depth) << 24;
-	type = 0; /*XXX: need to confirm stuff works with depth enabled... */
 	if (atomic_read(&vmm->engref[NVKM_SUBDEV_BAR]))
 		type |= 0x00000004; /* HUB_ONLY */
 	type |= 0x00000001; /* PAGE_ALL */

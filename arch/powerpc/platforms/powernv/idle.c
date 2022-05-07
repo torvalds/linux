@@ -48,7 +48,7 @@ static bool default_stop_found;
  * First stop state levels when SPR and TB loss can occur.
  */
 static u64 pnv_first_tb_loss_level = MAX_STOP_STATE + 1;
-static u64 pnv_first_spr_loss_level = MAX_STOP_STATE + 1;
+static u64 deep_spr_loss_state = MAX_STOP_STATE + 1;
 
 /*
  * psscr value and mask of the deepest stop idle state.
@@ -73,9 +73,6 @@ static int pnv_save_sprs_for_deep_states(void)
 	 */
 	uint64_t lpcr_val	= mfspr(SPRN_LPCR);
 	uint64_t hid0_val	= mfspr(SPRN_HID0);
-	uint64_t hid1_val	= mfspr(SPRN_HID1);
-	uint64_t hid4_val	= mfspr(SPRN_HID4);
-	uint64_t hid5_val	= mfspr(SPRN_HID5);
 	uint64_t hmeer_val	= mfspr(SPRN_HMEER);
 	uint64_t msr_val = MSR_IDLE;
 	uint64_t psscr_val = pnv_deepest_stop_psscr_val;
@@ -117,6 +114,9 @@ static int pnv_save_sprs_for_deep_states(void)
 
 			/* Only p8 needs to set extra HID regiters */
 			if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
+				uint64_t hid1_val = mfspr(SPRN_HID1);
+				uint64_t hid4_val = mfspr(SPRN_HID4);
+				uint64_t hid5_val = mfspr(SPRN_HID5);
 
 				rc = opal_slw_set_reg(pir, SPRN_HID1, hid1_val);
 				if (rc != 0)
@@ -565,7 +565,7 @@ void power7_idle_type(unsigned long type)
 	irq_set_pending_from_srr1(srr1);
 }
 
-void power7_idle(void)
+static void power7_idle(void)
 {
 	if (!powersave_nap)
 		return;
@@ -611,6 +611,7 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 	unsigned long srr1;
 	unsigned long pls;
 	unsigned long mmcr0 = 0;
+	unsigned long mmcra = 0;
 	struct p9_sprs sprs = {}; /* avoid false used-uninitialised */
 	bool sprs_saved = false;
 
@@ -657,7 +658,8 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 		  */
 		mmcr0		= mfspr(SPRN_MMCR0);
 	}
-	if ((psscr & PSSCR_RL_MASK) >= pnv_first_spr_loss_level) {
+
+	if ((psscr & PSSCR_RL_MASK) >= deep_spr_loss_state) {
 		sprs.lpcr	= mfspr(SPRN_LPCR);
 		sprs.hfscr	= mfspr(SPRN_HFSCR);
 		sprs.fscr	= mfspr(SPRN_FSCR);
@@ -700,8 +702,6 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 	WARN_ON_ONCE(mfmsr() & (MSR_IR|MSR_DR));
 
 	if ((srr1 & SRR1_WAKESTATE) != SRR1_WS_NOLOSS) {
-		unsigned long mmcra;
-
 		/*
 		 * We don't need an isync after the mtsprs here because the
 		 * upcoming mtmsrd is execution synchronizing.
@@ -741,7 +741,7 @@ static unsigned long power9_idle_stop(unsigned long psscr, bool mmu_on)
 	 * just always test PSSCR for SPR/TB state loss.
 	 */
 	pls = (psscr & PSSCR_PLS) >> PSSCR_PLS_SHIFT;
-	if (likely(pls < pnv_first_spr_loss_level)) {
+	if (likely(pls < deep_spr_loss_state)) {
 		if (sprs_saved)
 			atomic_stop_thread_idle();
 		goto out;
@@ -803,73 +803,6 @@ out:
 		mtmsr(MSR_KERNEL);
 
 	return srr1;
-}
-
-#ifdef CONFIG_HOTPLUG_CPU
-static unsigned long power9_offline_stop(unsigned long psscr)
-{
-	unsigned long srr1;
-
-#ifndef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-	__ppc64_runlatch_off();
-	srr1 = power9_idle_stop(psscr, true);
-	__ppc64_runlatch_on();
-#else
-	/*
-	 * Tell KVM we're entering idle.
-	 * This does not have to be done in real mode because the P9 MMU
-	 * is independent per-thread. Some steppings share radix/hash mode
-	 * between threads, but in that case KVM has a barrier sync in real
-	 * mode before and after switching between radix and hash.
-	 *
-	 * kvm_start_guest must still be called in real mode though, hence
-	 * the false argument.
-	 */
-	local_paca->kvm_hstate.hwthread_state = KVM_HWTHREAD_IN_IDLE;
-
-	__ppc64_runlatch_off();
-	srr1 = power9_idle_stop(psscr, false);
-	__ppc64_runlatch_on();
-
-	local_paca->kvm_hstate.hwthread_state = KVM_HWTHREAD_IN_KERNEL;
-	/* Order setting hwthread_state vs. testing hwthread_req */
-	smp_mb();
-	if (local_paca->kvm_hstate.hwthread_req)
-		srr1 = idle_kvm_start_guest(srr1);
-	mtmsr(MSR_KERNEL);
-#endif
-
-	return srr1;
-}
-#endif
-
-void power9_idle_type(unsigned long stop_psscr_val,
-				      unsigned long stop_psscr_mask)
-{
-	unsigned long psscr;
-	unsigned long srr1;
-
-	if (!prep_irq_for_idle_irqsoff())
-		return;
-
-	psscr = mfspr(SPRN_PSSCR);
-	psscr = (psscr & ~stop_psscr_mask) | stop_psscr_val;
-
-	__ppc64_runlatch_off();
-	srr1 = power9_idle_stop(psscr, true);
-	__ppc64_runlatch_on();
-
-	fini_irq_for_idle_irqsoff();
-
-	irq_set_pending_from_srr1(srr1);
-}
-
-/*
- * Used for ppc_md.power_save which needs a function with no parameters
- */
-void power9_idle(void)
-{
-	power9_idle_type(pnv_default_stop_val, pnv_default_stop_mask);
 }
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -944,6 +877,198 @@ void pnv_power9_force_smt4_release(void)
 EXPORT_SYMBOL_GPL(pnv_power9_force_smt4_release);
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
+struct p10_sprs {
+	/*
+	 * SPRs that get lost in shallow states:
+	 *
+	 * P10 loses CR, LR, CTR, FPSCR, VSCR, XER, TAR, SPRG2, and HSPRG1
+	 * isa300 idle routines restore CR, LR.
+	 * CTR is volatile
+	 * idle thread doesn't use FP or VEC
+	 * kernel doesn't use TAR
+	 * HSPRG1 is only live in HV interrupt entry
+	 * SPRG2 is only live in KVM guests, KVM handles it.
+	 */
+};
+
+static unsigned long power10_idle_stop(unsigned long psscr, bool mmu_on)
+{
+	int cpu = raw_smp_processor_id();
+	int first = cpu_first_thread_sibling(cpu);
+	unsigned long *state = &paca_ptrs[first]->idle_state;
+	unsigned long core_thread_mask = (1UL << threads_per_core) - 1;
+	unsigned long srr1;
+	unsigned long pls;
+//	struct p10_sprs sprs = {}; /* avoid false used-uninitialised */
+	bool sprs_saved = false;
+
+	if (!(psscr & (PSSCR_EC|PSSCR_ESL))) {
+		/* EC=ESL=0 case */
+
+		BUG_ON(!mmu_on);
+
+		/*
+		 * Wake synchronously. SRESET via xscom may still cause
+		 * a 0x100 powersave wakeup with SRR1 reason!
+		 */
+		srr1 = isa300_idle_stop_noloss(psscr);		/* go idle */
+		if (likely(!srr1))
+			return 0;
+
+		/*
+		 * Registers not saved, can't recover!
+		 * This would be a hardware bug
+		 */
+		BUG_ON((srr1 & SRR1_WAKESTATE) != SRR1_WS_NOLOSS);
+
+		goto out;
+	}
+
+	/* EC=ESL=1 case */
+	if ((psscr & PSSCR_RL_MASK) >= deep_spr_loss_state) {
+		/* XXX: save SPRs for deep state loss here. */
+
+		sprs_saved = true;
+
+		atomic_start_thread_idle();
+	}
+
+	srr1 = isa300_idle_stop_mayloss(psscr);		/* go idle */
+
+	psscr = mfspr(SPRN_PSSCR);
+
+	WARN_ON_ONCE(!srr1);
+	WARN_ON_ONCE(mfmsr() & (MSR_IR|MSR_DR));
+
+	if (unlikely((srr1 & SRR1_WAKEMASK_P8) == SRR1_WAKEHMI))
+		hmi_exception_realmode(NULL);
+
+	/*
+	 * On POWER10, SRR1 bits do not match exactly as expected.
+	 * SRR1_WS_GPRLOSS (10b) can also result in SPR loss, so
+	 * just always test PSSCR for SPR/TB state loss.
+	 */
+	pls = (psscr & PSSCR_PLS) >> PSSCR_PLS_SHIFT;
+	if (likely(pls < deep_spr_loss_state)) {
+		if (sprs_saved)
+			atomic_stop_thread_idle();
+		goto out;
+	}
+
+	/* HV state loss */
+	BUG_ON(!sprs_saved);
+
+	atomic_lock_thread_idle();
+
+	if ((*state & core_thread_mask) != 0)
+		goto core_woken;
+
+	/* XXX: restore per-core SPRs here */
+
+	if (pls >= pnv_first_tb_loss_level) {
+		/* TB loss */
+		if (opal_resync_timebase() != OPAL_SUCCESS)
+			BUG();
+	}
+
+	/*
+	 * isync after restoring shared SPRs and before unlocking. Unlock
+	 * only contains hwsync which does not necessarily do the right
+	 * thing for SPRs.
+	 */
+	isync();
+
+core_woken:
+	atomic_unlock_and_stop_thread_idle();
+
+	/* XXX: restore per-thread SPRs here */
+
+	if (!radix_enabled())
+		__slb_restore_bolted_realmode();
+
+out:
+	if (mmu_on)
+		mtmsr(MSR_KERNEL);
+
+	return srr1;
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+static unsigned long arch300_offline_stop(unsigned long psscr)
+{
+	unsigned long srr1;
+
+#ifndef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	__ppc64_runlatch_off();
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		srr1 = power10_idle_stop(psscr, true);
+	else
+		srr1 = power9_idle_stop(psscr, true);
+	__ppc64_runlatch_on();
+#else
+	/*
+	 * Tell KVM we're entering idle.
+	 * This does not have to be done in real mode because the P9 MMU
+	 * is independent per-thread. Some steppings share radix/hash mode
+	 * between threads, but in that case KVM has a barrier sync in real
+	 * mode before and after switching between radix and hash.
+	 *
+	 * kvm_start_guest must still be called in real mode though, hence
+	 * the false argument.
+	 */
+	local_paca->kvm_hstate.hwthread_state = KVM_HWTHREAD_IN_IDLE;
+
+	__ppc64_runlatch_off();
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		srr1 = power10_idle_stop(psscr, false);
+	else
+		srr1 = power9_idle_stop(psscr, false);
+	__ppc64_runlatch_on();
+
+	local_paca->kvm_hstate.hwthread_state = KVM_HWTHREAD_IN_KERNEL;
+	/* Order setting hwthread_state vs. testing hwthread_req */
+	smp_mb();
+	if (local_paca->kvm_hstate.hwthread_req)
+		srr1 = idle_kvm_start_guest(srr1);
+	mtmsr(MSR_KERNEL);
+#endif
+
+	return srr1;
+}
+#endif
+
+void arch300_idle_type(unsigned long stop_psscr_val,
+				      unsigned long stop_psscr_mask)
+{
+	unsigned long psscr;
+	unsigned long srr1;
+
+	if (!prep_irq_for_idle_irqsoff())
+		return;
+
+	psscr = mfspr(SPRN_PSSCR);
+	psscr = (psscr & ~stop_psscr_mask) | stop_psscr_val;
+
+	__ppc64_runlatch_off();
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		srr1 = power10_idle_stop(psscr, true);
+	else
+		srr1 = power9_idle_stop(psscr, true);
+	__ppc64_runlatch_on();
+
+	fini_irq_for_idle_irqsoff();
+
+	irq_set_pending_from_srr1(srr1);
+}
+
+/*
+ * Used for ppc_md.power_save which needs a function with no parameters
+ */
+static void arch300_idle(void)
+{
+	arch300_idle_type(pnv_default_stop_val, pnv_default_stop_mask);
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 
 void pnv_program_cpu_hotplug_lpcr(unsigned int cpu, u64 lpcr_val)
@@ -977,7 +1102,7 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 		psscr = mfspr(SPRN_PSSCR);
 		psscr = (psscr & ~pnv_deepest_stop_psscr_mask) |
 						pnv_deepest_stop_psscr_val;
-		srr1 = power9_offline_stop(psscr);
+		srr1 = arch300_offline_stop(psscr);
 	} else if (cpu_has_feature(CPU_FTR_ARCH_206) && power7_offline_type) {
 		srr1 = power7_offline();
 	} else {
@@ -1075,10 +1200,14 @@ int validate_psscr_val_mask(u64 *psscr_val, u64 *psscr_mask, u32 flags)
  * @dt_idle_states: Number of idle state entries
  * Returns 0 on success
  */
-static void __init pnv_power9_idle_init(void)
+static void __init pnv_arch300_idle_init(void)
 {
 	u64 max_residency_ns = 0;
 	int i;
+
+	/* stop is not really architected, we only have p9,p10 drivers */
+	if (!pvr_version_is(PVR_POWER10) && !pvr_version_is(PVR_POWER9))
+		return;
 
 	/*
 	 * pnv_deepest_stop_{val,mask} should be set to values corresponding to
@@ -1088,19 +1217,24 @@ static void __init pnv_power9_idle_init(void)
 	 * the deepest loss-less (OPAL_PM_STOP_INST_FAST) stop state.
 	 */
 	pnv_first_tb_loss_level = MAX_STOP_STATE + 1;
-	pnv_first_spr_loss_level = MAX_STOP_STATE + 1;
+	deep_spr_loss_state = MAX_STOP_STATE + 1;
 	for (i = 0; i < nr_pnv_idle_states; i++) {
 		int err;
 		struct pnv_idle_states_t *state = &pnv_idle_states[i];
 		u64 psscr_rl = state->psscr_val & PSSCR_RL_MASK;
+
+		/* No deep loss driver implemented for POWER10 yet */
+		if (pvr_version_is(PVR_POWER10) &&
+				state->flags & (OPAL_PM_TIMEBASE_STOP|OPAL_PM_LOSE_FULL_CONTEXT))
+			continue;
 
 		if ((state->flags & OPAL_PM_TIMEBASE_STOP) &&
 		     (pnv_first_tb_loss_level > psscr_rl))
 			pnv_first_tb_loss_level = psscr_rl;
 
 		if ((state->flags & OPAL_PM_LOSE_FULL_CONTEXT) &&
-		     (pnv_first_spr_loss_level > psscr_rl))
-			pnv_first_spr_loss_level = psscr_rl;
+		     (deep_spr_loss_state > psscr_rl))
+			deep_spr_loss_state = psscr_rl;
 
 		/*
 		 * The idle code does not deal with TB loss occurring
@@ -1111,8 +1245,8 @@ static void __init pnv_power9_idle_init(void)
 		 * compatibility.
 		 */
 		if ((state->flags & OPAL_PM_TIMEBASE_STOP) &&
-		     (pnv_first_spr_loss_level > psscr_rl))
-			pnv_first_spr_loss_level = psscr_rl;
+		     (deep_spr_loss_state > psscr_rl))
+			deep_spr_loss_state = psscr_rl;
 
 		err = validate_psscr_val_mask(&state->psscr_val,
 					      &state->psscr_mask,
@@ -1144,7 +1278,7 @@ static void __init pnv_power9_idle_init(void)
 	if (unlikely(!default_stop_found)) {
 		pr_warn("cpuidle-powernv: No suitable default stop state found. Disabling platform idle.\n");
 	} else {
-		ppc_md.power_save = power9_idle;
+		ppc_md.power_save = arch300_idle;
 		pr_info("cpuidle-powernv: Default stop: psscr = 0x%016llx,mask=0x%016llx\n",
 			pnv_default_stop_val, pnv_default_stop_mask);
 	}
@@ -1158,7 +1292,7 @@ static void __init pnv_power9_idle_init(void)
 	}
 
 	pr_info("cpuidle-powernv: First stop level that may lose SPRs = 0x%llx\n",
-		pnv_first_spr_loss_level);
+		deep_spr_loss_state);
 
 	pr_info("cpuidle-powernv: First stop level that may lose timebase = 0x%llx\n",
 		pnv_first_tb_loss_level);
@@ -1206,7 +1340,7 @@ static void __init pnv_probe_idle_states(void)
 	}
 
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		pnv_power9_idle_init();
+		pnv_arch300_idle_init();
 
 	for (i = 0; i < nr_pnv_idle_states; i++)
 		supported_cpuidle_states |= pnv_idle_states[i].flags;
@@ -1270,14 +1404,14 @@ static int pnv_parse_cpuidle_dt(void)
 	/* Read residencies */
 	if (of_property_read_u32_array(np, "ibm,cpu-idle-state-residency-ns",
 				       temp_u32, nr_idle_states)) {
-		pr_warn("cpuidle-powernv: missing ibm,cpu-idle-state-latencies-ns in DT\n");
+		pr_warn("cpuidle-powernv: missing ibm,cpu-idle-state-residency-ns in DT\n");
 		rc = -EINVAL;
 		goto out;
 	}
 	for (i = 0; i < nr_idle_states; i++)
 		pnv_idle_states[i].residency_ns = temp_u32[i];
 
-	/* For power9 */
+	/* For power9 and later */
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 		/* Read pm_crtl_val */
 		if (of_property_read_u64_array(np, "ibm,cpu-idle-state-psscr",
@@ -1340,8 +1474,8 @@ static int __init pnv_init_idle_states(void)
 		if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
 			/* P7/P8 nap */
 			p->thread_idle_state = PNV_THREAD_RUNNING;
-		} else {
-			/* P9 stop */
+		} else if (pvr_version_is(PVR_POWER9)) {
+			/* P9 stop workarounds */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 			p->requested_psscr = 0;
 			atomic_set(&p->dont_stop, 0);

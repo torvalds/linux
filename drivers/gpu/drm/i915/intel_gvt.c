@@ -22,6 +22,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_vgpu.h"
 #include "intel_gvt.h"
 
 /**
@@ -51,6 +52,8 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
 		return true;
 	if (IS_COFFEELAKE(dev_priv))
 		return true;
+	if (IS_COMETLAKE(dev_priv))
+		return true;
 
 	return false;
 }
@@ -63,22 +66,23 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
  */
 void intel_gvt_sanitize_options(struct drm_i915_private *dev_priv)
 {
-	if (!i915_modparams.enable_gvt)
+	if (!dev_priv->params.enable_gvt)
 		return;
 
 	if (intel_vgpu_active(dev_priv)) {
-		DRM_INFO("GVT-g is disabled for guest\n");
+		drm_info(&dev_priv->drm, "GVT-g is disabled for guest\n");
 		goto bail;
 	}
 
 	if (!is_supported_device(dev_priv)) {
-		DRM_INFO("Unsupported device. GVT-g is disabled\n");
+		drm_info(&dev_priv->drm,
+			 "Unsupported device. GVT-g is disabled\n");
 		goto bail;
 	}
 
 	return;
 bail:
-	i915_modparams.enable_gvt = 0;
+	dev_priv->params.enable_gvt = 0;
 }
 
 /**
@@ -98,27 +102,34 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
-	if (!i915_modparams.enable_gvt) {
-		DRM_DEBUG_DRIVER("GVT-g is disabled by kernel params\n");
+	if (!dev_priv->params.enable_gvt) {
+		drm_dbg(&dev_priv->drm,
+			"GVT-g is disabled by kernel params\n");
 		return 0;
 	}
 
-	if (USES_GUC_SUBMISSION(dev_priv)) {
-		DRM_ERROR("i915 GVT-g loading failed due to Graphics virtualization is not yet supported with GuC submission\n");
+	if (intel_uc_wants_guc_submission(&dev_priv->gt.uc)) {
+		drm_err(&dev_priv->drm,
+			"i915 GVT-g loading failed due to Graphics virtualization is not yet supported with GuC submission\n");
 		return -EIO;
 	}
 
 	ret = intel_gvt_init_device(dev_priv);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Fail to init GVT device\n");
+		drm_dbg(&dev_priv->drm, "Fail to init GVT device\n");
 		goto bail;
 	}
 
 	return 0;
 
 bail:
-	i915_modparams.enable_gvt = 0;
+	dev_priv->params.enable_gvt = 0;
 	return 0;
+}
+
+static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->gvt;
 }
 
 /**

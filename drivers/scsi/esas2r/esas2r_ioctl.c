@@ -1510,7 +1510,7 @@ ioctl_done:
 	}
 
 	/* Always copy the buffer back, if only to pick up the status */
-	err = __copy_to_user(arg, ioctl, sizeof(struct atto_express_ioctl));
+	err = copy_to_user(arg, ioctl, sizeof(struct atto_express_ioctl));
 	if (err != 0) {
 		esas2r_log(ESAS2R_LOG_WARN,
 			   "ioctl_handler copy_to_user didn't copy everything (err %d, cmd %u)",
@@ -1548,11 +1548,10 @@ static int allocate_fw_buffers(struct esas2r_adapter *a, u32 length)
 
 	a->firmware.orig_len = length;
 
-	a->firmware.data = (u8 *)dma_alloc_coherent(&a->pcid->dev,
-						    (size_t)length,
-						    (dma_addr_t *)&a->firmware.
-						    phys,
-						    GFP_KERNEL);
+	a->firmware.data = dma_alloc_coherent(&a->pcid->dev,
+					      (size_t)length,
+					      (dma_addr_t *)&a->firmware.phys,
+					      GFP_KERNEL);
 
 	if (!a->firmware.data) {
 		esas2r_debug("buffer alloc failed!");
@@ -1895,11 +1894,11 @@ int esas2r_write_vda(struct esas2r_adapter *a, const char *buf, long off,
 
 	if (!a->vda_buffer) {
 		dma_addr_t dma_addr;
-		a->vda_buffer = (u8 *)dma_alloc_coherent(&a->pcid->dev,
-							 (size_t)
-							 VDA_MAX_BUFFER_SIZE,
-							 &dma_addr,
-							 GFP_KERNEL);
+		a->vda_buffer = dma_alloc_coherent(&a->pcid->dev,
+						   (size_t)
+						   VDA_MAX_BUFFER_SIZE,
+						   &dma_addr,
+						   GFP_KERNEL);
 
 		a->ppvda_buffer = dma_addr;
 	}
@@ -2064,11 +2063,10 @@ int esas2r_write_fs(struct esas2r_adapter *a, const char *buf, long off,
 re_allocate_buffer:
 			a->fs_api_buffer_size = length;
 
-			a->fs_api_buffer = (u8 *)dma_alloc_coherent(
-				&a->pcid->dev,
-				(size_t)a->fs_api_buffer_size,
-				(dma_addr_t *)&a->ppfs_api_buffer,
-				GFP_KERNEL);
+			a->fs_api_buffer = dma_alloc_coherent(&a->pcid->dev,
+							      (size_t)a->fs_api_buffer_size,
+							      (dma_addr_t *)&a->ppfs_api_buffer,
+							      GFP_KERNEL);
 		}
 	}
 

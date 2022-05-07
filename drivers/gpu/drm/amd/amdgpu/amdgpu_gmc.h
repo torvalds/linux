@@ -74,14 +74,34 @@ struct amdgpu_gmc_fault {
 /*
  * VMHUB structures, functions & helpers
  */
+struct amdgpu_vmhub_funcs {
+	void (*print_l2_protection_fault_status)(struct amdgpu_device *adev,
+						 uint32_t status);
+	uint32_t (*get_invalidate_req)(unsigned int vmid, uint32_t flush_type);
+};
+
 struct amdgpu_vmhub {
 	uint32_t	ctx0_ptb_addr_lo32;
 	uint32_t	ctx0_ptb_addr_hi32;
+	uint32_t	vm_inv_eng0_sem;
 	uint32_t	vm_inv_eng0_req;
 	uint32_t	vm_inv_eng0_ack;
 	uint32_t	vm_context0_cntl;
 	uint32_t	vm_l2_pro_fault_status;
 	uint32_t	vm_l2_pro_fault_cntl;
+
+	/*
+	 * store the register distances between two continuous context domain
+	 * and invalidation engine.
+	 */
+	uint32_t	ctx_distance;
+	uint32_t	ctx_addr_distance; /* include LO32/HI32 */
+	uint32_t	eng_distance;
+	uint32_t	eng_addr_distance; /* include LO32/HI32 */
+
+	uint32_t	vm_cntx_cntl_vm_fault;
+
+	const struct amdgpu_vmhub_funcs *vmhub_funcs;
 };
 
 /*
@@ -91,6 +111,9 @@ struct amdgpu_gmc_funcs {
 	/* flush the vm tlb via mmio */
 	void (*flush_gpu_tlb)(struct amdgpu_device *adev, uint32_t vmid,
 				uint32_t vmhub, uint32_t flush_type);
+	/* flush the vm tlb via pasid */
+	int (*flush_gpu_tlb_pasid)(struct amdgpu_device *adev, uint16_t pasid,
+					uint32_t flush_type, bool all_hub);
 	/* flush the vm tlb via ring */
 	uint64_t (*emit_flush_gpu_tlb)(struct amdgpu_ring *ring, unsigned vmid,
 				       uint64_t pd_addr);
@@ -99,12 +122,17 @@ struct amdgpu_gmc_funcs {
 				   unsigned pasid);
 	/* enable/disable PRT support */
 	void (*set_prt)(struct amdgpu_device *adev, bool enable);
-	/* set pte flags based per asic */
-	uint64_t (*get_vm_pte_flags)(struct amdgpu_device *adev,
-				     uint32_t flags);
+	/* map mtype to hardware flags */
+	uint64_t (*map_mtype)(struct amdgpu_device *adev, uint32_t flags);
 	/* get the pde for a given mc addr */
 	void (*get_vm_pde)(struct amdgpu_device *adev, int level,
 			   u64 *dst, u64 *flags);
+	/* get the pte flags to use for a BO VA mapping */
+	void (*get_vm_pte)(struct amdgpu_device *adev,
+			   struct amdgpu_bo_va_mapping *mapping,
+			   uint64_t *flags);
+	/* get the amount of memory used by the vbios for pre-OS console */
+	unsigned int (*get_vbios_fb_size)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_xgmi {
@@ -120,21 +148,52 @@ struct amdgpu_xgmi {
 	/* gpu list in the same hive */
 	struct list_head head;
 	bool supported;
+	struct ras_common_if *ras_if;
 };
 
 struct amdgpu_gmc {
+	/* FB's physical address in MMIO space (for CPU to
+	 * map FB). This is different compared to the agp/
+	 * gart/vram_start/end field as the later is from
+	 * GPU's view and aper_base is from CPU's view.
+	 */
 	resource_size_t		aper_size;
 	resource_size_t		aper_base;
 	/* for some chips with <= 32MB we need to lie
 	 * about vram size near mc fb location */
 	u64			mc_vram_size;
 	u64			visible_vram_size;
+	/* AGP aperture start and end in MC address space
+	 * Driver find a hole in the MC address space
+	 * to place AGP by setting MC_VM_AGP_BOT/TOP registers
+	 * Under VMID0, logical address == MC address. AGP
+	 * aperture maps to physical bus or IOVA addressed.
+	 * AGP aperture is used to simulate FB in ZFB case.
+	 * AGP aperture is also used for page table in system
+	 * memory (mainly for APU).
+	 *
+	 */
 	u64			agp_size;
 	u64			agp_start;
 	u64			agp_end;
+	/* GART aperture start and end in MC address space
+	 * Driver find a hole in the MC address space
+	 * to place GART by setting VM_CONTEXT0_PAGE_TABLE_START/END_ADDR
+	 * registers
+	 * Under VMID0, logical address inside GART aperture will
+	 * be translated through gpuvm gart page table to access
+	 * paged system memory
+	 */
 	u64			gart_size;
 	u64			gart_start;
 	u64			gart_end;
+	/* Frame buffer aperture of this GPU device. Different from
+	 * fb_start (see below), this only covers the local GPU device.
+	 * Driver get fb_start from MC_VM_FB_LOCATION_BASE (set by vbios)
+	 * and calculate vram_start of this local device by adding an
+	 * offset inside the XGMI hive.
+	 * Under VMID0, logical address == MC address
+	 */
 	u64			vram_start;
 	u64			vram_end;
 	/* FB region , it's same as local vram region in single GPU, in XGMI
@@ -153,9 +212,10 @@ struct amdgpu_gmc {
 	uint32_t                fw_version;
 	struct amdgpu_irq_src	vm_fault;
 	uint32_t		vram_type;
+	uint8_t			vram_vendor;
 	uint32_t                srbm_soft_reset;
 	bool			prt_warning;
-	uint64_t		stolen_size;
+	uint32_t		sdpif_register;
 	/* apertures */
 	u64			shared_aperture_start;
 	u64			shared_aperture_end;
@@ -173,19 +233,25 @@ struct amdgpu_gmc {
 	} fault_hash[AMDGPU_GMC_FAULT_HASH_SIZE];
 	uint64_t		last_fault:AMDGPU_GMC_FAULT_RING_ORDER;
 
+	bool tmz_enabled;
+
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 
 	struct amdgpu_xgmi xgmi;
 	struct amdgpu_irq_src	ecc_irq;
-	struct ras_common_if    *umc_ras_if;
-	struct ras_common_if    *mmhub_ras_if;
+	int noretry;
 };
 
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid, vmhub, type) ((adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (vmhub), (type)))
+#define amdgpu_gmc_flush_gpu_tlb_pasid(adev, pasid, type, allhub) \
+	((adev)->gmc.gmc_funcs->flush_gpu_tlb_pasid \
+	((adev), (pasid), (type), (allhub)))
 #define amdgpu_gmc_emit_flush_gpu_tlb(r, vmid, addr) (r)->adev->gmc.gmc_funcs->emit_flush_gpu_tlb((r), (vmid), (addr))
 #define amdgpu_gmc_emit_pasid_mapping(r, vmid, pasid) (r)->adev->gmc.gmc_funcs->emit_pasid_mapping((r), (vmid), (pasid))
+#define amdgpu_gmc_map_mtype(adev, flags) (adev)->gmc.gmc_funcs->map_mtype((adev),(flags))
 #define amdgpu_gmc_get_vm_pde(adev, level, dst, flags) (adev)->gmc.gmc_funcs->get_vm_pde((adev), (level), (dst), (flags))
-#define amdgpu_gmc_get_pte_flags(adev, flags) (adev)->gmc.gmc_funcs->get_vm_pte_flags((adev),(flags))
+#define amdgpu_gmc_get_vm_pte(adev, mapping, flags) (adev)->gmc.gmc_funcs->get_vm_pte((adev), (mapping), (flags))
+#define amdgpu_gmc_get_vbios_fb_size(adev) (adev)->gmc.gmc_funcs->get_vbios_fb_size((adev))
 
 /**
  * amdgpu_gmc_vram_full_visible - Check if full VRAM is visible through the BAR
@@ -230,5 +296,17 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev,
 			     struct amdgpu_gmc *mc);
 bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 			      uint16_t pasid, uint64_t timestamp);
+int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev);
+void amdgpu_gmc_ras_fini(struct amdgpu_device *adev);
+int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev);
+
+extern void amdgpu_gmc_tmz_set(struct amdgpu_device *adev);
+extern void amdgpu_gmc_noretry_set(struct amdgpu_device *adev);
+
+extern void
+amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,
+			      bool enable);
+
+void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev);
 
 #endif

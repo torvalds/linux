@@ -17,36 +17,34 @@ int ql_unpause_mpi_risc(struct ql_adapter *qdev)
 int ql_pause_mpi_risc(struct ql_adapter *qdev)
 {
 	u32 tmp;
-	int count = UDELAY_COUNT;
+	int count;
 
 	/* Pause the RISC */
 	ql_write32(qdev, CSR, CSR_CMD_SET_PAUSE);
-	do {
+	for (count = UDELAY_COUNT; count; count--) {
 		tmp = ql_read32(qdev, CSR);
 		if (tmp & CSR_RP)
 			break;
 		mdelay(UDELAY_DELAY);
-		count--;
-	} while (count);
+	}
 	return (count == 0) ? -ETIMEDOUT : 0;
 }
 
 int ql_hard_reset_mpi_risc(struct ql_adapter *qdev)
 {
 	u32 tmp;
-	int count = UDELAY_COUNT;
+	int count;
 
 	/* Reset the RISC */
 	ql_write32(qdev, CSR, CSR_CMD_SET_RST);
-	do {
+	for (count = UDELAY_COUNT; count; count--) {
 		tmp = ql_read32(qdev, CSR);
 		if (tmp & CSR_RR) {
 			ql_write32(qdev, CSR, CSR_CMD_CLR_RST);
 			break;
 		}
 		mdelay(UDELAY_DELAY);
-		count--;
-	} while (count);
+	}
 	return (count == 0) ? -ETIMEDOUT : 0;
 }
 
@@ -90,9 +88,7 @@ exit:
 
 int ql_soft_reset_mpi_risc(struct ql_adapter *qdev)
 {
-	int status;
-	status = ql_write_mpi_reg(qdev, 0x00001010, 1);
-	return status;
+	return ql_write_mpi_reg(qdev, 0x00001010, 1);
 }
 
 /* Determine if we are in charge of the firwmare. If
@@ -121,7 +117,6 @@ int ql_own_firmware(struct ql_adapter *qdev)
 		return 1;
 
 	return 0;
-
 }
 
 static int ql_get_mb_sts(struct ql_adapter *qdev, struct mbox_params *mbcp)
@@ -134,7 +129,7 @@ static int ql_get_mb_sts(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	for (i = 0; i < mbcp->out_count; i++) {
 		status =
 		    ql_read_mpi_reg(qdev, qdev->mailbox_out + i,
-				     &mbcp->mbox_out[i]);
+				    &mbcp->mbox_out[i]);
 		if (status) {
 			netif_err(qdev, drv, qdev->ndev, "Failed mailbox read.\n");
 			break;
@@ -149,15 +144,15 @@ static int ql_get_mb_sts(struct ql_adapter *qdev, struct mbox_params *mbcp)
  */
 static int ql_wait_mbx_cmd_cmplt(struct ql_adapter *qdev)
 {
-	int count = 100;
+	int count;
 	u32 value;
 
-	do {
+	for (count = 100; count; count--) {
 		value = ql_read32(qdev, STS);
 		if (value & STS_PI)
 			return 0;
 		mdelay(UDELAY_DELAY); /* 100ms */
-	} while (--count);
+	}
 	return -ETIMEDOUT;
 }
 
@@ -184,7 +179,7 @@ static int ql_exec_mb_cmd(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	 */
 	for (i = 0; i < mbcp->in_count; i++) {
 		status = ql_write_mpi_reg(qdev, qdev->mailbox_in + i,
-						mbcp->mbox_in[i]);
+					  mbcp->mbox_in[i]);
 		if (status)
 			goto end;
 	}
@@ -237,24 +232,26 @@ static int ql_idc_cmplt_aen(struct ql_adapter *qdev)
 {
 	int status;
 	struct mbox_params *mbcp = &qdev->idc_mbc;
+
 	mbcp->out_count = 4;
 	status = ql_get_mb_sts(qdev, mbcp);
 	if (status) {
 		netif_err(qdev, drv, qdev->ndev,
 			  "Could not read MPI, resetting RISC!\n");
 		ql_queue_fw_error(qdev);
-	} else
+	} else {
 		/* Wake up the sleeping mpi_idc_work thread that is
 		 * waiting for this event.
 		 */
 		complete(&qdev->ide_completion);
-
+	}
 	return status;
 }
 
 static void ql_link_up(struct ql_adapter *qdev, struct mbox_params *mbcp)
 {
 	int status;
+
 	mbcp->out_count = 2;
 
 	status = ql_get_mb_sts(qdev, mbcp);
@@ -276,8 +273,8 @@ static void ql_link_up(struct ql_adapter *qdev, struct mbox_params *mbcp)
 			netif_err(qdev, ifup, qdev->ndev,
 				  "Failed to init CAM/Routing tables.\n");
 			return;
-		} else
-			clear_bit(QL_CAM_RT_SET, &qdev->flags);
+		}
+		clear_bit(QL_CAM_RT_SET, &qdev->flags);
 	}
 
 	/* Queue up a worker to check the frame
@@ -293,7 +290,7 @@ static void ql_link_up(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		 */
 		ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
 		queue_delayed_work(qdev->workqueue,
-				&qdev->mpi_port_cfg_work, 0);
+				   &qdev->mpi_port_cfg_work, 0);
 	}
 
 	ql_link_on(qdev);
@@ -349,15 +346,15 @@ static int ql_aen_lost(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	mbcp->out_count = 6;
 
 	status = ql_get_mb_sts(qdev, mbcp);
-	if (status)
+	if (status) {
 		netif_err(qdev, drv, qdev->ndev, "Lost AEN broken!\n");
-	else {
+	} else {
 		int i;
+
 		netif_err(qdev, drv, qdev->ndev, "Lost AEN detected.\n");
 		for (i = 0; i < mbcp->out_count; i++)
 			netif_err(qdev, drv, qdev->ndev, "mbox_out[%d] = 0x%.08x.\n",
 				  i, mbcp->mbox_out[i]);
-
 	}
 
 	return status;
@@ -388,7 +385,8 @@ static void ql_init_fw_done(struct ql_adapter *qdev, struct mbox_params *mbcp)
  *  This can get called iteratively from the mpi_work thread
  *  when events arrive via an interrupt.
  *  It also gets called when a mailbox command is polling for
- *  it's completion. */
+ *  it's completion.
+ */
 static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 {
 	int status;
@@ -405,7 +403,6 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	}
 
 	switch (mbcp->mbox_out[0]) {
-
 	/* This case is only active when we arrive here
 	 * as a result of issuing a mailbox command to
 	 * the firmware.
@@ -519,7 +516,7 @@ end:
 	 * changed when a mailbox command is waiting
 	 * for a response and an AEN arrives and
 	 * is handled.
-	 * */
+	 */
 	mbcp->out_count = orig_count;
 	return status;
 }
@@ -544,7 +541,6 @@ static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	if (status)
 		goto end;
 
-
 	/* If we're generating a system error, then there's nothing
 	 * to wait for.
 	 */
@@ -555,7 +551,8 @@ static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	 * here because some AEN might arrive while
 	 * we're waiting for the mailbox command to
 	 * complete. If more than 5 seconds expire we can
-	 * assume something is wrong. */
+	 * assume something is wrong.
+	 */
 	count = jiffies + HZ * MAILBOX_TIMEOUT;
 	do {
 		/* Wait for the interrupt to come in. */
@@ -730,7 +727,6 @@ int ql_mb_set_port_cfg(struct ql_adapter *qdev)
 	mbcp->mbox_in[1] = qdev->link_config;
 	mbcp->mbox_in[2] = qdev->max_frame_size;
 
-
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
 		return status;
@@ -747,7 +743,7 @@ int ql_mb_set_port_cfg(struct ql_adapter *qdev)
 }
 
 static int ql_mb_dump_ram(struct ql_adapter *qdev, u64 req_dma, u32 addr,
-	u32 size)
+			  u32 size)
 {
 	int status = 0;
 	struct mbox_params mbc;
@@ -768,7 +764,6 @@ static int ql_mb_dump_ram(struct ql_adapter *qdev, u64 req_dma, u32 addr,
 	mbcp->mbox_in[7] = LSW(MSD(req_dma));
 	mbcp->mbox_in[8] = MSW(addr);
 
-
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
 		return status;
@@ -782,14 +777,15 @@ static int ql_mb_dump_ram(struct ql_adapter *qdev, u64 req_dma, u32 addr,
 
 /* Issue a mailbox command to dump RISC RAM. */
 int ql_dump_risc_ram_area(struct ql_adapter *qdev, void *buf,
-		u32 ram_addr, int word_count)
+			  u32 ram_addr, int word_count)
 {
 	int status;
 	char *my_buf;
 	dma_addr_t buf_dma;
 
-	my_buf = pci_alloc_consistent(qdev->pdev, word_count * sizeof(u32),
-					&buf_dma);
+	my_buf = dma_alloc_coherent(&qdev->pdev->dev,
+				    word_count * sizeof(u32), &buf_dma,
+				    GFP_ATOMIC);
 	if (!my_buf)
 		return -EIO;
 
@@ -797,8 +793,8 @@ int ql_dump_risc_ram_area(struct ql_adapter *qdev, void *buf,
 	if (!status)
 		memcpy(buf, my_buf, word_count * sizeof(u32));
 
-	pci_free_consistent(qdev->pdev, word_count * sizeof(u32), my_buf,
-				buf_dma);
+	dma_free_coherent(&qdev->pdev->dev, word_count * sizeof(u32), my_buf,
+			  buf_dma);
 	return status;
 }
 
@@ -849,7 +845,6 @@ int ql_mb_wol_mode(struct ql_adapter *qdev, u32 wol)
 
 	mbcp->mbox_in[0] = MB_CMD_SET_WOL_MODE;
 	mbcp->mbox_in[1] = wol;
-
 
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
@@ -914,15 +909,16 @@ int ql_mb_wol_set_magic(struct ql_adapter *qdev, u32 enable_wol)
 static int ql_idc_wait(struct ql_adapter *qdev)
 {
 	int status = -ETIMEDOUT;
-	long wait_time = 1 * HZ;
 	struct mbox_params *mbcp = &qdev->idc_mbc;
-	do {
+	long wait_time;
+
+	for (wait_time = 1 * HZ; wait_time;) {
 		/* Wait here for the command to complete
 		 * via the IDC process.
 		 */
 		wait_time =
 			wait_for_completion_timeout(&qdev->ide_completion,
-							wait_time);
+						    wait_time);
 		if (!wait_time) {
 			netif_err(qdev, drv, qdev->ndev, "IDC Timeout.\n");
 			break;
@@ -946,7 +942,7 @@ static int ql_idc_wait(struct ql_adapter *qdev)
 			status = -EIO;
 			break;
 		}
-	} while (wait_time);
+	}
 
 	return status;
 }
@@ -964,7 +960,6 @@ int ql_mb_set_led_cfg(struct ql_adapter *qdev, u32 led_config)
 
 	mbcp->mbox_in[0] = MB_CMD_SET_LED_CFG;
 	mbcp->mbox_in[1] = led_config;
-
 
 	status = ql_mailbox_command(qdev, mbcp);
 	if (status)
@@ -1000,9 +995,9 @@ int ql_mb_get_led_cfg(struct ql_adapter *qdev)
 		netif_err(qdev, drv, qdev->ndev,
 			  "Failed to get LED Configuration.\n");
 		status = -EIO;
-	} else
+	} else {
 		qdev->led_config = mbcp->mbox_out[1];
-
+	}
 	return status;
 }
 
@@ -1080,18 +1075,18 @@ static int ql_mb_get_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 *control)
 
 int ql_wait_fifo_empty(struct ql_adapter *qdev)
 {
-	int count = 5;
+	int count;
 	u32 mgmnt_fifo_empty;
 	u32 nic_fifo_empty;
 
-	do {
+	for (count = 6; count; count--) {
 		nic_fifo_empty = ql_read32(qdev, STS) & STS_NFE;
 		ql_mb_get_mgmnt_traffic_ctl(qdev, &mgmnt_fifo_empty);
 		mgmnt_fifo_empty &= MB_GET_MPI_TFK_FIFO_EMPTY;
 		if (nic_fifo_empty && mgmnt_fifo_empty)
 			return 0;
 		msleep(100);
-	} while (count-- > 0);
+	}
 	return -ETIMEDOUT;
 }
 
@@ -1101,6 +1096,7 @@ int ql_wait_fifo_empty(struct ql_adapter *qdev)
 static int ql_set_port_cfg(struct ql_adapter *qdev)
 {
 	int status;
+
 	status = ql_mb_set_port_cfg(qdev);
 	if (status)
 		return status;
@@ -1130,8 +1126,7 @@ void ql_mpi_port_cfg_work(struct work_struct *work)
 	}
 
 	if (qdev->link_config & CFG_JUMBO_FRAME_SIZE &&
-			qdev->max_frame_size ==
-			CFG_DEFAULT_MAX_FRAME_SIZE)
+	    qdev->max_frame_size == CFG_DEFAULT_MAX_FRAME_SIZE)
 		goto end;
 
 	qdev->link_config |=	CFG_JUMBO_FRAME_SIZE;
@@ -1176,12 +1171,12 @@ void ql_mpi_idc_work(struct work_struct *work)
 	case MB_CMD_PORT_RESET:
 	case MB_CMD_STOP_FW:
 		ql_link_off(qdev);
-		/* Fall through */
+		fallthrough;
 	case MB_CMD_SET_PORT_CFG:
 		/* Signal the resulting link up AEN
 		 * that the frame routing and mac addr
 		 * needs to be set.
-		 * */
+		 */
 		set_bit(QL_CAM_RT_SET, &qdev->flags);
 		/* Do ACK if required */
 		if (timeout) {
@@ -1209,7 +1204,7 @@ void ql_mpi_idc_work(struct work_struct *work)
 		 */
 		ql_link_off(qdev);
 		set_bit(QL_CAM_RT_SET, &qdev->flags);
-		/* Fall through. */
+		fallthrough;
 	case MB_CMD_IOP_DVR_START:
 	case MB_CMD_IOP_FLASH_ACC:
 	case MB_CMD_IOP_CORE_DUMP_MPI:
@@ -1257,7 +1252,6 @@ void ql_mpi_work(struct work_struct *work)
 	/* End polled mode for MPI */
 	ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16) | INTR_MASK_PI);
 	mutex_unlock(&qdev->mpi_mutex);
-	ql_enable_completion_interrupt(qdev, 0);
 }
 
 void ql_mpi_reset_work(struct work_struct *work)
@@ -1279,7 +1273,7 @@ void ql_mpi_reset_work(struct work_struct *work)
 		netif_err(qdev, drv, qdev->ndev, "Core is dumped!\n");
 		qdev->core_is_dumped = 1;
 		queue_delayed_work(qdev->workqueue,
-			&qdev->mpi_core_to_log, 5 * HZ);
+				   &qdev->mpi_core_to_log, 5 * HZ);
 	}
 	ql_soft_reset_mpi_risc(qdev);
 }

@@ -179,8 +179,7 @@
 		led_pio: gpio@180014d0 {
 			compatible = "altr,pio-1.0";
 			reg = <0x180014d0 0x00000010>;
-			altr,gpio-bank-width = <4>;
-			resetvalue = <15>;
+			altr,ngpio = <4>;
 			#gpio-cells = <2>;
 			gpio-controller;
 		};
@@ -190,11 +189,10 @@
 			reg = <0x180014c0 0x00000010>;
 			interrupt-parent = <&cpu>;
 			interrupts = <6>;
-			altr,gpio-bank-width = <3>;
+			altr,ngpio = <3>;
 			altr,interrupt-type = <2>;
 			edge_type = <1>;
 			level_trigger = <0>;
-			resetvalue = <0>;
 			#gpio-cells = <2>;
 			gpio-controller;
 		};

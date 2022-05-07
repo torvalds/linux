@@ -3,6 +3,8 @@ Gated Clock Controller Bindings for MIPS based BCM63XX SoCs
 Required properties:
 - compatible: must be one of:
 	 "brcm,bcm3368-clocks"
+	 "brcm,bcm6318-clocks"
+	 "brcm,bcm6318-ubus-clocks"
 	 "brcm,bcm6328-clocks"
 	 "brcm,bcm6358-clocks"
 	 "brcm,bcm6362-clocks"

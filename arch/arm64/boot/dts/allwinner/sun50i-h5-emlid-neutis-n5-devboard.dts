@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+// Copyright (C) 2018 Aleksandr Aleksandrov <aleksandr.aleksandrov@emlid.com>
+
 /*
  * DTS for Emlid Neutis N5 Dev board.
- *
- * Copyright (C) 2018 Aleksandr Aleksandrov <aleksandr.aleksandrov@emlid.com>
  */
 
 /dts-v1/;
@@ -15,14 +15,6 @@
 		     "emlid,neutis-n5",
 		     "allwinner,sun50i-h5";
 
-	aliases {
-		serial0 = &uart0;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-
 	connector {
 		compatible = "hdmi-connector";
 		type = "a";
@@ -32,16 +24,6 @@
 				remote-endpoint = <&hdmi_out_con>;
 			};
 		};
-	};
-
-	reg_usb0_vbus: usb0-vbus {
-		compatible = "regulator-fixed";
-		regulator-name = "usb0-vbus";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		gpio = <&r_pio 0 9 GPIO_ACTIVE_HIGH>;   /* PL9 */
-		status = "okay";
 	};
 
 	vdd_cpux: gpio-regulator {
@@ -59,33 +41,11 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vdd_cpux>;
+};
+
 &codec {
-	allwinner,audio-routing =
-		"Line Out", "LINEOUT",
-		"LINEIN", "Line In",
-		"MIC1", "Mic",
-		"MIC2", "Mic",
-		"Mic",  "MBIAS";
-	status = "okay";
-};
-
-&de {
-	status = "okay";
-};
-
-&ehci0 {
-	status = "okay";
-};
-
-&ehci1 {
-	status = "okay";
-};
-
-&ehci2 {
-	status = "okay";
-};
-
-&ehci3 {
 	status = "okay";
 };
 
@@ -106,42 +66,6 @@
 	};
 };
 
-&mmc0 {
-	vmmc-supply = <&reg_vcc3v3>;
-	bus-width = <4>;
-	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>; /* PF6 */
-	status = "okay";
-};
-
-&ohci0 {
-	status = "okay";
-};
-
-&ohci1 {
-	status = "okay";
-};
-
-&ohci2 {
-	status = "okay";
-};
-
-&ohci3 {
-	status = "okay";
-};
-
-&uart0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pa_pins>;
-	status = "okay";
-};
-
-&usb_otg {
-	dr_mode = "otg";
-	status = "okay";
-};
-
-&usbphy {
-	usb0_id_det-gpios = <&r_pio 0 8 GPIO_ACTIVE_HIGH>; /* PL8 */
-	usb0_vbus-supply = <&reg_usb0_vbus>;
+&i2c1 {
 	status = "okay";
 };

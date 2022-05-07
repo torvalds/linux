@@ -280,6 +280,7 @@ COND_SYSCALL(mlockall);
 COND_SYSCALL(munlockall);
 COND_SYSCALL(mincore);
 COND_SYSCALL(madvise);
+COND_SYSCALL(process_madvise);
 COND_SYSCALL(remap_file_pages);
 COND_SYSCALL(mbind);
 COND_SYSCALL_COMPAT(mbind);
@@ -364,13 +365,11 @@ COND_SYSCALL(socketcall);
 COND_SYSCALL_COMPAT(socketcall);
 
 /* compat syscalls for arm64, x86, ... */
-COND_SYSCALL_COMPAT(sysctl);
 COND_SYSCALL_COMPAT(fanotify_mark);
 
 /* x86 */
 COND_SYSCALL(vm86old);
 COND_SYSCALL(modify_ldt);
-COND_SYSCALL_COMPAT(quotactl32);
 COND_SYSCALL(vm86);
 COND_SYSCALL(kexec_file_load);
 
@@ -410,6 +409,29 @@ COND_SYSCALL(send);
 COND_SYSCALL(bdflush);
 COND_SYSCALL(uselib);
 
+/* optional: time32 */
+COND_SYSCALL(time32);
+COND_SYSCALL(stime32);
+COND_SYSCALL(utime32);
+COND_SYSCALL(adjtimex_time32);
+COND_SYSCALL(sched_rr_get_interval_time32);
+COND_SYSCALL(nanosleep_time32);
+COND_SYSCALL(rt_sigtimedwait_time32);
+COND_SYSCALL_COMPAT(rt_sigtimedwait_time32);
+COND_SYSCALL(timer_settime32);
+COND_SYSCALL(timer_gettime32);
+COND_SYSCALL(clock_settime32);
+COND_SYSCALL(clock_gettime32);
+COND_SYSCALL(clock_getres_time32);
+COND_SYSCALL(clock_nanosleep_time32);
+COND_SYSCALL(utimes_time32);
+COND_SYSCALL(futimesat_time32);
+COND_SYSCALL(pselect6_time32);
+COND_SYSCALL_COMPAT(pselect6_time32);
+COND_SYSCALL(ppoll_time32);
+COND_SYSCALL_COMPAT(ppoll_time32);
+COND_SYSCALL(utimensat_time32);
+COND_SYSCALL(clock_adjtime32);
 
 /*
  * The syscalls below are not found in include/uapi/asm-generic/unistd.h

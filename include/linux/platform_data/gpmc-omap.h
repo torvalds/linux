@@ -2,7 +2,7 @@
 /*
  * OMAP GPMC Platform data
  *
- * Copyright (C) 2014 Texas Instruments, Inc. - http://www.ti.com
+ * Copyright (C) 2014 Texas Instruments, Inc. - https://www.ti.com
  *	Roger Quadros <rogerq@ti.com>
  */
 

@@ -3,7 +3,7 @@ Sample and benchmark scripts for pktgen (packet generator)
 This directory contains some pktgen sample and benchmark scripts, that
 can easily be copied and adjusted for your own use-case.
 
-General doc is located in kernel: Documentation/networking/pktgen.txt
+General doc is located in kernel: Documentation/networking/pktgen.rst
 
 Helper include files
 ====================
@@ -18,7 +18,7 @@ across the sample scripts.  Usage example is printed on errors::
  Usage: ./pktgen_sample01_simple.sh [-vx] -i ethX
   -i : ($DEV)       output interface/device (required)
   -s : ($PKT_SIZE)  packet size
-  -d : ($DEST_IP)   destination IP
+  -d : ($DEST_IP)   destination IP. CIDR (e.g. 198.18.0.0/15) is also allowed
   -m : ($DST_MAC)   destination MAC-addr
   -p : ($DST_PORT)  destination PORT range (e.g. 433-444) is also allowed
   -t : ($THREADS)   threads to start

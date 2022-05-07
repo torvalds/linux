@@ -15,13 +15,13 @@ Required properties:
 - clock-frequency : input clock frequency to non FSL_SOC cores
 
 Optional properties:
-- gpios : specifies the gpio pins to be used for chipselects.
+- cs-gpios : specifies the gpio pins to be used for chipselects.
   The gpios will be referred to as reg = <index> in the SPI child nodes.
   If unspecified, a single SPI device without a chip select can be used.
 - fsl,spisel_boot : for the MPC8306 and MPC8309, specifies that the
   SPISEL_BOOT signal is used as chip select for a slave device. Use
   reg = <number of gpios> in the corresponding child node, i.e. 0 if
-  the gpios property is not present.
+  the cs-gpios property is not present.
 
 Example:
 	spi@4c0 {
@@ -31,8 +31,8 @@ Example:
 		interrupts = <82 0>;
 		interrupt-parent = <700>;
 		mode = "cpu";
-		gpios = <&gpio 18 1	// device reg=<0>
-			 &gpio 19 1>;	// device reg=<1>
+		cs-gpios = <&gpio 18 1		// device reg=<0>
+			    &gpio 19 1>;	// device reg=<1>
 	};
 
 

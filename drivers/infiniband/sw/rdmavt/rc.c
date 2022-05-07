@@ -127,9 +127,7 @@ __be32 rvt_compute_aeth(struct rvt_qp *qp)
 			 * not atomic, which is OK, since the fuzziness is
 			 * resolved as further ACKs go out.
 			 */
-			credits = head - tail;
-			if ((int)credits < 0)
-				credits += qp->r_rq.size;
+			credits = rvt_get_rq_count(&qp->r_rq, head, tail);
 		}
 		/*
 		 * Binary search the credit table to find the code to
@@ -195,7 +193,14 @@ void rvt_get_credit(struct rvt_qp *qp, u32 aeth)
 }
 EXPORT_SYMBOL(rvt_get_credit);
 
-/* rvt_restart_sge - rewind the sge state for a wqe */
+/**
+ * rvt_restart_sge - rewind the sge state for a wqe
+ * @ss: the sge state pointer
+ * @wqe: the wqe to rewind
+ * @len: the data length from the start of the wqe in bytes
+ *
+ * Returns the remaining data length.
+ */
 u32 rvt_restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe, u32 len)
 {
 	ss->sge = wqe->sg_list[0];

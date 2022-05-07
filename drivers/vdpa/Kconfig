@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig VDPA
+	tristate "vDPA drivers"
+	help
+	  Enable this module to support vDPA device that uses a
+	  datapath which complies with virtio specifications with
+	  vendor specific control path.
+
+if VDPA
+
+config VDPA_SIM
+	tristate "vDPA device simulator"
+	depends on RUNTIME_TESTING_MENU && HAS_DMA
+	select DMA_OPS
+	select VHOST_RING
+	select GENERIC_NET_UTILS
+	default n
+	help
+	  vDPA networking device simulator which loop TX traffic back
+	  to RX. This device is used for testing, prototyping and
+	  development of vDPA.
+
+config IFCVF
+	tristate "Intel IFC VF vDPA driver"
+	depends on PCI_MSI
+	default n
+	help
+	  This kernel module can drive Intel IFC VF NIC to offload
+	  virtio dataplane traffic to hardware.
+	  To compile this driver as a module, choose M here: the module will
+	  be called ifcvf.
+
+config MLX5_VDPA
+	bool
+	select VHOST_IOTLB
+	help
+	  Support library for Mellanox VDPA drivers. Provides code that is
+	  common for all types of VDPA drivers. The following drivers are planned:
+	  net, block.
+
+config MLX5_VDPA_NET
+	tristate "vDPA driver for ConnectX devices"
+	select MLX5_VDPA
+	depends on MLX5_CORE
+	default n
+	help
+	  VDPA network driver for ConnectX6 and newer. Provides offloading
+	  of virtio net datapath such that descriptors put on the ring will
+	  be executed by the hardware. It also supports a variety of stateless
+	  offloads depending on the actual device used and firmware version.
+
+endif # VDPA

@@ -2,6 +2,7 @@
 menuconfig BPFILTER
 	bool "BPF based packet filtering framework (BPFILTER)"
 	depends on NET && BPF && INET
+	select USERMODE_DRIVER
 	help
 	  This builds experimental bpfilter framework that is aiming to
 	  provide netfilter compatible functionality via BPF
@@ -10,7 +11,13 @@ if BPFILTER
 config BPFILTER_UMH
 	tristate "bpfilter kernel module with user mode helper"
 	depends on CC_CAN_LINK
+	depends on m || CC_CAN_LINK_STATIC
 	default m
 	help
 	  This builds bpfilter kernel module with embedded user mode helper
+
+	  Note: To compile this as built-in, your toolchain must support
+	  building static binaries, since rootfs isn't mounted at the time
+	  when __init functions are called and do_execv won't be able to find
+	  the elf interpreter.
 endif

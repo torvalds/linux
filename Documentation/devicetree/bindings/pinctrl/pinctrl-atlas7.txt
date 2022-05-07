@@ -60,7 +60,7 @@ For example, pinctrl might have properties like the following:
 Please refer to pinctrl-bindings.txt in this directory for details of the common
 pinctrl bindings used by client devices.
 
-SiRFatlas7's pinmux nodes act as a container for an abitrary number of subnodes.
+SiRFatlas7's pinmux nodes act as a container for an arbitrary number of subnodes.
 Each of these subnodes represents some desired configuration for a group of pins.
 
 Required subnode-properties:

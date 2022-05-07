@@ -9,6 +9,8 @@
 #ifndef HANTRO_G1_REGS_H_
 #define HANTRO_G1_REGS_H_
 
+#define G1_SWREG(nr)                 ((nr) * 4)
+
 /* Decoder registers. */
 #define G1_REG_INTERRUPT				0x004
 #define     G1_REG_INTERRUPT_DEC_PIC_INF		BIT(24)
@@ -297,5 +299,56 @@
 #define     G1_REG_REF_BUF_CTRL2_REFBU2_PICID(x)	(((x) & 0x1f) << 14)
 #define     G1_REG_REF_BUF_CTRL2_APF_THRESHOLD(x)	(((x) & 0x3fff) << 0)
 #define G1_REG_SOFT_RESET				0x194
+
+/* Post-processor registers. */
+#define G1_REG_PP_INTERRUPT		G1_SWREG(60)
+#define    G1_REG_PP_READY_IRQ		BIT(12)
+#define    G1_REG_PP_IRQ		BIT(8)
+#define    G1_REG_PP_IRQ_DIS		BIT(4)
+#define    G1_REG_PP_PIPELINE_EN	BIT(1)
+#define    G1_REG_PP_EXTERNAL_TRIGGER	BIT(0)
+#define G1_REG_PP_DEV_CONFIG		G1_SWREG(61)
+#define     G1_REG_PP_AXI_RD_ID(v)	(((v) << 24) & GENMASK(31, 24))
+#define     G1_REG_PP_AXI_WR_ID(v)	(((v) << 16) & GENMASK(23, 16))
+#define     G1_REG_PP_INSWAP32_E(v)	((v) ? BIT(10) : 0)
+#define     G1_REG_PP_DATA_DISC_E(v)	((v) ? BIT(9) : 0)
+#define     G1_REG_PP_CLK_GATE_E(v)	((v) ? BIT(8) : 0)
+#define     G1_REG_PP_IN_ENDIAN(v)	((v) ? BIT(7) : 0)
+#define     G1_REG_PP_OUT_ENDIAN(v)	((v) ? BIT(6) : 0)
+#define     G1_REG_PP_OUTSWAP32_E(v)	((v) ? BIT(5) : 0)
+#define     G1_REG_PP_MAX_BURST(v)	(((v) << 0) & GENMASK(4, 0))
+#define G1_REG_PP_IN_LUMA_BASE		G1_SWREG(63)
+#define G1_REG_PP_IN_CB_BASE		G1_SWREG(64)
+#define G1_REG_PP_IN_CR_BASE		G1_SWREG(65)
+#define G1_REG_PP_OUT_LUMA_BASE		G1_SWREG(66)
+#define G1_REG_PP_OUT_CHROMA_BASE	G1_SWREG(67)
+#define G1_REG_PP_CONTRAST_ADJUST	G1_SWREG(68)
+#define G1_REG_PP_COLOR_CONVERSION	G1_SWREG(69)
+#define G1_REG_PP_COLOR_CONVERSION0	G1_SWREG(70)
+#define G1_REG_PP_COLOR_CONVERSION1	G1_SWREG(71)
+#define G1_REG_PP_INPUT_SIZE		G1_SWREG(72)
+#define    G1_REG_PP_INPUT_SIZE_HEIGHT(v) (((v) << 9) & GENMASK(16, 9))
+#define    G1_REG_PP_INPUT_SIZE_WIDTH(v)  (((v) << 0) & GENMASK(8, 0))
+#define G1_REG_PP_SCALING0		G1_SWREG(79)
+#define     G1_REG_PP_PADD_R(v)	(((v) << 23) & GENMASK(27, 23))
+#define     G1_REG_PP_PADD_G(v)	(((v) << 18) & GENMASK(22, 18))
+#define     G1_REG_PP_RANGEMAP_Y(v) ((v) ? BIT(31) : 0)
+#define     G1_REG_PP_RANGEMAP_C(v) ((v) ? BIT(30) : 0)
+#define     G1_REG_PP_YCBCR_RANGE(v) ((v) ? BIT(29) : 0)
+#define     G1_REG_PP_RGB_16(v) ((v) ? BIT(28) : 0)
+#define G1_REG_PP_SCALING1		G1_SWREG(80)
+#define     G1_REG_PP_PADD_B(v)	(((v) << 18) & GENMASK(22, 18))
+#define G1_REG_PP_MASK_R		G1_SWREG(82)
+#define G1_REG_PP_MASK_G		G1_SWREG(83)
+#define G1_REG_PP_MASK_B		G1_SWREG(84)
+#define G1_REG_PP_CONTROL		G1_SWREG(85)
+#define     G1_REG_PP_CONTROL_IN_FMT(v)	(((v) << 29) & GENMASK(31, 29))
+#define     G1_REG_PP_CONTROL_OUT_FMT(v) (((v) << 26) & GENMASK(28, 26))
+#define     G1_REG_PP_CONTROL_OUT_HEIGHT(v) (((v) << 15) & GENMASK(25, 15))
+#define     G1_REG_PP_CONTROL_OUT_WIDTH(v) (((v) << 4) & GENMASK(14, 4))
+#define G1_REG_PP_MASK1_ORIG_WIDTH	G1_SWREG(88)
+#define     G1_REG_PP_ORIG_WIDTH(v)	(((v) << 23) & GENMASK(31, 23))
+#define G1_REG_PP_DISPLAY_WIDTH		G1_SWREG(92)
+#define G1_REG_PP_FUSE			G1_SWREG(99)
 
 #endif /* HANTRO_G1_REGS_H_ */

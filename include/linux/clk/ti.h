@@ -153,7 +153,7 @@ struct clk_hw_omap {
 	u8			fixed_div;
 	struct clk_omap_reg	enable_reg;
 	u8			enable_bit;
-	u8			flags;
+	unsigned long		flags;
 	struct clk_omap_reg	clksel_reg;
 	struct dpll_data	*dpll_data;
 	const char		*clkdm_name;
@@ -298,6 +298,7 @@ struct ti_clk_features {
 
 void ti_clk_setup_features(struct ti_clk_features *features);
 const struct ti_clk_features *ti_clk_get_features(void);
+bool ti_clk_is_in_standby(struct clk *clk);
 int omap3_noncore_dpll_save_context(struct clk_hw *hw);
 void omap3_noncore_dpll_restore_context(struct clk_hw *hw);
 

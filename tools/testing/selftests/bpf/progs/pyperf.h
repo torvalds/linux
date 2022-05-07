@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 #define FUNCTION_NAME_LEN 64
 #define FILE_NAME_LEN 128
@@ -67,14 +67,19 @@ typedef struct {
 	void* co_name; // PyCodeObject.co_name
 } FrameData;
 
-static __always_inline void *get_thread_state(void *tls_base, PidData *pidData)
+#ifdef SUBPROGS
+__noinline
+#else
+__always_inline
+#endif
+static void *get_thread_state(void *tls_base, PidData *pidData)
 {
 	void* thread_state;
 	int key;
 
-	bpf_probe_read(&key, sizeof(key), (void*)(long)pidData->tls_key_addr);
-	bpf_probe_read(&thread_state, sizeof(thread_state),
-		       tls_base + 0x310 + key * 0x10 + 0x08);
+	bpf_probe_read_user(&key, sizeof(key), (void*)(long)pidData->tls_key_addr);
+	bpf_probe_read_user(&thread_state, sizeof(thread_state),
+			    tls_base + 0x310 + key * 0x10 + 0x08);
 	return thread_state;
 }
 
@@ -82,31 +87,33 @@ static __always_inline bool get_frame_data(void *frame_ptr, PidData *pidData,
 					   FrameData *frame, Symbol *symbol)
 {
 	// read data from PyFrameObject
-	bpf_probe_read(&frame->f_back,
-		       sizeof(frame->f_back),
-		       frame_ptr + pidData->offsets.PyFrameObject_back);
-	bpf_probe_read(&frame->f_code,
-		       sizeof(frame->f_code),
-		       frame_ptr + pidData->offsets.PyFrameObject_code);
+	bpf_probe_read_user(&frame->f_back,
+			    sizeof(frame->f_back),
+			    frame_ptr + pidData->offsets.PyFrameObject_back);
+	bpf_probe_read_user(&frame->f_code,
+			    sizeof(frame->f_code),
+			    frame_ptr + pidData->offsets.PyFrameObject_code);
 
 	// read data from PyCodeObject
 	if (!frame->f_code)
 		return false;
-	bpf_probe_read(&frame->co_filename,
-		       sizeof(frame->co_filename),
-		       frame->f_code + pidData->offsets.PyCodeObject_filename);
-	bpf_probe_read(&frame->co_name,
-		       sizeof(frame->co_name),
-		       frame->f_code + pidData->offsets.PyCodeObject_name);
+	bpf_probe_read_user(&frame->co_filename,
+			    sizeof(frame->co_filename),
+			    frame->f_code + pidData->offsets.PyCodeObject_filename);
+	bpf_probe_read_user(&frame->co_name,
+			    sizeof(frame->co_name),
+			    frame->f_code + pidData->offsets.PyCodeObject_name);
 	// read actual names into symbol
 	if (frame->co_filename)
-		bpf_probe_read_str(&symbol->file,
-				   sizeof(symbol->file),
-				   frame->co_filename + pidData->offsets.String_data);
+		bpf_probe_read_user_str(&symbol->file,
+					sizeof(symbol->file),
+					frame->co_filename +
+					pidData->offsets.String_data);
 	if (frame->co_name)
-		bpf_probe_read_str(&symbol->name,
-				   sizeof(symbol->name),
-				   frame->co_name + pidData->offsets.String_data);
+		bpf_probe_read_user_str(&symbol->name,
+					sizeof(symbol->name),
+					frame->co_name +
+					pidData->offsets.String_data);
 	return true;
 }
 
@@ -152,7 +159,14 @@ struct {
 	__uint(value_size, sizeof(long long) * 127);
 } stackmap SEC(".maps");
 
-static __always_inline int __on_event(struct pt_regs *ctx)
+#ifdef GLOBAL_FUNC
+__noinline
+#elif defined(SUBPROGS)
+static __noinline
+#else
+static __always_inline
+#endif
+int __on_event(struct bpf_raw_tracepoint_args *ctx)
 {
 	uint64_t pid_tgid = bpf_get_current_pid_tgid();
 	pid_t pid = (pid_t)(pid_tgid >> 32);
@@ -174,9 +188,9 @@ static __always_inline int __on_event(struct pt_regs *ctx)
 	event->kernel_stack_id = bpf_get_stackid(ctx, &stackmap, 0);
 
 	void* thread_state_current = (void*)0;
-	bpf_probe_read(&thread_state_current,
-		       sizeof(thread_state_current),
-		       (void*)(long)pidData->current_state_addr);
+	bpf_probe_read_user(&thread_state_current,
+			    sizeof(thread_state_current),
+			    (void*)(long)pidData->current_state_addr);
 
 	struct task_struct* task = (struct task_struct*)bpf_get_current_task();
 	void* tls_base = (void*)task;
@@ -188,11 +202,13 @@ static __always_inline int __on_event(struct pt_regs *ctx)
 	if (pidData->use_tls) {
 		uint64_t pthread_created;
 		uint64_t pthread_self;
-		bpf_probe_read(&pthread_self, sizeof(pthread_self), tls_base + 0x10);
+		bpf_probe_read_user(&pthread_self, sizeof(pthread_self),
+				    tls_base + 0x10);
 
-		bpf_probe_read(&pthread_created,
-			       sizeof(pthread_created),
-			       thread_state + pidData->offsets.PyThreadState_thread);
+		bpf_probe_read_user(&pthread_created,
+				    sizeof(pthread_created),
+				    thread_state +
+				    pidData->offsets.PyThreadState_thread);
 		event->pthread_match = pthread_created == pthread_self;
 	} else {
 		event->pthread_match = 1;
@@ -204,9 +220,10 @@ static __always_inline int __on_event(struct pt_regs *ctx)
 		Symbol sym = {};
 		int cur_cpu = bpf_get_smp_processor_id();
 
-		bpf_probe_read(&frame_ptr,
-			       sizeof(frame_ptr),
-			       thread_state + pidData->offsets.PyThreadState_frame);
+		bpf_probe_read_user(&frame_ptr,
+				    sizeof(frame_ptr),
+				    thread_state +
+				    pidData->offsets.PyThreadState_frame);
 
 		int32_t* symbol_counter = bpf_map_lookup_elem(&symbolmap, &sym);
 		if (symbol_counter == NULL)
@@ -249,7 +266,7 @@ static __always_inline int __on_event(struct pt_regs *ctx)
 }
 
 SEC("raw_tracepoint/kfree_skb")
-int on_event(struct pt_regs* ctx)
+int on_event(struct bpf_raw_tracepoint_args* ctx)
 {
 	int i, ret = 0;
 	ret |= __on_event(ctx);

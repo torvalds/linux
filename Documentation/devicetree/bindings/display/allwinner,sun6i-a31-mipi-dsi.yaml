@@ -8,14 +8,13 @@ title: Allwinner A31 MIPI-DSI Controller Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
-  "#address-cells": true
-  "#size-cells": true
-
   compatible:
-    const: allwinner,sun6i-a31-mipi-dsi
+    enum:
+      - allwinner,sun6i-a31-mipi-dsi
+      - allwinner,sun50i-a64-mipi-dsi
 
   reg:
     maxItems: 1
@@ -24,6 +23,8 @@ properties:
     maxItems: 1
 
   clocks:
+    minItems: 1
+    maxItems: 2
     items:
       - description: Bus Clock
       - description: Module Clock
@@ -35,6 +36,9 @@ properties:
 
   resets:
     maxItems: 1
+
+  vcc-dsi-supply:
+    description: VCC-DSI power supply of the DSI encoder
 
   phys:
     maxItems: 1
@@ -50,23 +54,45 @@ properties:
       port should be the input endpoint, usually coming from the
       associated TCON.
 
-patternProperties:
-  "^panel@[0-9]+$": true
-
 required:
-  - "#address-cells"
-  - "#size-cells"
   - compatible
   - reg
   - interrupts
   - clocks
-  - clock-names
   - phys
   - phy-names
   - resets
+  - vcc-dsi-supply
   - port
 
-additionalProperties: false
+allOf:
+  - $ref: dsi-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: allwinner,sun6i-a31-mipi-dsi
+
+    then:
+      properties:
+        clocks:
+          minItems: 2
+
+      required:
+        - clock-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: allwinner,sun50i-a64-mipi-dsi
+
+    then:
+      properties:
+        clocks:
+          minItems: 1
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -79,13 +105,14 @@ examples:
         resets = <&ccu 4>;
         phys = <&dphy0>;
         phy-names = "dphy";
+        vcc-dsi-supply = <&reg_dcdc1>;
         #address-cells = <1>;
         #size-cells = <0>;
 
         panel@0 {
                 compatible = "bananapi,lhr050h41", "ilitek,ili9881c";
                 reg = <0>;
-                power-gpios = <&pio 1 7 0>; /* PB07 */
+                power-supply = <&reg_display>;
                 reset-gpios = <&r_pio 0 5 1>; /* PL05 */
                 backlight = <&pwm_bl>;
         };

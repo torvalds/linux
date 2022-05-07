@@ -69,11 +69,13 @@ SNAPSHOT_PREF_IMAGE_SIZE
 
 SNAPSHOT_GET_IMAGE_SIZE
 	return the actual size of the hibernation image
+	(the last argument should be a pointer to a loff_t variable that
+	will contain the result if the call is successful)
 
 SNAPSHOT_AVAIL_SWAP_SIZE
-	return the amount of available swap in bytes (the
-	last argument should be a pointer to an unsigned int variable that will
-	contain the result if the call is successful).
+	return the amount of available swap in bytes
+	(the last argument should be a pointer to a loff_t variable that
+	will contain the result if the call is successful)
 
 SNAPSHOT_ALLOC_SWAP_PAGE
 	allocate a swap page from the resume partition

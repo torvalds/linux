@@ -17,9 +17,10 @@ properties:
           - nxp,lpc3230
           - nxp,lpc3240
       - items:
-        - enum:
-            - ea,ea3250
-            - phytec,phy3250
-        - const: nxp,lpc3250
+          - enum:
+              - ea,ea3250
+              - phytec,phy3250
+          - const: nxp,lpc3250
 
+additionalProperties: true
 ...

@@ -1,8 +1,0 @@
-TODO: Remove in late 2019 unless there are users
-
-There seems to not be any real wireless USB devices anywhere in the wild
-anymore.  It turned out to be a failed technology :(
-
-This will be removed from the tree if no one objects.
-
-Greg Kroah-Hartman <gregkh@linuxfoundation.org>

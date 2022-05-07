@@ -41,7 +41,7 @@ config MSDOS_FS
 	  they are compressed; to access compressed MSDOS partitions under
 	  Linux, you can either use the DOS emulator DOSEMU, described in the
 	  DOSEMU-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, or try dmsdosfs in
+	  <https://www.tldp.org/docs.html#howto>, or try dmsdosfs in
 	  <ftp://ibiblio.org/pub/Linux/system/filesystems/dosfs/>. If you
 	  intend to use dosemu with a non-compressed MSDOS partition, say Y
 	  here) and MSDOS floppies. This means that file access becomes
@@ -69,7 +69,7 @@ config VFAT_FS
 
 	  The VFAT support enlarges your kernel by about 10 KB and it only
 	  works if you said Y to the "DOS FAT fs support" above.  Please read
-	  the file <file:Documentation/filesystems/vfat.txt> for details.  If
+	  the file <file:Documentation/filesystems/vfat.rst> for details.  If
 	  unsure, say Y.
 
 	  To compile this as a module, choose M here: the module will be called
@@ -82,7 +82,7 @@ config FAT_DEFAULT_CODEPAGE
 	help
 	  This option should be set to the codepage of your FAT filesystems.
 	  It can be overridden with the "codepage" mount option.
-	  See <file:Documentation/filesystems/vfat.txt> for more information.
+	  See <file:Documentation/filesystems/vfat.rst> for more information.
 
 config FAT_DEFAULT_IOCHARSET
 	string "Default iocharset for FAT"
@@ -96,7 +96,7 @@ config FAT_DEFAULT_IOCHARSET
 	  Note that "utf8" is not recommended for FAT filesystems.
 	  If unsure, you shouldn't set "utf8" here - select the next option
 	  instead if you would like to use UTF-8 encoded file names by default.
-	  See <file:Documentation/filesystems/vfat.txt> for more information.
+	  See <file:Documentation/filesystems/vfat.rst> for more information.
 
 	  Enable any character sets you need in File Systems/Native Language
 	  Support.
@@ -114,4 +114,4 @@ config FAT_DEFAULT_UTF8
 
 	  Say Y if you use UTF-8 encoding for file names, N otherwise.
 
-	  See <file:Documentation/filesystems/vfat.txt> for more information.
+	  See <file:Documentation/filesystems/vfat.rst> for more information.

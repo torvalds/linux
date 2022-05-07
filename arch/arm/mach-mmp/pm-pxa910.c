@@ -18,7 +18,7 @@
 #include <asm/mach-types.h>
 #include <asm/outercache.h>
 
-#include "cputype.h"
+#include <linux/soc/mmp/cputype.h>
 #include "addr-map.h"
 #include "pm-pxa910.h"
 #include "regs-icu.h"
@@ -145,23 +145,23 @@ void pxa910_pm_enter_lowpower_mode(int state)
 	case POWER_MODE_UDR:
 		/* only shutdown APB in UDR */
 		apcr |= MPMU_APCR_STBYEN | MPMU_APCR_APBSD;
-		/* fall through */
+		fallthrough;
 	case POWER_MODE_SYS_SLEEP:
 		apcr |= MPMU_APCR_SLPEN;		/* set the SLPEN bit */
 		apcr |= MPMU_APCR_VCTCXOSD;		/* set VCTCXOSD */
-		/* fall through */
+		fallthrough;
 	case POWER_MODE_APPS_SLEEP:
 		apcr |= MPMU_APCR_DDRCORSD;		/* set DDRCORSD */
-		/* fall through */
+		fallthrough;
 	case POWER_MODE_APPS_IDLE:
 		apcr |= MPMU_APCR_AXISD;		/* set AXISDD bit */
-		/* fall through */
+		fallthrough;
 	case POWER_MODE_CORE_EXTIDLE:
 		idle_cfg |= APMU_MOH_IDLE_CFG_MOH_IDLE;
 		idle_cfg |= APMU_MOH_IDLE_CFG_MOH_PWRDWN;
 		idle_cfg |= APMU_MOH_IDLE_CFG_MOH_PWR_SW(3)
 			| APMU_MOH_IDLE_CFG_MOH_L2_PWR_SW(3);
-		/* fall through */
+		fallthrough;
 	case POWER_MODE_CORE_INTIDLE:
 		break;
 	}

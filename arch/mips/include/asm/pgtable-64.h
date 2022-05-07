@@ -17,11 +17,12 @@
 #include <asm/cachectl.h>
 #include <asm/fixmap.h>
 
-#define __ARCH_USE_5LEVEL_HACK
-#if defined(CONFIG_PAGE_SIZE_64KB) && !defined(CONFIG_MIPS_VA_BITS_48)
+#if CONFIG_PGTABLE_LEVELS == 2
 #include <asm-generic/pgtable-nopmd.h>
-#elif !(defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_MIPS_VA_BITS_48))
+#elif CONFIG_PGTABLE_LEVELS == 3
 #include <asm-generic/pgtable-nopud.h>
+#else
+#include <asm-generic/pgtable-nop4d.h>
 #endif
 
 /*
@@ -186,44 +187,42 @@ extern pud_t invalid_pud_table[PTRS_PER_PUD];
 /*
  * Empty pgd entries point to the invalid_pud_table.
  */
-static inline int pgd_none(pgd_t pgd)
+static inline int p4d_none(p4d_t p4d)
 {
-	return pgd_val(pgd) == (unsigned long)invalid_pud_table;
+	return p4d_val(p4d) == (unsigned long)invalid_pud_table;
 }
 
-static inline int pgd_bad(pgd_t pgd)
+static inline int p4d_bad(p4d_t p4d)
 {
-	if (unlikely(pgd_val(pgd) & ~PAGE_MASK))
+	if (unlikely(p4d_val(p4d) & ~PAGE_MASK))
 		return 1;
 
 	return 0;
 }
 
-static inline int pgd_present(pgd_t pgd)
+static inline int p4d_present(p4d_t p4d)
 {
-	return pgd_val(pgd) != (unsigned long)invalid_pud_table;
+	return p4d_val(p4d) != (unsigned long)invalid_pud_table;
 }
 
-static inline void pgd_clear(pgd_t *pgdp)
+static inline void p4d_clear(p4d_t *p4dp)
 {
-	pgd_val(*pgdp) = (unsigned long)invalid_pud_table;
+	p4d_val(*p4dp) = (unsigned long)invalid_pud_table;
 }
 
-#define pud_index(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
-
-static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+static inline unsigned long p4d_page_vaddr(p4d_t p4d)
 {
-	return pgd_val(pgd);
+	return p4d_val(p4d);
 }
 
-static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
-{
-	return (pud_t *)pgd_page_vaddr(*pgd) + pud_index(address);
-}
+#define p4d_phys(p4d)		virt_to_phys((void *)p4d_val(p4d))
+#define p4d_page(p4d)		(pfn_to_page(p4d_phys(p4d) >> PAGE_SHIFT))
 
-static inline void set_pgd(pgd_t *pgd, pgd_t pgdval)
+#define p4d_index(address)	(((address) >> P4D_SHIFT) & (PTRS_PER_P4D - 1))
+
+static inline void set_p4d(p4d_t *p4d, p4d_t p4dval)
 {
-	*pgd = pgdval;
+	*p4d = p4dval;
 }
 
 #endif
@@ -314,19 +313,6 @@ static inline void pud_clear(pud_t *pudp)
 #define pfn_pmd(pfn, prot)	__pmd(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
 #endif
 
-#define __pgd_offset(address)	pgd_index(address)
-#define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
-#define __pmd_offset(address)	pmd_index(address)
-
-/* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(address) pgd_offset(&init_mm, address)
-
-#define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
-#define pmd_index(address)	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
-
-/* to find an entry in a page-table-directory */
-#define pgd_offset(mm, addr)	((mm)->pgd + pgd_index(addr))
-
 #ifndef __PAGETABLE_PMD_FOLDED
 static inline unsigned long pud_page_vaddr(pud_t pud)
 {
@@ -335,23 +321,7 @@ static inline unsigned long pud_page_vaddr(pud_t pud)
 #define pud_phys(pud)		virt_to_phys((void *)pud_val(pud))
 #define pud_page(pud)		(pfn_to_page(pud_phys(pud) >> PAGE_SHIFT))
 
-/* Find an entry in the second-level page table.. */
-static inline pmd_t *pmd_offset(pud_t * pud, unsigned long address)
-{
-	return (pmd_t *) pud_page_vaddr(*pud) + pmd_index(address);
-}
 #endif
-
-/* Find an entry in the third-level page table.. */
-#define __pte_offset(address)						\
-	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-#define pte_offset(dir, address)					\
-	((pte_t *) pmd_page_vaddr(*(dir)) + __pte_offset(address))
-#define pte_offset_kernel(dir, address)					\
-	((pte_t *) pmd_page_vaddr(*(dir)) + __pte_offset(address))
-#define pte_offset_map(dir, address)					\
-	((pte_t *)page_address(pmd_page(*(dir))) + __pte_offset(address))
-#define pte_unmap(pte) ((void)(pte))
 
 /*
  * Initialize a new pgd / pmd table with invalid pointers.

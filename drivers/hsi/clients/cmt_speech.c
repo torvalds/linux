@@ -965,14 +965,13 @@ static int cs_hsi_buf_config(struct cs_hsi_iface *hi,
 
 	if (old_state != hi->iface_state) {
 		if (hi->iface_state == CS_STATE_CONFIGURED) {
-			pm_qos_add_request(&hi->pm_qos_req,
-				PM_QOS_CPU_DMA_LATENCY,
+			cpu_latency_qos_add_request(&hi->pm_qos_req,
 				CS_QOS_LATENCY_FOR_DATA_USEC);
 			local_bh_disable();
 			cs_hsi_read_on_data(hi);
 			local_bh_enable();
 		} else if (old_state == CS_STATE_CONFIGURED) {
-			pm_qos_remove_request(&hi->pm_qos_req);
+			cpu_latency_qos_remove_request(&hi->pm_qos_req);
 		}
 	}
 	return r;
@@ -1075,8 +1074,8 @@ static void cs_hsi_stop(struct cs_hsi_iface *hi)
 	WARN_ON(!cs_state_idle(hi->control_state));
 	WARN_ON(!cs_state_idle(hi->data_state));
 
-	if (pm_qos_request_active(&hi->pm_qos_req))
-		pm_qos_remove_request(&hi->pm_qos_req);
+	if (cpu_latency_qos_request_active(&hi->pm_qos_req))
+		cpu_latency_qos_remove_request(&hi->pm_qos_req);
 
 	spin_lock_bh(&hi->lock);
 	cs_hsi_free_data(hi);

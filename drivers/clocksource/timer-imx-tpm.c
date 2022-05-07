@@ -8,8 +8,6 @@
 #include <linux/clocksource.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/sched_clock.h>
 
 #include "timer-of.h"
@@ -63,17 +61,19 @@ static inline void tpm_irq_acknowledge(void)
 	writel(TPM_STATUS_CH0F, timer_base + TPM_STATUS);
 }
 
-static struct delay_timer tpm_delay_timer;
-
 static inline unsigned long tpm_read_counter(void)
 {
 	return readl(timer_base + TPM_CNT);
 }
 
+#if defined(CONFIG_ARM)
+static struct delay_timer tpm_delay_timer;
+
 static unsigned long tpm_read_current_timer(void)
 {
 	return tpm_read_counter();
 }
+#endif
 
 static u64 notrace tpm_read_sched_clock(void)
 {
@@ -146,9 +146,11 @@ static struct timer_of to_tpm = {
 
 static int __init tpm_clocksource_init(void)
 {
+#if defined(CONFIG_ARM)
 	tpm_delay_timer.read_current_timer = &tpm_read_current_timer;
 	tpm_delay_timer.freq = timer_of_rate(&to_tpm) >> 3;
 	register_current_timer_delay(&tpm_delay_timer);
+#endif
 
 	sched_clock_register(tpm_read_sched_clock, counter_width,
 			     timer_of_rate(&to_tpm) >> 3);

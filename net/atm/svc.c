@@ -381,7 +381,7 @@ static int svc_accept(struct socket *sock, struct socket *newsock, int flags,
 				    msg->pvc.sap_addr.vpi,
 				    msg->pvc.sap_addr.vci);
 		dev_kfree_skb(skb);
-		sk->sk_ack_backlog--;
+		sk_acceptq_removed(sk);
 		if (error) {
 			sigd_enq2(NULL, as_reject, old_vcc, NULL, NULL,
 				  &old_vcc->qos, error);
@@ -451,7 +451,7 @@ int svc_change_qos(struct atm_vcc *vcc, struct atm_qos *qos)
 }
 
 static int svc_setsockopt(struct socket *sock, int level, int optname,
-			  char __user *optval, unsigned int optlen)
+			  sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct atm_vcc *vcc = ATM_SD(sock);
@@ -464,7 +464,7 @@ static int svc_setsockopt(struct socket *sock, int level, int optname,
 			error = -EINVAL;
 			goto out;
 		}
-		if (copy_from_user(&vcc->sap, optval, optlen)) {
+		if (copy_from_sockptr(&vcc->sap, optval, optlen)) {
 			error = -EFAULT;
 			goto out;
 		}
@@ -475,7 +475,7 @@ static int svc_setsockopt(struct socket *sock, int level, int optname,
 			error = -EINVAL;
 			goto out;
 		}
-		if (get_user(value, (int __user *)optval)) {
+		if (copy_from_sockptr(&value, optval, sizeof(int))) {
 			error = -EFAULT;
 			goto out;
 		}

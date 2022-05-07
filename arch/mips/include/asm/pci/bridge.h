@@ -806,7 +806,9 @@ struct bridge_controller {
 	unsigned long		baddr;
 	unsigned long		intr_addr;
 	struct irq_domain	*domain;
-	unsigned int		pci_int[8];
+	unsigned int		pci_int[8][2];
+	unsigned int		int_mapping[8][2];
+	u32			ioc3_sid[8];
 	nasid_t			nasid;
 };
 

@@ -15,7 +15,7 @@
 #include <dt-bindings/clock/samsung,s2mps11.h>
 
 / {
-	model = "Insignal Arndale Octa evaluation board based on EXYNOS5420";
+	model = "Insignal Arndale Octa evaluation board based on Exynos5420";
 	compatible = "insignal,arndale-octa", "samsung,exynos5420", "samsung,exynos5";
 
 	memory@20000000 {
@@ -584,6 +584,7 @@
 				regulator-name = "PVDD_G3DS_1V0";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
 
 				regulator-state-mem {
 					regulator-on-in-suspend;
@@ -672,7 +673,7 @@
 			};
 
 			buck2_reg: BUCK2 {
-				regulator-name = "vdd_arm";
+				regulator-name = "PVDD_ARM_1V0";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
@@ -697,6 +698,7 @@
 				regulator-name = "PVDD_G3D_1V0";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1400000>;
+				regulator-always-on;
 
 				regulator-state-mem {
 					regulator-off-in-suspend;

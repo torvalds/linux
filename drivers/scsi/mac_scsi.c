@@ -464,7 +464,7 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 		mac_scsi_template.can_queue = setup_can_queue;
 	if (setup_cmd_per_lun > 0)
 		mac_scsi_template.cmd_per_lun = setup_cmd_per_lun;
-	if (setup_sg_tablesize >= 0)
+	if (setup_sg_tablesize > 0)
 		mac_scsi_template.sg_tablesize = setup_sg_tablesize;
 	if (setup_hostid >= 0)
 		mac_scsi_template.this_id = setup_hostid & 7;

@@ -98,8 +98,8 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		p += sprintf(p, "%6u  ", tx_time);
 
 		tp_max = minstrel_ht_get_tp_avg(mi, i, j, MINSTREL_FRAC(100, 100));
-		tp_avg = minstrel_ht_get_tp_avg(mi, i, j, mrs->prob_ewma);
-		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
+		tp_avg = minstrel_ht_get_tp_avg(mi, i, j, mrs->prob_avg);
+		eprob = MINSTREL_TRUNC(mrs->prob_avg * 1000);
 
 		p += sprintf(p, "%4u.%1u    %4u.%1u     %3u.%1u"
 				"     %3u   %3u %-3u   "
@@ -243,8 +243,8 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		p += sprintf(p, "%u,", tx_time);
 
 		tp_max = minstrel_ht_get_tp_avg(mi, i, j, MINSTREL_FRAC(100, 100));
-		tp_avg = minstrel_ht_get_tp_avg(mi, i, j, mrs->prob_ewma);
-		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
+		tp_avg = minstrel_ht_get_tp_avg(mi, i, j, mrs->prob_avg);
+		eprob = MINSTREL_TRUNC(mrs->prob_avg * 1000);
 
 		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u,%u,"
 				"%u,%llu,%llu,",

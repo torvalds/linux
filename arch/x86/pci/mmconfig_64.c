@@ -105,7 +105,7 @@ static void __iomem *mcfg_ioremap(struct pci_mmcfg_region *cfg)
 	start = cfg->address + PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
 	num_buses = cfg->end_bus - cfg->start_bus + 1;
 	size = PCI_MMCFG_BUS_OFFSET(num_buses);
-	addr = ioremap_nocache(start, size);
+	addr = ioremap(start, size);
 	if (addr)
 		addr -= PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
 	return addr;

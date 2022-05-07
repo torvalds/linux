@@ -76,6 +76,7 @@
 #define GSMI_CMD_LOG_S0IX_RESUME	0x0b
 #define GSMI_CMD_CLEAR_CONFIG		0x20
 #define GSMI_CMD_HANDSHAKE_TYPE		0xC1
+#define GSMI_CMD_RESERVED		0xff
 
 /* Magic entry type for kernel events */
 #define GSMI_LOG_ENTRY_TYPE_KERNEL     0xDEAD
@@ -301,7 +302,7 @@ static int gsmi_exec(u8 func, u8 sub)
 	return rc;
 }
 
-#ifdef CONFIG_EFI_VARS
+#ifdef CONFIG_EFI
 
 static struct efivars efivars;
 
@@ -482,7 +483,7 @@ static const struct efivar_operations efivar_ops = {
 	.get_next_variable = gsmi_get_next_variable,
 };
 
-#endif /* CONFIG_EFI_VARS */
+#endif /* CONFIG_EFI */
 
 static ssize_t eventlog_write(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
@@ -746,6 +747,7 @@ MODULE_DEVICE_TABLE(dmi, gsmi_dmi_table);
 static __init int gsmi_system_valid(void)
 {
 	u32 hash;
+	u16 cmd, result;
 
 	if (!dmi_check_system(gsmi_dmi_table))
 		return -ENODEV;
@@ -777,6 +779,23 @@ static __init int gsmi_system_valid(void)
 	/* check for valid SMI command port in ACPI FADT */
 	if (acpi_gbl_FADT.smi_command == 0) {
 		pr_info("gsmi: missing smi_command\n");
+		return -ENODEV;
+	}
+
+	/* Test the smihandler with a bogus command. If it leaves the
+	 * calling argument in %ax untouched, there is no handler for
+	 * GSMI commands.
+	 */
+	cmd = GSMI_CALLBACK | GSMI_CMD_RESERVED << 8;
+	asm volatile (
+		"outb %%al, %%dx\n\t"
+		: "=a" (result)
+		: "0" (cmd),
+		  "d" (acpi_gbl_FADT.smi_command)
+		: "memory", "cc"
+		);
+	if (cmd == result) {
+		pr_info("gsmi: no gsmi handler in firmware\n");
 		return -ENODEV;
 	}
 
@@ -988,7 +1007,7 @@ static __init int gsmi_init(void)
 		goto out_remove_bin_file;
 	}
 
-#ifdef CONFIG_EFI_VARS
+#ifdef CONFIG_EFI
 	ret = efivars_register(&efivars, &efivar_ops, gsmi_kobj);
 	if (ret) {
 		printk(KERN_INFO "gsmi: Failed to register efivars\n");
@@ -1016,6 +1035,9 @@ out_err:
 	dma_pool_destroy(gsmi_dev.dma_pool);
 	platform_device_unregister(gsmi_dev.pdev);
 	pr_info("gsmi: failed to load: %d\n", ret);
+#ifdef CONFIG_PM
+	platform_driver_unregister(&gsmi_driver_info);
+#endif
 	return ret;
 }
 
@@ -1025,7 +1047,7 @@ static void __exit gsmi_exit(void)
 	unregister_die_notifier(&gsmi_die_notifier);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &gsmi_panic_notifier);
-#ifdef CONFIG_EFI_VARS
+#ifdef CONFIG_EFI
 	efivars_unregister(&efivars);
 #endif
 
@@ -1037,6 +1059,9 @@ static void __exit gsmi_exit(void)
 	gsmi_buf_free(gsmi_dev.name_buf);
 	dma_pool_destroy(gsmi_dev.dma_pool);
 	platform_device_unregister(gsmi_dev.pdev);
+#ifdef CONFIG_PM
+	platform_driver_unregister(&gsmi_driver_info);
+#endif
 }
 
 module_init(gsmi_init);

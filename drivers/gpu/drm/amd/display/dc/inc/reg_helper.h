@@ -458,7 +458,14 @@ uint32_t generic_reg_get8(const struct dc_context *ctx, uint32_t addr,
 #define IX_REG_READ(index_reg_name, data_reg_name, index) \
 		generic_read_indirect_reg(CTX, REG(index_reg_name), REG(data_reg_name), IND_REG(index))
 
+#define IX_REG_GET_N(index_reg_name, data_reg_name, index, n, ...) \
+		generic_indirect_reg_get(CTX, REG(index_reg_name), REG(data_reg_name), \
+				IND_REG(index), \
+				n, __VA_ARGS__)
 
+#define IX_REG_GET(index_reg_name, data_reg_name, index, field, val) \
+		IX_REG_GET_N(index_reg_name, data_reg_name, index, 1, \
+				FN(data_reg_name, field), val)
 
 #define IX_REG_UPDATE_N(index_reg_name, data_reg_name, index, n, ...)	\
 		generic_indirect_reg_update_ex(CTX, \
@@ -479,10 +486,35 @@ uint32_t generic_read_indirect_reg(const struct dc_context *ctx,
 		uint32_t addr_index, uint32_t addr_data,
 		uint32_t index);
 
+uint32_t generic_indirect_reg_get(const struct dc_context *ctx,
+		uint32_t addr_index, uint32_t addr_data,
+		uint32_t index, int n,
+		uint8_t shift1, uint32_t mask1, uint32_t *field_value1,
+		...);
+
 uint32_t generic_indirect_reg_update_ex(const struct dc_context *ctx,
 		uint32_t addr_index, uint32_t addr_data,
 		uint32_t index, uint32_t reg_val, int n,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
 		...);
+
+/* register offload macros
+ *
+ * instead of MMIO to register directly, in some cases we want
+ * to gather register sequence and execute the register sequence
+ * from another thread so we optimize time required for lengthy ops
+ */
+
+/* start gathering register sequence */
+#define REG_SEQ_START() \
+	reg_sequence_start_gather(CTX)
+
+/* start execution of register sequence gathered since REG_SEQ_START */
+#define REG_SEQ_SUBMIT() \
+	reg_sequence_start_execute(CTX)
+
+/* wait for the last REG_SEQ_SUBMIT to finish */
+#define REG_SEQ_WAIT_DONE() \
+	reg_sequence_wait_done(CTX)
 
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_REG_HELPER_H_ */

@@ -11,9 +11,9 @@
 #include <linux/kvm_host.h>
 #include <linux/sched.h>
 #include <linux/purgatory.h>
+#include <linux/pgtable.h>
 #include <asm/idle.h>
 #include <asm/vdso.h>
-#include <asm/pgtable.h>
 #include <asm/gmap.h>
 #include <asm/nmi.h>
 #include <asm/stacktrace.h>
@@ -53,42 +53,13 @@ int main(void)
 	/* stack_frame offsets */
 	OFFSET(__SF_BACKCHAIN, stack_frame, back_chain);
 	OFFSET(__SF_GPRS, stack_frame, gprs);
-	OFFSET(__SF_EMPTY, stack_frame, empty1);
-	OFFSET(__SF_SIE_CONTROL, stack_frame, empty1[0]);
-	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty1[1]);
-	OFFSET(__SF_SIE_REASON, stack_frame, empty1[2]);
-	OFFSET(__SF_SIE_FLAGS, stack_frame, empty1[3]);
+	OFFSET(__SF_EMPTY, stack_frame, empty1[0]);
+	OFFSET(__SF_SIE_CONTROL, stack_frame, empty1[1]);
+	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty1[2]);
+	OFFSET(__SF_SIE_REASON, stack_frame, empty1[3]);
+	OFFSET(__SF_SIE_FLAGS, stack_frame, empty1[4]);
 	BLANK();
-	/* timeval/timezone offsets for use by vdso */
-	OFFSET(__VDSO_UPD_COUNT, vdso_data, tb_update_count);
-	OFFSET(__VDSO_XTIME_STAMP, vdso_data, xtime_tod_stamp);
-	OFFSET(__VDSO_XTIME_SEC, vdso_data, xtime_clock_sec);
-	OFFSET(__VDSO_XTIME_NSEC, vdso_data, xtime_clock_nsec);
-	OFFSET(__VDSO_XTIME_CRS_SEC, vdso_data, xtime_coarse_sec);
-	OFFSET(__VDSO_XTIME_CRS_NSEC, vdso_data, xtime_coarse_nsec);
-	OFFSET(__VDSO_WTOM_SEC, vdso_data, wtom_clock_sec);
-	OFFSET(__VDSO_WTOM_NSEC, vdso_data, wtom_clock_nsec);
-	OFFSET(__VDSO_WTOM_CRS_SEC, vdso_data, wtom_coarse_sec);
-	OFFSET(__VDSO_WTOM_CRS_NSEC, vdso_data, wtom_coarse_nsec);
-	OFFSET(__VDSO_TIMEZONE, vdso_data, tz_minuteswest);
-	OFFSET(__VDSO_ECTG_OK, vdso_data, ectg_available);
-	OFFSET(__VDSO_TK_MULT, vdso_data, tk_mult);
-	OFFSET(__VDSO_TK_SHIFT, vdso_data, tk_shift);
-	OFFSET(__VDSO_TS_DIR, vdso_data, ts_dir);
-	OFFSET(__VDSO_TS_END, vdso_data, ts_end);
-	OFFSET(__VDSO_ECTG_BASE, vdso_per_cpu_data, ectg_timer_base);
-	OFFSET(__VDSO_ECTG_USER, vdso_per_cpu_data, ectg_user_time);
-	OFFSET(__VDSO_CPU_NR, vdso_per_cpu_data, cpu_nr);
-	OFFSET(__VDSO_NODE_ID, vdso_per_cpu_data, node_id);
-	BLANK();
-	/* constants used by the vdso */
-	DEFINE(__CLOCK_REALTIME, CLOCK_REALTIME);
-	DEFINE(__CLOCK_MONOTONIC, CLOCK_MONOTONIC);
-	DEFINE(__CLOCK_REALTIME_COARSE, CLOCK_REALTIME_COARSE);
-	DEFINE(__CLOCK_MONOTONIC_COARSE, CLOCK_MONOTONIC_COARSE);
-	DEFINE(__CLOCK_THREAD_CPUTIME_ID, CLOCK_THREAD_CPUTIME_ID);
-	DEFINE(__CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
-	DEFINE(__CLOCK_COARSE_RES, LOW_RES_NSEC);
+	OFFSET(__VDSO_GETCPU_VAL, vdso_per_cpu_data, getcpu_val);
 	BLANK();
 	/* idle data offsets */
 	OFFSET(__CLOCK_IDLE_ENTER, s390_idle_data, clock_idle_enter);
@@ -125,6 +96,8 @@ int main(void)
 	OFFSET(__LC_EXT_DAMAGE_CODE, lowcore, external_damage_code);
 	OFFSET(__LC_MCCK_FAIL_STOR_ADDR, lowcore, failing_storage_address);
 	OFFSET(__LC_LAST_BREAK, lowcore, breaking_event_addr);
+	OFFSET(__LC_RETURN_LPSWE, lowcore, return_lpswe);
+	OFFSET(__LC_RETURN_MCCK_LPSWE, lowcore, return_mcck_lpswe);
 	OFFSET(__LC_RST_OLD_PSW, lowcore, restart_old_psw);
 	OFFSET(__LC_EXT_OLD_PSW, lowcore, external_old_psw);
 	OFFSET(__LC_SVC_OLD_PSW, lowcore, svc_old_psw);

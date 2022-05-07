@@ -120,7 +120,6 @@
 ##
 
 #include <linux/linkage.h>
-#include <asm/inst.h>
 
 # constants in mergeable sections, linker can reorder and merge
 .section	.rodata.cst16.POLY, "aM", @progbits, 16
@@ -886,7 +885,6 @@ _less_than_8_bytes_left_\@:
 _partial_block_done_\@:
 .endm # PARTIAL_BLOCK
 
-#ifdef CONFIG_AS_AVX
 ###############################################################################
 # GHASH_MUL MACRO to implement: Data*HashKey mod (128,127,126,121,0)
 # Input: A and B (128-bits each, bit-reflected)
@@ -1775,12 +1773,12 @@ _initial_blocks_done\@:
 #        const   u8 *aad, /* Additional Authentication Data (AAD)*/
 #        u64     aad_len) /* Length of AAD in bytes. With RFC4106 this is going to be 8 or 12 Bytes */
 #############################################################
-ENTRY(aesni_gcm_init_avx_gen2)
+SYM_FUNC_START(aesni_gcm_init_avx_gen2)
         FUNC_SAVE
         INIT GHASH_MUL_AVX, PRECOMPUTE_AVX
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_init_avx_gen2)
+SYM_FUNC_END(aesni_gcm_init_avx_gen2)
 
 ###############################################################################
 #void   aesni_gcm_enc_update_avx_gen2(
@@ -1790,7 +1788,7 @@ ENDPROC(aesni_gcm_init_avx_gen2)
 #        const   u8 *in, /* Plaintext input */
 #        u64     plaintext_len) /* Length of data in Bytes for encryption. */
 ###############################################################################
-ENTRY(aesni_gcm_enc_update_avx_gen2)
+SYM_FUNC_START(aesni_gcm_enc_update_avx_gen2)
         FUNC_SAVE
         mov     keysize, %eax
         cmp     $32, %eax
@@ -1809,7 +1807,7 @@ key_256_enc_update:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX, GHASH_8_ENCRYPT_8_PARALLEL_AVX, GHASH_LAST_8_AVX, GHASH_MUL_AVX, ENC, 13
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_enc_update_avx_gen2)
+SYM_FUNC_END(aesni_gcm_enc_update_avx_gen2)
 
 ###############################################################################
 #void   aesni_gcm_dec_update_avx_gen2(
@@ -1819,7 +1817,7 @@ ENDPROC(aesni_gcm_enc_update_avx_gen2)
 #        const   u8 *in, /* Ciphertext input */
 #        u64     plaintext_len) /* Length of data in Bytes for encryption. */
 ###############################################################################
-ENTRY(aesni_gcm_dec_update_avx_gen2)
+SYM_FUNC_START(aesni_gcm_dec_update_avx_gen2)
         FUNC_SAVE
         mov     keysize,%eax
         cmp     $32, %eax
@@ -1838,7 +1836,7 @@ key_256_dec_update:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX, GHASH_8_ENCRYPT_8_PARALLEL_AVX, GHASH_LAST_8_AVX, GHASH_MUL_AVX, DEC, 13
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_dec_update_avx_gen2)
+SYM_FUNC_END(aesni_gcm_dec_update_avx_gen2)
 
 ###############################################################################
 #void   aesni_gcm_finalize_avx_gen2(
@@ -1848,7 +1846,7 @@ ENDPROC(aesni_gcm_dec_update_avx_gen2)
 #        u64     auth_tag_len)# /* Authenticated Tag Length in bytes.
 #				Valid values are 16 (most likely), 12 or 8. */
 ###############################################################################
-ENTRY(aesni_gcm_finalize_avx_gen2)
+SYM_FUNC_START(aesni_gcm_finalize_avx_gen2)
         FUNC_SAVE
         mov	keysize,%eax
         cmp     $32, %eax
@@ -1867,11 +1865,8 @@ key_256_finalize:
         GCM_COMPLETE GHASH_MUL_AVX, 13, arg3, arg4
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_finalize_avx_gen2)
+SYM_FUNC_END(aesni_gcm_finalize_avx_gen2)
 
-#endif /* CONFIG_AS_AVX */
-
-#ifdef CONFIG_AS_AVX2
 ###############################################################################
 # GHASH_MUL MACRO to implement: Data*HashKey mod (128,127,126,121,0)
 # Input: A and B (128-bits each, bit-reflected)
@@ -2746,12 +2741,12 @@ _initial_blocks_done\@:
 #        const   u8 *aad, /* Additional Authentication Data (AAD)*/
 #        u64     aad_len) /* Length of AAD in bytes. With RFC4106 this is going to be 8 or 12 Bytes */
 #############################################################
-ENTRY(aesni_gcm_init_avx_gen4)
+SYM_FUNC_START(aesni_gcm_init_avx_gen4)
         FUNC_SAVE
         INIT GHASH_MUL_AVX2, PRECOMPUTE_AVX2
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_init_avx_gen4)
+SYM_FUNC_END(aesni_gcm_init_avx_gen4)
 
 ###############################################################################
 #void   aesni_gcm_enc_avx_gen4(
@@ -2761,7 +2756,7 @@ ENDPROC(aesni_gcm_init_avx_gen4)
 #        const   u8 *in, /* Plaintext input */
 #        u64     plaintext_len) /* Length of data in Bytes for encryption. */
 ###############################################################################
-ENTRY(aesni_gcm_enc_update_avx_gen4)
+SYM_FUNC_START(aesni_gcm_enc_update_avx_gen4)
         FUNC_SAVE
         mov     keysize,%eax
         cmp     $32, %eax
@@ -2780,7 +2775,7 @@ key_256_enc_update4:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX2, GHASH_8_ENCRYPT_8_PARALLEL_AVX2, GHASH_LAST_8_AVX2, GHASH_MUL_AVX2, ENC, 13
         FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_enc_update_avx_gen4)
+SYM_FUNC_END(aesni_gcm_enc_update_avx_gen4)
 
 ###############################################################################
 #void   aesni_gcm_dec_update_avx_gen4(
@@ -2790,7 +2785,7 @@ ENDPROC(aesni_gcm_enc_update_avx_gen4)
 #        const   u8 *in, /* Ciphertext input */
 #        u64     plaintext_len) /* Length of data in Bytes for encryption. */
 ###############################################################################
-ENTRY(aesni_gcm_dec_update_avx_gen4)
+SYM_FUNC_START(aesni_gcm_dec_update_avx_gen4)
         FUNC_SAVE
         mov     keysize,%eax
         cmp     $32, %eax
@@ -2809,7 +2804,7 @@ key_256_dec_update4:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX2, GHASH_8_ENCRYPT_8_PARALLEL_AVX2, GHASH_LAST_8_AVX2, GHASH_MUL_AVX2, DEC, 13
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_dec_update_avx_gen4)
+SYM_FUNC_END(aesni_gcm_dec_update_avx_gen4)
 
 ###############################################################################
 #void   aesni_gcm_finalize_avx_gen4(
@@ -2819,7 +2814,7 @@ ENDPROC(aesni_gcm_dec_update_avx_gen4)
 #        u64     auth_tag_len)# /* Authenticated Tag Length in bytes.
 #                              Valid values are 16 (most likely), 12 or 8. */
 ###############################################################################
-ENTRY(aesni_gcm_finalize_avx_gen4)
+SYM_FUNC_START(aesni_gcm_finalize_avx_gen4)
         FUNC_SAVE
         mov	keysize,%eax
         cmp     $32, %eax
@@ -2838,6 +2833,4 @@ key_256_finalize4:
         GCM_COMPLETE GHASH_MUL_AVX2, 13, arg3, arg4
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_finalize_avx_gen4)
-
-#endif /* CONFIG_AS_AVX2 */
+SYM_FUNC_END(aesni_gcm_finalize_avx_gen4)

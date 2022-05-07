@@ -84,7 +84,6 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 	unsigned int cdev = 0;
 	u32 mnistat, tnistat, tstatus, mcmd;
 	u16 tnicmd, mnicmd;
-	u8 mcapndx;
 	u32 tot_bw = 0, tot_n = 0, tot_rq = 0, y_max, rq_isoch, rq_async;
 	u32 step, rem, rem_isoch, rem_async;
 	int ret = 0;
@@ -137,8 +136,6 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 	list_for_each(pos, head) {
 		cur = list_entry(pos, struct agp_3_5_dev, list);
 		dev = cur->dev;
-
-		mcapndx = cur->capndx;
 
 		pci_read_config_dword(dev, cur->capndx+AGPNISTAT, &mnistat);
 
@@ -251,8 +248,6 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 		cur = master[cdev].dev;
 		dev = cur->dev;
 
-		mcapndx = cur->capndx;
-
 		master[cdev].rq += (cdev == ndevs - 1)
 		              ? (rem_async + rem_isoch) : step;
 
@@ -319,7 +314,7 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 {
 	struct pci_dev *td = bridge->dev, *dev = NULL;
 	u8 mcapndx;
-	u32 isoch, arqsz;
+	u32 isoch;
 	u32 tstatus, mstatus, ncapid;
 	u32 mmajor;
 	u16 mpstat;
@@ -333,8 +328,6 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 	isoch     = (tstatus >> 17) & 0x1;
 	if (isoch == 0)	/* isoch xfers not available, bail out. */
 		return -ENODEV;
-
-	arqsz     = (tstatus >> 13) & 0x7;
 
 	/*
 	 * Allocate a head for our AGP 3.5 device list

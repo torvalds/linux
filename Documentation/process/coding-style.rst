@@ -84,15 +84,20 @@ Get a decent editor and don't leave whitespace at the end of lines.
 Coding style is all about readability and maintainability using commonly
 available tools.
 
-The limit on the length of lines is 80 columns and this is a strongly
-preferred limit.
+The preferred limit on the length of a single line is 80 columns.
 
-Statements longer than 80 columns will be broken into sensible chunks, unless
-exceeding 80 columns significantly increases readability and does not hide
-information. Descendants are always substantially shorter than the parent and
-are placed substantially to the right. The same applies to function headers
-with a long argument list. However, never break user-visible strings such as
-printk messages, because that breaks the ability to grep for them.
+Statements longer than 80 columns should be broken into sensible chunks,
+unless exceeding 80 columns significantly increases readability and does
+not hide information.
+
+Descendants are always substantially shorter than the parent and
+are placed substantially to the right.  A very commonly used style
+is to align descendants to a function open parenthesis.
+
+These same rules are applied to function headers with a long argument list.
+
+However, never break user-visible strings such as printk messages because
+that breaks the ability to grep for them.
 
 
 3) Placing Braces and Spaces
@@ -284,9 +289,9 @@ context lines.
 4) Naming
 ---------
 
-C is a Spartan language, and so should your naming be.  Unlike Modula-2
-and Pascal programmers, C programmers do not use cute names like
-ThisVariableIsATemporaryCounter.  A C programmer would call that
+C is a Spartan language, and your naming conventions should follow suit.
+Unlike Modula-2 and Pascal programmers, C programmers do not use cute
+names like ThisVariableIsATemporaryCounter. A C programmer would call that
 variable ``tmp``, which is much easier to write, and not the least more
 difficult to understand.
 
@@ -300,9 +305,9 @@ that counts the number of active users, you should call that
 ``count_active_users()`` or similar, you should **not** call it ``cntusr()``.
 
 Encoding the type of a function into the name (so-called Hungarian
-notation) is brain damaged - the compiler knows the types anyway and can
-check those, and it only confuses the programmer.  No wonder MicroSoft
-makes buggy programs.
+notation) is asinine - the compiler knows the types anyway and can check
+those, and it only confuses the programmer. No wonder Microsoft makes buggy
+programs.
 
 LOCAL variable names should be short, and to the point.  If you have
 some random integer loop counter, it should probably be called ``i``.
@@ -314,6 +319,26 @@ If you are afraid to mix up your local variable names, you have another
 problem, which is called the function-growth-hormone-imbalance syndrome.
 See chapter 6 (Functions).
 
+For symbol names and documentation, avoid introducing new usage of
+'master / slave' (or 'slave' independent of 'master') and 'blacklist /
+whitelist'.
+
+Recommended replacements for 'master / slave' are:
+    '{primary,main} / {secondary,replica,subordinate}'
+    '{initiator,requester} / {target,responder}'
+    '{controller,host} / {device,worker,proxy}'
+    'leader / follower'
+    'director / performer'
+
+Recommended replacements for 'blacklist/whitelist' are:
+    'denylist / allowlist'
+    'blocklist / passlist'
+
+Exceptions for introducing new usage is to maintain a userspace ABI/API,
+or when updating code for an existing (as of 2020) hardware or protocol
+specification that mandates those terms. For new specifications
+translate specification usage of the terminology to the kernel coding
+standard where possible.
 
 5) Typedefs
 -----------
@@ -806,9 +831,9 @@ covers RTL which is used frequently with assembly language in the kernel.
 ----------------------------
 
 Kernel developers like to be seen as literate. Do mind the spelling
-of kernel messages to make a good impression. Do not use crippled
-words like ``dont``; use ``do not`` or ``don't`` instead.  Make the messages
-concise, clear, and unambiguous.
+of kernel messages to make a good impression. Do not use incorrect
+contractions like ``dont``; use ``do not`` or ``don't`` instead. Make the
+messages concise, clear, and unambiguous.
 
 Kernel messages do not have to be terminated with a period.
 
@@ -988,7 +1013,7 @@ Similarly, if you need to calculate the size of some structure member, use
 
 .. code-block:: c
 
-	#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+	#define sizeof_field(t, f) (sizeof(((t*)0)->f))
 
 There are also min() and max() macros that do strict type checking if you
 need them.  Feel free to peruse that header file to see what else is already
@@ -1124,7 +1149,7 @@ Addison-Wesley, Inc., 1999.
 ISBN 0-201-61586-X.
 
 GNU manuals - where in compliance with K&R and this text - for cpp, gcc,
-gcc internals and indent, all available from http://www.gnu.org/manual/
+gcc internals and indent, all available from https://www.gnu.org/manual/
 
 WG14 is the international standardization working group for the programming
 language C, URL: http://www.open-std.org/JTC1/SC22/WG14/

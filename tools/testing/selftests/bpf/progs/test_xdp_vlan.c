@@ -22,8 +22,8 @@
 #include <linux/in.h>
 #include <linux/pkt_cls.h>
 
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 /* linux/if_vlan.h have not exposed this as UAPI, thus mirror some here
  *

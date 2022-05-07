@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/allwinner,sun8i-a83t-hdmi-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A83t HDMI PHY Device Tree Bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+properties:
+  "#phy-cells":
+    const: 0
+
+  compatible:
+    enum:
+      - allwinner,sun8i-a83t-hdmi-phy
+      - allwinner,sun8i-h3-hdmi-phy
+      - allwinner,sun8i-r40-hdmi-phy
+      - allwinner,sun50i-a64-hdmi-phy
+      - allwinner,sun50i-h6-hdmi-phy
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 2
+    maxItems: 4
+    items:
+      - description: Bus Clock
+      - description: Module Clock
+      - description: Parent of the PHY clock
+      - description: Second possible parent of the PHY clock
+
+  clock-names:
+    minItems: 2
+    maxItems: 4
+    items:
+      - const: bus
+      - const: mod
+      - const: pll-0
+      - const: pll-1
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    const: phy
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - allwinner,sun8i-r40-hdmi-phy
+
+then:
+  properties:
+    clocks:
+      minItems: 4
+
+    clock-names:
+      minItems: 4
+
+else:
+  if:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - allwinner,sun8i-h3-hdmi-phy
+            - allwinner,sun50i-a64-hdmi-phy
+
+  then:
+    properties:
+      clocks:
+        minItems: 3
+
+      clock-names:
+        minItems: 3
+
+  else:
+    properties:
+      clocks:
+        maxItems: 2
+
+      clock-names:
+        maxItems: 2
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sun8i-a83t-ccu.h>
+    #include <dt-bindings/reset/sun8i-a83t-ccu.h>
+
+    hdmi_phy: hdmi-phy@1ef0000 {
+        compatible = "allwinner,sun8i-a83t-hdmi-phy";
+        reg = <0x01ef0000 0x10000>;
+        clocks = <&ccu CLK_BUS_HDMI>, <&ccu CLK_HDMI_SLOW>;
+        clock-names = "bus", "mod";
+        resets = <&ccu RST_BUS_HDMI0>;
+        reset-names = "phy";
+        #phy-cells = <0>;
+    };
+
+...

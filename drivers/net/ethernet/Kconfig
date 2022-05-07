@@ -7,7 +7,7 @@ menuconfig ETHERNET
 	bool "Ethernet driver support"
 	depends on NET
 	default y
-	---help---
+	help
 	  This section contains all the Ethernet device drivers.
 
 if ETHERNET
@@ -48,7 +48,7 @@ config CX_ECAT
 	tristate "Beckhoff CX5020 EtherCAT master support"
 	depends on PCI
 	depends on X86 || COMPILE_TEST
-	---help---
+	help
 	  Driver for EtherCAT master module located on CCAT FPGA
 	  that can be found on Beckhoff CX5020, and possibly other of CX
 	  Beckhoff CX series industrial PCs.
@@ -62,7 +62,7 @@ config DNET
 	tristate "Dave ethernet support (DNET)"
 	depends on HAS_IOMEM
 	select PHYLIB
-	---help---
+	help
 	  The Dave ethernet interface (DNET) is found on Qong Board FPGA.
 	  Say Y to include support for the DNET chip.
 
@@ -78,7 +78,6 @@ source "drivers/net/ethernet/freescale/Kconfig"
 source "drivers/net/ethernet/fujitsu/Kconfig"
 source "drivers/net/ethernet/google/Kconfig"
 source "drivers/net/ethernet/hisilicon/Kconfig"
-source "drivers/net/ethernet/hp/Kconfig"
 source "drivers/net/ethernet/huawei/Kconfig"
 source "drivers/net/ethernet/i825xx/Kconfig"
 source "drivers/net/ethernet/ibm/Kconfig"
@@ -90,7 +89,7 @@ config JME
 	depends on PCI
 	select CRC32
 	select MII
-	---help---
+	help
 	  This driver supports the PCI-Express gigabit ethernet adapters
 	  based on JMicron JMC250 chipset.
 
@@ -100,20 +99,20 @@ config JME
 config KORINA
 	tristate "Korina (IDT RC32434) Ethernet support"
 	depends on MIKROTIK_RB532
-	---help---
+	help
 	  If you have a Mikrotik RouterBoard 500 or IDT RC32434
 	  based system say Y. Otherwise say N.
 
 config LANTIQ_ETOP
 	tristate "Lantiq SoC ETOP driver"
 	depends on SOC_TYPE_XWAY
-	---help---
+	help
 	  Support for the MII0 inside the Lantiq SoC
 
 config LANTIQ_XRX200
 	tristate "Lantiq / Intel xRX200 PMAC network driver"
 	depends on SOC_TYPE_XWAY
-	---help---
+	help
 	  Support for the PMAC of the Gigabit switch (GSWIP) inside the
 	  Lantiq / Intel VRX200 VDSL SoC
 
@@ -131,7 +130,7 @@ config FEALNX
 	depends on PCI
 	select CRC32
 	select MII
-	---help---
+	help
 	  Say Y here to support the Myson MTD-800 family of PCI-based Ethernet
 	  cards. <http://www.myson.com.tw/>
 
@@ -151,7 +150,7 @@ config ETHOC
 	select PHYLIB
 	select CRC32
 	select BITREVERSE
-	---help---
+	help
 	  Say Y here if you want to use the OpenCores 10/100 Mbps Ethernet MAC.
 
 source "drivers/net/ethernet/packetengines/Kconfig"

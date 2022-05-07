@@ -23,7 +23,6 @@
  *
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 
 #include "display_mode_lib.h"
 #include "display_mode_vba.h"
@@ -92,15 +91,13 @@ dml_get_attr_func(wm_stutter_exit, mode_lib->vba.StutterExitWatermark);
 dml_get_attr_func(wm_stutter_enter_exit, mode_lib->vba.StutterEnterPlusExitWatermark);
 dml_get_attr_func(wm_dram_clock_change, mode_lib->vba.DRAMClockChangeWatermark);
 dml_get_attr_func(wm_writeback_dram_clock_change, mode_lib->vba.WritebackDRAMClockChangeWatermark);
-dml_get_attr_func(wm_xfc_underflow, mode_lib->vba.UrgentWatermark); // xfc_underflow maps to urgent
 dml_get_attr_func(stutter_efficiency, mode_lib->vba.StutterEfficiency);
 dml_get_attr_func(stutter_efficiency_no_vblank, mode_lib->vba.StutterEfficiencyNotIncludingVBlank);
+dml_get_attr_func(stutter_period, mode_lib->vba.StutterPeriod);
 dml_get_attr_func(urgent_latency, mode_lib->vba.UrgentLatency);
 dml_get_attr_func(urgent_extra_latency, mode_lib->vba.UrgentExtraLatency);
 dml_get_attr_func(nonurgent_latency, mode_lib->vba.NonUrgentLatencyTolerance);
-dml_get_attr_func(
-		dram_clock_change_latency,
-		mode_lib->vba.MinActiveDRAMClockChangeLatencySupported);
+dml_get_attr_func(dram_clock_change_latency, mode_lib->vba.MinActiveDRAMClockChangeLatencySupported);
 dml_get_attr_func(dispclk_calculated, mode_lib->vba.DISPCLK_calculated);
 dml_get_attr_func(total_data_read_bw, mode_lib->vba.TotalDataReadBandwidth);
 dml_get_attr_func(return_bw, mode_lib->vba.ReturnBW);
@@ -120,6 +117,7 @@ dml_get_pipe_attr_func(dsc_delay, mode_lib->vba.DSCDelay);
 dml_get_pipe_attr_func(dppclk_calculated, mode_lib->vba.DPPCLK_calculated);
 dml_get_pipe_attr_func(dscclk_calculated, mode_lib->vba.DSCCLK_calculated);
 dml_get_pipe_attr_func(min_ttu_vblank, mode_lib->vba.MinTTUVBlank);
+dml_get_pipe_attr_func(min_ttu_vblank_in_us, mode_lib->vba.MinTTUVBlank);
 dml_get_pipe_attr_func(vratio_prefetch_l, mode_lib->vba.VRatioPrefetchY);
 dml_get_pipe_attr_func(vratio_prefetch_c, mode_lib->vba.VRatioPrefetchC);
 dml_get_pipe_attr_func(dst_x_after_scaler, mode_lib->vba.DSTXAfterScaler);
@@ -128,31 +126,38 @@ dml_get_pipe_attr_func(dst_y_per_vm_vblank, mode_lib->vba.DestinationLinesToRequ
 dml_get_pipe_attr_func(dst_y_per_row_vblank, mode_lib->vba.DestinationLinesToRequestRowInVBlank);
 dml_get_pipe_attr_func(dst_y_prefetch, mode_lib->vba.DestinationLinesForPrefetch);
 dml_get_pipe_attr_func(dst_y_per_vm_flip, mode_lib->vba.DestinationLinesToRequestVMInImmediateFlip);
-dml_get_pipe_attr_func(
-		dst_y_per_row_flip,
-		mode_lib->vba.DestinationLinesToRequestRowInImmediateFlip);
-
-dml_get_pipe_attr_func(xfc_transfer_delay, mode_lib->vba.XFCTransferDelay);
-dml_get_pipe_attr_func(xfc_precharge_delay, mode_lib->vba.XFCPrechargeDelay);
-dml_get_pipe_attr_func(xfc_remote_surface_flip_latency, mode_lib->vba.XFCRemoteSurfaceFlipLatency);
-dml_get_pipe_attr_func(xfc_prefetch_margin, mode_lib->vba.XFCPrefetchMargin);
+dml_get_pipe_attr_func(dst_y_per_row_flip, mode_lib->vba.DestinationLinesToRequestRowInImmediateFlip);
 dml_get_pipe_attr_func(refcyc_per_vm_group_vblank, mode_lib->vba.TimePerVMGroupVBlank);
 dml_get_pipe_attr_func(refcyc_per_vm_group_flip, mode_lib->vba.TimePerVMGroupFlip);
 dml_get_pipe_attr_func(refcyc_per_vm_req_vblank, mode_lib->vba.TimePerVMRequestVBlank);
 dml_get_pipe_attr_func(refcyc_per_vm_req_flip, mode_lib->vba.TimePerVMRequestFlip);
+dml_get_pipe_attr_func(refcyc_per_vm_group_vblank_in_us, mode_lib->vba.TimePerVMGroupVBlank);
+dml_get_pipe_attr_func(refcyc_per_vm_group_flip_in_us, mode_lib->vba.TimePerVMGroupFlip);
+dml_get_pipe_attr_func(refcyc_per_vm_req_vblank_in_us, mode_lib->vba.TimePerVMRequestVBlank);
+dml_get_pipe_attr_func(refcyc_per_vm_req_flip_in_us, mode_lib->vba.TimePerVMRequestFlip);
+dml_get_pipe_attr_func(refcyc_per_vm_dmdata_in_us, mode_lib->vba.Tdmdl_vm);
+dml_get_pipe_attr_func(dmdata_dl_delta_in_us, mode_lib->vba.Tdmdl);
+dml_get_pipe_attr_func(refcyc_per_line_delivery_l_in_us, mode_lib->vba.DisplayPipeLineDeliveryTimeLuma);
+dml_get_pipe_attr_func(refcyc_per_line_delivery_c_in_us, mode_lib->vba.DisplayPipeLineDeliveryTimeChroma);
+dml_get_pipe_attr_func(refcyc_per_line_delivery_pre_l_in_us, mode_lib->vba.DisplayPipeLineDeliveryTimeLumaPrefetch);
+dml_get_pipe_attr_func(refcyc_per_line_delivery_pre_c_in_us, mode_lib->vba.DisplayPipeLineDeliveryTimeChromaPrefetch);
+dml_get_pipe_attr_func(refcyc_per_req_delivery_l_in_us, mode_lib->vba.DisplayPipeRequestDeliveryTimeLuma);
+dml_get_pipe_attr_func(refcyc_per_req_delivery_c_in_us, mode_lib->vba.DisplayPipeRequestDeliveryTimeChroma);
+dml_get_pipe_attr_func(refcyc_per_req_delivery_pre_l_in_us, mode_lib->vba.DisplayPipeRequestDeliveryTimeLumaPrefetch);
+dml_get_pipe_attr_func(refcyc_per_req_delivery_pre_c_in_us, mode_lib->vba.DisplayPipeRequestDeliveryTimeChromaPrefetch);
+dml_get_pipe_attr_func(refcyc_per_cursor_req_delivery_in_us, mode_lib->vba.CursorRequestDeliveryTime);
+dml_get_pipe_attr_func(refcyc_per_cursor_req_delivery_pre_in_us, mode_lib->vba.CursorRequestDeliveryTimePrefetch);
+dml_get_pipe_attr_func(refcyc_per_meta_chunk_nom_l_in_us, mode_lib->vba.TimePerMetaChunkNominal);
+dml_get_pipe_attr_func(refcyc_per_meta_chunk_nom_c_in_us, mode_lib->vba.TimePerChromaMetaChunkNominal);
+dml_get_pipe_attr_func(refcyc_per_meta_chunk_vblank_l_in_us, mode_lib->vba.TimePerMetaChunkVBlank);
+dml_get_pipe_attr_func(refcyc_per_meta_chunk_vblank_c_in_us, mode_lib->vba.TimePerChromaMetaChunkVBlank);
+dml_get_pipe_attr_func(refcyc_per_meta_chunk_flip_l_in_us, mode_lib->vba.TimePerMetaChunkFlip);
+dml_get_pipe_attr_func(refcyc_per_meta_chunk_flip_c_in_us, mode_lib->vba.TimePerChromaMetaChunkFlip);
 
-unsigned int get_vstartup_calculated(
-		struct display_mode_lib *mode_lib,
-		const display_e2e_pipe_params_st *pipes,
-		unsigned int num_pipes,
-		unsigned int which_pipe)
-{
-	unsigned int which_plane;
-
-	recalculate_params(mode_lib, pipes, num_pipes);
-	which_plane = mode_lib->vba.pipe_plane[which_pipe];
-	return mode_lib->vba.VStartup[which_plane];
-}
+dml_get_pipe_attr_func(vstartup, mode_lib->vba.VStartup);
+dml_get_pipe_attr_func(vupdate_offset, mode_lib->vba.VUpdateOffsetPix);
+dml_get_pipe_attr_func(vupdate_width, mode_lib->vba.VUpdateWidthPix);
+dml_get_pipe_attr_func(vready_offset, mode_lib->vba.VReadyOffsetPix);
 
 double get_total_immediate_flip_bytes(
 		struct display_mode_lib *mode_lib,
@@ -222,13 +227,18 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.SRExitTime = soc->sr_exit_time_us;
 	mode_lib->vba.SREnterPlusExitTime = soc->sr_enter_plus_exit_time_us;
 	mode_lib->vba.DRAMClockChangeLatency = soc->dram_clock_change_latency_us;
+	mode_lib->vba.DummyPStateCheck = soc->dram_clock_change_latency_us == soc->dummy_pstate_latency_us;
+	mode_lib->vba.DRAMClockChangeSupportsVActive = !soc->disable_dram_clock_change_vactive_support ||
+			mode_lib->vba.DummyPStateCheck;
+	mode_lib->vba.AllowDramClockChangeOneDisplayVactive = soc->allow_dram_clock_one_display_vactive;
+
 	mode_lib->vba.Downspreading = soc->downspread_percent;
 	mode_lib->vba.DRAMChannelWidth = soc->dram_channel_width_bytes;   // new!
 	mode_lib->vba.FabricDatapathToDCNDataReturn = soc->fabric_datapath_to_dcn_data_return_bytes; // new!
 	mode_lib->vba.DISPCLKDPPCLKDSCCLKDownSpreading = soc->dcn_downspread_percent;   // new
 	mode_lib->vba.DISPCLKDPPCLKVCOSpeed = soc->dispclk_dppclk_vco_speed_mhz;   // new
 	mode_lib->vba.VMMPageSize = soc->vmm_page_size_bytes;
-	mode_lib->vba.GPUVMMinPageSize = soc->vmm_page_size_bytes / 1024;
+	mode_lib->vba.GPUVMMinPageSize = soc->gpuvm_min_page_size_bytes / 1024;
 	mode_lib->vba.HostVMMinPageSize = soc->hostvm_min_page_size_bytes / 1024;
 	// Set the voltage scaling clocks as the defaults. Most of these will
 	// be set to different values by the test
@@ -261,6 +271,7 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.DRAMSpeedPerState[i] = soc->clock_limits[i].dram_speed_mts;
 		//mode_lib->vba.DRAMSpeedPerState[i] = soc->clock_limits[i].dram_speed_mhz;
 		mode_lib->vba.MaxDispclk[i] = soc->clock_limits[i].dispclk_mhz;
+		mode_lib->vba.DTBCLKPerState[i] = soc->clock_limits[i].dtbclk_mhz;
 	}
 
 	mode_lib->vba.DoUrgentLatencyAdjustment =
@@ -276,6 +287,10 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 	ip_params_st *ip = &mode_lib->vba.ip;
 
 	// IP Parameters
+	mode_lib->vba.UseMinimumRequiredDCFCLK = ip->use_min_dcfclk;
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+	mode_lib->vba.ClampMinDCFCLK = ip->clamp_min_dcfclk;
+#endif
 	mode_lib->vba.MaxNumDPP = ip->max_num_dpp;
 	mode_lib->vba.MaxNumOTG = ip->max_num_otg;
 	mode_lib->vba.MaxNumHDMIFRLOutputs = ip->max_num_hdmi_frl_outputs;
@@ -287,8 +302,10 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.MaxPSCLToLBThroughput = ip->max_pscl_lb_bw_pix_per_clk;
 	mode_lib->vba.ROBBufferSizeInKByte = ip->rob_buffer_size_kbytes;
 	mode_lib->vba.DETBufferSizeInKByte = ip->det_buffer_size_kbytes;
+
 	mode_lib->vba.PixelChunkSizeInKByte = ip->pixel_chunk_size_kbytes;
 	mode_lib->vba.MetaChunkSize = ip->meta_chunk_size_kbytes;
+	mode_lib->vba.MinMetaChunkSizeBytes = ip->min_meta_chunk_size_bytes;
 	mode_lib->vba.WritebackChunkSize = ip->writeback_chunk_size_kbytes;
 	mode_lib->vba.LineBufferSize = ip->line_buffer_size_bits;
 	mode_lib->vba.MaxLineBufferLines = ip->max_line_buffer_lines;
@@ -303,8 +320,6 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 
 	mode_lib->vba.WritebackInterfaceBufferSize = ip->writeback_interface_buffer_size_kbytes;
 	mode_lib->vba.WritebackLineBufferSize = ip->writeback_line_buffer_buffer_size;
-	mode_lib->vba.MinVoltageLevel = 0;
-	mode_lib->vba.MaxVoltageLevel = 5;
 
 	mode_lib->vba.WritebackChromaLineBufferWidth =
 			ip->writeback_chroma_line_buffer_width_pixels;
@@ -361,6 +376,8 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		visited[k] = false;
 
 	mode_lib->vba.NumberOfActivePlanes = 0;
+	mode_lib->vba.ImmediateFlipSupport = false;
+	mode_lib->vba.ImmediateFlipRequirement = dm_immediate_flip_not_required;
 	for (j = 0; j < mode_lib->vba.cache_num_pipes; ++j) {
 		display_pipe_source_params_st *src = &pipes[j].pipe.src;
 		display_pipe_dest_params_st *dst = &pipes[j].pipe.dest;
@@ -391,11 +408,11 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.ViewportYStartC[mode_lib->vba.NumberOfActivePlanes] =
 				src->viewport_y_c;
 		mode_lib->vba.PitchY[mode_lib->vba.NumberOfActivePlanes] = src->data_pitch;
-		mode_lib->vba.SurfaceHeightY[mode_lib->vba.NumberOfActivePlanes] = src->viewport_height;
-		mode_lib->vba.SurfaceWidthY[mode_lib->vba.NumberOfActivePlanes] = src->viewport_width;
+		mode_lib->vba.SurfaceWidthY[mode_lib->vba.NumberOfActivePlanes] = src->surface_width_y;
+		mode_lib->vba.SurfaceHeightY[mode_lib->vba.NumberOfActivePlanes] = src->surface_height_y;
 		mode_lib->vba.PitchC[mode_lib->vba.NumberOfActivePlanes] = src->data_pitch_c;
-		mode_lib->vba.SurfaceHeightC[mode_lib->vba.NumberOfActivePlanes] = src->viewport_height_c;
-		mode_lib->vba.SurfaceWidthC[mode_lib->vba.NumberOfActivePlanes] = src->viewport_width_c;
+		mode_lib->vba.SurfaceHeightC[mode_lib->vba.NumberOfActivePlanes] = src->surface_height_c;
+		mode_lib->vba.SurfaceWidthC[mode_lib->vba.NumberOfActivePlanes] = src->surface_width_c;
 		mode_lib->vba.DCCMetaPitchY[mode_lib->vba.NumberOfActivePlanes] = src->meta_pitch;
 		mode_lib->vba.DCCMetaPitchC[mode_lib->vba.NumberOfActivePlanes] = src->meta_pitch_c;
 		mode_lib->vba.HRatio[mode_lib->vba.NumberOfActivePlanes] = scl->hscl_ratio;
@@ -419,11 +436,9 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 						ip->dcc_supported : src->dcc && ip->dcc_supported;
 		mode_lib->vba.DCCRate[mode_lib->vba.NumberOfActivePlanes] = src->dcc_rate;
 		/* TODO: Needs to be set based on src->dcc_rate_luma/chroma */
-		mode_lib->vba.DCCRateLuma[mode_lib->vba.NumberOfActivePlanes] = 0;
-		mode_lib->vba.DCCRateChroma[mode_lib->vba.NumberOfActivePlanes] = 0;
-
-		mode_lib->vba.SourcePixelFormat[mode_lib->vba.NumberOfActivePlanes] =
-				(enum source_format_class) (src->source_format);
+		mode_lib->vba.DCCRateLuma[mode_lib->vba.NumberOfActivePlanes] = src->dcc_rate;
+		mode_lib->vba.DCCRateChroma[mode_lib->vba.NumberOfActivePlanes] = src->dcc_rate_chroma;
+		mode_lib->vba.SourcePixelFormat[mode_lib->vba.NumberOfActivePlanes] = (enum source_format_class) (src->source_format);
 		mode_lib->vba.HActive[mode_lib->vba.NumberOfActivePlanes] = dst->hactive;
 		mode_lib->vba.VActive[mode_lib->vba.NumberOfActivePlanes] = dst->vactive;
 		mode_lib->vba.SurfaceTiling[mode_lib->vba.NumberOfActivePlanes] =
@@ -434,6 +449,8 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 				dst->odm_combine;
 		mode_lib->vba.OutputFormat[mode_lib->vba.NumberOfActivePlanes] =
 				(enum output_format_class) (dout->output_format);
+		mode_lib->vba.OutputBpp[mode_lib->vba.NumberOfActivePlanes] =
+				dout->output_bpp;
 		mode_lib->vba.Output[mode_lib->vba.NumberOfActivePlanes] =
 				(enum output_encoder_class) (dout->output_type);
 
@@ -446,11 +463,12 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 				dout->dp_lanes;
 		/* TODO: Needs to be set based on dout->audio.audio_sample_rate_khz/sample_layout */
 		mode_lib->vba.AudioSampleRate[mode_lib->vba.NumberOfActivePlanes] =
-			44.1 * 1000;
+			dout->max_audio_sample_rate;
 		mode_lib->vba.AudioSampleLayout[mode_lib->vba.NumberOfActivePlanes] =
 			1;
 		mode_lib->vba.DRAMClockChangeLatencyOverride = 0.0;
 		mode_lib->vba.DSCEnabled[mode_lib->vba.NumberOfActivePlanes] = dout->dsc_enable;
+		mode_lib->vba.DSCEnable[mode_lib->vba.NumberOfActivePlanes] = dout->dsc_enable;
 		mode_lib->vba.NumberOfDSCSlices[mode_lib->vba.NumberOfActivePlanes] =
 				dout->dsc_slices;
 		mode_lib->vba.DSCInputBitPerComponent[mode_lib->vba.NumberOfActivePlanes] =
@@ -582,6 +600,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 			for (k = j + 1; k < mode_lib->vba.cache_num_pipes; ++k) {
 				display_pipe_source_params_st *src_k = &pipes[k].pipe.src;
 				display_pipe_dest_params_st *dst_k = &pipes[k].pipe.dest;
+				display_output_params_st *dout_k = &pipes[j].dout;
 
 				if (src_k->is_hsplit && !visited[k]
 						&& src->hsplit_grp == src_k->hsplit_grp) {
@@ -592,20 +611,28 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 							== dm_horz) {
 						mode_lib->vba.ViewportWidth[mode_lib->vba.NumberOfActivePlanes] +=
 								src_k->viewport_width;
+						mode_lib->vba.ViewportWidthChroma[mode_lib->vba.NumberOfActivePlanes] +=
+								src_k->viewport_width_c;
 						mode_lib->vba.ScalerRecoutWidth[mode_lib->vba.NumberOfActivePlanes] +=
 								dst_k->recout_width;
 					} else {
 						mode_lib->vba.ViewportHeight[mode_lib->vba.NumberOfActivePlanes] +=
 								src_k->viewport_height;
+						mode_lib->vba.ViewportHeightChroma[mode_lib->vba.NumberOfActivePlanes] +=
+								src_k->viewport_height_c;
 					}
+					mode_lib->vba.NumberOfDSCSlices[mode_lib->vba.NumberOfActivePlanes] +=
+							dout_k->dsc_slices;
 
 					visited[k] = true;
 				}
 			}
 		}
 
-		if (pipes[k].pipe.src.immediate_flip)
+		if (pipes[k].pipe.src.immediate_flip) {
 			mode_lib->vba.ImmediateFlipSupport = true;
+			mode_lib->vba.ImmediateFlipRequirement = dm_immediate_flip_required;
+		}
 
 		mode_lib->vba.NumberOfActivePlanes++;
 	}
@@ -635,10 +662,12 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 
 	// TODO: ODMCombineEnabled => 2 * DPPPerPlane...actually maybe not since all pipes are specified
 	// Do we want the dscclk to automatically be halved? Guess not since the value is specified
-
+	mode_lib->vba.SynchronizeTimingsIfSingleRefreshRate = pipes[0].pipe.dest.synchronize_timing_if_single_refresh_rate;
 	mode_lib->vba.SynchronizedVBlank = pipes[0].pipe.dest.synchronized_vblank_all_planes;
-	for (k = 1; k < mode_lib->vba.cache_num_pipes; ++k)
+	for (k = 1; k < mode_lib->vba.cache_num_pipes; ++k) {
+		ASSERT(mode_lib->vba.SynchronizeTimingsIfSingleRefreshRate == pipes[k].pipe.dest.synchronize_timing_if_single_refresh_rate);
 		ASSERT(mode_lib->vba.SynchronizedVBlank == pipes[k].pipe.dest.synchronized_vblank_all_planes);
+	}
 
 	mode_lib->vba.GPUVMEnable = false;
 	mode_lib->vba.HostVMEnable = false;
@@ -803,7 +832,9 @@ void ModeSupportAndSystemConfiguration(struct display_mode_lib *mode_lib)
 	unsigned int total_pipes = 0;
 
 	mode_lib->vba.VoltageLevel = mode_lib->vba.cache_pipes[0].clks_cfg.voltage;
-	mode_lib->vba.ReturnBW = mode_lib->vba.ReturnBWPerState[mode_lib->vba.VoltageLevel];
+	mode_lib->vba.ReturnBW = mode_lib->vba.ReturnBWPerState[mode_lib->vba.VoltageLevel][mode_lib->vba.maxMpcComb];
+	if (mode_lib->vba.ReturnBW == 0)
+		mode_lib->vba.ReturnBW = mode_lib->vba.ReturnBWPerState[mode_lib->vba.VoltageLevel][0];
 	mode_lib->vba.FabricAndDRAMBandwidth = mode_lib->vba.FabricAndDRAMBandwidthPerState[mode_lib->vba.VoltageLevel];
 
 	fetch_socbb_params(mode_lib);
@@ -853,4 +884,3 @@ double CalculateWriteBackDISPCLK(
 	return CalculateWriteBackDISPCLK;
 }
 
-#endif

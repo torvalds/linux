@@ -10,6 +10,8 @@
 #include <asm/reg.h>
 #include <asm/cputable.h>
 
+#include "internal.h"
+
 /*
  * Bits in event code for POWER6
  */
@@ -171,7 +173,7 @@ static int power6_marked_instr_event(u64 event)
  * Assign PMC numbers and compute MMCR1 value for a set of events
  */
 static int p6_compute_mmcr(u64 event[], int n_ev,
-			   unsigned int hwc[], unsigned long mmcr[], struct perf_event *pevents[])
+			   unsigned int hwc[], struct mmcr_regs *mmcr, struct perf_event *pevents[])
 {
 	unsigned long mmcr1 = 0;
 	unsigned long mmcra = MMCRA_SDAR_DCACHE_MISS | MMCRA_SDAR_ERAT_MISS;
@@ -243,13 +245,13 @@ static int p6_compute_mmcr(u64 event[], int n_ev,
 		if (pmc < 4)
 			mmcr1 |= (unsigned long)psel << MMCR1_PMCSEL_SH(pmc);
 	}
-	mmcr[0] = 0;
+	mmcr->mmcr0 = 0;
 	if (pmc_inuse & 1)
-		mmcr[0] = MMCR0_PMC1CE;
+		mmcr->mmcr0 = MMCR0_PMC1CE;
 	if (pmc_inuse & 0xe)
-		mmcr[0] |= MMCR0_PMCjCE;
-	mmcr[1] = mmcr1;
-	mmcr[2] = mmcra;
+		mmcr->mmcr0 |= MMCR0_PMCjCE;
+	mmcr->mmcr1 = mmcr1;
+	mmcr->mmcra = mmcra;
 	return 0;
 }
 
@@ -457,11 +459,11 @@ static int p6_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 	return nalt;
 }
 
-static void p6_disable_pmc(unsigned int pmc, unsigned long mmcr[])
+static void p6_disable_pmc(unsigned int pmc, struct mmcr_regs *mmcr)
 {
 	/* Set PMCxSEL to 0 to disable PMCx */
 	if (pmc <= 3)
-		mmcr[1] &= ~(0xffUL << MMCR1_PMCSEL_SH(pmc));
+		mmcr->mmcr1 &= ~(0xffUL << MMCR1_PMCSEL_SH(pmc));
 }
 
 static int power6_generic_events[] = {
@@ -481,7 +483,7 @@ static int power6_generic_events[] = {
  * are event codes.
  * The "DTLB" and "ITLB" events relate to the DERAT and IERAT.
  */
-static int power6_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+static u64 power6_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	0x280030,	0x80080		},
 		[C(OP_WRITE)] = {	0x180032,	0x80088		},

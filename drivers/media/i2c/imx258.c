@@ -1304,7 +1304,7 @@ static struct i2c_driver imx258_i2c_driver = {
 module_i2c_driver(imx258_i2c_driver);
 
 MODULE_AUTHOR("Yeh, Andy <andy.yeh@intel.com>");
-MODULE_AUTHOR("Chiang, Alan <alanx.chiang@intel.com>");
+MODULE_AUTHOR("Chiang, Alan");
 MODULE_AUTHOR("Chen, Jason <jasonx.z.chen@intel.com>");
 MODULE_DESCRIPTION("Sony IMX258 sensor driver");
 MODULE_LICENSE("GPL v2");

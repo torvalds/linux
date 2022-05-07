@@ -56,8 +56,9 @@ Description:
 		management) on top, which makes it match the Windows IRST (Intel
 		Rapid Storage Technology) driver settings. This setting is also
 		close to min_power, except that:
+
 		a) It does not use host-initiated slumber mode, but it does
-		allow device-initiated slumber
+		   allow device-initiated slumber
 		b) It does not enable low power device sleep mode (DevSlp).
 
 What:		/sys/class/scsi_host/hostX/em_message
@@ -70,8 +71,8 @@ Description:
 		protocol, writes and reads correspond to the LED message format
 		as defined in the AHCI spec.
 
-		The user must turn sw_activity (under /sys/block/*/device/) OFF
-		it they wish to control the activity LED via the em_message
+		The user must turn sw_activity (under `/sys/block/*/device/`)
+		OFF it they wish to control the activity LED via the em_message
 		file.
 
 		em_message_type: (RO) Displays the current enclosure management

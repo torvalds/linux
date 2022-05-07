@@ -8,14 +8,14 @@
 #include "imx8mq-zii-ultra.dtsi"
 
 / {
-	model = "ZII i.MX8MQ Ultra RMB3 Board";
+	model = "ZII Ultra RMB3 Board";
 	compatible = "zii,imx8mq-ultra-rmb3", "zii,imx8mq-ultra", "fsl,imx8mq";
 };
 
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	cs-gpios = <&gpio5 9 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
 	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;

@@ -55,10 +55,6 @@
 
 /* Some more module clocks are exported */
 
-#define CLK_MBUS		155
-
-/* Another bunch of module clocks are exported */
-
 #define CLK_NUMBER		(CLK_OUTB + 1)
 
 #endif /* _CCU_SUN8I_R40_H_ */

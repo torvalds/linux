@@ -26,16 +26,15 @@
 #ifndef DC_LINK_H_
 #define DC_LINK_H_
 
+#include "dc.h"
 #include "dc_types.h"
 #include "grph_object_defs.h"
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 enum dc_link_fec_state {
 	dc_link_fec_not_ready,
 	dc_link_fec_ready,
 	dc_link_fec_enabled
 };
-#endif
 struct dc_link_status {
 	bool link_active;
 	struct dpcd_caps *dpcd_caps;
@@ -67,6 +66,22 @@ struct time_stamp {
 struct link_trace {
 	struct time_stamp time_stamp;
 };
+
+/* PSR feature flags */
+struct psr_settings {
+	bool psr_feature_enabled;		// PSR is supported by sink
+	bool psr_allow_active;			// PSR is currently active
+	enum dc_psr_version psr_version;		// Internal PSR version, determined based on DPCD
+
+	/* These parameters are calculated in Driver,
+	 * based on display timing and Sink capabilities.
+	 * If VBLANK region is too small and Sink takes a long time
+	 * to set up RFB, it may take an extra frame to enter PSR state.
+	 */
+	bool psr_frame_capture_indication_req;
+	unsigned int psr_sdp_transmit_line_num_deadline;
+};
+
 /*
  * A link contains one or more sinks and their connected status.
  * The currently active signal type (HDMI, DP-SST, DP-MST) is also reported.
@@ -85,6 +100,7 @@ struct dc_link {
 	bool link_state_valid;
 	bool aux_access_disabled;
 	bool sync_lt_in_progress;
+	bool lttpr_non_transparent_mode;
 
 	/* caps is the same as reported_link_cap. link_traing use
 	 * reported_link_cap. Will clean up.  TODO
@@ -95,6 +111,7 @@ struct dc_link {
 	struct dc_lane_settings cur_lane_setting;
 	struct dc_link_settings preferred_link_setting;
 	struct dc_link_training_overrides preferred_training_settings;
+	struct dp_audio_test_data audio_test_data;
 
 	uint8_t ddc_hw_inst;
 
@@ -117,6 +134,7 @@ struct dc_link {
 
 	struct dc_context *ctx;
 
+	struct panel_cntl *panel_cntl;
 	struct link_encoder *link_enc;
 	struct graphics_object_id link_id;
 	union ddi_channel_mapping ddi_channel_mapping;
@@ -125,13 +143,19 @@ struct dc_link {
 	uint32_t dongle_max_pix_clk;
 	unsigned short chip_caps;
 	unsigned int dpcd_sink_count;
+#if defined(CONFIG_DRM_AMD_DC_HDCP)
+	struct hdcp_caps hdcp_caps;
+#endif
 	enum edp_revision edp_revision;
-	bool psr_enabled;
+	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
+
+	struct psr_settings psr_settings;
 
 	/* MST record stream using this link */
 	struct link_flags {
 		bool dp_keep_receiver_powered;
 		bool dp_skip_DID2;
+		bool dp_skip_reset_segment;
 	} wa_flags;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
@@ -139,9 +163,7 @@ struct dc_link {
 
 	struct link_trace link_trace;
 	struct gpio *hpd_gpio;
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	enum dc_link_fec_state fec_state;
-#endif
 };
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
@@ -158,6 +180,18 @@ static inline struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_
 	return dc->links[link_index];
 }
 
+static inline struct dc_link *get_edp_link(const struct dc *dc)
+{
+	int i;
+
+	// report any eDP links, even unconnected DDI's
+	for (i = 0; i < dc->link_count; i++) {
+		if (dc->links[i]->connector_signal == SIGNAL_TYPE_EDP)
+			return dc->links[i];
+	}
+	return NULL;
+}
+
 /* Set backlight level of an embedded panel (eDP, LVDS).
  * backlight_pwm_u16_16 is unsigned 32 bit with 16 bit integer
  * and 16 bit fractional, where 1.0 is max backlight value.
@@ -166,11 +200,26 @@ bool dc_link_set_backlight_level(const struct dc_link *dc_link,
 		uint32_t backlight_pwm_u16_16,
 		uint32_t frame_ramp);
 
+/* Set/get nits-based backlight level of an embedded panel (eDP, LVDS). */
+bool dc_link_set_backlight_level_nits(struct dc_link *link,
+		bool isHDR,
+		uint32_t backlight_millinits,
+		uint32_t transition_time_in_ms);
+
+bool dc_link_get_backlight_level_nits(struct dc_link *link,
+		uint32_t *backlight_millinits,
+		uint32_t *backlight_millinits_peak);
+
+bool dc_link_backlight_enable_aux(struct dc_link *link, bool enable);
+
+bool dc_link_read_default_bl_aux(struct dc_link *link, uint32_t *backlight_millinits);
+bool dc_link_set_default_brightness_aux(struct dc_link *link);
+
 int dc_link_get_backlight_level(const struct dc_link *dc_link);
 
-bool dc_link_set_abm_disable(const struct dc_link *dc_link);
+int dc_link_get_target_backlight_pwm(const struct dc_link *link);
 
-bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable, bool wait);
+bool dc_link_set_psr_allow_active(struct dc_link *dc_link, bool enable, bool wait);
 
 bool dc_link_get_psr_state(const struct dc_link *dc_link, uint32_t *psr_state);
 
@@ -188,10 +237,14 @@ enum dc_detect_reason {
 	DETECT_REASON_BOOT,
 	DETECT_REASON_HPD,
 	DETECT_REASON_HPDRX,
+	DETECT_REASON_FALLBACK,
+	DETECT_REASON_RETRAIN
 };
 
 bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
 bool dc_link_get_hpd_state(struct dc_link *dc_link);
+enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx);
+enum dc_status dc_link_reallocate_mst_payload(struct dc_link *link);
 
 /* Notify DC about DP RX Interrupt (aka Short Pulse Interrupt).
  * Return:
@@ -245,6 +298,7 @@ void dc_link_dp_disable_hpd(const struct dc_link *link);
 bool dc_link_dp_set_test_pattern(
 	struct dc_link *link,
 	enum dp_test_pattern test_pattern,
+	enum dp_test_pattern_color_space test_pattern_color_space,
 	const struct link_training_settings *p_link_settings,
 	const unsigned char *p_custom_pattern,
 	unsigned int cust_pattern_size);
@@ -258,6 +312,10 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type);
  * DPCD access interfaces
  */
 
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+bool dc_link_is_hdcp14(struct dc_link *link, enum signal_type signal);
+bool dc_link_is_hdcp22(struct dc_link *link, enum signal_type signal);
+#endif
 void dc_link_set_drive_settings(struct dc *dc,
 				struct link_training_settings *lt_settings,
 				const struct dc_link *link);
@@ -276,6 +334,7 @@ void dc_link_enable_hpd(const struct dc_link *link);
 void dc_link_disable_hpd(const struct dc_link *link);
 void dc_link_set_test_pattern(struct dc_link *link,
 			enum dp_test_pattern test_pattern,
+			enum dp_test_pattern_color_space test_pattern_color_space,
 			const struct link_training_settings *p_link_settings,
 			const unsigned char *p_custom_pattern,
 			unsigned int cust_pattern_size);
@@ -286,11 +345,21 @@ uint32_t dc_link_bandwidth_kbps(
 const struct dc_link_settings *dc_link_get_link_cap(
 		const struct dc_link *link);
 
+void dc_link_overwrite_extended_receiver_cap(
+		struct dc_link *link);
+
 bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
 		struct i2c_command *cmd);
 
+bool dc_submit_i2c_oem(
+		struct dc *dc,
+		struct i2c_command *cmd);
+
 uint32_t dc_bandwidth_in_kbps_from_timing(
 	const struct dc_crtc_timing *timing);
+
+bool dc_link_is_fec_supported(const struct dc_link *link);
+
 #endif /* DC_LINK_H_ */

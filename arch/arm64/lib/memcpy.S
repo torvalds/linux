@@ -24,44 +24,43 @@
  * Returns:
  *	x0 - dest
  */
-	.macro ldrb1 ptr, regB, val
-	ldrb  \ptr, [\regB], \val
+	.macro ldrb1 reg, ptr, val
+	ldrb  \reg, [\ptr], \val
 	.endm
 
-	.macro strb1 ptr, regB, val
-	strb \ptr, [\regB], \val
+	.macro strb1 reg, ptr, val
+	strb \reg, [\ptr], \val
 	.endm
 
-	.macro ldrh1 ptr, regB, val
-	ldrh  \ptr, [\regB], \val
+	.macro ldrh1 reg, ptr, val
+	ldrh  \reg, [\ptr], \val
 	.endm
 
-	.macro strh1 ptr, regB, val
-	strh \ptr, [\regB], \val
+	.macro strh1 reg, ptr, val
+	strh \reg, [\ptr], \val
 	.endm
 
-	.macro ldr1 ptr, regB, val
-	ldr \ptr, [\regB], \val
+	.macro ldr1 reg, ptr, val
+	ldr \reg, [\ptr], \val
 	.endm
 
-	.macro str1 ptr, regB, val
-	str \ptr, [\regB], \val
+	.macro str1 reg, ptr, val
+	str \reg, [\ptr], \val
 	.endm
 
-	.macro ldp1 ptr, regB, regC, val
-	ldp \ptr, \regB, [\regC], \val
+	.macro ldp1 reg1, reg2, ptr, val
+	ldp \reg1, \reg2, [\ptr], \val
 	.endm
 
-	.macro stp1 ptr, regB, regC, val
-	stp \ptr, \regB, [\regC], \val
+	.macro stp1 reg1, reg2, ptr, val
+	stp \reg1, \reg2, [\ptr], \val
 	.endm
 
-	.weak memcpy
-ENTRY(__memcpy)
-ENTRY(memcpy)
+SYM_FUNC_START_ALIAS(__memcpy)
+SYM_FUNC_START_WEAK_PI(memcpy)
 #include "copy_template.S"
 	ret
-ENDPIPROC(memcpy)
+SYM_FUNC_END_PI(memcpy)
 EXPORT_SYMBOL(memcpy)
-ENDPROC(__memcpy)
+SYM_FUNC_END_ALIAS(__memcpy)
 EXPORT_SYMBOL(__memcpy)

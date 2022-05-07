@@ -356,7 +356,6 @@ static int img_ascii_lcd_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	const struct img_ascii_lcd_config *cfg;
 	struct img_ascii_lcd_ctx *ctx;
-	struct resource *res;
 	int err;
 
 	match = of_match_device(img_ascii_lcd_matches, &pdev->dev);
@@ -378,8 +377,7 @@ static int img_ascii_lcd_probe(struct platform_device *pdev)
 					 &ctx->offset))
 			return -EINVAL;
 	} else {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		ctx->base = devm_ioremap_resource(&pdev->dev, res);
+		ctx->base = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(ctx->base))
 			return PTR_ERR(ctx->base);
 	}

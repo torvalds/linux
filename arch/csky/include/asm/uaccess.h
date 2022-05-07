@@ -11,7 +11,6 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/version.h>
 #include <asm/segment.h>
@@ -254,7 +253,7 @@ do {								\
 
 extern int __get_user_bad(void);
 
-#define __copy_user(to, from, n)			\
+#define ___copy_to_user(to, from, n)			\
 do {							\
 	int w0, w1, w2, w3;				\
 	asm volatile(					\
@@ -289,31 +288,34 @@ do {							\
 	"       subi    %0, 4           \n"		\
 	"       br      3b              \n"		\
 	"5:     cmpnei  %0, 0           \n"  /* 1B */   \
-	"       bf      8f              \n"		\
+	"       bf      13f             \n"		\
 	"       ldb     %3, (%2, 0)     \n"		\
 	"6:     stb     %3, (%1, 0)     \n"		\
 	"       addi    %2,  1          \n"		\
 	"       addi    %1,  1          \n"		\
 	"       subi    %0,  1          \n"		\
 	"       br      5b              \n"		\
-	"7:     br      8f              \n"		\
+	"7:     subi	%0,  4          \n"		\
+	"8:     subi	%0,  4          \n"		\
+	"12:    subi	%0,  4          \n"		\
+	"       br      13f             \n"		\
 	".section __ex_table, \"a\"     \n"		\
 	".align   2                     \n"		\
-	".long    2b, 7b                \n"		\
-	".long    9b, 7b                \n"		\
-	".long   10b, 7b                \n"		\
+	".long    2b, 13f               \n"		\
+	".long    4b, 13f               \n"		\
+	".long    6b, 13f               \n"		\
+	".long    9b, 12b               \n"		\
+	".long   10b, 8b                \n"		\
 	".long   11b, 7b                \n"		\
-	".long    4b, 7b                \n"		\
-	".long    6b, 7b                \n"		\
 	".previous                      \n"		\
-	"8:                             \n"		\
+	"13:                            \n"		\
 	: "=r"(n), "=r"(to), "=r"(from), "=r"(w0),	\
 	  "=r"(w1), "=r"(w2), "=r"(w3)			\
 	: "0"(n), "1"(to), "2"(from)			\
 	: "memory");					\
 } while (0)
 
-#define __copy_user_zeroing(to, from, n)		\
+#define ___copy_from_user(to, from, n)			\
 do {							\
 	int tmp;					\
 	int nsave;					\
@@ -356,22 +358,22 @@ do {							\
 	"       addi    %1,  1          \n"		\
 	"       subi    %0,  1          \n"		\
 	"       br      5b              \n"		\
-	"8:     mov     %3, %0          \n"		\
-	"       movi    %4, 0           \n"		\
-	"9:     stb     %4, (%1, 0)     \n"		\
-	"       addi    %1, 1           \n"		\
-	"       subi    %3, 1           \n"		\
-	"       cmpnei  %3, 0           \n"		\
-	"       bt      9b              \n"		\
-	"       br      7f              \n"		\
+	"8:     stw     %3, (%1, 0)     \n"		\
+	"       subi    %0, 4           \n"		\
+	"       bf      7f              \n"		\
+	"9:     subi    %0, 8           \n"		\
+	"       bf      7f              \n"		\
+	"13:    stw     %3, (%1, 8)     \n"		\
+	"       subi    %0, 12          \n"		\
+	"       bf      7f              \n"		\
 	".section __ex_table, \"a\"     \n"		\
 	".align   2                     \n"		\
-	".long    2b, 8b                \n"		\
+	".long    2b, 7f                \n"		\
+	".long    4b, 7f                \n"		\
+	".long    6b, 7f                \n"		\
 	".long   10b, 8b                \n"		\
-	".long   11b, 8b                \n"		\
-	".long   12b, 8b                \n"		\
-	".long    4b, 8b                \n"		\
-	".long    6b, 8b                \n"		\
+	".long   11b, 9b                \n"		\
+	".long   12b,13b                \n"		\
 	".previous                      \n"		\
 	"7:                             \n"		\
 	: "=r"(n), "=r"(to), "=r"(from), "=r"(nsave),	\

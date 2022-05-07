@@ -22,12 +22,11 @@ __mt7603_mcu_msg_send(struct mt7603_dev *dev, struct sk_buff *skb,
 	struct mt7603_mcu_txd *txd;
 	u8 seq;
 
-	seq = ++mdev->mmio.mcu.msg_seq & 0xf;
+	seq = ++mdev->mcu.msg_seq & 0xf;
 	if (!seq)
-		seq = ++mdev->mmio.mcu.msg_seq & 0xf;
+		seq = ++mdev->mcu.msg_seq & 0xf;
 
 	txd = (struct mt7603_mcu_txd *)skb_push(skb, hdrlen);
-	memset(txd, 0, hdrlen);
 
 	txd->len = cpu_to_le16(skb->len);
 	if (cmd == -MCU_CMD_FW_SCATTER)
@@ -63,11 +62,11 @@ mt7603_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 	struct sk_buff *skb;
 	int ret, seq;
 
-	skb = mt7603_mcu_msg_alloc(data, len);
+	skb = mt76_mcu_msg_alloc(mdev, data, len);
 	if (!skb)
 		return -ENOMEM;
 
-	mutex_lock(&mdev->mmio.mcu.mutex);
+	mutex_lock(&mdev->mcu.mutex);
 
 	ret = __mt7603_mcu_msg_send(dev, skb, cmd, &seq);
 	if (ret)
@@ -97,7 +96,7 @@ mt7603_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 	}
 
 out:
-	mutex_unlock(&mdev->mmio.mcu.mutex);
+	mutex_unlock(&mdev->mcu.mutex);
 
 	return ret;
 }
@@ -266,6 +265,7 @@ out:
 int mt7603_mcu_init(struct mt7603_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7603_mcu_ops = {
+		.headroom = sizeof(struct mt7603_mcu_txd),
 		.mcu_send_msg = mt7603_mcu_msg_send,
 		.mcu_restart = mt7603_mcu_restart,
 	};
@@ -277,7 +277,7 @@ int mt7603_mcu_init(struct mt7603_dev *dev)
 void mt7603_mcu_exit(struct mt7603_dev *dev)
 {
 	__mt76_mcu_restart(&dev->mt76);
-	skb_queue_purge(&dev->mt76.mmio.mcu.res_q);
+	skb_queue_purge(&dev->mt76.mcu.res_q);
 }
 
 int mt7603_mcu_set_eeprom(struct mt7603_dev *dev)
@@ -397,7 +397,7 @@ static int mt7603_mcu_set_tx_power(struct mt7603_dev *dev)
 		u8 temp_comp_power[17];
 		u8 reserved;
 	} req = {
-		.center_channel = dev->mt76.chandef.chan->hw_value,
+		.center_channel = dev->mphy.chandef.chan->hw_value,
 #define EEP_VAL(n) ((u8 *)dev->mt76.eeprom.data)[n]
 		.tssi = EEP_VAL(MT_EE_NIC_CONF_1 + 1),
 		.temp_comp = EEP_VAL(MT_EE_NIC_CONF_1),
@@ -430,9 +430,9 @@ static int mt7603_mcu_set_tx_power(struct mt7603_dev *dev)
 
 int mt7603_mcu_set_channel(struct mt7603_dev *dev)
 {
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 	struct ieee80211_hw *hw = mt76_hw(dev);
-	int n_chains = hweight8(dev->mt76.antenna_mask);
+	int n_chains = hweight8(dev->mphy.antenna_mask);
 	struct {
 		u8 control_chan;
 		u8 center_chan;
@@ -452,7 +452,7 @@ int mt7603_mcu_set_channel(struct mt7603_dev *dev)
 	s8 tx_power;
 	int i, ret;
 
-	if (dev->mt76.chandef.width == NL80211_CHAN_WIDTH_40) {
+	if (dev->mphy.chandef.width == NL80211_CHAN_WIDTH_40) {
 		req.bw = MT_BW_40;
 		if (chandef->center_freq1 > chandef->chan->center_freq)
 			req.center_chan += 2;
@@ -461,11 +461,11 @@ int mt7603_mcu_set_channel(struct mt7603_dev *dev)
 	}
 
 	tx_power = hw->conf.power_level * 2;
-	if (dev->mt76.antenna_mask == 3)
+	if (dev->mphy.antenna_mask == 3)
 		tx_power -= 6;
 	tx_power = min(tx_power, dev->tx_power_limit);
 
-	dev->mt76.txpower_cur = tx_power;
+	dev->mphy.txpower_cur = tx_power;
 
 	for (i = 0; i < ARRAY_SIZE(req.txpower); i++)
 		req.txpower[i] = tx_power;

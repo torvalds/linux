@@ -8,19 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  42463 bytes, from 2018-11-19 13:44:03)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  43052 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 140790 bytes, from 2018-12-02 17:29:54)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-14 13:03:07)
-- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno.xml                     (    594 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml        (   1572 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml                (  90159 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml       (  14386 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml          (  65048 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml                (  84226 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml                ( 112556 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml                ( 149461 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml                ( 184695 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml            (  11218 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml               (   1773 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_control_regs.xml (   4559 bytes, from 2020-07-23 21:58:14)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_pipe_regs.xml    (   2872 bytes, from 2020-07-23 21:58:14)
 
-Copyright (C) 2013-2018 by the following authors:
+Copyright (C) 2013-2020 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -54,10 +56,13 @@ enum vgt_event_type {
 	CACHE_FLUSH_TS = 4,
 	CONTEXT_DONE = 5,
 	CACHE_FLUSH = 6,
-	HLSQ_FLUSH = 7,
 	VIZQUERY_START = 7,
+	HLSQ_FLUSH = 7,
 	VIZQUERY_END = 8,
 	SC_WAIT_WC = 9,
+	WRITE_PRIMITIVE_COUNTS = 9,
+	START_PRIMITIVE_CTRS = 11,
+	STOP_PRIMITIVE_CTRS = 12,
 	RST_PIX_CNT = 13,
 	RST_VTX_CNT = 14,
 	TILE_FLUSH = 15,
@@ -65,23 +70,31 @@ enum vgt_event_type {
 	CACHE_FLUSH_AND_INV_TS_EVENT = 20,
 	ZPASS_DONE = 21,
 	CACHE_FLUSH_AND_INV_EVENT = 22,
+	RB_DONE_TS = 22,
 	PERFCOUNTER_START = 23,
 	PERFCOUNTER_STOP = 24,
 	VS_FETCH_DONE = 27,
 	FACENESS_FLUSH = 28,
+	WT_DONE_TS = 8,
 	FLUSH_SO_0 = 17,
 	FLUSH_SO_1 = 18,
 	FLUSH_SO_2 = 19,
 	FLUSH_SO_3 = 20,
 	PC_CCU_INVALIDATE_DEPTH = 24,
 	PC_CCU_INVALIDATE_COLOR = 25,
-	UNK_1C = 28,
-	UNK_1D = 29,
+	PC_CCU_RESOLVE_TS = 26,
+	PC_CCU_FLUSH_DEPTH_TS = 28,
+	PC_CCU_FLUSH_COLOR_TS = 29,
 	BLIT = 30,
 	UNK_25 = 37,
 	LRZ_FLUSH = 38,
+	BLIT_OP_FILL_2D = 39,
+	BLIT_OP_COPY_2D = 40,
+	BLIT_OP_SCALE_2D = 42,
+	CONTEXT_DONE_2D = 43,
 	UNK_2C = 44,
 	UNK_2D = 45,
+	CACHE_INVALIDATE = 49,
 };
 
 enum pc_di_primtype {
@@ -99,13 +112,45 @@ enum pc_di_primtype {
 	DI_PT_LINESTRIP_ADJ = 11,
 	DI_PT_TRI_ADJ = 12,
 	DI_PT_TRISTRIP_ADJ = 13,
+	DI_PT_PATCHES0 = 31,
+	DI_PT_PATCHES1 = 32,
+	DI_PT_PATCHES2 = 33,
+	DI_PT_PATCHES3 = 34,
+	DI_PT_PATCHES4 = 35,
+	DI_PT_PATCHES5 = 36,
+	DI_PT_PATCHES6 = 37,
+	DI_PT_PATCHES7 = 38,
+	DI_PT_PATCHES8 = 39,
+	DI_PT_PATCHES9 = 40,
+	DI_PT_PATCHES10 = 41,
+	DI_PT_PATCHES11 = 42,
+	DI_PT_PATCHES12 = 43,
+	DI_PT_PATCHES13 = 44,
+	DI_PT_PATCHES14 = 45,
+	DI_PT_PATCHES15 = 46,
+	DI_PT_PATCHES16 = 47,
+	DI_PT_PATCHES17 = 48,
+	DI_PT_PATCHES18 = 49,
+	DI_PT_PATCHES19 = 50,
+	DI_PT_PATCHES20 = 51,
+	DI_PT_PATCHES21 = 52,
+	DI_PT_PATCHES22 = 53,
+	DI_PT_PATCHES23 = 54,
+	DI_PT_PATCHES24 = 55,
+	DI_PT_PATCHES25 = 56,
+	DI_PT_PATCHES26 = 57,
+	DI_PT_PATCHES27 = 58,
+	DI_PT_PATCHES28 = 59,
+	DI_PT_PATCHES29 = 60,
+	DI_PT_PATCHES30 = 61,
+	DI_PT_PATCHES31 = 62,
 };
 
 enum pc_di_src_sel {
 	DI_SRC_SEL_DMA = 0,
 	DI_SRC_SEL_IMMEDIATE = 1,
 	DI_SRC_SEL_AUTO_INDEX = 2,
-	DI_SRC_SEL_RESERVED = 3,
+	DI_SRC_SEL_AUTO_XFB = 3,
 };
 
 enum pc_di_face_cull_sel {
@@ -143,6 +188,7 @@ enum adreno_pm4_type3_packets {
 	CP_PREEMPT_ENABLE = 28,
 	CP_PREEMPT_TOKEN = 30,
 	CP_INDIRECT_BUFFER = 63,
+	CP_INDIRECT_BUFFER_CHAIN = 87,
 	CP_INDIRECT_BUFFER_PFD = 55,
 	CP_WAIT_FOR_IDLE = 38,
 	CP_WAIT_REG_MEM = 60,
@@ -199,6 +245,7 @@ enum adreno_pm4_type3_packets {
 	CP_DRAW_INDX_OFFSET = 56,
 	CP_DRAW_INDIRECT = 40,
 	CP_DRAW_INDX_INDIRECT = 41,
+	CP_DRAW_INDIRECT_MULTI = 42,
 	CP_DRAW_AUTO = 36,
 	CP_UNKNOWN_19 = 25,
 	CP_UNKNOWN_1A = 26,
@@ -232,6 +279,7 @@ enum adreno_pm4_type3_packets {
 	CP_SET_MODE = 99,
 	CP_LOAD_STATE6_GEOM = 50,
 	CP_LOAD_STATE6_FRAG = 52,
+	CP_LOAD_STATE6 = 54,
 	IN_IB_PREFETCH_END = 23,
 	IN_SUBBLK_PREFETCH = 31,
 	IN_INSTR_PREFETCH = 32,
@@ -241,10 +289,16 @@ enum adreno_pm4_type3_packets {
 	IN_INCR_UPDT_CONST = 86,
 	IN_INCR_UPDT_INSTR = 87,
 	PKT4 = 4,
-	CP_UNK_A6XX_14 = 20,
-	CP_UNK_A6XX_36 = 54,
-	CP_UNK_A6XX_55 = 85,
+	CP_SCRATCH_WRITE = 76,
+	CP_REG_TO_MEM_OFFSET_MEM = 116,
+	CP_REG_TO_MEM_OFFSET_REG = 114,
+	CP_WAIT_MEM_GTE = 20,
+	CP_WAIT_TWO_REGS = 112,
+	CP_MEMCPY = 117,
+	CP_SET_BIN_DATA5_OFFSET = 46,
+	CP_SET_CTXSWITCH_IB = 85,
 	CP_REG_WRITE = 109,
+	CP_WHERE_AM_I = 98,
 };
 
 enum adreno_state_block {
@@ -292,6 +346,7 @@ enum a4xx_state_block {
 enum a4xx_state_type {
 	ST4_SHADER = 0,
 	ST4_CONSTANTS = 1,
+	ST4_UBO = 2,
 };
 
 enum a4xx_state_src {
@@ -312,24 +367,39 @@ enum a6xx_state_block {
 	SB6_GS_SHADER = 11,
 	SB6_FS_SHADER = 12,
 	SB6_CS_SHADER = 13,
-	SB6_SSBO = 14,
-	SB6_CS_SSBO = 15,
+	SB6_IBO = 14,
+	SB6_CS_IBO = 15,
 };
 
 enum a6xx_state_type {
 	ST6_SHADER = 0,
 	ST6_CONSTANTS = 1,
+	ST6_UBO = 2,
+	ST6_IBO = 3,
 };
 
 enum a6xx_state_src {
 	SS6_DIRECT = 0,
+	SS6_BINDLESS = 1,
 	SS6_INDIRECT = 2,
+	SS6_UBO = 3,
 };
 
 enum a4xx_index_size {
 	INDEX4_SIZE_8_BIT = 0,
 	INDEX4_SIZE_16_BIT = 1,
 	INDEX4_SIZE_32_BIT = 2,
+};
+
+enum a6xx_patch_type {
+	TESS_QUADS = 0,
+	TESS_TRIANGLES = 1,
+	TESS_ISOLINES = 2,
+};
+
+enum a6xx_draw_indirect_opcode {
+	INDIRECT_OP_NORMAL = 2,
+	INDIRECT_OP_INDEXED = 4,
 };
 
 enum cp_cond_function {
@@ -361,9 +431,15 @@ enum a6xx_render_mode {
 	RM6_BYPASS = 1,
 	RM6_BINNING = 2,
 	RM6_GMEM = 4,
-	RM6_BLIT2D = 5,
+	RM6_ENDVIS = 5,
 	RM6_RESOLVE = 6,
+	RM6_YIELD = 7,
+	RM6_COMPUTE = 8,
 	RM6_BLIT2DSCALE = 12,
+	RM6_IB1LIST_START = 13,
+	RM6_IB1LIST_END = 14,
+	RM6_IFPC_ENABLE = 256,
+	RM6_IFPC_DISABLE = 257,
 };
 
 enum pseudo_reg {
@@ -372,6 +448,25 @@ enum pseudo_reg {
 	SECURE_SAVE_ADDR = 2,
 	NON_PRIV_SAVE_ADDR = 3,
 	COUNTER = 4,
+};
+
+enum compare_mode {
+	PRED_TEST = 1,
+	REG_COMPARE = 2,
+	RENDER_MODE = 3,
+};
+
+enum ctxswitch_ib {
+	RESTORE_IB = 0,
+	YIELD_RESTORE_IB = 1,
+	SAVE_IB = 2,
+	RB_SAVE_IB = 3,
+};
+
+enum reg_tracker {
+	TRACK_CNTL_REG = 1,
+	TRACK_RENDER_CNTL = 2,
+	UNK_EVENT_WRITE = 4,
 };
 
 #define REG_CP_LOAD_STATE_0					0x00000000
@@ -469,7 +564,7 @@ static inline uint32_t CP_LOAD_STATE6_0_DST_OFF(uint32_t val)
 {
 	return ((val) << CP_LOAD_STATE6_0_DST_OFF__SHIFT) & CP_LOAD_STATE6_0_DST_OFF__MASK;
 }
-#define CP_LOAD_STATE6_0_STATE_TYPE__MASK			0x00004000
+#define CP_LOAD_STATE6_0_STATE_TYPE__MASK			0x0000c000
 #define CP_LOAD_STATE6_0_STATE_TYPE__SHIFT			14
 static inline uint32_t CP_LOAD_STATE6_0_STATE_TYPE(enum a6xx_state_type val)
 {
@@ -509,6 +604,8 @@ static inline uint32_t CP_LOAD_STATE6_2_EXT_SRC_ADDR_HI(uint32_t val)
 {
 	return ((val) << CP_LOAD_STATE6_2_EXT_SRC_ADDR_HI__SHIFT) & CP_LOAD_STATE6_2_EXT_SRC_ADDR_HI__MASK;
 }
+
+#define REG_CP_LOAD_STATE6_EXT_SRC_ADDR				0x00000001
 
 #define REG_CP_DRAW_INDX_0					0x00000000
 #define CP_DRAW_INDX_0_VIZ_QUERY__MASK				0xffffffff
@@ -653,12 +750,14 @@ static inline uint32_t CP_DRAW_INDX_OFFSET_0_INDEX_SIZE(enum a4xx_index_size val
 {
 	return ((val) << CP_DRAW_INDX_OFFSET_0_INDEX_SIZE__SHIFT) & CP_DRAW_INDX_OFFSET_0_INDEX_SIZE__MASK;
 }
-#define CP_DRAW_INDX_OFFSET_0_TESS_MODE__MASK			0x01f00000
-#define CP_DRAW_INDX_OFFSET_0_TESS_MODE__SHIFT			20
-static inline uint32_t CP_DRAW_INDX_OFFSET_0_TESS_MODE(uint32_t val)
+#define CP_DRAW_INDX_OFFSET_0_PATCH_TYPE__MASK			0x00003000
+#define CP_DRAW_INDX_OFFSET_0_PATCH_TYPE__SHIFT			12
+static inline uint32_t CP_DRAW_INDX_OFFSET_0_PATCH_TYPE(enum a6xx_patch_type val)
 {
-	return ((val) << CP_DRAW_INDX_OFFSET_0_TESS_MODE__SHIFT) & CP_DRAW_INDX_OFFSET_0_TESS_MODE__MASK;
+	return ((val) << CP_DRAW_INDX_OFFSET_0_PATCH_TYPE__SHIFT) & CP_DRAW_INDX_OFFSET_0_PATCH_TYPE__MASK;
 }
+#define CP_DRAW_INDX_OFFSET_0_GS_ENABLE				0x00010000
+#define CP_DRAW_INDX_OFFSET_0_TESS_ENABLE			0x00020000
 
 #define REG_CP_DRAW_INDX_OFFSET_1				0x00000001
 #define CP_DRAW_INDX_OFFSET_1_NUM_INSTANCES__MASK		0xffffffff
@@ -677,6 +776,39 @@ static inline uint32_t CP_DRAW_INDX_OFFSET_2_NUM_INDICES(uint32_t val)
 }
 
 #define REG_CP_DRAW_INDX_OFFSET_3				0x00000003
+#define CP_DRAW_INDX_OFFSET_3_FIRST_INDX__MASK			0xffffffff
+#define CP_DRAW_INDX_OFFSET_3_FIRST_INDX__SHIFT			0
+static inline uint32_t CP_DRAW_INDX_OFFSET_3_FIRST_INDX(uint32_t val)
+{
+	return ((val) << CP_DRAW_INDX_OFFSET_3_FIRST_INDX__SHIFT) & CP_DRAW_INDX_OFFSET_3_FIRST_INDX__MASK;
+}
+
+
+#define REG_CP_DRAW_INDX_OFFSET_4				0x00000004
+#define CP_DRAW_INDX_OFFSET_4_INDX_BASE_LO__MASK		0xffffffff
+#define CP_DRAW_INDX_OFFSET_4_INDX_BASE_LO__SHIFT		0
+static inline uint32_t CP_DRAW_INDX_OFFSET_4_INDX_BASE_LO(uint32_t val)
+{
+	return ((val) << CP_DRAW_INDX_OFFSET_4_INDX_BASE_LO__SHIFT) & CP_DRAW_INDX_OFFSET_4_INDX_BASE_LO__MASK;
+}
+
+#define REG_CP_DRAW_INDX_OFFSET_5				0x00000005
+#define CP_DRAW_INDX_OFFSET_5_INDX_BASE_HI__MASK		0xffffffff
+#define CP_DRAW_INDX_OFFSET_5_INDX_BASE_HI__SHIFT		0
+static inline uint32_t CP_DRAW_INDX_OFFSET_5_INDX_BASE_HI(uint32_t val)
+{
+	return ((val) << CP_DRAW_INDX_OFFSET_5_INDX_BASE_HI__SHIFT) & CP_DRAW_INDX_OFFSET_5_INDX_BASE_HI__MASK;
+}
+
+#define REG_CP_DRAW_INDX_OFFSET_INDX_BASE			0x00000004
+
+#define REG_CP_DRAW_INDX_OFFSET_6				0x00000006
+#define CP_DRAW_INDX_OFFSET_6_MAX_INDICES__MASK			0xffffffff
+#define CP_DRAW_INDX_OFFSET_6_MAX_INDICES__SHIFT		0
+static inline uint32_t CP_DRAW_INDX_OFFSET_6_MAX_INDICES(uint32_t val)
+{
+	return ((val) << CP_DRAW_INDX_OFFSET_6_MAX_INDICES__SHIFT) & CP_DRAW_INDX_OFFSET_6_MAX_INDICES__MASK;
+}
 
 #define REG_CP_DRAW_INDX_OFFSET_4				0x00000004
 #define CP_DRAW_INDX_OFFSET_4_INDX_BASE__MASK			0xffffffff
@@ -719,12 +851,15 @@ static inline uint32_t A4XX_CP_DRAW_INDIRECT_0_INDEX_SIZE(enum a4xx_index_size v
 {
 	return ((val) << A4XX_CP_DRAW_INDIRECT_0_INDEX_SIZE__SHIFT) & A4XX_CP_DRAW_INDIRECT_0_INDEX_SIZE__MASK;
 }
-#define A4XX_CP_DRAW_INDIRECT_0_TESS_MODE__MASK			0x01f00000
-#define A4XX_CP_DRAW_INDIRECT_0_TESS_MODE__SHIFT		20
-static inline uint32_t A4XX_CP_DRAW_INDIRECT_0_TESS_MODE(uint32_t val)
+#define A4XX_CP_DRAW_INDIRECT_0_PATCH_TYPE__MASK		0x00003000
+#define A4XX_CP_DRAW_INDIRECT_0_PATCH_TYPE__SHIFT		12
+static inline uint32_t A4XX_CP_DRAW_INDIRECT_0_PATCH_TYPE(enum a6xx_patch_type val)
 {
-	return ((val) << A4XX_CP_DRAW_INDIRECT_0_TESS_MODE__SHIFT) & A4XX_CP_DRAW_INDIRECT_0_TESS_MODE__MASK;
+	return ((val) << A4XX_CP_DRAW_INDIRECT_0_PATCH_TYPE__SHIFT) & A4XX_CP_DRAW_INDIRECT_0_PATCH_TYPE__MASK;
 }
+#define A4XX_CP_DRAW_INDIRECT_0_GS_ENABLE			0x00010000
+#define A4XX_CP_DRAW_INDIRECT_0_TESS_ENABLE			0x00020000
+
 
 #define REG_A4XX_CP_DRAW_INDIRECT_1				0x00000001
 #define A4XX_CP_DRAW_INDIRECT_1_INDIRECT__MASK			0xffffffff
@@ -735,6 +870,14 @@ static inline uint32_t A4XX_CP_DRAW_INDIRECT_1_INDIRECT(uint32_t val)
 }
 
 
+#define REG_A5XX_CP_DRAW_INDIRECT_1				0x00000001
+#define A5XX_CP_DRAW_INDIRECT_1_INDIRECT_LO__MASK		0xffffffff
+#define A5XX_CP_DRAW_INDIRECT_1_INDIRECT_LO__SHIFT		0
+static inline uint32_t A5XX_CP_DRAW_INDIRECT_1_INDIRECT_LO(uint32_t val)
+{
+	return ((val) << A5XX_CP_DRAW_INDIRECT_1_INDIRECT_LO__SHIFT) & A5XX_CP_DRAW_INDIRECT_1_INDIRECT_LO__MASK;
+}
+
 #define REG_A5XX_CP_DRAW_INDIRECT_2				0x00000002
 #define A5XX_CP_DRAW_INDIRECT_2_INDIRECT_HI__MASK		0xffffffff
 #define A5XX_CP_DRAW_INDIRECT_2_INDIRECT_HI__SHIFT		0
@@ -742,6 +885,8 @@ static inline uint32_t A5XX_CP_DRAW_INDIRECT_2_INDIRECT_HI(uint32_t val)
 {
 	return ((val) << A5XX_CP_DRAW_INDIRECT_2_INDIRECT_HI__SHIFT) & A5XX_CP_DRAW_INDIRECT_2_INDIRECT_HI__MASK;
 }
+
+#define REG_A5XX_CP_DRAW_INDIRECT_INDIRECT			0x00000001
 
 #define REG_A4XX_CP_DRAW_INDX_INDIRECT_0			0x00000000
 #define A4XX_CP_DRAW_INDX_INDIRECT_0_PRIM_TYPE__MASK		0x0000003f
@@ -768,12 +913,14 @@ static inline uint32_t A4XX_CP_DRAW_INDX_INDIRECT_0_INDEX_SIZE(enum a4xx_index_s
 {
 	return ((val) << A4XX_CP_DRAW_INDX_INDIRECT_0_INDEX_SIZE__SHIFT) & A4XX_CP_DRAW_INDX_INDIRECT_0_INDEX_SIZE__MASK;
 }
-#define A4XX_CP_DRAW_INDX_INDIRECT_0_TESS_MODE__MASK		0x01f00000
-#define A4XX_CP_DRAW_INDX_INDIRECT_0_TESS_MODE__SHIFT		20
-static inline uint32_t A4XX_CP_DRAW_INDX_INDIRECT_0_TESS_MODE(uint32_t val)
+#define A4XX_CP_DRAW_INDX_INDIRECT_0_PATCH_TYPE__MASK		0x00003000
+#define A4XX_CP_DRAW_INDX_INDIRECT_0_PATCH_TYPE__SHIFT		12
+static inline uint32_t A4XX_CP_DRAW_INDX_INDIRECT_0_PATCH_TYPE(enum a6xx_patch_type val)
 {
-	return ((val) << A4XX_CP_DRAW_INDX_INDIRECT_0_TESS_MODE__SHIFT) & A4XX_CP_DRAW_INDX_INDIRECT_0_TESS_MODE__MASK;
+	return ((val) << A4XX_CP_DRAW_INDX_INDIRECT_0_PATCH_TYPE__SHIFT) & A4XX_CP_DRAW_INDX_INDIRECT_0_PATCH_TYPE__MASK;
 }
+#define A4XX_CP_DRAW_INDX_INDIRECT_0_GS_ENABLE			0x00010000
+#define A4XX_CP_DRAW_INDX_INDIRECT_0_TESS_ENABLE		0x00020000
 
 
 #define REG_A4XX_CP_DRAW_INDX_INDIRECT_1			0x00000001
@@ -817,6 +964,8 @@ static inline uint32_t A5XX_CP_DRAW_INDX_INDIRECT_2_INDX_BASE_HI(uint32_t val)
 	return ((val) << A5XX_CP_DRAW_INDX_INDIRECT_2_INDX_BASE_HI__SHIFT) & A5XX_CP_DRAW_INDX_INDIRECT_2_INDX_BASE_HI__MASK;
 }
 
+#define REG_A5XX_CP_DRAW_INDX_INDIRECT_INDX_BASE		0x00000001
+
 #define REG_A5XX_CP_DRAW_INDX_INDIRECT_3			0x00000003
 #define A5XX_CP_DRAW_INDX_INDIRECT_3_MAX_INDICES__MASK		0xffffffff
 #define A5XX_CP_DRAW_INDX_INDIRECT_3_MAX_INDICES__SHIFT		0
@@ -841,6 +990,84 @@ static inline uint32_t A5XX_CP_DRAW_INDX_INDIRECT_5_INDIRECT_HI(uint32_t val)
 	return ((val) << A5XX_CP_DRAW_INDX_INDIRECT_5_INDIRECT_HI__SHIFT) & A5XX_CP_DRAW_INDX_INDIRECT_5_INDIRECT_HI__MASK;
 }
 
+#define REG_A5XX_CP_DRAW_INDX_INDIRECT_INDIRECT			0x00000004
+
+#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_0			0x00000000
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_PRIM_TYPE__MASK		0x0000003f
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_PRIM_TYPE__SHIFT		0
+static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_0_PRIM_TYPE(enum pc_di_primtype val)
+{
+	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_0_PRIM_TYPE__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_0_PRIM_TYPE__MASK;
+}
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_SOURCE_SELECT__MASK	0x000000c0
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_SOURCE_SELECT__SHIFT	6
+static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_0_SOURCE_SELECT(enum pc_di_src_sel val)
+{
+	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_0_SOURCE_SELECT__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_0_SOURCE_SELECT__MASK;
+}
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_VIS_CULL__MASK		0x00000300
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_VIS_CULL__SHIFT		8
+static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_0_VIS_CULL(enum pc_di_vis_cull_mode val)
+{
+	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_0_VIS_CULL__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_0_VIS_CULL__MASK;
+}
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_INDEX_SIZE__MASK		0x00000c00
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_INDEX_SIZE__SHIFT		10
+static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_0_INDEX_SIZE(enum a4xx_index_size val)
+{
+	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_0_INDEX_SIZE__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_0_INDEX_SIZE__MASK;
+}
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_PATCH_TYPE__MASK		0x00003000
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_PATCH_TYPE__SHIFT		12
+static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_0_PATCH_TYPE(enum a6xx_patch_type val)
+{
+	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_0_PATCH_TYPE__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_0_PATCH_TYPE__MASK;
+}
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_GS_ENABLE			0x00010000
+#define A6XX_CP_DRAW_INDIRECT_MULTI_0_TESS_ENABLE		0x00020000
+
+#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_1			0x00000001
+#define A6XX_CP_DRAW_INDIRECT_MULTI_1_OPCODE__MASK		0x0000000f
+#define A6XX_CP_DRAW_INDIRECT_MULTI_1_OPCODE__SHIFT		0
+static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_1_OPCODE(enum a6xx_draw_indirect_opcode val)
+{
+	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_1_OPCODE__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_1_OPCODE__MASK;
+}
+#define A6XX_CP_DRAW_INDIRECT_MULTI_1_DST_OFF__MASK		0x003fff00
+#define A6XX_CP_DRAW_INDIRECT_MULTI_1_DST_OFF__SHIFT		8
+static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_1_DST_OFF(uint32_t val)
+{
+	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_1_DST_OFF__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_1_DST_OFF__MASK;
+}
+
+#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_2			0x00000002
+#define A6XX_CP_DRAW_INDIRECT_MULTI_2_DRAW_COUNT__MASK		0xffffffff
+#define A6XX_CP_DRAW_INDIRECT_MULTI_2_DRAW_COUNT__SHIFT		0
+static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_2_DRAW_COUNT(uint32_t val)
+{
+	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_2_DRAW_COUNT__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_2_DRAW_COUNT__MASK;
+}
+
+#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_ADDRESS_0		0x00000003
+
+#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_5			0x00000005
+#define A6XX_CP_DRAW_INDIRECT_MULTI_5_PARAM_0__MASK		0xffffffff
+#define A6XX_CP_DRAW_INDIRECT_MULTI_5_PARAM_0__SHIFT		0
+static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_5_PARAM_0(uint32_t val)
+{
+	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_5_PARAM_0__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_5_PARAM_0__MASK;
+}
+
+#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_INDIRECT		0x00000006
+
+#define REG_A6XX_CP_DRAW_INDIRECT_MULTI_8			0x00000008
+#define A6XX_CP_DRAW_INDIRECT_MULTI_8_STRIDE__MASK		0xffffffff
+#define A6XX_CP_DRAW_INDIRECT_MULTI_8_STRIDE__SHIFT		0
+static inline uint32_t A6XX_CP_DRAW_INDIRECT_MULTI_8_STRIDE(uint32_t val)
+{
+	return ((val) << A6XX_CP_DRAW_INDIRECT_MULTI_8_STRIDE__SHIFT) & A6XX_CP_DRAW_INDIRECT_MULTI_8_STRIDE__MASK;
+}
+
 static inline uint32_t REG_CP_SET_DRAW_STATE_(uint32_t i0) { return 0x00000000 + 0x3*i0; }
 
 static inline uint32_t REG_CP_SET_DRAW_STATE__0(uint32_t i0) { return 0x00000000 + 0x3*i0; }
@@ -854,12 +1081,9 @@ static inline uint32_t CP_SET_DRAW_STATE__0_COUNT(uint32_t val)
 #define CP_SET_DRAW_STATE__0_DISABLE				0x00020000
 #define CP_SET_DRAW_STATE__0_DISABLE_ALL_GROUPS			0x00040000
 #define CP_SET_DRAW_STATE__0_LOAD_IMMED				0x00080000
-#define CP_SET_DRAW_STATE__0_ENABLE_MASK__MASK			0x00f00000
-#define CP_SET_DRAW_STATE__0_ENABLE_MASK__SHIFT			20
-static inline uint32_t CP_SET_DRAW_STATE__0_ENABLE_MASK(uint32_t val)
-{
-	return ((val) << CP_SET_DRAW_STATE__0_ENABLE_MASK__SHIFT) & CP_SET_DRAW_STATE__0_ENABLE_MASK__MASK;
-}
+#define CP_SET_DRAW_STATE__0_BINNING				0x00100000
+#define CP_SET_DRAW_STATE__0_GMEM				0x00200000
+#define CP_SET_DRAW_STATE__0_SYSMEM				0x00400000
 #define CP_SET_DRAW_STATE__0_GROUP_ID__MASK			0x1f000000
 #define CP_SET_DRAW_STATE__0_GROUP_ID__SHIFT			24
 static inline uint32_t CP_SET_DRAW_STATE__0_GROUP_ID(uint32_t val)
@@ -976,30 +1200,101 @@ static inline uint32_t CP_SET_BIN_DATA5_4_BIN_SIZE_ADDRESS_HI(uint32_t val)
 }
 
 #define REG_CP_SET_BIN_DATA5_5					0x00000005
-#define CP_SET_BIN_DATA5_5_BIN_DATA_ADDR2_LO__MASK		0xffffffff
-#define CP_SET_BIN_DATA5_5_BIN_DATA_ADDR2_LO__SHIFT		0
-static inline uint32_t CP_SET_BIN_DATA5_5_BIN_DATA_ADDR2_LO(uint32_t val)
+#define CP_SET_BIN_DATA5_5_BIN_PRIM_STRM_LO__MASK		0xffffffff
+#define CP_SET_BIN_DATA5_5_BIN_PRIM_STRM_LO__SHIFT		0
+static inline uint32_t CP_SET_BIN_DATA5_5_BIN_PRIM_STRM_LO(uint32_t val)
 {
-	return ((val) << CP_SET_BIN_DATA5_5_BIN_DATA_ADDR2_LO__SHIFT) & CP_SET_BIN_DATA5_5_BIN_DATA_ADDR2_LO__MASK;
+	return ((val) << CP_SET_BIN_DATA5_5_BIN_PRIM_STRM_LO__SHIFT) & CP_SET_BIN_DATA5_5_BIN_PRIM_STRM_LO__MASK;
 }
 
 #define REG_CP_SET_BIN_DATA5_6					0x00000006
-#define CP_SET_BIN_DATA5_6_BIN_DATA_ADDR2_LO__MASK		0xffffffff
-#define CP_SET_BIN_DATA5_6_BIN_DATA_ADDR2_LO__SHIFT		0
-static inline uint32_t CP_SET_BIN_DATA5_6_BIN_DATA_ADDR2_LO(uint32_t val)
+#define CP_SET_BIN_DATA5_6_BIN_PRIM_STRM_HI__MASK		0xffffffff
+#define CP_SET_BIN_DATA5_6_BIN_PRIM_STRM_HI__SHIFT		0
+static inline uint32_t CP_SET_BIN_DATA5_6_BIN_PRIM_STRM_HI(uint32_t val)
 {
-	return ((val) << CP_SET_BIN_DATA5_6_BIN_DATA_ADDR2_LO__SHIFT) & CP_SET_BIN_DATA5_6_BIN_DATA_ADDR2_LO__MASK;
+	return ((val) << CP_SET_BIN_DATA5_6_BIN_PRIM_STRM_HI__SHIFT) & CP_SET_BIN_DATA5_6_BIN_PRIM_STRM_HI__MASK;
+}
+
+#define REG_CP_SET_BIN_DATA5_OFFSET_0				0x00000000
+#define CP_SET_BIN_DATA5_OFFSET_0_VSC_SIZE__MASK		0x003f0000
+#define CP_SET_BIN_DATA5_OFFSET_0_VSC_SIZE__SHIFT		16
+static inline uint32_t CP_SET_BIN_DATA5_OFFSET_0_VSC_SIZE(uint32_t val)
+{
+	return ((val) << CP_SET_BIN_DATA5_OFFSET_0_VSC_SIZE__SHIFT) & CP_SET_BIN_DATA5_OFFSET_0_VSC_SIZE__MASK;
+}
+#define CP_SET_BIN_DATA5_OFFSET_0_VSC_N__MASK			0x07c00000
+#define CP_SET_BIN_DATA5_OFFSET_0_VSC_N__SHIFT			22
+static inline uint32_t CP_SET_BIN_DATA5_OFFSET_0_VSC_N(uint32_t val)
+{
+	return ((val) << CP_SET_BIN_DATA5_OFFSET_0_VSC_N__SHIFT) & CP_SET_BIN_DATA5_OFFSET_0_VSC_N__MASK;
+}
+
+#define REG_CP_SET_BIN_DATA5_OFFSET_1				0x00000001
+#define CP_SET_BIN_DATA5_OFFSET_1_BIN_DATA_OFFSET__MASK		0xffffffff
+#define CP_SET_BIN_DATA5_OFFSET_1_BIN_DATA_OFFSET__SHIFT	0
+static inline uint32_t CP_SET_BIN_DATA5_OFFSET_1_BIN_DATA_OFFSET(uint32_t val)
+{
+	return ((val) << CP_SET_BIN_DATA5_OFFSET_1_BIN_DATA_OFFSET__SHIFT) & CP_SET_BIN_DATA5_OFFSET_1_BIN_DATA_OFFSET__MASK;
+}
+
+#define REG_CP_SET_BIN_DATA5_OFFSET_2				0x00000002
+#define CP_SET_BIN_DATA5_OFFSET_2_BIN_SIZE_OFFSET__MASK		0xffffffff
+#define CP_SET_BIN_DATA5_OFFSET_2_BIN_SIZE_OFFSET__SHIFT	0
+static inline uint32_t CP_SET_BIN_DATA5_OFFSET_2_BIN_SIZE_OFFSET(uint32_t val)
+{
+	return ((val) << CP_SET_BIN_DATA5_OFFSET_2_BIN_SIZE_OFFSET__SHIFT) & CP_SET_BIN_DATA5_OFFSET_2_BIN_SIZE_OFFSET__MASK;
+}
+
+#define REG_CP_SET_BIN_DATA5_OFFSET_3				0x00000003
+#define CP_SET_BIN_DATA5_OFFSET_3_BIN_DATA2_OFFSET__MASK	0xffffffff
+#define CP_SET_BIN_DATA5_OFFSET_3_BIN_DATA2_OFFSET__SHIFT	0
+static inline uint32_t CP_SET_BIN_DATA5_OFFSET_3_BIN_DATA2_OFFSET(uint32_t val)
+{
+	return ((val) << CP_SET_BIN_DATA5_OFFSET_3_BIN_DATA2_OFFSET__SHIFT) & CP_SET_BIN_DATA5_OFFSET_3_BIN_DATA2_OFFSET__MASK;
+}
+
+#define REG_CP_REG_RMW_0					0x00000000
+#define CP_REG_RMW_0_DST_REG__MASK				0x0003ffff
+#define CP_REG_RMW_0_DST_REG__SHIFT				0
+static inline uint32_t CP_REG_RMW_0_DST_REG(uint32_t val)
+{
+	return ((val) << CP_REG_RMW_0_DST_REG__SHIFT) & CP_REG_RMW_0_DST_REG__MASK;
+}
+#define CP_REG_RMW_0_ROTATE__MASK				0x1f000000
+#define CP_REG_RMW_0_ROTATE__SHIFT				24
+static inline uint32_t CP_REG_RMW_0_ROTATE(uint32_t val)
+{
+	return ((val) << CP_REG_RMW_0_ROTATE__SHIFT) & CP_REG_RMW_0_ROTATE__MASK;
+}
+#define CP_REG_RMW_0_SRC1_ADD					0x20000000
+#define CP_REG_RMW_0_SRC1_IS_REG				0x40000000
+#define CP_REG_RMW_0_SRC0_IS_REG				0x80000000
+
+#define REG_CP_REG_RMW_1					0x00000001
+#define CP_REG_RMW_1_SRC0__MASK					0xffffffff
+#define CP_REG_RMW_1_SRC0__SHIFT				0
+static inline uint32_t CP_REG_RMW_1_SRC0(uint32_t val)
+{
+	return ((val) << CP_REG_RMW_1_SRC0__SHIFT) & CP_REG_RMW_1_SRC0__MASK;
+}
+
+#define REG_CP_REG_RMW_2					0x00000002
+#define CP_REG_RMW_2_SRC1__MASK					0xffffffff
+#define CP_REG_RMW_2_SRC1__SHIFT				0
+static inline uint32_t CP_REG_RMW_2_SRC1(uint32_t val)
+{
+	return ((val) << CP_REG_RMW_2_SRC1__SHIFT) & CP_REG_RMW_2_SRC1__MASK;
 }
 
 #define REG_CP_REG_TO_MEM_0					0x00000000
-#define CP_REG_TO_MEM_0_REG__MASK				0x0000ffff
+#define CP_REG_TO_MEM_0_REG__MASK				0x0003ffff
 #define CP_REG_TO_MEM_0_REG__SHIFT				0
 static inline uint32_t CP_REG_TO_MEM_0_REG(uint32_t val)
 {
 	return ((val) << CP_REG_TO_MEM_0_REG__SHIFT) & CP_REG_TO_MEM_0_REG__MASK;
 }
-#define CP_REG_TO_MEM_0_CNT__MASK				0x3ff80000
-#define CP_REG_TO_MEM_0_CNT__SHIFT				19
+#define CP_REG_TO_MEM_0_CNT__MASK				0x3ffc0000
+#define CP_REG_TO_MEM_0_CNT__SHIFT				18
 static inline uint32_t CP_REG_TO_MEM_0_CNT(uint32_t val)
 {
 	return ((val) << CP_REG_TO_MEM_0_CNT__SHIFT) & CP_REG_TO_MEM_0_CNT__MASK;
@@ -1023,8 +1318,97 @@ static inline uint32_t CP_REG_TO_MEM_2_DEST_HI(uint32_t val)
 	return ((val) << CP_REG_TO_MEM_2_DEST_HI__SHIFT) & CP_REG_TO_MEM_2_DEST_HI__MASK;
 }
 
+#define REG_CP_REG_TO_MEM_OFFSET_REG_0				0x00000000
+#define CP_REG_TO_MEM_OFFSET_REG_0_REG__MASK			0x0003ffff
+#define CP_REG_TO_MEM_OFFSET_REG_0_REG__SHIFT			0
+static inline uint32_t CP_REG_TO_MEM_OFFSET_REG_0_REG(uint32_t val)
+{
+	return ((val) << CP_REG_TO_MEM_OFFSET_REG_0_REG__SHIFT) & CP_REG_TO_MEM_OFFSET_REG_0_REG__MASK;
+}
+#define CP_REG_TO_MEM_OFFSET_REG_0_CNT__MASK			0x3ffc0000
+#define CP_REG_TO_MEM_OFFSET_REG_0_CNT__SHIFT			18
+static inline uint32_t CP_REG_TO_MEM_OFFSET_REG_0_CNT(uint32_t val)
+{
+	return ((val) << CP_REG_TO_MEM_OFFSET_REG_0_CNT__SHIFT) & CP_REG_TO_MEM_OFFSET_REG_0_CNT__MASK;
+}
+#define CP_REG_TO_MEM_OFFSET_REG_0_64B				0x40000000
+#define CP_REG_TO_MEM_OFFSET_REG_0_ACCUMULATE			0x80000000
+
+#define REG_CP_REG_TO_MEM_OFFSET_REG_1				0x00000001
+#define CP_REG_TO_MEM_OFFSET_REG_1_DEST__MASK			0xffffffff
+#define CP_REG_TO_MEM_OFFSET_REG_1_DEST__SHIFT			0
+static inline uint32_t CP_REG_TO_MEM_OFFSET_REG_1_DEST(uint32_t val)
+{
+	return ((val) << CP_REG_TO_MEM_OFFSET_REG_1_DEST__SHIFT) & CP_REG_TO_MEM_OFFSET_REG_1_DEST__MASK;
+}
+
+#define REG_CP_REG_TO_MEM_OFFSET_REG_2				0x00000002
+#define CP_REG_TO_MEM_OFFSET_REG_2_DEST_HI__MASK		0xffffffff
+#define CP_REG_TO_MEM_OFFSET_REG_2_DEST_HI__SHIFT		0
+static inline uint32_t CP_REG_TO_MEM_OFFSET_REG_2_DEST_HI(uint32_t val)
+{
+	return ((val) << CP_REG_TO_MEM_OFFSET_REG_2_DEST_HI__SHIFT) & CP_REG_TO_MEM_OFFSET_REG_2_DEST_HI__MASK;
+}
+
+#define REG_CP_REG_TO_MEM_OFFSET_REG_3				0x00000003
+#define CP_REG_TO_MEM_OFFSET_REG_3_OFFSET0__MASK		0x0003ffff
+#define CP_REG_TO_MEM_OFFSET_REG_3_OFFSET0__SHIFT		0
+static inline uint32_t CP_REG_TO_MEM_OFFSET_REG_3_OFFSET0(uint32_t val)
+{
+	return ((val) << CP_REG_TO_MEM_OFFSET_REG_3_OFFSET0__SHIFT) & CP_REG_TO_MEM_OFFSET_REG_3_OFFSET0__MASK;
+}
+#define CP_REG_TO_MEM_OFFSET_REG_3_OFFSET0_SCRATCH		0x00080000
+
+#define REG_CP_REG_TO_MEM_OFFSET_MEM_0				0x00000000
+#define CP_REG_TO_MEM_OFFSET_MEM_0_REG__MASK			0x0003ffff
+#define CP_REG_TO_MEM_OFFSET_MEM_0_REG__SHIFT			0
+static inline uint32_t CP_REG_TO_MEM_OFFSET_MEM_0_REG(uint32_t val)
+{
+	return ((val) << CP_REG_TO_MEM_OFFSET_MEM_0_REG__SHIFT) & CP_REG_TO_MEM_OFFSET_MEM_0_REG__MASK;
+}
+#define CP_REG_TO_MEM_OFFSET_MEM_0_CNT__MASK			0x3ffc0000
+#define CP_REG_TO_MEM_OFFSET_MEM_0_CNT__SHIFT			18
+static inline uint32_t CP_REG_TO_MEM_OFFSET_MEM_0_CNT(uint32_t val)
+{
+	return ((val) << CP_REG_TO_MEM_OFFSET_MEM_0_CNT__SHIFT) & CP_REG_TO_MEM_OFFSET_MEM_0_CNT__MASK;
+}
+#define CP_REG_TO_MEM_OFFSET_MEM_0_64B				0x40000000
+#define CP_REG_TO_MEM_OFFSET_MEM_0_ACCUMULATE			0x80000000
+
+#define REG_CP_REG_TO_MEM_OFFSET_MEM_1				0x00000001
+#define CP_REG_TO_MEM_OFFSET_MEM_1_DEST__MASK			0xffffffff
+#define CP_REG_TO_MEM_OFFSET_MEM_1_DEST__SHIFT			0
+static inline uint32_t CP_REG_TO_MEM_OFFSET_MEM_1_DEST(uint32_t val)
+{
+	return ((val) << CP_REG_TO_MEM_OFFSET_MEM_1_DEST__SHIFT) & CP_REG_TO_MEM_OFFSET_MEM_1_DEST__MASK;
+}
+
+#define REG_CP_REG_TO_MEM_OFFSET_MEM_2				0x00000002
+#define CP_REG_TO_MEM_OFFSET_MEM_2_DEST_HI__MASK		0xffffffff
+#define CP_REG_TO_MEM_OFFSET_MEM_2_DEST_HI__SHIFT		0
+static inline uint32_t CP_REG_TO_MEM_OFFSET_MEM_2_DEST_HI(uint32_t val)
+{
+	return ((val) << CP_REG_TO_MEM_OFFSET_MEM_2_DEST_HI__SHIFT) & CP_REG_TO_MEM_OFFSET_MEM_2_DEST_HI__MASK;
+}
+
+#define REG_CP_REG_TO_MEM_OFFSET_MEM_3				0x00000003
+#define CP_REG_TO_MEM_OFFSET_MEM_3_OFFSET_LO__MASK		0xffffffff
+#define CP_REG_TO_MEM_OFFSET_MEM_3_OFFSET_LO__SHIFT		0
+static inline uint32_t CP_REG_TO_MEM_OFFSET_MEM_3_OFFSET_LO(uint32_t val)
+{
+	return ((val) << CP_REG_TO_MEM_OFFSET_MEM_3_OFFSET_LO__SHIFT) & CP_REG_TO_MEM_OFFSET_MEM_3_OFFSET_LO__MASK;
+}
+
+#define REG_CP_REG_TO_MEM_OFFSET_MEM_4				0x00000004
+#define CP_REG_TO_MEM_OFFSET_MEM_4_OFFSET_HI__MASK		0xffffffff
+#define CP_REG_TO_MEM_OFFSET_MEM_4_OFFSET_HI__SHIFT		0
+static inline uint32_t CP_REG_TO_MEM_OFFSET_MEM_4_OFFSET_HI(uint32_t val)
+{
+	return ((val) << CP_REG_TO_MEM_OFFSET_MEM_4_OFFSET_HI__SHIFT) & CP_REG_TO_MEM_OFFSET_MEM_4_OFFSET_HI__MASK;
+}
+
 #define REG_CP_MEM_TO_REG_0					0x00000000
-#define CP_MEM_TO_REG_0_REG__MASK				0x0000ffff
+#define CP_MEM_TO_REG_0_REG__MASK				0x0003ffff
 #define CP_MEM_TO_REG_0_REG__SHIFT				0
 static inline uint32_t CP_MEM_TO_REG_0_REG(uint32_t val)
 {
@@ -1036,8 +1420,8 @@ static inline uint32_t CP_MEM_TO_REG_0_CNT(uint32_t val)
 {
 	return ((val) << CP_MEM_TO_REG_0_CNT__SHIFT) & CP_MEM_TO_REG_0_CNT__MASK;
 }
-#define CP_MEM_TO_REG_0_64B					0x40000000
-#define CP_MEM_TO_REG_0_ACCUMULATE				0x80000000
+#define CP_MEM_TO_REG_0_SHIFT_BY_2				0x40000000
+#define CP_MEM_TO_REG_0_UNK31					0x80000000
 
 #define REG_CP_MEM_TO_REG_1					0x00000001
 #define CP_MEM_TO_REG_1_SRC__MASK				0xffffffff
@@ -1060,6 +1444,113 @@ static inline uint32_t CP_MEM_TO_REG_2_SRC_HI(uint32_t val)
 #define CP_MEM_TO_MEM_0_NEG_B					0x00000002
 #define CP_MEM_TO_MEM_0_NEG_C					0x00000004
 #define CP_MEM_TO_MEM_0_DOUBLE					0x20000000
+#define CP_MEM_TO_MEM_0_WAIT_FOR_MEM_WRITES			0x40000000
+#define CP_MEM_TO_MEM_0_UNK31					0x80000000
+
+#define REG_CP_MEMCPY_0						0x00000000
+#define CP_MEMCPY_0_DWORDS__MASK				0xffffffff
+#define CP_MEMCPY_0_DWORDS__SHIFT				0
+static inline uint32_t CP_MEMCPY_0_DWORDS(uint32_t val)
+{
+	return ((val) << CP_MEMCPY_0_DWORDS__SHIFT) & CP_MEMCPY_0_DWORDS__MASK;
+}
+
+#define REG_CP_MEMCPY_1						0x00000001
+#define CP_MEMCPY_1_SRC_LO__MASK				0xffffffff
+#define CP_MEMCPY_1_SRC_LO__SHIFT				0
+static inline uint32_t CP_MEMCPY_1_SRC_LO(uint32_t val)
+{
+	return ((val) << CP_MEMCPY_1_SRC_LO__SHIFT) & CP_MEMCPY_1_SRC_LO__MASK;
+}
+
+#define REG_CP_MEMCPY_2						0x00000002
+#define CP_MEMCPY_2_SRC_HI__MASK				0xffffffff
+#define CP_MEMCPY_2_SRC_HI__SHIFT				0
+static inline uint32_t CP_MEMCPY_2_SRC_HI(uint32_t val)
+{
+	return ((val) << CP_MEMCPY_2_SRC_HI__SHIFT) & CP_MEMCPY_2_SRC_HI__MASK;
+}
+
+#define REG_CP_MEMCPY_3						0x00000003
+#define CP_MEMCPY_3_DST_LO__MASK				0xffffffff
+#define CP_MEMCPY_3_DST_LO__SHIFT				0
+static inline uint32_t CP_MEMCPY_3_DST_LO(uint32_t val)
+{
+	return ((val) << CP_MEMCPY_3_DST_LO__SHIFT) & CP_MEMCPY_3_DST_LO__MASK;
+}
+
+#define REG_CP_MEMCPY_4						0x00000004
+#define CP_MEMCPY_4_DST_HI__MASK				0xffffffff
+#define CP_MEMCPY_4_DST_HI__SHIFT				0
+static inline uint32_t CP_MEMCPY_4_DST_HI(uint32_t val)
+{
+	return ((val) << CP_MEMCPY_4_DST_HI__SHIFT) & CP_MEMCPY_4_DST_HI__MASK;
+}
+
+#define REG_CP_REG_TO_SCRATCH_0					0x00000000
+#define CP_REG_TO_SCRATCH_0_REG__MASK				0x0003ffff
+#define CP_REG_TO_SCRATCH_0_REG__SHIFT				0
+static inline uint32_t CP_REG_TO_SCRATCH_0_REG(uint32_t val)
+{
+	return ((val) << CP_REG_TO_SCRATCH_0_REG__SHIFT) & CP_REG_TO_SCRATCH_0_REG__MASK;
+}
+#define CP_REG_TO_SCRATCH_0_SCRATCH__MASK			0x00700000
+#define CP_REG_TO_SCRATCH_0_SCRATCH__SHIFT			20
+static inline uint32_t CP_REG_TO_SCRATCH_0_SCRATCH(uint32_t val)
+{
+	return ((val) << CP_REG_TO_SCRATCH_0_SCRATCH__SHIFT) & CP_REG_TO_SCRATCH_0_SCRATCH__MASK;
+}
+#define CP_REG_TO_SCRATCH_0_CNT__MASK				0x07000000
+#define CP_REG_TO_SCRATCH_0_CNT__SHIFT				24
+static inline uint32_t CP_REG_TO_SCRATCH_0_CNT(uint32_t val)
+{
+	return ((val) << CP_REG_TO_SCRATCH_0_CNT__SHIFT) & CP_REG_TO_SCRATCH_0_CNT__MASK;
+}
+
+#define REG_CP_SCRATCH_TO_REG_0					0x00000000
+#define CP_SCRATCH_TO_REG_0_REG__MASK				0x0003ffff
+#define CP_SCRATCH_TO_REG_0_REG__SHIFT				0
+static inline uint32_t CP_SCRATCH_TO_REG_0_REG(uint32_t val)
+{
+	return ((val) << CP_SCRATCH_TO_REG_0_REG__SHIFT) & CP_SCRATCH_TO_REG_0_REG__MASK;
+}
+#define CP_SCRATCH_TO_REG_0_UNK18				0x00040000
+#define CP_SCRATCH_TO_REG_0_SCRATCH__MASK			0x00700000
+#define CP_SCRATCH_TO_REG_0_SCRATCH__SHIFT			20
+static inline uint32_t CP_SCRATCH_TO_REG_0_SCRATCH(uint32_t val)
+{
+	return ((val) << CP_SCRATCH_TO_REG_0_SCRATCH__SHIFT) & CP_SCRATCH_TO_REG_0_SCRATCH__MASK;
+}
+#define CP_SCRATCH_TO_REG_0_CNT__MASK				0x07000000
+#define CP_SCRATCH_TO_REG_0_CNT__SHIFT				24
+static inline uint32_t CP_SCRATCH_TO_REG_0_CNT(uint32_t val)
+{
+	return ((val) << CP_SCRATCH_TO_REG_0_CNT__SHIFT) & CP_SCRATCH_TO_REG_0_CNT__MASK;
+}
+
+#define REG_CP_SCRATCH_WRITE_0					0x00000000
+#define CP_SCRATCH_WRITE_0_SCRATCH__MASK			0x00700000
+#define CP_SCRATCH_WRITE_0_SCRATCH__SHIFT			20
+static inline uint32_t CP_SCRATCH_WRITE_0_SCRATCH(uint32_t val)
+{
+	return ((val) << CP_SCRATCH_WRITE_0_SCRATCH__SHIFT) & CP_SCRATCH_WRITE_0_SCRATCH__MASK;
+}
+
+#define REG_CP_MEM_WRITE_0					0x00000000
+#define CP_MEM_WRITE_0_ADDR_LO__MASK				0xffffffff
+#define CP_MEM_WRITE_0_ADDR_LO__SHIFT				0
+static inline uint32_t CP_MEM_WRITE_0_ADDR_LO(uint32_t val)
+{
+	return ((val) << CP_MEM_WRITE_0_ADDR_LO__SHIFT) & CP_MEM_WRITE_0_ADDR_LO__MASK;
+}
+
+#define REG_CP_MEM_WRITE_1					0x00000001
+#define CP_MEM_WRITE_1_ADDR_HI__MASK				0xffffffff
+#define CP_MEM_WRITE_1_ADDR_HI__SHIFT				0
+static inline uint32_t CP_MEM_WRITE_1_ADDR_HI(uint32_t val)
+{
+	return ((val) << CP_MEM_WRITE_1_ADDR_HI__SHIFT) & CP_MEM_WRITE_1_ADDR_HI__MASK;
+}
 
 #define REG_CP_COND_WRITE_0					0x00000000
 #define CP_COND_WRITE_0_FUNCTION__MASK				0x00000007
@@ -1118,7 +1609,9 @@ static inline uint32_t CP_COND_WRITE5_0_FUNCTION(enum cp_cond_function val)
 {
 	return ((val) << CP_COND_WRITE5_0_FUNCTION__SHIFT) & CP_COND_WRITE5_0_FUNCTION__MASK;
 }
+#define CP_COND_WRITE5_0_SIGNED_COMPARE				0x00000008
 #define CP_COND_WRITE5_0_POLL_MEMORY				0x00000010
+#define CP_COND_WRITE5_0_POLL_SCRATCH				0x00000020
 #define CP_COND_WRITE5_0_WRITE_MEMORY				0x00000100
 
 #define REG_CP_COND_WRITE5_1					0x00000001
@@ -1175,6 +1668,114 @@ static inline uint32_t CP_COND_WRITE5_6_WRITE_ADDR_HI(uint32_t val)
 static inline uint32_t CP_COND_WRITE5_7_WRITE_DATA(uint32_t val)
 {
 	return ((val) << CP_COND_WRITE5_7_WRITE_DATA__SHIFT) & CP_COND_WRITE5_7_WRITE_DATA__MASK;
+}
+
+#define REG_CP_WAIT_MEM_GTE_0					0x00000000
+#define CP_WAIT_MEM_GTE_0_RESERVED__MASK			0xffffffff
+#define CP_WAIT_MEM_GTE_0_RESERVED__SHIFT			0
+static inline uint32_t CP_WAIT_MEM_GTE_0_RESERVED(uint32_t val)
+{
+	return ((val) << CP_WAIT_MEM_GTE_0_RESERVED__SHIFT) & CP_WAIT_MEM_GTE_0_RESERVED__MASK;
+}
+
+#define REG_CP_WAIT_MEM_GTE_1					0x00000001
+#define CP_WAIT_MEM_GTE_1_POLL_ADDR_LO__MASK			0xffffffff
+#define CP_WAIT_MEM_GTE_1_POLL_ADDR_LO__SHIFT			0
+static inline uint32_t CP_WAIT_MEM_GTE_1_POLL_ADDR_LO(uint32_t val)
+{
+	return ((val) << CP_WAIT_MEM_GTE_1_POLL_ADDR_LO__SHIFT) & CP_WAIT_MEM_GTE_1_POLL_ADDR_LO__MASK;
+}
+
+#define REG_CP_WAIT_MEM_GTE_2					0x00000002
+#define CP_WAIT_MEM_GTE_2_POLL_ADDR_HI__MASK			0xffffffff
+#define CP_WAIT_MEM_GTE_2_POLL_ADDR_HI__SHIFT			0
+static inline uint32_t CP_WAIT_MEM_GTE_2_POLL_ADDR_HI(uint32_t val)
+{
+	return ((val) << CP_WAIT_MEM_GTE_2_POLL_ADDR_HI__SHIFT) & CP_WAIT_MEM_GTE_2_POLL_ADDR_HI__MASK;
+}
+
+#define REG_CP_WAIT_MEM_GTE_3					0x00000003
+#define CP_WAIT_MEM_GTE_3_REF__MASK				0xffffffff
+#define CP_WAIT_MEM_GTE_3_REF__SHIFT				0
+static inline uint32_t CP_WAIT_MEM_GTE_3_REF(uint32_t val)
+{
+	return ((val) << CP_WAIT_MEM_GTE_3_REF__SHIFT) & CP_WAIT_MEM_GTE_3_REF__MASK;
+}
+
+#define REG_CP_WAIT_REG_MEM_0					0x00000000
+#define CP_WAIT_REG_MEM_0_FUNCTION__MASK			0x00000007
+#define CP_WAIT_REG_MEM_0_FUNCTION__SHIFT			0
+static inline uint32_t CP_WAIT_REG_MEM_0_FUNCTION(enum cp_cond_function val)
+{
+	return ((val) << CP_WAIT_REG_MEM_0_FUNCTION__SHIFT) & CP_WAIT_REG_MEM_0_FUNCTION__MASK;
+}
+#define CP_WAIT_REG_MEM_0_SIGNED_COMPARE			0x00000008
+#define CP_WAIT_REG_MEM_0_POLL_MEMORY				0x00000010
+#define CP_WAIT_REG_MEM_0_POLL_SCRATCH				0x00000020
+#define CP_WAIT_REG_MEM_0_WRITE_MEMORY				0x00000100
+
+#define REG_CP_WAIT_REG_MEM_1					0x00000001
+#define CP_WAIT_REG_MEM_1_POLL_ADDR_LO__MASK			0xffffffff
+#define CP_WAIT_REG_MEM_1_POLL_ADDR_LO__SHIFT			0
+static inline uint32_t CP_WAIT_REG_MEM_1_POLL_ADDR_LO(uint32_t val)
+{
+	return ((val) << CP_WAIT_REG_MEM_1_POLL_ADDR_LO__SHIFT) & CP_WAIT_REG_MEM_1_POLL_ADDR_LO__MASK;
+}
+
+#define REG_CP_WAIT_REG_MEM_2					0x00000002
+#define CP_WAIT_REG_MEM_2_POLL_ADDR_HI__MASK			0xffffffff
+#define CP_WAIT_REG_MEM_2_POLL_ADDR_HI__SHIFT			0
+static inline uint32_t CP_WAIT_REG_MEM_2_POLL_ADDR_HI(uint32_t val)
+{
+	return ((val) << CP_WAIT_REG_MEM_2_POLL_ADDR_HI__SHIFT) & CP_WAIT_REG_MEM_2_POLL_ADDR_HI__MASK;
+}
+
+#define REG_CP_WAIT_REG_MEM_3					0x00000003
+#define CP_WAIT_REG_MEM_3_REF__MASK				0xffffffff
+#define CP_WAIT_REG_MEM_3_REF__SHIFT				0
+static inline uint32_t CP_WAIT_REG_MEM_3_REF(uint32_t val)
+{
+	return ((val) << CP_WAIT_REG_MEM_3_REF__SHIFT) & CP_WAIT_REG_MEM_3_REF__MASK;
+}
+
+#define REG_CP_WAIT_REG_MEM_4					0x00000004
+#define CP_WAIT_REG_MEM_4_MASK__MASK				0xffffffff
+#define CP_WAIT_REG_MEM_4_MASK__SHIFT				0
+static inline uint32_t CP_WAIT_REG_MEM_4_MASK(uint32_t val)
+{
+	return ((val) << CP_WAIT_REG_MEM_4_MASK__SHIFT) & CP_WAIT_REG_MEM_4_MASK__MASK;
+}
+
+#define REG_CP_WAIT_REG_MEM_5					0x00000005
+#define CP_WAIT_REG_MEM_5_DELAY_LOOP_CYCLES__MASK		0xffffffff
+#define CP_WAIT_REG_MEM_5_DELAY_LOOP_CYCLES__SHIFT		0
+static inline uint32_t CP_WAIT_REG_MEM_5_DELAY_LOOP_CYCLES(uint32_t val)
+{
+	return ((val) << CP_WAIT_REG_MEM_5_DELAY_LOOP_CYCLES__SHIFT) & CP_WAIT_REG_MEM_5_DELAY_LOOP_CYCLES__MASK;
+}
+
+#define REG_CP_WAIT_TWO_REGS_0					0x00000000
+#define CP_WAIT_TWO_REGS_0_REG0__MASK				0x0003ffff
+#define CP_WAIT_TWO_REGS_0_REG0__SHIFT				0
+static inline uint32_t CP_WAIT_TWO_REGS_0_REG0(uint32_t val)
+{
+	return ((val) << CP_WAIT_TWO_REGS_0_REG0__SHIFT) & CP_WAIT_TWO_REGS_0_REG0__MASK;
+}
+
+#define REG_CP_WAIT_TWO_REGS_1					0x00000001
+#define CP_WAIT_TWO_REGS_1_REG1__MASK				0x0003ffff
+#define CP_WAIT_TWO_REGS_1_REG1__SHIFT				0
+static inline uint32_t CP_WAIT_TWO_REGS_1_REG1(uint32_t val)
+{
+	return ((val) << CP_WAIT_TWO_REGS_1_REG1__SHIFT) & CP_WAIT_TWO_REGS_1_REG1__MASK;
+}
+
+#define REG_CP_WAIT_TWO_REGS_2					0x00000002
+#define CP_WAIT_TWO_REGS_2_REF__MASK				0xffffffff
+#define CP_WAIT_TWO_REGS_2_REF__SHIFT				0
+static inline uint32_t CP_WAIT_TWO_REGS_2_REF(uint32_t val)
+{
+	return ((val) << CP_WAIT_TWO_REGS_2_REF__SHIFT) & CP_WAIT_TWO_REGS_2_REF__MASK;
 }
 
 #define REG_CP_DISPATCH_COMPUTE_0				0x00000000
@@ -1329,6 +1930,7 @@ static inline uint32_t CP_EVENT_WRITE_0_EVENT(enum vgt_event_type val)
 	return ((val) << CP_EVENT_WRITE_0_EVENT__SHIFT) & CP_EVENT_WRITE_0_EVENT__MASK;
 }
 #define CP_EVENT_WRITE_0_TIMESTAMP				0x40000000
+#define CP_EVENT_WRITE_0_IRQ					0x80000000
 
 #define REG_CP_EVENT_WRITE_1					0x00000001
 #define CP_EVENT_WRITE_1_ADDR_0_LO__MASK			0xffffffff
@@ -1506,61 +2108,209 @@ static inline uint32_t A5XX_CP_EXEC_CS_INDIRECT_3_LOCALSIZEZ(uint32_t val)
 	return ((val) << A5XX_CP_EXEC_CS_INDIRECT_3_LOCALSIZEZ__SHIFT) & A5XX_CP_EXEC_CS_INDIRECT_3_LOCALSIZEZ__MASK;
 }
 
-#define REG_A2XX_CP_SET_MARKER_0				0x00000000
-#define A2XX_CP_SET_MARKER_0_MARKER__MASK			0x0000000f
-#define A2XX_CP_SET_MARKER_0_MARKER__SHIFT			0
-static inline uint32_t A2XX_CP_SET_MARKER_0_MARKER(uint32_t val)
+#define REG_A6XX_CP_SET_MARKER_0				0x00000000
+#define A6XX_CP_SET_MARKER_0_MODE__MASK				0x000001ff
+#define A6XX_CP_SET_MARKER_0_MODE__SHIFT			0
+static inline uint32_t A6XX_CP_SET_MARKER_0_MODE(enum a6xx_render_mode val)
 {
-	return ((val) << A2XX_CP_SET_MARKER_0_MARKER__SHIFT) & A2XX_CP_SET_MARKER_0_MARKER__MASK;
+	return ((val) << A6XX_CP_SET_MARKER_0_MODE__SHIFT) & A6XX_CP_SET_MARKER_0_MODE__MASK;
 }
-#define A2XX_CP_SET_MARKER_0_MODE__MASK				0x0000000f
-#define A2XX_CP_SET_MARKER_0_MODE__SHIFT			0
-static inline uint32_t A2XX_CP_SET_MARKER_0_MODE(enum a6xx_render_mode val)
+#define A6XX_CP_SET_MARKER_0_MARKER__MASK			0x0000000f
+#define A6XX_CP_SET_MARKER_0_MARKER__SHIFT			0
+static inline uint32_t A6XX_CP_SET_MARKER_0_MARKER(enum a6xx_render_mode val)
 {
-	return ((val) << A2XX_CP_SET_MARKER_0_MODE__SHIFT) & A2XX_CP_SET_MARKER_0_MODE__MASK;
-}
-#define A2XX_CP_SET_MARKER_0_IFPC				0x00000100
-
-static inline uint32_t REG_A2XX_CP_SET_PSEUDO_REG_(uint32_t i0) { return 0x00000000 + 0x3*i0; }
-
-static inline uint32_t REG_A2XX_CP_SET_PSEUDO_REG__0(uint32_t i0) { return 0x00000000 + 0x3*i0; }
-#define A2XX_CP_SET_PSEUDO_REG__0_PSEUDO_REG__MASK		0x00000007
-#define A2XX_CP_SET_PSEUDO_REG__0_PSEUDO_REG__SHIFT		0
-static inline uint32_t A2XX_CP_SET_PSEUDO_REG__0_PSEUDO_REG(enum pseudo_reg val)
-{
-	return ((val) << A2XX_CP_SET_PSEUDO_REG__0_PSEUDO_REG__SHIFT) & A2XX_CP_SET_PSEUDO_REG__0_PSEUDO_REG__MASK;
+	return ((val) << A6XX_CP_SET_MARKER_0_MARKER__SHIFT) & A6XX_CP_SET_MARKER_0_MARKER__MASK;
 }
 
-static inline uint32_t REG_A2XX_CP_SET_PSEUDO_REG__1(uint32_t i0) { return 0x00000001 + 0x3*i0; }
-#define A2XX_CP_SET_PSEUDO_REG__1_LO__MASK			0xffffffff
-#define A2XX_CP_SET_PSEUDO_REG__1_LO__SHIFT			0
-static inline uint32_t A2XX_CP_SET_PSEUDO_REG__1_LO(uint32_t val)
+static inline uint32_t REG_A6XX_CP_SET_PSEUDO_REG_(uint32_t i0) { return 0x00000000 + 0x3*i0; }
+
+static inline uint32_t REG_A6XX_CP_SET_PSEUDO_REG__0(uint32_t i0) { return 0x00000000 + 0x3*i0; }
+#define A6XX_CP_SET_PSEUDO_REG__0_PSEUDO_REG__MASK		0x00000007
+#define A6XX_CP_SET_PSEUDO_REG__0_PSEUDO_REG__SHIFT		0
+static inline uint32_t A6XX_CP_SET_PSEUDO_REG__0_PSEUDO_REG(enum pseudo_reg val)
 {
-	return ((val) << A2XX_CP_SET_PSEUDO_REG__1_LO__SHIFT) & A2XX_CP_SET_PSEUDO_REG__1_LO__MASK;
+	return ((val) << A6XX_CP_SET_PSEUDO_REG__0_PSEUDO_REG__SHIFT) & A6XX_CP_SET_PSEUDO_REG__0_PSEUDO_REG__MASK;
 }
 
-static inline uint32_t REG_A2XX_CP_SET_PSEUDO_REG__2(uint32_t i0) { return 0x00000002 + 0x3*i0; }
-#define A2XX_CP_SET_PSEUDO_REG__2_HI__MASK			0xffffffff
-#define A2XX_CP_SET_PSEUDO_REG__2_HI__SHIFT			0
-static inline uint32_t A2XX_CP_SET_PSEUDO_REG__2_HI(uint32_t val)
+static inline uint32_t REG_A6XX_CP_SET_PSEUDO_REG__1(uint32_t i0) { return 0x00000001 + 0x3*i0; }
+#define A6XX_CP_SET_PSEUDO_REG__1_LO__MASK			0xffffffff
+#define A6XX_CP_SET_PSEUDO_REG__1_LO__SHIFT			0
+static inline uint32_t A6XX_CP_SET_PSEUDO_REG__1_LO(uint32_t val)
 {
-	return ((val) << A2XX_CP_SET_PSEUDO_REG__2_HI__SHIFT) & A2XX_CP_SET_PSEUDO_REG__2_HI__MASK;
+	return ((val) << A6XX_CP_SET_PSEUDO_REG__1_LO__SHIFT) & A6XX_CP_SET_PSEUDO_REG__1_LO__MASK;
 }
 
-#define REG_A2XX_CP_REG_TEST_0					0x00000000
-#define A2XX_CP_REG_TEST_0_REG__MASK				0x00000fff
-#define A2XX_CP_REG_TEST_0_REG__SHIFT				0
-static inline uint32_t A2XX_CP_REG_TEST_0_REG(uint32_t val)
+static inline uint32_t REG_A6XX_CP_SET_PSEUDO_REG__2(uint32_t i0) { return 0x00000002 + 0x3*i0; }
+#define A6XX_CP_SET_PSEUDO_REG__2_HI__MASK			0xffffffff
+#define A6XX_CP_SET_PSEUDO_REG__2_HI__SHIFT			0
+static inline uint32_t A6XX_CP_SET_PSEUDO_REG__2_HI(uint32_t val)
 {
-	return ((val) << A2XX_CP_REG_TEST_0_REG__SHIFT) & A2XX_CP_REG_TEST_0_REG__MASK;
+	return ((val) << A6XX_CP_SET_PSEUDO_REG__2_HI__SHIFT) & A6XX_CP_SET_PSEUDO_REG__2_HI__MASK;
 }
-#define A2XX_CP_REG_TEST_0_BIT__MASK				0x01f00000
-#define A2XX_CP_REG_TEST_0_BIT__SHIFT				20
-static inline uint32_t A2XX_CP_REG_TEST_0_BIT(uint32_t val)
+
+#define REG_A6XX_CP_REG_TEST_0					0x00000000
+#define A6XX_CP_REG_TEST_0_REG__MASK				0x0003ffff
+#define A6XX_CP_REG_TEST_0_REG__SHIFT				0
+static inline uint32_t A6XX_CP_REG_TEST_0_REG(uint32_t val)
 {
-	return ((val) << A2XX_CP_REG_TEST_0_BIT__SHIFT) & A2XX_CP_REG_TEST_0_BIT__MASK;
+	return ((val) << A6XX_CP_REG_TEST_0_REG__SHIFT) & A6XX_CP_REG_TEST_0_REG__MASK;
 }
-#define A2XX_CP_REG_TEST_0_UNK25				0x02000000
+#define A6XX_CP_REG_TEST_0_BIT__MASK				0x01f00000
+#define A6XX_CP_REG_TEST_0_BIT__SHIFT				20
+static inline uint32_t A6XX_CP_REG_TEST_0_BIT(uint32_t val)
+{
+	return ((val) << A6XX_CP_REG_TEST_0_BIT__SHIFT) & A6XX_CP_REG_TEST_0_BIT__MASK;
+}
+#define A6XX_CP_REG_TEST_0_WAIT_FOR_ME				0x02000000
+
+#define REG_CP_COND_REG_EXEC_0					0x00000000
+#define CP_COND_REG_EXEC_0_REG0__MASK				0x0003ffff
+#define CP_COND_REG_EXEC_0_REG0__SHIFT				0
+static inline uint32_t CP_COND_REG_EXEC_0_REG0(uint32_t val)
+{
+	return ((val) << CP_COND_REG_EXEC_0_REG0__SHIFT) & CP_COND_REG_EXEC_0_REG0__MASK;
+}
+#define CP_COND_REG_EXEC_0_BINNING				0x02000000
+#define CP_COND_REG_EXEC_0_GMEM					0x04000000
+#define CP_COND_REG_EXEC_0_SYSMEM				0x08000000
+#define CP_COND_REG_EXEC_0_MODE__MASK				0xf0000000
+#define CP_COND_REG_EXEC_0_MODE__SHIFT				28
+static inline uint32_t CP_COND_REG_EXEC_0_MODE(enum compare_mode val)
+{
+	return ((val) << CP_COND_REG_EXEC_0_MODE__SHIFT) & CP_COND_REG_EXEC_0_MODE__MASK;
+}
+
+#define REG_CP_COND_REG_EXEC_1					0x00000001
+#define CP_COND_REG_EXEC_1_DWORDS__MASK				0xffffffff
+#define CP_COND_REG_EXEC_1_DWORDS__SHIFT			0
+static inline uint32_t CP_COND_REG_EXEC_1_DWORDS(uint32_t val)
+{
+	return ((val) << CP_COND_REG_EXEC_1_DWORDS__SHIFT) & CP_COND_REG_EXEC_1_DWORDS__MASK;
+}
+
+#define REG_CP_COND_EXEC_0					0x00000000
+#define CP_COND_EXEC_0_ADDR0_LO__MASK				0xffffffff
+#define CP_COND_EXEC_0_ADDR0_LO__SHIFT				0
+static inline uint32_t CP_COND_EXEC_0_ADDR0_LO(uint32_t val)
+{
+	return ((val) << CP_COND_EXEC_0_ADDR0_LO__SHIFT) & CP_COND_EXEC_0_ADDR0_LO__MASK;
+}
+
+#define REG_CP_COND_EXEC_1					0x00000001
+#define CP_COND_EXEC_1_ADDR0_HI__MASK				0xffffffff
+#define CP_COND_EXEC_1_ADDR0_HI__SHIFT				0
+static inline uint32_t CP_COND_EXEC_1_ADDR0_HI(uint32_t val)
+{
+	return ((val) << CP_COND_EXEC_1_ADDR0_HI__SHIFT) & CP_COND_EXEC_1_ADDR0_HI__MASK;
+}
+
+#define REG_CP_COND_EXEC_2					0x00000002
+#define CP_COND_EXEC_2_ADDR1_LO__MASK				0xffffffff
+#define CP_COND_EXEC_2_ADDR1_LO__SHIFT				0
+static inline uint32_t CP_COND_EXEC_2_ADDR1_LO(uint32_t val)
+{
+	return ((val) << CP_COND_EXEC_2_ADDR1_LO__SHIFT) & CP_COND_EXEC_2_ADDR1_LO__MASK;
+}
+
+#define REG_CP_COND_EXEC_3					0x00000003
+#define CP_COND_EXEC_3_ADDR1_HI__MASK				0xffffffff
+#define CP_COND_EXEC_3_ADDR1_HI__SHIFT				0
+static inline uint32_t CP_COND_EXEC_3_ADDR1_HI(uint32_t val)
+{
+	return ((val) << CP_COND_EXEC_3_ADDR1_HI__SHIFT) & CP_COND_EXEC_3_ADDR1_HI__MASK;
+}
+
+#define REG_CP_COND_EXEC_4					0x00000004
+#define CP_COND_EXEC_4_REF__MASK				0xffffffff
+#define CP_COND_EXEC_4_REF__SHIFT				0
+static inline uint32_t CP_COND_EXEC_4_REF(uint32_t val)
+{
+	return ((val) << CP_COND_EXEC_4_REF__SHIFT) & CP_COND_EXEC_4_REF__MASK;
+}
+
+#define REG_CP_COND_EXEC_5					0x00000005
+#define CP_COND_EXEC_5_DWORDS__MASK				0xffffffff
+#define CP_COND_EXEC_5_DWORDS__SHIFT				0
+static inline uint32_t CP_COND_EXEC_5_DWORDS(uint32_t val)
+{
+	return ((val) << CP_COND_EXEC_5_DWORDS__SHIFT) & CP_COND_EXEC_5_DWORDS__MASK;
+}
+
+#define REG_CP_SET_CTXSWITCH_IB_0				0x00000000
+#define CP_SET_CTXSWITCH_IB_0_ADDR_LO__MASK			0xffffffff
+#define CP_SET_CTXSWITCH_IB_0_ADDR_LO__SHIFT			0
+static inline uint32_t CP_SET_CTXSWITCH_IB_0_ADDR_LO(uint32_t val)
+{
+	return ((val) << CP_SET_CTXSWITCH_IB_0_ADDR_LO__SHIFT) & CP_SET_CTXSWITCH_IB_0_ADDR_LO__MASK;
+}
+
+#define REG_CP_SET_CTXSWITCH_IB_1				0x00000001
+#define CP_SET_CTXSWITCH_IB_1_ADDR_HI__MASK			0xffffffff
+#define CP_SET_CTXSWITCH_IB_1_ADDR_HI__SHIFT			0
+static inline uint32_t CP_SET_CTXSWITCH_IB_1_ADDR_HI(uint32_t val)
+{
+	return ((val) << CP_SET_CTXSWITCH_IB_1_ADDR_HI__SHIFT) & CP_SET_CTXSWITCH_IB_1_ADDR_HI__MASK;
+}
+
+#define REG_CP_SET_CTXSWITCH_IB_2				0x00000002
+#define CP_SET_CTXSWITCH_IB_2_DWORDS__MASK			0x000fffff
+#define CP_SET_CTXSWITCH_IB_2_DWORDS__SHIFT			0
+static inline uint32_t CP_SET_CTXSWITCH_IB_2_DWORDS(uint32_t val)
+{
+	return ((val) << CP_SET_CTXSWITCH_IB_2_DWORDS__SHIFT) & CP_SET_CTXSWITCH_IB_2_DWORDS__MASK;
+}
+#define CP_SET_CTXSWITCH_IB_2_TYPE__MASK			0x00300000
+#define CP_SET_CTXSWITCH_IB_2_TYPE__SHIFT			20
+static inline uint32_t CP_SET_CTXSWITCH_IB_2_TYPE(enum ctxswitch_ib val)
+{
+	return ((val) << CP_SET_CTXSWITCH_IB_2_TYPE__SHIFT) & CP_SET_CTXSWITCH_IB_2_TYPE__MASK;
+}
+
+#define REG_CP_REG_WRITE_0					0x00000000
+#define CP_REG_WRITE_0_TRACKER__MASK				0x00000007
+#define CP_REG_WRITE_0_TRACKER__SHIFT				0
+static inline uint32_t CP_REG_WRITE_0_TRACKER(enum reg_tracker val)
+{
+	return ((val) << CP_REG_WRITE_0_TRACKER__SHIFT) & CP_REG_WRITE_0_TRACKER__MASK;
+}
+
+#define REG_CP_SMMU_TABLE_UPDATE_0				0x00000000
+#define CP_SMMU_TABLE_UPDATE_0_TTBR0_LO__MASK			0xffffffff
+#define CP_SMMU_TABLE_UPDATE_0_TTBR0_LO__SHIFT			0
+static inline uint32_t CP_SMMU_TABLE_UPDATE_0_TTBR0_LO(uint32_t val)
+{
+	return ((val) << CP_SMMU_TABLE_UPDATE_0_TTBR0_LO__SHIFT) & CP_SMMU_TABLE_UPDATE_0_TTBR0_LO__MASK;
+}
+
+#define REG_CP_SMMU_TABLE_UPDATE_1				0x00000001
+#define CP_SMMU_TABLE_UPDATE_1_TTBR0_HI__MASK			0x0000ffff
+#define CP_SMMU_TABLE_UPDATE_1_TTBR0_HI__SHIFT			0
+static inline uint32_t CP_SMMU_TABLE_UPDATE_1_TTBR0_HI(uint32_t val)
+{
+	return ((val) << CP_SMMU_TABLE_UPDATE_1_TTBR0_HI__SHIFT) & CP_SMMU_TABLE_UPDATE_1_TTBR0_HI__MASK;
+}
+#define CP_SMMU_TABLE_UPDATE_1_ASID__MASK			0xffff0000
+#define CP_SMMU_TABLE_UPDATE_1_ASID__SHIFT			16
+static inline uint32_t CP_SMMU_TABLE_UPDATE_1_ASID(uint32_t val)
+{
+	return ((val) << CP_SMMU_TABLE_UPDATE_1_ASID__SHIFT) & CP_SMMU_TABLE_UPDATE_1_ASID__MASK;
+}
+
+#define REG_CP_SMMU_TABLE_UPDATE_2				0x00000002
+#define CP_SMMU_TABLE_UPDATE_2_CONTEXTIDR__MASK			0xffffffff
+#define CP_SMMU_TABLE_UPDATE_2_CONTEXTIDR__SHIFT		0
+static inline uint32_t CP_SMMU_TABLE_UPDATE_2_CONTEXTIDR(uint32_t val)
+{
+	return ((val) << CP_SMMU_TABLE_UPDATE_2_CONTEXTIDR__SHIFT) & CP_SMMU_TABLE_UPDATE_2_CONTEXTIDR__MASK;
+}
+
+#define REG_CP_SMMU_TABLE_UPDATE_3				0x00000003
+#define CP_SMMU_TABLE_UPDATE_3_CONTEXTBANK__MASK		0xffffffff
+#define CP_SMMU_TABLE_UPDATE_3_CONTEXTBANK__SHIFT		0
+static inline uint32_t CP_SMMU_TABLE_UPDATE_3_CONTEXTBANK(uint32_t val)
+{
+	return ((val) << CP_SMMU_TABLE_UPDATE_3_CONTEXTBANK__SHIFT) & CP_SMMU_TABLE_UPDATE_3_CONTEXTBANK__MASK;
+}
 
 
 #endif /* ADRENO_PM4_XML */

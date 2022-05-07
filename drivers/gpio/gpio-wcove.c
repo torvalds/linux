@@ -170,13 +170,16 @@ static int wcove_gpio_get_direction(struct gpio_chip *chip, unsigned int gpio)
 	int ret, reg = to_reg(gpio, CTRL_OUT);
 
 	if (reg < 0)
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 
 	ret = regmap_read(wg->regmap, reg, &val);
 	if (ret)
 		return ret;
 
-	return !(val & CTLO_DIR_OUT);
+	if (val & CTLO_DIR_OUT)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int wcove_gpio_get(struct gpio_chip *chip, unsigned int gpio)
@@ -397,6 +400,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	struct wcove_gpio *wg;
 	int virq, ret, irq;
 	struct device *dev;
+	struct gpio_irq_chip *girq;
 
 	/*
 	 * This gpio platform device is created by a mfd device (see
@@ -439,33 +443,34 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	wg->dev = dev;
 	wg->regmap = pmic->regmap;
 
-	ret = devm_gpiochip_add_data(dev, &wg->chip, wg);
-	if (ret) {
-		dev_err(dev, "Failed to add gpiochip: %d\n", ret);
-		return ret;
-	}
-
-	ret = gpiochip_irqchip_add_nested(&wg->chip, &wcove_irqchip, 0,
-					  handle_simple_irq, IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(dev, "Failed to add irqchip: %d\n", ret);
-		return ret;
-	}
-
 	virq = regmap_irq_get_virq(wg->regmap_irq_chip, irq);
 	if (virq < 0) {
 		dev_err(dev, "Failed to get virq by irq %d\n", irq);
 		return virq;
 	}
 
-	ret = devm_request_threaded_irq(dev, virq, NULL,
-		wcove_gpio_irq_handler, IRQF_ONESHOT, pdev->name, wg);
+	girq = &wg->chip.irq;
+	girq->chip = &wcove_irqchip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_simple_irq;
+	girq->threaded = true;
+
+	ret = devm_request_threaded_irq(dev, virq, NULL, wcove_gpio_irq_handler,
+					IRQF_ONESHOT, pdev->name, wg);
 	if (ret) {
 		dev_err(dev, "Failed to request irq %d\n", virq);
 		return ret;
 	}
 
-	gpiochip_set_nested_irqchip(&wg->chip, &wcove_irqchip, virq);
+	ret = devm_gpiochip_add_data(dev, &wg->chip, wg);
+	if (ret) {
+		dev_err(dev, "Failed to add gpiochip: %d\n", ret);
+		return ret;
+	}
 
 	/* Enable GPIO0 interrupts */
 	ret = regmap_update_bits(wg->regmap, IRQ_MASK_BASE, GPIO_IRQ0_MASK,

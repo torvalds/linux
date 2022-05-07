@@ -19,6 +19,10 @@
  * 09-07-18  02.06.03  Added MPI26_EVENT_PCIE_TOPO_PI_16_LANES
  * 12-17-18  02.06.04  Addd MPI2_EXT_IMAGE_TYPE_PBLP
  *			Shorten some defines to be compatible with DOS
+ * 06-24-19  02.06.05  Whitespace adjustments to help with identifier
+ *			checking tool.
+ * 10-02-19  02.06.06  Added MPI26_IMAGE_HEADER_SIG1_COREDUMP
+ *                     Added MPI2_FLASH_REGION_COREDUMP
  */
 #ifndef MPI2_IMAGE_H
 #define MPI2_IMAGE_H
@@ -213,6 +217,8 @@ typedef struct _MPI26_COMPONENT_IMAGE_HEADER {
 #define MPI26_IMAGE_HEADER_SIG1_NVDATA                   (0x5444564E)
 #define MPI26_IMAGE_HEADER_SIG1_GAS_GAUGE                (0x20534147)
 #define MPI26_IMAGE_HEADER_SIG1_PBLP                     (0x504C4250)
+/* little-endian "DUMP" */
+#define MPI26_IMAGE_HEADER_SIG1_COREDUMP                 (0x504D5544)
 
 /**** Definitions for Signature2 field ****/
 #define MPI26_IMAGE_HEADER_SIGNATURE2_VALUE                    (0x50584546)
@@ -359,6 +365,7 @@ typedef struct _MPI2_FLASH_LAYOUT_DATA {
 #define MPI2_FLASH_REGION_MR_NVDATA             (0x14)
 #define MPI2_FLASH_REGION_CPLD                  (0x15)
 #define MPI2_FLASH_REGION_PSOC                  (0x16)
+#define MPI2_FLASH_REGION_COREDUMP              (0x17)
 
 /*ImageRevision */
 #define MPI2_FLASH_LAYOUT_IMAGE_REVISION        (0x00)

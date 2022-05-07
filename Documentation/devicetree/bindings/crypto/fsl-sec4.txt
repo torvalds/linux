@@ -138,7 +138,7 @@ iMX6QDL/SX requires four clocks
 
 iMX6UL does only require three clocks
 
-	crypto: caam@2140000 {
+	crypto: crypto@2140000 {
 		compatible = "fsl,sec-v4.0";
 		#address-cells = <1>;
 		#size-cells = <1>;

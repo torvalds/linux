@@ -85,15 +85,11 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 		}
 	}
 
-	get_bh(*bh);
 	lock_buffer(*bh);
-	(*bh)->b_end_io = end_buffer_read_sync;
-	submit_bh(REQ_OP_READ, REQ_META | REQ_PRIO, *bh);
-	wait_on_buffer(*bh);
-	if (!buffer_uptodate(*bh)) {
-		ret = -EIO;
+	ret = ext4_read_bh(*bh, REQ_META | REQ_PRIO, NULL);
+	if (ret)
 		goto warn_exit;
-	}
+
 	mmp = (struct mmp_struct *)((*bh)->b_data);
 	if (le32_to_cpu(mmp->mmp_magic) != EXT4_MMP_MAGIC) {
 		ret = -EFSCORRUPTED;
@@ -120,10 +116,10 @@ void __dump_mmp_msg(struct super_block *sb, struct mmp_struct *mmp,
 {
 	__ext4_warning(sb, function, line, "%s", msg);
 	__ext4_warning(sb, function, line,
-		       "MMP failure info: last update time: %llu, last update "
-		       "node: %s, last update device: %s",
-		       (long long unsigned int) le64_to_cpu(mmp->mmp_time),
-		       mmp->mmp_nodename, mmp->mmp_bdevname);
+		       "MMP failure info: last update time: %llu, last update node: %.*s, last update device: %.*s",
+		       (unsigned long long)le64_to_cpu(mmp->mmp_time),
+		       (int)sizeof(mmp->mmp_nodename), mmp->mmp_nodename,
+		       (int)sizeof(mmp->mmp_bdevname), mmp->mmp_bdevname);
 }
 
 /*
@@ -154,6 +150,7 @@ static int kmmpd(void *data)
 	mmp_check_interval = max(EXT4_MMP_CHECK_MULT * mmp_update_interval,
 				 EXT4_MMP_MIN_CHECK_INTERVAL);
 	mmp->mmp_check_interval = cpu_to_le16(mmp_check_interval);
+	BUILD_BUG_ON(sizeof(mmp->mmp_bdevname) < BDEVNAME_SIZE);
 	bdevname(bh->b_bdev, mmp->mmp_bdevname);
 
 	memcpy(mmp->mmp_nodename, init_utsname()->nodename,
@@ -173,8 +170,10 @@ static int kmmpd(void *data)
 		 * (s_mmp_update_interval * 60) seconds.
 		 */
 		if (retval) {
-			if ((failed_writes % 60) == 0)
-				ext4_error(sb, "Error writing to MMP block");
+			if ((failed_writes % 60) == 0) {
+				ext4_error_err(sb, -retval,
+					       "Error writing to MMP block");
+			}
 			failed_writes++;
 		}
 
@@ -205,8 +204,9 @@ static int kmmpd(void *data)
 
 			retval = read_mmp_block(sb, &bh_check, mmp_block);
 			if (retval) {
-				ext4_error(sb, "error reading MMP data: %d",
-					   retval);
+				ext4_error_err(sb, -retval,
+					       "error reading MMP data: %d",
+					       retval);
 				goto exit_thread;
 			}
 
@@ -218,7 +218,7 @@ static int kmmpd(void *data)
 					     "Error while updating MMP info. "
 					     "The filesystem seems to have been"
 					     " multiply mounted.");
-				ext4_error(sb, "abort");
+				ext4_error_err(sb, EBUSY, "abort");
 				put_bh(bh_check);
 				retval = -EBUSY;
 				goto exit_thread;
@@ -375,7 +375,8 @@ skip:
 	/*
 	 * Start a kernel thread to update the MMP block periodically.
 	 */
-	EXT4_SB(sb)->s_mmp_tsk = kthread_run(kmmpd, mmpd_data, "kmmpd-%s",
+	EXT4_SB(sb)->s_mmp_tsk = kthread_run(kmmpd, mmpd_data, "kmmpd-%.*s",
+					     (int)sizeof(mmp->mmp_bdevname),
 					     bdevname(bh->b_bdev,
 						      mmp->mmp_bdevname));
 	if (IS_ERR(EXT4_SB(sb)->s_mmp_tsk)) {

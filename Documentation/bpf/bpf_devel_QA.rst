@@ -20,11 +20,11 @@ Reporting bugs
 Q: How do I report bugs for BPF kernel code?
 --------------------------------------------
 A: Since all BPF kernel development as well as bpftool and iproute2 BPF
-loader development happens through the netdev kernel mailing list,
+loader development happens through the bpf kernel mailing list,
 please report any found issues around BPF to the following mailing
 list:
 
- netdev@vger.kernel.org
+ bpf@vger.kernel.org
 
 This may also include issues related to XDP, BPF tracing, etc.
 
@@ -46,17 +46,12 @@ Submitting patches
 
 Q: To which mailing list do I need to submit my BPF patches?
 ------------------------------------------------------------
-A: Please submit your BPF patches to the netdev kernel mailing list:
+A: Please submit your BPF patches to the bpf kernel mailing list:
 
- netdev@vger.kernel.org
-
-Historically, BPF came out of networking and has always been maintained
-by the kernel networking community. Although these days BPF touches
-many other subsystems as well, the patches are still routed mainly
-through the networking community.
+ bpf@vger.kernel.org
 
 In case your patch has changes in various different subsystems (e.g.
-tracing, security, etc), make sure to Cc the related kernel mailing
+networking, tracing, security, etc), make sure to Cc the related kernel mailing
 lists and maintainers from there as well, so they are able to review
 the changes and provide their Acked-by's to the patches.
 
@@ -65,13 +60,13 @@ Q: Where can I find patches currently under discussion for BPF subsystem?
 A: All patches that are Cc'ed to netdev are queued for review under netdev
 patchwork project:
 
-  http://patchwork.ozlabs.org/project/netdev/list/
+  https://patchwork.kernel.org/project/netdevbpf/list/
 
 Those patches which target BPF, are assigned to a 'bpf' delegate for
 further processing from BPF maintainers. The current queue with
 patches under review can be found at:
 
-  https://patchwork.ozlabs.org/project/netdev/list/?delegate=77147
+  https://patchwork.kernel.org/project/netdevbpf/list/?delegate=121173
 
 Once the patches have been reviewed by the BPF community as a whole
 and approved by the BPF maintainers, their status in patchwork will be
@@ -154,7 +149,7 @@ In case the patch or patch series has to be reworked and sent out
 again in a second or later revision, it is also required to add a
 version number (``v2``, ``v3``, ...) into the subject prefix::
 
-  git format-patch --subject-prefix='PATCH net-next v2' start..finish
+  git format-patch --subject-prefix='PATCH bpf-next v2' start..finish
 
 When changes have been requested to the patch series, always send the
 whole patch series again with the feedback incorporated (never send
@@ -168,7 +163,7 @@ a BPF point of view.
 Be aware that this is not a final verdict that the patch will
 automatically get accepted into net or net-next trees eventually:
 
-On the netdev kernel mailing list reviews can come in at any point
+On the bpf kernel mailing list reviews can come in at any point
 in time. If discussions around a patch conclude that they cannot
 get included as-is, we will either apply a follow-up fix or drop
 them from the trees entirely. Therefore, we also reserve to rebase
@@ -442,6 +437,21 @@ needed::
 See the kernels selftest `Documentation/dev-tools/kselftest.rst`_
 document for further documentation.
 
+To maximize the number of tests passing, the .config of the kernel
+under test should match the config file fragment in
+tools/testing/selftests/bpf as closely as possible.
+
+Finally to ensure support for latest BPF Type Format features -
+discussed in `Documentation/bpf/btf.rst`_ - pahole version 1.16
+is required for kernels built with CONFIG_DEBUG_INFO_BTF=y.
+pahole is delivered in the dwarves package or can be built
+from source at
+
+https://github.com/acmel/dwarves
+
+Some distros have pahole version 1.16 packaged already, e.g.
+Fedora, Gentoo.
+
 Q: Which BPF kernel selftests version should I run my kernel against?
 ---------------------------------------------------------------------
 A: If you run a kernel ``xyz``, then always run the BPF kernel selftests
@@ -469,17 +479,18 @@ LLVM's static compiler lists the supported targets through
 
      $ llc --version
      LLVM (http://llvm.org/):
-       LLVM version 6.0.0svn
+       LLVM version 10.0.0
        Optimized build.
        Default target: x86_64-unknown-linux-gnu
        Host CPU: skylake
 
        Registered Targets:
-         bpf    - BPF (host endian)
-         bpfeb  - BPF (big endian)
-         bpfel  - BPF (little endian)
-         x86    - 32-bit X86: Pentium-Pro and above
-         x86-64 - 64-bit X86: EM64T and AMD64
+         aarch64    - AArch64 (little endian)
+         bpf        - BPF (host endian)
+         bpfeb      - BPF (big endian)
+         bpfel      - BPF (little endian)
+         x86        - 32-bit X86: Pentium-Pro and above
+         x86-64     - 64-bit X86: EM64T and AMD64
 
 For developers in order to utilize the latest features added to LLVM's
 BPF back end, it is advisable to run the latest LLVM releases. Support
@@ -494,18 +505,22 @@ A: You need cmake and gcc-c++ as build requisites for LLVM. Once you have
 that set up, proceed with building the latest LLVM and clang version
 from the git repositories::
 
-     $ git clone http://llvm.org/git/llvm.git
-     $ cd llvm/tools
-     $ git clone --depth 1 http://llvm.org/git/clang.git
-     $ cd ..; mkdir build; cd build
-     $ cmake .. -DLLVM_TARGETS_TO_BUILD="BPF;X86" \
+     $ git clone https://github.com/llvm/llvm-project.git
+     $ mkdir -p llvm-project/llvm/build/install
+     $ cd llvm-project/llvm/build
+     $ cmake .. -G "Ninja" -DLLVM_TARGETS_TO_BUILD="BPF;X86" \
+                -DLLVM_ENABLE_PROJECTS="clang"    \
                 -DBUILD_SHARED_LIBS=OFF           \
                 -DCMAKE_BUILD_TYPE=Release        \
                 -DLLVM_BUILD_RUNTIME=OFF
-     $ make -j $(getconf _NPROCESSORS_ONLN)
+     $ ninja
 
 The built binaries can then be found in the build/bin/ directory, where
 you can point the PATH variable to.
+
+Set ``-DLLVM_TARGETS_TO_BUILD`` equal to the target you wish to build, you
+will find a full list of targets within the llvm-project/llvm/lib/Target
+directory.
 
 Q: Reporting LLVM BPF issues
 ----------------------------
@@ -633,5 +648,6 @@ when:
 .. _selftests: ../../tools/testing/selftests/bpf/
 .. _Documentation/dev-tools/kselftest.rst:
    https://www.kernel.org/doc/html/latest/dev-tools/kselftest.html
+.. _Documentation/bpf/btf.rst: btf.rst
 
 Happy BPF hacking!

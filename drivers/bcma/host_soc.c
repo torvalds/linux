@@ -172,7 +172,7 @@ int __init bcma_host_soc_register(struct bcma_soc *soc)
 	/* iomap only first core. We have to read some register on this core
 	 * to scan the bus.
 	 */
-	bus->mmio = ioremap_nocache(BCMA_ADDR_BASE, BCMA_CORE_SIZE * 1);
+	bus->mmio = ioremap(BCMA_ADDR_BASE, BCMA_CORE_SIZE * 1);
 	if (!bus->mmio)
 		return -ENOMEM;
 

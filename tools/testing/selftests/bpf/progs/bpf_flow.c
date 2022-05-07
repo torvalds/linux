@@ -16,24 +16,24 @@
 #include <sys/socket.h>
 #include <linux/if_tunnel.h>
 #include <linux/mpls.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 int _version SEC("version") = 1;
-#define PROG(F) SEC(#F) int bpf_func_##F
+#define PROG(F) PROG_(F, _##F)
+#define PROG_(NUM, NAME) SEC("flow_dissector/"#NUM) int bpf_func##NAME
 
 /* These are the identifiers of the BPF programs that will be used in tail
  * calls. Name is limited to 16 characters, with the terminating character and
  * bpf_func_ above, we have only 6 to work with, anything after will be cropped.
  */
-enum {
-	IP,
-	IPV6,
-	IPV6OP,	/* Destination/Hop-by-Hop Options IPv6 Extension header */
-	IPV6FR,	/* Fragmentation IPv6 Extension Header */
-	MPLS,
-	VLAN,
-};
+#define IP		0
+#define IPV6		1
+#define IPV6OP		2 /* Destination/Hop-by-Hop Options IPv6 Ext. Header */
+#define IPV6FR		3 /* Fragmentation IPv6 Extension Header */
+#define MPLS		4
+#define VLAN		5
+#define MAX_PROG	6
 
 #define IP_MF		0x2000
 #define IP_OFFSET	0x1FFF
@@ -59,7 +59,7 @@ struct frag_hdr {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
-	__uint(max_entries, 8);
+	__uint(max_entries, MAX_PROG);
 	__uint(key_size, sizeof(__u32));
 	__uint(value_size, sizeof(__u32));
 } jmp_table SEC(".maps");
@@ -118,18 +118,18 @@ static __always_inline int parse_eth_proto(struct __sk_buff *skb, __be16 proto)
 
 	switch (proto) {
 	case bpf_htons(ETH_P_IP):
-		bpf_tail_call(skb, &jmp_table, IP);
+		bpf_tail_call_static(skb, &jmp_table, IP);
 		break;
 	case bpf_htons(ETH_P_IPV6):
-		bpf_tail_call(skb, &jmp_table, IPV6);
+		bpf_tail_call_static(skb, &jmp_table, IPV6);
 		break;
 	case bpf_htons(ETH_P_MPLS_MC):
 	case bpf_htons(ETH_P_MPLS_UC):
-		bpf_tail_call(skb, &jmp_table, MPLS);
+		bpf_tail_call_static(skb, &jmp_table, MPLS);
 		break;
 	case bpf_htons(ETH_P_8021Q):
 	case bpf_htons(ETH_P_8021AD):
-		bpf_tail_call(skb, &jmp_table, VLAN);
+		bpf_tail_call_static(skb, &jmp_table, VLAN);
 		break;
 	default:
 		/* Protocol not supported */
@@ -246,10 +246,10 @@ static __always_inline int parse_ipv6_proto(struct __sk_buff *skb, __u8 nexthdr)
 	switch (nexthdr) {
 	case IPPROTO_HOPOPTS:
 	case IPPROTO_DSTOPTS:
-		bpf_tail_call(skb, &jmp_table, IPV6OP);
+		bpf_tail_call_static(skb, &jmp_table, IPV6OP);
 		break;
 	case IPPROTO_FRAGMENT:
-		bpf_tail_call(skb, &jmp_table, IPV6FR);
+		bpf_tail_call_static(skb, &jmp_table, IPV6FR);
 		break;
 	default:
 		return parse_ip_proto(skb, nexthdr);

@@ -12,20 +12,18 @@
 #include <asm/frame.h>
 #include <asm/asm-offsets.h>
 
-# define function_hook	__fentry__
-EXPORT_SYMBOL(__fentry__)
-
 #ifdef CONFIG_FRAME_POINTER
 # define MCOUNT_FRAME			1	/* using frame = true  */
 #else
 # define MCOUNT_FRAME			0	/* using frame = false */
 #endif
 
-ENTRY(function_hook)
+SYM_FUNC_START(__fentry__)
 	ret
-END(function_hook)
+SYM_FUNC_END(__fentry__)
+EXPORT_SYMBOL(__fentry__)
 
-ENTRY(ftrace_caller)
+SYM_CODE_START(ftrace_caller)
 
 #ifdef CONFIG_FRAME_POINTER
 	/*
@@ -85,11 +83,11 @@ ftrace_graph_call:
 #endif
 
 /* This is weak to keep gas from relaxing the jumps */
-WEAK(ftrace_stub)
+SYM_INNER_LABEL_ALIGN(ftrace_stub, SYM_L_WEAK)
 	ret
-END(ftrace_caller)
+SYM_CODE_END(ftrace_caller)
 
-ENTRY(ftrace_regs_caller)
+SYM_CODE_START(ftrace_regs_caller)
 	/*
 	 * We're here from an mcount/fentry CALL, and the stack frame looks like:
 	 *
@@ -138,7 +136,7 @@ ENTRY(ftrace_regs_caller)
 	movl	function_trace_op, %ecx	# 3rd argument: ftrace_pos
 	pushl	%esp			# 4th argument: pt_regs
 
-GLOBAL(ftrace_regs_call)
+SYM_INNER_LABEL(ftrace_regs_call, SYM_L_GLOBAL)
 	call	ftrace_stub
 
 	addl	$4, %esp		# skip 4th argument
@@ -163,9 +161,10 @@ GLOBAL(ftrace_regs_call)
 	popl	%eax
 
 	jmp	.Lftrace_ret
+SYM_CODE_END(ftrace_regs_caller)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-ENTRY(ftrace_graph_caller)
+SYM_CODE_START(ftrace_graph_caller)
 	pushl	%eax
 	pushl	%ecx
 	pushl	%edx
@@ -179,7 +178,7 @@ ENTRY(ftrace_graph_caller)
 	popl	%ecx
 	popl	%eax
 	ret
-END(ftrace_graph_caller)
+SYM_CODE_END(ftrace_graph_caller)
 
 .globl return_to_handler
 return_to_handler:
@@ -190,5 +189,5 @@ return_to_handler:
 	movl	%eax, %ecx
 	popl	%edx
 	popl	%eax
-	JMP_NOSPEC %ecx
+	JMP_NOSPEC ecx
 #endif

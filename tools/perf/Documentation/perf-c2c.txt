@@ -40,7 +40,7 @@ RECORD OPTIONS
 --------------
 -e::
 --event=::
-	Select the PMU event. Use 'perf mem record -e list'
+	Select the PMU event. Use 'perf c2c record -e list'
 	to list available events.
 
 -v::
@@ -111,6 +111,17 @@ REPORT OPTIONS
 --display::
 	Switch to HITM type (rmt, lcl) to display and sort on. Total HITMs as default.
 
+--stitch-lbr::
+	Show callgraph with stitched LBRs, which may have more complete
+	callgraph. The perf.data file must have been obtained using
+	perf c2c record --call-graph lbr.
+	Disabled by default. In common cases with call stack overflows,
+	it can recreate better call stacks than the default lbr call stack
+	output. But this approach is not full proof. There can be cases
+	where it creates incorrect call stacks from incorrect matches.
+	The known limitations include exception handing such as
+	setjmp/longjmp will have calls/returns not match.
+
 C2C RECORD
 ----------
 The perf c2c record command setup options related to HITM cacheline analysis
@@ -163,34 +174,36 @@ For each cacheline in the 1) list we display following data:
   Cacheline
   - cacheline address (hex number)
 
-  Total records
-  - sum of all cachelines accesses
-
   Rmt/Lcl Hitm
   - cacheline percentage of all Remote/Local HITM accesses
 
-  LLC Load Hitm - Total, Lcl, Rmt
+  LLC Load Hitm - Total, LclHitm, RmtHitm
   - count of Total/Local/Remote load HITMs
 
-  Store Reference - Total, L1Hit, L1Miss
-    Total - all store accesses
-    L1Hit - store accesses that hit L1
-    L1Hit - store accesses that missed L1
+  Total records
+  - sum of all cachelines accesses
 
-  Load Dram
-  - count of local and remote DRAM accesses
-
-  LLC Ld Miss
-  - count of all accesses that missed LLC
-
-  Total Loads
+  Total loads
   - sum of all load accesses
+
+  Total stores
+  - sum of all store accesses
+
+  Store Reference - L1Hit, L1Miss
+    L1Hit - store accesses that hit L1
+    L1Miss - store accesses that missed L1
 
   Core Load Hit - FB, L1, L2
   - count of load hits in FB (Fill Buffer), L1 and L2 cache
 
-  LLC Load Hit - Llc, Rmt
-  - count of LLC and Remote load hits
+  LLC Load Hit - LlcHit, LclHitm
+  - count of LLC load accesses, includes LLC hits and LLC HITMs
+
+  RMT Load Hit - RmtHit, RmtHitm
+  - count of remote load accesses, includes remote hits and remote HITMs
+
+  Load Dram - Lcl, Rmt
+  - count of local and remote DRAM accesses
 
 For each offset in the 2) list we display following data:
 

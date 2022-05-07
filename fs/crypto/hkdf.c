@@ -44,17 +44,13 @@ static int hkdf_extract(struct crypto_shash *hmac_tfm, const u8 *ikm,
 			unsigned int ikmlen, u8 prk[HKDF_HASHLEN])
 {
 	static const u8 default_salt[HKDF_HASHLEN];
-	SHASH_DESC_ON_STACK(desc, hmac_tfm);
 	int err;
 
 	err = crypto_shash_setkey(hmac_tfm, default_salt, HKDF_HASHLEN);
 	if (err)
 		return err;
 
-	desc->tfm = hmac_tfm;
-	err = crypto_shash_digest(desc, ikm, ikmlen, prk);
-	shash_desc_zero(desc);
-	return err;
+	return crypto_shash_tfm_digest(hmac_tfm, ikm, ikmlen, prk);
 }
 
 /*
@@ -112,7 +108,7 @@ out:
  * adds to its application-specific info strings to guarantee that it doesn't
  * accidentally repeat an info string when using HKDF for different purposes.)
  */
-int fscrypt_hkdf_expand(struct fscrypt_hkdf *hkdf, u8 context,
+int fscrypt_hkdf_expand(const struct fscrypt_hkdf *hkdf, u8 context,
 			const u8 *info, unsigned int infolen,
 			u8 *okm, unsigned int okmlen)
 {

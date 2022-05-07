@@ -21,4 +21,7 @@ properties:
           - ti,nspire-tp
           # Clickpad models
           - ti,nspire-clp
+
+additionalProperties: true
+
 ...

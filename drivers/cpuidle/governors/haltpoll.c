@@ -49,7 +49,7 @@ static int haltpoll_select(struct cpuidle_driver *drv,
 			   struct cpuidle_device *dev,
 			   bool *stop_tick)
 {
-	int latency_req = cpuidle_governor_latency_req(dev->cpu);
+	s64 latency_req = cpuidle_governor_latency_req(dev->cpu);
 
 	if (!drv->state_count || latency_req == 0) {
 		*stop_tick = false;
@@ -75,10 +75,9 @@ static int haltpoll_select(struct cpuidle_driver *drv,
 	return 0;
 }
 
-static void adjust_poll_limit(struct cpuidle_device *dev, unsigned int block_us)
+static void adjust_poll_limit(struct cpuidle_device *dev, u64 block_ns)
 {
 	unsigned int val;
-	u64 block_ns = block_us*NSEC_PER_USEC;
 
 	/* Grow cpu_halt_poll_us if
 	 * cpu_halt_poll_us < block_ns < guest_halt_poll_us
@@ -115,7 +114,7 @@ static void haltpoll_reflect(struct cpuidle_device *dev, int index)
 	dev->last_state_idx = index;
 
 	if (index != 0)
-		adjust_poll_limit(dev, dev->last_residency);
+		adjust_poll_limit(dev, dev->last_residency_ns);
 }
 
 /**

@@ -1021,7 +1021,7 @@ typedef struct smb_com_writex_req {
 	__le16 ByteCount;
 	__u8 Pad;		/* BB check for whether padded to DWORD
 				   boundary and optimum performance here */
-	char Data[0];
+	char Data[];
 } __attribute__((packed)) WRITEX_REQ;
 
 typedef struct smb_com_write_req {
@@ -1041,7 +1041,7 @@ typedef struct smb_com_write_req {
 	__le16 ByteCount;
 	__u8 Pad;		/* BB check for whether padded to DWORD
 				   boundary and optimum performance here */
-	char Data[0];
+	char Data[];
 } __attribute__((packed)) WRITE_REQ;
 
 typedef struct smb_com_write_rsp {
@@ -1306,7 +1306,7 @@ typedef struct smb_com_ntransact_req {
 	/* SetupCount words follow then */
 	__le16 ByteCount;
 	__u8 Pad[3];
-	__u8 Parms[0];
+	__u8 Parms[];
 } __attribute__((packed)) NTRANSACT_REQ;
 
 typedef struct smb_com_ntransact_rsp {
@@ -1523,7 +1523,7 @@ struct file_notify_information {
 	__le32 NextEntryOffset;
 	__le32 Action;
 	__le32 FileNameLength;
-	__u8  FileName[0];
+	__u8  FileName[];
 } __attribute__((packed));
 
 /* For IO_REPARSE_TAG_SYMLINK */
@@ -1536,7 +1536,7 @@ struct reparse_symlink_data {
 	__le16	PrintNameOffset;
 	__le16	PrintNameLength;
 	__le32	Flags;
-	char	PathBuffer[0];
+	char	PathBuffer[];
 } __attribute__((packed));
 
 /* Flag above */
@@ -1553,7 +1553,7 @@ struct reparse_posix_data {
 	__le16	ReparseDataLength;
 	__u16	Reserved;
 	__le64	InodeType; /* LNK, FIFO, CHR etc. */
-	char	PathBuffer[0];
+	char	PathBuffer[];
 } __attribute__((packed));
 
 struct cifs_quota_data {
@@ -1691,6 +1691,7 @@ struct smb_t2_rsp {
 #define SMB_FIND_FILE_ID_FULL_DIR_INFO    0x105
 #define SMB_FIND_FILE_ID_BOTH_DIR_INFO    0x106
 #define SMB_FIND_FILE_UNIX                0x202
+#define SMB_FIND_FILE_POSIX_INFO          0x064
 
 typedef struct smb_com_transaction2_qpi_req {
 	struct smb_hdr hdr;	/* wct = 14+ */
@@ -1761,7 +1762,7 @@ struct set_file_rename {
 	__le32 overwrite;   /* 1 = overwrite dest */
 	__u32 root_fid;   /* zero */
 	__le32 target_name_len;
-	char  target_name[0];  /* Must be unicode */
+	char  target_name[];  /* Must be unicode */
 } __attribute__((packed));
 
 struct smb_com_transaction2_sfi_req {
@@ -2450,7 +2451,7 @@ struct cifs_posix_acl { /* access conrol list  (ACL) */
 	__le16	version;
 	__le16	access_entry_count;  /* access ACL - count of entries */
 	__le16	default_entry_count; /* default ACL - count of entries */
-	struct cifs_posix_ace ace_array[0];
+	struct cifs_posix_ace ace_array[];
 	/* followed by
 	struct cifs_posix_ace default_ace_arraay[] */
 } __attribute__((packed));  /* level 0x204 */
@@ -2756,7 +2757,7 @@ typedef struct file_xattr_info {
 	/* BB do we need another field for flags? BB */
 	__u32 xattr_name_len;
 	__u32 xattr_value_len;
-	char  xattr_name[0];
+	char  xattr_name[];
 	/* followed by xattr_value[xattr_value_len], no pad */
 } __attribute__((packed)) FILE_XATTR_INFO; /* extended attribute info
 					      level 0x205 */

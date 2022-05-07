@@ -88,8 +88,8 @@ static void j2_start_cpu(unsigned int cpu, unsigned long entry_point)
 	if (!np) return;
 
 	if (of_property_read_u32_array(np, "cpu-release-addr", regs, 2)) return;
-	release = ioremap_nocache(regs[0], sizeof(u32));
-	initpc = ioremap_nocache(regs[1], sizeof(u32));
+	release = ioremap(regs[0], sizeof(u32));
+	initpc = ioremap(regs[1], sizeof(u32));
 
 	__raw_writel(entry_point, initpc);
 	__raw_writel(1, release);

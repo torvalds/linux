@@ -70,8 +70,31 @@ u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev);
 enum devlink_eswitch_encap_mode
 mlx5_eswitch_get_encap_mode(const struct mlx5_core_dev *dev);
 
+bool mlx5_eswitch_reg_c1_loopback_enabled(const struct mlx5_eswitch *esw);
 bool mlx5_eswitch_vport_match_metadata_enabled(const struct mlx5_eswitch *esw);
-u32 mlx5_eswitch_get_vport_metadata_for_match(const struct mlx5_eswitch *esw,
+
+/* Reg C0 usage:
+ * Reg C0 = < ESW_PFNUM_BITS(4) | ESW_VPORT BITS(12) | ESW_CHAIN_TAG(16) >
+ *
+ * Highest 4 bits of the reg c0 is the PF_NUM (range 0-15), 12 bits of
+ * unique non-zero vport id (range 1-4095). The rest (lowest 16 bits) is left
+ * for tc chain tag restoration.
+ * PFNUM + VPORT comprise the SOURCE_PORT matching.
+ */
+#define ESW_VPORT_BITS 12
+#define ESW_PFNUM_BITS 4
+#define ESW_SOURCE_PORT_METADATA_BITS (ESW_PFNUM_BITS + ESW_VPORT_BITS)
+#define ESW_SOURCE_PORT_METADATA_OFFSET (32 - ESW_SOURCE_PORT_METADATA_BITS)
+#define ESW_CHAIN_TAG_METADATA_BITS (32 - ESW_SOURCE_PORT_METADATA_BITS)
+#define ESW_CHAIN_TAG_METADATA_MASK GENMASK(ESW_CHAIN_TAG_METADATA_BITS - 1,\
+					    0)
+
+static inline u32 mlx5_eswitch_get_vport_metadata_mask(void)
+{
+	return GENMASK(31, 32 - ESW_SOURCE_PORT_METADATA_BITS);
+}
+
+u32 mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw,
 					      u16 vport_num);
 u8 mlx5_eswitch_mode(struct mlx5_eswitch *esw);
 #else  /* CONFIG_MLX5_ESWITCH */
@@ -88,17 +111,29 @@ mlx5_eswitch_get_encap_mode(const struct mlx5_core_dev *dev)
 }
 
 static inline bool
+mlx5_eswitch_reg_c1_loopback_enabled(const struct mlx5_eswitch *esw)
+{
+	return false;
+};
+
+static inline bool
 mlx5_eswitch_vport_match_metadata_enabled(const struct mlx5_eswitch *esw)
 {
 	return false;
 };
 
 static inline u32
-mlx5_eswitch_get_vport_metadata_for_match(const struct mlx5_eswitch *esw,
+mlx5_eswitch_get_vport_metadata_for_match(struct mlx5_eswitch *esw,
 					  int vport_num)
 {
 	return 0;
 };
+
+static inline u32
+mlx5_eswitch_get_vport_metadata_mask(void)
+{
+	return 0;
+}
 #endif /* CONFIG_MLX5_ESWITCH */
 
 #endif

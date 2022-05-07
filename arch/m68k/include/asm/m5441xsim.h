@@ -279,6 +279,13 @@
 #define MCFGPIO_PIN_MAX		87
 
 /*
+ * Phase Locked Loop (PLL)
+ */
+#define MCF_PLL_CR		0xFC0C0000
+#define MCF_PLL_DR		0xFC0C0004
+#define MCF_PLL_SR		0xFC0C0008
+
+/*
  *  DSPI module.
  */
 #define MCFDSPI_BASE0		0xfc05c000
@@ -298,5 +305,13 @@
 #define MCFEDMA_IRQ_INTR16	(MCFINT1_VECBASE + MCFEDMA_EDMA_INTR16)
 #define MCFEDMA_IRQ_INTR56	(MCFINT2_VECBASE + MCFEDMA_EDMA_INTR56)
 #define MCFEDMA_IRQ_ERR	(MCFINT0_VECBASE + MCFINT0_EDMA_ERR)
+/*
+ *  esdhc module.
+ */
+#define MCFSDHC_BASE		0xfc0cc000
+#define MCFSDHC_SIZE		256
+#define MCFINT2_SDHC		31
+#define MCF_IRQ_SDHC		(MCFINT2_VECBASE + MCFINT2_SDHC)
+#define MCFSDHC_CLK		(MCFSDHC_BASE + 0x2c)
 
 #endif /* m5441xsim_h */

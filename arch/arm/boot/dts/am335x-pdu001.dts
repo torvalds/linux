@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2018 EETS GmbH - http://www.eets.ch/
  *
- * Copyright (C) 2011, Texas Instruments, Incorporated - http://www.ti.com/
+ * Copyright (C) 2011, Texas Instruments, Incorporated - https://www.ti.com/
  *
  * SPDX-License-Identifier:  GPL-2.0+
  */
@@ -382,34 +382,6 @@
 		spi-cpha;
 		status = "okay";
 	};
-};
-
-&usb {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
-};
-
-&usb1_phy {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb1 {
-	status = "okay";
-};
-
-&cppi41dma  {
-	status = "okay";
 };
 
 /*

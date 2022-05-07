@@ -5,6 +5,7 @@ config USB_DWC2
 	depends on HAS_DMA
 	depends on USB || USB_GADGET
 	depends on HAS_IOMEM
+	select USB_ROLE_SWITCH
 	help
 	  Say Y here if your system has a Dual Role Hi-Speed USB
 	  controller based on the DesignWare HSOTG IP Core.

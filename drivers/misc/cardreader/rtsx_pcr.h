@@ -18,7 +18,24 @@
 #define RTS522A_PM_CTRL3		0xFF7E
 
 #define RTS524A_PME_FORCE_CTL		0xFF78
+#define REG_EFUSE_BYPASS		0x08
+#define REG_EFUSE_POR			0x04
+#define REG_EFUSE_POWER_MASK		0x03
+#define REG_EFUSE_POWERON		0x03
+#define REG_EFUSE_POWEROFF		0x00
+#define RTS5250_CLK_CFG3		0xFF79
+#define RTS525A_CFG_MEM_PD		0xF0
 #define RTS524A_PM_CTRL3		0xFF7E
+#define RTS525A_BIOS_CFG		0xFF2D
+#define RTS525A_LOAD_BIOS_FLAG	0x01
+#define RTS525A_CLEAR_BIOS_FLAG	0x00
+
+#define RTS525A_EFUSE_CTL		0xFC32
+#define REG_EFUSE_ENABLE		0x80
+#define REG_EFUSE_MODE			0x40
+#define RTS525A_EFUSE_ADD		0xFC33
+#define REG_EFUSE_ADD_MASK		0x3F
+#define RTS525A_EFUSE_DATA		0xFC35
 
 #define LTR_ACTIVE_LATENCY_DEF		0x883C
 #define LTR_IDLE_LATENCY_DEF		0x892C
@@ -29,7 +46,6 @@
 #define LTR_L1OFF_SNOOZE_SSPWRGATE_5249_DEF	0xAC
 #define LTR_L1OFF_SNOOZE_SSPWRGATE_5250_DEF	0xF8
 #define CMD_TIMEOUT_DEF		100
-#define ASPM_MASK_NEG		0xFC
 #define MASK_8_BIT_DEF		0xFF
 
 #define SSC_CLOCK_STABLE_WAIT	130
@@ -53,6 +69,8 @@ void rts524a_init_params(struct rtsx_pcr *pcr);
 void rts525a_init_params(struct rtsx_pcr *pcr);
 void rtl8411b_init_params(struct rtsx_pcr *pcr);
 void rts5260_init_params(struct rtsx_pcr *pcr);
+void rts5261_init_params(struct rtsx_pcr *pcr);
+void rts5228_init_params(struct rtsx_pcr *pcr);
 
 static inline u8 map_sd_drive(int idx)
 {
@@ -70,6 +88,8 @@ static inline u8 map_sd_drive(int idx)
 #define rts5209_vendor_setting1_valid(reg)	(!((reg) & 0x80))
 #define rts5209_vendor_setting2_valid(reg)	((reg) & 0x80)
 
+#define rtsx_check_mmc_support(reg)		((reg) & 0x10)
+#define rtsx_reg_to_rtd3(reg)				((reg) & 0x02)
 #define rtsx_reg_to_aspm(reg)			(((reg) >> 28) & 0x03)
 #define rtsx_reg_to_sd30_drive_sel_1v8(reg)	(((reg) >> 26) & 0x03)
 #define rtsx_reg_to_sd30_drive_sel_3v3(reg)	(((reg) >> 5) & 0x03)
@@ -100,6 +120,8 @@ void rtsx_pci_disable_ocp(struct rtsx_pcr *pcr);
 void rtsx_pci_enable_ocp(struct rtsx_pcr *pcr);
 int rtsx_pci_get_ocpstat(struct rtsx_pcr *pcr, u8 *val);
 void rtsx_pci_clear_ocpstat(struct rtsx_pcr *pcr);
+void rtsx_pci_enable_oobs_polling(struct rtsx_pcr *pcr);
+void rtsx_pci_disable_oobs_polling(struct rtsx_pcr *pcr);
 int rtsx_sd_power_off_card3v3(struct rtsx_pcr *pcr);
 int rtsx_ms_power_off_card3v3(struct rtsx_pcr *pcr);
 

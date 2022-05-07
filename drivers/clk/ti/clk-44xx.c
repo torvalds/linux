@@ -37,7 +37,7 @@ static const struct omap_clkctrl_reg_data omap4_mpuss_clkctrl_regs[] __initconst
 };
 
 static const struct omap_clkctrl_reg_data omap4_tesla_clkctrl_regs[] __initconst = {
-	{ OMAP4_DSP_CLKCTRL, NULL, CLKF_HW_SUP, "dpll_iva_m4x2_ck" },
+	{ OMAP4_DSP_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "dpll_iva_m4x2_ck" },
 	{ 0 },
 };
 
@@ -219,7 +219,7 @@ static const struct omap_clkctrl_reg_data omap4_l3_2_clkctrl_regs[] __initconst 
 };
 
 static const struct omap_clkctrl_reg_data omap4_ducati_clkctrl_regs[] __initconst = {
-	{ OMAP4_IPU_CLKCTRL, NULL, CLKF_HW_SUP, "ducati_clk_mux_ck" },
+	{ OMAP4_IPU_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_NO_IDLEST, "ducati_clk_mux_ck" },
 	{ 0 },
 };
 
@@ -604,6 +604,18 @@ static const struct omap_clkctrl_reg_data omap4_l4_per_clkctrl_regs[] __initcons
 	{ 0 },
 };
 
+static const struct
+omap_clkctrl_reg_data omap4_l4_secure_clkctrl_regs[] __initconst = {
+	{ OMAP4_AES1_CLKCTRL, NULL, CLKF_SW_SUP, "l3_div_ck" },
+	{ OMAP4_AES2_CLKCTRL, NULL, CLKF_SW_SUP, "l3_div_ck" },
+	{ OMAP4_DES3DES_CLKCTRL, NULL, CLKF_SW_SUP, "l4_div_ck" },
+	{ OMAP4_PKA_CLKCTRL, NULL, CLKF_SW_SUP, "l4_div_ck" },
+	{ OMAP4_RNG_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "l4_div_ck" },
+	{ OMAP4_SHA2MD5_CLKCTRL, NULL, CLKF_SW_SUP, "l3_div_ck" },
+	{ OMAP4_CRYPTODMA_CLKCTRL, NULL, CLKF_HW_SUP | CLKF_SOC_NONSEC, "l3_div_ck" },
+	{ 0 },
+};
+
 static const struct omap_clkctrl_bit_data omap4_gpio1_bit_data[] __initconst = {
 	{ 8, TI_CLK_GATE, omap4_gpio2_dbclk_parents, NULL },
 	{ 0 },
@@ -691,6 +703,7 @@ const struct omap_clkctrl_data omap4_clkctrl_data[] __initconst = {
 	{ 0x4a009220, omap4_l3_gfx_clkctrl_regs },
 	{ 0x4a009320, omap4_l3_init_clkctrl_regs },
 	{ 0x4a009420, omap4_l4_per_clkctrl_regs },
+	{ 0x4a0095a0, omap4_l4_secure_clkctrl_regs },
 	{ 0x4a307820, omap4_l4_wkup_clkctrl_regs },
 	{ 0x4a307a20, omap4_emu_sys_clkctrl_regs },
 	{ 0 },

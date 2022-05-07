@@ -166,7 +166,11 @@ BEGIN_FTR_SECTION
 	mfspr	r9,SPRN_HID0
 	andis.	r9,r9,HID0_NAP@h
 	beq	1f
+#ifdef CONFIG_VMAP_STACK
+	addis	r9, r11, nap_save_msscr0@ha
+#else
 	addis	r9,r11,(nap_save_msscr0-KERNELBASE)@ha
+#endif
 	lwz	r9,nap_save_msscr0@l(r9)
 	mtspr	SPRN_MSSCR0, r9
 	sync
@@ -174,11 +178,16 @@ BEGIN_FTR_SECTION
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_NAP_DISABLE_L2_PR)
 BEGIN_FTR_SECTION
+#ifdef CONFIG_VMAP_STACK
+	addis	r9, r11, nap_save_hid1@ha
+#else
 	addis	r9,r11,(nap_save_hid1-KERNELBASE)@ha
+#endif
 	lwz	r9,nap_save_hid1@l(r9)
 	mtspr	SPRN_HID1, r9
 END_FTR_SECTION_IFSET(CPU_FTR_DUAL_PLL_750FX)
 	b	transfer_to_handler_cont
+_ASM_NOKPROBE_SYMBOL(power_save_ppc32_restore)
 
 	.data
 

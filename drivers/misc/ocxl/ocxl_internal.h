@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 // Copyright 2017 IBM Corp.
 #ifndef _OCXL_INTERNAL_H_
 #define _OCXL_INTERNAL_H_
@@ -113,6 +113,12 @@ void ocxl_actag_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
 int ocxl_config_get_pasid_info(struct pci_dev *dev, int *count);
 
 /*
+ * Control whether the FPGA is reloaded on a link reset
+ */
+int ocxl_config_get_reset_reload(struct pci_dev *dev, int *val);
+int ocxl_config_set_reset_reload(struct pci_dev *dev, int val);
+
+/*
  * Check if an AFU index is valid for the given function.
  *
  * AFU indexes can be sparse, so a driver should check all indexes up
@@ -122,11 +128,12 @@ int ocxl_config_check_afu_index(struct pci_dev *dev,
 				struct ocxl_fn_config *fn, int afu_idx);
 
 /**
- * Update values within a Process Element
+ * ocxl_link_update_pe() - Update values within a Process Element
+ * @link_handle: the link handle associated with the process element
+ * @pasid: the PASID for the AFU context
+ * @tid: the new thread id for the process element
  *
- * link_handle: the link handle associated with the process element
- * pasid: the PASID for the AFU context
- * tid: the new thread id for the process element
+ * Returns 0 on success
  */
 int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid);
 

@@ -183,15 +183,10 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					port@1 {
-						reg = <1>;
-						label = "internal_j9";
-					};
-
 					port@2 {
 						reg = <2>;
 						label = "eth_fc_1000_2";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff1>;
 					};
@@ -199,7 +194,7 @@
 					port@3 {
 						reg = <3>;
 						label = "eth_fc_1000_3";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff2>;
 					};
@@ -207,7 +202,7 @@
 					port@4 {
 						reg = <4>;
 						label = "eth_fc_1000_4";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff3>;
 					};
@@ -215,7 +210,7 @@
 					port@5 {
 						reg = <5>;
 						label = "eth_fc_1000_5";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff4>;
 					};
@@ -223,7 +218,7 @@
 					port@6 {
 						reg = <6>;
 						label = "eth_fc_1000_6";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff5>;
 					};
@@ -231,7 +226,7 @@
 					port@7 {
 						reg = <7>;
 						label = "eth_fc_1000_7";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff6>;
 					};
@@ -239,7 +234,7 @@
 					port@9 {
 						reg = <9>;
 						label = "eth_fc_1000_1";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff0>;
 					};
@@ -271,15 +266,10 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					port@1 {
-						reg = <1>;
-						label = "internal_j8";
-					};
-
 					port@2 {
 						reg = <2>;
 						label = "eth_fc_1000_8";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff7>;
 					};
@@ -287,7 +277,7 @@
 					port@3 {
 						reg = <3>;
 						label = "eth_fc_1000_9";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff8>;
 					};
@@ -295,7 +285,7 @@
 					port@4 {
 						reg = <4>;
 						label = "eth_fc_1000_10";
-						phy-mode = "sgmii";
+						phy-mode = "1000base-x";
 						managed = "in-band-status";
 						sfp = <&sff9>;
 					};
@@ -417,7 +407,7 @@
 	pinctrl-0 = <&pinctrl_dspi1>;
 	status = "okay";
 
-	spi-flash@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
@@ -430,7 +420,7 @@
 		};
 	};
 
-	spi-flash@1 {
+	flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
@@ -519,7 +509,7 @@
 		#gpio-cells = <2>;
 	};
 
-	lm75@48 {
+	temp-sensor@48 {
 		compatible = "national,lm75";
 		reg = <0x48>;
 	};
@@ -534,7 +524,7 @@
 		reg = <0x52>;
 	};
 
-	ds1682@6b {
+	elapsed-time-recorder@6b {
 		compatible = "dallas,ds1682";
 		reg = <0x6b>;
 	};
@@ -546,7 +536,12 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	adt7411@4a {
+	watchdog@38 {
+		compatible = "zii,rave-wdt";
+		reg = <0x38>;
+	};
+
+	adc@4a {
 		compatible = "adi,adt7411";
 		reg = <0x4a>;
 	};
@@ -558,7 +553,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	gpio9: sx1503q@20 {
+	gpio9: io-expander@20 {
 		compatible = "semtech,sx1503q";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_sx1503_20>;
@@ -569,12 +564,12 @@
 		interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
 	};
 
-	lm75@4e {
+	temp-sensor@4e {
 		compatible = "national,lm75";
 		reg = <0x4e>;
 	};
 
-	lm75@4f {
+	temp-sensor@4f {
 		compatible = "national,lm75";
 		reg = <0x4f>;
 	};
@@ -586,17 +581,17 @@
 		reg = <0x23>;
 	};
 
-	adt7411@4a {
+	adc@4a {
 		compatible = "adi,adt7411";
 		reg = <0x4a>;
 	};
 
-	at24c08@54 {
+	eeprom@54 {
 		compatible = "atmel,24c08";
 		reg = <0x54>;
 	};
 
-	tca9548@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		pinctrl-names = "default";
 		#address-cells = <1>;
@@ -635,7 +630,7 @@
 		};
 	};
 
-	tca9548@71 {
+	i2c-mux@71 {
 		compatible = "nxp,pca9548";
 		pinctrl-names = "default";
 		reg = <0x71>;
@@ -689,7 +684,6 @@
 	linux,rs485-enabled-at-boot-time;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	rs485-rts-delay = <0 200>;
 	status = "okay";
 };
 
@@ -697,7 +691,6 @@
 	linux,rs485-enabled-at-boot-time;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	rs485-rts-delay = <0 200>;
 	status = "okay";
 };
 

@@ -7,6 +7,8 @@
 #ifndef _WMI_TLV_H
 #define _WMI_TLV_H
 
+#include <linux/bitops.h>
+
 #define WMI_TLV_CMD(grp_id) (((grp_id) << 12) | 0x1)
 #define WMI_TLV_EV(grp_id) (((grp_id) << 12) | 0x1)
 #define WMI_TLV_CMD_UNSUPPORTED 0
@@ -196,6 +198,12 @@ enum wmi_tlv_cmd_id {
 	WMI_TLV_REQUEST_LINK_STATS_CMDID,
 	WMI_TLV_START_LINK_STATS_CMDID,
 	WMI_TLV_CLEAR_LINK_STATS_CMDID,
+	WMI_TLV_CGET_FW_MEM_DUMP_CMDID,
+	WMI_TLV_CDEBUG_MESG_FLUSH_CMDID,
+	WMI_TLV_CDIAG_EVENT_LOG_CONFIG_CMDID,
+	WMI_TLV_CREQUEST_WLAN_STATS_CMDID,
+	WMI_TLV_CREQUEST_RCPI_CMDID,
+	WMI_TLV_REQUEST_PEER_STATS_INFO_CMDID,
 	WMI_TLV_SET_ARP_NS_OFFLOAD_CMDID = WMI_TLV_CMD(WMI_TLV_GRP_ARP_NS_OFL),
 	WMI_TLV_ADD_PROACTIVE_ARP_RSP_PATTERN_CMDID,
 	WMI_TLV_DEL_PROACTIVE_ARP_RSP_PATTERN_CMDID,
@@ -336,6 +344,13 @@ enum wmi_tlv_event_id {
 	WMI_TLV_IFACE_LINK_STATS_EVENTID,
 	WMI_TLV_PEER_LINK_STATS_EVENTID,
 	WMI_TLV_RADIO_LINK_STATS_EVENTID,
+	WMI_TLV_UPDATE_FW_MEM_DUMP_EVENTID,
+	WMI_TLV_DIAG_EVENT_LOG_SUPPORTED_EVENTID,
+	WMI_TLV_INST_RSSI_STATS_EVENTID,
+	WMI_TLV_RADIO_TX_POWER_LEVEL_STATS_EVENTID,
+	WMI_TLV_REPORT_STATS_EVENTID,
+	WMI_TLV_UPDATE_RCPI_EVENTID,
+	WMI_TLV_PEER_STATS_INFO_EVENTID,
 	WMI_TLV_NLO_MATCH_EVENTID = WMI_TLV_EV(WMI_TLV_GRP_NLO_OFL),
 	WMI_TLV_NLO_SCAN_COMPLETE_EVENTID,
 	WMI_TLV_APFIND_EVENTID,
@@ -449,6 +464,7 @@ enum wmi_tlv_pdev_param {
 	WMI_TLV_PDEV_PARAM_VDEV_RATE_STATS_UPDATE_PERIOD,
 	WMI_TLV_PDEV_PARAM_TXPOWER_REASON_NONE,
 	WMI_TLV_PDEV_PARAM_TXPOWER_REASON_SAR,
+	WMI_TLV_PDEV_PARAM_PEER_STATS_INFO_ENABLE = 0x8b,
 	WMI_TLV_PDEV_PARAM_TXPOWER_REASON_MAX,
 };
 
@@ -526,6 +542,24 @@ enum wmi_tlv_vdev_param {
 	WMI_TLV_VDEV_PARAM_DTIM_POLICY,
 	WMI_TLV_VDEV_PARAM_IBSS_PS_WARMUP_TIME_SECS,
 	WMI_TLV_VDEV_PARAM_IBSS_PS_1RX_CHAIN_IN_ATIM_WINDOW_ENABLE,
+};
+
+enum wmi_tlv_peer_param {
+	WMI_TLV_PEER_SMPS_STATE = 0x1, /* see %wmi_peer_smps_state */
+	WMI_TLV_PEER_AMPDU      = 0x2,
+	WMI_TLV_PEER_AUTHORIZE  = 0x3,
+	WMI_TLV_PEER_CHAN_WIDTH = 0x4,
+	WMI_TLV_PEER_NSS        = 0x5,
+	WMI_TLV_PEER_USE_4ADDR  = 0x6,
+	WMI_TLV_PEER_MEMBERSHIP = 0x7,
+	WMI_TLV_PEER_USERPOS = 0x8,
+	WMI_TLV_PEER_CRIT_PROTO_HINT_ENABLED = 0x9,
+	WMI_TLV_PEER_TX_FAIL_CNT_THR = 0xa,
+	WMI_TLV_PEER_SET_HW_RETRY_CTS2S = 0xb,
+	WMI_TLV_PEER_IBSS_ATIM_WINDOW_LENGTH = 0xc,
+	WMI_TLV_PEER_PHYMODE = 0xd,
+	WMI_TLV_PEER_USE_FIXED_PWR = 0xe,
+	WMI_TLV_PEER_DUMMY_VAR = 0xff,
 };
 
 enum wmi_tlv_peer_flags {
@@ -1409,6 +1443,11 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_WLAN_HPCS_PULSE = 172,
 	WMI_TLV_SERVICE_PER_VDEV_CHAINMASK_CONFIG_SUPPORT = 173,
 	WMI_TLV_SERVICE_TX_DATA_MGMT_ACK_RSSI = 174,
+	WMI_TLV_SERVICE_NAN_DISABLE_SUPPORT = 175,
+	WMI_TLV_SERVICE_HTT_H2T_NO_HTC_HDR_LEN_IN_MSG_LEN = 176,
+	WMI_TLV_SERVICE_COEX_SUPPORT_UNEQUAL_ISOLATION = 177,
+	WMI_TLV_SERVICE_HW_DB2DBM_CONVERSION_SUPPORT = 178,
+	WMI_TLV_SERVICE_SUPPORT_EXTEND_ADDRESS = 179,
 
 	WMI_TLV_MAX_EXT_SERVICE = 256,
 };
@@ -1575,6 +1614,8 @@ wmi_tlv_svc_map(const __le32 *in, unsigned long *out, size_t len)
 	       WMI_SERVICE_MESH_11S, len);
 	SVCMAP(WMI_TLV_SERVICE_SYNC_DELETE_CMDS,
 	       WMI_SERVICE_SYNC_DELETE_CMDS, len);
+	SVCMAP(WMI_TLV_SERVICE_PEER_STATS_INFO,
+	       WMI_SERVICE_PEER_STATS, len);
 }
 
 static inline void
@@ -1588,6 +1629,9 @@ wmi_tlv_svc_map_ext(const __le32 *in, unsigned long *out, size_t len)
 	       WMI_TLV_MAX_SERVICE);
 	SVCMAP(WMI_TLV_SERVICE_TX_DATA_MGMT_ACK_RSSI,
 	       WMI_SERVICE_TX_DATA_ACK_RSSI, WMI_TLV_MAX_SERVICE);
+	SVCMAP(WMI_TLV_SERVICE_SUPPORT_EXTEND_ADDRESS,
+	       WMI_SERVICE_SUPPORT_EXTEND_ADDRESS,
+	       WMI_TLV_MAX_SERVICE);
 }
 
 #undef SVCMAP
@@ -1595,7 +1639,7 @@ wmi_tlv_svc_map_ext(const __le32 *in, unsigned long *out, size_t len)
 struct wmi_tlv {
 	__le16 len;
 	__le16 tag;
-	u8 value[0];
+	u8 value[];
 } __packed;
 
 struct ath10k_mgmt_tx_pkt_addr {
@@ -1741,6 +1785,21 @@ struct wmi_tlv_resource_config {
 	__le32 num_ocb_channels;
 	__le32 num_ocb_schedules;
 	__le32 host_capab;
+} __packed;
+
+/* structure describing host memory chunk. */
+struct host_memory_chunk_tlv {
+	/* id of the request that is passed up in service ready */
+	__le32 req_id;
+
+	/* the physical address the memory chunk */
+	__le32 ptr;
+
+	/* size of the chunk */
+	__le32 size;
+
+	/* the upper 32 bit address valid only for more than 32 bit target */
+	__le32 ptr_high;
 } __packed;
 
 struct wmi_tlv_init_cmd {
@@ -1980,7 +2039,7 @@ struct wmi_tlv_bcn_tx_status_ev {
 struct wmi_tlv_bcn_prb_info {
 	__le32 caps;
 	__le32 erp;
-	u8 ies[0];
+	u8 ies[];
 } __packed;
 
 struct wmi_tlv_bcn_tmpl_cmd {
@@ -2011,7 +2070,7 @@ struct wmi_tlv_diag_item {
 	__le16 len;
 	__le32 timestamp;
 	__le32 code;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct wmi_tlv_diag_data_ev {
@@ -2038,6 +2097,94 @@ struct wmi_tlv_stats_ev {
 	__le32 num_peer_stats_extd;
 } __packed;
 
+struct wmi_tlv_peer_stats_info_ev {
+	__le32 vdev_id;
+	__le32 num_peers;
+	__le32 more_data;
+} __packed;
+
+#define WMI_TLV_MAX_CHAINS 8
+
+struct wmi_tlv_peer_stats_info {
+	struct wmi_mac_addr peer_macaddr;
+	struct {
+		/* lower 32 bits of the tx_bytes value */
+		__le32 low_32;
+		/* upper 32 bits of the tx_bytes value */
+		__le32 high_32;
+	} __packed tx_bytes;
+	struct {
+		/* lower 32 bits of the tx_packets value */
+		__le32 low_32;
+		/* upper 32 bits of the tx_packets value */
+		__le32 high_32;
+	} __packed tx_packets;
+	struct {
+		/* lower 32 bits of the rx_bytes value */
+		__le32 low_32;
+		/* upper 32 bits of the rx_bytes value */
+		__le32 high_32;
+	} __packed rx_bytes;
+	struct {
+		/* lower 32 bits of the rx_packets value */
+		__le32 low_32;
+		/* upper 32 bits of the rx_packets value */
+		__le32 high_32;
+	} __packed rx_packets;
+	__le32 tx_retries;
+	__le32 tx_failed;
+
+	/* rate information, it is output of WMI_ASSEMBLE_RATECODE_V1
+	 *  (in format of 0x1000RRRR)
+	 * The rate-code is a 4-bytes field in which,
+	 * for given rate, nss and preamble
+	 *
+	 * b'31-b'29 unused / reserved
+	 * b'28      indicate the version of rate-code (1 = RATECODE_V1)
+	 * b'27-b'11 unused / reserved
+	 * b'10-b'8  indicate the preamble (0 OFDM, 1 CCK, 2 HT, 3 VHT)
+	 * b'7-b'5   indicate the NSS (0 - 1x1, 1 - 2x2, 2 - 3x3, 3 - 4x4)
+	 * b'4-b'0   indicate the rate, which is indicated as follows:
+	 *	    OFDM :     0: OFDM 48 Mbps
+	 *		       1: OFDM 24 Mbps
+	 *		       2: OFDM 12 Mbps
+	 *		       3: OFDM 6 Mbps
+	 *		       4: OFDM 54 Mbps
+	 *		       5: OFDM 36 Mbps
+	 *		       6: OFDM 18 Mbps
+	 *		       7: OFDM 9 Mbps
+	 *	   CCK (pream == 1)
+	 *		       0: CCK 11 Mbps Long
+	 *		       1: CCK 5.5 Mbps Long
+	 *		       2: CCK 2 Mbps Long
+	 *		       3: CCK 1 Mbps Long
+	 *		       4: CCK 11 Mbps Short
+	 *		       5: CCK 5.5 Mbps Short
+	 *		       6: CCK 2 Mbps Short
+	 *	   HT/VHT (pream == 2/3)
+	 *		       0..7: MCS0..MCS7 (HT)
+	 *		       0..9: MCS0..MCS9 (11AC VHT)
+	 *		       0..11: MCS0..MCS11 (11AX VHT)
+	 * rate-code of the last transmission
+	 */
+	__le32 last_tx_rate_code;
+	__le32 last_rx_rate_code;
+	__le32 last_tx_bitrate_kbps;
+	__le32 last_rx_bitrate_kbps;
+	__le32 peer_rssi;
+	__le32 tx_succeed;
+	__le32 peer_rssi_per_chain[WMI_TLV_MAX_CHAINS];
+} __packed;
+
+#define HW_RATECODE_PREAM_V1_MASK GENMASK(10, 8)
+#define WMI_TLV_GET_HW_RC_PREAM_V1(rc) FIELD_GET(HW_RATECODE_PREAM_V1_MASK, rc)
+
+#define HW_RATECODE_NSS_V1_MASK GENMASK(7, 5)
+#define WMI_TLV_GET_HW_RC_NSS_V1(rc) FIELD_GET(HW_RATECODE_NSS_V1_MASK, rc)
+
+#define HW_RATECODE_RATE_V1_MASK GENMASK(4, 0)
+#define WMI_TLV_GET_HW_RC_RATE_V1(rc) FIELD_GET(HW_RATECODE_RATE_V1_MASK, rc)
+
 struct wmi_tlv_p2p_noa_ev {
 	__le32 vdev_id;
 } __packed;
@@ -2052,6 +2199,14 @@ struct wmi_tlv_wow_add_del_event_cmd {
 	__le32 vdev_id;
 	__le32 is_add;
 	__le32 event_bitmap;
+} __packed;
+
+struct wmi_tlv_request_peer_stats_info {
+	__le32 request_type;
+	__le32 vdev_id;
+	/* peer MAC address */
+	struct wmi_mac_addr peer_macaddr;
+	__le32 reset_after_request;
 } __packed;
 
 /* Command to set/unset chip in quiet mode */
@@ -2234,6 +2389,31 @@ struct wmi_tlv_tdls_peer_event {
 	__le32 peer_reason;
 	__le32 vdev_id;
 } __packed;
+
+enum wmi_tlv_sys_cap_info_flags {
+	WMI_TLV_SYS_CAP_INFO_RXTX_LED	= BIT(0),
+	WMI_TLV_SYS_CAP_INFO_RFKILL	= BIT(1),
+};
+
+#define WMI_TLV_RFKILL_CFG_GPIO_PIN_NUM		GENMASK(5, 0)
+#define WMI_TLV_RFKILL_CFG_RADIO_LEVEL		BIT(6)
+#define WMI_TLV_RFKILL_CFG_PIN_AS_GPIO		GENMASK(10, 7)
+
+enum wmi_tlv_rfkill_enable_radio {
+	WMI_TLV_RFKILL_ENABLE_RADIO_ON	= 0,
+	WMI_TLV_RFKILL_ENABLE_RADIO_OFF	= 1,
+};
+
+enum wmi_tlv_rfkill_radio_state {
+	WMI_TLV_RFKILL_RADIO_STATE_OFF	= 1,
+	WMI_TLV_RFKILL_RADIO_STATE_ON	= 2,
+};
+
+struct wmi_tlv_rfkill_state_change_ev {
+	__le32 gpio_pin_num;
+	__le32 int_type;
+	__le32 radio_state;
+};
 
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 

@@ -20,27 +20,36 @@ properties:
     items:
       - enum:
           - apm,potenza-pmu
-          - arm,armv8-pmuv3
-          - arm,cortex-a73-pmu
-          - arm,cortex-a72-pmu
-          - arm,cortex-a57-pmu
-          - arm,cortex-a53-pmu
-          - arm,cortex-a35-pmu
-          - arm,cortex-a17-pmu
-          - arm,cortex-a15-pmu
-          - arm,cortex-a12-pmu
-          - arm,cortex-a9-pmu
-          - arm,cortex-a8-pmu
-          - arm,cortex-a7-pmu
-          - arm,cortex-a5-pmu
-          - arm,arm11mpcore-pmu
-          - arm,arm1176-pmu
+          - arm,armv8-pmuv3 # Only for s/w models
           - arm,arm1136-pmu
+          - arm,arm1176-pmu
+          - arm,arm11mpcore-pmu
+          - arm,cortex-a5-pmu
+          - arm,cortex-a7-pmu
+          - arm,cortex-a8-pmu
+          - arm,cortex-a9-pmu
+          - arm,cortex-a12-pmu
+          - arm,cortex-a15-pmu
+          - arm,cortex-a17-pmu
+          - arm,cortex-a32-pmu
+          - arm,cortex-a34-pmu
+          - arm,cortex-a35-pmu
+          - arm,cortex-a53-pmu
+          - arm,cortex-a55-pmu
+          - arm,cortex-a57-pmu
+          - arm,cortex-a65-pmu
+          - arm,cortex-a72-pmu
+          - arm,cortex-a73-pmu
+          - arm,cortex-a75-pmu
+          - arm,cortex-a76-pmu
+          - arm,cortex-a77-pmu
+          - arm,neoverse-e1-pmu
+          - arm,neoverse-n1-pmu
           - brcm,vulcan-pmu
           - cavium,thunder-pmu
+          - qcom,krait-pmu
           - qcom,scorpion-pmu
           - qcom,scorpion-mp-pmu
-          - qcom,krait-pmu
 
   interrupts:
     # Don't know how many CPUs, so no constraints to specify
@@ -83,5 +92,7 @@ properties:
 
 required:
   - compatible
+
+additionalProperties: false
 
 ...

@@ -10,11 +10,21 @@ on the Qualcomm ADSP Hexagon core.
 		    "qcom,msm8974-adsp-pil"
 		    "qcom,msm8996-adsp-pil"
 		    "qcom,msm8996-slpi-pil"
+		    "qcom,msm8998-adsp-pas"
+		    "qcom,msm8998-slpi-pas"
 		    "qcom,qcs404-adsp-pas"
 		    "qcom,qcs404-cdsp-pas"
 		    "qcom,qcs404-wcss-pas"
+		    "qcom,sc7180-mpss-pas"
 		    "qcom,sdm845-adsp-pas"
 		    "qcom,sdm845-cdsp-pas"
+		    "qcom,sm8150-adsp-pas"
+		    "qcom,sm8150-cdsp-pas"
+		    "qcom,sm8150-mpss-pas"
+		    "qcom,sm8150-slpi-pas"
+		    "qcom,sm8250-adsp-pas"
+		    "qcom,sm8250-cdsp-pas"
+		    "qcom,sm8250-slpi-pas"
 
 - interrupts-extended:
 	Usage: required
@@ -29,12 +39,22 @@ on the Qualcomm ADSP Hexagon core.
 	qcom,msm8974-adsp-pil:
 	qcom,msm8996-adsp-pil:
 	qcom,msm8996-slpi-pil:
+	qcom,msm8998-adsp-pas:
+	qcom,msm8998-slpi-pas:
 	qcom,qcs404-adsp-pas:
 	qcom,qcs404-cdsp-pas:
 	qcom,sdm845-adsp-pas:
 	qcom,sdm845-cdsp-pas:
+	qcom,sm8150-adsp-pas:
+	qcom,sm8150-cdsp-pas:
+	qcom,sm8150-slpi-pas:
+	qcom,sm8250-adsp-pas:
+	qcom,sm8250-cdsp-pas:
+	qcom,sm8250-slpi-pas:
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack"
 	qcom,qcs404-wcss-pas:
+	qcom,sc7180-mpss-pas:
+	qcom,sm8150-mpss-pas:
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack",
 		    "shutdown-ack"
 
@@ -66,6 +86,42 @@ on the Qualcomm ADSP Hexagon core.
 	Value type: <phandle>
 	Definition: reference to the px regulator to be held on behalf of the
 		    booting Hexagon core
+
+- power-domains:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to power-domains that match the power-domain-names
+
+- power-domain-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: The power-domains needed depend on the compatible string:
+	qcom,msm8974-adsp-pil:
+	qcom,msm8996-adsp-pil:
+	qcom,msm8998-adsp-pas:
+		    must be "cx"
+	qcom,msm8996-slpi-pil:
+		    must be "ss_cx"
+	qcom,msm8998-slpi-pas:
+		    must be "ssc_cx"
+	qcom,qcs404-adsp-pas:
+		    must be "lpi_cx"
+	qcom,qcs404-cdsp-pas:
+	qcom,qcs404-wcss-pas:
+		    must be "mx"
+	qcom,sdm845-adsp-pas:
+	qcom,sdm845-cdsp-pas:
+	qcom,sm8150-adsp-pas:
+	qcom,sm8150-cdsp-pas:
+	qcom,sm8250-cdsp-pas:
+		    must be "cx", "load_state"
+	qcom,sc7180-mpss-pas:
+	qcom,sm8150-mpss-pas:
+		    must be "cx", "load_state", "mss"
+	qcom,sm8250-adsp-pas:
+	qcom,sm8150-slpi-pas:
+	qcom,sm8250-slpi-pas:
+		    must be "lcx", "lmx", "load_state"
 
 - memory-region:
 	Usage: required

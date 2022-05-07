@@ -12,18 +12,25 @@ struct ionic_lif;
 
 #define IONIC_DRV_NAME		"ionic"
 #define IONIC_DRV_DESCRIPTION	"Pensando Ethernet NIC Driver"
-#define IONIC_DRV_VERSION	"0.15.0-k"
 
 #define PCI_VENDOR_ID_PENSANDO			0x1dd8
 
 #define PCI_DEVICE_ID_PENSANDO_IONIC_ETH_PF	0x1002
 #define PCI_DEVICE_ID_PENSANDO_IONIC_ETH_VF	0x1003
 
-#define IONIC_SUBDEV_ID_NAPLES_25	0x4000
-#define IONIC_SUBDEV_ID_NAPLES_100_4	0x4001
-#define IONIC_SUBDEV_ID_NAPLES_100_8	0x4002
-
 #define DEVCMD_TIMEOUT  10
+
+struct ionic_vf {
+	u16	 index;
+	u8	 macaddr[6];
+	__le32	 maxrate;
+	__le16	 vlanid;
+	u8	 spoofchk;
+	u8	 trusted;
+	u8	 linkstate;
+	dma_addr_t       stats_pa;
+	struct ionic_lif_stats stats;
+};
 
 struct ionic {
 	struct pci_dev *pdev;
@@ -35,17 +42,20 @@ struct ionic {
 	struct ionic_dev_bar bars[IONIC_BARS_MAX];
 	unsigned int num_bars;
 	struct ionic_identity ident;
-	struct list_head lifs;
-	struct ionic_lif *master_lif;
+	struct ionic_lif *lif;
 	unsigned int nnqs_per_lif;
 	unsigned int neqs_per_lif;
 	unsigned int ntxqs_per_lif;
 	unsigned int nrxqs_per_lif;
-	DECLARE_BITMAP(lifbits, IONIC_LIFS_MAX);
 	unsigned int nintrs;
 	DECLARE_BITMAP(intrs, IONIC_INTR_CTRL_REGS_MAX);
 	struct work_struct nb_work;
 	struct notifier_block nb;
+	struct rw_semaphore vf_op_lock;	/* lock for VF operations */
+	struct ionic_vf *vfs;
+	int num_vfs;
+	struct timer_list watchdog_timer;
+	int watchdog_period;
 };
 
 struct ionic_admin_ctx {
@@ -53,9 +63,6 @@ struct ionic_admin_ctx {
 	union ionic_adminq_cmd cmd;
 	union ionic_adminq_comp comp;
 };
-
-int ionic_napi(struct napi_struct *napi, int budget, ionic_cq_cb cb,
-	       ionic_cq_done_cb done_cb, void *done_arg);
 
 int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx);
 int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_wait);

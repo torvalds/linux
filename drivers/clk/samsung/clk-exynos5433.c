@@ -1706,7 +1706,8 @@ static const struct samsung_gate_clock peric_gate_clks[] __initconst = {
 	GATE(CLK_SCLK_PCM1, "sclk_pcm1", "sclk_pcm1_peric",
 			ENABLE_SCLK_PERIC, 7, CLK_SET_RATE_PARENT, 0),
 	GATE(CLK_SCLK_I2S1, "sclk_i2s1", "sclk_i2s1_peric",
-			ENABLE_SCLK_PERIC, 6, CLK_SET_RATE_PARENT, 0),
+			ENABLE_SCLK_PERIC, 6,
+			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_SCLK_SPI2, "sclk_spi2", "sclk_spi2_peric", ENABLE_SCLK_PERIC,
 			5, CLK_SET_RATE_PARENT, 0),
 	GATE(CLK_SCLK_SPI1, "sclk_spi1", "sclk_spi1_peric", ENABLE_SCLK_PERIC,
@@ -3678,6 +3679,7 @@ static void __init exynos5433_cmu_apollo_init(struct device_node *np)
 {
 	void __iomem *reg_base;
 	struct samsung_clk_provider *ctx;
+	struct clk_hw **hws;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -3700,8 +3702,10 @@ static void __init exynos5433_cmu_apollo_init(struct device_node *np)
 	samsung_clk_register_gate(ctx, apollo_gate_clks,
 				  ARRAY_SIZE(apollo_gate_clks));
 
+	hws = ctx->clk_data.hws;
+
 	exynos_register_cpu_clock(ctx, CLK_SCLK_APOLLO, "apolloclk",
-		mout_apollo_p[0], mout_apollo_p[1], 0x200,
+		hws[CLK_MOUT_APOLLO_PLL], hws[CLK_MOUT_BUS_PLL_APOLLO_USER], 0x200,
 		exynos5433_apolloclk_d, ARRAY_SIZE(exynos5433_apolloclk_d),
 		CLK_CPU_HAS_E5433_REGS_LAYOUT);
 
@@ -3932,6 +3936,7 @@ static void __init exynos5433_cmu_atlas_init(struct device_node *np)
 {
 	void __iomem *reg_base;
 	struct samsung_clk_provider *ctx;
+	struct clk_hw **hws;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -3954,8 +3959,10 @@ static void __init exynos5433_cmu_atlas_init(struct device_node *np)
 	samsung_clk_register_gate(ctx, atlas_gate_clks,
 				  ARRAY_SIZE(atlas_gate_clks));
 
+	hws = ctx->clk_data.hws;
+
 	exynos_register_cpu_clock(ctx, CLK_SCLK_ATLAS, "atlasclk",
-		mout_atlas_p[0], mout_atlas_p[1], 0x200,
+		hws[CLK_MOUT_ATLAS_PLL], hws[CLK_MOUT_BUS_PLL_ATLAS_USER], 0x200,
 		exynos5433_atlasclk_d, ARRAY_SIZE(exynos5433_atlasclk_d),
 		CLK_CPU_HAS_E5433_REGS_LAYOUT);
 

@@ -63,7 +63,7 @@ config IIO_SW_TRIGGER
 	  using the API provided.
 
 config IIO_TRIGGERED_EVENT
-	tristate
+	tristate "Enable triggered events support"
 	select IIO_TRIGGER
 	help
 	  Provides helper functions for setting up triggered events.
@@ -88,6 +88,7 @@ source "drivers/iio/orientation/Kconfig"
 if IIO_TRIGGER
    source "drivers/iio/trigger/Kconfig"
 endif #IIO_TRIGGER
+source "drivers/iio/position/Kconfig"
 source "drivers/iio/potentiometer/Kconfig"
 source "drivers/iio/potentiostat/Kconfig"
 source "drivers/iio/pressure/Kconfig"

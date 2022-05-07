@@ -13,11 +13,48 @@ properties:
   $nodename:
     const: '/'
   compatible:
-    # RTD1295 SoC based boards
-    items:
-      - enum:
-          - mele,v9
-          - probox2,ava
-          - zidoo,x9s
-      - const: realtek,rtd1295
+    oneOf:
+      # RTD1195 SoC based boards
+      - items:
+          - enum:
+              - mele,x1000 # MeLE X1000
+              - realtek,horseradish # Realtek Horseradish EVB
+          - const: realtek,rtd1195
+
+      # RTD1293 SoC based boards
+      - items:
+          - enum:
+              - synology,ds418j # Synology DiskStation DS418j
+          - const: realtek,rtd1293
+
+      # RTD1295 SoC based boards
+      - items:
+          - enum:
+              - mele,v9 # MeLE V9
+              - probox2,ava # ProBox2 AVA
+              - xnano,x5 # Xnano X5
+              - zidoo,x9s # Zidoo X9S
+          - const: realtek,rtd1295
+
+      # RTD1296 SoC based boards
+      - items:
+          - enum:
+              - synology,ds418 # Synology DiskStation DS418
+          - const: realtek,rtd1296
+
+      # RTD1395 SoC based boards
+      - items:
+          - enum:
+              - bananapi,bpi-m4 # Banana Pi BPI-M4
+              - realtek,lion-skin # Realtek Lion Skin EVB
+          - const: realtek,rtd1395
+
+      # RTD1619 SoC based boards
+      - items:
+          - enum:
+              - realtek,mjolnir # Realtek Mjolnir EVB
+          - const: realtek,rtd1619
+
+additionalProperties: true
+
 ...

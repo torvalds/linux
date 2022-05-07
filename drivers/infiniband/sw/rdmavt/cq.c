@@ -248,8 +248,8 @@ int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	 */
 	if (udata && udata->outlen >= sizeof(__u64)) {
 		cq->ip = rvt_create_mmap_info(rdi, sz, udata, u_wc);
-		if (!cq->ip) {
-			err = -ENOMEM;
+		if (IS_ERR(cq->ip)) {
+			err = PTR_ERR(cq->ip);
 			goto bail_wc;
 		}
 
@@ -315,7 +315,7 @@ bail_wc:
  *
  * Called by ib_destroy_cq() in the generic verbs code.
  */
-void rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+int rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
 	struct rvt_dev_info *rdi = cq->rdi;
@@ -327,7 +327,8 @@ void rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	if (cq->ip)
 		kref_put(&cq->ip->ref, rvt_release_mmap_info);
 	else
-		vfree(cq->queue);
+		vfree(cq->kqueue);
+	return 0;
 }
 
 /**
@@ -552,7 +553,6 @@ int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 
 /**
  * rvt_driver_cq_init - Init cq resources on behalf of driver
- * @rdi: rvt dev structure
  *
  * Return: 0 on success
  */
@@ -568,7 +568,6 @@ int rvt_driver_cq_init(void)
 
 /**
  * rvt_cq_exit - tear down cq reources
- * @rdi: rvt dev structure
  */
 void rvt_cq_exit(void)
 {

@@ -22,12 +22,12 @@
 /**
  * struct bm1880_pinctrl - driver data
  * @base:	Pinctrl base address
- * @pctrl:	Pinctrl device
+ * @pctrldev:	Pinctrl device
  * @groups:	Pingroups
  * @ngroups:	Number of @groups
  * @funcs:	Pinmux functions
  * @nfuncs:	Number of @funcs
- * @pconf:	Pinconf data
+ * @pinconf:	Pinconf data
  */
 struct bm1880_pinctrl {
 	void __iomem *base;
@@ -408,6 +408,7 @@ static const struct bm1880_pctrl_group bm1880_pctrl_groups[] = {
 	BM1880_PINCTRL_GRP(pwm34),
 	BM1880_PINCTRL_GRP(pwm35),
 	BM1880_PINCTRL_GRP(pwm36),
+	BM1880_PINCTRL_GRP(pwm37),
 	BM1880_PINCTRL_GRP(i2c0),
 	BM1880_PINCTRL_GRP(i2c1),
 	BM1880_PINCTRL_GRP(i2c2),
@@ -1308,15 +1309,13 @@ static struct pinctrl_desc bm1880_desc = {
 static int bm1880_pinctrl_probe(struct platform_device *pdev)
 
 {
-	struct resource *res;
 	struct bm1880_pinctrl *pctrl;
 
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pctrl->base = devm_ioremap_resource(&pdev->dev, res);
+	pctrl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctrl->base))
 		return PTR_ERR(pctrl->base);
 

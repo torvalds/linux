@@ -30,7 +30,7 @@
 #if K1212_DEBUG_LEVEL > 0
 #define K1212_DEBUG_PRINTK(fmt,args...)	printk(KERN_DEBUG fmt,##args)
 #else
-#define K1212_DEBUG_PRINTK(fmt,...)
+#define K1212_DEBUG_PRINTK(fmt,...)	do { } while (0)
 #endif
 #if K1212_DEBUG_LEVEL > 1
 #define K1212_DEBUG_PRINTK_VERBOSE(fmt,args...)	printk(KERN_DEBUG fmt,##args)
@@ -415,7 +415,7 @@ static const struct pci_device_id snd_korg1212_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_korg1212_ids);
 
-static char *stateName[] = {
+static const char * const stateName[] = {
 	"Non-existent",
 	"Uninitialized",
 	"DSP download in process",
@@ -455,7 +455,7 @@ static const char * const channelName[] = {
 	"SPDIF-R",
 };
 
-static u16 ClockSourceSelector[] = {
+static const u16 ClockSourceSelector[] = {
 	0x8000,   // selects source as ADAT at 44.1 kHz
 	0x0000,   // selects source as ADAT at 48 kHz
 	0x8001,   // selects source as S/PDIF at 44.1 kHz
@@ -813,12 +813,12 @@ static inline int snd_korg1212_use_is_exclusive(struct snd_korg1212 *korg1212)
 
 static int snd_korg1212_SetRate(struct snd_korg1212 *korg1212, int rate)
 {
-        static enum ClockSourceIndex s44[] = {
+	static const enum ClockSourceIndex s44[] = {
 		K1212_CLKIDX_AdatAt44_1K,
 		K1212_CLKIDX_WordAt44_1K,
 		K1212_CLKIDX_LocalAt44_1K
 	};
-        static enum ClockSourceIndex s48[] = {
+	static const enum ClockSourceIndex s48[] = {
 		K1212_CLKIDX_AdatAt48K,
 		K1212_CLKIDX_WordAt48K,
 		K1212_CLKIDX_LocalAt48K
@@ -2019,7 +2019,7 @@ static int snd_korg1212_control_sync_put(struct snd_kcontrol *kcontrol,
 		.private_value = ord,								\
         }
 
-static struct snd_kcontrol_new snd_korg1212_controls[] = {
+static const struct snd_kcontrol_new snd_korg1212_controls[] = {
         MON_MIXER(8, "Analog"),
 	MON_MIXER(10, "SPDIF"), 
         MON_MIXER(0, "ADAT-1"), MON_MIXER(1, "ADAT-2"), MON_MIXER(2, "ADAT-3"), MON_MIXER(3, "ADAT-4"),
@@ -2149,11 +2149,13 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
 {
         int err, rc;
         unsigned int i;
-	unsigned ioport_size, iomem_size, iomem2_size;
+	unsigned iomem_size;
+	__maybe_unused unsigned ioport_size;
+	__maybe_unused unsigned iomem2_size;
         struct snd_korg1212 * korg1212;
 	const struct firmware *dsp_code;
 
-        static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
                 .dev_free = snd_korg1212_dev_free,
         };
 
@@ -2237,6 +2239,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
         }
 
         korg1212->irq = pci->irq;
+	card->sync_irq = korg1212->irq;
 
 	pci_set_master(korg1212->pci);
 
@@ -2275,7 +2278,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
                    korg1212->idRegPtr,
 		   stateName[korg1212->cardState]);
 
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				sizeof(struct KorgSharedBuffer), &korg1212->dma_shared) < 0) {
 		snd_printk(KERN_ERR "korg1212: can not allocate shared buffer memory (%zd bytes)\n", sizeof(struct KorgSharedBuffer));
                 snd_korg1212_free(korg1212);
@@ -2290,7 +2293,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
 
         korg1212->DataBufsSize = sizeof(struct KorgAudioBuffer) * kNumBuffers;
 
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				korg1212->DataBufsSize, &korg1212->dma_play) < 0) {
 		snd_printk(KERN_ERR "korg1212: can not allocate play data buffer memory (%d bytes)\n", korg1212->DataBufsSize);
                 snd_korg1212_free(korg1212);
@@ -2302,7 +2305,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
         K1212_DEBUG_PRINTK("K1212_DEBUG: Play Data Area = 0x%p (0x%08x), %d bytes\n",
 		korg1212->playDataBufsPtr, korg1212->PlayDataPhy, korg1212->DataBufsSize);
 
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				korg1212->DataBufsSize, &korg1212->dma_rec) < 0) {
 		snd_printk(KERN_ERR "korg1212: can not allocate record data buffer memory (%d bytes)\n", korg1212->DataBufsSize);
                 snd_korg1212_free(korg1212);
@@ -2337,7 +2340,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
 		return err;
 	}
 
-	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				dsp_code->size, &korg1212->dma_dsp) < 0) {
 		snd_printk(KERN_ERR "korg1212: cannot allocate dsp code memory (%zd bytes)\n", dsp_code->size);
                 snd_korg1212_free(korg1212);

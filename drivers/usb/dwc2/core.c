@@ -524,10 +524,25 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait)
 	greset |= GRSTCTL_CSFTRST;
 	dwc2_writel(hsotg, greset, GRSTCTL);
 
-	if (dwc2_hsotg_wait_bit_clear(hsotg, GRSTCTL, GRSTCTL_CSFTRST, 50)) {
-		dev_warn(hsotg->dev, "%s: HANG! Soft Reset timeout GRSTCTL GRSTCTL_CSFTRST\n",
-			 __func__);
-		return -EBUSY;
+	if ((hsotg->hw_params.snpsid & DWC2_CORE_REV_MASK) <
+		(DWC2_CORE_REV_4_20a & DWC2_CORE_REV_MASK)) {
+		if (dwc2_hsotg_wait_bit_clear(hsotg, GRSTCTL,
+					      GRSTCTL_CSFTRST, 10000)) {
+			dev_warn(hsotg->dev, "%s: HANG! Soft Reset timeout GRSTCTL_CSFTRST\n",
+				 __func__);
+			return -EBUSY;
+		}
+	} else {
+		if (dwc2_hsotg_wait_bit_set(hsotg, GRSTCTL,
+					    GRSTCTL_CSFTRST_DONE, 10000)) {
+			dev_warn(hsotg->dev, "%s: HANG! Soft Reset timeout GRSTCTL_CSFTRST_DONE\n",
+				 __func__);
+			return -EBUSY;
+		}
+		greset = dwc2_readl(hsotg, GRSTCTL);
+		greset &= ~GRSTCTL_CSFTRST;
+		greset |= GRSTCTL_CSFTRST_DONE;
+		dwc2_writel(hsotg, greset, GRSTCTL);
 	}
 
 	/* Wait for AHB master IDLE state */

@@ -15,6 +15,14 @@
 #include <sound/tlv.h>
 #include "max9867.h"
 
+struct max9867_priv {
+	struct regmap *regmap;
+	const struct snd_pcm_hw_constraint_list *constraints;
+	unsigned int sysclk, pclk;
+	bool master, dsp_a;
+	unsigned int adc_dac_active;
+};
+
 static const char *const max9867_spmode[] = {
 	"Stereo Diff", "Mono Diff",
 	"Stereo Cap", "Mono Cap",
@@ -23,8 +31,115 @@ static const char *const max9867_spmode[] = {
 };
 static const char *const max9867_filter_text[] = {"IIR", "FIR"};
 
-static SOC_ENUM_SINGLE_DECL(max9867_filter, MAX9867_CODECFLTR, 7,
-	max9867_filter_text);
+static const char *const max9867_adc_dac_filter_text[] = {
+	"Disabled",
+	"Elliptical/16/256",
+	"Butterworth/16/500",
+	"Elliptical/8/256",
+	"Butterworth/8/500",
+	"Butterworth/8-24"
+};
+
+enum max9867_adc_dac {
+	MAX9867_ADC_LEFT,
+	MAX9867_ADC_RIGHT,
+	MAX9867_DAC_LEFT,
+	MAX9867_DAC_RIGHT,
+};
+
+static int max9867_adc_dac_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct max9867_priv *max9867 = snd_soc_component_get_drvdata(component);
+	enum max9867_adc_dac adc_dac;
+
+	if (!strcmp(w->name, "ADCL"))
+		adc_dac = MAX9867_ADC_LEFT;
+	else if (!strcmp(w->name, "ADCR"))
+		adc_dac = MAX9867_ADC_RIGHT;
+	else if (!strcmp(w->name, "DACL"))
+		adc_dac = MAX9867_DAC_LEFT;
+	else if (!strcmp(w->name, "DACR"))
+		adc_dac = MAX9867_DAC_RIGHT;
+	else
+		return 0;
+
+	if (SND_SOC_DAPM_EVENT_ON(event))
+		max9867->adc_dac_active |= BIT(adc_dac);
+	else if (SND_SOC_DAPM_EVENT_OFF(event))
+		max9867->adc_dac_active &= ~BIT(adc_dac);
+
+	return 0;
+}
+
+static int max9867_filter_get(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct max9867_priv *max9867 = snd_soc_component_get_drvdata(component);
+	unsigned int reg;
+	int ret;
+
+	ret = regmap_read(max9867->regmap, MAX9867_CODECFLTR, &reg);
+	if (ret)
+		return -EINVAL;
+
+	if (reg & MAX9867_CODECFLTR_MODE)
+		ucontrol->value.enumerated.item[0] = 1;
+	else
+		ucontrol->value.enumerated.item[0] = 0;
+
+	return 0;
+}
+
+static int max9867_filter_set(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct max9867_priv *max9867 = snd_soc_component_get_drvdata(component);
+	unsigned int reg, mode = ucontrol->value.enumerated.item[0];
+	int ret;
+
+	if (mode > 1)
+		return -EINVAL;
+
+	/* don't allow change if ADC/DAC active */
+	if (max9867->adc_dac_active)
+		return -EBUSY;
+
+	/* read current filter mode */
+	ret = regmap_read(max9867->regmap, MAX9867_CODECFLTR, &reg);
+	if (ret)
+		return -EINVAL;
+
+	if (mode)
+		mode = MAX9867_CODECFLTR_MODE;
+
+	/* check if change is needed */
+	if ((reg & MAX9867_CODECFLTR_MODE) == mode)
+		return 0;
+
+	/* shutdown codec before switching filter mode */
+	regmap_update_bits(max9867->regmap, MAX9867_PWRMAN,
+		MAX9867_PWRMAN_SHDN, 0);
+
+	/* switch filter mode */
+	regmap_update_bits(max9867->regmap, MAX9867_CODECFLTR,
+		MAX9867_CODECFLTR_MODE, mode);
+
+	/* out of shutdown now */
+	regmap_update_bits(max9867->regmap, MAX9867_PWRMAN,
+		MAX9867_PWRMAN_SHDN, MAX9867_PWRMAN_SHDN);
+
+	return 0;
+}
+
+static SOC_ENUM_SINGLE_EXT_DECL(max9867_filter, max9867_filter_text);
+static SOC_ENUM_SINGLE_DECL(max9867_dac_filter, MAX9867_CODECFLTR, 0,
+	max9867_adc_dac_filter_text);
+static SOC_ENUM_SINGLE_DECL(max9867_adc_filter, MAX9867_CODECFLTR, 4,
+	max9867_adc_dac_filter_text);
 static SOC_ENUM_SINGLE_DECL(max9867_spkmode, MAX9867_MODECONFIG, 0,
 	max9867_spmode);
 static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(max9867_master_tlv,
@@ -46,24 +161,27 @@ static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(max9867_micboost_tlv,
 
 static const struct snd_kcontrol_new max9867_snd_controls[] = {
 	SOC_DOUBLE_R_TLV("Master Playback Volume", MAX9867_LEFTVOL,
-			MAX9867_RIGHTVOL, 0, 41, 1, max9867_master_tlv),
+			MAX9867_RIGHTVOL, 0, 40, 1, max9867_master_tlv),
 	SOC_DOUBLE_R_TLV("Line Capture Volume", MAX9867_LEFTLINELVL,
 			MAX9867_RIGHTLINELVL, 0, 15, 1, max9867_line_tlv),
 	SOC_DOUBLE_R_TLV("Mic Capture Volume", MAX9867_LEFTMICGAIN,
 			MAX9867_RIGHTMICGAIN, 0, 20, 1, max9867_mic_tlv),
 	SOC_DOUBLE_R_TLV("Mic Boost Capture Volume", MAX9867_LEFTMICGAIN,
-			MAX9867_RIGHTMICGAIN, 5, 4, 0, max9867_micboost_tlv),
+			MAX9867_RIGHTMICGAIN, 5, 3, 0, max9867_micboost_tlv),
 	SOC_SINGLE("Digital Sidetone Volume", MAX9867_SIDETONE, 0, 31, 1),
 	SOC_SINGLE_TLV("Digital Playback Volume", MAX9867_DACLEVEL, 0, 15, 1,
 			max9867_dac_tlv),
 	SOC_SINGLE_TLV("Digital Boost Playback Volume", MAX9867_DACLEVEL, 4, 3, 0,
 			max9867_dacboost_tlv),
-	SOC_DOUBLE_TLV("Digital Capture Volume", MAX9867_ADCLEVEL, 0, 4, 15, 1,
+	SOC_DOUBLE_TLV("Digital Capture Volume", MAX9867_ADCLEVEL, 4, 0, 15, 1,
 			max9867_adc_tlv),
 	SOC_ENUM("Speaker Mode", max9867_spkmode),
 	SOC_SINGLE("Volume Smoothing Switch", MAX9867_MODECONFIG, 6, 1, 0),
 	SOC_SINGLE("Line ZC Switch", MAX9867_MODECONFIG, 5, 1, 0),
-	SOC_ENUM("DSP Filter", max9867_filter),
+	SOC_ENUM_EXT("DSP Filter", max9867_filter, max9867_filter_get, max9867_filter_set),
+	SOC_ENUM("ADC Filter", max9867_adc_filter),
+	SOC_ENUM("DAC Filter", max9867_dac_filter),
+	SOC_SINGLE("Mono Playback Switch", MAX9867_IFC1B, 3, 1, 0),
 };
 
 /* Input mixer */
@@ -88,20 +206,42 @@ static const struct snd_kcontrol_new max9867_line_out_control =
 	SOC_DAPM_DOUBLE_R("Switch",
 			  MAX9867_LEFTVOL, MAX9867_RIGHTVOL, 6, 1, 1);
 
+/* DMIC mux */
+static const char *const dmic_mux_text[] = {
+	"ADC", "DMIC"
+};
+static SOC_ENUM_SINGLE_DECL(left_dmic_mux_enum,
+			    MAX9867_MICCONFIG, 5, dmic_mux_text);
+static SOC_ENUM_SINGLE_DECL(right_dmic_mux_enum,
+			    MAX9867_MICCONFIG, 4, dmic_mux_text);
+static const struct snd_kcontrol_new max9867_left_dmic_mux =
+	SOC_DAPM_ENUM("DMICL Mux", left_dmic_mux_enum);
+static const struct snd_kcontrol_new max9867_right_dmic_mux =
+	SOC_DAPM_ENUM("DMICR Mux", right_dmic_mux_enum);
 
 static const struct snd_soc_dapm_widget max9867_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MICL"),
 	SND_SOC_DAPM_INPUT("MICR"),
+	SND_SOC_DAPM_INPUT("DMICL"),
+	SND_SOC_DAPM_INPUT("DMICR"),
 	SND_SOC_DAPM_INPUT("LINL"),
 	SND_SOC_DAPM_INPUT("LINR"),
 
-	SND_SOC_DAPM_PGA("Left Line Input", MAX9867_PWRMAN, 6, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Right Line Input", MAX9867_PWRMAN, 5, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Left Line Input", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Right Line Input", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER_NAMED_CTL("Input Mixer", SND_SOC_NOPM, 0, 0,
 				     max9867_input_mixer_controls,
 				     ARRAY_SIZE(max9867_input_mixer_controls)),
-	SND_SOC_DAPM_ADC("ADCL", "HiFi Capture", MAX9867_PWRMAN, 1, 0),
-	SND_SOC_DAPM_ADC("ADCR", "HiFi Capture", MAX9867_PWRMAN, 0, 0),
+	SND_SOC_DAPM_MUX("DMICL Mux", SND_SOC_NOPM, 0, 0,
+			 &max9867_left_dmic_mux),
+	SND_SOC_DAPM_MUX("DMICR Mux", SND_SOC_NOPM, 0, 0,
+			 &max9867_right_dmic_mux),
+	SND_SOC_DAPM_ADC_E("ADCL", "HiFi Capture", SND_SOC_NOPM, 0, 0,
+			   max9867_adc_dac_event,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_ADC_E("ADCR", "HiFi Capture", SND_SOC_NOPM, 0, 0,
+			   max9867_adc_dac_event,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_MIXER("Digital", SND_SOC_NOPM, 0, 0,
 			   max9867_sidetone_mixer_controls,
@@ -109,8 +249,12 @@ static const struct snd_soc_dapm_widget max9867_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER_NAMED_CTL("Output Mixer", SND_SOC_NOPM, 0, 0,
 				     max9867_output_mixer_controls,
 				     ARRAY_SIZE(max9867_output_mixer_controls)),
-	SND_SOC_DAPM_DAC("DACL", "HiFi Playback", MAX9867_PWRMAN, 3, 0),
-	SND_SOC_DAPM_DAC("DACR", "HiFi Playback", MAX9867_PWRMAN, 2, 0),
+	SND_SOC_DAPM_DAC_E("DACL", "HiFi Playback", SND_SOC_NOPM, 0, 0,
+			   max9867_adc_dac_event,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_DAC_E("DACR", "HiFi Playback", SND_SOC_NOPM, 0, 0,
+			   max9867_adc_dac_event,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SWITCH("Master Playback", SND_SOC_NOPM, 0, 0,
 			    &max9867_line_out_control),
 	SND_SOC_DAPM_OUTPUT("LOUT"),
@@ -124,8 +268,12 @@ static const struct snd_soc_dapm_route max9867_audio_map[] = {
 	{"Input Mixer", "Mic Capture Switch", "MICR"},
 	{"Input Mixer", "Line Capture Switch", "Left Line Input"},
 	{"Input Mixer", "Line Capture Switch", "Right Line Input"},
-	{"ADCL", NULL, "Input Mixer"},
-	{"ADCR", NULL, "Input Mixer"},
+	{"DMICL Mux", "DMIC", "DMICL"},
+	{"DMICR Mux", "DMIC", "DMICR"},
+	{"DMICL Mux", "ADC", "Input Mixer"},
+	{"DMICR Mux", "ADC", "Input Mixer"},
+	{"ADCL", NULL, "DMICL Mux"},
+	{"ADCR", NULL, "DMICR Mux"},
 
 	{"Digital", "Sidetone Switch", "ADCL"},
 	{"Digital", "Sidetone Switch", "ADCR"},
@@ -157,13 +305,6 @@ static const unsigned int max9867_rates_48k[] = {
 static const struct snd_pcm_hw_constraint_list max9867_constraints_48k = {
 	.list = max9867_rates_48k,
 	.count = ARRAY_SIZE(max9867_rates_48k),
-};
-
-struct max9867_priv {
-	struct regmap *regmap;
-	const struct snd_pcm_hw_constraint_list *constraints;
-	unsigned int sysclk, pclk;
-	bool master, dsp_a;
 };
 
 static int max9867_startup(struct snd_pcm_substream *substream,
@@ -245,7 +386,7 @@ static int max9867_dai_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int max9867_mute(struct snd_soc_dai *dai, int mute)
+static int max9867_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct max9867_priv *max9867 = snd_soc_component_get_drvdata(component);
@@ -346,7 +487,8 @@ static int max9867_dai_set_fmt(struct snd_soc_dai *codec_dai,
 	}
 
 	regmap_write(max9867->regmap, MAX9867_IFC1A, iface1A);
-	regmap_write(max9867->regmap, MAX9867_IFC1B, iface1B);
+	regmap_update_bits(max9867->regmap, MAX9867_IFC1B,
+			   MAX9867_IFC1B_BCLK_MASK, iface1B);
 
 	return 0;
 }
@@ -354,9 +496,10 @@ static int max9867_dai_set_fmt(struct snd_soc_dai *codec_dai,
 static const struct snd_soc_dai_ops max9867_dai_ops = {
 	.set_sysclk	= max9867_set_dai_sysclk,
 	.set_fmt	= max9867_dai_set_fmt,
-	.digital_mute	= max9867_mute,
+	.mute_stream	= max9867_mute,
 	.startup	= max9867_startup,
 	.hw_params	= max9867_dai_hw_params,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver max9867_dai[] = {
@@ -413,15 +556,14 @@ static int max9867_set_bias_level(struct snd_soc_component *component,
 			if (err)
 				return err;
 
-			err = regmap_update_bits(max9867->regmap, MAX9867_PWRMAN,
-						 MAX9867_SHTDOWN, MAX9867_SHTDOWN);
+			err = regmap_write(max9867->regmap,
+					   MAX9867_PWRMAN, 0xff);
 			if (err)
 				return err;
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		err = regmap_update_bits(max9867->regmap, MAX9867_PWRMAN,
-					 MAX9867_SHTDOWN, 0);
+		err = regmap_write(max9867->regmap, MAX9867_PWRMAN, 0);
 		if (err)
 			return err;
 
@@ -463,35 +605,10 @@ static bool max9867_volatile_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct reg_default max9867_reg[] = {
-	{ 0x04, 0x00 },
-	{ 0x05, 0x00 },
-	{ 0x06, 0x00 },
-	{ 0x07, 0x00 },
-	{ 0x08, 0x00 },
-	{ 0x09, 0x00 },
-	{ 0x0A, 0x00 },
-	{ 0x0B, 0x00 },
-	{ 0x0C, 0x00 },
-	{ 0x0D, 0x00 },
-	{ 0x0E, 0x40 },
-	{ 0x0F, 0x40 },
-	{ 0x10, 0x00 },
-	{ 0x11, 0x00 },
-	{ 0x12, 0x00 },
-	{ 0x13, 0x00 },
-	{ 0x14, 0x00 },
-	{ 0x15, 0x00 },
-	{ 0x16, 0x00 },
-	{ 0x17, 0x00 },
-};
-
 static const struct regmap_config max9867_regmap = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
 	.max_register	= MAX9867_REVISION,
-	.reg_defaults	= max9867_reg,
-	.num_reg_defaults = ARRAY_SIZE(max9867_reg),
 	.volatile_reg	= max9867_volatile_register,
 	.cache_type	= REGCACHE_RBTREE,
 };

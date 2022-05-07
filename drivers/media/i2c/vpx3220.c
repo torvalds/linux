@@ -375,7 +375,7 @@ static int vpx3220_s_routing(struct v4l2_subdev *sd,
 		 input = 1: COMPOSITE  input
 		 input = 2: SVHS       input  */
 
-	const int input_vals[3][2] = {
+	static const int input_vals[3][2] = {
 		{0x0c, 0},
 		{0x0d, 0},
 		{0x0e, 1}

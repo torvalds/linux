@@ -87,8 +87,8 @@
 		status = "disabled";
 		reg = <0 0x2b060000 0 0x1000>;
 		interrupts = <0 98 4>;
-		clocks = <&sys_pll>;
-		clock-names = "apb_pclk";
+		clocks = <&sys_pll>, <&sys_pll>;
+		clock-names = "wdog_clk", "apb_pclk";
 	};
 
 	gic: interrupt-controller@2c001000 {
@@ -236,7 +236,7 @@
 		};
 	};
 
-	smb@8000000 {
+	bus@8000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;

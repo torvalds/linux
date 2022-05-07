@@ -3,32 +3,70 @@
  * This contains the io-permission bitmap code - written by obz, with changes
  * by Linus. 32/64 bits code unification by Miguel Botón.
  */
-
-#include <linux/sched.h>
-#include <linux/sched/task_stack.h>
-#include <linux/kernel.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/ioport.h>
 #include <linux/security.h>
-#include <linux/smp.h>
-#include <linux/stddef.h>
-#include <linux/slab.h>
-#include <linux/thread_info.h>
 #include <linux/syscalls.h>
 #include <linux/bitmap.h>
-#include <asm/syscalls.h>
+#include <linux/ioport.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+
+#include <asm/io_bitmap.h>
 #include <asm/desc.h>
+#include <asm/syscalls.h>
+
+#ifdef CONFIG_X86_IOPL_IOPERM
+
+static atomic64_t io_bitmap_sequence;
+
+void io_bitmap_share(struct task_struct *tsk)
+{
+	/* Can be NULL when current->thread.iopl_emul == 3 */
+	if (current->thread.io_bitmap) {
+		/*
+		 * Take a refcount on current's bitmap. It can be used by
+		 * both tasks as long as none of them changes the bitmap.
+		 */
+		refcount_inc(&current->thread.io_bitmap->refcnt);
+		tsk->thread.io_bitmap = current->thread.io_bitmap;
+	}
+	set_tsk_thread_flag(tsk, TIF_IO_BITMAP);
+}
+
+static void task_update_io_bitmap(struct task_struct *tsk)
+{
+	struct thread_struct *t = &tsk->thread;
+
+	if (t->iopl_emul == 3 || t->io_bitmap) {
+		/* TSS update is handled on exit to user space */
+		set_tsk_thread_flag(tsk, TIF_IO_BITMAP);
+	} else {
+		clear_tsk_thread_flag(tsk, TIF_IO_BITMAP);
+		/* Invalidate TSS */
+		preempt_disable();
+		tss_update_io_bitmap();
+		preempt_enable();
+	}
+}
+
+void io_bitmap_exit(struct task_struct *tsk)
+{
+	struct io_bitmap *iobm = tsk->thread.io_bitmap;
+
+	tsk->thread.io_bitmap = NULL;
+	task_update_io_bitmap(tsk);
+	if (iobm && refcount_dec_and_test(&iobm->refcnt))
+		kfree(iobm);
+}
 
 /*
- * this changes the io permissions bitmap in the current task.
+ * This changes the io permissions bitmap in the current task.
  */
 long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 {
 	struct thread_struct *t = &current->thread;
-	struct tss_struct *tss;
-	unsigned int i, max_long, bytes, bytes_updated;
+	unsigned int i, max_long;
+	struct io_bitmap *iobm;
 
 	if ((from + num <= from) || (from + num > IO_BITMAP_BITS))
 		return -EINVAL;
@@ -41,59 +79,72 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 * IO bitmap up. ioperm() is much less timing critical than clone(),
 	 * this is why we delay this operation until now:
 	 */
-	if (!t->io_bitmap_ptr) {
-		unsigned long *bitmap = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
-
-		if (!bitmap)
+	iobm = t->io_bitmap;
+	if (!iobm) {
+		/* No point to allocate a bitmap just to clear permissions */
+		if (!turn_on)
+			return 0;
+		iobm = kmalloc(sizeof(*iobm), GFP_KERNEL);
+		if (!iobm)
 			return -ENOMEM;
 
-		memset(bitmap, 0xff, IO_BITMAP_BYTES);
-		t->io_bitmap_ptr = bitmap;
-		set_thread_flag(TIF_IO_BITMAP);
-
-		/*
-		 * Now that we have an IO bitmap, we need our TSS limit to be
-		 * correct.  It's fine if we are preempted after doing this:
-		 * with TIF_IO_BITMAP set, context switches will keep our TSS
-		 * limit correct.
-		 */
-		preempt_disable();
-		refresh_tss_limit();
-		preempt_enable();
+		memset(iobm->bitmap, 0xff, sizeof(iobm->bitmap));
+		refcount_set(&iobm->refcnt, 1);
 	}
 
 	/*
-	 * do it in the per-thread copy and in the TSS ...
-	 *
-	 * Disable preemption via get_cpu() - we must not switch away
-	 * because the ->io_bitmap_max value must match the bitmap
-	 * contents:
+	 * If the bitmap is not shared, then nothing can take a refcount as
+	 * current can obviously not fork at the same time. If it's shared
+	 * duplicate it and drop the refcount on the original one.
 	 */
-	tss = &per_cpu(cpu_tss_rw, get_cpu());
+	if (refcount_read(&iobm->refcnt) > 1) {
+		iobm = kmemdup(iobm, sizeof(*iobm), GFP_KERNEL);
+		if (!iobm)
+			return -ENOMEM;
+		refcount_set(&iobm->refcnt, 1);
+		io_bitmap_exit(current);
+	}
 
+	/*
+	 * Store the bitmap pointer (might be the same if the task already
+	 * head one). Must be done here so freeing the bitmap when all
+	 * permissions are dropped has the pointer set up.
+	 */
+	t->io_bitmap = iobm;
+	/* Mark it active for context switching and exit to user mode */
+	set_thread_flag(TIF_IO_BITMAP);
+
+	/*
+	 * Update the tasks bitmap. The update of the TSS bitmap happens on
+	 * exit to user mode. So this needs no protection.
+	 */
 	if (turn_on)
-		bitmap_clear(t->io_bitmap_ptr, from, num);
+		bitmap_clear(iobm->bitmap, from, num);
 	else
-		bitmap_set(t->io_bitmap_ptr, from, num);
+		bitmap_set(iobm->bitmap, from, num);
 
 	/*
 	 * Search for a (possibly new) maximum. This is simple and stupid,
 	 * to keep it obviously correct:
 	 */
-	max_long = 0;
-	for (i = 0; i < IO_BITMAP_LONGS; i++)
-		if (t->io_bitmap_ptr[i] != ~0UL)
+	max_long = UINT_MAX;
+	for (i = 0; i < IO_BITMAP_LONGS; i++) {
+		if (iobm->bitmap[i] != ~0UL)
 			max_long = i;
+	}
+	/* All permissions dropped? */
+	if (max_long == UINT_MAX) {
+		io_bitmap_exit(current);
+		return 0;
+	}
 
-	bytes = (max_long + 1) * sizeof(unsigned long);
-	bytes_updated = max(bytes, t->io_bitmap_max);
+	iobm->max = (max_long + 1) * sizeof(unsigned long);
 
-	t->io_bitmap_max = bytes;
-
-	/* Update the TSS: */
-	memcpy(tss->io_bitmap, t->io_bitmap_ptr, bytes_updated);
-
-	put_cpu();
+	/*
+	 * Update the sequence number to force a TSS update on return to
+	 * user mode.
+	 */
+	iobm->sequence = atomic64_add_return(1, &io_bitmap_sequence);
 
 	return 0;
 }
@@ -104,38 +155,61 @@ SYSCALL_DEFINE3(ioperm, unsigned long, from, unsigned long, num, int, turn_on)
 }
 
 /*
- * sys_iopl has to be used when you want to access the IO ports
- * beyond the 0x3ff range: to get the full 65536 ports bitmapped
- * you'd need 8kB of bitmaps/process, which is a bit excessive.
+ * The sys_iopl functionality depends on the level argument, which if
+ * granted for the task is used to enable access to all 65536 I/O ports.
  *
- * Here we just change the flags value on the stack: we allow
- * only the super-user to do it. This depends on the stack-layout
- * on system-call entry - see also fork() and the signal handling
- * code.
+ * This does not use the IOPL mechanism provided by the CPU as that would
+ * also allow the user space task to use the CLI/STI instructions.
+ *
+ * Disabling interrupts in a user space task is dangerous as it might lock
+ * up the machine and the semantics vs. syscalls and exceptions is
+ * undefined.
+ *
+ * Setting IOPL to level 0-2 is disabling I/O permissions. Level 3
+ * 3 enables them.
+ *
+ * IOPL is strictly per thread and inherited on fork.
  */
 SYSCALL_DEFINE1(iopl, unsigned int, level)
 {
-	struct pt_regs *regs = current_pt_regs();
 	struct thread_struct *t = &current->thread;
-
-	/*
-	 * Careful: the IOPL bits in regs->flags are undefined under Xen PV
-	 * and changing them has no effect.
-	 */
-	unsigned int old = t->iopl >> X86_EFLAGS_IOPL_BIT;
+	unsigned int old;
 
 	if (level > 3)
 		return -EINVAL;
+
+	old = t->iopl_emul;
+
+	/* No point in going further if nothing changes */
+	if (level == old)
+		return 0;
+
 	/* Trying to gain more privileges? */
 	if (level > old) {
 		if (!capable(CAP_SYS_RAWIO) ||
 		    security_locked_down(LOCKDOWN_IOPORT))
 			return -EPERM;
 	}
-	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) |
-		(level << X86_EFLAGS_IOPL_BIT);
-	t->iopl = level << X86_EFLAGS_IOPL_BIT;
-	set_iopl_mask(t->iopl);
+
+	t->iopl_emul = level;
+	task_update_io_bitmap(current);
 
 	return 0;
 }
+
+#else /* CONFIG_X86_IOPL_IOPERM */
+
+long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
+{
+	return -ENOSYS;
+}
+SYSCALL_DEFINE3(ioperm, unsigned long, from, unsigned long, num, int, turn_on)
+{
+	return -ENOSYS;
+}
+
+SYSCALL_DEFINE1(iopl, unsigned int, level)
+{
+	return -ENOSYS;
+}
+#endif

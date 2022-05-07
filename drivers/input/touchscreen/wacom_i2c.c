@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <asm/unaligned.h>
 
 #define WACOM_CMD_QUERY0	0x04

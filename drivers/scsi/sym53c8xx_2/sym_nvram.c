@@ -227,7 +227,7 @@ static void sym_display_Tekram_nvram(struct sym_device *np, Tekram_nvram *nvram)
 /*
  *  24C16 EEPROM reading.
  *
- *  GPOI0 - data in/data out
+ *  GPIO0 - data in/data out
  *  GPIO1 - clock
  *  Symbios NVRAM wiring now also used by Tekram.
  */
@@ -524,7 +524,7 @@ static int sym_read_Symbios_nvram(struct sym_device *np, Symbios_nvram *nvram)
 /*
  *  93C46 EEPROM reading.
  *
- *  GPOI0 - data in
+ *  GPIO0 - data in
  *  GPIO1 - data out
  *  GPIO2 - clock
  *  GPIO4 - chip select
@@ -695,7 +695,7 @@ static int sym_read_Tekram_nvram (struct sym_device *np, Tekram_nvram *nvram)
 					  data, len);
 		if (!x)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		x = sym_read_T93C46_nvram(np, nvram);
 		break;

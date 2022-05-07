@@ -11,6 +11,8 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
 #include "s5pv210.dtsi"
 
@@ -33,52 +35,49 @@
 			0x50000000 0x08000000>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	pmic_ap_clk: clock-0 {
+		/* Workaround for missing clock on PMIC */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+	};
 
-		vtf_reg: fixed-regulator@0 {
-			compatible = "regulator-fixed";
-			regulator-name = "V_TF_2.8V";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
-			reg = <0>;
-			gpio = <&mp05 4 0>;
-			enable-active-high;
-		};
+	vtf_reg: regulator-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_TF_2.8V";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		gpio = <&mp05 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-		pda_reg: fixed-regulator@1 {
-			compatible = "regulator-fixed";
-			regulator-name = "VCC_1.8V_PDA";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			reg = <1>;
-		};
+	pda_reg: regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_1.8V_PDA";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
 
-		bat_reg: fixed-regulator@2 {
-			compatible = "regulator-fixed";
-			regulator-name = "V_BAT";
-			regulator-min-microvolt = <3700000>;
-			regulator-max-microvolt = <3700000>;
-			reg = <2>;
-		};
+	bat_reg: regulator-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_BAT";
+		regulator-min-microvolt = <3700000>;
+		regulator-max-microvolt = <3700000>;
+	};
 
-		tsp_reg: fixed-regulator@3 {
-			compatible = "regulator-fixed";
-			regulator-name = "TSP_VDD";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
-			reg = <3>;
-			gpio = <&gpj1 3 0>;
-			enable-active-high;
-		};
+	tsp_reg: regulator-3 {
+		compatible = "regulator-fixed";
+		regulator-name = "TSP_VDD";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		gpio = <&gpj1 3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	i2c_pmic: i2c-pmic {
 		compatible = "i2c-gpio";
-		gpios = <&gpj4 0 0>, /* sda */
-			<&gpj4 3 0>; /* scl */
+		sda-gpios = <&gpj4 0 GPIO_ACTIVE_HIGH>;
+		scl-gpios = <&gpj4 3 GPIO_ACTIVE_HIGH>;
 		i2c-gpio,delay-us = <2>;        /* ~100 kHz */
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -88,13 +87,13 @@
 			reg = <0x66>;
 
 			max8998,pmic-buck1-default-dvs-idx = <0>;
-			max8998,pmic-buck1-dvs-gpios = <&gph0 3 0>,
-							<&gph0 4 0>;
+			max8998,pmic-buck1-dvs-gpios = <&gph0 3 GPIO_ACTIVE_HIGH>,
+							<&gph0 4 GPIO_ACTIVE_HIGH>;
 			max8998,pmic-buck1-dvs-voltage = <1200000>, <1200000>,
 							<1200000>, <1200000>;
 
 			max8998,pmic-buck2-default-dvs-idx = <0>;
-			max8998,pmic-buck2-dvs-gpio = <&gph0 5 0>;
+			max8998,pmic-buck2-dvs-gpio = <&gph0 5 GPIO_ACTIVE_HIGH>;
 			max8998,pmic-buck2-dvs-voltage = <1200000>, <1200000>;
 
 			regulators {
@@ -224,6 +223,11 @@
 					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 				};
+
+				ap32khz_reg: EN32KHz-AP {
+					regulator-name = "32KHz AP";
+					regulator-always-on;
+				};
 			};
 		};
 	};
@@ -308,6 +312,11 @@
 	status = "okay";
 };
 
+&rtc {
+	clocks = <&clocks CLK_RTC>, <&pmic_ap_clk>;
+	clock-names = "rtc", "rtc_src";
+};
+
 &sdhci0 {
 	bus-width = <4>;
 	non-removable;
@@ -348,7 +357,7 @@
 		compatible = "atmel,maxtouch";
 		reg = <0x4a>;
 		interrupt-parent = <&gpj0>;
-		interrupts = <5 2>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 
 		atmel,x-line = <17>;
 		atmel,y-line = <11>;
@@ -378,8 +387,8 @@
 		clock-frequency = <16000000>;
 		clocks = <&camera 0>;
 		clock-names = "mclk";
-		nreset-gpios = <&gpb 2 0>;
-		nstby-gpios = <&gpb 0 0>;
+		nreset-gpios = <&gpb 2 GPIO_ACTIVE_HIGH>;
+		nstby-gpios = <&gpb 0 GPIO_ACTIVE_HIGH>;
 
 		port {
 			noon010pc30_ep: endpoint {

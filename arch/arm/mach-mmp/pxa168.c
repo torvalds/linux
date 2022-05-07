@@ -19,9 +19,8 @@
 #include <asm/system_misc.h>
 
 #include "addr-map.h"
-#include "clock.h"
 #include "common.h"
-#include "cputype.h"
+#include <linux/soc/mmp/cputype.h>
 #include "devices.h"
 #include "irqs.h"
 #include "mfp.h"

@@ -2,6 +2,7 @@
 /* Copyright 2017-2019 NXP */
 
 #include "enetc.h"
+#include <linux/pcs-lynx.h>
 
 #define ENETC_PF_NUM_RINGS	8
 
@@ -44,12 +45,16 @@ struct enetc_pf {
 	DECLARE_BITMAP(active_vlans, VLAN_N_VID);
 
 	struct mii_bus *mdio; /* saved for cleanup */
+	struct mii_bus *imdio;
+	struct lynx_pcs *pcs;
+
+	phy_interface_t if_mode;
+	struct phylink_config phylink_config;
 };
+
+#define phylink_to_enetc_pf(config) \
+	container_of((config), struct enetc_pf, phylink_config)
 
 int enetc_msg_psi_init(struct enetc_pf *pf);
 void enetc_msg_psi_free(struct enetc_pf *pf);
 void enetc_msg_handle_rxmsg(struct enetc_pf *pf, int mbox_id, u16 *status);
-
-/* MDIO */
-int enetc_mdio_probe(struct enetc_pf *pf);
-void enetc_mdio_remove(struct enetc_pf *pf);

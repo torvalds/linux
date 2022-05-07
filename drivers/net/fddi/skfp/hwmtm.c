@@ -10,10 +10,6 @@
  *
  ******************************************************************************/
 
-#ifndef	lint
-static char const ID_sccs[] = "@(#)hwmtm.c	1.40 99/05/31 (C) SK" ;
-#endif
-
 #define	HWMTM
 
 #ifndef FDDI

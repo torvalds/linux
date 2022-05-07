@@ -107,7 +107,7 @@ static inline void sas_smp_host_handler(struct bsg_job *job,
 
 static inline void sas_fail_probe(struct domain_device *dev, const char *func, int err)
 {
-	pr_warn("%s: for %s device %16llx returned %d\n",
+	pr_warn("%s: for %s device %016llx returned %d\n",
 		func, dev->parent ? "exp-attached" :
 		"direct-attached",
 		SAS_ADDR(dev->sas_addr), err);

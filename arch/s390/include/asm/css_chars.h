@@ -36,7 +36,9 @@ struct css_general_char {
 	u64 alt_ssi : 1; /* bit 108 */
 	u64 : 1;
 	u64 narf : 1;	 /* bit 110 */
-	u64 : 12;
+	u64 : 5;
+	u64 enarf: 1;	 /* bit 116 */
+	u64 : 6;
 	u64 util_str : 1;/* bit 123 */
 } __packed;
 

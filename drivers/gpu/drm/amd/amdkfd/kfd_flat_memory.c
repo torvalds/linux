@@ -316,12 +316,12 @@ static void kfd_init_apertures_vi(struct kfd_process_device *pdd, uint8_t id)
 {
 	/*
 	 * node id couldn't be 0 - the three MSB bits of
-	 * aperture shoudn't be 0
+	 * aperture shouldn't be 0
 	 */
 	pdd->lds_base = MAKE_LDS_APP_BASE_VI();
 	pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
 
-	if (!pdd->dev->device_info->needs_iommu_device) {
+	if (!pdd->dev->use_iommu_v2) {
 		/* dGPUs: SVM aperture starting at 0
 		 * with small reserved space for kernel.
 		 * Set them to CANONICAL addresses.
@@ -369,8 +369,13 @@ int kfd_init_apertures(struct kfd_process *process)
 
 	/*Iterating over all devices*/
 	while (kfd_topology_enum_kfd_devices(id, &dev) == 0) {
-		if (!dev) {
-			id++; /* Skip non GPU devices */
+		if (!dev || kfd_devcgroup_check_permission(dev)) {
+			/* Skip non GPU devices and devices to which the
+			 * current process have no access to. Access can be
+			 * limited by placing the process in a specific
+			 * cgroup hierarchy
+			 */
+			id++;
 			continue;
 		}
 
@@ -405,8 +410,13 @@ int kfd_init_apertures(struct kfd_process *process)
 			case CHIP_VEGA12:
 			case CHIP_VEGA20:
 			case CHIP_RAVEN:
+			case CHIP_RENOIR:
 			case CHIP_ARCTURUS:
 			case CHIP_NAVI10:
+			case CHIP_NAVI12:
+			case CHIP_NAVI14:
+			case CHIP_SIENNA_CICHLID:
+			case CHIP_NAVY_FLOUNDER:
 				kfd_init_apertures_v9(pdd, id);
 				break;
 			default:
@@ -415,7 +425,7 @@ int kfd_init_apertures(struct kfd_process *process)
 				return -EINVAL;
 			}
 
-			if (!dev->device_info->needs_iommu_device) {
+			if (!dev->use_iommu_v2) {
 				/* dGPUs: the reserved space for kernel
 				 * before SVM
 				 */

@@ -142,26 +142,12 @@ static void devm_iio_hw_consumer_release(struct device *dev, void *res)
 	iio_hw_consumer_free(*(struct iio_hw_consumer **)res);
 }
 
-static int devm_iio_hw_consumer_match(struct device *dev, void *res, void *data)
-{
-	struct iio_hw_consumer **r = res;
-
-	if (!r || !*r) {
-		WARN_ON(!r || !*r);
-		return 0;
-	}
-	return *r == data;
-}
-
 /**
  * devm_iio_hw_consumer_alloc - Resource-managed iio_hw_consumer_alloc()
  * @dev: Pointer to consumer device.
  *
  * Managed iio_hw_consumer_alloc. iio_hw_consumer allocated with this function
  * is automatically freed on driver detach.
- *
- * If an iio_hw_consumer allocated with this function needs to be freed
- * separately, devm_iio_hw_consumer_free() must be used.
  *
  * returns pointer to allocated iio_hw_consumer on success, NULL on failure.
  */
@@ -185,23 +171,6 @@ struct iio_hw_consumer *devm_iio_hw_consumer_alloc(struct device *dev)
 	return iio_hwc;
 }
 EXPORT_SYMBOL_GPL(devm_iio_hw_consumer_alloc);
-
-/**
- * devm_iio_hw_consumer_free - Resource-managed iio_hw_consumer_free()
- * @dev: Pointer to consumer device.
- * @hwc: iio_hw_consumer to free.
- *
- * Free iio_hw_consumer allocated with devm_iio_hw_consumer_alloc().
- */
-void devm_iio_hw_consumer_free(struct device *dev, struct iio_hw_consumer *hwc)
-{
-	int rc;
-
-	rc = devres_release(dev, devm_iio_hw_consumer_release,
-			    devm_iio_hw_consumer_match, hwc);
-	WARN_ON(rc);
-}
-EXPORT_SYMBOL_GPL(devm_iio_hw_consumer_free);
 
 /**
  * iio_hw_consumer_enable() - Enable IIO hardware consumer

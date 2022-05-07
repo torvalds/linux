@@ -1,6 +1,28 @@
-=============
- Thunderbolt
-=============
+.. SPDX-License-Identifier: GPL-2.0
+
+======================
+ USB4 and Thunderbolt
+======================
+USB4 is the public specification based on Thunderbolt 3 protocol with
+some differences at the register level among other things. Connection
+manager is an entity running on the host router (host controller)
+responsible for enumerating routers and establishing tunnels. A
+connection manager can be implemented either in firmware or software.
+Typically PCs come with a firmware connection manager for Thunderbolt 3
+and early USB4 capable systems. Apple systems on the other hand use
+software connection manager and the later USB4 compliant devices follow
+the suit.
+
+The Linux Thunderbolt driver supports both and can detect at runtime which
+connection manager implementation is to be used. To be on the safe side the
+software connection manager in Linux also advertises security level
+``user`` which means PCIe tunneling is disabled by default. The
+documentation below applies to both implementations with the exception that
+the software connection manager only supports ``user`` security level and
+is expected to be accompanied with an IOMMU based DMA protection.
+
+Security levels and how to use them
+-----------------------------------
 The interface presented here is not meant for end users. Instead there
 should be a userspace tool that handles all the low-level details, keeps
 a database of the authorized devices and prompts users for new connections.
@@ -18,8 +40,6 @@ This will authorize all devices automatically when they appear. However,
 keep in mind that this bypasses the security levels and makes the system
 vulnerable to DMA attacks.
 
-Security levels and how to use them
------------------------------------
 Starting with Intel Falcon Ridge Thunderbolt controller there are 4
 security levels available. Intel Titan Ridge added one more security level
 (usbonly). The reason for these is the fact that the connected devices can
@@ -153,8 +173,8 @@ following ``udev`` rule::
 
   ACTION=="add", SUBSYSTEM=="thunderbolt", ATTRS{iommu_dma_protection}=="1", ATTR{authorized}=="0", ATTR{authorized}="1"
 
-Upgrading NVM on Thunderbolt device or host
--------------------------------------------
+Upgrading NVM on Thunderbolt device, host or retimer
+----------------------------------------------------
 Since most of the functionality is handled in firmware running on a
 host controller or a device, it is important that the firmware can be
 upgraded to the latest where possible bugs in it have been fixed.
@@ -165,9 +185,10 @@ for some machines:
 
   `Thunderbolt Updates <https://thunderbolttechnology.net/updates>`_
 
-Before you upgrade firmware on a device or host, please make sure it is a
-suitable upgrade. Failing to do that may render the device (or host) in a
-state where it cannot be used properly anymore without special tools!
+Before you upgrade firmware on a device, host or retimer, please make
+sure it is a suitable upgrade. Failing to do that may render the device
+in a state where it cannot be used properly anymore without special
+tools!
 
 Host NVM upgrade on Apple Macs is not supported.
 

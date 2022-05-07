@@ -3,6 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
  * Copyright (c) 2004-2009 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
@@ -59,16 +60,16 @@
 
 /* define two XPC debug device structures to be used with dev_dbg() et al */
 
-struct device_driver xpc_dbg_name = {
+static struct device_driver xpc_dbg_name = {
 	.name = "xpc"
 };
 
-struct device xpc_part_dbg_subname = {
+static struct device xpc_part_dbg_subname = {
 	.init_name = "",	/* set to "part" at xpc_init() time */
 	.driver = &xpc_dbg_name
 };
 
-struct device xpc_chan_dbg_subname = {
+static struct device xpc_chan_dbg_subname = {
 	.init_name = "",	/* set to "chan" at xpc_init() time */
 	.driver = &xpc_dbg_name
 };
@@ -1043,7 +1044,7 @@ xpc_do_exit(enum xp_retval reason)
 
 	xpc_teardown_partitions();
 
-	if (is_uv())
+	if (is_uv_system())
 		xpc_exit_uv();
 }
 
@@ -1173,7 +1174,7 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 		if (!xpc_kdebug_ignore)
 			break;
 
-		/* fall through */
+		fallthrough;
 	case DIE_MCA_MONARCH_ENTER:
 	case DIE_INIT_MONARCH_ENTER:
 		xpc_arch_ops.offline_heartbeat();
@@ -1184,7 +1185,7 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 		if (!xpc_kdebug_ignore)
 			break;
 
-		/* fall through */
+		fallthrough;
 	case DIE_MCA_MONARCH_LEAVE:
 	case DIE_INIT_MONARCH_LEAVE:
 		xpc_arch_ops.online_heartbeat();
@@ -1217,7 +1218,7 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 	return NOTIFY_DONE;
 }
 
-int __init
+static int __init
 xpc_init(void)
 {
 	int ret;
@@ -1226,7 +1227,7 @@ xpc_init(void)
 	dev_set_name(xpc_part, "part");
 	dev_set_name(xpc_chan, "chan");
 
-	if (is_uv()) {
+	if (is_uv_system()) {
 		ret = xpc_init_uv();
 
 	} else {
@@ -1312,14 +1313,14 @@ out_2:
 
 	xpc_teardown_partitions();
 out_1:
-	if (is_uv())
+	if (is_uv_system())
 		xpc_exit_uv();
 	return ret;
 }
 
 module_init(xpc_init);
 
-void __exit
+static void __exit
 xpc_exit(void)
 {
 	xpc_do_exit(xpUnloading);

@@ -17,7 +17,6 @@
 #include <asm/mman.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
-#include <asm/pgalloc.h>
 
 /*
  * On ARM, huge pages are backed by pmd's rather than pte's, so we do a lot

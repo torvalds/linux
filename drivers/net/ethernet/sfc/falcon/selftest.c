@@ -65,7 +65,7 @@ static const char *const ef4_interrupt_mode_names[] = {
 	STRING_TABLE_LOOKUP(efx->interrupt_mode, ef4_interrupt_mode)
 
 /**
- * ef4_loopback_state - persistent state during a loopback selftest
+ * struct ef4_loopback_state - persistent state during a loopback selftest
  * @flush:		Drop all packets in ef4_loopback_rx_packet
  * @packet_count:	Number of packets being used in this test
  * @skbs:		An array of skbs transmitted

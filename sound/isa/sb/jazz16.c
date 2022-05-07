@@ -158,9 +158,9 @@ err_unmap:
 
 static int jazz16_configure_board(struct snd_sb *chip, int mpu_irq)
 {
-	static unsigned char jazz_irq_bits[] = { 0, 0, 2, 3, 0, 1, 0, 4,
+	static const unsigned char jazz_irq_bits[] = { 0, 0, 2, 3, 0, 1, 0, 4,
 						 0, 2, 5, 0, 0, 0, 0, 6 };
-	static unsigned char jazz_dma_bits[] = { 0, 1, 0, 2, 0, 3, 0, 4 };
+	static const unsigned char jazz_dma_bits[] = { 0, 1, 0, 2, 0, 3, 0, 4 };
 
 	if (jazz_dma_bits[chip->dma8] == 0 ||
 	    jazz_dma_bits[chip->dma16] == 0 ||
@@ -224,9 +224,9 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 	struct snd_card_jazz16 *jazz16;
 	struct snd_sb *chip;
 	struct snd_opl3 *opl3;
-	static int possible_irqs[] = {2, 3, 5, 7, 9, 10, 15, -1};
-	static int possible_dmas8[] = {1, 3, -1};
-	static int possible_dmas16[] = {5, 7, -1};
+	static const int possible_irqs[] = {2, 3, 5, 7, 9, 10, 15, -1};
+	static const int possible_dmas8[] = {1, 3, -1};
+	static const int possible_dmas16[] = {5, 7, -1};
 	int err, xirq, xdma8, xdma16, xmpu_port, xmpu_irq;
 
 	err = snd_card_new(devptr, index[dev], id[dev], THIS_MODULE,

@@ -58,6 +58,9 @@ typedef enum {
 	SEV_RET_HWSEV_RET_PLATFORM,
 	SEV_RET_HWSEV_RET_UNSAFE,
 	SEV_RET_UNSUPPORTED,
+	SEV_RET_INVALID_PARAM,
+	SEV_RET_RESOURCE_LIMIT,
+	SEV_RET_SECURE_DATA_INVALID,
 	SEV_RET_MAX,
 } sev_ret_code;
 
@@ -79,6 +82,8 @@ struct sev_user_data_status {
 	__u8 build;				/* Out */
 	__u32 guest_count;			/* Out */
 } __packed;
+
+#define SEV_STATUS_FLAGS_CONFIG_ES	0x0100
 
 /**
  * struct sev_user_data_pek_csr - PEK_CSR command parameters

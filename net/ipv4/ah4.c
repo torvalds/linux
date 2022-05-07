@@ -107,7 +107,7 @@ static int ip_clear_mutable_options(const struct iphdr *iph, __be32 *daddr)
 			if (optlen < 6)
 				return -EINVAL;
 			memcpy(daddr, optptr+optlen-4, 4);
-			/* Fall through */
+			fallthrough;
 		default:
 			memset(optptr, 0, optlen);
 		}

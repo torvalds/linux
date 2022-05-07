@@ -20,6 +20,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_print.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include <sound/hdmi-codec.h>
 
@@ -254,10 +255,6 @@ static const struct drm_encoder_helper_funcs zx_hdmi_encoder_helper_funcs = {
 	.mode_set = zx_hdmi_encoder_mode_set,
 };
 
-static const struct drm_encoder_funcs zx_hdmi_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 static int zx_hdmi_connector_get_modes(struct drm_connector *connector)
 {
 	struct zx_hdmi *hdmi = to_zx_hdmi(connector);
@@ -313,14 +310,15 @@ static int zx_hdmi_register(struct drm_device *drm, struct zx_hdmi *hdmi)
 
 	encoder->possible_crtcs = VOU_CRTC_MASK;
 
-	drm_encoder_init(drm, encoder, &zx_hdmi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(encoder, &zx_hdmi_encoder_helper_funcs);
 
 	hdmi->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
-	drm_connector_init(drm, &hdmi->connector, &zx_hdmi_connector_funcs,
-			   DRM_MODE_CONNECTOR_HDMIA);
+	drm_connector_init_with_ddc(drm, &hdmi->connector,
+				    &zx_hdmi_connector_funcs,
+				    DRM_MODE_CONNECTOR_HDMIA,
+				    &hdmi->ddc->adap);
 	drm_connector_helper_add(&hdmi->connector,
 				 &zx_hdmi_connector_helper_funcs);
 
@@ -441,8 +439,8 @@ static int zx_hdmi_audio_hw_params(struct device *dev,
 	return zx_hdmi_infoframe_trans(hdmi, &frame, FSEL_AUDIO);
 }
 
-static int zx_hdmi_audio_digital_mute(struct device *dev, void *data,
-				      bool enable)
+static int zx_hdmi_audio_mute(struct device *dev, void *data,
+			      bool enable, int direction)
 {
 	struct zx_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -470,8 +468,9 @@ static const struct hdmi_codec_ops zx_hdmi_codec_ops = {
 	.audio_startup = zx_hdmi_audio_startup,
 	.hw_params = zx_hdmi_audio_hw_params,
 	.audio_shutdown = zx_hdmi_audio_shutdown,
-	.digital_mute = zx_hdmi_audio_digital_mute,
+	.mute_stream = zx_hdmi_audio_mute,
 	.get_eld = zx_hdmi_audio_get_eld,
+	.no_capture_mute = 1,
 };
 
 static struct hdmi_codec_pdata zx_hdmi_codec_pdata = {

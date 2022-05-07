@@ -130,7 +130,14 @@
  *	Z position is set up with drm_plane_create_zpos_immutable_property() and
  *	drm_plane_create_zpos_property(). It controls the visibility of overlapping
  *	planes. Without this property the primary plane is always below the cursor
- *	plane, and ordering between all other planes is undefined.
+ *	plane, and ordering between all other planes is undefined. The positive
+ *	Z axis points towards the user, i.e. planes with lower Z position values
+ *	are underneath planes with higher Z position values. Two planes with the
+ *	same Z position value have undefined ordering. Note that the Z position
+ *	value can also be immutable, to inform userspace about the hard-coded
+ *	stacking of planes, see drm_plane_create_zpos_immutable_property(). If
+ *	any plane has a zpos property (either mutable or immutable), then all
+ *	planes shall have a zpos property.
  *
  * pixel blend mode:
  *	Pixel blend mode is set up with drm_plane_create_blend_mode_property().
@@ -177,6 +184,12 @@
  *		 Plane alpha value set by the plane "alpha" property. If the
  *		 plane does not expose the "alpha" property, then this is
  *		 assumed to be 1.0
+ *
+ * IN_FORMATS:
+ *	Blob property which contains the set of buffer format and modifier
+ *	pairs supported by this plane. The blob is a drm_format_modifier_blob
+ *	struct. Without this property the plane doesn't support buffers with
+ *	modifiers. Userspace cannot change this property.
  *
  * Note that all the property extensions described here apply either to the
  * plane or the CRTC (e.g. for the background color, which currently is not
@@ -333,10 +346,10 @@ EXPORT_SYMBOL(drm_rotation_simplify);
  * should be set to 0 and max to maximal number of planes for given crtc - 1.
  *
  * If zpos of some planes cannot be changed (like fixed background or
- * cursor/topmost planes), driver should adjust min/max values and assign those
- * planes immutable zpos property with lower or higher values (for more
+ * cursor/topmost planes), drivers shall adjust the min/max values and assign
+ * those planes immutable zpos properties with lower or higher values (for more
  * information, see drm_plane_create_zpos_immutable_property() function). In such
- * case driver should also assign proper initial zpos values for all planes in
+ * case drivers shall also assign proper initial zpos values for all planes in
  * its plane_reset() callback, so the planes will be always sorted properly.
  *
  * See also drm_atomic_normalize_zpos().

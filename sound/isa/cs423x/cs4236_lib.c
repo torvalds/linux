@@ -39,7 +39,7 @@
  *     D7: consumer serial port enable (CS4237B,CS4238B)
  *     D6: channels status block reset (CS4237B,CS4238B)
  *     D5: user bit in sub-frame of digital audio data (CS4237B,CS4238B)
- *     D4: validity bit bit in sub-frame of digital audio data (CS4237B,CS4238B)
+ *     D4: validity bit in sub-frame of digital audio data (CS4237B,CS4238B)
  * 
  *  C5  lower channel status (digital serial data description) (CS4237B,CS4238B)
  *     D7-D6: first two bits of category code
@@ -80,7 +80,7 @@
  *
  */
 
-static unsigned char snd_cs4236_ext_map[18] = {
+static const unsigned char snd_cs4236_ext_map[18] = {
 	/* CS4236_LEFT_LINE */		0xff,
 	/* CS4236_RIGHT_LINE */		0xff,
 	/* CS4236_LEFT_MIC */		0xdf,
@@ -758,7 +758,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_4bit, -4500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_2bit, -1800, 600, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
 
-static struct snd_kcontrol_new snd_cs4236_controls[] = {
+static const struct snd_kcontrol_new snd_cs4236_controls[] = {
 
 CS4236_DOUBLE("Master Digital Playback Switch", 0,
 		CS4236_LEFT_MASTER, CS4236_RIGHT_MASTER, 7, 7, 1, 1),
@@ -853,7 +853,7 @@ CS4236_DOUBLE1_TLV("Loopback Digital Playback Volume", 0,
 static const DECLARE_TLV_DB_SCALE(db_scale_5bit_6db_max, -5600, 200, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_2bit_16db_max, -2400, 800, 0);
 
-static struct snd_kcontrol_new snd_cs4235_controls[] = {
+static const struct snd_kcontrol_new snd_cs4235_controls[] = {
 
 WSS_DOUBLE("Master Playback Switch", 0,
 		CS4235_LEFT_MASTER, CS4235_RIGHT_MASTER, 7, 7, 1, 1),
@@ -986,7 +986,7 @@ static int snd_cs4236_put_iec958_switch(struct snd_kcontrol *kcontrol, struct sn
 	return change;
 }
 
-static struct snd_kcontrol_new snd_cs4236_iec958_controls[] = {
+static const struct snd_kcontrol_new snd_cs4236_iec958_controls[] = {
 CS4236_IEC958_ENABLE("IEC958 Output Enable", 0),
 CS4236_SINGLEC("IEC958 Output Validity", 0, 4, 4, 1, 0),
 CS4236_SINGLEC("IEC958 Output User", 0, 4, 5, 1, 0),
@@ -995,12 +995,12 @@ CS4236_SINGLEC("IEC958 Output Channel Status Low", 0, 5, 1, 127, 0),
 CS4236_SINGLEC("IEC958 Output Channel Status High", 0, 6, 0, 255, 0)
 };
 
-static struct snd_kcontrol_new snd_cs4236_3d_controls_cs4235[] = {
+static const struct snd_kcontrol_new snd_cs4236_3d_controls_cs4235[] = {
 CS4236_SINGLEC("3D Control - Switch", 0, 3, 4, 1, 0),
 CS4236_SINGLEC("3D Control - Space", 0, 2, 4, 15, 1)
 };
 
-static struct snd_kcontrol_new snd_cs4236_3d_controls_cs4237[] = {
+static const struct snd_kcontrol_new snd_cs4236_3d_controls_cs4237[] = {
 CS4236_SINGLEC("3D Control - Switch", 0, 3, 7, 1, 0),
 CS4236_SINGLEC("3D Control - Space", 0, 2, 4, 15, 1),
 CS4236_SINGLEC("3D Control - Center", 0, 2, 0, 15, 1),
@@ -1008,7 +1008,7 @@ CS4236_SINGLEC("3D Control - Mono", 0, 3, 6, 1, 0),
 CS4236_SINGLEC("3D Control - IEC958", 0, 3, 5, 1, 0)
 };
 
-static struct snd_kcontrol_new snd_cs4236_3d_controls_cs4238[] = {
+static const struct snd_kcontrol_new snd_cs4236_3d_controls_cs4238[] = {
 CS4236_SINGLEC("3D Control - Switch", 0, 3, 4, 1, 0),
 CS4236_SINGLEC("3D Control - Space", 0, 2, 4, 15, 1),
 CS4236_SINGLEC("3D Control - Volume", 0, 2, 0, 15, 1),
@@ -1020,7 +1020,7 @@ int snd_cs4236_mixer(struct snd_wss *chip)
 	struct snd_card *card;
 	unsigned int idx, count;
 	int err;
-	struct snd_kcontrol_new *kcontrol;
+	const struct snd_kcontrol_new *kcontrol;
 
 	if (snd_BUG_ON(!chip || !chip->card))
 		return -EINVAL;

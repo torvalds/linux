@@ -853,11 +853,9 @@ int tm6000_call_fillbuf(struct tm6000_core *dev, enum tm6000_ops_type type,
 
 	/* FIXME: tm6000_extension_devlist_lock should be a spinlock */
 
-	if (!list_empty(&tm6000_extension_devlist)) {
-		list_for_each_entry(ops, &tm6000_extension_devlist, next) {
-			if (ops->fillbuf && ops->type == type)
-				ops->fillbuf(dev, buf, size);
-		}
+	list_for_each_entry(ops, &tm6000_extension_devlist, next) {
+		if (ops->fillbuf && ops->type == type)
+			ops->fillbuf(dev, buf, size);
 	}
 
 	return 0;
@@ -898,11 +896,9 @@ void tm6000_init_extension(struct tm6000_core *dev)
 	struct tm6000_ops *ops = NULL;
 
 	mutex_lock(&tm6000_devlist_mutex);
-	if (!list_empty(&tm6000_extension_devlist)) {
-		list_for_each_entry(ops, &tm6000_extension_devlist, next) {
-			if (ops->init)
-				ops->init(dev);
-		}
+	list_for_each_entry(ops, &tm6000_extension_devlist, next) {
+		if (ops->init)
+			ops->init(dev);
 	}
 	mutex_unlock(&tm6000_devlist_mutex);
 }
@@ -912,11 +908,9 @@ void tm6000_close_extension(struct tm6000_core *dev)
 	struct tm6000_ops *ops = NULL;
 
 	mutex_lock(&tm6000_devlist_mutex);
-	if (!list_empty(&tm6000_extension_devlist)) {
-		list_for_each_entry(ops, &tm6000_extension_devlist, next) {
-			if (ops->fini)
-				ops->fini(dev);
-		}
+	list_for_each_entry(ops, &tm6000_extension_devlist, next) {
+		if (ops->fini)
+			ops->fini(dev);
 	}
 	mutex_unlock(&tm6000_devlist_mutex);
 }

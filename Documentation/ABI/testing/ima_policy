@@ -15,20 +15,24 @@ Description:
 		IMA appraisal, if configured, uses these file measurements
 		for local measurement appraisal.
 
-		rule format: action [condition ...]
+		::
 
-		action: measure | dont_measure | appraise | dont_appraise |
-			audit | hash | dont_hash
-		condition:= base | lsm  [option]
+		  rule format: action [condition ...]
+
+		  action: measure | dont_measure | appraise | dont_appraise |
+			  audit | hash | dont_hash
+		  condition:= base | lsm  [option]
 			base:	[[func=] [mask=] [fsmagic=] [fsuuid=] [uid=]
 				[euid=] [fowner=] [fsname=]]
 			lsm:	[[subj_user=] [subj_role=] [subj_type=]
 				 [obj_user=] [obj_role=] [obj_type=]]
 			option:	[[appraise_type=]] [template=] [permit_directio]
-		base: 	func:= [BPRM_CHECK][MMAP_CHECK][CREDS_CHECK][FILE_CHECK][MODULE_CHECK]
-				[FIRMWARE_CHECK]
+				[appraise_flag=] [keyrings=]
+		  base:
+			func:= [BPRM_CHECK][MMAP_CHECK][CREDS_CHECK][FILE_CHECK]MODULE_CHECK]
+			        [FIRMWARE_CHECK]
 				[KEXEC_KERNEL_CHECK] [KEXEC_INITRAMFS_CHECK]
-				[KEXEC_CMDLINE]
+				[KEXEC_CMDLINE] [KEY_CHECK]
 			mask:= [[^]MAY_READ] [[^]MAY_WRITE] [[^]MAY_APPEND]
 			       [[^]MAY_EXEC]
 			fsmagic:= hex value
@@ -36,13 +40,20 @@ Description:
 			uid:= decimal value
 			euid:= decimal value
 			fowner:= decimal value
-		lsm:  	are LSM specific
-		option:	appraise_type:= [imasig] [imasig|modsig]
+		  lsm:  are LSM specific
+		  option:
+			appraise_type:= [imasig] [imasig|modsig]
+			appraise_flag:= [check_blacklist]
+			Currently, blacklist check is only for files signed with appended
+			signature.
+			keyrings:= list of keyrings
+			(eg, .builtin_trusted_keys|.ima). Only valid
+			when action is "measure" and func is KEY_CHECK.
 			template:= name of a defined IMA template type
 			(eg, ima-ng). Only valid when action is "measure".
 			pcr:= decimal value
 
-		default policy:
+		  default policy:
 			# PROC_SUPER_MAGIC
 			dont_measure fsmagic=0x9fa0
 			dont_appraise fsmagic=0x9fa0
@@ -90,7 +101,8 @@ Description:
 
 		Examples of LSM specific definitions:
 
-		SELinux:
+		SELinux::
+
 			dont_measure obj_type=var_log_t
 			dont_appraise obj_type=var_log_t
 			dont_measure obj_type=auditd_log_t
@@ -98,10 +110,11 @@ Description:
 			measure subj_user=system_u func=FILE_CHECK mask=MAY_READ
 			measure subj_role=system_r func=FILE_CHECK mask=MAY_READ
 
-		Smack:
+		Smack::
+
 			measure subj_user=_ func=FILE_CHECK mask=MAY_READ
 
-		Example of measure rules using alternate PCRs:
+		Example of measure rules using alternate PCRs::
 
 			measure func=KEXEC_KERNEL_CHECK pcr=4
 			measure func=KEXEC_INITRAMFS_CHECK pcr=5
@@ -109,3 +122,12 @@ Description:
 		Example of appraise rule allowing modsig appended signatures:
 
 			appraise func=KEXEC_KERNEL_CHECK appraise_type=imasig|modsig
+
+		Example of measure rule using KEY_CHECK to measure all keys:
+
+			measure func=KEY_CHECK
+
+		Example of measure rule using KEY_CHECK to only measure
+		keys added to .builtin_trusted_keys or .ima keyring:
+
+			measure func=KEY_CHECK keyrings=.builtin_trusted_keys|.ima

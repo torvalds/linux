@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#ifndef __ASM_IMAGE_H
-#define __ASM_IMAGE_H
+#ifndef _ASM_RISCV_IMAGE_H
+#define _ASM_RISCV_IMAGE_H
 
 #define RISCV_IMAGE_MAGIC	"RISCV\0\0\0"
 #define RISCV_IMAGE_MAGIC2	"RSC\x05"
@@ -42,7 +42,7 @@
  * @res2:		reserved
  * @magic:		Magic number (RISC-V specific; deprecated)
  * @magic2:		Magic number 2 (to match the ARM64 'magic' field pos)
- * @res4:		reserved (will be used for PE COFF offset)
+ * @res3:		reserved (will be used for PE COFF offset)
  *
  * The intention is for this header format to be shared between multiple
  * architectures to avoid a proliferation of image header formats.
@@ -59,7 +59,7 @@ struct riscv_image_header {
 	u64 res2;
 	u64 magic;
 	u32 magic2;
-	u32 res4;
+	u32 res3;
 };
 #endif /* __ASSEMBLY__ */
-#endif /* __ASM_IMAGE_H */
+#endif /* _ASM_RISCV_IMAGE_H */

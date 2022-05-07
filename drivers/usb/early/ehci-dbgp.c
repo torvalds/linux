@@ -15,6 +15,7 @@
 #include <linux/console.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/iopoll.h>
 #include <linux/pci_regs.h>
 #include <linux/pci_ids.h>
 #include <linux/usb/ch9.h>
@@ -161,17 +162,11 @@ static inline u32 dbgp_pid_read_update(u32 x, u32 tok)
 static int dbgp_wait_until_complete(void)
 {
 	u32 ctrl;
-	int loop = DBGP_TIMEOUT;
+	int ret;
 
-	do {
-		ctrl = readl(&ehci_debug->control);
-		/* Stop when the transaction is finished */
-		if (ctrl & DBGP_DONE)
-			break;
-		udelay(1);
-	} while (--loop > 0);
-
-	if (!loop)
+	ret = readl_poll_timeout_atomic(&ehci_debug->control, ctrl,
+				(ctrl & DBGP_DONE), 1, DBGP_TIMEOUT);
+	if (ret)
 		return -DBGP_TIMEOUT;
 
 	/*
@@ -912,7 +907,7 @@ int __init early_dbgp_init(char *s)
 
 static void early_dbgp_write(struct console *con, const char *str, u32 n)
 {
-	int chunk, ret;
+	int chunk;
 	char buf[DBGP_MAX_PACKET];
 	int use_cr = 0;
 	u32 cmd, ctrl;
@@ -951,8 +946,8 @@ static void early_dbgp_write(struct console *con, const char *str, u32 n)
 			buf[chunk] = *str;
 		}
 		if (chunk > 0) {
-			ret = dbgp_bulk_write(USB_DEBUG_DEVNUM,
-				      dbgp_endpoint_out, buf, chunk);
+			dbgp_bulk_write(USB_DEBUG_DEVNUM,
+					dbgp_endpoint_out, buf, chunk);
 		}
 	}
 	if (unlikely(reset_run)) {
@@ -1058,7 +1053,8 @@ static int __init kgdbdbgp_parse_config(char *str)
 		kgdbdbgp_wait_time = simple_strtoul(ptr, &ptr, 10);
 	}
 	kgdb_register_io_module(&kgdbdbgp_io_ops);
-	kgdbdbgp_io_ops.is_console = early_dbgp_console.index != -1;
+	if (early_dbgp_console.index != -1)
+		kgdbdbgp_io_ops.cons = &early_dbgp_console;
 
 	return 0;
 }

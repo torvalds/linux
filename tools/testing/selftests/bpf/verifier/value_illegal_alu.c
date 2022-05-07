@@ -88,6 +88,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_48b = { 3 },
+	.errstr_unpriv = "leaking pointer from stack off -8",
 	.errstr = "R0 invalid mem access 'inv'",
 	.result = REJECT,
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,

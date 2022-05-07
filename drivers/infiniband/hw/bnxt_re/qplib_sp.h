@@ -47,6 +47,7 @@
 struct bnxt_qplib_dev_attr {
 #define FW_VER_ARR_LEN			4
 	u8				fw_ver[FW_VER_ARR_LEN];
+#define BNXT_QPLIB_NUM_GIDS_SUPPORTED	256
 	u16				max_sgid;
 	u16				max_mrw;
 	u32				max_qp;
@@ -64,8 +65,6 @@ struct bnxt_qplib_dev_attr {
 	u32				max_mw;
 	u32				max_raw_ethy_qp;
 	u32				max_ah;
-	u32				max_fmr;
-	u32				max_map_per_fmr;
 	u32				max_srq;
 	u32				max_srq_wqes;
 	u32				max_srq_sges;

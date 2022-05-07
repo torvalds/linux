@@ -316,6 +316,7 @@ bool cm_helper_translate_curve_to_hw_format(
 	struct pwl_result_data *rgb_resulted;
 	struct pwl_result_data *rgb;
 	struct pwl_result_data *rgb_plus_1;
+	struct pwl_result_data *rgb_minus_1;
 
 	int32_t region_start, region_end;
 	int32_t i;
@@ -323,8 +324,6 @@ bool cm_helper_translate_curve_to_hw_format(
 
 	if (output_tf == NULL || lut_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
-
-	PERF_TRACE_CTX(output_tf->ctx);
 
 	corner_points = lut_params->corner_points;
 	rgb_resulted = lut_params->rgb_resulted;
@@ -465,9 +464,20 @@ bool cm_helper_translate_curve_to_hw_format(
 
 	rgb = rgb_resulted;
 	rgb_plus_1 = rgb_resulted + 1;
+	rgb_minus_1 = rgb;
 
 	i = 1;
 	while (i != hw_points + 1) {
+
+		if (i >= hw_points - 1) {
+			if (dc_fixpt_lt(rgb_plus_1->red, rgb->red))
+				rgb_plus_1->red = dc_fixpt_add(rgb->red, rgb_minus_1->delta_red);
+			if (dc_fixpt_lt(rgb_plus_1->green, rgb->green))
+				rgb_plus_1->green = dc_fixpt_add(rgb->green, rgb_minus_1->delta_green);
+			if (dc_fixpt_lt(rgb_plus_1->blue, rgb->blue))
+				rgb_plus_1->blue = dc_fixpt_add(rgb->blue, rgb_minus_1->delta_blue);
+		}
+
 		rgb->delta_red   = dc_fixpt_sub(rgb_plus_1->red,   rgb->red);
 		rgb->delta_green = dc_fixpt_sub(rgb_plus_1->green, rgb->green);
 		rgb->delta_blue  = dc_fixpt_sub(rgb_plus_1->blue,  rgb->blue);
@@ -482,6 +492,7 @@ bool cm_helper_translate_curve_to_hw_format(
 		}
 
 		++rgb_plus_1;
+		rgb_minus_1 = rgb;
 		++rgb;
 		++i;
 	}
@@ -510,8 +521,6 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 
 	if (output_tf == NULL || lut_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
-
-	PERF_TRACE_CTX(output_tf->ctx);
 
 	corner_points = lut_params->corner_points;
 	rgb_resulted = lut_params->rgb_resulted;

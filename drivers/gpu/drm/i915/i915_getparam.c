@@ -2,15 +2,17 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "gem/i915_gem_mman.h"
 #include "gt/intel_engine_user.h"
 
 #include "i915_drv.h"
+#include "i915_perf.h"
 
 int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
 	struct drm_i915_private *i915 = to_i915(dev);
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
+	const struct sseu_dev_info *sseu = &i915->gt.info.sseu;
 	drm_i915_getparam_t *param = data;
 	int value;
 
@@ -78,9 +80,9 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			return -ENODEV;
 		break;
 	case I915_PARAM_HAS_GPU_RESET:
-		value = i915_modparams.enable_hangcheck &&
-			intel_has_gpu_reset(i915);
-		if (value && intel_has_reset_engine(i915))
+		value = i915->params.enable_hangcheck &&
+			intel_has_gpu_reset(&i915->gt);
+		if (value && intel_has_reset_engine(&i915->gt))
 			value = 2;
 		break;
 	case I915_PARAM_HAS_RESOURCE_STREAMER:
@@ -130,6 +132,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_EXEC_BATCH_FIRST:
 	case I915_PARAM_HAS_EXEC_FENCE_ARRAY:
 	case I915_PARAM_HAS_EXEC_SUBMIT_FENCE:
+	case I915_PARAM_HAS_EXEC_TIMELINE_FENCES:
 		/* For the time being all of these are always true;
 		 * if some supported hardware does not have one of these
 		 * features this value needs to be provided from
@@ -151,10 +154,13 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			return -ENODEV;
 		break;
 	case I915_PARAM_CS_TIMESTAMP_FREQUENCY:
-		value = 1000 * RUNTIME_INFO(i915)->cs_timestamp_frequency_khz;
+		value = RUNTIME_INFO(i915)->cs_timestamp_frequency_hz;
 		break;
 	case I915_PARAM_MMAP_GTT_COHERENT:
 		value = INTEL_INFO(i915)->has_coherent_ggtt;
+		break;
+	case I915_PARAM_PERF_REVISION:
+		value = i915_perf_ioctl_version();
 		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);

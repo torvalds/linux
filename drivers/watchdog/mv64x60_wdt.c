@@ -222,7 +222,7 @@ static long mv64x60_wdt_ioctl(struct file *file,
 		if (get_user(timeout, (int __user *)argp))
 			return -EFAULT;
 		mv64x60_wdt_set_timeout(timeout);
-		/* Fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		if (put_user(mv64x60_wdt_timeout, (int __user *)argp))
@@ -241,6 +241,7 @@ static const struct file_operations mv64x60_wdt_fops = {
 	.llseek = no_llseek,
 	.write = mv64x60_wdt_write,
 	.unlocked_ioctl = mv64x60_wdt_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.open = mv64x60_wdt_open,
 	.release = mv64x60_wdt_release,
 };

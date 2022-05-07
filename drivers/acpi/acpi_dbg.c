@@ -745,9 +745,12 @@ static const struct acpi_debugger_ops acpi_aml_debugger = {
 	.notify_command_complete = acpi_aml_notify_command_complete,
 };
 
-int __init acpi_aml_init(void)
+static int __init acpi_aml_init(void)
 {
 	int ret;
+
+	if (acpi_disabled)
+		return -ENODEV;
 
 	/* Initialize AML IO interface */
 	mutex_init(&acpi_aml_io.lock);
@@ -771,7 +774,7 @@ int __init acpi_aml_init(void)
 	return 0;
 }
 
-void __exit acpi_aml_exit(void)
+static void __exit acpi_aml_exit(void)
 {
 	if (acpi_aml_initialized) {
 		acpi_unregister_debugger(&acpi_aml_debugger);

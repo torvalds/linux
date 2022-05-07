@@ -8,7 +8,6 @@
 #include <linux/module.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/mvme147hw.h>
 #include <asm/irq.h>
 

@@ -279,7 +279,7 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		timeout = new_timeout;
 		wdt_keepalive();
 	}
-		/* Fall through */
+		fallthrough;
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
 	default:
@@ -294,6 +294,7 @@ static const struct file_operations wdt_fops = {
 	.open		=	fop_open,
 	.release	=	fop_close,
 	.unlocked_ioctl	=	fop_ioctl,
+	.compat_ioctl	= 	compat_ptr_ioctl,
 };
 
 static struct miscdevice wdt_miscdev = {

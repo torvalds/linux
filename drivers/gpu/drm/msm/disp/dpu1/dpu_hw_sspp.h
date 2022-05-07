@@ -27,7 +27,8 @@ struct dpu_hw_pipe;
  */
 #define DPU_SSPP_SCALER ((1UL << DPU_SSPP_SCALER_RGB) | \
 	(1UL << DPU_SSPP_SCALER_QSEED2) | \
-	(1UL << DPU_SSPP_SCALER_QSEED3))
+	 (1UL << DPU_SSPP_SCALER_QSEED3) | \
+	  (1UL << DPU_SSPP_SCALER_QSEED4))
 
 /**
  * Component indices
@@ -373,7 +374,7 @@ struct dpu_hw_pipe {
 	struct dpu_hw_blk base;
 	struct dpu_hw_blk_reg_map hw;
 	struct dpu_mdss_cfg *catalog;
-	struct dpu_mdp_cfg *mdp;
+	const struct dpu_mdp_cfg *mdp;
 
 	/* Pipe */
 	enum dpu_sspp idx;

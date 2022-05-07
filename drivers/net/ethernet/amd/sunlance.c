@@ -94,10 +94,10 @@ static char lancestr[] = "LANCE";
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/gfp.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/pgtable.h>
 #include <asm/byteorder.h>	/* Used by the checksum routines */
 #include <asm/idprom.h>
 #include <asm/prom.h>
@@ -105,14 +105,9 @@ static char lancestr[] = "LANCE";
 #include <asm/irq.h>
 
 #define DRV_NAME	"sunlance"
-#define DRV_VERSION	"2.02"
 #define DRV_RELDATE	"8/24/03"
 #define DRV_AUTHOR	"Miguel de Icaza (miguel@nuclecu.unam.mx)"
 
-static char version[] =
-	DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " " DRV_AUTHOR "\n";
-
-MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_DESCRIPTION("Sun Lance ethernet driver");
 MODULE_LICENSE("GPL");
@@ -1097,7 +1092,7 @@ static void lance_piozero(void __iomem *dest, int len)
 		sbus_writeb(0, piobuf);
 }
 
-static void lance_tx_timeout(struct net_device *dev)
+static void lance_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct lance_private *lp = netdev_priv(dev);
 
@@ -1282,7 +1277,6 @@ static void lance_free_hwresources(struct lance_private *lp)
 static void sparc_lance_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, "sunlance", sizeof(info->driver));
-	strlcpy(info->version, "2.02", sizeof(info->version));
 }
 
 static const struct ethtool_ops sparc_lance_ethtool_ops = {
@@ -1305,7 +1299,6 @@ static int sparc_lance_probe_one(struct platform_device *op,
 				 struct platform_device *lebuffer)
 {
 	struct device_node *dp = op->dev.of_node;
-	static unsigned version_printed;
 	struct lance_private *lp;
 	struct net_device *dev;
 	int    i;
@@ -1315,9 +1308,6 @@ static int sparc_lance_probe_one(struct platform_device *op,
 		return -ENOMEM;
 
 	lp = netdev_priv(dev);
-
-	if (sparc_lance_debug && version_printed++ == 0)
-		printk (KERN_INFO "%s", version);
 
 	spin_lock_init(&lp->lock);
 

@@ -19,10 +19,6 @@ MODULE_LICENSE("GPL");
 
 #define MODULE_NAME	"esi"
 
-#define ESI_TABLE_GUID					\
-    EFI_GUID(0x43EA58DC, 0xCF28, 0x4b06, 0xB3,		\
-	     0x91, 0xB7, 0x50, 0x59, 0x34, 0x2B, 0xD4)
-
 enum esi_systab_entry_type {
 	ESI_DESC_ENTRY_POINT = 0
 };
@@ -48,27 +44,18 @@ struct pdesc {
 
 static struct ia64_sal_systab *esi_systab;
 
+extern unsigned long esi_phys;
+
 static int __init esi_init (void)
 {
-	efi_config_table_t *config_tables;
 	struct ia64_sal_systab *systab;
-	unsigned long esi = 0;
 	char *p;
 	int i;
 
-	config_tables = __va(efi.systab->tables);
-
-	for (i = 0; i < (int) efi.systab->nr_tables; ++i) {
-		if (efi_guidcmp(config_tables[i].guid, ESI_TABLE_GUID) == 0) {
-			esi = config_tables[i].table;
-			break;
-		}
-	}
-
-	if (!esi)
+	if (esi_phys == EFI_INVALID_TABLE_ADDR)
 		return -ENODEV;
 
-	systab = __va(esi);
+	systab = __va(esi_phys);
 
 	if (strncmp(systab->signature, "ESIT", 4) != 0) {
 		printk(KERN_ERR "bad signature in ESI system table!");

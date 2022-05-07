@@ -9,7 +9,14 @@
  * Copyright (C) 2009 Provigent Ltd.
  */
 
+#include <linux/bits.h>
+#include <linux/compiler_types.h>
+#include <linux/completion.h>
+#include <linux/dev_printk.h>
+#include <linux/errno.h>
 #include <linux/i2c.h>
+#include <linux/regmap.h>
+#include <linux/types.h>
 
 #define DW_IC_DEFAULT_FUNCTIONALITY (I2C_FUNC_I2C |			\
 					I2C_FUNC_SMBUS_BYTE |		\
@@ -120,8 +127,6 @@
 #define STATUS_WRITE_IN_PROGRESS	0x1
 #define STATUS_READ_IN_PROGRESS		0x2
 
-#define TIMEOUT			20 /* ms */
-
 /*
  * operation modes
  */
@@ -170,11 +175,17 @@
 					 DW_IC_TX_ABRT_TXDATA_NOACK | \
 					 DW_IC_TX_ABRT_GCALL_NOACK)
 
+struct clk;
+struct device;
+struct reset_control;
 
 /**
  * struct dw_i2c_dev - private i2c-designware data
  * @dev: driver model device node
+ * @map: IO registers map
+ * @sysmap: System controller registers map
  * @base: IO registers pointer
+ * @ext: Extended IO registers pointer
  * @cmd_complete: tx completion indicator
  * @clk: input reference clock
  * @pclk: clock required to access the registers
@@ -224,6 +235,8 @@
  */
 struct dw_i2c_dev {
 	struct device		*dev;
+	struct regmap		*map;
+	struct regmap		*sysmap;
 	void __iomem		*base;
 	void __iomem		*ext;
 	struct completion	cmd_complete;
@@ -232,7 +245,6 @@ struct dw_i2c_dev {
 	struct reset_control	*rst;
 	struct i2c_client		*slave;
 	u32			(*get_clk_rate_khz) (struct dw_i2c_dev *dev);
-	struct dw_pci_controller *controller;
 	int			cmd_err;
 	struct i2c_msg		*msgs;
 	int			msgs_num;
@@ -276,18 +288,14 @@ struct dw_i2c_dev {
 	bool			suspended;
 };
 
-#define ACCESS_SWAP		0x00000001
-#define ACCESS_16BIT		0x00000002
-#define ACCESS_INTR_MASK	0x00000004
-#define ACCESS_NO_IRQ_SUSPEND	0x00000008
+#define ACCESS_INTR_MASK	0x00000001
+#define ACCESS_NO_IRQ_SUSPEND	0x00000002
 
-#define MODEL_CHERRYTRAIL	0x00000100
-#define MODEL_MSCC_OCELOT	0x00000200
+#define MODEL_MSCC_OCELOT	0x00000100
+#define MODEL_BAIKAL_BT1	0x00000200
 #define MODEL_MASK		0x00000f00
 
-u32 dw_readl(struct dw_i2c_dev *dev, int offset);
-void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset);
-int i2c_dw_set_reg_access(struct dw_i2c_dev *dev);
+int i2c_dw_init_regmap(struct dw_i2c_dev *dev);
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset);
 u32 i2c_dw_scl_lcnt(u32 ic_clk, u32 tLOW, u32 tf, int offset);
 int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev);
@@ -297,32 +305,66 @@ int i2c_dw_acquire_lock(struct dw_i2c_dev *dev);
 void i2c_dw_release_lock(struct dw_i2c_dev *dev);
 int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev);
 int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev);
+int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev);
 u32 i2c_dw_func(struct i2c_adapter *adap);
 void i2c_dw_disable(struct dw_i2c_dev *dev);
 void i2c_dw_disable_int(struct dw_i2c_dev *dev);
 
 static inline void __i2c_dw_enable(struct dw_i2c_dev *dev)
 {
-	dw_writel(dev, 1, DW_IC_ENABLE);
+	regmap_write(dev->map, DW_IC_ENABLE, 1);
 }
 
 static inline void __i2c_dw_disable_nowait(struct dw_i2c_dev *dev)
 {
-	dw_writel(dev, 0, DW_IC_ENABLE);
+	regmap_write(dev->map, DW_IC_ENABLE, 0);
 }
 
 void __i2c_dw_disable(struct dw_i2c_dev *dev);
 
-extern u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev);
-extern int i2c_dw_probe(struct dw_i2c_dev *dev);
+extern void i2c_dw_configure_master(struct dw_i2c_dev *dev);
+extern int i2c_dw_probe_master(struct dw_i2c_dev *dev);
+
 #if IS_ENABLED(CONFIG_I2C_DESIGNWARE_SLAVE)
+extern void i2c_dw_configure_slave(struct dw_i2c_dev *dev);
 extern int i2c_dw_probe_slave(struct dw_i2c_dev *dev);
 #else
+static inline void i2c_dw_configure_slave(struct dw_i2c_dev *dev) { }
 static inline int i2c_dw_probe_slave(struct dw_i2c_dev *dev) { return -EINVAL; }
 #endif
+
+static inline int i2c_dw_probe(struct dw_i2c_dev *dev)
+{
+	switch (dev->mode) {
+	case DW_IC_SLAVE:
+		return i2c_dw_probe_slave(dev);
+	case DW_IC_MASTER:
+		return i2c_dw_probe_master(dev);
+	default:
+		dev_err(dev->dev, "Wrong operation mode: %d\n", dev->mode);
+		return -EINVAL;
+	}
+}
+
+static inline void i2c_dw_configure(struct dw_i2c_dev *dev)
+{
+	if (i2c_detect_slave_mode(dev->dev))
+		i2c_dw_configure_slave(dev);
+	else
+		i2c_dw_configure_master(dev);
+}
 
 #if IS_ENABLED(CONFIG_I2C_DESIGNWARE_BAYTRAIL)
 extern int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev);
 #else
 static inline int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev) { return 0; }
+#endif
+
+int i2c_dw_validate_speed(struct dw_i2c_dev *dev);
+void i2c_dw_adjust_bus_speed(struct dw_i2c_dev *dev);
+
+#if IS_ENABLED(CONFIG_ACPI)
+int i2c_dw_acpi_configure(struct device *device);
+#else
+static inline int i2c_dw_acpi_configure(struct device *device) { return -ENODEV; }
 #endif

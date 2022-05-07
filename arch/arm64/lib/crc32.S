@@ -9,7 +9,7 @@
 #include <asm/alternative.h>
 #include <asm/assembler.h>
 
-	.cpu		generic+crc
+	.arch		armv8-a+crc
 
 	.macro		__crc32, c
 	cmp		x2, #16
@@ -85,17 +85,17 @@ CPU_BE(	rev16		w3, w3		)
 	.endm
 
 	.align		5
-ENTRY(crc32_le)
+SYM_FUNC_START(crc32_le)
 alternative_if_not ARM64_HAS_CRC32
 	b		crc32_le_base
 alternative_else_nop_endif
 	__crc32
-ENDPROC(crc32_le)
+SYM_FUNC_END(crc32_le)
 
 	.align		5
-ENTRY(__crc32c_le)
+SYM_FUNC_START(__crc32c_le)
 alternative_if_not ARM64_HAS_CRC32
 	b		__crc32c_le_base
 alternative_else_nop_endif
 	__crc32		c
-ENDPROC(__crc32c_le)
+SYM_FUNC_END(__crc32c_le)

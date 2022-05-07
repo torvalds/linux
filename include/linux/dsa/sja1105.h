@@ -9,6 +9,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
+#include <linux/dsa/8021q.h>
 #include <net/dsa.h>
 
 #define ETH_P_SJA1105				ETH_P_DSA_8021Q
@@ -37,8 +38,6 @@
  * the structure defined in struct sja1105_private.
  */
 struct sja1105_tagger_data {
-	struct sk_buff_head skb_rxtstamp_queue;
-	struct work_struct rxtstamp_work;
 	struct sk_buff *stampable_skb;
 	/* Protects concurrent access to the meta state machine
 	 * from taggers running on multiple ports on SMP systems
@@ -55,10 +54,14 @@ struct sja1105_skb_cb {
 	((struct sja1105_skb_cb *)DSA_SKB_CB_PRIV(skb))
 
 struct sja1105_port {
+	u16 subvlan_map[DSA_8021Q_N_SUBVLAN];
+	struct kthread_worker *xmit_worker;
+	struct kthread_work xmit_work;
+	struct sk_buff_head xmit_queue;
 	struct sja1105_tagger_data *data;
 	struct dsa_port *dp;
 	bool hwts_tx_en;
-	int mgmt_slot;
+	u16 xmit_tpid;
 };
 
 #endif /* _NET_DSA_SJA1105_H */

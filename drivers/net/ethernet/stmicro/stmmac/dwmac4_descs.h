@@ -73,6 +73,13 @@
 #define TDES3_CONTEXT_TYPE		BIT(30)
 #define	TDES3_CONTEXT_TYPE_SHIFT	30
 
+/* TDES4 */
+#define TDES4_LTV			BIT(31)
+#define TDES4_LT			GENMASK(7, 0)
+
+/* TDES5 */
+#define TDES5_LT			GENMASK(31, 8)
+
 /* TDS3 use for both format (read and write back) */
 #define TDES3_OWN			BIT(31)
 #define TDES3_OWN_SHIFT			31
@@ -109,6 +116,7 @@
 #define RDES2_L4_FILTER_MATCH		BIT(28)
 #define RDES2_L3_L4_FILT_NB_MATCH_MASK	GENMASK(27, 26)
 #define RDES2_L3_L4_FILT_NB_MATCH_SHIFT	26
+#define RDES2_HL			GENMASK(9, 0)
 
 /* RDES3 (write back format) */
 #define RDES3_PACKET_SIZE_MASK		GENMASK(14, 0)

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_ring.h: Declaration of functions for Rx/Tx rings. */
@@ -65,19 +66,21 @@ struct __packed aq_ring_buff_s {
 	};
 	union {
 		struct {
-			u16 len;
+			u32 len:16;
 			u32 is_ip_cso:1;
 			u32 is_udp_cso:1;
 			u32 is_tcp_cso:1;
 			u32 is_cso_err:1;
 			u32 is_sop:1;
 			u32 is_eop:1;
-			u32 is_gso:1;
+			u32 is_gso_tcp:1;
+			u32 is_gso_udp:1;
 			u32 is_mapped:1;
 			u32 is_cleaned:1;
 			u32 is_error:1;
 			u32 is_vlan:1;
-			u32 rsvd3:5;
+			u32 is_lro:1;
+			u32 rsvd3:3;
 			u16 eop_index;
 			u16 rsvd4;
 		};
@@ -86,17 +89,22 @@ struct __packed aq_ring_buff_s {
 };
 
 struct aq_ring_stats_rx_s {
+	struct u64_stats_sync syncp;	/* must be first */
 	u64 errors;
 	u64 packets;
 	u64 bytes;
 	u64 lro_packets;
 	u64 jumbo_packets;
+	u64 alloc_fails;
+	u64 skb_alloc_fails;
+	u64 polls;
 	u64 pg_losts;
 	u64 pg_flips;
 	u64 pg_reuses;
 };
 
 struct aq_ring_stats_tx_s {
+	struct u64_stats_sync syncp;	/* must be first */
 	u64 errors;
 	u64 packets;
 	u64 bytes;
@@ -106,6 +114,11 @@ struct aq_ring_stats_tx_s {
 union aq_ring_stats_s {
 	struct aq_ring_stats_rx_s rx;
 	struct aq_ring_stats_tx_s tx;
+};
+
+enum atl_ring_type {
+	ATL_RING_TX,
+	ATL_RING_RX,
 };
 
 struct aq_ring_s {
@@ -122,6 +135,7 @@ struct aq_ring_s {
 	unsigned int page_order;
 	union aq_ring_stats_s stats;
 	dma_addr_t dx_ring_pa;
+	enum atl_ring_type ring_type;
 };
 
 struct aq_ring_param_s {
@@ -161,7 +175,7 @@ struct aq_ring_s *aq_ring_rx_alloc(struct aq_ring_s *self,
 				   struct aq_nic_s *aq_nic,
 				   unsigned int idx,
 				   struct aq_nic_cfg_s *aq_nic_cfg);
-int aq_ring_init(struct aq_ring_s *self);
+int aq_ring_init(struct aq_ring_s *self, const enum atl_ring_type ring_type);
 void aq_ring_rx_deinit(struct aq_ring_s *self);
 void aq_ring_free(struct aq_ring_s *self);
 void aq_ring_update_queue_state(struct aq_ring_s *ring);
@@ -173,5 +187,12 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 		     int *work_done,
 		     int budget);
 int aq_ring_rx_fill(struct aq_ring_s *self);
+
+struct aq_ring_s *aq_ring_hwts_rx_alloc(struct aq_ring_s *self,
+		struct aq_nic_s *aq_nic, unsigned int idx,
+		unsigned int size, unsigned int dx_size);
+void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic);
+
+unsigned int aq_ring_fill_stats_data(struct aq_ring_s *self, u64 *data);
 
 #endif /* AQ_RING_H */

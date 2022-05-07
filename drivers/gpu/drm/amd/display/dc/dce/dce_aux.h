@@ -29,15 +29,15 @@
 #include "i2caux_interface.h"
 #include "inc/hw/aux_engine.h"
 
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+
 #define AUX_COMMON_REG_LIST0(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \
 	SRI(AUX_ARB_CONTROL, DP_AUX, id), \
 	SRI(AUX_SW_DATA, DP_AUX, id), \
 	SRI(AUX_SW_CONTROL, DP_AUX, id), \
 	SRI(AUX_INTERRUPT_CONTROL, DP_AUX, id), \
+	SRI(AUX_DPHY_RX_CONTROL1, DP_AUX, id), \
 	SRI(AUX_SW_STATUS, DP_AUX, id)
-#endif
 
 #define AUX_COMMON_REG_LIST(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \
@@ -55,12 +55,163 @@ struct dce110_aux_registers {
 	uint32_t AUX_SW_DATA;
 	uint32_t AUX_SW_CONTROL;
 	uint32_t AUX_INTERRUPT_CONTROL;
+	uint32_t AUX_DPHY_RX_CONTROL1;
 	uint32_t AUX_SW_STATUS;
 	uint32_t AUXN_IMPCAL;
 	uint32_t AUXP_IMPCAL;
 
 	uint32_t AUX_RESET_MASK;
 };
+
+#define DCE_AUX_REG_FIELD_LIST(type)\
+	type AUX_EN;\
+	type AUX_RESET;\
+	type AUX_RESET_DONE;\
+	type AUX_REG_RW_CNTL_STATUS;\
+	type AUX_SW_USE_AUX_REG_REQ;\
+	type AUX_SW_DONE_USING_AUX_REG;\
+	type AUX_SW_AUTOINCREMENT_DISABLE;\
+	type AUX_SW_DATA_RW;\
+	type AUX_SW_INDEX;\
+	type AUX_SW_GO;\
+	type AUX_SW_DATA;\
+	type AUX_SW_REPLY_BYTE_COUNT;\
+	type AUX_SW_DONE;\
+	type AUX_SW_DONE_ACK;\
+	type AUXN_IMPCAL_ENABLE;\
+	type AUXP_IMPCAL_ENABLE;\
+	type AUXN_IMPCAL_OVERRIDE_ENABLE;\
+	type AUXP_IMPCAL_OVERRIDE_ENABLE;\
+	type AUX_RX_TIMEOUT_LEN;\
+	type AUX_RX_TIMEOUT_LEN_MUL;\
+	type AUXN_CALOUT_ERROR_AK;\
+	type AUXP_CALOUT_ERROR_AK;\
+	type AUX_SW_START_DELAY;\
+	type AUX_SW_WR_BYTES
+
+#define DCE10_AUX_MASK_SH_LIST(mask_sh)\
+	AUX_SF(AUX_CONTROL, AUX_EN, mask_sh),\
+	AUX_SF(AUX_ARB_CONTROL, AUX_REG_RW_CNTL_STATUS, mask_sh),\
+	AUX_SF(AUX_ARB_CONTROL, AUX_SW_USE_AUX_REG_REQ, mask_sh),\
+	AUX_SF(AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, mask_sh),\
+	AUX_SF(AUX_SW_CONTROL, AUX_SW_START_DELAY, mask_sh),\
+	AUX_SF(AUX_SW_CONTROL, AUX_SW_WR_BYTES, mask_sh),\
+	AUX_SF(AUX_SW_CONTROL, AUX_SW_GO, mask_sh),\
+	AUX_SF(AUX_SW_DATA, AUX_SW_AUTOINCREMENT_DISABLE, mask_sh),\
+	AUX_SF(AUX_SW_DATA, AUX_SW_DATA_RW, mask_sh),\
+	AUX_SF(AUX_SW_DATA, AUX_SW_AUTOINCREMENT_DISABLE, mask_sh),\
+	AUX_SF(AUX_SW_DATA, AUX_SW_INDEX, mask_sh),\
+	AUX_SF(AUX_SW_DATA, AUX_SW_DATA, mask_sh),\
+	AUX_SF(AUX_SW_STATUS, AUX_SW_REPLY_BYTE_COUNT, mask_sh),\
+	AUX_SF(AUX_SW_STATUS, AUX_SW_DONE, mask_sh),\
+	AUX_SF(AUX_INTERRUPT_CONTROL, AUX_SW_DONE_ACK, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_CALOUT_ERROR_AK, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_CALOUT_ERROR_AK, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_IMPCAL_ENABLE, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_IMPCAL_ENABLE, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_IMPCAL_OVERRIDE_ENABLE, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_IMPCAL_OVERRIDE_ENABLE, mask_sh)
+
+#define DCE_AUX_MASK_SH_LIST(mask_sh)\
+	AUX_SF(AUX_CONTROL, AUX_EN, mask_sh),\
+	AUX_SF(AUX_CONTROL, AUX_RESET, mask_sh),\
+	AUX_SF(AUX_CONTROL, AUX_RESET_DONE, mask_sh),\
+	AUX_SF(AUX_ARB_CONTROL, AUX_REG_RW_CNTL_STATUS, mask_sh),\
+	AUX_SF(AUX_ARB_CONTROL, AUX_SW_USE_AUX_REG_REQ, mask_sh),\
+	AUX_SF(AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, mask_sh),\
+	AUX_SF(AUX_SW_CONTROL, AUX_SW_START_DELAY, mask_sh),\
+	AUX_SF(AUX_SW_CONTROL, AUX_SW_WR_BYTES, mask_sh),\
+	AUX_SF(AUX_SW_CONTROL, AUX_SW_GO, mask_sh),\
+	AUX_SF(AUX_SW_DATA, AUX_SW_AUTOINCREMENT_DISABLE, mask_sh),\
+	AUX_SF(AUX_SW_DATA, AUX_SW_DATA_RW, mask_sh),\
+	AUX_SF(AUX_SW_DATA, AUX_SW_AUTOINCREMENT_DISABLE, mask_sh),\
+	AUX_SF(AUX_SW_DATA, AUX_SW_INDEX, mask_sh),\
+	AUX_SF(AUX_SW_DATA, AUX_SW_DATA, mask_sh),\
+	AUX_SF(AUX_SW_STATUS, AUX_SW_REPLY_BYTE_COUNT, mask_sh),\
+	AUX_SF(AUX_SW_STATUS, AUX_SW_DONE, mask_sh),\
+	AUX_SF(AUX_INTERRUPT_CONTROL, AUX_SW_DONE_ACK, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_CALOUT_ERROR_AK, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_CALOUT_ERROR_AK, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_IMPCAL_ENABLE, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_IMPCAL_ENABLE, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_IMPCAL_OVERRIDE_ENABLE, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_IMPCAL_OVERRIDE_ENABLE, mask_sh)
+
+#define DCE12_AUX_MASK_SH_LIST(mask_sh)\
+	AUX_SF(DP_AUX0_AUX_CONTROL, AUX_EN, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_CONTROL, AUX_RESET, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_CONTROL, AUX_RESET_DONE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_ARB_CONTROL, AUX_REG_RW_CNTL_STATUS, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_ARB_CONTROL, AUX_SW_USE_AUX_REG_REQ, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_CONTROL, AUX_SW_START_DELAY, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_CONTROL, AUX_SW_WR_BYTES, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_CONTROL, AUX_SW_GO, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_AUTOINCREMENT_DISABLE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_DATA_RW, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_AUTOINCREMENT_DISABLE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_INDEX, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_DATA, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_STATUS, AUX_SW_REPLY_BYTE_COUNT, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_STATUS, AUX_SW_DONE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_INTERRUPT_CONTROL, AUX_SW_DONE_ACK, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_CALOUT_ERROR_AK, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_CALOUT_ERROR_AK, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_IMPCAL_ENABLE, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_IMPCAL_ENABLE, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_IMPCAL_OVERRIDE_ENABLE, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_IMPCAL_OVERRIDE_ENABLE, mask_sh)
+
+/* DCN10 MASK */
+#define DCN10_AUX_MASK_SH_LIST(mask_sh)\
+	AUX_SF(DP_AUX0_AUX_CONTROL, AUX_EN, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_CONTROL, AUX_RESET, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_CONTROL, AUX_RESET_DONE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_ARB_CONTROL, AUX_REG_RW_CNTL_STATUS, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_ARB_CONTROL, AUX_SW_USE_AUX_REG_REQ, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_CONTROL, AUX_SW_START_DELAY, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_CONTROL, AUX_SW_WR_BYTES, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_CONTROL, AUX_SW_GO, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_AUTOINCREMENT_DISABLE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_DATA_RW, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_AUTOINCREMENT_DISABLE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_INDEX, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_DATA, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_STATUS, AUX_SW_REPLY_BYTE_COUNT, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_STATUS, AUX_SW_DONE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_INTERRUPT_CONTROL, AUX_SW_DONE_ACK, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_CALOUT_ERROR_AK, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_CALOUT_ERROR_AK, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_IMPCAL_ENABLE, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_IMPCAL_ENABLE, mask_sh),\
+	AUX_SF(AUXP_IMPCAL, AUXP_IMPCAL_OVERRIDE_ENABLE, mask_sh),\
+	AUX_SF(AUXN_IMPCAL, AUXN_IMPCAL_OVERRIDE_ENABLE, mask_sh)
+
+/* for all other DCN */
+#define DCN_AUX_MASK_SH_LIST(mask_sh)\
+	AUX_SF(DP_AUX0_AUX_CONTROL, AUX_EN, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_CONTROL, AUX_RESET, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_CONTROL, AUX_RESET_DONE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_ARB_CONTROL, AUX_REG_RW_CNTL_STATUS, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_ARB_CONTROL, AUX_SW_USE_AUX_REG_REQ, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_CONTROL, AUX_SW_START_DELAY, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_CONTROL, AUX_SW_WR_BYTES, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_CONTROL, AUX_SW_GO, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_AUTOINCREMENT_DISABLE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_DATA_RW, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_AUTOINCREMENT_DISABLE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_INDEX, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_DATA, AUX_SW_DATA, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_STATUS, AUX_SW_REPLY_BYTE_COUNT, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_SW_STATUS, AUX_SW_DONE, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_INTERRUPT_CONTROL, AUX_SW_DONE_ACK, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_DPHY_RX_CONTROL1, AUX_RX_TIMEOUT_LEN, mask_sh),\
+	AUX_SF(DP_AUX0_AUX_DPHY_RX_CONTROL1, AUX_RX_TIMEOUT_LEN_MUL, mask_sh)
+
+#define AUX_SF(reg_name, field_name, post_fix)\
+	.field_name = reg_name ## __ ## field_name ## post_fix
 
 enum {	/* This is the timeout as defined in DP 1.2a,
 	 * 2.3.4 "Detailed uPacket TX AUX CH State Description".
@@ -97,20 +248,34 @@ struct dce_aux {
 	uint32_t max_defer_write_retry;
 
 	bool acquire_reset;
+	struct dce_aux_funcs *funcs;
 };
+
+struct dce110_aux_registers_mask {
+	DCE_AUX_REG_FIELD_LIST(uint32_t);
+};
+
+struct dce110_aux_registers_shift {
+	DCE_AUX_REG_FIELD_LIST(uint8_t);
+};
+
 
 struct aux_engine_dce110 {
 	struct dce_aux base;
 	const struct dce110_aux_registers *regs;
+	const struct dce110_aux_registers_mask *mask;
+	const struct dce110_aux_registers_shift *shift;
 	struct {
 		uint32_t aux_control;
 		uint32_t aux_arb_control;
 		uint32_t aux_sw_data;
 		uint32_t aux_sw_control;
 		uint32_t aux_interrupt_control;
+		uint32_t aux_dphy_rx_control1;
+		uint32_t aux_dphy_rx_control0;
 		uint32_t aux_sw_status;
 	} addr;
-	uint32_t timeout_period;
+	uint32_t polling_timeout_period;
 };
 
 struct aux_engine_dce110_init_data {
@@ -120,12 +285,15 @@ struct aux_engine_dce110_init_data {
 	const struct dce110_aux_registers *regs;
 };
 
-struct dce_aux *dce110_aux_engine_construct(
-		struct aux_engine_dce110 *aux_engine110,
+struct dce_aux *dce110_aux_engine_construct(struct aux_engine_dce110 *aux_engine110,
 		struct dc_context *ctx,
 		uint32_t inst,
 		uint32_t timeout_period,
-		const struct dce110_aux_registers *regs);
+		const struct dce110_aux_registers *regs,
+
+		const struct dce110_aux_registers_mask *mask,
+		const struct dce110_aux_registers_shift *shift,
+		bool is_ext_aux_timeout_configurable);
 
 void dce110_engine_destroy(struct dce_aux **engine);
 
@@ -139,4 +307,13 @@ int dce_aux_transfer_raw(struct ddc_service *ddc,
 
 bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 		struct aux_payload *cmd);
+
+struct dce_aux_funcs {
+	uint32_t (*configure_timeout)
+		(struct ddc_service *ddc,
+		 uint32_t timeout);
+	void (*destroy)
+		(struct aux_engine **ptr);
+};
+
 #endif

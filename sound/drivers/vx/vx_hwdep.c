@@ -32,7 +32,7 @@ MODULE_FIRMWARE("vx/l_1_vp4.d56");
 
 int snd_vx_setup_firmware(struct vx_core *chip)
 {
-	static char *fw_files[VX_TYPE_NUMS][4] = {
+	static const char * const fw_files[VX_TYPE_NUMS][4] = {
 		[VX_TYPE_BOARD] = {
 			NULL, "x1_1_vx2.xlx", "bd56002.boot", "l_1_vx2.d56",
 		},

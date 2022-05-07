@@ -35,7 +35,8 @@
 /* total channel instances in one umc block */
 #define UMC_V6_1_TOTAL_CHANNEL_NUM	(UMC_V6_1_CHANNEL_INSTANCE_NUM * UMC_V6_1_UMC_INSTANCE_NUM)
 /* UMC regiser per channel offset */
-#define UMC_V6_1_PER_CHANNEL_OFFSET		0x800
+#define UMC_V6_1_PER_CHANNEL_OFFSET_VG20	0x800
+#define UMC_V6_1_PER_CHANNEL_OFFSET_ARCT	0x400
 
 /* EccErrCnt max value */
 #define UMC_V6_1_CE_CNT_MAX		0xffff

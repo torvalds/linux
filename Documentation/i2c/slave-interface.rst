@@ -59,7 +59,7 @@ The bus driver sends an event to the backend using the following function::
 
 	ret = i2c_slave_event(client, event, &val)
 
-'client' describes the i2c slave device. 'event' is one of the special event
+'client' describes the I2C slave device. 'event' is one of the special event
 types described hereafter. 'val' holds an u8 value for the data byte to be
 read/written and is thus bidirectional. The pointer to val must always be
 provided even if val is not used for an event, i.e. don't use NULL here. 'ret'
@@ -143,7 +143,7 @@ Bus driver support
 If you want to add slave support to the bus driver:
 
 * implement calls to register/unregister the slave and add those to the
-  struct i2c_algorithm. When registering, you probably need to set the i2c
+  struct i2c_algorithm. When registering, you probably need to set the I2C
   slave address and enable slave specific interrupts. If you use runtime pm, you
   should use pm_runtime_get_sync() because your device usually needs to be
   powered on always to be able to detect its slave address. When unregistering,

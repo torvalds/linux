@@ -202,13 +202,13 @@ error:
 static int an30259a_dt_init(struct i2c_client *client,
 			    struct an30259a *chip)
 {
-	struct device_node *np = client->dev.of_node, *child;
+	struct device_node *np = dev_of_node(&client->dev), *child;
 	int count, ret;
 	int i = 0;
 	const char *str;
 	struct an30259a_led *led;
 
-	count = of_get_child_count(np);
+	count = of_get_available_child_count(np);
 	if (!count || count > AN30259A_MAX_LEDS)
 		return -EINVAL;
 
@@ -237,9 +237,6 @@ static int an30259a_dt_init(struct i2c_client *client,
 			else
 				led->default_state = STATE_OFF;
 		}
-
-		of_property_read_string(child, "linux,default-trigger",
-					&led->cdev.default_trigger);
 
 		i++;
 	}
@@ -304,6 +301,13 @@ static int an30259a_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, chip);
 
 	chip->regmap = devm_regmap_init_i2c(client, &an30259a_regmap_config);
+
+	if (IS_ERR(chip->regmap)) {
+		err = PTR_ERR(chip->regmap);
+		dev_err(&client->dev, "Failed to allocate register map: %d\n",
+			err);
+		goto exit;
+	}
 
 	for (i = 0; i < chip->num_leds; i++) {
 		struct led_init_data init_data = {};

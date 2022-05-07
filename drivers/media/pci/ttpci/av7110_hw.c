@@ -1107,7 +1107,7 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 		break;
 	case OSD_SetRow:
 		dc->y1 = dc->y0;
-		/* fall through */
+		fallthrough;
 	case OSD_SetBlock:
 		ret = OSDSetBlock(av7110, dc->x0, dc->y0, dc->x1, dc->y1, dc->color, dc->data);
 		break;

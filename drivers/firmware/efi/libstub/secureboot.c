@@ -21,18 +21,13 @@ static const efi_char16_t efi_SetupMode_name[] = L"SetupMode";
 static const efi_guid_t shim_guid = EFI_SHIM_LOCK_GUID;
 static const efi_char16_t shim_MokSBState_name[] = L"MokSBState";
 
-#define get_efi_var(name, vendor, ...) \
-	efi_call_runtime(get_variable, \
-			 (efi_char16_t *)(name), (efi_guid_t *)(vendor), \
-			 __VA_ARGS__);
-
 /*
  * Determine whether we're in secure boot mode.
  *
  * Please keep the logic in sync with
  * arch/x86/xen/efi.c:xen_efi_get_secureboot().
  */
-enum efi_secureboot_mode efi_get_secureboot(efi_system_table_t *sys_table_arg)
+enum efi_secureboot_mode efi_get_secureboot(void)
 {
 	u32 attr;
 	u8 secboot, setupmode, moksbstate;
@@ -72,10 +67,10 @@ enum efi_secureboot_mode efi_get_secureboot(efi_system_table_t *sys_table_arg)
 		return efi_secureboot_mode_disabled;
 
 secure_boot_enabled:
-	pr_efi(sys_table_arg, "UEFI Secure Boot is enabled.\n");
+	efi_info("UEFI Secure Boot is enabled.\n");
 	return efi_secureboot_mode_enabled;
 
 out_efi_err:
-	pr_efi_err(sys_table_arg, "Could not determine UEFI Secure Boot status.\n");
+	efi_err("Could not determine UEFI Secure Boot status.\n");
 	return efi_secureboot_mode_unknown;
 }

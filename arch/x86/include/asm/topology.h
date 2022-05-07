@@ -193,4 +193,29 @@ static inline void sched_clear_itmt_support(void)
 }
 #endif /* CONFIG_SCHED_MC_PRIO */
 
+#if defined(CONFIG_SMP) && defined(CONFIG_X86_64)
+#include <asm/cpufeature.h>
+
+DECLARE_STATIC_KEY_FALSE(arch_scale_freq_key);
+
+#define arch_scale_freq_invariant() static_branch_likely(&arch_scale_freq_key)
+
+DECLARE_PER_CPU(unsigned long, arch_freq_scale);
+
+static inline long arch_scale_freq_capacity(int cpu)
+{
+	return per_cpu(arch_freq_scale, cpu);
+}
+#define arch_scale_freq_capacity arch_scale_freq_capacity
+
+extern void arch_scale_freq_tick(void);
+#define arch_scale_freq_tick arch_scale_freq_tick
+
+extern void arch_set_max_freq_ratio(bool turbo_disabled);
+#else
+static inline void arch_set_max_freq_ratio(bool turbo_disabled)
+{
+}
+#endif
+
 #endif /* _ASM_X86_TOPOLOGY_H */

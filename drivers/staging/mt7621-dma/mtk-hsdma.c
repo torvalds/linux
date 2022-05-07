@@ -208,8 +208,8 @@ static void mtk_hsdma_reset_chan(struct mtk_hsdam_engine *hsdma,
 
 static void hsdma_dump_reg(struct mtk_hsdam_engine *hsdma)
 {
-	dev_dbg(hsdma->ddev.dev, "tbase %08x, tcnt %08x, " \
-			"tctx %08x, tdtx: %08x, rbase %08x, " \
+	dev_dbg(hsdma->ddev.dev, "tbase %08x, tcnt %08x, "
+			"tctx %08x, tdtx: %08x, rbase %08x, "
 			"rcnt %08x, rctx %08x, rdtx %08x\n",
 			mtk_hsdma_read(hsdma, HSDMA_REG_TX_BASE),
 			mtk_hsdma_read(hsdma, HSDMA_REG_TX_CNT),
@@ -220,8 +220,7 @@ static void hsdma_dump_reg(struct mtk_hsdam_engine *hsdma)
 			mtk_hsdma_read(hsdma, HSDMA_REG_RX_CRX),
 			mtk_hsdma_read(hsdma, HSDMA_REG_RX_DRX));
 
-	dev_dbg(hsdma->ddev.dev, "info %08x, glo %08x, delay %08x, " \
-			"intr_stat %08x, intr_mask %08x\n",
+	dev_dbg(hsdma->ddev.dev, "info %08x, glo %08x, delay %08x, intr_stat %08x, intr_mask %08x\n",
 			mtk_hsdma_read(hsdma, HSDMA_REG_INFO),
 			mtk_hsdma_read(hsdma, HSDMA_REG_GLO_CFG),
 			mtk_hsdma_read(hsdma, HSDMA_REG_DELAY_INT),
@@ -243,9 +242,9 @@ static void hsdma_dump_desc(struct mtk_hsdam_engine *hsdma,
 		tx_desc = &chan->tx_ring[i];
 		rx_desc = &chan->rx_ring[i];
 
-		dev_dbg(hsdma->ddev.dev, "%d tx addr0: %08x, flags %08x, " \
+		dev_dbg(hsdma->ddev.dev, "%d tx addr0: %08x, flags %08x, "
 				"tx addr1: %08x, rx addr0 %08x, flags %08x\n",
-				i, tx_desc->addr0, tx_desc->flags, \
+				i, tx_desc->addr0, tx_desc->flags,
 				tx_desc->addr1, rx_desc->addr0, rx_desc->flags);
 	}
 }
@@ -534,9 +533,9 @@ static void mtk_hsdma_rx(struct mtk_hsdam_engine *hsdma)
 	mtk_hsdma_chan_done(hsdma, chan);
 }
 
-static void mtk_hsdma_tasklet(unsigned long arg)
+static void mtk_hsdma_tasklet(struct tasklet_struct *t)
 {
-	struct mtk_hsdam_engine *hsdma = (struct mtk_hsdam_engine *)arg;
+	struct mtk_hsdam_engine *hsdma = from_tasklet(hsdma, t, task);
 
 	mtk_hsdma_rx(hsdma);
 	mtk_hsdma_tx(hsdma);
@@ -548,7 +547,8 @@ static int mtk_hsdam_alloc_desc(struct mtk_hsdam_engine *hsdma,
 	int i;
 
 	chan->tx_ring = dma_alloc_coherent(hsdma->ddev.dev,
-			2 * HSDMA_DESCS_NUM * sizeof(*chan->tx_ring),
+					   2 * HSDMA_DESCS_NUM *
+					   sizeof(*chan->tx_ring),
 			&chan->desc_addr, GFP_ATOMIC | __GFP_ZERO);
 	if (!chan->tx_ring)
 		goto no_mem;
@@ -569,8 +569,8 @@ static void mtk_hsdam_free_desc(struct mtk_hsdam_engine *hsdma,
 {
 	if (chan->tx_ring) {
 		dma_free_coherent(hsdma->ddev.dev,
-				2 * HSDMA_DESCS_NUM * sizeof(*chan->tx_ring),
-				chan->tx_ring, chan->desc_addr);
+				  2 * HSDMA_DESCS_NUM * sizeof(*chan->tx_ring),
+				  chan->tx_ring, chan->desc_addr);
 		chan->tx_ring = NULL;
 		chan->rx_ring = NULL;
 	}
@@ -650,7 +650,6 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 	struct mtk_hsdma_chan *chan;
 	struct mtk_hsdam_engine *hsdma;
 	struct dma_device *dd;
-	struct resource *res;
 	int ret;
 	int irq;
 	void __iomem *base;
@@ -667,12 +666,11 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 	if (!hsdma)
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 	hsdma->base = base + HSDMA_BASE_OFFSET;
-	tasklet_init(&hsdma->task, mtk_hsdma_tasklet, (unsigned long)hsdma);
+	tasklet_setup(&hsdma->task, mtk_hsdma_tasklet);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

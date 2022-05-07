@@ -19,11 +19,11 @@
 #define MUX_RO_RATE_RO_OPS(name, clk_name)			\
 	static struct clk_hw name ## _mux_hw;			\
 	static struct clk_hw name ## _rate_hw;			\
-	static struct clk_ops name ## _mux_ops = {		\
+	static const struct clk_ops name ## _mux_ops = {	\
 		.get_parent = name ## _get_parent,		\
 		.set_parent = dummy_clk_set_parent,		\
 	};							\
-	static struct clk_ops name ## _rate_ops = {		\
+	static const struct clk_ops name ## _rate_ops = {	\
 		.recalc_rate = name ## _get_rate,		\
 	};							\
 	static struct clk * __init clk_register_ ## name(void)	\
@@ -38,7 +38,7 @@
 
 #define RATE_RO_OPS(name, clk_name)				\
 	static struct clk_hw name ## _rate_hw;			\
-	static const struct clk_ops name ## _rate_ops = {		\
+	static const struct clk_ops name ## _rate_ops = {	\
 		.recalc_rate = name ## _get_rate,		\
 	};							\
 	static struct clk * __init clk_register_ ## name(void)	\
@@ -53,7 +53,7 @@
 
 #define RATE_OPS(name, clk_name)				\
 	static struct clk_hw name ## _rate_hw;			\
-	static struct clk_ops name ## _rate_ops = {		\
+	static const struct clk_ops name ## _rate_ops = {	\
 		.recalc_rate = name ## _get_rate,		\
 		.set_rate = name ## _set_rate,			\
 		.determine_rate = name ## _determine_rate,	\

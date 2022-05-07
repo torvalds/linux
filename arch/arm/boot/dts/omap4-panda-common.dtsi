@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011-2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011-2013 Texas Instruments Incorporated - https://www.ti.com/
  */
 #include <dt-bindings/input/input.h>
 #include "elpida_ecb240abacn.dtsi"
@@ -10,6 +10,26 @@
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>; /* 1 GB */
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		dsp_memory_region: dsp-memory@98000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x98000000 0x800000>;
+			reusable;
+			status = "okay";
+		};
+
+		ipu_memory_region: ipu-memory@98800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x98800000 0x7000000>;
+			reusable;
+			status = "okay";
+		};
 	};
 
 	chosen {
@@ -546,7 +566,7 @@
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 
 	port {
 		dpi_out: endpoint {
@@ -557,12 +577,12 @@
 };
 
 &dsi2 {
-	status = "ok";
+	status = "okay";
 	vdd-supply = <&vcxio>;
 };
 
 &hdmi {
-	status = "ok";
+	status = "okay";
 	vdda-supply = <&vdac>;
 
 	port {
@@ -570,4 +590,18 @@
 			remote-endpoint = <&tpd12s015_in>;
 		};
 	};
+};
+
+&dsp {
+	status = "okay";
+	memory-region = <&dsp_memory_region>;
+	ti,timers = <&timer5>;
+	ti,watchdog-timers = <&timer6>;
+};
+
+&ipu {
+	status = "okay";
+	memory-region = <&ipu_memory_region>;
+	ti,timers = <&timer3>;
+	ti,watchdog-timers = <&timer9>, <&timer11>;
 };

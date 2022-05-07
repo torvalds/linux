@@ -12,7 +12,7 @@
 @ Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 @ project. The module is, however, dual licensed under OpenSSL and
 @ CRYPTOGAMS licenses depending on where you obtain it. For further
-@ details see http://www.openssl.org/~appro/cryptogams/.
+@ details see https://www.openssl.org/~appro/cryptogams/.
 @ ====================================================================
 
 @ SHA512 block procedure for ARMv4. September 2007.
@@ -42,7 +42,7 @@
 @ terms it's 22.6 cycles per byte, which is disappointing result.
 @ Technical writers asserted that 3-way S4 pipeline can sustain
 @ multiple NEON instructions per cycle, but dual NEON issue could
-@ not be observed, see http://www.openssl.org/~appro/Snapdragon-S4.html
+@ not be observed, see https://www.openssl.org/~appro/Snapdragon-S4.html
 @ for further details. On side note Cortex-A15 processes one byte in
 @ 16 cycles.
 
@@ -79,7 +79,6 @@
 #else
 .syntax unified
 # ifdef __thumb2__
-#  define adrl adr
 .thumb
 # else
 .code   32
@@ -543,7 +542,8 @@ sha512_block_data_order_neon:
 	dmb				@ errata #451034 on early Cortex A8
 	add	r2,r1,r2,lsl#7	@ len to point at the end of inp
 	VFP_ABI_PUSH
-	adrl	r3,K512
+	adr	r3,.Lsha512_block_data_order
+	sub	r3,r3,.Lsha512_block_data_order-K512
 	vldmia	r0,{d16-d23}		@ load context
 .Loop_neon:
 	vshr.u64	d24,d20,#14	@ 0

@@ -1056,7 +1056,7 @@ void octeon_delete_dispatch_list(struct octeon_device *oct)
 
 	list_for_each_safe(temp, tmp2, &freelist) {
 		list_del(temp);
-		vfree(temp);
+		kfree(temp);
 	}
 }
 
@@ -1152,13 +1152,10 @@ octeon_register_dispatch_fn(struct octeon_device *oct,
 
 		dev_dbg(&oct->pci_dev->dev,
 			"Adding opcode to dispatch list linked list\n");
-		dispatch = (struct octeon_dispatch *)
-			   vmalloc(sizeof(struct octeon_dispatch));
-		if (!dispatch) {
-			dev_err(&oct->pci_dev->dev,
-				"No memory to add dispatch function\n");
+		dispatch = kmalloc(sizeof(*dispatch), GFP_KERNEL);
+		if (!dispatch)
 			return 1;
-		}
+
 		dispatch->opcode = combined_opcode;
 		dispatch->dispatch_fn = fn;
 		dispatch->arg = fn_arg;
@@ -1310,7 +1307,7 @@ struct octeon_config *octeon_get_conf(struct octeon_device *oct)
 /* scratch register address is same in all the OCT-II and CN70XX models */
 #define CNXX_SLI_SCRATCH1   0x3C0
 
-/** Get the octeon device pointer.
+/* Get the octeon device pointer.
  *  @param octeon_id  - The id for which the octeon device pointer is required.
  *  @return Success: Octeon device pointer.
  *  @return Failure: NULL.
@@ -1327,7 +1324,7 @@ u64 lio_pci_readq(struct octeon_device *oct, u64 addr)
 {
 	u64 val64;
 	unsigned long flags;
-	u32 val32, addrhi;
+	u32 addrhi;
 
 	spin_lock_irqsave(&oct->pci_win_lock, flags);
 
@@ -1342,10 +1339,10 @@ u64 lio_pci_readq(struct octeon_device *oct, u64 addr)
 	writel(addrhi, oct->reg_list.pci_win_rd_addr_hi);
 
 	/* Read back to preserve ordering of writes */
-	val32 = readl(oct->reg_list.pci_win_rd_addr_hi);
+	readl(oct->reg_list.pci_win_rd_addr_hi);
 
 	writel(addr & 0xffffffff, oct->reg_list.pci_win_rd_addr_lo);
-	val32 = readl(oct->reg_list.pci_win_rd_addr_lo);
+	readl(oct->reg_list.pci_win_rd_addr_lo);
 
 	val64 = readq(oct->reg_list.pci_win_rd_data);
 
@@ -1358,7 +1355,6 @@ void lio_pci_writeq(struct octeon_device *oct,
 		    u64 val,
 		    u64 addr)
 {
-	u32 val32;
 	unsigned long flags;
 
 	spin_lock_irqsave(&oct->pci_win_lock, flags);
@@ -1368,7 +1364,7 @@ void lio_pci_writeq(struct octeon_device *oct,
 	/* The write happens when the LSB is written. So write MSB first. */
 	writel(val >> 32, oct->reg_list.pci_win_wr_data_hi);
 	/* Read the MSB to ensure ordering of writes. */
-	val32 = readl(oct->reg_list.pci_win_wr_data_hi);
+	readl(oct->reg_list.pci_win_wr_data_hi);
 
 	writel(val & 0xffffffff, oct->reg_list.pci_win_wr_data_lo);
 
@@ -1414,7 +1410,7 @@ int octeon_wait_for_ddr_init(struct octeon_device *oct, u32 *timeout)
 	return ret;
 }
 
-/** Get the octeon id assigned to the octeon device passed as argument.
+/* Get the octeon id assigned to the octeon device passed as argument.
  *  This function is exported to other modules.
  *  @param dev - octeon device pointer passed as a void *.
  *  @return octeon device id

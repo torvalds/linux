@@ -479,8 +479,10 @@ static void __init fixup_port_irq(int index,
 	port->irq = virq;
 
 #ifdef CONFIG_SERIAL_8250_FSL
-	if (of_device_is_compatible(np, "fsl,ns16550"))
+	if (of_device_is_compatible(np, "fsl,ns16550")) {
 		port->handle_irq = fsl8250_handle_irq;
+		port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
+	}
 #endif
 }
 

@@ -74,7 +74,7 @@ struct armada38x_rtc {
 	int		    irq;
 	bool		    initialized;
 	struct value_to_freq *val_to_freq;
-	struct armada38x_rtc_data *data;
+	const struct armada38x_rtc_data *data;
 };
 
 #define ALARM1	0
@@ -501,16 +501,13 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct armada38x_rtc *rtc;
-	const struct of_device_id *match;
-
-	match = of_match_device(armada38x_rtc_of_match_table, &pdev->dev);
-	if (!match)
-		return -ENODEV;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(struct armada38x_rtc),
 			    GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
+
+	rtc->data = of_device_get_match_data(&pdev->dev);
 
 	rtc->val_to_freq = devm_kcalloc(&pdev->dev, SAMPLE_NR,
 				sizeof(struct value_to_freq), GFP_KERNEL);
@@ -553,7 +550,6 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 		 */
 		rtc->rtc_dev->ops = &armada38x_rtc_ops_noirq;
 	}
-	rtc->data = (struct armada38x_rtc_data *)match->data;
 
 	/* Update RTC-MBUS bridge timing parameters */
 	rtc->data->update_mbus_timing(rtc);

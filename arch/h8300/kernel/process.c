@@ -45,7 +45,6 @@
 #include <linux/uaccess.h>
 #include <asm/traps.h>
 #include <asm/setup.h>
-#include <asm/pgtable.h>
 
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
@@ -58,7 +57,7 @@ asmlinkage void ret_from_kernel_thread(void);
  */
 void arch_cpu_idle(void)
 {
-	local_irq_enable();
+	raw_local_irq_enable();
 	__asm__("sleep");
 }
 
@@ -106,9 +105,8 @@ void flush_thread(void)
 {
 }
 
-int copy_thread(unsigned long clone_flags,
-		unsigned long usp, unsigned long topstk,
-		struct task_struct *p)
+int copy_thread(unsigned long clone_flags, unsigned long usp,
+		unsigned long topstk, struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *childregs;
 
@@ -160,11 +158,19 @@ asmlinkage int sys_clone(unsigned long __user *args)
 	unsigned long  newsp;
 	uintptr_t parent_tidptr;
 	uintptr_t child_tidptr;
+	struct kernel_clone_args kargs = {};
 
 	get_user(clone_flags, &args[0]);
 	get_user(newsp, &args[1]);
 	get_user(parent_tidptr, &args[2]);
 	get_user(child_tidptr, &args[3]);
-	return do_fork(clone_flags, newsp, 0,
-		       (int __user *)parent_tidptr, (int __user *)child_tidptr);
+
+	kargs.flags		= (lower_32_bits(clone_flags) & ~CSIGNAL);
+	kargs.pidfd		= (int __user *)parent_tidptr;
+	kargs.child_tid		= (int __user *)child_tidptr;
+	kargs.parent_tid	= (int __user *)parent_tidptr;
+	kargs.exit_signal	= (lower_32_bits(clone_flags) & CSIGNAL);
+	kargs.stack		= newsp;
+
+	return kernel_clone(&kargs);
 }

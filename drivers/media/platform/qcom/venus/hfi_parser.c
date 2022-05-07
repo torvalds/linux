@@ -181,6 +181,7 @@ static void parse_codecs(struct venus_core *core, void *data)
 	if (IS_V1(core)) {
 		core->dec_codecs &= ~HFI_VIDEO_CODEC_HEVC;
 		core->dec_codecs &= ~HFI_VIDEO_CODEC_SPARK;
+		core->enc_codecs &= ~HFI_VIDEO_CODEC_HEVC;
 	}
 }
 
@@ -237,6 +238,9 @@ u32 hfi_parser(struct venus_core *core, struct venus_inst *inst, void *buf,
 		return HFI_ERR_SYS_INSUFFICIENT_RESOURCES;
 
 	parser_init(inst, &codecs, &domain);
+
+	core->codecs_count = 0;
+	memset(core->caps, 0, sizeof(core->caps));
 
 	while (words_count) {
 		data = word + 1;

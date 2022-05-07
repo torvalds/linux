@@ -104,7 +104,7 @@ static int snd_cs5530_create(struct snd_card *card,
 	void __iomem *mem;
 	int err;
 
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_cs5530_dev_free,
 	};
 	*rchip = NULL;

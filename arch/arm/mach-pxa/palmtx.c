@@ -23,7 +23,6 @@
 #include <linux/gpio.h>
 #include <linux/wm97xx.h>
 #include <linux/power_supply.h>
-#include <linux/usb/gpio_vbus.h>
 #include <linux/mtd/platnand.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>

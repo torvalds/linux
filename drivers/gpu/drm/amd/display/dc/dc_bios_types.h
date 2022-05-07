@@ -89,7 +89,6 @@ struct dc_vbios_funcs {
 	bool (*is_device_id_supported)(
 		struct dc_bios *bios,
 		struct device_id id);
-
 	/* COMMANDS */
 
 	enum bp_result (*encoder_control)(
@@ -131,6 +130,20 @@ struct dc_vbios_funcs {
 	enum bp_result (*get_board_layout_info)(
 		struct dc_bios *dcb,
 		struct board_layout_info *board_layout_info);
+	uint16_t (*pack_data_tables)(
+		struct dc_bios *dcb,
+		void *dst);
+
+	enum bp_result (*get_atom_dc_golden_table)(
+			struct dc_bios *dcb);
+
+	enum bp_result (*enable_lvtma_control)(
+		struct dc_bios *bios,
+		uint8_t uc_pwr_on);
+
+	enum bp_result (*get_soc_bb_info)(
+		struct dc_bios *dcb,
+		struct bp_soc_bb_info *soc_bb_info);
 };
 
 struct bios_registers {
@@ -151,6 +164,8 @@ struct dc_bios {
 	struct integrated_info *integrated_info;
 	struct dc_firmware_info fw_info;
 	bool fw_info_valid;
+	struct dc_vram_info vram_info;
+	struct dc_golden_table golden_table;
 };
 
 #endif /* DC_BIOS_TYPES_H */

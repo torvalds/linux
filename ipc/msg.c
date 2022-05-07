@@ -61,6 +61,16 @@ struct msg_queue {
 	struct list_head q_senders;
 } __randomize_layout;
 
+/*
+ * MSG_BARRIER Locking:
+ *
+ * Similar to the optimization used in ipc/mqueue.c, one syscall return path
+ * does not acquire any locks when it sees that a message exists in
+ * msg_receiver.r_msg. Therefore r_msg is set using smp_store_release()
+ * and accessed using READ_ONCE()+smp_acquire__after_ctrl_dep(). In addition,
+ * wake_q_add_safe() is used. See ipc/mqueue.c for more details
+ */
+
 /* one msg_receiver structure for each sleeping receiver */
 struct msg_receiver {
 	struct list_head	r_list;
@@ -184,6 +194,10 @@ static inline void ss_add(struct msg_queue *msq,
 {
 	mss->tsk = current;
 	mss->msgsz = msgsz;
+	/*
+	 * No memory barrier required: we did ipc_lock_object(),
+	 * and the waker obtains that lock before calling wake_q_add().
+	 */
 	__set_current_state(TASK_INTERRUPTIBLE);
 	list_add_tail(&mss->list, &msq->q_senders);
 }
@@ -237,8 +251,11 @@ static void expunge_all(struct msg_queue *msq, int res,
 	struct msg_receiver *msr, *t;
 
 	list_for_each_entry_safe(msr, t, &msq->q_receivers, r_list) {
-		wake_q_add(wake_q, msr->r_tsk);
-		WRITE_ONCE(msr->r_msg, ERR_PTR(res));
+		get_task_struct(msr->r_tsk);
+
+		/* see MSG_BARRIER for purpose/pairing */
+		smp_store_release(&msr->r_msg, ERR_PTR(res));
+		wake_q_add_safe(wake_q, msr->r_tsk);
 	}
 }
 
@@ -251,6 +268,8 @@ static void expunge_all(struct msg_queue *msq, int res,
  * before freeque() is called. msg_ids.rwsem remains locked on exit.
  */
 static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
+	__releases(RCU)
+	__releases(&msq->q_perm)
 {
 	struct msg_msg *msg, *t;
 	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
@@ -377,7 +396,7 @@ copy_msqid_from_user(struct msqid64_ds *out, void __user *buf, int version)
  * NOTE: no locks must be held, the rwsem is taken inside this function.
  */
 static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
-			struct msqid64_ds *msqid64)
+			struct ipc64_perm *perm, int msg_qbytes)
 {
 	struct kern_ipc_perm *ipcp;
 	struct msg_queue *msq;
@@ -387,7 +406,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 	rcu_read_lock();
 
 	ipcp = ipcctl_obtain_check(ns, &msg_ids(ns), msqid, cmd,
-				      &msqid64->msg_perm, msqid64->msg_qbytes);
+				      perm, msg_qbytes);
 	if (IS_ERR(ipcp)) {
 		err = PTR_ERR(ipcp);
 		goto out_unlock1;
@@ -409,18 +428,18 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 	{
 		DEFINE_WAKE_Q(wake_q);
 
-		if (msqid64->msg_qbytes > ns->msg_ctlmnb &&
+		if (msg_qbytes > ns->msg_ctlmnb &&
 		    !capable(CAP_SYS_RESOURCE)) {
 			err = -EPERM;
 			goto out_unlock1;
 		}
 
 		ipc_lock_object(&msq->q_perm);
-		err = ipc_update_perm(&msqid64->msg_perm, ipcp);
+		err = ipc_update_perm(perm, ipcp);
 		if (err)
 			goto out_unlock0;
 
-		msq->q_qbytes = msqid64->msg_qbytes;
+		msq->q_qbytes = msg_qbytes;
 
 		msq->q_ctime = ktime_get_real_seconds();
 		/*
@@ -601,9 +620,10 @@ static long ksys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf, int ver
 	case IPC_SET:
 		if (copy_msqid_from_user(&msqid64, buf, version))
 			return -EFAULT;
-		/* fallthru */
+		return msgctl_down(ns, msqid, cmd, &msqid64.msg_perm,
+				   msqid64.msg_qbytes);
 	case IPC_RMID:
-		return msgctl_down(ns, msqid, cmd, &msqid64);
+		return msgctl_down(ns, msqid, cmd, NULL, 0);
 	default:
 		return  -EINVAL;
 	}
@@ -735,9 +755,9 @@ static long compat_ksys_msgctl(int msqid, int cmd, void __user *uptr, int versio
 	case IPC_SET:
 		if (copy_compat_msqid_from_user(&msqid64, uptr, version))
 			return -EFAULT;
-		/* fallthru */
+		return msgctl_down(ns, msqid, cmd, &msqid64.msg_perm, msqid64.msg_qbytes);
 	case IPC_RMID:
-		return msgctl_down(ns, msqid, cmd, &msqid64);
+		return msgctl_down(ns, msqid, cmd, NULL, 0);
 	default:
 		return -EINVAL;
 	}
@@ -798,13 +818,17 @@ static inline int pipelined_send(struct msg_queue *msq, struct msg_msg *msg,
 			list_del(&msr->r_list);
 			if (msr->r_maxsize < msg->m_ts) {
 				wake_q_add(wake_q, msr->r_tsk);
-				WRITE_ONCE(msr->r_msg, ERR_PTR(-E2BIG));
+
+				/* See expunge_all regarding memory barrier */
+				smp_store_release(&msr->r_msg, ERR_PTR(-E2BIG));
 			} else {
 				ipc_update_pid(&msq->q_lrpid, task_pid(msr->r_tsk));
 				msq->q_rtime = ktime_get_real_seconds();
 
 				wake_q_add(wake_q, msr->r_tsk);
-				WRITE_ONCE(msr->r_msg, msg);
+
+				/* See expunge_all regarding memory barrier */
+				smp_store_release(&msr->r_msg, msg);
 				return 1;
 			}
 		}
@@ -1154,7 +1178,11 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 			msr_d.r_maxsize = INT_MAX;
 		else
 			msr_d.r_maxsize = bufsz;
-		msr_d.r_msg = ERR_PTR(-EAGAIN);
+
+		/* memory barrier not require due to ipc_lock_object() */
+		WRITE_ONCE(msr_d.r_msg, ERR_PTR(-EAGAIN));
+
+		/* memory barrier not required, we own ipc_lock_object() */
 		__set_current_state(TASK_INTERRUPTIBLE);
 
 		ipc_unlock_object(&msq->q_perm);
@@ -1183,8 +1211,12 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 		 * signal) it will either see the message and continue ...
 		 */
 		msg = READ_ONCE(msr_d.r_msg);
-		if (msg != ERR_PTR(-EAGAIN))
+		if (msg != ERR_PTR(-EAGAIN)) {
+			/* see MSG_BARRIER for purpose/pairing */
+			smp_acquire__after_ctrl_dep();
+
 			goto out_unlock1;
+		}
 
 		 /*
 		  * ... or see -EAGAIN, acquire the lock to check the message
@@ -1192,7 +1224,7 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 		  */
 		ipc_lock_object(&msq->q_perm);
 
-		msg = msr_d.r_msg;
+		msg = READ_ONCE(msr_d.r_msg);
 		if (msg != ERR_PTR(-EAGAIN))
 			goto out_unlock0;
 

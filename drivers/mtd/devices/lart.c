@@ -436,7 +436,10 @@ static int flash_read (struct mtd_info *mtd,loff_t from,size_t len,size_t *retle
 	 {
 		int gap = BUSWIDTH - (from & (BUSWIDTH - 1));
 
-		while (len && gap--) *buf++ = read8 (from++), len--;
+		while (len && gap--) {
+			*buf++ = read8 (from++);
+			len--;
+		}
 	 }
 
    /* now we read dwords until we reach a non-dword boundary */
@@ -518,7 +521,10 @@ static int flash_write (struct mtd_info *mtd,loff_t to,size_t len,size_t *retlen
 		i = n = 0;
 
 		while (gap--) tmp[i++] = 0xFF;
-		while (len && i < BUSWIDTH) tmp[i++] = buf[n++], len--;
+		while (len && i < BUSWIDTH) {
+			tmp[i++] = buf[n++];
+			len--;
+		}
 		while (i < BUSWIDTH) tmp[i++] = 0xFF;
 
 		if (!write_dword (aligned,*((__u32 *) tmp))) return (-EIO);

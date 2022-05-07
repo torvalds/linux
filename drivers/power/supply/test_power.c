@@ -16,7 +16,7 @@
 #include <linux/power_supply.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/vermagic.h>
+#include <generated/utsrelease.h>
 
 enum test_power_id {
 	TEST_AC,
@@ -33,6 +33,8 @@ static int battery_present		= 1; /* true */
 static int battery_technology		= POWER_SUPPLY_TECHNOLOGY_LION;
 static int battery_capacity		= 50;
 static int battery_voltage		= 3300;
+static int battery_charge_counter	= -1000;
+static int battery_current		= -1600;
 
 static bool module_initialized;
 
@@ -100,6 +102,9 @@ static int test_power_get_battery_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		val->intval = battery_capacity;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
+		val->intval = battery_charge_counter;
+		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		val->intval = 100;
@@ -113,6 +118,10 @@ static int test_power_get_battery_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		val->intval = battery_voltage;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_AVG:
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		val->intval = battery_current;
 		break;
 	default:
 		pr_info("%s: some properties deliberately report errors.\n",
@@ -135,6 +144,7 @@ static enum power_supply_property test_power_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
@@ -144,6 +154,8 @@ static enum power_supply_property test_power_battery_props[] = {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_AVG,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
 static char *test_power_ac_supplied_to[] = {
@@ -340,8 +352,8 @@ static int param_set_ac_online(const char *key, const struct kernel_param *kp)
 
 static int param_get_ac_online(char *buffer, const struct kernel_param *kp)
 {
-	strcpy(buffer, map_get_key(map_ac_online, ac_online, "unknown"));
-	return strlen(buffer);
+	return sprintf(buffer, "%s\n",
+			map_get_key(map_ac_online, ac_online, "unknown"));
 }
 
 static int param_set_usb_online(const char *key, const struct kernel_param *kp)
@@ -353,8 +365,8 @@ static int param_set_usb_online(const char *key, const struct kernel_param *kp)
 
 static int param_get_usb_online(char *buffer, const struct kernel_param *kp)
 {
-	strcpy(buffer, map_get_key(map_ac_online, usb_online, "unknown"));
-	return strlen(buffer);
+	return sprintf(buffer, "%s\n",
+			map_get_key(map_ac_online, usb_online, "unknown"));
 }
 
 static int param_set_battery_status(const char *key,
@@ -367,8 +379,8 @@ static int param_set_battery_status(const char *key,
 
 static int param_get_battery_status(char *buffer, const struct kernel_param *kp)
 {
-	strcpy(buffer, map_get_key(map_status, battery_status, "unknown"));
-	return strlen(buffer);
+	return sprintf(buffer, "%s\n",
+			map_get_key(map_ac_online, battery_status, "unknown"));
 }
 
 static int param_set_battery_health(const char *key,
@@ -381,8 +393,8 @@ static int param_set_battery_health(const char *key,
 
 static int param_get_battery_health(char *buffer, const struct kernel_param *kp)
 {
-	strcpy(buffer, map_get_key(map_health, battery_health, "unknown"));
-	return strlen(buffer);
+	return sprintf(buffer, "%s\n",
+			map_get_key(map_ac_online, battery_health, "unknown"));
 }
 
 static int param_set_battery_present(const char *key,
@@ -396,8 +408,8 @@ static int param_set_battery_present(const char *key,
 static int param_get_battery_present(char *buffer,
 					const struct kernel_param *kp)
 {
-	strcpy(buffer, map_get_key(map_present, battery_present, "unknown"));
-	return strlen(buffer);
+	return sprintf(buffer, "%s\n",
+			map_get_key(map_ac_online, battery_present, "unknown"));
 }
 
 static int param_set_battery_technology(const char *key,
@@ -412,9 +424,9 @@ static int param_set_battery_technology(const char *key,
 static int param_get_battery_technology(char *buffer,
 					const struct kernel_param *kp)
 {
-	strcpy(buffer,
-		map_get_key(map_technology, battery_technology, "unknown"));
-	return strlen(buffer);
+	return sprintf(buffer, "%s\n",
+			map_get_key(map_ac_online, battery_technology,
+					"unknown"));
 }
 
 static int param_set_battery_capacity(const char *key,
@@ -446,6 +458,36 @@ static int param_set_battery_voltage(const char *key,
 }
 
 #define param_get_battery_voltage param_get_int
+
+static int param_set_battery_charge_counter(const char *key,
+					const struct kernel_param *kp)
+{
+	int tmp;
+
+	if (1 != sscanf(key, "%d", &tmp))
+		return -EINVAL;
+
+	battery_charge_counter = tmp;
+	signal_power_supply_changed(test_power_supplies[TEST_BATTERY]);
+	return 0;
+}
+
+#define param_get_battery_charge_counter param_get_int
+
+static int param_set_battery_current(const char *key,
+					const struct kernel_param *kp)
+{
+	int tmp;
+
+	if (1 != sscanf(key, "%d", &tmp))
+		return -EINVAL;
+
+	battery_current = tmp;
+	signal_power_supply_changed(test_power_supplies[TEST_BATTERY]);
+	return 0;
+}
+
+#define param_get_battery_current param_get_int
 
 static const struct kernel_param_ops param_ops_ac_online = {
 	.set = param_set_ac_online,
@@ -487,6 +529,16 @@ static const struct kernel_param_ops param_ops_battery_voltage = {
 	.get = param_get_battery_voltage,
 };
 
+static const struct kernel_param_ops param_ops_battery_charge_counter = {
+	.set = param_set_battery_charge_counter,
+	.get = param_get_battery_charge_counter,
+};
+
+static const struct kernel_param_ops param_ops_battery_current = {
+	.set = param_set_battery_current,
+	.get = param_get_battery_current,
+};
+
 #define param_check_ac_online(name, p) __param_check(name, p, void);
 #define param_check_usb_online(name, p) __param_check(name, p, void);
 #define param_check_battery_status(name, p) __param_check(name, p, void);
@@ -495,6 +547,8 @@ static const struct kernel_param_ops param_ops_battery_voltage = {
 #define param_check_battery_health(name, p) __param_check(name, p, void);
 #define param_check_battery_capacity(name, p) __param_check(name, p, void);
 #define param_check_battery_voltage(name, p) __param_check(name, p, void);
+#define param_check_battery_charge_counter(name, p) __param_check(name, p, void);
+#define param_check_battery_current(name, p) __param_check(name, p, void);
 
 
 module_param(ac_online, ac_online, 0644);
@@ -524,6 +578,13 @@ MODULE_PARM_DESC(battery_capacity, "battery capacity (percentage)");
 
 module_param(battery_voltage, battery_voltage, 0644);
 MODULE_PARM_DESC(battery_voltage, "battery voltage (millivolts)");
+
+module_param(battery_charge_counter, battery_charge_counter, 0644);
+MODULE_PARM_DESC(battery_charge_counter,
+	"battery charge counter (microampere-hours)");
+
+module_param(battery_current, battery_current, 0644);
+MODULE_PARM_DESC(battery_current, "battery current (milliampere)");
 
 MODULE_DESCRIPTION("Power supply driver for testing");
 MODULE_AUTHOR("Anton Vorontsov <cbouatmailru@gmail.com>");

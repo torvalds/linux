@@ -10,15 +10,24 @@
 #include <linux/mm_types.h>
 #include <linux/sched.h>
 #include <linux/types.h>
+#include <linux/pgtable.h>
+#include <linux/random.h>
 
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
 #include <asm/kernel-pgtable.h>
 #include <asm/memory.h>
 #include <asm/mmu.h>
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 
+enum kaslr_status {
+	KASLR_ENABLED,
+	KASLR_DISABLED_CMDLINE,
+	KASLR_DISABLED_NO_SEED,
+	KASLR_DISABLED_FDT_REMAP,
+};
+
+static enum kaslr_status __initdata kaslr_status;
 u64 __ro_after_init module_alloc_base;
 u16 __initdata memstart_offset_seed;
 
@@ -75,6 +84,7 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	void *fdt;
 	u64 seed, offset, mask, module_range;
 	const u8 *cmdline, *str;
+	unsigned long raw;
 	int size;
 
 	/*
@@ -91,15 +101,15 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	 */
 	early_fixmap_init();
 	fdt = fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL);
-	if (!fdt)
+	if (!fdt) {
+		kaslr_status = KASLR_DISABLED_FDT_REMAP;
 		return 0;
+	}
 
 	/*
 	 * Retrieve (and wipe) the seed from the FDT
 	 */
 	seed = get_kaslr_seed(fdt);
-	if (!seed)
-		return 0;
 
 	/*
 	 * Check if 'nokaslr' appears on the command line, and
@@ -107,8 +117,23 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	 */
 	cmdline = kaslr_get_cmdline(fdt);
 	str = strstr(cmdline, "nokaslr");
-	if (str == cmdline || (str > cmdline && *(str - 1) == ' '))
+	if (str == cmdline || (str > cmdline && *(str - 1) == ' ')) {
+		kaslr_status = KASLR_DISABLED_CMDLINE;
 		return 0;
+	}
+
+	/*
+	 * Mix in any entropy obtainable architecturally if enabled
+	 * and supported.
+	 */
+
+	if (arch_get_random_seed_long_early(&raw))
+		seed ^= raw;
+
+	if (!seed) {
+		kaslr_status = KASLR_DISABLED_NO_SEED;
+		return 0;
+	}
 
 	/*
 	 * OK, so we are proceeding with KASLR enabled. Calculate a suitable
@@ -170,3 +195,24 @@ u64 __init kaslr_early_init(u64 dt_phys)
 
 	return offset;
 }
+
+static int __init kaslr_init(void)
+{
+	switch (kaslr_status) {
+	case KASLR_ENABLED:
+		pr_info("KASLR enabled\n");
+		break;
+	case KASLR_DISABLED_CMDLINE:
+		pr_info("KASLR disabled on command line\n");
+		break;
+	case KASLR_DISABLED_NO_SEED:
+		pr_warn("KASLR disabled due to lack of seed\n");
+		break;
+	case KASLR_DISABLED_FDT_REMAP:
+		pr_warn("KASLR disabled due to FDT remapping failure\n");
+		break;
+	}
+
+	return 0;
+}
+core_initcall(kaslr_init)

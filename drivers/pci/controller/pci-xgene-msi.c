@@ -478,8 +478,6 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	for (irq_index = 0; irq_index < NR_HW_IRQS; irq_index++) {
 		virt_msir = platform_get_irq(pdev, irq_index);
 		if (virt_msir < 0) {
-			dev_err(&pdev->dev, "Cannot translate IRQ index %d\n",
-				irq_index);
 			rc = virt_msir;
 			goto error;
 		}
@@ -495,8 +493,8 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	 */
 	for (irq_index = 0; irq_index < NR_HW_IRQS; irq_index++) {
 		for (msi_idx = 0; msi_idx < IDX_PER_GROUP; msi_idx++)
-			msi_val = xgene_msi_ir_read(xgene_msi, irq_index,
-						    msi_idx);
+			xgene_msi_ir_read(xgene_msi, irq_index, msi_idx);
+
 		/* Read MSIINTn to confirm */
 		msi_val = xgene_msi_int_read(xgene_msi, irq_index);
 		if (msi_val) {

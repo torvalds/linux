@@ -95,7 +95,7 @@
 	};
 
 	gic: interrupt-controller@2c001000 {
-		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
+		compatible = "arm,gic-400", "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
 		#address-cells = <0>;
 		interrupt-controller;
@@ -132,7 +132,7 @@
 		};
 	};
 
-	smb@8000000 {
+	bus@8000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;

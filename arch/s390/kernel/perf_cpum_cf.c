@@ -199,7 +199,7 @@ static const int cpumf_generic_events_user[] = {
 	[PERF_COUNT_HW_BUS_CYCLES]	    = -1,
 };
 
-static int __hw_perf_event_init(struct perf_event *event)
+static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 {
 	struct perf_event_attr *attr = &event->attr;
 	struct hw_perf_event *hwc = &event->hw;
@@ -207,7 +207,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	int err = 0;
 	u64 ev;
 
-	switch (attr->type) {
+	switch (type) {
 	case PERF_TYPE_RAW:
 		/* Raw events are used to access counters directly,
 		 * hence do not permit excludes */
@@ -294,17 +294,16 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 static int cpumf_pmu_event_init(struct perf_event *event)
 {
+	unsigned int type = event->attr.type;
 	int err;
 
-	switch (event->attr.type) {
-	case PERF_TYPE_HARDWARE:
-	case PERF_TYPE_HW_CACHE:
-	case PERF_TYPE_RAW:
-		err = __hw_perf_event_init(event);
-		break;
-	default:
+	if (type == PERF_TYPE_HARDWARE || type == PERF_TYPE_RAW)
+		err = __hw_perf_event_init(event, type);
+	else if (event->pmu->type == type)
+		/* Registered as unknown PMU */
+		err = __hw_perf_event_init(event, PERF_TYPE_RAW);
+	else
 		return -ENOENT;
-	}
 
 	if (unlikely(err) && event->destroy)
 		event->destroy(event);
@@ -553,7 +552,7 @@ static int __init cpumf_pmu_init(void)
 		return -ENODEV;
 
 	cpumf_pmu.attr_groups = cpumf_cf_event_group();
-	rc = perf_pmu_register(&cpumf_pmu, "cpum_cf", PERF_TYPE_RAW);
+	rc = perf_pmu_register(&cpumf_pmu, "cpum_cf", -1);
 	if (rc)
 		pr_err("Registering the cpum_cf PMU failed with rc=%i\n", rc);
 	return rc;

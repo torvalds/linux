@@ -10,9 +10,15 @@
 #ifndef PINCTRL_INTEL_H
 #define PINCTRL_INTEL_H
 
+#include <linux/bits.h>
+#include <linux/compiler_types.h>
+#include <linux/gpio/driver.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
 #include <linux/pm.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/spinlock_types.h>
 
-struct pinctrl_pin_desc;
 struct platform_device;
 struct device;
 
@@ -50,8 +56,7 @@ struct intel_function {
  * @reg_num: GPI_IS register number
  * @base: Starting pin of this group
  * @size: Size of this group (maximum is 32).
- * @gpio_base: Starting GPIO base of this group (%0 if matches with @base,
- *	       and %-1 if no GPIO mapping should be created)
+ * @gpio_base: Starting GPIO base of this group
  * @padown_num: PAD_OWN register number (assigned by the core driver)
  *
  * If pad groups of a community are not the same size, use this structure
@@ -63,6 +68,19 @@ struct intel_padgroup {
 	unsigned int size;
 	int gpio_base;
 	unsigned int padown_num;
+};
+
+/**
+ * enum - Special treatment for GPIO base in pad group
+ *
+ * @INTEL_GPIO_BASE_ZERO:	force GPIO base to be 0
+ * @INTEL_GPIO_BASE_NOMAP:	no GPIO mapping should be created
+ * @INTEL_GPIO_BASE_MATCH:	matches with starting pin number
+ */
+enum {
+	INTEL_GPIO_BASE_ZERO	= -2,
+	INTEL_GPIO_BASE_NOMAP	= -1,
+	INTEL_GPIO_BASE_MATCH	= 0,
 };
 
 /**
@@ -79,20 +97,22 @@ struct intel_padgroup {
  * @ie_offset: Register offset of GPI_IE from @regs.
  * @features: Additional features supported by the hardware
  * @pin_base: Starting pin of pins in this community
+ * @npins: Number of pins in this community
  * @gpp_size: Maximum number of pads in each group, such as PADCFGLOCK,
- *            HOSTSW_OWN,  GPI_IS, GPI_IE, etc. Used when @gpps is %NULL.
+ *            HOSTSW_OWN, GPI_IS, GPI_IE. Used when @gpps is %NULL.
  * @gpp_num_padown_regs: Number of pad registers each pad group consumes at
  *			 minimum. Use %0 if the number of registers can be
  *			 determined by the size of the group.
- * @npins: Number of pins in this community
  * @gpps: Pad groups if the controller has variable size pad groups
  * @ngpps: Number of pad groups in this community
  * @pad_map: Optional non-linear mapping of the pads
+ * @nirqs: Optional total number of IRQs this community can generate
+ * @acpi_space_id: Optional address space ID for ACPI OpRegion handler
  * @regs: Community specific common registers (reserved for core driver)
  * @pad_regs: Community specific pad registers (reserved for core driver)
  *
- * Most Intel GPIO host controllers this driver supports each pad group is
- * of equal size (except the last one). In that case the driver can just
+ * In some of Intel GPIO host controllers this driver supports each pad group
+ * is of equal size (except the last one). In that case the driver can just
  * fill in @gpp_size field and let the core driver to handle the rest. If
  * the controller has pad groups of variable size the client driver can
  * pass custom @gpps and @ngpps instead.
@@ -106,12 +126,15 @@ struct intel_community {
 	unsigned int ie_offset;
 	unsigned int features;
 	unsigned int pin_base;
+	size_t npins;
 	unsigned int gpp_size;
 	unsigned int gpp_num_padown_regs;
-	size_t npins;
 	const struct intel_padgroup *gpps;
 	size_t ngpps;
 	const unsigned int *pad_map;
+	unsigned short nirqs;
+	unsigned short acpi_space_id;
+
 	/* Reserved for the core driver */
 	void __iomem *regs;
 	void __iomem *pad_regs;
@@ -172,6 +195,49 @@ struct intel_pinctrl_soc_data {
 	size_t nfunctions;
 	const struct intel_community *communities;
 	size_t ncommunities;
+};
+
+const struct intel_pinctrl_soc_data *intel_pinctrl_get_soc_data(struct platform_device *pdev);
+
+struct intel_pad_context;
+struct intel_community_context;
+
+/**
+ * struct intel_pinctrl_context - context to be saved during suspend-resume
+ * @pads: Opaque context per pad (driver dependent)
+ * @communities: Opaque context per community (driver dependent)
+ */
+struct intel_pinctrl_context {
+	struct intel_pad_context *pads;
+	struct intel_community_context *communities;
+};
+
+/**
+ * struct intel_pinctrl - Intel pinctrl private structure
+ * @dev: Pointer to the device structure
+ * @lock: Lock to serialize register access
+ * @pctldesc: Pin controller description
+ * @pctldev: Pointer to the pin controller device
+ * @chip: GPIO chip in this pin controller
+ * @irqchip: IRQ chip in this pin controller
+ * @soc: SoC/PCH specific pin configuration data
+ * @communities: All communities in this pin controller
+ * @ncommunities: Number of communities in this pin controller
+ * @context: Configuration saved over system sleep
+ * @irq: pinctrl/GPIO chip irq number
+ */
+struct intel_pinctrl {
+	struct device *dev;
+	raw_spinlock_t lock;
+	struct pinctrl_desc pctldesc;
+	struct pinctrl_dev *pctldev;
+	struct gpio_chip chip;
+	struct irq_chip irqchip;
+	const struct intel_pinctrl_soc_data *soc;
+	struct intel_community *communities;
+	size_t ncommunities;
+	struct intel_pinctrl_context context;
+	int irq;
 };
 
 int intel_pinctrl_probe_by_hid(struct platform_device *pdev);

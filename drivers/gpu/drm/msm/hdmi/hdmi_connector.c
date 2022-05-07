@@ -101,7 +101,7 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 
 				gpiod_set_value_cansleep(gpio.gpiod, value);
 			}
-		};
+		}
 
 		DBG("gpio off");
 	}
@@ -433,8 +433,10 @@ struct drm_connector *msm_hdmi_connector_init(struct hdmi *hdmi)
 
 	connector = &hdmi_connector->base;
 
-	drm_connector_init(hdmi->dev, connector, &hdmi_connector_funcs,
-			DRM_MODE_CONNECTOR_HDMIA);
+	drm_connector_init_with_ddc(hdmi->dev, connector,
+				    &hdmi_connector_funcs,
+				    DRM_MODE_CONNECTOR_HDMIA,
+				    hdmi->i2c);
 	drm_connector_helper_add(connector, &msm_hdmi_connector_helper_funcs);
 
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT |

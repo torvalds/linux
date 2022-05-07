@@ -8,7 +8,7 @@
 #ifndef _ASM_C6X_PGTABLE_H
 #define _ASM_C6X_PGTABLE_H
 
-#include <asm-generic/4level-fixup.h>
+#include <asm-generic/pgtable-nopud.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
@@ -26,7 +26,6 @@
 #define pgd_clear(pgdp)
 #define kern_addr_valid(addr) (1)
 
-#define pmd_offset(a, b)	((void *)0)
 #define pmd_none(x)		(!pmd_val(x))
 #define pmd_present(x)		(pmd_val(x))
 #define pmd_clear(xp)		do { set_pmd(xp, __pmd(0)); } while (0)
@@ -63,7 +62,5 @@ extern unsigned long empty_zero_page;
  * c6x is !MMU, so define the simpliest implementation
  */
 #define pgprot_writecombine pgprot_noncached
-
-#include <asm-generic/pgtable.h>
 
 #endif /* _ASM_C6X_PGTABLE_H */

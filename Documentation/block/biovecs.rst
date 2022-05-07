@@ -47,7 +47,7 @@ Having a real iterator, and making biovecs immutable, has a number of
 advantages:
 
  * Before, iterating over bios was very awkward when you weren't processing
-   exactly one bvec at a time - for example, bio_copy_data() in fs/bio.c,
+   exactly one bvec at a time - for example, bio_copy_data() in block/bio.c,
    which copies the contents of one bio into another. Because the biovecs
    wouldn't necessarily be the same size, the old code was tricky convoluted -
    it had to walk two different bios at the same time, keeping both bi_idx and
@@ -129,6 +129,7 @@ Usage of helpers:
 ::
 
 	bio_for_each_segment_all()
+	bio_for_each_bvec_all()
 	bio_first_bvec_all()
 	bio_first_page_all()
 	bio_last_bvec_all()
@@ -143,4 +144,5 @@ Usage of helpers:
   bio_vec' will contain a multi-page IO vector during the iteration::
 
 	bio_for_each_bvec()
+	bio_for_each_bvec_all()
 	rq_for_each_bvec()

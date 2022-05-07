@@ -33,7 +33,6 @@
 
 #include "core_status.h"
 #include "core_types.h"
-#include "hw_sequencer.h"
 
 #include "resource.h"
 
@@ -310,14 +309,13 @@ void context_timing_trace(
 		struct resource_context *res_ctx)
 {
 	int i;
-	struct dc  *core_dc = dc;
 	int h_pos[MAX_PIPES] = {0}, v_pos[MAX_PIPES] = {0};
 	struct crtc_position position;
-	unsigned int underlay_idx = core_dc->res_pool->underlay_pipe_index;
+	unsigned int underlay_idx = dc->res_pool->underlay_pipe_index;
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 
-	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 		/* get_position() returns CRTC vertical/horizontal counter
 		 * hence not applicable for underlay pipe
@@ -329,7 +327,7 @@ void context_timing_trace(
 		h_pos[i] = position.horizontal_count;
 		v_pos[i] = position.vertical_count;
 	}
-	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
 		if (pipe_ctx->stream == NULL || pipe_ctx->pipe_idx == underlay_idx)
@@ -347,7 +345,7 @@ void context_clock_trace(
 		struct dc *dc,
 		struct dc_state *context)
 {
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	DC_LOGGER_INIT(dc->ctx->logger);
 	CLOCK_TRACE("Current: dispclk_khz:%d  max_dppclk_khz:%d  dcfclk_khz:%d\n"
 			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d  socclk_khz:%d\n",
@@ -366,4 +364,63 @@ void context_clock_trace(
 			context->bw_ctx.bw.dcn.clk.fclk_khz,
 			context->bw_ctx.bw.dcn.clk.socclk_khz);
 #endif
+}
+
+/**
+ * dc_status_to_str - convert dc_status to a human readable string
+ * @status: dc_status to be converted
+ *
+ * Return:
+ * A string describing the DC status.
+ */
+char *dc_status_to_str(enum dc_status status)
+{
+	switch (status) {
+	case DC_OK:
+		return "DC OK";
+	case DC_NO_CONTROLLER_RESOURCE:
+		return "No controller resource";
+	case DC_NO_STREAM_ENC_RESOURCE:
+		return "No stream encoder";
+	case DC_NO_CLOCK_SOURCE_RESOURCE:
+		return "No clock source";
+	case DC_FAIL_CONTROLLER_VALIDATE:
+		return "Controller validation failure";
+	case DC_FAIL_ENC_VALIDATE:
+		return "Encoder validation failure";
+	case DC_FAIL_ATTACH_SURFACES:
+		return "Surfaces attachment failure";
+	case DC_FAIL_DETACH_SURFACES:
+		return "Surfaces detachment failure";
+	case DC_FAIL_SURFACE_VALIDATE:
+		return "Surface validation failure";
+	case DC_NO_DP_LINK_BANDWIDTH:
+		return "No DP link bandwidth";
+	case DC_EXCEED_DONGLE_CAP:
+		return "Exceed dongle capability";
+	case DC_SURFACE_PIXEL_FORMAT_UNSUPPORTED:
+		return "Unsupported pixel format";
+	case DC_FAIL_BANDWIDTH_VALIDATE:
+		return "Bandwidth validation failure (BW and Watermark)";
+	case DC_FAIL_SCALING:
+		return "Scaling failure";
+	case DC_FAIL_DP_LINK_TRAINING:
+		return "DP link training failure";
+	case DC_FAIL_DSC_VALIDATE:
+		return "DSC validation failure";
+	case DC_NO_DSC_RESOURCE:
+		return "No DSC resource";
+	case DC_FAIL_UNSUPPORTED_1:
+		return "Unsupported";
+	case DC_FAIL_CLK_EXCEED_MAX:
+		return "Clk exceed max failure";
+	case DC_FAIL_CLK_BELOW_MIN:
+		return "Fail clk below minimum";
+	case DC_FAIL_CLK_BELOW_CFG_REQUIRED:
+		return "Fail clk below required CFG (hard_min in PPLIB)";
+	case DC_ERROR_UNEXPECTED:
+		return "Unexpected error";
+	}
+
+	return "Unexpected status error";
 }

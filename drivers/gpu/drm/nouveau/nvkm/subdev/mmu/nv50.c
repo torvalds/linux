@@ -27,7 +27,7 @@
 #include <nvif/class.h>
 
 const u8 *
-nv50_mmu_kind(struct nvkm_mmu *base, int *count)
+nv50_mmu_kind(struct nvkm_mmu *base, int *count, u8 *invalid)
 {
 	/* 0x01: no bank swizzle
 	 * 0x02: bank swizzled
@@ -57,6 +57,7 @@ nv50_mmu_kind(struct nvkm_mmu *base, int *count)
 		0x01, 0x01, 0x02, 0x02, 0x01, 0x01, 0x7f, 0x7f
 	};
 	*count = ARRAY_SIZE(kind);
+	*invalid = 0x7f;
 	return kind;
 }
 

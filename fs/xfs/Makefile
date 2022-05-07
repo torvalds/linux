@@ -7,8 +7,6 @@
 ccflags-y += -I $(srctree)/$(src)		# needed for trace events
 ccflags-y += -I $(srctree)/$(src)/libxfs
 
-ccflags-$(CONFIG_XFS_DEBUG) += -g
-
 obj-$(CONFIG_XFS_FS)		+= xfs.o
 
 # this one should be compiled first, as the tracing macros can easily blow up
@@ -26,8 +24,8 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_bmap.o \
 				   xfs_bmap_btree.o \
 				   xfs_btree.o \
+				   xfs_btree_staging.o \
 				   xfs_da_btree.o \
-				   xfs_da_format.o \
 				   xfs_defer.o \
 				   xfs_dir2.o \
 				   xfs_dir2_block.o \
@@ -101,9 +99,12 @@ xfs-y				+= xfs_log.o \
 				   xfs_log_cil.o \
 				   xfs_bmap_item.o \
 				   xfs_buf_item.o \
+				   xfs_buf_item_recover.o \
+				   xfs_dquot_item_recover.o \
 				   xfs_extfree_item.o \
 				   xfs_icreate_item.o \
 				   xfs_inode_item.o \
+				   xfs_inode_item_recover.o \
 				   xfs_refcount_item.o \
 				   xfs_rmap_item.o \
 				   xfs_log_recover.o \

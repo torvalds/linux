@@ -69,8 +69,8 @@ nouveau_vma_del(struct nouveau_vma **pvma)
 		}
 		list_del(&vma->head);
 		kfree(*pvma);
-		*pvma = NULL;
 	}
+	*pvma = NULL;
 }
 
 int
@@ -121,15 +121,15 @@ void
 nouveau_vmm_fini(struct nouveau_vmm *vmm)
 {
 	nouveau_svmm_fini(&vmm->svmm);
-	nvif_vmm_fini(&vmm->vmm);
+	nvif_vmm_dtor(&vmm->vmm);
 	vmm->cli = NULL;
 }
 
 int
 nouveau_vmm_init(struct nouveau_cli *cli, s32 oclass, struct nouveau_vmm *vmm)
 {
-	int ret = nvif_vmm_init(&cli->mmu, oclass, false, PAGE_SIZE, 0, NULL, 0,
-				&vmm->vmm);
+	int ret = nvif_vmm_ctor(&cli->mmu, "drmVmm", oclass, false, PAGE_SIZE,
+				0, NULL, 0, &vmm->vmm);
 	if (ret)
 		return ret;
 

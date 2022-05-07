@@ -41,9 +41,9 @@ void eip_set_multicast_list(struct net_device *dev)
 }
 EXPORT_SYMBOL(eip_set_multicast_list);
 
-void eip_tx_timeout(struct net_device *dev)
+void eip_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
-	__ei_tx_timeout(dev);
+	__ei_tx_timeout(dev, txqueue);
 }
 EXPORT_SYMBOL(eip_tx_timeout);
 

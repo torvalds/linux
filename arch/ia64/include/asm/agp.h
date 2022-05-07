@@ -14,8 +14,8 @@
  * in coherent mode, which lets us map the AGP memory as normal (write-back) memory
  * (unlike x86, where it gets mapped "write-coalescing").
  */
-#define map_page_into_agp(page)		/* nothing */
-#define unmap_page_from_agp(page)	/* nothing */
+#define map_page_into_agp(page)		do { } while (0)
+#define unmap_page_from_agp(page)	do { } while (0)
 #define flush_agp_cache()		mb()
 
 /* GATT allocation. Returns/accepts GATT kernel virtual address. */

@@ -166,7 +166,6 @@ static const struct ib_device_ops ocrdma_dev_ops = {
 	.get_port_immutable = ocrdma_port_immutable,
 	.map_mr_sg = ocrdma_map_mr_sg,
 	.mmap = ocrdma_mmap,
-	.modify_port = ocrdma_modify_port,
 	.modify_qp = ocrdma_modify_qp,
 	.poll_cq = ocrdma_poll_cq,
 	.post_recv = ocrdma_post_recv,
@@ -256,7 +255,9 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	if (ret)
 		return ret;
 
-	return ib_register_device(&dev->ibdev, "ocrdma%d");
+	dma_set_max_seg_size(&dev->nic_info.pdev->dev, UINT_MAX);
+	return ib_register_device(&dev->ibdev, "ocrdma%d",
+				  &dev->nic_info.pdev->dev);
 }
 
 static int ocrdma_alloc_resources(struct ocrdma_dev *dev)

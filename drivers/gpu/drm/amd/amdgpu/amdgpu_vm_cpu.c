@@ -44,26 +44,14 @@ static int amdgpu_vm_cpu_map_table(struct amdgpu_bo *table)
  * Returns:
  * Negativ errno, 0 for success.
  */
-static int amdgpu_vm_cpu_prepare(struct amdgpu_vm_update_params *p, void *owner,
-				 struct dma_fence *exclusive)
+static int amdgpu_vm_cpu_prepare(struct amdgpu_vm_update_params *p,
+				 struct dma_resv *resv,
+				 enum amdgpu_sync_mode sync_mode)
 {
-	int r;
+	if (!resv)
+		return 0;
 
-	/* Wait for PT BOs to be idle. PTs share the same resv. object
-	 * as the root PD BO
-	 */
-	r = amdgpu_bo_sync_wait(p->vm->root.base.bo, owner, true);
-	if (unlikely(r))
-		return r;
-
-	/* Wait for any BO move to be completed */
-	if (exclusive) {
-		r = dma_fence_wait(exclusive, true);
-		if (unlikely(r))
-			return r;
-	}
-
-	return 0;
+	return amdgpu_bo_sync_wait_resv(p->adev, resv, sync_mode, p->vm, true);
 }
 
 /**
@@ -71,7 +59,7 @@ static int amdgpu_vm_cpu_prepare(struct amdgpu_vm_update_params *p, void *owner,
  *
  * @p: see amdgpu_vm_update_params definition
  * @bo: PD/PT to update
- * @pe: kmap addr of the page entry
+ * @pe: byte offset of the PDE/PTE, relative to start of PDB/PTB
  * @addr: dst addr to write into pe
  * @count: number of page entries to update
  * @incr: increase next addr by incr bytes
@@ -86,10 +74,17 @@ static int amdgpu_vm_cpu_update(struct amdgpu_vm_update_params *p,
 {
 	unsigned int i;
 	uint64_t value;
+	int r;
+
+	if (bo->tbo.moving) {
+		r = dma_fence_wait(bo->tbo.moving, true);
+		if (r)
+			return r;
+	}
 
 	pe += (unsigned long)amdgpu_bo_kptr(bo);
 
-	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags);
+	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags, p->immediate);
 
 	for (i = 0; i < count; i++) {
 		value = p->pages_addr ?

@@ -35,6 +35,8 @@ required:
   - reg
   - clocks
 
+additionalProperties: false
+
 examples:
   - |
     timer@2c000600 {

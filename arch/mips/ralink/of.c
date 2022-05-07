@@ -43,7 +43,7 @@ __iomem void *plat_of_remap_node(const char *node)
 				res.name))
 		panic("Failed to request resources for %s", node);
 
-	return ioremap_nocache(res.start, resource_size(&res));
+	return ioremap(res.start, resource_size(&res));
 }
 
 void __init device_tree_init(void)
@@ -84,8 +84,7 @@ void __init plat_mem_setup(void)
 	if (memory_dtb)
 		of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 	else if (soc_info.mem_size)
-		add_memory_region(soc_info.mem_base, soc_info.mem_size * SZ_1M,
-				  BOOT_MEM_RAM);
+		memblock_add(soc_info.mem_base, soc_info.mem_size * SZ_1M);
 	else
 		detect_memory_region(soc_info.mem_base,
 				     soc_info.mem_size_min * SZ_1M,

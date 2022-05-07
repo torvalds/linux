@@ -109,10 +109,10 @@
 	assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
 			<&clock_audss EXYNOS_MOUT_AUDSS>;
 
-	assigned-clock-rates =  <0>,
-				<0>,
-				<96000000>,
-				<19200000>;
+	assigned-clock-rates = <0>,
+			       <0>,
+			       <96000000>,
+			       <19200000>;
 };
 
 &cpu0_thermal {
@@ -170,7 +170,7 @@
 
 		intn-gpios = <&gpx0 7 GPIO_ACTIVE_HIGH>;
 		connect-gpios = <&gpx0 6 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpx1 4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpx1 4 GPIO_ACTIVE_LOW>;
 		initial-mode = <1>;
 
 		clock-names = "refclk";

@@ -8,7 +8,7 @@ title: Allwinner A83t EMAC Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   compatible:
@@ -19,8 +19,8 @@ properties:
       - const: allwinner,sun8i-v3s-emac
       - const: allwinner,sun50i-a64-emac
       - items:
-        - const: allwinner,sun50i-h6-emac
-        - const: allwinner,sun50i-a64-emac
+          - const: allwinner,sun50i-h6-emac
+          - const: allwinner,sun50i-a64-emac
 
   reg:
     maxItems: 1
@@ -184,6 +184,8 @@ allOf:
             - mdio-parent-bus
             - mdio@1
 
+unevaluatedProperties: false
+
 examples:
   - |
     ethernet@1c0b000 {
@@ -313,9 +315,5 @@ examples:
             };
         };
     };
-
-# FIXME: We should set it, but it would report all the generic
-# properties as additional properties.
-# additionalProperties: false
 
 ...

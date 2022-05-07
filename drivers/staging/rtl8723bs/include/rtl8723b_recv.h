@@ -9,8 +9,7 @@
 
 #include <rtl8192c_recv.h>
 
-typedef struct rxreport_8723b
-{
+typedef struct rxreport_8723b {
 	/* DWORD 0 */
 	u32 pktlen:14;
 	u32 crc32:1;
@@ -82,8 +81,7 @@ typedef struct rxreport_8723b
 	u32 tsfl;
 } RXREPORT, *PRXREPORT;
 
-typedef struct phystatus_8723b
-{
+typedef struct phystatus_8723b {
 	u32 rxgain_a:7;
 	u32 trsw_a:1;
 	u32 rxgain_b:7;

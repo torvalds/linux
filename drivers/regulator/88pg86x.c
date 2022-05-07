@@ -11,13 +11,13 @@ static const struct regulator_ops pg86x_ops = {
 	.list_voltage = regulator_list_voltage_linear_range,
 };
 
-static const struct regulator_linear_range pg86x_buck1_ranges[] = {
+static const struct linear_range pg86x_buck1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(      0,  0, 10,     0),
 	REGULATOR_LINEAR_RANGE(1000000, 11, 34, 25000),
 	REGULATOR_LINEAR_RANGE(1600000, 35, 47, 50000),
 };
 
-static const struct regulator_linear_range pg86x_buck2_ranges[] = {
+static const struct linear_range pg86x_buck2_ranges[] = {
 	REGULATOR_LINEAR_RANGE(      0,  0, 15,     0),
 	REGULATOR_LINEAR_RANGE(1000000, 16, 39, 25000),
 	REGULATOR_LINEAR_RANGE(1600000, 40, 52, 50000),
@@ -84,7 +84,7 @@ static int pg86x_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct of_device_id pg86x_dt_ids [] = {
+static const struct of_device_id __maybe_unused pg86x_dt_ids[] = {
 	{ .compatible = "marvell,88pg867" },
 	{ .compatible = "marvell,88pg868" },
 	{ }

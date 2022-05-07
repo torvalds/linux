@@ -201,7 +201,7 @@ struct smp_req {
 	u8 func;		/* byte 1 */
 	u8 alloc_resp_len;	/* byte 2 */
 	u8 req_len;		/* byte 3 */
-	u8 req_data[0];
+	u8 req_data[];
 }  __packed;
 
 /*

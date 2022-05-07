@@ -39,7 +39,7 @@ struct tpacket_kbdq_core {
 	char		*nxt_offset;
 	struct sk_buff	*skb;
 
-	atomic_t	blk_fill_in_prog;
+	rwlock_t	blk_fill_in_prog_lock;
 
 	/* Default is set to 8ms */
 #define DEFAULT_PRB_RETIRE_TOV	(8)
@@ -70,7 +70,10 @@ struct packet_ring_buffer {
 
 	unsigned int __percpu	*pending_refcnt;
 
-	struct tpacket_kbdq_core	prb_bdqc;
+	union {
+		unsigned long			*rx_owner_map;
+		struct tpacket_kbdq_core	prb_bdqc;
+	};
 };
 
 extern struct mutex fanout_mutex;

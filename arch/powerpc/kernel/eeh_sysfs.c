@@ -1,24 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Sysfs entries for PCI Error Recovery for PAPR-compliant platform.
  * Copyright IBM Corporation 2007
  * Copyright Linas Vepstas <linas@austin.ibm.com> 2007
- *
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send comments and feedback to Linas Vepstas <linas@austin.ibm.com>
  */
@@ -30,7 +14,7 @@
 /**
  * EEH_SHOW_ATTR -- Create sysfs entry for eeh statistic
  * @_name: name of file in sysfs directory
- * @_memb: name of member in struct pci_dn to access
+ * @_memb: name of member in struct eeh_dev to access
  * @_format: printf format for display
  *
  * All of the attributes look very similar, so just
@@ -91,7 +75,7 @@ static ssize_t eeh_pe_state_store(struct device *dev,
 
 static DEVICE_ATTR_RW(eeh_pe_state);
 
-#ifdef CONFIG_PCI_IOV
+#if defined(CONFIG_PCI_IOV) && defined(CONFIG_PPC_PSERIES)
 static ssize_t eeh_notify_resume_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
@@ -102,7 +86,6 @@ static ssize_t eeh_notify_resume_show(struct device *dev,
 	if (!edev || !edev->pe)
 		return -ENODEV;
 
-	pdn = pci_get_pdn(pdev);
 	return sprintf(buf, "%d\n", pdn->last_allow_rc);
 }
 
@@ -116,7 +99,7 @@ static ssize_t eeh_notify_resume_store(struct device *dev,
 	if (!edev || !edev->pe || !eeh_ops->notify_resume)
 		return -ENODEV;
 
-	if (eeh_ops->notify_resume(pci_get_pdn(pdev)))
+	if (eeh_ops->notify_resume(edev))
 		return -EIO;
 
 	return count;
@@ -148,7 +131,7 @@ static void eeh_notify_resume_remove(struct pci_dev *pdev)
 #else
 static inline int eeh_notify_resume_add(struct pci_dev *pdev) { return 0; }
 static inline void eeh_notify_resume_remove(struct pci_dev *pdev) { }
-#endif /* CONFIG_PCI_IOV */
+#endif /* CONFIG_PCI_IOV && CONFIG PPC_PSERIES*/
 
 void eeh_sysfs_add_device(struct pci_dev *pdev)
 {
@@ -176,22 +159,23 @@ void eeh_sysfs_remove_device(struct pci_dev *pdev)
 {
 	struct eeh_dev *edev = pci_dev_to_eeh_dev(pdev);
 
+	if (!edev) {
+		WARN_ON(eeh_enabled());
+		return;
+	}
+
+	edev->mode &= ~EEH_DEV_SYSFS;
+
 	/*
 	 * The parent directory might have been removed. We needn't
 	 * continue for that case.
 	 */
-	if (!pdev->dev.kobj.sd) {
-		if (edev)
-			edev->mode &= ~EEH_DEV_SYSFS;
+	if (!pdev->dev.kobj.sd)
 		return;
-	}
 
 	device_remove_file(&pdev->dev, &dev_attr_eeh_mode);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_pe_config_addr);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_pe_state);
 
 	eeh_notify_resume_remove(pdev);
-
-	if (edev)
-		edev->mode &= ~EEH_DEV_SYSFS;
 }

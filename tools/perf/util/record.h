@@ -32,8 +32,11 @@ struct record_opts {
 	bool	      full_auxtrace;
 	bool	      auxtrace_snapshot_mode;
 	bool	      auxtrace_snapshot_on_exit;
+	bool	      auxtrace_sample_mode;
 	bool	      record_namespaces;
+	bool	      record_cgroup;
 	bool	      record_switch_events;
+	bool	      record_switch_events_set;
 	bool	      all_kernel;
 	bool	      all_user;
 	bool	      kernel_callchains;
@@ -44,6 +47,8 @@ struct record_opts {
 	bool	      strict_freq;
 	bool	      sample_id;
 	bool	      no_bpf_event;
+	bool	      kcore;
+	bool	      text_poke;
 	unsigned int  freq;
 	unsigned int  mmap_pages;
 	unsigned int  auxtrace_mmap_pages;
@@ -55,8 +60,9 @@ struct record_opts {
 	u64	      user_interval;
 	size_t	      auxtrace_snapshot_size;
 	const char    *auxtrace_snapshot_opts;
+	const char    *auxtrace_sample_opts;
 	bool	      sample_transaction;
-	unsigned      initial_delay;
+	int	      initial_delay;
 	bool	      use_clockid;
 	clockid_t     clockid;
 	u64	      clockid_res_ns;
@@ -64,11 +70,20 @@ struct record_opts {
 	int	      affinity;
 	int	      mmap_flush;
 	unsigned int  comp_level;
+	unsigned int  nr_threads_synthesize;
+	int	      ctl_fd;
+	int	      ctl_fd_ack;
+	bool	      ctl_fd_close;
 };
 
 extern const char * const *record_usage;
 extern struct option *record_options;
 
 int record__parse_freq(const struct option *opt, const char *str, int unset);
+
+static inline bool record_opts__no_switch_events(const struct record_opts *opts)
+{
+	return opts->record_switch_events_set && !opts->record_switch_events;
+}
 
 #endif // _PERF_RECORD_H

@@ -6,7 +6,8 @@
 config MLXSW_CORE
 	tristate "Mellanox Technologies Switch ASICs support"
 	select NET_DEVLINK
-	---help---
+	select MLXFW
+	help
 	  This driver supports Mellanox Technologies Switch ASICs family.
 
 	  To compile this driver as a module, choose M here: the
@@ -17,14 +18,14 @@ config MLXSW_CORE_HWMON
 	depends on MLXSW_CORE && HWMON
 	depends on !(MLXSW_CORE=y && HWMON=m)
 	default y
-	---help---
+	help
 	  Say Y here if you want to expose HWMON interface on mlxsw devices.
 
 config MLXSW_CORE_THERMAL
 	bool "Thermal zone support for Mellanox Technologies Switch ASICs"
 	depends on MLXSW_CORE && THERMAL
 	default y
-	---help---
+	help
 	 Say Y here if you want to automatically control fans speed according
 	 ambient temperature reported by ASIC.
 
@@ -32,7 +33,7 @@ config MLXSW_PCI
 	tristate "PCI bus implementation for Mellanox Technologies Switch ASICs"
 	depends on PCI && HAS_IOMEM && MLXSW_CORE
 	default m
-	---help---
+	help
 	  This is PCI bus implementation for Mellanox Technologies Switch ASICs.
 
 	  To compile this driver as a module, choose M here: the
@@ -42,7 +43,7 @@ config MLXSW_I2C
 	tristate "I2C bus implementation for Mellanox Technologies Switch ASICs"
 	depends on I2C && MLXSW_CORE
 	default m
-	---help---
+	help
 	  This is I2C bus implementation for Mellanox Technologies Switch ASICs.
 
 	  To compile this driver as a module, choose M here: the
@@ -52,7 +53,7 @@ config MLXSW_SWITCHIB
 	tristate "Mellanox Technologies SwitchIB and SwitchIB-2 support"
 	depends on MLXSW_CORE && MLXSW_PCI && NET_SWITCHDEV
 	default m
-	---help---
+	help
 	  This driver supports Mellanox Technologies SwitchIB and SwitchIB-2
 	  Infiniband Switch ASICs.
 
@@ -63,7 +64,7 @@ config MLXSW_SWITCHX2
 	tristate "Mellanox Technologies SwitchX-2 support"
 	depends on MLXSW_CORE && MLXSW_PCI && NET_SWITCHDEV
 	default m
-	---help---
+	help
 	  This driver supports Mellanox Technologies SwitchX-2 Ethernet
 	  Switch ASICs.
 
@@ -82,11 +83,10 @@ config MLXSW_SPECTRUM
 	select GENERIC_ALLOCATOR
 	select PARMAN
 	select OBJAGG
-	select MLXFW
 	imply PTP_1588_CLOCK
 	select NET_PTP_CLASSIFY if PTP_1588_CLOCK
 	default m
-	---help---
+	help
 	  This driver supports Mellanox Technologies
 	  Spectrum/Spectrum-2/Spectrum-3 Ethernet Switch ASICs.
 
@@ -97,7 +97,7 @@ config MLXSW_SPECTRUM_DCB
 	bool "Data Center Bridging (DCB) support"
 	depends on MLXSW_SPECTRUM && DCB
 	default y
-	---help---
+	help
 	  Say Y here if you want to use Data Center Bridging (DCB) in the
 	  driver.
 
@@ -105,7 +105,7 @@ config MLXSW_MINIMAL
 	tristate "Mellanox Technologies minimal I2C support"
 	depends on MLXSW_CORE && MLXSW_I2C
 	default m
-	---help---
+	help
 	  This driver supports I2C access for Mellanox Technologies Switch
 	  ASICs.
 

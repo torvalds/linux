@@ -61,6 +61,10 @@ run_test_config_0003()
 check_mods
 check_setup
 
+echo "Running namespace test: "
+$TEST_DIR/fw_namespace $DIR/trigger_request
+echo "OK"
+
 if [ -f $FW_FORCE_SYSFS_FALLBACK ]; then
 	run_test_config_0001
 	run_test_config_0002

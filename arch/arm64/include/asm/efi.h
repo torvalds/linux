@@ -58,13 +58,6 @@ efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
 /* arch specific definitions used by the stub code */
 
 /*
- * AArch64 requires the DTB to be 8-byte aligned in the first 512MiB from
- * start of kernel and may not cross a 2MiB boundary. We set alignment to
- * 2MiB so we know it won't cross a 2MiB boundary.
- */
-#define EFI_FDT_ALIGN	SZ_2M   /* used by allocate_new_fdt_and_exit_boot() */
-
-/*
  * In some configurations (e.g. VMAP_STACK && 64K pages), stacks built into the
  * kernel need greater alignment than we require the segments to be padded to.
  */
@@ -72,7 +65,7 @@ efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
 	(SEGMENT_ALIGN > THREAD_ALIGN ? SEGMENT_ALIGN : THREAD_ALIGN)
 
 /* on arm64, the FDT may be located anywhere in system RAM */
-static inline unsigned long efi_get_max_fdt_addr(unsigned long dram_base)
+static inline unsigned long efi_get_max_fdt_addr(unsigned long image_addr)
 {
 	return ULONG_MAX;
 }
@@ -87,32 +80,16 @@ static inline unsigned long efi_get_max_fdt_addr(unsigned long dram_base)
  * apply to other bootloaders, and are required for some kernel
  * configurations.
  */
-static inline unsigned long efi_get_max_initrd_addr(unsigned long dram_base,
-						    unsigned long image_addr)
+static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 {
 	return (image_addr & ~(SZ_1G - 1UL)) + (1UL << (VA_BITS_MIN - 1));
 }
 
-#define efi_call_early(f, ...)		sys_table_arg->boottime->f(__VA_ARGS__)
-#define __efi_call_early(f, ...)	f(__VA_ARGS__)
-#define efi_call_runtime(f, ...)	sys_table_arg->runtime->f(__VA_ARGS__)
-#define efi_is_64bit()			(true)
-
-#define efi_table_attr(table, attr, instance)				\
-	((table##_t *)instance)->attr
-
-#define efi_call_proto(protocol, f, instance, ...)			\
-	((protocol##_t *)instance)->f(instance, ##__VA_ARGS__)
-
 #define alloc_screen_info(x...)		&screen_info
 
-static inline void free_screen_info(efi_system_table_t *sys_table_arg,
-				    struct screen_info *si)
+static inline void free_screen_info(struct screen_info *si)
 {
 }
-
-/* redeclare as 'hidden' so the compiler will generate relative references */
-extern struct screen_info screen_info __attribute__((__visibility__("hidden")));
 
 static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
 {

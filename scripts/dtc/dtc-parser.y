@@ -2,6 +2,8 @@
 /*
  * (C) Copyright David Gibson <dwg@au1.ibm.com>, IBM Corporation.  2005.
  */
+%locations
+
 %{
 #include <stdio.h>
 #include <inttypes.h>
@@ -16,6 +18,8 @@ extern void yyerror(char const *s);
 		srcpos_error((loc), "Error", __VA_ARGS__); \
 		treesource_error = true; \
 	} while (0)
+
+#define YYERROR_CALL(msg) yyerror(msg)
 
 extern struct dt_info *parser_output;
 extern bool treesource_error;
@@ -472,8 +476,8 @@ integer_rela:
 	;
 
 integer_shift:
-	  integer_shift DT_LSHIFT integer_add { $$ = $1 << $3; }
-	| integer_shift DT_RSHIFT integer_add { $$ = $1 >> $3; }
+	  integer_shift DT_LSHIFT integer_add { $$ = ($3 < 64) ? ($1 << $3) : 0; }
+	| integer_shift DT_RSHIFT integer_add { $$ = ($3 < 64) ? ($1 >> $3) : 0; }
 	| integer_add
 	;
 

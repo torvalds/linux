@@ -143,7 +143,7 @@ static void ide_classify_atapi_dev(ide_drive_t *drive)
 		}
 		/* Early cdrom models used zero */
 		type = ide_cdrom;
-		/* fall through */
+		fallthrough;
 	case ide_cdrom:
 		drive->dev_flags |= IDE_DFLAG_REMOVABLE;
 #ifdef CONFIG_PPC

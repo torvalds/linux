@@ -112,6 +112,7 @@ static const struct reg_default cs47l15_reg_default[] = {
 	{ 0x000001dd, 0x0011 }, /* R477 (0x1DD) - FLL AO Control 11 */
 	{ 0x00000218, 0x00e6 }, /* R536 (0x218) - Mic Bias Ctrl 1 */
 	{ 0x0000021c, 0x0222 }, /* R540 (0x21C) - Mic Bias Ctrl 5 */
+	{ 0x00000293, 0x0080 }, /* R659 (0x293) - Accessory Detect Mode 1 */
 	{ 0x00000299, 0x0000 }, /* R665 (0x299) - Headphone Detect 0 */
 	{ 0x0000029b, 0x0000 }, /* R667 (0x29B) - Headphone Detect 1 */
 	{ 0x000002a2, 0x0010 }, /* R674 (0x2A2) - Mic Detect 1 Control 0 */

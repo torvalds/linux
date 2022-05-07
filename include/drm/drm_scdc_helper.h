@@ -50,9 +50,9 @@
 #define  SCDC_READ_REQUEST_ENABLE (1 << 0)
 
 #define SCDC_STATUS_FLAGS_0 0x40
-#define  SCDC_CH2_LOCK (1 < 3)
-#define  SCDC_CH1_LOCK (1 < 2)
-#define  SCDC_CH0_LOCK (1 < 1)
+#define  SCDC_CH2_LOCK (1 << 3)
+#define  SCDC_CH1_LOCK (1 << 2)
+#define  SCDC_CH0_LOCK (1 << 1)
 #define  SCDC_CH_LOCK_MASK (SCDC_CH2_LOCK | SCDC_CH1_LOCK | SCDC_CH0_LOCK)
 #define  SCDC_CLOCK_DETECT (1 << 0)
 

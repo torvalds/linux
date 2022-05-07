@@ -17,6 +17,7 @@
 static DEFINE_IDA(nsim_bus_dev_ids);
 static LIST_HEAD(nsim_bus_dev_list);
 static DEFINE_MUTEX(nsim_bus_dev_list_lock);
+static bool nsim_bus_enable;
 
 static struct nsim_bus_dev *to_nsim_bus_dev(struct device *dev)
 {
@@ -28,7 +29,7 @@ static int nsim_bus_dev_vfs_enable(struct nsim_bus_dev *nsim_bus_dev,
 {
 	nsim_bus_dev->vfconfigs = kcalloc(num_vfs,
 					  sizeof(struct nsim_vf_config),
-					  GFP_KERNEL);
+					  GFP_KERNEL | __GFP_NOWARN);
 	if (!nsim_bus_dev->vfconfigs)
 		return -ENOMEM;
 	nsim_bus_dev->num_vfs = num_vfs;
@@ -96,13 +97,25 @@ new_port_store(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t count)
 {
 	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
+	struct nsim_dev *nsim_dev = dev_get_drvdata(dev);
+	struct devlink *devlink;
 	unsigned int port_index;
 	int ret;
 
+	/* Prevent to use nsim_bus_dev before initialization. */
+	if (!smp_load_acquire(&nsim_bus_dev->init))
+		return -EBUSY;
 	ret = kstrtouint(buf, 0, &port_index);
 	if (ret)
 		return ret;
+
+	devlink = priv_to_devlink(nsim_dev);
+
+	mutex_lock(&nsim_bus_dev->nsim_bus_reload_lock);
+	devlink_reload_disable(devlink);
 	ret = nsim_dev_port_add(nsim_bus_dev, port_index);
+	devlink_reload_enable(devlink);
+	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 	return ret ? ret : count;
 }
 
@@ -113,13 +126,25 @@ del_port_store(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t count)
 {
 	struct nsim_bus_dev *nsim_bus_dev = to_nsim_bus_dev(dev);
+	struct nsim_dev *nsim_dev = dev_get_drvdata(dev);
+	struct devlink *devlink;
 	unsigned int port_index;
 	int ret;
 
+	/* Prevent to use nsim_bus_dev before initialization. */
+	if (!smp_load_acquire(&nsim_bus_dev->init))
+		return -EBUSY;
 	ret = kstrtouint(buf, 0, &port_index);
 	if (ret)
 		return ret;
+
+	devlink = priv_to_devlink(nsim_dev);
+
+	mutex_lock(&nsim_bus_dev->nsim_bus_reload_lock);
+	devlink_reload_disable(devlink);
 	ret = nsim_dev_port_del(nsim_bus_dev, port_index);
+	devlink_reload_enable(devlink);
+	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 	return ret ? ret : count;
 }
 
@@ -168,7 +193,7 @@ new_device_store(struct bus_type *bus, const char *buf, size_t count)
 	switch (err) {
 	case 1:
 		port_count = 1;
-		/* fall through */
+		fallthrough;
 	case 2:
 		if (id > INT_MAX) {
 			pr_err("Value of \"id\" is too big.\n");
@@ -179,15 +204,30 @@ new_device_store(struct bus_type *bus, const char *buf, size_t count)
 		pr_err("Format for adding new device is \"id port_count\" (uint uint).\n");
 		return -EINVAL;
 	}
-	nsim_bus_dev = nsim_bus_dev_new(id, port_count);
-	if (IS_ERR(nsim_bus_dev))
-		return PTR_ERR(nsim_bus_dev);
 
 	mutex_lock(&nsim_bus_dev_list_lock);
+	/* Prevent to use resource before initialization. */
+	if (!smp_load_acquire(&nsim_bus_enable)) {
+		err = -EBUSY;
+		goto err;
+	}
+
+	nsim_bus_dev = nsim_bus_dev_new(id, port_count);
+	if (IS_ERR(nsim_bus_dev)) {
+		err = PTR_ERR(nsim_bus_dev);
+		goto err;
+	}
+
+	/* Allow using nsim_bus_dev */
+	smp_store_release(&nsim_bus_dev->init, true);
+
 	list_add_tail(&nsim_bus_dev->list, &nsim_bus_dev_list);
 	mutex_unlock(&nsim_bus_dev_list_lock);
 
 	return count;
+err:
+	mutex_unlock(&nsim_bus_dev_list_lock);
+	return err;
 }
 static BUS_ATTR_WO(new_device);
 
@@ -215,6 +255,11 @@ del_device_store(struct bus_type *bus, const char *buf, size_t count)
 
 	err = -ENOENT;
 	mutex_lock(&nsim_bus_dev_list_lock);
+	/* Prevent to use resource before initialization. */
+	if (!smp_load_acquire(&nsim_bus_enable)) {
+		mutex_unlock(&nsim_bus_dev_list_lock);
+		return -EBUSY;
+	}
 	list_for_each_entry_safe(nsim_bus_dev, tmp, &nsim_bus_dev_list, list) {
 		if (nsim_bus_dev->dev.id != id)
 			continue;
@@ -283,6 +328,10 @@ nsim_bus_dev_new(unsigned int id, unsigned int port_count)
 	nsim_bus_dev->dev.bus = &nsim_bus;
 	nsim_bus_dev->dev.type = &nsim_bus_dev_type;
 	nsim_bus_dev->port_count = port_count;
+	nsim_bus_dev->initial_net = current->nsproxy->net_ns;
+	mutex_init(&nsim_bus_dev->nsim_bus_reload_lock);
+	/* Disallow using nsim_bus_dev */
+	smp_store_release(&nsim_bus_dev->init, false);
 
 	err = device_register(&nsim_bus_dev->dev);
 	if (err)
@@ -298,6 +347,8 @@ err_nsim_bus_dev_free:
 
 static void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev)
 {
+	/* Disallow using nsim_bus_dev */
+	smp_store_release(&nsim_bus_dev->init, false);
 	device_unregister(&nsim_bus_dev->dev);
 	ida_free(&nsim_bus_dev_ids, nsim_bus_dev->dev.id);
 	kfree(nsim_bus_dev);
@@ -319,6 +370,8 @@ int nsim_bus_init(void)
 	err = driver_register(&nsim_driver);
 	if (err)
 		goto err_bus_unregister;
+	/* Allow using resources */
+	smp_store_release(&nsim_bus_enable, true);
 	return 0;
 
 err_bus_unregister:
@@ -330,12 +383,16 @@ void nsim_bus_exit(void)
 {
 	struct nsim_bus_dev *nsim_bus_dev, *tmp;
 
+	/* Disallow using resources */
+	smp_store_release(&nsim_bus_enable, false);
+
 	mutex_lock(&nsim_bus_dev_list_lock);
 	list_for_each_entry_safe(nsim_bus_dev, tmp, &nsim_bus_dev_list, list) {
 		list_del(&nsim_bus_dev->list);
 		nsim_bus_dev_del(nsim_bus_dev);
 	}
 	mutex_unlock(&nsim_bus_dev_list_lock);
+
 	driver_unregister(&nsim_driver);
 	bus_unregister(&nsim_bus);
 }

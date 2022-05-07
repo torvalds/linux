@@ -55,8 +55,8 @@ nouveau_abi16(struct drm_file *file_priv)
 			 * device (ie. the one that belongs to the fd it
 			 * opened)
 			 */
-			if (nvif_device_init(&cli->base.object, 0, NV_DEVICE,
-					     &args, sizeof(args),
+			if (nvif_device_ctor(&cli->base.object, "abi16Device",
+					     0, NV_DEVICE, &args, sizeof(args),
 					     &abi16->device) == 0)
 				return cli->abi16;
 
@@ -114,7 +114,7 @@ static void
 nouveau_abi16_ntfy_fini(struct nouveau_abi16_chan *chan,
 			struct nouveau_abi16_ntfy *ntfy)
 {
-	nvif_object_fini(&ntfy->object);
+	nvif_object_dtor(&ntfy->object);
 	nvkm_mm_free(&chan->heap, &ntfy->node);
 	list_del(&ntfy->head);
 	kfree(ntfy);
@@ -139,7 +139,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 	if (chan->ntfy) {
 		nouveau_vma_del(&chan->ntfy_vma);
 		nouveau_bo_unpin(chan->ntfy);
-		drm_gem_object_put_unlocked(&chan->ntfy->bo.base);
+		drm_gem_object_put(&chan->ntfy->bo.base);
 	}
 
 	if (chan->heap.block_size)
@@ -167,7 +167,7 @@ nouveau_abi16_fini(struct nouveau_abi16 *abi16)
 	}
 
 	/* destroy the device object */
-	nvif_device_fini(&abi16->device);
+	nvif_device_dtor(&abi16->device);
 
 	kfree(cli->abi16);
 	cli->abi16 = NULL;
@@ -328,7 +328,8 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	ret = nouveau_gem_new(cli, PAGE_SIZE, 0, NOUVEAU_GEM_DOMAIN_GART,
 			      0, 0, &chan->ntfy);
 	if (ret == 0)
-		ret = nouveau_bo_pin(chan->ntfy, TTM_PL_FLAG_TT, false);
+		ret = nouveau_bo_pin(chan->ntfy, NOUVEAU_GEM_DOMAIN_GART,
+				     false);
 	if (ret)
 		goto done;
 
@@ -502,8 +503,8 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	list_add(&ntfy->head, &chan->notifiers);
 
 	client->route = NVDRM_OBJECT_ABI16;
-	ret = nvif_object_init(&chan->chan->user, init->handle, oclass,
-			       NULL, 0, &ntfy->object);
+	ret = nvif_object_ctor(&chan->chan->user, "abi16EngObj", init->handle,
+			       oclass, NULL, 0, &ntfy->object);
 	client->route = NVDRM_OBJECT_NVIF;
 
 	if (ret)
@@ -558,18 +559,18 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	if (drm->agp.bridge) {
 		args.target = NV_DMA_V0_TARGET_AGP;
 		args.access = NV_DMA_V0_ACCESS_RDWR;
-		args.start += drm->agp.base + chan->ntfy->bo.offset;
-		args.limit += drm->agp.base + chan->ntfy->bo.offset;
+		args.start += drm->agp.base + chan->ntfy->offset;
+		args.limit += drm->agp.base + chan->ntfy->offset;
 	} else {
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_RDWR;
-		args.start += chan->ntfy->bo.offset;
-		args.limit += chan->ntfy->bo.offset;
+		args.start += chan->ntfy->offset;
+		args.limit += chan->ntfy->offset;
 	}
 
 	client->route = NVDRM_OBJECT_ABI16;
 	client->super = true;
-	ret = nvif_object_init(&chan->chan->user, info->handle,
+	ret = nvif_object_ctor(&chan->chan->user, "abi16Ntfy", info->handle,
 			       NV_DMA_IN_MEMORY, &args, sizeof(args),
 			       &ntfy->object);
 	client->super = false;

@@ -41,6 +41,11 @@ slub_debug=<Debug-Options>,<slab name1>,<slab name2>,...
 	Enable options only for select slabs (no spaces
 	after a comma)
 
+Multiple blocks of options for all slabs or selected slabs can be given, with
+blocks of options delimited by ';'. The last of "all slabs" blocks is applied
+to all slabs except those that match one of the "select slabs" block. Options
+of the first "select slabs" blocks that matches the slab's name are applied.
+
 Possible debug options are::
 
 	F		Sanity checks on (enables SLAB_DEBUG_CONSISTENCY_CHECKS
@@ -49,7 +54,7 @@ Possible debug options are::
 	P		Poisoning (object and padding)
 	U		User tracking (free and alloc)
 	T		Trace (please only use on single slabs)
-	A		Toggle failslab filter mark for the cache
+	A		Enable failslab filter mark for the cache
 	O		Switch debugging off for caches that would have
 			caused higher minimum slab orders
 	-		Switch all debugging off (useful if the kernel is
@@ -83,17 +88,33 @@ switch off debugging for such caches by default, use::
 
 	slub_debug=O
 
-In case you forgot to enable debugging on the kernel command line: It is
-possible to enable debugging manually when the kernel is up. Look at the
-contents of::
+You can apply different options to different list of slab names, using blocks
+of options. This will enable red zoning for dentry and user tracking for
+kmalloc. All other slabs will not get any debugging enabled::
+
+	slub_debug=Z,dentry;U,kmalloc-*
+
+You can also enable options (e.g. sanity checks and poisoning) for all caches
+except some that are deemed too performance critical and don't need to be
+debugged by specifying global debug options followed by a list of slab names
+with "-" as options::
+
+	slub_debug=FZ;-,zs_handle,zspage
+
+The state of each debug option for a slab can be found in the respective files
+under::
 
 	/sys/kernel/slab/<slab name>/
 
-Look at the writable files. Writing 1 to them will enable the
-corresponding debug option. All options can be set on a slab that does
-not contain objects. If the slab already contains objects then sanity checks
-and tracing may only be enabled. The other options may cause the realignment
-of objects.
+If the file contains 1, the option is enabled, 0 means disabled. The debug
+options from the ``slub_debug`` parameter translate to the following files::
+
+	F	sanity_checks
+	Z	red_zone
+	P	poison
+	U	store_user
+	T	trace
+	A	failslab
 
 Careful with tracing: It may spew out lots of information and never stop if
 used on the wrong slab.
@@ -357,7 +378,7 @@ c) Execute ``slabinfo-gnuplot.sh`` in '-t' mode, passing all of the
    can go unnoticed. To deal with that, ``slabinfo-gnuplot.sh`` has two
    options to 'zoom-in'/'zoom-out':
 
-   a) ``-s %d,%d`` -- overwrites the default image width and heigh
+   a) ``-s %d,%d`` -- overwrites the default image width and height
    b) ``-r %d,%d`` -- specifies a range of samples to use (for example,
       in ``slabinfo -X >> FOO_STATS; sleep 1;`` case, using a ``-r
       40,60`` range will plot only samples collected between 40th and

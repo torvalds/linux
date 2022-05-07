@@ -341,7 +341,7 @@ static void w5300_get_regs(struct net_device *ndev,
 	}
 }
 
-static void w5300_tx_timeout(struct net_device *ndev)
+static void w5300_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct w5300_priv *priv = netdev_priv(ndev);
 

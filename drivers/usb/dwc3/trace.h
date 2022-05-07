@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /**
  * trace.h - DesignWare USB3 DRD Controller Trace Support
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com
  *
  * Author: Felipe Balbi <balbi@ti.com>
  */
@@ -104,8 +104,8 @@ DECLARE_EVENT_CLASS(dwc3_log_request,
 	TP_STRUCT__entry(
 		__string(name, req->dep->name)
 		__field(struct dwc3_request *, req)
-		__field(unsigned, actual)
-		__field(unsigned, length)
+		__field(unsigned int, actual)
+		__field(unsigned int, length)
 		__field(int, status)
 		__field(int, zero)
 		__field(int, short_not_ok)
@@ -227,6 +227,8 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__field(u32, size)
 		__field(u32, ctrl)
 		__field(u32, type)
+		__field(u32, enqueue)
+		__field(u32, dequeue)
 	),
 	TP_fast_assign(
 		__assign_str(name, dep->name);
@@ -236,11 +238,15 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__entry->size = trb->size;
 		__entry->ctrl = trb->ctrl;
 		__entry->type = usb_endpoint_type(dep->endpoint.desc);
+		__entry->enqueue = dep->trb_enqueue;
+		__entry->dequeue = dep->trb_dequeue;
 	),
-	TP_printk("%s: trb %p buf %08x%08x size %s%d ctrl %08x (%c%c%c%c:%c%c:%s)",
-		__get_str(name), __entry->trb, __entry->bph, __entry->bpl,
+	TP_printk("%s: trb %p (E%d:D%d) buf %08x%08x size %s%d ctrl %08x (%c%c%c%c:%c%c:%s)",
+		__get_str(name), __entry->trb, __entry->enqueue,
+		__entry->dequeue, __entry->bph, __entry->bpl,
 		({char *s;
 		int pcm = ((__entry->size >> 24) & 3) + 1;
+
 		switch (__entry->type) {
 		case USB_ENDPOINT_XFER_INT:
 		case USB_ENDPOINT_XFER_ISOC:
@@ -286,12 +292,12 @@ DECLARE_EVENT_CLASS(dwc3_log_ep,
 	TP_ARGS(dep),
 	TP_STRUCT__entry(
 		__string(name, dep->name)
-		__field(unsigned, maxpacket)
-		__field(unsigned, maxpacket_limit)
-		__field(unsigned, max_streams)
-		__field(unsigned, maxburst)
-		__field(unsigned, flags)
-		__field(unsigned, direction)
+		__field(unsigned int, maxpacket)
+		__field(unsigned int, maxpacket_limit)
+		__field(unsigned int, max_streams)
+		__field(unsigned int, maxburst)
+		__field(unsigned int, flags)
+		__field(unsigned int, direction)
 		__field(u8, trb_enqueue)
 		__field(u8, trb_dequeue)
 	),

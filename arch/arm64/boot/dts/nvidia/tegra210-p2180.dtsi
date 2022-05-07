@@ -17,7 +17,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x1 0x0>;
 	};
@@ -38,7 +38,8 @@
 		pmic: pmic@3c {
 			compatible = "maxim,max77620";
 			reg = <0x3c>;
-			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&tegra_pmc>;
+			interrupts = <51 IRQ_TYPE_LEVEL_LOW>;
 
 			#interrupt-cells = <2>;
 			interrupt-controller;
@@ -265,13 +266,17 @@
 	};
 
 	i2c@7000c500 {
+		status = "okay";
+
 		/* module ID EEPROM */
 		eeprom@50 {
 			compatible = "atmel,24c02";
 			reg = <0x50>;
 
-			address-bits = <8>;
-			page-size = <8>;
+			label = "module";
+			vcc-supply = <&vdd_1v8>;
+			address-width = <8>;
+			pagesize = <8>;
 			size = <256>;
 			read-only;
 		};
@@ -279,27 +284,27 @@
 
 	pmc@7000e400 {
 		nvidia,invert-interrupt;
+		nvidia,suspend-mode = <0>;
+		nvidia,cpu-pwr-good-time = <0>;
+		nvidia,cpu-pwr-off-time = <0>;
+		nvidia,core-pwr-good-time = <4587 3876>;
+		nvidia,core-pwr-off-time = <39065>;
+		nvidia,core-power-req-active-high;
+		nvidia,sys-clock-req-active-high;
 	};
 
 	/* eMMC */
-	sdhci@700b0600 {
+	mmc@700b0600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
 		vqmmc-supply = <&vdd_1v8>;
 	};
 
-	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32k_in: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
+	clk32k_in: clock@0 {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		#clock-cells = <0>;
 	};
 
 	cpus {
@@ -331,18 +336,15 @@
 		method = "smc";
 	};
 
-	regulators {
-		vdd_gpu: regulator@100 {
-			compatible = "pwm-regulator";
-			reg = <100>;
-			pwms = <&pwm 1 4880>;
-			regulator-name = "VDD_GPU";
-			regulator-min-microvolt = <710000>;
-			regulator-max-microvolt = <1320000>;
-			enable-gpios = <&pmic 6 GPIO_ACTIVE_HIGH>;
-			regulator-ramp-delay = <80>;
-			regulator-enable-ramp-delay = <2000>;
-			regulator-settling-time-us = <160>;
-		};
+	vdd_gpu: regulator@100 {
+		compatible = "pwm-regulator";
+		pwms = <&pwm 1 8000>;
+		regulator-name = "VDD_GPU";
+		regulator-min-microvolt = <710000>;
+		regulator-max-microvolt = <1320000>;
+		enable-gpios = <&pmic 6 GPIO_ACTIVE_HIGH>;
+		regulator-ramp-delay = <80>;
+		regulator-enable-ramp-delay = <2000>;
+		regulator-settling-time-us = <160>;
 	};
 };

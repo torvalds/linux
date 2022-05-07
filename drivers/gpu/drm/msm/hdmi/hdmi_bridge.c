@@ -287,7 +287,7 @@ struct drm_bridge *msm_hdmi_bridge_init(struct hdmi *hdmi)
 	bridge = &hdmi_bridge->base;
 	bridge->funcs = &msm_hdmi_bridge_funcs;
 
-	ret = drm_bridge_attach(hdmi->encoder, bridge, NULL);
+	ret = drm_bridge_attach(hdmi->encoder, bridge, NULL, 0);
 	if (ret)
 		goto fail;
 

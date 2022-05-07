@@ -303,7 +303,7 @@ static long it8712f_wdt_ioctl(struct file *file, unsigned int cmd,
 
 		superio_exit();
 		it8712f_wdt_ping();
-		/* Fall through */
+		fallthrough;
 	case WDIOC_GETTIMEOUT:
 		if (put_user(margin, p))
 			return -EFAULT;
@@ -345,6 +345,7 @@ static const struct file_operations it8712f_wdt_fops = {
 	.llseek = no_llseek,
 	.write = it8712f_wdt_write,
 	.unlocked_ioctl = it8712f_wdt_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.open = it8712f_wdt_open,
 	.release = it8712f_wdt_release,
 };

@@ -33,7 +33,7 @@ CTRINC:	.octa 0x00000003000000020000000100000000
  *
  * Clobbers: %r8d, %xmm4-%xmm7
  */
-chacha_permute:
+SYM_FUNC_START_LOCAL(chacha_permute)
 
 	movdqa		ROT8(%rip),%xmm4
 	movdqa		ROT16(%rip),%xmm5
@@ -109,9 +109,9 @@ chacha_permute:
 	jnz		.Ldoubleround
 
 	ret
-ENDPROC(chacha_permute)
+SYM_FUNC_END(chacha_permute)
 
-ENTRY(chacha_block_xor_ssse3)
+SYM_FUNC_START(chacha_block_xor_ssse3)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 1 data block output, o
 	# %rdx: up to 1 data block input, i
@@ -120,10 +120,10 @@ ENTRY(chacha_block_xor_ssse3)
 	FRAME_BEGIN
 
 	# x0..3 = s0..3
-	movdqa		0x00(%rdi),%xmm0
-	movdqa		0x10(%rdi),%xmm1
-	movdqa		0x20(%rdi),%xmm2
-	movdqa		0x30(%rdi),%xmm3
+	movdqu		0x00(%rdi),%xmm0
+	movdqu		0x10(%rdi),%xmm1
+	movdqu		0x20(%rdi),%xmm2
+	movdqu		0x30(%rdi),%xmm3
 	movdqa		%xmm0,%xmm8
 	movdqa		%xmm1,%xmm9
 	movdqa		%xmm2,%xmm10
@@ -197,18 +197,18 @@ ENTRY(chacha_block_xor_ssse3)
 	lea		-8(%r10),%rsp
 	jmp		.Ldone
 
-ENDPROC(chacha_block_xor_ssse3)
+SYM_FUNC_END(chacha_block_xor_ssse3)
 
-ENTRY(hchacha_block_ssse3)
+SYM_FUNC_START(hchacha_block_ssse3)
 	# %rdi: Input state matrix, s
 	# %rsi: output (8 32-bit words)
 	# %edx: nrounds
 	FRAME_BEGIN
 
-	movdqa		0x00(%rdi),%xmm0
-	movdqa		0x10(%rdi),%xmm1
-	movdqa		0x20(%rdi),%xmm2
-	movdqa		0x30(%rdi),%xmm3
+	movdqu		0x00(%rdi),%xmm0
+	movdqu		0x10(%rdi),%xmm1
+	movdqu		0x20(%rdi),%xmm2
+	movdqu		0x30(%rdi),%xmm3
 
 	mov		%edx,%r8d
 	call		chacha_permute
@@ -218,9 +218,9 @@ ENTRY(hchacha_block_ssse3)
 
 	FRAME_END
 	ret
-ENDPROC(hchacha_block_ssse3)
+SYM_FUNC_END(hchacha_block_ssse3)
 
-ENTRY(chacha_4block_xor_ssse3)
+SYM_FUNC_START(chacha_4block_xor_ssse3)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 4 data blocks output, o
 	# %rdx: up to 4 data blocks input, i
@@ -788,4 +788,4 @@ ENTRY(chacha_4block_xor_ssse3)
 
 	jmp		.Ldone4
 
-ENDPROC(chacha_4block_xor_ssse3)
+SYM_FUNC_END(chacha_4block_xor_ssse3)

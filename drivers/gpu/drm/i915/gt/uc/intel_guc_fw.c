@@ -13,20 +13,6 @@
 #include "intel_guc_fw.h"
 #include "i915_drv.h"
 
-/**
- * intel_guc_fw_init_early() - initializes GuC firmware struct
- * @guc: intel_guc struct
- *
- * On platforms with GuC selects firmware for uploading
- */
-void intel_guc_fw_init_early(struct intel_guc *guc)
-{
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
-
-	intel_uc_fw_init_early(&guc->fw, INTEL_UC_FW_TYPE_GUC, HAS_GT_UC(i915),
-			       INTEL_INFO(i915)->platform, INTEL_REVID(i915));
-}
-
 static void guc_prepare_xfer(struct intel_uncore *uncore)
 {
 	u32 shim_flags = GUC_DISABLE_SRAM_INIT_TO_ZEROES |
@@ -149,7 +135,7 @@ int intel_guc_fw_upload(struct intel_guc *guc)
 	 * Current uCode expects the code to be loaded at 8k; locations below
 	 * this are used for the stack.
 	 */
-	ret = intel_uc_fw_upload(&guc->fw, gt, 0x2000, UOS_MOVE);
+	ret = intel_uc_fw_upload(&guc->fw, 0x2000, UOS_MOVE);
 	if (ret)
 		goto out;
 

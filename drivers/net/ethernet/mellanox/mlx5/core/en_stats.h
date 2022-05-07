@@ -29,6 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 #ifndef __MLX5_EN_STATS_H__
 #define __MLX5_EN_STATS_H__
 
@@ -55,6 +56,60 @@ struct counter_desc {
 	size_t		offset; /* Byte offset */
 };
 
+enum {
+	MLX5E_NDO_UPDATE_STATS = BIT(0x1),
+};
+
+struct mlx5e_priv;
+struct mlx5e_stats_grp {
+	u16 update_stats_mask;
+	int (*get_num_stats)(struct mlx5e_priv *priv);
+	int (*fill_strings)(struct mlx5e_priv *priv, u8 *data, int idx);
+	int (*fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx);
+	void (*update_stats)(struct mlx5e_priv *priv);
+};
+
+typedef const struct mlx5e_stats_grp *const mlx5e_stats_grp_t;
+
+#define MLX5E_STATS_GRP_OP(grp, name) mlx5e_stats_grp_ ## grp ## _ ## name
+
+#define MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(grp) \
+	int MLX5E_STATS_GRP_OP(grp, num_stats)(struct mlx5e_priv *priv)
+
+#define MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(grp) \
+	void MLX5E_STATS_GRP_OP(grp, update_stats)(struct mlx5e_priv *priv)
+
+#define MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(grp) \
+	int MLX5E_STATS_GRP_OP(grp, fill_strings)(struct mlx5e_priv *priv, u8 *data, int idx)
+
+#define MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(grp) \
+	int MLX5E_STATS_GRP_OP(grp, fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx)
+
+#define MLX5E_STATS_GRP(grp) mlx5e_stats_grp_ ## grp
+
+#define MLX5E_DECLARE_STATS_GRP(grp) \
+	const struct mlx5e_stats_grp MLX5E_STATS_GRP(grp)
+
+#define MLX5E_DEFINE_STATS_GRP(grp, mask) \
+MLX5E_DECLARE_STATS_GRP(grp) = { \
+	.get_num_stats = MLX5E_STATS_GRP_OP(grp, num_stats), \
+	.fill_stats    = MLX5E_STATS_GRP_OP(grp, fill_stats), \
+	.fill_strings  = MLX5E_STATS_GRP_OP(grp, fill_strings), \
+	.update_stats  = MLX5E_STATS_GRP_OP(grp, update_stats), \
+	.update_stats_mask = mask, \
+}
+
+unsigned int mlx5e_stats_total_num(struct mlx5e_priv *priv);
+void mlx5e_stats_update(struct mlx5e_priv *priv);
+void mlx5e_stats_fill(struct mlx5e_priv *priv, u64 *data, int idx);
+void mlx5e_stats_fill_strings(struct mlx5e_priv *priv, u8 *data);
+void mlx5e_stats_update_ndo_stats(struct mlx5e_priv *priv);
+
+void mlx5e_stats_pause_get(struct mlx5e_priv *priv,
+			   struct ethtool_pause_stats *pause_stats);
+
+/* Concrete NIC Stats */
+
 struct mlx5e_sw_stats {
 	u64 rx_packets;
 	u64 rx_bytes;
@@ -66,8 +121,11 @@ struct mlx5e_sw_stats {
 	u64 tx_tso_inner_bytes;
 	u64 tx_added_vlan_packets;
 	u64 tx_nop;
+	u64 tx_mpwqe_blks;
+	u64 tx_mpwqe_pkts;
 	u64 rx_lro_packets;
 	u64 rx_lro_bytes;
+	u64 rx_mcast_packets;
 	u64 rx_ecn_mark;
 	u64 rx_removed_vlan_packets;
 	u64 rx_csum_unnecessary;
@@ -135,6 +193,18 @@ struct mlx5e_sw_stats {
 	u64 tx_tls_skip_no_sync_data;
 	u64 tx_tls_drop_no_sync_data;
 	u64 tx_tls_drop_bypass_req;
+
+	u64 rx_tls_decrypted_packets;
+	u64 rx_tls_decrypted_bytes;
+	u64 rx_tls_ctx;
+	u64 rx_tls_del;
+	u64 rx_tls_resync_req_pkt;
+	u64 rx_tls_resync_req_start;
+	u64 rx_tls_resync_req_end;
+	u64 rx_tls_resync_req_skip;
+	u64 rx_tls_resync_res_ok;
+	u64 rx_tls_resync_res_skip;
+	u64 rx_tls_err;
 #endif
 
 	u64 rx_xsk_packets;
@@ -235,6 +305,7 @@ struct mlx5e_rq_stats {
 	u64 csum_none;
 	u64 lro_packets;
 	u64 lro_bytes;
+	u64 mcast_packets;
 	u64 ecn_mark;
 	u64 removed_vlan_packets;
 	u64 xdp_drop;
@@ -254,6 +325,19 @@ struct mlx5e_rq_stats {
 	u64 congst_umr;
 	u64 arfs_err;
 	u64 recover;
+#ifdef CONFIG_MLX5_EN_TLS
+	u64 tls_decrypted_packets;
+	u64 tls_decrypted_bytes;
+	u64 tls_ctx;
+	u64 tls_del;
+	u64 tls_resync_req_pkt;
+	u64 tls_resync_req_start;
+	u64 tls_resync_req_end;
+	u64 tls_resync_req_skip;
+	u64 tls_resync_res_ok;
+	u64 tls_resync_res_skip;
+	u64 tls_err;
+#endif
 };
 
 struct mlx5e_sq_stats {
@@ -269,6 +353,8 @@ struct mlx5e_sq_stats {
 	u64 csum_partial_inner;
 	u64 added_vlan_packets;
 	u64 nop;
+	u64 mpwqe_blks;
+	u64 mpwqe_pkts;
 #ifdef CONFIG_MLX5_EN_TLS
 	u64 tls_encrypted_packets;
 	u64 tls_encrypted_bytes;
@@ -322,22 +408,24 @@ struct mlx5e_stats {
 	struct mlx5e_pcie_stats pcie;
 };
 
-enum {
-	MLX5E_NDO_UPDATE_STATS = BIT(0x1),
-};
+extern mlx5e_stats_grp_t mlx5e_nic_stats_grps[];
+unsigned int mlx5e_nic_stats_grps_num(struct mlx5e_priv *priv);
 
-struct mlx5e_priv;
-struct mlx5e_stats_grp {
-	u16 update_stats_mask;
-	int (*get_num_stats)(struct mlx5e_priv *priv);
-	int (*fill_strings)(struct mlx5e_priv *priv, u8 *data, int idx);
-	int (*fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx);
-	void (*update_stats)(struct mlx5e_priv *priv);
-};
-
-extern const struct mlx5e_stats_grp mlx5e_stats_grps[];
-extern const int mlx5e_num_stats_grps;
-
-void mlx5e_grp_802_3_update_stats(struct mlx5e_priv *priv);
+extern MLX5E_DECLARE_STATS_GRP(sw);
+extern MLX5E_DECLARE_STATS_GRP(qcnt);
+extern MLX5E_DECLARE_STATS_GRP(vnic_env);
+extern MLX5E_DECLARE_STATS_GRP(vport);
+extern MLX5E_DECLARE_STATS_GRP(802_3);
+extern MLX5E_DECLARE_STATS_GRP(2863);
+extern MLX5E_DECLARE_STATS_GRP(2819);
+extern MLX5E_DECLARE_STATS_GRP(phy);
+extern MLX5E_DECLARE_STATS_GRP(eth_ext);
+extern MLX5E_DECLARE_STATS_GRP(pcie);
+extern MLX5E_DECLARE_STATS_GRP(per_prio);
+extern MLX5E_DECLARE_STATS_GRP(pme);
+extern MLX5E_DECLARE_STATS_GRP(channels);
+extern MLX5E_DECLARE_STATS_GRP(per_port_buff_congest);
+extern MLX5E_DECLARE_STATS_GRP(ipsec_hw);
+extern MLX5E_DECLARE_STATS_GRP(ipsec_sw);
 
 #endif /* __MLX5_EN_STATS_H__ */

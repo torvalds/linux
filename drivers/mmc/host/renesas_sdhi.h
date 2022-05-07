@@ -14,8 +14,8 @@
 
 struct renesas_sdhi_scc {
 	unsigned long clk_rate;	/* clock rate for SDR104 */
-	u32 tap;		/* sampling clock position for SDR104 */
-	u32 tap_hs400;		/* sampling clock position for HS400 */
+	u32 tap;		/* sampling clock position for SDR104/HS400 (8 TAP) */
+	u32 tap_hs400_4tap;	/* sampling clock position for HS400 (4 TAP) */
 };
 
 struct renesas_sdhi_of_data {
@@ -33,6 +33,15 @@ struct renesas_sdhi_of_data {
 	unsigned short max_segs;
 };
 
+#define SDHI_CALIB_TABLE_MAX 32
+
+struct renesas_sdhi_quirks {
+	bool hs400_disabled;
+	bool hs400_4taps;
+	u32 hs400_bad_taps;
+	const u8 (*hs400_calib_table)[SDHI_CALIB_TABLE_MAX];
+};
+
 struct tmio_mmc_dma {
 	enum dma_slave_buswidth dma_buswidth;
 	bool (*filter)(struct dma_chan *chan, void *arg);
@@ -46,11 +55,21 @@ struct renesas_sdhi {
 	struct clk *clk_cd;
 	struct tmio_mmc_data mmc_data;
 	struct tmio_mmc_dma dma_priv;
+	const struct renesas_sdhi_quirks *quirks;
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_default, *pins_uhs;
 	void __iomem *scc_ctl;
 	u32 scc_tappos;
 	u32 scc_tappos_hs400;
+	const u8 *adjust_hs400_calib_table;
+	bool needs_adjust_hs400;
+
+	/* Tuning values: 1 for success, 0 for failure */
+	DECLARE_BITMAP(taps, BITS_PER_LONG);
+	/* Sampling data comparison: 1 for match, 0 for mismatch */
+	DECLARE_BITMAP(smpcmp, BITS_PER_LONG);
+	unsigned int tap_num;
+	unsigned int tap_set;
 };
 
 #define host_to_priv(host) \

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2017-2018 HUAWEI, Inc.
- *             http://www.huawei.com/
+ *             https://www.huawei.com/
  * Created by Gao Xiang <gaoxiang25@huawei.com>
  */
 #ifndef __EROFS_XATTR_H
@@ -46,18 +46,19 @@ extern const struct xattr_handler erofs_xattr_security_handler;
 
 static inline const struct xattr_handler *erofs_xattr_handler(unsigned int idx)
 {
-static const struct xattr_handler *xattr_handler_map[] = {
-	[EROFS_XATTR_INDEX_USER] = &erofs_xattr_user_handler,
+	static const struct xattr_handler *xattr_handler_map[] = {
+		[EROFS_XATTR_INDEX_USER] = &erofs_xattr_user_handler,
 #ifdef CONFIG_EROFS_FS_POSIX_ACL
-	[EROFS_XATTR_INDEX_POSIX_ACL_ACCESS] = &posix_acl_access_xattr_handler,
-	[EROFS_XATTR_INDEX_POSIX_ACL_DEFAULT] =
-		&posix_acl_default_xattr_handler,
+		[EROFS_XATTR_INDEX_POSIX_ACL_ACCESS] =
+			&posix_acl_access_xattr_handler,
+		[EROFS_XATTR_INDEX_POSIX_ACL_DEFAULT] =
+			&posix_acl_default_xattr_handler,
 #endif
-	[EROFS_XATTR_INDEX_TRUSTED] = &erofs_xattr_trusted_handler,
+		[EROFS_XATTR_INDEX_TRUSTED] = &erofs_xattr_trusted_handler,
 #ifdef CONFIG_EROFS_FS_SECURITY
-	[EROFS_XATTR_INDEX_SECURITY] = &erofs_xattr_security_handler,
+		[EROFS_XATTR_INDEX_SECURITY] = &erofs_xattr_security_handler,
 #endif
-};
+	};
 
 	return idx && idx < ARRAY_SIZE(xattr_handler_map) ?
 		xattr_handler_map[idx] : NULL;
@@ -75,11 +76,8 @@ static inline int erofs_getxattr(struct inode *inode, int index,
 	return -EOPNOTSUPP;
 }
 
-static inline ssize_t erofs_listxattr(struct dentry *dentry,
-				      char *buffer, size_t buffer_size)
-{
-	return -EOPNOTSUPP;
-}
+#define erofs_listxattr (NULL)
+#define erofs_xattr_handlers (NULL)
 #endif	/* !CONFIG_EROFS_FS_XATTR */
 
 #ifdef CONFIG_EROFS_FS_POSIX_ACL

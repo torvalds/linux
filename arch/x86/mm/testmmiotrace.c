@@ -79,7 +79,7 @@ static void do_read_far_test(void __iomem *p)
 
 static void do_test(unsigned long size)
 {
-	void __iomem *p = ioremap_nocache(mmio_address, size);
+	void __iomem *p = ioremap(mmio_address, size);
 	if (!p) {
 		pr_err("could not ioremap, aborting.\n");
 		return;
@@ -104,7 +104,7 @@ static void do_test_bulk_ioremapping(void)
 	int i;
 
 	for (i = 0; i < 10; ++i) {
-		p = ioremap_nocache(mmio_address, PAGE_SIZE);
+		p = ioremap(mmio_address, PAGE_SIZE);
 		if (p)
 			iounmap(p);
 	}
@@ -127,9 +127,9 @@ static int __init init(void)
 		return -ENXIO;
 	}
 
-	pr_warning("WARNING: mapping %lu kB @ 0x%08lx in PCI address space, "
-		   "and writing 16 kB of rubbish in there.\n",
-		   size >> 10, mmio_address);
+	pr_warn("WARNING: mapping %lu kB @ 0x%08lx in PCI address space, "
+		"and writing 16 kB of rubbish in there.\n",
+		size >> 10, mmio_address);
 	do_test(size);
 	do_test_bulk_ioremapping();
 	pr_info("All done.\n");

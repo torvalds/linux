@@ -32,8 +32,14 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
+/* FIXME: Delete the DRV_MODULE_VERSION below, but please be warned
+ * that it is not an easy task because such change has all chances
+ * to break this driver due to amount of abuse of in-kernel interfaces
+ * between modules and FW.
+ *
+ * DO NOT UPDATE DRV_MODULE_VERSION below.
+ */
 #define DRV_MODULE_VERSION      "1.713.36-0"
-#define DRV_MODULE_RELDATE      "2014/02/10"
 #define BNX2X_BC_VER            0x040200
 
 #if defined(CONFIG_DCB)
@@ -1281,7 +1287,6 @@ enum sp_rtnl_flag {
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
 	BNX2X_SP_RTNL_TX_STOP,
 	BNX2X_SP_RTNL_GET_DRV_VERSION,
-	BNX2X_SP_RTNL_CHANGE_UDP_PORT,
 	BNX2X_SP_RTNL_UPDATE_SVID,
 };
 
@@ -1335,11 +1340,6 @@ enum bnx2x_udp_port_type {
 	BNX2X_UDP_PORT_VXLAN,
 	BNX2X_UDP_PORT_GENEVE,
 	BNX2X_UDP_PORT_MAX,
-};
-
-struct bnx2x_udp_tunnel {
-	u16 dst_port;
-	u8 count;
 };
 
 struct bnx2x {
@@ -1849,7 +1849,7 @@ struct bnx2x {
 	bool accept_any_vlan;
 
 	/* Vxlan/Geneve related information */
-	struct bnx2x_udp_tunnel udp_tunnel_ports[BNX2X_UDP_PORT_MAX];
+	u16 udp_tunnel_ports[BNX2X_UDP_PORT_MAX];
 };
 
 /* Tx queues may be less or equal to Rx queues */
@@ -1972,6 +1972,9 @@ struct bnx2x_func_init_params {
 #define skip_tx_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
 
 #define skip_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
+
+/*self test*/
+int bnx2x_idle_chk(struct bnx2x *bp);
 
 /**
  * bnx2x_set_mac_one - configure a single MAC address
@@ -2423,13 +2426,6 @@ int bnx2x_compare_fw_ver(struct bnx2x *bp, u32 load_code, bool print_err);
 #define HC_SEG_ACCESS_DEF		0   /*Driver decision 0-3*/
 #define HC_SEG_ACCESS_ATTN		4
 #define HC_SEG_ACCESS_NORM		0   /*Driver decision 0-1*/
-
-static const u32 dmae_reg_go_c[] = {
-	DMAE_REG_GO_C0, DMAE_REG_GO_C1, DMAE_REG_GO_C2, DMAE_REG_GO_C3,
-	DMAE_REG_GO_C4, DMAE_REG_GO_C5, DMAE_REG_GO_C6, DMAE_REG_GO_C7,
-	DMAE_REG_GO_C8, DMAE_REG_GO_C9, DMAE_REG_GO_C10, DMAE_REG_GO_C11,
-	DMAE_REG_GO_C12, DMAE_REG_GO_C13, DMAE_REG_GO_C14, DMAE_REG_GO_C15
-};
 
 void bnx2x_set_ethtool_ops(struct bnx2x *bp, struct net_device *netdev);
 void bnx2x_notify_link_changed(struct bnx2x *bp);

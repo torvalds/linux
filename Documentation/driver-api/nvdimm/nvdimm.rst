@@ -73,7 +73,7 @@ DAX:
   process address space.
 
 DSM:
-  Device Specific Method: ACPI method to to control specific
+  Device Specific Method: ACPI method to control specific
   device - in this case the firmware.
 
 DCR:
@@ -113,13 +113,13 @@ Supporting Documents
 --------------------
 
 ACPI 6:
-	http://www.uefi.org/sites/default/files/resources/ACPI_6.0.pdf
+	https://www.uefi.org/sites/default/files/resources/ACPI_6.0.pdf
 NVDIMM Namespace:
-	http://pmem.io/documents/NVDIMM_Namespace_Spec.pdf
+	https://pmem.io/documents/NVDIMM_Namespace_Spec.pdf
 DSM Interface Example:
-	http://pmem.io/documents/NVDIMM_DSM_Interface_Example.pdf
+	https://pmem.io/documents/NVDIMM_DSM_Interface_Example.pdf
 Driver Writer's Guide:
-	http://pmem.io/documents/NVDIMM_Driver_Writers_Guide.pdf
+	https://pmem.io/documents/NVDIMM_Driver_Writers_Guide.pdf
 
 Git Trees
 ---------
@@ -278,8 +278,8 @@ by a region device with a dynamically assigned id (REGION0 - REGION5).
        be contiguous in DPA-space.
 
     This bus is provided by the kernel under the device
-    /sys/devices/platform/nfit_test.0 when CONFIG_NFIT_TEST is enabled and
-    the nfit_test.ko module is loaded.  This not only test LIBNVDIMM but the
+    /sys/devices/platform/nfit_test.0 when the nfit_test.ko module from
+    tools/testing/nvdimm is loaded.  This not only test LIBNVDIMM but the
     acpi_nfit.ko driver as well.
 
 
@@ -778,7 +778,7 @@ Why the Term "namespace"?
 
     2. The term originated to describe the sub-devices that can be created
        within a NVME controller (see the nvme specification:
-       http://www.nvmexpress.org/specifications/), and NFIT namespaces are
+       https://www.nvmexpress.org/specifications/), and NFIT namespaces are
        meant to parallel the capabilities and configurability of
        NVME-namespaces.
 
@@ -786,7 +786,7 @@ Why the Term "namespace"?
 LIBNVDIMM/LIBNDCTL: Block Translation Table "btt"
 -------------------------------------------------
 
-A BTT (design document: http://pmem.io/2014/09/23/btt.html) is a stacked
+A BTT (design document: https://pmem.io/2014/09/23/btt.html) is a stacked
 block device driver that fronts either the whole block device or a
 partition of a block device emitted by either a PMEM or BLK NAMESPACE.
 

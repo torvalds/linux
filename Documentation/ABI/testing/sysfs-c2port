@@ -66,13 +66,6 @@ Description:
 		the "erase" command on the on-board flash of the connected
 		micro.
 
-What:		/sys/class/c2port/c2portX/flash_erase
-Date:		October 2008
-Contact:	Rodolfo Giometti <giometti@linux.it>
-Description:
-		The /sys/class/c2port/c2portX/flash_erase file show the
-		on-board flash size of the connected micro.
-
 What:		/sys/class/c2port/c2portX/reset
 Date:		October 2008
 Contact:	Rodolfo Giometti <giometti@linux.it>

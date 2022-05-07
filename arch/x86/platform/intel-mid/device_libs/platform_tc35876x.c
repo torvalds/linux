@@ -6,21 +6,31 @@
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>
  */
 
-#include <linux/gpio.h>
-#include <linux/platform_data/tc35876x.h>
+#include <linux/gpio/machine.h>
 #include <asm/intel-mid.h>
+
+static struct gpiod_lookup_table tc35876x_gpio_table = {
+	.dev_id	= "i2c_disp_brig",
+	.table	= {
+		GPIO_LOOKUP("0000:00:0c.0", -1, "bridge-reset", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("0000:00:0c.0", -1, "bl-en", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("0000:00:0c.0", -1, "vadd", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 /*tc35876x DSI_LVDS bridge chip and panel platform data*/
 static void *tc35876x_platform_data(void *data)
 {
-	static struct tc35876x_platform_data pdata;
+	struct gpiod_lookup_table *table = &tc35876x_gpio_table;
+	struct gpiod_lookup *lookup = table->table;
 
-	/* gpio pins set to -1 will not be used by the driver */
-	pdata.gpio_bridge_reset = get_gpio_by_name("LCMB_RXEN");
-	pdata.gpio_panel_bl_en = get_gpio_by_name("6S6P_BL_EN");
-	pdata.gpio_panel_vadd = get_gpio_by_name("EN_VREG_LCD_V3P3");
+	lookup[0].chip_hwnum = get_gpio_by_name("LCMB_RXEN");
+	lookup[1].chip_hwnum = get_gpio_by_name("6S6P_BL_EN");
+	lookup[2].chip_hwnum = get_gpio_by_name("EN_VREG_LCD_V3P3");
+	gpiod_add_lookup_table(table);
 
-	return &pdata;
+	return NULL;
 }
 
 static const struct devs_id tc35876x_dev_id __initconst = {

@@ -12,6 +12,7 @@
 #include <asm/smp.h>
 #include <linux/uaccess.h>
 #include <asm/firmware.h>
+#include <asm/dtl.h>
 #include <asm/lppaca.h>
 #include <asm/debugfs.h>
 #include <asm/plpar_wrappers.h>
@@ -19,7 +20,6 @@
 
 struct dtl {
 	struct dtl_entry	*buf;
-	struct dentry		*file;
 	int			cpu;
 	int			buf_entries;
 	u64			last_idx;
@@ -320,46 +320,28 @@ static const struct file_operations dtl_fops = {
 
 static struct dentry *dtl_dir;
 
-static int dtl_setup_file(struct dtl *dtl)
+static void dtl_setup_file(struct dtl *dtl)
 {
 	char name[10];
 
 	sprintf(name, "cpu-%d", dtl->cpu);
 
-	dtl->file = debugfs_create_file(name, 0400, dtl_dir, dtl, &dtl_fops);
-	if (!dtl->file)
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_file(name, 0400, dtl_dir, dtl, &dtl_fops);
 }
 
 static int dtl_init(void)
 {
-	struct dentry *event_mask_file, *buf_entries_file;
-	int rc, i;
+	int i;
 
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return -ENODEV;
 
 	/* set up common debugfs structure */
 
-	rc = -ENOMEM;
 	dtl_dir = debugfs_create_dir("dtl", powerpc_debugfs_root);
-	if (!dtl_dir) {
-		printk(KERN_WARNING "%s: can't create dtl root dir\n",
-				__func__);
-		goto err;
-	}
 
-	event_mask_file = debugfs_create_x8("dtl_event_mask", 0600,
-				dtl_dir, &dtl_event_mask);
-	buf_entries_file = debugfs_create_u32("dtl_buf_entries", 0400,
-				dtl_dir, &dtl_buf_entries);
-
-	if (!event_mask_file || !buf_entries_file) {
-		printk(KERN_WARNING "%s: can't create dtl files\n", __func__);
-		goto err_remove_dir;
-	}
+	debugfs_create_x8("dtl_event_mask", 0600, dtl_dir, &dtl_event_mask);
+	debugfs_create_u32("dtl_buf_entries", 0400, dtl_dir, &dtl_buf_entries);
 
 	/* set up the per-cpu log structures */
 	for_each_possible_cpu(i) {
@@ -367,16 +349,9 @@ static int dtl_init(void)
 		spin_lock_init(&dtl->lock);
 		dtl->cpu = i;
 
-		rc = dtl_setup_file(dtl);
-		if (rc)
-			goto err_remove_dir;
+		dtl_setup_file(dtl);
 	}
 
 	return 0;
-
-err_remove_dir:
-	debugfs_remove_recursive(dtl_dir);
-err:
-	return rc;
 }
 machine_arch_initcall(pseries, dtl_init);

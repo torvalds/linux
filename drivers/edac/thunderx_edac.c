@@ -454,7 +454,7 @@ DEBUGFS_STRUCT(inject_int, 0200, thunderx_lmc_inject_int_write, NULL);
 DEBUGFS_STRUCT(inject_ecc, 0200, thunderx_lmc_inject_ecc_write, NULL);
 DEBUGFS_STRUCT(int_w1c, 0400, NULL, thunderx_lmc_int_read);
 
-struct debugfs_entry *lmc_dfs_ents[] = {
+static struct debugfs_entry *lmc_dfs_ents[] = {
 	&debugfs_mask0,
 	&debugfs_mask2,
 	&debugfs_parity_test,
@@ -1278,7 +1278,7 @@ OCX_DEBUGFS_ATTR(lne23_badcnt, OCX_LNE_BAD_CNT(23));
 
 OCX_DEBUGFS_ATTR(com_int, OCX_COM_INT_W1S);
 
-struct debugfs_entry *ocx_dfs_ents[] = {
+static struct debugfs_entry *ocx_dfs_ents[] = {
 	&debugfs_tlk0_ecc_ctl,
 	&debugfs_tlk1_ecc_ctl,
 	&debugfs_tlk2_ecc_ctl,
@@ -1919,19 +1919,19 @@ err_free:
 
 L2C_DEBUGFS_ATTR(tad_int, L2C_TAD_INT_W1S);
 
-struct debugfs_entry *l2c_tad_dfs_ents[] = {
+static struct debugfs_entry *l2c_tad_dfs_ents[] = {
 	&debugfs_tad_int,
 };
 
 L2C_DEBUGFS_ATTR(cbc_int, L2C_CBC_INT_W1S);
 
-struct debugfs_entry *l2c_cbc_dfs_ents[] = {
+static struct debugfs_entry *l2c_cbc_dfs_ents[] = {
 	&debugfs_cbc_int,
 };
 
 L2C_DEBUGFS_ATTR(mci_int, L2C_MCI_INT_W1S);
 
-struct debugfs_entry *l2c_mci_dfs_ents[] = {
+static struct debugfs_entry *l2c_mci_dfs_ents[] = {
 	&debugfs_mci_int,
 };
 

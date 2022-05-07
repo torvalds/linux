@@ -55,7 +55,7 @@
 		interrupt-parent = <&avic>;
 		ranges;
 
-		iram: iram@1fffc000 {
+		iram: sram@1fffc000 {
 			compatible = "mmio-sram";
 			reg = <0x1fffc000 0x4000>;
 			#address-cells = <1>;
@@ -63,7 +63,7 @@
 			ranges = <0 0x1fffc000 0x4000>;
 		};
 
-		aips@43f00000 { /* AIPS1 */
+		bus@43f00000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -173,7 +173,7 @@
 			reg = <0x50000000 0x100000>;
 			ranges;
 
-			sdhci1: sdhci@50004000 {
+			sdhci1: mmc@50004000 {
 				compatible = "fsl,imx31-mmc";
 				reg = <0x50004000 0x4000>;
 				interrupts = <9>;
@@ -184,7 +184,7 @@
 				status = "disabled";
 			};
 
-			sdhci2: sdhci@50008000 {
+			sdhci2: mmc@50008000 {
 				compatible = "fsl,imx31-mmc";
 				reg = <0x50008000 0x4000>;
 				interrupts = <8>;
@@ -217,7 +217,7 @@
 				status = "disabled";
 			};
 
-			iim: iim@5001c000 {
+			iim: efuse@5001c000 {
 				compatible = "fsl,imx31-iim", "fsl,imx27-iim";
 				reg = <0x5001c000 0x1000>;
 				interrupts = <19>;
@@ -225,7 +225,7 @@
 			};
 		};
 
-		aips@53f00000 { /* AIPS2 */
+		bus@53f00000 { /* AIPS2 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -327,7 +327,7 @@
 				interrupts = <26>;
 				clocks = <&clks 10>, <&clks 42>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 		};

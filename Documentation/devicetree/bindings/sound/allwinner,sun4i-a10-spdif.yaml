@@ -10,7 +10,7 @@ maintainers:
   - Chen-Yu Tsai <wens@csie.org>
   - Liam Girdwood <lgirdwood@gmail.com>
   - Mark Brown <broonie@kernel.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   "#sound-dai-cells":

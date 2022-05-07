@@ -55,8 +55,7 @@ static void dpu_core_irq_callback_handler(void *arg, int irq_idx)
 int dpu_core_irq_idx_lookup(struct dpu_kms *dpu_kms,
 		enum dpu_intr_type intr_type, u32 instance_idx)
 {
-	if (!dpu_kms || !dpu_kms->hw_intr ||
-			!dpu_kms->hw_intr->ops.irq_idx_lookup)
+	if (!dpu_kms->hw_intr || !dpu_kms->hw_intr->ops.irq_idx_lookup)
 		return -EINVAL;
 
 	return dpu_kms->hw_intr->ops.irq_idx_lookup(intr_type,
@@ -73,7 +72,7 @@ static int _dpu_core_irq_enable(struct dpu_kms *dpu_kms, int irq_idx)
 	unsigned long irq_flags;
 	int ret = 0, enable_count;
 
-	if (!dpu_kms || !dpu_kms->hw_intr ||
+	if (!dpu_kms->hw_intr ||
 			!dpu_kms->irq_obj.enable_counts ||
 			!dpu_kms->irq_obj.irq_counts) {
 		DPU_ERROR("invalid params\n");
@@ -114,7 +113,7 @@ int dpu_core_irq_enable(struct dpu_kms *dpu_kms, int *irq_idxs, u32 irq_count)
 {
 	int i, ret = 0, counts;
 
-	if (!dpu_kms || !irq_idxs || !irq_count) {
+	if (!irq_idxs || !irq_count) {
 		DPU_ERROR("invalid params\n");
 		return -EINVAL;
 	}
@@ -138,7 +137,7 @@ static int _dpu_core_irq_disable(struct dpu_kms *dpu_kms, int irq_idx)
 {
 	int ret = 0, enable_count;
 
-	if (!dpu_kms || !dpu_kms->hw_intr || !dpu_kms->irq_obj.enable_counts) {
+	if (!dpu_kms->hw_intr || !dpu_kms->irq_obj.enable_counts) {
 		DPU_ERROR("invalid params\n");
 		return -EINVAL;
 	}
@@ -169,7 +168,7 @@ int dpu_core_irq_disable(struct dpu_kms *dpu_kms, int *irq_idxs, u32 irq_count)
 {
 	int i, ret = 0, counts;
 
-	if (!dpu_kms || !irq_idxs || !irq_count) {
+	if (!irq_idxs || !irq_count) {
 		DPU_ERROR("invalid params\n");
 		return -EINVAL;
 	}
@@ -186,7 +185,7 @@ int dpu_core_irq_disable(struct dpu_kms *dpu_kms, int *irq_idxs, u32 irq_count)
 
 u32 dpu_core_irq_read(struct dpu_kms *dpu_kms, int irq_idx, bool clear)
 {
-	if (!dpu_kms || !dpu_kms->hw_intr ||
+	if (!dpu_kms->hw_intr ||
 			!dpu_kms->hw_intr->ops.get_interrupt_status)
 		return 0;
 
@@ -205,7 +204,7 @@ int dpu_core_irq_register_callback(struct dpu_kms *dpu_kms, int irq_idx,
 {
 	unsigned long irq_flags;
 
-	if (!dpu_kms || !dpu_kms->irq_obj.irq_cb_tbl) {
+	if (!dpu_kms->irq_obj.irq_cb_tbl) {
 		DPU_ERROR("invalid params\n");
 		return -EINVAL;
 	}
@@ -240,7 +239,7 @@ int dpu_core_irq_unregister_callback(struct dpu_kms *dpu_kms, int irq_idx,
 {
 	unsigned long irq_flags;
 
-	if (!dpu_kms || !dpu_kms->irq_obj.irq_cb_tbl) {
+	if (!dpu_kms->irq_obj.irq_cb_tbl) {
 		DPU_ERROR("invalid params\n");
 		return -EINVAL;
 	}
@@ -274,8 +273,7 @@ int dpu_core_irq_unregister_callback(struct dpu_kms *dpu_kms, int irq_idx,
 
 static void dpu_clear_all_irqs(struct dpu_kms *dpu_kms)
 {
-	if (!dpu_kms || !dpu_kms->hw_intr ||
-			!dpu_kms->hw_intr->ops.clear_all_irqs)
+	if (!dpu_kms->hw_intr || !dpu_kms->hw_intr->ops.clear_all_irqs)
 		return;
 
 	dpu_kms->hw_intr->ops.clear_all_irqs(dpu_kms->hw_intr);
@@ -283,27 +281,13 @@ static void dpu_clear_all_irqs(struct dpu_kms *dpu_kms)
 
 static void dpu_disable_all_irqs(struct dpu_kms *dpu_kms)
 {
-	if (!dpu_kms || !dpu_kms->hw_intr ||
-			!dpu_kms->hw_intr->ops.disable_all_irqs)
+	if (!dpu_kms->hw_intr || !dpu_kms->hw_intr->ops.disable_all_irqs)
 		return;
 
 	dpu_kms->hw_intr->ops.disable_all_irqs(dpu_kms->hw_intr);
 }
 
 #ifdef CONFIG_DEBUG_FS
-#define DEFINE_DPU_DEBUGFS_SEQ_FOPS(__prefix)				\
-static int __prefix ## _open(struct inode *inode, struct file *file)	\
-{									\
-	return single_open(file, __prefix ## _show, inode->i_private);	\
-}									\
-static const struct file_operations __prefix ## _fops = {		\
-	.owner = THIS_MODULE,						\
-	.open = __prefix ## _open,					\
-	.release = single_release,					\
-	.read = seq_read,						\
-	.llseek = seq_lseek,						\
-}
-
 static int dpu_debugfs_core_irq_show(struct seq_file *s, void *v)
 {
 	struct dpu_irq *irq_obj = s->private;
@@ -331,7 +315,7 @@ static int dpu_debugfs_core_irq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEFINE_DPU_DEBUGFS_SEQ_FOPS(dpu_debugfs_core_irq);
+DEFINE_SHOW_ATTRIBUTE(dpu_debugfs_core_irq);
 
 void dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
 		struct dentry *parent)
@@ -343,17 +327,7 @@ void dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
 
 void dpu_core_irq_preinstall(struct dpu_kms *dpu_kms)
 {
-	struct msm_drm_private *priv;
 	int i;
-
-	if (!dpu_kms->dev) {
-		DPU_ERROR("invalid drm device\n");
-		return;
-	} else if (!dpu_kms->dev->dev_private) {
-		DPU_ERROR("invalid device private\n");
-		return;
-	}
-	priv = dpu_kms->dev->dev_private;
 
 	pm_runtime_get_sync(&dpu_kms->pdev->dev);
 	dpu_clear_all_irqs(dpu_kms);
@@ -379,17 +353,7 @@ void dpu_core_irq_preinstall(struct dpu_kms *dpu_kms)
 
 void dpu_core_irq_uninstall(struct dpu_kms *dpu_kms)
 {
-	struct msm_drm_private *priv;
 	int i;
-
-	if (!dpu_kms->dev) {
-		DPU_ERROR("invalid drm device\n");
-		return;
-	} else if (!dpu_kms->dev->dev_private) {
-		DPU_ERROR("invalid device private\n");
-		return;
-	}
-	priv = dpu_kms->dev->dev_private;
 
 	pm_runtime_get_sync(&dpu_kms->pdev->dev);
 	for (i = 0; i < dpu_kms->irq_obj.total_irqs; i++)

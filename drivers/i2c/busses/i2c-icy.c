@@ -43,6 +43,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-pcf.h>
 
+#include <asm/amigahw.h>
 #include <asm/amigaints.h>
 #include <linux/zorro.h>
 
@@ -122,7 +123,6 @@ static int icy_probe(struct zorro_dev *z,
 	struct fwnode_handle *new_fwnode;
 	struct i2c_board_info ltc2990_info = {
 		.type		= "ltc2990",
-		.addr		= 0x4c,
 	};
 
 	i2c = devm_kzalloc(&z->dev, sizeof(*i2c), GFP_KERNEL);
@@ -188,10 +188,10 @@ static int icy_probe(struct zorro_dev *z,
 		ltc2990_info.fwnode = new_fwnode;
 
 		i2c->ltc2990_client =
-			i2c_new_probed_device(&i2c->adapter,
-					      &ltc2990_info,
-					      icy_ltc2990_addresses,
-					      NULL);
+			i2c_new_scanned_device(&i2c->adapter,
+					       &ltc2990_info,
+					       icy_ltc2990_addresses,
+					       NULL);
 	}
 
 	return 0;

@@ -7,7 +7,7 @@ Required properties:
  - clock-names: "pclk" for PCLK, "wclk" for WCLK to the PWM controller.  The
    PCLK is for register access, while WCLK is the reference clock for
    calculating period and duty cycles.
- - #pwm-cells: Should be 3. See pwm.txt in this directory for a description of
+ - #pwm-cells: Should be 3. See pwm.yaml in this directory for a description of
    the cells format.
 
 Example:

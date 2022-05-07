@@ -31,13 +31,32 @@ properties:
     maxItems: 1
     description:
       The phandle and specifier for the GPIO that controls the RESET
-      lines of all PHYs on that MDIO bus.
+      lines of all devices on that MDIO bus.
 
   reset-delay-us:
     description:
-      RESET pulse width in microseconds. It applies to all PHY devices
-      and must therefore be appropriately determined based on all PHY
-      requirements (maximum value of all per-PHY RESET pulse widths).
+      RESET pulse width in microseconds. It applies to all MDIO devices
+      and must therefore be appropriately determined based on all devices
+      requirements (maximum value of all per-device RESET pulse widths).
+
+  reset-post-delay-us:
+    description:
+      Delay after reset deassert in microseconds. It applies to all MDIO
+      devices and it's determined by how fast all devices are ready for
+      communication. This delay happens just before e.g. Ethernet PHY
+      type ID auto detection.
+
+  clock-frequency:
+    description:
+      Desired MDIO bus clock frequency in Hz. Values greater than IEEE 802.3
+      defined 2.5MHz should only be used when all devices on the bus support
+      the given clock speed.
+
+  suppress-preamble:
+    description:
+      The 32 bit preamble should be suppressed. In order for this to
+      work, all devices on the bus must support suppressed preamble.
+    type: boolean
 
 patternProperties:
   "^ethernet-phy@[0-9a-f]+$":
@@ -48,15 +67,44 @@ patternProperties:
         minimum: 0
         maximum: 31
         description:
-          The ID number for the PHY.
+          The ID number for the device.
+
+      broken-turn-around:
+        $ref: /schemas/types.yaml#definitions/flag
+        description:
+          If set, indicates the MDIO device does not correctly release
+          the turn around line low at end of the control phase of the
+          MDIO transaction.
+
+      resets:
+        maxItems: 1
+
+      reset-names:
+        const: phy
+
+      reset-gpios:
+        maxItems: 1
+        description:
+          The GPIO phandle and specifier for the MDIO reset signal.
+
+      reset-assert-us:
+        description:
+          Delay after the reset was asserted in microseconds. If this
+          property is missing the delay will be skipped.
+
+      reset-deassert-us:
+        description:
+          Delay after the reset was deasserted in microseconds. If
+          this property is missing the delay will be skipped.
 
     required:
       - reg
 
+additionalProperties: true
+
 examples:
   - |
     davinci_mdio: mdio@5c030000 {
-        compatible = "ti,davinci_mdio";
         reg = <0x5c030000 0x1000>;
         #address-cells = <1>;
         #size-cells = <0>;

@@ -48,9 +48,8 @@ extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, u
 
 #define flush_icache_page(vma, page)		do {} while (0);
 #define flush_icache_range(start, end)		cache_wbinv_range(start, end)
-
-#define flush_icache_user_range(vma,page,addr,len) \
-	flush_dcache_page(page)
+#define flush_icache_mm_range(mm, start, end)	cache_wbinv_range(start, end)
+#define flush_icache_deferred(mm)		do {} while (0);
 
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 do { \

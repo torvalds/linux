@@ -52,7 +52,6 @@
 
 #define PCI_CHIP_AST2000 0x2000
 #define PCI_CHIP_AST2100 0x2010
-#define PCI_CHIP_AST1180 0x1180
 
 
 enum ast_chip {
@@ -64,7 +63,6 @@ enum ast_chip {
 	AST2300,
 	AST2400,
 	AST2500,
-	AST1180,
 };
 
 enum ast_tx_chip {
@@ -82,8 +80,43 @@ enum ast_tx_chip {
 #define AST_DRAM_4Gx16   7
 #define AST_DRAM_8Gx16   8
 
-struct ast_private {
+
+#define AST_MAX_HWC_WIDTH	64
+#define AST_MAX_HWC_HEIGHT	64
+
+#define AST_HWC_SIZE		(AST_MAX_HWC_WIDTH * AST_MAX_HWC_HEIGHT * 2)
+#define AST_HWC_SIGNATURE_SIZE	32
+
+#define AST_DEFAULT_HWC_NUM	2
+
+/* define for signature structure */
+#define AST_HWC_SIGNATURE_CHECKSUM	0x00
+#define AST_HWC_SIGNATURE_SizeX		0x04
+#define AST_HWC_SIGNATURE_SizeY		0x08
+#define AST_HWC_SIGNATURE_X		0x0C
+#define AST_HWC_SIGNATURE_Y		0x10
+#define AST_HWC_SIGNATURE_HOTSPOTX	0x14
+#define AST_HWC_SIGNATURE_HOTSPOTY	0x18
+
+struct ast_i2c_chan {
+	struct i2c_adapter adapter;
 	struct drm_device *dev;
+	struct i2c_algo_bit_data bit;
+};
+
+struct ast_connector {
+	struct drm_connector base;
+	struct ast_i2c_chan *i2c;
+};
+
+static inline struct ast_connector *
+to_ast_connector(struct drm_connector *connector)
+{
+	return container_of(connector, struct ast_connector, base);
+}
+
+struct ast_private {
+	struct drm_device base;
 
 	void __iomem *regs;
 	void __iomem *ioregs;
@@ -93,12 +126,21 @@ struct ast_private {
 	uint32_t dram_bus_width;
 	uint32_t dram_type;
 	uint32_t mclk;
-	uint32_t vram_size;
 
 	int fb_mtrr;
 
-	struct drm_gem_object *cursor_cache;
-	int next_cursor;
+	struct {
+		struct drm_gem_vram_object *gbo[AST_DEFAULT_HWC_NUM];
+		void __iomem *vaddr[AST_DEFAULT_HWC_NUM];
+		unsigned int next_index;
+	} cursor;
+
+	struct drm_plane primary_plane;
+	struct drm_plane cursor_plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+	struct ast_connector connector;
+
 	bool support_wide_screen;
 	enum {
 		ast_use_p2a,
@@ -112,10 +154,14 @@ struct ast_private {
 	const struct firmware *dp501_fw;	/* dp501 fw */
 };
 
-int ast_driver_load(struct drm_device *dev, unsigned long flags);
-void ast_driver_unload(struct drm_device *dev);
+static inline struct ast_private *to_ast_private(struct drm_device *dev)
+{
+	return container_of(dev, struct ast_private, base);
+}
 
-struct ast_gem_object;
+struct ast_private *ast_device_create(struct drm_driver *drv,
+				      struct pci_dev *pdev,
+				      unsigned long flags);
 
 #define AST_IO_AR_PORT_WRITE		(0x40)
 #define AST_IO_MISC_PORT_WRITE		(0x42)
@@ -130,6 +176,8 @@ struct ast_gem_object;
 #define AST_IO_MISC_PORT_READ		(0x4C)
 
 #define AST_IO_MM_OFFSET		(0x380)
+
+#define AST_IO_VGAIR1_VREFRESH		BIT(3)
 
 #define __ast_read(x) \
 static inline u##x ast_read##x(struct ast_private *ast, u32 reg) { \
@@ -199,47 +247,6 @@ static inline void ast_open_key(struct ast_private *ast)
 
 #define AST_VIDMEM_DEFAULT_SIZE AST_VIDMEM_SIZE_8M
 
-#define AST_MAX_HWC_WIDTH 64
-#define AST_MAX_HWC_HEIGHT 64
-
-#define AST_HWC_SIZE                (AST_MAX_HWC_WIDTH*AST_MAX_HWC_HEIGHT*2)
-#define AST_HWC_SIGNATURE_SIZE      32
-
-#define AST_DEFAULT_HWC_NUM 2
-/* define for signature structure */
-#define AST_HWC_SIGNATURE_CHECKSUM  0x00
-#define AST_HWC_SIGNATURE_SizeX     0x04
-#define AST_HWC_SIGNATURE_SizeY     0x08
-#define AST_HWC_SIGNATURE_X         0x0C
-#define AST_HWC_SIGNATURE_Y         0x10
-#define AST_HWC_SIGNATURE_HOTSPOTX  0x14
-#define AST_HWC_SIGNATURE_HOTSPOTY  0x18
-
-
-struct ast_i2c_chan {
-	struct i2c_adapter adapter;
-	struct drm_device *dev;
-	struct i2c_algo_bit_data bit;
-};
-
-struct ast_connector {
-	struct drm_connector base;
-	struct ast_i2c_chan *i2c;
-};
-
-struct ast_crtc {
-	struct drm_crtc base;
-	u8 offset_x, offset_y;
-};
-
-struct ast_encoder {
-	struct drm_encoder base;
-};
-
-#define to_ast_crtc(x) container_of(x, struct ast_crtc, base)
-#define to_ast_connector(x) container_of(x, struct ast_connector, base)
-#define to_ast_encoder(x) container_of(x, struct ast_encoder, base)
-
 struct ast_vbios_stdtable {
 	u8 misc;
 	u8 seq[4];
@@ -275,18 +282,23 @@ struct ast_vbios_mode_info {
 	const struct ast_vbios_enhtable *enh_table;
 };
 
-extern int ast_mode_init(struct drm_device *dev);
-extern void ast_mode_fini(struct drm_device *dev);
+struct ast_crtc_state {
+	struct drm_crtc_state base;
+
+	/* Last known format of primary plane */
+	const struct drm_format_info *format;
+
+	struct ast_vbios_mode_info vbios_mode_info;
+};
+
+#define to_ast_crtc_state(state) container_of(state, struct ast_crtc_state, base)
+
+int ast_mode_config_init(struct ast_private *ast);
 
 #define AST_MM_ALIGN_SHIFT 4
 #define AST_MM_ALIGN_MASK ((1 << AST_MM_ALIGN_SHIFT) - 1)
 
 int ast_mm_init(struct ast_private *ast);
-void ast_mm_fini(struct ast_private *ast);
-
-int ast_gem_create(struct drm_device *dev,
-		   u32 size, bool iskernel,
-		   struct drm_gem_object **obj);
 
 /* ast post */
 void ast_enable_vga(struct drm_device *dev);
@@ -301,5 +313,13 @@ bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size);
 bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
 u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
-void ast_release_firmware(struct drm_device *dev);
+
+/* ast_cursor.c */
+int ast_cursor_init(struct ast_private *ast);
+int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb);
+void ast_cursor_page_flip(struct ast_private *ast);
+void ast_cursor_show(struct ast_private *ast, int x, int y,
+		     unsigned int offset_x, unsigned int offset_y);
+void ast_cursor_hide(struct ast_private *ast);
+
 #endif

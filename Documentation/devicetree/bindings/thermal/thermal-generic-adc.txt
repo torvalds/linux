@@ -8,7 +8,7 @@ temperature using voltage-temperature lookup table.
 Required properties:
 ===================
 - compatible:		     Must be "generic-adc-thermal".
-- #thermal-sensor-cells:     Should be 1. See ./thermal.txt for a description
+- #thermal-sensor-cells:     Should be 1. See Documentation/devicetree/bindings/thermal/thermal-sensor.yaml for a description
 		             of this property.
 Optional properties:
 ===================

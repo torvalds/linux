@@ -3,7 +3,7 @@
  *
  * Module Name: utpredef - support functions for predefined names
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -151,7 +151,7 @@ static u32 acpi_ut_get_argument_types(char *buffer, u16 argument_types);
 
 static const char *ut_external_type_names[] =	/* Indexed by ACPI_TYPE_* */
 {
-	", UNSUPPORTED-TYPE",
+	", Type_ANY",
 	", Integer",
 	", String",
 	", Buffer",
@@ -311,8 +311,7 @@ static u32 acpi_ut_get_argument_types(char *buffer, u16 argument_types)
 	for (i = 0; i < arg_count; i++) {
 		this_argument_type = METHOD_GET_NEXT_TYPE(argument_types);
 
-		if (!this_argument_type
-		    || (this_argument_type > METHOD_MAX_ARG_TYPE)) {
+		if (this_argument_type > METHOD_MAX_ARG_TYPE) {
 			printf("**** Invalid argument type (%u) "
 			       "in predefined info structure\n",
 			       this_argument_type);

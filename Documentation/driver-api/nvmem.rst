@@ -129,6 +129,8 @@ To facilitate such consumers NVMEM framework provides below apis::
   struct nvmem_device *nvmem_device_get(struct device *dev, const char *name);
   struct nvmem_device *devm_nvmem_device_get(struct device *dev,
 					   const char *name);
+  struct nvmem_device *nvmem_device_find(void *data,
+			int (*match)(struct device *dev, const void *data));
   void nvmem_device_put(struct nvmem_device *nvmem);
   int nvmem_device_read(struct nvmem_device *nvmem, unsigned int offset,
 		      size_t bytes, void *buf);

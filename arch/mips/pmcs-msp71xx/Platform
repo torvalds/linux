@@ -1,7 +1,0 @@
-#
-# PMC-Sierra MSP SOCs
-#
-platform-$(CONFIG_PMC_MSP)	+= pmcs-msp71xx/
-cflags-$(CONFIG_PMC_MSP)	+= -I$(srctree)/arch/mips/include/asm/mach-pmcs-msp71xx \
-					-mno-branch-likely
-load-$(CONFIG_PMC_MSP)		+= 0xffffffff80100000

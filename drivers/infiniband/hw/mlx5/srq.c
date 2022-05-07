@@ -80,7 +80,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 
 	srq->wq_sig = !!(ucmd.flags & MLX5_SRQ_FLAG_SIGNATURE);
 
-	srq->umem = ib_umem_get(udata, ucmd.buf_addr, buf_size, 0, 0);
+	srq->umem = ib_umem_get(pd->device, ucmd.buf_addr, buf_size, 0);
 	if (IS_ERR(srq->umem)) {
 		mlx5_ib_dbg(dev, "failed umem get, size %d\n", buf_size);
 		err = PTR_ERR(srq->umem);
@@ -274,10 +274,10 @@ int mlx5_ib_create_srq(struct ib_srq *ib_srq,
 	if (srq->wq_sig)
 		in.flags |= MLX5_SRQ_FLAG_WQ_SIG;
 
-	if (init_attr->srq_type == IB_SRQT_XRC)
+	if (init_attr->srq_type == IB_SRQT_XRC && init_attr->ext.xrc.xrcd)
 		in.xrcd = to_mxrcd(init_attr->ext.xrc.xrcd)->xrcdn;
 	else
-		in.xrcd = to_mxrcd(dev->devr.x0)->xrcdn;
+		in.xrcd = dev->devr.xrcdn0;
 
 	if (init_attr->srq_type == IB_SRQT_TM) {
 		in.tm_log_list_size =
@@ -310,12 +310,18 @@ int mlx5_ib_create_srq(struct ib_srq *ib_srq,
 	srq->msrq.event = mlx5_ib_srq_event;
 	srq->ibsrq.ext.xrc.srq_num = srq->msrq.srqn;
 
-	if (udata)
-		if (ib_copy_to_udata(udata, &srq->msrq.srqn, sizeof(__u32))) {
+	if (udata) {
+		struct mlx5_ib_create_srq_resp resp = {
+			.srqn = srq->msrq.srqn,
+		};
+
+		if (ib_copy_to_udata(udata, &resp, min(udata->outlen,
+				     sizeof(resp)))) {
 			mlx5_ib_dbg(dev, "copy to user failed\n");
 			err = -EFAULT;
 			goto err_core;
 		}
+	}
 
 	init_attr->attr.max_wr = srq->msrq.max - 1;
 
@@ -383,24 +389,21 @@ out_box:
 	return ret;
 }
 
-void mlx5_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
+int mlx5_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(srq->device);
 	struct mlx5_ib_srq *msrq = to_msrq(srq);
+	int ret;
 
-	mlx5_cmd_destroy_srq(dev, &msrq->msrq);
+	ret = mlx5_cmd_destroy_srq(dev, &msrq->msrq);
+	if (ret)
+		return ret;
 
-	if (srq->uobject) {
-		mlx5_ib_db_unmap_user(
-			rdma_udata_to_drv_context(
-				udata,
-				struct mlx5_ib_ucontext,
-				ibucontext),
-			&msrq->db);
-		ib_umem_release(msrq->umem);
-	} else {
+	if (udata)
+		destroy_srq_user(srq->pd, msrq, udata);
+	else
 		destroy_srq_kernel(dev, msrq);
-	}
+	return 0;
 }
 
 void mlx5_ib_free_srq_wqe(struct mlx5_ib_srq *srq, int wqe_index)

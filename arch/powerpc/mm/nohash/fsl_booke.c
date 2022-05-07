@@ -37,11 +37,9 @@
 #include <linux/highmem.h>
 #include <linux/memblock.h>
 
-#include <asm/pgalloc.h>
 #include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <linux/uaccess.h>
 #include <asm/smp.h>
@@ -221,6 +219,22 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	return tlbcam_addrs[tlbcam_index - 1].limit - PAGE_OFFSET + 1;
 }
 
+void flush_instruction_cache(void)
+{
+	unsigned long tmp;
+
+	if (IS_ENABLED(CONFIG_E200)) {
+		tmp = mfspr(SPRN_L1CSR0);
+		tmp |= L1CSR0_CFI | L1CSR0_CLFC;
+		mtspr(SPRN_L1CSR0, tmp);
+	} else {
+		tmp = mfspr(SPRN_L1CSR1);
+		tmp |= L1CSR1_ICFI | L1CSR1_ICLFR;
+		mtspr(SPRN_L1CSR1, tmp);
+	}
+	isync();
+}
+
 /*
  * MMU_init_hw does the chip-specific initialization of the MMU hardware.
  */
@@ -263,11 +277,13 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 int __initdata is_second_reloc;
 notrace void __init relocate_init(u64 dt_ptr, phys_addr_t start)
 {
-	unsigned long base = KERNELBASE;
+	unsigned long base = kernstart_virt_addr;
+	phys_addr_t size;
 
 	kernstart_addr = start;
 	if (is_second_reloc) {
 		virt_phys_offset = PAGE_OFFSET - memstart_addr;
+		kaslr_late_init();
 		return;
 	}
 
@@ -291,7 +307,7 @@ notrace void __init relocate_init(u64 dt_ptr, phys_addr_t start)
 	start &= ~0x3ffffff;
 	base &= ~0x3ffffff;
 	virt_phys_offset = base - start;
-	early_get_first_memblock_info(__va(dt_ptr), NULL);
+	early_get_first_memblock_info(__va(dt_ptr), &size);
 	/*
 	 * We now get the memstart_addr, then we should check if this
 	 * address is the same as what the PAGE_OFFSET map to now. If
@@ -316,6 +332,8 @@ notrace void __init relocate_init(u64 dt_ptr, phys_addr_t start)
 		/* We should never reach here */
 		panic("Relocation error");
 	}
+
+	kaslr_early_init(__va(dt_ptr), size);
 }
 #endif
 #endif

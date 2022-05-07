@@ -9,6 +9,7 @@
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
 #include <asm/vdso.h>
+#include <asm/vdso_datapage.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 
@@ -26,7 +27,7 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 
 	mr	r11,r3			/* r11 holds tv */
 	mr	r10,r4			/* r10 holds tz */
-	bl	V_LOCAL_FUNC(__get_datapage)	/* get data page */
+	get_datapage	r3, r0
 	cmpldi	r11,0			/* check if tv is NULL */
 	beq	2f
 	lis	r7,1000000@ha		/* load up USEC_PER_SEC */
@@ -71,7 +72,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	mflr	r12			/* r12 saves lr */
   .cfi_register lr,r12
 	mr	r11,r4			/* r11 saves tp */
-	bl	V_LOCAL_FUNC(__get_datapage)	/* get data page */
+	get_datapage	r3, r0
 	lis	r7,NSEC_PER_SEC@h	/* want nanoseconds */
 	ori	r7,r7,NSEC_PER_SEC@l
 	beq	cr5,70f
@@ -116,8 +117,8 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	 * CLOCK_REALTIME_COARSE, below values are needed for MONOTONIC_COARSE
 	 * too
 	 */
-	ld      r4,STAMP_XTIME+TSPC64_TV_SEC(r3)
-	ld      r5,STAMP_XTIME+TSPC64_TV_NSEC(r3)
+	ld      r4,STAMP_XTIME_SEC(r3)
+	ld      r5,STAMP_XTIME_NSEC(r3)
 	bne     cr6,75f
 
 	/* CLOCK_MONOTONIC_COARSE */
@@ -186,12 +187,15 @@ V_FUNCTION_BEGIN(__kernel_clock_getres)
 	cror	cr0*4+eq,cr0*4+eq,cr1*4+eq
 	bne	cr0,99f
 
+	mflr	r12
+  .cfi_register lr,r12
+	get_datapage	r3, r0
+	lwz	r5, CLOCK_HRTIMER_RES(r3)
+	mtlr	r12
 	li	r3,0
 	cmpldi	cr0,r4,0
 	crclr	cr0*4+so
 	beqlr
-	lis	r5,CLOCK_REALTIME_RES@h
-	ori	r5,r5,CLOCK_REALTIME_RES@l
 	std	r3,TSPC64_TV_SEC(r4)
 	std	r5,TSPC64_TV_NSEC(r4)
 	blr
@@ -218,9 +222,9 @@ V_FUNCTION_BEGIN(__kernel_time)
   .cfi_register lr,r12
 
 	mr	r11,r3			/* r11 holds t */
-	bl	V_LOCAL_FUNC(__get_datapage)
+	get_datapage	r3, r0
 
-	ld	r4,STAMP_XTIME+TSPC64_TV_SEC(r3)
+	ld	r4,STAMP_XTIME_SEC(r3)
 
 	cmpldi	r11,0			/* check if t is NULL */
 	beq	2f
@@ -265,7 +269,7 @@ V_FUNCTION_BEGIN(__do_get_tspec)
 	mulhdu	r6,r6,r5		/* in units of 2^-32 seconds */
 
 	/* Add stamp since epoch */
-	ld	r4,STAMP_XTIME+TSPC64_TV_SEC(r3)
+	ld	r4,STAMP_XTIME_SEC(r3)
 	lwz	r5,STAMP_SEC_FRAC(r3)
 	or	r0,r4,r5
 	or	r0,r0,r6

@@ -31,6 +31,7 @@
 #include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_gem.h>
 #include <drm/drm_print.h>
 #include <drm/drm_util.h>
 
@@ -175,8 +176,7 @@ static int framebuffer_check(struct drm_device *dev,
 	int i;
 
 	/* check if the format is supported at all */
-	info = __drm_format_info(r->pixel_format);
-	if (!info) {
+	if (!__drm_format_info(r->pixel_format)) {
 		struct drm_format_name_buf format_name;
 
 		DRM_DEBUG_KMS("bad framebuffer format %s\n",
@@ -184,9 +184,6 @@ static int framebuffer_check(struct drm_device *dev,
 						  &format_name));
 		return -EINVAL;
 	}
-
-	/* now let the driver pick its own format info */
-	info = drm_get_format_info(dev, r);
 
 	if (r->width == 0) {
 		DRM_DEBUG_KMS("bad framebuffer width %u\n", r->width);
@@ -197,6 +194,9 @@ static int framebuffer_check(struct drm_device *dev,
 		DRM_DEBUG_KMS("bad framebuffer height %u\n", r->height);
 		return -EINVAL;
 	}
+
+	/* now let the driver pick its own format info */
+	info = drm_get_format_info(dev, r);
 
 	for (i = 0; i < info->num_planes; i++) {
 		unsigned int width = fb_plane_width(r->width, info, i);
@@ -548,7 +548,128 @@ int drm_mode_getfb(struct drm_device *dev,
 
 out:
 	drm_framebuffer_put(fb);
+	return ret;
+}
 
+/**
+ * drm_mode_getfb2 - get extended FB info
+ * @dev: drm device for the ioctl
+ * @data: data pointer for the ioctl
+ * @file_priv: drm file for the ioctl call
+ *
+ * Lookup the FB given its ID and return info about it.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_mode_getfb2_ioctl(struct drm_device *dev,
+			  void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_fb_cmd2 *r = data;
+	struct drm_framebuffer *fb;
+	unsigned int i;
+	int ret;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
+	if (!fb)
+		return -ENOENT;
+
+	/* For multi-plane framebuffers, we require the driver to place the
+	 * GEM objects directly in the drm_framebuffer. For single-plane
+	 * framebuffers, we can fall back to create_handle.
+	 */
+	if (!fb->obj[0] &&
+	    (fb->format->num_planes > 1 || !fb->funcs->create_handle)) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	r->height = fb->height;
+	r->width = fb->width;
+	r->pixel_format = fb->format->format;
+
+	r->flags = 0;
+	if (dev->mode_config.allow_fb_modifiers)
+		r->flags |= DRM_MODE_FB_MODIFIERS;
+
+	for (i = 0; i < ARRAY_SIZE(r->handles); i++) {
+		r->handles[i] = 0;
+		r->pitches[i] = 0;
+		r->offsets[i] = 0;
+		r->modifier[i] = 0;
+	}
+
+	for (i = 0; i < fb->format->num_planes; i++) {
+		r->pitches[i] = fb->pitches[i];
+		r->offsets[i] = fb->offsets[i];
+		if (dev->mode_config.allow_fb_modifiers)
+			r->modifier[i] = fb->modifier;
+	}
+
+	/* GET_FB2() is an unprivileged ioctl so we must not return a
+	 * buffer-handle to non master/root processes! To match GET_FB()
+	 * just return invalid handles (0) for non masters/root
+	 * rather than making GET_FB2() privileged.
+	 */
+	if (!drm_is_current_master(file_priv) && !capable(CAP_SYS_ADMIN)) {
+		ret = 0;
+		goto out;
+	}
+
+	for (i = 0; i < fb->format->num_planes; i++) {
+		int j;
+
+		/* If we reuse the same object for multiple planes, also
+		 * return the same handle.
+		 */
+		for (j = 0; j < i; j++) {
+			if (fb->obj[i] == fb->obj[j]) {
+				r->handles[i] = r->handles[j];
+				break;
+			}
+		}
+
+		if (r->handles[i])
+			continue;
+
+		if (fb->obj[i]) {
+			ret = drm_gem_handle_create(file_priv, fb->obj[i],
+						    &r->handles[i]);
+		} else {
+			WARN_ON(i > 0);
+			ret = fb->funcs->create_handle(fb, file_priv,
+						       &r->handles[i]);
+		}
+
+		if (ret != 0)
+			goto out;
+	}
+
+out:
+	if (ret != 0) {
+		/* Delete any previously-created handles on failure. */
+		for (i = 0; i < ARRAY_SIZE(r->handles); i++) {
+			int j;
+
+			if (r->handles[i])
+				drm_gem_handle_delete(file_priv, r->handles[i]);
+
+			/* Zero out any handles identical to the one we just
+			 * deleted.
+			 */
+			for (j = i + 1; j < ARRAY_SIZE(r->handles); j++) {
+				if (r->handles[j] == r->handles[i])
+					r->handles[j] = 0;
+			}
+		}
+	}
+
+	drm_framebuffer_put(fb);
 	return ret;
 }
 
@@ -988,6 +1109,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	if (drm_framebuffer_read_refcount(fb) > 1) {
 		if (drm_drv_uses_atomic_modeset(dev)) {
 			int ret = atomic_remove_fb(fb);
+
 			WARN(ret, "atomic remove_fb failed with %i\n", ret);
 		} else
 			legacy_remove_fb(fb);
@@ -1085,10 +1207,10 @@ static const struct drm_info_list drm_framebuffer_debugfs_list[] = {
 	{ "framebuffer", drm_framebuffer_info, 0 },
 };
 
-int drm_framebuffer_debugfs_init(struct drm_minor *minor)
+void drm_framebuffer_debugfs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(drm_framebuffer_debugfs_list,
-				ARRAY_SIZE(drm_framebuffer_debugfs_list),
-				minor->debugfs_root, minor);
+	drm_debugfs_create_files(drm_framebuffer_debugfs_list,
+				 ARRAY_SIZE(drm_framebuffer_debugfs_list),
+				 minor->debugfs_root, minor);
 }
 #endif

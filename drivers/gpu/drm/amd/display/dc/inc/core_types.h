@@ -33,13 +33,12 @@
 #include "dc_bios_types.h"
 #include "mem_input.h"
 #include "hubp.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "mpc.h"
 #endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #include "dwb.h"
 #include "mcif_wb.h"
-#endif
+#include "panel_cntl.h"
 
 #define MAX_CLOCK_SOURCES 7
 
@@ -52,7 +51,9 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 #include "clock_source.h"
 #include "audio.h"
 #include "dm_pp_smu.h"
-
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+#include "dm_cp_psp.h"
+#endif
 
 /************ link *****************/
 struct link_init_data {
@@ -87,23 +88,27 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 struct resource_pool;
 struct dc_state;
 struct resource_context;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 struct clk_bw_params;
-#endif
 
 struct resource_funcs {
 	void (*destroy)(struct resource_pool **pool);
 	void (*link_init)(struct dc_link *link);
+	struct panel_cntl*(*panel_cntl_create)(
+		const struct panel_cntl_init_data *panel_cntl_init_data);
 	struct link_encoder *(*link_enc_create)(
 			const struct encoder_init_data *init);
 	bool (*validate_bandwidth)(
 					struct dc *dc,
 					struct dc_state *context,
 					bool fast_validate);
-
+	void (*calculate_wm_and_dlg)(
+				struct dc *dc, struct dc_state *context,
+				display_e2e_pipe_params_st *pipes,
+				int pipe_cnt,
+				int vlevel);
 	int (*populate_dml_pipes)(
 		struct dc *dc,
-		struct resource_context *res_ctx,
+		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes);
 
 	enum dc_status (*validate_global)(
@@ -126,14 +131,13 @@ struct resource_funcs {
 				struct dc *dc,
 				struct dc_state *new_ctx,
 				struct dc_stream_state *stream);
-	enum dc_status (*get_default_swizzle_mode)(
+	enum dc_status (*patch_unknown_plane_state)(
 			struct dc_plane_state *plane_state);
 
 	struct stream_encoder *(*find_first_free_match_stream_enc_for_link)(
 			struct resource_context *res_ctx,
 			const struct resource_pool *pool,
 			struct dc_stream_state *stream);
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	void (*populate_dml_writeback_from_context)(
 			struct dc *dc,
 			struct resource_context *res_ctx,
@@ -144,13 +148,26 @@ struct resource_funcs {
 			struct dc_state *context,
 			display_e2e_pipe_params_st *pipes,
 			int pipe_cnt);
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	void (*update_bw_bounding_box)(
 			struct dc *dc,
 			struct clk_bw_params *bw_params);
-#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	bool (*acquire_post_bldn_3dlut)(
+			struct resource_context *res_ctx,
+			const struct resource_pool *pool,
+			int mpcc_id,
+			struct dc_3dlut **lut,
+			struct dc_transfer_func **shaper);
 
+	bool (*release_post_bldn_3dlut)(
+			struct resource_context *res_ctx,
+			const struct resource_pool *pool,
+			struct dc_3dlut **lut,
+			struct dc_transfer_func **shaper);
+#endif
+	enum dc_status (*add_dsc_to_stream_resource)(
+			struct dc *dc, struct dc_state *state,
+			struct dc_stream_state *stream);
 };
 
 struct audio_support{
@@ -178,7 +195,6 @@ struct resource_pool {
 	struct dce_i2c_sw *sw_i2cs[MAX_PIPES];
 	bool i2c_hw_buffer_in_use;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	struct dwbc *dwbc[MAX_DWB_PIPES];
 	struct mcif_wb *mcif_wb[MAX_DWB_PIPES];
 	struct {
@@ -186,16 +202,17 @@ struct resource_pool {
 		unsigned int gsl_1:1;
 		unsigned int gsl_2:1;
 	} gsl_groups;
-#endif
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	struct display_stream_compressor *dscs[MAX_PIPES];
-#endif
 
 	unsigned int pipe_count;
 	unsigned int underlay_pipe_index;
 	unsigned int stream_enc_count;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	struct dc_3dlut *mpc_lut[MAX_PIPES];
+	struct dc_transfer_func *mpc_shaper[MAX_PIPES];
+#endif
 	struct {
 		unsigned int xtalin_clock_inKhz;
 		unsigned int dccg_ref_clock_inKhz;
@@ -204,9 +221,7 @@ struct resource_pool {
 	unsigned int timing_generator_count;
 	unsigned int mpcc_count;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	unsigned int writeback_pipe_count;
-#endif
 	/*
 	 * reserved clock source for DP
 	 */
@@ -224,20 +239,26 @@ struct resource_pool {
 
 	struct abm *abm;
 	struct dmcu *dmcu;
+	struct dmub_psr *psr;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	struct abm *multiple_abms[MAX_PIPES];
+#endif
 
 	const struct resource_funcs *funcs;
 	const struct resource_caps *res_cap;
+
+	struct ddc_service *oem_device;
 };
 
 struct dcn_fe_bandwidth {
 	int dppclk_khz;
+
 };
 
 struct stream_resource {
 	struct output_pixel_processor *opp;
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	struct display_stream_compressor *dsc;
-#endif
 	struct timing_generator *tg;
 	struct stream_encoder *stream_enc;
 	struct audio *audio;
@@ -246,12 +267,10 @@ struct stream_resource {
 	struct encoder_info_frame encoder_info_frame;
 
 	struct abm *abm;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	/* There are only (num_pipes+1)/2 groups. 0 means unassigned,
 	 * otherwise it's using group number 'gsl_group-1'
 	 */
 	uint8_t gsl_group;
-#endif
 };
 
 struct plane_resource {
@@ -281,6 +300,7 @@ union pipe_update_flags {
 		uint32_t gamut_remap : 1;
 		uint32_t scaler : 1;
 		uint32_t viewport : 1;
+		uint32_t plane_changed : 1;
 	} bits;
 	uint32_t raw;
 };
@@ -303,17 +323,15 @@ struct pipe_ctx {
 	struct pipe_ctx *next_odm_pipe;
 	struct pipe_ctx *prev_odm_pipe;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_DRM_AMD_DC_DCN
 	struct _vcs_dpi_display_dlg_regs_st dlg_regs;
 	struct _vcs_dpi_display_ttu_regs_st ttu_regs;
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
 	struct _vcs_dpi_display_pipe_dest_params_st pipe_dlg_param;
 #endif
 	union pipe_update_flags update_flags;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
-#endif
 };
 
 struct resource_context {
@@ -322,8 +340,9 @@ struct resource_context {
 	bool is_audio_acquired[MAX_PIPES];
 	uint8_t clock_source_ref_count[MAX_CLOCK_SOURCES];
 	uint8_t dp_clock_source_ref_count;
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	bool is_dsc_acquired[MAX_PIPES];
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	bool is_mpc_3dlut_acquired[MAX_PIPES];
 #endif
 };
 
@@ -344,18 +363,14 @@ struct dce_bw_output {
 	int blackout_recovery_time_us;
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 struct dcn_bw_writeback {
 	struct mcif_arb_params mcif_wb_arb[MAX_DWB_PIPES];
 };
-#endif
 
 struct dcn_bw_output {
 	struct dc_clocks clk;
 	struct dcn_watermark_set watermarks;
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	struct dcn_bw_writeback bw_writeback;
-#endif
 };
 
 union bw_output {
@@ -382,6 +397,7 @@ struct dc_state {
 	struct dc_stream_state *streams[MAX_PIPES];
 	struct dc_stream_status stream_status[MAX_PIPES];
 	uint8_t stream_count;
+	uint8_t stream_mask;
 
 	struct resource_context res_ctx;
 
@@ -389,17 +405,17 @@ struct dc_state {
 
 	/* Note: these are big structures, do *not* put on stack! */
 	struct dm_pp_display_configuration pp_display_cfg;
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_DRM_AMD_DC_DCN
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 
 	struct clk_mgr *clk_mgr;
 
-	struct {
-		bool full_update_needed : 1;
-	} commit_hints;
-
 	struct kref refcount;
+
+	struct {
+		unsigned int stutter_period_us;
+	} perf_params;
 };
 
 #endif /* _CORE_TYPES_H_ */

@@ -28,7 +28,7 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_TRANSCODER_C,
 	POWER_DOMAIN_TRANSCODER_D,
 	POWER_DOMAIN_TRANSCODER_EDP,
-	/* VDSC/joining for TRANSCODER_EDP (ICL) or TRANSCODER_A (TGL) */
+	/* VDSC/joining for eDP/DSI transcoder (ICL) or pipe A (TGL) */
 	POWER_DOMAIN_TRANSCODER_VDSC_PW2,
 	POWER_DOMAIN_TRANSCODER_DSI_A,
 	POWER_DOMAIN_TRANSCODER_DSI_C,
@@ -36,29 +36,20 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_PORT_DDI_B_LANES,
 	POWER_DOMAIN_PORT_DDI_C_LANES,
 	POWER_DOMAIN_PORT_DDI_D_LANES,
-	POWER_DOMAIN_PORT_DDI_TC1_LANES = POWER_DOMAIN_PORT_DDI_D_LANES,
 	POWER_DOMAIN_PORT_DDI_E_LANES,
-	POWER_DOMAIN_PORT_DDI_TC2_LANES = POWER_DOMAIN_PORT_DDI_E_LANES,
 	POWER_DOMAIN_PORT_DDI_F_LANES,
-	POWER_DOMAIN_PORT_DDI_TC3_LANES = POWER_DOMAIN_PORT_DDI_F_LANES,
-	POWER_DOMAIN_PORT_DDI_TC4_LANES,
-	POWER_DOMAIN_PORT_DDI_TC5_LANES,
-	POWER_DOMAIN_PORT_DDI_TC6_LANES,
+	POWER_DOMAIN_PORT_DDI_G_LANES,
+	POWER_DOMAIN_PORT_DDI_H_LANES,
+	POWER_DOMAIN_PORT_DDI_I_LANES,
 	POWER_DOMAIN_PORT_DDI_A_IO,
 	POWER_DOMAIN_PORT_DDI_B_IO,
 	POWER_DOMAIN_PORT_DDI_C_IO,
 	POWER_DOMAIN_PORT_DDI_D_IO,
-	POWER_DOMAIN_PORT_DDI_TC1_IO = POWER_DOMAIN_PORT_DDI_D_IO,
 	POWER_DOMAIN_PORT_DDI_E_IO,
-	POWER_DOMAIN_PORT_DDI_TC2_IO = POWER_DOMAIN_PORT_DDI_E_IO,
 	POWER_DOMAIN_PORT_DDI_F_IO,
-	POWER_DOMAIN_PORT_DDI_TC3_IO = POWER_DOMAIN_PORT_DDI_F_IO,
 	POWER_DOMAIN_PORT_DDI_G_IO,
-	POWER_DOMAIN_PORT_DDI_TC4_IO = POWER_DOMAIN_PORT_DDI_G_IO,
 	POWER_DOMAIN_PORT_DDI_H_IO,
-	POWER_DOMAIN_PORT_DDI_TC5_IO = POWER_DOMAIN_PORT_DDI_H_IO,
 	POWER_DOMAIN_PORT_DDI_I_IO,
-	POWER_DOMAIN_PORT_DDI_TC6_IO = POWER_DOMAIN_PORT_DDI_I_IO,
 	POWER_DOMAIN_PORT_DSI,
 	POWER_DOMAIN_PORT_CRT,
 	POWER_DOMAIN_PORT_OTHER,
@@ -68,25 +59,24 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_AUX_B,
 	POWER_DOMAIN_AUX_C,
 	POWER_DOMAIN_AUX_D,
-	POWER_DOMAIN_AUX_TC1 = POWER_DOMAIN_AUX_D,
 	POWER_DOMAIN_AUX_E,
-	POWER_DOMAIN_AUX_TC2 = POWER_DOMAIN_AUX_E,
 	POWER_DOMAIN_AUX_F,
-	POWER_DOMAIN_AUX_TC3 = POWER_DOMAIN_AUX_F,
-	POWER_DOMAIN_AUX_TC4,
-	POWER_DOMAIN_AUX_TC5,
-	POWER_DOMAIN_AUX_TC6,
+	POWER_DOMAIN_AUX_G,
+	POWER_DOMAIN_AUX_H,
+	POWER_DOMAIN_AUX_I,
 	POWER_DOMAIN_AUX_IO_A,
-	POWER_DOMAIN_AUX_TBT1,
-	POWER_DOMAIN_AUX_TBT2,
-	POWER_DOMAIN_AUX_TBT3,
-	POWER_DOMAIN_AUX_TBT4,
-	POWER_DOMAIN_AUX_TBT5,
-	POWER_DOMAIN_AUX_TBT6,
+	POWER_DOMAIN_AUX_C_TBT,
+	POWER_DOMAIN_AUX_D_TBT,
+	POWER_DOMAIN_AUX_E_TBT,
+	POWER_DOMAIN_AUX_F_TBT,
+	POWER_DOMAIN_AUX_G_TBT,
+	POWER_DOMAIN_AUX_H_TBT,
+	POWER_DOMAIN_AUX_I_TBT,
 	POWER_DOMAIN_GMBUS,
 	POWER_DOMAIN_MODESET,
 	POWER_DOMAIN_GT_IRQ,
 	POWER_DOMAIN_DPLL_DC_OFF,
+	POWER_DOMAIN_TC_COLD_OFF,
 	POWER_DOMAIN_INIT,
 
 	POWER_DOMAIN_NUM,
@@ -111,6 +101,8 @@ enum i915_power_well_id {
 	SKL_DISP_PW_MISC_IO,
 	SKL_DISP_PW_1,
 	SKL_DISP_PW_2,
+	ICL_DISP_PW_3,
+	SKL_DISP_DC_OFF,
 };
 
 #define POWER_DOMAIN_PIPE(pipe) ((pipe) + POWER_DOMAIN_PIPE_A)
@@ -267,13 +259,16 @@ void intel_display_power_suspend_late(struct drm_i915_private *i915);
 void intel_display_power_resume_early(struct drm_i915_private *i915);
 void intel_display_power_suspend(struct drm_i915_private *i915);
 void intel_display_power_resume(struct drm_i915_private *i915);
+void intel_display_power_set_target_dc_state(struct drm_i915_private *dev_priv,
+					     u32 state);
 
 const char *
-intel_display_power_domain_str(struct drm_i915_private *i915,
-			       enum intel_display_power_domain domain);
+intel_display_power_domain_str(enum intel_display_power_domain domain);
 
 bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				    enum intel_display_power_domain domain);
+bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
+					 enum i915_power_well_id power_well_id);
 bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				      enum intel_display_power_domain domain);
 intel_wakeref_t intel_display_power_get(struct drm_i915_private *dev_priv,
@@ -316,12 +311,18 @@ intel_display_power_put_async(struct drm_i915_private *i915,
 }
 #endif
 
+enum dbuf_slice {
+	DBUF_S1,
+	DBUF_S2,
+	I915_MAX_DBUF_SLICES
+};
+
+void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
+			     u8 req_slices);
+
 #define with_intel_display_power(i915, domain, wf) \
 	for ((wf) = intel_display_power_get((i915), (domain)); (wf); \
 	     intel_display_power_put_async((i915), (domain), (wf)), (wf) = 0)
-
-void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
-			    u8 req_slices);
 
 void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 			     bool override, unsigned int mask);

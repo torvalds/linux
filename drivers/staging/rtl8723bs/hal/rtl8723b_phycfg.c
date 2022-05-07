@@ -362,24 +362,10 @@ void PHY_SetRFReg_8723B(
  */
 s32 PHY_MACConfig8723B(struct adapter *Adapter)
 {
-	int rtStatus = _SUCCESS;
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
-	s8 *pszMACRegFile;
-	s8 sz8723MACRegFile[] = RTL8723B_PHY_MACREG;
 
-
-	pszMACRegFile = sz8723MACRegFile;
-
-	/*  */
-	/*  Config MAC */
-	/*  */
-	rtStatus = phy_ConfigMACWithParaFile(Adapter, pszMACRegFile);
-	if (rtStatus == _FAIL) {
-		ODM_ReadAndConfig_MP_8723B_MAC_REG(&pHalData->odmpriv);
-		rtStatus = _SUCCESS;
-	}
-
-	return rtStatus;
+	ODM_ReadAndConfig_MP_8723B_MAC_REG(&pHalData->odmpriv);
+	return _SUCCESS;
 }
 
 /**
@@ -427,17 +413,6 @@ static void phy_InitBBRFRegisterDefinition(struct adapter *Adapter)
 static int phy_BB8723b_Config_ParaFile(struct adapter *Adapter)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
-	int rtStatus = _SUCCESS;
-	u8 sz8723BBRegFile[] = RTL8723B_PHY_REG;
-	u8 sz8723AGCTableFile[] = RTL8723B_AGC_TAB;
-	u8 sz8723BBBRegPgFile[] = RTL8723B_PHY_REG_PG;
-	u8 sz8723BRFTxPwrLmtFile[] = RTL8723B_TXPWR_LMT;
-	u8 *pszBBRegFile = NULL, *pszAGCTableFile = NULL, *pszBBRegPgFile = NULL, *pszRFTxPwrLmtFile = NULL;
-
-	pszBBRegFile = sz8723BBRegFile;
-	pszAGCTableFile = sz8723AGCTableFile;
-	pszBBRegPgFile = sz8723BBBRegPgFile;
-	pszRFTxPwrLmtFile = sz8723BRFTxPwrLmtFile;
 
 	/*  Read Tx Power Limit File */
 	PHY_InitTxPowerLimit(Adapter);
@@ -445,30 +420,14 @@ static int phy_BB8723b_Config_ParaFile(struct adapter *Adapter)
 		Adapter->registrypriv.RegEnableTxPowerLimit == 1 ||
 		(Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1)
 	) {
-		if (PHY_ConfigRFWithPowerLimitTableParaFile(Adapter, pszRFTxPwrLmtFile) == _FAIL) {
-			if (HAL_STATUS_SUCCESS != ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, CONFIG_RF_TXPWR_LMT, (ODM_RF_RADIO_PATH_E)0))
-				rtStatus = _FAIL;
-		}
-
-		if (rtStatus != _SUCCESS) {
-			DBG_871X("%s():Read Tx power limit fail\n", __func__);
-			goto phy_BB8190_Config_ParaFile_Fail;
-		}
+		ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv,
+					   CONFIG_RF_TXPWR_LMT, 0);
 	}
 
 	/*  */
 	/*  1. Read PHY_REG.TXT BB INIT!! */
 	/*  */
-	if (phy_ConfigBBWithParaFile(Adapter, pszBBRegFile, CONFIG_BB_PHY_REG) ==
-		_FAIL) {
-		if (HAL_STATUS_SUCCESS != ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_PHY_REG))
-			rtStatus = _FAIL;
-	}
-
-	if (rtStatus != _SUCCESS) {
-		DBG_8192C("%s():Write BB Reg Fail!!", __func__);
-		goto phy_BB8190_Config_ParaFile_Fail;
-	}
+	ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_PHY_REG);
 
 	/*  If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt */
 	PHY_InitTxPowerByRate(Adapter);
@@ -476,11 +435,8 @@ static int phy_BB8723b_Config_ParaFile(struct adapter *Adapter)
 		Adapter->registrypriv.RegEnableTxPowerByRate == 1 ||
 		(Adapter->registrypriv.RegEnableTxPowerByRate == 2 && pHalData->EEPROMRegulatory != 2)
 	) {
-		if (phy_ConfigBBWithPgParaFile(Adapter, pszBBRegPgFile) ==
-			_FAIL) {
-			if (HAL_STATUS_SUCCESS != ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_PHY_REG_PG))
-				rtStatus = _FAIL;
-		}
+		ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv,
+					   CONFIG_BB_PHY_REG_PG);
 
 		if (pHalData->odmpriv.PhyRegPgValueType == PHY_REG_PG_EXACT_VALUE)
 			PHY_TxPowerByRateConfiguration(Adapter);
@@ -490,29 +446,14 @@ static int phy_BB8723b_Config_ParaFile(struct adapter *Adapter)
 			(Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1)
 		)
 			PHY_ConvertTxPowerLimitToPowerIndex(Adapter);
-
-		if (rtStatus != _SUCCESS) {
-			DBG_8192C("%s():BB_PG Reg Fail!!\n", __func__);
-		}
 	}
 
 	/*  */
 	/*  2. Read BB AGC table Initialization */
 	/*  */
-	if (phy_ConfigBBWithParaFile(Adapter, pszAGCTableFile,
-				     CONFIG_BB_AGC_TAB) == _FAIL) {
-		if (HAL_STATUS_SUCCESS != ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_AGC_TAB))
-			rtStatus = _FAIL;
-	}
+	ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_AGC_TAB);
 
-	if (rtStatus != _SUCCESS) {
-		DBG_8192C("%s():AGC Table Fail\n", __func__);
-		goto phy_BB8190_Config_ParaFile_Fail;
-	}
-
-phy_BB8190_Config_ParaFile_Fail:
-
-	return rtStatus;
+	return _SUCCESS;
 }
 
 

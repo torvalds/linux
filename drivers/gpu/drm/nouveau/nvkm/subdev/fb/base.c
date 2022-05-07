@@ -126,6 +126,34 @@ nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 }
 
 static int
+nvkm_fb_init_scrub_vpr(struct nvkm_fb *fb)
+{
+	struct nvkm_subdev *subdev = &fb->subdev;
+	int ret;
+
+	nvkm_debug(subdev, "VPR locked, running scrubber binary\n");
+
+	if (!fb->vpr_scrubber.size) {
+		nvkm_warn(subdev, "VPR locked, but no scrubber binary!\n");
+		return 0;
+	}
+
+	ret = fb->func->vpr.scrub(fb);
+	if (ret) {
+		nvkm_error(subdev, "VPR scrubber binary failed\n");
+		return ret;
+	}
+
+	if (fb->func->vpr.scrub_required(fb)) {
+		nvkm_error(subdev, "VPR still locked after scrub!\n");
+		return -EIO;
+	}
+
+	nvkm_debug(subdev, "VPR scrubber binary successful\n");
+	return 0;
+}
+
+static int
 nvkm_fb_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_fb *fb = nvkm_fb(subdev);
@@ -154,6 +182,14 @@ nvkm_fb_init(struct nvkm_subdev *subdev)
 
 	if (fb->func->init_unkn)
 		fb->func->init_unkn(fb);
+
+	if (fb->func->vpr.scrub_required &&
+	    fb->func->vpr.scrub_required(fb)) {
+		ret = nvkm_fb_init_scrub_vpr(fb);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -171,6 +207,8 @@ nvkm_fb_dtor(struct nvkm_subdev *subdev)
 
 	nvkm_mm_fini(&fb->tags);
 	nvkm_ram_del(&fb->ram);
+
+	nvkm_blob_dtor(&fb->vpr_scrubber);
 
 	if (fb->func->dtor)
 		return fb->func->dtor(fb);

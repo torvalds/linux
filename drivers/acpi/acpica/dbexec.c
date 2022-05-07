@@ -86,7 +86,8 @@ void acpi_db_delete_objects(u32 count, union acpi_object *objects)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute a control method.
+ * DESCRIPTION: Execute a control method. Used to evaluate objects via the
+ *              "EXECUTE" or "EVALUATE" commands.
  *
  ******************************************************************************/
 
@@ -314,11 +315,12 @@ acpi_db_execution_walk(acpi_handle obj_handle,
 
 	status = acpi_evaluate_object(node, NULL, NULL, &return_obj);
 
+	acpi_gbl_method_executing = FALSE;
+
 	acpi_os_printf("Evaluation of [%4.4s] returned %s\n",
 		       acpi_ut_get_node_name(node),
 		       acpi_format_exception(status));
 
-	acpi_gbl_method_executing = FALSE;
 	return (AE_OK);
 }
 
@@ -334,7 +336,8 @@ acpi_db_execution_walk(acpi_handle obj_handle,
  * RETURN:      None
  *
  * DESCRIPTION: Execute a control method. Name is relative to the current
- *              scope.
+ *              scope. Function used for the "EXECUTE", "EVALUATE", and
+ *              "ALL" commands
  *
  ******************************************************************************/
 
@@ -372,6 +375,12 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 		return;
 	}
 
+	if ((flags & EX_ALL) && (strlen(name) > 4)) {
+		acpi_os_printf("Input name (%s) must be a 4-char NameSeg\n",
+			       name);
+		return;
+	}
+
 	name_string = ACPI_ALLOCATE(strlen(name) + 1);
 	if (!name_string) {
 		return;
@@ -389,13 +398,24 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 		return;
 	}
 
-	acpi_gbl_db_method_info.name = name_string;
-	acpi_gbl_db_method_info.args = args;
-	acpi_gbl_db_method_info.types = types;
-	acpi_gbl_db_method_info.flags = flags;
+	/* Command (ALL <nameseg>) to execute all methods of a particular name */
 
-	return_obj.pointer = NULL;
-	return_obj.length = ACPI_ALLOCATE_BUFFER;
+	else if (flags & EX_ALL) {
+		acpi_gbl_db_method_info.name = name_string;
+		return_obj.pointer = NULL;
+		return_obj.length = ACPI_ALLOCATE_BUFFER;
+		acpi_db_evaluate_all(name_string);
+		ACPI_FREE(name_string);
+		return;
+	} else {
+		acpi_gbl_db_method_info.name = name_string;
+		acpi_gbl_db_method_info.args = args;
+		acpi_gbl_db_method_info.types = types;
+		acpi_gbl_db_method_info.flags = flags;
+
+		return_obj.pointer = NULL;
+		return_obj.length = ACPI_ALLOCATE_BUFFER;
+	}
 
 	status = acpi_db_execute_setup(&acpi_gbl_db_method_info);
 	if (ACPI_FAILURE(status)) {
@@ -450,6 +470,7 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 				       (u32)return_obj.length);
 
 			acpi_db_dump_external_object(return_obj.pointer, 1);
+			acpi_os_printf("\n");
 
 			/* Dump a _PLD buffer if present */
 

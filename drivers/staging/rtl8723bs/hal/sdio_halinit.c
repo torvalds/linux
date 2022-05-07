@@ -235,7 +235,7 @@ static void _InitQueueReservedPage(struct adapter *padapter)
 	if (pHalData->OutEpQueueSel & TX_SELE_LQ)
 		numLQ = bWiFiConfig ? WMM_NORMAL_PAGE_NUM_LPQ_8723B : NORMAL_PAGE_NUM_LPQ_8723B;
 
-	/*  NOTE: This step shall be proceed before writting REG_RQPN. */
+	/*  NOTE: This step shall be proceed before writing REG_RQPN. */
 	if (pHalData->OutEpQueueSel & TX_SELE_NQ)
 		numNQ = bWiFiConfig ? WMM_NORMAL_PAGE_NUM_NPQ_8723B : NORMAL_PAGE_NUM_NPQ_8723B;
 
@@ -544,25 +544,11 @@ static void _InitRetryFunction(struct adapter *padapter)
 
 static void HalRxAggr8723BSdio(struct adapter *padapter)
 {
-	struct registry_priv *pregistrypriv;
 	u8 valueDMATimeout;
 	u8 valueDMAPageCount;
 
-
-	pregistrypriv = &padapter->registrypriv;
-
-	if (pregistrypriv->wifi_spec) {
-		/*  2010.04.27 hpfan */
-		/*  Adjust RxAggrTimeout to close to zero disable RxAggr, suggested by designer */
-		/*  Timeout value is calculated by 34 / (2^n) */
-		valueDMATimeout = 0x06;
-		valueDMAPageCount = 0x06;
-	} else {
-		/*  20130530, Isaac@SD1 suggest 3 kinds of parameter */
-		/*  TX/RX Balance */
-		valueDMATimeout = 0x06;
-		valueDMAPageCount = 0x06;
-	}
+	valueDMATimeout = 0x06;
+	valueDMAPageCount = 0x06;
 
 	rtw_write8(padapter, REG_RXDMA_AGG_PG_TH + 1, valueDMATimeout);
 	rtw_write8(padapter, REG_RXDMA_AGG_PG_TH, valueDMAPageCount);
@@ -570,13 +556,10 @@ static void HalRxAggr8723BSdio(struct adapter *padapter)
 
 static void sdio_AggSettingRxUpdate(struct adapter *padapter)
 {
-	struct hal_com_data *pHalData;
 	u8 valueDMA;
 	u8 valueRxAggCtrl = 0;
 	u8 aggBurstNum = 3;  /* 0:1, 1:2, 2:3, 3:4 */
 	u8 aggBurstSize = 0;  /* 0:1K, 1:512Byte, 2:256Byte... */
-
-	pHalData = GET_HAL_DATA(padapter);
 
 	valueDMA = rtw_read8(padapter, REG_TRXDMA_CTRL);
 	valueDMA |= RXDMA_AGG_EN;
@@ -713,13 +696,11 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	s32 ret;
 	struct hal_com_data *pHalData;
 	struct pwrctrl_priv *pwrctrlpriv;
-	struct registry_priv *pregistrypriv;
 	u32 NavUpper = WiFiNavUpperUs;
 	u8 u1bTmp;
 
 	pHalData = GET_HAL_DATA(padapter);
 	pwrctrlpriv = adapter_to_pwrctl(padapter);
-	pregistrypriv = &padapter->registrypriv;
 
 	if (
 		adapter_to_pwrctl(padapter)->bips_processing == true &&

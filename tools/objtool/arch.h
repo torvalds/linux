@@ -8,8 +8,12 @@
 
 #include <stdbool.h>
 #include <linux/list.h>
-#include "elf.h"
+#include "objtool.h"
 #include "cfi.h"
+
+#ifdef INSN_USE_ORC
+#include <asm/orc_types.h>
+#endif
 
 enum insn_type {
 	INSN_JUMP_CONDITIONAL,
@@ -20,7 +24,6 @@ enum insn_type {
 	INSN_CALL_DYNAMIC,
 	INSN_RETURN,
 	INSN_CONTEXT_SWITCH,
-	INSN_STACK,
 	INSN_BUG,
 	INSN_NOP,
 	INSN_STAC,
@@ -64,15 +67,27 @@ struct op_src {
 struct stack_op {
 	struct op_dest dest;
 	struct op_src src;
+	struct list_head list;
 };
 
-void arch_initial_func_cfi_state(struct cfi_state *state);
+struct instruction;
 
-int arch_decode_instruction(struct elf *elf, struct section *sec,
+void arch_initial_func_cfi_state(struct cfi_init_state *state);
+
+int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			    unsigned long offset, unsigned int maxlen,
 			    unsigned int *len, enum insn_type *type,
-			    unsigned long *immediate, struct stack_op *op);
+			    unsigned long *immediate,
+			    struct list_head *ops_list);
 
 bool arch_callee_saved_reg(unsigned char reg);
+
+unsigned long arch_jump_destination(struct instruction *insn);
+
+unsigned long arch_dest_reloc_offset(int addend);
+
+const char *arch_nop_insn(int len);
+
+int arch_decode_hint_reg(struct instruction *insn, u8 sp_reg);
 
 #endif /* _ARCH_H */

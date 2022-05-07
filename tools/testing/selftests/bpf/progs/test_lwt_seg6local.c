@@ -3,8 +3,8 @@
 #include <errno.h>
 #include <linux/seg6_local.h>
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 /* Packet parsing state machine helpers. */
 #define cursor_advance(_cursor, _len) \

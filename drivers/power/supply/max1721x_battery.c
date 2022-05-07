@@ -431,7 +431,7 @@ static int devm_w1_max1721x_add_device(struct w1_slave *sl)
 	return 0;
 }
 
-static struct w1_family_ops w1_max1721x_fops = {
+static const struct w1_family_ops w1_max1721x_fops = {
 	.add_slave = devm_w1_max1721x_add_device,
 };
 

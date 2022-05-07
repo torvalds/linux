@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * xhci-dbgtty.c - tty glue for xHCI debug capability
  *
  * Copyright (C) 2017 Intel Corporation
@@ -13,6 +13,16 @@
 
 #include "xhci.h"
 #include "xhci-dbgcap.h"
+
+static int dbc_tty_init(void);
+static void dbc_tty_exit(void);
+
+static struct tty_driver *dbc_tty_driver;
+
+static inline struct dbc_port *dbc_to_port(struct xhci_dbc *dbc)
+{
+	return dbc->priv;
+}
 
 static unsigned int
 dbc_send_packet(struct dbc_port *port, char *packet, unsigned int size)
@@ -48,7 +58,7 @@ static int dbc_start_tx(struct dbc_port *port)
 		list_del(&req->list_pool);
 
 		spin_unlock(&port->port_lock);
-		status = dbc_ep_queue(port->out, req, GFP_ATOMIC);
+		status = dbc_ep_queue(req);
 		spin_lock(&port->port_lock);
 
 		if (status) {
@@ -80,7 +90,7 @@ static void dbc_start_rx(struct dbc_port *port)
 		req->length = DBC_MAX_PACKET;
 
 		spin_unlock(&port->port_lock);
-		status = dbc_ep_queue(port->in, req, GFP_ATOMIC);
+		status = dbc_ep_queue(req);
 		spin_lock(&port->port_lock);
 
 		if (status) {
@@ -91,11 +101,10 @@ static void dbc_start_rx(struct dbc_port *port)
 }
 
 static void
-dbc_read_complete(struct xhci_hcd *xhci, struct dbc_request *req)
+dbc_read_complete(struct xhci_dbc *dbc, struct dbc_request *req)
 {
 	unsigned long		flags;
-	struct xhci_dbc		*dbc = xhci->dbc;
-	struct dbc_port		*port = &dbc->port;
+	struct dbc_port		*port = dbc_to_port(dbc);
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	list_add_tail(&req->list_pool, &port->read_queue);
@@ -103,11 +112,10 @@ dbc_read_complete(struct xhci_hcd *xhci, struct dbc_request *req)
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
-static void dbc_write_complete(struct xhci_hcd *xhci, struct dbc_request *req)
+static void dbc_write_complete(struct xhci_dbc *dbc, struct dbc_request *req)
 {
 	unsigned long		flags;
-	struct xhci_dbc		*dbc = xhci->dbc;
-	struct dbc_port		*port = &dbc->port;
+	struct dbc_port		*port = dbc_to_port(dbc);
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	list_add(&req->list_pool, &port->write_pool);
@@ -118,35 +126,36 @@ static void dbc_write_complete(struct xhci_hcd *xhci, struct dbc_request *req)
 	case -ESHUTDOWN:
 		break;
 	default:
-		xhci_warn(xhci, "unexpected write complete status %d\n",
+		dev_warn(dbc->dev, "unexpected write complete status %d\n",
 			  req->status);
 		break;
 	}
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
-static void xhci_dbc_free_req(struct dbc_ep *dep, struct dbc_request *req)
+static void xhci_dbc_free_req(struct dbc_request *req)
 {
 	kfree(req->buf);
-	dbc_free_request(dep, req);
+	dbc_free_request(req);
 }
 
 static int
-xhci_dbc_alloc_requests(struct dbc_ep *dep, struct list_head *head,
-			void (*fn)(struct xhci_hcd *, struct dbc_request *))
+xhci_dbc_alloc_requests(struct xhci_dbc *dbc, unsigned int direction,
+			struct list_head *head,
+			void (*fn)(struct xhci_dbc *, struct dbc_request *))
 {
 	int			i;
 	struct dbc_request	*req;
 
 	for (i = 0; i < DBC_QUEUE_SIZE; i++) {
-		req = dbc_alloc_request(dep, GFP_KERNEL);
+		req = dbc_alloc_request(dbc, direction, GFP_KERNEL);
 		if (!req)
 			break;
 
 		req->length = DBC_MAX_PACKET;
 		req->buf = kmalloc(req->length, GFP_KERNEL);
 		if (!req->buf) {
-			dbc_free_request(dep, req);
+			dbc_free_request(req);
 			break;
 		}
 
@@ -158,14 +167,14 @@ xhci_dbc_alloc_requests(struct dbc_ep *dep, struct list_head *head,
 }
 
 static void
-xhci_dbc_free_requests(struct dbc_ep *dep, struct list_head *head)
+xhci_dbc_free_requests(struct list_head *head)
 {
 	struct dbc_request	*req;
 
 	while (!list_empty(head)) {
 		req = list_entry(head->next, struct dbc_request, list_pool);
 		list_del(&req->list_pool);
-		xhci_dbc_free_req(dep, req);
+		xhci_dbc_free_req(req);
 	}
 }
 
@@ -279,63 +288,14 @@ static const struct tty_operations dbc_tty_ops = {
 	.unthrottle		= dbc_tty_unthrottle,
 };
 
-static struct tty_driver *dbc_tty_driver;
-
-int xhci_dbc_tty_register_driver(struct xhci_hcd *xhci)
-{
-	int			status;
-	struct xhci_dbc		*dbc = xhci->dbc;
-
-	dbc_tty_driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW |
-					  TTY_DRIVER_DYNAMIC_DEV);
-	if (IS_ERR(dbc_tty_driver)) {
-		status = PTR_ERR(dbc_tty_driver);
-		dbc_tty_driver = NULL;
-		return status;
-	}
-
-	dbc_tty_driver->driver_name = "dbc_serial";
-	dbc_tty_driver->name = "ttyDBC";
-
-	dbc_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
-	dbc_tty_driver->subtype = SERIAL_TYPE_NORMAL;
-	dbc_tty_driver->init_termios = tty_std_termios;
-	dbc_tty_driver->init_termios.c_cflag =
-			B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	dbc_tty_driver->init_termios.c_ispeed = 9600;
-	dbc_tty_driver->init_termios.c_ospeed = 9600;
-	dbc_tty_driver->driver_state = &dbc->port;
-
-	tty_set_operations(dbc_tty_driver, &dbc_tty_ops);
-
-	status = tty_register_driver(dbc_tty_driver);
-	if (status) {
-		xhci_err(xhci,
-			 "can't register dbc tty driver, err %d\n", status);
-		put_tty_driver(dbc_tty_driver);
-		dbc_tty_driver = NULL;
-	}
-
-	return status;
-}
-
-void xhci_dbc_tty_unregister_driver(void)
-{
-	if (dbc_tty_driver) {
-		tty_unregister_driver(dbc_tty_driver);
-		put_tty_driver(dbc_tty_driver);
-		dbc_tty_driver = NULL;
-	}
-}
-
-static void dbc_rx_push(unsigned long _port)
+static void dbc_rx_push(struct tasklet_struct *t)
 {
 	struct dbc_request	*req;
 	struct tty_struct	*tty;
 	unsigned long		flags;
 	bool			do_push = false;
 	bool			disconnect = false;
-	struct dbc_port		*port = (void *)_port;
+	struct dbc_port		*port = from_tasklet(port, t, push);
 	struct list_head	*queue = &port->read_queue;
 
 	spin_lock_irqsave(&port->port_lock, flags);
@@ -418,17 +378,15 @@ static const struct tty_port_operations dbc_port_ops = {
 };
 
 static void
-xhci_dbc_tty_init_port(struct xhci_hcd *xhci, struct dbc_port *port)
+xhci_dbc_tty_init_port(struct xhci_dbc *dbc, struct dbc_port *port)
 {
 	tty_port_init(&port->port);
 	spin_lock_init(&port->port_lock);
-	tasklet_init(&port->push, dbc_rx_push, (unsigned long)port);
+	tasklet_setup(&port->push, dbc_rx_push);
 	INIT_LIST_HEAD(&port->read_pool);
 	INIT_LIST_HEAD(&port->read_queue);
 	INIT_LIST_HEAD(&port->write_pool);
 
-	port->in =		get_in_ep(xhci);
-	port->out =		get_out_ep(xhci);
 	port->port.ops =	&dbc_port_ops;
 	port->n_read =		0;
 }
@@ -440,14 +398,16 @@ xhci_dbc_tty_exit_port(struct dbc_port *port)
 	tty_port_destroy(&port->port);
 }
 
-int xhci_dbc_tty_register_device(struct xhci_hcd *xhci)
+static int xhci_dbc_tty_register_device(struct xhci_dbc *dbc)
 {
 	int			ret;
 	struct device		*tty_dev;
-	struct xhci_dbc		*dbc = xhci->dbc;
-	struct dbc_port		*port = &dbc->port;
+	struct dbc_port		*port = dbc_to_port(dbc);
 
-	xhci_dbc_tty_init_port(xhci, port);
+	if (port->registered)
+		return -EBUSY;
+
+	xhci_dbc_tty_init_port(dbc, port);
 	tty_dev = tty_port_register_device(&port->port,
 					   dbc_tty_driver, 0, NULL);
 	if (IS_ERR(tty_dev)) {
@@ -459,12 +419,12 @@ int xhci_dbc_tty_register_device(struct xhci_hcd *xhci)
 	if (ret)
 		goto buf_alloc_fail;
 
-	ret = xhci_dbc_alloc_requests(port->in, &port->read_pool,
+	ret = xhci_dbc_alloc_requests(dbc, BULK_IN, &port->read_pool,
 				      dbc_read_complete);
 	if (ret)
 		goto request_fail;
 
-	ret = xhci_dbc_alloc_requests(port->out, &port->write_pool,
+	ret = xhci_dbc_alloc_requests(dbc, BULK_OUT, &port->write_pool,
 				      dbc_write_complete);
 	if (ret)
 		goto request_fail;
@@ -474,8 +434,8 @@ int xhci_dbc_tty_register_device(struct xhci_hcd *xhci)
 	return 0;
 
 request_fail:
-	xhci_dbc_free_requests(port->in, &port->read_pool);
-	xhci_dbc_free_requests(port->out, &port->write_pool);
+	xhci_dbc_free_requests(&port->read_pool);
+	xhci_dbc_free_requests(&port->write_pool);
 	kfifo_free(&port->write_fifo);
 
 buf_alloc_fail:
@@ -484,22 +444,113 @@ buf_alloc_fail:
 register_fail:
 	xhci_dbc_tty_exit_port(port);
 
-	xhci_err(xhci, "can't register tty port, err %d\n", ret);
+	dev_err(dbc->dev, "can't register tty port, err %d\n", ret);
 
 	return ret;
 }
 
-void xhci_dbc_tty_unregister_device(struct xhci_hcd *xhci)
+static void xhci_dbc_tty_unregister_device(struct xhci_dbc *dbc)
 {
-	struct xhci_dbc		*dbc = xhci->dbc;
-	struct dbc_port		*port = &dbc->port;
+	struct dbc_port		*port = dbc_to_port(dbc);
 
+	if (!port->registered)
+		return;
 	tty_unregister_device(dbc_tty_driver, 0);
 	xhci_dbc_tty_exit_port(port);
 	port->registered = false;
 
 	kfifo_free(&port->write_fifo);
-	xhci_dbc_free_requests(get_out_ep(xhci), &port->read_pool);
-	xhci_dbc_free_requests(get_out_ep(xhci), &port->read_queue);
-	xhci_dbc_free_requests(get_in_ep(xhci), &port->write_pool);
+	xhci_dbc_free_requests(&port->read_pool);
+	xhci_dbc_free_requests(&port->read_queue);
+	xhci_dbc_free_requests(&port->write_pool);
+}
+
+static const struct dbc_driver dbc_driver = {
+	.configure		= xhci_dbc_tty_register_device,
+	.disconnect		= xhci_dbc_tty_unregister_device,
+};
+
+int xhci_dbc_tty_probe(struct xhci_hcd *xhci)
+{
+	struct xhci_dbc		*dbc = xhci->dbc;
+	struct dbc_port		*port;
+	int			status;
+
+	/* dbc_tty_init will be called by module init() in the future */
+	status = dbc_tty_init();
+	if (status)
+		return status;
+
+	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	if (!port) {
+		status = -ENOMEM;
+		goto out;
+	}
+
+	dbc->driver = &dbc_driver;
+	dbc->priv = port;
+
+
+	dbc_tty_driver->driver_state = port;
+
+	return 0;
+out:
+	/* dbc_tty_exit will be called by module_exit() in the future */
+	dbc_tty_exit();
+	return status;
+}
+
+/*
+ * undo what probe did, assume dbc is stopped already.
+ * we also assume tty_unregister_device() is called before this
+ */
+void xhci_dbc_tty_remove(struct xhci_dbc *dbc)
+{
+	struct dbc_port         *port = dbc_to_port(dbc);
+
+	dbc->driver = NULL;
+	dbc->priv = NULL;
+	kfree(port);
+
+	/* dbc_tty_exit will be called by  module_exit() in the future */
+	dbc_tty_exit();
+}
+
+static int dbc_tty_init(void)
+{
+	int		ret;
+
+	dbc_tty_driver = tty_alloc_driver(1, TTY_DRIVER_REAL_RAW |
+					  TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(dbc_tty_driver))
+		return PTR_ERR(dbc_tty_driver);
+
+	dbc_tty_driver->driver_name = "dbc_serial";
+	dbc_tty_driver->name = "ttyDBC";
+
+	dbc_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
+	dbc_tty_driver->subtype = SERIAL_TYPE_NORMAL;
+	dbc_tty_driver->init_termios = tty_std_termios;
+	dbc_tty_driver->init_termios.c_cflag =
+			B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	dbc_tty_driver->init_termios.c_ispeed = 9600;
+	dbc_tty_driver->init_termios.c_ospeed = 9600;
+
+	tty_set_operations(dbc_tty_driver, &dbc_tty_ops);
+
+	ret = tty_register_driver(dbc_tty_driver);
+	if (ret) {
+		pr_err("Can't register dbc tty driver\n");
+		put_tty_driver(dbc_tty_driver);
+	}
+	return ret;
+}
+
+static void dbc_tty_exit(void)
+{
+	if (dbc_tty_driver) {
+		tty_unregister_driver(dbc_tty_driver);
+		put_tty_driver(dbc_tty_driver);
+		dbc_tty_driver = NULL;
+	}
 }

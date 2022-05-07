@@ -18,8 +18,19 @@
 
 #include "smc_ib.h"
 
+#define SMC_V1		1		/* SMC version V1 */
+#define SMC_V2		2		/* SMC version V2 */
+#define SMC_RELEASE	0
+
 #define SMCPROTO_SMC		0	/* SMC protocol, IPv4 */
 #define SMCPROTO_SMC6		1	/* SMC protocol, IPv6 */
+
+#define SMC_MAX_ISM_DEVS	8	/* max # of proposed non-native ISM
+					 * devices
+					 */
+
+#define SMC_MAX_HOSTNAME_LEN	32
+#define SMC_MAX_EID_LEN		32
 
 extern struct proto smc_proto;
 extern struct proto smc_proto6;
@@ -121,6 +132,7 @@ enum smc_urg_state {
 struct smc_connection {
 	struct rb_node		alert_node;
 	struct smc_link_group	*lgr;		/* link group of connection */
+	struct smc_link		*lnk;		/* assigned SMC-R link */
 	u32			alert_token_local; /* unique conn. id */
 	u8			peer_rmbe_idx;	/* from tcp handshake */
 	int			peer_rmbe_size;	/* size of peer rx buffer */
@@ -142,6 +154,9 @@ struct smc_connection {
 						 * .prod cf. TCP snd_nxt
 						 * .cons cf. TCP sends ack
 						 */
+	union smc_host_cursor	local_tx_ctrl_fin;
+						/* prod crsr - confirmed by peer
+						 */
 	union smc_host_cursor	tx_curs_prep;	/* tx - prepared data
 						 * snd_max..wmem_alloc
 						 */
@@ -153,6 +168,7 @@ struct smc_connection {
 						 */
 	atomic_t		sndbuf_space;	/* remaining space in sndbuf */
 	u16			tx_cdc_seq;	/* sequence # for CDC send */
+	u16			tx_cdc_seq_fin;	/* sequence # - tx completed */
 	spinlock_t		send_lock;	/* protect wr_sends */
 	struct delayed_work	tx_work;	/* retry of smc_cdc_msg_send */
 	u32			tx_off;		/* base offset in peer rmb */
@@ -183,16 +199,21 @@ struct smc_connection {
 	spinlock_t		acurs_lock;	/* protect cursors */
 #endif
 	struct work_struct	close_work;	/* peer sent some closing */
+	struct work_struct	abort_work;	/* abort the connection */
 	struct tasklet_struct	rx_tsklet;	/* Receiver tasklet for SMC-D */
 	u8			rx_off;		/* receive offset:
 						 * 0 for SMC-R, 32 for SMC-D
 						 */
 	u64			peer_token;	/* SMC-D token of peer */
+	u8			killed : 1;	/* abnormal termination */
+	u8			out_of_sync : 1; /* out of sync with peer */
 };
 
 struct smc_sock {				/* smc sock container */
 	struct sock		sk;
 	struct socket		*clcsock;	/* internal tcp socket */
+	void			(*clcsk_data_ready)(struct sock *sk);
+						/* original data_ready fct. **/
 	struct smc_connection	conn;		/* smc connection */
 	struct smc_sock		*listen_smc;	/* listen parent */
 	struct work_struct	connect_work;	/* handle non-blocking connect*/
@@ -227,9 +248,15 @@ static inline struct smc_sock *smc_sk(const struct sock *sk)
 	return (struct smc_sock *)sk;
 }
 
+extern struct workqueue_struct	*smc_hs_wq;	/* wq for handshake work */
+extern struct workqueue_struct	*smc_close_wq;	/* wq for close work */
+
 #define SMC_SYSTEMID_LEN		8
 
 extern u8	local_systemid[SMC_SYSTEMID_LEN]; /* unique system identifier */
+
+#define ntohll(x) be64_to_cpu(x)
+#define htonll(x) cpu_to_be64(x)
 
 /* convert an u32 value into network byte order, store it into a 3 byte field */
 static inline void hton24(u8 *net, u32 host)

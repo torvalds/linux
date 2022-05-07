@@ -60,7 +60,6 @@ static void vx_pcm_read_per_bytes(struct vx_core *chip, struct snd_pcm_runtime *
 	*buf++ = vx_inb(chip, RXL);
 	if (++offset >= pipe->buffer_bytes) {
 		offset = 0;
-		buf = (unsigned char *)runtime->dma_area;
 	}
 	pipe->hw_ptr = offset;
 }
@@ -530,7 +529,6 @@ static int vx_pcm_playback_open(struct snd_pcm_substream *subs)
 		err = vx_alloc_pipe(chip, 0, audio, 2, &pipe); /* stereo playback */
 		if (err < 0)
 			return err;
-		chip->playback_pipes[audio] = pipe;
 	}
 	/* open for playback */
 	pipe->references++;
@@ -773,24 +771,6 @@ static snd_pcm_uframes_t vx_pcm_playback_pointer(struct snd_pcm_substream *subs)
 }
 
 /*
- * vx_pcm_hw_params - hw_params callback for playback and capture
- */
-static int vx_pcm_hw_params(struct snd_pcm_substream *subs,
-				     struct snd_pcm_hw_params *hw_params)
-{
-	return snd_pcm_lib_alloc_vmalloc_32_buffer
-					(subs, params_buffer_bytes(hw_params));
-}
-
-/*
- * vx_pcm_hw_free - hw_free callback for playback and capture
- */
-static int vx_pcm_hw_free(struct snd_pcm_substream *subs)
-{
-	return snd_pcm_lib_free_vmalloc_buffer(subs);
-}
-
-/*
  * vx_pcm_prepare - prepare callback for playback and capture
  */
 static int vx_pcm_prepare(struct snd_pcm_substream *subs)
@@ -861,13 +841,9 @@ static int vx_pcm_prepare(struct snd_pcm_substream *subs)
 static const struct snd_pcm_ops vx_pcm_playback_ops = {
 	.open =		vx_pcm_playback_open,
 	.close =	vx_pcm_playback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	vx_pcm_hw_params,
-	.hw_free =	vx_pcm_hw_free,
 	.prepare =	vx_pcm_prepare,
 	.trigger =	vx_pcm_trigger,
 	.pointer =	vx_pcm_playback_pointer,
-	.page =		snd_pcm_lib_get_vmalloc_page,
 };
 
 
@@ -1082,13 +1058,9 @@ static snd_pcm_uframes_t vx_pcm_capture_pointer(struct snd_pcm_substream *subs)
 static const struct snd_pcm_ops vx_pcm_capture_ops = {
 	.open =		vx_pcm_capture_open,
 	.close =	vx_pcm_capture_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	vx_pcm_hw_params,
-	.hw_free =	vx_pcm_hw_free,
 	.prepare =	vx_pcm_prepare,
 	.trigger =	vx_pcm_trigger,
 	.pointer =	vx_pcm_capture_pointer,
-	.page =		snd_pcm_lib_get_vmalloc_page,
 };
 
 
@@ -1233,6 +1205,9 @@ int snd_vx_pcm_new(struct vx_core *chip)
 			snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &vx_pcm_playback_ops);
 		if (ins)
 			snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &vx_pcm_capture_ops);
+		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
+					       snd_dma_continuous_data(GFP_KERNEL | GFP_DMA32),
+					       0, 0);
 
 		pcm->private_data = chip;
 		pcm->private_free = snd_vx_pcm_free;

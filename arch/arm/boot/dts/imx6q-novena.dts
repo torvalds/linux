@@ -107,7 +107,7 @@
 	};
 
 	panel: panel {
-		compatible = "innolux,n133hse-ea1", "simple-panel";
+		compatible = "innolux,n133hse-ea1";
 		backlight = <&backlight>;
 	};
 
@@ -455,6 +455,7 @@
 };
 
 &pwm1 {
+	#pwm-cells = <2>;
 	status = "okay";
 };
 

@@ -48,10 +48,39 @@
 #include <linux/list.h>
 #include "jsmn.h"
 #include "json.h"
-#include "jevents.h"
+#include "pmu-events.h"
 
 int verbose;
 char *prog;
+
+struct json_event {
+	char *name;
+	char *event;
+	char *desc;
+	char *long_desc;
+	char *pmu;
+	char *unit;
+	char *perpkg;
+	char *aggr_mode;
+	char *metric_expr;
+	char *metric_name;
+	char *metric_group;
+	char *deprecated;
+	char *metric_constraint;
+};
+
+enum aggr_mode_class convert(const char *aggr_mode)
+{
+	if (!strcmp(aggr_mode, "PerCore"))
+		return PerCore;
+	else if (!strcmp(aggr_mode, "PerChip"))
+		return PerChip;
+
+	pr_err("%s: Wrong AggregationMode value '%s'\n", prog, aggr_mode);
+	return -1;
+}
+
+typedef int (*func)(void *data, struct json_event *je);
 
 int eprintf(int level, int var, const char *fmt, ...)
 {
@@ -69,11 +98,6 @@ int eprintf(int level, int var, const char *fmt, ...)
 	va_end(args);
 
 	return ret;
-}
-
-__attribute__((weak)) char *get_cpu_str(void)
-{
-	return NULL;
 }
 
 static void addfield(char *map, char **dst, const char *sep,
@@ -137,7 +161,7 @@ static char *fixregex(char *s)
 		return s;
 
 	/* allocate space for a new string */
-	fixed = (char *) malloc(len + 1);
+	fixed = (char *) malloc(len + esc_count + 1);
 	if (!fixed)
 		return NULL;
 
@@ -240,6 +264,7 @@ static struct map {
 	{ "hisi_sccl,hha", "hisi_sccl,hha" },
 	{ "hisi_sccl,l3c", "hisi_sccl,l3c" },
 	{ "L3PMC", "amd_l3" },
+	{ "DFPMC", "amd_df" },
 	{}
 };
 
@@ -318,11 +343,7 @@ static void print_events_table_prefix(FILE *fp, const char *tblname)
 	close_table = 1;
 }
 
-static int print_events_table_entry(void *data, char *name, char *event,
-				    char *desc, char *long_desc,
-				    char *pmu, char *unit, char *perpkg,
-				    char *metric_expr,
-				    char *metric_name, char *metric_group)
+static int print_events_table_entry(void *data, struct json_event *je)
 {
 	struct perf_entry_data *pd = data;
 	FILE *outfp = pd->outfp;
@@ -334,26 +355,32 @@ static int print_events_table_entry(void *data, char *name, char *event,
 	 */
 	fprintf(outfp, "{\n");
 
-	if (name)
-		fprintf(outfp, "\t.name = \"%s\",\n", name);
-	if (event)
-		fprintf(outfp, "\t.event = \"%s\",\n", event);
-	fprintf(outfp, "\t.desc = \"%s\",\n", desc);
+	if (je->name)
+		fprintf(outfp, "\t.name = \"%s\",\n", je->name);
+	if (je->event)
+		fprintf(outfp, "\t.event = \"%s\",\n", je->event);
+	fprintf(outfp, "\t.desc = \"%s\",\n", je->desc);
 	fprintf(outfp, "\t.topic = \"%s\",\n", topic);
-	if (long_desc && long_desc[0])
-		fprintf(outfp, "\t.long_desc = \"%s\",\n", long_desc);
-	if (pmu)
-		fprintf(outfp, "\t.pmu = \"%s\",\n", pmu);
-	if (unit)
-		fprintf(outfp, "\t.unit = \"%s\",\n", unit);
-	if (perpkg)
-		fprintf(outfp, "\t.perpkg = \"%s\",\n", perpkg);
-	if (metric_expr)
-		fprintf(outfp, "\t.metric_expr = \"%s\",\n", metric_expr);
-	if (metric_name)
-		fprintf(outfp, "\t.metric_name = \"%s\",\n", metric_name);
-	if (metric_group)
-		fprintf(outfp, "\t.metric_group = \"%s\",\n", metric_group);
+	if (je->long_desc && je->long_desc[0])
+		fprintf(outfp, "\t.long_desc = \"%s\",\n", je->long_desc);
+	if (je->pmu)
+		fprintf(outfp, "\t.pmu = \"%s\",\n", je->pmu);
+	if (je->unit)
+		fprintf(outfp, "\t.unit = \"%s\",\n", je->unit);
+	if (je->perpkg)
+		fprintf(outfp, "\t.perpkg = \"%s\",\n", je->perpkg);
+	if (je->aggr_mode)
+		fprintf(outfp, "\t.aggr_mode = \"%d\",\n", convert(je->aggr_mode));
+	if (je->metric_expr)
+		fprintf(outfp, "\t.metric_expr = \"%s\",\n", je->metric_expr);
+	if (je->metric_name)
+		fprintf(outfp, "\t.metric_name = \"%s\",\n", je->metric_name);
+	if (je->metric_group)
+		fprintf(outfp, "\t.metric_group = \"%s\",\n", je->metric_group);
+	if (je->deprecated)
+		fprintf(outfp, "\t.deprecated = \"%s\",\n", je->deprecated);
+	if (je->metric_constraint)
+		fprintf(outfp, "\t.metric_constraint = \"%s\",\n", je->metric_constraint);
 	fprintf(outfp, "},\n");
 
 	return 0;
@@ -368,22 +395,25 @@ struct event_struct {
 	char *pmu;
 	char *unit;
 	char *perpkg;
+	char *aggr_mode;
 	char *metric_expr;
 	char *metric_name;
 	char *metric_group;
+	char *deprecated;
+	char *metric_constraint;
 };
 
-#define ADD_EVENT_FIELD(field) do { if (field) {		\
-	es->field = strdup(field);				\
+#define ADD_EVENT_FIELD(field) do { if (je->field) {		\
+	es->field = strdup(je->field);				\
 	if (!es->field)						\
 		goto out_free;					\
 } } while (0)
 
 #define FREE_EVENT_FIELD(field) free(es->field)
 
-#define TRY_FIXUP_FIELD(field) do { if (es->field && !*field) {\
-	*field = strdup(es->field);				\
-	if (!*field)						\
+#define TRY_FIXUP_FIELD(field) do { if (es->field && !je->field) {\
+	je->field = strdup(es->field);				\
+	if (!je->field)						\
 		return -ENOMEM;					\
 } } while (0)
 
@@ -395,9 +425,11 @@ struct event_struct {
 	op(pmu);						\
 	op(unit);						\
 	op(perpkg);						\
+	op(aggr_mode);						\
 	op(metric_expr);					\
 	op(metric_name);					\
 	op(metric_group);					\
+	op(deprecated);						\
 } while (0)
 
 static LIST_HEAD(arch_std_events);
@@ -413,10 +445,7 @@ static void free_arch_std_events(void)
 	}
 }
 
-static int save_arch_std_events(void *data, char *name, char *event,
-				char *desc, char *long_desc, char *pmu,
-				char *unit, char *perpkg, char *metric_expr,
-				char *metric_name, char *metric_group)
+static int save_arch_std_events(void *data, struct json_event *je)
 {
 	struct event_struct *es;
 
@@ -476,22 +505,15 @@ static char *real_event(const char *name, char *event)
 }
 
 static int
-try_fixup(const char *fn, char *arch_std, char **event, char **desc,
-	  char **name, char **long_desc, char **pmu, char **filter,
-	  char **perpkg, char **unit, char **metric_expr, char **metric_name,
-	  char **metric_group, unsigned long long eventcode)
+try_fixup(const char *fn, char *arch_std, struct json_event *je, char **event)
 {
 	/* try to find matching event from arch standard values */
 	struct event_struct *es;
 
 	list_for_each_entry(es, &arch_std_events, list) {
 		if (!strcmp(arch_std, es->name)) {
-			if (!eventcode && es->event) {
-				/* allow EventCode to be overridden */
-				free(*event);
-				*event = NULL;
-			}
 			FOR_ALL_EVENT_STRUCT_FIELDS(TRY_FIXUP_FIELD);
+			*event = je->event;
 			return 0;
 		}
 	}
@@ -502,13 +524,9 @@ try_fixup(const char *fn, char *arch_std, char **event, char **desc,
 }
 
 /* Call func with each event in the json file */
-int json_events(const char *fn,
-	  int (*func)(void *data, char *name, char *event, char *desc,
-		      char *long_desc,
-		      char *pmu, char *unit, char *perpkg,
-		      char *metric_expr,
-		      char *metric_name, char *metric_group),
-	  void *data)
+static int json_events(const char *fn,
+		int (*func)(void *data, struct json_event *je),
+			void *data)
 {
 	int err;
 	size_t size;
@@ -526,16 +544,10 @@ int json_events(const char *fn,
 	EXPECT(tokens->type == JSMN_ARRAY, tokens, "expected top level array");
 	tok = tokens + 1;
 	for (i = 0; i < tokens->size; i++) {
-		char *event = NULL, *desc = NULL, *name = NULL;
-		char *long_desc = NULL;
+		char *event = NULL;
 		char *extra_desc = NULL;
-		char *pmu = NULL;
 		char *filter = NULL;
-		char *perpkg = NULL;
-		char *unit = NULL;
-		char *metric_expr = NULL;
-		char *metric_name = NULL;
-		char *metric_group = NULL;
+		struct json_event je = {};
 		char *arch_std = NULL;
 		unsigned long long eventcode = 0;
 		struct msrmap *msr = NULL;
@@ -570,14 +582,14 @@ int json_events(const char *fn,
 				eventcode |= strtoul(code, NULL, 0) << 21;
 				free(code);
 			} else if (json_streq(map, field, "EventName")) {
-				addfield(map, &name, "", "", val);
+				addfield(map, &je.name, "", "", val);
 			} else if (json_streq(map, field, "BriefDescription")) {
-				addfield(map, &desc, "", "", val);
-				fixdesc(desc);
+				addfield(map, &je.desc, "", "", val);
+				fixdesc(je.desc);
 			} else if (json_streq(map, field,
 					     "PublicDescription")) {
-				addfield(map, &long_desc, "", "", val);
-				fixdesc(long_desc);
+				addfield(map, &je.long_desc, "", "", val);
+				fixdesc(je.long_desc);
 			} else if (json_streq(map, field, "PEBS") && nz) {
 				precise = val;
 			} else if (json_streq(map, field, "MSRIndex") && nz) {
@@ -597,30 +609,36 @@ int json_events(const char *fn,
 
 				ppmu = field_to_perf(unit_to_pmu, map, val);
 				if (ppmu) {
-					pmu = strdup(ppmu);
+					je.pmu = strdup(ppmu);
 				} else {
-					if (!pmu)
-						pmu = strdup("uncore_");
-					addfield(map, &pmu, "", "", val);
-					for (s = pmu; *s; s++)
+					if (!je.pmu)
+						je.pmu = strdup("uncore_");
+					addfield(map, &je.pmu, "", "", val);
+					for (s = je.pmu; *s; s++)
 						*s = tolower(*s);
 				}
-				addfield(map, &desc, ". ", "Unit: ", NULL);
-				addfield(map, &desc, "", pmu, NULL);
-				addfield(map, &desc, "", " ", NULL);
+				addfield(map, &je.desc, ". ", "Unit: ", NULL);
+				addfield(map, &je.desc, "", je.pmu, NULL);
+				addfield(map, &je.desc, "", " ", NULL);
 			} else if (json_streq(map, field, "Filter")) {
 				addfield(map, &filter, "", "", val);
 			} else if (json_streq(map, field, "ScaleUnit")) {
-				addfield(map, &unit, "", "", val);
+				addfield(map, &je.unit, "", "", val);
 			} else if (json_streq(map, field, "PerPkg")) {
-				addfield(map, &perpkg, "", "", val);
+				addfield(map, &je.perpkg, "", "", val);
+			} else if (json_streq(map, field, "AggregationMode")) {
+				addfield(map, &je.aggr_mode, "", "", val);
+			} else if (json_streq(map, field, "Deprecated")) {
+				addfield(map, &je.deprecated, "", "", val);
 			} else if (json_streq(map, field, "MetricName")) {
-				addfield(map, &metric_name, "", "", val);
+				addfield(map, &je.metric_name, "", "", val);
 			} else if (json_streq(map, field, "MetricGroup")) {
-				addfield(map, &metric_group, "", "", val);
+				addfield(map, &je.metric_group, "", "", val);
+			} else if (json_streq(map, field, "MetricConstraint")) {
+				addfield(map, &je.metric_constraint, "", "", val);
 			} else if (json_streq(map, field, "MetricExpr")) {
-				addfield(map, &metric_expr, "", "", val);
-				for (s = metric_expr; *s; s++)
+				addfield(map, &je.metric_expr, "", "", val);
+				for (s = je.metric_expr; *s; s++)
 					*s = tolower(*s);
 			} else if (json_streq(map, field, "ArchStdEvent")) {
 				addfield(map, &arch_std, "", "", val);
@@ -629,7 +647,7 @@ int json_events(const char *fn,
 			}
 			/* ignore unknown fields */
 		}
-		if (precise && desc && !strstr(desc, "(Precise Event)")) {
+		if (precise && je.desc && !strstr(je.desc, "(Precise Event)")) {
 			if (json_streq(map, precise, "2"))
 				addfield(map, &extra_desc, " ",
 						"(Must be precise)", NULL);
@@ -639,44 +657,44 @@ int json_events(const char *fn,
 		}
 		snprintf(buf, sizeof buf, "event=%#llx", eventcode);
 		addfield(map, &event, ",", buf, NULL);
-		if (desc && extra_desc)
-			addfield(map, &desc, " ", extra_desc, NULL);
-		if (long_desc && extra_desc)
-			addfield(map, &long_desc, " ", extra_desc, NULL);
+		if (je.desc && extra_desc)
+			addfield(map, &je.desc, " ", extra_desc, NULL);
+		if (je.long_desc && extra_desc)
+			addfield(map, &je.long_desc, " ", extra_desc, NULL);
 		if (filter)
 			addfield(map, &event, ",", filter, NULL);
 		if (msr != NULL)
 			addfield(map, &event, ",", msr->pname, msrval);
-		if (name)
-			fixname(name);
+		if (je.name)
+			fixname(je.name);
 
 		if (arch_std) {
 			/*
 			 * An arch standard event is referenced, so try to
 			 * fixup any unassigned values.
 			 */
-			err = try_fixup(fn, arch_std, &event, &desc, &name,
-					&long_desc, &pmu, &filter, &perpkg,
-					&unit, &metric_expr, &metric_name,
-					&metric_group, eventcode);
+			err = try_fixup(fn, arch_std, &je, &event);
 			if (err)
 				goto free_strings;
 		}
-		err = func(data, name, real_event(name, event), desc, long_desc,
-			   pmu, unit, perpkg, metric_expr, metric_name, metric_group);
+		je.event = real_event(je.name, event);
+		err = func(data, &je);
 free_strings:
 		free(event);
-		free(desc);
-		free(name);
-		free(long_desc);
+		free(je.desc);
+		free(je.name);
+		free(je.long_desc);
 		free(extra_desc);
-		free(pmu);
+		free(je.pmu);
 		free(filter);
-		free(perpkg);
-		free(unit);
-		free(metric_expr);
-		free(metric_name);
-		free(metric_group);
+		free(je.perpkg);
+		free(je.aggr_mode);
+		free(je.deprecated);
+		free(je.unit);
+		free(je.metric_expr);
+		free(je.metric_name);
+		free(je.metric_group);
+		free(je.metric_constraint);
 		free(arch_std);
 
 		if (err)
@@ -750,6 +768,19 @@ static void print_mapping_table_suffix(FILE *outfp)
 	fprintf(outfp, "};\n");
 }
 
+static void print_mapping_test_table(FILE *outfp)
+{
+	/*
+	 * Print the terminating, NULL entry.
+	 */
+	fprintf(outfp, "{\n");
+	fprintf(outfp, "\t.cpuid = \"testcpu\",\n");
+	fprintf(outfp, "\t.version = \"v1\",\n");
+	fprintf(outfp, "\t.type = \"core\",\n");
+	fprintf(outfp, "\t.table = pme_test_cpu,\n");
+	fprintf(outfp, "},\n");
+}
+
 static int process_mapfile(FILE *outfp, char *fpath)
 {
 	int n = 16384;
@@ -758,6 +789,7 @@ static int process_mapfile(FILE *outfp, char *fpath)
 	char *line, *p;
 	int line_num;
 	char *tblname;
+	int ret = 0;
 
 	pr_info("%s: Processing mapfile %s\n", prog, fpath);
 
@@ -769,6 +801,7 @@ static int process_mapfile(FILE *outfp, char *fpath)
 	if (!mapfp) {
 		pr_info("%s: Error %s opening %s\n", prog, strerror(errno),
 				fpath);
+		free(line);
 		return -1;
 	}
 
@@ -795,7 +828,8 @@ static int process_mapfile(FILE *outfp, char *fpath)
 			/* TODO Deal with lines longer than 16K */
 			pr_info("%s: Mapfile %s: line %d too long, aborting\n",
 					prog, fpath, line_num);
-			return -1;
+			ret = -1;
+			goto out;
 		}
 		line[strlen(line)-1] = '\0';
 
@@ -824,8 +858,11 @@ static int process_mapfile(FILE *outfp, char *fpath)
 	}
 
 out:
+	print_mapping_test_table(outfp);
 	print_mapping_table_suffix(outfp);
-	return 0;
+	fclose(mapfp);
+	free(line);
+	return ret;
 }
 
 /*
@@ -1063,10 +1100,9 @@ static int process_one_file(const char *fpath, const struct stat *sb,
  */
 int main(int argc, char *argv[])
 {
-	int rc;
+	int rc, ret = 0;
 	int maxfds;
 	char ldirname[PATH_MAX];
-
 	const char *arch;
 	const char *output_file;
 	const char *start_dirname;
@@ -1122,6 +1158,7 @@ int main(int argc, char *argv[])
 		goto empty_map;
 	} else if (rc < 0) {
 		/* Make build fail */
+		fclose(eventsfp);
 		free_arch_std_events();
 		return 1;
 	} else if (rc) {
@@ -1134,8 +1171,26 @@ int main(int argc, char *argv[])
 		goto empty_map;
 	} else if (rc < 0) {
 		/* Make build fail */
+		fclose(eventsfp);
 		free_arch_std_events();
-		return 1;
+		ret = 1;
+		goto out_free_mapfile;
+	} else if (rc) {
+		goto empty_map;
+	}
+
+	sprintf(ldirname, "%s/test", start_dirname);
+
+	rc = nftw(ldirname, process_one_file, maxfds, 0);
+	if (rc && verbose) {
+		pr_info("%s: Error walking file tree %s rc=%d for test\n",
+			prog, ldirname, rc);
+		goto empty_map;
+	} else if (rc < 0) {
+		/* Make build fail */
+		free_arch_std_events();
+		ret = 1;
+		goto out_free_mapfile;
 	} else if (rc) {
 		goto empty_map;
 	}
@@ -1151,14 +1206,19 @@ int main(int argc, char *argv[])
 	if (process_mapfile(eventsfp, mapfile)) {
 		pr_info("%s: Error processing mapfile %s\n", prog, mapfile);
 		/* Make build fail */
-		return 1;
+		fclose(eventsfp);
+		free_arch_std_events();
+		ret = 1;
 	}
 
-	return 0;
+
+	goto out_free_mapfile;
 
 empty_map:
 	fclose(eventsfp);
 	create_empty_mapping(output_file);
 	free_arch_std_events();
-	return 0;
+out_free_mapfile:
+	free(mapfile);
+	return ret;
 }

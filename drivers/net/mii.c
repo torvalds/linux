@@ -597,7 +597,7 @@ int generic_mii_ioctl(struct mii_if_info *mii_if,
 	switch(cmd) {
 	case SIOCGMIIPHY:
 		mii_data->phy_id = mii_if->phy_id;
-		/* fall through */
+		fallthrough;
 
 	case SIOCGMIIREG:
 		mii_data->val_out =

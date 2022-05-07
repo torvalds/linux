@@ -4,6 +4,10 @@
 #ifndef NFP_CRYPTO_H
 #define NFP_CRYPTO_H 1
 
+struct net_device;
+struct nfp_net;
+struct nfp_net_tls_resync_req;
+
 struct nfp_net_tls_offload_ctx {
 	__be32 fw_handle[2];
 
@@ -17,10 +21,21 @@ struct nfp_net_tls_offload_ctx {
 
 #ifdef CONFIG_TLS_DEVICE
 int nfp_net_tls_init(struct nfp_net *nn);
+int nfp_net_tls_rx_resync_req(struct net_device *netdev,
+			      struct nfp_net_tls_resync_req *req,
+			      void *pkt, unsigned int pkt_len);
 #else
 static inline int nfp_net_tls_init(struct nfp_net *nn)
 {
 	return 0;
+}
+
+static inline int
+nfp_net_tls_rx_resync_req(struct net_device *netdev,
+			  struct nfp_net_tls_resync_req *req,
+			  void *pkt, unsigned int pkt_len)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 

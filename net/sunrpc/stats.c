@@ -69,12 +69,11 @@ static int rpc_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, rpc_proc_show, PDE_DATA(inode));
 }
 
-static const struct file_operations rpc_proc_fops = {
-	.owner = THIS_MODULE,
-	.open = rpc_proc_open,
-	.read  = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+static const struct proc_ops rpc_proc_ops = {
+	.proc_open	= rpc_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 /*
@@ -281,19 +280,19 @@ EXPORT_SYMBOL_GPL(rpc_clnt_show_stats);
  */
 static inline struct proc_dir_entry *
 do_register(struct net *net, const char *name, void *data,
-	    const struct file_operations *fops)
+	    const struct proc_ops *proc_ops)
 {
 	struct sunrpc_net *sn;
 
 	dprintk("RPC:       registering /proc/net/rpc/%s\n", name);
 	sn = net_generic(net, sunrpc_net_id);
-	return proc_create_data(name, 0, sn->proc_net_rpc, fops, data);
+	return proc_create_data(name, 0, sn->proc_net_rpc, proc_ops, data);
 }
 
 struct proc_dir_entry *
 rpc_proc_register(struct net *net, struct rpc_stat *statp)
 {
-	return do_register(net, statp->program->name, statp, &rpc_proc_fops);
+	return do_register(net, statp->program->name, statp, &rpc_proc_ops);
 }
 EXPORT_SYMBOL_GPL(rpc_proc_register);
 
@@ -308,9 +307,9 @@ rpc_proc_unregister(struct net *net, const char *name)
 EXPORT_SYMBOL_GPL(rpc_proc_unregister);
 
 struct proc_dir_entry *
-svc_proc_register(struct net *net, struct svc_stat *statp, const struct file_operations *fops)
+svc_proc_register(struct net *net, struct svc_stat *statp, const struct proc_ops *proc_ops)
 {
-	return do_register(net, statp->program->pg_name, statp, fops);
+	return do_register(net, statp->program->pg_name, statp, proc_ops);
 }
 EXPORT_SYMBOL_GPL(svc_proc_register);
 

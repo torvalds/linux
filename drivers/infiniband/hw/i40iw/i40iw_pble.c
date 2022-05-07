@@ -167,7 +167,7 @@ static enum i40iw_status_code add_sd_direct(struct i40iw_sc_dev *dev,
  */
 static void i40iw_free_vmalloc_mem(struct i40iw_hw *hw, struct i40iw_chunk *chunk)
 {
-	struct pci_dev *pcidev = (struct pci_dev *)hw->dev_context;
+	struct pci_dev *pcidev = hw->pcidev;
 	int i;
 
 	if (!chunk->pg_cnt)
@@ -193,7 +193,7 @@ static enum i40iw_status_code i40iw_get_vmalloc_mem(struct i40iw_hw *hw,
 						    struct i40iw_chunk *chunk,
 						    int pg_cnt)
 {
-	struct pci_dev *pcidev = (struct pci_dev *)hw->dev_context;
+	struct pci_dev *pcidev = hw->pcidev;
 	struct page *page;
 	u8 *addr;
 	u32 size;

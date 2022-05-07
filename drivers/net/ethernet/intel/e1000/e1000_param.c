@@ -708,7 +708,7 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter)
 		goto full_duplex_only;
 	case SPEED_1000 + HALF_DUPLEX:
 		e_dev_info("Half Duplex is not supported at 1000 Mbps\n");
-		/* fall through */
+		fallthrough;
 	case SPEED_1000 + FULL_DUPLEX:
 full_duplex_only:
 		e_dev_info("Using Autonegotiation at 1000 Mbps Full Duplex "

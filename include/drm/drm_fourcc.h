@@ -78,7 +78,7 @@ struct drm_format_info {
 		 * triplet @char_per_block, @block_w, @block_h for better
 		 * describing the pixel format.
 		 */
-		u8 cpp[3];
+		u8 cpp[4];
 
 		/**
 		 * @char_per_block:
@@ -104,7 +104,7 @@ struct drm_format_info {
 		 * information from their drm_mode_config.get_format_info hook
 		 * if they want the core to be validating the pitch.
 		 */
-		u8 char_per_block[3];
+		u8 char_per_block[4];
 	};
 
 	/**
@@ -113,7 +113,7 @@ struct drm_format_info {
 	 * Block width in pixels, this is intended to be accessed through
 	 * drm_format_info_block_width()
 	 */
-	u8 block_w[3];
+	u8 block_w[4];
 
 	/**
 	 * @block_h:
@@ -121,7 +121,7 @@ struct drm_format_info {
 	 * Block height in pixels, this is intended to be accessed through
 	 * drm_format_info_block_height()
 	 */
-	u8 block_h[3];
+	u8 block_h[4];
 
 	/** @hsub: Horizontal chroma subsampling factor */
 	u8 hsub;

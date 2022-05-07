@@ -50,7 +50,7 @@ int __init init_cyclone_clock(void)
 
 	/* find base address */
 	offset = (CYCLONE_CBAR_ADDR);
-	reg = ioremap_nocache(offset, sizeof(u64));
+	reg = ioremap(offset, sizeof(u64));
 	if(!reg){
 		printk(KERN_ERR "Summit chipset: Could not find valid CBAR"
 				" register.\n");
@@ -68,7 +68,7 @@ int __init init_cyclone_clock(void)
 
 	/* setup PMCC */
 	offset = (base + CYCLONE_PMCC_OFFSET);
-	reg = ioremap_nocache(offset, sizeof(u64));
+	reg = ioremap(offset, sizeof(u64));
 	if(!reg){
 		printk(KERN_ERR "Summit chipset: Could not find valid PMCC"
 				" register.\n");
@@ -80,7 +80,7 @@ int __init init_cyclone_clock(void)
 
 	/* setup MPCS */
 	offset = (base + CYCLONE_MPCS_OFFSET);
-	reg = ioremap_nocache(offset, sizeof(u64));
+	reg = ioremap(offset, sizeof(u64));
 	if(!reg){
 		printk(KERN_ERR "Summit chipset: Could not find valid MPCS"
 				" register.\n");
@@ -92,7 +92,7 @@ int __init init_cyclone_clock(void)
 
 	/* map in cyclone_timer */
 	offset = (base + CYCLONE_MPMC_OFFSET);
-	cyclone_timer = ioremap_nocache(offset, sizeof(u32));
+	cyclone_timer = ioremap(offset, sizeof(u32));
 	if(!cyclone_timer){
 		printk(KERN_ERR "Summit chipset: Could not find valid MPMC"
 				" register.\n");

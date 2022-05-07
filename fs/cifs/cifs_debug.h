@@ -8,6 +8,12 @@
 #ifndef _H_CIFS_DEBUG
 #define _H_CIFS_DEBUG
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) "CIFS: " fmt
+
 void cifs_dump_mem(char *label, void *data, int length);
 void cifs_dump_detail(void *buf, struct TCP_Server_Info *ptcp_info);
 void cifs_dump_mids(struct TCP_Server_Info *);
@@ -46,92 +52,81 @@ extern int cifsFYI;
  */
 
 /* Information level messages, minor events */
-#define cifs_info_func(ratefunc, fmt, ...)			\
-do {								\
-	pr_info_ ## ratefunc("CIFS: " fmt, ##__VA_ARGS__); 	\
-} while (0)
+#define cifs_info_func(ratefunc, fmt, ...)				\
+	pr_info_ ## ratefunc(fmt, ##__VA_ARGS__)
 
-#define cifs_info(fmt, ...)					\
-do { 								\
-	cifs_info_func(ratelimited, fmt, ##__VA_ARGS__); 	\
-} while (0)
+#define cifs_info(fmt, ...)						\
+	cifs_info_func(ratelimited, fmt, ##__VA_ARGS__)
 
 /* information message: e.g., configuration, major event */
-#define cifs_dbg_func(ratefunc, type, fmt, ...)			\
-do {								\
-	if ((type) & FYI && cifsFYI & CIFS_INFO) {		\
-		pr_debug_ ## ratefunc("%s: "			\
-				fmt, __FILE__, ##__VA_ARGS__);	\
-	} else if ((type) & VFS) {				\
-		pr_err_ ## ratefunc("CIFS VFS: "		\
-				 fmt, ##__VA_ARGS__);		\
-	} else if ((type) & NOISY && (NOISY != 0)) {		\
-		pr_debug_ ## ratefunc(fmt, ##__VA_ARGS__);	\
-	}							\
+#define cifs_dbg_func(ratefunc, type, fmt, ...)				\
+do {									\
+	if ((type) & FYI && cifsFYI & CIFS_INFO) {			\
+		pr_debug_ ## ratefunc("%s: " fmt,			\
+				      __FILE__, ##__VA_ARGS__);		\
+	} else if ((type) & VFS) {					\
+		pr_err_ ## ratefunc("VFS: " fmt, ##__VA_ARGS__);	\
+	} else if ((type) & NOISY && (NOISY != 0)) {			\
+		pr_debug_ ## ratefunc(fmt, ##__VA_ARGS__);		\
+	}								\
 } while (0)
 
-#define cifs_dbg(type, fmt, ...) \
-do {							\
-	if ((type) & ONCE)				\
-		cifs_dbg_func(once,			\
-			 type, fmt, ##__VA_ARGS__);	\
-	else						\
-		cifs_dbg_func(ratelimited,		\
-			type, fmt, ##__VA_ARGS__);	\
+#define cifs_dbg(type, fmt, ...)					\
+do {									\
+	if ((type) & ONCE)						\
+		cifs_dbg_func(once, type, fmt, ##__VA_ARGS__);		\
+	else								\
+		cifs_dbg_func(ratelimited, type, fmt, ##__VA_ARGS__);	\
 } while (0)
 
-#define cifs_server_dbg_func(ratefunc, type, fmt, ...)		\
-do {								\
-	const char *sn = "";					\
-	if (server && server->hostname)				\
-		sn = server->hostname;				\
-	if ((type) & FYI && cifsFYI & CIFS_INFO) {		\
-		pr_debug_ ## ratefunc("%s: \\\\%s "	fmt,	\
-			__FILE__, sn, ##__VA_ARGS__);		\
-	} else if ((type) & VFS) {				\
-		pr_err_ ## ratefunc("CIFS VFS: \\\\%s " fmt,	\
-			sn, ##__VA_ARGS__);			\
-	} else if ((type) & NOISY && (NOISY != 0)) {		\
-		pr_debug_ ## ratefunc("\\\\%s " fmt,		\
-			sn, ##__VA_ARGS__);			\
-	}							\
+#define cifs_server_dbg_func(ratefunc, type, fmt, ...)			\
+do {									\
+	const char *sn = "";						\
+	if (server && server->hostname)					\
+		sn = server->hostname;					\
+	if ((type) & FYI && cifsFYI & CIFS_INFO) {			\
+		pr_debug_ ## ratefunc("%s: \\\\%s " fmt,		\
+				      __FILE__, sn, ##__VA_ARGS__);	\
+	} else if ((type) & VFS) {					\
+		pr_err_ ## ratefunc("VFS: \\\\%s " fmt,			\
+				    sn, ##__VA_ARGS__);			\
+	} else if ((type) & NOISY && (NOISY != 0)) {			\
+		pr_debug_ ## ratefunc("\\\\%s " fmt,			\
+				      sn, ##__VA_ARGS__);		\
+	}								\
 } while (0)
 
-#define cifs_server_dbg(type, fmt, ...)			\
-do {							\
-	if ((type) & ONCE)				\
-		cifs_server_dbg_func(once,		\
-			type, fmt, ##__VA_ARGS__);	\
-	else						\
-		cifs_server_dbg_func(ratelimited,	\
-			type, fmt, ##__VA_ARGS__);	\
+#define cifs_server_dbg(type, fmt, ...)					\
+do {									\
+	if ((type) & ONCE)						\
+		cifs_server_dbg_func(once, type, fmt, ##__VA_ARGS__);	\
+	else								\
+		cifs_server_dbg_func(ratelimited, type, fmt,		\
+				     ##__VA_ARGS__);			\
 } while (0)
 
-#define cifs_tcon_dbg_func(ratefunc, type, fmt, ...)		\
-do {								\
-	const char *tn = "";					\
-	if (tcon && tcon->treeName)				\
-		tn = tcon->treeName;				\
-	if ((type) & FYI && cifsFYI & CIFS_INFO) {		\
-		pr_debug_ ## ratefunc("%s: %s "	fmt,		\
-			__FILE__, tn, ##__VA_ARGS__);		\
-	} else if ((type) & VFS) {				\
-		pr_err_ ## ratefunc("CIFS VFS: %s " fmt,	\
-			tn, ##__VA_ARGS__);			\
-	} else if ((type) & NOISY && (NOISY != 0)) {		\
-		pr_debug_ ## ratefunc("%s " fmt,		\
-			tn, ##__VA_ARGS__);			\
-	}							\
+#define cifs_tcon_dbg_func(ratefunc, type, fmt, ...)			\
+do {									\
+	const char *tn = "";						\
+	if (tcon && tcon->treeName)					\
+		tn = tcon->treeName;					\
+	if ((type) & FYI && cifsFYI & CIFS_INFO) {			\
+		pr_debug_ ## ratefunc("%s: %s "	fmt,			\
+				      __FILE__, tn, ##__VA_ARGS__);	\
+	} else if ((type) & VFS) {					\
+		pr_err_ ## ratefunc("VFS: %s " fmt, tn, ##__VA_ARGS__);	\
+	} else if ((type) & NOISY && (NOISY != 0)) {			\
+		pr_debug_ ## ratefunc("%s " fmt, tn, ##__VA_ARGS__);	\
+	}								\
 } while (0)
 
-#define cifs_tcon_dbg(type, fmt, ...)			\
-do {							\
-	if ((type) & ONCE)				\
-		cifs_tcon_dbg_func(once,		\
-			type, fmt, ##__VA_ARGS__);	\
-	else						\
-		cifs_tcon_dbg_func(ratelimited,	\
-			type, fmt, ##__VA_ARGS__);	\
+#define cifs_tcon_dbg(type, fmt, ...)					\
+do {									\
+	if ((type) & ONCE)						\
+		cifs_tcon_dbg_func(once, type, fmt, ##__VA_ARGS__);	\
+	else								\
+		cifs_tcon_dbg_func(ratelimited, type, fmt,		\
+				   ##__VA_ARGS__);			\
 } while (0)
 
 /*
@@ -159,9 +154,7 @@ do {									\
 } while (0)
 
 #define cifs_info(fmt, ...)						\
-do {									\
-	pr_info("CIFS: "fmt, ##__VA_ARGS__);				\
-} while (0)
+	pr_info(fmt, ##__VA_ARGS__)
 #endif
 
 #endif				/* _H_CIFS_DEBUG */

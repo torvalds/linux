@@ -4,20 +4,13 @@
  */
 
 /dts-v1/;
-#include "ste-dbx5x0.dtsi"
+#include "ste-db8500.dtsi"
 #include "ste-href-ab8500.dtsi"
 #include "ste-href-family-pinctrl.dtsi"
 
 / {
 	model = "Calao Systems Snowball platform with device tree";
 	compatible = "calaosystems,snowball-a9500", "st-ericsson,u9500";
-
-	/* This stablilizes the serial port enumeration */
-	aliases {
-		serial0 = &ux500_serial0;
-		serial1 = &ux500_serial1;
-		serial2 = &ux500_serial2;
-	};
 
 	memory {
 		device_type = "memory";
@@ -156,19 +149,19 @@
 
 		msp0: msp@80123000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&msp0_default_mode>;
+			pinctrl-0 = <&msp0txrxtfstck_a_1_default>;
 			status = "okay";
 		};
 
 		msp1: msp@80124000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&msp1_default_mode>;
+			pinctrl-0 = <&msp1txrx_a_1_default>;
 			status = "okay";
 		};
 
 		msp2: msp@80117000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&msp2_default_mode>;
+			pinctrl-0 = <&msp2_a_1_default>;
 		};
 
 		msp3: msp@80125000 {
@@ -238,8 +231,8 @@
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 			vqmmc-supply = <&vmmci>;
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&sdi0_default_mode>;
-			pinctrl-1 = <&sdi0_sleep_mode>;
+			pinctrl-0 = <&mc0_a_1_default &sdi0_default_mode>;
+			pinctrl-1 = <&mc0_a_1_sleep>;
 
 			/* GPIO218 MMC_CD */
 			cd-gpios  = <&gpio6 26 GPIO_ACTIVE_LOW>;
@@ -253,8 +246,8 @@
 			max-frequency = <100000000>;
 			bus-width = <4>;
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&sdi1_default_mode>;
-			pinctrl-1 = <&sdi1_sleep_mode>;
+			pinctrl-0 = <&mc1_a_1_default>;
+			pinctrl-1 = <&mc1_a_1_sleep>;
 
 			status = "okay";
 		};
@@ -263,7 +256,7 @@
 		sdi2_per3@80005000 {
 			arm,primecell-periphid = <0x10480180>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&sdi2_sleep_mode>;
+			pinctrl-0 = <&mc2_a_1_sleep>;
 
 			status = "okay";
 		};
@@ -276,49 +269,52 @@
 			cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&sdi4_default_mode>;
-			pinctrl-1 = <&sdi4_sleep_mode>;
+			pinctrl-0 = <&mc4_a_1_default>;
+			pinctrl-1 = <&mc4_a_1_sleep>;
 
 			status = "okay";
 		};
 
 		uart@80120000 {
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&uart0_default_mode>;
-			pinctrl-1 = <&uart0_sleep_mode>;
+			pinctrl-0 = <&u0_a_1_default>;
+			pinctrl-1 = <&u0_a_1_sleep>;
 			status = "okay";
 		};
 
 		/* This UART is unused and thus left disabled */
 		uart@80121000 {
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&uart1_default_mode>;
-			pinctrl-1 = <&uart1_sleep_mode>;
+			pinctrl-0 = <&u1rxtx_a_1_default>;
+			pinctrl-1 = <&u1rxtx_a_1_sleep>;
 		};
 
 		uart@80007000 {
 			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&uart2_default_mode>;
-			pinctrl-1 = <&uart2_sleep_mode>;
+			pinctrl-0 = <&u2rxtx_c_1_default>;
+			pinctrl-1 = <&u2rxtx_c_1_sleep>;
 			status = "okay";
 		};
 
 		i2c@80004000 {
 			pinctrl-names = "default","sleep";
-			pinctrl-0 = <&i2c0_default_mode>;
-			pinctrl-1 = <&i2c0_sleep_mode>;
+			pinctrl-0 = <&i2c0_a_1_default>;
+			pinctrl-1 = <&i2c0_a_1_sleep>;
+			status = "okay";
 		};
 
 		i2c@80122000 {
 			pinctrl-names = "default","sleep";
-			pinctrl-0 = <&i2c1_default_mode>;
-			pinctrl-1 = <&i2c1_sleep_mode>;
+			pinctrl-0 = <&i2c1_b_2_default>;
+			pinctrl-1 = <&i2c1_b_2_sleep>;
+			status = "okay";
 		};
 
 		i2c@80128000 {
 			pinctrl-names = "default","sleep";
-			pinctrl-0 = <&i2c2_default_mode>;
-			pinctrl-1 = <&i2c2_sleep_mode>;
+			pinctrl-0 = <&i2c2_b_2_default>;
+			pinctrl-1 = <&i2c2_b_2_sleep>;
+			status = "okay";
 			lsm303dlh@18 {
 				/* Accelerometer */
 				compatible = "st,lsm303dlh-accel";
@@ -367,20 +363,18 @@
 
 		i2c@80110000 {
 			pinctrl-names = "default","sleep";
-			pinctrl-0 = <&i2c3_default_mode>;
-			pinctrl-1 = <&i2c3_sleep_mode>;
+			pinctrl-0 = <&i2c3_c_2_default>;
+			pinctrl-1 = <&i2c3_c_2_sleep>;
+			status = "okay";
 		};
 
 		spi@80002000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&ssp0_snowball_mode>;
+			status = "okay";
 		};
 
 		prcmu@80157000 {
-			cpufreq {
-				status = "okay";
-			};
-
 			ab8500 {
 				ab8500-gpio {
 					/*
@@ -406,8 +400,8 @@
 
 				ab8500_usb {
 					pinctrl-names = "default", "sleep";
-					pinctrl-0 = <&musb_default_mode>;
-					pinctrl-1 = <&musb_sleep_mode>;
+					pinctrl-0 = <&usb_a_1_default>;
+					pinctrl-1 = <&usb_a_1_sleep>;
 				};
 
 				ext_regulators: ab8500-ext-regulators {

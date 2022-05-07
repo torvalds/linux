@@ -450,6 +450,53 @@ struct drm_crtc_helper_funcs {
 	 */
 	void (*atomic_disable)(struct drm_crtc *crtc,
 			       struct drm_crtc_state *old_crtc_state);
+
+	/**
+	 * @get_scanout_position:
+	 *
+	 * Called by vblank timestamping code.
+	 *
+	 * Returns the current display scanout position from a CRTC and an
+	 * optional accurate ktime_get() timestamp of when the position was
+	 * measured. Note that this is a helper callback which is only used
+	 * if a driver uses drm_crtc_vblank_helper_get_vblank_timestamp()
+	 * for the @drm_crtc_funcs.get_vblank_timestamp callback.
+	 *
+	 * Parameters:
+	 *
+	 * crtc:
+	 *     The CRTC.
+	 * in_vblank_irq:
+	 *     True when called from drm_crtc_handle_vblank(). Some drivers
+	 *     need to apply some workarounds for gpu-specific vblank irq
+	 *     quirks if the flag is set.
+	 * vpos:
+	 *     Target location for current vertical scanout position.
+	 * hpos:
+	 *     Target location for current horizontal scanout position.
+	 * stime:
+	 *     Target location for timestamp taken immediately before
+	 *     scanout position query. Can be NULL to skip timestamp.
+	 * etime:
+	 *     Target location for timestamp taken immediately after
+	 *     scanout position query. Can be NULL to skip timestamp.
+	 * mode:
+	 *     Current display timings.
+	 *
+	 * Returns vpos as a positive number while in active scanout area.
+	 * Returns vpos as a negative number inside vblank, counting the number
+	 * of scanlines to go until end of vblank, e.g., -1 means "one scanline
+	 * until start of active scanout / end of vblank."
+	 *
+	 * Returns:
+	 *
+	 * True on success, false if a reliable scanout position counter could
+	 * not be read out.
+	 */
+	bool (*get_scanout_position)(struct drm_crtc *crtc,
+				     bool in_vblank_irq, int *vpos, int *hpos,
+				     ktime_t *stime, ktime_t *etime,
+				     const struct drm_display_mode *mode);
 };
 
 /**
@@ -644,22 +691,6 @@ struct drm_encoder_helper_funcs {
 	void (*atomic_mode_set)(struct drm_encoder *encoder,
 				struct drm_crtc_state *crtc_state,
 				struct drm_connector_state *conn_state);
-
-	/**
-	 * @get_crtc:
-	 *
-	 * This callback is used by the legacy CRTC helpers to work around
-	 * deficiencies in its own book-keeping.
-	 *
-	 * Do not use, use atomic helpers instead, which get the book keeping
-	 * right.
-	 *
-	 * FIXME:
-	 *
-	 * Currently only nouveau is using this, and as soon as nouveau is
-	 * atomic we can ditch this hook.
-	 */
-	struct drm_crtc *(*get_crtc)(struct drm_encoder *encoder);
 
 	/**
 	 * @detect:
@@ -937,6 +968,48 @@ struct drm_connector_helper_funcs {
 	 */
 	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
 					   struct drm_display_mode *mode);
+
+	/**
+	 * @mode_valid_ctx:
+	 *
+	 * Callback to validate a mode for a connector, irrespective of the
+	 * specific display configuration.
+	 *
+	 * This callback is used by the probe helpers to filter the mode list
+	 * (which is usually derived from the EDID data block from the sink).
+	 * See e.g. drm_helper_probe_single_connector_modes().
+	 *
+	 * This function is optional, and is the atomic version of
+	 * &drm_connector_helper_funcs.mode_valid.
+	 *
+	 * To allow for accessing the atomic state of modesetting objects, the
+	 * helper libraries always call this with ctx set to a valid context,
+	 * and &drm_mode_config.connection_mutex will always be locked with
+	 * the ctx parameter set to @ctx. This allows for taking additional
+	 * locks as required.
+	 *
+	 * Even though additional locks may be acquired, this callback is
+	 * still expected not to take any constraints into account which would
+	 * be influenced by the currently set display state - such constraints
+	 * should be handled in the driver's atomic check. For example, if a
+	 * connector shares display bandwidth with other connectors then it
+	 * would be ok to validate the minimum bandwidth requirement of a mode
+	 * against the maximum possible bandwidth of the connector. But it
+	 * wouldn't be ok to take the current bandwidth usage of other
+	 * connectors into account, as this would change depending on the
+	 * display state.
+	 *
+	 * Returns:
+	 * 0 if &drm_connector_helper_funcs.mode_valid_ctx succeeded and wrote
+	 * the &enum drm_mode_status value to @status, or a negative error
+	 * code otherwise.
+	 *
+	 */
+	int (*mode_valid_ctx)(struct drm_connector *connector,
+			      struct drm_display_mode *mode,
+			      struct drm_modeset_acquire_ctx *ctx,
+			      enum drm_mode_status *status);
+
 	/**
 	 * @best_encoder:
 	 *
@@ -955,9 +1028,8 @@ struct drm_connector_helper_funcs {
 	 * @atomic_best_encoder.
 	 *
 	 * You can leave this function to NULL if the connector is only
-	 * attached to a single encoder and you are using the atomic helpers.
-	 * In this case, the core will call drm_atomic_helper_best_encoder()
-	 * for you.
+	 * attached to a single encoder. In this case, the core will call
+	 * drm_connector_get_single_encoder() for you.
 	 *
 	 * RETURNS:
 	 *
@@ -977,7 +1049,7 @@ struct drm_connector_helper_funcs {
 	 *
 	 * This function is used by drm_atomic_helper_check_modeset().
 	 * If it is not implemented, the core will fallback to @best_encoder
-	 * (or drm_atomic_helper_best_encoder() if @best_encoder is NULL).
+	 * (or drm_connector_get_single_encoder() if @best_encoder is NULL).
 	 *
 	 * NOTE:
 	 *
@@ -1045,8 +1117,35 @@ struct drm_connector_helper_funcs {
 	void (*atomic_commit)(struct drm_connector *connector,
 			      struct drm_connector_state *state);
 
+	/**
+	 * @prepare_writeback_job:
+	 *
+	 * As writeback jobs contain a framebuffer, drivers may need to
+	 * prepare and clean them up the same way they can prepare and
+	 * clean up framebuffers for planes. This optional connector operation
+	 * is used to support the preparation of writeback jobs. The job
+	 * prepare operation is called from drm_atomic_helper_prepare_planes()
+	 * for struct &drm_writeback_connector connectors only.
+	 *
+	 * This operation is optional.
+	 *
+	 * This callback is used by the atomic modeset helpers.
+	 */
 	int (*prepare_writeback_job)(struct drm_writeback_connector *connector,
 				     struct drm_writeback_job *job);
+	/**
+	 * @cleanup_writeback_job:
+	 *
+	 * This optional connector operation is used to support the
+	 * cleanup of writeback jobs. The job cleanup operation is called
+	 * from the existing drm_writeback_cleanup_job() function, invoked
+	 * both when destroying the job as part of an aborted commit, or when
+	 * the job completes.
+	 *
+	 * This operation is optional.
+	 *
+	 * This callback is used by the atomic modeset helpers.
+	 */
 	void (*cleanup_writeback_job)(struct drm_writeback_connector *connector,
 				      struct drm_writeback_job *job);
 };

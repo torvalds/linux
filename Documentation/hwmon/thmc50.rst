@@ -17,7 +17,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x2c - 0x2e
 
-    Datasheet: http://www.ti.com/
+    Datasheet: https://www.ti.com/
 
 
 Author: Krzysztof Helt <krzysztof.h1@wp.pl>

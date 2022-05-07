@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/imx-pwm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX PWM controller
+
+maintainers:
+  - Philipp Zabel <p.zabel@pengutronix.de>
+
+properties:
+  "#pwm-cells":
+    description: |
+      Should be 2 for i.MX1 and 3 for i.MX27 and newer SoCs. See pwm.yaml
+      in this directory for a description of the cells format.
+    enum:
+      - 2
+      - 3
+
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx1-pwm
+          - fsl,imx27-pwm
+      - items:
+          - enum:
+              - fsl,imx25-pwm
+              - fsl,imx31-pwm
+              - fsl,imx50-pwm
+              - fsl,imx51-pwm
+              - fsl,imx53-pwm
+              - fsl,imx6q-pwm
+              - fsl,imx6sl-pwm
+              - fsl,imx6sll-pwm
+              - fsl,imx6sx-pwm
+              - fsl,imx6ul-pwm
+              - fsl,imx7d-pwm
+              - fsl,imx8mm-pwm
+              - fsl,imx8mn-pwm
+              - fsl,imx8mp-pwm
+              - fsl,imx8mq-pwm
+          - const: fsl,imx27-pwm
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: SoC PWM ipg clock
+      - description: SoC PWM per clock
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: per
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - "#pwm-cells"
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx5-clock.h>
+
+    pwm@53fb4000 {
+        #pwm-cells = <3>;
+        compatible = "fsl,imx27-pwm";
+        reg = <0x53fb4000 0x4000>;
+        clocks = <&clks IMX5_CLK_PWM1_IPG_GATE>,
+                 <&clks IMX5_CLK_PWM1_HF_GATE>;
+        clock-names = "ipg", "per";
+        interrupts = <61>;
+    };

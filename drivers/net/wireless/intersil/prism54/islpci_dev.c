@@ -636,10 +636,10 @@ islpci_alloc_memory(islpci_private *priv)
 	 */
 
 	/* perform the allocation */
-	priv->driver_mem_address = pci_alloc_consistent(priv->pdev,
-							HOST_MEM_BLOCK,
-							&priv->
-							device_host_address);
+	priv->driver_mem_address = dma_alloc_coherent(&priv->pdev->dev,
+						      HOST_MEM_BLOCK,
+						      &priv->device_host_address,
+						      GFP_KERNEL);
 
 	if (!priv->driver_mem_address) {
 		/* error allocating the block of PCI memory */
@@ -692,11 +692,9 @@ islpci_alloc_memory(islpci_private *priv)
 
 		/* map the allocated skb data area to pci */
 		priv->pci_map_rx_address[counter] =
-		    pci_map_single(priv->pdev, (void *) skb->data,
-				   MAX_FRAGMENT_SIZE_RX + 2,
-				   PCI_DMA_FROMDEVICE);
-		if (pci_dma_mapping_error(priv->pdev,
-					  priv->pci_map_rx_address[counter])) {
+		    dma_map_single(&priv->pdev->dev, (void *)skb->data,
+				   MAX_FRAGMENT_SIZE_RX + 2, DMA_FROM_DEVICE);
+		if (dma_mapping_error(&priv->pdev->dev, priv->pci_map_rx_address[counter])) {
 			priv->pci_map_rx_address[counter] = 0;
 			/* error mapping the buffer to device
 			   accessible memory address */
@@ -727,9 +725,9 @@ islpci_free_memory(islpci_private *priv)
 
 	/* free consistent DMA area... */
 	if (priv->driver_mem_address)
-		pci_free_consistent(priv->pdev, HOST_MEM_BLOCK,
-				    priv->driver_mem_address,
-				    priv->device_host_address);
+		dma_free_coherent(&priv->pdev->dev, HOST_MEM_BLOCK,
+				  priv->driver_mem_address,
+				  priv->device_host_address);
 
 	/* clear some dangling pointers */
 	priv->driver_mem_address = NULL;
@@ -741,8 +739,8 @@ islpci_free_memory(islpci_private *priv)
         for (counter = 0; counter < ISL38XX_CB_MGMT_QSIZE; counter++) {
 		struct islpci_membuf *buf = &priv->mgmt_rx[counter];
 		if (buf->pci_addr)
-			pci_unmap_single(priv->pdev, buf->pci_addr,
-					 buf->size, PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&priv->pdev->dev, buf->pci_addr,
+					 buf->size, DMA_FROM_DEVICE);
 		buf->pci_addr = 0;
 		kfree(buf->mem);
 		buf->size = 0;
@@ -752,10 +750,10 @@ islpci_free_memory(islpci_private *priv)
 	/* clean up data rx buffers */
 	for (counter = 0; counter < ISL38XX_CB_RX_QSIZE; counter++) {
 		if (priv->pci_map_rx_address[counter])
-			pci_unmap_single(priv->pdev,
+			dma_unmap_single(&priv->pdev->dev,
 					 priv->pci_map_rx_address[counter],
 					 MAX_FRAGMENT_SIZE_RX + 2,
-					 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 		priv->pci_map_rx_address[counter] = 0;
 
 		if (priv->data_low_rx[counter])
@@ -920,7 +918,7 @@ islpci_set_state(islpci_private *priv, islpci_state_t new_state)
 	switch (new_state) {
 	case PRV_STATE_OFF:
 		priv->state_off++;
-		/* fall through */
+		fallthrough;
 	default:
 		priv->state = new_state;
 		break;

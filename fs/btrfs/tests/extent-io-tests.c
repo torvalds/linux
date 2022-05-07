@@ -441,8 +441,17 @@ static int test_find_first_clear_extent_bit(void)
 	int ret = -EINVAL;
 
 	test_msg("running find_first_clear_extent_bit test");
+
 	extent_io_tree_init(NULL, &tree, IO_TREE_SELFTEST, NULL);
 
+	/* Test correct handling of empty tree */
+	find_first_clear_extent_bit(&tree, 0, &start, &end, CHUNK_TRIMMED);
+	if (start != 0 || end != -1) {
+		test_err(
+	"error getting a range from completely empty tree: start %llu end %llu",
+			 start, end);
+		goto out;
+	}
 	/*
 	 * Set 1M-4M alloc/discard and 32M-64M thus leaving a hole between
 	 * 4M-32M

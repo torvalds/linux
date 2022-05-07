@@ -37,6 +37,7 @@
 #include <linux/kernel.h>
 
 struct vmwgfx_gmrid_man {
+	struct ttm_resource_manager manager;
 	spinlock_t lock;
 	struct ida gmr_ida;
 	uint32_t max_gmr_ids;
@@ -44,20 +45,22 @@ struct vmwgfx_gmrid_man {
 	uint32_t used_gmr_pages;
 };
 
-static int vmw_gmrid_man_get_node(struct ttm_mem_type_manager *man,
+static struct vmwgfx_gmrid_man *to_gmrid_manager(struct ttm_resource_manager *man)
+{
+	return container_of(man, struct vmwgfx_gmrid_man, manager);
+}
+
+static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 				  struct ttm_buffer_object *bo,
 				  const struct ttm_place *place,
-				  struct ttm_mem_reg *mem)
+				  struct ttm_resource *mem)
 {
-	struct vmwgfx_gmrid_man *gman =
-		(struct vmwgfx_gmrid_man *)man->priv;
+	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 	int id;
-
-	mem->mm_node = NULL;
 
 	id = ida_alloc_max(&gman->gmr_ida, gman->max_gmr_ids - 1, GFP_KERNEL);
 	if (id < 0)
-		return (id != -ENOMEM ? 0 : id);
+		return id;
 
 	spin_lock(&gman->lock);
 
@@ -78,14 +81,13 @@ nospace:
 	gman->used_gmr_pages -= bo->num_pages;
 	spin_unlock(&gman->lock);
 	ida_free(&gman->gmr_ida, id);
-	return 0;
+	return -ENOSPC;
 }
 
-static void vmw_gmrid_man_put_node(struct ttm_mem_type_manager *man,
-				   struct ttm_mem_reg *mem)
+static void vmw_gmrid_man_put_node(struct ttm_resource_manager *man,
+				   struct ttm_resource *mem)
 {
-	struct vmwgfx_gmrid_man *gman =
-		(struct vmwgfx_gmrid_man *)man->priv;
+	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 
 	if (mem->mm_node) {
 		ida_free(&gman->gmr_ida, mem->start);
@@ -96,22 +98,28 @@ static void vmw_gmrid_man_put_node(struct ttm_mem_type_manager *man,
 	}
 }
 
-static int vmw_gmrid_man_init(struct ttm_mem_type_manager *man,
-			      unsigned long p_size)
+static const struct ttm_resource_manager_func vmw_gmrid_manager_func;
+
+int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
 {
-	struct vmw_private *dev_priv =
-		container_of(man->bdev, struct vmw_private, bdev);
+	struct ttm_resource_manager *man;
 	struct vmwgfx_gmrid_man *gman =
 		kzalloc(sizeof(*gman), GFP_KERNEL);
 
 	if (unlikely(!gman))
 		return -ENOMEM;
 
+	man = &gman->manager;
+
+	man->func = &vmw_gmrid_manager_func;
+	/* TODO: This is most likely not correct */
+	man->use_tt = true;
+	ttm_resource_manager_init(man, 0);
 	spin_lock_init(&gman->lock);
 	gman->used_gmr_pages = 0;
 	ida_init(&gman->gmr_ida);
 
-	switch (p_size) {
+	switch (type) {
 	case VMW_PL_GMR:
 		gman->max_gmr_ids = dev_priv->max_gmr_ids;
 		gman->max_gmr_pages = dev_priv->max_gmr_pages;
@@ -123,32 +131,29 @@ static int vmw_gmrid_man_init(struct ttm_mem_type_manager *man,
 	default:
 		BUG();
 	}
-	man->priv = (void *) gman;
+	ttm_set_driver_manager(&dev_priv->bdev, type, &gman->manager);
+	ttm_resource_manager_set_used(man, true);
 	return 0;
 }
 
-static int vmw_gmrid_man_takedown(struct ttm_mem_type_manager *man)
+void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type)
 {
-	struct vmwgfx_gmrid_man *gman =
-		(struct vmwgfx_gmrid_man *)man->priv;
+	struct ttm_resource_manager *man = ttm_manager_type(&dev_priv->bdev, type);
+	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 
-	if (gman) {
-		ida_destroy(&gman->gmr_ida);
-		kfree(gman);
-	}
-	return 0;
+	ttm_resource_manager_set_used(man, false);
+
+	ttm_resource_manager_force_list_clean(&dev_priv->bdev, man);
+
+	ttm_resource_manager_cleanup(man);
+
+	ttm_set_driver_manager(&dev_priv->bdev, type, NULL);
+	ida_destroy(&gman->gmr_ida);
+	kfree(gman);
+
 }
 
-static void vmw_gmrid_man_debug(struct ttm_mem_type_manager *man,
-				struct drm_printer *printer)
-{
-	drm_printf(printer, "No debug info available for the GMR id manager\n");
-}
-
-const struct ttm_mem_type_manager_func vmw_gmrid_manager_func = {
-	.init = vmw_gmrid_man_init,
-	.takedown = vmw_gmrid_man_takedown,
-	.get_node = vmw_gmrid_man_get_node,
-	.put_node = vmw_gmrid_man_put_node,
-	.debug = vmw_gmrid_man_debug
+static const struct ttm_resource_manager_func vmw_gmrid_manager_func = {
+	.alloc = vmw_gmrid_man_get_node,
+	.free = vmw_gmrid_man_put_node,
 };

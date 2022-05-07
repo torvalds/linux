@@ -258,9 +258,7 @@
 	INTEL_VGA_DEVICE(0x0f30, info), \
 	INTEL_VGA_DEVICE(0x0f31, info), \
 	INTEL_VGA_DEVICE(0x0f32, info), \
-	INTEL_VGA_DEVICE(0x0f33, info), \
-	INTEL_VGA_DEVICE(0x0157, info), \
-	INTEL_VGA_DEVICE(0x0155, info)
+	INTEL_VGA_DEVICE(0x0f33, info)
 
 #define INTEL_BDW_ULT_GT1_IDS(info) \
 	INTEL_VGA_DEVICE(0x1606, info), /* GT1 ULT */ \
@@ -446,23 +444,18 @@
 
 /* CML GT1 */
 #define INTEL_CML_GT1_IDS(info)	\
-	INTEL_VGA_DEVICE(0x9B21, info), \
-	INTEL_VGA_DEVICE(0x9BAA, info), \
-	INTEL_VGA_DEVICE(0x9BAB, info), \
-	INTEL_VGA_DEVICE(0x9BAC, info), \
-	INTEL_VGA_DEVICE(0x9BA0, info), \
 	INTEL_VGA_DEVICE(0x9BA5, info), \
 	INTEL_VGA_DEVICE(0x9BA8, info), \
 	INTEL_VGA_DEVICE(0x9BA4, info), \
 	INTEL_VGA_DEVICE(0x9BA2, info)
 
+#define INTEL_CML_U_GT1_IDS(info) \
+	INTEL_VGA_DEVICE(0x9B21, info), \
+	INTEL_VGA_DEVICE(0x9BAA, info), \
+	INTEL_VGA_DEVICE(0x9BAC, info)
+
 /* CML GT2 */
 #define INTEL_CML_GT2_IDS(info)	\
-	INTEL_VGA_DEVICE(0x9B41, info), \
-	INTEL_VGA_DEVICE(0x9BCA, info), \
-	INTEL_VGA_DEVICE(0x9BCB, info), \
-	INTEL_VGA_DEVICE(0x9BCC, info), \
-	INTEL_VGA_DEVICE(0x9BC0, info), \
 	INTEL_VGA_DEVICE(0x9BC5, info), \
 	INTEL_VGA_DEVICE(0x9BC8, info), \
 	INTEL_VGA_DEVICE(0x9BC4, info), \
@@ -470,6 +463,11 @@
 	INTEL_VGA_DEVICE(0x9BC6, info), \
 	INTEL_VGA_DEVICE(0x9BE6, info), \
 	INTEL_VGA_DEVICE(0x9BF6, info)
+
+#define INTEL_CML_U_GT2_IDS(info) \
+	INTEL_VGA_DEVICE(0x9B41, info), \
+	INTEL_VGA_DEVICE(0x9BCA, info), \
+	INTEL_VGA_DEVICE(0x9BCC, info)
 
 #define INTEL_KBL_IDS(info) \
 	INTEL_KBL_GT1_IDS(info), \
@@ -536,7 +534,9 @@
 	INTEL_WHL_U_GT3_IDS(info), \
 	INTEL_AML_CFL_GT2_IDS(info), \
 	INTEL_CML_GT1_IDS(info), \
-	INTEL_CML_GT2_IDS(info)
+	INTEL_CML_GT2_IDS(info), \
+	INTEL_CML_U_GT1_IDS(info), \
+	INTEL_CML_U_GT2_IDS(info)
 
 /* CNL */
 #define INTEL_CNL_PORT_F_IDS(info) \
@@ -579,21 +579,51 @@
 	INTEL_VGA_DEVICE(0x8A51, info), \
 	INTEL_VGA_DEVICE(0x8A5D, info)
 
-/* EHL */
+/* EHL/JSL */
 #define INTEL_EHL_IDS(info) \
 	INTEL_VGA_DEVICE(0x4500, info),	\
 	INTEL_VGA_DEVICE(0x4571, info), \
 	INTEL_VGA_DEVICE(0x4551, info), \
-	INTEL_VGA_DEVICE(0x4541, info)
+	INTEL_VGA_DEVICE(0x4541, info), \
+	INTEL_VGA_DEVICE(0x4E71, info), \
+	INTEL_VGA_DEVICE(0x4557, info), \
+	INTEL_VGA_DEVICE(0x4555, info), \
+	INTEL_VGA_DEVICE(0x4E61, info), \
+	INTEL_VGA_DEVICE(0x4E57, info), \
+	INTEL_VGA_DEVICE(0x4E55, info), \
+	INTEL_VGA_DEVICE(0x4E51, info)
 
 /* TGL */
-#define INTEL_TGL_12_IDS(info) \
-	INTEL_VGA_DEVICE(0x9A49, info), \
-	INTEL_VGA_DEVICE(0x9A40, info), \
-	INTEL_VGA_DEVICE(0x9A59, info), \
+#define INTEL_TGL_12_GT1_IDS(info) \
 	INTEL_VGA_DEVICE(0x9A60, info), \
 	INTEL_VGA_DEVICE(0x9A68, info), \
-	INTEL_VGA_DEVICE(0x9A70, info), \
-	INTEL_VGA_DEVICE(0x9A78, info)
+	INTEL_VGA_DEVICE(0x9A70, info)
+
+#define INTEL_TGL_12_GT2_IDS(info) \
+	INTEL_VGA_DEVICE(0x9A40, info), \
+	INTEL_VGA_DEVICE(0x9A49, info), \
+	INTEL_VGA_DEVICE(0x9A59, info), \
+	INTEL_VGA_DEVICE(0x9A78, info), \
+	INTEL_VGA_DEVICE(0x9AC0, info), \
+	INTEL_VGA_DEVICE(0x9AC9, info), \
+	INTEL_VGA_DEVICE(0x9AD9, info), \
+	INTEL_VGA_DEVICE(0x9AF8, info)
+
+#define INTEL_TGL_12_IDS(info) \
+	INTEL_TGL_12_GT1_IDS(info), \
+	INTEL_TGL_12_GT2_IDS(info)
+
+/* RKL */
+#define INTEL_RKL_IDS(info) \
+	INTEL_VGA_DEVICE(0x4C80, info), \
+	INTEL_VGA_DEVICE(0x4C8A, info), \
+	INTEL_VGA_DEVICE(0x4C8B, info), \
+	INTEL_VGA_DEVICE(0x4C8C, info), \
+	INTEL_VGA_DEVICE(0x4C90, info), \
+	INTEL_VGA_DEVICE(0x4C9A, info)
+
+/* DG1 */
+#define INTEL_DG1_IDS(info) \
+	INTEL_VGA_DEVICE(0x4905, info)
 
 #endif /* _I915_PCIIDS_H */

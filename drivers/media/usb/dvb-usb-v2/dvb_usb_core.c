@@ -150,6 +150,7 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	dev->map_name = d->rc.map_name;
 	dev->allowed_protocols = d->rc.allowed_protos;
 	dev->change_protocol = d->rc.change_protocol;
+	dev->timeout = d->rc.timeout;
 	dev->priv = d;
 
 	ret = rc_register_device(dev);

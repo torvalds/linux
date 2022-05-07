@@ -35,8 +35,6 @@
 
 #define HCLGE_DBG_DFX_SSU_2_OFFSET 12
 
-#pragma pack(1)
-
 struct hclge_qos_pri_map_cmd {
 	u8 pri0_tc  : 4,
 	   pri1_tc  : 4;
@@ -81,13 +79,11 @@ struct hclge_dbg_dfx_message {
 #define HCLGE_DBG_MAC_REG_TYPE_LEN	32
 struct hclge_dbg_reg_type_info {
 	const char *reg_type;
-	struct hclge_dbg_dfx_message *dfx_msg;
+	const struct hclge_dbg_dfx_message *dfx_msg;
 	struct hclge_dbg_reg_common_msg reg_msg;
 };
 
-#pragma pack()
-
-static struct hclge_dbg_dfx_message hclge_dbg_bios_common_reg[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_bios_common_reg[] = {
 	{false, "Reserved"},
 	{true,	"BP_CPU_STATE"},
 	{true,	"DFX_MSIX_INFO_NIC_0"},
@@ -103,7 +99,7 @@ static struct hclge_dbg_dfx_message hclge_dbg_bios_common_reg[] = {
 	{false, "Reserved"},
 };
 
-static struct hclge_dbg_dfx_message hclge_dbg_ssu_reg_0[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_ssu_reg_0[] = {
 	{false, "Reserved"},
 	{true,	"SSU_ETS_PORT_STATUS"},
 	{true,	"SSU_ETS_TCG_STATUS"},
@@ -175,7 +171,7 @@ static struct hclge_dbg_dfx_message hclge_dbg_ssu_reg_0[] = {
 	{false, "Reserved"},
 };
 
-static struct hclge_dbg_dfx_message hclge_dbg_ssu_reg_1[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_ssu_reg_1[] = {
 	{true,	"prt_id"},
 	{true,	"PACKET_TC_CURR_BUFFER_CNT_0"},
 	{true,	"PACKET_TC_CURR_BUFFER_CNT_1"},
@@ -282,7 +278,7 @@ static struct hclge_dbg_dfx_message hclge_dbg_ssu_reg_1[] = {
 	{false, "Reserved"},
 };
 
-static struct hclge_dbg_dfx_message hclge_dbg_ssu_reg_2[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_ssu_reg_2[] = {
 	{true,	"OQ_INDEX"},
 	{true,	"QUEUE_CNT"},
 	{false, "Reserved"},
@@ -291,7 +287,7 @@ static struct hclge_dbg_dfx_message hclge_dbg_ssu_reg_2[] = {
 	{false, "Reserved"},
 };
 
-static struct hclge_dbg_dfx_message hclge_dbg_igu_egu_reg[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_igu_egu_reg[] = {
 	{true,	"prt_id"},
 	{true,	"IGU_RX_ERR_PKT"},
 	{true,	"IGU_RX_NO_SOF_PKT"},
@@ -356,7 +352,7 @@ static struct hclge_dbg_dfx_message hclge_dbg_igu_egu_reg[] = {
 	{false,	"Reserved"},
 };
 
-static struct hclge_dbg_dfx_message hclge_dbg_rpu_reg_0[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_rpu_reg_0[] = {
 	{true, "tc_queue_num"},
 	{true, "FSM_DFX_ST0"},
 	{true, "FSM_DFX_ST1"},
@@ -365,7 +361,7 @@ static struct hclge_dbg_dfx_message hclge_dbg_rpu_reg_0[] = {
 	{true, "BUF_WAIT_TIMEOUT_QID"},
 };
 
-static struct hclge_dbg_dfx_message hclge_dbg_rpu_reg_1[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_rpu_reg_1[] = {
 	{false, "Reserved"},
 	{true,	"FIFO_DFX_ST0"},
 	{true,	"FIFO_DFX_ST1"},
@@ -381,7 +377,7 @@ static struct hclge_dbg_dfx_message hclge_dbg_rpu_reg_1[] = {
 	{false, "Reserved"},
 };
 
-static struct hclge_dbg_dfx_message hclge_dbg_ncsi_reg[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_ncsi_reg[] = {
 	{false, "Reserved"},
 	{true,	"NCSI_EGU_TX_FIFO_STS"},
 	{true,	"NCSI_PAUSE_STATUS"},
@@ -453,7 +449,7 @@ static struct hclge_dbg_dfx_message hclge_dbg_ncsi_reg[] = {
 	{true,	"NCSI_MAC_RX_PAUSE_FRAMES"},
 };
 
-static struct hclge_dbg_dfx_message hclge_dbg_rtc_reg[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_rtc_reg[] = {
 	{false, "Reserved"},
 	{true,	"LGE_IGU_AFIFO_DFX_0"},
 	{true,	"LGE_IGU_AFIFO_DFX_1"},
@@ -483,7 +479,7 @@ static struct hclge_dbg_dfx_message hclge_dbg_rtc_reg[] = {
 	{false, "Reserved"},
 };
 
-static struct hclge_dbg_dfx_message hclge_dbg_ppp_reg[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_ppp_reg[] = {
 	{false, "Reserved"},
 	{true,	"DROP_FROM_PRT_PKT_CNT"},
 	{true,	"DROP_FROM_HOST_PKT_CNT"},
@@ -639,7 +635,7 @@ static struct hclge_dbg_dfx_message hclge_dbg_ppp_reg[] = {
 	{false, "Reserved"},
 };
 
-static struct hclge_dbg_dfx_message hclge_dbg_rcb_reg[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_rcb_reg[] = {
 	{false, "Reserved"},
 	{true,	"FSM_DFX_ST0"},
 	{true,	"FSM_DFX_ST1"},
@@ -711,7 +707,7 @@ static struct hclge_dbg_dfx_message hclge_dbg_rcb_reg[] = {
 	{false, "Reserved"},
 };
 
-static struct hclge_dbg_dfx_message hclge_dbg_tqp_reg[] = {
+static const struct hclge_dbg_dfx_message hclge_dbg_tqp_reg[] = {
 	{true, "q_num"},
 	{true, "RCB_CFG_RX_RING_TAIL"},
 	{true, "RCB_CFG_RX_RING_HEAD"},

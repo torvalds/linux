@@ -165,7 +165,7 @@ static int fm2fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
                            u_int transp, struct fb_info *info);
 static int fm2fb_blank(int blank, struct fb_info *info);
 
-static struct fb_ops fm2fb_ops = {
+static const struct fb_ops fm2fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= fm2fb_setcolreg,
 	.fb_blank	= fm2fb_blank,

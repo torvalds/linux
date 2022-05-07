@@ -78,9 +78,9 @@ static int moxtet_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 
 	/* All lines are hard wired to be either input or output, not both. */
 	if (chip->desc->in_mask & BIT(offset))
-		return 1;
+		return GPIO_LINE_DIRECTION_IN;
 	else if (chip->desc->out_mask & BIT(offset))
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 	else
 		return -EINVAL;
 }

@@ -12,6 +12,7 @@
 #define ST_LSM6DSX_H
 
 #include <linux/device.h>
+#include <linux/iio/iio.h>
 
 #define ST_LSM6DS3_DEV_NAME	"lsm6ds3"
 #define ST_LSM6DS3H_DEV_NAME	"lsm6ds3h"
@@ -25,6 +26,8 @@
 #define ST_LSM6DS3TRC_DEV_NAME	"lsm6ds3tr-c"
 #define ST_ISM330DHCX_DEV_NAME	"ism330dhcx"
 #define ST_LSM9DS1_DEV_NAME	"lsm9ds1-imu"
+#define ST_LSM6DS0_DEV_NAME	"lsm6ds0"
+#define ST_LSM6DSRX_DEV_NAME	"lsm6dsrx"
 
 enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3_ID,
@@ -39,6 +42,8 @@ enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3TRC_ID,
 	ST_ISM330DHCX_ID,
 	ST_LSM9DS1_ID,
+	ST_LSM6DS0_ID,
+	ST_LSM6DSRX_ID,
 	ST_LSM6DSX_MAX_ID,
 };
 
@@ -53,6 +58,27 @@ enum st_lsm6dsx_hw_id {
 #define ST_LSM6DSX_MAX_TAGGED_WORD_LEN	((32 / ST_LSM6DSX_TAGGED_SAMPLE_SIZE) \
 					 * ST_LSM6DSX_TAGGED_SAMPLE_SIZE)
 #define ST_LSM6DSX_SHIFT_VAL(val, mask)	(((val) << __ffs(mask)) & (mask))
+
+#define ST_LSM6DSX_CHANNEL_ACC(chan_type, addr, mod, scan_idx)		\
+{									\
+	.type = chan_type,						\
+	.address = addr,						\
+	.modified = 1,							\
+	.channel2 = mod,						\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),			\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
+	.scan_index = scan_idx,						\
+	.scan_type = {							\
+		.sign = 's',						\
+		.realbits = 16,						\
+		.storagebits = 16,					\
+		.endianness = IIO_LE,					\
+	},								\
+	.event_spec = &st_lsm6dsx_event,				\
+	.ext_info = st_lsm6dsx_accel_ext_info,				\
+	.num_event_specs = 1,						\
+}
 
 #define ST_LSM6DSX_CHANNEL(chan_type, addr, mod, scan_idx)		\
 {									\
@@ -81,14 +107,16 @@ struct st_lsm6dsx_sensor;
 struct st_lsm6dsx_hw;
 
 struct st_lsm6dsx_odr {
-	u16 hz;
+	u32 milli_hz;
 	u8 val;
 };
 
-#define ST_LSM6DSX_ODR_LIST_SIZE	6
+#define ST_LSM6DSX_ODR_LIST_SIZE	8
 struct st_lsm6dsx_odr_table_entry {
 	struct st_lsm6dsx_reg reg;
+
 	struct st_lsm6dsx_odr odr_avl[ST_LSM6DSX_ODR_LIST_SIZE];
+	int odr_len;
 };
 
 struct st_lsm6dsx_fs {
@@ -132,12 +160,14 @@ struct st_lsm6dsx_fifo_ops {
  * @hr_timer: Hw timer resolution register info (addr + mask).
  * @fifo_en: Hw timer FIFO enable register info (addr + mask).
  * @decimator: Hw timer FIFO decimator register info (addr + mask).
+ * @freq_fine: Difference in % of ODR with respect to the typical.
  */
 struct st_lsm6dsx_hw_ts_settings {
 	struct st_lsm6dsx_reg timer_en;
 	struct st_lsm6dsx_reg hr_timer;
 	struct st_lsm6dsx_reg fifo_en;
 	struct st_lsm6dsx_reg decimator;
+	u8 freq_fine;
 };
 
 /**
@@ -147,21 +177,48 @@ struct st_lsm6dsx_hw_ts_settings {
  * @pullup_en: i2c controller pull-up register info (addr + mask).
  * @aux_sens: aux sensor register info (addr + mask).
  * @wr_once: write_once register info (addr + mask).
+ * @emb_func:  embedded function register info (addr + mask).
+ * @num_ext_dev: max number of slave devices.
  * @shub_out: sensor hub first output register info.
  * @slv0_addr: slave0 address in secondary page.
  * @dw_slv0_addr: slave0 write register address in secondary page.
  * @batch_en: Enable/disable FIFO batching.
+ * @pause: controller pause value.
  */
 struct st_lsm6dsx_shub_settings {
 	struct st_lsm6dsx_reg page_mux;
-	struct st_lsm6dsx_reg master_en;
-	struct st_lsm6dsx_reg pullup_en;
+	struct {
+		bool sec_page;
+		u8 addr;
+		u8 mask;
+	} master_en;
+	struct {
+		bool sec_page;
+		u8 addr;
+		u8 mask;
+	} pullup_en;
 	struct st_lsm6dsx_reg aux_sens;
 	struct st_lsm6dsx_reg wr_once;
-	u8 shub_out;
+	struct st_lsm6dsx_reg emb_func;
+	u8 num_ext_dev;
+	struct {
+		bool sec_page;
+		u8 addr;
+	} shub_out;
 	u8 slv0_addr;
 	u8 dw_slv0_addr;
 	u8 batch_en;
+	u8 pause;
+};
+
+struct st_lsm6dsx_event_settings {
+	struct st_lsm6dsx_reg enable_reg;
+	struct st_lsm6dsx_reg wakeup_reg;
+	u8 wakeup_src_reg;
+	u8 wakeup_src_status_mask;
+	u8 wakeup_src_z_mask;
+	u8 wakeup_src_y_mask;
+	u8 wakeup_src_x_mask;
 };
 
 enum st_lsm6dsx_ext_sensor_id {
@@ -173,8 +230,8 @@ enum st_lsm6dsx_ext_sensor_id {
  * @i2c_addr: I2c slave address list.
  * @wai: Wai address info.
  * @id: external sensor id.
- * @odr: Output data rate of the sensor [Hz].
- * @gain: Configured sensor sensitivity.
+ * @odr_table: Output data rate of the sensor [Hz].
+ * @fs_table: Configured sensor sensitivity table depending on full scale.
  * @temp_comp: Temperature compensation register info (addr + mask).
  * @pwr_table: Power on register info (addr + mask).
  * @off_canc: Offset cancellation register info (addr + mask).
@@ -207,12 +264,14 @@ struct st_lsm6dsx_ext_dev_settings {
 /**
  * struct st_lsm6dsx_settings - ST IMU sensor settings
  * @wai: Sensor WhoAmI default value.
- * @int1_addr: Control Register address for INT1
- * @int2_addr: Control Register address for INT2
- * @reset_addr: register address for reset/reboot
+ * @reset: register address for reset.
+ * @boot: register address for boot.
+ * @bdu: register address for Block Data Update.
  * @max_fifo_size: Sensor max fifo length in FIFO words.
  * @id: List of hw id/device name supported by the driver configuration.
  * @channels: IIO channels supported by the device.
+ * @irq_config: interrupts related registers.
+ * @drdy_mask: register info for data-ready mask (addr + mask).
  * @odr_table: Hw sensors odr table (Hz + val).
  * @fs_table: Hw sensors gain table (gain + val).
  * @decimator: List of decimator register info (addr + mask).
@@ -223,9 +282,9 @@ struct st_lsm6dsx_ext_dev_settings {
  */
 struct st_lsm6dsx_settings {
 	u8 wai;
-	u8 int1_addr;
-	u8 int2_addr;
-	u8 reset_addr;
+	struct st_lsm6dsx_reg reset;
+	struct st_lsm6dsx_reg boot;
+	struct st_lsm6dsx_reg bdu;
 	u16 max_fifo_size;
 	struct {
 		enum st_lsm6dsx_hw_id hw_id;
@@ -235,6 +294,17 @@ struct st_lsm6dsx_settings {
 		const struct iio_chan_spec *chan;
 		int len;
 	} channels[2];
+	struct {
+		struct st_lsm6dsx_reg irq1;
+		struct st_lsm6dsx_reg irq2;
+		struct st_lsm6dsx_reg irq1_func;
+		struct st_lsm6dsx_reg irq2_func;
+		struct st_lsm6dsx_reg lir;
+		struct st_lsm6dsx_reg clear_on_read;
+		struct st_lsm6dsx_reg hla;
+		struct st_lsm6dsx_reg od;
+	} irq_config;
+	struct st_lsm6dsx_reg drdy_mask;
 	struct st_lsm6dsx_odr_table_entry odr_table[2];
 	struct st_lsm6dsx_fs_table_entry fs_table[2];
 	struct st_lsm6dsx_reg decimator[ST_LSM6DSX_MAX_ID];
@@ -242,6 +312,7 @@ struct st_lsm6dsx_settings {
 	struct st_lsm6dsx_fifo_ops fifo_ops;
 	struct st_lsm6dsx_hw_ts_settings ts_settings;
 	struct st_lsm6dsx_shub_settings shub_settings;
+	struct st_lsm6dsx_event_settings event_settings;
 };
 
 enum st_lsm6dsx_sensor_id {
@@ -266,8 +337,8 @@ enum st_lsm6dsx_fifo_mode {
  * @gain: Configured sensor sensitivity.
  * @odr: Output data rate of the sensor [Hz].
  * @watermark: Sensor watermark level.
+ * @decimator: Sensor decimation factor.
  * @sip: Number of samples in a given pattern.
- * @decimator: FIFO decimation factor.
  * @ts_ref: Sensor timestamp reference for hw one.
  * @ext_info: Sensor settings if it is connected to i2c controller
  */
@@ -277,15 +348,16 @@ struct st_lsm6dsx_sensor {
 	struct st_lsm6dsx_hw *hw;
 
 	u32 gain;
-	u16 odr;
+	u32 odr;
 
 	u16 watermark;
-	u8 sip;
 	u8 decimator;
+	u8 sip;
 	s64 ts_ref;
 
 	struct {
 		const struct st_lsm6dsx_ext_dev_settings *settings;
+		u32 slv_odr;
 		u8 addr;
 	} ext_info;
 };
@@ -298,14 +370,20 @@ struct st_lsm6dsx_sensor {
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
  * @conf_lock: Mutex to prevent concurrent FIFO configuration update.
  * @page_lock: Mutex to prevent concurrent memory page configuration.
- * @fifo_mode: FIFO operating mode supported by the device.
  * @suspend_mask: Suspended sensor bitmask.
  * @enable_mask: Enabled sensor bitmask.
+ * @fifo_mask: Enabled hw FIFO bitmask.
+ * @ts_gain: Hw timestamp rate after internal calibration.
  * @ts_sip: Total number of timestamp samples in a given pattern.
  * @sip: Total number of samples (acc/gyro/ts) in a given pattern.
  * @buff: Device read buffer.
+ * @irq_routing: pointer to interrupt routing configuration.
+ * @event_threshold: wakeup event threshold.
+ * @enable_event: enabled event bitmask.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @settings: Pointer to the specific sensor settings in use.
+ * @orientation: sensor chip orientation relative to main hardware.
+ * @scan: Temporary buffers used to align data before iio_push_to_buffers()
  */
 struct st_lsm6dsx_hw {
 	struct device *dev;
@@ -316,20 +394,42 @@ struct st_lsm6dsx_hw {
 	struct mutex conf_lock;
 	struct mutex page_lock;
 
-	enum st_lsm6dsx_fifo_mode fifo_mode;
 	u8 suspend_mask;
 	u8 enable_mask;
+	u8 fifo_mask;
+	s64 ts_gain;
 	u8 ts_sip;
 	u8 sip;
+
+	const struct st_lsm6dsx_reg *irq_routing;
+	u8 event_threshold;
+	u8 enable_event;
 
 	u8 *buff;
 
 	struct iio_dev *iio_devs[ST_LSM6DSX_ID_MAX];
 
 	const struct st_lsm6dsx_settings *settings;
+
+	struct iio_mount_matrix orientation;
+	/* Ensure natural alignment of buffer elements */
+	struct {
+		__le16 channels[3];
+		s64 ts __aligned(8);
+	} scan[3];
 };
 
-static const unsigned long st_lsm6dsx_available_scan_masks[] = {0x7, 0x0};
+static __maybe_unused const struct iio_event_spec st_lsm6dsx_event = {
+	.type = IIO_EV_TYPE_THRESH,
+	.dir = IIO_EV_DIR_EITHER,
+	.mask_separate = BIT(IIO_EV_INFO_VALUE) |
+			 BIT(IIO_EV_INFO_ENABLE)
+};
+
+static __maybe_unused const unsigned long st_lsm6dsx_available_scan_masks[] = {
+	0x7, 0x0,
+};
+
 extern const struct dev_pm_ops st_lsm6dsx_pm_ops;
 
 int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
@@ -342,11 +442,10 @@ int st_lsm6dsx_update_watermark(struct st_lsm6dsx_sensor *sensor,
 				u16 watermark);
 int st_lsm6dsx_update_fifo(struct st_lsm6dsx_sensor *sensor, bool enable);
 int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw);
-int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
-			     enum st_lsm6dsx_fifo_mode fifo_mode);
+int st_lsm6dsx_resume_fifo(struct st_lsm6dsx_hw *hw);
 int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw);
 int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw);
-int st_lsm6dsx_check_odr(struct st_lsm6dsx_sensor *sensor, u16 odr, u8 *val);
+int st_lsm6dsx_check_odr(struct st_lsm6dsx_sensor *sensor, u32 odr, u8 *val);
 int st_lsm6dsx_shub_probe(struct st_lsm6dsx_hw *hw, const char *name);
 int st_lsm6dsx_shub_set_enable(struct st_lsm6dsx_sensor *sensor, bool enable);
 int st_lsm6dsx_set_page(struct st_lsm6dsx_hw *hw, bool enable);
@@ -389,5 +488,21 @@ st_lsm6dsx_write_locked(struct st_lsm6dsx_hw *hw, unsigned int addr,
 
 	return err;
 }
+
+static inline const struct iio_mount_matrix *
+st_lsm6dsx_get_mount_matrix(const struct iio_dev *iio_dev,
+			    const struct iio_chan_spec *chan)
+{
+	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
+	struct st_lsm6dsx_hw *hw = sensor->hw;
+
+	return &hw->orientation;
+}
+
+static const
+struct iio_chan_spec_ext_info __maybe_unused st_lsm6dsx_accel_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_ALL, st_lsm6dsx_get_mount_matrix),
+	{ }
+};
 
 #endif /* ST_LSM6DSX_H */

@@ -13,6 +13,7 @@
 #include <linux/static_key.h>
 #include <linux/netfilter_defs.h>
 #include <linux/netdevice.h>
+#include <linux/sockptr.h>
 #include <net/net_namespace.h>
 
 static inline int NF_DROP_GETERR(int verdict)
@@ -163,18 +164,11 @@ struct nf_sockopt_ops {
 	/* Non-inclusive ranges: use 0/0/NULL to never get called. */
 	int set_optmin;
 	int set_optmax;
-	int (*set)(struct sock *sk, int optval, void __user *user, unsigned int len);
-#ifdef CONFIG_COMPAT
-	int (*compat_set)(struct sock *sk, int optval,
-			void __user *user, unsigned int len);
-#endif
+	int (*set)(struct sock *sk, int optval, sockptr_t arg,
+		   unsigned int len);
 	int get_optmin;
 	int get_optmax;
 	int (*get)(struct sock *sk, int optval, void __user *user, int *len);
-#ifdef CONFIG_COMPAT
-	int (*compat_get)(struct sock *sk, int optval,
-			void __user *user, int *len);
-#endif
 	/* Use the module struct to lock set/get code in place */
 	struct module *owner;
 };
@@ -199,6 +193,8 @@ extern struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 		 const struct nf_hook_entries *e, unsigned int i);
 
+void nf_hook_slow_list(struct list_head *head, struct nf_hook_state *state,
+		       const struct nf_hook_entries *e);
 /**
  *	nf_hook - call a netfilter hook
  *
@@ -311,30 +307,43 @@ NF_HOOK_LIST(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
 	     struct list_head *head, struct net_device *in, struct net_device *out,
 	     int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
-	struct sk_buff *skb, *next;
-	struct list_head sublist;
+	struct nf_hook_entries *hook_head = NULL;
 
-	INIT_LIST_HEAD(&sublist);
-	list_for_each_entry_safe(skb, next, head, list) {
-		list_del(&skb->list);
-		if (nf_hook(pf, hook, net, sk, skb, in, out, okfn) == 1)
-			list_add_tail(&skb->list, &sublist);
+#ifdef CONFIG_JUMP_LABEL
+	if (__builtin_constant_p(pf) &&
+	    __builtin_constant_p(hook) &&
+	    !static_key_false(&nf_hooks_needed[pf][hook]))
+		return;
+#endif
+
+	rcu_read_lock();
+	switch (pf) {
+	case NFPROTO_IPV4:
+		hook_head = rcu_dereference(net->nf.hooks_ipv4[hook]);
+		break;
+	case NFPROTO_IPV6:
+		hook_head = rcu_dereference(net->nf.hooks_ipv6[hook]);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
 	}
-	/* Put passed packets back on main list */
-	list_splice(&sublist, head);
+
+	if (hook_head) {
+		struct nf_hook_state state;
+
+		nf_hook_state_init(&state, hook, pf, in, out, sk, net, okfn);
+
+		nf_hook_slow_list(head, &state, hook_head);
+	}
+	rcu_read_unlock();
 }
 
 /* Call setsockopt() */
-int nf_setsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
+int nf_setsockopt(struct sock *sk, u_int8_t pf, int optval, sockptr_t opt,
 		  unsigned int len);
 int nf_getsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
 		  int *len);
-#ifdef CONFIG_COMPAT
-int compat_nf_setsockopt(struct sock *sk, u_int8_t pf, int optval,
-		char __user *opt, unsigned int len);
-int compat_nf_getsockopt(struct sock *sk, u_int8_t pf, int optval,
-		char __user *opt, int *len);
-#endif
 
 struct flowi;
 struct nf_queue_entry;

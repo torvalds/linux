@@ -14,12 +14,14 @@ static const u32 enetc_si_regs[] = {
 
 static const u32 enetc_txbdr_regs[] = {
 	ENETC_TBMR, ENETC_TBSR, ENETC_TBBAR0, ENETC_TBBAR1,
-	ENETC_TBPIR, ENETC_TBCIR, ENETC_TBLENR, ENETC_TBIER
+	ENETC_TBPIR, ENETC_TBCIR, ENETC_TBLENR, ENETC_TBIER, ENETC_TBICR0,
+	ENETC_TBICR1
 };
 
 static const u32 enetc_rxbdr_regs[] = {
 	ENETC_RBMR, ENETC_RBSR, ENETC_RBBSR, ENETC_RBCIR, ENETC_RBBAR0,
-	ENETC_RBBAR1, ENETC_RBPIR, ENETC_RBLENR, ENETC_RBICIR0, ENETC_RBIER
+	ENETC_RBBAR1, ENETC_RBPIR, ENETC_RBLENR, ENETC_RBIER, ENETC_RBICR0,
+	ENETC_RBICR1
 };
 
 static const u32 enetc_port_regs[] = {
@@ -141,8 +143,8 @@ static const struct {
 	{ ENETC_PM0_R255,   "MAC rx 128-255 byte packets" },
 	{ ENETC_PM0_R511,   "MAC rx 256-511 byte packets" },
 	{ ENETC_PM0_R1023,  "MAC rx 512-1023 byte packets" },
-	{ ENETC_PM0_R1518,  "MAC rx 1024-1518 byte packets" },
-	{ ENETC_PM0_R1519X, "MAC rx 1519 to max-octet packets" },
+	{ ENETC_PM0_R1522,  "MAC rx 1024-1522 byte packets" },
+	{ ENETC_PM0_R1523X, "MAC rx 1523 to max-octet packets" },
 	{ ENETC_PM0_ROVR,   "MAC rx oversized packets" },
 	{ ENETC_PM0_RJBR,   "MAC rx jabber packets" },
 	{ ENETC_PM0_RFRG,   "MAC rx fragment packets" },
@@ -161,9 +163,13 @@ static const struct {
 	{ ENETC_PM0_TBCA,   "MAC tx broadcast frames" },
 	{ ENETC_PM0_TPKT,   "MAC tx packets" },
 	{ ENETC_PM0_TUND,   "MAC tx undersized packets" },
+	{ ENETC_PM0_T64,    "MAC tx 64 byte packets" },
 	{ ENETC_PM0_T127,   "MAC tx 65-127 byte packets" },
+	{ ENETC_PM0_T255,   "MAC tx 128-255 byte packets" },
+	{ ENETC_PM0_T511,   "MAC tx 256-511 byte packets" },
 	{ ENETC_PM0_T1023,  "MAC tx 512-1023 byte packets" },
-	{ ENETC_PM0_T1518,  "MAC tx 1024-1518 byte packets" },
+	{ ENETC_PM0_T1522,  "MAC tx 1024-1522 byte packets" },
+	{ ENETC_PM0_T1523X, "MAC tx 1523 to max-octet packets" },
 	{ ENETC_PM0_TCNP,   "MAC tx control packets" },
 	{ ENETC_PM0_TDFR,   "MAC tx deferred packets" },
 	{ ENETC_PM0_TMCOL,  "MAC tx multiple collisions" },
@@ -195,15 +201,21 @@ static const char tx_ring_stats[][ETH_GSTRING_LEN] = {
 static int enetc_get_sset_count(struct net_device *ndev, int sset)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int len;
 
-	if (sset == ETH_SS_STATS)
-		return ARRAY_SIZE(enetc_si_counters) +
-			ARRAY_SIZE(tx_ring_stats) * priv->num_tx_rings +
-			ARRAY_SIZE(rx_ring_stats) * priv->num_rx_rings +
-			(enetc_si_is_pf(priv->si) ?
-			ARRAY_SIZE(enetc_port_counters) : 0);
+	if (sset != ETH_SS_STATS)
+		return -EOPNOTSUPP;
 
-	return -EOPNOTSUPP;
+	len = ARRAY_SIZE(enetc_si_counters) +
+	      ARRAY_SIZE(tx_ring_stats) * priv->num_tx_rings +
+	      ARRAY_SIZE(rx_ring_stats) * priv->num_rx_rings;
+
+	if (!enetc_si_is_pf(priv->si))
+		return len;
+
+	len += ARRAY_SIZE(enetc_port_counters);
+
+	return len;
 }
 
 static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
@@ -555,6 +567,74 @@ static void enetc_get_ringparam(struct net_device *ndev,
 	}
 }
 
+static int enetc_get_coalesce(struct net_device *ndev,
+			      struct ethtool_coalesce *ic)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_int_vector *v = priv->int_vector[0];
+
+	ic->tx_coalesce_usecs = enetc_cycles_to_usecs(priv->tx_ictt);
+	ic->rx_coalesce_usecs = enetc_cycles_to_usecs(v->rx_ictt);
+
+	ic->tx_max_coalesced_frames = ENETC_TXIC_PKTTHR;
+	ic->rx_max_coalesced_frames = ENETC_RXIC_PKTTHR;
+
+	ic->use_adaptive_rx_coalesce = priv->ic_mode & ENETC_IC_RX_ADAPTIVE;
+
+	return 0;
+}
+
+static int enetc_set_coalesce(struct net_device *ndev,
+			      struct ethtool_coalesce *ic)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	u32 rx_ictt, tx_ictt;
+	int i, ic_mode;
+	bool changed;
+
+	tx_ictt = enetc_usecs_to_cycles(ic->tx_coalesce_usecs);
+	rx_ictt = enetc_usecs_to_cycles(ic->rx_coalesce_usecs);
+
+	if (ic->rx_max_coalesced_frames != ENETC_RXIC_PKTTHR)
+		return -EOPNOTSUPP;
+
+	if (ic->tx_max_coalesced_frames != ENETC_TXIC_PKTTHR)
+		return -EOPNOTSUPP;
+
+	ic_mode = ENETC_IC_NONE;
+	if (ic->use_adaptive_rx_coalesce) {
+		ic_mode |= ENETC_IC_RX_ADAPTIVE;
+		rx_ictt = 0x1;
+	} else {
+		ic_mode |= rx_ictt ? ENETC_IC_RX_MANUAL : 0;
+	}
+
+	ic_mode |= tx_ictt ? ENETC_IC_TX_MANUAL : 0;
+
+	/* commit the settings */
+	changed = (ic_mode != priv->ic_mode) || (priv->tx_ictt != tx_ictt);
+
+	priv->ic_mode = ic_mode;
+	priv->tx_ictt = tx_ictt;
+
+	for (i = 0; i < priv->bdr_int_num; i++) {
+		struct enetc_int_vector *v = priv->int_vector[i];
+
+		v->rx_ictt = rx_ictt;
+		v->rx_dim_en = !!(ic_mode & ENETC_IC_RX_ADAPTIVE);
+	}
+
+	if (netif_running(ndev) && changed) {
+		/* reconfigure the operation mode of h/w interrupts,
+		 * traffic needs to be paused in the process
+		 */
+		enetc_stop(ndev);
+		enetc_start(ndev);
+	}
+
+	return 0;
+}
+
 static int enetc_get_ts_info(struct net_device *ndev,
 			     struct ethtool_ts_info *info)
 {
@@ -568,7 +648,7 @@ static int enetc_get_ts_info(struct net_device *ndev,
 		info->phc_index = -1;
 	}
 
-#ifdef CONFIG_FSL_ENETC_HW_TIMESTAMPING
+#ifdef CONFIG_FSL_ENETC_PTP_CLOCK
 	info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;
@@ -579,12 +659,63 @@ static int enetc_get_ts_info(struct net_device *ndev,
 			   (1 << HWTSTAMP_FILTER_ALL);
 #else
 	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
+				SOF_TIMESTAMPING_TX_SOFTWARE |
 				SOF_TIMESTAMPING_SOFTWARE;
 #endif
 	return 0;
 }
 
+static void enetc_get_wol(struct net_device *dev,
+			  struct ethtool_wolinfo *wol)
+{
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (dev->phydev)
+		phy_ethtool_get_wol(dev->phydev, wol);
+}
+
+static int enetc_set_wol(struct net_device *dev,
+			 struct ethtool_wolinfo *wol)
+{
+	int ret;
+
+	if (!dev->phydev)
+		return -EOPNOTSUPP;
+
+	ret = phy_ethtool_set_wol(dev->phydev, wol);
+	if (!ret)
+		device_set_wakeup_enable(&dev->dev, wol->wolopts);
+
+	return ret;
+}
+
+static int enetc_get_link_ksettings(struct net_device *dev,
+				    struct ethtool_link_ksettings *cmd)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(dev);
+
+	if (!priv->phylink)
+		return -EOPNOTSUPP;
+
+	return phylink_ethtool_ksettings_get(priv->phylink, cmd);
+}
+
+static int enetc_set_link_ksettings(struct net_device *dev,
+				    const struct ethtool_link_ksettings *cmd)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(dev);
+
+	if (!priv->phylink)
+		return -EOPNOTSUPP;
+
+	return phylink_ethtool_ksettings_set(priv->phylink, cmd);
+}
+
 static const struct ethtool_ops enetc_pf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_regs_len = enetc_get_reglen,
 	.get_regs = enetc_get_regs,
 	.get_sset_count = enetc_get_sset_count,
@@ -597,13 +728,20 @@ static const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.get_rxfh = enetc_get_rxfh,
 	.set_rxfh = enetc_set_rxfh,
 	.get_ringparam = enetc_get_ringparam,
-	.get_link_ksettings = phy_ethtool_get_link_ksettings,
-	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+	.get_coalesce = enetc_get_coalesce,
+	.set_coalesce = enetc_set_coalesce,
+	.get_link_ksettings = enetc_get_link_ksettings,
+	.set_link_ksettings = enetc_set_link_ksettings,
 	.get_link = ethtool_op_get_link,
 	.get_ts_info = enetc_get_ts_info,
+	.get_wol = enetc_get_wol,
+	.set_wol = enetc_set_wol,
 };
 
 static const struct ethtool_ops enetc_vf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
 	.get_regs_len = enetc_get_reglen,
 	.get_regs = enetc_get_regs,
 	.get_sset_count = enetc_get_sset_count,
@@ -615,6 +753,8 @@ static const struct ethtool_ops enetc_vf_ethtool_ops = {
 	.get_rxfh = enetc_get_rxfh,
 	.set_rxfh = enetc_set_rxfh,
 	.get_ringparam = enetc_get_ringparam,
+	.get_coalesce = enetc_get_coalesce,
+	.set_coalesce = enetc_set_coalesce,
 	.get_link = ethtool_op_get_link,
 	.get_ts_info = enetc_get_ts_info,
 };

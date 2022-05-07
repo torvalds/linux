@@ -3,20 +3,22 @@
 
 #include <linux/bpf.h>
 #include <stdint.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
 
 char _license[] SEC("license") = "GPL";
 
-static volatile struct data {
+struct {
 	char in[256];
 	char out[256];
-} data;
+} data = {};
 
 struct core_reloc_arrays_output {
 	int a2;
 	char b123;
 	int c1c;
 	int d00d;
+	int f01c;
 };
 
 struct core_reloc_arrays_substruct {
@@ -29,7 +31,10 @@ struct core_reloc_arrays {
 	char b[2][3][4];
 	struct core_reloc_arrays_substruct c[3];
 	struct core_reloc_arrays_substruct d[1][2];
+	struct core_reloc_arrays_substruct f[][2];
 };
+
+#define CORE_READ(dst, src) bpf_core_read(dst, sizeof(*(dst)), src)
 
 SEC("raw_tracepoint/sys_enter")
 int test_core_arrays(void *ctx)
@@ -37,17 +42,15 @@ int test_core_arrays(void *ctx)
 	struct core_reloc_arrays *in = (void *)&data.in;
 	struct core_reloc_arrays_output *out = (void *)&data.out;
 
-	/* in->a[2] */
-	if (BPF_CORE_READ(&out->a2, &in->a[2]))
+	if (CORE_READ(&out->a2, &in->a[2]))
 		return 1;
-	/* in->b[1][2][3] */
-	if (BPF_CORE_READ(&out->b123, &in->b[1][2][3]))
+	if (CORE_READ(&out->b123, &in->b[1][2][3]))
 		return 1;
-	/* in->c[1].c */
-	if (BPF_CORE_READ(&out->c1c, &in->c[1].c))
+	if (CORE_READ(&out->c1c, &in->c[1].c))
 		return 1;
-	/* in->d[0][0].d */
-	if (BPF_CORE_READ(&out->d00d, &in->d[0][0].d))
+	if (CORE_READ(&out->d00d, &in->d[0][0].d))
+		return 1;
+	if (CORE_READ(&out->f01c, &in->f[0][1].c))
 		return 1;
 
 	return 0;

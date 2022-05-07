@@ -484,14 +484,7 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
 		s->async->events |= COMEDI_CB_EOA;
 		return;
 	}
-#if 0
-	/* clear the dual dma flag, making this the last dma segment */
-	/* XXX probably wrong */
-	if (!devpriv->ntrig) {
-		devpriv->supcsr &= ~DT2821_SUPCSR_DDMA;
-		outw(devpriv->supcsr, dev->iobase + DT2821_SUPCSR_REG);
-	}
-#endif
+
 	/* restart the channel */
 	dt282x_prep_ai_dma(dev, dma->cur_dma, 0);
 
@@ -534,28 +527,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		s_ao->async->events |= COMEDI_CB_ERROR;
 		handled = 1;
 	}
-#if 0
-	if (adcsr & DT2821_ADCSR_ADDONE) {
-		unsigned short data;
 
-		data = inw(dev->iobase + DT2821_ADDAT_REG);
-		data &= s->maxdata;
-		if (devpriv->ad_2scomp)
-			data = comedi_offset_munge(s, data);
-
-		comedi_buf_write_samples(s, &data, 1);
-
-		devpriv->nread--;
-		if (!devpriv->nread) {
-			s->async->events |= COMEDI_CB_EOA;
-		} else {
-			if (supcsr & DT2821_SUPCSR_SCDN)
-				outw(devpriv->supcsr | DT2821_SUPCSR_STRIG,
-				     dev->iobase + DT2821_SUPCSR_REG);
-		}
-		handled = 1;
-	}
-#endif
 	comedi_handle_events(dev, s);
 	if (s_ao)
 		comedi_handle_events(dev, s_ao);
@@ -1195,6 +1167,6 @@ static struct comedi_driver dt282x_driver = {
 };
 module_comedi_driver(dt282x_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for Data Translation DT2821 series");
 MODULE_LICENSE("GPL");

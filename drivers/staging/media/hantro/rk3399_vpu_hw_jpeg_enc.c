@@ -18,9 +18,8 @@
  *
  * Quantization luma table values are written to registers
  * VEPU_swreg_0-VEPU_swreg_15, and chroma table values to
- * VEPU_swreg_16-VEPU_swreg_31.
- *
- * JPEG zigzag order is expected on the quantization tables.
+ * VEPU_swreg_16-VEPU_swreg_31. A special order is needed, neither
+ * zigzag, nor linear.
  */
 
 #include <asm/unaligned.h>
@@ -98,12 +97,23 @@ rk3399_vpu_jpeg_enc_set_qtable(struct hantro_dev *vpu,
 			       unsigned char *chroma_qtable)
 {
 	u32 reg, i;
+	__be32 *luma_qtable_p;
+	__be32 *chroma_qtable_p;
+
+	luma_qtable_p = (__be32 *)luma_qtable;
+	chroma_qtable_p = (__be32 *)chroma_qtable;
+
+	/*
+	 * Quantization table registers must be written in contiguous blocks.
+	 * DO NOT collapse the below two "for" loops into one.
+	 */
+	for (i = 0; i < VEPU_JPEG_QUANT_TABLE_COUNT; i++) {
+		reg = get_unaligned_be32(&luma_qtable_p[i]);
+		vepu_write_relaxed(vpu, reg, VEPU_REG_JPEG_LUMA_QUAT(i));
+	}
 
 	for (i = 0; i < VEPU_JPEG_QUANT_TABLE_COUNT; i++) {
-		reg = get_unaligned_be32(&luma_qtable[i]);
-		vepu_write_relaxed(vpu, reg, VEPU_REG_JPEG_LUMA_QUAT(i));
-
-		reg = get_unaligned_be32(&chroma_qtable[i]);
+		reg = get_unaligned_be32(&chroma_qtable_p[i]);
 		vepu_write_relaxed(vpu, reg, VEPU_REG_JPEG_CHROMA_QUAT(i));
 	}
 }
@@ -118,7 +128,7 @@ void rk3399_vpu_jpeg_enc_run(struct hantro_ctx *ctx)
 	src_buf = hantro_get_src_buf(ctx);
 	dst_buf = hantro_get_dst_buf(ctx);
 
-	hantro_prepare_run(ctx);
+	hantro_start_prepare_run(ctx);
 
 	memset(&jpeg_ctx, 0, sizeof(jpeg_ctx));
 	jpeg_ctx.buffer = vb2_plane_vaddr(&dst_buf->vb2_buf, 0);
@@ -134,8 +144,8 @@ void rk3399_vpu_jpeg_enc_run(struct hantro_ctx *ctx)
 	rk3399_vpu_set_src_img_ctrl(vpu, ctx);
 	rk3399_vpu_jpeg_enc_set_buffers(vpu, ctx, &src_buf->vb2_buf);
 	rk3399_vpu_jpeg_enc_set_qtable(vpu,
-				       hantro_jpeg_get_qtable(&jpeg_ctx, 0),
-				       hantro_jpeg_get_qtable(&jpeg_ctx, 1));
+				       hantro_jpeg_get_qtable(0),
+				       hantro_jpeg_get_qtable(1));
 
 	reg = VEPU_REG_OUTPUT_SWAP32
 		| VEPU_REG_OUTPUT_SWAP16
@@ -149,13 +159,13 @@ void rk3399_vpu_jpeg_enc_run(struct hantro_ctx *ctx)
 	reg = VEPU_REG_AXI_CTRL_BURST_LEN(16);
 	vepu_write_relaxed(vpu, reg, VEPU_REG_AXI_CTRL);
 
-	reg = VEPU_REG_MB_WIDTH(JPEG_MB_WIDTH(ctx->src_fmt.width))
-		| VEPU_REG_MB_HEIGHT(JPEG_MB_HEIGHT(ctx->src_fmt.height))
+	reg = VEPU_REG_MB_WIDTH(MB_WIDTH(ctx->src_fmt.width))
+		| VEPU_REG_MB_HEIGHT(MB_HEIGHT(ctx->src_fmt.height))
 		| VEPU_REG_FRAME_TYPE_INTRA
 		| VEPU_REG_ENCODE_FORMAT_JPEG
 		| VEPU_REG_ENCODE_ENABLE;
 
 	/* Kick the watchdog and start encoding */
-	hantro_finish_run(ctx);
+	hantro_end_prepare_run(ctx);
 	vepu_write(vpu, reg, VEPU_REG_ENCODE_START);
 }

@@ -623,7 +623,7 @@ struct pmcraid_aen_msg {
 	u32 hostno;
 	u32 length;
 	u8  reserved[8];
-	u8  data[0];
+	u8  data[];
 };
 
 /* Controller state event message type */

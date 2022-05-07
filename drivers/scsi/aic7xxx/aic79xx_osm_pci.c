@@ -293,7 +293,7 @@ ahd_linux_pci_reserve_mem_region(struct ahd_softc *ahd,
 		if (!request_mem_region(start, 0x1000, "aic79xx"))
 			error = ENOMEM;
 		if (!error) {
-			*maddr = ioremap_nocache(base_page, base_offset + 512);
+			*maddr = ioremap(base_page, base_offset + 512);
 			if (*maddr == NULL) {
 				error = ENOMEM;
 				release_mem_region(start, 0x1000);

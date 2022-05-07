@@ -79,7 +79,7 @@ struct ch_mem_range {
 	uint32_t addr;
 	uint32_t len;
 	uint32_t version;
-	uint8_t buf[0];
+	uint8_t buf[];
 };
 
 struct ch_qset_params {

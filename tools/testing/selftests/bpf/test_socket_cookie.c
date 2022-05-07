@@ -151,7 +151,7 @@ static int run_test(int cgfd)
 	}
 
 	bpf_object__for_each_program(prog, pobj) {
-		prog_name = bpf_program__title(prog, /*needs_copy*/ false);
+		prog_name = bpf_program__section_name(prog);
 
 		if (libbpf_attach_type_by_name(prog_name, &attach_type))
 			goto err;
@@ -191,14 +191,8 @@ int main(int argc, char **argv)
 	int cgfd = -1;
 	int err = 0;
 
-	if (setup_cgroup_environment())
-		goto err;
-
-	cgfd = create_and_get_cgroup(CG_PATH);
+	cgfd = cgroup_setup_and_join(CG_PATH);
 	if (cgfd < 0)
-		goto err;
-
-	if (join_cgroup(CG_PATH))
 		goto err;
 
 	if (run_test(cgfd))

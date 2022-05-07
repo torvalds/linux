@@ -142,7 +142,7 @@ static dev_t dynamic_issm_dev;
 
 static DEFINE_IDA(umad_ida);
 
-static void ib_umad_add_one(struct ib_device *device);
+static int ib_umad_add_one(struct ib_device *device);
 static void ib_umad_remove_one(struct ib_device *device, void *client_data);
 
 static void ib_umad_dev_free(struct kref *kref)
@@ -1129,17 +1129,30 @@ static const struct file_operations umad_sm_fops = {
 	.llseek	 = no_llseek,
 };
 
+static struct ib_umad_port *get_port(struct ib_device *ibdev,
+				     struct ib_umad_device *umad_dev,
+				     unsigned int port)
+{
+	if (!umad_dev)
+		return ERR_PTR(-EOPNOTSUPP);
+	if (!rdma_is_port_valid(ibdev, port))
+		return ERR_PTR(-EINVAL);
+	if (!rdma_cap_ib_mad(ibdev, port))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	return &umad_dev->ports[port - rdma_start_port(ibdev)];
+}
+
 static int ib_umad_get_nl_info(struct ib_device *ibdev, void *client_data,
 			       struct ib_client_nl_info *res)
 {
-	struct ib_umad_device *umad_dev = client_data;
+	struct ib_umad_port *port = get_port(ibdev, client_data, res->port);
 
-	if (!rdma_is_port_valid(ibdev, res->port))
-		return -EINVAL;
+	if (IS_ERR(port))
+		return PTR_ERR(port);
 
 	res->abi = IB_USER_MAD_ABI_VERSION;
-	res->cdev = &umad_dev->ports[res->port - rdma_start_port(ibdev)].dev;
-
+	res->cdev = &port->dev;
 	return 0;
 }
 
@@ -1154,15 +1167,13 @@ MODULE_ALIAS_RDMA_CLIENT("umad");
 static int ib_issm_get_nl_info(struct ib_device *ibdev, void *client_data,
 			       struct ib_client_nl_info *res)
 {
-	struct ib_umad_device *umad_dev =
-		ib_get_client_data(ibdev, &umad_client);
+	struct ib_umad_port *port = get_port(ibdev, client_data, res->port);
 
-	if (!rdma_is_port_valid(ibdev, res->port))
-		return -EINVAL;
+	if (IS_ERR(port))
+		return PTR_ERR(port);
 
 	res->abi = IB_USER_MAD_ABI_VERSION;
-	res->cdev = &umad_dev->ports[res->port - rdma_start_port(ibdev)].sm_dev;
-
+	res->cdev = &port->sm_dev;
 	return 0;
 }
 
@@ -1312,6 +1323,9 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 	struct ib_umad_file *file;
 	int id;
 
+	cdev_device_del(&port->sm_cdev, &port->sm_dev);
+	cdev_device_del(&port->cdev, &port->dev);
+
 	mutex_lock(&port->file_mutex);
 
 	/* Mark ib_dev NULL and block ioctl or other file ops to progress
@@ -1331,8 +1345,6 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 
 	mutex_unlock(&port->file_mutex);
 
-	cdev_device_del(&port->sm_cdev, &port->sm_dev);
-	cdev_device_del(&port->cdev, &port->dev);
 	ida_free(&umad_ida, port->dev_num);
 
 	/* balances device_initialize() */
@@ -1340,37 +1352,41 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 	put_device(&port->dev);
 }
 
-static void ib_umad_add_one(struct ib_device *device)
+static int ib_umad_add_one(struct ib_device *device)
 {
 	struct ib_umad_device *umad_dev;
 	int s, e, i;
 	int count = 0;
+	int ret;
 
 	s = rdma_start_port(device);
 	e = rdma_end_port(device);
 
 	umad_dev = kzalloc(struct_size(umad_dev, ports, e - s + 1), GFP_KERNEL);
 	if (!umad_dev)
-		return;
+		return -ENOMEM;
 
 	kref_init(&umad_dev->kref);
 	for (i = s; i <= e; ++i) {
 		if (!rdma_cap_ib_mad(device, i))
 			continue;
 
-		if (ib_umad_init_port(device, i, umad_dev,
-				      &umad_dev->ports[i - s]))
+		ret = ib_umad_init_port(device, i, umad_dev,
+					&umad_dev->ports[i - s]);
+		if (ret)
 			goto err;
 
 		count++;
 	}
 
-	if (!count)
+	if (!count) {
+		ret = -EOPNOTSUPP;
 		goto free;
+	}
 
 	ib_set_client_data(device, &umad_client, umad_dev);
 
-	return;
+	return 0;
 
 err:
 	while (--i >= s) {
@@ -1382,15 +1398,13 @@ err:
 free:
 	/* balances kref_init */
 	ib_umad_dev_put(umad_dev);
+	return ret;
 }
 
 static void ib_umad_remove_one(struct ib_device *device, void *client_data)
 {
 	struct ib_umad_device *umad_dev = client_data;
 	unsigned int i;
-
-	if (!umad_dev)
-		return;
 
 	rdma_for_each_port (device, i) {
 		if (rdma_cap_ib_mad(device, i))

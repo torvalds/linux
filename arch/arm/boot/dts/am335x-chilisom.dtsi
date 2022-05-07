@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2015 Jablotron s.r.o. -- http://www.jablotron.com/
+ * Copyright (C) 2015 Jablotron s.r.o. -- https://www.jablotron.com/
  * Author: Rostislav Lisovy <lisovy@jablotron.cz>
  */
 #include "am33xx.dtsi"

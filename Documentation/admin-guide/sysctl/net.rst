@@ -67,7 +67,8 @@ two flavors of JITs, the newer eBPF JIT currently supported on:
   - sparc64
   - mips64
   - s390x
-  - riscv
+  - riscv64
+  - riscv32
 
 And the older cBPF JIT supported on the following archs:
 
@@ -320,11 +321,20 @@ fb_tunnels_only_for_init_net
 ----------------------------
 
 Controls if fallback tunnels (like tunl0, gre0, gretap0, erspan0,
-sit0, ip6tnl0, ip6gre0) are automatically created when a new
-network namespace is created, if corresponding tunnel is present
-in initial network namespace.
-If set to 1, these devices are not automatically created, and
-user space is responsible for creating them if needed.
+sit0, ip6tnl0, ip6gre0) are automatically created. There are 3 possibilities
+(a) value = 0; respective fallback tunnels are created when module is
+loaded in every net namespaces (backward compatible behavior).
+(b) value = 1; [kcmd value: initns] respective fallback tunnels are
+created only in init net namespace and every other net namespace will
+not have them.
+(c) value = 2; [kcmd value: none] fallback tunnels are not created
+when a module is loaded in any of the net namespace. Setting value to
+"2" is pointless after boot if these modules are built-in, so there is
+a kernel command-line option that can change this default. Please refer to
+Documentation/admin-guide/kernel-parameters.txt for additional details.
+
+Not creating fallback tunnels gives control to userspace to create
+whatever is needed only and avoid creating devices which are redundant.
 
 Default : 0  (for compatibility reasons)
 
@@ -338,7 +348,9 @@ settings from init_net and for IPv6 we reset all settings to default.
 
 If set to 1, both IPv4 and IPv6 settings are forced to inherit from
 current ones in init_net. If set to 2, both IPv4 and IPv6 settings are
-forced to reset to their default values.
+forced to reset to their default values. If set to 3, both IPv4 and IPv6
+settings are forced to inherit from current ones in the netns where this
+new netns has been created.
 
 Default : 0  (for compatibility reasons)
 
@@ -352,8 +364,8 @@ socket's buffer. It will not take effect unless PF_UNIX flag is specified.
 
 3. /proc/sys/net/ipv4 - IPV4 settings
 -------------------------------------
-Please see: Documentation/networking/ip-sysctl.txt and ipvs-sysctl.txt for
-descriptions of these entries.
+Please see: Documentation/networking/ip-sysctl.rst and
+Documentation/admin-guide/sysctl/net.rst for descriptions of these entries.
 
 
 4. Appletalk

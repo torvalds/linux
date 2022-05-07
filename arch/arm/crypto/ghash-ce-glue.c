@@ -16,6 +16,7 @@
 #include <crypto/gf128mul.h>
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
+#include <linux/jump_label.h>
 #include <linux/module.h>
 
 MODULE_DESCRIPTION("GHASH hash function using ARMv8 Crypto Extensions");
@@ -27,12 +28,8 @@ MODULE_ALIAS_CRYPTO("ghash");
 #define GHASH_DIGEST_SIZE	16
 
 struct ghash_key {
-	u64	h[2];
-	u64	h2[2];
-	u64	h3[2];
-	u64	h4[2];
-
 	be128	k;
+	u64	h[][2];
 };
 
 struct ghash_desc_ctx {
@@ -46,16 +43,12 @@ struct ghash_async_ctx {
 };
 
 asmlinkage void pmull_ghash_update_p64(int blocks, u64 dg[], const char *src,
-				       struct ghash_key const *k,
-				       const char *head);
+				       u64 const h[][2], const char *head);
 
 asmlinkage void pmull_ghash_update_p8(int blocks, u64 dg[], const char *src,
-				      struct ghash_key const *k,
-				      const char *head);
+				      u64 const h[][2], const char *head);
 
-static void (*pmull_ghash_update)(int blocks, u64 dg[], const char *src,
-				  struct ghash_key const *k,
-				  const char *head);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(use_p64);
 
 static int ghash_init(struct shash_desc *desc)
 {
@@ -70,7 +63,10 @@ static void ghash_do_update(int blocks, u64 dg[], const char *src,
 {
 	if (likely(crypto_simd_usable())) {
 		kernel_neon_begin();
-		pmull_ghash_update(blocks, dg, src, key, head);
+		if (static_branch_likely(&use_p64))
+			pmull_ghash_update_p64(blocks, dg, src, key->h, head);
+		else
+			pmull_ghash_update_p8(blocks, dg, src, key->h, head);
 		kernel_neon_end();
 	} else {
 		be128 dst = { cpu_to_be64(dg[1]), cpu_to_be64(dg[0]) };
@@ -161,27 +157,26 @@ static int ghash_setkey(struct crypto_shash *tfm,
 			const u8 *inkey, unsigned int keylen)
 {
 	struct ghash_key *key = crypto_shash_ctx(tfm);
-	be128 h;
 
-	if (keylen != GHASH_BLOCK_SIZE) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
-	}
 
 	/* needed for the fallback */
 	memcpy(&key->k, inkey, GHASH_BLOCK_SIZE);
-	ghash_reflect(key->h, &key->k);
+	ghash_reflect(key->h[0], &key->k);
 
-	h = key->k;
-	gf128mul_lle(&h, &key->k);
-	ghash_reflect(key->h2, &h);
+	if (static_branch_likely(&use_p64)) {
+		be128 h = key->k;
 
-	gf128mul_lle(&h, &key->k);
-	ghash_reflect(key->h3, &h);
+		gf128mul_lle(&h, &key->k);
+		ghash_reflect(key->h[1], &h);
 
-	gf128mul_lle(&h, &key->k);
-	ghash_reflect(key->h4, &h);
+		gf128mul_lle(&h, &key->k);
+		ghash_reflect(key->h[2], &h);
 
+		gf128mul_lle(&h, &key->k);
+		ghash_reflect(key->h[3], &h);
+	}
 	return 0;
 }
 
@@ -197,7 +192,7 @@ static struct shash_alg ghash_alg = {
 	.base.cra_driver_name	= "ghash-ce-sync",
 	.base.cra_priority	= 300 - 1,
 	.base.cra_blocksize	= GHASH_BLOCK_SIZE,
-	.base.cra_ctxsize	= sizeof(struct ghash_key),
+	.base.cra_ctxsize	= sizeof(struct ghash_key) + sizeof(u64[2]),
 	.base.cra_module	= THIS_MODULE,
 };
 
@@ -296,16 +291,11 @@ static int ghash_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 {
 	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct crypto_ahash *child = &ctx->cryptd_tfm->base;
-	int err;
 
 	crypto_ahash_clear_flags(child, CRYPTO_TFM_REQ_MASK);
 	crypto_ahash_set_flags(child, crypto_ahash_get_flags(tfm)
 			       & CRYPTO_TFM_REQ_MASK);
-	err = crypto_ahash_setkey(child, key, keylen);
-	crypto_ahash_set_flags(tfm, crypto_ahash_get_flags(child)
-			       & CRYPTO_TFM_RES_MASK);
-
-	return err;
+	return crypto_ahash_setkey(child, key, keylen);
 }
 
 static int ghash_async_init_tfm(struct crypto_tfm *tfm)
@@ -361,10 +351,10 @@ static int __init ghash_ce_mod_init(void)
 	if (!(elf_hwcap & HWCAP_NEON))
 		return -ENODEV;
 
-	if (elf_hwcap2 & HWCAP2_PMULL)
-		pmull_ghash_update = pmull_ghash_update_p64;
-	else
-		pmull_ghash_update = pmull_ghash_update_p8;
+	if (elf_hwcap2 & HWCAP2_PMULL) {
+		ghash_alg.base.cra_ctxsize += 3 * sizeof(u64[2]);
+		static_branch_enable(&use_p64);
+	}
 
 	err = crypto_register_shash(&ghash_alg);
 	if (err)

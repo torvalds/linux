@@ -119,7 +119,7 @@ out:
 
 static loff_t
 iomap_seek_hole_actor(struct inode *inode, loff_t offset, loff_t length,
-		      void *data, struct iomap *iomap)
+		      void *data, struct iomap *iomap, struct iomap *srcmap)
 {
 	switch (iomap->type) {
 	case IOMAP_UNWRITTEN:
@@ -127,7 +127,7 @@ iomap_seek_hole_actor(struct inode *inode, loff_t offset, loff_t length,
 						   SEEK_HOLE);
 		if (offset < 0)
 			return length;
-		/* fall through */
+		fallthrough;
 	case IOMAP_HOLE:
 		*(loff_t *)data = offset;
 		return 0;
@@ -165,7 +165,7 @@ EXPORT_SYMBOL_GPL(iomap_seek_hole);
 
 static loff_t
 iomap_seek_data_actor(struct inode *inode, loff_t offset, loff_t length,
-		      void *data, struct iomap *iomap)
+		      void *data, struct iomap *iomap, struct iomap *srcmap)
 {
 	switch (iomap->type) {
 	case IOMAP_HOLE:
@@ -175,7 +175,7 @@ iomap_seek_data_actor(struct inode *inode, loff_t offset, loff_t length,
 						   SEEK_DATA);
 		if (offset < 0)
 			return length;
-		/*FALLTHRU*/
+		fallthrough;
 	default:
 		*(loff_t *)data = offset;
 		return 0;

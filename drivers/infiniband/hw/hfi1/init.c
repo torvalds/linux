@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
+ * Copyright(c) 2015 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -69,6 +69,7 @@
 #include "affinity.h"
 #include "vnic.h"
 #include "exp_rcv.h"
+#include "netdev.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -78,8 +79,6 @@
  */
 #define HFI1_MIN_USER_CTXT_BUFCNT 7
 
-#define HFI1_MIN_HDRQ_EGRBUF_CNT 2
-#define HFI1_MAX_HDRQ_EGRBUF_CNT 16352
 #define HFI1_MIN_EAGER_BUFFER_SIZE (4 * 1024) /* 4KB */
 #define HFI1_MAX_EAGER_BUFFER_SIZE (256 * 1024) /* 256KB */
 
@@ -122,8 +121,6 @@ unsigned int user_credit_return_threshold = 33;	/* default is 33% */
 module_param(user_credit_return_threshold, uint, S_IRUGO);
 MODULE_PARM_DESC(user_credit_return_threshold, "Credit return threshold for user send contexts, return when unreturned credits passes this many blocks (in percent of allocated blocks, 0 is off)");
 
-static inline u64 encode_rcv_header_entry_size(u16 size);
-
 DEFINE_XARRAY_FLAGS(hfi1_dev_table, XA_FLAGS_ALLOC | XA_FLAGS_LOCK_IRQ);
 
 static int hfi1_create_kctxt(struct hfi1_devdata *dd,
@@ -154,7 +151,12 @@ static int hfi1_create_kctxt(struct hfi1_devdata *dd,
 	/* Control context must use DMA_RTAIL */
 	if (rcd->ctxt == HFI1_CTRL_CTXT)
 		rcd->flags |= HFI1_CAP_DMA_RTAIL;
-	rcd->seq_cnt = 1;
+	rcd->fast_handler = get_dma_rtail_setting(rcd) ?
+				handle_receive_interrupt_dma_rtail :
+				handle_receive_interrupt_nodma_rtail;
+	rcd->slow_handler = handle_receive_interrupt;
+
+	hfi1_set_seq_cnt(rcd, 1);
 
 	rcd->sc = sc_alloc(dd, SC_ACK, rcd->rcvhdrqentsize, dd->node);
 	if (!rcd->sc) {
@@ -373,6 +375,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		rcd->numa_id = numa;
 		rcd->rcv_array_groups = dd->rcv_entries.ngroups;
 		rcd->rhf_rcv_function_map = normal_rhf_rcv_functions;
+		rcd->msix_intr = CCE_NUM_MSIX_VECTORS;
 
 		mutex_init(&rcd->exp_mutex);
 		spin_lock_init(&rcd->exp_lock);
@@ -508,23 +511,6 @@ bail:
 void hfi1_free_ctxt(struct hfi1_ctxtdata *rcd)
 {
 	hfi1_rcd_put(rcd);
-}
-
-/*
- * Convert a receive header entry size that to the encoding used in the CSR.
- *
- * Return a zero if the given size is invalid.
- */
-static inline u64 encode_rcv_header_entry_size(u16 size)
-{
-	/* there are only 3 valid receive header entry sizes */
-	if (size == 2)
-		return 1;
-	if (size == 16)
-		return 2;
-	else if (size == 32)
-		return 4;
-	return 0; /* invalid */
 }
 
 /*
@@ -845,6 +831,29 @@ wq_error:
 }
 
 /**
+ * destroy_workqueues - destroy per port workqueues
+ * @dd: the hfi1_ib device
+ */
+static void destroy_workqueues(struct hfi1_devdata *dd)
+{
+	int pidx;
+	struct hfi1_pportdata *ppd;
+
+	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
+		ppd = dd->pport + pidx;
+
+		if (ppd->hfi1_wq) {
+			destroy_workqueue(ppd->hfi1_wq);
+			ppd->hfi1_wq = NULL;
+		}
+		if (ppd->link_wq) {
+			destroy_workqueue(ppd->link_wq);
+			ppd->link_wq = NULL;
+		}
+	}
+}
+
+/**
  * enable_general_intr() - Enable the IRQs that will be handled by the
  * general interrupt handler.
  * @dd: valid devdata
@@ -892,10 +901,10 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 
 	if (is_ax(dd)) {
 		atomic_set(&dd->drop_packet, DROP_PACKET_ON);
-		dd->do_drop = 1;
+		dd->do_drop = true;
 	} else {
 		atomic_set(&dd->drop_packet, DROP_PACKET_OFF);
-		dd->do_drop = 0;
+		dd->do_drop = false;
 	}
 
 	/* make sure the link is not "up" */
@@ -1117,15 +1126,10 @@ static void shutdown_device(struct hfi1_devdata *dd)
 		 * We can't count on interrupts since we are stopping.
 		 */
 		hfi1_quiet_serdes(ppd);
-
-		if (ppd->hfi1_wq) {
-			destroy_workqueue(ppd->hfi1_wq);
-			ppd->hfi1_wq = NULL;
-		}
-		if (ppd->link_wq) {
-			destroy_workqueue(ppd->link_wq);
-			ppd->link_wq = NULL;
-		}
+		if (ppd->hfi1_wq)
+			flush_workqueue(ppd->hfi1_wq);
+		if (ppd->link_wq)
+			flush_workqueue(ppd->link_wq);
 	}
 	sdma_exit(dd);
 }
@@ -1149,9 +1153,9 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 		dma_free_coherent(&dd->pcidev->dev, rcvhdrq_size(rcd),
 				  rcd->rcvhdrq, rcd->rcvhdrq_dma);
 		rcd->rcvhdrq = NULL;
-		if (rcd->rcvhdrtail_kvaddr) {
+		if (hfi1_rcvhdrtail_kvaddr(rcd)) {
 			dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
-					  (void *)rcd->rcvhdrtail_kvaddr,
+					  (void *)hfi1_rcvhdrtail_kvaddr(rcd),
 					  rcd->rcvhdrqtailaddr_dma);
 			rcd->rcvhdrtail_kvaddr = NULL;
 		}
@@ -1214,13 +1218,13 @@ static void finalize_asic_data(struct hfi1_devdata *dd,
 }
 
 /**
- * hfi1_clean_devdata - cleans up per-unit data structure
+ * hfi1_free_devdata - cleans up and frees per-unit data structure
  * @dd: pointer to a valid devdata structure
  *
- * It cleans up all data structures set up by
+ * It cleans up and frees all data structures set up by
  * by hfi1_alloc_devdata().
  */
-static void hfi1_clean_devdata(struct hfi1_devdata *dd)
+void hfi1_free_devdata(struct hfi1_devdata *dd)
 {
 	struct hfi1_asic_data *ad;
 	unsigned long flags;
@@ -1245,23 +1249,6 @@ static void hfi1_clean_devdata(struct hfi1_devdata *dd)
 	dd->comp_vect = NULL;
 	sdma_clean(dd, dd->num_sdma);
 	rvt_dealloc_device(&dd->verbs_dev.rdi);
-}
-
-static void __hfi1_free_devdata(struct kobject *kobj)
-{
-	struct hfi1_devdata *dd =
-		container_of(kobj, struct hfi1_devdata, kobj);
-
-	hfi1_clean_devdata(dd);
-}
-
-static struct kobj_type hfi1_devdata_type = {
-	.release = __hfi1_free_devdata,
-};
-
-void hfi1_free_devdata(struct hfi1_devdata *dd)
-{
-	kobject_put(&dd->kobj);
 }
 
 /**
@@ -1349,11 +1336,11 @@ static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
 		goto bail;
 	}
 
-	kobject_init(&dd->kobj, &hfi1_devdata_type);
+	atomic_set(&dd->ipoib_rsm_usr_num, 0);
 	return dd;
 
 bail:
-	hfi1_clean_devdata(dd);
+	hfi1_free_devdata(dd);
 	return ERR_PTR(ret);
 }
 
@@ -1611,29 +1598,6 @@ static void postinit_cleanup(struct hfi1_devdata *dd)
 	hfi1_free_devdata(dd);
 }
 
-static int init_validate_rcvhdrcnt(struct hfi1_devdata *dd, uint thecnt)
-{
-	if (thecnt <= HFI1_MIN_HDRQ_EGRBUF_CNT) {
-		dd_dev_err(dd, "Receive header queue count too small\n");
-		return -EINVAL;
-	}
-
-	if (thecnt > HFI1_MAX_HDRQ_EGRBUF_CNT) {
-		dd_dev_err(dd,
-			   "Receive header queue count cannot be greater than %u\n",
-			   HFI1_MAX_HDRQ_EGRBUF_CNT);
-		return -EINVAL;
-	}
-
-	if (thecnt % HDRQ_INCREMENT) {
-		dd_dev_err(dd, "Receive header queue count %d must be divisible by %lu\n",
-			   thecnt, HDRQ_INCREMENT);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret = 0, j, pidx, initfail;
@@ -1661,7 +1625,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Validate some global module parameters */
-	ret = init_validate_rcvhdrcnt(dd, rcvhdrcnt);
+	ret = hfi1_validate_rcvhdrcnt(dd, rcvhdrcnt);
 	if (ret)
 		goto bail;
 
@@ -1720,9 +1684,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* do the generic initialization */
 	initfail = hfi1_init(dd, 0);
 
-	/* setup vnic */
-	hfi1_vnic_setup(dd);
-
 	ret = hfi1_register_ib_device(dd);
 
 	/*
@@ -1761,7 +1722,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			hfi1_device_remove(dd);
 		if (!ret)
 			hfi1_unregister_ib_device(dd);
-		hfi1_vnic_cleanup(dd);
 		postinit_cleanup(dd);
 		if (initfail)
 			ret = initfail;
@@ -1806,14 +1766,15 @@ static void remove_one(struct pci_dev *pdev)
 	/* unregister from IB core */
 	hfi1_unregister_ib_device(dd);
 
-	/* cleanup vnic */
-	hfi1_vnic_cleanup(dd);
+	/* free netdev data */
+	hfi1_netdev_free(dd);
 
 	/*
 	 * Disable the IB link, disable interrupts on the device,
 	 * clear dma engines, etc.
 	 */
 	shutdown_device(dd);
+	destroy_workqueues(dd);
 
 	stop_timers(dd);
 
@@ -1842,7 +1803,6 @@ static void shutdown_one(struct pci_dev *pdev)
 int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 {
 	unsigned amt;
-	u64 reg;
 
 	if (!rcd->rcvhdrq) {
 		gfp_t gfp_flags;
@@ -1874,30 +1834,9 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 				goto bail_free;
 		}
 	}
-	/*
-	 * These values are per-context:
-	 *	RcvHdrCnt
-	 *	RcvHdrEntSize
-	 *	RcvHdrSize
-	 */
-	reg = ((u64)(rcd->rcvhdrq_cnt >> HDRQ_SIZE_SHIFT)
-			& RCV_HDR_CNT_CNT_MASK)
-		<< RCV_HDR_CNT_CNT_SHIFT;
-	write_kctxt_csr(dd, rcd->ctxt, RCV_HDR_CNT, reg);
-	reg = (encode_rcv_header_entry_size(rcd->rcvhdrqentsize)
-			& RCV_HDR_ENT_SIZE_ENT_SIZE_MASK)
-		<< RCV_HDR_ENT_SIZE_ENT_SIZE_SHIFT;
-	write_kctxt_csr(dd, rcd->ctxt, RCV_HDR_ENT_SIZE, reg);
-	reg = ((u64)DEFAULT_RCVHDRSIZE & RCV_HDR_SIZE_HDR_SIZE_MASK)
-		<< RCV_HDR_SIZE_HDR_SIZE_SHIFT;
-	write_kctxt_csr(dd, rcd->ctxt, RCV_HDR_SIZE, reg);
 
-	/*
-	 * Program dummy tail address for every receive context
-	 * before enabling any receive context
-	 */
-	write_kctxt_csr(dd, rcd->ctxt, RCV_HDR_TAIL_ADDR,
-			dd->rcvhdrtail_dummy_dma);
+	set_hdrq_regs(rcd->dd, rcd->ctxt, rcd->rcvhdrqentsize,
+		      rcd->rcvhdrq_cnt);
 
 	return 0;
 

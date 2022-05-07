@@ -2,7 +2,9 @@
 // Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include "hclge_main.h"
+#include "hclge_dcb.h"
 #include "hclge_tm.h"
+#include "hclge_dcb.h"
 #include "hnae3.h"
 
 #define BW_PERCENT	100
@@ -87,7 +89,7 @@ static int hclge_dcb_common_validate(struct hclge_dev *hdev, u8 num_tc,
 	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++) {
 		if (prio_tc[i] >= num_tc) {
 			dev_err(&hdev->pdev->dev,
-				"prio_tc[%u] checking failed, %u >= num_tc(%u)\n",
+				"prio_tc[%d] checking failed, %u >= num_tc(%u)\n",
 				i, prio_tc[i], num_tc);
 			return -EINVAL;
 		}

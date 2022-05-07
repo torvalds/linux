@@ -24,6 +24,9 @@
 #define SOF_TPLG_KCTL_ENUM_ID	257
 #define SOF_TPLG_KCTL_BYTES_ID	258
 #define SOF_TPLG_KCTL_SWITCH_ID	259
+#define SOF_TPLG_KCTL_BYTES_VOLATILE_RO 260
+#define SOF_TPLG_KCTL_BYTES_VOLATILE_RW 261
+#define SOF_TPLG_KCTL_BYTES_WO_ID 262
 
 /*
  * Tokens - must match values in topology configurations
@@ -57,6 +60,12 @@
 #define SOF_TKN_SRC_RATE_IN			300
 #define SOF_TKN_SRC_RATE_OUT			301
 
+/* ASRC */
+#define SOF_TKN_ASRC_RATE_IN			320
+#define SOF_TKN_ASRC_RATE_OUT			321
+#define SOF_TKN_ASRC_ASYNCHRONOUS_MODE		322
+#define SOF_TKN_ASRC_OPERATION_MODE		323
+
 /* PCM */
 #define SOF_TKN_PCM_DMAC_CONFIG			353
 
@@ -67,6 +76,8 @@
 /* Token retired with ABI 3.2, do not use for new capabilities
  * #define SOF_TKN_COMP_PRELOAD_COUNT		403
  */
+#define SOF_TKN_COMP_CORE_ID			404
+#define SOF_TKN_COMP_UUID                       405
 
 /* SSP */
 #define SOF_TKN_INTEL_SSP_CLKS_CONTROL		500
@@ -107,11 +118,25 @@
 #define SOF_TKN_EFFECT_TYPE	SOF_TKN_PROCESS_TYPE
 
 /* SAI */
-#define SOF_TKN_IMX_SAI_FIRST_TOKEN		1000
-/* TODO: Add SAI tokens */
+#define SOF_TKN_IMX_SAI_MCLK_ID			1000
 
 /* ESAI */
-#define SOF_TKN_IMX_ESAI_FIRST_TOKEN		1100
-/* TODO: Add ESAI tokens */
+#define SOF_TKN_IMX_ESAI_MCLK_ID		1100
+
+/* Stream */
+#define SOF_TKN_STREAM_PLAYBACK_COMPATIBLE_D0I3	1200
+#define SOF_TKN_STREAM_CAPTURE_COMPATIBLE_D0I3	1201
+
+/* Led control for mute switches */
+#define SOF_TKN_MUTE_LED_USE			1300
+#define SOF_TKN_MUTE_LED_DIRECTION		1301
+
+/* ALH */
+#define SOF_TKN_INTEL_ALH_RATE			1400
+#define SOF_TKN_INTEL_ALH_CH			1401
+
+/* HDA */
+#define SOF_TKN_INTEL_HDA_RATE			1500
+#define SOF_TKN_INTEL_HDA_CH			1501
 
 #endif

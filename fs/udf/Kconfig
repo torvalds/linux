@@ -9,7 +9,7 @@ config UDF_FS
 	  compatible with standard unix file systems, it is also suitable for
 	  removable USB disks. Say Y if you intend to mount DVD discs or CDRW's
 	  written in packet mode, or if you want to use UDF for removable USB
-	  disks. Please read <file:Documentation/filesystems/udf.txt>.
+	  disks. Please read <file:Documentation/filesystems/udf.rst>.
 
 	  To compile this file system support as a module, choose M here: the
 	  module will be called udf.

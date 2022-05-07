@@ -5,4 +5,4 @@
 
 obj-y	:= sun3ints.o sun3dvma.o idprom.o
 
-obj-$(CONFIG_SUN3) += config.o mmu_emu.o leds.o dvma.o intersil.o
+obj-$(CONFIG_SUN3) += config.o mmu_emu.o leds.o dvma.o intersil.o prom/

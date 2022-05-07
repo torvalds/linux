@@ -91,7 +91,7 @@
 #ifdef GENERAL_DEBUG
 #define PRINTK(args...) printk(args)
 #else
-#define PRINTK(args...)
+#define PRINTK(args...) do {} while (0)
 #endif /* GENERAL_DEBUG */
 
 #ifdef EXTRA_DEBUG
@@ -1706,6 +1706,8 @@ static int ns_send(struct atm_vcc *vcc, struct sk_buff *skb)
 
 	if (push_scqe(card, vc, scq, &scqe, skb) != 0) {
 		atomic_inc(&vcc->stats->tx_err);
+		dma_unmap_single(&card->pcidev->dev, NS_PRV_DMA(skb), skb->len,
+				 DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 		return -EIO;
 	}

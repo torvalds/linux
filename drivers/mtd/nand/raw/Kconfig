@@ -12,8 +12,8 @@ config MTD_NAND_ECC_SW_HAMMING_SMC
 
 menuconfig MTD_RAW_NAND
 	tristate "Raw/Parallel NAND Device Support"
-	depends on MTD
 	select MTD_NAND_CORE
+	select MTD_NAND_ECC
 	select MTD_NAND_ECC_SW_HAMMING
 	help
 	  This enables support for accessing all type of raw/parallel
@@ -212,10 +212,6 @@ config MTD_NAND_MLC_LPC32XX
 
 	  Please check the actual NAND chip connected and its support
 	  by the MLC NAND controller.
-
-config MTD_NAND_CM_X270
-	tristate "CM-X270 modules NAND controller"
-	depends on MACH_ARMCORE
 
 config MTD_NAND_PASEMI
 	tristate "PA Semi PWRficient NAND controller"
@@ -419,6 +415,7 @@ config MTD_NAND_TEGRA
 config MTD_NAND_STM32_FMC2
 	tristate "Support for NAND controller on STM32MP SoCs"
 	depends on MACH_STM32MP157 || COMPILE_TEST
+	select MFD_SYSCON
 	help
 	  Enables support for NAND Flash chips on SoCs containing the FMC2
 	  NAND controller. This controller is found on STM32MP SoCs.
@@ -449,6 +446,21 @@ config MTD_NAND_PLATFORM
 	  This implements a generic NAND driver for on-SOC platform
 	  devices. You will need to provide platform-specific functions
 	  via platform_data.
+
+config MTD_NAND_CADENCE
+	tristate "Support Cadence NAND (HPNFC) controller"
+	depends on (OF || COMPILE_TEST) && HAS_IOMEM
+	help
+	  Enable the driver for NAND flash on platforms using a Cadence NAND
+	  controller.
+
+config MTD_NAND_ARASAN
+	tristate "Support for Arasan NAND flash controller"
+	depends on HAS_IOMEM && HAS_DMA
+	select BCH
+	help
+	  Enables the driver for the Arasan NAND flash controller on
+	  Zynq Ultrascale+ MPSoC.
 
 comment "Misc"
 

@@ -6,6 +6,7 @@ Required properties:
 - compatible:	Should be "fsl,imx23-lcdif" for i.MX23.
 		Should be "fsl,imx28-lcdif" for i.MX28.
 		Should be "fsl,imx6sx-lcdif" for i.MX6SX.
+		Should be "fsl,imx8mq-lcdif" for i.MX8MQ.
 - reg:		Address and length of the register set for LCDIF
 - interrupts:	Should contain LCDIF interrupt
 - clocks:	A list of phandle + clock-specifier pairs, one for each

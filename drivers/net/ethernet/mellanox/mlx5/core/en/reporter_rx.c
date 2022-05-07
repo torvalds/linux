@@ -3,6 +3,7 @@
 
 #include "health.h"
 #include "params.h"
+#include "txrx.h"
 
 static int mlx5e_query_rq_state(struct mlx5_core_dev *dev, u32 rqn, u8 *state)
 {
@@ -29,7 +30,8 @@ out:
 
 static int mlx5e_wait_for_icosq_flush(struct mlx5e_icosq *icosq)
 {
-	unsigned long exp_time = jiffies + msecs_to_jiffies(2000);
+	unsigned long exp_time = jiffies +
+				 msecs_to_jiffies(MLX5E_REPORTER_FLUSH_TIMEOUT_MSEC);
 
 	while (time_before(jiffies, exp_time)) {
 		if (icosq->cc == icosq->pc)
@@ -90,7 +92,7 @@ static int mlx5e_rx_reporter_err_icosq_cqe_recover(void *ctx)
 		goto out;
 
 	mlx5e_reset_icosq_cc_pc(icosq);
-	mlx5e_free_rx_descs(rq);
+	mlx5e_free_rx_in_progress_descs(rq);
 	clear_bit(MLX5E_SQ_STATE_RECOVERING, &icosq->state);
 	mlx5e_activate_icosq(icosq);
 	mlx5e_activate_rq(rq);
@@ -100,19 +102,6 @@ static int mlx5e_rx_reporter_err_icosq_cqe_recover(void *ctx)
 out:
 	clear_bit(MLX5E_SQ_STATE_RECOVERING, &icosq->state);
 	return err;
-}
-
-void mlx5e_reporter_icosq_cqe_err(struct mlx5e_icosq *icosq)
-{
-	struct mlx5e_priv *priv = icosq->channel->priv;
-	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
-	struct mlx5e_err_ctx err_ctx = {};
-
-	err_ctx.ctx = icosq;
-	err_ctx.recover = mlx5e_rx_reporter_err_icosq_cqe_recover;
-	sprintf(err_str, "ERR CQE on ICOSQ: 0x%x", icosq->sqn);
-
-	mlx5e_health_report(priv, priv->rx_reporter, err_str, &err_ctx);
 }
 
 static int mlx5e_rq_to_ready(struct mlx5e_rq *rq, int curr_state)
@@ -136,24 +125,8 @@ static int mlx5e_rq_to_ready(struct mlx5e_rq *rq, int curr_state)
 
 static int mlx5e_rx_reporter_err_rq_cqe_recover(void *ctx)
 {
-	struct mlx5_core_dev *mdev;
-	struct net_device *dev;
-	struct mlx5e_rq *rq;
-	u8 state;
+	struct mlx5e_rq *rq = ctx;
 	int err;
-
-	rq = ctx;
-	mdev = rq->mdev;
-	dev = rq->netdev;
-	err = mlx5e_query_rq_state(mdev, rq->rqn, &state);
-	if (err) {
-		netdev_err(dev, "Failed to query RQ 0x%x state. err = %d\n",
-			   rq->rqn, err);
-		goto out;
-	}
-
-	if (state != MLX5_RQC_STATE_ERR)
-		goto out;
 
 	mlx5e_deactivate_rq(rq);
 	mlx5e_free_rx_descs(rq);
@@ -169,19 +142,6 @@ static int mlx5e_rx_reporter_err_rq_cqe_recover(void *ctx)
 out:
 	clear_bit(MLX5E_RQ_STATE_RECOVERING, &rq->state);
 	return err;
-}
-
-void mlx5e_reporter_rq_cqe_err(struct mlx5e_rq *rq)
-{
-	struct mlx5e_priv *priv = rq->channel->priv;
-	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
-	struct mlx5e_err_ctx err_ctx = {};
-
-	err_ctx.ctx = rq;
-	err_ctx.recover = mlx5e_rx_reporter_err_rq_cqe_recover;
-	sprintf(err_str, "ERR CQE on RQ: 0x%x", rq->rqn);
-
-	mlx5e_health_report(priv, priv->rx_reporter, err_str, &err_ctx);
 }
 
 static int mlx5e_rx_reporter_timeout_recover(void *ctx)
@@ -201,28 +161,14 @@ static int mlx5e_rx_reporter_timeout_recover(void *ctx)
 	return err;
 }
 
-void mlx5e_reporter_rx_timeout(struct mlx5e_rq *rq)
-{
-	struct mlx5e_icosq *icosq = &rq->channel->icosq;
-	struct mlx5e_priv *priv = rq->channel->priv;
-	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
-	struct mlx5e_err_ctx err_ctx = {};
-
-	err_ctx.ctx = rq;
-	err_ctx.recover = mlx5e_rx_reporter_timeout_recover;
-	sprintf(err_str, "RX timeout on channel: %d, ICOSQ: 0x%x RQ: 0x%x, CQ: 0x%x\n",
-		icosq->channel->ix, icosq->sqn, rq->rqn, rq->cq.mcq.cqn);
-
-	mlx5e_health_report(priv, priv->rx_reporter, err_str, &err_ctx);
-}
-
 static int mlx5e_rx_reporter_recover_from_ctx(struct mlx5e_err_ctx *err_ctx)
 {
 	return err_ctx->recover(err_ctx->ctx);
 }
 
 static int mlx5e_rx_reporter_recover(struct devlink_health_reporter *reporter,
-				     void *context)
+				     void *context,
+				     struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
 	struct mlx5e_err_ctx *err_ctx = context;
@@ -231,19 +177,71 @@ static int mlx5e_rx_reporter_recover(struct devlink_health_reporter *reporter,
 			 mlx5e_health_recover_channels(priv);
 }
 
+static int mlx5e_reporter_icosq_diagnose(struct mlx5e_icosq *icosq, u8 hw_state,
+					 struct devlink_fmsg *fmsg)
+{
+	int err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "ICOSQ");
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "sqn", icosq->sqn);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u8_pair_put(fmsg, "HW state", hw_state);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "cc", icosq->cc);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "pc", icosq->pc);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "WQE size",
+					mlx5_wq_cyc_get_size(&icosq->wq));
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "CQ");
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "cqn", icosq->cq.mcq.cqn);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "cc", icosq->cq.wq.cc);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u32_pair_put(fmsg, "size", mlx5_cqwq_get_size(&icosq->cq.wq));
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+	if (err)
+		return err;
+
+	return mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+}
+
 static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 						   struct devlink_fmsg *fmsg)
 {
 	struct mlx5e_priv *priv = rq->channel->priv;
-	struct mlx5e_params *params;
 	struct mlx5e_icosq *icosq;
 	u8 icosq_hw_state;
+	u16 wqe_counter;
 	int wqes_sz;
 	u8 hw_state;
 	u16 wq_head;
 	int err;
 
-	params = &priv->channels.params;
 	icosq = &rq->channel->icosq;
 	err = mlx5e_query_rq_state(priv->mdev, rq->rqn, &hw_state);
 	if (err)
@@ -254,8 +252,8 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 		return err;
 
 	wqes_sz = mlx5e_rqwq_get_cur_sz(rq);
-	wq_head = params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ ?
-		  rq->mpwqe.wq.head : mlx5_wq_cyc_get_head(&rq->wqe.wq);
+	wq_head = mlx5e_rqwq_get_head(rq);
+	wqe_counter = mlx5e_rqwq_get_wqe_counter(rq);
 
 	err = devlink_fmsg_obj_nest_start(fmsg);
 	if (err)
@@ -277,6 +275,10 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 	if (err)
 		return err;
 
+	err = devlink_fmsg_u32_pair_put(fmsg, "WQE counter", wqe_counter);
+	if (err)
+		return err;
+
 	err = devlink_fmsg_u32_pair_put(fmsg, "posted WQEs", wqes_sz);
 	if (err)
 		return err;
@@ -285,11 +287,15 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 	if (err)
 		return err;
 
-	err = devlink_fmsg_u8_pair_put(fmsg, "ICOSQ HW state", icosq_hw_state);
+	err = mlx5e_health_cq_diag_fmsg(&rq->cq, fmsg);
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_cq_diagnose(&rq->cq, fmsg);
+	err = mlx5e_health_eq_diag_fmsg(rq->cq.mcq.eq, fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_reporter_icosq_diagnose(icosq, icosq_hw_state, fmsg);
 	if (err)
 		return err;
 
@@ -301,7 +307,8 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 }
 
 static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
-				      struct devlink_fmsg *fmsg)
+				      struct devlink_fmsg *fmsg,
+				      struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
 	struct mlx5e_params *params = &priv->channels.params;
@@ -318,11 +325,11 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	rq_sz = mlx5e_rqwq_get_size(generic_rq);
 	rq_stride = BIT(mlx5e_mpwqe_get_log_stride_size(priv->mdev, params, NULL));
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "Common config");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "Common config");
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "RQ");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "RQ");
 	if (err)
 		goto unlock;
 
@@ -338,15 +345,15 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_health_cq_common_diag_fmsg(&generic_rq->cq, fmsg);
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_cq_common_diagnose(&generic_rq->cq, fmsg);
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		goto unlock;
 
@@ -369,30 +376,251 @@ unlock:
 	return err;
 }
 
+static int mlx5e_rx_reporter_dump_icosq(struct mlx5e_priv *priv, struct devlink_fmsg *fmsg,
+					void *ctx)
+{
+	struct mlx5e_txqsq *icosq = ctx;
+	struct mlx5_rsc_key key = {};
+	int err;
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		return 0;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "SX Slice");
+	if (err)
+		return err;
+
+	key.size = PAGE_SIZE;
+	key.rsc = MLX5_SGMT_TYPE_SX_SLICE_ALL;
+	err = mlx5e_health_rsc_fmsg_dump(priv, &key, fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "ICOSQ");
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "QPC");
+	if (err)
+		return err;
+
+	key.rsc = MLX5_SGMT_TYPE_FULL_QPC;
+	key.index1 = icosq->sqn;
+	key.num_of_obj1 = 1;
+
+	err = mlx5e_health_rsc_fmsg_dump(priv, &key, fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "send_buff");
+	if (err)
+		return err;
+
+	key.rsc = MLX5_SGMT_TYPE_SND_BUFF;
+	key.num_of_obj2 = MLX5_RSC_DUMP_ALL;
+
+	err = mlx5e_health_rsc_fmsg_dump(priv, &key, fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+	if (err)
+		return err;
+
+	return mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+}
+
+static int mlx5e_rx_reporter_dump_rq(struct mlx5e_priv *priv, struct devlink_fmsg *fmsg,
+				     void *ctx)
+{
+	struct mlx5_rsc_key key = {};
+	struct mlx5e_rq *rq = ctx;
+	int err;
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		return 0;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "RX Slice");
+	if (err)
+		return err;
+
+	key.size = PAGE_SIZE;
+	key.rsc = MLX5_SGMT_TYPE_RX_SLICE_ALL;
+	err = mlx5e_health_rsc_fmsg_dump(priv, &key, fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "RQ");
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "QPC");
+	if (err)
+		return err;
+
+	key.rsc = MLX5_SGMT_TYPE_FULL_QPC;
+	key.index1 = rq->rqn;
+	key.num_of_obj1 = 1;
+
+	err = mlx5e_health_rsc_fmsg_dump(priv, &key, fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "receive_buff");
+	if (err)
+		return err;
+
+	key.rsc = MLX5_SGMT_TYPE_RCV_BUFF;
+	key.num_of_obj2 = MLX5_RSC_DUMP_ALL;
+	err = mlx5e_health_rsc_fmsg_dump(priv, &key, fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+	if (err)
+		return err;
+
+	return mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+}
+
+static int mlx5e_rx_reporter_dump_all_rqs(struct mlx5e_priv *priv,
+					  struct devlink_fmsg *fmsg)
+{
+	struct mlx5_rsc_key key = {};
+	int i, err;
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		return 0;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "RX Slice");
+	if (err)
+		return err;
+
+	key.size = PAGE_SIZE;
+	key.rsc = MLX5_SGMT_TYPE_RX_SLICE_ALL;
+	err = mlx5e_health_rsc_fmsg_dump(priv, &key, fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+	if (err)
+		return err;
+
+	err = devlink_fmsg_arr_pair_nest_start(fmsg, "RQs");
+	if (err)
+		return err;
+
+	for (i = 0; i < priv->channels.num; i++) {
+		struct mlx5e_rq *rq = &priv->channels.c[i]->rq;
+
+		err = mlx5e_health_queue_dump(priv, fmsg, rq->rqn, "RQ");
+		if (err)
+			return err;
+	}
+
+	return devlink_fmsg_arr_pair_nest_end(fmsg);
+}
+
+static int mlx5e_rx_reporter_dump_from_ctx(struct mlx5e_priv *priv,
+					   struct mlx5e_err_ctx *err_ctx,
+					   struct devlink_fmsg *fmsg)
+{
+	return err_ctx->dump(priv, fmsg, err_ctx->ctx);
+}
+
+static int mlx5e_rx_reporter_dump(struct devlink_health_reporter *reporter,
+				  struct devlink_fmsg *fmsg, void *context,
+				  struct netlink_ext_ack *extack)
+{
+	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
+	struct mlx5e_err_ctx *err_ctx = context;
+
+	return err_ctx ? mlx5e_rx_reporter_dump_from_ctx(priv, err_ctx, fmsg) :
+			 mlx5e_rx_reporter_dump_all_rqs(priv, fmsg);
+}
+
+void mlx5e_reporter_rx_timeout(struct mlx5e_rq *rq)
+{
+	struct mlx5e_icosq *icosq = &rq->channel->icosq;
+	struct mlx5e_priv *priv = rq->channel->priv;
+	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_err_ctx err_ctx = {};
+
+	err_ctx.ctx = rq;
+	err_ctx.recover = mlx5e_rx_reporter_timeout_recover;
+	err_ctx.dump = mlx5e_rx_reporter_dump_rq;
+	snprintf(err_str, sizeof(err_str),
+		 "RX timeout on channel: %d, ICOSQ: 0x%x RQ: 0x%x, CQ: 0x%x",
+		 icosq->channel->ix, icosq->sqn, rq->rqn, rq->cq.mcq.cqn);
+
+	mlx5e_health_report(priv, priv->rx_reporter, err_str, &err_ctx);
+}
+
+void mlx5e_reporter_rq_cqe_err(struct mlx5e_rq *rq)
+{
+	struct mlx5e_priv *priv = rq->channel->priv;
+	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_err_ctx err_ctx = {};
+
+	err_ctx.ctx = rq;
+	err_ctx.recover = mlx5e_rx_reporter_err_rq_cqe_recover;
+	err_ctx.dump = mlx5e_rx_reporter_dump_rq;
+	snprintf(err_str, sizeof(err_str), "ERR CQE on RQ: 0x%x", rq->rqn);
+
+	mlx5e_health_report(priv, priv->rx_reporter, err_str, &err_ctx);
+}
+
+void mlx5e_reporter_icosq_cqe_err(struct mlx5e_icosq *icosq)
+{
+	struct mlx5e_priv *priv = icosq->channel->priv;
+	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_err_ctx err_ctx = {};
+
+	err_ctx.ctx = icosq;
+	err_ctx.recover = mlx5e_rx_reporter_err_icosq_cqe_recover;
+	err_ctx.dump = mlx5e_rx_reporter_dump_icosq;
+	snprintf(err_str, sizeof(err_str), "ERR CQE on ICOSQ: 0x%x", icosq->sqn);
+
+	mlx5e_health_report(priv, priv->rx_reporter, err_str, &err_ctx);
+}
+
 static const struct devlink_health_reporter_ops mlx5_rx_reporter_ops = {
 	.name = "rx",
 	.recover = mlx5e_rx_reporter_recover,
 	.diagnose = mlx5e_rx_reporter_diagnose,
+	.dump = mlx5e_rx_reporter_dump,
 };
 
 #define MLX5E_REPORTER_RX_GRACEFUL_PERIOD 500
 
-int mlx5e_reporter_rx_create(struct mlx5e_priv *priv)
+void mlx5e_reporter_rx_create(struct mlx5e_priv *priv)
 {
-	struct devlink *devlink = priv_to_devlink(priv->mdev);
 	struct devlink_health_reporter *reporter;
 
-	reporter = devlink_health_reporter_create(devlink,
-						  &mlx5_rx_reporter_ops,
-						  MLX5E_REPORTER_RX_GRACEFUL_PERIOD,
-						  true, priv);
+	reporter = devlink_port_health_reporter_create(&priv->dl_port, &mlx5_rx_reporter_ops,
+						       MLX5E_REPORTER_RX_GRACEFUL_PERIOD, priv);
 	if (IS_ERR(reporter)) {
 		netdev_warn(priv->netdev, "Failed to create rx reporter, err = %ld\n",
 			    PTR_ERR(reporter));
-		return PTR_ERR(reporter);
+		return;
 	}
 	priv->rx_reporter = reporter;
-	return 0;
 }
 
 void mlx5e_reporter_rx_destroy(struct mlx5e_priv *priv)
@@ -400,5 +628,5 @@ void mlx5e_reporter_rx_destroy(struct mlx5e_priv *priv)
 	if (!priv->rx_reporter)
 		return;
 
-	devlink_health_reporter_destroy(priv->rx_reporter);
+	devlink_port_health_reporter_destroy(priv->rx_reporter);
 }

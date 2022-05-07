@@ -14,11 +14,11 @@
 #include <linux/processor.h>
 #include <linux/threads.h>
 #include <linux/smp.h>
+#include <linux/pgtable.h>
 
 #include <asm/machdep.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/trace.h>
 #include <asm/tlb.h>
 #include <asm/cputable.h>
@@ -68,7 +68,7 @@ static __always_inline void tlbiel_hash_set_isa300(unsigned int set, unsigned in
 	rs = ((unsigned long)pid << PPC_BITLSHIFT(31));
 
 	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4)
-		     : : "r"(rb), "r"(rs), "i"(ric), "i"(prs), "r"(r)
+		     : : "r"(rb), "r"(rs), "i"(ric), "i"(prs), "i"(r)
 		     : "memory");
 }
 
@@ -82,7 +82,7 @@ static void tlbiel_all_isa206(unsigned int num_sets, unsigned int is)
 	for (set = 0; set < num_sets; set++)
 		tlbiel_hash_set_isa206(set, is);
 
-	asm volatile("ptesync": : :"memory");
+	ppc_after_tlbiel_barrier();
 }
 
 static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
@@ -92,16 +92,15 @@ static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
 	asm volatile("ptesync": : :"memory");
 
 	/*
-	 * Flush the first set of the TLB, and any caching of partition table
-	 * entries. Then flush the remaining sets of the TLB. Hash mode uses
-	 * partition scoped TLB translations.
+	 * Flush the partition table cache if this is HV mode.
 	 */
-	tlbiel_hash_set_isa300(0, is, 0, 2, 0);
-	for (set = 1; set < num_sets; set++)
-		tlbiel_hash_set_isa300(set, is, 0, 0, 0);
+	if (early_cpu_has_feature(CPU_FTR_HVMODE))
+		tlbiel_hash_set_isa300(0, is, 0, 2, 0);
 
 	/*
-	 * Now invalidate the process table cache.
+	 * Now invalidate the process table cache. UPRT=0 HPT modes (what
+	 * current hardware implements) do not use the process table, but
+	 * add the flushes anyway.
 	 *
 	 * From ISA v3.0B p. 1078:
 	 *     The following forms are invalid.
@@ -110,7 +109,15 @@ static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
 	 */
 	tlbiel_hash_set_isa300(0, is, 0, 2, 1);
 
-	asm volatile("ptesync": : :"memory");
+	/*
+	 * Then flush the sets of the TLB proper. Hash mode uses
+	 * partition scoped TLB translations, which may be flushed
+	 * in !HV mode.
+	 */
+	for (set = 0; set < num_sets; set++)
+		tlbiel_hash_set_isa300(set, is, 0, 0, 0);
+
+	ppc_after_tlbiel_barrier();
 
 	asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT "; isync" : : :"memory");
 }
@@ -303,7 +310,7 @@ static inline void tlbie(unsigned long vpn, int psize, int apsize,
 	asm volatile("ptesync": : :"memory");
 	if (use_local) {
 		__tlbiel(vpn, psize, apsize, ssize);
-		asm volatile("ptesync": : :"memory");
+		ppc_after_tlbiel_barrier();
 	} else {
 		__tlbie(vpn, psize, apsize, ssize);
 		fixup_tlbie_vpn(vpn, psize, apsize, ssize);
@@ -482,19 +489,12 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	return ret;
 }
 
-static long native_hpte_find(unsigned long vpn, int psize, int ssize)
+static long __native_hpte_find(unsigned long want_v, unsigned long slot)
 {
 	struct hash_pte *hptep;
-	unsigned long hash;
+	unsigned long hpte_v;
 	unsigned long i;
-	long slot;
-	unsigned long want_v, hpte_v;
 
-	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
-	want_v = hpte_encode_avpn(vpn, psize, ssize);
-
-	/* Bolted mappings are only ever in the primary group */
-	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	for (i = 0; i < HPTES_PER_GROUP; i++) {
 
 		hptep = htab_address + slot;
@@ -506,6 +506,33 @@ static long native_hpte_find(unsigned long vpn, int psize, int ssize)
 	}
 
 	return -1;
+}
+
+static long native_hpte_find(unsigned long vpn, int psize, int ssize)
+{
+	unsigned long hpte_group;
+	unsigned long want_v;
+	unsigned long hash;
+	long slot;
+
+	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
+	want_v = hpte_encode_avpn(vpn, psize, ssize);
+
+	/*
+	 * We try to keep bolted entries always in primary hash
+	 * But in some case we can find them in secondary too.
+	 */
+	hpte_group = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+	slot = __native_hpte_find(want_v, hpte_group);
+	if (slot < 0) {
+		/* Try in secondary */
+		hpte_group = (~hash & htab_hash_mask) * HPTES_PER_GROUP;
+		slot = __native_hpte_find(want_v, hpte_group);
+		if (slot < 0)
+			return -1;
+	}
+
+	return slot;
 }
 
 /*
@@ -859,7 +886,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 				__tlbiel(vpn, psize, psize, ssize);
 			} pte_iterate_hashed_end();
 		}
-		asm volatile("ptesync":::"memory");
+		ppc_after_tlbiel_barrier();
 	} else {
 		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 

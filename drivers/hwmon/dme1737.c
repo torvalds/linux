@@ -2461,8 +2461,9 @@ static int dme1737_i2c_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int dme1737_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static const struct i2c_device_id dme1737_id[];
+
+static int dme1737_i2c_probe(struct i2c_client *client)
 {
 	struct dme1737_data *data;
 	struct device *dev = &client->dev;
@@ -2473,7 +2474,7 @@ static int dme1737_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-	data->type = id->driver_data;
+	data->type = i2c_match_id(dme1737_id, client)->driver_data;
 	data->client = client;
 	data->name = client->name;
 	mutex_init(&data->update_lock);
@@ -2529,7 +2530,7 @@ static struct i2c_driver dme1737_i2c_driver = {
 	.driver = {
 		.name = "dme1737",
 	},
-	.probe = dme1737_i2c_probe,
+	.probe_new = dme1737_i2c_probe,
 	.remove = dme1737_i2c_remove,
 	.id_table = dme1737_id,
 	.detect = dme1737_i2c_detect,

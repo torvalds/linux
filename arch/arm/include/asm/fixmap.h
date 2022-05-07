@@ -6,8 +6,8 @@
 #define FIXADDR_END		0xfff00000UL
 #define FIXADDR_TOP		(FIXADDR_END - PAGE_SIZE)
 
+#include <linux/pgtable.h>
 #include <asm/kmap_types.h>
-#include <asm/pgtable.h>
 
 enum fixed_addresses {
 	FIX_EARLYCON_MEM_BASE,

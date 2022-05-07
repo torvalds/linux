@@ -4,8 +4,12 @@
 #ifndef _ICE_TXRX_H_
 #define _ICE_TXRX_H_
 
+#include "ice_type.h"
+
 #define ICE_DFLT_IRQ_WORK	256
+#define ICE_RXBUF_3072		3072
 #define ICE_RXBUF_2048		2048
+#define ICE_RXBUF_1536		1536
 #define ICE_MAX_CHAINED_RX_BUFS	5
 #define ICE_MAX_BUF_TXD		8
 #define ICE_MIN_TX_LEN		17
@@ -21,6 +25,72 @@
 
 #define ICE_RX_BUF_WRITE	16	/* Must be power of 2 */
 #define ICE_MAX_TXQ_PER_TXQG	128
+
+/* Attempt to maximize the headroom available for incoming frames. We use a 2K
+ * buffer for MTUs <= 1500 and need 1536/1534 to store the data for the frame.
+ * This leaves us with 512 bytes of room.  From that we need to deduct the
+ * space needed for the shared info and the padding needed to IP align the
+ * frame.
+ *
+ * Note: For cache line sizes 256 or larger this value is going to end
+ *	 up negative.  In these cases we should fall back to the legacy
+ *	 receive path.
+ */
+#if (PAGE_SIZE < 8192)
+#define ICE_2K_TOO_SMALL_WITH_PADDING \
+	((unsigned int)(NET_SKB_PAD + ICE_RXBUF_1536) > \
+			SKB_WITH_OVERHEAD(ICE_RXBUF_2048))
+
+/**
+ * ice_compute_pad - compute the padding
+ * @rx_buf_len: buffer length
+ *
+ * Figure out the size of half page based on given buffer length and
+ * then subtract the skb_shared_info followed by subtraction of the
+ * actual buffer length; this in turn results in the actual space that
+ * is left for padding usage
+ */
+static inline int ice_compute_pad(int rx_buf_len)
+{
+	int half_page_size;
+
+	half_page_size = ALIGN(rx_buf_len, PAGE_SIZE / 2);
+	return SKB_WITH_OVERHEAD(half_page_size) - rx_buf_len;
+}
+
+/**
+ * ice_skb_pad - determine the padding that we can supply
+ *
+ * Figure out the right Rx buffer size and based on that calculate the
+ * padding
+ */
+static inline int ice_skb_pad(void)
+{
+	int rx_buf_len;
+
+	/* If a 2K buffer cannot handle a standard Ethernet frame then
+	 * optimize padding for a 3K buffer instead of a 1.5K buffer.
+	 *
+	 * For a 3K buffer we need to add enough padding to allow for
+	 * tailroom due to NET_IP_ALIGN possibly shifting us out of
+	 * cache-line alignment.
+	 */
+	if (ICE_2K_TOO_SMALL_WITH_PADDING)
+		rx_buf_len = ICE_RXBUF_3072 + SKB_DATA_ALIGN(NET_IP_ALIGN);
+	else
+		rx_buf_len = ICE_RXBUF_1536;
+
+	/* if needed make room for NET_IP_ALIGN */
+	rx_buf_len -= NET_IP_ALIGN;
+
+	return ice_compute_pad(rx_buf_len);
+}
+
+#define ICE_SKB_PAD ice_skb_pad()
+#else
+#define ICE_2K_TOO_SMALL_WITH_PADDING false
+#define ICE_SKB_PAD (NET_SKB_PAD + NET_IP_ALIGN)
+#endif
 
 /* We are assuming that the cache line is always 64 Bytes here for ice.
  * In order to make sure that is a correct assumption there is a check in probe
@@ -38,23 +108,42 @@
 #define DESC_NEEDED (MAX_SKB_FRAGS + ICE_DESCS_FOR_CTX_DESC + \
 		     ICE_DESCS_PER_CACHE_LINE + ICE_DESCS_FOR_SKB_DATA_PTR)
 #define ICE_DESC_UNUSED(R)	\
-	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
-	(R)->next_to_clean - (R)->next_to_use - 1)
+	(u16)((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
+	      (R)->next_to_clean - (R)->next_to_use - 1)
 
 #define ICE_TX_FLAGS_TSO	BIT(0)
 #define ICE_TX_FLAGS_HW_VLAN	BIT(1)
 #define ICE_TX_FLAGS_SW_VLAN	BIT(2)
+/* ICE_TX_FLAGS_DUMMY_PKT is used to mark dummy packets that should be
+ * freed instead of returned like skb packets.
+ */
+#define ICE_TX_FLAGS_DUMMY_PKT	BIT(3)
+#define ICE_TX_FLAGS_IPV4	BIT(5)
+#define ICE_TX_FLAGS_IPV6	BIT(6)
+#define ICE_TX_FLAGS_TUNNEL	BIT(7)
 #define ICE_TX_FLAGS_VLAN_M	0xffff0000
 #define ICE_TX_FLAGS_VLAN_PR_M	0xe0000000
 #define ICE_TX_FLAGS_VLAN_PR_S	29
 #define ICE_TX_FLAGS_VLAN_S	16
 
+#define ICE_XDP_PASS		0
+#define ICE_XDP_CONSUMED	BIT(0)
+#define ICE_XDP_TX		BIT(1)
+#define ICE_XDP_REDIR		BIT(2)
+
 #define ICE_RX_DMA_ATTR \
 	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
 
+#define ICE_ETH_PKT_HDR_PAD	(ETH_HLEN + ETH_FCS_LEN + (VLAN_HLEN * 2))
+
+#define ICE_TXD_LAST_DESC_CMD (ICE_TX_DESC_CMD_EOP | ICE_TX_DESC_CMD_RS)
+
 struct ice_tx_buf {
 	struct ice_tx_desc *next_to_watch;
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		void *raw_buf; /* used for XDP */
+	};
 	unsigned int bytecount;
 	unsigned short gso_segs;
 	u32 tx_flags;
@@ -74,11 +163,18 @@ struct ice_tx_offload_params {
 };
 
 struct ice_rx_buf {
-	struct sk_buff *skb;
-	dma_addr_t dma;
-	struct page *page;
-	unsigned int page_offset;
-	u16 pagecnt_bias;
+	union {
+		struct {
+			struct sk_buff *skb;
+			dma_addr_t dma;
+			struct page *page;
+			unsigned int page_offset;
+			u16 pagecnt_bias;
+		};
+		struct {
+			struct xdp_buff *xdp;
+		};
+	};
 };
 
 struct ice_q_stats {
@@ -97,7 +193,7 @@ struct ice_rxq_stats {
 	u64 non_eop_descs;
 	u64 alloc_page_failed;
 	u64 alloc_buf_failed;
-	u64 page_reuse_count;
+	u64 gro_dropped; /* GRO returned dropped */
 };
 
 /* this enum matches hardware bits and is meant to be used by DYN_CTLN
@@ -133,7 +229,7 @@ enum ice_rx_dtype {
 #define ICE_ITR_GRAN_S		1	/* ITR granularity is always 2us */
 #define ICE_ITR_GRAN_US		BIT(ICE_ITR_GRAN_S)
 #define ICE_ITR_MASK		0x1FFE	/* ITR register value alignment mask */
-#define ITR_REG_ALIGN(setting)	__ALIGN_MASK(setting, ~ICE_ITR_MASK)
+#define ITR_REG_ALIGN(setting)	((setting) & ICE_ITR_MASK)
 
 #define ICE_ITR_ADAPTIVE_MIN_INC	0x0002
 #define ICE_ITR_ADAPTIVE_MIN_USECS	0x0002
@@ -198,17 +294,42 @@ struct ice_ring {
 	};
 
 	struct rcu_head rcu;		/* to avoid race on free */
+	struct bpf_prog *xdp_prog;
+	struct xsk_buff_pool *xsk_pool;
+	/* CL3 - 3rd cacheline starts here */
+	struct xdp_rxq_info xdp_rxq;
 	/* CLX - the below items are only accessed infrequently and should be
 	 * in their own cache line if possible
 	 */
+#define ICE_TX_FLAGS_RING_XDP		BIT(0)
+#define ICE_RX_FLAGS_RING_BUILD_SKB	BIT(1)
+	u8 flags;
 	dma_addr_t dma;			/* physical address of ring */
 	unsigned int size;		/* length of descriptor ring in bytes */
 	u32 txq_teid;			/* Added Tx queue TEID */
 	u16 rx_buf_len;
-#ifdef CONFIG_DCB
 	u8 dcb_tc;			/* Traffic class of ring */
-#endif /* CONFIG_DCB */
 } ____cacheline_internodealigned_in_smp;
+
+static inline bool ice_ring_uses_build_skb(struct ice_ring *ring)
+{
+	return !!(ring->flags & ICE_RX_FLAGS_RING_BUILD_SKB);
+}
+
+static inline void ice_set_ring_build_skb_ena(struct ice_ring *ring)
+{
+	ring->flags |= ICE_RX_FLAGS_RING_BUILD_SKB;
+}
+
+static inline void ice_clear_ring_build_skb_ena(struct ice_ring *ring)
+{
+	ring->flags &= ~ICE_RX_FLAGS_RING_BUILD_SKB;
+}
+
+static inline bool ice_ring_is_xdp(struct ice_ring *ring)
+{
+	return !!(ring->flags & ICE_TX_FLAGS_RING_XDP);
+}
 
 struct ice_ring_container {
 	/* head of linked-list of rings */
@@ -226,9 +347,28 @@ struct ice_ring_container {
 	u16 itr_setting;
 };
 
+struct ice_coalesce_stored {
+	u16 itr_tx;
+	u16 itr_rx;
+	u8 intrl;
+};
+
 /* iterator for handling rings in ring container */
 #define ice_for_each_ring(pos, head) \
 	for (pos = (head).ring; pos; pos = pos->next)
+
+static inline unsigned int ice_rx_pg_order(struct ice_ring *ring)
+{
+#if (PAGE_SIZE < 8192)
+	if (ring->rx_buf_len > (PAGE_SIZE / 2))
+		return 1;
+#endif
+	return 0;
+}
+
+#define ice_rx_pg_size(_ring) (PAGE_SIZE << ice_rx_pg_order(_ring))
+
+union ice_32b_rx_flex_desc;
 
 bool ice_alloc_rx_bufs(struct ice_ring *rxr, u16 cleaned_count);
 netdev_tx_t ice_start_xmit(struct sk_buff *skb, struct net_device *netdev);
@@ -239,5 +379,9 @@ int ice_setup_rx_ring(struct ice_ring *rx_ring);
 void ice_free_tx_ring(struct ice_ring *tx_ring);
 void ice_free_rx_ring(struct ice_ring *rx_ring);
 int ice_napi_poll(struct napi_struct *napi, int budget);
-
+int
+ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
+		   u8 *raw_packet);
+int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget);
+void ice_clean_ctrl_tx_irq(struct ice_ring *tx_ring);
 #endif /* _ICE_TXRX_H_ */

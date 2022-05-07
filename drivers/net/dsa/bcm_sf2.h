@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
+#include <linux/reset.h>
 
 #include <net/dsa.h>
 
@@ -44,6 +45,7 @@ struct bcm_sf2_hw_params {
 
 struct bcm_sf2_port_status {
 	unsigned int link;
+	bool enabled;
 };
 
 struct bcm_sf2_cfp_priv {
@@ -63,6 +65,8 @@ struct bcm_sf2_priv {
 	void __iomem			*intrl2_1;
 	void __iomem			*fcb;
 	void __iomem			*acb;
+
+	struct reset_control		*rcdev;
 
 	/* Register offsets indirection tables */
 	u32 				type;
@@ -89,6 +93,9 @@ struct bcm_sf2_priv {
 
 	/* Mask of ports enabled for Wake-on-LAN */
 	u32				wol_ports_mask;
+
+	struct clk			*clk;
+	struct clk			*clk_mdiv;
 
 	/* MoCA port location */
 	int				moca_port;

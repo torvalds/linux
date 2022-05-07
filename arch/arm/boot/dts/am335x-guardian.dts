@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  * Copyright (C) 2018 Robert Bosch Power Tools GmbH
  */
 /dts-v1/;
@@ -105,6 +105,7 @@
 		ti,timers = <&timer7>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&dmtimer7_pins>;
+		ti,clock-source = <0x01>;
 	};
 
 	vmmcsd_fixed: regulator-3v3 {
@@ -113,10 +114,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
-};
-
-&cppi41dma  {
-	status = "okay";
 };
 
 &elm {
@@ -328,30 +325,12 @@
 	status = "okay";
 };
 
-&usb {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
 &usb0 {
 	dr_mode = "peripheral";
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
 };
 
 &usb1 {
 	dr_mode = "host";
-	status = "okay";
-};
-
-&usb1_phy {
-	status = "okay";
 };
 
 &am33xx_pinmux {

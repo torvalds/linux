@@ -5,7 +5,9 @@
  */
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "drm.h"
 #include "dc.h"
@@ -23,7 +25,7 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 	 * ignore any other means of obtaining a mode.
 	 */
 	if (output->panel) {
-		err = output->panel->funcs->get_modes(output->panel);
+		err = drm_panel_get_modes(output->panel, connector);
 		if (err > 0)
 			return err;
 	}
@@ -70,13 +72,13 @@ tegra_output_connector_detect(struct drm_connector *connector, bool force)
 
 void tegra_output_connector_destroy(struct drm_connector *connector)
 {
+	struct tegra_output *output = connector_to_output(connector);
+
+	if (output->cec)
+		cec_notifier_conn_unregister(output->cec);
+
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-}
-
-void tegra_output_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
 }
 
 static irqreturn_t hpd_irq(int irq, void *data)
@@ -98,27 +100,37 @@ int tegra_output_probe(struct tegra_output *output)
 	if (!output->of_node)
 		output->of_node = output->dev->of_node;
 
+	err = drm_of_find_panel_or_bridge(output->of_node, -1, -1,
+					  &output->panel, &output->bridge);
+	if (err && err != -ENODEV)
+		return err;
+
 	panel = of_parse_phandle(output->of_node, "nvidia,panel", 0);
 	if (panel) {
+		/*
+		 * Don't mix nvidia,panel phandle with the graph in a
+		 * device-tree.
+		 */
+		WARN_ON(output->panel || output->bridge);
+
 		output->panel = of_drm_find_panel(panel);
+		of_node_put(panel);
+
 		if (IS_ERR(output->panel))
 			return PTR_ERR(output->panel);
-
-		of_node_put(panel);
 	}
 
 	output->edid = of_get_property(output->of_node, "nvidia,edid", &size);
 
 	ddc = of_parse_phandle(output->of_node, "nvidia,ddc-i2c-bus", 0);
 	if (ddc) {
-		output->ddc = of_find_i2c_adapter_by_node(ddc);
+		output->ddc = of_get_i2c_adapter_by_node(ddc);
+		of_node_put(ddc);
+
 		if (!output->ddc) {
 			err = -EPROBE_DEFER;
-			of_node_put(ddc);
 			return err;
 		}
-
-		of_node_put(ddc);
 	}
 
 	output->hpd_gpio = devm_gpiod_get_from_of_node(output->dev,
@@ -163,34 +175,21 @@ int tegra_output_probe(struct tegra_output *output)
 		disable_irq(output->hpd_irq);
 	}
 
-	output->cec = cec_notifier_get(output->dev);
-	if (!output->cec)
-		return -ENOMEM;
-
 	return 0;
 }
 
 void tegra_output_remove(struct tegra_output *output)
 {
-	if (output->cec)
-		cec_notifier_put(output->cec);
-
 	if (output->hpd_gpio)
 		free_irq(output->hpd_irq, output);
 
 	if (output->ddc)
-		put_device(&output->ddc->dev);
+		i2c_put_adapter(output->ddc);
 }
 
 int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 {
-	int err;
-
-	if (output->panel) {
-		err = drm_panel_attach(output->panel, &output->connector);
-		if (err < 0)
-			return err;
-	}
+	int connector_type;
 
 	/*
 	 * The connector is now registered and ready to receive hotplug events
@@ -198,6 +197,21 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 	 */
 	if (output->hpd_gpio)
 		enable_irq(output->hpd_irq);
+
+	connector_type = output->connector.connector_type;
+	/*
+	 * Create a CEC notifier for HDMI connector.
+	 */
+	if (connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+	    connector_type == DRM_MODE_CONNECTOR_HDMIB) {
+		struct cec_connector_info conn_info;
+
+		cec_fill_conn_info_from_drm(&conn_info, &output->connector);
+		output->cec = cec_notifier_conn_register(output->dev, NULL,
+							 &conn_info);
+		if (!output->cec)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -210,9 +224,6 @@ void tegra_output_exit(struct tegra_output *output)
 	 */
 	if (output->hpd_gpio)
 		disable_irq(output->hpd_irq);
-
-	if (output->panel)
-		drm_panel_detach(output->panel);
 }
 
 void tegra_output_find_possible_crtcs(struct tegra_output *output,
@@ -235,4 +246,20 @@ void tegra_output_find_possible_crtcs(struct tegra_output *output,
 	}
 
 	output->encoder.possible_crtcs = mask;
+}
+
+int tegra_output_suspend(struct tegra_output *output)
+{
+	if (output->hpd_irq)
+		disable_irq(output->hpd_irq);
+
+	return 0;
+}
+
+int tegra_output_resume(struct tegra_output *output)
+{
+	if (output->hpd_irq)
+		enable_irq(output->hpd_irq);
+
+	return 0;
 }

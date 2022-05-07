@@ -1,1 +1,0 @@
-See panel-common.yaml in this directory.

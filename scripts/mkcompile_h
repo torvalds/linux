@@ -6,20 +6,10 @@ ARCH=$2
 SMP=$3
 PREEMPT=$4
 PREEMPT_RT=$5
-CC=$6
+CC_VERSION="$6"
+LD=$7
 
 vecho() { [ "${quiet}" = "silent_" ] || echo "$@" ; }
-
-# If compile.h exists already and we don't own autoconf.h
-# (i.e. we're not the same user who did make *config), don't
-# modify compile.h
-# So "sudo make install" won't change the "compiled by <user>"
-# do "compiled by root"
-
-if [ -r $TARGET -a ! -O include/generated/autoconf.h ]; then
-  vecho "  SKIPPED $TARGET"
-  exit 0
-fi
 
 # Do not expand names
 set -f
@@ -45,7 +35,7 @@ else
 	LINUX_COMPILE_BY=$KBUILD_BUILD_USER
 fi
 if test -z "$KBUILD_BUILD_HOST"; then
-	LINUX_COMPILE_HOST=`hostname`
+	LINUX_COMPILE_HOST=`uname -n`
 else
 	LINUX_COMPILE_HOST=$KBUILD_BUILD_HOST
 fi
@@ -55,12 +45,10 @@ CONFIG_FLAGS=""
 if [ -n "$SMP" ] ; then CONFIG_FLAGS="SMP"; fi
 if [ -n "$PREEMPT" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT"; fi
 if [ -n "$PREEMPT_RT" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT_RT"; fi
-UTS_VERSION="$UTS_VERSION $CONFIG_FLAGS $TIMESTAMP"
 
 # Truncate to maximum length
-
 UTS_LEN=64
-UTS_TRUNCATE="cut -b -$UTS_LEN"
+UTS_VERSION="$(echo $UTS_VERSION $CONFIG_FLAGS $TIMESTAMP | cut -b -$UTS_LEN)"
 
 # Generate a temporary compile.h
 
@@ -69,12 +57,14 @@ UTS_TRUNCATE="cut -b -$UTS_LEN"
 
   echo \#define UTS_MACHINE \"$ARCH\"
 
-  echo \#define UTS_VERSION \"`echo $UTS_VERSION | $UTS_TRUNCATE`\"
+  echo \#define UTS_VERSION \"$UTS_VERSION\"
 
-  echo \#define LINUX_COMPILE_BY \"`echo $LINUX_COMPILE_BY | $UTS_TRUNCATE`\"
-  echo \#define LINUX_COMPILE_HOST \"`echo $LINUX_COMPILE_HOST | $UTS_TRUNCATE`\"
+  printf '#define LINUX_COMPILE_BY "%s"\n' "$LINUX_COMPILE_BY"
+  echo \#define LINUX_COMPILE_HOST \"$LINUX_COMPILE_HOST\"
 
-  echo \#define LINUX_COMPILER \"`$CC -v 2>&1 | grep ' version ' | sed 's/[[:space:]]*$//'`\"
+  LD_VERSION=$($LD -v | head -n1 | sed 's/(compatible with [^)]*)//' \
+		      | sed 's/[[:space:]]*$//')
+  printf '#define LINUX_COMPILER "%s"\n' "$CC_VERSION, $LD_VERSION"
 } > .tmpcompile
 
 # Only replace the real compile.h if the new one is different,

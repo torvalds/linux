@@ -8,7 +8,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/page.h>
 #include <asm/processor-flags.h>
 #include <asm/msr-index.h>
@@ -16,7 +16,7 @@
 
 	.text
 	.code64
-ENTRY(sme_encrypt_execute)
+SYM_FUNC_START(sme_encrypt_execute)
 
 	/*
 	 * Entry parameters:
@@ -66,9 +66,9 @@ ENTRY(sme_encrypt_execute)
 	pop	%rbp
 
 	ret
-ENDPROC(sme_encrypt_execute)
+SYM_FUNC_END(sme_encrypt_execute)
 
-ENTRY(__enc_copy)
+SYM_FUNC_START(__enc_copy)
 /*
  * Routine used to encrypt memory in place.
  *   This routine must be run outside of the kernel proper since
@@ -153,4 +153,4 @@ ENTRY(__enc_copy)
 
 	ret
 .L__enc_copy_end:
-ENDPROC(__enc_copy)
+SYM_FUNC_END(__enc_copy)

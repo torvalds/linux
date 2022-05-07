@@ -8,6 +8,7 @@
 #include <linux/zalloc.h>
 #include <perf/cpumap.h>
 #include <perf/evlist.h>
+#include <perf/mmap.h>
 
 #include "debug.h"
 #include "parse-events.h"
@@ -134,8 +135,8 @@ static int process_sample_event(struct evlist *evlist,
 
 	evsel = perf_evlist__id2evsel(evlist, sample.id);
 	if (evsel == switch_tracking->switch_evsel) {
-		next_tid = perf_evsel__intval(evsel, &sample, "next_pid");
-		prev_tid = perf_evsel__intval(evsel, &sample, "prev_pid");
+		next_tid = evsel__intval(evsel, &sample, "next_pid");
+		prev_tid = evsel__intval(evsel, &sample, "prev_pid");
 		cpu = sample.cpu;
 		pr_debug3("sched_switch: cpu: %d prev_tid %d next_tid %d\n",
 			  cpu, prev_tid, next_tid);
@@ -269,17 +270,17 @@ static int process_events(struct evlist *evlist,
 
 	for (i = 0; i < evlist->core.nr_mmaps; i++) {
 		md = &evlist->mmap[i];
-		if (perf_mmap__read_init(md) < 0)
+		if (perf_mmap__read_init(&md->core) < 0)
 			continue;
 
-		while ((event = perf_mmap__read_event(md)) != NULL) {
+		while ((event = perf_mmap__read_event(&md->core)) != NULL) {
 			cnt += 1;
 			ret = add_event(evlist, &events, event);
-			 perf_mmap__consume(md);
+			 perf_mmap__consume(&md->core);
 			if (ret < 0)
 				goto out_free_nodes;
 		}
-		perf_mmap__read_done(md);
+		perf_mmap__read_done(&md->core);
 	}
 
 	events_array = calloc(cnt, sizeof(struct event_node));
@@ -393,8 +394,8 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 
 	switch_evsel = evlist__last(evlist);
 
-	perf_evsel__set_sample_bit(switch_evsel, CPU);
-	perf_evsel__set_sample_bit(switch_evsel, TIME);
+	evsel__set_sample_bit(switch_evsel, CPU);
+	evsel__set_sample_bit(switch_evsel, TIME);
 
 	switch_evsel->core.system_wide = true;
 	switch_evsel->no_aux_samples = true;
@@ -411,8 +412,8 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	perf_evsel__set_sample_bit(cycles_evsel, CPU);
-	perf_evsel__set_sample_bit(cycles_evsel, TIME);
+	evsel__set_sample_bit(cycles_evsel, CPU);
+	evsel__set_sample_bit(cycles_evsel, TIME);
 
 	/* Fourth event */
 	err = parse_events(evlist, "dummy:u", NULL);
@@ -428,7 +429,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	tracking_evsel->core.attr.freq = 0;
 	tracking_evsel->core.attr.sample_period = 1;
 
-	perf_evsel__set_sample_bit(tracking_evsel, TIME);
+	evsel__set_sample_bit(tracking_evsel, TIME);
 
 	/* Config events */
 	perf_evlist__config(evlist, &opts, NULL);

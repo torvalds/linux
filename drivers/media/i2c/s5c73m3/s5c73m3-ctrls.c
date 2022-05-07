@@ -46,7 +46,7 @@ static int s5c73m3_get_af_status(struct s5c73m3 *state, struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		v4l2_info(&state->sensor_sd, "Unknown AF status %#x\n", reg);
-		/* Fall through */
+		fallthrough;
 	case REG_CAF_STATUS_UNFOCUSED:
 	case REG_AF_STATUS_UNFOCUSED:
 	case REG_AF_STATUS_INVALID:
@@ -547,7 +547,7 @@ int s5c73m3_init_controls(struct s5c73m3 *state)
 				V4L2_CTRL_FLAG_UPDATE;
 	v4l2_ctrl_auto_cluster(2, &ctrls->auto_iso, 0, false);
 	ctrls->af_status->flags |= V4L2_CTRL_FLAG_VOLATILE;
-	v4l2_ctrl_cluster(6, &ctrls->focus_auto);
+	v4l2_ctrl_cluster(5, &ctrls->focus_auto);
 
 	state->sensor_sd.ctrl_handler = hdl;
 

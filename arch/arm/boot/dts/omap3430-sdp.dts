@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com/
  */
 /dts-v1/;
 
@@ -8,7 +8,7 @@
 
 / {
 	model = "TI OMAP3430 SDP";
-	compatible = "ti,omap3430-sdp", "ti,omap3";
+	compatible = "ti,omap3430-sdp", "ti,omap3430", "ti,omap3";
 
 	memory@80000000 {
 		device_type = "memory";

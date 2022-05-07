@@ -534,7 +534,7 @@ static int gxt4500_setcolreg(unsigned int reg, unsigned int red,
 			break;
 		case DFA_PIX_32BIT:
 			val |= (reg << 24);
-			/* fall through */
+			fallthrough;
 		case DFA_PIX_24BIT:
 			val |= (reg << 16) | (reg << 8);
 			break;
@@ -599,7 +599,7 @@ static const struct fb_fix_screeninfo gxt4500_fix = {
 	.mmio_len = 0x20000,
 };
 
-static struct fb_ops gxt4500_ops = {
+static const struct fb_ops gxt4500_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = gxt4500_check_var,
 	.fb_set_par = gxt4500_set_par,

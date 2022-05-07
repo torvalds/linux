@@ -75,45 +75,21 @@ static const struct spi_device_id ds1343_id[] = {
 MODULE_DEVICE_TABLE(spi, ds1343_id);
 
 struct ds1343_priv {
-	struct spi_device *spi;
 	struct rtc_device *rtc;
 	struct regmap *map;
-	struct mutex mutex;
-	unsigned int irqen;
 	int irq;
-	int alarm_sec;
-	int alarm_min;
-	int alarm_hour;
-	int alarm_mday;
 };
-
-static int ds1343_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-#ifdef RTC_SET_CHARGE
-	case RTC_SET_CHARGE:
-	{
-		int val;
-
-		if (copy_from_user(&val, (int __user *)arg, sizeof(int)))
-			return -EFAULT;
-
-		return regmap_write(priv->map, DS1343_TRICKLE_REG, val);
-	}
-	break;
-#endif
-	}
-
-	return -ENOIOCTLCMD;
-}
 
 static ssize_t ds1343_show_glitchfilter(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct ds1343_priv *priv = dev_get_drvdata(dev);
+	struct ds1343_priv *priv = dev_get_drvdata(dev->parent);
 	int glitch_filt_status, data;
+	int res;
 
-	regmap_read(priv->map, DS1343_CONTROL_REG, &data);
+	res = regmap_read(priv->map, DS1343_CONTROL_REG, &data);
+	if (res)
+		return res;
 
 	glitch_filt_status = !!(data & DS1343_EGFIL);
 
@@ -127,21 +103,19 @@ static ssize_t ds1343_store_glitchfilter(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t count)
 {
-	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	int data;
-
-	regmap_read(priv->map, DS1343_CONTROL_REG, &data);
+	struct ds1343_priv *priv = dev_get_drvdata(dev->parent);
+	int data = 0;
+	int res;
 
 	if (strncmp(buf, "enabled", 7) == 0)
-		data |= DS1343_EGFIL;
-
-	else if (strncmp(buf, "disabled", 8) == 0)
-		data &= ~(DS1343_EGFIL);
-
-	else
+		data = DS1343_EGFIL;
+	else if (strncmp(buf, "disabled", 8))
 		return -EINVAL;
 
-	regmap_write(priv->map, DS1343_CONTROL_REG, data);
+	res = regmap_update_bits(priv->map, DS1343_CONTROL_REG,
+				 DS1343_EGFIL, data);
+	if (res)
+		return res;
 
 	return count;
 }
@@ -168,11 +142,13 @@ static int ds1343_nvram_read(void *priv, unsigned int off, void *val,
 static ssize_t ds1343_show_tricklecharger(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	int data;
+	struct ds1343_priv *priv = dev_get_drvdata(dev->parent);
+	int res, data;
 	char *diodes = "disabled", *resistors = " ";
 
-	regmap_read(priv->map, DS1343_TRICKLE_REG, &data);
+	res = regmap_read(priv->map, DS1343_TRICKLE_REG, &data);
+	if (res)
+		return res;
 
 	if ((data & 0xf0) == DS1343_TRICKLE_MAGIC) {
 		switch (data & 0x0c) {
@@ -209,28 +185,15 @@ static ssize_t ds1343_show_tricklecharger(struct device *dev,
 
 static DEVICE_ATTR(trickle_charger, S_IRUGO, ds1343_show_tricklecharger, NULL);
 
-static int ds1343_sysfs_register(struct device *dev)
-{
-	int err;
+static struct attribute *ds1343_attrs[] = {
+	&dev_attr_glitch_filter.attr,
+	&dev_attr_trickle_charger.attr,
+	NULL
+};
 
-	err = device_create_file(dev, &dev_attr_glitch_filter);
-	if (err)
-		return err;
-
-	err = device_create_file(dev, &dev_attr_trickle_charger);
-	if (!err)
-		return 0;
-
-	device_remove_file(dev, &dev_attr_glitch_filter);
-
-	return err;
-}
-
-static void ds1343_sysfs_unregister(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_glitch_filter);
-	device_remove_file(dev, &dev_attr_trickle_charger);
-}
+static const struct attribute_group ds1343_attr_group = {
+	.attrs  = ds1343_attrs,
+};
 
 static int ds1343_read_time(struct device *dev, struct rtc_time *dt)
 {
@@ -256,144 +219,78 @@ static int ds1343_read_time(struct device *dev, struct rtc_time *dt)
 static int ds1343_set_time(struct device *dev, struct rtc_time *dt)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	int res;
+	u8 buf[7];
 
-	res = regmap_write(priv->map, DS1343_SECONDS_REG,
-				bin2bcd(dt->tm_sec));
-	if (res)
-		return res;
+	buf[0] = bin2bcd(dt->tm_sec);
+	buf[1] = bin2bcd(dt->tm_min);
+	buf[2] = bin2bcd(dt->tm_hour) & 0x3F;
+	buf[3] = bin2bcd(dt->tm_wday + 1);
+	buf[4] = bin2bcd(dt->tm_mday);
+	buf[5] = bin2bcd(dt->tm_mon + 1);
+	buf[6] = bin2bcd(dt->tm_year - 100);
 
-	res = regmap_write(priv->map, DS1343_MINUTES_REG,
-				bin2bcd(dt->tm_min));
-	if (res)
-		return res;
-
-	res = regmap_write(priv->map, DS1343_HOURS_REG,
-				bin2bcd(dt->tm_hour) & 0x3F);
-	if (res)
-		return res;
-
-	res = regmap_write(priv->map, DS1343_DAY_REG,
-				bin2bcd(dt->tm_wday + 1));
-	if (res)
-		return res;
-
-	res = regmap_write(priv->map, DS1343_DATE_REG,
-				bin2bcd(dt->tm_mday));
-	if (res)
-		return res;
-
-	res = regmap_write(priv->map, DS1343_MONTH_REG,
-				bin2bcd(dt->tm_mon + 1));
-	if (res)
-		return res;
-
-	dt->tm_year %= 100;
-
-	res = regmap_write(priv->map, DS1343_YEAR_REG,
-				bin2bcd(dt->tm_year));
-	if (res)
-		return res;
-
-	return 0;
-}
-
-static int ds1343_update_alarm(struct device *dev)
-{
-	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	unsigned int control, stat;
-	unsigned char buf[4];
-	int res = 0;
-
-	res = regmap_read(priv->map, DS1343_CONTROL_REG, &control);
-	if (res)
-		return res;
-
-	res = regmap_read(priv->map, DS1343_STATUS_REG, &stat);
-	if (res)
-		return res;
-
-	control &= ~(DS1343_A0IE);
-	stat &= ~(DS1343_IRQF0);
-
-	res = regmap_write(priv->map, DS1343_CONTROL_REG, control);
-	if (res)
-		return res;
-
-	res = regmap_write(priv->map, DS1343_STATUS_REG, stat);
-	if (res)
-		return res;
-
-	buf[0] = priv->alarm_sec < 0 || (priv->irqen & RTC_UF) ?
-		0x80 : bin2bcd(priv->alarm_sec) & 0x7F;
-	buf[1] = priv->alarm_min < 0 || (priv->irqen & RTC_UF) ?
-		0x80 : bin2bcd(priv->alarm_min) & 0x7F;
-	buf[2] = priv->alarm_hour < 0 || (priv->irqen & RTC_UF) ?
-		0x80 : bin2bcd(priv->alarm_hour) & 0x3F;
-	buf[3] = priv->alarm_mday < 0 || (priv->irqen & RTC_UF) ?
-		0x80 : bin2bcd(priv->alarm_mday) & 0x7F;
-
-	res = regmap_bulk_write(priv->map, DS1343_ALM0_SEC_REG, buf, 4);
-	if (res)
-		return res;
-
-	if (priv->irqen) {
-		control |= DS1343_A0IE;
-		res = regmap_write(priv->map, DS1343_CONTROL_REG, control);
-	}
-
-	return res;
+	return regmap_bulk_write(priv->map, DS1343_SECONDS_REG,
+				 buf, sizeof(buf));
 }
 
 static int ds1343_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	int res = 0;
-	unsigned int stat;
+	unsigned char buf[4];
+	unsigned int val;
+	int res;
 
 	if (priv->irq <= 0)
 		return -EINVAL;
 
-	mutex_lock(&priv->mutex);
-
-	res = regmap_read(priv->map, DS1343_STATUS_REG, &stat);
+	res = regmap_read(priv->map, DS1343_STATUS_REG, &val);
 	if (res)
-		goto out;
+		return res;
 
-	alarm->enabled = !!(priv->irqen & RTC_AF);
-	alarm->pending = !!(stat & DS1343_IRQF0);
+	alarm->pending = !!(val & DS1343_IRQF0);
 
-	alarm->time.tm_sec = priv->alarm_sec < 0 ? 0 : priv->alarm_sec;
-	alarm->time.tm_min = priv->alarm_min < 0 ? 0 : priv->alarm_min;
-	alarm->time.tm_hour = priv->alarm_hour < 0 ? 0 : priv->alarm_hour;
-	alarm->time.tm_mday = priv->alarm_mday < 0 ? 0 : priv->alarm_mday;
+	res = regmap_read(priv->map, DS1343_CONTROL_REG, &val);
+	if (res)
+		return res;
+	alarm->enabled = !!(val & DS1343_A0IE);
 
-out:
-	mutex_unlock(&priv->mutex);
-	return res;
+	res = regmap_bulk_read(priv->map, DS1343_ALM0_SEC_REG, buf, 4);
+	if (res)
+		return res;
+
+	alarm->time.tm_sec = bcd2bin(buf[0]) & 0x7f;
+	alarm->time.tm_min = bcd2bin(buf[1]) & 0x7f;
+	alarm->time.tm_hour = bcd2bin(buf[2]) & 0x3f;
+	alarm->time.tm_mday = bcd2bin(buf[3]) & 0x3f;
+
+	return 0;
 }
 
 static int ds1343_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
+	unsigned char buf[4];
 	int res = 0;
 
 	if (priv->irq <= 0)
 		return -EINVAL;
 
-	mutex_lock(&priv->mutex);
+	res = regmap_update_bits(priv->map, DS1343_CONTROL_REG, DS1343_A0IE, 0);
+	if (res)
+		return res;
 
-	priv->alarm_sec = alarm->time.tm_sec;
-	priv->alarm_min = alarm->time.tm_min;
-	priv->alarm_hour = alarm->time.tm_hour;
-	priv->alarm_mday = alarm->time.tm_mday;
+	buf[0] = bin2bcd(alarm->time.tm_sec);
+	buf[1] = bin2bcd(alarm->time.tm_min);
+	buf[2] = bin2bcd(alarm->time.tm_hour);
+	buf[3] = bin2bcd(alarm->time.tm_mday);
+
+	res = regmap_bulk_write(priv->map, DS1343_ALM0_SEC_REG, buf, 4);
+	if (res)
+		return res;
 
 	if (alarm->enabled)
-		priv->irqen |= RTC_AF;
-
-	res = ds1343_update_alarm(dev);
-
-	mutex_unlock(&priv->mutex);
+		res = regmap_update_bits(priv->map, DS1343_CONTROL_REG,
+					 DS1343_A0IE, DS1343_A0IE);
 
 	return res;
 }
@@ -401,32 +298,21 @@ static int ds1343_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 static int ds1343_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	int res = 0;
 
 	if (priv->irq <= 0)
 		return -EINVAL;
 
-	mutex_lock(&priv->mutex);
-
-	if (enabled)
-		priv->irqen |= RTC_AF;
-	else
-		priv->irqen &= ~RTC_AF;
-
-	res = ds1343_update_alarm(dev);
-
-	mutex_unlock(&priv->mutex);
-
-	return res;
+	return regmap_update_bits(priv->map, DS1343_CONTROL_REG,
+				  DS1343_A0IE, enabled ? DS1343_A0IE : 0);
 }
 
 static irqreturn_t ds1343_thread(int irq, void *dev_id)
 {
 	struct ds1343_priv *priv = dev_id;
-	unsigned int stat, control;
+	unsigned int stat;
 	int res = 0;
 
-	mutex_lock(&priv->mutex);
+	rtc_lock(priv->rtc);
 
 	res = regmap_read(priv->map, DS1343_STATUS_REG, &stat);
 	if (res)
@@ -436,23 +322,18 @@ static irqreturn_t ds1343_thread(int irq, void *dev_id)
 		stat &= ~DS1343_IRQF0;
 		regmap_write(priv->map, DS1343_STATUS_REG, stat);
 
-		res = regmap_read(priv->map, DS1343_CONTROL_REG, &control);
-		if (res)
-			goto out;
-
-		control &= ~DS1343_A0IE;
-		regmap_write(priv->map, DS1343_CONTROL_REG, control);
-
 		rtc_update_irq(priv->rtc, 1, RTC_AF | RTC_IRQF);
+
+		regmap_update_bits(priv->map, DS1343_CONTROL_REG,
+				   DS1343_A0IE, 0);
 	}
 
 out:
-	mutex_unlock(&priv->mutex);
+	rtc_unlock(priv->rtc);
 	return IRQ_HANDLED;
 }
 
 static const struct rtc_class_ops ds1343_rtc_ops = {
-	.ioctl		= ds1343_ioctl,
 	.read_time	= ds1343_read_time,
 	.set_time	= ds1343_set_time,
 	.read_alarm	= ds1343_read_alarm,
@@ -480,13 +361,13 @@ static int ds1343_probe(struct spi_device *spi)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->spi = spi;
-	mutex_init(&priv->mutex);
-
 	/* RTC DS1347 works in spi mode 3 and
-	 * its chip select is active high
+	 * its chip select is active high. Active high should be defined as
+	 * "inverse polarity" as GPIO-based chip selects can be logically
+	 * active high but inverted by the GPIO library.
 	 */
-	spi->mode = SPI_MODE_3 | SPI_CS_HIGH;
+	spi->mode |= SPI_MODE_3;
+	spi->mode ^= SPI_CS_HIGH;
 	spi->bits_per_word = 8;
 	res = spi_setup(spi);
 	if (res)
@@ -520,6 +401,13 @@ static int ds1343_probe(struct spi_device *spi)
 
 	priv->rtc->nvram_old_abi = true;
 	priv->rtc->ops = &ds1343_rtc_ops;
+	priv->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	priv->rtc->range_max = RTC_TIMESTAMP_END_2099;
+
+	res = rtc_add_group(priv->rtc, &ds1343_attr_group);
+	if (res)
+		dev_err(&spi->dev,
+			"unable to create sysfs entries for rtc ds1343\n");
 
 	res = rtc_register_device(priv->rtc);
 	if (res)
@@ -544,31 +432,12 @@ static int ds1343_probe(struct spi_device *spi)
 		}
 	}
 
-	res = ds1343_sysfs_register(&spi->dev);
-	if (res)
-		dev_err(&spi->dev,
-			"unable to create sysfs entries for rtc ds1343\n");
-
 	return 0;
 }
 
 static int ds1343_remove(struct spi_device *spi)
 {
-	struct ds1343_priv *priv = spi_get_drvdata(spi);
-
-	if (spi->irq) {
-		mutex_lock(&priv->mutex);
-		priv->irqen &= ~RTC_AF;
-		mutex_unlock(&priv->mutex);
-
-		dev_pm_clear_wake_irq(&spi->dev);
-		device_init_wakeup(&spi->dev, false);
-		devm_free_irq(&spi->dev, spi->irq, priv);
-	}
-
-	spi_set_drvdata(spi, NULL);
-
-	ds1343_sysfs_unregister(&spi->dev);
+	dev_pm_clear_wake_irq(&spi->dev);
 
 	return 0;
 }

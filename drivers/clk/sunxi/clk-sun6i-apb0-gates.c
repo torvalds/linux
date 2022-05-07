@@ -37,7 +37,6 @@ static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct clk_onecell_data *clk_data;
-	const struct of_device_id *device;
 	const struct gates_data *data;
 	const char *clk_parent;
 	const char *clk_name;
@@ -50,10 +49,9 @@ static int sun6i_a31_apb0_gates_clk_probe(struct platform_device *pdev)
 	if (!np)
 		return -ENODEV;
 
-	device = of_match_device(sun6i_a31_apb0_gates_clk_dt_ids, &pdev->dev);
-	if (!device)
+	data = of_device_get_match_data(&pdev->dev);
+	if (!data)
 		return -ENODEV;
-	data = device->data;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(&pdev->dev, r);

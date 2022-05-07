@@ -15,17 +15,36 @@ static void mt76x02u_remove_dma_hdr(struct sk_buff *skb)
 		mt76x02_remove_hdr_pad(skb, 2);
 }
 
-void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
-			      struct mt76_queue_entry *e)
+void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 {
 	mt76x02u_remove_dma_hdr(e->skb);
-	mt76_tx_complete_skb(mdev, e->skb);
+	mt76_tx_complete_skb(mdev, e->wcid, e->skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02u_tx_complete_skb);
 
+int mt76x02u_mac_start(struct mt76x02_dev *dev)
+{
+	mt76x02_mac_reset_counters(dev);
+
+	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
+	if (!mt76x02_wait_for_wpdma(&dev->mt76, 200000))
+		return -ETIMEDOUT;
+
+	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
+
+	mt76_wr(dev, MT_MAC_SYS_CTRL,
+		MT_MAC_SYS_CTRL_ENABLE_TX |
+		MT_MAC_SYS_CTRL_ENABLE_RX);
+
+	if (!mt76x02_wait_for_wpdma(&dev->mt76, 50))
+		return -ETIMEDOUT;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76x02u_mac_start);
+
 int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 {
-	struct sk_buff *iter, *last = skb;
 	u32 info, pad;
 
 	/* Buffer layout:
@@ -38,26 +57,8 @@ int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 	       FIELD_PREP(MT_TXD_INFO_DPORT, port) | flags;
 	put_unaligned_le32(info, skb_push(skb, sizeof(info)));
 
-	/* Add zero pad of 4 - 7 bytes */
 	pad = round_up(skb->len, 4) + 4 - skb->len;
-
-	/* First packet of a A-MSDU burst keeps track of the whole burst
-	 * length, need to update length of it and the last packet.
-	 */
-	skb_walk_frags(skb, iter) {
-		last = iter;
-		if (!iter->next) {
-			skb->data_len += pad;
-			skb->len += pad;
-			break;
-		}
-	}
-
-	if (skb_pad(last, pad))
-		return -ENOMEM;
-	__skb_put(last, pad);
-
-	return 0;
+	return mt76_skb_adjust_pad(skb, pad);
 }
 
 int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
@@ -66,7 +67,7 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 			    struct mt76_tx_info *tx_info)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
-	int pid, len = tx_info->skb->len, ep = q2ep(mdev->q_tx[qid].q->hw_idx);
+	int pid, len = tx_info->skb->len, ep = q2ep(mdev->q_tx[qid]->hw_idx);
 	struct mt76x02_txwi *txwi;
 	bool ampdu = IEEE80211_SKB_CB(tx_info->skb)->flags & IEEE80211_TX_CTL_AMPDU;
 	enum mt76_qsel qsel;
@@ -83,7 +84,9 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 	/* encode packet rate for no-skb packet id to fix up status reporting */
 	if (pid == MT_PACKET_ID_NO_SKB)
 		pid = MT_PACKET_ID_HAS_RATE |
-		      (le16_to_cpu(txwi->rate) & MT_RXWI_RATE_INDEX);
+		      (le16_to_cpu(txwi->rate) & MT_PKTID_RATE) |
+		      FIELD_PREP(MT_PKTID_AC,
+				 skb_get_queue_mapping(tx_info->skb));
 
 	txwi->pktid = pid;
 
@@ -96,6 +99,12 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 		MT_TXD_INFO_80211;
 	if (!wcid || wcid->hw_key_idx == 0xff || wcid->sw_iv)
 		flags |= MT_TXD_INFO_WIV;
+
+	if (sta) {
+		struct mt76x02_sta *msta = (struct mt76x02_sta *)sta->drv_priv;
+
+		ewma_pktlen_add(&msta->pktlen, tx_info->skb->len);
+	}
 
 	return mt76x02u_skb_dma_info(tx_info->skb, WLAN_PORT, flags);
 }
@@ -169,7 +178,7 @@ static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 		container_of(work, struct mt76x02_dev, pre_tbtt_work);
 	struct beacon_bc_data data = {};
 	struct sk_buff *skb;
-	int i, nbeacons;
+	int nbeacons;
 
 	if (!dev->mt76.beacon_mask)
 		return;
@@ -179,17 +188,30 @@ static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 
 	mt76x02_resync_beacon_timer(dev);
 
+	/* Prevent corrupt transmissions during update */
+	mt76_set(dev, MT_BCN_BYPASS_MASK, 0xffff);
+	dev->beacon_data_count = 0;
+
 	ieee80211_iterate_active_interfaces(mt76_hw(dev),
 		IEEE80211_IFACE_ITER_RESUME_ALL,
 		mt76x02_update_beacon_iter, dev);
 
+	mt76_csa_check(&dev->mt76);
+
+	if (dev->mt76.csa_complete) {
+		mt76_csa_finish(&dev->mt76);
+		goto out;
+	}
+
 	nbeacons = hweight8(dev->mt76.beacon_mask);
 	mt76x02_enqueue_buffered_bc(dev, &data, N_BCN_SLOTS - nbeacons);
 
-	for (i = nbeacons; i < N_BCN_SLOTS; i++) {
-		skb = __skb_dequeue(&data.q);
-		mt76x02_mac_set_beacon(dev, i, skb);
-	}
+	while ((skb = __skb_dequeue(&data.q)) != NULL)
+		mt76x02_mac_set_beacon(dev, skb);
+
+out:
+	mt76_wr(dev, MT_BCN_BYPASS_MASK,
+		0xff00 | ~(0xff00 >> dev->beacon_data_count));
 
 	mt76x02u_restart_pre_tbtt_timer(dev);
 }
@@ -215,20 +237,11 @@ static void mt76x02u_pre_tbtt_enable(struct mt76x02_dev *dev, bool en)
 
 static void mt76x02u_beacon_enable(struct mt76x02_dev *dev, bool en)
 {
-	int i;
-
 	if (WARN_ON_ONCE(!dev->mt76.beacon_int))
 		return;
 
-	if (en) {
+	if (en)
 		mt76x02u_start_pre_tbtt_timer(dev);
-	} else {
-		/* Timer is already stopped, only clean up
-		 * PS buffered frames if any.
-		 */
-		for (i = 0; i < N_BCN_SLOTS; i++)
-			mt76x02_mac_set_beacon(dev, i, NULL);
-	}
 }
 
 void mt76x02u_init_beacon_config(struct mt76x02_dev *dev)
@@ -251,7 +264,7 @@ EXPORT_SYMBOL_GPL(mt76x02u_init_beacon_config);
 
 void mt76x02u_exit_beacon_config(struct mt76x02_dev *dev)
 {
-	if (!test_bit(MT76_REMOVED, &dev->mt76.state))
+	if (!test_bit(MT76_REMOVED, &dev->mphy.state))
 		mt76_clear(dev, MT_BEACON_TIME_CFG,
 			   MT_BEACON_TIME_CFG_TIMER_EN |
 			   MT_BEACON_TIME_CFG_SYNC_MODE |

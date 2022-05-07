@@ -77,7 +77,7 @@ config SND_BEBOB
 	tristate "BridgeCo DM1000/DM1100/DM1500 with BeBoB firmware"
 	select SND_FIREWIRE_LIB
 	select SND_HWDEP
-        help
+	help
 	 Say Y here to include support for FireWire devices based
 	 on BridgeCo DM1000/DM1100/DM1500 with BeBoB firmware:
 	  * Edirol FA-66/FA-101
@@ -111,8 +111,8 @@ config SND_BEBOB
 	  * M-Audio FireWire 1814/ProjectMix IO
 	  * Digidesign Mbox 2 Pro
 
-          To compile this driver as a module, choose M here: the module
-          will be called snd-bebob.
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-bebob.
 
 config SND_FIREWIRE_DIGI00X
 	tristate "Digidesign Digi 002/003 family support"
@@ -150,8 +150,12 @@ config SND_FIREWIRE_MOTU
 	 Say Y here to enable support for FireWire devices which MOTU produced:
 	  * 828mk2
 	  * Traveler
-	  * 828mk3
+	  * Ultralite
+	  * 8pre
+	  * 828mk3 (FireWire only)
+	  * 828mk3 (Hybrid)
 	  * Audio Express
+	  * 4pre
 
 	 To compile this driver as a module, choose M here: the module
 	 will be called snd-firewire-motu.
@@ -164,6 +168,8 @@ config SND_FIREFACE
 	 Say Y here to include support for RME fireface series.
 	  * Fireface 400
 	  * Fireface 800
+	  * Fireface UFX
 	  * Fireface UCX
+	  * Fireface 802
 
 endif # SND_FIREWIRE

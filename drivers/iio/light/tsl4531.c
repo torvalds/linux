@@ -192,7 +192,6 @@ static int tsl4531_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &tsl4531_info;
 	indio_dev->channels = tsl4531_channels;
 	indio_dev->num_channels = ARRAY_SIZE(tsl4531_channels);

@@ -32,7 +32,7 @@ menuconfig ACPI
 	  Linux support for ACPI is based on Intel Corporation's ACPI
 	  Component Architecture (ACPI CA).  For more information on the
 	  ACPI CA, see:
-	  <http://acpica.org/>
+	  <https://acpica.org/>
 
 	  ACPI is an open industry specification originally co-developed by
 	  Hewlett-Packard, Intel, Microsoft, Phoenix, and Toshiba. Currently,
@@ -40,8 +40,7 @@ menuconfig ACPI
 	  the UEFI Forum and any UEFI member can join the ASWG and contribute
 	  to the ACPI specification.
 	  The specification is available at:
-	  <http://www.acpi.info>
-	  <http://www.uefi.org/acpi/specs>
+	  <https://uefi.org/specifications>
 
 if ACPI
 
@@ -98,23 +97,6 @@ config ACPI_SLEEP
 	depends on SUSPEND || HIBERNATION
 	depends on ACPI_SYSTEM_POWER_STATES_SUPPORT
 	default y
-
-config ACPI_PROCFS_POWER
-	bool "Deprecated power /proc/acpi directories"
-	depends on X86 && PROC_FS
-	help
-	  For backwards compatibility, this option allows
-          deprecated power /proc/acpi/ directories to exist, even when
-          they have been replaced by functions in /sys.
-          The deprecated directories (and their replacements) include:
-	  /proc/acpi/battery/* (/sys/class/power_supply/*) and
-	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*).
-	  This option has no effect on /proc/acpi/ directories
-	  and functions which do not yet exist in /sys.
-	  This option, together with the proc directories, will be
-	  deleted in the future.
-
-	  Say N to delete power /proc/acpi/ directories that have moved to /sys.
 
 config ACPI_REV_OVERRIDE_POSSIBLE
 	bool "Allow supported ACPI revision to be overridden"
@@ -190,6 +172,30 @@ config ACPI_BUTTON
 	  To compile this driver as a module, choose M here:
 	  the module will be called button.
 
+config ACPI_TINY_POWER_BUTTON
+	tristate "Tiny Power Button Driver"
+	depends on !ACPI_BUTTON
+	help
+	  This driver provides a tiny alternative to the ACPI Button driver.
+	  The tiny power button driver only handles the power button. Rather
+	  than notifying userspace via the input layer or a netlink event, this
+	  driver directly signals the init process to shut down.
+
+	  This driver is particularly suitable for cloud and VM environments,
+	  which use a simulated power button to initiate a controlled poweroff,
+	  but which may not want to run a separate userspace daemon to process
+	  input events.
+
+config ACPI_TINY_POWER_BUTTON_SIGNAL
+	int "Tiny Power Button Signal"
+	depends on ACPI_TINY_POWER_BUTTON
+	default 38
+	help
+	  Default signal to send to init in response to the power button.
+
+	  Likely values here include 38 (SIGRTMIN+4) to power off, or 2
+	  (SIGINT) to simulate Ctrl+Alt+Del.
+
 config ACPI_VIDEO
 	tristate "Video"
 	depends on X86 && BACKLIGHT_CLASS_DEVICE
@@ -241,6 +247,7 @@ config ACPI_CPU_FREQ_PSS
 
 config ACPI_PROCESSOR_CSTATE
 	def_bool y
+	depends on ACPI_PROCESSOR
 	depends on IA64 || X86
 
 config ACPI_PROCESSOR_IDLE
@@ -318,12 +325,6 @@ config ACPI_THERMAL
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called thermal.
-
-config ACPI_NUMA
-	bool "NUMA support"
-	depends on NUMA
-	depends on (X86 || IA64 || ARM64)
-	default y if IA64 || ARM64
 
 config ACPI_CUSTOM_DSDT_FILE
 	string "Custom DSDT Table file to include"
@@ -454,7 +455,7 @@ config ACPI_CUSTOM_METHOD
 config ACPI_BGRT
 	bool "Boottime Graphics Resource Table support"
 	depends on EFI && (X86 || ARM64)
-        help
+	help
 	  This driver adds support for exposing the ACPI Boottime Graphics
 	  Resource Table, which allows the operating system to obtain
 	  data from the firmware boot splash. It will appear under
@@ -473,8 +474,7 @@ config ACPI_REDUCED_HARDWARE_ONLY
 	  If you are unsure what to do, do not enable this option.
 
 source "drivers/acpi/nfit/Kconfig"
-source "drivers/acpi/hmat/Kconfig"
-
+source "drivers/acpi/numa/Kconfig"
 source "drivers/acpi/apei/Kconfig"
 source "drivers/acpi/dptf/Kconfig"
 
@@ -504,47 +504,6 @@ config ACPI_EXTLOG
 config ACPI_ADXL
 	bool
 
-menuconfig PMIC_OPREGION
-	bool "PMIC (Power Management Integrated Circuit) operation region support"
-	help
-	  Select this option to enable support for ACPI operation
-	  region of the PMIC chip. The operation region can be used
-	  to control power rails and sensor reading/writing on the
-	  PMIC chip.
-
-if PMIC_OPREGION
-config CRC_PMIC_OPREGION
-	bool "ACPI operation region support for CrystalCove PMIC"
-	depends on INTEL_SOC_PMIC
-	help
-	  This config adds ACPI operation region support for CrystalCove PMIC.
-
-config XPOWER_PMIC_OPREGION
-	bool "ACPI operation region support for XPower AXP288 PMIC"
-	depends on MFD_AXP20X_I2C && IOSF_MBI=y
-	help
-	  This config adds ACPI operation region support for XPower AXP288 PMIC.
-
-config BXT_WC_PMIC_OPREGION
-	bool "ACPI operation region support for BXT WhiskeyCove PMIC"
-	depends on INTEL_SOC_PMIC_BXTWC
-	help
-	  This config adds ACPI operation region support for BXT WhiskeyCove PMIC.
-
-config CHT_WC_PMIC_OPREGION
-	bool "ACPI operation region support for CHT Whiskey Cove PMIC"
-	depends on INTEL_SOC_PMIC_CHTWC
-	help
-	  This config adds ACPI operation region support for CHT Whiskey Cove PMIC.
-
-config CHT_DC_TI_PMIC_OPREGION
-	bool "ACPI operation region support for Dollar Cove TI PMIC"
-	depends on INTEL_SOC_PMIC_CHTDC_TI
-	help
-	  This config adds ACPI operation region support for Dollar Cove TI PMIC.
-
-endif
-
 config ACPI_CONFIGFS
 	tristate "ACPI configfs support"
 	select CONFIGFS_FS
@@ -560,21 +519,7 @@ config ACPI_PPTT
 	bool
 endif
 
-config TPS68470_PMIC_OPREGION
-	bool "ACPI operation region support for TPS68470 PMIC"
-	depends on MFD_TPS68470
-	help
-	  This config adds ACPI operation region support for TI TPS68470 PMIC.
-	  TPS68470 device is an advanced power management unit that powers
-	  a Compact Camera Module (CCM), generates clocks for image sensors,
-	  drives a dual LED for flash and incorporates two LED drivers for
-	  general purpose indicators.
-	  This driver enables ACPI operation region support control voltage
-	  regulators and clocks.
-
-	  This option is a bool as it provides an ACPI operation
-	  region, which must be available before any of the devices
-	  using this, are probed.
+source "drivers/acpi/pmic/Kconfig"
 
 endif	# ACPI
 

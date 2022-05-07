@@ -1265,7 +1265,7 @@ static int ef4_init_io(struct ef4_nic *efx)
 		rc = -EIO;
 		goto fail3;
 	}
-	efx->membase = ioremap_nocache(efx->membase_phys, mem_map_size);
+	efx->membase = ioremap(efx->membase_phys, mem_map_size);
 	if (!efx->membase) {
 		netif_err(efx, probe, efx->net_dev,
 			  "could not map memory BAR at %llx+%x\n",
@@ -2108,7 +2108,7 @@ static void ef4_net_stats(struct net_device *net_dev,
 }
 
 /* Context: netif_tx_lock held, BHs disabled. */
-static void ef4_watchdog(struct net_device *net_dev)
+static void ef4_watchdog(struct net_device *net_dev, unsigned int txqueue)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 
@@ -3118,7 +3118,7 @@ static const struct dev_pm_ops ef4_pm_ops = {
  * Stop the software path and request a slot reset.
  */
 static pci_ers_result_t ef4_io_error_detected(struct pci_dev *pdev,
-					      enum pci_channel_state state)
+					      pci_channel_state_t state)
 {
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
 	struct ef4_nic *efx = pci_get_drvdata(pdev);

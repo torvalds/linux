@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018        Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  */
 
 /**
@@ -292,7 +292,8 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 		goto end;
 	}
 
-	if (!sta->sta.ht_cap.ht_supported) {
+	if (!sta->sta.ht_cap.ht_supported &&
+	    sta->sdata->vif.bss_conf.chandef.chan->band != NL80211_BAND_6GHZ) {
 		ht_dbg(sta->sdata,
 		       "STA %pM erroneously requests BA session on tid %d w/o QoS\n",
 		       sta->sta.addr, tid);
@@ -349,7 +350,7 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 					   sta->sta.addr, tid);
 			/* We have no API to update the timeout value in the
 			 * driver so reject the timeout update if the timeout
-			 * changed. If if did not change, i.e., no real update,
+			 * changed. If it did not change, i.e., no real update,
 			 * just reply with success.
 			 */
 			rcu_read_lock();
@@ -476,7 +477,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 				     size_t len)
 {
 	u16 capab, tid, timeout, ba_policy, buf_size, start_seq_num;
-	struct ieee802_11_elems elems = { 0 };
+	struct ieee802_11_elems elems = { };
 	u8 dialog_token;
 	int ies_len;
 

@@ -10,13 +10,11 @@
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
-#include <assert.h>
 #include <linux/perf_event.h>
 #include <linux/ptrace.h>
 #include <linux/bpf.h>
-#include <sys/ioctl.h>
-#include "libbpf.h"
-#include "bpf_load.h"
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 #include "perf-sys.h"
 #include "trace_helpers.h"
 
@@ -25,6 +23,7 @@
 #define MAX_IPS		8192
 #define PAGE_OFFSET	0xffff880000000000
 
+static int map_fd;
 static int nr_cpus;
 
 static void usage(void)
@@ -34,9 +33,10 @@ static void usage(void)
 	printf("       duration   # sampling duration (seconds), default 5\n");
 }
 
-static int sampling_start(int *pmu_fd, int freq)
+static int sampling_start(int freq, struct bpf_program *prog,
+			  struct bpf_link *links[])
 {
-	int i;
+	int i, pmu_fd;
 
 	struct perf_event_attr pe_sample_attr = {
 		.type = PERF_TYPE_SOFTWARE,
@@ -47,26 +47,30 @@ static int sampling_start(int *pmu_fd, int freq)
 	};
 
 	for (i = 0; i < nr_cpus; i++) {
-		pmu_fd[i] = sys_perf_event_open(&pe_sample_attr, -1 /* pid */, i,
+		pmu_fd = sys_perf_event_open(&pe_sample_attr, -1 /* pid */, i,
 					    -1 /* group_fd */, 0 /* flags */);
-		if (pmu_fd[i] < 0) {
+		if (pmu_fd < 0) {
 			fprintf(stderr, "ERROR: Initializing perf sampling\n");
 			return 1;
 		}
-		assert(ioctl(pmu_fd[i], PERF_EVENT_IOC_SET_BPF,
-			     prog_fd[0]) == 0);
-		assert(ioctl(pmu_fd[i], PERF_EVENT_IOC_ENABLE, 0) == 0);
+		links[i] = bpf_program__attach_perf_event(prog, pmu_fd);
+		if (libbpf_get_error(links[i])) {
+			fprintf(stderr, "ERROR: Attach perf event\n");
+			links[i] = NULL;
+			close(pmu_fd);
+			return 1;
+		}
 	}
 
 	return 0;
 }
 
-static void sampling_end(int *pmu_fd)
+static void sampling_end(struct bpf_link *links[])
 {
 	int i;
 
 	for (i = 0; i < nr_cpus; i++)
-		close(pmu_fd[i]);
+		bpf_link__destroy(links[i]);
 }
 
 struct ipcount {
@@ -128,14 +132,17 @@ static void print_ip_map(int fd)
 static void int_exit(int sig)
 {
 	printf("\n");
-	print_ip_map(map_fd[0]);
+	print_ip_map(map_fd);
 	exit(0);
 }
 
 int main(int argc, char **argv)
 {
+	int opt, freq = DEFAULT_FREQ, secs = DEFAULT_SECS, error = 1;
+	struct bpf_object *obj = NULL;
+	struct bpf_program *prog;
+	struct bpf_link **links;
 	char filename[256];
-	int *pmu_fd, opt, freq = DEFAULT_FREQ, secs = DEFAULT_SECS;
 
 	/* process arguments */
 	while ((opt = getopt(argc, argv, "F:h")) != -1) {
@@ -163,38 +170,58 @@ int main(int argc, char **argv)
 	}
 
 	/* create perf FDs for each CPU */
-	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
-	pmu_fd = malloc(nr_cpus * sizeof(int));
-	if (pmu_fd == NULL) {
-		fprintf(stderr, "ERROR: malloc of pmu_fd\n");
-		return 1;
+	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	links = calloc(nr_cpus, sizeof(struct bpf_link *));
+	if (!links) {
+		fprintf(stderr, "ERROR: malloc of links\n");
+		goto cleanup;
+	}
+
+	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj)) {
+		fprintf(stderr, "ERROR: opening BPF object file failed\n");
+		obj = NULL;
+		goto cleanup;
+	}
+
+	prog = bpf_object__find_program_by_name(obj, "do_sample");
+	if (!prog) {
+		fprintf(stderr, "ERROR: finding a prog in obj file failed\n");
+		goto cleanup;
 	}
 
 	/* load BPF program */
-	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	if (load_bpf_file(filename)) {
-		fprintf(stderr, "ERROR: loading BPF program (errno %d):\n",
-			errno);
-		if (strcmp(bpf_log_buf, "") == 0)
-			fprintf(stderr, "Try: ulimit -l unlimited\n");
-		else
-			fprintf(stderr, "%s", bpf_log_buf);
-		return 1;
+	if (bpf_object__load(obj)) {
+		fprintf(stderr, "ERROR: loading BPF object file failed\n");
+		goto cleanup;
 	}
+
+	map_fd = bpf_object__find_map_fd_by_name(obj, "ip_map");
+	if (map_fd < 0) {
+		fprintf(stderr, "ERROR: finding a map in obj file failed\n");
+		goto cleanup;
+	}
+
 	signal(SIGINT, int_exit);
 	signal(SIGTERM, int_exit);
 
 	/* do sampling */
 	printf("Sampling at %d Hertz for %d seconds. Ctrl-C also ends.\n",
 	       freq, secs);
-	if (sampling_start(pmu_fd, freq) != 0)
-		return 1;
+	if (sampling_start(freq, prog, links) != 0)
+		goto cleanup;
+
 	sleep(secs);
-	sampling_end(pmu_fd);
-	free(pmu_fd);
+	error = 0;
 
+cleanup:
+	sampling_end(links);
 	/* output sample counts */
-	print_ip_map(map_fd[0]);
+	if (!error)
+		print_ip_map(map_fd);
 
-	return 0;
+	free(links);
+	bpf_object__close(obj);
+	return error;
 }

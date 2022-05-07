@@ -452,7 +452,7 @@ static long usb_pcwd_ioctl(struct file *file, unsigned int cmd,
 
 		usb_pcwd_keepalive(usb_pcwd_device);
 	}
-		/* fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
@@ -550,6 +550,7 @@ static const struct file_operations usb_pcwd_fops = {
 	.llseek =	no_llseek,
 	.write =	usb_pcwd_write,
 	.unlocked_ioctl = usb_pcwd_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.open =		usb_pcwd_open,
 	.release =	usb_pcwd_release,
 };
@@ -584,9 +585,8 @@ static struct notifier_block usb_pcwd_notifier = {
 static inline void usb_pcwd_delete(struct usb_pcwd_private *usb_pcwd)
 {
 	usb_free_urb(usb_pcwd->intr_urb);
-	if (usb_pcwd->intr_buffer != NULL)
-		usb_free_coherent(usb_pcwd->udev, usb_pcwd->intr_size,
-				  usb_pcwd->intr_buffer, usb_pcwd->intr_dma);
+	usb_free_coherent(usb_pcwd->udev, usb_pcwd->intr_size,
+			  usb_pcwd->intr_buffer, usb_pcwd->intr_dma);
 	kfree(usb_pcwd);
 }
 
@@ -656,7 +656,7 @@ static int usb_pcwd_probe(struct usb_interface *interface,
 
 	/* set up the memory buffer's */
 	usb_pcwd->intr_buffer = usb_alloc_coherent(udev, usb_pcwd->intr_size,
-					GFP_ATOMIC, &usb_pcwd->intr_dma);
+					GFP_KERNEL, &usb_pcwd->intr_dma);
 	if (!usb_pcwd->intr_buffer) {
 		pr_err("Out of memory\n");
 		goto error;

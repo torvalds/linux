@@ -1,5 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * SPDX-License-Identifier: GPL-2.0
  *
  * tvp5150 - Texas Instruments TVP5150A/AM1 video decoder registers
  *

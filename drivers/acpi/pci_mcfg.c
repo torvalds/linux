@@ -29,7 +29,7 @@ struct mcfg_fixup {
 	u32 oem_revision;
 	u16 segment;
 	struct resource bus_range;
-	struct pci_ecam_ops *ops;
+	const struct pci_ecam_ops *ops;
 	struct resource cfgres;
 };
 
@@ -142,6 +142,26 @@ static struct mcfg_fixup mcfg_quirks[] = {
 	XGENE_V2_ECAM_MCFG(4, 0),
 	XGENE_V2_ECAM_MCFG(4, 1),
 	XGENE_V2_ECAM_MCFG(4, 2),
+
+#define ALTRA_ECAM_QUIRK(rev, seg) \
+	{ "Ampere", "Altra   ", rev, seg, MCFG_BUS_ANY, &pci_32b_read_ops }
+
+	ALTRA_ECAM_QUIRK(1, 0),
+	ALTRA_ECAM_QUIRK(1, 1),
+	ALTRA_ECAM_QUIRK(1, 2),
+	ALTRA_ECAM_QUIRK(1, 3),
+	ALTRA_ECAM_QUIRK(1, 4),
+	ALTRA_ECAM_QUIRK(1, 5),
+	ALTRA_ECAM_QUIRK(1, 6),
+	ALTRA_ECAM_QUIRK(1, 7),
+	ALTRA_ECAM_QUIRK(1, 8),
+	ALTRA_ECAM_QUIRK(1, 9),
+	ALTRA_ECAM_QUIRK(1, 10),
+	ALTRA_ECAM_QUIRK(1, 11),
+	ALTRA_ECAM_QUIRK(1, 12),
+	ALTRA_ECAM_QUIRK(1, 13),
+	ALTRA_ECAM_QUIRK(1, 14),
+	ALTRA_ECAM_QUIRK(1, 15),
 };
 
 static char mcfg_oem_id[ACPI_OEM_ID_SIZE];
@@ -153,7 +173,7 @@ static int pci_mcfg_quirk_matches(struct mcfg_fixup *f, u16 segment,
 {
 	if (!memcmp(f->oem_id, mcfg_oem_id, ACPI_OEM_ID_SIZE) &&
 	    !memcmp(f->oem_table_id, mcfg_oem_table_id,
-	            ACPI_OEM_TABLE_ID_SIZE) &&
+		    ACPI_OEM_TABLE_ID_SIZE) &&
 	    f->oem_revision == mcfg_oem_revision &&
 	    f->segment == segment &&
 	    resource_contains(&f->bus_range, bus_range))
@@ -165,7 +185,7 @@ static int pci_mcfg_quirk_matches(struct mcfg_fixup *f, u16 segment,
 
 static void pci_mcfg_apply_quirks(struct acpi_pci_root *root,
 				  struct resource *cfgres,
-				  struct pci_ecam_ops **ecam_ops)
+				  const struct pci_ecam_ops **ecam_ops)
 {
 #ifdef CONFIG_PCI_QUIRKS
 	u16 segment = root->segment;
@@ -191,9 +211,9 @@ static void pci_mcfg_apply_quirks(struct acpi_pci_root *root,
 static LIST_HEAD(pci_mcfg_list);
 
 int pci_mcfg_lookup(struct acpi_pci_root *root, struct resource *cfgres,
-		    struct pci_ecam_ops **ecam_ops)
+		    const struct pci_ecam_ops **ecam_ops)
 {
-	struct pci_ecam_ops *ops = &pci_generic_ecam_ops;
+	const struct pci_ecam_ops *ops = &pci_generic_ecam_ops;
 	struct resource *bus_res = &root->secondary;
 	u16 seg = root->segment;
 	struct mcfg_entry *e;
@@ -280,5 +300,5 @@ void __init pci_mmcfg_late_init(void)
 {
 	int err = acpi_table_parse(ACPI_SIG_MCFG, pci_mcfg_parse);
 	if (err)
-		pr_err("Failed to parse MCFG (%d)\n", err);
+		pr_debug("Failed to parse MCFG (%d)\n", err);
 }

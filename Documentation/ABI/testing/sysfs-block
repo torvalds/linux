@@ -4,17 +4,27 @@ Contact:	Jerome Marchand <jmarchan@redhat.com>
 Description:
 		The /sys/block/<disk>/stat files displays the I/O
 		statistics of disk <disk>. They contain 11 fields:
-		 1 - reads completed successfully
-		 2 - reads merged
-		 3 - sectors read
-		 4 - time spent reading (ms)
-		 5 - writes completed
-		 6 - writes merged
-		 7 - sectors written
-		 8 - time spent writing (ms)
-		 9 - I/Os currently in progress
-		10 - time spent doing I/Os (ms)
-		11 - weighted time spent doing I/Os (ms)
+
+		==  ==============================================
+		 1  reads completed successfully
+		 2  reads merged
+		 3  sectors read
+		 4  time spent reading (ms)
+		 5  writes completed
+		 6  writes merged
+		 7  sectors written
+		 8  time spent writing (ms)
+		 9  I/Os currently in progress
+		10  time spent doing I/Os (ms)
+		11  weighted time spent doing I/Os (ms)
+		12  discards completed
+		13  discards merged
+		14  sectors discarded
+		15  time spent discarding (ms)
+		16  flush requests completed
+		17  time spent flushing (ms)
+		==  ==============================================
+
 		For more details refer Documentation/admin-guide/iostats.rst
 
 
@@ -266,6 +276,24 @@ Description:
 		nr_zones indicates the total number of zones of a zoned block
 		device ("host-aware" or "host-managed" zone model). For regular
 		block devices, the value is always 0.
+
+What:		/sys/block/<disk>/queue/max_active_zones
+Date:		July 2020
+Contact:	Niklas Cassel <niklas.cassel@wdc.com>
+Description:
+		For zoned block devices (zoned attribute indicating
+		"host-managed" or "host-aware"), the sum of zones belonging to
+		any of the zone states: EXPLICIT OPEN, IMPLICIT OPEN or CLOSED,
+		is limited by this value. If this value is 0, there is no limit.
+
+What:		/sys/block/<disk>/queue/max_open_zones
+Date:		July 2020
+Contact:	Niklas Cassel <niklas.cassel@wdc.com>
+Description:
+		For zoned block devices (zoned attribute indicating
+		"host-managed" or "host-aware"), the sum of zones belonging to
+		any of the zone states: EXPLICIT OPEN or IMPLICIT OPEN,
+		is limited by this value. If this value is 0, there is no limit.
 
 What:		/sys/block/<disk>/queue/chunk_sectors
 Date:		September 2016

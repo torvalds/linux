@@ -82,7 +82,7 @@ static int vfio_platform_bcmflexrm_reset(struct vfio_platform_device *vdev)
 
 	/* Map FlexRM ring registers if not mapped */
 	if (!reg->ioaddr) {
-		reg->ioaddr = ioremap_nocache(reg->addr, reg->size);
+		reg->ioaddr = ioremap(reg->addr, reg->size);
 		if (!reg->ioaddr)
 			return -ENOMEM;
 	}

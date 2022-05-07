@@ -50,8 +50,8 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	cs-gpios = <&gpio2 30 0>, <&gpio3 19 0>,
-		   <&gpio3 24 0>, <&gpio3 25 0>;
+	cs-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>, <&gpio3 19 GPIO_ACTIVE_LOW>,
+		   <&gpio3 24 GPIO_ACTIVE_LOW>, <&gpio3 25 GPIO_ACTIVE_LOW>;
 	status = "disabled";
 };
 
@@ -209,6 +209,14 @@
 	};
 };
 
+&pwm1 {
+	#pwm-cells = <2>;
+};
+
+&pwm2 {
+	#pwm-cells = <2>;
+};
+
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
@@ -243,8 +251,8 @@
 &cspi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_cspi>;
-	cs-gpios = <&gpio1 18 0>, <&gpio1 19 0>,
-		   <&gpio1 21 0>;
+	cs-gpios = <&gpio1 18 GPIO_ACTIVE_LOW>, <&gpio1 19 GPIO_ACTIVE_LOW>,
+		   <&gpio1 21 GPIO_ACTIVE_LOW>;
 	status = "disabled";
 };
 

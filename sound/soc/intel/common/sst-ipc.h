@@ -15,8 +15,6 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 
-#define IPC_MAX_MAILBOX_BYTES	256
-
 struct sst_ipc_message {
 	u64 header;
 	void *data;
@@ -82,7 +80,6 @@ struct ipc_message *sst_ipc_reply_find_msg(struct sst_generic_ipc *ipc,
 void sst_ipc_tx_msg_reply_complete(struct sst_generic_ipc *ipc,
 	struct ipc_message *msg);
 
-void sst_ipc_drop_all(struct sst_generic_ipc *ipc);
 int sst_ipc_init(struct sst_generic_ipc *ipc);
 void sst_ipc_fini(struct sst_generic_ipc *ipc);
 
