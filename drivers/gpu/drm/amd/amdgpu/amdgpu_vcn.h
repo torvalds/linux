@@ -375,4 +375,9 @@ void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev);
 void amdgpu_vcn_fwlog_init(struct amdgpu_vcn_inst *vcn);
 void amdgpu_debugfs_vcn_fwlog_init(struct amdgpu_device *adev,
                                    uint8_t i, struct amdgpu_vcn_inst *vcn);
+
+int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
+			struct amdgpu_irq_src *source,
+			struct amdgpu_iv_entry *entry);
+
 #endif

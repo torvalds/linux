@@ -29,6 +29,7 @@
 #define VCN_2_0__SRCID__JPEG_ENCODE					151		// 0x97 JRBC Encode interrupt
 #define VCN_2_0__SRCID__JPEG_DECODE					153		// 0x99 JRBC Decode interrupt
 
+#define VCN_2_6__SRCID_UVD_POISON					160
 #define VCN_2_6__SRCID_DJPEG0_POISON					161
 #define VCN_2_6__SRCID_EJPEG0_POISON					162
 

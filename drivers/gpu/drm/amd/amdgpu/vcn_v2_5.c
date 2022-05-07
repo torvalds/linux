@@ -139,6 +139,12 @@ static int vcn_v2_5_sw_init(void *handle)
 			if (r)
 				return r;
 		}
+
+		/* VCN POISON TRAP */
+		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_vcns[j],
+			VCN_2_6__SRCID_UVD_POISON, &adev->vcn.inst[j].irq);
+		if (r)
+			return r;
 	}
 
 	r = amdgpu_vcn_sw_init(adev);
@@ -1854,6 +1860,9 @@ static int vcn_v2_5_process_interrupt(struct amdgpu_device *adev,
 		break;
 	case VCN_2_0__SRCID__UVD_ENC_LOW_LATENCY:
 		amdgpu_fence_process(&adev->vcn.inst[ip_instance].ring_enc[1]);
+		break;
+	case VCN_2_6__SRCID_UVD_POISON:
+		amdgpu_vcn_process_poison_irq(adev, source, entry);
 		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",

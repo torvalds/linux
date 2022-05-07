@@ -1126,3 +1126,21 @@ void amdgpu_vcn_fwlog_init(struct amdgpu_vcn_inst *vcn)
 	log_buf->wrapped = 0;
 #endif
 }
+
+int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
+				struct amdgpu_irq_src *source,
+				struct amdgpu_iv_entry *entry)
+{
+	struct ras_common_if *ras_if = adev->vcn.ras_if;
+	struct ras_dispatch_if ih_data = {
+		.entry = entry,
+	};
+
+	if (!ras_if)
+		return 0;
+
+	ih_data.head = *ras_if;
+	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
+
+	return 0;
+}
