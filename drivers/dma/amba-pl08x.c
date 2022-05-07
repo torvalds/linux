@@ -2792,7 +2792,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	/* Assign useful pointers to the driver state */
 	pl08x->adev = adev;
 #ifdef CONFIG_SOC_STARFIVE_JH7110
-	vd = of_device_get_match_data(&adev->dev);
+	vd = (struct vendor_data *)of_device_get_match_data(&adev->dev);
 	if(!vd)
 		return -ENODEV;
 #endif
