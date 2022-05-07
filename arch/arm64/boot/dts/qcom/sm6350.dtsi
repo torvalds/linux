@@ -489,7 +489,7 @@
 			clock-names = "iface", "core", "xo";
 			qcom,dll-config = <0x000f642c>;
 			qcom,ddr-config = <0x80040868>;
-			power-domains = <&rpmhpd 0>;
+			power-domains = <&rpmhpd SM6350_CX>;
 			operating-points-v2 = <&sdhc1_opp_table>;
 			bus-width = <8>;
 			non-removable;
@@ -935,7 +935,7 @@
 			clock-names = "iface", "core", "xo";
 			qcom,dll-config = <0x0007642c>;
 			qcom,ddr-config = <0x80040868>;
-			power-domains = <&rpmhpd 0>;
+			power-domains = <&rpmhpd SM6350_CX>;
 			operating-points-v2 = <&sdhc2_opp_table>;
 			bus-width = <4>;
 
