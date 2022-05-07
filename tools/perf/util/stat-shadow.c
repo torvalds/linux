@@ -833,10 +833,31 @@ static int prepare_metric(struct evsel **metric_events,
 		u64 metric_total = 0;
 		int source_count;
 
-		if (!strcmp(metric_events[i]->name, "duration_time")) {
-			stats = &walltime_nsecs_stats;
-			scale = 1e-9;
+		if (evsel__is_tool(metric_events[i])) {
 			source_count = 1;
+			switch (metric_events[i]->tool_event) {
+			case PERF_TOOL_DURATION_TIME:
+				stats = &walltime_nsecs_stats;
+				scale = 1e-9;
+				break;
+			case PERF_TOOL_USER_TIME:
+				stats = &ru_stats.ru_utime_usec_stat;
+				scale = 1e-6;
+				break;
+			case PERF_TOOL_SYSTEM_TIME:
+				stats = &ru_stats.ru_stime_usec_stat;
+				scale = 1e-6;
+				break;
+			case PERF_TOOL_NONE:
+				pr_err("Invalid tool event 'none'");
+				abort();
+			case PERF_TOOL_MAX:
+				pr_err("Invalid tool event 'max'");
+				abort();
+			default:
+				pr_err("Unknown tool event '%s'", evsel__name(metric_events[i]));
+				abort();
+			}
 		} else {
 			v = saved_value_lookup(metric_events[i], cpu_map_idx, false,
 					       STAT_NONE, 0, st,

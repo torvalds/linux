@@ -728,22 +728,23 @@ static int metricgroup__build_event_string(struct strbuf *events,
 {
 	struct hashmap_entry *cur;
 	size_t bkt;
-	bool no_group = true, has_duration = false;
+	bool no_group = true, has_tool_events = false;
+	bool tool_events[PERF_TOOL_MAX] = {false};
 	int ret = 0;
 
 #define RETURN_IF_NON_ZERO(x) do { if (x) return x; } while (0)
 
 	hashmap__for_each_entry(ctx->ids, cur, bkt) {
 		const char *sep, *rsep, *id = cur->key;
+		enum perf_tool_event ev;
 
 		pr_debug("found event %s\n", id);
-		/*
-		 * Duration time maps to a software event and can make
-		 * groups not count. Always use it outside a
-		 * group.
-		 */
-		if (!strcmp(id, "duration_time")) {
-			has_duration = true;
+
+		/* Always move tool events outside of the group. */
+		ev = perf_tool_event__from_str(id);
+		if (ev != PERF_TOOL_NONE) {
+			has_tool_events = true;
+			tool_events[ev] = true;
 			continue;
 		}
 		/* Separate events with commas and open the group if necessary. */
@@ -802,16 +803,25 @@ static int metricgroup__build_event_string(struct strbuf *events,
 			RETURN_IF_NON_ZERO(ret);
 		}
 	}
-	if (has_duration) {
-		if (no_group) {
-			/* Strange case of a metric of just duration_time. */
-			ret = strbuf_addf(events, "duration_time");
-		} else if (!has_constraint)
-			ret = strbuf_addf(events, "}:W,duration_time");
-		else
-			ret = strbuf_addf(events, ",duration_time");
-	} else if (!no_group && !has_constraint)
+	if (!no_group && !has_constraint) {
 		ret = strbuf_addf(events, "}:W");
+		RETURN_IF_NON_ZERO(ret);
+	}
+	if (has_tool_events) {
+		int i;
+
+		perf_tool_event__for_each_event(i) {
+			if (tool_events[i]) {
+				if (!no_group) {
+					ret = strbuf_addch(events, ',');
+					RETURN_IF_NON_ZERO(ret);
+				}
+				no_group = false;
+				ret = strbuf_addstr(events, perf_tool_event__to_str(i));
+				RETURN_IF_NON_ZERO(ret);
+			}
+		}
+	}
 
 	return ret;
 #undef RETURN_IF_NON_ZERO
@@ -1117,7 +1127,7 @@ out:
 
 /**
  * metric_list_cmp - list_sort comparator that sorts metrics with more events to
- *                   the front. duration_time is excluded from the count.
+ *                   the front. tool events are excluded from the count.
  */
 static int metric_list_cmp(void *priv __maybe_unused, const struct list_head *l,
 			   const struct list_head *r)
@@ -1125,15 +1135,19 @@ static int metric_list_cmp(void *priv __maybe_unused, const struct list_head *l,
 	const struct metric *left = container_of(l, struct metric, nd);
 	const struct metric *right = container_of(r, struct metric, nd);
 	struct expr_id_data *data;
-	int left_count, right_count;
+	int i, left_count, right_count;
 
 	left_count = hashmap__size(left->pctx->ids);
-	if (!expr__get_id(left->pctx, "duration_time", &data))
-		left_count--;
+	perf_tool_event__for_each_event(i) {
+		if (!expr__get_id(left->pctx, perf_tool_event__to_str(i), &data))
+			left_count--;
+	}
 
 	right_count = hashmap__size(right->pctx->ids);
-	if (!expr__get_id(right->pctx, "duration_time", &data))
-		right_count--;
+	perf_tool_event__for_each_event(i) {
+		if (!expr__get_id(right->pctx, perf_tool_event__to_str(i), &data))
+			right_count--;
+	}
 
 	return right_count - left_count;
 }
@@ -1331,26 +1345,27 @@ static int parse_ids(bool metric_no_merge, struct perf_pmu *fake_pmu,
 
 	*out_evlist = NULL;
 	if (!metric_no_merge || hashmap__size(ids->ids) == 0) {
-		char *tmp;
+		int i;
 		/*
-		 * We may fail to share events between metrics because
-		 * duration_time isn't present in one metric. For example, a
-		 * ratio of cache misses doesn't need duration_time but the same
-		 * events may be used for a misses per second. Events without
-		 * sharing implies multiplexing, that is best avoided, so place
-		 * duration_time in every group.
+		 * We may fail to share events between metrics because a tool
+		 * event isn't present in one metric. For example, a ratio of
+		 * cache misses doesn't need duration_time but the same events
+		 * may be used for a misses per second. Events without sharing
+		 * implies multiplexing, that is best avoided, so place
+		 * all tool events in every group.
 		 *
 		 * Also, there may be no ids/events in the expression parsing
 		 * context because of constant evaluation, e.g.:
 		 *    event1 if #smt_on else 0
-		 * Add a duration_time event to avoid a parse error on an empty
-		 * string.
+		 * Add a tool event to avoid a parse error on an empty string.
 		 */
-		tmp = strdup("duration_time");
-		if (!tmp)
-			return -ENOMEM;
+		perf_tool_event__for_each_event(i) {
+			char *tmp = strdup(perf_tool_event__to_str(i));
 
-		ids__insert(ids->ids, tmp);
+			if (!tmp)
+				return -ENOMEM;
+			ids__insert(ids->ids, tmp);
+		}
 	}
 	ret = metricgroup__build_event_string(&events, ids, modifier,
 					      has_constraint);
