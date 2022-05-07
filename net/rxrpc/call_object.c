@@ -162,6 +162,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	spin_lock_init(&call->notify_lock);
 	spin_lock_init(&call->tx_lock);
 	spin_lock_init(&call->input_lock);
+	spin_lock_init(&call->acks_ack_lock);
 	rwlock_init(&call->state_lock);
 	refcount_set(&call->ref, 1);
 	call->debug_id = debug_id;
@@ -701,6 +702,7 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_cleaned);
 	}
 	rxrpc_put_txbuf(call->tx_pending, rxrpc_txbuf_put_cleaned);
+	rxrpc_free_skb(call->acks_soft_tbl, rxrpc_skb_cleaned);
 
 	call_rcu(&call->rcu, rxrpc_rcu_destroy_call);
 }

@@ -694,6 +694,8 @@ struct rxrpc_call {
 	rxrpc_seq_t		acks_lost_top;	/* tx_top at the time lost-ack ping sent */
 	rxrpc_serial_t		acks_lost_ping;	/* Serial number of probe ACK */
 	rxrpc_serial_t		acks_highest_serial; /* Highest serial number ACK'd */
+	struct sk_buff		*acks_soft_tbl;	/* The last ACK packet with NAKs in it */
+	spinlock_t		acks_ack_lock;	/* Access to ->acks_last_ack */
 };
 
 /*
@@ -702,10 +704,9 @@ struct rxrpc_call {
 struct rxrpc_ack_summary {
 	u8			ack_reason;
 	u8			nr_acks;		/* Number of ACKs in packet */
-	u8			nr_nacks;		/* Number of NACKs in packet */
 	u8			nr_new_acks;		/* Number of new ACKs in packet */
-	u8			nr_new_nacks;		/* Number of new NACKs in packet */
 	u8			nr_rot_new_acks;	/* Number of rotated new ACKs */
+	bool			saw_nacks;		/* Saw NACKs in packet */
 	bool			new_low_nack;		/* T if new low NACK found */
 	bool			retrans_timeo;		/* T if reTx due to timeout happened */
 	u8			flight_size;		/* Number of unreceived transmissions */
@@ -765,11 +766,8 @@ struct rxrpc_txbuf {
 	unsigned int		space;		/* Remaining data space */
 	unsigned int		offset;		/* Offset of fill point */
 	unsigned long		flags;
-#define RXRPC_TXBUF_ACKED	0		/* Set if ACK'd */
-#define RXRPC_TXBUF_NACKED	1		/* Set if NAK'd */
-#define RXRPC_TXBUF_LAST	2		/* Set if last packet in Tx phase */
-#define RXRPC_TXBUF_RESENT	3		/* Set if has been resent */
-#define RXRPC_TXBUF_RETRANS	4		/* Set if should be retransmitted */
+#define RXRPC_TXBUF_LAST	0		/* Set if last packet in Tx phase */
+#define RXRPC_TXBUF_RESENT	1		/* Set if has been resent */
 	u8 /*enum rxrpc_propose_ack_trace*/ ack_why;	/* If ack, why */
 	struct {
 		/* The packet for encrypting and DMA'ing.  We align it such

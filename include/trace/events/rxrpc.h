@@ -17,6 +17,7 @@
  * Declare tracing information enums and their string mappings for display.
  */
 #define rxrpc_skb_traces \
+	EM(rxrpc_skb_ack,			"ACK") \
 	EM(rxrpc_skb_cleaned,			"CLN") \
 	EM(rxrpc_skb_cloned_jumbo,		"CLJ") \
 	EM(rxrpc_skb_freed,			"FRE") \
@@ -1257,7 +1258,7 @@ TRACE_EVENT(rxrpc_congest,
 		    memcpy(&__entry->sum, summary, sizeof(__entry->sum));
 			   ),
 
-	    TP_printk("c=%08x r=%08x %s q=%08x %s cw=%u ss=%u nA=%u,%u+%u,%u r=%u b=%u u=%u d=%u l=%x%s%s%s",
+	    TP_printk("c=%08x r=%08x %s q=%08x %s cw=%u ss=%u nA=%u,%u+%u r=%u b=%u u=%u d=%u l=%x%s%s%s",
 		      __entry->call,
 		      __entry->ack_serial,
 		      __print_symbolic(__entry->sum.ack_reason, rxrpc_ack_names),
@@ -1265,8 +1266,8 @@ TRACE_EVENT(rxrpc_congest,
 		      __print_symbolic(__entry->sum.mode, rxrpc_congest_modes),
 		      __entry->sum.cwnd,
 		      __entry->sum.ssthresh,
-		      __entry->sum.nr_acks, __entry->sum.nr_nacks,
-		      __entry->sum.nr_new_acks, __entry->sum.nr_new_nacks,
+		      __entry->sum.nr_acks, __entry->sum.saw_nacks,
+		      __entry->sum.nr_new_acks,
 		      __entry->sum.nr_rot_new_acks,
 		      __entry->top - __entry->hard_ack,
 		      __entry->sum.cumulative_acks,

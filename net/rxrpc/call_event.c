@@ -132,48 +132,127 @@ static void rxrpc_congestion_timeout(struct rxrpc_call *call)
  */
 static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 {
+	struct rxrpc_ackpacket *ack = NULL;
 	struct rxrpc_txbuf *txb;
+	struct sk_buff *ack_skb = NULL;
 	unsigned long resend_at;
 	rxrpc_seq_t transmitted = READ_ONCE(call->tx_transmitted);
 	ktime_t now, max_age, oldest, ack_ts;
 	bool unacked = false;
+	unsigned int i;
 	LIST_HEAD(retrans_queue);
 
 	_enter("{%d,%d}", call->acks_hard_ack, call->tx_top);
 
 	now = ktime_get_real();
 	max_age = ktime_sub_us(now, jiffies_to_usecs(call->peer->rto_j));
+	oldest = now;
+
+	/* See if there's an ACK saved with a soft-ACK table in it. */
+	if (call->acks_soft_tbl) {
+		spin_lock_bh(&call->acks_ack_lock);
+		ack_skb = call->acks_soft_tbl;
+		if (ack_skb) {
+			rxrpc_get_skb(ack_skb, rxrpc_skb_ack);
+			ack = (void *)ack_skb->data + sizeof(struct rxrpc_wire_header);
+		}
+		spin_unlock_bh(&call->acks_ack_lock);
+	}
+
+	if (list_empty(&call->tx_buffer))
+		goto no_resend;
 
 	spin_lock(&call->tx_lock);
 
-	/* Scan the packet list without dropping the lock and decide which of
-	 * the packets in the Tx buffer we're going to resend and what the new
-	 * resend timeout will be.
-	 */
+	if (list_empty(&call->tx_buffer))
+		goto no_further_resend;
+
 	trace_rxrpc_resend(call);
-	oldest = now;
-	list_for_each_entry(txb, &call->tx_buffer, call_link) {
-		if (test_bit(RXRPC_TXBUF_ACKED, &txb->flags))
-			continue;
-		if (after(txb->seq, transmitted))
-			break;
+	txb = list_first_entry(&call->tx_buffer, struct rxrpc_txbuf, call_link);
 
-		rxrpc_see_txbuf(txb, rxrpc_txbuf_see_unacked);
+	/* Scan the soft ACK table without dropping the lock and resend any
+	 * explicitly NAK'd packets.
+	 */
+	if (ack) {
+		for (i = 0; i < ack->nAcks; i++) {
+			rxrpc_seq_t seq;
 
-		if (test_bit(RXRPC_TXBUF_RESENT, &txb->flags)) {
-			if (ktime_after(txb->last_sent, max_age)) {
-				if (ktime_before(txb->last_sent, oldest))
-					oldest = txb->last_sent;
+			if (ack->acks[i] & 1)
 				continue;
+			seq = ntohl(ack->firstPacket) + i;
+			if (after(txb->seq, transmitted))
+				break;
+			if (after(txb->seq, seq))
+				continue; /* A new hard ACK probably came in */
+			list_for_each_entry_from(txb, &call->tx_buffer, call_link) {
+				if (txb->seq == seq)
+					goto found_txb;
 			}
-			unacked = true;
-		}
+			goto no_further_resend;
 
-		rxrpc_get_txbuf(txb, rxrpc_txbuf_get_retrans);
-		list_move_tail(&txb->tx_link, &retrans_queue);
+		found_txb:
+			if (after(ntohl(txb->wire.serial), call->acks_highest_serial))
+				continue; /* Ack point not yet reached */
+
+			rxrpc_see_txbuf(txb, rxrpc_txbuf_see_unacked);
+
+			if (list_empty(&txb->tx_link)) {
+				rxrpc_get_txbuf(txb, rxrpc_txbuf_get_retrans);
+				rxrpc_get_call(call, rxrpc_call_got_tx);
+				list_add_tail(&txb->tx_link, &retrans_queue);
+				set_bit(RXRPC_TXBUF_RESENT, &txb->flags);
+			}
+
+			trace_rxrpc_retransmit(call, txb->seq,
+					       ktime_to_ns(ktime_sub(txb->last_sent,
+								     max_age)));
+
+			if (list_is_last(&txb->call_link, &call->tx_buffer))
+				goto no_further_resend;
+			txb = list_next_entry(txb, call_link);
+		}
 	}
 
+	/* Fast-forward through the Tx queue to the point the peer says it has
+	 * seen.  Anything between the soft-ACK table and that point will get
+	 * ACK'd or NACK'd in due course, so don't worry about it here; here we
+	 * need to consider retransmitting anything beyond that point.
+	 *
+	 * Note that ACK for a packet can beat the update of tx_transmitted.
+	 */
+	if (after_eq(READ_ONCE(call->acks_prev_seq), READ_ONCE(call->tx_transmitted)))
+		goto no_further_resend;
+
+	list_for_each_entry_from(txb, &call->tx_buffer, call_link) {
+		if (before_eq(txb->seq, READ_ONCE(call->acks_prev_seq)))
+			continue;
+		if (after(txb->seq, READ_ONCE(call->tx_transmitted)))
+			break; /* Not transmitted yet */
+
+		if (ack && ack->reason == RXRPC_ACK_PING_RESPONSE &&
+		    before(ntohl(txb->wire.serial), ntohl(ack->serial)))
+			goto do_resend; /* Wasn't accounted for by a more recent ping. */
+
+		if (ktime_after(txb->last_sent, max_age)) {
+			if (ktime_before(txb->last_sent, oldest))
+				oldest = txb->last_sent;
+			continue;
+		}
+
+	do_resend:
+		unacked = true;
+		if (list_empty(&txb->tx_link)) {
+			rxrpc_get_txbuf(txb, rxrpc_txbuf_get_retrans);
+			list_add_tail(&txb->tx_link, &retrans_queue);
+			set_bit(RXRPC_TXBUF_RESENT, &txb->flags);
+			rxrpc_inc_stat(call->rxnet, stat_tx_data_retrans);
+		}
+	}
+
+no_further_resend:
 	spin_unlock(&call->tx_lock);
+no_resend:
+	rxrpc_free_skb(ack_skb, rxrpc_skb_freed);
 
 	resend_at = nsecs_to_jiffies(ktime_to_ns(ktime_sub(now, oldest)));
 	resend_at += jiffies + rxrpc_get_rto_backoff(call->peer,
@@ -201,8 +280,6 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 	while ((txb = list_first_entry_or_null(&retrans_queue,
 					       struct rxrpc_txbuf, tx_link))) {
 		list_del_init(&txb->tx_link);
-		set_bit(RXRPC_TXBUF_RESENT, &txb->flags);
-		rxrpc_inc_stat(call->rxnet, stat_tx_data_retrans);
 		rxrpc_send_data_packet(call, txb);
 		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_trans);
 

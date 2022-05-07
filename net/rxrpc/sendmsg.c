@@ -600,7 +600,6 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
  */
 int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	__releases(&rx->sk.sk_lock.slock)
-	__releases(&call->user_mutex)
 {
 	enum rxrpc_call_state state;
 	struct rxrpc_call *call;

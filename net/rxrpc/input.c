@@ -60,7 +60,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 
 	switch (call->cong_mode) {
 	case RXRPC_CALL_SLOW_START:
-		if (summary->nr_nacks > 0)
+		if (summary->saw_nacks)
 			goto packet_loss_detected;
 		if (summary->cumulative_acks > 0)
 			cwnd += 1;
@@ -71,7 +71,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		goto out;
 
 	case RXRPC_CALL_CONGEST_AVOIDANCE:
-		if (summary->nr_nacks > 0)
+		if (summary->saw_nacks)
 			goto packet_loss_detected;
 
 		/* We analyse the number of packets that get ACK'd per RTT
@@ -90,7 +90,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		goto out;
 
 	case RXRPC_CALL_PACKET_LOSS:
-		if (summary->nr_nacks == 0)
+		if (!summary->saw_nacks)
 			goto resume_normality;
 
 		if (summary->new_low_nack) {
@@ -128,7 +128,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		} else {
 			change = rxrpc_cong_progress;
 			cwnd = call->cong_ssthresh;
-			if (summary->nr_nacks == 0)
+			if (!summary->saw_nacks)
 				goto resume_normality;
 		}
 		goto out;
@@ -189,8 +189,7 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 	list_for_each_entry_rcu(txb, &call->tx_buffer, call_link, false) {
 		if (before_eq(txb->seq, call->acks_hard_ack))
 			continue;
-		if (!test_bit(RXRPC_TXBUF_ACKED, &txb->flags))
-			summary->nr_rot_new_acks++;
+		summary->nr_rot_new_acks++;
 		if (test_bit(RXRPC_TXBUF_LAST, &txb->flags)) {
 			set_bit(RXRPC_CALL_TX_LAST, &call->flags);
 			rot_last = true;
@@ -661,22 +660,8 @@ static void rxrpc_complete_rtt_probe(struct rxrpc_call *call,
  */
 static void rxrpc_input_check_for_lost_ack(struct rxrpc_call *call)
 {
-	struct rxrpc_txbuf *txb;
-	rxrpc_seq_t top, bottom;
-	bool resend = false;
-
-	bottom = READ_ONCE(call->acks_hard_ack) + 1;
-	top = READ_ONCE(call->acks_lost_top);
-	if (before(bottom, top)) {
-		list_for_each_entry_rcu(txb, &call->tx_buffer, call_link, false) {
-			if (test_bit(RXRPC_TXBUF_ACKED, &txb->flags))
-				continue;
-			set_bit(RXRPC_TXBUF_RETRANS, &txb->flags);
-			resend = true;
-		}
-	}
-
-	if (resend && !test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
+	if (after(call->acks_lost_top, call->acks_prev_seq) &&
+	    !test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
 		rxrpc_queue_call(call);
 }
 
@@ -749,41 +734,19 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
 				  rxrpc_seq_t seq, int nr_acks,
 				  struct rxrpc_ack_summary *summary)
 {
-	struct rxrpc_txbuf *txb;
+	unsigned int i;
 
-	list_for_each_entry_rcu(txb, &call->tx_buffer, call_link, false) {
-		if (before(txb->seq, seq))
-			continue;
-		if (after_eq(txb->seq, seq + nr_acks))
-			break;
-		switch (acks[txb->seq - seq]) {
-		case RXRPC_ACK_TYPE_ACK:
+	for (i = 0; i < nr_acks; i++) {
+		if (acks[i] == RXRPC_ACK_TYPE_ACK) {
 			summary->nr_acks++;
-			if (test_bit(RXRPC_TXBUF_ACKED, &txb->flags))
-				continue;
-			/* A lot of the time the packet is going to
-			 * have been ACK.'d already.
-			 */
-			clear_bit(RXRPC_TXBUF_NACKED, &txb->flags);
-			set_bit(RXRPC_TXBUF_ACKED, &txb->flags);
 			summary->nr_new_acks++;
-			break;
-		case RXRPC_ACK_TYPE_NACK:
-			if (!summary->nr_nacks &&
-			    call->acks_lowest_nak != seq) {
-				call->acks_lowest_nak = seq;
+		} else {
+			if (!summary->saw_nacks &&
+			    call->acks_lowest_nak != seq + i) {
+				call->acks_lowest_nak = seq + i;
 				summary->new_low_nack = true;
 			}
-			summary->nr_nacks++;
-			if (test_bit(RXRPC_TXBUF_NACKED, &txb->flags))
-				continue;
-			summary->nr_new_nacks++;
-			clear_bit(RXRPC_TXBUF_ACKED, &txb->flags);
-			set_bit(RXRPC_TXBUF_NACKED, &txb->flags);
-			set_bit(RXRPC_TXBUF_RETRANS, &txb->flags);
-			break;
-		default:
-			return rxrpc_proto_abort("SFT", call, 0);
+			summary->saw_nacks = true;
 		}
 	}
 }
@@ -825,12 +788,10 @@ static bool rxrpc_is_ack_valid(struct rxrpc_call *call,
 static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_ack_summary summary = { 0 };
+	struct rxrpc_ackpacket ack;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	union {
-		struct rxrpc_ackpacket ack;
-		struct rxrpc_ackinfo info;
-		u8 acks[RXRPC_MAXACKS];
-	} buf;
+	struct rxrpc_ackinfo info;
+	struct sk_buff *skb_old = NULL, *skb_put = skb;
 	rxrpc_serial_t ack_serial, acked_serial;
 	rxrpc_seq_t first_soft_ack, hard_ack, prev_pkt;
 	int nr_acks, offset, ioffset;
@@ -838,30 +799,28 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	_enter("");
 
 	offset = sizeof(struct rxrpc_wire_header);
-	if (skb_copy_bits(skb, offset, &buf.ack, sizeof(buf.ack)) < 0) {
-		_debug("extraction failure");
-		return rxrpc_proto_abort("XAK", call, 0);
+	if (skb_copy_bits(skb, offset, &ack, sizeof(ack)) < 0) {
+		rxrpc_proto_abort("XAK", call, 0);
+		goto out_not_locked;
 	}
-	offset += sizeof(buf.ack);
+	offset += sizeof(ack);
 
 	ack_serial = sp->hdr.serial;
-	acked_serial = ntohl(buf.ack.serial);
-	first_soft_ack = ntohl(buf.ack.firstPacket);
-	prev_pkt = ntohl(buf.ack.previousPacket);
+	acked_serial = ntohl(ack.serial);
+	first_soft_ack = ntohl(ack.firstPacket);
+	prev_pkt = ntohl(ack.previousPacket);
 	hard_ack = first_soft_ack - 1;
-	nr_acks = buf.ack.nAcks;
-	summary.ack_reason = (buf.ack.reason < RXRPC_ACK__INVALID ?
-			      buf.ack.reason : RXRPC_ACK__INVALID);
+	nr_acks = ack.nAcks;
+	summary.ack_reason = (ack.reason < RXRPC_ACK__INVALID ?
+			      ack.reason : RXRPC_ACK__INVALID);
 
 	trace_rxrpc_rx_ack(call, ack_serial, acked_serial,
 			   first_soft_ack, prev_pkt,
 			   summary.ack_reason, nr_acks);
-	rxrpc_inc_stat(call->rxnet, stat_rx_acks[buf.ack.reason]);
+	rxrpc_inc_stat(call->rxnet, stat_rx_acks[ack.reason]);
 
-	switch (buf.ack.reason) {
+	switch (ack.reason) {
 	case RXRPC_ACK_PING_RESPONSE:
-		rxrpc_input_ping_response(call, skb->tstamp, acked_serial,
-					  ack_serial);
 		rxrpc_complete_rtt_probe(call, skb->tstamp, acked_serial, ack_serial,
 					 rxrpc_rtt_rx_ping_response);
 		break;
@@ -876,7 +835,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		break;
 	}
 
-	if (buf.ack.reason == RXRPC_ACK_PING) {
+	if (ack.reason == RXRPC_ACK_PING) {
 		_proto("Rx ACK %%%u PING Request", ack_serial);
 		rxrpc_send_ACK(call, RXRPC_ACK_PING_RESPONSE, ack_serial,
 			       rxrpc_propose_ack_respond_to_ping);
@@ -889,7 +848,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	 * indicates that the client address changed due to NAT.  The server
 	 * lost the call because it switched to a different peer.
 	 */
-	if (unlikely(buf.ack.reason == RXRPC_ACK_EXCEEDS_WINDOW) &&
+	if (unlikely(ack.reason == RXRPC_ACK_EXCEEDS_WINDOW) &&
 	    first_soft_ack == 1 &&
 	    prev_pkt == 0 &&
 	    rxrpc_is_client_call(call)) {
@@ -902,7 +861,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	 * indicate a change of address.  However, we can retransmit the call
 	 * if we still have it buffered to the beginning.
 	 */
-	if (unlikely(buf.ack.reason == RXRPC_ACK_OUT_OF_SEQUENCE) &&
+	if (unlikely(ack.reason == RXRPC_ACK_OUT_OF_SEQUENCE) &&
 	    first_soft_ack == 1 &&
 	    prev_pkt == 0 &&
 	    call->acks_hard_ack == 0 &&
@@ -917,14 +876,19 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		trace_rxrpc_rx_discard_ack(call->debug_id, ack_serial,
 					   first_soft_ack, call->acks_first_seq,
 					   prev_pkt, call->acks_prev_seq);
-		return;
+		goto out_not_locked;
 	}
 
-	buf.info.rxMTU = 0;
+	info.rxMTU = 0;
 	ioffset = offset + nr_acks + 3;
-	if (skb->len >= ioffset + sizeof(buf.info) &&
-	    skb_copy_bits(skb, ioffset, &buf.info, sizeof(buf.info)) < 0)
-		return rxrpc_proto_abort("XAI", call, 0);
+	if (skb->len >= ioffset + sizeof(info) &&
+	    skb_copy_bits(skb, ioffset, &info, sizeof(info)) < 0) {
+		rxrpc_proto_abort("XAI", call, 0);
+		goto out_not_locked;
+	}
+
+	if (nr_acks > 0)
+		skb_condense(skb);
 
 	spin_lock(&call->input_lock);
 
@@ -940,13 +904,22 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	call->acks_first_seq = first_soft_ack;
 	call->acks_prev_seq = prev_pkt;
 
-	if (buf.ack.reason != RXRPC_ACK_PING &&
-	    after(acked_serial, call->acks_highest_serial))
-		call->acks_highest_serial = acked_serial;
+	switch (ack.reason) {
+	case RXRPC_ACK_PING:
+		break;
+	case RXRPC_ACK_PING_RESPONSE:
+		rxrpc_input_ping_response(call, skb->tstamp, acked_serial,
+					  ack_serial);
+		fallthrough;
+	default:
+		if (after(acked_serial, call->acks_highest_serial))
+			call->acks_highest_serial = acked_serial;
+		break;
+	}
 
 	/* Parse rwind and mtu sizes if provided. */
-	if (buf.info.rxMTU)
-		rxrpc_input_ackinfo(call, skb, &buf.info);
+	if (info.rxMTU)
+		rxrpc_input_ackinfo(call, skb, &info);
 
 	if (first_soft_ack == 0) {
 		rxrpc_proto_abort("AK0", call, 0);
@@ -982,12 +955,24 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	}
 
 	if (nr_acks > 0) {
-		if (skb_copy_bits(skb, offset, buf.acks, nr_acks) < 0) {
+		if (offset > (int)skb->len - nr_acks) {
 			rxrpc_proto_abort("XSA", call, 0);
 			goto out;
 		}
-		rxrpc_input_soft_acks(call, buf.acks, first_soft_ack, nr_acks,
-				      &summary);
+
+		spin_lock(&call->acks_ack_lock);
+		skb_old = call->acks_soft_tbl;
+		call->acks_soft_tbl = skb;
+		spin_unlock(&call->acks_ack_lock);
+
+		rxrpc_input_soft_acks(call, skb->data + offset, first_soft_ack,
+				      nr_acks, &summary);
+		skb_put = NULL;
+	} else if (call->acks_soft_tbl) {
+		spin_lock(&call->acks_ack_lock);
+		skb_old = call->acks_soft_tbl;
+		call->acks_soft_tbl = NULL;
+		spin_unlock(&call->acks_ack_lock);
 	}
 
 	if (test_bit(RXRPC_CALL_TX_LAST, &call->flags) &&
@@ -999,6 +984,9 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	rxrpc_congestion_management(call, skb, &summary, acked_serial);
 out:
 	spin_unlock(&call->input_lock);
+out_not_locked:
+	rxrpc_free_skb(skb_put, rxrpc_skb_freed);
+	rxrpc_free_skb(skb_old, rxrpc_skb_freed);
 }
 
 /*
@@ -1071,7 +1059,7 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 
 	case RXRPC_PACKET_TYPE_ACK:
 		rxrpc_input_ack(call, skb);
-		break;
+		goto no_free;
 
 	case RXRPC_PACKET_TYPE_BUSY:
 		_proto("Rx BUSY %%%u", sp->hdr.serial);
