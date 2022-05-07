@@ -1,17 +1,8 @@
-/**
-  ******************************************************************************
-  * @file  pwmdac.h
-  * @author  StarFive Technology
-  * @version  V1.0
-  * @date  05/05/2022
-  * @brief
-  ******************************************************************************
-  * @copy
-  *
-  * PWMDAC driver for the StarFive JH7110 SoC
-  *
-  * Copyright (C) 2022 StarFive Technology Co., Ltd.
-  */
+/*
+ * PWMDAC driver for the StarFive JH7110 SoC
+ *
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ */
   
 #ifndef __STARFIVE_PWMDAC_LOCAL_H
 #define __STARFIVE_PWMDAC_LOCAL_H
@@ -36,6 +27,15 @@
 
 #define FIFO_UN_FULL	0
 #define FIFO_FULL	1
+
+#define PWMDAC_CTRL_DATA_SHIFT  4
+#define PWMDAC_CTRL_DATA_MASK	0xF
+#define PWMDAC_DATA_LEFT_SHIFT  15
+#define PWMDAC_DUTY_CYCLE_LOW	2
+#define PWMDAC_DUTY_CYCLE_HIGH	3
+
+
+
 
 #define PWMDAC_MCLK	4096000
 
@@ -100,15 +100,15 @@ enum data_shift{
 };
 
 enum pwmdac_config_list{
-    shift_8Bit_unsigned = 0,
-    shift_8Bit_unsigned_dataShift,
-    shift_10Bit_unsigned,
-    shift_10Bit_unsigned_dataShift,
+	shift_8Bit_unsigned = 0,
+	shift_8Bit_unsigned_dataShift,
+	shift_10Bit_unsigned,
+	shift_10Bit_unsigned_dataShift,
 
-    shift_8Bit_inverter,
-    shift_8Bit_inverter_dataShift,   
-    shift_10Bit_inverter,
-    shift_10Bit_inverter_dataShift,
+	shift_8Bit_inverter,
+	shift_8Bit_inverter_dataShift,
+	shift_10Bit_inverter,
+	shift_10Bit_inverter_dataShift,
 };
 
 struct sf_pwmdac_dev {
@@ -130,7 +130,7 @@ struct sf_pwmdac_dev {
 	struct clk *clk_pwmdac_apb;
 	struct clk *clk_pwmdac_core;
 	struct reset_control *rst_apb;
-	
+
 	struct device *dev;
 	struct snd_dmaengine_dai_dma_data play_dma_data;
 	struct snd_pcm_substream __rcu *tx_substream;
@@ -141,9 +141,9 @@ struct sf_pwmdac_dev {
 	struct task_struct *tx_thread;
 	bool tx_thread_exit;
 
-	struct clk* audio_src;
-	struct clk* pwmdac_apb;
-	struct clk* pwmdac_mclk;
+	struct clk *audio_src;
+	struct clk *pwmdac_apb;
+	struct clk *pwmdac_mclk;
 };
 
 
