@@ -1284,6 +1284,30 @@ static void metricgroup__free_metrics(struct list_head *metric_list)
 }
 
 /**
+ * find_tool_events - Search for the pressence of tool events in metric_list.
+ * @metric_list: List to take metrics from.
+ * @tool_events: Array of false values, indices corresponding to tool events set
+ *               to true if tool event is found.
+ */
+static void find_tool_events(const struct list_head *metric_list,
+			     bool tool_events[PERF_TOOL_MAX])
+{
+	struct metric *m;
+
+	list_for_each_entry(m, metric_list, nd) {
+		int i;
+
+		perf_tool_event__for_each_event(i) {
+			struct expr_id_data *data;
+
+			if (!tool_events[i] &&
+			    !expr__get_id(m->pctx, perf_tool_event__to_str(i), &data))
+				tool_events[i] = true;
+		}
+	}
+}
+
+/**
  * build_combined_expr_ctx - Make an expr_parse_ctx with all has_constraint
  *                           metric IDs, as the IDs are held in a set,
  *                           duplicates will be removed.
@@ -1332,11 +1356,14 @@ err_out:
  * @ids: the event identifiers parsed from a metric.
  * @modifier: any modifiers added to the events.
  * @has_constraint: false if events should be placed in a weak group.
+ * @tool_events: entries set true if the tool event of index could be present in
+ *               the overall list of metrics.
  * @out_evlist: the created list of events.
  */
 static int parse_ids(bool metric_no_merge, struct perf_pmu *fake_pmu,
 		     struct expr_parse_ctx *ids, const char *modifier,
-		     bool has_constraint, struct evlist **out_evlist)
+		     bool has_constraint, const bool tool_events[PERF_TOOL_MAX],
+		     struct evlist **out_evlist)
 {
 	struct parse_events_error parse_error;
 	struct evlist *parsed_evlist;
@@ -1360,11 +1387,13 @@ static int parse_ids(bool metric_no_merge, struct perf_pmu *fake_pmu,
 		 * Add a tool event to avoid a parse error on an empty string.
 		 */
 		perf_tool_event__for_each_event(i) {
-			char *tmp = strdup(perf_tool_event__to_str(i));
+			if (tool_events[i]) {
+				char *tmp = strdup(perf_tool_event__to_str(i));
 
-			if (!tmp)
-				return -ENOMEM;
-			ids__insert(ids->ids, tmp);
+				if (!tmp)
+					return -ENOMEM;
+				ids__insert(ids->ids, tmp);
+			}
 		}
 	}
 	ret = metricgroup__build_event_string(&events, ids, modifier,
@@ -1407,6 +1436,7 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 	struct evlist *combined_evlist = NULL;
 	LIST_HEAD(metric_list);
 	struct metric *m;
+	bool tool_events[PERF_TOOL_MAX] = {false};
 	int ret;
 
 	if (metric_events_list->nr_entries == 0)
@@ -1422,12 +1452,15 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 	if (!metric_no_merge) {
 		struct expr_parse_ctx *combined = NULL;
 
+		find_tool_events(&metric_list, tool_events);
+
 		ret = build_combined_expr_ctx(&metric_list, &combined);
 
 		if (!ret && combined && hashmap__size(combined->ids)) {
 			ret = parse_ids(metric_no_merge, fake_pmu, combined,
 					/*modifier=*/NULL,
 					/*has_constraint=*/true,
+					tool_events,
 					&combined_evlist);
 		}
 		if (combined)
@@ -1475,7 +1508,7 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 		}
 		if (!metric_evlist) {
 			ret = parse_ids(metric_no_merge, fake_pmu, m->pctx, m->modifier,
-					m->has_constraint, &m->evlist);
+					m->has_constraint, tool_events, &m->evlist);
 			if (ret)
 				goto out;
 
