@@ -479,9 +479,6 @@ static struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 
 	if (!(args->flags & RPC_CLNT_CREATE_NOPING)) {
 		int err = rpc_ping(clnt);
-		if ((args->flags & RPC_CLNT_CREATE_IGNORE_NULL_UNAVAIL) &&
-		    err == -EOPNOTSUPP)
-			err = 0;
 		if (err != 0) {
 			rpc_shutdown_client(clnt);
 			return ERR_PTR(err);
