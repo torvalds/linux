@@ -62,7 +62,7 @@ struct dccg {
 	int ref_dppclk;
 	//int dtbclk_khz[MAX_PIPES];/* TODO needs to be removed */
 	//int audio_dtbclk_khz;/* TODO needs to be removed */
-	//int ref_dtbclk_khz;/* TODO needs to be removed */
+	int ref_dtbclk_khz;/* TODO needs to be removed */
 };
 
 struct dtbclk_dto_params {
