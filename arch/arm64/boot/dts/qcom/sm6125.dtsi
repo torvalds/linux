@@ -471,6 +471,9 @@
 
 			power-domains = <&rpmpd SM6125_VDDCX>;
 
+			qcom,dll-config = <0x000f642c>;
+			qcom,ddr-config = <0x80040873>;
+
 			bus-width = <8>;
 			non-removable;
 			status = "disabled";
@@ -495,6 +498,9 @@
 			pinctrl-names = "default", "sleep";
 
 			power-domains = <&rpmpd SM6125_VDDCX>;
+
+			qcom,dll-config = <0x0007642c>;
+			qcom,ddr-config = <0x80040873>;
 
 			bus-width = <4>;
 			status = "disabled";
