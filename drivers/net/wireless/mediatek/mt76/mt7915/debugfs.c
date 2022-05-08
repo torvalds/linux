@@ -447,20 +447,20 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
 	bool tx, rx, en;
 	int ret;
 
-	dev->fw_debug_wm = val ? MCU_FW_LOG_TO_HOST : 0;
+	dev->fw.debug_wm = val ? MCU_FW_LOG_TO_HOST : 0;
 
-	if (dev->fw_debug_bin)
+	if (dev->fw.debug_bin)
 		val = 16;
 	else
-		val = dev->fw_debug_wm;
+		val = dev->fw.debug_wm;
 
-	tx = dev->fw_debug_wm || (dev->fw_debug_bin & BIT(1));
-	rx = dev->fw_debug_wm || (dev->fw_debug_bin & BIT(2));
-	en = dev->fw_debug_wm || (dev->fw_debug_bin & BIT(0));
+	tx = dev->fw.debug_wm || (dev->fw.debug_bin & BIT(1));
+	rx = dev->fw.debug_wm || (dev->fw.debug_bin & BIT(2));
+	en = dev->fw.debug_wm || (dev->fw.debug_bin & BIT(0));
 
 	ret = mt7915_mcu_fw_log_2_host(dev, MCU_FW_LOG_WM, val);
 	if (ret)
-		return ret;
+		goto out;
 
 	for (debug = DEBUG_TXCMD; debug <= DEBUG_RPT_RX; debug++) {
 		if (debug == DEBUG_RPT_RX)
@@ -470,16 +470,20 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
 
 		ret = mt7915_mcu_fw_dbg_ctrl(dev, debug, val);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	/* WM CPU info record control */
 	mt76_clear(dev, MT_CPU_UTIL_CTRL, BIT(0));
-	mt76_wr(dev, MT_DIC_CMD_REG_CMD, BIT(2) | BIT(13) | !dev->fw_debug_wm);
+	mt76_wr(dev, MT_DIC_CMD_REG_CMD, BIT(2) | BIT(13) | !dev->fw.debug_wm);
 	mt76_wr(dev, MT_MCU_WM_CIRQ_IRQ_MASK_CLR_ADDR, BIT(5));
 	mt76_wr(dev, MT_MCU_WM_CIRQ_IRQ_SOFT_ADDR, BIT(5));
 
-	return 0;
+out:
+	if (ret)
+		dev->fw.debug_wm = 0;
+
+	return ret;
 }
 
 static int
@@ -487,7 +491,7 @@ mt7915_fw_debug_wm_get(void *data, u64 *val)
 {
 	struct mt7915_dev *dev = data;
 
-	*val = dev->fw_debug_wm;
+	*val = dev->fw.debug_wm;
 
 	return 0;
 }
@@ -501,14 +505,19 @@ mt7915_fw_debug_wa_set(void *data, u64 val)
 	struct mt7915_dev *dev = data;
 	int ret;
 
-	dev->fw_debug_wa = val ? MCU_FW_LOG_TO_HOST : 0;
+	dev->fw.debug_wa = val ? MCU_FW_LOG_TO_HOST : 0;
 
-	ret = mt7915_mcu_fw_log_2_host(dev, MCU_FW_LOG_WA, dev->fw_debug_wa);
+	ret = mt7915_mcu_fw_log_2_host(dev, MCU_FW_LOG_WA, dev->fw.debug_wa);
 	if (ret)
-		return ret;
+		goto out;
 
-	return mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET), MCU_WA_PARAM_PDMA_RX,
-				 !!dev->fw_debug_wa, 0);
+	ret = mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
+				MCU_WA_PARAM_PDMA_RX, !!dev->fw.debug_wa, 0);
+out:
+	if (ret)
+		dev->fw.debug_wa = 0;
+
+	return ret;
 }
 
 static int
@@ -516,7 +525,7 @@ mt7915_fw_debug_wa_get(void *data, u64 *val)
 {
 	struct mt7915_dev *dev = data;
 
-	*val = dev->fw_debug_wa;
+	*val = dev->fw.debug_wa;
 
 	return 0;
 }
@@ -563,11 +572,11 @@ mt7915_fw_debug_bin_set(void *data, u64 val)
 	if (!dev->relay_fwlog)
 		return -ENOMEM;
 
-	dev->fw_debug_bin = val;
+	dev->fw.debug_bin = val;
 
 	relay_reset(dev->relay_fwlog);
 
-	return mt7915_fw_debug_wm_set(dev, dev->fw_debug_wm);
+	return mt7915_fw_debug_wm_set(dev, dev->fw.debug_wm);
 }
 
 static int
@@ -575,7 +584,7 @@ mt7915_fw_debug_bin_get(void *data, u64 *val)
 {
 	struct mt7915_dev *dev = data;
 
-	*val = dev->fw_debug_bin;
+	*val = dev->fw.debug_bin;
 
 	return 0;
 }
@@ -588,7 +597,7 @@ mt7915_fw_util_wm_show(struct seq_file *file, void *data)
 {
 	struct mt7915_dev *dev = file->private;
 
-	if (dev->fw_debug_wm) {
+	if (dev->fw.debug_wm) {
 		seq_printf(file, "Busy: %u%%  Peak busy: %u%%\n",
 			   mt76_rr(dev, MT_CPU_UTIL_BUSY_PCT),
 			   mt76_rr(dev, MT_CPU_UTIL_PEAK_BUSY_PCT));
@@ -607,7 +616,7 @@ mt7915_fw_util_wa_show(struct seq_file *file, void *data)
 {
 	struct mt7915_dev *dev = file->private;
 
-	if (dev->fw_debug_wa)
+	if (dev->fw.debug_wa)
 		return mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(QUERY),
 					 MCU_WA_PARAM_CPU_UTIL, 0, 0);
 

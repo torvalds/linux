@@ -312,14 +312,17 @@ struct mt7915_dev {
 	bool flash_mode;
 	bool muru_debug;
 	bool ibf;
-	u8 fw_debug_wm;
-	u8 fw_debug_wa;
-	u8 fw_debug_bin;
 
 	struct dentry *debugfs_dir;
 	struct rchan *relay_fwlog;
 
 	void *cal;
+
+	struct {
+		u8 debug_wm;
+		u8 debug_wa;
+		u8 debug_bin;
+	} fw;
 
 	struct {
 		u16 table_mask;
