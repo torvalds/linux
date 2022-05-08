@@ -4936,15 +4936,6 @@ static int mlxsw_sp_netdevice_macvlan_event(struct net_device *macvlan_dev,
 	return 0;
 }
 
-static bool mlxsw_sp_is_vrf_event(unsigned long event, void *ptr)
-{
-	struct netdev_notifier_changeupper_info *info = ptr;
-
-	if (event != NETDEV_PRECHANGEUPPER && event != NETDEV_CHANGEUPPER)
-		return false;
-	return netif_is_l3_master(info->upper_dev);
-}
-
 static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 					  struct net_device *dev,
 					  unsigned long event, void *ptr)
@@ -5055,8 +5046,6 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 						       event, ptr);
 	else if (mlxsw_sp_netdevice_event_is_router(event))
 		err = mlxsw_sp_netdevice_router_port_event(dev, event, ptr);
-	else if (mlxsw_sp_is_vrf_event(event, ptr))
-		err = mlxsw_sp_netdevice_vrf_event(dev, event, ptr);
 	else if (mlxsw_sp_port_dev_check(dev))
 		err = mlxsw_sp_netdevice_port_event(dev, dev, event, ptr);
 	else if (netif_is_lag_master(dev))
