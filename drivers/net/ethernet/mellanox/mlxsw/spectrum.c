@@ -3122,9 +3122,8 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		}
 	}
 
-	/* Initialize netdevice notifier after router and SPAN is initialized,
-	 * so that the event handler can use router structures and call SPAN
-	 * respin.
+	/* Initialize netdevice notifier after SPAN is initialized, so that the
+	 * event handler can call SPAN respin.
 	 */
 	mlxsw_sp->netdevice_nb.notifier_call = mlxsw_sp_netdevice_event;
 	err = register_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
