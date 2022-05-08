@@ -2017,8 +2017,8 @@ static void ef4_init_napi_channel(struct ef4_channel *channel)
 	struct ef4_nic *efx = channel->efx;
 
 	channel->napi_dev = efx->net_dev;
-	netif_napi_add(channel->napi_dev, &channel->napi_str,
-		       ef4_poll, napi_weight);
+	netif_napi_add_weight(channel->napi_dev, &channel->napi_str, ef4_poll,
+			      napi_weight);
 }
 
 static void ef4_init_napi(struct ef4_nic *efx)

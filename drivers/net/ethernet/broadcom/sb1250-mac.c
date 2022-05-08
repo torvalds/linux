@@ -2203,7 +2203,7 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	dev->min_mtu = 0;
 	dev->max_mtu = ENET_PACKET_SIZE;
 
-	netif_napi_add(dev, &sc->napi, sbmac_poll, 16);
+	netif_napi_add_weight(dev, &sc->napi, sbmac_poll, 16);
 
 	dev->irq		= UNIT_INT(idx);
 
