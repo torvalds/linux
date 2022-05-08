@@ -79,6 +79,12 @@ properties:
     minItems: 2
     maxItems: 44
 
+  gpio-reserved-ranges:
+    minItems: 1
+    # maxItems as half of total number of GPIOs, as there has to be at
+    # least one usable GPIO between each reserved range.
+    maxItems: 22
+
   '#gpio-cells':
     const: 2
     description:
@@ -108,6 +114,8 @@ allOf:
         gpio-line-names:
           minItems: 2
           maxItems: 2
+        gpio-reserved-ranges:
+          maxItems: 1
 
   - if:
       properties:
@@ -125,6 +133,9 @@ allOf:
         gpio-line-names:
           minItems: 4
           maxItems: 4
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 2
 
   - if:
       properties:
@@ -138,6 +149,9 @@ allOf:
         gpio-line-names:
           minItems: 6
           maxItems: 6
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 3
 
   - if:
       properties:
@@ -151,6 +165,9 @@ allOf:
         gpio-line-names:
           minItems: 8
           maxItems: 8
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 4
 
   - if:
       properties:
@@ -164,6 +181,9 @@ allOf:
         gpio-line-names:
           minItems: 9
           maxItems: 9
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 5
 
   - if:
       properties:
@@ -183,6 +203,9 @@ allOf:
         gpio-line-names:
           minItems: 10
           maxItems: 10
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 5
 
   - if:
       properties:
@@ -195,6 +218,9 @@ allOf:
         gpio-line-names:
           minItems: 11
           maxItems: 11
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 6
 
   - if:
       properties:
@@ -213,6 +239,9 @@ allOf:
         gpio-line-names:
           minItems: 12
           maxItems: 12
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 6
 
   - if:
       properties:
@@ -225,6 +254,9 @@ allOf:
         gpio-line-names:
           minItems: 13
           maxItems: 13
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 7
 
   - if:
       properties:
@@ -237,6 +269,9 @@ allOf:
         gpio-line-names:
           minItems: 14
           maxItems: 14
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 7
 
   - if:
       properties:
@@ -249,6 +284,9 @@ allOf:
         gpio-line-names:
           minItems: 16
           maxItems: 16
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 8
 
   - if:
       properties:
@@ -262,6 +300,9 @@ allOf:
         gpio-line-names:
           minItems: 22
           maxItems: 22
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 11
 
   - if:
       properties:
@@ -274,6 +315,9 @@ allOf:
         gpio-line-names:
           minItems: 26
           maxItems: 26
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 13
 
   - if:
       properties:
@@ -286,6 +330,9 @@ allOf:
         gpio-line-names:
           minItems: 36
           maxItems: 36
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 18
 
   - if:
       properties:
@@ -298,6 +345,9 @@ allOf:
         gpio-line-names:
           minItems: 38
           maxItems: 38
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 19
 
   - if:
       properties:
@@ -311,6 +361,9 @@ allOf:
         gpio-line-names:
           minItems: 44
           maxItems: 44
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 22
 
 patternProperties:
   '-state$':
