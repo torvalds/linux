@@ -77,13 +77,13 @@ struct ad74413r_state {
 	struct spi_transfer	adc_samples_xfer[AD74413R_CHANNEL_MAX + 1];
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
 	struct {
 		u8 rx_buf[AD74413R_FRAME_SIZE * AD74413R_CHANNEL_MAX];
 		s64 timestamp;
-	} adc_samples_buf ____cacheline_aligned;
+	} adc_samples_buf __aligned(IIO_DMA_MINALIGN);
 
 	u8	adc_samples_tx_buf[AD74413R_FRAME_SIZE * AD74413R_CHANNEL_MAX];
 	u8	reg_tx_buf[AD74413R_FRAME_SIZE];
