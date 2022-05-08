@@ -406,7 +406,8 @@ static void device_init_registers(struct vnt_private *priv)
 	MACvReceive1(priv->port_offset);
 
 	/* start the adapter */
-	MACvStart(priv->port_offset);
+	VNSvOutPortB(priv->port_offset + MAC_REG_HOSTCR,
+		     (HOSTCR_MACEN | HOSTCR_RXON | HOSTCR_TXON));
 }
 
 static void device_print_info(struct vnt_private *priv)
