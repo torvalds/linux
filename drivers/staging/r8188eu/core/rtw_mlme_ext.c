@@ -1496,16 +1496,16 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 		return _SUCCESS;
 	action = frame_body[1];
 	switch (action) {
-	case RTW_WLAN_ACTION_ADDBA_REQ: /* ADDBA request */
+	case WLAN_ACTION_ADDBA_REQ:
 		memcpy(&pmlmeinfo->ADDBA_req, &frame_body[2], sizeof(struct ADDBA_request));
 		process_addba_req(padapter, (u8 *)&pmlmeinfo->ADDBA_req, mgmt->sa);
 
 		if (pmlmeinfo->bAcceptAddbaReq)
-			issue_action_BA(padapter, mgmt->sa, RTW_WLAN_ACTION_ADDBA_RESP, 0);
+			issue_action_BA(padapter, mgmt->sa, WLAN_ACTION_ADDBA_RESP, 0);
 		else
-			issue_action_BA(padapter, mgmt->sa, RTW_WLAN_ACTION_ADDBA_RESP, 37);/* reject ADDBA Req */
+			issue_action_BA(padapter, mgmt->sa, WLAN_ACTION_ADDBA_RESP, 37);/* reject ADDBA Req */
 		break;
-	case RTW_WLAN_ACTION_ADDBA_RESP: /* ADDBA response */
+	case WLAN_ACTION_ADDBA_RESP:
 		status = get_unaligned_le16(&frame_body[3]);
 		tid = ((frame_body[5] >> 2) & 0x7);
 		if (status == 0) {	/* successful */
@@ -1515,7 +1515,7 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 			psta->htpriv.agg_enable_bitmap &= ~BIT(tid);
 		}
 		break;
-	case RTW_WLAN_ACTION_DELBA: /* DELBA */
+	case WLAN_ACTION_DELBA:
 		if ((frame_body[3] & BIT(3)) == 0) {
 			psta->htpriv.agg_enable_bitmap &= ~(1 << ((frame_body[3] >> 4) & 0xf));
 			psta->htpriv.candidate_tid_bitmap &= ~(1 << ((frame_body[3] >> 4) & 0xf));
