@@ -32,7 +32,7 @@ static int w1_timeout = 10;
 module_param_named(timeout, w1_timeout, int, 0);
 MODULE_PARM_DESC(timeout, "time in seconds between automatic slave searches");
 
-static int w1_timeout_us = 0;
+static int w1_timeout_us;
 module_param_named(timeout_us, w1_timeout_us, int, 0);
 MODULE_PARM_DESC(timeout_us,
 		 "time in microseconds between automatic slave searches");
