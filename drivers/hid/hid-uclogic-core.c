@@ -386,15 +386,16 @@ static int uclogic_raw_event_frame(
 	}
 
 	/* If need to, and can, transform the touch ring reports */
-	if (frame->touch_byte > 0 && frame->touch_byte < size &&
-	    frame->touch_flip_at != 0) {
+	if (frame->touch_byte > 0 && frame->touch_byte < size) {
 		__s8 value = data[frame->touch_byte];
-		if (value != 0) {
-			value = frame->touch_flip_at - value;
-			if (value < 0)
-				value = frame->touch_max + value;
 
-			data[frame->touch_byte] = value;
+		if (value != 0) {
+			if (frame->touch_flip_at != 0) {
+				value = frame->touch_flip_at - value;
+				if (value <= 0)
+					value = frame->touch_max + value;
+			}
+			data[frame->touch_byte] = value - 1;
 		}
 	}
 

@@ -889,7 +889,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 				UCLOGIC_RDESC_V2_FRAME_TOUCH_DEV_ID_BYTE;
 			p.frame_list[1].touch_byte = 5;
 			p.frame_list[1].touch_max = 12;
-			p.frame_list[1].touch_flip_at = 6;
+			p.frame_list[1].touch_flip_at = 7;
 
 			/* Create v2 frame dial parameters */
 			rc = uclogic_params_frame_init_with_desc(
