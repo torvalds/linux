@@ -828,6 +828,17 @@ ipv6_stats_get()
 	cat /proc/net/dev_snmp6/$dev | grep "^$stat" | cut -f2
 }
 
+hw_stats_get()
+{
+	local suite=$1; shift
+	local if_name=$1; shift
+	local dir=$1; shift
+	local stat=$1; shift
+
+	ip -j stats show dev $if_name group offload subgroup $suite |
+		jq ".[0].stats64.$dir.$stat"
+}
+
 humanize()
 {
 	local speed=$1; shift
