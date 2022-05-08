@@ -27,21 +27,30 @@ struct vas_caps_entry {
 
 /*
  * This function is used to get the notification from the drmgr when
- * QoS credits are changed. Though receiving the target total QoS
- * credits here, get the official QoS capabilities from the hypervisor.
+ * QoS credits are changed.
  */
-static ssize_t update_total_credits_trigger(struct vas_cop_feat_caps *caps,
+static ssize_t update_total_credits_store(struct vas_cop_feat_caps *caps,
 						const char *buf, size_t count)
 {
 	int err;
 	u16 creds;
 
 	err = kstrtou16(buf, 0, &creds);
+	/*
+	 * The user space interface from the management console
+	 * notifies OS with the new QoS credits and then the
+	 * hypervisor. So OS has to use this new credits value
+	 * and reconfigure VAS windows (close or reopen depends
+	 * on the credits available) instead of depending on VAS
+	 * QoS capabilities from the hypervisor.
+	 */
 	if (!err)
-		err = vas_reconfig_capabilties(caps->win_type);
+		err = vas_reconfig_capabilties(caps->win_type, creds);
 
 	if (err)
 		return -EINVAL;
+
+	pr_info("Set QoS total credits %u\n", creds);
 
 	return count;
 }
@@ -92,7 +101,7 @@ VAS_ATTR_RO(nr_total_credits);
 VAS_ATTR_RO(nr_used_credits);
 
 static struct vas_sysfs_entry update_total_credits_attribute =
-	__ATTR(update_total_credits, 0200, NULL, update_total_credits_trigger);
+	__ATTR(update_total_credits, 0200, NULL, update_total_credits_store);
 
 static struct attribute *vas_def_capab_attrs[] = {
 	&nr_total_credits_attribute.attr,
