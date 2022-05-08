@@ -36,7 +36,7 @@ struct adc0832 {
 	 */
 	u8 data[24] __aligned(8);
 
-	u8 tx_buf[2] ____cacheline_aligned;
+	u8 tx_buf[2] __aligned(IIO_DMA_MINALIGN);
 	u8 rx_buf[2];
 };
 
