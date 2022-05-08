@@ -29,11 +29,6 @@ enum uclogic_params_pen_inrange {
 	UCLOGIC_PARAMS_PEN_INRANGE_NONE,
 };
 
-/* Convert a pen in-range reporting type to a string */
-extern const char *uclogic_params_pen_inrange_to_str(
-			enum uclogic_params_pen_inrange inrange);
-
-
 /*
  * Pen report's subreport data.
  */
@@ -213,113 +208,6 @@ struct uclogic_params {
 extern int uclogic_params_init(struct uclogic_params *params,
 				struct hid_device *hdev);
 
-/* Tablet interface parameters *printf format string */
-#define UCLOGIC_PARAMS_FMT_STR \
-	".invalid = %s\n"                   \
-	".desc_ptr = %p\n"                  \
-	".desc_size = %u\n"                 \
-	".pen = {\n"                        \
-	"\t.usage_invalid = %s\n"           \
-	"\t.desc_ptr = %p\n"                \
-	"\t.desc_size = %u\n"               \
-	"\t.id = %u\n"                      \
-	"\t.subreport_list = {\n"           \
-	"\t\t{0x%02hhx, %hhu},\n"           \
-	"\t\t{0x%02hhx, %hhu},\n"           \
-	"\t\t{0x%02hhx, %hhu},\n"           \
-	"\t}\n"                             \
-	"\t.inrange = %s\n"                 \
-	"\t.fragmented_hires = %s\n"        \
-	"\t.tilt_y_flipped = %s\n"          \
-	"}\n"                               \
-	".frame_list = {\n"                 \
-	"\t{\n"                             \
-	"\t\t.desc_ptr = %p\n"              \
-	"\t\t.desc_size = %u\n"             \
-	"\t\t.id = %u\n"                    \
-	"\t\t.suffix = %s\n"                \
-	"\t\t.re_lsb = %u\n"                \
-	"\t\t.dev_id_byte = %u\n"           \
-	"\t\t.touch_ring_byte = %u\n"       \
-	"\t\t.touch_ring_max = %hhd\n"      \
-	"\t\t.touch_ring_flip_at = %hhd\n"  \
-	"\t\t.bitmap_dial_byte = %u\n"      \
-	"\t},\n"                            \
-	"\t{\n"                             \
-	"\t\t.desc_ptr = %p\n"              \
-	"\t\t.desc_size = %u\n"             \
-	"\t\t.id = %u\n"                    \
-	"\t\t.suffix = %s\n"                \
-	"\t\t.re_lsb = %u\n"                \
-	"\t\t.dev_id_byte = %u\n"           \
-	"\t\t.touch_ring_byte = %u\n"       \
-	"\t\t.touch_ring_max = %hhd\n"      \
-	"\t\t.touch_ring_flip_at = %hhd\n"  \
-	"\t\t.bitmap_dial_byte = %u\n"      \
-	"\t},\n"                            \
-	"\t{\n"                             \
-	"\t\t.desc_ptr = %p\n"              \
-	"\t\t.desc_size = %u\n"             \
-	"\t\t.id = %u\n"                    \
-	"\t\t.suffix = %s\n"                \
-	"\t\t.re_lsb = %u\n"                \
-	"\t\t.dev_id_byte = %u\n"           \
-	"\t\t.touch_ring_byte = %u\n"       \
-	"\t\t.touch_ring_max = %hhd\n"      \
-	"\t\t.touch_ring_flip_at = %hhd\n"  \
-	"\t\t.bitmap_dial_byte = %u\n"      \
-	"\t},\n"                            \
-	"}\n"
-
-/* Tablet interface parameters *printf format arguments */
-#define UCLOGIC_PARAMS_FMT_ARGS(_params) \
-	((_params)->invalid ? "true" : "false"),                    \
-	(_params)->desc_ptr,                                        \
-	(_params)->desc_size,                                       \
-	((_params)->pen.usage_invalid ? "true" : "false"),          \
-	(_params)->pen.desc_ptr,                                    \
-	(_params)->pen.desc_size,                                   \
-	(_params)->pen.id,                                          \
-	(_params)->pen.subreport_list[0].value,                     \
-	(_params)->pen.subreport_list[0].id,                        \
-	(_params)->pen.subreport_list[1].value,                     \
-	(_params)->pen.subreport_list[1].id,                        \
-	(_params)->pen.subreport_list[2].value,                     \
-	(_params)->pen.subreport_list[2].id,                        \
-	uclogic_params_pen_inrange_to_str((_params)->pen.inrange),  \
-	((_params)->pen.fragmented_hires ? "true" : "false"),       \
-	((_params)->pen.tilt_y_flipped ? "true" : "false"),         \
-	(_params)->frame_list[0].desc_ptr,                          \
-	(_params)->frame_list[0].desc_size,                         \
-	(_params)->frame_list[0].id,                                \
-	(_params)->frame_list[0].suffix,                            \
-	(_params)->frame_list[0].re_lsb,                            \
-	(_params)->frame_list[0].dev_id_byte,                       \
-	(_params)->frame_list[0].touch_ring_byte,                   \
-	(_params)->frame_list[0].touch_ring_max,                    \
-	(_params)->frame_list[0].touch_ring_flip_at,                \
-	(_params)->frame_list[0].bitmap_dial_byte,                  \
-	(_params)->frame_list[1].desc_ptr,                          \
-	(_params)->frame_list[1].desc_size,                         \
-	(_params)->frame_list[1].id,                                \
-	(_params)->frame_list[1].suffix,                            \
-	(_params)->frame_list[1].re_lsb,                            \
-	(_params)->frame_list[1].dev_id_byte,                       \
-	(_params)->frame_list[1].touch_ring_byte,                   \
-	(_params)->frame_list[1].touch_ring_max,                    \
-	(_params)->frame_list[1].touch_ring_flip_at,                \
-	(_params)->frame_list[1].bitmap_dial_byte,                  \
-	(_params)->frame_list[2].desc_ptr,                          \
-	(_params)->frame_list[2].desc_size,                         \
-	(_params)->frame_list[2].id,                                \
-	(_params)->frame_list[2].suffix,                            \
-	(_params)->frame_list[2].re_lsb,                            \
-	(_params)->frame_list[2].dev_id_byte,                       \
-	(_params)->frame_list[2].touch_ring_byte,                   \
-	(_params)->frame_list[2].touch_ring_max,                    \
-	(_params)->frame_list[2].touch_ring_flip_at,                \
-	(_params)->frame_list[2].bitmap_dial_byte
-
 /* Get a replacement report descriptor for a tablet's interface. */
 extern int uclogic_params_get_desc(const struct uclogic_params *params,
 					__u8 **pdesc,
@@ -327,5 +215,9 @@ extern int uclogic_params_get_desc(const struct uclogic_params *params,
 
 /* Free resources used by tablet interface's parameters */
 extern void uclogic_params_cleanup(struct uclogic_params *params);
+
+/* Dump tablet interface parameters with hid_dbg() */
+extern void uclogic_params_hid_dbg(const struct hid_device *hdev,
+					const struct uclogic_params *params);
 
 #endif /* _HID_UCLOGIC_PARAMS_H */

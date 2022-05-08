@@ -209,8 +209,8 @@ static int uclogic_probe(struct hid_device *hdev,
 		goto failure;
 	}
 	params_initialized = true;
-	hid_dbg(hdev, "parameters:\n" UCLOGIC_PARAMS_FMT_STR,
-		UCLOGIC_PARAMS_FMT_ARGS(&drvdata->params));
+	hid_dbg(hdev, "parameters:\n");
+	uclogic_params_hid_dbg(hdev, &drvdata->params);
 	if (drvdata->params.invalid) {
 		hid_info(hdev, "interface is invalid, ignoring\n");
 		rc = -ENODEV;
