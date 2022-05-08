@@ -97,12 +97,21 @@ static void bcm_aggregate(struct qcom_icc_bcm *bcm, bool init)
 		}
 	}
 
-	if (bcm->keepalive) {
+	if (bcm->keepalive || bcm->keepalive_early) {
+		/*
+		 * Keepalive should normally only be enforced for AMC/WAKE so
+		 * that BCMs are only kept alive when HLOS is active. But early
+		 * during init all clients haven't had a chance to vot yet, and
+		 * some have use cases that persist when HLOS is asleep. So
+		 * during init vote to all sets, including SLEEP.
+		 */
 		if (init) {
 			bcm->vote_x[QCOM_ICC_BUCKET_AMC] = 16000;
 			bcm->vote_x[QCOM_ICC_BUCKET_WAKE] = 16000;
+			bcm->vote_x[QCOM_ICC_BUCKET_SLEEP] = 16000;
 			bcm->vote_y[QCOM_ICC_BUCKET_AMC] = 16000;
 			bcm->vote_y[QCOM_ICC_BUCKET_WAKE] = 16000;
+			bcm->vote_y[QCOM_ICC_BUCKET_SLEEP] = 16000;
 		} else if (bcm->vote_x[QCOM_ICC_BUCKET_AMC] == 0 &&
 			   bcm->vote_y[QCOM_ICC_BUCKET_AMC] == 0) {
 			bcm->vote_x[QCOM_ICC_BUCKET_AMC] = 1;

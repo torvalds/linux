@@ -167,11 +167,14 @@ EXPORT_SYMBOL_GPL(qcom_icc_xlate_extended);
  *
  * Return: 0 on success, or an error code otherwise
  */
-int qcom_icc_bcm_init(struct qcom_icc_bcm *bcm, struct device *dev)
+int qcom_icc_bcm_init(struct qcom_icc_provider *qp, struct qcom_icc_bcm *bcm,
+		      struct device *dev)
 {
 	struct qcom_icc_node *qn;
 	const struct bcm_db *data;
+	struct bcm_voter *voter;
 	size_t data_count;
+	int ret;
 	int i;
 
 	/* BCM is already initialised*/
@@ -214,9 +217,90 @@ int qcom_icc_bcm_init(struct qcom_icc_bcm *bcm, struct device *dev)
 		qn->num_bcms++;
 	}
 
+	if (bcm->keepalive || bcm->keepalive_early) {
+		voter = qp->voters[bcm->voter_idx];
+		qcom_icc_bcm_voter_add(voter, bcm);
+
+		ret = qcom_icc_bcm_voter_commit(voter);
+		if (ret) {
+			dev_err(dev, "failed to place initial vote for %s\n",
+				bcm->name);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_icc_bcm_init);
+
+static bool bcm_needs_qos_proxy(struct qcom_icc_bcm *bcm)
+{
+	int i;
+
+	if (bcm->qos_proxy)
+		return true;
+
+	if (bcm->voter_idx == 0)
+		for (i = 0; i < bcm->num_nodes; i++)
+			if (bcm->nodes[i]->qosbox)
+				return true;
+
+	return false;
+}
+
+static int enable_qos_deps(struct qcom_icc_provider *qp)
+{
+	struct qcom_icc_bcm *bcm;
+	struct bcm_voter *voter;
+	bool keepalive;
+	int ret, i;
+
+	for (i = 0; i < qp->num_bcms; i++) {
+		bcm = qp->bcms[i];
+		if (bcm_needs_qos_proxy(bcm)) {
+			keepalive = bcm->keepalive;
+			bcm->keepalive = true;
+
+			voter = qp->voters[bcm->voter_idx];
+			qcom_icc_bcm_voter_add(voter, bcm);
+			ret = qcom_icc_bcm_voter_commit(voter);
+
+			bcm->keepalive = keepalive;
+
+			if (ret) {
+				dev_err(qp->dev, "failed to vote BW to %s for QoS\n",
+					bcm->name);
+				return ret;
+			}
+		}
+	}
+
+	ret = clk_bulk_prepare_enable(qp->num_clks, qp->clks);
+	if (ret) {
+		dev_err(qp->dev, "failed to enable clocks for QoS\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static void disable_qos_deps(struct qcom_icc_provider *qp)
+{
+	struct qcom_icc_bcm *bcm;
+	struct bcm_voter *voter;
+	int i;
+
+	clk_bulk_disable_unprepare(qp->num_clks, qp->clks);
+
+	for (i = 0; i < qp->num_bcms; i++) {
+		bcm = qp->bcms[i];
+		if (bcm_needs_qos_proxy(bcm)) {
+			voter = qp->voters[bcm->voter_idx];
+			qcom_icc_bcm_voter_add(voter, bcm);
+			qcom_icc_bcm_voter_commit(voter);
+		}
+	}
+}
 
 static struct regmap *qcom_icc_rpmh_map(struct platform_device *pdev,
 					const struct qcom_icc_desc *desc)
@@ -229,7 +313,7 @@ static struct regmap *qcom_icc_rpmh_map(struct platform_device *pdev,
 	if (!res)
 		return NULL;
 
-	base = devm_ioremap_resource(dev, res);
+	base = devm_ioremap(dev, res->start, resource_size(res));
 	if (IS_ERR(base))
 		return ERR_CAST(base);
 
@@ -264,6 +348,7 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	qp->stub = of_property_read_bool(pdev->dev.of_node, "qcom,stub");
+	qp->skip_qos = of_property_read_bool(pdev->dev.of_node, "qcom,skip-qos");
 
 	provider = &qp->provider;
 	provider->dev = dev;
@@ -307,14 +392,14 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	if (qp->num_clks < 0)
 		return qp->num_clks;
 
-	ret = clk_bulk_prepare_enable(qp->num_clks, qp->clks);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable clocks\n");
-		return ret;
-	}
-
 	for (i = 0; i < qp->num_bcms; i++)
-		qcom_icc_bcm_init(qp->bcms[i], dev);
+		qcom_icc_bcm_init(qp, qp->bcms[i], dev);
+
+	if (!qp->skip_qos) {
+		ret = enable_qos_deps(qp);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < num_nodes; i++) {
 		qn = qnodes[i];
@@ -329,7 +414,7 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 			goto err;
 		}
 
-		if (qn->qosbox)
+		if (qn->qosbox && !qp->skip_qos)
 			qn->noc_ops->set_qos(qn);
 
 		node->name = qn->name;
@@ -341,6 +426,9 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 
 		data->nodes[i] = node;
 	}
+
+	if (!qp->skip_qos)
+		disable_qos_deps(qp);
 
 	data->num_nodes = num_nodes;
 	platform_set_drvdata(pdev, qp);
@@ -407,8 +495,10 @@ void qcom_icc_rpmh_sync_state(struct device *dev)
 
 		for (i = 0; i < qp->num_bcms; i++) {
 			bcm = qp->bcms[i];
-			if (!bcm->keepalive)
+			if (!bcm->keepalive && !bcm->keepalive_early)
 				continue;
+
+			bcm->keepalive_early = false;
 
 			voter = qp->voters[bcm->voter_idx];
 			qcom_icc_bcm_voter_add(voter, bcm);
