@@ -41,6 +41,7 @@
 			compatible = "qcom,pms405-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
+			gpio-ranges = <&pms405_gpios 0 0 12>;
 			#gpio-cells = <2>;
 			interrupts = <0 0xc0 0 IRQ_TYPE_NONE>,
 				<0 0xc1 0 IRQ_TYPE_NONE>,
