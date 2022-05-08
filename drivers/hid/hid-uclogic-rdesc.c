@@ -21,7 +21,7 @@
 /* Fixed WP4030U report descriptor */
 __u8 uclogic_rdesc_wp4030u_fixed_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -66,7 +66,7 @@ const size_t uclogic_rdesc_wp4030u_fixed_size =
 /* Fixed WP5540U report descriptor */
 __u8 uclogic_rdesc_wp5540u_fixed_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -143,7 +143,7 @@ const size_t uclogic_rdesc_wp5540u_fixed_size =
 /* Fixed WP8060U report descriptor */
 __u8 uclogic_rdesc_wp8060u_fixed_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -220,7 +220,7 @@ const size_t uclogic_rdesc_wp8060u_fixed_size =
 /* Fixed WP1062 report descriptor */
 __u8 uclogic_rdesc_wp1062_fixed_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -268,7 +268,7 @@ const size_t uclogic_rdesc_wp1062_fixed_size =
 /* Fixed PF1209 report descriptor */
 __u8 uclogic_rdesc_pf1209_fixed_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -345,7 +345,7 @@ const size_t uclogic_rdesc_pf1209_fixed_size =
 /* Fixed PID 0522 tablet report descriptor, interface 0 (stylus) */
 __u8 uclogic_rdesc_twhl850_fixed0_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -457,7 +457,7 @@ const size_t uclogic_rdesc_twhl850_fixed2_size =
 /* Fixed TWHA60 report descriptor, interface 0 (stylus) */
 __u8 uclogic_rdesc_twha60_fixed0_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -534,7 +534,7 @@ const size_t uclogic_rdesc_twha60_fixed1_size =
 /* Fixed report descriptor template for (tweaked) v1 pen reports */
 const __u8 uclogic_rdesc_v1_pen_template_arr[] = {
 	0x05, 0x0D,             /*  Usage Page (Digitizer),                 */
-	0x09, 0x02,             /*  Usage (Pen),                            */
+	0x09, 0x01,             /*  Usage (Digitizer),                      */
 	0xA1, 0x01,             /*  Collection (Application),               */
 	0x85, 0x07,             /*      Report ID (7),                      */
 	0x09, 0x20,             /*      Usage (Stylus),                     */
@@ -588,7 +588,7 @@ const size_t uclogic_rdesc_v1_pen_template_size =
 /* Fixed report descriptor template for (tweaked) v2 pen reports */
 const __u8 uclogic_rdesc_v2_pen_template_arr[] = {
 	0x05, 0x0D,             /*  Usage Page (Digitizer),                 */
-	0x09, 0x02,             /*  Usage (Pen),                            */
+	0x09, 0x01,             /*  Usage (Digitizer),                      */
 	0xA1, 0x01,             /*  Collection (Application),               */
 	0x85, 0x08,             /*      Report ID (8),                      */
 	0x09, 0x20,             /*      Usage (Stylus),                     */
