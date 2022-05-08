@@ -338,28 +338,45 @@ static s32 uclogic_params_get_le24(const void *p)
  * uclogic_params_pen_init_v2() - initialize tablet interface pen
  * input and retrieve its parameters from the device, using v2 protocol.
  *
- * @pen:	Pointer to the pen parameters to initialize (to be
- *		cleaned up with uclogic_params_pen_cleanup()). Not modified in
- *		case of error, or if parameters are not found. Cannot be NULL.
- * @pfound:	Location for a flag which is set to true if the parameters
- *		were found, and to false if not (e.g. device was
- *		incompatible). Not modified in case of error. Cannot be NULL.
- * @hdev:	The HID device of the tablet interface to initialize and get
- *		parameters from. Cannot be NULL.
+ * @pen:		Pointer to the pen parameters to initialize (to be
+ *			cleaned up with uclogic_params_pen_cleanup()). Not
+ *			modified in case of error, or if parameters are not
+ *			found. Cannot be NULL.
+ * @pfound:		Location for a flag which is set to true if the
+ *			parameters were found, and to false if not (e.g.
+ *			device was incompatible). Not modified in case of
+ *			error. Cannot be NULL.
+ * @pparams_ptr:	Location for a kmalloc'ed pointer to the retrieved raw
+ *			parameters, which could be used to identify the tablet
+ *			to some extent. Should be freed with kfree after use.
+ *			NULL, if not needed. Not modified in case of error.
+ *			Only set if *pfound is set to true.
+ * @pparams_len:	Location for the length of the retrieved raw
+ *			parameters. NULL, if not needed. Not modified in case
+ *			of error. Only set if *pfound is set to true.
+ * @hdev:		The HID device of the tablet interface to initialize
+ *			and get parameters from. Cannot be NULL.
  *
  * Returns:
  *	Zero, if successful. A negative errno code on error.
  */
 static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 					bool *pfound,
+					__u8 **pparams_ptr,
+					size_t *pparams_len,
 					struct hid_device *hdev)
 {
 	int rc;
 	bool found = false;
-	/* Buffer for (part of) the string descriptor */
+	/* Buffer for (part of) the parameter string descriptor */
 	__u8 *buf = NULL;
-	/* Descriptor length required */
-	const int len = 18;
+	/* Parameter string descriptor required length */
+	const int params_len_min = 18;
+	/* Parameter string descriptor accepted length */
+	const int params_len_max = 32;
+	/* Parameter string descriptor received length */
+	int params_len;
+	size_t i;
 	s32 resolution;
 	/* Pen report descriptor template parameters */
 	s32 desc_params[UCLOGIC_RDESC_PEN_PH_ID_NUM];
@@ -377,7 +394,7 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 	 * the Windows driver traffic.
 	 * NOTE: This enables fully-functional tablet mode.
 	 */
-	rc = uclogic_params_get_str_desc(&buf, hdev, 200, len);
+	rc = uclogic_params_get_str_desc(&buf, hdev, 200, params_len_max);
 	if (rc == -EPIPE) {
 		hid_dbg(hdev,
 			"string descriptor with pen parameters not found, assuming not compatible\n");
@@ -385,27 +402,28 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 	} else if (rc < 0) {
 		hid_err(hdev, "failed retrieving pen parameters: %d\n", rc);
 		goto cleanup;
-	} else if (rc != len) {
+	} else if (rc < params_len_min) {
 		hid_dbg(hdev,
-			"string descriptor with pen parameters has invalid length (got %d, expected %d), assuming not compatible\n",
-			rc, len);
+			"string descriptor with pen parameters is too short (got %d, expected at least %d), assuming not compatible\n",
+			rc, params_len_min);
 		goto finish;
-	} else {
-		size_t i;
-		/*
-		 * Check it's not just a catch-all UTF-16LE-encoded ASCII
-		 * string (such as the model name) some tablets put into all
-		 * unknown string descriptors.
-		 */
-		for (i = 2;
-		     i < len &&
-			(buf[i] >= 0x20 && buf[i] < 0x7f && buf[i + 1] == 0);
-		     i += 2);
-		if (i >= len) {
-			hid_dbg(hdev,
-				"string descriptor with pen parameters seems to contain only text, assuming not compatible\n");
-			goto finish;
-		}
+	}
+
+	params_len = rc;
+
+	/*
+	 * Check it's not just a catch-all UTF-16LE-encoded ASCII
+	 * string (such as the model name) some tablets put into all
+	 * unknown string descriptors.
+	 */
+	for (i = 2;
+	     i < params_len &&
+		(buf[i] >= 0x20 && buf[i] < 0x7f && buf[i + 1] == 0);
+	     i += 2);
+	if (i >= params_len) {
+		hid_dbg(hdev,
+			"string descriptor with pen parameters seems to contain only text, assuming not compatible\n");
+		goto finish;
 	}
 
 	/*
@@ -429,8 +447,6 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 			desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_LM] * 1000 /
 			resolution;
 	}
-	kfree(buf);
-	buf = NULL;
 
 	/*
 	 * Generate pen report descriptor
@@ -456,6 +472,13 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 	pen->fragmented_hires = true;
 	pen->tilt_y_flipped = true;
 	found = true;
+	if (pparams_ptr != NULL) {
+		*pparams_ptr = buf;
+		buf = NULL;
+	}
+	if (pparams_len != NULL)
+		*pparams_len = params_len;
+
 finish:
 	*pfound = found;
 	rc = 0;
@@ -828,7 +851,8 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			"transition firmware detected, not probing pen v2 parameters\n");
 	} else {
 		/* Try to probe v2 pen parameters */
-		rc = uclogic_params_pen_init_v2(&p.pen, &found, hdev);
+		rc = uclogic_params_pen_init_v2(&p.pen, &found,
+						NULL, NULL, hdev);
 		if (rc != 0) {
 			hid_err(hdev,
 				"failed probing pen v2 parameters: %d\n", rc);
