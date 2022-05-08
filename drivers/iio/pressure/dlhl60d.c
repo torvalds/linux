@@ -47,7 +47,7 @@ struct dlh_state {
 	struct dlh_info info;
 	bool use_interrupt;
 	struct completion completion;
-	u8 rx_buf[DLH_NUM_READ_BYTES] ____cacheline_aligned;
+	u8 rx_buf[DLH_NUM_READ_BYTES];
 };
 
 static struct dlh_info dlh_info_tbl[] = {
