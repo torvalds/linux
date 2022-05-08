@@ -20,6 +20,7 @@ TEST_PROGS = bridge_igmp.sh \
 	gre_multipath_nh.sh \
 	gre_multipath.sh \
 	hw_stats_l3.sh \
+	hw_stats_l3_gre.sh \
 	ip6_forward_instats_vrf.sh \
 	ip6gre_custom_multipath_hash.sh \
 	ip6gre_flat_key.sh \

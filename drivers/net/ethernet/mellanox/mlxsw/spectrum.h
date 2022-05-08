@@ -718,29 +718,12 @@ union mlxsw_sp_l3addr {
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 			 struct netlink_ext_ack *extack);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
-int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
-					 unsigned long event, void *ptr);
 void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
 			      const struct net_device *macvlan_dev);
 int mlxsw_sp_inetaddr_valid_event(struct notifier_block *unused,
 				  unsigned long event, void *ptr);
 int mlxsw_sp_inet6addr_valid_event(struct notifier_block *unused,
 				   unsigned long event, void *ptr);
-int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
-				 struct netdev_notifier_changeupper_info *info);
-bool mlxsw_sp_netdev_is_ipip_ol(const struct mlxsw_sp *mlxsw_sp,
-				const struct net_device *dev);
-bool mlxsw_sp_netdev_is_ipip_ul(struct mlxsw_sp *mlxsw_sp,
-				const struct net_device *dev);
-int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
-				     struct net_device *l3_dev,
-				     unsigned long event,
-				     struct netdev_notifier_info *info);
-int
-mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
-				 struct net_device *l3_dev,
-				 unsigned long event,
-				 struct netdev_notifier_info *info);
 int
 mlxsw_sp_port_vlan_router_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 			       struct net_device *l3_dev,

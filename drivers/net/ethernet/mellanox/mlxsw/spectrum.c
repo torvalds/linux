@@ -3122,9 +3122,8 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		}
 	}
 
-	/* Initialize netdevice notifier after router and SPAN is initialized,
-	 * so that the event handler can use router structures and call SPAN
-	 * respin.
+	/* Initialize netdevice notifier after SPAN is initialized, so that the
+	 * event handler can call SPAN respin.
 	 */
 	mlxsw_sp->netdevice_nb.notifier_call = mlxsw_sp_netdevice_event;
 	err = register_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
@@ -4525,7 +4524,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		    !netif_is_lag_master(upper_dev) &&
 		    !netif_is_bridge_master(upper_dev) &&
 		    !netif_is_ovs_master(upper_dev) &&
-		    !netif_is_macvlan(upper_dev)) {
+		    !netif_is_macvlan(upper_dev) &&
+		    !netif_is_l3_master(upper_dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
 			return -EINVAL;
 		}
@@ -4724,7 +4724,8 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
 		if (!netif_is_bridge_master(upper_dev) &&
-		    !netif_is_macvlan(upper_dev)) {
+		    !netif_is_macvlan(upper_dev) &&
+		    !netif_is_l3_master(upper_dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
 			return -EINVAL;
 		}
@@ -4763,9 +4764,6 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 		} else if (netif_is_macvlan(upper_dev)) {
 			if (!info->linking)
 				mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
-		} else {
-			err = -EINVAL;
-			WARN_ON(1);
 		}
 		break;
 	}
@@ -4813,7 +4811,8 @@ static int mlxsw_sp_netdevice_bridge_vlan_event(struct net_device *vlan_dev,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!netif_is_macvlan(upper_dev)) {
+		if (!netif_is_macvlan(upper_dev) &&
+		    !netif_is_l3_master(upper_dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
 			return -EOPNOTSUPP;
 		}
@@ -4874,7 +4873,9 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!is_vlan_dev(upper_dev) && !netif_is_macvlan(upper_dev)) {
+		if (!is_vlan_dev(upper_dev) &&
+		    !netif_is_macvlan(upper_dev) &&
+		    !netif_is_l3_master(upper_dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
 			return -EOPNOTSUPP;
 		}
@@ -4918,25 +4919,20 @@ static int mlxsw_sp_netdevice_macvlan_event(struct net_device *macvlan_dev,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(macvlan_dev);
 	struct netdev_notifier_changeupper_info *info = ptr;
 	struct netlink_ext_ack *extack;
+	struct net_device *upper_dev;
 
 	if (!mlxsw_sp || event != NETDEV_PRECHANGEUPPER)
 		return 0;
 
 	extack = netdev_notifier_info_to_extack(&info->info);
+	upper_dev = info->upper_dev;
 
-	/* VRF enslavement is handled in mlxsw_sp_netdevice_vrf_event() */
-	NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
+	if (!netif_is_l3_master(upper_dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
+		return -EOPNOTSUPP;
+	}
 
-	return -EOPNOTSUPP;
-}
-
-static bool mlxsw_sp_is_vrf_event(unsigned long event, void *ptr)
-{
-	struct netdev_notifier_changeupper_info *info = ptr;
-
-	if (event != NETDEV_PRECHANGEUPPER && event != NETDEV_CHANGEUPPER)
-		return false;
-	return netif_is_l3_master(info->upper_dev);
+	return 0;
 }
 
 static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
@@ -5007,22 +5003,6 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-static bool mlxsw_sp_netdevice_event_is_router(unsigned long event)
-{
-	switch (event) {
-	case NETDEV_PRE_CHANGEADDR:
-	case NETDEV_CHANGEADDR:
-	case NETDEV_CHANGEMTU:
-	case NETDEV_OFFLOAD_XSTATS_ENABLE:
-	case NETDEV_OFFLOAD_XSTATS_DISABLE:
-	case NETDEV_OFFLOAD_XSTATS_REPORT_USED:
-	case NETDEV_OFFLOAD_XSTATS_REPORT_DELTA:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 				    unsigned long event, void *ptr)
 {
@@ -5041,16 +5021,6 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 
 	if (netif_is_vxlan(dev))
 		err = mlxsw_sp_netdevice_vxlan_event(mlxsw_sp, dev, event, ptr);
-	if (mlxsw_sp_netdev_is_ipip_ol(mlxsw_sp, dev))
-		err = mlxsw_sp_netdevice_ipip_ol_event(mlxsw_sp, dev,
-						       event, ptr);
-	else if (mlxsw_sp_netdev_is_ipip_ul(mlxsw_sp, dev))
-		err = mlxsw_sp_netdevice_ipip_ul_event(mlxsw_sp, dev,
-						       event, ptr);
-	else if (mlxsw_sp_netdevice_event_is_router(event))
-		err = mlxsw_sp_netdevice_router_port_event(dev, event, ptr);
-	else if (mlxsw_sp_is_vrf_event(event, ptr))
-		err = mlxsw_sp_netdevice_vrf_event(dev, event, ptr);
 	else if (mlxsw_sp_port_dev_check(dev))
 		err = mlxsw_sp_netdevice_port_event(dev, dev, event, ptr);
 	else if (netif_is_lag_master(dev))
