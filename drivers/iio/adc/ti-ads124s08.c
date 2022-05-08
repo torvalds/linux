@@ -106,7 +106,7 @@ struct ads124s_private {
 	 * timestamp is maintained.
 	 */
 	u32 buffer[ADS124S08_MAX_CHANNELS + sizeof(s64)/sizeof(u32)] __aligned(8);
-	u8 data[5] ____cacheline_aligned;
+	u8 data[5] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define ADS124S08_CHAN(index)					\
