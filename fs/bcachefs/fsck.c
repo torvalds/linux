@@ -605,6 +605,20 @@ static int ref_visible(struct bch_fs *c, struct snapshots_seen *s,
 		: bch2_snapshot_is_ancestor(c, src, dst);
 }
 
+static int ref_visible2(struct bch_fs *c,
+			u32 src, struct snapshots_seen *src_seen,
+			u32 dst, struct snapshots_seen *dst_seen)
+{
+	src = bch2_snapshot_equiv(c, src);
+	dst = bch2_snapshot_equiv(c, dst);
+
+	if (dst > src) {
+		swap(dst, src);
+		swap(dst_seen, src_seen);
+	}
+	return key_visible_in_snapshot(c, src_seen, dst, src);
+}
+
 #define for_each_visible_inode(_c, _s, _w, _snapshot, _i)				\
 	for (_i = (_w)->inodes.data; _i < (_w)->inodes.data + (_w)->inodes.nr &&	\
 	     (_i)->snapshot <= (_snapshot); _i++)					\
@@ -1158,10 +1172,102 @@ fsck_err:
 	return ret;
 }
 
+struct extent_end {
+	u32			snapshot;
+	u64			offset;
+	struct snapshots_seen	seen;
+};
+
+typedef DARRAY(struct extent_end) extent_ends;
+
+static int check_overlapping_extents(struct btree_trans *trans,
+			      struct snapshots_seen *seen,
+			      extent_ends *extent_ends,
+			      struct bkey_s_c k,
+			      struct btree_iter *iter)
+{
+	struct bch_fs *c = trans->c;
+	struct extent_end *i;
+	struct printbuf buf = PRINTBUF;
+	int ret = 0;
+
+	darray_for_each(*extent_ends, i) {
+		/* duplicate, due to transaction restart: */
+		if (i->offset	== k.k->p.offset &&
+		    i->snapshot == k.k->p.snapshot)
+			continue;
+
+		if (!ref_visible2(c,
+				  k.k->p.snapshot, seen,
+				  i->snapshot, &i->seen))
+			continue;
+
+		if (fsck_err_on(i->offset > bkey_start_offset(k.k), c,
+				"overlapping extents: extent in snapshot %u ends at %llu overlaps with\n%s",
+				i->snapshot,
+				i->offset,
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+			struct bkey_i *update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+			if ((ret = PTR_ERR_OR_ZERO(update)))
+				goto err;
+			bkey_reassemble(update, k);
+			ret = bch2_trans_update_extent(trans, iter, update, 0);
+			if (!ret)
+				goto err;
+		}
+	}
+err:
+fsck_err:
+	printbuf_exit(&buf);
+	return ret;
+}
+
+static int extent_ends_at(extent_ends *extent_ends,
+			  struct snapshots_seen *seen,
+			  struct bkey_s_c k)
+{
+	struct extent_end *i, n = (struct extent_end) {
+		.snapshot	= k.k->p.snapshot,
+		.offset		= k.k->p.offset,
+		.seen		= *seen,
+	};
+
+	n.seen.ids.data = kmemdup(seen->ids.data,
+			      sizeof(seen->ids.data[0]) * seen->ids.size,
+			      GFP_KERNEL);
+	if (!n.seen.ids.data)
+		return -ENOMEM;
+
+	darray_for_each(*extent_ends, i) {
+		if (i->snapshot == k.k->p.snapshot) {
+			snapshots_seen_exit(&i->seen);
+			*i = n;
+			return 0;
+		}
+
+		if (i->snapshot >= k.k->p.snapshot)
+			break;
+	}
+
+	return darray_insert_item(extent_ends, i - extent_ends->data, n);
+}
+
+static void extent_ends_reset(extent_ends *extent_ends)
+{
+	struct extent_end *i;
+
+	darray_for_each(*extent_ends, i)
+		snapshots_seen_exit(&i->seen);
+
+	extent_ends->nr = 0;
+}
+
 static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			struct bkey_s_c k,
 			struct inode_walker *inode,
-			struct snapshots_seen *s)
+			struct snapshots_seen *s,
+			extent_ends *extent_ends)
 {
 	struct bch_fs *c = trans->c;
 	struct inode_walker_entry *i;
@@ -1189,24 +1295,20 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 		ret = check_i_sectors(trans, inode);
 		if (ret)
 			goto err;
+
+		extent_ends_reset(extent_ends);
 	}
 
 	BUG_ON(!iter->path->should_be_locked);
-#if 0
-	if (bkey_gt(prev.k->k.p, bkey_start_pos(k.k))) {
-		char buf1[200];
-		char buf2[200];
 
-		bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(prev.k));
-		bch2_bkey_val_to_text(&PBUF(buf2), c, k);
+	ret = check_overlapping_extents(trans, s, extent_ends, k, iter);
+	if (ret)
+		goto err;
 
-		if (fsck_err(c, "overlapping extents:\n%s\n%s", buf1, buf2)) {
-			ret = fix_overlapping_extent(trans, k, prev.k->k.p)
-				?: -BCH_ERR_transaction_restart_nested;
-			goto out;
-		}
-	}
-#endif
+	ret = extent_ends_at(extent_ends, s, k);
+	if (ret)
+		goto err;
+
 	ret = __walk_inode(trans, inode, equiv);
 	if (ret < 0)
 		goto err;
@@ -1304,13 +1406,9 @@ static int check_extents(struct bch_fs *c)
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	extent_ends extent_ends = { 0 };
 	int ret = 0;
 
-#if 0
-	struct bkey_buf prev;
-	bch2_bkey_buf_init(&prev);
-	prev.k->k = KEY(0, 0, 0);
-#endif
 	snapshots_seen_init(&s);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
@@ -1321,10 +1419,10 @@ static int check_extents(struct bch_fs *c)
 			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
 			NULL, NULL,
 			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
-		check_extent(&trans, &iter, k, &w, &s));
-#if 0
-	bch2_bkey_buf_exit(&prev, c);
-#endif
+		check_extent(&trans, &iter, k, &w, &s, &extent_ends));
+
+	extent_ends_reset(&extent_ends);
+	darray_exit(&extent_ends);
 	inode_walker_exit(&w);
 	bch2_trans_exit(&trans);
 	snapshots_seen_exit(&s);
