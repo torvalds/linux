@@ -138,6 +138,10 @@ extern const size_t uclogic_rdesc_v2_frame_buttons_size;
 extern const __u8 uclogic_rdesc_v2_frame_touch_ring_arr[];
 extern const size_t uclogic_rdesc_v2_frame_touch_ring_size;
 
+/* Fixed report descriptor for (tweaked) v2 frame touch strip reports */
+extern const __u8 uclogic_rdesc_v2_frame_touch_strip_arr[];
+extern const size_t uclogic_rdesc_v2_frame_touch_strip_size;
+
 /* Device ID byte offset in v2 frame touch ring/strip reports */
 #define UCLOGIC_RDESC_V2_FRAME_TOUCH_DEV_ID_BYTE	0x4
 

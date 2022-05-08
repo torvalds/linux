@@ -808,6 +808,14 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 	static const char transition_ver[] = "HUION_T153_160607";
 	char *ver_ptr = NULL;
 	const size_t ver_len = sizeof(transition_ver) + 1;
+	__u8 *params_ptr = NULL;
+	size_t params_len = 0;
+	/* Parameters string descriptor of a model with touch ring (HS610) */
+	const __u8 touch_ring_model_params_buf[] = {
+		0x13, 0x03, 0x70, 0xC6, 0x00, 0x06, 0x7C, 0x00,
+		0xFF, 0x1F, 0xD8, 0x13, 0x03, 0x0D, 0x10, 0x01,
+		0x04, 0x3C, 0x3E
+	};
 
 	/* Check arguments */
 	if (params == NULL || hdev == NULL) {
@@ -852,7 +860,8 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 	} else {
 		/* Try to probe v2 pen parameters */
 		rc = uclogic_params_pen_init_v2(&p.pen, &found,
-						NULL, NULL, hdev);
+						&params_ptr, &params_len,
+						hdev);
 		if (rc != 0) {
 			hid_err(hdev,
 				"failed probing pen v2 parameters: %d\n", rc);
@@ -872,24 +881,58 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 				goto cleanup;
 			}
 
-			/* Create v2 frame touch ring parameters */
-			rc = uclogic_params_frame_init_with_desc(
+			/* Link from pen sub-report */
+			p.pen.subreport_list[0].value = 0xe0;
+			p.pen.subreport_list[0].id =
+				UCLOGIC_RDESC_V2_FRAME_BUTTONS_ID;
+
+			/* If this is the model with touch ring */
+			if (params_ptr != NULL &&
+			    params_len == sizeof(touch_ring_model_params_buf) &&
+			    memcmp(params_ptr, touch_ring_model_params_buf,
+				   params_len) == 0) {
+				/* Create touch ring parameters */
+				rc = uclogic_params_frame_init_with_desc(
 					&p.frame_list[1],
 					uclogic_rdesc_v2_frame_touch_ring_arr,
 					uclogic_rdesc_v2_frame_touch_ring_size,
 					UCLOGIC_RDESC_V2_FRAME_TOUCH_ID);
-			if (rc != 0) {
-				hid_err(hdev,
-					"failed creating v2 frame touch ring parameters: %d\n",
-					rc);
-				goto cleanup;
+				if (rc != 0) {
+					hid_err(hdev,
+						"failed creating v2 frame touch ring parameters: %d\n",
+						rc);
+					goto cleanup;
+				}
+				p.frame_list[1].suffix = "Touch Ring";
+				p.frame_list[1].dev_id_byte =
+					UCLOGIC_RDESC_V2_FRAME_TOUCH_DEV_ID_BYTE;
+				p.frame_list[1].touch_byte = 5;
+				p.frame_list[1].touch_max = 12;
+				p.frame_list[1].touch_flip_at = 7;
+			} else {
+				/* Create touch strip parameters */
+				rc = uclogic_params_frame_init_with_desc(
+					&p.frame_list[1],
+					uclogic_rdesc_v2_frame_touch_strip_arr,
+					uclogic_rdesc_v2_frame_touch_strip_size,
+					UCLOGIC_RDESC_V2_FRAME_TOUCH_ID);
+				if (rc != 0) {
+					hid_err(hdev,
+						"failed creating v2 frame touch strip parameters: %d\n",
+						rc);
+					goto cleanup;
+				}
+				p.frame_list[1].suffix = "Touch Strip";
+				p.frame_list[1].dev_id_byte =
+					UCLOGIC_RDESC_V2_FRAME_TOUCH_DEV_ID_BYTE;
+				p.frame_list[1].touch_byte = 5;
+				p.frame_list[1].touch_max = 8;
 			}
-			p.frame_list[1].suffix = "Touch Ring";
-			p.frame_list[1].dev_id_byte =
-				UCLOGIC_RDESC_V2_FRAME_TOUCH_DEV_ID_BYTE;
-			p.frame_list[1].touch_byte = 5;
-			p.frame_list[1].touch_max = 12;
-			p.frame_list[1].touch_flip_at = 7;
+
+			/* Link from pen sub-report */
+			p.pen.subreport_list[1].value = 0xf0;
+			p.pen.subreport_list[1].id =
+				UCLOGIC_RDESC_V2_FRAME_TOUCH_ID;
 
 			/* Create v2 frame dial parameters */
 			rc = uclogic_params_frame_init_with_desc(
@@ -908,19 +951,11 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 				UCLOGIC_RDESC_V2_FRAME_DIAL_DEV_ID_BYTE;
 			p.frame_list[2].bitmap_dial_byte = 5;
 
-			/*
-			 * Link button and touch ring subreports from pen
-			 * reports
-			 */
-			p.pen.subreport_list[0].value = 0xe0;
-			p.pen.subreport_list[0].id =
-				UCLOGIC_RDESC_V2_FRAME_BUTTONS_ID;
-			p.pen.subreport_list[1].value = 0xf0;
-			p.pen.subreport_list[1].id =
-				UCLOGIC_RDESC_V2_FRAME_TOUCH_ID;
+			/* Link from pen sub-report */
 			p.pen.subreport_list[2].value = 0xf1;
 			p.pen.subreport_list[2].id =
 				UCLOGIC_RDESC_V2_FRAME_DIAL_ID;
+
 			goto output;
 		}
 		hid_dbg(hdev, "pen v2 parameters not found\n");
@@ -961,6 +996,7 @@ output:
 	memset(&p, 0, sizeof(p));
 	rc = 0;
 cleanup:
+	kfree(params_ptr);
 	kfree(ver_ptr);
 	uclogic_params_cleanup(&p);
 	return rc;
