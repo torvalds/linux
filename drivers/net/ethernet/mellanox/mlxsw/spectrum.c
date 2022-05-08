@@ -5010,10 +5010,6 @@ static bool mlxsw_sp_netdevice_event_is_router(unsigned long event)
 	case NETDEV_PRE_CHANGEADDR:
 	case NETDEV_CHANGEADDR:
 	case NETDEV_CHANGEMTU:
-	case NETDEV_OFFLOAD_XSTATS_ENABLE:
-	case NETDEV_OFFLOAD_XSTATS_DISABLE:
-	case NETDEV_OFFLOAD_XSTATS_REPORT_USED:
-	case NETDEV_OFFLOAD_XSTATS_REPORT_DELTA:
 		return true;
 	default:
 		return false;

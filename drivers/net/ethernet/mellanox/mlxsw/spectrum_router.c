@@ -9378,6 +9378,19 @@ static int mlxsw_sp_router_port_pre_changeaddr_event(struct mlxsw_sp_rif *rif,
 	return -ENOBUFS;
 }
 
+static bool mlxsw_sp_is_offload_xstats_event(unsigned long event)
+{
+	switch (event) {
+	case NETDEV_OFFLOAD_XSTATS_ENABLE:
+	case NETDEV_OFFLOAD_XSTATS_DISABLE:
+	case NETDEV_OFFLOAD_XSTATS_REPORT_USED:
+	case NETDEV_OFFLOAD_XSTATS_REPORT_DELTA:
+		return true;
+	}
+
+	return false;
+}
+
 static int
 mlxsw_sp_router_port_offload_xstats_cmd(struct mlxsw_sp_rif *rif,
 					unsigned long event,
@@ -9407,6 +9420,24 @@ mlxsw_sp_router_port_offload_xstats_cmd(struct mlxsw_sp_rif *rif,
 	return 0;
 }
 
+static int
+mlxsw_sp_netdevice_offload_xstats_cmd(struct mlxsw_sp *mlxsw_sp,
+				      struct net_device *dev,
+				      unsigned long event,
+				      struct netdev_notifier_offload_xstats_info *info)
+{
+	struct mlxsw_sp_rif *rif;
+	int err = 0;
+
+	mutex_lock(&mlxsw_sp->router->lock);
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (rif)
+		err = mlxsw_sp_router_port_offload_xstats_cmd(rif, event, info);
+	mutex_unlock(&mlxsw_sp->router->lock);
+
+	return err;
+}
+
 int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
 					 unsigned long event, void *ptr)
 {
@@ -9431,12 +9462,6 @@ int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
 		break;
 	case NETDEV_PRE_CHANGEADDR:
 		err = mlxsw_sp_router_port_pre_changeaddr_event(rif, ptr);
-		break;
-	case NETDEV_OFFLOAD_XSTATS_ENABLE:
-	case NETDEV_OFFLOAD_XSTATS_DISABLE:
-	case NETDEV_OFFLOAD_XSTATS_REPORT_USED:
-	case NETDEV_OFFLOAD_XSTATS_REPORT_DELTA:
-		err = mlxsw_sp_router_port_offload_xstats_cmd(rif, event, ptr);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -9522,9 +9547,17 @@ static int mlxsw_sp_router_netdevice_event(struct notifier_block *nb,
 					   unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct mlxsw_sp_router *router;
+	struct mlxsw_sp *mlxsw_sp;
 	int err = 0;
 
-	if (mlxsw_sp_is_vrf_event(event, ptr))
+	router = container_of(nb, struct mlxsw_sp_router, netdevice_nb);
+	mlxsw_sp = router->mlxsw_sp;
+
+	if (mlxsw_sp_is_offload_xstats_event(event))
+		err = mlxsw_sp_netdevice_offload_xstats_cmd(mlxsw_sp, dev,
+							    event, ptr);
+	else if (mlxsw_sp_is_vrf_event(event, ptr))
 		err = mlxsw_sp_netdevice_vrf_event(dev, event, ptr);
 
 	return notifier_from_errno(err);
