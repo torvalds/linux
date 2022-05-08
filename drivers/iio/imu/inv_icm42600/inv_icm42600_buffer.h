@@ -39,7 +39,7 @@ struct inv_icm42600_fifo {
 		size_t accel;
 		size_t total;
 	} nb;
-	uint8_t data[2080] ____cacheline_aligned;
+	uint8_t data[2080] __aligned(IIO_DMA_MINALIGN);
 };
 
 /* FIFO data packet */
