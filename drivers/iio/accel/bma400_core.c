@@ -93,7 +93,7 @@ struct bma400_data {
 		__le16 buff[3];
 		u8 temperature;
 		s64 ts __aligned(8);
-	} buffer __aligned(IIO_ALIGN);
+	} buffer __aligned(IIO_DMA_MINALIGN);
 	__le16 status;
 	__be16 duration;
 };
