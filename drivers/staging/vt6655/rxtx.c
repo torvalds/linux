@@ -1426,7 +1426,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 	/* Set auto Transmit on */
 	MACvRegBitsOn(priv->port_offset, MAC_REG_TCR, TCR_AUTOBCNTX);
 	/* Poll Transmit the adapter */
-	MACvTransmitBCN(priv->port_offset);
+	VNSvOutPortB(priv->port_offset + MAC_REG_BCNDMACTL, BEACON_READY);
 
 	return 0;
 }
