@@ -20,9 +20,6 @@
 
 /* For memory mapped IO */
 
-#define VNSvOutPortB(dwIOAddress, byData) \
-	iowrite8((u8)(byData), dwIOAddress)
-
 #define VNSvOutPortW(dwIOAddress, wData) \
 	iowrite16((u16)(wData), dwIOAddress)
 

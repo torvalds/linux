@@ -541,7 +541,7 @@
 do {									\
 	unsigned char byData;						\
 	byData = ioread8(iobase + byRegOfs);				\
-	VNSvOutPortB(iobase + byRegOfs, byData | (byBits));		\
+	iowrite8(byData | (byBits), iobase + byRegOfs);			\
 } while (0)
 
 #define MACvWordRegBitsOn(iobase, byRegOfs, wBits)			\
@@ -555,7 +555,7 @@ do {									\
 do {									\
 	unsigned char byData;						\
 	byData = ioread8(iobase + byRegOfs);				\
-	VNSvOutPortB(iobase + byRegOfs, byData & ~(byBits));		\
+	iowrite8(byData & ~(byBits), iobase + byRegOfs);		\
 } while (0)
 
 #define MACvWordRegBitsOff(iobase, byRegOfs, wBits)			\
@@ -577,32 +577,26 @@ do {									\
 
 #define MACvWriteBSSIDAddress(iobase, pbyEtherAddr)		\
 do {								\
-	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 1);		\
-	VNSvOutPortB(iobase + MAC_REG_BSSID0,			\
-		     *(pbyEtherAddr));				\
-	VNSvOutPortB(iobase + MAC_REG_BSSID0 + 1,		\
-		     *(pbyEtherAddr + 1));			\
-	VNSvOutPortB(iobase + MAC_REG_BSSID0 + 2,		\
-		     *(pbyEtherAddr + 2));			\
-	VNSvOutPortB(iobase + MAC_REG_BSSID0 + 3,		\
-		     *(pbyEtherAddr + 3));			\
-	VNSvOutPortB(iobase + MAC_REG_BSSID0 + 4,		\
-		     *(pbyEtherAddr + 4));			\
-	VNSvOutPortB(iobase + MAC_REG_BSSID0 + 5,		\
-		     *(pbyEtherAddr + 5));			\
-	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 0);		\
+	iowrite8(1, iobase + MAC_REG_PAGE1SEL);			\
+	iowrite8(pbyEtherAddr[0], iobase + MAC_REG_BSSID0);	\
+	iowrite8(pbyEtherAddr[1], iobase + MAC_REG_BSSID0 + 1);	\
+	iowrite8(pbyEtherAddr[2], iobase + MAC_REG_BSSID0 + 2);	\
+	iowrite8(pbyEtherAddr[3], iobase + MAC_REG_BSSID0 + 3);	\
+	iowrite8(pbyEtherAddr[4], iobase + MAC_REG_BSSID0 + 4);	\
+	iowrite8(pbyEtherAddr[5], iobase + MAC_REG_BSSID0 + 5);	\
+	iowrite8(0, iobase + MAC_REG_PAGE1SEL);			\
 } while (0)
 
 #define MACvReadEtherAddress(iobase, pbyEtherAddr)		\
 do {								\
-	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 1);		\
+	iowrite8(1, iobase + MAC_REG_PAGE1SEL);			\
 	pbyEtherAddr[0] = ioread8(iobase + MAC_REG_PAR0);	\
 	pbyEtherAddr[1] = ioread8(iobase + MAC_REG_PAR0 + 1);	\
 	pbyEtherAddr[2] = ioread8(iobase + MAC_REG_PAR0 + 2);	\
 	pbyEtherAddr[3] = ioread8(iobase + MAC_REG_PAR0 + 3);	\
 	pbyEtherAddr[4] = ioread8(iobase + MAC_REG_PAR0 + 4);	\
 	pbyEtherAddr[5] = ioread8(iobase + MAC_REG_PAR0 + 5);	\
-	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 0);		\
+	iowrite8(0, iobase + MAC_REG_PAGE1SEL);			\
 } while (0)
 
 #define MACvRx0PerPktMode(iobase)					\
@@ -656,7 +650,7 @@ do {									\
 	unsigned char byOrgValue;					\
 	byOrgValue = ioread8(iobase + MAC_REG_STICKHW);			\
 	byOrgValue = byOrgValue & 0xFC;					\
-	VNSvOutPortB(iobase + MAC_REG_STICKHW, byOrgValue);		\
+	iowrite8(byOrgValue, iobase + MAC_REG_STICKHW);			\
 } while (0)
 
 #define MACvWriteISR(iobase, dwValue)				\
@@ -669,10 +663,10 @@ do {									\
 	VNSvOutPortD(iobase + MAC_REG_IMR, 0)
 
 #define MACvSelectPage0(iobase)				\
-		VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 0)
+	iowrite8(0, iobase + MAC_REG_PAGE1SEL)
 
 #define MACvSelectPage1(iobase)				\
-	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 1)
+	iowrite8(1, iobase + MAC_REG_PAGE1SEL)
 
 #define MACvEnableProtectMD(iobase)					\
 do {									\
