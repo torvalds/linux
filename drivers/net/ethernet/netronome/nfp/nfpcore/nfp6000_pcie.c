@@ -621,13 +621,13 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 			nfp->dev_info->pcie_expl_offset;
 
 		switch (nfp->pdev->device) {
-		case PCI_DEVICE_ID_NETRONOME_NFP3800:
+		case PCI_DEVICE_ID_NFP3800:
 			pf = nfp->pdev->devfn & 7;
 			nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(pf);
 			break;
-		case PCI_DEVICE_ID_NETRONOME_NFP4000:
-		case PCI_DEVICE_ID_NETRONOME_NFP5000:
-		case PCI_DEVICE_ID_NETRONOME_NFP6000:
+		case PCI_DEVICE_ID_NFP4000:
+		case PCI_DEVICE_ID_NFP5000:
+		case PCI_DEVICE_ID_NFP6000:
 			nfp->iomem.csr = bar->iomem + NFP_PCIE_BAR(0);
 			break;
 		default:
@@ -640,12 +640,12 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 	}
 
 	switch (nfp->pdev->device) {
-	case PCI_DEVICE_ID_NETRONOME_NFP3800:
+	case PCI_DEVICE_ID_NFP3800:
 		expl_groups = 1;
 		break;
-	case PCI_DEVICE_ID_NETRONOME_NFP4000:
-	case PCI_DEVICE_ID_NETRONOME_NFP5000:
-	case PCI_DEVICE_ID_NETRONOME_NFP6000:
+	case PCI_DEVICE_ID_NFP4000:
+	case PCI_DEVICE_ID_NFP5000:
+	case PCI_DEVICE_ID_NFP6000:
 		expl_groups = 4;
 		break;
 	default:
