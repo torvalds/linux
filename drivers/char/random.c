@@ -70,16 +70,16 @@
  *********************************************************************/
 
 /*
- * crng_init =  0 --> Uninitialized
- *		1 --> Initialized
- *		2 --> Initialized from input_pool
- *
  * crng_init is protected by base_crng->lock, and only increases
- * its value (from 0->1->2).
+ * its value (from empty->early->ready).
  */
-static int crng_init = 0;
-#define crng_ready() (likely(crng_init > 1))
-/* Various types of waiters for crng_init->2 transition. */
+static enum {
+	CRNG_EMPTY = 0, /* Little to no entropy collected */
+	CRNG_EARLY = 1, /* At least POOL_EARLY_BITS collected */
+	CRNG_READY = 2  /* Fully initialized with POOL_READY_BITS collected */
+} crng_init = CRNG_EMPTY;
+#define crng_ready() (likely(crng_init >= CRNG_READY))
+/* Various types of waiters for crng_init->CRNG_READY transition. */
 static DECLARE_WAIT_QUEUE_HEAD(crng_init_wait);
 static struct fasync_struct *fasync;
 static DEFINE_SPINLOCK(random_ready_chain_lock);
@@ -284,7 +284,7 @@ static void crng_reseed(void)
 	WRITE_ONCE(base_crng.generation, next_gen);
 	WRITE_ONCE(base_crng.birth, jiffies);
 	if (!crng_ready()) {
-		crng_init = 2;
+		crng_init = CRNG_READY;
 		finalize_init = true;
 	}
 	spin_unlock_irqrestore(&base_crng.lock, flags);
@@ -378,7 +378,7 @@ static void crng_make_state(u32 chacha_state[CHACHA_STATE_WORDS],
 	 * For the fast path, we check whether we're ready, unlocked first, and
 	 * then re-check once locked later. In the case where we're really not
 	 * ready, we do fast key erasure with the base_crng directly, extracting
-	 * when crng_init==0.
+	 * when crng_init is CRNG_EMPTY.
 	 */
 	if (!crng_ready()) {
 		bool ready;
@@ -386,7 +386,7 @@ static void crng_make_state(u32 chacha_state[CHACHA_STATE_WORDS],
 		spin_lock_irqsave(&base_crng.lock, flags);
 		ready = crng_ready();
 		if (!ready) {
-			if (crng_init == 0)
+			if (crng_init == CRNG_EMPTY)
 				extract_entropy(base_crng.key, sizeof(base_crng.key));
 			crng_fast_key_erasure(base_crng.key, chacha_state,
 					      random_data, random_data_len);
@@ -740,8 +740,8 @@ EXPORT_SYMBOL(get_random_bytes_arch);
 
 enum {
 	POOL_BITS = BLAKE2S_HASH_SIZE * 8,
-	POOL_INIT_BITS = POOL_BITS, /* No point in settling for less. */
-	POOL_FAST_INIT_BITS = POOL_INIT_BITS / 2
+	POOL_READY_BITS = POOL_BITS, /* When crng_init->CRNG_READY */
+	POOL_EARLY_BITS = POOL_READY_BITS / 2 /* When crng_init->CRNG_EARLY */
 };
 
 static struct {
@@ -836,13 +836,13 @@ static void credit_init_bits(size_t nbits)
 		init_bits = min_t(unsigned int, POOL_BITS, orig + add);
 	} while (cmpxchg(&input_pool.init_bits, orig, init_bits) != orig);
 
-	if (!crng_ready() && init_bits >= POOL_INIT_BITS)
+	if (!crng_ready() && init_bits >= POOL_READY_BITS)
 		crng_reseed();
-	else if (unlikely(crng_init == 0 && init_bits >= POOL_FAST_INIT_BITS)) {
+	else if (unlikely(crng_init == CRNG_EMPTY && init_bits >= POOL_EARLY_BITS)) {
 		spin_lock_irqsave(&base_crng.lock, flags);
-		if (crng_init == 0) {
+		if (crng_init == CRNG_EMPTY) {
 			extract_entropy(base_crng.key, sizeof(base_crng.key));
-			crng_init = 1;
+			crng_init = CRNG_EARLY;
 		}
 		spin_unlock_irqrestore(&base_crng.lock, flags);
 	}
@@ -1517,7 +1517,7 @@ const struct file_operations urandom_fops = {
  *
  * - write_wakeup_threshold - the amount of entropy in the input pool
  *   below which write polls to /dev/random will unblock, requesting
- *   more entropy, tied to the POOL_INIT_BITS constant. It is writable
+ *   more entropy, tied to the POOL_READY_BITS constant. It is writable
  *   to avoid breaking old userspaces, but writing to it does not
  *   change any behavior of the RNG.
  *
@@ -1532,7 +1532,7 @@ const struct file_operations urandom_fops = {
 #include <linux/sysctl.h>
 
 static int sysctl_random_min_urandom_seed = CRNG_RESEED_INTERVAL / HZ;
-static int sysctl_random_write_wakeup_bits = POOL_INIT_BITS;
+static int sysctl_random_write_wakeup_bits = POOL_READY_BITS;
 static int sysctl_poolsize = POOL_BITS;
 static u8 sysctl_bootid[UUID_SIZE];
 
