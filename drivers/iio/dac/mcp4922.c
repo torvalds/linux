@@ -29,7 +29,7 @@ struct mcp4922_state {
 	unsigned int value[MCP4922_NUM_CHANNELS];
 	unsigned int vref_mv;
 	struct regulator *vref_reg;
-	u8 mosi[2] ____cacheline_aligned;
+	u8 mosi[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define MCP4922_CHAN(chan, bits) {			\
