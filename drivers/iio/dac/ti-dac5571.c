@@ -53,7 +53,7 @@ struct dac5571_data {
 	struct dac5571_spec const *spec;
 	int (*dac5571_cmd)(struct dac5571_data *data, int channel, u16 val);
 	int (*dac5571_pwrdwn)(struct dac5571_data *data, int channel, u8 pwrdwn);
-	u8 buf[3] ____cacheline_aligned;
+	u8 buf[3] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define DAC5571_POWERDOWN(mode)		((mode) + 1)
