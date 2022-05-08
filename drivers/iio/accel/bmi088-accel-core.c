@@ -128,7 +128,7 @@ struct bmi088_accel_chip_info {
 struct bmi088_accel_data {
 	struct regmap *regmap;
 	const struct bmi088_accel_chip_info *chip_info;
-	u8 buffer[2] ____cacheline_aligned; /* shared DMA safe buffer */
+	u8 buffer[2] __aligned(IIO_DMA_MINALIGN); /* shared DMA safe buffer */
 };
 
 static const struct regmap_range bmi088_volatile_ranges[] = {
