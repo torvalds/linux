@@ -1478,7 +1478,7 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 	u8 *pframe = precv_frame->rx_data;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	/* check RA matches or not */
-	if (memcmp(myid(&padapter->eeprompriv), GetAddr1Ptr(pframe), ETH_ALEN))/* for if1, sta/ap mode */
+	if (memcmp(myid(&padapter->eeprompriv), mgmt->da, ETH_ALEN))/* for if1, sta/ap mode */
 		return _SUCCESS;
 
 	if ((pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
