@@ -1984,7 +1984,7 @@ static const struct udp_tunnel_nic_info nfp_udp_tunnels = {
  */
 void nfp_net_info(struct nfp_net *nn)
 {
-	nn_info(nn, "Netronome NFP-6xxx %sNetdev: TxQs=%d/%d RxQs=%d/%d\n",
+	nn_info(nn, "NFP-6xxx %sNetdev: TxQs=%d/%d RxQs=%d/%d\n",
 		nn->dp.is_vf ? "VF " : "",
 		nn->dp.num_tx_rings, nn->max_tx_rings,
 		nn->dp.num_rx_rings, nn->max_rx_rings);
