@@ -339,20 +339,40 @@
 			sdc2_state_off: sdc2-off {
 				clk {
 					pins = "sdc2_clk";
-					bias-disable;
 					drive-strength = <2>;
+					bias-disable;
 				};
 
 				cmd {
 					pins = "sdc2_cmd";
-					bias-pull-up;
 					drive-strength = <2>;
+					bias-pull-up;
 				};
 
 				data {
 					pins = "sdc2_data";
-					bias-pull-up;
 					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			sdc2_state_on: sdc2-on {
+				clk {
+					pins = "sdc2_clk";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				cmd {
+					pins = "sdc2_cmd";
+					drive-strength = <10>;
+					bias-pull-up;
+				};
+
+				data {
+					pins = "sdc2_data";
+					drive-strength = <10>;
+					bias-pull-up;
 				};
 			};
 		};
