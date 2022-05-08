@@ -131,15 +131,15 @@ extern const size_t uclogic_rdesc_v1_frame_size;
 extern const __u8 uclogic_rdesc_v2_frame_buttons_arr[];
 extern const size_t uclogic_rdesc_v2_frame_buttons_size;
 
-/* Report ID for tweaked v2 frame touch ring reports */
-#define UCLOGIC_RDESC_V2_FRAME_TOUCH_RING_ID 0xf8
+/* Report ID for tweaked v2 frame touch ring/strip reports */
+#define UCLOGIC_RDESC_V2_FRAME_TOUCH_ID 0xf8
 
 /* Fixed report descriptor for (tweaked) v2 frame touch ring reports */
 extern const __u8 uclogic_rdesc_v2_frame_touch_ring_arr[];
 extern const size_t uclogic_rdesc_v2_frame_touch_ring_size;
 
-/* Device ID byte offset in v2 frame touch ring reports */
-#define UCLOGIC_RDESC_V2_FRAME_TOUCH_RING_DEV_ID_BYTE	0x4
+/* Device ID byte offset in v2 frame touch ring/strip reports */
+#define UCLOGIC_RDESC_V2_FRAME_TOUCH_DEV_ID_BYTE	0x4
 
 /* Report ID for tweaked v2 frame dial reports */
 #define UCLOGIC_RDESC_V2_FRAME_DIAL_ID 0xf9

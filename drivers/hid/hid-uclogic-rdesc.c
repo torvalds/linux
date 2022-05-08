@@ -718,8 +718,8 @@ const __u8 uclogic_rdesc_v2_frame_touch_ring_arr[] = {
 	0x05, 0x01,         /*  Usage Page (Desktop),               */
 	0x09, 0x07,         /*  Usage (Keypad),                     */
 	0xA1, 0x01,         /*  Collection (Application),           */
-	0x85, UCLOGIC_RDESC_V2_FRAME_TOUCH_RING_ID,
-			    /*      Report ID (DIAL_ID),            */
+	0x85, UCLOGIC_RDESC_V2_FRAME_TOUCH_ID,
+			    /*      Report ID (TOUCH_ID),           */
 	0x14,               /*      Logical Minimum (0),            */
 	0x05, 0x0D,         /*      Usage Page (Digitizer),         */
 	0x09, 0x39,         /*      Usage (Tablet Function Keys),   */

@@ -134,7 +134,7 @@ static int uclogic_input_configured(struct hid_device *hdev,
 			 * Disable EV_MSC reports for touch ring interfaces to
 			 * make the Wacom driver pickup touch ring extents
 			 */
-			if (frame->touch_ring_byte > 0)
+			if (frame->touch_byte > 0)
 				__clear_bit(EV_MSC, hi->input->evbit);
 		}
 	}
@@ -351,9 +351,8 @@ static int uclogic_raw_event_frame(
 	/* If need to, and can, set pad device ID for Wacom drivers */
 	if (frame->dev_id_byte > 0 && frame->dev_id_byte < size) {
 		/* If we also have a touch ring and the finger left it */
-		if (frame->touch_ring_byte > 0 &&
-		    frame->touch_ring_byte < size &&
-		    data[frame->touch_ring_byte] == 0) {
+		if (frame->touch_byte > 0 && frame->touch_byte < size &&
+		    data[frame->touch_byte] == 0) {
 			data[frame->dev_id_byte] = 0;
 		} else {
 			data[frame->dev_id_byte] = 0xf;
@@ -387,16 +386,15 @@ static int uclogic_raw_event_frame(
 	}
 
 	/* If need to, and can, transform the touch ring reports */
-	if (frame->touch_ring_byte > 0 && frame->touch_ring_byte < size &&
-	    frame->touch_ring_flip_at != 0) {
-		__s8 value = data[frame->touch_ring_byte];
-
+	if (frame->touch_byte > 0 && frame->touch_byte < size &&
+	    frame->touch_flip_at != 0) {
+		__s8 value = data[frame->touch_byte];
 		if (value != 0) {
-			value = frame->touch_ring_flip_at - value;
+			value = frame->touch_flip_at - value;
 			if (value < 0)
-				value = frame->touch_ring_max + value;
+				value = frame->touch_max + value;
 
-			data[frame->touch_ring_byte] = value;
+			data[frame->touch_byte] = value;
 		}
 	}
 

@@ -93,10 +93,10 @@ static void uclogic_params_frame_hid_dbg(
 	hid_dbg(hdev, "\t\t.suffix = %s\n", frame->suffix);
 	hid_dbg(hdev, "\t\t.re_lsb = %u\n", frame->re_lsb);
 	hid_dbg(hdev, "\t\t.dev_id_byte = %u\n", frame->dev_id_byte);
-	hid_dbg(hdev, "\t\t.touch_ring_byte = %u\n", frame->touch_ring_byte);
-	hid_dbg(hdev, "\t\t.touch_ring_max = %hhd\n", frame->touch_ring_max);
-	hid_dbg(hdev, "\t\t.touch_ring_flip_at = %hhd\n",
-		frame->touch_ring_flip_at);
+	hid_dbg(hdev, "\t\t.touch_byte = %u\n", frame->touch_byte);
+	hid_dbg(hdev, "\t\t.touch_max = %hhd\n", frame->touch_max);
+	hid_dbg(hdev, "\t\t.touch_flip_at = %hhd\n",
+		frame->touch_flip_at);
 	hid_dbg(hdev, "\t\t.bitmap_dial_byte = %u\n",
 		frame->bitmap_dial_byte);
 }
@@ -877,7 +877,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 					&p.frame_list[1],
 					uclogic_rdesc_v2_frame_touch_ring_arr,
 					uclogic_rdesc_v2_frame_touch_ring_size,
-					UCLOGIC_RDESC_V2_FRAME_TOUCH_RING_ID);
+					UCLOGIC_RDESC_V2_FRAME_TOUCH_ID);
 			if (rc != 0) {
 				hid_err(hdev,
 					"failed creating v2 frame touch ring parameters: %d\n",
@@ -886,10 +886,10 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			}
 			p.frame_list[1].suffix = "Touch Ring";
 			p.frame_list[1].dev_id_byte =
-				UCLOGIC_RDESC_V2_FRAME_TOUCH_RING_DEV_ID_BYTE;
-			p.frame_list[1].touch_ring_byte = 5;
-			p.frame_list[1].touch_ring_max = 12;
-			p.frame_list[1].touch_ring_flip_at = 6;
+				UCLOGIC_RDESC_V2_FRAME_TOUCH_DEV_ID_BYTE;
+			p.frame_list[1].touch_byte = 5;
+			p.frame_list[1].touch_max = 12;
+			p.frame_list[1].touch_flip_at = 6;
 
 			/* Create v2 frame dial parameters */
 			rc = uclogic_params_frame_init_with_desc(
@@ -917,7 +917,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 				UCLOGIC_RDESC_V2_FRAME_BUTTONS_ID;
 			p.pen.subreport_list[1].value = 0xf0;
 			p.pen.subreport_list[1].id =
-				UCLOGIC_RDESC_V2_FRAME_TOUCH_RING_ID;
+				UCLOGIC_RDESC_V2_FRAME_TOUCH_ID;
 			p.pen.subreport_list[2].value = 0xf1;
 			p.pen.subreport_list[2].id =
 				UCLOGIC_RDESC_V2_FRAME_DIAL_ID;
