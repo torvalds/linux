@@ -67,6 +67,7 @@ struct mlxsw_sp_router {
 	struct notifier_block netevent_nb;
 	struct notifier_block inetaddr_nb;
 	struct notifier_block inet6addr_nb;
+	struct notifier_block netdevice_nb;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
