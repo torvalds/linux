@@ -1471,7 +1471,6 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 	struct sta_info *psta = NULL;
 	struct recv_reorder_ctrl *preorder_ctrl;
 	unsigned char		*frame_body;
-	unsigned char		action;
 	unsigned short	tid, status;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
@@ -1494,8 +1493,8 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 
 	if (!pmlmeinfo->HT_enable)
 		return _SUCCESS;
-	action = frame_body[1];
-	switch (action) {
+	/* All union members start with an action code, it's ok to use addba_req. */
+	switch (mgmt->u.action.u.addba_req.action_code) {
 	case WLAN_ACTION_ADDBA_REQ:
 		memcpy(&pmlmeinfo->ADDBA_req, &frame_body[2], sizeof(struct ADDBA_request));
 		process_addba_req(padapter, (u8 *)&pmlmeinfo->ADDBA_req, mgmt->sa);
