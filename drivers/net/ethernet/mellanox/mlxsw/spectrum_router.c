@@ -1578,13 +1578,7 @@ mlxsw_sp_ipip_entry_find_by_ul_dev(const struct mlxsw_sp *mlxsw_sp,
 static bool mlxsw_sp_netdev_is_ipip_ul(struct mlxsw_sp *mlxsw_sp,
 				       const struct net_device *dev)
 {
-	bool is_ipip_ul;
-
-	mutex_lock(&mlxsw_sp->router->lock);
-	is_ipip_ul = mlxsw_sp_ipip_entry_find_by_ul_dev(mlxsw_sp, dev, NULL);
-	mutex_unlock(&mlxsw_sp->router->lock);
-
-	return is_ipip_ul;
+	return mlxsw_sp_ipip_entry_find_by_ul_dev(mlxsw_sp, dev, NULL);
 }
 
 static bool mlxsw_sp_netdevice_ipip_can_offload(struct mlxsw_sp *mlxsw_sp,
@@ -1969,7 +1963,6 @@ static int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
 	struct netlink_ext_ack *extack;
 	int err = 0;
 
-	mutex_lock(&mlxsw_sp->router->lock);
 	switch (event) {
 	case NETDEV_REGISTER:
 		err = mlxsw_sp_netdevice_ipip_ol_reg_event(mlxsw_sp, ol_dev);
@@ -2000,7 +1993,6 @@ static int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
 		err = mlxsw_sp_netdevice_ipip_ol_update_mtu(mlxsw_sp, ol_dev);
 		break;
 	}
-	mutex_unlock(&mlxsw_sp->router->lock);
 	return err;
 }
 
@@ -2045,9 +2037,8 @@ mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
 				 struct netdev_notifier_info *info)
 {
 	struct mlxsw_sp_ipip_entry *ipip_entry = NULL;
-	int err = 0;
+	int err;
 
-	mutex_lock(&mlxsw_sp->router->lock);
 	while ((ipip_entry = mlxsw_sp_ipip_entry_find_by_ul_dev(mlxsw_sp,
 								ul_dev,
 								ipip_entry))) {
@@ -2060,7 +2051,7 @@ mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
 		if (err) {
 			mlxsw_sp_ipip_demote_tunnel_by_ul_netdev(mlxsw_sp,
 								 ul_dev);
-			break;
+			return err;
 		}
 
 		if (demote_this) {
@@ -2077,9 +2068,8 @@ mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
 			ipip_entry = prev;
 		}
 	}
-	mutex_unlock(&mlxsw_sp->router->lock);
 
-	return err;
+	return 0;
 }
 
 int mlxsw_sp_router_nve_promote_decap(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
@@ -9427,15 +9417,12 @@ mlxsw_sp_netdevice_offload_xstats_cmd(struct mlxsw_sp *mlxsw_sp,
 				      struct netdev_notifier_offload_xstats_info *info)
 {
 	struct mlxsw_sp_rif *rif;
-	int err = 0;
 
-	mutex_lock(&mlxsw_sp->router->lock);
 	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
-	if (rif)
-		err = mlxsw_sp_router_port_offload_xstats_cmd(rif, event, info);
-	mutex_unlock(&mlxsw_sp->router->lock);
+	if (!rif)
+		return 0;
 
-	return err;
+	return mlxsw_sp_router_port_offload_xstats_cmd(rif, event, info);
 }
 
 static bool mlxsw_sp_is_router_event(unsigned long event)
@@ -9456,33 +9443,27 @@ static int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
 	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
 	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_sp_rif *rif;
-	int err = 0;
 
 	mlxsw_sp = mlxsw_sp_lower_get(dev);
 	if (!mlxsw_sp)
 		return 0;
 
-	mutex_lock(&mlxsw_sp->router->lock);
 	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
 	if (!rif)
-		goto out;
+		return 0;
 
 	switch (event) {
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGEADDR:
-		err = mlxsw_sp_router_port_change_event(mlxsw_sp, rif, extack);
-		break;
+		return mlxsw_sp_router_port_change_event(mlxsw_sp, rif, extack);
 	case NETDEV_PRE_CHANGEADDR:
-		err = mlxsw_sp_router_port_pre_changeaddr_event(rif, ptr);
-		break;
+		return mlxsw_sp_router_port_pre_changeaddr_event(rif, ptr);
 	default:
 		WARN_ON_ONCE(1);
 		break;
 	}
 
-out:
-	mutex_unlock(&mlxsw_sp->router->lock);
-	return err;
+	return 0;
 }
 
 static int mlxsw_sp_port_vrf_join(struct mlxsw_sp *mlxsw_sp,
@@ -9535,7 +9516,6 @@ mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 	if (!mlxsw_sp || netif_is_macvlan(l3_dev))
 		return 0;
 
-	mutex_lock(&mlxsw_sp->router->lock);
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		break;
@@ -9550,7 +9530,6 @@ mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 		}
 		break;
 	}
-	mutex_unlock(&mlxsw_sp->router->lock);
 
 	return err;
 }
@@ -9566,6 +9545,8 @@ static int mlxsw_sp_router_netdevice_event(struct notifier_block *nb,
 	router = container_of(nb, struct mlxsw_sp_router, netdevice_nb);
 	mlxsw_sp = router->mlxsw_sp;
 
+	mutex_lock(&mlxsw_sp->router->lock);
+
 	if (mlxsw_sp_is_offload_xstats_event(event))
 		err = mlxsw_sp_netdevice_offload_xstats_cmd(mlxsw_sp, dev,
 							    event, ptr);
@@ -9579,6 +9560,8 @@ static int mlxsw_sp_router_netdevice_event(struct notifier_block *nb,
 		err = mlxsw_sp_netdevice_router_port_event(dev, event, ptr);
 	else if (mlxsw_sp_is_vrf_event(event, ptr))
 		err = mlxsw_sp_netdevice_vrf_event(dev, event, ptr);
+
+	mutex_unlock(&mlxsw_sp->router->lock);
 
 	return notifier_from_errno(err);
 }
