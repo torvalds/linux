@@ -86,7 +86,7 @@
 	status = "okay";
 };
 
-&sdc2_state_off {
+&sdc2_off_state {
 	sd-cd {
 		pins = "gpio98";
 		drive-strength = <2>;
@@ -94,7 +94,7 @@
 	};
 };
 
-&sdc2_state_on {
+&sdc2_on_state {
 	sd-cd {
 		pins = "gpio98";
 		drive-strength = <2>;
