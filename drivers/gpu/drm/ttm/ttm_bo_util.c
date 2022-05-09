@@ -548,9 +548,13 @@ EXPORT_SYMBOL(ttm_bo_vunmap);
 static int ttm_bo_wait_free_node(struct ttm_buffer_object *bo,
 				 bool dst_use_tt)
 {
-	int ret;
-	ret = ttm_bo_wait(bo, false, false);
-	if (ret)
+	long ret;
+
+	ret = dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP,
+				    false, 15 * HZ);
+	if (ret == 0)
+		return -EBUSY;
+	if (ret < 0)
 		return ret;
 
 	if (!dst_use_tt)
@@ -711,8 +715,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 		return ret;
 
 	/* If already idle, no need for ghost object dance. */
-	ret = ttm_bo_wait(bo, false, true);
-	if (ret != -EBUSY) {
+	if (dma_resv_test_signaled(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP)) {
 		if (!bo->ttm) {
 			/* See comment below about clearing. */
 			ret = ttm_tt_create(bo, true);
@@ -749,8 +752,10 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 
 	ret = dma_resv_copy_fences(&ghost->base._resv, bo->base.resv);
 	/* Last resort, wait for the BO to be idle when we are OOM */
-	if (ret)
-		ttm_bo_wait(bo, false, false);
+	if (ret) {
+		dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_BOOKKEEP,
+				      false, MAX_SCHEDULE_TIMEOUT);
+	}
 
 	dma_resv_unlock(&ghost->base._resv);
 	ttm_bo_put(ghost);

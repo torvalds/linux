@@ -42,6 +42,8 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 
+#include <drm/ttm/ttm_bo.h>
+
 /**
  * enum ttm_object_type
  *
@@ -321,4 +323,13 @@ static inline void ttm_base_object_noref_release(void)
 	__acquire(RCU);
 	rcu_read_unlock();
 }
+
+static inline int ttm_bo_wait(struct ttm_buffer_object *bo, bool intr,
+			      bool no_wait)
+{
+	struct ttm_operation_ctx ctx = { intr, no_wait };
+
+	return ttm_bo_wait_ctx(bo, &ctx);
+}
+
 #endif
