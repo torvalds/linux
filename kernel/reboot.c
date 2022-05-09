@@ -63,13 +63,6 @@ struct sys_off_handler {
  */
 void __weak (*pm_power_off)(void);
 
-/*
- * If set, this is used for preparing the system to power off.
- */
-
-void (*pm_power_off_prepare)(void);
-EXPORT_SYMBOL_GPL(pm_power_off_prepare);
-
 /**
  *	emergency_restart - reboot the system
  *
@@ -524,14 +517,6 @@ void unregister_platform_power_off(void (*power_off)(void))
 }
 EXPORT_SYMBOL_GPL(unregister_platform_power_off);
 
-static int legacy_pm_power_off_prepare(struct sys_off_data *data)
-{
-	if (pm_power_off_prepare)
-		pm_power_off_prepare();
-
-	return NOTIFY_DONE;
-}
-
 static int legacy_pm_power_off(struct sys_off_data *data)
 {
 	if (pm_power_off)
@@ -549,10 +534,6 @@ static int legacy_pm_power_off(struct sys_off_data *data)
  */
 static int __init legacy_pm_init(void)
 {
-	register_sys_off_handler(SYS_OFF_MODE_POWER_OFF_PREPARE,
-				 SYS_OFF_PRIO_DEFAULT,
-				 legacy_pm_power_off_prepare, NULL);
-
 	register_sys_off_handler(SYS_OFF_MODE_POWER_OFF, SYS_OFF_PRIO_DEFAULT,
 				 legacy_pm_power_off, NULL);
 
