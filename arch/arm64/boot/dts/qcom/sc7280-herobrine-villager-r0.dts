@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Google Herobrine board device tree source
+ * Google Villager board device tree source
  *
  * Copyright 2022 Google LLC.
  */
@@ -10,8 +10,8 @@
 #include "sc7280-herobrine.dtsi"
 
 / {
-	model = "Google Herobrine (rev1+)";
-	compatible = "google,herobrine", "qcom,sc7280";
+	model = "Google Villager (rev0+)";
+	compatible = "google,villager", "qcom,sc7280";
 };
 
 /*
@@ -24,80 +24,38 @@
 	status = "okay";
 };
 
-&pp3300_fp_mcu {
-	status = "okay";
-};
-
-&pp2850_vcm_wf_cam {
-	status = "okay";
-};
-
-&pp2850_wf_cam {
-	status = "okay";
-};
-
-&pp1800_wf_cam {
-	status = "okay";
-};
-
-&pp1200_wf_cam {
-	status = "okay";
-};
-
 /* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
 
-&ap_spi_fp {
-	status = "okay";
-};
-
-/*
- * Although the trackpad is really part of the herobrine baseboard, we'll
- * put the actual definition in the board device tree since different boards
- * might hook up different trackpads (or no i2c trackpad at all in the case
- * of tablets / detachables).
- */
 ap_tp_i2c: &i2c0 {
 	status = "okay";
 	clock-frequency = <400000>;
 
-	trackpad: trackpad@15 {
-		compatible = "elan,ekth3000";
-		reg = <0x15>;
+	trackpad: trackpad@2c {
+		compatible = "hid-over-i2c";
+		reg = <0x2c>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tp_int_odl>;
 
 		interrupt-parent = <&tlmm>;
 		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
 
+		hid-descr-addr = <0x20>;
 		vcc-supply = <&pp3300_z1>;
 
 		wakeup-source;
 	};
 };
 
-/*
- * The touchscreen connector might come off the Qcard, at least in the case of
- * eDP. Like the trackpad, we'll put it in the board device tree file since
- * different boards have different touchscreens.
- */
-ts_i2c: &i2c13 {
+&ap_sar_sensor_i2c {
 	status = "okay";
-	clock-frequency = <400000>;
+};
 
-	ap_ts: touchscreen@5c {
-		compatible = "hid-over-i2c";
-		reg = <0x5c>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&ts_int_conn>, <&ts_rst_conn>;
+&ap_sar_sensor0 {
+	status = "okay";
+};
 
-		interrupt-parent = <&tlmm>;
-		interrupts = <55 IRQ_TYPE_LEVEL_LOW>;
-
-		post-power-on-delay-ms = <500>;
-		hid-descr-addr = <0x0000>;
-
-		vdd-supply = <&ts_avdd>;
-	};
+&ap_sar_sensor1 {
+	status = "okay";
 };
 
 &mdss_edp {
@@ -120,11 +78,6 @@ ts_i2c: &i2c13 {
 
 /* For eMMC */
 &sdhc_1 {
-	status = "okay";
-};
-
-/* For SD Card */
-&sdhc_2 {
 	status = "okay";
 };
 

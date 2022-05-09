@@ -32,23 +32,25 @@
 	};
 };
 
-&thermal_zones {
-	pmr735a_thermal: pmr735a-thermal {
-		polling-delay-passive = <100>;
-		polling-delay = <0>;
-		thermal-sensors = <&pmr735a_temp_alarm>;
+/ {
+	thermal-zones {
+		pmr735a_thermal: pmr735a-thermal {
+			polling-delay-passive = <100>;
+			polling-delay = <0>;
+			thermal-sensors = <&pmr735a_temp_alarm>;
 
-		trips {
-			pmr735a_trip0: trip0 {
-				temperature = <95000>;
-				hysteresis = <0>;
-				type = "passive";
-			};
+			trips {
+				pmr735a_trip0: trip0 {
+					temperature = <95000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
 
-			pmr735a_crit: pmr735a-crit {
-				temperature = <115000>;
-				hysteresis = <0>;
-				type = "critical";
+				pmr735a_crit: pmr735a-crit {
+					temperature = <115000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
 			};
 		};
 	};
