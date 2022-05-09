@@ -29,7 +29,6 @@
  */
 
 #include "vmwgfx_drv.h"
-#include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
 #include <linux/idr.h>
 #include <linux/spinlock.h>

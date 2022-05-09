@@ -26,7 +26,6 @@
  **************************************************************************/
 
 #include "vmwgfx_drv.h"
-#include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
 
 static const struct ttm_place vram_placement_flags = {

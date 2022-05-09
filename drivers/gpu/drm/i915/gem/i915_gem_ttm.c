@@ -5,8 +5,8 @@
 
 #include <linux/shmem_fs.h>
 
-#include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_tt.h>
 #include <drm/drm_buddy.h>
 
 #include "i915_drv.h"
