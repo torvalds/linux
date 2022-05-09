@@ -17,19 +17,6 @@
 	};
 };
 
-/* On-module Wi-Fi */
-&usdhc3 {
-	bus-width = <4>;
-	keep-power-in-suspend;
-	non-removable;
-	pinctrl-names = "default", "state_100mhz", "state_200mhz";
-	pinctrl-0 = <&pinctrl_usdhc3>, <&pinctrl_wifi_ctrl>;
-	pinctrl-1 = <&pinctrl_usdhc3_100mhz>, <&pinctrl_wifi_ctrl>;
-	pinctrl-2 = <&pinctrl_usdhc3_200mhz>, <&pinctrl_wifi_ctrl>;
-	vmmc-supply = <&reg_wifi_en>;
-	status = "okay";
-};
-
 &gpio3 {
 	gpio-line-names = "SODIMM_52",
 			  "SODIMM_54",
@@ -91,4 +78,17 @@
 			  "SODIMM_133",
 			  "SODIMM_135",
 			  "SODIMM_129";
+};
+
+/* On-module Wi-Fi */
+&usdhc3 {
+	bus-width = <4>;
+	keep-power-in-suspend;
+	non-removable;
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc3>, <&pinctrl_wifi_ctrl>;
+	pinctrl-1 = <&pinctrl_usdhc3_100mhz>, <&pinctrl_wifi_ctrl>;
+	pinctrl-2 = <&pinctrl_usdhc3_200mhz>, <&pinctrl_wifi_ctrl>;
+	vmmc-supply = <&reg_wifi_en>;
+	status = "okay";
 };
