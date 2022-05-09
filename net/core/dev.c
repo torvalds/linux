@@ -4131,30 +4131,25 @@ struct netdev_queue *netdev_core_pick_tx(struct net_device *dev,
 }
 
 /**
- *	__dev_queue_xmit - transmit a buffer
- *	@skb: buffer to transmit
- *	@sb_dev: suboordinate device used for L2 forwarding offload
+ * __dev_queue_xmit() - transmit a buffer
+ * @skb:	buffer to transmit
+ * @sb_dev:	suboordinate device used for L2 forwarding offload
  *
- *	Queue a buffer for transmission to a network device. The caller must
- *	have set the device and priority and built the buffer before calling
- *	this function. The function can be called from an interrupt.
+ * Queue a buffer for transmission to a network device. The caller must
+ * have set the device and priority and built the buffer before calling
+ * this function. The function can be called from an interrupt.
  *
- *	A negative errno code is returned on a failure. A success does not
- *	guarantee the frame will be transmitted as it may be dropped due
- *	to congestion or traffic shaping.
+ * When calling this method, interrupts MUST be enabled. This is because
+ * the BH enable code must have IRQs enabled so that it will not deadlock.
  *
- * -----------------------------------------------------------------------------------
- *      I notice this method can also return errors from the queue disciplines,
- *      including NET_XMIT_DROP, which is a positive value.  So, errors can also
- *      be positive.
+ * Regardless of the return value, the skb is consumed, so it is currently
+ * difficult to retry a send to this method. (You can bump the ref count
+ * before sending to hold a reference for retry if you are careful.)
  *
- *      Regardless of the return value, the skb is consumed, so it is currently
- *      difficult to retry a send to this method.  (You can bump the ref count
- *      before sending to hold a reference for retry if you are careful.)
- *
- *      When calling this method, interrupts MUST be enabled.  This is because
- *      the BH enable code must have IRQs enabled so that it will not deadlock.
- *          --BLG
+ * Return:
+ * * 0				- buffer successfully transmitted
+ * * positive qdisc return code	- NET_XMIT_DROP etc.
+ * * negative errno		- other errors
  */
 int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 {
