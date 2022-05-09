@@ -106,8 +106,8 @@ void efx_siena_ethtool_get_drvinfo(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	efx_mcdi_print_fwver(efx, info->fw_version,
-			     sizeof(info->fw_version));
+	efx_siena_mcdi_print_fwver(efx, info->fw_version,
+				   sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(efx->pci_dev), sizeof(info->bus_info));
 }
 
@@ -173,7 +173,7 @@ int efx_siena_ethtool_set_pauseparam(struct net_device *net_dev,
 	efx_siena_link_set_wanted_fc(efx, wanted_fc);
 	if (efx->link_advertising[0] != old_adv ||
 	    (efx->wanted_fc ^ old_fc) & EFX_FC_AUTO) {
-		rc = efx_mcdi_port_reconfigure(efx);
+		rc = efx_siena_mcdi_port_reconfigure(efx);
 		if (rc) {
 			netif_err(efx, drv, efx->net_dev,
 				  "Unable to advertise requested flow "
@@ -328,7 +328,7 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 		const char *name;
 
 		EFX_WARN_ON_PARANOID(i >= EFX_MAX_PHY_TESTS);
-		name = efx_mcdi_phy_test_name(efx, i);
+		name = efx_siena_mcdi_phy_test_name(efx, i);
 		if (name == NULL)
 			break;
 
@@ -565,7 +565,7 @@ int efx_siena_ethtool_get_link_ksettings(struct net_device *net_dev,
 	struct efx_link_state *link_state = &efx->link_state;
 
 	mutex_lock(&efx->mac_lock);
-	efx_mcdi_phy_get_link_ksettings(efx, cmd);
+	efx_siena_mcdi_phy_get_link_ksettings(efx, cmd);
 	mutex_unlock(&efx->mac_lock);
 
 	/* Both MACs support pause frames (bidirectional and respond-only) */
@@ -597,7 +597,7 @@ efx_siena_ethtool_set_link_ksettings(struct net_device *net_dev,
 	}
 
 	mutex_lock(&efx->mac_lock);
-	rc = efx_mcdi_phy_set_link_ksettings(efx, cmd);
+	rc = efx_siena_mcdi_phy_set_link_ksettings(efx, cmd);
 	mutex_unlock(&efx->mac_lock);
 	return rc;
 }
@@ -609,7 +609,7 @@ int efx_siena_ethtool_get_fecparam(struct net_device *net_dev,
 	int rc;
 
 	mutex_lock(&efx->mac_lock);
-	rc = efx_mcdi_phy_get_fecparam(efx, fecparam);
+	rc = efx_siena_mcdi_phy_get_fecparam(efx, fecparam);
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;
@@ -622,7 +622,7 @@ int efx_siena_ethtool_set_fecparam(struct net_device *net_dev,
 	int rc;
 
 	mutex_lock(&efx->mac_lock);
-	rc = efx_mcdi_phy_set_fecparam(efx, fecparam);
+	rc = efx_siena_mcdi_phy_set_fecparam(efx, fecparam);
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;
@@ -1320,7 +1320,7 @@ int efx_siena_ethtool_get_module_eeprom(struct net_device *net_dev,
 	int ret;
 
 	mutex_lock(&efx->mac_lock);
-	ret = efx_mcdi_phy_get_module_eeprom(efx, ee, data);
+	ret = efx_siena_mcdi_phy_get_module_eeprom(efx, ee, data);
 	mutex_unlock(&efx->mac_lock);
 
 	return ret;
@@ -1333,7 +1333,7 @@ int efx_siena_ethtool_get_module_info(struct net_device *net_dev,
 	int ret;
 
 	mutex_lock(&efx->mac_lock);
-	ret = efx_mcdi_phy_get_module_info(efx, modinfo);
+	ret = efx_siena_mcdi_phy_get_module_info(efx, modinfo);
 	mutex_unlock(&efx->mac_lock);
 
 	return ret;

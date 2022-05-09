@@ -426,8 +426,8 @@ size_t efx_siena_ptp_update_stats(struct efx_nic *efx, u64 *stats)
 	 */
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_STATUS);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
-	rc = efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), NULL);
 	if (rc)
 		memset(outbuf, 0, sizeof(outbuf));
 	efx_nic_update_stats(efx_ptp_stat_desc, PTP_STAT_COUNT,
@@ -641,8 +641,8 @@ static int efx_ptp_get_attributes(struct efx_nic *efx)
 	 */
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_GET_ATTRIBUTES);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
-	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-				outbuf, sizeof(outbuf), &out_len);
+	rc = efx_siena_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				      outbuf, sizeof(outbuf), &out_len);
 	if (rc == 0) {
 		fmt = MCDI_DWORD(outbuf, PTP_OUT_GET_ATTRIBUTES_TIME_FORMAT);
 	} else if (rc == -EINVAL) {
@@ -651,8 +651,8 @@ static int efx_ptp_get_attributes(struct efx_nic *efx)
 		pci_info(efx->pci_dev, "no PTP support\n");
 		return rc;
 	} else {
-		efx_mcdi_display_error(efx, MC_CMD_PTP, sizeof(inbuf),
-				       outbuf, sizeof(outbuf), rc);
+		efx_siena_mcdi_display_error(efx, MC_CMD_PTP, sizeof(inbuf),
+					     outbuf, sizeof(outbuf), rc);
 		return rc;
 	}
 
@@ -739,8 +739,8 @@ static int efx_ptp_get_timestamp_corrections(struct efx_nic *efx)
 		       MC_CMD_PTP_OP_GET_TIMESTAMP_CORRECTIONS);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
 
-	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-				outbuf, sizeof(outbuf), &out_len);
+	rc = efx_siena_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				      outbuf, sizeof(outbuf), &out_len);
 	if (rc == 0) {
 		efx->ptp_data->ts_corrections.ptp_tx = MCDI_DWORD(outbuf,
 			PTP_OUT_GET_TIMESTAMP_CORRECTIONS_TRANSMIT);
@@ -772,8 +772,8 @@ static int efx_ptp_get_timestamp_corrections(struct efx_nic *efx)
 		efx->ptp_data->ts_corrections.general_tx = 0;
 		efx->ptp_data->ts_corrections.general_rx = 0;
 	} else {
-		efx_mcdi_display_error(efx, MC_CMD_PTP, sizeof(inbuf), outbuf,
-				       sizeof(outbuf), rc);
+		efx_siena_mcdi_display_error(efx, MC_CMD_PTP, sizeof(inbuf),
+					     outbuf, sizeof(outbuf), rc);
 		return rc;
 	}
 
@@ -794,13 +794,13 @@ static int efx_ptp_enable(struct efx_nic *efx)
 		       efx->ptp_data->channel->channel : 0);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ENABLE_MODE, efx->ptp_data->mode);
 
-	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-				outbuf, sizeof(outbuf), NULL);
+	rc = efx_siena_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				      outbuf, sizeof(outbuf), NULL);
 	rc = (rc == -EALREADY) ? 0 : rc;
 	if (rc)
-		efx_mcdi_display_error(efx, MC_CMD_PTP,
-				       MC_CMD_PTP_IN_ENABLE_LEN,
-				       outbuf, sizeof(outbuf), rc);
+		efx_siena_mcdi_display_error(efx, MC_CMD_PTP,
+					     MC_CMD_PTP_IN_ENABLE_LEN,
+					     outbuf, sizeof(outbuf), rc);
 	return rc;
 }
 
@@ -817,8 +817,8 @@ static int efx_ptp_disable(struct efx_nic *efx)
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_DISABLE);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
-	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-				outbuf, sizeof(outbuf), NULL);
+	rc = efx_siena_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				      outbuf, sizeof(outbuf), NULL);
 	rc = (rc == -EALREADY) ? 0 : rc;
 	/* If we get ENOSYS, the NIC doesn't support PTP, and thus this function
 	 * should only have been called during probe.
@@ -826,9 +826,9 @@ static int efx_ptp_disable(struct efx_nic *efx)
 	if (rc == -ENOSYS || rc == -EPERM)
 		pci_info(efx->pci_dev, "no PTP support\n");
 	else if (rc)
-		efx_mcdi_display_error(efx, MC_CMD_PTP,
-				       MC_CMD_PTP_IN_DISABLE_LEN,
-				       outbuf, sizeof(outbuf), rc);
+		efx_siena_mcdi_display_error(efx, MC_CMD_PTP,
+					     MC_CMD_PTP_IN_DISABLE_LEN,
+					     outbuf, sizeof(outbuf), rc);
 	return rc;
 }
 
@@ -1042,8 +1042,8 @@ static int efx_ptp_synchronize(struct efx_nic *efx, unsigned int num_readings)
 
 	/* Clear flag that signals MC ready */
 	WRITE_ONCE(*start, 0);
-	rc = efx_mcdi_rpc_start(efx, MC_CMD_PTP, synch_buf,
-				MC_CMD_PTP_IN_SYNCHRONIZE_LEN);
+	rc = efx_siena_mcdi_rpc_start(efx, MC_CMD_PTP, synch_buf,
+				      MC_CMD_PTP_IN_SYNCHRONIZE_LEN);
 	EFX_WARN_ON_ONCE_PARANOID(rc);
 
 	/* Wait for start from MCDI (or timeout) */
@@ -1062,10 +1062,10 @@ static int efx_ptp_synchronize(struct efx_nic *efx, unsigned int num_readings)
 		efx_ptp_send_times(efx, &last_time);
 
 	/* Collect results */
-	rc = efx_mcdi_rpc_finish(efx, MC_CMD_PTP,
-				 MC_CMD_PTP_IN_SYNCHRONIZE_LEN,
-				 synch_buf, sizeof(synch_buf),
-				 &response_length);
+	rc = efx_siena_mcdi_rpc_finish(efx, MC_CMD_PTP,
+				       MC_CMD_PTP_IN_SYNCHRONIZE_LEN,
+				       synch_buf, sizeof(synch_buf),
+				       &response_length);
 	if (rc == 0) {
 		rc = efx_ptp_process_times(efx, synch_buf, response_length,
 					   &last_time);
@@ -1127,9 +1127,9 @@ static void efx_ptp_xmit_skb_mc(struct efx_nic *efx, struct sk_buff *skb)
 				  MCDI_PTR(ptp_data->txbuf,
 					   PTP_IN_TRANSMIT_PACKET),
 				  skb->len);
-	rc = efx_mcdi_rpc(efx, MC_CMD_PTP,
-			  ptp_data->txbuf, MC_CMD_PTP_IN_TRANSMIT_LEN(skb->len),
-			  txtime, sizeof(txtime), &len);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_PTP, ptp_data->txbuf,
+				MC_CMD_PTP_IN_TRANSMIT_LEN(skb->len), txtime,
+				sizeof(txtime), &len);
 	if (rc != 0)
 		goto fail;
 
@@ -2068,8 +2068,8 @@ static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 	MCDI_SET_QWORD(inadj, PTP_IN_ADJUST_FREQ, adjustment_ns);
 	MCDI_SET_DWORD(inadj, PTP_IN_ADJUST_SECONDS, 0);
 	MCDI_SET_DWORD(inadj, PTP_IN_ADJUST_NANOSECONDS, 0);
-	rc = efx_mcdi_rpc(efx, MC_CMD_PTP, inadj, sizeof(inadj),
-			  NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_PTP, inadj, sizeof(inadj),
+				NULL, 0, NULL);
 	if (rc != 0)
 		return rc;
 
@@ -2093,8 +2093,8 @@ static int efx_phc_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	MCDI_SET_QWORD(inbuf, PTP_IN_ADJUST_FREQ, ptp_data->current_adjfreq);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_MAJOR, nic_major);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_MINOR, nic_minor);
-	return efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-			    NULL, 0, NULL);
+	return efx_siena_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				  NULL, 0, NULL);
 }
 
 static int efx_phc_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
@@ -2111,8 +2111,8 @@ static int efx_phc_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_READ_NIC_TIME);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), NULL);
 	if (rc != 0)
 		return rc;
 

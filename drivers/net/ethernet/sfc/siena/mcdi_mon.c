@@ -100,7 +100,7 @@ static const char *const sensor_status_names[] = {
 	[MC_CMD_SENSOR_STATE_NO_READING] = "No reading",
 };
 
-void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
+void efx_siena_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 {
 	unsigned int type, state, value;
 	enum efx_hwmon_type hwmon_type = EFX_HWMON_UNKNOWN;
@@ -151,8 +151,8 @@ static int efx_mcdi_mon_update(struct efx_nic *efx)
 		       hwmon->dma_buf.dma_addr);
 	MCDI_SET_DWORD(inbuf, READ_SENSORS_EXT_IN_LENGTH, hwmon->dma_buf.len);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_READ_SENSORS,
-			  inbuf, sizeof(inbuf), NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_READ_SENSORS,
+				inbuf, sizeof(inbuf), NULL, 0, NULL);
 	if (rc == 0)
 		hwmon->last_update = jiffies;
 	return rc;
@@ -300,7 +300,7 @@ efx_mcdi_mon_add_attr(struct efx_nic *efx, const char *name,
 	hwmon->group.attrs[hwmon->n_attrs++] = &attr->dev_attr.attr;
 }
 
-int efx_mcdi_mon_probe(struct efx_nic *efx)
+int efx_siena_mcdi_mon_probe(struct efx_nic *efx)
 {
 	unsigned int n_temp = 0, n_cool = 0, n_in = 0, n_curr = 0, n_power = 0;
 	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
@@ -318,8 +318,9 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 	do {
 		MCDI_SET_DWORD(inbuf, SENSOR_INFO_EXT_IN_PAGE, page);
 
-		rc = efx_mcdi_rpc(efx, MC_CMD_SENSOR_INFO, inbuf, sizeof(inbuf),
-				  outbuf, sizeof(outbuf), &outlen);
+		rc = efx_siena_mcdi_rpc(efx, MC_CMD_SENSOR_INFO, inbuf,
+					sizeof(inbuf), outbuf, sizeof(outbuf),
+					&outlen);
 		if (rc)
 			return rc;
 		if (outlen < MC_CMD_SENSOR_INFO_OUT_LENMIN)
@@ -380,10 +381,10 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 
 				MCDI_SET_DWORD(inbuf, SENSOR_INFO_EXT_IN_PAGE,
 					       page);
-				rc = efx_mcdi_rpc(efx, MC_CMD_SENSOR_INFO,
-						  inbuf, sizeof(inbuf),
-						  outbuf, sizeof(outbuf),
-						  &outlen);
+				rc = efx_siena_mcdi_rpc(efx, MC_CMD_SENSOR_INFO,
+							inbuf, sizeof(inbuf),
+							outbuf, sizeof(outbuf),
+							&outlen);
 				if (rc)
 					goto fail;
 				if (outlen < MC_CMD_SENSOR_INFO_OUT_LENMIN) {
@@ -513,11 +514,11 @@ hwmon_register:
 	return 0;
 
 fail:
-	efx_mcdi_mon_remove(efx);
+	efx_siena_mcdi_mon_remove(efx);
 	return rc;
 }
 
-void efx_mcdi_mon_remove(struct efx_nic *efx)
+void efx_siena_mcdi_mon_remove(struct efx_nic *efx)
 {
 	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
 

@@ -667,7 +667,7 @@ static int efx_farch_do_flush(struct efx_nic *efx)
 		 * completion). If that fails, fall back to the old scheme.
 		 */
 		if (efx_siena_sriov_enabled(efx)) {
-			rc = efx_mcdi_flush_rxqs(efx);
+			rc = efx_siena_mcdi_flush_rxqs(efx);
 			if (!rc)
 				goto wait;
 		}
@@ -1313,7 +1313,7 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 			break;
 #endif
 		case FSE_CZ_EV_CODE_MCDI_EV:
-			efx_mcdi_process_event(channel, &event);
+			efx_siena_mcdi_process_event(channel, &event);
 			break;
 		case FSE_AZ_EV_CODE_GLOBAL_EV:
 			if (efx->type->handle_global_event &&

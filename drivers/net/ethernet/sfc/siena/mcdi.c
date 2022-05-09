@@ -58,7 +58,7 @@ MODULE_PARM_DESC(mcdi_logging_default,
 		 "Enable MCDI logging on newly-probed functions");
 #endif
 
-int efx_mcdi_init(struct efx_nic *efx)
+int efx_siena_mcdi_init(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi;
 	bool already_attached;
@@ -86,11 +86,11 @@ int efx_mcdi_init(struct efx_nic *efx)
 	INIT_LIST_HEAD(&mcdi->async_list);
 	timer_setup(&mcdi->async_timer, efx_mcdi_timeout_async, 0);
 
-	(void) efx_mcdi_poll_reboot(efx);
+	(void)efx_siena_mcdi_poll_reboot(efx);
 	mcdi->new_epoch = true;
 
 	/* Recover from a failed assertion before probing */
-	rc = efx_mcdi_handle_assertion(efx);
+	rc = efx_siena_mcdi_handle_assertion(efx);
 	if (rc)
 		goto fail2;
 
@@ -124,7 +124,7 @@ fail:
 	return rc;
 }
 
-void efx_mcdi_detach(struct efx_nic *efx)
+void efx_siena_mcdi_detach(struct efx_nic *efx)
 {
 	if (!efx->mcdi)
 		return;
@@ -135,7 +135,7 @@ void efx_mcdi_detach(struct efx_nic *efx)
 	efx_mcdi_drv_attach(efx, false, NULL);
 }
 
-void efx_mcdi_fini(struct efx_nic *efx)
+void efx_siena_mcdi_fini(struct efx_nic *efx)
 {
 	if (!efx->mcdi)
 		return;
@@ -360,7 +360,7 @@ static int efx_mcdi_poll(struct efx_nic *efx)
 	int rc;
 
 	/* Check for a reboot atomically with respect to efx_mcdi_copyout() */
-	rc = efx_mcdi_poll_reboot(efx);
+	rc = efx_siena_mcdi_poll_reboot(efx);
 	if (rc) {
 		spin_lock_bh(&mcdi->iface_lock);
 		mcdi->resprc = rc;
@@ -401,7 +401,7 @@ static int efx_mcdi_poll(struct efx_nic *efx)
 /* Test and clear MC-rebooted flag for this port/function; reset
  * software state as necessary.
  */
-int efx_mcdi_poll_reboot(struct efx_nic *efx)
+int efx_siena_mcdi_poll_reboot(struct efx_nic *efx)
 {
 	if (!efx->mcdi)
 		return 0;
@@ -440,7 +440,7 @@ static int efx_mcdi_await_completion(struct efx_nic *efx)
 	 * completed the request first, then we'll just end up completing the
 	 * request again, which is safe.
 	 *
-	 * We need an smp_rmb() to synchronise with efx_mcdi_mode_poll(), which
+	 * We need an smp_rmb() to synchronise with efx_siena_mcdi_mode_poll(), which
 	 * wait_event_timeout() implicitly provides.
 	 */
 	if (mcdi->mode == MCDI_MODE_POLL)
@@ -548,8 +548,8 @@ static bool efx_mcdi_complete_async(struct efx_mcdi_iface *mcdi, bool timeout)
 		err_len = min(sizeof(errbuf), data_len);
 		efx->type->mcdi_read_response(efx, errbuf, hdr_len,
 					      sizeof(errbuf));
-		efx_mcdi_display_error(efx, async->cmd, async->inlen, errbuf,
-				       err_len, rc);
+		efx_siena_mcdi_display_error(efx, async->cmd, async->inlen,
+					     errbuf, err_len, rc);
 	}
 
 	if (async->complete)
@@ -733,13 +733,13 @@ static int _efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned int cmd,
 			mcdi->proxy_rx_handle = 0;
 			mcdi->state = MCDI_STATE_PROXY_WAIT;
 		} else if (rc && !quiet) {
-			efx_mcdi_display_error(efx, cmd, inlen, errbuf, err_len,
-					       rc);
+			efx_siena_mcdi_display_error(efx, cmd, inlen, errbuf,
+						     err_len, rc);
 		}
 
 		if (rc == -EIO || rc == -EINTR) {
 			msleep(MCDI_STATUS_SLEEP_MS);
-			efx_mcdi_poll_reboot(efx);
+			efx_siena_mcdi_poll_reboot(efx);
 			mcdi->new_epoch = true;
 		}
 	}
@@ -813,7 +813,7 @@ static int _efx_mcdi_rpc(struct efx_nic *efx, unsigned int cmd,
 		return -EINVAL;
 	}
 
-	rc = efx_mcdi_rpc_start(efx, cmd, inbuf, inlen);
+	rc = efx_siena_mcdi_rpc_start(efx, cmd, inbuf, inlen);
 	if (rc)
 		return rc;
 
@@ -894,14 +894,14 @@ static int _efx_mcdi_rpc_evb_retry(struct efx_nic *efx, unsigned cmd,
 	}
 
 	if (rc && !quiet && !(cmd == MC_CMD_REBOOT && rc == -EIO))
-		efx_mcdi_display_error(efx, cmd, inlen,
-				       outbuf, outlen, rc);
+		efx_siena_mcdi_display_error(efx, cmd, inlen,
+					     outbuf, outlen, rc);
 
 	return rc;
 }
 
 /**
- * efx_mcdi_rpc - Issue an MCDI command and wait for completion
+ * efx_siena_mcdi_rpc - Issue an MCDI command and wait for completion
  * @efx: NIC through which to issue the command
  * @cmd: Command type number
  * @inbuf: Command parameters
@@ -924,34 +924,34 @@ static int _efx_mcdi_rpc_evb_retry(struct efx_nic *efx, unsigned cmd,
  *	set accordingly.  In the latter case, *@outlen_actual will be
  *	set to zero.
  */
-int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
-		 const efx_dword_t *inbuf, size_t inlen,
-		 efx_dword_t *outbuf, size_t outlen,
-		 size_t *outlen_actual)
+int efx_siena_mcdi_rpc(struct efx_nic *efx, unsigned int cmd,
+		       const efx_dword_t *inbuf, size_t inlen,
+		       efx_dword_t *outbuf, size_t outlen,
+		       size_t *outlen_actual)
 {
 	return _efx_mcdi_rpc_evb_retry(efx, cmd, inbuf, inlen, outbuf, outlen,
 				       outlen_actual, false);
 }
 
 /* Normally, on receiving an error code in the MCDI response,
- * efx_mcdi_rpc will log an error message containing (among other
- * things) the raw error code, by means of efx_mcdi_display_error.
+ * efx_siena_mcdi_rpc will log an error message containing (among other
+ * things) the raw error code, by means of efx_siena_mcdi_display_error.
  * This _quiet version suppresses that; if the caller wishes to log
  * the error conditionally on the return code, it should call this
- * function and is then responsible for calling efx_mcdi_display_error
+ * function and is then responsible for calling efx_siena_mcdi_display_error
  * as needed.
  */
-int efx_mcdi_rpc_quiet(struct efx_nic *efx, unsigned cmd,
-		       const efx_dword_t *inbuf, size_t inlen,
-		       efx_dword_t *outbuf, size_t outlen,
-		       size_t *outlen_actual)
+int efx_siena_mcdi_rpc_quiet(struct efx_nic *efx, unsigned int cmd,
+			     const efx_dword_t *inbuf, size_t inlen,
+			     efx_dword_t *outbuf, size_t outlen,
+			     size_t *outlen_actual)
 {
 	return _efx_mcdi_rpc_evb_retry(efx, cmd, inbuf, inlen, outbuf, outlen,
 				       outlen_actual, true);
 }
 
-int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
-		       const efx_dword_t *inbuf, size_t inlen)
+int efx_siena_mcdi_rpc_start(struct efx_nic *efx, unsigned int cmd,
+			     const efx_dword_t *inbuf, size_t inlen)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 	int rc;
@@ -1026,7 +1026,7 @@ static int _efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
 }
 
 /**
- * efx_mcdi_rpc_async - Schedule an MCDI command to run asynchronously
+ * efx_siena_mcdi_rpc_async - Schedule an MCDI command to run asynchronously
  * @efx: NIC through which to issue the command
  * @cmd: Command type number
  * @inbuf: Command parameters
@@ -1046,42 +1046,44 @@ static int _efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
  * (c) the request times-out (in timer context)
  */
 int
-efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
-		   const efx_dword_t *inbuf, size_t inlen, size_t outlen,
-		   efx_mcdi_async_completer *complete, unsigned long cookie)
+efx_siena_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
+			 const efx_dword_t *inbuf, size_t inlen, size_t outlen,
+			 efx_mcdi_async_completer *complete,
+			 unsigned long cookie)
 {
 	return _efx_mcdi_rpc_async(efx, cmd, inbuf, inlen, outlen, complete,
 				   cookie, false);
 }
 
-int efx_mcdi_rpc_async_quiet(struct efx_nic *efx, unsigned int cmd,
-			     const efx_dword_t *inbuf, size_t inlen,
-			     size_t outlen, efx_mcdi_async_completer *complete,
-			     unsigned long cookie)
+int efx_siena_mcdi_rpc_async_quiet(struct efx_nic *efx, unsigned int cmd,
+				   const efx_dword_t *inbuf, size_t inlen,
+				   size_t outlen,
+				   efx_mcdi_async_completer *complete,
+				   unsigned long cookie)
 {
 	return _efx_mcdi_rpc_async(efx, cmd, inbuf, inlen, outlen, complete,
 				   cookie, true);
 }
 
-int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
-			efx_dword_t *outbuf, size_t outlen,
-			size_t *outlen_actual)
+int efx_siena_mcdi_rpc_finish(struct efx_nic *efx, unsigned int cmd,
+			      size_t inlen, efx_dword_t *outbuf, size_t outlen,
+			      size_t *outlen_actual)
 {
 	return _efx_mcdi_rpc_finish(efx, cmd, inlen, outbuf, outlen,
 				    outlen_actual, false, NULL, NULL);
 }
 
-int efx_mcdi_rpc_finish_quiet(struct efx_nic *efx, unsigned cmd, size_t inlen,
-			      efx_dword_t *outbuf, size_t outlen,
-			      size_t *outlen_actual)
+int efx_siena_mcdi_rpc_finish_quiet(struct efx_nic *efx, unsigned int cmd,
+				    size_t inlen, efx_dword_t *outbuf,
+				    size_t outlen, size_t *outlen_actual)
 {
 	return _efx_mcdi_rpc_finish(efx, cmd, inlen, outbuf, outlen,
 				    outlen_actual, true, NULL, NULL);
 }
 
-void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
-			    size_t inlen, efx_dword_t *outbuf,
-			    size_t outlen, int rc)
+void efx_siena_mcdi_display_error(struct efx_nic *efx, unsigned int cmd,
+				  size_t inlen, efx_dword_t *outbuf,
+				  size_t outlen, int rc)
 {
 	int code = 0, err_arg = 0;
 
@@ -1098,7 +1100,7 @@ void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
  * error conditions with various locks held, so it must be lockless.
  * Caller is responsible for flushing asynchronous requests later.
  */
-void efx_mcdi_mode_poll(struct efx_nic *efx)
+void efx_siena_mcdi_mode_poll(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi;
 
@@ -1129,7 +1131,7 @@ void efx_mcdi_mode_poll(struct efx_nic *efx)
 /* Flush any running or queued asynchronous requests, after event processing
  * is stopped
  */
-void efx_mcdi_flush_async(struct efx_nic *efx)
+void efx_siena_mcdi_flush_async(struct efx_nic *efx)
 {
 	struct efx_mcdi_async_param *async, *next;
 	struct efx_mcdi_iface *mcdi;
@@ -1166,7 +1168,7 @@ void efx_mcdi_flush_async(struct efx_nic *efx)
 	}
 }
 
-void efx_mcdi_mode_event(struct efx_nic *efx)
+void efx_siena_mcdi_mode_event(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi;
 
@@ -1185,7 +1187,7 @@ void efx_mcdi_mode_event(struct efx_nic *efx)
 	 * request, because the completion method is specified in the request.
 	 * So acquire the interface to serialise the requestors. We don't need
 	 * to acquire the iface_lock to change the mode here, but we do need a
-	 * write memory barrier ensure that efx_mcdi_rpc() sees it, which
+	 * write memory barrier ensure that efx_siena_mcdi_rpc() sees it, which
 	 * efx_mcdi_acquire() provides.
 	 */
 	efx_mcdi_acquire_sync(mcdi);
@@ -1234,18 +1236,18 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 	} else {
 		int count;
 
-		/* Consume the status word since efx_mcdi_rpc_finish() won't */
+		/* Consume the status word since efx_siena_mcdi_rpc_finish() won't */
 		for (count = 0; count < MCDI_STATUS_DELAY_COUNT; ++count) {
-			rc = efx_mcdi_poll_reboot(efx);
+			rc = efx_siena_mcdi_poll_reboot(efx);
 			if (rc)
 				break;
 			udelay(MCDI_STATUS_DELAY_US);
 		}
 
 		/* On EF10, a CODE_MC_REBOOT event can be received without the
-		 * reboot detection in efx_mcdi_poll_reboot() being triggered.
+		 * reboot detection in efx_siena_mcdi_poll_reboot() being triggered.
 		 * If zero was returned from the final call to
-		 * efx_mcdi_poll_reboot(), the MC reboot wasn't noticed but the
+		 * efx_siena_mcdi_poll_reboot(), the MC reboot wasn't noticed but the
 		 * MC has definitely rebooted so prepare for the reset.
 		 */
 		if (!rc && efx->type->mcdi_reboot_detected)
@@ -1308,8 +1310,8 @@ static void efx_handle_drain_event(struct efx_nic *efx)
 }
 
 /* Called from efx_farch_ev_process and efx_ef10_ev_process for MCDI events */
-void efx_mcdi_process_event(struct efx_channel *channel,
-			    efx_qword_t *event)
+void efx_siena_mcdi_process_event(struct efx_channel *channel,
+				  efx_qword_t *event)
 {
 	struct efx_nic *efx = channel->efx;
 	int code = EFX_QWORD_FIELD(*event, MCDI_EVENT_CODE);
@@ -1334,7 +1336,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		break;
 
 	case MCDI_EVENT_CODE_LINKCHANGE:
-		efx_mcdi_process_link_change(efx, event);
+		efx_siena_mcdi_process_link_change(efx, event);
 		break;
 	case MCDI_EVENT_CODE_SENSOREVT:
 		efx_sensor_event(efx, event);
@@ -1408,7 +1410,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
  **************************************************************************
  */
 
-void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
+void efx_siena_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_VERSION_OUT_LEN);
 	size_t outlength;
@@ -1417,8 +1419,8 @@ void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 	int rc;
 
 	BUILD_BUG_ON(MC_CMD_GET_VERSION_IN_LEN != 0);
-	rc = efx_mcdi_rpc(efx, MC_CMD_GET_VERSION, NULL, 0,
-			  outbuf, sizeof(outbuf), &outlength);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_GET_VERSION, NULL, 0,
+				outbuf, sizeof(outbuf), &outlength);
 	if (rc)
 		goto fail;
 	if (outlength < MC_CMD_GET_VERSION_OUT_LEN) {
@@ -1464,8 +1466,9 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 	MCDI_SET_DWORD(inbuf, DRV_ATTACH_IN_UPDATE, 1);
 	MCDI_SET_DWORD(inbuf, DRV_ATTACH_IN_FIRMWARE_ID, MC_CMD_FW_LOW_LATENCY);
 
-	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_DRV_ATTACH, inbuf, sizeof(inbuf),
-				outbuf, sizeof(outbuf), &outlen);
+	rc = efx_siena_mcdi_rpc_quiet(efx, MC_CMD_DRV_ATTACH, inbuf,
+				      sizeof(inbuf), outbuf, sizeof(outbuf),
+				      &outlen);
 	/* If we're not the primary PF, trying to ATTACH with a FIRMWARE_ID
 	 * specified will fail with EPERM, and we have to tell the MC we don't
 	 * care what firmware we get.
@@ -1475,13 +1478,13 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 			  "efx_mcdi_drv_attach with fw-variant setting failed EPERM, trying without it\n");
 		MCDI_SET_DWORD(inbuf, DRV_ATTACH_IN_FIRMWARE_ID,
 			       MC_CMD_FW_DONT_CARE);
-		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_DRV_ATTACH, inbuf,
-					sizeof(inbuf), outbuf, sizeof(outbuf),
-					&outlen);
+		rc = efx_siena_mcdi_rpc_quiet(efx, MC_CMD_DRV_ATTACH, inbuf,
+					      sizeof(inbuf), outbuf,
+					      sizeof(outbuf), &outlen);
 	}
 	if (rc) {
-		efx_mcdi_display_error(efx, MC_CMD_DRV_ATTACH, sizeof(inbuf),
-				       outbuf, outlen, rc);
+		efx_siena_mcdi_display_error(efx, MC_CMD_DRV_ATTACH,
+					     sizeof(inbuf), outbuf, outlen, rc);
 		goto fail;
 	}
 	if (outlen < MC_CMD_DRV_ATTACH_OUT_LEN) {
@@ -1518,8 +1521,8 @@ fail:
 	return rc;
 }
 
-int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
-			   u16 *fw_subtype_list, u32 *capabilities)
+int efx_siena_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
+				 u16 *fw_subtype_list, u32 *capabilities)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_BOARD_CFG_OUT_LENMAX);
 	size_t outlen, i;
@@ -1531,8 +1534,8 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 	BUILD_BUG_ON(MC_CMD_GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT0_OFST & 1);
 	BUILD_BUG_ON(MC_CMD_GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT1_OFST & 1);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_GET_BOARD_CFG, NULL, 0,
-			  outbuf, sizeof(outbuf), &outlen);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_GET_BOARD_CFG, NULL, 0,
+				outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		goto fail;
 
@@ -1574,7 +1577,8 @@ fail:
 	return rc;
 }
 
-int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart, u32 dest_evq)
+int efx_siena_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart,
+			    u32 dest_evq)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_LOG_CTRL_IN_LEN);
 	u32 dest = 0;
@@ -1590,12 +1594,12 @@ int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart, u32 dest_evq)
 
 	BUILD_BUG_ON(MC_CMD_LOG_CTRL_OUT_LEN != 0);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_LOG_CTRL, inbuf, sizeof(inbuf),
-			  NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_LOG_CTRL, inbuf, sizeof(inbuf),
+				NULL, 0, NULL);
 	return rc;
 }
 
-int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out)
+int efx_siena_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_NVRAM_TYPES_OUT_LEN);
 	size_t outlen;
@@ -1603,8 +1607,8 @@ int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out)
 
 	BUILD_BUG_ON(MC_CMD_NVRAM_TYPES_IN_LEN != 0);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_TYPES, NULL, 0,
-			  outbuf, sizeof(outbuf), &outlen);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_NVRAM_TYPES, NULL, 0,
+				outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		goto fail;
 	if (outlen < MC_CMD_NVRAM_TYPES_OUT_LEN) {
@@ -1621,38 +1625,9 @@ fail:
 	return rc;
 }
 
-/* This function finds types using the new NVRAM_PARTITIONS mcdi. */
-static int efx_new_mcdi_nvram_types(struct efx_nic *efx, u32 *number,
-				    u32 *nvram_types)
-{
-	efx_dword_t *outbuf = kzalloc(MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2,
-				      GFP_KERNEL);
-	size_t outlen;
-	int rc;
-
-	if (!outbuf)
-		return -ENOMEM;
-
-	BUILD_BUG_ON(MC_CMD_NVRAM_PARTITIONS_IN_LEN != 0);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_PARTITIONS, NULL, 0,
-			  outbuf, MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2, &outlen);
-	if (rc)
-		goto fail;
-
-	*number = MCDI_DWORD(outbuf, NVRAM_PARTITIONS_OUT_NUM_PARTITIONS);
-
-	memcpy(nvram_types, MCDI_PTR(outbuf, NVRAM_PARTITIONS_OUT_TYPE_ID),
-	       *number * sizeof(u32));
-
-fail:
-	kfree(outbuf);
-	return rc;
-}
-
-int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
-			size_t *size_out, size_t *erase_size_out,
-			bool *protected_out)
+int efx_siena_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
+			      size_t *size_out, size_t *erase_size_out,
+			      bool *protected_out)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_INFO_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_NVRAM_INFO_OUT_LEN);
@@ -1661,8 +1636,8 @@ int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 
 	MCDI_SET_DWORD(inbuf, NVRAM_INFO_IN_TYPE, type);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_INFO, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &outlen);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_NVRAM_INFO, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		goto fail;
 	if (outlen < MC_CMD_NVRAM_INFO_OUT_LEN) {
@@ -1689,8 +1664,8 @@ static int efx_mcdi_nvram_test(struct efx_nic *efx, unsigned int type)
 
 	MCDI_SET_DWORD(inbuf, NVRAM_TEST_IN_TYPE, type);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_TEST, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_NVRAM_TEST, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), NULL);
 	if (rc)
 		return rc;
 
@@ -1703,46 +1678,13 @@ static int efx_mcdi_nvram_test(struct efx_nic *efx, unsigned int type)
 	}
 }
 
-/* This function tests nvram partitions using the new mcdi partition lookup scheme */
-int efx_new_mcdi_nvram_test_all(struct efx_nic *efx)
-{
-	u32 *nvram_types = kzalloc(MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2,
-				   GFP_KERNEL);
-	unsigned int number;
-	int rc, i;
-
-	if (!nvram_types)
-		return -ENOMEM;
-
-	rc = efx_new_mcdi_nvram_types(efx, &number, nvram_types);
-	if (rc)
-		goto fail;
-
-	/* Require at least one check */
-	rc = -EAGAIN;
-
-	for (i = 0; i < number; i++) {
-		if (nvram_types[i] == NVRAM_PARTITION_TYPE_PARTITION_MAP ||
-		    nvram_types[i] == NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG)
-			continue;
-
-		rc = efx_mcdi_nvram_test(efx, nvram_types[i]);
-		if (rc)
-			goto fail;
-	}
-
-fail:
-	kfree(nvram_types);
-	return rc;
-}
-
-int efx_mcdi_nvram_test_all(struct efx_nic *efx)
+int efx_siena_mcdi_nvram_test_all(struct efx_nic *efx)
 {
 	u32 nvram_types;
 	unsigned int type;
 	int rc;
 
-	rc = efx_mcdi_nvram_types(efx, &nvram_types);
+	rc = efx_siena_mcdi_nvram_types(efx, &nvram_types);
 	if (rc)
 		goto fail1;
 
@@ -1788,17 +1730,17 @@ static int efx_mcdi_read_assertion(struct efx_nic *efx)
 	retry = 2;
 	do {
 		MCDI_SET_DWORD(inbuf, GET_ASSERTS_IN_CLEAR, 1);
-		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_GET_ASSERTS,
-					inbuf, MC_CMD_GET_ASSERTS_IN_LEN,
-					outbuf, sizeof(outbuf), &outlen);
+		rc = efx_siena_mcdi_rpc_quiet(efx, MC_CMD_GET_ASSERTS,
+					      inbuf, MC_CMD_GET_ASSERTS_IN_LEN,
+					      outbuf, sizeof(outbuf), &outlen);
 		if (rc == -EPERM)
 			return 0;
 	} while ((rc == -EINTR || rc == -EIO) && retry-- > 0);
 
 	if (rc) {
-		efx_mcdi_display_error(efx, MC_CMD_GET_ASSERTS,
-				       MC_CMD_GET_ASSERTS_IN_LEN, outbuf,
-				       outlen, rc);
+		efx_siena_mcdi_display_error(efx, MC_CMD_GET_ASSERTS,
+					     MC_CMD_GET_ASSERTS_IN_LEN, outbuf,
+					     outlen, rc);
 		return rc;
 	}
 	if (outlen < MC_CMD_GET_ASSERTS_OUT_LEN)
@@ -1847,17 +1789,17 @@ static int efx_mcdi_exit_assertion(struct efx_nic *efx)
 	BUILD_BUG_ON(MC_CMD_REBOOT_OUT_LEN != 0);
 	MCDI_SET_DWORD(inbuf, REBOOT_IN_FLAGS,
 		       MC_CMD_REBOOT_FLAGS_AFTER_ASSERTION);
-	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_REBOOT, inbuf, MC_CMD_REBOOT_IN_LEN,
-				NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc_quiet(efx, MC_CMD_REBOOT, inbuf,
+				      MC_CMD_REBOOT_IN_LEN, NULL, 0, NULL);
 	if (rc == -EIO)
 		rc = 0;
 	if (rc)
-		efx_mcdi_display_error(efx, MC_CMD_REBOOT, MC_CMD_REBOOT_IN_LEN,
-				       NULL, 0, rc);
+		efx_siena_mcdi_display_error(efx, MC_CMD_REBOOT,
+					     MC_CMD_REBOOT_IN_LEN, NULL, 0, rc);
 	return rc;
 }
 
-int efx_mcdi_handle_assertion(struct efx_nic *efx)
+int efx_siena_mcdi_handle_assertion(struct efx_nic *efx)
 {
 	int rc;
 
@@ -1868,7 +1810,7 @@ int efx_mcdi_handle_assertion(struct efx_nic *efx)
 	return efx_mcdi_exit_assertion(efx);
 }
 
-int efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
+int efx_siena_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_ID_LED_IN_LEN);
 
@@ -1880,7 +1822,8 @@ int efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 
 	MCDI_SET_DWORD(inbuf, SET_ID_LED_IN_STATE, mode);
 
-	return efx_mcdi_rpc(efx, MC_CMD_SET_ID_LED, inbuf, sizeof(inbuf), NULL, 0, NULL);
+	return efx_siena_mcdi_rpc(efx, MC_CMD_SET_ID_LED, inbuf, sizeof(inbuf),
+				  NULL, 0, NULL);
 }
 
 static int efx_mcdi_reset_func(struct efx_nic *efx)
@@ -1891,8 +1834,8 @@ static int efx_mcdi_reset_func(struct efx_nic *efx)
 	BUILD_BUG_ON(MC_CMD_ENTITY_RESET_OUT_LEN != 0);
 	MCDI_POPULATE_DWORD_1(inbuf, ENTITY_RESET_IN_FLAG,
 			      ENTITY_RESET_IN_FUNCTION_RESOURCE_RESET, 1);
-	rc = efx_mcdi_rpc(efx, MC_CMD_ENTITY_RESET, inbuf, sizeof(inbuf),
-			  NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_ENTITY_RESET, inbuf, sizeof(inbuf),
+				NULL, 0, NULL);
 	return rc;
 }
 
@@ -1903,8 +1846,8 @@ static int efx_mcdi_reset_mc(struct efx_nic *efx)
 
 	BUILD_BUG_ON(MC_CMD_REBOOT_OUT_LEN != 0);
 	MCDI_SET_DWORD(inbuf, REBOOT_IN_FLAGS, 0);
-	rc = efx_mcdi_rpc(efx, MC_CMD_REBOOT, inbuf, sizeof(inbuf),
-			  NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_REBOOT, inbuf, sizeof(inbuf),
+				NULL, 0, NULL);
 	/* White is black, and up is down */
 	if (rc == -EIO)
 		return 0;
@@ -1913,12 +1856,12 @@ static int efx_mcdi_reset_mc(struct efx_nic *efx)
 	return rc;
 }
 
-enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason)
+enum reset_type efx_siena_mcdi_map_reset_reason(enum reset_type reason)
 {
 	return RESET_TYPE_RECOVER_OR_ALL;
 }
 
-int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method)
+int efx_siena_mcdi_reset(struct efx_nic *efx, enum reset_type method)
 {
 	int rc;
 
@@ -1936,7 +1879,7 @@ int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method)
 	}
 
 	/* Recover from a failed assertion pre-reset */
-	rc = efx_mcdi_handle_assertion(efx);
+	rc = efx_siena_mcdi_handle_assertion(efx);
 	if (rc)
 		return rc;
 
@@ -1961,8 +1904,8 @@ static int efx_mcdi_wol_filter_set(struct efx_nic *efx, u32 type,
 		       MC_CMD_FILTER_MODE_SIMPLE);
 	ether_addr_copy(MCDI_PTR(inbuf, WOL_FILTER_SET_IN_MAGIC_MAC), mac);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_WOL_FILTER_SET, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &outlen);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_WOL_FILTER_SET, inbuf,
+				sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		goto fail;
 
@@ -1983,21 +1926,21 @@ fail:
 }
 
 
-int
-efx_mcdi_wol_filter_set_magic(struct efx_nic *efx,  const u8 *mac, int *id_out)
+int efx_siena_mcdi_wol_filter_set_magic(struct efx_nic *efx,  const u8 *mac,
+					int *id_out)
 {
 	return efx_mcdi_wol_filter_set(efx, MC_CMD_WOL_TYPE_MAGIC, mac, id_out);
 }
 
 
-int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out)
+int efx_siena_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_WOL_FILTER_GET_OUT_LEN);
 	size_t outlen;
 	int rc;
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_WOL_FILTER_GET, NULL, 0,
-			  outbuf, sizeof(outbuf), &outlen);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_WOL_FILTER_GET, NULL, 0,
+				outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		goto fail;
 
@@ -2017,19 +1960,19 @@ fail:
 }
 
 
-int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id)
+int efx_siena_mcdi_wol_filter_remove(struct efx_nic *efx, int id)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_WOL_FILTER_REMOVE_IN_LEN);
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, WOL_FILTER_REMOVE_IN_FILTER_ID, (u32)id);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_WOL_FILTER_REMOVE, inbuf, sizeof(inbuf),
-			  NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_WOL_FILTER_REMOVE, inbuf,
+				sizeof(inbuf), NULL, 0, NULL);
 	return rc;
 }
 
-int efx_mcdi_flush_rxqs(struct efx_nic *efx)
+int efx_siena_mcdi_flush_rxqs(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 	struct efx_rx_queue *rx_queue;
@@ -2054,79 +1997,20 @@ int efx_mcdi_flush_rxqs(struct efx_nic *efx)
 		}
 	}
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, inbuf,
-			  MC_CMD_FLUSH_RX_QUEUES_IN_LEN(count), NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, inbuf,
+				MC_CMD_FLUSH_RX_QUEUES_IN_LEN(count),
+				NULL, 0, NULL);
 	WARN_ON(rc < 0);
 
 	return rc;
 }
 
-int efx_mcdi_wol_filter_reset(struct efx_nic *efx)
+int efx_siena_mcdi_wol_filter_reset(struct efx_nic *efx)
 {
 	int rc;
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_WOL_FILTER_RESET, NULL, 0, NULL, 0, NULL);
-	return rc;
-}
-
-int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled,
-			    unsigned int *flags)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_WORKAROUND_IN_LEN);
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_WORKAROUND_EXT_OUT_LEN);
-	size_t outlen;
-	int rc;
-
-	BUILD_BUG_ON(MC_CMD_WORKAROUND_OUT_LEN != 0);
-	MCDI_SET_DWORD(inbuf, WORKAROUND_IN_TYPE, type);
-	MCDI_SET_DWORD(inbuf, WORKAROUND_IN_ENABLED, enabled);
-	rc = efx_mcdi_rpc(efx, MC_CMD_WORKAROUND, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &outlen);
-	if (rc)
-		return rc;
-
-	if (!flags)
-		return 0;
-
-	if (outlen >= MC_CMD_WORKAROUND_EXT_OUT_LEN)
-		*flags = MCDI_DWORD(outbuf, WORKAROUND_EXT_OUT_FLAGS);
-	else
-		*flags = 0;
-
-	return 0;
-}
-
-int efx_mcdi_get_workarounds(struct efx_nic *efx, unsigned int *impl_out,
-			     unsigned int *enabled_out)
-{
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_WORKAROUNDS_OUT_LEN);
-	size_t outlen;
-	int rc;
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_GET_WORKAROUNDS, NULL, 0,
-			  outbuf, sizeof(outbuf), &outlen);
-	if (rc)
-		goto fail;
-
-	if (outlen < MC_CMD_GET_WORKAROUNDS_OUT_LEN) {
-		rc = -EIO;
-		goto fail;
-	}
-
-	if (impl_out)
-		*impl_out = MCDI_DWORD(outbuf, GET_WORKAROUNDS_OUT_IMPLEMENTED);
-
-	if (enabled_out)
-		*enabled_out = MCDI_DWORD(outbuf, GET_WORKAROUNDS_OUT_ENABLED);
-
-	return 0;
-
-fail:
-	/* Older firmware lacks GET_WORKAROUNDS and this isn't especially
-	 * terrifying.  The call site will have to deal with it though.
-	 */
-	netif_cond_dbg(efx, hw, efx->net_dev, rc == -ENOSYS, err,
-		       "%s: failed rc=%d\n", __func__, rc);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_WOL_FILTER_RESET, NULL, 0,
+				NULL, 0, NULL);
 	return rc;
 }
 
@@ -2146,8 +2030,8 @@ static int efx_mcdi_nvram_update_start(struct efx_nic *efx, unsigned int type)
 
 	BUILD_BUG_ON(MC_CMD_NVRAM_UPDATE_START_OUT_LEN != 0);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_START, inbuf, sizeof(inbuf),
-			  NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_START, inbuf,
+				sizeof(inbuf), NULL, 0, NULL);
 
 	return rc;
 }
@@ -2167,8 +2051,8 @@ static int efx_mcdi_nvram_read(struct efx_nic *efx, unsigned int type,
 	MCDI_SET_DWORD(inbuf, NVRAM_READ_IN_V2_MODE,
 		       MC_CMD_NVRAM_READ_IN_V2_DEFAULT);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_READ, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &outlen);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_NVRAM_READ, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		return rc;
 
@@ -2190,9 +2074,9 @@ static int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
 
 	BUILD_BUG_ON(MC_CMD_NVRAM_WRITE_OUT_LEN != 0);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_WRITE, inbuf,
-			  ALIGN(MC_CMD_NVRAM_WRITE_IN_LEN(length), 4),
-			  NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_NVRAM_WRITE, inbuf,
+				ALIGN(MC_CMD_NVRAM_WRITE_IN_LEN(length), 4),
+				NULL, 0, NULL);
 	return rc;
 }
 
@@ -2208,8 +2092,8 @@ static int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
 
 	BUILD_BUG_ON(MC_CMD_NVRAM_ERASE_OUT_LEN != 0);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_ERASE, inbuf, sizeof(inbuf),
-			  NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_NVRAM_ERASE, inbuf, sizeof(inbuf),
+				NULL, 0, NULL);
 	return rc;
 }
 
@@ -2226,8 +2110,8 @@ static int efx_mcdi_nvram_update_finish(struct efx_nic *efx, unsigned int type)
 			      NVRAM_UPDATE_FINISH_V2_IN_FLAG_REPORT_VERIFY_RESULT,
 			      1);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_FINISH, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &outlen);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_FINISH, inbuf,
+				sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
 	if (!rc && outlen >= MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_LEN) {
 		rc2 = MCDI_DWORD(outbuf, NVRAM_UPDATE_FINISH_V2_OUT_RESULT_CODE);
 		if (rc2 != MC_CMD_NVRAM_VERIFY_RC_SUCCESS)
@@ -2263,8 +2147,8 @@ static int efx_mcdi_nvram_update_finish(struct efx_nic *efx, unsigned int type)
 	return rc;
 }
 
-int efx_mcdi_mtd_read(struct mtd_info *mtd, loff_t start,
-		      size_t len, size_t *retlen, u8 *buffer)
+int efx_siena_mcdi_mtd_read(struct mtd_info *mtd, loff_t start,
+			    size_t len, size_t *retlen, u8 *buffer)
 {
 	struct efx_mcdi_mtd_partition *part = to_efx_mcdi_mtd_partition(mtd);
 	struct efx_nic *efx = mtd->priv;
@@ -2287,7 +2171,7 @@ out:
 	return rc;
 }
 
-int efx_mcdi_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len)
+int efx_siena_mcdi_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len)
 {
 	struct efx_mcdi_mtd_partition *part = to_efx_mcdi_mtd_partition(mtd);
 	struct efx_nic *efx = mtd->priv;
@@ -2317,8 +2201,8 @@ out:
 	return rc;
 }
 
-int efx_mcdi_mtd_write(struct mtd_info *mtd, loff_t start,
-		       size_t len, size_t *retlen, const u8 *buffer)
+int efx_siena_mcdi_mtd_write(struct mtd_info *mtd, loff_t start,
+			     size_t len, size_t *retlen, const u8 *buffer)
 {
 	struct efx_mcdi_mtd_partition *part = to_efx_mcdi_mtd_partition(mtd);
 	struct efx_nic *efx = mtd->priv;
@@ -2348,7 +2232,7 @@ out:
 	return rc;
 }
 
-int efx_mcdi_mtd_sync(struct mtd_info *mtd)
+int efx_siena_mcdi_mtd_sync(struct mtd_info *mtd)
 {
 	struct efx_mcdi_mtd_partition *part = to_efx_mcdi_mtd_partition(mtd);
 	struct efx_nic *efx = mtd->priv;
@@ -2362,7 +2246,7 @@ int efx_mcdi_mtd_sync(struct mtd_info *mtd)
 	return rc;
 }
 
-void efx_mcdi_mtd_rename(struct efx_mtd_partition *part)
+void efx_siena_mcdi_mtd_rename(struct efx_mtd_partition *part)
 {
 	struct efx_mcdi_mtd_partition *mcdi_part =
 		container_of(part, struct efx_mcdi_mtd_partition, common);

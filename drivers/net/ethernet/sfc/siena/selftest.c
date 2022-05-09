@@ -100,7 +100,7 @@ static int efx_test_phy_alive(struct efx_nic *efx, struct efx_self_tests *tests)
 {
 	int rc = 0;
 
-	rc = efx_mcdi_phy_test_alive(efx);
+	rc = efx_siena_mcdi_phy_test_alive(efx);
 	tests->phy_alive = rc ? -1 : 1;
 
 	return rc;
@@ -257,7 +257,7 @@ static int efx_test_phy(struct efx_nic *efx, struct efx_self_tests *tests,
 	int rc;
 
 	mutex_lock(&efx->mac_lock);
-	rc = efx_mcdi_phy_run_tests(efx, tests->phy_ext, flags);
+	rc = efx_siena_mcdi_phy_run_tests(efx, tests->phy_ext, flags);
 	mutex_unlock(&efx->mac_lock);
 	if (rc == -EPERM)
 		rc = 0;

@@ -1022,7 +1022,7 @@ static int efx_soft_enable_interrupts(struct efx_nic *efx)
 		efx_siena_start_eventq(channel);
 	}
 
-	efx_mcdi_mode_event(efx);
+	efx_siena_mcdi_mode_event(efx);
 
 	return 0;
 fail:
@@ -1045,7 +1045,7 @@ static void efx_soft_disable_interrupts(struct efx_nic *efx)
 	if (efx->state == STATE_DISABLED)
 		return;
 
-	efx_mcdi_mode_poll(efx);
+	efx_siena_mcdi_mode_poll(efx);
 
 	efx->irq_soft_enabled = false;
 	smp_wmb();
@@ -1063,7 +1063,7 @@ static void efx_soft_disable_interrupts(struct efx_nic *efx)
 	}
 
 	/* Flush the asynchronous MCDI request queue */
-	efx_mcdi_flush_async(efx);
+	efx_siena_mcdi_flush_async(efx);
 }
 
 int efx_siena_enable_interrupts(struct efx_nic *efx)

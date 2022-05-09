@@ -206,8 +206,9 @@ static int efx_siena_sriov_cmd(struct efx_nic *efx, bool enable,
 	MCDI_SET_DWORD(inbuf, SRIOV_IN_VI_BASE, EFX_VI_BASE);
 	MCDI_SET_DWORD(inbuf, SRIOV_IN_VF_COUNT, efx->vf_count);
 
-	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_SRIOV, inbuf, MC_CMD_SRIOV_IN_LEN,
-				outbuf, MC_CMD_SRIOV_OUT_LEN, &outlen);
+	rc = efx_siena_mcdi_rpc_quiet(efx, MC_CMD_SRIOV, inbuf,
+				      MC_CMD_SRIOV_IN_LEN, outbuf,
+				      MC_CMD_SRIOV_OUT_LEN, &outlen);
 	if (rc)
 		return rc;
 	if (outlen < MC_CMD_SRIOV_OUT_LEN)
@@ -288,7 +289,7 @@ static int efx_siena_sriov_memcpy(struct efx_nic *efx,
 		++req;
 	}
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_MEMCPY, inbuf, used, NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_MEMCPY, inbuf, used, NULL, 0, NULL);
 out:
 	mb();	/* Don't write source/read dest before DMA is complete */
 
@@ -712,7 +713,7 @@ static int efx_vfdi_fini_all_queues(struct siena_vf *vf)
 
 	atomic_set(&vf->rxq_retry_count, 0);
 	while (timeout && (vf->rxq_count || vf->txq_count)) {
-		rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, inbuf,
+		rc = efx_siena_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, inbuf,
 				  MC_CMD_FLUSH_RX_QUEUES_IN_LEN(rxqs_count),
 				  NULL, 0, NULL);
 		WARN_ON(rc < 0);

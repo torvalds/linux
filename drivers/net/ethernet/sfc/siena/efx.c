@@ -153,7 +153,7 @@ static int efx_init_port(struct efx_nic *efx)
 	efx->port_initialized = true;
 
 	/* Ensure the PHY advertises the correct flow control settings */
-	rc = efx_mcdi_port_reconfigure(efx);
+	rc = efx_siena_mcdi_port_reconfigure(efx);
 	if (rc && rc != -EPERM)
 		goto fail;
 
@@ -526,7 +526,7 @@ static int efx_net_open(struct net_device *net_dev)
 		return rc;
 	if (efx->phy_mode & PHY_MODE_SPECIAL)
 		return -EBUSY;
-	if (efx_mcdi_poll_reboot(efx) && efx_siena_reset(efx, RESET_TYPE_ALL))
+	if (efx_siena_mcdi_poll_reboot(efx) && efx_siena_reset(efx, RESET_TYPE_ALL))
 		return -EIO;
 
 	/* Notify the kernel of the link state polled during driver load,
@@ -1158,7 +1158,7 @@ static int efx_pm_thaw(struct device *dev)
 			goto fail;
 
 		mutex_lock(&efx->mac_lock);
-		efx_mcdi_port_reconfigure(efx);
+		efx_siena_mcdi_port_reconfigure(efx);
 		mutex_unlock(&efx->mac_lock);
 
 		efx_siena_start_all(efx);

@@ -456,7 +456,7 @@ static void efx_stop_datapath(struct efx_nic *efx)
  *
  **************************************************************************/
 
-/* Equivalent to efx_link_set_advertising with all-zeroes, except does not
+/* Equivalent to efx_siena_link_set_advertising with all-zeroes, except does not
  * force the Autoneg bit on.
  */
 void efx_siena_link_clear_advertising(struct efx_nic *efx)
@@ -547,7 +547,7 @@ void efx_siena_start_all(struct efx_nic *efx)
 	 * to poll now because we could have missed a change
 	 */
 	mutex_lock(&efx->mac_lock);
-	if (efx_mcdi_phy_poll(efx))
+	if (efx_siena_mcdi_phy_poll(efx))
 		efx_siena_link_status_changed(efx);
 	mutex_unlock(&efx->mac_lock);
 
@@ -665,7 +665,7 @@ static void efx_wait_for_bist_end(struct efx_nic *efx)
 	int i;
 
 	for (i = 0; i < BIST_WAIT_DELAY_COUNT; ++i) {
-		if (efx_mcdi_poll_reboot(efx))
+		if (efx_siena_mcdi_poll_reboot(efx))
 			goto out;
 		msleep(BIST_WAIT_DELAY_MS);
 	}
@@ -760,7 +760,7 @@ int efx_siena_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE &&
 	    method != RESET_TYPE_DATAPATH) {
-		rc = efx_mcdi_port_reconfigure(efx);
+		rc = efx_siena_mcdi_port_reconfigure(efx);
 		if (rc && rc != -EPERM)
 			netif_err(efx, drv, efx->net_dev,
 				  "could not restore PHY settings\n");
@@ -950,7 +950,7 @@ void efx_siena_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	/* efx_process_channel() will no longer read events once a
 	 * reset is scheduled. So switch back to poll'd MCDI completions.
 	 */
-	efx_mcdi_mode_poll(efx);
+	efx_siena_mcdi_mode_poll(efx);
 
 	efx_siena_queue_reset_work(efx);
 }

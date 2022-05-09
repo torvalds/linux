@@ -138,52 +138,54 @@ static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
 }
 #endif
 
-int efx_mcdi_init(struct efx_nic *efx);
-void efx_mcdi_detach(struct efx_nic *efx);
-void efx_mcdi_fini(struct efx_nic *efx);
+int efx_siena_mcdi_init(struct efx_nic *efx);
+void efx_siena_mcdi_detach(struct efx_nic *efx);
+void efx_siena_mcdi_fini(struct efx_nic *efx);
 
-int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd, const efx_dword_t *inbuf,
-		 size_t inlen, efx_dword_t *outbuf, size_t outlen,
-		 size_t *outlen_actual);
-int efx_mcdi_rpc_quiet(struct efx_nic *efx, unsigned cmd,
+int efx_siena_mcdi_rpc(struct efx_nic *efx, unsigned int cmd,
 		       const efx_dword_t *inbuf, size_t inlen,
 		       efx_dword_t *outbuf, size_t outlen,
 		       size_t *outlen_actual);
+int efx_siena_mcdi_rpc_quiet(struct efx_nic *efx, unsigned int cmd,
+			     const efx_dword_t *inbuf, size_t inlen,
+			     efx_dword_t *outbuf, size_t outlen,
+			     size_t *outlen_actual);
 
-int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
-		       const efx_dword_t *inbuf, size_t inlen);
-int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
-			efx_dword_t *outbuf, size_t outlen,
-			size_t *outlen_actual);
-int efx_mcdi_rpc_finish_quiet(struct efx_nic *efx, unsigned cmd,
-			      size_t inlen, efx_dword_t *outbuf,
-			      size_t outlen, size_t *outlen_actual);
+int efx_siena_mcdi_rpc_start(struct efx_nic *efx, unsigned int cmd,
+			     const efx_dword_t *inbuf, size_t inlen);
+int efx_siena_mcdi_rpc_finish(struct efx_nic *efx, unsigned int cmd,
+			      size_t inlen, efx_dword_t *outbuf, size_t outlen,
+			      size_t *outlen_actual);
+int efx_siena_mcdi_rpc_finish_quiet(struct efx_nic *efx, unsigned int cmd,
+				    size_t inlen, efx_dword_t *outbuf,
+				    size_t outlen, size_t *outlen_actual);
 
 typedef void efx_mcdi_async_completer(struct efx_nic *efx,
 				      unsigned long cookie, int rc,
 				      efx_dword_t *outbuf,
 				      size_t outlen_actual);
-int efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
-		       const efx_dword_t *inbuf, size_t inlen, size_t outlen,
-		       efx_mcdi_async_completer *complete,
-		       unsigned long cookie);
-int efx_mcdi_rpc_async_quiet(struct efx_nic *efx, unsigned int cmd,
+int efx_siena_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
 			     const efx_dword_t *inbuf, size_t inlen,
 			     size_t outlen,
 			     efx_mcdi_async_completer *complete,
 			     unsigned long cookie);
+int efx_siena_mcdi_rpc_async_quiet(struct efx_nic *efx, unsigned int cmd,
+				   const efx_dword_t *inbuf, size_t inlen,
+				   size_t outlen,
+				   efx_mcdi_async_completer *complete,
+				   unsigned long cookie);
 
-void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
-			    size_t inlen, efx_dword_t *outbuf,
-			    size_t outlen, int rc);
+void efx_siena_mcdi_display_error(struct efx_nic *efx, unsigned int cmd,
+				  size_t inlen, efx_dword_t *outbuf,
+				  size_t outlen, int rc);
 
-int efx_mcdi_poll_reboot(struct efx_nic *efx);
-void efx_mcdi_mode_poll(struct efx_nic *efx);
-void efx_mcdi_mode_event(struct efx_nic *efx);
-void efx_mcdi_flush_async(struct efx_nic *efx);
+int efx_siena_mcdi_poll_reboot(struct efx_nic *efx);
+void efx_siena_mcdi_mode_poll(struct efx_nic *efx);
+void efx_siena_mcdi_mode_event(struct efx_nic *efx);
+void efx_siena_mcdi_flush_async(struct efx_nic *efx);
 
-void efx_mcdi_process_event(struct efx_channel *channel, efx_qword_t *event);
-void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
+void efx_siena_mcdi_process_event(struct efx_channel *channel, efx_qword_t *event);
+void efx_siena_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 
 /* We expect that 16- and 32-bit fields in MCDI requests and responses
  * are appropriately aligned, but 64-bit fields are only
@@ -338,51 +340,47 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 			      MCDI_CAPABILITY(field), \
 			      MCDI_CAPABILITY_OFST(field))
 
-void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len);
-int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
-			   u16 *fw_subtype_list, u32 *capabilities);
-int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart, u32 dest_evq);
-int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out);
-int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
-			size_t *size_out, size_t *erase_size_out,
-			bool *protected_out);
-int efx_new_mcdi_nvram_test_all(struct efx_nic *efx);
-int efx_mcdi_nvram_test_all(struct efx_nic *efx);
-int efx_mcdi_handle_assertion(struct efx_nic *efx);
-int efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
-int efx_mcdi_wol_filter_set_magic(struct efx_nic *efx, const u8 *mac,
-				  int *id_out);
-int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out);
-int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id);
-int efx_mcdi_wol_filter_reset(struct efx_nic *efx);
-int efx_mcdi_flush_rxqs(struct efx_nic *efx);
-void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev);
-void efx_mcdi_mac_start_stats(struct efx_nic *efx);
-void efx_mcdi_mac_stop_stats(struct efx_nic *efx);
-void efx_mcdi_mac_pull_stats(struct efx_nic *efx);
-enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason);
-int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method);
-int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled,
-			    unsigned int *flags);
-int efx_mcdi_get_workarounds(struct efx_nic *efx, unsigned int *impl_out,
-			     unsigned int *enabled_out);
+void efx_siena_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len);
+int efx_siena_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
+				 u16 *fw_subtype_list, u32 *capabilities);
+int efx_siena_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart,
+			    u32 dest_evq);
+int efx_siena_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out);
+int efx_siena_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
+			      size_t *size_out, size_t *erase_size_out,
+			      bool *protected_out);
+int efx_siena_mcdi_nvram_test_all(struct efx_nic *efx);
+int efx_siena_mcdi_handle_assertion(struct efx_nic *efx);
+int efx_siena_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
+int efx_siena_mcdi_wol_filter_set_magic(struct efx_nic *efx, const u8 *mac,
+					int *id_out);
+int efx_siena_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out);
+int efx_siena_mcdi_wol_filter_remove(struct efx_nic *efx, int id);
+int efx_siena_mcdi_wol_filter_reset(struct efx_nic *efx);
+int efx_siena_mcdi_flush_rxqs(struct efx_nic *efx);
+void efx_siena_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev);
+void efx_siena_mcdi_mac_start_stats(struct efx_nic *efx);
+void efx_siena_mcdi_mac_stop_stats(struct efx_nic *efx);
+void efx_siena_mcdi_mac_pull_stats(struct efx_nic *efx);
+enum reset_type efx_siena_mcdi_map_reset_reason(enum reset_type reason);
+int efx_siena_mcdi_reset(struct efx_nic *efx, enum reset_type method);
 
 #ifdef CONFIG_SFC_MCDI_MON
-int efx_mcdi_mon_probe(struct efx_nic *efx);
-void efx_mcdi_mon_remove(struct efx_nic *efx);
+int efx_siena_mcdi_mon_probe(struct efx_nic *efx);
+void efx_siena_mcdi_mon_remove(struct efx_nic *efx);
 #else
-static inline int efx_mcdi_mon_probe(struct efx_nic *efx) { return 0; }
-static inline void efx_mcdi_mon_remove(struct efx_nic *efx) {}
+static inline int efx_siena_mcdi_mon_probe(struct efx_nic *efx) { return 0; }
+static inline void efx_siena_mcdi_mon_remove(struct efx_nic *efx) {}
 #endif
 
 #ifdef CONFIG_SFC_MTD
-int efx_mcdi_mtd_read(struct mtd_info *mtd, loff_t start, size_t len,
-		      size_t *retlen, u8 *buffer);
-int efx_mcdi_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len);
-int efx_mcdi_mtd_write(struct mtd_info *mtd, loff_t start, size_t len,
-		       size_t *retlen, const u8 *buffer);
-int efx_mcdi_mtd_sync(struct mtd_info *mtd);
-void efx_mcdi_mtd_rename(struct efx_mtd_partition *part);
+int efx_siena_mcdi_mtd_read(struct mtd_info *mtd, loff_t start, size_t len,
+			    size_t *retlen, u8 *buffer);
+int efx_siena_mcdi_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len);
+int efx_siena_mcdi_mtd_write(struct mtd_info *mtd, loff_t start, size_t len,
+			     size_t *retlen, const u8 *buffer);
+int efx_siena_mcdi_mtd_sync(struct mtd_info *mtd);
+void efx_siena_mcdi_mtd_rename(struct efx_mtd_partition *part);
 #endif
 
 #endif /* EFX_MCDI_H */
