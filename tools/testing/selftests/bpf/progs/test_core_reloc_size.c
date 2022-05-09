@@ -44,10 +44,10 @@ int test_core_size(void *ctx)
 	out->struct_sz = bpf_core_field_size(in->struct_field);
 	out->union_sz = bpf_core_field_size(in->union_field);
 	out->arr_sz = bpf_core_field_size(in->arr_field);
-	out->arr_elem_sz = bpf_core_field_size(in->arr_field[0]);
-	out->ptr_sz = bpf_core_field_size(in->ptr_field);
-	out->enum_sz = bpf_core_field_size(in->enum_field);
-	out->float_sz = bpf_core_field_size(in->float_field);
+	out->arr_elem_sz = bpf_core_field_size(struct core_reloc_size, arr_field[0]);
+	out->ptr_sz = bpf_core_field_size(struct core_reloc_size, ptr_field);
+	out->enum_sz = bpf_core_field_size(struct core_reloc_size, enum_field);
+	out->float_sz = bpf_core_field_size(struct core_reloc_size, float_field);
 
 	return 0;
 }
