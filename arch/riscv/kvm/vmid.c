@@ -11,9 +11,9 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/smp.h>
 #include <linux/kvm_host.h>
 #include <asm/csr.h>
-#include <asm/sbi.h>
 
 static unsigned long vmid_version = 1;
 static unsigned long vmid_next;
@@ -63,6 +63,11 @@ bool kvm_riscv_gstage_vmid_ver_changed(struct kvm_vmid *vmid)
 			READ_ONCE(vmid_version));
 }
 
+static void __local_hfence_gvma_all(void *info)
+{
+	kvm_riscv_local_hfence_gvma_all();
+}
+
 void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu)
 {
 	unsigned long i;
@@ -101,7 +106,8 @@ void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu)
 		 * running, we force VM exits on all host CPUs using IPI and
 		 * flush all Guest TLBs.
 		 */
-		sbi_remote_hfence_gvma(cpu_online_mask, 0, 0);
+		on_each_cpu_mask(cpu_online_mask, __local_hfence_gvma_all,
+				 NULL, 1);
 	}
 
 	vmid->vmid = vmid_next;
