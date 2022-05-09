@@ -1641,7 +1641,6 @@ static struct mt8195_card_data mt8195_mt6359_max98390_rt5682_card = {
 	.quirk = MAX98390_SPEAKER_AMP_PRESENT,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id mt8195_mt6359_dt_match[] = {
 	{
 		.compatible = "mediatek,mt8195_mt6359_rt1019_rt5682",
@@ -1657,7 +1656,6 @@ static const struct of_device_id mt8195_mt6359_dt_match[] = {
 	},
 	{},
 };
-#endif
 
 static const struct dev_pm_ops mt8195_mt6359_pm_ops = {
 	.poweroff = snd_soc_poweroff,
@@ -1667,9 +1665,7 @@ static const struct dev_pm_ops mt8195_mt6359_pm_ops = {
 static struct platform_driver mt8195_mt6359_driver = {
 	.driver = {
 		.name = "mt8195_mt6359",
-#ifdef CONFIG_OF
 		.of_match_table = mt8195_mt6359_dt_match,
-#endif
 		.pm = &mt8195_mt6359_pm_ops,
 	},
 	.probe = mt8195_mt6359_dev_probe,
