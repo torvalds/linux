@@ -1567,6 +1567,15 @@ static const struct drm_display_mode edid_4k_modes[] = {
 
 /*** DDC fetch and block validation ***/
 
+/*
+ * The opaque EDID type, internal to drm_edid.c.
+ */
+struct drm_edid {
+	/* Size allocated for edid */
+	size_t size;
+	const struct edid *edid;
+};
+
 static int edid_extension_block_count(const struct edid *edid)
 {
 	return edid->extensions;
