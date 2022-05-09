@@ -7,9 +7,9 @@ on:
       - master
 
 jobs:
-  build_job:
+  x86_64:
     runs-on: ubuntu-20.04
-    name: Build
+    name: x86_64
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -25,3 +25,15 @@ jobs:
         with:
           name: test-results
           path: /tmp/junit/*.xml
+  checkpatch:
+    runs-on: ubuntu-20.04
+    name: checkpatch
+    steps:
+      - name: Checkout
+        with:
+          fetch-depth: 0
+        uses: actions/checkout@v2
+      - name: Install pip dependencies
+        run: sudo pip install ply GitPython
+      - name: Check coding style
+        run: tools/lkl/scripts/checkpatch.sh

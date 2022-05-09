@@ -4,21 +4,16 @@ if [ -z "$origin_master" ]; then
     origin_master="origin/master"
 fi
 
+git remote -v
+
 UPSTREAM=git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-LKL=github.com:lkl/linux.git
+LKL=github.com[:/]lkl/linux
 
 upstream=`git remote -v | grep $UPSTREAM | cut -f1 | head -n1`
 lkl=`git remote -v | grep $LKL | cut -f1 | head -n1`
 
 if [ -z "$upstream" ]; then
-    git fetch --tags --progress git://$UPSTREAM
-else
-    git fetch --tags $upstream
-fi
-
-if [ -z "$lkl" ]; then
-    git remote add lkl-upstream git@$LKL || true
-    lkl=`git remote -v | grep $LKL | cut -f1 | head -n1`
+    upstream=git://$UPSTREAM
 fi
 
 if [ -z "$lkl" ]; then
