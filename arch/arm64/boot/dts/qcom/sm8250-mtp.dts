@@ -622,6 +622,10 @@
 	status = "okay";
 };
 
+&rxmacro {
+	status = "okay";
+};
+
 &slpi {
 	status = "okay";
 	firmware-name = "qcom/sm8250/slpi.mbn";
@@ -773,6 +777,8 @@
 };
 
 &swr1 {
+	status = "okay";
+
 	wcd_rx: wcd9380-rx@0,4 {
 		compatible = "sdw20217010d00";
 		reg = <0 4>;
@@ -781,6 +787,8 @@
 };
 
 &swr2 {
+	status = "okay";
+
 	wcd_tx: wcd9380-tx@0,3 {
 		compatible = "sdw20217010d00";
 		reg = <0 3>;
@@ -817,6 +825,10 @@
 			output-low;
 		};
 	};
+};
+
+&txmacro {
+	status = "okay";
 };
 
 &uart12 {
