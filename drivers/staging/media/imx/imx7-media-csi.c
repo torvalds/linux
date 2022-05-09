@@ -1067,31 +1067,6 @@ static int imx7_csi_video_validate_fmt(struct imx7_csi *csi)
 	return 0;
 }
 
-static int imx7_csi_media_pipeline_set_stream(struct imx7_csi *csi, bool on)
-{
-	struct imx_media_dev *imxmd = &csi->imxmd;
-	int ret = 0;
-
-	mutex_lock(&imxmd->md.graph_mutex);
-
-	if (on) {
-		ret = __media_pipeline_start(&csi->sd.entity, &imxmd->pipe);
-		if (ret)
-			goto out;
-		ret = v4l2_subdev_call(&csi->sd, video, s_stream, 1);
-		if (ret)
-			__media_pipeline_stop(&csi->sd.entity);
-	} else {
-		v4l2_subdev_call(&csi->sd, video, s_stream, 0);
-		if (csi->sd.entity.pipe)
-			__media_pipeline_stop(&csi->sd.entity);
-	}
-
-out:
-	mutex_unlock(&imxmd->md.graph_mutex);
-	return ret;
-}
-
 static int imx7_csi_video_start_streaming(struct vb2_queue *vq,
 					  unsigned int count)
 {
@@ -1103,18 +1078,29 @@ static int imx7_csi_video_start_streaming(struct vb2_queue *vq,
 	ret = imx7_csi_video_validate_fmt(csi);
 	if (ret) {
 		dev_err(csi->dev, "capture format not valid\n");
-		goto return_bufs;
+		goto err_buffers;
 	}
 
-	ret = imx7_csi_media_pipeline_set_stream(csi, true);
-	if (ret) {
-		dev_err(csi->dev, "pipeline start failed with %d\n", ret);
-		goto return_bufs;
-	}
+	mutex_lock(&csi->imxmd.md.graph_mutex);
+
+	ret = __media_pipeline_start(&csi->sd.entity, &csi->imxmd.pipe);
+	if (ret)
+		goto err_unlock;
+
+	ret = v4l2_subdev_call(&csi->sd, video, s_stream, 1);
+	if (ret)
+		goto err_stop;
+
+	mutex_unlock(&csi->imxmd.md.graph_mutex);
 
 	return 0;
 
-return_bufs:
+err_stop:
+	__media_pipeline_stop(&csi->sd.entity);
+err_unlock:
+	mutex_unlock(&csi->imxmd.md.graph_mutex);
+	dev_err(csi->dev, "pipeline start failed with %d\n", ret);
+err_buffers:
 	spin_lock_irqsave(&csi->q_lock, flags);
 	list_for_each_entry_safe(buf, tmp, &csi->ready_q, list) {
 		list_del(&buf->list);
@@ -1130,11 +1116,11 @@ static void imx7_csi_video_stop_streaming(struct vb2_queue *vq)
 	struct imx_media_buffer *frame;
 	struct imx_media_buffer *tmp;
 	unsigned long flags;
-	int ret;
 
-	ret = imx7_csi_media_pipeline_set_stream(csi, false);
-	if (ret)
-		dev_warn(csi->dev, "pipeline stop failed with %d\n", ret);
+	mutex_lock(&csi->imxmd.md.graph_mutex);
+	v4l2_subdev_call(&csi->sd, video, s_stream, 0);
+	__media_pipeline_stop(&csi->sd.entity);
+	mutex_unlock(&csi->imxmd.md.graph_mutex);
 
 	/* release all active buffers */
 	spin_lock_irqsave(&csi->q_lock, flags);
