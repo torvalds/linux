@@ -825,7 +825,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	rqst[0].rq_nvec = SMB2_CREATE_IOV_SIZE;
 
 	oparms.tcon = tcon;
-	oparms.create_options = cifs_create_options(cifs_sb, 0);
+	oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_FILE);
 	oparms.desired_access = FILE_READ_ATTRIBUTES;
 	oparms.disposition = FILE_OPEN;
 	oparms.fid = pfid;
@@ -2696,7 +2696,8 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
 	memset(rsp_iov, 0, sizeof(rsp_iov));
 
-	rc = open_cached_dir(xid, tcon, path, cifs_sb, &cfid);
+	if (!strcmp(path, ""))
+		rc = open_cached_dir(xid, tcon, path, cifs_sb, &cfid);
 
 	memset(&open_iov, 0, sizeof(open_iov));
 	rqst[0].rq_iov = open_iov;
