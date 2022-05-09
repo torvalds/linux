@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2017 Toradex AG
+ * Copyright 2017-2022 Toradex
  */
 
 / {
@@ -8,37 +8,11 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	gpio-keys {
-		compatible = "gpio-keys";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_snvs_gpiokeys>;
-
-		power {
-			label = "Wake-Up";
-			gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
-			linux,code = <KEY_WAKEUP>;
-			debounce-interval = <10>;
-			wakeup-source;
-		};
-	};
-
 	/* fixed crystal dedicated to mcp2515 */
 	clk16m: clk16m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <16000000>;
-	};
-
-	panel: panel {
-		compatible = "edt,et057090dhu";
-		backlight = <&bl>;
-		power-supply = <&reg_3v3>;
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&lcdif_out>;
-			};
-		};
 	};
 
 	reg_3v3: regulator-3v3 {
@@ -71,14 +45,6 @@
 	status = "okay";
 };
 
-&bl {
-	brightness-levels = <0 4 8 16 32 64 128 255>;
-	default-brightness-level = <6>;
-	power-supply = <&reg_3v3>;
-	pwms = <&pwm4 0 5000000 1>;
-	status = "okay";
-};
-
 &ecspi1 {
 	status = "okay";
 
@@ -104,16 +70,6 @@
 	m41t0m6: rtc@68 {
 		compatible = "st,m41t0";
 		reg = <0x68>;
-	};
-};
-
-&lcdif {
-	status = "okay";
-
-	port {
-		lcdif_out: endpoint {
-			remote-endpoint = <&panel_in>;
-		};
 	};
 };
 
@@ -150,6 +106,7 @@
 };
 
 &usbotg1 {
+	vbus-supply = <&reg_usbh_vbus>;
 	status = "okay";
 };
 
@@ -159,20 +116,6 @@
 };
 
 &usdhc1 {
-	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
-	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_snvs_usdhc1_cd>;
-	pinctrl-1 = <&pinctrl_usdhc1_100mhz &pinctrl_snvs_usdhc1_cd>;
-	pinctrl-2 = <&pinctrl_usdhc1_200mhz &pinctrl_snvs_usdhc1_cd>;
-	pinctrl-3 = <&pinctrl_usdhc1 &pinctrl_snvs_usdhc1_sleep_cd>;
-	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
-	disable-wp;
-	wakeup-source;
-	keep-power-in-suspend;
 	vmmc-supply = <&reg_3v3>;
-	vqmmc-supply = <&reg_sd1_vmmc>;
-	sd-uhs-sdr12;
-	sd-uhs-sdr25;
-	sd-uhs-sdr50;
-	sd-uhs-sdr104;
 	status = "okay";
 };
