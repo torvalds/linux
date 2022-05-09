@@ -29,3 +29,9 @@ dataref and headerless skbs
 
 .. kernel-doc:: include/linux/skbuff.h
    :doc: dataref and headerless skbs
+
+Checksum information
+--------------------
+
+.. kernel-doc:: include/linux/skbuff.h
+   :doc: skb checksums
