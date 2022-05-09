@@ -665,8 +665,8 @@ static int peci_cpupower_probe(struct platform_device *pdev)
 	priv->mgr = mgr;
 	priv->dev = dev;
 
-	snprintf(priv->name, PECI_NAME_SIZE, "peci_cpupower.cpu%d",
-		 mgr->client->addr - PECI_BASE_ADDR);
+	snprintf(priv->name, PECI_NAME_SIZE, "peci_cpupower.cpu%d.%d",
+		 mgr->client->addr - PECI_BASE_ADDR, mgr->client->domain_id);
 
 	priv->power_config[power_cfg_idx] = HWMON_P_LABEL |
 		peci_sensor_get_config(peci_cpupower_power_cfg[power_cfg_idx],
