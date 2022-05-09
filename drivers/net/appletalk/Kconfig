@@ -39,17 +39,6 @@ config DEV_APPLETALK
 	  connect to the AppleTalk network, say Y.
 	  
 
-config LTPC
-	tristate "Apple/Farallon LocalTalk PC support"
-	depends on DEV_APPLETALK && (ISA || EISA) && ISA_DMA_API && VIRT_TO_BUS
-	help
-	  This allows you to use the AppleTalk PC card to connect to LocalTalk
-	  networks. The card is also known as the Farallon PhoneNet PC card.
-	  If you are in doubt, this card is the one with the 65C02 chip on it.
-	  You also need version 1.3.3 or later of the netatalk package.
-	  This driver is experimental, which means that it may not work.
-	  See the file <file:Documentation/networking/device_drivers/appletalk/ltpc.rst>.
-
 config COPS
 	tristate "COPS LocalTalk PC support"
 	depends on DEV_APPLETALK && ISA
