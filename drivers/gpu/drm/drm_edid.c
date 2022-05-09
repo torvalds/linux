@@ -1632,36 +1632,36 @@ static const struct drm_edid *drm_edid_legacy_init(struct drm_edid *drm_edid,
  * struct drm_edid_iter iter;
  * const u8 *block;
  *
- * drm_edid_iter_begin(edid, &iter);
+ * drm_edid_iter_begin(drm_edid, &iter);
  * drm_edid_iter_for_each(block, &iter) {
  *         // do stuff with block
  * }
  * drm_edid_iter_end(&iter);
  */
 struct drm_edid_iter {
-	const struct edid *edid;
+	const struct drm_edid *drm_edid;
 
 	/* Current block index. */
 	int index;
 };
 
-static void drm_edid_iter_begin(const struct edid *edid,
+static void drm_edid_iter_begin(const struct drm_edid *drm_edid,
 				struct drm_edid_iter *iter)
 {
 	memset(iter, 0, sizeof(*iter));
 
-	iter->edid = edid;
+	iter->drm_edid = drm_edid;
 }
 
 static const void *__drm_edid_iter_next(struct drm_edid_iter *iter)
 {
 	const void *block = NULL;
 
-	if (!iter->edid)
+	if (!iter->drm_edid)
 		return NULL;
 
-	if (iter->index < edid_block_count(iter->edid))
-		block = edid_block_data(iter->edid, iter->index++);
+	if (iter->index < edid_block_count(iter->drm_edid->edid))
+		block = edid_block_data(iter->drm_edid->edid, iter->index++);
 
 	return block;
 }
@@ -2611,7 +2611,7 @@ static void drm_for_each_detailed_block(const struct drm_edid *drm_edid,
 	for (i = 0; i < EDID_DETAILED_TIMINGS; i++)
 		cb(&drm_edid->edid->detailed_timings[i], closure);
 
-	drm_edid_iter_begin(drm_edid->edid, &edid_iter);
+	drm_edid_iter_begin(drm_edid, &edid_iter);
 	drm_edid_iter_for_each(ext, &edid_iter) {
 		switch (*ext) {
 		case CEA_EXT:
@@ -4453,7 +4453,7 @@ static void cea_db_iter_edid_begin(const struct drm_edid *drm_edid,
 {
 	memset(iter, 0, sizeof(*iter));
 
-	drm_edid_iter_begin(drm_edid ? drm_edid->edid : NULL, &iter->edid_iter);
+	drm_edid_iter_begin(drm_edid, &iter->edid_iter);
 	displayid_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter->displayid_iter);
 }
 
@@ -5163,7 +5163,7 @@ static bool _drm_detect_monitor_audio(const struct drm_edid *drm_edid)
 	const u8 *edid_ext;
 	bool has_audio = false;
 
-	drm_edid_iter_begin(drm_edid ? drm_edid->edid : NULL, &edid_iter);
+	drm_edid_iter_begin(drm_edid, &edid_iter);
 	drm_edid_iter_for_each(edid_ext, &edid_iter) {
 		if (edid_ext[0] == CEA_EXT) {
 			has_audio = edid_ext[3] & EDID_BASIC_AUDIO;
@@ -5516,7 +5516,7 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 	struct cea_db_iter iter;
 	const u8 *edid_ext;
 
-	drm_edid_iter_begin(drm_edid->edid, &edid_iter);
+	drm_edid_iter_begin(drm_edid, &edid_iter);
 	drm_edid_iter_for_each(edid_ext, &edid_iter) {
 		if (edid_ext[0] != CEA_EXT)
 			continue;
