@@ -26,7 +26,6 @@
 #include "efx.h"
 #include "efx_common.h"
 #include "efx_channels.h"
-#include "ef100.h"
 #include "rx_common.h"
 #include "tx_common.h"
 #include "nic.h"
@@ -795,22 +794,10 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 
 /* PCI device ID table */
 static const struct pci_device_id efx_pci_table[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0903),  /* SFC9120 PF */
-	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x1903),  /* SFC9120 VF */
-	 .driver_data = (unsigned long) &efx_hunt_a0_vf_nic_type},
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0923),  /* SFC9140 PF */
-	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x1923),  /* SFC9140 VF */
-	 .driver_data = (unsigned long) &efx_hunt_a0_vf_nic_type},
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0a03),  /* SFC9220 PF */
-	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x1a03),  /* SFC9220 VF */
-	 .driver_data = (unsigned long) &efx_hunt_a0_vf_nic_type},
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0b03),  /* SFC9250 PF */
-	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x1b03),  /* SFC9250 VF */
-	 .driver_data = (unsigned long) &efx_hunt_a0_vf_nic_type},
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0803),	/* SFC9020 */
+	 .driver_data = (unsigned long)&siena_a0_nic_type},
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0813),	/* SFL9021 */
+	 .driver_data = (unsigned long)&siena_a0_nic_type},
 	{0}			/* end of list */
 };
 
@@ -1298,14 +1285,8 @@ static int __init efx_init_module(void)
 	if (rc < 0)
 		goto err_pci;
 
-	rc = pci_register_driver(&ef100_pci_driver);
-	if (rc < 0)
-		goto err_pci_ef100;
-
 	return 0;
 
- err_pci_ef100:
-	pci_unregister_driver(&efx_pci_driver);
  err_pci:
 	efx_destroy_reset_workqueue();
  err_reset:
@@ -1318,7 +1299,6 @@ static void __exit efx_exit_module(void)
 {
 	printk(KERN_INFO "Solarflare NET driver unloading\n");
 
-	pci_unregister_driver(&ef100_pci_driver);
 	pci_unregister_driver(&efx_pci_driver);
 	efx_destroy_reset_workqueue();
 	unregister_netdevice_notifier(&efx_netdev_notifier);

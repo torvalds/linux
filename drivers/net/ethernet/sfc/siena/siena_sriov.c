@@ -689,7 +689,7 @@ static int efx_vfdi_fini_all_queues(struct siena_vf *vf)
 		     MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_MAXNUM);
 
 	rtnl_lock();
-	siena_prepare_flush(efx);
+	efx_siena_prepare_flush(efx);
 	rtnl_unlock();
 
 	/* Flush all the initialized queues */

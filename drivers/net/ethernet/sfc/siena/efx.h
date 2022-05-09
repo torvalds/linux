@@ -10,8 +10,6 @@
 
 #include <linux/indirect_call_wrapper.h>
 #include "net_driver.h"
-#include "ef100_rx.h"
-#include "ef100_tx.h"
 #include "filter.h"
 
 int efx_net_open(struct net_device *net_dev);
@@ -24,9 +22,8 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 netdev_tx_t __efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 static inline netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 {
-	return INDIRECT_CALL_2(tx_queue->efx->type->tx_enqueue,
-			       ef100_enqueue_skb, __efx_enqueue_skb,
-			       tx_queue, skb);
+	return INDIRECT_CALL_1(tx_queue->efx->type->tx_enqueue,
+			       __efx_enqueue_skb, tx_queue, skb);
 }
 void efx_xmit_done_single(struct efx_tx_queue *tx_queue);
 int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
@@ -40,16 +37,10 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 static inline void efx_rx_flush_packet(struct efx_channel *channel)
 {
 	if (channel->rx_pkt_n_frags)
-		INDIRECT_CALL_2(channel->efx->type->rx_packet,
-				__ef100_rx_packet, __efx_rx_packet,
-				channel);
+		__efx_rx_packet(channel);
 }
 static inline bool efx_rx_buf_hash_valid(struct efx_nic *efx, const u8 *prefix)
 {
-	if (efx->type->rx_buf_hash_valid)
-		return INDIRECT_CALL_1(efx->type->rx_buf_hash_valid,
-				       ef100_rx_buf_hash_valid,
-				       prefix);
 	return true;
 }
 

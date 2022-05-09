@@ -1790,17 +1790,6 @@ void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info)
 	ts_info->so_timestamping |= (SOF_TIMESTAMPING_TX_HARDWARE |
 				     SOF_TIMESTAMPING_RX_HARDWARE |
 				     SOF_TIMESTAMPING_RAW_HARDWARE);
-	/* Check licensed features.  If we don't have the license for TX
-	 * timestamps, the NIC will not support them.
-	 */
-	if (efx_ptp_use_mac_tx_timestamps(efx)) {
-		struct efx_ef10_nic_data *nic_data = efx->nic_data;
-
-		if (!(nic_data->licensed_features &
-		      (1 << LICENSED_V3_FEATURES_TX_TIMESTAMPS_LBN)))
-			ts_info->so_timestamping &=
-				~SOF_TIMESTAMPING_TX_HARDWARE;
-	}
 	if (primary && primary->ptp_data && primary->ptp_data->phc_clock)
 		ts_info->phc_index =
 			ptp_clock_index(primary->ptp_data->phc_clock);

@@ -16,7 +16,6 @@
 #include "bitfield.h"
 #include "efx.h"
 #include "nic.h"
-#include "ef10_regs.h"
 #include "farch_regs.h"
 #include "io.h"
 #include "workarounds.h"
@@ -195,7 +194,6 @@ struct efx_nic_reg {
 #define REGISTER_BB(name) REGISTER(name, F, B, B)
 #define REGISTER_BZ(name) REGISTER(name, F, B, Z)
 #define REGISTER_CZ(name) REGISTER(name, F, C, Z)
-#define REGISTER_DZ(name) REGISTER(name, E, D, Z)
 
 static const struct efx_nic_reg efx_nic_regs[] = {
 	REGISTER_AZ(ADR_REGION),
@@ -302,9 +300,6 @@ static const struct efx_nic_reg efx_nic_regs[] = {
 	REGISTER_AB(XX_TXDRV_CTL),
 	/* XX_PRBS_CTL, XX_PRBS_CHK and XX_PRBS_ERR are not used */
 	/* XX_CORE_STAT is partly RC */
-	REGISTER_DZ(BIU_HW_REV_ID),
-	REGISTER_DZ(MC_DB_LWRD),
-	REGISTER_DZ(MC_DB_HWRD),
 };
 
 struct efx_nic_reg_table {
@@ -337,7 +332,6 @@ struct efx_nic_reg_table {
 				  FR_BZ_ ## name ## _STEP,		\
 				  FR_CZ_ ## name ## _ROWS)
 #define REGISTER_TABLE_CZ(name) REGISTER_TABLE(name, F, C, Z)
-#define REGISTER_TABLE_DZ(name) REGISTER_TABLE(name, E, D, Z)
 
 static const struct efx_nic_reg_table efx_nic_reg_tables[] = {
 	/* DRIVER is not used */
@@ -368,7 +362,6 @@ static const struct efx_nic_reg_table efx_nic_reg_tables[] = {
 	/* MSIX_PBA_TABLE is not mapped */
 	/* SRM_DBG is not mapped (and is redundant with BUF_FLL_TBL) */
 	REGISTER_TABLE_BZ(RX_FILTER_TBL0),
-	REGISTER_TABLE_DZ(BIU_MC_SFT_STATUS),
 };
 
 size_t efx_nic_get_regs_len(struct efx_nic *efx)

@@ -56,7 +56,7 @@ static void siena_push_irq_moderation(struct efx_channel *channel)
 			       channel->channel);
 }
 
-void siena_prepare_flush(struct efx_nic *efx)
+void efx_siena_prepare_flush(struct efx_nic *efx)
 {
 	if (efx->fc_disable++ == 0)
 		efx_mcdi_set_mac(efx);
@@ -992,7 +992,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.probe_port = efx_mcdi_port_probe,
 	.remove_port = efx_mcdi_port_remove,
 	.fini_dmaq = efx_farch_fini_dmaq,
-	.prepare_flush = siena_prepare_flush,
+	.prepare_flush = efx_siena_prepare_flush,
 	.finish_flush = siena_finish_flush,
 	.prepare_flr = efx_port_dummy_op_void,
 	.finish_flr = efx_farch_finish_flr,
