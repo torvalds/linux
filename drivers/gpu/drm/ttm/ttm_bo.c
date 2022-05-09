@@ -439,7 +439,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 	bdev->funcs->evict_flags(bo, &placement);
 
 	if (!placement.num_placement && !placement.num_busy_placement) {
-		ret = ttm_bo_wait(bo, true, false);
+		ret = ttm_bo_wait_ctx(bo, ctx);
 		if (ret)
 			return ret;
 
@@ -1190,7 +1190,7 @@ int ttm_bo_swapout(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
 	/*
 	 * Make sure BO is idle.
 	 */
-	ret = ttm_bo_wait(bo, false, false);
+	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (unlikely(ret != 0))
 		goto out;
 
