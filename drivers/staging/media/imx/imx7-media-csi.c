@@ -746,8 +746,6 @@ struct capture_priv {
 	spinlock_t q_lock;			/* Protect ready_q */
 
 	struct v4l2_ctrl_handler ctrl_hdlr;	/* Controls inherited from subdevs */
-
-	bool legacy_api;			/* Use the legacy (pre-MC) API */
 };
 
 #define to_capture_priv(v) container_of(v, struct capture_priv, vdev)
@@ -1240,20 +1238,10 @@ static int capture_init_format(struct capture_priv *priv)
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
 	struct imx_media_video_dev *vdev = &priv->vdev;
-	int ret;
 
-	if (priv->legacy_api) {
-		ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL,
-				       &fmt_src);
-		if (ret) {
-			dev_err(priv->dev, "failed to get source format\n");
-			return ret;
-		}
-	} else {
-		fmt_src.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
-		fmt_src.format.width = IMX_MEDIA_DEF_PIX_WIDTH;
-		fmt_src.format.height = IMX_MEDIA_DEF_PIX_HEIGHT;
-	}
+	fmt_src.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
+	fmt_src.format.width = IMX_MEDIA_DEF_PIX_WIDTH;
+	fmt_src.format.height = IMX_MEDIA_DEF_PIX_HEIGHT;
 
 	imx_media_mbus_fmt_to_pix_fmt(&vdev->fmt, &fmt_src.format, NULL);
 	vdev->compose.width = fmt_src.format.width;
@@ -1322,7 +1310,7 @@ static void imx7_media_capture_device_unregister(struct imx_media_video_dev *vde
 
 static struct imx_media_video_dev *
 imx7_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
-			       int pad, bool legacy_api)
+			       int pad)
 {
 	struct capture_priv *priv;
 	struct video_device *vfd;
@@ -1336,7 +1324,6 @@ imx7_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 	priv->src_sd = src_sd;
 	priv->src_sd_pad = pad;
 	priv->dev = dev;
-	priv->legacy_api = legacy_api;
 
 	mutex_init(&priv->mutex);
 	INIT_LIST_HEAD(&priv->ready_q);
@@ -1354,7 +1341,7 @@ imx7_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 	vfd->vfl_dir = VFL_DIR_RX;
 	vfd->tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
 	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING
-			 | (!legacy_api ? V4L2_CAP_IO_MC : 0);
+			 | V4L2_CAP_IO_MC;
 	vfd->lock = &priv->mutex;
 	vfd->queue = &priv->q;
 
@@ -1390,12 +1377,6 @@ imx7_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 		dev_err(priv->dev, "vb2_queue_init failed\n");
 		video_device_release(vfd);
 		return ERR_PTR(ret);
-	}
-
-	if (legacy_api) {
-		/* Initialize the control handler. */
-		v4l2_ctrl_handler_init(&priv->ctrl_hdlr, 0);
-		vfd->ctrl_handler = &priv->ctrl_hdlr;
 	}
 
 	return &priv->vdev;
@@ -1742,7 +1723,7 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 	int ret;
 
 	csi->vdev = imx7_media_capture_device_init(csi->sd.dev, &csi->sd,
-						   IMX7_CSI_PAD_SRC, false);
+						   IMX7_CSI_PAD_SRC);
 	if (IS_ERR(csi->vdev))
 		return PTR_ERR(csi->vdev);
 
