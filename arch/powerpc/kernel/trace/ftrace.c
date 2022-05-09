@@ -90,19 +90,19 @@ static int test_24bit_addr(unsigned long ip, unsigned long addr)
 
 static int is_bl_op(ppc_inst_t op)
 {
-	return (ppc_inst_val(op) & 0xfc000003) == 0x48000001;
+	return (ppc_inst_val(op) & ~PPC_LI_MASK) == PPC_RAW_BL(0);
 }
 
 static int is_b_op(ppc_inst_t op)
 {
-	return (ppc_inst_val(op) & 0xfc000003) == 0x48000000;
+	return (ppc_inst_val(op) & ~PPC_LI_MASK) == PPC_RAW_BRANCH(0);
 }
 
 static unsigned long find_bl_target(unsigned long ip, ppc_inst_t op)
 {
 	int offset;
 
-	offset = (ppc_inst_val(op) & 0x03fffffc);
+	offset = PPC_LI(ppc_inst_val(op));
 	/* make it signed */
 	if (offset & 0x02000000)
 		offset |= 0xfe000000;
@@ -182,7 +182,7 @@ __ftrace_make_nop(struct module *mod,
 	 * Use a b +8 to jump over the load.
 	 */
 
-	pop = ppc_inst(PPC_INST_BRANCH | 8);	/* b +8 */
+	pop = ppc_inst(PPC_RAW_BRANCH(8));	/* b +8 */
 
 	/*
 	 * Check what is in the next instruction. We can see ld r2,40(r1), but
@@ -394,17 +394,8 @@ int ftrace_make_nop(struct module *mod,
 static int
 expected_nop_sequence(void *ip, ppc_inst_t op0, ppc_inst_t op1)
 {
-	/*
-	 * We expect to see:
-	 *
-	 * b +8
-	 * ld r2,XX(r1)
-	 *
-	 * The load offset is different depending on the ABI. For simplicity
-	 * just mask it out when doing the compare.
-	 */
-	if (!ppc_inst_equal(op0, ppc_inst(0x48000008)) ||
-	    (ppc_inst_val(op1) & 0xffff0000) != 0xe8410000)
+	if (!ppc_inst_equal(op0, ppc_inst(PPC_RAW_BRANCH(8))) ||
+	    !ppc_inst_equal(op1, ppc_inst(PPC_INST_LD_TOC)))
 		return 0;
 	return 1;
 }
@@ -412,7 +403,6 @@ expected_nop_sequence(void *ip, ppc_inst_t op0, ppc_inst_t op1)
 static int
 expected_nop_sequence(void *ip, ppc_inst_t op0, ppc_inst_t op1)
 {
-	/* look for patched "NOP" on ppc64 with -mprofile-kernel or ppc32 */
 	if (!ppc_inst_equal(op0, ppc_inst(PPC_RAW_NOP())))
 		return 0;
 	return 1;
@@ -738,11 +728,11 @@ int __init ftrace_dyn_arch_init(void)
 	int i;
 	unsigned int *tramp[] = { ftrace_tramp_text, ftrace_tramp_init };
 	u32 stub_insns[] = {
-		0xe98d0000 | PACATOC,	/* ld      r12,PACATOC(r13)	*/
-		0x3d8c0000,		/* addis   r12,r12,<high>	*/
-		0x398c0000,		/* addi    r12,r12,<low>	*/
-		0x7d8903a6,		/* mtctr   r12			*/
-		0x4e800420,		/* bctr				*/
+		PPC_RAW_LD(_R12, _R13, PACATOC),
+		PPC_RAW_ADDIS(_R12, _R12, 0),
+		PPC_RAW_ADDI(_R12, _R12, 0),
+		PPC_RAW_MTCTR(_R12),
+		PPC_RAW_BCTR()
 	};
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 	unsigned long addr = ppc_global_function_entry((void *)ftrace_regs_caller);
