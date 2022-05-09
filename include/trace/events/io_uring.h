@@ -530,7 +530,7 @@ TRACE_EVENT(io_uring_req_failed,
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, "
-		"op %d, flags 0x%x, prio=%d, off=%llu, addr=%llu, "
+		  "op %d, flags 0x%x, prio=%d, off=%llu, addr=%llu, "
 		  "len=%u, rw_flags=0x%x, buf_index=%d, "
 		  "personality=%d, file_index=%d, pad=0x%llx/%llx, error=%d",
 		  __entry->ctx, __entry->req, __entry->user_data,
@@ -541,6 +541,46 @@ TRACE_EVENT(io_uring_req_failed,
 		  __entry->buf_index, __entry->personality, __entry->file_index,
 		  (unsigned long long) __entry->pad1,
 		  (unsigned long long) __entry->pad2, __entry->error)
+);
+
+
+/*
+ * io_uring_cqe_overflow - a CQE overflowed
+ *
+ * @ctx:		pointer to a ring context structure
+ * @user_data:		user data associated with the request
+ * @res:		CQE result
+ * @cflags:		CQE flags
+ * @ocqe:		pointer to the overflow cqe (if available)
+ *
+ */
+TRACE_EVENT(io_uring_cqe_overflow,
+
+	TP_PROTO(void *ctx, unsigned long long user_data, s32 res, u32 cflags,
+		 void *ocqe),
+
+	TP_ARGS(ctx, user_data, res, cflags, ocqe),
+
+	TP_STRUCT__entry (
+		__field(  void *,		ctx		)
+		__field(  unsigned long long,	user_data	)
+		__field(  s32,			res		)
+		__field(  u32,			cflags		)
+		__field(  void *,		ocqe		)
+	),
+
+	TP_fast_assign(
+		__entry->ctx		= ctx;
+		__entry->user_data	= user_data;
+		__entry->res		= res;
+		__entry->cflags		= cflags;
+		__entry->ocqe		= ocqe;
+	),
+
+	TP_printk("ring %p, user_data 0x%llx, res %d, flags %x, "
+		  "overflow_cqe %p",
+		  __entry->ctx, __entry->user_data, __entry->res,
+		  __entry->cflags, __entry->ocqe)
 );
 
 #endif /* _TRACE_IO_URING_H */
