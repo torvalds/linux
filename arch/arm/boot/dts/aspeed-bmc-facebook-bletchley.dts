@@ -827,6 +827,11 @@
 		&pinctrl_adc14_default &pinctrl_adc15_default>;
 };
 
+&mdio0 {
+	status = "okay";
+	/* TODO: Add Marvell 88E6191X */
+};
+
 &mdio3 {
 	status = "okay";
 	/* TODO: Add Marvell 88X3310 */
