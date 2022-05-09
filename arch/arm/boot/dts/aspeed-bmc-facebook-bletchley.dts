@@ -838,3 +838,7 @@
 	status = "okay";
 	/* TODO: Add Marvell 88X3310 */
 };
+
+&ehci0 {
+	status = "okay";
+};
