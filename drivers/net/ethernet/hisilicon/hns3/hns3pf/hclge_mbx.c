@@ -57,17 +57,19 @@ static int hclge_gen_resp_to_vf(struct hclge_vport *vport,
 	resp_pf_to_vf->msg_len = vf_to_pf_req->msg_len;
 	resp_pf_to_vf->match_id = vf_to_pf_req->match_id;
 
-	resp_pf_to_vf->msg.code = HCLGE_MBX_PF_VF_RESP;
-	resp_pf_to_vf->msg.vf_mbx_msg_code = vf_to_pf_req->msg.code;
-	resp_pf_to_vf->msg.vf_mbx_msg_subcode = vf_to_pf_req->msg.subcode;
+	resp_pf_to_vf->msg.code = cpu_to_le16(HCLGE_MBX_PF_VF_RESP);
+	resp_pf_to_vf->msg.vf_mbx_msg_code =
+				cpu_to_le16(vf_to_pf_req->msg.code);
+	resp_pf_to_vf->msg.vf_mbx_msg_subcode =
+				cpu_to_le16(vf_to_pf_req->msg.subcode);
 	resp = hclge_errno_to_resp(resp_msg->status);
 	if (resp < SHRT_MAX) {
-		resp_pf_to_vf->msg.resp_status = resp;
+		resp_pf_to_vf->msg.resp_status = cpu_to_le16(resp);
 	} else {
 		dev_warn(&hdev->pdev->dev,
 			 "failed to send response to VF, response status %u is out-of-bound\n",
 			 resp);
-		resp_pf_to_vf->msg.resp_status = EIO;
+		resp_pf_to_vf->msg.resp_status = cpu_to_le16(EIO);
 	}
 
 	if (resp_msg->len > 0)
@@ -107,7 +109,7 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 
 	resp_pf_to_vf->dest_vfid = dest_vfid;
 	resp_pf_to_vf->msg_len = msg_len;
-	resp_pf_to_vf->msg.code = mbx_opcode;
+	resp_pf_to_vf->msg.code = cpu_to_le16(mbx_opcode);
 
 	memcpy(resp_pf_to_vf->msg.msg_data, msg, msg_len);
 
@@ -125,8 +127,8 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 {
 	struct hclge_dev *hdev = vport->back;
+	__le16 msg_data;
 	u16 reset_type;
-	u8 msg_data[2];
 	u8 dest_vfid;
 
 	BUILD_BUG_ON(HNAE3_MAX_RESET > U16_MAX);
@@ -140,10 +142,10 @@ int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 	else
 		reset_type = HNAE3_VF_FUNC_RESET;
 
-	memcpy(&msg_data[0], &reset_type, sizeof(u16));
+	msg_data = cpu_to_le16(reset_type);
 
 	/* send this requested info to VF */
-	return hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
+	return hclge_send_mbx_msg(vport, (u8 *)&msg_data, sizeof(msg_data),
 				  HCLGE_MBX_ASSERTING_RESET, dest_vfid);
 }
 
@@ -339,16 +341,14 @@ int hclge_push_vf_port_base_vlan_info(struct hclge_vport *vport, u8 vfid,
 				      u16 state,
 				      struct hclge_vlan_info *vlan_info)
 {
-#define MSG_DATA_SIZE	8
+	struct hclge_mbx_port_base_vlan base_vlan;
 
-	u8 msg_data[MSG_DATA_SIZE];
+	base_vlan.state = cpu_to_le16(state);
+	base_vlan.vlan_proto = cpu_to_le16(vlan_info->vlan_proto);
+	base_vlan.qos = cpu_to_le16(vlan_info->qos);
+	base_vlan.vlan_tag = cpu_to_le16(vlan_info->vlan_tag);
 
-	memcpy(&msg_data[0], &state, sizeof(u16));
-	memcpy(&msg_data[2], &vlan_info->vlan_proto, sizeof(u16));
-	memcpy(&msg_data[4], &vlan_info->qos, sizeof(u16));
-	memcpy(&msg_data[6], &vlan_info->vlan_tag, sizeof(u16));
-
-	return hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
+	return hclge_send_mbx_msg(vport, (u8 *)&base_vlan, sizeof(base_vlan),
 				  HCLGE_MBX_PUSH_VLAN_INFO, vfid);
 }
 
@@ -488,10 +488,9 @@ int hclge_push_vf_link_status(struct hclge_vport *vport)
 #define HCLGE_VF_LINK_STATE_UP		1U
 #define HCLGE_VF_LINK_STATE_DOWN	0U
 
+	struct hclge_mbx_link_status link_info;
 	struct hclge_dev *hdev = vport->back;
 	u16 link_status;
-	u8 msg_data[9];
-	u16 duplex;
 
 	/* mac.link can only be 0 or 1 */
 	switch (vport->vf_info.link_state) {
@@ -507,14 +506,13 @@ int hclge_push_vf_link_status(struct hclge_vport *vport)
 		break;
 	}
 
-	duplex = hdev->hw.mac.duplex;
-	memcpy(&msg_data[0], &link_status, sizeof(u16));
-	memcpy(&msg_data[2], &hdev->hw.mac.speed, sizeof(u32));
-	memcpy(&msg_data[6], &duplex, sizeof(u16));
-	msg_data[8] = HCLGE_MBX_PUSH_LINK_STATUS_EN;
+	link_info.link_status = cpu_to_le16(link_status);
+	link_info.speed = cpu_to_le32(hdev->hw.mac.speed);
+	link_info.duplex = cpu_to_le16(hdev->hw.mac.duplex);
+	link_info.flag = HCLGE_MBX_PUSH_LINK_STATUS_EN;
 
 	/* send this requested info to VF */
-	return hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
+	return hclge_send_mbx_msg(vport, (u8 *)&link_info, sizeof(link_info),
 				  HCLGE_MBX_LINK_STAT_CHANGE, vport->vport_id);
 }
 
@@ -522,22 +520,22 @@ static void hclge_get_link_mode(struct hclge_vport *vport,
 				struct hclge_mbx_vf_to_pf_cmd *mbx_req)
 {
 #define HCLGE_SUPPORTED   1
+	struct hclge_mbx_link_mode link_mode;
 	struct hclge_dev *hdev = vport->back;
 	unsigned long advertising;
 	unsigned long supported;
 	unsigned long send_data;
-	u8 msg_data[10] = {};
 	u8 dest_vfid;
 
 	advertising = hdev->hw.mac.advertising[0];
 	supported = hdev->hw.mac.supported[0];
 	dest_vfid = mbx_req->mbx_src_vfid;
-	msg_data[0] = mbx_req->msg.data[0];
+	send_data = mbx_req->msg.data[0] == HCLGE_SUPPORTED ? supported :
+							      advertising;
+	link_mode.idx = cpu_to_le16((u16)mbx_req->msg.data[0]);
+	link_mode.link_mode = cpu_to_le64(send_data);
 
-	send_data = msg_data[0] == HCLGE_SUPPORTED ? supported : advertising;
-
-	memcpy(&msg_data[2], &send_data, sizeof(unsigned long));
-	hclge_send_mbx_msg(vport, msg_data, sizeof(msg_data),
+	hclge_send_mbx_msg(vport, (u8 *)&link_mode, sizeof(link_mode),
 			   HCLGE_MBX_LINK_STAT_MODE, dest_vfid);
 }
 
