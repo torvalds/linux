@@ -568,6 +568,12 @@ struct cpucp_array_data_packet {
 	__le32 data[];
 };
 
+enum cpucp_led_index {
+	CPUCP_LED0_INDEX = 0,
+	CPUCP_LED1_INDEX,
+	CPUCP_LED2_INDEX
+};
+
 enum cpucp_packet_rc {
 	cpucp_packet_success,
 	cpucp_packet_invalid,
@@ -589,7 +595,10 @@ enum cpucp_temp_type {
 	cpucp_temp_offset = 19,
 	cpucp_temp_lowest = 21,
 	cpucp_temp_highest = 22,
-	cpucp_temp_reset_history = 23
+	cpucp_temp_reset_history = 23,
+	cpucp_temp_warn = 24,
+	cpucp_temp_max_crit = 25,
+	cpucp_temp_max_warn = 26,
 };
 
 enum cpucp_in_attributes {
@@ -699,6 +708,7 @@ enum pll_index {
 enum rl_index {
 	TPC_RL = 0,
 	MME_RL,
+	EDMA_RL,
 };
 
 enum pvt_index {
@@ -833,6 +843,7 @@ enum cpucp_serdes_type {
 	TYPE_2_SERDES_TYPE,
 	HLS1_SERDES_TYPE,
 	HLS1H_SERDES_TYPE,
+	HLS2_SERDES_TYPE,
 	UNKNOWN_SERDES_TYPE,
 	MAX_NUM_SERDES_TYPE = UNKNOWN_SERDES_TYPE
 };
@@ -846,7 +857,26 @@ struct cpucp_nic_info {
 	__u8 qsfp_eeprom[CPUCP_NIC_QSFP_EEPROM_MAX_LEN];
 	__le64 auto_neg_mask[CPUCP_NIC_MASK_ARR_LEN];
 	__le16 serdes_type; /* enum cpucp_serdes_type */
+	__le16 tx_swap_map[CPUCP_MAX_NICS];
 	__u8 reserved[6];
+};
+
+#define PAGE_DISCARD_MAX	64
+
+struct page_discard_info {
+	__u8 num_entries;
+	__u8 reserved[7];
+	__le32 mmu_page_idx[PAGE_DISCARD_MAX];
+};
+
+/*
+ * struct ser_val - the SER (symbol error rate) value is represented by "integer * 10 ^ -exp".
+ * @integer: the integer part of the SER value;
+ * @exp: the exponent part of the SER value.
+ */
+struct ser_val {
+	__le16 integer;
+	__le16 exp;
 };
 
 /*
