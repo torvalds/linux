@@ -183,7 +183,7 @@ struct imx7_csi {
 	spinlock_t irqlock; /* Protects last_eof */
 
 	/* Media and V4L2 device */
-	struct imx_media_dev *imxmd;
+	struct imx_media_dev imxmd;
 	struct v4l2_async_notifier notifier;
 
 	struct v4l2_subdev *src_sd;
@@ -1081,7 +1081,7 @@ static int imx7_csi_video_start_streaming(struct vb2_queue *vq,
 		goto return_bufs;
 	}
 
-	ret = imx_media_pipeline_set_stream(csi->imxmd, &csi->sd.entity, true);
+	ret = imx_media_pipeline_set_stream(&csi->imxmd, &csi->sd.entity, true);
 	if (ret) {
 		dev_err(csi->dev, "pipeline start failed with %d\n", ret);
 		goto return_bufs;
@@ -1107,7 +1107,7 @@ static void imx7_csi_video_stop_streaming(struct vb2_queue *vq)
 	unsigned long flags;
 	int ret;
 
-	ret = imx_media_pipeline_set_stream(csi->imxmd, &csi->sd.entity, false);
+	ret = imx_media_pipeline_set_stream(&csi->imxmd, &csi->sd.entity, false);
 	if (ret)
 		dev_warn(csi->dev, "pipeline stop failed with %d\n", ret);
 
@@ -1268,7 +1268,7 @@ static int imx7_csi_video_register(struct imx7_csi *csi)
 	}
 
 	/* Add vdev to the video devices list. */
-	imx_media_add_video_device(csi->imxmd, &csi->vdev);
+	imx_media_add_video_device(&csi->imxmd, &csi->vdev);
 
 	return 0;
 }
@@ -1685,11 +1685,11 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 	if (ret)
 		return ret;
 
-	ret = v4l2_device_register_subdev_nodes(&csi->imxmd->v4l2_dev);
+	ret = v4l2_device_register_subdev_nodes(&csi->imxmd.v4l2_dev);
 	if (ret)
 		goto err_unreg;
 
-	ret = media_device_register(&csi->imxmd->md);
+	ret = media_device_register(&csi->imxmd.md);
 	if (ret)
 		goto err_unreg;
 
@@ -1759,7 +1759,7 @@ static int imx7_csi_notify_complete(struct v4l2_async_notifier *notifier)
 {
 	struct imx7_csi *csi = imx7_csi_notifier_to_dev(notifier);
 
-	return v4l2_device_register_subdev_nodes(&csi->imxmd->v4l2_dev);
+	return v4l2_device_register_subdev_nodes(&csi->imxmd.v4l2_dev);
 }
 
 static const struct v4l2_async_notifier_operations imx7_csi_notify_ops = {
@@ -1793,7 +1793,7 @@ static int imx7_csi_async_register(struct imx7_csi *csi)
 
 	csi->notifier.ops = &imx7_csi_notify_ops;
 
-	ret = v4l2_async_nf_register(&csi->imxmd->v4l2_dev, &csi->notifier);
+	ret = v4l2_async_nf_register(&csi->imxmd.v4l2_dev, &csi->notifier);
 	if (ret)
 		return ret;
 
@@ -1802,7 +1802,7 @@ static int imx7_csi_async_register(struct imx7_csi *csi)
 
 static void imx7_csi_media_cleanup(struct imx7_csi *csi)
 {
-	struct imx_media_dev *imxmd = csi->imxmd;
+	struct imx_media_dev *imxmd = &csi->imxmd;
 
 	v4l2_device_unregister(&imxmd->v4l2_dev);
 	media_device_unregister(&imxmd->md);
@@ -1813,20 +1813,16 @@ static const struct media_device_ops imx7_csi_media_ops = {
 	.link_notify = v4l2_pipeline_link_notify,
 };
 
-static struct imx_media_dev *imx7_csi_media_dev_init(struct device *dev)
+static int imx7_csi_media_dev_init(struct imx7_csi *csi)
 {
-	struct imx_media_dev *imxmd;
+	struct imx_media_dev *imxmd = &csi->imxmd;
 	int ret;
 
-	imxmd = devm_kzalloc(dev, sizeof(*imxmd), GFP_KERNEL);
-	if (!imxmd)
-		return ERR_PTR(-ENOMEM);
-
-	dev_set_drvdata(dev, imxmd);
+	dev_set_drvdata(csi->dev, imxmd);
 
 	strscpy(imxmd->md.model, "imx-media", sizeof(imxmd->md.model));
 	imxmd->md.ops = &imx7_csi_media_ops;
-	imxmd->md.dev = dev;
+	imxmd->md.dev = csi->dev;
 
 	mutex_init(&imxmd->mutex);
 
@@ -1838,7 +1834,7 @@ static struct imx_media_dev *imx7_csi_media_dev_init(struct device *dev)
 
 	media_device_init(&imxmd->md);
 
-	ret = v4l2_device_register(dev, &imxmd->v4l2_dev);
+	ret = v4l2_device_register(csi->dev, &imxmd->v4l2_dev);
 	if (ret < 0) {
 		v4l2_err(&imxmd->v4l2_dev,
 			 "Failed to register v4l2_device: %d\n", ret);
@@ -1849,26 +1845,23 @@ static struct imx_media_dev *imx7_csi_media_dev_init(struct device *dev)
 
 	v4l2_async_nf_init(&imxmd->notifier);
 
-	return imxmd;
+	return 0;
 
 cleanup:
 	media_device_cleanup(&imxmd->md);
 
-	return ERR_PTR(ret);
+	return ret;
 }
 
 static int imx7_csi_media_init(struct imx7_csi *csi)
 {
-	struct imx_media_dev *imxmd;
 	unsigned int i;
 	int ret;
 
 	/* add media device */
-	imxmd = imx7_csi_media_dev_init(csi->dev);
-	if (IS_ERR(imxmd))
-		return PTR_ERR(imxmd);
-
-	csi->imxmd = imxmd;
+	ret = imx7_csi_media_dev_init(csi);
+	if (ret)
+		return ret;
 
 	v4l2_subdev_init(&csi->sd, &imx7_csi_subdev_ops);
 	v4l2_set_subdevdata(&csi->sd, csi);
@@ -1889,7 +1882,7 @@ static int imx7_csi_media_init(struct imx7_csi *csi)
 	if (ret)
 		goto error;
 
-	ret = v4l2_device_register_subdev(&csi->imxmd->v4l2_dev, &csi->sd);
+	ret = v4l2_device_register_subdev(&csi->imxmd.v4l2_dev, &csi->sd);
 	if (ret)
 		goto error;
 
