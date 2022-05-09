@@ -71,6 +71,36 @@ int genphy_c45_pma_suspend(struct phy_device *phydev)
 EXPORT_SYMBOL_GPL(genphy_c45_pma_suspend);
 
 /**
+ * genphy_c45_pma_baset1_setup_master_slave - configures forced master/slave
+ * role of BaseT1 devices.
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_pma_baset1_setup_master_slave(struct phy_device *phydev)
+{
+	int ctl = 0;
+
+	switch (phydev->master_slave_set) {
+	case MASTER_SLAVE_CFG_MASTER_PREFERRED:
+	case MASTER_SLAVE_CFG_MASTER_FORCE:
+		ctl = MDIO_PMA_PMD_BT1_CTRL_CFG_MST;
+		break;
+	case MASTER_SLAVE_CFG_SLAVE_FORCE:
+	case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
+		break;
+	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNSUPPORTED:
+		return 0;
+	default:
+		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
+		return -EOPNOTSUPP;
+	}
+
+	return phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL,
+			     MDIO_PMA_PMD_BT1_CTRL_CFG_MST, ctl);
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_baset1_setup_master_slave);
+
+/**
  * genphy_c45_pma_setup_forced - configures a forced speed
  * @phydev: target phy_device struct
  */
@@ -141,25 +171,7 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 		return ret;
 
 	if (genphy_c45_baset1_able(phydev)) {
-		int ctl = 0;
-
-		switch (phydev->master_slave_set) {
-		case MASTER_SLAVE_CFG_MASTER_PREFERRED:
-		case MASTER_SLAVE_CFG_MASTER_FORCE:
-			ctl = MDIO_PMA_PMD_BT1_CTRL_CFG_MST;
-			break;
-		case MASTER_SLAVE_CFG_SLAVE_FORCE:
-		case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
-		case MASTER_SLAVE_CFG_UNKNOWN:
-		case MASTER_SLAVE_CFG_UNSUPPORTED:
-			break;
-		default:
-			phydev_warn(phydev, "Unsupported Master/Slave mode\n");
-			return -EOPNOTSUPP;
-		}
-
-		ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL,
-				     MDIO_PMA_PMD_BT1_CTRL_CFG_MST, ctl);
+		ret = genphy_c45_pma_baset1_setup_master_slave(phydev);
 		if (ret < 0)
 			return ret;
 	}
@@ -191,8 +203,12 @@ static int genphy_c45_baset1_an_config_aneg(struct phy_device *phydev)
 	case MASTER_SLAVE_CFG_MASTER_PREFERRED:
 	case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
 		break;
+	case MASTER_SLAVE_CFG_UNKNOWN:
+	case MASTER_SLAVE_CFG_UNSUPPORTED:
+		return 0;
 	default:
-		break;
+		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
+		return -EOPNOTSUPP;
 	}
 
 	switch (phydev->master_slave_set) {
@@ -535,6 +551,34 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 EXPORT_SYMBOL_GPL(genphy_c45_read_lpa);
 
 /**
+ * genphy_c45_pma_baset1_read_master_slave - read forced master/slave
+ * configuration
+ * @phydev: target phy_device struct
+ */
+int genphy_c45_pma_baset1_read_master_slave(struct phy_device *phydev)
+{
+	int val;
+
+	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKNOWN;
+	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKNOWN;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL);
+	if (val < 0)
+		return val;
+
+	if (val & MDIO_PMA_PMD_BT1_CTRL_CFG_MST) {
+		phydev->master_slave_get = MASTER_SLAVE_CFG_MASTER_FORCE;
+		phydev->master_slave_state = MASTER_SLAVE_STATE_MASTER;
+	} else {
+		phydev->master_slave_get = MASTER_SLAVE_CFG_SLAVE_FORCE;
+		phydev->master_slave_state = MASTER_SLAVE_STATE_SLAVE;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_baset1_read_master_slave);
+
+/**
  * genphy_c45_read_pma - read link speed etc from PMA
  * @phydev: target phy_device struct
  */
@@ -575,14 +619,9 @@ int genphy_c45_read_pma(struct phy_device *phydev)
 	phydev->duplex = DUPLEX_FULL;
 
 	if (genphy_c45_baset1_able(phydev)) {
-		val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL);
+		val = genphy_c45_pma_baset1_read_master_slave(phydev);
 		if (val < 0)
 			return val;
-
-		if (MDIO_PMA_PMD_BT1_CTRL_CFG_MST)
-			phydev->master_slave_state = MASTER_SLAVE_STATE_MASTER;
-		else
-			phydev->master_slave_state = MASTER_SLAVE_STATE_SLAVE;
 	}
 
 	return 0;
@@ -746,7 +785,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_pma_read_abilities);
  * is forced or not, it is read from BASE-T1 AN advertisement
  * register 7.514.
  */
-static int genphy_c45_baset1_read_status(struct phy_device *phydev)
+int genphy_c45_baset1_read_status(struct phy_device *phydev)
 {
 	int ret;
 	int cfg;
@@ -776,6 +815,7 @@ static int genphy_c45_baset1_read_status(struct phy_device *phydev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(genphy_c45_baset1_read_status);
 
 /**
  * genphy_c45_read_status - read PHY status
