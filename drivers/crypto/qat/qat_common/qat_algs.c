@@ -935,19 +935,25 @@ void qat_alg_callback(void *resp)
 	struct icp_qat_fw_la_resp *qat_resp = resp;
 	struct qat_crypto_request *qat_req =
 				(void *)(__force long)qat_resp->opaque_data;
+	struct qat_instance_backlog *backlog = qat_req->alg_req.backlog;
 
 	qat_req->cb(qat_resp, qat_req);
+
+	qat_alg_send_backlog(backlog);
 }
 
 static int qat_alg_send_sym_message(struct qat_crypto_request *qat_req,
-				    struct qat_crypto_instance *inst)
+				    struct qat_crypto_instance *inst,
+				    struct crypto_async_request *base)
 {
-	struct qat_alg_req req;
+	struct qat_alg_req *alg_req = &qat_req->alg_req;
 
-	req.fw_req = (u32 *)&qat_req->req;
-	req.tx_ring = inst->sym_tx;
+	alg_req->fw_req = (u32 *)&qat_req->req;
+	alg_req->tx_ring = inst->sym_tx;
+	alg_req->base = base;
+	alg_req->backlog = &inst->backlog;
 
-	return qat_alg_send_message(&req);
+	return qat_alg_send_message(alg_req);
 }
 
 static int qat_alg_aead_dec(struct aead_request *areq)
@@ -987,7 +993,7 @@ static int qat_alg_aead_dec(struct aead_request *areq)
 	auth_param->auth_off = 0;
 	auth_param->auth_len = areq->assoclen + cipher_param->cipher_length;
 
-	ret = qat_alg_send_sym_message(qat_req, ctx->inst);
+	ret = qat_alg_send_sym_message(qat_req, ctx->inst, &areq->base);
 	if (ret == -ENOSPC)
 		qat_alg_free_bufl(ctx->inst, qat_req);
 
@@ -1031,7 +1037,7 @@ static int qat_alg_aead_enc(struct aead_request *areq)
 	auth_param->auth_off = 0;
 	auth_param->auth_len = areq->assoclen + areq->cryptlen;
 
-	ret = qat_alg_send_sym_message(qat_req, ctx->inst);
+	ret = qat_alg_send_sym_message(qat_req, ctx->inst, &areq->base);
 	if (ret == -ENOSPC)
 		qat_alg_free_bufl(ctx->inst, qat_req);
 
@@ -1212,7 +1218,7 @@ static int qat_alg_skcipher_encrypt(struct skcipher_request *req)
 
 	qat_alg_set_req_iv(qat_req);
 
-	ret = qat_alg_send_sym_message(qat_req, ctx->inst);
+	ret = qat_alg_send_sym_message(qat_req, ctx->inst, &req->base);
 	if (ret == -ENOSPC)
 		qat_alg_free_bufl(ctx->inst, qat_req);
 
@@ -1278,7 +1284,7 @@ static int qat_alg_skcipher_decrypt(struct skcipher_request *req)
 	qat_alg_set_req_iv(qat_req);
 	qat_alg_update_iv(qat_req);
 
-	ret = qat_alg_send_sym_message(qat_req, ctx->inst);
+	ret = qat_alg_send_sym_message(qat_req, ctx->inst, &req->base);
 	if (ret == -ENOSPC)
 		qat_alg_free_bufl(ctx->inst, qat_req);
 

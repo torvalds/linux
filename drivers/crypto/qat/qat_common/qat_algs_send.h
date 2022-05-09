@@ -6,5 +6,6 @@
 #include "qat_crypto.h"
 
 int qat_alg_send_message(struct qat_alg_req *req);
+void qat_alg_send_backlog(struct qat_instance_backlog *backlog);
 
 #endif

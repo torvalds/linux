@@ -136,17 +136,21 @@ struct qat_asym_request {
 	} areq;
 	int err;
 	void (*cb)(struct icp_qat_fw_pke_resp *resp);
+	struct qat_alg_req alg_req;
 } __aligned(64);
 
 static int qat_alg_send_asym_message(struct qat_asym_request *qat_req,
-				     struct qat_crypto_instance *inst)
+				     struct qat_crypto_instance *inst,
+				     struct crypto_async_request *base)
 {
-	struct qat_alg_req req;
+	struct qat_alg_req *alg_req = &qat_req->alg_req;
 
-	req.fw_req = (u32 *)&qat_req->req;
-	req.tx_ring = inst->pke_tx;
+	alg_req->fw_req = (u32 *)&qat_req->req;
+	alg_req->tx_ring = inst->pke_tx;
+	alg_req->base = base;
+	alg_req->backlog = &inst->backlog;
 
-	return qat_alg_send_message(&req);
+	return qat_alg_send_message(alg_req);
 }
 
 static void qat_dh_cb(struct icp_qat_fw_pke_resp *resp)
@@ -350,7 +354,7 @@ static int qat_dh_compute_value(struct kpp_request *req)
 	msg->input_param_count = n_input_params;
 	msg->output_param_count = 1;
 
-	ret = qat_alg_send_asym_message(qat_req, ctx->inst);
+	ret = qat_alg_send_asym_message(qat_req, inst, &req->base);
 	if (ret == -ENOSPC)
 		goto unmap_all;
 
@@ -557,8 +561,11 @@ void qat_alg_asym_callback(void *_resp)
 {
 	struct icp_qat_fw_pke_resp *resp = _resp;
 	struct qat_asym_request *areq = (void *)(__force long)resp->opaque;
+	struct qat_instance_backlog *backlog = areq->alg_req.backlog;
 
 	areq->cb(resp);
+
+	qat_alg_send_backlog(backlog);
 }
 
 #define PKE_RSA_EP_512 0x1c161b21
@@ -748,7 +755,7 @@ static int qat_rsa_enc(struct akcipher_request *req)
 	msg->input_param_count = 3;
 	msg->output_param_count = 1;
 
-	ret = qat_alg_send_asym_message(qat_req, ctx->inst);
+	ret = qat_alg_send_asym_message(qat_req, inst, &req->base);
 	if (ret == -ENOSPC)
 		goto unmap_all;
 
@@ -901,7 +908,7 @@ static int qat_rsa_dec(struct akcipher_request *req)
 
 	msg->output_param_count = 1;
 
-	ret = qat_alg_send_asym_message(qat_req, ctx->inst);
+	ret = qat_alg_send_asym_message(qat_req, inst, &req->base);
 	if (ret == -ENOSPC)
 		goto unmap_all;
 
