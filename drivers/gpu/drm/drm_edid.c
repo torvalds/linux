@@ -5113,6 +5113,28 @@ int drm_av_sync_delay(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_av_sync_delay);
 
+static bool _drm_detect_hdmi_monitor(const struct drm_edid *drm_edid)
+{
+	const struct cea_db *db;
+	struct cea_db_iter iter;
+	bool hdmi = false;
+
+	/*
+	 * Because HDMI identifier is in Vendor Specific Block,
+	 * search it from all data blocks of CEA extension.
+	 */
+	cea_db_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter);
+	cea_db_iter_for_each(db, &iter) {
+		if (cea_db_is_hdmi_vsdb(db)) {
+			hdmi = true;
+			break;
+		}
+	}
+	cea_db_iter_end(&iter);
+
+	return hdmi;
+}
+
 /**
  * drm_detect_hdmi_monitor - detect whether monitor is HDMI
  * @edid: monitor EDID information
@@ -5126,24 +5148,9 @@ EXPORT_SYMBOL(drm_av_sync_delay);
  */
 bool drm_detect_hdmi_monitor(const struct edid *edid)
 {
-	const struct cea_db *db;
-	struct cea_db_iter iter;
-	bool hdmi = false;
+	struct drm_edid drm_edid;
 
-	/*
-	 * Because HDMI identifier is in Vendor Specific Block,
-	 * search it from all data blocks of CEA extension.
-	 */
-	cea_db_iter_edid_begin(edid, &iter);
-	cea_db_iter_for_each(db, &iter) {
-		if (cea_db_is_hdmi_vsdb(db)) {
-			hdmi = true;
-			break;
-		}
-	}
-	cea_db_iter_end(&iter);
-
-	return hdmi;
+	return _drm_detect_hdmi_monitor(drm_edid_legacy_init(&drm_edid, edid));
 }
 EXPORT_SYMBOL(drm_detect_hdmi_monitor);
 
