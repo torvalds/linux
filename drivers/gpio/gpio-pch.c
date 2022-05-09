@@ -357,16 +357,12 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 
 	chip->dev = dev;
 	ret = pcim_enable_device(pdev);
-	if (ret) {
-		dev_err(dev, "pci_enable_device FAILED");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to enable PCI device\n");
 
 	ret = pcim_iomap_regions(pdev, BIT(1), KBUILD_MODNAME);
-	if (ret) {
-		dev_err(dev, "pci_request_regions FAILED-%d", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to request and map PCI regions\n");
 
 	chip->base = pcim_iomap_table(pdev)[1];
 	chip->ioh = id->driver_data;
@@ -376,10 +372,8 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	pch_gpio_setup(chip);
 
 	ret = devm_gpiochip_add_data(dev, &chip->gpio, chip);
-	if (ret) {
-		dev_err(dev, "PCH gpio: Failed to register GPIO\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to register GPIO\n");
 
 	irq_base = devm_irq_alloc_descs(dev, -1, 0,
 					gpio_pins[chip->ioh], NUMA_NO_NODE);
@@ -396,10 +390,8 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 
 	ret = devm_request_irq(dev, pdev->irq, pch_gpio_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, chip);
-	if (ret) {
-		dev_err(dev, "request_irq failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to request IRQ\n");
 
 	return pch_gpio_alloc_generic_chip(chip, irq_base, gpio_pins[chip->ioh]);
 }
