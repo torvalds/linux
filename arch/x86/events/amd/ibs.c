@@ -537,8 +537,14 @@ static struct attribute_group empty_format_group = {
 	.attrs = attrs_empty,
 };
 
+static struct attribute_group empty_caps_group = {
+	.name = "caps",
+	.attrs = attrs_empty,
+};
+
 static const struct attribute_group *empty_attr_groups[] = {
 	&empty_format_group,
+	&empty_caps_group,
 	NULL,
 };
 
@@ -546,6 +552,7 @@ PMU_FORMAT_ATTR(rand_en,	"config:57");
 PMU_FORMAT_ATTR(cnt_ctl,	"config:19");
 PMU_EVENT_ATTR_STRING(l3missonly, fetch_l3missonly, "config:59");
 PMU_EVENT_ATTR_STRING(l3missonly, op_l3missonly, "config:16");
+PMU_EVENT_ATTR_STRING(zen4_ibs_extensions, zen4_ibs_extensions, "1");
 
 static umode_t
 zen4_ibs_extensions_is_visible(struct kobject *kobj, struct attribute *attr, int i)
@@ -563,6 +570,11 @@ static struct attribute *fetch_l3missonly_attrs[] = {
 	NULL,
 };
 
+static struct attribute *zen4_ibs_extensions_attrs[] = {
+	&zen4_ibs_extensions.attr.attr,
+	NULL,
+};
+
 static struct attribute_group group_rand_en = {
 	.name = "format",
 	.attrs = rand_en_attrs,
@@ -574,13 +586,21 @@ static struct attribute_group group_fetch_l3missonly = {
 	.is_visible = zen4_ibs_extensions_is_visible,
 };
 
+static struct attribute_group group_zen4_ibs_extensions = {
+	.name = "caps",
+	.attrs = zen4_ibs_extensions_attrs,
+	.is_visible = zen4_ibs_extensions_is_visible,
+};
+
 static const struct attribute_group *fetch_attr_groups[] = {
 	&group_rand_en,
+	&empty_caps_group,
 	NULL,
 };
 
 static const struct attribute_group *fetch_attr_update[] = {
 	&group_fetch_l3missonly,
+	&group_zen4_ibs_extensions,
 	NULL,
 };
 
@@ -615,6 +635,7 @@ static struct attribute_group group_op_l3missonly = {
 static const struct attribute_group *op_attr_update[] = {
 	&group_cnt_ctl,
 	&group_op_l3missonly,
+	&group_zen4_ibs_extensions,
 	NULL,
 };
 
