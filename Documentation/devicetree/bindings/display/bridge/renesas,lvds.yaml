@@ -95,7 +95,6 @@ then:
   properties:
     clocks:
       minItems: 1
-      maxItems: 4
       items:
         - description: Functional clock
         - description: EXTAL input clock
@@ -104,7 +103,6 @@ then:
 
     clock-names:
       minItems: 1
-      maxItems: 4
       items:
         - const: fck
         # The LVDS encoder can use the EXTAL or DU_DOTCLKINx clocks.
@@ -128,12 +126,10 @@ then:
 else:
   properties:
     clocks:
-      maxItems: 1
       items:
         - description: Functional clock
 
     clock-names:
-      maxItems: 1
       items:
         - const: fck
 
