@@ -2516,7 +2516,9 @@ int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
 		return 0;
 
 	ras_obj = container_of(ras_block, struct amdgpu_ras_block_object, ras_comm);
-	if (ras_obj->ras_cb) {
+	if (ras_obj->ras_cb || (ras_obj->hw_ops &&
+	    (ras_obj->hw_ops->query_poison_status ||
+	    ras_obj->hw_ops->handle_poison_consumption))) {
 		r = amdgpu_ras_interrupt_add_handler(adev, ras_block);
 		if (r)
 			goto cleanup;
