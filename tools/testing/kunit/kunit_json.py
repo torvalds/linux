@@ -8,12 +8,9 @@
 
 from dataclasses import dataclass
 import json
-import os
-
-import kunit_parser
+from typing import Any, Dict
 
 from kunit_parser import Test, TestStatus
-from typing import Any, Dict
 
 @dataclass
 class Metadata:

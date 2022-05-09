@@ -15,10 +15,9 @@ import sys
 
 import datetime
 from enum import Enum, auto
-from functools import reduce
 from typing import Iterable, Iterator, List, Optional, Tuple
 
-class Test(object):
+class Test:
 	"""
 	A class to represent a test parsed from KTAP results. All KTAP
 	results within a test log are stored in a main Test object as
@@ -126,17 +125,16 @@ class TestCounts:
 		"""
 		if self.total() == 0:
 			return TestStatus.NO_TESTS
-		elif self.crashed:
+		if self.crashed:
 			# Crashes should take priority.
 			return TestStatus.TEST_CRASHED
-		elif self.failed:
+		if self.failed:
 			return TestStatus.FAILURE
-		elif self.passed:
+		if self.passed:
 			# No failures or crashes, looks good!
 			return TestStatus.SUCCESS
-		else:
-			# We have only skipped tests.
-			return TestStatus.SKIPPED
+		# We have only skipped tests.
+		return TestStatus.SKIPPED
 
 	def add_status(self, status: TestStatus) -> None:
 		"""Increments the count for `status`."""
@@ -381,7 +379,7 @@ def peek_test_name_match(lines: LineStream, test: Test) -> bool:
 	if not match:
 		return False
 	name = match.group(4)
-	return (name == test.name)
+	return name == test.name
 
 def parse_test_result(lines: LineStream, test: Test,
 			expected_num: int) -> bool:
@@ -553,17 +551,16 @@ def format_test_result(test: Test) -> str:
 	String containing formatted test result
 	"""
 	if test.status == TestStatus.SUCCESS:
-		return (green('[PASSED] ') + test.name)
-	elif test.status == TestStatus.SKIPPED:
-		return (yellow('[SKIPPED] ') + test.name)
-	elif test.status == TestStatus.NO_TESTS:
-		return (yellow('[NO TESTS RUN] ') + test.name)
-	elif test.status == TestStatus.TEST_CRASHED:
+		return green('[PASSED] ') + test.name
+	if test.status == TestStatus.SKIPPED:
+		return yellow('[SKIPPED] ') + test.name
+	if test.status == TestStatus.NO_TESTS:
+		return yellow('[NO TESTS RUN] ') + test.name
+	if test.status == TestStatus.TEST_CRASHED:
 		print_log(test.log)
-		return (red('[CRASHED] ') + test.name)
-	else:
-		print_log(test.log)
-		return (red('[FAILED] ') + test.name)
+		return red('[CRASHED] ') + test.name
+	print_log(test.log)
+	return red('[FAILED] ') + test.name
 
 def print_test_result(test: Test) -> None:
 	"""
@@ -607,7 +604,7 @@ def print_summary_line(test: Test) -> None:
 	"""
 	if test.status == TestStatus.SUCCESS:
 		color = green
-	elif test.status == TestStatus.SKIPPED or test.status == TestStatus.NO_TESTS:
+	elif test.status in (TestStatus.SKIPPED, TestStatus.NO_TESTS):
 		color = yellow
 	else:
 		color = red

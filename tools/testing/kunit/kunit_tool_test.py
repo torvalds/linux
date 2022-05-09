@@ -251,8 +251,8 @@ class KUnitParserTest(unittest.TestCase):
 
 	def test_ignores_hyphen(self):
 		hyphen_log = test_data_path('test_strip_hyphen.log')
-		file = open(hyphen_log)
-		result = kunit_parser.parse_run_tests(file.readlines())
+		with open(hyphen_log) as file:
+			result = kunit_parser.parse_run_tests(file.readlines())
 
 		# A skipped test does not fail the whole suite.
 		self.assertEqual(
@@ -347,7 +347,7 @@ class LineStreamTest(unittest.TestCase):
 		called_times = 0
 		def generator():
 			nonlocal called_times
-			for i in range(1,5):
+			for _ in range(1,5):
 				called_times += 1
 				yield called_times, str(called_times)
 
@@ -553,7 +553,8 @@ class KUnitMainTest(unittest.TestCase):
 	def test_exec_no_tests(self):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=['TAP version 14', '1..0'])
 		with self.assertRaises(SystemExit) as e:
-		  kunit.main(['run'], self.linux_source_mock)
+			kunit.main(['run'], self.linux_source_mock)
+		self.assertEqual(e.exception.code, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
 			args=None, build_dir='.kunit', filter_glob='', timeout=300)
 		self.print_mock.assert_any_call(StrContains(' 0 tests run!'))
@@ -588,6 +589,7 @@ class KUnitMainTest(unittest.TestCase):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
 		with self.assertRaises(SystemExit) as e:
 			kunit.main(['run', '--raw_output=invalid'], self.linux_source_mock)
+		self.assertNotEqual(e.exception.code, 0)
 
 	def test_run_raw_output_does_not_take_positional_args(self):
 		# --raw_output is a string flag, but we don't want it to consume

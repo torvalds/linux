@@ -38,7 +38,7 @@ class BuildError(Exception):
 	"""Represents an error trying to build the Linux kernel."""
 
 
-class LinuxSourceTreeOperations(object):
+class LinuxSourceTreeOperations:
 	"""An abstraction over command line operations performed on a source tree."""
 
 	def __init__(self, linux_arch: str, cross_compile: Optional[str]):
@@ -53,7 +53,7 @@ class LinuxSourceTreeOperations(object):
 		except subprocess.CalledProcessError as e:
 			raise ConfigError(e.output.decode())
 
-	def make_arch_qemuconfig(self, kconfig: kunit_config.Kconfig) -> None:
+	def make_arch_qemuconfig(self, base_kunitconfig: kunit_config.Kconfig) -> None:
 		pass
 
 	def make_allyesconfig(self, build_dir: str, make_options) -> None:
@@ -182,7 +182,7 @@ def get_source_tree_ops(arch: str, cross_compile: Optional[str]) -> LinuxSourceT
 	config_path = os.path.join(QEMU_CONFIGS_DIR, arch + '.py')
 	if arch == 'um':
 		return LinuxSourceTreeOperationsUml(cross_compile=cross_compile)
-	elif os.path.isfile(config_path):
+	if os.path.isfile(config_path):
 		return get_source_tree_ops_from_qemu_config(config_path, cross_compile)[1]
 
 	options = [f[:-3] for f in os.listdir(QEMU_CONFIGS_DIR) if f.endswith('.py')]
@@ -213,7 +213,7 @@ def get_source_tree_ops_from_qemu_config(config_path: str,
 	return params.linux_arch, LinuxSourceTreeOperationsQemu(
 			params, cross_compile=cross_compile)
 
-class LinuxSourceTree(object):
+class LinuxSourceTree:
 	"""Represents a Linux kernel source tree with KUnit tests."""
 
 	def __init__(
@@ -368,6 +368,6 @@ class LinuxSourceTree(object):
 			waiter.join()
 			subprocess.call(['stty', 'sane'])
 
-	def signal_handler(self, sig, frame) -> None:
+	def signal_handler(self, unused_sig, unused_frame) -> None:
 		logging.error('Build interruption occurred. Cleaning console.')
 		subprocess.call(['stty', 'sane'])
