@@ -2574,6 +2574,8 @@ vtb_for_each_detailed_block(const u8 *ext, detailed_cb *cb, void *closure)
 static void
 drm_for_each_detailed_block(const struct edid *edid, detailed_cb *cb, void *closure)
 {
+	struct drm_edid_iter edid_iter;
+	const u8 *ext;
 	int i;
 
 	if (edid == NULL)
@@ -2582,9 +2584,8 @@ drm_for_each_detailed_block(const struct edid *edid, detailed_cb *cb, void *clos
 	for (i = 0; i < EDID_DETAILED_TIMINGS; i++)
 		cb(&(edid->detailed_timings[i]), closure);
 
-	for (i = 0; i < edid_extension_block_count(edid); i++) {
-		const u8 *ext = edid_extension_block_data(edid, i);
-
+	drm_edid_iter_begin(edid, &edid_iter);
+	drm_edid_iter_for_each(ext, &edid_iter) {
 		switch (*ext) {
 		case CEA_EXT:
 			cea_for_each_detailed_block(ext, cb, closure);
@@ -2596,6 +2597,7 @@ drm_for_each_detailed_block(const struct edid *edid, detailed_cb *cb, void *clos
 			break;
 		}
 	}
+	drm_edid_iter_end(&edid_iter);
 }
 
 static void
