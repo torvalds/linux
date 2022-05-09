@@ -80,6 +80,7 @@
 #include <linux/io_uring.h>
 #include <linux/audit.h>
 #include <linux/security.h>
+#include <linux/xattr.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -578,6 +579,16 @@ struct io_accept {
 	unsigned long			nofile;
 };
 
+struct io_socket {
+	struct file			*file;
+	int				domain;
+	int				type;
+	int				protocol;
+	int				flags;
+	u32				file_slot;
+	unsigned long			nofile;
+};
+
 struct io_sync {
 	struct file			*file;
 	loff_t				len;
@@ -782,6 +793,12 @@ struct io_async_rw {
 	struct wait_page_queue		wpq;
 };
 
+struct io_xattr {
+	struct file			*file;
+	struct xattr_ctx		ctx;
+	struct filename			*filename;
+};
+
 enum {
 	REQ_F_FIXED_FILE_BIT	= IOSQE_FIXED_FILE_BIT,
 	REQ_F_IO_DRAIN_BIT	= IOSQE_IO_DRAIN_BIT,
@@ -946,6 +963,8 @@ struct io_kiocb {
 		struct io_symlink	symlink;
 		struct io_hardlink	hardlink;
 		struct io_msg		msg;
+		struct io_xattr		xattr;
+		struct io_socket	sock;
 	};
 
 	u8				opcode;
@@ -1246,6 +1265,17 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.iopoll			= 1,
 	},
+	[IORING_OP_FSETXATTR] = {
+		.needs_file = 1
+	},
+	[IORING_OP_SETXATTR] = {},
+	[IORING_OP_FGETXATTR] = {
+		.needs_file = 1
+	},
+	[IORING_OP_GETXATTR] = {},
+	[IORING_OP_SOCKET] = {
+		.audit_skip		= 1,
+	},
 };
 
 /* requests with any of those set should undergo io_disarm_next() */
@@ -1289,6 +1319,107 @@ static void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags);
 static struct kmem_cache *req_cachep;
 
 static const struct file_operations io_uring_fops;
+
+const char *io_uring_get_opcode(u8 opcode)
+{
+	switch ((enum io_uring_op)opcode) {
+	case IORING_OP_NOP:
+		return "NOP";
+	case IORING_OP_READV:
+		return "READV";
+	case IORING_OP_WRITEV:
+		return "WRITEV";
+	case IORING_OP_FSYNC:
+		return "FSYNC";
+	case IORING_OP_READ_FIXED:
+		return "READ_FIXED";
+	case IORING_OP_WRITE_FIXED:
+		return "WRITE_FIXED";
+	case IORING_OP_POLL_ADD:
+		return "POLL_ADD";
+	case IORING_OP_POLL_REMOVE:
+		return "POLL_REMOVE";
+	case IORING_OP_SYNC_FILE_RANGE:
+		return "SYNC_FILE_RANGE";
+	case IORING_OP_SENDMSG:
+		return "SENDMSG";
+	case IORING_OP_RECVMSG:
+		return "RECVMSG";
+	case IORING_OP_TIMEOUT:
+		return "TIMEOUT";
+	case IORING_OP_TIMEOUT_REMOVE:
+		return "TIMEOUT_REMOVE";
+	case IORING_OP_ACCEPT:
+		return "ACCEPT";
+	case IORING_OP_ASYNC_CANCEL:
+		return "ASYNC_CANCEL";
+	case IORING_OP_LINK_TIMEOUT:
+		return "LINK_TIMEOUT";
+	case IORING_OP_CONNECT:
+		return "CONNECT";
+	case IORING_OP_FALLOCATE:
+		return "FALLOCATE";
+	case IORING_OP_OPENAT:
+		return "OPENAT";
+	case IORING_OP_CLOSE:
+		return "CLOSE";
+	case IORING_OP_FILES_UPDATE:
+		return "FILES_UPDATE";
+	case IORING_OP_STATX:
+		return "STATX";
+	case IORING_OP_READ:
+		return "READ";
+	case IORING_OP_WRITE:
+		return "WRITE";
+	case IORING_OP_FADVISE:
+		return "FADVISE";
+	case IORING_OP_MADVISE:
+		return "MADVISE";
+	case IORING_OP_SEND:
+		return "SEND";
+	case IORING_OP_RECV:
+		return "RECV";
+	case IORING_OP_OPENAT2:
+		return "OPENAT2";
+	case IORING_OP_EPOLL_CTL:
+		return "EPOLL_CTL";
+	case IORING_OP_SPLICE:
+		return "SPLICE";
+	case IORING_OP_PROVIDE_BUFFERS:
+		return "PROVIDE_BUFFERS";
+	case IORING_OP_REMOVE_BUFFERS:
+		return "REMOVE_BUFFERS";
+	case IORING_OP_TEE:
+		return "TEE";
+	case IORING_OP_SHUTDOWN:
+		return "SHUTDOWN";
+	case IORING_OP_RENAMEAT:
+		return "RENAMEAT";
+	case IORING_OP_UNLINKAT:
+		return "UNLINKAT";
+	case IORING_OP_MKDIRAT:
+		return "MKDIRAT";
+	case IORING_OP_SYMLINKAT:
+		return "SYMLINKAT";
+	case IORING_OP_LINKAT:
+		return "LINKAT";
+	case IORING_OP_MSG_RING:
+		return "MSG_RING";
+	case IORING_OP_FSETXATTR:
+		return "FSETXATTR";
+	case IORING_OP_SETXATTR:
+		return "SETXATTR";
+	case IORING_OP_FGETXATTR:
+		return "FGETXATTR";
+	case IORING_OP_GETXATTR:
+		return "GETXATTR";
+	case IORING_OP_SOCKET:
+		return "SOCKET";
+	case IORING_OP_LAST:
+		return "INVALID";
+	}
+	return "INVALID";
+}
 
 struct sock *io_uring_get_socket(struct file *file)
 {
@@ -4205,6 +4336,257 @@ static int io_renameat(struct io_kiocb *req, unsigned int issue_flags)
 	return 0;
 }
 
+static inline void __io_xattr_finish(struct io_kiocb *req)
+{
+	struct io_xattr *ix = &req->xattr;
+
+	if (ix->filename)
+		putname(ix->filename);
+
+	kfree(ix->ctx.kname);
+	kvfree(ix->ctx.kvalue);
+}
+
+static void io_xattr_finish(struct io_kiocb *req, int ret)
+{
+	req->flags &= ~REQ_F_NEED_CLEANUP;
+
+	__io_xattr_finish(req);
+	if (ret < 0)
+		req_set_fail(req);
+
+	io_req_complete(req, ret);
+}
+
+static int __io_getxattr_prep(struct io_kiocb *req,
+			      const struct io_uring_sqe *sqe)
+{
+	struct io_xattr *ix = &req->xattr;
+	const char __user *name;
+	int ret;
+
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (unlikely(sqe->ioprio))
+		return -EINVAL;
+	if (unlikely(req->flags & REQ_F_FIXED_FILE))
+		return -EBADF;
+
+	ix->filename = NULL;
+	ix->ctx.kvalue = NULL;
+	name = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	ix->ctx.cvalue = u64_to_user_ptr(READ_ONCE(sqe->addr2));
+	ix->ctx.size = READ_ONCE(sqe->len);
+	ix->ctx.flags = READ_ONCE(sqe->xattr_flags);
+
+	if (ix->ctx.flags)
+		return -EINVAL;
+
+	ix->ctx.kname = kmalloc(sizeof(*ix->ctx.kname), GFP_KERNEL);
+	if (!ix->ctx.kname)
+		return -ENOMEM;
+
+	ret = strncpy_from_user(ix->ctx.kname->name, name,
+				sizeof(ix->ctx.kname->name));
+	if (!ret || ret == sizeof(ix->ctx.kname->name))
+		ret = -ERANGE;
+	if (ret < 0) {
+		kfree(ix->ctx.kname);
+		return ret;
+	}
+
+	req->flags |= REQ_F_NEED_CLEANUP;
+	return 0;
+}
+
+static int io_fgetxattr_prep(struct io_kiocb *req,
+			     const struct io_uring_sqe *sqe)
+{
+	return __io_getxattr_prep(req, sqe);
+}
+
+static int io_getxattr_prep(struct io_kiocb *req,
+			    const struct io_uring_sqe *sqe)
+{
+	struct io_xattr *ix = &req->xattr;
+	const char __user *path;
+	int ret;
+
+	ret = __io_getxattr_prep(req, sqe);
+	if (ret)
+		return ret;
+
+	path = u64_to_user_ptr(READ_ONCE(sqe->addr3));
+
+	ix->filename = getname_flags(path, LOOKUP_FOLLOW, NULL);
+	if (IS_ERR(ix->filename)) {
+		ret = PTR_ERR(ix->filename);
+		ix->filename = NULL;
+	}
+
+	return ret;
+}
+
+static int io_fgetxattr(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_xattr *ix = &req->xattr;
+	int ret;
+
+	if (issue_flags & IO_URING_F_NONBLOCK)
+		return -EAGAIN;
+
+	ret = do_getxattr(mnt_user_ns(req->file->f_path.mnt),
+			req->file->f_path.dentry,
+			&ix->ctx);
+
+	io_xattr_finish(req, ret);
+	return 0;
+}
+
+static int io_getxattr(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_xattr *ix = &req->xattr;
+	unsigned int lookup_flags = LOOKUP_FOLLOW;
+	struct path path;
+	int ret;
+
+	if (issue_flags & IO_URING_F_NONBLOCK)
+		return -EAGAIN;
+
+retry:
+	ret = filename_lookup(AT_FDCWD, ix->filename, lookup_flags, &path, NULL);
+	if (!ret) {
+		ret = do_getxattr(mnt_user_ns(path.mnt),
+				path.dentry,
+				&ix->ctx);
+
+		path_put(&path);
+		if (retry_estale(ret, lookup_flags)) {
+			lookup_flags |= LOOKUP_REVAL;
+			goto retry;
+		}
+	}
+
+	io_xattr_finish(req, ret);
+	return 0;
+}
+
+static int __io_setxattr_prep(struct io_kiocb *req,
+			const struct io_uring_sqe *sqe)
+{
+	struct io_xattr *ix = &req->xattr;
+	const char __user *name;
+	int ret;
+
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (unlikely(sqe->ioprio))
+		return -EINVAL;
+	if (unlikely(req->flags & REQ_F_FIXED_FILE))
+		return -EBADF;
+
+	ix->filename = NULL;
+	name = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	ix->ctx.cvalue = u64_to_user_ptr(READ_ONCE(sqe->addr2));
+	ix->ctx.kvalue = NULL;
+	ix->ctx.size = READ_ONCE(sqe->len);
+	ix->ctx.flags = READ_ONCE(sqe->xattr_flags);
+
+	ix->ctx.kname = kmalloc(sizeof(*ix->ctx.kname), GFP_KERNEL);
+	if (!ix->ctx.kname)
+		return -ENOMEM;
+
+	ret = setxattr_copy(name, &ix->ctx);
+	if (ret) {
+		kfree(ix->ctx.kname);
+		return ret;
+	}
+
+	req->flags |= REQ_F_NEED_CLEANUP;
+	return 0;
+}
+
+static int io_setxattr_prep(struct io_kiocb *req,
+			const struct io_uring_sqe *sqe)
+{
+	struct io_xattr *ix = &req->xattr;
+	const char __user *path;
+	int ret;
+
+	ret = __io_setxattr_prep(req, sqe);
+	if (ret)
+		return ret;
+
+	path = u64_to_user_ptr(READ_ONCE(sqe->addr3));
+
+	ix->filename = getname_flags(path, LOOKUP_FOLLOW, NULL);
+	if (IS_ERR(ix->filename)) {
+		ret = PTR_ERR(ix->filename);
+		ix->filename = NULL;
+	}
+
+	return ret;
+}
+
+static int io_fsetxattr_prep(struct io_kiocb *req,
+			const struct io_uring_sqe *sqe)
+{
+	return __io_setxattr_prep(req, sqe);
+}
+
+static int __io_setxattr(struct io_kiocb *req, unsigned int issue_flags,
+			struct path *path)
+{
+	struct io_xattr *ix = &req->xattr;
+	int ret;
+
+	ret = mnt_want_write(path->mnt);
+	if (!ret) {
+		ret = do_setxattr(mnt_user_ns(path->mnt), path->dentry, &ix->ctx);
+		mnt_drop_write(path->mnt);
+	}
+
+	return ret;
+}
+
+static int io_fsetxattr(struct io_kiocb *req, unsigned int issue_flags)
+{
+	int ret;
+
+	if (issue_flags & IO_URING_F_NONBLOCK)
+		return -EAGAIN;
+
+	ret = __io_setxattr(req, issue_flags, &req->file->f_path);
+	io_xattr_finish(req, ret);
+
+	return 0;
+}
+
+static int io_setxattr(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_xattr *ix = &req->xattr;
+	unsigned int lookup_flags = LOOKUP_FOLLOW;
+	struct path path;
+	int ret;
+
+	if (issue_flags & IO_URING_F_NONBLOCK)
+		return -EAGAIN;
+
+retry:
+	ret = filename_lookup(AT_FDCWD, ix->filename, lookup_flags, &path, NULL);
+	if (!ret) {
+		ret = __io_setxattr(req, issue_flags, &path);
+		path_put(&path);
+		if (retry_estale(ret, lookup_flags)) {
+			lookup_flags |= LOOKUP_REVAL;
+			goto retry;
+		}
+	}
+
+	io_xattr_finish(req, ret);
+	return 0;
+}
+
 static int io_unlinkat_prep(struct io_kiocb *req,
 			    const struct io_uring_sqe *sqe)
 {
@@ -5760,6 +6142,62 @@ static int io_accept(struct io_kiocb *req, unsigned int issue_flags)
 	return 0;
 }
 
+static int io_socket_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_socket *sock = &req->sock;
+
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (sqe->ioprio || sqe->addr || sqe->rw_flags || sqe->buf_index)
+		return -EINVAL;
+
+	sock->domain = READ_ONCE(sqe->fd);
+	sock->type = READ_ONCE(sqe->off);
+	sock->protocol = READ_ONCE(sqe->len);
+	sock->file_slot = READ_ONCE(sqe->file_index);
+	sock->nofile = rlimit(RLIMIT_NOFILE);
+
+	sock->flags = sock->type & ~SOCK_TYPE_MASK;
+	if (sock->file_slot && (sock->flags & SOCK_CLOEXEC))
+		return -EINVAL;
+	if (sock->flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
+		return -EINVAL;
+	return 0;
+}
+
+static int io_socket(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_socket *sock = &req->sock;
+	bool fixed = !!sock->file_slot;
+	struct file *file;
+	int ret, fd;
+
+	if (!fixed) {
+		fd = __get_unused_fd_flags(sock->flags, sock->nofile);
+		if (unlikely(fd < 0))
+			return fd;
+	}
+	file = __sys_socket_file(sock->domain, sock->type, sock->protocol);
+	if (IS_ERR(file)) {
+		if (!fixed)
+			put_unused_fd(fd);
+		ret = PTR_ERR(file);
+		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
+			return -EAGAIN;
+		if (ret == -ERESTARTSYS)
+			ret = -EINTR;
+		req_set_fail(req);
+	} else if (!fixed) {
+		fd_install(fd, file);
+		ret = fd;
+	} else {
+		ret = io_install_fixed_file(req, file, issue_flags,
+					    sock->file_slot - 1);
+	}
+	__io_req_complete(req, issue_flags, ret, 0);
+	return 0;
+}
+
 static int io_connect_prep_async(struct io_kiocb *req)
 {
 	struct io_async_connect *io = req->async_data;
@@ -5845,6 +6283,7 @@ IO_NETOP_PREP_ASYNC(sendmsg);
 IO_NETOP_PREP_ASYNC(recvmsg);
 IO_NETOP_PREP_ASYNC(connect);
 IO_NETOP_PREP(accept);
+IO_NETOP_PREP(socket);
 IO_NETOP_FN(send);
 IO_NETOP_FN(recv);
 #endif /* CONFIG_NET */
@@ -7147,6 +7586,16 @@ static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return io_linkat_prep(req, sqe);
 	case IORING_OP_MSG_RING:
 		return io_msg_ring_prep(req, sqe);
+	case IORING_OP_FSETXATTR:
+		return io_fsetxattr_prep(req, sqe);
+	case IORING_OP_SETXATTR:
+		return io_setxattr_prep(req, sqe);
+	case IORING_OP_FGETXATTR:
+		return io_fgetxattr_prep(req, sqe);
+	case IORING_OP_GETXATTR:
+		return io_getxattr_prep(req, sqe);
+	case IORING_OP_SOCKET:
+		return io_socket_prep(req, sqe);
 	}
 
 	printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
@@ -7295,6 +7744,12 @@ static void io_clean_op(struct io_kiocb *req)
 		case IORING_OP_STATX:
 			if (req->statx.filename)
 				putname(req->statx.filename);
+			break;
+		case IORING_OP_SETXATTR:
+		case IORING_OP_FSETXATTR:
+		case IORING_OP_GETXATTR:
+		case IORING_OP_FGETXATTR:
+			__io_xattr_finish(req);
 			break;
 		}
 	}
@@ -7451,6 +7906,21 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 		break;
 	case IORING_OP_MSG_RING:
 		ret = io_msg_ring(req, issue_flags);
+		break;
+	case IORING_OP_FSETXATTR:
+		ret = io_fsetxattr(req, issue_flags);
+		break;
+	case IORING_OP_SETXATTR:
+		ret = io_setxattr(req, issue_flags);
+		break;
+	case IORING_OP_FGETXATTR:
+		ret = io_fgetxattr(req, issue_flags);
+		break;
+	case IORING_OP_GETXATTR:
+		ret = io_getxattr(req, issue_flags);
+		break;
+	case IORING_OP_SOCKET:
+		ret = io_socket(req, issue_flags);
 		break;
 	default:
 		ret = -EINVAL;
@@ -12025,6 +12495,7 @@ static int __init io_uring_init(void)
 	BUILD_BUG_SQE_ELEM(42, __u16,  personality);
 	BUILD_BUG_SQE_ELEM(44, __s32,  splice_fd_in);
 	BUILD_BUG_SQE_ELEM(44, __u32,  file_index);
+	BUILD_BUG_SQE_ELEM(48, __u64,  addr3);
 
 	BUILD_BUG_ON(sizeof(struct io_uring_files_update) !=
 		     sizeof(struct io_uring_rsrc_update));

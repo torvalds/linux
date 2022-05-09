@@ -7,6 +7,7 @@
 
 #include <linux/tracepoint.h>
 #include <uapi/linux/io_uring.h>
+#include <linux/io_uring.h>
 
 struct io_wq_work;
 
@@ -169,8 +170,9 @@ TRACE_EVENT(io_uring_queue_async_work,
 		__entry->rw		= rw;
 	),
 
-	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %d, flags 0x%x, %s queue, work %p",
-		__entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
+	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s, flags 0x%x, %s queue, work %p",
+		__entry->ctx, __entry->req, __entry->user_data,
+		io_uring_get_opcode(__entry->opcode),
 		__entry->flags, __entry->rw ? "hashed" : "normal", __entry->work)
 );
 
@@ -205,8 +207,9 @@ TRACE_EVENT(io_uring_defer,
 		__entry->opcode	= opcode;
 	),
 
-	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %d",
-		__entry->ctx, __entry->req, __entry->data, __entry->opcode)
+	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s",
+		__entry->ctx, __entry->req, __entry->data,
+		io_uring_get_opcode(__entry->opcode))
 );
 
 /**
@@ -305,9 +308,9 @@ TRACE_EVENT(io_uring_fail_link,
 		__entry->link		= link;
 	),
 
-	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %d, link %p",
-		__entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
-		__entry->link)
+	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s, link %p",
+		__entry->ctx, __entry->req, __entry->user_data,
+		io_uring_get_opcode(__entry->opcode), __entry->link)
 );
 
 /**
@@ -389,9 +392,9 @@ TRACE_EVENT(io_uring_submit_sqe,
 		__entry->sq_thread	= sq_thread;
 	),
 
-	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %d, flags 0x%x, "
+	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, flags 0x%x, "
 		  "non block %d, sq_thread %d", __entry->ctx, __entry->req,
-		  __entry->user_data, __entry->opcode,
+		  __entry->user_data, io_uring_get_opcode(__entry->opcode),
 		  __entry->flags, __entry->force_nonblock, __entry->sq_thread)
 );
 
@@ -433,8 +436,9 @@ TRACE_EVENT(io_uring_poll_arm,
 		__entry->events		= events;
 	),
 
-	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %d, mask 0x%x, events 0x%x",
-		  __entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
+	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, mask 0x%x, events 0x%x",
+		  __entry->ctx, __entry->req, __entry->user_data,
+		  io_uring_get_opcode(__entry->opcode),
 		  __entry->mask, __entry->events)
 );
 
@@ -470,8 +474,9 @@ TRACE_EVENT(io_uring_task_add,
 		__entry->mask		= mask;
 	),
 
-	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %d, mask %x",
-		__entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
+	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, mask %x",
+		__entry->ctx, __entry->req, __entry->user_data,
+		io_uring_get_opcode(__entry->opcode),
 		__entry->mask)
 );
 
@@ -506,7 +511,7 @@ TRACE_EVENT(io_uring_req_failed,
 		__field( u16,			personality	)
 		__field( u32,			file_index	)
 		__field( u64,			pad1		)
-		__field( u64,			pad2		)
+		__field( u64,			addr3		)
 		__field( int,			error		)
 	),
 
@@ -525,22 +530,24 @@ TRACE_EVENT(io_uring_req_failed,
 		__entry->personality	= sqe->personality;
 		__entry->file_index	= sqe->file_index;
 		__entry->pad1		= sqe->__pad2[0];
-		__entry->pad2		= sqe->__pad2[1];
+		__entry->addr3		= sqe->addr3;
 		__entry->error		= error;
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, "
-		  "op %d, flags 0x%x, prio=%d, off=%llu, addr=%llu, "
+		  "opcode %s, flags 0x%x, prio=%d, off=%llu, addr=%llu, "
 		  "len=%u, rw_flags=0x%x, buf_index=%d, "
-		  "personality=%d, file_index=%d, pad=0x%llx/%llx, error=%d",
+		  "personality=%d, file_index=%d, pad=0x%llx, addr3=%llx, "
+		  "error=%d",
 		  __entry->ctx, __entry->req, __entry->user_data,
-		  __entry->opcode, __entry->flags, __entry->ioprio,
+		  io_uring_get_opcode(__entry->opcode),
+		  __entry->flags, __entry->ioprio,
 		  (unsigned long long)__entry->off,
 		  (unsigned long long) __entry->addr, __entry->len,
 		  __entry->op_flags,
 		  __entry->buf_index, __entry->personality, __entry->file_index,
 		  (unsigned long long) __entry->pad1,
-		  (unsigned long long) __entry->pad2, __entry->error)
+		  (unsigned long long) __entry->addr3, __entry->error)
 );
 
 
