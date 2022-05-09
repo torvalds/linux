@@ -9111,12 +9111,12 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
 		struct io_fixed_file *file_slot;
 
-		if (copy_from_user(&fd, &fds[i], sizeof(fd))) {
+		if (fds && copy_from_user(&fd, &fds[i], sizeof(fd))) {
 			ret = -EFAULT;
 			goto fail;
 		}
 		/* allow sparse sets */
-		if (fd == -1) {
+		if (!fds || fd == -1) {
 			ret = -EINVAL;
 			if (unlikely(*io_get_tag_slot(ctx->file_data, i)))
 				goto fail;
@@ -11759,14 +11759,20 @@ static __cold int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 	memset(&rr, 0, sizeof(rr));
 	if (copy_from_user(&rr, arg, size))
 		return -EFAULT;
-	if (!rr.nr || rr.resv || rr.resv2)
+	if (!rr.nr || rr.resv2)
+		return -EINVAL;
+	if (rr.flags & ~IORING_RSRC_REGISTER_SPARSE)
 		return -EINVAL;
 
 	switch (type) {
 	case IORING_RSRC_FILE:
+		if (rr.flags & IORING_RSRC_REGISTER_SPARSE && rr.data)
+			break;
 		return io_sqe_files_register(ctx, u64_to_user_ptr(rr.data),
 					     rr.nr, u64_to_user_ptr(rr.tags));
 	case IORING_RSRC_BUFFER:
+		if (rr.flags & IORING_RSRC_REGISTER_SPARSE)
+			break;
 		return io_sqe_buffers_register(ctx, u64_to_user_ptr(rr.data),
 					       rr.nr, u64_to_user_ptr(rr.tags));
 	}
@@ -11935,6 +11941,9 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		ret = io_sqe_buffers_unregister(ctx);
 		break;
 	case IORING_REGISTER_FILES:
+		ret = -EFAULT;
+		if (!arg)
+			break;
 		ret = io_sqe_files_register(ctx, arg, nr_args, NULL);
 		break;
 	case IORING_UNREGISTER_FILES:
