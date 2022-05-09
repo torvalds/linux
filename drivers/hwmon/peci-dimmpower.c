@@ -588,8 +588,8 @@ static int peci_dimmpower_probe(struct platform_device *pdev)
 	priv->mgr = mgr;
 	priv->dev = dev;
 
-	snprintf(priv->name, PECI_NAME_SIZE, "peci_dimmpower.cpu%d",
-		 mgr->client->addr - PECI_BASE_ADDR);
+	snprintf(priv->name, PECI_NAME_SIZE, "peci_dimmpower.cpu%d.%d",
+		 mgr->client->addr - PECI_BASE_ADDR, mgr->client->domain_id);
 
 	priv->power_config[power_config_idx] = HWMON_P_LABEL |
 		peci_sensor_get_config(peci_dimmpower_power_cfg[power_config_idx],
