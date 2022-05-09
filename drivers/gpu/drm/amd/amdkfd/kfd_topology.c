@@ -555,7 +555,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 				      dev->gpu->kfd->sdma_fw_version);
 		sysfs_show_64bit_prop(buffer, offs, "unique_id",
 				      dev->gpu->adev->unique_id);
-
+		sysfs_show_32bit_prop(buffer, offs, "num_xcc",
+				      dev->gpu->num_xcc_per_node);
 	}
 
 	return sysfs_show_32bit_prop(buffer, offs, "max_engine_clk_ccompute",
@@ -1160,7 +1161,7 @@ void kfd_topology_shutdown(void)
 static uint32_t kfd_generate_gpu_id(struct kfd_node *gpu)
 {
 	uint32_t hashout;
-	uint32_t buf[7];
+	uint32_t buf[8];
 	uint64_t local_mem_size;
 	int i;
 
@@ -1177,8 +1178,9 @@ static uint32_t kfd_generate_gpu_id(struct kfd_node *gpu)
 	buf[4] = gpu->adev->pdev->bus->number;
 	buf[5] = lower_32_bits(local_mem_size);
 	buf[6] = upper_32_bits(local_mem_size);
+	buf[7] = gpu->start_xcc_id | (gpu->num_xcc_per_node << 16);
 
-	for (i = 0, hashout = 0; i < 7; i++)
+	for (i = 0, hashout = 0; i < 8; i++)
 		hashout ^= hash_32(buf[i], KFD_GPU_ID_HASH_WIDTH);
 
 	return hashout;

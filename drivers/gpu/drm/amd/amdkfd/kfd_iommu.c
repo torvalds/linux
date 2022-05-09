@@ -121,6 +121,12 @@ int kfd_iommu_bind_process_to_device(struct kfd_process_device *pdd)
 		return -EINVAL;
 	}
 
+	if (!kfd_is_first_node(dev)) {
+		dev_warn_once(kfd_device,
+				"IOMMU supported only on first node\n");
+		return 0;
+	}
+
 	err = amd_iommu_bind_pasid(dev->adev->pdev, p->pasid, p->lead_thread);
 	if (!err)
 		pdd->bound = PDD_BOUND;
@@ -138,7 +144,8 @@ void kfd_iommu_unbind_process(struct kfd_process *p)
 	int i;
 
 	for (i = 0; i < p->n_pdds; i++)
-		if (p->pdds[i]->bound == PDD_BOUND)
+		if ((p->pdds[i]->bound == PDD_BOUND) &&
+		    (kfd_is_first_node((p->pdds[i]->dev))))
 			amd_iommu_unbind_pasid(p->pdds[i]->dev->adev->pdev,
 					       p->pasid);
 }
@@ -281,7 +288,7 @@ void kfd_iommu_suspend(struct kfd_dev *kfd)
 	if (!kfd->use_iommu_v2)
 		return;
 
-	kfd_unbind_processes_from_device(kfd->node);
+	kfd_unbind_processes_from_device(kfd->nodes[0]);
 
 	amd_iommu_set_invalidate_ctx_cb(kfd->adev->pdev, NULL);
 	amd_iommu_set_invalid_ppr_cb(kfd->adev->pdev, NULL);
@@ -312,7 +319,7 @@ int kfd_iommu_resume(struct kfd_dev *kfd)
 	amd_iommu_set_invalid_ppr_cb(kfd->adev->pdev,
 				     iommu_invalid_ppr_cb);
 
-	err = kfd_bind_processes_to_device(kfd->node);
+	err = kfd_bind_processes_to_device(kfd->nodes[0]);
 	if (err) {
 		amd_iommu_set_invalidate_ctx_cb(kfd->adev->pdev, NULL);
 		amd_iommu_set_invalid_ppr_cb(kfd->adev->pdev, NULL);

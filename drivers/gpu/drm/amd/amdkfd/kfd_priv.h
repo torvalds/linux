@@ -255,6 +255,8 @@ struct kfd_vmid_info {
 	uint32_t vmid_num_kfd;
 };
 
+#define MAX_KFD_NODES	8
+
 struct kfd_dev;
 
 struct kfd_node {
@@ -267,6 +269,10 @@ struct kfd_node {
 					      */
 	struct kfd_vmid_info vm_info;
 	unsigned int id;                /* topology stub index */
+	unsigned int num_xcc_per_node;
+	unsigned int start_xcc_id;	/* Starting XCC instance
+					 * number for the node
+					 */
 	/* Interrupts */
 	struct kfifo ih_fifo;
 	struct workqueue_struct *ih_wq;
@@ -299,6 +305,8 @@ struct kfd_node {
 
 	/* Maximum process number mapped to HW scheduler */
 	unsigned int max_proc_per_quantum;
+
+	unsigned int compute_vmid_bitmap;
 
 	struct kfd_dev *kfd;
 };
@@ -368,7 +376,8 @@ struct kfd_dev {
 	/* HMM page migration MEMORY_DEVICE_PRIVATE mapping */
 	struct dev_pagemap pgmap;
 
-	struct kfd_node *node;
+	struct kfd_node *nodes[MAX_KFD_NODES];
+	unsigned int num_nodes;
 };
 
 enum kfd_mempool {
@@ -1395,6 +1404,11 @@ static inline int kfd_devcgroup_check_permission(struct kfd_node *kfd)
 #else
 	return 0;
 #endif
+}
+
+static inline bool kfd_is_first_node(struct kfd_node *node)
+{
+	return (node == node->kfd->nodes[0]);
 }
 
 /* Debugfs */
