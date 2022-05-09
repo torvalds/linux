@@ -6164,12 +6164,15 @@ int btrfs_new_inode_prepare(struct btrfs_new_inode_args *args,
 		(*trans_num_items)++;
 	} else {
 		/*
-		 * 1 to add inode ref
 		 * 1 to add dir item
 		 * 1 to add dir index
 		 * 1 to update parent inode item
+		 *
+		 * No need for 1 unit for the inode ref item because it is
+		 * inserted in a batch together with the inode item at
+		 * btrfs_create_new_inode().
 		 */
-		*trans_num_items += 4;
+		*trans_num_items += 3;
 	}
 	return 0;
 }
