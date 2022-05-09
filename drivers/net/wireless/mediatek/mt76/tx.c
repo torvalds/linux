@@ -66,9 +66,8 @@ mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)
 		wcid = rcu_dereference(dev->wcid[cb->wcid]);
 		if (wcid) {
 			status.sta = wcid_to_sta(wcid);
-
-			if (status.sta)
-				status.rate = &wcid->rate;
+			status.rates = NULL;
+			status.n_rates = 0;
 		}
 
 		hw = mt76_tx_status_get_hw(dev, skb);
