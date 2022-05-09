@@ -787,13 +787,6 @@ long kvmppc_rm_h_page_init(struct kvm_vcpu *vcpu, unsigned long flags,
 			   unsigned long dest, unsigned long src);
 long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
                           unsigned long slb_v, unsigned int status, bool data);
-unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu);
-unsigned long kvmppc_rm_h_xirr_x(struct kvm_vcpu *vcpu);
-unsigned long kvmppc_rm_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server);
-int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
-                    unsigned long mfrr);
-int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr);
-int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr);
 void kvmppc_guest_entry_inject_int(struct kvm_vcpu *vcpu);
 
 /*

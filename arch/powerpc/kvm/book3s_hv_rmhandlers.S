@@ -1811,11 +1811,11 @@ hcall_real_table:
 	.long	0		/* 0x5c */
 	.long	0		/* 0x60 */
 #ifdef CONFIG_KVM_XICS
-	.long	DOTSYM(kvmppc_rm_h_eoi) - hcall_real_table
-	.long	DOTSYM(kvmppc_rm_h_cppr) - hcall_real_table
-	.long	DOTSYM(kvmppc_rm_h_ipi) - hcall_real_table
-	.long	DOTSYM(kvmppc_rm_h_ipoll) - hcall_real_table
-	.long	DOTSYM(kvmppc_rm_h_xirr) - hcall_real_table
+	.long	DOTSYM(xics_rm_h_eoi) - hcall_real_table
+	.long	DOTSYM(xics_rm_h_cppr) - hcall_real_table
+	.long	DOTSYM(xics_rm_h_ipi) - hcall_real_table
+	.long	0		/* 0x70 - H_IPOLL */
+	.long	DOTSYM(xics_rm_h_xirr) - hcall_real_table
 #else
 	.long	0		/* 0x64 - H_EOI */
 	.long	0		/* 0x68 - H_CPPR */
@@ -1985,7 +1985,7 @@ hcall_real_table:
 	.long	0		/* 0x2f4 */
 	.long	0		/* 0x2f8 */
 #ifdef CONFIG_KVM_XICS
-	.long	DOTSYM(kvmppc_rm_h_xirr_x) - hcall_real_table
+	.long	DOTSYM(xics_rm_h_xirr_x) - hcall_real_table
 #else
 	.long	0		/* 0x2fc - H_XIRR_X*/
 #endif
