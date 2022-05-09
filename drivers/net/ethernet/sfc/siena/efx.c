@@ -1265,7 +1265,7 @@ static int __init efx_init_module(void)
 {
 	int rc;
 
-	printk(KERN_INFO "Solarflare NET driver\n");
+	pr_info("Solarflare Siena driver\n");
 
 	rc = register_netdevice_notifier(&efx_netdev_notifier);
 	if (rc)
@@ -1291,7 +1291,7 @@ static int __init efx_init_module(void)
 
 static void __exit efx_exit_module(void)
 {
-	printk(KERN_INFO "Solarflare NET driver unloading\n");
+	pr_info("Solarflare Siena driver unloading\n");
 
 	pci_unregister_driver(&efx_pci_driver);
 	efx_siena_destroy_reset_workqueue();
@@ -1304,6 +1304,6 @@ module_exit(efx_exit_module);
 
 MODULE_AUTHOR("Solarflare Communications and "
 	      "Michael Brown <mbrown@fensystems.co.uk>");
-MODULE_DESCRIPTION("Solarflare network driver");
+MODULE_DESCRIPTION("Solarflare Siena network driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, efx_pci_table);
