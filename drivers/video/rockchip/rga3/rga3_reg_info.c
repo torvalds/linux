@@ -1278,6 +1278,7 @@ static void set_wr_info(struct rga_req *req_rga, struct rga3_req *req)
 void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 {
 	u16 alpha_mode_0, alpha_mode_1;
+	struct rga_img_info_t tmp;
 
 	req->render_mode = BITBLT_MODE;
 
@@ -1372,6 +1373,27 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		req->win0.format = req_rga->src.format;
 		req->wr.format = req_rga->dst.format;
 	} else {
+		if (req_rga->pat.yrgb_addr != 0) {
+			if (req_rga->src.yrgb_addr == req_rga->dst.yrgb_addr) {
+				/* Convert ABC mode to ABB mode. */
+				memcpy(&req_rga->src, &req_rga->pat, sizeof(req_rga->src));
+				memset(&req_rga->pat, 0x0, sizeof(req_rga->pat));
+				req_rga->bsfilter_flag = 0;
+
+				rga_swap_pd_mode(req_rga);
+			} else if ((req_rga->dst.x_offset + req_rga->src.act_w >
+				    req_rga->pat.act_w) ||
+				   (req_rga->dst.y_offset + req_rga->src.act_h >
+				    req_rga->pat.act_h)) {
+				/* wr_offset + win1.act_size need > win0.act_size */
+				memcpy(&tmp, &req_rga->src, sizeof(tmp));
+				memcpy(&req_rga->src, &req_rga->pat, sizeof(req_rga->src));
+				memcpy(&req_rga->pat, &tmp, sizeof(req_rga->pat));
+
+				rga_swap_pd_mode(req_rga);
+			}
+		}
+
 		set_win_info(&req->win1, &req_rga->src);
 
 		/* enable win1 rotate */
@@ -1390,8 +1412,18 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 			req->win0.format = req_rga->pat.format;
 
 			/* set win0 dst size */
-			req->win0.dst_act_w = req_rga->pat.act_w;
-			req->win0.dst_act_h = req_rga->pat.act_h;
+			if (req->win0.x_offset || req->win0.y_offset) {
+				req->win0.src_act_w = req->win0.src_act_w + req->win0.x_offset;
+				req->win0.src_act_h = req->win0.src_act_h + req->win0.y_offset;
+				req->win0.dst_act_w = req_rga->pat.act_w + req->win0.x_offset;
+				req->win0.dst_act_h = req_rga->pat.act_h + req->win0.y_offset;
+
+				req->win0.x_offset = 0;
+				req->win0.y_offset = 0;
+			} else {
+				req->win0.dst_act_w = req_rga->pat.act_w;
+				req->win0.dst_act_h = req_rga->pat.act_h;
+			}
 			/* set win1 dst size */
 			req->win1.dst_act_w = req_rga->pat.act_w;
 			req->win1.dst_act_h = req_rga->pat.act_h;
