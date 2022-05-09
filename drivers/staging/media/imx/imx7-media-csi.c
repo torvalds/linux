@@ -1842,8 +1842,6 @@ static int imx7_csi_media_dev_init(struct imx7_csi *csi)
 {
 	int ret;
 
-	dev_set_drvdata(csi->dev, csi);
-
 	strscpy(csi->mdev.model, "imx-media", sizeof(csi->mdev.model));
 	csi->mdev.ops = &imx7_csi_media_ops;
 	csi->mdev.dev = csi->dev;
@@ -1922,7 +1920,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	csi->dev = dev;
-	platform_set_drvdata(pdev, &csi->sd);
+	platform_set_drvdata(pdev, csi);
 
 	spin_lock_init(&csi->irqlock);
 	mutex_init(&csi->lock);
@@ -1986,14 +1984,13 @@ destroy_mutex:
 
 static int imx7_csi_remove(struct platform_device *pdev)
 {
-	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
-	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
+	struct imx7_csi *csi = platform_get_drvdata(pdev);
 
 	imx7_csi_media_cleanup(csi);
 
 	v4l2_async_nf_unregister(&csi->notifier);
 	v4l2_async_nf_cleanup(&csi->notifier);
-	v4l2_async_unregister_subdev(sd);
+	v4l2_async_unregister_subdev(&csi->sd);
 
 	mutex_destroy(&csi->lock);
 
