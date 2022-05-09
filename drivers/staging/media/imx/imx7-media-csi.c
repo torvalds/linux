@@ -171,6 +171,19 @@ enum imx_csi_model {
 	IMX7_CSI_IMX8MQ,
 };
 
+struct imx7_csi_vb2_buffer {
+	struct vb2_v4l2_buffer vbuf;
+	struct list_head list;
+};
+
+static inline struct imx7_csi_vb2_buffer *
+to_imx7_csi_vb2_buffer(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+
+	return container_of(vbuf, struct imx7_csi_vb2_buffer, vbuf);
+}
+
 struct imx7_csi {
 	struct device *dev;
 
@@ -209,7 +222,7 @@ struct imx7_csi {
 	spinlock_t q_lock;			/* Protect ready_q */
 
 	/* Buffers and streaming state */
-	struct imx_media_buffer *active_vb2_buf[2];
+	struct imx7_csi_vb2_buffer *active_vb2_buf[2];
 	struct imx_media_dma_buf underrun_buf;
 
 	bool is_streaming;
@@ -355,11 +368,11 @@ static void imx7_csi_update_buf(struct imx7_csi *csi, dma_addr_t phys,
 		imx7_csi_reg_write(csi, phys, CSI_CSIDMASA_FB1);
 }
 
-static struct imx_media_buffer *imx7_csi_video_next_buf(struct imx7_csi *csi);
+static struct imx7_csi_vb2_buffer *imx7_csi_video_next_buf(struct imx7_csi *csi);
 
 static void imx7_csi_setup_vb2_buf(struct imx7_csi *csi)
 {
-	struct imx_media_buffer *buf;
+	struct imx7_csi_vb2_buffer *buf;
 	struct vb2_buffer *vb2_buf;
 	dma_addr_t phys[2];
 	int i;
@@ -382,7 +395,7 @@ static void imx7_csi_setup_vb2_buf(struct imx7_csi *csi)
 static void imx7_csi_dma_unsetup_vb2_buf(struct imx7_csi *csi,
 					 enum vb2_buffer_state return_status)
 {
-	struct imx_media_buffer *buf;
+	struct imx7_csi_vb2_buffer *buf;
 	int i;
 
 	/* return any remaining active frames with return_status */
@@ -652,7 +665,7 @@ static void imx7_csi_error_recovery(struct imx7_csi *csi)
 static void imx7_csi_vb2_buf_done(struct imx7_csi *csi)
 {
 	struct imx_media_video_dev *vdev = &csi->vdev;
-	struct imx_media_buffer *done, *next;
+	struct imx7_csi_vb2_buffer *done, *next;
 	struct vb2_buffer *vb;
 	dma_addr_t phys;
 
@@ -997,7 +1010,7 @@ static int imx7_csi_video_queue_setup(struct vb2_queue *vq,
 
 static int imx7_csi_video_buf_init(struct vb2_buffer *vb)
 {
-	struct imx_media_buffer *buf = to_imx_media_vb(vb);
+	struct imx7_csi_vb2_buffer *buf = to_imx7_csi_vb2_buffer(vb);
 
 	INIT_LIST_HEAD(&buf->list);
 
@@ -1024,7 +1037,7 @@ static int imx7_csi_video_buf_prepare(struct vb2_buffer *vb)
 static void imx7_csi_video_buf_queue(struct vb2_buffer *vb)
 {
 	struct imx7_csi *csi = vb2_get_drv_priv(vb->vb2_queue);
-	struct imx_media_buffer *buf = to_imx_media_vb(vb);
+	struct imx7_csi_vb2_buffer *buf = to_imx7_csi_vb2_buffer(vb);
 	unsigned long flags;
 
 	spin_lock_irqsave(&csi->q_lock, flags);
@@ -1073,7 +1086,7 @@ static int imx7_csi_video_start_streaming(struct vb2_queue *vq,
 					  unsigned int count)
 {
 	struct imx7_csi *csi = vb2_get_drv_priv(vq);
-	struct imx_media_buffer *buf, *tmp;
+	struct imx7_csi_vb2_buffer *buf, *tmp;
 	unsigned long flags;
 	int ret;
 
@@ -1115,8 +1128,8 @@ err_buffers:
 static void imx7_csi_video_stop_streaming(struct vb2_queue *vq)
 {
 	struct imx7_csi *csi = vb2_get_drv_priv(vq);
-	struct imx_media_buffer *frame;
-	struct imx_media_buffer *tmp;
+	struct imx7_csi_vb2_buffer *frame;
+	struct imx7_csi_vb2_buffer *tmp;
 	unsigned long flags;
 
 	mutex_lock(&csi->mdev.graph_mutex);
@@ -1205,16 +1218,16 @@ static const struct v4l2_file_operations imx7_csi_video_fops = {
  * Video Capture Device - Init & Cleanup
  */
 
-static struct imx_media_buffer *imx7_csi_video_next_buf(struct imx7_csi *csi)
+static struct imx7_csi_vb2_buffer *imx7_csi_video_next_buf(struct imx7_csi *csi)
 {
-	struct imx_media_buffer *buf = NULL;
+	struct imx7_csi_vb2_buffer *buf = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&csi->q_lock, flags);
 
 	/* get next queued buffer */
 	if (!list_empty(&csi->ready_q)) {
-		buf = list_entry(csi->ready_q.next, struct imx_media_buffer,
+		buf = list_entry(csi->ready_q.next, struct imx7_csi_vb2_buffer,
 				 list);
 		list_del(&buf->list);
 	}
@@ -1336,7 +1349,7 @@ static int imx7_csi_video_init(struct imx7_csi *csi)
 	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	vq->drv_priv = csi;
-	vq->buf_struct_size = sizeof(struct imx_media_buffer);
+	vq->buf_struct_size = sizeof(struct imx7_csi_vb2_buffer);
 	vq->ops = &imx7_csi_video_qops;
 	vq->mem_ops = &vb2_dma_contig_memops;
 	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
