@@ -74,7 +74,7 @@ static int peci_client_get_cpu_gen_info(struct peci_client_manager *priv)
 	int i;
 
 	ret = peci_get_cpu_id(priv->client->adapter, priv->client->addr,
-			      &cpu_id);
+			      priv->client->domain_id, &cpu_id);
 	if (ret)
 		return ret;
 
@@ -107,6 +107,9 @@ static int peci_client_get_cpu_gen_info(struct peci_client_manager *priv)
 static int peci_client_probe(struct peci_client *client)
 {
 	struct device *dev = &client->dev;
+	u8 cpu_id = client->addr - PECI_BASE_ADDR;
+	u8 domain_id = client->domain_id;
+	u8 adapter_nr = client->adapter->nr;
 	struct peci_client_manager *priv;
 	int device_id;
 	int ret;
@@ -122,7 +125,7 @@ static int peci_client_probe(struct peci_client *client)
 	if (ret)
 		return ret;
 
-	device_id = (client->adapter->nr << 4) | (client->addr - PECI_BASE_ADDR);
+	device_id = (adapter_nr << 8) | (cpu_id << 4) | domain_id;
 
 	ret = devm_mfd_add_devices(dev, device_id, peci_functions,
 				   ARRAY_SIZE(peci_functions), NULL, 0, NULL);

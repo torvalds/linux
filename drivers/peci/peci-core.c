@@ -1425,6 +1425,13 @@ struct bus_type peci_bus_type = {
 };
 EXPORT_SYMBOL_GPL(peci_bus_type);
 
+static int peci_check_domain_validity(u8 domain_id)
+{
+	if (domain_id >= DOMAIN_OFFSET_MAX)
+		return -EINVAL;
+	return 0;
+}
+
 static int peci_check_addr_validity(u8 addr)
 {
 	if (addr < PECI_BASE_ADDR && addr > PECI_BASE_ADDR + PECI_OFFSET_MAX)
@@ -1438,7 +1445,8 @@ static int peci_check_client_busy(struct device *dev, void *client_new_p)
 	struct peci_client *client = peci_verify_client(dev);
 	struct peci_client *client_new = client_new_p;
 
-	if (client && client->addr == client_new->addr)
+	if (client && client->addr == client_new->addr &&
+	    client->domain_id == client_new->domain_id)
 		return -EBUSY;
 
 	return 0;
@@ -1453,12 +1461,13 @@ static int peci_check_client_busy(struct device *dev, void *client_new_p)
  *
  * Return: zero on success, else a negative error code.
  */
-int peci_get_cpu_id(struct peci_adapter *adapter, u8 addr, u32 *cpu_id)
+int peci_get_cpu_id(struct peci_adapter *adapter, u8 addr, u8 domain_id, u32 *cpu_id)
 {
 	struct peci_rd_pkg_cfg_msg msg;
 	int ret;
 
 	msg.addr = addr;
+	msg.domain_id = domain_id;
 	msg.index = PECI_MBX_INDEX_CPU_ID;
 	msg.param = PECI_PKG_ID_CPU_ID;
 	msg.rx_len = 4;
@@ -1479,6 +1488,7 @@ static struct peci_client *peci_new_device(struct peci_adapter *adapter,
 					   struct peci_board_info const *info)
 {
 	struct peci_client *client;
+	char name[16];
 	int ret;
 
 	/* Increase reference count for the adapter assigned */
@@ -1491,6 +1501,7 @@ static struct peci_client *peci_new_device(struct peci_adapter *adapter,
 
 	client->adapter = adapter;
 	client->addr = info->addr;
+	client->domain_id = info->domain_id;
 	strlcpy(client->name, info->type, sizeof(client->name));
 
 	/* Check online status of client */
@@ -1503,11 +1514,16 @@ static struct peci_client *peci_new_device(struct peci_adapter *adapter,
 	if (ret)
 		goto err_free_client;
 
+	if (client->domain_id)
+		snprintf(name, 16, "%d-%02x-%02x", adapter->nr, client->addr, client->domain_id);
+	else
+		snprintf(name, 16, "%d-%02x", adapter->nr, client->addr);
+
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &peci_bus_type;
 	client->dev.type = &peci_client_type;
 	client->dev.of_node = of_node_get(info->of_node);
-	dev_set_name(&client->dev, "%d-%02x", adapter->nr, client->addr);
+	dev_set_name(&client->dev, name);
 
 	ret = device_register(&client->dev);
 	if (ret)
@@ -1522,8 +1538,8 @@ err_put_of_node:
 	of_node_put(info->of_node);
 err_free_client:
 	dev_err(&adapter->dev,
-		"Failed to register peci client %s at 0x%02x (%d)\n",
-		client->name, client->addr, ret);
+		"Failed to register peci client %s, addr: %#02x, domain id: %#02x, ret: %d\n",
+		client->name, client->addr, client->domain_id, ret);
 	kfree(client);
 err_put_adapter:
 	peci_put_adapter(adapter);
@@ -1570,8 +1586,8 @@ static ssize_t peci_sysfs_new_device(struct device *dev,
 	struct peci_adapter *adapter = to_peci_adapter(dev);
 	struct peci_board_info info = {};
 	struct peci_client *client;
+	u8 addr, domain_id;
 	char *blank, end;
-	u8 addr;
 	int ret;
 
 	/* Parse device type */
@@ -1587,9 +1603,9 @@ static ssize_t peci_sysfs_new_device(struct device *dev,
 	memcpy(info.type, buf, blank - buf);
 
 	/* Parse remaining parameters, reject extra parameters */
-	ret = sscanf(++blank, "%hhi%c", &addr, &end);
+	ret = sscanf(++blank, "%hhi %hhi%c", &addr, &domain_id, &end);
 	if (ret < 1) {
-		dev_err(dev, "%s: Can't parse client address\n", "new_device");
+		dev_err(dev, "%s: Can't parse parameters\n", "new_device");
 		return -EINVAL;
 	}
 	if (ret > 1 && end != '\n') {
@@ -1601,7 +1617,12 @@ static ssize_t peci_sysfs_new_device(struct device *dev,
 	if (ret)
 		return ret;
 
+	ret = peci_check_domain_validity(domain_id);
+	if (ret)
+		domain_id = 0;
+
 	info.addr = addr;
+	info.domain_id = domain_id;
 	client = peci_new_device(adapter, &info);
 	if (!client)
 		return -EINVAL;
@@ -1624,8 +1645,8 @@ static ssize_t peci_sysfs_delete_device(struct device *dev,
 	struct peci_adapter *adapter = to_peci_adapter(dev);
 	struct peci_client *client, *next;
 	struct peci_board_info info = {};
+	u8 addr, domain_id;
 	char *blank, end;
-	u8 addr;
 	int ret;
 
 	/* Parse device type */
@@ -1641,10 +1662,9 @@ static ssize_t peci_sysfs_delete_device(struct device *dev,
 	memcpy(info.type, buf, blank - buf);
 
 	/* Parse remaining parameters, reject extra parameters */
-	ret = sscanf(++blank, "%hhi%c", &addr, &end);
+	ret = sscanf(++blank, "%hhi %hhi%c", &addr, &domain_id, &end);
 	if (ret < 1) {
-		dev_err(dev, "%s: Can't parse client address\n",
-			"delete_device");
+		dev_err(dev, "%s: Can't parse parameters\n", "delete_device");
 		return -EINVAL;
 	}
 	if (ret > 1 && end != '\n') {
@@ -1656,14 +1676,19 @@ static ssize_t peci_sysfs_delete_device(struct device *dev,
 	if (ret)
 		return ret;
 
+	ret = peci_check_domain_validity(domain_id);
+	if (ret)
+		domain_id = 0;
+
 	info.addr = addr;
+	info.domain_id = domain_id;
 
 	/* Make sure the device was added through sysfs */
 	ret = -ENOENT;
 	mutex_lock(&adapter->userspace_clients_lock);
 	list_for_each_entry_safe(client, next, &adapter->userspace_clients,
 				 detected) {
-		if (client->addr == info.addr &&
+		if (client->addr == info.addr && client->domain_id == info.domain_id &&
 		    !strncmp(client->name, info.type, PECI_NAME_SIZE)) {
 			dev_dbg(dev, "%s: Deleting device %s at 0x%02hx\n",
 				"delete_device", client->name, client->addr);

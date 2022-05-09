@@ -13,6 +13,7 @@
 struct peci_board_info {
 	char			type[PECI_NAME_SIZE];
 	u8			addr;	/* CPU client address */
+	u8			domain_id;
 	struct device_node	*of_node;
 };
 
@@ -77,6 +78,7 @@ struct peci_client {
 	struct device		dev;
 	struct peci_adapter	*adapter;
 	u8			addr;
+	u8			domain_id;
 	char			name[PECI_NAME_SIZE];
 	struct list_head	detected;
 };
@@ -146,6 +148,6 @@ int  peci_for_each_dev(void *data, int (*fn)(struct device *, void *));
 struct peci_xfer_msg *peci_get_xfer_msg(u8 tx_len, u8 rx_len);
 void peci_put_xfer_msg(struct peci_xfer_msg *msg);
 int  peci_command(struct peci_adapter *adpater, enum peci_cmd cmd, uint msg_len, void *vmsg);
-int  peci_get_cpu_id(struct peci_adapter *adapter, u8 addr, u32 *cpu_id);
+int  peci_get_cpu_id(struct peci_adapter *adapter, u8 addr, u8 domain_id, u32 *cpu_id);
 
 #endif /* __LINUX_PECI_H */
