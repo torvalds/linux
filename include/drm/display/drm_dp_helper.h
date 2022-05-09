@@ -370,9 +370,19 @@ struct drm_dp_aux {
 	 * helpers assume this is the case.
 	 *
 	 * Also note that this callback can be called no matter the
-	 * state @dev is in. Drivers that need that device to be powered
-	 * to perform this operation will first need to make sure it's
-	 * been properly enabled.
+	 * state @dev is in and also no matter what state the panel is
+	 * in. It's expected:
+	 * - If the @dev providing the AUX bus is currently unpowered then
+	 *   it will power itself up for the transfer.
+	 * - If we're on eDP (using a drm_panel) and the panel is not in a
+	 *   state where it can respond (it's not powered or it's in a
+	 *   low power state) then this function may return an error, but
+	 *   not crash. It's up to the caller of this code to make sure that
+	 *   the panel is powered on if getting an error back is not OK. If a
+	 *   drm_panel driver is initiating a DP AUX transfer it may power
+	 *   itself up however it wants. All other code should ensure that
+	 *   the pre_enable() bridge chain (which eventually calls the
+	 *   drm_panel prepare function) has powered the panel.
 	 */
 	ssize_t (*transfer)(struct drm_dp_aux *aux,
 			    struct drm_dp_aux_msg *msg);
