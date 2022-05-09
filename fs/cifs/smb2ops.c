@@ -699,6 +699,7 @@ smb2_close_cached_fid(struct kref *ref)
 {
 	struct cached_fid *cfid = container_of(ref, struct cached_fid,
 					       refcount);
+	struct cached_dirent *dirent, *q;
 
 	if (cfid->is_valid) {
 		cifs_dbg(FYI, "clear cached root file handle\n");
@@ -718,6 +719,21 @@ smb2_close_cached_fid(struct kref *ref)
 		dput(cfid->dentry);
 		cfid->dentry = NULL;
 	}
+	/*
+	 * Delete all cached dirent names
+	 */
+	mutex_lock(&cfid->dirents.de_mutex);
+	list_for_each_entry_safe(dirent, q, &cfid->dirents.entries, entry) {
+		list_del(&dirent->entry);
+		kfree(dirent->name);
+		kfree(dirent);
+	}
+	cfid->dirents.is_valid = 0;
+	cfid->dirents.is_failed = 0;
+	cfid->dirents.ctx = NULL;
+	cfid->dirents.pos = 0;
+	mutex_unlock(&cfid->dirents.de_mutex);
+
 }
 
 void close_cached_dir(struct cached_fid *cfid)
