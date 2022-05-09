@@ -76,6 +76,13 @@ static struct rpmh_ctrlr *get_rpmh_ctrlr(const struct device *dev)
 	return &drv->client;
 }
 
+static struct rpmh_ctrlr *get_rpmh_ctrlr_no_child(const struct device *dev)
+{
+	struct rsc_drv *drv = dev_get_drvdata(dev);
+
+	return &drv->client;
+}
+
 static int check_ctrlr_state(struct rpmh_ctrlr *ctrlr, enum rpmh_state state)
 {
 	int ret = 0;
@@ -583,6 +590,34 @@ int rpmh_write_sleep_and_wake(const struct device *dev)
 EXPORT_SYMBOL(rpmh_write_sleep_and_wake);
 
 /**
+ * rpmh_write_sleep_and_wake_no_child: Writes the buffered wake and sleep sets to TCSes
+ *
+ * Used when the client calling this is not a child device of RSC device.
+ * Use it only after getting the device using rpmh_get_device().
+ * @dev: The device making the request
+ *
+ * Return:
+ * * 0          - Success
+ * * Error code - Otherwise
+ */
+int rpmh_write_sleep_and_wake_no_child(const struct device *dev)
+{
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr_no_child(dev);
+	int ch, ret;
+
+	ch = rpmh_rsc_get_channel(ctrlr_to_drv(ctrlr));
+	if (ch < 0)
+		return ch;
+
+	ret = rpmh_flush(ctrlr, ch);
+	if (ret || !(ctrlr->flags & HW_CHANNEL_PRESENT))
+		return ret;
+
+	return rpmh_rsc_switch_channel(ctrlr_to_drv(ctrlr), ch);
+}
+EXPORT_SYMBOL(rpmh_write_sleep_and_wake_no_child);
+
+/**
  * rpmh_invalidate: Invalidate sleep and wake sets in batch_cache
  *
  * @dev: The device making the request
@@ -729,6 +764,27 @@ int rpmh_update_fast_path(const struct device *dev,
 EXPORT_SYMBOL(rpmh_update_fast_path);
 
 /**
+ * rpmh_get_device: Get the DRV device
+ *
+ * @name:        The RSC device used for DRV DRV
+ * @drv_id:      The index of DRV
+ *
+ * Used when the device voting to RPMh is not a child device
+ * of RSC device. Such device can get RSC device using this API.
+ * but will be able to use only rpmh_drv_start(), rpmh_drv_stop()
+ * and rpmh_write_sleep_and_wake_no_child().
+ *
+ * Return:
+ * * dev          - Device to use when calling above APIs
+ * * Error        - Error pointer
+ */
+const struct device *rpmh_get_device(const char *name, u32 drv_id)
+{
+	return rpmh_rsc_get_device(name, drv_id);
+}
+EXPORT_SYMBOL(rpmh_get_device);
+
+/**
  * rpmh_drv_start: Start the DRV channel
  *
  * @dev:         The device making the request
@@ -739,7 +795,7 @@ EXPORT_SYMBOL(rpmh_update_fast_path);
  */
 int rpmh_drv_start(const struct device *dev)
 {
-	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr_no_child(dev);
 
 	if (rpmh_standalone)
 		return 0;
@@ -759,7 +815,7 @@ EXPORT_SYMBOL(rpmh_drv_start);
  */
 int rpmh_drv_stop(const struct device *dev)
 {
-	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr_no_child(dev);
 
 	if (rpmh_standalone)
 		return 0;
