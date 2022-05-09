@@ -1777,7 +1777,6 @@ static void ath11k_core_reset(struct work_struct *work)
 						ATH11K_RECOVER_START_TIMEOUT_HZ);
 
 	ath11k_hif_power_down(ab);
-	ath11k_qmi_free_resource(ab);
 	ath11k_hif_power_up(ab);
 
 	ath11k_dbg(ab, ATH11K_DBG_BOOT, "reset started\n");
