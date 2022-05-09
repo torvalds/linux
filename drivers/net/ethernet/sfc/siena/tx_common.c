@@ -107,8 +107,8 @@ void efx_siena_remove_tx_queue(struct efx_tx_queue *tx_queue)
 
 	if (tx_queue->cb_page) {
 		for (i = 0; i < efx_tx_cb_page_count(tx_queue); i++)
-			efx_nic_free_buffer(tx_queue->efx,
-					    &tx_queue->cb_page[i]);
+			efx_siena_free_buffer(tx_queue->efx,
+					      &tx_queue->cb_page[i]);
 		kfree(tx_queue->cb_page);
 		tx_queue->cb_page = NULL;
 	}

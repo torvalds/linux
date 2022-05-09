@@ -1225,8 +1225,9 @@ int efx_siena_mcdi_mac_init_stats(struct efx_nic *efx)
 		return 0;
 
 	/* Allocate buffer for stats */
-	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,
-				  efx->num_mac_stats * sizeof(u64), GFP_KERNEL);
+	rc = efx_siena_alloc_buffer(efx, &efx->stats_buffer,
+				    efx->num_mac_stats * sizeof(u64),
+				    GFP_KERNEL);
 	if (rc) {
 		netif_warn(efx, probe, efx->net_dev,
 			   "failed to allocate DMA buffer: %d\n", rc);
@@ -1244,7 +1245,7 @@ int efx_siena_mcdi_mac_init_stats(struct efx_nic *efx)
 
 void efx_siena_mcdi_mac_fini_stats(struct efx_nic *efx)
 {
-	efx_nic_free_buffer(efx, &efx->stats_buffer);
+	efx_siena_free_buffer(efx, &efx->stats_buffer);
 }
 
 static unsigned int efx_mcdi_event_link_speed[] = {

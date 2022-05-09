@@ -597,6 +597,14 @@ void efx_siena_stop_all(struct efx_nic *efx)
 	efx_stop_datapath(efx);
 }
 
+static size_t efx_siena_update_stats_atomic(struct efx_nic *efx, u64 *full_stats,
+					    struct rtnl_link_stats64 *core_stats)
+{
+	if (efx->type->update_stats_atomic)
+		return efx->type->update_stats_atomic(efx, full_stats, core_stats);
+	return efx->type->update_stats(efx, full_stats, core_stats);
+}
+
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
 void efx_siena_net_stats(struct net_device *net_dev,
 			 struct rtnl_link_stats64 *stats)
@@ -604,7 +612,7 @@ void efx_siena_net_stats(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	spin_lock_bh(&efx->stats_lock);
-	efx_nic_update_stats_atomic(efx, NULL, stats);
+	efx_siena_update_stats_atomic(efx, NULL, stats);
 	spin_unlock_bh(&efx->stats_lock);
 }
 

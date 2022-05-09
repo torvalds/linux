@@ -398,8 +398,8 @@ size_t efx_siena_ptp_describe_stats(struct efx_nic *efx, u8 *strings)
 	if (!efx->ptp_data)
 		return 0;
 
-	return efx_nic_describe_stats(efx_ptp_stat_desc, PTP_STAT_COUNT,
-				      efx_ptp_stat_mask, strings);
+	return efx_siena_describe_stats(efx_ptp_stat_desc, PTP_STAT_COUNT,
+					efx_ptp_stat_mask, strings);
 }
 
 size_t efx_siena_ptp_update_stats(struct efx_nic *efx, u64 *stats)
@@ -430,9 +430,9 @@ size_t efx_siena_ptp_update_stats(struct efx_nic *efx, u64 *stats)
 				outbuf, sizeof(outbuf), NULL);
 	if (rc)
 		memset(outbuf, 0, sizeof(outbuf));
-	efx_nic_update_stats(efx_ptp_stat_desc, PTP_STAT_COUNT,
-			     efx_ptp_stat_mask,
-			     stats, _MCDI_PTR(outbuf, 0), false);
+	efx_siena_update_stats(efx_ptp_stat_desc, PTP_STAT_COUNT,
+			       efx_ptp_stat_mask,
+			       stats, _MCDI_PTR(outbuf, 0), false);
 
 	return PTP_STAT_COUNT;
 }
@@ -1452,7 +1452,7 @@ static int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 	ptp->channel = channel;
 	ptp->rx_ts_inline = efx_nic_rev(efx) >= EFX_REV_HUNT_A0;
 
-	rc = efx_nic_alloc_buffer(efx, &ptp->start, sizeof(int), GFP_KERNEL);
+	rc = efx_siena_alloc_buffer(efx, &ptp->start, sizeof(int), GFP_KERNEL);
 	if (rc != 0)
 		goto fail1;
 
@@ -1519,7 +1519,7 @@ fail3:
 	destroy_workqueue(efx->ptp_data->workwq);
 
 fail2:
-	efx_nic_free_buffer(efx, &ptp->start);
+	efx_siena_free_buffer(efx, &ptp->start);
 
 fail1:
 	kfree(efx->ptp_data);
@@ -1574,7 +1574,7 @@ static void efx_ptp_remove(struct efx_nic *efx)
 
 	destroy_workqueue(efx->ptp_data->workwq);
 
-	efx_nic_free_buffer(efx, &efx->ptp_data->start);
+	efx_siena_free_buffer(efx, &efx->ptp_data->start);
 	kfree(efx->ptp_data);
 	efx->ptp_data = NULL;
 }

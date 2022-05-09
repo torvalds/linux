@@ -28,8 +28,8 @@
  *
  **************************************************************************/
 
-int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
-			 unsigned int len, gfp_t gfp_flags)
+int efx_siena_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
+			   unsigned int len, gfp_t gfp_flags)
 {
 	buffer->addr = dma_alloc_coherent(&efx->pci_dev->dev, len,
 					  &buffer->dma_addr, gfp_flags);
@@ -39,7 +39,7 @@ int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
 	return 0;
 }
 
-void efx_nic_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer)
+void efx_siena_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer)
 {
 	if (buffer->addr) {
 		dma_free_coherent(&efx->pci_dev->dev, buffer->len,
@@ -51,19 +51,19 @@ void efx_nic_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer)
 /* Check whether an event is present in the eventq at the current
  * read pointer.  Only useful for self-test.
  */
-bool efx_nic_event_present(struct efx_channel *channel)
+bool efx_siena_event_present(struct efx_channel *channel)
 {
 	return efx_event_present(efx_event(channel, channel->eventq_read_ptr));
 }
 
-void efx_nic_event_test_start(struct efx_channel *channel)
+void efx_siena_event_test_start(struct efx_channel *channel)
 {
 	channel->event_test_cpu = -1;
 	smp_wmb();
 	channel->efx->type->ev_test_generate(channel);
 }
 
-int efx_nic_irq_test_start(struct efx_nic *efx)
+int efx_siena_irq_test_start(struct efx_nic *efx)
 {
 	efx->last_irq_cpu = -1;
 	smp_wmb();
@@ -73,7 +73,7 @@ int efx_nic_irq_test_start(struct efx_nic *efx)
 /* Hook interrupt handler(s)
  * Try MSI and then legacy interrupts.
  */
-int efx_nic_init_interrupt(struct efx_nic *efx)
+int efx_siena_init_interrupt(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 	unsigned int n_irqs;
@@ -146,7 +146,7 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 	return rc;
 }
 
-void efx_nic_fini_interrupt(struct efx_nic *efx)
+void efx_siena_fini_interrupt(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -364,7 +364,7 @@ static const struct efx_nic_reg_table efx_nic_reg_tables[] = {
 	REGISTER_TABLE_BZ(RX_FILTER_TBL0),
 };
 
-size_t efx_nic_get_regs_len(struct efx_nic *efx)
+size_t efx_siena_get_regs_len(struct efx_nic *efx)
 {
 	const struct efx_nic_reg *reg;
 	const struct efx_nic_reg_table *table;
@@ -387,7 +387,7 @@ size_t efx_nic_get_regs_len(struct efx_nic *efx)
 	return len;
 }
 
-void efx_nic_get_regs(struct efx_nic *efx, void *buf)
+void efx_siena_get_regs(struct efx_nic *efx, void *buf)
 {
 	const struct efx_nic_reg *reg;
 	const struct efx_nic_reg_table *table;
@@ -439,7 +439,7 @@ void efx_nic_get_regs(struct efx_nic *efx, void *buf)
 }
 
 /**
- * efx_nic_describe_stats - Describe supported statistics for ethtool
+ * efx_siena_describe_stats - Describe supported statistics for ethtool
  * @desc: Array of &struct efx_hw_stat_desc describing the statistics
  * @count: Length of the @desc array
  * @mask: Bitmask of which elements of @desc are enabled
@@ -449,8 +449,8 @@ void efx_nic_get_regs(struct efx_nic *efx, void *buf)
  * Returns the number of visible statistics, i.e. the number of set
  * bits in the first @count bits of @mask for which a name is defined.
  */
-size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
-			      const unsigned long *mask, u8 *names)
+size_t efx_siena_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
+				const unsigned long *mask, u8 *names)
 {
 	size_t visible = 0;
 	size_t index;
@@ -470,50 +470,7 @@ size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
 }
 
 /**
- * efx_nic_copy_stats - Copy stats from the DMA buffer in to an
- *	intermediate buffer. This is used to get a consistent
- *	set of stats while the DMA buffer can be written at any time
- *	by the NIC.
- * @efx: The associated NIC.
- * @dest: Destination buffer. Must be the same size as the DMA buffer.
- */
-int efx_nic_copy_stats(struct efx_nic *efx, __le64 *dest)
-{
-	__le64 *dma_stats = efx->stats_buffer.addr;
-	__le64 generation_start, generation_end;
-	int rc = 0, retry;
-
-	if (!dest)
-		return 0;
-
-	if (!dma_stats)
-		goto return_zeroes;
-
-	/* If we're unlucky enough to read statistics during the DMA, wait
-	 * up to 10ms for it to finish (typically takes <500us)
-	 */
-	for (retry = 0; retry < 100; ++retry) {
-		generation_end = dma_stats[efx->num_mac_stats - 1];
-		if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
-			goto return_zeroes;
-		rmb();
-		memcpy(dest, dma_stats, efx->num_mac_stats * sizeof(__le64));
-		rmb();
-		generation_start = dma_stats[MC_CMD_MAC_GENERATION_START];
-		if (generation_end == generation_start)
-			return 0; /* return good data */
-		udelay(100);
-	}
-
-	rc = -EIO;
-
-return_zeroes:
-	memset(dest, 0, efx->num_mac_stats * sizeof(u64));
-	return rc;
-}
-
-/**
- * efx_nic_update_stats - Convert statistics DMA buffer to array of u64
+ * efx_siena_update_stats - Convert statistics DMA buffer to array of u64
  * @desc: Array of &struct efx_hw_stat_desc describing the DMA buffer
  *	layout.  DMA widths of 0, 16, 32 and 64 are supported; where
  *	the width is specified as 0 the corresponding element of
@@ -526,9 +483,9 @@ return_zeroes:
  * @accumulate: If set, the converted values will be added rather than
  *	directly stored to the corresponding elements of @stats
  */
-void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
-			  const unsigned long *mask,
-			  u64 *stats, const void *dma_buf, bool accumulate)
+void efx_siena_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
+			    const unsigned long *mask,
+			    u64 *stats, const void *dma_buf, bool accumulate)
 {
 	size_t index;
 
@@ -561,7 +518,7 @@ void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 	}
 }
 
-void efx_nic_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *rx_nodesc_drops)
+void efx_siena_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *rx_nodesc_drops)
 {
 	/* if down, or this is the first update after coming up */
 	if (!(efx->net_dev->flags & IFF_UP) || !efx->rx_nodesc_drops_prev_state)

@@ -336,10 +336,9 @@ int efx_siena_mcdi_mon_probe(struct efx_nic *efx)
 	if (n_sensors == 0)
 		return 0;
 
-	rc = efx_nic_alloc_buffer(
-		efx, &hwmon->dma_buf,
-		n_sensors * MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_LEN,
-		GFP_KERNEL);
+	rc = efx_siena_alloc_buffer(efx, &hwmon->dma_buf,
+			n_sensors * MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_LEN,
+			GFP_KERNEL);
 	if (rc)
 		return rc;
 
@@ -526,7 +525,7 @@ void efx_siena_mcdi_mon_remove(struct efx_nic *efx)
 		hwmon_device_unregister(hwmon->device);
 	kfree(hwmon->attrs);
 	kfree(hwmon->group.attrs);
-	efx_nic_free_buffer(efx, &hwmon->dma_buf);
+	efx_siena_free_buffer(efx, &hwmon->dma_buf);
 }
 
 #endif /* CONFIG_SFC_MCDI_MON */

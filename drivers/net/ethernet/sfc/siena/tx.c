@@ -33,8 +33,8 @@ static inline u8 *efx_tx_get_copy_buffer(struct efx_tx_queue *tx_queue,
 		((index << EFX_TX_CB_ORDER) + NET_IP_ALIGN) & (PAGE_SIZE - 1);
 
 	if (unlikely(!page_buf->addr) &&
-	    efx_nic_alloc_buffer(tx_queue->efx, page_buf, PAGE_SIZE,
-				 GFP_ATOMIC))
+	    efx_siena_alloc_buffer(tx_queue->efx, page_buf, PAGE_SIZE,
+				   GFP_ATOMIC))
 		return NULL;
 	buffer->dma_addr = page_buf->dma_addr + offset;
 	buffer->unmap_len = 0;

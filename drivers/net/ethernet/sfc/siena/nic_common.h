@@ -182,9 +182,9 @@ static inline void efx_nic_eventq_read_ack(struct efx_channel *channel)
 	channel->efx->type->ev_read_ack(channel);
 }
 
-void efx_nic_event_test_start(struct efx_channel *channel);
+void efx_siena_event_test_start(struct efx_channel *channel);
 
-bool efx_nic_event_present(struct efx_channel *channel);
+bool efx_siena_event_present(struct efx_channel *channel);
 
 static inline void efx_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 {
@@ -216,9 +216,9 @@ static inline void efx_update_diff_stat(u64 *stat, u64 diff)
 }
 
 /* Interrupts */
-int efx_nic_init_interrupt(struct efx_nic *efx);
-int efx_nic_irq_test_start(struct efx_nic *efx);
-void efx_nic_fini_interrupt(struct efx_nic *efx);
+int efx_siena_init_interrupt(struct efx_nic *efx);
+int efx_siena_irq_test_start(struct efx_nic *efx);
+void efx_siena_fini_interrupt(struct efx_nic *efx);
 
 static inline int efx_nic_event_test_irq_cpu(struct efx_channel *channel)
 {
@@ -230,29 +230,21 @@ static inline int efx_nic_irq_test_irq_cpu(struct efx_nic *efx)
 }
 
 /* Global Resources */
-int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
-			 unsigned int len, gfp_t gfp_flags);
-void efx_nic_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer);
+int efx_siena_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
+			   unsigned int len, gfp_t gfp_flags);
+void efx_siena_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer);
 
-size_t efx_nic_get_regs_len(struct efx_nic *efx);
-void efx_nic_get_regs(struct efx_nic *efx, void *buf);
+size_t efx_siena_get_regs_len(struct efx_nic *efx);
+void efx_siena_get_regs(struct efx_nic *efx, void *buf);
 
 #define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
 
-size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
-			      const unsigned long *mask, u8 *names);
-int efx_nic_copy_stats(struct efx_nic *efx, __le64 *dest);
-void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
-			  const unsigned long *mask, u64 *stats,
-			  const void *dma_buf, bool accumulate);
-void efx_nic_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *stat);
-static inline size_t efx_nic_update_stats_atomic(struct efx_nic *efx, u64 *full_stats,
-						 struct rtnl_link_stats64 *core_stats)
-{
-	if (efx->type->update_stats_atomic)
-		return efx->type->update_stats_atomic(efx, full_stats, core_stats);
-	return efx->type->update_stats(efx, full_stats, core_stats);
-}
+size_t efx_siena_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
+				const unsigned long *mask, u8 *names);
+void efx_siena_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
+			    const unsigned long *mask, u64 *stats,
+			    const void *dma_buf, bool accumulate);
+void efx_siena_fix_nodesc_drop_stat(struct efx_nic *efx, u64 *stat);
 
 #define EFX_MAX_FLUSH_TIME 5000
 

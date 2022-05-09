@@ -233,7 +233,7 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 #endif
 	len = ALIGN(len, EFX_BUF_SIZE);
 
-	if (efx_nic_alloc_buffer(efx, &buffer->buf, len, GFP_KERNEL))
+	if (efx_siena_alloc_buffer(efx, &buffer->buf, len, GFP_KERNEL))
 		return -ENOMEM;
 	buffer->entries = len / EFX_BUF_SIZE;
 	BUG_ON(buffer->buf.dma_addr & (EFX_BUF_SIZE - 1));
@@ -269,7 +269,7 @@ efx_free_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 		  (u64)buffer->buf.dma_addr, buffer->buf.len,
 		  buffer->buf.addr, (u64)virt_to_phys(buffer->buf.addr));
 
-	efx_nic_free_buffer(efx, &buffer->buf);
+	efx_siena_free_buffer(efx, &buffer->buf);
 	buffer->entries = 0;
 }
 

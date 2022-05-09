@@ -301,8 +301,8 @@ static int siena_probe_nic(struct efx_nic *efx)
 	siena_init_wol(efx);
 
 	/* Allocate memory for INT_KER */
-	rc = efx_nic_alloc_buffer(efx, &efx->irq_status, sizeof(efx_oword_t),
-				  GFP_KERNEL);
+	rc = efx_siena_alloc_buffer(efx, &efx->irq_status, sizeof(efx_oword_t),
+				    GFP_KERNEL);
 	if (rc)
 		goto fail4;
 	BUG_ON(efx->irq_status.dma_addr & 0x0f);
@@ -336,7 +336,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	return 0;
 
 fail5:
-	efx_nic_free_buffer(efx, &efx->irq_status);
+	efx_siena_free_buffer(efx, &efx->irq_status);
 fail4:
 fail3:
 	efx_siena_mcdi_detach(efx);
@@ -460,7 +460,7 @@ static void siena_remove_nic(struct efx_nic *efx)
 {
 	efx_siena_mcdi_mon_remove(efx);
 
-	efx_nic_free_buffer(efx, &efx->irq_status);
+	efx_siena_free_buffer(efx, &efx->irq_status);
 
 	efx_siena_mcdi_reset(efx, RESET_TYPE_ALL);
 
@@ -547,8 +547,8 @@ static const unsigned long siena_stat_mask[] = {
 
 static size_t siena_describe_nic_stats(struct efx_nic *efx, u8 *names)
 {
-	return efx_nic_describe_stats(siena_stat_desc, SIENA_STAT_COUNT,
-				      siena_stat_mask, names);
+	return efx_siena_describe_stats(siena_stat_desc, SIENA_STAT_COUNT,
+					siena_stat_mask, names);
 }
 
 static int siena_try_update_nic_stats(struct efx_nic *efx)
@@ -564,16 +564,16 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 	if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
 		return 0;
 	rmb();
-	efx_nic_update_stats(siena_stat_desc, SIENA_STAT_COUNT, siena_stat_mask,
-			     stats, efx->stats_buffer.addr, false);
+	efx_siena_update_stats(siena_stat_desc, SIENA_STAT_COUNT, siena_stat_mask,
+			       stats, efx->stats_buffer.addr, false);
 	rmb();
 	generation_start = dma_stats[MC_CMD_MAC_GENERATION_START];
 	if (generation_end != generation_start)
 		return -EAGAIN;
 
 	/* Update derived statistics */
-	efx_nic_fix_nodesc_drop_stat(efx,
-				     &stats[SIENA_STAT_rx_nodesc_drop_cnt]);
+	efx_siena_fix_nodesc_drop_stat(efx,
+				       &stats[SIENA_STAT_rx_nodesc_drop_cnt]);
 	efx_update_diff_stat(&stats[SIENA_STAT_tx_good_bytes],
 			     stats[SIENA_STAT_tx_bytes] -
 			     stats[SIENA_STAT_tx_bad_bytes]);

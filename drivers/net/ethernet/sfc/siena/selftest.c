@@ -138,7 +138,7 @@ static int efx_test_interrupts(struct efx_nic *efx,
 	netif_dbg(efx, drv, efx->net_dev, "testing interrupts\n");
 	tests->interrupt = -1;
 
-	rc = efx_nic_irq_test_start(efx);
+	rc = efx_siena_irq_test_start(efx);
 	if (rc == -ENOTSUPP) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "direct interrupt testing not supported\n");
@@ -184,7 +184,7 @@ static int efx_test_eventq_irq(struct efx_nic *efx,
 		read_ptr[channel->channel] = channel->eventq_read_ptr;
 		set_bit(channel->channel, &dma_pend);
 		set_bit(channel->channel, &int_pend);
-		efx_nic_event_test_start(channel);
+		efx_siena_event_test_start(channel);
 	}
 
 	timeout = jiffies + IRQ_TIMEOUT;
@@ -204,7 +204,7 @@ static int efx_test_eventq_irq(struct efx_nic *efx,
 				clear_bit(channel->channel, &dma_pend);
 				clear_bit(channel->channel, &int_pend);
 			} else {
-				if (efx_nic_event_present(channel))
+				if (efx_siena_event_present(channel))
 					clear_bit(channel->channel, &dma_pend);
 				if (efx_nic_event_test_irq_cpu(channel) >= 0)
 					clear_bit(channel->channel, &int_pend);
@@ -772,7 +772,7 @@ void efx_siena_selftest_async_start(struct efx_nic *efx)
 	struct efx_channel *channel;
 
 	efx_for_each_channel(channel, efx)
-		efx_nic_event_test_start(channel);
+		efx_siena_event_test_start(channel);
 	schedule_delayed_work(&efx->selftest_work, IRQ_TIMEOUT);
 }
 
