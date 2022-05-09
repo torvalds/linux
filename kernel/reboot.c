@@ -58,6 +58,12 @@ struct sys_off_handler {
 };
 
 /*
+ * Temporary stub that prevents linkage failure while we're in process
+ * of removing all uses of legacy pm_power_off() around the kernel.
+ */
+void __weak (*pm_power_off)(void);
+
+/*
  * If set, this is used for preparing the system to power off.
  */
 
