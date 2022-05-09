@@ -54,10 +54,10 @@ struct kvm_vmid {
 };
 
 struct kvm_arch {
-	/* stage2 vmid */
+	/* G-stage vmid */
 	struct kvm_vmid vmid;
 
-	/* stage2 page table */
+	/* G-stage page table */
 	pgd_t *pgd;
 	phys_addr_t pgd_phys;
 
@@ -207,21 +207,21 @@ void __kvm_riscv_hfence_gvma_vmid(unsigned long vmid);
 void __kvm_riscv_hfence_gvma_gpa(unsigned long gpa_divby_4);
 void __kvm_riscv_hfence_gvma_all(void);
 
-int kvm_riscv_stage2_map(struct kvm_vcpu *vcpu,
+int kvm_riscv_gstage_map(struct kvm_vcpu *vcpu,
 			 struct kvm_memory_slot *memslot,
 			 gpa_t gpa, unsigned long hva, bool is_write);
-int kvm_riscv_stage2_alloc_pgd(struct kvm *kvm);
-void kvm_riscv_stage2_free_pgd(struct kvm *kvm);
-void kvm_riscv_stage2_update_hgatp(struct kvm_vcpu *vcpu);
-void kvm_riscv_stage2_mode_detect(void);
-unsigned long kvm_riscv_stage2_mode(void);
-int kvm_riscv_stage2_gpa_bits(void);
+int kvm_riscv_gstage_alloc_pgd(struct kvm *kvm);
+void kvm_riscv_gstage_free_pgd(struct kvm *kvm);
+void kvm_riscv_gstage_update_hgatp(struct kvm_vcpu *vcpu);
+void kvm_riscv_gstage_mode_detect(void);
+unsigned long kvm_riscv_gstage_mode(void);
+int kvm_riscv_gstage_gpa_bits(void);
 
-void kvm_riscv_stage2_vmid_detect(void);
-unsigned long kvm_riscv_stage2_vmid_bits(void);
-int kvm_riscv_stage2_vmid_init(struct kvm *kvm);
-bool kvm_riscv_stage2_vmid_ver_changed(struct kvm_vmid *vmid);
-void kvm_riscv_stage2_vmid_update(struct kvm_vcpu *vcpu);
+void kvm_riscv_gstage_vmid_detect(void);
+unsigned long kvm_riscv_gstage_vmid_bits(void);
+int kvm_riscv_gstage_vmid_init(struct kvm *kvm);
+bool kvm_riscv_gstage_vmid_ver_changed(struct kvm_vmid *vmid);
+void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu);
 
 void __kvm_riscv_unpriv_trap(void);
 

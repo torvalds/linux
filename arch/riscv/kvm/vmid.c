@@ -20,7 +20,7 @@ static unsigned long vmid_next;
 static unsigned long vmid_bits;
 static DEFINE_SPINLOCK(vmid_lock);
 
-void kvm_riscv_stage2_vmid_detect(void)
+void kvm_riscv_gstage_vmid_detect(void)
 {
 	unsigned long old;
 
@@ -40,12 +40,12 @@ void kvm_riscv_stage2_vmid_detect(void)
 		vmid_bits = 0;
 }
 
-unsigned long kvm_riscv_stage2_vmid_bits(void)
+unsigned long kvm_riscv_gstage_vmid_bits(void)
 {
 	return vmid_bits;
 }
 
-int kvm_riscv_stage2_vmid_init(struct kvm *kvm)
+int kvm_riscv_gstage_vmid_init(struct kvm *kvm)
 {
 	/* Mark the initial VMID and VMID version invalid */
 	kvm->arch.vmid.vmid_version = 0;
@@ -54,7 +54,7 @@ int kvm_riscv_stage2_vmid_init(struct kvm *kvm)
 	return 0;
 }
 
-bool kvm_riscv_stage2_vmid_ver_changed(struct kvm_vmid *vmid)
+bool kvm_riscv_gstage_vmid_ver_changed(struct kvm_vmid *vmid)
 {
 	if (!vmid_bits)
 		return false;
@@ -63,13 +63,13 @@ bool kvm_riscv_stage2_vmid_ver_changed(struct kvm_vmid *vmid)
 			READ_ONCE(vmid_version));
 }
 
-void kvm_riscv_stage2_vmid_update(struct kvm_vcpu *vcpu)
+void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu)
 {
 	unsigned long i;
 	struct kvm_vcpu *v;
 	struct kvm_vmid *vmid = &vcpu->kvm->arch.vmid;
 
-	if (!kvm_riscv_stage2_vmid_ver_changed(vmid))
+	if (!kvm_riscv_gstage_vmid_ver_changed(vmid))
 		return;
 
 	spin_lock(&vmid_lock);
@@ -78,7 +78,7 @@ void kvm_riscv_stage2_vmid_update(struct kvm_vcpu *vcpu)
 	 * We need to re-check the vmid_version here to ensure that if
 	 * another vcpu already allocated a valid vmid for this vm.
 	 */
-	if (!kvm_riscv_stage2_vmid_ver_changed(vmid)) {
+	if (!kvm_riscv_gstage_vmid_ver_changed(vmid)) {
 		spin_unlock(&vmid_lock);
 		return;
 	}
@@ -96,7 +96,7 @@ void kvm_riscv_stage2_vmid_update(struct kvm_vcpu *vcpu)
 		 * instances is invalid and we have force VMID re-assignement
 		 * for all Guest instances. The Guest instances that were not
 		 * running will automatically pick-up new VMIDs because will
-		 * call kvm_riscv_stage2_vmid_update() whenever they enter
+		 * call kvm_riscv_gstage_vmid_update() whenever they enter
 		 * in-kernel run loop. For Guest instances that are already
 		 * running, we force VM exits on all host CPUs using IPI and
 		 * flush all Guest TLBs.
@@ -112,7 +112,7 @@ void kvm_riscv_stage2_vmid_update(struct kvm_vcpu *vcpu)
 
 	spin_unlock(&vmid_lock);
 
-	/* Request stage2 page table update for all VCPUs */
+	/* Request G-stage page table update for all VCPUs */
 	kvm_for_each_vcpu(i, v, vcpu->kvm)
 		kvm_make_request(KVM_REQ_UPDATE_HGATP, v);
 }
