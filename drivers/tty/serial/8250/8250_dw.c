@@ -497,18 +497,17 @@ static void dw8250_reset_control_assert(void *data)
 static int dw8250_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port uart = {}, *up = &uart;
-	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct uart_port *p = &up->port;
 	struct device *dev = &pdev->dev;
 	struct dw8250_data *data;
+	struct resource *regs;
 	int irq;
 	int err;
 	u32 val;
 
-	if (!regs) {
-		dev_err(dev, "no registers defined\n");
-		return -EINVAL;
-	}
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!regs)
+		return dev_err_probe(dev, -EINVAL, "no registers defined\n");
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -593,7 +592,7 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	err = clk_prepare_enable(data->clk);
 	if (err)
-		dev_warn(dev, "could not enable optional baudclk: %d\n", err);
+		return dev_err_probe(dev, err, "could not enable optional baudclk\n");
 
 	err = devm_add_action_or_reset(dev, dw8250_clk_disable_unprepare, data->clk);
 	if (err)
@@ -603,20 +602,16 @@ static int dw8250_probe(struct platform_device *pdev)
 		p->uartclk = clk_get_rate(data->clk);
 
 	/* If no clock rate is defined, fail. */
-	if (!p->uartclk) {
-		dev_err(dev, "clock rate not defined\n");
-		return -EINVAL;
-	}
+	if (!p->uartclk)
+		return dev_err_probe(dev, -EINVAL, "clock rate not defined\n");
 
 	data->pclk = devm_clk_get_optional(dev, "apb_pclk");
 	if (IS_ERR(data->pclk))
 		return PTR_ERR(data->pclk);
 
 	err = clk_prepare_enable(data->pclk);
-	if (err) {
-		dev_err(dev, "could not enable apb_pclk\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "could not enable apb_pclk\n");
 
 	err = devm_add_action_or_reset(dev, dw8250_clk_disable_unprepare, data->pclk);
 	if (err)
@@ -660,9 +655,8 @@ static int dw8250_probe(struct platform_device *pdev)
 	if (data->clk) {
 		err = clk_notifier_register(data->clk, &data->clk_notifier);
 		if (err)
-			dev_warn(p->dev, "Failed to set the clock notifier\n");
-		else
-			queue_work(system_unbound_wq, &data->clk_work);
+			return dev_err_probe(dev, err, "Failed to set the clock notifier\n");
+		queue_work(system_unbound_wq, &data->clk_work);
 	}
 
 	platform_set_drvdata(pdev, data);
