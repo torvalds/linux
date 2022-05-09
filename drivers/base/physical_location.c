@@ -32,6 +32,7 @@ bool dev_add_physical_location(struct device *dev)
 	dev->physical_location->dock = pld->dock;
 	dev->physical_location->lid = pld->lid;
 
+	ACPI_FREE(pld);
 	return true;
 }
 
