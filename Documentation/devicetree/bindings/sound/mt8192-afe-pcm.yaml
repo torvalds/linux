@@ -54,11 +54,6 @@ properties:
       - const: aud_infra_clk
       - const: aud_infra_26m_clk
 
-patternProperties:
-  "^i2s[0-35-9]-share$":
-    description: Name of the I2S bus that is shared with this bus
-    pattern: "^I2S[0-35-9]$"
-
 required:
   - compatible
   - interrupts
