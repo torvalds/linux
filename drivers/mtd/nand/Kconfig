@@ -56,6 +56,7 @@ config MTD_NAND_ECC_MXIC
 config MTD_NAND_ECC_MEDIATEK
 	tristate "Mediatek hardware ECC engine"
 	depends on HAS_IOMEM
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select MTD_NAND_ECC
 	help
 	  This enables support for the hardware ECC engine from Mediatek.
