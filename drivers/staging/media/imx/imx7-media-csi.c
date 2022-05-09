@@ -169,37 +169,41 @@ enum imx_csi_model {
 
 struct imx7_csi {
 	struct device *dev;
-	struct v4l2_subdev sd;
-	struct v4l2_async_notifier notifier;
-	struct imx_media_video_dev *vdev;
-	struct imx_media_dev *imxmd;
-	struct media_pad pad[IMX7_CSI_PADS_NUM];
 
-	/* lock to protect members below */
-	struct mutex lock;
-	/* lock to protect irq handler when stop streaming */
-	spinlock_t irqlock;
-
-	struct v4l2_subdev *src_sd;
-
-	struct v4l2_mbus_framefmt format_mbus[IMX7_CSI_PADS_NUM];
-	const struct imx_media_pixfmt *cc[IMX7_CSI_PADS_NUM];
-
+	/* Resources and locks */
 	void __iomem *regbase;
 	int irq;
 	struct clk *mclk;
 
-	/* active vb2 buffers to send to video dev sink */
+	struct mutex lock; /* Protects is_streaming, format_mbus, cc */
+	spinlock_t irqlock; /* Protects last_eof */
+
+	/* Media and V4L2 device */
+	struct imx_media_dev *imxmd;
+	struct v4l2_async_notifier notifier;
+
+	struct v4l2_subdev *src_sd;
+	bool is_csi2;
+
+	/* V4L2 subdev */
+	struct v4l2_subdev sd;
+	struct media_pad pad[IMX7_CSI_PADS_NUM];
+
+	struct v4l2_mbus_framefmt format_mbus[IMX7_CSI_PADS_NUM];
+	const struct imx_media_pixfmt *cc[IMX7_CSI_PADS_NUM];
+
+	/* Video device */
+	struct imx_media_video_dev *vdev;
+
+	/* Buffers and streaming state */
 	struct imx_media_buffer *active_vb2_buf[2];
 	struct imx_media_dma_buf underrun_buf;
 
+	bool is_streaming;
 	int buf_num;
 	u32 frame_sequence;
 
 	bool last_eof;
-	bool is_streaming;
-	bool is_csi2;
-
 	struct completion last_eof_completion;
 
 	enum imx_csi_model model;
