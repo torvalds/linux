@@ -3121,16 +3121,16 @@ static bool valid_inferred_mode(const struct drm_connector *connector,
 	return ok;
 }
 
-static int
-drm_dmt_modes_for_range(struct drm_connector *connector, const struct edid *edid,
-			const struct detailed_timing *timing)
+static int drm_dmt_modes_for_range(struct drm_connector *connector,
+				   const struct drm_edid *drm_edid,
+				   const struct detailed_timing *timing)
 {
 	int i, modes = 0;
 	struct drm_display_mode *newmode;
 	struct drm_device *dev = connector->dev;
 
 	for (i = 0; i < ARRAY_SIZE(drm_dmt_modes); i++) {
-		if (mode_in_range(drm_dmt_modes + i, edid, timing) &&
+		if (mode_in_range(drm_dmt_modes + i, drm_edid->edid, timing) &&
 		    valid_inferred_mode(connector, drm_dmt_modes + i)) {
 			newmode = drm_mode_duplicate(dev, &drm_dmt_modes[i]);
 			if (newmode) {
@@ -3226,7 +3226,7 @@ do_inferred_modes(const struct detailed_timing *timing, void *c)
 		return;
 
 	closure->modes += drm_dmt_modes_for_range(closure->connector,
-						  closure->drm_edid->edid,
+						  closure->drm_edid,
 						  timing);
 
 	if (!version_greater(closure->drm_edid->edid, 1, 1))
