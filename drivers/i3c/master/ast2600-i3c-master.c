@@ -170,8 +170,7 @@
 					INTR_TX_THLD_STAT |		\
 					INTR_RX_THLD_STAT)
 #define INTR_MASTER_MASK		(INTR_TRANSFER_ERR_STAT |	\
-					 INTR_RESP_READY_STAT	|	\
-					 INTR_IBI_THLD_STAT)
+					 INTR_RESP_READY_STAT)
 #define INTR_2ND_MASTER_MASK		(INTR_TRANSFER_ERR_STAT |	\
 					 INTR_RESP_READY_STAT	|	\
 					 INTR_IBI_UPDATED_STAT  |	\
@@ -1851,6 +1850,32 @@ static irqreturn_t aspeed_i3c_master_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void aspeed_i3c_master_enable_ibi_irq(struct aspeed_i3c_master *master)
+{
+	u32 reg;
+
+	reg = readl(master->regs + INTR_STATUS_EN);
+	reg |= INTR_IBI_THLD_STAT;
+	writel(reg, master->regs + INTR_STATUS_EN);
+
+	reg = readl(master->regs + INTR_SIGNAL_EN);
+	reg |= INTR_IBI_THLD_STAT;
+	writel(reg, master->regs + INTR_SIGNAL_EN);
+}
+
+static void aspeed_i3c_master_disable_ibi_irq(struct aspeed_i3c_master *master)
+{
+	u32 reg;
+
+	reg = readl(master->regs + INTR_STATUS_EN);
+	reg &= ~INTR_IBI_THLD_STAT;
+	writel(reg, master->regs + INTR_STATUS_EN);
+
+	reg = readl(master->regs + INTR_SIGNAL_EN);
+	reg &= ~INTR_IBI_THLD_STAT;
+	writel(reg, master->regs + INTR_SIGNAL_EN);
+}
+
 static int aspeed_i3c_master_disable_ibi(struct i3c_dev_desc *dev)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
@@ -1895,6 +1920,13 @@ static int aspeed_i3c_master_disable_ibi(struct i3c_dev_desc *dev)
 		dev_grp->mask.set &= ~DEV_ADDR_TABLE_IBI_WITH_DATA;
 		dev_grp->mask.set |= DEV_ADDR_TABLE_SIR_REJECT;
 	}
+
+	sirmap = readl(master->regs + IBI_SIR_REQ_REJECT);
+	if (sirmap == IBI_REQ_REJECT_ALL)
+		aspeed_i3c_master_disable_ibi_irq(master);
+	else
+		aspeed_i3c_master_enable_ibi_irq(master);
+
 	spin_unlock_irqrestore(&master->ibi.lock, flags);
 
 	return ret;
@@ -1945,6 +1977,12 @@ static int aspeed_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 		aspeed_i3c_master_sync_hw_dat(master, dev->info.dyn_addr);
 		spin_unlock_irqrestore(&master->ibi.lock, flags);
 	}
+
+	sirmap = readl(master->regs + IBI_SIR_REQ_REJECT);
+	if (sirmap == IBI_REQ_REJECT_ALL)
+		aspeed_i3c_master_disable_ibi_irq(master);
+	else
+		aspeed_i3c_master_enable_ibi_irq(master);
 
 	return ret;
 }
