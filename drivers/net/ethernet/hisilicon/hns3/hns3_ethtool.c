@@ -1915,8 +1915,11 @@ static int hns3_set_tunable(struct net_device *netdev,
 			return ret;
 		}
 
-		netdev_info(netdev, "the active tx spare buf size is %u, due to page order\n",
-			    priv->ring->tx_spare->len);
+		if (!priv->ring->tx_spare)
+			netdev_info(netdev, "the active tx spare buf size is 0, disable tx spare buffer\n");
+		else
+			netdev_info(netdev, "the active tx spare buf size is %u, due to page order\n",
+				    priv->ring->tx_spare->len);
 
 		break;
 	default:
