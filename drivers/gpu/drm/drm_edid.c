@@ -2928,7 +2928,7 @@ drm_mode_do_interlace_quirk(struct drm_display_mode *mode,
  * drm_display_mode.
  */
 static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
-						  const struct edid *edid,
+						  const struct drm_edid *drm_edid,
 						  const struct detailed_timing *timing,
 						  u32 quirks)
 {
@@ -3016,8 +3016,8 @@ set_size:
 	}
 
 	if (quirks & EDID_QUIRK_DETAILED_USE_MAXIMUM_SIZE) {
-		mode->width_mm = edid->width_cm * 10;
-		mode->height_mm = edid->height_cm * 10;
+		mode->width_mm = drm_edid->edid->width_cm * 10;
+		mode->height_mm = drm_edid->edid->height_cm * 10;
 	}
 
 	mode->type = DRM_MODE_TYPE_DRIVER;
@@ -3493,7 +3493,7 @@ do_detailed_mode(const struct detailed_timing *timing, void *c)
 		return;
 
 	newmode = drm_mode_detailed(closure->connector->dev,
-				    closure->drm_edid->edid, timing,
+				    closure->drm_edid, timing,
 				    closure->quirks);
 	if (!newmode)
 		return;
