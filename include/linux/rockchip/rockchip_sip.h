@@ -54,6 +54,7 @@
 #define RK_SIP_AMP_CFG			0x82000022
 #define RK_SIP_FIQ_CTRL			0x82000024
 #define SIP_HDCP_CONFIG			0x82000025
+#define SIP_WDT_CFG			0x82000026
 
 /* Rockchip Sip version */
 #define SIP_IMPLEMENT_V1                (1)
@@ -182,6 +183,13 @@ enum {
 	MAX_DEVICE,
 };
 
+/* SIP_WDT_CONFIG call types  */
+enum {
+	WDT_START = 0,
+	WDT_STOP = 1,
+	WDT_PING = 2,
+};
+
 /*
  * Rules: struct arm_smccc_res contains result and data, details:
  *
@@ -224,6 +232,7 @@ int sip_fiq_debugger_sdei_switch_cpu(u32 cur_cpu, u32 target_cpu, u32 flag);
 int sip_fiq_debugger_is_enabled(void);
 int sip_fiq_debugger_sdei_get_event_id(u32 *fiq, u32 *sw_cpu, u32 *flag);
 int sip_fiq_control(u32 sub_func, u32 irq, unsigned long data);
+int sip_wdt_config(u32 sub_func, u32 arg1, u32 arg2, u32 arg3);
 #else
 static inline struct arm_smccc_res sip_smc_get_atf_version(void)
 {
@@ -345,6 +354,14 @@ static inline int sip_fiq_debugger_sdei_switch_cpu(u32 cur_cpu, u32 target_cpu,
 						   u32 flag) { return 0; }
 static inline int sip_fiq_debugger_is_enabled(void) { return 0; }
 static inline int sip_fiq_control(u32 sub_func, u32 irq, unsigned long data)
+{
+	return 0;
+}
+
+static inline int sip_wdt_config(u32 sub_func,
+				 u32 arg1,
+				 u32 arg2,
+				 u32 arg3)
 {
 	return 0;
 }

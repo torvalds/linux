@@ -584,6 +584,18 @@ int sip_fiq_control(u32 sub_func, u32 irq, unsigned long data)
 	return res.a0;
 }
 EXPORT_SYMBOL_GPL(sip_fiq_control);
+
+int sip_wdt_config(u32 sub_func, u32 arg1, u32 arg2, u32 arg3)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(SIP_WDT_CFG, sub_func, arg1, arg2, arg3,
+		      0, 0, 0, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_wdt_config);
+
 /******************************************************************************/
 #ifdef CONFIG_ARM
 static __init int sip_firmware_init(void)
