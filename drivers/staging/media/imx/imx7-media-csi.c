@@ -1067,33 +1067,24 @@ static int imx7_csi_video_validate_fmt(struct imx7_csi *csi)
 	return 0;
 }
 
-/*
- * Turn current pipeline streaming on/off starting from entity.
- */
-static int imx7_csi_media_pipeline_set_stream(struct imx_media_dev *imxmd,
-					      struct media_entity *entity,
-					      bool on)
+static int imx7_csi_media_pipeline_set_stream(struct imx7_csi *csi, bool on)
 {
-	struct v4l2_subdev *sd;
+	struct imx_media_dev *imxmd = &csi->imxmd;
 	int ret = 0;
-
-	if (!is_media_entity_v4l2_subdev(entity))
-		return -EINVAL;
-	sd = media_entity_to_v4l2_subdev(entity);
 
 	mutex_lock(&imxmd->md.graph_mutex);
 
 	if (on) {
-		ret = __media_pipeline_start(entity, &imxmd->pipe);
+		ret = __media_pipeline_start(&csi->sd.entity, &imxmd->pipe);
 		if (ret)
 			goto out;
-		ret = v4l2_subdev_call(sd, video, s_stream, 1);
+		ret = v4l2_subdev_call(&csi->sd, video, s_stream, 1);
 		if (ret)
-			__media_pipeline_stop(entity);
+			__media_pipeline_stop(&csi->sd.entity);
 	} else {
-		v4l2_subdev_call(sd, video, s_stream, 0);
-		if (entity->pipe)
-			__media_pipeline_stop(entity);
+		v4l2_subdev_call(&csi->sd, video, s_stream, 0);
+		if (csi->sd.entity.pipe)
+			__media_pipeline_stop(&csi->sd.entity);
 	}
 
 out:
@@ -1115,8 +1106,7 @@ static int imx7_csi_video_start_streaming(struct vb2_queue *vq,
 		goto return_bufs;
 	}
 
-	ret = imx7_csi_media_pipeline_set_stream(&csi->imxmd, &csi->sd.entity,
-						 true);
+	ret = imx7_csi_media_pipeline_set_stream(csi, true);
 	if (ret) {
 		dev_err(csi->dev, "pipeline start failed with %d\n", ret);
 		goto return_bufs;
@@ -1142,8 +1132,7 @@ static void imx7_csi_video_stop_streaming(struct vb2_queue *vq)
 	unsigned long flags;
 	int ret;
 
-	ret = imx7_csi_media_pipeline_set_stream(&csi->imxmd, &csi->sd.entity,
-						 false);
+	ret = imx7_csi_media_pipeline_set_stream(csi, false);
 	if (ret)
 		dev_warn(csi->dev, "pipeline stop failed with %d\n", ret);
 
