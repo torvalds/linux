@@ -11,19 +11,23 @@
 #include <linux/reset.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include "aspeed-i2c-new-global.h"
+#include "i2c-ast2600-global.h"
 
-struct aspeed_i2c_new_global {
+struct ast2600_i2c_global {
 	void __iomem		*base;
 	struct reset_control	*rst;
 };
 
-static const struct of_device_id aspeed_i2c_ic_of_match[] = {
+static const struct of_device_id ast2600_i2c_global_of_match[] = {
 	{ .compatible = "aspeed,ast2600-i2c-global", },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, aspeed_i2c_ic_of_match);
+MODULE_DEVICE_TABLE(of, ast2600_i2c_global_of_match);
 
+#define AST2600_GLOBAL_INIT					\
+			(AST2600_I2CG_SLAVE_PKT_NAK |	\
+			AST2600_I2CG_CTRL_NEW_REG |		\
+			AST2600_I2CG_CTRL_NEW_CLK_DIV)
 #define I2CCG_DIV_CTRL 0xC6411208
 /*
  * APB clk : 100Mhz
@@ -41,9 +45,9 @@ MODULE_DEVICE_TABLE(of, aspeed_i2c_ic_of_match);
  * 0x08 : 1Mhz      : 20Mhz                       : 0.8us
  */
 
-static int aspeed_i2c_global_probe(struct platform_device *pdev)
+static int ast2600_i2c_global_probe(struct platform_device *pdev)
 {
-	struct aspeed_i2c_new_global *i2c_global;
+	struct ast2600_i2c_global *i2c_global;
 	struct resource *res;
 
 	i2c_global = devm_kzalloc(&pdev->dev, sizeof(*i2c_global), GFP_KERNEL);
@@ -63,29 +67,28 @@ static int aspeed_i2c_global_probe(struct platform_device *pdev)
 	udelay(3);
 	reset_control_deassert(i2c_global->rst);
 
-	writel(ASPEED_I2CG_SLAVE_PKT_NAK | ASPEED_I2CG_CTRL_NEW_REG | ASPEED_I2CG_CTRL_NEW_CLK_DIV,
-	       i2c_global->base + ASPEED_I2CG_CTRL);
-	writel(I2CCG_DIV_CTRL, i2c_global->base + ASPEED_I2CG_CLK_DIV_CTRL);
+	writel(AST2600_GLOBAL_INIT, i2c_global->base + AST2600_I2CG_CTRL);
+	writel(I2CCG_DIV_CTRL, i2c_global->base + AST2600_I2CG_CLK_DIV_CTRL);
 
 	pr_info("i2c global registered\n");
 
 	return 0;
 }
 
-static struct platform_driver aspeed_i2c_ic_driver = {
-	.probe  = aspeed_i2c_global_probe,
+static struct platform_driver ast2600_i2c_global_driver = {
+	.probe  = ast2600_i2c_global_probe,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.of_match_table = aspeed_i2c_ic_of_match,
+		.of_match_table = ast2600_i2c_global_of_match,
 	},
 };
 
-static int __init aspeed_i2c_global_init(void)
+static int __init ast2600_i2c_global_init(void)
 {
-	return platform_driver_register(&aspeed_i2c_ic_driver);
+	return platform_driver_register(&ast2600_i2c_global_driver);
 }
-postcore_initcall(aspeed_i2c_global_init);
+postcore_initcall(ast2600_i2c_global_init);
 
 MODULE_AUTHOR("Ryan Chen");
-MODULE_DESCRIPTION("ASPEED I2C Global Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("AST2600 I2C Global Driver");
+MODULE_LICENSE("GPL");
