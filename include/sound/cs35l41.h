@@ -691,6 +691,13 @@
 #define CS35L41_TEMP_WARN_ERR_RLS	0x20
 #define CS35L41_TEMP_ERR_RLS		0x40
 
+#define CS35L41_AMP_SHORT_ERR_RLS_SHIFT	1
+#define CS35L41_BST_SHORT_ERR_RLS_SHIFT	2
+#define CS35L41_BST_OVP_ERR_RLS_SHIFT	3
+#define CS35L41_BST_UVP_ERR_RLS_SHIFT	4
+#define CS35L41_TEMP_WARN_ERR_RLS_SHIFT	5
+#define CS35L41_TEMP_ERR_RLS_SHIFT	6
+
 #define CS35L41_INT1_MASK_DEFAULT	0x7FFCFE3F
 #define CS35L41_INT1_UNMASK_PUP		0xFEFFFFFF
 #define CS35L41_INT1_UNMASK_PDN		0xFF7FFFFF
@@ -792,6 +799,53 @@ struct cs35l41_otp_map_element_t {
 	const struct cs35l41_otp_packed_element_t *map;
 	u32 bit_offset;
 	u32 word_offset;
+};
+
+/*
+ * IRQs
+ */
+#define CS35L41_IRQ(_irq, _name, _hand)		\
+	{					\
+		.irq = CS35L41_ ## _irq ## _IRQ,\
+		.name = _name,			\
+		.handler = _hand,		\
+	}
+
+struct cs35l41_irq {
+	int irq;
+	const char *name;
+	irqreturn_t (*handler)(int irq, void *data);
+};
+
+#define CS35L41_REG_IRQ(_reg, _irq)					\
+	[CS35L41_ ## _irq ## _IRQ] = {					\
+		.reg_offset = (CS35L41_ ## _reg) - CS35L41_IRQ1_STATUS1,\
+		.mask = CS35L41_ ## _irq ## _MASK			\
+	}
+
+/* (0x0000E010) CS35L41_IRQ1_STATUS1 */
+#define CS35L41_BST_OVP_ERR_SHIFT		6
+#define CS35L41_BST_OVP_ERR_MASK		BIT(CS35L41_BST_OVP_ERR_SHIFT)
+#define CS35L41_BST_DCM_UVP_ERR_SHIFT		7
+#define CS35L41_BST_DCM_UVP_ERR_MASK		BIT(CS35L41_BST_DCM_UVP_ERR_SHIFT)
+#define CS35L41_BST_SHORT_ERR_SHIFT		8
+#define CS35L41_BST_SHORT_ERR_MASK		BIT(CS35L41_BST_SHORT_ERR_SHIFT)
+#define CS35L41_TEMP_WARN_SHIFT			15
+#define CS35L41_TEMP_WARN_MASK			BIT(CS35L41_TEMP_WARN_SHIFT)
+#define CS35L41_TEMP_ERR_SHIFT			17
+#define CS35L41_TEMP_ERR_MASK			BIT(CS35L41_TEMP_ERR_SHIFT)
+#define CS35L41_AMP_SHORT_ERR_SHIFT		31
+#define CS35L41_AMP_SHORT_ERR_MASK		BIT(CS35L41_AMP_SHORT_ERR_SHIFT)
+
+enum cs35l41_irq_list {
+	CS35L41_BST_OVP_ERR_IRQ,
+	CS35L41_BST_DCM_UVP_ERR_IRQ,
+	CS35L41_BST_SHORT_ERR_IRQ,
+	CS35L41_TEMP_WARN_IRQ,
+	CS35L41_TEMP_ERR_IRQ,
+	CS35L41_AMP_SHORT_ERR_IRQ,
+
+	CS35L41_NUM_IRQ
 };
 
 extern struct regmap_config cs35l41_regmap_i2c;
