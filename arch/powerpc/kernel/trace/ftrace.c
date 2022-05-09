@@ -741,7 +741,7 @@ int __init ftrace_dyn_arch_init(void)
 #endif
 	long reladdr = addr - kernel_toc_addr();
 
-	if (reladdr > 0x7FFFFFFF || reladdr < -(0x80000000L)) {
+	if (reladdr >= SZ_2G || reladdr < -(long)SZ_2G) {
 		pr_err("Address of %ps out of range of kernel_toc.\n",
 				(void *)addr);
 		return -1;
