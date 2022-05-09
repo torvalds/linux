@@ -1809,6 +1809,54 @@ static void imx7_csi_media_cleanup(struct imx7_csi *csi)
 	media_device_cleanup(&imxmd->md);
 }
 
+static const struct media_device_ops imx7_csi_media_ops = {
+	.link_notify = v4l2_pipeline_link_notify,
+};
+
+static struct imx_media_dev *imx7_csi_media_dev_init(struct device *dev)
+{
+	struct imx_media_dev *imxmd;
+	int ret;
+
+	imxmd = devm_kzalloc(dev, sizeof(*imxmd), GFP_KERNEL);
+	if (!imxmd)
+		return ERR_PTR(-ENOMEM);
+
+	dev_set_drvdata(dev, imxmd);
+
+	strscpy(imxmd->md.model, "imx-media", sizeof(imxmd->md.model));
+	imxmd->md.ops = &imx7_csi_media_ops;
+	imxmd->md.dev = dev;
+
+	mutex_init(&imxmd->mutex);
+
+	imxmd->v4l2_dev.mdev = &imxmd->md;
+	strscpy(imxmd->v4l2_dev.name, "imx-media",
+		sizeof(imxmd->v4l2_dev.name));
+	snprintf(imxmd->md.bus_info, sizeof(imxmd->md.bus_info),
+		 "platform:%s", dev_name(imxmd->md.dev));
+
+	media_device_init(&imxmd->md);
+
+	ret = v4l2_device_register(dev, &imxmd->v4l2_dev);
+	if (ret < 0) {
+		v4l2_err(&imxmd->v4l2_dev,
+			 "Failed to register v4l2_device: %d\n", ret);
+		goto cleanup;
+	}
+
+	INIT_LIST_HEAD(&imxmd->vdev_list);
+
+	v4l2_async_nf_init(&imxmd->notifier);
+
+	return imxmd;
+
+cleanup:
+	media_device_cleanup(&imxmd->md);
+
+	return ERR_PTR(ret);
+}
+
 static int imx7_csi_media_init(struct imx7_csi *csi)
 {
 	struct imx_media_dev *imxmd;
@@ -1816,7 +1864,7 @@ static int imx7_csi_media_init(struct imx7_csi *csi)
 	int ret;
 
 	/* add media device */
-	imxmd = imx_media_dev_init(csi->dev, NULL);
+	imxmd = imx7_csi_media_dev_init(csi->dev);
 	if (IS_ERR(imxmd))
 		return PTR_ERR(imxmd);
 
