@@ -319,6 +319,11 @@ int rockchip_wifi_power(int on)
 			}
 
 			wifi_power_state = 0;
+
+			if (!rfkill_get_bt_power_state(&bt_power, &toggle)) {
+				LOG("%s: toggle = %s\n", __func__, toggle ? "true" : "false");
+			}
+
 			if (toggle) {
 				if (!bt_power) {
 					LOG("%s: wifi will set vbat to low\n", __func__);

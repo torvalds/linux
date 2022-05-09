@@ -175,15 +175,11 @@ static int rfkill_rk_setup_wake_irq(struct rfkill_rk_data *rfkill, int flag)
 		rfkill->irq_req = 1;
 		LOG("** disable irq\n");
 		disable_irq(irq->irq);
-		ret = enable_irq_wake(irq->irq);
-		if (ret)
-			goto fail3;
+		/*ret = disable_irq_wake(irq->irq);init irq wake is disabled,no need to disable*/
 	}
 
 	return ret;
 
-fail3:
-	free_irq(irq->irq, rfkill);
 fail2:
 	gpio_free(irq->gpio.io);
 fail1:
@@ -292,12 +288,6 @@ static int rfkill_rk_set_power(void *data, bool blocked)
 
 	toggle = rfkill->pdata->power_toggle;
 
-	if (toggle) {
-		if (rfkill_get_wifi_power_state(&wifi_power)) {
-			LOG("%s: cannot get wifi power state!\n", __func__);
-			return -1;
-		}
-	}
 
 	DBG("%s: toggle = %s\n", __func__, toggle ? "true" : "false");
 
@@ -372,6 +362,10 @@ static int rfkill_rk_set_power(void *data, bool blocked)
 			}
 		}
 		if (toggle) {
+			if (rfkill_get_wifi_power_state(&wifi_power)) {
+				LOG("%s: cannot get wifi power state!\n", __func__);
+				return -EPERM;
+			}
 			if (!wifi_power) {
 				LOG("%s: bt will set vbat to low\n", __func__);
 				rfkill_set_wifi_bt_power(0);
@@ -413,6 +407,7 @@ static int rfkill_rk_pm_prepare(struct device *dev)
 	if (gpio_is_valid(wake_host_irq->gpio.io) && bt_power_state) {
 		DBG("enable irq for bt wakeup host\n");
 		enable_irq(wake_host_irq->irq);
+		enable_irq_wake(wake_host_irq->irq);
 	}
 
 #ifdef CONFIG_RFKILL_RESET
@@ -442,6 +437,7 @@ static void rfkill_rk_pm_complete(struct device *dev)
 	if (gpio_is_valid(wake_host_irq->gpio.io) && bt_power_state) {
 		LOG("** disable irq\n");
 		disable_irq(wake_host_irq->irq);
+		disable_irq_wake(wake_host_irq->irq);
 	}
 
 	if (rfkill->pdata->pinctrl && gpio_is_valid(rts->io)) {
