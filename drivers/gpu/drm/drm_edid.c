@@ -96,7 +96,7 @@ static int oui(u8 first, u8 second, u8 third)
 
 struct detailed_mode_closure {
 	struct drm_connector *connector;
-	const struct edid *edid;
+	const struct drm_edid *drm_edid;
 	bool preferred;
 	u32 quirks;
 	int modes;
@@ -3226,25 +3226,25 @@ do_inferred_modes(const struct detailed_timing *timing, void *c)
 		return;
 
 	closure->modes += drm_dmt_modes_for_range(closure->connector,
-						  closure->edid,
+						  closure->drm_edid->edid,
 						  timing);
 
-	if (!version_greater(closure->edid, 1, 1))
+	if (!version_greater(closure->drm_edid->edid, 1, 1))
 		return; /* GTF not defined yet */
 
 	switch (range->flags) {
 	case 0x02: /* secondary gtf, XXX could do more */
 	case 0x00: /* default gtf */
 		closure->modes += drm_gtf_modes_for_range(closure->connector,
-							  closure->edid,
+							  closure->drm_edid->edid,
 							  timing);
 		break;
 	case 0x04: /* cvt, only in 1.4+ */
-		if (!version_greater(closure->edid, 1, 3))
+		if (!version_greater(closure->drm_edid->edid, 1, 3))
 			break;
 
 		closure->modes += drm_cvt_modes_for_range(closure->connector,
-							  closure->edid,
+							  closure->drm_edid->edid,
 							  timing);
 		break;
 	case 0x01: /* just the ranges, no formula */
@@ -3258,7 +3258,7 @@ static int add_inferred_modes(struct drm_connector *connector,
 {
 	struct detailed_mode_closure closure = {
 		.connector = connector,
-		.edid = drm_edid->edid,
+		.drm_edid = drm_edid,
 	};
 
 	if (version_greater(drm_edid->edid, 1, 0))
@@ -3323,7 +3323,7 @@ static int add_established_modes(struct drm_connector *connector,
 	int i, modes = 0;
 	struct detailed_mode_closure closure = {
 		.connector = connector,
-		.edid = edid,
+		.drm_edid = drm_edid,
 	};
 
 	for (i = 0; i <= EDID_EST_TIMINGS; i++) {
@@ -3351,7 +3351,6 @@ do_standard_modes(const struct detailed_timing *timing, void *c)
 	struct detailed_mode_closure *closure = c;
 	const struct detailed_non_pixel *data = &timing->data.other_data;
 	struct drm_connector *connector = closure->connector;
-	const struct edid *edid = closure->edid;
 	int i;
 
 	if (!is_display_descriptor(timing, EDID_DETAIL_STD_MODES))
@@ -3361,7 +3360,7 @@ do_standard_modes(const struct detailed_timing *timing, void *c)
 		const struct std_timing *std = &data->data.timings[i];
 		struct drm_display_mode *newmode;
 
-		newmode = drm_mode_std(connector, edid, std);
+		newmode = drm_mode_std(connector, closure->drm_edid->edid, std);
 		if (newmode) {
 			drm_mode_probed_add(connector, newmode);
 			closure->modes++;
@@ -3380,7 +3379,7 @@ static int add_standard_modes(struct drm_connector *connector,
 	int i, modes = 0;
 	struct detailed_mode_closure closure = {
 		.connector = connector,
-		.edid = drm_edid->edid,
+		.drm_edid = drm_edid,
 	};
 
 	for (i = 0; i < EDID_STD_TIMINGS; i++) {
@@ -3471,7 +3470,7 @@ add_cvt_modes(struct drm_connector *connector, const struct drm_edid *drm_edid)
 {
 	struct detailed_mode_closure closure = {
 		.connector = connector,
-		.edid = drm_edid->edid,
+		.drm_edid = drm_edid,
 	};
 
 	if (version_greater(drm_edid->edid, 1, 2))
@@ -3494,7 +3493,7 @@ do_detailed_mode(const struct detailed_timing *timing, void *c)
 		return;
 
 	newmode = drm_mode_detailed(closure->connector->dev,
-				    closure->edid, timing,
+				    closure->drm_edid->edid, timing,
 				    closure->quirks);
 	if (!newmode)
 		return;
@@ -3525,7 +3524,7 @@ static int add_detailed_modes(struct drm_connector *connector,
 {
 	struct detailed_mode_closure closure = {
 		.connector = connector,
-		.edid = drm_edid->edid,
+		.drm_edid = drm_edid,
 		.preferred = true,
 		.quirks = quirks,
 	};
