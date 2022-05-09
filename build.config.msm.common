@@ -161,10 +161,23 @@ if [ -e "${KERNEL_DIR}/modules.blocklist.${CONFIG_TARGET}" ]; then
   VENDOR_DLKM_MODULES_BLOCKLIST="${KERNEL_DIR}/modules.blocklist.${CONFIG_TARGET}"
 fi
 
+if [ "${BUILD_VENDOR_DLKM}" == "1" ]; then
+  COMBINED_MODULE_LIST=$(mktemp)
+fi
+
+if [[ "${BUILD_SYSTEM_DLKM}" == "1"  && ! -z "${SYSTEM_DLKM_MODULES_LIST}" ]]; then
+  {
+    awk -F'/' '{print $NF}' ${SYSTEM_DLKM_MODULES_LIST}
+    [ -f "${MODULES_LIST}" ] && cat "${MODULES_LIST}"
+  } > ${COMBINED_MODULE_LIST}
+fi
+
 function prepare_vendor_dlkm() {
   if [ -z "${VENDOR_DLKM_MODULES_LIST}" ]; then
     local module_list_flag=
-    if [ -e "${MODULES_LIST}" ]; then
+    if [ -s "${COMBINED_MODULE_LIST}" ]; then
+      module_list_flag="-f ${COMBINED_MODULE_LIST}"
+    elif [ -e "${MODULES_LIST}" ]; then
       module_list_flag="-f ${MODULES_LIST}"
     else
       module_list_flag="-e ''"
@@ -175,13 +188,27 @@ function prepare_vendor_dlkm() {
     VENDOR_DLKM_MODULES_LIST="${MODULES_STAGING_DIR}/vendor_dlkm.modules.load"
   fi
 
-  SUPER_IMAGE_CONTENTS+="${DIST_DIR}/vendor_dlkm.img"
+  SUPER_IMAGE_CONTENTS+=("${DIST_DIR}/vendor_dlkm.img")
+  rm ${COMBINED_MODULE_LIST}
 }
+
 if [ "${BUILD_VENDOR_DLKM}" == "1" ]; then
   append_cmd DIST_CMDS 'prepare_vendor_dlkm'
   if [ -e "${KERNEL_DIR}/modules.vendor_blocklist.${CONFIG_TARGET}" ]; then
     VENDOR_DLKM_MODULES_BLOCKLIST="${KERNEL_DIR}/modules.vendor_blocklist.${CONFIG_TARGET}"
   fi
+fi
+
+function prepare_system_dlkm() {
+   if [ -e "${KERNEL_DIR}/modules.systemdlkm_blocklist.${CONFIG_TARGET}" ]; then
+    SYSTEM_DLKM_MODULES_BLOCKLIST="${KERNEL_DIR}/modules.systemdlkm_blocklist.${CONFIG_TARGET}"
+    cp $SYSTEM_DLKM_MODULES_BLOCKLIST ${DIST_DIR}/system_dlkm.modules.blocklist
+  fi
+  SUPER_IMAGE_CONTENTS+=("${DIST_DIR}/system_dlkm.img")
+}
+
+if [ "${BUILD_SYSTEM_DLKM}" == "1" ]; then
+  append_cmd DIST_CMDS 'prepare_system_dlkm'
 fi
 
 KERNEL_BINARY=Image
@@ -222,7 +249,7 @@ fi
 ################################################################################
 ## Miscellaneous
 if [ -n "${EXTRA_CONFIGS}" ]; then
-  for extra_config in "${EXTRA_CONFIGS}"
+  for extra_config in "${EXTRA_CONFIGS[@]}"
   do
     . ${extra_config}
   done
