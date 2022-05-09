@@ -144,6 +144,18 @@ enum bpf_enum_value_kind {
 	__builtin_preserve_field_info(___bpf_field_ref(field), BPF_FIELD_BYTE_SIZE)
 
 /*
+ * Convenience macro to get field's byte offset.
+ *
+ * Supports two forms:
+ *   - field reference through variable access:
+ *     bpf_core_field_offset(p->my_field);
+ *   - field reference through type and field names:
+ *     bpf_core_field_offset(struct my_type, my_field).
+ */
+#define bpf_core_field_offset(field...)					    \
+	__builtin_preserve_field_info(___bpf_field_ref(field), BPF_FIELD_BYTE_OFFSET)
+
+/*
  * Convenience macro to get BTF type ID of a specified type, using a local BTF
  * information. Return 32-bit unsigned integer with type ID from program's own
  * BTF. Always succeeds.
