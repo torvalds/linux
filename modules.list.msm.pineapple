@@ -1,3 +1,6 @@
+cmd-db.ko
+qcom_rpmh.ko
+qcom-pdc.ko
 arm_smmu.ko
 qcom-scm.ko
 pinctrl-msm.ko
