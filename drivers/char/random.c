@@ -86,11 +86,10 @@ static DEFINE_SPINLOCK(random_ready_chain_lock);
 static RAW_NOTIFIER_HEAD(random_ready_chain);
 
 /* Control how we warn userspace. */
-static struct ratelimit_state unseeded_warning =
-	RATELIMIT_STATE_INIT("warn_unseeded_randomness", HZ, 3);
 static struct ratelimit_state urandom_warning =
 	RATELIMIT_STATE_INIT("warn_urandom_randomness", HZ, 3);
-static int ratelimit_disable __read_mostly;
+static int ratelimit_disable __read_mostly =
+	IS_ENABLED(CONFIG_WARN_ALL_UNSEEDED_RANDOM);
 module_param_named(ratelimit_disable, ratelimit_disable, int, 0644);
 MODULE_PARM_DESC(ratelimit_disable, "Disable random ratelimit suppression");
 
@@ -183,27 +182,15 @@ static void process_random_ready_list(void)
 	spin_unlock_irqrestore(&random_ready_chain_lock, flags);
 }
 
-#define warn_unseeded_randomness(previous) \
-	_warn_unseeded_randomness(__func__, (void *)_RET_IP_, (previous))
+#define warn_unseeded_randomness() \
+	_warn_unseeded_randomness(__func__, (void *)_RET_IP_)
 
-static void _warn_unseeded_randomness(const char *func_name, void *caller, void **previous)
+static void _warn_unseeded_randomness(const char *func_name, void *caller)
 {
-#ifdef CONFIG_WARN_ALL_UNSEEDED_RANDOM
-	const bool print_once = false;
-#else
-	static bool print_once __read_mostly;
-#endif
-
-	if (print_once || crng_ready() ||
-	    (previous && (caller == READ_ONCE(*previous))))
+	if (!IS_ENABLED(CONFIG_WARN_ALL_UNSEEDED_RANDOM) || crng_ready())
 		return;
-	WRITE_ONCE(*previous, caller);
-#ifndef CONFIG_WARN_ALL_UNSEEDED_RANDOM
-	print_once = true;
-#endif
-	if (__ratelimit(&unseeded_warning))
-		printk_deferred(KERN_NOTICE "random: %s called from %pS with crng_init=%d\n",
-				func_name, caller, crng_init);
+	printk_deferred(KERN_NOTICE "random: %s called from %pS with crng_init=%d\n",
+			func_name, caller, crng_init);
 }
 
 
@@ -456,9 +443,7 @@ static void _get_random_bytes(void *buf, size_t nbytes)
  */
 void get_random_bytes(void *buf, size_t nbytes)
 {
-	static void *previous;
-
-	warn_unseeded_randomness(&previous);
+	warn_unseeded_randomness();
 	_get_random_bytes(buf, nbytes);
 }
 EXPORT_SYMBOL(get_random_bytes);
@@ -554,10 +539,9 @@ u64 get_random_u64(void)
 	u64 ret;
 	unsigned long flags;
 	struct batched_entropy *batch;
-	static void *previous;
 	unsigned long next_gen;
 
-	warn_unseeded_randomness(&previous);
+	warn_unseeded_randomness();
 
 	if  (!crng_ready()) {
 		_get_random_bytes(&ret, sizeof(ret));
@@ -593,10 +577,9 @@ u32 get_random_u32(void)
 	u32 ret;
 	unsigned long flags;
 	struct batched_entropy *batch;
-	static void *previous;
 	unsigned long next_gen;
 
-	warn_unseeded_randomness(&previous);
+	warn_unseeded_randomness();
 
 	if  (!crng_ready()) {
 		_get_random_bytes(&ret, sizeof(ret));
@@ -823,16 +806,9 @@ static void credit_init_bits(size_t nbits)
 		wake_up_interruptible(&crng_init_wait);
 		kill_fasync(&fasync, SIGIO, POLL_IN);
 		pr_notice("crng init done\n");
-		if (unseeded_warning.missed) {
-			pr_notice("%d get_random_xx warning(s) missed due to ratelimiting\n",
-				  unseeded_warning.missed);
-			unseeded_warning.missed = 0;
-		}
-		if (urandom_warning.missed) {
+		if (urandom_warning.missed)
 			pr_notice("%d urandom warning(s) missed due to ratelimiting\n",
 				  urandom_warning.missed);
-			urandom_warning.missed = 0;
-		}
 	} else if (orig < POOL_EARLY_BITS && new >= POOL_EARLY_BITS) {
 		spin_lock_irqsave(&base_crng.lock, flags);
 		/* Check if crng_init is CRNG_EMPTY, to avoid race with crng_reseed(). */
@@ -945,10 +921,6 @@ int __init rand_initialize(void)
 	else if (arch_init && trust_cpu)
 		credit_init_bits(BLAKE2S_BLOCK_SIZE * 8);
 
-	if (ratelimit_disable) {
-		urandom_warning.interval = 0;
-		unseeded_warning.interval = 0;
-	}
 	return 0;
 }
 
@@ -1394,11 +1366,14 @@ static ssize_t urandom_read(struct file *file, char __user *buf, size_t nbytes,
 {
 	static int maxwarn = 10;
 
-	if (!crng_ready() && maxwarn > 0) {
-		maxwarn--;
-		if (__ratelimit(&urandom_warning))
+	if (!crng_ready()) {
+		if (!ratelimit_disable && maxwarn <= 0)
+			++urandom_warning.missed;
+		else if (ratelimit_disable || __ratelimit(&urandom_warning)) {
+			--maxwarn;
 			pr_notice("%s: uninitialized urandom read (%zd bytes read)\n",
 				  current->comm, nbytes);
+		}
 	}
 
 	return get_random_bytes_user(buf, nbytes);
