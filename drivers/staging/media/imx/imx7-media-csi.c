@@ -165,6 +165,9 @@
 #define IMX7_CSI_VIDEO_NAME		"imx-capture"
 /* In bytes, per queue */
 #define IMX7_CSI_VIDEO_MEM_LIMIT	SZ_64M
+#define IMX7_CSI_VIDEO_DEF_PIX_WIDTH	640
+#define IMX7_CSI_VIDEO_DEF_PIX_HEIGHT	480
+#define IMX7_CSI_VIDEO_EOF_TIMEOUT	2000
 
 enum imx_csi_model {
 	IMX7_CSI_IMX7 = 0,
@@ -488,7 +491,7 @@ static void imx7_csi_dma_stop(struct imx7_csi *csi)
 	/*
 	 * and then wait for interrupt handler to mark completion.
 	 */
-	timeout_jiffies = msecs_to_jiffies(IMX_MEDIA_EOF_TIMEOUT);
+	timeout_jiffies = msecs_to_jiffies(IMX7_CSI_VIDEO_EOF_TIMEOUT);
 	ret = wait_for_completion_timeout(&csi->last_eof_completion,
 					  timeout_jiffies);
 	if (ret == 0)
@@ -1275,8 +1278,8 @@ static int imx7_csi_video_init_format(struct imx7_csi *csi)
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
 	fmt_src.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
-	fmt_src.format.width = IMX_MEDIA_DEF_PIX_WIDTH;
-	fmt_src.format.height = IMX_MEDIA_DEF_PIX_HEIGHT;
+	fmt_src.format.width = IMX7_CSI_VIDEO_DEF_PIX_WIDTH;
+	fmt_src.format.height = IMX7_CSI_VIDEO_DEF_PIX_HEIGHT;
 
 	imx_media_mbus_fmt_to_pix_fmt(&csi->vdev_fmt, &fmt_src.format, NULL);
 	csi->vdev_compose.width = fmt_src.format.width;
