@@ -129,4 +129,4 @@ static void __init mtk_ethsys_init(struct device_node *node)
 		pr_err("%s(): could not register clock provider: %d\n",
 		       __func__, r);
 }
-CLK_OF_DECLARE(mtk_ethsys, "mediatek,mt7986-ethsys_ck", mtk_ethsys_init);
+CLK_OF_DECLARE(mtk_ethsys, "mediatek,mt7986-ethsys", mtk_ethsys_init);
