@@ -970,6 +970,7 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 static void sync_rcu_do_polled_gp(struct work_struct *wp)
 {
 	unsigned long flags;
+	int i = 0;
 	struct rcu_node *rnp = container_of(wp, struct rcu_node, exp_poll_wq);
 	unsigned long s;
 
@@ -979,8 +980,12 @@ static void sync_rcu_do_polled_gp(struct work_struct *wp)
 	raw_spin_unlock_irqrestore(&rnp->exp_poll_lock, flags);
 	if (s == RCU_GET_STATE_COMPLETED)
 		return;
-	while (!poll_state_synchronize_rcu(s))
+	while (!poll_state_synchronize_rcu(s)) {
 		synchronize_rcu_expedited();
+		if (i == 10 || i == 20)
+			pr_info("%s: i = %d s = %lx gp_seq_polled = %lx\n", __func__, i, s, READ_ONCE(rcu_state.gp_seq_polled));
+		i++;
+	}
 	raw_spin_lock_irqsave(&rnp->exp_poll_lock, flags);
 	s = rnp->exp_seq_poll_rq;
 	if (poll_state_synchronize_rcu(s))
