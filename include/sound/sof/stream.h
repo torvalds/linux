@@ -85,8 +85,9 @@ struct sof_ipc_stream_params {
 
 	uint32_t host_period_bytes;
 	uint16_t no_stream_position; /**< 1 means don't send stream position */
+	uint8_t cont_update_posn; /**< 1 means continuous update stream position */
 
-	uint16_t reserved[3];
+	uint8_t reserved[5];
 	uint16_t chmap[SOF_IPC_MAX_CHANNELS];	/**< channel map - SOF_CHMAP_ */
 } __packed;
 
