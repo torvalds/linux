@@ -5473,16 +5473,16 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 
 		if (cea_db_is_hdmi_vsdb(db))
 			drm_parse_hdmi_vsdb_video(connector, data);
-		if (cea_db_is_hdmi_forum_vsdb(db) ||
-		    cea_db_is_hdmi_forum_scdb(db))
+		else if (cea_db_is_hdmi_forum_vsdb(db) ||
+			 cea_db_is_hdmi_forum_scdb(db))
 			drm_parse_hdmi_forum_scds(connector, data);
-		if (cea_db_is_microsoft_vsdb(db))
+		else if (cea_db_is_microsoft_vsdb(db))
 			drm_parse_microsoft_vsdb(connector, data);
-		if (cea_db_is_y420cmdb(db))
+		else if (cea_db_is_y420cmdb(db))
 			drm_parse_y420cmdb_bitmap(connector, data);
-		if (cea_db_is_vcdb(db))
+		else if (cea_db_is_vcdb(db))
 			drm_parse_vcdb(connector, data);
-		if (cea_db_is_hdmi_hdr_metadata_block(db))
+		else if (cea_db_is_hdmi_hdr_metadata_block(db))
 			drm_parse_hdr_metadata_block(connector, data);
 	}
 	cea_db_iter_end(&iter);
