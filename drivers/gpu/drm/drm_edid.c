@@ -4256,6 +4256,90 @@ static void drm_parse_y420cmdb_bitmap(struct drm_connector *connector,
 	hdmi->y420_cmdb_map = map;
 }
 
+#ifdef CONFIG_NO_GKI
+static int drm_find_all_edid_extension(const struct edid *edid,
+				       int ext_id, int *ext_list)
+{
+	u8 *edid_ext = NULL;
+	int i, count = 0;
+
+	/* No EDID or EDID extensions */
+	if (edid == NULL || edid->extensions == 0)
+		return -EINVAL;
+
+	/* too many EDID extensions */
+	if (edid->extensions > 32)
+		return -EINVAL;
+
+	/* Find CEA extension */
+	for (i = 0; i < edid->extensions; i++) {
+		edid_ext = (u8 *)edid + EDID_LENGTH * (i + 1);
+		if (edid_ext[0] == ext_id) {
+			*ext_list = i;
+			ext_list++;
+			count++;
+		}
+	}
+
+	return count;
+}
+
+static int
+add_cea_modes(struct drm_connector *connector, struct edid *edid)
+{
+	const u8 *cea;
+	const u8 *db, *hdmi = NULL, *video = NULL;
+	u8 dbl, hdmi_len, video_len = 0;
+	int i, count = 0, modes = 0;
+	int ext_index = 0;
+	int ext_list[32];
+
+	count = drm_find_all_edid_extension(edid, CEA_EXT, ext_list);
+	for (i = 0; i < count; i++) {
+		ext_index = ext_list[i];
+		cea = drm_find_edid_extension(edid, CEA_EXT, &ext_index);
+		if (cea && cea_revision(cea) >= 3) {
+			int i, start, end;
+
+			if (cea_db_offsets(cea, &start, &end))
+				return 0;
+
+			for_each_cea_db(cea, i, start, end) {
+				db = &cea[i];
+				dbl = cea_db_payload_len(db);
+
+				if (cea_db_tag(db) == VIDEO_BLOCK) {
+					video = db + 1;
+					video_len = dbl;
+					modes += do_cea_modes(connector, video, dbl);
+				} else if (cea_db_is_hdmi_vsdb(db)) {
+					hdmi = db;
+					hdmi_len = dbl;
+				} else if (cea_db_is_y420vdb(db)) {
+					const u8 *vdb420 = &db[2];
+
+					/* Add 4:2:0(only) modes present in EDID */
+					modes += do_y420vdb_modes(connector,
+								  vdb420,
+								  dbl - 1);
+				}
+			}
+		}
+
+		/*
+		 * We parse the HDMI VSDB after having added the cea modes as we will
+		 * be patching their flags when the sink supports stereo 3D.
+		 */
+		if (hdmi)
+			modes += do_hdmi_vsdb_modes(connector, hdmi, hdmi_len, video,
+						    video_len);
+	}
+
+	return modes;
+}
+
+#else
+
 static int
 add_cea_modes(struct drm_connector *connector, struct edid *edid)
 {
@@ -4302,6 +4386,7 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 
 	return modes;
 }
+#endif
 
 static void fixup_detailed_cea_mode_clock(struct drm_display_mode *mode)
 {
