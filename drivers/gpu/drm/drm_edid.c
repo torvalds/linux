@@ -3185,14 +3185,14 @@ static int drm_gtf_modes_for_range(struct drm_connector *connector,
 	return modes;
 }
 
-static int
-drm_cvt_modes_for_range(struct drm_connector *connector, const struct edid *edid,
-			const struct detailed_timing *timing)
+static int drm_cvt_modes_for_range(struct drm_connector *connector,
+				   const struct drm_edid *drm_edid,
+				   const struct detailed_timing *timing)
 {
 	int i, modes = 0;
 	struct drm_display_mode *newmode;
 	struct drm_device *dev = connector->dev;
-	bool rb = drm_monitor_supports_rb(edid);
+	bool rb = drm_monitor_supports_rb(drm_edid->edid);
 
 	for (i = 0; i < ARRAY_SIZE(extra_modes); i++) {
 		const struct minimode *m = &extra_modes[i];
@@ -3202,7 +3202,7 @@ drm_cvt_modes_for_range(struct drm_connector *connector, const struct edid *edid
 			return modes;
 
 		drm_mode_fixup_1366x768(newmode);
-		if (!mode_in_range(newmode, edid, timing) ||
+		if (!mode_in_range(newmode, drm_edid->edid, timing) ||
 		    !valid_inferred_mode(connector, newmode)) {
 			drm_mode_destroy(dev, newmode);
 			continue;
@@ -3244,7 +3244,7 @@ do_inferred_modes(const struct detailed_timing *timing, void *c)
 			break;
 
 		closure->modes += drm_cvt_modes_for_range(closure->connector,
-							  closure->drm_edid->edid,
+							  closure->drm_edid,
 							  timing);
 		break;
 	case 0x01: /* just the ranges, no formula */
