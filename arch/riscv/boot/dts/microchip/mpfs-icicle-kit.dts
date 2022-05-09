@@ -64,8 +64,6 @@
 };
 
 &mmc {
-	status = "okay";
-
 	bus-width = <4>;
 	disable-wp;
 	cap-sd-highspeed;
@@ -77,6 +75,7 @@
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
+	status = "okay";
 };
 
 &spi0 {
@@ -106,16 +105,19 @@
 &mac0 {
 	phy-mode = "sgmii";
 	phy-handle = <&phy0>;
+	status = "okay";
 };
 
 &mac1 {
-	status = "okay";
 	phy-mode = "sgmii";
 	phy-handle = <&phy1>;
+	status = "okay";
+
 	phy1: ethernet-phy@9 {
 		reg = <9>;
 		ti,fifo-depth = <0x1>;
 	};
+
 	phy0: ethernet-phy@8 {
 		reg = <8>;
 		ti,fifo-depth = <0x1>;
