@@ -92,8 +92,8 @@ struct hclge_ring_chain_param {
 struct hclge_basic_info {
 	u8 hw_tc_map;
 	u8 rsv;
-	u16 mbx_api_version;
-	u32 pf_caps;
+	__le16 mbx_api_version;
+	__le32 pf_caps;
 };
 
 struct hclgevf_mbx_resp_status {
@@ -196,6 +196,27 @@ struct hclge_mbx_port_base_vlan {
 	__le16 vlan_proto;
 	__le16 qos;
 	__le16 vlan_tag;
+};
+
+struct hclge_mbx_vf_queue_info {
+	__le16 num_tqps;
+	__le16 rss_size;
+	__le16 rx_buf_len;
+};
+
+struct hclge_mbx_vf_queue_depth {
+	__le16 num_tx_desc;
+	__le16 num_rx_desc;
+};
+
+struct hclge_mbx_vlan_filter {
+	u8 is_kill;
+	__le16 vlan_id;
+	__le16 proto;
+};
+
+struct hclge_mbx_mtu_info {
+	__le32 mtu;
 };
 
 #pragma pack()

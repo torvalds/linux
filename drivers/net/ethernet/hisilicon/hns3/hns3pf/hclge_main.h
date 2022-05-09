@@ -780,8 +780,8 @@ struct hclge_vf_vlan_cfg {
 	union {
 		struct {
 			u8 is_kill;
-			u16 vlan;
-			u16 proto;
+			__le16 vlan;
+			__le16 proto;
 		};
 		u8 enable;
 	};

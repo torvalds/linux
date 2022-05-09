@@ -362,13 +362,16 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 	struct hnae3_handle *handle = &vport->nic;
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_vf_vlan_cfg *msg_cmd;
+	__be16 proto;
+	u16 vlan_id;
 
 	msg_cmd = (struct hclge_vf_vlan_cfg *)&mbx_req->msg;
 	switch (msg_cmd->subcode) {
 	case HCLGE_MBX_VLAN_FILTER:
-		return hclge_set_vlan_filter(handle,
-					     cpu_to_be16(msg_cmd->proto),
-					     msg_cmd->vlan, msg_cmd->is_kill);
+		proto = cpu_to_be16(le16_to_cpu(msg_cmd->proto));
+		vlan_id = le16_to_cpu(msg_cmd->vlan);
+		return hclge_set_vlan_filter(handle, proto, vlan_id,
+					     msg_cmd->is_kill);
 	case HCLGE_MBX_VLAN_RX_OFF_CFG:
 		return hclge_en_hw_strip_rxvtag(handle, msg_cmd->enable);
 	case HCLGE_MBX_GET_PORT_BASE_VLAN_STATE:
@@ -411,15 +414,17 @@ static void hclge_get_basic_info(struct hclge_vport *vport,
 	struct hnae3_ae_dev *ae_dev = vport->back->ae_dev;
 	struct hclge_basic_info *basic_info;
 	unsigned int i;
+	u32 pf_caps;
 
 	basic_info = (struct hclge_basic_info *)resp_msg->data;
 	for (i = 0; i < kinfo->tc_info.num_tc; i++)
 		basic_info->hw_tc_map |= BIT(i);
 
+	pf_caps = le32_to_cpu(basic_info->pf_caps);
 	if (test_bit(HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B, ae_dev->caps))
-		hnae3_set_bit(basic_info->pf_caps,
-			      HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B, 1);
+		hnae3_set_bit(pf_caps, HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B, 1);
 
+	basic_info->pf_caps = cpu_to_le32(pf_caps);
 	resp_msg->len = HCLGE_MBX_MAX_RESP_DATA_SIZE;
 }
 
@@ -427,19 +432,15 @@ static void hclge_get_vf_queue_info(struct hclge_vport *vport,
 				    struct hclge_respond_to_vf_msg *resp_msg)
 {
 #define HCLGE_TQPS_RSS_INFO_LEN		6
-#define HCLGE_TQPS_ALLOC_OFFSET		0
-#define HCLGE_TQPS_RSS_SIZE_OFFSET	2
-#define HCLGE_TQPS_RX_BUFFER_LEN_OFFSET	4
 
+	struct hclge_mbx_vf_queue_info *queue_info;
 	struct hclge_dev *hdev = vport->back;
 
 	/* get the queue related info */
-	memcpy(&resp_msg->data[HCLGE_TQPS_ALLOC_OFFSET],
-	       &vport->alloc_tqps, sizeof(u16));
-	memcpy(&resp_msg->data[HCLGE_TQPS_RSS_SIZE_OFFSET],
-	       &vport->nic.kinfo.rss_size, sizeof(u16));
-	memcpy(&resp_msg->data[HCLGE_TQPS_RX_BUFFER_LEN_OFFSET],
-	       &hdev->rx_buf_len, sizeof(u16));
+	queue_info = (struct hclge_mbx_vf_queue_info *)resp_msg->data;
+	queue_info->num_tqps = cpu_to_le16(vport->alloc_tqps);
+	queue_info->rss_size = cpu_to_le16(vport->nic.kinfo.rss_size);
+	queue_info->rx_buf_len = cpu_to_le16(hdev->rx_buf_len);
 	resp_msg->len = HCLGE_TQPS_RSS_INFO_LEN;
 }
 
@@ -454,16 +455,15 @@ static void hclge_get_vf_queue_depth(struct hclge_vport *vport,
 				     struct hclge_respond_to_vf_msg *resp_msg)
 {
 #define HCLGE_TQPS_DEPTH_INFO_LEN	4
-#define HCLGE_TQPS_NUM_TX_DESC_OFFSET	0
-#define HCLGE_TQPS_NUM_RX_DESC_OFFSET	2
 
+	struct hclge_mbx_vf_queue_depth *queue_depth;
 	struct hclge_dev *hdev = vport->back;
 
 	/* get the queue depth info */
-	memcpy(&resp_msg->data[HCLGE_TQPS_NUM_TX_DESC_OFFSET],
-	       &hdev->num_tx_desc, sizeof(u16));
-	memcpy(&resp_msg->data[HCLGE_TQPS_NUM_RX_DESC_OFFSET],
-	       &hdev->num_rx_desc, sizeof(u16));
+	queue_depth = (struct hclge_mbx_vf_queue_depth *)resp_msg->data;
+	queue_depth->num_tx_desc = cpu_to_le16(hdev->num_tx_desc);
+	queue_depth->num_rx_desc = cpu_to_le16(hdev->num_rx_desc);
+
 	resp_msg->len = HCLGE_TQPS_DEPTH_INFO_LEN;
 }
 
@@ -549,7 +549,7 @@ static int hclge_mbx_reset_vf_queue(struct hclge_vport *vport,
 	u16 queue_id;
 	int ret;
 
-	memcpy(&queue_id, mbx_req->msg.data, sizeof(queue_id));
+	queue_id = le16_to_cpu(*(__le16 *)mbx_req->msg.data);
 	resp_msg->data[0] = HCLGE_RESET_ALL_QUEUE_DONE;
 	resp_msg->len = sizeof(u8);
 
@@ -585,9 +585,11 @@ static void hclge_vf_keep_alive(struct hclge_vport *vport)
 static int hclge_set_vf_mtu(struct hclge_vport *vport,
 			    struct hclge_mbx_vf_to_pf_cmd *mbx_req)
 {
+	struct hclge_mbx_mtu_info *mtu_info;
 	u32 mtu;
 
-	memcpy(&mtu, mbx_req->msg.data, sizeof(mtu));
+	mtu_info = (struct hclge_mbx_mtu_info *)mbx_req->msg.data;
+	mtu = le32_to_cpu(mtu_info->mtu);
 
 	return hclge_set_vport_mtu(vport, mtu);
 }
@@ -600,7 +602,7 @@ static int hclge_get_queue_id_in_pf(struct hclge_vport *vport,
 	struct hclge_dev *hdev = vport->back;
 	u16 queue_id, qid_in_pf;
 
-	memcpy(&queue_id, mbx_req->msg.data, sizeof(queue_id));
+	queue_id = le16_to_cpu(*(__le16 *)mbx_req->msg.data);
 	if (queue_id >= handle->kinfo.num_tqps) {
 		dev_err(&hdev->pdev->dev, "Invalid queue id(%u) from VF %u\n",
 			queue_id, mbx_req->mbx_src_vfid);
@@ -608,7 +610,7 @@ static int hclge_get_queue_id_in_pf(struct hclge_vport *vport,
 	}
 
 	qid_in_pf = hclge_covert_handle_qid_global(&vport->nic, queue_id);
-	memcpy(resp_msg->data, &qid_in_pf, sizeof(qid_in_pf));
+	*(__le16 *)resp_msg->data = cpu_to_le16(qid_in_pf);
 	resp_msg->len = sizeof(qid_in_pf);
 	return 0;
 }
