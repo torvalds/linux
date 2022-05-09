@@ -35,7 +35,9 @@ struct cs35l41_hda {
 
 	int irq;
 	int index;
+	int channel_index;
 	unsigned volatile long irq_errors;
+	const char *amp_name;
 	struct regmap_irq_chip_data *irq_data;
 };
 
