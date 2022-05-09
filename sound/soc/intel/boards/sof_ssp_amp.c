@@ -9,6 +9,7 @@
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
@@ -76,6 +77,16 @@ struct sof_card_private {
 	struct list_head hdmi_pcm_list;
 	bool common_hdmi_codec_drv;
 	bool idisp_codec;
+};
+
+static const struct dmi_system_id chromebook_platforms[] = {
+	{
+		.ident = "Google Chromebooks",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+		}
+	},
+	{},
 };
 
 static const struct snd_soc_dapm_widget sof_ssp_amp_dapm_widgets[] = {
@@ -371,7 +382,7 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	struct snd_soc_dai_link *dai_links;
 	struct snd_soc_acpi_mach *mach;
 	struct sof_card_private *ctx;
-	int dmic_be_num, hdmi_num = 0;
+	int dmic_be_num = 0, hdmi_num = 0;
 	int ret, ssp_codec;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
@@ -383,7 +394,8 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 
 	mach = pdev->dev.platform_data;
 
-	dmic_be_num = mach->mach_params.dmic_num;
+	if (dmi_check_system(chromebook_platforms) || mach->mach_params.dmic_num > 0)
+		dmic_be_num = 2;
 
 	ssp_codec = sof_ssp_amp_quirk & SOF_AMPLIFIER_SSP_MASK;
 
