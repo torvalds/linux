@@ -518,16 +518,6 @@ static int panel_simple_prepare(struct drm_panel *panel)
 
 	gpiod_direction_output(p->enable_gpio, 1);
 
-	if (p->desc->delay.reset)
-		msleep(p->desc->delay.prepare);
-
-	gpiod_direction_output(p->reset_gpio, 1);
-
-	if (p->desc->delay.reset)
-		msleep(p->desc->delay.reset);
-
-	gpiod_direction_output(p->reset_gpio, 0);
-
 	delay = p->desc->delay.prepare;
 	if (p->no_hpd)
 		delay += p->desc->delay.hpd_absent_delay;
@@ -553,6 +543,13 @@ static int panel_simple_prepare(struct drm_panel *panel)
 			return err;
 		}
 	}
+
+	gpiod_direction_output(p->reset_gpio, 1);
+
+	if (p->desc->delay.reset)
+		msleep(p->desc->delay.reset);
+
+	gpiod_direction_output(p->reset_gpio, 0);
 
 	if (p->desc->init_seq)
 		if (p->dsi)
