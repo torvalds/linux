@@ -272,6 +272,16 @@ static int rockchip_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 		}
 	}
 
+	if (!connector) {
+		struct list_head *connector_list =
+			&bridge->dev->mode_config.connector_list;
+
+		list_for_each_entry(connector, connector_list, head)
+			if (drm_connector_has_possible_encoder(connector,
+							       bridge->encoder))
+				break;
+	}
+
 	if (connector) {
 		sdev->connector = connector;
 		sdev->of_node = dp->dev->of_node;
