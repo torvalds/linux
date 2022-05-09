@@ -1743,7 +1743,7 @@ static struct peci_client *peci_of_register_device(struct peci_adapter *adapter,
 {
 	struct peci_board_info info = {};
 	struct peci_client *client;
-	u32 addr;
+	u32 addr, domain_id;
 	int ret;
 
 	dev_dbg(&adapter->dev, "register %pOF\n", node);
@@ -1757,8 +1757,16 @@ static struct peci_client *peci_of_register_device(struct peci_adapter *adapter,
 	ret = peci_check_addr_validity(addr);
 	if (ret)
 		return ERR_PTR(ret);
+
+	ret = of_property_read_u32(node, "domain", &domain_id);
+	if (ret || peci_check_domain_validity(domain_id)) {
+		dev_dbg(&adapter->dev, "invalid domain on %pOF, fallback to domain 0\n", node);
+		domain_id = 0;
+	}
+
 	info.addr = addr;
 	info.of_node = node;
+	info.domain_id = domain_id;
 
 	client = peci_new_device(adapter, &info);
 	if (!client)
