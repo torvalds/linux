@@ -71,78 +71,72 @@ properties:
 
   hfront-porch:
     description: Horizontal front porch panel timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of pixels
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of pixels
 
   hback-porch:
     description: Horizontal back porch timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of pixels
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of pixels
 
   hsync-len:
     description: Horizontal sync length panel timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of pixels
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of pixels
 
   vfront-porch:
     description: Vertical front porch panel timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of lines
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of lines
 
   vback-porch:
     description: Vertical back porch panel timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of lines
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of lines
 
   vsync-len:
     description: Vertical sync length panel timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of lines
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of lines

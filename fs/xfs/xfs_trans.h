@@ -175,7 +175,7 @@ xfs_trans_get_buf(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		blkno,
 	int			numblks,
-	uint			flags,
+	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
 {
 	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);

@@ -734,7 +734,12 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 
 	btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
 
-	/* Commit dev_replace state and reserve 1 item for it. */
+	/*
+	 * Commit dev_replace state and reserve 1 item for it.
+	 * This is crucial to ensure we won't miss copying extents for new block
+	 * groups that are allocated after we started the device replace, and
+	 * must be done after setting up the device replace state.
+	 */
 	trans = btrfs_start_transaction(root, 1);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
