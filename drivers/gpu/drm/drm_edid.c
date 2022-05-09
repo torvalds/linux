@@ -6364,15 +6364,15 @@ static void drm_parse_tiled_block(struct drm_connector *connector,
 	}
 }
 
-void drm_update_tile_info(struct drm_connector *connector,
-			  const struct edid *edid)
+static void _drm_update_tile_info(struct drm_connector *connector,
+				  const struct drm_edid *drm_edid)
 {
 	const struct displayid_block *block;
 	struct displayid_iter iter;
 
 	connector->has_tile = false;
 
-	displayid_iter_edid_begin(edid, &iter);
+	displayid_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter);
 	displayid_iter_for_each(block, &iter) {
 		if (block->tag == DATA_BLOCK_TILED_DISPLAY)
 			drm_parse_tiled_block(connector, block);
@@ -6383,4 +6383,12 @@ void drm_update_tile_info(struct drm_connector *connector,
 		drm_mode_put_tile_group(connector->dev, connector->tile_group);
 		connector->tile_group = NULL;
 	}
+}
+
+void drm_update_tile_info(struct drm_connector *connector,
+			  const struct edid *edid)
+{
+	struct drm_edid drm_edid;
+
+	_drm_update_tile_info(connector, drm_edid_legacy_init(&drm_edid, edid));
 }
