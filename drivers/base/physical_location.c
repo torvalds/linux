@@ -57,6 +57,9 @@ static ssize_t panel_show(struct device *dev, struct device_attribute *attr,
 	case DEVICE_PANEL_FRONT:
 		panel = "front";
 		break;
+	case DEVICE_PANEL_BACK:
+		panel = "back";
+		break;
 	default:
 		panel = "unknown";
 	}
