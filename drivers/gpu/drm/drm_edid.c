@@ -2598,20 +2598,20 @@ vtb_for_each_detailed_block(const u8 *ext, detailed_cb *cb, void *closure)
 		cb((const struct detailed_timing *)(det_base + 18 * i), closure);
 }
 
-static void
-drm_for_each_detailed_block(const struct edid *edid, detailed_cb *cb, void *closure)
+static void drm_for_each_detailed_block(const struct drm_edid *drm_edid,
+					detailed_cb *cb, void *closure)
 {
 	struct drm_edid_iter edid_iter;
 	const u8 *ext;
 	int i;
 
-	if (edid == NULL)
+	if (!drm_edid)
 		return;
 
 	for (i = 0; i < EDID_DETAILED_TIMINGS; i++)
-		cb(&(edid->detailed_timings[i]), closure);
+		cb(&drm_edid->edid->detailed_timings[i], closure);
 
-	drm_edid_iter_begin(edid, &edid_iter);
+	drm_edid_iter_begin(drm_edid->edid, &edid_iter);
 	drm_edid_iter_for_each(ext, &edid_iter) {
 		switch (*ext) {
 		case CEA_EXT:
@@ -2650,7 +2650,7 @@ drm_monitor_supports_rb(const struct drm_edid *drm_edid)
 	if (drm_edid->edid->revision >= 4) {
 		bool ret = false;
 
-		drm_for_each_detailed_block(drm_edid->edid, is_rb, &ret);
+		drm_for_each_detailed_block(drm_edid, is_rb, &ret);
 		return ret;
 	}
 
@@ -2677,7 +2677,7 @@ drm_gtf2_hbreak(const struct drm_edid *drm_edid)
 {
 	const struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block(drm_edid->edid, find_gtf2, &descriptor);
+	drm_for_each_detailed_block(drm_edid, find_gtf2, &descriptor);
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.hfreq_start_khz) != 12);
 
@@ -2689,7 +2689,7 @@ drm_gtf2_2c(const struct drm_edid *drm_edid)
 {
 	const struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block(drm_edid->edid, find_gtf2, &descriptor);
+	drm_for_each_detailed_block(drm_edid, find_gtf2, &descriptor);
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.c) != 13);
 
@@ -2701,7 +2701,7 @@ drm_gtf2_m(const struct drm_edid *drm_edid)
 {
 	const struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block(drm_edid->edid, find_gtf2, &descriptor);
+	drm_for_each_detailed_block(drm_edid, find_gtf2, &descriptor);
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.m) != 14);
 
@@ -2713,7 +2713,7 @@ drm_gtf2_k(const struct drm_edid *drm_edid)
 {
 	const struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block(drm_edid->edid, find_gtf2, &descriptor);
+	drm_for_each_detailed_block(drm_edid, find_gtf2, &descriptor);
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.k) != 16);
 
@@ -2725,7 +2725,7 @@ drm_gtf2_2j(const struct drm_edid *drm_edid)
 {
 	const struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block(drm_edid->edid, find_gtf2, &descriptor);
+	drm_for_each_detailed_block(drm_edid, find_gtf2, &descriptor);
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.j) != 17);
 
@@ -3265,7 +3265,7 @@ static int add_inferred_modes(struct drm_connector *connector,
 	};
 
 	if (version_greater(drm_edid->edid, 1, 0))
-		drm_for_each_detailed_block(drm_edid->edid, do_inferred_modes, &closure);
+		drm_for_each_detailed_block(drm_edid, do_inferred_modes, &closure);
 
 	return closure.modes;
 }
@@ -3342,7 +3342,7 @@ static int add_established_modes(struct drm_connector *connector,
 	}
 
 	if (version_greater(edid, 1, 0))
-		drm_for_each_detailed_block(drm_edid->edid, do_established_modes,
+		drm_for_each_detailed_block(drm_edid, do_established_modes,
 					    &closure);
 
 	return modes + closure.modes;
@@ -3397,7 +3397,7 @@ static int add_standard_modes(struct drm_connector *connector,
 	}
 
 	if (version_greater(drm_edid->edid, 1, 0))
-		drm_for_each_detailed_block(drm_edid->edid, do_standard_modes,
+		drm_for_each_detailed_block(drm_edid, do_standard_modes,
 					    &closure);
 
 	/* XXX should also look for standard codes in VTB blocks */
@@ -3477,7 +3477,7 @@ add_cvt_modes(struct drm_connector *connector, const struct drm_edid *drm_edid)
 	};
 
 	if (version_greater(drm_edid->edid, 1, 2))
-		drm_for_each_detailed_block(drm_edid->edid, do_cvt_mode, &closure);
+		drm_for_each_detailed_block(drm_edid, do_cvt_mode, &closure);
 
 	/* XXX should also look for CVT codes in VTB blocks */
 
@@ -3536,7 +3536,7 @@ static int add_detailed_modes(struct drm_connector *connector,
 		closure.preferred =
 		    (drm_edid->edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING);
 
-	drm_for_each_detailed_block(drm_edid->edid, do_detailed_mode, &closure);
+	drm_for_each_detailed_block(drm_edid, do_detailed_mode, &closure);
 
 	return closure.modes;
 }
@@ -4838,7 +4838,7 @@ static int get_monitor_name(const struct drm_edid *drm_edid, char name[13])
 	if (!drm_edid || !name)
 		return 0;
 
-	drm_for_each_detailed_block(drm_edid->edid, monitor_name, &edid_name);
+	drm_for_each_detailed_block(drm_edid, monitor_name, &edid_name);
 	for (mnl = 0; edid_name && mnl < 13; mnl++) {
 		if (edid_name[mnl] == 0x0a)
 			break;
@@ -5559,7 +5559,7 @@ static void drm_get_monitor_range(struct drm_connector *connector,
 	if (!version_greater(drm_edid->edid, 1, 1))
 		return;
 
-	drm_for_each_detailed_block(drm_edid->edid, get_monitor_range,
+	drm_for_each_detailed_block(drm_edid, get_monitor_range,
 				    &info->monitor_range);
 
 	DRM_DEBUG_KMS("Supported Monitor Refresh rate range is %d Hz - %d Hz\n",
