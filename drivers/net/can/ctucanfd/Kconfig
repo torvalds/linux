@@ -1,5 +1,5 @@
 config CAN_CTUCANFD
-	tristate "CTU CAN-FD IP core"
+	tristate "CTU CAN-FD IP core" if COMPILE_TEST
 	help
 	  This driver adds support for the CTU CAN FD open-source IP core.
 	  More documentation and core sources at project page
@@ -13,8 +13,8 @@ config CAN_CTUCANFD
 
 config CAN_CTUCANFD_PCI
 	tristate "CTU CAN-FD IP core PCI/PCIe driver"
-	depends on CAN_CTUCANFD
 	depends on PCI
+	select CAN_CTUCANFD
 	help
 	  This driver adds PCI/PCIe support for CTU CAN-FD IP core.
 	  The project providing FPGA design for Intel EP4CGX15 based DB4CGX15
@@ -23,8 +23,8 @@ config CAN_CTUCANFD_PCI
 
 config CAN_CTUCANFD_PLATFORM
 	tristate "CTU CAN-FD IP core platform (FPGA, SoC) driver"
-	depends on CAN_CTUCANFD
 	depends on OF || COMPILE_TEST
+	select CAN_CTUCANFD
 	help
 	  The core has been tested together with OpenCores SJA1000
 	  modified to be CAN FD frames tolerant on MicroZed Zynq based
