@@ -113,7 +113,7 @@ static int get_temp_targets(struct peci_cputemp *priv)
 		re_msg.params.pci_cfg.function = 1;
 		re_msg.params.pci_cfg.reg = 0x94;
 		re_msg.rx_len = 4;
-		re_msg.domain_id = 0;
+		re_msg.domain_id = priv->mgr->client->domain_id;
 
 		ret = peci_command(priv->mgr->client->adapter,
 				   PECI_CMD_RD_END_PT_CFG, sizeof(re_msg), &re_msg);
@@ -380,7 +380,7 @@ static int check_resolved_cores(struct peci_cputemp *priv)
 		msg.bus = 14;
 		msg.reg = 0xd4;
 		msg.rx_len = 4;
-		msg.domain_id = 0;
+		msg.domain_id = priv->mgr->client->domain_id;
 
 		ret = peci_command(priv->mgr->client->adapter,
 				   PECI_CMD_RD_PCI_CFG_LOCAL, sizeof(msg), &msg);
@@ -413,7 +413,7 @@ static int check_resolved_cores(struct peci_cputemp *priv)
 		msg.bus = 1;
 		msg.reg = 0xb4;
 		msg.rx_len = 4;
-		msg.domain_id = 0;
+		msg.domain_id = priv->mgr->client->domain_id;
 
 		ret = peci_command(priv->mgr->client->adapter,
 				   PECI_CMD_RD_PCI_CFG_LOCAL, sizeof(msg), &msg);
@@ -497,8 +497,8 @@ static int peci_cputemp_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->gen_info = mgr->gen_info;
 
-	snprintf(priv->name, PECI_NAME_SIZE, "peci_cputemp.cpu%d",
-		 mgr->client->addr - PECI_BASE_ADDR);
+	snprintf(priv->name, PECI_NAME_SIZE, "peci_cputemp.cpu%d.%d",
+		 mgr->client->addr - PECI_BASE_ADDR, mgr->client->domain_id);
 
 	priv->temp_config[priv->config_idx++] = config_table[channel_die];
 	priv->temp_config[priv->config_idx++] = config_table[channel_dts];
