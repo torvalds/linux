@@ -1420,8 +1420,19 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		if (!em)
 			break;
 
-		/* Skip hole/inline/preallocated extents */
-		if (em->block_start >= EXTENT_MAP_LAST_BYTE ||
+		/*
+		 * If the file extent is an inlined one, we may still want to
+		 * defrag it (fallthrough) if it will cause a regular extent.
+		 * This is for users who want to convert inline extents to
+		 * regular ones through max_inline= mount option.
+		 */
+		if (em->block_start == EXTENT_MAP_INLINE &&
+		    em->len <= inode->root->fs_info->max_inline)
+			goto next;
+
+		/* Skip hole/delalloc/preallocated extents */
+		if (em->block_start == EXTENT_MAP_HOLE ||
+		    em->block_start == EXTENT_MAP_DELALLOC ||
 		    test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
 			goto next;
 
@@ -1479,6 +1490,15 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		 */
 		if (em->len >= get_extent_max_capacity(em))
 			goto next;
+
+		/*
+		 * Normally there are no more extents after an inline one, thus
+		 * @next_mergeable will normally be false and not defragged.
+		 * So if an inline extent passed all above checks, just add it
+		 * for defrag, and be converted to regular extents.
+		 */
+		if (em->block_start == EXTENT_MAP_INLINE)
+			goto add;
 
 		next_mergeable = defrag_check_next_extent(&inode->vfs_inode, em,
 						extent_thresh, newer_than, locked);
