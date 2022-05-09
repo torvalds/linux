@@ -465,6 +465,8 @@ static void __init ms_hyperv_init_platform(void)
 	 */
 	if (!(ms_hyperv.features & HV_ACCESS_TSC_INVARIANT))
 		mark_tsc_unstable("running on Hyper-V");
+
+	hardlockup_detector_disable();
 }
 
 static bool __init ms_hyperv_x2apic_available(void)
