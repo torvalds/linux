@@ -953,7 +953,7 @@ unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
 #endif
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 char *arch_ftrace_match_adjust(char *str, const char *search)
 {
 	if (str[0] == '.' && search[0] != '.')
@@ -961,4 +961,4 @@ char *arch_ftrace_match_adjust(char *str, const char *search)
 	else
 		return str;
 }
-#endif /* PPC64_ELF_ABI_v1 */
+#endif /* CONFIG_PPC64_ELF_ABI_V1 */

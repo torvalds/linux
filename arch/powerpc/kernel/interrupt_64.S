@@ -711,7 +711,7 @@ _GLOBAL(ret_from_kernel_thread)
 	REST_NVGPRS(r1)
 	mtctr	r14
 	mr	r3,r15
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 	mr	r12,r14
 #endif
 	bctrl

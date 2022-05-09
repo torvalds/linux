@@ -132,7 +132,7 @@ bool is_conditional_branch(ppc_inst_t instr);
 
 static inline unsigned long ppc_function_entry(void *func)
 {
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 	u32 *insn = func;
 
 	/*
@@ -157,7 +157,7 @@ static inline unsigned long ppc_function_entry(void *func)
 		return (unsigned long)(insn + 2);
 	else
 		return (unsigned long)func;
-#elif defined(PPC64_ELF_ABI_v1)
+#elif defined(CONFIG_PPC64_ELF_ABI_V1)
 	/*
 	 * On PPC64 ABIv1 the function pointer actually points to the
 	 * function's descriptor. The first entry in the descriptor is the
@@ -171,7 +171,7 @@ static inline unsigned long ppc_function_entry(void *func)
 
 static inline unsigned long ppc_global_function_entry(void *func)
 {
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 	/* PPC64 ABIv2 the global entry point is at the address */
 	return (unsigned long)func;
 #else
@@ -188,7 +188,7 @@ static inline unsigned long ppc_global_function_entry(void *func)
 static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
 {
 	unsigned long addr;
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	/* check for dot variant */
 	char dot_name[1 + KSYM_NAME_LEN];
 	bool dot_appended = false;
@@ -209,7 +209,7 @@ static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
 	if (!addr && dot_appended)
 		/* Let's try the original non-dot symbol lookup	*/
 		addr = kallsyms_lookup_name(name);
-#elif defined(PPC64_ELF_ABI_v2)
+#elif defined(CONFIG_PPC64_ELF_ABI_V2)
 	addr = kallsyms_lookup_name(name);
 	if (addr)
 		addr = ppc_function_entry((void *)addr);
@@ -226,7 +226,7 @@ static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
  */
 
 /* This must match the definition of STK_GOT in <asm/ppc_asm.h> */
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 #define R2_STACK_OFFSET         24
 #else
 #define R2_STACK_OFFSET         40

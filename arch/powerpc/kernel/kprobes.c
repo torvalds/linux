@@ -45,7 +45,7 @@ kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 {
 	kprobe_opcode_t *addr = NULL;
 
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 	/* PPC64 ABIv2 needs local entry point */
 	addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);
 	if (addr && !offset) {
@@ -63,7 +63,7 @@ kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 #endif
 			addr = (kprobe_opcode_t *)ppc_function_entry(addr);
 	}
-#elif defined(PPC64_ELF_ABI_v1)
+#elif defined(CONFIG_PPC64_ELF_ABI_V1)
 	/*
 	 * 64bit powerpc ABIv1 uses function descriptors:
 	 * - Check for the dot variant of the symbol first.
@@ -107,7 +107,7 @@ kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 
 static bool arch_kprobe_on_func_entry(unsigned long offset)
 {
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 #ifdef CONFIG_KPROBES_ON_FTRACE
 	return offset <= 16;
 #else
