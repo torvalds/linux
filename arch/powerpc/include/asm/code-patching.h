@@ -219,7 +219,6 @@ static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
 	return addr;
 }
 
-#ifdef CONFIG_PPC64
 /*
  * Some instruction encodings commonly used in dynamic ftracing
  * and function live patching.
@@ -236,6 +235,5 @@ static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
 
 /* usually preceded by a mflr r0 */
 #define PPC_INST_STD_LR		PPC_RAW_STD(_R0, _R1, PPC_LR_STKOFF)
-#endif /* CONFIG_PPC64 */
 
 #endif /* _ASM_POWERPC_CODE_PATCHING_H */
