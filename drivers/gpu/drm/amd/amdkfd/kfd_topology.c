@@ -115,7 +115,7 @@ struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev)
 	down_read(&topology_lock);
 
 	list_for_each_entry(top_dev, &topology_device_list, list)
-		if (top_dev->gpu && top_dev->gpu->pdev == pdev) {
+		if (top_dev->gpu && top_dev->gpu->adev->pdev == pdev) {
 			device = top_dev->gpu;
 			break;
 		}
@@ -1169,13 +1169,12 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 
 	local_mem_size = gpu->local_mem_info.local_mem_size_private +
 			gpu->local_mem_info.local_mem_size_public;
-
-	buf[0] = gpu->pdev->devfn;
-	buf[1] = gpu->pdev->subsystem_vendor |
-		(gpu->pdev->subsystem_device << 16);
-	buf[2] = pci_domain_nr(gpu->pdev->bus);
-	buf[3] = gpu->pdev->device;
-	buf[4] = gpu->pdev->bus->number;
+	buf[0] = gpu->adev->pdev->devfn;
+	buf[1] = gpu->adev->pdev->subsystem_vendor |
+		(gpu->adev->pdev->subsystem_device << 16);
+	buf[2] = pci_domain_nr(gpu->adev->pdev->bus);
+	buf[3] = gpu->adev->pdev->device;
+	buf[4] = gpu->adev->pdev->bus->number;
 	buf[5] = lower_32_bits(local_mem_size);
 	buf[6] = upper_32_bits(local_mem_size);
 
@@ -1269,7 +1268,7 @@ static void kfd_set_iolink_no_atomics(struct kfd_topology_device *dev,
 	if (target_gpu_dev) {
 		uint32_t cap;
 
-		pcie_capability_read_dword(target_gpu_dev->gpu->pdev,
+		pcie_capability_read_dword(target_gpu_dev->gpu->adev->pdev,
 				PCI_EXP_DEVCAP2, &cap);
 
 		if (!(cap & (PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
@@ -1688,13 +1687,13 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		cu_info.num_shader_arrays_per_engine;
 
 	dev->node_props.gfx_target_version = gpu->device_info.gfx_target_version;
-	dev->node_props.vendor_id = gpu->pdev->vendor;
-	dev->node_props.device_id = gpu->pdev->device;
+	dev->node_props.vendor_id = gpu->adev->pdev->vendor;
+	dev->node_props.device_id = gpu->adev->pdev->device;
 	dev->node_props.capability |=
 		((dev->gpu->adev->rev_id << HSA_CAP_ASIC_REVISION_SHIFT) &
 			HSA_CAP_ASIC_REVISION_MASK);
-	dev->node_props.location_id = pci_dev_id(gpu->pdev);
-	dev->node_props.domain = pci_domain_nr(gpu->pdev->bus);
+	dev->node_props.location_id = pci_dev_id(gpu->adev->pdev);
+	dev->node_props.domain = pci_domain_nr(gpu->adev->pdev->bus);
 	dev->node_props.max_engine_clk_fcompute =
 		amdgpu_amdkfd_get_max_engine_clock_in_mhz(dev->gpu->adev);
 	dev->node_props.max_engine_clk_ccompute =

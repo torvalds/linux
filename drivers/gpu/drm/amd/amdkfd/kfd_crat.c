@@ -2114,8 +2114,8 @@ static void kfd_find_numa_node_in_srat(struct kfd_dev *kdev)
 	struct acpi_table_header *table_header = NULL;
 	struct acpi_subtable_header *sub_header = NULL;
 	unsigned long table_end, subtable_len;
-	u32 pci_id = pci_domain_nr(kdev->pdev->bus) << 16 |
-			pci_dev_id(kdev->pdev);
+	u32 pci_id = pci_domain_nr(kdev->adev->pdev->bus) << 16 |
+			pci_dev_id(kdev->adev->pdev);
 	u32 bdf;
 	acpi_status status;
 	struct acpi_srat_cpu_affinity *cpu;
@@ -2190,7 +2190,7 @@ static void kfd_find_numa_node_in_srat(struct kfd_dev *kdev)
 		numa_node = 0;
 
 	if (numa_node != NUMA_NO_NODE)
-		set_dev_node(&kdev->pdev->dev, numa_node);
+		set_dev_node(&kdev->adev->pdev->dev, numa_node);
 }
 #endif
 
@@ -2251,14 +2251,14 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 	sub_type_hdr->proximity_domain_from = proximity_domain;
 
 #ifdef CONFIG_ACPI_NUMA
-	if (kdev->pdev->dev.numa_node == NUMA_NO_NODE)
+	if (kdev->adev->pdev->dev.numa_node == NUMA_NO_NODE)
 		kfd_find_numa_node_in_srat(kdev);
 #endif
 #ifdef CONFIG_NUMA
-	if (kdev->pdev->dev.numa_node == NUMA_NO_NODE)
+	if (kdev->adev->pdev->dev.numa_node == NUMA_NO_NODE)
 		sub_type_hdr->proximity_domain_to = 0;
 	else
-		sub_type_hdr->proximity_domain_to = kdev->pdev->dev.numa_node;
+		sub_type_hdr->proximity_domain_to = kdev->adev->pdev->dev.numa_node;
 #else
 	sub_type_hdr->proximity_domain_to = 0;
 #endif

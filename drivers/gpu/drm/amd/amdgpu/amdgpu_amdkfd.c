@@ -195,7 +195,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		}
 
 		adev->kfd.init_complete = kgd2kfd_device_init(adev->kfd.dev,
-						adev_to_drm(adev), &gpu_resources);
+							&gpu_resources);
 
 		amdgpu_amdkfd_total_mem_size += adev->gmc.real_vram_size;
 

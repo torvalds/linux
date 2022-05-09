@@ -259,7 +259,7 @@ void svm_range_free_dma_mappings(struct svm_range *prange)
 			pr_debug("failed to find device idx %d\n", gpuidx);
 			continue;
 		}
-		dev = &pdd->dev->pdev->dev;
+		dev = &pdd->dev->adev->pdev->dev;
 		svm_range_dma_unmap(dev, dma_addr, 0, prange->npages);
 		kvfree(dma_addr);
 		prange->dma_addr[gpuidx] = NULL;
