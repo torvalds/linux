@@ -184,6 +184,12 @@ to_imx7_csi_vb2_buffer(struct vb2_buffer *vb)
 	return container_of(vbuf, struct imx7_csi_vb2_buffer, vbuf);
 }
 
+struct imx7_csi_dma_buf {
+	void *virt;
+	dma_addr_t phys;
+	unsigned long len;
+};
+
 struct imx7_csi {
 	struct device *dev;
 
@@ -227,7 +233,7 @@ struct imx7_csi {
 
 	/* Buffers and streaming state */
 	struct imx7_csi_vb2_buffer *active_vb2_buf[2];
-	struct imx_media_dma_buf underrun_buf;
+	struct imx7_csi_dma_buf underrun_buf;
 
 	bool is_streaming;
 	int buf_num;
@@ -415,12 +421,38 @@ static void imx7_csi_dma_unsetup_vb2_buf(struct imx7_csi *csi,
 	}
 }
 
+static void imx7_csi_free_dma_buf(struct imx7_csi *csi,
+				  struct imx7_csi_dma_buf *buf)
+{
+	if (buf->virt)
+		dma_free_coherent(csi->dev, buf->len, buf->virt, buf->phys);
+
+	buf->virt = NULL;
+	buf->phys = 0;
+}
+
+static int imx7_csi_alloc_dma_buf(struct imx7_csi *csi,
+				  struct imx7_csi_dma_buf *buf, int size)
+{
+	imx7_csi_free_dma_buf(csi, buf);
+
+	buf->len = PAGE_ALIGN(size);
+	buf->virt = dma_alloc_coherent(csi->dev, buf->len, &buf->phys,
+				       GFP_DMA | GFP_KERNEL);
+	if (!buf->virt) {
+		dev_err(csi->dev, "%s: failed\n", __func__);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int imx7_csi_dma_setup(struct imx7_csi *csi)
 {
 	int ret;
 
-	ret = imx_media_alloc_dma_buf(csi->dev, &csi->underrun_buf,
-				      csi->vdev_fmt.sizeimage);
+	ret = imx7_csi_alloc_dma_buf(csi, &csi->underrun_buf,
+				     csi->vdev_fmt.sizeimage);
 	if (ret < 0) {
 		v4l2_warn(&csi->sd, "consider increasing the CMA area\n");
 		return ret;
@@ -439,7 +471,7 @@ static void imx7_csi_dma_cleanup(struct imx7_csi *csi,
 				 enum vb2_buffer_state return_status)
 {
 	imx7_csi_dma_unsetup_vb2_buf(csi, return_status);
-	imx_media_free_dma_buf(csi->dev, &csi->underrun_buf);
+	imx7_csi_free_dma_buf(csi, &csi->underrun_buf);
 }
 
 static void imx7_csi_dma_stop(struct imx7_csi *csi)
