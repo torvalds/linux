@@ -35,6 +35,25 @@
 
 #include "niu.h"
 
+/* This driver wants to store a link to a "next page" within the
+ * page struct itself by overloading the content of the "mapping"
+ * member. This is not expected by the page API, but does currently
+ * work. However, the randstruct plugin gets very bothered by this
+ * case because "mapping" (struct address_space) is randomized, so
+ * casts to/from it trigger warnings. Hide this by way of a union,
+ * to create a typed alias of "mapping", since that's how it is
+ * actually being used here.
+ */
+union niu_page {
+	struct page page;
+	struct {
+		unsigned long __flags;	/* unused alias of "flags" */
+		struct list_head __lru;	/* unused alias of "lru" */
+		struct page *next;	/* alias of "mapping" */
+	};
+};
+#define niu_next_page(p)	container_of(p, union niu_page, page)->next
+
 #define DRV_MODULE_NAME		"niu"
 #define DRV_MODULE_VERSION	"1.1"
 #define DRV_MODULE_RELDATE	"Apr 22, 2010"
@@ -3283,7 +3302,7 @@ static struct page *niu_find_rxpage(struct rx_ring_info *rp, u64 addr,
 
 	addr &= PAGE_MASK;
 	pp = &rp->rxhash[h];
-	for (; (p = *pp) != NULL; pp = (struct page **) &p->mapping) {
+	for (; (p = *pp) != NULL; pp = &niu_next_page(p)) {
 		if (p->index == addr) {
 			*link = pp;
 			goto found;
@@ -3300,7 +3319,7 @@ static void niu_hash_page(struct rx_ring_info *rp, struct page *page, u64 base)
 	unsigned int h = niu_hash_rxaddr(rp, base);
 
 	page->index = base;
-	page->mapping = (struct address_space *) rp->rxhash[h];
+	niu_next_page(page) = rp->rxhash[h];
 	rp->rxhash[h] = page;
 }
 
@@ -3382,11 +3401,11 @@ static int niu_rx_pkt_ignore(struct niu *np, struct rx_ring_info *rp)
 		rcr_size = rp->rbr_sizes[(val & RCR_ENTRY_PKTBUFSZ) >>
 					 RCR_ENTRY_PKTBUFSZ_SHIFT];
 		if ((page->index + PAGE_SIZE) - rcr_size == addr) {
-			*link = (struct page *) page->mapping;
+			*link = niu_next_page(page);
 			np->ops->unmap_page(np->device, page->index,
 					    PAGE_SIZE, DMA_FROM_DEVICE);
 			page->index = 0;
-			page->mapping = NULL;
+			niu_next_page(page) = NULL;
 			__free_page(page);
 			rp->rbr_refill_pending++;
 		}
@@ -3451,11 +3470,11 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 
 		niu_rx_skb_append(skb, page, off, append_size, rcr_size);
 		if ((page->index + rp->rbr_block_size) - rcr_size == addr) {
-			*link = (struct page *) page->mapping;
+			*link = niu_next_page(page);
 			np->ops->unmap_page(np->device, page->index,
 					    PAGE_SIZE, DMA_FROM_DEVICE);
 			page->index = 0;
-			page->mapping = NULL;
+			niu_next_page(page) = NULL;
 			rp->rbr_refill_pending++;
 		} else
 			get_page(page);
@@ -3518,13 +3537,13 @@ static void niu_rbr_free(struct niu *np, struct rx_ring_info *rp)
 
 		page = rp->rxhash[i];
 		while (page) {
-			struct page *next = (struct page *) page->mapping;
+			struct page *next = niu_next_page(page);
 			u64 base = page->index;
 
 			np->ops->unmap_page(np->device, base, PAGE_SIZE,
 					    DMA_FROM_DEVICE);
 			page->index = 0;
-			page->mapping = NULL;
+			niu_next_page(page) = NULL;
 
 			__free_page(page);
 
@@ -6440,8 +6459,7 @@ static void niu_reset_buffers(struct niu *np)
 
 				page = rp->rxhash[j];
 				while (page) {
-					struct page *next =
-						(struct page *) page->mapping;
+					struct page *next = niu_next_page(page);
 					u64 base = page->index;
 					base = base >> RBR_DESCR_ADDR_SHIFT;
 					rp->rbr[k++] = cpu_to_le32(base);
@@ -10175,6 +10193,9 @@ static int __init niu_init(void)
 	int err = 0;
 
 	BUILD_BUG_ON(PAGE_SIZE < 4 * 1024);
+
+	BUILD_BUG_ON(offsetof(struct page, mapping) !=
+		     offsetof(union niu_page, next));
 
 	niu_debug = netif_msg_init(debug, NIU_MSG_DEFAULT);
 
