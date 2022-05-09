@@ -63,6 +63,8 @@ extern void machine_shutdown(void);
 struct pt_regs;
 extern void machine_crash_shutdown(struct pt_regs *);
 
+void do_kernel_power_off(void);
+
 /*
  * sys-off handler API.
  */
