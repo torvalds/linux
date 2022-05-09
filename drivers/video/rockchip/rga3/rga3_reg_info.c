@@ -1573,9 +1573,13 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		req->win1.r2y_mode = 1;
 	}
 
-	/* color key */
-	req->color_key_min = req_rga->color_key_min;
-	req->color_key_max = req_rga->color_key_max;
+	/* color key: 8bit->10bit */
+	req->color_key_min = (req_rga->color_key_min & 0xff) << 22 |
+			     ((req_rga->color_key_min >> 8) & 0xff) << 12 |
+			     ((req_rga->color_key_min >> 16) & 0xff) << 2;
+	req->color_key_max = (req_rga->color_key_max & 0xff) << 22 |
+			     ((req_rga->color_key_max >> 8) & 0xff) << 12 |
+			     ((req_rga->color_key_max >> 16) & 0xff) << 2;
 
 	if (req_rga->mmu_info.mmu_en && (req_rga->mmu_info.mmu_flag & 1) == 1) {
 		req->mmu_info.src0_mmu_flag = 1;
