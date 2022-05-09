@@ -760,13 +760,13 @@ static void print_tcs_info(struct rsc_drv *drv, int tcs_id, unsigned long *accl,
 	bool in_use = test_bit(tcs_id, drv->tcs_in_use);
 	int i;
 
-	if (!tcs_grp || !req)
-		return;
-
 	sts = read_tcs_reg(drv, RSC_DRV_STATUS, tcs_id);
 	cmds_enabled = read_tcs_reg(drv, RSC_DRV_CMD_ENABLE, tcs_id);
 	if (!cmds_enabled)
 		return;
+
+	if (!tcs_grp || !req)
+		goto print_tcs_data;
 
 	data = read_tcs_reg(drv, RSC_DRV_CONTROL, tcs_id);
 	irq_sts = readl_relaxed(drv->tcs_base + RSC_DRV_IRQ_STATUS);
@@ -780,6 +780,7 @@ static void print_tcs_info(struct rsc_drv *drv, int tcs_id, unsigned long *accl,
 
 	*aoss_irq_sts = (irq_sts & BIT(tcs_id)) ? true : false;
 
+print_tcs_data:
 	for_each_set_bit(i, &cmds_enabled, MAX_CMDS_PER_TCS) {
 		addr = read_tcs_cmd(drv, RSC_DRV_CMD_ADDR, tcs_id, i);
 		data = read_tcs_cmd(drv, RSC_DRV_CMD_DATA, tcs_id, i);
@@ -833,6 +834,17 @@ void rpmh_rsc_debug(struct rsc_drv *drv, struct completion *compl)
 			str);
 	else if (gic_irq_sts)
 		pr_warn("ERROR:Possible lockup in Linux\n");
+
+	/* Show fast path status, if the TCS is busy */
+	if (drv->tcs[FAST_PATH_TCS].num_tcs) {
+		int tcs_id = drv->tcs[FAST_PATH_TCS].offset;
+		bool sts = read_tcs_reg(drv, RSC_DRV_STATUS, tcs_id);
+
+		if (!sts) {
+			pr_err("Fast-path TCS information:\n");
+			print_tcs_info(drv, tcs_id, &accl, &aoss_irq_sts);
+		}
+	}
 
 	/*
 	 * The TCS(s) are busy waiting, we have no way to recover from this.
