@@ -114,7 +114,6 @@ static unsigned long find_bl_target(unsigned long ip, ppc_inst_t op)
 }
 
 #ifdef CONFIG_MODULES
-#ifdef CONFIG_PPC64
 static int
 __ftrace_make_nop(struct module *mod,
 		  struct dyn_ftrace *rec, unsigned long addr)
@@ -154,10 +153,11 @@ __ftrace_make_nop(struct module *mod,
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_MPROFILE_KERNEL
-	/* When using -mkernel_profile there is no load to jump over */
+	/* When using -mprofile-kernel or PPC32 there is no load to jump over */
 	pop = ppc_inst(PPC_RAW_NOP());
 
+#ifdef CONFIG_PPC64
+#ifdef CONFIG_MPROFILE_KERNEL
 	if (copy_inst_from_kernel_nofault(&op, (void *)(ip - 4))) {
 		pr_err("Fetching instruction at %lx failed.\n", ip - 4);
 		return -EFAULT;
@@ -201,6 +201,7 @@ __ftrace_make_nop(struct module *mod,
 		return -EINVAL;
 	}
 #endif /* CONFIG_MPROFILE_KERNEL */
+#endif /* PPC64 */
 
 	if (patch_instruction((u32 *)ip, pop)) {
 		pr_err("Patching NOP failed.\n");
@@ -209,48 +210,6 @@ __ftrace_make_nop(struct module *mod,
 
 	return 0;
 }
-
-#else /* !PPC64 */
-static int
-__ftrace_make_nop(struct module *mod,
-		  struct dyn_ftrace *rec, unsigned long addr)
-{
-	ppc_inst_t op;
-	unsigned long ip = rec->ip;
-	unsigned long tramp, ptr;
-
-	if (copy_from_kernel_nofault(&op, (void *)ip, MCOUNT_INSN_SIZE))
-		return -EFAULT;
-
-	/* Make sure that that this is still a 24bit jump */
-	if (!is_bl_op(op)) {
-		pr_err("Not expected bl: opcode is %s\n", ppc_inst_as_str(op));
-		return -EINVAL;
-	}
-
-	/* lets find where the pointer goes */
-	tramp = find_bl_target(ip, op);
-
-	/* Find where the trampoline jumps to */
-	if (module_trampoline_target(mod, tramp, &ptr)) {
-		pr_err("Failed to get trampoline target\n");
-		return -EFAULT;
-	}
-
-	if (ptr != addr) {
-		pr_err("Trampoline location %08lx does not match addr\n",
-		       tramp);
-		return -EINVAL;
-	}
-
-	op = ppc_inst(PPC_RAW_NOP());
-
-	if (patch_instruction((u32 *)ip, op))
-		return -EPERM;
-
-	return 0;
-}
-#endif /* PPC64 */
 #endif /* CONFIG_MODULES */
 
 static unsigned long find_ftrace_tramp(unsigned long ip)
@@ -437,13 +396,12 @@ int ftrace_make_nop(struct module *mod,
 }
 
 #ifdef CONFIG_MODULES
-#ifdef CONFIG_PPC64
 /*
  * Examine the existing instructions for __ftrace_make_call.
  * They should effectively be a NOP, and follow formal constraints,
  * depending on the ABI. Return false if they don't.
  */
-#ifndef CONFIG_MPROFILE_KERNEL
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 static int
 expected_nop_sequence(void *ip, ppc_inst_t op0, ppc_inst_t op1)
 {
@@ -465,7 +423,7 @@ expected_nop_sequence(void *ip, ppc_inst_t op0, ppc_inst_t op1)
 static int
 expected_nop_sequence(void *ip, ppc_inst_t op0, ppc_inst_t op1)
 {
-	/* look for patched "NOP" on ppc64 with -mprofile-kernel */
+	/* look for patched "NOP" on ppc64 with -mprofile-kernel or ppc32 */
 	if (!ppc_inst_equal(op0, ppc_inst(PPC_RAW_NOP())))
 		return 0;
 	return 1;
@@ -484,8 +442,10 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	if (copy_inst_from_kernel_nofault(op, ip))
 		return -EFAULT;
 
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	if (copy_inst_from_kernel_nofault(op + 1, ip + 4))
 		return -EFAULT;
+#endif
 
 	if (!expected_nop_sequence(ip, op[0], op[1])) {
 		pr_err("Unexpected call sequence at %p: %s %s\n",
@@ -531,58 +491,6 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	return 0;
 }
-
-#else  /* !CONFIG_PPC64: */
-static int
-__ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
-{
-	int err;
-	ppc_inst_t op;
-	u32 *ip = (u32 *)rec->ip;
-	struct module *mod = rec->arch.mod;
-	unsigned long tramp;
-
-	/* read where this goes */
-	if (copy_inst_from_kernel_nofault(&op, ip))
-		return -EFAULT;
-
-	/* It should be pointing to a nop */
-	if (!ppc_inst_equal(op,  ppc_inst(PPC_RAW_NOP()))) {
-		pr_err("Expected NOP but have %s\n", ppc_inst_as_str(op));
-		return -EINVAL;
-	}
-
-	/* If we never set up a trampoline to ftrace_caller, then bail */
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
-	if (!mod->arch.tramp || !mod->arch.tramp_regs) {
-#else
-	if (!mod->arch.tramp) {
-#endif
-		pr_err("No ftrace trampoline\n");
-		return -EINVAL;
-	}
-
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
-	if (rec->flags & FTRACE_FL_REGS)
-		tramp = mod->arch.tramp_regs;
-	else
-#endif
-		tramp = mod->arch.tramp;
-	/* create the branch to the trampoline */
-	err = create_branch(&op, ip, tramp, BRANCH_SET_LINK);
-	if (err) {
-		pr_err("REL24 out of range!\n");
-		return -EINVAL;
-	}
-
-	pr_devel("write to %lx\n", rec->ip);
-
-	if (patch_instruction(ip, op))
-		return -EPERM;
-
-	return 0;
-}
-#endif /* CONFIG_PPC64 */
 #endif /* CONFIG_MODULES */
 
 static int __ftrace_make_call_kernel(struct dyn_ftrace *rec, unsigned long addr)
