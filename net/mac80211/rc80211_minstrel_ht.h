@@ -180,7 +180,7 @@ struct minstrel_ht_sta {
 
 	/* tx flags to add for frames for this sta */
 	u32 tx_flags;
-
+	bool use_short_preamble;
 	u8 band;
 
 	u8 sample_seq;
