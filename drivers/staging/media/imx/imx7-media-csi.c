@@ -1749,13 +1749,6 @@ static int imx7_csi_notify_bound(struct v4l2_async_notifier *notifier,
 	struct imx7_csi *csi = imx7_csi_notifier_to_dev(notifier);
 	struct media_pad *sink = &csi->sd.entity.pads[IMX7_CSI_PAD_SINK];
 
-	/*
-	 * If the subdev is a video mux, it must be one of the CSI
-	 * muxes. Mark it as such via its group id.
-	 */
-	if (sd->entity.function == MEDIA_ENT_F_VID_MUX)
-		sd->grp_id = IMX_MEDIA_GRP_ID_CSI_MUX;
-
 	csi->src_sd = sd;
 
 	return v4l2_create_fwnode_links_to_pad(sd, sink, MEDIA_LNK_FL_ENABLED |
