@@ -97,6 +97,7 @@ Contents:
    sctp
    secid
    seg6-sysctl
+   skbuff
    smc-sysctl
    statistics
    strparser

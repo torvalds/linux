@@ -727,16 +727,32 @@ struct skb_shared_info {
 	skb_frag_t	frags[MAX_SKB_FRAGS];
 };
 
-/* We divide dataref into two halves.  The higher 16 bits hold references
- * to the payload part of skb->data.  The lower 16 bits hold references to
- * the entire skb->data.  A clone of a headerless skb holds the length of
- * the header in skb->hdr_len.
+/**
+ * DOC: dataref and headerless skbs
  *
- * All users must obey the rule that the skb->data reference count must be
- * greater than or equal to the payload reference count.
+ * Transport layers send out clones of payload skbs they hold for
+ * retransmissions. To allow lower layers of the stack to prepend their headers
+ * we split &skb_shared_info.dataref into two halves.
+ * The lower 16 bits count the overall number of references.
+ * The higher 16 bits indicate how many of the references are payload-only.
+ * skb_header_cloned() checks if skb is allowed to add / write the headers.
  *
- * Holding a reference to the payload part means that the user does not
- * care about modifications to the header part of skb->data.
+ * The creator of the skb (e.g. TCP) marks its skb as &sk_buff.nohdr
+ * (via __skb_header_release()). Any clone created from marked skb will get
+ * &sk_buff.hdr_len populated with the available headroom.
+ * If there's the only clone in existence it's able to modify the headroom
+ * at will. The sequence of calls inside the transport layer is::
+ *
+ *  <alloc skb>
+ *  skb_reserve()
+ *  __skb_header_release()
+ *  skb_clone()
+ *  // send the clone down the stack
+ *
+ * This is not a very generic construct and it depends on the transport layers
+ * doing the right thing. In practice there's usually only one payload-only skb.
+ * Having multiple payload-only skbs with different lengths of hdr_len is not
+ * possible. The payload-only skbs should never leave their owner.
  */
 #define SKB_DATAREF_SHIFT 16
 #define SKB_DATAREF_MASK ((1 << SKB_DATAREF_SHIFT) - 1)
@@ -2027,8 +2043,10 @@ static inline int skb_header_unclone(struct sk_buff *skb, gfp_t pri)
 }
 
 /**
- *	__skb_header_release - release reference to header
- *	@skb: buffer to operate on
+ * __skb_header_release() - allow clones to use the headroom
+ * @skb: buffer to operate on
+ *
+ * See "DOC: dataref and headerless skbs".
  */
 static inline void __skb_header_release(struct sk_buff *skb)
 {
