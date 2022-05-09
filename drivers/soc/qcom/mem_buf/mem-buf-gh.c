@@ -1145,6 +1145,14 @@ static int get_mem_buf(void *membuf_desc)
 	return 0;
 }
 
+struct gh_sgl_desc *mem_buf_get_sgl(void *__membuf)
+{
+	struct mem_buf_desc *membuf = __membuf;
+
+	return membuf->sgl_desc;
+}
+EXPORT_SYMBOL(mem_buf_get_sgl);
+
 static void mem_buf_retrieve_release(struct qcom_sg_buffer *buffer)
 {
 	sg_free_table(&buffer->sg_table);
