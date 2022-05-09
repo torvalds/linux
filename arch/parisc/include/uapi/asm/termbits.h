@@ -41,31 +41,30 @@ struct ktermios {
 };
 
 /* c_cc characters */
-#define VINTR 0
-#define VQUIT 1
-#define VERASE 2
-#define VKILL 3
-#define VEOF 4
-#define VTIME 5
-#define VMIN 6
-#define VSWTC 7
-#define VSTART 8
-#define VSTOP 9
-#define VSUSP 10
-#define VEOL 11
-#define VREPRINT 12
-#define VDISCARD 13
-#define VWERASE 14
-#define VLNEXT 15
-#define VEOL2 16
-
+#define VINTR		 0
+#define VQUIT		 1
+#define VERASE		 2
+#define VKILL		 3
+#define VEOF		 4
+#define VTIME		 5
+#define VMIN		 6
+#define VSWTC		 7
+#define VSTART		 8
+#define VSTOP		 9
+#define VSUSP		10
+#define VEOL		11
+#define VREPRINT	12
+#define VDISCARD	13
+#define VWERASE		14
+#define VLNEXT		15
+#define VEOL2		16
 
 /* c_iflag bits */
-#define IUCLC	0x00200
-#define IXON	0x00400
-#define IXOFF	0x01000
-#define IMAXBEL	0x04000
-#define IUTF8	0x08000
+#define IUCLC	0x0200
+#define IXON	0x0400
+#define IXOFF	0x1000
+#define IMAXBEL	0x4000
+#define IUTF8	0x8000
 
 /* c_oflag bits */
 #define OLCUC	0x00002
@@ -108,22 +107,22 @@ struct ktermios {
 #define HUPCL		0x00000400
 #define CLOCAL		0x00000800
 #define CBAUDEX		0x00001000
-#define    BOTHER	0x00001000
-#define    B57600	0x00001001
-#define   B115200	0x00001002
-#define   B230400	0x00001003
-#define   B460800	0x00001004
-#define   B500000	0x00001005
-#define   B576000	0x00001006
-#define   B921600	0x00001007
-#define  B1000000	0x00001008
-#define  B1152000	0x00001009
-#define  B1500000	0x0000100a
-#define  B2000000	0x0000100b
-#define  B2500000	0x0000100c
-#define  B3000000	0x0000100d
-#define  B3500000	0x0000100e
-#define  B4000000	0x0000100f
+#define BOTHER		0x00001000
+#define     B57600	0x00001001
+#define    B115200	0x00001002
+#define    B230400	0x00001003
+#define    B460800	0x00001004
+#define    B500000	0x00001005
+#define    B576000	0x00001006
+#define    B921600	0x00001007
+#define   B1000000	0x00001008
+#define   B1152000	0x00001009
+#define   B1500000	0x0000100a
+#define   B2000000	0x0000100b
+#define   B2500000	0x0000100c
+#define   B3000000	0x0000100d
+#define   B3500000	0x0000100e
+#define   B4000000	0x0000100f
 #define CIBAUD		0x100f0000		/* input baud rate */
 
 /* c_lflag bits */
