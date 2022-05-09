@@ -89,7 +89,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 		re_msg.params.pci_cfg.function = 1;
 		re_msg.params.pci_cfg.reg = 0x94;
 		re_msg.rx_len = 4;
-		re_msg.domain_id = 0;
+		re_msg.domain_id = priv->mgr->client->domain_id;
 
 		ret = peci_command(priv->mgr->client->adapter,
 				   PECI_CMD_RD_END_PT_CFG, sizeof(re_msg), &re_msg);
@@ -122,7 +122,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 		re_msg.params.pci_cfg.device = 0;
 		re_msg.params.pci_cfg.function = 2;
 		re_msg.params.pci_cfg.reg = 0xd4;
-		re_msg.domain_id = 0;
+		re_msg.domain_id = priv->mgr->client->domain_id;
 
 		ret = peci_command(priv->mgr->client->adapter,
 				   PECI_CMD_RD_END_PT_CFG, sizeof(re_msg), &re_msg);
@@ -503,8 +503,8 @@ static int peci_dimmtemp_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->gen_info = mgr->gen_info;
 
-	snprintf(priv->name, PECI_NAME_SIZE, "peci_dimmtemp.cpu%d",
-		 priv->mgr->client->addr - PECI_BASE_ADDR);
+	snprintf(priv->name, PECI_NAME_SIZE, "peci_dimmtemp.cpu%d.%d",
+		 mgr->client->addr - PECI_BASE_ADDR, mgr->client->domain_id);
 
 	priv->work_queue = alloc_ordered_workqueue(priv->name, 0);
 	if (!priv->work_queue)
