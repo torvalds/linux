@@ -4448,12 +4448,13 @@ static bool cea_db_is_vendor(const struct cea_db *db, int vendor_oui)
 		oui(data[2], data[1], data[0]) == vendor_oui;
 }
 
-static void cea_db_iter_edid_begin(const struct edid *edid, struct cea_db_iter *iter)
+static void cea_db_iter_edid_begin(const struct drm_edid *drm_edid,
+				   struct cea_db_iter *iter)
 {
 	memset(iter, 0, sizeof(*iter));
 
-	drm_edid_iter_begin(edid, &iter->edid_iter);
-	displayid_iter_edid_begin(edid, &iter->displayid_iter);
+	drm_edid_iter_begin(drm_edid ? drm_edid->edid : NULL, &iter->edid_iter);
+	displayid_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter->displayid_iter);
 }
 
 static const struct cea_db *
@@ -4675,7 +4676,7 @@ static int add_cea_modes(struct drm_connector *connector,
 	struct cea_db_iter iter;
 	int modes = 0;
 
-	cea_db_iter_edid_begin(drm_edid->edid, &iter);
+	cea_db_iter_edid_begin(drm_edid, &iter);
 	cea_db_iter_for_each(db, &iter) {
 		const u8 *hdmi = NULL, *video = NULL;
 		u8 hdmi_len = 0, video_len = 0;
@@ -4926,7 +4927,7 @@ static void drm_edid_to_eld(struct drm_connector *connector,
 	eld[DRM_ELD_PRODUCT_CODE0] = drm_edid->edid->prod_code[0];
 	eld[DRM_ELD_PRODUCT_CODE1] = drm_edid->edid->prod_code[1];
 
-	cea_db_iter_edid_begin(drm_edid->edid, &iter);
+	cea_db_iter_edid_begin(drm_edid, &iter);
 	cea_db_iter_for_each(db, &iter) {
 		const u8 *data = cea_db_data(db);
 		int len = cea_db_payload_len(db);
@@ -4979,7 +4980,7 @@ static int _drm_edid_to_sad(const struct drm_edid *drm_edid,
 	struct cea_db_iter iter;
 	int count = 0;
 
-	cea_db_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter);
+	cea_db_iter_edid_begin(drm_edid, &iter);
 	cea_db_iter_for_each(db, &iter) {
 		if (cea_db_tag(db) == CTA_DB_AUDIO) {
 			int j;
@@ -5032,7 +5033,7 @@ static int _drm_edid_to_speaker_allocation(const struct drm_edid *drm_edid,
 	struct cea_db_iter iter;
 	int count = 0;
 
-	cea_db_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter);
+	cea_db_iter_edid_begin(drm_edid, &iter);
 	cea_db_iter_for_each(db, &iter) {
 		if (cea_db_tag(db) == CTA_DB_SPEAKER &&
 		    cea_db_payload_len(db) == 3) {
@@ -5123,7 +5124,7 @@ static bool _drm_detect_hdmi_monitor(const struct drm_edid *drm_edid)
 	 * Because HDMI identifier is in Vendor Specific Block,
 	 * search it from all data blocks of CEA extension.
 	 */
-	cea_db_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter);
+	cea_db_iter_edid_begin(drm_edid, &iter);
 	cea_db_iter_for_each(db, &iter) {
 		if (cea_db_is_hdmi_vsdb(db)) {
 			hdmi = true;
@@ -5177,7 +5178,7 @@ static bool _drm_detect_monitor_audio(const struct drm_edid *drm_edid)
 		goto end;
 	}
 
-	cea_db_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter);
+	cea_db_iter_edid_begin(drm_edid, &iter);
 	cea_db_iter_for_each(db, &iter) {
 		if (cea_db_tag(db) == CTA_DB_AUDIO) {
 			const u8 *data = cea_db_data(db);
@@ -5536,7 +5537,7 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 	}
 	drm_edid_iter_end(&edid_iter);
 
-	cea_db_iter_edid_begin(drm_edid->edid, &iter);
+	cea_db_iter_edid_begin(drm_edid, &iter);
 	cea_db_iter_for_each(db, &iter) {
 		/* FIXME: convert parsers to use struct cea_db */
 		const u8 *data = (const u8 *)db;
