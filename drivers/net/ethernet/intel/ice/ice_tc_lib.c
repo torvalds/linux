@@ -993,7 +993,9 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 		n_proto_key = ntohs(match.key->n_proto);
 		n_proto_mask = ntohs(match.mask->n_proto);
 
-		if (n_proto_key == ETH_P_ALL || n_proto_key == 0) {
+		if (n_proto_key == ETH_P_ALL || n_proto_key == 0 ||
+		    fltr->tunnel_type == TNL_GTPU ||
+		    fltr->tunnel_type == TNL_GTPC) {
 			n_proto_key = 0;
 			n_proto_mask = 0;
 		} else {
