@@ -133,8 +133,8 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 	}
 
 	ua->base = devm_memremap(&pdev->dev, res->start, resource_size(res), MEMREMAP_WB);
-	if (!ua->base)
-		return -ENOMEM;
+	if (IS_ERR(ua->base))
+		return PTR_ERR(ua->base);
 
 	ret = guid_parse(UCSI_DSM_UUID, &ua->guid);
 	if (ret)
