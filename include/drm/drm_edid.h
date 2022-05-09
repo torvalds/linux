@@ -28,6 +28,7 @@
 #include <drm/drm_mode.h>
 
 struct drm_device;
+struct drm_edid;
 struct i2c_adapter;
 
 #define EDID_LENGTH 128
@@ -578,8 +579,9 @@ struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 struct drm_display_mode *
 drm_display_mode_from_cea_vic(struct drm_device *dev,
 			      u8 video_code);
-const u8 *drm_find_edid_extension(const struct edid *edid,
-				  int ext_id, int *ext_index);
 
+/* Interface based on struct drm_edid */
+const u8 *drm_find_edid_extension(const struct drm_edid *drm_edid,
+				  int ext_id, int *ext_index);
 
 #endif /* __DRM_EDID_H__ */

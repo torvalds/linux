@@ -3563,10 +3563,13 @@ static int add_detailed_modes(struct drm_connector *connector,
 
 /*
  * Search EDID for CEA extension block.
+ *
+ * FIXME: Prefer not returning pointers to raw EDID data.
  */
-const u8 *drm_find_edid_extension(const struct edid *edid,
+const u8 *drm_find_edid_extension(const struct drm_edid *drm_edid,
 				  int ext_id, int *ext_index)
 {
+	const struct edid *edid = drm_edid ? drm_edid->edid : NULL;
 	const u8 *edid_ext = NULL;
 	int i;
 
@@ -3598,11 +3601,11 @@ static bool drm_edid_has_cta_extension(const struct drm_edid *drm_edid)
 	bool found = false;
 
 	/* Look for a top level CEA extension block */
-	if (drm_find_edid_extension(drm_edid->edid, CEA_EXT, &ext_index))
+	if (drm_find_edid_extension(drm_edid, CEA_EXT, &ext_index))
 		return true;
 
 	/* CEA blocks can also be found embedded in a DisplayID block */
-	displayid_iter_edid_begin(drm_edid->edid, &iter);
+	displayid_iter_edid_begin(drm_edid, &iter);
 	displayid_iter_for_each(block, &iter) {
 		if (block->tag == DATA_BLOCK_CTA) {
 			found = true;
@@ -4454,7 +4457,7 @@ static void cea_db_iter_edid_begin(const struct drm_edid *drm_edid,
 	memset(iter, 0, sizeof(*iter));
 
 	drm_edid_iter_begin(drm_edid, &iter->edid_iter);
-	displayid_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter->displayid_iter);
+	displayid_iter_edid_begin(drm_edid, &iter->displayid_iter);
 }
 
 static const struct cea_db *
@@ -5657,7 +5660,7 @@ static void drm_update_mso(struct drm_connector *connector,
 	const struct displayid_block *block;
 	struct displayid_iter iter;
 
-	displayid_iter_edid_begin(drm_edid->edid, &iter);
+	displayid_iter_edid_begin(drm_edid, &iter);
 	displayid_iter_for_each(block, &iter) {
 		if (block->tag == DATA_BLOCK_2_VENDOR_SPECIFIC)
 			drm_parse_vesa_mso_data(connector, block);
@@ -5872,7 +5875,7 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
 	struct displayid_iter iter;
 	int num_modes = 0;
 
-	displayid_iter_edid_begin(drm_edid->edid, &iter);
+	displayid_iter_edid_begin(drm_edid, &iter);
 	displayid_iter_for_each(block, &iter) {
 		if (block->tag == DATA_BLOCK_TYPE_1_DETAILED_TIMING ||
 		    block->tag == DATA_BLOCK_2_TYPE_7_DETAILED_TIMING)
@@ -6372,7 +6375,7 @@ static void _drm_update_tile_info(struct drm_connector *connector,
 
 	connector->has_tile = false;
 
-	displayid_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter);
+	displayid_iter_edid_begin(drm_edid, &iter);
 	displayid_iter_for_each(block, &iter) {
 		if (block->tag == DATA_BLOCK_TILED_DISPLAY)
 			drm_parse_tiled_block(connector, block);
