@@ -2,19 +2,117 @@
 #include "qcom-msm8974.dtsi"
 #include "qcom-pm8841.dtsi"
 #include "qcom-pm8941.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 / {
-	model = "Qualcomm APQ8074 Dragonboard";
-	compatible = "qcom,apq8074-dragonboard", "qcom,apq8074";
-
 	aliases {
 		serial0 = &blsp1_uart2;
-		usid0 = &pm8941_0;
-		usid4 = &pm8841_0;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys_pin_a>;
+
+		volume-down {
+			label = "volume_down";
+			gpios = <&pm8941_gpios 2 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+
+		camera-snapshot {
+			label = "camera_snapshot";
+			gpios = <&pm8941_gpios 3 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_CAMERA>;
+		};
+
+		camera-focus {
+			label = "camera_focus";
+			gpios = <&pm8941_gpios 4 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_CAMERA_FOCUS>;
+		};
+
+		volume-up {
+			label = "volume_up";
+			gpios = <&pm8941_gpios 5 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		ramoops@3e8e0000 {
+			compatible = "ramoops";
+			reg = <0x3e8e0000 0x200000>;
+
+			console-size = <0x100000>;
+			record-size = <0x10000>;
+			ftrace-size = <0x10000>;
+			pmsg-size = <0x80000>;
+		};
+	};
+};
+
+&blsp1_i2c2 {
+	status = "okay";
+	clock-frequency = <355000>;
+
+	synaptics@2c {
+		compatible = "syna,rmi4-i2c";
+		reg = <0x2c>;
+
+		interrupts-extended = <&tlmm 61 IRQ_TYPE_EDGE_FALLING>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdd-supply = <&pm8941_l22>;
+		vio-supply = <&pm8941_lvs3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_pin>;
+
+		syna,startup-delay-ms = <10>;
+
+		rmi4-f01@1 {
+			reg = <0x1>;
+			syna,nosleep-mode = <1>;
+		};
+
+		rmi4-f11@11 {
+			reg = <0x11>;
+			touchscreen-inverted-x;
+			syna,sensor-type = <1>;
+		};
+	};
+};
+
+&blsp1_i2c6 {
+	status = "okay";
+	clock-frequency = <355000>;
+
+	nfc@28 {
+		compatible = "nxp,pn544-i2c";
+		reg = <0x28>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <59 IRQ_TYPE_EDGE_RISING>;
+
+		enable-gpios = <&pm8941_gpios 23 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&tlmm 77 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -22,38 +120,67 @@
 	status = "okay";
 };
 
+&blsp2_dma {
+	qcom,controlled-remotely;
+};
+
 &blsp2_i2c5 {
 	status = "okay";
-	clock-frequency = <200000>;
+	clock-frequency = <355000>;
 
-	eeprom: eeprom@52 {
-		compatible = "atmel,24c128";
-		reg = <0x52>;
-		pagesize = <32>;
-		read-only;
-	};
+	/* sii8334 MHL HDMI bridge */
 };
 
 &otg {
 	status = "okay";
 
-	phys = <&usb_hs2_phy>;
-	phy-select = <&tcsr 0xb000 1>;
+	phys = <&usb_hs1_phy>;
+	phy-select = <&tcsr 0xb000 0>;
 	extcon = <&smbb>, <&usb_id>;
 	vbus-supply = <&chg_otg>;
+
 	hnp-disable;
 	srp-disable;
 	adp-disable;
 
 	ulpi {
-		phy@b {
+		phy@a {
 			status = "okay";
-			v3p3-supply = <&pm8941_l24>;
+
 			v1p8-supply = <&pm8941_l6>;
+			v3p3-supply = <&pm8941_l24>;
+
 			extcon = <&smbb>;
-			qcom,init-seq = /bits/ 8 <0x1 0x63>;
+			qcom,init-seq = /bits/ 8 <0x1 0x64>;
 		};
 	};
+};
+
+&pm8941_coincell {
+	status = "okay";
+	qcom,rset-ohms = <2100>;
+	qcom,vset-millivolts = <3000>;
+};
+
+&pm8941_gpios {
+	gpio_keys_pin_a: gpio-keys-active {
+		pins = "gpio2", "gpio3", "gpio4", "gpio5";
+		function = "normal";
+
+		bias-pull-up;
+		power-source = <PM8941_GPIO_S3>;
+	};
+};
+
+&pm8941_wled {
+	status = "okay";
+
+	qcom,cs-out;
+	qcom,current-limit = <20>;
+	qcom,current-boost-limit = <805>;
+	qcom,switching-freq = <1600>;
+	qcom,ovp = <29>;
+	qcom,num-strings = <2>;
 };
 
 &rpm_requests {
@@ -89,7 +216,9 @@
 		vdd_l4_l11-supply = <&pm8941_s1>;
 		vdd_l5_l7-supply = <&pm8941_s2>;
 		vdd_l6_l12_l14_l15-supply = <&pm8941_s2>;
-		vin_5vs-supply = <&pm8941_5v>;
+		vdd_l9_l10_l17_l22-supply = <&vreg_boost>;
+		vdd_l13_l20_l23_l24-supply = <&vreg_boost>;
+		vdd_l21-supply = <&vreg_boost>;
 
 		pm8941_s1: s1 {
 			regulator-min-microvolt = <1300000>;
@@ -111,6 +240,11 @@
 			regulator-boot-on;
 		};
 
+		pm8941_s4: s4 {
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+		};
+
 		pm8941_l1: l1 {
 			regulator-min-microvolt = <1225000>;
 			regulator-max-microvolt = <1225000>;
@@ -124,8 +258,8 @@
 		};
 
 		pm8941_l3: l3 {
-			regulator-min-microvolt = <1225000>;
-			regulator-max-microvolt = <1225000>;
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
 		};
 
 		pm8941_l4: l4 {
@@ -160,15 +294,9 @@
 			regulator-max-microvolt = <2950000>;
 		};
 
-		pm8941_l10: l10 {
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			regulator-always-on;
-		};
-
 		pm8941_l11: l11 {
 			regulator-min-microvolt = <1300000>;
-			regulator-max-microvolt = <1300000>;
+			regulator-max-microvolt = <1350000>;
 		};
 
 		pm8941_l12: l12 {
@@ -212,7 +340,6 @@
 		pm8941_l19: l19 {
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
 		};
 
 		pm8941_l20: l20 {
@@ -235,8 +362,8 @@
 		};
 
 		pm8941_l23: l23 {
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3000000>;
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
 		};
 
 		pm8941_l24: l24 {
@@ -244,6 +371,8 @@
 			regulator-max-microvolt = <3075000>;
 			regulator-boot-on;
 		};
+
+		pm8941_lvs3: lvs3 {};
 	};
 };
 
@@ -261,16 +390,36 @@
 &sdhc_2 {
 	status = "okay";
 
-	cd-gpios = <&tlmm 62 0x1>;
 	vmmc-supply = <&pm8941_l21>;
 	vqmmc-supply = <&pm8941_l13>;
+
+	cd-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;
 
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc2_on>;
 	pinctrl-1 = <&sdc2_off>;
 };
 
+&smbb {
+	qcom,fast-charge-safe-current = <1500000>;
+	qcom,fast-charge-current-limit = <1500000>;
+	qcom,dc-current-limit = <1800000>;
+	qcom,fast-charge-safe-voltage = <4400000>;
+	qcom,fast-charge-high-threshold-voltage = <4350000>;
+	qcom,fast-charge-low-threshold-voltage = <3400000>;
+	qcom,auto-recharge-threshold-voltage = <4200000>;
+	qcom,minimum-input-voltage = <4300000>;
+};
+
 &tlmm {
+	ts_int_pin: touch-int {
+		pins = "gpio61";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
+
 	sdc1_on: sdc1-on {
 		clk {
 			pins = "sdc1_clk";
@@ -285,7 +434,7 @@
 		};
 	};
 
-	sdc2_on: sdc2-on {
+	sdc2_on: sdc-on {
 		clk {
 			pins = "sdc2_clk";
 			drive-strength = <10>;

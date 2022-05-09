@@ -79,7 +79,7 @@
 			status = "okay";
 		};
 
-		dma@7884000 {
+		dma-controller@7884000 {
 			status = "okay";
 		};
 
@@ -89,7 +89,7 @@
 			status = "okay";
 			cs-gpios = <&tlmm 12 0>;
 
-			m25p80@0 {
+			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
 				reg = <0>;
