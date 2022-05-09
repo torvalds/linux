@@ -314,6 +314,11 @@
 			op-sink-microwatt = <10000000>;
 		};
 	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
+	};
 };
 
 &i2c1 {
@@ -394,6 +399,11 @@
 					PDO_PPS_APDO(3000, 11000, 3000)>;
 			op-sink-microwatt = <10000000>;
 		};
+	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
 	};
 };
 
@@ -476,6 +486,11 @@
 			op-sink-microwatt = <10000000>;
 		};
 	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
+	};
 };
 
 &i2c3 {
@@ -556,6 +571,11 @@
 					PDO_PPS_APDO(3000, 11000, 3000)>;
 			op-sink-microwatt = <10000000>;
 		};
+	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
 	};
 };
 
@@ -638,6 +658,11 @@
 			op-sink-microwatt = <10000000>;
 		};
 	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
+	};
 };
 
 &i2c5 {
@@ -718,6 +743,11 @@
 					PDO_PPS_APDO(3000, 11000, 3000)>;
 			op-sink-microwatt = <10000000>;
 		};
+	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
 	};
 };
 
