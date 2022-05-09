@@ -530,6 +530,7 @@ struct intel_pt_cache_entry {
 	u64				byte_cnt;
 	enum intel_pt_insn_op		op;
 	enum intel_pt_insn_branch	branch;
+	bool				emulated_ptwrite;
 	int				length;
 	int32_t				rel;
 	char				insn[INTEL_PT_INSN_BUF_SZ];
@@ -616,6 +617,7 @@ static int intel_pt_cache_add(struct dso *dso, struct machine *machine,
 	e->byte_cnt = byte_cnt;
 	e->op = intel_pt_insn->op;
 	e->branch = intel_pt_insn->branch;
+	e->emulated_ptwrite = intel_pt_insn->emulated_ptwrite;
 	e->length = intel_pt_insn->length;
 	e->rel = intel_pt_insn->rel;
 	memcpy(e->insn, intel_pt_insn->buf, INTEL_PT_INSN_BUF_SZ);
@@ -702,6 +704,28 @@ static int intel_pt_get_guest(struct intel_pt_queue *ptq)
 	return 0;
 }
 
+static inline bool intel_pt_jmp_16(struct intel_pt_insn *intel_pt_insn)
+{
+	return intel_pt_insn->rel == 16 && intel_pt_insn->branch == INTEL_PT_BR_UNCONDITIONAL;
+}
+
+#define PTWRITE_MAGIC		"\x0f\x0bperf,ptwrite  "
+#define PTWRITE_MAGIC_LEN	16
+
+static bool intel_pt_emulated_ptwrite(struct dso *dso, struct machine *machine, u64 offset)
+{
+	unsigned char buf[PTWRITE_MAGIC_LEN];
+	ssize_t len;
+
+	len = dso__data_read_offset(dso, machine, offset, buf, PTWRITE_MAGIC_LEN);
+	if (len == PTWRITE_MAGIC_LEN && !memcmp(buf, PTWRITE_MAGIC, PTWRITE_MAGIC_LEN)) {
+		intel_pt_log("Emulated ptwrite signature found\n");
+		return true;
+	}
+	intel_pt_log("Emulated ptwrite signature not found\n");
+	return false;
+}
+
 static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 				   uint64_t *insn_cnt_ptr, uint64_t *ip,
 				   uint64_t to_ip, uint64_t max_insn_cnt,
@@ -764,6 +788,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 				*ip += e->byte_cnt;
 				intel_pt_insn->op = e->op;
 				intel_pt_insn->branch = e->branch;
+				intel_pt_insn->emulated_ptwrite = e->emulated_ptwrite;
 				intel_pt_insn->length = e->length;
 				intel_pt_insn->rel = e->rel;
 				memcpy(intel_pt_insn->buf, e->insn,
@@ -795,8 +820,18 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 
 			insn_cnt += 1;
 
-			if (intel_pt_insn->branch != INTEL_PT_BR_NO_BRANCH)
+			if (intel_pt_insn->branch != INTEL_PT_BR_NO_BRANCH) {
+				bool eptw;
+				u64 offs;
+
+				if (!intel_pt_jmp_16(intel_pt_insn))
+					goto out;
+				/* Check for emulated ptwrite */
+				offs = offset + intel_pt_insn->length;
+				eptw = intel_pt_emulated_ptwrite(al.map->dso, machine, offs);
+				intel_pt_insn->emulated_ptwrite = eptw;
 				goto out;
+			}
 
 			if (max_insn_cnt && insn_cnt >= max_insn_cnt)
 				goto out_no_cache;

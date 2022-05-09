@@ -468,6 +468,8 @@ ptw		Enable PTWRITE packets which are produced when a ptwrite instruction
 		which contains "1" if the feature is supported and
 		"0" otherwise.
 
+		As an alternative, refer to "Emulated PTWRITE" further below.
+
 fup_on_ptw	Enable a FUP packet to follow the PTWRITE packet.  The FUP packet
 		provides the address of the ptwrite instruction.  In the absence of
 		fup_on_ptw, the decoder will use the address of the previous branch
@@ -1469,6 +1471,92 @@ TNT packets are disabled using the "notnt" config term. e.g.
 
 In that case the --itrace q option is forced because walking executable code
 to reconstruct the control flow is not possible.
+
+
+Emulated PTWRITE
+----------------
+
+Later perf tools support a method to emulate the ptwrite instruction, which
+can be useful if hardware does not support the ptwrite instruction.
+
+Instead of using the ptwrite instruction, a function is used which produces
+a trace that encodes the payload data into TNT packets.  Here is an example
+of the function:
+
+ #include <stdint.h>
+
+ void perf_emulate_ptwrite(uint64_t x)
+ __attribute__((externally_visible, noipa, no_instrument_function, naked));
+
+ #define PERF_EMULATE_PTWRITE_8_BITS \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"        \
+                 "1: shl %rax\n"     \
+                 "   jc 1f\n"
+
+ /* Undefined instruction */
+ #define PERF_EMULATE_PTWRITE_UD2        ".byte 0x0f, 0x0b\n"
+
+ #define PERF_EMULATE_PTWRITE_MAGIC        PERF_EMULATE_PTWRITE_UD2 ".ascii \"perf,ptwrite  \"\n"
+
+ void perf_emulate_ptwrite(uint64_t x __attribute__ ((__unused__)))
+ {
+          /* Assumes SysV ABI : x passed in rdi */
+         __asm__ volatile (
+                 "jmp 1f\n"
+                 PERF_EMULATE_PTWRITE_MAGIC
+                 "1: mov %rdi, %rax\n"
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 PERF_EMULATE_PTWRITE_8_BITS
+                 "1: ret\n"
+         );
+ }
+
+For example, a test program with the function above:
+
+ #include <stdio.h>
+ #include <stdint.h>
+ #include <stdlib.h>
+
+ #include "perf_emulate_ptwrite.h"
+
+ int main(int argc, char *argv[])
+ {
+         uint64_t x = 0;
+
+         if (argc > 1)
+                 x = strtoull(argv[1], NULL, 0);
+         perf_emulate_ptwrite(x);
+         return 0;
+ }
+
+Can be compiled and traced:
+
+ $ gcc -Wall -Wextra -O3 -g -o eg_ptw eg_ptw.c
+ $ perf record -e intel_pt//u ./eg_ptw 0x1234567890abcdef
+ [ perf record: Woken up 1 times to write data ]
+ [ perf record: Captured and wrote 0.017 MB perf.data ]
+ $ perf script --itrace=ew
+           eg_ptw 19875 [007]  8061.235912:     ptwrite:  IP: 0 payload: 0x1234567890abcdef      55701249a196 perf_emulate_ptwrite+0x16 (/home/user/eg_ptw)
+ $
 
 
 EXAMPLE
