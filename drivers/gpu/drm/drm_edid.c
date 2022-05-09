@@ -4972,24 +4972,14 @@ static void drm_edid_to_eld(struct drm_connector *connector,
 		      drm_eld_size(eld), total_sad_count);
 }
 
-/**
- * drm_edid_to_sad - extracts SADs from EDID
- * @edid: EDID to parse
- * @sads: pointer that will be set to the extracted SADs
- *
- * Looks for CEA EDID block and extracts SADs (Short Audio Descriptors) from it.
- *
- * Note: The returned pointer needs to be freed using kfree().
- *
- * Return: The number of found SADs or negative number on error.
- */
-int drm_edid_to_sad(const struct edid *edid, struct cea_sad **sads)
+static int _drm_edid_to_sad(const struct drm_edid *drm_edid,
+			    struct cea_sad **sads)
 {
 	const struct cea_db *db;
 	struct cea_db_iter iter;
 	int count = 0;
 
-	cea_db_iter_edid_begin(edid, &iter);
+	cea_db_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter);
 	cea_db_iter_for_each(db, &iter) {
 		if (cea_db_tag(db) == CTA_DB_AUDIO) {
 			int j;
@@ -5014,6 +5004,24 @@ int drm_edid_to_sad(const struct edid *edid, struct cea_sad **sads)
 	DRM_DEBUG_KMS("Found %d Short Audio Descriptors\n", count);
 
 	return count;
+}
+
+/**
+ * drm_edid_to_sad - extracts SADs from EDID
+ * @edid: EDID to parse
+ * @sads: pointer that will be set to the extracted SADs
+ *
+ * Looks for CEA EDID block and extracts SADs (Short Audio Descriptors) from it.
+ *
+ * Note: The returned pointer needs to be freed using kfree().
+ *
+ * Return: The number of found SADs or negative number on error.
+ */
+int drm_edid_to_sad(const struct edid *edid, struct cea_sad **sads)
+{
+	struct drm_edid drm_edid;
+
+	return _drm_edid_to_sad(drm_edid_legacy_init(&drm_edid, edid), sads);
 }
 EXPORT_SYMBOL(drm_edid_to_sad);
 
