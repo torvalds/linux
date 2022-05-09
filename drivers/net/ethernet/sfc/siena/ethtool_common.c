@@ -824,7 +824,8 @@ int efx_ethtool_get_rxnfc(struct net_device *net_dev,
 
 		mutex_lock(&efx->rss_lock);
 		if (info->flow_type & FLOW_RSS && info->rss_context) {
-			ctx = efx_find_rss_context_entry(efx, info->rss_context);
+			ctx = efx_siena_find_rss_context_entry(efx,
+							info->rss_context);
 			if (!ctx) {
 				rc = -ENOENT;
 				goto out_unlock;
@@ -1213,7 +1214,7 @@ int efx_ethtool_get_rxfh_context(struct net_device *net_dev, u32 *indir,
 		return -EOPNOTSUPP;
 
 	mutex_lock(&efx->rss_lock);
-	ctx = efx_find_rss_context_entry(efx, rss_context);
+	ctx = efx_siena_find_rss_context_entry(efx, rss_context);
 	if (!ctx) {
 		rc = -ENOENT;
 		goto out_unlock;
@@ -1257,18 +1258,18 @@ int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
 			rc = -EINVAL;
 			goto out_unlock;
 		}
-		ctx = efx_alloc_rss_context_entry(efx);
+		ctx = efx_siena_alloc_rss_context_entry(efx);
 		if (!ctx) {
 			rc = -ENOMEM;
 			goto out_unlock;
 		}
 		ctx->context_id = EFX_MCDI_RSS_CONTEXT_INVALID;
 		/* Initialise indir table and key to defaults */
-		efx_set_default_rx_indir_table(efx, ctx);
+		efx_siena_set_default_rx_indir_table(efx, ctx);
 		netdev_rss_key_fill(ctx->rx_hash_key, sizeof(ctx->rx_hash_key));
 		allocated = true;
 	} else {
-		ctx = efx_find_rss_context_entry(efx, *rss_context);
+		ctx = efx_siena_find_rss_context_entry(efx, *rss_context);
 		if (!ctx) {
 			rc = -ENOENT;
 			goto out_unlock;
@@ -1279,7 +1280,7 @@ int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
 		/* delete this context */
 		rc = efx->type->rx_push_rss_context_config(efx, ctx, NULL, NULL);
 		if (!rc)
-			efx_free_rss_context_entry(ctx);
+			efx_siena_free_rss_context_entry(ctx);
 		goto out_unlock;
 	}
 
@@ -1290,7 +1291,7 @@ int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
 
 	rc = efx->type->rx_push_rss_context_config(efx, ctx, indir, key);
 	if (rc && allocated)
-		efx_free_rss_context_entry(ctx);
+		efx_siena_free_rss_context_entry(ctx);
 	else
 		*rss_context = ctx->user_id;
 out_unlock:

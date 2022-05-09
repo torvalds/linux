@@ -41,14 +41,6 @@ static inline u8 *efx_tx_get_copy_buffer(struct efx_tx_queue *tx_queue,
 	return (u8 *)page_buf->addr + offset;
 }
 
-u8 *efx_tx_get_copy_buffer_limited(struct efx_tx_queue *tx_queue,
-				   struct efx_tx_buffer *buffer, size_t len)
-{
-	if (len > EFX_TX_CB_SIZE)
-		return NULL;
-	return efx_tx_get_copy_buffer(tx_queue, buffer);
-}
-
 static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 {
 	/* We need to consider all queues that the net core sees as one */
@@ -164,7 +156,7 @@ netdev_tx_t __efx_siena_enqueue_skb(struct efx_tx_queue *tx_queue,
 	 * size limit.
 	 */
 	if (segments) {
-		rc = efx_tx_tso_fallback(tx_queue, skb);
+		rc = efx_siena_tx_tso_fallback(tx_queue, skb);
 		tx_queue->tso_fallbacks++;
 		if (rc == 0)
 			return 0;
@@ -178,7 +170,7 @@ netdev_tx_t __efx_siena_enqueue_skb(struct efx_tx_queue *tx_queue,
 	}
 
 	/* Map for DMA and create descriptors if we haven't done so already. */
-	if (!data_mapped && (efx_tx_map_data(tx_queue, skb, segments)))
+	if (!data_mapped && (efx_siena_tx_map_data(tx_queue, skb, segments)))
 		goto err;
 
 	efx_tx_maybe_stop_queue(tx_queue);
@@ -201,7 +193,7 @@ netdev_tx_t __efx_siena_enqueue_skb(struct efx_tx_queue *tx_queue,
 
 
 err:
-	efx_enqueue_unwind(tx_queue, old_insert_count);
+	efx_siena_enqueue_unwind(tx_queue, old_insert_count);
 	dev_kfree_skb_any(skb);
 
 	/* If we're not expecting another transmit and we had something to push
@@ -285,7 +277,7 @@ int efx_siena_xdp_tx_buffers(struct efx_nic *efx, int n, struct xdp_frame **xdpf
 			break;
 
 		/*  Create descriptor and set up for unmapping DMA. */
-		tx_buffer = efx_tx_map_chunk(tx_queue, dma_addr, len);
+		tx_buffer = efx_siena_tx_map_chunk(tx_queue, dma_addr, len);
 		tx_buffer->xdpf = xdpf;
 		tx_buffer->flags = EFX_TX_BUF_XDP |
 				   EFX_TX_BUF_MAP_SINGLE;

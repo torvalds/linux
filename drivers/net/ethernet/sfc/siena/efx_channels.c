@@ -138,7 +138,7 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 	int n_xdp_tx;
 	int n_xdp_ev;
 
-	if (efx_separate_tx_channels)
+	if (efx_siena_separate_tx_channels)
 		n_channels *= 2;
 	n_channels += extra_channels;
 
@@ -220,7 +220,7 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 	/* Ignore XDP tx channels when creating rx channels. */
 	n_channels -= efx->n_xdp_channels;
 
-	if (efx_separate_tx_channels) {
+	if (efx_siena_separate_tx_channels) {
 		efx->n_tx_channels =
 			min(max(n_channels / 2, 1U),
 			    efx->max_tx_channels);
@@ -321,7 +321,7 @@ int efx_siena_probe_interrupts(struct efx_nic *efx)
 
 	/* Assume legacy interrupts */
 	if (efx->interrupt_mode == EFX_INT_MODE_LEGACY) {
-		efx->n_channels = 1 + (efx_separate_tx_channels ? 1 : 0);
+		efx->n_channels = 1 + (efx_siena_separate_tx_channels ? 1 : 0);
 		efx->n_rx_channels = 1;
 		efx->n_tx_channels = 1;
 		efx->n_xdp_channels = 0;
@@ -521,7 +521,8 @@ static void efx_filter_rfs_expire(struct work_struct *data)
 	channel = container_of(dwork, struct efx_channel, filter_work);
 	time = jiffies - channel->rfs_last_expiry;
 	quota = channel->rfs_filter_count * time / (30 * HZ);
-	if (quota >= 20 && __efx_filter_rfs_expire(channel, min(channel->rfs_filter_count, quota)))
+	if (quota >= 20 && __efx_siena_filter_rfs_expire(channel,
+					min(channel->rfs_filter_count, quota)))
 		channel->rfs_last_expiry += time;
 	/* Ensure we do more work eventually even if NAPI poll is not happening */
 	schedule_delayed_work(dwork, 30 * HZ);
@@ -558,7 +559,7 @@ static struct efx_channel *efx_alloc_channel(struct efx_nic *efx, int i)
 
 	rx_queue = &channel->rx_queue;
 	rx_queue->efx = efx;
-	timer_setup(&rx_queue->slow_fill, efx_rx_slow_fill, 0);
+	timer_setup(&rx_queue->slow_fill, efx_siena_rx_slow_fill, 0);
 
 	return channel;
 }
@@ -631,7 +632,7 @@ struct efx_channel *efx_copy_channel(const struct efx_channel *old_channel)
 	rx_queue = &channel->rx_queue;
 	rx_queue->buffer = NULL;
 	memset(&rx_queue->rxd, 0, sizeof(rx_queue->rxd));
-	timer_setup(&rx_queue->slow_fill, efx_rx_slow_fill, 0);
+	timer_setup(&rx_queue->slow_fill, efx_siena_rx_slow_fill, 0);
 #ifdef CONFIG_RFS_ACCEL
 	INIT_DELAYED_WORK(&channel->filter_work, efx_filter_rfs_expire);
 #endif
@@ -657,13 +658,13 @@ static int efx_probe_channel(struct efx_channel *channel)
 		goto fail;
 
 	efx_for_each_channel_tx_queue(tx_queue, channel) {
-		rc = efx_probe_tx_queue(tx_queue);
+		rc = efx_siena_probe_tx_queue(tx_queue);
 		if (rc)
 			goto fail;
 	}
 
 	efx_for_each_channel_rx_queue(rx_queue, channel) {
-		rc = efx_probe_rx_queue(rx_queue);
+		rc = efx_siena_probe_rx_queue(rx_queue);
 		if (rc)
 			goto fail;
 	}
@@ -751,9 +752,9 @@ void efx_siena_remove_channel(struct efx_channel *channel)
 		  "destroy chan %d\n", channel->channel);
 
 	efx_for_each_channel_rx_queue(rx_queue, channel)
-		efx_remove_rx_queue(rx_queue);
+		efx_siena_remove_rx_queue(rx_queue);
 	efx_for_each_channel_tx_queue(tx_queue, channel)
-		efx_remove_tx_queue(tx_queue);
+		efx_siena_remove_tx_queue(tx_queue);
 	efx_remove_eventq(channel);
 	channel->type->post_remove(channel);
 }
@@ -963,7 +964,7 @@ int efx_siena_set_channels(struct efx_nic *efx)
 	int rc;
 
 	efx->tx_channel_offset =
-		efx_separate_tx_channels ?
+		efx_siena_separate_tx_channels ?
 		efx->n_channels - efx->n_tx_channels : 0;
 
 	if (efx->xdp_tx_queue_count) {
@@ -1130,15 +1131,15 @@ void efx_siena_start_channels(struct efx_nic *efx)
 
 	efx_for_each_channel_rev(channel, efx) {
 		efx_for_each_channel_tx_queue(tx_queue, channel) {
-			efx_init_tx_queue(tx_queue);
+			efx_siena_init_tx_queue(tx_queue);
 			atomic_inc(&efx->active_queues);
 		}
 
 		efx_for_each_channel_rx_queue(rx_queue, channel) {
-			efx_init_rx_queue(rx_queue);
+			efx_siena_init_rx_queue(rx_queue);
 			atomic_inc(&efx->active_queues);
 			efx_siena_stop_eventq(channel);
-			efx_fast_push_rx_descriptors(rx_queue, false);
+			efx_siena_fast_push_rx_descriptors(rx_queue, false);
 			efx_siena_start_eventq(channel);
 		}
 
@@ -1184,9 +1185,9 @@ void efx_siena_stop_channels(struct efx_nic *efx)
 
 	efx_for_each_channel(channel, efx) {
 		efx_for_each_channel_rx_queue(rx_queue, channel)
-			efx_fini_rx_queue(rx_queue);
+			efx_siena_fini_rx_queue(rx_queue);
 		efx_for_each_channel_tx_queue(tx_queue, channel)
-			efx_fini_tx_queue(tx_queue);
+			efx_siena_fini_tx_queue(tx_queue);
 	}
 }
 
@@ -1228,7 +1229,7 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 			efx_channel_get_rx_queue(channel);
 
 		efx_rx_flush_packet(channel);
-		efx_fast_push_rx_descriptors(rx_queue, true);
+		efx_siena_fast_push_rx_descriptors(rx_queue, true);
 	}
 
 	/* Update BQL */

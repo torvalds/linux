@@ -1160,7 +1160,7 @@ static void efx_farch_handle_generated_event(struct efx_channel *channel,
 		/* The queue must be empty, so we won't receive any rx
 		 * events, so efx_process_channel() won't refill the
 		 * queue. Refill it here */
-		efx_fast_push_rx_descriptors(rx_queue, true);
+		efx_siena_fast_push_rx_descriptors(rx_queue, true);
 	} else if (rx_queue && magic == EFX_CHANNEL_MAGIC_RX_DRAIN(rx_queue)) {
 		efx_farch_handle_drain_event(channel);
 	} else if (code == _EFX_CHANNEL_MAGIC_TX_DRAIN) {
@@ -2925,13 +2925,14 @@ bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 			 */
 			arfs_id = 0;
 		} else {
-			rule = efx_rps_hash_find(efx, &spec);
+			rule = efx_siena_rps_hash_find(efx, &spec);
 			if (!rule) {
 				/* ARFS table doesn't know of this filter, remove it */
 				force = true;
 			} else {
 				arfs_id = rule->arfs_id;
-				if (!efx_rps_check_rule(rule, index, &force))
+				if (!efx_siena_rps_check_rule(rule, index,
+							      &force))
 					goto out_unlock;
 			}
 		}
@@ -2939,7 +2940,7 @@ bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 						 flow_id, arfs_id)) {
 			if (rule)
 				rule->filter_id = EFX_ARFS_FILTER_ID_REMOVING;
-			efx_rps_hash_del(efx, &spec);
+			efx_siena_rps_hash_del(efx, &spec);
 			efx_farch_filter_table_clear_entry(efx, table, index);
 			ret = true;
 		}

@@ -58,8 +58,9 @@ MODULE_PARM_DESC(rss_cpus, "Number of CPUs to use for Receive-Side Scaling");
  *
  * This is only used in MSI-X interrupt mode
  */
-bool efx_separate_tx_channels;
-module_param(efx_separate_tx_channels, bool, 0444);
+bool efx_siena_separate_tx_channels;
+module_param_named(efx_separate_tx_channels, efx_siena_separate_tx_channels,
+		   bool, 0444);
 MODULE_PARM_DESC(efx_separate_tx_channels,
 		 "Use separate channels for TX and RX");
 
@@ -306,7 +307,7 @@ static int efx_probe_nic(struct efx_nic *efx)
 	if (efx->n_channels > 1)
 		netdev_rss_key_fill(efx->rss_context.rx_hash_key,
 				    sizeof(efx->rss_context.rx_hash_key));
-	efx_set_default_rx_indir_table(efx, &efx->rss_context);
+	efx_siena_set_default_rx_indir_table(efx, &efx->rss_context);
 
 	/* Initialise the interrupt moderation settings */
 	efx->irq_mod_step_us = DIV_ROUND_UP(efx->timer_quantum_ns, 1000);
@@ -366,7 +367,7 @@ static int efx_probe_all(struct efx_nic *efx)
 			   " VFs may not function\n", rc);
 #endif
 
-	rc = efx_probe_filters(efx);
+	rc = efx_siena_probe_filters(efx);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "failed to create filter tables\n");
@@ -380,7 +381,7 @@ static int efx_probe_all(struct efx_nic *efx)
 	return 0;
 
  fail5:
-	efx_remove_filters(efx);
+	efx_siena_remove_filters(efx);
  fail4:
 #ifdef CONFIG_SFC_SRIOV
 	efx->type->vswitching_remove(efx);
@@ -400,7 +401,7 @@ static void efx_remove_all(struct efx_nic *efx)
 	rtnl_unlock();
 
 	efx_siena_remove_channels(efx);
-	efx_remove_filters(efx);
+	efx_siena_remove_filters(efx);
 #ifdef CONFIG_SFC_SRIOV
 	efx->type->vswitching_remove(efx);
 #endif
@@ -602,7 +603,7 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_get_phys_port_name	= efx_siena_get_phys_port_name,
 	.ndo_setup_tc		= efx_siena_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
-	.ndo_rx_flow_steer	= efx_filter_rfs,
+	.ndo_rx_flow_steer	= efx_siena_filter_rfs,
 #endif
 	.ndo_xdp_xmit		= efx_xdp_xmit,
 	.ndo_bpf		= efx_xdp

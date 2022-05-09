@@ -157,7 +157,7 @@ void efx_siena_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	 */
 	if (unlikely(rx_buf->flags & EFX_RX_PKT_DISCARD)) {
 		efx_rx_flush_packet(channel);
-		efx_discard_rx_packet(channel, rx_buf, n_frags);
+		efx_siena_discard_rx_packet(channel, rx_buf, n_frags);
 		return;
 	}
 
@@ -195,7 +195,7 @@ void efx_siena_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 
 	/* All fragments have been DMA-synced, so recycle pages. */
 	rx_buf = efx_rx_buffer(rx_queue, index);
-	efx_recycle_rx_pages(channel, rx_buf, n_frags);
+	efx_siena_recycle_rx_pages(channel, rx_buf, n_frags);
 
 	/* Pipeline receives so that we give time for packet headers to be
 	 * prefetched into cache.
@@ -217,7 +217,7 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 		struct efx_rx_queue *rx_queue;
 
 		rx_queue = efx_channel_get_rx_queue(channel);
-		efx_free_rx_buffers(rx_queue, rx_buf, n_frags);
+		efx_siena_free_rx_buffers(rx_queue, rx_buf, n_frags);
 		return;
 	}
 	skb_record_rx_queue(skb, channel->rx_queue.core_index);
@@ -268,8 +268,8 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 
 	if (unlikely(channel->rx_pkt_n_frags > 1)) {
 		/* We can't do XDP on fragmented packets - drop. */
-		efx_free_rx_buffers(rx_queue, rx_buf,
-				    channel->rx_pkt_n_frags);
+		efx_siena_free_rx_buffers(rx_queue, rx_buf,
+					  channel->rx_pkt_n_frags);
 		if (net_ratelimit())
 			netif_err(efx, rx_err, efx->net_dev,
 				  "XDP is not possible with multiple receive fragments (%d)\n",
@@ -312,7 +312,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 		xdpf = xdp_convert_buff_to_frame(&xdp);
 		err = efx_siena_xdp_tx_buffers(efx, 1, &xdpf, true);
 		if (unlikely(err != 1)) {
-			efx_free_rx_buffers(rx_queue, rx_buf, 1);
+			efx_siena_free_rx_buffers(rx_queue, rx_buf, 1);
 			if (net_ratelimit())
 				netif_err(efx, rx_err, efx->net_dev,
 					  "XDP TX failed (%d)\n", err);
@@ -326,7 +326,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 	case XDP_REDIRECT:
 		err = xdp_do_redirect(efx->net_dev, &xdp, xdp_prog);
 		if (unlikely(err)) {
-			efx_free_rx_buffers(rx_queue, rx_buf, 1);
+			efx_siena_free_rx_buffers(rx_queue, rx_buf, 1);
 			if (net_ratelimit())
 				netif_err(efx, rx_err, efx->net_dev,
 					  "XDP redirect failed (%d)\n", err);
@@ -339,7 +339,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 
 	default:
 		bpf_warn_invalid_xdp_action(efx->net_dev, xdp_prog, xdp_act);
-		efx_free_rx_buffers(rx_queue, rx_buf, 1);
+		efx_siena_free_rx_buffers(rx_queue, rx_buf, 1);
 		channel->n_rx_xdp_bad_drops++;
 		trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);
 		break;
@@ -348,7 +348,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 		trace_xdp_exception(efx->net_dev, xdp_prog, xdp_act);
 		fallthrough;
 	case XDP_DROP:
-		efx_free_rx_buffers(rx_queue, rx_buf, 1);
+		efx_siena_free_rx_buffers(rx_queue, rx_buf, 1);
 		channel->n_rx_xdp_drops++;
 		break;
 	}
@@ -379,8 +379,8 @@ void __efx_siena_rx_packet(struct efx_channel *channel)
 
 		efx_loopback_rx_packet(efx, eh, rx_buf->len);
 		rx_queue = efx_channel_get_rx_queue(channel);
-		efx_free_rx_buffers(rx_queue, rx_buf,
-				    channel->rx_pkt_n_frags);
+		efx_siena_free_rx_buffers(rx_queue, rx_buf,
+					  channel->rx_pkt_n_frags);
 		goto out;
 	}
 

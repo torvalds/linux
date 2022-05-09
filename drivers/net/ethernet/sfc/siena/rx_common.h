@@ -43,26 +43,19 @@ static inline u32 efx_rx_buf_hash(struct efx_nic *efx, const u8 *eh)
 #endif
 }
 
-void efx_rx_slow_fill(struct timer_list *t);
+void efx_siena_rx_slow_fill(struct timer_list *t);
 
-void efx_recycle_rx_pages(struct efx_channel *channel,
-			  struct efx_rx_buffer *rx_buf,
-			  unsigned int n_frags);
-void efx_discard_rx_packet(struct efx_channel *channel,
-			   struct efx_rx_buffer *rx_buf,
-			   unsigned int n_frags);
+void efx_siena_recycle_rx_pages(struct efx_channel *channel,
+				struct efx_rx_buffer *rx_buf,
+				unsigned int n_frags);
+void efx_siena_discard_rx_packet(struct efx_channel *channel,
+				 struct efx_rx_buffer *rx_buf,
+				 unsigned int n_frags);
 
-int efx_probe_rx_queue(struct efx_rx_queue *rx_queue);
-void efx_init_rx_queue(struct efx_rx_queue *rx_queue);
-void efx_fini_rx_queue(struct efx_rx_queue *rx_queue);
-void efx_remove_rx_queue(struct efx_rx_queue *rx_queue);
-void efx_destroy_rx_queue(struct efx_rx_queue *rx_queue);
-
-void efx_init_rx_buffer(struct efx_rx_queue *rx_queue,
-			struct page *page,
-			unsigned int page_offset,
-			u16 flags);
-void efx_unmap_rx_buffer(struct efx_nic *efx, struct efx_rx_buffer *rx_buf);
+int efx_siena_probe_rx_queue(struct efx_rx_queue *rx_queue);
+void efx_siena_init_rx_queue(struct efx_rx_queue *rx_queue);
+void efx_siena_fini_rx_queue(struct efx_rx_queue *rx_queue);
+void efx_siena_remove_rx_queue(struct efx_rx_queue *rx_queue);
 
 static inline void efx_sync_rx_buffer(struct efx_nic *efx,
 				      struct efx_rx_buffer *rx_buf,
@@ -72,46 +65,46 @@ static inline void efx_sync_rx_buffer(struct efx_nic *efx,
 				DMA_FROM_DEVICE);
 }
 
-void efx_free_rx_buffers(struct efx_rx_queue *rx_queue,
-			 struct efx_rx_buffer *rx_buf,
-			 unsigned int num_bufs);
+void efx_siena_free_rx_buffers(struct efx_rx_queue *rx_queue,
+			       struct efx_rx_buffer *rx_buf,
+			       unsigned int num_bufs);
 
-void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
-void efx_rx_config_page_split(struct efx_nic *efx);
-void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue, bool atomic);
+void efx_siena_rx_config_page_split(struct efx_nic *efx);
+void efx_siena_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
+					bool atomic);
 
 void
 efx_siena_rx_packet_gro(struct efx_channel *channel,
 			struct efx_rx_buffer *rx_buf,
 			unsigned int n_frags, u8 *eh, __wsum csum);
 
-struct efx_rss_context *efx_alloc_rss_context_entry(struct efx_nic *efx);
-struct efx_rss_context *efx_find_rss_context_entry(struct efx_nic *efx, u32 id);
-void efx_free_rss_context_entry(struct efx_rss_context *ctx);
-void efx_set_default_rx_indir_table(struct efx_nic *efx,
-				    struct efx_rss_context *ctx);
+struct efx_rss_context *efx_siena_alloc_rss_context_entry(struct efx_nic *efx);
+struct efx_rss_context *efx_siena_find_rss_context_entry(struct efx_nic *efx,
+							 u32 id);
+void efx_siena_free_rss_context_entry(struct efx_rss_context *ctx);
+void efx_siena_set_default_rx_indir_table(struct efx_nic *efx,
+					  struct efx_rss_context *ctx);
 
-bool efx_filter_is_mc_recipient(const struct efx_filter_spec *spec);
-bool efx_filter_spec_equal(const struct efx_filter_spec *left,
-			   const struct efx_filter_spec *right);
-u32 efx_filter_spec_hash(const struct efx_filter_spec *spec);
+bool efx_siena_filter_is_mc_recipient(const struct efx_filter_spec *spec);
+bool efx_siena_filter_spec_equal(const struct efx_filter_spec *left,
+				 const struct efx_filter_spec *right);
+u32 efx_siena_filter_spec_hash(const struct efx_filter_spec *spec);
 
 #ifdef CONFIG_RFS_ACCEL
-bool efx_rps_check_rule(struct efx_arfs_rule *rule, unsigned int filter_idx,
-			bool *force);
-struct efx_arfs_rule *efx_rps_hash_find(struct efx_nic *efx,
+bool efx_siena_rps_check_rule(struct efx_arfs_rule *rule,
+			      unsigned int filter_idx, bool *force);
+struct efx_arfs_rule *efx_siena_rps_hash_find(struct efx_nic *efx,
 					const struct efx_filter_spec *spec);
-struct efx_arfs_rule *efx_rps_hash_add(struct efx_nic *efx,
-				       const struct efx_filter_spec *spec,
-				       bool *new);
-void efx_rps_hash_del(struct efx_nic *efx, const struct efx_filter_spec *spec);
+void efx_siena_rps_hash_del(struct efx_nic *efx,
+			    const struct efx_filter_spec *spec);
 
-int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
-		   u16 rxq_index, u32 flow_id);
-bool __efx_filter_rfs_expire(struct efx_channel *channel, unsigned int quota);
+int efx_siena_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
+			 u16 rxq_index, u32 flow_id);
+bool __efx_siena_filter_rfs_expire(struct efx_channel *channel,
+				   unsigned int quota);
 #endif
 
-int efx_probe_filters(struct efx_nic *efx);
-void efx_remove_filters(struct efx_nic *efx);
+int efx_siena_probe_filters(struct efx_nic *efx);
+void efx_siena_remove_filters(struct efx_nic *efx);
 
 #endif

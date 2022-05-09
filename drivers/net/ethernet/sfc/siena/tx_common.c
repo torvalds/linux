@@ -19,7 +19,7 @@ static unsigned int efx_tx_cb_page_count(struct efx_tx_queue *tx_queue)
 			    PAGE_SIZE >> EFX_TX_CB_ORDER);
 }
 
-int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
+int efx_siena_probe_tx_queue(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	unsigned int entries;
@@ -64,7 +64,7 @@ fail1:
 	return rc;
 }
 
-void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
+void efx_siena_init_tx_queue(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
 
@@ -94,32 +94,7 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->initialised = true;
 }
 
-void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
-{
-	struct efx_tx_buffer *buffer;
-
-	netif_dbg(tx_queue->efx, drv, tx_queue->efx->net_dev,
-		  "shutting down TX queue %d\n", tx_queue->queue);
-
-	tx_queue->initialised = false;
-
-	if (!tx_queue->buffer)
-		return;
-
-	/* Free any buffers left in the ring */
-	while (tx_queue->read_count != tx_queue->write_count) {
-		unsigned int pkts_compl = 0, bytes_compl = 0;
-
-		buffer = &tx_queue->buffer[tx_queue->read_count & tx_queue->ptr_mask];
-		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
-
-		++tx_queue->read_count;
-	}
-	tx_queue->xmit_pending = false;
-	netdev_tx_reset_queue(tx_queue->core_txq);
-}
-
-void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
+void efx_siena_remove_tx_queue(struct efx_tx_queue *tx_queue)
 {
 	int i;
 
@@ -143,10 +118,10 @@ void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->channel->tx_queue_by_type[tx_queue->type] = NULL;
 }
 
-void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
-			struct efx_tx_buffer *buffer,
-			unsigned int *pkts_compl,
-			unsigned int *bytes_compl)
+static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
+			       struct efx_tx_buffer *buffer,
+			       unsigned int *pkts_compl,
+			       unsigned int *bytes_compl)
 {
 	if (buffer->unmap_len) {
 		struct device *dma_dev = &tx_queue->efx->pci_dev->dev;
@@ -189,6 +164,29 @@ void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 
 	buffer->len = 0;
 	buffer->flags = 0;
+}
+
+void efx_siena_fini_tx_queue(struct efx_tx_queue *tx_queue)
+{
+	struct efx_tx_buffer *buffer;
+
+	netif_dbg(tx_queue->efx, drv, tx_queue->efx->net_dev,
+		  "shutting down TX queue %d\n", tx_queue->queue);
+
+	if (!tx_queue->buffer)
+		return;
+
+	/* Free any buffers left in the ring */
+	while (tx_queue->read_count != tx_queue->write_count) {
+		unsigned int pkts_compl = 0, bytes_compl = 0;
+
+		buffer = &tx_queue->buffer[tx_queue->read_count & tx_queue->ptr_mask];
+		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
+
+		++tx_queue->read_count;
+	}
+	tx_queue->xmit_pending = false;
+	netdev_tx_reset_queue(tx_queue->core_txq);
 }
 
 /* Remove packets from the TX queue
@@ -271,8 +269,8 @@ void efx_siena_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 /* Remove buffers put into a tx_queue for the current packet.
  * None of the buffers must have an skb attached.
  */
-void efx_enqueue_unwind(struct efx_tx_queue *tx_queue,
-			unsigned int insert_count)
+void efx_siena_enqueue_unwind(struct efx_tx_queue *tx_queue,
+			      unsigned int insert_count)
 {
 	struct efx_tx_buffer *buffer;
 	unsigned int bytes_compl = 0;
@@ -286,8 +284,8 @@ void efx_enqueue_unwind(struct efx_tx_queue *tx_queue,
 	}
 }
 
-struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
-				       dma_addr_t dma_addr, size_t len)
+struct efx_tx_buffer *efx_siena_tx_map_chunk(struct efx_tx_queue *tx_queue,
+					     dma_addr_t dma_addr, size_t len)
 {
 	const struct efx_nic_type *nic_type = tx_queue->efx->type;
 	struct efx_tx_buffer *buffer;
@@ -313,7 +311,7 @@ struct efx_tx_buffer *efx_tx_map_chunk(struct efx_tx_queue *tx_queue,
 	return buffer;
 }
 
-int efx_tx_tso_header_length(struct sk_buff *skb)
+static int efx_tx_tso_header_length(struct sk_buff *skb)
 {
 	size_t header_len;
 
@@ -328,8 +326,8 @@ int efx_tx_tso_header_length(struct sk_buff *skb)
 }
 
 /* Map all data from an SKB for DMA and create descriptors on the queue. */
-int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
-		    unsigned int segment_count)
+int efx_siena_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
+			  unsigned int segment_count)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	struct device *dma_dev = &efx->pci_dev->dev;
@@ -359,7 +357,7 @@ int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 
 		if (header_len != len) {
 			tx_queue->tso_long_headers++;
-			efx_tx_map_chunk(tx_queue, dma_addr, header_len);
+			efx_siena_tx_map_chunk(tx_queue, dma_addr, header_len);
 			len -= header_len;
 			dma_addr += header_len;
 		}
@@ -370,7 +368,7 @@ int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 		struct efx_tx_buffer *buffer;
 		skb_frag_t *fragment;
 
-		buffer = efx_tx_map_chunk(tx_queue, dma_addr, len);
+		buffer = efx_siena_tx_map_chunk(tx_queue, dma_addr, len);
 
 		/* The final descriptor for a fragment is responsible for
 		 * unmapping the whole fragment.
@@ -402,7 +400,7 @@ int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 	} while (1);
 }
 
-unsigned int efx_tx_max_skb_descs(struct efx_nic *efx)
+unsigned int efx_siena_tx_max_skb_descs(struct efx_nic *efx)
 {
 	/* Header and payload descriptor for each output segment, plus
 	 * one for every input fragment boundary within a segment
@@ -430,7 +428,8 @@ unsigned int efx_tx_max_skb_descs(struct efx_nic *efx)
  *
  * Returns 0 on success, error code otherwise.
  */
-int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
+int efx_siena_tx_tso_fallback(struct efx_tx_queue *tx_queue,
+			      struct sk_buff *skb)
 {
 	struct sk_buff *segments, *next;
 

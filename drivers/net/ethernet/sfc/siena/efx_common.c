@@ -395,7 +395,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 		efx->rx_buffer_order = get_order(rx_buf_len);
 	}
 
-	efx_rx_config_page_split(efx);
+	efx_siena_rx_config_page_split(efx);
 	if (efx->rx_buffer_order)
 		netif_dbg(efx, drv, efx->net_dev,
 			  "RX buf len=%u; page order=%u batch=%u\n",
@@ -428,7 +428,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 	 * the ring completely.  We wake it when half way back to
 	 * empty.
 	 */
-	efx->txq_stop_thresh = efx->txq_entries - efx_tx_max_skb_descs(efx);
+	efx->txq_stop_thresh = efx->txq_entries - efx_siena_tx_max_skb_descs(efx);
 	efx->txq_wake_thresh = efx->txq_stop_thresh / 2;
 
 	/* Initialise the channels */

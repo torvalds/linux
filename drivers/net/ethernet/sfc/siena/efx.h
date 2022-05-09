@@ -44,7 +44,7 @@ static inline void efx_rx_flush_packet(struct efx_channel *channel)
  * TSO skbs.
  */
 #define EFX_RXQ_MIN_ENT		128U
-#define EFX_TXQ_MIN_ENT(efx)	(2 * efx_tx_max_skb_descs(efx))
+#define EFX_TXQ_MIN_ENT(efx)	(2 * efx_siena_tx_max_skb_descs(efx))
 
 /* All EF10 architecture NICs steal one bit of the DMAQ size for various
  * other purposes when counting TxQ entries, so we halve the queue size.
@@ -78,7 +78,7 @@ static inline bool efx_rss_enabled(struct efx_nic *efx)
  *
  * 2. If the existing filters have higher priority, return -%EPERM.
  *
- * 3. If !efx_filter_is_mc_recipient(@spec), or the NIC does not
+ * 3. If !efx_siena_filter_is_mc_recipient(@spec), or the NIC does not
  *    support delivery to multiple recipients, return -%EEXIST.
  *
  * This implies that filters for multiple multicast recipients must
