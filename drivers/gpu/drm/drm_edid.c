@@ -5154,19 +5154,7 @@ bool drm_detect_hdmi_monitor(const struct edid *edid)
 }
 EXPORT_SYMBOL(drm_detect_hdmi_monitor);
 
-/**
- * drm_detect_monitor_audio - check monitor audio capability
- * @edid: EDID block to scan
- *
- * Monitor should have CEA extension block.
- * If monitor has 'basic audio', but no CEA audio blocks, it's 'basic
- * audio' only. If there is any audio extension block and supported
- * audio format, assume at least 'basic audio' support, even if 'basic
- * audio' is not defined in EDID.
- *
- * Return: True if the monitor supports audio, false otherwise.
- */
-bool drm_detect_monitor_audio(const struct edid *edid)
+static bool _drm_detect_monitor_audio(const struct drm_edid *drm_edid)
 {
 	struct drm_edid_iter edid_iter;
 	const struct cea_db *db;
@@ -5174,7 +5162,7 @@ bool drm_detect_monitor_audio(const struct edid *edid)
 	const u8 *edid_ext;
 	bool has_audio = false;
 
-	drm_edid_iter_begin(edid, &edid_iter);
+	drm_edid_iter_begin(drm_edid ? drm_edid->edid : NULL, &edid_iter);
 	drm_edid_iter_for_each(edid_ext, &edid_iter) {
 		if (edid_ext[0] == CEA_EXT) {
 			has_audio = edid_ext[3] & EDID_BASIC_AUDIO;
@@ -5189,7 +5177,7 @@ bool drm_detect_monitor_audio(const struct edid *edid)
 		goto end;
 	}
 
-	cea_db_iter_edid_begin(edid, &iter);
+	cea_db_iter_edid_begin(drm_edid ? drm_edid->edid : NULL, &iter);
 	cea_db_iter_for_each(db, &iter) {
 		if (cea_db_tag(db) == CTA_DB_AUDIO) {
 			const u8 *data = cea_db_data(db);
@@ -5206,6 +5194,25 @@ bool drm_detect_monitor_audio(const struct edid *edid)
 
 end:
 	return has_audio;
+}
+
+/**
+ * drm_detect_monitor_audio - check monitor audio capability
+ * @edid: EDID block to scan
+ *
+ * Monitor should have CEA extension block.
+ * If monitor has 'basic audio', but no CEA audio blocks, it's 'basic
+ * audio' only. If there is any audio extension block and supported
+ * audio format, assume at least 'basic audio' support, even if 'basic
+ * audio' is not defined in EDID.
+ *
+ * Return: True if the monitor supports audio, false otherwise.
+ */
+bool drm_detect_monitor_audio(const struct edid *edid)
+{
+	struct drm_edid drm_edid;
+
+	return _drm_detect_monitor_audio(drm_edid_legacy_init(&drm_edid, edid));
 }
 EXPORT_SYMBOL(drm_detect_monitor_audio);
 
