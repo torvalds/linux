@@ -4083,7 +4083,7 @@ static int binder_thread_write(struct binder_proc *proc,
 		} break;
 
 		default:
-			pr_err("%d:%d unknown command %d\n",
+			pr_err("%d:%d unknown command %u\n",
 			       proc->pid, thread->pid, cmd);
 			return -EINVAL;
 		}
@@ -4578,7 +4578,7 @@ retry:
 		trace_binder_transaction_received(t);
 		binder_stat_br(proc, thread, cmd);
 		binder_debug(BINDER_DEBUG_TRANSACTION,
-			     "%d:%d %s %d %d:%d, cmd %d size %zd-%zd ptr %016llx-%016llx\n",
+			     "%d:%d %s %d %d:%d, cmd %u size %zd-%zd ptr %016llx-%016llx\n",
 			     proc->pid, thread->pid,
 			     (cmd == BR_TRANSACTION) ? "BR_TRANSACTION" :
 				(cmd == BR_TRANSACTION_SEC_CTX) ?
