@@ -4830,15 +4830,15 @@ monitor_name(const struct detailed_timing *timing, void *data)
 	*res = timing->data.other_data.data.str.str;
 }
 
-static int get_monitor_name(const struct edid *edid, char name[13])
+static int get_monitor_name(const struct drm_edid *drm_edid, char name[13])
 {
 	const char *edid_name = NULL;
 	int mnl;
 
-	if (!edid || !name)
+	if (!drm_edid || !name)
 		return 0;
 
-	drm_for_each_detailed_block(edid, monitor_name, &edid_name);
+	drm_for_each_detailed_block(drm_edid->edid, monitor_name, &edid_name);
 	for (mnl = 0; edid_name && mnl < 13; mnl++) {
 		if (edid_name[mnl] == 0x0a)
 			break;
@@ -4858,14 +4858,22 @@ static int get_monitor_name(const struct edid *edid, char name[13])
  */
 void drm_edid_get_monitor_name(const struct edid *edid, char *name, int bufsize)
 {
-	int name_length;
-	char buf[13];
+	int name_length = 0;
 
 	if (bufsize <= 0)
 		return;
 
-	name_length = min(get_monitor_name(edid, buf), bufsize - 1);
-	memcpy(name, buf, name_length);
+	if (edid) {
+		char buf[13];
+		struct drm_edid drm_edid = {
+			.edid = edid,
+			.size = edid_size(edid),
+		};
+
+		name_length = min(get_monitor_name(&drm_edid, buf), bufsize - 1);
+		memcpy(name, buf, name_length);
+	}
+
 	name[name_length] = '\0';
 }
 EXPORT_SYMBOL(drm_edid_get_monitor_name);
@@ -4905,7 +4913,7 @@ static void drm_edid_to_eld(struct drm_connector *connector,
 	if (!drm_edid)
 		return;
 
-	mnl = get_monitor_name(drm_edid->edid, &eld[DRM_ELD_MONITOR_NAME_STRING]);
+	mnl = get_monitor_name(drm_edid, &eld[DRM_ELD_MONITOR_NAME_STRING]);
 	DRM_DEBUG_KMS("ELD monitor %s\n", &eld[DRM_ELD_MONITOR_NAME_STRING]);
 
 	eld[DRM_ELD_CEA_EDID_VER_MNL] = info->cea_rev << DRM_ELD_CEA_EDID_VER_SHIFT;
