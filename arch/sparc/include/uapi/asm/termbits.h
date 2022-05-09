@@ -4,8 +4,7 @@
 
 #include <linux/posix_types.h>
 
-typedef unsigned char   cc_t;
-typedef unsigned int    speed_t;
+#include <asm-generic/termbits-common.h>
 
 #if defined(__sparc__) && defined(__arch64__)
 typedef unsigned int    tcflag_t;
@@ -90,31 +89,15 @@ struct ktermios {
 #endif
 
 /* c_iflag bits */
-#define IGNBRK	0x00000001
-#define BRKINT	0x00000002
-#define IGNPAR	0x00000004
-#define PARMRK	0x00000008
-#define INPCK	0x00000010
-#define ISTRIP	0x00000020
-#define INLCR	0x00000040
-#define IGNCR	0x00000080
-#define ICRNL	0x00000100
 #define IUCLC	0x00000200
 #define IXON	0x00000400
-#define IXANY	0x00000800
 #define IXOFF	0x00001000
 #define IMAXBEL	0x00002000
 #define IUTF8   0x00004000
 
 /* c_oflag bits */
-#define OPOST	0x00000001
 #define OLCUC	0x00000002
 #define ONLCR	0x00000004
-#define OCRNL	0x00000008
-#define ONOCR	0x00000010
-#define ONLRET	0x00000020
-#define OFILL	0x00000040
-#define OFDEL	0x00000080
 #define NLDLY	0x00000100
 #define   NL0	0x00000000
 #define   NL1	0x00000100
@@ -143,24 +126,6 @@ struct ktermios {
 
 /* c_cflag bit meaning */
 #define CBAUD	  0x0000100f
-#define  B0	  0x00000000   /* hang up */
-#define  B50	  0x00000001
-#define  B75	  0x00000002
-#define  B110	  0x00000003
-#define  B134	  0x00000004
-#define  B150	  0x00000005
-#define  B200	  0x00000006
-#define  B300	  0x00000007
-#define  B600	  0x00000008
-#define  B1200	  0x00000009
-#define  B1800	  0x0000000a
-#define  B2400	  0x0000000b
-#define  B4800	  0x0000000c
-#define  B9600	  0x0000000d
-#define  B19200	  0x0000000e
-#define  B38400	  0x0000000f
-#define EXTA      B19200
-#define EXTB      B38400
 #define  CSIZE    0x00000030
 #define   CS5	  0x00000000
 #define   CS6	  0x00000010
@@ -201,10 +166,6 @@ struct ktermios {
 #define B3500000  0x00001012
 #define B4000000  0x00001013  */
 #define CIBAUD	  0x100f0000  /* input baud rate (not used) */
-#define CMSPAR	  0x40000000  /* mark or space (stick) parity */
-#define CRTSCTS	  0x80000000  /* flow control */
-
-#define IBSHIFT	  16		/* Shift from CBAUD to CIBAUD */
 
 /* c_lflag bits */
 #define ISIG	0x00000001
@@ -243,18 +204,6 @@ struct ktermios {
 
 /* ioctl (fd, TIOCSERGETLSR, &result) where result may be as below */
 #define TIOCSER_TEMT    0x01	/* Transmitter physically empty */
-
-
-/* tcflow() and TCXONC use these */
-#define	TCOOFF		0
-#define	TCOON		1
-#define	TCIOFF		2
-#define	TCION		3
-
-/* tcflush() and TCFLSH use these */
-#define	TCIFLUSH	0
-#define	TCOFLUSH	1
-#define	TCIOFLUSH	2
 
 /* tcsetattr uses these */
 #define	TCSANOW		0

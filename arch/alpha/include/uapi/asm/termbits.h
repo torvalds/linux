@@ -4,8 +4,8 @@
 
 #include <linux/posix_types.h>
 
-typedef unsigned char	cc_t;
-typedef unsigned int	speed_t;
+#include <asm-generic/termbits-common.h>
+
 typedef unsigned int	tcflag_t;
 
 /*
@@ -72,33 +72,17 @@ struct ktermios {
 #define VTIME 17
 
 /* c_iflag bits */
-#define IGNBRK	0x00001
-#define BRKINT	0x00002
-#define IGNPAR	0x00004
-#define PARMRK	0x00008
-#define INPCK	0x00010
-#define ISTRIP	0x00020
-#define INLCR	0x00040
-#define IGNCR	0x00080
-#define ICRNL	0x00100
 #define IXON	0x00200
 #define IXOFF	0x00400
-#define IXANY	0x00800
 #define IUCLC	0x01000
 #define IMAXBEL	0x02000
 #define IUTF8	0x04000
 
 /* c_oflag bits */
-#define OPOST	0x00001
 #define ONLCR	0x00002
 #define OLCUC	0x00004
 
-#define OCRNL	0x00008
-#define ONOCR	0x00010
-#define ONLRET	0x00020
 
-#define OFILL	0x000040
-#define OFDEL	0x000080
 #define NLDLY	0x000300
 #define   NL0	0x000000
 #define   NL1	0x000100
@@ -131,24 +115,6 @@ struct ktermios {
 
 /* c_cflag bit meaning */
 #define CBAUD		0x0000001f
-#define  B0		0x00000000	/* hang up */
-#define  B50		0x00000001
-#define  B75		0x00000002
-#define  B110		0x00000003
-#define  B134		0x00000004
-#define  B150		0x00000005
-#define  B200		0x00000006
-#define  B300		0x00000007
-#define  B600		0x00000008
-#define  B1200		0x00000009
-#define  B1800		0x0000000a
-#define  B2400		0x0000000b
-#define  B4800		0x0000000c
-#define  B9600		0x0000000d
-#define  B19200		0x0000000e
-#define  B38400		0x0000000f
-#define EXTA B19200
-#define EXTB B38400
 #define CBAUDEX		0x00000000
 #define  B57600		0x00000010
 #define  B115200	0x00000011
@@ -180,11 +146,8 @@ struct ktermios {
 #define HUPCL		0x00004000
 
 #define CLOCAL		0x00008000
-#define CMSPAR		0x40000000	/* mark or space (stick) parity */
-#define CRTSCTS		0x80000000	/* flow control */
 
 #define CIBAUD		0x1f0000
-#define IBSHIFT	16
 
 /* c_lflag bits */
 #define ISIG	0x00000080
@@ -203,17 +166,6 @@ struct ktermios {
 #define PENDIN	0x20000000
 #define IEXTEN	0x00000400
 #define EXTPROC	0x10000000
-
-/* Values for the ACTION argument to `tcflow'.  */
-#define	TCOOFF		0
-#define	TCOON		1
-#define	TCIOFF		2
-#define	TCION		3
-
-/* Values for the QUEUE_SELECTOR argument to `tcflush'.  */
-#define	TCIFLUSH	0
-#define	TCOFLUSH	1
-#define	TCIOFLUSH	2
 
 /* Values for the OPTIONAL_ACTIONS argument to `tcsetattr'.  */
 #define	TCSANOW		0
