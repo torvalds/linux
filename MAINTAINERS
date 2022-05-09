@@ -15475,7 +15475,8 @@ F:	tools/perf/
 PERFORMANCE EVENTS TOOLING ARM64
 R:	John Garry <john.garry@huawei.com>
 R:	Will Deacon <will@kernel.org>
-R:	Mathieu Poirier <mathieu.poirier@linaro.org>
+R:	James Clark <james.clark@arm.com>
+R:	Mike Leach <mike.leach@linaro.org>
 R:	Leo Yan <leo.yan@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
