@@ -1821,8 +1821,6 @@ static int imx7_csi_media_dev_init(struct imx7_csi *csi)
 	imxmd->md.ops = &imx7_csi_media_ops;
 	imxmd->md.dev = csi->dev;
 
-	mutex_init(&imxmd->mutex);
-
 	imxmd->v4l2_dev.mdev = &imxmd->md;
 	strscpy(imxmd->v4l2_dev.name, "imx-media",
 		sizeof(imxmd->v4l2_dev.name));
@@ -1837,10 +1835,6 @@ static int imx7_csi_media_dev_init(struct imx7_csi *csi)
 			 "Failed to register v4l2_device: %d\n", ret);
 		goto cleanup;
 	}
-
-	INIT_LIST_HEAD(&imxmd->vdev_list);
-
-	v4l2_async_nf_init(&imxmd->notifier);
 
 	return 0;
 
