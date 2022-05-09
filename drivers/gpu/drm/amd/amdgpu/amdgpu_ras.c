@@ -1538,33 +1538,42 @@ void amdgpu_ras_interrupt_fatal_error_handler(struct amdgpu_device *adev)
 static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *obj,
 				struct amdgpu_iv_entry *entry)
 {
-	bool poison_stat = true, need_reset = true;
+	bool poison_stat = false;
 	struct amdgpu_device *adev = obj->adev;
 	struct ras_err_data err_data = {0, 0, 0, NULL};
 	struct amdgpu_ras_block_object *block_obj =
 		amdgpu_ras_get_ras_block(adev, obj->head.block, 0);
 
-	if (!adev->gmc.xgmi.connected_to_cpu)
-		amdgpu_umc_poison_handler(adev, &err_data, false);
+	if (!block_obj || !block_obj->hw_ops)
+		return;
 
-	/* both query_poison_status and handle_poison_consumption are optional */
-	if (block_obj && block_obj->hw_ops) {
-		if (block_obj->hw_ops->query_poison_status) {
-			poison_stat = block_obj->hw_ops->query_poison_status(adev);
-			if (!poison_stat)
-				dev_info(adev->dev, "No RAS poison status in %s poison IH.\n",
-						block_obj->ras_comm.name);
-		}
+	/* both query_poison_status and handle_poison_consumption are optional,
+	 * but at least one of them should be implemented if we need poison
+	 * consumption handler
+	 */
+	if (block_obj->hw_ops->query_poison_status) {
+		poison_stat = block_obj->hw_ops->query_poison_status(adev);
+		if (!poison_stat) {
+			/* Not poison consumption interrupt, no need to handle it */
+			dev_info(adev->dev, "No RAS poison status in %s poison IH.\n",
+					block_obj->ras_comm.name);
 
-		if (poison_stat && block_obj->hw_ops->handle_poison_consumption) {
-			poison_stat = block_obj->hw_ops->handle_poison_consumption(adev);
-			need_reset = poison_stat;
+			return;
 		}
 	}
 
-	/* gpu reset is fallback for all failed cases */
-	if (need_reset)
+	if (!adev->gmc.xgmi.connected_to_cpu)
+		amdgpu_umc_poison_handler(adev, &err_data, false);
+
+	if (block_obj->hw_ops->handle_poison_consumption)
+		poison_stat = block_obj->hw_ops->handle_poison_consumption(adev);
+
+	/* gpu reset is fallback for failed and default cases */
+	if (poison_stat) {
+		dev_info(adev->dev, "GPU reset for %s RAS poison consumption is issued!\n",
+				block_obj->ras_comm.name);
 		amdgpu_ras_reset_gpu(adev);
+	}
 }
 
 static void amdgpu_ras_interrupt_poison_creation_handler(struct ras_manager *obj,
