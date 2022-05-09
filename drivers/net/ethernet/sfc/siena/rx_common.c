@@ -504,8 +504,9 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue, bool atomic)
  * regardless of checksum state and skbs with a good checksum.
  */
 void
-efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
-		  unsigned int n_frags, u8 *eh, __wsum csum)
+efx_siena_rx_packet_gro(struct efx_channel *channel,
+			struct efx_rx_buffer *rx_buf,
+			unsigned int n_frags, u8 *eh, __wsum csum)
 {
 	struct napi_struct *napi = &channel->napi_str;
 	struct efx_nic *efx = channel->efx;
@@ -520,8 +521,7 @@ efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
 		return;
 	}
 
-	if (efx->net_dev->features & NETIF_F_RXHASH &&
-	    efx_rx_buf_hash_valid(efx, eh))
+	if (efx->net_dev->features & NETIF_F_RXHASH)
 		skb_set_hash(skb, efx_rx_buf_hash(efx, eh),
 			     PKT_HASH_TYPE_L3);
 	if (csum) {

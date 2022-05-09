@@ -118,8 +118,8 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 	return skb;
 }
 
-void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
-		   unsigned int n_frags, unsigned int len, u16 flags)
+void efx_siena_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
+			 unsigned int n_frags, unsigned int len, u16 flags)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
@@ -310,7 +310,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 	case XDP_TX:
 		/* Buffer ownership passes to tx on success. */
 		xdpf = xdp_convert_buff_to_frame(&xdp);
-		err = efx_xdp_tx_buffers(efx, 1, &xdpf, true);
+		err = efx_siena_xdp_tx_buffers(efx, 1, &xdpf, true);
 		if (unlikely(err != 1)) {
 			efx_free_rx_buffers(rx_queue, rx_buf, 1);
 			if (net_ratelimit())
@@ -357,7 +357,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 }
 
 /* Handle a received packet.  Second half: Touches packet payload. */
-void __efx_rx_packet(struct efx_channel *channel)
+void __efx_siena_rx_packet(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
 	struct efx_rx_buffer *rx_buf =
@@ -391,7 +391,8 @@ void __efx_rx_packet(struct efx_channel *channel)
 		rx_buf->flags &= ~EFX_RX_PKT_CSUMMED;
 
 	if ((rx_buf->flags & EFX_RX_PKT_TCP) && !channel->type->receive_skb)
-		efx_rx_packet_gro(channel, rx_buf, channel->rx_pkt_n_frags, eh, 0);
+		efx_siena_rx_packet_gro(channel, rx_buf,
+					channel->rx_pkt_n_frags, eh, 0);
 	else
 		efx_rx_deliver(channel, eh, rx_buf, channel->rx_pkt_n_frags);
 out:

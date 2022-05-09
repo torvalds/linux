@@ -43,11 +43,11 @@
  *
  *************************************************************************/
 
-module_param_named(interrupt_mode, efx_interrupt_mode, uint, 0444);
+module_param_named(interrupt_mode, efx_siena_interrupt_mode, uint, 0444);
 MODULE_PARM_DESC(interrupt_mode,
 		 "Interrupt mode (0=>MSIX 1=>MSI 2=>legacy)");
 
-module_param(rss_cpus, uint, 0444);
+module_param_named(rss_cpus, efx_siena_rss_cpus, uint, 0444);
 MODULE_PARM_DESC(rss_cpus, "Number of CPUs to use for Receive-Side Scaling");
 
 /*
@@ -174,7 +174,7 @@ static void efx_fini_port(struct efx_nic *efx)
 	efx->port_initialized = false;
 
 	efx->link_state.up = false;
-	efx_link_status_changed(efx);
+	efx_siena_link_status_changed(efx);
 }
 
 static void efx_remove_port(struct efx_nic *efx)
@@ -284,11 +284,11 @@ static int efx_probe_nic(struct efx_nic *efx)
 		/* Determine the number of channels and queues by trying
 		 * to hook in MSI-X interrupts.
 		 */
-		rc = efx_probe_interrupts(efx);
+		rc = efx_siena_probe_interrupts(efx);
 		if (rc)
 			goto fail1;
 
-		rc = efx_set_channels(efx);
+		rc = efx_siena_set_channels(efx);
 		if (rc)
 			goto fail1;
 
@@ -299,7 +299,7 @@ static int efx_probe_nic(struct efx_nic *efx)
 
 		if (rc == -EAGAIN)
 			/* try again with new max_channels */
-			efx_remove_interrupts(efx);
+			efx_siena_remove_interrupts(efx);
 
 	} while (rc == -EAGAIN);
 
@@ -310,13 +310,13 @@ static int efx_probe_nic(struct efx_nic *efx)
 
 	/* Initialise the interrupt moderation settings */
 	efx->irq_mod_step_us = DIV_ROUND_UP(efx->timer_quantum_ns, 1000);
-	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec, true,
-				true);
+	efx_siena_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec,
+				      true, true);
 
 	return 0;
 
 fail2:
-	efx_remove_interrupts(efx);
+	efx_siena_remove_interrupts(efx);
 fail1:
 	efx->type->remove(efx);
 	return rc;
@@ -326,7 +326,7 @@ static void efx_remove_nic(struct efx_nic *efx)
 {
 	netif_dbg(efx, drv, efx->net_dev, "destroying NIC\n");
 
-	efx_remove_interrupts(efx);
+	efx_siena_remove_interrupts(efx);
 	efx->type->remove(efx);
 }
 
@@ -373,7 +373,7 @@ static int efx_probe_all(struct efx_nic *efx)
 		goto fail4;
 	}
 
-	rc = efx_probe_channels(efx);
+	rc = efx_siena_probe_channels(efx);
 	if (rc)
 		goto fail5;
 
@@ -399,7 +399,7 @@ static void efx_remove_all(struct efx_nic *efx)
 	efx_xdp_setup_prog(efx, NULL);
 	rtnl_unlock();
 
-	efx_remove_channels(efx);
+	efx_siena_remove_channels(efx);
 	efx_remove_filters(efx);
 #ifdef CONFIG_SFC_SRIOV
 	efx->type->vswitching_remove(efx);
@@ -413,7 +413,7 @@ static void efx_remove_all(struct efx_nic *efx)
  * Interrupt moderation
  *
  **************************************************************************/
-unsigned int efx_usecs_to_ticks(struct efx_nic *efx, unsigned int usecs)
+unsigned int efx_siena_usecs_to_ticks(struct efx_nic *efx, unsigned int usecs)
 {
 	if (usecs == 0)
 		return 0;
@@ -422,18 +422,10 @@ unsigned int efx_usecs_to_ticks(struct efx_nic *efx, unsigned int usecs)
 	return usecs * 1000 / efx->timer_quantum_ns;
 }
 
-unsigned int efx_ticks_to_usecs(struct efx_nic *efx, unsigned int ticks)
-{
-	/* We must round up when converting ticks to microseconds
-	 * because we round down when converting the other way.
-	 */
-	return DIV_ROUND_UP(ticks * efx->timer_quantum_ns, 1000);
-}
-
 /* Set interrupt moderation parameters */
-int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
-			    unsigned int rx_usecs, bool rx_adaptive,
-			    bool rx_may_override_tx)
+int efx_siena_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
+				  unsigned int rx_usecs, bool rx_adaptive,
+				  bool rx_may_override_tx)
 {
 	struct efx_channel *channel;
 	unsigned int timer_max_us;
@@ -466,8 +458,8 @@ int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 	return 0;
 }
 
-void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
-			    unsigned int *rx_usecs, bool *rx_adaptive)
+void efx_siena_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
+				  unsigned int *rx_usecs, bool *rx_adaptive)
 {
 	*rx_adaptive = efx->irq_rx_adaptive;
 	*rx_usecs = efx->irq_rx_moderation_us;
@@ -520,7 +512,7 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
  *************************************************************************/
 
 /* Context: process, rtnl_lock() held. */
-int efx_net_open(struct net_device *net_dev)
+static int efx_net_open(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
@@ -533,14 +525,14 @@ int efx_net_open(struct net_device *net_dev)
 		return rc;
 	if (efx->phy_mode & PHY_MODE_SPECIAL)
 		return -EBUSY;
-	if (efx_mcdi_poll_reboot(efx) && efx_reset(efx, RESET_TYPE_ALL))
+	if (efx_mcdi_poll_reboot(efx) && efx_siena_reset(efx, RESET_TYPE_ALL))
 		return -EIO;
 
 	/* Notify the kernel of the link state polled during driver load,
 	 * before the monitor starts running */
-	efx_link_status_changed(efx);
+	efx_siena_link_status_changed(efx);
 
-	efx_start_all(efx);
+	efx_siena_start_all(efx);
 	if (efx->state == STATE_DISABLED || efx->reset_pending)
 		netif_device_detach(efx->net_dev);
 	efx_selftest_async_start(efx);
@@ -551,7 +543,7 @@ int efx_net_open(struct net_device *net_dev)
  * Note that the kernel will ignore our return code; this method
  * should really be a void.
  */
-int efx_net_stop(struct net_device *net_dev)
+static int efx_net_stop(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -559,7 +551,7 @@ int efx_net_stop(struct net_device *net_dev)
 		  raw_smp_processor_id());
 
 	/* Stop the device and flush all the channels */
-	efx_stop_all(efx);
+	efx_siena_stop_all(efx);
 
 	return 0;
 }
@@ -587,16 +579,16 @@ static int efx_vlan_rx_kill_vid(struct net_device *net_dev, __be16 proto, u16 vi
 static const struct net_device_ops efx_netdev_ops = {
 	.ndo_open		= efx_net_open,
 	.ndo_stop		= efx_net_stop,
-	.ndo_get_stats64	= efx_net_stats,
-	.ndo_tx_timeout		= efx_watchdog,
-	.ndo_start_xmit		= efx_hard_start_xmit,
+	.ndo_get_stats64	= efx_siena_net_stats,
+	.ndo_tx_timeout		= efx_siena_watchdog,
+	.ndo_start_xmit		= efx_siena_hard_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_eth_ioctl		= efx_ioctl,
-	.ndo_change_mtu		= efx_change_mtu,
-	.ndo_set_mac_address	= efx_set_mac_address,
-	.ndo_set_rx_mode	= efx_set_rx_mode,
-	.ndo_set_features	= efx_set_features,
-	.ndo_features_check	= efx_features_check,
+	.ndo_change_mtu		= efx_siena_change_mtu,
+	.ndo_set_mac_address	= efx_siena_set_mac_address,
+	.ndo_set_rx_mode	= efx_siena_set_rx_mode,
+	.ndo_set_features	= efx_siena_set_features,
+	.ndo_features_check	= efx_siena_features_check,
 	.ndo_vlan_rx_add_vid	= efx_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= efx_vlan_rx_kill_vid,
 #ifdef CONFIG_SFC_SRIOV
@@ -606,9 +598,9 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_get_vf_config	= efx_sriov_get_vf_config,
 	.ndo_set_vf_link_state  = efx_sriov_set_vf_link_state,
 #endif
-	.ndo_get_phys_port_id   = efx_get_phys_port_id,
-	.ndo_get_phys_port_name	= efx_get_phys_port_name,
-	.ndo_setup_tc		= efx_setup_tc,
+	.ndo_get_phys_port_id   = efx_siena_get_phys_port_id,
+	.ndo_get_phys_port_name	= efx_siena_get_phys_port_name,
+	.ndo_setup_tc		= efx_siena_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= efx_filter_rfs,
 #endif
@@ -626,10 +618,10 @@ static int efx_xdp_setup_prog(struct efx_nic *efx, struct bpf_prog *prog)
 		return -EINVAL;
 	}
 
-	if (prog && efx->net_dev->mtu > efx_xdp_max_mtu(efx)) {
+	if (prog && efx->net_dev->mtu > efx_siena_xdp_max_mtu(efx)) {
 		netif_err(efx, drv, efx->net_dev,
 			  "Unable to configure XDP with MTU of %d (max: %d)\n",
-			  efx->net_dev->mtu, efx_xdp_max_mtu(efx));
+			  efx->net_dev->mtu, efx_siena_xdp_max_mtu(efx));
 		return -EINVAL;
 	}
 
@@ -663,14 +655,14 @@ static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	return efx_xdp_tx_buffers(efx, n, xdpfs, flags & XDP_XMIT_FLUSH);
+	return efx_siena_xdp_tx_buffers(efx, n, xdpfs, flags & XDP_XMIT_FLUSH);
 }
 
 static void efx_update_name(struct efx_nic *efx)
 {
 	strcpy(efx->name, efx->net_dev->name);
-	efx_mtd_rename(efx);
-	efx_set_channel_names(efx);
+	efx_siena_mtd_rename(efx);
+	efx_siena_set_channel_names(efx);
 }
 
 static int efx_netdev_event(struct notifier_block *this,
@@ -708,7 +700,7 @@ static int efx_register_netdev(struct efx_nic *efx)
 	net_dev->netdev_ops = &efx_netdev_ops;
 	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0)
 		net_dev->priv_flags |= IFF_UNICAST_FLT;
-	net_dev->ethtool_ops = &efx_ethtool_ops;
+	net_dev->ethtool_ops = &efx_siena_ethtool_ops;
 	netif_set_tso_max_segs(net_dev, EFX_TSO_MAX_SEGS);
 	net_dev->min_mtu = EFX_MIN_MTU;
 	net_dev->max_mtu = EFX_MAX_MTU;
@@ -742,7 +734,7 @@ static int efx_register_netdev(struct efx_nic *efx)
 	efx_for_each_channel(channel, efx) {
 		struct efx_tx_queue *tx_queue;
 		efx_for_each_channel_tx_queue(tx_queue, channel)
-			efx_init_tx_queue_core_txq(tx_queue);
+			efx_siena_init_tx_queue_core_txq(tx_queue);
 	}
 
 	efx_associate(efx);
@@ -756,7 +748,7 @@ static int efx_register_netdev(struct efx_nic *efx)
 		goto fail_registered;
 	}
 
-	efx_init_mcdi_logging(efx);
+	efx_siena_init_mcdi_logging(efx);
 
 	return 0;
 
@@ -780,7 +772,7 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 
 	if (efx_dev_registered(efx)) {
 		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
-		efx_fini_mcdi_logging(efx);
+		efx_siena_fini_mcdi_logging(efx);
 		device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_type);
 		unregister_netdev(efx->net_dev);
 	}
@@ -807,7 +799,7 @@ static const struct pci_device_id efx_pci_table[] = {
  *
  **************************************************************************/
 
-void efx_update_sw_stats(struct efx_nic *efx, u64 *stats)
+void efx_siena_update_sw_stats(struct efx_nic *efx, u64 *stats)
 {
 	u64 n_rx_nodesc_trunc = 0;
 	struct efx_channel *channel;
@@ -833,14 +825,14 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	 * are not READY.
 	 */
 	BUG_ON(efx->state == STATE_READY);
-	efx_flush_reset_workqueue(efx);
+	efx_siena_flush_reset_workqueue(efx);
 
-	efx_disable_interrupts(efx);
-	efx_clear_interrupt_affinity(efx);
+	efx_siena_disable_interrupts(efx);
+	efx_siena_clear_interrupt_affinity(efx);
 	efx_nic_fini_interrupt(efx);
 	efx_fini_port(efx);
 	efx->type->fini(efx);
-	efx_fini_napi(efx);
+	efx_siena_fini_napi(efx);
 	efx_remove_all(efx);
 }
 
@@ -860,7 +852,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	rtnl_lock();
 	efx_dissociate(efx);
 	dev_close(efx->net_dev);
-	efx_disable_interrupts(efx);
+	efx_siena_disable_interrupts(efx);
 	efx->state = STATE_UNINIT;
 	rtnl_unlock();
 
@@ -869,14 +861,14 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 
 	efx_unregister_netdev(efx);
 
-	efx_mtd_remove(efx);
+	efx_siena_mtd_remove(efx);
 
 	efx_pci_remove_main(efx);
 
-	efx_fini_io(efx);
+	efx_siena_fini_io(efx);
 	netif_dbg(efx, drv, efx->net_dev, "shutdown successful\n");
 
-	efx_fini_struct(efx);
+	efx_siena_fini_struct(efx);
 	free_netdev(efx->net_dev);
 
 	pci_disable_pcie_error_reporting(pci_dev);
@@ -929,7 +921,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	if (rc)
 		goto fail1;
 
-	efx_init_napi(efx);
+	efx_siena_init_napi(efx);
 
 	down_write(&efx->filter_sem);
 	rc = efx->type->init(efx);
@@ -950,22 +942,22 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	if (rc)
 		goto fail5;
 
-	efx_set_interrupt_affinity(efx);
-	rc = efx_enable_interrupts(efx);
+	efx_siena_set_interrupt_affinity(efx);
+	rc = efx_siena_enable_interrupts(efx);
 	if (rc)
 		goto fail6;
 
 	return 0;
 
  fail6:
-	efx_clear_interrupt_affinity(efx);
+	efx_siena_clear_interrupt_affinity(efx);
 	efx_nic_fini_interrupt(efx);
  fail5:
 	efx_fini_port(efx);
  fail4:
 	efx->type->fini(efx);
  fail3:
-	efx_fini_napi(efx);
+	efx_siena_fini_napi(efx);
 	efx_remove_all(efx);
  fail1:
 	return rc;
@@ -1046,7 +1038,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 
 	pci_set_drvdata(pci_dev, efx);
 	SET_NETDEV_DEV(net_dev, &pci_dev->dev);
-	rc = efx_init_struct(efx, pci_dev, net_dev);
+	rc = efx_siena_init_struct(efx, pci_dev, net_dev);
 	if (rc)
 		goto fail1;
 
@@ -1056,8 +1048,9 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 		efx_probe_vpd_strings(efx);
 
 	/* Set up basic I/O (BAR mappings etc) */
-	rc = efx_init_io(efx, efx->type->mem_bar(efx), efx->type->max_dma_mask,
-			 efx->type->mem_map_size(efx));
+	rc = efx_siena_init_io(efx, efx->type->mem_bar(efx),
+			       efx->type->max_dma_mask,
+			       efx->type->mem_map_size(efx));
 	if (rc)
 		goto fail2;
 
@@ -1101,9 +1094,9 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	return 0;
 
  fail3:
-	efx_fini_io(efx);
+	efx_siena_fini_io(efx);
  fail2:
-	efx_fini_struct(efx);
+	efx_siena_fini_struct(efx);
  fail1:
 	WARN_ON(rc > 0);
 	netif_dbg(efx, drv, efx->net_dev, "initialisation failed. rc=%d\n", rc);
@@ -1142,8 +1135,8 @@ static int efx_pm_freeze(struct device *dev)
 
 		efx_device_detach_sync(efx);
 
-		efx_stop_all(efx);
-		efx_disable_interrupts(efx);
+		efx_siena_stop_all(efx);
+		efx_siena_disable_interrupts(efx);
 	}
 
 	rtnl_unlock();
@@ -1159,7 +1152,7 @@ static int efx_pm_thaw(struct device *dev)
 	rtnl_lock();
 
 	if (efx->state != STATE_DISABLED) {
-		rc = efx_enable_interrupts(efx);
+		rc = efx_siena_enable_interrupts(efx);
 		if (rc)
 			goto fail;
 
@@ -1167,7 +1160,7 @@ static int efx_pm_thaw(struct device *dev)
 		efx_mcdi_port_reconfigure(efx);
 		mutex_unlock(&efx->mac_lock);
 
-		efx_start_all(efx);
+		efx_siena_start_all(efx);
 
 		efx_device_attach_if_not_resetting(efx);
 
@@ -1179,7 +1172,7 @@ static int efx_pm_thaw(struct device *dev)
 	rtnl_unlock();
 
 	/* Reschedule any quenched resets scheduled during efx_pm_freeze() */
-	efx_queue_reset_work(efx);
+	efx_siena_queue_reset_work(efx);
 
 	return 0;
 
@@ -1255,7 +1248,7 @@ static struct pci_driver efx_pci_driver = {
 	.probe		= efx_pci_probe,
 	.remove		= efx_pci_remove,
 	.driver.pm	= &efx_pm_ops,
-	.err_handler	= &efx_err_handlers,
+	.err_handler	= &efx_siena_err_handlers,
 #ifdef CONFIG_SFC_SRIOV
 	.sriov_configure = efx_pci_sriov_configure,
 #endif
@@ -1277,7 +1270,7 @@ static int __init efx_init_module(void)
 	if (rc)
 		goto err_notifier;
 
-	rc = efx_create_reset_workqueue();
+	rc = efx_siena_create_reset_workqueue();
 	if (rc)
 		goto err_reset;
 
@@ -1288,7 +1281,7 @@ static int __init efx_init_module(void)
 	return 0;
 
  err_pci:
-	efx_destroy_reset_workqueue();
+	efx_siena_destroy_reset_workqueue();
  err_reset:
 	unregister_netdevice_notifier(&efx_netdev_notifier);
  err_notifier:
@@ -1300,7 +1293,7 @@ static void __exit efx_exit_module(void)
 	printk(KERN_INFO "Solarflare NET driver unloading\n");
 
 	pci_unregister_driver(&efx_pci_driver);
-	efx_destroy_reset_workqueue();
+	efx_siena_destroy_reset_workqueue();
 	unregister_netdevice_notifier(&efx_netdev_notifier);
 
 }

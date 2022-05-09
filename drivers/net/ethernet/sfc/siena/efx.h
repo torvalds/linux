@@ -12,36 +12,28 @@
 #include "net_driver.h"
 #include "filter.h"
 
-int efx_net_open(struct net_device *net_dev);
-int efx_net_stop(struct net_device *net_dev);
-
 /* TX */
-void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue);
-netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
-				struct net_device *net_dev);
-netdev_tx_t __efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
+void efx_siena_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue);
+netdev_tx_t efx_siena_hard_start_xmit(struct sk_buff *skb,
+				      struct net_device *net_dev);
+netdev_tx_t __efx_siena_enqueue_skb(struct efx_tx_queue *tx_queue,
+				    struct sk_buff *skb);
 static inline netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 {
 	return INDIRECT_CALL_1(tx_queue->efx->type->tx_enqueue,
-			       __efx_enqueue_skb, tx_queue, skb);
+			       __efx_siena_enqueue_skb, tx_queue, skb);
 }
-void efx_xmit_done_single(struct efx_tx_queue *tx_queue);
-int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
-		 void *type_data);
-extern unsigned int efx_piobuf_size;
+int efx_siena_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
+		       void *type_data);
 
 /* RX */
-void __efx_rx_packet(struct efx_channel *channel);
-void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
-		   unsigned int n_frags, unsigned int len, u16 flags);
+void __efx_siena_rx_packet(struct efx_channel *channel);
+void efx_siena_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
+			 unsigned int n_frags, unsigned int len, u16 flags);
 static inline void efx_rx_flush_packet(struct efx_channel *channel)
 {
 	if (channel->rx_pkt_n_frags)
-		__efx_rx_packet(channel);
-}
-static inline bool efx_rx_buf_hash_valid(struct efx_nic *efx, const u8 *prefix)
-{
-	return true;
+		__efx_siena_rx_packet(channel);
 }
 
 /* Maximum number of TCP segments we support for soft-TSO */
@@ -156,34 +148,33 @@ static inline bool efx_rss_active(struct efx_rss_context *ctx)
 }
 
 /* Ethtool support */
-extern const struct ethtool_ops efx_ethtool_ops;
+extern const struct ethtool_ops efx_siena_ethtool_ops;
 
 /* Global */
-unsigned int efx_usecs_to_ticks(struct efx_nic *efx, unsigned int usecs);
-unsigned int efx_ticks_to_usecs(struct efx_nic *efx, unsigned int ticks);
-int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
-			    unsigned int rx_usecs, bool rx_adaptive,
-			    bool rx_may_override_tx);
-void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
-			    unsigned int *rx_usecs, bool *rx_adaptive);
+unsigned int efx_siena_usecs_to_ticks(struct efx_nic *efx, unsigned int usecs);
+int efx_siena_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
+				  unsigned int rx_usecs, bool rx_adaptive,
+				  bool rx_may_override_tx);
+void efx_siena_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
+				  unsigned int *rx_usecs, bool *rx_adaptive);
 
 /* Update the generic software stats in the passed stats array */
-void efx_update_sw_stats(struct efx_nic *efx, u64 *stats);
+void efx_siena_update_sw_stats(struct efx_nic *efx, u64 *stats);
 
 /* MTD */
 #ifdef CONFIG_SFC_MTD
-int efx_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
-		size_t n_parts, size_t sizeof_part);
+int efx_siena_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
+		      size_t n_parts, size_t sizeof_part);
 static inline int efx_mtd_probe(struct efx_nic *efx)
 {
 	return efx->type->mtd_probe(efx);
 }
-void efx_mtd_rename(struct efx_nic *efx);
-void efx_mtd_remove(struct efx_nic *efx);
+void efx_siena_mtd_rename(struct efx_nic *efx);
+void efx_siena_mtd_remove(struct efx_nic *efx);
 #else
 static inline int efx_mtd_probe(struct efx_nic *efx) { return 0; }
-static inline void efx_mtd_rename(struct efx_nic *efx) {}
-static inline void efx_mtd_remove(struct efx_nic *efx) {}
+static inline void efx_siena_mtd_rename(struct efx_nic *efx) {}
+static inline void efx_siena_mtd_remove(struct efx_nic *efx) {}
 #endif
 
 #ifdef CONFIG_SFC_SRIOV
@@ -221,7 +212,7 @@ static inline bool efx_rwsem_assert_write_locked(struct rw_semaphore *sem)
 	return true;
 }
 
-int efx_xdp_tx_buffers(struct efx_nic *efx, int n, struct xdp_frame **xdpfs,
-		       bool flush);
+int efx_siena_xdp_tx_buffers(struct efx_nic *efx, int n,
+			     struct xdp_frame **xdpfs, bool flush);
 
 #endif /* EFX_EFX_H */

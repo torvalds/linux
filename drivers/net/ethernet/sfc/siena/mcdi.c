@@ -725,7 +725,7 @@ static int _efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned int cmd,
 				  cmd, -rc);
 			if (efx->type->mcdi_reboot_detected)
 				efx->type->mcdi_reboot_detected(efx);
-			efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
+			efx_siena_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
 		} else if (proxy_handle && (rc == -EPROTO) &&
 			   efx_mcdi_get_proxy_handle(efx, hdr_len, data_len,
 						     proxy_handle)) {
@@ -849,7 +849,7 @@ static int _efx_mcdi_rpc(struct efx_nic *efx, unsigned int cmd,
 				       cmd, rc);
 
 			if (rc == -EINTR || rc == -EIO)
-				efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
+				efx_siena_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
 			efx_mcdi_release(mcdi);
 		}
 	}
@@ -1254,7 +1254,7 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 		mcdi->new_epoch = true;
 
 		/* Nobody was waiting for an MCDI request, so trigger a reset */
-		efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
+		efx_siena_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
 	}
 
 	spin_unlock(&mcdi->iface_lock);
@@ -1282,7 +1282,7 @@ static void efx_mcdi_ev_bist(struct efx_nic *efx)
 		}
 	}
 	mcdi->new_epoch = true;
-	efx_schedule_reset(efx, RESET_TYPE_MC_BIST);
+	efx_siena_schedule_reset(efx, RESET_TYPE_MC_BIST);
 	spin_unlock(&mcdi->iface_lock);
 }
 
@@ -1296,7 +1296,7 @@ static void efx_mcdi_abandon(struct efx_nic *efx)
 	if (xchg(&mcdi->mode, MCDI_MODE_FAIL) == MCDI_MODE_FAIL)
 		return; /* it had already been done */
 	netif_dbg(efx, hw, efx->net_dev, "MCDI is timing out; trying to recover\n");
-	efx_schedule_reset(efx, RESET_TYPE_MCDI_TIMEOUT);
+	efx_siena_schedule_reset(efx, RESET_TYPE_MCDI_TIMEOUT);
 }
 
 static void efx_handle_drain_event(struct efx_nic *efx)
@@ -1387,7 +1387,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 			  "%s DMA error (event: "EFX_QWORD_FMT")\n",
 			  code == MCDI_EVENT_CODE_TX_ERR ? "TX" : "RX",
 			  EFX_QWORD_VAL(*event));
-		efx_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
+		efx_siena_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
 		break;
 	case MCDI_EVENT_CODE_PROXY_RESPONSE:
 		efx_mcdi_ev_proxy_response(efx,

@@ -214,7 +214,7 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 			netif_err(efx, tx_err, efx->net_dev,
 				  "TX queue %d spurious TX completion id %d\n",
 				  tx_queue->queue, read_ptr);
-			efx_schedule_reset(efx, RESET_TYPE_TX_SKIP);
+			efx_siena_schedule_reset(efx, RESET_TYPE_TX_SKIP);
 			return;
 		}
 
@@ -225,7 +225,7 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 	}
 }
 
-void efx_xmit_done_check_empty(struct efx_tx_queue *tx_queue)
+void efx_siena_xmit_done_check_empty(struct efx_tx_queue *tx_queue)
 {
 	if ((int)(tx_queue->read_count - tx_queue->old_write_count) >= 0) {
 		tx_queue->old_write_count = READ_ONCE(tx_queue->write_count);
@@ -238,7 +238,7 @@ void efx_xmit_done_check_empty(struct efx_tx_queue *tx_queue)
 	}
 }
 
-void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
+void efx_siena_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 {
 	unsigned int fill_level, pkts_compl = 0, bytes_compl = 0;
 	struct efx_nic *efx = tx_queue->efx;
@@ -265,7 +265,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 			netif_tx_wake_queue(tx_queue->core_txq);
 	}
 
-	efx_xmit_done_check_empty(tx_queue);
+	efx_siena_xmit_done_check_empty(tx_queue);
 }
 
 /* Remove buffers put into a tx_queue for the current packet.

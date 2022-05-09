@@ -58,14 +58,14 @@ static const char payload_msg[] =
 	"Hello world! This is an Efx loopback test in progress!";
 
 /* Interrupt mode names */
-static const unsigned int efx_interrupt_mode_max = EFX_INT_MODE_MAX;
-static const char *const efx_interrupt_mode_names[] = {
+static const unsigned int efx_siena_interrupt_mode_max = EFX_INT_MODE_MAX;
+static const char *const efx_siena_interrupt_mode_names[] = {
 	[EFX_INT_MODE_MSIX]   = "MSI-X",
 	[EFX_INT_MODE_MSI]    = "MSI",
 	[EFX_INT_MODE_LEGACY] = "legacy",
 };
 #define INT_MODE(efx) \
-	STRING_TABLE_LOOKUP(efx->interrupt_mode, efx_interrupt_mode)
+	STRING_TABLE_LOOKUP(efx->interrupt_mode, efx_siena_interrupt_mode)
 
 /**
  * struct efx_loopback_state - persistent state during a loopback selftest
@@ -197,7 +197,7 @@ static int efx_test_eventq_irq(struct efx_nic *efx,
 		schedule_timeout_uninterruptible(wait);
 
 		efx_for_each_channel(channel, efx) {
-			efx_stop_eventq(channel);
+			efx_siena_stop_eventq(channel);
 			if (channel->eventq_read_ptr !=
 			    read_ptr[channel->channel]) {
 				set_bit(channel->channel, &napi_ran);
@@ -209,7 +209,7 @@ static int efx_test_eventq_irq(struct efx_nic *efx,
 				if (efx_nic_event_test_irq_cpu(channel) >= 0)
 					clear_bit(channel->channel, &int_pend);
 			}
-			efx_start_eventq(channel);
+			efx_siena_start_eventq(channel);
 		}
 
 		wait *= 2;
@@ -637,7 +637,7 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 		state->flush = true;
 		mutex_lock(&efx->mac_lock);
 		efx->loopback_mode = mode;
-		rc = __efx_reconfigure_port(efx);
+		rc = __efx_siena_reconfigure_port(efx);
 		mutex_unlock(&efx->mac_lock);
 		if (rc) {
 			netif_err(efx, drv, efx->net_dev,
@@ -731,7 +731,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 		if (rc_reset) {
 			netif_err(efx, hw, efx->net_dev,
 				  "Unable to recover from chip test\n");
-			efx_schedule_reset(efx, RESET_TYPE_DISABLE);
+			efx_siena_schedule_reset(efx, RESET_TYPE_DISABLE);
 			return rc_reset;
 		}
 
@@ -744,7 +744,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	mutex_lock(&efx->mac_lock);
 	efx->phy_mode &= ~PHY_MODE_LOW_POWER;
 	efx->loopback_mode = LOOPBACK_NONE;
-	__efx_reconfigure_port(efx);
+	__efx_siena_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	rc = efx_test_phy(efx, tests, flags);
@@ -759,7 +759,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	mutex_lock(&efx->mac_lock);
 	efx->phy_mode = phy_mode;
 	efx->loopback_mode = loopback_mode;
-	__efx_reconfigure_port(efx);
+	__efx_siena_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	efx_device_attach_if_not_resetting(efx);

@@ -110,7 +110,7 @@ const char *const efx_loopback_mode_names[] = {
  */
 static struct workqueue_struct *reset_workqueue;
 
-int efx_create_reset_workqueue(void)
+int efx_siena_create_reset_workqueue(void)
 {
 	reset_workqueue = create_singlethread_workqueue("sfc_reset");
 	if (!reset_workqueue) {
@@ -121,17 +121,17 @@ int efx_create_reset_workqueue(void)
 	return 0;
 }
 
-void efx_queue_reset_work(struct efx_nic *efx)
+void efx_siena_queue_reset_work(struct efx_nic *efx)
 {
 	queue_work(reset_workqueue, &efx->reset_work);
 }
 
-void efx_flush_reset_workqueue(struct efx_nic *efx)
+void efx_siena_flush_reset_workqueue(struct efx_nic *efx)
 {
 	cancel_work_sync(&efx->reset_work);
 }
 
-void efx_destroy_reset_workqueue(void)
+void efx_siena_destroy_reset_workqueue(void)
 {
 	if (reset_workqueue) {
 		destroy_workqueue(reset_workqueue);
@@ -142,7 +142,7 @@ void efx_destroy_reset_workqueue(void)
 /* We assume that efx->type->reconfigure_mac will always try to sync RX
  * filters and therefore needs to read-lock the filter table against freeing
  */
-void efx_mac_reconfigure(struct efx_nic *efx, bool mtu_only)
+void efx_siena_mac_reconfigure(struct efx_nic *efx, bool mtu_only)
 {
 	if (efx->type->reconfigure_mac) {
 		down_read(&efx->filter_sem);
@@ -161,11 +161,11 @@ static void efx_mac_work(struct work_struct *data)
 
 	mutex_lock(&efx->mac_lock);
 	if (efx->port_enabled)
-		efx_mac_reconfigure(efx, false);
+		efx_siena_mac_reconfigure(efx, false);
 	mutex_unlock(&efx->mac_lock);
 }
 
-int efx_set_mac_address(struct net_device *net_dev, void *data)
+int efx_siena_set_mac_address(struct net_device *net_dev, void *data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct sockaddr *addr = data;
@@ -193,14 +193,14 @@ int efx_set_mac_address(struct net_device *net_dev, void *data)
 
 	/* Reconfigure the MAC */
 	mutex_lock(&efx->mac_lock);
-	efx_mac_reconfigure(efx, false);
+	efx_siena_mac_reconfigure(efx, false);
 	mutex_unlock(&efx->mac_lock);
 
 	return 0;
 }
 
 /* Context: netif_addr_lock held, BHs disabled. */
-void efx_set_rx_mode(struct net_device *net_dev)
+void efx_siena_set_rx_mode(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -209,7 +209,7 @@ void efx_set_rx_mode(struct net_device *net_dev)
 	/* Otherwise efx_start_port() will do this */
 }
 
-int efx_set_features(struct net_device *net_dev, netdev_features_t data)
+int efx_siena_set_features(struct net_device *net_dev, netdev_features_t data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
@@ -226,10 +226,10 @@ int efx_set_features(struct net_device *net_dev, netdev_features_t data)
 	 */
 	if ((net_dev->features ^ data) & (NETIF_F_HW_VLAN_CTAG_FILTER |
 					  NETIF_F_RXFCS)) {
-		/* efx_set_rx_mode() will schedule MAC work to update filters
+		/* efx_siena_set_rx_mode() will schedule MAC work to update filters
 		 * when a new features are finally set in net_dev.
 		 */
-		efx_set_rx_mode(net_dev);
+		efx_siena_set_rx_mode(net_dev);
 	}
 
 	return 0;
@@ -239,7 +239,7 @@ int efx_set_features(struct net_device *net_dev, netdev_features_t data)
  * netif_carrier_on/off) of the link status, and also maintains the
  * link status's stop on the port's TX queue.
  */
-void efx_link_status_changed(struct efx_nic *efx)
+void efx_siena_link_status_changed(struct efx_nic *efx)
 {
 	struct efx_link_state *link_state = &efx->link_state;
 
@@ -270,7 +270,7 @@ void efx_link_status_changed(struct efx_nic *efx)
 		netif_info(efx, link, efx->net_dev, "link down\n");
 }
 
-unsigned int efx_xdp_max_mtu(struct efx_nic *efx)
+unsigned int efx_siena_xdp_max_mtu(struct efx_nic *efx)
 {
 	/* The maximum MTU that we can fit in a single page, allowing for
 	 * framing, overhead and XDP headroom + tailroom.
@@ -283,7 +283,7 @@ unsigned int efx_xdp_max_mtu(struct efx_nic *efx)
 }
 
 /* Context: process, rtnl_lock() held. */
-int efx_change_mtu(struct net_device *net_dev, int new_mtu)
+int efx_siena_change_mtu(struct net_device *net_dev, int new_mtu)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
@@ -293,24 +293,24 @@ int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 		return rc;
 
 	if (rtnl_dereference(efx->xdp_prog) &&
-	    new_mtu > efx_xdp_max_mtu(efx)) {
+	    new_mtu > efx_siena_xdp_max_mtu(efx)) {
 		netif_err(efx, drv, efx->net_dev,
 			  "Requested MTU of %d too big for XDP (max: %d)\n",
-			  new_mtu, efx_xdp_max_mtu(efx));
+			  new_mtu, efx_siena_xdp_max_mtu(efx));
 		return -EINVAL;
 	}
 
 	netif_dbg(efx, drv, efx->net_dev, "changing MTU to %d\n", new_mtu);
 
 	efx_device_detach_sync(efx);
-	efx_stop_all(efx);
+	efx_siena_stop_all(efx);
 
 	mutex_lock(&efx->mac_lock);
 	net_dev->mtu = new_mtu;
-	efx_mac_reconfigure(efx, true);
+	efx_siena_mac_reconfigure(efx, true);
 	mutex_unlock(&efx->mac_lock);
 
-	efx_start_all(efx);
+	efx_siena_start_all(efx);
 	efx_device_attach_if_not_resetting(efx);
 	return 0;
 }
@@ -342,10 +342,10 @@ static void efx_monitor(struct work_struct *data)
 		mutex_unlock(&efx->mac_lock);
 	}
 
-	efx_start_monitor(efx);
+	efx_siena_start_monitor(efx);
 }
 
-void efx_start_monitor(struct efx_nic *efx)
+void efx_siena_start_monitor(struct efx_nic *efx)
 {
 	if (efx->type->monitor)
 		queue_delayed_work(efx->workqueue, &efx->monitor_work,
@@ -432,7 +432,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 	efx->txq_wake_thresh = efx->txq_stop_thresh / 2;
 
 	/* Initialise the channels */
-	efx_start_channels(efx);
+	efx_siena_start_channels(efx);
 
 	efx_ptp_start_datapath(efx);
 
@@ -447,7 +447,7 @@ static void efx_stop_datapath(struct efx_nic *efx)
 
 	efx_ptp_stop_datapath(efx);
 
-	efx_stop_channels(efx);
+	efx_siena_stop_channels(efx);
 }
 
 /**************************************************************************
@@ -459,13 +459,13 @@ static void efx_stop_datapath(struct efx_nic *efx)
 /* Equivalent to efx_link_set_advertising with all-zeroes, except does not
  * force the Autoneg bit on.
  */
-void efx_link_clear_advertising(struct efx_nic *efx)
+void efx_siena_link_clear_advertising(struct efx_nic *efx)
 {
 	bitmap_zero(efx->link_advertising, __ETHTOOL_LINK_MODE_MASK_NBITS);
 	efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
 }
 
-void efx_link_set_wanted_fc(struct efx_nic *efx, u8 wanted_fc)
+void efx_siena_link_set_wanted_fc(struct efx_nic *efx, u8 wanted_fc)
 {
 	efx->wanted_fc = wanted_fc;
 	if (efx->link_advertising[0]) {
@@ -489,7 +489,7 @@ static void efx_start_port(struct efx_nic *efx)
 	efx->port_enabled = true;
 
 	/* Ensure MAC ingress/egress is enabled */
-	efx_mac_reconfigure(efx, false);
+	efx_siena_mac_reconfigure(efx, false);
 
 	mutex_unlock(&efx->mac_lock);
 }
@@ -525,7 +525,7 @@ static void efx_stop_port(struct efx_nic *efx)
  * is safe to call multiple times, so long as the NIC is not disabled.
  * Requires the RTNL lock.
  */
-void efx_start_all(struct efx_nic *efx)
+void efx_siena_start_all(struct efx_nic *efx)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 	BUG_ON(efx->state == STATE_DISABLED);
@@ -541,14 +541,14 @@ void efx_start_all(struct efx_nic *efx)
 	efx_start_datapath(efx);
 
 	/* Start the hardware monitor if there is one */
-	efx_start_monitor(efx);
+	efx_siena_start_monitor(efx);
 
 	/* Link state detection is normally event-driven; we have
 	 * to poll now because we could have missed a change
 	 */
 	mutex_lock(&efx->mac_lock);
 	if (efx_mcdi_phy_poll(efx))
-		efx_link_status_changed(efx);
+		efx_siena_link_status_changed(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	if (efx->type->start_stats) {
@@ -565,7 +565,7 @@ void efx_start_all(struct efx_nic *efx)
  * times with the NIC in almost any state, but interrupts should be
  * enabled.  Requires the RTNL lock.
  */
-void efx_stop_all(struct efx_nic *efx)
+void efx_siena_stop_all(struct efx_nic *efx)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
@@ -598,7 +598,8 @@ void efx_stop_all(struct efx_nic *efx)
 }
 
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
-void efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
+void efx_siena_net_stats(struct net_device *net_dev,
+			 struct rtnl_link_stats64 *stats)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -614,7 +615,7 @@ void efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
  *
  * Callers must hold the mac_lock
  */
-int __efx_reconfigure_port(struct efx_nic *efx)
+int __efx_siena_reconfigure_port(struct efx_nic *efx)
 {
 	enum efx_phy_mode phy_mode;
 	int rc = 0;
@@ -640,14 +641,14 @@ int __efx_reconfigure_port(struct efx_nic *efx)
 /* Reinitialise the MAC to pick up new PHY settings, even if the port is
  * disabled.
  */
-int efx_reconfigure_port(struct efx_nic *efx)
+int efx_siena_reconfigure_port(struct efx_nic *efx)
 {
 	int rc;
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	mutex_lock(&efx->mac_lock);
-	rc = __efx_reconfigure_port(efx);
+	rc = __efx_siena_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;
@@ -682,7 +683,7 @@ out:
  * Returns 0 if the recovery mechanisms are unsuccessful.
  * Returns a non-zero value otherwise.
  */
-int efx_try_recovery(struct efx_nic *efx)
+int efx_siena_try_recovery(struct efx_nic *efx)
 {
 #ifdef CONFIG_EEH
 	/* A PCI error can occur and not be seen by EEH because nothing
@@ -704,15 +705,15 @@ int efx_try_recovery(struct efx_nic *efx)
 /* Tears down the entire software state and most of the hardware state
  * before reset.
  */
-void efx_reset_down(struct efx_nic *efx, enum reset_type method)
+void efx_siena_reset_down(struct efx_nic *efx, enum reset_type method)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	if (method == RESET_TYPE_MCDI_TIMEOUT)
 		efx->type->prepare_flr(efx);
 
-	efx_stop_all(efx);
-	efx_disable_interrupts(efx);
+	efx_siena_stop_all(efx);
+	efx_siena_disable_interrupts(efx);
 
 	mutex_lock(&efx->mac_lock);
 	down_write(&efx->filter_sem);
@@ -721,7 +722,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 }
 
 /* Context: netif_tx_lock held, BHs disabled. */
-void efx_watchdog(struct net_device *net_dev, unsigned int txqueue)
+void efx_siena_watchdog(struct net_device *net_dev, unsigned int txqueue)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -729,16 +730,16 @@ void efx_watchdog(struct net_device *net_dev, unsigned int txqueue)
 		  "TX stuck with port_enabled=%d: resetting channels\n",
 		  efx->port_enabled);
 
-	efx_schedule_reset(efx, RESET_TYPE_TX_WATCHDOG);
+	efx_siena_schedule_reset(efx, RESET_TYPE_TX_WATCHDOG);
 }
 
 /* This function will always ensure that the locks acquired in
- * efx_reset_down() are released. A failure return code indicates
+ * efx_siena_reset_down() are released. A failure return code indicates
  * that we were unable to reinitialise the hardware, and the
  * driver should be disabled. If ok is false, then the rx and tx
  * engines are not restarted, pending a RESET_DISABLE.
  */
-int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
+int efx_siena_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 {
 	int rc;
 
@@ -765,7 +766,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 				  "could not restore PHY settings\n");
 	}
 
-	rc = efx_enable_interrupts(efx);
+	rc = efx_siena_enable_interrupts(efx);
 	if (rc)
 		goto fail;
 
@@ -787,7 +788,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 	mutex_unlock(&efx->mac_lock);
 
-	efx_start_all(efx);
+	efx_siena_start_all(efx);
 
 	if (efx->type->udp_tnl_push_ports)
 		efx->type->udp_tnl_push_ports(efx);
@@ -809,7 +810,7 @@ fail:
  *
  * Caller must hold the rtnl_lock.
  */
-int efx_reset(struct efx_nic *efx, enum reset_type method)
+int efx_siena_reset(struct efx_nic *efx, enum reset_type method)
 {
 	int rc, rc2 = 0;
 	bool disabled;
@@ -818,11 +819,11 @@ int efx_reset(struct efx_nic *efx, enum reset_type method)
 		   RESET_TYPE(method));
 
 	efx_device_detach_sync(efx);
-	/* efx_reset_down() grabs locks that prevent recovery on EF100.
+	/* efx_siena_reset_down() grabs locks that prevent recovery on EF100.
 	 * EF100 reset is handled in the efx_nic_type callback below.
 	 */
 	if (efx_nic_rev(efx) != EFX_REV_EF100)
-		efx_reset_down(efx, method);
+		efx_siena_reset_down(efx, method);
 
 	rc = efx->type->reset(efx, method);
 	if (rc) {
@@ -851,7 +852,7 @@ out:
 		method == RESET_TYPE_DISABLE ||
 		method == RESET_TYPE_RECOVER_OR_DISABLE;
 	if (efx_nic_rev(efx) != EFX_REV_EF100)
-		rc2 = efx_reset_up(efx, method, !disabled);
+		rc2 = efx_siena_reset_up(efx, method, !disabled);
 	if (rc2) {
 		disabled = true;
 		if (!rc)
@@ -886,7 +887,7 @@ static void efx_reset_work(struct work_struct *data)
 
 	if ((method == RESET_TYPE_RECOVER_OR_DISABLE ||
 	     method == RESET_TYPE_RECOVER_OR_ALL) &&
-	    efx_try_recovery(efx))
+	    efx_siena_try_recovery(efx))
 		return;
 
 	if (!pending)
@@ -894,17 +895,17 @@ static void efx_reset_work(struct work_struct *data)
 
 	rtnl_lock();
 
-	/* We checked the state in efx_schedule_reset() but it may
+	/* We checked the state in efx_siena_schedule_reset() but it may
 	 * have changed by now.  Now that we have the RTNL lock,
 	 * it cannot change again.
 	 */
 	if (efx->state == STATE_READY)
-		(void)efx_reset(efx, method);
+		(void)efx_siena_reset(efx, method);
 
 	rtnl_unlock();
 }
 
-void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
+void efx_siena_schedule_reset(struct efx_nic *efx, enum reset_type type)
 {
 	enum reset_type method;
 
@@ -951,7 +952,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	 */
 	efx_mcdi_mode_poll(efx);
 
-	efx_queue_reset_work(efx);
+	efx_siena_queue_reset_work(efx);
 }
 
 /**************************************************************************
@@ -963,11 +964,12 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
  * before use
  *
  **************************************************************************/
-int efx_port_dummy_op_int(struct efx_nic *efx)
+int efx_siena_port_dummy_op_int(struct efx_nic *efx)
 {
 	return 0;
 }
-void efx_port_dummy_op_void(struct efx_nic *efx) {}
+
+void efx_siena_port_dummy_op_void(struct efx_nic *efx) {}
 
 /**************************************************************************
  *
@@ -978,8 +980,8 @@ void efx_port_dummy_op_void(struct efx_nic *efx) {}
 /* This zeroes out and then fills in the invariants in a struct
  * efx_nic (including all sub-structures).
  */
-int efx_init_struct(struct efx_nic *efx,
-		    struct pci_dev *pci_dev, struct net_device *net_dev)
+int efx_siena_init_struct(struct efx_nic *efx,
+			  struct pci_dev *pci_dev, struct net_device *net_dev)
 {
 	int rc = -ENOMEM;
 
@@ -1033,7 +1035,7 @@ int efx_init_struct(struct efx_nic *efx,
 
 	efx->mem_bar = UINT_MAX;
 
-	rc = efx_init_channels(efx);
+	rc = efx_siena_init_channels(efx);
 	if (rc)
 		goto fail;
 
@@ -1049,17 +1051,17 @@ int efx_init_struct(struct efx_nic *efx,
 	return 0;
 
 fail:
-	efx_fini_struct(efx);
+	efx_siena_fini_struct(efx);
 	return rc;
 }
 
-void efx_fini_struct(struct efx_nic *efx)
+void efx_siena_fini_struct(struct efx_nic *efx)
 {
 #ifdef CONFIG_RFS_ACCEL
 	kfree(efx->rps_hash_table);
 #endif
 
-	efx_fini_channels(efx);
+	efx_siena_fini_channels(efx);
 
 	kfree(efx->vpd_sn);
 
@@ -1070,8 +1072,8 @@ void efx_fini_struct(struct efx_nic *efx)
 }
 
 /* This configures the PCI device to enable I/O and DMA. */
-int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
-		unsigned int mem_map_size)
+int efx_siena_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
+		      unsigned int mem_map_size)
 {
 	struct pci_dev *pci_dev = efx->pci_dev;
 	int rc;
@@ -1140,7 +1142,7 @@ fail1:
 	return rc;
 }
 
-void efx_fini_io(struct efx_nic *efx)
+void efx_siena_fini_io(struct efx_nic *efx)
 {
 	netif_dbg(efx, drv, efx->net_dev, "shutting down I/O\n");
 
@@ -1185,7 +1187,7 @@ static ssize_t mcdi_logging_store(struct device *dev,
 
 static DEVICE_ATTR_RW(mcdi_logging);
 
-void efx_init_mcdi_logging(struct efx_nic *efx)
+void efx_siena_init_mcdi_logging(struct efx_nic *efx)
 {
 	int rc = device_create_file(&efx->pci_dev->dev, &dev_attr_mcdi_logging);
 
@@ -1195,7 +1197,7 @@ void efx_init_mcdi_logging(struct efx_nic *efx)
 	}
 }
 
-void efx_fini_mcdi_logging(struct efx_nic *efx)
+void efx_siena_fini_mcdi_logging(struct efx_nic *efx)
 {
 	device_remove_file(&efx->pci_dev->dev, &dev_attr_mcdi_logging);
 }
@@ -1222,8 +1224,8 @@ static pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
 
 		efx_device_detach_sync(efx);
 
-		efx_stop_all(efx);
-		efx_disable_interrupts(efx);
+		efx_siena_stop_all(efx);
+		efx_siena_disable_interrupts(efx);
 
 		status = PCI_ERS_RESULT_NEED_RESET;
 	} else {
@@ -1266,10 +1268,10 @@ static void efx_io_resume(struct pci_dev *pdev)
 	if (efx->state == STATE_DISABLED)
 		goto out;
 
-	rc = efx_reset(efx, RESET_TYPE_ALL);
+	rc = efx_siena_reset(efx, RESET_TYPE_ALL);
 	if (rc) {
 		netif_err(efx, hw, efx->net_dev,
-			  "efx_reset failed after PCI error (%d)\n", rc);
+			  "efx_siena_reset failed after PCI error (%d)\n", rc);
 	} else {
 		efx->state = STATE_READY;
 		netif_dbg(efx, hw, efx->net_dev,
@@ -1286,7 +1288,7 @@ out:
  * with our request for slot reset the mmio_enabled callback will never be
  * called, and the link_reset callback is not used by AER or EEH mechanisms.
  */
-const struct pci_error_handlers efx_err_handlers = {
+const struct pci_error_handlers efx_siena_err_handlers = {
 	.error_detected = efx_io_error_detected,
 	.slot_reset	= efx_io_slot_reset,
 	.resume		= efx_io_resume,
@@ -1354,8 +1356,9 @@ static bool efx_can_encap_offloads(struct efx_nic *efx, struct sk_buff *skb)
 	}
 }
 
-netdev_features_t efx_features_check(struct sk_buff *skb, struct net_device *dev,
-				     netdev_features_t features)
+netdev_features_t efx_siena_features_check(struct sk_buff *skb,
+					   struct net_device *dev,
+					   netdev_features_t features)
 {
 	struct efx_nic *efx = netdev_priv(dev);
 
@@ -1375,8 +1378,8 @@ netdev_features_t efx_features_check(struct sk_buff *skb, struct net_device *dev
 	return features;
 }
 
-int efx_get_phys_port_id(struct net_device *net_dev,
-			 struct netdev_phys_item_id *ppid)
+int efx_siena_get_phys_port_id(struct net_device *net_dev,
+			       struct netdev_phys_item_id *ppid)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -1386,7 +1389,8 @@ int efx_get_phys_port_id(struct net_device *net_dev,
 		return -EOPNOTSUPP;
 }
 
-int efx_get_phys_port_name(struct net_device *net_dev, char *name, size_t len)
+int efx_siena_get_phys_port_name(struct net_device *net_dev,
+				 char *name, size_t len)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 

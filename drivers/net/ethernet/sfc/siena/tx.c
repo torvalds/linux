@@ -138,13 +138,14 @@ static void efx_tx_send_pending(struct efx_channel *channel)
  * If any DMA mapping fails, any mapped fragments will be unmapped,
  * the queue's insert pointer will be restored to its original value.
  *
- * This function is split out from efx_hard_start_xmit to allow the
+ * This function is split out from efx_siena_hard_start_xmit to allow the
  * loopback test to direct packets via specific TX queues.
  *
  * Returns NETDEV_TX_OK.
  * You must hold netif_tx_lock() to call this function.
  */
-netdev_tx_t __efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
+netdev_tx_t __efx_siena_enqueue_skb(struct efx_tx_queue *tx_queue,
+				    struct sk_buff *skb)
 {
 	unsigned int old_insert_count = tx_queue->insert_count;
 	bool xmit_more = netdev_xmit_more();
@@ -219,8 +220,8 @@ err:
  * Runs in NAPI context, either in our poll (for XDP TX) or a different NIC
  * (for XDP redirect).
  */
-int efx_xdp_tx_buffers(struct efx_nic *efx, int n, struct xdp_frame **xdpfs,
-		       bool flush)
+int efx_siena_xdp_tx_buffers(struct efx_nic *efx, int n, struct xdp_frame **xdpfs,
+			     bool flush)
 {
 	struct efx_tx_buffer *tx_buffer;
 	struct efx_tx_queue *tx_queue;
@@ -310,8 +311,8 @@ unlock:
  * Context: non-blocking.
  * Should always return NETDEV_TX_OK and consume the skb.
  */
-netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
-				struct net_device *net_dev)
+netdev_tx_t efx_siena_hard_start_xmit(struct sk_buff *skb,
+				      struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_tx_queue *tx_queue;
@@ -354,52 +355,14 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	return __efx_enqueue_skb(tx_queue, skb);
+	return __efx_siena_enqueue_skb(tx_queue, skb);
 }
 
-void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
-{
-	unsigned int pkts_compl = 0, bytes_compl = 0;
-	unsigned int read_ptr;
-	bool finished = false;
-
-	read_ptr = tx_queue->read_count & tx_queue->ptr_mask;
-
-	while (!finished) {
-		struct efx_tx_buffer *buffer = &tx_queue->buffer[read_ptr];
-
-		if (!efx_tx_buffer_in_use(buffer)) {
-			struct efx_nic *efx = tx_queue->efx;
-
-			netif_err(efx, hw, efx->net_dev,
-				  "TX queue %d spurious single TX completion\n",
-				  tx_queue->queue);
-			efx_schedule_reset(efx, RESET_TYPE_TX_SKIP);
-			return;
-		}
-
-		/* Need to check the flag before dequeueing. */
-		if (buffer->flags & EFX_TX_BUF_SKB)
-			finished = true;
-		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
-
-		++tx_queue->read_count;
-		read_ptr = tx_queue->read_count & tx_queue->ptr_mask;
-	}
-
-	tx_queue->pkts_compl += pkts_compl;
-	tx_queue->bytes_compl += bytes_compl;
-
-	EFX_WARN_ON_PARANOID(pkts_compl != 1);
-
-	efx_xmit_done_check_empty(tx_queue);
-}
-
-void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
+void efx_siena_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
 
-	/* Must be inverse of queue lookup in efx_hard_start_xmit() */
+	/* Must be inverse of queue lookup in efx_siena_hard_start_xmit() */
 	tx_queue->core_txq =
 		netdev_get_tx_queue(efx->net_dev,
 				    tx_queue->channel->channel +
@@ -407,8 +370,8 @@ void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 				     efx->n_tx_channels : 0));
 }
 
-int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
-		 void *type_data)
+int efx_siena_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
+		       void *type_data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct tc_mqprio_qopt *mqprio = type_data;

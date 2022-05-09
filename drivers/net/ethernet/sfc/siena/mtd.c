@@ -37,7 +37,7 @@ static void efx_mtd_sync(struct mtd_info *mtd)
 		       part->name, part->dev_type_name, rc);
 }
 
-static void efx_mtd_remove_partition(struct efx_mtd_partition *part)
+static void efx_siena_mtd_remove_partition(struct efx_mtd_partition *part)
 {
 	int rc;
 
@@ -51,8 +51,8 @@ static void efx_mtd_remove_partition(struct efx_mtd_partition *part)
 	list_del(&part->node);
 }
 
-int efx_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
-		size_t n_parts, size_t sizeof_part)
+int efx_siena_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
+		      size_t n_parts, size_t sizeof_part)
 {
 	struct efx_mtd_partition *part;
 	size_t i;
@@ -79,7 +79,7 @@ int efx_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
 		if (mtd_device_register(&part->mtd, NULL, 0))
 			goto fail;
 
-		/* Add to list in order - efx_mtd_remove() depends on this */
+		/* Add to list in order - efx_siena_mtd_remove() depends on this */
 		list_add_tail(&part->node, &efx->mtd_list);
 	}
 
@@ -89,13 +89,13 @@ fail:
 	while (i--) {
 		part = (struct efx_mtd_partition *)((char *)parts +
 						    i * sizeof_part);
-		efx_mtd_remove_partition(part);
+		efx_siena_mtd_remove_partition(part);
 	}
 	/* Failure is unlikely here, but probably means we're out of memory */
 	return -ENOMEM;
 }
 
-void efx_mtd_remove(struct efx_nic *efx)
+void efx_siena_mtd_remove(struct efx_nic *efx)
 {
 	struct efx_mtd_partition *parts, *part, *next;
 
@@ -108,12 +108,12 @@ void efx_mtd_remove(struct efx_nic *efx)
 				 node);
 
 	list_for_each_entry_safe(part, next, &efx->mtd_list, node)
-		efx_mtd_remove_partition(part);
+		efx_siena_mtd_remove_partition(part);
 
 	kfree(parts);
 }
 
-void efx_mtd_rename(struct efx_nic *efx)
+void efx_siena_mtd_rename(struct efx_nic *efx)
 {
 	struct efx_mtd_partition *part;
 

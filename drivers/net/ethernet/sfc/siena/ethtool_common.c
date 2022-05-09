@@ -218,7 +218,7 @@ int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 
 	old_adv = efx->link_advertising[0];
 	old_fc = efx->wanted_fc;
-	efx_link_set_wanted_fc(efx, wanted_fc);
+	efx_siena_link_set_wanted_fc(efx, wanted_fc);
 	if (efx->link_advertising[0] != old_adv ||
 	    (efx->wanted_fc ^ old_fc) & EFX_FC_AUTO) {
 		rc = efx_mcdi_port_reconfigure(efx);
@@ -233,7 +233,7 @@ int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	/* Reconfigure the MAC. The PHY *may* generate a link state change event
 	 * if the user just changed the advertised capabilities, but there's no
 	 * harm doing this twice */
-	efx_mac_reconfigure(efx, false);
+	efx_siena_mac_reconfigure(efx, false);
 
 out:
 	mutex_unlock(&efx->mac_lock);
@@ -1307,7 +1307,7 @@ int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 	if (rc < 0)
 		return rc;
 
-	return efx_reset(efx, rc);
+	return efx_siena_reset(efx, rc);
 }
 
 int efx_ethtool_get_module_eeprom(struct net_device *net_dev,

@@ -207,7 +207,6 @@ struct efx_tx_buffer {
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
  * @piobuf: PIO buffer region for this TX queue (shared with its partner).
- *	Size of the region is efx_piobuf_size.
  * @piobuf_offset: Buffer offset to be specified in PIO descriptors
  * @initialised: Has hardware queue been initialised?
  * @timestamping: Is timestamping enabled for this channel?
@@ -478,9 +477,9 @@ enum efx_sync_events_state {
  * @n_rx_xdp_tx: Count of RX packets retransmitted due to XDP
  * @n_rx_xdp_redirect: Count of RX packets redirected to a different NIC by XDP
  * @rx_pkt_n_frags: Number of fragments in next packet to be delivered by
- *	__efx_rx_packet(), or zero if there is none
+ *	__efx_siena_rx_packet(), or zero if there is none
  * @rx_pkt_index: Ring index of first buffer for next packet to be delivered
- *	by __efx_rx_packet(), if @rx_pkt_n_frags != 0
+ *	by __efx_siena_rx_packet(), if @rx_pkt_n_frags != 0
  * @rx_list: list of SKBs from current RX, awaiting processing
  * @rx_queue: RX queue for this channel
  * @tx_queue: TX queues for this channel
@@ -869,12 +868,12 @@ enum efx_xdp_tx_queues_mode {
  * @nic_data: Hardware dependent state
  * @mcdi: Management-Controller-to-Driver Interface state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
- *	efx_monitor() and efx_reconfigure_port()
+ *	efx_monitor() and efx_siena_reconfigure_port()
  * @port_enabled: Port enabled indicator.
- *	Serialises efx_stop_all(), efx_start_all(), efx_monitor() and
- *	efx_mac_work() with kernel interfaces. Safe to read under any
- *	one of the rtnl_lock, mac_lock, or netif_tx_lock, but all three must
- *	be held to modify it.
+ *	Serialises efx_siena_stop_all(), efx_siena_start_all(),
+ *	efx_monitor() and efx_mac_work() with kernel interfaces.
+ *	Safe to read under any one of the rtnl_lock, mac_lock, or netif_tx_lock,
+ *	but all three must be held to modify it.
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
  * @fixed_features: Features which cannot be turned off
@@ -1255,7 +1254,7 @@ struct efx_udp_tunnel {
  *	This must check whether the specified table entry is used by RFS
  *	and that rps_may_expire_flow() returns true for it.
  * @mtd_probe: Probe and add MTD partitions associated with this net device,
- *	 using efx_mtd_add()
+ *	 using efx_siena_mtd_add()
  * @mtd_rename: Set an MTD partition name using the net device name
  * @mtd_read: Read from an MTD partition
  * @mtd_erase: Erase part of an MTD partition

@@ -105,7 +105,7 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 	unsigned int tx_usecs, rx_usecs;
 	bool rx_adaptive;
 
-	efx_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &rx_adaptive);
+	efx_siena_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &rx_adaptive);
 
 	coalesce->tx_coalesce_usecs = tx_usecs;
 	coalesce->tx_coalesce_usecs_irq = tx_usecs;
@@ -127,7 +127,7 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	bool adaptive, rx_may_override_tx;
 	int rc;
 
-	efx_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &adaptive);
+	efx_siena_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &adaptive);
 
 	if (coalesce->rx_coalesce_usecs != rx_usecs)
 		rx_usecs = coalesce->rx_coalesce_usecs;
@@ -146,8 +146,8 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	else
 		tx_usecs = coalesce->tx_coalesce_usecs_irq;
 
-	rc = efx_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive,
-				     rx_may_override_tx);
+	rc = efx_siena_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive,
+					   rx_may_override_tx);
 	if (rc != 0)
 		return rc;
 
@@ -198,7 +198,7 @@ efx_ethtool_set_ringparam(struct net_device *net_dev,
 			   "increasing TX queue size to minimum of %u\n",
 			   txq_entries);
 
-	return efx_realloc_channels(efx, ring->rx_pending, txq_entries);
+	return efx_siena_realloc_channels(efx, ring->rx_pending, txq_entries);
 }
 
 static void efx_ethtool_get_wol(struct net_device *net_dev,
@@ -239,7 +239,7 @@ static int efx_ethtool_get_ts_info(struct net_device *net_dev,
 	return 0;
 }
 
-const struct ethtool_ops efx_ethtool_ops = {
+const struct ethtool_ops efx_siena_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_USECS_IRQ |
 				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,

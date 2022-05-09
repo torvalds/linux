@@ -518,7 +518,7 @@ int efx_mcdi_phy_probe(struct efx_nic *efx)
 	efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
 	if (phy_data->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
 		efx->wanted_fc |= EFX_FC_AUTO;
-	efx_link_set_wanted_fc(efx, efx->wanted_fc);
+	efx_siena_link_set_wanted_fc(efx, efx->wanted_fc);
 
 	return 0;
 
@@ -605,7 +605,7 @@ int efx_mcdi_phy_set_link_ksettings(struct efx_nic *efx, const struct ethtool_li
 		efx_link_set_advertising(efx, cmd->link_modes.advertising);
 		phy_cfg->forced_cap = 0;
 	} else {
-		efx_link_clear_advertising(efx);
+		efx_siena_link_clear_advertising(efx);
 		phy_cfg->forced_cap = caps;
 	}
 	return 0;
@@ -1297,5 +1297,5 @@ void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev)
 
 	efx_mcdi_phy_check_fcntl(efx, lpa);
 
-	efx_link_status_changed(efx);
+	efx_siena_link_status_changed(efx);
 }

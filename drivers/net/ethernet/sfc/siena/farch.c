@@ -747,12 +747,13 @@ int efx_farch_fini_dmaq(struct efx_nic *efx)
  * completion events.  This means that efx->rxq_flush_outstanding remained at 4
  * after the FLR; also, efx->active_queues was non-zero (as no flush completion
  * events were received, and we didn't go through efx_check_tx_flush_complete())
- * If we don't fix this up, on the next call to efx_realloc_channels() we won't
- * flush any RX queues because efx->rxq_flush_outstanding is at the limit of 4
- * for batched flush requests; and the efx->active_queues gets messed up because
- * we keep incrementing for the newly initialised queues, but it never went to
- * zero previously.  Then we get a timeout every time we try to restart the
- * queues, as it doesn't go back to zero when we should be flushing the queues.
+ * If we don't fix this up, on the next call to efx_siena_realloc_channels() we
+ * won't flush any RX queues because efx->rxq_flush_outstanding is at the limit
+ * of 4 for batched flush requests; and the efx->active_queues gets messed up
+ * because we keep incrementing for the newly initialised queues, but it never
+ * went to zero previously.  Then we get a timeout every time we try to restart
+ * the queues, as it doesn't go back to zero when we should be flushing the
+ * queues.
  */
 void efx_farch_finish_flr(struct efx_nic *efx)
 {
@@ -838,7 +839,7 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
 		tx_queue = channel->tx_queue +
 				(tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
-		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
+		efx_siena_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_WQ_FF_FULL)) {
 		/* Rewrite the FIFO write pointer */
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
@@ -849,7 +850,7 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		efx_farch_notify_tx_desc(tx_queue);
 		netif_tx_unlock(efx->net_dev);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_PKT_ERR)) {
-		efx_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
+		efx_siena_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
 	} else {
 		netif_err(efx, tx_err, efx->net_dev,
 			  "channel %d unexpected TX event "
@@ -956,7 +957,7 @@ efx_farch_handle_rx_bad_index(struct efx_rx_queue *rx_queue, unsigned index)
 		   "dropped %d events (index=%d expected=%d)\n",
 		   dropped, index, expected);
 
-	efx_schedule_reset(efx, RESET_TYPE_DISABLE);
+	efx_siena_schedule_reset(efx, RESET_TYPE_DISABLE);
 	return false;
 }
 
@@ -1001,7 +1002,7 @@ efx_farch_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 
 		/* Discard all pending fragments */
 		if (rx_queue->scatter_n) {
-			efx_rx_packet(
+			efx_siena_rx_packet(
 				rx_queue,
 				rx_queue->removed_count & rx_queue->ptr_mask,
 				rx_queue->scatter_n, 0, EFX_RX_PKT_DISCARD);
@@ -1015,7 +1016,7 @@ efx_farch_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 
 		/* Discard new fragment if not SOP */
 		if (!rx_ev_sop) {
-			efx_rx_packet(
+			efx_siena_rx_packet(
 				rx_queue,
 				rx_queue->removed_count & rx_queue->ptr_mask,
 				1, 0, EFX_RX_PKT_DISCARD);
@@ -1067,9 +1068,9 @@ efx_farch_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 	channel->irq_mod_score += 2;
 
 	/* Handle received packet */
-	efx_rx_packet(rx_queue,
-		      rx_queue->removed_count & rx_queue->ptr_mask,
-		      rx_queue->scatter_n, rx_ev_byte_cnt, flags);
+	efx_siena_rx_packet(rx_queue,
+			    rx_queue->removed_count & rx_queue->ptr_mask,
+			    rx_queue->scatter_n, rx_ev_byte_cnt, flags);
 	rx_queue->removed_count += rx_queue->scatter_n;
 	rx_queue->scatter_n = 0;
 }
@@ -1222,7 +1223,7 @@ efx_farch_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 			  "channel %d seen DRIVER RX_RESET event. "
 			"Resetting.\n", channel->channel);
 		atomic_inc(&efx->rx_reset);
-		efx_schedule_reset(efx, RESET_TYPE_DISABLE);
+		efx_siena_schedule_reset(efx, RESET_TYPE_DISABLE);
 		break;
 	case FSE_BZ_RX_DSC_ERROR_EV:
 		if (ev_sub_data < EFX_VI_BASE) {
@@ -1230,7 +1231,7 @@ efx_farch_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 				  "RX DMA Q %d reports descriptor fetch error."
 				  " RX Q %d is disabled.\n", ev_sub_data,
 				  ev_sub_data);
-			efx_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
+			efx_siena_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
 		}
 #ifdef CONFIG_SFC_SRIOV
 		else
@@ -1243,7 +1244,7 @@ efx_farch_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 				  "TX DMA Q %d reports descriptor fetch error."
 				  " TX Q %d is disabled.\n", ev_sub_data,
 				  ev_sub_data);
-			efx_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
+			efx_siena_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
 		}
 #ifdef CONFIG_SFC_SRIOV
 		else
@@ -1496,12 +1497,12 @@ irqreturn_t efx_farch_fatal_interrupt(struct efx_nic *efx)
 	if (++efx->int_error_count < EFX_MAX_INT_ERRORS) {
 		netif_err(efx, hw, efx->net_dev,
 			  "SYSTEM ERROR - reset scheduled\n");
-		efx_schedule_reset(efx, RESET_TYPE_INT_ERROR);
+		efx_siena_schedule_reset(efx, RESET_TYPE_INT_ERROR);
 	} else {
 		netif_err(efx, hw, efx->net_dev,
 			  "SYSTEM ERROR - max number of errors seen."
 			  "NIC will be disabled\n");
-		efx_schedule_reset(efx, RESET_TYPE_DISABLE);
+		efx_siena_schedule_reset(efx, RESET_TYPE_DISABLE);
 	}
 
 	return IRQ_HANDLED;
@@ -1529,7 +1530,7 @@ irqreturn_t efx_farch_legacy_interrupt(int irq, void *dev_id)
 	 * code. Disable them earlier.
 	 * If an EEH error occurred, the read will have returned all ones.
 	 */
-	if (EFX_DWORD_IS_ALL_ONES(reg) && efx_try_recovery(efx) &&
+	if (EFX_DWORD_IS_ALL_ONES(reg) && efx_siena_try_recovery(efx) &&
 	    !efx->eeh_disabled_legacy_irq) {
 		disable_irq_nosync(efx->legacy_irq);
 		efx->eeh_disabled_legacy_irq = true;

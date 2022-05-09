@@ -1043,7 +1043,7 @@ efx_siena_sriov_get_channel_name(struct efx_channel *channel,
 static const struct efx_channel_type efx_siena_sriov_channel_type = {
 	.handle_no_channel	= efx_siena_sriov_handle_no_channel,
 	.pre_probe		= efx_siena_sriov_probe_channel,
-	.post_remove		= efx_channel_dummy_op_void,
+	.post_remove		= efx_siena_channel_dummy_op_void,
 	.get_name		= efx_siena_sriov_get_channel_name,
 	/* no copy operation; channel must not be reallocated */
 	.keep_eventq		= true,
