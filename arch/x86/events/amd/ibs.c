@@ -544,9 +544,22 @@ static const struct attribute_group *empty_attr_groups[] = {
 
 PMU_FORMAT_ATTR(rand_en,	"config:57");
 PMU_FORMAT_ATTR(cnt_ctl,	"config:19");
+PMU_EVENT_ATTR_STRING(l3missonly, fetch_l3missonly, "config:59");
+PMU_EVENT_ATTR_STRING(l3missonly, op_l3missonly, "config:16");
+
+static umode_t
+zen4_ibs_extensions_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	return ibs_caps & IBS_CAPS_ZEN4 ? attr->mode : 0;
+}
 
 static struct attribute *rand_en_attrs[] = {
 	&format_attr_rand_en.attr,
+	NULL,
+};
+
+static struct attribute *fetch_l3missonly_attrs[] = {
+	&fetch_l3missonly.attr.attr,
 	NULL,
 };
 
@@ -555,8 +568,19 @@ static struct attribute_group group_rand_en = {
 	.attrs = rand_en_attrs,
 };
 
+static struct attribute_group group_fetch_l3missonly = {
+	.name = "format",
+	.attrs = fetch_l3missonly_attrs,
+	.is_visible = zen4_ibs_extensions_is_visible,
+};
+
 static const struct attribute_group *fetch_attr_groups[] = {
 	&group_rand_en,
+	NULL,
+};
+
+static const struct attribute_group *fetch_attr_update[] = {
+	&group_fetch_l3missonly,
 	NULL,
 };
 
@@ -571,14 +595,26 @@ static struct attribute *cnt_ctl_attrs[] = {
 	NULL,
 };
 
+static struct attribute *op_l3missonly_attrs[] = {
+	&op_l3missonly.attr.attr,
+	NULL,
+};
+
 static struct attribute_group group_cnt_ctl = {
 	.name = "format",
 	.attrs = cnt_ctl_attrs,
 	.is_visible = cnt_ctl_is_visible,
 };
 
+static struct attribute_group group_op_l3missonly = {
+	.name = "format",
+	.attrs = op_l3missonly_attrs,
+	.is_visible = zen4_ibs_extensions_is_visible,
+};
+
 static const struct attribute_group *op_attr_update[] = {
 	&group_cnt_ctl,
+	&group_op_l3missonly,
 	NULL,
 };
 
@@ -805,10 +841,8 @@ static __init int perf_ibs_pmu_init(struct perf_ibs *perf_ibs, char *name)
 	return ret;
 }
 
-static __init int perf_event_ibs_init(void)
+static __init int perf_ibs_fetch_init(void)
 {
-	int ret;
-
 	/*
 	 * Some chips fail to reset the fetch count when it is written; instead
 	 * they need a 0-1 transition of IbsFetchEn.
@@ -819,12 +853,17 @@ static __init int perf_event_ibs_init(void)
 	if (boot_cpu_data.x86 == 0x19 && boot_cpu_data.x86_model < 0x10)
 		perf_ibs_fetch.fetch_ignore_if_zero_rip = 1;
 
+	if (ibs_caps & IBS_CAPS_ZEN4)
+		perf_ibs_fetch.config_mask |= IBS_FETCH_L3MISSONLY;
+
 	perf_ibs_fetch.pmu.attr_groups = fetch_attr_groups;
+	perf_ibs_fetch.pmu.attr_update = fetch_attr_update;
 
-	ret = perf_ibs_pmu_init(&perf_ibs_fetch, "ibs_fetch");
-	if (ret)
-		return ret;
+	return perf_ibs_pmu_init(&perf_ibs_fetch, "ibs_fetch");
+}
 
+static __init int perf_ibs_op_init(void)
+{
 	if (ibs_caps & IBS_CAPS_OPCNT)
 		perf_ibs_op.config_mask |= IBS_OP_CNT_CTL;
 
@@ -834,10 +873,24 @@ static __init int perf_event_ibs_init(void)
 		perf_ibs_op.cnt_mask    |= IBS_OP_MAX_CNT_EXT_MASK;
 	}
 
+	if (ibs_caps & IBS_CAPS_ZEN4)
+		perf_ibs_op.config_mask |= IBS_OP_L3MISSONLY;
+
 	perf_ibs_op.pmu.attr_groups = empty_attr_groups;
 	perf_ibs_op.pmu.attr_update = op_attr_update;
 
-	ret = perf_ibs_pmu_init(&perf_ibs_op, "ibs_op");
+	return perf_ibs_pmu_init(&perf_ibs_op, "ibs_op");
+}
+
+static __init int perf_event_ibs_init(void)
+{
+	int ret;
+
+	ret = perf_ibs_fetch_init();
+	if (ret)
+		return ret;
+
+	ret = perf_ibs_op_init();
 	if (ret)
 		goto err_op;
 
