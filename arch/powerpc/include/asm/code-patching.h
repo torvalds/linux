@@ -24,8 +24,33 @@
 
 DECLARE_STATIC_KEY_FALSE(init_mem_is_free);
 
-bool is_offset_in_branch_range(long offset);
-bool is_offset_in_cond_branch_range(long offset);
+/*
+ * Powerpc branch instruction is :
+ *
+ *  0         6                 30   31
+ *  +---------+----------------+---+---+
+ *  | opcode  |     LI         |AA |LK |
+ *  +---------+----------------+---+---+
+ *  Where AA = 0 and LK = 0
+ *
+ * LI is a signed 24 bits integer. The real branch offset is computed
+ * by: imm32 = SignExtend(LI:'0b00', 32);
+ *
+ * So the maximum forward branch should be:
+ *   (0x007fffff << 2) = 0x01fffffc =  0x1fffffc
+ * The maximum backward branch should be:
+ *   (0xff800000 << 2) = 0xfe000000 = -0x2000000
+ */
+static inline bool is_offset_in_branch_range(long offset)
+{
+	return (offset >= -0x2000000 && offset <= 0x1fffffc && !(offset & 0x3));
+}
+
+static inline bool is_offset_in_cond_branch_range(long offset)
+{
+	return offset >= -0x8000 && offset <= 0x7fff && !(offset & 0x3);
+}
+
 int create_branch(ppc_inst_t *instr, const u32 *addr,
 		  unsigned long target, int flags);
 int create_cond_branch(ppc_inst_t *instr, const u32 *addr,
