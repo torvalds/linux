@@ -138,6 +138,7 @@ int amd_sfh_hid_client_deinit(struct amd_mp2_dev *privdata);
 u32 amd_sfh_wait_for_response(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_sts);
 void amd_mp2_suspend(struct amd_mp2_dev *mp2);
 void amd_mp2_resume(struct amd_mp2_dev *mp2);
+const char *get_sensor_name(int idx);
 
 struct amd_mp2_ops {
 	 void (*start)(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info);
