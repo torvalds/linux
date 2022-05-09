@@ -283,6 +283,9 @@ static int venc_g_parm(struct file *file, void *fh, struct v4l2_streamparm *parm
 	if (!parm)
 		return -EINVAL;
 
+	if (!V4L2_TYPE_IS_OUTPUT(parm->type))
+		return -EINVAL;
+
 	if (!vpu_helper_check_type(inst, parm->type))
 		return -EINVAL;
 
@@ -302,6 +305,9 @@ static int venc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *parm
 	unsigned long n, d;
 
 	if (!parm)
+		return -EINVAL;
+
+	if (!V4L2_TYPE_IS_OUTPUT(parm->type))
 		return -EINVAL;
 
 	if (!vpu_helper_check_type(inst, parm->type))
