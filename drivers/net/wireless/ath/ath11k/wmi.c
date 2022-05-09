@@ -625,10 +625,25 @@ struct sk_buff *ath11k_wmi_alloc_skb(struct ath11k_wmi_base *wmi_sc, u32 len)
 	return skb;
 }
 
+static u32 ath11k_wmi_mgmt_get_freq(struct ath11k *ar,
+				    struct ieee80211_tx_info *info)
+{
+	struct ath11k_base *ab = ar->ab;
+	u32 freq = 0;
+
+	if (ab->hw_params.support_off_channel_tx &&
+	    ar->scan.is_roc &&
+	    (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN))
+		freq = ar->scan.roc_freq;
+
+	return freq;
+}
+
 int ath11k_wmi_mgmt_send(struct ath11k *ar, u32 vdev_id, u32 buf_id,
 			 struct sk_buff *frame)
 {
 	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(frame);
 	struct wmi_mgmt_send_cmd *cmd;
 	struct wmi_tlv *frame_tlv;
 	struct sk_buff *skb;
@@ -649,7 +664,7 @@ int ath11k_wmi_mgmt_send(struct ath11k *ar, u32 vdev_id, u32 buf_id,
 			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
 	cmd->vdev_id = vdev_id;
 	cmd->desc_id = buf_id;
-	cmd->chanfreq = 0;
+	cmd->chanfreq = ath11k_wmi_mgmt_get_freq(ar, info);
 	cmd->paddr_lo = lower_32_bits(ATH11K_SKB_CB(frame)->paddr);
 	cmd->paddr_hi = upper_32_bits(ATH11K_SKB_CB(frame)->paddr);
 	cmd->frame_len = frame->len;
