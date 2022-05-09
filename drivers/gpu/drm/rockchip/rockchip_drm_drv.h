@@ -63,6 +63,7 @@ struct iommu_domain;
 #define RK_IF_PROP_COLOR_FORMAT		"color_format"
 #define RK_IF_PROP_COLOR_DEPTH_CAPS	"color_depth_caps"
 #define RK_IF_PROP_COLOR_FORMAT_CAPS	"color_format_caps"
+#define RK_IF_PROP_ENCRYPTED		"hdcp_encrypted"
 
 enum rockchip_drm_debug_category {
 	VOP_DEBUG_PLANE		= BIT(0),
@@ -92,6 +93,12 @@ enum rk_if_color_format {
 	RK_IF_FORMAT_YCBCR_HQ, /* Highest subsampled YUV */
 	RK_IF_FORMAT_YCBCR_LQ, /* Lowest subsampled YUV */
 	RK_IF_FORMAT_MAX,
+};
+
+enum rockchip_hdcp_encrypted {
+	RK_IF_HDCP_ENCRYPTED_NONE = 0,
+	RK_IF_HDCP_ENCRYPTED_LEVEL1,
+	RK_IF_HDCP_ENCRYPTED_LEVEL2,
 };
 
 struct rockchip_drm_sub_dev {
