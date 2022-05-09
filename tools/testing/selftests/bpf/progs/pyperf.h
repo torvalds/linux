@@ -171,8 +171,6 @@ struct process_frame_ctx {
 	bool done;
 };
 
-#define barrier_var(var) asm volatile("" : "=r"(var) : "0"(var))
-
 static int process_frame_callback(__u32 i, struct process_frame_ctx *ctx)
 {
 	int zero = 0;
