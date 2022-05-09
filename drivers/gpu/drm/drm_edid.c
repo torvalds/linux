@@ -2673,11 +2673,11 @@ find_gtf2(const struct detailed_timing *descriptor, void *data)
 
 /* Secondary GTF curve kicks in above some break frequency */
 static int
-drm_gtf2_hbreak(const struct edid *edid)
+drm_gtf2_hbreak(const struct drm_edid *drm_edid)
 {
 	const struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block(edid, find_gtf2, &descriptor);
+	drm_for_each_detailed_block(drm_edid->edid, find_gtf2, &descriptor);
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.hfreq_start_khz) != 12);
 
@@ -2685,11 +2685,11 @@ drm_gtf2_hbreak(const struct edid *edid)
 }
 
 static int
-drm_gtf2_2c(const struct edid *edid)
+drm_gtf2_2c(const struct drm_edid *drm_edid)
 {
 	const struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block(edid, find_gtf2, &descriptor);
+	drm_for_each_detailed_block(drm_edid->edid, find_gtf2, &descriptor);
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.c) != 13);
 
@@ -2697,11 +2697,11 @@ drm_gtf2_2c(const struct edid *edid)
 }
 
 static int
-drm_gtf2_m(const struct edid *edid)
+drm_gtf2_m(const struct drm_edid *drm_edid)
 {
 	const struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block(edid, find_gtf2, &descriptor);
+	drm_for_each_detailed_block(drm_edid->edid, find_gtf2, &descriptor);
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.m) != 14);
 
@@ -2709,11 +2709,11 @@ drm_gtf2_m(const struct edid *edid)
 }
 
 static int
-drm_gtf2_k(const struct edid *edid)
+drm_gtf2_k(const struct drm_edid *drm_edid)
 {
 	const struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block(edid, find_gtf2, &descriptor);
+	drm_for_each_detailed_block(drm_edid->edid, find_gtf2, &descriptor);
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.k) != 16);
 
@@ -2721,11 +2721,11 @@ drm_gtf2_k(const struct edid *edid)
 }
 
 static int
-drm_gtf2_2j(const struct edid *edid)
+drm_gtf2_2j(const struct drm_edid *drm_edid)
 {
 	const struct detailed_timing *descriptor = NULL;
 
-	drm_for_each_detailed_block(edid, find_gtf2, &descriptor);
+	drm_for_each_detailed_block(drm_edid->edid, find_gtf2, &descriptor);
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.gtf2.j) != 17);
 
@@ -2733,12 +2733,14 @@ drm_gtf2_2j(const struct edid *edid)
 }
 
 /* Get standard timing level (CVT/GTF/DMT). */
-static int standard_timing_level(const struct edid *edid)
+static int standard_timing_level(const struct drm_edid *drm_edid)
 {
+	const struct edid *edid = drm_edid->edid;
+
 	if (edid->revision >= 2) {
 		if (edid->revision >= 4 && (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF))
 			return LEVEL_CVT;
-		if (drm_gtf2_hbreak(edid))
+		if (drm_gtf2_hbreak(drm_edid))
 			return LEVEL_GTF2;
 		if (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF)
 			return LEVEL_GTF;
@@ -2770,9 +2772,9 @@ static int drm_mode_hsync(const struct drm_display_mode *mode)
  * Take the standard timing params (in this case width, aspect, and refresh)
  * and convert them into a real mode using CVT/GTF/DMT.
  */
-static struct drm_display_mode *
-drm_mode_std(struct drm_connector *connector, const struct edid *edid,
-	     const struct std_timing *t)
+static struct drm_display_mode *drm_mode_std(struct drm_connector *connector,
+					     const struct drm_edid *drm_edid,
+					     const struct std_timing *t)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *m, *mode = NULL;
@@ -2782,7 +2784,7 @@ drm_mode_std(struct drm_connector *connector, const struct edid *edid,
 		>> EDID_TIMING_ASPECT_SHIFT;
 	unsigned vfreq = (t->vfreq_aspect & EDID_TIMING_VFREQ_MASK)
 		>> EDID_TIMING_VFREQ_SHIFT;
-	int timing_level = standard_timing_level(edid);
+	int timing_level = standard_timing_level(drm_edid);
 
 	if (bad_std_timing(t->hsize, t->vfreq_aspect))
 		return NULL;
@@ -2793,7 +2795,7 @@ drm_mode_std(struct drm_connector *connector, const struct edid *edid,
 	vrefresh_rate = vfreq + 60;
 	/* the vdisplay is calculated based on the aspect ratio */
 	if (aspect_ratio == 0) {
-		if (edid->revision < 3)
+		if (drm_edid->edid->revision < 3)
 			vsize = hsize;
 		else
 			vsize = (hsize * 10) / 16;
@@ -2836,7 +2838,7 @@ drm_mode_std(struct drm_connector *connector, const struct edid *edid,
 	}
 
 	/* check whether it can be found in default mode table */
-	if (drm_monitor_supports_rb(edid)) {
+	if (drm_monitor_supports_rb(drm_edid->edid)) {
 		mode = drm_mode_find_dmt(dev, hsize, vsize, vrefresh_rate,
 					 true);
 		if (mode)
@@ -2862,14 +2864,14 @@ drm_mode_std(struct drm_connector *connector, const struct edid *edid,
 		mode = drm_gtf_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
 		if (!mode)
 			return NULL;
-		if (drm_mode_hsync(mode) > drm_gtf2_hbreak(edid)) {
+		if (drm_mode_hsync(mode) > drm_gtf2_hbreak(drm_edid)) {
 			drm_mode_destroy(dev, mode);
 			mode = drm_gtf_mode_complex(dev, hsize, vsize,
 						    vrefresh_rate, 0, 0,
-						    drm_gtf2_m(edid),
-						    drm_gtf2_2c(edid),
-						    drm_gtf2_k(edid),
-						    drm_gtf2_2j(edid));
+						    drm_gtf2_m(drm_edid),
+						    drm_gtf2_2c(drm_edid),
+						    drm_gtf2_k(drm_edid),
+						    drm_gtf2_2j(drm_edid));
 		}
 		break;
 	case LEVEL_CVT:
@@ -3360,7 +3362,7 @@ do_standard_modes(const struct detailed_timing *timing, void *c)
 		const struct std_timing *std = &data->data.timings[i];
 		struct drm_display_mode *newmode;
 
-		newmode = drm_mode_std(connector, closure->drm_edid->edid, std);
+		newmode = drm_mode_std(connector, closure->drm_edid, std);
 		if (newmode) {
 			drm_mode_probed_add(connector, newmode);
 			closure->modes++;
@@ -3385,7 +3387,7 @@ static int add_standard_modes(struct drm_connector *connector,
 	for (i = 0; i < EDID_STD_TIMINGS; i++) {
 		struct drm_display_mode *newmode;
 
-		newmode = drm_mode_std(connector, drm_edid->edid,
+		newmode = drm_mode_std(connector, drm_edid,
 				       &drm_edid->edid->standard_timings[i]);
 		if (newmode) {
 			drm_mode_probed_add(connector, newmode);
