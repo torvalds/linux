@@ -2,8 +2,6 @@
 #ifndef __ARCH_PARISC_TERMBITS_H__
 #define __ARCH_PARISC_TERMBITS_H__
 
-#include <linux/posix_types.h>
-
 #include <asm-generic/termbits-common.h>
 
 typedef unsigned int	tcflag_t;

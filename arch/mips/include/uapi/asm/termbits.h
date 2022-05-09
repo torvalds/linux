@@ -11,8 +11,6 @@
 #ifndef _ASM_TERMBITS_H
 #define _ASM_TERMBITS_H
 
-#include <linux/posix_types.h>
-
 #include <asm-generic/termbits-common.h>
 
 typedef unsigned int	tcflag_t;
