@@ -230,7 +230,7 @@
 	status = "disabled";
 };
 
-&dp0_in_vp2 {
+&dp0_in_vp1 {
 	status = "okay";
 };
 
