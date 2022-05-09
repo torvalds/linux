@@ -1951,7 +1951,7 @@ static void ath11k_peer_assoc_h_vht(struct ath11k *ar,
 	/* Calculate peer NSS capability from VHT capabilities if STA
 	 * supports VHT.
 	 */
-	for (i = 0, max_nss = 0, vht_mcs = 0; i < NL80211_VHT_NSS_MAX; i++) {
+	for (i = 0, max_nss = 0; i < NL80211_VHT_NSS_MAX; i++) {
 		vht_mcs = __le16_to_cpu(vht_cap->vht_mcs.rx_mcs_map) >>
 			  (2 * i) & 3;
 
@@ -2272,7 +2272,7 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 	/* Calculate peer NSS capability from HE capabilities if STA
 	 * supports HE.
 	 */
-	for (i = 0, max_nss = 0, he_mcs = 0; i < NL80211_HE_NSS_MAX; i++) {
+	for (i = 0, max_nss = 0; i < NL80211_HE_NSS_MAX; i++) {
 		he_mcs = he_tx_mcs >> (2 * i) & 3;
 
 		/* In case of fixed rates, MCS Range in he_tx_mcs might have
