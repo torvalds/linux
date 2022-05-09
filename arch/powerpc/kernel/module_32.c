@@ -289,23 +289,32 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-int module_trampoline_target(struct module *mod, unsigned long addr,
-			     unsigned long *target)
+notrace int module_trampoline_target(struct module *mod, unsigned long addr,
+				     unsigned long *target)
 {
-	unsigned int jmp[4];
+	ppc_inst_t jmp[4];
 
 	/* Find where the trampoline jumps to */
-	if (copy_from_kernel_nofault(jmp, (void *)addr, sizeof(jmp)))
+	if (copy_inst_from_kernel_nofault(jmp, (void *)addr))
+		return -EFAULT;
+	if (__copy_inst_from_kernel_nofault(jmp + 1, (void *)addr + 4))
+		return -EFAULT;
+	if (__copy_inst_from_kernel_nofault(jmp + 2, (void *)addr + 8))
+		return -EFAULT;
+	if (__copy_inst_from_kernel_nofault(jmp + 3, (void *)addr + 12))
 		return -EFAULT;
 
 	/* verify that this is what we expect it to be */
-	if ((jmp[0] & 0xffff0000) != PPC_RAW_LIS(_R12, 0) ||
-	    (jmp[1] & 0xffff0000) != PPC_RAW_ADDI(_R12, _R12, 0) ||
-	    jmp[2] != PPC_RAW_MTCTR(_R12) ||
-	    jmp[3] != PPC_RAW_BCTR())
+	if ((ppc_inst_val(jmp[0]) & 0xffff0000) != PPC_RAW_LIS(_R12, 0))
+		return -EINVAL;
+	if ((ppc_inst_val(jmp[1]) & 0xffff0000) != PPC_RAW_ADDI(_R12, _R12, 0))
+		return -EINVAL;
+	if (ppc_inst_val(jmp[2]) != PPC_RAW_MTCTR(_R12))
+		return -EINVAL;
+	if (ppc_inst_val(jmp[3]) != PPC_RAW_BCTR())
 		return -EINVAL;
 
-	addr = (jmp[1] & 0xffff) | ((jmp[0] & 0xffff) << 16);
+	addr = (ppc_inst_val(jmp[1]) & 0xffff) | ((ppc_inst_val(jmp[0]) & 0xffff) << 16);
 	if (addr & 0x8000)
 		addr -= 0x10000;
 
