@@ -2645,16 +2645,16 @@ is_rb(const struct detailed_timing *descriptor, void *data)
 
 /* EDID 1.4 defines this explicitly.  For EDID 1.3, we guess, badly. */
 static bool
-drm_monitor_supports_rb(const struct edid *edid)
+drm_monitor_supports_rb(const struct drm_edid *drm_edid)
 {
-	if (edid->revision >= 4) {
+	if (drm_edid->edid->revision >= 4) {
 		bool ret = false;
 
-		drm_for_each_detailed_block(edid, is_rb, &ret);
+		drm_for_each_detailed_block(drm_edid->edid, is_rb, &ret);
 		return ret;
 	}
 
-	return ((edid->input & DRM_EDID_INPUT_DIGITAL) != 0);
+	return ((drm_edid->edid->input & DRM_EDID_INPUT_DIGITAL) != 0);
 }
 
 static void
@@ -2838,7 +2838,7 @@ static struct drm_display_mode *drm_mode_std(struct drm_connector *connector,
 	}
 
 	/* check whether it can be found in default mode table */
-	if (drm_monitor_supports_rb(drm_edid->edid)) {
+	if (drm_monitor_supports_rb(drm_edid)) {
 		mode = drm_mode_find_dmt(dev, hsize, vsize, vrefresh_rate,
 					 true);
 		if (mode)
@@ -3077,10 +3077,11 @@ range_pixel_clock(const struct edid *edid, const u8 *t)
 	return t[9] * 10000 + 5001;
 }
 
-static bool
-mode_in_range(const struct drm_display_mode *mode, const struct edid *edid,
-	      const struct detailed_timing *timing)
+static bool mode_in_range(const struct drm_display_mode *mode,
+			  const struct drm_edid *drm_edid,
+			  const struct detailed_timing *timing)
 {
+	const struct edid *edid = drm_edid->edid;
 	u32 max_clock;
 	const u8 *t = (const u8 *)timing;
 
@@ -3099,7 +3100,7 @@ mode_in_range(const struct drm_display_mode *mode, const struct edid *edid,
 		if (t[13] && mode->hdisplay > 8 * (t[13] + (256 * (t[12]&0x3))))
 			return false;
 
-	if (mode_is_rb(mode) && !drm_monitor_supports_rb(edid))
+	if (mode_is_rb(mode) && !drm_monitor_supports_rb(drm_edid))
 		return false;
 
 	return true;
@@ -3132,7 +3133,7 @@ static int drm_dmt_modes_for_range(struct drm_connector *connector,
 	struct drm_device *dev = connector->dev;
 
 	for (i = 0; i < ARRAY_SIZE(drm_dmt_modes); i++) {
-		if (mode_in_range(drm_dmt_modes + i, drm_edid->edid, timing) &&
+		if (mode_in_range(drm_dmt_modes + i, drm_edid, timing) &&
 		    valid_inferred_mode(connector, drm_dmt_modes + i)) {
 			newmode = drm_mode_duplicate(dev, &drm_dmt_modes[i]);
 			if (newmode) {
@@ -3174,7 +3175,7 @@ static int drm_gtf_modes_for_range(struct drm_connector *connector,
 			return modes;
 
 		drm_mode_fixup_1366x768(newmode);
-		if (!mode_in_range(newmode, drm_edid->edid, timing) ||
+		if (!mode_in_range(newmode, drm_edid, timing) ||
 		    !valid_inferred_mode(connector, newmode)) {
 			drm_mode_destroy(dev, newmode);
 			continue;
@@ -3194,7 +3195,7 @@ static int drm_cvt_modes_for_range(struct drm_connector *connector,
 	int i, modes = 0;
 	struct drm_display_mode *newmode;
 	struct drm_device *dev = connector->dev;
-	bool rb = drm_monitor_supports_rb(drm_edid->edid);
+	bool rb = drm_monitor_supports_rb(drm_edid);
 
 	for (i = 0; i < ARRAY_SIZE(extra_modes); i++) {
 		const struct minimode *m = &extra_modes[i];
@@ -3204,7 +3205,7 @@ static int drm_cvt_modes_for_range(struct drm_connector *connector,
 			return modes;
 
 		drm_mode_fixup_1366x768(newmode);
-		if (!mode_in_range(newmode, drm_edid->edid, timing) ||
+		if (!mode_in_range(newmode, drm_edid, timing) ||
 		    !valid_inferred_mode(connector, newmode)) {
 			drm_mode_destroy(dev, newmode);
 			continue;
