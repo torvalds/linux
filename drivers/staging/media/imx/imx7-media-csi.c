@@ -21,7 +21,6 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
@@ -744,8 +743,6 @@ struct capture_priv {
 	struct vb2_queue q;			/* The videobuf2 queue */
 	struct list_head ready_q;		/* List of queued buffers */
 	spinlock_t q_lock;			/* Protect ready_q */
-
-	struct v4l2_ctrl_handler ctrl_hdlr;	/* Controls inherited from subdevs */
 };
 
 #define to_capture_priv(v) container_of(v, struct capture_priv, vdev)
@@ -1382,13 +1379,6 @@ imx7_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 	return &priv->vdev;
 }
 
-static void imx7_media_capture_device_remove(struct imx_media_video_dev *vdev)
-{
-	struct capture_priv *priv = to_capture_priv(vdev);
-
-	v4l2_ctrl_handler_free(&priv->ctrl_hdlr);
-}
-
 /* -----------------------------------------------------------------------------
  * V4L2 Subdev Operations
  */
@@ -1730,7 +1720,7 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 	ret = imx7_media_capture_device_register(csi->vdev,
 						 MEDIA_LNK_FL_IMMUTABLE);
 	if (ret)
-		goto err_remove;
+		return ret;
 
 	ret = v4l2_device_register_subdev_nodes(&csi->imxmd->v4l2_dev);
 	if (ret)
@@ -1744,8 +1734,6 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 
 err_unreg:
 	imx7_media_capture_device_unregister(csi->vdev);
-err_remove:
-	imx7_media_capture_device_remove(csi->vdev);
 	return ret;
 }
 
@@ -1754,7 +1742,6 @@ static void imx7_csi_unregistered(struct v4l2_subdev *sd)
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
 
 	imx7_media_capture_device_unregister(csi->vdev);
-	imx7_media_capture_device_remove(csi->vdev);
 }
 
 static const struct v4l2_subdev_video_ops imx7_csi_video_ops = {
