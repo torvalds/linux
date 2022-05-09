@@ -693,7 +693,7 @@ static void kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)
 			kvm_riscv_gstage_update_hgatp(vcpu);
 
 		if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu))
-			__kvm_riscv_hfence_gvma_all();
+			kvm_riscv_local_hfence_gvma_all();
 	}
 }
 

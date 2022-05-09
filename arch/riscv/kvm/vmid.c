@@ -33,7 +33,7 @@ void kvm_riscv_gstage_vmid_detect(void)
 	csr_write(CSR_HGATP, old);
 
 	/* We polluted local TLB so flush all guest TLB */
-	__kvm_riscv_hfence_gvma_all();
+	kvm_riscv_local_hfence_gvma_all();
 
 	/* We don't use VMID bits if they are not sufficient */
 	if ((1UL << vmid_bits) < num_possible_cpus())

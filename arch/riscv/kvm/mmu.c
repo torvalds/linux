@@ -745,7 +745,7 @@ void kvm_riscv_gstage_update_hgatp(struct kvm_vcpu *vcpu)
 	csr_write(CSR_HGATP, hgatp);
 
 	if (!kvm_riscv_gstage_vmid_bits())
-		__kvm_riscv_hfence_gvma_all();
+		kvm_riscv_local_hfence_gvma_all();
 }
 
 void kvm_riscv_gstage_mode_detect(void)
@@ -768,7 +768,7 @@ void kvm_riscv_gstage_mode_detect(void)
 skip_sv48x4_test:
 
 	csr_write(CSR_HGATP, 0);
-	__kvm_riscv_hfence_gvma_all();
+	kvm_riscv_local_hfence_gvma_all();
 #endif
 }
 
