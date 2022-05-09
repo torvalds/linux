@@ -67,6 +67,8 @@ static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
 	if (loaded)
 		kvm_arch_vcpu_put(vcpu);
 
+	vcpu->arch.last_exit_cpu = -1;
+
 	memcpy(csr, reset_csr, sizeof(*csr));
 
 	memcpy(cntx, reset_cntx, sizeof(*cntx));
@@ -735,6 +737,7 @@ static void noinstr kvm_riscv_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 {
 	guest_state_enter_irqoff();
 	__kvm_riscv_switch_to(&vcpu->arch);
+	vcpu->arch.last_exit_cpu = vcpu->cpu;
 	guest_state_exit_irqoff();
 }
 
@@ -828,6 +831,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 			kvm_vcpu_srcu_read_lock(vcpu);
 			continue;
 		}
+
+		/*
+		 * Cleanup stale TLB enteries
+		 *
+		 * Note: This should be done after G-stage VMID has been
+		 * updated using kvm_riscv_gstage_vmid_ver_changed()
+		 */
+		kvm_riscv_local_tlb_sanitize(vcpu);
 
 		guest_timing_enter_irqoff();
 

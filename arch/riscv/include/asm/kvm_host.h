@@ -166,6 +166,9 @@ struct kvm_vcpu_arch {
 	/* VCPU ran at least once */
 	bool ran_atleast_once;
 
+	/* Last Host CPU on which Guest VCPU exited */
+	int last_exit_cpu;
+
 	/* ISA feature bits (similar to MISA) */
 	unsigned long isa;
 
@@ -252,6 +255,8 @@ void kvm_riscv_local_hfence_vvma_gva(unsigned long vmid,
 				     unsigned long gva, unsigned long gvsz,
 				     unsigned long order);
 void kvm_riscv_local_hfence_vvma_all(unsigned long vmid);
+
+void kvm_riscv_local_tlb_sanitize(struct kvm_vcpu *vcpu);
 
 void kvm_riscv_fence_i_process(struct kvm_vcpu *vcpu);
 void kvm_riscv_hfence_gvma_vmid_all_process(struct kvm_vcpu *vcpu);
