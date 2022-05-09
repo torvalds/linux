@@ -69,7 +69,7 @@ static const char *const efx_siena_interrupt_mode_names[] = {
 
 /**
  * struct efx_loopback_state - persistent state during a loopback selftest
- * @flush:		Drop all packets in efx_loopback_rx_packet
+ * @flush:		Drop all packets in efx_siena_loopback_rx_packet
  * @packet_count:	Number of packets being used in this test
  * @skbs:		An array of skbs transmitted
  * @offload_csum:	Checksums are being offloaded
@@ -278,8 +278,8 @@ static int efx_test_phy(struct efx_nic *efx, struct efx_self_tests *tests,
 /* Loopback test RX callback
  * This is called for each received packet during loopback testing.
  */
-void efx_loopback_rx_packet(struct efx_nic *efx,
-			    const char *buf_ptr, int pkt_len)
+void efx_siena_loopback_rx_packet(struct efx_nic *efx,
+				  const char *buf_ptr, int pkt_len)
 {
 	struct efx_loopback_state *state = efx->loopback_selftest;
 	struct efx_loopback_payload *received;
@@ -369,7 +369,7 @@ void efx_loopback_rx_packet(struct efx_nic *efx,
 	atomic_inc(&state->rx_bad);
 }
 
-/* Initialise an efx_selftest_state for a new iteration */
+/* Initialise an efx_siena_selftest_state for a new iteration */
 static void efx_iterate_state(struct efx_nic *efx)
 {
 	struct efx_loopback_state *state = efx->loopback_selftest;
@@ -684,14 +684,14 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
  *
  *************************************************************************/
 
-int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
-		 unsigned flags)
+int efx_siena_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
+		       unsigned int flags)
 {
 	enum efx_loopback_mode loopback_mode = efx->loopback_mode;
 	int phy_mode = efx->phy_mode;
 	int rc_test = 0, rc_reset, rc;
 
-	efx_selftest_async_cancel(efx);
+	efx_siena_selftest_async_cancel(efx);
 
 	/* Online (i.e. non-disruptive) testing
 	 * This checks interrupt generation, event delivery and PHY presence. */
@@ -767,7 +767,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	return rc_test;
 }
 
-void efx_selftest_async_start(struct efx_nic *efx)
+void efx_siena_selftest_async_start(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -776,12 +776,12 @@ void efx_selftest_async_start(struct efx_nic *efx)
 	schedule_delayed_work(&efx->selftest_work, IRQ_TIMEOUT);
 }
 
-void efx_selftest_async_cancel(struct efx_nic *efx)
+void efx_siena_selftest_async_cancel(struct efx_nic *efx)
 {
 	cancel_delayed_work_sync(&efx->selftest_work);
 }
 
-static void efx_selftest_async_work(struct work_struct *data)
+static void efx_siena_selftest_async_work(struct work_struct *data)
 {
 	struct efx_nic *efx = container_of(data, struct efx_nic,
 					   selftest_work.work);
@@ -801,7 +801,7 @@ static void efx_selftest_async_work(struct work_struct *data)
 	}
 }
 
-void efx_selftest_async_init(struct efx_nic *efx)
+void efx_siena_selftest_async_init(struct efx_nic *efx)
 {
-	INIT_DELAYED_WORK(&efx->selftest_work, efx_selftest_async_work);
+	INIT_DELAYED_WORK(&efx->selftest_work, efx_siena_selftest_async_work);
 }

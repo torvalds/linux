@@ -606,10 +606,10 @@ enum efx_led_mode {
 #define STRING_TABLE_LOOKUP(val, member) \
 	((val) < member ## _max) ? member ## _names[val] : "(invalid)"
 
-extern const char *const efx_loopback_mode_names[];
-extern const unsigned int efx_loopback_mode_max;
+extern const char *const efx_siena_loopback_mode_names[];
+extern const unsigned int efx_siena_loopback_mode_max;
 #define LOOPBACK_MODE(efx) \
-	STRING_TABLE_LOOKUP((efx)->loopback_mode, efx_loopback_mode)
+	STRING_TABLE_LOOKUP((efx)->loopback_mode, efx_siena_loopback_mode)
 
 enum efx_int_mode {
 	/* Be careful if altering to correct macro below */

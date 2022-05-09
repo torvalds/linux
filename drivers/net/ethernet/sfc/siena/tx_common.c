@@ -80,8 +80,8 @@ void efx_siena_init_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->old_read_count = 0;
 	tx_queue->empty_read_count = 0 | EFX_EMPTY_COUNT_VALID;
 	tx_queue->xmit_pending = false;
-	tx_queue->timestamping = (efx_ptp_use_mac_tx_timestamps(efx) &&
-				  tx_queue->channel == efx_ptp_channel(efx));
+	tx_queue->timestamping = (efx_siena_ptp_use_mac_tx_timestamps(efx) &&
+				  tx_queue->channel == efx_siena_ptp_channel(efx));
 	tx_queue->completed_timestamp_major = 0;
 	tx_queue->completed_timestamp_minor = 0;
 
@@ -148,7 +148,7 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 			struct skb_shared_hwtstamps hwtstamp;
 
 			hwtstamp.hwtstamp =
-				efx_ptp_nic_to_kernel_time(tx_queue);
+				efx_siena_ptp_nic_to_kernel_time(tx_queue);
 			skb_tstamp_tx(skb, &hwtstamp);
 
 			tx_queue->completed_timestamp_major = 0;

@@ -321,14 +321,14 @@ netdev_tx_t efx_siena_hard_start_xmit(struct sk_buff *skb,
 
 	/* PTP "event" packet */
 	if (unlikely(efx_xmit_with_hwtstamp(skb)) &&
-	    ((efx_ptp_use_mac_tx_timestamps(efx) && efx->ptp_data) ||
-	    unlikely(efx_ptp_is_ptp_tx(efx, skb)))) {
+	    ((efx_siena_ptp_use_mac_tx_timestamps(efx) && efx->ptp_data) ||
+	     unlikely(efx_siena_ptp_is_ptp_tx(efx, skb)))) {
 		/* There may be existing transmits on the channel that are
 		 * waiting for this packet to trigger the doorbell write.
 		 * We need to send the packets at this point.
 		 */
 		efx_tx_send_pending(efx_get_tx_channel(efx, index));
-		return efx_ptp_tx(efx, skb);
+		return efx_siena_ptp_tx(efx, skb);
 	}
 
 	tx_queue = efx_get_tx_queue(efx, index, type);

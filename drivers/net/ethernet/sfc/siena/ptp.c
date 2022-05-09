@@ -355,7 +355,7 @@ static int efx_phc_settime(struct ptp_clock_info *ptp,
 static int efx_phc_enable(struct ptp_clock_info *ptp,
 			  struct ptp_clock_request *request, int on);
 
-bool efx_ptp_use_mac_tx_timestamps(struct efx_nic *efx)
+bool efx_siena_ptp_use_mac_tx_timestamps(struct efx_nic *efx)
 {
 	return efx_has_cap(efx, TX_MAC_TIMESTAMPING);
 }
@@ -365,7 +365,7 @@ bool efx_ptp_use_mac_tx_timestamps(struct efx_nic *efx)
  */
 static bool efx_ptp_want_txqs(struct efx_channel *channel)
 {
-	return efx_ptp_use_mac_tx_timestamps(channel->efx);
+	return efx_siena_ptp_use_mac_tx_timestamps(channel->efx);
 }
 
 #define PTP_SW_STAT(ext_name, field_name)				\
@@ -393,7 +393,7 @@ static const unsigned long efx_ptp_stat_mask[] = {
 	[0 ... BITS_TO_LONGS(PTP_STAT_COUNT) - 1] = ~0UL,
 };
 
-size_t efx_ptp_describe_stats(struct efx_nic *efx, u8 *strings)
+size_t efx_siena_ptp_describe_stats(struct efx_nic *efx, u8 *strings)
 {
 	if (!efx->ptp_data)
 		return 0;
@@ -402,7 +402,7 @@ size_t efx_ptp_describe_stats(struct efx_nic *efx, u8 *strings)
 				      efx_ptp_stat_mask, strings);
 }
 
-size_t efx_ptp_update_stats(struct efx_nic *efx, u64 *stats)
+size_t efx_siena_ptp_update_stats(struct efx_nic *efx, u64 *stats)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_STATUS_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_PTP_OUT_STATUS_LEN);
@@ -536,14 +536,14 @@ static ktime_t efx_ptp_s_qns_to_ktime_correction(u32 nic_major, u32 nic_minor,
 	return kt;
 }
 
-struct efx_channel *efx_ptp_channel(struct efx_nic *efx)
+struct efx_channel *efx_siena_ptp_channel(struct efx_nic *efx)
 {
 	return efx->ptp_data ? efx->ptp_data->channel : NULL;
 }
 
 static u32 last_sync_timestamp_major(struct efx_nic *efx)
 {
-	struct efx_channel *channel = efx_ptp_channel(efx);
+	struct efx_channel *channel = efx_siena_ptp_channel(efx);
 	u32 major = 0;
 
 	if (channel)
@@ -606,13 +606,13 @@ efx_ptp_mac_nic_to_ktime_correction(struct efx_nic *efx,
 	return kt;
 }
 
-ktime_t efx_ptp_nic_to_kernel_time(struct efx_tx_queue *tx_queue)
+ktime_t efx_siena_ptp_nic_to_kernel_time(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_ptp_data *ptp = efx->ptp_data;
 	ktime_t kt;
 
-	if (efx_ptp_use_mac_tx_timestamps(efx))
+	if (efx_siena_ptp_use_mac_tx_timestamps(efx))
 		kt = efx_ptp_mac_nic_to_ktime_correction(efx, ptp,
 				tx_queue->completed_timestamp_major,
 				tx_queue->completed_timestamp_minor,
@@ -1437,7 +1437,7 @@ static const struct ptp_clock_info efx_phc_clock_info = {
 };
 
 /* Initialise PTP state. */
-int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
+static int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 {
 	struct efx_ptp_data *ptp;
 	int rc = 0;
@@ -1464,7 +1464,7 @@ int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 		goto fail2;
 	}
 
-	if (efx_ptp_use_mac_tx_timestamps(efx)) {
+	if (efx_siena_ptp_use_mac_tx_timestamps(efx)) {
 		ptp->xmit_skb = efx_ptp_xmit_skb_queue;
 		/* Request sync events on this channel. */
 		channel->sync_events_state = SYNC_EVENTS_QUIESCENT;
@@ -1553,7 +1553,7 @@ static int efx_ptp_probe_channel(struct efx_channel *channel)
 	return 0;
 }
 
-void efx_ptp_remove(struct efx_nic *efx)
+static void efx_ptp_remove(struct efx_nic *efx)
 {
 	if (!efx->ptp_data)
 		return;
@@ -1593,7 +1593,7 @@ static void efx_ptp_get_channel_name(struct efx_channel *channel,
 /* Determine whether this packet should be processed by the PTP module
  * or transmitted conventionally.
  */
-bool efx_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb)
+bool efx_siena_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb)
 {
 	return efx->ptp_data &&
 		efx->ptp_data->enabled &&
@@ -1699,7 +1699,7 @@ static bool efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
  * itself, through an MCDI call.  MCDI calls aren't permitted
  * in the transmit path so defer the actual transmission to a suitable worker.
  */
-int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb)
+int efx_siena_ptp_tx(struct efx_nic *efx, struct sk_buff *skb)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
 
@@ -1713,13 +1713,13 @@ int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb)
 	return NETDEV_TX_OK;
 }
 
-int efx_ptp_get_mode(struct efx_nic *efx)
+int efx_siena_ptp_get_mode(struct efx_nic *efx)
 {
 	return efx->ptp_data->mode;
 }
 
-int efx_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,
-			unsigned int new_mode)
+int efx_siena_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,
+			      unsigned int new_mode)
 {
 	if ((enable_wanted != efx->ptp_data->enabled) ||
 	    (enable_wanted && (efx->ptp_data->mode != new_mode))) {
@@ -1777,7 +1777,8 @@ static int efx_ptp_ts_init(struct efx_nic *efx, struct hwtstamp_config *init)
 	return 0;
 }
 
-void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info)
+void efx_siena_ptp_get_ts_info(struct efx_nic *efx,
+			       struct ethtool_ts_info *ts_info)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
 	struct efx_nic *primary = efx->primary;
@@ -1797,7 +1798,7 @@ void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info)
 	ts_info->rx_filters = ptp->efx->type->hwtstamp_filters;
 }
 
-int efx_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr)
+int efx_siena_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
 	int rc;
@@ -1817,7 +1818,7 @@ int efx_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr)
 		? -EFAULT : 0;
 }
 
-int efx_ptp_get_ts_config(struct efx_nic *efx, struct ifreq *ifr)
+int efx_siena_ptp_get_ts_config(struct efx_nic *efx, struct ifreq *ifr)
 {
 	if (!efx->ptp_data)
 		return -EOPNOTSUPP;
@@ -1898,7 +1899,7 @@ static void ptp_event_pps(struct efx_nic *efx, struct efx_ptp_data *ptp)
 		queue_work(ptp->pps_workwq, &ptp->pps_work);
 }
 
-void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev)
+void efx_siena_ptp_event(struct efx_nic *efx, efx_qword_t *ev)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
 	int code = EFX_QWORD_FIELD(*ev, MCDI_EVENT_CODE);
@@ -1949,7 +1950,7 @@ void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev)
 	}
 }
 
-void efx_time_sync_event(struct efx_channel *channel, efx_qword_t *ev)
+void efx_siena_time_sync_event(struct efx_channel *channel, efx_qword_t *ev)
 {
 	struct efx_nic *efx = channel->efx;
 	struct efx_ptp_data *ptp = efx->ptp_data;
@@ -1985,8 +1986,8 @@ static inline u32 efx_rx_buf_timestamp_minor(struct efx_nic *efx, const u8 *eh)
 #endif
 }
 
-void __efx_rx_skb_attach_timestamp(struct efx_channel *channel,
-				   struct sk_buff *skb)
+void __efx_siena_rx_skb_attach_timestamp(struct efx_channel *channel,
+					 struct sk_buff *skb)
 {
 	struct efx_nic *efx = channel->efx;
 	struct efx_ptp_data *ptp = efx->ptp_data;
@@ -2171,7 +2172,7 @@ static const struct efx_channel_type efx_ptp_channel_type = {
 	.keep_eventq		= false,
 };
 
-void efx_ptp_defer_probe_with_channel(struct efx_nic *efx)
+void efx_siena_ptp_defer_probe_with_channel(struct efx_nic *efx)
 {
 	/* Check whether PTP is implemented on this NIC.  The DISABLE
 	 * operation will succeed if and only if it is implemented.
@@ -2181,7 +2182,7 @@ void efx_ptp_defer_probe_with_channel(struct efx_nic *efx)
 			&efx_ptp_channel_type;
 }
 
-void efx_ptp_start_datapath(struct efx_nic *efx)
+void efx_siena_ptp_start_datapath(struct efx_nic *efx)
 {
 	if (efx_ptp_restart(efx))
 		netif_err(efx, drv, efx->net_dev, "Failed to restart PTP.\n");
@@ -2190,7 +2191,7 @@ void efx_ptp_start_datapath(struct efx_nic *efx)
 		efx->type->ptp_set_ts_sync_events(efx, true, true);
 }
 
-void efx_ptp_stop_datapath(struct efx_nic *efx)
+void efx_siena_ptp_stop_datapath(struct efx_nic *efx)
 {
 	/* temporarily disable timestamping */
 	if (efx->type->ptp_set_ts_sync_events)

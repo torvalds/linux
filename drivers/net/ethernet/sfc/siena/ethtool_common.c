@@ -100,8 +100,8 @@ static const struct efx_sw_stat_desc efx_sw_stat_desc[] = {
 
 #define EFX_ETHTOOL_SW_STAT_COUNT ARRAY_SIZE(efx_sw_stat_desc)
 
-void efx_ethtool_get_drvinfo(struct net_device *net_dev,
-			     struct ethtool_drvinfo *info)
+void efx_siena_ethtool_get_drvinfo(struct net_device *net_dev,
+				   struct ethtool_drvinfo *info)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -111,70 +111,22 @@ void efx_ethtool_get_drvinfo(struct net_device *net_dev,
 	strlcpy(info->bus_info, pci_name(efx->pci_dev), sizeof(info->bus_info));
 }
 
-u32 efx_ethtool_get_msglevel(struct net_device *net_dev)
+u32 efx_siena_ethtool_get_msglevel(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	return efx->msg_enable;
 }
 
-void efx_ethtool_set_msglevel(struct net_device *net_dev, u32 msg_enable)
+void efx_siena_ethtool_set_msglevel(struct net_device *net_dev, u32 msg_enable)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	efx->msg_enable = msg_enable;
 }
 
-void efx_ethtool_self_test(struct net_device *net_dev,
-			   struct ethtool_test *test, u64 *data)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_self_tests *efx_tests;
-	bool already_up;
-	int rc = -ENOMEM;
-
-	efx_tests = kzalloc(sizeof(*efx_tests), GFP_KERNEL);
-	if (!efx_tests)
-		goto fail;
-
-	if (efx->state != STATE_READY) {
-		rc = -EBUSY;
-		goto out;
-	}
-
-	netif_info(efx, drv, efx->net_dev, "starting %sline testing\n",
-		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
-
-	/* We need rx buffers and interrupts. */
-	already_up = (efx->net_dev->flags & IFF_UP);
-	if (!already_up) {
-		rc = dev_open(efx->net_dev, NULL);
-		if (rc) {
-			netif_err(efx, drv, efx->net_dev,
-				  "failed opening device.\n");
-			goto out;
-		}
-	}
-
-	rc = efx_selftest(efx, efx_tests, test->flags);
-
-	if (!already_up)
-		dev_close(efx->net_dev);
-
-	netif_info(efx, drv, efx->net_dev, "%s %sline self-tests\n",
-		   rc == 0 ? "passed" : "failed",
-		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
-
-out:
-	efx_ethtool_fill_self_tests(efx, efx_tests, NULL, data);
-	kfree(efx_tests);
-fail:
-	if (rc)
-		test->flags |= ETH_TEST_FL_FAILED;
-}
-
-void efx_ethtool_get_pauseparam(struct net_device *net_dev,
-				struct ethtool_pauseparam *pause)
+void efx_siena_ethtool_get_pauseparam(struct net_device *net_dev,
+				      struct ethtool_pauseparam *pause)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -183,8 +135,8 @@ void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 	pause->autoneg = !!(efx->wanted_fc & EFX_FC_AUTO);
 }
 
-int efx_ethtool_set_pauseparam(struct net_device *net_dev,
-			       struct ethtool_pauseparam *pause)
+int efx_siena_ethtool_set_pauseparam(struct net_device *net_dev,
+				     struct ethtool_pauseparam *pause)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	u8 wanted_fc, old_fc;
@@ -281,7 +233,7 @@ static void efx_fill_test(unsigned int test_index, u8 *strings, u64 *data,
 #define EFX_CHANNEL_NAME(_channel) "chan%d", _channel->channel
 #define EFX_TX_QUEUE_NAME(_tx_queue) "txq%d", _tx_queue->label
 #define EFX_LOOPBACK_NAME(_mode, _counter)			\
-	"loopback.%s." _counter, STRING_TABLE_LOOKUP(_mode, efx_loopback_mode)
+	"loopback.%s." _counter, STRING_TABLE_LOOKUP(_mode, efx_siena_loopback_mode)
 
 /**
  * efx_fill_loopback_test - fill in a block of loopback self-test entries
@@ -340,9 +292,9 @@ static int efx_fill_loopback_test(struct efx_nic *efx,
  * The reason for merging these three functions is to make sure that
  * they can never be inconsistent.
  */
-int efx_ethtool_fill_self_tests(struct efx_nic *efx,
-				struct efx_self_tests *tests,
-				u8 *strings, u64 *data)
+static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
+				       struct efx_self_tests *tests,
+				       u8 *strings, u64 *data)
 {
 	struct efx_channel *channel;
 	unsigned int n = 0, i;
@@ -395,6 +347,54 @@ int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	return n;
 }
 
+void efx_siena_ethtool_self_test(struct net_device *net_dev,
+				 struct ethtool_test *test, u64 *data)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_self_tests *efx_tests;
+	bool already_up;
+	int rc = -ENOMEM;
+
+	efx_tests = kzalloc(sizeof(*efx_tests), GFP_KERNEL);
+	if (!efx_tests)
+		goto fail;
+
+	if (efx->state != STATE_READY) {
+		rc = -EBUSY;
+		goto out;
+	}
+
+	netif_info(efx, drv, efx->net_dev, "starting %sline testing\n",
+		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
+
+	/* We need rx buffers and interrupts. */
+	already_up = (efx->net_dev->flags & IFF_UP);
+	if (!already_up) {
+		rc = dev_open(efx->net_dev, NULL);
+		if (rc) {
+			netif_err(efx, drv, efx->net_dev,
+				  "failed opening device.\n");
+			goto out;
+		}
+	}
+
+	rc = efx_siena_selftest(efx, efx_tests, test->flags);
+
+	if (!already_up)
+		dev_close(efx->net_dev);
+
+	netif_info(efx, drv, efx->net_dev, "%s %sline self-tests\n",
+		   rc == 0 ? "passed" : "failed",
+		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
+
+out:
+	efx_ethtool_fill_self_tests(efx, efx_tests, NULL, data);
+	kfree(efx_tests);
+fail:
+	if (rc)
+		test->flags |= ETH_TEST_FL_FAILED;
+}
+
 static size_t efx_describe_per_queue_stats(struct efx_nic *efx, u8 *strings)
 {
 	size_t n_stats = 0;
@@ -439,7 +439,7 @@ static size_t efx_describe_per_queue_stats(struct efx_nic *efx, u8 *strings)
 	return n_stats;
 }
 
-int efx_ethtool_get_sset_count(struct net_device *net_dev, int string_set)
+int efx_siena_ethtool_get_sset_count(struct net_device *net_dev, int string_set)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -448,7 +448,7 @@ int efx_ethtool_get_sset_count(struct net_device *net_dev, int string_set)
 		return efx->type->describe_stats(efx, NULL) +
 		       EFX_ETHTOOL_SW_STAT_COUNT +
 		       efx_describe_per_queue_stats(efx, NULL) +
-		       efx_ptp_describe_stats(efx, NULL);
+		       efx_siena_ptp_describe_stats(efx, NULL);
 	case ETH_SS_TEST:
 		return efx_ethtool_fill_self_tests(efx, NULL, NULL, NULL);
 	default:
@@ -456,8 +456,8 @@ int efx_ethtool_get_sset_count(struct net_device *net_dev, int string_set)
 	}
 }
 
-void efx_ethtool_get_strings(struct net_device *net_dev,
-			     u32 string_set, u8 *strings)
+void efx_siena_ethtool_get_strings(struct net_device *net_dev,
+				   u32 string_set, u8 *strings)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int i;
@@ -472,7 +472,7 @@ void efx_ethtool_get_strings(struct net_device *net_dev,
 		strings += EFX_ETHTOOL_SW_STAT_COUNT * ETH_GSTRING_LEN;
 		strings += (efx_describe_per_queue_stats(efx, strings) *
 			    ETH_GSTRING_LEN);
-		efx_ptp_describe_stats(efx, strings);
+		efx_siena_ptp_describe_stats(efx, strings);
 		break;
 	case ETH_SS_TEST:
 		efx_ethtool_fill_self_tests(efx, NULL, strings, NULL);
@@ -483,9 +483,9 @@ void efx_ethtool_get_strings(struct net_device *net_dev,
 	}
 }
 
-void efx_ethtool_get_stats(struct net_device *net_dev,
-			   struct ethtool_stats *stats,
-			   u64 *data)
+void efx_siena_ethtool_get_stats(struct net_device *net_dev,
+				 struct ethtool_stats *stats,
+				 u64 *data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	const struct efx_sw_stat_desc *stat;
@@ -554,12 +554,12 @@ void efx_ethtool_get_stats(struct net_device *net_dev,
 		}
 	}
 
-	efx_ptp_update_stats(efx, data);
+	efx_siena_ptp_update_stats(efx, data);
 }
 
 /* This must be called with rtnl_lock held. */
-int efx_ethtool_get_link_ksettings(struct net_device *net_dev,
-				   struct ethtool_link_ksettings *cmd)
+int efx_siena_ethtool_get_link_ksettings(struct net_device *net_dev,
+					 struct ethtool_link_ksettings *cmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_link_state *link_state = &efx->link_state;
@@ -581,8 +581,9 @@ int efx_ethtool_get_link_ksettings(struct net_device *net_dev,
 }
 
 /* This must be called with rtnl_lock held. */
-int efx_ethtool_set_link_ksettings(struct net_device *net_dev,
-				   const struct ethtool_link_ksettings *cmd)
+int
+efx_siena_ethtool_set_link_ksettings(struct net_device *net_dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
@@ -601,8 +602,8 @@ int efx_ethtool_set_link_ksettings(struct net_device *net_dev,
 	return rc;
 }
 
-int efx_ethtool_get_fecparam(struct net_device *net_dev,
-			     struct ethtool_fecparam *fecparam)
+int efx_siena_ethtool_get_fecparam(struct net_device *net_dev,
+				   struct ethtool_fecparam *fecparam)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
@@ -614,8 +615,8 @@ int efx_ethtool_get_fecparam(struct net_device *net_dev,
 	return rc;
 }
 
-int efx_ethtool_set_fecparam(struct net_device *net_dev,
-			     struct ethtool_fecparam *fecparam)
+int efx_siena_ethtool_set_fecparam(struct net_device *net_dev,
+				   struct ethtool_fecparam *fecparam)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
@@ -806,8 +807,8 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 	return rc;
 }
 
-int efx_ethtool_get_rxnfc(struct net_device *net_dev,
-			  struct ethtool_rxnfc *info, u32 *rule_locs)
+int efx_siena_ethtool_get_rxnfc(struct net_device *net_dev,
+				struct ethtool_rxnfc *info, u32 *rule_locs)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	u32 rss_context = 0;
@@ -1125,8 +1126,8 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	return 0;
 }
 
-int efx_ethtool_set_rxnfc(struct net_device *net_dev,
-			  struct ethtool_rxnfc *info)
+int efx_siena_ethtool_set_rxnfc(struct net_device *net_dev,
+				struct ethtool_rxnfc *info)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -1147,7 +1148,7 @@ int efx_ethtool_set_rxnfc(struct net_device *net_dev,
 	}
 }
 
-u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
+u32 efx_siena_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -1156,15 +1157,15 @@ u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 	return ARRAY_SIZE(efx->rss_context.rx_indir_table);
 }
 
-u32 efx_ethtool_get_rxfh_key_size(struct net_device *net_dev)
+u32 efx_siena_ethtool_get_rxfh_key_size(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	return efx->type->rx_hash_key_size;
 }
 
-int efx_ethtool_get_rxfh(struct net_device *net_dev, u32 *indir, u8 *key,
-			 u8 *hfunc)
+int efx_siena_ethtool_get_rxfh(struct net_device *net_dev, u32 *indir, u8 *key,
+			       u8 *hfunc)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
@@ -1184,8 +1185,8 @@ int efx_ethtool_get_rxfh(struct net_device *net_dev, u32 *indir, u8 *key,
 	return 0;
 }
 
-int efx_ethtool_set_rxfh(struct net_device *net_dev, const u32 *indir,
-			 const u8 *key, const u8 hfunc)
+int efx_siena_ethtool_set_rxfh(struct net_device *net_dev, const u32 *indir,
+			       const u8 *key, const u8 hfunc)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -1203,8 +1204,8 @@ int efx_ethtool_set_rxfh(struct net_device *net_dev, const u32 *indir,
 	return efx->type->rx_push_rss_config(efx, true, indir, key);
 }
 
-int efx_ethtool_get_rxfh_context(struct net_device *net_dev, u32 *indir,
-				 u8 *key, u8 *hfunc, u32 rss_context)
+int efx_siena_ethtool_get_rxfh_context(struct net_device *net_dev, u32 *indir,
+				       u8 *key, u8 *hfunc, u32 rss_context)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_rss_context *ctx;
@@ -1234,10 +1235,10 @@ out_unlock:
 	return rc;
 }
 
-int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
-				 const u32 *indir, const u8 *key,
-				 const u8 hfunc, u32 *rss_context,
-				 bool delete)
+int efx_siena_ethtool_set_rxfh_context(struct net_device *net_dev,
+				       const u32 *indir, const u8 *key,
+				       const u8 hfunc, u32 *rss_context,
+				       bool delete)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_rss_context *ctx;
@@ -1299,7 +1300,7 @@ out_unlock:
 	return rc;
 }
 
-int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
+int efx_siena_ethtool_reset(struct net_device *net_dev, u32 *flags)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
@@ -1311,9 +1312,9 @@ int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 	return efx_siena_reset(efx, rc);
 }
 
-int efx_ethtool_get_module_eeprom(struct net_device *net_dev,
-				  struct ethtool_eeprom *ee,
-				  u8 *data)
+int efx_siena_ethtool_get_module_eeprom(struct net_device *net_dev,
+					struct ethtool_eeprom *ee,
+					u8 *data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int ret;
@@ -1325,8 +1326,8 @@ int efx_ethtool_get_module_eeprom(struct net_device *net_dev,
 	return ret;
 }
 
-int efx_ethtool_get_module_info(struct net_device *net_dev,
-				struct ethtool_modinfo *modinfo)
+int efx_siena_ethtool_get_module_info(struct net_device *net_dev,
+				      struct ethtool_modinfo *modinfo)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int ret;

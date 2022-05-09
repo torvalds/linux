@@ -73,8 +73,8 @@ static const char *const efx_reset_type_names[] = {
 	STRING_TABLE_LOOKUP(type, efx_reset_type)
 
 /* Loopback mode names (see LOOPBACK_MODE()) */
-const unsigned int efx_loopback_mode_max = LOOPBACK_MAX;
-const char *const efx_loopback_mode_names[] = {
+const unsigned int efx_siena_loopback_mode_max = LOOPBACK_MAX;
+const char *const efx_siena_loopback_mode_names[] = {
 	[LOOPBACK_NONE]		= "NONE",
 	[LOOPBACK_DATA]		= "DATAPATH",
 	[LOOPBACK_GMAC]		= "GMAC",
@@ -434,7 +434,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 	/* Initialise the channels */
 	efx_siena_start_channels(efx);
 
-	efx_ptp_start_datapath(efx);
+	efx_siena_ptp_start_datapath(efx);
 
 	if (netif_device_present(efx->net_dev))
 		netif_tx_wake_all_queues(efx->net_dev);
@@ -445,7 +445,7 @@ static void efx_stop_datapath(struct efx_nic *efx)
 	EFX_ASSERT_RESET_SERIALISED(efx);
 	BUG_ON(efx->port_enabled);
 
-	efx_ptp_stop_datapath(efx);
+	efx_siena_ptp_stop_datapath(efx);
 
 	efx_siena_stop_channels(efx);
 }
@@ -514,7 +514,7 @@ static void efx_stop_port(struct efx_nic *efx)
 	netif_addr_unlock_bh(efx->net_dev);
 
 	cancel_delayed_work_sync(&efx->monitor_work);
-	efx_selftest_async_cancel(efx);
+	efx_siena_selftest_async_cancel(efx);
 	cancel_work_sync(&efx->mac_work);
 }
 
@@ -994,7 +994,7 @@ int efx_siena_init_struct(struct efx_nic *efx,
 #endif
 	INIT_WORK(&efx->reset_work, efx_reset_work);
 	INIT_DELAYED_WORK(&efx->monitor_work, efx_monitor);
-	efx_selftest_async_init(efx);
+	efx_siena_selftest_async_init(efx);
 	efx->pci_dev = pci_dev;
 	efx->msg_enable = debug;
 	efx->state = STATE_UNINIT;

@@ -377,7 +377,7 @@ void __efx_siena_rx_packet(struct efx_channel *channel)
 	if (unlikely(efx->loopback_selftest)) {
 		struct efx_rx_queue *rx_queue;
 
-		efx_loopback_rx_packet(efx, eh, rx_buf->len);
+		efx_siena_loopback_rx_packet(efx, eh, rx_buf->len);
 		rx_queue = efx_channel_get_rx_queue(channel);
 		efx_siena_free_rx_buffers(rx_queue, rx_buf,
 					  channel->rx_pkt_n_frags);
