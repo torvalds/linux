@@ -139,6 +139,8 @@ unsigned int *rga2_mmu_buf_get(uint32_t size)
 	int ret;
 	unsigned int *mmu_base = NULL;
 
+	size = ALIGN(size, 16);
+
 	mutex_lock(&rga_drvdata->lock);
 
 	ret = rga2_mmu_buf_get_try(&rga2_mmu_info, size);
