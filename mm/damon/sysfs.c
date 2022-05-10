@@ -2120,6 +2120,31 @@ static int damon_sysfs_set_regions(struct damon_target *t,
 	return 0;
 }
 
+static int damon_sysfs_add_target(struct damon_sysfs_target *sys_target,
+		struct damon_ctx *ctx)
+{
+	struct damon_target *t = damon_new_target();
+	int err = -EINVAL;
+
+	if (!t)
+		return -ENOMEM;
+	if (ctx->ops.id == DAMON_OPS_VADDR ||
+			ctx->ops.id == DAMON_OPS_FVADDR) {
+		t->pid = find_get_pid(sys_target->pid);
+		if (!t->pid)
+			goto destroy_targets_out;
+	}
+	damon_add_target(ctx, t);
+	err = damon_sysfs_set_regions(t, sys_target->regions);
+	if (err)
+		goto destroy_targets_out;
+	return 0;
+
+destroy_targets_out:
+	damon_sysfs_destroy_targets(ctx);
+	return err;
+}
+
 static int damon_sysfs_set_targets(struct damon_ctx *ctx,
 		struct damon_sysfs_targets *sysfs_targets)
 {
@@ -2130,28 +2155,10 @@ static int damon_sysfs_set_targets(struct damon_ctx *ctx,
 		return -EINVAL;
 
 	for (i = 0; i < sysfs_targets->nr; i++) {
-		struct damon_sysfs_target *sys_target =
-			sysfs_targets->targets_arr[i];
-		struct damon_target *t = damon_new_target();
-
-		if (!t) {
-			damon_sysfs_destroy_targets(ctx);
-			return -ENOMEM;
-		}
-		if (ctx->ops.id == DAMON_OPS_VADDR ||
-				ctx->ops.id == DAMON_OPS_FVADDR) {
-			t->pid = find_get_pid(sys_target->pid);
-			if (!t->pid) {
-				damon_sysfs_destroy_targets(ctx);
-				return -EINVAL;
-			}
-		}
-		damon_add_target(ctx, t);
-		err = damon_sysfs_set_regions(t, sys_target->regions);
-		if (err) {
-			damon_sysfs_destroy_targets(ctx);
+		err = damon_sysfs_add_target(
+				sysfs_targets->targets_arr[i], ctx);
+		if (err)
 			return err;
-		}
 	}
 	return 0;
 }
