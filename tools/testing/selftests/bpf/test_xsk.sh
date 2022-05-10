@@ -109,6 +109,14 @@ setup_vethPairs() {
 	if [[ $verbose -eq 1 ]]; then
 	        echo "setting up ${VETH1}: namespace: ${NS1}"
 	fi
+
+	if [[ $busy_poll -eq 1 ]]; then
+	        echo 2 > /sys/class/net/${VETH0}/napi_defer_hard_irqs
+		echo 200000 > /sys/class/net/${VETH0}/gro_flush_timeout
+		echo 2 > /sys/class/net/${VETH1}/napi_defer_hard_irqs
+		echo 200000 > /sys/class/net/${VETH1}/gro_flush_timeout
+	fi
+
 	ip link set ${VETH1} netns ${NS1}
 	ip netns exec ${NS1} ip link set ${VETH1} mtu ${MTU}
 	ip link set ${VETH0} mtu ${MTU}
@@ -130,11 +138,11 @@ if [ $retval -ne 0 ]; then
 fi
 
 if [[ $verbose -eq 1 ]]; then
-	VERBOSE_ARG="-v"
+	ARGS+="-v "
 fi
 
 if [[ $dump_pkts -eq 1 ]]; then
-	DUMP_PKTS_ARG="-D"
+	ARGS="-D "
 fi
 
 test_status $retval "${TEST_NAME}"
@@ -143,8 +151,19 @@ test_status $retval "${TEST_NAME}"
 
 statusList=()
 
-TEST_NAME="XSK KSELFTESTS"
+TEST_NAME="XSK_SELFTESTS_SOFTIRQ"
 
+execxdpxceiver
+
+retval=$?
+test_status $retval "${TEST_NAME}"
+statusList+=($retval)
+
+cleanup_exit ${VETH0} ${VETH1} ${NS1}
+TEST_NAME="XSK_SELFTESTS_BUSY_POLL"
+busy_poll=1
+
+setup_vethPairs
 execxdpxceiver
 
 retval=$?

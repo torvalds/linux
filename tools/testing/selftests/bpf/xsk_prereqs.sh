@@ -80,5 +80,9 @@ validate_ip_utility()
 
 execxdpxceiver()
 {
-	./${XSKOBJ} -i ${VETH0} -i ${VETH1},${NS1} ${VERBOSE_ARG} ${DUMP_PKTS_ARG}
+        if [[ $busy_poll -eq 1 ]]; then
+	        ARGS+="-b "
+	fi
+
+	./${XSKOBJ} -i ${VETH0} -i ${VETH1},${NS1} ${ARGS}
 }

@@ -17,6 +17,14 @@
 #define PF_XDP AF_XDP
 #endif
 
+#ifndef SO_BUSY_POLL_BUDGET
+#define SO_BUSY_POLL_BUDGET 70
+#endif
+
+#ifndef SO_PREFER_BUSY_POLL
+#define SO_PREFER_BUSY_POLL 69
+#endif
+
 #define MAX_INTERFACES 2
 #define MAX_INTERFACE_NAME_CHARS 7
 #define MAX_INTERFACES_NAMESPACE_CHARS 10
@@ -139,6 +147,7 @@ struct ifobject {
 	bool tx_on;
 	bool rx_on;
 	bool use_poll;
+	bool busy_poll;
 	bool pacing_on;
 	u8 dst_mac[ETH_ALEN];
 	u8 src_mac[ETH_ALEN];

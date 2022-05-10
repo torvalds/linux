@@ -90,6 +90,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <time.h>
@@ -122,9 +123,11 @@ static void __exit_with_error(int error, const char *file, const char *func, int
 #define exit_with_error(error) __exit_with_error(error, __FILE__, __func__, __LINE__)
 
 #define mode_string(test) (test)->ifobj_tx->xdp_flags & XDP_FLAGS_SKB_MODE ? "SKB" : "DRV"
+#define busy_poll_string(test) (test)->ifobj_tx->busy_poll ? "BUSY-POLL " : ""
 
 #define print_ksft_result(test)						\
-	(ksft_test_result_pass("PASS: %s %s\n", mode_string(test), (test)->name))
+	(ksft_test_result_pass("PASS: %s %s%s\n", mode_string(test), busy_poll_string(test), \
+			       (test)->name))
 
 static void memset32_htonl(void *dest, u32 val, u32 size)
 {
@@ -264,6 +267,26 @@ static int xsk_configure_umem(struct xsk_umem_info *umem, void *buffer, u64 size
 	return 0;
 }
 
+static void enable_busy_poll(struct xsk_socket_info *xsk)
+{
+	int sock_opt;
+
+	sock_opt = 1;
+	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		exit_with_error(errno);
+
+	sock_opt = 20;
+	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_BUSY_POLL,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		exit_with_error(errno);
+
+	sock_opt = BATCH_SIZE;
+	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
+		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
+		exit_with_error(errno);
+}
+
 static int xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_info *umem,
 				struct ifobject *ifobject, bool shared)
 {
@@ -287,8 +310,8 @@ static int xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_inf
 
 static struct option long_options[] = {
 	{"interface", required_argument, 0, 'i'},
-	{"queue", optional_argument, 0, 'q'},
-	{"dump-pkts", optional_argument, 0, 'D'},
+	{"busy-poll", no_argument, 0, 'b'},
+	{"dump-pkts", no_argument, 0, 'D'},
 	{"verbose", no_argument, 0, 'v'},
 	{0, 0, 0, 0}
 };
@@ -299,9 +322,9 @@ static void usage(const char *prog)
 		"  Usage: %s [OPTIONS]\n"
 		"  Options:\n"
 		"  -i, --interface      Use interface\n"
-		"  -q, --queue=n        Use queue n (default 0)\n"
 		"  -D, --dump-pkts      Dump packets L2 - L5\n"
-		"  -v, --verbose        Verbose output\n";
+		"  -v, --verbose        Verbose output\n"
+		"  -b, --busy-poll      Enable busy poll\n";
 
 	ksft_print_msg(str, prog);
 }
@@ -347,7 +370,7 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 	for (;;) {
 		char *sptr, *token;
 
-		c = getopt_long(argc, argv, "i:Dv", long_options, &option_index);
+		c = getopt_long(argc, argv, "i:Dvb", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -372,6 +395,10 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 			break;
 		case 'v':
 			opt_verbose = true;
+			break;
+		case 'b':
+			ifobj_tx->busy_poll = true;
+			ifobj_rx->busy_poll = true;
 			break;
 		default:
 			usage(basename(argv[0]));
@@ -716,9 +743,22 @@ static void kick_tx(struct xsk_socket_info *xsk)
 	int ret;
 
 	ret = sendto(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
-	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN || errno == EBUSY || errno == ENETDOWN)
+	if (ret >= 0)
 		return;
+	if (errno == ENOBUFS || errno == EAGAIN || errno == EBUSY || errno == ENETDOWN) {
+		usleep(100);
+		return;
+	}
 	exit_with_error(errno);
+}
+
+static void kick_rx(struct xsk_socket_info *xsk)
+{
+	int ret;
+
+	ret = recvfrom(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, NULL);
+	if (ret < 0)
+		exit_with_error(errno);
 }
 
 static void complete_pkts(struct xsk_socket_info *xsk, int batch_size)
@@ -745,15 +785,18 @@ static void complete_pkts(struct xsk_socket_info *xsk, int batch_size)
 	}
 }
 
-static void receive_pkts(struct pkt_stream *pkt_stream, struct xsk_socket_info *xsk,
-			 struct pollfd *fds)
+static void receive_pkts(struct ifobject *ifobj, struct pollfd *fds)
 {
+	struct pkt_stream *pkt_stream = ifobj->pkt_stream;
 	struct pkt *pkt = pkt_stream_get_next_rx_pkt(pkt_stream);
+	struct xsk_socket_info *xsk = ifobj->xsk;
 	struct xsk_umem_info *umem = xsk->umem;
 	u32 idx_rx = 0, idx_fq = 0, rcvd, i;
 	int ret;
 
 	while (pkt) {
+		kick_rx(xsk);
+
 		rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
 		if (!rcvd) {
 			if (xsk_ring_prod__needs_wakeup(&umem->fq)) {
@@ -890,6 +933,8 @@ static bool rx_stats_are_valid(struct ifobject *ifobject)
 	socklen_t optlen;
 	int err;
 
+	kick_rx(ifobject->xsk);
+
 	optlen = sizeof(stats);
 	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, &stats, &optlen);
 	if (err) {
@@ -984,6 +1029,9 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 				exit_with_error(-ret);
 			usleep(USLEEP_MAX);
 		}
+
+		if (ifobject->busy_poll)
+			enable_busy_poll(&ifobject->xsk_arr[i]);
 	}
 
 	ifobject->xsk = &ifobject->xsk_arr[0];
@@ -1083,7 +1131,7 @@ static void *worker_testapp_validate_rx(void *arg)
 		while (!rx_stats_are_valid(ifobject))
 			continue;
 	else
-		receive_pkts(ifobject->pkt_stream, ifobject->xsk, &fds);
+		receive_pkts(ifobject, &fds);
 
 	if (test->total_steps == test->current_step)
 		testapp_cleanup_xsk_res(ifobject);
