@@ -418,8 +418,9 @@
 };
 
 &dp0 {
+	split-mode;
 	force-hpd;
-	status = "disabled";
+	status = "okay";
 
 	ports {
 		port@1 {
@@ -440,9 +441,13 @@
 	status = "disabled";
 };
 
+&dp0_in_vp2 {
+	status = "disabled";
+};
+
 &dp1 {
 	force-hpd;
-	status = "disabled";
+	status = "okay";
 
 	ports {
 		port@1 {
@@ -460,6 +465,10 @@
 };
 
 &dp1_in_vp1 {
+	status = "disabled";
+};
+
+&dp1_in_vp2 {
 	status = "disabled";
 };
 
@@ -540,8 +549,9 @@
 };
 
 &edp0 {
+	split-mode;
 	force-hpd;
-	status = "disabled";
+	status = "okay";
 
 	ports {
 		port@1 {
@@ -554,6 +564,10 @@
 	};
 };
 
+&edp0_in_vp0 {
+	status = "disabled";
+};
+
 &edp0_in_vp1 {
 	status = "okay";
 };
@@ -564,7 +578,7 @@
 
 &edp1 {
 	force-hpd;
-	status = "disabled";
+	status = "okay";
 
 	ports {
 		port@1 {
@@ -575,6 +589,10 @@
 			};
 		};
 	};
+};
+
+&edp1_in_vp0 {
+	status = "disabled";
 };
 
 &edp1_in_vp1 {
