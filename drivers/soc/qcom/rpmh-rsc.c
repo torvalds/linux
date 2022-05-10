@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020, The Linux Foundation. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s " fmt, KBUILD_MODNAME
@@ -84,6 +84,17 @@
 #define CMD_MSGID_WRITE			BIT(16)
 #define CMD_STATUS_ISSUED		BIT(8)
 #define CMD_STATUS_COMPL		BIT(16)
+
+#define ACCL_TYPE(addr)			((addr >> 16) & 0xF)
+#define NR_ACCL_TYPES			3
+#define MAX_RSC_COUNT			2
+
+static const char * const accl_str[] = {
+	"", "", "", "CLK", "VREG", "BUS",
+};
+
+static struct rsc_drv *__rsc_drv[MAX_RSC_COUNT];
+static int __rsc_count;
 
 /*
  * Here's a high level overview of how all the registers in RPMH work
@@ -717,6 +728,111 @@ int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv, const struct tcs_request *msg)
 	return ret;
 }
 
+static struct tcs_group *get_tcs_from_index(struct rsc_drv *drv, int tcs_id)
+{
+	unsigned int i;
+
+	for (i = 0; i < TCS_TYPE_NR; i++) {
+		if (drv->tcs[i].mask & BIT(tcs_id))
+			return &drv->tcs[i];
+	}
+
+	return NULL;
+}
+
+static void print_tcs_info(struct rsc_drv *drv, int tcs_id, unsigned long *accl,
+			   bool *aoss_irq_sts)
+{
+	struct tcs_group *tcs_grp = get_tcs_from_index(drv, tcs_id);
+	const struct tcs_request *req = get_req_from_tcs(drv, tcs_id);
+	unsigned long cmds_enabled;
+	u32 addr, data, msgid, sts, irq_sts;
+	bool in_use = test_bit(tcs_id, drv->tcs_in_use);
+	int i;
+
+	if (!tcs_grp || !req)
+		return;
+
+	sts = read_tcs_reg(drv, RSC_DRV_STATUS, tcs_id);
+	cmds_enabled = read_tcs_reg(drv, RSC_DRV_CMD_ENABLE, tcs_id);
+	if (!cmds_enabled)
+		return;
+
+	data = read_tcs_reg(drv, RSC_DRV_CONTROL, tcs_id);
+	irq_sts = readl_relaxed(drv->tcs_base + RSC_DRV_IRQ_STATUS);
+	pr_warn("Request: tcs-in-use:%s active_tcs=%s(%d) state=%d wait_for_compl=%u]\n",
+		(in_use ? "YES" : "NO"),
+		((tcs_grp->type == ACTIVE_TCS) ? "YES" : "NO"),
+		tcs_grp->type, req->state, req->wait_for_compl);
+	pr_warn("TCS=%d [ctrlr-sts:%s amc-mode:0x%x irq-sts:%s]\n",
+		tcs_id, sts ? "IDLE" : "BUSY", data,
+		(irq_sts & BIT(tcs_id)) ? "COMPLETED" : "PENDING");
+
+	*aoss_irq_sts = (irq_sts & BIT(tcs_id)) ? true : false;
+
+	for_each_set_bit(i, &cmds_enabled, MAX_CMDS_PER_TCS) {
+		addr = read_tcs_cmd(drv, RSC_DRV_CMD_ADDR, tcs_id, i);
+		data = read_tcs_cmd(drv, RSC_DRV_CMD_DATA, tcs_id, i);
+		msgid = read_tcs_cmd(drv, RSC_DRV_CMD_MSGID, tcs_id, i);
+		sts = read_tcs_cmd(drv, RSC_DRV_CMD_STATUS, tcs_id, i);
+		pr_warn("\tCMD=%d [addr=0x%x data=0x%x hdr=0x%x sts=0x%x enabled=1]\n",
+			i, addr, data, msgid, sts);
+		if (!(sts & CMD_STATUS_ISSUED))
+			continue;
+		if (!(sts & CMD_STATUS_COMPL))
+			*accl |= BIT(ACCL_TYPE(addr));
+	}
+}
+
+void rpmh_rsc_debug(struct rsc_drv *drv, struct completion *compl)
+{
+	struct irq_data *rsc_irq_data = irq_get_irq_data(drv->irq);
+	bool gic_irq_sts, aoss_irq_sts;
+	int i;
+	int busy = 0;
+	unsigned long accl = 0;
+	char str[20] = "";
+
+	pr_warn("RSC:%s\n", drv->name);
+
+	for (i = 0; i < drv->num_tcs; i++) {
+		if (!test_bit(i, drv->tcs_in_use))
+			continue;
+		busy++;
+		print_tcs_info(drv, i, &accl, &aoss_irq_sts);
+	}
+
+	if (!rsc_irq_data) {
+		pr_err("No IRQ data for RSC:%s\n", drv->name);
+		return;
+	}
+
+	irq_get_irqchip_state(drv->irq, IRQCHIP_STATE_PENDING, &gic_irq_sts);
+	pr_warn("HW IRQ %lu is %s at GIC\n", rsc_irq_data->hwirq,
+		gic_irq_sts ? "PENDING" : "NOT PENDING");
+	pr_warn("Completion is %s to finish\n",
+		completion_done(compl) ? "PENDING" : "NOT PENDING");
+
+	for_each_set_bit(i, &accl, ARRAY_SIZE(accl_str)) {
+		strlcat(str, accl_str[i], sizeof(str));
+		strlcat(str, " ", sizeof(str));
+	}
+
+	if ((busy && !gic_irq_sts) || !aoss_irq_sts)
+		pr_warn("ERROR:Accelerator(s) { %s } at AOSS did not respond\n",
+			str);
+	else if (gic_irq_sts)
+		pr_warn("ERROR:Possible lockup in Linux\n");
+
+	/*
+	 * The TCS(s) are busy waiting, we have no way to recover from this.
+	 * If this debug function is called, we assume it's because timeout
+	 * has happened.
+	 * Crash and report.
+	 */
+	BUG_ON(busy);
+}
+
 /**
  * rpmh_rsc_ctrlr_is_busy() - Check if any of the AMCs are busy.
  * @drv: The controller
@@ -956,6 +1072,8 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
+	drv->irq = irq;
+
 	ret = devm_request_irq(&pdev->dev, irq, tcs_tx_done,
 			       IRQF_TRIGGER_HIGH | IRQF_NO_SUSPEND,
 			       drv->name, drv);
@@ -984,6 +1102,9 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&drv->client.batch_cache);
 
 	dev_set_drvdata(&pdev->dev, drv);
+
+	if (__rsc_count < MAX_RSC_COUNT)
+		__rsc_drv[__rsc_count++] = drv;
 
 	return devm_of_platform_populate(&pdev->dev);
 }
