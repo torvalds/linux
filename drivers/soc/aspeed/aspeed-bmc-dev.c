@@ -10,6 +10,7 @@
 #include <linux/of_irq.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 
 #include <linux/wait.h>
@@ -375,10 +376,13 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	if (of_property_read_bool(dev->of_node, "pcie2lpc"))
 		bmc_device->pcie2lpc = 1;
 
+	if (of_reserved_mem_device_init(dev))
+		dev_err(dev, "can't get reserved memory\n");
+
+	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+
 	bmc_device->bmc_mem_virt = dma_alloc_coherent(&pdev->dev, BMC_MEM_BAR_SIZE, &bmc_device->bmc_mem_phy, GFP_KERNEL);
 	memset(bmc_device->bmc_mem_virt, 0, BMC_MEM_BAR_SIZE);
-
-//	printk("virt=%p phy %x\n", bmc_device->bmc_mem_virt, bmc_device->bmc_mem_phy);
 
 	sysfs_bin_attr_init(&bmc_device->bin0);
 	sysfs_bin_attr_init(&bmc_device->bin1);
