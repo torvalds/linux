@@ -1803,6 +1803,8 @@ static void sc7180_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.pingpong = sc7180_pp,
 		.intf_count = ARRAY_SIZE(sc7180_intf),
 		.intf = sc7180_intf,
+		.wb_count = ARRAY_SIZE(sm8250_wb),
+		.wb = sm8250_wb,
 		.vbif_count = ARRAY_SIZE(sdm845_vbif),
 		.vbif = sdm845_vbif,
 		.reg_dma_count = 1,
