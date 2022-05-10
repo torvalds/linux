@@ -1973,11 +1973,10 @@ static int imx7_csi_try_fmt(struct imx7_csi *csi,
 		*cc = imx7_csi_find_mbus_format(sdformat->format.code,
 						IMX7_CSI_PIXFMT_SEL_ANY);
 		if (!*cc) {
-			imx7_csi_enum_mbus_formats(&code, 0,
-						   IMX7_CSI_PIXFMT_SEL_YUV_RGB);
+			code = IMX7_CSI_DEF_MBUS_CODE;
 			*cc = imx7_csi_find_mbus_format(code,
-							IMX7_CSI_PIXFMT_SEL_YUV_RGB);
-			sdformat->format.code = (*cc)->codes[0];
+							IMX7_CSI_PIXFMT_SEL_ANY);
+			sdformat->format.code = code;
 		}
 
 		if (sdformat->format.field != V4L2_FIELD_INTERLACED)
