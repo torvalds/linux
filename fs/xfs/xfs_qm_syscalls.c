@@ -343,8 +343,6 @@ xfs_qm_scall_setqlim(
 
 	if (xfs_setqlim_limits(mp, res, qlim, hard, soft, "blk"))
 		xfs_dquot_set_prealloc_limits(dqp);
-	if (newlim->d_fieldmask & QC_SPC_WARNS)
-		res->warnings = newlim->d_spc_warns;
 	if (newlim->d_fieldmask & QC_SPC_TIMER)
 		xfs_setqlim_timer(mp, res, qlim, newlim->d_spc_timer);
 
@@ -359,8 +357,6 @@ xfs_qm_scall_setqlim(
 	qlim = id == 0 ? &defq->rtb : NULL;
 
 	xfs_setqlim_limits(mp, res, qlim, hard, soft, "rtb");
-	if (newlim->d_fieldmask & QC_RT_SPC_WARNS)
-		res->warnings = newlim->d_rt_spc_warns;
 	if (newlim->d_fieldmask & QC_RT_SPC_TIMER)
 		xfs_setqlim_timer(mp, res, qlim, newlim->d_rt_spc_timer);
 
@@ -375,8 +371,6 @@ xfs_qm_scall_setqlim(
 	qlim = id == 0 ? &defq->ino : NULL;
 
 	xfs_setqlim_limits(mp, res, qlim, hard, soft, "ino");
-	if (newlim->d_fieldmask & QC_INO_WARNS)
-		res->warnings = newlim->d_ino_warns;
 	if (newlim->d_fieldmask & QC_INO_TIMER)
 		xfs_setqlim_timer(mp, res, qlim, newlim->d_ino_timer);
 
@@ -417,13 +411,13 @@ xfs_qm_scall_getquota_fill_qc(
 	dst->d_ino_count = dqp->q_ino.reserved;
 	dst->d_spc_timer = dqp->q_blk.timer;
 	dst->d_ino_timer = dqp->q_ino.timer;
-	dst->d_ino_warns = dqp->q_ino.warnings;
-	dst->d_spc_warns = dqp->q_blk.warnings;
+	dst->d_ino_warns = 0;
+	dst->d_spc_warns = 0;
 	dst->d_rt_spc_hardlimit = XFS_FSB_TO_B(mp, dqp->q_rtb.hardlimit);
 	dst->d_rt_spc_softlimit = XFS_FSB_TO_B(mp, dqp->q_rtb.softlimit);
 	dst->d_rt_space = XFS_FSB_TO_B(mp, dqp->q_rtb.reserved);
 	dst->d_rt_spc_timer = dqp->q_rtb.timer;
-	dst->d_rt_spc_warns = dqp->q_rtb.warnings;
+	dst->d_rt_spc_warns = 0;
 
 	/*
 	 * Internally, we don't reset all the timers when quota enforcement
