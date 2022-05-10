@@ -297,6 +297,68 @@ static bool damon_intersect(struct damon_region *r,
 }
 
 /*
+ * damon_set_regions() - Set regions of a target for given address ranges.
+ * @t:		the given target.
+ * @ranges:	array of new monitoring target ranges.
+ * @nr_ranges:	length of @ranges.
+ *
+ * This function adds new regions to, or modify existing regions of a
+ * monitoring target to fit in specific ranges.
+ *
+ * Return: 0 if success, or negative error code otherwise.
+ */
+static int damon_set_regions(struct damon_target *t,
+		struct damon_addr_range *ranges, unsigned int nr_ranges)
+{
+	struct damon_region *r, *next;
+	unsigned int i;
+
+	/* Remove regions which are not in the new ranges */
+	damon_for_each_region_safe(r, next, t) {
+		for (i = 0; i < nr_ranges; i++) {
+			if (damon_intersect(r, &ranges[i]))
+				break;
+		}
+		if (i == nr_ranges)
+			damon_destroy_region(r, t);
+	}
+
+	/* Add new regions or resize existing regions to fit in the ranges */
+	for (i = 0; i < nr_ranges; i++) {
+		struct damon_region *first = NULL, *last, *newr;
+		struct damon_addr_range *range;
+
+		range = &ranges[i];
+		/* Get the first/last regions intersecting with the range */
+		damon_for_each_region(r, t) {
+			if (damon_intersect(r, range)) {
+				if (!first)
+					first = r;
+				last = r;
+			}
+			if (r->ar.start >= range->end)
+				break;
+		}
+		if (!first) {
+			/* no region intersects with this range */
+			newr = damon_new_region(
+					ALIGN_DOWN(range->start,
+						DAMON_MIN_REGION),
+					ALIGN(range->end, DAMON_MIN_REGION));
+			if (!newr)
+				return -ENOMEM;
+			damon_insert_region(newr, damon_prev_region(r), r, t);
+		} else {
+			/* resize intersecting regions to fit in this range */
+			first->ar.start = ALIGN_DOWN(range->start,
+					DAMON_MIN_REGION);
+			last->ar.end = ALIGN(range->end, DAMON_MIN_REGION);
+		}
+	}
+	return 0;
+}
+
+/*
  * Update damon regions for the three big regions of the given target
  *
  * t		the given target
@@ -305,51 +367,7 @@ static bool damon_intersect(struct damon_region *r,
 static void damon_va_apply_three_regions(struct damon_target *t,
 		struct damon_addr_range bregions[3])
 {
-	struct damon_region *r, *next;
-	unsigned int i;
-
-	/* Remove regions which are not in the three big regions now */
-	damon_for_each_region_safe(r, next, t) {
-		for (i = 0; i < 3; i++) {
-			if (damon_intersect(r, &bregions[i]))
-				break;
-		}
-		if (i == 3)
-			damon_destroy_region(r, t);
-	}
-
-	/* Adjust intersecting regions to fit with the three big regions */
-	for (i = 0; i < 3; i++) {
-		struct damon_region *first = NULL, *last;
-		struct damon_region *newr;
-		struct damon_addr_range *br;
-
-		br = &bregions[i];
-		/* Get the first and last regions which intersects with br */
-		damon_for_each_region(r, t) {
-			if (damon_intersect(r, br)) {
-				if (!first)
-					first = r;
-				last = r;
-			}
-			if (r->ar.start >= br->end)
-				break;
-		}
-		if (!first) {
-			/* no damon_region intersects with this big region */
-			newr = damon_new_region(
-					ALIGN_DOWN(br->start,
-						DAMON_MIN_REGION),
-					ALIGN(br->end, DAMON_MIN_REGION));
-			if (!newr)
-				continue;
-			damon_insert_region(newr, damon_prev_region(r), r, t);
-		} else {
-			first->ar.start = ALIGN_DOWN(br->start,
-					DAMON_MIN_REGION);
-			last->ar.end = ALIGN(br->end, DAMON_MIN_REGION);
-		}
-	}
+	damon_set_regions(t, bregions, 3);
 }
 
 /*
