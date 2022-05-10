@@ -1574,6 +1574,9 @@ static int arm_smmu_def_domain_type(struct device *dev)
 	struct arm_smmu_master_cfg *cfg = dev_iommu_priv_get(dev);
 	const struct arm_smmu_impl *impl = cfg->smmu->impl;
 
+	if (using_legacy_binding)
+		return IOMMU_DOMAIN_IDENTITY;
+
 	if (impl && impl->def_domain_type)
 		return impl->def_domain_type(dev);
 
