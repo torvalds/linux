@@ -25,8 +25,11 @@ static int verify_mte_pointer_validity(char *ptr, int mode)
 	/* Check the validity of the tagged pointer */
 	memset((void *)ptr, '1', BUFFER_SIZE);
 	mte_wait_after_trig();
-	if (cur_mte_cxt.fault_valid)
+	if (cur_mte_cxt.fault_valid) {
+		ksft_print_msg("Unexpected fault recorded for %p-%p in mode %x\n",
+			       ptr, ptr + BUFFER_SIZE, mode);
 		return KSFT_FAIL;
+	}
 	/* Proceed further for nonzero tags */
 	if (!MT_FETCH_TAG((uintptr_t)ptr))
 		return KSFT_PASS;
@@ -34,10 +37,13 @@ static int verify_mte_pointer_validity(char *ptr, int mode)
 	/* Check the validity outside the range */
 	ptr[BUFFER_SIZE] = '2';
 	mte_wait_after_trig();
-	if (!cur_mte_cxt.fault_valid)
+	if (!cur_mte_cxt.fault_valid) {
+		ksft_print_msg("No valid fault recorded for %p in mode %x\n",
+			       ptr, mode);
 		return KSFT_FAIL;
-	else
+	} else {
 		return KSFT_PASS;
+	}
 }
 
 static int check_single_included_tags(int mem_type, int mode)
