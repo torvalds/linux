@@ -670,7 +670,11 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	ubi_assert(!ubi->move_from && !ubi->move_to);
 	ubi_assert(!ubi->move_to_put);
 
+#ifdef CONFIG_MTD_UBI_FASTMAP
+	if (!next_peb_for_wl(ubi) ||
+#else
 	if (!ubi->free.rb_node ||
+#endif
 	    (!ubi->used.rb_node && !ubi->scrub.rb_node)) {
 		/*
 		 * No free physical eraseblocks? Well, they must be waiting in
@@ -1003,8 +1007,6 @@ out_cancel:
 static int ensure_wear_leveling(struct ubi_device *ubi, int nested)
 {
 	int err = 0;
-	struct ubi_wl_entry *e1;
-	struct ubi_wl_entry *e2;
 	struct ubi_work *wrk;
 
 	spin_lock(&ubi->wl_lock);
@@ -1017,6 +1019,13 @@ static int ensure_wear_leveling(struct ubi_device *ubi, int nested)
 	 * the WL worker has to be scheduled anyway.
 	 */
 	if (!ubi->scrub.rb_node) {
+#ifdef CONFIG_MTD_UBI_FASTMAP
+		if (!need_wear_leveling(ubi))
+			goto out_unlock;
+#else
+		struct ubi_wl_entry *e1;
+		struct ubi_wl_entry *e2;
+
 		if (!ubi->used.rb_node || !ubi->free.rb_node)
 			/* No physical eraseblocks - no deal */
 			goto out_unlock;
@@ -1032,6 +1041,7 @@ static int ensure_wear_leveling(struct ubi_device *ubi, int nested)
 
 		if (!(e2->ec - e1->ec >= UBI_WL_THRESHOLD))
 			goto out_unlock;
+#endif
 		dbg_wl("schedule wear-leveling");
 	} else
 		dbg_wl("schedule scrubbing");
