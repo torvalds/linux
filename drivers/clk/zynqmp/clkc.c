@@ -163,7 +163,7 @@ static int zynqmp_get_clock_name(u32 clk_id, char *clk_name)
 
 	ret = zynqmp_is_valid_clock(clk_id);
 	if (ret == 1) {
-		strncpy(clk_name, clock[clk_id].clk_name, MAX_NAME_LEN);
+		strscpy(clk_name, clock[clk_id].clk_name, MAX_NAME_LEN);
 		return 0;
 	}
 
@@ -719,7 +719,7 @@ static void zynqmp_get_clock_info(void)
 
 		if (!strcmp(name.name, RESERVED_CLK_NAME))
 			continue;
-		strncpy(clock[i].clk_name, name.name, MAX_NAME_LEN);
+		strscpy(clock[i].clk_name, name.name, MAX_NAME_LEN);
 	}
 
 	/* Get topology of all clock */
