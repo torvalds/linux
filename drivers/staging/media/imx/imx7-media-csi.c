@@ -168,6 +168,7 @@
 #define IMX7_CSI_VIDEO_EOF_TIMEOUT	2000
 
 #define IMX7_CSI_DEF_MBUS_CODE		MEDIA_BUS_FMT_UYVY8_2X8
+#define IMX7_CSI_DEF_PIX_FORMAT		V4L2_PIX_FMT_UYVY
 #define IMX7_CSI_DEF_PIX_WIDTH		640
 #define IMX7_CSI_DEF_PIX_HEIGHT		480
 
@@ -806,8 +807,9 @@ static irqreturn_t imx7_csi_irq_handler(int irq, void *data)
 #define IMX_BUS_FMTS(fmt...) (const u32[]) {fmt, 0}
 
 /*
- * List of supported pixel formats for the subdevs. Keep MEDIA_BUS_FMT_UYVY8_2X8
- * first to match IMX7_CSI_DEF_MBUS_CODE.
+ * List of supported pixel formats for the subdevs. Keep V4L2_PIX_FMT_UYVY and
+ * MEDIA_BUS_FMT_UYVY8_2X8 first to match IMX7_CSI_DEF_PIX_FORMAT and
+ * IMX7_CSI_DEF_MBUS_CODE.
  */
 static const struct imx7_csi_pixfmt pixel_formats[] = {
 	/*** YUV formats start here ***/
@@ -1131,7 +1133,7 @@ __imx7_csi_video_try_fmt(struct v4l2_pix_format *pixfmt,
 	 */
 	cc = imx7_csi_find_pixel_format(pixfmt->pixelformat);
 	if (!cc) {
-		imx7_csi_enum_pixel_formats(&pixfmt->pixelformat, 0, 0);
+		pixfmt->pixelformat = IMX7_CSI_DEF_PIX_FORMAT;
 		cc = imx7_csi_find_pixel_format(pixfmt->pixelformat);
 	}
 
