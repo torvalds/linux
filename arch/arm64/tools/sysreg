@@ -190,6 +190,16 @@ Res0	63:4
 Field	3:0	PRIORITY
 EndSysreg
 
+SysregFields	ZCR_ELx
+Res0	63:9
+Raz	8:4
+Field	3:0	LEN
+EndSysregFields
+
+Sysreg ZCR_EL1	3	0	1	2	0
+Fields ZCR_ELx
+EndSysreg
+
 SysregFields	SMCR_ELx
 Res0	63:32
 Field	31	FA64
@@ -217,6 +227,10 @@ Field	1	ZA
 Field	0	SM
 EndSysreg
 
+Sysreg	ZCR_EL2	3	4	1	2	0
+Fields	ZCR_ELx
+EndSysreg
+
 Sysreg	SMPRIMAP_EL2	3	4	1	2	5
 Field	63:60	P15
 Field	59:56	P14
@@ -238,6 +252,10 @@ EndSysreg
 
 Sysreg	SMCR_EL2	3	4	1	2	6
 Fields	SMCR_ELx
+EndSysreg
+
+Sysreg	ZCR_EL12	3	5	1	2	0
+Fields	ZCR_ELx
 EndSysreg
 
 Sysreg	SMCR_EL12	3	5	1	2	6
