@@ -74,12 +74,6 @@ config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
 
-config HAVE_UNDERSCORE_SYMBOL_PREFIX
-       def_bool y if "$(OUTPUT_FORMAT)" = "pe-i386"
-       help
-         Some architectures generate an _ in front of C symbols; things like
-         module loading and assembly files need to know about this.
-
 config HZ
         int
         default 100
