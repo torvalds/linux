@@ -130,6 +130,8 @@ struct pkt_stream {
 	bool use_addr_for_fill;
 };
 
+struct ifobject;
+typedef int (*validation_func_t)(struct ifobject *ifobj);
 typedef void *(*thread_func_t)(void *arg);
 
 struct ifobject {
@@ -139,6 +141,7 @@ struct ifobject {
 	struct xsk_socket_info *xsk_arr;
 	struct xsk_umem_info *umem;
 	thread_func_t func_ptr;
+	validation_func_t validation_func;
 	struct pkt_stream *pkt_stream;
 	int ns_fd;
 	int xsk_map_fd;

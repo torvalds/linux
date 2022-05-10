@@ -426,6 +426,7 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 		ifobj->use_poll = false;
 		ifobj->pacing_on = true;
 		ifobj->pkt_stream = test->pkt_stream_default;
+		ifobj->validation_func = NULL;
 
 		if (i == 0) {
 			ifobj->rx_on = false;
@@ -951,54 +952,90 @@ static int send_pkts(struct test_spec *test, struct ifobject *ifobject)
 	return TEST_PASS;
 }
 
-static int rx_stats_validate(struct ifobject *ifobject)
+static int get_xsk_stats(struct xsk_socket *xsk, struct xdp_statistics *stats)
 {
-	u32 xsk_stat = 0, expected_stat = ifobject->pkt_stream->nb_pkts;
-	struct xsk_socket *xsk = ifobject->xsk->xsk;
-	int fd = xsk_socket__fd(xsk);
-	struct xdp_statistics stats;
-	socklen_t optlen;
-	int err;
+	int fd = xsk_socket__fd(xsk), err;
+	socklen_t optlen, expected_len;
 
-	kick_rx(ifobject->xsk);
-
-	optlen = sizeof(stats);
-	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, &stats, &optlen);
+	optlen = sizeof(*stats);
+	err = getsockopt(fd, SOL_XDP, XDP_STATISTICS, stats, &optlen);
 	if (err) {
 		ksft_print_msg("[%s] getsockopt(XDP_STATISTICS) error %u %s\n",
 			       __func__, -err, strerror(-err));
 		return TEST_FAILURE;
 	}
 
-	if (optlen == sizeof(struct xdp_statistics)) {
-		switch (stat_test_type) {
-		case STAT_TEST_RX_DROPPED:
-			xsk_stat = stats.rx_dropped;
-			break;
-		case STAT_TEST_TX_INVALID:
-			return true;
-		case STAT_TEST_RX_FULL:
-			xsk_stat = stats.rx_ring_full;
-			if (ifobject->umem->num_frames < XSK_RING_PROD__DEFAULT_NUM_DESCS)
-				expected_stat = ifobject->umem->num_frames - RX_FULL_RXQSIZE;
-			else
-				expected_stat = XSK_RING_PROD__DEFAULT_NUM_DESCS - RX_FULL_RXQSIZE;
-			break;
-		case STAT_TEST_RX_FILL_EMPTY:
-			xsk_stat = stats.rx_fill_ring_empty_descs;
-			break;
-		default:
-			break;
-		}
-
-		if (xsk_stat == expected_stat)
-			return TEST_PASS;
+	expected_len = sizeof(struct xdp_statistics);
+	if (optlen != expected_len) {
+		ksft_print_msg("[%s] getsockopt optlen error. Expected: %u got: %u\n",
+			       __func__, expected_len, optlen);
+		return TEST_FAILURE;
 	}
+
+	return TEST_PASS;
+}
+
+static int validate_rx_dropped(struct ifobject *ifobject)
+{
+	struct xsk_socket *xsk = ifobject->xsk->xsk;
+	struct xdp_statistics stats;
+	int err;
+
+	kick_rx(ifobject->xsk);
+
+	err = get_xsk_stats(xsk, &stats);
+	if (err)
+		return TEST_FAILURE;
+
+	if (stats.rx_dropped == ifobject->pkt_stream->nb_pkts)
+		return TEST_PASS;
 
 	return TEST_CONTINUE;
 }
 
-static int tx_stats_validate(struct ifobject *ifobject)
+static int validate_rx_full(struct ifobject *ifobject)
+{
+	struct xsk_socket *xsk = ifobject->xsk->xsk;
+	struct xdp_statistics stats;
+	u32 expected_stat;
+	int err;
+
+	kick_rx(ifobject->xsk);
+
+	err = get_xsk_stats(xsk, &stats);
+	if (err)
+		return TEST_FAILURE;
+
+	if (ifobject->umem->num_frames < XSK_RING_PROD__DEFAULT_NUM_DESCS)
+		expected_stat = ifobject->umem->num_frames - RX_FULL_RXQSIZE;
+	else
+		expected_stat = XSK_RING_PROD__DEFAULT_NUM_DESCS - RX_FULL_RXQSIZE;
+
+	if (stats.rx_ring_full == expected_stat)
+		return TEST_PASS;
+
+	return TEST_CONTINUE;
+}
+
+static int validate_fill_empty(struct ifobject *ifobject)
+{
+	struct xsk_socket *xsk = ifobject->xsk->xsk;
+	struct xdp_statistics stats;
+	int err;
+
+	kick_rx(ifobject->xsk);
+
+	err = get_xsk_stats(xsk, &stats);
+	if (err)
+		return TEST_FAILURE;
+
+	if (stats.rx_fill_ring_empty_descs == ifobject->pkt_stream->nb_pkts)
+		return TEST_PASS;
+
+	return TEST_CONTINUE;
+}
+
+static int validate_tx_invalid_descs(struct ifobject *ifobject)
 {
 	struct xsk_socket *xsk = ifobject->xsk->xsk;
 	int fd = xsk_socket__fd(xsk);
@@ -1106,8 +1143,8 @@ static void *worker_testapp_validate_tx(void *arg)
 		goto out;
 	}
 
-	if (stat_test_type == STAT_TEST_TX_INVALID) {
-		err = tx_stats_validate(ifobject);
+	if (ifobject->validation_func) {
+		err = ifobject->validation_func(ifobject);
 		report_failure(test);
 	}
 
@@ -1165,9 +1202,9 @@ static void *worker_testapp_validate_rx(void *arg)
 
 	pthread_barrier_wait(&barr);
 
-	if (test_type == TEST_TYPE_STATS) {
+	if (ifobject->validation_func) {
 		do {
-			err = rx_stats_validate(ifobject);
+			err = ifobject->validation_func(ifobject);
 		} while (err == TEST_CONTINUE);
 	} else {
 		err = receive_pkts(ifobject, &fds);
@@ -1302,16 +1339,19 @@ static void testapp_stats(struct test_spec *test)
 			test_spec_set_name(test, "STAT_RX_DROPPED");
 			test->ifobj_rx->umem->frame_headroom = test->ifobj_rx->umem->frame_size -
 				XDP_PACKET_HEADROOM - 1;
+			test->ifobj_rx->validation_func = validate_rx_dropped;
 			testapp_validate_traffic(test);
 			break;
 		case STAT_TEST_RX_FULL:
 			test_spec_set_name(test, "STAT_RX_FULL");
 			test->ifobj_rx->xsk->rxqsize = RX_FULL_RXQSIZE;
+			test->ifobj_rx->validation_func = validate_rx_full;
 			testapp_validate_traffic(test);
 			break;
 		case STAT_TEST_TX_INVALID:
 			test_spec_set_name(test, "STAT_TX_INVALID");
 			pkt_stream_replace(test, DEFAULT_PKT_CNT, XSK_UMEM__INVALID_FRAME_SIZE);
+			test->ifobj_tx->validation_func = validate_tx_invalid_descs;
 			testapp_validate_traffic(test);
 
 			pkt_stream_restore_default(test);
@@ -1323,6 +1363,7 @@ static void testapp_stats(struct test_spec *test)
 			if (!test->ifobj_rx->pkt_stream)
 				exit_with_error(ENOMEM);
 			test->ifobj_rx->pkt_stream->use_addr_for_fill = true;
+			test->ifobj_rx->validation_func = validate_fill_empty;
 			testapp_validate_traffic(test);
 
 			pkt_stream_restore_default(test);
