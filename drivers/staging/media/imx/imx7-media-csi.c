@@ -1267,9 +1267,6 @@ static int imx7_csi_video_register(struct imx7_csi *csi)
 		return ret;
 	}
 
-	/* Add vdev to the video devices list. */
-	imx_media_add_video_device(&csi->imxmd, &csi->vdev);
-
 	return 0;
 }
 
