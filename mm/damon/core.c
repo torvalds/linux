@@ -1051,6 +1051,10 @@ static int kdamond_wait_activation(struct damon_ctx *ctx)
 			return 0;
 
 		kdamond_usleep(min_wait_time);
+
+		if (ctx->callback.after_wmarks_check &&
+				ctx->callback.after_wmarks_check(ctx))
+			break;
 	}
 	return -EBUSY;
 }
@@ -1077,8 +1081,10 @@ static int kdamond_fn(void *data)
 	sz_limit = damon_region_sz_limit(ctx);
 
 	while (!kdamond_need_stop(ctx) && !done) {
-		if (kdamond_wait_activation(ctx))
+		if (kdamond_wait_activation(ctx)) {
+			done = true;
 			continue;
+		}
 
 		if (ctx->ops.prepare_access_checks)
 			ctx->ops.prepare_access_checks(ctx);
