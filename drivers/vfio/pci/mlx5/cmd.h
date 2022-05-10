@@ -10,10 +10,20 @@
 #include <linux/vfio_pci_core.h>
 #include <linux/mlx5/driver.h>
 
+struct mlx5vf_async_data {
+	struct mlx5_async_work cb_work;
+	struct work_struct work;
+	int status;
+	u32 pdn;
+	u32 mkey;
+	void *out;
+};
+
 struct mlx5_vf_migration_file {
 	struct file *filp;
 	struct mutex lock;
-	bool disabled;
+	u8 disabled:1;
+	u8 is_err:1;
 
 	struct sg_append_table table;
 	size_t total_length;
@@ -23,6 +33,10 @@ struct mlx5_vf_migration_file {
 	struct scatterlist *last_offset_sg;
 	unsigned int sg_last_entry;
 	unsigned long last_offset;
+	struct mlx5vf_pci_core_device *mvdev;
+	wait_queue_head_t poll_wait;
+	struct mlx5_async_ctx async_ctx;
+	struct mlx5vf_async_data async_data;
 };
 
 struct mlx5vf_pci_core_device {
@@ -39,6 +53,7 @@ struct mlx5vf_pci_core_device {
 	spinlock_t reset_lock;
 	struct mlx5_vf_migration_file *resuming_migf;
 	struct mlx5_vf_migration_file *saving_migf;
+	struct workqueue_struct *cb_wq;
 	struct notifier_block nb;
 	struct mlx5_core_dev *mdev;
 };
@@ -54,4 +69,6 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 			       struct mlx5_vf_migration_file *migf);
 void mlx5vf_state_mutex_unlock(struct mlx5vf_pci_core_device *mvdev);
+void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev);
+void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work);
 #endif /* MLX5_VFIO_CMD_H */
