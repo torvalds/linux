@@ -38,6 +38,7 @@
 #define v6	6	/* per entry policydb mediation check */
 #define v7	7
 #define v8	8	/* full network masking */
+#define v9	9	/* xbits are used as permission bits in policydb */
 
 /*
  * The AppArmor interface treats data as a type byte followed by the
@@ -796,6 +797,12 @@ static u32 map_other(u32 x)
 		((x & 0x60) << 19);	/* SETOPT/GETOPT */
 }
 
+static u32 map_xbits(u32 x)
+{
+	return ((x & 0x1) << 7) |
+		((x & 0x7e) << 9);
+}
+
 static struct aa_perms compute_perms_entry(struct aa_dfa *dfa,
 					   aa_state_t state,
 					   u32 version)
@@ -806,15 +813,31 @@ static struct aa_perms compute_perms_entry(struct aa_dfa *dfa,
 	perms.audit = dfa_user_audit(dfa, state);
 	perms.quiet = dfa_user_quiet(dfa, state);
 
-	/* for v5 perm mapping in the policydb, the other set is used
-	 * to extend the general perm set
+	/*
+	 * This mapping is convulated due to history.
+	 * v1-v4: only file perms, which are handled by compute_fperms
+	 * v5: added policydb which dropped user conditional to gain new
+	 *     perm bits, but had to map around the xbits because the
+	 *     userspace compiler was still munging them.
+	 * v9: adds using the xbits in policydb because the compiler now
+	 *     supports treating policydb permission bits different.
+	 *     Unfortunately there is no way to force auditing on the
+	 *     perms represented by the xbits
 	 */
-
 	perms.allow |= map_other(dfa_other_allow(dfa, state));
 	if (VERSION_LE(version, v8))
 		perms.allow |= AA_MAY_LOCK;
+	else
+		perms.allow |= map_xbits(dfa_user_xbits(dfa, state));
+
+	/*
+	 * for v5-v9 perm mapping in the policydb, the other set is used
+	 * to extend the general perm set
+	 */
 	perms.audit |= map_other(dfa_other_audit(dfa, state));
 	perms.quiet |= map_other(dfa_other_quiet(dfa, state));
+	if (VERSION_GT(version, v8))
+		perms.quiet |= map_xbits(dfa_other_xbits(dfa, state));
 
 	return perms;
 }
@@ -1188,7 +1211,7 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 	 * if not specified use previous version
 	 * Mask off everything that is not kernel abi version
 	 */
-	if (VERSION_LT(e->version, v5) || VERSION_GT(e->version, v8)) {
+	if (VERSION_LT(e->version, v5) || VERSION_GT(e->version, v9)) {
 		audit_iface(NULL, NULL, NULL, "unsupported interface version",
 			    e, error);
 		return error;
