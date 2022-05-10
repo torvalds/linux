@@ -208,8 +208,8 @@ mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev)
 	stream_open(migf->filp->f_inode, migf->filp);
 	mutex_init(&migf->lock);
 
-	ret = mlx5vf_cmd_query_vhca_migration_state(
-		mvdev->core_device.pdev, mvdev->vhca_id, &migf->total_length);
+	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev,
+						    &migf->total_length);
 	if (ret)
 		goto out_free;
 
@@ -218,8 +218,7 @@ mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev)
 	if (ret)
 		goto out_free;
 
-	ret = mlx5vf_cmd_save_vhca_state(mvdev->core_device.pdev,
-					 mvdev->vhca_id, migf);
+	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf);
 	if (ret)
 		goto out_free;
 	return migf;
@@ -346,8 +345,7 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 	int ret;
 
 	if (cur == VFIO_DEVICE_STATE_RUNNING_P2P && new == VFIO_DEVICE_STATE_STOP) {
-		ret = mlx5vf_cmd_suspend_vhca(
-			mvdev->core_device.pdev, mvdev->vhca_id,
+		ret = mlx5vf_cmd_suspend_vhca(mvdev,
 			MLX5_SUSPEND_VHCA_IN_OP_MOD_SUSPEND_RESPONDER);
 		if (ret)
 			return ERR_PTR(ret);
@@ -355,8 +353,7 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 	}
 
 	if (cur == VFIO_DEVICE_STATE_STOP && new == VFIO_DEVICE_STATE_RUNNING_P2P) {
-		ret = mlx5vf_cmd_resume_vhca(
-			mvdev->core_device.pdev, mvdev->vhca_id,
+		ret = mlx5vf_cmd_resume_vhca(mvdev,
 			MLX5_RESUME_VHCA_IN_OP_MOD_RESUME_RESPONDER);
 		if (ret)
 			return ERR_PTR(ret);
@@ -364,8 +361,7 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 	}
 
 	if (cur == VFIO_DEVICE_STATE_RUNNING && new == VFIO_DEVICE_STATE_RUNNING_P2P) {
-		ret = mlx5vf_cmd_suspend_vhca(
-			mvdev->core_device.pdev, mvdev->vhca_id,
+		ret = mlx5vf_cmd_suspend_vhca(mvdev,
 			MLX5_SUSPEND_VHCA_IN_OP_MOD_SUSPEND_INITIATOR);
 		if (ret)
 			return ERR_PTR(ret);
@@ -373,8 +369,7 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 	}
 
 	if (cur == VFIO_DEVICE_STATE_RUNNING_P2P && new == VFIO_DEVICE_STATE_RUNNING) {
-		ret = mlx5vf_cmd_resume_vhca(
-			mvdev->core_device.pdev, mvdev->vhca_id,
+		ret = mlx5vf_cmd_resume_vhca(mvdev,
 			MLX5_RESUME_VHCA_IN_OP_MOD_RESUME_INITIATOR);
 		if (ret)
 			return ERR_PTR(ret);
@@ -409,8 +404,7 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 	}
 
 	if (cur == VFIO_DEVICE_STATE_RESUMING && new == VFIO_DEVICE_STATE_STOP) {
-		ret = mlx5vf_cmd_load_vhca_state(mvdev->core_device.pdev,
-						 mvdev->vhca_id,
+		ret = mlx5vf_cmd_load_vhca_state(mvdev,
 						 mvdev->resuming_migf);
 		if (ret)
 			return ERR_PTR(ret);
@@ -517,34 +511,16 @@ static int mlx5vf_pci_open_device(struct vfio_device *core_vdev)
 	struct mlx5vf_pci_core_device *mvdev = container_of(
 		core_vdev, struct mlx5vf_pci_core_device, core_device.vdev);
 	struct vfio_pci_core_device *vdev = &mvdev->core_device;
-	int vf_id;
 	int ret;
 
 	ret = vfio_pci_core_enable(vdev);
 	if (ret)
 		return ret;
 
-	if (!mvdev->migrate_cap) {
-		vfio_pci_core_finish_enable(vdev);
-		return 0;
-	}
-
-	vf_id = pci_iov_vf_id(vdev->pdev);
-	if (vf_id < 0) {
-		ret = vf_id;
-		goto out_disable;
-	}
-
-	ret = mlx5vf_cmd_get_vhca_id(vdev->pdev, vf_id + 1, &mvdev->vhca_id);
-	if (ret)
-		goto out_disable;
-
-	mvdev->mig_state = VFIO_DEVICE_STATE_RUNNING;
+	if (mvdev->migrate_cap)
+		mvdev->mig_state = VFIO_DEVICE_STATE_RUNNING;
 	vfio_pci_core_finish_enable(vdev);
 	return 0;
-out_disable:
-	vfio_pci_core_disable(vdev);
-	return ret;
 }
 
 static void mlx5vf_pci_close_device(struct vfio_device *core_vdev)
