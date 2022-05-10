@@ -874,6 +874,19 @@
 			source-pdos =
 				<PDO_FIXED(5000, 1500, PDO_FIXED_USB_COMM)>;
 
+			displayport = <&cdn_dp>;
+
+			altmodes {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				altmode@0 {
+					reg = <0>;
+					svid = <0xff01>;
+					vdo = <0xffffffff>;
+				};
+			};
+
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -882,6 +895,12 @@
 					reg = <0>;
 					usbc0_orien_sw: endpoint {
 						remote-endpoint = <&tcphy0_orientation_switch>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					dp_mode_sw: endpoint {
+						remote-endpoint = <&tcphy_dp_altmode_switch>;
 					};
 				};
 			};
@@ -1209,6 +1228,7 @@
 &tcphy0 {
 	status = "okay";
 
+	svid = <0xff01>;
 	orientation-switch;
 	port {
 		#address-cells = <1>;
@@ -1216,6 +1236,10 @@
 		tcphy0_orientation_switch: endpoint@0 {
 			reg = <0>;
 			remote-endpoint = <&usbc0_orien_sw>;
+		};
+		tcphy_dp_altmode_switch: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dp_mode_sw>;
 		};
 	};
 };
