@@ -9,10 +9,11 @@
 #define VOLT_RM_TABLE_END	~1
 
 #define OPP_INTERMEDIATE_MASK	0x3f
-#define OPP_INTERMEDIATE_RATE	0x01
-#define OPP_SCALING_UP_RATE	0x02
+#define OPP_INTERMEDIATE_RATE	BIT(0)
+#define OPP_SCALING_UP_RATE	BIT(1)
 #define OPP_SCALING_UP_INTER	(OPP_INTERMEDIATE_RATE | OPP_SCALING_UP_RATE)
 #define OPP_SCALING_DOWN_INTER	OPP_INTERMEDIATE_RATE
+#define OPP_LENGTH_LOW		BIT(2)
 
 struct rockchip_opp_info;
 
@@ -24,6 +25,8 @@ struct volt_rm_table {
 struct rockchip_opp_data {
 	int (*get_soc_info)(struct device *dev, struct device_node *np,
 			    int *bin, int *process);
+	int (*set_soc_info)(struct device *dev, struct device_node *np,
+			    int bin, int process, int volt_sel);
 	int (*set_read_margin)(struct device *dev,
 			       struct rockchip_opp_info *opp_info,
 			       u32 rm);

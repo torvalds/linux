@@ -182,6 +182,78 @@ out:
 	return ret;
 }
 
+static int rk3588_change_length(struct device *dev, struct device_node *np,
+				int bin, int process, int volt_sel)
+{
+	struct clk *clk;
+	unsigned long old_rate;
+	unsigned int low_len_sel;
+	u32 opp_flag = 0;
+	int ret = 0;
+
+	clk = clk_get(dev, NULL);
+	if (IS_ERR(clk)) {
+		dev_warn(dev, "failed to get cpu clk\n");
+		return PTR_ERR(clk);
+	}
+
+	/* RK3588 low speed grade should change to low length */
+	if (of_property_read_u32(np, "rockchip,pvtm-low-len-sel",
+				 &low_len_sel))
+		goto out;
+	if (volt_sel > low_len_sel)
+		goto out;
+	opp_flag = OPP_LENGTH_LOW;
+
+	old_rate = clk_get_rate(clk);
+	ret = clk_set_rate(clk, old_rate | opp_flag);
+	if (ret) {
+		dev_err(dev, "failed to change length\n");
+		goto out;
+	}
+	clk_set_rate(clk, old_rate);
+out:
+	clk_put(clk);
+
+	return ret;
+}
+
+static int rk3588_set_supported_hw(struct device *dev, struct device_node *np,
+				   int bin, int process, int volt_sel)
+{
+	struct opp_table *opp_table;
+	u32 supported_hw[2];
+
+	if (!of_property_read_bool(np, "rockchip,supported-hw"))
+		return 0;
+
+	/* SoC Version */
+	supported_hw[0] = BIT(bin);
+	/* Speed Grade */
+	supported_hw[1] = BIT(volt_sel);
+	opp_table = dev_pm_opp_set_supported_hw(dev, supported_hw, 2);
+	if (IS_ERR(opp_table)) {
+		dev_err(dev, "failed to set supported opp\n");
+		return PTR_ERR(opp_table);
+	}
+
+	return 0;
+}
+
+static int rk3588_set_soc_info(struct device *dev, struct device_node *np,
+			       int bin, int process, int volt_sel)
+{
+	if (volt_sel < 0)
+		return 0;
+	if (bin < 0)
+		bin = 0;
+
+	rk3588_change_length(dev, np, bin, process, volt_sel);
+	rk3588_set_supported_hw(dev, np, bin, process, volt_sel);
+
+	return 0;
+}
+
 static int rk3588_cpu_set_read_margin(struct device *dev,
 				      struct rockchip_opp_info *opp_info,
 				      u32 rm)
@@ -252,6 +324,7 @@ static const struct rockchip_opp_data rk3399_cpu_opp_data = {
 };
 
 static const struct rockchip_opp_data rk3588_cpu_opp_data = {
+	.set_soc_info = rk3588_set_soc_info,
 	.set_read_margin = rk3588_cpu_set_read_margin,
 };
 
@@ -492,6 +565,8 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 		opp_info->data->get_soc_info(dev, np, &bin, &process);
 	rockchip_get_scale_volt_sel(dev, "cpu_leakage", reg_name, bin, process,
 				    &cluster->scale, &volt_sel);
+	if (opp_info->data && opp_info->data->set_soc_info)
+		opp_info->data->set_soc_info(dev, np, bin, process, volt_sel);
 	pname_table = rockchip_set_opp_prop_name(dev, process, volt_sel);
 
 	if (of_find_property(dev->of_node, "cpu-supply", NULL) &&
