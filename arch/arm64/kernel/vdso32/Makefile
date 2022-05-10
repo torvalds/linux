@@ -104,6 +104,7 @@ VDSO_AFLAGS += -D__ASSEMBLY__
 VDSO_LDFLAGS += -Bsymbolic --no-undefined -soname=linux-vdso.so.1
 VDSO_LDFLAGS += -z max-page-size=4096 -z common-page-size=4096
 VDSO_LDFLAGS += -shared --hash-style=sysv --build-id=sha1
+VDSO_LDFLAGS += --orphan-handling=warn
 
 
 # Borrow vdsomunge.c from the arm vDSO
