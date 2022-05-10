@@ -22,14 +22,12 @@
 #include <linux/types.h>
 
 #include <media/v4l2-device.h>
-#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 
-#include <media/imx.h>
 #include "imx-media.h"
 
 #define IMX7_CSI_PAD_SINK		0
@@ -1214,17 +1212,6 @@ static int imx7_csi_video_g_selection(struct file *file, void *fh,
 	return 0;
 }
 
-static int imx7_csi_video_subscribe_event(struct v4l2_fh *fh,
-					  const struct v4l2_event_subscription *sub)
-{
-	switch (sub->type) {
-	case V4L2_EVENT_IMX_FRAME_INTERVAL_ERROR:
-		return v4l2_event_subscribe(fh, sub, 0, NULL);
-	default:
-		return -EINVAL;
-	}
-}
-
 static const struct v4l2_ioctl_ops imx7_csi_video_ioctl_ops = {
 	.vidioc_querycap		= imx7_csi_video_querycap,
 
@@ -1246,9 +1233,6 @@ static const struct v4l2_ioctl_ops imx7_csi_video_ioctl_ops = {
 	.vidioc_expbuf			= vb2_ioctl_expbuf,
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
-
-	.vidioc_subscribe_event		= imx7_csi_video_subscribe_event,
-	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };
 
 /* -----------------------------------------------------------------------------
