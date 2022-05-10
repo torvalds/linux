@@ -509,6 +509,7 @@ struct queue_properties {
 	bool is_evicted;
 	bool is_active;
 	bool is_gws;
+	uint32_t pm4_target_xcc;
 	/* Not relevant for user mode queues in cp scheduling */
 	unsigned int vmid;
 	/* Relevant only for sdma queues*/

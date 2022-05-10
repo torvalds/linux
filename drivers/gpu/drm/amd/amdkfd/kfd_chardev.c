@@ -186,7 +186,12 @@ static int kfd_ioctl_get_version(struct file *filep, struct kfd_process *p,
 static int set_queue_properties_from_user(struct queue_properties *q_properties,
 				struct kfd_ioctl_create_queue_args *args)
 {
-	if (args->queue_percentage > KFD_MAX_QUEUE_PERCENTAGE) {
+	/*
+	 * Repurpose queue percentage to accommodate new features:
+	 * bit 0-7: queue percentage
+	 * bit 8-15: pm4_target_xcc
+	 */
+	if ((args->queue_percentage & 0xFF) > KFD_MAX_QUEUE_PERCENTAGE) {
 		pr_err("Queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
 		return -EINVAL;
 	}
@@ -236,7 +241,9 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 
 	q_properties->is_interop = false;
 	q_properties->is_gws = false;
-	q_properties->queue_percent = args->queue_percentage;
+	q_properties->queue_percent = args->queue_percentage & 0xFF;
+	/* bit 8-15 are repurposed to be PM4 target XCC */
+	q_properties->pm4_target_xcc = (args->queue_percentage >> 8) & 0xFF;
 	q_properties->priority = args->queue_priority;
 	q_properties->queue_address = args->ring_base_address;
 	q_properties->queue_size = args->ring_size;
@@ -442,7 +449,12 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	struct kfd_ioctl_update_queue_args *args = data;
 	struct queue_properties properties;
 
-	if (args->queue_percentage > KFD_MAX_QUEUE_PERCENTAGE) {
+	/*
+	 * Repurpose queue percentage to accommodate new features:
+	 * bit 0-7: queue percentage
+	 * bit 8-15: pm4_target_xcc
+	 */
+	if ((args->queue_percentage & 0xFF) > KFD_MAX_QUEUE_PERCENTAGE) {
 		pr_err("Queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
 		return -EINVAL;
 	}
@@ -466,7 +478,9 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 
 	properties.queue_address = args->ring_base_address;
 	properties.queue_size = args->ring_size;
-	properties.queue_percent = args->queue_percentage;
+	properties.queue_percent = args->queue_percentage & 0xFF;
+	/* bit 8-15 are repurposed to be PM4 target XCC */
+	properties.pm4_target_xcc = (args->queue_percentage >> 8) & 0xFF;
 	properties.priority = args->queue_priority;
 
 	pr_debug("Updating queue id %d for pasid 0x%x\n",

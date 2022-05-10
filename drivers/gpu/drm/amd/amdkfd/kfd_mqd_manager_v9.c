@@ -587,6 +587,7 @@ static void init_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 			/* PM4 Queue */
 			m->compute_current_logic_xcc_id = 0;
 			m->compute_tg_chunk_size = 0;
+			m->pm4_target_xcc_in_xcp = q->pm4_target_xcc;
 		}
 
 		if (xcc == 0) {
@@ -627,6 +628,7 @@ static void update_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 			/* PM4 Queue */
 			m->compute_current_logic_xcc_id = 0;
 			m->compute_tg_chunk_size = 0;
+			m->pm4_target_xcc_in_xcp = q->pm4_target_xcc;
 		}
 	}
 }

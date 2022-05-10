@@ -477,6 +477,7 @@ int pqm_update_queue_properties(struct process_queue_manager *pqm,
 	pqn->q->properties.queue_size = p->queue_size;
 	pqn->q->properties.queue_percent = p->queue_percent;
 	pqn->q->properties.priority = p->priority;
+	pqn->q->properties.pm4_target_xcc = p->pm4_target_xcc;
 
 	retval = pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
 							pqn->q, NULL);
