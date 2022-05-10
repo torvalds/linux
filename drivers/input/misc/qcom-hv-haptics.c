@@ -329,6 +329,7 @@
 /* below definitions are only for HAP525_HV */
 #define MMAP_NUM_BYTES				2048
 #define MMAP_FIFO_MIN_SIZE			640
+#define FIFO_PRGM_INIT_SIZE			320
 
 #define is_between(val, min, max)	\
 	(((min) <= (max)) && ((min) <= (val)) && ((val) <= (max)))
@@ -1995,6 +1996,7 @@ static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 		return available;
 
 	num = min_t(u32, available, num);
+	num = min_t(u32, num, FIFO_PRGM_INIT_SIZE);
 	/* Keep the FIFO programming 4-byte aligned if FIFO refilling is needed */
 	if ((num < fifo->num_s) && (num % HAP_PTN_FIFO_DIN_NUM))
 		num = round_down(num, HAP_PTN_FIFO_DIN_NUM);
