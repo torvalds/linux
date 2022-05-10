@@ -990,7 +990,13 @@ static int dw_mipi_dsi2_connector_get_modes(struct drm_connector *connector)
 {
 	struct dw_mipi_dsi2 *dsi2 = con_to_dsi2(connector);
 
-	return drm_panel_get_modes(dsi2->panel, connector);
+	if (dsi2->bridge && (dsi2->bridge->ops & DRM_BRIDGE_OP_MODES))
+		return drm_bridge_get_modes(dsi2->bridge, connector);
+
+	if (dsi2->panel)
+		return drm_panel_get_modes(dsi2->panel, connector);
+
+	return -EINVAL;
 }
 
 static int dw_mipi_dsi2_connector_mode_valid(struct drm_connector *connector,
@@ -1030,6 +1036,17 @@ static struct drm_connector_helper_funcs dw_mipi_dsi2_connector_helper_funcs = {
 	.mode_valid = dw_mipi_dsi2_connector_mode_valid,
 };
 
+static enum drm_connector_status
+dw_mipi_dsi2_connector_detect(struct drm_connector *connector, bool force)
+{
+	struct dw_mipi_dsi2 *dsi2 = con_to_dsi2(connector);
+
+	if (dsi2->bridge && (dsi2->bridge->ops & DRM_BRIDGE_OP_DETECT))
+		return drm_bridge_detect(dsi2->bridge);
+
+	return connector_status_connected;
+}
+
 static void dw_mipi_dsi2_drm_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
@@ -1038,6 +1055,7 @@ static void dw_mipi_dsi2_drm_connector_destroy(struct drm_connector *connector)
 
 static const struct drm_connector_funcs dw_mipi_dsi2_atomic_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.detect = dw_mipi_dsi2_connector_detect,
 	.destroy = dw_mipi_dsi2_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -1152,15 +1170,65 @@ static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 	return 0;
 }
 
+static int dw_mipi_dsi2_connector_init(struct dw_mipi_dsi2 *dsi2,
+				       struct drm_device *drm_dev)
+{
+	struct drm_encoder *encoder = &dsi2->encoder;
+	struct drm_connector *connector = &dsi2->connector;
+	struct device *dev = dsi2->dev;
+	struct drm_property *prop;
+	int ret;
+
+	ret = drm_connector_init(drm_dev, connector,
+				 &dw_mipi_dsi2_atomic_connector_funcs,
+				 DRM_MODE_CONNECTOR_DSI);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "Failed to initialize connector\n");
+		return ret;
+	}
+
+	drm_connector_helper_add(connector,
+				 &dw_mipi_dsi2_connector_helper_funcs);
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret < 0) {
+		DRM_DEV_ERROR(dev, "Failed to attach encoder: %d\n", ret);
+		goto connector_cleanup;
+	}
+
+	prop = drm_property_create_bool(drm_dev, DRM_MODE_PROP_IMMUTABLE,
+					"USER_SPLIT_MODE");
+	if (!prop) {
+		ret = -EINVAL;
+		DRM_DEV_ERROR(dev, "create user split mode prop failed\n");
+		goto connector_cleanup;
+	}
+
+	dsi2->user_split_mode_prop = prop;
+	drm_object_attach_property(&dsi2->connector.base,
+				   dsi2->user_split_mode_prop,
+				   dsi2->user_split_mode ? 1 : 0);
+
+	dsi2->sub_dev.connector = &dsi2->connector;
+	dsi2->sub_dev.of_node = dev->of_node;
+	dsi2->sub_dev.loader_protect = dw_mipi_dsi2_encoder_loader_protect;
+	rockchip_drm_register_sub_dev(&dsi2->sub_dev);
+
+	return 0;
+
+connector_cleanup:
+	connector->funcs->destroy(connector);
+
+	return ret;
+}
+
 static int dw_mipi_dsi2_bind(struct device *dev, struct device *master,
 			    void *data)
 {
 	struct dw_mipi_dsi2 *dsi2 = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder = &dsi2->encoder;
-	struct drm_connector *connector = &dsi2->connector;
 	struct device_node *of_node = dsi2->dev->of_node;
-	struct drm_property *prop;
+	enum drm_bridge_attach_flags flags;
 	int ret;
 
 	ret = dw_mipi_dsi2_dual_channel_probe(dsi2);
@@ -1189,45 +1257,13 @@ static int dw_mipi_dsi2_bind(struct device *dev, struct device *master,
 
 	drm_encoder_helper_add(encoder, &dw_mipi_dsi2_encoder_helper_funcs);
 
-	if (dsi2->panel) {
-		ret = drm_connector_init(drm_dev, connector,
-					 &dw_mipi_dsi2_atomic_connector_funcs,
-					 DRM_MODE_CONNECTOR_DSI);
-		if (ret) {
-			DRM_DEV_ERROR(dev, "Failed to initialize connector\n");
-			goto encoder_cleanup;
-		}
-
-		drm_connector_helper_add(connector,
-					 &dw_mipi_dsi2_connector_helper_funcs);
-		ret = drm_connector_attach_encoder(connector, encoder);
-		if (ret < 0) {
-			DRM_DEV_ERROR(dev, "Failed to attach encoder: %d\n", ret);
-			goto connector_cleanup;
-		}
-
-		prop = drm_property_create_bool(drm_dev, DRM_MODE_PROP_IMMUTABLE,
-						"USER_SPLIT_MODE");
-		if (!prop) {
-			ret = -EINVAL;
-			DRM_DEV_ERROR(dev, "create user split mode prop failed\n");
-			goto connector_cleanup;
-		}
-
-		dsi2->user_split_mode_prop = prop;
-		drm_object_attach_property(&dsi2->connector.base,
-					   dsi2->user_split_mode_prop,
-					   dsi2->user_split_mode ? 1 : 0);
-
-		dsi2->sub_dev.connector = &dsi2->connector;
-		dsi2->sub_dev.of_node = dev->of_node;
-		dsi2->sub_dev.loader_protect = dw_mipi_dsi2_encoder_loader_protect;
-		rockchip_drm_register_sub_dev(&dsi2->sub_dev);
-	} else {
+	if (dsi2->bridge) {
 		dsi2->bridge->driver_private = &dsi2->host;
 		dsi2->bridge->encoder = encoder;
 
-		ret = drm_bridge_attach(encoder, dsi2->bridge, NULL, 0);
+		flags = dsi2->bridge->ops & DRM_BRIDGE_OP_MODES ?
+			DRM_BRIDGE_ATTACH_NO_CONNECTOR : 0;
+		ret = drm_bridge_attach(encoder, dsi2->bridge, NULL, flags);
 		if (ret) {
 			DRM_DEV_ERROR(dev,
 				      "Failed to attach bridge: %d\n", ret);
@@ -1236,14 +1272,18 @@ static int dw_mipi_dsi2_bind(struct device *dev, struct device *master,
 
 	}
 
+	if (dsi2->panel || (dsi2->bridge && (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))) {
+		ret = dw_mipi_dsi2_connector_init(dsi2, drm_dev);
+		if (ret)
+			goto encoder_cleanup;
+	}
+
 	pm_runtime_enable(dsi2->dev);
 	if (dsi2->slave)
 		pm_runtime_enable(dsi2->slave->dev);
 
 	return 0;
 
-connector_cleanup:
-	connector->funcs->destroy(connector);
 encoder_cleanup:
 	encoder->funcs->destroy(encoder);
 
@@ -1255,14 +1295,15 @@ static void dw_mipi_dsi2_unbind(struct device *dev, struct device *master,
 {
 	struct dw_mipi_dsi2 *dsi2 = dev_get_drvdata(dev);
 
-	if (dsi2->sub_dev.connector)
+	if (dsi2->sub_dev.connector) {
 		rockchip_drm_unregister_sub_dev(&dsi2->sub_dev);
+		dsi2->connector.funcs->destroy(&dsi2->connector);
+	}
 
 	pm_runtime_disable(dsi2->dev);
 	if (dsi2->slave)
 		pm_runtime_disable(dsi2->slave->dev);
 
-	dsi2->connector.funcs->destroy(&dsi2->connector);
 	dsi2->encoder.funcs->destroy(&dsi2->encoder);
 }
 
