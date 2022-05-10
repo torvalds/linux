@@ -211,6 +211,12 @@ Res0	14:12
 Field	11:0	AFFINITY
 EndSysreg
 
+Sysreg	SVCR	3	3	4	2	2
+Res0	63:2
+Field	1	ZA
+Field	0	SM
+EndSysreg
+
 Sysreg	SMPRIMAP_EL2	3	4	1	2	5
 Field	63:60	P15
 Field	59:56	P14
