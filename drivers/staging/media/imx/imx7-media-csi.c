@@ -838,61 +838,6 @@ static const struct imx7_csi_pixfmt pixel_formats[] = {
 		),
 		.yuv	= true,
 		.bpp    = 16,
-	}, {
-		.fourcc	= V4L2_PIX_FMT_YUV420,
-		.yuv	= true,
-		.bpp    = 12,
-		.planar = true,
-	}, {
-		.fourcc = V4L2_PIX_FMT_YVU420,
-		.yuv	= true,
-		.bpp    = 12,
-		.planar = true,
-	}, {
-		.fourcc = V4L2_PIX_FMT_YUV422P,
-		.yuv	= true,
-		.bpp    = 16,
-		.planar = true,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV12,
-		.yuv	= true,
-		.bpp    = 12,
-		.planar = true,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV16,
-		.yuv	= true,
-		.bpp    = 16,
-		.planar = true,
-	},
-	/*** RGB formats start here ***/
-	{
-		.fourcc	= V4L2_PIX_FMT_RGB565,
-		.codes  = IMX_BUS_FMTS(MEDIA_BUS_FMT_RGB565_2X8_LE),
-		.bpp    = 16,
-		.cycles = 2,
-	}, {
-		.fourcc	= V4L2_PIX_FMT_RGB24,
-		.codes  = IMX_BUS_FMTS(
-			MEDIA_BUS_FMT_RGB888_1X24,
-			MEDIA_BUS_FMT_RGB888_2X12_LE
-		),
-		.bpp    = 24,
-	}, {
-		.fourcc	= V4L2_PIX_FMT_BGR24,
-		.bpp    = 24,
-	}, {
-		.fourcc	= V4L2_PIX_FMT_XRGB32,
-		.codes  = IMX_BUS_FMTS(MEDIA_BUS_FMT_ARGB8888_1X32),
-		.bpp    = 32,
-	}, {
-		.fourcc	= V4L2_PIX_FMT_XBGR32,
-		.bpp    = 32,
-	}, {
-		.fourcc	= V4L2_PIX_FMT_BGRX32,
-		.bpp    = 32,
-	}, {
-		.fourcc	= V4L2_PIX_FMT_RGBX32,
-		.bpp    = 32,
 	},
 	/*** raw bayer and grayscale formats start here ***/
 	{
