@@ -745,6 +745,8 @@ sgx_enclave_restrict_permissions(struct sgx_encl *encl,
 	for (c = 0 ; c < modp->length; c += PAGE_SIZE) {
 		addr = encl->base + modp->offset + c;
 
+		sgx_reclaim_direct();
+
 		mutex_lock(&encl->lock);
 
 		entry = sgx_encl_load_page(encl, addr);
@@ -909,6 +911,8 @@ static long sgx_enclave_modify_types(struct sgx_encl *encl,
 
 	for (c = 0 ; c < modt->length; c += PAGE_SIZE) {
 		addr = encl->base + modt->offset + c;
+
+		sgx_reclaim_direct();
 
 		mutex_lock(&encl->lock);
 
@@ -1095,6 +1099,8 @@ static long sgx_encl_remove_pages(struct sgx_encl *encl,
 
 	for (c = 0 ; c < params->length; c += PAGE_SIZE) {
 		addr = encl->base + params->offset + c;
+
+		sgx_reclaim_direct();
 
 		mutex_lock(&encl->lock);
 
