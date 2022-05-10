@@ -11,11 +11,14 @@
 #include <linux/wait.h>
 #include <soc/qcom/tcs.h>
 
-#define TCS_TYPE_NR			4
+#define TCS_TYPE_NR			5
 #define MAX_CMDS_PER_TCS		16
 #define MAX_TCS_PER_TYPE		3
 #define MAX_TCS_NR			(MAX_TCS_PER_TYPE * TCS_TYPE_NR)
 #define MAX_TCS_SLOTS			(MAX_CMDS_PER_TCS * MAX_TCS_PER_TYPE)
+
+/* CTRLR specific flags */
+#define SOLVER_PRESENT			1
 
 struct rsc_drv;
 
@@ -78,6 +81,7 @@ struct rpmh_request {
  * @cache_lock: synchronize access to the cache data
  * @dirty: was the cache updated since flush
  * @in_solver_mode: Controller is busy in solver mode
+ * @flags: Controller specific flags
  * @batch_cache: Cache sleep and wake requests sent as batch
  */
 struct rpmh_ctrlr {
@@ -85,6 +89,7 @@ struct rpmh_ctrlr {
 	spinlock_t cache_lock;
 	bool dirty;
 	bool in_solver_mode;
+	u32 flags;
 	struct list_head batch_cache;
 };
 
@@ -114,6 +119,8 @@ struct rpmh_ctrlr {
  * @tcs_wait:           Wait queue used to wait for @tcs_in_use to free up a
  *                      slot
  * @client:             Handle to the DRV's client.
+ * @genpd_nb:           PM Domain notifier
+ * @dev:                RSC device
  */
 struct rsc_drv {
 	const char *name;
@@ -129,7 +136,11 @@ struct rsc_drv {
 	spinlock_t lock;
 	wait_queue_head_t tcs_wait;
 	struct rpmh_ctrlr client;
+	struct notifier_block genpd_nb;
+	struct device *dev;
 };
+
+extern bool rpmh_standalone;
 
 int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg);
 int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv,
@@ -140,5 +151,11 @@ int rpmh_rsc_mode_solver_set(struct rsc_drv *drv, bool enable);
 
 void rpmh_tx_done(const struct tcs_request *msg, int r);
 int rpmh_flush(struct rpmh_ctrlr *ctrlr);
+int _rpmh_flush(struct rpmh_ctrlr *ctrlr);
+
+int rpmh_rsc_init_fast_path(struct rsc_drv *drv, const struct tcs_request *msg);
+int rpmh_rsc_update_fast_path(struct rsc_drv *drv,
+			      const struct tcs_request *msg,
+			      u32 update_mask);
 
 #endif /* __RPM_INTERNAL_H__ */

@@ -14,10 +14,13 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
@@ -95,6 +98,7 @@ static const char * const accl_str[] = {
 
 static struct rsc_drv *__rsc_drv[MAX_RSC_COUNT];
 static int __rsc_count;
+bool rpmh_standalone;
 
 /*
  * Here's a high level overview of how all the registers in RPMH work
@@ -872,6 +876,11 @@ static bool rpmh_rsc_ctrlr_is_busy(struct rsc_drv *drv)
 	max = tcs->offset + tcs->num_tcs;
 	set = find_next_bit(drv->tcs_in_use, max, tcs->offset);
 
+	/* Check if there is pending fastpath transaction */
+	if (drv->tcs[FAST_PATH_TCS].num_tcs &&
+	    !read_tcs_reg(drv, RSC_DRV_STATUS, drv->tcs[FAST_PATH_TCS].offset))
+		return true;
+
 	return set < max;
 }
 
@@ -981,6 +990,90 @@ int rpmh_rsc_mode_solver_set(struct rsc_drv *drv, bool enable)
 	return ret;
 }
 
+/**
+ * rpmh_rsc_init_fast_path() - Initialize the fast-path TCS contents
+ * @drv:    The controller.
+ * @msg:    The TCS request to populate.
+ *
+ * Return:
+ * * 0			- success
+ * * -ENODEV            - no fast-path TCS available
+ */
+int rpmh_rsc_init_fast_path(struct rsc_drv *drv, const struct tcs_request *msg)
+{
+	int tcs_id;
+
+	if (!drv->tcs[FAST_PATH_TCS].num_tcs)
+		return -ENODEV;
+
+	tcs_id = drv->tcs[FAST_PATH_TCS].offset;
+
+	/* We won't use the AMC IRQ to confirm if the TCS is free */
+	enable_tcs_irq(drv, tcs_id, false);
+
+	__tcs_buffer_write(drv, tcs_id, 0, msg);
+
+	return 0;
+}
+
+/**
+ * rpmh_rsc_update_fast_path() - Update the fast-path TCS data and trigger
+ * @drv:     The controller.
+ * @msg:     The TCS request data to be updated.
+ * @mask:    The update mask for elements in @msg to be sent
+ *
+ * NOTE: Caller should ensure serialization before making this call.
+ * Return:
+ * * 0			- success
+ * * -ENODEV            - no fast-path TCS available
+ */
+int rpmh_rsc_update_fast_path(struct rsc_drv *drv,
+			      const struct tcs_request *msg,
+			      u32 mask)
+{
+	int i;
+	u32 sts;
+	int tcs_id;
+	struct tcs_cmd *cmd;
+	int retry = 5;
+
+	if (!drv->tcs[FAST_PATH_TCS].num_tcs)
+		return -ENODEV;
+
+	tcs_id = drv->tcs[FAST_PATH_TCS].offset;
+
+	/* Ensure the TCS is free before writing to the TCS */
+	do {
+		sts = read_tcs_reg(drv, RSC_DRV_STATUS, tcs_id);
+		if (!sts) {
+			retry--;
+			/* Report and bail, if it took too many attempts */
+			if (!retry) {
+				pr_err("Fast-path TCS is too busy\n");
+				return -EBUSY;
+			}
+			udelay(1);
+		}
+	} while (!sts);
+
+	/*
+	 * We only update the data, everything else remains the same.
+	 * The number of commands and the addresses do not change with
+	 * updates.
+	 */
+	for (i = 0; i < msg->num_cmds; i++) {
+		if (!(mask & BIT(i)))
+			continue;
+		cmd = &msg->cmds[i];
+		write_tcs_cmd(drv, RSC_DRV_CMD_DATA, tcs_id, i, cmd->data);
+	}
+
+	/* Trigger the TCS to send the request */
+	__tcs_set_trigger(drv, tcs_id, true);
+
+	return 0;
+}
+
 static int rpmh_probe_tcs_config(struct platform_device *pdev,
 				 struct rsc_drv *drv, void __iomem *base)
 {
@@ -1053,6 +1146,32 @@ static int rpmh_probe_tcs_config(struct platform_device *pdev,
 	return 0;
 }
 
+static int rpmh_rsc_pd_cb(struct notifier_block *nb,
+			  unsigned long action, void *data)
+{
+	struct rsc_drv *drv = container_of(nb, struct rsc_drv, genpd_nb);
+
+	/* We don't need to lock as domin on/off are serialized */
+	if ((action == GENPD_NOTIFY_PRE_OFF) &&
+	    (rpmh_rsc_ctrlr_is_busy(drv) || _rpmh_flush(&drv->client)))
+		return NOTIFY_BAD;
+
+	return NOTIFY_OK;
+}
+
+static int rpmh_rsc_pd_attach(struct rsc_drv *drv)
+{
+	int ret;
+
+	pm_runtime_enable(drv->dev);
+	ret = dev_pm_domain_attach(drv->dev, false);
+	if (ret)
+		return ret;
+
+	drv->genpd_nb.notifier_call = rpmh_rsc_pd_cb;
+	return dev_pm_genpd_add_notifier(drv->dev, &drv->genpd_nb);
+}
+
 static int rpmh_rsc_probe(struct platform_device *pdev)
 {
 	struct device_node *dn = pdev->dev.of_node;
@@ -1073,6 +1192,11 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 									ret);
 		return ret;
 	}
+
+	rpmh_standalone = cmd_db_is_standalone();
+	if (rpmh_standalone)
+		dev_info(&pdev->dev, "RPMH is running in standalone mode.\n");
+
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
@@ -1111,6 +1235,7 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	drv->dev = &pdev->dev;
 	/*
 	 * CPU PM notification are not required for controllers that support
 	 * 'HW solver' mode where they can be in autonomous mode executing low
@@ -1119,9 +1244,18 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	solver_config = readl_relaxed(base + DRV_SOLVER_CONFIG);
 	solver_config &= DRV_HW_SOLVER_MASK << DRV_HW_SOLVER_SHIFT;
 	solver_config = solver_config >> DRV_HW_SOLVER_SHIFT;
-	if (!solver_config) {
+	if (of_find_property(dn, "power-domains", NULL)) {
+		ret = rpmh_rsc_pd_attach(drv);
+		if (ret == -EPROBE_DEFER) {
+			pr_err("Failed to attach RSC %s to domain ret=%d\n", drv->name, ret);
+			return ret;
+		}
+	} else if (!solver_config) {
 		drv->rsc_pm.notifier_call = rpmh_rsc_cpu_pm_callback;
 		cpu_pm_register_notifier(&drv->rsc_pm);
+		drv->client.flags &= ~SOLVER_PRESENT;
+	} else {
+		drv->client.flags |= SOLVER_PRESENT;
 	}
 
 	/* Enable the active TCS to send requests immediately */

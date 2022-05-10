@@ -83,6 +83,9 @@ static int check_ctrlr_state(struct rpmh_ctrlr *ctrlr, enum rpmh_state state)
 	if (state != RPMH_ACTIVE_ONLY_STATE)
 		return ret;
 
+	if (!(ctrlr->flags & SOLVER_PRESENT))
+		return ret;
+
 	/* Do not allow sending active votes when in solver mode */
 	spin_lock(&ctrlr->cache_lock);
 	if (ctrlr->in_solver_mode)
@@ -249,6 +252,9 @@ int rpmh_write_async(const struct device *dev, enum rpmh_state state,
 	struct rpmh_request *rpm_msg;
 	int ret;
 
+	if (rpmh_standalone)
+		return 0;
+
 	ret = check_ctrlr_state(ctrlr, state);
 	if (ret)
 		return ret;
@@ -285,6 +291,9 @@ int rpmh_write(const struct device *dev, enum rpmh_state state,
 	DEFINE_RPMH_MSG_ONSTACK(dev, state, &compl, rpm_msg);
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
 	int ret;
+
+	if (rpmh_standalone)
+		return 0;
 
 	ret = check_ctrlr_state(ctrlr, state);
 	if (ret)
@@ -367,6 +376,9 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 	int count = 0;
 	int ret, i;
 	void *ptr;
+
+	if (rpmh_standalone)
+		return 0;
 
 	ret = check_ctrlr_state(ctrlr, state);
 	if (ret)
@@ -458,6 +470,45 @@ static int send_single(struct rpmh_ctrlr *ctrlr, enum rpmh_state state,
 	return rpmh_rsc_write_ctrl_data(ctrlr_to_drv(ctrlr), &rpm_msg.msg);
 }
 
+int _rpmh_flush(struct rpmh_ctrlr *ctrlr)
+{
+	struct cache_req *p;
+	int ret = 0;
+
+	if (!ctrlr->dirty) {
+		pr_debug("Skipping flush, TCS has latest data.\n");
+		return ret;
+	}
+
+	/* Invalidate the TCSes first to avoid stale data */
+	rpmh_rsc_invalidate(ctrlr_to_drv(ctrlr));
+
+	/* First flush the cached batch requests */
+	ret = flush_batch(ctrlr);
+	if (ret)
+		return ret;
+
+	list_for_each_entry(p, &ctrlr->cache, list) {
+		if (!is_req_valid(p)) {
+			pr_debug("%s: skipping RPMH req: a:%#x s:%#x w:%#x\n",
+				 __func__, p->addr, p->sleep_val, p->wake_val);
+			continue;
+		}
+		ret = send_single(ctrlr, RPMH_SLEEP_STATE, p->addr,
+				  p->sleep_val);
+		if (ret)
+			return ret;
+		ret = send_single(ctrlr, RPMH_WAKE_ONLY_STATE, p->addr,
+				  p->wake_val);
+		if (ret)
+			return ret;
+	}
+
+	ctrlr->dirty = false;
+
+	return ret;
+}
+
 /**
  * rpmh_flush() - Flushes the buffered sleep and wake sets to TCSes
  *
@@ -469,54 +520,51 @@ static int send_single(struct rpmh_ctrlr *ctrlr, enum rpmh_state state,
  */
 int rpmh_flush(struct rpmh_ctrlr *ctrlr)
 {
-	struct cache_req *p;
-	int ret = 0;
+	int ret;
 
-	lockdep_assert_irqs_disabled();
+	if (rpmh_standalone)
+		return 0;
 
 	/*
-	 * Currently rpmh_flush() is only called when we think we're running
-	 * on the last processor.  If the lock is busy it means another
-	 * processor is up and it's better to abort than spin.
+	 * For RSC that don't have solver mode,
+	 * rpmh_flush() is only called when we think we're running
+	 * on the last CPU with irqs_disabled.
+	 *
+	 * For RSC that have solver mode,
+	 * rpmh_flush() can be invoked with irqs enabled by any CPU.
+	 *
+	 * Conditionally check for irqs_disabled only when solver mode
+	 * is not available.
+	 */
+	if (!(ctrlr->flags & SOLVER_PRESENT))
+		lockdep_assert_irqs_disabled();
+
+	/*
+	 * If the lock is busy it means another transaction is on going,
+	 * in such case it's better to abort than spin.
 	 */
 	if (!spin_trylock(&ctrlr->cache_lock))
 		return -EBUSY;
-
-	if (!ctrlr->dirty) {
-		pr_debug("Skipping flush, TCS has latest data.\n");
-		goto exit;
-	}
-
-	/* Invalidate the TCSes first to avoid stale data */
-	rpmh_rsc_invalidate(ctrlr_to_drv(ctrlr));
-
-	/* First flush the cached batch requests */
-	ret = flush_batch(ctrlr);
-	if (ret)
-		goto exit;
-
-	list_for_each_entry(p, &ctrlr->cache, list) {
-		if (!is_req_valid(p)) {
-			pr_debug("%s: skipping RPMH req: a:%#x s:%#x w:%#x",
-				 __func__, p->addr, p->sleep_val, p->wake_val);
-			continue;
-		}
-		ret = send_single(ctrlr, RPMH_SLEEP_STATE, p->addr,
-				  p->sleep_val);
-		if (ret)
-			goto exit;
-		ret = send_single(ctrlr, RPMH_WAKE_ONLY_STATE, p->addr,
-				  p->wake_val);
-		if (ret)
-			goto exit;
-	}
-
-	ctrlr->dirty = false;
-
-exit:
+	ret = _rpmh_flush(ctrlr);
 	spin_unlock(&ctrlr->cache_lock);
+
 	return ret;
 }
+
+/**
+ * rpmh_write_sleep_and_wake: Writes the buffered wake and sleep sets to TCSes
+ *
+ * @dev: The device making the request
+ *
+ * Return:
+ * * 0          - Success
+ * * Error code - Otherwise
+ */
+int rpmh_write_sleep_and_wake(const struct device *dev)
+{
+	return rpmh_flush(get_rpmh_ctrlr(dev));
+}
+EXPORT_SYMBOL(rpmh_write_sleep_and_wake);
 
 /**
  * rpmh_invalidate: Invalidate sleep and wake sets in batch_cache
@@ -530,6 +578,9 @@ void rpmh_invalidate(const struct device *dev)
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
 	struct batch_cache_req *req, *tmp;
 	unsigned long flags;
+
+	if (rpmh_standalone)
+		return;
 
 	spin_lock_irqsave(&ctrlr->cache_lock, flags);
 	list_for_each_entry_safe(req, tmp, &ctrlr->batch_cache, list)
@@ -554,6 +605,12 @@ int rpmh_mode_solver_set(const struct device *dev, bool enable)
 {
 	int ret;
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+
+	if (rpmh_standalone)
+		return 0;
+
+	if (!(ctrlr->flags & SOLVER_PRESENT))
+		return -EINVAL;
 
 	spin_lock(&ctrlr->cache_lock);
 	ret = rpmh_rsc_mode_solver_set(ctrlr_to_drv(ctrlr), enable);
