@@ -5050,6 +5050,9 @@ static const struct v4l2_file_operations rkcif_fops = {
 	.unlocked_ioctl = video_ioctl2,
 	.poll = vb2_fop_poll,
 	.mmap = vb2_fop_mmap,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = video_ioctl2,
+#endif
 };
 
 static int rkcif_enum_input(struct file *file, void *priv,
