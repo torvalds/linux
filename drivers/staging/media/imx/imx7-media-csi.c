@@ -2031,13 +2031,8 @@ out_unlock:
  * parameters based on the colorspace if they are uninitialized.
  *
  * tryfmt->code must be set on entry.
- *
- * If this format is destined to be routed through the Image Converter,
- * Y`CbCr encoding must be fixed. The IC supports only BT.601 Y`CbCr
- * or Rec.709 Y`CbCr encoding.
  */
-static void imx7_csi_try_colorimetry(struct v4l2_mbus_framefmt *tryfmt,
-				     bool ic_route)
+static void imx7_csi_try_colorimetry(struct v4l2_mbus_framefmt *tryfmt)
 {
 	const struct imx7_csi_pixfmt *cc;
 	bool is_rgb = false;
@@ -2069,16 +2064,9 @@ static void imx7_csi_try_colorimetry(struct v4l2_mbus_framefmt *tryfmt,
 		tryfmt->xfer_func =
 			V4L2_MAP_XFER_FUNC_DEFAULT(tryfmt->colorspace);
 
-	if (ic_route) {
-		if (tryfmt->ycbcr_enc != V4L2_YCBCR_ENC_601 &&
-		    tryfmt->ycbcr_enc != V4L2_YCBCR_ENC_709)
-			tryfmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
-	} else {
-		if (tryfmt->ycbcr_enc == V4L2_YCBCR_ENC_DEFAULT) {
-			tryfmt->ycbcr_enc =
-				V4L2_MAP_YCBCR_ENC_DEFAULT(tryfmt->colorspace);
-		}
-	}
+	if (tryfmt->ycbcr_enc == V4L2_YCBCR_ENC_DEFAULT)
+		tryfmt->ycbcr_enc =
+			V4L2_MAP_YCBCR_ENC_DEFAULT(tryfmt->colorspace);
 
 	if (tryfmt->quantization == V4L2_QUANTIZATION_DEFAULT)
 		tryfmt->quantization =
@@ -2135,7 +2123,7 @@ static int imx7_csi_try_fmt(struct imx7_csi *csi,
 		return -EINVAL;
 	}
 
-	imx7_csi_try_colorimetry(&sdformat->format, false);
+	imx7_csi_try_colorimetry(&sdformat->format);
 
 	return 0;
 }
