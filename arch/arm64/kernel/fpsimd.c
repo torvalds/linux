@@ -1918,7 +1918,7 @@ void __efi_fpsimd_begin(void)
 				svcr = read_sysreg_s(SYS_SVCR_EL0);
 
 				if (!system_supports_fa64())
-					ffr = svcr & SYS_SVCR_EL0_SM_MASK;
+					ffr = svcr & SVCR_EL0_SM_MASK;
 
 				__this_cpu_write(efi_sm_state, ffr);
 			}
@@ -1929,7 +1929,7 @@ void __efi_fpsimd_begin(void)
 
 			if (system_supports_sme())
 				sysreg_clear_set_s(SYS_SVCR_EL0,
-						   SYS_SVCR_EL0_SM_MASK, 0);
+						   SVCR_EL0_SM_MASK, 0);
 
 		} else {
 			fpsimd_save_state(this_cpu_ptr(&efi_fpsimd_state));
@@ -1964,7 +1964,7 @@ void __efi_fpsimd_end(void)
 				if (__this_cpu_read(efi_sm_state)) {
 					sysreg_clear_set_s(SYS_SVCR_EL0,
 							   0,
-							   SYS_SVCR_EL0_SM_MASK);
+							   SVCR_EL0_SM_MASK);
 					if (!system_supports_fa64())
 						ffr = efi_sm_state;
 				}
