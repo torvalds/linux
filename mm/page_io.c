@@ -280,8 +280,10 @@ static void sio_write_complete(struct kiocb *iocb, long ret)
 			set_page_dirty(page);
 			ClearPageReclaim(page);
 		}
-	} else
-		count_vm_events(PSWPOUT, sio->pages);
+	} else {
+		for (p = 0; p < sio->pages; p++)
+			count_swpout_vm_event(sio->bvec[p].bv_page);
+	}
 
 	for (p = 0; p < sio->pages; p++)
 		end_page_writeback(sio->bvec[p].bv_page);
