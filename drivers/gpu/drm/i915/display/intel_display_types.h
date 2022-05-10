@@ -1496,6 +1496,7 @@ struct intel_pps {
 	 */
 	bool pps_reset;
 	struct edp_power_seq pps_delays;
+	struct edp_power_seq bios_pps_delays;
 };
 
 struct intel_psr {

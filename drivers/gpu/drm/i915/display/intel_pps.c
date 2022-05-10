@@ -1165,16 +1165,19 @@ static bool pps_delays_valid(struct edp_power_seq *delays)
 		delays->t10 || delays->t11_t12;
 }
 
-static void pps_init_delays_cur(struct intel_dp *intel_dp,
-				struct edp_power_seq *cur)
+static void pps_init_delays_bios(struct intel_dp *intel_dp,
+				 struct edp_power_seq *bios)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
-	intel_pps_readout_hw_state(intel_dp, cur);
+	if (!pps_delays_valid(&intel_dp->pps.bios_pps_delays))
+		intel_pps_readout_hw_state(intel_dp, &intel_dp->pps.bios_pps_delays);
 
-	intel_pps_dump_state(intel_dp, "cur", cur);
+	*bios = intel_dp->pps.bios_pps_delays;
+
+	intel_pps_dump_state(intel_dp, "bios", bios);
 }
 
 static void pps_init_delays_vbt(struct intel_dp *intel_dp,
@@ -1242,7 +1245,7 @@ static void pps_init_delays(struct intel_dp *intel_dp)
 	if (pps_delays_valid(final))
 		return;
 
-	pps_init_delays_cur(intel_dp, &cur);
+	pps_init_delays_bios(intel_dp, &cur);
 	pps_init_delays_vbt(intel_dp, &vbt);
 	pps_init_delays_spec(intel_dp, &spec);
 
