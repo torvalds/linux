@@ -357,3 +357,21 @@ int i3c_device_getstatus_ccc(struct i3c_device *dev, struct i3c_device_info *inf
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i3c_device_getstatus_ccc);
+
+/**
+ * i3c_device_control_pec() - enable or disable PEC support in HW
+ *
+ * @dev: I3C device to get the status for
+ * @pec: flag telling whether PEC support shall be enabled or disabled
+ *
+ * Try to enable or disable HW support for PEC (Packet Error Check).
+ * In case no HW support for PEC, software implementation could be used.
+ *
+ * Return: 0 in case of success, -EOPNOTSUPP in case PEC is not supported by HW,
+ *         other negative error codes when PEC enabling failed.
+ */
+int i3c_device_control_pec(struct i3c_device *dev, bool pec)
+{
+	return i3c_dev_control_pec(dev->desc, pec);
+}
+EXPORT_SYMBOL_GPL(i3c_device_control_pec);

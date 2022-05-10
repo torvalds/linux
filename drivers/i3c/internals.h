@@ -29,4 +29,5 @@ int i3c_dev_send_ccc_cmd_locked(struct i3c_dev_desc *dev, u8 ccc_id);
 int i3c_dev_getstatus_locked(struct i3c_dev_desc *dev, struct i3c_device_info *info);
 int i3c_for_each_dev(void *data, int (*fn)(struct device *, void *));
 int i3c_dev_generate_ibi_locked(struct i3c_dev_desc *dev, const u8 *data, int len);
+int i3c_dev_control_pec(struct i3c_dev_desc *dev, bool pec);
 #endif /* I3C_INTERNAL_H */

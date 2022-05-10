@@ -3317,6 +3317,26 @@ int i3c_for_each_dev(void *data, int (*fn)(struct device *, void *))
 }
 EXPORT_SYMBOL_GPL(i3c_for_each_dev);
 
+int i3c_dev_control_pec(struct i3c_dev_desc *dev, bool pec)
+{
+	struct i3c_master_controller *master = i3c_dev_get_master(dev);
+
+	if (!master->pec_supported)
+		return -EOPNOTSUPP;
+
+	dev->info.pec = pec;
+
+	/*
+	 * TODO: There are two cases which shall be covered
+	 * 1. Controller doesn't support PEC.
+	 *    In this case we could just fallback to SW implementation.
+	 * 2. Device doesn't support PEC.
+	 *    Then we really can't use PEC - and should error-out.
+	 */
+
+	return 0;
+}
+
 static int __init i3c_init(void)
 {
 	int res = bus_register_notifier(&i2c_bus_type, &i2cdev_notifier);

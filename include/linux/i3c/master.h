@@ -512,6 +512,7 @@ struct i3c_master_controller {
 	struct i2c_adapter i2c;
 	const struct i3c_master_controller_ops *ops;
 	const struct i3c_target_ops *target_ops;
+	unsigned int pec_supported : 1;
 	unsigned int target : 1;
 	unsigned int secondary : 1;
 	unsigned int init_done : 1;
