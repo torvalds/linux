@@ -20,6 +20,15 @@ KUnit - Linux Kernel Unit Testing
 	tips
 	running_tips
 
+.. warning::
+	AOSP only supports running tests loaded with modules. Built-in
+	test execution support has been disabled. In addition, in order
+	to fully enable running module loaded tests both CONFIG_KUNIT
+	needs to be enabled and kernel command line  argument
+	`kunit.enable` needs to be set to 1.
+
+	The remaining KUnit documentation has been left as-is.
+
 This section details the kernel unit testing framework.
 
 Introduction
