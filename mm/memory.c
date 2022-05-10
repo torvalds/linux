@@ -720,6 +720,8 @@ static void restore_exclusive_pte(struct vm_area_struct *vma,
 	else if (is_writable_device_exclusive_entry(entry))
 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
 
+	VM_BUG_ON(pte_write(pte) && !(PageAnon(page) && PageAnonExclusive(page)));
+
 	/*
 	 * No need to take a page reference as one was already
 	 * created when the swap entry was made.
@@ -796,11 +798,12 @@ copy_nonpresent_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 
 		rss[mm_counter(page)]++;
 
-		if (is_writable_migration_entry(entry) &&
+		if (!is_readable_migration_entry(entry) &&
 				is_cow_mapping(vm_flags)) {
 			/*
-			 * COW mappings require pages in both
-			 * parent and child to be set to read.
+			 * COW mappings require pages in both parent and child
+			 * to be set to read. A previously exclusive entry is
+			 * now shared.
 			 */
 			entry = make_readable_migration_entry(
 							swp_offset(entry));
@@ -951,6 +954,7 @@ copy_present_pte(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma,
 		ptep_set_wrprotect(src_mm, addr, src_pte);
 		pte = pte_wrprotect(pte);
 	}
+	VM_BUG_ON(page && PageAnon(page) && PageAnonExclusive(page));
 
 	/*
 	 * If it's a shared mapping, mark it clean in
@@ -2949,6 +2953,9 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct page *page = vmf->page;
 	pte_t entry;
+
+	VM_BUG_ON(PageAnon(page) && !PageAnonExclusive(page));
+
 	/*
 	 * Clear the pages cpupid information as the existing
 	 * information potentially belongs to a now completely
@@ -3274,6 +3281,13 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 		struct page *page = vmf->page;
 
 		/*
+		 * If the page is exclusive to this process we must reuse the
+		 * page without further checks.
+		 */
+		if (PageAnonExclusive(page))
+			goto reuse;
+
+		/*
 		 * We have to verify under page lock: these early checks are
 		 * just an optimization to avoid locking the page and freeing
 		 * the swapcache if there is little hope that we can reuse.
@@ -3305,6 +3319,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 		 */
 		page_move_anon_rmap(page, vma);
 		unlock_page(page);
+reuse:
 		wp_page_reuse(vmf);
 		return VM_FAULT_WRITE;
 	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
@@ -3696,11 +3711,12 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	 * that are certainly not shared because we just allocated them without
 	 * exposing them to the swapcache.
 	 */
-	if ((vmf->flags & FAULT_FLAG_WRITE) && !PageKsm(page) &&
-	    (page != swapcache || page_count(page) == 1)) {
-		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-		vmf->flags &= ~FAULT_FLAG_WRITE;
-		ret |= VM_FAULT_WRITE;
+	if (!PageKsm(page) && (page != swapcache || page_count(page) == 1)) {
+		if (vmf->flags & FAULT_FLAG_WRITE) {
+			pte = maybe_mkwrite(pte_mkdirty(pte), vma);
+			vmf->flags &= ~FAULT_FLAG_WRITE;
+			ret |= VM_FAULT_WRITE;
+		}
 		rmap_flags |= RMAP_EXCLUSIVE;
 	}
 	flush_icache_page(vma, page);
@@ -3720,6 +3736,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 		page_add_anon_rmap(page, vma, vmf->address, rmap_flags);
 	}
 
+	VM_BUG_ON(!PageAnon(page) || (pte_write(pte) && !PageAnonExclusive(page)));
 	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
 	arch_do_swap_page(vma->vm_mm, vma, vmf->address, pte, vmf->orig_pte);
 

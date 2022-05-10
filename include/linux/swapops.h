@@ -194,6 +194,7 @@ static inline bool is_writable_device_exclusive_entry(swp_entry_t entry)
 static inline int is_migration_entry(swp_entry_t entry)
 {
 	return unlikely(swp_type(entry) == SWP_MIGRATION_READ ||
+			swp_type(entry) == SWP_MIGRATION_READ_EXCLUSIVE ||
 			swp_type(entry) == SWP_MIGRATION_WRITE);
 }
 
@@ -202,9 +203,24 @@ static inline int is_writable_migration_entry(swp_entry_t entry)
 	return unlikely(swp_type(entry) == SWP_MIGRATION_WRITE);
 }
 
+static inline int is_readable_migration_entry(swp_entry_t entry)
+{
+	return unlikely(swp_type(entry) == SWP_MIGRATION_READ);
+}
+
+static inline int is_readable_exclusive_migration_entry(swp_entry_t entry)
+{
+	return unlikely(swp_type(entry) == SWP_MIGRATION_READ_EXCLUSIVE);
+}
+
 static inline swp_entry_t make_readable_migration_entry(pgoff_t offset)
 {
 	return swp_entry(SWP_MIGRATION_READ, offset);
+}
+
+static inline swp_entry_t make_readable_exclusive_migration_entry(pgoff_t offset)
+{
+	return swp_entry(SWP_MIGRATION_READ_EXCLUSIVE, offset);
 }
 
 static inline swp_entry_t make_writable_migration_entry(pgoff_t offset)
@@ -220,6 +236,11 @@ extern void migration_entry_wait_huge(struct vm_area_struct *vma,
 		struct mm_struct *mm, pte_t *pte);
 #else
 static inline swp_entry_t make_readable_migration_entry(pgoff_t offset)
+{
+	return swp_entry(0, 0);
+}
+
+static inline swp_entry_t make_readable_exclusive_migration_entry(pgoff_t offset)
 {
 	return swp_entry(0, 0);
 }
@@ -241,6 +262,10 @@ static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 static inline void migration_entry_wait_huge(struct vm_area_struct *vma,
 		struct mm_struct *mm, pte_t *pte) { }
 static inline int is_writable_migration_entry(swp_entry_t entry)
+{
+	return 0;
+}
+static inline int is_readable_migration_entry(swp_entry_t entry)
 {
 	return 0;
 }

@@ -1088,6 +1088,7 @@ int pfn_mkclean_range(unsigned long pfn, unsigned long nr_pages, pgoff_t pgoff,
 void page_move_anon_rmap(struct page *page, struct vm_area_struct *vma)
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
+	struct page *subpage = page;
 
 	page = compound_head(page);
 
@@ -1101,6 +1102,7 @@ void page_move_anon_rmap(struct page *page, struct vm_area_struct *vma)
 	 * folio_test_anon()) will not see one without the other.
 	 */
 	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
+	SetPageAnonExclusive(subpage);
 }
 
 /**
@@ -1118,7 +1120,7 @@ static void __page_set_anon_rmap(struct page *page,
 	BUG_ON(!anon_vma);
 
 	if (PageAnon(page))
-		return;
+		goto out;
 
 	/*
 	 * If the page isn't exclusively mapped into this vma,
@@ -1137,6 +1139,9 @@ static void __page_set_anon_rmap(struct page *page,
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 	WRITE_ONCE(page->mapping, (struct address_space *) anon_vma);
 	page->index = linear_page_index(vma, address);
+out:
+	if (exclusive)
+		SetPageAnonExclusive(page);
 }
 
 /**
@@ -1198,6 +1203,8 @@ void page_add_anon_rmap(struct page *page,
 	} else {
 		first = atomic_inc_and_test(&page->_mapcount);
 	}
+	VM_BUG_ON_PAGE(!first && (flags & RMAP_EXCLUSIVE), page);
+	VM_BUG_ON_PAGE(!first && PageAnonExclusive(page), page);
 
 	if (first) {
 		int nr = compound ? thp_nr_pages(page) : 1;
@@ -1459,7 +1466,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	pte_t pteval;
 	struct page *subpage;
-	bool ret = true;
+	bool anon_exclusive, ret = true;
 	struct mmu_notifier_range range;
 	enum ttu_flags flags = (enum ttu_flags)(long)arg;
 
@@ -1515,6 +1522,8 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 		subpage = folio_page(folio,
 					pte_pfn(*pvmw.pte) - folio_pfn(folio));
 		address = pvmw.address;
+		anon_exclusive = folio_test_anon(folio) &&
+				 PageAnonExclusive(subpage);
 
 		if (folio_test_hugetlb(folio) && !folio_test_anon(folio)) {
 			/*
@@ -1550,9 +1559,12 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			}
 		}
 
-		/* Nuke the page table entry. */
+		/*
+		 * Nuke the page table entry. When having to clear
+		 * PageAnonExclusive(), we always have to flush.
+		 */
 		flush_cache_page(vma, address, pte_pfn(*pvmw.pte));
-		if (should_defer_flush(mm, flags)) {
+		if (should_defer_flush(mm, flags) && !anon_exclusive) {
 			/*
 			 * We clear the PTE but do not flush so potentially
 			 * a remote CPU could still be writing to the folio.
@@ -1677,6 +1689,24 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 				page_vma_mapped_walk_done(&pvmw);
 				break;
 			}
+			if (anon_exclusive &&
+			    page_try_share_anon_rmap(subpage)) {
+				swap_free(entry);
+				set_pte_at(mm, address, pvmw.pte, pteval);
+				ret = false;
+				page_vma_mapped_walk_done(&pvmw);
+				break;
+			}
+			/*
+			 * Note: We *don't* remember yet if the page was mapped
+			 * exclusively in the swap entry, so swapin code has
+			 * to re-determine that manually and might detect the
+			 * page as possibly shared, for example, if there are
+			 * other references on the page or if the page is under
+			 * writeback. We made sure that there are no GUP pins
+			 * on the page that would rely on it, so for GUP pins
+			 * this is fine.
+			 */
 			if (list_empty(&mm->mmlist)) {
 				spin_lock(&mmlist_lock);
 				if (list_empty(&mm->mmlist))
@@ -1776,7 +1806,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, address, 0);
 	pte_t pteval;
 	struct page *subpage;
-	bool ret = true;
+	bool anon_exclusive, ret = true;
 	struct mmu_notifier_range range;
 	enum ttu_flags flags = (enum ttu_flags)(long)arg;
 
@@ -1837,6 +1867,8 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 		subpage = folio_page(folio,
 				pte_pfn(*pvmw.pte) - folio_pfn(folio));
 		address = pvmw.address;
+		anon_exclusive = folio_test_anon(folio) &&
+				 PageAnonExclusive(subpage);
 
 		if (folio_test_hugetlb(folio) && !folio_test_anon(folio)) {
 			/*
@@ -1888,6 +1920,9 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			swp_entry_t entry;
 			pte_t swp_pte;
 
+			if (anon_exclusive)
+				BUG_ON(page_try_share_anon_rmap(subpage));
+
 			/*
 			 * Store the pfn of the page in a special migration
 			 * pte. do_swap_page() will wait until the migration
@@ -1896,6 +1931,8 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			entry = pte_to_swp_entry(pteval);
 			if (is_writable_device_private_entry(entry))
 				entry = make_writable_migration_entry(pfn);
+			else if (anon_exclusive)
+				entry = make_readable_exclusive_migration_entry(pfn);
 			else
 				entry = make_readable_migration_entry(pfn);
 			swp_pte = swp_entry_to_pte(entry);
@@ -1960,6 +1997,15 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 				page_vma_mapped_walk_done(&pvmw);
 				break;
 			}
+			VM_BUG_ON_PAGE(pte_write(pteval) && folio_test_anon(folio) &&
+				       !anon_exclusive, subpage);
+			if (anon_exclusive &&
+			    page_try_share_anon_rmap(subpage)) {
+				set_pte_at(mm, address, pvmw.pte, pteval);
+				ret = false;
+				page_vma_mapped_walk_done(&pvmw);
+				break;
+			}
 
 			/*
 			 * Store the pfn of the page in a special migration
@@ -1968,6 +2014,9 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			 */
 			if (pte_write(pteval))
 				entry = make_writable_migration_entry(
+							page_to_pfn(subpage));
+			else if (anon_exclusive)
+				entry = make_readable_exclusive_migration_entry(
 							page_to_pfn(subpage));
 			else
 				entry = make_readable_migration_entry(
@@ -2405,6 +2454,8 @@ void hugepage_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 	BUG_ON(!anon_vma);
 	/* address might be in next vma when migration races vma_adjust */
 	first = atomic_inc_and_test(compound_mapcount_ptr(page));
+	VM_BUG_ON_PAGE(!first && (flags & RMAP_EXCLUSIVE), page);
+	VM_BUG_ON_PAGE(!first && PageAnonExclusive(page), page);
 	if (first)
 		__page_set_anon_rmap(page, vma, address,
 				     !!(flags & RMAP_EXCLUSIVE));

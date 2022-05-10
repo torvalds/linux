@@ -229,6 +229,13 @@ static inline int page_try_dup_anon_rmap(struct page *page, bool compound,
 	VM_BUG_ON_PAGE(!PageAnon(page), page);
 
 	/*
+	 * No need to check+clear for already shared pages, including KSM
+	 * pages.
+	 */
+	if (!PageAnonExclusive(page))
+		goto dup;
+
+	/*
 	 * If this page may have been pinned by the parent process,
 	 * don't allow to duplicate the mapping but instead require to e.g.,
 	 * copy the page immediately for the child so that we'll always
@@ -239,11 +246,44 @@ static inline int page_try_dup_anon_rmap(struct page *page, bool compound,
 	    unlikely(page_needs_cow_for_dma(vma, page))))
 		return -EBUSY;
 
+	ClearPageAnonExclusive(page);
 	/*
 	 * It's okay to share the anon page between both processes, mapping
 	 * the page R/O into both processes.
 	 */
+dup:
 	__page_dup_rmap(page, compound);
+	return 0;
+}
+
+/**
+ * page_try_share_anon_rmap - try marking an exclusive anonymous page possibly
+ *			      shared to prepare for KSM or temporary unmapping
+ * @page: the exclusive anonymous page to try marking possibly shared
+ *
+ * The caller needs to hold the PT lock and has to have the page table entry
+ * cleared/invalidated+flushed, to properly sync against GUP-fast.
+ *
+ * This is similar to page_try_dup_anon_rmap(), however, not used during fork()
+ * to duplicate a mapping, but instead to prepare for KSM or temporarily
+ * unmapping a page (swap, migration) via page_remove_rmap().
+ *
+ * Marking the page shared can only fail if the page may be pinned; device
+ * private pages cannot get pinned and consequently this function cannot fail.
+ *
+ * Returns 0 if marking the page possibly shared succeeded. Returns -EBUSY
+ * otherwise.
+ */
+static inline int page_try_share_anon_rmap(struct page *page)
+{
+	VM_BUG_ON_PAGE(!PageAnon(page) || !PageAnonExclusive(page), page);
+
+	/* See page_try_dup_anon_rmap(). */
+	if (likely(!is_device_private_page(page) &&
+	    unlikely(page_maybe_dma_pinned(page))))
+		return -EBUSY;
+
+	ClearPageAnonExclusive(page);
 	return 0;
 }
 
