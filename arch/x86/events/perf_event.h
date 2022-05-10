@@ -743,6 +743,8 @@ struct x86_pmu {
 	void		(*add)(struct perf_event *);
 	void		(*del)(struct perf_event *);
 	void		(*read)(struct perf_event *event);
+	int		(*set_period)(struct perf_event *event);
+	u64		(*update)(struct perf_event *event);
 	int		(*hw_config)(struct perf_event *event);
 	int		(*schedule_events)(struct cpu_hw_events *cpuc, int n, int *assign);
 	unsigned	eventsel;
@@ -1041,6 +1043,9 @@ static struct perf_pmu_format_hybrid_attr format_attr_hybrid_##_name = {\
 
 struct pmu *x86_get_pmu(unsigned int cpu);
 extern struct x86_pmu x86_pmu __read_mostly;
+
+DECLARE_STATIC_CALL(x86_pmu_set_period, *x86_pmu.set_period);
+DECLARE_STATIC_CALL(x86_pmu_update,     *x86_pmu.update);
 
 static __always_inline struct x86_perf_task_context_opt *task_context_opt(void *ctx)
 {
