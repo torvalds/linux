@@ -563,12 +563,9 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 {
 	struct nfp_flower_priv *app_priv;
 	struct netevent_redirect *redir;
-	struct flowi4 flow4 = {};
-	struct flowi6 flow6 = {};
 	struct neighbour *n;
 	struct nfp_app *app;
 	bool neigh_invalid;
-	bool ipv6 = false;
 	int err;
 
 	switch (event) {
@@ -583,15 +580,7 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 		return NOTIFY_DONE;
 	}
 
-	if (n->tbl->family == AF_INET6)
-		ipv6 = true;
-
 	neigh_invalid = !(n->nud_state & NUD_VALID) || n->dead;
-
-	if (ipv6)
-		flow6.daddr = *(struct in6_addr *)n->primary_key;
-	else
-		flow4.daddr = *(__be32 *)n->primary_key;
 
 	app_priv = container_of(nb, struct nfp_flower_priv, tun.neigh_nb);
 	app = app_priv->app;
@@ -601,8 +590,11 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 		return NOTIFY_DONE;
 
 #if IS_ENABLED(CONFIG_INET)
-	if (ipv6) {
+	if (n->tbl->family == AF_INET6) {
 #if IS_ENABLED(CONFIG_IPV6)
+		struct flowi6 flow6 = {};
+
+		flow6.daddr = *(struct in6_addr *)n->primary_key;
 		if (!neigh_invalid) {
 			struct dst_entry *dst;
 			/* Use ipv6_dst_lookup_flow to populate flow6->saddr
@@ -623,6 +615,9 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 		return NOTIFY_DONE;
 #endif /* CONFIG_IPV6 */
 	} else {
+		struct flowi4 flow4 = {};
+
+		flow4.daddr = *(__be32 *)n->primary_key;
 		if (!neigh_invalid) {
 			struct rtable *rt;
 			/* Use ip_route_output_key to populate flow4->saddr and
