@@ -1621,13 +1621,16 @@ int rga_mm_get_external_buffer(struct rga_job *job)
 	struct rga_img_info_t *dst = NULL;
 	struct rga_img_info_t *els = NULL;
 
-	src0 = &job->rga_command_base.src;
-	dst = &job->rga_command_base.dst;
+	if (job->rga_command_base.render_mode != COLOR_FILL_MODE)
+		src0 = &job->rga_command_base.src;
+
 	if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE)
 		src1 = job->rga_command_base.bsfilter_flag ?
 		       &job->rga_command_base.pat : NULL;
 	else
 		els = &job->rga_command_base.pat;
+
+	dst = &job->rga_command_base.dst;
 
 	if (likely(src0)) {
 		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 8) & 1);
