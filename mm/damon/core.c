@@ -30,13 +30,31 @@ static DEFINE_MUTEX(damon_ops_lock);
 static struct damon_operations damon_registered_ops[NR_DAMON_OPS];
 
 /* Should be called under damon_ops_lock with id smaller than NR_DAMON_OPS */
-static bool damon_registered_ops_id(enum damon_ops_id id)
+static bool __damon_is_registered_ops(enum damon_ops_id id)
 {
 	struct damon_operations empty_ops = {};
 
 	if (!memcmp(&empty_ops, &damon_registered_ops[id], sizeof(empty_ops)))
 		return false;
 	return true;
+}
+
+/**
+ * damon_is_registered_ops() - Check if a given damon_operations is registered.
+ * @id:	Id of the damon_operations to check if registered.
+ *
+ * Return: true if the ops is set, false otherwise.
+ */
+bool damon_is_registered_ops(enum damon_ops_id id)
+{
+	bool registered;
+
+	if (id >= NR_DAMON_OPS)
+		return false;
+	mutex_lock(&damon_ops_lock);
+	registered = __damon_is_registered_ops(id);
+	mutex_unlock(&damon_ops_lock);
+	return registered;
 }
 
 /**
@@ -56,7 +74,7 @@ int damon_register_ops(struct damon_operations *ops)
 		return -EINVAL;
 	mutex_lock(&damon_ops_lock);
 	/* Fail for already registered ops */
-	if (damon_registered_ops_id(ops->id)) {
+	if (__damon_is_registered_ops(ops->id)) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -84,7 +102,7 @@ int damon_select_ops(struct damon_ctx *ctx, enum damon_ops_id id)
 		return -EINVAL;
 
 	mutex_lock(&damon_ops_lock);
-	if (!damon_registered_ops_id(id))
+	if (!__damon_is_registered_ops(id))
 		err = -EINVAL;
 	else
 		ctx->ops = damon_registered_ops[id];
