@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/list.h>
+#include <linux/idr.h>
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
 #include <linux/sched/task_stack.h>
@@ -22,6 +23,8 @@
 #include <linux/usb.h>
 
 #include "trace.h"
+
+static DEFINE_IDA(gadget_id_numbers);
 
 static struct bus_type gadget_bus_type;
 
@@ -1248,7 +1251,6 @@ static void usb_udc_nop_release(struct device *dev)
 void usb_initialize_gadget(struct device *parent, struct usb_gadget *gadget,
 		void (*release)(struct device *dev))
 {
-	dev_set_name(&gadget->dev, "gadget");
 	INIT_WORK(&gadget->work, usb_gadget_state_work);
 	gadget->dev.parent = parent;
 
@@ -1304,11 +1306,20 @@ int usb_add_gadget(struct usb_gadget *gadget)
 	usb_gadget_set_state(gadget, USB_STATE_NOTATTACHED);
 	udc->vbus = true;
 
+	ret = ida_alloc(&gadget_id_numbers, GFP_KERNEL);
+	if (ret < 0)
+		goto err_del_udc;
+	gadget->id_number = ret;
+	dev_set_name(&gadget->dev, "gadget.%d", ret);
+
 	ret = device_add(&gadget->dev);
 	if (ret)
-		goto err_del_udc;
+		goto err_free_id;
 
 	return 0;
+
+ err_free_id:
+	ida_free(&gadget_id_numbers, gadget->id_number);
 
  err_del_udc:
 	flush_work(&gadget->work);
@@ -1417,6 +1428,7 @@ void usb_del_gadget(struct usb_gadget *gadget)
 	kobject_uevent(&udc->dev.kobj, KOBJ_REMOVE);
 	flush_work(&gadget->work);
 	device_del(&gadget->dev);
+	ida_free(&gadget_id_numbers, gadget->id_number);
 	device_unregister(&udc->dev);
 }
 EXPORT_SYMBOL_GPL(usb_del_gadget);
