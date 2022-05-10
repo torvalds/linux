@@ -367,7 +367,7 @@
 			};
 		};
 
-		gpioe: gpio@2d000000 {
+		gpioe: gpio@2d000080 {
 				compatible = "fsl,imx8ulp-gpio", "fsl,imx7ulp-gpio";
 				reg = <0x2d000080 0x1000>, <0x2d000040 0x40>;
 				gpio-controller;
@@ -381,7 +381,7 @@
 				gpio-ranges = <&iomuxc1 0 32 24>;
 		};
 
-		gpiof: gpio@2d010000 {
+		gpiof: gpio@2d010080 {
 				compatible = "fsl,imx8ulp-gpio", "fsl,imx7ulp-gpio";
 				reg = <0x2d010080 0x1000>, <0x2d010040 0x40>;
 				gpio-controller;
@@ -417,7 +417,7 @@
 			};
 		};
 
-		gpiod: gpio@2e200000 {
+		gpiod: gpio@2e200080 {
 			compatible = "fsl,imx8ulp-gpio", "fsl,imx7ulp-gpio";
 			reg = <0x2e200080 0x1000>, <0x2e200040 0x40>;
 			gpio-controller;
