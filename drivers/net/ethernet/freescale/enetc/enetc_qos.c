@@ -69,6 +69,9 @@ static int enetc_setup_taprio(struct net_device *ndev,
 		enetc_wr(&priv->si->hw,
 			 ENETC_QBV_PTGCR_OFFSET,
 			 tge & (~ENETC_QBV_TGE));
+
+		priv->active_offloads &= ~ENETC_F_QBV;
+
 		return 0;
 	}
 
@@ -134,6 +137,9 @@ static int enetc_setup_taprio(struct net_device *ndev,
 
 	dma_unmap_single(&priv->si->pdev->dev, dma, data_size, DMA_TO_DEVICE);
 	kfree(gcl_data);
+
+	if (!err)
+		priv->active_offloads |= ENETC_F_QBV;
 
 	return err;
 }
