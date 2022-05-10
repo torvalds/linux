@@ -689,16 +689,16 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 
 #ifdef CONFIG_MTD_UBI_FASTMAP
 	e1 = find_anchor_wl_entry(&ubi->used);
-	if (e1 && ubi->fm_next_anchor &&
-	    (ubi->fm_next_anchor->ec - e1->ec >= UBI_WL_THRESHOLD)) {
+	if (e1 && ubi->fm_anchor &&
+	    (ubi->fm_anchor->ec - e1->ec >= UBI_WL_THRESHOLD)) {
 		ubi->fm_do_produce_anchor = 1;
-		/* fm_next_anchor is no longer considered a good anchor
-		 * candidate.
+		/*
+		 * fm_anchor is no longer considered a good anchor.
 		 * NULL assignment also prevents multiple wear level checks
 		 * of this PEB.
 		 */
-		wl_tree_add(ubi->fm_next_anchor, &ubi->free);
-		ubi->fm_next_anchor = NULL;
+		wl_tree_add(ubi->fm_anchor, &ubi->free);
+		ubi->fm_anchor = NULL;
 		ubi->free_count++;
 	}
 
@@ -1085,12 +1085,13 @@ static int __erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk)
 	if (!err) {
 		spin_lock(&ubi->wl_lock);
 
-		if (!ubi->fm_disabled && !ubi->fm_next_anchor &&
+		if (!ubi->fm_disabled && !ubi->fm_anchor &&
 		    e->pnum < UBI_FM_MAX_START) {
-			/* Abort anchor production, if needed it will be
+			/*
+			 * Abort anchor production, if needed it will be
 			 * enabled again in the wear leveling started below.
 			 */
-			ubi->fm_next_anchor = e;
+			ubi->fm_anchor = e;
 			ubi->fm_do_produce_anchor = 0;
 		} else {
 			wl_tree_add(e, &ubi->free);
