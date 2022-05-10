@@ -741,6 +741,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		if (!node)
 			goto node_alloc_error;
 
+		node->node_id = i;
 		node->adev = kfd->adev;
 		node->kfd = kfd;
 		node->kfd2kgd = kfd->kfd2kgd;
@@ -1323,15 +1324,16 @@ unsigned int kfd_get_num_sdma_engines(struct kfd_node *node)
 {
 	/* If XGMI is not supported, all SDMA engines are PCIe */
 	if (!node->adev->gmc.xgmi.supported)
-		return node->adev->sdma.num_instances;
+		return node->adev->sdma.num_instances/(int)node->kfd->num_nodes;
 
-	return min(node->adev->sdma.num_instances, 2);
+	return min(node->adev->sdma.num_instances/(int)node->kfd->num_nodes, 2);
 }
 
 unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_node *node)
 {
 	/* After reserved for PCIe, the rest of engines are XGMI */
-	return node->adev->sdma.num_instances - kfd_get_num_sdma_engines(node);
+	return node->adev->sdma.num_instances/(int)node->kfd->num_nodes -
+		kfd_get_num_sdma_engines(node);
 }
 
 #if defined(CONFIG_DEBUG_FS)

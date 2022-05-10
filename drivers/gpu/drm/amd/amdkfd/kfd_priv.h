@@ -113,6 +113,8 @@
 
 #define KFD_UNMAP_LATENCY_MS	(4000)
 
+#define KFD_MAX_SDMA_QUEUES	128
+
 /*
  * 512 = 0x200
  * The doorbell index distance between SDMA RLC (2*i) and (2*i+1) in the
@@ -260,6 +262,7 @@ struct kfd_vmid_info {
 struct kfd_dev;
 
 struct kfd_node {
+	unsigned int node_id;
 	struct amdgpu_device *adev;     /* Duplicated here along with keeping
 					 * a copy in kfd_dev to save a hop
 					 */

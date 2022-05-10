@@ -124,6 +124,15 @@ static inline uint64_t get_reserved_sdma_queues_bitmap(struct device_queue_manag
 	return dqm->dev->kfd->device_info.reserved_sdma_queues_bitmap;
 }
 
+static void init_sdma_bitmaps(struct device_queue_manager *dqm)
+{
+	bitmap_zero(dqm->sdma_bitmap, KFD_MAX_SDMA_QUEUES);
+	bitmap_set(dqm->sdma_bitmap, 0, get_num_sdma_queues(dqm));
+
+	bitmap_zero(dqm->xgmi_sdma_bitmap, KFD_MAX_SDMA_QUEUES);
+	bitmap_set(dqm->xgmi_sdma_bitmap, 0, get_num_xgmi_sdma_queues(dqm));
+}
+
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
@@ -1268,24 +1277,6 @@ static void init_interrupts(struct device_queue_manager *dqm)
 	}
 }
 
-static void init_sdma_bitmaps(struct device_queue_manager *dqm)
-{
-	unsigned int num_sdma_queues =
-		min_t(unsigned int, sizeof(dqm->sdma_bitmap)*8,
-		      get_num_sdma_queues(dqm));
-	unsigned int num_xgmi_sdma_queues =
-		min_t(unsigned int, sizeof(dqm->xgmi_sdma_bitmap)*8,
-		      get_num_xgmi_sdma_queues(dqm));
-
-	if (num_sdma_queues)
-		dqm->sdma_bitmap = GENMASK_ULL(num_sdma_queues-1, 0);
-	if (num_xgmi_sdma_queues)
-		dqm->xgmi_sdma_bitmap = GENMASK_ULL(num_xgmi_sdma_queues-1, 0);
-
-	dqm->sdma_bitmap &= ~get_reserved_sdma_queues_bitmap(dqm);
-	pr_info("sdma_bitmap: %llx\n", dqm->sdma_bitmap);
-}
-
 static int initialize_nocpsch(struct device_queue_manager *dqm)
 {
 	int pipe, queue;
@@ -1375,46 +1366,49 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 	int bit;
 
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
-		if (dqm->sdma_bitmap == 0) {
+		if (bitmap_empty(dqm->sdma_bitmap, KFD_MAX_SDMA_QUEUES)) {
 			pr_err("No more SDMA queue to allocate\n");
 			return -ENOMEM;
 		}
 
 		if (restore_sdma_id) {
 			/* Re-use existing sdma_id */
-			if (!(dqm->sdma_bitmap & (1ULL << *restore_sdma_id))) {
+			if (!test_bit(*restore_sdma_id, dqm->sdma_bitmap)) {
 				pr_err("SDMA queue already in use\n");
 				return -EBUSY;
 			}
-			dqm->sdma_bitmap &= ~(1ULL << *restore_sdma_id);
+			clear_bit(*restore_sdma_id, dqm->sdma_bitmap);
 			q->sdma_id = *restore_sdma_id;
 		} else {
 			/* Find first available sdma_id */
-			bit = __ffs64(dqm->sdma_bitmap);
-			dqm->sdma_bitmap &= ~(1ULL << bit);
+			bit = find_first_bit(dqm->sdma_bitmap,
+					     get_num_sdma_queues(dqm));
+			clear_bit(bit, dqm->sdma_bitmap);
 			q->sdma_id = bit;
 		}
 
-		q->properties.sdma_engine_id = q->sdma_id %
-				kfd_get_num_sdma_engines(dqm->dev);
+		q->properties.sdma_engine_id =
+			dqm->dev->node_id * get_num_all_sdma_engines(dqm) +
+			q->sdma_id % kfd_get_num_sdma_engines(dqm->dev);
 		q->properties.sdma_queue_id = q->sdma_id /
 				kfd_get_num_sdma_engines(dqm->dev);
 	} else if (q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI) {
-		if (dqm->xgmi_sdma_bitmap == 0) {
+		if (bitmap_empty(dqm->xgmi_sdma_bitmap, KFD_MAX_SDMA_QUEUES)) {
 			pr_err("No more XGMI SDMA queue to allocate\n");
 			return -ENOMEM;
 		}
 		if (restore_sdma_id) {
 			/* Re-use existing sdma_id */
-			if (!(dqm->xgmi_sdma_bitmap & (1ULL << *restore_sdma_id))) {
+			if (!test_bit(*restore_sdma_id, dqm->xgmi_sdma_bitmap)) {
 				pr_err("SDMA queue already in use\n");
 				return -EBUSY;
 			}
-			dqm->xgmi_sdma_bitmap &= ~(1ULL << *restore_sdma_id);
+			clear_bit(*restore_sdma_id, dqm->xgmi_sdma_bitmap);
 			q->sdma_id = *restore_sdma_id;
 		} else {
-			bit = __ffs64(dqm->xgmi_sdma_bitmap);
-			dqm->xgmi_sdma_bitmap &= ~(1ULL << bit);
+			bit = find_first_bit(dqm->xgmi_sdma_bitmap,
+					     get_num_xgmi_sdma_queues(dqm));
+			clear_bit(bit, dqm->xgmi_sdma_bitmap);
 			q->sdma_id = bit;
 		}
 		/* sdma_engine_id is sdma id including
@@ -1424,6 +1418,7 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 		 * PCIe-optimized ones
 		 */
 		q->properties.sdma_engine_id =
+			dqm->dev->node_id * get_num_all_sdma_engines(dqm) +
 			kfd_get_num_sdma_engines(dqm->dev) +
 			q->sdma_id % kfd_get_num_xgmi_sdma_engines(dqm->dev);
 		q->properties.sdma_queue_id = q->sdma_id /
@@ -1442,11 +1437,11 @@ static void deallocate_sdma_queue(struct device_queue_manager *dqm,
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
 		if (q->sdma_id >= get_num_sdma_queues(dqm))
 			return;
-		dqm->sdma_bitmap |= (1ULL << q->sdma_id);
+		set_bit(q->sdma_id, dqm->sdma_bitmap);
 	} else if (q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI) {
 		if (q->sdma_id >= get_num_xgmi_sdma_queues(dqm))
 			return;
-		dqm->xgmi_sdma_bitmap |= (1ULL << q->sdma_id);
+		set_bit(q->sdma_id, dqm->xgmi_sdma_bitmap);
 	}
 }
 

@@ -239,8 +239,8 @@ struct device_queue_manager {
 	unsigned int		total_queue_count;
 	unsigned int		next_pipe_to_allocate;
 	unsigned int		*allocated_queues;
-	uint64_t		sdma_bitmap;
-	uint64_t		xgmi_sdma_bitmap;
+	DECLARE_BITMAP(sdma_bitmap, KFD_MAX_SDMA_QUEUES);
+	DECLARE_BITMAP(xgmi_sdma_bitmap, KFD_MAX_SDMA_QUEUES);
 	/* the pasid mapping for each kfd vmid */
 	uint16_t		vmid_pasid[VMID_NUM];
 	uint64_t		pipelines_addr;
