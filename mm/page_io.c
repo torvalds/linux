@@ -239,6 +239,7 @@ struct swap_iocb {
 	struct kiocb		iocb;
 	struct bio_vec		bvec[SWAP_CLUSTER_MAX];
 	int			pages;
+	int			len;
 };
 static mempool_t *sio_pool;
 
@@ -261,7 +262,7 @@ static void sio_write_complete(struct kiocb *iocb, long ret)
 	struct page *page = sio->bvec[0].bv_page;
 	int p;
 
-	if (ret != PAGE_SIZE * sio->pages) {
+	if (ret != sio->len) {
 		/*
 		 * In the case of swap-over-nfs, this can be a
 		 * temporary failure if the system has limited
@@ -301,7 +302,7 @@ static int swap_writepage_fs(struct page *page, struct writeback_control *wbc)
 		sio = *wbc->swap_plug;
 	if (sio) {
 		if (sio->iocb.ki_filp != swap_file ||
-		    sio->iocb.ki_pos + sio->pages * PAGE_SIZE != pos) {
+		    sio->iocb.ki_pos + sio->len != pos) {
 			swap_write_unplug(sio);
 			sio = NULL;
 		}
@@ -312,10 +313,12 @@ static int swap_writepage_fs(struct page *page, struct writeback_control *wbc)
 		sio->iocb.ki_complete = sio_write_complete;
 		sio->iocb.ki_pos = pos;
 		sio->pages = 0;
+		sio->len = 0;
 	}
 	sio->bvec[sio->pages].bv_page = page;
-	sio->bvec[sio->pages].bv_len = PAGE_SIZE;
+	sio->bvec[sio->pages].bv_len = thp_size(page);
 	sio->bvec[sio->pages].bv_offset = 0;
+	sio->len += thp_size(page);
 	sio->pages += 1;
 	if (sio->pages == ARRAY_SIZE(sio->bvec) || !wbc->swap_plug) {
 		swap_write_unplug(sio);
@@ -371,8 +374,7 @@ void swap_write_unplug(struct swap_iocb *sio)
 	struct address_space *mapping = sio->iocb.ki_filp->f_mapping;
 	int ret;
 
-	iov_iter_bvec(&from, WRITE, sio->bvec, sio->pages,
-		      PAGE_SIZE * sio->pages);
+	iov_iter_bvec(&from, WRITE, sio->bvec, sio->pages, sio->len);
 	ret = mapping->a_ops->swap_rw(&sio->iocb, &from);
 	if (ret != -EIOCBQUEUED)
 		sio_write_complete(&sio->iocb, ret);
@@ -383,7 +385,7 @@ static void sio_read_complete(struct kiocb *iocb, long ret)
 	struct swap_iocb *sio = container_of(iocb, struct swap_iocb, iocb);
 	int p;
 
-	if (ret == PAGE_SIZE * sio->pages) {
+	if (ret == sio->len) {
 		for (p = 0; p < sio->pages; p++) {
 			struct page *page = sio->bvec[p].bv_page;
 
@@ -415,7 +417,7 @@ static void swap_readpage_fs(struct page *page,
 		sio = *plug;
 	if (sio) {
 		if (sio->iocb.ki_filp != sis->swap_file ||
-		    sio->iocb.ki_pos + sio->pages * PAGE_SIZE != pos) {
+		    sio->iocb.ki_pos + sio->len != pos) {
 			swap_read_unplug(sio);
 			sio = NULL;
 		}
@@ -426,10 +428,12 @@ static void swap_readpage_fs(struct page *page,
 		sio->iocb.ki_pos = pos;
 		sio->iocb.ki_complete = sio_read_complete;
 		sio->pages = 0;
+		sio->len = 0;
 	}
 	sio->bvec[sio->pages].bv_page = page;
-	sio->bvec[sio->pages].bv_len = PAGE_SIZE;
+	sio->bvec[sio->pages].bv_len = thp_size(page);
 	sio->bvec[sio->pages].bv_offset = 0;
+	sio->len += thp_size(page);
 	sio->pages += 1;
 	if (sio->pages == ARRAY_SIZE(sio->bvec) || !plug) {
 		swap_read_unplug(sio);
@@ -521,8 +525,7 @@ void __swap_read_unplug(struct swap_iocb *sio)
 	struct address_space *mapping = sio->iocb.ki_filp->f_mapping;
 	int ret;
 
-	iov_iter_bvec(&from, READ, sio->bvec, sio->pages,
-		      PAGE_SIZE * sio->pages);
+	iov_iter_bvec(&from, READ, sio->bvec, sio->pages, sio->len);
 	ret = mapping->a_ops->swap_rw(&sio->iocb, &from);
 	if (ret != -EIOCBQUEUED)
 		sio_read_complete(&sio->iocb, ret);
