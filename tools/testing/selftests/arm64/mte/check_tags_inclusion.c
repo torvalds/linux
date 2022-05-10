@@ -49,7 +49,7 @@ static int verify_mte_pointer_validity(char *ptr, int mode)
 static int check_single_included_tags(int mem_type, int mode)
 {
 	char *ptr;
-	int tag, run, result = KSFT_PASS;
+	int tag, run, ret, result = KSFT_PASS;
 
 	ptr = (char *)mte_allocate_memory(BUFFER_SIZE + MT_GRANULE_SIZE, mem_type, 0, false);
 	if (check_allocated_memory(ptr, BUFFER_SIZE + MT_GRANULE_SIZE,
@@ -57,7 +57,9 @@ static int check_single_included_tags(int mem_type, int mode)
 		return KSFT_FAIL;
 
 	for (tag = 0; (tag < MT_TAG_COUNT) && (result == KSFT_PASS); tag++) {
-		mte_switch_mode(mode, MT_INCLUDE_VALID_TAG(tag));
+		ret = mte_switch_mode(mode, MT_INCLUDE_VALID_TAG(tag));
+		if (ret != 0)
+			result = KSFT_FAIL;
 		/* Try to catch a excluded tag by a number of tries. */
 		for (run = 0; (run < RUNS) && (result == KSFT_PASS); run++) {
 			ptr = (char *)mte_insert_tags(ptr, BUFFER_SIZE);
@@ -111,14 +113,16 @@ static int check_multiple_included_tags(int mem_type, int mode)
 static int check_all_included_tags(int mem_type, int mode)
 {
 	char *ptr;
-	int run, result = KSFT_PASS;
+	int run, ret, result = KSFT_PASS;
 
 	ptr = (char *)mte_allocate_memory(BUFFER_SIZE + MT_GRANULE_SIZE, mem_type, 0, false);
 	if (check_allocated_memory(ptr, BUFFER_SIZE + MT_GRANULE_SIZE,
 				   mem_type, false) != KSFT_PASS)
 		return KSFT_FAIL;
 
-	mte_switch_mode(mode, MT_INCLUDE_TAG_MASK);
+	ret = mte_switch_mode(mode, MT_INCLUDE_TAG_MASK);
+	if (ret != 0)
+		return KSFT_FAIL;
 	/* Try to catch a excluded tag by a number of tries. */
 	for (run = 0; (run < RUNS) && (result == KSFT_PASS); run++) {
 		ptr = (char *)mte_insert_tags(ptr, BUFFER_SIZE);
@@ -135,13 +139,15 @@ static int check_all_included_tags(int mem_type, int mode)
 static int check_none_included_tags(int mem_type, int mode)
 {
 	char *ptr;
-	int run;
+	int run, ret;
 
 	ptr = (char *)mte_allocate_memory(BUFFER_SIZE, mem_type, 0, false);
 	if (check_allocated_memory(ptr, BUFFER_SIZE, mem_type, false) != KSFT_PASS)
 		return KSFT_FAIL;
 
-	mte_switch_mode(mode, MT_EXCLUDE_TAG_MASK);
+	ret = mte_switch_mode(mode, MT_EXCLUDE_TAG_MASK);
+	if (ret != 0)
+		return KSFT_FAIL;
 	/* Try to catch a excluded tag by a number of tries. */
 	for (run = 0; run < RUNS; run++) {
 		ptr = (char *)mte_insert_tags(ptr, BUFFER_SIZE);
