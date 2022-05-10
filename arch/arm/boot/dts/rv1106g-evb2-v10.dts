@@ -14,7 +14,7 @@
 	compatible = "rockchip,rv1106g-evb2-v10", "rockchip,rv1106";
 
 	chosen {
-		bootargs = "loglevel=0 console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip";
+		bootargs = "loglevel=0 console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip rk_dma_heap_cma=24M";
 	};
 
 	vcc_1v8: vcc-1v8 {
