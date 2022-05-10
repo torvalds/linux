@@ -2061,6 +2061,8 @@ enum damon_sysfs_cmd {
 	DAMON_SYSFS_CMD_ON,
 	/* @DAMON_SYSFS_CMD_OFF: Turn the kdamond off. */
 	DAMON_SYSFS_CMD_OFF,
+	/* @DAMON_SYSFS_CMD_COMMIT: Update kdamond inputs. */
+	DAMON_SYSFS_CMD_COMMIT,
 	/*
 	 * @DAMON_SYSFS_CMD_UPDATE_SCHEMES_STATS: Update scheme stats sysfs
 	 * files.
@@ -2076,6 +2078,7 @@ enum damon_sysfs_cmd {
 static const char * const damon_sysfs_cmd_strs[] = {
 	"on",
 	"off",
+	"commit",
 	"update_schemes_stats",
 };
 
@@ -2195,6 +2198,39 @@ destroy_targets_out:
 	return err;
 }
 
+/*
+ * Search a target in a context that corresponds to the sysfs target input.
+ *
+ * Return: pointer to the target if found, NULL if not found, or negative
+ * error code if the search failed.
+ */
+static struct damon_target *damon_sysfs_existing_target(
+		struct damon_sysfs_target *sys_target, struct damon_ctx *ctx)
+{
+	struct pid *pid;
+	struct damon_target *t;
+
+	if (ctx->ops.id == DAMON_OPS_PADDR) {
+		/* Up to only one target for paddr could exist */
+		damon_for_each_target(t, ctx)
+			return t;
+		return NULL;
+	}
+
+	/* ops.id should be DAMON_OPS_VADDR or DAMON_OPS_FVADDR */
+	pid = find_get_pid(sys_target->pid);
+	if (!pid)
+		return ERR_PTR(-EINVAL);
+	damon_for_each_target(t, ctx) {
+		if (t->pid == pid) {
+			put_pid(pid);
+			return t;
+		}
+	}
+	put_pid(pid);
+	return NULL;
+}
+
 static int damon_sysfs_set_targets(struct damon_ctx *ctx,
 		struct damon_sysfs_targets *sysfs_targets)
 {
@@ -2205,8 +2241,15 @@ static int damon_sysfs_set_targets(struct damon_ctx *ctx,
 		return -EINVAL;
 
 	for (i = 0; i < sysfs_targets->nr; i++) {
-		err = damon_sysfs_add_target(
-				sysfs_targets->targets_arr[i], ctx);
+		struct damon_sysfs_target *st = sysfs_targets->targets_arr[i];
+		struct damon_target *t = damon_sysfs_existing_target(st, ctx);
+
+		if (IS_ERR(t))
+			return PTR_ERR(t);
+		if (!t)
+			err = damon_sysfs_add_target(st, ctx);
+		else
+			err = damon_sysfs_set_regions(t, st->regions);
 		if (err)
 			return err;
 	}
@@ -2309,6 +2352,48 @@ static int damon_sysfs_upd_schemes_stats(struct damon_sysfs_kdamond *kdamond)
 	return 0;
 }
 
+static inline bool damon_sysfs_kdamond_running(
+		struct damon_sysfs_kdamond *kdamond)
+{
+	return kdamond->damon_ctx &&
+		damon_sysfs_ctx_running(kdamond->damon_ctx);
+}
+
+/*
+ * damon_sysfs_commit_input() - Commit user inputs to a running kdamond.
+ * @kdamond:	The kobject wrapper for the associated kdamond.
+ *
+ * If the sysfs input is wrong, the kdamond will be terminated.
+ */
+static int damon_sysfs_commit_input(struct damon_sysfs_kdamond *kdamond)
+{
+	struct damon_ctx *ctx = kdamond->damon_ctx;
+	struct damon_sysfs_context *sys_ctx;
+	int err = 0;
+
+	if (!damon_sysfs_kdamond_running(kdamond))
+		return -EINVAL;
+	/* TODO: Support multiple contexts per kdamond */
+	if (kdamond->contexts->nr != 1)
+		return -EINVAL;
+
+	sys_ctx = kdamond->contexts->contexts_arr[0];
+
+	err = damon_select_ops(ctx, sys_ctx->ops_id);
+	if (err)
+		return err;
+	err = damon_sysfs_set_attrs(ctx, sys_ctx->attrs);
+	if (err)
+		return err;
+	err = damon_sysfs_set_targets(ctx, sys_ctx->targets);
+	if (err)
+		return err;
+	err = damon_sysfs_set_schemes(ctx, sys_ctx->schemes);
+	if (err)
+		return err;
+	return err;
+}
+
 /*
  * damon_sysfs_cmd_request_callback() - DAMON callback for handling requests.
  * @c:	The DAMON context of the callback.
@@ -2330,6 +2415,9 @@ static int damon_sysfs_cmd_request_callback(struct damon_ctx *c)
 	switch (damon_sysfs_cmd_request.cmd) {
 	case DAMON_SYSFS_CMD_UPDATE_SCHEMES_STATS:
 		err = damon_sysfs_upd_schemes_stats(kdamond);
+		break;
+	case DAMON_SYSFS_CMD_COMMIT:
+		err = damon_sysfs_commit_input(kdamond);
 		break;
 	default:
 		break;
@@ -2413,13 +2501,6 @@ static int damon_sysfs_turn_damon_off(struct damon_sysfs_kdamond *kdamond)
 	 * DAMON, we free kdamond->damon_ctx in next
 	 * damon_sysfs_turn_damon_on(), or kdamonds_nr_store()
 	 */
-}
-
-static inline bool damon_sysfs_kdamond_running(
-		struct damon_sysfs_kdamond *kdamond)
-{
-	return kdamond->damon_ctx &&
-		damon_sysfs_ctx_running(kdamond->damon_ctx);
 }
 
 /*
