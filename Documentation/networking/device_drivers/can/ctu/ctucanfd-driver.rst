@@ -72,7 +72,7 @@ it is reachable (on which bus it resides) and its configuration –
 registers address, interrupts and so on. An example of such a device
 tree is given in .
 
-.. code:: raw
+::
 
            / {
                /* ... */
@@ -451,7 +451,7 @@ the FIFO is maintained, together with priority rotation, is depicted in
 
 |
 
-.. figure:: fsm_txt_buffer_user.svg
+.. kernel-figure:: fsm_txt_buffer_user.svg
 
    TX Buffer states with possible transitions
 
