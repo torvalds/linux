@@ -1159,6 +1159,12 @@ intel_pps_verify_state(struct intel_dp *intel_dp)
 	}
 }
 
+static bool pps_delays_valid(struct edp_power_seq *delays)
+{
+	return delays->t1_t3 || delays->t8 || delays->t9 ||
+		delays->t10 || delays->t11_t12;
+}
+
 static void pps_init_delays_cur(struct intel_dp *intel_dp,
 				struct edp_power_seq *cur)
 {
@@ -1230,7 +1236,7 @@ static void pps_init_delays(struct intel_dp *intel_dp)
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
 	/* already initialized? */
-	if (final->t11_t12 != 0)
+	if (pps_delays_valid(final))
 		return;
 
 	pps_init_delays_cur(intel_dp, &cur);
