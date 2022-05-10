@@ -97,6 +97,33 @@ out:
 	return e;
 }
 
+/*
+ * has_enough_free_count - whether ubi has enough free pebs to fill fm pools
+ * @ubi: UBI device description object
+ * @is_wl_pool: whether UBI is filling wear leveling pool
+ *
+ * This helper function checks whether there are enough free pebs (deducted
+ * by fastmap pebs) to fill fm_pool and fm_wl_pool, above rule works after
+ * there is at least one of free pebs is filled into fm_wl_pool.
+ * For wear leveling pool, UBI should also reserve free pebs for bad pebs
+ * handling, because there maybe no enough free pebs for user volumes after
+ * producing new bad pebs.
+ */
+static bool has_enough_free_count(struct ubi_device *ubi, bool is_wl_pool)
+{
+	int fm_used = 0;	// fastmap non anchor pebs.
+	int beb_rsvd_pebs;
+
+	if (!ubi->free.rb_node)
+		return false;
+
+	beb_rsvd_pebs = is_wl_pool ? ubi->beb_rsvd_pebs : 0;
+	if (ubi->fm_wl_pool.size > 0 && !(ubi->ro_mode || ubi->fm_disabled))
+		fm_used = ubi->fm_size / ubi->leb_size - 1;
+
+	return ubi->free_count - beb_rsvd_pebs > fm_used;
+}
+
 /**
  * ubi_refill_pools - refills all fastmap PEB pools.
  * @ubi: UBI device description object
@@ -120,21 +147,17 @@ void ubi_refill_pools(struct ubi_device *ubi)
 		wl_tree_add(ubi->fm_anchor, &ubi->free);
 		ubi->free_count++;
 	}
-	if (ubi->fm_next_anchor) {
-		wl_tree_add(ubi->fm_next_anchor, &ubi->free);
-		ubi->free_count++;
-	}
 
-	/* All available PEBs are in ubi->free, now is the time to get
+	/*
+	 * All available PEBs are in ubi->free, now is the time to get
 	 * the best anchor PEBs.
 	 */
 	ubi->fm_anchor = ubi_wl_get_fm_peb(ubi, 1);
-	ubi->fm_next_anchor = ubi_wl_get_fm_peb(ubi, 1);
 
 	for (;;) {
 		enough = 0;
 		if (pool->size < pool->max_size) {
-			if (!ubi->free.rb_node)
+			if (!has_enough_free_count(ubi, false))
 				break;
 
 			e = wl_get_wle(ubi);
@@ -147,8 +170,7 @@ void ubi_refill_pools(struct ubi_device *ubi)
 			enough++;
 
 		if (wl_pool->size < wl_pool->max_size) {
-			if (!ubi->free.rb_node ||
-			   (ubi->free_count - ubi->beb_rsvd_pebs < 5))
+			if (!has_enough_free_count(ubi, true))
 				break;
 
 			e = find_wl_entry(ubi, &ubi->free, WL_FREE_MAX_DIFF);
@@ -286,20 +308,26 @@ static struct ubi_wl_entry *get_peb_for_wl(struct ubi_device *ubi)
 int ubi_ensure_anchor_pebs(struct ubi_device *ubi)
 {
 	struct ubi_work *wrk;
+	struct ubi_wl_entry *anchor;
 
 	spin_lock(&ubi->wl_lock);
 
-	/* Do we have a next anchor? */
-	if (!ubi->fm_next_anchor) {
-		ubi->fm_next_anchor = ubi_wl_get_fm_peb(ubi, 1);
-		if (!ubi->fm_next_anchor)
-			/* Tell wear leveling to produce a new anchor PEB */
-			ubi->fm_do_produce_anchor = 1;
+	/* Do we already have an anchor? */
+	if (ubi->fm_anchor) {
+		spin_unlock(&ubi->wl_lock);
+		return 0;
 	}
 
-	/* Do wear leveling to get a new anchor PEB or check the
-	 * existing next anchor candidate.
-	 */
+	/* See if we can find an anchor PEB on the list of free PEBs */
+	anchor = ubi_wl_get_fm_peb(ubi, 1);
+	if (anchor) {
+		ubi->fm_anchor = anchor;
+		spin_unlock(&ubi->wl_lock);
+		return 0;
+	}
+
+	ubi->fm_do_produce_anchor = 1;
+	/* No luck, trigger wear leveling to produce a new anchor PEB. */
 	if (ubi->wl_scheduled) {
 		spin_unlock(&ubi->wl_lock);
 		return 0;
@@ -379,11 +407,6 @@ static void ubi_fastmap_close(struct ubi_device *ubi)
 	if (ubi->fm_anchor) {
 		return_unused_peb(ubi, ubi->fm_anchor);
 		ubi->fm_anchor = NULL;
-	}
-
-	if (ubi->fm_next_anchor) {
-		return_unused_peb(ubi, ubi->fm_next_anchor);
-		ubi->fm_next_anchor = NULL;
 	}
 
 	if (ubi->fm) {
