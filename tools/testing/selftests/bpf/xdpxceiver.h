@@ -27,7 +27,6 @@
 
 #define TEST_PASS 0
 #define TEST_FAILURE -1
-#define TEST_CONTINUE -2
 #define MAX_INTERFACES 2
 #define MAX_INTERFACE_NAME_CHARS 7
 #define MAX_INTERFACES_NAMESPACE_CHARS 10
@@ -147,7 +146,8 @@ struct ifobject {
 	bool rx_on;
 	bool use_poll;
 	bool busy_poll;
-	bool pacing_on;
+	bool use_fill_ring;
+	bool release_rx;
 	u8 dst_mac[ETH_ALEN];
 	u8 src_mac[ETH_ALEN];
 };
@@ -167,6 +167,6 @@ pthread_barrier_t barr;
 pthread_mutex_t pacing_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t pacing_cond = PTHREAD_COND_INITIALIZER;
 
-u32 pkts_in_flight;
+int pkts_in_flight;
 
 #endif				/* XDPXCEIVER_H */
