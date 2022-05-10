@@ -46,8 +46,6 @@ struct whitelist_entry {
 };
 
 static const struct whitelist_entry whitelist[] = {
-	/* unix_skb_parms via UNIXCB() buffer */
-	{ "net/unix/af_unix.c", "unix_skb_parms", "char" },
 	{ }
 };
 
