@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  */
 
 #ifndef __SOC_QCOM_RPMH_H__
@@ -20,6 +20,8 @@ int rpmh_write_async(const struct device *dev, enum rpmh_state state,
 int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 		     const struct tcs_cmd *cmd, u32 *n);
 
+int rpmh_mode_solver_set(const struct device *dev, bool enable);
+
 void rpmh_invalidate(const struct device *dev);
 
 #else
@@ -36,6 +38,9 @@ static inline int rpmh_write_async(const struct device *dev,
 static inline int rpmh_write_batch(const struct device *dev,
 				   enum rpmh_state state,
 				   const struct tcs_cmd *cmd, u32 *n)
+{ return -ENODEV; }
+
+static int rpmh_mode_solver_set(const struct device *dev, bool enable)
 { return -ENODEV; }
 
 static inline void rpmh_invalidate(const struct device *dev)

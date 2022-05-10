@@ -76,6 +76,22 @@ static struct rpmh_ctrlr *get_rpmh_ctrlr(const struct device *dev)
 	return &drv->client;
 }
 
+static int check_ctrlr_state(struct rpmh_ctrlr *ctrlr, enum rpmh_state state)
+{
+	int ret = 0;
+
+	if (state != RPMH_ACTIVE_ONLY_STATE)
+		return ret;
+
+	/* Do not allow sending active votes when in solver mode */
+	spin_lock(&ctrlr->cache_lock);
+	if (ctrlr->in_solver_mode)
+		ret = -EBUSY;
+	spin_unlock(&ctrlr->cache_lock);
+
+	return ret;
+}
+
 void rpmh_tx_done(const struct tcs_request *msg, int r)
 {
 	struct rpmh_request *rpm_msg = container_of(msg, struct rpmh_request,
@@ -229,8 +245,13 @@ static int __fill_rpmh_msg(struct rpmh_request *req, enum rpmh_state state,
 int rpmh_write_async(const struct device *dev, enum rpmh_state state,
 		     const struct tcs_cmd *cmd, u32 n)
 {
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
 	struct rpmh_request *rpm_msg;
 	int ret;
+
+	ret = check_ctrlr_state(ctrlr, state);
+	if (ret)
+		return ret;
 
 	rpm_msg = kzalloc(sizeof(*rpm_msg), GFP_ATOMIC);
 	if (!rpm_msg)
@@ -264,6 +285,10 @@ int rpmh_write(const struct device *dev, enum rpmh_state state,
 	DEFINE_RPMH_MSG_ONSTACK(dev, state, &compl, rpm_msg);
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
 	int ret;
+
+	ret = check_ctrlr_state(ctrlr, state);
+	if (ret)
+		return ret;
 
 	ret = __fill_rpmh_msg(&rpm_msg, state, cmd, n);
 	if (ret)
@@ -342,6 +367,10 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 	int count = 0;
 	int ret, i;
 	void *ptr;
+
+	ret = check_ctrlr_state(ctrlr, state);
+	if (ret)
+		return ret;
 
 	if (!cmd || !n)
 		return -EINVAL;
@@ -510,3 +539,28 @@ void rpmh_invalidate(const struct device *dev)
 	spin_unlock_irqrestore(&ctrlr->cache_lock, flags);
 }
 EXPORT_SYMBOL(rpmh_invalidate);
+
+/**
+ * rpmh_mode_solver_set: Indicate that the RSC controller hardware has
+ * been configured to be in solver mode
+ *
+ * @dev: The device making the request
+ * @enable: Boolean value indicating if the controller is in solver mode.
+ * Return:
+ * * 0          - Success
+ * * Error code - Otherwise
+ */
+int rpmh_mode_solver_set(const struct device *dev, bool enable)
+{
+	int ret;
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+
+	spin_lock(&ctrlr->cache_lock);
+	ret = rpmh_rsc_mode_solver_set(ctrlr_to_drv(ctrlr), enable);
+	if (!ret)
+		ctrlr->in_solver_mode = enable;
+	spin_unlock(&ctrlr->cache_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(rpmh_mode_solver_set);

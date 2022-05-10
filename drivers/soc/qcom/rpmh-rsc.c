@@ -626,6 +626,12 @@ int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 
 	spin_lock_irqsave(&drv->lock, flags);
 
+	/* Controller is busy in 'solver' mode */
+	if (drv->in_solver_mode) {
+		spin_unlock_irqrestore(&drv->lock, flags);
+		return -EBUSY;
+	}
+
 	/* Wait forever for a free tcs. It better be there eventually! */
 	wait_event_lock_irq(drv->tcs_wait,
 			    (tcs_id = claim_tcs_for_req(drv, tcs, msg)) >= 0,
@@ -945,6 +951,31 @@ static int rpmh_rsc_cpu_pm_callback(struct notifier_block *nfb,
 		else
 			/* We won't be called w/ CPU_PM_ENTER_FAILED */
 			atomic_dec(&drv->cpus_in_pm);
+	}
+
+	return ret;
+}
+
+/**
+ * rpmh_rsc_mode_solver_set() - Enable/disable solver mode.
+ * @drv:     The controller.
+ * @enable:  Boolean state to be set - true/false
+ *
+ * Return:
+ * * 0			- success
+ * * -EBUSY		- AMCs are busy
+ */
+int rpmh_rsc_mode_solver_set(struct rsc_drv *drv, bool enable)
+{
+	int ret = -EBUSY;
+
+	if (spin_trylock(&drv->lock)) {
+		if (!enable || !rpmh_rsc_ctrlr_is_busy(drv)) {
+			drv->in_solver_mode = enable;
+			trace_rpmh_solver_set(drv, enable);
+			ret = 0;
+		}
+		spin_unlock(&drv->lock);
 	}
 
 	return ret;
