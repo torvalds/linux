@@ -6860,6 +6860,8 @@ static int bpf_object_load_prog_instance(struct bpf_object *obj, struct bpf_prog
 				prog->name, err);
 			return err;
 		}
+		insns = prog->insns;
+		insns_cnt = prog->insns_cnt;
 	}
 
 	if (obj->gen_loader) {
@@ -8786,6 +8788,26 @@ const struct bpf_insn *bpf_program__insns(const struct bpf_program *prog)
 size_t bpf_program__insn_cnt(const struct bpf_program *prog)
 {
 	return prog->insns_cnt;
+}
+
+int bpf_program__set_insns(struct bpf_program *prog,
+			   struct bpf_insn *new_insns, size_t new_insn_cnt)
+{
+	struct bpf_insn *insns;
+
+	if (prog->obj->loaded)
+		return -EBUSY;
+
+	insns = libbpf_reallocarray(prog->insns, new_insn_cnt, sizeof(*insns));
+	if (!insns) {
+		pr_warn("prog '%s': failed to realloc prog code\n", prog->name);
+		return -ENOMEM;
+	}
+	memcpy(insns, new_insns, new_insn_cnt * sizeof(*insns));
+
+	prog->insns = insns;
+	prog->insns_cnt = new_insn_cnt;
+	return 0;
 }
 
 int bpf_program__set_prep(struct bpf_program *prog, int nr_instances,

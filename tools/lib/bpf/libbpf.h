@@ -323,6 +323,24 @@ struct bpf_insn;
  * different.
  */
 LIBBPF_API const struct bpf_insn *bpf_program__insns(const struct bpf_program *prog);
+
+/**
+ * @brief **bpf_program__set_insns()** can set BPF program's underlying
+ * BPF instructions.
+ *
+ * WARNING: This is a very advanced libbpf API and users need to know
+ * what they are doing. This should be used from prog_prepare_load_fn
+ * callback only.
+ *
+ * @param prog BPF program for which to return instructions
+ * @param new_insns a pointer to an array of BPF instructions
+ * @param new_insn_cnt number of `struct bpf_insn`'s that form
+ * specified BPF program
+ * @return 0, on success; negative error code, otherwise
+ */
+LIBBPF_API int bpf_program__set_insns(struct bpf_program *prog,
+				      struct bpf_insn *new_insns, size_t new_insn_cnt);
+
 /**
  * @brief **bpf_program__insn_cnt()** returns number of `struct bpf_insn`'s
  * that form specified BPF program.
