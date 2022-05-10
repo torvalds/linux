@@ -575,6 +575,7 @@ static inline int ceph_wait_on_async_create(struct inode *inode)
 			   TASK_KILLABLE);
 }
 
+extern int ceph_wait_on_conflict_unlink(struct dentry *dentry);
 extern u64 ceph_get_deleg_ino(struct ceph_mds_session *session);
 extern int ceph_restore_deleg_ino(struct ceph_mds_session *session, u64 ino);
 #endif

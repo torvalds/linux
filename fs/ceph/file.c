@@ -569,7 +569,7 @@ static void ceph_async_create_cb(struct ceph_mds_client *mdsc,
 		char *path = ceph_mdsc_build_path(req->r_dentry, &pathlen,
 						  &base, 0);
 
-		pr_warn("ceph: async create failure path=(%llx)%s result=%d!\n",
+		pr_warn("async create failure path=(%llx)%s result=%d!\n",
 			base, IS_ERR(path) ? "<<bad>>" : path, result);
 		ceph_mdsc_free_path(path, pathlen);
 
@@ -739,6 +739,10 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	if (dentry->d_name.len > NAME_MAX)
 		return -ENAMETOOLONG;
+
+	err = ceph_wait_on_conflict_unlink(dentry);
+	if (err)
+		return err;
 
 	if (flags & O_CREAT) {
 		if (ceph_quota_is_max_files_exceeded(dir))
