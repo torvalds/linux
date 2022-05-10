@@ -2052,6 +2052,7 @@ void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 	struct amdgpu_vm *vm = drm_priv_to_vm(pdd->drm_priv);
 	uint64_t tlb_seq = amdgpu_vm_tlb_seq(vm);
 	struct kfd_node *dev = pdd->dev;
+	int xcc = 0;
 
 	/*
 	 * It can be that we race and lose here, but that is extremely unlikely
@@ -2069,8 +2070,10 @@ void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 			amdgpu_amdkfd_flush_gpu_tlb_vmid(dev->adev,
 							pdd->qpd.vmid);
 	} else {
-		amdgpu_amdkfd_flush_gpu_tlb_pasid(dev->adev,
-					pdd->process->pasid, type);
+		for (xcc = 0; xcc < dev->num_xcc_per_node; xcc++)
+			amdgpu_amdkfd_flush_gpu_tlb_pasid(dev->adev,
+					pdd->process->pasid, type,
+					dev->start_xcc_id + xcc);
 	}
 }
 

@@ -160,7 +160,8 @@ bool amdgpu_amdkfd_have_atomics_support(struct amdgpu_device *adev);
 int amdgpu_amdkfd_flush_gpu_tlb_vmid(struct amdgpu_device *adev,
 				uint16_t vmid);
 int amdgpu_amdkfd_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
-				uint16_t pasid, enum TLB_FLUSH_TYPE flush_type);
+				uint16_t pasid, enum TLB_FLUSH_TYPE flush_type,
+				uint32_t inst);
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid);
 

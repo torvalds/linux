@@ -622,7 +622,7 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
  */
 static int gmc_v8_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 					uint16_t pasid, uint32_t flush_type,
-					bool all_hub)
+					bool all_hub, uint32_t inst)
 {
 	int vmid;
 	unsigned int tmp;
