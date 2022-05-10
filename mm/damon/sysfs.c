@@ -1810,6 +1810,21 @@ static void damon_sysfs_context_rm_dirs(struct damon_sysfs_context *context)
 	kobject_put(&context->schemes->kobj);
 }
 
+static ssize_t avail_operations_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	enum damon_ops_id id;
+	int len = 0;
+
+	for (id = 0; id < NR_DAMON_OPS; id++) {
+		if (!damon_is_registered_ops(id))
+			continue;
+		len += sysfs_emit_at(buf, len, "%s\n",
+				damon_sysfs_ops_strs[id]);
+	}
+	return len;
+}
+
 static ssize_t operations_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -1840,10 +1855,14 @@ static void damon_sysfs_context_release(struct kobject *kobj)
 	kfree(container_of(kobj, struct damon_sysfs_context, kobj));
 }
 
+static struct kobj_attribute damon_sysfs_context_avail_operations_attr =
+		__ATTR_RO_MODE(avail_operations, 0400);
+
 static struct kobj_attribute damon_sysfs_context_operations_attr =
 		__ATTR_RW_MODE(operations, 0600);
 
 static struct attribute *damon_sysfs_context_attrs[] = {
+	&damon_sysfs_context_avail_operations_attr.attr,
 	&damon_sysfs_context_operations_attr.attr,
 	NULL,
 };
