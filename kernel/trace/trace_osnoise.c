@@ -1595,6 +1595,8 @@ static enum hrtimer_restart timerlat_irq(struct hrtimer *timer)
 
 			osnoise_stop_tracing();
 			notify_new_max_latency(diff);
+
+			return HRTIMER_NORESTART;
 		}
 	}
 
