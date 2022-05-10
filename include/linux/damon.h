@@ -261,10 +261,13 @@ struct damos {
  * enum damon_ops_id - Identifier for each monitoring operations implementation
  *
  * @DAMON_OPS_VADDR:	Monitoring operations for virtual address spaces
+ * @DAMON_OPS_FVADDR:	Monitoring operations for only fixed ranges of virtual
+ *			address spaces
  * @DAMON_OPS_PADDR:	Monitoring operations for the physical address space
  */
 enum damon_ops_id {
 	DAMON_OPS_VADDR,
+	DAMON_OPS_FVADDR,
 	DAMON_OPS_PADDR,
 	NR_DAMON_OPS,
 };
