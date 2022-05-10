@@ -63,10 +63,14 @@
 };
 
 &uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
 	status = "okay";
 };
 
 &uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
 	status = "okay";
 };
 
@@ -84,6 +88,8 @@
 	i2c-sda-falling-time-ns = <3000>;
 	i2c-scl-falling-time-ns = <3000>;
 	auto_calc_scl_lhcnt;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6_pins>;
 	status = "okay";
 
 	sc2235: sc2235@30 {
@@ -146,6 +152,8 @@
 	i2c-sda-falling-time-ns = <3000>;
 	i2c-scl-falling-time-ns = <3000>;
 	auto_calc_scl_lhcnt;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
 	status = "okay";
 
 	ac108_a: ac108@3b {
@@ -213,6 +221,8 @@
 	keep-power-in-suspend;
 	cap-mmc-highspeed;
 	post-power-on-delay-ms = <200>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins>;
 	status = "okay";
 };
 
@@ -229,10 +239,14 @@
 	keep-power-in-suspend;
 	cap-mmc-highspeed;
 	post-power-on-delay-ms = <200>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
 	status = "okay";
 };
 
 &vin_sysctl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dvp_pins>;
 	status = "okay";
 
 	ports {
@@ -283,6 +297,14 @@
 };
 
 &gmac0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac0_pins>;
+	status = "okay";
+};
+
+&gmac1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac1_pins>;
 	status = "okay";
 };
 
@@ -291,6 +313,8 @@
 };
 
 &can0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can0_pins>;
 	status = "okay";
 };
 
@@ -299,6 +323,8 @@
 };
 
 &tdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&tdm0_pins>;
 	status = "okay";
 };
 
@@ -307,6 +333,8 @@
 };
 
 &pwmdac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwmdac0_pins>;
 	status = "okay";
 };
 
@@ -315,10 +343,14 @@
 };
 
 &pdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pdm0_pins>;
 	status = "okay";
 };
 
 &i2srx_3ch {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2srx_pins>;
 	status = "okay";
 };
 
@@ -327,10 +359,14 @@
 };
 
 &i2stx_4ch1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s_clk_pins &i2stx_pins>;
 	status = "okay";
 };
 
 &ptc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_ch0_pins>;
 	status = "okay";
 };
 
@@ -351,6 +387,8 @@
 };
 
 &spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ssp0_pins>;
 	status = "okay";
 
 	spi_dev0: spi@0 {

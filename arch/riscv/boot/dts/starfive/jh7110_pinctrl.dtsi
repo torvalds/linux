@@ -9,8 +9,8 @@
 &gpio {
 	gmac0_pins: gmac0-pins {
 		gmac0-pins-reset {
-			sf,pins = <PAD_GPIO63>;
-			sf,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO13>;
+			sf,pinmux = <PAD_GPIO13_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_HIGH>;
 			sf,pin-gpio-doen = <OEN_LOW>;
@@ -25,10 +25,46 @@
 		};
 	};
 
+	uart0_pins: uart0-pins {
+		uart0-pins-tx {
+			sf,pins = <PAD_GPIO5>;
+			sf,pinmux = <PAD_GPIO5_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|GPIO_DS(3))>;
+			sf,pin-gpio-dout = <GPO_UART0_SOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		uart0-pins-rx {
+			sf,pins = <PAD_GPIO6>;
+			sf,pinmux = <PAD_GPIO6_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|GPIO_PU(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_UART0_SIN>;
+		};
+	};
+
+	uart3_pins: uart3-pins {
+		uart3-pins-tx {
+			sf,pins = <PAD_GPIO30>;
+			sf,pinmux = <PAD_GPIO30_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|GPIO_DS(3))>;
+			sf,pin-gpio-dout = <GPO_UART3_SOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		uart3-pins-rx {
+			sf,pins = <PAD_GPIO31>;
+			sf,pinmux = <PAD_GPIO31_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|GPIO_PU(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_UART3_SIN>;
+		};
+	};
+
 	i2c0_pins: i2c0-pins {
 		i2c0-pins-scl {
-			sf,pins = <PAD_GPIO52>;
-			sf,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO36>;
+			sf,pinmux = <PAD_GPIO36_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_LOW>;
 			sf,pin-gpio-doen = <OEN_I2C0_IC_CLK_OE>;
@@ -36,8 +72,8 @@
 		};
 
 		i2c0-pins-sda {
-			sf,pins = <PAD_GPIO51>;
-			sf,pinmux = <PAD_GPIO51_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO37>;
+			sf,pinmux = <PAD_GPIO37_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_LOW>;
 			sf,pin-gpio-doen = <OEN_I2C0_IC_DATA_OE>;
@@ -45,10 +81,110 @@
 		};
 	};
 
-	i2c6_pins: i2c6-pins {
-		i2c6-pins-scl {
+	i2c1_pins: i2c1-pins {
+		i2c1-pins-scl {
+			sf,pins = <PAD_GPIO7>;
+			sf,pinmux = <PAD_GPIO7_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C1_IC_CLK_OE>;
+			sf,pin-gpio-din =  <GPI_I2C1_IC_CLK_IN_A>;
+		};
+
+		i2c1-pins-sda {
+			sf,pins = <PAD_GPIO8>;
+			sf,pinmux = <PAD_GPIO8_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C1_IC_DATA_OE>;
+			sf,pin-gpio-din =  <GPI_I2C1_IC_DATA_IN_A>;
+		};
+	};
+
+	i2c2_pins: i2c2-pins {
+		i2c2-pins-scl {
+			sf,pins = <PAD_GPIO11>;
+			sf,pinmux = <PAD_GPIO11_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C2_IC_CLK_OE>;
+			sf,pin-gpio-din =  <GPI_I2C2_IC_CLK_IN_A>;
+		};
+
+		i2c2-pins-sda {
+			sf,pins = <PAD_GPIO9>;
+			sf,pinmux = <PAD_GPIO9_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C2_IC_DATA_OE>;
+			sf,pin-gpio-din =  <GPI_I2C2_IC_DATA_IN_A>;
+		};
+	};
+
+	i2c3_pins: i2c3-pins {
+		i2c3-pins-scl {
+			sf,pins = <PAD_GPIO38>;
+			sf,pinmux = <PAD_GPIO38_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C3_IC_CLK_OE>;
+			sf,pin-gpio-din =  <GPI_I2C3_IC_CLK_IN_A>;
+		};
+
+		i2c3-pins-sda {
+			sf,pins = <PAD_GPIO39>;
+			sf,pinmux = <PAD_GPIO39_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C3_IC_DATA_OE>;
+			sf,pin-gpio-din =  <GPI_I2C3_IC_DATA_IN_A>;
+		};
+	};
+
+	i2c4_pins: i2c4-pins {
+		i2c4-pins-scl {
+			sf,pins = <PAD_GPIO18>;
+			sf,pinmux = <PAD_GPIO18_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C4_IC_CLK_OE>;
+			sf,pin-gpio-din =  <GPI_I2C4_IC_CLK_IN_A>;
+		};
+
+		i2c4-pins-sda {
+			sf,pins = <PAD_GPIO12>;
+			sf,pinmux = <PAD_GPIO12_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C4_IC_DATA_OE>;
+			sf,pin-gpio-din =  <GPI_I2C4_IC_DATA_IN_A>;
+		};
+	};
+
+	i2c5_pins: i2c5-pins {
+		i2c5-pins-scl {
+			sf,pins = <PAD_GPIO19>;
+			sf,pinmux = <PAD_GPIO19_FUNC_SEL 0>;
+			sf,pin-ioconfig = <genIO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C5_IC_CLK_OE>;
+			sf,pin-gpio-din =  <GPI_I2C5_IC_CLK_IN_A>;
+		};
+
+		i2c5-pins-sda {
 			sf,pins = <PAD_GPIO20>;
 			sf,pinmux = <PAD_GPIO20_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C5_IC_DATA_OE>;
+			sf,pin-gpio-din =  <GPI_I2C5_IC_DATA_IN_A>;
+		};
+	};
+
+	i2c6_pins: i2c6-pins {
+		i2c6-pins-scl {
+			sf,pins = <PAD_GPIO16>;
+			sf,pinmux = <PAD_GPIO16_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_LOW>;
 			sf,pin-gpio-doen = <OEN_I2C6_IC_CLK_OE>;
@@ -56,8 +192,8 @@
 		};
 
 		i2c6-pins-sda {
-			sf,pins = <PAD_GPIO19>;
-			sf,pinmux = <PAD_GPIO19_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO17>;
+			sf,pinmux = <PAD_GPIO17_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_LOW>;
 			sf,pin-gpio-doen = <OEN_I2C6_IC_DATA_OE>;
@@ -67,8 +203,8 @@
 
 	mmc0_pins: mmc0-pins {
 		 mmc0-pins-rest {
-			sf,pins = <PAD_GPIO62>;
-			sf,pinmux = <PAD_GPIO62_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO22>;
+			sf,pinmux = <PAD_GPIO22_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_SDIO0_RST_N>;
 			sf,pin-gpio-doen = <OEN_LOW>;
@@ -132,8 +268,8 @@
 
 	pwmdac0_pins: pwmdac0-pins {
 		pwmdac0-pins-left {
-			sf,pins = <PAD_GPIO19>;
-			sf,pinmux = <PAD_GPIO19_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO57>;
+			sf,pinmux = <PAD_GPIO57_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_PWMDAC0_LEFT_OUTPUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
@@ -150,16 +286,16 @@
 
 	pdm0_pins: pdm0-pins {
 		pdm0-pins-mclk {
-			sf,pins = <PAD_GPIO31>;
-			sf,pinmux = <PAD_GPIO31_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO54>;
+			sf,pinmux = <PAD_GPIO54_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_PDM_4MIC0_DMIC_MCLK>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		pdm0-pins-sdin {
-			sf,pins = <PAD_GPIO26>;
-			sf,pinmux = <PAD_GPIO26_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO60>;
+			sf,pinmux = <PAD_GPIO60_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-doen = <OEN_HIGH>;
 			sf,pin-gpio-din =  <GPI_PDM_4MIC0_DMIC0_DIN>;
@@ -210,24 +346,24 @@
 
 	i2s_clk_pins: i2s-clk0 {
 		i2s-clk0_mclk {
-			sf,pins = <PAD_GPIO32>;
-			sf,pinmux = <PAD_GPIO32_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO58>;
+			sf,pinmux = <PAD_GPIO58_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_CRG0_MCLK_OUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		i2s-clk0_bclk {
-			sf,pins = <PAD_GPIO37>;
-			sf,pinmux = <PAD_GPIO37_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO54>;
+			sf,pinmux = <PAD_GPIO54_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_I2SRX0_BCLK_MST>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		i2s-clk0_lrclk {
-			sf,pins = <PAD_GPIO25>;
-			sf,pinmux = <PAD_GPIO25_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO59>;
+			sf,pinmux = <PAD_GPIO59_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_I2SRX0_LRCK_MST>;
 			sf,pin-gpio-doen = <OEN_LOW>;
@@ -256,24 +392,24 @@
 
 	can0_pins: can0-pins {
 		can0-pins0 {
-			sf,pins = <PAD_GPIO28>;
-			sf,pinmux = <PAD_GPIO28_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO30>;
+			sf,pinmux = <PAD_GPIO30_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_CAN0_CTRL_TXD>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		can0-pins1 {
-			sf,pins = <PAD_GPIO27>;
-			sf,pinmux = <PAD_GPIO27_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO31>;
+			sf,pinmux = <PAD_GPIO31_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-doen = <OEN_HIGH>;
 			sf,pin-gpio-din =  <GPI_CAN0_CTRL_RXD>;
 		};
 
 		can0-pins2 {
-			sf,pins = <PAD_GPIO45>;
-			sf,pinmux = <PAD_GPIO45_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO32>;
+			sf,pinmux = <PAD_GPIO32_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_CAN0_CTRL_STBY>;
 			sf,pin-gpio-doen = <OEN_LOW>;
@@ -318,32 +454,32 @@
 
 	ssp0_pins: ssp0-pins {
 		ssp0-pins_tx {
-			sf,pins = <PAD_GPIO36>;
-			sf,pinmux = <PAD_GPIO36_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO48>;
+			sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_SPI0_SSPTXD>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		ssp0-pins_rx {
-			sf,pins = <PAD_GPIO35>;
-			sf,pinmux = <PAD_GPIO35_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO49>;
+			sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-doen = <OEN_HIGH>;
 			sf,pin-gpio-din =  <GPI_SPI0_SSPRXD>;
 		};
 
 		ssp0-pins_clk {
-			sf,pins = <PAD_GPIO34>;
-			sf,pinmux = <PAD_GPIO34_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO50>;
+			sf,pinmux = <PAD_GPIO50_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_SPI0_SSPCLKOUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		ssp0-pins_cs {
-			sf,pins = <PAD_GPIO33>;
-			sf,pinmux = <PAD_GPIO33_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO51>;
+			sf,pinmux = <PAD_GPIO51_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_SPI0_SSPFSSOUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
@@ -742,110 +878,4 @@
 		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
 		//};
 	};
-};
-
-&gpioa {
-	pwm_ch4_pins: pwm_ch4-pins {
-		pwm_ch4-pins0 {
-			sf,pins = <PAD_RGPIO2>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <U0_PWM_8CH_PTC_PWM_4>;
-			sf,pin-gpio-doen = <U0_PWM_8CH_PTC_OE_N_4>;
-		};
-	};
-};
-
-&gmac0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_pins>;
-	status = "okay";
-};
-
-&gmac1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1_pins>;
-};
-
-&i2c6 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c6_pins>;
-	status = "okay";
-};
-
-&i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins>;
-	status = "okay";
-};
-
-&i2stx_4ch1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2s_clk_pins &i2stx_pins>;
-	status = "okay";
-};
-
-&i2srx_3ch {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2srx_pins>;
-	status = "okay";
-};
-
-&can0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&can0_pins>;
-	status = "okay";
-};
-
-&pwmdac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pwmdac0_pins>;
-	status = "okay";
-};
-
-&pdm {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pdm0_pins>;
-	status = "okay";
-};
-
-&ptc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pwm_ch0_pins>;
-	status = "okay";
-};
-
-&pdm {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pdm0_pins>;
-	status = "okay";
-};
-
-&tdm {
-	pinctrl-names = "default";
-	pinctrl-0 = <&tdm0_pins>;
-	status = "okay";
-};
-
-&sdio0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins>;
-	status = "okay";
-};
-
-&sdio1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins>;
-	status = "okay";
-};
-
-&vin_sysctl {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dvp_pins>;
-	status = "okay";
-};
-
-&spi0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&ssp0_pins>;
-	status = "okay";
 };
