@@ -1627,6 +1627,32 @@ static void yield_task_rt(struct rq *rq)
 #ifdef CONFIG_SMP
 static int find_lowest_rq(struct task_struct *task);
 
+#ifdef CONFIG_RT_SOFTIRQ_AWARE_SCHED
+/*
+ * Return whether the given cpu is currently non-preemptible
+ * while handling a potentially long softirq, or if the current
+ * task is likely to block preemptions soon because it is a
+ * ksoftirq thread that is handling softirqs.
+ */
+static bool cpu_busy_with_softirqs(int cpu)
+{
+	u32 softirqs = per_cpu(active_softirqs, cpu) |
+		       __cpu_softirq_pending(cpu);
+
+	return softirqs & LONG_SOFTIRQ_MASK;
+}
+#else
+static bool cpu_busy_with_softirqs(int cpu)
+{
+	return false;
+}
+#endif /* CONFIG_RT_SOFTIRQ_AWARE_SCHED */
+
+static bool rt_task_fits_cpu(struct task_struct *p, int cpu)
+{
+	return rt_task_fits_capacity(p, cpu) && !cpu_busy_with_softirqs(cpu);
+}
+
 static int
 select_task_rq_rt(struct task_struct *p, int cpu, int flags)
 {
@@ -1676,9 +1702,11 @@ select_task_rq_rt(struct task_struct *p, int cpu, int flags)
 	 * This test is optimistic, if we get it wrong the load-balancer
 	 * will have to sort it out.
 	 *
-	 * We take into account the capacity of the CPU to ensure it fits the
-	 * requirement of the task - which is only important on heterogeneous
-	 * systems like big.LITTLE.
+	 * We use rt_task_fits_cpu() to evaluate if the CPU is busy with
+	 * potentially long-running softirq work, as well as take into
+	 * account the capacity of the CPU to ensure it fits the
+	 * requirement of the task - which is only important on
+	 * heterogeneous systems like big.LITTLE.
 	 */
 	test = curr &&
 	       unlikely(rt_task(curr)) &&
@@ -1693,14 +1721,14 @@ select_task_rq_rt(struct task_struct *p, int cpu, int flags)
 		goto out_unlock;
 	}
 
-	if (test || !rt_task_fits_capacity(p, cpu)) {
+	if (test || !rt_task_fits_cpu(p, cpu)) {
 		int target = find_lowest_rq(p);
 
 		/*
 		 * Bail out if we were forcing a migration to find a better
 		 * fitting CPU but our search failed.
 		 */
-		if (!test && target != -1 && !rt_task_fits_capacity(p, target))
+		if (!test && target != -1 && !rt_task_fits_cpu(p, target))
 			goto out_unlock;
 
 		/*
@@ -1947,14 +1975,17 @@ static int find_lowest_rq(struct task_struct *task)
 		return -1; /* No other targets possible */
 
 	/*
-	 * If we're on asym system ensure we consider the different capacities
-	 * of the CPUs when searching for the lowest_mask.
+	 * If we're using the softirq optimization or if we are
+	 * on asym system, ensure we consider the softirq processing
+	 * or different capacities of the CPUs when searching for the
+	 * lowest_mask.
 	 */
-	if (sched_asym_cpucap_active()) {
+	if (IS_ENABLED(CONFIG_RT_SOFTIRQ_AWARE_SCHED) ||
+	    sched_asym_cpucap_active()) {
 
 		ret = cpupri_find_fitness(&task_rq(task)->rd->cpupri,
 					  task, lowest_mask,
-					  rt_task_fits_capacity);
+					  rt_task_fits_cpu);
 	} else {
 
 		ret = cpupri_find(&task_rq(task)->rd->cpupri,
