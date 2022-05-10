@@ -675,9 +675,12 @@ static void aspeed_pcie_port_init(struct aspeed_pcie *pcie)
 {
 	u32 link_sts = 0;
 
-	//reset rc bridge
-	reset_control_assert(pcie->phy_rst);
-	ndelay(100);
+	//workaround : Send vender define message for avoid when PCIE RESET send unknown message out
+	regmap_write(pcie->cfg, 0x10, 0x34000000);
+	regmap_write(pcie->cfg, 0x14, 0x0000007f);
+	regmap_write(pcie->cfg, 0x18, 0x00001a03);
+	regmap_write(pcie->cfg, 0x1C, 0x00000000);
+
 	//plda init
 	regmap_write(pcie->pciephy, ASPEED_PCIE_LOCK, PCIE_UNLOCK);
 //	regmap_write(pcie->pciephy, ASPEED_PCIE_CLASS_CODE, PCIE_CFG_CLASS_CODE(0x60000) | PCIE_CFG_REV_ID(4));
@@ -755,7 +758,7 @@ static int aspeed_pcie_setup(struct aspeed_pcie *pcie)
 	if (pcie->irq < 0)
 		return pcie->irq;
 
-	pcie->phy_rst = devm_reset_control_get_exclusive(pcie->dev, NULL);
+	pcie->phy_rst = devm_reset_control_get_shared(pcie->dev, NULL);
 	if (IS_ERR(pcie->phy_rst)) {
 		dev_err(&pdev->dev, "can't get pcie phy reset\n");
 		return PTR_ERR(pcie->phy_rst);

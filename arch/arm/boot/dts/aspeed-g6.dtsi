@@ -510,8 +510,11 @@
 			pciecfg: pciecfg@1e770000 {
 				compatible = "aspeed,ast2600-pciecfg", "syscon";
 				reg = <0x1e770000 0x80>;
-				resets = <&syscon ASPEED_RESET_H2X>;
+				resets = <&syscon ASPEED_RESET_H2X>, <&syscon ASPEED_RESET_PCIE_DEV_O>, <&syscon ASPEED_RESET_PCIE_RC_O>;
+				reset-names = "h2x", "rc_low", "rc_high";
 				aspeed,ahbc = <&ahbc>;
+				aspeed,pcie0 = <&pcie0>;
+				aspeed,pcie1 = <&pcie1>;
 
 				status = "disabled";
 			};

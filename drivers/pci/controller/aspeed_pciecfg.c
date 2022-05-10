@@ -17,6 +17,8 @@ struct aspeed_pciecfg {
 	struct device *dev;
 	void __iomem *reg;
 	struct reset_control *rst;
+	struct reset_control *rc_low_rst;
+	struct reset_control *rc_high_rst;
 	struct regmap *ahbc;
 };
 
@@ -30,6 +32,17 @@ static void aspeed_pciecfg_init(struct aspeed_pciecfg *pciecfg)
 {
 	//h2x reset init
 	reset_control_assert(pciecfg->rst);
+	//rcL assert
+	if (pciecfg->rc_low_rst) {
+		reset_control_deassert(pciecfg->rc_low_rst);
+		reset_control_assert(pciecfg->rc_low_rst);
+	}
+	//rch assert
+	if (pciecfg->rc_high_rst) {
+		reset_control_deassert(pciecfg->rc_high_rst);
+		reset_control_assert(pciecfg->rc_high_rst);
+	}
+
 	reset_control_deassert(pciecfg->rst);
 
 	//init
@@ -50,6 +63,7 @@ static void aspeed_pciecfg_init(struct aspeed_pciecfg *pciecfg)
 static int aspeed_pciecfg_probe(struct platform_device *pdev)
 {
 	struct aspeed_pciecfg *pciecfg;
+	struct device *dev = &pdev->dev;
 
 	pciecfg = devm_kzalloc(&pdev->dev, sizeof(*pciecfg), GFP_KERNEL);
 	if (!pciecfg)
@@ -65,6 +79,25 @@ static int aspeed_pciecfg_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't get pcie reset\n");
 		return PTR_ERR(pciecfg->rst);
 	}
+
+	if (of_device_is_available(of_parse_phandle(dev->of_node, "aspeed,pcie0", 0))) {
+		pciecfg->rc_low_rst = devm_reset_control_get_shared(&pdev->dev, "rc_low");
+		if (IS_ERR(pciecfg->rc_low_rst)) {
+			dev_err(&pdev->dev, "can't get RC low reset\n");
+			pciecfg->rc_low_rst = NULL;
+		}
+	} else
+		pciecfg->rc_low_rst = NULL;
+
+
+	if (of_device_is_available(of_parse_phandle(dev->of_node, "aspeed,pcie1", 0))) {
+		pciecfg->rc_high_rst = devm_reset_control_get_shared(&pdev->dev, "rc_high");
+		if (IS_ERR(pciecfg->rc_high_rst)) {
+			dev_err(&pdev->dev, "can't get RC high reset\n");
+			pciecfg->rc_high_rst = NULL;
+		}
+	} else
+		pciecfg->rc_high_rst = NULL;
 
 	pciecfg->ahbc = syscon_regmap_lookup_by_compatible("aspeed,aspeed-ahbc");
 	if (IS_ERR(pciecfg->ahbc))
