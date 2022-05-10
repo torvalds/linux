@@ -606,16 +606,12 @@ void dccg31_set_audio_dtbclk_dto(
 
 		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
 				DCCG_AUDIO_DTO_SEL, 4);  //  04 - DCCG_AUDIO_DTO_SEL_AUDIO_DTO_DTBCLK
-
-		dccg->audio_dtbclk_khz = req_audio_dtbclk_khz;
 	} else {
 		REG_WRITE(DCCG_AUDIO_DTBCLK_DTO_PHASE, 0);
 		REG_WRITE(DCCG_AUDIO_DTBCLK_DTO_MODULO, 0);
 
 		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
 				DCCG_AUDIO_DTO_SEL, 3);  //  03 - DCCG_AUDIO_DTO_SEL_NO_AUDIO_DTO
-
-		dccg->audio_dtbclk_khz = 0;
 	}
 }
 
