@@ -1803,7 +1803,7 @@ static int cs35l36_i2c_probe(struct i2c_client *i2c_client)
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Failed to read otp_id Register %d\n",
 			ret);
-		return ret;
+		goto err;
 	}
 
 	if ((l37_id_reg & CS35L36_OTP_REV_MASK) == CS35L36_OTP_REV_L37)
