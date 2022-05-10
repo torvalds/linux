@@ -460,7 +460,7 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	if (test_and_set_bit(XPT_BUSY, &xprt->xpt_flags))
 		return;
 
-	pool = svc_pool_for_cpu(xprt->xpt_server, raw_smp_processor_id());
+	pool = svc_pool_for_cpu(xprt->xpt_server);
 
 	atomic_long_inc(&pool->sp_stats.packets);
 

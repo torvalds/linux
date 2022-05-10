@@ -356,15 +356,21 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 	}
 }
 
-/*
- * Use the mapping mode to choose a pool for a given CPU.
- * Used when enqueueing an incoming RPC.  Always returns
- * a non-NULL pool pointer.
+/**
+ * svc_pool_for_cpu - Select pool to run a thread on this cpu
+ * @serv: An RPC service
+ *
+ * Use the active CPU and the svc_pool_map's mode setting to
+ * select the svc thread pool to use. Once initialized, the
+ * svc_pool_map does not change.
+ *
+ * Return value:
+ *   A pointer to an svc_pool
  */
-struct svc_pool *
-svc_pool_for_cpu(struct svc_serv *serv, int cpu)
+struct svc_pool *svc_pool_for_cpu(struct svc_serv *serv)
 {
 	struct svc_pool_map *m = &svc_pool_map;
+	int cpu = raw_smp_processor_id();
 	unsigned int pidx = 0;
 
 	if (serv->sv_nrpools <= 1)
