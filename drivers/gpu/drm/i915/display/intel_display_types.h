@@ -1474,6 +1474,7 @@ struct intel_pps {
 	int backlight_off_delay;
 	struct delayed_work panel_vdd_work;
 	bool want_panel_vdd;
+	bool initializing;
 	unsigned long last_power_on;
 	unsigned long last_backlight_off;
 	ktime_t panel_power_off_time;

@@ -723,6 +723,13 @@ static void edp_panel_vdd_schedule_off(struct intel_dp *intel_dp)
 	unsigned long delay;
 
 	/*
+	 * We may not yet know the real power sequencing delays,
+	 * so keep VDD enabled until we're done with init.
+	 */
+	if (intel_dp->pps.initializing)
+		return;
+
+	/*
 	 * Queue the timer to fire a long time from now (relative to the power
 	 * down delay) to keep the panel power up across a sequence of
 	 * operations.
@@ -1419,6 +1426,7 @@ void intel_pps_init(struct intel_dp *intel_dp)
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	intel_wakeref_t wakeref;
 
+	intel_dp->pps.initializing = true;
 	INIT_DELAYED_WORK(&intel_dp->pps.panel_vdd_work, edp_panel_vdd_work);
 
 	pps_init_timestamps(intel_dp);
@@ -1442,6 +1450,8 @@ void intel_pps_init_late(struct intel_dp *intel_dp)
 		memset(&intel_dp->pps.pps_delays, 0, sizeof(intel_dp->pps.pps_delays));
 		pps_init_delays(intel_dp);
 		pps_init_registers(intel_dp, false);
+
+		intel_dp->pps.initializing = false;
 
 		if (edp_have_panel_vdd(intel_dp))
 			edp_panel_vdd_schedule_off(intel_dp);
