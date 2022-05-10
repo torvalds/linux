@@ -15,7 +15,6 @@
 	/delete-node/ opp-600000000;
 	/delete-node/ opp-816000000;
 	/delete-node/ opp-1008000000;
-	/delete-node/ opp-2400000000;
 };
 
 &cluster1_opp_table {
@@ -23,6 +22,9 @@
 	/delete-node/ opp-600000000;
 	/delete-node/ opp-816000000;
 	/delete-node/ opp-1008000000;
+	/delete-node/ opp-2256000000;
+	/delete-node/ opp-2304000000;
+	/delete-node/ opp-2352000000;
 	/delete-node/ opp-2400000000;
 };
 
@@ -31,6 +33,9 @@
 	/delete-node/ opp-600000000;
 	/delete-node/ opp-816000000;
 	/delete-node/ opp-1008000000;
+	/delete-node/ opp-2256000000;
+	/delete-node/ opp-2304000000;
+	/delete-node/ opp-2352000000;
 	/delete-node/ opp-2400000000;
 };
 
