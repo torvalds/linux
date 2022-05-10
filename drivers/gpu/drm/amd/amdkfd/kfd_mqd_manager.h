@@ -119,6 +119,8 @@ struct mqd_manager {
 	int	(*debugfs_show_mqd)(struct seq_file *m, void *data);
 #endif
 	uint32_t (*read_doorbell_id)(void *mqd);
+	uint64_t (*mqd_stride)(struct mqd_manager *mm,
+				struct queue_properties *p);
 
 	struct mutex	mqd_mutex;
 	struct kfd_node	*dev;
@@ -164,4 +166,10 @@ bool kfd_is_occupied_sdma(struct mqd_manager *mm, void *mqd,
 		uint64_t queue_address, uint32_t pipe_id,
 		uint32_t queue_id);
 
+void kfd_get_hiq_xcc_mqd(struct kfd_node *dev,
+		struct kfd_mem_obj *mqd_mem_obj, uint32_t virtual_xcc_id);
+
+uint64_t kfd_hiq_mqd_stride(struct kfd_node *dev);
+uint64_t kfd_mqd_stride(struct mqd_manager *mm,
+			struct queue_properties *q);
 #endif /* KFD_MQD_MANAGER_H_ */

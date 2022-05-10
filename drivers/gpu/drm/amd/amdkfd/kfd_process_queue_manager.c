@@ -927,7 +927,9 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 	struct queue *q;
 	enum KFD_MQD_TYPE mqd_type;
 	struct mqd_manager *mqd_mgr;
-	int r = 0;
+	int r = 0, xcc, num_xccs = 1;
+	void *mqd;
+	uint64_t size = 0;
 
 	list_for_each_entry(pqn, &pqm->queues, process_queue_list) {
 		if (pqn->q) {
@@ -943,6 +945,7 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 				seq_printf(m, "  Compute queue on device %x\n",
 					   q->device->id);
 				mqd_type = KFD_MQD_TYPE_CP;
+				num_xccs = q->device->num_xcc_per_node;
 				break;
 			default:
 				seq_printf(m,
@@ -951,6 +954,8 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 				continue;
 			}
 			mqd_mgr = q->device->dqm->mqd_mgrs[mqd_type];
+			size = mqd_mgr->mqd_stride(mqd_mgr,
+							&q->properties);
 		} else if (pqn->kq) {
 			q = pqn->kq->queue;
 			mqd_mgr = pqn->kq->mqd_mgr;
@@ -972,9 +977,12 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 			continue;
 		}
 
-		r = mqd_mgr->debugfs_show_mqd(m, q->mqd);
-		if (r != 0)
-			break;
+		for (xcc = 0; xcc < num_xccs; xcc++) {
+			mqd = q->mqd + size * xcc;
+			r = mqd_mgr->debugfs_show_mqd(m, mqd);
+			if (r != 0)
+				break;
+		}
 	}
 
 	return r;

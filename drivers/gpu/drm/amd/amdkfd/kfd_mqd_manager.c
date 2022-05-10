@@ -76,7 +76,8 @@ struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_node *dev,
 		q->sdma_queue_id) *
 		dev->dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA]->mqd_size;
 
-	offset += dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
+	offset += dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size *
+		  dev->num_xcc_per_node;
 
 	mqd_mem_obj->gtt_mem = (void *)((uint64_t)dev->dqm->hiq_sdma_mqd.gtt_mem
 				+ offset);
@@ -245,4 +246,29 @@ bool kfd_is_occupied_sdma(struct mqd_manager *mm, void *mqd,
 		      uint32_t queue_id)
 {
 	return mm->dev->kfd2kgd->hqd_sdma_is_occupied(mm->dev->adev, mqd);
+}
+
+uint64_t kfd_hiq_mqd_stride(struct kfd_node *dev)
+{
+	return dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
+}
+
+void kfd_get_hiq_xcc_mqd(struct kfd_node *dev, struct kfd_mem_obj *mqd_mem_obj,
+		     uint32_t virtual_xcc_id)
+{
+	uint64_t offset;
+
+	offset = kfd_hiq_mqd_stride(dev) * virtual_xcc_id;
+
+	mqd_mem_obj->gtt_mem = (virtual_xcc_id == 0) ?
+			dev->dqm->hiq_sdma_mqd.gtt_mem : NULL;
+	mqd_mem_obj->gpu_addr = dev->dqm->hiq_sdma_mqd.gpu_addr + offset;
+	mqd_mem_obj->cpu_ptr = (uint32_t *)((uintptr_t)
+				dev->dqm->hiq_sdma_mqd.cpu_ptr + offset);
+}
+
+uint64_t kfd_mqd_stride(struct mqd_manager *mm,
+			struct queue_properties *q)
+{
+	return mm->mqd_size;
 }

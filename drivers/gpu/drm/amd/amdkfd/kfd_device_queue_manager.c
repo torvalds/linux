@@ -2247,7 +2247,8 @@ static int allocate_hiq_sdma_mqd(struct device_queue_manager *dqm)
 	uint32_t size = dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA]->mqd_size *
 		get_num_all_sdma_engines(dqm) *
 		dev->kfd->device_info.num_sdma_queues_per_engine +
-		dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
+		(dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size *
+		dqm->dev->num_xcc_per_node);
 
 	retval = amdgpu_amdkfd_alloc_gtt_mem(dev->adev, size,
 		&(mem_obj->gtt_mem), &(mem_obj->gpu_addr),

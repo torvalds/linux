@@ -800,6 +800,41 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_device *bdev,
 	sg_free_table(ttm->sg);
 }
 
+/*
+ * total_pages is constructed as MQD0+CtrlStack0 + MQD1+CtrlStack1 + ...
+ * MQDn+CtrlStackn where n is the number of XCCs per partition.
+ * pages_per_xcc is the size of one MQD+CtrlStack. The first page is MQD
+ * and uses memory type default, UC. The rest of pages_per_xcc are
+ * Ctrl stack and modify their memory type to NC.
+ */
+static void amdgpu_ttm_gart_bind_gfx9_mqd(struct amdgpu_device *adev,
+				struct ttm_tt *ttm, uint64_t flags)
+{
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	uint64_t total_pages = ttm->num_pages;
+	int num_xcc = max(1U, adev->gfx.num_xcc_per_xcp);
+	uint64_t page_idx, pages_per_xcc = total_pages / num_xcc;
+	int i;
+	uint64_t ctrl_flags = (flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
+			AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_NC);
+
+	for (i = 0, page_idx = 0; i < num_xcc; i++, page_idx += pages_per_xcc) {
+		/* MQD page: use default flags */
+		amdgpu_gart_bind(adev,
+				gtt->offset + (page_idx << PAGE_SHIFT),
+				1, &gtt->ttm.dma_address[page_idx], flags);
+		/*
+		 * Ctrl pages - modify the memory type to NC (ctrl_flags) from
+		 * the second page of the BO onward.
+		 */
+		amdgpu_gart_bind(adev,
+				gtt->offset + ((page_idx + 1) << PAGE_SHIFT),
+				pages_per_xcc - 1,
+				&gtt->ttm.dma_address[page_idx + 1],
+				ctrl_flags);
+	}
+}
+
 static void amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
 				 struct ttm_buffer_object *tbo,
 				 uint64_t flags)
@@ -812,21 +847,7 @@ static void amdgpu_ttm_gart_bind(struct amdgpu_device *adev,
 		flags |= AMDGPU_PTE_TMZ;
 
 	if (abo->flags & AMDGPU_GEM_CREATE_CP_MQD_GFX9) {
-		uint64_t page_idx = 1;
-
-		amdgpu_gart_bind(adev, gtt->offset, page_idx,
-				 gtt->ttm.dma_address, flags);
-
-		/* The memory type of the first page defaults to UC. Now
-		 * modify the memory type to NC from the second page of
-		 * the BO onward.
-		 */
-		flags &= ~AMDGPU_PTE_MTYPE_VG10_MASK;
-		flags |= AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_NC);
-
-		amdgpu_gart_bind(adev, gtt->offset + (page_idx << PAGE_SHIFT),
-				 ttm->num_pages - page_idx,
-				 &(gtt->ttm.dma_address[page_idx]), flags);
+		amdgpu_ttm_gart_bind_gfx9_mqd(adev, ttm, flags);
 	} else {
 		amdgpu_gart_bind(adev, gtt->offset, ttm->num_pages,
 				 gtt->ttm.dma_address, flags);

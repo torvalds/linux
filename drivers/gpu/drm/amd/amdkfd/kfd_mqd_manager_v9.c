@@ -33,6 +33,21 @@
 #include "sdma0/sdma0_4_0_sh_mask.h"
 #include "amdgpu_amdkfd.h"
 
+static void update_mqd(struct mqd_manager *mm, void *mqd,
+		       struct queue_properties *q,
+		       struct mqd_update_info *minfo);
+
+static uint64_t mqd_stride_v9(struct mqd_manager *mm,
+				struct queue_properties *q)
+{
+	if (mm->dev->kfd->cwsr_enabled &&
+	    q->type == KFD_QUEUE_TYPE_COMPUTE)
+		return ALIGN(q->ctl_stack_size, PAGE_SIZE) +
+			ALIGN(sizeof(struct v9_mqd), PAGE_SIZE);
+
+	return mm->mqd_size;
+}
+
 static inline struct v9_mqd *get_mqd(void *mqd)
 {
 	return (struct v9_mqd *)mqd;
@@ -110,8 +125,9 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
 		if (!mqd_mem_obj)
 			return NULL;
 		retval = amdgpu_amdkfd_alloc_gtt_mem(node->adev,
-			ALIGN(q->ctl_stack_size, PAGE_SIZE) +
-				ALIGN(sizeof(struct v9_mqd), PAGE_SIZE),
+			(ALIGN(q->ctl_stack_size, PAGE_SIZE) +
+			ALIGN(sizeof(struct v9_mqd), PAGE_SIZE)) *
+			node->num_xcc_per_node,
 			&(mqd_mem_obj->gtt_mem),
 			&(mqd_mem_obj->gpu_addr),
 			(void *)&(mqd_mem_obj->cpu_ptr), true);
@@ -165,24 +181,9 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 			1 << CP_HQD_QUANTUM__QUANTUM_SCALE__SHIFT |
 			1 << CP_HQD_QUANTUM__QUANTUM_DURATION__SHIFT;
 
-	if (q->format == KFD_QUEUE_FORMAT_AQL) {
+	if (q->format == KFD_QUEUE_FORMAT_AQL)
 		m->cp_hqd_aql_control =
 			1 << CP_HQD_AQL_CONTROL__CONTROL0__SHIFT;
-		if (KFD_GC_VERSION(mm->dev) == IP_VERSION(9, 4, 3)) {
-			/* On GC 9.4.3, DW 41 is re-purposed as
-			 * compute_tg_chunk_size.
-			 * TODO: review this setting when active CUs in the
-			 * partition play a role
-			 */
-			m->compute_static_thread_mgmt_se6 = 1;
-		}
-	} else {
-		/* PM4 queue */
-		if (KFD_GC_VERSION(mm->dev) == IP_VERSION(9, 4, 3)) {
-			m->compute_static_thread_mgmt_se6 = 0;
-			/* TODO: program pm4_target_xcc */
-		}
-	}
 
 	if (q->tba_addr) {
 		m->compute_pgm_rsrc2 |=
@@ -205,7 +206,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	*mqd = m;
 	if (gart_addr)
 		*gart_addr = addr;
-	mm->update_mqd(mm, m, q, NULL);
+	update_mqd(mm, m, q, NULL);
 }
 
 static int load_mqd(struct mqd_manager *mm, void *mqd,
@@ -269,13 +270,10 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	m->cp_hqd_vmid = q->vmid;
 
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
-		m->cp_hqd_pq_control |=
+		m->cp_hqd_pq_control |= CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK |
 				2 << CP_HQD_PQ_CONTROL__SLOT_BASED_WPTR__SHIFT |
 				1 << CP_HQD_PQ_CONTROL__QUEUE_FULL_EN__SHIFT |
 				1 << CP_HQD_PQ_CONTROL__WPP_CLAMP_EN__SHIFT;
-		if (KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 3))
-			m->cp_hqd_pq_control |=
-				CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK;
 		m->cp_hqd_pq_doorbell_control |= 1 <<
 			CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_BIF_DROP__SHIFT;
 	}
@@ -466,6 +464,224 @@ static void restore_mqd_sdma(struct mqd_manager *mm, void **mqd,
 	qp->is_active = 0;
 }
 
+static void init_mqd_hiq_v9_4_3(struct mqd_manager *mm, void **mqd,
+			struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
+			struct queue_properties *q)
+{
+	struct v9_mqd *m;
+	int xcc = 0;
+	struct kfd_mem_obj xcc_mqd_mem_obj;
+	uint64_t xcc_gart_addr = 0;
+
+	memset(&xcc_mqd_mem_obj, 0x0, sizeof(struct kfd_mem_obj));
+
+	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+		kfd_get_hiq_xcc_mqd(mm->dev, &xcc_mqd_mem_obj, xcc);
+
+		init_mqd(mm, (void **)&m, &xcc_mqd_mem_obj, &xcc_gart_addr, q);
+
+		m->cp_hqd_pq_control |= CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK |
+					1 << CP_HQD_PQ_CONTROL__PRIV_STATE__SHIFT |
+					1 << CP_HQD_PQ_CONTROL__KMD_QUEUE__SHIFT;
+		m->cp_mqd_stride_size = kfd_hiq_mqd_stride(mm->dev);
+		if (xcc == 0) {
+			/* Set no_update_rptr = 0 in Master XCC */
+			m->cp_hqd_pq_control &= ~CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK;
+
+			/* Set the MQD pointer and gart address to XCC0 MQD */
+			*mqd = m;
+			*gart_addr = xcc_gart_addr;
+		}
+	}
+}
+
+static int hiq_load_mqd_kiq_v9_4_3(struct mqd_manager *mm, void *mqd,
+			uint32_t pipe_id, uint32_t queue_id,
+			struct queue_properties *p, struct mm_struct *mms)
+{
+	int xcc, err;
+	void *xcc_mqd;
+	uint64_t hiq_mqd_size = kfd_hiq_mqd_stride(mm->dev);
+
+	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+		xcc_mqd = mqd + hiq_mqd_size * xcc;
+		err = mm->dev->kfd2kgd->hiq_mqd_load(mm->dev->adev, xcc_mqd,
+						     pipe_id, queue_id,
+						     p->doorbell_off);
+		if (err) {
+			pr_debug("Failed to load HIQ MQD for XCC: %d\n", xcc);
+			break;
+		}
+	}
+
+	return err;
+}
+
+static int destroy_hiq_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
+			enum kfd_preempt_type type, unsigned int timeout,
+			uint32_t pipe_id, uint32_t queue_id)
+{
+	int xcc = 0, err;
+	void *xcc_mqd;
+	uint64_t hiq_mqd_size = kfd_hiq_mqd_stride(mm->dev);
+
+	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+		xcc_mqd = mqd + hiq_mqd_size * xcc;
+		err = mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, xcc_mqd,
+						    type, timeout, pipe_id,
+						    queue_id);
+		if (err) {
+			pr_debug("Destroy MQD failed for xcc: %d\n", xcc);
+			break;
+		}
+	}
+
+	return err;
+}
+
+static void get_xcc_mqd(struct kfd_mem_obj *mqd_mem_obj,
+			       struct kfd_mem_obj *xcc_mqd_mem_obj,
+			       uint64_t offset)
+{
+	xcc_mqd_mem_obj->gtt_mem = (offset == 0) ?
+					mqd_mem_obj->gtt_mem : NULL;
+	xcc_mqd_mem_obj->gpu_addr = mqd_mem_obj->gpu_addr + offset;
+	xcc_mqd_mem_obj->cpu_ptr = (uint32_t *)((uintptr_t)mqd_mem_obj->cpu_ptr
+						+ offset);
+}
+
+static void init_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
+			struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
+			struct queue_properties *q)
+{
+	struct v9_mqd *m;
+	int xcc = 0;
+	struct kfd_mem_obj xcc_mqd_mem_obj;
+	uint64_t xcc_gart_addr = 0;
+	uint64_t offset = mm->mqd_stride(mm, q);
+
+	memset(&xcc_mqd_mem_obj, 0x0, sizeof(struct kfd_mem_obj));
+	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+		get_xcc_mqd(mqd_mem_obj, &xcc_mqd_mem_obj, offset*xcc);
+
+		init_mqd(mm, (void **)&m, &xcc_mqd_mem_obj, &xcc_gart_addr, q);
+
+		m->cp_mqd_stride_size = offset;
+		if (q->format == KFD_QUEUE_FORMAT_AQL) {
+			m->compute_tg_chunk_size = 1;
+
+			switch (xcc) {
+			case 0:
+				/* Master XCC */
+				m->cp_hqd_pq_control &=
+					~CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK;
+				m->compute_current_logic_xcc_id =
+					mm->dev->num_xcc_per_node - 1;
+				break;
+			default:
+				m->compute_current_logic_xcc_id =
+					xcc - 1;
+				break;
+			}
+		} else {
+			/* PM4 Queue */
+			m->compute_current_logic_xcc_id = 0;
+			m->compute_tg_chunk_size = 0;
+		}
+
+		if (xcc == 0) {
+			/* Set the MQD pointer and gart address to XCC0 MQD */
+			*mqd = m;
+			*gart_addr = xcc_gart_addr;
+		}
+	}
+}
+
+static void update_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
+		      struct queue_properties *q, struct mqd_update_info *minfo)
+{
+	struct v9_mqd *m;
+	int xcc = 0;
+	uint64_t size = mm->mqd_stride(mm, q);
+
+	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+		m = get_mqd(mqd + size * xcc);
+		update_mqd(mm, m, q, minfo);
+
+		if (q->format == KFD_QUEUE_FORMAT_AQL) {
+			switch (xcc) {
+			case 0:
+				/* Master XCC */
+				m->cp_hqd_pq_control &=
+					~CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK;
+				m->compute_current_logic_xcc_id =
+					mm->dev->num_xcc_per_node - 1;
+				break;
+			default:
+				m->compute_current_logic_xcc_id =
+					xcc - 1;
+				break;
+			}
+			m->compute_tg_chunk_size = 1;
+		} else {
+			/* PM4 Queue */
+			m->compute_current_logic_xcc_id = 0;
+			m->compute_tg_chunk_size = 0;
+		}
+	}
+}
+
+static int destroy_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
+		   enum kfd_preempt_type type, unsigned int timeout,
+		   uint32_t pipe_id, uint32_t queue_id)
+{
+	int xcc = 0, err;
+	void *xcc_mqd;
+	struct v9_mqd *m;
+	uint64_t mqd_offset;
+
+	m = get_mqd(mqd);
+	mqd_offset = m->cp_mqd_stride_size;
+
+	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+		xcc_mqd = mqd + mqd_offset * xcc;
+		err = mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, xcc_mqd,
+						    type, timeout, pipe_id,
+						    queue_id);
+		if (err) {
+			pr_debug("Destroy MQD failed for xcc: %d\n", xcc);
+			break;
+		}
+	}
+
+	return err;
+}
+
+static int load_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
+			uint32_t pipe_id, uint32_t queue_id,
+			struct queue_properties *p, struct mm_struct *mms)
+{
+	/* AQL write pointer counts in 64B packets, PM4/CP counts in dwords. */
+	uint32_t wptr_shift = (p->format == KFD_QUEUE_FORMAT_AQL ? 4 : 0);
+	int xcc = 0, err;
+	void *xcc_mqd;
+	uint64_t mqd_stride_size = mm->mqd_stride(mm, p);
+
+	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+		xcc_mqd = mqd + mqd_stride_size * xcc;
+		err = mm->dev->kfd2kgd->hqd_load(mm->dev->adev, xcc_mqd,
+					 pipe_id, queue_id,
+					(uint32_t __user *)p->write_ptr,
+					wptr_shift, 0, mms);
+		if (err) {
+			pr_debug("Load MQD failed for xcc: %d\n", xcc);
+			break;
+		}
+	}
+
+	return err;
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 static int debugfs_show_mqd(struct seq_file *m, void *data)
@@ -501,34 +717,49 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 	switch (type) {
 	case KFD_MQD_TYPE_CP:
 		mqd->allocate_mqd = allocate_mqd;
-		mqd->init_mqd = init_mqd;
 		mqd->free_mqd = kfd_free_mqd_cp;
-		mqd->load_mqd = load_mqd;
-		mqd->update_mqd = update_mqd;
-		mqd->destroy_mqd = kfd_destroy_mqd_cp;
 		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->get_wave_state = get_wave_state;
 		mqd->get_checkpoint_info = get_checkpoint_info;
 		mqd->checkpoint_mqd = checkpoint_mqd;
 		mqd->restore_mqd = restore_mqd;
 		mqd->mqd_size = sizeof(struct v9_mqd);
+		mqd->mqd_stride = mqd_stride_v9;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
+		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) {
+			mqd->init_mqd = init_mqd_v9_4_3;
+			mqd->load_mqd = load_mqd_v9_4_3;
+			mqd->update_mqd = update_mqd_v9_4_3;
+			mqd->destroy_mqd = destroy_mqd_v9_4_3;
+		} else {
+			mqd->init_mqd = init_mqd;
+			mqd->load_mqd = load_mqd;
+			mqd->update_mqd = update_mqd;
+			mqd->destroy_mqd = kfd_destroy_mqd_cp;
+		}
 		break;
 	case KFD_MQD_TYPE_HIQ:
 		mqd->allocate_mqd = allocate_hiq_mqd;
-		mqd->init_mqd = init_mqd_hiq;
 		mqd->free_mqd = free_mqd_hiq_sdma;
-		mqd->load_mqd = kfd_hiq_load_mqd_kiq;
 		mqd->update_mqd = update_mqd;
-		mqd->destroy_mqd = kfd_destroy_mqd_cp;
 		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->mqd_size = sizeof(struct v9_mqd);
+		mqd->mqd_stride = kfd_mqd_stride;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
 		mqd->read_doorbell_id = read_doorbell_id;
+		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) {
+			mqd->init_mqd = init_mqd_hiq_v9_4_3;
+			mqd->load_mqd = hiq_load_mqd_kiq_v9_4_3;
+			mqd->destroy_mqd = destroy_hiq_mqd_v9_4_3;
+		} else {
+			mqd->init_mqd = init_mqd_hiq;
+			mqd->load_mqd = kfd_hiq_load_mqd_kiq;
+			mqd->destroy_mqd = kfd_destroy_mqd_cp;
+		}
 		break;
 	case KFD_MQD_TYPE_DIQ:
 		mqd->allocate_mqd = allocate_mqd;
@@ -554,6 +785,7 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		mqd->checkpoint_mqd = checkpoint_mqd_sdma;
 		mqd->restore_mqd = restore_mqd_sdma;
 		mqd->mqd_size = sizeof(struct v9_sdma_mqd);
+		mqd->mqd_stride = kfd_mqd_stride;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd_sdma;
 #endif
