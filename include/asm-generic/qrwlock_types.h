@@ -7,7 +7,7 @@
 #include <asm/spinlock_types.h>
 
 /*
- * The queue read/write lock data structure
+ * The queued read/write lock data structure
  */
 
 typedef struct qrwlock {
