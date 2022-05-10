@@ -508,6 +508,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	struct kvm_cpuid_entry2 *entry;
 	union cpuid10_eax eax;
 	union cpuid10_edx edx;
+	u64 counter_mask;
 	int i;
 
 	pmu->nr_arch_gp_counters = 0;
@@ -559,9 +560,9 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 
 	for (i = 0; i < pmu->nr_arch_fixed_counters; i++)
 		pmu->fixed_ctr_ctrl_mask &= ~(0xbull << (i * 4));
-	pmu->global_ctrl = ((1ull << pmu->nr_arch_gp_counters) - 1) |
-		(((1ull << pmu->nr_arch_fixed_counters) - 1) << INTEL_PMC_IDX_FIXED);
-	pmu->global_ctrl_mask = ~pmu->global_ctrl;
+	counter_mask = ~(((1ull << pmu->nr_arch_gp_counters) - 1) |
+		(((1ull << pmu->nr_arch_fixed_counters) - 1) << INTEL_PMC_IDX_FIXED));
+	pmu->global_ctrl_mask = counter_mask;
 	pmu->global_ovf_ctrl_mask = pmu->global_ctrl_mask
 			& ~(MSR_CORE_PERF_GLOBAL_OVF_CTRL_OVF_BUF |
 			    MSR_CORE_PERF_GLOBAL_OVF_CTRL_COND_CHGD);
@@ -596,7 +597,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.perf_capabilities & PERF_CAP_PEBS_FORMAT) {
 		vcpu->arch.ia32_misc_enable_msr &= ~MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL;
 		if (vcpu->arch.perf_capabilities & PERF_CAP_PEBS_BASELINE) {
-			pmu->pebs_enable_mask = ~pmu->global_ctrl;
+			pmu->pebs_enable_mask = counter_mask;
 			pmu->reserved_bits &= ~ICL_EVENTSEL_ADAPTIVE;
 			for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
 				pmu->fixed_ctr_ctrl_mask &=
