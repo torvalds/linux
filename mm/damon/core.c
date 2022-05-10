@@ -1089,8 +1089,10 @@ static int kdamond_fn(void *data)
 		if (ctx->ops.prepare_access_checks)
 			ctx->ops.prepare_access_checks(ctx);
 		if (ctx->callback.after_sampling &&
-				ctx->callback.after_sampling(ctx))
+				ctx->callback.after_sampling(ctx)) {
 			done = true;
+			continue;
+		}
 
 		kdamond_usleep(ctx->sample_interval);
 
@@ -1102,8 +1104,10 @@ static int kdamond_fn(void *data)
 					max_nr_accesses / 10,
 					sz_limit);
 			if (ctx->callback.after_aggregation &&
-					ctx->callback.after_aggregation(ctx))
+					ctx->callback.after_aggregation(ctx)) {
 				done = true;
+				continue;
+			}
 			kdamond_apply_schemes(ctx);
 			kdamond_reset_aggregated(ctx);
 			kdamond_split_regions(ctx);
