@@ -77,24 +77,16 @@ enum test_type {
 	TEST_TYPE_HEADROOM,
 	TEST_TYPE_TEARDOWN,
 	TEST_TYPE_BIDI,
-	TEST_TYPE_STATS,
+	TEST_TYPE_STATS_RX_DROPPED,
+	TEST_TYPE_STATS_TX_INVALID_DESCS,
+	TEST_TYPE_STATS_RX_FULL,
+	TEST_TYPE_STATS_FILL_EMPTY,
 	TEST_TYPE_BPF_RES,
 	TEST_TYPE_MAX
 };
 
-enum stat_test_type {
-	STAT_TEST_RX_DROPPED,
-	STAT_TEST_TX_INVALID,
-	STAT_TEST_RX_FULL,
-	STAT_TEST_RX_FILL_EMPTY,
-	STAT_TEST_TYPE_MAX
-};
-
 static bool opt_pkt_dump;
-static int test_type;
-
 static bool opt_verbose;
-static int stat_test_type;
 
 struct xsk_umem_info {
 	struct xsk_ring_prod fq;

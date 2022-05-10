@@ -1324,60 +1324,48 @@ static void testapp_headroom(struct test_spec *test)
 	testapp_validate_traffic(test);
 }
 
-static void testapp_stats(struct test_spec *test)
+static void testapp_stats_rx_dropped(struct test_spec *test)
 {
-	int i;
+	test_spec_set_name(test, "STAT_RX_DROPPED");
+	test->ifobj_tx->pacing_on = false;
+	test->ifobj_rx->umem->frame_headroom = test->ifobj_rx->umem->frame_size -
+		XDP_PACKET_HEADROOM - 1;
+	test->ifobj_rx->validation_func = validate_rx_dropped;
+	testapp_validate_traffic(test);
+}
 
-	for (i = 0; i < STAT_TEST_TYPE_MAX; i++) {
-		test_spec_reset(test);
-		stat_test_type = i;
-		/* No or few packets will be received so cannot pace packets */
-		test->ifobj_tx->pacing_on = false;
+static void testapp_stats_tx_invalid_descs(struct test_spec *test)
+{
+	test_spec_set_name(test, "STAT_TX_INVALID");
+	test->ifobj_tx->pacing_on = false;
+	pkt_stream_replace(test, DEFAULT_PKT_CNT, XSK_UMEM__INVALID_FRAME_SIZE);
+	test->ifobj_tx->validation_func = validate_tx_invalid_descs;
+	testapp_validate_traffic(test);
 
-		switch (stat_test_type) {
-		case STAT_TEST_RX_DROPPED:
-			test_spec_set_name(test, "STAT_RX_DROPPED");
-			test->ifobj_rx->umem->frame_headroom = test->ifobj_rx->umem->frame_size -
-				XDP_PACKET_HEADROOM - 1;
-			test->ifobj_rx->validation_func = validate_rx_dropped;
-			testapp_validate_traffic(test);
-			break;
-		case STAT_TEST_RX_FULL:
-			test_spec_set_name(test, "STAT_RX_FULL");
-			test->ifobj_rx->xsk->rxqsize = RX_FULL_RXQSIZE;
-			test->ifobj_rx->validation_func = validate_rx_full;
-			testapp_validate_traffic(test);
-			break;
-		case STAT_TEST_TX_INVALID:
-			test_spec_set_name(test, "STAT_TX_INVALID");
-			pkt_stream_replace(test, DEFAULT_PKT_CNT, XSK_UMEM__INVALID_FRAME_SIZE);
-			test->ifobj_tx->validation_func = validate_tx_invalid_descs;
-			testapp_validate_traffic(test);
+	pkt_stream_restore_default(test);
+}
 
-			pkt_stream_restore_default(test);
-			break;
-		case STAT_TEST_RX_FILL_EMPTY:
-			test_spec_set_name(test, "STAT_RX_FILL_EMPTY");
-			test->ifobj_rx->pkt_stream = pkt_stream_generate(test->ifobj_rx->umem, 0,
-									 MIN_PKT_SIZE);
-			if (!test->ifobj_rx->pkt_stream)
-				exit_with_error(ENOMEM);
-			test->ifobj_rx->pkt_stream->use_addr_for_fill = true;
-			test->ifobj_rx->validation_func = validate_fill_empty;
-			testapp_validate_traffic(test);
+static void testapp_stats_rx_full(struct test_spec *test)
+{
+	test_spec_set_name(test, "STAT_RX_FULL");
+	test->ifobj_tx->pacing_on = false;
+	test->ifobj_rx->xsk->rxqsize = RX_FULL_RXQSIZE;
+	test->ifobj_rx->validation_func = validate_rx_full;
+	testapp_validate_traffic(test);
+}
 
-			pkt_stream_restore_default(test);
-			break;
-		default:
-			break;
-		}
+static void testapp_stats_fill_empty(struct test_spec *test)
+{
+	test_spec_set_name(test, "STAT_RX_FILL_EMPTY");
+	test->ifobj_tx->pacing_on = false;
+	test->ifobj_rx->pkt_stream = pkt_stream_generate(test->ifobj_rx->umem, 0, MIN_PKT_SIZE);
+	if (!test->ifobj_rx->pkt_stream)
+		exit_with_error(ENOMEM);
+	test->ifobj_rx->pkt_stream->use_addr_for_fill = true;
+	test->ifobj_rx->validation_func = validate_fill_empty;
+	testapp_validate_traffic(test);
 
-		if (test->fail)
-			break;
-	}
-
-	/* To only see the whole stat set being completed unless an individual test fails. */
-	test_spec_set_name(test, "STATS");
+	pkt_stream_restore_default(test);
 }
 
 /* Simple test */
@@ -1482,14 +1470,18 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *
 
 static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_type type)
 {
-	test_type = type;
-
-	/* reset defaults after potential previous test */
-	stat_test_type = -1;
-
-	switch (test_type) {
-	case TEST_TYPE_STATS:
-		testapp_stats(test);
+	switch (type) {
+	case TEST_TYPE_STATS_RX_DROPPED:
+		testapp_stats_rx_dropped(test);
+		break;
+	case TEST_TYPE_STATS_TX_INVALID_DESCS:
+		testapp_stats_tx_invalid_descs(test);
+		break;
+	case TEST_TYPE_STATS_RX_FULL:
+		testapp_stats_rx_full(test);
+		break;
+	case TEST_TYPE_STATS_FILL_EMPTY:
+		testapp_stats_fill_empty(test);
 		break;
 	case TEST_TYPE_TEARDOWN:
 		testapp_teardown(test);
