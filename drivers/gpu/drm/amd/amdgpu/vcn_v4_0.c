@@ -722,7 +722,6 @@ static void vcn_v4_0_disable_clock_gating(struct amdgpu_device *adev, int inst)
 		| UVD_SUVD_CGC_GATE__SCM_MASK
 		| UVD_SUVD_CGC_GATE__SDB_MASK
 		| UVD_SUVD_CGC_GATE__SRE_H264_MASK
-		| UVD_SUVD_CGC_GATE__SRE_H264_MASK
 		| UVD_SUVD_CGC_GATE__SRE_HEVC_MASK
 		| UVD_SUVD_CGC_GATE__SIT_H264_MASK
 		| UVD_SUVD_CGC_GATE__SIT_HEVC_MASK
