@@ -31,4 +31,5 @@ int i3c_dev_pending_read_notify_locked(struct i3c_dev_desc *dev,
 				       struct i3c_priv_xfer *pending_read,
 				       struct i3c_priv_xfer *ibi_notify);
 int i3c_dev_is_ibi_enabled_locked(struct i3c_dev_desc *dev);
+int i3c_dev_control_pec(struct i3c_dev_desc *dev, bool pec);
 #endif /* I3C_INTERNAL_H */
