@@ -1879,7 +1879,7 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 		all_cpus = flush_ex.hv_vp_set.format !=
 			HV_GENERIC_SET_SPARSE_4K;
 
-		if (hc->var_cnt != bitmap_weight((unsigned long *)&valid_bank_mask, 64))
+		if (hc->var_cnt != hweight64(valid_bank_mask))
 			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 
 		if (all_cpus)
@@ -1980,7 +1980,7 @@ static u64 kvm_hv_send_ipi(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 		valid_bank_mask = send_ipi_ex.vp_set.valid_bank_mask;
 		all_cpus = send_ipi_ex.vp_set.format == HV_GENERIC_SET_ALL;
 
-		if (hc->var_cnt != bitmap_weight((unsigned long *)&valid_bank_mask, 64))
+		if (hc->var_cnt != hweight64(valid_bank_mask))
 			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 
 		if (all_cpus)
