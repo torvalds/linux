@@ -1811,11 +1811,11 @@ static const struct of_device_id cqspi_dt_ids[] = {
 	},
 	{
 		.compatible = "xlnx,versal-ospi-1.0",
-		.data = (void *)&versal_ospi,
+		.data = &versal_ospi,
 	},
 	{
 		.compatible = "intel,socfpga-qspi",
-		.data = (void *)&socfpga_qspi,
+		.data = &socfpga_qspi,
 	},
 	{ /* end of table */ }
 };
