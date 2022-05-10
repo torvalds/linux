@@ -2428,7 +2428,7 @@ intel_display_power_ddi_io_domain(struct drm_i915_private *i915, enum port port)
 	if (drm_WARN_ON(&i915->drm, !domains) || domains->ddi_io == POWER_DOMAIN_INVALID)
 		return POWER_DOMAIN_PORT_DDI_IO_A;
 
-	return domains->ddi_io + port - domains->port_start;
+	return domains->ddi_io + (int)(port - domains->port_start);
 }
 
 enum intel_display_power_domain
@@ -2439,7 +2439,7 @@ intel_display_power_ddi_lanes_domain(struct drm_i915_private *i915, enum port po
 	if (drm_WARN_ON(&i915->drm, !domains) || domains->ddi_lanes == POWER_DOMAIN_INVALID)
 		return POWER_DOMAIN_PORT_DDI_LANES_A;
 
-	return domains->ddi_lanes + port - domains->port_start;
+	return domains->ddi_lanes + (int)(port - domains->port_start);
 }
 
 static const struct intel_ddi_port_domains *
@@ -2465,7 +2465,7 @@ intel_display_power_legacy_aux_domain(struct drm_i915_private *i915, enum aux_ch
 	if (drm_WARN_ON(&i915->drm, !domains) || domains->aux_legacy_usbc == POWER_DOMAIN_INVALID)
 		return POWER_DOMAIN_AUX_A;
 
-	return domains->aux_legacy_usbc + aux_ch - domains->aux_ch_start;
+	return domains->aux_legacy_usbc + (int)(aux_ch - domains->aux_ch_start);
 }
 
 enum intel_display_power_domain
@@ -2476,5 +2476,5 @@ intel_display_power_tbt_aux_domain(struct drm_i915_private *i915, enum aux_ch au
 	if (drm_WARN_ON(&i915->drm, !domains) || domains->aux_tbt == POWER_DOMAIN_INVALID)
 		return POWER_DOMAIN_AUX_TBT1;
 
-	return domains->aux_tbt + aux_ch - domains->aux_ch_start;
+	return domains->aux_tbt + (int)(aux_ch - domains->aux_ch_start);
 }
