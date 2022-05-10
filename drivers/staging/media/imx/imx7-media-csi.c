@@ -185,11 +185,7 @@ struct imx7_csi_pixfmt {
 	 */
 	const u32 *codes;
 	int     bpp;     /* total bpp */
-	/* cycles per pixel for generic (bayer) formats for the parallel bus */
-	int	cycles;
 	bool	yuv;
-	bool    planar;  /* is a planar format */
-	bool    bayer;   /* is a raw bayer format */
 };
 
 struct imx7_csi_vb2_buffer {
@@ -837,22 +833,18 @@ static const struct imx7_csi_pixfmt pixel_formats[] = {
 		.fourcc = V4L2_PIX_FMT_SBGGR8,
 		.codes  = IMX_BUS_FMTS(MEDIA_BUS_FMT_SBGGR8_1X8),
 		.bpp    = 8,
-		.bayer  = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG8,
 		.codes  = IMX_BUS_FMTS(MEDIA_BUS_FMT_SGBRG8_1X8),
 		.bpp    = 8,
-		.bayer  = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG8,
 		.codes  = IMX_BUS_FMTS(MEDIA_BUS_FMT_SGRBG8_1X8),
 		.bpp    = 8,
-		.bayer  = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB8,
 		.codes  = IMX_BUS_FMTS(MEDIA_BUS_FMT_SRGGB8_1X8),
 		.bpp    = 8,
-		.bayer  = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SBGGR16,
 		.codes  = IMX_BUS_FMTS(
@@ -862,7 +854,6 @@ static const struct imx7_csi_pixfmt pixel_formats[] = {
 			MEDIA_BUS_FMT_SBGGR16_1X16
 		),
 		.bpp    = 16,
-		.bayer  = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGBRG16,
 		.codes  = IMX_BUS_FMTS(
@@ -872,7 +863,6 @@ static const struct imx7_csi_pixfmt pixel_formats[] = {
 			MEDIA_BUS_FMT_SGBRG16_1X16
 		),
 		.bpp    = 16,
-		.bayer  = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SGRBG16,
 		.codes  = IMX_BUS_FMTS(
@@ -882,7 +872,6 @@ static const struct imx7_csi_pixfmt pixel_formats[] = {
 			MEDIA_BUS_FMT_SGRBG16_1X16
 		),
 		.bpp    = 16,
-		.bayer  = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_SRGGB16,
 		.codes  = IMX_BUS_FMTS(
@@ -892,7 +881,6 @@ static const struct imx7_csi_pixfmt pixel_formats[] = {
 			MEDIA_BUS_FMT_SRGGB16_1X16
 		),
 		.bpp    = 16,
-		.bayer  = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_GREY,
 		.codes = IMX_BUS_FMTS(
@@ -901,17 +889,14 @@ static const struct imx7_csi_pixfmt pixel_formats[] = {
 			MEDIA_BUS_FMT_Y12_1X12
 		),
 		.bpp    = 8,
-		.bayer  = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_Y10,
 		.codes = IMX_BUS_FMTS(MEDIA_BUS_FMT_Y10_1X10),
 		.bpp    = 16,
-		.bayer  = true,
 	}, {
 		.fourcc = V4L2_PIX_FMT_Y12,
 		.codes = IMX_BUS_FMTS(MEDIA_BUS_FMT_Y12_1X12),
 		.bpp    = 16,
-		.bayer  = true,
 	},
 };
 
@@ -1088,10 +1073,7 @@ static int imx7_csi_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 	width = round_up(mbus->width, 8);
 
 	/* Round up stride for IDMAC line start address alignment */
-	if (cc->planar)
-		stride = round_up(width, 16);
-	else
-		stride = round_up((width * cc->bpp) >> 3, 8);
+	stride = round_up((width * cc->bpp) >> 3, 8);
 
 	pix->width = width;
 	pix->height = mbus->height;
@@ -1102,8 +1084,7 @@ static int imx7_csi_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 	pix->quantization = mbus->quantization;
 	pix->field = mbus->field;
 	pix->bytesperline = stride;
-	pix->sizeimage = cc->planar ? ((stride * pix->height * cc->bpp) >> 3) :
-			 stride * pix->height;
+	pix->sizeimage = stride * pix->height;
 
 	return 0;
 }
