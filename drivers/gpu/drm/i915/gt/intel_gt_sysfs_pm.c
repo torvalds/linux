@@ -457,22 +457,23 @@ static ssize_t vlv_rpe_freq_mhz_show(struct device *dev,
 }
 
 #define INTEL_GT_RPS_SYSFS_ATTR(_name, _mode, _show, _store) \
-	struct device_attribute dev_attr_gt_##_name = __ATTR(gt_##_name, _mode, _show, _store); \
-	struct device_attribute dev_attr_rps_##_name = __ATTR(rps_##_name, _mode, _show, _store)
+	static struct device_attribute dev_attr_gt_##_name = __ATTR(gt_##_name, _mode, _show, _store); \
+	static struct device_attribute dev_attr_rps_##_name = __ATTR(rps_##_name, _mode, _show, _store)
 
 #define INTEL_GT_RPS_SYSFS_ATTR_RO(_name)				\
 		INTEL_GT_RPS_SYSFS_ATTR(_name, 0444, _name##_show, NULL)
 #define INTEL_GT_RPS_SYSFS_ATTR_RW(_name)				\
 		INTEL_GT_RPS_SYSFS_ATTR(_name, 0644, _name##_show, _name##_store)
 
-static INTEL_GT_RPS_SYSFS_ATTR_RO(act_freq_mhz);
-static INTEL_GT_RPS_SYSFS_ATTR_RO(cur_freq_mhz);
-static INTEL_GT_RPS_SYSFS_ATTR_RW(boost_freq_mhz);
-static INTEL_GT_RPS_SYSFS_ATTR_RO(RP0_freq_mhz);
-static INTEL_GT_RPS_SYSFS_ATTR_RO(RP1_freq_mhz);
-static INTEL_GT_RPS_SYSFS_ATTR_RO(RPn_freq_mhz);
-static INTEL_GT_RPS_SYSFS_ATTR_RW(max_freq_mhz);
-static INTEL_GT_RPS_SYSFS_ATTR_RW(min_freq_mhz);
+/* The below macros generate static structures */
+INTEL_GT_RPS_SYSFS_ATTR_RO(act_freq_mhz);
+INTEL_GT_RPS_SYSFS_ATTR_RO(cur_freq_mhz);
+INTEL_GT_RPS_SYSFS_ATTR_RW(boost_freq_mhz);
+INTEL_GT_RPS_SYSFS_ATTR_RO(RP0_freq_mhz);
+INTEL_GT_RPS_SYSFS_ATTR_RO(RP1_freq_mhz);
+INTEL_GT_RPS_SYSFS_ATTR_RO(RPn_freq_mhz);
+INTEL_GT_RPS_SYSFS_ATTR_RW(max_freq_mhz);
+INTEL_GT_RPS_SYSFS_ATTR_RW(min_freq_mhz);
 
 static DEVICE_ATTR_RO(vlv_rpe_freq_mhz);
 
