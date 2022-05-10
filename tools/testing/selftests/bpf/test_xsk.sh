@@ -87,7 +87,7 @@ done
 TEST_NAME="PREREQUISITES"
 
 URANDOM=/dev/urandom
-[ ! -e "${URANDOM}" ] && { echo "${URANDOM} not found. Skipping tests."; test_exit 1 1; }
+[ ! -e "${URANDOM}" ] && { echo "${URANDOM} not found. Skipping tests."; test_exit $ksft_fail; }
 
 VETH0_POSTFIX=$(cat ${URANDOM} | tr -dc '0-9' | fold -w 256 | head -n 1 | head --bytes 4)
 VETH0=ve${VETH0_POSTFIX}
@@ -155,10 +155,6 @@ TEST_NAME="XSK_SELFTESTS_SOFTIRQ"
 
 execxdpxceiver
 
-retval=$?
-test_status $retval "${TEST_NAME}"
-statusList+=($retval)
-
 cleanup_exit ${VETH0} ${VETH1} ${NS1}
 TEST_NAME="XSK_SELFTESTS_BUSY_POLL"
 busy_poll=1
@@ -166,19 +162,20 @@ busy_poll=1
 setup_vethPairs
 execxdpxceiver
 
-retval=$?
-test_status $retval "${TEST_NAME}"
-statusList+=($retval)
-
 ## END TESTS
 
 cleanup_exit ${VETH0} ${VETH1} ${NS1}
 
-for _status in "${statusList[@]}"
+failures=0
+echo -e "\nSummary:"
+for i in "${!statusList[@]}"
 do
-	if [ $_status -ne 0 ]; then
-		test_exit $ksft_fail 0
+	if [ ${statusList[$i]} -ne 0 ]; then
+	        test_status ${statusList[$i]} ${nameList[$i]}
+		failures=1
 	fi
 done
 
-test_exit $ksft_pass 0
+if [ $failures -eq 0 ]; then
+        echo "All tests successful!"
+fi

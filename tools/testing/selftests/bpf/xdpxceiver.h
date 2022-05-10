@@ -25,6 +25,9 @@
 #define SO_PREFER_BUSY_POLL 69
 #endif
 
+#define TEST_PASS 0
+#define TEST_FAILURE -1
+#define TEST_CONTINUE -2
 #define MAX_INTERFACES 2
 #define MAX_INTERFACE_NAME_CHARS 7
 #define MAX_INTERFACES_NAMESPACE_CHARS 10
@@ -160,6 +163,7 @@ struct test_spec {
 	u16 total_steps;
 	u16 current_step;
 	u16 nb_sockets;
+	bool fail;
 	char name[MAX_TEST_NAME_SIZE];
 };
 
