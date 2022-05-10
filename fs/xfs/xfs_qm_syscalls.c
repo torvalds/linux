@@ -217,8 +217,7 @@ xfs_qm_scall_quotaon(
 	return 0;
 }
 
-#define XFS_QC_MASK \
-	(QC_LIMIT_MASK | QC_TIMER_MASK | QC_WARNS_MASK)
+#define XFS_QC_MASK (QC_LIMIT_MASK | QC_TIMER_MASK)
 
 /*
  * Adjust limits of this quota, and the defaults if passed in.  Returns true

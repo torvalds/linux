@@ -98,7 +98,7 @@ xfs_quota_type(int type)
 	}
 }
 
-#define XFS_QC_SETINFO_MASK (QC_TIMER_MASK | QC_WARNS_MASK)
+#define XFS_QC_SETINFO_MASK (QC_TIMER_MASK)
 
 /*
  * Adjust quota timers & warnings
