@@ -58,11 +58,11 @@ void amdgpu_show_fdinfo(struct seq_file *m, struct file *f)
 	struct drm_file *file = f->private_data;
 	struct amdgpu_device *adev = drm_to_adev(file->minor->dev);
 	struct amdgpu_fpriv *fpriv = file->driver_priv;
+	struct amdgpu_vm *vm = &fpriv->vm;
 
 	uint64_t vram_mem = 0, gtt_mem = 0, cpu_mem = 0;
 	ktime_t usage[AMDGPU_HW_IP_NUM];
 	uint32_t bus, dev, fn, domain;
-	struct amdgpu_bo *root;
 	unsigned int hw_ip;
 	int ret;
 
@@ -71,14 +71,12 @@ void amdgpu_show_fdinfo(struct seq_file *m, struct file *f)
 	dev = PCI_SLOT(adev->pdev->devfn);
 	fn = PCI_FUNC(adev->pdev->devfn);
 
-	root = fpriv->vm.root.bo;
-	ret = amdgpu_bo_reserve(root, false);
-	if (ret) {
-		DRM_ERROR("Fail to reserve bo\n");
+	ret = amdgpu_bo_reserve(vm->root.bo, false);
+	if (ret)
 		return;
-	}
-	amdgpu_vm_get_memory(&fpriv->vm, &vram_mem, &gtt_mem, &cpu_mem);
-	amdgpu_bo_unreserve(root);
+
+	amdgpu_vm_get_memory(vm, &vram_mem, &gtt_mem, &cpu_mem);
+	amdgpu_bo_unreserve(vm->root.bo);
 
 	amdgpu_ctx_mgr_usage(&fpriv->ctx_mgr, usage);
 
@@ -91,6 +89,7 @@ void amdgpu_show_fdinfo(struct seq_file *m, struct file *f)
 	seq_printf(m, "pasid:\t%u\n", fpriv->vm.pasid);
 	seq_printf(m, "drm-driver:\t%s\n", file->minor->dev->driver->name);
 	seq_printf(m, "drm-pdev:\t%04x:%02x:%02x.%d\n", domain, bus, dev, fn);
+	seq_printf(m, "drm-client-id:\t%Lu\n", vm->immediate.fence_context);
 	seq_printf(m, "drm-memory-vram:\t%llu KiB\n", vram_mem/1024UL);
 	seq_printf(m, "drm-memory-gtt: \t%llu KiB\n", gtt_mem/1024UL);
 	seq_printf(m, "drm-memory-cpu: \t%llu KiB\n", cpu_mem/1024UL);
