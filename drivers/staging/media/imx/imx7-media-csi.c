@@ -809,17 +809,6 @@ static irqreturn_t imx7_csi_irq_handler(int irq, void *data)
 
 #define IMX_BUS_FMTS(fmt...) (const u32[]) {fmt, 0}
 
-enum imx7_csi_pixfmt_sel {
-	IMX7_CSI_PIXFMT_SEL_YUV   = BIT(0), /* select YUV formats */
-	IMX7_CSI_PIXFMT_SEL_RGB   = BIT(1), /* select RGB formats */
-	IMX7_CSI_PIXFMT_SEL_BAYER = BIT(2), /* select BAYER formats */
-	IMX7_CSI_PIXFMT_SEL_YUV_RGB = IMX7_CSI_PIXFMT_SEL_YUV
-				    | IMX7_CSI_PIXFMT_SEL_RGB,
-	IMX7_CSI_PIXFMT_SEL_ANY = IMX7_CSI_PIXFMT_SEL_YUV
-				| IMX7_CSI_PIXFMT_SEL_RGB
-				| IMX7_CSI_PIXFMT_SEL_BAYER,
-};
-
 /*
  * List of supported pixel formats for the subdevs. Keep MEDIA_BUS_FMT_UYVY8_2X8
  * first to match IMX7_CSI_DEF_MBUS_CODE.
@@ -928,25 +917,16 @@ static const struct imx7_csi_pixfmt pixel_formats[] = {
 
 /*
  * Search in the pixel_formats[] array for an entry with the given fourcc
- * that matches the requested selection criteria and return it.
- *
- * @fourcc: Search for an entry with the given fourcc pixel format.
- * @fmt_sel: Allow entries only with the given selection criteria.
+ * return it.
  */
-static const struct imx7_csi_pixfmt *
-imx7_csi_find_pixel_format(u32 fourcc, enum imx7_csi_pixfmt_sel fmt_sel)
+static const struct imx7_csi_pixfmt *imx7_csi_find_pixel_format(u32 fourcc)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(pixel_formats); i++) {
 		const struct imx7_csi_pixfmt *fmt = &pixel_formats[i];
-		enum imx7_csi_pixfmt_sel sel;
 
-		sel = fmt->bayer ? IMX7_CSI_PIXFMT_SEL_BAYER
-		    : (fmt->yuv ? IMX7_CSI_PIXFMT_SEL_YUV :
-		       IMX7_CSI_PIXFMT_SEL_RGB);
-
-		if ((fmt_sel & sel) && fmt->fourcc == fourcc)
+		if (fmt->fourcc == fourcc)
 			return fmt;
 	}
 
@@ -955,26 +935,17 @@ imx7_csi_find_pixel_format(u32 fourcc, enum imx7_csi_pixfmt_sel fmt_sel)
 
 /*
  * Search in the pixel_formats[] array for an entry with the given media
- * bus code that matches the requested selection criteria and return it.
- *
- * @code: Search for an entry with the given media-bus code.
- * @fmt_sel: Allow entries only with the given selection criteria.
+ * bus code and return it.
  */
-static const struct imx7_csi_pixfmt *
-imx7_csi_find_mbus_format(u32 code, enum imx7_csi_pixfmt_sel fmt_sel)
+static const struct imx7_csi_pixfmt *imx7_csi_find_mbus_format(u32 code)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(pixel_formats); i++) {
 		const struct imx7_csi_pixfmt *fmt = &pixel_formats[i];
-		enum imx7_csi_pixfmt_sel sel;
 		unsigned int j;
 
-		sel = fmt->bayer ? IMX7_CSI_PIXFMT_SEL_BAYER
-		    : (fmt->yuv ? IMX7_CSI_PIXFMT_SEL_YUV :
-		       IMX7_CSI_PIXFMT_SEL_RGB);
-
-		if (!(fmt_sel & sel) || !fmt->codes)
+		if (!fmt->codes)
 			continue;
 
 		for (j = 0; fmt->codes[j]; j++) {
@@ -994,27 +965,15 @@ imx7_csi_find_mbus_format(u32 code, enum imx7_csi_pixfmt_sel fmt_sel)
  * @fourcc: The returned fourcc that matches the search criteria at
  *          the requested match index.
  * @index: The requested match index.
- * @fmt_sel: Include in the enumeration entries with the given selection
- *           criteria.
  * @code: If non-zero, only include in the enumeration entries matching this
  *	media bus code.
  */
-static int imx7_csi_enum_pixel_formats(u32 *fourcc, u32 index,
-				       enum imx7_csi_pixfmt_sel fmt_sel,
-				       u32 code)
+static int imx7_csi_enum_pixel_formats(u32 *fourcc, u32 index, u32 code)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(pixel_formats); i++) {
 		const struct imx7_csi_pixfmt *fmt = &pixel_formats[i];
-		enum imx7_csi_pixfmt_sel sel;
-
-		sel = fmt->bayer ? IMX7_CSI_PIXFMT_SEL_BAYER
-		    : (fmt->yuv ? IMX7_CSI_PIXFMT_SEL_YUV :
-		       IMX7_CSI_PIXFMT_SEL_RGB);
-
-		if (!(fmt_sel & sel))
-			continue;
 
 		/*
 		 * If a media bus code is specified, only consider formats that
@@ -1054,24 +1013,16 @@ static int imx7_csi_enum_pixel_formats(u32 *fourcc, u32 index,
  * @code: The returned media-bus code that matches the search criteria at
  *        the requested match index.
  * @index: The requested match index.
- * @fmt_sel: Include in the enumeration entries with the given selection
- *           criteria.
  */
-static int imx7_csi_enum_mbus_formats(u32 *code, u32 index,
-				      enum imx7_csi_pixfmt_sel fmt_sel)
+static int imx7_csi_enum_mbus_formats(u32 *code, u32 index)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(pixel_formats); i++) {
 		const struct imx7_csi_pixfmt *fmt = &pixel_formats[i];
-		enum imx7_csi_pixfmt_sel sel;
 		unsigned int j;
 
-		sel = fmt->bayer ? IMX7_CSI_PIXFMT_SEL_BAYER
-		    : (fmt->yuv ? IMX7_CSI_PIXFMT_SEL_YUV :
-		       IMX7_CSI_PIXFMT_SEL_RGB);
-
-		if (!(fmt_sel & sel) || !fmt->codes)
+		if (!fmt->codes)
 			continue;
 
 		for (j = 0; fmt->codes[j]; j++) {
@@ -1100,7 +1051,7 @@ static int imx7_csi_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 	if (code == 0)
 		code = IMX7_CSI_DEF_MBUS_CODE;
 
-	lcc = imx7_csi_find_mbus_format(code, IMX7_CSI_PIXFMT_SEL_ANY);
+	lcc = imx7_csi_find_mbus_format(code);
 	if (!lcc)
 		return -EINVAL;
 
@@ -1128,8 +1079,7 @@ static int imx7_csi_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 	u32 stride;
 
 	if (!cc) {
-		cc = imx7_csi_find_mbus_format(mbus->code,
-					       IMX7_CSI_PIXFMT_SEL_ANY);
+		cc = imx7_csi_find_mbus_format(mbus->code);
 		if (!cc)
 			return -EINVAL;
 	}
@@ -1179,7 +1129,6 @@ static int imx7_csi_video_enum_fmt_vid_cap(struct file *file, void *fh,
 					   struct v4l2_fmtdesc *f)
 {
 	return imx7_csi_enum_pixel_formats(&f->pixelformat, f->index,
-					   IMX7_CSI_PIXFMT_SEL_ANY,
 					   f->mbus_code);
 }
 
@@ -1191,8 +1140,7 @@ static int imx7_csi_video_enum_framesizes(struct file *file, void *fh,
 	if (fsize->index > 0)
 		return -EINVAL;
 
-	cc = imx7_csi_find_pixel_format(fsize->pixel_format,
-					IMX7_CSI_PIXFMT_SEL_ANY);
+	cc = imx7_csi_find_pixel_format(fsize->pixel_format);
 	if (!cc)
 		return -EINVAL;
 
@@ -1233,13 +1181,10 @@ __imx7_csi_video_try_fmt(struct v4l2_pix_format *pixfmt,
 	 * Find the pixel format, default to the first supported format if not
 	 * found.
 	 */
-	cc = imx7_csi_find_pixel_format(pixfmt->pixelformat,
-					IMX7_CSI_PIXFMT_SEL_ANY);
+	cc = imx7_csi_find_pixel_format(pixfmt->pixelformat);
 	if (!cc) {
-		imx7_csi_enum_pixel_formats(&pixfmt->pixelformat, 0,
-					    IMX7_CSI_PIXFMT_SEL_ANY, 0);
-		cc = imx7_csi_find_pixel_format(pixfmt->pixelformat,
-						IMX7_CSI_PIXFMT_SEL_ANY);
+		imx7_csi_enum_pixel_formats(&pixfmt->pixelformat, 0, 0);
+		cc = imx7_csi_find_pixel_format(pixfmt->pixelformat);
 	}
 
 	/* Allow IDMAC interweave but enforce field order from source. */
@@ -1464,8 +1409,7 @@ static int imx7_csi_video_validate_fmt(struct imx7_csi *csi)
 	 * Verify that the media bus code is compatible with the pixel format
 	 * set on the video node.
 	 */
-	cc = imx7_csi_find_mbus_format(fmt_src.format.code,
-				       IMX7_CSI_PIXFMT_SEL_ANY);
+	cc = imx7_csi_find_mbus_format(fmt_src.format.code);
 	if (!cc || csi->vdev_cc->yuv != cc->yuv)
 		return -EPIPE;
 
@@ -1639,8 +1583,7 @@ static int imx7_csi_video_init_format(struct imx7_csi *csi)
 	csi->vdev_compose.width = fmt_src.format.width;
 	csi->vdev_compose.height = fmt_src.format.height;
 
-	csi->vdev_cc = imx7_csi_find_pixel_format(csi->vdev_fmt.pixelformat,
-						  IMX7_CSI_PIXFMT_SEL_ANY);
+	csi->vdev_cc = imx7_csi_find_pixel_format(csi->vdev_fmt.pixelformat);
 
 	return 0;
 }
@@ -1847,8 +1790,7 @@ static int imx7_csi_enum_mbus_code(struct v4l2_subdev *sd,
 
 	switch (code->pad) {
 	case IMX7_CSI_PAD_SINK:
-		ret = imx7_csi_enum_mbus_formats(&code->code, code->index,
-						 IMX7_CSI_PIXFMT_SEL_ANY);
+		ret = imx7_csi_enum_mbus_formats(&code->code, code->index);
 		break;
 	case IMX7_CSI_PAD_SRC:
 		if (code->index != 0) {
@@ -1905,7 +1847,7 @@ static void imx7_csi_try_colorimetry(struct v4l2_mbus_framefmt *tryfmt)
 	const struct imx7_csi_pixfmt *cc;
 	bool is_rgb = false;
 
-	cc = imx7_csi_find_mbus_format(tryfmt->code, IMX7_CSI_PIXFMT_SEL_ANY);
+	cc = imx7_csi_find_mbus_format(tryfmt->code);
 	if (cc && !cc->yuv)
 		is_rgb = true;
 
@@ -1955,8 +1897,7 @@ static int imx7_csi_try_fmt(struct imx7_csi *csi,
 
 	switch (sdformat->pad) {
 	case IMX7_CSI_PAD_SRC:
-		in_cc = imx7_csi_find_mbus_format(in_fmt->code,
-						  IMX7_CSI_PIXFMT_SEL_ANY);
+		in_cc = imx7_csi_find_mbus_format(in_fmt->code);
 
 		sdformat->format.width = in_fmt->width;
 		sdformat->format.height = in_fmt->height;
@@ -1970,12 +1911,10 @@ static int imx7_csi_try_fmt(struct imx7_csi *csi,
 		sdformat->format.ycbcr_enc = in_fmt->ycbcr_enc;
 		break;
 	case IMX7_CSI_PAD_SINK:
-		*cc = imx7_csi_find_mbus_format(sdformat->format.code,
-						IMX7_CSI_PIXFMT_SEL_ANY);
+		*cc = imx7_csi_find_mbus_format(sdformat->format.code);
 		if (!*cc) {
 			code = IMX7_CSI_DEF_MBUS_CODE;
-			*cc = imx7_csi_find_mbus_format(code,
-							IMX7_CSI_PIXFMT_SEL_ANY);
+			*cc = imx7_csi_find_mbus_format(code);
 			sdformat->format.code = code;
 		}
 
