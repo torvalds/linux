@@ -2096,28 +2096,31 @@ static void damon_sysfs_destroy_targets(struct damon_ctx *ctx)
 static int damon_sysfs_set_regions(struct damon_target *t,
 		struct damon_sysfs_regions *sysfs_regions)
 {
-	int i;
+	struct damon_addr_range *ranges = kmalloc_array(sysfs_regions->nr,
+			sizeof(*ranges), GFP_KERNEL | __GFP_NOWARN);
+	int i, err = -EINVAL;
 
+	if (!ranges)
+		return -ENOMEM;
 	for (i = 0; i < sysfs_regions->nr; i++) {
 		struct damon_sysfs_region *sys_region =
 			sysfs_regions->regions_arr[i];
-		struct damon_region *prev, *r;
 
 		if (sys_region->start > sys_region->end)
-			return -EINVAL;
-		r = damon_new_region(sys_region->start, sys_region->end);
-		if (!r)
-			return -ENOMEM;
-		damon_add_region(r, t);
-		if (damon_nr_regions(t) > 1) {
-			prev = damon_prev_region(r);
-			if (prev->ar.end > r->ar.start) {
-				damon_destroy_region(r, t);
-				return -EINVAL;
-			}
-		}
+			goto out;
+
+		ranges[i].start = sys_region->start;
+		ranges[i].end = sys_region->end;
+		if (i == 0)
+			continue;
+		if (ranges[i - 1].end > ranges[i].start)
+			goto out;
 	}
-	return 0;
+	err = damon_set_regions(t, ranges, sysfs_regions->nr);
+out:
+	kfree(ranges);
+	return err;
+
 }
 
 static int damon_sysfs_add_target(struct damon_sysfs_target *sys_target,
