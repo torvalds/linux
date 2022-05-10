@@ -629,8 +629,7 @@ static void test_bpf_hash_map(void)
 	skel->bss->in_test_mode = true;
 
 	err = bpf_iter_bpf_hash_map__load(skel);
-	if (CHECK(!skel, "bpf_iter_bpf_hash_map__load",
-		  "skeleton load failed\n"))
+	if (!ASSERT_OK(err, "bpf_iter_bpf_hash_map__load"))
 		goto out;
 
 	/* iterator with hashmap2 and hashmap3 should fail */
