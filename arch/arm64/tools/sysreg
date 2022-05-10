@@ -197,6 +197,15 @@ Sysreg	SMCR_EL1	3	0	1	2	6
 Fields	SMCR_ELx
 EndSysreg
 
+Sysreg	SMIDR_EL1	3	1	0	0	6
+Res0	63:32
+Field	31:24	IMPLEMENTER
+Field	23:16	REVISION
+Field	15	SMPS
+Res0	14:12
+Field	11:0	AFFINITY
+EndSysreg
+
 Sysreg	SMCR_EL2	3	4	1	2	6
 Fields	SMCR_ELx
 EndSysreg
