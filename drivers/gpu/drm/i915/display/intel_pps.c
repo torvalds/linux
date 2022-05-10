@@ -1184,6 +1184,9 @@ static void pps_init_delays_vbt(struct intel_dp *intel_dp,
 
 	*vbt = dev_priv->vbt.edp.pps;
 
+	if (!pps_delays_valid(vbt))
+		return;
+
 	/* On Toshiba Satellite P50-C-18C system the VBT T12 delay
 	 * of 500ms appears to be too short. Ocassionally the panel
 	 * just fails to power back on. Increasing the delay to 800ms
