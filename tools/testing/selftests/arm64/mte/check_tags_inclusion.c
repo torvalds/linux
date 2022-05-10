@@ -23,7 +23,7 @@ static int verify_mte_pointer_validity(char *ptr, int mode)
 {
 	mte_initialize_current_context(mode, (uintptr_t)ptr, BUFFER_SIZE);
 	/* Check the validity of the tagged pointer */
-	memset((void *)ptr, '1', BUFFER_SIZE);
+	memset(ptr, '1', BUFFER_SIZE);
 	mte_wait_after_trig();
 	if (cur_mte_cxt.fault_valid) {
 		ksft_print_msg("Unexpected fault recorded for %p-%p in mode %x\n",
@@ -51,7 +51,7 @@ static int check_single_included_tags(int mem_type, int mode)
 	char *ptr;
 	int tag, run, ret, result = KSFT_PASS;
 
-	ptr = (char *)mte_allocate_memory(BUFFER_SIZE + MT_GRANULE_SIZE, mem_type, 0, false);
+	ptr = mte_allocate_memory(BUFFER_SIZE + MT_GRANULE_SIZE, mem_type, 0, false);
 	if (check_allocated_memory(ptr, BUFFER_SIZE + MT_GRANULE_SIZE,
 				   mem_type, false) != KSFT_PASS)
 		return KSFT_FAIL;
@@ -62,7 +62,7 @@ static int check_single_included_tags(int mem_type, int mode)
 			result = KSFT_FAIL;
 		/* Try to catch a excluded tag by a number of tries. */
 		for (run = 0; (run < RUNS) && (result == KSFT_PASS); run++) {
-			ptr = (char *)mte_insert_tags(ptr, BUFFER_SIZE);
+			ptr = mte_insert_tags(ptr, BUFFER_SIZE);
 			/* Check tag value */
 			if (MT_FETCH_TAG((uintptr_t)ptr) == tag) {
 				ksft_print_msg("FAIL: wrong tag = 0x%x with include mask=0x%x\n",
@@ -74,7 +74,7 @@ static int check_single_included_tags(int mem_type, int mode)
 			result = verify_mte_pointer_validity(ptr, mode);
 		}
 	}
-	mte_free_memory_tag_range((void *)ptr, BUFFER_SIZE, mem_type, 0, MT_GRANULE_SIZE);
+	mte_free_memory_tag_range(ptr, BUFFER_SIZE, mem_type, 0, MT_GRANULE_SIZE);
 	return result;
 }
 
@@ -84,7 +84,7 @@ static int check_multiple_included_tags(int mem_type, int mode)
 	int tag, run, result = KSFT_PASS;
 	unsigned long excl_mask = 0;
 
-	ptr = (char *)mte_allocate_memory(BUFFER_SIZE + MT_GRANULE_SIZE, mem_type, 0, false);
+	ptr = mte_allocate_memory(BUFFER_SIZE + MT_GRANULE_SIZE, mem_type, 0, false);
 	if (check_allocated_memory(ptr, BUFFER_SIZE + MT_GRANULE_SIZE,
 				   mem_type, false) != KSFT_PASS)
 		return KSFT_FAIL;
@@ -94,7 +94,7 @@ static int check_multiple_included_tags(int mem_type, int mode)
 		mte_switch_mode(mode, MT_INCLUDE_VALID_TAGS(excl_mask));
 		/* Try to catch a excluded tag by a number of tries. */
 		for (run = 0; (run < RUNS) && (result == KSFT_PASS); run++) {
-			ptr = (char *)mte_insert_tags(ptr, BUFFER_SIZE);
+			ptr = mte_insert_tags(ptr, BUFFER_SIZE);
 			/* Check tag value */
 			if (MT_FETCH_TAG((uintptr_t)ptr) < tag) {
 				ksft_print_msg("FAIL: wrong tag = 0x%x with include mask=0x%x\n",
@@ -106,7 +106,7 @@ static int check_multiple_included_tags(int mem_type, int mode)
 			result = verify_mte_pointer_validity(ptr, mode);
 		}
 	}
-	mte_free_memory_tag_range((void *)ptr, BUFFER_SIZE, mem_type, 0, MT_GRANULE_SIZE);
+	mte_free_memory_tag_range(ptr, BUFFER_SIZE, mem_type, 0, MT_GRANULE_SIZE);
 	return result;
 }
 
@@ -115,7 +115,7 @@ static int check_all_included_tags(int mem_type, int mode)
 	char *ptr;
 	int run, ret, result = KSFT_PASS;
 
-	ptr = (char *)mte_allocate_memory(BUFFER_SIZE + MT_GRANULE_SIZE, mem_type, 0, false);
+	ptr = mte_allocate_memory(BUFFER_SIZE + MT_GRANULE_SIZE, mem_type, 0, false);
 	if (check_allocated_memory(ptr, BUFFER_SIZE + MT_GRANULE_SIZE,
 				   mem_type, false) != KSFT_PASS)
 		return KSFT_FAIL;
@@ -132,7 +132,7 @@ static int check_all_included_tags(int mem_type, int mode)
 		 */
 		result = verify_mte_pointer_validity(ptr, mode);
 	}
-	mte_free_memory_tag_range((void *)ptr, BUFFER_SIZE, mem_type, 0, MT_GRANULE_SIZE);
+	mte_free_memory_tag_range(ptr, BUFFER_SIZE, mem_type, 0, MT_GRANULE_SIZE);
 	return result;
 }
 
@@ -141,7 +141,7 @@ static int check_none_included_tags(int mem_type, int mode)
 	char *ptr;
 	int run, ret;
 
-	ptr = (char *)mte_allocate_memory(BUFFER_SIZE, mem_type, 0, false);
+	ptr = mte_allocate_memory(BUFFER_SIZE, mem_type, 0, false);
 	if (check_allocated_memory(ptr, BUFFER_SIZE, mem_type, false) != KSFT_PASS)
 		return KSFT_FAIL;
 
@@ -159,12 +159,12 @@ static int check_none_included_tags(int mem_type, int mode)
 		}
 		mte_initialize_current_context(mode, (uintptr_t)ptr, BUFFER_SIZE);
 		/* Check the write validity of the untagged pointer */
-		memset((void *)ptr, '1', BUFFER_SIZE);
+		memset(ptr, '1', BUFFER_SIZE);
 		mte_wait_after_trig();
 		if (cur_mte_cxt.fault_valid)
 			break;
 	}
-	mte_free_memory((void *)ptr, BUFFER_SIZE, mem_type, false);
+	mte_free_memory(ptr, BUFFER_SIZE, mem_type, false);
 	if (cur_mte_cxt.fault_valid)
 		return KSFT_FAIL;
 	else
