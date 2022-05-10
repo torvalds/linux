@@ -190,7 +190,7 @@ int kfd_hiq_load_mqd_kiq(struct mqd_manager *mm, void *mqd,
 		     struct queue_properties *p, struct mm_struct *mms)
 {
 	return mm->dev->kfd2kgd->hiq_mqd_load(mm->dev->adev, mqd, pipe_id,
-					      queue_id, p->doorbell_off);
+					      queue_id, p->doorbell_off, 0);
 }
 
 int kfd_destroy_mqd_cp(struct mqd_manager *mm, void *mqd,
@@ -198,7 +198,7 @@ int kfd_destroy_mqd_cp(struct mqd_manager *mm, void *mqd,
 		uint32_t pipe_id, uint32_t queue_id)
 {
 	return mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, mqd, type, timeout,
-						pipe_id, queue_id);
+						pipe_id, queue_id, 0);
 }
 
 void kfd_free_mqd_cp(struct mqd_manager *mm, void *mqd,
@@ -217,7 +217,7 @@ bool kfd_is_occupied_cp(struct mqd_manager *mm, void *mqd,
 		 uint32_t queue_id)
 {
 	return mm->dev->kfd2kgd->hqd_is_occupied(mm->dev->adev, queue_address,
-						pipe_id, queue_id);
+						pipe_id, queue_id, 0);
 }
 
 int kfd_load_mqd_sdma(struct mqd_manager *mm, void *mqd,

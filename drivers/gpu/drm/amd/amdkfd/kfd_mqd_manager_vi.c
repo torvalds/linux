@@ -165,7 +165,7 @@ static int load_mqd(struct mqd_manager *mm, void *mqd,
 
 	return mm->dev->kfd2kgd->hqd_load(mm->dev->adev, mqd, pipe_id, queue_id,
 					  (uint32_t __user *)p->write_ptr,
-					  wptr_shift, wptr_mask, mms);
+					  wptr_shift, wptr_mask, mms, 0);
 }
 
 static void __update_mqd(struct mqd_manager *mm, void *mqd,

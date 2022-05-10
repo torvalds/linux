@@ -33,7 +33,7 @@
 #include "soc15.h"
 
 static int kgd_gfx_v9_4_3_set_pasid_vmid_mapping(struct amdgpu_device *adev,
-				u32 pasid, unsigned int vmid)
+				u32 pasid, unsigned int vmid, uint32_t inst)
 {
 	unsigned long timeout;
 
@@ -47,11 +47,11 @@ static int kgd_gfx_v9_4_3_set_pasid_vmid_mapping(struct amdgpu_device *adev,
 	uint32_t pasid_mapping = (pasid == 0) ? 0 : (uint32_t)pasid |
 			ATC_VMID0_PASID_MAPPING__VALID_MASK;
 
-	WREG32(SOC15_REG_OFFSET(ATHUB, 0,
+	WREG32(SOC15_REG_OFFSET(ATHUB, inst,
 		regATC_VMID0_PASID_MAPPING) + vmid, pasid_mapping);
 
 	timeout = jiffies + msecs_to_jiffies(10);
-	while (!(RREG32(SOC15_REG_OFFSET(ATHUB, 0,
+	while (!(RREG32(SOC15_REG_OFFSET(ATHUB, inst,
 			regATC_VMID_PASID_MAPPING_UPDATE_STATUS)) &
 			(1U << vmid))) {
 		if (time_after(jiffies, timeout)) {
@@ -61,13 +61,13 @@ static int kgd_gfx_v9_4_3_set_pasid_vmid_mapping(struct amdgpu_device *adev,
 		cpu_relax();
 	}
 
-	WREG32(SOC15_REG_OFFSET(ATHUB, 0,
+	WREG32(SOC15_REG_OFFSET(ATHUB, inst,
 		regATC_VMID_PASID_MAPPING_UPDATE_STATUS),
 		1U << vmid);
 
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT) + vmid,
+	WREG32(SOC15_REG_OFFSET(OSSSYS, inst, mmIH_VMID_0_LUT) + vmid,
 		pasid_mapping);
-	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT_MM) + vmid,
+	WREG32(SOC15_REG_OFFSET(OSSSYS, inst, mmIH_VMID_0_LUT_MM) + vmid,
 		pasid_mapping);
 
 	return 0;
@@ -81,7 +81,7 @@ static inline struct v9_mqd *get_mqd(void *mqd)
 static int kgd_gfx_v9_4_3_hqd_load(struct amdgpu_device *adev, void *mqd,
 			uint32_t pipe_id, uint32_t queue_id,
 			uint32_t __user *wptr, uint32_t wptr_shift,
-			uint32_t wptr_mask, struct mm_struct *mm)
+			uint32_t wptr_mask, struct mm_struct *mm, uint32_t inst)
 {
 	struct v9_mqd *m;
 	uint32_t *mqd_hqd;
@@ -89,12 +89,12 @@ static int kgd_gfx_v9_4_3_hqd_load(struct amdgpu_device *adev, void *mqd,
 
 	m = get_mqd(mqd);
 
-	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id);
+	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
 
 	/* HQD registers extend to CP_HQD_AQL_DISPATCH_ID_HI */
 	mqd_hqd = &m->cp_mqd_base_addr_lo;
-	hqd_base = SOC15_REG_OFFSET(GC, 0, regCP_MQD_BASE_ADDR);
-	hqd_end = SOC15_REG_OFFSET(GC, 0, regCP_HQD_AQL_DISPATCH_ID_HI);
+	hqd_base = SOC15_REG_OFFSET(GC, inst, regCP_MQD_BASE_ADDR);
+	hqd_end = SOC15_REG_OFFSET(GC, inst, regCP_HQD_AQL_DISPATCH_ID_HI);
 
 	for (reg = hqd_base; reg <= hqd_end; reg++)
 		WREG32_RLC(reg, mqd_hqd[reg - hqd_base]);
@@ -103,7 +103,7 @@ static int kgd_gfx_v9_4_3_hqd_load(struct amdgpu_device *adev, void *mqd,
 	/* Activate doorbell logic before triggering WPTR poll. */
 	data = REG_SET_FIELD(m->cp_hqd_pq_doorbell_control,
 			     CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_EN, 1);
-	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, regCP_HQD_PQ_DOORBELL_CONTROL),
+	WREG32_RLC(SOC15_REG_OFFSET(GC, inst, regCP_HQD_PQ_DOORBELL_CONTROL),
 				data);
 
 	if (wptr) {
@@ -133,29 +133,29 @@ static int kgd_gfx_v9_4_3_hqd_load(struct amdgpu_device *adev, void *mqd,
 		guessed_wptr += m->cp_hqd_pq_wptr_lo & ~(queue_size - 1);
 		guessed_wptr += (uint64_t)m->cp_hqd_pq_wptr_hi << 32;
 
-		WREG32_RLC(SOC15_REG_OFFSET(GC, 0, regCP_HQD_PQ_WPTR_LO),
+		WREG32_RLC(SOC15_REG_OFFSET(GC, inst, regCP_HQD_PQ_WPTR_LO),
 		       lower_32_bits(guessed_wptr));
-		WREG32_RLC(SOC15_REG_OFFSET(GC, 0, regCP_HQD_PQ_WPTR_HI),
+		WREG32_RLC(SOC15_REG_OFFSET(GC, inst, regCP_HQD_PQ_WPTR_HI),
 		       upper_32_bits(guessed_wptr));
-		WREG32_RLC(SOC15_REG_OFFSET(GC, 0, regCP_HQD_PQ_WPTR_POLL_ADDR),
+		WREG32_RLC(SOC15_REG_OFFSET(GC, inst, regCP_HQD_PQ_WPTR_POLL_ADDR),
 		       lower_32_bits((uintptr_t)wptr));
-		WREG32_RLC(SOC15_REG_OFFSET(GC, 0,
+		WREG32_RLC(SOC15_REG_OFFSET(GC, inst,
 			regCP_HQD_PQ_WPTR_POLL_ADDR_HI),
 			upper_32_bits((uintptr_t)wptr));
-		WREG32(SOC15_REG_OFFSET(GC, 0, regCP_PQ_WPTR_POLL_CNTL1),
+		WREG32(SOC15_REG_OFFSET(GC, inst, regCP_PQ_WPTR_POLL_CNTL1),
 		       (uint32_t)kgd_gfx_v9_get_queue_mask(adev, pipe_id,
 			       queue_id));
 	}
 
 	/* Start the EOP fetcher */
-	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, regCP_HQD_EOP_RPTR),
+	WREG32_RLC(SOC15_REG_OFFSET(GC, inst, regCP_HQD_EOP_RPTR),
 	       REG_SET_FIELD(m->cp_hqd_eop_rptr,
 			     CP_HQD_EOP_RPTR, INIT_FETCHER, 1));
 
 	data = REG_SET_FIELD(m->cp_hqd_active, CP_HQD_ACTIVE, ACTIVE, 1);
-	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, regCP_HQD_ACTIVE), data);
+	WREG32_RLC(SOC15_REG_OFFSET(GC, inst, regCP_HQD_ACTIVE), data);
 
-	kgd_gfx_v9_release_queue(adev);
+	kgd_gfx_v9_release_queue(adev, inst);
 
 	return 0;
 }

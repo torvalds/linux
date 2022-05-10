@@ -218,7 +218,7 @@ static int load_mqd(struct mqd_manager *mm, void *mqd,
 
 	return mm->dev->kfd2kgd->hqd_load(mm->dev->adev, mqd, pipe_id, queue_id,
 					  (uint32_t __user *)p->write_ptr,
-					  wptr_shift, 0, mms);
+					  wptr_shift, 0, mms, 0);
 }
 
 static void update_mqd(struct mqd_manager *mm, void *mqd,
@@ -501,13 +501,15 @@ static int hiq_load_mqd_kiq_v9_4_3(struct mqd_manager *mm, void *mqd,
 {
 	int xcc, err;
 	void *xcc_mqd;
+	uint32_t start_inst = mm->dev->start_xcc_id;
 	uint64_t hiq_mqd_size = kfd_hiq_mqd_stride(mm->dev);
 
 	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
 		xcc_mqd = mqd + hiq_mqd_size * xcc;
 		err = mm->dev->kfd2kgd->hiq_mqd_load(mm->dev->adev, xcc_mqd,
 						     pipe_id, queue_id,
-						     p->doorbell_off);
+						     p->doorbell_off,
+						     start_inst+xcc);
 		if (err) {
 			pr_debug("Failed to load HIQ MQD for XCC: %d\n", xcc);
 			break;
@@ -523,13 +525,14 @@ static int destroy_hiq_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 {
 	int xcc = 0, err;
 	void *xcc_mqd;
+	uint32_t start_inst = mm->dev->start_xcc_id;
 	uint64_t hiq_mqd_size = kfd_hiq_mqd_stride(mm->dev);
 
 	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
 		xcc_mqd = mqd + hiq_mqd_size * xcc;
 		err = mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, xcc_mqd,
 						    type, timeout, pipe_id,
-						    queue_id);
+						    queue_id, start_inst+xcc);
 		if (err) {
 			pr_debug("Destroy MQD failed for xcc: %d\n", xcc);
 			break;
@@ -641,6 +644,7 @@ static int destroy_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 	void *xcc_mqd;
 	struct v9_mqd *m;
 	uint64_t mqd_offset;
+	uint32_t start_inst = mm->dev->start_xcc_id;
 
 	m = get_mqd(mqd);
 	mqd_offset = m->cp_mqd_stride_size;
@@ -649,7 +653,7 @@ static int destroy_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 		xcc_mqd = mqd + mqd_offset * xcc;
 		err = mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, xcc_mqd,
 						    type, timeout, pipe_id,
-						    queue_id);
+						    queue_id, start_inst+xcc);
 		if (err) {
 			pr_debug("Destroy MQD failed for xcc: %d\n", xcc);
 			break;
@@ -667,6 +671,7 @@ static int load_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 	uint32_t wptr_shift = (p->format == KFD_QUEUE_FORMAT_AQL ? 4 : 0);
 	int xcc = 0, err;
 	void *xcc_mqd;
+	uint32_t start_inst = mm->dev->start_xcc_id;
 	uint64_t mqd_stride_size = mm->mqd_stride(mm, p);
 
 	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
@@ -674,7 +679,7 @@ static int load_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 		err = mm->dev->kfd2kgd->hqd_load(mm->dev->adev, xcc_mqd,
 					 pipe_id, queue_id,
 					(uint32_t __user *)p->write_ptr,
-					wptr_shift, 0, mms);
+					wptr_shift, 0, mms, start_inst+xcc);
 		if (err) {
 			pr_debug("Load MQD failed for xcc: %d\n", xcc);
 			break;

@@ -127,12 +127,16 @@ static inline uint64_t get_reserved_sdma_queues_bitmap(struct device_queue_manag
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
-	return dqm->dev->kfd2kgd->program_sh_mem_settings(
+	int xcc = 0;
+
+	for (xcc = 0; xcc < dqm->dev->num_xcc_per_node; xcc++)
+		dqm->dev->kfd2kgd->program_sh_mem_settings(
 						dqm->dev->adev, qpd->vmid,
 						qpd->sh_mem_config,
 						qpd->sh_mem_ape1_base,
 						qpd->sh_mem_ape1_limit,
-						qpd->sh_mem_bases);
+						qpd->sh_mem_bases,
+						dqm->dev->start_xcc_id + xcc);
 }
 
 static void kfd_hws_hang(struct device_queue_manager *dqm)
@@ -405,10 +409,14 @@ static void deallocate_doorbell(struct qcm_process_device *qpd,
 static void program_trap_handler_settings(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd)
 {
+	int xcc = 0;
+
 	if (dqm->dev->kfd2kgd->program_trap_handler_settings)
-		dqm->dev->kfd2kgd->program_trap_handler_settings(
+		for (xcc = 0; xcc < dqm->dev->num_xcc_per_node; xcc++)
+			dqm->dev->kfd2kgd->program_trap_handler_settings(
 						dqm->dev->adev, qpd->vmid,
-						qpd->tba_addr, qpd->tma_addr);
+						qpd->tba_addr, qpd->tma_addr,
+						dqm->dev->start_xcc_id + xcc);
 }
 
 static int allocate_vmid(struct device_queue_manager *dqm,
@@ -671,6 +679,7 @@ static int dbgdev_wave_reset_wavefronts(struct kfd_node *dev, struct kfd_process
 	struct kfd_process_device *pdd;
 	int first_vmid_to_scan = dev->vm_info.first_vmid_kfd;
 	int last_vmid_to_scan = dev->vm_info.last_vmid_kfd;
+	int xcc = 0;
 
 	reg_sq_cmd.u32All = 0;
 	reg_gfx_index.u32All = 0;
@@ -715,9 +724,11 @@ static int dbgdev_wave_reset_wavefronts(struct kfd_node *dev, struct kfd_process
 	reg_sq_cmd.bits.cmd = SQ_IND_CMD_CMD_KILL;
 	reg_sq_cmd.bits.vm_id = vmid;
 
-	dev->kfd2kgd->wave_control_execute(dev->adev,
+	for (xcc = 0; xcc < dev->num_xcc_per_node; xcc++)
+		dev->kfd2kgd->wave_control_execute(dev->adev,
 					reg_gfx_index.u32All,
-					reg_sq_cmd.u32All);
+					reg_sq_cmd.u32All,
+					dev->start_xcc_id + xcc);
 
 	return 0;
 }
@@ -1229,17 +1240,32 @@ static int
 set_pasid_vmid_mapping(struct device_queue_manager *dqm, u32 pasid,
 			unsigned int vmid)
 {
-	return dqm->dev->kfd2kgd->set_pasid_vmid_mapping(
-						dqm->dev->adev, pasid, vmid);
+	int xcc = 0, ret;
+
+	for (xcc = 0; xcc < dqm->dev->num_xcc_per_node; xcc++) {
+		ret = dqm->dev->kfd2kgd->set_pasid_vmid_mapping(
+						dqm->dev->adev, pasid, vmid,
+						dqm->dev->start_xcc_id + xcc);
+		if (ret)
+			break;
+	}
+
+	return ret;
 }
 
 static void init_interrupts(struct device_queue_manager *dqm)
 {
-	unsigned int i;
+	unsigned int i, xcc;
 
-	for (i = 0 ; i < get_pipes_per_mec(dqm) ; i++)
-		if (is_pipe_enabled(dqm, 0, i))
-			dqm->dev->kfd2kgd->init_interrupts(dqm->dev->adev, i);
+	for (i = 0 ; i < get_pipes_per_mec(dqm) ; i++) {
+		if (is_pipe_enabled(dqm, 0, i)) {
+			for (xcc = 0; xcc < dqm->dev->num_xcc_per_node; xcc++)
+				dqm->dev->kfd2kgd->init_interrupts(
+							dqm->dev->adev, i,
+							dqm->dev->start_xcc_id +
+							xcc);
+		}
+	}
 }
 
 static void init_sdma_bitmaps(struct device_queue_manager *dqm)
@@ -2455,44 +2481,49 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 	struct device_queue_manager *dqm = data;
 	uint32_t (*dump)[2], n_regs;
 	int pipe, queue;
-	int r = 0;
+	int r = 0, xcc;
+	uint32_t inst;
 
 	if (!dqm->sched_running) {
 		seq_puts(m, " Device is stopped\n");
 		return 0;
 	}
 
-	r = dqm->dev->kfd2kgd->hqd_dump(dqm->dev->adev,
+	for (xcc = 0; xcc < dqm->dev->num_xcc_per_node; xcc++) {
+		inst = dqm->dev->start_xcc_id + xcc;
+		r = dqm->dev->kfd2kgd->hqd_dump(dqm->dev->adev,
 					KFD_CIK_HIQ_PIPE, KFD_CIK_HIQ_QUEUE,
-					&dump, &n_regs);
-	if (!r) {
-		seq_printf(m, "  HIQ on MEC %d Pipe %d Queue %d\n",
-			   KFD_CIK_HIQ_PIPE/get_pipes_per_mec(dqm)+1,
-			   KFD_CIK_HIQ_PIPE%get_pipes_per_mec(dqm),
-			   KFD_CIK_HIQ_QUEUE);
-		seq_reg_dump(m, dump, n_regs);
-
-		kfree(dump);
-	}
-
-	for (pipe = 0; pipe < get_pipes_per_mec(dqm); pipe++) {
-		int pipe_offset = pipe * get_queues_per_pipe(dqm);
-
-		for (queue = 0; queue < get_queues_per_pipe(dqm); queue++) {
-			if (!test_bit(pipe_offset + queue,
-				      dqm->dev->kfd->shared_resources.cp_queue_bitmap))
-				continue;
-
-			r = dqm->dev->kfd2kgd->hqd_dump(
-				dqm->dev->adev, pipe, queue, &dump, &n_regs);
-			if (r)
-				break;
-
-			seq_printf(m, "  CP Pipe %d, Queue %d\n",
-				  pipe, queue);
+					&dump, &n_regs, inst);
+		if (!r) {
+			seq_printf(m,
+				"   Inst %d, HIQ on MEC %d Pipe %d Queue %d\n",
+				inst, KFD_CIK_HIQ_PIPE/get_pipes_per_mec(dqm)+1,
+				KFD_CIK_HIQ_PIPE%get_pipes_per_mec(dqm),
+				KFD_CIK_HIQ_QUEUE);
 			seq_reg_dump(m, dump, n_regs);
 
 			kfree(dump);
+		}
+
+		for (pipe = 0; pipe < get_pipes_per_mec(dqm); pipe++) {
+			int pipe_offset = pipe * get_queues_per_pipe(dqm);
+
+			for (queue = 0; queue < get_queues_per_pipe(dqm); queue++) {
+				if (!test_bit(pipe_offset + queue,
+				      dqm->dev->kfd->shared_resources.cp_queue_bitmap))
+					continue;
+
+				r = dqm->dev->kfd2kgd->hqd_dump(
+					dqm->dev->adev, pipe, queue, &dump, &n_regs, inst);
+				if (r)
+					break;
+
+				seq_printf(m, " Inst %d,  CP Pipe %d, Queue %d\n",
+					  inst, pipe, queue);
+				seq_reg_dump(m, dump, n_regs);
+
+				kfree(dump);
+			}
 		}
 	}
 

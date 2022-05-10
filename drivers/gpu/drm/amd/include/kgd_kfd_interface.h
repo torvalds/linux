@@ -230,28 +230,30 @@ struct kfd2kgd_calls {
 	/* Register access functions */
 	void (*program_sh_mem_settings)(struct amdgpu_device *adev, uint32_t vmid,
 			uint32_t sh_mem_config,	uint32_t sh_mem_ape1_base,
-			uint32_t sh_mem_ape1_limit, uint32_t sh_mem_bases);
+			uint32_t sh_mem_ape1_limit, uint32_t sh_mem_bases,
+			uint32_t inst);
 
 	int (*set_pasid_vmid_mapping)(struct amdgpu_device *adev, u32 pasid,
-					unsigned int vmid);
+					unsigned int vmid, uint32_t inst);
 
-	int (*init_interrupts)(struct amdgpu_device *adev, uint32_t pipe_id);
+	int (*init_interrupts)(struct amdgpu_device *adev, uint32_t pipe_id,
+			uint32_t inst);
 
 	int (*hqd_load)(struct amdgpu_device *adev, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr,
 			uint32_t wptr_shift, uint32_t wptr_mask,
-			struct mm_struct *mm);
+			struct mm_struct *mm, uint32_t inst);
 
 	int (*hiq_mqd_load)(struct amdgpu_device *adev, void *mqd,
 			    uint32_t pipe_id, uint32_t queue_id,
-			    uint32_t doorbell_off);
+			    uint32_t doorbell_off, uint32_t inst);
 
 	int (*hqd_sdma_load)(struct amdgpu_device *adev, void *mqd,
 			     uint32_t __user *wptr, struct mm_struct *mm);
 
 	int (*hqd_dump)(struct amdgpu_device *adev,
 			uint32_t pipe_id, uint32_t queue_id,
-			uint32_t (**dump)[2], uint32_t *n_regs);
+			uint32_t (**dump)[2], uint32_t *n_regs, uint32_t inst);
 
 	int (*hqd_sdma_dump)(struct amdgpu_device *adev,
 			     uint32_t engine_id, uint32_t queue_id,
@@ -259,12 +261,12 @@ struct kfd2kgd_calls {
 
 	bool (*hqd_is_occupied)(struct amdgpu_device *adev,
 				uint64_t queue_address, uint32_t pipe_id,
-				uint32_t queue_id);
+				uint32_t queue_id, uint32_t inst);
 
 	int (*hqd_destroy)(struct amdgpu_device *adev, void *mqd,
 				enum kfd_preempt_type reset_type,
 				unsigned int timeout, uint32_t pipe_id,
-				uint32_t queue_id);
+				uint32_t queue_id, uint32_t inst);
 
 	bool (*hqd_sdma_is_occupied)(struct amdgpu_device *adev, void *mqd);
 
@@ -273,7 +275,7 @@ struct kfd2kgd_calls {
 
 	int (*wave_control_execute)(struct amdgpu_device *adev,
 					uint32_t gfx_index_val,
-					uint32_t sq_cmd);
+					uint32_t sq_cmd, uint32_t inst);
 	bool (*get_atc_vmid_pasid_mapping_info)(struct amdgpu_device *adev,
 					uint8_t vmid,
 					uint16_t *p_pasid);
@@ -290,9 +292,10 @@ struct kfd2kgd_calls {
 	uint32_t (*read_vmid_from_vmfault_reg)(struct amdgpu_device *adev);
 
 	void (*get_cu_occupancy)(struct amdgpu_device *adev, int pasid,
-			int *wave_cnt, int *max_waves_per_cu);
+			int *wave_cnt, int *max_waves_per_cu, uint32_t inst);
 	void (*program_trap_handler_settings)(struct amdgpu_device *adev,
-			uint32_t vmid, uint64_t tba_addr, uint64_t tma_addr);
+			uint32_t vmid, uint64_t tba_addr, uint64_t tma_addr,
+			uint32_t inst);
 };
 
 #endif	/* KGD_KFD_INTERFACE_H_INCLUDED */
