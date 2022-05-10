@@ -298,7 +298,7 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
 		 * Reuse existing anon_vma if its degree lower than two,
 		 * that means it has no vma and only one anon_vma child.
 		 *
-		 * Do not chose parent anon_vma, otherwise first child
+		 * Do not choose parent anon_vma, otherwise first child
 		 * will always reuse it. Root anon_vma is never reused:
 		 * it has self-parent reference and at least one child.
 		 */
@@ -2249,7 +2249,7 @@ static bool folio_make_device_exclusive(struct folio *folio,
 
 /**
  * make_device_exclusive_range() - Mark a range for exclusive use by a device
- * @mm: mm_struct of assoicated target process
+ * @mm: mm_struct of associated target process
  * @start: start of the region to mark for exclusive device access
  * @end: end address of region
  * @pages: returns the pages which were successfully marked for exclusive access
