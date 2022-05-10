@@ -5252,6 +5252,8 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 
 	intel_edp_add_properties(intel_dp);
 
+	intel_pps_init_late(intel_dp);
+
 	return true;
 
 out_vdd_off:

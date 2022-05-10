@@ -1051,7 +1051,7 @@ void vlv_pps_init(struct intel_encoder *encoder,
 	pps_init_registers(intel_dp, true);
 }
 
-static void intel_pps_vdd_sanitize(struct intel_dp *intel_dp)
+static void pps_vdd_init(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -1072,8 +1072,6 @@ static void intel_pps_vdd_sanitize(struct intel_dp *intel_dp)
 	drm_WARN_ON(&dev_priv->drm, intel_dp->pps.vdd_wakeref);
 	intel_dp->pps.vdd_wakeref = intel_display_power_get(dev_priv,
 							    intel_aux_power_domain(dig_port));
-
-	edp_panel_vdd_schedule_off(intel_dp);
 }
 
 bool intel_pps_have_panel_power_or_vdd(struct intel_dp *intel_dp)
@@ -1409,18 +1407,40 @@ void intel_pps_encoder_reset(struct intel_dp *intel_dp)
 
 		pps_init_delays(intel_dp);
 		pps_init_registers(intel_dp, false);
+		pps_vdd_init(intel_dp);
 
-		intel_pps_vdd_sanitize(intel_dp);
+		if (edp_have_panel_vdd(intel_dp))
+			edp_panel_vdd_schedule_off(intel_dp);
 	}
 }
 
 void intel_pps_init(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	intel_wakeref_t wakeref;
+
 	INIT_DELAYED_WORK(&intel_dp->pps.panel_vdd_work, edp_panel_vdd_work);
 
 	pps_init_timestamps(intel_dp);
 
-	intel_pps_encoder_reset(intel_dp);
+	with_intel_pps_lock(intel_dp, wakeref) {
+		if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+			vlv_initial_power_sequencer_setup(intel_dp);
+
+		pps_init_delays(intel_dp);
+		pps_init_registers(intel_dp, false);
+		pps_vdd_init(intel_dp);
+	}
+}
+
+void intel_pps_init_late(struct intel_dp *intel_dp)
+{
+	intel_wakeref_t wakeref;
+
+	with_intel_pps_lock(intel_dp, wakeref) {
+		if (edp_have_panel_vdd(intel_dp))
+			edp_panel_vdd_schedule_off(intel_dp);
+	}
 }
 
 void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
