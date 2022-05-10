@@ -2079,6 +2079,25 @@ static const char * const damon_sysfs_cmd_strs[] = {
 	"update_schemes_stats",
 };
 
+/*
+ * struct damon_sysfs_cmd_request - A request to the DAMON callback.
+ * @cmd:	The command that needs to be handled by the callback.
+ * @kdamond:	The kobject wrapper that associated to the kdamond thread.
+ *
+ * This structure represents a sysfs command request that need to access some
+ * DAMON context-internal data.  Because DAMON context-internal data can be
+ * safely accessed from DAMON callbacks without additional synchronization, the
+ * request will be handled by the DAMON callback.  None-``NULL`` @kdamond means
+ * the request is valid.
+ */
+struct damon_sysfs_cmd_request {
+	enum damon_sysfs_cmd cmd;
+	struct damon_sysfs_kdamond *kdamond;
+};
+
+/* Current DAMON callback request.  Protected by damon_sysfs_lock. */
+static struct damon_sysfs_cmd_request damon_sysfs_cmd_request;
+
 static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
 		char *buf)
 {
@@ -2258,6 +2277,70 @@ static void damon_sysfs_before_terminate(struct damon_ctx *ctx)
 	mutex_unlock(&ctx->kdamond_lock);
 }
 
+/*
+ * damon_sysfs_upd_schemes_stats() - Update schemes stats sysfs files.
+ * @kdamond:	The kobject wrapper that associated to the kdamond thread.
+ *
+ * This function reads the schemes stats of specific kdamond and update the
+ * related values for sysfs files.  This function should be called from DAMON
+ * callbacks while holding ``damon_syfs_lock``, to safely access the DAMON
+ * contexts-internal data and DAMON sysfs variables.
+ */
+static int damon_sysfs_upd_schemes_stats(struct damon_sysfs_kdamond *kdamond)
+{
+	struct damon_ctx *ctx = kdamond->damon_ctx;
+	struct damon_sysfs_schemes *sysfs_schemes;
+	struct damos *scheme;
+	int schemes_idx = 0;
+
+	if (!ctx)
+		return -EINVAL;
+	sysfs_schemes = kdamond->contexts->contexts_arr[0]->schemes;
+	damon_for_each_scheme(scheme, ctx) {
+		struct damon_sysfs_stats *sysfs_stats;
+
+		sysfs_stats = sysfs_schemes->schemes_arr[schemes_idx++]->stats;
+		sysfs_stats->nr_tried = scheme->stat.nr_tried;
+		sysfs_stats->sz_tried = scheme->stat.sz_tried;
+		sysfs_stats->nr_applied = scheme->stat.nr_applied;
+		sysfs_stats->sz_applied = scheme->stat.sz_applied;
+		sysfs_stats->qt_exceeds = scheme->stat.qt_exceeds;
+	}
+	return 0;
+}
+
+/*
+ * damon_sysfs_cmd_request_callback() - DAMON callback for handling requests.
+ * @c:	The DAMON context of the callback.
+ *
+ * This function is periodically called back from the kdamond thread for @c.
+ * Then, it checks if there is a waiting DAMON sysfs request and handles it.
+ */
+static int damon_sysfs_cmd_request_callback(struct damon_ctx *c)
+{
+	struct damon_sysfs_kdamond *kdamond;
+	int err = 0;
+
+	/* avoid deadlock due to concurrent state_store('off') */
+	if (!mutex_trylock(&damon_sysfs_lock))
+		return 0;
+	kdamond = damon_sysfs_cmd_request.kdamond;
+	if (!kdamond || kdamond->damon_ctx != c)
+		goto out;
+	switch (damon_sysfs_cmd_request.cmd) {
+	case DAMON_SYSFS_CMD_UPDATE_SCHEMES_STATS:
+		err = damon_sysfs_upd_schemes_stats(kdamond);
+		break;
+	default:
+		break;
+	}
+	/* Mark the request as invalid now. */
+	damon_sysfs_cmd_request.kdamond = NULL;
+out:
+	mutex_unlock(&damon_sysfs_lock);
+	return err;
+}
+
 static struct damon_ctx *damon_sysfs_build_ctx(
 		struct damon_sysfs_context *sys_ctx)
 {
@@ -2280,6 +2363,8 @@ static struct damon_ctx *damon_sysfs_build_ctx(
 	if (err)
 		goto out;
 
+	ctx->callback.after_wmarks_check = damon_sysfs_cmd_request_callback;
+	ctx->callback.after_aggregation = damon_sysfs_cmd_request_callback;
 	ctx->callback.before_terminate = damon_sysfs_before_terminate;
 	return ctx;
 
@@ -2295,6 +2380,8 @@ static int damon_sysfs_turn_damon_on(struct damon_sysfs_kdamond *kdamond)
 
 	if (kdamond->damon_ctx &&
 			damon_sysfs_ctx_running(kdamond->damon_ctx))
+		return -EBUSY;
+	if (damon_sysfs_cmd_request.kdamond == kdamond)
 		return -EBUSY;
 	/* TODO: support multiple contexts per kdamond */
 	if (kdamond->contexts->nr != 1)
@@ -2328,29 +2415,11 @@ static int damon_sysfs_turn_damon_off(struct damon_sysfs_kdamond *kdamond)
 	 */
 }
 
-static int damon_sysfs_update_schemes_stats(struct damon_sysfs_kdamond *kdamond)
+static inline bool damon_sysfs_kdamond_running(
+		struct damon_sysfs_kdamond *kdamond)
 {
-	struct damon_ctx *ctx = kdamond->damon_ctx;
-	struct damos *scheme;
-	int schemes_idx = 0;
-
-	if (!ctx)
-		return -EINVAL;
-	mutex_lock(&ctx->kdamond_lock);
-	damon_for_each_scheme(scheme, ctx) {
-		struct damon_sysfs_schemes *sysfs_schemes;
-		struct damon_sysfs_stats *sysfs_stats;
-
-		sysfs_schemes = kdamond->contexts->contexts_arr[0]->schemes;
-		sysfs_stats = sysfs_schemes->schemes_arr[schemes_idx++]->stats;
-		sysfs_stats->nr_tried = scheme->stat.nr_tried;
-		sysfs_stats->sz_tried = scheme->stat.sz_tried;
-		sysfs_stats->nr_applied = scheme->stat.nr_applied;
-		sysfs_stats->sz_applied = scheme->stat.sz_applied;
-		sysfs_stats->qt_exceeds = scheme->stat.qt_exceeds;
-	}
-	mutex_unlock(&ctx->kdamond_lock);
-	return 0;
+	return kdamond->damon_ctx &&
+		damon_sysfs_ctx_running(kdamond->damon_ctx);
 }
 
 /*
@@ -2358,24 +2427,58 @@ static int damon_sysfs_update_schemes_stats(struct damon_sysfs_kdamond *kdamond)
  * @cmd:	The command to handle.
  * @kdamond:	The kobject wrapper for the associated kdamond.
  *
- * This function handles a DAMON sysfs command for a kdamond.
+ * This function handles a DAMON sysfs command for a kdamond.  For commands
+ * that need to access running DAMON context-internal data, it requests
+ * handling of the command to the DAMON callback
+ * (@damon_sysfs_cmd_request_callback()) and wait until it is properly handled,
+ * or the context is completed.
  *
  * Return: 0 on success, negative error code otherwise.
  */
 static int damon_sysfs_handle_cmd(enum damon_sysfs_cmd cmd,
 		struct damon_sysfs_kdamond *kdamond)
 {
+	bool need_wait = true;
+
+	/* Handle commands that doesn't access DAMON context-internal data */
 	switch (cmd) {
 	case DAMON_SYSFS_CMD_ON:
 		return damon_sysfs_turn_damon_on(kdamond);
 	case DAMON_SYSFS_CMD_OFF:
 		return damon_sysfs_turn_damon_off(kdamond);
-	case DAMON_SYSFS_CMD_UPDATE_SCHEMES_STATS:
-		return damon_sysfs_update_schemes_stats(kdamond);
 	default:
 		break;
 	}
-	return -EINVAL;
+
+	/* Pass the command to DAMON callback for safe DAMON context access */
+	if (damon_sysfs_cmd_request.kdamond)
+		return -EBUSY;
+	if (!damon_sysfs_kdamond_running(kdamond))
+		return -EINVAL;
+	damon_sysfs_cmd_request.cmd = cmd;
+	damon_sysfs_cmd_request.kdamond = kdamond;
+
+	/*
+	 * wait until damon_sysfs_cmd_request_callback() handles the request
+	 * from kdamond context
+	 */
+	mutex_unlock(&damon_sysfs_lock);
+	while (need_wait) {
+		schedule_timeout_idle(msecs_to_jiffies(100));
+		if (!mutex_trylock(&damon_sysfs_lock))
+			continue;
+		if (!damon_sysfs_cmd_request.kdamond) {
+			/* damon_sysfs_cmd_request_callback() handled */
+			need_wait = false;
+		} else if (!damon_sysfs_kdamond_running(kdamond)) {
+			/* kdamond has already finished */
+			need_wait = false;
+			damon_sysfs_cmd_request.kdamond = NULL;
+		}
+		mutex_unlock(&damon_sysfs_lock);
+	}
+	mutex_lock(&damon_sysfs_lock);
+	return 0;
 }
 
 static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
@@ -2511,6 +2614,12 @@ static int damon_sysfs_kdamonds_add_dirs(struct damon_sysfs_kdamonds *kdamonds,
 
 	if (damon_sysfs_nr_running_ctxs(kdamonds->kdamonds_arr, kdamonds->nr))
 		return -EBUSY;
+
+	for (i = 0; i < kdamonds->nr; i++) {
+		if (damon_sysfs_cmd_request.kdamond ==
+				kdamonds->kdamonds_arr[i])
+			return -EBUSY;
+	}
 
 	damon_sysfs_kdamonds_rm_dirs(kdamonds);
 	if (!nr_kdamonds)
