@@ -283,7 +283,7 @@ int mte_switch_mode(int mte_option, unsigned long incl_mask)
 		return -EINVAL;
 	}
 
-	if (!(incl_mask <= MTE_ALLOW_NON_ZERO_TAG)) {
+	if (incl_mask & ~MT_INCLUDE_TAG_MASK) {
 		ksft_print_msg("FAIL: Invalid incl_mask %lx\n", incl_mask);
 		return -EINVAL;
 	}
