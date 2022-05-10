@@ -16,6 +16,7 @@ static inline void swap_read_unplug(struct swap_iocb *plug)
 	if (unlikely(plug))
 		__swap_read_unplug(plug);
 }
+void swap_write_unplug(struct swap_iocb *sio);
 int swap_writepage(struct page *page, struct writeback_control *wbc);
 void end_swap_bio_write(struct bio *bio);
 int __swap_writepage(struct page *page, struct writeback_control *wbc,
@@ -70,6 +71,9 @@ static inline int swap_readpage(struct page *page, bool do_poll,
 				struct swap_iocb **plug)
 {
 	return 0;
+}
+static inline void swap_write_unplug(struct swap_iocb *sio)
+{
 }
 
 static inline struct address_space *swap_address_space(swp_entry_t entry)
