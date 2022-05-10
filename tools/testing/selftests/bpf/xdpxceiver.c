@@ -575,7 +575,7 @@ static struct pkt *pkt_generate(struct ifobject *ifobject, u32 pkt_nb)
 
 	if (!pkt)
 		return NULL;
-	if (!pkt->valid || pkt->len < PKT_SIZE)
+	if (!pkt->valid || pkt->len < MIN_PKT_SIZE)
 		return pkt;
 
 	data = xsk_umem__get_data(ifobject->umem->buffer, pkt->addr);
@@ -677,8 +677,8 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 		return false;
 	}
 
-	if (len < PKT_SIZE) {
-		/*Do not try to verify packets that are smaller than minimum size. */
+	if (len < MIN_PKT_SIZE || pkt->len < MIN_PKT_SIZE) {
+		/* Do not try to verify packets that are smaller than minimum size. */
 		return true;
 	}
 
@@ -1282,10 +1282,10 @@ static void testapp_single_pkt(struct test_spec *test)
 static void testapp_invalid_desc(struct test_spec *test)
 {
 	struct pkt pkts[] = {
-		/* Zero packet length at address zero allowed */
-		{0, 0, 0, true},
-		/* Zero packet length allowed */
-		{0x1000, 0, 0, true},
+		/* Zero packet address allowed */
+		{0, PKT_SIZE, 0, true},
+		/* Allowed packet */
+		{0x1000, PKT_SIZE, 0, true},
 		/* Straddling the start of umem */
 		{-2, PKT_SIZE, 0, false},
 		/* Packet too large */

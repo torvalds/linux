@@ -25,9 +25,10 @@
 #define MAX_TEARDOWN_ITER 10
 #define PKT_HDR_SIZE (sizeof(struct ethhdr) + sizeof(struct iphdr) + \
 			sizeof(struct udphdr))
-#define MIN_PKT_SIZE 64
+#define MIN_ETH_PKT_SIZE 64
 #define ETH_FCS_SIZE 4
-#define PKT_SIZE (MIN_PKT_SIZE - ETH_FCS_SIZE)
+#define MIN_PKT_SIZE (MIN_ETH_PKT_SIZE - ETH_FCS_SIZE)
+#define PKT_SIZE (MIN_PKT_SIZE)
 #define IP_PKT_SIZE (PKT_SIZE - sizeof(struct ethhdr))
 #define IP_PKT_VER 0x4
 #define IP_PKT_TOS 0x9
