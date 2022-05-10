@@ -143,12 +143,12 @@ static const struct parent_map disp_cc_parent_map_0[] = {
 
 static const struct clk_parent_data disp_cc_parent_data_0[] = {
 	{ .fw_name = "bi_tcxo" },
-	{ .fw_name = "dp_phy_pll_link_clk" },
-	{ .fw_name = "dp_phy_pll_vco_div_clk" },
-	{ .fw_name = "dptx1_phy_pll_link_clk" },
-	{ .fw_name = "dptx1_phy_pll_vco_div_clk" },
-	{ .fw_name = "dptx2_phy_pll_link_clk" },
-	{ .fw_name = "dptx2_phy_pll_vco_div_clk" },
+	{ .fw_name = "dp_phy_pll_link_clk", .name = "dp_phy_pll_link_clk" },
+	{ .fw_name = "dp_phy_pll_vco_div_clk", .name = "dp_phy_pll_vco_div_clk" },
+	{ .fw_name = "dptx1_phy_pll_link_clk", .name = "dptx1_phy_pll_link_clk" },
+	{ .fw_name = "dptx1_phy_pll_vco_div_clk", .name = "dptx1_phy_pll_vco_div_clk" },
+	{ .fw_name = "dptx2_phy_pll_link_clk", .name = "dptx2_phy_pll_link_clk" },
+	{ .fw_name = "dptx2_phy_pll_vco_div_clk", .name = "dptx2_phy_pll_vco_div_clk" },
 };
 
 static const struct parent_map disp_cc_parent_map_1[] = {
@@ -167,8 +167,8 @@ static const struct parent_map disp_cc_parent_map_2[] = {
 
 static const struct clk_parent_data disp_cc_parent_data_2[] = {
 	{ .fw_name = "bi_tcxo" },
-	{ .fw_name = "dsi0_phy_pll_out_byteclk" },
-	{ .fw_name = "dsi1_phy_pll_out_byteclk" },
+	{ .fw_name = "dsi0_phy_pll_out_byteclk", .name = "dsi0_phy_pll_out_byteclk" },
+	{ .fw_name = "dsi1_phy_pll_out_byteclk", .name = "dsi1_phy_pll_out_byteclk" },
 };
 
 static const struct parent_map disp_cc_parent_map_3[] = {
@@ -189,8 +189,8 @@ static const struct parent_map disp_cc_parent_map_4[] = {
 
 static const struct clk_parent_data disp_cc_parent_data_4[] = {
 	{ .fw_name = "bi_tcxo" },
-	{ .fw_name = "edp_phy_pll_link_clk" },
-	{ .fw_name = "edp_phy_pll_vco_div_clk" },
+	{ .fw_name = "edp_phy_pll_link_clk", .name = "edp_phy_pll_link_clk" },
+	{ .fw_name = "edp_phy_pll_vco_div_clk", .name = "edp_phy_pll_vco_div_clk" },
 };
 
 static const struct parent_map disp_cc_parent_map_4_sc8180x[] = {
@@ -231,8 +231,8 @@ static const struct parent_map disp_cc_parent_map_6[] = {
 
 static const struct clk_parent_data disp_cc_parent_data_6[] = {
 	{ .fw_name = "bi_tcxo" },
-	{ .fw_name = "dsi0_phy_pll_out_dsiclk" },
-	{ .fw_name = "dsi1_phy_pll_out_dsiclk" },
+	{ .fw_name = "dsi0_phy_pll_out_dsiclk", .name = "dsi0_phy_pll_out_dsiclk" },
+	{ .fw_name = "dsi1_phy_pll_out_dsiclk", .name = "dsi1_phy_pll_out_dsiclk" },
 };
 
 static const struct parent_map disp_cc_parent_map_7[] = {
