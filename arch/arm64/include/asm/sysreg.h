@@ -1114,14 +1114,14 @@
 #define DCZID_BS_SHIFT			0
 
 #define ZCR_ELx_LEN_SHIFT	0
-#define ZCR_ELx_LEN_SIZE	4
+#define ZCR_ELx_LEN_WIDTH	4
 #define ZCR_ELx_LEN_MASK	0xf
 
 #define SMCR_ELx_FA64_SHIFT	31
 #define SMCR_ELx_FA64_MASK	(1 << SMCR_ELx_FA64_SHIFT)
 
 #define SMCR_ELx_LEN_SHIFT	0
-#define SMCR_ELx_LEN_SIZE	4
+#define SMCR_ELx_LEN_WIDTH	4
 #define SMCR_ELx_LEN_MASK	0xf
 
 #define CPACR_EL1_FPEN_EL1EN	(BIT(20)) /* enable EL1 access */
