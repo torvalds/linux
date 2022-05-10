@@ -119,9 +119,6 @@ u64 x86_perf_event_update(struct perf_event *event)
 	if (unlikely(!hwc->event_base))
 		return 0;
 
-	if (unlikely(is_topdown_count(event)) && x86_pmu.update_topdown_event)
-		return x86_pmu.update_topdown_event(event);
-
 	/*
 	 * Careful: an NMI might modify the previous event value.
 	 *
@@ -1372,10 +1369,6 @@ int x86_perf_event_set_period(struct perf_event *event)
 
 	if (unlikely(!hwc->event_base))
 		return 0;
-
-	if (unlikely(is_topdown_count(event)) &&
-	    x86_pmu.set_topdown_event_period)
-		return x86_pmu.set_topdown_event_period(event);
 
 	/*
 	 * If we are way outside a reasonable range then just skip forward:

@@ -2302,7 +2302,7 @@ static void intel_pmu_nhm_workaround(void)
 	for (i = 0; i < 4; i++) {
 		event = cpuc->events[i];
 		if (event)
-			x86_perf_event_update(event);
+			static_call(x86_pmu_update)(event);
 	}
 
 	for (i = 0; i < 4; i++) {
@@ -2317,7 +2317,7 @@ static void intel_pmu_nhm_workaround(void)
 		event = cpuc->events[i];
 
 		if (event) {
-			x86_perf_event_set_period(event);
+			static_call(x86_pmu_set_period)(event);
 			__x86_pmu_enable_event(&event->hw,
 					ARCH_PERFMON_EVENTSEL_ENABLE);
 		} else
@@ -2794,7 +2794,7 @@ static void intel_pmu_add_event(struct perf_event *event)
  */
 int intel_pmu_save_and_restart(struct perf_event *event)
 {
-	x86_perf_event_update(event);
+	static_call(x86_pmu_update)(event);
 	/*
 	 * For a checkpointed counter always reset back to 0.  This
 	 * avoids a situation where the counter overflows, aborts the
@@ -2806,7 +2806,25 @@ int intel_pmu_save_and_restart(struct perf_event *event)
 		wrmsrl(event->hw.event_base, 0);
 		local64_set(&event->hw.prev_count, 0);
 	}
+	return static_call(x86_pmu_set_period)(event);
+}
+
+static int intel_pmu_set_period(struct perf_event *event)
+{
+	if (unlikely(is_topdown_count(event)) &&
+	    x86_pmu.set_topdown_event_period)
+		return x86_pmu.set_topdown_event_period(event);
+
 	return x86_perf_event_set_period(event);
+}
+
+static u64 intel_pmu_update(struct perf_event *event)
+{
+	if (unlikely(is_topdown_count(event)) &&
+	    x86_pmu.update_topdown_event)
+		return x86_pmu.update_topdown_event(event);
+
+	return x86_perf_event_update(event);
 }
 
 static void intel_pmu_reset(void)
@@ -4786,6 +4804,8 @@ static __initconst const struct x86_pmu intel_pmu = {
 	.add			= intel_pmu_add_event,
 	.del			= intel_pmu_del_event,
 	.read			= intel_pmu_read_event,
+	.set_period		= intel_pmu_set_period,
+	.update			= intel_pmu_update,
 	.hw_config		= intel_pmu_hw_config,
 	.schedule_events	= x86_schedule_events,
 	.eventsel		= MSR_ARCH_PERFMON_EVENTSEL0,
