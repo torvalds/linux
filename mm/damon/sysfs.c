@@ -2053,6 +2053,32 @@ static bool damon_sysfs_ctx_running(struct damon_ctx *ctx)
 	return running;
 }
 
+/*
+ * enum damon_sysfs_cmd - Commands for a specific kdamond.
+ */
+enum damon_sysfs_cmd {
+	/* @DAMON_SYSFS_CMD_ON: Turn the kdamond on. */
+	DAMON_SYSFS_CMD_ON,
+	/* @DAMON_SYSFS_CMD_OFF: Turn the kdamond off. */
+	DAMON_SYSFS_CMD_OFF,
+	/*
+	 * @DAMON_SYSFS_CMD_UPDATE_SCHEMES_STATS: Update scheme stats sysfs
+	 * files.
+	 */
+	DAMON_SYSFS_CMD_UPDATE_SCHEMES_STATS,
+	/*
+	 * @NR_DAMON_SYSFS_CMDS: Total number of DAMON sysfs commands.
+	 */
+	NR_DAMON_SYSFS_CMDS,
+};
+
+/* Should match with enum damon_sysfs_cmd */
+static const char * const damon_sysfs_cmd_strs[] = {
+	"on",
+	"off",
+	"update_schemes_stats",
+};
+
 static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
 		char *buf)
 {
@@ -2066,7 +2092,9 @@ static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
 	else
 		running = damon_sysfs_ctx_running(ctx);
 
-	return sysfs_emit(buf, "%s\n", running ? "on" : "off");
+	return sysfs_emit(buf, "%s\n", running ?
+			damon_sysfs_cmd_strs[DAMON_SYSFS_CMD_ON] :
+			damon_sysfs_cmd_strs[DAMON_SYSFS_CMD_OFF]);
 }
 
 static int damon_sysfs_set_attrs(struct damon_ctx *ctx,
@@ -2325,23 +2353,47 @@ static int damon_sysfs_update_schemes_stats(struct damon_sysfs_kdamond *kdamond)
 	return 0;
 }
 
+/*
+ * damon_sysfs_handle_cmd() - Handle a command for a specific kdamond.
+ * @cmd:	The command to handle.
+ * @kdamond:	The kobject wrapper for the associated kdamond.
+ *
+ * This function handles a DAMON sysfs command for a kdamond.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+static int damon_sysfs_handle_cmd(enum damon_sysfs_cmd cmd,
+		struct damon_sysfs_kdamond *kdamond)
+{
+	switch (cmd) {
+	case DAMON_SYSFS_CMD_ON:
+		return damon_sysfs_turn_damon_on(kdamond);
+	case DAMON_SYSFS_CMD_OFF:
+		return damon_sysfs_turn_damon_off(kdamond);
+	case DAMON_SYSFS_CMD_UPDATE_SCHEMES_STATS:
+		return damon_sysfs_update_schemes_stats(kdamond);
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
 static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct damon_sysfs_kdamond *kdamond = container_of(kobj,
 			struct damon_sysfs_kdamond, kobj);
-	ssize_t ret;
+	enum damon_sysfs_cmd cmd;
+	ssize_t ret = -EINVAL;
 
 	if (!mutex_trylock(&damon_sysfs_lock))
 		return -EBUSY;
-	if (sysfs_streq(buf, "on"))
-		ret = damon_sysfs_turn_damon_on(kdamond);
-	else if (sysfs_streq(buf, "off"))
-		ret = damon_sysfs_turn_damon_off(kdamond);
-	else if (sysfs_streq(buf, "update_schemes_stats"))
-		ret = damon_sysfs_update_schemes_stats(kdamond);
-	else
-		ret = -EINVAL;
+	for (cmd = 0; cmd < NR_DAMON_SYSFS_CMDS; cmd++) {
+		if (sysfs_streq(buf, damon_sysfs_cmd_strs[cmd])) {
+			ret = damon_sysfs_handle_cmd(cmd, kdamond);
+			break;
+		}
+	}
 	mutex_unlock(&damon_sysfs_lock);
 	if (!ret)
 		ret = count;
