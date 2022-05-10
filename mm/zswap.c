@@ -36,6 +36,8 @@
 #include <linux/pagemap.h>
 #include <linux/workqueue.h>
 
+#include "swap.h"
+
 /*********************************
 * statistics
 **********************************/
