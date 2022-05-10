@@ -1254,14 +1254,6 @@ static inline void amd_pmu_brs_del(struct perf_event *event)
 }
 
 void amd_pmu_brs_sched_task(struct perf_event_context *ctx, bool sched_in);
-
-static inline s64 amd_brs_adjust_period(s64 period)
-{
-	if (period > x86_pmu.lbr_nr)
-		return period - x86_pmu.lbr_nr;
-
-	return period;
-}
 #else
 static inline int amd_brs_init(void)
 {
@@ -1288,11 +1280,6 @@ static inline void amd_pmu_brs_del(struct perf_event *event)
 
 static inline void amd_pmu_brs_sched_task(struct perf_event_context *ctx, bool sched_in)
 {
-}
-
-static inline s64 amd_brs_adjust_period(s64 period)
-{
-	return period;
 }
 
 static inline void amd_brs_enable_all(void)
@@ -1323,11 +1310,6 @@ static inline void amd_brs_enable_all(void)
 
 static inline void amd_brs_disable_all(void)
 {
-}
-
-static inline s64 amd_brs_adjust_period(s64 period)
-{
-	return period;
 }
 #endif /* CONFIG_CPU_SUP_AMD */
 

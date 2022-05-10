@@ -1255,6 +1255,18 @@ static void amd_pmu_sched_task(struct perf_event_context *ctx,
 		amd_pmu_brs_sched_task(ctx, sched_in);
 }
 
+static u64 amd_pmu_limit_period(struct perf_event *event, u64 left)
+{
+	/*
+	 * Decrease period by the depth of the BRS feature to get the last N
+	 * taken branches and approximate the desired period
+	 */
+	if (has_branch_stack(event) && left > x86_pmu.lbr_nr)
+		left -= x86_pmu.lbr_nr;
+
+	return left;
+}
+
 static __initconst const struct x86_pmu amd_pmu = {
 	.name			= "AMD",
 	.handle_irq		= amd_pmu_handle_irq,
@@ -1415,6 +1427,7 @@ static int __init amd_core_pmu_init(void)
 	if (boot_cpu_data.x86 >= 0x19 && !amd_brs_init()) {
 		x86_pmu.get_event_constraints = amd_get_event_constraints_f19h;
 		x86_pmu.sched_task = amd_pmu_sched_task;
+		x86_pmu.limit_period = amd_pmu_limit_period;
 		/*
 		 * put_event_constraints callback same as Fam17h, set above
 		 */
