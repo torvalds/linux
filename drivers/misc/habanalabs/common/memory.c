@@ -305,33 +305,20 @@ static void dram_pg_pool_do_release(struct kref *ref)
  *
  * This function does the following:
  * - For DRAM memory only
- *   - iterate over the pack, scrub and free each physical block structure by
+ *   - iterate over the pack, free each physical block structure by
  *     returning it to the general pool.
- *     In case of error during scrubbing, initiate hard reset.
- *     Once hard reset is triggered, scrubbing is bypassed while freeing the
- *     memory continues.
  * - Free the hl_vm_phys_pg_pack structure.
  */
-static int free_phys_pg_pack(struct hl_device *hdev,
+static void free_phys_pg_pack(struct hl_device *hdev,
 				struct hl_vm_phys_pg_pack *phys_pg_pack)
 {
 	struct hl_vm *vm = &hdev->vm;
 	u64 i;
-	int rc = 0;
 
 	if (phys_pg_pack->created_from_userptr)
 		goto end;
 
 	if (phys_pg_pack->contiguous) {
-		if (hdev->memory_scrub && !hdev->disabled) {
-			rc = hdev->asic_funcs->scrub_device_mem(hdev,
-					phys_pg_pack->pages[0],
-					phys_pg_pack->total_size);
-			if (rc)
-				dev_err(hdev->dev,
-					"Failed to scrub contiguous device memory\n");
-		}
-
 		gen_pool_free(vm->dram_pg_pool, phys_pg_pack->pages[0],
 			phys_pg_pack->total_size);
 
@@ -340,15 +327,6 @@ static int free_phys_pg_pack(struct hl_device *hdev,
 				dram_pg_pool_do_release);
 	} else {
 		for (i = 0 ; i < phys_pg_pack->npages ; i++) {
-			if (hdev->memory_scrub && !hdev->disabled && rc == 0) {
-				rc = hdev->asic_funcs->scrub_device_mem(
-						hdev,
-						phys_pg_pack->pages[i],
-						phys_pg_pack->page_size);
-				if (rc)
-					dev_err(hdev->dev,
-						"Failed to scrub device memory\n");
-			}
 			gen_pool_free(vm->dram_pg_pool,
 				phys_pg_pack->pages[i],
 				phys_pg_pack->page_size);
@@ -357,14 +335,11 @@ static int free_phys_pg_pack(struct hl_device *hdev,
 		}
 	}
 
-	if (rc && !hdev->disabled)
-		hl_device_reset(hdev, HL_DRV_RESET_HARD);
-
 end:
 	kvfree(phys_pg_pack->pages);
 	kfree(phys_pg_pack);
 
-	return rc;
+	return;
 }
 
 /**
@@ -409,7 +384,8 @@ static int free_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args)
 		atomic64_sub(phys_pg_pack->total_size, &ctx->dram_phys_mem);
 		atomic64_sub(phys_pg_pack->total_size, &hdev->dram_used_mem);
 
-		return free_phys_pg_pack(hdev, phys_pg_pack);
+		free_phys_pg_pack(hdev, phys_pg_pack);
+		return 0;
 	} else {
 		spin_unlock(&vm->idr_lock);
 		dev_err(hdev->dev,
@@ -1278,7 +1254,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 	*device_addr = ret_vaddr;
 
 	if (is_userptr)
-		rc = free_phys_pg_pack(hdev, phys_pg_pack);
+		free_phys_pg_pack(hdev, phys_pg_pack);
 
 	return rc;
 
