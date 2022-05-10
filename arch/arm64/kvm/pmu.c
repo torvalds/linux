@@ -5,7 +5,8 @@
  */
 #include <linux/kvm_host.h>
 #include <linux/perf_event.h>
-#include <asm/kvm_hyp.h>
+
+static DEFINE_PER_CPU(struct kvm_pmu_events, kvm_pmu_events);
 
 /*
  * Given the perf event attributes and system type, determine
@@ -25,14 +26,9 @@ static bool kvm_pmu_switch_needed(struct perf_event_attr *attr)
 	return (attr->exclude_host != attr->exclude_guest);
 }
 
-static struct kvm_pmu_events *kvm_get_pmu_events(void)
+struct kvm_pmu_events *kvm_get_pmu_events(void)
 {
-	struct kvm_host_data *ctx = this_cpu_ptr_hyp_sym(kvm_host_data);
-
-	if (!ctx)
-		return NULL;
-
-	return &ctx->pmu_events;
+	return this_cpu_ptr(&kvm_pmu_events);
 }
 
 /*
