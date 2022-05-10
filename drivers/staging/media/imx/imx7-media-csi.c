@@ -165,9 +165,10 @@
 #define IMX7_CSI_VIDEO_NAME		"imx-capture"
 /* In bytes, per queue */
 #define IMX7_CSI_VIDEO_MEM_LIMIT	SZ_64M
-#define IMX7_CSI_VIDEO_DEF_PIX_WIDTH	640
-#define IMX7_CSI_VIDEO_DEF_PIX_HEIGHT	480
 #define IMX7_CSI_VIDEO_EOF_TIMEOUT	2000
+
+#define IMX7_CSI_DEF_PIX_WIDTH		640
+#define IMX7_CSI_DEF_PIX_HEIGHT		480
 
 enum imx_csi_model {
 	IMX7_CSI_IMX7 = 0,
@@ -303,7 +304,8 @@ static void imx7_csi_init_default(struct imx7_csi *csi)
 	imx7_csi_reg_write(csi, 0, CSI_CSICR2);
 	imx7_csi_reg_write(csi, BIT_FRMCNT_RST, CSI_CSICR3);
 
-	imx7_csi_reg_write(csi, BIT_IMAGE_WIDTH(800) | BIT_IMAGE_HEIGHT(600),
+	imx7_csi_reg_write(csi, BIT_IMAGE_WIDTH(IMX7_CSI_DEF_PIX_WIDTH) |
+			   BIT_IMAGE_HEIGHT(IMX7_CSI_DEF_PIX_HEIGHT),
 			   CSI_CSIIMAG_PARA);
 
 	imx7_csi_reg_write(csi, BIT_DMA_REFLASH_RFF, CSI_CSICR3);
@@ -1628,8 +1630,8 @@ static int imx7_csi_video_init_format(struct imx7_csi *csi)
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
 	fmt_src.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
-	fmt_src.format.width = IMX7_CSI_VIDEO_DEF_PIX_WIDTH;
-	fmt_src.format.height = IMX7_CSI_VIDEO_DEF_PIX_HEIGHT;
+	fmt_src.format.width = IMX7_CSI_DEF_PIX_WIDTH;
+	fmt_src.format.height = IMX7_CSI_DEF_PIX_HEIGHT;
 
 	imx7_csi_mbus_fmt_to_pix_fmt(&csi->vdev_fmt, &fmt_src.format, NULL);
 	csi->vdev_compose.width = fmt_src.format.width;
@@ -1818,8 +1820,9 @@ static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
 		struct v4l2_mbus_framefmt *mf =
 			imx7_csi_get_format(csi, sd_state, i, which);
 
-		ret = imx7_csi_init_mbus_fmt(mf, 800, 600, 0, V4L2_FIELD_NONE,
-					     &csi->cc[i]);
+		ret = imx7_csi_init_mbus_fmt(mf, IMX7_CSI_DEF_PIX_WIDTH,
+					     IMX7_CSI_DEF_PIX_HEIGHT, 0,
+					     V4L2_FIELD_NONE, &csi->cc[i]);
 		if (ret < 0)
 			return ret;
 	}
