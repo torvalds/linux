@@ -26,6 +26,7 @@
 #include "bpf_iter_bpf_sk_storage_map.skel.h"
 #include "bpf_iter_test_kern5.skel.h"
 #include "bpf_iter_test_kern6.skel.h"
+#include "bpf_iter_bpf_link.skel.h"
 
 static int duration;
 
@@ -1106,6 +1107,19 @@ static void test_buf_neg_offset(void)
 		bpf_iter_test_kern6__destroy(skel);
 }
 
+static void test_link_iter(void)
+{
+	struct bpf_iter_bpf_link *skel;
+
+	skel = bpf_iter_bpf_link__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "bpf_iter_bpf_link__open_and_load"))
+		return;
+
+	do_dummy_read(skel->progs.dump_bpf_link);
+
+	bpf_iter_bpf_link__destroy(skel);
+}
+
 #define CMP_BUFFER_SIZE 1024
 static char task_vma_output[CMP_BUFFER_SIZE];
 static char proc_maps_output[CMP_BUFFER_SIZE];
@@ -1251,4 +1265,6 @@ void test_bpf_iter(void)
 		test_rdonly_buf_out_of_bound();
 	if (test__start_subtest("buf-neg-offset"))
 		test_buf_neg_offset();
+	if (test__start_subtest("link-iter"))
+		test_link_iter();
 }
