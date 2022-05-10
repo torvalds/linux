@@ -156,21 +156,6 @@ jobs:
      LKL_QEMU_TEST: 1
    <<: *do_steps
 
-  checkpatch:
-   docker:
-     - image: lkldocker/circleci:0.5
-   environment:
-   steps:
-     - restore_cache:
-        key: code-tree-full-history-{{ .Environment.CACHE_VERSION }}
-     - checkout
-     - run: tools/lkl/scripts/checkpatch.sh
-     - save_cache:
-        key: code-tree-full-history-{{ .Environment.CACHE_VERSION }}-{{ epoch }}
-        paths:
-          - /home/ubuntu/project/.git
-        when: always
-
 workflows:
   version: 2
   build:
@@ -181,7 +166,6 @@ workflows:
      - android-arm32
      - android-aarch64
      - freebsd11_x86_64
-     - checkpatch
      - i386
   nightly:
     triggers:
