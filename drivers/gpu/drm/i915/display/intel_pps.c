@@ -1159,6 +1159,68 @@ intel_pps_verify_state(struct intel_dp *intel_dp)
 	}
 }
 
+static void pps_init_delays_cur(struct intel_dp *intel_dp,
+				struct edp_power_seq *cur)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+
+	lockdep_assert_held(&dev_priv->pps_mutex);
+
+	intel_pps_readout_hw_state(intel_dp, cur);
+
+	intel_pps_dump_state(intel_dp, "cur", cur);
+}
+
+static void pps_init_delays_vbt(struct intel_dp *intel_dp,
+				struct edp_power_seq *vbt)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+
+	*vbt = dev_priv->vbt.edp.pps;
+
+	/* On Toshiba Satellite P50-C-18C system the VBT T12 delay
+	 * of 500ms appears to be too short. Ocassionally the panel
+	 * just fails to power back on. Increasing the delay to 800ms
+	 * seems sufficient to avoid this problem.
+	 */
+	if (dev_priv->quirks & QUIRK_INCREASE_T12_DELAY) {
+		vbt->t11_t12 = max_t(u16, vbt->t11_t12, 1300 * 10);
+		drm_dbg_kms(&dev_priv->drm,
+			    "Increasing T12 panel delay as per the quirk to %d\n",
+			    vbt->t11_t12);
+	}
+
+	/* T11_T12 delay is special and actually in units of 100ms, but zero
+	 * based in the hw (so we need to add 100 ms). But the sw vbt
+	 * table multiplies it with 1000 to make it in units of 100usec,
+	 * too. */
+	vbt->t11_t12 += 100 * 10;
+
+	intel_pps_dump_state(intel_dp, "vbt", vbt);
+}
+
+static void pps_init_delays_spec(struct intel_dp *intel_dp,
+				 struct edp_power_seq *spec)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+
+	lockdep_assert_held(&dev_priv->pps_mutex);
+
+	/* Upper limits from eDP 1.3 spec. Note that we use the clunky units of
+	 * our hw here, which are all in 100usec. */
+	spec->t1_t3 = 210 * 10;
+	spec->t8 = 50 * 10; /* no limit for t8, use t7 instead */
+	spec->t9 = 50 * 10; /* no limit for t9, make it symmetric with t8 */
+	spec->t10 = 500 * 10;
+	/* This one is special and actually in units of 100ms, but zero
+	 * based in the hw (so we need to add 100 ms). But the sw vbt
+	 * table multiplies it with 1000 to make it in units of 100usec,
+	 * too. */
+	spec->t11_t12 = (510 + 100) * 10;
+
+	intel_pps_dump_state(intel_dp, "spec", spec);
+}
+
 static void pps_init_delays(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -1171,41 +1233,9 @@ static void pps_init_delays(struct intel_dp *intel_dp)
 	if (final->t11_t12 != 0)
 		return;
 
-	intel_pps_readout_hw_state(intel_dp, &cur);
-
-	intel_pps_dump_state(intel_dp, "cur", &cur);
-
-	vbt = dev_priv->vbt.edp.pps;
-	/* On Toshiba Satellite P50-C-18C system the VBT T12 delay
-	 * of 500ms appears to be too short. Ocassionally the panel
-	 * just fails to power back on. Increasing the delay to 800ms
-	 * seems sufficient to avoid this problem.
-	 */
-	if (dev_priv->quirks & QUIRK_INCREASE_T12_DELAY) {
-		vbt.t11_t12 = max_t(u16, vbt.t11_t12, 1300 * 10);
-		drm_dbg_kms(&dev_priv->drm,
-			    "Increasing T12 panel delay as per the quirk to %d\n",
-			    vbt.t11_t12);
-	}
-	/* T11_T12 delay is special and actually in units of 100ms, but zero
-	 * based in the hw (so we need to add 100 ms). But the sw vbt
-	 * table multiplies it with 1000 to make it in units of 100usec,
-	 * too. */
-	vbt.t11_t12 += 100 * 10;
-
-	/* Upper limits from eDP 1.3 spec. Note that we use the clunky units of
-	 * our hw here, which are all in 100usec. */
-	spec.t1_t3 = 210 * 10;
-	spec.t8 = 50 * 10; /* no limit for t8, use t7 instead */
-	spec.t9 = 50 * 10; /* no limit for t9, make it symmetric with t8 */
-	spec.t10 = 500 * 10;
-	/* This one is special and actually in units of 100ms, but zero
-	 * based in the hw (so we need to add 100 ms). But the sw vbt
-	 * table multiplies it with 1000 to make it in units of 100usec,
-	 * too. */
-	spec.t11_t12 = (510 + 100) * 10;
-
-	intel_pps_dump_state(intel_dp, "vbt", &vbt);
+	pps_init_delays_cur(intel_dp, &cur);
+	pps_init_delays_vbt(intel_dp, &vbt);
+	pps_init_delays_spec(intel_dp, &spec);
 
 	/* Use the max of the register settings and vbt. If both are
 	 * unset, fall back to the spec limits. */
