@@ -2961,18 +2961,7 @@ void intel_bios_init(struct drm_i915_private *i915)
 	/* Grab useful general definitions */
 	parse_general_features(i915);
 	parse_general_definitions(i915);
-	parse_panel_options(i915);
-	parse_generic_dtd(i915);
-	parse_lfp_data(i915);
-	parse_lfp_backlight(i915);
-	parse_sdvo_panel_data(i915);
 	parse_driver_features(i915);
-	parse_panel_driver_features(i915);
-	parse_power_conservation_features(i915);
-	parse_edp(i915);
-	parse_psr(i915);
-	parse_mipi_config(i915);
-	parse_mipi_sequence(i915);
 
 	/* Depends on child device list */
 	parse_compression_parameters(i915);
@@ -2989,6 +2978,21 @@ out:
 	parse_ddi_ports(i915);
 
 	kfree(oprom_vbt);
+}
+
+void intel_bios_init_panel(struct drm_i915_private *i915)
+{
+	parse_panel_options(i915);
+	parse_generic_dtd(i915);
+	parse_lfp_data(i915);
+	parse_lfp_backlight(i915);
+	parse_sdvo_panel_data(i915);
+	parse_panel_driver_features(i915);
+	parse_power_conservation_features(i915);
+	parse_edp(i915);
+	parse_psr(i915);
+	parse_mipi_config(i915);
+	parse_mipi_sequence(i915);
 }
 
 /**
