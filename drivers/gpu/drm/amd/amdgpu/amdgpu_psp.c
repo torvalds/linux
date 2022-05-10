@@ -630,10 +630,11 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		DRM_WARN("psp gfx command %s(0x%X) failed and response status is (0x%X)\n",
 			 psp_gfx_cmd_name(psp->cmd_buf_mem->cmd_id), psp->cmd_buf_mem->cmd_id,
 			 psp->cmd_buf_mem->resp.status);
-		/* If we load CAP FW, PSP must return 0 under SRIOV
-		 * also return failure in case of timeout
+		/* If any firmware (including CAP) load fails under SRIOV, it should
+		 * return failure to stop the VF from initializing.
+		 * Also return failure in case of timeout
 		 */
-		if ((ucode && (ucode->ucode_id == AMDGPU_UCODE_ID_CAP)) || !timeout) {
+		if ((ucode && amdgpu_sriov_vf(psp->adev)) || !timeout) {
 			ret = -EINVAL;
 			goto exit;
 		}
