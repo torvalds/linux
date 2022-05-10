@@ -65,5 +65,6 @@ config SFC_MCDI_LOGGING
 	  a sysfs file 'mcdi_logging' under the PCI device.
 
 source "drivers/net/ethernet/sfc/falcon/Kconfig"
+source "drivers/net/ethernet/sfc/siena/Kconfig"
 
 endif # NET_VENDOR_SOLARFLARE

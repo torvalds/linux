@@ -206,8 +206,9 @@ static int efx_siena_sriov_cmd(struct efx_nic *efx, bool enable,
 	MCDI_SET_DWORD(inbuf, SRIOV_IN_VI_BASE, EFX_VI_BASE);
 	MCDI_SET_DWORD(inbuf, SRIOV_IN_VF_COUNT, efx->vf_count);
 
-	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_SRIOV, inbuf, MC_CMD_SRIOV_IN_LEN,
-				outbuf, MC_CMD_SRIOV_OUT_LEN, &outlen);
+	rc = efx_siena_mcdi_rpc_quiet(efx, MC_CMD_SRIOV, inbuf,
+				      MC_CMD_SRIOV_IN_LEN, outbuf,
+				      MC_CMD_SRIOV_OUT_LEN, &outlen);
 	if (rc)
 		return rc;
 	if (outlen < MC_CMD_SRIOV_OUT_LEN)
@@ -288,7 +289,7 @@ static int efx_siena_sriov_memcpy(struct efx_nic *efx,
 		++req;
 	}
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_MEMCPY, inbuf, used, NULL, 0, NULL);
+	rc = efx_siena_mcdi_rpc(efx, MC_CMD_MEMCPY, inbuf, used, NULL, 0, NULL);
 out:
 	mb();	/* Don't write source/read dest before DMA is complete */
 
@@ -689,7 +690,7 @@ static int efx_vfdi_fini_all_queues(struct siena_vf *vf)
 		     MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_MAXNUM);
 
 	rtnl_lock();
-	siena_prepare_flush(efx);
+	efx_siena_prepare_flush(efx);
 	rtnl_unlock();
 
 	/* Flush all the initialized queues */
@@ -712,7 +713,7 @@ static int efx_vfdi_fini_all_queues(struct siena_vf *vf)
 
 	atomic_set(&vf->rxq_retry_count, 0);
 	while (timeout && (vf->rxq_count || vf->txq_count)) {
-		rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, inbuf,
+		rc = efx_siena_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, inbuf,
 				  MC_CMD_FLUSH_RX_QUEUES_IN_LEN(rxqs_count),
 				  NULL, 0, NULL);
 		WARN_ON(rc < 0);
@@ -1011,9 +1012,9 @@ static void efx_siena_sriov_reset_vf_work(struct work_struct *work)
 	struct efx_nic *efx = vf->efx;
 	struct efx_buffer buf;
 
-	if (!efx_nic_alloc_buffer(efx, &buf, EFX_PAGE_SIZE, GFP_NOIO)) {
+	if (!efx_siena_alloc_buffer(efx, &buf, EFX_PAGE_SIZE, GFP_NOIO)) {
 		efx_siena_sriov_reset_vf(vf, &buf);
-		efx_nic_free_buffer(efx, &buf);
+		efx_siena_free_buffer(efx, &buf);
 	}
 }
 
@@ -1043,7 +1044,7 @@ efx_siena_sriov_get_channel_name(struct efx_channel *channel,
 static const struct efx_channel_type efx_siena_sriov_channel_type = {
 	.handle_no_channel	= efx_siena_sriov_handle_no_channel,
 	.pre_probe		= efx_siena_sriov_probe_channel,
-	.post_remove		= efx_channel_dummy_op_void,
+	.post_remove		= efx_siena_channel_dummy_op_void,
 	.get_name		= efx_siena_sriov_get_channel_name,
 	/* no copy operation; channel must not be reallocated */
 	.keep_eventq		= true,
@@ -1228,7 +1229,7 @@ static void efx_siena_sriov_vfs_fini(struct efx_nic *efx)
 	for (pos = 0; pos < efx->vf_count; ++pos) {
 		vf = nic_data->vf + pos;
 
-		efx_nic_free_buffer(efx, &vf->buf);
+		efx_siena_free_buffer(efx, &vf->buf);
 		kfree(vf->peer_page_addrs);
 		vf->peer_page_addrs = NULL;
 		vf->peer_page_count = 0;
@@ -1268,8 +1269,8 @@ static int efx_siena_sriov_vfs_init(struct efx_nic *efx)
 			 pci_domain_nr(pci_dev->bus), pci_dev->bus->number,
 			 PCI_SLOT(devfn), PCI_FUNC(devfn));
 
-		rc = efx_nic_alloc_buffer(efx, &vf->buf, EFX_PAGE_SIZE,
-					  GFP_KERNEL);
+		rc = efx_siena_alloc_buffer(efx, &vf->buf, EFX_PAGE_SIZE,
+					    GFP_KERNEL);
 		if (rc)
 			goto fail;
 
@@ -1302,8 +1303,8 @@ int efx_siena_sriov_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_cmd;
 
-	rc = efx_nic_alloc_buffer(efx, &nic_data->vfdi_status,
-				  sizeof(*vfdi_status), GFP_KERNEL);
+	rc = efx_siena_alloc_buffer(efx, &nic_data->vfdi_status,
+				    sizeof(*vfdi_status), GFP_KERNEL);
 	if (rc)
 		goto fail_status;
 	vfdi_status = nic_data->vfdi_status.addr;
@@ -1358,7 +1359,7 @@ fail_vfs:
 	efx_siena_sriov_free_local(efx);
 	kfree(nic_data->vf);
 fail_alloc:
-	efx_nic_free_buffer(efx, &nic_data->vfdi_status);
+	efx_siena_free_buffer(efx, &nic_data->vfdi_status);
 fail_status:
 	efx_siena_sriov_cmd(efx, false, NULL, NULL);
 fail_cmd:
@@ -1395,7 +1396,7 @@ void efx_siena_sriov_fini(struct efx_nic *efx)
 	efx_siena_sriov_vfs_fini(efx);
 	efx_siena_sriov_free_local(efx);
 	kfree(nic_data->vf);
-	efx_nic_free_buffer(efx, &nic_data->vfdi_status);
+	efx_siena_free_buffer(efx, &nic_data->vfdi_status);
 	efx_siena_sriov_cmd(efx, false, NULL, NULL);
 }
 
@@ -1563,7 +1564,7 @@ void efx_siena_sriov_reset(struct efx_nic *efx)
 	efx_siena_sriov_usrev(efx, true);
 	(void)efx_siena_sriov_cmd(efx, true, NULL, NULL);
 
-	if (efx_nic_alloc_buffer(efx, &buf, EFX_PAGE_SIZE, GFP_NOIO))
+	if (efx_siena_alloc_buffer(efx, &buf, EFX_PAGE_SIZE, GFP_NOIO))
 		return;
 
 	for (vf_i = 0; vf_i < efx->vf_init_count; ++vf_i) {
@@ -1571,7 +1572,7 @@ void efx_siena_sriov_reset(struct efx_nic *efx)
 		efx_siena_sriov_reset_vf(vf, &buf);
 	}
 
-	efx_nic_free_buffer(efx, &buf);
+	efx_siena_free_buffer(efx, &buf);
 }
 
 int efx_init_sriov(void)

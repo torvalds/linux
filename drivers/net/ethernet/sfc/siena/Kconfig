@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SFC_SIENA
+	tristate "Solarflare SFC9000 support"
+	depends on PCI
+	select MDIO
+	select CRC32
+	help
+	  This driver supports 10-gigabit Ethernet cards based on
+	  the Solarflare SFC9000 controller.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called sfc-siena.
