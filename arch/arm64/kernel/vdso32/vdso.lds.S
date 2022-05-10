@@ -11,6 +11,7 @@
 #include <linux/const.h>
 #include <asm/page.h>
 #include <asm/vdso.h>
+#include <asm-generic/vmlinux.lds.h>
 
 OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
@@ -37,10 +38,29 @@ SECTIONS
 
 	.rodata		: { *(.rodata*) }		:text
 
-	.text		: { *(.text*) }			:text	=0xe7f001f2
+	.text		: {
+		*(.text*)
+		*(.glue_7)
+		*(.glue_7t)
+		*(.vfp11_veneer)
+		*(.v4_bx)
+	}						:text	=0xe7f001f2
+
+	.rel.dyn	: { *(.rel.text) }
 
 	.got		: { *(.got) }
+	.rel.got	: { *(.rel.got) }
+	.got.plt	: { *(.got.plt) }
 	.rel.plt	: { *(.rel.plt) }
+	.plt		: {
+		*(.plt)
+		*(.rel.iplt)
+		*(.iplt)
+		*(.igot.plt)
+	}
+
+	ELF_DETAILS
+	.ARM.attributes 0 : { *(.ARM.attributes) }
 
 	/DISCARD/	: {
 		*(.note.GNU-stack)
