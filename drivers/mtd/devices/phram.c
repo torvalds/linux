@@ -34,6 +34,7 @@
 struct phram_mtd_list {
 	struct mtd_info mtd;
 	struct list_head list;
+	bool cached;
 };
 
 static LIST_HEAD(phram_list);
@@ -80,13 +81,41 @@ static int phram_write(struct mtd_info *mtd, loff_t to, size_t len,
 	return 0;
 }
 
+static int phram_map(struct phram_mtd_list *phram, phys_addr_t start, size_t len)
+{
+	void *addr = NULL;
+
+	if (phram->cached)
+		addr = memremap(start, len, MEMREMAP_WB);
+	else
+		addr = (void __force *)ioremap(start, len);
+	if (!addr)
+		return -EIO;
+
+	phram->mtd.priv = addr;
+
+	return 0;
+}
+
+static void phram_unmap(struct phram_mtd_list *phram)
+{
+	void *addr = phram->mtd.priv;
+
+	if (phram->cached) {
+		memunmap(addr);
+		return;
+	}
+
+	iounmap((void __iomem *)addr);
+}
+
 static void unregister_devices(void)
 {
 	struct phram_mtd_list *this, *safe;
 
 	list_for_each_entry_safe(this, safe, &phram_list, list) {
 		mtd_device_unregister(&this->mtd);
-		iounmap(this->mtd.priv);
+		phram_unmap(this);
 		kfree(this->mtd.name);
 		kfree(this);
 	}
@@ -96,6 +125,7 @@ static int register_device(struct platform_device *pdev, const char *name,
 			   phys_addr_t start, size_t len, uint32_t erasesize)
 {
 	struct device_node *np = pdev ? pdev->dev.of_node : NULL;
+	bool cached = np ? !of_property_read_bool(np, "no-map") : false;
 	struct phram_mtd_list *new;
 	int ret = -ENOMEM;
 
@@ -103,9 +133,10 @@ static int register_device(struct platform_device *pdev, const char *name,
 	if (!new)
 		goto out0;
 
-	ret = -EIO;
-	new->mtd.priv = ioremap(start, len);
-	if (!new->mtd.priv) {
+	new->cached = cached;
+
+	ret = phram_map(new, start, len);
+	if (ret) {
 		pr_err("ioremap failed\n");
 		goto out1;
 	}
@@ -140,7 +171,7 @@ static int register_device(struct platform_device *pdev, const char *name,
 	return 0;
 
 out2:
-	iounmap(new->mtd.priv);
+	phram_unmap(new);
 out1:
 	kfree(new);
 out0:
@@ -362,7 +393,7 @@ static int phram_remove(struct platform_device *pdev)
 	struct phram_mtd_list *phram = platform_get_drvdata(pdev);
 
 	mtd_device_unregister(&phram->mtd);
-	iounmap(phram->mtd.priv);
+	phram_unmap(phram);
 	kfree(phram);
 
 	return 0;
