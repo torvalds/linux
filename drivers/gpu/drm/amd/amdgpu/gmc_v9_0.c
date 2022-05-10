@@ -557,6 +557,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	u64 addr;
 	uint32_t cam_index = 0;
 	int ret;
+	uint32_t node_id;
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
@@ -611,7 +612,9 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		hub = &adev->vmhub[AMDGPU_MMHUB1(0)];
 	} else {
 		hub_name = "gfxhub0";
-		hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
+		node_id = (adev->ip_versions[GC_HWIP][0] ==
+			   IP_VERSION(9, 4, 3)) ? entry->node_id : 0;
+		hub = &adev->vmhub[node_id/2];
 	}
 
 	memset(&task_info, 0, sizeof(struct amdgpu_task_info));
@@ -645,11 +648,10 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	rw = REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, RW);
 	WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
 
-
 	dev_err(adev->dev,
 		"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 		status);
-	if (hub == &adev->vmhub[AMDGPU_GFXHUB(0)]) {
+	if (entry->vmid_src == AMDGPU_GFXHUB(0)) {
 		dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
 			cid >= ARRAY_SIZE(gfxhub_client_ids) ? "unknown" :
 			gfxhub_client_ids[cid],
