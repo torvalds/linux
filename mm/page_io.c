@@ -385,20 +385,3 @@ out:
 	delayacct_swapin_end();
 	return ret;
 }
-
-bool swap_dirty_folio(struct address_space *mapping, struct folio *folio)
-{
-	struct swap_info_struct *sis = swp_swap_info(folio_swap_entry(folio));
-
-	if (data_race(sis->flags & SWP_FS_OPS)) {
-		const struct address_space_operations *aops;
-
-		mapping = sis->swap_file->f_mapping;
-		aops = mapping->a_ops;
-
-		VM_BUG_ON_FOLIO(!folio_test_swapcache(folio), folio);
-		return aops->dirty_folio(mapping, folio);
-	} else {
-		return noop_dirty_folio(mapping, folio);
-	}
-}
