@@ -97,6 +97,13 @@ NS0=root
 NS1=af_xdp${VETH1_POSTFIX}
 MTU=1500
 
+trap ctrl_c INT
+
+function ctrl_c() {
+        cleanup_exit ${VETH0} ${VETH1} ${NS1}
+	exit 1
+}
+
 setup_vethPairs() {
 	if [[ $verbose -eq 1 ]]; then
 	        echo "setting up ${VETH0}: namespace: ${NS0}"
