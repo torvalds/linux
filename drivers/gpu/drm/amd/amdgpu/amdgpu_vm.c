@@ -764,6 +764,9 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 	if (r)
 		goto error;
 
+	/* vm_flush_needed after updating PDEs */
+	atomic64_inc(&vm->tlb_seq);
+
 	while (!list_empty(&vm->relocated)) {
 		entry = list_first_entry(&vm->relocated,
 					 struct amdgpu_vm_bo_base,
