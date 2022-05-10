@@ -215,7 +215,6 @@
 
 #define SYS_ZCR_EL1			sys_reg(3, 0, 1, 2, 0)
 #define SYS_TRFCR_EL1			sys_reg(3, 0, 1, 2, 1)
-#define SYS_SMPRI_EL1			sys_reg(3, 0, 1, 2, 4)
 
 #define SYS_TCR_EL1			sys_reg(3, 0, 2, 0, 2)
 
@@ -405,8 +404,6 @@
 #define TRBIDR_PROG			BIT(4)
 #define TRBIDR_ALIGN_MASK		GENMASK(3, 0)
 #define TRBIDR_ALIGN_SHIFT		0
-
-#define SMPRI_EL1_PRIORITY_MASK		0xf
 
 #define SYS_PMINTENSET_EL1		sys_reg(3, 0, 9, 14, 1)
 #define SYS_PMINTENCLR_EL1		sys_reg(3, 0, 9, 14, 2)

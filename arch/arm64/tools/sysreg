@@ -185,6 +185,11 @@ Field	1	A
 Field	0	M
 EndSysreg
 
+Sysreg	SMPRI_EL1	3	0	1	2	4
+Res0	63:4
+Field	3:0	PRIORITY
+EndSysreg
+
 SysregFields	SMCR_ELx
 Res0	63:32
 Field	31	FA64
