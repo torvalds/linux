@@ -1438,6 +1438,11 @@ void intel_pps_init_late(struct intel_dp *intel_dp)
 	intel_wakeref_t wakeref;
 
 	with_intel_pps_lock(intel_dp, wakeref) {
+		/* Reinit delays after per-panel info has been parsed from VBT */
+		memset(&intel_dp->pps.pps_delays, 0, sizeof(intel_dp->pps.pps_delays));
+		pps_init_delays(intel_dp);
+		pps_init_registers(intel_dp, false);
+
 		if (edp_have_panel_vdd(intel_dp))
 			edp_panel_vdd_schedule_off(intel_dp);
 	}
