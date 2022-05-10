@@ -1671,17 +1671,6 @@ static DEFINE_MUTEX(vmap_purge_lock);
 /* for per-CPU blocks */
 static void purge_fragmented_blocks_allcpus(void);
 
-#ifdef CONFIG_X86_64
-/*
- * called before a call to iounmap() if the caller wants vm_area_struct's
- * immediately freed.
- */
-void set_iounmap_nonlazy(void)
-{
-	atomic_long_set(&vmap_lazy_nr, lazy_max_pages()+1);
-}
-#endif /* CONFIG_X86_64 */
-
 /*
  * Purges all lazily-freed vmap areas.
  */
@@ -2664,15 +2653,18 @@ static void __vunmap(const void *addr, int deallocate_pages)
 	vm_remove_mappings(area, deallocate_pages);
 
 	if (deallocate_pages) {
-		unsigned int page_order = vm_area_page_order(area);
-		int i, step = 1U << page_order;
+		int i;
 
-		for (i = 0; i < area->nr_pages; i += step) {
+		for (i = 0; i < area->nr_pages; i++) {
 			struct page *page = area->pages[i];
 
 			BUG_ON(!page);
-			mod_memcg_page_state(page, MEMCG_VMALLOC, -step);
-			__free_pages(page, page_order);
+			mod_memcg_page_state(page, MEMCG_VMALLOC, -1);
+			/*
+			 * High-order allocs for huge vmallocs are split, so
+			 * can be freed as an array of order-0 allocations
+			 */
+			__free_pages(page, 0);
 			cond_resched();
 		}
 		atomic_long_sub(area->nr_pages, &nr_vmalloc_pages);
@@ -2925,12 +2917,7 @@ vm_area_alloc_pages(gfp_t gfp, int nid,
 			if (nr != nr_pages_request)
 				break;
 		}
-	} else
-		/*
-		 * Compound pages required for remap_vmalloc_page if
-		 * high-order pages.
-		 */
-		gfp |= __GFP_COMP;
+	}
 
 	/* High-order pages or fallback path if "bulk" fails. */
 
@@ -2944,6 +2931,15 @@ vm_area_alloc_pages(gfp_t gfp, int nid,
 			page = alloc_pages_node(nid, gfp, order);
 		if (unlikely(!page))
 			break;
+		/*
+		 * Higher order allocations must be able to be treated as
+		 * indepdenent small pages by callers (as they can with
+		 * small-page vmallocs). Some drivers do their own refcounting
+		 * on vmalloc_to_page() pages, some use page->mapping,
+		 * page->lru, etc.
+		 */
+		if (order)
+			split_page(page, order);
 
 		/*
 		 * Careful, we allocate and map page-order pages, but
@@ -3003,11 +2999,10 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 
 	atomic_long_add(area->nr_pages, &nr_vmalloc_pages);
 	if (gfp_mask & __GFP_ACCOUNT) {
-		int i, step = 1U << page_order;
+		int i;
 
-		for (i = 0; i < area->nr_pages; i += step)
-			mod_memcg_page_state(area->pages[i], MEMCG_VMALLOC,
-					     step);
+		for (i = 0; i < area->nr_pages; i++)
+			mod_memcg_page_state(area->pages[i], MEMCG_VMALLOC, 1);
 	}
 
 	/*
@@ -3106,7 +3101,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
 		return NULL;
 	}
 
-	if (vmap_allow_huge && !(vm_flags & VM_NO_HUGE_VMAP)) {
+	if (vmap_allow_huge && (vm_flags & VM_ALLOW_HUGE_VMAP)) {
 		unsigned long size_per_node;
 
 		/*
@@ -3273,21 +3268,24 @@ void *vmalloc(unsigned long size)
 EXPORT_SYMBOL(vmalloc);
 
 /**
- * vmalloc_no_huge - allocate virtually contiguous memory using small pages
- * @size:    allocation size
+ * vmalloc_huge - allocate virtually contiguous memory, allow huge pages
+ * @size:      allocation size
+ * @gfp_mask:  flags for the page level allocator
  *
- * Allocate enough non-huge pages to cover @size from the page level
+ * Allocate enough pages to cover @size from the page level
  * allocator and map them into contiguous kernel virtual space.
+ * If @size is greater than or equal to PMD_SIZE, allow using
+ * huge pages for the memory
  *
  * Return: pointer to the allocated memory or %NULL on error
  */
-void *vmalloc_no_huge(unsigned long size)
+void *vmalloc_huge(unsigned long size, gfp_t gfp_mask)
 {
 	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
-				    GFP_KERNEL, PAGE_KERNEL, VM_NO_HUGE_VMAP,
+				    gfp_mask, PAGE_KERNEL, VM_ALLOW_HUGE_VMAP,
 				    NUMA_NO_NODE, __builtin_return_address(0));
 }
-EXPORT_SYMBOL(vmalloc_no_huge);
+EXPORT_SYMBOL_GPL(vmalloc_huge);
 
 /**
  * vzalloc - allocate virtually contiguous memory with zero fill

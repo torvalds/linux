@@ -20,6 +20,7 @@ properties:
           - mediatek,mt8183-mali
           - realtek,rtd1619-mali
           - renesas,r9a07g044-mali
+          - renesas,r9a07g054-mali
           - rockchip,px30-mali
           - rockchip,rk3568-mali
       - const: arm,mali-bifrost # Mali Bifrost GPU model/revision is fully discoverable
@@ -109,7 +110,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,r9a07g044-mali
+            enum:
+              - renesas,r9a07g044-mali
+              - renesas,r9a07g054-mali
     then:
       properties:
         interrupts:

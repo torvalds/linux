@@ -794,7 +794,8 @@ bool blk_update_request(struct request *req, blk_status_t error,
 #endif
 
 	if (unlikely(error && !blk_rq_is_passthrough(req) &&
-		     !(req->rq_flags & RQF_QUIET))) {
+		     !(req->rq_flags & RQF_QUIET)) &&
+		     !test_bit(GD_DEAD, &req->q->disk->state)) {
 		blk_print_req_error(req, error);
 		trace_block_rq_error(req, error, nr_bytes);
 	}
@@ -1130,14 +1131,7 @@ void blk_mq_start_request(struct request *rq)
 	trace_block_rq_issue(rq);
 
 	if (test_bit(QUEUE_FLAG_STATS, &q->queue_flags)) {
-		u64 start_time;
-#ifdef CONFIG_BLK_CGROUP
-		if (rq->bio)
-			start_time = bio_issue_time(&rq->bio->bi_issue);
-		else
-#endif
-			start_time = ktime_get_ns();
-		rq->io_start_time_ns = start_time;
+		rq->io_start_time_ns = ktime_get_ns();
 		rq->stats_sectors = blk_rq_sectors(rq);
 		rq->rq_flags |= RQF_STATS;
 		rq_qos_issue(q, rq);

@@ -16,8 +16,8 @@ DECLARE_HOOK(android_vh_gic_v3_affinity_init,
 	TP_ARGS(irq, offset, affinity));
 DECLARE_HOOK(android_vh_gic_v3_set_affinity,
 	TP_PROTO(struct irq_data *d, const struct cpumask *mask_val,
-		 u64 *affinity),
-	TP_ARGS(d, mask_val, affinity));
+		 u64 *affinity, bool force, void __iomem *base),
+	TP_ARGS(d, mask_val, affinity, force, base));
 
 #endif /* _TRACE_HOOK_GIC_V3_H */
 /* This part must be outside protection */

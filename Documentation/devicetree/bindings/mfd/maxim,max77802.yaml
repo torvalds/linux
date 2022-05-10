@@ -8,7 +8,7 @@ title: Maxim MAX77802 Power Management IC
 
 maintainers:
   - Javier Martinez Canillas <javier@dowhile0.org>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |
   This is a part of device tree bindings for Maxim MAX77802 Power Management

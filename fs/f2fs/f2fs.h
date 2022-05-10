@@ -154,7 +154,6 @@ struct f2fs_mount_info {
 	int s_jquota_fmt;			/* Format of quota to use */
 #endif
 	/* For which write hints are passed down to block layer */
-	int whint_mode;
 	int alloc_mode;			/* segment allocation policy */
 	int fsync_mode;			/* fsync policy */
 	int fs_mode;			/* fs mode: LFS or ADAPTIVE */
@@ -1331,12 +1330,6 @@ enum {
 	FS_MODE_LFS,			/* use lfs allocation only */
 	FS_MODE_FRAGMENT_SEG,		/* segment fragmentation mode */
 	FS_MODE_FRAGMENT_BLK,		/* block fragmentation mode */
-};
-
-enum {
-	WHINT_MODE_OFF,		/* not pass down write hints */
-	WHINT_MODE_USER,	/* try to pass down hints given by users */
-	WHINT_MODE_FS,		/* pass down hints with F2FS policy */
 };
 
 enum {
@@ -3657,8 +3650,6 @@ void f2fs_destroy_segment_manager(struct f2fs_sb_info *sbi);
 int __init f2fs_create_segment_manager_caches(void);
 void f2fs_destroy_segment_manager_caches(void);
 int f2fs_rw_hint_to_seg_type(enum rw_hint hint);
-enum rw_hint f2fs_io_type_to_rw_hint(struct f2fs_sb_info *sbi,
-			enum page_type type, enum temp_type temp);
 unsigned int f2fs_usable_segs_in_sec(struct f2fs_sb_info *sbi,
 			unsigned int segno);
 unsigned int f2fs_usable_blks_in_seg(struct f2fs_sb_info *sbi,

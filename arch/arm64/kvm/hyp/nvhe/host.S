@@ -198,15 +198,15 @@ SYM_CODE_START(__kvm_hyp_host_vector)
 	invalid_host_el2_vect			// FIQ EL2h
 	invalid_host_el2_vect			// Error EL2h
 
-	host_el1_sync_vect			// Synchronous 64-bit EL1
-	invalid_host_el1_vect			// IRQ 64-bit EL1
-	invalid_host_el1_vect			// FIQ 64-bit EL1
-	invalid_host_el1_vect			// Error 64-bit EL1
+	host_el1_sync_vect			// Synchronous 64-bit EL1/EL0
+	invalid_host_el1_vect			// IRQ 64-bit EL1/EL0
+	invalid_host_el1_vect			// FIQ 64-bit EL1/EL0
+	invalid_host_el1_vect			// Error 64-bit EL1/EL0
 
-	invalid_host_el1_vect			// Synchronous 32-bit EL1
-	invalid_host_el1_vect			// IRQ 32-bit EL1
-	invalid_host_el1_vect			// FIQ 32-bit EL1
-	invalid_host_el1_vect			// Error 32-bit EL1
+	host_el1_sync_vect			// Synchronous 32-bit EL1/EL0
+	invalid_host_el1_vect			// IRQ 32-bit EL1/EL0
+	invalid_host_el1_vect			// FIQ 32-bit EL1/EL0
+	invalid_host_el1_vect			// Error 32-bit EL1/EL0
 SYM_CODE_END(__kvm_hyp_host_vector)
 
 /*
