@@ -410,7 +410,7 @@ static void task_fpsimd_load(void)
 		if (test_thread_flag(TIF_SME))
 			sme_set_vq(sve_vq_from_vl(sme_vl) - 1);
 
-		write_sysreg_s(current->thread.svcr, SYS_SVCR_EL0);
+		write_sysreg_s(current->thread.svcr, SYS_SVCR);
 
 		if (thread_za_enabled(&current->thread))
 			za_load_state(current->thread.za_state);
@@ -462,15 +462,15 @@ static void fpsimd_save(void)
 
 	if (system_supports_sme()) {
 		u64 *svcr = last->svcr;
-		*svcr = read_sysreg_s(SYS_SVCR_EL0);
+		*svcr = read_sysreg_s(SYS_SVCR);
 
-		*svcr = read_sysreg_s(SYS_SVCR_EL0);
+		*svcr = read_sysreg_s(SYS_SVCR);
 
-		if (*svcr & SYS_SVCR_EL0_ZA_MASK)
+		if (*svcr & SVCR_ZA_MASK)
 			za_save_state(last->za_state);
 
 		/* If we are in streaming mode override regular SVE. */
-		if (*svcr & SYS_SVCR_EL0_SM_MASK) {
+		if (*svcr & SVCR_SM_MASK) {
 			save_sve_regs = true;
 			save_ffr = system_supports_fa64();
 			vl = last->sme_vl;
@@ -852,8 +852,8 @@ int vec_set_vector_length(struct task_struct *task, enum vec_type type,
 		sve_to_fpsimd(task);
 
 	if (system_supports_sme() && type == ARM64_VEC_SME) {
-		task->thread.svcr &= ~(SYS_SVCR_EL0_SM_MASK |
-				       SYS_SVCR_EL0_ZA_MASK);
+		task->thread.svcr &= ~(SVCR_SM_MASK |
+				       SVCR_ZA_MASK);
 		clear_thread_flag(TIF_SME);
 	}
 
@@ -1915,10 +1915,10 @@ void __efi_fpsimd_begin(void)
 			__this_cpu_write(efi_sve_state_used, true);
 
 			if (system_supports_sme()) {
-				svcr = read_sysreg_s(SYS_SVCR_EL0);
+				svcr = read_sysreg_s(SYS_SVCR);
 
 				if (!system_supports_fa64())
-					ffr = svcr & SVCR_EL0_SM_MASK;
+					ffr = svcr & SVCR_SM_MASK;
 
 				__this_cpu_write(efi_sm_state, ffr);
 			}
@@ -1928,8 +1928,8 @@ void __efi_fpsimd_begin(void)
 				       ffr);
 
 			if (system_supports_sme())
-				sysreg_clear_set_s(SYS_SVCR_EL0,
-						   SVCR_EL0_SM_MASK, 0);
+				sysreg_clear_set_s(SYS_SVCR,
+						   SVCR_SM_MASK, 0);
 
 		} else {
 			fpsimd_save_state(this_cpu_ptr(&efi_fpsimd_state));
@@ -1962,9 +1962,9 @@ void __efi_fpsimd_end(void)
 			 */
 			if (system_supports_sme()) {
 				if (__this_cpu_read(efi_sm_state)) {
-					sysreg_clear_set_s(SYS_SVCR_EL0,
+					sysreg_clear_set_s(SYS_SVCR,
 							   0,
-							   SVCR_EL0_SM_MASK);
+							   SVCR_SM_MASK);
 					if (!system_supports_fa64())
 						ffr = efi_sm_state;
 				}

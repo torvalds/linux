@@ -192,7 +192,7 @@ static inline unsigned int thread_get_sme_vl(struct thread_struct *thread)
 
 static inline unsigned int thread_get_cur_vl(struct thread_struct *thread)
 {
-	if (system_supports_sme() && (thread->svcr & SVCR_EL0_SM_MASK))
+	if (system_supports_sme() && (thread->svcr & SVCR_SM_MASK))
 		return thread_get_sme_vl(thread);
 	else
 		return thread_get_sve_vl(thread);

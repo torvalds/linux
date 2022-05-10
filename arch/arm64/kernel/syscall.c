@@ -174,9 +174,9 @@ static inline void fp_user_discard(void)
 	 * need updating.
 	 */
 	if (system_supports_sme() && test_thread_flag(TIF_SME)) {
-		u64 svcr = read_sysreg_s(SYS_SVCR_EL0);
+		u64 svcr = read_sysreg_s(SYS_SVCR);
 
-		if (svcr & SYS_SVCR_EL0_SM_MASK)
+		if (svcr & SVCR_SM_MASK)
 			sme_smstop_sm();
 	}
 
