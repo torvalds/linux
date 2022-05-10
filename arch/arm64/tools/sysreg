@@ -185,6 +185,26 @@ Field	1	A
 Field	0	M
 EndSysreg
 
+SysregFields	SMCR_ELx
+Res0	63:32
+Field	31	FA64
+Res0	30:9
+Raz	8:4
+Field	3:0	LEN
+EndSysregFields
+
+Sysreg	SMCR_EL1	3	0	1	2	6
+Fields	SMCR_ELx
+EndSysreg
+
+Sysreg	SMCR_EL2	3	4	1	2	6
+Fields	SMCR_ELx
+EndSysreg
+
+Sysreg	SMCR_EL12	3	5	1	2	6
+Fields	SMCR_ELx
+EndSysreg
+
 SysregFields TTBRx_EL1
 Field	63:48	ASID
 Field	47:1	BADDR

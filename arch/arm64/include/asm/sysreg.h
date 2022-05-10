@@ -216,7 +216,6 @@
 #define SYS_ZCR_EL1			sys_reg(3, 0, 1, 2, 0)
 #define SYS_TRFCR_EL1			sys_reg(3, 0, 1, 2, 1)
 #define SYS_SMPRI_EL1			sys_reg(3, 0, 1, 2, 4)
-#define SYS_SMCR_EL1			sys_reg(3, 0, 1, 2, 6)
 
 #define SYS_TCR_EL1			sys_reg(3, 0, 2, 0, 2)
 
@@ -571,7 +570,6 @@
 #define SYS_TRFCR_EL2			sys_reg(3, 4, 1, 2, 1)
 #define SYS_HCRX_EL2			sys_reg(3, 4, 1, 2, 2)
 #define SYS_SMPRIMAP_EL2		sys_reg(3, 4, 1, 2, 5)
-#define SYS_SMCR_EL2			sys_reg(3, 4, 1, 2, 6)
 #define SYS_DACR32_EL2			sys_reg(3, 4, 3, 0, 0)
 #define SYS_HDFGRTR_EL2			sys_reg(3, 4, 3, 1, 4)
 #define SYS_HDFGWTR_EL2			sys_reg(3, 4, 3, 1, 5)
@@ -631,7 +629,6 @@
 #define SYS_SCTLR_EL12			sys_reg(3, 5, 1, 0, 0)
 #define SYS_CPACR_EL12			sys_reg(3, 5, 1, 0, 2)
 #define SYS_ZCR_EL12			sys_reg(3, 5, 1, 2, 0)
-#define SYS_SMCR_EL12			sys_reg(3, 5, 1, 2, 6)
 #define SYS_TTBR0_EL12			sys_reg(3, 5, 2, 0, 0)
 #define SYS_TTBR1_EL12			sys_reg(3, 5, 2, 0, 1)
 #define SYS_TCR_EL12			sys_reg(3, 5, 2, 0, 2)
@@ -1116,13 +1113,6 @@
 #define ZCR_ELx_LEN_SHIFT	0
 #define ZCR_ELx_LEN_WIDTH	4
 #define ZCR_ELx_LEN_MASK	0xf
-
-#define SMCR_ELx_FA64_SHIFT	31
-#define SMCR_ELx_FA64_MASK	(1 << SMCR_ELx_FA64_SHIFT)
-
-#define SMCR_ELx_LEN_SHIFT	0
-#define SMCR_ELx_LEN_WIDTH	4
-#define SMCR_ELx_LEN_MASK	0xf
 
 #define CPACR_EL1_FPEN_EL1EN	(BIT(20)) /* enable EL1 access */
 #define CPACR_EL1_FPEN_EL0EN	(BIT(21)) /* enable EL0 access, if EL1EN set */
