@@ -840,13 +840,19 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 				goto found_busy_cpu;
 		}
 
-		/* help the farthest cluster indirectly if it needs help */
+		/*
+		 * help the farthest cluster by kicking an idle cpu in the next
+		 * cluster. In case no idle is found, pull it in.
+		 */
 		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][2],
 				&has_misfit);
 		if (busy_cpu != -1) {
 			first_idle =
 				find_first_idle_if_others_are_busy(&cpu_array[order_index][1]);
-			walt_kick_cpu(first_idle);
+			if (first_idle != 1)
+				walt_kick_cpu(first_idle);
+			else
+				goto found_busy_cpu;
 		}
 	} else if (order_index == 2) {
 		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][0],
