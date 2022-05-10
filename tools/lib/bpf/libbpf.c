@@ -11568,11 +11568,16 @@ static int attach_raw_tp(const struct bpf_program *prog, long cookie, struct bpf
 }
 
 /* Common logic for all BPF program types that attach to a btf_id */
-static struct bpf_link *bpf_program__attach_btf_id(const struct bpf_program *prog)
+static struct bpf_link *bpf_program__attach_btf_id(const struct bpf_program *prog,
+						   const struct bpf_trace_opts *opts)
 {
+	LIBBPF_OPTS(bpf_link_create_opts, link_opts);
 	char errmsg[STRERR_BUFSIZE];
 	struct bpf_link *link;
 	int prog_fd, pfd;
+
+	if (!OPTS_VALID(opts, bpf_trace_opts))
+		return libbpf_err_ptr(-EINVAL);
 
 	prog_fd = bpf_program__fd(prog);
 	if (prog_fd < 0) {
@@ -11586,7 +11591,8 @@ static struct bpf_link *bpf_program__attach_btf_id(const struct bpf_program *pro
 	link->detach = &bpf_link__detach_fd;
 
 	/* libbpf is smart enough to redirect to BPF_RAW_TRACEPOINT_OPEN on old kernels */
-	pfd = bpf_link_create(prog_fd, 0, bpf_program__expected_attach_type(prog), NULL);
+	link_opts.tracing.cookie = OPTS_GET(opts, cookie, 0);
+	pfd = bpf_link_create(prog_fd, 0, bpf_program__expected_attach_type(prog), &link_opts);
 	if (pfd < 0) {
 		pfd = -errno;
 		free(link);
@@ -11600,12 +11606,18 @@ static struct bpf_link *bpf_program__attach_btf_id(const struct bpf_program *pro
 
 struct bpf_link *bpf_program__attach_trace(const struct bpf_program *prog)
 {
-	return bpf_program__attach_btf_id(prog);
+	return bpf_program__attach_btf_id(prog, NULL);
+}
+
+struct bpf_link *bpf_program__attach_trace_opts(const struct bpf_program *prog,
+						const struct bpf_trace_opts *opts)
+{
+	return bpf_program__attach_btf_id(prog, opts);
 }
 
 struct bpf_link *bpf_program__attach_lsm(const struct bpf_program *prog)
 {
-	return bpf_program__attach_btf_id(prog);
+	return bpf_program__attach_btf_id(prog, NULL);
 }
 
 static int attach_trace(const struct bpf_program *prog, long cookie, struct bpf_link **link)
