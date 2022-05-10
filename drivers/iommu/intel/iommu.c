@@ -2452,64 +2452,6 @@ static bool dev_is_real_dma_subdevice(struct device *dev)
 	       pci_real_dma_dev(to_pci_dev(dev)) != to_pci_dev(dev);
 }
 
-static int dmar_insert_one_dev_info(struct intel_iommu *iommu, int bus,
-				    int devfn, struct device *dev,
-				    struct dmar_domain *domain)
-{
-	struct device_domain_info *info = dev_iommu_priv_get(dev);
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&device_domain_lock, flags);
-	info->domain = domain;
-	spin_lock(&iommu->lock);
-	ret = domain_attach_iommu(domain, iommu);
-	spin_unlock(&iommu->lock);
-	if (ret) {
-		spin_unlock_irqrestore(&device_domain_lock, flags);
-		return ret;
-	}
-	list_add(&info->link, &domain->devices);
-	spin_unlock_irqrestore(&device_domain_lock, flags);
-
-	/* PASID table is mandatory for a PCI device in scalable mode. */
-	if (sm_supported(iommu) && !dev_is_real_dma_subdevice(dev)) {
-		ret = intel_pasid_alloc_table(dev);
-		if (ret) {
-			dev_err(dev, "PASID table allocation failed\n");
-			dmar_remove_one_dev_info(dev);
-			return ret;
-		}
-
-		/* Setup the PASID entry for requests without PASID: */
-		spin_lock_irqsave(&iommu->lock, flags);
-		if (hw_pass_through && domain_type_is_si(domain))
-			ret = intel_pasid_setup_pass_through(iommu, domain,
-					dev, PASID_RID2PASID);
-		else if (domain_use_first_level(domain))
-			ret = domain_setup_first_level(iommu, domain, dev,
-					PASID_RID2PASID);
-		else
-			ret = intel_pasid_setup_second_level(iommu, domain,
-					dev, PASID_RID2PASID);
-		spin_unlock_irqrestore(&iommu->lock, flags);
-		if (ret) {
-			dev_err(dev, "Setup RID2PASID failed\n");
-			dmar_remove_one_dev_info(dev);
-			return ret;
-		}
-	}
-
-	ret = domain_context_mapping(domain, dev);
-	if (ret) {
-		dev_err(dev, "Domain context map failed\n");
-		dmar_remove_one_dev_info(dev);
-		return ret;
-	}
-
-	return 0;
-}
-
 static int iommu_domain_identity_map(struct dmar_domain *domain,
 				     unsigned long first_vpfn,
 				     unsigned long last_vpfn)
@@ -2585,14 +2527,64 @@ static int __init si_domain_init(int hw)
 
 static int domain_add_dev_info(struct dmar_domain *domain, struct device *dev)
 {
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct intel_iommu *iommu;
+	unsigned long flags;
 	u8 bus, devfn;
+	int ret;
 
 	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
 		return -ENODEV;
 
-	return dmar_insert_one_dev_info(iommu, bus, devfn, dev, domain);
+	spin_lock_irqsave(&device_domain_lock, flags);
+	info->domain = domain;
+	spin_lock(&iommu->lock);
+	ret = domain_attach_iommu(domain, iommu);
+	spin_unlock(&iommu->lock);
+	if (ret) {
+		spin_unlock_irqrestore(&device_domain_lock, flags);
+		return ret;
+	}
+	list_add(&info->link, &domain->devices);
+	spin_unlock_irqrestore(&device_domain_lock, flags);
+
+	/* PASID table is mandatory for a PCI device in scalable mode. */
+	if (sm_supported(iommu) && !dev_is_real_dma_subdevice(dev)) {
+		ret = intel_pasid_alloc_table(dev);
+		if (ret) {
+			dev_err(dev, "PASID table allocation failed\n");
+			dmar_remove_one_dev_info(dev);
+			return ret;
+		}
+
+		/* Setup the PASID entry for requests without PASID: */
+		spin_lock_irqsave(&iommu->lock, flags);
+		if (hw_pass_through && domain_type_is_si(domain))
+			ret = intel_pasid_setup_pass_through(iommu, domain,
+					dev, PASID_RID2PASID);
+		else if (domain_use_first_level(domain))
+			ret = domain_setup_first_level(iommu, domain, dev,
+					PASID_RID2PASID);
+		else
+			ret = intel_pasid_setup_second_level(iommu, domain,
+					dev, PASID_RID2PASID);
+		spin_unlock_irqrestore(&iommu->lock, flags);
+		if (ret) {
+			dev_err(dev, "Setup RID2PASID failed\n");
+			dmar_remove_one_dev_info(dev);
+			return ret;
+		}
+	}
+
+	ret = domain_context_mapping(domain, dev);
+	if (ret) {
+		dev_err(dev, "Domain context map failed\n");
+		dmar_remove_one_dev_info(dev);
+		return ret;
+	}
+
+	return 0;
 }
 
 static bool device_has_rmrr(struct device *dev)
