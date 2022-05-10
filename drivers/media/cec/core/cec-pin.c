@@ -1123,9 +1123,6 @@ static int cec_pin_adap_enable(struct cec_adapter *adap, bool enable)
 	struct cec_pin *pin = adap->pin;
 
 	if (enable) {
-		atomic_set(&pin->work_pin_num_events, 0);
-		pin->work_pin_events_rd = pin->work_pin_events_wr = 0;
-		pin->work_pin_events_dropped = false;
 		cec_pin_read(pin);
 		cec_pin_to_idle(pin);
 		pin->tx_msg.len = 0;
@@ -1150,7 +1147,6 @@ static int cec_pin_adap_enable(struct cec_adapter *adap, bool enable)
 		cec_pin_to_idle(pin);
 		pin->state = CEC_ST_OFF;
 		pin->work_tx_status = 0;
-		atomic_set(&pin->work_pin_num_events, 0);
 		atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_DISABLE);
 		wake_up_interruptible(&pin->kthread_waitq);
 	}
@@ -1338,6 +1334,7 @@ struct cec_adapter *cec_pin_allocate_adapter(const struct cec_pin_ops *pin_ops,
 		return ERR_PTR(-ENOMEM);
 	pin->ops = pin_ops;
 	hrtimer_init(&pin->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	atomic_set(&pin->work_pin_num_events, 0);
 	pin->timer.function = cec_pin_timer;
 	init_waitqueue_head(&pin->kthread_waitq);
 	pin->tx_custom_low_usecs = CEC_TIM_CUSTOM_DEFAULT;
