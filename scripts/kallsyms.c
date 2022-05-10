@@ -60,7 +60,6 @@ static unsigned int table_size, table_cnt;
 static int all_symbols;
 static int use_data_section;
 static int absolute_percpu;
-static char symbol_prefix_char;
 static int base_relative;
 
 static int token_profit[0x10000];
@@ -74,7 +73,6 @@ static void usage(void)
 {
 	fprintf(stderr, "Usage: kallsyms [--all-symbols] "
 			"[--use-data-section] "
-			"[--symbol-prefix=<prefix char>] "
 			"[--base-relative] < in.map > out.S\n");
 	exit(1);
 }
@@ -195,21 +193,18 @@ static void check_symbol_range(const char *sym, unsigned long long addr,
 
 static struct sym_entry *read_symbol(FILE *in)
 {
-	char str[500], type;
-        char *name;
+	char name[500], type;
 	unsigned long long addr;
 	unsigned int len;
 	struct sym_entry *sym;
 	int rc;
 
-	rc = fscanf(in, "%llx %c %499s\n", &addr, &type, str);
+	rc = fscanf(in, "%llx %c %499s\n", &addr, &type, name);
 	if (rc != 3) {
-		if (rc != EOF && fgets(str, 500, in) == NULL)
+		if (rc != EOF && fgets(name, 500, in) == NULL)
 			fprintf(stderr, "Read error or end of file.\n");
 		return NULL;
 	}
-	name = str;
-
 	if (strlen(name) >= KSYM_NAME_LEN) {
 		fprintf(stderr, "Symbol %s too long for kallsyms (%zu >= %d).\n"
 				"Please increase KSYM_NAME_LEN both in kernel and kallsyms.c\n",
@@ -219,10 +214,6 @@ static struct sym_entry *read_symbol(FILE *in)
 
 	if (strcmp(name, "_text") == 0)
 		_text = addr;
-
-	/* skip prefix char */
-	if (symbol_prefix_char && name[0] == symbol_prefix_char)
-		name++;
 
 	/* Ignore most absolute/undefined (?) symbols. */
 	if (is_ignored_symbol(name, type))
@@ -270,11 +261,6 @@ static int symbol_in_range(const struct sym_entry *s,
 static int symbol_valid(const struct sym_entry *s)
 {
 	const char *name = sym_name(s);
-
-	/* skip prefix char */
-	if (symbol_prefix_char && *name == symbol_prefix_char)
-		name++;
-
 
 	/* if --all-symbols is not specified, then symbols outside the text
 	 * and inittext sections are discarded */
@@ -348,15 +334,9 @@ static void read_map(FILE *in)
 
 static void output_label(const char *label)
 {
-	if (symbol_prefix_char)
-		printf(".globl %c%s\n", symbol_prefix_char, label);
-	else
-		printf(".globl %s\n", label);
+	printf(".globl %s\n", label);
 	printf("\tALGN\n");
-	if (symbol_prefix_char)
-		printf("%c%s:\n", symbol_prefix_char, label);
-	else
-		printf("%s:\n", label);
+	printf("%s:\n", label);
 }
 
 /* Provide proper symbols relocatability by their '_text' relativeness. */
@@ -792,13 +772,7 @@ int main(int argc, char **argv)
 				absolute_percpu = 1;
 			else if (strcmp(argv[i], "--use-data-section") == 0)
 				use_data_section = 1;
-			else if (strncmp(argv[i], "--symbol-prefix=", 16) == 0) {
-				char *p = &argv[i][16];
-				/* skip quote */
-				if ((*p == '"' && *(p+2) == '"') || (*p == '\'' && *(p+2) == '\''))
-					p++;
-				symbol_prefix_char = *p;
-			} else if (strcmp(argv[i], "--base-relative") == 0)
+			else if (strcmp(argv[i], "--base-relative") == 0)
 				base_relative = 1;
 			else
 				usage();

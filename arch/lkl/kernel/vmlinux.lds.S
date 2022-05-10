@@ -6,20 +6,20 @@
 
 OUTPUT_FORMAT(CONFIG_OUTPUT_FORMAT)
 
-VMLINUX_SYMBOL(jiffies) = VMLINUX_SYMBOL(jiffies_64);
+jiffies = jiffies_64;
 
 SECTIONS
 {
-	VMLINUX_SYMBOL(__init_begin) = .;
+	__init_begin = .;
 	HEAD_TEXT_SECTION
 	INIT_TEXT_SECTION(PAGE_SIZE)
 	INIT_DATA_SECTION(16)
 	PERCPU_SECTION(L1_CACHE_BYTES)
-	VMLINUX_SYMBOL(__init_end) = .;
+	__init_end = .;
 
-	VMLINUX_SYMBOL(_stext) = .;
-	VMLINUX_SYMBOL(_text) = . ;
-	VMLINUX_SYMBOL(text) = . ;
+	_stext = .;
+	_text = . ;
+	text = . ;
 	.text      :
 	{
 		TEXT_TEXT
@@ -27,21 +27,21 @@ SECTIONS
 		LOCK_TEXT
 		CPUIDLE_TEXT
 	}
-	VMLINUX_SYMBOL(_etext) = .;
+	_etext = .;
 
-	VMLINUX_SYMBOL(_sdata) = .;
+	_sdata = .;
 	RO_DATA(PAGE_SIZE)
 	RW_DATA(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
-	VMLINUX_SYMBOL(_edata) = .;
+	_edata = .;
 
-	VMLINUX_SYMBOL(__start_ro_after_init) = .;
+	__start_ro_after_init = .;
 	.data..ro_after_init : { *(.data..ro_after_init)}
 	EXCEPTION_TABLE(16)
-	VMLINUX_SYMBOL(__end_ro_after_init) = .;
+	__end_ro_after_init = .;
 	NOTES
 
 	BSS_SECTION(0, 0, 0)
-	VMLINUX_SYMBOL(_end) = .;
+	_end = .;
 
 	STABS_DEBUG
 	DWARF_DEBUG
