@@ -1348,9 +1348,16 @@ static int start_nocpsch(struct device_queue_manager *dqm)
 
 static int stop_nocpsch(struct device_queue_manager *dqm)
 {
+	dqm_lock(dqm);
+	if (!dqm->sched_running) {
+		dqm_unlock(dqm);
+		return 0;
+	}
+
 	if (dqm->dev->adev->asic_type == CHIP_HAWAII)
 		pm_uninit(&dqm->packet_mgr, false);
 	dqm->sched_running = false;
+	dqm_unlock(dqm);
 
 	return 0;
 }
@@ -2423,6 +2430,7 @@ static void deallocate_hiq_sdma_mqd(struct kfd_node *dev,
 
 void device_queue_manager_uninit(struct device_queue_manager *dqm)
 {
+	dqm->ops.stop(dqm);
 	dqm->ops.uninitialize(dqm);
 	if (!dqm->dev->kfd->shared_resources.enable_mes)
 		deallocate_hiq_sdma_mqd(dqm->dev, &dqm->hiq_sdma_mqd);
