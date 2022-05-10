@@ -1113,26 +1113,16 @@
 #define DCZID_DZP_SHIFT			4
 #define DCZID_BS_SHIFT			0
 
-/*
- * The ZCR_ELx_LEN_* definitions intentionally include bits [8:4] which
- * are reserved by the SVE architecture for future expansion of the LEN
- * field, with compatible semantics.
- */
 #define ZCR_ELx_LEN_SHIFT	0
-#define ZCR_ELx_LEN_SIZE	9
-#define ZCR_ELx_LEN_MASK	0x1ff
+#define ZCR_ELx_LEN_SIZE	4
+#define ZCR_ELx_LEN_MASK	0xf
 
 #define SMCR_ELx_FA64_SHIFT	31
 #define SMCR_ELx_FA64_MASK	(1 << SMCR_ELx_FA64_SHIFT)
 
-/*
- * The SMCR_ELx_LEN_* definitions intentionally include bits [8:4] which
- * are reserved by the SME architecture for future expansion of the LEN
- * field, with compatible semantics.
- */
 #define SMCR_ELx_LEN_SHIFT	0
-#define SMCR_ELx_LEN_SIZE	9
-#define SMCR_ELx_LEN_MASK	0x1ff
+#define SMCR_ELx_LEN_SIZE	4
+#define SMCR_ELx_LEN_MASK	0xf
 
 #define CPACR_EL1_FPEN_EL1EN	(BIT(20)) /* enable EL1 access */
 #define CPACR_EL1_FPEN_EL0EN	(BIT(21)) /* enable EL0 access, if EL1EN set */
