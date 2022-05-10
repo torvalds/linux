@@ -1094,7 +1094,11 @@ static int zynqmp_dma_probe(struct platform_device *pdev)
 	p->dst_addr_widths = BIT(zdev->chan->bus_width / 8);
 	p->src_addr_widths = BIT(zdev->chan->bus_width / 8);
 
-	dma_async_device_register(&zdev->common);
+	ret = dma_async_device_register(&zdev->common);
+	if (ret) {
+		dev_err(zdev->dev, "failed to register the dma device\n");
+		goto free_chan_resources;
+	}
 
 	ret = of_dma_controller_register(pdev->dev.of_node,
 					 of_zynqmp_dma_xlate, zdev);
