@@ -1102,6 +1102,7 @@ struct bpf_link_ops {
 struct bpf_tramp_link {
 	struct bpf_link link;
 	struct hlist_node tramp_hlist;
+	u64 cookie;
 };
 
 struct bpf_tracing_link {

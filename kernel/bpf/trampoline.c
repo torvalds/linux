@@ -30,9 +30,12 @@ static DEFINE_MUTEX(trampoline_mutex);
 bool bpf_prog_has_trampoline(const struct bpf_prog *prog)
 {
 	enum bpf_attach_type eatype = prog->expected_attach_type;
+	enum bpf_prog_type ptype = prog->type;
 
-	return eatype == BPF_TRACE_FENTRY || eatype == BPF_TRACE_FEXIT ||
-	       eatype == BPF_MODIFY_RETURN;
+	return (ptype == BPF_PROG_TYPE_TRACING &&
+		(eatype == BPF_TRACE_FENTRY || eatype == BPF_TRACE_FEXIT ||
+		 eatype == BPF_MODIFY_RETURN)) ||
+		(ptype == BPF_PROG_TYPE_LSM && eatype == BPF_LSM_MAC);
 }
 
 void *bpf_jit_alloc_exec_page(void)
