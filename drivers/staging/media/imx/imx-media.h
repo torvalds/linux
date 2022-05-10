@@ -201,24 +201,14 @@ int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 				  const struct imx_media_pixfmt *cc);
 void imx_media_grp_id_to_sd_name(char *sd_name, int sz,
 				 u32 grp_id, int ipu_id);
-struct v4l2_subdev *
-imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
-				struct fwnode_handle *fwnode);
-struct v4l2_subdev *
-imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,
-				 const char *devname);
 void imx_media_add_video_device(struct imx_media_dev *imxmd,
 				struct imx_media_video_dev *vdev);
-int imx_media_pipeline_csi2_channel(struct media_entity *start_entity);
 struct media_pad *
 imx_media_pipeline_pad(struct media_entity *start_entity, u32 grp_id,
 		       enum v4l2_buf_type buftype, bool upstream);
 struct v4l2_subdev *
 imx_media_pipeline_subdev(struct media_entity *start_entity, u32 grp_id,
 			  bool upstream);
-struct video_device *
-imx_media_pipeline_video_device(struct media_entity *start_entity,
-				enum v4l2_buf_type buftype, bool upstream);
 
 struct imx_media_dma_buf {
 	void          *virt;
