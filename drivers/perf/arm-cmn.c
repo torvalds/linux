@@ -1514,7 +1514,7 @@ static enum cmn_filter_select arm_cmn_filter_sel(enum cmn_model model,
 	struct arm_cmn_event_attr *e;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(arm_cmn_event_attrs); i++) {
+	for (i = 0; i < ARRAY_SIZE(arm_cmn_event_attrs) - 1; i++) {
 		e = container_of(arm_cmn_event_attrs[i], typeof(*e), attr.attr);
 		if (e->model & model && e->type == type && e->eventid == eventid)
 			return e->fsel;
