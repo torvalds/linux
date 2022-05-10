@@ -604,6 +604,19 @@ get_lfp_data_tail(const struct bdb_lvds_lfp_data *data,
 		return NULL;
 }
 
+static void dump_pnp_id(struct drm_i915_private *i915,
+			const struct lvds_pnp_id *pnp_id,
+			const char *name)
+{
+	u16 mfg_name = be16_to_cpu((__force __be16)pnp_id->mfg_name);
+	char vend[4];
+
+	drm_dbg_kms(&i915->drm, "%s PNPID mfg: %s (0x%x), prod: %u, serial: %u, week: %d, year: %d\n",
+		    name, drm_edid_decode_mfg_id(mfg_name, vend),
+		    pnp_id->mfg_name, pnp_id->product_code, pnp_id->serial,
+		    pnp_id->mfg_week, pnp_id->mfg_year + 1990);
+}
+
 static int opregion_get_panel_type(struct drm_i915_private *i915,
 				   const struct intel_bios_encoder_data *devdata,
 				   const struct edid *edid)
@@ -654,6 +667,8 @@ static int pnpid_get_panel_type(struct drm_i915_private *i915,
 	edid_id_nodate = *edid_id;
 	edid_id_nodate.mfg_week = 0;
 	edid_id_nodate.mfg_year = 0;
+
+	dump_pnp_id(i915, edid_id, "EDID");
 
 	ptrs = find_section(i915, BDB_LVDS_LFP_DATA_PTRS);
 	if (!ptrs)
@@ -861,6 +876,7 @@ parse_lfp_data(struct drm_i915_private *i915,
 	const struct bdb_lvds_lfp_data *data;
 	const struct bdb_lvds_lfp_data_tail *tail;
 	const struct bdb_lvds_lfp_data_ptrs *ptrs;
+	const struct lvds_pnp_id *pnp_id;
 	int panel_type = panel->vbt.panel_type;
 
 	ptrs = find_section(i915, BDB_LVDS_LFP_DATA_PTRS);
@@ -874,9 +890,16 @@ parse_lfp_data(struct drm_i915_private *i915,
 	if (!panel->vbt.lfp_lvds_vbt_mode)
 		parse_lfp_panel_dtd(i915, panel, data, ptrs);
 
+	pnp_id = get_lvds_pnp_id(data, ptrs, panel_type);
+	dump_pnp_id(i915, pnp_id, "Panel");
+
 	tail = get_lfp_data_tail(data, ptrs);
 	if (!tail)
 		return;
+
+	drm_dbg_kms(&i915->drm, "Panel name: %.*s\n",
+		    (int)sizeof(tail->panel_name[0].name),
+		    tail->panel_name[panel_type].name);
 
 	if (i915->display.vbt.version >= 188) {
 		panel->vbt.seamless_drrs_min_refresh_rate =
