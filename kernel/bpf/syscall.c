@@ -4680,6 +4680,25 @@ struct bpf_link *bpf_link_by_id(u32 id)
 	return link;
 }
 
+struct bpf_link *bpf_link_get_curr_or_next(u32 *id)
+{
+	struct bpf_link *link;
+
+	spin_lock_bh(&link_idr_lock);
+again:
+	link = idr_get_next(&link_idr, id);
+	if (link) {
+		link = bpf_link_inc_not_zero(link);
+		if (IS_ERR(link)) {
+			(*id)++;
+			goto again;
+		}
+	}
+	spin_unlock_bh(&link_idr_lock);
+
+	return link;
+}
+
 #define BPF_LINK_GET_FD_BY_ID_LAST_FIELD link_id
 
 static int bpf_link_get_fd_by_id(const union bpf_attr *attr)
