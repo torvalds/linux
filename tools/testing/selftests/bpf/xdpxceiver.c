@@ -91,6 +91,7 @@
 #include <stddef.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <time.h>
@@ -792,6 +793,7 @@ static int complete_pkts(struct xsk_socket_info *xsk, int batch_size)
 
 static int receive_pkts(struct ifobject *ifobj, struct pollfd *fds)
 {
+	struct timeval tv_end, tv_now, tv_timeout = {RECV_TMOUT, 0};
 	struct pkt_stream *pkt_stream = ifobj->pkt_stream;
 	struct pkt *pkt = pkt_stream_get_next_rx_pkt(pkt_stream);
 	struct xsk_socket_info *xsk = ifobj->xsk;
@@ -799,7 +801,20 @@ static int receive_pkts(struct ifobject *ifobj, struct pollfd *fds)
 	u32 idx_rx = 0, idx_fq = 0, rcvd, i;
 	int ret;
 
+	ret = gettimeofday(&tv_now, NULL);
+	if (ret)
+		exit_with_error(errno);
+	timeradd(&tv_now, &tv_timeout, &tv_end);
+
 	while (pkt) {
+		ret = gettimeofday(&tv_now, NULL);
+		if (ret)
+			exit_with_error(errno);
+		if (timercmp(&tv_now, &tv_end, >)) {
+			ksft_print_msg("ERROR: [%s] Receive loop timed out\n", __func__);
+			return TEST_FAILURE;
+		}
+
 		kick_rx(xsk);
 
 		rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
