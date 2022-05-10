@@ -251,6 +251,9 @@ static bool rockchip_dp_skip_connector(struct drm_bridge *bridge)
 	if (of_device_is_compatible(bridge->of_node, "dp-connector"))
 		return false;
 
+	if (bridge->ops & DRM_BRIDGE_OP_MODES)
+		return false;
+
 	return true;
 }
 

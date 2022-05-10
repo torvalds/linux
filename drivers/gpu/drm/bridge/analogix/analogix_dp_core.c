@@ -1147,6 +1147,9 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 	if (dp->plat_data->panel)
 		num_modes += drm_panel_get_modes(dp->plat_data->panel, connector);
 
+	if (dp->plat_data->bridge)
+		num_modes += drm_bridge_get_modes(dp->plat_data->bridge, connector);
+
 	if (!num_modes) {
 		ret = analogix_dp_phy_power_on(dp);
 		if (ret)
@@ -1249,6 +1252,13 @@ analogix_dp_detect(struct analogix_dp_device *dp)
 		}
 
 		status = connector_status_connected;
+	}
+
+	if (dp->plat_data->bridge) {
+		struct drm_bridge *next_bridge = dp->plat_data->bridge;
+
+		if (next_bridge->ops & DRM_BRIDGE_OP_DETECT)
+			status = drm_bridge_detect(next_bridge);
 	}
 
 out:
@@ -1734,8 +1744,11 @@ static int analogix_dp_bridge_init(struct analogix_dp_device *dp)
 
 	if (dp->plat_data->right) {
 		struct analogix_dp_device *secondary = dp->plat_data->right;
+		struct drm_bridge *last_bridge =
+			list_last_entry(&bridge->encoder->bridge_chain,
+					struct drm_bridge, chain_node);
 
-		ret = drm_bridge_attach(dp->encoder, &secondary->bridge, bridge,
+		ret = drm_bridge_attach(dp->encoder, &secondary->bridge, last_bridge,
 					DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 		if (ret)
 			return ret;
