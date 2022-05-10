@@ -40,6 +40,12 @@ Description:	Writing a number 'N' to this file creates the number of
 		directories for controlling each DAMON context named '0' to
 		'N-1' under the contexts/ directory.
 
+What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/avail_operations
+Date:		Apr 2022
+Contact:	SeongJae Park <sj@kernel.org>
+Description:	Reading this file returns the available monitoring operations
+		sets on the currently running kernel.
+
 What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/operations
 Date:		Mar 2022
 Contact:	SeongJae Park <sj@kernel.org>
@@ -47,7 +53,9 @@ Description:	Writing a keyword for a monitoring operations set ('vaddr' for
 		virtual address spaces monitoring, and 'paddr' for the physical
 		address space monitoring) to this file makes the context to use
 		the operations set.  Reading the file returns the keyword for
-		the operations set the context is set to use.
+		the operations set the context is set to use.  Note that only
+		the operations sets that listed in 'avail_operations' file are
+		valid inputs.
 
 What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/monitoring_attrs/intervals/sample_us
 Date:		Mar 2022

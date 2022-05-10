@@ -68,7 +68,7 @@ comma (","). ::
     │ kdamonds/nr_kdamonds
     │ │ 0/state,pid
     │ │ │ contexts/nr_contexts
-    │ │ │ │ 0/operations
+    │ │ │ │ 0/avail_operations,operations
     │ │ │ │ │ monitoring_attrs/
     │ │ │ │ │ │ intervals/sample_us,aggr_us,update_us
     │ │ │ │ │ │ nr_regions/min,max
@@ -143,16 +143,22 @@ be written to the file.
 contexts/<N>/
 -------------
 
-In each context directory, one file (``operations``) and three directories
-(``monitoring_attrs``, ``targets``, and ``schemes``) exist.
+In each context directory, two files (``avail_operations`` and ``operations``)
+and three directories (``monitoring_attrs``, ``targets``, and ``schemes``)
+exist.
 
 DAMON supports multiple types of monitoring operations, including those for
-virtual address space and the physical address space.  You can set and get what
-type of monitoring operations DAMON will use for the context by writing one of
-below keywords to, and reading from the file.
+virtual address space and the physical address space.  You can get the list of
+available monitoring operations set on the currently running kernel by reading
+``avail_operations`` file.  Based on the kernel configuration, the file will
+list some or all of below keywords.
 
  - vaddr: Monitor virtual address spaces of specific processes
  - paddr: Monitor the physical address space of the system
+
+You can set and get what type of monitoring operations DAMON will use for the
+context by writing one of the keywords listed in ``avail_operations`` file and
+reading from the ``operations`` file.
 
 contexts/<N>/monitoring_attrs/
 ------------------------------
