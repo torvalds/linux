@@ -86,26 +86,43 @@ static int rockchip_debug_dump_edpcsr(struct fiq_debugger_output *output)
 	void *prev_pc = NULL;
 	int printed = 0;
 	void __iomem *base;
-	u32 pu = 0;
+	u32 pu = 0, online = 0;
+
+#ifdef CONFIG_ARM64
+	/* disable SError */
+	asm volatile("msr	daifset, #0x4");
+#endif
 
 	while (rockchip_cpu_debug[i]) {
+		online = cpu_online(i);
+		output->printf(output,
+				"CPU%d online:%d\n", i, online);
+		if (online == 0) {
+			i++;
+			continue;
+		}
+
 		base = rockchip_cpu_debug[i];
-
 		pu = (u32)readl(base + EDPRSR) & EDPRSR_PU;
-
 		if (pu != EDPRSR_PU) {
+			output->printf(output,
+					"CPU%d power down\n", i);
 			i++;
 			continue;
 		}
 		/* Unlock EDLSR.SLK so that EDPCSRhi gets populated */
 		writel(EDLAR_UNLOCK, base + EDLAR);
 
-		output->printf(output,
-				"CPU%d online:%d\n", i, cpu_online(i));
-
 		/* Try to read a bunch of times if CPU is actually running */
 		for (j = 0; j < NUM_CPU_SAMPLES &&
 			    printed < NUM_SAMPLES_TO_PRINT; j++) {
+			pu = (u32)readl(base + EDPRSR) & EDPRSR_PU;
+			if (pu != EDPRSR_PU) {
+				output->printf(output,
+						"CPU%d power down\n", i);
+				break;
+			}
+
 			if (sizeof(edpcsr) == 8)
 				edpcsr = ((u64)readl(base + EDPCSR_LO)) |
 				  ((u64)readl(base + EDPCSR_HI) << 32);
@@ -128,6 +145,12 @@ static int rockchip_debug_dump_edpcsr(struct fiq_debugger_output *output)
 		prev_pc = NULL;
 		printed = 0;
 	}
+
+#ifdef CONFIG_ARM64
+	/* enable SError */
+	asm volatile("msr	daifclr, #0x4");
+#endif
+
 	return NOTIFY_OK;
 }
 
@@ -140,16 +163,39 @@ static int rockchip_debug_dump_pmpcsr(struct fiq_debugger_output *output)
 	void *prev_pc = NULL;
 	int printed = 0;
 	void __iomem *base;
+	u32 pu = 0, online = 0;
+
+	/* disable SError */
+	asm volatile("msr	daifset, #0x4");
 
 	while (rockchip_cs_pmu[i]) {
-		base = rockchip_cs_pmu[i];
-
+		online = cpu_online(i);
 		output->printf(output,
-				"CPU%d online:%d\n", i, cpu_online(i));
+				"CPU%d online:%d\n", i, online);
+		if (online == 0) {
+			i++;
+			continue;
+		}
 
+		pu = (u32)readl(rockchip_cpu_debug[i] + EDPRSR) & EDPRSR_PU;
+		if (pu != EDPRSR_PU) {
+			output->printf(output,
+					"CPU%d power down\n", i);
+			i++;
+			continue;
+		}
+
+		base = rockchip_cs_pmu[i];
 		/* Try to read a bunch of times if CPU is actually running */
 		for (j = 0; j < NUM_CPU_SAMPLES &&
 			    printed < NUM_SAMPLES_TO_PRINT; j++) {
+			pu = (u32)readl(rockchip_cpu_debug[i] + EDPRSR) & EDPRSR_PU;
+			if (pu != EDPRSR_PU) {
+				output->printf(output,
+						"CPU%d power down\n", i);
+				break;
+			}
+
 			pmpcsr = ((u64)readl(base + PMPCSR_LO)) |
 				((u64)readl(base + PMPCSR_HI) << 32);
 
@@ -179,6 +225,8 @@ static int rockchip_debug_dump_pmpcsr(struct fiq_debugger_output *output)
 		prev_pc = NULL;
 		printed = 0;
 	}
+	/* enable SError */
+	asm volatile("msr	daifclr, #0x4");
 	return NOTIFY_OK;
 }
 #else
@@ -211,6 +259,11 @@ static int rockchip_panic_notify_edpcsr(struct notifier_block *nb,
 	void __iomem *base;
 	u32 pu = 0;
 
+#ifdef CONFIG_ARM64
+	/* disable SError */
+	asm volatile("msr	daifset, #0x4");
+#endif
+
 	/*
 	 * The panic handler will try to shut down the other CPUs.
 	 * If any of them are still online at this point, this loop attempts
@@ -220,13 +273,13 @@ static int rockchip_panic_notify_edpcsr(struct notifier_block *nb,
 
 	while (rockchip_cpu_debug[i]) {
 		base = rockchip_cpu_debug[i];
-
 		pu = (u32)readl(base + EDPRSR) & EDPRSR_PU;
-
 		if (pu != EDPRSR_PU) {
+			pr_err("CPU%d power down\n", i);
 			i++;
 			continue;
 		}
+
 		/* Unlock EDLSR.SLK so that EDPCSRhi gets populated */
 		writel(EDLAR_UNLOCK, base + EDLAR);
 
@@ -235,6 +288,12 @@ static int rockchip_panic_notify_edpcsr(struct notifier_block *nb,
 		/* Try to read a bunch of times if CPU is actually running */
 		for (j = 0; j < NUM_CPU_SAMPLES &&
 			    printed < NUM_SAMPLES_TO_PRINT; j++) {
+			pu = (u32)readl(base + EDPRSR) & EDPRSR_PU;
+			if (pu != EDPRSR_PU) {
+				pr_err("CPU%d power down\n", i);
+				break;
+			}
+
 			if (sizeof(edpcsr) == 8)
 				edpcsr = ((u64)readl(base + EDPCSR_LO)) |
 				  ((u64)readl(base + EDPCSR_HI) << 32);
@@ -256,6 +315,12 @@ static int rockchip_panic_notify_edpcsr(struct notifier_block *nb,
 		prev_pc = NULL;
 		printed = 0;
 	}
+
+#ifdef CONFIG_ARM64
+	/* enable SError */
+	asm volatile("msr	daifclr, #0x4");
+#endif
+
 	return NOTIFY_OK;
 }
 
@@ -269,6 +334,10 @@ static int rockchip_panic_notify_pmpcsr(struct notifier_block *nb,
 	void *prev_pc = NULL;
 	int printed = 0;
 	void __iomem *base;
+	u32 pu = 0;
+
+	/* disable SError */
+	asm volatile("msr	daifset, #0x4");
 
 	/*
 	 * The panic handler will try to shut down the other CPUs.
@@ -282,9 +351,21 @@ static int rockchip_panic_notify_pmpcsr(struct notifier_block *nb,
 
 		pr_err("CPU%d online:%d\n", i, cpu_online(i));
 
+		pu = (u32)readl(rockchip_cpu_debug[i] + EDPRSR) & EDPRSR_PU;
+		if (pu != EDPRSR_PU) {
+			pr_err("CPU%d power down\n", i);
+			i++;
+			continue;
+		}
+
 		/* Try to read a bunch of times if CPU is actually running */
 		for (j = 0; j < NUM_CPU_SAMPLES &&
 			    printed < NUM_SAMPLES_TO_PRINT; j++) {
+			pu = (u32)readl(rockchip_cpu_debug[i] + EDPRSR) & EDPRSR_PU;
+			if (pu != EDPRSR_PU) {
+				pr_err("CPU%d power down\n", i);
+				break;
+			}
 			pmpcsr = ((u64)readl(base + PMPCSR_LO)) |
 				((u64)readl(base + PMPCSR_HI) << 32);
 
@@ -314,6 +395,8 @@ static int rockchip_panic_notify_pmpcsr(struct notifier_block *nb,
 		prev_pc = NULL;
 		printed = 0;
 	}
+	/* enable SError */
+	asm volatile("msr	daifclr, #0x4");
 	return NOTIFY_OK;
 }
 #else
