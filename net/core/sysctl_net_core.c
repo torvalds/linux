@@ -266,6 +266,8 @@ static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
 					   loff_t *ppos)
 {
 	int ret, jit_enable = *(int *)table->data;
+	int min = *(int *)table->extra1;
+	int max = *(int *)table->extra2;
 	struct ctl_table tmp = *table;
 
 	if (write && !capable(CAP_SYS_ADMIN))
@@ -283,6 +285,10 @@ static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
 			ret = -EPERM;
 		}
 	}
+
+	if (write && ret && min == max)
+		pr_info_once("CONFIG_BPF_JIT_ALWAYS_ON is enabled, bpf_jit_enable is permanently set to 1.\n");
+
 	return ret;
 }
 
