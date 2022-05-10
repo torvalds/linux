@@ -2125,6 +2125,10 @@ static int damon_sysfs_set_targets(struct damon_ctx *ctx,
 {
 	int i, err;
 
+	/* Multiple physical address space monitoring targets makes no sense */
+	if (ctx->ops.id == DAMON_OPS_PADDR && sysfs_targets->nr > 1)
+		return -EINVAL;
+
 	for (i = 0; i < sysfs_targets->nr; i++) {
 		struct damon_sysfs_target *sys_target =
 			sysfs_targets->targets_arr[i];
