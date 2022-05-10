@@ -28,8 +28,6 @@
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 
-#include "imx-media.h"
-
 #define IMX7_CSI_PAD_SINK		0
 #define IMX7_CSI_PAD_SRC		1
 #define IMX7_CSI_PADS_NUM		2
