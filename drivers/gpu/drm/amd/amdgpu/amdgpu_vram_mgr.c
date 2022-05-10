@@ -50,6 +50,35 @@ to_amdgpu_device(struct amdgpu_vram_mgr *mgr)
 	return container_of(mgr, struct amdgpu_device, mman.vram_mgr);
 }
 
+static inline struct drm_buddy_block *
+amdgpu_vram_mgr_first_block(struct list_head *list)
+{
+	return list_first_entry_or_null(list, struct drm_buddy_block, link);
+}
+
+static inline bool amdgpu_is_vram_mgr_blocks_contiguous(struct list_head *head)
+{
+	struct drm_buddy_block *block;
+	u64 start, size;
+
+	block = amdgpu_vram_mgr_first_block(head);
+	if (!block)
+		return false;
+
+	while (head != block->link.next) {
+		start = amdgpu_vram_mgr_block_start(block);
+		size = amdgpu_vram_mgr_block_size(block);
+
+		block = list_entry(block->link.next, struct drm_buddy_block, link);
+		if (start + size != amdgpu_vram_mgr_block_start(block))
+			return false;
+	}
+
+	return true;
+}
+
+
+
 /**
  * DOC: mem_info_vram_total
  *
