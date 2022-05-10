@@ -4951,7 +4951,7 @@ static bool is_pow_of_2(size_t x)
 static size_t adjust_ringbuf_sz(size_t sz)
 {
 	__u32 page_sz = sysconf(_SC_PAGE_SIZE);
-	__u32 i, mul;
+	__u32 mul;
 
 	/* if user forgot to set any size, make sure they see error */
 	if (sz == 0)
@@ -4967,9 +4967,7 @@ static size_t adjust_ringbuf_sz(size_t sz)
 	 * user-set size to satisfy both user size request and kernel
 	 * requirements and substitute correct max_entries for map creation.
 	 */
-	for (i = 0, mul = 1; ; i++, mul <<= 1) {
-		if (mul > UINT_MAX / page_sz) /* prevent __u32 overflow */
-			break;
+	for (mul = 1; mul <= UINT_MAX / page_sz; mul <<= 1) {
 		if (mul * page_sz > sz)
 			return mul * page_sz;
 	}
