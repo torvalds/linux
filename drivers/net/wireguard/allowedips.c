@@ -163,7 +163,7 @@ static bool node_placement(struct allowedips_node __rcu *trie, const u8 *key,
 	return exact;
 }
 
-static inline void connect_node(struct allowedips_node **parent, u8 bit, struct allowedips_node *node)
+static inline void connect_node(struct allowedips_node __rcu **parent, u8 bit, struct allowedips_node *node)
 {
 	node->parent_bit_packed = (unsigned long)parent | bit;
 	rcu_assign_pointer(*parent, node);

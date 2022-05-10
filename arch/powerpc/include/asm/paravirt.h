@@ -97,7 +97,23 @@ static inline bool vcpu_is_preempted(int cpu)
 
 #ifdef CONFIG_PPC_SPLPAR
 	if (!is_kvm_guest()) {
-		int first_cpu = cpu_first_thread_sibling(smp_processor_id());
+		int first_cpu;
+
+		/*
+		 * The result of vcpu_is_preempted() is used in a
+		 * speculative way, and is always subject to invalidation
+		 * by events internal and external to Linux. While we can
+		 * be called in preemptable context (in the Linux sense),
+		 * we're not accessing per-cpu resources in a way that can
+		 * race destructively with Linux scheduler preemption and
+		 * migration, and callers can tolerate the potential for
+		 * error introduced by sampling the CPU index without
+		 * pinning the task to it. So it is permissible to use
+		 * raw_smp_processor_id() here to defeat the preempt debug
+		 * warnings that can arise from using smp_processor_id()
+		 * in arbitrary contexts.
+		 */
+		first_cpu = cpu_first_thread_sibling(raw_smp_processor_id());
 
 		/*
 		 * Preemption can only happen at core granularity. This CPU

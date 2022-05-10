@@ -26,6 +26,7 @@
 #define HID_USAGE_SENSOR_STATE_READY_ENUM                             0x02
 #define HID_USAGE_SENSOR_STATE_INITIALIZING_ENUM                      0x05
 #define HID_USAGE_SENSOR_EVENT_DATA_UPDATED_ENUM                      0x04
+#define ILLUMINANCE_MASK					GENMASK(14, 0)
 
 int get_report_descriptor(int sensor_idx, u8 *rep_desc)
 {
@@ -245,7 +246,8 @@ u8 get_input_report(u8 current_index, int sensor_idx, int report_id, struct amd_
 		get_common_inputs(&als_input.common_property, report_id);
 		/* For ALS ,V2 Platforms uses C2P_MSG5 register instead of DRAM access method */
 		if (supported_input == V2_STATUS)
-			als_input.illuminance_value = (int)readl(privdata->mmio + AMD_C2P_MSG(5));
+			als_input.illuminance_value =
+				readl(privdata->mmio + AMD_C2P_MSG(5)) & ILLUMINANCE_MASK;
 		else
 			als_input.illuminance_value =
 				(int)sensor_virt_addr[0] / AMD_SFH_FW_MULTIPLIER;

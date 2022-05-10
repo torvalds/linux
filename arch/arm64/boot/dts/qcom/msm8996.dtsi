@@ -638,7 +638,7 @@
 			};
 		};
 
-		rpm_msg_ram: memory@68000 {
+		rpm_msg_ram: sram@68000 {
 			compatible = "qcom,rpm-msg-ram";
 			reg = <0x00068000 0x6000>;
 		};
@@ -964,9 +964,6 @@
 
 			nvmem-cells = <&speedbin_efuse>;
 			nvmem-cell-names = "speed_bin";
-
-			qcom,gpu-quirk-two-pass-use-wfi;
-			qcom,gpu-quirk-fault-detect-mask;
 
 			operating-points-v2 = <&gpu_opp_table>;
 

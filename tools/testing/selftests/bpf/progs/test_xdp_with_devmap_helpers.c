@@ -9,7 +9,7 @@ struct {
 	__uint(max_entries, 4);
 } dm_ports SEC(".maps");
 
-SEC("xdp_redir")
+SEC("xdp")
 int xdp_redir_prog(struct xdp_md *ctx)
 {
 	return bpf_redirect_map(&dm_ports, 1, 0);
@@ -18,7 +18,7 @@ int xdp_redir_prog(struct xdp_md *ctx)
 /* invalid program on DEVMAP entry;
  * SEC name means expected attach type not set
  */
-SEC("xdp_dummy")
+SEC("xdp")
 int xdp_dummy_prog(struct xdp_md *ctx)
 {
 	return XDP_PASS;

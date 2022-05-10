@@ -253,6 +253,9 @@ struct aspeed_xdma_client {
 	u32 size;
 };
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/xdma.h>
+
 static u32 aspeed_xdma_readl(struct aspeed_xdma *ctx, u8 reg)
 {
 	u32 v = readl(ctx->base + reg);
@@ -448,6 +451,7 @@ static int aspeed_xdma_start(struct aspeed_xdma *ctx, unsigned int num_cmds,
 
 	ctx->upstream = upstream;
 	for (i = 0; i < num_cmds; ++i) {
+		trace_xdma_start(ctx, &cmds[i]);
 		/*
 		 * Use memcpy_toio here to get some barriers before starting
 		 * the operation. The command(s) need to be in physical memory
@@ -490,6 +494,8 @@ static irqreturn_t aspeed_xdma_irq(int irq, void *arg)
 	spin_lock(&ctx->engine_lock);
 	status = aspeed_xdma_readl(ctx, ctx->chip->regs.status);
 
+	trace_xdma_irq(status);
+
 	if (status & ctx->chip->status_bits.ds_dirty) {
 		aspeed_xdma_done(ctx, true);
 	} else {
@@ -513,6 +519,8 @@ static irqreturn_t aspeed_xdma_irq(int irq, void *arg)
 static void aspeed_xdma_reset(struct aspeed_xdma *ctx)
 {
 	unsigned long flags;
+
+	trace_xdma_reset(ctx);
 
 	reset_control_assert(ctx->reset);
 	usleep_range(XDMA_ENGINE_SETUP_TIME_MIN_US,
@@ -544,7 +552,7 @@ static irqreturn_t aspeed_xdma_pcie_irq(int irq, void *arg)
 {
 	struct aspeed_xdma *ctx = arg;
 
-	dev_dbg(ctx->dev, "PCI-E reset requested.\n");
+	trace_xdma_perst(ctx);
 
 	spin_lock(&ctx->engine_lock);
 	if (ctx->in_reset) {
@@ -682,6 +690,7 @@ static void aspeed_xdma_vma_close(struct vm_area_struct *vma)
 
 	gen_pool_free(client->ctx->pool, (unsigned long)client->virt,
 		      client->size);
+	trace_xdma_unmap(client);
 
 	client->virt = NULL;
 	client->phys = 0;
@@ -706,6 +715,7 @@ static int aspeed_xdma_mmap(struct file *file, struct vm_area_struct *vma)
 	client->virt = gen_pool_dma_alloc(ctx->pool, client->size,
 					  &client->phys);
 	if (!client->virt) {
+		trace_xdma_mmap_error(client, 0UL);
 		client->phys = 0;
 		client->size = 0;
 		return -ENOMEM;
@@ -725,12 +735,14 @@ static int aspeed_xdma_mmap(struct file *file, struct vm_area_struct *vma)
 		gen_pool_free(ctx->pool, (unsigned long)client->virt,
 			      client->size);
 
+		trace_xdma_mmap_error(client, vma->vm_start);
 		client->virt = NULL;
 		client->phys = 0;
 		client->size = 0;
 		return rc;
 	}
 
+	trace_xdma_mmap(client);
 	dev_dbg(ctx->dev, "mmap: v[%08lx] to p[%08x], s[%08x]\n",
 		vma->vm_start, (u32)client->phys, client->size);
 
@@ -776,9 +788,11 @@ static int aspeed_xdma_release(struct inode *inode, struct file *file)
 	if (reset)
 		aspeed_xdma_reset(ctx);
 
-	if (client->virt)
+	if (client->virt) {
 		gen_pool_free(ctx->pool, (unsigned long)client->virt,
 			      client->size);
+		trace_xdma_unmap(client);
+	}
 
 	kfree(client);
 	kobject_put(&ctx->kobj);

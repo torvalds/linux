@@ -154,6 +154,8 @@ struct kretprobe {
 	struct kretprobe_holder *rph;
 };
 
+#define KRETPROBE_MAX_DATA_SIZE	4096
+
 struct kretprobe_instance {
 	union {
 		struct freelist_node freelist;

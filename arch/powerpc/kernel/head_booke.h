@@ -465,12 +465,21 @@ label:
 	bl	do_page_fault;						      \
 	b	interrupt_return
 
+/*
+ * Instruction TLB Error interrupt handlers may call InstructionStorage
+ * directly without clearing ESR, so the ESR at this point may be left over
+ * from a prior interrupt.
+ *
+ * In any case, do_page_fault for BOOK3E does not use ESR and always expects
+ * dsisr to be 0. ESR_DST from a prior store in particular would confuse fault
+ * handling.
+ */
 #define INSTRUCTION_STORAGE_EXCEPTION					      \
 	START_EXCEPTION(InstructionStorage)				      \
-	NORMAL_EXCEPTION_PROLOG(0x400, INST_STORAGE);		      \
-	mfspr	r5,SPRN_ESR;		/* Grab the ESR and save it */	      \
+	NORMAL_EXCEPTION_PROLOG(0x400, INST_STORAGE);			      \
+	li	r5,0;			/* Store 0 in regs->esr (dsisr) */    \
 	stw	r5,_ESR(r11);						      \
-	stw	r12, _DEAR(r11);	/* Pass SRR0 as arg2 */		      \
+	stw	r12, _DEAR(r11);	/* Set regs->dear (dar) to SRR0 */    \
 	prepare_transfer_to_handler;					      \
 	bl	do_page_fault;						      \
 	b	interrupt_return

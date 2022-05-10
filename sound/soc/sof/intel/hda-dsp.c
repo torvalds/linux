@@ -623,8 +623,7 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	hda_dsp_ipc_int_disable(sdev);
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	if (runtime_suspend)
-		hda_codec_jack_wake_enable(sdev, true);
+	hda_codec_jack_wake_enable(sdev, runtime_suspend);
 
 	/* power down all hda link */
 	snd_hdac_ext_bus_link_power_down_all(bus);

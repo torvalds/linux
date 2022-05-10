@@ -384,7 +384,7 @@ static __init int init_trace_printk_function_export(void)
 	if (ret)
 		return 0;
 
-	trace_create_file("printk_formats", 0444, NULL,
+	trace_create_file("printk_formats", TRACE_MODE_READ, NULL,
 				    NULL, &ftrace_formats_fops);
 
 	return 0;

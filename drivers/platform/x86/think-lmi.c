@@ -888,8 +888,10 @@ static int tlmi_analyze(void)
 			break;
 		if (!item)
 			break;
-		if (!*item)
+		if (!*item) {
+			kfree(item);
 			continue;
+		}
 
 		/* It is not allowed to have '/' for file name. Convert it into '\'. */
 		strreplace(item, '/', '\\');
@@ -902,6 +904,7 @@ static int tlmi_analyze(void)
 		setting = kzalloc(sizeof(*setting), GFP_KERNEL);
 		if (!setting) {
 			ret = -ENOMEM;
+			kfree(item);
 			goto fail_clear_attr;
 		}
 		setting->index = i;
@@ -916,7 +919,6 @@ static int tlmi_analyze(void)
 		}
 		kobject_init(&setting->kobj, &tlmi_attr_setting_ktype);
 		tlmi_priv.setting[i] = setting;
-		tlmi_priv.settings_count++;
 		kfree(item);
 	}
 
@@ -983,7 +985,12 @@ static void tlmi_remove(struct wmi_device *wdev)
 
 static int tlmi_probe(struct wmi_device *wdev, const void *context)
 {
-	tlmi_analyze();
+	int ret;
+
+	ret = tlmi_analyze();
+	if (ret)
+		return ret;
+
 	return tlmi_sysfs_init();
 }
 

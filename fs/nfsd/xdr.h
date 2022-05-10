@@ -32,8 +32,8 @@ struct nfsd_readargs {
 struct nfsd_writeargs {
 	svc_fh			fh;
 	__u32			offset;
-	int			len;
-	struct kvec		first;
+	__u32			len;
+	struct xdr_buf		payload;
 };
 
 struct nfsd_createargs {

@@ -420,15 +420,15 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	data->phy = devm_usb_get_phy_by_phandle(dev, "fsl,usbphy", 0);
 	if (IS_ERR(data->phy)) {
 		ret = PTR_ERR(data->phy);
-		if (ret == -ENODEV) {
-			data->phy = devm_usb_get_phy_by_phandle(dev, "phys", 0);
-			if (IS_ERR(data->phy)) {
-				ret = PTR_ERR(data->phy);
-				if (ret == -ENODEV)
-					data->phy = NULL;
-				else
-					goto err_clk;
-			}
+		if (ret != -ENODEV)
+			goto err_clk;
+		data->phy = devm_usb_get_phy_by_phandle(dev, "phys", 0);
+		if (IS_ERR(data->phy)) {
+			ret = PTR_ERR(data->phy);
+			if (ret == -ENODEV)
+				data->phy = NULL;
+			else
+				goto err_clk;
 		}
 	}
 

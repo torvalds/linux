@@ -2053,6 +2053,13 @@ static int create_synth_event(const char *raw_command)
 
 	last_cmd_set(raw_command);
 
+	name = raw_command;
+
+	/* Don't try to process if not our system */
+	if (name[0] != 's' || name[1] != ':')
+		return -ECANCELED;
+	name += 2;
+
 	p = strpbrk(raw_command, " \t");
 	if (!p) {
 		synth_err(SYNTH_ERR_INVALID_CMD, 0);
@@ -2060,12 +2067,6 @@ static int create_synth_event(const char *raw_command)
 	}
 
 	fields = skip_spaces(p);
-
-	name = raw_command;
-
-	if (name[0] != 's' || name[1] != ':')
-		return -ECANCELED;
-	name += 2;
 
 	/* This interface accepts group name prefix */
 	if (strchr(name, '/')) {
@@ -2227,8 +2228,8 @@ static __init int trace_events_synth_init(void)
 	if (err)
 		goto err;
 
-	entry = tracefs_create_file("synthetic_events", 0644, NULL,
-				    NULL, &synth_events_fops);
+	entry = tracefs_create_file("synthetic_events", TRACE_MODE_WRITE,
+				    NULL, NULL, &synth_events_fops);
 	if (!entry) {
 		err = -ENODEV;
 		goto err;

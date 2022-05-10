@@ -13,7 +13,7 @@ SYNOPSIS
 	**bpftool** [*OPTIONS*] **btf** *COMMAND*
 
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | {**-d** | **--debug** } |
-		{ **-B** | **--base-btf** } }
+	{ **-B** | **--base-btf** } }
 
 	*COMMANDS* := { **dump** | **help** }
 

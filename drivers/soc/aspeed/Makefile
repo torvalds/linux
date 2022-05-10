@@ -23,3 +23,4 @@ obj-$(CONFIG_SOC_ASPEED)		+= aspeed-usb-phy.o
 obj-$(CONFIG_SOC_ASPEED)		+= aspeed-usb-ahp.o
 obj-$(CONFIG_ASPEED_MCTP)		+= aspeed-mctp.o
 obj-$(CONFIG_ASPEED_OTP)		+= aspeed-otp.o
+obj-$(CONFIG_ASPEED_SBC)		+= aspeed-sbc.o

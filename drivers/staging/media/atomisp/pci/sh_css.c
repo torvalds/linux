@@ -522,6 +522,7 @@ ia_css_stream_input_format_bits_per_pixel(struct ia_css_stream *stream)
 	return bpp;
 }
 
+/* TODO: move define to proper file in tools */
 #define GP_ISEL_TPG_MODE 0x90058
 
 #if !defined(ISP2401)
@@ -573,12 +574,8 @@ sh_css_config_input_network(struct ia_css_stream *stream)
 		vblank_cycles = vblank_lines * (width + hblank_cycles);
 		sh_css_sp_configure_sync_gen(width, height, hblank_cycles,
 					     vblank_cycles);
-		if (!IS_ISP2401) {
-			if (pipe->stream->config.mode == IA_CSS_INPUT_MODE_TPG) {
-				/* TODO: move define to proper file in tools */
-				ia_css_device_store_uint32(GP_ISEL_TPG_MODE, 0);
-			}
-		}
+		if (pipe->stream->config.mode == IA_CSS_INPUT_MODE_TPG)
+			ia_css_device_store_uint32(GP_ISEL_TPG_MODE, 0);
 	}
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "sh_css_config_input_network() leave:\n");
@@ -1009,16 +1006,14 @@ static bool sh_css_translate_stream_cfg_to_isys_stream_descr(
 	 * ia_css_isys_stream_capture_indication() instead of
 	 * ia_css_pipeline_sp_wait_for_isys_stream_N() as isp processing of
 	 * capture takes longer than getting an ISYS frame
-	 *
-	 * Only 2401 relevant ??
 	 */
-#if 0 // FIXME: NOT USED on Yocto Aero
-	isys_stream_descr->polling_mode
-	    = early_polling ? INPUT_SYSTEM_POLL_ON_CAPTURE_REQUEST
-	      : INPUT_SYSTEM_POLL_ON_WAIT_FOR_FRAME;
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
-			    "sh_css_translate_stream_cfg_to_isys_stream_descr() leave:\n");
-#endif
+	if (IS_ISP2401) {
+		isys_stream_descr->polling_mode
+		    = early_polling ? INPUT_SYSTEM_POLL_ON_CAPTURE_REQUEST
+		      : INPUT_SYSTEM_POLL_ON_WAIT_FOR_FRAME;
+		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
+				    "sh_css_translate_stream_cfg_to_isys_stream_descr() leave:\n");
+	}
 
 	return rc;
 }
@@ -1433,7 +1428,7 @@ static void start_pipe(
 
 	assert(me); /* all callers are in this file and call with non null argument */
 
-	if (!IS_ISP2401) {
+	if (IS_ISP2401) {
 		coord = &me->config.internal_frame_origin_bqs_on_sctbl;
 		params = me->stream->isp_params_configs;
 	}

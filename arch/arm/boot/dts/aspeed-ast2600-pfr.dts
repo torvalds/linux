@@ -7,7 +7,7 @@
 #include <dt-bindings/gpio/aspeed-gpio.h>
 
 / {
-	model = "AST2600 EVB";
+	model = "AST2600 PFR";
 	compatible = "aspeed,ast2600";
 
 	aliases {

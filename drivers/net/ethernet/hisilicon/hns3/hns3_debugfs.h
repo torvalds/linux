@@ -47,7 +47,6 @@ struct hns3_dbg_cmd_info {
 	enum hnae3_dbg_cmd cmd;
 	enum hns3_dbg_dentry_type dentry;
 	u32 buf_len;
-	char *buf;
 	int (*init)(struct hnae3_handle *handle, unsigned int cmd);
 };
 

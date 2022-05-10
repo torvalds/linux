@@ -85,48 +85,88 @@ static void expect_gp_outb(unsigned short port)
 	printf("[OK]\toutb to 0x%02hx failed\n", port);
 }
 
-static bool try_cli(void)
+#define RET_FAULTED	0
+#define RET_FAIL	1
+#define RET_EMUL	2
+
+static int try_cli(void)
 {
+	unsigned long flags;
+
 	sethandler(SIGSEGV, sigsegv, SA_RESETHAND);
 	if (sigsetjmp(jmpbuf, 1) != 0) {
-		return false;
+		return RET_FAULTED;
 	} else {
-		asm volatile ("cli");
-		return true;
+		asm volatile("cli; pushf; pop %[flags]"
+				: [flags] "=rm" (flags));
+
+		/* X86_FLAGS_IF */
+		if (!(flags & (1 << 9)))
+			return RET_FAIL;
+		else
+			return RET_EMUL;
 	}
 	clearhandler(SIGSEGV);
 }
 
-static bool try_sti(void)
+static int try_sti(bool irqs_off)
 {
+	unsigned long flags;
+
 	sethandler(SIGSEGV, sigsegv, SA_RESETHAND);
 	if (sigsetjmp(jmpbuf, 1) != 0) {
-		return false;
+		return RET_FAULTED;
 	} else {
-		asm volatile ("sti");
-		return true;
+		asm volatile("sti; pushf; pop %[flags]"
+				: [flags] "=rm" (flags));
+
+		/* X86_FLAGS_IF */
+		if (irqs_off && (flags & (1 << 9)))
+			return RET_FAIL;
+		else
+			return RET_EMUL;
 	}
 	clearhandler(SIGSEGV);
 }
 
-static void expect_gp_sti(void)
+static void expect_gp_sti(bool irqs_off)
 {
-	if (try_sti()) {
+	int ret = try_sti(irqs_off);
+
+	switch (ret) {
+	case RET_FAULTED:
+		printf("[OK]\tSTI faulted\n");
+		break;
+	case RET_EMUL:
+		printf("[OK]\tSTI NOPped\n");
+		break;
+	default:
 		printf("[FAIL]\tSTI worked\n");
 		nerrs++;
-	} else {
-		printf("[OK]\tSTI faulted\n");
 	}
 }
 
-static void expect_gp_cli(void)
+/*
+ * Returns whether it managed to disable interrupts.
+ */
+static bool test_cli(void)
 {
-	if (try_cli()) {
+	int ret = try_cli();
+
+	switch (ret) {
+	case RET_FAULTED:
+		printf("[OK]\tCLI faulted\n");
+		break;
+	case RET_EMUL:
+		printf("[OK]\tCLI NOPped\n");
+		break;
+	default:
 		printf("[FAIL]\tCLI worked\n");
 		nerrs++;
-	} else {
-		printf("[OK]\tCLI faulted\n");
+		return true;
 	}
+
+	return false;
 }
 
 int main(void)
@@ -152,8 +192,7 @@ int main(void)
 	}
 
 	/* Make sure that CLI/STI are blocked even with IOPL level 3 */
-	expect_gp_cli();
-	expect_gp_sti();
+	expect_gp_sti(test_cli());
 	expect_ok_outb(0x80);
 
 	/* Establish an I/O bitmap to test the restore */
@@ -204,8 +243,7 @@ int main(void)
 	printf("[RUN]\tparent: write to 0x80 (should fail)\n");
 
 	expect_gp_outb(0x80);
-	expect_gp_cli();
-	expect_gp_sti();
+	expect_gp_sti(test_cli());
 
 	/* Test the capability checks. */
 	printf("\tiopl(3)\n");

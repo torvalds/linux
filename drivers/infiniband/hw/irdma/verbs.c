@@ -2506,7 +2506,7 @@ static int irdma_dealloc_mw(struct ib_mw *ibmw)
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.dealloc_stag.info;
 	memset(info, 0, sizeof(*info));
-	info->pd_id = iwpd->sc_pd.pd_id & 0x00007fff;
+	info->pd_id = iwpd->sc_pd.pd_id;
 	info->stag_idx = ibmw->rkey >> IRDMA_CQPSQ_STAG_IDX_S;
 	info->mr = false;
 	cqp_info->cqp_cmd = IRDMA_OP_DEALLOC_STAG;
@@ -3018,7 +3018,7 @@ static int irdma_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.dealloc_stag.info;
 	memset(info, 0, sizeof(*info));
-	info->pd_id = iwpd->sc_pd.pd_id & 0x00007fff;
+	info->pd_id = iwpd->sc_pd.pd_id;
 	info->stag_idx = ib_mr->rkey >> IRDMA_CQPSQ_STAG_IDX_S;
 	info->mr = true;
 	if (iwpbl->pbl_allocated)
@@ -3604,18 +3604,31 @@ static int irdma_req_notify_cq(struct ib_cq *ibcq,
 	struct irdma_cq *iwcq;
 	struct irdma_cq_uk *ukcq;
 	unsigned long flags;
-	enum irdma_cmpl_notify cq_notify = IRDMA_CQ_COMPL_EVENT;
+	enum irdma_cmpl_notify cq_notify;
+	bool promo_event = false;
+	int ret = 0;
 
+	cq_notify = notify_flags == IB_CQ_SOLICITED ?
+		    IRDMA_CQ_COMPL_SOLICITED : IRDMA_CQ_COMPL_EVENT;
 	iwcq = to_iwcq(ibcq);
 	ukcq = &iwcq->sc_cq.cq_uk;
-	if (notify_flags == IB_CQ_SOLICITED)
-		cq_notify = IRDMA_CQ_COMPL_SOLICITED;
 
 	spin_lock_irqsave(&iwcq->lock, flags);
-	irdma_uk_cq_request_notification(ukcq, cq_notify);
+	/* Only promote to arm the CQ for any event if the last arm event was solicited. */
+	if (iwcq->last_notify == IRDMA_CQ_COMPL_SOLICITED && notify_flags != IB_CQ_SOLICITED)
+		promo_event = true;
+
+	if (!iwcq->armed || promo_event) {
+		iwcq->armed = true;
+		iwcq->last_notify = cq_notify;
+		irdma_uk_cq_request_notification(ukcq, cq_notify);
+	}
+
+	if ((notify_flags & IB_CQ_REPORT_MISSED_EVENTS) && !irdma_cq_empty(iwcq))
+		ret = 1;
 	spin_unlock_irqrestore(&iwcq->lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static int irdma_roce_port_immutable(struct ib_device *ibdev, u32 port_num,

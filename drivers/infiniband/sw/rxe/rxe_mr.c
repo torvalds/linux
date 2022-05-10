@@ -48,8 +48,14 @@ static void rxe_mr_init(int access, struct rxe_mr *mr)
 	u32 lkey = mr->pelem.index << 8 | rxe_get_next_key(-1);
 	u32 rkey = (access & IB_ACCESS_REMOTE) ? lkey : 0;
 
-	mr->ibmr.lkey = lkey;
-	mr->ibmr.rkey = rkey;
+	/* set ibmr->l/rkey and also copy into private l/rkey
+	 * for user MRs these will always be the same
+	 * for cases where caller 'owns' the key portion
+	 * they may be different until REG_MR WQE is executed.
+	 */
+	mr->lkey = mr->ibmr.lkey = lkey;
+	mr->rkey = mr->ibmr.rkey = rkey;
+
 	mr->state = RXE_MR_STATE_INVALID;
 	mr->type = RXE_MR_TYPE_NONE;
 	mr->map_shift = ilog2(RXE_BUF_PER_MAP);
@@ -191,10 +197,8 @@ int rxe_mr_init_fast(struct rxe_pd *pd, int max_pages, struct rxe_mr *mr)
 {
 	int err;
 
-	rxe_mr_init(0, mr);
-
-	/* In fastreg, we also set the rkey */
-	mr->ibmr.rkey = mr->ibmr.lkey;
+	/* always allow remote access for FMRs */
+	rxe_mr_init(IB_ACCESS_REMOTE, mr);
 
 	err = rxe_mr_alloc(mr, max_pages);
 	if (err)
@@ -507,8 +511,8 @@ struct rxe_mr *lookup_mr(struct rxe_pd *pd, int access, u32 key,
 	if (!mr)
 		return NULL;
 
-	if (unlikely((type == RXE_LOOKUP_LOCAL && mr_lkey(mr) != key) ||
-		     (type == RXE_LOOKUP_REMOTE && mr_rkey(mr) != key) ||
+	if (unlikely((type == RXE_LOOKUP_LOCAL && mr->lkey != key) ||
+		     (type == RXE_LOOKUP_REMOTE && mr->rkey != key) ||
 		     mr_pd(mr) != pd || (access && !(access & mr->access)) ||
 		     mr->state != RXE_MR_STATE_VALID)) {
 		rxe_drop_ref(mr);
@@ -531,9 +535,9 @@ int rxe_invalidate_mr(struct rxe_qp *qp, u32 rkey)
 		goto err;
 	}
 
-	if (rkey != mr->ibmr.rkey) {
-		pr_err("%s: rkey (%#x) doesn't match mr->ibmr.rkey (%#x)\n",
-			__func__, rkey, mr->ibmr.rkey);
+	if (rkey != mr->rkey) {
+		pr_err("%s: rkey (%#x) doesn't match mr->rkey (%#x)\n",
+			__func__, rkey, mr->rkey);
 		ret = -EINVAL;
 		goto err_drop_ref;
 	}
@@ -552,6 +556,49 @@ err_drop_ref:
 	rxe_drop_ref(mr);
 err:
 	return ret;
+}
+
+/* user can (re)register fast MR by executing a REG_MR WQE.
+ * user is expected to hold a reference on the ib mr until the
+ * WQE completes.
+ * Once a fast MR is created this is the only way to change the
+ * private keys. It is the responsibility of the user to maintain
+ * the ib mr keys in sync with rxe mr keys.
+ */
+int rxe_reg_fast_mr(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
+{
+	struct rxe_mr *mr = to_rmr(wqe->wr.wr.reg.mr);
+	u32 key = wqe->wr.wr.reg.key;
+	u32 access = wqe->wr.wr.reg.access;
+
+	/* user can only register MR in free state */
+	if (unlikely(mr->state != RXE_MR_STATE_FREE)) {
+		pr_warn("%s: mr->lkey = 0x%x not free\n",
+			__func__, mr->lkey);
+		return -EINVAL;
+	}
+
+	/* user can only register mr with qp in same protection domain */
+	if (unlikely(qp->ibqp.pd != mr->ibmr.pd)) {
+		pr_warn("%s: qp->pd and mr->pd don't match\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	/* user is only allowed to change key portion of l/rkey */
+	if (unlikely((mr->lkey & ~0xff) != (key & ~0xff))) {
+		pr_warn("%s: key = 0x%x has wrong index mr->lkey = 0x%x\n",
+			__func__, key, mr->lkey);
+		return -EINVAL;
+	}
+
+	mr->access = access;
+	mr->lkey = key;
+	mr->rkey = (access & IB_ACCESS_REMOTE) ? key : 0;
+	mr->iova = wqe->wr.wr.reg.mr->iova;
+	mr->state = RXE_MR_STATE_VALID;
+
+	return 0;
 }
 
 int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)

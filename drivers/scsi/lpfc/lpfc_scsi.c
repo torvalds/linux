@@ -6455,28 +6455,28 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 
 		/* Issue LOGO, if no LOGO is outstanding */
 		spin_lock_irqsave(&pnode->lock, flags);
-		if (!(pnode->upcall_flags & NLP_WAIT_FOR_LOGO) &&
+		if (!(pnode->save_flags & NLP_WAIT_FOR_LOGO) &&
 		    !pnode->logo_waitq) {
 			pnode->logo_waitq = &waitq;
 			pnode->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
 			pnode->nlp_flag |= NLP_ISSUE_LOGO;
-			pnode->upcall_flags |= NLP_WAIT_FOR_LOGO;
+			pnode->save_flags |= NLP_WAIT_FOR_LOGO;
 			spin_unlock_irqrestore(&pnode->lock, flags);
 			lpfc_unreg_rpi(vport, pnode);
 			wait_event_timeout(waitq,
-					   (!(pnode->upcall_flags &
+					   (!(pnode->save_flags &
 					      NLP_WAIT_FOR_LOGO)),
 					   msecs_to_jiffies(dev_loss_tmo *
 							    1000));
 
-			if (pnode->upcall_flags & NLP_WAIT_FOR_LOGO) {
+			if (pnode->save_flags & NLP_WAIT_FOR_LOGO) {
 				lpfc_printf_vlog(vport, KERN_ERR, logit,
 						 "0725 SCSI layer TGTRST "
 						 "failed & LOGO TMO (%d, %llu) "
 						 "return x%x\n",
 						 tgt_id, lun_id, status);
 				spin_lock_irqsave(&pnode->lock, flags);
-				pnode->upcall_flags &= ~NLP_WAIT_FOR_LOGO;
+				pnode->save_flags &= ~NLP_WAIT_FOR_LOGO;
 			} else {
 				spin_lock_irqsave(&pnode->lock, flags);
 			}
@@ -6627,6 +6627,13 @@ lpfc_host_reset_handler(struct scsi_cmnd *cmnd)
 	rc = lpfc_sli_brdrestart(phba);
 	if (rc)
 		goto error;
+
+	/* Wait for successful restart of adapter */
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		rc = lpfc_sli_chipset_init(phba);
+		if (rc)
+			goto error;
+	}
 
 	rc = lpfc_online(phba);
 	if (rc)

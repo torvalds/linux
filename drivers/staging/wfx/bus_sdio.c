@@ -120,19 +120,22 @@ static int wfx_sdio_irq_subscribe(void *priv)
 		return ret;
 	}
 
+	flags = irq_get_trigger_type(bus->of_irq);
+	if (!flags)
+		flags = IRQF_TRIGGER_HIGH;
+	flags |= IRQF_ONESHOT;
+	ret = devm_request_threaded_irq(&bus->func->dev, bus->of_irq, NULL,
+					wfx_sdio_irq_handler_ext, flags,
+					"wfx", bus);
+	if (ret)
+		return ret;
 	sdio_claim_host(bus->func);
 	cccr = sdio_f0_readb(bus->func, SDIO_CCCR_IENx, NULL);
 	cccr |= BIT(0);
 	cccr |= BIT(bus->func->num);
 	sdio_f0_writeb(bus->func, cccr, SDIO_CCCR_IENx, NULL);
 	sdio_release_host(bus->func);
-	flags = irq_get_trigger_type(bus->of_irq);
-	if (!flags)
-		flags = IRQF_TRIGGER_HIGH;
-	flags |= IRQF_ONESHOT;
-	return devm_request_threaded_irq(&bus->func->dev, bus->of_irq, NULL,
-					 wfx_sdio_irq_handler_ext, flags,
-					 "wfx", bus);
+	return 0;
 }
 
 static int wfx_sdio_irq_unsubscribe(void *priv)

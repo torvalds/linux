@@ -906,7 +906,7 @@ static int sun8i_a83t_ccu_probe(struct platform_device *pdev)
 	sun8i_a83t_cpu_pll_fixup(reg + SUN8I_A83T_PLL_C0CPUX_REG);
 	sun8i_a83t_cpu_pll_fixup(reg + SUN8I_A83T_PLL_C1CPUX_REG);
 
-	return sunxi_ccu_probe(pdev->dev.of_node, reg, &sun8i_a83t_ccu_desc);
+	return devm_sunxi_ccu_probe(&pdev->dev, reg, &sun8i_a83t_ccu_desc);
 }
 
 static const struct of_device_id sun8i_a83t_ccu_ids[] = {

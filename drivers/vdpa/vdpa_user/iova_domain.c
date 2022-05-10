@@ -302,7 +302,7 @@ vduse_domain_alloc_iova(struct iova_domain *iovad,
 		iova_len = roundup_pow_of_two(iova_len);
 	iova_pfn = alloc_iova_fast(iovad, iova_len, limit >> shift, true);
 
-	return iova_pfn << shift;
+	return (dma_addr_t)iova_pfn << shift;
 }
 
 static void vduse_domain_free_iova(struct iova_domain *iovad,

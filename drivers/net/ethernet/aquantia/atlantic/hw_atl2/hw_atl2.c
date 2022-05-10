@@ -65,11 +65,25 @@ const struct aq_hw_caps_s hw_atl2_caps_aqc113 = {
 			  AQ_NIC_RATE_5G  |
 			  AQ_NIC_RATE_2G5 |
 			  AQ_NIC_RATE_1G  |
-			  AQ_NIC_RATE_1G_HALF   |
 			  AQ_NIC_RATE_100M      |
-			  AQ_NIC_RATE_100M_HALF |
-			  AQ_NIC_RATE_10M       |
-			  AQ_NIC_RATE_10M_HALF,
+			  AQ_NIC_RATE_10M,
+};
+
+const struct aq_hw_caps_s hw_atl2_caps_aqc115c = {
+	DEFAULT_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_TP,
+	.link_speed_msk = AQ_NIC_RATE_2G5 |
+			  AQ_NIC_RATE_1G  |
+			  AQ_NIC_RATE_100M      |
+			  AQ_NIC_RATE_10M,
+};
+
+const struct aq_hw_caps_s hw_atl2_caps_aqc116c = {
+	DEFAULT_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_TP,
+	.link_speed_msk = AQ_NIC_RATE_1G  |
+			  AQ_NIC_RATE_100M      |
+			  AQ_NIC_RATE_10M,
 };
 
 static u32 hw_atl2_sem_act_rslvr_get(struct aq_hw_s *self)

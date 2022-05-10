@@ -72,4 +72,22 @@ test_write_succ "$file" "" "$orig_content" "empty input"
 test_content "$file" "$orig_content" "" "empty input written"
 echo "$orig_content" > "$file"
 
+# Test huge count read write
+# ==========================
+
+dmesg -C
+
+for file in "$DBGFS/"*
+do
+	./huge_count_read_write "$file"
+done
+
+if dmesg | grep -q WARNING
+then
+	dmesg
+	exit 1
+else
+	exit 0
+fi
+
 echo "PASS"

@@ -116,16 +116,24 @@ static const struct snd_kcontrol_new tegra_machine_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("Internal Mic 1"),
 	SOC_DAPM_PIN_SWITCH("Internal Mic 2"),
+	SOC_DAPM_PIN_SWITCH("Headphones"),
+	SOC_DAPM_PIN_SWITCH("Mic Jack"),
 };
 
 int tegra_asoc_machine_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct tegra_machine *machine = snd_soc_card_get_drvdata(card);
+	const char *jack_name;
 	int err;
 
 	if (machine->gpiod_hp_det && machine->asoc->add_hp_jack) {
-		err = snd_soc_card_jack_new(card, "Headphones Jack",
+		if (machine->asoc->hp_jack_name)
+			jack_name = machine->asoc->hp_jack_name;
+		else
+			jack_name = "Headphones Jack";
+
+		err = snd_soc_card_jack_new(card, jack_name,
 					    SND_JACK_HEADPHONE,
 					    &tegra_machine_hp_jack,
 					    tegra_machine_hp_jack_pins,
@@ -341,9 +349,34 @@ tegra_machine_parse_phandle(struct device *dev, const char *name)
 	return np;
 }
 
+static void tegra_machine_unregister_codec(void *pdev)
+{
+	platform_device_unregister(pdev);
+}
+
+static int tegra_machine_register_codec(struct device *dev, const char *name)
+{
+	struct platform_device *pdev;
+	int err;
+
+	if (!name)
+		return 0;
+
+	pdev = platform_device_register_simple(name, -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	err = devm_add_action_or_reset(dev, tegra_machine_unregister_codec,
+				       pdev);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 int tegra_asoc_machine_probe(struct platform_device *pdev)
 {
-	struct device_node *np_codec, *np_i2s;
+	struct device_node *np_codec, *np_i2s, *np_ac97;
 	const struct tegra_asoc_data *asoc;
 	struct device *dev = &pdev->dev;
 	struct tegra_machine *machine;
@@ -404,17 +437,30 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	np_codec = tegra_machine_parse_phandle(dev, "nvidia,audio-codec");
-	if (IS_ERR(np_codec))
-		return PTR_ERR(np_codec);
+	if (asoc->set_ac97) {
+		err = tegra_machine_register_codec(dev, asoc->codec_dev_name);
+		if (err)
+			return err;
 
-	np_i2s = tegra_machine_parse_phandle(dev, "nvidia,i2s-controller");
-	if (IS_ERR(np_i2s))
-		return PTR_ERR(np_i2s);
+		np_ac97 = tegra_machine_parse_phandle(dev, "nvidia,ac97-controller");
+		if (IS_ERR(np_ac97))
+			return PTR_ERR(np_ac97);
 
-	card->dai_link->cpus->of_node = np_i2s;
-	card->dai_link->codecs->of_node = np_codec;
-	card->dai_link->platforms->of_node = np_i2s;
+		card->dai_link->cpus->of_node = np_ac97;
+		card->dai_link->platforms->of_node = np_ac97;
+	} else {
+		np_codec = tegra_machine_parse_phandle(dev, "nvidia,audio-codec");
+		if (IS_ERR(np_codec))
+			return PTR_ERR(np_codec);
+
+		np_i2s = tegra_machine_parse_phandle(dev, "nvidia,i2s-controller");
+		if (IS_ERR(np_i2s))
+			return PTR_ERR(np_i2s);
+
+		card->dai_link->cpus->of_node = np_i2s;
+		card->dai_link->codecs->of_node = np_codec;
+		card->dai_link->platforms->of_node = np_i2s;
+	}
 
 	if (asoc->add_common_controls) {
 		card->controls = tegra_machine_controls;
@@ -589,6 +635,7 @@ static struct snd_soc_card snd_soc_tegra_wm9712 = {
 static const struct tegra_asoc_data tegra_wm9712_data = {
 	.card = &snd_soc_tegra_wm9712,
 	.add_common_dapm_widgets = true,
+	.codec_dev_name = "wm9712-codec",
 	.set_ac97 = true,
 };
 
@@ -619,6 +666,7 @@ static struct snd_soc_card snd_soc_tegra_max98090 = {
 static const struct tegra_asoc_data tegra_max98090_data = {
 	.mclk_rate = tegra_machine_mclk_rate_12mhz,
 	.card = &snd_soc_tegra_max98090,
+	.hp_jack_name = "Headphones",
 	.add_common_dapm_widgets = true,
 	.add_common_controls = true,
 	.add_common_snd_ops = true,
@@ -686,6 +734,7 @@ static struct snd_soc_dai_link tegra_tlv320aic23_dai = {
 };
 
 static struct snd_soc_card snd_soc_tegra_trimslice = {
+	.name = "tegra-trimslice",
 	.components = "codec:tlv320aic23",
 	.dai_link = &tegra_tlv320aic23_dai,
 	.num_links = 1,

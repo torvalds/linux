@@ -76,6 +76,16 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		.driver_data = (void *)&acepc_t8_data,
 	},
 	{
+		/* Cyberbook T116 rugged tablet */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Default string"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "20170531"),
+		},
+		/* The factory image nvram file is identical to the ACEPC T8 one */
+		.driver_data = (void *)&acepc_t8_data,
+	},
+	{
 		/* Match for the GPDwin which unfortunately uses somewhat
 		 * generic dmi strings, which is why we test for 4 strings.
 		 * Comparing against 23 other byt/cht boards, board_vendor

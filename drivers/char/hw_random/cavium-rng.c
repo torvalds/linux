@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Hardware Random Number Generator support for Cavium Inc.
- * Thunder processor family.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
+ * Hardware Random Number Generator support.
+ * Cavium Thunder, Marvell OcteonTx/Tx2 processor families.
  *
  * Copyright (C) 2016 Cavium, Inc.
  */
@@ -91,4 +88,4 @@ static struct pci_driver cavium_rng_pf_driver = {
 
 module_pci_driver(cavium_rng_pf_driver);
 MODULE_AUTHOR("Omer Khaliq <okhaliq@caviumnetworks.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
