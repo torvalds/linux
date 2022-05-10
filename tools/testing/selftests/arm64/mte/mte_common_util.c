@@ -128,13 +128,16 @@ static void *__mte_allocate_memory_range(size_t size, int mem_type, int mapping,
 	int prot_flag, map_flag;
 	size_t entire_size = size + range_before + range_after;
 
-	if (mem_type != USE_MALLOC && mem_type != USE_MMAP &&
-	    mem_type != USE_MPROTECT) {
+	switch (mem_type) {
+	case USE_MALLOC:
+		return malloc(entire_size) + range_before;
+	case USE_MMAP:
+	case USE_MPROTECT:
+		break;
+	default:
 		ksft_print_msg("FAIL: Invalid allocate request\n");
 		return NULL;
 	}
-	if (mem_type == USE_MALLOC)
-		return malloc(entire_size) + range_before;
 
 	prot_flag = PROT_READ | PROT_WRITE;
 	if (mem_type == USE_MMAP)
@@ -287,13 +290,19 @@ int mte_switch_mode(int mte_option, unsigned long incl_mask)
 		ksft_print_msg("FAIL: Invalid incl_mask %lx\n", incl_mask);
 		return -EINVAL;
 	}
+
 	en = PR_TAGGED_ADDR_ENABLE;
-	if (mte_option == MTE_SYNC_ERR)
+	switch (mte_option) {
+	case MTE_SYNC_ERR:
 		en |= PR_MTE_TCF_SYNC;
-	else if (mte_option == MTE_ASYNC_ERR)
+		break;
+	case MTE_ASYNC_ERR:
 		en |= PR_MTE_TCF_ASYNC;
-	else if (mte_option == MTE_NONE_ERR)
+		break;
+	case MTE_NONE_ERR:
 		en |= PR_MTE_TCF_NONE;
+		break;
+	}
 
 	en |= (incl_mask << PR_MTE_TAG_SHIFT);
 	/* Enable address tagging ABI, mte error reporting mode and tag inclusion mask. */
