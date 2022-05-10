@@ -167,6 +167,7 @@
 #define IMX7_CSI_VIDEO_MEM_LIMIT	SZ_64M
 #define IMX7_CSI_VIDEO_EOF_TIMEOUT	2000
 
+#define IMX7_CSI_DEF_MBUS_CODE		MEDIA_BUS_FMT_UYVY8_2X8
 #define IMX7_CSI_DEF_PIX_WIDTH		640
 #define IMX7_CSI_DEF_PIX_HEIGHT		480
 
@@ -820,7 +821,8 @@ enum imx7_csi_pixfmt_sel {
 };
 
 /*
- * List of supported pixel formats for the subdevs.
+ * List of supported pixel formats for the subdevs. Keep MEDIA_BUS_FMT_UYVY8_2X8
+ * first to match IMX7_CSI_DEF_MBUS_CODE.
  */
 static const struct imx7_csi_pixfmt pixel_formats[] = {
 	/*** YUV formats start here ***/
@@ -1096,7 +1098,7 @@ static int imx7_csi_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 	mbus->field = field;
 
 	if (code == 0)
-		imx7_csi_enum_mbus_formats(&code, 0, IMX7_CSI_PIXFMT_SEL_YUV);
+		code = IMX7_CSI_DEF_MBUS_CODE;
 
 	lcc = imx7_csi_find_mbus_format(code, IMX7_CSI_PIXFMT_SEL_ANY);
 	if (!lcc)
@@ -1629,7 +1631,7 @@ static int imx7_csi_video_init_format(struct imx7_csi *csi)
 		.pad = IMX7_CSI_PAD_SRC,
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
-	fmt_src.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
+	fmt_src.format.code = IMX7_CSI_DEF_MBUS_CODE;
 	fmt_src.format.width = IMX7_CSI_DEF_PIX_WIDTH;
 	fmt_src.format.height = IMX7_CSI_DEF_PIX_HEIGHT;
 
