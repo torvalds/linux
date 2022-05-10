@@ -4344,28 +4344,25 @@ static u8 adl_get_hybrid_cpu_type(void)
  * Therefore the effective (average) period matches the requested period,
  * despite coarser hardware granularity.
  */
-static u64 bdw_limit_period(struct perf_event *event, u64 left)
+static void bdw_limit_period(struct perf_event *event, s64 *left)
 {
 	if ((event->hw.config & INTEL_ARCH_EVENT_MASK) ==
 			X86_CONFIG(.event=0xc0, .umask=0x01)) {
-		if (left < 128)
-			left = 128;
-		left &= ~0x3fULL;
+		if (*left < 128)
+			*left = 128;
+		*left &= ~0x3fULL;
 	}
-	return left;
 }
 
-static u64 nhm_limit_period(struct perf_event *event, u64 left)
+static void nhm_limit_period(struct perf_event *event, s64 *left)
 {
-	return max(left, 32ULL);
+	*left = max(*left, 32LL);
 }
 
-static u64 spr_limit_period(struct perf_event *event, u64 left)
+static void spr_limit_period(struct perf_event *event, s64 *left)
 {
 	if (event->attr.precise_ip == 3)
-		return max(left, 128ULL);
-
-	return left;
+		*left = max(*left, 128LL);
 }
 
 PMU_FORMAT_ATTR(event,	"config:0-7"	);
