@@ -958,54 +958,6 @@ static const struct imx7_csi_pixfmt *imx7_csi_find_mbus_format(u32 code)
 
 /*
  * Enumerate entries in the pixel_formats[] array that match the
- * requested selection criteria. Return the fourcc that matches the
- * selection criteria at the requested match index.
- *
- * @fourcc: The returned fourcc that matches the search criteria at
- *          the requested match index.
- * @index: The requested match index.
- * @code: If non-zero, only include in the enumeration entries matching this
- *	media bus code.
- */
-static int imx7_csi_enum_pixel_formats(u32 *fourcc, u32 index, u32 code)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(pixel_formats); i++) {
-		const struct imx7_csi_pixfmt *fmt = &pixel_formats[i];
-
-		/*
-		 * If a media bus code is specified, only consider formats that
-		 * match it.
-		 */
-		if (code) {
-			unsigned int j;
-
-			if (!fmt->codes)
-				continue;
-
-			for (j = 0; fmt->codes[j]; j++) {
-				if (code == fmt->codes[j])
-					break;
-			}
-
-			if (!fmt->codes[j])
-				continue;
-		}
-
-		if (index == 0) {
-			*fourcc = fmt->fourcc;
-			return 0;
-		}
-
-		index--;
-	}
-
-	return -EINVAL;
-}
-
-/*
- * Enumerate entries in the pixel_formats[] array that match the
  * requested search criteria. Return the media-bus code that matches
  * the search criteria at the requested match index.
  *
@@ -1090,8 +1042,40 @@ static int imx7_csi_video_querycap(struct file *file, void *fh,
 static int imx7_csi_video_enum_fmt_vid_cap(struct file *file, void *fh,
 					   struct v4l2_fmtdesc *f)
 {
-	return imx7_csi_enum_pixel_formats(&f->pixelformat, f->index,
-					   f->mbus_code);
+	unsigned int index = f->index;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pixel_formats); i++) {
+		const struct imx7_csi_pixfmt *fmt = &pixel_formats[i];
+
+		/*
+		 * If a media bus code is specified, only consider formats that
+		 * match it.
+		 */
+		if (f->mbus_code) {
+			unsigned int j;
+
+			if (!fmt->codes)
+				continue;
+
+			for (j = 0; fmt->codes[j]; j++) {
+				if (f->mbus_code == fmt->codes[j])
+					break;
+			}
+
+			if (!fmt->codes[j])
+				continue;
+		}
+
+		if (index == 0) {
+			f->pixelformat = fmt->fourcc;
+			return 0;
+		}
+
+		index--;
+	}
+
+	return -EINVAL;
 }
 
 static int imx7_csi_video_enum_framesizes(struct file *file, void *fh,
