@@ -1968,7 +1968,6 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_format *sink_fmt)
 {
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	const struct v4l2_pix_format *out_pix = &csi->vdev_fmt;
 	struct media_pad *pad = NULL;
 	unsigned int i;
 	int ret;
@@ -2016,38 +2015,6 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 		 */
 		csi->is_csi2 = false;
 		break;
-	}
-
-	/* Validate the sink link, ensure the pixel format is supported. */
-	switch (out_pix->pixelformat) {
-	case V4L2_PIX_FMT_UYVY:
-	case V4L2_PIX_FMT_YUYV:
-	case V4L2_PIX_FMT_GREY:
-	case V4L2_PIX_FMT_Y10:
-	case V4L2_PIX_FMT_Y12:
-	case V4L2_PIX_FMT_Y14:
-	case V4L2_PIX_FMT_SBGGR8:
-	case V4L2_PIX_FMT_SGBRG8:
-	case V4L2_PIX_FMT_SGRBG8:
-	case V4L2_PIX_FMT_SRGGB8:
-	case V4L2_PIX_FMT_SBGGR10:
-	case V4L2_PIX_FMT_SGBRG10:
-	case V4L2_PIX_FMT_SGRBG10:
-	case V4L2_PIX_FMT_SRGGB10:
-	case V4L2_PIX_FMT_SBGGR12:
-	case V4L2_PIX_FMT_SGBRG12:
-	case V4L2_PIX_FMT_SGRBG12:
-	case V4L2_PIX_FMT_SRGGB12:
-	case V4L2_PIX_FMT_SBGGR14:
-	case V4L2_PIX_FMT_SGBRG14:
-	case V4L2_PIX_FMT_SGRBG14:
-	case V4L2_PIX_FMT_SRGGB14:
-		break;
-
-	default:
-		dev_dbg(csi->dev, "Invalid capture pixel format 0x%08x\n",
-			out_pix->pixelformat);
-		return -EINVAL;
 	}
 
 	return 0;
