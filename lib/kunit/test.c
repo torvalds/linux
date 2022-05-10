@@ -578,7 +578,7 @@ int __kunit_test_suites_init(struct kunit_suite * const * const suites)
 	if (!enable_param) {
 		pr_info("kunit: deactivated, cannot load %s\n",
 				suites != NULL ? suites[0]->name : "NULL");
-		return -1;
+		return -EPERM;
 	}
 
 	for (i = 0; suites[i] != NULL; i++) {
