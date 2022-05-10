@@ -154,7 +154,12 @@ available monitoring operations set on the currently running kernel by reading
 list some or all of below keywords.
 
  - vaddr: Monitor virtual address spaces of specific processes
+ - fvaddr: Monitor fixed virtual address ranges
  - paddr: Monitor the physical address space of the system
+
+Please refer to :ref:`regions sysfs directory <sysfs_regions>` for detailed
+differences between the operations sets in terms of the monitoring target
+regions.
 
 You can set and get what type of monitoring operations DAMON will use for the
 context by writing one of the keywords listed in ``avail_operations`` file and
@@ -198,6 +203,8 @@ If you wrote ``vaddr`` to the ``contexts/<N>/operations``, each target should
 be a process.  You can specify the process to DAMON by writing the pid of the
 process to the ``pid_target`` file.
 
+.. _sysfs_regions:
+
 targets/<N>/regions
 -------------------
 
@@ -208,9 +215,10 @@ can be covered.  However, users could want to set the initial monitoring region
 to specific address ranges.
 
 In contrast, DAMON do not automatically sets and updates the monitoring target
-regions when ``paddr`` monitoring operations set is being used (``paddr`` is
-written to the ``contexts/<N>/operations``).  Therefore, users should set the
-monitoring target regions by themselves in the case.
+regions when ``fvaddr`` or ``paddr`` monitoring operations sets are being used
+(``fvaddr`` or ``paddr`` have written to the ``contexts/<N>/operations``).
+Therefore, users should set the monitoring target regions by themselves in the
+cases.
 
 For such cases, users can explicitly set the initial monitoring target regions
 as they want, by writing proper values to the files under this directory.
