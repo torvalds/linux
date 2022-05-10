@@ -806,6 +806,30 @@ static irqreturn_t imx7_csi_irq_handler(int irq, void *data)
  * List of supported pixel formats for the subdevs. Keep V4L2_PIX_FMT_UYVY and
  * MEDIA_BUS_FMT_UYVY8_2X8 first to match IMX7_CSI_DEF_PIX_FORMAT and
  * IMX7_CSI_DEF_MBUS_CODE.
+ *
+ * TODO: Restrict the supported formats list based on the SoC integration.
+ *
+ * The CSI bridge can be configured to sample pixel components from the Rx queue
+ * in single (8bpp) or double (16bpp) component modes. Image format variants
+ * with different sample sizes (ie YUYV_2X8 vs YUYV_1X16) determine the pixel
+ * components sampling size per each clock cycle and their packing mode (see
+ * imx7_csi_configure() for details).
+ *
+ * As the CSI bridge can be interfaced with different IP blocks depending on the
+ * SoC model it is integrated on, the Rx queue sampling size should match the
+ * size of the samples transferred by the transmitting IP block. To avoid
+ * misconfigurations of the capture pipeline, the enumeration of the supported
+ * formats should be restricted to match the pixel source transmitting mode.
+ *
+ * Example: i.MX8MM SoC integrates the CSI bridge with the Samsung CSIS CSI-2
+ * receiver which operates in dual pixel sampling mode. The CSI bridge should
+ * only expose the 1X16 formats variant which instructs it to operate in dual
+ * pixel sampling mode. When the CSI bridge is instead integrated on an i.MX7,
+ * which supports both serial and parallel input, it should expose both
+ * variants.
+ *
+ * This currently only applies to YUYV formats, but other formats might need to
+ * be handled in the same way.
  */
 static const struct imx7_csi_pixfmt pixel_formats[] = {
 	/*** YUV formats start here ***/

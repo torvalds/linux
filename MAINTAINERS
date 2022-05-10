@@ -12736,7 +12736,7 @@ F:	Documentation/admin-guide/media/imx7.rst
 F:	Documentation/devicetree/bindings/media/nxp,imx-mipi-csi2.yaml
 F:	Documentation/devicetree/bindings/media/nxp,imx7-csi.yaml
 F:	drivers/media/platform/nxp/imx-mipi-csis.c
-F:	drivers/staging/media/imx/imx7-media-csi.c
+F:	drivers/media/platform/nxp/imx7-media-csi.c
 
 MEDIA DRIVERS FOR HELENE
 M:	Abylay Ospan <aospan@netup.ru>
