@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2016-2018, 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/atomic.h>
@@ -66,7 +66,7 @@ struct cache_req {
 struct batch_cache_req {
 	struct list_head list;
 	int count;
-	struct rpmh_request rpm_msgs[];
+	struct rpmh_request *rpm_msgs;
 };
 
 static struct rpmh_ctrlr *get_rpmh_ctrlr(const struct device *dev)
@@ -95,18 +95,12 @@ static int check_ctrlr_state(struct rpmh_ctrlr *ctrlr, enum rpmh_state state)
 	return ret;
 }
 
-void rpmh_tx_done(const struct tcs_request *msg, int r)
+void rpmh_tx_done(const struct tcs_request *msg)
 {
 	struct rpmh_request *rpm_msg = container_of(msg, struct rpmh_request,
 						    msg);
 	struct completion *compl = rpm_msg->completion;
 	bool free = rpm_msg->needs_free;
-
-	rpm_msg->err = r;
-
-	if (r)
-		dev_err(rpm_msg->dev, "RPMH TX fail in msg addr=%#x, err=%d\n",
-			rpm_msg->msg.cmds[0].addr, r);
 
 	if (!compl)
 		goto exit;
@@ -198,7 +192,7 @@ static int __rpmh_write(const struct device *dev, enum rpmh_state state,
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
 	int ret = -EINVAL;
 	struct cache_req *req;
-	int i;
+	int i, ch;
 
 	/* Cache the request in our store and link the payload */
 	for (i = 0; i < rpm_msg->msg.num_cmds; i++) {
@@ -209,11 +203,16 @@ static int __rpmh_write(const struct device *dev, enum rpmh_state state,
 
 	if (state == RPMH_ACTIVE_ONLY_STATE) {
 		WARN_ON(irqs_disabled());
-		ret = rpmh_rsc_send_data(ctrlr_to_drv(ctrlr), &rpm_msg->msg);
+
+		ch = rpmh_rsc_get_channel(ctrlr_to_drv(ctrlr));
+		if (ch < 0)
+			return ch;
+
+		ret = rpmh_rsc_send_data(ctrlr_to_drv(ctrlr), &rpm_msg->msg, ch);
 	} else {
 		/* Clean up our call by spoofing tx_done */
 		ret = 0;
-		rpmh_tx_done(&rpm_msg->msg, ret);
+		rpmh_tx_done(&rpm_msg->msg);
 	}
 
 	return ret;
@@ -327,7 +326,7 @@ static void cache_batch(struct rpmh_ctrlr *ctrlr, struct batch_cache_req *req)
 	spin_unlock_irqrestore(&ctrlr->cache_lock, flags);
 }
 
-static int flush_batch(struct rpmh_ctrlr *ctrlr)
+static int flush_batch(struct rpmh_ctrlr *ctrlr, int ch)
 {
 	struct batch_cache_req *req;
 	const struct rpmh_request *rpm_msg;
@@ -339,7 +338,7 @@ static int flush_batch(struct rpmh_ctrlr *ctrlr)
 		for (i = 0; i < req->count; i++) {
 			rpm_msg = req->rpm_msgs + i;
 			ret = rpmh_rsc_write_ctrl_data(ctrlr_to_drv(ctrlr),
-						       &rpm_msg->msg);
+						       &rpm_msg->msg, ch);
 			if (ret)
 				break;
 		}
@@ -374,7 +373,7 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
 	unsigned long time_left;
 	int count = 0;
-	int ret, i;
+	int ret, i, ch;
 	void *ptr;
 
 	if (rpmh_standalone)
@@ -399,10 +398,11 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 		return -ENOMEM;
 
 	req = ptr;
+	rpm_msgs = ptr + sizeof(*req);
 	compls = ptr + sizeof(*req) + count * sizeof(*rpm_msgs);
 
 	req->count = count;
-	rpm_msgs = req->rpm_msgs;
+	req->rpm_msgs = rpm_msgs;
 
 	for (i = 0; i < count; i++) {
 		__fill_rpmh_msg(rpm_msgs + i, state, cmd, n[i]);
@@ -414,12 +414,18 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 		return 0;
 	}
 
+	ch = rpmh_rsc_get_channel(ctrlr_to_drv(ctrlr));
+	if (ch < 0) {
+		kfree(ptr);
+		return ch;
+	}
+
 	for (i = 0; i < count; i++) {
 		struct completion *compl = &compls[i];
 
 		init_completion(compl);
 		rpm_msgs[i].completion = compl;
-		ret = rpmh_rsc_send_data(ctrlr_to_drv(ctrlr), &rpm_msgs[i].msg);
+		ret = rpmh_rsc_send_data(ctrlr_to_drv(ctrlr), &rpm_msgs[i].msg, ch);
 		if (ret) {
 			pr_err("Error(%d) sending RPMH message addr=%#x\n",
 			       ret, rpm_msgs[i].msg.cmds[0].addr);
@@ -437,12 +443,10 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 			 * we've returned from this function.
 			 */
 			rpmh_rsc_debug(ctrlr_to_drv(ctrlr), &compls[i]);
-			ret = -ETIMEDOUT;
-			goto exit;
+			BUG_ON(1);
 		}
 	}
 
-exit:
 	kfree(ptr);
 
 	return ret;
@@ -457,7 +461,7 @@ static int is_req_valid(struct cache_req *req)
 }
 
 static int send_single(struct rpmh_ctrlr *ctrlr, enum rpmh_state state,
-		       u32 addr, u32 data)
+		       u32 addr, u32 data, int ch)
 {
 	DEFINE_RPMH_MSG_ONSTACK(NULL, state, NULL, rpm_msg);
 
@@ -467,10 +471,10 @@ static int send_single(struct rpmh_ctrlr *ctrlr, enum rpmh_state state,
 	rpm_msg.cmd[0].data = data;
 	rpm_msg.msg.num_cmds = 1;
 
-	return rpmh_rsc_write_ctrl_data(ctrlr_to_drv(ctrlr), &rpm_msg.msg);
+	return rpmh_rsc_write_ctrl_data(ctrlr_to_drv(ctrlr), &rpm_msg.msg, ch);
 }
 
-int _rpmh_flush(struct rpmh_ctrlr *ctrlr)
+int _rpmh_flush(struct rpmh_ctrlr *ctrlr, int ch)
 {
 	struct cache_req *p;
 	int ret = 0;
@@ -481,10 +485,10 @@ int _rpmh_flush(struct rpmh_ctrlr *ctrlr)
 	}
 
 	/* Invalidate the TCSes first to avoid stale data */
-	rpmh_rsc_invalidate(ctrlr_to_drv(ctrlr));
+	rpmh_rsc_invalidate(ctrlr_to_drv(ctrlr), ch);
 
 	/* First flush the cached batch requests */
-	ret = flush_batch(ctrlr);
+	ret = flush_batch(ctrlr, ch);
 	if (ret)
 		return ret;
 
@@ -495,11 +499,11 @@ int _rpmh_flush(struct rpmh_ctrlr *ctrlr)
 			continue;
 		}
 		ret = send_single(ctrlr, RPMH_SLEEP_STATE, p->addr,
-				  p->sleep_val);
+				  p->sleep_val, ch);
 		if (ret)
 			return ret;
 		ret = send_single(ctrlr, RPMH_WAKE_ONLY_STATE, p->addr,
-				  p->wake_val);
+				  p->wake_val, ch);
 		if (ret)
 			return ret;
 	}
@@ -513,12 +517,13 @@ int _rpmh_flush(struct rpmh_ctrlr *ctrlr)
  * rpmh_flush() - Flushes the buffered sleep and wake sets to TCSes
  *
  * @ctrlr: Controller making request to flush cached data
+ * @ch:    Channel number
  *
  * Return:
  * * 0          - Success
  * * Error code - Otherwise
  */
-int rpmh_flush(struct rpmh_ctrlr *ctrlr)
+int rpmh_flush(struct rpmh_ctrlr *ctrlr, int ch)
 {
 	int ret;
 
@@ -545,7 +550,7 @@ int rpmh_flush(struct rpmh_ctrlr *ctrlr)
 	 */
 	if (!spin_trylock(&ctrlr->cache_lock))
 		return -EBUSY;
-	ret = _rpmh_flush(ctrlr);
+	ret = _rpmh_flush(ctrlr, ch);
 	spin_unlock(&ctrlr->cache_lock);
 
 	return ret;
@@ -562,7 +567,14 @@ int rpmh_flush(struct rpmh_ctrlr *ctrlr)
  */
 int rpmh_write_sleep_and_wake(const struct device *dev)
 {
-	return rpmh_flush(get_rpmh_ctrlr(dev));
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+	int ch;
+
+	ch = rpmh_rsc_get_channel(ctrlr_to_drv(ctrlr));
+	if (ch < 0)
+		return ch;
+
+	return rpmh_flush(ctrlr, ch);
 }
 EXPORT_SYMBOL(rpmh_write_sleep_and_wake);
 
@@ -583,8 +595,11 @@ void rpmh_invalidate(const struct device *dev)
 		return;
 
 	spin_lock_irqsave(&ctrlr->cache_lock, flags);
-	list_for_each_entry_safe(req, tmp, &ctrlr->batch_cache, list)
+	list_for_each_entry_safe(req, tmp, &ctrlr->batch_cache, list) {
+		list_del(&req->list);
 		kfree(req);
+	}
+
 	INIT_LIST_HEAD(&ctrlr->batch_cache);
 	ctrlr->dirty = true;
 	spin_unlock_irqrestore(&ctrlr->cache_lock, flags);
@@ -621,3 +636,90 @@ int rpmh_mode_solver_set(const struct device *dev, bool enable)
 	return ret;
 }
 EXPORT_SYMBOL(rpmh_mode_solver_set);
+
+
+/**
+ * RPMH Fast Path mode
+ *
+ * - Fast path mode is a lock-less request transmission to AOSS.
+ * - Requests may be sent from interrupt/scheduler context.
+ * - Dedicated fast-path TCS must be available in the RSC.
+ * - Error returned, when dedicated TCS is not available.
+ * - Only one client is expected to call RPMH fast path.
+ * - Serialization of requests is a responsibility of the client.
+ * - Only active state requests may be made through this mode.
+ * - Sleep/Wake requests for the nodes must be made through
+ *   the standard RPMH APIs (locking modes).
+ * - Fast path requests are not cached and sent immediately.
+ * - Fast path requests are all blocking requests.
+ * - Fast path requests do not use AMC completion interrupts,
+ *   therefore will not receive a tx_done callback.
+ */
+
+/**
+ * rpmh_init_fast_path: Initialize TCS request in fast-path TCS
+ *
+ * @dev: The device making the request
+ * @cmd: The {addr, data} to be initialized with.
+ * @n:   The number of @cmd
+ *
+ * Return:
+ * * 0          - Success
+ * * Error code - Otherwise
+ */
+int rpmh_init_fast_path(const struct device *dev,
+			struct tcs_cmd *cmd, int n)
+{
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+	struct tcs_request req;
+	int ch;
+
+	if (rpmh_standalone)
+		return 0;
+
+	ch = rpmh_rsc_get_channel(ctrlr_to_drv(ctrlr));
+	if (ch < 0)
+		return ch;
+
+	req.cmds = cmd;
+	req.num_cmds = n;
+	req.wait_for_compl = 0;
+
+	return rpmh_rsc_init_fast_path(ctrlr_to_drv(ctrlr), &req, ch);
+}
+EXPORT_SYMBOL(rpmh_init_fast_path);
+
+/**
+ * rpmh_update_fast_path: Initialize TCS request in fast-path TCS
+ *
+ * @dev:         The device making the request
+ * @cmd:         The data to be updated.
+ * @n:           The number of @cmd
+ * @update_mask: The elements in @cmd that only need to be updated
+ *
+ * Return:
+ * * 0          - Success
+ * * Error code - Otherwise
+ */
+int rpmh_update_fast_path(const struct device *dev,
+			  struct tcs_cmd *cmd, int n, u32 update_mask)
+{
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+	struct tcs_request req;
+	int ch;
+
+	if (rpmh_standalone)
+		return 0;
+
+	ch = rpmh_rsc_get_channel(ctrlr_to_drv(ctrlr));
+	if (ch < 0)
+		return ch;
+
+	req.cmds = cmd;
+	req.num_cmds = n;
+	req.wait_for_compl = 0;
+
+	return rpmh_rsc_update_fast_path(ctrlr_to_drv(ctrlr), &req,
+					 update_mask, ch);
+}
+EXPORT_SYMBOL(rpmh_update_fast_path);
