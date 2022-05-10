@@ -251,17 +251,6 @@ xfs_setqlim_limits(
 }
 
 static inline void
-xfs_setqlim_warns(
-	struct xfs_dquot_res	*res,
-	struct xfs_quota_limits	*qlim,
-	int			warns)
-{
-	res->warnings = warns;
-	if (qlim)
-		qlim->warn = warns;
-}
-
-static inline void
 xfs_setqlim_timer(
 	struct xfs_mount	*mp,
 	struct xfs_dquot_res	*res,
@@ -355,7 +344,7 @@ xfs_qm_scall_setqlim(
 	if (xfs_setqlim_limits(mp, res, qlim, hard, soft, "blk"))
 		xfs_dquot_set_prealloc_limits(dqp);
 	if (newlim->d_fieldmask & QC_SPC_WARNS)
-		xfs_setqlim_warns(res, qlim, newlim->d_spc_warns);
+		res->warnings = newlim->d_spc_warns;
 	if (newlim->d_fieldmask & QC_SPC_TIMER)
 		xfs_setqlim_timer(mp, res, qlim, newlim->d_spc_timer);
 
@@ -371,7 +360,7 @@ xfs_qm_scall_setqlim(
 
 	xfs_setqlim_limits(mp, res, qlim, hard, soft, "rtb");
 	if (newlim->d_fieldmask & QC_RT_SPC_WARNS)
-		xfs_setqlim_warns(res, qlim, newlim->d_rt_spc_warns);
+		res->warnings = newlim->d_rt_spc_warns;
 	if (newlim->d_fieldmask & QC_RT_SPC_TIMER)
 		xfs_setqlim_timer(mp, res, qlim, newlim->d_rt_spc_timer);
 
@@ -387,7 +376,7 @@ xfs_qm_scall_setqlim(
 
 	xfs_setqlim_limits(mp, res, qlim, hard, soft, "ino");
 	if (newlim->d_fieldmask & QC_INO_WARNS)
-		xfs_setqlim_warns(res, qlim, newlim->d_ino_warns);
+		res->warnings = newlim->d_ino_warns;
 	if (newlim->d_fieldmask & QC_INO_TIMER)
 		xfs_setqlim_timer(mp, res, qlim, newlim->d_ino_timer);
 
