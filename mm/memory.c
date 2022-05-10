@@ -2745,8 +2745,8 @@ static inline int pte_unmap_same(struct vm_fault *vmf)
 	return same;
 }
 
-static inline bool cow_user_page(struct page *dst, struct page *src,
-				 struct vm_fault *vmf)
+static inline bool __wp_page_copy_user(struct page *dst, struct page *src,
+				       struct vm_fault *vmf)
 {
 	bool ret;
 	void *kaddr;
@@ -2954,6 +2954,7 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
 	struct page *page = vmf->page;
 	pte_t entry;
 
+	VM_BUG_ON(!(vmf->flags & FAULT_FLAG_WRITE));
 	VM_BUG_ON(PageAnon(page) && !PageAnonExclusive(page));
 
 	/*
@@ -2974,7 +2975,8 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
 }
 
 /*
- * Handle the case of a page which we actually need to copy to a new page.
+ * Handle the case of a page which we actually need to copy to a new page,
+ * either due to COW or unsharing.
  *
  * Called with mmap_lock locked and the old page referenced, but
  * without the ptl held.
@@ -2991,6 +2993,7 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
  */
 static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 {
+	const bool unshare = vmf->flags & FAULT_FLAG_UNSHARE;
 	struct vm_area_struct *vma = vmf->vma;
 	struct mm_struct *mm = vma->vm_mm;
 	struct page *old_page = vmf->page;
@@ -3013,7 +3016,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 		if (!new_page)
 			goto oom;
 
-		if (!cow_user_page(new_page, old_page, vmf)) {
+		if (!__wp_page_copy_user(new_page, old_page, vmf)) {
 			/*
 			 * COW failed, if the fault was solved by other,
 			 * it's fine. If not, userspace would re-fault on
@@ -3055,7 +3058,14 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
 		entry = mk_pte(new_page, vma->vm_page_prot);
 		entry = pte_sw_mkyoung(entry);
-		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+		if (unlikely(unshare)) {
+			if (pte_soft_dirty(vmf->orig_pte))
+				entry = pte_mksoft_dirty(entry);
+			if (pte_uffd_wp(vmf->orig_pte))
+				entry = pte_mkuffd_wp(entry);
+		} else {
+			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+		}
 
 		/*
 		 * Clear the pte entry and flush it first, before updating the
@@ -3072,6 +3082,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 		 * mmu page tables (such as kvm shadow page tables), we want the
 		 * new page to be mapped directly into the secondary page table.
 		 */
+		BUG_ON(unshare && pte_write(entry));
 		set_pte_at_notify(mm, vmf->address, vmf->pte, entry);
 		update_mmu_cache(vma, vmf->address, vmf->pte);
 		if (old_page) {
@@ -3121,7 +3132,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 			free_swap_cache(old_page);
 		put_page(old_page);
 	}
-	return page_copied ? VM_FAULT_WRITE : 0;
+	return (page_copied && !unshare) ? VM_FAULT_WRITE : 0;
 oom_free_new:
 	put_page(new_page);
 oom:
@@ -3221,18 +3232,22 @@ static vm_fault_t wp_page_shared(struct vm_fault *vmf)
 }
 
 /*
- * This routine handles present pages, when users try to write
- * to a shared page. It is done by copying the page to a new address
- * and decrementing the shared-page counter for the old page.
+ * This routine handles present pages, when
+ * * users try to write to a shared page (FAULT_FLAG_WRITE)
+ * * GUP wants to take a R/O pin on a possibly shared anonymous page
+ *   (FAULT_FLAG_UNSHARE)
+ *
+ * It is done by copying the page to a new address and decrementing the
+ * shared-page counter for the old page.
  *
  * Note that this routine assumes that the protection checks have been
  * done by the caller (the low-level page fault routine in most cases).
- * Thus we can safely just mark it writable once we've done any necessary
- * COW.
+ * Thus, with FAULT_FLAG_WRITE, we can safely just mark it writable once we've
+ * done any necessary COW.
  *
- * We also mark the page dirty at this point even though the page will
- * change only once the write actually happens. This avoids a few races,
- * and potentially makes it more efficient.
+ * In case of FAULT_FLAG_WRITE, we also mark the page dirty at this point even
+ * though the page will change only once the write actually happens. This
+ * avoids a few races, and potentially makes it more efficient.
  *
  * We enter with non-exclusive mmap_lock (to exclude vma changes,
  * but allow concurrent faults), with pte both mapped and locked.
@@ -3241,23 +3256,35 @@ static vm_fault_t wp_page_shared(struct vm_fault *vmf)
 static vm_fault_t do_wp_page(struct vm_fault *vmf)
 	__releases(vmf->ptl)
 {
+	const bool unshare = vmf->flags & FAULT_FLAG_UNSHARE;
 	struct vm_area_struct *vma = vmf->vma;
 
-	if (userfaultfd_pte_wp(vma, *vmf->pte)) {
-		pte_unmap_unlock(vmf->pte, vmf->ptl);
-		return handle_userfault(vmf, VM_UFFD_WP);
-	}
+	VM_BUG_ON(unshare && (vmf->flags & FAULT_FLAG_WRITE));
+	VM_BUG_ON(!unshare && !(vmf->flags & FAULT_FLAG_WRITE));
 
-	/*
-	 * Userfaultfd write-protect can defer flushes. Ensure the TLB
-	 * is flushed in this case before copying.
-	 */
-	if (unlikely(userfaultfd_wp(vmf->vma) &&
-		     mm_tlb_flush_pending(vmf->vma->vm_mm)))
-		flush_tlb_page(vmf->vma, vmf->address);
+	if (likely(!unshare)) {
+		if (userfaultfd_pte_wp(vma, *vmf->pte)) {
+			pte_unmap_unlock(vmf->pte, vmf->ptl);
+			return handle_userfault(vmf, VM_UFFD_WP);
+		}
+
+		/*
+		 * Userfaultfd write-protect can defer flushes. Ensure the TLB
+		 * is flushed in this case before copying.
+		 */
+		if (unlikely(userfaultfd_wp(vmf->vma) &&
+			     mm_tlb_flush_pending(vmf->vma->vm_mm)))
+			flush_tlb_page(vmf->vma, vmf->address);
+	}
 
 	vmf->page = vm_normal_page(vma, vmf->address, vmf->orig_pte);
 	if (!vmf->page) {
+		if (unlikely(unshare)) {
+			/* No anonymous page -> nothing to do. */
+			pte_unmap_unlock(vmf->pte, vmf->ptl);
+			return 0;
+		}
+
 		/*
 		 * VM_MIXEDMAP !pfn_valid() case, or VM_SOFTDIRTY clear on a
 		 * VM_PFNMAP VMA.
@@ -3320,8 +3347,16 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 		page_move_anon_rmap(page, vma);
 		unlock_page(page);
 reuse:
+		if (unlikely(unshare)) {
+			pte_unmap_unlock(vmf->pte, vmf->ptl);
+			return 0;
+		}
 		wp_page_reuse(vmf);
 		return VM_FAULT_WRITE;
+	} else if (unshare) {
+		/* No anonymous page -> nothing to do. */
+		pte_unmap_unlock(vmf->pte, vmf->ptl);
+		return 0;
 	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
 					(VM_WRITE|VM_SHARED))) {
 		return wp_page_shared(vmf);
@@ -4523,8 +4558,11 @@ static inline vm_fault_t create_huge_pmd(struct vm_fault *vmf)
 /* `inline' is required to avoid gcc 4.1.2 build error */
 static inline vm_fault_t wp_huge_pmd(struct vm_fault *vmf)
 {
+	const bool unshare = vmf->flags & FAULT_FLAG_UNSHARE;
+
 	if (vma_is_anonymous(vmf->vma)) {
-		if (userfaultfd_huge_pmd_wp(vmf->vma, vmf->orig_pmd))
+		if (likely(!unshare) &&
+		    userfaultfd_huge_pmd_wp(vmf->vma, vmf->orig_pmd))
 			return handle_userfault(vmf, VM_UFFD_WP);
 		return do_huge_pmd_wp_page(vmf);
 	}
@@ -4659,10 +4697,11 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 		update_mmu_tlb(vmf->vma, vmf->address, vmf->pte);
 		goto unlock;
 	}
-	if (vmf->flags & FAULT_FLAG_WRITE) {
+	if (vmf->flags & (FAULT_FLAG_WRITE|FAULT_FLAG_UNSHARE)) {
 		if (!pte_write(entry))
 			return do_wp_page(vmf);
-		entry = pte_mkdirty(entry);
+		else if (likely(vmf->flags & FAULT_FLAG_WRITE))
+			entry = pte_mkdirty(entry);
 	}
 	entry = pte_mkyoung(entry);
 	if (ptep_set_access_flags(vmf->vma, vmf->address, vmf->pte, entry,
@@ -4703,7 +4742,6 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 		.pgoff = linear_page_index(vma, address),
 		.gfp_mask = __get_fault_gfp_mask(vma),
 	};
-	unsigned int dirty = flags & FAULT_FLAG_WRITE;
 	struct mm_struct *mm = vma->vm_mm;
 	pgd_t *pgd;
 	p4d_t *p4d;
@@ -4728,9 +4766,11 @@ retry_pud:
 		barrier();
 		if (pud_trans_huge(orig_pud) || pud_devmap(orig_pud)) {
 
-			/* NUMA case for anonymous PUDs would go here */
-
-			if (dirty && !pud_write(orig_pud)) {
+			/*
+			 * TODO once we support anonymous PUDs: NUMA case and
+			 * FAULT_FLAG_UNSHARE handling.
+			 */
+			if ((flags & FAULT_FLAG_WRITE) && !pud_write(orig_pud)) {
 				ret = wp_huge_pud(&vmf, orig_pud);
 				if (!(ret & VM_FAULT_FALLBACK))
 					return ret;
@@ -4768,7 +4808,8 @@ retry_pud:
 			if (pmd_protnone(vmf.orig_pmd) && vma_is_accessible(vma))
 				return do_huge_pmd_numa_page(&vmf);
 
-			if (dirty && !pmd_write(vmf.orig_pmd)) {
+			if ((flags & (FAULT_FLAG_WRITE|FAULT_FLAG_UNSHARE)) &&
+			    !pmd_write(vmf.orig_pmd)) {
 				ret = wp_huge_pmd(&vmf);
 				if (!(ret & VM_FAULT_FALLBACK))
 					return ret;
