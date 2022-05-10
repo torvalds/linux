@@ -1113,6 +1113,8 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l41 = {
 	.controls = cs35l41_aud_controls,
 	.num_controls = ARRAY_SIZE(cs35l41_aud_controls),
 	.set_sysclk = cs35l41_component_set_sysclk,
+
+	.endianness = 1,
 };
 
 static int cs35l41_handle_pdata(struct device *dev, struct cs35l41_platform_data *pdata)

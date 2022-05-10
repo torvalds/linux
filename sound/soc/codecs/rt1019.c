@@ -515,7 +515,7 @@ static struct snd_soc_dai_driver rt1019_dai[] = {
 };
 
 static const struct snd_soc_component_driver soc_component_dev_rt1019 = {
-	.probe = rt1019_probe,
+	.probe			= rt1019_probe,
 	.controls		= rt1019_snd_controls,
 	.num_controls		= ARRAY_SIZE(rt1019_snd_controls),
 	.dapm_widgets		= rt1019_dapm_widgets,
@@ -523,6 +523,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt1019 = {
 	.dapm_routes		= rt1019_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(rt1019_dapm_routes),
 	.non_legacy_dai_naming	= 1,
+	.endianness		= 1,
 };
 
 static const struct regmap_config rt1019_regmap = {
