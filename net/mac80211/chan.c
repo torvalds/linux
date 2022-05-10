@@ -783,7 +783,7 @@ static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 out:
 	rcu_assign_pointer(sdata->vif.bss_conf.chanctx_conf, conf);
 
-	sdata->vif.bss_conf.idle = !conf;
+	sdata->vif.cfg.idle = !conf;
 
 	if (curr_ctx && ieee80211_chanctx_num_assigned(local, curr_ctx) > 0) {
 		ieee80211_recalc_chanctx_chantype(local, curr_ctx);

@@ -1642,7 +1642,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	sdata->control_port_no_encrypt = false;
 	sdata->control_port_over_nl80211 = false;
 	sdata->control_port_no_preauth = false;
-	sdata->vif.bss_conf.idle = true;
+	sdata->vif.cfg.idle = true;
 	sdata->vif.bss_conf.txpower = INT_MIN; /* unset */
 
 	sdata->noack_map = 0;

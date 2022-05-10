@@ -1374,7 +1374,7 @@ static void rtw89_stats_trigger_frame(struct rtw89_dev *rtwdev,
 		if (aid == RTW89_TF_PAD)
 			break;
 
-		if (aid == vif->bss_conf.aid) {
+		if (aid == vif->cfg.aid) {
 			rtwvif->stats.rx_tf_acc++;
 			rtwdev->stats.rx_tf_acc++;
 			break;

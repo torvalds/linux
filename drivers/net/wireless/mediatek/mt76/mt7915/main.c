@@ -593,7 +593,7 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		mt7915_mcu_add_bss_info(phy, vif, info->assoc);
+		mt7915_mcu_add_bss_info(phy, vif, vif->cfg.assoc);
 		mt7915_mcu_add_obss_spr(dev, vif, info->he_obss_pd.enable);
 	}
 

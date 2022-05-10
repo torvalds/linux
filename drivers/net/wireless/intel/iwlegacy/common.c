@@ -5427,8 +5427,8 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (changes & BSS_CHANGED_ASSOC) {
-		D_MAC80211("ASSOC %d\n", bss_conf->assoc);
-		if (bss_conf->assoc) {
+		D_MAC80211("ASSOC %d\n", vif->cfg.assoc);
+		if (vif->cfg.assoc) {
 			il->timestamp = bss_conf->sync_tsf;
 
 			if (!il_is_rfkill(il))
@@ -5437,7 +5437,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			il_set_no_assoc(il, vif);
 	}
 
-	if (changes && il_is_associated(il) && bss_conf->aid) {
+	if (changes && il_is_associated(il) && vif->cfg.aid) {
 		D_MAC80211("Changes (%#x) while associated\n", changes);
 		ret = il_send_rxon_assoc(il);
 		if (!ret) {
@@ -5459,10 +5459,10 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changes & BSS_CHANGED_IBSS) {
 		ret = il->ops->manage_ibss_station(il, vif,
-						   bss_conf->ibss_joined);
+						   vif->cfg.ibss_joined);
 		if (ret)
 			IL_ERR("failed to %s IBSS station %pM\n",
-			       bss_conf->ibss_joined ? "add" : "remove",
+			       vif->cfg.ibss_joined ? "add" : "remove",
 			       bss_conf->bssid);
 	}
 

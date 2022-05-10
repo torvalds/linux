@@ -345,7 +345,7 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 	rtw89_leave_ps_mode(rtwdev);
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		if (conf->assoc) {
+		if (vif->cfg.assoc) {
 			rtw89_station_mode_sta_assoc(rtwdev, vif, conf);
 			rtw89_phy_set_bss_color(rtwdev, vif);
 			rtw89_chip_cfg_txpwr_ul_tb_offset(rtwdev, vif);

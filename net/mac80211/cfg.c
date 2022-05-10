@@ -1216,12 +1216,12 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->vif.bss_conf.twt_responder = params->twt_responder;
 	sdata->vif.bss_conf.he_obss_pd = params->he_obss_pd;
 	sdata->vif.bss_conf.he_bss_color = params->beacon.he_bss_color;
-	sdata->vif.bss_conf.s1g = params->chandef.chan->band ==
+	sdata->vif.cfg.s1g = params->chandef.chan->band ==
 				  NL80211_BAND_S1GHZ;
 
-	sdata->vif.bss_conf.ssid_len = params->ssid_len;
+	sdata->vif.cfg.ssid_len = params->ssid_len;
 	if (params->ssid_len)
-		memcpy(sdata->vif.bss_conf.ssid, params->ssid,
+		memcpy(sdata->vif.cfg.ssid, params->ssid,
 		       params->ssid_len);
 	sdata->vif.bss_conf.hidden_ssid =
 		(params->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE);
@@ -1405,7 +1405,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	sdata->vif.bss_conf.enable_beacon = false;
 	sdata->beacon_rate_set = false;
-	sdata->vif.bss_conf.ssid_len = 0;
+	sdata->vif.cfg.ssid_len = 0;
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
 
@@ -3488,7 +3488,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		if (!sdata->vif.bss_conf.ibss_joined)
+		if (!sdata->vif.cfg.ibss_joined)
 			return -EINVAL;
 
 		if (params->chandef.width != sdata->u.ibss.chandef.width)

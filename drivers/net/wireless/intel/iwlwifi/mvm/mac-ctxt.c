@@ -570,7 +570,7 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	}
 
 	/* We need the dtim_period to set the MAC as associated */
-	if (vif->bss_conf.assoc && vif->bss_conf.dtim_period &&
+	if (vif->cfg.assoc && vif->bss_conf.dtim_period &&
 	    !force_assoc_off) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 		u32 dtim_offs;
@@ -628,9 +628,9 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 					      vif->bss_conf.dtim_period);
 
 	ctxt_sta->listen_interval = cpu_to_le32(mvm->hw->conf.listen_interval);
-	ctxt_sta->assoc_id = cpu_to_le32(vif->bss_conf.aid);
+	ctxt_sta->assoc_id = cpu_to_le32(vif->cfg.aid);
 
-	if (vif->probe_req_reg && vif->bss_conf.assoc && vif->p2p)
+	if (vif->probe_req_reg && vif->cfg.assoc && vif->p2p)
 		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
 
 	if (vif->bss_conf.he_support && !iwlwifi_mod_params.disable_11ax) {
@@ -944,8 +944,8 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 			IWL_MAC_BEACON_FILS :
 			IWL_MAC_BEACON_FILS_V1;
 		beacon_cmd.short_ssid =
-			cpu_to_le32(~crc32_le(~0, vif->bss_conf.ssid,
-					      vif->bss_conf.ssid_len));
+			cpu_to_le32(~crc32_le(~0, vif->cfg.ssid,
+					      vif->cfg.ssid_len));
 	}
 	rcu_read_unlock();
 
@@ -1031,7 +1031,7 @@ static void iwl_mvm_mac_ap_iterator(void *_data, u8 *mac,
 {
 	struct iwl_mvm_mac_ap_iterator_data *data = _data;
 
-	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc)
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->cfg.assoc)
 		return;
 
 	/* Station client has higher priority over P2P client*/

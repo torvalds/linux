@@ -526,11 +526,6 @@ struct ieee80211_fils_discovery {
  *	mode only, set if the AP advertises TWT responder role)
  * @twt_protected: does this BSS support protected TWT frames
  * @twt_broadcast: does this BSS support broadcast TWT
- * @assoc: association status
- * @ibss_joined: indicates whether this station is part of an IBSS
- *	or not
- * @ibss_creator: indicates if a new IBSS network is being created
- * @aid: association ID number, valid only when @assoc is true
  * @use_cts_prot: use CTS protection
  * @use_short_preamble: use 802.11b short preamble
  * @use_short_slot: use short slot time (only relevant for ERP)
@@ -551,6 +546,8 @@ struct ieee80211_fils_discovery {
  *	IMPORTANT: These three sync_* parameters would possibly be out of sync
  *	by the time the driver will use them. The synchronized view is currently
  *	guaranteed only in certain callbacks.
+ *	Note also that this is not used with MLD associations, mac80211 doesn't
+ *	know how to track beacons for all of the links for this.
  * @beacon_int: beacon interval
  * @assoc_capability: capabilities taken from assoc resp
  * @basic_rates: bitmap of basic rates, each bit stands for an
@@ -576,21 +573,9 @@ struct ieee80211_fils_discovery {
  *	threshold event and can't be enabled simultaneously with it.
  * @cqm_rssi_high: Connection quality monitor RSSI upper threshold.
  * @cqm_rssi_hyst: Connection quality monitor RSSI hysteresis
- * @arp_addr_list: List of IPv4 addresses for hardware ARP filtering. The
- *	may filter ARP queries targeted for other addresses than listed here.
- *	The driver must allow ARP queries targeted for all address listed here
- *	to pass through. An empty list implies no ARP queries need to pass.
- * @arp_addr_cnt: Number of addresses currently on the list. Note that this
- *	may be larger than %IEEE80211_BSS_ARP_ADDR_LIST_LEN (the arp_addr_list
- *	array size), it's up to the driver what to do in that case.
  * @qos: This is a QoS-enabled BSS.
- * @idle: This interface is idle. There's also a global idle flag in the
- *	hardware config which may be more appropriate depending on what
- *	your driver/device needs to do.
  * @ps: power-save mode (STA only). This flag is NOT affected by
  *	offchannel/dynamic_ps operations.
- * @ssid: The SSID of the current vif. Valid in AP and IBSS mode.
- * @ssid_len: Length of SSID given in @ssid.
  * @hidden_ssid: The SSID of the current vif is hidden. Only valid in AP-mode.
  * @txpower: TX power in dBm.  INT_MIN means not configured.
  * @txpower_type: TX power adjustment used to control per packet Transmit
@@ -628,7 +613,6 @@ struct ieee80211_fils_discovery {
  * @fils_discovery: FILS discovery configuration
  * @unsol_bcast_probe_resp_interval: Unsolicited broadcast probe response
  *	interval.
- * @s1g: BSS is S1G BSS (affects Association Request format).
  * @beacon_tx_rate: The configured beacon transmit rate that needs to be passed
  *	to driver when rate control is offloaded to firmware.
  * @power_type: power type of BSS for 6 GHz
@@ -661,10 +645,6 @@ struct ieee80211_bss_conf {
 	bool twt_responder;
 	bool twt_protected;
 	bool twt_broadcast;
-	/* association related data */
-	bool assoc, ibss_joined;
-	bool ibss_creator;
-	u16 aid;
 	/* erp related data */
 	bool use_cts_prot;
 	bool use_short_preamble;
@@ -686,13 +666,8 @@ struct ieee80211_bss_conf {
 	s32 cqm_rssi_high;
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_mu_group_data mu_group;
-	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
-	int arp_addr_cnt;
 	bool qos;
-	bool idle;
 	bool ps;
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	size_t ssid_len;
 	bool hidden_ssid;
 	int txpower;
 	enum nl80211_tx_power_setting txpower_type;
@@ -717,7 +692,6 @@ struct ieee80211_bss_conf {
 	struct cfg80211_he_bss_color he_bss_color;
 	struct ieee80211_fils_discovery fils_discovery;
 	u32 unsol_bcast_probe_resp_interval;
-	bool s1g;
 	struct cfg80211_bitrate_mask beacon_tx_rate;
 	enum ieee80211_ap_reg_power power_type;
 	struct ieee80211_tx_pwr_env tx_pwr_env[IEEE80211_TPE_MAX_IE_COUNT];
@@ -1722,12 +1696,47 @@ enum ieee80211_offload_flags {
 };
 
 /**
+ * struct ieee80211_vif_cfg - interface configuration
+ * @assoc: association status
+ * @ibss_joined: indicates whether this station is part of an IBSS or not
+ * @ibss_creator: indicates if a new IBSS network is being created
+ * @aid: association ID number, valid only when @assoc is true
+ * @arp_addr_list: List of IPv4 addresses for hardware ARP filtering. The
+ *	may filter ARP queries targeted for other addresses than listed here.
+ *	The driver must allow ARP queries targeted for all address listed here
+ *	to pass through. An empty list implies no ARP queries need to pass.
+ * @arp_addr_cnt: Number of addresses currently on the list. Note that this
+ *	may be larger than %IEEE80211_BSS_ARP_ADDR_LIST_LEN (the arp_addr_list
+ *	array size), it's up to the driver what to do in that case.
+ * @ssid: The SSID of the current vif. Valid in AP and IBSS mode.
+ * @ssid_len: Length of SSID given in @ssid.
+ * @s1g: BSS is S1G BSS (affects Association Request format).
+ * @idle: This interface is idle. There's also a global idle flag in the
+ *	hardware config which may be more appropriate depending on what
+ *	your driver/device needs to do.
+ */
+struct ieee80211_vif_cfg {
+	/* association related data */
+	bool assoc, ibss_joined;
+	bool ibss_creator;
+	u16 aid;
+
+	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
+	int arp_addr_cnt;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	size_t ssid_len;
+	bool s1g;
+	bool idle;
+};
+
+/**
  * struct ieee80211_vif - per-interface data
  *
  * Data in this structure is continually present for driver
  * use during the life of a virtual interface.
  *
  * @type: type of this virtual interface
+ * @cfg: vif configuration, see &struct ieee80211_vif_cfg
  * @bss_conf: BSS configuration for this interface, either our own
  *	or the BSS we're associated to
  * @addr: address of this interface
@@ -1762,6 +1771,7 @@ enum ieee80211_offload_flags {
  */
 struct ieee80211_vif {
 	enum nl80211_iftype type;
+	struct ieee80211_vif_cfg cfg;
 	struct ieee80211_bss_conf bss_conf;
 	u8 addr[ETH_ALEN] __aligned(2);
 	bool p2p;

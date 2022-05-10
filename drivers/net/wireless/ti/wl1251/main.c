@@ -1123,7 +1123,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		if (bss_conf->assoc) {
+		if (vif->cfg.assoc) {
 			wl->beacon_int = bss_conf->beacon_int;
 
 			skb = ieee80211_pspoll_get(wl->hw, wl->vif);
@@ -1137,7 +1137,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ret < 0)
 				goto out_sleep;
 
-			ret = wl1251_acx_aid(wl, bss_conf->aid);
+			ret = wl1251_acx_aid(wl, vif->cfg.aid);
 			if (ret < 0)
 				goto out_sleep;
 		} else {
@@ -1176,10 +1176,10 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {
-		__be32 addr = bss_conf->arp_addr_list[0];
+		__be32 addr = vif->cfg.arp_addr_list[0];
 		WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
 
-		enable = bss_conf->arp_addr_cnt == 1 && bss_conf->assoc;
+		enable = vif->cfg.arp_addr_cnt == 1 && vif->cfg.assoc;
 		ret = wl1251_acx_arp_ip_filter(wl, enable, addr);
 		if (ret < 0)
 			goto out_sleep;

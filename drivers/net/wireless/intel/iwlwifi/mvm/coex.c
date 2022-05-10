@@ -311,7 +311,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		smps_mode = IEEE80211_SMPS_DYNAMIC;
 
 	/* relax SMPS constraints for next association */
-	if (!vif->bss_conf.assoc)
+	if (!vif->cfg.assoc)
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	if (mvmvif->phy_ctxt &&
@@ -382,7 +382,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	 *  we are not associated
 	 */
 	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT ||
-	    mvm->cfg->bt_shared_single_ant || !vif->bss_conf.assoc ||
+	    mvm->cfg->bt_shared_single_ant || !vif->cfg.assoc ||
 	    le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF) {
 		iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false);
 		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);

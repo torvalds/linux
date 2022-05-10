@@ -223,7 +223,7 @@ static void iwl_mvm_p2p_standalone_iterator(void *_data, u8 *mac,
 		*is_p2p_standalone = false;
 		break;
 	case NL80211_IFTYPE_STATION:
-		if (vif->bss_conf.assoc)
+		if (vif->cfg.assoc)
 			*is_p2p_standalone = false;
 		break;
 

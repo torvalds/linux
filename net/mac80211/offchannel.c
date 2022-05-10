@@ -785,7 +785,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_ADHOC:
-		if (!sdata->vif.bss_conf.ibss_joined)
+		if (!sdata->vif.cfg.ibss_joined)
 			need_offchan = true;
 #ifdef CONFIG_MAC80211_MESH
 		fallthrough;

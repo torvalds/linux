@@ -1115,7 +1115,7 @@ static void carl9170_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		ar->common.curaid = bss_conf->aid;
+		ar->common.curaid = vif->cfg.aid;
 		err = carl9170_set_beacon_timers(ar);
 		if (err)
 			goto out;

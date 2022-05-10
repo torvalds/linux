@@ -1509,8 +1509,8 @@ static int ath10k_vdev_start_restart(struct ath10k_vif *arvif,
 		arg.channel.chan_radar =
 			!!(chandef->chan->flags & IEEE80211_CHAN_RADAR);
 	} else if (arvif->vdev_type == WMI_VDEV_TYPE_IBSS) {
-		arg.ssid = arvif->vif->bss_conf.ssid;
-		arg.ssid_len = arvif->vif->bss_conf.ssid_len;
+		arg.ssid = arvif->vif->cfg.ssid;
+		arg.ssid_len = arvif->vif->cfg.ssid_len;
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_MAC,
@@ -1823,8 +1823,7 @@ static void ath10k_control_beaconing(struct ath10k_vif *arvif,
 }
 
 static void ath10k_control_ibss(struct ath10k_vif *arvif,
-				struct ieee80211_bss_conf *info,
-				const u8 self_peer[ETH_ALEN])
+				struct ieee80211_vif *vif)
 {
 	struct ath10k *ar = arvif->ar;
 	u32 vdev_param;
@@ -1832,7 +1831,7 @@ static void ath10k_control_ibss(struct ath10k_vif *arvif,
 
 	lockdep_assert_held(&arvif->ar->conf_mutex);
 
-	if (!info->ibss_joined) {
+	if (!vif->cfg.ibss_joined) {
 		if (is_zero_ether_addr(arvif->bssid))
 			return;
 
@@ -2163,7 +2162,7 @@ static void ath10k_peer_assoc_h_basic(struct ath10k *ar,
 	lockdep_assert_held(&ar->conf_mutex);
 
 	if (vif->type == NL80211_IFTYPE_STATION)
-		aid = vif->bss_conf.aid;
+		aid = vif->cfg.aid;
 	else
 		aid = sta->aid;
 
@@ -2193,7 +2192,8 @@ static void ath10k_peer_assoc_h_crypto(struct ath10k *ar,
 		return;
 
 	bss = cfg80211_get_bss(ar->hw->wiphy, def.chan, info->bssid,
-			       info->ssid_len ? info->ssid : NULL, info->ssid_len,
+			       vif->cfg.ssid_len ? vif->cfg.ssid : NULL,
+			       vif->cfg.ssid_len,
 			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
 	if (bss) {
 		const struct cfg80211_bss_ies *ies;
@@ -3118,11 +3118,11 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 
 	ath10k_dbg(ar, ATH10K_DBG_MAC,
 		   "mac vdev %d up (associated) bssid %pM aid %d\n",
-		   arvif->vdev_id, bss_conf->bssid, bss_conf->aid);
+		   arvif->vdev_id, bss_conf->bssid, vif->cfg.aid);
 
 	WARN_ON(arvif->is_up);
 
-	arvif->aid = bss_conf->aid;
+	arvif->aid = vif->cfg.aid;
 	ether_addr_copy(arvif->bssid, bss_conf->bssid);
 
 	ret = ath10k_wmi_pdev_set_param(ar,
@@ -6082,7 +6082,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	if (changed & BSS_CHANGED_IBSS)
-		ath10k_control_ibss(arvif, info, vif->addr);
+		ath10k_control_ibss(arvif, vif);
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		arvif->beacon_interval = info->beacon_int;
@@ -6147,9 +6147,10 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_SSID &&
 	    vif->type == NL80211_IFTYPE_AP) {
-		arvif->u.ap.ssid_len = info->ssid_len;
-		if (info->ssid_len)
-			memcpy(arvif->u.ap.ssid, info->ssid, info->ssid_len);
+		arvif->u.ap.ssid_len = vif->cfg.ssid_len;
+		if (vif->cfg.ssid_len)
+			memcpy(arvif->u.ap.ssid, vif->cfg.ssid,
+			       vif->cfg.ssid_len);
 		arvif->u.ap.hidden_ssid = info->hidden_ssid;
 	}
 
@@ -6226,7 +6227,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		if (info->assoc) {
+		if (vif->cfg.assoc) {
 			/* Workaround: Make sure monitor vdev is not running
 			 * when associating to prevent some firmware revisions
 			 * (e.g. 10.1 and 10.2) from crashing.

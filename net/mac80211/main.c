@@ -349,7 +349,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 	struct in_device *idev;
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_bss_conf *bss_conf;
+	struct ieee80211_vif_cfg *vif_cfg;
 	struct ieee80211_if_managed *ifmgd;
 	int c = 0;
 
@@ -361,7 +361,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(ndev);
-	bss_conf = &sdata->vif.bss_conf;
+	vif_cfg = &sdata->vif.cfg;
 
 	/* ARP filtering is only supported in managed mode */
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
@@ -374,16 +374,16 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 	ifmgd = &sdata->u.mgd;
 	sdata_lock(sdata);
 
-	/* Copy the addresses to the bss_conf list */
+	/* Copy the addresses to the vif config list */
 	ifa = rtnl_dereference(idev->ifa_list);
 	while (ifa) {
 		if (c < IEEE80211_BSS_ARP_ADDR_LIST_LEN)
-			bss_conf->arp_addr_list[c] = ifa->ifa_address;
+			vif_cfg->arp_addr_list[c] = ifa->ifa_address;
 		ifa = rtnl_dereference(ifa->ifa_next);
 		c++;
 	}
 
-	bss_conf->arp_addr_cnt = c;
+	vif_cfg->arp_addr_cnt = c;
 
 	/* Configure driver only if associated (which also implies it is up) */
 	if (ifmgd->associated)

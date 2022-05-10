@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
-* Portions of this file
-* Copyright(c) 2016-2017 Intel Deutschland GmbH
-* Copyright (C) 2018 - 2021 Intel Corporation
-*/
+ * Portions of this file
+ * Copyright(c) 2016-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 - 2022 Intel Corporation
+ */
 
 #if !defined(__MAC80211_DRIVER_TRACE) || defined(TRACE_HEADER_MULTI_READ)
 #define __MAC80211_DRIVER_TRACE
@@ -425,14 +425,14 @@ TRACE_EVENT(drv_bss_info_changed,
 		__field(u32, channel_cfreq1)
 		__field(u32, channel_cfreq1_offset)
 		__dynamic_array(u32, arp_addr_list,
-				info->arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
+				sdata->vif.cfg.arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
 					IEEE80211_BSS_ARP_ADDR_LIST_LEN :
-					info->arp_addr_cnt)
+					sdata->vif.cfg.arp_addr_cnt)
 		__field(int, arp_addr_cnt)
 		__field(bool, qos)
 		__field(bool, idle)
 		__field(bool, ps)
-		__dynamic_array(u8, ssid, info->ssid_len)
+		__dynamic_array(u8, ssid, sdata->vif.cfg.ssid_len)
 		__field(bool, hidden_ssid)
 		__field(int, txpower)
 		__field(u8, p2p_oppps_ctwindow)
@@ -442,10 +442,10 @@ TRACE_EVENT(drv_bss_info_changed,
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		__entry->changed = changed;
-		__entry->aid = info->aid;
-		__entry->assoc = info->assoc;
-		__entry->ibss_joined = info->ibss_joined;
-		__entry->ibss_creator = info->ibss_creator;
+		__entry->aid = sdata->vif.cfg.aid;
+		__entry->assoc = sdata->vif.cfg.assoc;
+		__entry->ibss_joined = sdata->vif.cfg.ibss_joined;
+		__entry->ibss_creator = sdata->vif.cfg.ibss_creator;
 		__entry->shortpre = info->use_short_preamble;
 		__entry->cts = info->use_cts_prot;
 		__entry->shortslot = info->use_short_slot;
@@ -465,15 +465,18 @@ TRACE_EVENT(drv_bss_info_changed,
 		__entry->channel_width = info->chandef.width;
 		__entry->channel_cfreq1 = info->chandef.center_freq1;
 		__entry->channel_cfreq1_offset = info->chandef.freq1_offset;
-		__entry->arp_addr_cnt = info->arp_addr_cnt;
-		memcpy(__get_dynamic_array(arp_addr_list), info->arp_addr_list,
-		       sizeof(u32) * (info->arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
+		__entry->arp_addr_cnt = sdata->vif.cfg.arp_addr_cnt;
+		memcpy(__get_dynamic_array(arp_addr_list),
+		       sdata->vif.cfg.arp_addr_list,
+		       sizeof(u32) * (sdata->vif.cfg.arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
 					IEEE80211_BSS_ARP_ADDR_LIST_LEN :
-					info->arp_addr_cnt));
+					sdata->vif.cfg.arp_addr_cnt));
 		__entry->qos = info->qos;
-		__entry->idle = info->idle;
+		__entry->idle = sdata->vif.cfg.idle;
 		__entry->ps = info->ps;
-		memcpy(__get_dynamic_array(ssid), info->ssid, info->ssid_len);
+		memcpy(__get_dynamic_array(ssid),
+		       sdata->vif.cfg.ssid,
+		       sdata->vif.cfg.ssid_len);
 		__entry->hidden_ssid = info->hidden_ssid;
 		__entry->txpower = info->txpower;
 		__entry->p2p_oppps_ctwindow = info->p2p_noa_attr.oppps_ctwindow;
@@ -1719,7 +1722,7 @@ TRACE_EVENT(drv_start_ap,
 		VIF_ENTRY
 		__field(u8, dtimper)
 		__field(u16, bcnint)
-		__dynamic_array(u8, ssid, info->ssid_len)
+		__dynamic_array(u8, ssid, sdata->vif.cfg.ssid_len)
 		__field(bool, hidden_ssid)
 	),
 
@@ -1728,7 +1731,9 @@ TRACE_EVENT(drv_start_ap,
 		VIF_ASSIGN;
 		__entry->dtimper = info->dtim_period;
 		__entry->bcnint = info->beacon_int;
-		memcpy(__get_dynamic_array(ssid), info->ssid, info->ssid_len);
+		memcpy(__get_dynamic_array(ssid),
+		       sdata->vif.cfg.ssid,
+		       sdata->vif.cfg.ssid_len);
 		__entry->hidden_ssid = info->hidden_ssid;
 	),
 
@@ -1786,7 +1791,7 @@ TRACE_EVENT(drv_join_ibss,
 		VIF_ENTRY
 		__field(u8, dtimper)
 		__field(u16, bcnint)
-		__dynamic_array(u8, ssid, info->ssid_len)
+		__dynamic_array(u8, ssid, sdata->vif.cfg.ssid_len)
 	),
 
 	TP_fast_assign(
@@ -1794,7 +1799,9 @@ TRACE_EVENT(drv_join_ibss,
 		VIF_ASSIGN;
 		__entry->dtimper = info->dtim_period;
 		__entry->bcnint = info->beacon_int;
-		memcpy(__get_dynamic_array(ssid), info->ssid, info->ssid_len);
+		memcpy(__get_dynamic_array(ssid),
+		       sdata->vif.cfg.ssid,
+		       sdata->vif.cfg.ssid_len);
 	),
 
 	TP_printk(

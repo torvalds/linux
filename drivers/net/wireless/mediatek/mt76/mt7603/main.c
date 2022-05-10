@@ -305,7 +305,7 @@ mt7603_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_BSSID)) {
-		if (info->assoc || info->ibss_joined) {
+		if (vif->cfg.assoc || vif->cfg.ibss_joined) {
 			mt76_wr(dev, MT_BSSID0(mvif->idx),
 				get_unaligned_le32(info->bssid));
 			mt76_wr(dev, MT_BSSID1(mvif->idx),

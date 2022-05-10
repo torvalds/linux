@@ -230,7 +230,7 @@ ieee80211_tdls_add_aid(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 
 	*pos++ = WLAN_EID_AID;
 	*pos++ = 2; /* len */
-	put_unaligned_le16(sdata->vif.bss_conf.aid, pos);
+	put_unaligned_le16(sdata->vif.cfg.aid, pos);
 }
 
 /* translate numbering in the WMM parameter IE to the mac80211 notation */
@@ -1444,7 +1444,7 @@ void ieee80211_tdls_oper_request(struct ieee80211_vif *vif, const u8 *peer,
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 
-	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc) {
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->cfg.assoc) {
 		sdata_err(sdata, "Discarding TDLS oper %d - not STA or disconnected\n",
 			  oper);
 		return;

@@ -244,9 +244,9 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		sta_info_flush(sdata);
 
 	/* if merging, indicate to driver that we leave the old IBSS */
-	if (sdata->vif.bss_conf.ibss_joined) {
-		sdata->vif.bss_conf.ibss_joined = false;
-		sdata->vif.bss_conf.ibss_creator = false;
+	if (sdata->vif.cfg.ibss_joined) {
+		sdata->vif.cfg.ibss_joined = false;
+		sdata->vif.cfg.ibss_creator = false;
 		sdata->vif.bss_conf.enable_beacon = false;
 		netif_carrier_off(sdata->dev);
 		ieee80211_bss_info_change_notify(sdata,
@@ -326,8 +326,8 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.enable_beacon = true;
 	sdata->vif.bss_conf.beacon_int = beacon_int;
 	sdata->vif.bss_conf.basic_rates = basic_rates;
-	sdata->vif.bss_conf.ssid_len = ifibss->ssid_len;
-	memcpy(sdata->vif.bss_conf.ssid, ifibss->ssid, ifibss->ssid_len);
+	sdata->vif.cfg.ssid_len = ifibss->ssid_len;
+	memcpy(sdata->vif.cfg.ssid, ifibss->ssid, ifibss->ssid_len);
 	bss_change = BSS_CHANGED_BEACON_INT;
 	bss_change |= ieee80211_reset_erp_info(sdata);
 	bss_change |= BSS_CHANGED_BSSID;
@@ -359,15 +359,15 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_set_wmm_default(sdata, true, false);
 
-	sdata->vif.bss_conf.ibss_joined = true;
-	sdata->vif.bss_conf.ibss_creator = creator;
+	sdata->vif.cfg.ibss_joined = true;
+	sdata->vif.cfg.ibss_creator = creator;
 
 	err = drv_join_ibss(local, sdata);
 	if (err) {
-		sdata->vif.bss_conf.ibss_joined = false;
-		sdata->vif.bss_conf.ibss_creator = false;
+		sdata->vif.cfg.ibss_joined = false;
+		sdata->vif.cfg.ibss_creator = false;
 		sdata->vif.bss_conf.enable_beacon = false;
-		sdata->vif.bss_conf.ssid_len = 0;
+		sdata->vif.cfg.ssid_len = 0;
 		RCU_INIT_POINTER(ifibss->presp, NULL);
 		kfree_rcu(presp, rcu_head);
 		mutex_lock(&local->mtx);
@@ -708,10 +708,10 @@ static void ieee80211_ibss_disconnect(struct ieee80211_sub_if_data *sdata)
 
 	netif_carrier_off(sdata->dev);
 
-	sdata->vif.bss_conf.ibss_joined = false;
-	sdata->vif.bss_conf.ibss_creator = false;
+	sdata->vif.cfg.ibss_joined = false;
+	sdata->vif.cfg.ibss_creator = false;
 	sdata->vif.bss_conf.enable_beacon = false;
-	sdata->vif.bss_conf.ssid_len = 0;
+	sdata->vif.cfg.ssid_len = 0;
 
 	/* remove beacon */
 	presp = rcu_dereference_protected(ifibss->presp,

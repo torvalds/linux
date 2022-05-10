@@ -3005,7 +3005,7 @@ int wcn36xx_smd_arp_offload(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 		msg_body.host_offload_params.enable =
 			WCN36XX_HAL_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE;
 		memcpy(&msg_body.host_offload_params.u,
-		       &vif->bss_conf.arp_addr_list[0], sizeof(__be32));
+		       &vif->cfg.arp_addr_list[0], sizeof(__be32));
 	}
 	msg_body.ns_offload_params.bss_index = vif_priv->bss_index;
 

@@ -480,8 +480,8 @@ static void p54_bss_info_changed(struct ieee80211_hw *dev,
 			p54_scan(priv, P54_SCAN_EXIT, 0);
 	}
 	if (changed & BSS_CHANGED_ASSOC) {
-		if (info->assoc) {
-			priv->aid = info->aid;
+		if (vif->cfg.assoc) {
+			priv->aid = vif->cfg.aid;
 			priv->wakeup_timer = info->beacon_int *
 					     info->dtim_period * 5;
 			p54_setup_mac(priv);

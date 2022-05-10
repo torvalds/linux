@@ -3630,7 +3630,7 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif
 	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
 	u8 bss_color;
 
-	if (!vif->bss_conf.he_support || !vif->bss_conf.assoc)
+	if (!vif->bss_conf.he_support || !vif->cfg.assoc)
 		return;
 
 	bss_color = vif->bss_conf.he_bss_color.color;
@@ -3640,7 +3640,7 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif
 	rtw89_phy_write32_idx(rtwdev, R_BSS_CLR_MAP, B_BSS_CLR_MAP_TGT, bss_color,
 			      phy_idx);
 	rtw89_phy_write32_idx(rtwdev, R_BSS_CLR_MAP, B_BSS_CLR_MAP_STAID,
-			      vif->bss_conf.aid, phy_idx);
+			      vif->cfg.aid, phy_idx);
 }
 
 static void

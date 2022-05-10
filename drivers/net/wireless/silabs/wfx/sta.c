@@ -156,7 +156,7 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 	struct ieee80211_conf *conf = &wvif->wdev->hw->conf;
 	struct ieee80211_vif *vif = wvif_to_vif(wvif);
 
-	WARN(!vif->bss_conf.assoc && enable_ps,
+	WARN(!vif->cfg.assoc && enable_ps,
 	     "enable_ps is reliable only if associated");
 	if (wdev_to_wvif(wvif->wdev, 0)) {
 		struct wfx_vif *wvif_ch0 = wdev_to_wvif(wvif->wdev, 0);
@@ -175,7 +175,7 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 			/* It is useless to enable PS if channels are the same. */
 			if (enable_ps)
 				*enable_ps = false;
-			if (vif->bss_conf.assoc && vif->bss_conf.ps)
+			if (vif->cfg.assoc && vif->bss_conf.ps)
 				dev_info(wvif->wdev->dev, "ignoring requested PS mode");
 			return -1;
 		}
@@ -189,7 +189,7 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 	}
 	if (enable_ps)
 		*enable_ps = vif->bss_conf.ps;
-	if (vif->bss_conf.assoc && vif->bss_conf.ps)
+	if (vif->cfg.assoc && vif->bss_conf.ps)
 		return conf->dynamic_ps_timeout;
 	else
 		return -1;
@@ -201,7 +201,7 @@ int wfx_update_pm(struct wfx_vif *wvif)
 	int ps_timeout;
 	bool ps;
 
-	if (!vif->bss_conf.assoc)
+	if (!vif->cfg.assoc)
 		return 0;
 	ps_timeout = wfx_get_ps_timeout(wvif, &ps);
 	if (!ps)
@@ -417,7 +417,7 @@ static void wfx_join(struct wfx_vif *wvif)
 
 	bss = cfg80211_get_bss(wvif->wdev->hw->wiphy, wvif->channel, conf->bssid, NULL, 0,
 			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
-	if (!bss && !conf->ibss_joined) {
+	if (!bss && !vif->cfg.ibss_joined) {
 		wfx_tx_unlock(wvif->wdev);
 		return;
 	}
@@ -458,7 +458,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif, struct ieee80211_bss_conf *i
 	bool greenfield = false;
 
 	rcu_read_lock(); /* protect sta */
-	if (info->bssid && !info->ibss_joined)
+	if (info->bssid && !vif->cfg.ibss_joined)
 		sta = ieee80211_find_sta(vif, info->bssid);
 	if (sta && sta->deflink.ht_cap.ht_supported)
 		ampdu_density = sta->deflink.ht_cap.ampdu_density;
@@ -471,7 +471,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif, struct ieee80211_bss_conf *i
 	wfx_hif_set_association_mode(wvif, ampdu_density, greenfield, info->use_short_preamble);
 	wfx_hif_keep_alive_period(wvif, 0);
 	/* beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use the same value. */
-	wfx_hif_set_bss_params(wvif, info->aid, 7);
+	wfx_hif_set_bss_params(wvif, vif->cfg.aid, 7);
 	wfx_hif_set_beacon_wakeup_period(wvif, 1, 1);
 	wfx_update_pm(wvif);
 }
@@ -522,9 +522,9 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		if (info->assoc || info->ibss_joined)
+		if (vif->cfg.assoc || vif->cfg.ibss_joined)
 			wfx_join_finalize(wvif, info);
-		else if (!info->assoc && vif->type == NL80211_IFTYPE_STATION)
+		else if (!vif->cfg.assoc && vif->type == NL80211_IFTYPE_STATION)
 			wfx_reset(wvif);
 		else
 			dev_warn(wdev->dev, "misunderstood change: ASSOC\n");
@@ -540,11 +540,11 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {
 		for (i = 0; i < HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES; i++) {
-			__be32 *arp_addr = &info->arp_addr_list[i];
+			__be32 *arp_addr = &vif->cfg.arp_addr_list[i];
 
-			if (info->arp_addr_cnt > HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES)
+			if (vif->cfg.arp_addr_cnt > HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES)
 				arp_addr = NULL;
-			if (i >= info->arp_addr_cnt)
+			if (i >= vif->cfg.arp_addr_cnt)
 				arp_addr = NULL;
 			wfx_hif_set_arp_ipv4_filter(wvif, i, arp_addr);
 		}

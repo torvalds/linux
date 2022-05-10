@@ -749,7 +749,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	/* add back the MAC */
 	mvmvif->uploaded = false;
 
-	if (WARN_ON(!vif->bss_conf.assoc))
+	if (WARN_ON(!vif->cfg.assoc))
 		return -EINVAL;
 
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);

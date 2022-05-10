@@ -1948,7 +1948,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    mvmvif->ap_sta_id == sta_id) {
 		/* if associated - we can't remove the AP STA now */
-		if (vif->bss_conf.assoc)
+		if (vif->cfg.assoc)
 			return ret;
 
 		/* unassoc - go ahead - remove the AP STA now */

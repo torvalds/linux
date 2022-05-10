@@ -616,7 +616,7 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC)
-		mt7615_mac_set_beacon_filter(phy, vif, info->assoc);
+		mt7615_mac_set_beacon_filter(phy, vif, vif->cfg.assoc);
 
 	mt7615_mutex_release(dev);
 }

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2006	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2022 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -233,7 +233,7 @@ IEEE80211_IF_FILE_R(hw_queues);
 
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
-IEEE80211_IF_FILE(aid, vif.bss_conf.aid, DEC);
+IEEE80211_IF_FILE(aid, vif.cfg.aid, DEC);
 IEEE80211_IF_FILE(beacon_timeout, u.mgd.beacon_timeout, JIFFIES_TO_MS);
 
 static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
@@ -366,7 +366,7 @@ IEEE80211_IF_FILE_W(tkip_mic_test);
 static ssize_t ieee80211_if_parse_beacon_loss(
 	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
 {
-	if (!ieee80211_sdata_running(sdata) || !sdata->vif.bss_conf.assoc)
+	if (!ieee80211_sdata_running(sdata) || !sdata->vif.cfg.assoc)
 		return -ENOTCONN;
 
 	ieee80211_beacon_loss(&sdata->vif);

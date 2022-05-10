@@ -3715,7 +3715,7 @@ void rtw89_chip_cfg_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	if (!vif->bss_conf.he_support || !vif->bss_conf.assoc)
+	if (!vif->bss_conf.he_support || !vif->cfg.assoc)
 		return;
 
 	if (chip->ops->set_txpwr_ul_tb_offset)

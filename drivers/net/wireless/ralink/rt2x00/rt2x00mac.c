@@ -645,7 +645,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	if (changes & BSS_CHANGED_ASSOC) {
 		rt2x00dev->link.count = 0;
 
-		if (bss_conf->assoc)
+		if (vif->cfg.assoc)
 			rt2x00dev->intf_associated++;
 		else
 			rt2x00dev->intf_associated--;

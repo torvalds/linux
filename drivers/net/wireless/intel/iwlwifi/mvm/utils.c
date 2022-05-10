@@ -604,7 +604,7 @@ static void iwl_mvm_sta_iface_iterator(void *_data, u8 *mac,
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return;
 
-	if (vif->bss_conf.assoc)
+	if (vif->cfg.assoc)
 		data->assoc = true;
 }
 
@@ -816,7 +816,7 @@ static void iwl_mvm_uapsd_agg_disconnect(struct iwl_mvm *mvm,
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return;
 
-	if (!vif->bss_conf.assoc)
+	if (!vif->cfg.assoc)
 		return;
 
 	if (!mvmvif->queue_params[IEEE80211_AC_VO].uapsd &&

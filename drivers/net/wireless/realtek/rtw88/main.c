@@ -171,7 +171,7 @@ static void rtw_vif_watch_dog_iter(void *data, u8 *mac,
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 
 	if (vif->type == NL80211_IFTYPE_STATION)
-		if (vif->bss_conf.assoc)
+		if (vif->cfg.assoc)
 			iter_data->rtwvif = rtwvif;
 
 	rtw_dynamic_csi_rate(iter_data->rtwdev, rtwvif);
@@ -525,8 +525,13 @@ EXPORT_SYMBOL(rtw_dump_reg);
 void rtw_vif_assoc_changed(struct rtw_vif *rtwvif,
 			   struct ieee80211_bss_conf *conf)
 {
-	if (conf && conf->assoc) {
-		rtwvif->aid = conf->aid;
+	struct ieee80211_vif *vif = NULL;
+
+	if (conf)
+		vif = container_of(conf, struct ieee80211_vif, bss_conf);
+
+	if (conf && vif->cfg.assoc) {
+		rtwvif->aid = vif->cfg.aid;
 		rtwvif->net_type = RTW_NET_MGD_LINKED;
 	} else {
 		rtwvif->aid = 0;
@@ -1591,7 +1596,7 @@ static void rtw_vif_smps_iter(void *data, u8 *mac,
 {
 	struct rtw_dev *rtwdev = (struct rtw_dev *)data;
 
-	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc)
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->cfg.assoc)
 		return;
 
 	if (rtwdev->hal.txrx_1ss)

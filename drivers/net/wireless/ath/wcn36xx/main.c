@@ -919,17 +919,17 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 		wcn36xx_dbg(WCN36XX_DBG_MAC,
 			    "mac bss changed ssid\n");
 		wcn36xx_dbg_dump(WCN36XX_DBG_MAC, "ssid ",
-				 bss_conf->ssid, bss_conf->ssid_len);
+				 vif->cfg.ssid, vif->cfg.ssid_len);
 
-		vif_priv->ssid.length = bss_conf->ssid_len;
+		vif_priv->ssid.length = vif->cfg.ssid_len;
 		memcpy(&vif_priv->ssid.ssid,
-		       bss_conf->ssid,
-		       bss_conf->ssid_len);
+		       vif->cfg.ssid,
+		       vif->cfg.ssid_len);
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		vif_priv->is_joining = false;
-		if (bss_conf->assoc) {
+		if (vif->cfg.assoc) {
 			struct ieee80211_sta *sta;
 			struct wcn36xx_sta *sta_priv;
 
@@ -937,7 +937,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 				    "mac assoc bss %pM vif %pM AID=%d\n",
 				     bss_conf->bssid,
 				     vif->addr,
-				     bss_conf->aid);
+				     vif->cfg.aid);
 
 			vif_priv->sta_assoc = true;
 
@@ -963,7 +963,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			wcn36xx_smd_config_bss(wcn, vif, sta,
 					       bss_conf->bssid,
 					       true);
-			sta_priv->aid = bss_conf->aid;
+			sta_priv->aid = vif->cfg.aid;
 			/*
 			 * config_sta must be called from  because this is the
 			 * place where AID is available.
@@ -977,7 +977,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 				    "disassociated bss %pM vif %pM AID=%d\n",
 				    bss_conf->bssid,
 				    vif->addr,
-				    bss_conf->aid);
+				    vif->cfg.aid);
 			vif_priv->sta_assoc = false;
 			wcn36xx_smd_set_link_st(wcn,
 						bss_conf->bssid,

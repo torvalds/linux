@@ -2118,9 +2118,9 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		wiphy_dbg(hw->wiphy, "  ASSOC: assoc=%d aid=%d\n",
-			  info->assoc, info->aid);
-		vp->assoc = info->assoc;
-		vp->aid = info->aid;
+			  vif->cfg.assoc, vif->cfg.aid);
+		vp->assoc = vif->cfg.assoc;
+		vp->aid = vif->cfg.aid;
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {

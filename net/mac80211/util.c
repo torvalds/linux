@@ -2496,7 +2496,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		case NL80211_IFTYPE_MONITOR:
 			break;
 		case NL80211_IFTYPE_ADHOC:
-			if (sdata->vif.bss_conf.ibss_joined)
+			if (sdata->vif.cfg.ibss_joined)
 				WARN_ON(drv_join_ibss(local, sdata));
 			fallthrough;
 		default:
