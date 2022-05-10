@@ -399,6 +399,7 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 
 static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 val = 0;
 
@@ -411,20 +412,20 @@ static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 		goto check_tp3_sel;
 	}
 
-	if (dev_priv->vbt.psr.tp1_wakeup_time_us == 0)
+	if (connector->panel.vbt.psr.tp1_wakeup_time_us == 0)
 		val |= EDP_PSR_TP1_TIME_0us;
-	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 100)
+	else if (connector->panel.vbt.psr.tp1_wakeup_time_us <= 100)
 		val |= EDP_PSR_TP1_TIME_100us;
-	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 500)
+	else if (connector->panel.vbt.psr.tp1_wakeup_time_us <= 500)
 		val |= EDP_PSR_TP1_TIME_500us;
 	else
 		val |= EDP_PSR_TP1_TIME_2500us;
 
-	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us == 0)
+	if (connector->panel.vbt.psr.tp2_tp3_wakeup_time_us == 0)
 		val |= EDP_PSR_TP2_TP3_TIME_0us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 100)
+	else if (connector->panel.vbt.psr.tp2_tp3_wakeup_time_us <= 100)
 		val |= EDP_PSR_TP2_TP3_TIME_100us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 500)
+	else if (connector->panel.vbt.psr.tp2_tp3_wakeup_time_us <= 500)
 		val |= EDP_PSR_TP2_TP3_TIME_500us;
 	else
 		val |= EDP_PSR_TP2_TP3_TIME_2500us;
@@ -441,13 +442,14 @@ check_tp3_sel:
 
 static u8 psr_compute_idle_frames(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	int idle_frames;
 
 	/* Let's use 6 as the minimum to cover all known cases including the
 	 * off-by-one issue that HW has in some cases.
 	 */
-	idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
+	idle_frames = max(6, connector->panel.vbt.psr.idle_frames);
 	idle_frames = max(idle_frames, intel_dp->psr.sink_sync_latency + 1);
 
 	if (drm_WARN_ON(&dev_priv->drm, idle_frames > 0xf))
@@ -483,18 +485,19 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 
 static u32 intel_psr2_get_tp_time(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 val = 0;
 
 	if (dev_priv->params.psr_safest_params)
 		return EDP_PSR2_TP2_TIME_2500us;
 
-	if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us >= 0 &&
-	    dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 50)
+	if (connector->panel.vbt.psr.psr2_tp2_tp3_wakeup_time_us >= 0 &&
+	    connector->panel.vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 50)
 		val |= EDP_PSR2_TP2_TIME_50us;
-	else if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 100)
+	else if (connector->panel.vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 100)
 		val |= EDP_PSR2_TP2_TIME_100us;
-	else if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 500)
+	else if (connector->panel.vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 500)
 		val |= EDP_PSR2_TP2_TIME_500us;
 	else
 		val |= EDP_PSR2_TP2_TIME_2500us;
@@ -2367,6 +2370,7 @@ unlock:
  */
 void intel_psr_init(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
@@ -2391,13 +2395,13 @@ void intel_psr_init(struct intel_dp *intel_dp)
 	intel_dp->psr.source_support = true;
 
 	if (dev_priv->params.enable_psr == -1)
-		if (!dev_priv->vbt.psr.enable)
+		if (!connector->panel.vbt.psr.enable)
 			dev_priv->params.enable_psr = 0;
 
 	/* Set link_standby x link_off defaults */
 	if (DISPLAY_VER(dev_priv) < 12)
 		/* For new platforms up to TGL let's respect VBT back again */
-		intel_dp->psr.link_standby = dev_priv->vbt.psr.full_link;
+		intel_dp->psr.link_standby = connector->panel.vbt.psr.full_link;
 
 	INIT_WORK(&intel_dp->psr.work, intel_psr_work);
 	INIT_DELAYED_WORK(&intel_dp->psr.dc3co_work, tgl_dc3co_disable_work);

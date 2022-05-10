@@ -75,9 +75,8 @@ const struct drm_display_mode *
 intel_panel_downclock_mode(struct intel_connector *connector,
 			   const struct drm_display_mode *adjusted_mode)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *fixed_mode, *best_mode = NULL;
-	int min_vrefresh = i915->vbt.seamless_drrs_min_refresh_rate;
+	int min_vrefresh = connector->panel.vbt.seamless_drrs_min_refresh_rate;
 	int max_vrefresh = drm_mode_vrefresh(adjusted_mode);
 
 	/* pick the fixed_mode with the lowest refresh rate */
@@ -113,13 +112,11 @@ int intel_panel_get_modes(struct intel_connector *connector)
 
 enum drrs_type intel_panel_drrs_type(struct intel_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-
 	if (list_empty(&connector->panel.fixed_modes) ||
 	    list_is_singular(&connector->panel.fixed_modes))
 		return DRRS_TYPE_NONE;
 
-	return i915->vbt.drrs_type;
+	return connector->panel.vbt.drrs_type;
 }
 
 int intel_panel_compute_config(struct intel_connector *connector,
@@ -260,7 +257,7 @@ void intel_panel_add_vbt_lfp_fixed_mode(struct intel_connector *connector)
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *mode;
 
-	mode = i915->vbt.lfp_lvds_vbt_mode;
+	mode = connector->panel.vbt.lfp_lvds_vbt_mode;
 	if (!mode)
 		return;
 
@@ -274,7 +271,7 @@ void intel_panel_add_vbt_sdvo_fixed_mode(struct intel_connector *connector)
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *mode;
 
-	mode = i915->vbt.sdvo_lvds_vbt_mode;
+	mode = connector->panel.vbt.sdvo_lvds_vbt_mode;
 	if (!mode)
 		return;
 
@@ -638,6 +635,8 @@ void intel_panel_fini(struct intel_connector *connector)
 	struct drm_display_mode *fixed_mode, *next;
 
 	intel_backlight_destroy(panel);
+
+	intel_bios_fini_panel(panel);
 
 	list_for_each_entry_safe(fixed_mode, next, &panel->fixed_modes, head) {
 		list_del(&fixed_mode->head);

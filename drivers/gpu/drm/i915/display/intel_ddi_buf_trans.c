@@ -1042,17 +1042,18 @@ bool is_hobl_buf_trans(const struct intel_ddi_buf_trans *table)
 
 static bool use_edp_hobl(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_connector *connector = intel_dp->attached_connector;
 
-	return i915->vbt.edp.hobl && !intel_dp->hobl_failed;
+	return connector->panel.vbt.edp.hobl && !intel_dp->hobl_failed;
 }
 
 static bool use_edp_low_vswing(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_connector *connector = intel_dp->attached_connector;
 
-	return i915->vbt.edp.low_vswing;
+	return connector->panel.vbt.edp.low_vswing;
 }
 
 static const struct intel_ddi_buf_trans *

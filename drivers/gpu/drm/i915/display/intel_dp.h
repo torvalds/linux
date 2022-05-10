@@ -29,6 +29,7 @@ struct link_config_limits {
 	int min_bpp, max_bpp;
 };
 
+void intel_edp_fixup_vbt_bpp(struct intel_encoder *encoder, int pipe_bpp);
 void intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 				       struct intel_crtc_state *pipe_config,
 				       struct link_config_limits *limits);

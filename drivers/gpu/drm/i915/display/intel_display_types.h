@@ -279,6 +279,73 @@ struct intel_panel_bl_funcs {
 	u32 (*hz_to_pwm)(struct intel_connector *connector, u32 hz);
 };
 
+enum drrs_type {
+	DRRS_TYPE_NONE,
+	DRRS_TYPE_STATIC,
+	DRRS_TYPE_SEAMLESS,
+};
+
+struct intel_vbt_panel_data {
+	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
+	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
+
+	/* Feature bits */
+	unsigned int panel_type:4;
+	unsigned int lvds_dither:1;
+	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
+
+	u8 seamless_drrs_min_refresh_rate;
+	enum drrs_type drrs_type;
+
+	struct {
+		int rate;
+		int lanes;
+		int preemphasis;
+		int vswing;
+		int bpp;
+		struct edp_power_seq pps;
+		u8 drrs_msa_timing_delay;
+		bool low_vswing;
+		bool initialized;
+		bool hobl;
+	} edp;
+
+	struct {
+		bool enable;
+		bool full_link;
+		bool require_aux_wakeup;
+		int idle_frames;
+		int tp1_wakeup_time_us;
+		int tp2_tp3_wakeup_time_us;
+		int psr2_tp2_tp3_wakeup_time_us;
+	} psr;
+
+	struct {
+		u16 pwm_freq_hz;
+		u16 brightness_precision_bits;
+		bool present;
+		bool active_low_pwm;
+		u8 min_brightness;	/* min_brightness/255 of max */
+		u8 controller;		/* brightness controller number */
+		enum intel_backlight_type type;
+	} backlight;
+
+	/* MIPI DSI */
+	struct {
+		u16 panel_id;
+		struct mipi_config *config;
+		struct mipi_pps_data *pps;
+		u16 bl_ports;
+		u16 cabc_ports;
+		u8 seq_version;
+		u32 size;
+		u8 *data;
+		const u8 *sequence[MIPI_SEQ_MAX];
+		u8 *deassert_seq; /* Used by fixup_mipi_sequences() */
+		enum drm_panel_orientation orientation;
+	} dsi;
+};
+
 struct intel_panel {
 	struct list_head fixed_modes;
 
@@ -318,6 +385,8 @@ struct intel_panel {
 		const struct intel_panel_bl_funcs *pwm_funcs;
 		void (*power)(struct intel_connector *, bool enable);
 	} backlight;
+
+	struct intel_vbt_panel_data vbt;
 };
 
 struct intel_digital_port;

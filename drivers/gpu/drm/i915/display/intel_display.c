@@ -9580,7 +9580,6 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 	}
 
 	intel_bios_init(i915);
-	intel_bios_init_panel(i915);
 
 	ret = intel_vga_register(i915);
 	if (ret)
