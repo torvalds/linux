@@ -1023,39 +1023,6 @@ static int imx7_csi_enum_mbus_formats(u32 *code, u32 index)
 	return -EINVAL;
 }
 
-static int imx7_csi_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
-				  u32 width, u32 height, u32 code, u32 field,
-				  const struct imx7_csi_pixfmt **cc)
-{
-	const struct imx7_csi_pixfmt *lcc;
-
-	mbus->width = width;
-	mbus->height = height;
-	mbus->field = field;
-
-	if (code == 0)
-		code = IMX7_CSI_DEF_MBUS_CODE;
-
-	lcc = imx7_csi_find_mbus_format(code);
-	if (!lcc)
-		return -EINVAL;
-
-	mbus->code = code;
-
-	mbus->colorspace = V4L2_COLORSPACE_SRGB;
-	mbus->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(mbus->colorspace);
-	mbus->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(mbus->colorspace);
-	mbus->quantization =
-		V4L2_MAP_QUANTIZATION_DEFAULT(!lcc->yuv,
-					      mbus->colorspace,
-					      mbus->ycbcr_enc);
-
-	if (cc)
-		*cc = lcc;
-
-	return 0;
-}
-
 static int imx7_csi_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 					const struct v4l2_mbus_framefmt *mbus,
 					const struct imx7_csi_pixfmt *cc)
@@ -1739,18 +1706,27 @@ static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
 	const enum v4l2_subdev_format_whence which =
 		sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	int ret;
+	const struct imx7_csi_pixfmt *cc;
 	int i;
+
+	cc = imx7_csi_find_mbus_format(IMX7_CSI_DEF_MBUS_CODE);
 
 	for (i = 0; i < IMX7_CSI_PADS_NUM; i++) {
 		struct v4l2_mbus_framefmt *mf =
 			imx7_csi_get_format(csi, sd_state, i, which);
 
-		ret = imx7_csi_init_mbus_fmt(mf, IMX7_CSI_DEF_PIX_WIDTH,
-					     IMX7_CSI_DEF_PIX_HEIGHT, 0,
-					     V4L2_FIELD_NONE, &csi->cc[i]);
-		if (ret < 0)
-			return ret;
+		mf->code = IMX7_CSI_DEF_MBUS_CODE;
+		mf->width = IMX7_CSI_DEF_PIX_WIDTH;
+		mf->height = IMX7_CSI_DEF_PIX_HEIGHT;
+		mf->field = V4L2_FIELD_NONE;
+
+		mf->colorspace = V4L2_COLORSPACE_SRGB;
+		mf->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(mf->colorspace);
+		mf->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(mf->colorspace);
+		mf->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(!cc->yuv,
+					mf->colorspace, mf->ycbcr_enc);
+
+		csi->cc[i] = cc;
 	}
 
 	return 0;
