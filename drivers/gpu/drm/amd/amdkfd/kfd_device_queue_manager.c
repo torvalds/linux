@@ -2095,8 +2095,8 @@ static int get_wave_state(struct device_queue_manager *dqm,
 	 * and the queue should be protected against destruction by the process
 	 * lock.
 	 */
-	return mqd_mgr->get_wave_state(mqd_mgr, q->mqd, ctl_stack,
-			ctl_stack_used_size, save_area_used_size);
+	return mqd_mgr->get_wave_state(mqd_mgr, q->mqd, &q->properties,
+			ctl_stack, ctl_stack_used_size, save_area_used_size);
 }
 
 static void get_queue_checkpoint_info(struct device_queue_manager *dqm,

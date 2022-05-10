@@ -260,6 +260,7 @@ static uint32_t read_doorbell_id(void *mqd)
 }
 
 static int get_wave_state(struct mqd_manager *mm, void *mqd,
+			  struct queue_properties *q,
 			  void __user *ctl_stack,
 			  u32 *ctl_stack_used_size,
 			  u32 *save_area_used_size)

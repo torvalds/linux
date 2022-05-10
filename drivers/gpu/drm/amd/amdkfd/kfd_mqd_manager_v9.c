@@ -295,6 +295,7 @@ static uint32_t read_doorbell_id(void *mqd)
 }
 
 static int get_wave_state(struct mqd_manager *mm, void *mqd,
+			  struct queue_properties *q,
 			  void __user *ctl_stack,
 			  u32 *ctl_stack_used_size,
 			  u32 *save_area_used_size)
@@ -561,6 +562,7 @@ static void init_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 	int xcc = 0;
 	struct kfd_mem_obj xcc_mqd_mem_obj;
 	uint64_t xcc_gart_addr = 0;
+	uint64_t xcc_ctx_save_restore_area_address;
 	uint64_t offset = mm->mqd_stride(mm, q);
 
 	memset(&xcc_mqd_mem_obj, 0x0, sizeof(struct kfd_mem_obj));
@@ -570,6 +572,23 @@ static void init_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 		init_mqd(mm, (void **)&m, &xcc_mqd_mem_obj, &xcc_gart_addr, q);
 
 		m->cp_mqd_stride_size = offset;
+
+		/*
+		 * Update the CWSR address for each XCC if CWSR is enabled
+		 * and CWSR area is allocated in thunk
+		 */
+		if (mm->dev->kfd->cwsr_enabled &&
+		    q->ctx_save_restore_area_address) {
+			xcc_ctx_save_restore_area_address =
+				q->ctx_save_restore_area_address +
+				(xcc * q->ctx_save_restore_area_size);
+
+			m->cp_hqd_ctx_save_base_addr_lo =
+				lower_32_bits(xcc_ctx_save_restore_area_address);
+			m->cp_hqd_ctx_save_base_addr_hi =
+				upper_32_bits(xcc_ctx_save_restore_area_address);
+		}
+
 		if (q->format == KFD_QUEUE_FORMAT_AQL) {
 			m->compute_tg_chunk_size = 1;
 
@@ -689,6 +708,46 @@ static int load_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 	return err;
 }
 
+static int get_wave_state_v9_4_3(struct mqd_manager *mm, void *mqd,
+				 struct queue_properties *q,
+				 void __user *ctl_stack,
+				 u32 *ctl_stack_used_size,
+				 u32 *save_area_used_size)
+{
+	int xcc, err = 0;
+	void *xcc_mqd;
+	void __user *xcc_ctl_stack;
+	uint64_t mqd_stride_size = mm->mqd_stride(mm, q);
+	u32 tmp_ctl_stack_used_size = 0, tmp_save_area_used_size = 0;
+
+	for (xcc = 0; xcc < mm->dev->num_xcc_per_node; xcc++) {
+		xcc_mqd = mqd + mqd_stride_size * xcc;
+		xcc_ctl_stack = (void __user *)((uintptr_t)ctl_stack +
+					q->ctx_save_restore_area_size * xcc);
+
+		err = get_wave_state(mm, xcc_mqd, q, xcc_ctl_stack,
+				     &tmp_ctl_stack_used_size,
+				     &tmp_save_area_used_size);
+		if (err)
+			break;
+
+		/*
+		 * Set the ctl_stack_used_size and save_area_used_size to
+		 * ctl_stack_used_size and save_area_used_size of XCC 0 when
+		 * passing the info the user-space.
+		 * For multi XCC, user-space would have to look at the header
+		 * info of each Control stack area to determine the control
+		 * stack size and save area used.
+		 */
+		if (xcc == 0) {
+			*ctl_stack_used_size = tmp_ctl_stack_used_size;
+			*save_area_used_size = tmp_save_area_used_size;
+		}
+	}
+
+	return err;
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 static int debugfs_show_mqd(struct seq_file *m, void *data)
@@ -726,7 +785,6 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		mqd->allocate_mqd = allocate_mqd;
 		mqd->free_mqd = kfd_free_mqd_cp;
 		mqd->is_occupied = kfd_is_occupied_cp;
-		mqd->get_wave_state = get_wave_state;
 		mqd->get_checkpoint_info = get_checkpoint_info;
 		mqd->checkpoint_mqd = checkpoint_mqd;
 		mqd->restore_mqd = restore_mqd;
@@ -740,11 +798,13 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 			mqd->load_mqd = load_mqd_v9_4_3;
 			mqd->update_mqd = update_mqd_v9_4_3;
 			mqd->destroy_mqd = destroy_mqd_v9_4_3;
+			mqd->get_wave_state = get_wave_state_v9_4_3;
 		} else {
 			mqd->init_mqd = init_mqd;
 			mqd->load_mqd = load_mqd;
 			mqd->update_mqd = update_mqd;
 			mqd->destroy_mqd = kfd_destroy_mqd_cp;
+			mqd->get_wave_state = get_wave_state;
 		}
 		break;
 	case KFD_MQD_TYPE_HIQ:
