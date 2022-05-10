@@ -140,7 +140,7 @@ static inline bool htab_use_raw_lock(const struct bpf_htab *htab)
 
 static void htab_init_buckets(struct bpf_htab *htab)
 {
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < htab->n_buckets; i++) {
 		INIT_HLIST_NULLS_HEAD(&htab->buckets[i].head, i);
@@ -1627,7 +1627,7 @@ __htab_map_lookup_and_delete_batch(struct bpf_map *map,
 	void __user *uvalues = u64_to_user_ptr(attr->batch.values);
 	void __user *ukeys = u64_to_user_ptr(attr->batch.keys);
 	void __user *ubatch = u64_to_user_ptr(attr->batch.in_batch);
-	u32 batch, max_count, size, bucket_size;
+	u32 batch, max_count, size, bucket_size, map_id;
 	struct htab_elem *node_to_free = NULL;
 	u64 elem_map_flags, map_flags;
 	struct hlist_nulls_head *head;
@@ -1752,6 +1752,14 @@ again_nocopy:
 			}
 		} else {
 			value = l->key + roundup_key_size;
+			if (map->map_type == BPF_MAP_TYPE_HASH_OF_MAPS) {
+				struct bpf_map **inner_map = value;
+
+				 /* Actual value is the id of the inner map */
+				map_id = map->ops->map_fd_sys_lookup_elem(*inner_map);
+				value = &map_id;
+			}
+
 			if (elem_map_flags & BPF_F_LOCK)
 				copy_map_value_locked(map, dst_val, value,
 						      true);
@@ -2450,5 +2458,6 @@ const struct bpf_map_ops htab_of_maps_map_ops = {
 	.map_fd_sys_lookup_elem = bpf_map_fd_sys_lookup_elem,
 	.map_gen_lookup = htab_of_map_gen_lookup,
 	.map_check_btf = map_check_no_btf,
+	BATCH_OPS(htab),
 	.map_btf_id = &htab_map_btf_ids[0],
 };
