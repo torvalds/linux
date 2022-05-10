@@ -8,7 +8,6 @@ ksft_xfail=2
 ksft_xpass=3
 ksft_skip=4
 
-SPECFILE=veth.spec
 XSKOBJ=xdpxceiver
 
 validate_root_exec()
@@ -31,13 +30,6 @@ validate_veth_support()
 	else
 		ip link del $1
 		return $ksft_pass
-	fi
-}
-
-validate_veth_spec_file()
-{
-	if [ ! -f ${SPECFILE} ]; then
-		test_exit $ksft_skip 1
 	fi
 }
 
@@ -74,9 +66,6 @@ clear_configs()
 	#veth node inside NS won't get removed so we explicitly remove it
 	[ $(ip link show $1 &>/dev/null; echo $?;) == 0 ] &&
 		{ ip link del $1; }
-	if [ -f ${SPECFILE} ]; then
-		rm -f ${SPECFILE}
-	fi
 }
 
 cleanup_exit()

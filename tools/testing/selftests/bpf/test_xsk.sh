@@ -43,7 +43,6 @@
 #   ** veth<xxxx> in root namespace
 #   ** veth<yyyy> in af_xdp<xxxx> namespace
 #   ** namespace af_xdp<xxxx>
-#   * create a spec file veth.spec that includes this run-time configuration
 #   *** xxxx and yyyy are randomly generated 4 digit numbers used to avoid
 #       conflict with any existing interface
 #   * tests the veth and xsk layers of the topology
@@ -77,7 +76,7 @@
 
 . xsk_prereqs.sh
 
-while getopts "cvD" flag
+while getopts "vD" flag
 do
 	case "${flag}" in
 		v) verbose=1;;
@@ -130,12 +129,7 @@ if [ $retval -ne 0 ]; then
 	exit $retval
 fi
 
-echo "${VETH0}:${VETH1},${NS1}" > ${SPECFILE}
-
-validate_veth_spec_file
-
 if [[ $verbose -eq 1 ]]; then
-        echo "Spec file created: ${SPECFILE}"
 	VERBOSE_ARG="-v"
 fi
 
