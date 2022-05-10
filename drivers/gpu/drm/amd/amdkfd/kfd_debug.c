@@ -22,6 +22,7 @@
 
 #include "kfd_debug.h"
 #include "kfd_device_queue_manager.h"
+#include "kfd_topology.h"
 #include <linux/file.h>
 #include <uapi/linux/kfd_ioctl.h>
 
@@ -1007,6 +1008,78 @@ int kfd_dbg_trap_query_exception_info(struct kfd_process *target,
 		*exception_status_ptr &= ~KFD_EC_MASK(exception_code);
 out:
 	mutex_unlock(&target->event_mutex);
+	return r;
+}
+
+int kfd_dbg_trap_device_snapshot(struct kfd_process *target,
+		uint64_t exception_clear_mask,
+		void __user *user_info,
+		uint32_t *number_of_device_infos,
+		uint32_t *entry_size)
+{
+	struct kfd_dbg_device_info_entry device_info;
+	uint32_t tmp_entry_size = *entry_size, tmp_num_devices;
+	int i, r = 0;
+
+	if (!(target && user_info && number_of_device_infos && entry_size))
+		return -EINVAL;
+
+	tmp_num_devices = min_t(size_t, *number_of_device_infos, target->n_pdds);
+	*number_of_device_infos = target->n_pdds;
+	*entry_size = min_t(size_t, *entry_size, sizeof(device_info));
+
+	if (!tmp_num_devices)
+		return 0;
+
+	memset(&device_info, 0, sizeof(device_info));
+
+	mutex_lock(&target->event_mutex);
+
+	/* Run over all pdd of the process */
+	for (i = 0; i < tmp_num_devices; i++) {
+		struct kfd_process_device *pdd = target->pdds[i];
+		struct kfd_topology_device *topo_dev = kfd_topology_device_by_id(pdd->dev->id);
+
+		device_info.gpu_id = pdd->dev->id;
+		device_info.exception_status = pdd->exception_status;
+		device_info.lds_base = pdd->lds_base;
+		device_info.lds_limit = pdd->lds_limit;
+		device_info.scratch_base = pdd->scratch_base;
+		device_info.scratch_limit = pdd->scratch_limit;
+		device_info.gpuvm_base = pdd->gpuvm_base;
+		device_info.gpuvm_limit = pdd->gpuvm_limit;
+		device_info.location_id = topo_dev->node_props.location_id;
+		device_info.vendor_id = topo_dev->node_props.vendor_id;
+		device_info.device_id = topo_dev->node_props.device_id;
+		device_info.revision_id = pdd->dev->adev->pdev->revision;
+		device_info.subsystem_vendor_id = pdd->dev->adev->pdev->subsystem_vendor;
+		device_info.subsystem_device_id = pdd->dev->adev->pdev->subsystem_device;
+		device_info.fw_version = pdd->dev->kfd->mec_fw_version;
+		device_info.gfx_target_version =
+			topo_dev->node_props.gfx_target_version;
+		device_info.simd_count = topo_dev->node_props.simd_count;
+		device_info.max_waves_per_simd =
+			topo_dev->node_props.max_waves_per_simd;
+		device_info.array_count = topo_dev->node_props.array_count;
+		device_info.simd_arrays_per_engine =
+			topo_dev->node_props.simd_arrays_per_engine;
+		device_info.num_xcc = NUM_XCC(pdd->dev->xcc_mask);
+		device_info.capability = topo_dev->node_props.capability;
+		device_info.debug_prop = topo_dev->node_props.debug_prop;
+
+		if (exception_clear_mask)
+			pdd->exception_status &= ~exception_clear_mask;
+
+		if (copy_to_user(user_info, &device_info, *entry_size)) {
+			r = -EFAULT;
+			break;
+		}
+
+		user_info += tmp_entry_size;
+	}
+
+	mutex_unlock(&target->event_mutex);
+
 	return r;
 }
 
