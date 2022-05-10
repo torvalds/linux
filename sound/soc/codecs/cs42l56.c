@@ -1245,7 +1245,7 @@ static int cs42l56_i2c_probe(struct i2c_client *i2c_client)
 	ret = regmap_read(cs42l56->regmap, CS42L56_CHIP_ID_1, &reg);
 	if (ret) {
 		dev_err(&i2c_client->dev, "Failed to read chip ID: %d\n", ret);
-		return ret;
+		goto err_enable;
 	}
 
 	devid = reg & CS42L56_CHIP_ID_MASK;
