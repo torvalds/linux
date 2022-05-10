@@ -448,7 +448,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 {
 	struct svc_pool *pool;
 	struct svc_rqst	*rqstp = NULL;
-	int cpu;
 
 	if (!svc_xprt_ready(xprt))
 		return;
@@ -461,8 +460,7 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	if (test_and_set_bit(XPT_BUSY, &xprt->xpt_flags))
 		return;
 
-	cpu = get_cpu();
-	pool = svc_pool_for_cpu(xprt->xpt_server, cpu);
+	pool = svc_pool_for_cpu(xprt->xpt_server, raw_smp_processor_id());
 
 	atomic_long_inc(&pool->sp_stats.packets);
 
@@ -485,7 +483,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	rqstp = NULL;
 out_unlock:
 	rcu_read_unlock();
-	put_cpu();
 	trace_svc_xprt_enqueue(xprt, rqstp);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_enqueue);
