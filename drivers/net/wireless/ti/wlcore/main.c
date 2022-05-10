@@ -4675,7 +4675,7 @@ static void wlcore_op_change_chanctx(struct ieee80211_hw *hw,
 		struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 
 		rcu_read_lock();
-		if (rcu_access_pointer(vif->chanctx_conf) != ctx) {
+		if (rcu_access_pointer(vif->bss_conf.chanctx_conf) != ctx) {
 			rcu_read_unlock();
 			continue;
 		}

@@ -1768,7 +1768,7 @@ static int iwl_mvm_update_mu_groups(struct iwl_mvm *mvm,
 static void iwl_mvm_mu_mimo_iface_iterator(void *_data, u8 *mac,
 					   struct ieee80211_vif *vif)
 {
-	if (vif->mu_mimo_owner) {
+	if (vif->bss_conf.mu_mimo_owner) {
 		struct iwl_mu_group_mgmt_notif *notif = _data;
 
 		/*
@@ -1965,7 +1965,7 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 
 	rcu_read_lock();
 
-	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+	chanctx_conf = rcu_dereference(vif->bss_conf.chanctx_conf);
 	if (WARN_ON(!chanctx_conf)) {
 		rcu_read_unlock();
 		return;
@@ -2337,7 +2337,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		 * However, on HW restart we should restore this data.
 		 */
 		if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
-		    (changes & BSS_CHANGED_MU_GROUPS) && vif->mu_mimo_owner) {
+		    (changes & BSS_CHANGED_MU_GROUPS) && vif->bss_conf.mu_mimo_owner) {
 			ret = iwl_mvm_update_mu_groups(mvm, vif);
 			if (ret)
 				IWL_ERR(mvm,
@@ -4004,7 +4004,7 @@ static void iwl_mvm_ftm_responder_chanctx_iter(void *_data, u8 *mac,
 {
 	struct iwl_mvm_ftm_responder_iter_data *data = _data;
 
-	if (rcu_access_pointer(vif->chanctx_conf) == data->ctx &&
+	if (rcu_access_pointer(vif->bss_conf.chanctx_conf) == data->ctx &&
 	    vif->type == NL80211_IFTYPE_AP && vif->bss_conf.ftmr_params)
 		data->responder = true;
 }
@@ -4631,7 +4631,7 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 		csa_vif =
 			rcu_dereference_protected(mvm->csa_vif,
 						  lockdep_is_held(&mvm->mutex));
-		if (WARN_ONCE(csa_vif && csa_vif->csa_active,
+		if (WARN_ONCE(csa_vif && csa_vif->bss_conf.csa_active,
 			      "Another CSA is already in progress")) {
 			ret = -EBUSY;
 			goto out_unlock;

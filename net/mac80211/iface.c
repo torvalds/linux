@@ -51,7 +51,7 @@ bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
 	int power;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	if (!chanctx_conf) {
 		rcu_read_unlock();
 		return false;
@@ -275,7 +275,7 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 			 * will not add another interface while any channel
 			 * switch is active.
 			 */
-			if (nsdata->vif.csa_active)
+			if (nsdata->vif.bss_conf.csa_active)
 				return -EBUSY;
 
 			/*
@@ -450,7 +450,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	cancel_work_sync(&sdata->recalc_smps);
 	sdata_lock(sdata);
 	mutex_lock(&local->mtx);
-	sdata->vif.csa_active = false;
+	sdata->vif.bss_conf.csa_active = false;
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		sdata->u.mgd.csa_waiting_bcn = false;
 	if (sdata->csa_block_tx) {
@@ -502,7 +502,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		mutex_lock(&local->mtx);
 		list_del(&sdata->u.vlan.list);
 		mutex_unlock(&local->mtx);
-		RCU_INIT_POINTER(sdata->vif.chanctx_conf, NULL);
+		RCU_INIT_POINTER(sdata->vif.bss_conf.chanctx_conf, NULL);
 		/* see comment in the default case below */
 		ieee80211_free_keys(sdata, true);
 		/* no need to tell driver */

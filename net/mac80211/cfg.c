@@ -53,7 +53,7 @@ static void ieee80211_set_mu_mimo_follow(struct ieee80211_sub_if_data *sdata,
 				params->vht_mumimo_follow_addr);
 	}
 
-	sdata->vif.mu_mimo_owner = mu_mimo_groups || mu_mimo_follow;
+	sdata->vif.bss_conf.mu_mimo_owner = mu_mimo_groups || mu_mimo_follow;
 }
 
 static int ieee80211_set_mon_options(struct ieee80211_sub_if_data *sdata,
@@ -1310,7 +1310,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	/* don't allow changing the beacon while a countdown is in place - offset
 	 * of channel switch counter may change
 	 */
-	if (sdata->vif.csa_active || sdata->vif.color_change_active)
+	if (sdata->vif.bss_conf.csa_active || sdata->vif.bss_conf.color_change_active)
 		return -EBUSY;
 
 	old = sdata_dereference(sdata->u.ap.beacon, sdata);
@@ -1368,7 +1368,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	/* abort any running channel switch */
 	mutex_lock(&local->mtx);
-	sdata->vif.csa_active = false;
+	sdata->vif.bss_conf.csa_active = false;
 	if (sdata->csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
@@ -3067,7 +3067,7 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	 * to send something, and if we're an AP we have to be able to do
 	 * so at a basic rate so that all clients can receive it.
 	 */
-	if (rcu_access_pointer(sdata->vif.chanctx_conf) &&
+	if (rcu_access_pointer(sdata->vif.bss_conf.chanctx_conf) &&
 	    sdata->vif.bss_conf.chandef.chan) {
 		u32 basic_rates = sdata->vif.bss_conf.basic_rates;
 		enum nl80211_band band = sdata->vif.bss_conf.chandef.chan->band;
@@ -3374,7 +3374,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 					&sdata->csa_chandef))
 		return -EINVAL;
 
-	sdata->vif.csa_active = false;
+	sdata->vif.bss_conf.csa_active = false;
 
 	err = ieee80211_set_after_csa_beacon(sdata, &changed);
 	if (err)
@@ -3418,7 +3418,7 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 	mutex_lock(&local->chanctx_mtx);
 
 	/* AP might have been stopped while waiting for the lock. */
-	if (!sdata->vif.csa_active)
+	if (!sdata->vif.bss_conf.csa_active)
 		goto unlock;
 
 	if (!ieee80211_sdata_running(sdata))
@@ -3570,7 +3570,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 
 static void ieee80211_color_change_abort(struct ieee80211_sub_if_data  *sdata)
 {
-	sdata->vif.color_change_active = false;
+	sdata->vif.bss_conf.color_change_active = false;
 
 	ieee80211_free_next_beacon(sdata);
 
@@ -3603,11 +3603,11 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		return -EINVAL;
 
 	/* don't allow another channel switch if one is already active. */
-	if (sdata->vif.csa_active)
+	if (sdata->vif.bss_conf.csa_active)
 		return -EBUSY;
 
 	mutex_lock(&local->chanctx_mtx);
-	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+	conf = rcu_dereference_protected(sdata->vif.bss_conf.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	if (!conf) {
 		err = -EBUSY;
@@ -3646,7 +3646,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	/* if there is a color change in progress, abort it */
-	if (sdata->vif.color_change_active)
+	if (sdata->vif.bss_conf.color_change_active)
 		ieee80211_color_change_abort(sdata);
 
 	err = ieee80211_set_csa_beacon(sdata, params, &changed);
@@ -3657,7 +3657,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 
 	sdata->csa_chandef = params->chandef;
 	sdata->csa_block_tx = params->block_tx;
-	sdata->vif.csa_active = true;
+	sdata->vif.bss_conf.csa_active = true;
 
 	if (sdata->csa_block_tx)
 		ieee80211_stop_vif_queues(local, sdata,
@@ -3826,7 +3826,7 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	mutex_lock(&local->mtx);
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	if (WARN_ON(!chanctx_conf)) {
 		ret = -EINVAL;
 		goto unlock;
@@ -3909,7 +3909,7 @@ static int ieee80211_cfg_get_channel(struct wiphy *wiphy,
 	int ret = -ENODATA;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	if (chanctx_conf) {
 		*chandef = sdata->vif.bss_conf.chandef;
 		ret = 0;
@@ -4405,7 +4405,7 @@ static int ieee80211_color_change_finalize(struct ieee80211_sub_if_data *sdata)
 	sdata_assert_lock(sdata);
 	lockdep_assert_held(&local->mtx);
 
-	sdata->vif.color_change_active = false;
+	sdata->vif.bss_conf.color_change_active = false;
 
 	err = ieee80211_set_after_color_change_beacon(sdata, &changed);
 	if (err) {
@@ -4414,7 +4414,7 @@ static int ieee80211_color_change_finalize(struct ieee80211_sub_if_data *sdata)
 	}
 
 	ieee80211_color_change_bss_config_notify(sdata,
-						 sdata->vif.color_change_color,
+						 sdata->vif.bss_conf.color_change_color,
 						 1, changed);
 	cfg80211_color_change_notify(sdata->dev);
 
@@ -4432,7 +4432,7 @@ void ieee80211_color_change_finalize_work(struct work_struct *work)
 	mutex_lock(&local->mtx);
 
 	/* AP might have been stopped while waiting for the lock. */
-	if (!sdata->vif.color_change_active)
+	if (!sdata->vif.bss_conf.color_change_active)
 		goto unlock;
 
 	if (!ieee80211_sdata_running(sdata))
@@ -4460,7 +4460,7 @@ ieeee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 
-	if (sdata->vif.color_change_active || sdata->vif.csa_active)
+	if (sdata->vif.bss_conf.color_change_active || sdata->vif.bss_conf.csa_active)
 		return;
 
 	cfg80211_obss_color_collision_notify(sdata->dev, color_bitmap);
@@ -4486,7 +4486,7 @@ ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
 	/* don't allow another color change if one is already active or if csa
 	 * is active
 	 */
-	if (sdata->vif.color_change_active || sdata->vif.csa_active) {
+	if (sdata->vif.bss_conf.color_change_active || sdata->vif.bss_conf.csa_active) {
 		err = -EBUSY;
 		goto out;
 	}
@@ -4495,8 +4495,8 @@ ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
 	if (err)
 		goto out;
 
-	sdata->vif.color_change_active = true;
-	sdata->vif.color_change_color = params->color;
+	sdata->vif.bss_conf.color_change_active = true;
+	sdata->vif.bss_conf.color_change_color = params->color;
 
 	cfg80211_color_change_started_notify(sdata->dev, params->count);
 

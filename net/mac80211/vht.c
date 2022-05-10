@@ -4,7 +4,7 @@
  *
  * Portions of this file
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2021 Intel Corporation
+ * Copyright (C) 2018 - 2022 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -649,7 +649,7 @@ void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 
-	if (!sdata->vif.mu_mimo_owner)
+	if (!sdata->vif.bss_conf.mu_mimo_owner)
 		return;
 
 	if (!memcmp(mgmt->u.action.u.vht_group_notif.position,
@@ -673,7 +673,7 @@ void ieee80211_update_mu_groups(struct ieee80211_vif *vif,
 {
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
-	if (WARN_ON_ONCE(!vif->mu_mimo_owner))
+	if (WARN_ON_ONCE(!vif->bss_conf.mu_mimo_owner))
 		return;
 
 	memcpy(bss_conf->mu_group.membership, membership, WLAN_MEMBERSHIP_LEN);

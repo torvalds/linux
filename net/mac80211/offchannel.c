@@ -8,7 +8,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2019, 2022 Intel Corporation
  */
 #include <linux/export.h>
 #include <net/mac80211.h>
@@ -845,7 +845,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		struct ieee80211_chanctx_conf *chanctx_conf;
 
 		rcu_read_lock();
-		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+		chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 
 		if (chanctx_conf) {
 			need_offchan = params->chan &&
@@ -876,7 +876,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	data = skb_put_data(skb, params->buf, params->len);
 
 	/* Update CSA counters */
-	if (sdata->vif.csa_active &&
+	if (sdata->vif.bss_conf.csa_active &&
 	    (sdata->vif.type == NL80211_IFTYPE_AP ||
 	     sdata->vif.type == NL80211_IFTYPE_MESH_POINT ||
 	     sdata->vif.type == NL80211_IFTYPE_ADHOC) &&

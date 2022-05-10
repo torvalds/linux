@@ -5,7 +5,7 @@
  * Copied from cfg.c - originally
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2014	Intel Corporation (Author: Johannes Berg)
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018, 2022 Intel Corporation
  */
 #include <linux/types.h>
 #include <net/cfg80211.h>
@@ -150,7 +150,7 @@ do_survey:
 	survey.filled = 0;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	if (chanctx_conf)
 		channel = chanctx_conf->def.chan;
 	else

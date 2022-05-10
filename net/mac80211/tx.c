@@ -57,7 +57,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 		return 0;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(tx->sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(tx->sdata->vif.bss_conf.chanctx_conf);
 	if (chanctx_conf) {
 		shift = ieee80211_chandef_get_shift(&chanctx_conf->def);
 		rate_flags = ieee80211_chandef_rate_flags(&chanctx_conf->def);
@@ -2345,12 +2345,12 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 		}
 	}
 
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	if (!chanctx_conf) {
 		tmp_sdata = rcu_dereference(local->monitor_sdata);
 		if (tmp_sdata)
 			chanctx_conf =
-				rcu_dereference(tmp_sdata->vif.chanctx_conf);
+				rcu_dereference(tmp_sdata->vif.bss_conf.chanctx_conf);
 	}
 
 	if (chanctx_conf)
@@ -2599,7 +2599,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		}
 		ap_sdata = container_of(sdata->bss, struct ieee80211_sub_if_data,
 					u.ap);
-		chanctx_conf = rcu_dereference(ap_sdata->vif.chanctx_conf);
+		chanctx_conf = rcu_dereference(ap_sdata->vif.bss_conf.chanctx_conf);
 		if (!chanctx_conf) {
 			ret = -ENOTCONN;
 			goto free;
@@ -2610,7 +2610,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		fallthrough;
 	case NL80211_IFTYPE_AP:
 		if (sdata->vif.type == NL80211_IFTYPE_AP)
-			chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+			chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 		if (!chanctx_conf) {
 			ret = -ENOTCONN;
 			goto free;
@@ -2689,7 +2689,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 						skb->data + ETH_ALEN);
 
 		}
-		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+		chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 		if (!chanctx_conf) {
 			ret = -ENOTCONN;
 			goto free;
@@ -2732,7 +2732,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 			memcpy(hdr.addr3, skb->data, ETH_ALEN);
 			hdrlen = 24;
 		}
-		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+		chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 		if (!chanctx_conf) {
 			ret = -ENOTCONN;
 			goto free;
@@ -2745,7 +2745,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
 		eth_broadcast_addr(hdr.addr3);
 		hdrlen = 24;
-		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+		chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 		if (!chanctx_conf) {
 			ret = -ENOTCONN;
 			goto free;
@@ -2758,7 +2758,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
 		memcpy(hdr.addr3, sdata->u.ibss.bssid, ETH_ALEN);
 		hdrlen = 24;
-		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+		chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 		if (!chanctx_conf) {
 			ret = -ENOTCONN;
 			goto free;
@@ -2981,7 +2981,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 		goto out;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	if (!chanctx_conf) {
 		rcu_read_unlock();
 		goto out;
@@ -4604,7 +4604,7 @@ static bool ieee80211_tx_pending_skb(struct ieee80211_local *local,
 	sdata = vif_to_sdata(info->control.vif);
 
 	if (info->control.flags & IEEE80211_TX_INTCFL_NEED_TXPROCESSING) {
-		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+		chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 		if (unlikely(!chanctx_conf)) {
 			dev_kfree_skb(skb);
 			return true;
@@ -4808,7 +4808,7 @@ static void ieee80211_set_beacon_cntdwn(struct ieee80211_sub_if_data *sdata,
 
 	bcn_offsets = beacon->cntdwn_counter_offsets;
 	count = beacon->cntdwn_current_counter;
-	if (sdata->vif.csa_active)
+	if (sdata->vif.bss_conf.csa_active)
 		max_count = IEEE80211_MAX_CNTDWN_COUNTERS_NUM;
 
 	for (i = 0; i < max_count; ++i) {
@@ -5119,7 +5119,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 	rcu_read_lock();
 
 	sdata = vif_to_sdata(vif);
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 
 	if (!ieee80211_sdata_running(sdata) || !chanctx_conf)
 		goto out;
@@ -5536,7 +5536,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	sdata = vif_to_sdata(vif);
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 
 	if (!chanctx_conf)
 		goto out;

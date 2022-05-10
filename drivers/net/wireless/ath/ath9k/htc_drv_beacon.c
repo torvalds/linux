@@ -511,7 +511,7 @@ bool ath9k_htc_csa_is_finished(struct ath9k_htc_priv *priv)
 	struct ieee80211_vif *vif;
 
 	vif = priv->csa_vif;
-	if (!vif || !vif->csa_active)
+	if (!vif || !vif->bss_conf.csa_active)
 		return false;
 
 	if (!ieee80211_beacon_cntdwn_is_complete(vif))

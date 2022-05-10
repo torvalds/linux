@@ -636,6 +636,19 @@ struct ieee80211_fils_discovery {
  * @tx_pwr_env_num: number of @tx_pwr_env.
  * @pwr_reduction: power constraint of BSS.
  * @eht_support: does this BSS support EHT
+ * @csa_active: marks whether a channel switch is going on. Internally it is
+ *	write-protected by sdata_lock and local->mtx so holding either is fine
+ *	for read access.
+ * @mu_mimo_owner: indicates interface owns MU-MIMO capability
+ * @chanctx_conf: The channel context this interface is assigned to, or %NULL
+ *	when it is not assigned. This pointer is RCU-protected due to the TX
+ *	path needing to access it; even though the netdev carrier will always
+ *	be off when it is %NULL there can still be races and packets could be
+ *	processed after it switches back to %NULL.
+ * @color_change_active: marks whether a color change is ongoing. Internally it is
+ *	write-protected by sdata_lock and local->mtx so holding either is fine
+ *	for read access.
+ * @color_change_color: the bss color that will be used after the change.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -711,6 +724,13 @@ struct ieee80211_bss_conf {
 	u8 tx_pwr_env_num;
 	u8 pwr_reduction;
 	bool eht_support;
+
+	bool csa_active;
+	bool mu_mimo_owner;
+	struct ieee80211_chanctx_conf __rcu *chanctx_conf;
+
+	bool color_change_active;
+	u8 color_change_color;
 };
 
 /**
@@ -1713,10 +1733,6 @@ enum ieee80211_offload_flags {
  * @addr: address of this interface
  * @p2p: indicates whether this AP or STA interface is a p2p
  *	interface, i.e. a GO or p2p-sta respectively
- * @csa_active: marks whether a channel switch is going on. Internally it is
- *	write-protected by sdata_lock and local->mtx so holding either is fine
- *	for read access.
- * @mu_mimo_owner: indicates interface owns MU-MIMO capability
  * @driver_flags: flags/capabilities the driver has for this interface,
  *	these need to be set (or cleared) when the interface is added
  *	or, if supported by the driver, the interface type is changed
@@ -1728,11 +1744,6 @@ enum ieee80211_offload_flags {
  *	restrictions.
  * @hw_queue: hardware queue for each AC
  * @cab_queue: content-after-beacon (DTIM beacon really) queue, AP mode only
- * @chanctx_conf: The channel context this interface is assigned to, or %NULL
- *	when it is not assigned. This pointer is RCU-protected due to the TX
- *	path needing to access it; even though the netdev carrier will always
- *	be off when it is %NULL there can still be races and packets could be
- *	processed after it switches back to %NULL.
  * @debugfs_dir: debugfs dentry, can be used by drivers to create own per
  *	interface debug files. Note that it will be NULL for the virtual
  *	monitor interface (if that is requested.)
@@ -1747,10 +1758,6 @@ enum ieee80211_offload_flags {
  *	protected by fq->lock.
  * @offload_flags: 802.3 -> 802.11 enapsulation offload flags, see
  *	&enum ieee80211_offload_flags.
- * @color_change_active: marks whether a color change is ongoing. Internally it is
- *	write-protected by sdata_lock and local->mtx so holding either is fine
- *	for read access.
- * @color_change_color: the bss color that will be used after the change.
  * @mbssid_tx_vif: Pointer to the transmitting interface if MBSSID is enabled.
  */
 struct ieee80211_vif {
@@ -1758,15 +1765,11 @@ struct ieee80211_vif {
 	struct ieee80211_bss_conf bss_conf;
 	u8 addr[ETH_ALEN] __aligned(2);
 	bool p2p;
-	bool csa_active;
-	bool mu_mimo_owner;
 
 	u8 cab_queue;
 	u8 hw_queue[IEEE80211_NUM_ACS];
 
 	struct ieee80211_txq *txq;
-
-	struct ieee80211_chanctx_conf __rcu *chanctx_conf;
 
 	u32 driver_flags;
 	u32 offload_flags;
@@ -1779,9 +1782,6 @@ struct ieee80211_vif {
 	bool rx_mcast_action_reg;
 
 	bool txqs_stopped[IEEE80211_NUM_ACS];
-
-	bool color_change_active;
-	u8 color_change_color;
 
 	struct ieee80211_vif *mbssid_tx_vif;
 

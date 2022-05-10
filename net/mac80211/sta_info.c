@@ -1467,7 +1467,7 @@ static void ieee80211_send_null_response(struct sta_info *sta, int tid,
 	skb->dev = sdata->dev;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	if (WARN_ON(!chanctx_conf)) {
 		rcu_read_unlock();
 		kfree_skb(skb);

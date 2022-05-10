@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2018 - 2021 Intel Corporation
+ * Copyright (C) 2018 - 2022 Intel Corporation
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  * 	       Javier Cardona <javier@cozybit.com>
  */
@@ -399,7 +399,7 @@ static int mesh_add_ds_params_ie(struct ieee80211_sub_if_data *sdata,
 		return -ENOMEM;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	if (WARN_ON(!chanctx_conf)) {
 		rcu_read_unlock();
 		return -EINVAL;
@@ -455,7 +455,7 @@ int mesh_add_ht_oper_ie(struct ieee80211_sub_if_data *sdata,
 	u8 *pos;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	if (WARN_ON(!chanctx_conf)) {
 		rcu_read_unlock();
 		return -EINVAL;
@@ -527,7 +527,7 @@ int mesh_add_vht_oper_ie(struct ieee80211_sub_if_data *sdata,
 	u8 *pos;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	if (WARN_ON(!chanctx_conf)) {
 		rcu_read_unlock();
 		return -EINVAL;
@@ -820,7 +820,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 
 	sdata = container_of(ifmsh, struct ieee80211_sub_if_data, u.mesh);
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	band = chanctx_conf->def.chan->band;
 	rcu_read_unlock();
 
@@ -1357,7 +1357,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 					      rx_status);
 
 		if (ifmsh->csa_role != IEEE80211_MESH_CSA_ROLE_INIT &&
-		    !sdata->vif.csa_active)
+		    !sdata->vif.bss_conf.csa_active)
 			ieee80211_mesh_process_chnswitch(sdata, elems, true);
 	}
 
@@ -1488,7 +1488,7 @@ static void mesh_rx_csa_frame(struct ieee80211_sub_if_data *sdata,
 
 	ifmsh->pre_value = pre_value;
 
-	if (!sdata->vif.csa_active &&
+	if (!sdata->vif.bss_conf.csa_active &&
 	    !ieee80211_mesh_process_chnswitch(sdata, elems, false)) {
 		mcsa_dbg(sdata, "Failed to process CSA action frame");
 		goto free;

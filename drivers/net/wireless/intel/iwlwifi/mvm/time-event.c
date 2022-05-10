@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -123,7 +123,7 @@ static void iwl_mvm_csa_noa_start(struct iwl_mvm *mvm)
 	rcu_read_lock();
 
 	csa_vif = rcu_dereference(mvm->csa_vif);
-	if (!csa_vif || !csa_vif->csa_active)
+	if (!csa_vif || !csa_vif->bss_conf.csa_active)
 		goto out_unlock;
 
 	IWL_DEBUG_TE(mvm, "CSA NOA started\n");

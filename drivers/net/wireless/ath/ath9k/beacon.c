@@ -362,7 +362,7 @@ static void ath9k_set_tsfadjust(struct ath_softc *sc,
 
 bool ath9k_csa_is_finished(struct ath_softc *sc, struct ieee80211_vif *vif)
 {
-	if (!vif || !vif->csa_active)
+	if (!vif || !vif->bss_conf.csa_active)
 		return false;
 
 	if (!ieee80211_beacon_cntdwn_is_complete(vif))

@@ -3882,7 +3882,7 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		 * Once CSA counter is completed stop sending beacons until
 		 * actual channel switch is done
 		 */
-		if (arvif->vif->csa_active &&
+		if (arvif->vif->bss_conf.csa_active &&
 		    ieee80211_beacon_cntdwn_is_complete(arvif->vif)) {
 			ieee80211_csa_finish(arvif->vif);
 			continue;

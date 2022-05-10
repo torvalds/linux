@@ -3840,7 +3840,7 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 	switch (txrate.flags) {
 	case WMI_RATE_PREAMBLE_OFDM:
 		if (arsta->arvif && arsta->arvif->vif)
-			conf = rcu_dereference(arsta->arvif->vif->chanctx_conf);
+			conf = rcu_dereference(arsta->arvif->vif->bss_conf.chanctx_conf);
 		if (conf && conf->def.chan->band == NL80211_BAND_5GHZ)
 			arsta->tx_info.status.rates[0].idx = rate_idx - 4;
 		break;

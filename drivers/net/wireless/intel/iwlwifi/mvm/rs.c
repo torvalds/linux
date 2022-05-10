@@ -1980,7 +1980,7 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 #endif
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+	chanctx_conf = rcu_dereference(vif->bss_conf.chanctx_conf);
 	if (WARN_ON(!chanctx_conf))
 		band = NUM_NL80211_BANDS;
 	else

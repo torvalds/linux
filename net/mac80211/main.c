@@ -147,7 +147,7 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (!rcu_access_pointer(sdata->vif.chanctx_conf))
+		if (!rcu_access_pointer(sdata->vif.bss_conf.chanctx_conf))
 			continue;
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			continue;
@@ -284,7 +284,7 @@ static void ieee80211_restart_work(struct work_struct *work)
 			 * Then we can have a race...
 			 */
 			cancel_work_sync(&sdata->u.mgd.csa_connection_drop_work);
-			if (sdata->vif.csa_active) {
+			if (sdata->vif.bss_conf.csa_active) {
 				sdata_lock(sdata);
 				ieee80211_sta_connection_lost(sdata,
 							      WLAN_REASON_UNSPECIFIED,

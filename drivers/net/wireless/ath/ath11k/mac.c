@@ -505,7 +505,7 @@ static int ath11k_mac_vif_chan(struct ieee80211_vif *vif,
 	struct ieee80211_chanctx_conf *conf;
 
 	rcu_read_lock();
-	conf = rcu_dereference(vif->chanctx_conf);
+	conf = rcu_dereference(vif->bss_conf.chanctx_conf);
 	if (!conf) {
 		rcu_read_unlock();
 		return -ENOENT;
@@ -1398,10 +1398,10 @@ void ath11k_mac_bcn_tx_event(struct ath11k_vif *arvif)
 {
 	struct ieee80211_vif *vif = arvif->vif;
 
-	if (!vif->color_change_active && !arvif->bcca_zero_sent)
+	if (!vif->bss_conf.color_change_active && !arvif->bcca_zero_sent)
 		return;
 
-	if (vif->color_change_active && ieee80211_beacon_cntdwn_is_complete(vif)) {
+	if (vif->bss_conf.color_change_active && ieee80211_beacon_cntdwn_is_complete(vif)) {
 		arvif->bcca_zero_sent = true;
 		ieee80211_color_change_finish(vif);
 		return;
@@ -1409,7 +1409,7 @@ void ath11k_mac_bcn_tx_event(struct ath11k_vif *arvif)
 
 	arvif->bcca_zero_sent = false;
 
-	if (vif->color_change_active)
+	if (vif->bss_conf.color_change_active)
 		ieee80211_beacon_update_cntdwn(vif);
 	ath11k_mac_setup_bcn_tmpl(arvif);
 }
@@ -6849,7 +6849,7 @@ ath11k_mac_change_chanctx_cnt_iter(void *data, u8 *mac,
 {
 	struct ath11k_mac_change_chanctx_arg *arg = data;
 
-	if (rcu_access_pointer(vif->chanctx_conf) != arg->ctx)
+	if (rcu_access_pointer(vif->bss_conf.chanctx_conf) != arg->ctx)
 		return;
 
 	arg->n_vifs++;
@@ -6862,7 +6862,7 @@ ath11k_mac_change_chanctx_fill_iter(void *data, u8 *mac,
 	struct ath11k_mac_change_chanctx_arg *arg = data;
 	struct ieee80211_chanctx_conf *ctx;
 
-	ctx = rcu_access_pointer(vif->chanctx_conf);
+	ctx = rcu_access_pointer(vif->bss_conf.chanctx_conf);
 	if (ctx != arg->ctx)
 		return;
 

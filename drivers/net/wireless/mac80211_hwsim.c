@@ -888,7 +888,7 @@ static void hwsim_send_ps_poll(void *dat, u8 *mac, struct ieee80211_vif *vif)
 
 	rcu_read_lock();
 	mac80211_hwsim_tx_frame(data->hw, skb,
-				rcu_dereference(vif->chanctx_conf)->def.chan);
+				rcu_dereference(vif->bss_conf.chanctx_conf)->def.chan);
 	rcu_read_unlock();
 }
 
@@ -921,7 +921,7 @@ static void hwsim_send_nullfunc(struct mac80211_hwsim_data *data, u8 *mac,
 
 	rcu_read_lock();
 	mac80211_hwsim_tx_frame(data->hw, skb,
-				rcu_dereference(vif->chanctx_conf)->def.chan);
+				rcu_dereference(vif->bss_conf.chanctx_conf)->def.chan);
 	rcu_read_unlock();
 }
 
@@ -1464,11 +1464,11 @@ static void mac80211_hwsim_tx_iter(void *_data, u8 *addr,
 {
 	struct tx_iter_data *data = _data;
 
-	if (!vif->chanctx_conf)
+	if (!vif->bss_conf.chanctx_conf)
 		return;
 
 	if (!hwsim_chans_compat(data->channel,
-				rcu_dereference(vif->chanctx_conf)->def.chan))
+				rcu_dereference(vif->bss_conf.chanctx_conf)->def.chan))
 		return;
 
 	data->receive = true;
@@ -1686,7 +1686,11 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	} else if (txi->hw_queue == 4) {
 		channel = data->tmp_chan;
 	} else {
-		chanctx_conf = rcu_dereference(txi->control.vif->chanctx_conf);
+		struct ieee80211_bss_conf *bss_conf;
+
+		bss_conf = &txi->control.vif->bss_conf;
+
+		chanctx_conf = rcu_dereference(bss_conf->chanctx_conf);
 		if (chanctx_conf) {
 			channel = chanctx_conf->def.chan;
 			confbw = chanctx_conf->def.width;
@@ -1935,14 +1939,14 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	}
 
 	mac80211_hwsim_tx_frame(hw, skb,
-				rcu_dereference(vif->chanctx_conf)->def.chan);
+				rcu_dereference(vif->bss_conf.chanctx_conf)->def.chan);
 
 	while ((skb = ieee80211_get_buffered_bc(hw, vif)) != NULL) {
 		mac80211_hwsim_tx_frame(hw, skb,
-				rcu_dereference(vif->chanctx_conf)->def.chan);
+				rcu_dereference(vif->bss_conf.chanctx_conf)->def.chan);
 	}
 
-	if (vif->csa_active && ieee80211_beacon_cntdwn_is_complete(vif))
+	if (vif->bss_conf.csa_active && ieee80211_beacon_cntdwn_is_complete(vif))
 		ieee80211_csa_finish(vif);
 }
 
@@ -2204,7 +2208,7 @@ mac80211_hwsim_sta_rc_update(struct ieee80211_hw *hw,
 		struct ieee80211_chanctx_conf *chanctx_conf;
 
 		rcu_read_lock();
-		chanctx_conf = rcu_dereference(vif->chanctx_conf);
+		chanctx_conf = rcu_dereference(vif->bss_conf.chanctx_conf);
 
 		if (!WARN_ON(!chanctx_conf))
 			confbw = chanctx_conf->def.width;

@@ -731,7 +731,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EINVAL;
 
 	rcu_read_lock();
-	ctx = rcu_dereference(vif->chanctx_conf);
+	ctx = rcu_dereference(vif->bss_conf.chanctx_conf);
 	if (WARN_ON(!ctx)) {
 		rcu_read_unlock();
 		return -EINVAL;

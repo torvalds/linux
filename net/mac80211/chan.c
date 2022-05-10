@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 - channel management
- * Copyright 2020 - 2021 Intel Corporation
+ * Copyright 2020 - 2022 Intel Corporation
  */
 
 #include <linux/nl80211.h>
@@ -72,7 +72,7 @@ ieee80211_vif_get_chanctx(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local __maybe_unused = sdata->local;
 	struct ieee80211_chanctx_conf *conf;
 
-	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+	conf = rcu_dereference_protected(sdata->vif.bss_conf.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	if (!conf)
 		return NULL;
@@ -260,7 +260,7 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 		if (!ieee80211_sdata_running(sdata))
 			continue;
 
-		if (rcu_access_pointer(sdata->vif.chanctx_conf) != conf)
+		if (rcu_access_pointer(sdata->vif.bss_conf.chanctx_conf) != conf)
 			continue;
 
 		switch (vif->type) {
@@ -298,7 +298,7 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 
 	/* use the configured bandwidth in case of monitor interface */
 	sdata = rcu_dereference(local->monitor_sdata);
-	if (sdata && rcu_access_pointer(sdata->vif.chanctx_conf) == conf)
+	if (sdata && rcu_access_pointer(sdata->vif.bss_conf.chanctx_conf) == conf)
 		max_bw = max(max_bw, conf->def.width);
 
 	rcu_read_unlock();
@@ -368,7 +368,7 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 		if (!ieee80211_sdata_running(sta->sdata))
 			continue;
 
-		if (rcu_access_pointer(sta->sdata->vif.chanctx_conf) !=
+		if (rcu_access_pointer(sta->sdata->vif.bss_conf.chanctx_conf) !=
 		    &ctx->conf)
 			continue;
 
@@ -533,7 +533,7 @@ ieee80211_chanctx_radar_required(struct ieee80211_local *local,
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (!ieee80211_sdata_running(sdata))
 			continue;
-		if (rcu_access_pointer(sdata->vif.chanctx_conf) != conf)
+		if (rcu_access_pointer(sdata->vif.bss_conf.chanctx_conf) != conf)
 			continue;
 		if (!sdata->radar_required)
 			continue;
@@ -689,7 +689,7 @@ void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 
 		if (!ieee80211_sdata_running(sdata))
 			continue;
-		if (rcu_access_pointer(sdata->vif.chanctx_conf) != conf)
+		if (rcu_access_pointer(sdata->vif.bss_conf.chanctx_conf) != conf)
 			continue;
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			continue;
@@ -759,7 +759,7 @@ static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_NAN))
 		return -ENOTSUPP;
 
-	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+	conf = rcu_dereference_protected(sdata->vif.bss_conf.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 
 	if (conf) {
@@ -781,7 +781,7 @@ static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	}
 
 out:
-	rcu_assign_pointer(sdata->vif.chanctx_conf, conf);
+	rcu_assign_pointer(sdata->vif.bss_conf.chanctx_conf, conf);
 
 	sdata->vif.bss_conf.idle = !conf;
 
@@ -825,7 +825,7 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 		if (!ieee80211_sdata_running(sdata))
 			continue;
 
-		if (rcu_access_pointer(sdata->vif.chanctx_conf) !=
+		if (rcu_access_pointer(sdata->vif.bss_conf.chanctx_conf) !=
 						&chanctx->conf)
 			continue;
 
@@ -874,7 +874,7 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 	/* Disable SMPS for the monitor interface */
 	sdata = rcu_dereference(local->monitor_sdata);
 	if (sdata &&
-	    rcu_access_pointer(sdata->vif.chanctx_conf) == &chanctx->conf)
+	    rcu_access_pointer(sdata->vif.bss_conf.chanctx_conf) == &chanctx->conf)
 		rx_chains_dynamic = rx_chains_static = local->rx_chains;
 
 	rcu_read_unlock();
@@ -917,7 +917,7 @@ __ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
 	 * channel context pointer for a while, possibly pointing
 	 * to a channel context that has already been freed.
 	 */
-	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+	conf = rcu_dereference_protected(sdata->vif.bss_conf.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	WARN_ON(!conf);
 
@@ -925,7 +925,7 @@ __ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
 		conf = NULL;
 
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-		rcu_assign_pointer(vlan->vif.chanctx_conf, conf);
+		rcu_assign_pointer(vlan->vif.bss_conf.chanctx_conf, conf);
 }
 
 void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
@@ -1173,7 +1173,7 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 	}
 
 	list_move(&sdata->assigned_chanctx_list, &new_ctx->assigned_vifs);
-	rcu_assign_pointer(sdata->vif.chanctx_conf, &new_ctx->conf);
+	rcu_assign_pointer(sdata->vif.bss_conf.chanctx_conf, &new_ctx->conf);
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP)
 		__ieee80211_vif_copy_chanctx_to_vlans(sdata, false);
@@ -1515,7 +1515,8 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			if (!ieee80211_vif_has_in_place_reservation(sdata))
 				continue;
 
-			rcu_assign_pointer(sdata->vif.chanctx_conf, &ctx->conf);
+			rcu_assign_pointer(sdata->vif.bss_conf.chanctx_conf,
+					   &ctx->conf);
 
 			if (sdata->vif.type == NL80211_IFTYPE_AP)
 				__ieee80211_vif_copy_chanctx_to_vlans(sdata,
@@ -1634,7 +1635,7 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 
 	lockdep_assert_held(&local->chanctx_mtx);
 
-	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+	conf = rcu_dereference_protected(sdata->vif.bss_conf.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	if (!conf)
 		return;
@@ -1809,7 +1810,7 @@ int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+	conf = rcu_dereference_protected(sdata->vif.bss_conf.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	if (!conf) {
 		ret = -EINVAL;
@@ -1879,9 +1880,9 @@ void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata)
 
 	mutex_lock(&local->chanctx_mtx);
 
-	conf = rcu_dereference_protected(ap->vif.chanctx_conf,
+	conf = rcu_dereference_protected(ap->vif.bss_conf.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
-	rcu_assign_pointer(sdata->vif.chanctx_conf, conf);
+	rcu_assign_pointer(sdata->vif.bss_conf.chanctx_conf, conf);
 	mutex_unlock(&local->chanctx_mtx);
 }
 
