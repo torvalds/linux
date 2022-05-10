@@ -231,6 +231,7 @@ test_context()
 {
 	context_dir=$1
 	ensure_dir "$context_dir" "exist"
+	ensure_file "$context_dir/avail_operations" "exit" 400
 	ensure_file "$context_dir/operations" "exist" 600
 	test_monitoring_attrs "$context_dir/monitoring_attrs"
 	test_targets "$context_dir/targets"
