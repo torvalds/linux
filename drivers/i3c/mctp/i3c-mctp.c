@@ -303,6 +303,10 @@ static int i3c_mctp_probe(struct i3c_device *i3cdev)
 		goto error;
 	}
 
+	ret = i3c_device_control_pec(i3cdev, true);
+	if (ret)
+		goto error;
+
 	dev_set_drvdata(i3cdev_to_dev(i3cdev), priv);
 
 	if (i3c_mctp_enable_ibi(i3cdev)) {
