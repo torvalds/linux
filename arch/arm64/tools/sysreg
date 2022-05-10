@@ -206,6 +206,25 @@ Res0	14:12
 Field	11:0	AFFINITY
 EndSysreg
 
+Sysreg	SMPRIMAP_EL2	3	4	1	2	5
+Field	63:60	P15
+Field	59:56	P14
+Field	55:52	P13
+Field	51:48	P12
+Field	47:44	P11
+Field	43:40	P10
+Field	39:36	F9
+Field	35:32	P8
+Field	31:28	P7
+Field	27:24	P6
+Field	23:20	P5
+Field	19:16	P4
+Field	15:12	P3
+Field	11:8	P2
+Field	7:4	P1
+Field	3:0	P0
+EndSysreg
+
 Sysreg	SMCR_EL2	3	4	1	2	6
 Fields	SMCR_ELx
 EndSysreg
