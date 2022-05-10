@@ -21,6 +21,8 @@
 #define FOLL_WRITE	0x01	/* check pte is writable */
 #define FOLL_TOUCH	0x02	/* mark page accessed */
 
+#define GUP_TEST_FILE "/sys/kernel/debug/gup_test"
+
 static unsigned long cmd = GUP_FAST_BENCHMARK;
 static int gup_fd, repeats = 1;
 static unsigned long size = 128 * MB;
