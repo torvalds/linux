@@ -226,6 +226,13 @@ END {
 	next
 }
 
+/^Raz/ && (block == "Sysreg" || block == "SysregFields") {
+	expect_fields(2)
+	parse_bitdef(reg, field, $2)
+
+	next
+}
+
 /^Enum/ {
 	change_block("Enum", "Sysreg", "Enum")
 	expect_fields(3)
