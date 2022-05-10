@@ -907,6 +907,10 @@ static const struct imx7_csi_pixfmt pixel_formats[] = {
 		.fourcc = V4L2_PIX_FMT_Y12,
 		.codes  = IMX_BUS_FMTS(MEDIA_BUS_FMT_Y12_1X12),
 		.bpp    = 16,
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y14,
+		.codes  = IMX_BUS_FMTS(MEDIA_BUS_FMT_Y14_1X14),
+		.bpp    = 16,
 	},
 };
 
@@ -2021,6 +2025,7 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 	case V4L2_PIX_FMT_GREY:
 	case V4L2_PIX_FMT_Y10:
 	case V4L2_PIX_FMT_Y12:
+	case V4L2_PIX_FMT_Y14:
 	case V4L2_PIX_FMT_SBGGR8:
 	case V4L2_PIX_FMT_SGBRG8:
 	case V4L2_PIX_FMT_SGRBG8:
