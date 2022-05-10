@@ -1700,6 +1700,10 @@
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <5>;
 		timed-reset-scl-low-ns = <52428800>;
+		i3c-pp-scl-hi-period-ns = <40>;
+		i3c-pp-scl-lo-period-ns = <40>;
+		i3c-od-scl-hi-period-ns = <380>;
+		i3c-od-scl-lo-period-ns = <620>;
 		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c1_default>;
@@ -1721,6 +1725,10 @@
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <5>;
 		timed-reset-scl-low-ns = <52428800>;
+		i3c-pp-scl-hi-period-ns = <40>;
+		i3c-pp-scl-lo-period-ns = <40>;
+		i3c-od-scl-hi-period-ns = <380>;
+		i3c-od-scl-lo-period-ns = <620>;
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c2_default>;
@@ -1742,6 +1750,10 @@
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <5>;
 		timed-reset-scl-low-ns = <52428800>;
+		i3c-pp-scl-hi-period-ns = <40>;
+		i3c-pp-scl-lo-period-ns = <40>;
+		i3c-od-scl-hi-period-ns = <380>;
+		i3c-od-scl-lo-period-ns = <620>;
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
 		aspeed,scu = <&syscon>;
 
@@ -1761,6 +1773,10 @@
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <5>;
 		timed-reset-scl-low-ns = <52428800>;
+		i3c-pp-scl-hi-period-ns = <40>;
+		i3c-pp-scl-lo-period-ns = <40>;
+		i3c-od-scl-hi-period-ns = <380>;
+		i3c-od-scl-lo-period-ns = <620>;
 		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 		aspeed,scu = <&syscon>;
 
@@ -1780,6 +1796,10 @@
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <5>;
 		timed-reset-scl-low-ns = <52428800>;
+		i3c-pp-scl-hi-period-ns = <40>;
+		i3c-pp-scl-lo-period-ns = <40>;
+		i3c-od-scl-hi-period-ns = <380>;
+		i3c-od-scl-lo-period-ns = <620>;
 		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c5_default>;
@@ -1801,6 +1821,10 @@
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <5>;
 		timed-reset-scl-low-ns = <52428800>;
+		i3c-pp-scl-hi-period-ns = <40>;
+		i3c-pp-scl-lo-period-ns = <40>;
+		i3c-od-scl-hi-period-ns = <380>;
+		i3c-od-scl-lo-period-ns = <620>;
 		interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i3c6_default>;
