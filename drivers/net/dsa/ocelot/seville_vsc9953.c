@@ -21,7 +21,8 @@
 #define VSC9953_VCAP_POLICER_BASE2		120
 #define VSC9953_VCAP_POLICER_MAX2		161
 
-#define VSC9953_PORT_MODE_SERDES		(OCELOT_PORT_MODE_SGMII | \
+#define VSC9953_PORT_MODE_SERDES		(OCELOT_PORT_MODE_1000BASEX | \
+						 OCELOT_PORT_MODE_SGMII | \
 						 OCELOT_PORT_MODE_QSGMII)
 
 static const u32 vsc9953_port_modes[VSC9953_NUM_PORTS] = {
@@ -947,6 +948,7 @@ static void vsc9953_phylink_validate(struct ocelot *ocelot, int port,
 	phylink_set(mask, 100baseT_Full);
 	phylink_set(mask, 100baseT_Half);
 	phylink_set(mask, 1000baseT_Full);
+	phylink_set(mask, 1000baseX_Full);
 
 	if (state->interface == PHY_INTERFACE_MODE_INTERNAL) {
 		phylink_set(mask, 2500baseT_Full);

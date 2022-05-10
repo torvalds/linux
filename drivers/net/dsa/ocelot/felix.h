@@ -12,6 +12,7 @@
 #define OCELOT_PORT_MODE_QSGMII		BIT(2)
 #define OCELOT_PORT_MODE_2500BASEX	BIT(3)
 #define OCELOT_PORT_MODE_USXGMII	BIT(4)
+#define OCELOT_PORT_MODE_1000BASEX	BIT(5)
 
 /* Platform-specific information */
 struct felix_info {
