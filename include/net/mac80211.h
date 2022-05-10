@@ -1701,7 +1701,7 @@ enum ieee80211_offload_flags {
  *	these need to be set (or cleared) when the interface is added
  *	or, if supported by the driver, the interface type is changed
  *	at runtime, mac80211 will never touch this field
- * @offloaad_flags: hardware offload capabilities/flags for this interface.
+ * @offload_flags: hardware offload capabilities/flags for this interface.
  *	These are initialized by mac80211 before calling .add_interface,
  *	.change_interface or .update_vif_offload and updated by the driver
  *	within these ops, based on supported features or runtime change
