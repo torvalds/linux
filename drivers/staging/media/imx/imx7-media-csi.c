@@ -1605,7 +1605,8 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
 	struct imx_media_video_dev *vdev = &csi->vdev;
 	const struct v4l2_pix_format *out_pix = &vdev->fmt;
-	struct media_pad *pad;
+	struct media_pad *pad = NULL;
+	unsigned int i;
 	int ret;
 
 	if (!csi->src_sd)
@@ -1627,7 +1628,17 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 
 	case MEDIA_ENT_F_VID_MUX:
 		/* The input is the mux, check its input. */
-		pad = imx_media_pipeline_pad(&csi->src_sd->entity, 0, 0, true);
+		for (i = 0; i < csi->src_sd->entity.num_pads; i++) {
+			struct media_pad *spad = &csi->src_sd->entity.pads[i];
+
+			if (!(spad->flags & MEDIA_PAD_FL_SINK))
+				continue;
+
+			pad = media_entity_remote_pad(spad);
+			if (pad)
+				break;
+		}
+
 		if (!pad)
 			return -ENODEV;
 
