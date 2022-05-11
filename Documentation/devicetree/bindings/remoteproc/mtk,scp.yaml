@@ -54,6 +54,9 @@ properties:
       firmware search path containing the firmware image used when
       initializing SCP.
 
+  memory-region:
+    maxItems: 1
+
 required:
   - compatible
   - reg
