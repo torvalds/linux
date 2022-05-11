@@ -586,6 +586,18 @@ static inline bool kvm_hv_mode_active(void)		{ return false; }
 
 #endif
 
+#ifdef CONFIG_PPC_PSERIES
+static inline bool kvmhv_on_pseries(void)
+{
+	return !cpu_has_feature(CPU_FTR_HVMODE);
+}
+#else
+static inline bool kvmhv_on_pseries(void)
+{
+	return false;
+}
+#endif
+
 #ifdef CONFIG_KVM_XICS
 static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
 {

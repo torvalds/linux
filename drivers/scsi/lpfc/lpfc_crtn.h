@@ -670,3 +670,6 @@ struct lpfc_vmid *lpfc_get_vmid_from_hashtable(struct lpfc_vport *vport,
 					      uint32_t hash, uint8_t *buf);
 void lpfc_vmid_vport_cleanup(struct lpfc_vport *vport);
 int lpfc_issue_els_qfpa(struct lpfc_vport *vport);
+
+void lpfc_sli_rpi_release(struct lpfc_vport *vport,
+			  struct lpfc_nodelist *ndlp);

@@ -771,12 +771,12 @@ static void journal_write_unlocked(struct closure *cl)
 
 		bio_reset(bio, ca->bdev, REQ_OP_WRITE | 
 			  REQ_SYNC | REQ_META | REQ_PREFLUSH | REQ_FUA);
-		bch_bio_map(bio, w->data);
 		bio->bi_iter.bi_sector	= PTR_OFFSET(k, i);
 		bio->bi_iter.bi_size = sectors << 9;
 
 		bio->bi_end_io	= journal_write_endio;
 		bio->bi_private = w;
+		bch_bio_map(bio, w->data);
 
 		trace_bcache_journal_write(bio, w->data->keys);
 		bio_list_add(&list, bio);
