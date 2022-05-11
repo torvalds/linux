@@ -56,6 +56,7 @@ properties:
       - idt,5p49v5935
       - idt,5p49v6901
       - idt,5p49v6965
+      - idt,5p49v6975
 
   reg:
     description: I2C device address
@@ -134,6 +135,7 @@ allOf:
           enum:
             - idt,5p49v5933
             - idt,5p49v5935
+            - idt,5p49v6975
     then:
       # Devices with builtin crystal + optional external input
       properties:
