@@ -1249,6 +1249,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 		ocelot_port->phy_mode = port_phy_modes[port];
 		ocelot_port->ocelot = ocelot;
 		ocelot_port->target = target;
+		ocelot_port->index = port;
 		ocelot->ports[port] = ocelot_port;
 	}
 

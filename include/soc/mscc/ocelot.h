@@ -675,6 +675,8 @@ struct ocelot_port {
 	u8				ptp_cmd;
 	u8				ts_id;
 
+	u8				index;
+
 	u8				stp_state;
 	bool				vlan_aware;
 	bool				is_dsa_8021q_cpu;
