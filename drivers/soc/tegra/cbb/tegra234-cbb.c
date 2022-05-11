@@ -10,6 +10,7 @@
  *   SLAVE_ERR
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/cpufeature.h>
 #include <linux/debugfs.h>
@@ -293,13 +294,32 @@ static void tegra234_cbb_print_error(struct seq_file *file, struct tegra234_cbb 
 static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 {
 	u8 cache_type, prot_type, burst_length, mstr_id, grpsec, vqc, falconsec, beat_size;
-	u8 access_type, access_id, slave_id, fab_id, burst_type;
+	u8 access_type, access_id, requester_socket_id, local_socket_id, slave_id, fab_id;
 	char fabric_name[20];
+	bool is_numa = false;
+	u8 burst_type;
+
+	if (num_possible_nodes() > 1)
+		is_numa = true;
 
 	mstr_id = FIELD_GET(FAB_EM_EL_MSTRID, cbb->mn_user_bits);
 	vqc = FIELD_GET(FAB_EM_EL_VQC, cbb->mn_user_bits);
 	grpsec = FIELD_GET(FAB_EM_EL_GRPSEC, cbb->mn_user_bits);
 	falconsec = FIELD_GET(FAB_EM_EL_FALCONSEC, cbb->mn_user_bits);
+
+	/*
+	 * For SOC with multiple NUMA nodes, print cross socket access
+	 * errors only if initiator/master_id is CCPLEX, CPMU or GPU.
+	 */
+	if (is_numa) {
+		local_socket_id = numa_node_id();
+		requester_socket_id = FIELD_GET(REQ_SOCKET_ID, cbb->mn_attr2);
+
+		if (requester_socket_id != local_socket_id) {
+			if ((mstr_id != 0x1) && (mstr_id != 0x2) && (mstr_id != 0xB))
+				return;
+		}
+	}
 
 	fab_id = FIELD_GET(FAB_EM_EL_FABID, cbb->mn_attr2);
 	slave_id = FIELD_GET(FAB_EM_EL_SLAVEID, cbb->mn_attr2);
@@ -332,6 +352,15 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 		strcpy(fabric_name, "fsi-fabric");
 	else
 		strcpy(fabric_name, cbb->fabric->name);
+
+	if (is_numa) {
+		tegra_cbb_print_err(file, "\t  Requester_Socket_Id\t: %#x\n",
+				    requester_socket_id);
+		tegra_cbb_print_err(file, "\t  Local_Socket_Id\t: %#x\n",
+				    local_socket_id);
+		tegra_cbb_print_err(file, "\t  No. of NUMA_NODES\t: %#x\n",
+				    num_possible_nodes());
+	}
 
 	tegra_cbb_print_err(file, "\t  Fabric\t\t: %s\n", fabric_name);
 	tegra_cbb_print_err(file, "\t  Slave_Id\t\t: %#x\n", slave_id);
@@ -750,6 +779,200 @@ static const struct tegra234_cbb_fabric tegra234_sce_fabric = {
 	.notifier_offset = 0x19000,
 };
 
+static const char * const tegra241_master_id[] = {
+	[0x0] = "TZ",
+	[0x1] = "CCPLEX",
+	[0x2] = "CCPMU",
+	[0x3] = "BPMP_FW",
+	[0x4] = "PSC_FW_USER",
+	[0x5] = "PSC_FW_SUPERVISOR",
+	[0x6] = "PSC_FW_MACHINE",
+	[0x7] = "PSC_BOOT",
+	[0x8] = "BPMP_BOOT",
+	[0x9] = "JTAGM_DFT",
+	[0xa] = "CORESIGHT",
+	[0xb] = "GPU",
+	[0xc] = "PEATRANS",
+	[0xd ... 0x3f] = "RSVD"
+};
+
+/*
+ * Possible causes for Slave and Timeout errors.
+ * SLAVE_ERR:
+ * Slave being accessed responded with an error. Slave could return
+ * an error for various cases :
+ *   Unsupported access, clamp setting when power gated, register
+ *   level firewall(SCR), address hole within the slave, etc
+ *
+ * TIMEOUT_ERR:
+ * No response returned by slave. Can be due to slave being clock
+ * gated, under reset, powered down or slave inability to respond
+ * for an internal slave issue
+ */
+static const struct tegra_cbb_error tegra241_cbb_errors[] = {
+	{
+		.code = "SLAVE_ERR",
+		.desc = "Slave being accessed responded with an error."
+	}, {
+		.code = "DECODE_ERR",
+		.desc = "Attempt to access an address hole or Reserved region of memory."
+	}, {
+		.code = "FIREWALL_ERR",
+		.desc = "Attempt to access a region which is firewalled."
+	}, {
+		.code = "TIMEOUT_ERR",
+		.desc = "No response returned by slave."
+	}, {
+		.code = "PWRDOWN_ERR",
+		.desc = "Attempt to access a portion of the fabric that is powered down."
+	}, {
+		.code = "UNSUPPORTED_ERR",
+		.desc = "Attempt to access a slave through an unsupported access."
+	}, {
+		.code = "POISON_ERR",
+		.desc = "Slave responds with poison error to indicate error in data."
+	}, {
+		.code = "RSVD"
+	}, {
+		.code = "RSVD"
+	}, {
+		.code = "RSVD"
+	}, {
+		.code = "RSVD"
+	}, {
+		.code = "RSVD"
+	}, {
+		.code = "RSVD"
+	}, {
+		.code = "RSVD"
+	}, {
+		.code = "RSVD"
+	}, {
+		.code = "RSVD"
+	}, {
+		.code = "NO_SUCH_ADDRESS_ERR",
+		.desc = "The address belongs to the pri_target range but there is no register "
+			"implemented at the address."
+	}, {
+		.code = "TASK_ERR",
+		.desc = "Attempt to update a PRI task when the current task has still not "
+			"completed."
+	}, {
+		.code = "EXTERNAL_ERR",
+		.desc = "Indicates that an external PRI register access met with an error due to "
+			"any issue in the unit."
+	}, {
+		.code = "INDEX_ERR",
+		.desc = "Applicable to PRI index aperture pair, when the programmed index is "
+			"outside the range defined in the manual."
+	}, {
+		.code = "RESET_ERR",
+		.desc = "Target in Reset Error: Attempt to access a SubPri or external PRI "
+			"register but they are in reset."
+	}, {
+		.code = "REGISTER_RST_ERR",
+		.desc = "Attempt to access a PRI register but the register is partial or "
+			"completely in reset."
+	}, {
+		.code = "POWER_GATED_ERR",
+		.desc = "Returned by external PRI client when the external access goes to a power "
+			"gated domain."
+	}, {
+		.code = "SUBPRI_FS_ERR",
+		.desc = "Subpri is floorswept: Attempt to access a subpri through the main pri "
+			"target but subPri logic is floorswept."
+	}, {
+		.code = "SUBPRI_CLK_OFF_ERR",
+		.desc = "Subpri clock is off: Attempt to access a subpri through the main pri "
+			"target but subPris clock is gated/off."
+	},
+};
+
+static const struct tegra234_slave_lookup tegra241_cbb_slave_map[] = {
+	{ "CCPLEX",     0x50000 },
+	{ "PCIE_C8",    0x51000 },
+	{ "PCIE_C9",    0x52000 },
+	{ "RSVD",       0x00000 },
+	{ "RSVD",       0x00000 },
+	{ "RSVD",       0x00000 },
+	{ "RSVD",       0x00000 },
+	{ "RSVD",       0x00000 },
+	{ "RSVD",       0x00000 },
+	{ "RSVD",       0x00000 },
+	{ "RSVD",       0x00000 },
+	{ "AON",        0x5b000 },
+	{ "BPMP",       0x5c000 },
+	{ "RSVD",       0x00000 },
+	{ "RSVD",       0x00000 },
+	{ "PSC",        0x5d000 },
+	{ "STM",        0x5e000 },
+	{ "AXI2APB_1",  0x70000 },
+	{ "AXI2APB_10", 0x71000 },
+	{ "AXI2APB_11", 0x72000 },
+	{ "AXI2APB_12", 0x73000 },
+	{ "AXI2APB_13", 0x74000 },
+	{ "AXI2APB_14", 0x75000 },
+	{ "AXI2APB_15", 0x76000 },
+	{ "AXI2APB_16", 0x77000 },
+	{ "AXI2APB_17", 0x78000 },
+	{ "AXI2APB_18", 0x79000 },
+	{ "AXI2APB_19", 0x7a000 },
+	{ "AXI2APB_2",  0x7b000 },
+	{ "AXI2APB_20", 0x7c000 },
+	{ "AXI2APB_4",  0x87000 },
+	{ "AXI2APB_5",  0x88000 },
+	{ "AXI2APB_6",  0x89000 },
+	{ "AXI2APB_7",  0x8a000 },
+	{ "AXI2APB_8",  0x8b000 },
+	{ "AXI2APB_9",  0x8c000 },
+	{ "AXI2APB_3",  0x8d000 },
+	{ "AXI2APB_21", 0x7d000 },
+	{ "AXI2APB_22", 0x7e000 },
+	{ "AXI2APB_23", 0x7f000 },
+	{ "AXI2APB_24", 0x80000 },
+	{ "AXI2APB_25", 0x81000 },
+	{ "AXI2APB_26", 0x82000 },
+	{ "AXI2APB_27", 0x83000 },
+	{ "AXI2APB_28", 0x84000 },
+	{ "PCIE_C4",    0x53000 },
+	{ "PCIE_C5",    0x54000 },
+	{ "PCIE_C6",    0x55000 },
+	{ "PCIE_C7",    0x56000 },
+	{ "PCIE_C2",    0x57000 },
+	{ "PCIE_C3",    0x58000 },
+	{ "PCIE_C0",    0x59000 },
+	{ "PCIE_C1",    0x5a000 },
+	{ "AXI2APB_29", 0x85000 },
+	{ "AXI2APB_30", 0x86000 },
+};
+
+static const struct tegra234_cbb_fabric tegra241_cbb_fabric = {
+	.name = "cbb-fabric",
+	.master_id = tegra241_master_id,
+	.slave_map = tegra241_cbb_slave_map,
+	.errors = tegra241_cbb_errors,
+	.notifier_offset = 0x60000,
+	.off_mask_erd = 0x40004,
+};
+
+static const struct tegra234_slave_lookup tegra241_bpmp_slave_map[] = {
+	{ "RSVD",    0x00000 },
+	{ "RSVD",    0x00000 },
+	{ "CBB",     0x15000 },
+	{ "CPU",     0x16000 },
+	{ "AXI2APB", 0x00000 },
+	{ "DBB0",    0x17000 },
+	{ "DBB1",    0x18000 },
+};
+
+static const struct tegra234_cbb_fabric tegra241_bpmp_fabric = {
+	.name = "bpmp-fabric",
+	.master_id = tegra241_master_id,
+	.slave_map = tegra241_bpmp_slave_map,
+	.errors = tegra241_cbb_errors,
+	.notifier_offset = 0x19000,
+};
+
 static const struct of_device_id tegra234_cbb_dt_ids[] = {
 	{ .compatible = "nvidia,tegra234-cbb-fabric", .data = &tegra234_cbb_fabric },
 	{ .compatible = "nvidia,tegra234-aon-fabric", .data = &tegra234_aon_fabric },
@@ -761,6 +984,37 @@ static const struct of_device_id tegra234_cbb_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra234_cbb_dt_ids);
 
+struct tegra234_cbb_acpi_uid {
+	const char *hid;
+	const char *uid;
+	const struct tegra234_cbb_fabric *fabric;
+};
+
+static const struct tegra234_cbb_acpi_uid tegra234_cbb_acpi_uids[] = {
+	{ "NVDA1070", "1", &tegra241_cbb_fabric },
+	{ "NVDA1070", "2", &tegra241_bpmp_fabric },
+	{ },
+};
+
+static const struct
+tegra234_cbb_fabric *tegra234_cbb_acpi_get_fabric(struct acpi_device *adev)
+{
+	const struct tegra234_cbb_acpi_uid *entry;
+
+	for (entry = tegra234_cbb_acpi_uids; entry->hid; entry++) {
+		if (acpi_dev_hid_uid_match(adev, entry->hid, entry->uid))
+			return entry->fabric;
+	}
+
+	return NULL;
+}
+
+static const struct acpi_device_id tegra241_cbb_acpi_ids[] = {
+	{ "NVDA1070" },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, tegra241_cbb_acpi_ids);
+
 static int tegra234_cbb_probe(struct platform_device *pdev)
 {
 	const struct tegra234_cbb_fabric *fabric;
@@ -768,7 +1022,19 @@ static int tegra234_cbb_probe(struct platform_device *pdev)
 	unsigned long flags = 0;
 	int err;
 
-	fabric = of_device_get_match_data(&pdev->dev);
+	if (pdev->dev.of_node) {
+		fabric = of_device_get_match_data(&pdev->dev);
+	} else {
+		struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+		if (!device)
+			return -ENODEV;
+
+		fabric = tegra234_cbb_acpi_get_fabric(device);
+		if (!fabric) {
+			dev_err(&pdev->dev, "no device match found\n");
+			return -ENODEV;
+		}
+	}
 
 	cbb = devm_kzalloc(&pdev->dev, sizeof(*cbb), GFP_KERNEL);
 	if (!cbb)
@@ -826,6 +1092,7 @@ static struct platform_driver tegra234_cbb_driver = {
 	.driver = {
 		.name = "tegra234-cbb",
 		.of_match_table = tegra234_cbb_dt_ids,
+		.acpi_match_table = tegra241_cbb_acpi_ids,
 		.pm = &tegra234_cbb_pm,
 	},
 };
