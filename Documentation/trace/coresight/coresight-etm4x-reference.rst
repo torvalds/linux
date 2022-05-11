@@ -650,6 +650,7 @@ Bit assignments shown below:-
     parameter is set this value is applied to the currently indexed
     address range.
 
+.. _coresight-branch-broadcast:
 
 **bit (4):**
     ETM_MODE_BB
@@ -657,6 +658,7 @@ Bit assignments shown below:-
 **description:**
     Set to enable branch broadcast if supported in hardware [IDR0].
 
+.. _coresight-cycle-accurate:
 
 **bit (5):**
     ETMv4_MODE_CYCACC
@@ -678,6 +680,7 @@ Bit assignments shown below:-
 **description:**
     Set to enable virtual machine ID tracing if supported [IDR2].
 
+.. _coresight-timestamp:
 
 **bit (11):**
     ETMv4_MODE_TIMESTAMP
@@ -685,6 +688,7 @@ Bit assignments shown below:-
 **description:**
     Set to enable timestamp generation if supported [IDR0].
 
+.. _coresight-return-stack:
 
 **bit (12):**
     ETM_MODE_RETURNSTACK

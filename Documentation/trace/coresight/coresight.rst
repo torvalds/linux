@@ -585,6 +585,45 @@ sort example is from the AutoFDO tutorial (https://gcc.gnu.org/wiki/AutoFDO/Tuto
 	Bubble sorting array of 30000 elements
 	5806 ms
 
+Config option formats
+~~~~~~~~~~~~~~~~~~~~~
+
+The following strings can be provided between // on the perf command line to enable various options.
+They are also listed in the folder /sys/bus/event_source/devices/cs_etm/format/
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - branch_broadcast
+     - Session local version of the system wide setting:
+       :ref:`ETM_MODE_BB <coresight-branch-broadcast>`
+   * - contextid
+     - See `Tracing PID`_
+   * - contextid1
+     - See `Tracing PID`_
+   * - contextid2
+     - See `Tracing PID`_
+   * - configid
+     - Selection for a custom configuration. This is an implementation detail and not used directly,
+       see :ref:`trace/coresight/coresight-config:Using Configurations in perf`
+   * - preset
+     - Override for parameters in a custom configuration, see
+       :ref:`trace/coresight/coresight-config:Using Configurations in perf`
+   * - sinkid
+     - Hashed version of the string to select a sink, automatically set when using the @ notation.
+       This is an internal implementation detail and is not used directly, see `Using perf
+       framework`_.
+   * - cycacc
+     - Session local version of the system wide setting: :ref:`ETMv4_MODE_CYCACC
+       <coresight-cycle-accurate>`
+   * - retstack
+     - Session local version of the system wide setting: :ref:`ETM_MODE_RETURNSTACK
+       <coresight-return-stack>`
+   * - timestamp
+     - Session local version of the system wide setting: :ref:`ETMv4_MODE_TIMESTAMP
+       <coresight-timestamp>`
 
 How to use the STM module
 -------------------------
