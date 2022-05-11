@@ -948,8 +948,6 @@ struct xhci_virt_ep {
 #define EP_CLEARING_TT		(1 << 8)
 	/* ----  Related to URB cancellation ---- */
 	struct list_head	cancelled_td_list;
-	/* Watchdog timer for stop endpoint command to cancel URBs */
-	struct timer_list	stop_cmd_timer;
 	struct xhci_hcd		*xhci;
 	/* Dequeue pointer and dequeue segment for a submitted Set TR Dequeue
 	 * command.  We'll need to update the ring's dequeue segment and dequeue

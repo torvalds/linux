@@ -740,14 +740,6 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	}
 }
 
-static void xhci_stop_watchdog_timer_in_irq(struct xhci_hcd *xhci,
-		struct xhci_virt_ep *ep)
-{
-	ep->ep_state &= ~EP_STOP_CMD_PENDING;
-	/* Can't del_timer_sync in interrupt */
-	del_timer(&ep->stop_cmd_timer);
-}
-
 /*
  * Must be called with xhci->lock held in interrupt context,
  * releases and re-acquires xhci->lock
@@ -1122,18 +1114,17 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 							  reset_type);
 			if (err)
 				break;
-			xhci_stop_watchdog_timer_in_irq(xhci, ep);
+			ep->ep_state &= ~EP_STOP_CMD_PENDING;
 			return;
 		case EP_STATE_RUNNING:
 			/* Race, HW handled stop ep cmd before ep was running */
 			xhci_dbg(xhci, "Stop ep completion ctx error, ep is running\n");
 
 			command = xhci_alloc_command(xhci, false, GFP_ATOMIC);
-			if (!command)
-				xhci_stop_watchdog_timer_in_irq(xhci, ep);
-
-			mod_timer(&ep->stop_cmd_timer,
-				  jiffies + XHCI_STOP_EP_CMD_TIMEOUT * HZ);
+			if (!command) {
+				ep->ep_state &= ~EP_STOP_CMD_PENDING;
+				return;
+			}
 			xhci_queue_stop_endpoint(xhci, command, slot_id, ep_index, 0);
 			xhci_ring_cmd_db(xhci);
 
@@ -1142,9 +1133,10 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 			break;
 		}
 	}
+
 	/* will queue a set TR deq if stopped on a cancelled, uncleared TD */
 	xhci_invalidate_cancelled_tds(ep);
-	xhci_stop_watchdog_timer_in_irq(xhci, ep);
+	ep->ep_state &= ~EP_STOP_CMD_PENDING;
 
 	/* Otherwise ring the doorbell(s) to restart queued transfers */
 	xhci_giveback_invalidated_tds(ep);
@@ -1246,61 +1238,6 @@ void xhci_hc_died(struct xhci_hcd *xhci)
 	/* inform usb core hc died if PCI remove isn't already handling it */
 	if (!(xhci->xhc_state & XHCI_STATE_REMOVING))
 		usb_hc_died(xhci_to_hcd(xhci));
-}
-
-/* Watchdog timer function for when a stop endpoint command fails to complete.
- * In this case, we assume the host controller is broken or dying or dead.  The
- * host may still be completing some other events, so we have to be careful to
- * let the event ring handler and the URB dequeueing/enqueueing functions know
- * through xhci->state.
- *
- * The timer may also fire if the host takes a very long time to respond to the
- * command, and the stop endpoint command completion handler cannot delete the
- * timer before the timer function is called.  Another endpoint cancellation may
- * sneak in before the timer function can grab the lock, and that may queue
- * another stop endpoint command and add the timer back.  So we cannot use a
- * simple flag to say whether there is a pending stop endpoint command for a
- * particular endpoint.
- *
- * Instead we use a combination of that flag and checking if a new timer is
- * pending.
- */
-void xhci_stop_endpoint_command_watchdog(struct timer_list *t)
-{
-	struct xhci_virt_ep *ep = from_timer(ep, t, stop_cmd_timer);
-	struct xhci_hcd *xhci = ep->xhci;
-	unsigned long flags;
-	u32 usbsts;
-	char str[XHCI_MSG_MAX];
-
-	spin_lock_irqsave(&xhci->lock, flags);
-
-	/* bail out if cmd completed but raced with stop ep watchdog timer.*/
-	if (!(ep->ep_state & EP_STOP_CMD_PENDING) ||
-	    timer_pending(&ep->stop_cmd_timer)) {
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		xhci_dbg(xhci, "Stop EP timer raced with cmd completion, exit");
-		return;
-	}
-	usbsts = readl(&xhci->op_regs->status);
-
-	xhci_warn(xhci, "xHCI host not responding to stop endpoint command.\n");
-	xhci_warn(xhci, "USBSTS:%s\n", xhci_decode_usbsts(str, usbsts));
-
-	ep->ep_state &= ~EP_STOP_CMD_PENDING;
-
-	xhci_halt(xhci);
-
-	/*
-	 * handle a stop endpoint cmd timeout as if host died (-ENODEV).
-	 * In the future we could distinguish between -ENODEV and -ETIMEDOUT
-	 * and try to recover a -ETIMEDOUT with a host controller reset
-	 */
-	xhci_hc_died(xhci);
-
-	spin_unlock_irqrestore(&xhci->lock, flags);
-	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-			"xHCI host controller is dead.");
 }
 
 static void update_ring_for_set_deq_completion(struct xhci_hcd *xhci,
@@ -1650,9 +1587,12 @@ void xhci_cleanup_command_queue(struct xhci_hcd *xhci)
 
 void xhci_handle_command_timeout(struct work_struct *work)
 {
-	struct xhci_hcd *xhci;
-	unsigned long flags;
-	u64 hw_ring_state;
+	struct xhci_hcd	*xhci;
+	unsigned long	flags;
+	char		str[XHCI_MSG_MAX];
+	u64		hw_ring_state;
+	u32		cmd_field3;
+	u32		usbsts;
 
 	xhci = container_of(to_delayed_work(work), struct xhci_hcd, cmd_timer);
 
@@ -1666,6 +1606,27 @@ void xhci_handle_command_timeout(struct work_struct *work)
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;
 	}
+
+	cmd_field3 = le32_to_cpu(xhci->current_cmd->command_trb->generic.field[3]);
+	usbsts = readl(&xhci->op_regs->status);
+	xhci_dbg(xhci, "Command timeout, USBSTS:%s\n", xhci_decode_usbsts(str, usbsts));
+
+	/* Bail out and tear down xhci if a stop endpoint command failed */
+	if (TRB_FIELD_TO_TYPE(cmd_field3) == TRB_STOP_RING) {
+		struct xhci_virt_ep	*ep;
+
+		xhci_warn(xhci, "xHCI host not responding to stop endpoint command\n");
+
+		ep = xhci_get_virt_ep(xhci, TRB_TO_SLOT_ID(cmd_field3),
+				      TRB_TO_EP_INDEX(cmd_field3));
+		if (ep)
+			ep->ep_state &= ~EP_STOP_CMD_PENDING;
+
+		xhci_halt(xhci);
+		xhci_hc_died(xhci);
+		goto time_out_completed;
+	}
+
 	/* mark this command to be cancelled */
 	xhci->current_cmd->status = COMP_COMMAND_ABORTED;
 

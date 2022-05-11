@@ -782,14 +782,6 @@ void xhci_free_stream_info(struct xhci_hcd *xhci,
 
 /***************** Device context manipulation *************************/
 
-static void xhci_init_endpoint_timer(struct xhci_hcd *xhci,
-		struct xhci_virt_ep *ep)
-{
-	timer_setup(&ep->stop_cmd_timer, xhci_stop_endpoint_command_watchdog,
-		    0);
-	ep->xhci = xhci;
-}
-
 static void xhci_free_tt_info(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
 		int slot_id)
@@ -994,11 +986,11 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	xhci_dbg(xhci, "Slot %d input ctx = 0x%llx (dma)\n", slot_id,
 			(unsigned long long)dev->in_ctx->dma);
 
-	/* Initialize the cancellation list and watchdog timers for each ep */
+	/* Initialize the cancellation and bandwidth list for each ep */
 	for (i = 0; i < 31; i++) {
 		dev->eps[i].ep_index = i;
 		dev->eps[i].vdev = dev;
-		xhci_init_endpoint_timer(xhci, &dev->eps[i]);
+		dev->eps[i].xhci = xhci;
 		INIT_LIST_HEAD(&dev->eps[i].cancelled_td_list);
 		INIT_LIST_HEAD(&dev->eps[i].bw_endpoint_list);
 	}
