@@ -1968,6 +1968,37 @@ static int genpd_set_default_power_state(struct generic_pm_domain *genpd)
 	return 0;
 }
 
+static int genpd_alloc_data(struct generic_pm_domain *genpd)
+{
+	int ret;
+
+	if (genpd_is_cpu_domain(genpd) &&
+	    !zalloc_cpumask_var(&genpd->cpus, GFP_KERNEL))
+		return -ENOMEM;
+
+	/* Use only one "off" state if there were no states declared */
+	if (genpd->state_count == 0) {
+		ret = genpd_set_default_power_state(genpd);
+		if (ret)
+			goto free;
+	}
+
+	return 0;
+
+free:
+	if (genpd_is_cpu_domain(genpd))
+		free_cpumask_var(genpd->cpus);
+	return ret;
+}
+
+static void genpd_free_data(struct generic_pm_domain *genpd)
+{
+	if (genpd_is_cpu_domain(genpd))
+		free_cpumask_var(genpd->cpus);
+	if (genpd->free_states)
+		genpd->free_states(genpd->states, genpd->state_count);
+}
+
 static void genpd_lock_init(struct generic_pm_domain *genpd)
 {
 	if (genpd->flags & GENPD_FLAG_IRQ_SAFE) {
@@ -2037,21 +2068,13 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 			!genpd_status_on(genpd))
 		return -EINVAL;
 
-	if (genpd_is_cpu_domain(genpd) &&
-	    !zalloc_cpumask_var(&genpd->cpus, GFP_KERNEL))
-		return -ENOMEM;
-
-	/* Use only one "off" state if there were no states declared */
-	if (genpd->state_count == 0) {
-		ret = genpd_set_default_power_state(genpd);
-		if (ret) {
-			if (genpd_is_cpu_domain(genpd))
-				free_cpumask_var(genpd->cpus);
-			return ret;
-		}
-	} else if (!gov && genpd->state_count > 1) {
+	/* Multiple states but no governor doesn't make sense. */
+	if (!gov && genpd->state_count > 1)
 		pr_warn("%s: no governor for states\n", genpd->name);
-	}
+
+	ret = genpd_alloc_data(genpd);
+	if (ret)
+		return ret;
 
 	device_initialize(&genpd->dev);
 	dev_set_name(&genpd->dev, "%s", genpd->name);
@@ -2096,10 +2119,7 @@ static int genpd_remove(struct generic_pm_domain *genpd)
 	genpd_unlock(genpd);
 	genpd_debug_remove(genpd);
 	cancel_work_sync(&genpd->power_off_work);
-	if (genpd_is_cpu_domain(genpd))
-		free_cpumask_var(genpd->cpus);
-	if (genpd->free_states)
-		genpd->free_states(genpd->states, genpd->state_count);
+	genpd_free_data(genpd);
 
 	pr_debug("%s: removed %s\n", __func__, genpd->name);
 
