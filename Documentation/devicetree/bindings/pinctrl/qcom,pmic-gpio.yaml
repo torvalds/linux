@@ -20,6 +20,7 @@ properties:
           - qcom,pm2250-gpio
           - qcom,pm660-gpio
           - qcom,pm660l-gpio
+          - qcom,pm6125-gpio
           - qcom,pm6150-gpio
           - qcom,pm6150l-gpio
           - qcom,pm6350-gpio
@@ -107,6 +108,7 @@ $defs:
         description:
           List of gpio pins affected by the properties specified in
           this subnode.  Valid pins are
+                 - gpio1-gpio9 for pm6125
                  - gpio1-gpio10 for pm6150
                  - gpio1-gpio12 for pm6150l
                  - gpio1-gpio9 for pm6350
