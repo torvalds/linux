@@ -668,14 +668,18 @@ static int felix_fdb_add(struct dsa_switch *ds, int port,
 			 struct dsa_db db)
 {
 	struct net_device *bridge_dev = felix_classify_db(db);
+	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct ocelot *ocelot = ds->priv;
 
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
 
-	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	if (dsa_port_is_cpu(dp) && !bridge_dev &&
 	    dsa_fdb_present_in_other_db(ds, port, addr, vid, db))
 		return 0;
+
+	if (dsa_port_is_cpu(dp))
+		port = PGID_CPU;
 
 	return ocelot_fdb_add(ocelot, port, addr, vid, bridge_dev);
 }
@@ -685,14 +689,18 @@ static int felix_fdb_del(struct dsa_switch *ds, int port,
 			 struct dsa_db db)
 {
 	struct net_device *bridge_dev = felix_classify_db(db);
+	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct ocelot *ocelot = ds->priv;
 
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
 
-	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	if (dsa_port_is_cpu(dp) && !bridge_dev &&
 	    dsa_fdb_present_in_other_db(ds, port, addr, vid, db))
 		return 0;
+
+	if (dsa_port_is_cpu(dp))
+		port = PGID_CPU;
 
 	return ocelot_fdb_del(ocelot, port, addr, vid, bridge_dev);
 }
