@@ -3664,6 +3664,7 @@ free_bus:
 static int hv_pci_bus_exit(struct hv_device *hdev, bool keep_devs)
 {
 	struct hv_pcibus_device *hbus = hv_get_drvdata(hdev);
+	struct vmbus_channel *chan = hdev->channel;
 	struct {
 		struct pci_packet teardown_packet;
 		u8 buffer[sizeof(struct pci_message)];
@@ -3671,13 +3672,14 @@ static int hv_pci_bus_exit(struct hv_device *hdev, bool keep_devs)
 	struct hv_pci_compl comp_pkt;
 	struct hv_pci_dev *hpdev, *tmp;
 	unsigned long flags;
+	u64 trans_id;
 	int ret;
 
 	/*
 	 * After the host sends the RESCIND_CHANNEL message, it doesn't
 	 * access the per-channel ringbuffer any longer.
 	 */
-	if (hdev->channel->rescind)
+	if (chan->rescind)
 		return 0;
 
 	if (!keep_devs) {
@@ -3714,16 +3716,26 @@ static int hv_pci_bus_exit(struct hv_device *hdev, bool keep_devs)
 	pkt.teardown_packet.compl_ctxt = &comp_pkt;
 	pkt.teardown_packet.message[0].type = PCI_BUS_D0EXIT;
 
-	ret = vmbus_sendpacket(hdev->channel, &pkt.teardown_packet.message,
-			       sizeof(struct pci_message),
-			       (unsigned long)&pkt.teardown_packet,
-			       VM_PKT_DATA_INBAND,
-			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket_getid(chan, &pkt.teardown_packet.message,
+				     sizeof(struct pci_message),
+				     (unsigned long)&pkt.teardown_packet,
+				     &trans_id, VM_PKT_DATA_INBAND,
+				     VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret)
 		return ret;
 
-	if (wait_for_completion_timeout(&comp_pkt.host_event, 10 * HZ) == 0)
+	if (wait_for_completion_timeout(&comp_pkt.host_event, 10 * HZ) == 0) {
+		/*
+		 * The completion packet on the stack becomes invalid after
+		 * 'return'; remove the ID from the VMbus requestor if the
+		 * identifier is still mapped to/associated with the packet.
+		 *
+		 * Cf. hv_pci_onchannelcallback().
+		 */
+		vmbus_request_addr_match(chan, trans_id,
+					 (unsigned long)&pkt.teardown_packet);
 		return -ETIMEDOUT;
+	}
 
 	return 0;
 }
