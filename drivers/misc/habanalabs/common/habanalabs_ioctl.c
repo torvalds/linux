@@ -118,7 +118,6 @@ static int hw_events_info(struct hl_device *hdev, bool aggregate,
 
 static int events_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
-	int rc;
 	u32 max_size = args->return_size;
 	u64 events_mask;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
@@ -131,8 +130,7 @@ static int events_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	hpriv->notifier_event.events_mask = 0;
 	mutex_unlock(&hpriv->notifier_event.lock);
 
-	rc = copy_to_user(out, &events_mask, sizeof(u64));
-	return rc;
+	return copy_to_user(out, &events_mask, sizeof(u64)) ? -EFAULT : 0;
 }
 
 static int dram_usage_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
