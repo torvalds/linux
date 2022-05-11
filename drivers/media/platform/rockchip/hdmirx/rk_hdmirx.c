@@ -174,9 +174,11 @@ struct rk_hdmirx_dev {
 	struct v4l2_ctrl *detect_tx_5v_ctrl;
 	struct v4l2_dv_timings timings;
 	struct gpio_desc *hdmirx_det_gpio;
+	struct work_struct work_wdt_config;
 	struct delayed_work delayed_work_hotplug;
 	struct delayed_work delayed_work_res_change;
 	struct delayed_work delayed_work_audio;
+	struct delayed_work delayed_work_heartbeat;
 	struct dentry *debugfs_dir;
 	struct freq_qos_request min_sta_freq_req;
 	struct hdmirx_audiostate audio_state;
@@ -217,6 +219,7 @@ struct rk_hdmirx_dev {
 	u32 color_depth;
 	u32 cpu_freq_khz;
 	u32 bound_cpu;
+	u32 wdt_cfg_bound_cpu;
 	hdmi_codec_plugged_cb plugged_cb;
 	spinlock_t dma_rst_lock;
 };
@@ -2321,6 +2324,9 @@ static void hdmirx_delayed_work_hotplug(struct work_struct *work)
 
 	if (plugin) {
 		cpu_latency_qos_update_request(&hdmirx_dev->pm_qos, 0);
+		schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+			&hdmirx_dev->delayed_work_heartbeat, msecs_to_jiffies(10));
+		sip_wdt_config(WDT_START, 0, 0, 0);
 		hdmirx_set_cpu_limit_freq(hdmirx_dev);
 		hdmirx_submodule_init(hdmirx_dev);
 		hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, POWERPROVIDED,
@@ -2357,6 +2363,9 @@ static void hdmirx_delayed_work_hotplug(struct work_struct *work)
 		cancel_delayed_work(&hdmirx_dev->delayed_work_audio);
 		cpu_latency_qos_update_request(&hdmirx_dev->pm_qos, PM_QOS_DEFAULT_VALUE);
 		hdmirx_cancel_cpu_limit_freq(hdmirx_dev);
+		cancel_delayed_work(&hdmirx_dev->delayed_work_heartbeat);
+		flush_work(&hdmirx_dev->work_wdt_config);
+		sip_wdt_config(WDT_STOP, 0, 0, 0);
 	}
 	mutex_unlock(&hdmirx_dev->work_lock);
 }
@@ -2701,6 +2710,28 @@ static void hdmirx_delayed_work_res_change(struct work_struct *work)
 	mutex_unlock(&hdmirx_dev->work_lock);
 }
 
+static void hdmirx_delayed_work_heartbeat(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct rk_hdmirx_dev *hdmirx_dev = container_of(dwork,
+			struct rk_hdmirx_dev, delayed_work_heartbeat);
+
+	queue_work_on(hdmirx_dev->wdt_cfg_bound_cpu,  system_highpri_wq,
+			&hdmirx_dev->work_wdt_config);
+	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+			&hdmirx_dev->delayed_work_heartbeat, HZ);
+}
+
+static void hdmirx_work_wdt_config(struct work_struct *work)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = container_of(work,
+			struct rk_hdmirx_dev, work_wdt_config);
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+
+	sip_wdt_config(WDT_PING, 0, 0, 0);
+	v4l2_dbg(3, debug, v4l2_dev, "hb\n");
+}
+
 static irqreturn_t hdmirx_5v_det_irq_handler(int irq, void *dev_id)
 {
 	struct rk_hdmirx_dev *hdmirx_dev = dev_id;
@@ -2873,6 +2904,9 @@ static int hdmirx_runtime_suspend(struct device *dev)
 	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_hotplug);
 	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_res_change);
 	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_audio);
+	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_heartbeat);
+	flush_work(&hdmirx_dev->work_wdt_config);
+	sip_wdt_config(WDT_STOP, 0, 0, 0);
 
 	clk_bulk_disable_unprepare(hdmirx_dev->num_clks, hdmirx_dev->clks);
 
@@ -3442,19 +3476,26 @@ static int hdmirx_probe(struct platform_device *pdev)
 		cpu_aff = cpu_logical_map(1); // big cpu1
 	sip_fiq_control(RK_SIP_FIQ_CTRL_SET_AFF, RK_IRQ_HDMIRX_HDMI, cpu_aff);
 	hdmirx_dev->bound_cpu = (cpu_aff >> 8) & 0xf;
-	dev_info(dev, "%s: cpu_aff:%#x, Bound_cpu:%d\n", __func__, cpu_aff,
-			hdmirx_dev->bound_cpu);
+	hdmirx_dev->wdt_cfg_bound_cpu = hdmirx_dev->bound_cpu + 1;
+	dev_info(dev, "%s: cpu_aff:%#x, Bound_cpu:%d, wdt_cfg_bound_cpu:%d\n",
+			__func__, cpu_aff,
+			hdmirx_dev->bound_cpu,
+			hdmirx_dev->wdt_cfg_bound_cpu);
 	cpu_latency_qos_add_request(&hdmirx_dev->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	mutex_init(&hdmirx_dev->stream_lock);
 	mutex_init(&hdmirx_dev->work_lock);
 	spin_lock_init(&hdmirx_dev->dma_rst_lock);
+	INIT_WORK(&hdmirx_dev->work_wdt_config,
+			hdmirx_work_wdt_config);
 	INIT_DELAYED_WORK(&hdmirx_dev->delayed_work_hotplug,
 			hdmirx_delayed_work_hotplug);
 	INIT_DELAYED_WORK(&hdmirx_dev->delayed_work_res_change,
 			hdmirx_delayed_work_res_change);
 	INIT_DELAYED_WORK(&hdmirx_dev->delayed_work_audio,
 			hdmirx_delayed_work_audio);
+	INIT_DELAYED_WORK(&hdmirx_dev->delayed_work_heartbeat,
+			hdmirx_delayed_work_heartbeat);
 	hdmirx_dev->power_on = false;
 
 	ret = hdmirx_power_on(hdmirx_dev);
