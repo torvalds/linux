@@ -111,6 +111,12 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 		flat_ccs_base = intel_gt_read_register(gt, XEHPSDV_FLAT_CCS_BASE_ADDR);
 		flat_ccs_base = (flat_ccs_base >> XEHPSDV_CCS_BASE_SHIFT) * SZ_64K;
 
+		/* FIXME: Remove this when we have small-bar enabled */
+		if (pci_resource_len(pdev, 2) < lmem_size) {
+			drm_err(&i915->drm, "System requires small-BAR support, which is currently unsupported on this kernel\n");
+			return ERR_PTR(-EINVAL);
+		}
+
 		if (GEM_WARN_ON(lmem_size < flat_ccs_base))
 			return ERR_PTR(-EIO);
 
