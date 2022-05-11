@@ -477,224 +477,192 @@
     {
         "BriefDescription": "",
         "MetricExpr": "CPU_CLK_UNHALTED.CORE",
-        "MetricGroup": " ",
         "MetricName": "CLKS",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "",
         "MetricExpr": "CPU_CLK_UNHALTED.CORE_P",
-        "MetricGroup": " ",
         "MetricName": "CLKS_P",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "",
         "MetricExpr": "5 * CPU_CLK_UNHALTED.CORE",
-        "MetricGroup": " ",
         "MetricName": "SLOTS",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Instructions Per Cycle",
         "MetricExpr": "INST_RETIRED.ANY / CPU_CLK_UNHALTED.CORE",
-        "MetricGroup": " ",
         "MetricName": "IPC",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Cycles Per Instruction",
         "MetricExpr": "CPU_CLK_UNHALTED.CORE / INST_RETIRED.ANY",
-        "MetricGroup": " ",
         "MetricName": "CPI",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Uops Per Instruction",
         "MetricExpr": "UOPS_RETIRED.ALL / INST_RETIRED.ANY",
-        "MetricGroup": " ",
         "MetricName": "UPI",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Percentage of total non-speculative loads with a store forward or unknown store address block",
         "MetricExpr": "100 * LD_BLOCKS.DATA_UNKNOWN / MEM_UOPS_RETIRED.ALL_LOADS",
-        "MetricGroup": "",
         "MetricName": "Store_Fwd_Blocks",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Percentage of total non-speculative loads with a address aliasing block",
         "MetricExpr": "100 * LD_BLOCKS.4K_ALIAS / MEM_UOPS_RETIRED.ALL_LOADS",
-        "MetricGroup": "",
         "MetricName": "Address_Alias_Blocks",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Percentage of total non-speculative loads that are splits",
         "MetricExpr": "100 * MEM_UOPS_RETIRED.SPLIT_LOADS / MEM_UOPS_RETIRED.ALL_LOADS",
-        "MetricGroup": "",
         "MetricName": "Load_Splits",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Instructions per Branch (lower number means higher occurrence rate)",
         "MetricExpr": "INST_RETIRED.ANY / BR_INST_RETIRED.ALL_BRANCHES",
-        "MetricGroup": " ",
         "MetricName": "IpBranch",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Instruction per (near) call (lower number means higher occurrence rate)",
         "MetricExpr": "INST_RETIRED.ANY / BR_INST_RETIRED.CALL",
-        "MetricGroup": " ",
         "MetricName": "IpCall",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Instructions per Load",
         "MetricExpr": "INST_RETIRED.ANY / MEM_UOPS_RETIRED.ALL_LOADS",
-        "MetricGroup": " ",
         "MetricName": "IpLoad",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Instructions per Store",
         "MetricExpr": "INST_RETIRED.ANY / MEM_UOPS_RETIRED.ALL_STORES",
-        "MetricGroup": " ",
         "MetricName": "IpStore",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Number of Instructions per non-speculative Branch Misprediction",
         "MetricExpr": "INST_RETIRED.ANY / BR_MISP_RETIRED.ALL_BRANCHES",
-        "MetricGroup": " ",
         "MetricName": "IpMispredict",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Instructions per Far Branch",
         "MetricExpr": "INST_RETIRED.ANY / ( BR_INST_RETIRED.FAR_BRANCH / 2 )",
-        "MetricGroup": " ",
         "MetricName": "IpFarBranch",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Ratio of all branches which mispredict",
         "MetricExpr": "BR_MISP_RETIRED.ALL_BRANCHES / BR_INST_RETIRED.ALL_BRANCHES",
-        "MetricGroup": " ",
         "MetricName": "Branch_Mispredict_Ratio",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Ratio between Mispredicted branches and unknown branches",
         "MetricExpr": "BR_MISP_RETIRED.ALL_BRANCHES / BACLEARS.ANY",
-        "MetricGroup": " ",
         "MetricName": "Branch_Mispredict_to_Unknown_Branch_Ratio",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Percentage of all uops which are ucode ops",
         "MetricExpr": "100 * UOPS_RETIRED.MS / UOPS_RETIRED.ALL",
-        "MetricGroup": " ",
         "MetricName": "Microcode_Uop_Ratio",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Percentage of all uops which are FPDiv uops",
         "MetricExpr": "100 * UOPS_RETIRED.FPDIV / UOPS_RETIRED.ALL",
-        "MetricGroup": " ",
         "MetricName": "FPDiv_Uop_Ratio",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Percentage of all uops which are IDiv uops",
         "MetricExpr": "100 * UOPS_RETIRED.IDIV / UOPS_RETIRED.ALL",
-        "MetricGroup": " ",
         "MetricName": "IDiv_Uop_Ratio",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Percentage of all uops which are x87 uops",
         "MetricExpr": "100 * UOPS_RETIRED.X87 / UOPS_RETIRED.ALL",
-        "MetricGroup": " ",
         "MetricName": "X87_Uop_Ratio",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Average Frequency Utilization relative nominal frequency",
         "MetricExpr": "CPU_CLK_UNHALTED.CORE / CPU_CLK_UNHALTED.REF_TSC",
-        "MetricGroup": " ",
         "MetricName": "Turbo_Utilization",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Fraction of cycles spent in Kernel mode",
         "MetricExpr": "CPU_CLK_UNHALTED.CORE:k / CPU_CLK_UNHALTED.CORE",
-        "MetricGroup": " ",
         "MetricName": "Kernel_Utilization",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Average CPU Utilization",
         "MetricExpr": "CPU_CLK_UNHALTED.REF_TSC / msr@tsc@",
-        "MetricGroup": " ",
         "MetricName": "CPU_Utilization",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Estimated Pause cost. In percent",
         "MetricExpr": "100 * SERIALIZATION.NON_C01_MS_SCB / ( 5 * CPU_CLK_UNHALTED.CORE )",
-        "MetricGroup": " ",
         "MetricName": "Estimated_Pause_Cost",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Cycle cost per L2 hit",
         "MetricExpr": "MEM_BOUND_STALLS.LOAD_L2_HIT / MEM_LOAD_UOPS_RETIRED.L2_HIT",
-        "MetricGroup": " ",
         "MetricName": "Cycles_per_Demand_Load_L2_Hit",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Cycle cost per LLC hit",
         "MetricExpr": "MEM_BOUND_STALLS.LOAD_LLC_HIT / MEM_LOAD_UOPS_RETIRED.L3_HIT",
-        "MetricGroup": " ",
         "MetricName": "Cycles_per_Demand_Load_L3_Hit",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Cycle cost per DRAM hit",
         "MetricExpr": "MEM_BOUND_STALLS.LOAD_DRAM_HIT / MEM_LOAD_UOPS_RETIRED.DRAM_HIT",
-        "MetricGroup": " ",
         "MetricName": "Cycles_per_Demand_Load_DRAM_Hit",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Percent of instruction miss cost that hit in the L2",
         "MetricExpr": "100 * MEM_BOUND_STALLS.IFETCH_L2_HIT / ( MEM_BOUND_STALLS.IFETCH )",
-        "MetricGroup": " ",
         "MetricName": "Inst_Miss_Cost_L2Hit_Percent",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Percent of instruction miss cost that hit in the L3",
         "MetricExpr": "100 * MEM_BOUND_STALLS.IFETCH_LLC_HIT / ( MEM_BOUND_STALLS.IFETCH )",
-        "MetricGroup": " ",
         "MetricName": "Inst_Miss_Cost_L3Hit_Percent",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Percent of instruction miss cost that hit in DRAM",
         "MetricExpr": "100 * MEM_BOUND_STALLS.IFETCH_DRAM_HIT / ( MEM_BOUND_STALLS.IFETCH )",
-        "MetricGroup": " ",
         "MetricName": "Inst_Miss_Cost_DRAMHit_Percent",
         "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "load ops retired per 1000 instruction",
         "MetricExpr": "1000 * MEM_UOPS_RETIRED.ALL_LOADS / INST_RETIRED.ANY",
-        "MetricGroup": " ",
         "MetricName": "MemLoadPKI",
         "Unit": "cpu_atom"
     },
