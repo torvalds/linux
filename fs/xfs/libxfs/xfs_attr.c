@@ -314,6 +314,7 @@ xfs_attr_leaf_addname(
 {
 	struct xfs_da_args	*args = attr->xattri_da_args;
 	struct xfs_inode	*dp = args->dp;
+	enum xfs_delattr_state	next_state = XFS_DAS_UNINIT;
 	int			error;
 
 	if (xfs_attr_is_leaf(dp)) {
@@ -334,37 +335,35 @@ xfs_attr_leaf_addname(
 			 * when we come back, we'll be a node, so we'll fall
 			 * down into the node handling code below
 			 */
-			trace_xfs_attr_set_iter_return(
-				attr->xattri_dela_state, args->dp);
-			return -EAGAIN;
+			error = -EAGAIN;
+			goto out;
 		}
-
-		if (error)
-			return error;
-
-		attr->xattri_dela_state = XFS_DAS_FOUND_LBLK;
+		next_state = XFS_DAS_FOUND_LBLK;
 	} else {
 		error = xfs_attr_node_addname_find_attr(attr);
 		if (error)
 			return error;
 
+		next_state = XFS_DAS_FOUND_NBLK;
 		error = xfs_attr_node_addname(attr);
-		if (error)
-			return error;
+	}
+	if (error)
+		return error;
 
-		/*
-		 * If addname was successful, and we dont need to alloc or
-		 * remove anymore blks, we're done.
-		 */
-		if (!args->rmtblkno &&
-		    !(args->op_flags & XFS_DA_OP_RENAME))
-			return 0;
-
-		attr->xattri_dela_state = XFS_DAS_FOUND_NBLK;
+	/*
+	 * We need to commit and roll if we need to allocate remote xattr blocks
+	 * or perform more xattr manipulations. Otherwise there is nothing more
+	 * to do and we can return success.
+	 */
+	if (args->rmtblkno ||
+	    (args->op_flags & XFS_DA_OP_RENAME)) {
+		attr->xattri_dela_state = next_state;
+		error = -EAGAIN;
 	}
 
+out:
 	trace_xfs_attr_leaf_addname_return(attr->xattri_dela_state, args->dp);
-	return -EAGAIN;
+	return error;
 }
 
 /*
