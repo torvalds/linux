@@ -215,7 +215,7 @@ irqreturn_t spl2sw_ethernet_interrupt(int irq, void *dev_id)
 
 	status = readl(comm->l2sw_reg_base + L2SW_SW_INT_STATUS_0);
 	if (unlikely(!status)) {
-		dev_dbg(&comm->pdev->dev, "Interrput status is null!\n");
+		dev_dbg(&comm->pdev->dev, "Interrupt status is null!\n");
 		goto spl2sw_ethernet_int_out;
 	}
 	writel(status, comm->l2sw_reg_base + L2SW_SW_INT_STATUS_0);
