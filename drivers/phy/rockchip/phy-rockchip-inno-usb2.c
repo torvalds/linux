@@ -1243,7 +1243,6 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			delay = OTG_SCHEDULE_DELAY;
 			wake_unlock(&rport->wakelock);
 		}
-		sch_work = true;
 		break;
 	case OTG_STATE_A_HOST:
 		if (extcon_get_state(rphy->edev, EXTCON_USB_HOST) == 0) {
