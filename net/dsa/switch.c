@@ -809,14 +809,12 @@ static int dsa_switch_change_tag_proto(struct dsa_switch *ds,
 
 	ASSERT_RTNL();
 
-	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
-		err = ds->ops->change_tag_protocol(ds, cpu_dp->index,
-						   tag_ops->proto);
-		if (err)
-			return err;
+	err = ds->ops->change_tag_protocol(ds, tag_ops->proto);
+	if (err)
+		return err;
 
+	dsa_switch_for_each_cpu_port(cpu_dp, ds)
 		dsa_port_set_tag_protocol(cpu_dp, tag_ops);
-	}
 
 	/* Now that changing the tag protocol can no longer fail, let's update
 	 * the remaining bits which are "duplicated for faster access", and the

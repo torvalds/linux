@@ -575,14 +575,13 @@ static void felix_del_tag_protocol(struct dsa_switch *ds, int cpu,
  * tag_8021q setup can fail, the NPI setup can't. So either the change is made,
  * or the restoration is guaranteed to work.
  */
-static int felix_change_tag_protocol(struct dsa_switch *ds, int cpu,
+static int felix_change_tag_protocol(struct dsa_switch *ds,
 				     enum dsa_tag_protocol proto)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
 	enum dsa_tag_protocol old_proto = felix->tag_proto;
-	bool cpu_port_active = false;
-	struct dsa_port *dp;
+	struct dsa_port *cpu_dp;
 	int err;
 
 	if (proto != DSA_TAG_PROTO_SEVILLE &&
@@ -590,33 +589,17 @@ static int felix_change_tag_protocol(struct dsa_switch *ds, int cpu,
 	    proto != DSA_TAG_PROTO_OCELOT_8021Q)
 		return -EPROTONOSUPPORT;
 
-	/* We don't support multiple CPU ports, yet the DT blob may have
-	 * multiple CPU ports defined. The first CPU port is the active one,
-	 * the others are inactive. In this case, DSA will call
-	 * ->change_tag_protocol() multiple times, once per CPU port.
-	 * Since we implement the tagging protocol change towards "ocelot" or
-	 * "seville" as effectively initializing the NPI port, what we are
-	 * doing is effectively changing who the NPI port is to the last @cpu
-	 * argument passed, which is an unused DSA CPU port and not the one
-	 * that should actively pass traffic.
-	 * Suppress DSA's calls on CPU ports that are inactive.
-	 */
-	dsa_switch_for_each_user_port(dp, ds) {
-		if (dp->cpu_dp->index == cpu) {
-			cpu_port_active = true;
-			break;
+	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
+		felix_del_tag_protocol(ds, cpu_dp->index, old_proto);
+
+		err = felix_set_tag_protocol(ds, cpu_dp->index, proto);
+		if (err) {
+			felix_set_tag_protocol(ds, cpu_dp->index, old_proto);
+			return err;
 		}
-	}
 
-	if (!cpu_port_active)
-		return 0;
-
-	felix_del_tag_protocol(ds, cpu, old_proto);
-
-	err = felix_set_tag_protocol(ds, cpu, proto);
-	if (err) {
-		felix_set_tag_protocol(ds, cpu, old_proto);
-		return err;
+		/* Stop at first CPU port */
+		break;
 	}
 
 	felix->tag_proto = proto;
