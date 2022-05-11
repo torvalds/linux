@@ -112,7 +112,7 @@ static struct workqueue_struct *reset_workqueue;
 
 int efx_siena_create_reset_workqueue(void)
 {
-	reset_workqueue = create_singlethread_workqueue("sfc_reset");
+	reset_workqueue = create_singlethread_workqueue("sfc_siena_reset");
 	if (!reset_workqueue) {
 		printk(KERN_ERR "Failed to create reset workqueue\n");
 		return -ENOMEM;
