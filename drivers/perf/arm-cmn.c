@@ -63,6 +63,7 @@
 #define CMN_MXP__CONNECT_INFO_P3	0x0030
 #define CMN_MXP__CONNECT_INFO_P4	0x0038
 #define CMN_MXP__CONNECT_INFO_P5	0x0040
+#define CMN__CONNECT_INFO_DEVICE_TYPE	GENMASK_ULL(4, 0)
 
 /* PMU registers occupy the 3rd 4KB page of each node's region */
 #define CMN_PMU_OFFSET			0x2000
@@ -400,7 +401,7 @@ static struct dentry *arm_cmn_debugfs;
 #ifdef CONFIG_DEBUG_FS
 static const char *arm_cmn_device_type(u8 type)
 {
-	switch(type) {
+	switch(FIELD_GET(CMN__CONNECT_INFO_DEVICE_TYPE, type)) {
 		case 0x00: return "        |";
 		case 0x01: return "  RN-I  |";
 		case 0x02: return "  RN-D  |";
