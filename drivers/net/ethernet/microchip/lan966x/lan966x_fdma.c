@@ -729,11 +729,11 @@ static int lan966x_fdma_reload(struct lan966x *lan966x, int new_mtu)
 	return err;
 restore:
 	lan966x->rx.dma = rx_dma;
-	lan966x->tx.dma = tx_dma;
+	lan966x->rx.dcbs = rx_dcbs;
 	lan966x_fdma_rx_start(&lan966x->rx);
 
 restore_tx:
-	lan966x->rx.dcbs = rx_dcbs;
+	lan966x->tx.dma = tx_dma;
 	lan966x->tx.dcbs = tx_dcbs;
 	lan966x->tx.dcbs_buf = tx_dcbs_buf;
 
