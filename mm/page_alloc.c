@@ -3301,6 +3301,7 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn)
 	struct zone *zone = page_zone(page);
 	struct per_cpu_pages *pcp;
 	int migratetype;
+	bool pcp_skip_cma_pages = false;
 
 	migratetype = get_pcppage_migratetype(page);
 	__count_vm_event(PGFREE);
@@ -3313,7 +3314,10 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn)
 	 * excessively into the page allocator
 	 */
 	if (migratetype >= MIGRATE_PCPTYPES) {
-		if (unlikely(is_migrate_isolate(migratetype))) {
+		trace_android_vh_pcplist_add_cma_pages_bypass(migratetype,
+			&pcp_skip_cma_pages);
+		if (unlikely(is_migrate_isolate(migratetype)) ||
+				pcp_skip_cma_pages) {
 			free_one_page(zone, page, pfn, 0, migratetype,
 				      FPI_NONE);
 			return;
@@ -8727,6 +8731,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 	unsigned long outer_start, outer_end;
 	unsigned int order;
 	int ret = 0;
+	bool skip_drain_all_pages = false;
 
 	struct compact_control cc = {
 		.nr_migratepages = 0,
@@ -8772,7 +8777,10 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 		return ret;
 	}
 
-	drain_all_pages(cc.zone);
+	trace_android_vh_cma_drain_all_pages_bypass(migratetype,
+						&skip_drain_all_pages);
+	if (skip_drain_all_pages)
+		drain_all_pages(cc.zone);
 
 	/*
 	 * In case of -EBUSY, we'd like to know which page causes problem.

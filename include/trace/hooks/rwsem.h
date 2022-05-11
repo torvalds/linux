@@ -29,7 +29,21 @@ DECLARE_HOOK(android_vh_alter_rwsem_list_add,
 DECLARE_HOOK(android_vh_rwsem_wake_finish,
 	TP_PROTO(struct rw_semaphore *sem),
 	TP_ARGS(sem));
-
+DECLARE_HOOK(android_vh_rwsem_set_owner,
+	TP_PROTO(struct rw_semaphore *sem),
+	TP_ARGS(sem));
+DECLARE_HOOK(android_vh_rwsem_set_reader_owned,
+	TP_PROTO(struct rw_semaphore *sem),
+	TP_ARGS(sem));
+DECLARE_HOOK(android_vh_rwsem_up_write_end,
+	TP_PROTO(struct rw_semaphore *sem),
+	TP_ARGS(sem));
+DECLARE_HOOK(android_vh_rwsem_up_read_end,
+	TP_PROTO(struct rw_semaphore *sem),
+	TP_ARGS(sem));
+DECLARE_HOOK(android_vh_rwsem_mark_wake_readers,
+	TP_PROTO(struct rw_semaphore *sem, struct rwsem_waiter *waiter),
+	TP_ARGS(sem, waiter));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_RWSEM_H */

@@ -670,7 +670,7 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
  *
  * Returns the number of reclaimed slab objects.
  */
-static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+unsigned long shrink_slab(gfp_t gfp_mask, int nid,
 				 struct mem_cgroup *memcg,
 				 int priority)
 {
@@ -722,6 +722,7 @@ out:
 	cond_resched();
 	return freed;
 }
+EXPORT_SYMBOL_GPL(shrink_slab);
 
 void drop_slab_node(int nid)
 {
@@ -2395,6 +2396,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	denominator = ap + fp;
 out:
 	trace_android_vh_tune_scan_type((char *)(&scan_balance));
+	trace_android_vh_tune_memcg_scan_type(memcg, (char *)(&scan_balance));
 	for_each_evictable_lru(lru) {
 		int file = is_file_lru(lru);
 		unsigned long lruvec_size;
@@ -2698,6 +2700,7 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
 		struct lruvec *lruvec = mem_cgroup_lruvec(memcg, pgdat);
 		unsigned long reclaimed;
 		unsigned long scanned;
+		bool skip = false;
 
 		/*
 		 * This loop can become CPU-bound when target memcgs
@@ -2706,6 +2709,10 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
 		 * memory is explicitly protected. Avoid soft lockups.
 		 */
 		cond_resched();
+
+		trace_android_vh_shrink_node_memcgs(memcg, &skip);
+		if (skip)
+			continue;
 
 		mem_cgroup_calculate_protection(target_memcg, memcg);
 

@@ -54,6 +54,9 @@ DECLARE_HOOK(android_vh_alter_mutex_list_add,
 DECLARE_HOOK(android_vh_mutex_unlock_slowpath,
 	TP_PROTO(struct mutex *lock),
 	TP_ARGS(lock));
+DECLARE_HOOK(android_vh_mutex_unlock_slowpath_end,
+	TP_PROTO(struct mutex *lock, struct task_struct *next),
+	TP_ARGS(lock, next));
 
 /* macro versions of hooks are no longer required */
 

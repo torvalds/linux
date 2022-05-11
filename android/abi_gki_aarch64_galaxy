@@ -2027,10 +2027,12 @@
   gpiochip_generic_free
   gpiochip_generic_request
   gpiochip_get_data
+  gpiochip_irqchip_add_key
   gpiochip_line_is_valid
   gpiochip_lock_as_irq
   gpiochip_populate_parent_fwspec_fourcell
   gpiochip_remove
+  gpiochip_set_nested_irqchip
   gpiochip_unlock_as_irq
   gpiod_cansleep
   gpiod_count
@@ -2053,9 +2055,14 @@
   gro_cells_destroy
   gro_cells_init
   gro_cells_receive
+  gs_alloc_req
+  gs_free_req
   gserial_alloc_line
   gserial_connect
   gserial_disconnect
+  gserial_free_line
+  gserial_resume
+  gserial_suspend
   guid_gen
   handle_bad_irq
   handle_edge_irq

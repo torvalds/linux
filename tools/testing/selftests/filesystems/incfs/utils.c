@@ -116,6 +116,9 @@ size_t format_signature(void **buf, const char *root_hash, const char *add_data)
 	size_t size = sizeof(struct signature_blob) + strlen(add_data) + 1;
 	struct signature_blob *sb = malloc(size);
 
+	if (!sb)
+		return 0;
+
 	*sb = (struct signature_blob){
 		.version = INCFS_SIGNATURE_VERSION,
 		.hash_section_size = sizeof(struct hash_section),
@@ -126,7 +129,7 @@ size_t format_signature(void **buf, const char *root_hash, const char *add_data)
 				.salt_size = 0,
 				.hash_size = SHA256_DIGEST_SIZE,
 			},
-		.signing_section_size = sizeof(uint32_t) + strlen(add_data) + 1,
+		.signing_section_size = strlen(add_data) + 1,
 	};
 
 	memcpy(sb->hash_section.hash, root_hash, SHA256_DIGEST_SIZE);

@@ -236,7 +236,6 @@ static void set_type(struct bow_context *bc, struct bow_range **br, int type)
 
 	(*br)->type = type;
 
-	mutex_lock(&bc->ranges_lock);
 	if (next->type == type) {
 		if (type == TRIMMED)
 			list_del(&next->trimmed_list);
@@ -250,7 +249,6 @@ static void set_type(struct bow_context *bc, struct bow_range **br, int type)
 		rb_erase(&(*br)->node, &bc->ranges);
 		kfree(*br);
 	}
-	mutex_unlock(&bc->ranges_lock);
 
 	*br = NULL;
 }

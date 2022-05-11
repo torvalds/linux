@@ -3560,6 +3560,7 @@ struct swap_info_struct *swp_swap_info(swp_entry_t entry)
 {
 	return swap_type_to_swap_info(swp_type(entry));
 }
+EXPORT_SYMBOL_GPL(swp_swap_info);
 
 struct swap_info_struct *page_swap_info(struct page *page)
 {
