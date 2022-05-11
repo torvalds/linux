@@ -37,8 +37,8 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include "en_accel/ipsec_rxtx.h"
-#include "en_accel/tls.h"
-#include "en_accel/tls_rxtx.h"
+#include "en_accel/ktls.h"
+#include "en_accel/ktls_txrx.h"
 #include "en.h"
 #include "en/txrx.h"
 
@@ -124,8 +124,9 @@ static inline bool mlx5e_accel_tx_begin(struct net_device *dev,
 
 #ifdef CONFIG_MLX5_EN_TLS
 	/* May send SKBs and WQEs. */
-	if (mlx5e_tls_skb_offloaded(skb))
-		if (unlikely(!mlx5e_tls_handle_tx_skb(dev, sq, skb, &state->tls)))
+	if (mlx5e_ktls_skb_offloaded(skb))
+		if (unlikely(!mlx5e_ktls_handle_tx_skb(dev, sq, skb,
+						       &state->tls)))
 			return false;
 #endif
 
@@ -174,7 +175,7 @@ static inline void mlx5e_accel_tx_finish(struct mlx5e_txqsq *sq,
 					 struct mlx5_wqe_inline_seg *inlseg)
 {
 #ifdef CONFIG_MLX5_EN_TLS
-	mlx5e_tls_handle_tx_wqe(&wqe->ctrl, &state->tls);
+	mlx5e_ktls_handle_tx_wqe(&wqe->ctrl, &state->tls);
 #endif
 
 #ifdef CONFIG_MLX5_EN_IPSEC
