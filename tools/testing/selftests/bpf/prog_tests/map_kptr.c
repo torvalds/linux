@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
+#include <network_helpers.h>
 
 #include "map_kptr.skel.h"
 #include "map_kptr_fail.skel.h"
@@ -81,14 +82,29 @@ static void test_map_kptr_fail(void)
 	}
 }
 
-static void test_map_kptr_success(void)
+static void test_map_kptr_success(bool test_run)
 {
+	LIBBPF_OPTS(bpf_test_run_opts, opts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.repeat = 1,
+	);
 	struct map_kptr *skel;
 	int key = 0, ret;
 	char buf[24];
 
 	skel = map_kptr__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "map_kptr__open_and_load"))
+		return;
+
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref), &opts);
+	ASSERT_OK(ret, "test_map_kptr_ref refcount");
+	ASSERT_OK(opts.retval, "test_map_kptr_ref retval");
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref2), &opts);
+	ASSERT_OK(ret, "test_map_kptr_ref2 refcount");
+	ASSERT_OK(opts.retval, "test_map_kptr_ref2 retval");
+
+	if (test_run)
 		return;
 
 	ret = bpf_map_update_elem(bpf_map__fd(skel->maps.array_map), &key, buf, 0);
@@ -116,7 +132,12 @@ static void test_map_kptr_success(void)
 
 void test_map_kptr(void)
 {
-	if (test__start_subtest("success"))
-		test_map_kptr_success();
+	if (test__start_subtest("success")) {
+		test_map_kptr_success(false);
+		/* Do test_run twice, so that we see refcount going back to 1
+		 * after we leave it in map from first iteration.
+		 */
+		test_map_kptr_success(true);
+	}
 	test_map_kptr_fail();
 }

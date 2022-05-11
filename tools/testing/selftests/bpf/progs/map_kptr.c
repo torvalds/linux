@@ -141,7 +141,7 @@ SEC("tc")
 int test_map_kptr(struct __sk_buff *ctx)
 {
 	struct map_value *v;
-	int i, key = 0;
+	int key = 0;
 
 #define TEST(map)					\
 	v = bpf_map_lookup_elem(&map, &key);		\
@@ -162,7 +162,7 @@ SEC("tc")
 int test_map_in_map_kptr(struct __sk_buff *ctx)
 {
 	struct map_value *v;
-	int i, key = 0;
+	int key = 0;
 	void *map;
 
 #define TEST(map_in_map)                                \
@@ -184,6 +184,108 @@ int test_map_in_map_kptr(struct __sk_buff *ctx)
 	TEST(hash_of_lru_hash_maps);
 
 #undef TEST
+	return 0;
+}
+
+SEC("tc")
+int test_map_kptr_ref(struct __sk_buff *ctx)
+{
+	struct prog_test_ref_kfunc *p, *p_st;
+	unsigned long arg = 0;
+	struct map_value *v;
+	int key = 0, ret;
+
+	p = bpf_kfunc_call_test_acquire(&arg);
+	if (!p)
+		return 1;
+
+	p_st = p->next;
+	if (p_st->cnt.refs.counter != 2) {
+		ret = 2;
+		goto end;
+	}
+
+	v = bpf_map_lookup_elem(&array_map, &key);
+	if (!v) {
+		ret = 3;
+		goto end;
+	}
+
+	p = bpf_kptr_xchg(&v->ref_ptr, p);
+	if (p) {
+		ret = 4;
+		goto end;
+	}
+	if (p_st->cnt.refs.counter != 2)
+		return 5;
+
+	p = bpf_kfunc_call_test_kptr_get(&v->ref_ptr, 0, 0);
+	if (!p)
+		return 6;
+	if (p_st->cnt.refs.counter != 3) {
+		ret = 7;
+		goto end;
+	}
+	bpf_kfunc_call_test_release(p);
+	if (p_st->cnt.refs.counter != 2)
+		return 8;
+
+	p = bpf_kptr_xchg(&v->ref_ptr, NULL);
+	if (!p)
+		return 9;
+	bpf_kfunc_call_test_release(p);
+	if (p_st->cnt.refs.counter != 1)
+		return 10;
+
+	p = bpf_kfunc_call_test_acquire(&arg);
+	if (!p)
+		return 11;
+	p = bpf_kptr_xchg(&v->ref_ptr, p);
+	if (p) {
+		ret = 12;
+		goto end;
+	}
+	if (p_st->cnt.refs.counter != 2)
+		return 13;
+	/* Leave in map */
+
+	return 0;
+end:
+	bpf_kfunc_call_test_release(p);
+	return ret;
+}
+
+SEC("tc")
+int test_map_kptr_ref2(struct __sk_buff *ctx)
+{
+	struct prog_test_ref_kfunc *p, *p_st;
+	struct map_value *v;
+	int key = 0;
+
+	v = bpf_map_lookup_elem(&array_map, &key);
+	if (!v)
+		return 1;
+
+	p_st = v->ref_ptr;
+	if (!p_st || p_st->cnt.refs.counter != 2)
+		return 2;
+
+	p = bpf_kptr_xchg(&v->ref_ptr, NULL);
+	if (!p)
+		return 3;
+	if (p_st->cnt.refs.counter != 2) {
+		bpf_kfunc_call_test_release(p);
+		return 4;
+	}
+
+	p = bpf_kptr_xchg(&v->ref_ptr, p);
+	if (p) {
+		bpf_kfunc_call_test_release(p);
+		return 5;
+	}
+	if (p_st->cnt.refs.counter != 2)
+		return 6;
+
 	return 0;
 }
 
