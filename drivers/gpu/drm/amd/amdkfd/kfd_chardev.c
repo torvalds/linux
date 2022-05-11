@@ -299,6 +299,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	struct kfd_process_device *pdd;
 	struct queue_properties q_properties;
 	uint32_t doorbell_offset_in_process = 0;
+	struct amdgpu_bo *wptr_bo = NULL;
 
 	memset(&q_properties, 0, sizeof(struct queue_properties));
 
@@ -326,12 +327,49 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 		goto err_bind_process;
 	}
 
+	/* Starting with GFX11, wptr BOs must be mapped to GART for MES to determine work
+	 * on unmapped queues for usermode queue oversubscription (no aggregated doorbell)
+	 */
+	if (dev->shared_resources.enable_mes &&
+			((dev->adev->mes.sched_version & AMDGPU_MES_API_VERSION_MASK)
+			>> AMDGPU_MES_API_VERSION_SHIFT) >= 2) {
+		struct amdgpu_bo_va_mapping *wptr_mapping;
+		struct amdgpu_vm *wptr_vm;
+
+		wptr_vm = drm_priv_to_vm(pdd->drm_priv);
+		err = amdgpu_bo_reserve(wptr_vm->root.bo, false);
+		if (err)
+			goto err_wptr_map_gart;
+
+		wptr_mapping = amdgpu_vm_bo_lookup_mapping(
+				wptr_vm, args->write_pointer_address >> PAGE_SHIFT);
+		amdgpu_bo_unreserve(wptr_vm->root.bo);
+		if (!wptr_mapping) {
+			pr_err("Failed to lookup wptr bo\n");
+			err = -EINVAL;
+			goto err_wptr_map_gart;
+		}
+
+		wptr_bo = wptr_mapping->bo_va->base.bo;
+		if (wptr_bo->tbo.base.size > PAGE_SIZE) {
+			pr_err("Requested GART mapping for wptr bo larger than one page\n");
+			err = -EINVAL;
+			goto err_wptr_map_gart;
+		}
+
+		err = amdgpu_amdkfd_map_gtt_bo_to_gart(dev->adev, wptr_bo);
+		if (err) {
+			pr_err("Failed to map wptr bo to GART\n");
+			goto err_wptr_map_gart;
+		}
+	}
+
 	pr_debug("Creating queue for PASID 0x%x on gpu 0x%x\n",
 			p->pasid,
 			dev->id);
 
-	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties, &queue_id, NULL, NULL, NULL,
-			&doorbell_offset_in_process);
+	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties, &queue_id, wptr_bo,
+			NULL, NULL, NULL, &doorbell_offset_in_process);
 	if (err != 0)
 		goto err_create_queue;
 
@@ -363,6 +401,9 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	return 0;
 
 err_create_queue:
+	if (wptr_bo)
+		amdgpu_amdkfd_free_gtt_mem(dev->adev, wptr_bo);
+err_wptr_map_gart:
 err_bind_process:
 err_pdd:
 	mutex_unlock(&p->mutex);
