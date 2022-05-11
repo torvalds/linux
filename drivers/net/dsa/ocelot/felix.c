@@ -313,6 +313,21 @@ static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
 	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 
+static int felix_trap_get_cpu_port(struct dsa_switch *ds,
+				   const struct ocelot_vcap_filter *trap)
+{
+	struct dsa_port *dp;
+	int first_port;
+
+	if (WARN_ON(!trap->ingress_port_mask))
+		return -1;
+
+	first_port = __ffs(trap->ingress_port_mask);
+	dp = dsa_to_port(ds, first_port);
+
+	return dp->cpu_dp->index;
+}
+
 /* On switches with no extraction IRQ wired, trapped packets need to be
  * replicated over Ethernet as well, otherwise we'd get no notification of
  * their arrival when using the ocelot-8021q tagging protocol.
@@ -326,18 +341,11 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 	struct ocelot_vcap_filter *trap;
 	enum ocelot_mask_mode mask_mode;
 	unsigned long port_mask;
-	struct dsa_port *dp;
 	bool cpu_copy_ena;
-	int cpu = -1, err;
+	int err;
 
 	if (!felix->info->quirk_no_xtr_irq)
 		return 0;
-
-	/* Figure out the current CPU port */
-	dsa_switch_for_each_cpu_port(dp, ds) {
-		cpu = dp->index;
-		break;
-	}
 
 	/* We are sure that "cpu" was found, otherwise
 	 * dsa_tree_setup_default_cpu() would have failed earlier.
@@ -356,7 +364,7 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 			 * port module.
 			 */
 			mask_mode = OCELOT_MASK_MODE_REDIRECT;
-			port_mask = BIT(cpu);
+			port_mask = BIT(felix_trap_get_cpu_port(ds, trap));
 			cpu_copy_ena = !!trap->take_ts;
 		} else {
 			/* Trap packets only to the CPU port module, which is
