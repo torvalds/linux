@@ -26,6 +26,16 @@ config SND_SOC_INTEL_AVS_MACH_I2S_TEST
 	   This adds support for I2S test-board which can be used to verify
 	   transfer over I2S interface with SSP loopback scenarios.
 
+config SND_SOC_INTEL_AVS_MACH_MAX98357A
+	tristate "max98357A I2S board"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_MAX98357A
+	help
+	  This adds support for AVS with MAX98357A I2S codec configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_AVS_MACH_NAU8825
 	tristate "nau8825 I2S board"
 	depends on I2C
