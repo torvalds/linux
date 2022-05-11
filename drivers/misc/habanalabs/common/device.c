@@ -286,10 +286,8 @@ static void hpriv_release(struct kref *ref)
 	hdev->compute_ctx_in_release = 0;
 
 	/* release the eventfd */
-	if (hpriv->notifier_event.eventfd) {
+	if (hpriv->notifier_event.eventfd)
 		eventfd_ctx_put(hpriv->notifier_event.eventfd);
-		hpriv->notifier_event.eventfd = 0;
-	}
 
 	mutex_destroy(&hpriv->notifier_event.lock);
 
@@ -364,10 +362,8 @@ static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
 	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 out:
 	/* release the eventfd */
-	if (hpriv->notifier_event.eventfd) {
+	if (hpriv->notifier_event.eventfd)
 		eventfd_ctx_put(hpriv->notifier_event.eventfd);
-		hpriv->notifier_event.eventfd = 0;
-	}
 
 	mutex_destroy(&hpriv->notifier_event.lock);
 	put_pid(hpriv->taskpid);

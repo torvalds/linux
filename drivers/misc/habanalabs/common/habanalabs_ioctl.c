@@ -647,7 +647,7 @@ static int eventfd_register(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	hpriv->notifier_event.eventfd = eventfd_ctx_fdget(args->eventfd);
 	if (IS_ERR(hpriv->notifier_event.eventfd)) {
 		rc = PTR_ERR(hpriv->notifier_event.eventfd);
-		hpriv->notifier_event.eventfd = 0;
+		hpriv->notifier_event.eventfd = NULL;
 		mutex_unlock(&hpriv->notifier_event.lock);
 		return rc;
 	}
@@ -665,7 +665,7 @@ static int eventfd_unregister(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	}
 
 	eventfd_ctx_put(hpriv->notifier_event.eventfd);
-	hpriv->notifier_event.eventfd = 0;
+	hpriv->notifier_event.eventfd = NULL;
 	mutex_unlock(&hpriv->notifier_event.lock);
 	return 0;
 }

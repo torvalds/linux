@@ -134,8 +134,6 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
 	hpriv->filp = filp;
-	hpriv->notifier_event.events_mask = 0;
-	hpriv->notifier_event.eventfd = 0;
 
 	mutex_init(&hpriv->notifier_event.lock);
 	mutex_init(&hpriv->restore_phase_mutex);
@@ -246,8 +244,6 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
 	hpriv->filp = filp;
-	hpriv->notifier_event.events_mask = 0;
-	hpriv->notifier_event.eventfd = 0;
 
 	mutex_init(&hpriv->notifier_event.lock);
 	nonseekable_open(inode, filp);
