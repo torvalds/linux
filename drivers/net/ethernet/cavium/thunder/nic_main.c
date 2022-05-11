@@ -59,7 +59,7 @@ struct nicpf {
 
 	/* MSI-X */
 	u8			num_vec;
-	bool			irq_allocated[NIC_PF_MSIX_VECTORS];
+	unsigned int		irq_allocated[NIC_PF_MSIX_VECTORS];
 	char			irq_name[NIC_PF_MSIX_VECTORS][20];
 };
 
@@ -1150,7 +1150,7 @@ static irqreturn_t nic_mbx_intr_handler(int irq, void *nic_irq)
 	u64 intr;
 	u8  vf;
 
-	if (irq == pci_irq_vector(nic->pdev, NIC_PF_INTR_ID_MBOX0))
+	if (irq == nic->irq_allocated[NIC_PF_INTR_ID_MBOX0])
 		mbx = 0;
 	else
 		mbx = 1;
@@ -1176,14 +1176,14 @@ static void nic_free_all_interrupts(struct nicpf *nic)
 
 	for (irq = 0; irq < nic->num_vec; irq++) {
 		if (nic->irq_allocated[irq])
-			free_irq(pci_irq_vector(nic->pdev, irq), nic);
-		nic->irq_allocated[irq] = false;
+			free_irq(nic->irq_allocated[irq], nic);
+		nic->irq_allocated[irq] = 0;
 	}
 }
 
 static int nic_register_interrupts(struct nicpf *nic)
 {
-	int i, ret;
+	int i, ret, irq;
 	nic->num_vec = pci_msix_vec_count(nic->pdev);
 
 	/* Enable MSI-X */
@@ -1201,13 +1201,13 @@ static int nic_register_interrupts(struct nicpf *nic)
 		sprintf(nic->irq_name[i],
 			"NICPF Mbox%d", (i - NIC_PF_INTR_ID_MBOX0));
 
-		ret = request_irq(pci_irq_vector(nic->pdev, i),
-				  nic_mbx_intr_handler, 0,
+		irq = pci_irq_vector(nic->pdev, i);
+		ret = request_irq(irq, nic_mbx_intr_handler, 0,
 				  nic->irq_name[i], nic);
 		if (ret)
 			goto fail;
 
-		nic->irq_allocated[i] = true;
+		nic->irq_allocated[i] = irq;
 	}
 
 	/* Enable mailbox interrupt */

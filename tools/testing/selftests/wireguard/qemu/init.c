@@ -110,12 +110,6 @@ static void enable_logging(void)
 			panic("write(exception-trace)");
 		close(fd);
 	}
-	fd = open("/proc/sys/kernel/panic_on_warn", O_WRONLY);
-	if (fd >= 0) {
-		if (write(fd, "1\n", 2) != 2)
-			panic("write(panic_on_warn)");
-		close(fd);
-	}
 }
 
 static void kmod_selftests(void)

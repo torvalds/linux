@@ -1835,6 +1835,12 @@ bool btrfs_zone_activate(struct btrfs_block_group *block_group)
 		goto out_unlock;
 	}
 
+	/* No space left */
+	if (block_group->alloc_offset == block_group->zone_capacity) {
+		ret = false;
+		goto out_unlock;
+	}
+
 	for (i = 0; i < map->num_stripes; i++) {
 		device = map->stripes[i].dev;
 		physical = map->stripes[i].physical;
@@ -1842,35 +1848,23 @@ bool btrfs_zone_activate(struct btrfs_block_group *block_group)
 		if (device->zone_info->max_active_zones == 0)
 			continue;
 
-		/* No space left */
-		if (block_group->alloc_offset == block_group->zone_capacity) {
-			ret = false;
-			goto out_unlock;
-		}
-
 		if (!btrfs_dev_set_active_zone(device, physical)) {
 			/* Cannot activate the zone */
 			ret = false;
 			goto out_unlock;
 		}
-
-		/* Successfully activated all the zones */
-		if (i == map->num_stripes - 1)
-			block_group->zone_is_active = 1;
-
-
 	}
+
+	/* Successfully activated all the zones */
+	block_group->zone_is_active = 1;
 	spin_unlock(&block_group->lock);
 
-	if (block_group->zone_is_active) {
-		/* For the active block group list */
-		btrfs_get_block_group(block_group);
+	/* For the active block group list */
+	btrfs_get_block_group(block_group);
 
-		spin_lock(&fs_info->zone_active_bgs_lock);
-		list_add_tail(&block_group->active_bg_list,
-			      &fs_info->zone_active_bgs);
-		spin_unlock(&fs_info->zone_active_bgs_lock);
-	}
+	spin_lock(&fs_info->zone_active_bgs_lock);
+	list_add_tail(&block_group->active_bg_list, &fs_info->zone_active_bgs);
+	spin_unlock(&fs_info->zone_active_bgs_lock);
 
 	return true;
 

@@ -269,6 +269,7 @@ struct folio_iter {
 	size_t offset;
 	size_t length;
 	/* private: for use by the iterator */
+	struct folio *_next;
 	size_t _seg_count;
 	int _i;
 };
@@ -283,6 +284,7 @@ static inline void bio_first_folio(struct folio_iter *fi, struct bio *bio,
 			PAGE_SIZE * (bvec->bv_page - &fi->folio->page);
 	fi->_seg_count = bvec->bv_len;
 	fi->length = min(folio_size(fi->folio) - fi->offset, fi->_seg_count);
+	fi->_next = folio_next(fi->folio);
 	fi->_i = i;
 }
 
@@ -290,9 +292,10 @@ static inline void bio_next_folio(struct folio_iter *fi, struct bio *bio)
 {
 	fi->_seg_count -= fi->length;
 	if (fi->_seg_count) {
-		fi->folio = folio_next(fi->folio);
+		fi->folio = fi->_next;
 		fi->offset = 0;
 		fi->length = min(folio_size(fi->folio), fi->_seg_count);
+		fi->_next = folio_next(fi->folio);
 	} else if (fi->_i + 1 < bio->bi_vcnt) {
 		bio_first_folio(fi, bio, fi->_i + 1);
 	} else {

@@ -201,12 +201,6 @@ static inline bool is_removed_spte(u64 spte)
  */
 extern u64 __read_mostly shadow_nonpresent_or_rsvd_lower_gfn_mask;
 
-/*
- * The number of non-reserved physical address bits irrespective of features
- * that repurpose legal bits, e.g. MKTME.
- */
-extern u8 __read_mostly shadow_phys_bits;
-
 static inline bool is_mmio_spte(u64 spte)
 {
 	return (spte & shadow_mmio_mask) == shadow_mmio_value &&
@@ -396,7 +390,7 @@ static inline void check_spte_writable_invariants(u64 spte)
 			  "kvm: Writable SPTE is not MMU-writable: %llx", spte);
 }
 
-static inline bool spte_can_locklessly_be_made_writable(u64 spte)
+static inline bool is_mmu_writable_spte(u64 spte)
 {
 	return spte & shadow_mmu_writable_mask;
 }
@@ -409,6 +403,8 @@ static inline u64 get_mmio_spte_generation(u64 spte)
 	gen |= (spte & MMIO_SPTE_GEN_HIGH_MASK) >> MMIO_SPTE_GEN_HIGH_SHIFT;
 	return gen;
 }
+
+bool spte_has_volatile_bits(u64 spte);
 
 bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	       const struct kvm_memory_slot *slot,
