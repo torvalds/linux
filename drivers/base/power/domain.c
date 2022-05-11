@@ -131,7 +131,7 @@ static const struct genpd_lock_ops genpd_spin_ops = {
 #define genpd_is_cpu_domain(genpd)	(genpd->flags & GENPD_FLAG_CPU_DOMAIN)
 #define genpd_is_rpm_always_on(genpd)	(genpd->flags & GENPD_FLAG_RPM_ALWAYS_ON)
 
-static inline bool irq_safe_dev_in_no_sleep_domain(struct device *dev,
+static inline bool irq_safe_dev_in_sleep_domain(struct device *dev,
 		const struct generic_pm_domain *genpd)
 {
 	bool ret;
@@ -139,9 +139,9 @@ static inline bool irq_safe_dev_in_no_sleep_domain(struct device *dev,
 	ret = pm_runtime_is_irq_safe(dev) && !genpd_is_irq_safe(genpd);
 
 	/*
-	 * Warn once if an IRQ safe device is attached to a no sleep domain, as
-	 * to indicate a suboptimal configuration for PM. For an always on
-	 * domain this isn't case, thus don't warn.
+	 * Warn once if an IRQ safe device is attached to a domain, which
+	 * callbacks are allowed to sleep. This indicates a suboptimal
+	 * configuration for PM, but it doesn't matter for an always on domain.
 	 */
 	if (ret && !genpd_is_always_on(genpd))
 		dev_warn_once(dev, "PM domain %s will not be powered off\n",
@@ -653,7 +653,7 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 		 * device is part of a non-IRQ safe domain.
 		 */
 		if (!pm_runtime_suspended(pdd->dev) ||
-			irq_safe_dev_in_no_sleep_domain(pdd->dev, genpd))
+			irq_safe_dev_in_sleep_domain(pdd->dev, genpd))
 			not_suspended++;
 	}
 
@@ -925,7 +925,7 @@ static int genpd_runtime_suspend(struct device *dev)
 	 * If power.irq_safe is set, this routine may be run with
 	 * IRQs disabled, so suspend only if the PM domain also is irq_safe.
 	 */
-	if (irq_safe_dev_in_no_sleep_domain(dev, genpd))
+	if (irq_safe_dev_in_sleep_domain(dev, genpd))
 		return 0;
 
 	genpd_lock(genpd);
@@ -965,7 +965,7 @@ static int genpd_runtime_resume(struct device *dev)
 	 * As we don't power off a non IRQ safe domain, which holds
 	 * an IRQ safe device, we don't need to restore power to it.
 	 */
-	if (irq_safe_dev_in_no_sleep_domain(dev, genpd)) {
+	if (irq_safe_dev_in_sleep_domain(dev, genpd)) {
 		timed = false;
 		goto out;
 	}
