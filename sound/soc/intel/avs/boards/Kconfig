@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "Intel AVS Machine drivers"
+	depends on SND_SOC_INTEL_AVS
+
+comment "Available DSP configurations"
+
+config SND_SOC_INTEL_AVS_MACH_HDAUDIO
+	tristate "HD-Audio generic board"
+	select SND_SOC_HDA
+	help
+	  This adds support for AVS with HDAudio codec configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
+endmenu
