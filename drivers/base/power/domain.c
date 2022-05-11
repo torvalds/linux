@@ -773,13 +773,16 @@ static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
 	for (;;) {
 		struct generic_pm_domain *genpd;
 		struct pm_domain_data *pdd;
+		struct gpd_timing_data *td;
 
 		spin_lock_irq(&dev->power.lock);
 
 		pdd = dev->power.subsys_data ?
 				dev->power.subsys_data->domain_data : NULL;
 		if (pdd) {
-			to_gpd_data(pdd)->td.constraint_changed = true;
+			td = to_gpd_data(pdd)->td;
+			if (td)
+				td->constraint_changed = true;
 			genpd = dev_to_genpd(dev);
 		} else {
 			genpd = ERR_PTR(-ENODATA);
@@ -875,7 +878,7 @@ static int genpd_runtime_suspend(struct device *dev)
 	struct generic_pm_domain *genpd;
 	bool (*suspend_ok)(struct device *__dev);
 	struct generic_pm_domain_data *gpd_data = dev_gpd_data(dev);
-	struct gpd_timing_data *td = &gpd_data->td;
+	struct gpd_timing_data *td = gpd_data->td;
 	bool runtime_pm = pm_runtime_enabled(dev);
 	ktime_t time_start;
 	s64 elapsed_ns;
@@ -915,7 +918,7 @@ static int genpd_runtime_suspend(struct device *dev)
 	/* Update suspend latency value if the measured time exceeds it. */
 	if (runtime_pm) {
 		elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
-		if (elapsed_ns > td->suspend_latency_ns) {
+		if (td && (elapsed_ns > td->suspend_latency_ns)) {
 			td->suspend_latency_ns = elapsed_ns;
 			dev_dbg(dev, "suspend latency exceeded, %lld ns\n",
 				elapsed_ns);
@@ -951,7 +954,7 @@ static int genpd_runtime_resume(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
 	struct generic_pm_domain_data *gpd_data = dev_gpd_data(dev);
-	struct gpd_timing_data *td = &gpd_data->td;
+	struct gpd_timing_data *td = gpd_data->td;
 	bool runtime_pm = pm_runtime_enabled(dev);
 	ktime_t time_start;
 	s64 elapsed_ns;
@@ -999,7 +1002,7 @@ static int genpd_runtime_resume(struct device *dev)
 	/* Update resume latency value if the measured time exceeds it. */
 	if (timed && runtime_pm) {
 		elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
-		if (elapsed_ns > td->resume_latency_ns) {
+		if (td && (elapsed_ns > td->resume_latency_ns)) {
 			td->resume_latency_ns = elapsed_ns;
 			dev_dbg(dev, "resume latency exceeded, %lld ns\n",
 				elapsed_ns);
@@ -1496,9 +1499,11 @@ EXPORT_SYMBOL_GPL(dev_pm_genpd_resume);
 
 #endif /* CONFIG_PM_SLEEP */
 
-static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev)
+static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
+							   bool has_governor)
 {
 	struct generic_pm_domain_data *gpd_data;
+	struct gpd_timing_data *td;
 	int ret;
 
 	ret = dev_pm_get_subsys_data(dev);
@@ -1512,26 +1517,38 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev)
 	}
 
 	gpd_data->base.dev = dev;
-	gpd_data->td.constraint_changed = true;
-	gpd_data->td.effective_constraint_ns = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS;
 	gpd_data->nb.notifier_call = genpd_dev_pm_qos_notifier;
 	gpd_data->next_wakeup = KTIME_MAX;
 
-	spin_lock_irq(&dev->power.lock);
+	/* Allocate data used by a governor. */
+	if (has_governor) {
+		td = kzalloc(sizeof(*td), GFP_KERNEL);
+		if (!td) {
+			ret = -ENOMEM;
+			goto err_free;
+		}
 
-	if (dev->power.subsys_data->domain_data) {
-		ret = -EINVAL;
-		goto err_free;
+		td->constraint_changed = true;
+		td->effective_constraint_ns = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS;
+		gpd_data->td = td;
 	}
 
-	dev->power.subsys_data->domain_data = &gpd_data->base;
+	spin_lock_irq(&dev->power.lock);
+
+	if (dev->power.subsys_data->domain_data)
+		ret = -EINVAL;
+	else
+		dev->power.subsys_data->domain_data = &gpd_data->base;
 
 	spin_unlock_irq(&dev->power.lock);
+
+	if (ret)
+		goto err_free;
 
 	return gpd_data;
 
  err_free:
-	spin_unlock_irq(&dev->power.lock);
+	kfree(gpd_data->td);
 	kfree(gpd_data);
  err_put:
 	dev_pm_put_subsys_data(dev);
@@ -1547,6 +1564,7 @@ static void genpd_free_dev_data(struct device *dev,
 
 	spin_unlock_irq(&dev->power.lock);
 
+	kfree(gpd_data->td);
 	kfree(gpd_data);
 	dev_pm_put_subsys_data(dev);
 }
@@ -1611,7 +1629,7 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(dev))
 		return -EINVAL;
 
-	gpd_data = genpd_alloc_dev_data(dev);
+	gpd_data = genpd_alloc_dev_data(dev, genpd->gov);
 	if (IS_ERR(gpd_data))
 		return PTR_ERR(gpd_data);
 

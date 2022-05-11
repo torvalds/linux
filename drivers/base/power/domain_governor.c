@@ -18,6 +18,8 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
 	s64 constraint_ns;
 
 	if (dev->power.subsys_data && dev->power.subsys_data->domain_data) {
+		struct gpd_timing_data *td = dev_gpd_data(dev)->td;
+
 		/*
 		 * Only take suspend-time QoS constraints of devices into
 		 * account, because constraints updated after the device has
@@ -25,7 +27,8 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
 		 * anyway.  In order for them to take effect, the device has to
 		 * be resumed and suspended again.
 		 */
-		constraint_ns = dev_gpd_data(dev)->td.effective_constraint_ns;
+		constraint_ns = td ? td->effective_constraint_ns :
+				PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS;
 	} else {
 		/*
 		 * The child is not in a domain and there's no info on its
@@ -49,7 +52,7 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
  */
 static bool default_suspend_ok(struct device *dev)
 {
-	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
+	struct gpd_timing_data *td = dev_gpd_data(dev)->td;
 	unsigned long flags;
 	s64 constraint_ns;
 
@@ -215,7 +218,7 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 		 * domain to turn off and on (that's how much time it will
 		 * have to wait worst case).
 		 */
-		td = &to_gpd_data(pdd)->td;
+		td = to_gpd_data(pdd)->td;
 		constraint_ns = td->effective_constraint_ns;
 		/*
 		 * Zero means "no suspend at all" and this runs only when all
