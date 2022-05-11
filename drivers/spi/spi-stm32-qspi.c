@@ -369,10 +369,6 @@ static int stm32_qspi_send(struct spi_mem *mem, const struct spi_mem_op *op)
 		op->dummy.buswidth, op->data.buswidth,
 		op->addr.val, op->data.nbytes);
 
-	err = stm32_qspi_wait_nobusy(qspi);
-	if (err)
-		goto abort;
-
 	cr = readl_relaxed(qspi->io_base + QSPI_CR);
 	cr &= ~CR_PRESC_MASK & ~CR_FSEL;
 	cr |= FIELD_PREP(CR_PRESC_MASK, flash->presc);
