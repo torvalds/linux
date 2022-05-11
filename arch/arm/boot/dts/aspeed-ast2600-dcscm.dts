@@ -34,26 +34,70 @@
 				label = "u-boot";
 			};
 
-			u-boot-env@e0000 {
+			pfm@e0000 {
 				reg = <0xe0000 0x20000>; // 128KB
+				label = "pfm";
+			};
+
+			u-boot-env@100000 {
+				reg = <0x100000 0x20000>; // 128KB
 				label = "u-boot-env";
 			};
 
-			kernel@100000 {
-				reg = <0x100000 0x900000>; // 9MB
-				label = "kernel";
+			sofs@120000 {
+				reg = <0x120000 0x200000>; // 2048KB
+				label = "sofs";
 			};
 
-			rofs@a00000 {
-				reg = <0xa00000 0x2400000>; // 36MB
-				label = "rofs";
-			};
-
-			rwfs@2e00000 {
-				reg = <0x2e00000 0x1000000>; // 16MB
+			rwfs@320000 {
+				reg = <0x320000 0x1200000>; // 18432KB
 				label = "rwfs";
 			};
 
+			kernel@1520000 {
+				reg = <0x1520000 0x900000>; // 9216KB
+				label = "kernel";
+			};
+
+			rofs@1e20000 {
+				reg = <0x1e20000 0x2400000>; // 36864KB
+				label = "rofs";
+			};
+
+			image-stging@4220000 {
+				reg = <0x4220000 0x3de0000>; // 63360KB
+				label = "img-stg";
+			};
+
+			rc-image@8000000 {
+				reg = <0x8000000 0x3de0000>; // 63360KB
+				label = "rc-image";
+			};
+
+			image-stging-2@bde0000 {
+				reg = <0xbde0000 0x1000000>; // 16384KB
+				label = "img-stg-2";
+			};
+
+			afm-active@cde0000 {
+				reg = <0xcde0000 0x500000>; // 5120KB
+				label = "afm-active";
+			};
+
+			afm-recovery@d2e0000 {
+				reg = <0xd2e0000 0x100000>; // 1024KB
+				label = "afm-rcvr";
+			};
+
+			reserved@d3e0000 {
+				reg = <0xd3e0000 0x2b20000>; // 44160KB
+				label = "rsvrd";
+			};
+
+			cpld-gold@ff00000 {
+				reg = <0xff00000 0x100000>; // 1024KB
+				label = "cpld-gold";
+			};
 		};
 	};
 
@@ -279,3 +323,47 @@
 &mdio3 {
 	status = "disabled";
 };
+
+&sgpiom0 {
+	status = "okay";
+	ngpios = <32>;
+	gpio-line-names =
+		"MAIN_PLD_MINOR_REV_BIT0","","MAIN_PLD_MINOR_REV_BIT1","","MAIN_PLD_MINOR_REV_BIT2","","MAIN_PLD_MINOR_REV_BIT3","",
+		"MAIN_PLD_MAJOR_REV_BIT0","","MAIN_PLD_MAJOR_REV_BIT1","","MAIN_PLD_MAJOR_REV_BIT2","","MAIN_PLD_MAJOR_REV_BIT3","",
+		"SGPIO_PLD_MAJOR_REV_BIT3","","SGPIO_PLD_MAJOR_REV_BIT2","","SGPIO_PLD_MAJOR_REV_BIT1","","SGPIO_PLD_MAJOR_REV_BIT0","",
+		"SGPIO_PLD_MINOR_REV_BIT3","","SGPIO_PLD_MINOR_REV_BIT2","","SGPIO_PLD_MINOR_REV_BIT1","","SGPIO_PLD_MINOR_REV_BIT0","";
+};
+
+&gpio0 {
+	gpio-line-names =
+		/*A0 - A7*/     "", "", "", "", "", "", "", "",
+		/*B0 - B7*/     "", "", "", "", "", "", "", "",
+		/*C0 - C7*/     "", "", "", "", "", "", "", "",
+		/*D0 - D7*/     "", "", "", "", "", "", "", "",
+		/*E0 - E7*/     "", "", "", "", "", "", "", "",
+		/*F0 - F7*/     "", "", "", "", "", "", "", "",
+		/*G0 - G7*/     "", "", "", "", "", "", "", "",
+		/*H0 - H7*/     "", "", "", "", "", "", "", "",
+		/*I0 - I7*/     "", "", "", "", "", "RESET_OUT", "POST_COMPLETE", "POWER_OUT",
+		/*J0 - J7*/     "", "", "", "", "", "", "", "",
+		/*K0 - K7*/     "", "", "", "", "", "", "", "",
+		/*L0 - L7*/     "", "", "", "", "", "", "", "",
+		/*M0 - M7*/     "", "", "", "", "", "", "", "",
+		/*N0 - N7*/     "", "", "", "", "", "", "", "",
+		/*O0 - O7*/     "", "", "", "", "", "", "", "",
+		/*P0 - P7*/     "", "", "", "", "", "", "", "",
+		/*Q0 - Q7*/     "", "", "", "", "", "", "", "",
+		/*R0 - R7*/     "", "", "", "", "", "", "", "",
+		/*S0 - S7*/     "", "", "", "", "", "", "", "",
+		/*T0 - T7*/     "", "", "", "", "", "", "", "",
+		/*U0 - U7*/     "", "", "", "", "", "", "", "",
+		/*V0 - V7*/     "", "", "", "", "", "RESET_BUTTON", "POWER_BUTTON", "",
+		/*W0 - W7*/     "", "", "", "", "", "", "", "",
+		/*X0 - X7*/     "", "", "", "", "", "", "", "",
+		/*Y0 - Y7*/     "PS_PWROK", "", "", "", "", "", "", "",
+		/*Z0 - Z7*/     "", "", "", "", "", "", "", "",
+		/*AA0 - AA7*/   "", "", "", "", "", "", "", "",
+		/*AB0 - AB7*/   "", "", "", "", "", "", "", "",
+		/*AC0 - AC7*/   "", "", "", "", "", "", "", "";
+};
+
