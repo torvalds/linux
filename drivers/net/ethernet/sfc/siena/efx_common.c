@@ -1170,7 +1170,7 @@ void efx_siena_fini_io(struct efx_nic *efx)
 		pci_disable_device(efx->pci_dev);
 }
 
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 static ssize_t mcdi_logging_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)

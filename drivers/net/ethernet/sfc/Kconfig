@@ -55,7 +55,7 @@ config SFC_SRIOV
 	  features, allowing accelerated network performance in
 	  virtualized environments.
 config SFC_MCDI_LOGGING
-	bool "Solarflare SFC9000/SFC9100-family MCDI logging support"
+	bool "Solarflare SFC9100-family MCDI logging support"
 	depends on SFC
 	default y
 	help

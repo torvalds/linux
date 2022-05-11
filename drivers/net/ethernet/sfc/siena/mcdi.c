@@ -51,9 +51,10 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 static bool efx_mcdi_poll_once(struct efx_nic *efx);
 static void efx_mcdi_abandon(struct efx_nic *efx);
 
-#ifdef CONFIG_SFC_MCDI_LOGGING
-static bool mcdi_logging_default;
-module_param(mcdi_logging_default, bool, 0644);
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
+static bool efx_siena_mcdi_logging_default;
+module_param_named(mcdi_logging_default, efx_siena_mcdi_logging_default,
+		   bool, 0644);
 MODULE_PARM_DESC(mcdi_logging_default,
 		 "Enable MCDI logging on newly-probed functions");
 #endif
@@ -70,12 +71,12 @@ int efx_siena_mcdi_init(struct efx_nic *efx)
 
 	mcdi = efx_mcdi(efx);
 	mcdi->efx = efx;
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 	/* consuming code assumes buffer is page-sized */
 	mcdi->logging_buffer = (char *)__get_free_page(GFP_KERNEL);
 	if (!mcdi->logging_buffer)
 		goto fail1;
-	mcdi->logging_enabled = mcdi_logging_default;
+	mcdi->logging_enabled = efx_siena_mcdi_logging_default;
 #endif
 	init_waitqueue_head(&mcdi->wq);
 	init_waitqueue_head(&mcdi->proxy_rx_wq);
@@ -114,7 +115,7 @@ int efx_siena_mcdi_init(struct efx_nic *efx)
 
 	return 0;
 fail2:
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 	free_page((unsigned long)mcdi->logging_buffer);
 fail1:
 #endif
@@ -140,7 +141,7 @@ void efx_siena_mcdi_fini(struct efx_nic *efx)
 	if (!efx->mcdi)
 		return;
 
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 	free_page((unsigned long)efx->mcdi->iface.logging_buffer);
 #endif
 
@@ -151,7 +152,7 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 				  const efx_dword_t *inbuf, size_t inlen)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 	char *buf = mcdi->logging_buffer; /* page-sized */
 #endif
 	efx_dword_t hdr[2];
@@ -198,7 +199,7 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 		hdr_len = 8;
 	}
 
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 	if (mcdi->logging_enabled && !WARN_ON_ONCE(!buf)) {
 		int bytes = 0;
 		int i;
@@ -266,7 +267,7 @@ static void efx_mcdi_read_response_header(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 	unsigned int respseq, respcmd, error;
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 	char *buf = mcdi->logging_buffer; /* page-sized */
 #endif
 	efx_dword_t hdr;
@@ -286,7 +287,7 @@ static void efx_mcdi_read_response_header(struct efx_nic *efx)
 			EFX_DWORD_FIELD(hdr, MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
 	}
 
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 	if (mcdi->logging_enabled && !WARN_ON_ONCE(!buf)) {
 		size_t hdr_len, data_len;
 		int bytes = 0;

@@ -80,7 +80,7 @@ struct efx_mcdi_iface {
 	spinlock_t async_lock;
 	struct list_head async_list;
 	struct timer_list async_timer;
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 	char *logging_buffer;
 	bool logging_enabled;
 #endif
