@@ -970,10 +970,8 @@ static int genpd_runtime_resume(struct device *dev)
 	 * As we don't power off a non IRQ safe domain, which holds
 	 * an IRQ safe device, we don't need to restore power to it.
 	 */
-	if (irq_safe_dev_in_sleep_domain(dev, genpd)) {
-		timed = false;
+	if (irq_safe_dev_in_sleep_domain(dev, genpd))
 		goto out;
-	}
 
 	genpd_lock(genpd);
 	ret = genpd_power_on(genpd, 0);
