@@ -15,6 +15,8 @@
  * Hardware interface for audio DSP on Apollolake and GeminiLake
  */
 
+#include <sound/sof/ext_manifest4.h>
+#include "../ipc4-priv.h"
 #include "../sof-priv.h"
 #include "hda.h"
 #include "../sof-audio.h"
@@ -46,6 +48,16 @@ int sof_apl_ops_init(struct snd_sof_dev *sdev)
 	}
 
 	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+		struct sof_ipc4_fw_data *ipc4_data;
+
+		sdev->private = devm_kzalloc(sdev->dev, sizeof(*ipc4_data), GFP_KERNEL);
+		if (!sdev->private)
+			return -ENOMEM;
+
+		ipc4_data = sdev->private;
+		ipc4_data->manifest_fw_hdr_offset = SOF_MAN4_FW_HDR_OFFSET;
+
+		/* doorbell */
 		sof_apl_ops.irq_thread	= hda_dsp_ipc4_irq_thread;
 
 		/* ipc */
