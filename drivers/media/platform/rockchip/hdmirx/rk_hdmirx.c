@@ -3647,8 +3647,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 	cpumask_set_cpu(hdmirx_dev->bound_cpu, &cpumask);
 	irq_set_affinity_hint(irq, &cpumask);
 	hdmirx_dev->hdmi_irq = irq;
-	ret = devm_request_threaded_irq(dev, irq, hdmirx_hdmi_irq_handler, NULL,
-			IRQF_ONESHOT, RK_HDMIRX_DRVNAME"-hdmi", hdmirx_dev);
+	ret = devm_request_irq(dev, irq, hdmirx_hdmi_irq_handler, 0,
+			       RK_HDMIRX_DRVNAME"-hdmi", hdmirx_dev);
 	if (ret) {
 		dev_err(dev, "request hdmi irq thread failed! ret:%d\n", ret);
 		goto err_work_queues;
@@ -3736,9 +3736,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 	cpumask_set_cpu(hdmirx_dev->bound_cpu, &cpumask);
 	irq_set_affinity_hint(irq, &cpumask);
 	hdmirx_dev->det_irq = irq;
-	ret = devm_request_threaded_irq(dev, irq, hdmirx_5v_det_irq_handler,
-			NULL, IRQF_ONESHOT | IRQF_TRIGGER_FALLING |
-			IRQF_TRIGGER_RISING, RK_HDMIRX_DRVNAME"-5v", hdmirx_dev);
+	ret = devm_request_irq(dev, irq, hdmirx_5v_det_irq_handler,
+			       IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+			       RK_HDMIRX_DRVNAME"-5v", hdmirx_dev);
 	if (ret) {
 		dev_err(dev, "request hdmirx-det gpio irq thread failed! ret:%d\n", ret);
 		goto err_unreg_video_dev;
