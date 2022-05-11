@@ -456,6 +456,8 @@ struct rk_dma_heap *rk_dma_heap_add(const struct rk_dma_heap_export_info *exp_in
 		goto err2;
 	}
 
+	heap->procfs = proc_rk_dma_heap_dir;
+
 	/* Make sure it doesn't disappear on us */
 	heap->heap_dev = get_device(heap->heap_dev);
 

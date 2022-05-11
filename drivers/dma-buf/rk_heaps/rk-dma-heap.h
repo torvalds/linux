@@ -93,6 +93,7 @@ struct rk_dma_heap {
 	struct device *heap_dev;
 	bool support_cma;
 	struct seq_file *s;
+	struct proc_dir_entry *procfs;
 	unsigned long total_size;
 };
 
