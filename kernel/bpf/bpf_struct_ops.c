@@ -33,15 +33,15 @@ struct bpf_struct_ops_map {
 	const struct bpf_struct_ops *st_ops;
 	/* protect map_update */
 	struct mutex lock;
-	/* progs has all the bpf_prog that is populated
+	/* link has all the bpf_links that is populated
 	 * to the func ptr of the kernel's struct
 	 * (in kvalue.data).
 	 */
-	struct bpf_prog **progs;
+	struct bpf_link **links;
 	/* image is a page that has all the trampolines
 	 * that stores the func args before calling the bpf_prog.
 	 * A PAGE_SIZE "image" is enough to store all trampoline for
-	 * "progs[]".
+	 * "links[]".
 	 */
 	void *image;
 	/* uvalue->data stores the kernel struct
@@ -283,9 +283,9 @@ static void bpf_struct_ops_map_put_progs(struct bpf_struct_ops_map *st_map)
 	u32 i;
 
 	for (i = 0; i < btf_type_vlen(t); i++) {
-		if (st_map->progs[i]) {
-			bpf_prog_put(st_map->progs[i]);
-			st_map->progs[i] = NULL;
+		if (st_map->links[i]) {
+			bpf_link_put(st_map->links[i]);
+			st_map->links[i] = NULL;
 		}
 	}
 }
@@ -316,18 +316,34 @@ static int check_zero_holes(const struct btf_type *t, void *data)
 	return 0;
 }
 
-int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_progs *tprogs,
-				      struct bpf_prog *prog,
+static void bpf_struct_ops_link_release(struct bpf_link *link)
+{
+}
+
+static void bpf_struct_ops_link_dealloc(struct bpf_link *link)
+{
+	struct bpf_tramp_link *tlink = container_of(link, struct bpf_tramp_link, link);
+
+	kfree(tlink);
+}
+
+const struct bpf_link_ops bpf_struct_ops_link_lops = {
+	.release = bpf_struct_ops_link_release,
+	.dealloc = bpf_struct_ops_link_dealloc,
+};
+
+int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_links *tlinks,
+				      struct bpf_tramp_link *link,
 				      const struct btf_func_model *model,
 				      void *image, void *image_end)
 {
 	u32 flags;
 
-	tprogs[BPF_TRAMP_FENTRY].progs[0] = prog;
-	tprogs[BPF_TRAMP_FENTRY].nr_progs = 1;
+	tlinks[BPF_TRAMP_FENTRY].links[0] = link;
+	tlinks[BPF_TRAMP_FENTRY].nr_links = 1;
 	flags = model->ret_size > 0 ? BPF_TRAMP_F_RET_FENTRY_RET : 0;
 	return arch_prepare_bpf_trampoline(NULL, image, image_end,
-					   model, flags, tprogs, NULL);
+					   model, flags, tlinks, NULL);
 }
 
 static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
@@ -338,7 +354,7 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	struct bpf_struct_ops_value *uvalue, *kvalue;
 	const struct btf_member *member;
 	const struct btf_type *t = st_ops->type;
-	struct bpf_tramp_progs *tprogs = NULL;
+	struct bpf_tramp_links *tlinks = NULL;
 	void *udata, *kdata;
 	int prog_fd, err = 0;
 	void *image, *image_end;
@@ -362,8 +378,8 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	if (uvalue->state || refcount_read(&uvalue->refcnt))
 		return -EINVAL;
 
-	tprogs = kcalloc(BPF_TRAMP_MAX, sizeof(*tprogs), GFP_KERNEL);
-	if (!tprogs)
+	tlinks = kcalloc(BPF_TRAMP_MAX, sizeof(*tlinks), GFP_KERNEL);
+	if (!tlinks)
 		return -ENOMEM;
 
 	uvalue = (struct bpf_struct_ops_value *)st_map->uvalue;
@@ -386,6 +402,7 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	for_each_member(i, t, member) {
 		const struct btf_type *mtype, *ptype;
 		struct bpf_prog *prog;
+		struct bpf_tramp_link *link;
 		u32 moff;
 
 		moff = __btf_member_bit_offset(t, member) / 8;
@@ -439,16 +456,26 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 			err = PTR_ERR(prog);
 			goto reset_unlock;
 		}
-		st_map->progs[i] = prog;
 
 		if (prog->type != BPF_PROG_TYPE_STRUCT_OPS ||
 		    prog->aux->attach_btf_id != st_ops->type_id ||
 		    prog->expected_attach_type != i) {
+			bpf_prog_put(prog);
 			err = -EINVAL;
 			goto reset_unlock;
 		}
 
-		err = bpf_struct_ops_prepare_trampoline(tprogs, prog,
+		link = kzalloc(sizeof(*link), GFP_USER);
+		if (!link) {
+			bpf_prog_put(prog);
+			err = -ENOMEM;
+			goto reset_unlock;
+		}
+		bpf_link_init(&link->link, BPF_LINK_TYPE_STRUCT_OPS,
+			      &bpf_struct_ops_link_lops, prog);
+		st_map->links[i] = &link->link;
+
+		err = bpf_struct_ops_prepare_trampoline(tlinks, link,
 							&st_ops->func_models[i],
 							image, image_end);
 		if (err < 0)
@@ -491,7 +518,7 @@ reset_unlock:
 	memset(uvalue, 0, map->value_size);
 	memset(kvalue, 0, map->value_size);
 unlock:
-	kfree(tprogs);
+	kfree(tlinks);
 	mutex_unlock(&st_map->lock);
 	return err;
 }
@@ -546,9 +573,9 @@ static void bpf_struct_ops_map_free(struct bpf_map *map)
 {
 	struct bpf_struct_ops_map *st_map = (struct bpf_struct_ops_map *)map;
 
-	if (st_map->progs)
+	if (st_map->links)
 		bpf_struct_ops_map_put_progs(st_map);
-	bpf_map_area_free(st_map->progs);
+	bpf_map_area_free(st_map->links);
 	bpf_jit_free_exec(st_map->image);
 	bpf_map_area_free(st_map->uvalue);
 	bpf_map_area_free(st_map);
@@ -597,11 +624,11 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	map = &st_map->map;
 
 	st_map->uvalue = bpf_map_area_alloc(vt->size, NUMA_NO_NODE);
-	st_map->progs =
-		bpf_map_area_alloc(btf_type_vlen(t) * sizeof(struct bpf_prog *),
+	st_map->links =
+		bpf_map_area_alloc(btf_type_vlen(t) * sizeof(struct bpf_links *),
 				   NUMA_NO_NODE);
 	st_map->image = bpf_jit_alloc_exec(PAGE_SIZE);
-	if (!st_map->uvalue || !st_map->progs || !st_map->image) {
+	if (!st_map->uvalue || !st_map->links || !st_map->image) {
 		bpf_struct_ops_map_free(map);
 		return ERR_PTR(-ENOMEM);
 	}

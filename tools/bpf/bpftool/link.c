@@ -23,6 +23,7 @@ static const char * const link_type_name[] = {
 	[BPF_LINK_TYPE_XDP]			= "xdp",
 	[BPF_LINK_TYPE_PERF_EVENT]		= "perf_event",
 	[BPF_LINK_TYPE_KPROBE_MULTI]		= "kprobe_multi",
+	[BPF_LINK_TYPE_STRUCT_OPS]               = "struct_ops",
 };
 
 static struct hashmap *link_table;

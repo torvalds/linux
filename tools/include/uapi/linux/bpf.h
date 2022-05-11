@@ -1013,6 +1013,7 @@ enum bpf_link_type {
 	BPF_LINK_TYPE_XDP = 6,
 	BPF_LINK_TYPE_PERF_EVENT = 7,
 	BPF_LINK_TYPE_KPROBE_MULTI = 8,
+	BPF_LINK_TYPE_STRUCT_OPS = 9,
 
 	MAX_BPF_LINK_TYPE,
 };
@@ -1489,6 +1490,15 @@ union bpf_attr {
 				__aligned_u64	addrs;
 				__aligned_u64	cookies;
 			} kprobe_multi;
+			struct {
+				/* this is overlaid with the target_btf_id above. */
+				__u32		target_btf_id;
+				/* black box user-provided value passed through
+				 * to BPF program at the execution time and
+				 * accessible through bpf_get_attach_cookie() BPF helper
+				 */
+				__u64		cookie;
+			} tracing;
 		};
 	} link_create;
 
