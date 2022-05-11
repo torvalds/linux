@@ -462,7 +462,6 @@ static int papr_scm_pmu_check_events(struct papr_scm_priv *p, struct nvdimm_pmu 
 {
 	struct papr_scm_perf_stat *stat;
 	struct papr_scm_perf_stats *stats;
-	char *statid;
 	int index, rc, count;
 	u32 available_events;
 
@@ -493,14 +492,12 @@ static int papr_scm_pmu_check_events(struct papr_scm_priv *p, struct nvdimm_pmu 
 
 	for (index = 0, stat = stats->scm_statistic, count = 0;
 		     index < available_events; index++, ++stat) {
-		statid = kzalloc(strlen(stat->stat_id) + 1, GFP_KERNEL);
-		if (!statid) {
+		p->nvdimm_events_map[count] = kmemdup_nul(stat->stat_id, 8, GFP_KERNEL);
+		if (!p->nvdimm_events_map[count]) {
 			rc = -ENOMEM;
 			goto out_nvdimm_events_map;
 		}
 
-		strcpy(statid, stat->stat_id);
-		p->nvdimm_events_map[count] = statid;
 		count++;
 	}
 	p->nvdimm_events_map[count] = NULL;

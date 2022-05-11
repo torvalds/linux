@@ -1842,7 +1842,7 @@ static int nfit_test_dimm_init(struct nfit_test *t)
 	return 0;
 }
 
-static void security_init(struct nfit_test *t)
+static void nfit_security_init(struct nfit_test *t)
 {
 	int i;
 
@@ -1938,7 +1938,7 @@ static int nfit_test0_alloc(struct nfit_test *t)
 	if (nfit_test_dimm_init(t))
 		return -ENOMEM;
 	smart_init(t);
-	security_init(t);
+	nfit_security_init(t);
 	return ars_state_init(&t->pdev.dev, &t->ars_state);
 }
 

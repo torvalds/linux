@@ -90,7 +90,7 @@ static int nft_quota_do_init(const struct nlattr * const tb[],
 			return -EOPNOTSUPP;
 	}
 
-	priv->consumed = kmalloc(sizeof(*priv->consumed), GFP_KERNEL);
+	priv->consumed = kmalloc(sizeof(*priv->consumed), GFP_KERNEL_ACCOUNT);
 	if (!priv->consumed)
 		return -ENOMEM;
 

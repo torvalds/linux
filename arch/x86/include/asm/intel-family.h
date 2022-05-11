@@ -26,6 +26,7 @@
  *		_G	- parts with extra graphics on
  *		_X	- regular server parts
  *		_D	- micro server parts
+ *		_N,_P	- other mobile parts
  *
  *		Historical OPTDIFFs:
  *
@@ -107,8 +108,10 @@
 
 #define INTEL_FAM6_ALDERLAKE		0x97	/* Golden Cove / Gracemont */
 #define INTEL_FAM6_ALDERLAKE_L		0x9A	/* Golden Cove / Gracemont */
+#define INTEL_FAM6_ALDERLAKE_N		0xBE
 
 #define INTEL_FAM6_RAPTORLAKE		0xB7
+#define INTEL_FAM6_RAPTORLAKE_P		0xBA
 
 /* "Small Core" Processors (Atom) */
 

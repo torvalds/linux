@@ -846,13 +846,6 @@ int bnxt_ptp_init(struct bnxt *bp, bool phc_cfg)
 	if (rc)
 		return rc;
 
-	if (bp->fw_cap & BNXT_FW_CAP_PTP_RTC) {
-		bnxt_ptp_timecounter_init(bp, false);
-		rc = bnxt_ptp_init_rtc(bp, phc_cfg);
-		if (rc)
-			goto out;
-	}
-
 	if (ptp->ptp_clock && bnxt_pps_config_ok(bp))
 		return 0;
 
@@ -861,8 +854,14 @@ int bnxt_ptp_init(struct bnxt *bp, bool phc_cfg)
 	atomic_set(&ptp->tx_avail, BNXT_MAX_TX_TS);
 	spin_lock_init(&ptp->ptp_lock);
 
-	if (!(bp->fw_cap & BNXT_FW_CAP_PTP_RTC))
+	if (bp->fw_cap & BNXT_FW_CAP_PTP_RTC) {
+		bnxt_ptp_timecounter_init(bp, false);
+		rc = bnxt_ptp_init_rtc(bp, phc_cfg);
+		if (rc)
+			goto out;
+	} else {
 		bnxt_ptp_timecounter_init(bp, true);
+	}
 
 	ptp->ptp_info = bnxt_ptp_caps;
 	if ((bp->fw_cap & BNXT_FW_CAP_PTP_PPS)) {

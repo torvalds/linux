@@ -4082,7 +4082,7 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
 			}
 
 			ret = btrfs_chunk_alloc(trans, ffe_ctl->flags,
-						CHUNK_ALLOC_FORCE);
+						CHUNK_ALLOC_FORCE_FOR_EXTENT);
 
 			/* Do not bail out on ENOSPC since we can do more. */
 			if (ret == -ENOSPC)

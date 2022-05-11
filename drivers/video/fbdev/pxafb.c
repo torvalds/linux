@@ -2256,10 +2256,10 @@ static int pxafb_probe(struct platform_device *dev)
 			goto failed;
 		for (i = 0; i < inf->num_modes; i++)
 			inf->modes[i] = pdata->modes[i];
+	} else {
+		inf = of_pxafb_of_mach_info(&dev->dev);
 	}
 
-	if (!pdata)
-		inf = of_pxafb_of_mach_info(&dev->dev);
 	if (IS_ERR_OR_NULL(inf))
 		goto failed;
 

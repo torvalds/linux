@@ -904,8 +904,10 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 		return -ENOMEM;
 
 	scontrol->name = kstrdup(hdr->name, GFP_KERNEL);
-	if (!scontrol->name)
+	if (!scontrol->name) {
+		kfree(scontrol);
 		return -ENOMEM;
+	}
 
 	scontrol->scomp = scomp;
 	scontrol->access = kc->access;
@@ -941,11 +943,13 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	default:
 		dev_warn(scomp->dev, "control type not supported %d:%d:%d\n",
 			 hdr->ops.get, hdr->ops.put, hdr->ops.info);
+		kfree(scontrol->name);
 		kfree(scontrol);
 		return 0;
 	}
 
 	if (ret < 0) {
+		kfree(scontrol->name);
 		kfree(scontrol);
 		return ret;
 	}
@@ -1066,6 +1070,46 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 	}
 
 	return 0;
+}
+
+static void sof_disconnect_dai_widget(struct snd_soc_component *scomp,
+				      struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_card *card = scomp->card;
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *cpu_dai;
+	int i;
+
+	if (!w->sname)
+		return;
+
+	list_for_each_entry(rtd, &card->rtd_list, list) {
+		/* does stream match DAI link ? */
+		if (!rtd->dai_link->stream_name ||
+		    strcmp(w->sname, rtd->dai_link->stream_name))
+			continue;
+
+		switch (w->id) {
+		case snd_soc_dapm_dai_out:
+			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
+				if (cpu_dai->capture_widget == w) {
+					cpu_dai->capture_widget = NULL;
+					break;
+				}
+			}
+			break;
+		case snd_soc_dapm_dai_in:
+			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
+				if (cpu_dai->playback_widget == w) {
+					cpu_dai->playback_widget = NULL;
+					break;
+				}
+			}
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 /* bind PCM ID to host component ID */
@@ -1353,6 +1397,9 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 
 		if (dai)
 			list_del(&dai->list);
+
+		sof_disconnect_dai_widget(scomp, widget);
+
 		break;
 	default:
 		break;
@@ -1380,6 +1427,7 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 		}
 		kfree(scontrol->ipc_control_data);
 		list_del(&scontrol->list);
+		kfree(scontrol->name);
 		kfree(scontrol);
 	}
 

@@ -537,6 +537,9 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	cb->orig_bio = NULL;
 	cb->nr_pages = nr_pages;
 
+	if (blkcg_css)
+		kthread_associate_blkcg(blkcg_css);
+
 	while (cur_disk_bytenr < disk_start + compressed_len) {
 		u64 offset = cur_disk_bytenr - disk_start;
 		unsigned int index = offset >> PAGE_SHIFT;
@@ -555,6 +558,8 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 				bio = NULL;
 				goto finish_cb;
 			}
+			if (blkcg_css)
+				bio->bi_opf |= REQ_CGROUP_PUNT;
 		}
 		/*
 		 * We should never reach next_stripe_start start as we will
@@ -612,6 +617,9 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	return 0;
 
 finish_cb:
+	if (blkcg_css)
+		kthread_associate_blkcg(NULL);
+
 	if (bio) {
 		bio->bi_status = ret;
 		bio_endio(bio);
