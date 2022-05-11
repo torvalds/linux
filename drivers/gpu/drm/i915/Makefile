@@ -320,13 +320,13 @@ i915-$(CONFIG_DRM_I915_SELFTEST) += \
 # virtual gpu code
 i915-y += i915_vgpu.o
 
-ifeq ($(CONFIG_DRM_I915_GVT),y)
-i915-y += intel_gvt.o
+i915-$(CONFIG_DRM_I915_GVT) += \
+	intel_gvt.o \
+	intel_gvt_mmio_table.o
 include $(src)/gvt/Makefile
-endif
 
 obj-$(CONFIG_DRM_I915) += i915.o
-obj-$(CONFIG_DRM_I915_GVT_KVMGT) += gvt/kvmgt.o
+obj-$(CONFIG_DRM_I915_GVT_KVMGT) += kvmgt.o
 
 # header test
 

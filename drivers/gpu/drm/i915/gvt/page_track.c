@@ -87,7 +87,7 @@ void intel_vgpu_unregister_page_track(struct intel_vgpu *vgpu,
 	track = radix_tree_delete(&vgpu->page_track_tree, gfn);
 	if (track) {
 		if (track->tracked)
-			intel_gvt_hypervisor_disable_page_track(vgpu, gfn);
+			intel_gvt_page_track_remove(vgpu, gfn);
 		kfree(track);
 	}
 }
@@ -112,7 +112,7 @@ int intel_vgpu_enable_page_track(struct intel_vgpu *vgpu, unsigned long gfn)
 	if (track->tracked)
 		return 0;
 
-	ret = intel_gvt_hypervisor_enable_page_track(vgpu, gfn);
+	ret = intel_gvt_page_track_add(vgpu, gfn);
 	if (ret)
 		return ret;
 	track->tracked = true;
@@ -139,7 +139,7 @@ int intel_vgpu_disable_page_track(struct intel_vgpu *vgpu, unsigned long gfn)
 	if (!track->tracked)
 		return 0;
 
-	ret = intel_gvt_hypervisor_disable_page_track(vgpu, gfn);
+	ret = intel_gvt_page_track_remove(vgpu, gfn);
 	if (ret)
 		return ret;
 	track->tracked = false;
@@ -172,7 +172,7 @@ int intel_vgpu_page_track_handler(struct intel_vgpu *vgpu, u64 gpa,
 
 	if (unlikely(vgpu->failsafe)) {
 		/* Remove write protection to prevent furture traps. */
-		intel_vgpu_disable_page_track(vgpu, gpa >> PAGE_SHIFT);
+		intel_gvt_page_track_remove(vgpu, gpa >> PAGE_SHIFT);
 	} else {
 		ret = page_track->handler(page_track, gpa, data, bytes);
 		if (ret)
