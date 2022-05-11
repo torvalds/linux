@@ -1426,8 +1426,6 @@ static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
 	/* Cleanup cancelled TDs as ep is stopped. May queue a Set TR Deq cmd */
 	xhci_invalidate_cancelled_tds(ep);
 
-	if (xhci->quirks & XHCI_RESET_EP_QUIRK)
-		xhci_dbg(xhci, "Note: Removed workaround to queue config ep for this hw");
 	/* Clear our internal halted state */
 	ep->ep_state &= ~EP_HALTED;
 
@@ -1471,17 +1469,13 @@ static void xhci_handle_cmd_config_ep(struct xhci_hcd *xhci, int slot_id,
 	struct xhci_input_control_ctx *ctrl_ctx;
 	struct xhci_ep_ctx *ep_ctx;
 	unsigned int ep_index;
-	unsigned int ep_state;
-	u32 add_flags, drop_flags;
+	u32 add_flags;
 
 	/*
-	 * Configure endpoint commands can come from the USB core
-	 * configuration or alt setting changes, or because the HW
-	 * needed an extra configure endpoint command after a reset
-	 * endpoint command or streams were being configured.
-	 * If the command was for a halted endpoint, the xHCI driver
-	 * is not waiting on the configure endpoint command.
+	 * Configure endpoint commands can come from the USB core configuration
+	 * or alt setting changes, or when streams were being configured.
 	 */
+
 	virt_dev = xhci->devs[slot_id];
 	if (!virt_dev)
 		return;
@@ -1492,34 +1486,13 @@ static void xhci_handle_cmd_config_ep(struct xhci_hcd *xhci, int slot_id,
 	}
 
 	add_flags = le32_to_cpu(ctrl_ctx->add_flags);
-	drop_flags = le32_to_cpu(ctrl_ctx->drop_flags);
+
 	/* Input ctx add_flags are the endpoint index plus one */
 	ep_index = xhci_last_valid_endpoint(add_flags) - 1;
 
 	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->out_ctx, ep_index);
 	trace_xhci_handle_cmd_config_ep(ep_ctx);
 
-	/* A usb_set_interface() call directly after clearing a halted
-	 * condition may race on this quirky hardware.  Not worth
-	 * worrying about, since this is prototype hardware.  Not sure
-	 * if this will work for streams, but streams support was
-	 * untested on this prototype.
-	 */
-	if (xhci->quirks & XHCI_RESET_EP_QUIRK &&
-			ep_index != (unsigned int) -1 &&
-			add_flags - SLOT_FLAG == drop_flags) {
-		ep_state = virt_dev->eps[ep_index].ep_state;
-		if (!(ep_state & EP_HALTED))
-			return;
-		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-				"Completed config ep cmd - "
-				"last ep index = %d, state = %d",
-				ep_index, ep_state);
-		/* Clear internal halted state and restart ring(s) */
-		virt_dev->eps[ep_index].ep_state &= ~EP_HALTED;
-		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
-		return;
-	}
 	return;
 }
 

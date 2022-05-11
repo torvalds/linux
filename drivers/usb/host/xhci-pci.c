@@ -129,8 +129,7 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 				pdev->revision == 0x0) {
 			xhci->quirks |= XHCI_RESET_EP_QUIRK;
 			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-				"QUIRK: Fresco Logic xHC needs configure"
-				" endpoint cmd after reset endpoint");
+				"XHCI_RESET_EP_QUIRK for this evaluation HW is deprecated");
 		}
 		if (pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_PDK &&
 				pdev->revision == 0x4) {

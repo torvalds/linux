@@ -1846,7 +1846,7 @@ struct xhci_hcd {
 #define XHCI_STATE_REMOVING	(1 << 2)
 	unsigned long long	quirks;
 #define	XHCI_LINK_TRB_QUIRK	BIT_ULL(0)
-#define XHCI_RESET_EP_QUIRK	BIT_ULL(1)
+#define XHCI_RESET_EP_QUIRK	BIT_ULL(1) /* Deprecated */
 #define XHCI_NEC_HOST		BIT_ULL(2)
 #define XHCI_AMD_PLL_FIX	BIT_ULL(3)
 #define XHCI_SPURIOUS_SUCCESS	BIT_ULL(4)
