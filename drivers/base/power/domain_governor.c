@@ -139,7 +139,7 @@ static void update_domain_next_wakeup(struct generic_pm_domain *genpd, ktime_t n
 	 * is able to enter its optimal idle state.
 	 */
 	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
-		next_wakeup = to_gpd_data(pdd)->next_wakeup;
+		next_wakeup = to_gpd_data(pdd)->td->next_wakeup;
 		if (next_wakeup != KTIME_MAX && !ktime_before(next_wakeup, now))
 			if (ktime_before(next_wakeup, domain_wakeup))
 				domain_wakeup = next_wakeup;

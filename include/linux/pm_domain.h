@@ -182,6 +182,7 @@ struct gpd_timing_data {
 	s64 suspend_latency_ns;
 	s64 resume_latency_ns;
 	s64 effective_constraint_ns;
+	ktime_t	next_wakeup;
 	bool constraint_changed;
 	bool cached_suspend_ok;
 };
@@ -200,7 +201,6 @@ struct generic_pm_domain_data {
 	unsigned int performance_state;
 	unsigned int default_pstate;
 	unsigned int rpm_pstate;
-	ktime_t	next_wakeup;
 	void *data;
 };
 

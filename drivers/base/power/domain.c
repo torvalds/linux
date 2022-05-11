@@ -478,15 +478,16 @@ EXPORT_SYMBOL_GPL(dev_pm_genpd_set_performance_state);
  */
 void dev_pm_genpd_set_next_wakeup(struct device *dev, ktime_t next)
 {
-	struct generic_pm_domain_data *gpd_data;
 	struct generic_pm_domain *genpd;
+	struct gpd_timing_data *td;
 
 	genpd = dev_to_genpd_safe(dev);
 	if (!genpd)
 		return;
 
-	gpd_data = to_gpd_data(dev->power.subsys_data->domain_data);
-	gpd_data->next_wakeup = next;
+	td = to_gpd_data(dev->power.subsys_data->domain_data)->td;
+	if (td)
+		td->next_wakeup = next;
 }
 EXPORT_SYMBOL_GPL(dev_pm_genpd_set_next_wakeup);
 
@@ -1518,7 +1519,6 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 
 	gpd_data->base.dev = dev;
 	gpd_data->nb.notifier_call = genpd_dev_pm_qos_notifier;
-	gpd_data->next_wakeup = KTIME_MAX;
 
 	/* Allocate data used by a governor. */
 	if (has_governor) {
@@ -1530,6 +1530,7 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 
 		td->constraint_changed = true;
 		td->effective_constraint_ns = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS;
+		td->next_wakeup = KTIME_MAX;
 		gpd_data->td = td;
 	}
 
