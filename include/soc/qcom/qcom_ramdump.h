@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _QCOM_RAMDUMP_HEADER
@@ -19,11 +19,21 @@ struct qcom_dump_segment {
 };
 
 #if IS_ENABLED(CONFIG_QCOM_RAMDUMP)
+extern void *qcom_create_ramdump_device(const char *dev_name, struct device *parent);
+extern void qcom_destroy_ramdump_device(void *dev);
 extern int qcom_elf_dump(struct list_head *segs, struct device *dev, unsigned char class);
 extern int qcom_dump(struct list_head *head, struct device *dev);
 extern int qcom_fw_elf_dump(struct firmware *fw, struct device *dev);
 extern bool dump_enabled(void);
 #else
+static inline void *qcom_create_ramdump_device(const char *dev_name,
+		struct device *parent)
+{
+	return NULL;
+}
+static inline void qcom_destroy_ramdump_device(void *dev)
+{
+}
 static inline int qcom_elf_dump(struct list_head *segs, struct device *dev, unsigned char class)
 {
 	return -ENODEV;
