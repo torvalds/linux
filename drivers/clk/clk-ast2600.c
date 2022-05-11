@@ -986,6 +986,13 @@ static void __init aspeed_g6_cc(struct regmap *map)
 
 	/* i3c clock */
 	regmap_read(map, ASPEED_G6_CLK_SELECTION5, &val);
+
+	/* i3c core clock 100MHz (APLL 800MHz / 8) */
+	val &= ~(I3C_CLK_SELECTION | APLL_DIV_SELECTION);
+	val |= FIELD_PREP(I3C_CLK_SELECTION, I3C_CLK_SELECT_APLL_DIV);
+	val |= FIELD_PREP(APLL_DIV_SELECTION, APLL_DIV_8);
+	regmap_write(map, ASPEED_G6_CLK_SELECTION5, val);
+
 	if (FIELD_GET(I3C_CLK_SELECTION, val) == I3C_CLK_SELECT_APLL_DIV) {
 		val = FIELD_GET(APLL_DIV_SELECTION, val);
 		if (val)
