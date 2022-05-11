@@ -1607,7 +1607,8 @@ static irqreturn_t rockchip_usb2phy_linestate_irq(int irq, void *data)
 	struct rockchip_usb2phy_port *rport = data;
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
 
-	if (!property_enabled(rphy->grf, &rport->port_cfg->ls_det_st))
+	if (!property_enabled(rphy->grf, &rport->port_cfg->ls_det_st) ||
+	    !property_enabled(rphy->grf, &rport->port_cfg->ls_det_en))
 		return IRQ_NONE;
 
 	dev_dbg(&rport->phy->dev, "linestate interrupt\n");
@@ -1616,6 +1617,14 @@ static irqreturn_t rockchip_usb2phy_linestate_irq(int irq, void *data)
 
 	/* disable linestate detect irq and clear its status */
 	rockchip_usb2phy_enable_line_irq(rphy, rport, false);
+
+	/*
+	 * For host port, it may miss disc irq when device is connected,
+	 * in this case, we can clear host_disconnect state depend on
+	 * the linestate irq.
+	 */
+	if (rport->port_id == USB2PHY_PORT_HOST && rport->port_cfg->disfall_en.offset)
+		rport->host_disconnect = false;
 
 	mutex_unlock(&rport->mutex);
 
@@ -1743,12 +1752,16 @@ static irqreturn_t rockchip_usb2phy_irq(int irq, void *data)
 		if (!rport->phy)
 			continue;
 
+		/*
+		 * Handle disc irq before linestate irq to set the disc
+		 * state for sm work scheduled in the linestate irq handler.
+		 */
 		if (rport->port_id == USB2PHY_PORT_HOST &&
 		    rport->port_cfg->disfall_en.offset)
-			ret = rockchip_usb2phy_host_disc_irq(irq, rport);
+			ret |= rockchip_usb2phy_host_disc_irq(irq, rport);
 
 		/* Handle linestate irq for both otg port and host port */
-		ret = rockchip_usb2phy_linestate_irq(irq, rport);
+		ret |= rockchip_usb2phy_linestate_irq(irq, rport);
 
 		/*
 		 * Handle bvalid irq and id irq for otg port which
