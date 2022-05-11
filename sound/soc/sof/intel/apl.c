@@ -37,11 +37,20 @@ int sof_apl_ops_init(struct snd_sof_dev *sdev)
 	/* probe/remove/shutdown */
 	sof_apl_ops.shutdown	= hda_dsp_shutdown;
 
-	/* doorbell */
-	sof_apl_ops.irq_thread	= hda_dsp_ipc_irq_thread;
+	if (sdev->pdata->ipc_type == SOF_IPC) {
+		/* doorbell */
+		sof_apl_ops.irq_thread	= hda_dsp_ipc_irq_thread;
 
-	/* ipc */
-	sof_apl_ops.send_msg	= hda_dsp_ipc_send_msg;
+		/* ipc */
+		sof_apl_ops.send_msg	= hda_dsp_ipc_send_msg;
+	}
+
+	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+		sof_apl_ops.irq_thread	= hda_dsp_ipc4_irq_thread;
+
+		/* ipc */
+		sof_apl_ops.send_msg	= hda_dsp_ipc4_send_msg;
+	}
 
 	/* set DAI driver ops */
 	hda_set_dai_drv_ops(sdev, &sof_apl_ops);

@@ -764,4 +764,10 @@ extern int sof_hda_position_quirk;
 
 void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops);
 
+/* IPC4 */
+irqreturn_t cnl_ipc4_irq_thread(int irq, void *context);
+int cnl_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg);
+irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context);
+int hda_dsp_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg);
+
 #endif
