@@ -484,7 +484,11 @@ static struct phy_driver smsc_phy_driver[] = {
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
-	.phy_id	= 0x0007c130,	/* 0x0007c130 and 0x0007c131 */
+	.phy_id		= 0x0007c130,	/* 0x0007c130 and 0x0007c131 */
+	/* This mask (0xfffffff2) is to differentiate from
+	 * LAN88xx (phy_id 0x0007c132)
+	 * and allows future phy_id revisions.
+	 */
 	.phy_id_mask	= 0xfffffff2,
 	.name		= "Microchip LAN8742",
 
