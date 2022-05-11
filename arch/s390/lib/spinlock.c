@@ -75,7 +75,7 @@ static inline int arch_load_niai4(int *lock)
 	int owner;
 
 	asm_inline volatile(
-		ALTERNATIVE("", ".insn rre,0xb2fa0000,4,0", 49)	/* NIAI 4 */
+		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,4,0", 49) /* NIAI 4 */
 		"	l	%0,%1\n"
 		: "=d" (owner) : "Q" (*lock) : "memory");
 	return owner;
@@ -86,7 +86,7 @@ static inline int arch_cmpxchg_niai8(int *lock, int old, int new)
 	int expected = old;
 
 	asm_inline volatile(
-		ALTERNATIVE("", ".insn rre,0xb2fa0000,8,0", 49)	/* NIAI 8 */
+		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,8,0", 49) /* NIAI 8 */
 		"	cs	%0,%3,%1\n"
 		: "=d" (old), "=Q" (*lock)
 		: "0" (old), "d" (new), "Q" (*lock)
