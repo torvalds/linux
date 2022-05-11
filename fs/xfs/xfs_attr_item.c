@@ -318,6 +318,7 @@ xfs_xattri_finish_update(
 
 	switch (op) {
 	case XFS_ATTR_OP_FLAGS_SET:
+	case XFS_ATTR_OP_FLAGS_REPLACE:
 		error = xfs_attr_set_iter(attr);
 		break;
 	case XFS_ATTR_OP_FLAGS_REMOVE:
@@ -507,8 +508,14 @@ xfs_attri_validate(
 		return false;
 
 	/* alfi_op_flags should be either a set or remove */
-	if (op != XFS_ATTR_OP_FLAGS_SET && op != XFS_ATTR_OP_FLAGS_REMOVE)
+	switch (op) {
+	case XFS_ATTR_OP_FLAGS_SET:
+	case XFS_ATTR_OP_FLAGS_REPLACE:
+	case XFS_ATTR_OP_FLAGS_REMOVE:
+		break;
+	default:
 		return false;
+	}
 
 	if (attrp->alfi_value_len > XATTR_SIZE_MAX)
 		return false;

@@ -4154,6 +4154,10 @@ DEFINE_DAS_STATE_EVENT(xfs_attr_leaf_addname_return);
 DEFINE_DAS_STATE_EVENT(xfs_attr_node_addname_return);
 DEFINE_DAS_STATE_EVENT(xfs_attr_remove_iter_return);
 DEFINE_DAS_STATE_EVENT(xfs_attr_rmtval_remove_return);
+DEFINE_DAS_STATE_EVENT(xfs_attr_defer_add);
+DEFINE_DAS_STATE_EVENT(xfs_attr_defer_replace);
+DEFINE_DAS_STATE_EVENT(xfs_attr_defer_remove);
+
 
 TRACE_EVENT(xfs_force_shutdown,
 	TP_PROTO(struct xfs_mount *mp, int ptag, int flags, const char *fname,

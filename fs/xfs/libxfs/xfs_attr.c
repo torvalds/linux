@@ -670,6 +670,81 @@ xfs_attr_lookup(
 	return xfs_attr_node_hasname(args, NULL);
 }
 
+static int
+xfs_attr_item_init(
+	struct xfs_da_args	*args,
+	unsigned int		op_flags,	/* op flag (set or remove) */
+	struct xfs_attr_item	**attr)		/* new xfs_attr_item */
+{
+
+	struct xfs_attr_item	*new;
+
+	new = kmem_zalloc(sizeof(struct xfs_attr_item), KM_NOFS);
+	new->xattri_op_flags = op_flags;
+	new->xattri_da_args = args;
+
+	*attr = new;
+	return 0;
+}
+
+/* Sets an attribute for an inode as a deferred operation */
+static int
+xfs_attr_defer_add(
+	struct xfs_da_args	*args)
+{
+	struct xfs_attr_item	*new;
+	int			error = 0;
+
+	error = xfs_attr_item_init(args, XFS_ATTR_OP_FLAGS_SET, &new);
+	if (error)
+		return error;
+
+	new->xattri_dela_state = XFS_DAS_UNINIT;
+	xfs_defer_add(args->trans, XFS_DEFER_OPS_TYPE_ATTR, &new->xattri_list);
+	trace_xfs_attr_defer_add(new->xattri_dela_state, args->dp);
+
+	return 0;
+}
+
+/* Sets an attribute for an inode as a deferred operation */
+static int
+xfs_attr_defer_replace(
+	struct xfs_da_args	*args)
+{
+	struct xfs_attr_item	*new;
+	int			error = 0;
+
+	error = xfs_attr_item_init(args, XFS_ATTR_OP_FLAGS_REPLACE, &new);
+	if (error)
+		return error;
+
+	new->xattri_dela_state = XFS_DAS_UNINIT;
+	xfs_defer_add(args->trans, XFS_DEFER_OPS_TYPE_ATTR, &new->xattri_list);
+	trace_xfs_attr_defer_replace(new->xattri_dela_state, args->dp);
+
+	return 0;
+}
+
+/* Removes an attribute for an inode as a deferred operation */
+static int
+xfs_attr_defer_remove(
+	struct xfs_da_args	*args)
+{
+
+	struct xfs_attr_item	*new;
+	int			error;
+
+	error  = xfs_attr_item_init(args, XFS_ATTR_OP_FLAGS_REMOVE, &new);
+	if (error)
+		return error;
+
+	new->xattri_dela_state = XFS_DAS_UNINIT;
+	xfs_defer_add(args->trans, XFS_DEFER_OPS_TYPE_ATTR, &new->xattri_list);
+	trace_xfs_attr_defer_remove(new->xattri_dela_state, args->dp);
+
+	return 0;
+}
+
 /*
  * Note: If args->value is NULL the attribute will be removed, just like the
  * Linux ->setattr API.
@@ -758,29 +833,35 @@ xfs_attr_set(
 	}
 
 	error = xfs_attr_lookup(args);
-	if (args->value) {
-		if (error == -EEXIST && (args->attr_flags & XATTR_CREATE))
-			goto out_trans_cancel;
-		if (error == -ENOATTR && (args->attr_flags & XATTR_REPLACE))
-			goto out_trans_cancel;
-		if (error != -ENOATTR && error != -EEXIST)
-			goto out_trans_cancel;
-
-		error = xfs_attr_set_deferred(args);
-		if (error)
-			goto out_trans_cancel;
-
-		/* shortform attribute has already been committed */
-		if (!args->trans)
-			goto out_unlock;
-	} else {
-		if (error != -EEXIST)
+	switch (error) {
+	case -EEXIST:
+		/* if no value, we are performing a remove operation */
+		if (!args->value) {
+			error = xfs_attr_defer_remove(args);
+			break;
+		}
+		/* Pure create fails if the attr already exists */
+		if (args->attr_flags & XATTR_CREATE)
 			goto out_trans_cancel;
 
-		error = xfs_attr_remove_deferred(args);
-		if (error)
+		error = xfs_attr_defer_replace(args);
+		break;
+	case -ENOATTR:
+		/* Can't remove what isn't there. */
+		if (!args->value)
 			goto out_trans_cancel;
+
+		/* Pure replace fails if no existing attr to replace. */
+		if (args->attr_flags & XATTR_REPLACE)
+			goto out_trans_cancel;
+
+		error = xfs_attr_defer_add(args);
+		break;
+	default:
+		goto out_trans_cancel;
 	}
+	if (error)
+		goto out_trans_cancel;
 
 	/*
 	 * If this is a synchronous mount, make sure that the
@@ -842,58 +923,6 @@ xfs_attrd_destroy_cache(void)
 {
 	kmem_cache_destroy(xfs_attrd_cache);
 	xfs_attrd_cache = NULL;
-}
-
-STATIC int
-xfs_attr_item_init(
-	struct xfs_da_args	*args,
-	unsigned int		op_flags,	/* op flag (set or remove) */
-	struct xfs_attr_item	**attr)		/* new xfs_attr_item */
-{
-
-	struct xfs_attr_item	*new;
-
-	new = kmem_zalloc(sizeof(struct xfs_attr_item), KM_NOFS);
-	new->xattri_op_flags = op_flags;
-	new->xattri_da_args = args;
-
-	*attr = new;
-	return 0;
-}
-
-/* Sets an attribute for an inode as a deferred operation */
-int
-xfs_attr_set_deferred(
-	struct xfs_da_args	*args)
-{
-	struct xfs_attr_item	*new;
-	int			error = 0;
-
-	error = xfs_attr_item_init(args, XFS_ATTR_OP_FLAGS_SET, &new);
-	if (error)
-		return error;
-
-	xfs_defer_add(args->trans, XFS_DEFER_OPS_TYPE_ATTR, &new->xattri_list);
-
-	return 0;
-}
-
-/* Removes an attribute for an inode as a deferred operation */
-int
-xfs_attr_remove_deferred(
-	struct xfs_da_args	*args)
-{
-
-	struct xfs_attr_item	*new;
-	int			error;
-
-	error  = xfs_attr_item_init(args, XFS_ATTR_OP_FLAGS_REMOVE, &new);
-	if (error)
-		return error;
-
-	xfs_defer_add(args->trans, XFS_DEFER_OPS_TYPE_ATTR, &new->xattri_list);
-
-	return 0;
 }
 
 /*========================================================================
