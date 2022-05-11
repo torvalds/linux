@@ -248,6 +248,7 @@ int __init sysfs_pseries_vas_init(struct vas_all_caps *vas_caps)
 	pseries_vas_kobj = kobject_create_and_add("vas0",
 					&vas_miscdev.this_device->kobj);
 	if (!pseries_vas_kobj) {
+		misc_deregister(&vas_miscdev);
 		pr_err("Failed to create VAS sysfs entry\n");
 		return -ENOMEM;
 	}
@@ -259,6 +260,7 @@ int __init sysfs_pseries_vas_init(struct vas_all_caps *vas_caps)
 		if (!gzip_caps_kobj) {
 			pr_err("Failed to create VAS GZIP capability entry\n");
 			kobject_put(pseries_vas_kobj);
+			misc_deregister(&vas_miscdev);
 			return -ENOMEM;
 		}
 	}
