@@ -89,6 +89,7 @@ struct sfdp_bfpt {
 #define BFPT_DWORD15_QER_SR2_BIT7		(0x3UL << 20)
 #define BFPT_DWORD15_QER_SR2_BIT1_NO_RD		(0x4UL << 20)
 #define BFPT_DWORD15_QER_SR2_BIT1		(0x5UL << 20) /* Spansion */
+#define BFPT_DWORD15_QER_NONE_111		(0x7UL << 20) /* GigaDevice */
 
 #define BFPT_DWORD16_SWRST_EN_RST		BIT(12)
 

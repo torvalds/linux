@@ -562,6 +562,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	/* Quad Enable Requirements. */
 	switch (bfpt.dwords[BFPT_DWORD(15)] & BFPT_DWORD15_QER_MASK) {
 	case BFPT_DWORD15_QER_NONE:
+	case BFPT_DWORD15_QER_NONE_111:
 		params->quad_enable = NULL;
 		break;
 
