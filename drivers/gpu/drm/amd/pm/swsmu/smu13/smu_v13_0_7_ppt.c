@@ -1367,6 +1367,43 @@ static int smu_v13_0_7_enable_mgpu_fan_boost(struct smu_context *smu)
 					       NULL);
 }
 
+static int smu_v13_0_7_get_power_limit(struct smu_context *smu,
+				       uint32_t *current_power_limit,
+				       uint32_t *default_power_limit,
+				       uint32_t *max_power_limit)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_13_0_7_powerplay_table *powerplay_table =
+		(struct smu_13_0_7_powerplay_table *)table_context->power_play_table;
+	PPTable_t *pptable = table_context->driver_pptable;
+	SkuTable_t *skutable = &pptable->SkuTable;
+	uint32_t power_limit, od_percent;
+
+	if (smu_v13_0_get_current_power_limit(smu, &power_limit))
+		power_limit = smu->adev->pm.ac_power ?
+			      skutable->SocketPowerLimitAc[PPT_THROTTLER_PPT0] :
+			      skutable->SocketPowerLimitDc[PPT_THROTTLER_PPT0];
+
+	if (current_power_limit)
+		*current_power_limit = power_limit;
+	if (default_power_limit)
+		*default_power_limit = power_limit;
+
+	if (max_power_limit) {
+		if (smu->od_enabled) {
+			od_percent = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_13_0_7_ODSETTING_POWERPERCENTAGE]);
+
+			dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_percent, power_limit);
+
+			power_limit *= (100 + od_percent);
+			power_limit /= 100;
+		}
+		*max_power_limit = power_limit;
+	}
+
+	return 0;
+}
+
 static int smu_v13_0_7_get_power_profile_mode(struct smu_context *smu, char *buf)
 {
 	DpmActivityMonitorCoeffIntExternal_t activity_monitor_external[PP_SMC_POWER_PROFILE_COUNT];
@@ -1539,6 +1576,8 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.get_fan_control_mode = smu_v13_0_get_fan_control_mode,
 	.set_fan_control_mode = smu_v13_0_set_fan_control_mode,
 	.enable_mgpu_fan_boost = smu_v13_0_7_enable_mgpu_fan_boost,
+	.get_power_limit = smu_v13_0_7_get_power_limit,
+	.set_power_limit = smu_v13_0_set_power_limit,
 	.get_power_profile_mode = smu_v13_0_7_get_power_profile_mode,
 	.set_power_profile_mode = smu_v13_0_7_set_power_profile_mode,
 	.set_tool_table_location = smu_v13_0_set_tool_table_location,
