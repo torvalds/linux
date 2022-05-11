@@ -810,8 +810,8 @@ static int intel_vgpu_open_device(struct vfio_device *vfio_dev)
 	vgpu->group_notifier.notifier_call = intel_vgpu_group_notifier;
 
 	events = VFIO_IOMMU_NOTIFY_DMA_UNMAP;
-	ret = vfio_register_notifier(vfio_dev->dev, VFIO_IOMMU_NOTIFY, &events,
-				&vgpu->iommu_notifier);
+	ret = vfio_register_notifier(vfio_dev, VFIO_IOMMU_NOTIFY, &events,
+				     &vgpu->iommu_notifier);
 	if (ret != 0) {
 		gvt_vgpu_err("vfio_register_notifier for iommu failed: %d\n",
 			ret);
@@ -819,8 +819,8 @@ static int intel_vgpu_open_device(struct vfio_device *vfio_dev)
 	}
 
 	events = VFIO_GROUP_NOTIFY_SET_KVM;
-	ret = vfio_register_notifier(vfio_dev->dev, VFIO_GROUP_NOTIFY, &events,
-				&vgpu->group_notifier);
+	ret = vfio_register_notifier(vfio_dev, VFIO_GROUP_NOTIFY, &events,
+				     &vgpu->group_notifier);
 	if (ret != 0) {
 		gvt_vgpu_err("vfio_register_notifier for group failed: %d\n",
 			ret);
@@ -873,12 +873,12 @@ undo_group:
 	vgpu->vfio_group = NULL;
 
 undo_register:
-	vfio_unregister_notifier(vfio_dev->dev, VFIO_GROUP_NOTIFY,
-					&vgpu->group_notifier);
+	vfio_unregister_notifier(vfio_dev, VFIO_GROUP_NOTIFY,
+				 &vgpu->group_notifier);
 
 undo_iommu:
-	vfio_unregister_notifier(vfio_dev->dev, VFIO_IOMMU_NOTIFY,
-					&vgpu->iommu_notifier);
+	vfio_unregister_notifier(vfio_dev, VFIO_IOMMU_NOTIFY,
+				 &vgpu->iommu_notifier);
 out:
 	return ret;
 }
@@ -907,13 +907,13 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 
 	intel_gvt_release_vgpu(vgpu);
 
-	ret = vfio_unregister_notifier(vgpu->vfio_device.dev, VFIO_IOMMU_NOTIFY,
-					&vgpu->iommu_notifier);
+	ret = vfio_unregister_notifier(&vgpu->vfio_device, VFIO_IOMMU_NOTIFY,
+				       &vgpu->iommu_notifier);
 	drm_WARN(&i915->drm, ret,
 		 "vfio_unregister_notifier for iommu failed: %d\n", ret);
 
-	ret = vfio_unregister_notifier(vgpu->vfio_device.dev, VFIO_GROUP_NOTIFY,
-					&vgpu->group_notifier);
+	ret = vfio_unregister_notifier(&vgpu->vfio_device, VFIO_GROUP_NOTIFY,
+				       &vgpu->group_notifier);
 	drm_WARN(&i915->drm, ret,
 		 "vfio_unregister_notifier for group failed: %d\n", ret);
 

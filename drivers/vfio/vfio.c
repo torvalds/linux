@@ -2484,18 +2484,15 @@ static int vfio_unregister_group_notifier(struct vfio_group *group,
 	return ret;
 }
 
-int vfio_register_notifier(struct device *dev, enum vfio_notify_type type,
-			   unsigned long *events, struct notifier_block *nb)
+int vfio_register_notifier(struct vfio_device *device,
+			   enum vfio_notify_type type, unsigned long *events,
+			   struct notifier_block *nb)
 {
-	struct vfio_group *group;
+	struct vfio_group *group = device->group;
 	int ret;
 
-	if (!dev || !nb || !events || (*events == 0))
+	if (!nb || !events || (*events == 0))
 		return -EINVAL;
-
-	group = vfio_group_get_from_dev(dev);
-	if (!group)
-		return -ENODEV;
 
 	switch (type) {
 	case VFIO_IOMMU_NOTIFY:
@@ -2507,24 +2504,19 @@ int vfio_register_notifier(struct device *dev, enum vfio_notify_type type,
 	default:
 		ret = -EINVAL;
 	}
-
-	vfio_group_put(group);
 	return ret;
 }
 EXPORT_SYMBOL(vfio_register_notifier);
 
-int vfio_unregister_notifier(struct device *dev, enum vfio_notify_type type,
+int vfio_unregister_notifier(struct vfio_device *device,
+			     enum vfio_notify_type type,
 			     struct notifier_block *nb)
 {
-	struct vfio_group *group;
+	struct vfio_group *group = device->group;
 	int ret;
 
-	if (!dev || !nb)
+	if (!nb)
 		return -EINVAL;
-
-	group = vfio_group_get_from_dev(dev);
-	if (!group)
-		return -ENODEV;
 
 	switch (type) {
 	case VFIO_IOMMU_NOTIFY:
@@ -2536,8 +2528,6 @@ int vfio_unregister_notifier(struct device *dev, enum vfio_notify_type type,
 	default:
 		ret = -EINVAL;
 	}
-
-	vfio_group_put(group);
 	return ret;
 }
 EXPORT_SYMBOL(vfio_unregister_notifier);
