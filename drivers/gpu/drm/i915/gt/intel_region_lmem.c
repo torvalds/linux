@@ -108,7 +108,7 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 		flat_ccs_base = (flat_ccs_base >> XEHPSDV_CCS_BASE_SHIFT) * SZ_64K;
 
 		if (GEM_WARN_ON(lmem_size < flat_ccs_base))
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EIO);
 
 		tile_stolen = lmem_size - flat_ccs_base;
 
@@ -131,7 +131,7 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 	io_start = pci_resource_start(pdev, 2);
 	io_size = min(pci_resource_len(pdev, 2), lmem_size);
 	if (!io_size)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EIO);
 
 	min_page_size = HAS_64K_PAGES(i915) ? I915_GTT_PAGE_SIZE_64K :
 						I915_GTT_PAGE_SIZE_4K;
