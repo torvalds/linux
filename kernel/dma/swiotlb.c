@@ -297,9 +297,9 @@ int swiotlb_init_late(size_t size, gfp_t gfp_mask,
 {
 	struct io_tlb_mem *mem = &io_tlb_default_mem;
 	unsigned long nslabs = ALIGN(size >> IO_TLB_SHIFT, IO_TLB_SEGSIZE);
-	unsigned long bytes;
 	unsigned char *vstart = NULL;
 	unsigned int order;
+	bool retried = false;
 	int rc = 0;
 
 	if (swiotlb_force_disable)
@@ -308,7 +308,6 @@ int swiotlb_init_late(size_t size, gfp_t gfp_mask,
 retry:
 	order = get_order(nslabs << IO_TLB_SHIFT);
 	nslabs = SLABS_PER_PAGE << order;
-	bytes = nslabs << IO_TLB_SHIFT;
 
 	while ((SLABS_PER_PAGE << order) > IO_TLB_MIN_SLABS) {
 		vstart = (void *)__get_free_pages(gfp_mask | __GFP_NOWARN,
@@ -316,16 +315,13 @@ retry:
 		if (vstart)
 			break;
 		order--;
+		nslabs = SLABS_PER_PAGE << order;
+		retried = true;
 	}
 
 	if (!vstart)
 		return -ENOMEM;
 
-	if (order != get_order(bytes)) {
-		pr_warn("only able to allocate %ld MB\n",
-			(PAGE_SIZE << order) >> 20);
-		nslabs = SLABS_PER_PAGE << order;
-	}
 	if (remap)
 		rc = remap(vstart, nslabs);
 	if (rc) {
@@ -334,7 +330,13 @@ retry:
 		nslabs = ALIGN(nslabs >> 1, IO_TLB_SEGSIZE);
 		if (nslabs < IO_TLB_MIN_SLABS)
 			return rc;
+		retried = true;
 		goto retry;
+	}
+
+	if (retried) {
+		pr_warn("only able to allocate %ld MB\n",
+			(PAGE_SIZE << order) >> 20);
 	}
 
 	mem->slots = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
@@ -344,7 +346,8 @@ retry:
 		return -ENOMEM;
 	}
 
-	set_memory_decrypted((unsigned long)vstart, bytes >> PAGE_SHIFT);
+	set_memory_decrypted((unsigned long)vstart,
+			     (nslabs << IO_TLB_SHIFT) >> PAGE_SHIFT);
 	swiotlb_init_io_tlb_mem(mem, virt_to_phys(vstart), nslabs, true);
 
 	swiotlb_print_info();
