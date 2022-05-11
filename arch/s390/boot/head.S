@@ -42,7 +42,8 @@ ipl_start:
 # subroutine to wait for end I/O
 #
 .Lirqwait:
-	mvc	__LC_IO_NEW_PSW(16),.Lnewpsw	# set up IO interrupt psw
+	larl	%r13,.Lnewpsw		# set up IO interrupt psw
+	mvc	__LC_IO_NEW_PSW(16),0(%r13)
 	lpsw	.Lwaitpsw
 .Lioint:
 	br	%r14
@@ -155,9 +156,11 @@ ipl_start:
 	lr	%r2,%r3
 .Lnotrunc:
 	l	%r4,.Linitrd
-	clc	0(3,%r4),.L_hdr		# if it is HDRx
+	larl	%r13,.L_hdr
+	clc	0(3,%r4),0(%r13)	# if it is HDRx
 	bz	.Lagain1		# skip dataset header
-	clc	0(3,%r4),.L_eof		# if it is EOFx
+	larl	%r13,.L_eof
+	clc	0(3,%r4),0(%r13)	# if it is EOFx
 	bz	.Lagain1		# skip dateset trailer
 
 	lr	%r5,%r2
@@ -181,9 +184,11 @@ ipl_start:
 .Lrdcont:
 	l	%r2,.Linitrd
 
-	clc	0(3,%r2),.L_hdr		# skip HDRx and EOFx
+	larl	%r13,.L_hdr		# skip HDRx and EOFx
+	clc	0(3,%r2),0(%r13)
 	bz	.Lagain2
-	clc	0(3,%r2),.L_eof
+	larl	%r13,.L_eof
+	clc	0(3,%r2),0(%r13)
 	bz	.Lagain2
 
 #
@@ -260,20 +265,23 @@ SYM_CODE_START_LOCAL(startup_normal)
 	.fill	16,4,0x0
 0:	lmh	%r0,%r15,0(%r13)	# clear high-order half of gprs
 	sam64				# switch to 64 bit addressing mode
-	basr	%r13,0			# get base
-.LPG0:
-	mvc	__LC_EXT_NEW_PSW(16),.Lext_new_psw-.LPG0(%r13)
-	mvc	__LC_PGM_NEW_PSW(16),.Lpgm_new_psw-.LPG0(%r13)
-	mvc	__LC_IO_NEW_PSW(16),.Lio_new_psw-.LPG0(%r13)
+	larl	%r13,.Lext_new_psw
+	mvc	__LC_EXT_NEW_PSW(16),0(%r13)
+	larl	%r13,.Lpgm_new_psw
+	mvc	__LC_PGM_NEW_PSW(16),0(%r13)
+	larl	%r13,.Lio_new_psw
+	mvc	__LC_IO_NEW_PSW(16),0(%r13)
 	xc	0x200(256),0x200	# partially clear lowcore
 	xc	0x300(256),0x300
 	xc	0xe00(256),0xe00
 	xc	0xf00(256),0xf00
-	lctlg	%c0,%c15,.Lctl-.LPG0(%r13)	# load control registers
+	larl	%r13,.Lctl
+	lctlg	%c0,%c15,0(%r13)	# load control registers
 	stcke	__LC_BOOT_CLOCK
 	mvc	__LC_LAST_UPDATE_CLOCK(8),__LC_BOOT_CLOCK+1
-	spt	6f-.LPG0(%r13)
-	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
+	larl	%r13,6f
+	spt	0(%r13)
+	mvc	__LC_LAST_UPDATE_TIMER(8),0(%r13)
 	larl	%r15,_stack_end-STACK_FRAME_OVERHEAD
 	brasl	%r14,sclp_early_setup_buffer
 	brasl	%r14,verify_facilities
