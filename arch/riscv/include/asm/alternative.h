@@ -12,6 +12,8 @@
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_RISCV_ALTERNATIVE
+
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
@@ -34,6 +36,12 @@ struct errata_checkfunc_id {
 
 void sifive_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
 			      unsigned long archid, unsigned long impid);
+
+#else /* CONFIG_RISCV_ALTERNATIVE */
+
+static inline void apply_boot_alternatives(void) { }
+
+#endif /* CONFIG_RISCV_ALTERNATIVE */
 
 #endif
 #endif

@@ -324,6 +324,15 @@ config NODES_SHIFT
 	  Specify the maximum number of NUMA Nodes available on the target
 	  system.  Increases memory reserved to accommodate various tables.
 
+config RISCV_ALTERNATIVE
+	bool
+	depends on !XIP_KERNEL
+	help
+	  This Kconfig allows the kernel to automatically patch the
+	  errata required by the execution platform at run time. The
+	  code patching is performed once in the boot stages. It means
+	  that the overhead from this mechanism is just taken once.
+
 config RISCV_ISA_C
 	bool "Emit compressed instructions when building Linux"
 	default y
