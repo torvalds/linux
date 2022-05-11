@@ -2837,8 +2837,12 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dmub_cmd_update_dirty_rect_data *update_dirty_rect;
 	unsigned int i, j;
+	unsigned int panel_inst = 0;
 
 	if (stream->link->psr_settings.psr_version != DC_PSR_VERSION_SU_1)
+		return;
+
+	if (!dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
 		return;
 
 	memset(&cmd, 0x0, sizeof(cmd));
@@ -2869,6 +2873,7 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 			if (pipe_ctx->plane_state != plane_state)
 				continue;
 
+			update_dirty_rect->panel_inst = panel_inst;
 			update_dirty_rect->pipe_idx = j;
 			dc_dmub_srv_cmd_queue(dc_ctx->dmub_srv, &cmd);
 			dc_dmub_srv_cmd_execute(dc_ctx->dmub_srv);
