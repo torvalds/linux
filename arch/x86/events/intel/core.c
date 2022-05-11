@@ -2673,6 +2673,7 @@ static u64 adl_update_topdown_event(struct perf_event *event)
 	return icl_update_topdown_event(event);
 }
 
+DEFINE_STATIC_CALL(intel_pmu_update_topdown_event, x86_perf_event_update);
 
 static void intel_pmu_read_topdown_event(struct perf_event *event)
 {
@@ -2684,7 +2685,7 @@ static void intel_pmu_read_topdown_event(struct perf_event *event)
 		return;
 
 	perf_pmu_disable(event->pmu);
-	x86_pmu.update_topdown_event(event);
+	static_call(intel_pmu_update_topdown_event)(event);
 	perf_pmu_enable(event->pmu);
 }
 
@@ -2692,7 +2693,7 @@ static void intel_pmu_read_event(struct perf_event *event)
 {
 	if (event->hw.flags & PERF_X86_EVENT_AUTO_RELOAD)
 		intel_pmu_auto_reload_read(event);
-	else if (is_topdown_count(event) && x86_pmu.update_topdown_event)
+	else if (is_topdown_count(event))
 		intel_pmu_read_topdown_event(event);
 	else
 		x86_perf_event_update(event);
@@ -2821,9 +2822,8 @@ static int intel_pmu_set_period(struct perf_event *event)
 
 static u64 intel_pmu_update(struct perf_event *event)
 {
-	if (unlikely(is_topdown_count(event)) &&
-	    x86_pmu.update_topdown_event)
-		return x86_pmu.update_topdown_event(event);
+	if (unlikely(is_topdown_count(event)))
+		return static_call(intel_pmu_update_topdown_event)(event);
 
 	return x86_perf_event_update(event);
 }
@@ -2990,8 +2990,7 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 	 */
 	if (__test_and_clear_bit(GLOBAL_STATUS_PERF_METRICS_OVF_BIT, (unsigned long *)&status)) {
 		handled++;
-		if (x86_pmu.update_topdown_event)
-			x86_pmu.update_topdown_event(NULL);
+		static_call(intel_pmu_update_topdown_event)(NULL);
 	}
 
 	/*
@@ -6292,7 +6291,8 @@ __init int intel_pmu_init(void)
 		x86_pmu.lbr_pt_coexist = true;
 		intel_pmu_pebs_data_source_skl(pmem);
 		x86_pmu.num_topdown_events = 4;
-		x86_pmu.update_topdown_event = icl_update_topdown_event;
+		static_call_update(intel_pmu_update_topdown_event,
+				   &icl_update_topdown_event);
 		static_call_update(intel_pmu_set_topdown_event_period,
 				   &icl_set_topdown_event_period);
 		pr_cont("Icelake events, ");
@@ -6331,7 +6331,8 @@ __init int intel_pmu_init(void)
 		x86_pmu.lbr_pt_coexist = true;
 		intel_pmu_pebs_data_source_skl(pmem);
 		x86_pmu.num_topdown_events = 8;
-		x86_pmu.update_topdown_event = icl_update_topdown_event;
+		static_call_update(intel_pmu_update_topdown_event,
+				   &icl_update_topdown_event);
 		static_call_update(intel_pmu_set_topdown_event_period,
 				   &icl_set_topdown_event_period);
 		pr_cont("Sapphire Rapids events, ");
@@ -6369,7 +6370,8 @@ __init int intel_pmu_init(void)
 		intel_pmu_pebs_data_source_adl();
 		x86_pmu.pebs_latency_data = adl_latency_data_small;
 		x86_pmu.num_topdown_events = 8;
-		x86_pmu.update_topdown_event = adl_update_topdown_event;
+		static_call_update(intel_pmu_update_topdown_event,
+				   &adl_update_topdown_event);
 		static_call_update(intel_pmu_set_topdown_event_period,
 				   &adl_set_topdown_event_period);
 
