@@ -42,6 +42,9 @@ void sifive_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
 			      unsigned long archid, unsigned long impid,
 			      unsigned int stage);
 
+void riscv_cpufeature_patch_func(struct alt_entry *begin, struct alt_entry *end,
+				 unsigned int stage);
+
 #else /* CONFIG_RISCV_ALTERNATIVE */
 
 static inline void apply_boot_alternatives(void) { }
