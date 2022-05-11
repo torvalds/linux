@@ -77,4 +77,15 @@ config SND_SOC_INTEL_AVS_MACH_RT5682
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
+config SND_SOC_INTEL_AVS_MACH_SSM4567
+	tristate "ssm4567 I2S board"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_SSM4567
+	help
+	   This adds support for ASoC machine driver with SSM4567 I2S audio codec.
+	   It is meant to be used with AVS driver.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
 endmenu
