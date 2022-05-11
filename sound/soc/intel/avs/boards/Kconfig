@@ -36,6 +36,16 @@ config SND_SOC_INTEL_AVS_MACH_MAX98357A
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_AVS_MACH_MAX98373
+	tristate "max98373 I2S board"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_MAX98373
+	help
+	  This adds support for AVS with MAX98373 I2S codec configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_AVS_MACH_NAU8825
 	tristate "nau8825 I2S board"
 	depends on I2C
