@@ -794,6 +794,9 @@ static int felix_bridge_flags(struct dsa_switch *ds, int port,
 {
 	struct ocelot *ocelot = ds->priv;
 
+	if (port == ocelot->npi)
+		port = ocelot->num_phys_ports;
+
 	ocelot_port_bridge_flags(ocelot, port, val);
 
 	return 0;
