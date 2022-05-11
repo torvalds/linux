@@ -2437,13 +2437,13 @@ EXPORT_SYMBOL(drm_edid_duplicate);
 
 /**
  * edid_get_quirks - return quirk flags for a given EDID
- * @edid: EDID to process
+ * @drm_edid: EDID to process
  *
  * This tells subsequent routines what fixes they need to apply.
  */
-static u32 edid_get_quirks(const struct edid *edid)
+static u32 edid_get_quirks(const struct drm_edid *drm_edid)
 {
-	u32 panel_id = edid_extract_panel_id(edid);
+	u32 panel_id = edid_extract_panel_id(drm_edid->edid);
 	const struct edid_quirk *quirk;
 	int i;
 
@@ -5466,7 +5466,7 @@ static void drm_parse_microsoft_vsdb(struct drm_connector *connector,
 }
 
 static void drm_parse_cea_ext(struct drm_connector *connector,
-			      const struct edid *edid)
+			      const struct drm_edid *drm_edid)
 {
 	struct drm_display_info *info = &connector->display_info;
 	struct drm_edid_iter edid_iter;
@@ -5474,7 +5474,7 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 	struct cea_db_iter iter;
 	const u8 *edid_ext;
 
-	drm_edid_iter_begin(edid, &edid_iter);
+	drm_edid_iter_begin(drm_edid->edid, &edid_iter);
 	drm_edid_iter_for_each(edid_ext, &edid_iter) {
 		if (edid_ext[0] != CEA_EXT)
 			continue;
@@ -5495,7 +5495,7 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 	}
 	drm_edid_iter_end(&edid_iter);
 
-	cea_db_iter_edid_begin(edid, &iter);
+	cea_db_iter_edid_begin(drm_edid->edid, &iter);
 	cea_db_iter_for_each(db, &iter) {
 		/* FIXME: convert parsers to use struct cea_db */
 		const u8 *data = (const u8 *)db;
@@ -5541,16 +5541,15 @@ void get_monitor_range(const struct detailed_timing *timing,
 	monitor_range->max_vfreq = range->max_vfreq;
 }
 
-static
-void drm_get_monitor_range(struct drm_connector *connector,
-			   const struct edid *edid)
+static void drm_get_monitor_range(struct drm_connector *connector,
+				  const struct drm_edid *drm_edid)
 {
 	struct drm_display_info *info = &connector->display_info;
 
-	if (!version_greater(edid, 1, 1))
+	if (!version_greater(drm_edid->edid, 1, 1))
 		return;
 
-	drm_for_each_detailed_block(edid, get_monitor_range,
+	drm_for_each_detailed_block(drm_edid->edid, get_monitor_range,
 				    &info->monitor_range);
 
 	DRM_DEBUG_KMS("Supported Monitor Refresh rate range is %d Hz - %d Hz\n",
@@ -5610,12 +5609,13 @@ static void drm_parse_vesa_mso_data(struct drm_connector *connector,
 		    info->mso_stream_count, info->mso_pixel_overlap);
 }
 
-static void drm_update_mso(struct drm_connector *connector, const struct edid *edid)
+static void drm_update_mso(struct drm_connector *connector,
+			   const struct drm_edid *drm_edid)
 {
 	const struct displayid_block *block;
 	struct displayid_iter iter;
 
-	displayid_iter_edid_begin(edid, &iter);
+	displayid_iter_edid_begin(drm_edid->edid, &iter);
 	displayid_iter_for_each(block, &iter) {
 		if (block->tag == DATA_BLOCK_2_VENDOR_SPECIFIC)
 			drm_parse_vesa_mso_data(connector, block);
@@ -5654,18 +5654,20 @@ drm_reset_display_info(struct drm_connector *connector)
 	info->mso_pixel_overlap = 0;
 }
 
-u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
+static u32 update_display_info(struct drm_connector *connector,
+			       const struct drm_edid *drm_edid)
 {
 	struct drm_display_info *info = &connector->display_info;
+	const struct edid *edid = drm_edid->edid;
 
-	u32 quirks = edid_get_quirks(edid);
+	u32 quirks = edid_get_quirks(drm_edid);
 
 	drm_reset_display_info(connector);
 
 	info->width_mm = edid->width_cm * 10;
 	info->height_mm = edid->height_cm * 10;
 
-	drm_get_monitor_range(connector, edid);
+	drm_get_monitor_range(connector, drm_edid);
 
 	if (edid->revision < 3)
 		goto out;
@@ -5674,7 +5676,7 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 		goto out;
 
 	info->color_formats |= DRM_COLOR_FORMAT_RGB444;
-	drm_parse_cea_ext(connector, edid);
+	drm_parse_cea_ext(connector, drm_edid);
 
 	/*
 	 * Digital sink with "DFP 1.x compliant TMDS" according to EDID 1.3?
@@ -5727,7 +5729,7 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 	if (edid->features & DRM_EDID_FEATURE_RGB_YCRCB422)
 		info->color_formats |= DRM_COLOR_FORMAT_YCBCR422;
 
-	drm_update_mso(connector, edid);
+	drm_update_mso(connector, drm_edid);
 
 out:
 	if (quirks & EDID_QUIRK_NON_DESKTOP) {
@@ -5737,6 +5739,14 @@ out:
 	}
 
 	return quirks;
+}
+
+u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
+{
+	struct drm_edid drm_edid;
+
+	return update_display_info(connector,
+				   drm_edid_legacy_init(&drm_edid, edid));
 }
 
 static struct drm_display_mode *drm_mode_displayid_detailed(struct drm_device *dev,
@@ -5851,9 +5861,9 @@ static int drm_edid_connector_update(struct drm_connector *connector,
 	 * To avoid multiple parsing of same block, lets parse that map
 	 * from sink info, before parsing CEA modes.
 	 */
-	quirks = drm_add_display_info(connector, edid);
+	quirks = update_display_info(connector, drm_edid);
 
-	/* Depends on info->cea_rev set by drm_add_display_info() above */
+	/* Depends on info->cea_rev set by update_display_info() above */
 	drm_edid_to_eld(connector, edid);
 
 	/*
