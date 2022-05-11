@@ -590,6 +590,17 @@ static inline u32 dsa_user_ports(struct dsa_switch *ds)
 	return mask;
 }
 
+static inline u32 dsa_cpu_ports(struct dsa_switch *ds)
+{
+	struct dsa_port *cpu_dp;
+	u32 mask = 0;
+
+	dsa_switch_for_each_cpu_port(cpu_dp, ds)
+		mask |= BIT(cpu_dp->index);
+
+	return mask;
+}
+
 /* Return the local port used to reach an arbitrary switch device */
 static inline unsigned int dsa_routing_port(struct dsa_switch *ds, int device)
 {
