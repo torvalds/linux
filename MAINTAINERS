@@ -4873,7 +4873,7 @@ R:	Nick Desaulniers <ndesaulniers@google.com>
 L:	llvm@lists.linux.dev
 S:	Supported
 B:	https://github.com/ClangBuiltLinux/linux/issues
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/clang/features
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
 F:	include/linux/cfi.h
 F:	kernel/cfi.c
 
@@ -7783,6 +7783,7 @@ FORTIFY_SOURCE
 M:	Kees Cook <keescook@chromium.org>
 L:	linux-hardening@vger.kernel.org
 S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
 F:	include/linux/fortify-string.h
 F:	lib/test_fortify/*
 F:	scripts/test_fortify.sh
@@ -8225,6 +8226,7 @@ GCC PLUGINS
 M:	Kees Cook <keescook@chromium.org>
 L:	linux-hardening@vger.kernel.org
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
 F:	Documentation/kbuild/gcc-plugins.rst
 F:	scripts/Makefile.gcc-plugins
 F:	scripts/gcc-plugins/
@@ -10742,6 +10744,17 @@ F:	scripts/mk*
 F:	scripts/mod/
 F:	scripts/package/
 
+KERNEL HARDENING (not covered by other areas)
+M:	Kees Cook <keescook@chromium.org>
+L:	linux-hardening@vger.kernel.org
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
+F:	include/linux/overflow.h
+F:	include/linux/randomize_kstack.h
+F:	mm/usercopy.c
+K:	\b(add|choose)_random_kstack_offset\b
+K:	\b__check_(object_size|heap_object)\b
+
 KERNEL JANITORS
 L:	kernel-janitors@vger.kernel.org
 S:	Odd Fixes
@@ -11542,7 +11555,7 @@ F:	drivers/media/usb/dvb-usb-v2/lmedm04*
 LOADPIN SECURITY MODULE
 M:	Kees Cook <keescook@chromium.org>
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git lsm/loadpin
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
 F:	Documentation/admin-guide/LSM/LoadPin.rst
 F:	security/loadpin/
 
@@ -17857,7 +17870,7 @@ M:	Kees Cook <keescook@chromium.org>
 R:	Andy Lutomirski <luto@amacapital.net>
 R:	Will Drewry <wad@chromium.org>
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git seccomp
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/seccomp
 F:	Documentation/userspace-api/seccomp_filter.rst
 F:	include/linux/seccomp.h
 F:	include/uapi/linux/seccomp.h
@@ -21993,7 +22006,7 @@ F:	include/linux/yam.h
 YAMA SECURITY MODULE
 M:	Kees Cook <keescook@chromium.org>
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git yama/tip
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
 F:	Documentation/admin-guide/LSM/Yama.rst
 F:	security/yama/
 
