@@ -93,8 +93,28 @@ static const struct simple_mfd_data maxim_mon_max77705 = {
 	.mfd_cell_size = ARRAY_SIZE(max77705_sensor_cells),
 };
 
+static const struct regmap_config regmap_config_sm5708 = {
+	.cache_type = REGCACHE_FLAT,
+	.num_reg_defaults_raw = 0x40,
+	.reg_bits = 8,
+	.val_bits = 8,
+	.volatile_table = &(const struct regmap_access_table) {
+		.yes_ranges = (const struct regmap_range[]) {
+			regmap_reg_range(0x00, 0x03), /* INT0-3 */
+			regmap_reg_range(0x08, 0x0d), /* STATUS0-3 */
+			regmap_reg_range(0x38, 0x3f),
+		},
+		.n_yes_ranges = 3,
+	},
+};
+
+static const struct simple_mfd_data siliconmitus_sm5708 = {
+	.regmap_config = &regmap_config_sm5708,
+};
+
 static const struct of_device_id simple_mfd_i2c_of_match[] = {
 	{ .compatible = "kontron,sl28cpld" },
+	{ .compatible = "siliconmitus,sm5708", .data = &siliconmitus_sm5708 },
 	{ .compatible = "silergy,sy7636a", .data = &silergy_sy7636a},
 	{ .compatible = "maxim,max5970", .data = &maxim_max5970},
 	{ .compatible = "maxim,max5978", .data = &maxim_max5970},
