@@ -200,6 +200,8 @@ static int rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 
 	_net("queue skb %p [%d]", skb, seq);
 
+	rxrpc_inc_stat(call->rxnet, stat_tx_data);
+
 	ASSERTCMP(seq, ==, call->tx_top + 1);
 
 	if (last)

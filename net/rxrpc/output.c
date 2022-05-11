@@ -462,6 +462,7 @@ dont_set_request_ack:
 	 *   - in which case, we'll have processed the ICMP error
 	 *     message and update the peer record
 	 */
+	rxrpc_inc_stat(call->rxnet, stat_tx_data_send);
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	conn->params.peer->last_tx_at = ktime_get_seconds();
 
@@ -537,6 +538,7 @@ send_fragmentable:
 	case AF_INET:
 		ip_sock_set_mtu_discover(conn->params.local->socket->sk,
 				IP_PMTUDISC_DONT);
+		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_frag);
 		ret = kernel_sendmsg(conn->params.local->socket, &msg,
 				     iov, 2, len);
 		conn->params.peer->last_tx_at = ktime_get_seconds();

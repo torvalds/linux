@@ -397,3 +397,51 @@ const struct seq_operations rxrpc_local_seq_ops = {
 	.stop   = rxrpc_local_seq_stop,
 	.show   = rxrpc_local_seq_show,
 };
+
+/*
+ * Display stats in /proc/net/rxrpc/stats
+ */
+int rxrpc_stats_show(struct seq_file *seq, void *v)
+{
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_single_net(seq));
+
+	seq_printf(seq,
+		   "Data     : send=%u sendf=%u\n",
+		   atomic_read(&rxnet->stat_tx_data_send),
+		   atomic_read(&rxnet->stat_tx_data_send_frag));
+	seq_printf(seq,
+		   "Data-Tx  : nr=%u retrans=%u\n",
+		   atomic_read(&rxnet->stat_tx_data),
+		   atomic_read(&rxnet->stat_tx_data_retrans));
+	seq_printf(seq,
+		   "Data-Rx  : nr=%u reqack=%u jumbo=%u\n",
+		   atomic_read(&rxnet->stat_rx_data),
+		   atomic_read(&rxnet->stat_rx_data_reqack),
+		   atomic_read(&rxnet->stat_rx_data_jumbo));
+	seq_printf(seq,
+		   "Buffers  : txb=%u rxb=%u\n",
+		   atomic_read(&rxrpc_n_tx_skbs),
+		   atomic_read(&rxrpc_n_rx_skbs));
+	return 0;
+}
+
+/*
+ * Clear stats if /proc/net/rxrpc/stats is written to.
+ */
+int rxrpc_stats_clear(struct file *file, char *buf, size_t size)
+{
+	struct seq_file *m = file->private_data;
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_single_net(m));
+
+	if (size > 1 || (size == 1 && buf[0] != '\n'))
+		return -EINVAL;
+
+	atomic_set(&rxnet->stat_tx_data, 0);
+	atomic_set(&rxnet->stat_tx_data_retrans, 0);
+	atomic_set(&rxnet->stat_tx_data_send, 0);
+	atomic_set(&rxnet->stat_tx_data_send_frag, 0);
+	atomic_set(&rxnet->stat_rx_data, 0);
+	atomic_set(&rxnet->stat_rx_data_reqack, 0);
+	atomic_set(&rxnet->stat_rx_data_jumbo, 0);
+	return size;
+}
