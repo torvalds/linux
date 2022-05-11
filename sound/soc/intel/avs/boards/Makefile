@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+snd-soc-avs-da7219-objs := da7219.o
 snd-soc-avs-dmic-objs := dmic.o
 snd-soc-avs-hdaudio-objs := hdaudio.o
 snd-soc-avs-i2s-test-objs := i2s_test.o
@@ -12,6 +13,7 @@ snd-soc-avs-rt298-objs := rt298.o
 snd-soc-avs-rt5682-objs := rt5682.o
 snd-soc-avs-ssm4567-objs := ssm4567.o
 
+obj-$(CONFIG_SND_SOC_INTEL_AVS_MACH_DA7219) += snd-soc-avs-da7219.o
 obj-$(CONFIG_SND_SOC_INTEL_AVS_MACH_DMIC) += snd-soc-avs-dmic.o
 obj-$(CONFIG_SND_SOC_INTEL_AVS_MACH_HDAUDIO) += snd-soc-avs-hdaudio.o
 obj-$(CONFIG_SND_SOC_INTEL_AVS_MACH_i2s_TEST) += snd-soc-avs-i2s-test.o

@@ -4,6 +4,16 @@ menu "Intel AVS Machine drivers"
 
 comment "Available DSP configurations"
 
+config SND_SOC_INTEL_AVS_MACH_DA7219
+	tristate "da7219 I2S board"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_DA7219
+	help
+	  This adds support for AVS with DA7219 I2S codec configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_AVS_MACH_DMIC
 	tristate "DMIC generic board"
 	select SND_SOC_DMIC
