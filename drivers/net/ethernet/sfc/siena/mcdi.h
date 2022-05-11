@@ -373,7 +373,7 @@ static inline int efx_siena_mcdi_mon_probe(struct efx_nic *efx) { return 0; }
 static inline void efx_siena_mcdi_mon_remove(struct efx_nic *efx) {}
 #endif
 
-#ifdef CONFIG_SFC_MTD
+#ifdef CONFIG_SFC_SIENA_MTD
 int efx_siena_mcdi_mtd_read(struct mtd_info *mtd, loff_t start, size_t len,
 			    size_t *retlen, u8 *buffer);
 int efx_siena_mcdi_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len);

@@ -997,7 +997,7 @@ int efx_siena_init_struct(struct efx_nic *efx,
 	INIT_LIST_HEAD(&efx->node);
 	INIT_LIST_HEAD(&efx->secondary_list);
 	spin_lock_init(&efx->biu_lock);
-#ifdef CONFIG_SFC_MTD
+#ifdef CONFIG_SFC_SIENA_MTD
 	INIT_LIST_HEAD(&efx->mtd_list);
 #endif
 	INIT_WORK(&efx->reset_work, efx_reset_work);

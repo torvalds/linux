@@ -162,7 +162,7 @@ void efx_siena_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
 void efx_siena_update_sw_stats(struct efx_nic *efx, u64 *stats);
 
 /* MTD */
-#ifdef CONFIG_SFC_MTD
+#ifdef CONFIG_SFC_SIENA_MTD
 int efx_siena_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
 		      size_t n_parts, size_t sizeof_part);
 static inline int efx_mtd_probe(struct efx_nic *efx)

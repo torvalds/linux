@@ -2014,7 +2014,7 @@ int efx_siena_mcdi_wol_filter_reset(struct efx_nic *efx)
 	return rc;
 }
 
-#ifdef CONFIG_SFC_MTD
+#ifdef CONFIG_SFC_SIENA_MTD
 
 #define EFX_MCDI_NVRAM_LEN_MAX 128
 
@@ -2256,4 +2256,4 @@ void efx_siena_mcdi_mtd_rename(struct efx_mtd_partition *part)
 		 efx->name, part->type_name, mcdi_part->fw_subtype);
 }
 
-#endif /* CONFIG_SFC_MTD */
+#endif /* CONFIG_SFC_SIENA_MTD */

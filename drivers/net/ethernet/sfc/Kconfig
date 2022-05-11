@@ -32,7 +32,7 @@ config SFC
 	  To compile this driver as a module, choose M here.  The module
 	  will be called sfc.
 config SFC_MTD
-	bool "Solarflare SFC9000/SFC9100-family MTD support"
+	bool "Solarflare SFC9100-family MTD support"
 	depends on SFC && MTD && !(SFC=y && MTD=m)
 	default y
 	help
