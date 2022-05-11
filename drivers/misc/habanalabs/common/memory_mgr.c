@@ -26,7 +26,7 @@ struct hl_mmap_mem_buf *hl_mmap_mem_buf_get(struct hl_mem_mgr *mmg, u64 handle)
 	if (!buf) {
 		spin_unlock(&mmg->lock);
 		dev_warn(mmg->dev,
-			 "Buff get failed, no match to handle %llu\n", handle);
+			 "Buff get failed, no match to handle %#llx\n", handle);
 		return NULL;
 	}
 	kref_get(&buf->refcount);
@@ -119,8 +119,8 @@ int hl_mmap_mem_buf_put_handle(struct hl_mem_mgr *mmg, u64 handle)
 	buf = idr_find(&mmg->handles, lower_32_bits(handle >> PAGE_SHIFT));
 	if (!buf) {
 		spin_unlock(&mmg->lock);
-		dev_warn(mmg->dev,
-			 "Buff put failed, no match to handle %llu\n", handle);
+		dev_dbg(mmg->dev,
+			 "Buff put failed, no match to handle %#llx\n", handle);
 		return -EINVAL;
 	}
 
@@ -246,7 +246,7 @@ int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 	buf = hl_mmap_mem_buf_get(mmg, handle);
 	if (!buf) {
 		dev_err(mmg->dev,
-			"Memory mmap failed, no match to handle %llu\n", handle);
+			"Memory mmap failed, no match to handle %#llx\n", handle);
 		return -EINVAL;
 	}
 
