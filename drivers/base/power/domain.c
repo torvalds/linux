@@ -881,7 +881,7 @@ static int genpd_runtime_suspend(struct device *dev)
 	struct generic_pm_domain_data *gpd_data = dev_gpd_data(dev);
 	struct gpd_timing_data *td = gpd_data->td;
 	bool runtime_pm = pm_runtime_enabled(dev);
-	ktime_t time_start;
+	ktime_t time_start = 0;
 	s64 elapsed_ns;
 	int ret;
 
@@ -902,8 +902,7 @@ static int genpd_runtime_suspend(struct device *dev)
 		return -EBUSY;
 
 	/* Measure suspend latency. */
-	time_start = 0;
-	if (runtime_pm)
+	if (td && runtime_pm)
 		time_start = ktime_get();
 
 	ret = __genpd_runtime_suspend(dev);
@@ -917,9 +916,9 @@ static int genpd_runtime_suspend(struct device *dev)
 	}
 
 	/* Update suspend latency value if the measured time exceeds it. */
-	if (runtime_pm) {
+	if (td && runtime_pm) {
 		elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
-		if (td && (elapsed_ns > td->suspend_latency_ns)) {
+		if (elapsed_ns > td->suspend_latency_ns) {
 			td->suspend_latency_ns = elapsed_ns;
 			dev_dbg(dev, "suspend latency exceeded, %lld ns\n",
 				elapsed_ns);
@@ -956,11 +955,10 @@ static int genpd_runtime_resume(struct device *dev)
 	struct generic_pm_domain *genpd;
 	struct generic_pm_domain_data *gpd_data = dev_gpd_data(dev);
 	struct gpd_timing_data *td = gpd_data->td;
-	bool runtime_pm = pm_runtime_enabled(dev);
-	ktime_t time_start;
+	bool timed = td && pm_runtime_enabled(dev);
+	ktime_t time_start = 0;
 	s64 elapsed_ns;
 	int ret;
-	bool timed = true;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -988,8 +986,7 @@ static int genpd_runtime_resume(struct device *dev)
 
  out:
 	/* Measure resume latency. */
-	time_start = 0;
-	if (timed && runtime_pm)
+	if (timed)
 		time_start = ktime_get();
 
 	ret = genpd_start_dev(genpd, dev);
@@ -1001,9 +998,9 @@ static int genpd_runtime_resume(struct device *dev)
 		goto err_stop;
 
 	/* Update resume latency value if the measured time exceeds it. */
-	if (timed && runtime_pm) {
+	if (timed) {
 		elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
-		if (td && (elapsed_ns > td->resume_latency_ns)) {
+		if (elapsed_ns > td->resume_latency_ns) {
 			td->resume_latency_ns = elapsed_ns;
 			dev_dbg(dev, "resume latency exceeded, %lld ns\n",
 				elapsed_ns);
