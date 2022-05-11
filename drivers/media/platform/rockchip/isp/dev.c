@@ -185,6 +185,11 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 		}
 		if (!hw_dev->is_single)
 			i++;
+
+		/* use lager clk in 4 vir-isp mode */
+		if (hw_dev->dev_num >= 4)
+			i++;
+
 		if (i > hw_dev->num_clk_rate_tbl - 1)
 			i = hw_dev->num_clk_rate_tbl - 1;
 		goto end;
