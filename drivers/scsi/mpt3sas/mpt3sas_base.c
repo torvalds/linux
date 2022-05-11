@@ -4753,7 +4753,7 @@ static void
 _base_display_ioc_capabilities(struct MPT3SAS_ADAPTER *ioc)
 {
 	int i = 0;
-	char desc[16];
+	char desc[17] = {0};
 	u32 iounit_pg1_flags;
 	u32 bios_version;
 
