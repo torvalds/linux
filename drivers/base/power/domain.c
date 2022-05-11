@@ -509,6 +509,7 @@ static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 	if (!genpd->power_on)
 		goto out;
 
+	timed = timed && genpd->gd;
 	if (!timed) {
 		ret = genpd->power_on(genpd);
 		if (ret)
@@ -527,8 +528,7 @@ static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 		goto out;
 
 	genpd->states[state_idx].power_on_latency_ns = elapsed_ns;
-	if (genpd->gd)
-		genpd->gd->max_off_time_changed = true;
+	genpd->gd->max_off_time_changed = true;
 	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
 		 genpd->name, "on", elapsed_ns);
 
@@ -559,6 +559,7 @@ static int _genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 	if (!genpd->power_off)
 		goto out;
 
+	timed = timed && genpd->gd;
 	if (!timed) {
 		ret = genpd->power_off(genpd);
 		if (ret)
@@ -577,8 +578,7 @@ static int _genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 		goto out;
 
 	genpd->states[state_idx].power_off_latency_ns = elapsed_ns;
-	if (genpd->gd)
-		genpd->gd->max_off_time_changed = true;
+	genpd->gd->max_off_time_changed = true;
 	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
 		 genpd->name, "off", elapsed_ns);
 
