@@ -654,7 +654,6 @@ static const struct __ftr_reg_entry {
 	ARM64_FTR_REG(SYS_ID_AA64ISAR0_EL1, ftr_id_aa64isar0),
 	ARM64_FTR_REG_OVERRIDE(SYS_ID_AA64ISAR1_EL1, ftr_id_aa64isar1,
 			       &id_aa64isar1_override),
-	ARM64_FTR_REG(SYS_ID_AA64ISAR2_EL1, ftr_id_aa64isar2),
 	ARM64_FTR_REG_OVERRIDE(SYS_ID_AA64ISAR2_EL1, ftr_id_aa64isar2,
 			       &id_aa64isar2_override),
 
@@ -810,7 +809,7 @@ static void __init sort_ftr_regs(void)
 		 * to sys_id for subsequent binary search in get_arm64_ftr_reg()
 		 * to work correctly.
 		 */
-		BUG_ON(arm64_ftr_regs[i].sys_id < arm64_ftr_regs[i - 1].sys_id);
+		BUG_ON(arm64_ftr_regs[i].sys_id <= arm64_ftr_regs[i - 1].sys_id);
 	}
 }
 
