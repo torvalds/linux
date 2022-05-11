@@ -775,6 +775,10 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 	case 100000000:
 		param_write(priv->phy_grf, &cfg->pipe_clk_100m, true);
 		if (priv->mode == PHY_TYPE_PCIE) {
+			/* gate_tx_pck_sel length select work for L1SS */
+			val = 0xc0;
+			writel(val, priv->mmio + 0x74);
+
 			/* PLL KVCO tuning fine */
 			val = readl(priv->mmio + (0x20 << 2));
 			val &= ~GENMASK(4, 2);
