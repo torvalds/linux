@@ -4,6 +4,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/bug.h>
 #include <asm/patch.h>
@@ -54,7 +55,8 @@ static struct errata_info_t errata_list[ERRATA_SIFIVE_NUMBER] = {
 	},
 };
 
-static u32 __init sifive_errata_probe(unsigned long archid, unsigned long impid)
+static u32 __init_or_module sifive_errata_probe(unsigned long archid,
+						unsigned long impid)
 {
 	int idx;
 	u32 cpu_req_errata = 0;
@@ -66,7 +68,7 @@ static u32 __init sifive_errata_probe(unsigned long archid, unsigned long impid)
 	return cpu_req_errata;
 }
 
-static void __init warn_miss_errata(u32 miss_errata)
+static void __init_or_module warn_miss_errata(u32 miss_errata)
 {
 	int i;
 
@@ -79,9 +81,11 @@ static void __init warn_miss_errata(u32 miss_errata)
 	pr_warn("----------------------------------------------------------------\n");
 }
 
-void __init sifive_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
-				     unsigned long archid, unsigned long impid,
-				     unsigned int stage)
+void __init_or_module sifive_errata_patch_func(struct alt_entry *begin,
+					       struct alt_entry *end,
+					       unsigned long archid,
+					       unsigned long impid,
+					       unsigned int stage)
 {
 	struct alt_entry *alt;
 	u32 cpu_req_errata = sifive_errata_probe(archid, impid);
