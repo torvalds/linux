@@ -4,6 +4,14 @@ menu "Intel AVS Machine drivers"
 
 comment "Available DSP configurations"
 
+config SND_SOC_INTEL_AVS_MACH_DMIC
+	tristate "DMIC generic board"
+	select SND_SOC_DMIC
+	help
+	  This adds support for AVS with Digital Mic array configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_AVS_MACH_HDAUDIO
 	tristate "HD-Audio generic board"
 	select SND_SOC_HDA
