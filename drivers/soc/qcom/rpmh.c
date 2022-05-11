@@ -568,13 +568,17 @@ int rpmh_flush(struct rpmh_ctrlr *ctrlr, int ch)
 int rpmh_write_sleep_and_wake(const struct device *dev)
 {
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
-	int ch;
+	int ch, ret;
 
 	ch = rpmh_rsc_get_channel(ctrlr_to_drv(ctrlr));
 	if (ch < 0)
 		return ch;
 
-	return rpmh_flush(ctrlr, ch);
+	ret = rpmh_flush(ctrlr, ch);
+	if (ret || !(ctrlr->flags & HW_CHANNEL_PRESENT))
+		return ret;
+
+	return rpmh_rsc_switch_channel(ctrlr_to_drv(ctrlr), ch);
 }
 EXPORT_SYMBOL(rpmh_write_sleep_and_wake);
 
@@ -723,3 +727,43 @@ int rpmh_update_fast_path(const struct device *dev,
 					 update_mask, ch);
 }
 EXPORT_SYMBOL(rpmh_update_fast_path);
+
+/**
+ * rpmh_drv_start: Start the DRV channel
+ *
+ * @dev:         The device making the request
+ *
+ * Return:
+ * * 0          - Success
+ * * Error code - Otherwise
+ */
+int rpmh_drv_start(const struct device *dev)
+{
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+
+	if (rpmh_standalone)
+		return 0;
+
+	return rpmh_rsc_drv_enable(ctrlr_to_drv(ctrlr), true);
+}
+EXPORT_SYMBOL(rpmh_drv_start);
+
+/**
+ * rpmh_drv_stop: Start the DRV channel
+ *
+ * @dev:         The device making the request
+ *
+ * Return:
+ * * 0          - Success
+ * * Error code - Otherwise
+ */
+int rpmh_drv_stop(const struct device *dev)
+{
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+
+	if (rpmh_standalone)
+		return 0;
+
+	return rpmh_rsc_drv_enable(ctrlr_to_drv(ctrlr), false);
+}
+EXPORT_SYMBOL(rpmh_drv_stop);

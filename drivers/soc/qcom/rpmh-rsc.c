@@ -173,6 +173,12 @@ enum {
 	RSC_DRV_CMD_DATA,
 	RSC_DRV_CMD_STATUS,
 	RSC_DRV_CMD_RESP_DATA,
+/* DRV channel Registers */
+	RSC_DRV_CHN_TCS_TRIGGER,
+	RSC_DRV_CHN_TCS_COMPLETE,
+	RSC_DRV_CHN_UPDATE,
+	RSC_DRV_CHN_BUSY,
+	RSC_DRV_CHN_EN,
 };
 
 static u32 rpmh_rsc_reg_offsets_ver_2_7[] = {
@@ -192,6 +198,11 @@ static u32 rpmh_rsc_reg_offsets_ver_2_7[] = {
 	[RSC_DRV_CMD_DATA]		=	0x38,
 	[RSC_DRV_CMD_STATUS]		=	0x3C,
 	[RSC_DRV_CMD_RESP_DATA]		=	0x40,
+	[RSC_DRV_CHN_TCS_TRIGGER]	=	0x0,
+	[RSC_DRV_CHN_TCS_COMPLETE]	=	0x0,
+	[RSC_DRV_CHN_UPDATE]		=	0x0,
+	[RSC_DRV_CHN_BUSY]		=	0x0,
+	[RSC_DRV_CHN_EN]		=	0x0,
 };
 
 static u32 rpmh_rsc_reg_offsets_ver_3_0[] = {
@@ -211,6 +222,35 @@ static u32 rpmh_rsc_reg_offsets_ver_3_0[] = {
 	[RSC_DRV_CMD_DATA]		=	0x3C,
 	[RSC_DRV_CMD_STATUS]		=	0x40,
 	[RSC_DRV_CMD_RESP_DATA]		=	0x44,
+	[RSC_DRV_CHN_TCS_TRIGGER]	=	0x490,
+	[RSC_DRV_CHN_TCS_COMPLETE]	=	0x494,
+	[RSC_DRV_CHN_UPDATE]		=	0x498,
+	[RSC_DRV_CHN_BUSY]		=	0x49C,
+	[RSC_DRV_CHN_EN]		=	0x4A0,
+};
+
+static u32 rpmh_rsc_reg_offsets_ver_3_0_hw_channel[] = {
+	[RSC_DRV_TCS_OFFSET]		=	336,
+	[RSC_DRV_CMD_OFFSET]		=	24,
+	[DRV_SOLVER_CONFIG]		=	0x04,
+	[DRV_PRNT_CHLD_CONFIG]		=	0x0C,
+	[RSC_DRV_IRQ_ENABLE]		=	0x00,
+	[RSC_DRV_IRQ_STATUS]		=	0x04,
+	[RSC_DRV_IRQ_CLEAR]		=	0x08,
+	[RSC_DRV_CMD_WAIT_FOR_CMPL]	=	0x20,
+	[RSC_DRV_CONTROL]		=	0x24,
+	[RSC_DRV_STATUS]		=	0x28,
+	[RSC_DRV_CMD_ENABLE]		=	0x2C,
+	[RSC_DRV_CMD_MSGID]		=	0x34,
+	[RSC_DRV_CMD_ADDR]		=	0x38,
+	[RSC_DRV_CMD_DATA]		=	0x3C,
+	[RSC_DRV_CMD_STATUS]		=	0x40,
+	[RSC_DRV_CMD_RESP_DATA]		=	0x44,
+	[RSC_DRV_CHN_TCS_TRIGGER]	=	0x490,
+	[RSC_DRV_CHN_TCS_COMPLETE]	=	0x494,
+	[RSC_DRV_CHN_UPDATE]		=	0x498,
+	[RSC_DRV_CHN_BUSY]		=	0x49C,
+	[RSC_DRV_CHN_EN]		=	0x4A0,
 };
 
 static inline void __iomem *
@@ -303,7 +343,20 @@ static void tcs_invalidate(struct rsc_drv *drv, int type, int ch)
  */
 int rpmh_rsc_get_channel(struct rsc_drv *drv)
 {
+	int chn_update, chn_busy;
+
 	if (drv->num_channels == 1)
+		return CH0;
+
+	/* Select Unused channel */
+	do {
+		chn_update = readl_relaxed(drv->base + drv->regs[RSC_DRV_CHN_UPDATE]);
+		chn_busy = readl_relaxed(drv->base + drv->regs[RSC_DRV_CHN_BUSY]);
+	} while (chn_busy != chn_update);
+
+	if (chn_busy & CH0_CHN_BUSY)
+		return CH1;
+	else if (chn_busy & CH1_CHN_BUSY)
 		return CH0;
 	else
 		return -EBUSY;
@@ -1101,6 +1154,104 @@ int rpmh_rsc_mode_solver_set(struct rsc_drv *drv, bool enable)
 	return ret;
 }
 
+int rpmh_rsc_is_tcs_completed(struct rsc_drv *drv, int ch)
+{
+	u32 sts;
+	int retry = 10;
+
+	do {
+		sts = readl_relaxed(drv->base + drv->regs[RSC_DRV_CHN_TCS_COMPLETE]);
+
+		if (ch == 0)
+			sts &= CH0_WAKE_TCS_STATUS;
+		else
+			sts &= CH1_WAKE_TCS_STATUS;
+
+		retry--;
+	} while (!sts && retry);
+
+	if (!retry)
+		return -EBUSY;
+
+	writel_relaxed(CH_CLEAR_STATUS,
+		       drv->base + drv->regs[RSC_DRV_CHN_TCS_COMPLETE]);
+
+	return 0;
+}
+
+/**
+ * rpmh_rsc_switch_channel() - Switch to the channel
+ * @drv:     The controller.
+ * @ch:      The channel number to switch to.
+ *
+ * NOTE: Caller should ensure serialization before making this call.
+ * Return:
+ * * 0			- success
+ * * -Error             - Error code
+ */
+int rpmh_rsc_switch_channel(struct rsc_drv *drv, int ch)
+{
+	writel_relaxed(BIT(ch), drv->base + drv->regs[RSC_DRV_CHN_UPDATE]);
+	return rpmh_rsc_is_tcs_completed(drv, ch);
+}
+
+/**
+ * rpmh_rsc_drv_enable() - Enable the DRV and trigger Wake vote
+ * @drv:     The controller.
+ *
+ * NOTE: Caller should ensure serialization before making this call.
+ * Return:
+ * * 0			- success
+ * * -Error             - Error code
+ */
+int rpmh_rsc_drv_enable(struct rsc_drv *drv, bool enable)
+{
+	int ret = 0, ch;
+	u32 chn_en;
+
+	spin_lock(&drv->lock);
+
+	chn_en = readl_relaxed(drv->base + drv->regs[RSC_DRV_CHN_EN]);
+	if (chn_en == enable) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	if (enable) {
+		/* Start with channel 0 */
+		ch = 0;
+
+		ret = rpmh_flush(&drv->client, ch);
+		if (ret)
+			goto exit;
+
+		writel_relaxed(enable, drv->base + drv->regs[RSC_DRV_CHN_EN]);
+
+		ret = rpmh_rsc_switch_channel(drv, ch);
+		if (ret)
+			goto exit;
+	} else {
+		/* Select unused channel */
+		ch = rpmh_rsc_get_channel(drv);
+		if (ch < 0)
+			goto exit;
+
+		ret = rpmh_flush(&drv->client, ch);
+		if (ret)
+			goto exit;
+
+		ret = rpmh_rsc_switch_channel(drv, ch);
+		if (ret)
+			goto exit;
+
+		writel_relaxed(0, drv->base + drv->regs[RSC_DRV_CHN_UPDATE]);
+		writel_relaxed(enable, drv->base + drv->regs[RSC_DRV_CHN_EN]);
+	}
+exit:
+	spin_unlock(&drv->lock);
+	return ret;
+}
+
 /**
  * rpmh_rsc_init_fast_path() - Initialize the fast-path TCS contents
  * @drv:    The controller.
@@ -1423,11 +1574,25 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 			ret = rpmh_rsc_pd_attach(&drv[i]);
 			if (ret)
 				return ret;
-		} else if (!solver_config) {
+		} else if (!solver_config &&
+			   !of_find_property(dn, "qcom,hw-channel", NULL)) {
 			drv[i].rsc_pm.notifier_call = rpmh_rsc_cpu_pm_callback;
 			cpu_pm_register_notifier(&drv[i].rsc_pm);
-		} else
+		} else if (solver_config) {
 			drv[i].client.flags = SOLVER_PRESENT;
+		} else {
+		/*
+		 * The requets for HW channel TCSes has to be either
+		 * RPMH_SLEEP_STATE or RPMH_WAKE_ONLY_STATE.
+		 *
+		 * Assume 'solver' state which does nothing but to disallow
+		 * RPMH_ACTIVE_ONLY_STATE requests.
+		 */
+			drv[i].client.flags = SOLVER_PRESENT | HW_CHANNEL_PRESENT;
+			drv[i].client.in_solver_mode = true;
+			drv[i].in_solver_mode = true;
+			drv[i].regs = rpmh_rsc_reg_offsets_ver_3_0_hw_channel;
+		}
 
 		spin_lock_init(&drv[i].lock);
 		init_waitqueue_head(&drv[i].tcs_wait);
