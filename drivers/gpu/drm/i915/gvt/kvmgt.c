@@ -243,7 +243,7 @@ static void gvt_unpin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 	for (npage = 0; npage < total_pages; npage++) {
 		unsigned long cur_gfn = gfn + npage;
 
-		ret = vfio_group_unpin_pages(vgpu->vfio_group, &cur_gfn, 1);
+		ret = vfio_unpin_pages(&vgpu->vfio_device, &cur_gfn, 1);
 		drm_WARN_ON(&i915->drm, ret != 1);
 	}
 }
@@ -266,8 +266,8 @@ static int gvt_pin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		unsigned long cur_gfn = gfn + npage;
 		unsigned long pfn;
 
-		ret = vfio_group_pin_pages(vgpu->vfio_group, &cur_gfn, 1,
-					   IOMMU_READ | IOMMU_WRITE, &pfn);
+		ret = vfio_pin_pages(&vgpu->vfio_device, &cur_gfn, 1,
+				     IOMMU_READ | IOMMU_WRITE, &pfn);
 		if (ret != 1) {
 			gvt_vgpu_err("vfio_pin_pages failed for gfn 0x%lx, ret %d\n",
 				     cur_gfn, ret);
@@ -804,7 +804,6 @@ static int intel_vgpu_open_device(struct vfio_device *vfio_dev)
 	struct intel_vgpu *vgpu = vfio_dev_to_vgpu(vfio_dev);
 	unsigned long events;
 	int ret;
-	struct vfio_group *vfio_group;
 
 	vgpu->iommu_notifier.notifier_call = intel_vgpu_iommu_notifier;
 	vgpu->group_notifier.notifier_call = intel_vgpu_group_notifier;
@@ -827,28 +826,19 @@ static int intel_vgpu_open_device(struct vfio_device *vfio_dev)
 		goto undo_iommu;
 	}
 
-	vfio_group =
-		vfio_group_get_external_user_from_dev(vgpu->vfio_device.dev);
-	if (IS_ERR_OR_NULL(vfio_group)) {
-		ret = !vfio_group ? -EFAULT : PTR_ERR(vfio_group);
-		gvt_vgpu_err("vfio_group_get_external_user_from_dev failed\n");
-		goto undo_register;
-	}
-	vgpu->vfio_group = vfio_group;
-
 	ret = -EEXIST;
 	if (vgpu->attached)
-		goto undo_group;
+		goto undo_register;
 
 	ret = -ESRCH;
 	if (!vgpu->kvm || vgpu->kvm->mm != current->mm) {
 		gvt_vgpu_err("KVM is required to use Intel vGPU\n");
-		goto undo_group;
+		goto undo_register;
 	}
 
 	ret = -EEXIST;
 	if (__kvmgt_vgpu_exist(vgpu))
-		goto undo_group;
+		goto undo_register;
 
 	vgpu->attached = true;
 	kvm_get_kvm(vgpu->kvm);
@@ -867,10 +857,6 @@ static int intel_vgpu_open_device(struct vfio_device *vfio_dev)
 
 	atomic_set(&vgpu->released, 0);
 	return 0;
-
-undo_group:
-	vfio_group_put_external_user(vgpu->vfio_group);
-	vgpu->vfio_group = NULL;
 
 undo_register:
 	vfio_unregister_notifier(vfio_dev, VFIO_GROUP_NOTIFY,
@@ -925,7 +911,6 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 	gvt_cache_destroy(vgpu);
 
 	intel_vgpu_release_msi_eventfd_ctx(vgpu);
-	vfio_group_put_external_user(vgpu->vfio_group);
 
 	vgpu->kvm = NULL;
 	vgpu->attached = false;
