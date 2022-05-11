@@ -310,8 +310,11 @@
 #define   PIPE_CONTROL_DEPTH_CACHE_FLUSH		(1<<0)
 #define   PIPE_CONTROL_GLOBAL_GTT (1<<2) /* in addr dword */
 
-/* 3D-related flags can't be set on compute engine */
-#define PIPE_CONTROL_3D_FLAGS (\
+/*
+ * 3D-related flags that can't be set on _engines_ that lack access to the 3D
+ * pipeline (i.e., CCS engines).
+ */
+#define PIPE_CONTROL_3D_ENGINE_FLAGS (\
 		PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH | \
 		PIPE_CONTROL_DEPTH_CACHE_FLUSH | \
 		PIPE_CONTROL_TILE_CACHE_FLUSH | \
@@ -321,6 +324,14 @@
 		PIPE_CONTROL_AMFS_FLUSH | \
 		PIPE_CONTROL_VF_CACHE_INVALIDATE | \
 		PIPE_CONTROL_GLOBAL_SNAPSHOT_RESET)
+
+/* 3D-related flags that can't be set on _platforms_ that lack a 3D pipeline */
+#define PIPE_CONTROL_3D_ARCH_FLAGS ( \
+		PIPE_CONTROL_3D_ENGINE_FLAGS | \
+		PIPE_CONTROL_INDIRECT_STATE_DISABLE | \
+		PIPE_CONTROL_FLUSH_ENABLE | \
+		PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE | \
+		PIPE_CONTROL_DC_FLUSH_ENABLE)
 
 #define MI_MATH(x)			MI_INSTR(0x1a, (x) - 1)
 #define MI_MATH_INSTR(opcode, op1, op2) ((opcode) << 20 | (op1) << 10 | (op2))
