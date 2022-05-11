@@ -47,7 +47,7 @@ config SFC_MCDI_MON
 	  This exposes the on-board firmware-managed sensors as a
 	  hardware monitor device.
 config SFC_SRIOV
-	bool "Solarflare SFC9000/SFC9100-family SR-IOV support"
+	bool "Solarflare SFC9100-family SR-IOV support"
 	depends on SFC && PCI_IOV
 	default y
 	help

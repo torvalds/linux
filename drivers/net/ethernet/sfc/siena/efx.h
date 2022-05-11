@@ -177,7 +177,7 @@ static inline void efx_siena_mtd_rename(struct efx_nic *efx) {}
 static inline void efx_siena_mtd_remove(struct efx_nic *efx) {}
 #endif
 
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 static inline unsigned int efx_vf_size(struct efx_nic *efx)
 {
 	return 1 << efx->vi_scale;

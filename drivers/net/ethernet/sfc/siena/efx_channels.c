@@ -110,7 +110,7 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 	/* If RSS is requested for the PF *and* VFs then we can't write RSS
 	 * table entries that are inaccessible to VFs
 	 */
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	if (efx->type->sriov_wanted) {
 		if (efx->type->sriov_wanted(efx) && efx_vf_size(efx) > 1 &&
 		    count > efx_vf_size(efx)) {
@@ -348,7 +348,7 @@ int efx_siena_probe_interrupts(struct efx_nic *efx)
 
 	rss_spread = efx->n_rx_channels;
 	/* RSS might be usable on VFs even if it is disabled on the PF */
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	if (efx->type->sriov_wanted) {
 		efx->rss_spread = ((rss_spread > 1 ||
 				    !efx->type->sriov_wanted(efx)) ?

@@ -778,7 +778,7 @@ int efx_siena_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	if (rc)
 		goto fail;
 
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	rc = efx->type->vswitching_restore(efx);
 	if (rc) /* not fatal; the PF will still work fine */
 		netif_warn(efx, probe, efx->net_dev,

@@ -1096,7 +1096,7 @@ struct efx_nic {
 	atomic_t rxq_flush_outstanding;
 	wait_queue_head_t flush_wq;
 
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	unsigned vf_count;
 	unsigned vf_init_count;
 	unsigned vi_scale;

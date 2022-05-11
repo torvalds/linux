@@ -359,7 +359,7 @@ static int efx_probe_all(struct efx_nic *efx)
 		goto fail3;
 	}
 
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	rc = efx->type->vswitching_probe(efx);
 	if (rc) /* not fatal; the PF will still work fine */
 		netif_warn(efx, probe, efx->net_dev,
@@ -383,7 +383,7 @@ static int efx_probe_all(struct efx_nic *efx)
  fail5:
 	efx_siena_remove_filters(efx);
  fail4:
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	efx->type->vswitching_remove(efx);
 #endif
  fail3:
@@ -402,7 +402,7 @@ static void efx_remove_all(struct efx_nic *efx)
 
 	efx_siena_remove_channels(efx);
 	efx_siena_remove_filters(efx);
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	efx->type->vswitching_remove(efx);
 #endif
 	efx_remove_port(efx);
@@ -592,7 +592,7 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_features_check	= efx_siena_features_check,
 	.ndo_vlan_rx_add_vid	= efx_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= efx_vlan_rx_kill_vid,
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	.ndo_set_vf_mac		= efx_sriov_set_vf_mac,
 	.ndo_set_vf_vlan	= efx_sriov_set_vf_vlan,
 	.ndo_set_vf_spoofchk	= efx_sriov_set_vf_spoofchk,
@@ -1108,7 +1108,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 /* efx_pci_sriov_configure returns the actual number of Virtual Functions
  * enabled on success
  */
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 static int efx_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
 {
 	int rc;
@@ -1250,7 +1250,7 @@ static struct pci_driver efx_pci_driver = {
 	.remove		= efx_pci_remove,
 	.driver.pm	= &efx_pm_ops,
 	.err_handler	= &efx_siena_err_handlers,
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	.sriov_configure = efx_pci_sriov_configure,
 #endif
 };

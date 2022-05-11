@@ -54,18 +54,18 @@ int efx_siena_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf,
 int efx_siena_sriov_get_vf_config(struct efx_nic *efx, int vf,
 				  struct ifla_vf_info *ivf);
 
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 
 static inline bool efx_siena_sriov_enabled(struct efx_nic *efx)
 {
 	return efx->vf_init_count != 0;
 }
-#else /* !CONFIG_SFC_SRIOV */
+#else /* !CONFIG_SFC_SIENA_SRIOV */
 static inline bool efx_siena_sriov_enabled(struct efx_nic *efx)
 {
 	return false;
 }
-#endif /* CONFIG_SFC_SRIOV */
+#endif /* CONFIG_SFC_SIENA_SRIOV */
 
 void efx_siena_sriov_probe(struct efx_nic *efx);
 void efx_siena_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event);

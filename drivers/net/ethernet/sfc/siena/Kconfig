@@ -18,3 +18,11 @@ config SFC_SIENA_MTD
 	  This exposes the on-board flash and/or EEPROM as MTD devices
 	  (e.g. /dev/mtd1).  This is required to update the firmware or
 	  the boot configuration under Linux.
+config SFC_SIENA_SRIOV
+	bool "Solarflare SFC9000-family SR-IOV support"
+	depends on SFC_SIENA && PCI_IOV
+	default n
+	help
+	  This enables support for the Single Root I/O Virtualization
+	  features, allowing accelerated network performance in
+	  virtualized environments.
