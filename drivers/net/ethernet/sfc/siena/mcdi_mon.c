@@ -130,7 +130,7 @@ void efx_siena_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 		  type, name, state_txt, value, unit);
 }
 
-#ifdef CONFIG_SFC_MCDI_MON
+#ifdef CONFIG_SFC_SIENA_MCDI_MON
 
 struct efx_mcdi_mon_attribute {
 	struct device_attribute dev_attr;
@@ -528,4 +528,4 @@ void efx_siena_mcdi_mon_remove(struct efx_nic *efx)
 	efx_siena_free_buffer(efx, &hwmon->dma_buf);
 }
 
-#endif /* CONFIG_SFC_MCDI_MON */
+#endif /* CONFIG_SFC_SIENA_MCDI_MON */

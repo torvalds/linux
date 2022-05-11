@@ -18,6 +18,13 @@ config SFC_SIENA_MTD
 	  This exposes the on-board flash and/or EEPROM as MTD devices
 	  (e.g. /dev/mtd1).  This is required to update the firmware or
 	  the boot configuration under Linux.
+config SFC_SIENA_MCDI_MON
+	bool "Solarflare SFC9000-family hwmon support"
+	depends on SFC_SIENA && HWMON && !(SFC_SIENA=y && HWMON=m)
+	default y
+	help
+	  This exposes the on-board firmware-managed sensors as a
+	  hardware monitor device.
 config SFC_SIENA_SRIOV
 	bool "Solarflare SFC9000-family SR-IOV support"
 	depends on SFC_SIENA && PCI_IOV
