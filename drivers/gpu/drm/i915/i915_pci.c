@@ -1060,7 +1060,6 @@ static const struct intel_device_info xehpsdv_info = {
 		BIT(VCS0) | BIT(VCS2) | \
 		BIT(CCS0) | BIT(CCS1) | BIT(CCS2) | BIT(CCS3)
 
-__maybe_unused
 static const struct intel_device_info dg2_info = {
 	DG2_FEATURES,
 	XE_LPD_FEATURES,
@@ -1176,6 +1175,8 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_ADLN_IDS(&adl_p_info),
 	INTEL_DG1_IDS(&dg1_info),
 	INTEL_RPLS_IDS(&adl_s_info),
+	INTEL_RPLP_IDS(&adl_p_info),
+	INTEL_DG2_IDS(&dg2_info),
 	{0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);

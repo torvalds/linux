@@ -293,7 +293,7 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	intel_vgpu_clean_opregion(vgpu);
 	intel_vgpu_reset_ggtt(vgpu, true);
 	intel_vgpu_clean_gtt(vgpu);
-	intel_gvt_hypervisor_detach_vgpu(vgpu);
+	intel_vgpu_detach_regions(vgpu);
 	intel_vgpu_free_resource(vgpu);
 	intel_vgpu_clean_mmio(vgpu);
 	intel_vgpu_dmabuf_cleanup(vgpu);
@@ -370,8 +370,8 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	struct intel_vgpu *vgpu;
 	int ret;
 
-	gvt_dbg_core("handle %llu low %llu MB high %llu MB fence %llu\n",
-			param->handle, param->low_gm_sz, param->high_gm_sz,
+	gvt_dbg_core("low %llu MB high %llu MB fence %llu\n",
+			param->low_gm_sz, param->high_gm_sz,
 			param->fence_sz);
 
 	vgpu = vzalloc(sizeof(*vgpu));
@@ -384,7 +384,6 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 		goto out_free_vgpu;
 
 	vgpu->id = ret;
-	vgpu->handle = param->handle;
 	vgpu->gvt = gvt;
 	vgpu->sched_ctl.weight = param->weight;
 	mutex_init(&vgpu->vgpu_lock);
@@ -405,13 +404,9 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 
 	populate_pvinfo_page(vgpu);
 
-	ret = intel_gvt_hypervisor_attach_vgpu(vgpu);
-	if (ret)
-		goto out_clean_vgpu_resource;
-
 	ret = intel_vgpu_init_gtt(vgpu);
 	if (ret)
-		goto out_detach_hypervisor_vgpu;
+		goto out_clean_vgpu_resource;
 
 	ret = intel_vgpu_init_opregion(vgpu);
 	if (ret)
@@ -431,14 +426,14 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 
 	intel_gvt_debugfs_add_vgpu(vgpu);
 
-	ret = intel_gvt_hypervisor_set_opregion(vgpu);
+	ret = intel_gvt_set_opregion(vgpu);
 	if (ret)
 		goto out_clean_sched_policy;
 
 	if (IS_BROADWELL(dev_priv) || IS_BROXTON(dev_priv))
-		ret = intel_gvt_hypervisor_set_edid(vgpu, PORT_B);
+		ret = intel_gvt_set_edid(vgpu, PORT_B);
 	else
-		ret = intel_gvt_hypervisor_set_edid(vgpu, PORT_D);
+		ret = intel_gvt_set_edid(vgpu, PORT_D);
 	if (ret)
 		goto out_clean_sched_policy;
 
@@ -454,8 +449,6 @@ out_clean_opregion:
 	intel_vgpu_clean_opregion(vgpu);
 out_clean_gtt:
 	intel_vgpu_clean_gtt(vgpu);
-out_detach_hypervisor_vgpu:
-	intel_gvt_hypervisor_detach_vgpu(vgpu);
 out_clean_vgpu_resource:
 	intel_vgpu_free_resource(vgpu);
 out_clean_vgpu_mmio:
@@ -483,7 +476,6 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	struct intel_vgpu_creation_params param;
 	struct intel_vgpu *vgpu;
 
-	param.handle = 0;
 	param.primary = 1;
 	param.low_gm_sz = type->low_gm_size;
 	param.high_gm_sz = type->high_gm_size;

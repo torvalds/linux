@@ -1011,7 +1011,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	if (GRAPHICS_VER(s->engine->i915) == 9 &&
 	    intel_gvt_mmio_is_sr_in_ctx(gvt, offset) &&
 	    !strncmp(cmd, "lri", 3)) {
-		intel_gvt_hypervisor_read_gpa(s->vgpu,
+		intel_gvt_read_gpa(s->vgpu,
 			s->workload->ring_context_gpa + 12, &ctx_sr_ctl, 4);
 		/* check inhibit context */
 		if (ctx_sr_ctl & 1) {
@@ -1775,7 +1775,7 @@ static int copy_gma_to_hva(struct intel_vgpu *vgpu, struct intel_vgpu_mm *mm,
 		copy_len = (end_gma - gma) >= (I915_GTT_PAGE_SIZE - offset) ?
 			I915_GTT_PAGE_SIZE - offset : end_gma - gma;
 
-		intel_gvt_hypervisor_read_gpa(vgpu, gpa, va + len, copy_len);
+		intel_gvt_read_gpa(vgpu, gpa, va + len, copy_len);
 
 		len += copy_len;
 		gma += copy_len;
