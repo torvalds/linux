@@ -12,6 +12,7 @@
 #include <sound/sof/ipc4/header.h>
 #include "sof-priv.h"
 #include "sof-audio.h"
+#include "ipc4-priv.h"
 #include "ops.h"
 
 #ifdef DEBUG_VERBOSE
@@ -601,4 +602,5 @@ const struct sof_ipc_ops ipc4_ops = {
 	.rx_msg = sof_ipc4_rx_msg,
 	.set_get_data = sof_ipc4_set_get_data,
 	.get_reply = sof_ipc4_get_reply,
+	.fw_loader = &ipc4_loader_ops,
 };
