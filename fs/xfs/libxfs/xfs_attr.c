@@ -318,7 +318,15 @@ xfs_attr_leaf_addname(
 	int			error;
 
 	if (xfs_attr_is_leaf(dp)) {
+
+		/*
+		 * Use the leaf buffer we may already hold locked as a result of
+		 * a sf-to-leaf conversion. The held buffer is no longer valid
+		 * after this call, regardless of the result.
+		 */
 		error = xfs_attr_leaf_try_add(args, attr->xattri_leaf_bp);
+		attr->xattri_leaf_bp = NULL;
+
 		if (error == -ENOSPC) {
 			error = xfs_attr3_leaf_to_node(args);
 			if (error)
@@ -340,6 +348,8 @@ xfs_attr_leaf_addname(
 		}
 		next_state = XFS_DAS_FOUND_LBLK;
 	} else {
+		ASSERT(!attr->xattri_leaf_bp);
+
 		error = xfs_attr_node_addname_find_attr(attr);
 		if (error)
 			return error;
@@ -395,12 +405,6 @@ xfs_attr_set_iter(
 		 */
 		if (xfs_attr_is_shortform(dp))
 			return xfs_attr_sf_addname(attr);
-		if (attr->xattri_leaf_bp != NULL) {
-			xfs_trans_bhold_release(args->trans,
-						attr->xattri_leaf_bp);
-			attr->xattri_leaf_bp = NULL;
-		}
-
 		return xfs_attr_leaf_addname(attr);
 
 	case XFS_DAS_FOUND_LBLK:
@@ -991,18 +995,31 @@ xfs_attr_leaf_try_add(
 	struct xfs_da_args	*args,
 	struct xfs_buf		*bp)
 {
-	int			retval;
+	int			error;
 
 	/*
-	 * Look up the given attribute in the leaf block.  Figure out if
-	 * the given flags produce an error or call for an atomic rename.
+	 * If the caller provided a buffer to us, it is locked and held in
+	 * the transaction because it just did a shortform to leaf conversion.
+	 * Hence we don't need to read it again. Otherwise read in the leaf
+	 * buffer.
 	 */
-	retval = xfs_attr_leaf_hasname(args, &bp);
-	if (retval != -ENOATTR && retval != -EEXIST)
-		return retval;
-	if (retval == -ENOATTR && (args->attr_flags & XATTR_REPLACE))
+	if (bp) {
+		xfs_trans_bhold_release(args->trans, bp);
+	} else {
+		error = xfs_attr3_leaf_read(args->trans, args->dp, 0, &bp);
+		if (error)
+			return error;
+	}
+
+	/*
+	 * Look up the xattr name to set the insertion point for the new xattr.
+	 */
+	error = xfs_attr3_leaf_lookup_int(bp, args);
+	if (error != -ENOATTR && error != -EEXIST)
 		goto out_brelse;
-	if (retval == -EEXIST) {
+	if (error == -ENOATTR && (args->attr_flags & XATTR_REPLACE))
+		goto out_brelse;
+	if (error == -EEXIST) {
 		if (args->attr_flags & XATTR_CREATE)
 			goto out_brelse;
 
@@ -1022,14 +1039,11 @@ xfs_attr_leaf_try_add(
 		args->rmtvaluelen = 0;
 	}
 
-	/*
-	 * Add the attribute to the leaf block
-	 */
 	return xfs_attr3_leaf_add(bp, args);
 
 out_brelse:
 	xfs_trans_brelse(args->trans, bp);
-	return retval;
+	return error;
 }
 
 /*
