@@ -172,9 +172,19 @@ _LPP_OFFSET	= __LC_LPP
 	lgr	%r14,\reg
 	larl	%r13,\start
 	slgr	%r14,%r13
-	lghi	%r13,\end - \start
-	clgr	%r14,%r13
+#ifdef CONFIG_AS_IS_LLVM
+	clgfrl	%r14,.Lrange_size\@
+#else
+	clgfi	%r14,\end - \start
+#endif
 	jhe	\outside_label
+#ifdef CONFIG_AS_IS_LLVM
+	.section .rodata, "a"
+	.align 4
+.Lrange_size\@:
+	.long	\end - \start
+	.previous
+#endif
 	.endm
 
 	.macro SIEEXIT
