@@ -581,7 +581,9 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	struct dm_target_io *tio;
 	struct bio *clone;
 
-	clone = bio_alloc_clone(bio->bi_bdev, bio, GFP_NOIO, &md->io_bs);
+	clone = bio_alloc_clone(NULL, bio, GFP_NOIO, &md->io_bs);
+	/* Set default bdev, but target must bio_set_dev() before issuing IO */
+	clone->bi_bdev = md->disk->part0;
 
 	tio = clone_to_tio(clone);
 	tio->flags = 0;
@@ -613,7 +615,7 @@ static void free_io(struct dm_io *io)
 }
 
 static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
-		unsigned target_bio_nr, unsigned *len, gfp_t gfp_mask)
+			     unsigned target_bio_nr, unsigned *len, gfp_t gfp_mask)
 {
 	struct dm_target_io *tio;
 	struct bio *clone;
@@ -624,10 +626,13 @@ static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
 		/* alloc_io() already initialized embedded clone */
 		clone = &tio->clone;
 	} else {
-		clone = bio_alloc_clone(ci->bio->bi_bdev, ci->bio,
-					gfp_mask, &ci->io->md->bs);
+		struct mapped_device *md = ci->io->md;
+
+		clone = bio_alloc_clone(NULL, ci->bio, gfp_mask, &md->bs);
 		if (!clone)
 			return NULL;
+		/* Set default bdev, but target must bio_set_dev() before issuing IO */
+		clone->bi_bdev = md->disk->part0;
 
 		/* REQ_DM_POLL_LIST shouldn't be inherited */
 		clone->bi_opf &= ~REQ_DM_POLL_LIST;
@@ -1012,25 +1017,28 @@ static bool swap_bios_limit(struct dm_target *ti, struct bio *bio)
 static void clone_endio(struct bio *bio)
 {
 	blk_status_t error = bio->bi_status;
-	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 	struct dm_target_io *tio = clone_to_tio(bio);
 	struct dm_target *ti = tio->ti;
 	dm_endio_fn endio = ti->type->end_io;
 	struct dm_io *io = tio->io;
 	struct mapped_device *md = io->md;
 
-	if (unlikely(error == BLK_STS_TARGET)) {
-		if (bio_op(bio) == REQ_OP_DISCARD &&
-		    !bdev_max_discard_sectors(bio->bi_bdev))
-			disable_discard(md);
-		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-			 !q->limits.max_write_zeroes_sectors)
-			disable_write_zeroes(md);
-	}
+	if (likely(bio->bi_bdev != md->disk->part0)) {
+		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
 
-	if (static_branch_unlikely(&zoned_enabled) &&
-	    unlikely(blk_queue_is_zoned(q)))
-		dm_zone_endio(io, bio);
+		if (unlikely(error == BLK_STS_TARGET)) {
+			if (bio_op(bio) == REQ_OP_DISCARD &&
+			    !bdev_max_discard_sectors(bio->bi_bdev))
+				disable_discard(md);
+			else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
+				 !q->limits.max_write_zeroes_sectors)
+				disable_write_zeroes(md);
+		}
+
+		if (static_branch_unlikely(&zoned_enabled) &&
+		    unlikely(blk_queue_is_zoned(q)))
+			dm_zone_endio(io, bio);
+	}
 
 	if (endio) {
 		int r = endio(ti, bio, &error);
