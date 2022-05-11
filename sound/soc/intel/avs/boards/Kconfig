@@ -46,4 +46,14 @@ config SND_SOC_INTEL_AVS_MACH_RT286
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
+config SND_SOC_INTEL_AVS_MACH_RT298
+	tristate "rt298 in I2S mode"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT298
+	help
+	   This adds support for ASoC machine driver with RT298 I2S audio codec.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
 endmenu
