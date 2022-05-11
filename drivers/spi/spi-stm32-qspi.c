@@ -305,9 +305,6 @@ static int stm32_qspi_wait_cmd(struct stm32_qspi *qspi,
 	u32 cr, sr;
 	int err = 0;
 
-	if (!op->data.nbytes)
-		goto wait_nobusy;
-
 	if ((readl_relaxed(qspi->io_base + QSPI_SR) & SR_TCF) ||
 	    qspi->fmode == CCR_FMODE_APM)
 		goto out;
@@ -328,7 +325,6 @@ static int stm32_qspi_wait_cmd(struct stm32_qspi *qspi,
 out:
 	/* clear flags */
 	writel_relaxed(FCR_CTCF | FCR_CTEF, qspi->io_base + QSPI_FCR);
-wait_nobusy:
 	if (!err)
 		err = stm32_qspi_wait_nobusy(qspi);
 
