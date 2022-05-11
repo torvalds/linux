@@ -564,31 +564,36 @@ struct prog_test_ref_kfunc {
 	int b;
 	struct prog_test_member memb;
 	struct prog_test_ref_kfunc *next;
+	refcount_t cnt;
 };
 
 static struct prog_test_ref_kfunc prog_test_struct = {
 	.a = 42,
 	.b = 108,
 	.next = &prog_test_struct,
+	.cnt = REFCOUNT_INIT(1),
 };
 
 noinline struct prog_test_ref_kfunc *
 bpf_kfunc_call_test_acquire(unsigned long *scalar_ptr)
 {
-	/* randomly return NULL */
-	if (get_jiffies_64() % 2)
-		return NULL;
+	refcount_inc(&prog_test_struct.cnt);
 	return &prog_test_struct;
 }
 
 noinline struct prog_test_member *
 bpf_kfunc_call_memb_acquire(void)
 {
-	return &prog_test_struct.memb;
+	WARN_ON_ONCE(1);
+	return NULL;
 }
 
 noinline void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p)
 {
+	if (!p)
+		return;
+
+	refcount_dec(&p->cnt);
 }
 
 noinline void bpf_kfunc_call_memb_release(struct prog_test_member *p)
@@ -597,12 +602,18 @@ noinline void bpf_kfunc_call_memb_release(struct prog_test_member *p)
 
 noinline void bpf_kfunc_call_memb1_release(struct prog_test_member1 *p)
 {
+	WARN_ON_ONCE(1);
 }
 
 noinline struct prog_test_ref_kfunc *
-bpf_kfunc_call_test_kptr_get(struct prog_test_ref_kfunc **p, int a, int b)
+bpf_kfunc_call_test_kptr_get(struct prog_test_ref_kfunc **pp, int a, int b)
 {
-	return &prog_test_struct;
+	struct prog_test_ref_kfunc *p = READ_ONCE(*pp);
+
+	if (!p)
+		return NULL;
+	refcount_inc(&p->cnt);
+	return p;
 }
 
 struct prog_test_pass1 {
