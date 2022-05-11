@@ -634,6 +634,37 @@ static enum dsa_tag_protocol felix_get_tag_protocol(struct dsa_switch *ds,
 	return felix->tag_proto;
 }
 
+static void felix_port_set_host_flood(struct dsa_switch *ds, int port,
+				      bool uc, bool mc)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+	unsigned long mask, val;
+
+	if (uc)
+		felix->host_flood_uc_mask |= BIT(port);
+	else
+		felix->host_flood_uc_mask &= ~BIT(port);
+
+	if (mc)
+		felix->host_flood_mc_mask |= BIT(port);
+	else
+		felix->host_flood_mc_mask &= ~BIT(port);
+
+	if (felix->tag_proto == DSA_TAG_PROTO_OCELOT_8021Q)
+		mask = dsa_cpu_ports(ds);
+	else
+		mask = BIT(ocelot->num_phys_ports);
+
+	val = (felix->host_flood_uc_mask) ? mask : 0;
+	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_UC);
+
+	val = (felix->host_flood_mc_mask) ? mask : 0;
+	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MC);
+	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MCIPV4);
+	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MCIPV6);
+}
+
 static int felix_set_ageing_time(struct dsa_switch *ds,
 				 unsigned int ageing_time)
 {
@@ -1876,6 +1907,7 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.port_get_dscp_prio		= felix_port_get_dscp_prio,
 	.port_add_dscp_prio		= felix_port_add_dscp_prio,
 	.port_del_dscp_prio		= felix_port_del_dscp_prio,
+	.port_set_host_flood		= felix_port_set_host_flood,
 };
 
 struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port)
