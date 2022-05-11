@@ -3085,7 +3085,7 @@ int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv);
 void hl_ctx_free(struct hl_device *hdev, struct hl_ctx *ctx);
 int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx);
 void hl_ctx_do_release(struct kref *ref);
-void hl_ctx_get(struct hl_device *hdev,	struct hl_ctx *ctx);
+void hl_ctx_get(struct hl_ctx *ctx);
 int hl_ctx_put(struct hl_ctx *ctx);
 struct hl_ctx *hl_get_compute_ctx(struct hl_device *hdev);
 struct hl_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq);

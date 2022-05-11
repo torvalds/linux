@@ -708,7 +708,7 @@ int hl_mmu_prefetch_cache_range(struct hl_ctx *ctx, u32 flags, u32 asid, u64 va,
 	 * as actual prefetch is done in a WQ we must get the context (and put it
 	 * at the end of the work function)
 	 */
-	hl_ctx_get(ctx->hdev, ctx);
+	hl_ctx_get(ctx);
 	queue_work(ctx->hdev->pf_wq, &handle_pf_work->pf_work);
 
 	return 0;

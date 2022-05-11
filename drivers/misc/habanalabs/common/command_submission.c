@@ -805,7 +805,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	}
 
 	/* increment refcnt for context */
-	hl_ctx_get(hdev, ctx);
+	hl_ctx_get(ctx);
 
 	cs->ctx = ctx;
 	cs->submitted = false;
@@ -1830,7 +1830,7 @@ static int cs_ioctl_reserve_signals(struct hl_fpriv *hpriv,
 
 	handle->count = count;
 
-	hl_ctx_get(hdev, hpriv->ctx);
+	hl_ctx_get(hpriv->ctx);
 	handle->ctx = hpriv->ctx;
 	mgr = &hpriv->ctx->sig_mgr;
 
@@ -2524,7 +2524,7 @@ static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	if (timestamp)
 		*timestamp = 0;
 
-	hl_ctx_get(hdev, ctx);
+	hl_ctx_get(ctx);
 
 	fence = hl_ctx_get_fence(ctx, seq);
 
@@ -2715,7 +2715,7 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	mcs_data.fence_arr = fence_arr;
 	mcs_data.arr_len = seq_arr_len;
 
-	hl_ctx_get(hdev, ctx);
+	hl_ctx_get(ctx);
 
 	/* wait (with timeout) for the first CS to be completed */
 	mcs_data.timeout_jiffies = hl_usecs64_to_jiffies(args->in.timeout_us);
@@ -2958,7 +2958,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 
 	timeout = hl_usecs64_to_jiffies(timeout_us);
 
-	hl_ctx_get(hdev, ctx);
+	hl_ctx_get(ctx);
 
 	cq_cb = hl_cb_get(cb_mmg, cq_counters_handle);
 	if (!cq_cb) {
@@ -3107,7 +3107,7 @@ static int _hl_interrupt_wait_ioctl_user_addr(struct hl_device *hdev, struct hl_
 
 	timeout = hl_usecs64_to_jiffies(timeout_us);
 
-	hl_ctx_get(hdev, ctx);
+	hl_ctx_get(ctx);
 
 	pend = kzalloc(sizeof(*pend), GFP_KERNEL);
 	if (!pend) {

@@ -283,7 +283,7 @@ static int hl_cb_mmap_mem_alloc(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *ar
 	cb->buf->mappable_size = cb->size;
 	cb->buf->private = cb;
 
-	hl_ctx_get(cb_args->hdev, cb->ctx);
+	hl_ctx_get(cb->ctx);
 
 	if (cb_args->map_cb) {
 		if (ctx_id == HL_KERNEL_ASID_ID) {
