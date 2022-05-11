@@ -2521,6 +2521,8 @@ static int adl_set_topdown_event_period(struct perf_event *event)
 	return icl_set_topdown_event_period(event);
 }
 
+DEFINE_STATIC_CALL(intel_pmu_set_topdown_event_period, x86_perf_event_set_period);
+
 static inline u64 icl_get_metrics_event_value(u64 metric, u64 slots, int idx)
 {
 	u32 val;
@@ -2811,9 +2813,8 @@ int intel_pmu_save_and_restart(struct perf_event *event)
 
 static int intel_pmu_set_period(struct perf_event *event)
 {
-	if (unlikely(is_topdown_count(event)) &&
-	    x86_pmu.set_topdown_event_period)
-		return x86_pmu.set_topdown_event_period(event);
+	if (unlikely(is_topdown_count(event)))
+		return static_call(intel_pmu_set_topdown_event_period)(event);
 
 	return x86_perf_event_set_period(event);
 }
@@ -6292,7 +6293,8 @@ __init int intel_pmu_init(void)
 		intel_pmu_pebs_data_source_skl(pmem);
 		x86_pmu.num_topdown_events = 4;
 		x86_pmu.update_topdown_event = icl_update_topdown_event;
-		x86_pmu.set_topdown_event_period = icl_set_topdown_event_period;
+		static_call_update(intel_pmu_set_topdown_event_period,
+				   &icl_set_topdown_event_period);
 		pr_cont("Icelake events, ");
 		name = "icelake";
 		break;
@@ -6330,7 +6332,8 @@ __init int intel_pmu_init(void)
 		intel_pmu_pebs_data_source_skl(pmem);
 		x86_pmu.num_topdown_events = 8;
 		x86_pmu.update_topdown_event = icl_update_topdown_event;
-		x86_pmu.set_topdown_event_period = icl_set_topdown_event_period;
+		static_call_update(intel_pmu_set_topdown_event_period,
+				   &icl_set_topdown_event_period);
 		pr_cont("Sapphire Rapids events, ");
 		name = "sapphire_rapids";
 		break;
@@ -6367,7 +6370,8 @@ __init int intel_pmu_init(void)
 		x86_pmu.pebs_latency_data = adl_latency_data_small;
 		x86_pmu.num_topdown_events = 8;
 		x86_pmu.update_topdown_event = adl_update_topdown_event;
-		x86_pmu.set_topdown_event_period = adl_set_topdown_event_period;
+		static_call_update(intel_pmu_set_topdown_event_period,
+				   &adl_set_topdown_event_period);
 
 		x86_pmu.filter_match = intel_pmu_filter_match;
 		x86_pmu.get_event_constraints = adl_get_event_constraints;
