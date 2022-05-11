@@ -569,7 +569,7 @@ static int last_err_open_dev_info(struct hl_fpriv *hpriv, struct hl_info_args *a
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	info.timestamp = ktime_to_ns(hdev->last_error.open_dev_timestamp);
+	info.timestamp = ktime_to_ns(hdev->last_successful_open_ktime);
 
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
@@ -584,8 +584,8 @@ static int cs_timeout_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	info.seq = hdev->last_error.cs_timeout_seq;
-	info.timestamp = ktime_to_ns(hdev->last_error.cs_timeout_timestamp);
+	info.seq = hdev->last_error.cs_timeout.seq;
+	info.timestamp = ktime_to_ns(hdev->last_error.cs_timeout.timestamp);
 
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
@@ -600,12 +600,12 @@ static int razwi_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	info.timestamp = ktime_to_ns(hdev->last_error.razwi_timestamp);
-	info.addr = hdev->last_error.razwi_addr;
-	info.engine_id_1 = hdev->last_error.razwi_engine_id_1;
-	info.engine_id_2 = hdev->last_error.razwi_engine_id_2;
-	info.no_engine_id = hdev->last_error.razwi_non_engine_initiator;
-	info.error_type = hdev->last_error.razwi_type;
+	info.timestamp = ktime_to_ns(hdev->last_error.razwi.timestamp);
+	info.addr = hdev->last_error.razwi.addr;
+	info.engine_id_1 = hdev->last_error.razwi.engine_id_1;
+	info.engine_id_2 = hdev->last_error.razwi.engine_id_2;
+	info.no_engine_id = hdev->last_error.razwi.non_engine_initiator;
+	info.error_type = hdev->last_error.razwi.type;
 
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }

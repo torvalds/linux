@@ -195,8 +195,8 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	hl_debugfs_add_file(hpriv);
 
-	atomic_set(&hdev->last_error.cs_write_disable, 0);
-	atomic_set(&hdev->last_error.razwi_write_disable, 0);
+	atomic_set(&hdev->last_error.cs_timeout.write_disable, 0);
+	atomic_set(&hdev->last_error.razwi.write_disable, 0);
 
 	hdev->open_counter++;
 	hdev->last_successful_open_jif = jiffies;

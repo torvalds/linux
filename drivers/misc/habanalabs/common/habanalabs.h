@@ -2568,37 +2568,50 @@ struct hl_clk_throttle {
 };
 
 /**
- * struct last_error_session_info - info about last session in which CS timeout or
- *                                    razwi error occurred.
- * @open_dev_timestamp: device open timestamp.
- * @cs_timeout_timestamp: CS timeout timestamp.
- * @razwi_timestamp: razwi timestamp.
- * @cs_write_disable: if set writing to CS parameters in the structure is disabled so the
- *                    first (root cause) CS timeout will not be overwritten.
- * @razwi_write_disable: if set writing to razwi parameters in the structure is disabled so the
- *                       first (root cause) razwi will not be overwritten.
- * @cs_timeout_seq: CS timeout sequence number.
- * @razwi_addr: address that caused razwi.
- * @razwi_engine_id_1: engine id of the razwi initiator, if it was initiated by engine that does
- *                     not have engine id it will be set to U16_MAX.
- * @razwi_engine_id_2: second engine id of razwi initiator. Might happen that razwi have 2 possible
- *                     engines which one them caused the razwi. In that case, it will contain the
- *                     second possible engine id, otherwise it will be set to U16_MAX.
- * @razwi_non_engine_initiator: in case the initiator of the razwi does not have engine id.
- * @razwi_type: cause of razwi, page fault or access error, otherwise it will be set to U8_MAX.
+ * struct cs_timeout_info - info of last CS timeout occurred.
+ * @timestamp: CS timeout timestamp.
+ * @write_disable: if set writing to CS parameters in the structure is disabled so,
+ *                 the first (root cause) CS timeout will not be overwritten.
+ * @seq: CS timeout sequence number.
+ */
+struct cs_timeout_info {
+	ktime_t		timestamp;
+	atomic_t	write_disable;
+	u64		seq;
+};
+
+/**
+ * struct razwi_info - info about last razwi error occurred.
+ * @timestamp: razwi timestamp.
+ * @write_disable: if set writing to razwi parameters in the structure is disabled so the
+ *                 first (root cause) razwi will not be overwritten.
+ * @addr: address that caused razwi.
+ * @engine_id_1: engine id of the razwi initiator, if it was initiated by engine that does
+ *               not have engine id it will be set to U16_MAX.
+ * @engine_id_2: second engine id of razwi initiator. Might happen that razwi have 2 possible
+ *               engines which one them caused the razwi. In that case, it will contain the
+ *               second possible engine id, otherwise it will be set to U16_MAX.
+ * @non_engine_initiator: in case the initiator of the razwi does not have engine id.
+ * @type: cause of razwi, page fault or access error, otherwise it will be set to U8_MAX.
+ */
+struct razwi_info {
+	ktime_t		timestamp;
+	atomic_t	write_disable;
+	u64		addr;
+	u16		engine_id_1;
+	u16		engine_id_2;
+	u8		non_engine_initiator;
+	u8		type;
+};
+
+/**
+ * struct last_error_session_info - info about last session errors occurred.
+ * @cs_timeout: CS timeout error last information.
+ * @razwi: razwi last information.
  */
 struct last_error_session_info {
-	ktime_t		open_dev_timestamp;
-	ktime_t		cs_timeout_timestamp;
-	ktime_t		razwi_timestamp;
-	atomic_t	cs_write_disable;
-	atomic_t	razwi_write_disable;
-	u64		cs_timeout_seq;
-	u64		razwi_addr;
-	u16		razwi_engine_id_1;
-	u16		razwi_engine_id_2;
-	u8		razwi_non_engine_initiator;
-	u8		razwi_type;
+	struct	cs_timeout_info	cs_timeout;
+	struct	razwi_info	razwi;
 };
 
 /**

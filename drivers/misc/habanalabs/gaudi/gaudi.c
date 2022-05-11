@@ -7404,19 +7404,18 @@ static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr, &razwi_type);
 
 		/* In case it's the first razwi, save its parameters*/
-		rc = atomic_cmpxchg(&hdev->last_error.razwi_write_disable, 0, 1);
+		rc = atomic_cmpxchg(&hdev->last_error.razwi.write_disable, 0, 1);
 		if (!rc) {
-			hdev->last_error.open_dev_timestamp = hdev->last_successful_open_ktime;
-			hdev->last_error.razwi_timestamp = ktime_get();
-			hdev->last_error.razwi_addr = razwi_addr;
-			hdev->last_error.razwi_engine_id_1 = engine_id_1;
-			hdev->last_error.razwi_engine_id_2 = engine_id_2;
+			hdev->last_error.razwi.timestamp = ktime_get();
+			hdev->last_error.razwi.addr = razwi_addr;
+			hdev->last_error.razwi.engine_id_1 = engine_id_1;
+			hdev->last_error.razwi.engine_id_2 = engine_id_2;
 			/*
 			 * If first engine id holds non valid value the razwi initiator
 			 * does not have engine id
 			 */
-			hdev->last_error.razwi_non_engine_initiator = (engine_id_1 == U16_MAX);
-			hdev->last_error.razwi_type = razwi_type;
+			hdev->last_error.razwi.non_engine_initiator = (engine_id_1 == U16_MAX);
+			hdev->last_error.razwi.type = razwi_type;
 
 		}
 	}
