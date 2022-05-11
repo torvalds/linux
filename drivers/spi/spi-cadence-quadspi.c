@@ -60,7 +60,7 @@ struct cqspi_flash_pdata {
 
 struct cqspi_st {
 	struct platform_device	*pdev;
-
+	struct spi_master	*master;
 	struct clk		*clk;
 	unsigned int		sclk;
 
@@ -1558,7 +1558,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*cqspi));
+	master = devm_spi_alloc_master(&pdev->dev, sizeof(*cqspi));
 	if (!master) {
 		dev_err(&pdev->dev, "spi_alloc_master failed\n");
 		return -ENOMEM;
@@ -1571,6 +1571,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	cqspi = spi_master_get_devdata(master);
 
 	cqspi->pdev = pdev;
+	cqspi->master = master;
 	platform_set_drvdata(pdev, cqspi);
 
 	/* Obtain configuration from OF. */
@@ -1701,7 +1702,7 @@ static int cqspi_probe(struct platform_device *pdev)
 			goto probe_setup_failed;
 	}
 
-	ret = devm_spi_register_master(dev, master);
+	ret = spi_register_master(master);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register SPI ctlr %d\n", ret);
 		goto probe_setup_failed;
@@ -1724,6 +1725,7 @@ static int cqspi_remove(struct platform_device *pdev)
 {
 	struct cqspi_st *cqspi = platform_get_drvdata(pdev);
 
+	spi_unregister_master(cqspi->master);
 	cqspi_controller_enable(cqspi, 0);
 
 	if (cqspi->rx_chan)
