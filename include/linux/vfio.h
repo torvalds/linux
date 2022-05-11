@@ -161,7 +161,7 @@ extern int vfio_group_pin_pages(struct vfio_group *group,
 extern int vfio_group_unpin_pages(struct vfio_group *group,
 				  unsigned long *user_iova_pfn, int npage);
 
-extern int vfio_dma_rw(struct vfio_group *group, dma_addr_t user_iova,
+extern int vfio_dma_rw(struct vfio_device *device, dma_addr_t user_iova,
 		       void *data, size_t len, bool write);
 
 extern struct iommu_domain *vfio_group_iommu_domain(struct vfio_group *group);

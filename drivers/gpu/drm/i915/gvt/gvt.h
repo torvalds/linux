@@ -732,7 +732,7 @@ static inline int intel_gvt_read_gpa(struct intel_vgpu *vgpu, unsigned long gpa,
 {
 	if (!vgpu->attached)
 		return -ESRCH;
-	return vfio_dma_rw(vgpu->vfio_group, gpa, buf, len, false);
+	return vfio_dma_rw(&vgpu->vfio_device, gpa, buf, len, false);
 }
 
 /**
@@ -750,7 +750,7 @@ static inline int intel_gvt_write_gpa(struct intel_vgpu *vgpu,
 {
 	if (!vgpu->attached)
 		return -ESRCH;
-	return vfio_dma_rw(vgpu->vfio_group, gpa, buf, len, true);
+	return vfio_dma_rw(&vgpu->vfio_device, gpa, buf, len, true);
 }
 
 void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu);
