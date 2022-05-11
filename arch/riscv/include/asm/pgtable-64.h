@@ -86,6 +86,18 @@ typedef struct {
 #define _PAGE_IO_SVPBMT		(1UL << 62)
 #define _PAGE_MTMASK_SVPBMT	(_PAGE_NOCACHE_SVPBMT | _PAGE_IO_SVPBMT)
 
+/*
+ * [63:59] T-Head Memory Type definitions:
+ *
+ * 00000 - NC   Weakly-ordered, Non-cacheable, Non-bufferable, Non-shareable, Non-trustable
+ * 01110 - PMA  Weakly-ordered, Cacheable, Bufferable, Shareable, Non-trustable
+ * 10000 - IO   Strongly-ordered, Non-cacheable, Non-bufferable, Non-shareable, Non-trustable
+ */
+#define _PAGE_PMA_THEAD		((1UL << 62) | (1UL << 61) | (1UL << 60))
+#define _PAGE_NOCACHE_THEAD	0UL
+#define _PAGE_IO_THEAD		(1UL << 63)
+#define _PAGE_MTMASK_THEAD	(_PAGE_PMA_THEAD | _PAGE_IO_THEAD | (1UL << 59))
+
 static inline u64 riscv_page_mtmask(void)
 {
 	u64 val;
@@ -193,7 +205,11 @@ static inline bool mm_pud_folded(struct mm_struct *mm)
 
 static inline pmd_t pfn_pmd(unsigned long pfn, pgprot_t prot)
 {
-	return __pmd((pfn << _PAGE_PFN_SHIFT) | pgprot_val(prot));
+	unsigned long prot_val = pgprot_val(prot);
+
+	ALT_THEAD_PMA(prot_val);
+
+	return __pmd((pfn << _PAGE_PFN_SHIFT) | prot_val);
 }
 
 static inline unsigned long _pmd_pfn(pmd_t pmd)

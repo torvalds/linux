@@ -254,7 +254,12 @@ struct cpufeature_info {
 static bool __init_or_module cpufeature_svpbmt_check_func(unsigned int stage)
 {
 #ifdef CONFIG_RISCV_ISA_SVPBMT
-	return riscv_isa_extension_available(NULL, SVPBMT);
+	switch (stage) {
+	case RISCV_ALTERNATIVES_EARLY_BOOT:
+		return false;
+	default:
+		return riscv_isa_extension_available(NULL, SVPBMT);
+	}
 #endif
 
 	return false;

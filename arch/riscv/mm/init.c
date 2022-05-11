@@ -935,6 +935,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	BUG_ON((kernel_map.virt_addr + kernel_map.size) > ADDRESS_SPACE_END - SZ_4K);
 #endif
 
+	apply_early_boot_alternatives();
 	pt_ops_set_early();
 
 	/* Setup early PGD for fixmap */

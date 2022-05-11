@@ -333,6 +333,12 @@ config RISCV_ALTERNATIVE
 	  code patching is performed once in the boot stages. It means
 	  that the overhead from this mechanism is just taken once.
 
+config RISCV_ALTERNATIVE_EARLY
+	bool
+	depends on RISCV_ALTERNATIVE
+	help
+	  Allows early patching of the kernel for special errata
+
 config RISCV_ISA_C
 	bool "Emit compressed instructions when building Linux"
 	default y
