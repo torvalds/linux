@@ -146,19 +146,21 @@ static void update_domain_next_wakeup(struct generic_pm_domain *genpd, ktime_t n
 	}
 
 	list_for_each_entry(link, &genpd->parent_links, parent_node) {
-		next_wakeup = link->child->next_wakeup;
+		struct genpd_governor_data *cgd = link->child->gd;
+
+		next_wakeup = cgd ? cgd->next_wakeup : KTIME_MAX;
 		if (next_wakeup != KTIME_MAX && !ktime_before(next_wakeup, now))
 			if (ktime_before(next_wakeup, domain_wakeup))
 				domain_wakeup = next_wakeup;
 	}
 
-	genpd->next_wakeup = domain_wakeup;
+	genpd->gd->next_wakeup = domain_wakeup;
 }
 
 static bool next_wakeup_allows_state(struct generic_pm_domain *genpd,
 				     unsigned int state, ktime_t now)
 {
-	ktime_t domain_wakeup = genpd->next_wakeup;
+	ktime_t domain_wakeup = genpd->gd->next_wakeup;
 	s64 idle_time_ns, min_sleep_ns;
 
 	min_sleep_ns = genpd->states[state].power_off_latency_ns +
@@ -188,8 +190,9 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 	 * All subdomains have been powered off already at this point.
 	 */
 	list_for_each_entry(link, &genpd->parent_links, parent_node) {
-		struct generic_pm_domain *sd = link->child;
-		s64 sd_max_off_ns = sd->max_off_time_ns;
+		struct genpd_governor_data *cgd = link->child->gd;
+
+		s64 sd_max_off_ns = cgd ? cgd->max_off_time_ns : -1;
 
 		if (sd_max_off_ns < 0)
 			continue;
@@ -247,7 +250,7 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 	 * time and the time needed to turn the domain on is the maximum
 	 * theoretical time this domain can spend in the "off" state.
 	 */
-	genpd->max_off_time_ns = min_off_time_ns -
+	genpd->gd->max_off_time_ns = min_off_time_ns -
 		genpd->states[state].power_on_latency_ns;
 	return true;
 }
@@ -262,6 +265,7 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 static bool _default_power_down_ok(struct dev_pm_domain *pd, ktime_t now)
 {
 	struct generic_pm_domain *genpd = pd_to_genpd(pd);
+	struct genpd_governor_data *gd = genpd->gd;
 	int state_idx = genpd->state_count - 1;
 	struct gpd_link *link;
 
@@ -272,11 +276,11 @@ static bool _default_power_down_ok(struct dev_pm_domain *pd, ktime_t now)
 	 * cannot be met.
 	 */
 	update_domain_next_wakeup(genpd, now);
-	if ((genpd->flags & GENPD_FLAG_MIN_RESIDENCY) && (genpd->next_wakeup != KTIME_MAX)) {
+	if ((genpd->flags & GENPD_FLAG_MIN_RESIDENCY) && (gd->next_wakeup != KTIME_MAX)) {
 		/* Let's find out the deepest domain idle state, the devices prefer */
 		while (state_idx >= 0) {
 			if (next_wakeup_allows_state(genpd, state_idx, now)) {
-				genpd->max_off_time_changed = true;
+				gd->max_off_time_changed = true;
 				break;
 			}
 			state_idx--;
@@ -284,14 +288,14 @@ static bool _default_power_down_ok(struct dev_pm_domain *pd, ktime_t now)
 
 		if (state_idx < 0) {
 			state_idx = 0;
-			genpd->cached_power_down_ok = false;
+			gd->cached_power_down_ok = false;
 			goto done;
 		}
 	}
 
-	if (!genpd->max_off_time_changed) {
-		genpd->state_idx = genpd->cached_power_down_state_idx;
-		return genpd->cached_power_down_ok;
+	if (!gd->max_off_time_changed) {
+		genpd->state_idx = gd->cached_power_down_state_idx;
+		return gd->cached_power_down_ok;
 	}
 
 	/*
@@ -300,12 +304,16 @@ static bool _default_power_down_ok(struct dev_pm_domain *pd, ktime_t now)
 	 * going to be called for any parent until this instance
 	 * returns.
 	 */
-	list_for_each_entry(link, &genpd->child_links, child_node)
-		link->parent->max_off_time_changed = true;
+	list_for_each_entry(link, &genpd->child_links, child_node) {
+		struct genpd_governor_data *pgd = link->parent->gd;
 
-	genpd->max_off_time_ns = -1;
-	genpd->max_off_time_changed = false;
-	genpd->cached_power_down_ok = true;
+		if (pgd)
+			pgd->max_off_time_changed = true;
+	}
+
+	gd->max_off_time_ns = -1;
+	gd->max_off_time_changed = false;
+	gd->cached_power_down_ok = true;
 
 	/*
 	 * Find a state to power down to, starting from the state
@@ -313,7 +321,7 @@ static bool _default_power_down_ok(struct dev_pm_domain *pd, ktime_t now)
 	 */
 	while (!__default_power_down_ok(pd, state_idx)) {
 		if (state_idx == 0) {
-			genpd->cached_power_down_ok = false;
+			gd->cached_power_down_ok = false;
 			break;
 		}
 		state_idx--;
@@ -321,8 +329,8 @@ static bool _default_power_down_ok(struct dev_pm_domain *pd, ktime_t now)
 
 done:
 	genpd->state_idx = state_idx;
-	genpd->cached_power_down_state_idx = genpd->state_idx;
-	return genpd->cached_power_down_ok;
+	gd->cached_power_down_state_idx = genpd->state_idx;
+	return gd->cached_power_down_ok;
 }
 
 static bool default_power_down_ok(struct dev_pm_domain *pd)

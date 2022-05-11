@@ -91,6 +91,14 @@ struct gpd_dev_ops {
 	int (*stop)(struct device *dev);
 };
 
+struct genpd_governor_data {
+	s64 max_off_time_ns;
+	bool max_off_time_changed;
+	ktime_t next_wakeup;
+	bool cached_power_down_ok;
+	bool cached_power_down_state_idx;
+};
+
 struct genpd_power_state {
 	s64 power_off_latency_ns;
 	s64 power_on_latency_ns;
@@ -114,6 +122,7 @@ struct generic_pm_domain {
 	struct list_head child_links;	/* Links with PM domain as a child */
 	struct list_head dev_list;	/* List of devices */
 	struct dev_power_governor *gov;
+	struct genpd_governor_data *gd;	/* Data used by a genpd governor. */
 	struct work_struct power_off_work;
 	struct fwnode_handle *provider;	/* Identity of the domain provider */
 	bool has_provider;
@@ -134,11 +143,6 @@ struct generic_pm_domain {
 	int (*set_performance_state)(struct generic_pm_domain *genpd,
 				     unsigned int state);
 	struct gpd_dev_ops dev_ops;
-	s64 max_off_time_ns;	/* Maximum allowed "suspended" time. */
-	ktime_t next_wakeup;	/* Maintained by the domain governor */
-	bool max_off_time_changed;
-	bool cached_power_down_ok;
-	bool cached_power_down_state_idx;
 	int (*attach_dev)(struct generic_pm_domain *domain,
 			  struct device *dev);
 	void (*detach_dev)(struct generic_pm_domain *domain,
