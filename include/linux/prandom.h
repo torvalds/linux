@@ -10,53 +10,16 @@
 
 #include <linux/types.h>
 #include <linux/percpu.h>
-#include <linux/siphash.h>
+#include <linux/random.h>
 
-u32 prandom_u32(void);
-void prandom_bytes(void *buf, size_t nbytes);
-void prandom_seed(u32 seed);
-void prandom_reseed_late(void);
-
-DECLARE_PER_CPU(unsigned long, net_rand_noise);
-
-#define PRANDOM_ADD_NOISE(a, b, c, d) \
-	prandom_u32_add_noise((unsigned long)(a), (unsigned long)(b), \
-			      (unsigned long)(c), (unsigned long)(d))
-
-#if BITS_PER_LONG == 64
-/*
- * The core SipHash round function.  Each line can be executed in
- * parallel given enough CPU resources.
- */
-#define PRND_SIPROUND(v0, v1, v2, v3) SIPHASH_PERMUTATION(v0, v1, v2, v3)
-
-#define PRND_K0 (SIPHASH_CONST_0 ^ SIPHASH_CONST_2)
-#define PRND_K1 (SIPHASH_CONST_1 ^ SIPHASH_CONST_3)
-
-#elif BITS_PER_LONG == 32
-/*
- * On 32-bit machines, we use HSipHash, a reduced-width version of SipHash.
- * This is weaker, but 32-bit machines are not used for high-traffic
- * applications, so there is less output for an attacker to analyze.
- */
-#define PRND_SIPROUND(v0, v1, v2, v3) HSIPHASH_PERMUTATION(v0, v1, v2, v3)
-#define PRND_K0 (HSIPHASH_CONST_0 ^ HSIPHASH_CONST_2)
-#define PRND_K1 (HSIPHASH_CONST_1 ^ HSIPHASH_CONST_3)
-
-#else
-#error Unsupported BITS_PER_LONG
-#endif
-
-static inline void prandom_u32_add_noise(unsigned long a, unsigned long b,
-					 unsigned long c, unsigned long d)
+static inline u32 prandom_u32(void)
 {
-	/*
-	 * This is not used cryptographically; it's just
-	 * a convenient 4-word hash function. (3 xor, 2 add, 2 rol)
-	 */
-	a ^= raw_cpu_read(net_rand_noise);
-	PRND_SIPROUND(a, b, c, d);
-	raw_cpu_write(net_rand_noise, d);
+	return get_random_u32();
+}
+
+static inline void prandom_bytes(void *buf, size_t nbytes)
+{
+	return get_random_bytes(buf, nbytes);
 }
 
 struct rnd_state {
@@ -108,7 +71,6 @@ static inline void prandom_seed_state(struct rnd_state *state, u64 seed)
 	state->s2 = __seed(i,   8U);
 	state->s3 = __seed(i,  16U);
 	state->s4 = __seed(i, 128U);
-	PRANDOM_ADD_NOISE(state, i, 0, 0);
 }
 
 /* Pseudo random number generator from numerical recipes. */
