@@ -6,14 +6,14 @@
 #include "mt76.h"
 
 struct sk_buff *
-mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
-		   int data_len)
+__mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
+		     int data_len, gfp_t gfp)
 {
 	const struct mt76_mcu_ops *ops = dev->mcu_ops;
 	int length = ops->headroom + data_len + ops->tailroom;
 	struct sk_buff *skb;
 
-	skb = alloc_skb(length, GFP_KERNEL);
+	skb = alloc_skb(length, gfp);
 	if (!skb)
 		return NULL;
 
@@ -25,7 +25,7 @@ mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
 
 	return skb;
 }
-EXPORT_SYMBOL_GPL(mt76_mcu_msg_alloc);
+EXPORT_SYMBOL_GPL(__mt76_mcu_msg_alloc);
 
 struct sk_buff *mt76_mcu_get_response(struct mt76_dev *dev,
 				      unsigned long expires)
