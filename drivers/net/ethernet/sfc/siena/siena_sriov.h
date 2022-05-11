@@ -60,6 +60,9 @@ static inline bool efx_siena_sriov_enabled(struct efx_nic *efx)
 {
 	return efx->vf_init_count != 0;
 }
+
+int efx_init_sriov(void);
+void efx_fini_sriov(void);
 #else /* !CONFIG_SFC_SIENA_SRIOV */
 static inline bool efx_siena_sriov_enabled(struct efx_nic *efx)
 {

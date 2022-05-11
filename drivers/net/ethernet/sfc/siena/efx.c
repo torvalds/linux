@@ -32,6 +32,9 @@
 #include "io.h"
 #include "selftest.h"
 #include "sriov.h"
+#ifdef CONFIG_SFC_SIENA_SRIOV
+#include "siena_sriov.h"
+#endif
 
 #include "mcdi_port_common.h"
 #include "mcdi_pcol.h"
@@ -1271,6 +1274,12 @@ static int __init efx_init_module(void)
 	if (rc)
 		goto err_notifier;
 
+#ifdef CONFIG_SFC_SIENA_SRIOV
+	rc = efx_init_sriov();
+	if (rc)
+		goto err_sriov;
+#endif
+
 	rc = efx_siena_create_reset_workqueue();
 	if (rc)
 		goto err_reset;
@@ -1284,6 +1293,10 @@ static int __init efx_init_module(void)
  err_pci:
 	efx_siena_destroy_reset_workqueue();
  err_reset:
+#ifdef CONFIG_SFC_SIENA_SRIOV
+	efx_fini_sriov();
+ err_sriov:
+#endif
 	unregister_netdevice_notifier(&efx_netdev_notifier);
  err_notifier:
 	return rc;
@@ -1295,6 +1308,9 @@ static void __exit efx_exit_module(void)
 
 	pci_unregister_driver(&efx_pci_driver);
 	efx_siena_destroy_reset_workqueue();
+#ifdef CONFIG_SFC_SIENA_SRIOV
+	efx_fini_sriov();
+#endif
 	unregister_netdevice_notifier(&efx_netdev_notifier);
 
 }
