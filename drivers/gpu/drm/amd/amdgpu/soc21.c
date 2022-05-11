@@ -310,6 +310,7 @@ static enum amd_reset_method
 soc21_asic_reset_method(struct amdgpu_device *adev)
 {
 	if (amdgpu_reset_method == AMD_RESET_METHOD_MODE1 ||
+	    amdgpu_reset_method == AMD_RESET_METHOD_MODE2 ||
 	    amdgpu_reset_method == AMD_RESET_METHOD_BACO)
 		return amdgpu_reset_method;
 
@@ -320,6 +321,8 @@ soc21_asic_reset_method(struct amdgpu_device *adev)
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(13, 0, 0):
 		return AMD_RESET_METHOD_MODE1;
+	case IP_VERSION(13, 0, 4):
+		return AMD_RESET_METHOD_MODE2;
 	default:
 		if (amdgpu_dpm_is_baco_supported(adev))
 			return AMD_RESET_METHOD_BACO;
@@ -340,6 +343,10 @@ static int soc21_asic_reset(struct amdgpu_device *adev)
 	case AMD_RESET_METHOD_BACO:
 		dev_info(adev->dev, "BACO reset\n");
 		ret = amdgpu_dpm_baco_reset(adev);
+		break;
+	case AMD_RESET_METHOD_MODE2:
+		dev_info(adev->dev, "MODE2 reset\n");
+		ret = amdgpu_dpm_mode2_reset(adev);
 		break;
 	default:
 		dev_info(adev->dev, "MODE1 reset\n");
