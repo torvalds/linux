@@ -28,7 +28,6 @@
 	uart0_pins: uart0-pins {
 		uart0-pins-tx {
 			sf,pins = <PAD_GPIO5>;
-			sf,pinmux = <PAD_GPIO5_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1)|GPIO_DS(3))>;
 			sf,pin-gpio-dout = <GPO_UART0_SOUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
@@ -165,7 +164,7 @@
 		i2c5-pins-scl {
 			sf,pins = <PAD_GPIO19>;
 			sf,pinmux = <PAD_GPIO19_FUNC_SEL 0>;
-			sf,pin-ioconfig = <genIO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_LOW>;
 			sf,pin-gpio-doen = <OEN_I2C5_IC_CLK_OE>;
 			sf,pin-gpio-din =  <GPI_I2C5_IC_CLK_IN_A>;
