@@ -234,7 +234,7 @@ void __init swiotlb_init_remap(bool addressing_limit, unsigned int flags,
 {
 	struct io_tlb_mem *mem = &io_tlb_default_mem;
 	unsigned long nslabs = default_nslabs;
-	size_t alloc_size = PAGE_ALIGN(array_size(sizeof(*mem->slots), nslabs));
+	size_t alloc_size;
 	size_t bytes;
 	void *tlb;
 
@@ -249,7 +249,7 @@ void __init swiotlb_init_remap(bool addressing_limit, unsigned int flags,
 	 * memory encryption.
 	 */
 retry:
-	bytes = PAGE_ALIGN(default_nslabs << IO_TLB_SHIFT);
+	bytes = PAGE_ALIGN(nslabs << IO_TLB_SHIFT);
 	if (flags & SWIOTLB_ANY)
 		tlb = memblock_alloc(bytes, PAGE_SIZE);
 	else
@@ -269,12 +269,13 @@ retry:
 		goto retry;
 	}
 
+	alloc_size = PAGE_ALIGN(array_size(sizeof(*mem->slots), nslabs));
 	mem->slots = memblock_alloc(alloc_size, PAGE_SIZE);
 	if (!mem->slots)
 		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
 		      __func__, alloc_size, PAGE_SIZE);
 
-	swiotlb_init_io_tlb_mem(mem, __pa(tlb), default_nslabs, false);
+	swiotlb_init_io_tlb_mem(mem, __pa(tlb), nslabs, false);
 	mem->force_bounce = flags & SWIOTLB_FORCE;
 
 	if (flags & SWIOTLB_VERBOSE)
