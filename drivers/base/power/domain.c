@@ -143,7 +143,10 @@ static inline bool irq_safe_dev_in_sleep_domain(struct device *dev,
 	 * callbacks are allowed to sleep. This indicates a suboptimal
 	 * configuration for PM, but it doesn't matter for an always on domain.
 	 */
-	if (ret && !genpd_is_always_on(genpd))
+	if (genpd_is_always_on(genpd) || genpd_is_rpm_always_on(genpd))
+		return ret;
+
+	if (ret)
 		dev_warn_once(dev, "PM domain %s will not be powered off\n",
 				genpd->name);
 
