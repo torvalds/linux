@@ -28,6 +28,7 @@
 #include "xfs_dir2.h"
 #include "xfs_log.h"
 #include "xfs_ag.h"
+#include "xfs_errortag.h"
 
 
 /*
@@ -1188,6 +1189,11 @@ xfs_attr3_leaf_to_node(
 	int			error;
 
 	trace_xfs_attr_leaf_to_node(args);
+
+	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_ATTR_LEAF_TO_NODE)) {
+		error = -EIO;
+		goto out;
+	}
 
 	error = xfs_da_grow_inode(args, &blkno);
 	if (error)
