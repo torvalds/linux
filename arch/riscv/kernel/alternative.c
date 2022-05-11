@@ -16,41 +16,35 @@
 #include <asm/sbi.h>
 #include <asm/csr.h>
 
-static struct cpu_manufacturer_info_t {
+struct cpu_manufacturer_info_t {
 	unsigned long vendor_id;
 	unsigned long arch_id;
 	unsigned long imp_id;
-} cpu_mfr_info;
+	void (*vendor_patch_func)(struct alt_entry *begin, struct alt_entry *end,
+				  unsigned long archid, unsigned long impid,
+				  unsigned int stage);
+};
 
-static void (*vendor_patch_func)(struct alt_entry *begin, struct alt_entry *end,
-				 unsigned long archid, unsigned long impid,
-				 unsigned int stage) __initdata_or_module;
-
-static inline void __init riscv_fill_cpu_mfr_info(void)
+static void __init_or_module riscv_fill_cpu_mfr_info(struct cpu_manufacturer_info_t *cpu_mfr_info)
 {
 #ifdef CONFIG_RISCV_M_MODE
-	cpu_mfr_info.vendor_id = csr_read(CSR_MVENDORID);
-	cpu_mfr_info.arch_id = csr_read(CSR_MARCHID);
-	cpu_mfr_info.imp_id = csr_read(CSR_MIMPID);
+	cpu_mfr_info->vendor_id = csr_read(CSR_MVENDORID);
+	cpu_mfr_info->arch_id = csr_read(CSR_MARCHID);
+	cpu_mfr_info->imp_id = csr_read(CSR_MIMPID);
 #else
-	cpu_mfr_info.vendor_id = sbi_get_mvendorid();
-	cpu_mfr_info.arch_id = sbi_get_marchid();
-	cpu_mfr_info.imp_id = sbi_get_mimpid();
+	cpu_mfr_info->vendor_id = sbi_get_mvendorid();
+	cpu_mfr_info->arch_id = sbi_get_marchid();
+	cpu_mfr_info->imp_id = sbi_get_mimpid();
 #endif
-}
 
-static void __init init_alternative(void)
-{
-	riscv_fill_cpu_mfr_info();
-
-	switch (cpu_mfr_info.vendor_id) {
+	switch (cpu_mfr_info->vendor_id) {
 #ifdef CONFIG_ERRATA_SIFIVE
 	case SIFIVE_VENDOR_ID:
-		vendor_patch_func = sifive_errata_patch_func;
+		cpu_mfr_info->vendor_patch_func = sifive_errata_patch_func;
 		break;
 #endif
 	default:
-		vendor_patch_func = NULL;
+		cpu_mfr_info->vendor_patch_func = NULL;
 	}
 }
 
@@ -63,22 +57,25 @@ static void __init_or_module _apply_alternatives(struct alt_entry *begin,
 						 struct alt_entry *end,
 						 unsigned int stage)
 {
+	struct cpu_manufacturer_info_t cpu_mfr_info;
+
+	riscv_fill_cpu_mfr_info(&cpu_mfr_info);
+
 	riscv_cpufeature_patch_func(begin, end, stage);
 
-	if (!vendor_patch_func)
+	if (!cpu_mfr_info.vendor_patch_func)
 		return;
 
-	vendor_patch_func(begin, end,
-			  cpu_mfr_info.arch_id, cpu_mfr_info.imp_id,
-			  stage);
+	cpu_mfr_info.vendor_patch_func(begin, end,
+				   cpu_mfr_info.arch_id,
+				   cpu_mfr_info.imp_id,
+				   stage);
 }
 
 void __init apply_boot_alternatives(void)
 {
 	/* If called on non-boot cpu things could go wrong */
 	WARN_ON(smp_processor_id() != 0);
-
-	init_alternative();
 
 	_apply_alternatives((struct alt_entry *)__alt_start,
 			    (struct alt_entry *)__alt_end,
