@@ -1531,10 +1531,11 @@ out_err:
 	return rc;
 }
 
-static void hl_notifier_event_send(struct hl_notifier_event *notifier_event, u64 event)
+static void hl_notifier_event_send(struct hl_notifier_event *notifier_event, u64 event_mask)
 {
 	mutex_lock(&notifier_event->lock);
-	notifier_event->events_mask |= event;
+	notifier_event->events_mask |= event_mask;
+
 	if (notifier_event->eventfd)
 		eventfd_signal(notifier_event->eventfd, 1);
 
@@ -1545,17 +1546,17 @@ static void hl_notifier_event_send(struct hl_notifier_event *notifier_event, u64
  * hl_notifier_event_send_all - notify all user processes via eventfd
  *
  * @hdev: pointer to habanalabs device structure
- * @event: the occurred event
+ * @event_mask: the occurred event/s
  * Returns 0 for success or an error on failure.
  */
-void hl_notifier_event_send_all(struct hl_device *hdev, u64 event)
+void hl_notifier_event_send_all(struct hl_device *hdev, u64 event_mask)
 {
 	struct hl_fpriv	*hpriv;
 
 	mutex_lock(&hdev->fpriv_list_lock);
 
 	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node)
-		hl_notifier_event_send(&hpriv->notifier_event, event);
+		hl_notifier_event_send(&hpriv->notifier_event, event_mask);
 
 	mutex_unlock(&hdev->fpriv_list_lock);
 
@@ -1563,7 +1564,7 @@ void hl_notifier_event_send_all(struct hl_device *hdev, u64 event)
 	mutex_lock(&hdev->fpriv_ctrl_list_lock);
 
 	list_for_each_entry(hpriv, &hdev->fpriv_ctrl_list, dev_node)
-		hl_notifier_event_send(&hpriv->notifier_event, event);
+		hl_notifier_event_send(&hpriv->notifier_event, event_mask);
 
 	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 }

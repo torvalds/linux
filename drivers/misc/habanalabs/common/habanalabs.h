@@ -2644,14 +2644,48 @@ struct razwi_info {
 	u8		type;
 };
 
+#define MAX_QMAN_STREAMS_INFO		4
+#define OPCODE_INFO_MAX_ADDR_SIZE	8
+/**
+ * struct undefined_opcode_info - info about last undefined opcode error
+ * @timestamp: timestamp of the undefined opcode error
+ * @cb_addr_streams: CB addresses (per stream) that are currently exists in the PQ
+ *                   entiers. In case all streams array entries are
+ *                   filled with values, it means the execution was in Lower-CP.
+ * @cq_addr: the address of the current handled command buffer
+ * @cq_size: the size of the current handled command buffer
+ * @cb_addr_streams_len: num of streams - actual len of cb_addr_streams array.
+ *                       should be equal to 1 incase of undefined opcode
+ *                       in Upper-CP (specific stream) and equal to 4 incase
+ *                       of undefined opcode in Lower-CP.
+ * @engine_id: engine-id that the error occurred on
+ * @stream_id: the stream id the error occurred on. In case the stream equals to
+ *             MAX_QMAN_STREAMS_INFO it means the error occurred on a Lower-CP.
+ * @write_enable: if set, writing to undefined opcode parameters in the structure
+ *                 is enable so the first (root cause) undefined opcode will not be
+ *                 overwritten.
+ */
+struct undefined_opcode_info {
+	ktime_t timestamp;
+	u64 cb_addr_streams[MAX_QMAN_STREAMS_INFO][OPCODE_INFO_MAX_ADDR_SIZE];
+	u64 cq_addr;
+	u32 cq_size;
+	u32 cb_addr_streams_len;
+	u32 engine_id;
+	u32 stream_id;
+	bool write_enable;
+};
+
 /**
  * struct last_error_session_info - info about last session errors occurred.
  * @cs_timeout: CS timeout error last information.
  * @razwi: razwi last information.
+ * @undef_opcode: undefined opcode information
  */
 struct last_error_session_info {
-	struct	cs_timeout_info	cs_timeout;
-	struct	razwi_info	razwi;
+	struct cs_timeout_info		cs_timeout;
+	struct razwi_info		razwi;
+	struct undefined_opcode_info	undef_opcode;
 };
 
 /**
@@ -3159,7 +3193,7 @@ int hl_device_utilization(struct hl_device *hdev, u32 *utilization);
 int hl_build_hwmon_channel_info(struct hl_device *hdev,
 		struct cpucp_sensor *sensors_arr);
 
-void hl_notifier_event_send_all(struct hl_device *hdev, u64 event);
+void hl_notifier_event_send_all(struct hl_device *hdev, u64 event_mask);
 
 int hl_sysfs_init(struct hl_device *hdev);
 void hl_sysfs_fini(struct hl_device *hdev);
