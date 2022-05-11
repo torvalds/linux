@@ -10,7 +10,7 @@
 #ifndef _UFSHCD_DWC_H
 #define _UFSHCD_DWC_H
 
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 
 struct ufshcd_dme_attr_val {
 	u32 attr_sel;

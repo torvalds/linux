@@ -26,8 +26,8 @@
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_eh.h>
 #include "ufshcd-priv.h"
-#include "ufs_quirks.h"
-#include "unipro.h"
+#include <ufs/ufs_quirks.h>
+#include <ufs/unipro.h>
 #include "ufs-sysfs.h"
 #include "ufs-debugfs.h"
 #include "ufs-fault-injection.h"

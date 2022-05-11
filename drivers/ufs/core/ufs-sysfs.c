@@ -6,7 +6,7 @@
 #include <linux/bitfield.h>
 #include <asm/unaligned.h>
 
-#include "ufs.h"
+#include <ufs/ufs.h>
 #include "ufs-sysfs.h"
 #include "ufshcd-priv.h"
 

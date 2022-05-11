@@ -15,12 +15,12 @@
 #include <linux/reset-controller.h>
 #include <linux/devfreq.h>
 
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 #include "ufshcd-pltfrm.h"
-#include "unipro.h"
+#include <ufs/unipro.h>
 #include "ufs-qcom.h"
-#include "ufshci.h"
-#include "ufs_quirks.h"
+#include <ufs/ufshci.h>
+#include <ufs/ufs_quirks.h>
 
 #define UFS_QCOM_DEFAULT_DBG_PRINT_EN	\
 	(UFS_QCOM_DBG_PRINT_REGS_EN | UFS_QCOM_DBG_PRINT_TEST_BUS_EN)

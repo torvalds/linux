@@ -9,8 +9,8 @@
 
 #include <linux/module.h>
 
-#include "ufshcd.h"
-#include "unipro.h"
+#include <ufs/ufshcd.h>
+#include <ufs/unipro.h>
 
 #include "ufshcd-dwc.h"
 #include "ufshci-dwc.h"

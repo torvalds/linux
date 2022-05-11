@@ -15,12 +15,12 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 #include "ufshcd-pltfrm.h"
-#include "unipro.h"
+#include <ufs/unipro.h>
 #include "ufs-hisi.h"
-#include "ufshci.h"
-#include "ufs_quirks.h"
+#include <ufs/ufshci.h>
+#include <ufs/ufs_quirks.h>
 
 static int ufs_hisi_check_hibern8(struct ufs_hba *hba)
 {

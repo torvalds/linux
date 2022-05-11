@@ -17,7 +17,7 @@
 
 #include "ufshcd-priv.h"
 #include "ufshpb.h"
-#include "../sd.h"
+#include "../../scsi/sd.h"
 
 #define ACTIVATION_THRESHOLD 8 /* 8 IOs */
 #define READ_TO_MS 1000
