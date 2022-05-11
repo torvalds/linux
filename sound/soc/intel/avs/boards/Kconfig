@@ -56,4 +56,14 @@ config SND_SOC_INTEL_AVS_MACH_RT298
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
+config SND_SOC_INTEL_AVS_MACH_RT5682
+	tristate "rt5682 in I2S mode"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT5682_I2C
+	help
+	   This adds support for ASoC machine driver with RT5682 I2S audio codec.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
 endmenu
