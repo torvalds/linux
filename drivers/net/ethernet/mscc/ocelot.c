@@ -2339,9 +2339,6 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 	struct ocelot_pgid *pgid;
 	u16 vid = mdb->vid;
 
-	if (port == ocelot->npi)
-		port = ocelot->num_phys_ports;
-
 	if (!vid)
 		vid = ocelot_vlan_unaware_pvid(ocelot, bridge);
 
@@ -2398,9 +2395,6 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 	struct ocelot_multicast *mc;
 	struct ocelot_pgid *pgid;
 	u16 vid = mdb->vid;
-
-	if (port == ocelot->npi)
-		port = ocelot->num_phys_ports;
 
 	if (!vid)
 		vid = ocelot_vlan_unaware_pvid(ocelot, bridge);

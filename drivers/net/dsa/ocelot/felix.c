@@ -745,6 +745,9 @@ static int felix_mdb_add(struct dsa_switch *ds, int port,
 	    dsa_mdb_present_in_other_db(ds, port, mdb, db))
 		return 0;
 
+	if (port == ocelot->npi)
+		port = ocelot->num_phys_ports;
+
 	return ocelot_port_mdb_add(ocelot, port, mdb, bridge_dev);
 }
 
@@ -761,6 +764,9 @@ static int felix_mdb_del(struct dsa_switch *ds, int port,
 	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
 	    dsa_mdb_present_in_other_db(ds, port, mdb, db))
 		return 0;
+
+	if (port == ocelot->npi)
+		port = ocelot->num_phys_ports;
 
 	return ocelot_port_mdb_del(ocelot, port, mdb, bridge_dev);
 }
