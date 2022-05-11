@@ -343,8 +343,10 @@ static int get_syms(char ***symsp, size_t *cntp)
 		return -EINVAL;
 
 	map = hashmap__new(symbol_hash, symbol_equal, NULL);
-	if (IS_ERR(map))
+	if (IS_ERR(map)) {
+		err = libbpf_get_error(map);
 		goto error;
+	}
 
 	while (fgets(buf, sizeof(buf), f)) {
 		/* skip modules */

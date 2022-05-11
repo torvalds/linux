@@ -246,7 +246,7 @@ static void test_vxlan_tunnel(void)
 {
 	struct test_tunnel_kern *skel = NULL;
 	struct nstoken *nstoken;
-	int local_ip_map_fd;
+	int local_ip_map_fd = -1;
 	int set_src_prog_fd, get_src_prog_fd;
 	int set_dst_prog_fd;
 	int key = 0, ifindex = -1;
@@ -319,7 +319,7 @@ static void test_ip6vxlan_tunnel(void)
 {
 	struct test_tunnel_kern *skel = NULL;
 	struct nstoken *nstoken;
-	int local_ip_map_fd;
+	int local_ip_map_fd = -1;
 	int set_src_prog_fd, get_src_prog_fd;
 	int set_dst_prog_fd;
 	int key = 0, ifindex = -1;
