@@ -89,6 +89,7 @@ struct bpf_map_ops {
 	int (*map_push_elem)(struct bpf_map *map, void *value, u64 flags);
 	int (*map_pop_elem)(struct bpf_map *map, void *value);
 	int (*map_peek_elem)(struct bpf_map *map, void *value);
+	void *(*map_lookup_percpu_elem)(struct bpf_map *map, void *key, u32 cpu);
 
 	/* funcs called by prog_array and perf_event_array map */
 	void *(*map_fd_get_ptr)(struct bpf_map *map, struct file *map_file,
@@ -2184,6 +2185,7 @@ extern const struct bpf_func_proto bpf_map_delete_elem_proto;
 extern const struct bpf_func_proto bpf_map_push_elem_proto;
 extern const struct bpf_func_proto bpf_map_pop_elem_proto;
 extern const struct bpf_func_proto bpf_map_peek_elem_proto;
+extern const struct bpf_func_proto bpf_map_lookup_percpu_elem_proto;
 
 extern const struct bpf_func_proto bpf_get_prandom_u32_proto;
 extern const struct bpf_func_proto bpf_get_smp_processor_id_proto;

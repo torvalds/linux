@@ -2199,6 +2199,20 @@ static void *htab_percpu_map_lookup_elem(struct bpf_map *map, void *key)
 		return NULL;
 }
 
+static void *htab_percpu_map_lookup_percpu_elem(struct bpf_map *map, void *key, u32 cpu)
+{
+	struct htab_elem *l;
+
+	if (cpu >= nr_cpu_ids)
+		return NULL;
+
+	l = __htab_map_lookup_elem(map, key);
+	if (l)
+		return per_cpu_ptr(htab_elem_get_ptr(l, map->key_size), cpu);
+	else
+		return NULL;
+}
+
 static void *htab_lru_percpu_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	struct htab_elem *l = __htab_map_lookup_elem(map, key);
@@ -2206,6 +2220,22 @@ static void *htab_lru_percpu_map_lookup_elem(struct bpf_map *map, void *key)
 	if (l) {
 		bpf_lru_node_set_ref(&l->lru_node);
 		return this_cpu_ptr(htab_elem_get_ptr(l, map->key_size));
+	}
+
+	return NULL;
+}
+
+static void *htab_lru_percpu_map_lookup_percpu_elem(struct bpf_map *map, void *key, u32 cpu)
+{
+	struct htab_elem *l;
+
+	if (cpu >= nr_cpu_ids)
+		return NULL;
+
+	l = __htab_map_lookup_elem(map, key);
+	if (l) {
+		bpf_lru_node_set_ref(&l->lru_node);
+		return per_cpu_ptr(htab_elem_get_ptr(l, map->key_size), cpu);
 	}
 
 	return NULL;
@@ -2300,6 +2330,7 @@ const struct bpf_map_ops htab_percpu_map_ops = {
 	.map_lookup_and_delete_elem = htab_percpu_map_lookup_and_delete_elem,
 	.map_update_elem = htab_percpu_map_update_elem,
 	.map_delete_elem = htab_map_delete_elem,
+	.map_lookup_percpu_elem = htab_percpu_map_lookup_percpu_elem,
 	.map_seq_show_elem = htab_percpu_map_seq_show_elem,
 	.map_set_for_each_callback_args = map_set_for_each_callback_args,
 	.map_for_each_callback = bpf_for_each_hash_elem,
@@ -2318,6 +2349,7 @@ const struct bpf_map_ops htab_lru_percpu_map_ops = {
 	.map_lookup_and_delete_elem = htab_lru_percpu_map_lookup_and_delete_elem,
 	.map_update_elem = htab_lru_percpu_map_update_elem,
 	.map_delete_elem = htab_lru_map_delete_elem,
+	.map_lookup_percpu_elem = htab_lru_percpu_map_lookup_percpu_elem,
 	.map_seq_show_elem = htab_percpu_map_seq_show_elem,
 	.map_set_for_each_callback_args = map_set_for_each_callback_args,
 	.map_for_each_callback = bpf_for_each_hash_elem,
