@@ -774,7 +774,7 @@ static enum power_supply_property wls_props[] = {
 
 static const struct power_supply_desc wls_psy_desc = {
 	.name			= "wireless",
-	.type			= POWER_SUPPLY_TYPE_MAINS,
+	.type			= POWER_SUPPLY_TYPE_WIRELESS,
 	.properties		= wls_props,
 	.num_properties		= ARRAY_SIZE(wls_props),
 	.get_property		= wls_psy_get_prop,
@@ -814,8 +814,9 @@ static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 	if (rc < 0)
 		return rc;
 
-	/* Allow this only for SDP and not for other charger types */
-	if (pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_SDP)
+	/* Allow this only for SDP or USB_PD and not for other charger types */
+	if (pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_SDP &&
+	    pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_PD)
 		return -EINVAL;
 
 	/*
