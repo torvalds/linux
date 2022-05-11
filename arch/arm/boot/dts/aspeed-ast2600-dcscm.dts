@@ -29,10 +29,10 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			u-boot@0 {
-				reg = <0x0 0xe0000>;
-				label = "u-boot";
-			};
+			/delete-node/ u-boot-env@e0000;
+			/delete-node/ kernel@100000;
+			/delete-node/ rofs@a00000;
+			/delete-node/ rwfs@2e00000;
 
 			pfm@e0000 {
 				reg = <0xe0000 0x20000>; // 128KB
