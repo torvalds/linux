@@ -83,8 +83,12 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 	tmp = atomic_xchg(&call->ackr_nr_unacked, 0);
 	tmp |= atomic_xchg(&call->ackr_nr_consumed, 0);
 	if (!tmp && (reason == RXRPC_ACK_DELAY ||
-		     reason == RXRPC_ACK_IDLE))
+		     reason == RXRPC_ACK_IDLE)) {
+		rxrpc_inc_stat(call->rxnet, stat_tx_ack_skip);
 		return 0;
+	}
+
+	rxrpc_inc_stat(call->rxnet, stat_tx_ack_fill);
 
 	/* Barrier against rxrpc_input_data(). */
 	serial = call->ackr_serial;
@@ -253,6 +257,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 	if (ping)
 		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_ping);
 
+	rxrpc_inc_stat(call->rxnet, stat_tx_ack_send);
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	conn->params.peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)

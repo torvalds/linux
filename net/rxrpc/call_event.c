@@ -50,6 +50,8 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 	unsigned long expiry = rxrpc_soft_ack_delay;
 	s8 prior = rxrpc_ack_priority[ack_reason];
 
+	rxrpc_inc_stat(call->rxnet, stat_tx_acks[ack_reason]);
+
 	/* Pings are handled specially because we don't want to accidentally
 	 * lose a ping response by subsuming it into a ping.
 	 */

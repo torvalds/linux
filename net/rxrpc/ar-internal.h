@@ -101,6 +101,12 @@ struct rxrpc_net {
 	atomic_t		stat_rx_data;
 	atomic_t		stat_rx_data_reqack;
 	atomic_t		stat_rx_data_jumbo;
+
+	atomic_t		stat_tx_ack_fill;
+	atomic_t		stat_tx_ack_send;
+	atomic_t		stat_tx_ack_skip;
+	atomic_t		stat_tx_acks[256];
+	atomic_t		stat_rx_acks[256];
 };
 
 /*

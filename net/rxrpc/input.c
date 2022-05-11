@@ -888,6 +888,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	trace_rxrpc_rx_ack(call, ack_serial, acked_serial,
 			   first_soft_ack, prev_pkt,
 			   summary.ack_reason, nr_acks);
+	rxrpc_inc_stat(call->rxnet, stat_rx_acks[buf.ack.reason]);
 
 	switch (buf.ack.reason) {
 	case RXRPC_ACK_PING_RESPONSE:

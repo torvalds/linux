@@ -419,6 +419,33 @@ int rxrpc_stats_show(struct seq_file *seq, void *v)
 		   atomic_read(&rxnet->stat_rx_data_reqack),
 		   atomic_read(&rxnet->stat_rx_data_jumbo));
 	seq_printf(seq,
+		   "Ack      : fill=%u send=%u skip=%u\n",
+		   atomic_read(&rxnet->stat_tx_ack_fill),
+		   atomic_read(&rxnet->stat_tx_ack_send),
+		   atomic_read(&rxnet->stat_tx_ack_skip));
+	seq_printf(seq,
+		   "Ack-Tx   : req=%u dup=%u oos=%u exw=%u nos=%u png=%u prs=%u dly=%u idl=%u\n",
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_REQUESTED]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_DUPLICATE]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_OUT_OF_SEQUENCE]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_EXCEEDS_WINDOW]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_NOSPACE]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_PING]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_PING_RESPONSE]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_DELAY]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_IDLE]));
+	seq_printf(seq,
+		   "Ack-Rx   : req=%u dup=%u oos=%u exw=%u nos=%u png=%u prs=%u dly=%u idl=%u\n",
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_REQUESTED]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_DUPLICATE]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_OUT_OF_SEQUENCE]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_EXCEEDS_WINDOW]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_NOSPACE]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_PING]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_PING_RESPONSE]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_DELAY]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_IDLE]));
+	seq_printf(seq,
 		   "Buffers  : txb=%u rxb=%u\n",
 		   atomic_read(&rxrpc_n_tx_skbs),
 		   atomic_read(&rxrpc_n_rx_skbs));
@@ -443,5 +470,11 @@ int rxrpc_stats_clear(struct file *file, char *buf, size_t size)
 	atomic_set(&rxnet->stat_rx_data, 0);
 	atomic_set(&rxnet->stat_rx_data_reqack, 0);
 	atomic_set(&rxnet->stat_rx_data_jumbo, 0);
+
+	atomic_set(&rxnet->stat_tx_ack_fill, 0);
+	atomic_set(&rxnet->stat_tx_ack_send, 0);
+	atomic_set(&rxnet->stat_tx_ack_skip, 0);
+	memset(&rxnet->stat_tx_acks, 0, sizeof(rxnet->stat_tx_acks));
+	memset(&rxnet->stat_rx_acks, 0, sizeof(rxnet->stat_rx_acks));
 	return size;
 }
