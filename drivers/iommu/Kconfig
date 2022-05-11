@@ -48,6 +48,43 @@ config IOMMU_IO_PGTABLE_LPAE_SELFTEST
 
 	  If unsure, say N here.
 
+config IOMMU_IO_PGTABLE_FAST
+	bool "Fast ARMv7/v8 Long Descriptor Format"
+	depends on (ARM || ARM64) && IOMMU_DMA
+	help
+          Enable support for a subset of the ARM long descriptor pagetable
+	  format.  This allocator achieves fast performance by
+	  pre-allocating and pre-populating page table memory up front.
+	  only supports a 32 bit virtual address space.
+
+          This implementation is mainly optimized for use cases where the
+          buffers are small (<= 64K) since it only supports 4K page sizes.
+
+config IOMMU_IO_PGTABLE_FAST_SELFTEST
+	bool "Fast IO pgtable selftests"
+	depends on IOMMU_IO_PGTABLE_FAST
+	help
+	  Enable self-tests for "fast" page table allocator.
+	  This performs a series of page-table consistency checks
+	  during boot.
+
+	  If unsure, say N here.
+
+config IOMMU_IO_PGTABLE_FAST_PROVE_TLB
+	bool "Prove correctness of TLB maintenance in the Fast DMA mapper"
+	depends on IOMMU_IO_PGTABLE_FAST
+	help
+          Enables some debug features that help prove correctness of TLB
+          maintenance routines in the Fast DMA mapper.  This option will
+          slow things down considerably, so should only be used in a debug
+          configuration.  This relies on the ability to set bits in an
+          invalid page table entry, which is disallowed on some hardware
+          due to errata.  If you're running on such a platform then this
+          option can only be used with unit tests.  It will break real use
+          cases.
+
+	  If unsure, say N here.
+
 config IOMMU_IO_PGTABLE_ARMV7S
 	bool "ARMv7/v8 Short Descriptor Format"
 	select IOMMU_IO_PGTABLE
@@ -290,6 +327,14 @@ config SPAPR_TCE_IOMMU
 	  Enables bits of IOMMU API required by VFIO. The iommu_ops
 	  is not implemented as it is not necessary for VFIO.
 
+config QTI_IOMMU_SUPPORT
+	tristate "Support for QTI iommu drivers"
+	help
+	  The QTI GPU device may switch between multiple iommu domains,
+	  depending on usecase. This introduces a need to track all such
+	  domains in a non-driver specific manner.
+	  If in doubt say N.
+
 config APPLE_DART
 	tristate "Apple DART IOMMU Support"
 	depends on ARCH_APPLE || (COMPILE_TEST && !GENERIC_ATOMIC64)
@@ -317,6 +362,15 @@ config ARM_SMMU
 
 	  Say Y here if your SoC includes an IOMMU device implementing
 	  the ARM SMMU architecture.
+
+config ARM_SMMU_CONTEXT_FAULT_RETRY
+	bool "Context fault retry sequence"
+	depends on ARM_SMMU && ARCH_WAIPIO
+	help
+	  In some cases, issuing a tlb invalidate operation after a
+	  context fault may cause a subsequent retry of the failing
+	  address to succeed. Only applies to clients which have
+	  stall-on-fault enabled, like display.
 
 config ARM_SMMU_LEGACY_DT_BINDINGS
 	bool "Support the legacy \"mmu-masters\" devicetree bindings"
@@ -355,6 +409,16 @@ config ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT
 	  'arm-smmu.disable_bypass' will continue to override this
 	  config.
 
+config ARM_SMMU_SELFTEST
+	bool "ARM SMMU self test support"
+	depends on ARM_SMMU
+	help
+	  Enables self tests for arm smmu. Tests basic hardware
+	  configurations like interrupts. Note that enabling this
+	  option can marginally increase the boot time.
+
+	  If unsure, say N here.
+
 config ARM_SMMU_QCOM
 	def_tristate y
 	depends on ARM_SMMU && ARCH_QCOM
@@ -387,6 +451,18 @@ config ARM_SMMU_V3_SVA
 
 	  Say Y here if your system supports SVA extensions such as PCIe PASID
 	  and PRI.
+
+config QCOM_LAZY_MAPPING
+	tristate "Reference counted iommu-mapping support"
+	depends on QCOM_DMABUF_HEAPS
+	depends on IOMMU_API
+	help
+	  DMA-BUFs may be shared between several software clients.
+	  Reference counting the mapping may simplify coordination between
+	  these clients, and decrease latency by preventing multiple
+	  map/unmaps of the same region.
+
+	  If unsure, say N here.
 
 config S390_IOMMU
 	def_bool y if S390 && PCI
@@ -474,6 +550,16 @@ config VIRTIO_IOMMU
 
 	  Say Y here if you intend to run this kernel as a guest.
 
+config QCOM_IOMMU_UTIL
+	tristate "Support for qcom additions to the iommu framework"
+	help
+	  QCOM iommu drivers support a general set of functionality in
+	  addition to the functions provided by the iommu framework.
+	  This includes devicetree properties for configuring iommu
+	  groups and iova ranges.
+
+	  Say N here if unsure.
+
 config SPRD_IOMMU
 	tristate "Unisoc IOMMU Support"
 	depends on ARCH_SPRD || COMPILE_TEST
@@ -485,5 +571,15 @@ config SPRD_IOMMU
 	  ISP(image), and CPP(camera pixel processor), etc.
 
 	  Say Y here if you want to use the multimedia devices listed above.
+
+config QCOM_IOMMU_DEBUG
+	tristate "IOMMU debugging and testing"
+	depends on QCOM_IOMMU_UTIL
+	depends on DEBUG_FS
+	help
+	  This option is used to enable profiling and debugging in
+	  the IOMMU framework code. IOMMU profiling and debugging
+	  can be done through the debugfs nodes which this option
+	  makes available.
 
 endif # IOMMU_SUPPORT
