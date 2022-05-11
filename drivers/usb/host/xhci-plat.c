@@ -245,6 +245,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 	xhci = hcd_to_xhci(hcd);
 
+	xhci->allow_single_roothub = 1;
+
 	/*
 	 * Not all platforms have clks so it is not an error if the
 	 * clock do not exist.
