@@ -46,11 +46,6 @@ module_param(irq_adapt_high_thresh, uint, 0644);
 MODULE_PARM_DESC(irq_adapt_high_thresh,
 		 "Threshold score for increasing IRQ moderation");
 
-/* This is the weight assigned to each of the (per-channel) virtual
- * NAPI devices.
- */
-static int napi_weight = 64;
-
 static const struct efx_channel_type efx_default_channel_type;
 
 /*************
@@ -1324,8 +1319,7 @@ static void efx_init_napi_channel(struct efx_channel *channel)
 	struct efx_nic *efx = channel->efx;
 
 	channel->napi_dev = efx->net_dev;
-	netif_napi_add_weight(channel->napi_dev, &channel->napi_str, efx_poll,
-			      napi_weight);
+	netif_napi_add(channel->napi_dev, &channel->napi_str, efx_poll, 64);
 }
 
 void efx_siena_init_napi(struct efx_nic *efx)
