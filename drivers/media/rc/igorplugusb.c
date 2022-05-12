@@ -110,7 +110,6 @@ static void igorplugusb_callback(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		usb_unlink_urb(urb);
 		return;
 	default:
 		dev_warn(ir->dev, "Error: urb status = %d\n", urb->status);
