@@ -29,7 +29,7 @@
 #include "gc/gc_11_0_0_offset.h"
 #include "gc/gc_11_0_0_sh_mask.h"
 #include "gc/gc_11_0_0_default.h"
-#include "v10_structs.h"
+#include "v11_structs.h"
 #include "mes_v11_api_def.h"
 
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_mes.bin");
@@ -637,7 +637,7 @@ static int mes_v11_0_allocate_eop_buf(struct amdgpu_device *adev,
 
 static int mes_v11_0_mqd_init(struct amdgpu_ring *ring)
 {
-	struct v10_compute_mqd *mqd = ring->mqd_ptr;
+	struct v11_compute_mqd *mqd = ring->mqd_ptr;
 	uint64_t hqd_gpu_addr, wb_gpu_addr, eop_base_addr;
 	uint32_t tmp;
 
@@ -724,22 +724,22 @@ static int mes_v11_0_mqd_init(struct amdgpu_ring *ring)
 	mqd->cp_hqd_vmid = 0;
 	/* activate the queue */
 	mqd->cp_hqd_active = 1;
-	mqd->cp_hqd_persistent_state = regCP_HQD_PERSISTENT_STATE_DEFAULT;
+
+	tmp = regCP_HQD_PERSISTENT_STATE_DEFAULT;
+	tmp = REG_SET_FIELD(tmp, CP_HQD_PERSISTENT_STATE,
+			    PRELOAD_SIZE, 0x55);
+	mqd->cp_hqd_persistent_state = tmp;
+
 	mqd->cp_hqd_ib_control = regCP_HQD_IB_CONTROL_DEFAULT;
 	mqd->cp_hqd_iq_timer = regCP_HQD_IQ_TIMER_DEFAULT;
 	mqd->cp_hqd_quantum = regCP_HQD_QUANTUM_DEFAULT;
-
-	tmp = regCP_HQD_GFX_CONTROL_DEFAULT;
-	tmp = REG_SET_FIELD(tmp, CP_HQD_GFX_CONTROL, DB_UPDATED_MSG_EN, 1);
-	/* offset: 184 - this is used for CP_HQD_GFX_CONTROL */
-	mqd->cp_hqd_suspend_cntl_stack_offset = tmp;
 
 	return 0;
 }
 
 static void mes_v11_0_queue_init_register(struct amdgpu_ring *ring)
 {
-	struct v10_compute_mqd *mqd = ring->mqd_ptr;
+	struct v11_compute_mqd *mqd = ring->mqd_ptr;
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t data = 0;
 
@@ -910,7 +910,7 @@ static int mes_v11_0_kiq_ring_init(struct amdgpu_device *adev)
 static int mes_v11_0_mqd_sw_init(struct amdgpu_device *adev,
 				 enum admgpu_mes_pipe pipe)
 {
-	int r, mqd_size = sizeof(struct v10_compute_mqd);
+	int r, mqd_size = sizeof(struct v11_compute_mqd);
 	struct amdgpu_ring *ring;
 
 	if (pipe == AMDGPU_MES_KIQ_PIPE)
