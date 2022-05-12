@@ -393,6 +393,7 @@ xfs_attr_set_iter(
 	struct xfs_mount		*mp = args->dp->i_mount;
 
 	/* State machine switch */
+next_state:
 	switch (attr->xattri_dela_state) {
 	case XFS_DAS_UNINIT:
 		ASSERT(0);
@@ -405,6 +406,7 @@ xfs_attr_set_iter(
 		return xfs_attr_node_addname(attr);
 
 	case XFS_DAS_FOUND_LBLK:
+	case XFS_DAS_FOUND_NBLK:
 		/*
 		 * Find space for remote blocks and fall into the allocation
 		 * state.
@@ -414,9 +416,10 @@ xfs_attr_set_iter(
 			if (error)
 				return error;
 		}
-		attr->xattri_dela_state = XFS_DAS_LEAF_ALLOC_RMT;
+		attr->xattri_dela_state++;
 		fallthrough;
 	case XFS_DAS_LEAF_ALLOC_RMT:
+	case XFS_DAS_NODE_ALLOC_RMT:
 
 		/*
 		 * If there was an out-of-line value, allocate the blocks we
@@ -465,16 +468,18 @@ xfs_attr_set_iter(
 				return error;
 			/*
 			 * Commit the flag value change and start the next trans
-			 * in series.
+			 * in series at FLIP_FLAG.
 			 */
-			attr->xattri_dela_state = XFS_DAS_FLIP_LFLAG;
+			attr->xattri_dela_state++;
 			trace_xfs_attr_set_iter_return(attr->xattri_dela_state,
 						       args->dp);
 			return -EAGAIN;
 		}
 
+		attr->xattri_dela_state++;
 		fallthrough;
 	case XFS_DAS_FLIP_LFLAG:
+	case XFS_DAS_FLIP_NFLAG:
 		/*
 		 * Dismantle the "old" attribute/value pair by removing a
 		 * "remote" value (if it exists).
@@ -484,10 +489,10 @@ xfs_attr_set_iter(
 		if (error)
 			return error;
 
+		attr->xattri_dela_state++;
 		fallthrough;
 	case XFS_DAS_RM_LBLK:
-		/* Set state in case xfs_attr_rmtval_remove returns -EAGAIN */
-		attr->xattri_dela_state = XFS_DAS_RM_LBLK;
+	case XFS_DAS_RM_NBLK:
 		if (args->rmtblkno) {
 			error = xfs_attr_rmtval_remove(attr);
 			if (error == -EAGAIN)
@@ -502,7 +507,16 @@ xfs_attr_set_iter(
 			return -EAGAIN;
 		}
 
-		fallthrough;
+		/*
+		 * This is the end of the shared leaf/node sequence. We need
+		 * to continue at the next state in the sequence, but we can't
+		 * easily just fall through. So we increment to the next state
+		 * and then jump back to switch statement to evaluate the next
+		 * state correctly.
+		 */
+		attr->xattri_dela_state++;
+		goto next_state;
+
 	case XFS_DAS_RD_LEAF:
 		/*
 		 * This is the last step for leaf format. Read the block with
@@ -523,106 +537,6 @@ xfs_attr_set_iter(
 
 		return error;
 
-	case XFS_DAS_FOUND_NBLK:
-		/*
-		 * Find space for remote blocks and fall into the allocation
-		 * state.
-		 */
-		if (args->rmtblkno > 0) {
-			error = xfs_attr_rmtval_find_space(attr);
-			if (error)
-				return error;
-		}
-
-		attr->xattri_dela_state = XFS_DAS_NODE_ALLOC_RMT;
-		fallthrough;
-	case XFS_DAS_NODE_ALLOC_RMT:
-		/*
-		 * If there was an out-of-line value, allocate the blocks we
-		 * identified for its storage and copy the value.  This is done
-		 * after we create the attribute so that we don't overflow the
-		 * maximum size of a transaction and/or hit a deadlock.
-		 */
-		if (args->rmtblkno > 0) {
-			if (attr->xattri_blkcnt > 0) {
-				error = xfs_attr_rmtval_set_blk(attr);
-				if (error)
-					return error;
-				trace_xfs_attr_set_iter_return(
-					attr->xattri_dela_state, args->dp);
-				return -EAGAIN;
-			}
-
-			error = xfs_attr_rmtval_set_value(args);
-			if (error)
-				return error;
-		}
-
-		/*
-		 * If this was not a rename, clear the incomplete flag and we're
-		 * done.
-		 */
-		if (!(args->op_flags & XFS_DA_OP_RENAME)) {
-			if (args->rmtblkno > 0)
-				error = xfs_attr3_leaf_clearflag(args);
-			goto out;
-		}
-
-		/*
-		 * If this is an atomic rename operation, we must "flip" the
-		 * incomplete flags on the "new" and "old" attribute/value pairs
-		 * so that one disappears and one appears atomically.  Then we
-		 * must remove the "old" attribute/value pair.
-		 *
-		 * In a separate transaction, set the incomplete flag on the
-		 * "old" attr and clear the incomplete flag on the "new" attr.
-		 */
-		if (!xfs_has_larp(mp)) {
-			error = xfs_attr3_leaf_flipflags(args);
-			if (error)
-				goto out;
-			/*
-			 * Commit the flag value change and start the next trans
-			 * in series
-			 */
-			attr->xattri_dela_state = XFS_DAS_FLIP_NFLAG;
-			trace_xfs_attr_set_iter_return(attr->xattri_dela_state,
-						       args->dp);
-			return -EAGAIN;
-		}
-
-		fallthrough;
-	case XFS_DAS_FLIP_NFLAG:
-		/*
-		 * Dismantle the "old" attribute/value pair by removing a
-		 * "remote" value (if it exists).
-		 */
-		xfs_attr_restore_rmt_blk(args);
-
-		error = xfs_attr_rmtval_invalidate(args);
-		if (error)
-			return error;
-
-		fallthrough;
-	case XFS_DAS_RM_NBLK:
-		/* Set state in case xfs_attr_rmtval_remove returns -EAGAIN */
-		attr->xattri_dela_state = XFS_DAS_RM_NBLK;
-		if (args->rmtblkno) {
-			error = xfs_attr_rmtval_remove(attr);
-			if (error == -EAGAIN)
-				trace_xfs_attr_set_iter_return(
-					attr->xattri_dela_state, args->dp);
-
-			if (error)
-				return error;
-
-			attr->xattri_dela_state = XFS_DAS_CLR_FLAG;
-			trace_xfs_attr_set_iter_return(attr->xattri_dela_state,
-						       args->dp);
-			return -EAGAIN;
-		}
-
-		fallthrough;
 	case XFS_DAS_CLR_FLAG:
 		/*
 		 * The last state for node format. Look up the old attr and
@@ -634,7 +548,6 @@ xfs_attr_set_iter(
 		ASSERT(0);
 		break;
 	}
-out:
 	return error;
 }
 

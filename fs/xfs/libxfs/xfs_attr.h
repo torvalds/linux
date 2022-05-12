@@ -450,16 +450,21 @@ enum xfs_delattr_state {
 	XFS_DAS_RMTBLK,			/* Removing remote blks */
 	XFS_DAS_RM_NAME,		/* Remove attr name */
 	XFS_DAS_RM_SHRINK,		/* We are shrinking the tree */
+
+	/* Leaf state set sequence */
 	XFS_DAS_FOUND_LBLK,		/* We found leaf blk for attr */
 	XFS_DAS_LEAF_ALLOC_RMT,		/* We are allocating remote blocks */
-	XFS_DAS_FOUND_NBLK,		/* We found node blk for attr */
-	XFS_DAS_NODE_ALLOC_RMT,		/* We are allocating remote blocks */
 	XFS_DAS_FLIP_LFLAG,		/* Flipped leaf INCOMPLETE attr flag */
 	XFS_DAS_RM_LBLK,		/* A rename is removing leaf blocks */
 	XFS_DAS_RD_LEAF,		/* Read in the new leaf */
+
+	/* Node state set sequence, must match leaf state above */
+	XFS_DAS_FOUND_NBLK,		/* We found node blk for attr */
+	XFS_DAS_NODE_ALLOC_RMT,		/* We are allocating remote blocks */
 	XFS_DAS_FLIP_NFLAG,		/* Flipped node INCOMPLETE attr flag */
 	XFS_DAS_RM_NBLK,		/* A rename is removing node blocks */
 	XFS_DAS_CLR_FLAG,		/* Clear incomplete flag */
+
 	XFS_DAS_DONE,			/* finished operation */
 };
 
