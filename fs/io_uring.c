@@ -10961,13 +10961,13 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 			return -EINVAL;
 		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
 		f.file = tctx->registered_rings[fd];
-		if (unlikely(!f.file))
-			return -EBADF;
+		f.flags = 0;
 	} else {
 		f = fdget(fd);
-		if (unlikely(!f.file))
-			return -EBADF;
 	}
+
+	if (unlikely(!f.file))
+		return -EBADF;
 
 	ret = -EOPNOTSUPP;
 	if (unlikely(f.file->f_op != &io_uring_fops))
@@ -11041,8 +11041,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 out:
 	percpu_ref_put(&ctx->refs);
 out_fput:
-	if (!(flags & IORING_ENTER_REGISTERED_RING))
-		fdput(f);
+	fdput(f);
 	return submitted ? submitted : ret;
 }
 
