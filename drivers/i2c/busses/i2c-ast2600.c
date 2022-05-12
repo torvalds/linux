@@ -1054,8 +1054,12 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 		/* write 0 byte only have stop isr */
 		dev_dbg(i2c_bus->dev, "M clear isr: AST2600_I2CM_NORMAL_STOP = %x\n", sts);
 		i2c_bus->msgs_index++;
-		i2c_bus->cmd_err = i2c_bus->msgs_index;
-		complete(&i2c_bus->cmd_complete);
+		if (i2c_bus->msgs_index < i2c_bus->msgs_count) {
+			ast2600_i2c_do_start(i2c_bus);
+		} else {
+			i2c_bus->cmd_err = i2c_bus->msgs_index;
+			complete(&i2c_bus->cmd_complete);
+		}
 		break;
 	case AST2600_I2CM_TX_ACK:
 		//dev_dbg(i2c_bus->dev, "M : AST2600_I2CM_TX_ACK = %x\n", sts);
