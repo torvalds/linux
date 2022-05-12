@@ -38,7 +38,7 @@ struct igorplugusb {
 
 	struct timer_list timer;
 
-	uint8_t buf_in[MAX_PACKET];
+	u8 *buf_in;
 
 	char phys[64];
 };
@@ -177,6 +177,9 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	if (!ir->urb)
 		goto fail;
 
+	ir->buf_in = kmalloc(MAX_PACKET, GFP_KERNEL);
+	if (!ir->buf_in)
+		goto fail;
 	usb_fill_control_urb(ir->urb, udev,
 		usb_rcvctrlpipe(udev, 0), (uint8_t *)&ir->request,
 		ir->buf_in, sizeof(ir->buf_in), igorplugusb_callback, ir);
@@ -223,6 +226,7 @@ fail:
 	rc_free_device(ir->rc);
 	usb_free_urb(ir->urb);
 	del_timer(&ir->timer);
+	kfree(ir->buf_in);
 
 	return ret;
 }
@@ -236,6 +240,7 @@ static void igorplugusb_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 	usb_kill_urb(ir->urb);
 	usb_free_urb(ir->urb);
+	kfree(ir->buf_in);
 }
 
 static const struct usb_device_id igorplugusb_table[] = {
