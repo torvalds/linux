@@ -37,12 +37,9 @@
 #define EROFS_SB_EXTSLOT_SIZE	16
 
 struct erofs_deviceslot {
-	union {
-		u8 uuid[16];		/* used for device manager later */
-		u8 userdata[64];	/* digest(sha256), etc. */
-	} u;
-	__le32 blocks;			/* total fs blocks of this device */
-	__le32 mapped_blkaddr;		/* map starting at mapped_blkaddr */
+	u8 tag[64];		/* digest(sha256), etc. */
+	__le32 blocks;		/* total fs blocks of this device */
+	__le32 mapped_blkaddr;	/* map starting at mapped_blkaddr */
 	u8 reserved[56];
 };
 #define EROFS_DEVT_SLOT_SIZE	sizeof(struct erofs_deviceslot)
