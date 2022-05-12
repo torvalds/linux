@@ -1636,7 +1636,7 @@ static struct snd_soc_dai_driver rv1106_dai[] = {
 		.capture = {
 			.stream_name = "HiFi Capture",
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 4,
 			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 				    SNDRV_PCM_FMTBIT_S20_3LE |
