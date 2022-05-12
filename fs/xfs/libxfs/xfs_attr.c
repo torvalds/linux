@@ -333,9 +333,11 @@ xfs_attr_leaf_addname(
 	 * or perform more xattr manipulations. Otherwise there is nothing more
 	 * to do and we can return success.
 	 */
-	if (args->rmtblkno ||
-	    (args->op_flags & XFS_DA_OP_RENAME)) {
-		attr->xattri_dela_state = XFS_DAS_FOUND_LBLK;
+	if (args->rmtblkno) {
+		attr->xattri_dela_state = XFS_DAS_LEAF_SET_RMT;
+		error = -EAGAIN;
+	} else if (args->op_flags & XFS_DA_OP_RENAME) {
+		attr->xattri_dela_state = XFS_DAS_LEAF_REPLACE;
 		error = -EAGAIN;
 	} else {
 		attr->xattri_dela_state = XFS_DAS_DONE;
@@ -362,9 +364,11 @@ xfs_attr_node_addname(
 	if (error)
 		return error;
 
-	if (args->rmtblkno ||
-	    (args->op_flags & XFS_DA_OP_RENAME)) {
-		attr->xattri_dela_state = XFS_DAS_FOUND_NBLK;
+	if (args->rmtblkno) {
+		attr->xattri_dela_state = XFS_DAS_NODE_SET_RMT;
+		error = -EAGAIN;
+	} else if (args->op_flags & XFS_DA_OP_RENAME) {
+		attr->xattri_dela_state = XFS_DAS_NODE_REPLACE;
 		error = -EAGAIN;
 	} else {
 		attr->xattri_dela_state = XFS_DAS_DONE;
@@ -374,6 +378,40 @@ xfs_attr_node_addname(
 	return error;
 }
 
+static int
+xfs_attr_rmtval_alloc(
+	struct xfs_attr_item		*attr)
+{
+	struct xfs_da_args              *args = attr->xattri_da_args;
+	int				error = 0;
+
+	/*
+	 * If there was an out-of-line value, allocate the blocks we
+	 * identified for its storage and copy the value.  This is done
+	 * after we create the attribute so that we don't overflow the
+	 * maximum size of a transaction and/or hit a deadlock.
+	 */
+	if (attr->xattri_blkcnt > 0) {
+		error = xfs_attr_rmtval_set_blk(attr);
+		if (error)
+			return error;
+		error = -EAGAIN;
+		goto out;
+	}
+
+	error = xfs_attr_rmtval_set_value(args);
+	if (error)
+		return error;
+
+	/* If this is not a rename, clear the incomplete flag and we're done. */
+	if (!(args->op_flags & XFS_DA_OP_RENAME)) {
+		error = xfs_attr3_leaf_clearflag(args);
+		attr->xattri_dela_state = XFS_DAS_DONE;
+	}
+out:
+	trace_xfs_attr_rmtval_alloc(attr->xattri_dela_state, args->dp);
+	return error;
+}
 
 /*
  * Set the attribute specified in @args.
@@ -405,54 +443,26 @@ next_state:
 	case XFS_DAS_NODE_ADD:
 		return xfs_attr_node_addname(attr);
 
-	case XFS_DAS_FOUND_LBLK:
-	case XFS_DAS_FOUND_NBLK:
-		/*
-		 * Find space for remote blocks and fall into the allocation
-		 * state.
-		 */
-		if (args->rmtblkno > 0) {
-			error = xfs_attr_rmtval_find_space(attr);
-			if (error)
-				return error;
-		}
+	case XFS_DAS_LEAF_SET_RMT:
+	case XFS_DAS_NODE_SET_RMT:
+		error = xfs_attr_rmtval_find_space(attr);
+		if (error)
+			return error;
 		attr->xattri_dela_state++;
 		fallthrough;
+
 	case XFS_DAS_LEAF_ALLOC_RMT:
 	case XFS_DAS_NODE_ALLOC_RMT:
-
-		/*
-		 * If there was an out-of-line value, allocate the blocks we
-		 * identified for its storage and copy the value.  This is done
-		 * after we create the attribute so that we don't overflow the
-		 * maximum size of a transaction and/or hit a deadlock.
-		 */
-		if (args->rmtblkno > 0) {
-			if (attr->xattri_blkcnt > 0) {
-				error = xfs_attr_rmtval_set_blk(attr);
-				if (error)
-					return error;
-				trace_xfs_attr_set_iter_return(
-						attr->xattri_dela_state,
-						args->dp);
-				return -EAGAIN;
-			}
-
-			error = xfs_attr_rmtval_set_value(args);
-			if (error)
-				return error;
-		}
-
-		/*
-		 * If this is not a rename, clear the incomplete flag and we're
-		 * done.
-		 */
-		if (!(args->op_flags & XFS_DA_OP_RENAME)) {
-			if (args->rmtblkno > 0)
-				error = xfs_attr3_leaf_clearflag(args);
+		error = xfs_attr_rmtval_alloc(attr);
+		if (error)
 			return error;
-		}
+		if (attr->xattri_dela_state == XFS_DAS_DONE)
+			break;
+		attr->xattri_dela_state++;
+		fallthrough;
 
+	case XFS_DAS_LEAF_REPLACE:
+	case XFS_DAS_NODE_REPLACE:
 		/*
 		 * If this is an atomic rename operation, we must "flip" the
 		 * incomplete flags on the "new" and "old" attribute/value pairs
@@ -470,10 +480,9 @@ next_state:
 			 * Commit the flag value change and start the next trans
 			 * in series at FLIP_FLAG.
 			 */
+			error = -EAGAIN;
 			attr->xattri_dela_state++;
-			trace_xfs_attr_set_iter_return(attr->xattri_dela_state,
-						       args->dp);
-			return -EAGAIN;
+			break;
 		}
 
 		attr->xattri_dela_state++;
@@ -548,6 +557,8 @@ next_state:
 		ASSERT(0);
 		break;
 	}
+
+	trace_xfs_attr_set_iter_return(attr->xattri_dela_state, args->dp);
 	return error;
 }
 
