@@ -3492,20 +3492,7 @@ repeat:
 			return ERR_PTR(err);
 		}
 
-filler:
-		err = filler(file, folio);
-		if (err < 0) {
-			folio_put(folio);
-			return ERR_PTR(err);
-		}
-
-		folio_wait_locked(folio);
-		if (!folio_test_uptodate(folio)) {
-			folio_put(folio);
-			return ERR_PTR(-EIO);
-		}
-
-		goto out;
+		goto filler;
 	}
 	if (folio_test_uptodate(folio))
 		goto out;
@@ -3535,7 +3522,18 @@ filler:
 	 * set again if read page fails.
 	 */
 	folio_clear_error(folio);
-	goto filler;
+filler:
+	err = filler(file, folio);
+	if (err < 0) {
+		folio_put(folio);
+		return ERR_PTR(err);
+	}
+
+	folio_wait_locked(folio);
+	if (!folio_test_uptodate(folio)) {
+		folio_put(folio);
+		return ERR_PTR(-EIO);
+	}
 
 out:
 	folio_mark_accessed(folio);
