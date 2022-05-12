@@ -545,28 +545,23 @@ static noinline int ntfs_set_acl_ex(struct user_namespace *mnt_userns,
 {
 	const char *name;
 	size_t size, name_len;
-	void *value = NULL;
-	int err = 0;
+	void *value;
+	int err;
 	int flags;
+	umode_t mode;
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
 
+	mode = inode->i_mode;
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		/* Do not change i_mode if we are in init_acl */
 		if (acl && !init_acl) {
-			umode_t mode;
-
 			err = posix_acl_update_mode(mnt_userns, inode, &mode,
 						    &acl);
 			if (err)
 				goto out;
-
-			if (inode->i_mode != mode) {
-				inode->i_mode = mode;
-				mark_inode_dirty(inode);
-			}
 		}
 		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		name_len = sizeof(XATTR_NAME_POSIX_ACL_ACCESS) - 1;
@@ -602,8 +597,13 @@ static noinline int ntfs_set_acl_ex(struct user_namespace *mnt_userns,
 	err = ntfs_set_ea(inode, name, name_len, value, size, flags);
 	if (err == -ENODATA && !size)
 		err = 0; /* Removing non existed xattr. */
-	if (!err)
+	if (!err) {
 		set_cached_acl(inode, type, acl);
+		if (inode->i_mode != mode) {
+			inode->i_mode = mode;
+			mark_inode_dirty(inode);
+		}
+	}
 
 out:
 	kfree(value);
