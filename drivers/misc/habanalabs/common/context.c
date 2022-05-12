@@ -106,9 +106,6 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
 		hl_encaps_sig_mgr_fini(hdev, &ctx->sig_mgr);
-
-		/* Scrub both SRAM and DRAM */
-		hdev->asic_funcs->scrub_device_mem(hdev);
 	} else {
 		dev_dbg(hdev->dev, "closing kernel context\n");
 		hdev->asic_funcs->ctx_fini(ctx);

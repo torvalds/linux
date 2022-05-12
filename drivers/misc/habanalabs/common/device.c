@@ -272,9 +272,15 @@ static void hpriv_release(struct kref *ref)
 	list_del(&hpriv->dev_node);
 	mutex_unlock(&hdev->fpriv_list_lock);
 
-	if ((hdev->reset_if_device_not_idle && !device_is_idle)
-			|| hdev->reset_upon_device_release)
+	if ((hdev->reset_if_device_not_idle && !device_is_idle) ||
+		hdev->reset_upon_device_release) {
 		hl_device_reset(hdev, HL_DRV_RESET_DEV_RELEASE);
+	} else {
+		int rc = hdev->asic_funcs->scrub_device_mem(hdev);
+
+		if (rc)
+			dev_err(hdev->dev, "failed to scrub memory from hpriv release (%d)\n", rc);
+	}
 
 	/* Now we can mark the compute_ctx as not active. Even if a reset is running in a different
 	 * thread, we don't care because the in_reset is marked so if a user will try to open
@@ -1457,6 +1463,12 @@ kill_processes:
 				dev_err(hdev->dev, "Failed late init after soft reset\n");
 			goto out_err;
 		}
+	}
+
+	rc = hdev->asic_funcs->scrub_device_mem(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "scrub mem failed from device reset (%d)\n", rc);
+		return rc;
 	}
 
 	spin_lock(&hdev->reset_info.lock);
