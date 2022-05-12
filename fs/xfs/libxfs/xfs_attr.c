@@ -289,7 +289,6 @@ xfs_attr_sf_addname(
 	 */
 	xfs_trans_bhold(args->trans, attr->xattri_leaf_bp);
 	attr->xattri_dela_state = XFS_DAS_LEAF_ADD;
-	error = -EAGAIN;
 out:
 	trace_xfs_attr_sf_addname_return(attr->xattri_dela_state, args->dp);
 	return error;
@@ -342,7 +341,6 @@ xfs_attr_leaf_addname(
 		 * retry the add to the newly allocated node block.
 		 */
 		attr->xattri_dela_state = XFS_DAS_NODE_ADD;
-		error = -EAGAIN;
 		goto out;
 	}
 	if (error)
@@ -353,20 +351,24 @@ xfs_attr_leaf_addname(
 	 * or perform more xattr manipulations. Otherwise there is nothing more
 	 * to do and we can return success.
 	 */
-	if (args->rmtblkno) {
+	if (args->rmtblkno)
 		attr->xattri_dela_state = XFS_DAS_LEAF_SET_RMT;
-		error = -EAGAIN;
-	} else if (args->op_flags & XFS_DA_OP_RENAME) {
+	else if (args->op_flags & XFS_DA_OP_RENAME)
 		xfs_attr_dela_state_set_replace(attr, XFS_DAS_LEAF_REPLACE);
-		error = -EAGAIN;
-	} else {
+	else
 		attr->xattri_dela_state = XFS_DAS_DONE;
-	}
 out:
 	trace_xfs_attr_leaf_addname_return(attr->xattri_dela_state, args->dp);
 	return error;
 }
 
+/*
+ * Add an entry to a node format attr tree.
+ *
+ * Note that we might still have a leaf here - xfs_attr_is_leaf() cannot tell
+ * the difference between leaf + remote attr blocks and a node format tree,
+ * so we may still end up having to convert from leaf to node format here.
+ */
 static int
 xfs_attr_node_addname(
 	struct xfs_attr_item	*attr)
@@ -381,19 +383,26 @@ xfs_attr_node_addname(
 		return error;
 
 	error = xfs_attr_node_try_addname(attr);
+	if (error == -ENOSPC) {
+		error = xfs_attr3_leaf_to_node(args);
+		if (error)
+			return error;
+		/*
+		 * No state change, we really are in node form now
+		 * but we need the transaction rolled to continue.
+		 */
+		goto out;
+	}
 	if (error)
 		return error;
 
-	if (args->rmtblkno) {
+	if (args->rmtblkno)
 		attr->xattri_dela_state = XFS_DAS_NODE_SET_RMT;
-		error = -EAGAIN;
-	} else if (args->op_flags & XFS_DA_OP_RENAME) {
+	else if (args->op_flags & XFS_DA_OP_RENAME)
 		xfs_attr_dela_state_set_replace(attr, XFS_DAS_NODE_REPLACE);
-		error = -EAGAIN;
-	} else {
+	else
 		attr->xattri_dela_state = XFS_DAS_DONE;
-	}
-
+out:
 	trace_xfs_attr_node_addname_return(attr->xattri_dela_state, args->dp);
 	return error;
 }
@@ -416,10 +425,8 @@ xfs_attr_rmtval_alloc(
 		if (error)
 			return error;
 		/* Roll the transaction only if there is more to allocate. */
-		if (attr->xattri_blkcnt > 0) {
-			error = -EAGAIN;
+		if (attr->xattri_blkcnt > 0)
 			goto out;
-		}
 	}
 
 	error = xfs_attr_rmtval_set_value(args);
@@ -515,11 +522,12 @@ xfs_attr_leaf_shrink(
 }
 
 /*
- * Set the attribute specified in @args.
- * This routine is meant to function as a delayed operation, and may return
- * -EAGAIN when the transaction needs to be rolled.  Calling functions will need
- * to handle this, and recall the function until a successful error code is
- * returned.
+ * Run the attribute operation specified in @attr.
+ *
+ * This routine is meant to function as a delayed operation and will set the
+ * state to XFS_DAS_DONE when the operation is complete.  Calling functions will
+ * need to handle this, and recall the function until either an error or
+ * XFS_DAS_DONE is detected.
  */
 int
 xfs_attr_set_iter(
@@ -572,7 +580,6 @@ next_state:
 		 * We must commit the flag value change now to make it atomic
 		 * and then we can start the next trans in series at REMOVE_OLD.
 		 */
-		error = -EAGAIN;
 		attr->xattri_dela_state++;
 		break;
 
@@ -600,8 +607,10 @@ next_state:
 	case XFS_DAS_LEAF_REMOVE_RMT:
 	case XFS_DAS_NODE_REMOVE_RMT:
 		error = xfs_attr_rmtval_remove(attr);
-		if (error == -EAGAIN)
+		if (error == -EAGAIN) {
+			error = 0;
 			break;
+		}
 		if (error)
 			return error;
 
@@ -613,7 +622,6 @@ next_state:
 		 * can't do that in the same transaction where we removed the
 		 * remote attr blocks.
 		 */
-		error = -EAGAIN;
 		attr->xattri_dela_state++;
 		break;
 
@@ -1249,14 +1257,6 @@ error:
  * This will involve walking down the Btree, and may involve splitting
  * leaf nodes and even splitting intermediate nodes up to and including
  * the root node (a special case of an intermediate node).
- *
- * "Remote" attribute values confuse the issue and atomic rename operations
- * add a whole extra layer of confusion on top of that.
- *
- * This routine is meant to function as a delayed operation, and may return
- * -EAGAIN when the transaction needs to be rolled.  Calling functions will need
- * to handle this, and recall the function until a successful error code is
- *returned.
  */
 static int
 xfs_attr_node_try_addname(
@@ -1278,24 +1278,9 @@ xfs_attr_node_try_addname(
 			/*
 			 * Its really a single leaf node, but it had
 			 * out-of-line values so it looked like it *might*
-			 * have been a b-tree.
+			 * have been a b-tree. Let the caller deal with this.
 			 */
-			xfs_da_state_free(state);
-			state = NULL;
-			error = xfs_attr3_leaf_to_node(args);
-			if (error)
-				goto out;
-
-			/*
-			 * Now that we have converted the leaf to a node, we can
-			 * roll the transaction, and try xfs_attr3_leaf_add
-			 * again on re-entry.  No need to set dela_state to do
-			 * this. dela_state is still unset by this function at
-			 * this point.
-			 */
-			trace_xfs_attr_node_addname_return(
-					attr->xattri_dela_state, args->dp);
-			return -EAGAIN;
+			goto out;
 		}
 
 		/*
@@ -1315,8 +1300,7 @@ xfs_attr_node_try_addname(
 	}
 
 out:
-	if (state)
-		xfs_da_state_free(state);
+	xfs_da_state_free(state);
 	return error;
 }
 

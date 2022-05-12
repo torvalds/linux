@@ -320,6 +320,8 @@ xfs_xattri_finish_update(
 	case XFS_ATTR_OP_FLAGS_SET:
 	case XFS_ATTR_OP_FLAGS_REPLACE:
 		error = xfs_attr_set_iter(attr);
+		if (!error && attr->xattri_dela_state != XFS_DAS_DONE)
+			error = -EAGAIN;
 		break;
 	case XFS_ATTR_OP_FLAGS_REMOVE:
 		ASSERT(XFS_IFORK_Q(args->dp));
