@@ -15,6 +15,8 @@
 
 #define HL_RESET_DELAY_USEC		10000	/* 10ms */
 
+#define MEM_SCRUB_DEFAULT_VAL 0x1122334455667788
+
 /*
  * hl_set_dram_bar- sets the bar to allow later access to address
  *
@@ -1727,6 +1729,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	hdev->asic_funcs->state_dump_init(hdev);
 
+	hdev->memory_scrub_val = MEM_SCRUB_DEFAULT_VAL;
 	hl_debugfs_add_device(hdev);
 
 	/* debugfs nodes are created in hl_ctx_init so it must be called after
