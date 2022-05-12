@@ -240,6 +240,44 @@
 		status = "disabled";
 	};
 
+	ssi0: spi@10043000 {
+		compatible = "ingenic,x1830-spi", "ingenic,x1000-spi";
+		reg = <0x10043000 0x20>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <9>;
+
+		clocks = <&cgu X1830_CLK_SSI0>;
+		clock-names = "spi";
+
+		dmas = <&pdma X1830_DMA_SSI0_RX 0xffffffff>,
+			   <&pdma X1830_DMA_SSI0_TX 0xffffffff>;
+		dma-names = "rx", "tx";
+
+		status = "disabled";
+	};
+
+	ssi1: spi@10044000 {
+		compatible = "ingenic,x1830-spi", "ingenic,x1000-spi";
+		reg = <0x10044000 0x20>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <8>;
+
+		clocks = <&cgu X1830_CLK_SSI1>;
+		clock-names = "spi";
+
+		dmas = <&pdma X1830_DMA_SSI1_RX 0xffffffff>,
+			   <&pdma X1830_DMA_SSI1_TX 0xffffffff>;
+		dma-names = "rx", "tx";
+
+		status = "disabled";
+	};
+
 	i2c0: i2c-controller@10050000 {
 		compatible = "ingenic,x1830-i2c", "ingenic,x1000-i2c";
 		reg = <0x10050000 0x1000>;
@@ -294,6 +332,7 @@
 	pdma: dma-controller@13420000 {
 		compatible = "ingenic,x1830-dma";
 		reg = <0x13420000 0x400>, <0x13421000 0x40>;
+
 		#dma-cells = <2>;
 
 		interrupt-parent = <&intc>;
