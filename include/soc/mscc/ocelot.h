@@ -659,29 +659,32 @@ struct ocelot_port {
 
 	struct regmap			*target;
 
-	bool				vlan_aware;
+	struct net_device		*bond;
+	struct net_device		*bridge;
+
 	/* VLAN that untagged frames are classified to, on ingress */
 	const struct ocelot_bridge_vlan	*pvid_vlan;
 
-	unsigned int			ptp_skbs_in_flight;
-	u8				ptp_cmd;
-	struct sk_buff_head		tx_skbs;
-	u8				ts_id;
-
 	phy_interface_t			phy_mode;
 
-	u8				*xmit_template;
-	bool				is_dsa_8021q_cpu;
-	bool				learn_ena;
-
-	struct net_device		*bond;
-	bool				lag_tx_active;
+	unsigned int			ptp_skbs_in_flight;
+	struct sk_buff_head		tx_skbs;
 
 	u16				mrp_ring_id;
 
-	struct net_device		*bridge;
-	int				bridge_num;
+	u8				ptp_cmd;
+	u8				ts_id;
+
+	u8				index;
+
 	u8				stp_state;
+	bool				vlan_aware;
+	bool				is_dsa_8021q_cpu;
+	bool				learn_ena;
+
+	bool				lag_tx_active;
+
+	int				bridge_num;
 
 	int				speed;
 };
