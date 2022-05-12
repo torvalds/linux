@@ -116,6 +116,10 @@
 #define LM_RC_BAR_CFG_APERTURE(bar, aperture)		\
 					(((aperture) - 2) << ((bar) * 8))
 
+/* PTM Control Register */
+#define CDNS_PCIE_LM_PTM_CTRL 	(CDNS_PCIE_LM_BASE + 0x0da8)
+#define CDNS_PCIE_LM_TPM_CTRL_PTMRSEN 	BIT(17)
+
 /*
  * Endpoint Function Registers (PCI configuration space for endpoint functions)
  */
