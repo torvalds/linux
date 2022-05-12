@@ -1710,13 +1710,18 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		/* report PHY down if timed out */
 		if (rc == -ETIMEDOUT)
 			hisi_sas_phy_down(hisi_hba, sas_phy->id, 0, GFP_KERNEL);
-	} else if (sas_dev->dev_status != HISI_SAS_DEV_INIT) {
-		/*
-		 * If in init state, we rely on caller to wait for link to be
-		 * ready; otherwise, except phy reset is fail, delay.
-		 */
-		if (!rc)
-			msleep(2000);
+		return rc;
+	}
+
+	if (rc)
+		return rc;
+
+	/* Remote phy */
+	if (dev_is_sata(device)) {
+		rc = sas_ata_wait_after_reset(device,
+					HISI_SAS_WAIT_PHYUP_TIMEOUT);
+	} else {
+		msleep(2000);
 	}
 
 	return rc;
