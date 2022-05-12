@@ -216,6 +216,7 @@ struct dc_caps {
 	uint16_t subvp_pstate_allow_width_us;
 	uint16_t subvp_vertical_int_margin_us;
 #endif
+	bool seamless_odm;
 };
 
 struct dc_bug_wa {

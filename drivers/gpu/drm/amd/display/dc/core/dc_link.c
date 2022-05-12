@@ -2126,6 +2126,26 @@ void dc_link_blank_all_dp_displays(struct dc *dc)
 
 }
 
+void dc_link_blank_all_edp_displays(struct dc *dc)
+{
+	unsigned int i;
+	uint8_t dpcd_power_state = '\0';
+	enum dc_status status = DC_ERROR_UNEXPECTED;
+
+	for (i = 0; i < dc->link_count; i++) {
+		if ((dc->links[i]->connector_signal != SIGNAL_TYPE_EDP) ||
+			(!dc->links[i]->edp_sink_present))
+			continue;
+
+		/* if any of the displays are lit up turn them off */
+		status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
+							&dpcd_power_state, sizeof(dpcd_power_state));
+
+		if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0)
+			dc_link_blank_dp_stream(dc->links[i], true);
+	}
+}
+
 void dc_link_blank_dp_stream(struct dc_link *link, bool hw_init)
 {
 	unsigned int j;

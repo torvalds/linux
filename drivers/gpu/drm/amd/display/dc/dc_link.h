@@ -322,6 +322,7 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
 void dc_link_get_psr_residency(const struct dc_link *link, uint32_t *residency);
 
 void dc_link_blank_all_dp_displays(struct dc *dc);
+void dc_link_blank_all_edp_displays(struct dc *dc);
 
 void dc_link_blank_dp_stream(struct dc_link *link, bool hw_init);
 
