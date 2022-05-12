@@ -33,6 +33,10 @@ int vdec_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 		ctx->dec_if = &vdec_h264_if;
 		ctx->hw_id = MTK_VDEC_CORE;
 		break;
+	case V4L2_PIX_FMT_VP8_FRAME:
+		ctx->dec_if = &vdec_vp8_slice_if;
+		ctx->hw_id = MTK_VDEC_CORE;
+		break;
 	case V4L2_PIX_FMT_VP8:
 		ctx->dec_if = &vdec_vp8_if;
 		ctx->hw_id = MTK_VDEC_CORE;
