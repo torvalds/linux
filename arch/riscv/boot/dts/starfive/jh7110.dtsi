@@ -523,6 +523,48 @@
 			status = "okay";
 		};
 
+		sfctemp: tmon@120e0000  {
+			compatible = "starfive,jh7110-temp";
+			reg = <0x0 0x120e0000 0x0 0x10000>;
+			interrupts = <81>;
+			clocks = <&clkgen JH7110_TEMP_SENSOR_CLK_TEMP>,
+				 <&clkgen JH7110_TEMP_SENSOR_CLK_APB>;
+			clock-names = "sense", "bus";
+			resets = <&rstgen RSTN_U0_TEMP_SENSOR_TEMP>,
+				 <&rstgen RSTN_U0_TEMP_SENSOR_APB>;
+			reset-names = "sense", "bus";
+			#thermal-sensor-cells = <0>;
+			status = "disabled";
+		};
+
+		thermal-zones {
+			cpu-thermal {
+				polling-delay-passive = <250>;
+				polling-delay = <15000>;
+
+				thermal-sensors = <&sfctemp>;
+
+				cooling-maps {
+				};
+
+				trips {
+					cpu_alert0: cpu_alert0 {
+						/* milliCelsius */
+						temperature = <75000>;
+						hysteresis = <2000>;
+						type = "passive";
+					};
+
+					cpu_crit: cpu_crit {
+						/* milliCelsius */
+						temperature = <90000>;
+						hysteresis = <2000>;
+						type = "critical";
+					};
+				};
+			};
+		};
+
 		trng: trng@1600C000 {
 			compatible = "starfive,trng";
 			reg = <0x0 0x1600C000 0x0 0x4000>;
