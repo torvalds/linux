@@ -1349,15 +1349,10 @@ EXPORT_SYMBOL(ocelot_drain_cpu_queue);
 int ocelot_fdb_add(struct ocelot *ocelot, int port, const unsigned char *addr,
 		   u16 vid, const struct net_device *bridge)
 {
-	int pgid = port;
-
-	if (port == ocelot->npi)
-		pgid = PGID_CPU;
-
 	if (!vid)
 		vid = ocelot_vlan_unaware_pvid(ocelot, bridge);
 
-	return ocelot_mact_learn(ocelot, pgid, addr, vid, ENTRYTYPE_LOCKED);
+	return ocelot_mact_learn(ocelot, port, addr, vid, ENTRYTYPE_LOCKED);
 }
 EXPORT_SYMBOL(ocelot_fdb_add);
 
@@ -2344,9 +2339,6 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 	struct ocelot_pgid *pgid;
 	u16 vid = mdb->vid;
 
-	if (port == ocelot->npi)
-		port = ocelot->num_phys_ports;
-
 	if (!vid)
 		vid = ocelot_vlan_unaware_pvid(ocelot, bridge);
 
@@ -2403,9 +2395,6 @@ int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 	struct ocelot_multicast *mc;
 	struct ocelot_pgid *pgid;
 	u16 vid = mdb->vid;
-
-	if (port == ocelot->npi)
-		port = ocelot->num_phys_ports;
 
 	if (!vid)
 		vid = ocelot_vlan_unaware_pvid(ocelot, bridge);
@@ -2954,9 +2943,6 @@ EXPORT_SYMBOL(ocelot_port_pre_bridge_flags);
 void ocelot_port_bridge_flags(struct ocelot *ocelot, int port,
 			      struct switchdev_brport_flags flags)
 {
-	if (port == ocelot->npi)
-		port = ocelot->num_phys_ports;
-
 	if (flags.mask & BR_LEARNING)
 		ocelot_port_set_learning(ocelot, port,
 					 !!(flags.val & BR_LEARNING));

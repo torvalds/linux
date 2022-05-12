@@ -262,37 +262,13 @@ static int dsa_slave_close(struct net_device *dev)
 	return 0;
 }
 
-/* Keep flooding enabled towards this port's CPU port as long as it serves at
- * least one port in the tree that requires it.
- */
-static void dsa_port_manage_cpu_flood(struct dsa_port *dp)
+static void dsa_slave_manage_host_flood(struct net_device *dev)
 {
-	struct switchdev_brport_flags flags = {
-		.mask = BR_FLOOD | BR_MCAST_FLOOD,
-	};
-	struct dsa_switch_tree *dst = dp->ds->dst;
-	struct dsa_port *cpu_dp = dp->cpu_dp;
-	struct dsa_port *other_dp;
-	int err;
+	bool mc = dev->flags & (IFF_PROMISC | IFF_ALLMULTI);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	bool uc = dev->flags & IFF_PROMISC;
 
-	list_for_each_entry(other_dp, &dst->ports, list) {
-		if (!dsa_port_is_user(other_dp))
-			continue;
-
-		if (other_dp->cpu_dp != cpu_dp)
-			continue;
-
-		if (other_dp->slave->flags & IFF_ALLMULTI)
-			flags.val |= BR_MCAST_FLOOD;
-		if (other_dp->slave->flags & IFF_PROMISC)
-			flags.val |= BR_FLOOD | BR_MCAST_FLOOD;
-	}
-
-	err = dsa_port_pre_bridge_flags(dp, flags, NULL);
-	if (err)
-		return;
-
-	dsa_port_bridge_flags(cpu_dp, flags, NULL);
+	dsa_port_set_host_flood(dp, uc, mc);
 }
 
 static void dsa_slave_change_rx_flags(struct net_device *dev, int change)
@@ -310,7 +286,7 @@ static void dsa_slave_change_rx_flags(struct net_device *dev, int change)
 
 	if (dsa_switch_supports_uc_filtering(ds) &&
 	    dsa_switch_supports_mc_filtering(ds))
-		dsa_port_manage_cpu_flood(dp);
+		dsa_slave_manage_host_flood(dev);
 }
 
 static void dsa_slave_set_rx_mode(struct net_device *dev)

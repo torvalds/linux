@@ -809,22 +809,18 @@ static int dsa_switch_setup_tag_protocol(struct dsa_switch *ds)
 {
 	const struct dsa_device_ops *tag_ops = ds->dst->tag_ops;
 	struct dsa_switch_tree *dst = ds->dst;
-	struct dsa_port *cpu_dp;
 	int err;
 
 	if (tag_ops->proto == dst->default_proto)
 		goto connect;
 
-	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
-		rtnl_lock();
-		err = ds->ops->change_tag_protocol(ds, cpu_dp->index,
-						   tag_ops->proto);
-		rtnl_unlock();
-		if (err) {
-			dev_err(ds->dev, "Unable to use tag protocol \"%s\": %pe\n",
-				tag_ops->name, ERR_PTR(err));
-			return err;
-		}
+	rtnl_lock();
+	err = ds->ops->change_tag_protocol(ds, tag_ops->proto);
+	rtnl_unlock();
+	if (err) {
+		dev_err(ds->dev, "Unable to use tag protocol \"%s\": %pe\n",
+			tag_ops->name, ERR_PTR(err));
+		return err;
 	}
 
 connect:
