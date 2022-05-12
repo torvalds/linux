@@ -10,9 +10,9 @@ maintainers:
   - Dipen Patel <dipenp@nvidia.com>
 
 description:
-  Some devices/SoCs have hardware time stamping engines which can use hardware
-  means to timestamp entity in realtime. The entity could be anything from
-  GPIOs, IRQs, Bus and so on. The hardware timestamp engine (HTE) present
+  Some devices/SoCs have hardware timestamp engines (HTE) which can use
+  hardware means to timestamp entity in realtime. The entity could be anything
+  from GPIOs, IRQs, Bus and so on. The hardware timestamp engine present
   itself as a provider with the bindings described in this document.
 
 properties:
