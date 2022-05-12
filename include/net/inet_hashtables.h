@@ -111,11 +111,7 @@ struct inet_bind_hashbucket {
 #define LISTENING_NULLS_BASE (1U << 29)
 struct inet_listen_hashbucket {
 	spinlock_t		lock;
-	unsigned int		count;
-	union {
-		struct hlist_head	head;
-		struct hlist_nulls_head	nulls_head;
-	};
+	struct hlist_nulls_head	nulls_head;
 };
 
 /* This is for listening sockets, thus all sockets which possess wildcards. */
@@ -143,31 +139,7 @@ struct inet_hashinfo {
 	/* The 2nd listener table hashed by local port and address */
 	unsigned int			lhash2_mask;
 	struct inet_listen_hashbucket	*lhash2;
-
-	/* All the above members are written once at bootup and
-	 * never written again _or_ are predominantly read-access.
-	 *
-	 * Now align to a new cache line as all the following members
-	 * might be often dirty.
-	 */
-	/* All sockets in TCP_LISTEN state will be in listening_hash.
-	 * This is the only table where wildcard'd TCP sockets can
-	 * exist.  listening_hash is only hashed by local port number.
-	 * If lhash2 is initialized, the same socket will also be hashed
-	 * to lhash2 by port and address.
-	 */
-	struct inet_listen_hashbucket	listening_hash[INET_LHTABLE_SIZE]
-					____cacheline_aligned_in_smp;
 };
-
-#define inet_lhash2_for_each_icsk_continue(__icsk) \
-	hlist_for_each_entry_continue(__icsk, icsk_listen_portaddr_node)
-
-#define inet_lhash2_for_each_icsk(__icsk, list) \
-	hlist_for_each_entry(__icsk, list, icsk_listen_portaddr_node)
-
-#define inet_lhash2_for_each_icsk_rcu(__icsk, list) \
-	hlist_for_each_entry_rcu(__icsk, list, icsk_listen_portaddr_node)
 
 static inline struct inet_listen_hashbucket *
 inet_lhash2_bucket(struct inet_hashinfo *h, u32 hash)
@@ -230,23 +202,11 @@ static inline u32 inet_bhashfn(const struct net *net, const __u16 lport,
 void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 		    const unsigned short snum);
 
-/* These can have wildcards, don't try too hard. */
-static inline u32 inet_lhashfn(const struct net *net, const unsigned short num)
-{
-	return (num + net_hash_mix(net)) & (INET_LHTABLE_SIZE - 1);
-}
-
-static inline int inet_sk_listen_hashfn(const struct sock *sk)
-{
-	return inet_lhashfn(sock_net(sk), inet_sk(sk)->inet_num);
-}
-
 /* Caller must disable local BH processing. */
 int __inet_inherit_port(const struct sock *sk, struct sock *child);
 
 void inet_put_port(struct sock *sk);
 
-void inet_hashinfo_init(struct inet_hashinfo *h);
 void inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 			 unsigned long numentries, int scale,
 			 unsigned long low_limit,

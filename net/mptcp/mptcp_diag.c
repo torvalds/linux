@@ -83,13 +83,13 @@ static void mptcp_diag_dump_listeners(struct sk_buff *skb, struct netlink_callba
 	struct net *net = sock_net(skb->sk);
 	int i;
 
-	for (i = diag_ctx->l_slot; i < INET_LHTABLE_SIZE; i++) {
+	for (i = diag_ctx->l_slot; i <= tcp_hashinfo.lhash2_mask; i++) {
 		struct inet_listen_hashbucket *ilb;
 		struct hlist_nulls_node *node;
 		struct sock *sk;
 		int num = 0;
 
-		ilb = &tcp_hashinfo.listening_hash[i];
+		ilb = &tcp_hashinfo.lhash2[i];
 
 		rcu_read_lock();
 		spin_lock(&ilb->lock);
