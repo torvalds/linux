@@ -91,7 +91,9 @@ static irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev)
 
 	irq_status = phy_read(phydev, MII_LAN83C185_ISF);
 	if (irq_status < 0) {
-		phy_error(phydev);
+		if (irq_status != -ENODEV)
+			phy_error(phydev);
+
 		return IRQ_NONE;
 	}
 
