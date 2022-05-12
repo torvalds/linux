@@ -494,15 +494,14 @@ next_state:
 		/*
 		 * We must "flip" the incomplete flags on the "new" and "old"
 		 * attribute/value pairs so that one disappears and one appears
-		 * atomically.  Then we must remove the "old" attribute/value
-		 * pair.
+		 * atomically.
 		 */
 		error = xfs_attr3_leaf_flipflags(args);
 		if (error)
 			return error;
 		/*
-		 * Commit the flag value change and start the next trans
-		 * in series at REMOVE_OLD.
+		 * We must commit the flag value change now to make it atomic
+		 * and then we can start the next trans in series at REMOVE_OLD.
 		 */
 		error = -EAGAIN;
 		attr->xattri_dela_state++;
@@ -511,41 +510,43 @@ next_state:
 	case XFS_DAS_LEAF_REMOVE_OLD:
 	case XFS_DAS_NODE_REMOVE_OLD:
 		/*
-		 * Dismantle the "old" attribute/value pair by removing a
-		 * "remote" value (if it exists).
+		 * If we have a remote attr, start the process of removing it
+		 * by invalidating any cached buffers.
+		 *
+		 * If we don't have a remote attr, we skip the remote block
+		 * removal state altogether with a second state increment.
 		 */
 		xfs_attr_restore_rmt_blk(args);
-		error = xfs_attr_rmtval_invalidate(args);
+		if (args->rmtblkno) {
+			error = xfs_attr_rmtval_invalidate(args);
+			if (error)
+				return error;
+		} else {
+			attr->xattri_dela_state++;
+		}
+
+		attr->xattri_dela_state++;
+		goto next_state;
+
+	case XFS_DAS_LEAF_REMOVE_RMT:
+	case XFS_DAS_NODE_REMOVE_RMT:
+		error = xfs_attr_rmtval_remove(attr);
+		if (error == -EAGAIN)
+			break;
 		if (error)
 			return error;
 
-		attr->xattri_dela_state++;
-		fallthrough;
-	case XFS_DAS_RM_LBLK:
-	case XFS_DAS_RM_NBLK:
-		if (args->rmtblkno) {
-			error = xfs_attr_rmtval_remove(attr);
-			if (error == -EAGAIN)
-				trace_xfs_attr_set_iter_return(
-					attr->xattri_dela_state, args->dp);
-			if (error)
-				return error;
-
-			attr->xattri_dela_state = XFS_DAS_RD_LEAF;
-			trace_xfs_attr_set_iter_return(attr->xattri_dela_state,
-						       args->dp);
-			return -EAGAIN;
-		}
-
 		/*
-		 * This is the end of the shared leaf/node sequence. We need
-		 * to continue at the next state in the sequence, but we can't
-		 * easily just fall through. So we increment to the next state
-		 * and then jump back to switch statement to evaluate the next
-		 * state correctly.
+		 * We've finished removing the remote attr blocks, so commit the
+		 * transaction and move on to removing the attr name from the
+		 * leaf/node block. Removing the attr might require a full
+		 * transaction reservation for btree block freeing, so we
+		 * can't do that in the same transaction where we removed the
+		 * remote attr blocks.
 		 */
+		error = -EAGAIN;
 		attr->xattri_dela_state++;
-		goto next_state;
+		break;
 
 	case XFS_DAS_RD_LEAF:
 		/*
