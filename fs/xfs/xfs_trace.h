@@ -4129,6 +4129,23 @@ DEFINE_ICLOG_EVENT(xlog_iclog_want_sync);
 DEFINE_ICLOG_EVENT(xlog_iclog_wait_on);
 DEFINE_ICLOG_EVENT(xlog_iclog_write);
 
+TRACE_DEFINE_ENUM(XFS_DAS_UNINIT);
+TRACE_DEFINE_ENUM(XFS_DAS_SF_ADD);
+TRACE_DEFINE_ENUM(XFS_DAS_LEAF_ADD);
+TRACE_DEFINE_ENUM(XFS_DAS_NODE_ADD);
+TRACE_DEFINE_ENUM(XFS_DAS_RMTBLK);
+TRACE_DEFINE_ENUM(XFS_DAS_RM_NAME);
+TRACE_DEFINE_ENUM(XFS_DAS_RM_SHRINK);
+TRACE_DEFINE_ENUM(XFS_DAS_FOUND_LBLK);
+TRACE_DEFINE_ENUM(XFS_DAS_FOUND_NBLK);
+TRACE_DEFINE_ENUM(XFS_DAS_FLIP_LFLAG);
+TRACE_DEFINE_ENUM(XFS_DAS_RM_LBLK);
+TRACE_DEFINE_ENUM(XFS_DAS_RD_LEAF);
+TRACE_DEFINE_ENUM(XFS_DAS_ALLOC_NODE);
+TRACE_DEFINE_ENUM(XFS_DAS_FLIP_NFLAG);
+TRACE_DEFINE_ENUM(XFS_DAS_RM_NBLK);
+TRACE_DEFINE_ENUM(XFS_DAS_CLR_FLAG);
+
 DECLARE_EVENT_CLASS(xfs_das_state_class,
 	TP_PROTO(int das, struct xfs_inode *ip),
 	TP_ARGS(das, ip),
@@ -4140,8 +4157,9 @@ DECLARE_EVENT_CLASS(xfs_das_state_class,
 		__entry->das = das;
 		__entry->ino = ip->i_ino;
 	),
-	TP_printk("state change %d ino 0x%llx",
-		  __entry->das, __entry->ino)
+	TP_printk("state change %s ino 0x%llx",
+		  __print_symbolic(__entry->das, XFS_DAS_STRINGS),
+		  __entry->ino)
 )
 
 #define DEFINE_DAS_STATE_EVENT(name) \

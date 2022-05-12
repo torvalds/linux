@@ -577,10 +577,21 @@ xfs_attri_item_recover(
 	args->hashval = xfs_da_hashname(args->name, args->namelen);
 	args->attr_filter = attrp->alfi_attr_flags;
 
-	if (attrp->alfi_op_flags == XFS_ATTR_OP_FLAGS_SET) {
+	switch (attrp->alfi_op_flags & XFS_ATTR_OP_FLAGS_TYPE_MASK) {
+	case XFS_ATTR_OP_FLAGS_SET:
+	case XFS_ATTR_OP_FLAGS_REPLACE:
 		args->value = attrip->attri_value;
 		args->valuelen = attrp->alfi_value_len;
 		args->total = xfs_attr_calc_size(args, &local);
+		attr->xattri_dela_state = xfs_attr_init_add_state(args);
+		break;
+	case XFS_ATTR_OP_FLAGS_REMOVE:
+		attr->xattri_dela_state = XFS_DAS_UNINIT;
+		break;
+	default:
+		ASSERT(0);
+		error = -EFSCORRUPTED;
+		goto out;
 	}
 
 	xfs_init_attr_trans(args, &tres, &total);

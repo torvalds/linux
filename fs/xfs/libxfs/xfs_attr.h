@@ -443,20 +443,43 @@ struct xfs_attr_list_context {
  * to where it was and resume executing where it left off.
  */
 enum xfs_delattr_state {
-	XFS_DAS_UNINIT		= 0,  /* No state has been set yet */
-	XFS_DAS_RMTBLK,		      /* Removing remote blks */
-	XFS_DAS_RM_NAME,	      /* Remove attr name */
-	XFS_DAS_RM_SHRINK,	      /* We are shrinking the tree */
-	XFS_DAS_FOUND_LBLK,	      /* We found leaf blk for attr */
-	XFS_DAS_FOUND_NBLK,	      /* We found node blk for attr */
-	XFS_DAS_FLIP_LFLAG,	      /* Flipped leaf INCOMPLETE attr flag */
-	XFS_DAS_RM_LBLK,	      /* A rename is removing leaf blocks */
-	XFS_DAS_RD_LEAF,	      /* Read in the new leaf */
-	XFS_DAS_ALLOC_NODE,	      /* We are allocating node blocks */
-	XFS_DAS_FLIP_NFLAG,	      /* Flipped node INCOMPLETE attr flag */
-	XFS_DAS_RM_NBLK,	      /* A rename is removing node blocks */
-	XFS_DAS_CLR_FLAG,	      /* Clear incomplete flag */
+	XFS_DAS_UNINIT		= 0,	/* No state has been set yet */
+	XFS_DAS_SF_ADD,			/* Initial shortform set iter state */
+	XFS_DAS_LEAF_ADD,		/* Initial leaf form set iter state */
+	XFS_DAS_NODE_ADD,		/* Initial node form set iter state */
+	XFS_DAS_RMTBLK,			/* Removing remote blks */
+	XFS_DAS_RM_NAME,		/* Remove attr name */
+	XFS_DAS_RM_SHRINK,		/* We are shrinking the tree */
+	XFS_DAS_FOUND_LBLK,		/* We found leaf blk for attr */
+	XFS_DAS_FOUND_NBLK,		/* We found node blk for attr */
+	XFS_DAS_FLIP_LFLAG,		/* Flipped leaf INCOMPLETE attr flag */
+	XFS_DAS_RM_LBLK,		/* A rename is removing leaf blocks */
+	XFS_DAS_RD_LEAF,		/* Read in the new leaf */
+	XFS_DAS_ALLOC_NODE,		/* We are allocating node blocks */
+	XFS_DAS_FLIP_NFLAG,		/* Flipped node INCOMPLETE attr flag */
+	XFS_DAS_RM_NBLK,		/* A rename is removing node blocks */
+	XFS_DAS_CLR_FLAG,		/* Clear incomplete flag */
+	XFS_DAS_DONE,			/* finished operation */
 };
+
+#define XFS_DAS_STRINGS	\
+	{ XFS_DAS_UNINIT,	"XFS_DAS_UNINIT" }, \
+	{ XFS_DAS_SF_ADD,	"XFS_DAS_SF_ADD" }, \
+	{ XFS_DAS_LEAF_ADD,	"XFS_DAS_LEAF_ADD" }, \
+	{ XFS_DAS_NODE_ADD,	"XFS_DAS_NODE_ADD" }, \
+	{ XFS_DAS_RMTBLK,	"XFS_DAS_RMTBLK" }, \
+	{ XFS_DAS_RM_NAME,	"XFS_DAS_RM_NAME" }, \
+	{ XFS_DAS_RM_SHRINK,	"XFS_DAS_RM_SHRINK" }, \
+	{ XFS_DAS_FOUND_LBLK,	"XFS_DAS_FOUND_LBLK" }, \
+	{ XFS_DAS_FOUND_NBLK,	"XFS_DAS_FOUND_NBLK" }, \
+	{ XFS_DAS_FLIP_LFLAG,	"XFS_DAS_FLIP_LFLAG" }, \
+	{ XFS_DAS_RM_LBLK,	"XFS_DAS_RM_LBLK" }, \
+	{ XFS_DAS_RD_LEAF,	"XFS_DAS_RD_LEAF" }, \
+	{ XFS_DAS_ALLOC_NODE,	"XFS_DAS_ALLOC_NODE" }, \
+	{ XFS_DAS_FLIP_NFLAG,	"XFS_DAS_FLIP_NFLAG" }, \
+	{ XFS_DAS_RM_NBLK,	"XFS_DAS_RM_NBLK" }, \
+	{ XFS_DAS_CLR_FLAG,	"XFS_DAS_CLR_FLAG" }, \
+	{ XFS_DAS_DONE,		"XFS_DAS_DONE" }
 
 /*
  * Defines for xfs_attr_item.xattri_flags
@@ -529,5 +552,45 @@ int __init xfs_attri_init_cache(void);
 void xfs_attri_destroy_cache(void);
 int __init xfs_attrd_init_cache(void);
 void xfs_attrd_destroy_cache(void);
+
+/*
+ * Check to see if the attr should be upgraded from non-existent or shortform to
+ * single-leaf-block attribute list.
+ */
+static inline bool
+xfs_attr_is_shortform(
+	struct xfs_inode    *ip)
+{
+	return ip->i_afp->if_format == XFS_DINODE_FMT_LOCAL ||
+	       (ip->i_afp->if_format == XFS_DINODE_FMT_EXTENTS &&
+		ip->i_afp->if_nextents == 0);
+}
+
+static inline enum xfs_delattr_state
+xfs_attr_init_add_state(struct xfs_da_args *args)
+{
+
+	/*
+	 * When called from the completion of a attr remove to determine the
+	 * next state, the attribute fork may be null. This can occur only occur
+	 * on a pure remove, but we grab the next state before we check if a
+	 * replace operation is being performed. If we are called from any other
+	 * context, i_afp is guaranteed to exist. Hence if the attr fork is
+	 * null, we were called from a pure remove operation and so we are done.
+	 */
+	if (!args->dp->i_afp)
+		return XFS_DAS_DONE;
+	if (xfs_attr_is_shortform(args->dp))
+		return XFS_DAS_SF_ADD;
+	if (xfs_attr_is_leaf(args->dp))
+		return XFS_DAS_LEAF_ADD;
+	return XFS_DAS_NODE_ADD;
+}
+
+static inline enum xfs_delattr_state
+xfs_attr_init_replace_state(struct xfs_da_args *args)
+{
+	return xfs_attr_init_add_state(args);
+}
 
 #endif	/* __XFS_ATTR_H__ */
