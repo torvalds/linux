@@ -429,7 +429,7 @@ call into the core gpiolib code:
 
   static void my_gpio_mask_irq(struct irq_data *d)
   {
-      struct gpio_chip *gc = irq_desc_get_handler_data(d);
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 
       /*
        * Perform any necessary action to mask the interrupt,
@@ -442,7 +442,7 @@ call into the core gpiolib code:
 
   static void my_gpio_unmask_irq(struct irq_data *d)
   {
-      struct gpio_chip *gc = irq_desc_get_handler_data(d);
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 
       gpiochip_enable_irq(gc, d->hwirq);
 
@@ -501,7 +501,7 @@ the interrupt separately and go with it:
 
   static void my_gpio_mask_irq(struct irq_data *d)
   {
-      struct gpio_chip *gc = irq_desc_get_handler_data(d);
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 
       /*
        * Perform any necessary action to mask the interrupt,
@@ -514,7 +514,7 @@ the interrupt separately and go with it:
 
   static void my_gpio_unmask_irq(struct irq_data *d)
   {
-      struct gpio_chip *gc = irq_desc_get_handler_data(d);
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 
       gpiochip_enable_irq(gc, d->hwirq);
 
@@ -576,7 +576,7 @@ In this case the typical set-up will look like this:
 
   static void my_gpio_mask_irq(struct irq_data *d)
   {
-      struct gpio_chip *gc = irq_desc_get_handler_data(d);
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 
       /*
        * Perform any necessary action to mask the interrupt,
@@ -590,7 +590,7 @@ In this case the typical set-up will look like this:
 
   static void my_gpio_unmask_irq(struct irq_data *d)
   {
-      struct gpio_chip *gc = irq_desc_get_handler_data(d);
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 
       gpiochip_enable_irq(gc, d->hwirq);
 
