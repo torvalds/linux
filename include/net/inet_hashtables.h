@@ -111,7 +111,6 @@ struct inet_bind_hashbucket {
 #define LISTENING_NULLS_BASE (1U << 29)
 struct inet_listen_hashbucket {
 	spinlock_t		lock;
-	unsigned int		count;
 	union {
 		struct hlist_head	head;
 		struct hlist_nulls_head	nulls_head;

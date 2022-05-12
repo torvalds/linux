@@ -209,7 +209,6 @@ static void inet_hash2(struct inet_hashinfo *h, struct sock *sk)
 	else
 		hlist_add_head_rcu(&inet_csk(sk)->icsk_listen_portaddr_node,
 				   &ilb2->head);
-	ilb2->count++;
 	spin_unlock(&ilb2->lock);
 }
 
@@ -225,7 +224,6 @@ static void inet_unhash2(struct inet_hashinfo *h, struct sock *sk)
 
 	spin_lock(&ilb2->lock);
 	hlist_del_init_rcu(&inet_csk(sk)->icsk_listen_portaddr_node);
-	ilb2->count--;
 	spin_unlock(&ilb2->lock);
 }
 
@@ -657,7 +655,6 @@ int __inet_hash(struct sock *sk, struct sock *osk)
 	else
 		__sk_nulls_add_node_rcu(sk, &ilb->nulls_head);
 	inet_hash2(hashinfo, sk);
-	ilb->count++;
 	sock_set_flag(sk, SOCK_RCU_FREE);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 unlock:
@@ -689,7 +686,6 @@ static void __inet_unhash(struct sock *sk, struct inet_listen_hashbucket *ilb)
 		struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 
 		inet_unhash2(hashinfo, sk);
-		ilb->count--;
 	}
 	__sk_nulls_del_node_init_rcu(sk);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
@@ -882,7 +878,6 @@ void inet_hashinfo_init(struct inet_hashinfo *h)
 		spin_lock_init(&h->listening_hash[i].lock);
 		INIT_HLIST_NULLS_HEAD(&h->listening_hash[i].nulls_head,
 				      i + LISTENING_NULLS_BASE);
-		h->listening_hash[i].count = 0;
 	}
 
 	h->lhash2 = NULL;
@@ -896,7 +891,6 @@ static void init_hashinfo_lhash2(struct inet_hashinfo *h)
 	for (i = 0; i <= h->lhash2_mask; i++) {
 		spin_lock_init(&h->lhash2[i].lock);
 		INIT_HLIST_HEAD(&h->lhash2[i].head);
-		h->lhash2[i].count = 0;
 	}
 }
 
