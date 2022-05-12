@@ -1150,13 +1150,12 @@ static void ipa_endpoint_skb_copy(struct ipa_endpoint *endpoint,
 		return;
 
 	skb = __dev_alloc_skb(len, GFP_ATOMIC);
-	if (!skb)
-		return;
-
-	/* Copy the data into the socket buffer and receive it */
-	skb_put(skb, len);
-	memcpy(skb->data, data, len);
-	skb->truesize += extra;
+	if (skb) {
+		/* Copy the data into the socket buffer and receive it */
+		skb_put(skb, len);
+		memcpy(skb->data, data, len);
+		skb->truesize += extra;
+	}
 
 	ipa_modem_skb_rx(endpoint->netdev, skb);
 }
