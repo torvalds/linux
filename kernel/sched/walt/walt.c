@@ -281,6 +281,8 @@ void walt_dump(void)
 	printk_deferred("Sched clock: %llu\n", walt_sched_clock());
 	printk_deferred("Time last window changed=%lu\n",
 			sched_ravg_window_change_time);
+	printk_deferred("global_ws=%llu\n",
+			 atomic64_read(&walt_irq_work_lastq_ws));
 	for_each_online_cpu(cpu)
 		walt_rq_dump(cpu);
 	SCHED_PRINT(max_possible_cluster_id);
