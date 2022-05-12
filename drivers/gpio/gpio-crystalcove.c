@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
+#include <linux/types.h>
 
 #define CRYSTALCOVE_GPIO_NUM	16
 #define CRYSTALCOVE_VGPIO_NUM	95
@@ -238,34 +239,43 @@ static void crystalcove_bus_sync_unlock(struct irq_data *data)
 
 static void crystalcove_irq_unmask(struct irq_data *data)
 {
-	struct crystalcove_gpio *cg =
-		gpiochip_get_data(irq_data_get_irq_chip_data(data));
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct crystalcove_gpio *cg = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
 
-	if (data->hwirq < CRYSTALCOVE_GPIO_NUM) {
-		cg->set_irq_mask = false;
-		cg->update |= UPDATE_IRQ_MASK;
-	}
+	if (hwirq >= CRYSTALCOVE_GPIO_NUM)
+		return;
+
+	gpiochip_enable_irq(gc, hwirq);
+
+	cg->set_irq_mask = false;
+	cg->update |= UPDATE_IRQ_MASK;
 }
 
 static void crystalcove_irq_mask(struct irq_data *data)
 {
-	struct crystalcove_gpio *cg =
-		gpiochip_get_data(irq_data_get_irq_chip_data(data));
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct crystalcove_gpio *cg = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
 
-	if (data->hwirq < CRYSTALCOVE_GPIO_NUM) {
-		cg->set_irq_mask = true;
-		cg->update |= UPDATE_IRQ_MASK;
-	}
+	if (hwirq >= CRYSTALCOVE_GPIO_NUM)
+		return;
+
+	cg->set_irq_mask = true;
+	cg->update |= UPDATE_IRQ_MASK;
+
+	gpiochip_disable_irq(gc, hwirq);
 }
 
-static struct irq_chip crystalcove_irqchip = {
+static const struct irq_chip crystalcove_irqchip = {
 	.name			= "Crystal Cove",
 	.irq_mask		= crystalcove_irq_mask,
 	.irq_unmask		= crystalcove_irq_unmask,
 	.irq_set_type		= crystalcove_irq_type,
 	.irq_bus_lock		= crystalcove_bus_lock,
 	.irq_bus_sync_unlock	= crystalcove_bus_sync_unlock,
-	.flags			= IRQCHIP_SKIP_SET_WAKE,
+	.flags			= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static irqreturn_t crystalcove_gpio_irq_handler(int irq, void *data)
@@ -353,7 +363,7 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	cg->regmap = pmic->regmap;
 
 	girq = &cg->chip.irq;
-	girq->chip = &crystalcove_irqchip;
+	gpio_irq_chip_set_chip(girq, &crystalcove_irqchip);
 	/* This will let us handle the parent IRQ in the driver */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
