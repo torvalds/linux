@@ -33,6 +33,7 @@ config SND_SOC_SOF_MT8186
 config SND_SOC_SOF_MT8195
 	tristate "SOF support for MT8195 audio DSP"
 	select SND_SOC_SOF_MTK_COMMON
+	depends on MTK_ADSP_IPC
 	help
 	  This adds support for Sound Open Firmware for Mediatek platforms
 	  using the mt8195 processors.
