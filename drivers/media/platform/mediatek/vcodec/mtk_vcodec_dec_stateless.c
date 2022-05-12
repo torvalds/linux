@@ -108,23 +108,6 @@ static const struct mtk_codec_framesizes mtk_vdec_framesizes[] = {
 
 #define NUM_SUPPORTED_FRAMESIZE ARRAY_SIZE(mtk_vdec_framesizes)
 
-static void mtk_vdec_stateless_set_dst_payload(struct mtk_vcodec_ctx *ctx,
-					       struct vdec_fb *fb)
-{
-	struct mtk_video_dec_buf *vdec_frame_buf =
-		container_of(fb, struct mtk_video_dec_buf, frame_buffer);
-	struct vb2_v4l2_buffer *vb = &vdec_frame_buf->m2m_buf.vb;
-	unsigned int cap_y_size = ctx->q_data[MTK_Q_DATA_DST].sizeimage[0];
-
-	vb2_set_plane_payload(&vb->vb2_buf, 0, cap_y_size);
-	if (ctx->q_data[MTK_Q_DATA_DST].fmt->num_planes == 2) {
-		unsigned int cap_c_size =
-			ctx->q_data[MTK_Q_DATA_DST].sizeimage[1];
-
-		vb2_set_plane_payload(&vb->vb2_buf, 1, cap_c_size);
-	}
-}
-
 static struct vdec_fb *vdec_get_cap_buffer(struct mtk_vcodec_ctx *ctx,
 					   struct vb2_v4l2_buffer *vb2_v4l2)
 {
@@ -219,8 +202,6 @@ static void mtk_vdec_worker(struct work_struct *work)
 			mutex_unlock(&ctx->lock);
 		}
 	}
-
-	mtk_vdec_stateless_set_dst_payload(ctx, dst_buf);
 
 	v4l2_m2m_buf_done_and_job_finish(dev->m2m_dev_dec, ctx->m2m_ctx,
 					 ret ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
