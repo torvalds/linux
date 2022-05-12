@@ -3351,6 +3351,7 @@ static int ab8500_charger_bind(struct device *dev)
 	ret = component_bind_all(dev, di);
 	if (ret) {
 		dev_err(dev, "can't bind component devices\n");
+		destroy_workqueue(di->charger_wq);
 		return ret;
 	}
 
