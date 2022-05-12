@@ -3191,6 +3191,16 @@ static void kvmclock_sync_fn(struct work_struct *work)
 					KVMCLOCK_SYNC_PERIOD);
 }
 
+/* These helpers are safe iff @msr is known to be an MCx bank MSR. */
+static bool is_mci_control_msr(u32 msr)
+{
+	return (msr & 3) == 0;
+}
+static bool is_mci_status_msr(u32 msr)
+{
+	return (msr & 3) == 1;
+}
+
 /*
  * On AMD, HWCR[McStatusWrEn] controls whether setting MCi_STATUS results in #GP.
  */
@@ -3228,9 +3238,6 @@ static int set_msr_mce(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (msr > last_msr)
 			return 1;
 
-		offset = array_index_nospec(msr - MSR_IA32_MC0_CTL,
-					    last_msr + 1 - MSR_IA32_MC0_CTL);
-
 		/*
 		 * Only 0 or all 1s can be written to IA32_MCi_CTL, all other
 		 * values are architecturally undefined.  But, some Linux
@@ -3241,15 +3248,21 @@ static int set_msr_mce(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		 * UNIXWARE clears bit 0 of MC1_CTL to ignore correctable,
 		 * single-bit ECC data errors.
 		 */
-		if ((offset & 0x3) == 0 &&
+		if (is_mci_control_msr(msr) &&
 		    data != 0 && (data | (1 << 10) | 1) != ~(u64)0)
 			return 1;
 
-		/* MCi_STATUS */
-		if (!msr_info->host_initiated && (offset & 0x3) == 1 &&
+		/*
+		 * All CPUs allow writing 0 to MCi_STATUS MSRs to clear the MSR.
+		 * AMD-based CPUs allow non-zero values, but if and only if
+		 * HWCR[McStatusWrEn] is set.
+		 */
+		if (!msr_info->host_initiated && is_mci_status_msr(msr) &&
 		    data != 0 && !can_set_mci_status(vcpu))
 			return 1;
 
+		offset = array_index_nospec(msr - MSR_IA32_MC0_CTL,
+					    last_msr + 1 - MSR_IA32_MC0_CTL);
 		vcpu->arch.mce_banks[offset] = data;
 		break;
 	default:
