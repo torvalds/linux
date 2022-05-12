@@ -864,6 +864,14 @@ static int mt79xx_setup(struct hci_dev *hdev, const char *fwname)
 		return err;
 	}
 
+	err = btmtksdio_fw_pmctrl(bdev);
+	if (err < 0)
+		return err;
+
+	err = btmtksdio_drv_pmctrl(bdev);
+	if (err < 0)
+		return err;
+
 	/* Enable Bluetooth protocol */
 	wmt_params.op = BTMTK_WMT_FUNC_CTRL;
 	wmt_params.flag = 0;
@@ -1106,14 +1114,6 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 			 "mediatek/BT_RAM_CODE_MT%04x_1_%x_hdr.bin",
 			 dev_id & 0xffff, (fw_version & 0xff) + 1);
 		err = mt79xx_setup(hdev, fwname);
-		if (err < 0)
-			return err;
-
-		err = btmtksdio_fw_pmctrl(bdev);
-		if (err < 0)
-			return err;
-
-		err = btmtksdio_drv_pmctrl(bdev);
 		if (err < 0)
 			return err;
 
