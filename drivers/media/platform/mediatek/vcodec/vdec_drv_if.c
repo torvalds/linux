@@ -16,11 +16,18 @@
 
 int vdec_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 {
+	enum mtk_vdec_hw_arch hw_arch = ctx->dev->vdec_pdata->hw_arch;
 	int ret = 0;
 
 	switch (fourcc) {
 	case V4L2_PIX_FMT_H264_SLICE:
-		ctx->dec_if = &vdec_h264_slice_if;
+		if (!ctx->dev->vdec_pdata->is_subdev_supported) {
+			ctx->dec_if = &vdec_h264_slice_if;
+			ctx->hw_id = MTK_VDEC_CORE;
+		} else {
+			ctx->dec_if = &vdec_h264_slice_multi_if;
+			ctx->hw_id = IS_VDEC_LAT_ARCH(hw_arch) ? MTK_VDEC_LAT0 : MTK_VDEC_CORE;
+		}
 		break;
 	case V4L2_PIX_FMT_H264:
 		ctx->dec_if = &vdec_h264_if;

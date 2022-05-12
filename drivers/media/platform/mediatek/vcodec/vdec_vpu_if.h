@@ -28,6 +28,7 @@ struct mtk_vcodec_ctx;
  * @wq          : wait queue to wait VPU message ack
  * @handler     : ipi handler for each decoder
  * @codec_type     : use codec type to separate different codecs
+ * @capture_type:	used capture type to separate different capture format
  * @fb_sz  : frame buffer size of each plane
  */
 struct vdec_vpu_inst {
@@ -43,6 +44,7 @@ struct vdec_vpu_inst {
 	wait_queue_head_t wq;
 	mtk_vcodec_ipi_handler handler;
 	unsigned int codec_type;
+	unsigned int capture_type;
 	unsigned int fb_sz[2];
 };
 
