@@ -582,9 +582,6 @@ xfs_qm_init_timelimits(
 	defq->blk.time = XFS_QM_BTIMELIMIT;
 	defq->ino.time = XFS_QM_ITIMELIMIT;
 	defq->rtb.time = XFS_QM_RTBTIMELIMIT;
-	defq->blk.warn = XFS_QM_BWARNLIMIT;
-	defq->ino.warn = XFS_QM_IWARNLIMIT;
-	defq->rtb.warn = XFS_QM_RTBWARNLIMIT;
 
 	/*
 	 * We try to get the limits from the superuser's limits fields.
@@ -608,12 +605,6 @@ xfs_qm_init_timelimits(
 		defq->ino.time = dqp->q_ino.timer;
 	if (dqp->q_rtb.timer)
 		defq->rtb.time = dqp->q_rtb.timer;
-	if (dqp->q_blk.warnings)
-		defq->blk.warn = dqp->q_blk.warnings;
-	if (dqp->q_ino.warnings)
-		defq->ino.warn = dqp->q_ino.warnings;
-	if (dqp->q_rtb.warnings)
-		defq->rtb.warn = dqp->q_rtb.warnings;
 
 	xfs_qm_dqdestroy(dqp);
 }

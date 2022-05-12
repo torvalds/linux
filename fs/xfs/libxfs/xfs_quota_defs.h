@@ -16,7 +16,6 @@
  * and quota-limits. This is a waste in the common case, but hey ...
  */
 typedef uint64_t	xfs_qcnt_t;
-typedef uint16_t	xfs_qwarncnt_t;
 
 typedef uint8_t		xfs_dqtype_t;
 
