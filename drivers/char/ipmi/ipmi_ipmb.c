@@ -475,6 +475,7 @@ static int ipmi_ipmb_probe(struct i2c_client *client)
 	slave_np = of_parse_phandle(dev->of_node, "slave-dev", 0);
 	if (slave_np) {
 		slave_adap = of_get_i2c_adapter_by_node(slave_np);
+		of_node_put(slave_np);
 		if (!slave_adap) {
 			dev_notice(&client->dev,
 				   "Could not find slave adapter\n");
