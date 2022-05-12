@@ -1383,9 +1383,9 @@ void drv_disable_wq(struct idxd_wq *wq)
 	idxd_wq_free_resources(wq);
 	idxd_wq_unmap_portal(wq);
 	idxd_wq_drain(wq);
+	idxd_wq_free_irq(wq);
 	idxd_wq_reset(wq);
 	percpu_ref_exit(&wq->wq_active);
-	idxd_wq_free_irq(wq);
 	wq->type = IDXD_WQT_NONE;
 	wq->client_count = 0;
 }
