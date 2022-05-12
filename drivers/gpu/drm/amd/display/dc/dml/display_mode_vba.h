@@ -465,6 +465,7 @@ struct vba_vars_st {
 	unsigned int CursorBPP[DC__NUM_DPP__MAX][DC__NUM_CURSOR__MAX];
 	bool XFCEnabled[DC__NUM_DPP__MAX];
 	bool ScalerEnabled[DC__NUM_DPP__MAX];
+	unsigned int VBlankNom[DC__NUM_DPP__MAX];
 
 	// Intermediates/Informational
 	bool ImmediateFlipSupport;

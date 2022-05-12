@@ -329,6 +329,7 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int number_of_cursors;
 	unsigned int max_num_dp2p0_outputs;
 	unsigned int max_num_dp2p0_streams;
+	unsigned int VBlankNomDefaultUS;
 };
 
 struct _vcs_dpi_display_xfc_params_st {
