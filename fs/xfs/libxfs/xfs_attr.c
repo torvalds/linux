@@ -466,7 +466,7 @@ xfs_attr_leaf_addname(
 	 */
 	if (args->rmtblkno)
 		attr->xattri_dela_state = XFS_DAS_LEAF_SET_RMT;
-	else if (args->op_flags & XFS_DA_OP_RENAME)
+	else if (args->op_flags & XFS_DA_OP_REPLACE)
 		xfs_attr_dela_state_set_replace(attr, XFS_DAS_LEAF_REPLACE);
 	else
 		attr->xattri_dela_state = XFS_DAS_DONE;
@@ -511,7 +511,7 @@ xfs_attr_node_addname(
 
 	if (args->rmtblkno)
 		attr->xattri_dela_state = XFS_DAS_NODE_SET_RMT;
-	else if (args->op_flags & XFS_DA_OP_RENAME)
+	else if (args->op_flags & XFS_DA_OP_REPLACE)
 		xfs_attr_dela_state_set_replace(attr, XFS_DAS_NODE_REPLACE);
 	else
 		attr->xattri_dela_state = XFS_DAS_DONE;
@@ -547,7 +547,7 @@ xfs_attr_rmtval_alloc(
 		return error;
 
 	/* If this is not a rename, clear the incomplete flag and we're done. */
-	if (!(args->op_flags & XFS_DA_OP_RENAME)) {
+	if (!(args->op_flags & XFS_DA_OP_REPLACE)) {
 		error = xfs_attr3_leaf_clearflag(args);
 		attr->xattri_dela_state = XFS_DAS_DONE;
 	} else {
@@ -966,8 +966,6 @@ xfs_attr_set(
 
 	if (args->value) {
 		XFS_STATS_INC(mp, xs_attr_set);
-
-		args->op_flags |= XFS_DA_OP_ADDNAME;
 		args->total = xfs_attr_calc_size(args, &local);
 
 		/*
@@ -1125,28 +1123,41 @@ static inline int xfs_attr_sf_totsize(struct xfs_inode *dp)
  * Add a name to the shortform attribute list structure
  * This is the external routine.
  */
-STATIC int
-xfs_attr_shortform_addname(xfs_da_args_t *args)
+static int
+xfs_attr_shortform_addname(
+	struct xfs_da_args	*args)
 {
-	int newsize, forkoff, retval;
+	int			newsize, forkoff;
+	int			error;
 
 	trace_xfs_attr_sf_addname(args);
 
-	retval = xfs_attr_shortform_lookup(args);
-	if (retval == -ENOATTR && (args->attr_flags & XATTR_REPLACE))
-		return retval;
-	if (retval == -EEXIST) {
-		if (args->attr_flags & XATTR_CREATE)
-			return retval;
-		retval = xfs_attr_sf_removename(args);
-		if (retval)
-			return retval;
+	error = xfs_attr_shortform_lookup(args);
+	switch (error) {
+	case -ENOATTR:
+		if (args->op_flags & XFS_DA_OP_REPLACE)
+			return error;
+		break;
+	case -EEXIST:
+		if (!(args->op_flags & XFS_DA_OP_REPLACE))
+			return error;
+
+		error = xfs_attr_sf_removename(args);
+		if (error)
+			return error;
+
 		/*
-		 * Since we have removed the old attr, clear ATTR_REPLACE so
-		 * that the leaf format add routine won't trip over the attr
-		 * not being around.
+		 * Since we have removed the old attr, clear XFS_DA_OP_REPLACE
+		 * so that the new attr doesn't fit in shortform format, the
+		 * leaf format add routine won't trip over the attr not being
+		 * around.
 		 */
-		args->attr_flags &= ~XATTR_REPLACE;
+		args->op_flags &= ~XFS_DA_OP_REPLACE;
+		break;
+	case 0:
+		break;
+	default:
+		return error;
 	}
 
 	if (args->namelen >= XFS_ATTR_SF_ENTSIZE_MAX ||
@@ -1169,8 +1180,8 @@ xfs_attr_shortform_addname(xfs_da_args_t *args)
  * External routines when attribute list is one block
  *========================================================================*/
 
-/* Store info about a remote block */
-STATIC void
+/* Save the current remote block info and clear the current pointers. */
+static void
 xfs_attr_save_rmt_blk(
 	struct xfs_da_args	*args)
 {
@@ -1179,10 +1190,13 @@ xfs_attr_save_rmt_blk(
 	args->rmtblkno2 = args->rmtblkno;
 	args->rmtblkcnt2 = args->rmtblkcnt;
 	args->rmtvaluelen2 = args->rmtvaluelen;
+	args->rmtblkno = 0;
+	args->rmtblkcnt = 0;
+	args->rmtvaluelen = 0;
 }
 
 /* Set stored info about a remote block */
-STATIC void
+static void
 xfs_attr_restore_rmt_blk(
 	struct xfs_da_args	*args)
 {
@@ -1228,28 +1242,27 @@ xfs_attr_leaf_try_add(
 	 * Look up the xattr name to set the insertion point for the new xattr.
 	 */
 	error = xfs_attr3_leaf_lookup_int(bp, args);
-	if (error != -ENOATTR && error != -EEXIST)
-		goto out_brelse;
-	if (error == -ENOATTR && (args->attr_flags & XATTR_REPLACE))
-		goto out_brelse;
-	if (error == -EEXIST) {
-		if (args->attr_flags & XATTR_CREATE)
+	switch (error) {
+	case -ENOATTR:
+		if (args->op_flags & XFS_DA_OP_REPLACE)
+			goto out_brelse;
+		break;
+	case -EEXIST:
+		if (!(args->op_flags & XFS_DA_OP_REPLACE))
 			goto out_brelse;
 
 		trace_xfs_attr_leaf_replace(args);
-
-		/* save the attribute state for later removal*/
-		args->op_flags |= XFS_DA_OP_RENAME;	/* an atomic rename */
-		xfs_attr_save_rmt_blk(args);
-
 		/*
-		 * clear the remote attr state now that it is saved so that the
-		 * values reflect the state of the attribute we are about to
+		 * Save the existing remote attr state so that the current
+		 * values reflect the state of the new attribute we are about to
 		 * add, not the attribute we just found and will remove later.
 		 */
-		args->rmtblkno = 0;
-		args->rmtblkcnt = 0;
-		args->rmtvaluelen = 0;
+		xfs_attr_save_rmt_blk(args);
+		break;
+	case 0:
+		break;
+	default:
+		goto out_brelse;
 	}
 
 	return xfs_attr3_leaf_add(bp, args);
@@ -1388,46 +1401,45 @@ xfs_attr_node_hasname(
 
 STATIC int
 xfs_attr_node_addname_find_attr(
-	 struct xfs_attr_item		*attr)
+	 struct xfs_attr_item	*attr)
 {
-	struct xfs_da_args		*args = attr->xattri_da_args;
-	int				retval;
+	struct xfs_da_args	*args = attr->xattri_da_args;
+	int			error;
 
 	/*
 	 * Search to see if name already exists, and get back a pointer
 	 * to where it should go.
 	 */
-	retval = xfs_attr_node_hasname(args, &attr->xattri_da_state);
-	if (retval != -ENOATTR && retval != -EEXIST)
-		goto error;
-
-	if (retval == -ENOATTR && (args->attr_flags & XATTR_REPLACE))
-		goto error;
-	if (retval == -EEXIST) {
-		if (args->attr_flags & XATTR_CREATE)
+	error = xfs_attr_node_hasname(args, &attr->xattri_da_state);
+	switch (error) {
+	case -ENOATTR:
+		if (args->op_flags & XFS_DA_OP_REPLACE)
+			goto error;
+		break;
+	case -EEXIST:
+		if (!(args->op_flags & XFS_DA_OP_REPLACE))
 			goto error;
 
+
 		trace_xfs_attr_node_replace(args);
-
-		/* save the attribute state for later removal*/
-		args->op_flags |= XFS_DA_OP_RENAME;	/* atomic rename op */
-		xfs_attr_save_rmt_blk(args);
-
 		/*
-		 * clear the remote attr state now that it is saved so that the
-		 * values reflect the state of the attribute we are about to
+		 * Save the existing remote attr state so that the current
+		 * values reflect the state of the new attribute we are about to
 		 * add, not the attribute we just found and will remove later.
 		 */
-		args->rmtblkno = 0;
-		args->rmtblkcnt = 0;
-		args->rmtvaluelen = 0;
+		xfs_attr_save_rmt_blk(args);
+		break;
+	case 0:
+		break;
+	default:
+		goto error;
 	}
 
 	return 0;
 error:
 	if (attr->xattri_da_state)
 		xfs_da_state_free(attr->xattri_da_state);
-	return retval;
+	return error;
 }
 
 /*

@@ -85,19 +85,21 @@ typedef struct xfs_da_args {
  * Operation flags:
  */
 #define XFS_DA_OP_JUSTCHECK	(1u << 0) /* check for ok with no space */
-#define XFS_DA_OP_RENAME	(1u << 1) /* this is an atomic rename op */
+#define XFS_DA_OP_REPLACE	(1u << 1) /* this is an atomic replace op */
 #define XFS_DA_OP_ADDNAME	(1u << 2) /* this is an add operation */
 #define XFS_DA_OP_OKNOENT	(1u << 3) /* lookup op, ENOENT ok, else die */
 #define XFS_DA_OP_CILOOKUP	(1u << 4) /* lookup returns CI name if found */
 #define XFS_DA_OP_NOTIME	(1u << 5) /* don't update inode timestamps */
+#define XFS_DA_OP_REMOVE	(1u << 6) /* this is a remove operation */
 
 #define XFS_DA_OP_FLAGS \
 	{ XFS_DA_OP_JUSTCHECK,	"JUSTCHECK" }, \
-	{ XFS_DA_OP_RENAME,	"RENAME" }, \
+	{ XFS_DA_OP_REPLACE,	"REPLACE" }, \
 	{ XFS_DA_OP_ADDNAME,	"ADDNAME" }, \
 	{ XFS_DA_OP_OKNOENT,	"OKNOENT" }, \
 	{ XFS_DA_OP_CILOOKUP,	"CILOOKUP" }, \
-	{ XFS_DA_OP_NOTIME,	"NOTIME" }
+	{ XFS_DA_OP_NOTIME,	"NOTIME" }, \
+	{ XFS_DA_OP_REMOVE,	"REMOVE" }
 
 /*
  * Storage for holding state during Btree searches and split/join ops.
