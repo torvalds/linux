@@ -361,7 +361,6 @@ static void free_conf(struct mddev *mddev, struct r0conf *conf)
 	kfree(conf->strip_zone);
 	kfree(conf->devlist);
 	kfree(conf);
-	mddev->private = NULL;
 }
 
 static void raid0_free(struct mddev *mddev, void *priv)
