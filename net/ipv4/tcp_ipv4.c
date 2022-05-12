@@ -3173,6 +3173,8 @@ static void __net_exit tcp_sk_exit_batch(struct list_head *net_exit_list)
 {
 	struct net *net;
 
+	inet_twsk_purge(&tcp_hashinfo, AF_INET);
+
 	list_for_each_entry(net, net_exit_list, exit_list)
 		tcp_fastopen_ctx_destroy(net);
 }
