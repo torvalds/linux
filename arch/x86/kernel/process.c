@@ -334,7 +334,7 @@ static int get_cpuid_mode(void)
 	return !test_thread_flag(TIF_NOCPUID);
 }
 
-static int set_cpuid_mode(struct task_struct *task, unsigned long cpuid_enabled)
+static int set_cpuid_mode(unsigned long cpuid_enabled)
 {
 	if (!boot_cpu_has(X86_FEATURE_CPUID_FAULT))
 		return -ENODEV;
@@ -985,20 +985,19 @@ unsigned long __get_wchan(struct task_struct *p)
 	return addr;
 }
 
-long do_arch_prctl_common(struct task_struct *task, int option,
-			  unsigned long arg2)
+long do_arch_prctl_common(int option, unsigned long arg2)
 {
 	switch (option) {
 	case ARCH_GET_CPUID:
 		return get_cpuid_mode();
 	case ARCH_SET_CPUID:
-		return set_cpuid_mode(task, arg2);
+		return set_cpuid_mode(arg2);
 	case ARCH_GET_XCOMP_SUPP:
 	case ARCH_GET_XCOMP_PERM:
 	case ARCH_REQ_XCOMP_PERM:
 	case ARCH_GET_XCOMP_GUEST_PERM:
 	case ARCH_REQ_XCOMP_GUEST_PERM:
-		return fpu_xstate_prctl(task, option, arg2);
+		return fpu_xstate_prctl(option, arg2);
 	}
 
 	return -EINVAL;
