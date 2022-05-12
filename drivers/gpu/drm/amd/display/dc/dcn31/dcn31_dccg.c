@@ -572,9 +572,6 @@ static void dccg31_set_dtbclk_dto(
 				PIPE_DTO_SRC_SEL[params->otg_inst], 0,
 				DTBCLK_DTO_DIV[params->otg_inst], dtbdto_div);
 
-		REG_WRITE(DTBCLK_DTO_MODULO[dtbclk_inst], 0);
-		REG_WRITE(DTBCLK_DTO_PHASE[dtbclk_inst], 0);
-
 		REG_WRITE(DTBCLK_DTO_MODULO[params->otg_inst], 0);
 		REG_WRITE(DTBCLK_DTO_PHASE[params->otg_inst], 0);
 	}
