@@ -303,12 +303,9 @@ xfs_attrd_item_intent(
 STATIC int
 xfs_xattri_finish_update(
 	struct xfs_attr_item		*attr,
-	struct xfs_attrd_log_item	*attrdp,
-	uint32_t			op_flags)
+	struct xfs_attrd_log_item	*attrdp)
 {
 	struct xfs_da_args		*args = attr->xattri_da_args;
-	unsigned int			op = op_flags &
-					     XFS_ATTR_OP_FLAGS_TYPE_MASK;
 	int				error;
 
 	if (XFS_TEST_ERROR(false, args->dp->i_mount, XFS_ERRTAG_LARP)) {
@@ -316,22 +313,9 @@ xfs_xattri_finish_update(
 		goto out;
 	}
 
-	switch (op) {
-	case XFS_ATTR_OP_FLAGS_SET:
-	case XFS_ATTR_OP_FLAGS_REPLACE:
-		error = xfs_attr_set_iter(attr);
-		if (!error && attr->xattri_dela_state != XFS_DAS_DONE)
-			error = -EAGAIN;
-		break;
-	case XFS_ATTR_OP_FLAGS_REMOVE:
-		ASSERT(XFS_IFORK_Q(args->dp));
-		error = xfs_attr_remove_iter(attr);
-		break;
-	default:
-		error = -EFSCORRUPTED;
-		break;
-	}
-
+	error = xfs_attr_set_iter(attr);
+	if (!error && attr->xattri_dela_state != XFS_DAS_DONE)
+		error = -EAGAIN;
 out:
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the
@@ -439,8 +423,7 @@ xfs_attr_finish_item(
 	 */
 	attr->xattri_da_args->trans = tp;
 
-	error = xfs_xattri_finish_update(attr, done_item,
-					 attr->xattri_op_flags);
+	error = xfs_xattri_finish_update(attr, done_item);
 	if (error != -EAGAIN)
 		kmem_free(attr);
 
@@ -588,7 +571,7 @@ xfs_attri_item_recover(
 		attr->xattri_dela_state = xfs_attr_init_add_state(args);
 		break;
 	case XFS_ATTR_OP_FLAGS_REMOVE:
-		attr->xattri_dela_state = XFS_DAS_UNINIT;
+		attr->xattri_dela_state = xfs_attr_init_remove_state(args);
 		break;
 	default:
 		ASSERT(0);
@@ -607,7 +590,7 @@ xfs_attri_item_recover(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	ret = xfs_xattri_finish_update(attr, done_item, attrp->alfi_op_flags);
+	ret = xfs_xattri_finish_update(attr, done_item);
 	if (ret == -EAGAIN) {
 		/* There's more work to do, so add it to this transaction */
 		xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_ATTR, &attr->xattri_list);

@@ -603,6 +603,16 @@ xfs_attr_init_add_state(struct xfs_da_args *args)
 }
 
 static inline enum xfs_delattr_state
+xfs_attr_init_remove_state(struct xfs_da_args *args)
+{
+	if (xfs_attr_is_shortform(args->dp))
+		return XFS_DAS_SF_REMOVE;
+	if (xfs_attr_is_leaf(args->dp))
+		return XFS_DAS_LEAF_REMOVE;
+	return XFS_DAS_NODE_REMOVE;
+}
+
+static inline enum xfs_delattr_state
 xfs_attr_init_replace_state(struct xfs_da_args *args)
 {
 	return xfs_attr_init_add_state(args);
