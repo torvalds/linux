@@ -5,6 +5,9 @@
  * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01
+ * 1.add flip and mirror support
+ * 2.fix stream on sequential
  *
  */
 
@@ -28,7 +31,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -46,6 +49,7 @@
 #define S5K3L6XX_REG_CTRL_MODE		0x0100
 #define S5K3L6XX_MODE_SW_STANDBY	0x0
 #define S5K3L6XX_MODE_STREAMING		BIT(0)
+#define S5K3L6XX_REG_STREAM_ON		0x3C1E
 
 #define S5K3L6XX_REG_EXPOSURE		0x0202
 #define	S5K3L6XX_EXPOSURE_MIN		1
@@ -79,7 +83,19 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define S5K3L6XX_NAME			"s5k3l6xx"
+
+// #define S5K3L6XX_MIRROR
+// #define S5K3L6XX_FLIP
+// #define S5K3L6XX_FLIP_MIRROR
+#ifdef S5K3L6XX_MIRROR
+#define S5K3L6XX_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SRGGB10_1X10
+#elif defined S5K3L6XX_FLIP
+#define S5K3L6XX_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SBGGR10_1X10
+#elif defined S5K3L6XX_FLIP_MIRROR
+#define S5K3L6XX_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SGBRG10_1X10
+#else
 #define S5K3L6XX_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SGRBG10_1X10
+#endif
 
 static const char * const s5k3l6xx_supply_names[] = {
 	"avdd",		/* Analog power */
@@ -142,7 +158,15 @@ struct s5k3l6xx {
 #define to_s5k3l6xx(sd) container_of(sd, struct s5k3l6xx, subdev)
 
 static const struct regval s5k3l6xx_4208x3120_30fps_regs[] = {
+#ifdef S5K3L6XX_MIRROR
+	{0x0100, 0x0001},
+#elif defined S5K3L6XX_FLIP
+	{0x0100, 0x0002},
+#elif defined S5K3L6XX_FLIP_MIRROR
+	{0x0100, 0x0003},
+#else
 	{0x0100, 0x0000},
+#endif
 	{0x0000, 0x0060},
 	{0x0000, 0x30C6},
 	{0x0A02, 0x3400},
@@ -270,14 +294,19 @@ static const struct regval s5k3l6xx_4208x3120_30fps_regs[] = {
 	{0x3C36, 0x0000},
 	{0x3C38, 0x0000},
 	{0x393E, 0x4000},
-	{0x3C1E, 0x0100},
-	{0x0100, 0x0100},
-	{0x3C1E, 0x0000},
 	{REG_NULL, 0x0000},
 };
 
 static const struct regval s5k3l6xx_2104x1560_30fps_regs[] = {
+#ifdef S5K3L6XX_MIRROR
+	{0x0100, 0x0001},
+#elif defined S5K3L6XX_FLIP
+	{0x0100, 0x0002},
+#elif defined S5K3L6XX_FLIP_MIRROR
+	{0x0100, 0x0003},
+#else
 	{0x0100, 0x0000},
+#endif
 	{0x0000, 0x0050},
 	{0x0000, 0x30C6},
 	{0x0A02, 0x3400},
@@ -409,10 +438,6 @@ static const struct regval s5k3l6xx_2104x1560_30fps_regs[] = {
 	{0x3036, 0x0029},
 	{0x3032, 0x4800},
 	{0x320E, 0x049E},
-	//stream  on
-	{0x3C1E, 0x0100},
-	{0x0100, 0x0100},
-	{0x3C1E, 0x0000},
 	{REG_NULL, 0x0000},
 };
 
@@ -809,10 +834,19 @@ static int __s5k3l6xx_start_stream(struct s5k3l6xx *s5k3l6xx)
 	if (ret)
 		return ret;
 
-	return s5k3l6xx_write_reg(s5k3l6xx->client,
+	s5k3l6xx_write_reg(s5k3l6xx->client,
+				 S5K3L6XX_REG_STREAM_ON,
+				 S5K3L6XX_REG_VALUE_08BIT,
+				 S5K3L6XX_MODE_STREAMING);
+	s5k3l6xx_write_reg(s5k3l6xx->client,
 				 S5K3L6XX_REG_CTRL_MODE,
 				 S5K3L6XX_REG_VALUE_08BIT,
 				 S5K3L6XX_MODE_STREAMING);
+	s5k3l6xx_write_reg(s5k3l6xx->client,
+				 S5K3L6XX_REG_STREAM_ON,
+				 S5K3L6XX_REG_VALUE_08BIT,
+				 S5K3L6XX_MODE_SW_STANDBY);
+	return 0;
 }
 
 static int __s5k3l6xx_stop_stream(struct s5k3l6xx *s5k3l6xx)
