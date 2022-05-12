@@ -1657,6 +1657,19 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	else
 		mnt = path.mnt;
 
+	/*
+	 * FAN_RENAME is not allowed on non-dir (for now).
+	 * We shouldn't have allowed setting any dirent events in mask of
+	 * non-dir, but because we always allowed it, error only if group
+	 * was initialized with the new flag FAN_REPORT_TARGET_FID.
+	 */
+	ret = -ENOTDIR;
+	if (inode && !S_ISDIR(inode->i_mode) &&
+	    ((mask & FAN_RENAME) ||
+	     ((mask & FANOTIFY_DIRENT_EVENTS) &&
+	      FAN_GROUP_FLAG(group, FAN_REPORT_TARGET_FID))))
+		goto path_put_and_out;
+
 	/* Mask out FAN_EVENT_ON_CHILD flag for sb/mount/non-dir marks */
 	if (mnt || !S_ISDIR(inode->i_mode)) {
 		mask &= ~FAN_EVENT_ON_CHILD;

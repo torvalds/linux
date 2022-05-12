@@ -97,7 +97,7 @@ static int gssp_rpc_create(struct net *net, struct rpc_clnt **_clnt)
 		 * timeout, which would result in reconnections being
 		 * done without the correct namespace:
 		 */
-		.flags		= RPC_CLNT_CREATE_NOPING |
+		.flags		= RPC_CLNT_CREATE_IGNORE_NULL_UNAVAIL |
 				  RPC_CLNT_CREATE_NO_IDLE_TIMEOUT
 	};
 	struct rpc_clnt *clnt;
