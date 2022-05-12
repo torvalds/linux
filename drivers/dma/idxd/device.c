@@ -578,19 +578,15 @@ int idxd_device_disable(struct idxd_device *idxd)
 		return -ENXIO;
 	}
 
-	spin_lock(&idxd->dev_lock);
 	idxd_device_clear_state(idxd);
-	idxd->state = IDXD_DEV_DISABLED;
-	spin_unlock(&idxd->dev_lock);
 	return 0;
 }
 
 void idxd_device_reset(struct idxd_device *idxd)
 {
 	idxd_cmd_exec(idxd, IDXD_CMD_RESET_DEVICE, 0, NULL);
-	spin_lock(&idxd->dev_lock);
 	idxd_device_clear_state(idxd);
-	idxd->state = IDXD_DEV_DISABLED;
+	spin_lock(&idxd->dev_lock);
 	idxd_unmask_error_interrupts(idxd);
 	spin_unlock(&idxd->dev_lock);
 }
@@ -717,23 +713,27 @@ static void idxd_device_wqs_clear_state(struct idxd_device *idxd)
 {
 	int i;
 
-	lockdep_assert_held(&idxd->dev_lock);
 	for (i = 0; i < idxd->max_wqs; i++) {
 		struct idxd_wq *wq = idxd->wqs[i];
 
 		if (wq->state == IDXD_WQ_ENABLED) {
+			mutex_lock(&wq->wq_lock);
 			idxd_wq_disable_cleanup(wq);
 			idxd_wq_device_reset_cleanup(wq);
 			wq->state = IDXD_WQ_DISABLED;
+			mutex_unlock(&wq->wq_lock);
 		}
 	}
 }
 
 void idxd_device_clear_state(struct idxd_device *idxd)
 {
+	idxd_device_wqs_clear_state(idxd);
+	spin_lock(&idxd->dev_lock);
 	idxd_groups_clear_state(idxd);
 	idxd_engines_clear_state(idxd);
-	idxd_device_wqs_clear_state(idxd);
+	idxd->state = IDXD_DEV_DISABLED;
+	spin_unlock(&idxd->dev_lock);
 }
 
 static void idxd_group_config_write(struct idxd_group *group)
