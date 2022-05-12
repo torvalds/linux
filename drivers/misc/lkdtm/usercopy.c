@@ -130,7 +130,7 @@ free_user:
  * This checks for whole-object size validation with hardened usercopy,
  * with or without usercopy whitelisting.
  */
-static void do_usercopy_heap_size(bool to_user)
+static void do_usercopy_slab_size(bool to_user)
 {
 	unsigned long user_addr;
 	unsigned char *one, *two;
@@ -196,9 +196,9 @@ free_kernel:
 
 /*
  * This checks for the specific whitelist window within an object. If this
- * test passes, then do_usercopy_heap_size() tests will pass too.
+ * test passes, then do_usercopy_slab_size() tests will pass too.
  */
-static void do_usercopy_heap_whitelist(bool to_user)
+static void do_usercopy_slab_whitelist(bool to_user)
 {
 	unsigned long user_alloc;
 	unsigned char *buf = NULL;
@@ -272,24 +272,24 @@ free_alloc:
 }
 
 /* Callable tests. */
-static void lkdtm_USERCOPY_HEAP_SIZE_TO(void)
+static void lkdtm_USERCOPY_SLAB_SIZE_TO(void)
 {
-	do_usercopy_heap_size(true);
+	do_usercopy_slab_size(true);
 }
 
-static void lkdtm_USERCOPY_HEAP_SIZE_FROM(void)
+static void lkdtm_USERCOPY_SLAB_SIZE_FROM(void)
 {
-	do_usercopy_heap_size(false);
+	do_usercopy_slab_size(false);
 }
 
-static void lkdtm_USERCOPY_HEAP_WHITELIST_TO(void)
+static void lkdtm_USERCOPY_SLAB_WHITELIST_TO(void)
 {
-	do_usercopy_heap_whitelist(true);
+	do_usercopy_slab_whitelist(true);
 }
 
-static void lkdtm_USERCOPY_HEAP_WHITELIST_FROM(void)
+static void lkdtm_USERCOPY_SLAB_WHITELIST_FROM(void)
 {
-	do_usercopy_heap_whitelist(false);
+	do_usercopy_slab_whitelist(false);
 }
 
 static void lkdtm_USERCOPY_STACK_FRAME_TO(void)
@@ -358,10 +358,10 @@ void __exit lkdtm_usercopy_exit(void)
 }
 
 static struct crashtype crashtypes[] = {
-	CRASHTYPE(USERCOPY_HEAP_SIZE_TO),
-	CRASHTYPE(USERCOPY_HEAP_SIZE_FROM),
-	CRASHTYPE(USERCOPY_HEAP_WHITELIST_TO),
-	CRASHTYPE(USERCOPY_HEAP_WHITELIST_FROM),
+	CRASHTYPE(USERCOPY_SLAB_SIZE_TO),
+	CRASHTYPE(USERCOPY_SLAB_SIZE_FROM),
+	CRASHTYPE(USERCOPY_SLAB_WHITELIST_TO),
+	CRASHTYPE(USERCOPY_SLAB_WHITELIST_FROM),
 	CRASHTYPE(USERCOPY_STACK_FRAME_TO),
 	CRASHTYPE(USERCOPY_STACK_FRAME_FROM),
 	CRASHTYPE(USERCOPY_STACK_BEYOND),
