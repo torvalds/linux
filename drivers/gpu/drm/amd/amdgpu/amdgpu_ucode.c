@@ -1297,6 +1297,9 @@ void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, 
 	case UVD_HWIP:
 		ip_name = "vcn";
 		break;
+	case VPE_HWIP:
+		ip_name = "vpe";
+		break;
 	default:
 		BUG();
 	}
