@@ -554,7 +554,6 @@ static struct platform_driver spl2sw_driver = {
 	.remove = spl2sw_remove,
 	.driver = {
 		.name = "sp7021_emac",
-		.owner = THIS_MODULE,
 		.of_match_table = spl2sw_of_match,
 	},
 };
