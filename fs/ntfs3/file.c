@@ -733,9 +733,6 @@ out:
 	if (map_locked)
 		filemap_invalidate_unlock(mapping);
 
-	if (err == -EFBIG)
-		err = -ENOSPC;
-
 	if (!err) {
 		inode->i_ctime = inode->i_mtime = current_time(inode);
 		mark_inode_dirty(inode);

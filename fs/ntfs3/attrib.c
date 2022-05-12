@@ -2114,9 +2114,11 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 
 	if (!attr_b->non_res) {
 		data_size = le32_to_cpu(attr_b->res.data_size);
+		alloc_size = data_size;
 		mask = sbi->cluster_mask; /* cluster_size - 1 */
 	} else {
 		data_size = le64_to_cpu(attr_b->nres.data_size);
+		alloc_size = le64_to_cpu(attr_b->nres.alloc_size);
 		mask = (sbi->cluster_size << attr_b->nres.c_unit) - 1;
 	}
 
@@ -2129,6 +2131,13 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 		/* Allow to insert only frame aligned ranges. */
 		return -EINVAL;
 	}
+
+	/*
+	 * valid_size <= data_size <= alloc_size
+	 * Check alloc_size for maximum possible.
+	 */
+	if (bytes > sbi->maxbytes_sparse - alloc_size)
+		return -EFBIG;
 
 	vcn = vbo >> sbi->cluster_bits;
 	len = bytes >> sbi->cluster_bits;
