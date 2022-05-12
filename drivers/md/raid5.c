@@ -2686,7 +2686,6 @@ static void raid5_end_read_request(struct bio * bi)
 	struct stripe_head *sh = bi->bi_private;
 	struct r5conf *conf = sh->raid_conf;
 	int disks = sh->disks, i;
-	char b[BDEVNAME_SIZE];
 	struct md_rdev *rdev = NULL;
 	sector_t s;
 
@@ -2723,10 +2722,10 @@ static void raid5_end_read_request(struct bio * bi)
 			 * any error
 			 */
 			pr_info_ratelimited(
-				"md/raid:%s: read error corrected (%lu sectors at %llu on %s)\n",
+				"md/raid:%s: read error corrected (%lu sectors at %llu on %pg)\n",
 				mdname(conf->mddev), RAID5_STRIPE_SECTORS(conf),
 				(unsigned long long)s,
-				bdevname(rdev->bdev, b));
+				rdev->bdev);
 			atomic_add(RAID5_STRIPE_SECTORS(conf), &rdev->corrected_errors);
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
@@ -2743,7 +2742,6 @@ static void raid5_end_read_request(struct bio * bi)
 		if (atomic_read(&rdev->read_errors))
 			atomic_set(&rdev->read_errors, 0);
 	} else {
-		const char *bdn = bdevname(rdev->bdev, b);
 		int retry = 0;
 		int set_bad = 0;
 
@@ -2752,25 +2750,25 @@ static void raid5_end_read_request(struct bio * bi)
 			atomic_inc(&rdev->read_errors);
 		if (test_bit(R5_ReadRepl, &sh->dev[i].flags))
 			pr_warn_ratelimited(
-				"md/raid:%s: read error on replacement device (sector %llu on %s).\n",
+				"md/raid:%s: read error on replacement device (sector %llu on %pg).\n",
 				mdname(conf->mddev),
 				(unsigned long long)s,
-				bdn);
+				rdev->bdev);
 		else if (conf->mddev->degraded >= conf->max_degraded) {
 			set_bad = 1;
 			pr_warn_ratelimited(
-				"md/raid:%s: read error not correctable (sector %llu on %s).\n",
+				"md/raid:%s: read error not correctable (sector %llu on %pg).\n",
 				mdname(conf->mddev),
 				(unsigned long long)s,
-				bdn);
+				rdev->bdev);
 		} else if (test_bit(R5_ReWrite, &sh->dev[i].flags)) {
 			/* Oh, no!!! */
 			set_bad = 1;
 			pr_warn_ratelimited(
-				"md/raid:%s: read error NOT corrected!! (sector %llu on %s).\n",
+				"md/raid:%s: read error NOT corrected!! (sector %llu on %pg).\n",
 				mdname(conf->mddev),
 				(unsigned long long)s,
-				bdn);
+				rdev->bdev);
 		} else if (atomic_read(&rdev->read_errors)
 			 > conf->max_nr_stripes) {
 			if (!test_bit(Faulty, &rdev->flags)) {
@@ -2778,8 +2776,8 @@ static void raid5_end_read_request(struct bio * bi)
 				    mdname(conf->mddev),
 				    atomic_read(&rdev->read_errors),
 				    conf->max_nr_stripes);
-				pr_warn("md/raid:%s: Too many read errors, failing device %s.\n",
-				    mdname(conf->mddev), bdn);
+				pr_warn("md/raid:%s: Too many read errors, failing device %pg.\n",
+				    mdname(conf->mddev), rdev->bdev);
 			}
 		} else
 			retry = 1;
@@ -2891,13 +2889,12 @@ static void raid5_end_write_request(struct bio *bi)
 
 static void raid5_error(struct mddev *mddev, struct md_rdev *rdev)
 {
-	char b[BDEVNAME_SIZE];
 	struct r5conf *conf = mddev->private;
 	unsigned long flags;
 	pr_debug("raid456: error called\n");
 
-	pr_crit("md/raid:%s: Disk failure on %s, disabling device.\n",
-		mdname(mddev), bdevname(rdev->bdev, b));
+	pr_crit("md/raid:%s: Disk failure on %pg, disabling device.\n",
+		mdname(mddev), rdev->bdev);
 
 	spin_lock_irqsave(&conf->device_lock, flags);
 	set_bit(Faulty, &rdev->flags);
@@ -7359,9 +7356,8 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 		}
 
 		if (test_bit(In_sync, &rdev->flags)) {
-			char b[BDEVNAME_SIZE];
-			pr_info("md/raid:%s: device %s operational as raid disk %d\n",
-				mdname(mddev), bdevname(rdev->bdev, b), raid_disk);
+			pr_info("md/raid:%s: device %pg operational as raid disk %d\n",
+				mdname(mddev), rdev->bdev, raid_disk);
 		} else if (rdev->saved_raid_disk != raid_disk)
 			/* Cannot rely on bitmap to complete recovery */
 			conf->fullsync = 1;
@@ -7877,12 +7873,11 @@ static void print_raid5_conf (struct r5conf *conf)
 
 	rcu_read_lock();
 	for (i = 0; i < conf->raid_disks; i++) {
-		char b[BDEVNAME_SIZE];
 		rdev = rcu_dereference(conf->disks[i].rdev);
 		if (rdev)
-			pr_debug(" disk %d, o:%d, dev:%s\n",
+			pr_debug(" disk %d, o:%d, dev:%pg\n",
 			       i, !test_bit(Faulty, &rdev->flags),
-			       bdevname(rdev->bdev, b));
+			       rdev->bdev);
 	}
 	rcu_read_unlock();
 }
