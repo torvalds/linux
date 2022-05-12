@@ -126,7 +126,7 @@ static void igorplugusb_cmd(struct igorplugusb *ir, int cmd)
 	ir->request.bRequest = cmd;
 	ir->urb->transfer_flags = 0;
 	ret = usb_submit_urb(ir->urb, GFP_ATOMIC);
-	if (ret)
+	if (ret && ret != -EPERM)
 		dev_err(ir->dev, "submit urb failed: %d", ret);
 }
 
@@ -223,7 +223,9 @@ static int igorplugusb_probe(struct usb_interface *intf,
 
 	return 0;
 fail:
+	usb_poison_urb(ir->urb);
 	del_timer(&ir->timer);
+	usb_unpoison_urb(ir->urb);
 	usb_free_urb(ir->urb);
 	rc_free_device(ir->rc);
 	kfree(ir->buf_in);
@@ -236,9 +238,10 @@ static void igorplugusb_disconnect(struct usb_interface *intf)
 	struct igorplugusb *ir = usb_get_intfdata(intf);
 
 	rc_unregister_device(ir->rc);
+	usb_poison_urb(ir->urb);
 	del_timer_sync(&ir->timer);
 	usb_set_intfdata(intf, NULL);
-	usb_kill_urb(ir->urb);
+	usb_unpoison_urb(ir->urb);
 	usb_free_urb(ir->urb);
 	kfree(ir->buf_in);
 }
