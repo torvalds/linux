@@ -76,6 +76,13 @@ const struct hda_pintbl cs8409_cs42l42_pincfgs[] = {
 	{} /* terminator */
 };
 
+const struct hda_pintbl cs8409_cs42l42_pincfgs_no_dmic[] = {
+	{ CS8409_PIN_ASP1_TRANSMITTER_A, 0x042120f0 },	/* ASP-1-TX */
+	{ CS8409_PIN_ASP1_RECEIVER_A, 0x04a12050 },	/* ASP-1-RX */
+	{ CS8409_PIN_ASP2_TRANSMITTER_A, 0x901000f0 },	/* ASP-2-TX */
+	{} /* terminator */
+};
+
 /* Vendor specific HW configuration for CS42L42 */
 static const struct cs8409_i2c_param cs42l42_init_reg_seq[] = {
 	{ CS42L42_I2C_TIMEOUT, 0xB0 },
@@ -518,6 +525,11 @@ const struct snd_pci_quirk cs8409_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x0B95, "Warlock MLK Dual Mic", CS8409_WARLOCK_MLK_DUAL_MIC),
 	SND_PCI_QUIRK(0x1028, 0x0B96, "Warlock MLK", CS8409_WARLOCK_MLK),
 	SND_PCI_QUIRK(0x1028, 0x0B97, "Warlock MLK Dual Mic", CS8409_WARLOCK_MLK_DUAL_MIC),
+	SND_PCI_QUIRK(0x1028, 0x0BA5, "Odin", CS8409_ODIN),
+	SND_PCI_QUIRK(0x1028, 0x0BA6, "Odin", CS8409_ODIN),
+	SND_PCI_QUIRK(0x1028, 0x0BA8, "Odin", CS8409_ODIN),
+	SND_PCI_QUIRK(0x1028, 0x0BAA, "Odin", CS8409_ODIN),
+	SND_PCI_QUIRK(0x1028, 0x0BAE, "Odin", CS8409_ODIN),
 	SND_PCI_QUIRK(0x1028, 0x0BB2, "Warlock MLK", CS8409_WARLOCK_MLK),
 	SND_PCI_QUIRK(0x1028, 0x0BB3, "Warlock MLK", CS8409_WARLOCK_MLK),
 	SND_PCI_QUIRK(0x1028, 0x0BB4, "Warlock MLK", CS8409_WARLOCK_MLK),
@@ -545,6 +557,7 @@ const struct hda_model_fixup cs8409_models[] = {
 	{ .id = CS8409_WARLOCK_MLK_DUAL_MIC, .name = "warlock mlk dual mic" },
 	{ .id = CS8409_CYBORG, .name = "cyborg" },
 	{ .id = CS8409_DOLPHIN, .name = "dolphin" },
+	{ .id = CS8409_ODIN, .name = "odin" },
 	{}
 };
 
@@ -592,5 +605,11 @@ const struct hda_fixup cs8409_fixups[] = {
 	[CS8409_DOLPHIN_FIXUPS] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = dolphin_fixups,
+	},
+	[CS8409_ODIN] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = cs8409_cs42l42_pincfgs_no_dmic,
+		.chained = true,
+		.chain_id = CS8409_FIXUPS,
 	},
 };
