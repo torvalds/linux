@@ -129,8 +129,6 @@ enum hns_roce_event {
 	HNS_ROCE_EVENT_TYPE_INVALID_XRCETH	      = 0x17,
 };
 
-#define HNS_ROCE_CAP_FLAGS_EX_SHIFT 12
-
 enum {
 	HNS_ROCE_CAP_FLAG_REREG_MR		= BIT(0),
 	HNS_ROCE_CAP_FLAG_ROCE_V1_V2		= BIT(1),
@@ -653,6 +651,11 @@ struct hns_roce_ceqe {
 	__le32	rsv[15];
 };
 
+#define CEQE_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_ceqe, h, l)
+
+#define CEQE_CQN CEQE_FIELD_LOC(23, 0)
+#define CEQE_OWNER CEQE_FIELD_LOC(31, 31)
+
 struct hns_roce_aeqe {
 	__le32 asyn;
 	union {
@@ -671,6 +674,13 @@ struct hns_roce_aeqe {
 	 } event;
 	__le32 rsv[12];
 };
+
+#define AEQE_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_aeqe, h, l)
+
+#define AEQE_EVENT_TYPE AEQE_FIELD_LOC(7, 0)
+#define AEQE_SUB_TYPE AEQE_FIELD_LOC(15, 8)
+#define AEQE_OWNER AEQE_FIELD_LOC(31, 31)
+#define AEQE_EVENT_QUEUE_NUM AEQE_FIELD_LOC(55, 32)
 
 struct hns_roce_eq {
 	struct hns_roce_dev		*hr_dev;

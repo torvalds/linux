@@ -1483,7 +1483,7 @@ static void __hns_roce_function_clear(struct hns_roce_dev *hr_dev, int vf_id)
 		if (ret)
 			continue;
 
-		if (roce_get_bit(resp->func_done, FUNC_CLEAR_RST_FUN_DONE_S)) {
+		if (hr_reg_read(resp, FUNC_CLEAR_RST_FUN_DONE)) {
 			if (vf_id == 0)
 				hr_dev->is_reset = true;
 			return;
@@ -2264,87 +2264,39 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	ctx_hop_num		     = resp_b->ctx_hop_num;
 	pbl_hop_num		     = resp_b->pbl_hop_num;
 
-	caps->num_pds = 1 << roce_get_field(resp_c->cap_flags_num_pds,
-					    V2_QUERY_PF_CAPS_C_NUM_PDS_M,
-					    V2_QUERY_PF_CAPS_C_NUM_PDS_S);
-	caps->flags = roce_get_field(resp_c->cap_flags_num_pds,
-				     V2_QUERY_PF_CAPS_C_CAP_FLAGS_M,
-				     V2_QUERY_PF_CAPS_C_CAP_FLAGS_S);
+	caps->num_pds = 1 << hr_reg_read(resp_c, PF_CAPS_C_NUM_PDS);
+
+	caps->flags = hr_reg_read(resp_c, PF_CAPS_C_CAP_FLAGS);
 	caps->flags |= le16_to_cpu(resp_d->cap_flags_ex) <<
 		       HNS_ROCE_CAP_FLAGS_EX_SHIFT;
 
-	caps->num_cqs = 1 << roce_get_field(resp_c->max_gid_num_cqs,
-					    V2_QUERY_PF_CAPS_C_NUM_CQS_M,
-					    V2_QUERY_PF_CAPS_C_NUM_CQS_S);
-	caps->gid_table_len[0] = roce_get_field(resp_c->max_gid_num_cqs,
-						V2_QUERY_PF_CAPS_C_MAX_GID_M,
-						V2_QUERY_PF_CAPS_C_MAX_GID_S);
-
-	caps->max_cqes = 1 << roce_get_field(resp_c->cq_depth,
-					     V2_QUERY_PF_CAPS_C_CQ_DEPTH_M,
-					     V2_QUERY_PF_CAPS_C_CQ_DEPTH_S);
-	caps->num_mtpts = 1 << roce_get_field(resp_c->num_mrws,
-					      V2_QUERY_PF_CAPS_C_NUM_MRWS_M,
-					      V2_QUERY_PF_CAPS_C_NUM_MRWS_S);
-	caps->num_qps = 1 << roce_get_field(resp_c->ord_num_qps,
-					    V2_QUERY_PF_CAPS_C_NUM_QPS_M,
-					    V2_QUERY_PF_CAPS_C_NUM_QPS_S);
-	caps->max_qp_init_rdma = roce_get_field(resp_c->ord_num_qps,
-						V2_QUERY_PF_CAPS_C_MAX_ORD_M,
-						V2_QUERY_PF_CAPS_C_MAX_ORD_S);
+	caps->num_cqs = 1 << hr_reg_read(resp_c, PF_CAPS_C_NUM_CQS);
+	caps->gid_table_len[0] = hr_reg_read(resp_c, PF_CAPS_C_MAX_GID);
+	caps->max_cqes = 1 << hr_reg_read(resp_c, PF_CAPS_C_CQ_DEPTH);
+	caps->num_mtpts = 1 << hr_reg_read(resp_c, PF_CAPS_C_NUM_MRWS);
+	caps->num_qps = 1 << hr_reg_read(resp_c, PF_CAPS_C_NUM_QPS);
+	caps->max_qp_init_rdma = hr_reg_read(resp_c, PF_CAPS_C_MAX_ORD);
 	caps->max_qp_dest_rdma = caps->max_qp_init_rdma;
 	caps->max_wqes = 1 << le16_to_cpu(resp_c->sq_depth);
-	caps->num_srqs = 1 << roce_get_field(resp_d->wq_hop_num_max_srqs,
-					     V2_QUERY_PF_CAPS_D_NUM_SRQS_M,
-					     V2_QUERY_PF_CAPS_D_NUM_SRQS_S);
-	caps->cong_type = roce_get_field(resp_d->wq_hop_num_max_srqs,
-					 V2_QUERY_PF_CAPS_D_CONG_TYPE_M,
-					 V2_QUERY_PF_CAPS_D_CONG_TYPE_S);
+
+	caps->num_srqs = 1 << hr_reg_read(resp_d, PF_CAPS_D_NUM_SRQS);
+	caps->cong_type = hr_reg_read(resp_d, PF_CAPS_D_CONG_TYPE);
 	caps->max_srq_wrs = 1 << le16_to_cpu(resp_d->srq_depth);
+	caps->ceqe_depth = 1 << hr_reg_read(resp_d, PF_CAPS_D_CEQ_DEPTH);
+	caps->num_comp_vectors = hr_reg_read(resp_d, PF_CAPS_D_NUM_CEQS);
+	caps->aeqe_depth = 1 << hr_reg_read(resp_d, PF_CAPS_D_AEQ_DEPTH);
+	caps->default_aeq_arm_st = hr_reg_read(resp_d, PF_CAPS_D_AEQ_ARM_ST);
+	caps->default_ceq_arm_st = hr_reg_read(resp_d, PF_CAPS_D_CEQ_ARM_ST);
+	caps->reserved_pds = hr_reg_read(resp_d, PF_CAPS_D_RSV_PDS);
+	caps->num_uars = 1 << hr_reg_read(resp_d, PF_CAPS_D_NUM_UARS);
+	caps->reserved_qps = hr_reg_read(resp_d, PF_CAPS_D_RSV_QPS);
+	caps->reserved_uars = hr_reg_read(resp_d, PF_CAPS_D_RSV_UARS);
 
-	caps->ceqe_depth = 1 << roce_get_field(resp_d->num_ceqs_ceq_depth,
-					       V2_QUERY_PF_CAPS_D_CEQ_DEPTH_M,
-					       V2_QUERY_PF_CAPS_D_CEQ_DEPTH_S);
-	caps->num_comp_vectors = roce_get_field(resp_d->num_ceqs_ceq_depth,
-						V2_QUERY_PF_CAPS_D_NUM_CEQS_M,
-						V2_QUERY_PF_CAPS_D_NUM_CEQS_S);
-
-	caps->aeqe_depth = 1 << roce_get_field(resp_d->arm_st_aeq_depth,
-					       V2_QUERY_PF_CAPS_D_AEQ_DEPTH_M,
-					       V2_QUERY_PF_CAPS_D_AEQ_DEPTH_S);
-	caps->default_aeq_arm_st = roce_get_field(resp_d->arm_st_aeq_depth,
-					    V2_QUERY_PF_CAPS_D_AEQ_ARM_ST_M,
-					    V2_QUERY_PF_CAPS_D_AEQ_ARM_ST_S);
-	caps->default_ceq_arm_st = roce_get_field(resp_d->arm_st_aeq_depth,
-					    V2_QUERY_PF_CAPS_D_CEQ_ARM_ST_M,
-					    V2_QUERY_PF_CAPS_D_CEQ_ARM_ST_S);
-	caps->reserved_pds = roce_get_field(resp_d->num_uars_rsv_pds,
-					    V2_QUERY_PF_CAPS_D_RSV_PDS_M,
-					    V2_QUERY_PF_CAPS_D_RSV_PDS_S);
-	caps->num_uars = 1 << roce_get_field(resp_d->num_uars_rsv_pds,
-					     V2_QUERY_PF_CAPS_D_NUM_UARS_M,
-					     V2_QUERY_PF_CAPS_D_NUM_UARS_S);
-	caps->reserved_qps = roce_get_field(resp_d->rsv_uars_rsv_qps,
-					    V2_QUERY_PF_CAPS_D_RSV_QPS_M,
-					    V2_QUERY_PF_CAPS_D_RSV_QPS_S);
-	caps->reserved_uars = roce_get_field(resp_d->rsv_uars_rsv_qps,
-					     V2_QUERY_PF_CAPS_D_RSV_UARS_M,
-					     V2_QUERY_PF_CAPS_D_RSV_UARS_S);
-	caps->reserved_mrws = roce_get_field(resp_e->chunk_size_shift_rsv_mrws,
-					     V2_QUERY_PF_CAPS_E_RSV_MRWS_M,
-					     V2_QUERY_PF_CAPS_E_RSV_MRWS_S);
-	caps->chunk_sz = 1 << roce_get_field(resp_e->chunk_size_shift_rsv_mrws,
-					 V2_QUERY_PF_CAPS_E_CHUNK_SIZE_SHIFT_M,
-					 V2_QUERY_PF_CAPS_E_CHUNK_SIZE_SHIFT_S);
-	caps->reserved_cqs = roce_get_field(resp_e->rsv_cqs,
-					    V2_QUERY_PF_CAPS_E_RSV_CQS_M,
-					    V2_QUERY_PF_CAPS_E_RSV_CQS_S);
-	caps->reserved_srqs = roce_get_field(resp_e->rsv_srqs,
-					     V2_QUERY_PF_CAPS_E_RSV_SRQS_M,
-					     V2_QUERY_PF_CAPS_E_RSV_SRQS_S);
-	caps->reserved_lkey = roce_get_field(resp_e->rsv_lkey,
-					     V2_QUERY_PF_CAPS_E_RSV_LKEYS_M,
-					     V2_QUERY_PF_CAPS_E_RSV_LKEYS_S);
+	caps->reserved_mrws = hr_reg_read(resp_e, PF_CAPS_E_RSV_MRWS);
+	caps->chunk_sz = 1 << hr_reg_read(resp_e, PF_CAPS_E_CHUNK_SIZE_SHIFT);
+	caps->reserved_cqs = hr_reg_read(resp_e, PF_CAPS_E_RSV_CQS);
+	caps->reserved_srqs = hr_reg_read(resp_e, PF_CAPS_E_RSV_SRQS);
+	caps->reserved_lkey = hr_reg_read(resp_e, PF_CAPS_E_RSV_LKEYS);
 	caps->default_ceq_max_cnt = le16_to_cpu(resp_e->ceq_max_cnt);
 	caps->default_ceq_period = le16_to_cpu(resp_e->ceq_period);
 	caps->default_aeq_max_cnt = le16_to_cpu(resp_e->aeq_max_cnt);
@@ -2359,15 +2311,9 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	caps->cqe_hop_num = pbl_hop_num;
 	caps->srqwqe_hop_num = pbl_hop_num;
 	caps->idx_hop_num = pbl_hop_num;
-	caps->wqe_sq_hop_num = roce_get_field(resp_d->wq_hop_num_max_srqs,
-					  V2_QUERY_PF_CAPS_D_SQWQE_HOP_NUM_M,
-					  V2_QUERY_PF_CAPS_D_SQWQE_HOP_NUM_S);
-	caps->wqe_sge_hop_num = roce_get_field(resp_d->wq_hop_num_max_srqs,
-					  V2_QUERY_PF_CAPS_D_EX_SGE_HOP_NUM_M,
-					  V2_QUERY_PF_CAPS_D_EX_SGE_HOP_NUM_S);
-	caps->wqe_rq_hop_num = roce_get_field(resp_d->wq_hop_num_max_srqs,
-					  V2_QUERY_PF_CAPS_D_RQWQE_HOP_NUM_M,
-					  V2_QUERY_PF_CAPS_D_RQWQE_HOP_NUM_S);
+	caps->wqe_sq_hop_num = hr_reg_read(resp_d, PF_CAPS_D_SQWQE_HOP_NUM);
+	caps->wqe_sge_hop_num = hr_reg_read(resp_d, PF_CAPS_D_EX_SGE_HOP_NUM);
+	caps->wqe_rq_hop_num = hr_reg_read(resp_d, PF_CAPS_D_RQWQE_HOP_NUM);
 
 	return 0;
 }
@@ -5905,7 +5851,7 @@ static struct hns_roce_aeqe *next_aeqe_sw_v2(struct hns_roce_eq *eq)
 				   (eq->cons_index & (eq->entries - 1)) *
 				   eq->eqe_size);
 
-	return (roce_get_bit(aeqe->asyn, HNS_ROCE_V2_AEQ_AEQE_OWNER_S) ^
+	return (hr_reg_read(aeqe, AEQE_OWNER) ^
 		!!(eq->cons_index & eq->entries)) ? aeqe : NULL;
 }
 
@@ -5925,15 +5871,9 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		 */
 		dma_rmb();
 
-		event_type = roce_get_field(aeqe->asyn,
-					    HNS_ROCE_V2_AEQE_EVENT_TYPE_M,
-					    HNS_ROCE_V2_AEQE_EVENT_TYPE_S);
-		sub_type = roce_get_field(aeqe->asyn,
-					  HNS_ROCE_V2_AEQE_SUB_TYPE_M,
-					  HNS_ROCE_V2_AEQE_SUB_TYPE_S);
-		queue_num = roce_get_field(aeqe->event.queue_event.num,
-					   HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
-					   HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
+		event_type = hr_reg_read(aeqe, AEQE_EVENT_TYPE);
+		sub_type = hr_reg_read(aeqe, AEQE_SUB_TYPE);
+		queue_num = hr_reg_read(aeqe, AEQE_EVENT_QUEUE_NUM);
 
 		switch (event_type) {
 		case HNS_ROCE_EVENT_TYPE_PATH_MIG:
@@ -5993,8 +5933,8 @@ static struct hns_roce_ceqe *next_ceqe_sw_v2(struct hns_roce_eq *eq)
 				   (eq->cons_index & (eq->entries - 1)) *
 				   eq->eqe_size);
 
-	return (!!(roce_get_bit(ceqe->comp, HNS_ROCE_V2_CEQ_CEQE_OWNER_S))) ^
-		(!!(eq->cons_index & eq->entries)) ? ceqe : NULL;
+	return (hr_reg_read(ceqe, CEQE_OWNER) ^
+		!!(eq->cons_index & eq->entries)) ? ceqe : NULL;
 }
 
 static int hns_roce_v2_ceq_int(struct hns_roce_dev *hr_dev,
@@ -6010,8 +5950,7 @@ static int hns_roce_v2_ceq_int(struct hns_roce_dev *hr_dev,
 		 */
 		dma_rmb();
 
-		cqn = roce_get_field(ceqe->comp, HNS_ROCE_V2_CEQE_COMP_CQN_M,
-				     HNS_ROCE_V2_CEQE_COMP_CQN_S);
+		cqn = hr_reg_read(ceqe, CEQE_CQN);
 
 		hns_roce_cq_completion(hr_dev, cqn);
 
