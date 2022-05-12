@@ -352,6 +352,7 @@ enum hl_server_type {
  * HL_INFO_REGISTER_EVENTFD   - Register eventfd for event notifications.
  * HL_INFO_UNREGISTER_EVENTFD - Unregister eventfd
  * HL_INFO_GET_EVENTS         - Retrieve the last occurred events
+ * HL_INFO_UNDEFINED_OPCODE_EVENT - Retrieve last undefined opcode error information.
  */
 #define HL_INFO_HW_IP_INFO			0
 #define HL_INFO_HW_EVENTS			1
@@ -380,6 +381,7 @@ enum hl_server_type {
 #define HL_INFO_REGISTER_EVENTFD		28
 #define HL_INFO_UNREGISTER_EVENTFD		29
 #define HL_INFO_GET_EVENTS			30
+#define HL_INFO_UNDEFINED_OPCODE_EVENT		31
 
 #define HL_INFO_VERSION_MAX_LEN			128
 #define HL_INFO_CARD_NAME_MAX_LEN		16
@@ -654,6 +656,34 @@ struct hl_info_razwi_event {
 	__u8 no_engine_id;
 	__u8 error_type;
 	__u8 pad[2];
+};
+
+#define MAX_QMAN_STREAMS_INFO		4
+#define OPCODE_INFO_MAX_ADDR_SIZE	8
+/**
+ * struct hl_info_undefined_opcode_event - info about last undefined opcode error
+ * @timestamp: timestamp of the undefined opcode error
+ * @cb_addr_streams: CB addresses (per stream) that are currently exists in the PQ
+ *                   entiers. In case all streams array entries are
+ *                   filled with values, it means the execution was in Lower-CP.
+ * @cq_addr: the address of the current handled command buffer
+ * @cq_size: the size of the current handled command buffer
+ * @cb_addr_streams_len: num of streams - actual len of cb_addr_streams array.
+ *                       should be equal to 1 incase of undefined opcode
+ *                       in Upper-CP (specific stream) and equal to 4 incase
+ *                       of undefined opcode in Lower-CP.
+ * @engine_id: engine-id that the error occurred on
+ * @stream_id: the stream id the error occurred on. In case the stream equals to
+ *             MAX_QMAN_STREAMS_INFO it means the error occurred on a Lower-CP.
+ */
+struct hl_info_undefined_opcode_event {
+	__s64 timestamp;
+	__u64 cb_addr_streams[MAX_QMAN_STREAMS_INFO][OPCODE_INFO_MAX_ADDR_SIZE];
+	__u64 cq_addr;
+	__u32 cq_size;
+	__u32 cb_addr_streams_len;
+	__u32 engine_id;
+	__u32 stream_id;
 };
 
 /**

@@ -610,6 +610,28 @@ static int razwi_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
 
+static int undefined_opcode_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	struct hl_info_undefined_opcode_event info = {0};
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	info.timestamp = ktime_to_ns(hdev->last_error.undef_opcode.timestamp);
+	info.engine_id = hdev->last_error.undef_opcode.engine_id;
+	info.cq_addr = hdev->last_error.undef_opcode.cq_addr;
+	info.cq_size = hdev->last_error.undef_opcode.cq_size;
+	info.stream_id = hdev->last_error.undef_opcode.stream_id;
+	info.cb_addr_streams_len = hdev->last_error.undef_opcode.cb_addr_streams_len;
+	memcpy(info.cb_addr_streams, hdev->last_error.undef_opcode.cb_addr_streams,
+			sizeof(info.cb_addr_streams));
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
 static int dev_mem_alloc_page_sizes_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
@@ -717,6 +739,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_RAZWI_EVENT:
 		return razwi_info(hpriv, args);
+
+	case HL_INFO_UNDEFINED_OPCODE_EVENT:
+		return undefined_opcode_info(hpriv, args);
 
 	case HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES:
 		return dev_mem_alloc_page_sizes_info(hpriv, args);
