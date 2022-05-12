@@ -451,6 +451,68 @@ out:
 }
 
 /*
+ * Mark an attribute entry INCOMPLETE and save pointers to the relevant buffers
+ * for later deletion of the entry.
+ */
+static int
+xfs_attr_leaf_mark_incomplete(
+	struct xfs_da_args	*args,
+	struct xfs_da_state	*state)
+{
+	int			error;
+
+	/*
+	 * Fill in disk block numbers in the state structure
+	 * so that we can get the buffers back after we commit
+	 * several transactions in the following calls.
+	 */
+	error = xfs_attr_fillstate(state);
+	if (error)
+		return error;
+
+	/*
+	 * Mark the attribute as INCOMPLETE
+	 */
+	return xfs_attr3_leaf_setflag(args);
+}
+
+/*
+ * Initial setup for xfs_attr_node_removename.  Make sure the attr is there and
+ * the blocks are valid.  Attr keys with remote blocks will be marked
+ * incomplete.
+ */
+static
+int xfs_attr_node_removename_setup(
+	struct xfs_attr_item		*attr)
+{
+	struct xfs_da_args		*args = attr->xattri_da_args;
+	struct xfs_da_state		**state = &attr->xattri_da_state;
+	int				error;
+
+	error = xfs_attr_node_hasname(args, state);
+	if (error != -EEXIST)
+		goto out;
+	error = 0;
+
+	ASSERT((*state)->path.blk[(*state)->path.active - 1].bp != NULL);
+	ASSERT((*state)->path.blk[(*state)->path.active - 1].magic ==
+		XFS_ATTR_LEAF_MAGIC);
+
+	if (args->rmtblkno > 0) {
+		error = xfs_attr_leaf_mark_incomplete(args, *state);
+		if (error)
+			goto out;
+
+		error = xfs_attr_rmtval_invalidate(args);
+	}
+out:
+	if (error)
+		xfs_da_state_free(*state);
+
+	return error;
+}
+
+/*
  * Remove the original attr we have just replaced. This is dependent on the
  * original lookup and insert placing the old attr in args->blkno/args->index
  * and the new attr in args->blkno2/args->index2.
@@ -548,6 +610,21 @@ next_state:
 		return xfs_attr_leaf_addname(attr);
 	case XFS_DAS_NODE_ADD:
 		return xfs_attr_node_addname(attr);
+
+	case XFS_DAS_SF_REMOVE:
+		attr->xattri_dela_state = XFS_DAS_DONE;
+		return xfs_attr_sf_removename(args);
+	case XFS_DAS_LEAF_REMOVE:
+		attr->xattri_dela_state = XFS_DAS_DONE;
+		return xfs_attr_leaf_removename(args);
+	case XFS_DAS_NODE_REMOVE:
+		error = xfs_attr_node_removename_setup(attr);
+		if (error)
+			return error;
+		attr->xattri_dela_state = XFS_DAS_NODE_REMOVE_RMT;
+		if (args->rmtblkno == 0)
+			attr->xattri_dela_state++;
+		break;
 
 	case XFS_DAS_LEAF_SET_RMT:
 	case XFS_DAS_NODE_SET_RMT:
@@ -1347,68 +1424,6 @@ out:
 	return retval;
 }
 
-
-/*
- * Mark an attribute entry INCOMPLETE and save pointers to the relevant buffers
- * for later deletion of the entry.
- */
-STATIC int
-xfs_attr_leaf_mark_incomplete(
-	struct xfs_da_args	*args,
-	struct xfs_da_state	*state)
-{
-	int			error;
-
-	/*
-	 * Fill in disk block numbers in the state structure
-	 * so that we can get the buffers back after we commit
-	 * several transactions in the following calls.
-	 */
-	error = xfs_attr_fillstate(state);
-	if (error)
-		return error;
-
-	/*
-	 * Mark the attribute as INCOMPLETE
-	 */
-	return xfs_attr3_leaf_setflag(args);
-}
-
-/*
- * Initial setup for xfs_attr_node_removename.  Make sure the attr is there and
- * the blocks are valid.  Attr keys with remote blocks will be marked
- * incomplete.
- */
-STATIC
-int xfs_attr_node_removename_setup(
-	struct xfs_attr_item		*attr)
-{
-	struct xfs_da_args		*args = attr->xattri_da_args;
-	struct xfs_da_state		**state = &attr->xattri_da_state;
-	int				error;
-
-	error = xfs_attr_node_hasname(args, state);
-	if (error != -EEXIST)
-		goto out;
-	error = 0;
-
-	ASSERT((*state)->path.blk[(*state)->path.active - 1].bp != NULL);
-	ASSERT((*state)->path.blk[(*state)->path.active - 1].magic ==
-		XFS_ATTR_LEAF_MAGIC);
-
-	if (args->rmtblkno > 0) {
-		error = xfs_attr_leaf_mark_incomplete(args, *state);
-		if (error)
-			goto out;
-
-		error = xfs_attr_rmtval_invalidate(args);
-	}
-out:
-	if (error)
-		xfs_da_state_free(*state);
-
-	return error;
-}
 
 STATIC int
 xfs_attr_node_removename(

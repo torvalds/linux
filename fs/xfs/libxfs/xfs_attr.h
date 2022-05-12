@@ -451,6 +451,10 @@ enum xfs_delattr_state {
 	XFS_DAS_RM_NAME,		/* Remove attr name */
 	XFS_DAS_RM_SHRINK,		/* We are shrinking the tree */
 
+	XFS_DAS_SF_REMOVE,		/* Initial shortform set iter state */
+	XFS_DAS_LEAF_REMOVE,		/* Initial leaf form set iter state */
+	XFS_DAS_NODE_REMOVE,		/* Initial node form set iter state */
+
 	/* Leaf state set/replace sequence */
 	XFS_DAS_LEAF_SET_RMT,		/* set a remote xattr from a leaf */
 	XFS_DAS_LEAF_ALLOC_RMT,		/* We are allocating remote blocks */
