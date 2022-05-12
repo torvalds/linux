@@ -2812,6 +2812,7 @@
   __traceiter_android_vh_prepare_update_load_avg_se
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_process_killed
+  __traceiter_android_vh_killed_process
   __traceiter_android_vh_revert_creds
   __traceiter_android_vh_rmqueue
   __traceiter_android_vh_rwsem_init
@@ -3019,6 +3020,7 @@
   __tracepoint_android_vh_prepare_update_load_avg_se
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_process_killed
+  __tracepoint_android_vh_killed_process
   __tracepoint_android_vh_revert_creds
   __tracepoint_android_vh_rmqueue
   __tracepoint_android_vh_rwsem_init
