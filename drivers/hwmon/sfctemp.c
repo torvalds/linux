@@ -331,6 +331,7 @@ static int sfctemp_probe(struct platform_device *pdev)
 
 static const struct of_device_id sfctemp_of_match[] = {
 	{ .compatible = "starfive,jh7100-temp" },
+	{ .compatible = "starfive,jh7110-temp" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sfctemp_of_match);
