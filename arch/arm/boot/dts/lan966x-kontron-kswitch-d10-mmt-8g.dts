@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for the Kontron KSwitch D10 MMT 8G
+ */
+
+/dts-v1/;
+#include "lan966x-kontron-kswitch-d10-mmt.dtsi"
+
+/ {
+	model = "Kontron KSwitch D10 MMT 8G";
+	compatible = "kontron,kswitch-d10-mmt-8g", "kontron,s1921",
+		     "microchip,lan9668", "microchip,lan966";
+};

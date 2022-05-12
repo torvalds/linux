@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Common part of the device tree for the Kontron KSwitch D10 MMT
+ */
+
+/dts-v1/;
+#include "lan966x.dtsi"
+
+/ {
+	aliases {
+		serial0 = &usart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
+		priority = <200>;
+	};
+};
+
+&flx0 {
+	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
+	status = "okay";
+
+	usart0: serial@200 {
+		pinctrl-0 = <&usart0_pins>;
+		pinctrl-names = "default";
+		status = "okay";
+	};
+};
+
+&flx3 {
+	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
+	status = "okay";
+
+	spi3: spi@400 {
+		pinctrl-0 = <&fc3_b_pins>;
+		pinctrl-names = "default";
+		status = "okay";
+		cs-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&gpio {
+	fc3_b_pins: fc3-b-pins {
+		/* SCK, MISO, MOSI */
+		pins = "GPIO_51", "GPIO_52", "GPIO_53";
+		function = "fc3_b";
+	};
+
+	sgpio_a_pins: sgpio-a-pins {
+		/* SCK, D0, D1 */
+		pins = "GPIO_32", "GPIO_33", "GPIO_34";
+		function = "sgpio_a";
+	};
+
+	sgpio_b_pins: sgpio-b-pins {
+		/* LD */
+		pins = "GPIO_64";
+		function = "sgpio_b";
+	};
+
+	usart0_pins: usart0-pins {
+		/* RXD, TXD */
+		pins = "GPIO_25", "GPIO_26";
+		function = "fc0_b";
+	};
+};
+
+&sgpio {
+	pinctrl-0 = <&sgpio_a_pins>, <&sgpio_b_pins>;
+	pinctrl-names = "default";
+	bus-frequency = <8000000>;
+	/* arbitrary range because all GPIOs are in software mode */
+	microchip,sgpio-port-ranges = <0 11>;
+	status = "okay";
+
+	sgpio_in: gpio@0 {
+		ngpios = <128>;
+	};
+
+	sgpio_out: gpio@1 {
+		ngpios = <128>;
+	};
+};
+
+&watchdog {
+	status = "okay";
+};
