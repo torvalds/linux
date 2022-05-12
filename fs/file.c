@@ -630,32 +630,23 @@ EXPORT_SYMBOL(fd_install);
  * @files: file struct to retrieve file from
  * @fd: file descriptor to retrieve file for
  *
- * If this functions returns an EINVAL error pointer the fd was beyond the
- * current maximum number of file descriptors for that fdtable.
+ * Context: files_lock must be held.
  *
- * Returns: The file associated with @fd, on error returns an error pointer.
+ * Returns: The file associated with @fd (NULL if @fd is not open)
  */
 static struct file *pick_file(struct files_struct *files, unsigned fd)
 {
+	struct fdtable *fdt = files_fdtable(files);
 	struct file *file;
-	struct fdtable *fdt;
 
-	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	if (fd >= fdt->max_fds) {
-		file = ERR_PTR(-EINVAL);
-		goto out_unlock;
-	}
+	if (fd >= fdt->max_fds)
+		return NULL;
+
 	file = fdt->fd[fd];
-	if (!file) {
-		file = ERR_PTR(-EBADF);
-		goto out_unlock;
+	if (file) {
+		rcu_assign_pointer(fdt->fd[fd], NULL);
+		__put_unused_fd(files, fd);
 	}
-	rcu_assign_pointer(fdt->fd[fd], NULL);
-	__put_unused_fd(files, fd);
-
-out_unlock:
-	spin_unlock(&files->file_lock);
 	return file;
 }
 
@@ -664,8 +655,10 @@ int close_fd(unsigned fd)
 	struct files_struct *files = current->files;
 	struct file *file;
 
+	spin_lock(&files->file_lock);
 	file = pick_file(files, fd);
-	if (IS_ERR(file))
+	spin_unlock(&files->file_lock);
+	if (!file)
 		return -EBADF;
 
 	return filp_close(file, files);
@@ -702,20 +695,25 @@ static inline void __range_cloexec(struct files_struct *cur_fds,
 static inline void __range_close(struct files_struct *cur_fds, unsigned int fd,
 				 unsigned int max_fd)
 {
+	unsigned n;
+
+	rcu_read_lock();
+	n = last_fd(files_fdtable(cur_fds));
+	rcu_read_unlock();
+	max_fd = min(max_fd, n);
+
 	while (fd <= max_fd) {
 		struct file *file;
 
+		spin_lock(&cur_fds->file_lock);
 		file = pick_file(cur_fds, fd++);
-		if (!IS_ERR(file)) {
+		spin_unlock(&cur_fds->file_lock);
+
+		if (file) {
 			/* found a valid file to close */
 			filp_close(file, cur_fds);
 			cond_resched();
-			continue;
 		}
-
-		/* beyond the last fd in that table */
-		if (PTR_ERR(file) == -EINVAL)
-			return;
 	}
 }
 
@@ -795,26 +793,9 @@ int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
  * See close_fd_get_file() below, this variant assumes current->files->file_lock
  * is held.
  */
-int __close_fd_get_file(unsigned int fd, struct file **res)
+struct file *__close_fd_get_file(unsigned int fd)
 {
-	struct files_struct *files = current->files;
-	struct file *file;
-	struct fdtable *fdt;
-
-	fdt = files_fdtable(files);
-	if (fd >= fdt->max_fds)
-		goto out_err;
-	file = fdt->fd[fd];
-	if (!file)
-		goto out_err;
-	rcu_assign_pointer(fdt->fd[fd], NULL);
-	__put_unused_fd(files, fd);
-	get_file(file);
-	*res = file;
-	return 0;
-out_err:
-	*res = NULL;
-	return -ENOENT;
+	return pick_file(current->files, fd);
 }
 
 /*
@@ -822,16 +803,16 @@ out_err:
  * The caller must ensure that filp_close() called on the file, and then
  * an fput().
  */
-int close_fd_get_file(unsigned int fd, struct file **res)
+struct file *close_fd_get_file(unsigned int fd)
 {
 	struct files_struct *files = current->files;
-	int ret;
+	struct file *file;
 
 	spin_lock(&files->file_lock);
-	ret = __close_fd_get_file(fd, res);
+	file = pick_file(files, fd);
 	spin_unlock(&files->file_lock);
 
-	return ret;
+	return file;
 }
 
 void do_close_on_exec(struct files_struct *files)

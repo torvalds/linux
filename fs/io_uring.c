@@ -5137,13 +5137,10 @@ static int io_close(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 	}
 
-	ret = __close_fd_get_file(close->fd, &file);
+	file = __close_fd_get_file(close->fd);
 	spin_unlock(&files->file_lock);
-	if (ret < 0) {
-		if (ret == -ENOENT)
-			ret = -EBADF;
+	if (!file)
 		goto err;
-	}
 
 	/* No ->flush() or already async, safely close from here */
 	ret = filp_close(file, current->files);
