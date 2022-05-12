@@ -887,24 +887,6 @@ static int smsc95xx_reset(struct usbnet *dev)
 		return ret;
 	}
 
-	ret = smsc95xx_write_reg(dev, PM_CTRL, PM_CTL_PHY_RST_);
-	if (ret < 0)
-		return ret;
-
-	timeout = 0;
-	do {
-		msleep(10);
-		ret = smsc95xx_read_reg(dev, PM_CTRL, &read_buf);
-		if (ret < 0)
-			return ret;
-		timeout++;
-	} while ((read_buf & PM_CTL_PHY_RST_) && (timeout < 100));
-
-	if (timeout >= 100) {
-		netdev_warn(dev->net, "timeout waiting for PHY Reset\n");
-		return ret;
-	}
-
 	ret = smsc95xx_set_mac_address(dev);
 	if (ret < 0)
 		return ret;
