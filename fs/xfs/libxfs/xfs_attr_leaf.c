@@ -311,6 +311,15 @@ xfs_attr3_leaf_verify(
 		return fa;
 
 	/*
+	 * Empty leaf blocks should never occur;  they imply the existence of a
+	 * software bug that needs fixing. xfs_repair also flags them as a
+	 * corruption that needs fixing, so we should never let these go to
+	 * disk.
+	 */
+	if (ichdr.count == 0)
+		return __this_address;
+
+	/*
 	 * firstused is the block offset of the first name info structure.
 	 * Make sure it doesn't go off the block or crash into the header.
 	 */
