@@ -46,10 +46,8 @@ class Test(object):
 
 	def __str__(self) -> str:
 		"""Returns string representation of a Test class object."""
-		return ('Test(' + str(self.status) + ', ' + self.name +
-			', ' + str(self.expected_count) + ', ' +
-			str(self.subtests) + ', ' + str(self.log) + ', ' +
-			str(self.counts) + ')')
+		return (f'Test({self.status}, {self.name}, {self.expected_count}, '
+			f'{self.subtests}, {self.log}, {self.counts})')
 
 	def __repr__(self) -> str:
 		"""Returns string representation of a Test class object."""
@@ -58,7 +56,7 @@ class Test(object):
 	def add_error(self, error_message: str) -> None:
 		"""Records an error that occurred while parsing this test."""
 		self.counts.errors += 1
-		print_error('Test ' + self.name + ': ' + error_message)
+		print_with_timestamp(red('[ERROR]') + f' Test: {self.name}: {error_message}')
 
 class TestStatus(Enum):
 	"""An enumeration class to represent the status of a test."""
@@ -92,8 +90,7 @@ class TestCounts:
 		self.errors = 0
 
 	def __str__(self) -> str:
-		"""Returns the string representation of a TestCounts object.
-		"""
+		"""Returns the string representation of a TestCounts object."""
 		statuses = [('passed', self.passed), ('failed', self.failed),
 			('crashed', self.crashed), ('skipped', self.skipped),
 			('errors', self.errors)]
@@ -130,30 +127,19 @@ class TestCounts:
 		if self.total() == 0:
 			return TestStatus.NO_TESTS
 		elif self.crashed:
-			# If one of the subtests crash, the expected status
-			# of the Test is crashed.
+			# Crashes should take priority.
 			return TestStatus.TEST_CRASHED
 		elif self.failed:
-			# Otherwise if one of the subtests fail, the
-			# expected status of the Test is failed.
 			return TestStatus.FAILURE
 		elif self.passed:
-			# Otherwise if one of the subtests pass, the
-			# expected status of the Test is passed.
+			# No failures or crashes, looks good!
 			return TestStatus.SUCCESS
 		else:
-			# Finally, if none of the subtests have failed,
-			# crashed, or passed, the expected status of the
-			# Test is skipped.
+			# We have only skipped tests.
 			return TestStatus.SKIPPED
 
 	def add_status(self, status: TestStatus) -> None:
-		"""
-		Increments count of inputted status.
-
-		Parameters:
-		status - status to be added to the TestCounts object
-		"""
+		"""Increments the count for `status`."""
 		if status == TestStatus.SUCCESS:
 			self.passed += 1
 		elif status == TestStatus.FAILURE:
@@ -283,11 +269,9 @@ def check_version(version_num: int, accepted_versions: List[int],
 	test - Test object for current test being parsed
 	"""
 	if version_num < min(accepted_versions):
-		test.add_error(version_type +
-			' version lower than expected!')
+		test.add_error(f'{version_type} version lower than expected!')
 	elif version_num > max(accepted_versions):
-		test.add_error(
-			version_type + ' version higher than expected!')
+		test.add_error(f'{version_type} version higer than expected!')
 
 def parse_ktap_header(lines: LineStream, test: Test) -> bool:
 	"""
@@ -440,8 +424,7 @@ def parse_test_result(lines: LineStream, test: Test,
 	# Check test num
 	num = int(match.group(2))
 	if num != expected_num:
-		test.add_error('Expected test number ' +
-			str(expected_num) + ' but found ' + str(num))
+		test.add_error(f'Expected test number {expected_num} but found {num}')
 
 	# Set status of test object
 	status = match.group(1)
@@ -529,7 +512,7 @@ def format_test_divider(message: str, len_message: int) -> str:
 		# calculate number of dashes for each side of the divider
 		len_1 = int(difference / 2)
 		len_2 = difference - len_1
-	return ('=' * len_1) + ' ' + message + ' ' + ('=' * len_2)
+	return ('=' * len_1) + f' {message} ' + ('=' * len_2)
 
 def print_test_header(test: Test) -> None:
 	"""
@@ -545,20 +528,13 @@ def print_test_header(test: Test) -> None:
 	message = test.name
 	if test.expected_count:
 		if test.expected_count == 1:
-			message += (' (' + str(test.expected_count) +
-				' subtest)')
+			message += ' (1 subtest)'
 		else:
-			message += (' (' + str(test.expected_count) +
-				' subtests)')
+			message += f' ({test.expected_count} subtests)'
 	print_with_timestamp(format_test_divider(message, len(message)))
 
 def print_log(log: Iterable[str]) -> None:
-	"""
-	Prints all strings in saved log for test in yellow.
-
-	Parameters:
-	log - Iterable object with all strings saved in log for test
-	"""
+	"""Prints all strings in saved log for test in yellow."""
 	for m in log:
 		print_with_timestamp(yellow(m))
 
@@ -635,20 +611,7 @@ def print_summary_line(test: Test) -> None:
 		color = yellow
 	else:
 		color = red
-	counts = test.counts
-	print_with_timestamp(color('Testing complete. ' + str(counts)))
-
-def print_error(error_message: str) -> None:
-	"""
-	Prints error message with error format.
-
-	Example:
-	"[ERROR] Test example: missing test plan!"
-
-	Parameters:
-	error_message - message describing error
-	"""
-	print_with_timestamp(red('[ERROR] ') + error_message)
+	print_with_timestamp(color(f'Testing complete. {test.counts}'))
 
 # Other methods:
 
@@ -794,7 +757,7 @@ def parse_test(lines: LineStream, expected_num: int, log: List[str]) -> Test:
 def parse_run_tests(kernel_output: Iterable[str]) -> Test:
 	"""
 	Using kernel output, extract KTAP lines, parse the lines for test
-	results and print condensed test results and summary line .
+	results and print condensed test results and summary line.
 
 	Parameters:
 	kernel_output - Iterable object contains lines of kernel output
