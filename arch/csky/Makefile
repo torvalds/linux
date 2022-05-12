@@ -69,7 +69,6 @@ libs-y += arch/csky/lib/ \
 	$(shell $(CC) $(KBUILD_CFLAGS) $(KCFLAGS) -print-libgcc-file-name)
 
 boot := arch/csky/boot
-core-y += $(boot)/dts/
 
 all: zImage
 
