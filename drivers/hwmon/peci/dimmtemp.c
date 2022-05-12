@@ -300,18 +300,10 @@ static int create_dimm_temp_label(struct peci_dimmtemp *priv, int chan)
 	return 0;
 }
 
-static const u32 peci_dimmtemp_temp_channel_config[] = {
-	[0 ... DIMM_NUMS_MAX - 1] = HWMON_T_LABEL | HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT,
-	0
-};
-
-static const struct hwmon_channel_info peci_dimmtemp_temp_channel = {
-	.type = hwmon_temp,
-	.config = peci_dimmtemp_temp_channel_config,
-};
-
 static const struct hwmon_channel_info *peci_dimmtemp_temp_info[] = {
-	&peci_dimmtemp_temp_channel,
+	HWMON_CHANNEL_INFO(temp,
+			   [0 ... DIMM_NUMS_MAX - 1] = HWMON_T_LABEL |
+				HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT),
 	NULL
 };
 
