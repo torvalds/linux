@@ -445,12 +445,11 @@ struct ATTRIB *mi_insert_attr(struct mft_inode *mi, enum ATTR_TYPE type,
 	attr = NULL;
 	while ((attr = mi_enum_attr(mi, attr))) {
 		diff = compare_attr(attr, type, name, name_len, upcase);
-		if (diff > 0)
-			break;
+
 		if (diff < 0)
 			continue;
 
-		if (!is_attr_indexed(attr))
+		if (!diff && !is_attr_indexed(attr))
 			return NULL;
 		break;
 	}

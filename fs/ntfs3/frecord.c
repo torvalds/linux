@@ -7,6 +7,7 @@
 
 #include <linux/fiemap.h>
 #include <linux/fs.h>
+#include <linux/minmax.h>
 #include <linux/vmalloc.h>
 
 #include "debug.h"
@@ -649,6 +650,7 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 	struct mft_inode *mi;
 	u32 asize, free;
 	struct MFT_REF ref;
+	struct MFT_REC *mrec;
 	__le16 id;
 
 	if (!ni->attr_list.dirty)
@@ -692,11 +694,17 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 		free -= asize;
 	}
 
+	/* Make a copy of primary record to restore if error. */
+	mrec = kmemdup(ni->mi.mrec, sbi->record_size, GFP_NOFS);
+	if (!mrec)
+		return 0; /* Not critical. */
+
 	/* It seems that attribute list can be removed from primary record. */
 	mi_remove_attr(NULL, &ni->mi, attr_list);
 
 	/*
-	 * Repeat the cycle above and move all attributes to primary record.
+	 * Repeat the cycle above and copy all attributes to primary record.
+	 * Do not remove original attributes from subrecords!
 	 * It should be success!
 	 */
 	le = NULL;
@@ -707,14 +715,14 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 		mi = ni_find_mi(ni, ino_get(&le->ref));
 		if (!mi) {
 			/* Should never happened, 'cause already checked. */
-			goto bad;
+			goto out;
 		}
 
 		attr = mi_find_attr(mi, NULL, le->type, le_name(le),
 				    le->name_len, &le->id);
 		if (!attr) {
 			/* Should never happened, 'cause already checked. */
-			goto bad;
+			goto out;
 		}
 		asize = le32_to_cpu(attr->size);
 
@@ -724,18 +732,33 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 					  le16_to_cpu(attr->name_off));
 		if (!attr_ins) {
 			/*
-			 * Internal error.
-			 * Either no space in primary record (already checked).
-			 * Either tried to insert another
-			 * non indexed attribute (logic error).
+			 * No space in primary record (already checked).
 			 */
-			goto bad;
+			goto out;
 		}
 
 		/* Copy all except id. */
 		id = attr_ins->id;
 		memcpy(attr_ins, attr, asize);
 		attr_ins->id = id;
+	}
+
+	/*
+	 * Repeat the cycle above and remove all attributes from subrecords.
+	 */
+	le = NULL;
+	while ((le = al_enumerate(ni, le))) {
+		if (!memcmp(&le->ref, &ref, sizeof(ref)))
+			continue;
+
+		mi = ni_find_mi(ni, ino_get(&le->ref));
+		if (!mi)
+			continue;
+
+		attr = mi_find_attr(mi, NULL, le->type, le_name(le),
+				    le->name_len, &le->id);
+		if (!attr)
+			continue;
 
 		/* Remove from original record. */
 		mi_remove_attr(NULL, mi, attr);
@@ -748,11 +771,13 @@ static int ni_try_remove_attr_list(struct ntfs_inode *ni)
 	ni->attr_list.le = NULL;
 	ni->attr_list.dirty = false;
 
+	kfree(mrec);
 	return 0;
-bad:
-	ntfs_inode_err(&ni->vfs_inode, "Internal error");
-	make_bad_inode(&ni->vfs_inode);
-	return -EINVAL;
+out:
+	/* Restore primary record. */
+	swap(mrec, ni->mi.mrec);
+	kfree(mrec);
+	return 0;
 }
 
 /*
