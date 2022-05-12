@@ -135,39 +135,6 @@ xlog_cil_iovec_space(
 }
 
 /*
- * shadow buffers can be large, so we need to use kvmalloc() here to ensure
- * success. Unfortunately, kvmalloc() only allows GFP_KERNEL contexts to fall
- * back to vmalloc, so we can't actually do anything useful with gfp flags to
- * control the kmalloc() behaviour within kvmalloc(). Hence kmalloc() will do
- * direct reclaim and compaction in the slow path, both of which are
- * horrendously expensive. We just want kmalloc to fail fast and fall back to
- * vmalloc if it can't get somethign straight away from the free lists or buddy
- * allocator. Hence we have to open code kvmalloc outselves here.
- *
- * Also, we are in memalloc_nofs_save task context here, so despite the use of
- * GFP_KERNEL here, we are actually going to be doing GFP_NOFS allocations. This
- * is actually the only way to make vmalloc() do GFP_NOFS allocations, so lets
- * just all pretend this is a GFP_KERNEL context operation....
- */
-static inline void *
-xlog_cil_kvmalloc(
-	size_t		buf_size)
-{
-	gfp_t		flags = GFP_KERNEL;
-	void		*p;
-
-	flags &= ~__GFP_DIRECT_RECLAIM;
-	flags |= __GFP_NOWARN | __GFP_NORETRY;
-	do {
-		p = kmalloc(buf_size, flags);
-		if (!p)
-			p = vmalloc(buf_size);
-	} while (!p);
-
-	return p;
-}
-
-/*
  * Allocate or pin log vector buffers for CIL insertion.
  *
  * The CIL currently uses disposable buffers for copying a snapshot of the
@@ -283,7 +250,7 @@ xlog_cil_alloc_shadow_bufs(
 			 * storage.
 			 */
 			kmem_free(lip->li_lv_shadow);
-			lv = xlog_cil_kvmalloc(buf_size);
+			lv = xlog_kvmalloc(buf_size);
 
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
 

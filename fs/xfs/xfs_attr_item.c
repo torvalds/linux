@@ -44,7 +44,7 @@ xfs_attri_item_free(
 	struct xfs_attri_log_item	*attrip)
 {
 	kmem_free(attrip->attri_item.li_lv_shadow);
-	kmem_free(attrip);
+	kvfree(attrip);
 }
 
 /*
@@ -119,11 +119,11 @@ xfs_attri_item_format(
 			sizeof(struct xfs_attri_log_format));
 	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_ATTR_NAME,
 			attrip->attri_name,
-			xlog_calc_iovec_len(attrip->attri_name_len));
+			attrip->attri_name_len);
 	if (attrip->attri_value_len > 0)
 		xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_ATTR_VALUE,
 				attrip->attri_value,
-				xlog_calc_iovec_len(attrip->attri_value_len));
+				attrip->attri_value_len);
 }
 
 /*
@@ -163,26 +163,21 @@ xfs_attri_init(
 
 {
 	struct xfs_attri_log_item	*attrip;
-	uint32_t			name_vec_len = 0;
-	uint32_t			value_vec_len = 0;
-	uint32_t			buffer_size;
-
-	if (name_len)
-		name_vec_len = xlog_calc_iovec_len(name_len);
-	if (value_len)
-		value_vec_len = xlog_calc_iovec_len(value_len);
-
-	buffer_size = name_vec_len + value_vec_len;
+	uint32_t			buffer_size = name_len + value_len;
 
 	if (buffer_size) {
-		attrip = kmem_zalloc(sizeof(struct xfs_attri_log_item) +
-				    buffer_size, KM_NOFS);
-		if (attrip == NULL)
-			return NULL;
+		/*
+		 * This could be over 64kB in length, so we have to use
+		 * kvmalloc() for this. But kvmalloc() utterly sucks, so we
+		 * use own version.
+		 */
+		attrip = xlog_kvmalloc(sizeof(struct xfs_attri_log_item) +
+					buffer_size);
 	} else {
-		attrip = kmem_cache_zalloc(xfs_attri_cache,
-					  GFP_NOFS | __GFP_NOFAIL);
+		attrip = kmem_cache_alloc(xfs_attri_cache,
+					GFP_NOFS | __GFP_NOFAIL);
 	}
+	memset(attrip, 0, sizeof(struct xfs_attri_log_item));
 
 	attrip->attri_name_len = name_len;
 	if (name_len)
@@ -195,7 +190,7 @@ xfs_attri_init(
 	if (value_len)
 		attrip->attri_value = ((char *)attrip) +
 				sizeof(struct xfs_attri_log_item) +
-				name_vec_len;
+				name_len;
 	else
 		attrip->attri_value = NULL;
 
