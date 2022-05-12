@@ -26,6 +26,6 @@ CONFIG_SERIAL_EARLYCON_RISCV_SBI=y''',
 			   kernel_path='arch/riscv/boot/Image',
 			   kernel_command_line='console=ttyS0',
 			   extra_qemu_params=[
-					   '-machine virt',
-					   '-cpu rv64',
-					   '-bios opensbi-riscv64-generic-fw_dynamic.bin'])
+					   '-machine', 'virt',
+					   '-cpu', 'rv64',
+					   '-bios', 'opensbi-riscv64-generic-fw_dynamic.bin'])
