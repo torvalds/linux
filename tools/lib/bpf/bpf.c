@@ -639,6 +639,20 @@ int bpf_map_delete_elem(int fd, const void *key)
 	return libbpf_err_errno(ret);
 }
 
+int bpf_map_delete_elem_flags(int fd, const void *key, __u64 flags)
+{
+	union bpf_attr attr;
+	int ret;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.map_fd = fd;
+	attr.key = ptr_to_u64(key);
+	attr.flags = flags;
+
+	ret = sys_bpf(BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
+	return libbpf_err_errno(ret);
+}
+
 int bpf_map_get_next_key(int fd, const void *key, void *next_key)
 {
 	union bpf_attr attr;

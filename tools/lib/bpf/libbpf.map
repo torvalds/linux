@@ -443,7 +443,13 @@ LIBBPF_0.7.0 {
 LIBBPF_0.8.0 {
 	global:
 		bpf_map__autocreate;
+		bpf_map__get_next_key;
+		bpf_map__delete_elem;
+		bpf_map__lookup_and_delete_elem;
+		bpf_map__lookup_elem;
 		bpf_map__set_autocreate;
+		bpf_map__update_elem;
+		bpf_map_delete_elem_flags;
 		bpf_object__destroy_subskeleton;
 		bpf_object__open_subskeleton;
 		bpf_program__attach_kprobe_multi_opts;

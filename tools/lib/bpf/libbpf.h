@@ -991,6 +991,110 @@ LIBBPF_API int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd);
 LIBBPF_API struct bpf_map *bpf_map__inner_map(struct bpf_map *map);
 
 /**
+ * @brief **bpf_map__lookup_elem()** allows to lookup BPF map value
+ * corresponding to provided key.
+ * @param map BPF map to lookup element in
+ * @param key pointer to memory containing bytes of the key used for lookup
+ * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
+ * @param value pointer to memory in which looked up value will be stored
+ * @param value_sz size in byte of value data memory; it has to match BPF map
+ * definition's **value_size**. For per-CPU BPF maps value size has to be
+ * a product of BPF map value size and number of possible CPUs in the system
+ * (could be fetched with **libbpf_num_possible_cpus()**). Note also that for
+ * per-CPU values value size has to be aligned up to closest 8 bytes for
+ * alignment reasons, so expected size is: `round_up(value_size, 8)
+ * * libbpf_num_possible_cpus()`.
+ * @flags extra flags passed to kernel for this operation
+ * @return 0, on success; negative error, otherwise
+ *
+ * **bpf_map__lookup_elem()** is high-level equivalent of
+ * **bpf_map_lookup_elem()** API with added check for key and value size.
+ */
+LIBBPF_API int bpf_map__lookup_elem(const struct bpf_map *map,
+				    const void *key, size_t key_sz,
+				    void *value, size_t value_sz, __u64 flags);
+
+/**
+ * @brief **bpf_map__update_elem()** allows to insert or update value in BPF
+ * map that corresponds to provided key.
+ * @param map BPF map to insert to or update element in
+ * @param key pointer to memory containing bytes of the key
+ * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
+ * @param value pointer to memory containing bytes of the value
+ * @param value_sz size in byte of value data memory; it has to match BPF map
+ * definition's **value_size**. For per-CPU BPF maps value size has to be
+ * a product of BPF map value size and number of possible CPUs in the system
+ * (could be fetched with **libbpf_num_possible_cpus()**). Note also that for
+ * per-CPU values value size has to be aligned up to closest 8 bytes for
+ * alignment reasons, so expected size is: `round_up(value_size, 8)
+ * * libbpf_num_possible_cpus()`.
+ * @flags extra flags passed to kernel for this operation
+ * @return 0, on success; negative error, otherwise
+ *
+ * **bpf_map__update_elem()** is high-level equivalent of
+ * **bpf_map_update_elem()** API with added check for key and value size.
+ */
+LIBBPF_API int bpf_map__update_elem(const struct bpf_map *map,
+				    const void *key, size_t key_sz,
+				    const void *value, size_t value_sz, __u64 flags);
+
+/**
+ * @brief **bpf_map__delete_elem()** allows to delete element in BPF map that
+ * corresponds to provided key.
+ * @param map BPF map to delete element from
+ * @param key pointer to memory containing bytes of the key
+ * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
+ * @flags extra flags passed to kernel for this operation
+ * @return 0, on success; negative error, otherwise
+ *
+ * **bpf_map__delete_elem()** is high-level equivalent of
+ * **bpf_map_delete_elem()** API with added check for key size.
+ */
+LIBBPF_API int bpf_map__delete_elem(const struct bpf_map *map,
+				    const void *key, size_t key_sz, __u64 flags);
+
+/**
+ * @brief **bpf_map__lookup_and_delete_elem()** allows to lookup BPF map value
+ * corresponding to provided key and atomically delete it afterwards.
+ * @param map BPF map to lookup element in
+ * @param key pointer to memory containing bytes of the key used for lookup
+ * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
+ * @param value pointer to memory in which looked up value will be stored
+ * @param value_sz size in byte of value data memory; it has to match BPF map
+ * definition's **value_size**. For per-CPU BPF maps value size has to be
+ * a product of BPF map value size and number of possible CPUs in the system
+ * (could be fetched with **libbpf_num_possible_cpus()**). Note also that for
+ * per-CPU values value size has to be aligned up to closest 8 bytes for
+ * alignment reasons, so expected size is: `round_up(value_size, 8)
+ * * libbpf_num_possible_cpus()`.
+ * @flags extra flags passed to kernel for this operation
+ * @return 0, on success; negative error, otherwise
+ *
+ * **bpf_map__lookup_and_delete_elem()** is high-level equivalent of
+ * **bpf_map_lookup_and_delete_elem()** API with added check for key and value size.
+ */
+LIBBPF_API int bpf_map__lookup_and_delete_elem(const struct bpf_map *map,
+					       const void *key, size_t key_sz,
+					       void *value, size_t value_sz, __u64 flags);
+
+/**
+ * @brief **bpf_map__get_next_key()** allows to iterate BPF map keys by
+ * fetching next key that follows current key.
+ * @param map BPF map to fetch next key from
+ * @param cur_key pointer to memory containing bytes of current key or NULL to
+ * fetch the first key
+ * @param next_key pointer to memory to write next key into
+ * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
+ * @return 0, on success; -ENOENT if **cur_key** is the last key in BPF map;
+ * negative error, otherwise
+ *
+ * **bpf_map__get_next_key()** is high-level equivalent of
+ * **bpf_map_get_next_key()** API with added check for key size.
+ */
+LIBBPF_API int bpf_map__get_next_key(const struct bpf_map *map,
+				     const void *cur_key, void *next_key, size_t key_sz);
+
+/**
  * @brief **libbpf_get_error()** extracts the error code from the passed
  * pointer
  * @param ptr pointer returned from libbpf API function
