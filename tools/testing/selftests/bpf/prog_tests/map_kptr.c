@@ -91,7 +91,7 @@ static void test_map_kptr_success(bool test_run)
 	);
 	struct map_kptr *skel;
 	int key = 0, ret;
-	char buf[24];
+	char buf[16];
 
 	skel = map_kptr__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "map_kptr__open_and_load"))
@@ -107,24 +107,29 @@ static void test_map_kptr_success(bool test_run)
 	if (test_run)
 		return;
 
-	ret = bpf_map_update_elem(bpf_map__fd(skel->maps.array_map), &key, buf, 0);
+	ret = bpf_map__update_elem(skel->maps.array_map,
+				   &key, sizeof(key), buf, sizeof(buf), 0);
 	ASSERT_OK(ret, "array_map update");
-	ret = bpf_map_update_elem(bpf_map__fd(skel->maps.array_map), &key, buf, 0);
+	ret = bpf_map__update_elem(skel->maps.array_map,
+				   &key, sizeof(key), buf, sizeof(buf), 0);
 	ASSERT_OK(ret, "array_map update2");
 
-	ret = bpf_map_update_elem(bpf_map__fd(skel->maps.hash_map), &key, buf, 0);
+	ret = bpf_map__update_elem(skel->maps.hash_map,
+				   &key, sizeof(key), buf, sizeof(buf), 0);
 	ASSERT_OK(ret, "hash_map update");
-	ret = bpf_map_delete_elem(bpf_map__fd(skel->maps.hash_map), &key);
+	ret = bpf_map__delete_elem(skel->maps.hash_map, &key, sizeof(key), 0);
 	ASSERT_OK(ret, "hash_map delete");
 
-	ret = bpf_map_update_elem(bpf_map__fd(skel->maps.hash_malloc_map), &key, buf, 0);
+	ret = bpf_map__update_elem(skel->maps.hash_malloc_map,
+				   &key, sizeof(key), buf, sizeof(buf), 0);
 	ASSERT_OK(ret, "hash_malloc_map update");
-	ret = bpf_map_delete_elem(bpf_map__fd(skel->maps.hash_malloc_map), &key);
+	ret = bpf_map__delete_elem(skel->maps.hash_malloc_map, &key, sizeof(key), 0);
 	ASSERT_OK(ret, "hash_malloc_map delete");
 
-	ret = bpf_map_update_elem(bpf_map__fd(skel->maps.lru_hash_map), &key, buf, 0);
+	ret = bpf_map__update_elem(skel->maps.lru_hash_map,
+				   &key, sizeof(key), buf, sizeof(buf), 0);
 	ASSERT_OK(ret, "lru_hash_map update");
-	ret = bpf_map_delete_elem(bpf_map__fd(skel->maps.lru_hash_map), &key);
+	ret = bpf_map__delete_elem(skel->maps.lru_hash_map, &key, sizeof(key), 0);
 	ASSERT_OK(ret, "lru_hash_map delete");
 
 	map_kptr__destroy(skel);
