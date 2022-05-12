@@ -295,6 +295,26 @@ out:
 	return error;
 }
 
+/*
+ * When we bump the state to REPLACE, we may actually need to skip over the
+ * state. When LARP mode is enabled, we don't need to run the atomic flags flip,
+ * so we skip straight over the REPLACE state and go on to REMOVE_OLD.
+ */
+static void
+xfs_attr_dela_state_set_replace(
+	struct xfs_attr_item	*attr,
+	enum xfs_delattr_state	replace)
+{
+	struct xfs_da_args	*args = attr->xattri_da_args;
+
+	ASSERT(replace == XFS_DAS_LEAF_REPLACE ||
+			replace == XFS_DAS_NODE_REPLACE);
+
+	attr->xattri_dela_state = replace;
+	if (xfs_has_larp(args->dp->i_mount))
+		attr->xattri_dela_state++;
+}
+
 static int
 xfs_attr_leaf_addname(
 	struct xfs_attr_item	*attr)
@@ -337,7 +357,7 @@ xfs_attr_leaf_addname(
 		attr->xattri_dela_state = XFS_DAS_LEAF_SET_RMT;
 		error = -EAGAIN;
 	} else if (args->op_flags & XFS_DA_OP_RENAME) {
-		attr->xattri_dela_state = XFS_DAS_LEAF_REPLACE;
+		xfs_attr_dela_state_set_replace(attr, XFS_DAS_LEAF_REPLACE);
 		error = -EAGAIN;
 	} else {
 		attr->xattri_dela_state = XFS_DAS_DONE;
@@ -368,7 +388,7 @@ xfs_attr_node_addname(
 		attr->xattri_dela_state = XFS_DAS_NODE_SET_RMT;
 		error = -EAGAIN;
 	} else if (args->op_flags & XFS_DA_OP_RENAME) {
-		attr->xattri_dela_state = XFS_DAS_NODE_REPLACE;
+		xfs_attr_dela_state_set_replace(attr, XFS_DAS_NODE_REPLACE);
 		error = -EAGAIN;
 	} else {
 		attr->xattri_dela_state = XFS_DAS_DONE;
@@ -395,8 +415,11 @@ xfs_attr_rmtval_alloc(
 		error = xfs_attr_rmtval_set_blk(attr);
 		if (error)
 			return error;
-		error = -EAGAIN;
-		goto out;
+		/* Roll the transaction only if there is more to allocate. */
+		if (attr->xattri_blkcnt > 0) {
+			error = -EAGAIN;
+			goto out;
+		}
 	}
 
 	error = xfs_attr_rmtval_set_value(args);
@@ -407,6 +430,13 @@ xfs_attr_rmtval_alloc(
 	if (!(args->op_flags & XFS_DA_OP_RENAME)) {
 		error = xfs_attr3_leaf_clearflag(args);
 		attr->xattri_dela_state = XFS_DAS_DONE;
+	} else {
+		/*
+		 * We are running a REPLACE operation, so we need to bump the
+		 * state to the step in that operation.
+		 */
+		attr->xattri_dela_state++;
+		xfs_attr_dela_state_set_replace(attr, attr->xattri_dela_state);
 	}
 out:
 	trace_xfs_attr_rmtval_alloc(attr->xattri_dela_state, args->dp);
@@ -428,7 +458,6 @@ xfs_attr_set_iter(
 	struct xfs_inode		*dp = args->dp;
 	struct xfs_buf			*bp = NULL;
 	int				forkoff, error = 0;
-	struct xfs_mount		*mp = args->dp->i_mount;
 
 	/* State machine switch */
 next_state:
@@ -458,37 +487,29 @@ next_state:
 			return error;
 		if (attr->xattri_dela_state == XFS_DAS_DONE)
 			break;
-		attr->xattri_dela_state++;
-		fallthrough;
+		goto next_state;
 
 	case XFS_DAS_LEAF_REPLACE:
 	case XFS_DAS_NODE_REPLACE:
 		/*
-		 * If this is an atomic rename operation, we must "flip" the
-		 * incomplete flags on the "new" and "old" attribute/value pairs
-		 * so that one disappears and one appears atomically.  Then we
-		 * must remove the "old" attribute/value pair.
-		 *
-		 * In a separate transaction, set the incomplete flag on the
-		 * "old" attr and clear the incomplete flag on the "new" attr.
+		 * We must "flip" the incomplete flags on the "new" and "old"
+		 * attribute/value pairs so that one disappears and one appears
+		 * atomically.  Then we must remove the "old" attribute/value
+		 * pair.
 		 */
-		if (!xfs_has_larp(mp)) {
-			error = xfs_attr3_leaf_flipflags(args);
-			if (error)
-				return error;
-			/*
-			 * Commit the flag value change and start the next trans
-			 * in series at FLIP_FLAG.
-			 */
-			error = -EAGAIN;
-			attr->xattri_dela_state++;
-			break;
-		}
-
+		error = xfs_attr3_leaf_flipflags(args);
+		if (error)
+			return error;
+		/*
+		 * Commit the flag value change and start the next trans
+		 * in series at REMOVE_OLD.
+		 */
+		error = -EAGAIN;
 		attr->xattri_dela_state++;
-		fallthrough;
-	case XFS_DAS_FLIP_LFLAG:
-	case XFS_DAS_FLIP_NFLAG:
+		break;
+
+	case XFS_DAS_LEAF_REMOVE_OLD:
+	case XFS_DAS_NODE_REMOVE_OLD:
 		/*
 		 * Dismantle the "old" attribute/value pair by removing a
 		 * "remote" value (if it exists).
