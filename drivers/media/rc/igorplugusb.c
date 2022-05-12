@@ -223,9 +223,9 @@ static int igorplugusb_probe(struct usb_interface *intf,
 
 	return 0;
 fail:
-	rc_free_device(ir->rc);
-	usb_free_urb(ir->urb);
 	del_timer(&ir->timer);
+	usb_free_urb(ir->urb);
+	rc_free_device(ir->rc);
 	kfree(ir->buf_in);
 
 	return ret;
