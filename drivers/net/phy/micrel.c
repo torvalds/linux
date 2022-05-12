@@ -1743,7 +1743,7 @@ static int ksz886x_cable_test_get_status(struct phy_device *phydev,
 
 static int lanphy_read_page_reg(struct phy_device *phydev, int page, u32 addr)
 {
-	u32 data;
+	int data;
 
 	phy_lock_mdio_bus(phydev);
 	__phy_write(phydev, LAN_EXT_PAGE_ACCESS_CONTROL, page);
@@ -2444,8 +2444,7 @@ static int lan8804_config_init(struct phy_device *phydev)
 
 static irqreturn_t lan8814_handle_interrupt(struct phy_device *phydev)
 {
-	u16 tsu_irq_status;
-	int irq_status;
+	int irq_status, tsu_irq_status;
 
 	irq_status = phy_read(phydev, LAN8814_INTS);
 	if (irq_status > 0 && (irq_status & LAN8814_INT_LINK))
@@ -2657,6 +2656,7 @@ static struct phy_driver ksphy_driver[] = {
 	.name		= "Micrel KS8737",
 	/* PHY_BASIC_FEATURES */
 	.driver_data	= &ks8737_type,
+	.probe		= kszphy_probe,
 	.config_init	= kszphy_config_init,
 	.config_intr	= kszphy_config_intr,
 	.handle_interrupt = kszphy_handle_interrupt,
@@ -2782,8 +2782,8 @@ static struct phy_driver ksphy_driver[] = {
 	.config_init	= ksz8061_config_init,
 	.config_intr	= kszphy_config_intr,
 	.handle_interrupt = kszphy_handle_interrupt,
-	.suspend	= kszphy_suspend,
-	.resume		= kszphy_resume,
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
 }, {
 	.phy_id		= PHY_ID_KSZ9021,
 	.phy_id_mask	= 0x000ffffe,

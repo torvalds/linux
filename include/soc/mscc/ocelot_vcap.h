@@ -681,7 +681,6 @@ struct ocelot_vcap_id {
 
 struct ocelot_vcap_filter {
 	struct list_head list;
-	struct list_head trap_list;
 
 	enum ocelot_vcap_filter_type type;
 	int block_id;
@@ -695,6 +694,7 @@ struct ocelot_vcap_filter {
 	struct ocelot_vcap_stats stats;
 	/* For VCAP IS1 and IS2 */
 	bool take_ts;
+	bool is_trap;
 	unsigned long ingress_port_mask;
 	/* For VCAP ES0 */
 	struct ocelot_vcap_port ingress_port;

@@ -1622,7 +1622,7 @@ int ocelot_trap_add(struct ocelot *ocelot, int port,
 		trap->action.mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
 		trap->action.port_mask = 0;
 		trap->take_ts = take_ts;
-		list_add_tail(&trap->trap_list, &ocelot->traps);
+		trap->is_trap = true;
 		new = true;
 	}
 
@@ -1634,10 +1634,8 @@ int ocelot_trap_add(struct ocelot *ocelot, int port,
 		err = ocelot_vcap_filter_replace(ocelot, trap);
 	if (err) {
 		trap->ingress_port_mask &= ~BIT(port);
-		if (!trap->ingress_port_mask) {
-			list_del(&trap->trap_list);
+		if (!trap->ingress_port_mask)
 			kfree(trap);
-		}
 		return err;
 	}
 
@@ -1657,11 +1655,8 @@ int ocelot_trap_del(struct ocelot *ocelot, int port, unsigned long cookie)
 		return 0;
 
 	trap->ingress_port_mask &= ~BIT(port);
-	if (!trap->ingress_port_mask) {
-		list_del(&trap->trap_list);
-
+	if (!trap->ingress_port_mask)
 		return ocelot_vcap_filter_del(ocelot, trap);
-	}
 
 	return ocelot_vcap_filter_replace(ocelot, trap);
 }
