@@ -406,38 +406,39 @@ xfs_attr_set_iter(
 
 	case XFS_DAS_FOUND_LBLK:
 		/*
+		 * Find space for remote blocks and fall into the allocation
+		 * state.
+		 */
+		if (args->rmtblkno > 0) {
+			error = xfs_attr_rmtval_find_space(attr);
+			if (error)
+				return error;
+		}
+		attr->xattri_dela_state = XFS_DAS_LEAF_ALLOC_RMT;
+		fallthrough;
+	case XFS_DAS_LEAF_ALLOC_RMT:
+
+		/*
 		 * If there was an out-of-line value, allocate the blocks we
 		 * identified for its storage and copy the value.  This is done
 		 * after we create the attribute so that we don't overflow the
 		 * maximum size of a transaction and/or hit a deadlock.
 		 */
-
-		/* Open coded xfs_attr_rmtval_set without trans handling */
-		if ((attr->xattri_flags & XFS_DAC_LEAF_ADDNAME_INIT) == 0) {
-			attr->xattri_flags |= XFS_DAC_LEAF_ADDNAME_INIT;
-			if (args->rmtblkno > 0) {
-				error = xfs_attr_rmtval_find_space(attr);
+		if (args->rmtblkno > 0) {
+			if (attr->xattri_blkcnt > 0) {
+				error = xfs_attr_rmtval_set_blk(attr);
 				if (error)
 					return error;
+				trace_xfs_attr_set_iter_return(
+						attr->xattri_dela_state,
+						args->dp);
+				return -EAGAIN;
 			}
-		}
 
-		/*
-		 * Repeat allocating remote blocks for the attr value until
-		 * blkcnt drops to zero.
-		 */
-		if (attr->xattri_blkcnt > 0) {
-			error = xfs_attr_rmtval_set_blk(attr);
+			error = xfs_attr_rmtval_set_value(args);
 			if (error)
 				return error;
-			trace_xfs_attr_set_iter_return(attr->xattri_dela_state,
-						       args->dp);
-			return -EAGAIN;
 		}
-
-		error = xfs_attr_rmtval_set_value(args);
-		if (error)
-			return error;
 
 		/*
 		 * If this is not a rename, clear the incomplete flag and we're
@@ -533,15 +534,15 @@ xfs_attr_set_iter(
 				return error;
 		}
 
+		attr->xattri_dela_state = XFS_DAS_NODE_ALLOC_RMT;
 		fallthrough;
-	case XFS_DAS_ALLOC_NODE:
+	case XFS_DAS_NODE_ALLOC_RMT:
 		/*
 		 * If there was an out-of-line value, allocate the blocks we
 		 * identified for its storage and copy the value.  This is done
 		 * after we create the attribute so that we don't overflow the
 		 * maximum size of a transaction and/or hit a deadlock.
 		 */
-		attr->xattri_dela_state = XFS_DAS_ALLOC_NODE;
 		if (args->rmtblkno > 0) {
 			if (attr->xattri_blkcnt > 0) {
 				error = xfs_attr_rmtval_set_blk(attr);
