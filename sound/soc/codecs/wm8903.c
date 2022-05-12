@@ -2131,7 +2131,7 @@ static int wm8903_i2c_probe(struct i2c_client *i2c)
 		if (ret != 0) {
 			dev_err(wm8903->dev, "Failed to request IRQ: %d\n",
 				ret);
-			return ret;
+			goto err;
 		}
 
 		/* Enable write sequencer interrupts */

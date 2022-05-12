@@ -833,7 +833,8 @@ static int tas571x_i2c_probe(struct i2c_client *client)
 	if (IS_ERR(priv->pdn_gpio)) {
 		dev_err(dev, "error requesting pdn_gpio: %ld\n",
 			PTR_ERR(priv->pdn_gpio));
-		return PTR_ERR(priv->pdn_gpio);
+		ret = PTR_ERR(priv->pdn_gpio);
+		goto disable_regs;
 	}
 
 	priv->reset_gpio = devm_gpiod_get_optional(dev, "reset",
@@ -841,7 +842,8 @@ static int tas571x_i2c_probe(struct i2c_client *client)
 	if (IS_ERR(priv->reset_gpio)) {
 		dev_err(dev, "error requesting reset_gpio: %ld\n",
 			PTR_ERR(priv->reset_gpio));
-		return PTR_ERR(priv->reset_gpio);
+		ret = PTR_ERR(priv->reset_gpio);
+		goto disable_regs;
 	} else if (priv->reset_gpio) {
 		/* pulse the active low reset line for ~100us */
 		usleep_range(100, 200);

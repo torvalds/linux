@@ -3943,7 +3943,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c)
 		ret = PTR_ERR(regmap);
 		dev_err(&i2c->dev, "Failed to allocate temp register map: %d\n",
 			ret);
-		return ret;
+		goto err_enable;
 	}
 
 	/*
@@ -3974,7 +3974,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c)
 		ret = PTR_ERR(rt5645->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
-		return ret;
+		goto err_enable;
 	}
 
 	regmap_write(rt5645->regmap, RT5645_RESET, 0);

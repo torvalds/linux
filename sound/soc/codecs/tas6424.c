@@ -756,7 +756,7 @@ static int tas6424_i2c_probe(struct i2c_client *client)
 				 TAS6424_RESET, TAS6424_RESET);
 	if (ret) {
 		dev_err(dev, "unable to reset device: %d\n", ret);
-		return ret;
+		goto disable_regs;
 	}
 
 	INIT_DELAYED_WORK(&tas6424->fault_check_work, tas6424_fault_check_work);
@@ -765,10 +765,14 @@ static int tas6424_i2c_probe(struct i2c_client *client)
 				     tas6424_dai, ARRAY_SIZE(tas6424_dai));
 	if (ret < 0) {
 		dev_err(dev, "unable to register codec: %d\n", ret);
-		return ret;
+		goto disable_regs;
 	}
 
 	return 0;
+
+disable_regs:
+	regulator_bulk_disable(ARRAY_SIZE(tas6424->supplies), tas6424->supplies);
+	return ret;
 }
 
 static int tas6424_i2c_remove(struct i2c_client *client)
