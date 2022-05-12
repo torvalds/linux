@@ -84,6 +84,7 @@ static int __sgx_encl_eldu(struct sgx_encl_page *encl_page,
 	}
 
 	memset(pcmd_page + b.pcmd_offset, 0, sizeof(struct sgx_pcmd));
+	set_page_dirty(b.pcmd);
 
 	/*
 	 * The area for the PCMD in the page was zeroed above.  Check if the
