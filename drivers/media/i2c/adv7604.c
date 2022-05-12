@@ -2505,9 +2505,8 @@ static void adv76xx_log_infoframes(struct v4l2_subdev *sd)
 		union hdmi_infoframe frame;
 		struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-		if (adv76xx_read_infoframe(sd, i, &frame))
-			return;
-		hdmi_infoframe_log(KERN_INFO, &client->dev, &frame);
+		if (!adv76xx_read_infoframe(sd, i, &frame))
+			hdmi_infoframe_log(KERN_INFO, &client->dev, &frame);
 	}
 }
 
