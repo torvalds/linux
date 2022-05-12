@@ -3524,8 +3524,10 @@ repeat:
 	folio_clear_error(folio);
 filler:
 	err = filler(file, folio);
-	if (err < 0) {
+	if (err) {
 		folio_put(folio);
+		if (err == AOP_TRUNCATED_PAGE)
+			goto repeat;
 		return ERR_PTR(err);
 	}
 
