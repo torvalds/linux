@@ -11,6 +11,7 @@
 
 #include <linux/cdev.h>
 #include <linux/types.h>
+#include <uapi/linux/dma-heap.h>
 
 struct dma_heap;
 
@@ -27,6 +28,9 @@ struct dma_heap_ops {
 			unsigned long fd_flags,
 			unsigned long heap_flags);
 	long (*get_pool_size)(struct dma_heap *heap);
+#if IS_ENABLED(CONFIG_NO_GKI)
+	int (*get_phys)(struct dma_heap *heap, struct dma_heap_phys_data *phys);
+#endif
 };
 
 /**
