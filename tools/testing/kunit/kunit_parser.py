@@ -475,26 +475,6 @@ def parse_diagnostic(lines: LineStream) -> List[str]:
 		log.append(lines.pop())
 	return log
 
-DIAGNOSTIC_CRASH_MESSAGE = re.compile(r'^# .*?: kunit test case crashed!$')
-
-def parse_crash_in_log(test: Test) -> bool:
-	"""
-	Iterate through the lines of the log to parse for crash message.
-	If crash message found, set status to crashed and return True.
-	Otherwise return False.
-
-	Parameters:
-	test - Test object for current test being parsed
-
-	Return:
-	True if crash message found in log
-	"""
-	for line in test.log:
-		if DIAGNOSTIC_CRASH_MESSAGE.match(line):
-			test.status = TestStatus.TEST_CRASHED
-			return True
-	return False
-
 
 # Printing helper methods:
 
@@ -682,7 +662,6 @@ def bubble_up_test_results(test: Test) -> None:
 	Parameters:
 	test - Test object for current test being parsed
 	"""
-	parse_crash_in_log(test)
 	subtests = test.subtests
 	counts = test.counts
 	status = test.status

@@ -230,15 +230,6 @@ class KUnitParserTest(unittest.TestCase):
 		print_mock.stop()
 		self.assertEqual(0, len(result.subtests))
 
-	def test_crashed_test(self):
-		crashed_log = test_data_path('test_is_test_passed-crash.log')
-		with open(crashed_log) as file:
-			result = kunit_parser.parse_run_tests(
-				file.readlines())
-		self.assertEqual(
-			kunit_parser.TestStatus.TEST_CRASHED,
-			result.status)
-
 	def test_skipped_test(self):
 		skipped_log = test_data_path('test_skip_tests.log')
 		with open(skipped_log) as file:
@@ -478,10 +469,10 @@ class KUnitJsonTest(unittest.TestCase):
 			result["sub_groups"][1]["test_cases"][0])
 
 	def test_crashed_test_json(self):
-		result = self._json_for('test_is_test_passed-crash.log')
+		result = self._json_for('test_kernel_panic_interrupt.log')
 		self.assertEqual(
-			{'name': 'example_simple_test', 'status': 'ERROR'},
-			result["sub_groups"][1]["test_cases"][0])
+			{'name': '', 'status': 'ERROR'},
+			result["sub_groups"][2]["test_cases"][1])
 
 	def test_skipped_test_json(self):
 		result = self._json_for('test_skip_tests.log')
@@ -562,7 +553,7 @@ class KUnitMainTest(unittest.TestCase):
 	def test_exec_no_tests(self):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=['TAP version 14', '1..0'])
 		with self.assertRaises(SystemExit) as e:
-                  kunit.main(['run'], self.linux_source_mock)
+		  kunit.main(['run'], self.linux_source_mock)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
 			args=None, build_dir='.kunit', filter_glob='', timeout=300)
 		self.print_mock.assert_any_call(StrContains(' 0 tests run!'))
