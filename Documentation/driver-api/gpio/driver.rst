@@ -430,6 +430,7 @@ call into the core gpiolib code:
   static void my_gpio_mask_irq(struct irq_data *d)
   {
       struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
       /*
        * Perform any necessary action to mask the interrupt,
@@ -437,14 +438,15 @@ call into the core gpiolib code:
        * state.
        */
 
-      gpiochip_disable_irq(gc, d->hwirq);
+      gpiochip_disable_irq(gc, hwirq);
   }
 
   static void my_gpio_unmask_irq(struct irq_data *d)
   {
       struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-      gpiochip_enable_irq(gc, d->hwirq);
+      gpiochip_enable_irq(gc, hwirq);
 
       /*
        * Perform any necessary action to unmask the interrupt,
@@ -502,6 +504,7 @@ the interrupt separately and go with it:
   static void my_gpio_mask_irq(struct irq_data *d)
   {
       struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
       /*
        * Perform any necessary action to mask the interrupt,
@@ -509,14 +512,15 @@ the interrupt separately and go with it:
        * state.
        */
 
-      gpiochip_disable_irq(gc, d->hwirq);
+      gpiochip_disable_irq(gc, hwirq);
   }
 
   static void my_gpio_unmask_irq(struct irq_data *d)
   {
       struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-      gpiochip_enable_irq(gc, d->hwirq);
+      gpiochip_enable_irq(gc, hwirq);
 
       /*
        * Perform any necessary action to unmask the interrupt,
@@ -577,6 +581,7 @@ In this case the typical set-up will look like this:
   static void my_gpio_mask_irq(struct irq_data *d)
   {
       struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
       /*
        * Perform any necessary action to mask the interrupt,
@@ -584,15 +589,16 @@ In this case the typical set-up will look like this:
        * state.
        */
 
-      gpiochip_disable_irq(gc, d->hwirq);
+      gpiochip_disable_irq(gc, hwirq);
       irq_mask_mask_parent(d);
   }
 
   static void my_gpio_unmask_irq(struct irq_data *d)
   {
       struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-      gpiochip_enable_irq(gc, d->hwirq);
+      gpiochip_enable_irq(gc, hwirq);
 
       /*
        * Perform any necessary action to unmask the interrupt,
