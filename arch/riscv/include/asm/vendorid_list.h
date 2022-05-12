@@ -6,5 +6,6 @@
 #define ASM_VENDOR_LIST_H
 
 #define SIFIVE_VENDOR_ID	0x489
+#define THEAD_VENDOR_ID		0x5b7
 
 #endif

@@ -324,6 +324,21 @@ config NODES_SHIFT
 	  Specify the maximum number of NUMA Nodes available on the target
 	  system.  Increases memory reserved to accommodate various tables.
 
+config RISCV_ALTERNATIVE
+	bool
+	depends on !XIP_KERNEL
+	help
+	  This Kconfig allows the kernel to automatically patch the
+	  errata required by the execution platform at run time. The
+	  code patching is performed once in the boot stages. It means
+	  that the overhead from this mechanism is just taken once.
+
+config RISCV_ALTERNATIVE_EARLY
+	bool
+	depends on RISCV_ALTERNATIVE
+	help
+	  Allows early patching of the kernel for special errata
+
 config RISCV_ISA_C
 	bool "Emit compressed instructions when building Linux"
 	default y
@@ -331,6 +346,19 @@ config RISCV_ISA_C
 	   Adds "C" to the ISA subsets that the toolchain is allowed to emit
 	   when building Linux, which results in compressed instructions in the
 	   Linux binary.
+
+	   If you don't know what to do here, say Y.
+
+config RISCV_ISA_SVPBMT
+	bool "SVPBMT extension support"
+	depends on 64BIT && MMU
+	select RISCV_ALTERNATIVE
+	default y
+	help
+	   Adds support to dynamically detect the presence of the SVPBMT extension
+	   (Supervisor-mode: page-based memory types) and enable its usage.
+
+	   The SVPBMT extension is only available on 64Bit cpus.
 
 	   If you don't know what to do here, say Y.
 
