@@ -8772,7 +8772,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 
 	trace_android_vh_cma_drain_all_pages_bypass(migratetype,
 						&skip_drain_all_pages);
-	if (skip_drain_all_pages)
+	if (!skip_drain_all_pages)
 		drain_all_pages(cc.zone);
 
 	/*
