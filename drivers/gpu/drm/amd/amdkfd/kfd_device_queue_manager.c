@@ -176,7 +176,7 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 	struct amdgpu_device *adev = (struct amdgpu_device *)dqm->dev->adev;
 	struct kfd_process_device *pdd = qpd_to_pdd(qpd);
 	struct mes_add_queue_input queue_input;
-	int r;
+	int r, queue_type;
 
 	if (dqm->is_hws_hang)
 		return -EIO;
@@ -201,12 +201,13 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 	queue_input.tba_addr = qpd->tba_addr;
 	queue_input.tma_addr = qpd->tma_addr;
 
-	queue_input.queue_type = convert_to_mes_queue_type(q->properties.type);
-	if (queue_input.queue_type < 0) {
+	queue_type = convert_to_mes_queue_type(q->properties.type);
+	if (queue_type < 0) {
 		pr_err("Queue type not supported with MES, queue:%d\n",
 				q->properties.type);
 		return -EINVAL;
 	}
+	queue_input.queue_type = (uint32_t)queue_type;
 
 	if (q->gws) {
 		queue_input.gws_base = 0;
