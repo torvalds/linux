@@ -609,7 +609,7 @@ static void start_io_acct(struct dm_io *io)
 }
 
 static void end_io_acct(struct mapped_device *md, struct bio *bio,
-		unsigned long start_time, struct dm_stats_aux *stats_aux)
+			unsigned long start_time, struct dm_stats_aux *stats_aux)
 {
 	unsigned long duration = jiffies - start_time;
 
