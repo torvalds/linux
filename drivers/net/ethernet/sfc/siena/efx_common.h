@@ -88,7 +88,7 @@ static inline void efx_schedule_channel_irq(struct efx_channel *channel)
 	efx_schedule_channel(channel);
 }
 
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 void efx_siena_init_mcdi_logging(struct efx_nic *efx);
 void efx_siena_fini_mcdi_logging(struct efx_nic *efx);
 #else

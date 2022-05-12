@@ -228,7 +228,7 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 				    struct efx_special_buffer *buffer,
 				    unsigned int len)
 {
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	struct siena_nic_data *nic_data = efx->nic_data;
 #endif
 	len = ALIGN(len, EFX_BUF_SIZE);
@@ -241,7 +241,7 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 	/* Select new buffer ID */
 	buffer->index = efx->next_buffer_table;
 	efx->next_buffer_table += buffer->entries;
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	BUG_ON(efx_siena_sriov_enabled(efx) &&
 	       nic_data->vf_buftbl_base < efx->next_buffer_table);
 #endif
@@ -1187,7 +1187,7 @@ efx_farch_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 		netif_vdbg(efx, hw, efx->net_dev, "channel %d TXQ %d flushed\n",
 			   channel->channel, ev_sub_data);
 		efx_farch_handle_tx_flush_done(efx, event);
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 		efx_siena_sriov_tx_flush_done(efx, event);
 #endif
 		break;
@@ -1195,7 +1195,7 @@ efx_farch_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 		netif_vdbg(efx, hw, efx->net_dev, "channel %d RXQ %d flushed\n",
 			   channel->channel, ev_sub_data);
 		efx_farch_handle_rx_flush_done(efx, event);
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 		efx_siena_sriov_rx_flush_done(efx, event);
 #endif
 		break;
@@ -1233,7 +1233,7 @@ efx_farch_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 				  ev_sub_data);
 			efx_siena_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
 		}
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 		else
 			efx_siena_sriov_desc_fetch_err(efx, ev_sub_data);
 #endif
@@ -1246,7 +1246,7 @@ efx_farch_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 				  ev_sub_data);
 			efx_siena_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
 		}
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 		else
 			efx_siena_sriov_desc_fetch_err(efx, ev_sub_data);
 #endif
@@ -1307,7 +1307,7 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 		case FSE_AZ_EV_CODE_DRIVER_EV:
 			efx_farch_handle_driver_event(channel, &event);
 			break;
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 		case FSE_CZ_EV_CODE_USER_EV:
 			efx_siena_sriov_event(channel, &event);
 			break;
@@ -1671,7 +1671,7 @@ void efx_farch_rx_pull_indir_table(struct efx_nic *efx)
 void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 {
 	unsigned vi_count, total_tx_channels;
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	struct siena_nic_data *nic_data;
 	unsigned buftbl_min;
 #endif
@@ -1679,7 +1679,7 @@ void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 	total_tx_channels = efx->n_tx_channels + efx->n_extra_tx_channels;
 	vi_count = max(efx->n_channels, total_tx_channels * EFX_MAX_TXQ_PER_CHANNEL);
 
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	nic_data = efx->nic_data;
 	/* Account for the buffer table entries backing the datapath channels
 	 * and the descriptor caches for those channels.

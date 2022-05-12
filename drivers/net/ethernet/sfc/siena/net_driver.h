@@ -1031,7 +1031,7 @@ struct efx_nic {
 	unsigned irq_level;
 	struct delayed_work selftest_work;
 
-#ifdef CONFIG_SFC_MTD
+#ifdef CONFIG_SFC_SIENA_MTD
 	struct list_head mtd_list;
 #endif
 
@@ -1096,7 +1096,7 @@ struct efx_nic {
 	atomic_t rxq_flush_outstanding;
 	wait_queue_head_t flush_wq;
 
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	unsigned vf_count;
 	unsigned vf_init_count;
 	unsigned vi_scale;
@@ -1411,7 +1411,7 @@ struct efx_nic_type {
 	bool (*filter_rfs_expire_one)(struct efx_nic *efx, u32 flow_id,
 				      unsigned int index);
 #endif
-#ifdef CONFIG_SFC_MTD
+#ifdef CONFIG_SFC_SIENA_MTD
 	int (*mtd_probe)(struct efx_nic *efx);
 	void (*mtd_rename)(struct efx_mtd_partition *part);
 	int (*mtd_read)(struct mtd_info *mtd, loff_t start, size_t len,

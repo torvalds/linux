@@ -9,7 +9,7 @@
 
 #include "net_driver.h"
 
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 
 static inline
 int efx_sriov_set_vf_mac(struct net_device *net_dev, int vf_i, u8 *mac)
@@ -78,6 +78,6 @@ int efx_sriov_set_vf_link_state(struct net_device *net_dev, int vf_i,
 	else
 		return -EOPNOTSUPP;
 }
-#endif /* CONFIG_SFC_SRIOV */
+#endif /* CONFIG_SFC_SIENA_SRIOV */
 
 #endif /* EFX_SRIOV_H */

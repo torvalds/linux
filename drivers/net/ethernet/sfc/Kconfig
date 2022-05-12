@@ -32,7 +32,7 @@ config SFC
 	  To compile this driver as a module, choose M here.  The module
 	  will be called sfc.
 config SFC_MTD
-	bool "Solarflare SFC9000/SFC9100-family MTD support"
+	bool "Solarflare SFC9100-family MTD support"
 	depends on SFC && MTD && !(SFC=y && MTD=m)
 	default y
 	help
@@ -40,14 +40,14 @@ config SFC_MTD
 	  (e.g. /dev/mtd1).  This is required to update the firmware or
 	  the boot configuration under Linux.
 config SFC_MCDI_MON
-	bool "Solarflare SFC9000/SFC9100-family hwmon support"
+	bool "Solarflare SFC9100-family hwmon support"
 	depends on SFC && HWMON && !(SFC=y && HWMON=m)
 	default y
 	help
 	  This exposes the on-board firmware-managed sensors as a
 	  hardware monitor device.
 config SFC_SRIOV
-	bool "Solarflare SFC9000/SFC9100-family SR-IOV support"
+	bool "Solarflare SFC9100-family SR-IOV support"
 	depends on SFC && PCI_IOV
 	default y
 	help
@@ -55,7 +55,7 @@ config SFC_SRIOV
 	  features, allowing accelerated network performance in
 	  virtualized environments.
 config SFC_MCDI_LOGGING
-	bool "Solarflare SFC9000/SFC9100-family MCDI logging support"
+	bool "Solarflare SFC9100-family MCDI logging support"
 	depends on SFC
 	default y
 	help

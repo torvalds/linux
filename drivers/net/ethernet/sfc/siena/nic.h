@@ -104,7 +104,7 @@ struct siena_nic_data {
 	struct efx_nic *efx;
 	int wol_filter_id;
 	u64 stats[SIENA_STAT_COUNT];
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	struct siena_vf *vf;
 	struct efx_channel *vfdi_channel;
 	unsigned vf_buftbl_base;

@@ -80,7 +80,7 @@ struct efx_mcdi_iface {
 	spinlock_t async_lock;
 	struct list_head async_list;
 	struct timer_list async_timer;
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 	char *logging_buffer;
 	bool logging_enabled;
 #endif
@@ -118,7 +118,7 @@ struct efx_mcdi_mtd_partition {
  */
 struct efx_mcdi_data {
 	struct efx_mcdi_iface iface;
-#ifdef CONFIG_SFC_MCDI_MON
+#ifdef CONFIG_SFC_SIENA_MCDI_MON
 	struct efx_mcdi_mon hwmon;
 #endif
 	u32 fn_flags;
@@ -130,7 +130,7 @@ static inline struct efx_mcdi_iface *efx_mcdi(struct efx_nic *efx)
 	return &efx->mcdi->iface;
 }
 
-#ifdef CONFIG_SFC_MCDI_MON
+#ifdef CONFIG_SFC_SIENA_MCDI_MON
 static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
 {
 	EFX_WARN_ON_PARANOID(!efx->mcdi);
@@ -365,7 +365,7 @@ void efx_siena_mcdi_mac_pull_stats(struct efx_nic *efx);
 enum reset_type efx_siena_mcdi_map_reset_reason(enum reset_type reason);
 int efx_siena_mcdi_reset(struct efx_nic *efx, enum reset_type method);
 
-#ifdef CONFIG_SFC_MCDI_MON
+#ifdef CONFIG_SFC_SIENA_MCDI_MON
 int efx_siena_mcdi_mon_probe(struct efx_nic *efx);
 void efx_siena_mcdi_mon_remove(struct efx_nic *efx);
 #else
@@ -373,7 +373,7 @@ static inline int efx_siena_mcdi_mon_probe(struct efx_nic *efx) { return 0; }
 static inline void efx_siena_mcdi_mon_remove(struct efx_nic *efx) {}
 #endif
 
-#ifdef CONFIG_SFC_MTD
+#ifdef CONFIG_SFC_SIENA_MTD
 int efx_siena_mcdi_mtd_read(struct mtd_info *mtd, loff_t start, size_t len,
 			    size_t *retlen, u8 *buffer);
 int efx_siena_mcdi_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len);

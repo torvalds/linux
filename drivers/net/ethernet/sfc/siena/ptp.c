@@ -1422,7 +1422,7 @@ static void efx_ptp_worker(struct work_struct *work)
 
 static const struct ptp_clock_info efx_phc_clock_info = {
 	.owner		= THIS_MODULE,
-	.name		= "sfc",
+	.name		= "sfc_siena",
 	.max_adj	= MAX_PPB,
 	.n_alarm	= 0,
 	.n_ext_ts	= 0,
@@ -1458,7 +1458,7 @@ static int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 
 	skb_queue_head_init(&ptp->rxq);
 	skb_queue_head_init(&ptp->txq);
-	ptp->workwq = create_singlethread_workqueue("sfc_ptp");
+	ptp->workwq = create_singlethread_workqueue("sfc_siena_ptp");
 	if (!ptp->workwq) {
 		rc = -ENOMEM;
 		goto fail2;
@@ -1502,7 +1502,8 @@ static int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 			goto fail3;
 		} else if (ptp->phc_clock) {
 			INIT_WORK(&ptp->pps_work, efx_ptp_pps_worker);
-			ptp->pps_workwq = create_singlethread_workqueue("sfc_pps");
+			ptp->pps_workwq =
+				create_singlethread_workqueue("sfc_siena_pps");
 			if (!ptp->pps_workwq) {
 				rc = -ENOMEM;
 				goto fail4;

@@ -112,7 +112,7 @@ static struct workqueue_struct *reset_workqueue;
 
 int efx_siena_create_reset_workqueue(void)
 {
-	reset_workqueue = create_singlethread_workqueue("sfc_reset");
+	reset_workqueue = create_singlethread_workqueue("sfc_siena_reset");
 	if (!reset_workqueue) {
 		printk(KERN_ERR "Failed to create reset workqueue\n");
 		return -ENOMEM;
@@ -778,7 +778,7 @@ int efx_siena_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	if (rc)
 		goto fail;
 
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	rc = efx->type->vswitching_restore(efx);
 	if (rc) /* not fatal; the PF will still work fine */
 		netif_warn(efx, probe, efx->net_dev,
@@ -997,7 +997,7 @@ int efx_siena_init_struct(struct efx_nic *efx,
 	INIT_LIST_HEAD(&efx->node);
 	INIT_LIST_HEAD(&efx->secondary_list);
 	spin_lock_init(&efx->biu_lock);
-#ifdef CONFIG_SFC_MTD
+#ifdef CONFIG_SFC_SIENA_MTD
 	INIT_LIST_HEAD(&efx->mtd_list);
 #endif
 	INIT_WORK(&efx->reset_work, efx_reset_work);
@@ -1170,7 +1170,7 @@ void efx_siena_fini_io(struct efx_nic *efx)
 		pci_disable_device(efx->pci_dev);
 }
 
-#ifdef CONFIG_SFC_MCDI_LOGGING
+#ifdef CONFIG_SFC_SIENA_MCDI_LOGGING
 static ssize_t mcdi_logging_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)

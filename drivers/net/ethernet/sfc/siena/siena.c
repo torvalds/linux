@@ -328,7 +328,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	if (rc)
 		goto fail5;
 
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	efx_siena_sriov_probe(efx);
 #endif
 	efx_siena_ptp_defer_probe_with_channel(efx);
@@ -830,7 +830,7 @@ static int siena_mcdi_poll_reboot(struct efx_nic *efx)
  **************************************************************************
  */
 
-#ifdef CONFIG_SFC_MTD
+#ifdef CONFIG_SFC_SIENA_MTD
 
 struct siena_nvram_type_info {
 	int port;
@@ -954,7 +954,7 @@ fail:
 	return rc;
 }
 
-#endif /* CONFIG_SFC_MTD */
+#endif /* CONFIG_SFC_SIENA_MTD */
 
 static unsigned int siena_check_caps(const struct efx_nic *efx,
 				     u8 flag, u32 offset)
@@ -1058,7 +1058,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 #ifdef CONFIG_RFS_ACCEL
 	.filter_rfs_expire_one = efx_farch_filter_rfs_expire_one,
 #endif
-#ifdef CONFIG_SFC_MTD
+#ifdef CONFIG_SFC_SIENA_MTD
 	.mtd_probe = siena_mtd_probe,
 	.mtd_rename = efx_siena_mcdi_mtd_rename,
 	.mtd_read = efx_siena_mcdi_mtd_read,
@@ -1068,7 +1068,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 #endif
 	.ptp_write_host_time = siena_ptp_write_host_time,
 	.ptp_set_ts_config = siena_ptp_set_ts_config,
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	.sriov_configure = efx_siena_sriov_configure,
 	.sriov_init = efx_siena_sriov_init,
 	.sriov_fini = efx_siena_sriov_fini,

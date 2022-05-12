@@ -32,6 +32,9 @@
 #include "io.h"
 #include "selftest.h"
 #include "sriov.h"
+#ifdef CONFIG_SFC_SIENA_SRIOV
+#include "siena_sriov.h"
+#endif
 
 #include "mcdi_port_common.h"
 #include "mcdi_pcol.h"
@@ -359,7 +362,7 @@ static int efx_probe_all(struct efx_nic *efx)
 		goto fail3;
 	}
 
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	rc = efx->type->vswitching_probe(efx);
 	if (rc) /* not fatal; the PF will still work fine */
 		netif_warn(efx, probe, efx->net_dev,
@@ -383,7 +386,7 @@ static int efx_probe_all(struct efx_nic *efx)
  fail5:
 	efx_siena_remove_filters(efx);
  fail4:
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	efx->type->vswitching_remove(efx);
 #endif
  fail3:
@@ -402,7 +405,7 @@ static void efx_remove_all(struct efx_nic *efx)
 
 	efx_siena_remove_channels(efx);
 	efx_siena_remove_filters(efx);
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	efx->type->vswitching_remove(efx);
 #endif
 	efx_remove_port(efx);
@@ -592,7 +595,7 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_features_check	= efx_siena_features_check,
 	.ndo_vlan_rx_add_vid	= efx_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= efx_vlan_rx_kill_vid,
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	.ndo_set_vf_mac		= efx_sriov_set_vf_mac,
 	.ndo_set_vf_vlan	= efx_sriov_set_vf_vlan,
 	.ndo_set_vf_spoofchk	= efx_sriov_set_vf_spoofchk,
@@ -1108,7 +1111,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 /* efx_pci_sriov_configure returns the actual number of Virtual Functions
  * enabled on success
  */
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 static int efx_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
 {
 	int rc;
@@ -1250,7 +1253,7 @@ static struct pci_driver efx_pci_driver = {
 	.remove		= efx_pci_remove,
 	.driver.pm	= &efx_pm_ops,
 	.err_handler	= &efx_siena_err_handlers,
-#ifdef CONFIG_SFC_SRIOV
+#ifdef CONFIG_SFC_SIENA_SRIOV
 	.sriov_configure = efx_pci_sriov_configure,
 #endif
 };
@@ -1271,6 +1274,12 @@ static int __init efx_init_module(void)
 	if (rc)
 		goto err_notifier;
 
+#ifdef CONFIG_SFC_SIENA_SRIOV
+	rc = efx_init_sriov();
+	if (rc)
+		goto err_sriov;
+#endif
+
 	rc = efx_siena_create_reset_workqueue();
 	if (rc)
 		goto err_reset;
@@ -1284,6 +1293,10 @@ static int __init efx_init_module(void)
  err_pci:
 	efx_siena_destroy_reset_workqueue();
  err_reset:
+#ifdef CONFIG_SFC_SIENA_SRIOV
+	efx_fini_sriov();
+ err_sriov:
+#endif
 	unregister_netdevice_notifier(&efx_netdev_notifier);
  err_notifier:
 	return rc;
@@ -1295,6 +1308,9 @@ static void __exit efx_exit_module(void)
 
 	pci_unregister_driver(&efx_pci_driver);
 	efx_siena_destroy_reset_workqueue();
+#ifdef CONFIG_SFC_SIENA_SRIOV
+	efx_fini_sriov();
+#endif
 	unregister_netdevice_notifier(&efx_netdev_notifier);
 
 }
