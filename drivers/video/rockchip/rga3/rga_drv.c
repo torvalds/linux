@@ -242,7 +242,9 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 		mpi_job->output->format = mpi_cmd.dst.format;
 	}
 
+	mutex_lock(&request_manager->lock);
 	rga_request_put(request);
+	mutex_unlock(&request_manager->lock);
 
 	return ret;
 }
@@ -516,15 +518,11 @@ static int rga_session_deinit(struct rga_session *session)
 
 	idr_for_each_entry(&request_manager->request_idr, request, request_id) {
 
-		mutex_unlock(&request_manager->lock);
-
 		if (session == request->session) {
 			pr_err("[pid:%d] destroy request[%d] when the user exits",
 			       pid, request->id);
 			rga_request_put(request);
 		}
-
-		mutex_lock(&request_manager->lock);
 	}
 
 	mutex_unlock(&request_manager->lock);
@@ -692,8 +690,11 @@ static long rga_ioctl_request_create(unsigned long arg, struct rga_session *sess
 static long rga_ioctl_request_submit(unsigned long arg, bool run_enbale)
 {
 	int ret = 0;
+	struct rga_pending_request_manager *request_manager = NULL;
 	struct rga_user_request user_request;
 	struct rga_request *request = NULL;
+
+	request_manager = rga_drvdata->pend_request_manager;
 
 	if (unlikely(copy_from_user(&user_request,
 				    (struct rga_user_request *)arg,
@@ -722,6 +723,12 @@ static long rga_ioctl_request_submit(unsigned long arg, bool run_enbale)
 		if (ret < 0) {
 			pr_err("request[%d] submit failed!\n", user_request.id);
 			return -EFAULT;
+		}
+
+		if (request->sync_mode == RGA_BLIT_SYNC) {
+			mutex_lock(&request_manager->lock);
+			rga_request_put(request);
+			mutex_unlock(&request_manager->lock);
 		}
 	}
 

@@ -828,7 +828,6 @@ int rga_request_commit(struct rga_request *request)
 		if (request->sync_mode == RGA_BLIT_SYNC) {
 			ret = rga_request_wait(request);
 			if (ret < 0) {
-				rga_request_put(request);
 				return ret;
 			}
 		}
@@ -845,6 +844,8 @@ int rga_request_commit(struct rga_request *request)
 				rga_running_job_abort(job, job->scheduler);
 				return ret;
 			}
+
+			rga_job_cleanup(job);
 		}
 	}
 
@@ -906,10 +907,15 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 
 		spin_unlock_irqrestore(&request->lock, flags);
 
+		/* current submit request put */
+		mutex_lock(&request_manager->lock);
 		rga_request_put(request);
+		mutex_unlock(&request_manager->lock);
 	}
 
+	mutex_lock(&request_manager->lock);
 	rga_request_put(request);
+	mutex_unlock(&request_manager->lock);
 
 	return 0;
 }
@@ -1025,17 +1031,15 @@ static int rga_request_free(struct rga_request *request)
 		return -EFAULT;
 	}
 
+	WARN_ON(!mutex_is_locked(&request_manager->lock));
+
 	if (IS_ERR_OR_NULL(request)) {
 		pr_err("request already freed");
 		return -EFAULT;
 	}
 
-	mutex_lock(&request_manager->lock);
-
 	request_manager->request_count--;
 	idr_remove(&request_manager->request_idr, request->id);
-
-	mutex_unlock(&request_manager->lock);
 
 	spin_lock_irqsave(&request->lock, flags);
 
