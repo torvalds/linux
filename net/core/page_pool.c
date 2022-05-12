@@ -704,8 +704,10 @@ struct page *page_pool_alloc_frag(struct page_pool *pool,
 
 	if (page && *offset + size > max_size) {
 		page = page_pool_drain_frag(pool, page);
-		if (page)
+		if (page) {
+			alloc_stat_inc(pool, fast);
 			goto frag_reset;
+		}
 	}
 
 	if (!page) {
@@ -727,6 +729,7 @@ frag_reset:
 
 	pool->frag_users++;
 	pool->frag_offset = *offset + size;
+	alloc_stat_inc(pool, fast);
 	return page;
 }
 EXPORT_SYMBOL(page_pool_alloc_frag);
