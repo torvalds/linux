@@ -12,6 +12,9 @@
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/gpio/consumer.h>
+
+#include <video/of_display_timing.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -64,6 +67,60 @@ struct rockchip_rgb_funcs {
 struct rockchip_rgb_data {
 	u32 max_dclk_rate;
 	const struct rockchip_rgb_funcs *funcs;
+};
+
+struct mcu_cmd_header {
+	u8 data_type;
+	u8 delay;
+	u8 payload_length;
+} __packed;
+
+struct mcu_cmd_desc {
+	struct mcu_cmd_header header;
+	u8 *payload;
+};
+
+struct mcu_cmd_seq {
+	struct mcu_cmd_desc *cmds;
+	unsigned int cmd_cnt;
+};
+
+struct rockchip_mcu_panel_desc {
+	struct drm_display_mode *mode;
+	struct mcu_cmd_seq *init_seq;
+	struct mcu_cmd_seq *exit_seq;
+
+	struct {
+		unsigned int width;
+		unsigned int height;
+	} size;
+
+	struct {
+		unsigned int prepare;
+		unsigned int enable;
+		unsigned int disable;
+		unsigned int unprepare;
+		unsigned int reset;
+		unsigned int init;
+	} delay;
+
+	unsigned int bpc;
+	u32 bus_format;
+	u32 bus_flags;
+};
+
+struct rockchip_mcu_panel {
+	struct drm_panel base;
+	struct drm_device *drm_dev;
+	struct rockchip_mcu_panel_desc *desc;
+
+	struct gpio_desc *enable_gpio;
+	struct gpio_desc *reset_gpio;
+
+	struct device_node *np_crtc;
+
+	bool prepared;
+	bool enabled;
 };
 
 struct rockchip_rgb {
@@ -283,6 +340,379 @@ static const struct drm_encoder_funcs rockchip_rgb_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static int rockchip_mcu_panel_parse_cmd_seq(struct device *dev,
+					    const u8 *data, int length,
+					    struct mcu_cmd_seq *seq)
+{
+	struct mcu_cmd_header *header;
+	struct mcu_cmd_desc *desc;
+	char *buf, *d;
+	unsigned int i, cnt, len;
+
+	if (!seq)
+		return -EINVAL;
+
+	buf = devm_kmemdup(dev, data, length, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	d = buf;
+	len = length;
+	cnt = 0;
+	while (len > sizeof(*header)) {
+		header = (struct mcu_cmd_header *)d;
+
+		d += sizeof(*header);
+		len -= sizeof(*header);
+
+		if (header->payload_length > len)
+			return -EINVAL;
+
+		d += header->payload_length;
+		len -= header->payload_length;
+		cnt++;
+	}
+
+	if (len)
+		return -EINVAL;
+
+	seq->cmd_cnt = cnt;
+	seq->cmds = devm_kcalloc(dev, cnt, sizeof(*desc), GFP_KERNEL);
+	if (!seq->cmds)
+		return -ENOMEM;
+
+	d = buf;
+	len = length;
+	for (i = 0; i < cnt; i++) {
+		header = (struct mcu_cmd_header *)d;
+		len -= sizeof(*header);
+		d += sizeof(*header);
+
+		desc = &seq->cmds[i];
+		desc->header = *header;
+		desc->payload = d;
+
+		d += header->payload_length;
+		len -= header->payload_length;
+	}
+
+	return 0;
+}
+
+static inline struct rockchip_mcu_panel *to_rockchip_mcu_panel(struct drm_panel *panel)
+{
+	return container_of(panel, struct rockchip_mcu_panel, base);
+}
+
+static int rockchip_mcu_panel_init(struct rockchip_rgb *rgb, struct device_node *np_mcu_panel)
+{
+	struct device *dev = rgb->dev;
+	struct device_node *port, *endpoint, *np_crtc;
+	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(rgb->panel);
+	struct drm_display_mode *mode;
+	const void *data;
+	int len;
+	int ret;
+	u32 bus_flags;
+
+	mcu_panel->enable_gpio = devm_fwnode_gpiod_get_index(dev, &np_mcu_panel->fwnode,
+							     "enable", 0, GPIOD_ASIS,
+							     fwnode_get_name(&np_mcu_panel->fwnode));
+	if (IS_ERR(mcu_panel->enable_gpio)) {
+		DRM_DEV_ERROR(dev, "failed to find mcu panel enable GPIO\n");
+		return PTR_ERR(mcu_panel->enable_gpio);
+	}
+
+	mcu_panel->reset_gpio = devm_fwnode_gpiod_get_index(dev, &np_mcu_panel->fwnode,
+							    "reset", 0, GPIOD_ASIS,
+							    fwnode_get_name(&np_mcu_panel->fwnode));
+	if (IS_ERR(mcu_panel->reset_gpio)) {
+		DRM_DEV_ERROR(dev, "failed to find mcu panel reset GPIO\n");
+		return PTR_ERR(mcu_panel->reset_gpio);
+	}
+
+	mcu_panel->desc = devm_kzalloc(dev, sizeof(*mcu_panel->desc), GFP_KERNEL);
+	if (!mcu_panel->desc)
+		return -ENOMEM;
+
+	mode = devm_kzalloc(dev, sizeof(*mode), GFP_KERNEL);
+	if (!mode)
+		return -ENOMEM;
+
+	if (!of_get_drm_display_mode(np_mcu_panel, mode, &bus_flags,
+				     OF_USE_NATIVE_MODE)) {
+		mcu_panel->desc->mode = mode;
+		mcu_panel->desc->bus_flags = bus_flags;
+	} else {
+		DRM_DEV_ERROR(dev, "failed to parse display mode\n");
+		return -EINVAL;
+	}
+
+	of_property_read_u32(np_mcu_panel, "bpc", &mcu_panel->desc->bpc);
+	of_property_read_u32(np_mcu_panel, "bus-format", &mcu_panel->desc->bus_format);
+	of_property_read_u32(np_mcu_panel, "width-mm", &mcu_panel->desc->size.width);
+	of_property_read_u32(np_mcu_panel, "height-mm", &mcu_panel->desc->size.height);
+
+	of_property_read_u32(np_mcu_panel, "prepare-delay-ms", &mcu_panel->desc->delay.prepare);
+	of_property_read_u32(np_mcu_panel, "enable-delay-ms", &mcu_panel->desc->delay.enable);
+	of_property_read_u32(np_mcu_panel, "disable-delay-ms", &mcu_panel->desc->delay.disable);
+	of_property_read_u32(np_mcu_panel, "unprepare-delay-ms",
+			     &mcu_panel->desc->delay.unprepare);
+	of_property_read_u32(np_mcu_panel, "reset-delay-ms", &mcu_panel->desc->delay.reset);
+	of_property_read_u32(np_mcu_panel, "init-delay-ms", &mcu_panel->desc->delay.init);
+
+	data = of_get_property(np_mcu_panel, "panel-init-sequence", &len);
+	if (data) {
+		mcu_panel->desc->init_seq = devm_kzalloc(dev, sizeof(*mcu_panel->desc->init_seq),
+							 GFP_KERNEL);
+		if (!mcu_panel->desc->init_seq)
+			return -ENOMEM;
+
+		ret = rockchip_mcu_panel_parse_cmd_seq(dev, data, len,
+						       mcu_panel->desc->init_seq);
+		if (ret < 0) {
+			DRM_DEV_ERROR(dev, "failed to parse init sequence\n");
+			return ret;
+		}
+	}
+
+	data = of_get_property(np_mcu_panel, "panel-exit-sequence", &len);
+	if (data) {
+		mcu_panel->desc->exit_seq = devm_kzalloc(dev, sizeof(*mcu_panel->desc->exit_seq),
+					      GFP_KERNEL);
+		if (!mcu_panel->desc->exit_seq)
+			return -ENOMEM;
+
+		ret = rockchip_mcu_panel_parse_cmd_seq(dev, data, len,
+						       mcu_panel->desc->exit_seq);
+		if (ret < 0) {
+			DRM_DEV_ERROR(dev, "failed to parse exit sequence\n");
+			return ret;
+		}
+	}
+
+	port = of_graph_get_port_by_id(dev->of_node, 0);
+	if (port) {
+		endpoint = of_get_next_child(port, NULL);
+		/* get connect device node */
+		np_crtc = of_graph_get_remote_port_parent(endpoint);
+		if (IS_ERR_OR_NULL(np_crtc)) {
+			DRM_DEV_ERROR(dev, "failed to get crtc node\n");
+			return -EINVAL;
+		}
+		mcu_panel->np_crtc = np_crtc;
+	}
+
+	return 0;
+}
+
+static void rockchip_mcu_panel_sleep(unsigned int msec)
+{
+	if (msec > 20)
+		msleep(msec);
+	else
+		usleep_range(msec * 1000, (msec + 1) * 1000);
+}
+
+static void rockchip_drm_crtc_send_mcu_cmd(struct drm_device *drm_dev,
+					   struct device_node *np_crtc,
+					   u32 type, u32 value)
+{
+	struct drm_crtc *crtc;
+	int pipe = 0;
+	struct rockchip_drm_private *priv;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		if (of_get_parent(crtc->port) == np_crtc)
+			break;
+	}
+
+	pipe = drm_crtc_index(crtc);
+	priv = crtc->dev->dev_private;
+	if (priv->crtc_funcs[pipe]->crtc_send_mcu_cmd)
+		priv->crtc_funcs[pipe]->crtc_send_mcu_cmd(crtc, type, value);
+}
+
+static int rockchip_mcu_panel_xfer_mcu_cmd_seq(struct rockchip_mcu_panel *mcu_panel,
+					       struct mcu_cmd_seq *cmds)
+{
+	struct mcu_cmd_desc *cmd;
+	u32 value;
+	int i;
+
+	if (!cmds)
+		return -EINVAL;
+
+	rockchip_drm_crtc_send_mcu_cmd(mcu_panel->drm_dev,
+				       mcu_panel->np_crtc, MCU_SETBYPASS, 1);
+	for (i = 0; i < cmds->cmd_cnt; i++) {
+		cmd = &cmds->cmds[i];
+		value = cmd->payload[0];
+		rockchip_drm_crtc_send_mcu_cmd(mcu_panel->drm_dev, mcu_panel->np_crtc,
+					       cmd->header.data_type, value);
+		if (cmd->header.delay)
+			rockchip_mcu_panel_sleep(cmd->header.delay);
+	}
+	rockchip_drm_crtc_send_mcu_cmd(mcu_panel->drm_dev,
+				       mcu_panel->np_crtc, MCU_SETBYPASS, 0);
+
+	return 0;
+}
+
+static int rockchip_mcu_panel_disable(struct drm_panel *panel)
+{
+	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(panel);
+	int ret = 0;
+
+	if (!mcu_panel->enabled)
+		return 0;
+
+	if (mcu_panel->desc->delay.disable)
+		msleep(mcu_panel->desc->delay.disable);
+
+	ret = rockchip_mcu_panel_xfer_mcu_cmd_seq(mcu_panel, mcu_panel->desc->exit_seq);
+	if (ret)
+		DRM_DEV_ERROR(panel->dev, "failed to send exit cmds seq\n");
+
+	mcu_panel->enabled = false;
+
+	return 0;
+}
+
+static int rockchip_mcu_panel_unprepare(struct drm_panel *panel)
+{
+	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(panel);
+
+	if (!mcu_panel->prepared)
+		return 0;
+
+	gpiod_direction_output(mcu_panel->reset_gpio, 1);
+	gpiod_direction_output(mcu_panel->enable_gpio, 0);
+
+	if (mcu_panel->desc->delay.unprepare)
+		msleep(mcu_panel->desc->delay.unprepare);
+
+	mcu_panel->prepared = false;
+
+	return 0;
+}
+
+static int rockchip_mcu_panel_prepare(struct drm_panel *panel)
+{
+	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(panel);
+	unsigned int delay;
+
+	if (mcu_panel->prepared)
+		return 0;
+
+	gpiod_direction_output(mcu_panel->enable_gpio, 1);
+
+	delay = mcu_panel->desc->delay.prepare;
+	if (delay)
+		msleep(delay);
+
+	gpiod_direction_output(mcu_panel->reset_gpio, 1);
+
+	if (mcu_panel->desc->delay.reset)
+		msleep(mcu_panel->desc->delay.reset);
+
+	gpiod_direction_output(mcu_panel->reset_gpio, 0);
+
+	if (mcu_panel->desc->delay.init)
+		msleep(mcu_panel->desc->delay.init);
+
+	mcu_panel->prepared = true;
+
+	return 0;
+}
+
+static int rockchip_mcu_panel_enable(struct drm_panel *panel)
+{
+	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(panel);
+	int ret = 0;
+
+	if (mcu_panel->enabled)
+		return 0;
+
+	ret = rockchip_mcu_panel_xfer_mcu_cmd_seq(mcu_panel, mcu_panel->desc->init_seq);
+	if (ret)
+		DRM_DEV_ERROR(panel->dev, "failed to send init cmds seq\n");
+
+	if (mcu_panel->desc->delay.enable)
+		msleep(mcu_panel->desc->delay.enable);
+
+	mcu_panel->enabled = true;
+
+	return 0;
+}
+
+static int rockchip_mcu_panel_get_modes(struct drm_panel *panel,
+					struct drm_connector *connector)
+{
+	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(panel);
+	struct drm_display_mode *m, *mode;
+
+	if (!mcu_panel->desc)
+		return 0;
+
+	m = mcu_panel->desc->mode;
+	mode = drm_mode_duplicate(connector->dev, m);
+	if (!mode) {
+		DRM_DEV_ERROR(mcu_panel->base.dev, "failed to add mode %ux%u@%u\n",
+			      m->hdisplay, m->vdisplay,
+			      drm_mode_vrefresh(m));
+		return 0;
+	}
+
+	mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+
+	drm_mode_set_name(mode);
+
+	drm_mode_probed_add(connector, mode);
+
+	if (mcu_panel->desc->bpc)
+		connector->display_info.bpc = mcu_panel->desc->bpc;
+	if (mcu_panel->desc->size.width)
+		connector->display_info.width_mm = mcu_panel->desc->size.width;
+	if (mcu_panel->desc->size.height)
+		connector->display_info.height_mm = mcu_panel->desc->size.height;
+	if (mcu_panel->desc->bus_format)
+		drm_display_info_set_bus_formats(&connector->display_info,
+						 &mcu_panel->desc->bus_format, 1);
+	if (mcu_panel->desc->bus_flags)
+		connector->display_info.bus_flags = mcu_panel->desc->bus_flags;
+
+	return 1;
+}
+
+static const struct drm_panel_funcs rockchip_mcu_panel_funcs = {
+	.disable = rockchip_mcu_panel_disable,
+	.unprepare = rockchip_mcu_panel_unprepare,
+	.prepare = rockchip_mcu_panel_prepare,
+	.enable = rockchip_mcu_panel_enable,
+	.get_modes = rockchip_mcu_panel_get_modes,
+};
+
+static struct backlight_device *rockchip_mcu_panel_find_backlight(struct device_node *np_mcu_panel)
+{
+	struct backlight_device *bd = NULL;
+	struct device_node *np = NULL;
+
+	np = of_parse_phandle(np_mcu_panel, "backlight", 0);
+	if (np) {
+		bd = of_find_backlight_by_node(np);
+		if (IS_ERR_OR_NULL(bd))
+			return NULL;
+
+		of_node_put(np);
+
+		if (!bd->props.brightness)
+			bd->props.brightness = bd->props.max_brightness;
+	}
+
+	return bd;
+}
+
 static int rockchip_rgb_bind(struct device *dev, struct device *master,
 			     void *data)
 {
@@ -290,13 +720,50 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder = &rgb->encoder;
 	struct drm_connector *connector;
+	struct fwnode_handle *fwnode_mcu_panel;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1,
-					  &rgb->panel, &rgb->bridge);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "failed to find panel or bridge: %d\n", ret);
-		return ret;
+	fwnode_mcu_panel = device_get_named_child_node(dev, "mcu-panel");
+	if (fwnode_mcu_panel) {
+		struct rockchip_mcu_panel *mcu_panel;
+		struct device_node *np_mcu_panel = to_of_node(fwnode_mcu_panel);
+
+		mcu_panel = devm_kzalloc(dev, sizeof(*mcu_panel), GFP_KERNEL);
+		if (!mcu_panel) {
+			of_node_put(np_mcu_panel);
+			return -ENOMEM;
+		}
+		mcu_panel->drm_dev = drm_dev;
+
+		rgb->panel = &mcu_panel->base;
+
+		ret = rockchip_mcu_panel_init(rgb, np_mcu_panel);
+		if (ret < 0) {
+			DRM_DEV_ERROR(dev, "failed to init mcu panel: %d\n", ret);
+			of_node_put(np_mcu_panel);
+			return ret;
+		}
+
+		rgb->panel->backlight = rockchip_mcu_panel_find_backlight(np_mcu_panel);
+		if (!rgb->panel->backlight) {
+			DRM_DEV_ERROR(dev, "failed to find backlight device");
+			of_node_put(np_mcu_panel);
+			return -EINVAL;
+		}
+
+		of_node_put(np_mcu_panel);
+
+		drm_panel_init(&mcu_panel->base, dev, &rockchip_mcu_panel_funcs,
+			       DRM_MODE_CONNECTOR_DPI);
+
+		drm_panel_add(&mcu_panel->base);
+	} else {
+		ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1,
+						  &rgb->panel, &rgb->bridge);
+		if (ret) {
+			DRM_DEV_ERROR(dev, "failed to find panel or bridge: %d\n", ret);
+			return ret;
+		}
 	}
 
 	encoder->possible_crtcs = rockchip_drm_of_find_possible_crtcs(drm_dev,
