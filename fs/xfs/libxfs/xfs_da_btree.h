@@ -91,6 +91,7 @@ typedef struct xfs_da_args {
 #define XFS_DA_OP_CILOOKUP	(1u << 4) /* lookup returns CI name if found */
 #define XFS_DA_OP_NOTIME	(1u << 5) /* don't update inode timestamps */
 #define XFS_DA_OP_REMOVE	(1u << 6) /* this is a remove operation */
+#define XFS_DA_OP_RECOVERY	(1u << 7) /* Log recovery operation */
 
 #define XFS_DA_OP_FLAGS \
 	{ XFS_DA_OP_JUSTCHECK,	"JUSTCHECK" }, \
@@ -99,7 +100,8 @@ typedef struct xfs_da_args {
 	{ XFS_DA_OP_OKNOENT,	"OKNOENT" }, \
 	{ XFS_DA_OP_CILOOKUP,	"CILOOKUP" }, \
 	{ XFS_DA_OP_NOTIME,	"NOTIME" }, \
-	{ XFS_DA_OP_REMOVE,	"REMOVE" }
+	{ XFS_DA_OP_REMOVE,	"REMOVE" }, \
+	{ XFS_DA_OP_RECOVERY,	"RECOVERY" }
 
 /*
  * Storage for holding state during Btree searches and split/join ops.

@@ -68,9 +68,12 @@ int
 xfs_inode_hasattr(
 	struct xfs_inode	*ip)
 {
-	if (!XFS_IFORK_Q(ip) ||
-	    (ip->i_afp->if_format == XFS_DINODE_FMT_EXTENTS &&
-	     ip->i_afp->if_nextents == 0))
+	if (!XFS_IFORK_Q(ip))
+		return 0;
+	if (!ip->i_afp)
+		return 0;
+	if (ip->i_afp->if_format == XFS_DINODE_FMT_EXTENTS &&
+	    ip->i_afp->if_nextents == 0)
 		return 0;
 	return 1;
 }
@@ -408,23 +411,30 @@ out:
 }
 
 /*
- * When we bump the state to REPLACE, we may actually need to skip over the
- * state. When LARP mode is enabled, we don't need to run the atomic flags flip,
- * so we skip straight over the REPLACE state and go on to REMOVE_OLD.
+ * Handle the state change on completion of a multi-state attr operation.
+ *
+ * If the XFS_DA_OP_REPLACE flag is set, this means the operation was the first
+ * modification in a attr replace operation and we still have to do the second
+ * state, indicated by @replace_state.
+ *
+ * We consume the XFS_DA_OP_REPLACE flag so that when we are called again on
+ * completion of the second half of the attr replace operation we correctly
+ * signal that it is done.
  */
-static void
-xfs_attr_dela_state_set_replace(
+static enum xfs_delattr_state
+xfs_attr_complete_op(
 	struct xfs_attr_item	*attr,
-	enum xfs_delattr_state	replace)
+	enum xfs_delattr_state	replace_state)
 {
 	struct xfs_da_args	*args = attr->xattri_da_args;
+	bool			do_replace = args->op_flags & XFS_DA_OP_REPLACE;
 
-	ASSERT(replace == XFS_DAS_LEAF_REPLACE ||
-			replace == XFS_DAS_NODE_REPLACE);
-
-	attr->xattri_dela_state = replace;
-	if (xfs_has_larp(args->dp->i_mount))
-		attr->xattri_dela_state++;
+	args->op_flags &= ~XFS_DA_OP_REPLACE;
+	if (do_replace) {
+		args->attr_filter &= ~XFS_ATTR_INCOMPLETE;
+		return replace_state;
+	}
+	return XFS_DAS_DONE;
 }
 
 static int
@@ -466,10 +476,9 @@ xfs_attr_leaf_addname(
 	 */
 	if (args->rmtblkno)
 		attr->xattri_dela_state = XFS_DAS_LEAF_SET_RMT;
-	else if (args->op_flags & XFS_DA_OP_REPLACE)
-		xfs_attr_dela_state_set_replace(attr, XFS_DAS_LEAF_REPLACE);
 	else
-		attr->xattri_dela_state = XFS_DAS_DONE;
+		attr->xattri_dela_state = xfs_attr_complete_op(attr,
+							XFS_DAS_LEAF_REPLACE);
 out:
 	trace_xfs_attr_leaf_addname_return(attr->xattri_dela_state, args->dp);
 	return error;
@@ -511,10 +520,9 @@ xfs_attr_node_addname(
 
 	if (args->rmtblkno)
 		attr->xattri_dela_state = XFS_DAS_NODE_SET_RMT;
-	else if (args->op_flags & XFS_DA_OP_REPLACE)
-		xfs_attr_dela_state_set_replace(attr, XFS_DAS_NODE_REPLACE);
 	else
-		attr->xattri_dela_state = XFS_DAS_DONE;
+		attr->xattri_dela_state = xfs_attr_complete_op(attr,
+							XFS_DAS_NODE_REPLACE);
 out:
 	trace_xfs_attr_node_addname_return(attr->xattri_dela_state, args->dp);
 	return error;
@@ -546,18 +554,15 @@ xfs_attr_rmtval_alloc(
 	if (error)
 		return error;
 
-	/* If this is not a rename, clear the incomplete flag and we're done. */
-	if (!(args->op_flags & XFS_DA_OP_REPLACE)) {
+	attr->xattri_dela_state = xfs_attr_complete_op(attr,
+						++attr->xattri_dela_state);
+	/*
+	 * If we are not doing a rename, we've finished the operation but still
+	 * have to clear the incomplete flag protecting the new attr from
+	 * exposing partially initialised state if we crash during creation.
+	 */
+	if (attr->xattri_dela_state == XFS_DAS_DONE)
 		error = xfs_attr3_leaf_clearflag(args);
-		attr->xattri_dela_state = XFS_DAS_DONE;
-	} else {
-		/*
-		 * We are running a REPLACE operation, so we need to bump the
-		 * state to the step in that operation.
-		 */
-		attr->xattri_dela_state++;
-		xfs_attr_dela_state_set_replace(attr, attr->xattri_dela_state);
-	}
 out:
 	trace_xfs_attr_rmtval_alloc(attr->xattri_dela_state, args->dp);
 	return error;
@@ -714,13 +719,24 @@ next_state:
 		return xfs_attr_node_addname(attr);
 
 	case XFS_DAS_SF_REMOVE:
-		attr->xattri_dela_state = XFS_DAS_DONE;
-		return xfs_attr_sf_removename(args);
+		error = xfs_attr_sf_removename(args);
+		attr->xattri_dela_state = xfs_attr_complete_op(attr,
+						xfs_attr_init_add_state(args));
+		break;
 	case XFS_DAS_LEAF_REMOVE:
-		attr->xattri_dela_state = XFS_DAS_DONE;
-		return xfs_attr_leaf_removename(args);
+		error = xfs_attr_leaf_removename(args);
+		attr->xattri_dela_state = xfs_attr_complete_op(attr,
+						xfs_attr_init_add_state(args));
+		break;
 	case XFS_DAS_NODE_REMOVE:
 		error = xfs_attr_node_removename_setup(attr);
+		if (error == -ENOATTR &&
+		    (args->op_flags & XFS_DA_OP_RECOVERY)) {
+			attr->xattri_dela_state = xfs_attr_complete_op(attr,
+						xfs_attr_init_add_state(args));
+			error = 0;
+			break;
+		}
 		if (error)
 			return error;
 		attr->xattri_dela_state = XFS_DAS_NODE_REMOVE_RMT;
@@ -806,14 +822,16 @@ next_state:
 
 	case XFS_DAS_LEAF_REMOVE_ATTR:
 		error = xfs_attr_leaf_remove_attr(attr);
-		attr->xattri_dela_state = XFS_DAS_DONE;
+		attr->xattri_dela_state = xfs_attr_complete_op(attr,
+						xfs_attr_init_add_state(args));
 		break;
 
 	case XFS_DAS_NODE_REMOVE_ATTR:
 		error = xfs_attr_node_remove_attr(attr);
 		if (!error)
 			error = xfs_attr_leaf_shrink(args);
-		attr->xattri_dela_state = XFS_DAS_DONE;
+		attr->xattri_dela_state = xfs_attr_complete_op(attr,
+						xfs_attr_init_add_state(args));
 		break;
 	default:
 		ASSERT(0);
@@ -1315,9 +1333,10 @@ xfs_attr_leaf_removename(
 	dp = args->dp;
 
 	error = xfs_attr_leaf_hasname(args, &bp);
-
 	if (error == -ENOATTR) {
 		xfs_trans_brelse(args->trans, bp);
+		if (args->op_flags & XFS_DA_OP_RECOVERY)
+			return 0;
 		return error;
 	} else if (error != -EEXIST)
 		return error;

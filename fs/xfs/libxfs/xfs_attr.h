@@ -444,18 +444,23 @@ struct xfs_attr_list_context {
  */
 enum xfs_delattr_state {
 	XFS_DAS_UNINIT		= 0,	/* No state has been set yet */
-	XFS_DAS_SF_ADD,			/* Initial shortform set iter state */
-	XFS_DAS_LEAF_ADD,		/* Initial leaf form set iter state */
-	XFS_DAS_NODE_ADD,		/* Initial node form set iter state */
-	XFS_DAS_RMTBLK,			/* Removing remote blks */
-	XFS_DAS_RM_NAME,		/* Remove attr name */
-	XFS_DAS_RM_SHRINK,		/* We are shrinking the tree */
 
-	XFS_DAS_SF_REMOVE,		/* Initial shortform set iter state */
-	XFS_DAS_LEAF_REMOVE,		/* Initial leaf form set iter state */
-	XFS_DAS_NODE_REMOVE,		/* Initial node form set iter state */
+	/*
+	 * Initial sequence states. The replace setup code relies on the
+	 * ADD and REMOVE states for a specific format to be sequential so
+	 * that we can transform the initial operation to be performed
+	 * according to the xfs_has_larp() state easily.
+	 */
+	XFS_DAS_SF_ADD,			/* Initial sf add state */
+	XFS_DAS_SF_REMOVE,		/* Initial sf replace/remove state */
 
-	/* Leaf state set/replace sequence */
+	XFS_DAS_LEAF_ADD,		/* Initial leaf add state */
+	XFS_DAS_LEAF_REMOVE,		/* Initial leaf replace/remove state */
+
+	XFS_DAS_NODE_ADD,		/* Initial node add state */
+	XFS_DAS_NODE_REMOVE,		/* Initial node replace/remove state */
+
+	/* Leaf state set/replace/remove sequence */
 	XFS_DAS_LEAF_SET_RMT,		/* set a remote xattr from a leaf */
 	XFS_DAS_LEAF_ALLOC_RMT,		/* We are allocating remote blocks */
 	XFS_DAS_LEAF_REPLACE,		/* Perform replace ops on a leaf */
@@ -463,7 +468,7 @@ enum xfs_delattr_state {
 	XFS_DAS_LEAF_REMOVE_RMT,	/* A rename is removing remote blocks */
 	XFS_DAS_LEAF_REMOVE_ATTR,	/* Remove the old attr from a leaf */
 
-	/* Node state set/replace sequence, must match leaf state above */
+	/* Node state sequence, must match leaf state above */
 	XFS_DAS_NODE_SET_RMT,		/* set a remote xattr from a node */
 	XFS_DAS_NODE_ALLOC_RMT,		/* We are allocating remote blocks */
 	XFS_DAS_NODE_REPLACE,		/* Perform replace ops on a node */
@@ -477,11 +482,11 @@ enum xfs_delattr_state {
 #define XFS_DAS_STRINGS	\
 	{ XFS_DAS_UNINIT,		"XFS_DAS_UNINIT" }, \
 	{ XFS_DAS_SF_ADD,		"XFS_DAS_SF_ADD" }, \
+	{ XFS_DAS_SF_REMOVE,		"XFS_DAS_SF_REMOVE" }, \
 	{ XFS_DAS_LEAF_ADD,		"XFS_DAS_LEAF_ADD" }, \
+	{ XFS_DAS_LEAF_REMOVE,		"XFS_DAS_LEAF_REMOVE" }, \
 	{ XFS_DAS_NODE_ADD,		"XFS_DAS_NODE_ADD" }, \
-	{ XFS_DAS_RMTBLK,		"XFS_DAS_RMTBLK" }, \
-	{ XFS_DAS_RM_NAME,		"XFS_DAS_RM_NAME" }, \
-	{ XFS_DAS_RM_SHRINK,		"XFS_DAS_RM_SHRINK" }, \
+	{ XFS_DAS_NODE_REMOVE,		"XFS_DAS_NODE_REMOVE" }, \
 	{ XFS_DAS_LEAF_SET_RMT,		"XFS_DAS_LEAF_SET_RMT" }, \
 	{ XFS_DAS_LEAF_ALLOC_RMT,	"XFS_DAS_LEAF_ALLOC_RMT" }, \
 	{ XFS_DAS_LEAF_REPLACE,		"XFS_DAS_LEAF_REPLACE" }, \
@@ -525,8 +530,7 @@ struct xfs_attr_item {
 	enum xfs_delattr_state		xattri_dela_state;
 
 	/*
-	 * Indicates if the attr operation is a set or a remove
-	 * XFS_ATTR_OP_FLAGS_{SET,REMOVE}
+	 * Attr operation being performed - XFS_ATTR_OP_FLAGS_*
 	 */
 	unsigned int			xattri_op_flags;
 
@@ -614,10 +618,19 @@ xfs_attr_init_remove_state(struct xfs_da_args *args)
 	return XFS_DAS_NODE_REMOVE;
 }
 
+/*
+ * If we are logging the attributes, then we have to start with removal of the
+ * old attribute so that there is always consistent state that we can recover
+ * from if the system goes down part way through. We always log the new attr
+ * value, so even when we remove the attr first we still have the information in
+ * the log to finish the replace operation atomically.
+ */
 static inline enum xfs_delattr_state
 xfs_attr_init_replace_state(struct xfs_da_args *args)
 {
 	args->op_flags |= XFS_DA_OP_ADDNAME | XFS_DA_OP_REPLACE;
+	if (xfs_has_larp(args->dp->i_mount))
+		return xfs_attr_init_remove_state(args);
 	return xfs_attr_init_add_state(args);
 }
 

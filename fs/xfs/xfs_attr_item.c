@@ -561,6 +561,7 @@ xfs_attri_item_recover(
 	args->namelen = attrp->alfi_name_len;
 	args->hashval = xfs_da_hashname(args->name, args->namelen);
 	args->attr_filter = attrp->alfi_attr_flags;
+	args->op_flags = XFS_DA_OP_RECOVERY | XFS_DA_OP_OKNOENT;
 
 	switch (attrp->alfi_op_flags & XFS_ATTR_OP_FLAGS_TYPE_MASK) {
 	case XFS_ATTR_OP_FLAGS_SET:
@@ -568,9 +569,14 @@ xfs_attri_item_recover(
 		args->value = attrip->attri_value;
 		args->valuelen = attrp->alfi_value_len;
 		args->total = xfs_attr_calc_size(args, &local);
-		attr->xattri_dela_state = xfs_attr_init_add_state(args);
+		if (xfs_inode_hasattr(args->dp))
+			attr->xattri_dela_state = xfs_attr_init_replace_state(args);
+		else
+			attr->xattri_dela_state = xfs_attr_init_add_state(args);
 		break;
 	case XFS_ATTR_OP_FLAGS_REMOVE:
+		if (!xfs_inode_hasattr(args->dp))
+			goto out;
 		attr->xattri_dela_state = xfs_attr_init_remove_state(args);
 		break;
 	default:
