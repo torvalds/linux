@@ -640,6 +640,10 @@ static inline void cgroup_throttle_swaprate(struct page *page, gfp_t gfp_mask)
 {
 }
 #endif
+static inline void folio_throttle_swaprate(struct folio *folio, gfp_t gfp)
+{
+	cgroup_throttle_swaprate(&folio->page, gfp);
+}
 
 #ifdef CONFIG_MEMCG_SWAP
 void mem_cgroup_swapout(struct folio *folio, swp_entry_t entry);
