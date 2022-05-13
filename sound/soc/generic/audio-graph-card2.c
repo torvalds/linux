@@ -711,7 +711,7 @@ static void graph_link_init(struct asoc_simple_priv *priv,
 	 */
 	daiclk = snd_soc_daifmt_clock_provider_from_bitmap(bit_frame);
 	if (is_cpu_node)
-		daiclk = snd_soc_daifmt_clock_provider_fliped(daiclk);
+		daiclk = snd_soc_daifmt_clock_provider_flipped(daiclk);
 
 	dai_link->dai_fmt	= daifmt | daiclk;
 	dai_link->init		= asoc_simple_dai_init;
