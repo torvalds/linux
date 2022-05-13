@@ -3597,6 +3597,7 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 						"allocation table for "
 						"pipe idx: %d\n",
 						pipe_ctx->pipe_idx);
+		return DC_FAIL_DP_PAYLOAD_ALLOCATION;
 	}
 
 	proposed_table.stream_allocations[0].hpo_dp_stream_enc = pipe_ctx->stream_res.hpo_dp_stream_enc;

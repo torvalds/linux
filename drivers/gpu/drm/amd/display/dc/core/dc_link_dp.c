@@ -2875,10 +2875,13 @@ bool perform_link_training_with_retries(
 
 		fail_count++;
 		dp_trace_lt_fail_count_update(link, fail_count, false);
-		/* latest link training still fail, skip delay and keep PHY on
-		 */
-		if (j == (attempts - 1) && link->ep_type == DISPLAY_ENDPOINT_PHY)
-			break;
+		if (link->ep_type == DISPLAY_ENDPOINT_PHY) {
+			/* latest link training still fail or link training is aborted
+			 * skip delay and keep PHY on
+			 */
+			if (j == (attempts - 1) || (status == LINK_TRAINING_ABORT))
+				break;
+		}
 
 		DC_LOG_WARNING("%s: Link training attempt %u of %d failed @ rate(%d) x lane(%d)\n",
 			__func__, (unsigned int)j + 1, attempts, cur_link_settings.link_rate,
@@ -6890,6 +6893,10 @@ bool dpcd_write_128b_132b_sst_payload_allocation_table(
 	if (allocate)	{
 		avg_time_slots_per_mtp = calculate_sst_avg_time_slots_per_mtp(stream, link);
 		req_slot_count = dc_fixpt_ceil(avg_time_slots_per_mtp);
+		/// Validation should filter out modes that exceed link BW
+		ASSERT(req_slot_count <= MAX_MTP_SLOT_COUNT);
+		if (req_slot_count > MAX_MTP_SLOT_COUNT)
+			return false;
 	} else {
 		/// Leave req_slot_count = 0 if allocate is false.
 	}
@@ -6917,7 +6924,6 @@ bool dpcd_write_128b_132b_sst_payload_allocation_table(
 			&start_time_slot,
 			1);
 
-	ASSERT(req_slot_count <= MAX_MTP_SLOT_COUNT); /// Validation should filter out modes that exceed link BW
 	core_link_write_dpcd(
 			link,
 			DP_PAYLOAD_ALLOCATE_TIME_SLOT_COUNT,
