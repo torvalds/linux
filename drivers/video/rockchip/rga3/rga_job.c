@@ -557,8 +557,8 @@ static inline int rga_job_wait(struct rga_job *job)
 	ktime_t now;
 	int ret;
 
-	left_time = wait_event_interruptible_timeout(job->scheduler->job_done_wq,
-		job->flags & RGA_JOB_DONE, RGA_SYNC_TIMEOUT_DELAY);
+	left_time = wait_event_timeout(job->scheduler->job_done_wq,
+				       job->flags & RGA_JOB_DONE, RGA_SYNC_TIMEOUT_DELAY);
 
 	switch (left_time) {
 	case 0:
