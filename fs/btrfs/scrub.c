@@ -3418,20 +3418,22 @@ static int scrub_simple_stripe(struct scrub_ctx *sctx,
 
 static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 					   struct btrfs_block_group *bg,
-					   struct map_lookup *map,
+					   struct extent_map *em,
 					   struct btrfs_device *scrub_dev,
-					   int stripe_index, u64 dev_extent_len)
+					   int stripe_index)
 {
 	struct btrfs_path *path;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct btrfs_root *root;
 	struct btrfs_root *csum_root;
 	struct blk_plug plug;
+	struct map_lookup *map = em->map_lookup;
 	const u64 profile = map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK;
 	const u64 chunk_logical = bg->start;
 	int ret;
 	u64 physical = map->stripes[stripe_index].physical;
-	const u64 physical_end = physical + dev_extent_len;
+	const u64 dev_stripe_len = btrfs_calc_stripe_length(em);
+	const u64 physical_end = physical + dev_stripe_len;
 	u64 logical;
 	u64 logic_end;
 	/* The logical increment after finishing one stripe */
@@ -3558,8 +3560,8 @@ next:
 		physical += map->stripe_len;
 		spin_lock(&sctx->stat_lock);
 		if (stop_loop)
-			sctx->stat.last_physical = map->stripes[stripe_index].physical +
-						   dev_extent_len;
+			sctx->stat.last_physical =
+				map->stripes[stripe_index].physical + dev_stripe_len;
 		else
 			sctx->stat.last_physical = physical;
 		spin_unlock(&sctx->stat_lock);
@@ -3628,8 +3630,7 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 	for (i = 0; i < map->num_stripes; ++i) {
 		if (map->stripes[i].dev->bdev == scrub_dev->bdev &&
 		    map->stripes[i].physical == dev_offset) {
-			ret = scrub_stripe(sctx, bg, map, scrub_dev, i,
-					   dev_extent_len);
+			ret = scrub_stripe(sctx, bg, em, scrub_dev, i);
 			if (ret)
 				goto out;
 		}
