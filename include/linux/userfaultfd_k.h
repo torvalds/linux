@@ -96,6 +96,18 @@ static inline bool uffd_disable_huge_pmd_share(struct vm_area_struct *vma)
 	return vma->vm_flags & (VM_UFFD_WP | VM_UFFD_MINOR);
 }
 
+/*
+ * Don't do fault around for either WP or MINOR registered uffd range.  For
+ * MINOR registered range, fault around will be a total disaster and ptes can
+ * be installed without notifications; for WP it should mostly be fine as long
+ * as the fault around checks for pte_none() before the installation, however
+ * to be super safe we just forbid it.
+ */
+static inline bool uffd_disable_fault_around(struct vm_area_struct *vma)
+{
+	return vma->vm_flags & (VM_UFFD_WP | VM_UFFD_MINOR);
+}
+
 static inline bool userfaultfd_missing(struct vm_area_struct *vma)
 {
 	return vma->vm_flags & VM_UFFD_MISSING;
@@ -234,6 +246,11 @@ static inline int userfaultfd_unmap_prep(struct vm_area_struct *vma,
 static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
 					      struct list_head *uf)
 {
+}
+
+static inline bool uffd_disable_fault_around(struct vm_area_struct *vma)
+{
+	return false;
 }
 
 #endif /* CONFIG_USERFAULTFD */
