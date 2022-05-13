@@ -1601,9 +1601,9 @@ failed:
  * NUMA mempolicy, and applied also to anonymous pages in do_swap_page();
  * but for now it is a simple matter of zone.
  */
-static bool shmem_should_replace_page(struct page *page, gfp_t gfp)
+static bool shmem_should_replace_folio(struct folio *folio, gfp_t gfp)
 {
-	return page_zonenum(page) > gfp_zone(gfp);
+	return folio_zonenum(folio) > gfp_zone(gfp);
 }
 
 static int shmem_replace_page(struct page **pagep, gfp_t gfp,
@@ -1735,13 +1735,13 @@ static int shmem_swapin_page(struct inode *inode, pgoff_t index,
 	 */
 	arch_swap_restore(swap, page);
 
-	if (shmem_should_replace_page(page, gfp)) {
+	folio = page_folio(page);
+	if (shmem_should_replace_folio(folio, gfp)) {
 		error = shmem_replace_page(&page, gfp, info, index);
 		if (error)
 			goto failed;
 	}
 
-	folio = page_folio(page);
 	error = shmem_add_to_page_cache(folio, mapping, index,
 					swp_to_radix_entry(swap), gfp,
 					charge_mm);
