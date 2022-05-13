@@ -164,7 +164,7 @@ static int send_command(struct cros_ec_device *ec_dev,
  * only SPI uses it. Once LPC uses the same protocol it can start using it.
  * I2C could use it now, with a refactor of the existing code.
  *
- * Return: 0 on success or negative error code.
+ * Return: number of prepared bytes on success or negative error code.
  */
 int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 		       struct cros_ec_command *msg)

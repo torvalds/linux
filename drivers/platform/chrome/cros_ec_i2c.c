@@ -89,6 +89,8 @@ static int cros_ec_pkt_xfer_i2c(struct cros_ec_device *ec_dev,
 
 	ec_dev->dout++;
 	ret = cros_ec_prepare_tx(ec_dev, msg);
+	if (ret < 0)
+		goto done;
 	ec_dev->dout--;
 
 	/* send command to EC and read answer */
