@@ -1902,20 +1902,20 @@ retry:
 			}
 		}
 
-		if (PageAnon(page) && !PageSwapBacked(page)) {
+		if (folio_test_anon(folio) && !folio_test_swapbacked(folio)) {
 			/* follow __remove_mapping for reference */
-			if (!page_ref_freeze(page, 1))
+			if (!folio_ref_freeze(folio, 1))
 				goto keep_locked;
 			/*
-			 * The page has only one reference left, which is
+			 * The folio has only one reference left, which is
 			 * from the isolation. After the caller puts the
-			 * page back on lru and drops the reference, the
-			 * page will be freed anyway. It doesn't matter
-			 * which lru it goes. So we don't bother checking
-			 * PageDirty here.
+			 * folio back on the lru and drops the reference, the
+			 * folio will be freed anyway. It doesn't matter
+			 * which lru it goes on. So we don't bother checking
+			 * the dirty flag here.
 			 */
-			count_vm_event(PGLAZYFREED);
-			count_memcg_page_event(page, PGLAZYFREED);
+			count_vm_events(PGLAZYFREED, nr_pages);
+			count_memcg_folio_events(folio, PGLAZYFREED, nr_pages);
 		} else if (!mapping || !__remove_mapping(mapping, folio, true,
 							 sc->target_mem_cgroup))
 			goto keep_locked;
