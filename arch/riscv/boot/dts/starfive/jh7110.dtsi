@@ -265,13 +265,17 @@
 			#clock-cells = <1>;
 			clocks = <&clkgen JH7110_ISP_TOP_CLK_DVP>,
 				 <&clkgen JH7110_ISP_TOP_CLK_ISPCORE_2X>,
-				 <&clkgen JH7110_ISP_TOP_CLK_ISP_AXI>;
+				 <&clkgen JH7110_ISP_TOP_CLK_ISP_AXI>,
+				 <&clkgen JH7110_NOC_BUS_CLK_ISP_AXI>;
 			clock-names = "u0_dom_isp_top_clk_dom_isp_top_clk_dvp",
 				      "u0_dom_isp_top_clk_dom_isp_top_clk_ispcore_2x",
-				      "u0_dom_isp_top_clk_dom_isp_top_clk_isp_axi";
+				      "u0_dom_isp_top_clk_dom_isp_top_clk_isp_axi",
+				      "u0_sft7110_noc_bus_clk_isp_axi";
 			resets = <&rstgen RSTN_U0_DOM_ISP_TOP_N>,
-				 <&rstgen RSTN_U0_DOM_ISP_TOP_AXI>;
-			reset-names = "rst_isp_top_n", "rst_isp_top_axi";
+				 <&rstgen RSTN_U0_DOM_ISP_TOP_AXI>,
+				 <&rstgen RSTN_U0_NOC_BUS_ISP_AXI_N>;
+			reset-names = "rst_isp_top_n", "rst_isp_top_axi",
+				      "rst_isp_noc_bus_n";
 			status = "disabled";
 		};
 
