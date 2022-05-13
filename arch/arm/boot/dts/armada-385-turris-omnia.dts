@@ -348,7 +348,11 @@
 			#size-cells = <0>;
 			reg = <5>;
 
-			/* ATSHA204A at address 0x64 */
+			/* ATSHA204A-MAHDA-T crypto module */
+			crypto@64 {
+				compatible = "atmel,atsha204a";
+				reg = <0x64>;
+			};
 		};
 
 		i2c@6 {
