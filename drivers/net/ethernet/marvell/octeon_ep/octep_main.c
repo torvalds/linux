@@ -1149,6 +1149,7 @@ static int __init octep_init_module(void)
 	if (ret < 0) {
 		pr_err("%s: Failed to register PCI driver; err=%d\n",
 		       OCTEP_DRV_NAME, ret);
+		destroy_workqueue(octep_wq);
 		return ret;
 	}
 
