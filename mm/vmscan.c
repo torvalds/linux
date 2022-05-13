@@ -1572,7 +1572,7 @@ retry:
 		if (unlikely(!page_evictable(page)))
 			goto activate_locked;
 
-		if (!sc->may_unmap && page_mapped(page))
+		if (!sc->may_unmap && folio_mapped(folio))
 			goto keep_locked;
 
 		/*
@@ -1761,21 +1761,21 @@ retry:
 		}
 
 		/*
-		 * The page is mapped into the page tables of one or more
+		 * The folio is mapped into the page tables of one or more
 		 * processes. Try to unmap it here.
 		 */
-		if (page_mapped(page)) {
+		if (folio_mapped(folio)) {
 			enum ttu_flags flags = TTU_BATCH_FLUSH;
-			bool was_swapbacked = PageSwapBacked(page);
+			bool was_swapbacked = folio_test_swapbacked(folio);
 
-			if (PageTransHuge(page) &&
-					thp_order(page) >= HPAGE_PMD_ORDER)
+			if (folio_test_pmd_mappable(folio))
 				flags |= TTU_SPLIT_HUGE_PMD;
 
 			try_to_unmap(folio, flags);
-			if (page_mapped(page)) {
+			if (folio_mapped(folio)) {
 				stat->nr_unmap_fail += nr_pages;
-				if (!was_swapbacked && PageSwapBacked(page))
+				if (!was_swapbacked &&
+				    folio_test_swapbacked(folio))
 					stat->nr_lazyfree_fail += nr_pages;
 				goto activate_locked;
 			}
