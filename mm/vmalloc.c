@@ -389,18 +389,15 @@ static void vunmap_p4d_range(pgd_t *pgd, unsigned long addr, unsigned long end,
 {
 	p4d_t *p4d;
 	unsigned long next;
-	int cleared;
 
 	p4d = p4d_offset(pgd, addr);
 	do {
 		next = p4d_addr_end(addr, end);
 
-		cleared = p4d_clear_huge(p4d);
-		if (cleared || p4d_bad(*p4d))
+		p4d_clear_huge(p4d);
+		if (p4d_bad(*p4d))
 			*mask |= PGTBL_P4D_MODIFIED;
 
-		if (cleared)
-			continue;
 		if (p4d_none_or_clear_bad(p4d))
 			continue;
 		vunmap_pud_range(p4d, addr, next, mask);

@@ -686,9 +686,8 @@ int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot)
  *
  * No 512GB pages yet -- always return 0
  */
-int p4d_clear_huge(p4d_t *p4d)
+void p4d_clear_huge(p4d_t *p4d)
 {
-	return 0;
 }
 #endif
 
