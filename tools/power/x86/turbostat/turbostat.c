@@ -126,6 +126,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "GFXAMHz", "", 0, 0, 0, NULL, 0 },
 	{ 0x0, "IPC", "", 0, 0, 0, NULL, 0 },
 	{ 0x0, "CoreThr", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "UncMHz", "", 0, 0, 0, NULL, 0 },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -183,10 +184,11 @@ struct msr_counter bic[] = {
 #define	BIC_GFXACTMHz	(1ULL << 51)
 #define	BIC_IPC		(1ULL << 52)
 #define	BIC_CORE_THROT_CNT	(1ULL << 53)
+#define	BIC_UNCORE_MHZ		(1ULL << 54)
 
 #define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
 #define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
-#define BIC_FREQUENCY ( BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz )
+#define BIC_FREQUENCY ( BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz | BIC_UNCORE_MHZ)
 #define BIC_IDLE ( BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX)
 #define BIC_OTHER ( BIC_IRQ | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
 
@@ -393,6 +395,7 @@ struct pkg_data {
 	unsigned long long rapl_pkg_perf_status;	/* MSR_PKG_PERF_STATUS */
 	unsigned long long rapl_dram_perf_status;	/* MSR_DRAM_PERF_STATUS */
 	unsigned int pkg_temp_c;
+	unsigned int uncore_mhz;
 	unsigned long long counter[MAX_ADDED_COUNTERS];
 } *package_even, *package_odd;
 
@@ -988,6 +991,9 @@ void print_header(char *delim)
 		if (DO_BIC(BIC_RAM__))
 			outp += sprintf(outp, "%sRAM_%%", (printed++ ? delim : ""));
 	}
+	if (DO_BIC(BIC_UNCORE_MHZ))
+		outp += sprintf(outp, "%sUncMHz", (printed++ ? delim : ""));
+
 	for (mp = sys.pp; mp; mp = mp->next) {
 		if (mp->format == FORMAT_RAW) {
 			if (mp->width == 64)
@@ -1370,6 +1376,9 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""),
 			    100.0 * p->rapl_dram_perf_status * rapl_time_units / interval_float);
+	/* UncMHz */
+	if (DO_BIC(BIC_UNCORE_MHZ))
+		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->uncore_mhz);
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW) {
@@ -1471,6 +1480,7 @@ int delta_package(struct pkg_data *new, struct pkg_data *old)
 	else
 		old->gfx_rc6_ms = new->gfx_rc6_ms - old->gfx_rc6_ms;
 
+	old->uncore_mhz = new->uncore_mhz;
 	old->gfx_mhz = new->gfx_mhz;
 	old->gfx_act_mhz = new->gfx_act_mhz;
 
@@ -1689,6 +1699,7 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	p->pkg_temp_c = 0;
 
 	p->gfx_rc6_ms = 0;
+	p->uncore_mhz = 0;
 	p->gfx_mhz = 0;
 	p->gfx_act_mhz = 0;
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next)
@@ -1788,6 +1799,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	average.packages.energy_gfx += p->energy_gfx;
 
 	average.packages.gfx_rc6_ms = p->gfx_rc6_ms;
+	average.packages.uncore_mhz = p->uncore_mhz;
 	average.packages.gfx_mhz = p->gfx_mhz;
 	average.packages.gfx_act_mhz = p->gfx_act_mhz;
 
@@ -1946,6 +1958,16 @@ int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
 	}
 
 	return 0;
+}
+
+unsigned long long get_uncore_mhz(int package, int die)
+{
+	char path[128];
+
+	sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/current_freq_khz", package,
+		die);
+
+	return (snapshot_sysfs_counter(path) / 1000);
 }
 
 int get_epb(int cpu)
@@ -2296,6 +2318,10 @@ retry:
 
 	if (DO_BIC(BIC_GFX_rc6))
 		p->gfx_rc6_ms = gfx_cur_rc6_ms;
+
+	/* n.b. assume die0 uncore frequency applies to whole package */
+	if (DO_BIC(BIC_UNCORE_MHZ))
+		p->uncore_mhz = get_uncore_mhz(p->package_id, 0);
 
 	if (DO_BIC(BIC_GFXMHz))
 		p->gfx_mhz = gfx_cur_mhz;
@@ -4098,6 +4124,24 @@ static void dump_cstate_pstate_config_info(unsigned int family, unsigned int mod
 	dump_nhm_cst_cfg();
 }
 
+static int read_sysfs_int(char *path)
+{
+	FILE *input;
+	int retval = -1;
+
+	input = fopen(path, "r");
+	if (input == NULL) {
+		if (debug)
+			fprintf(outf, "NSFOD %s\n", path);
+		return (-1);
+	}
+	if (fscanf(input, "%d", &retval) != 1)
+		err(1, "%s: failed to read int from file", path);
+	fclose(input);
+
+	return (retval);
+}
+
 static void dump_sysfs_file(char *path)
 {
 	FILE *input;
@@ -4114,6 +4158,48 @@ static void dump_sysfs_file(char *path)
 	fclose(input);
 
 	fprintf(outf, "%s: %s", strrchr(path, '/') + 1, cpuidle_buf);
+}
+
+static void intel_uncore_frequency_probe(void)
+{
+	int i, j;
+	char path[128];
+
+	if (!genuine_intel)
+		return;
+
+	if (access("/sys/devices/system/cpu/intel_uncore_frequency/package_00_die_00", R_OK))
+		return;
+
+	if (!access("/sys/devices/system/cpu/intel_uncore_frequency/package_00_die_00/current_freq_khz", R_OK))
+		BIC_PRESENT(BIC_UNCORE_MHZ);
+
+	if (quiet)
+		return;
+
+	for (i = 0; i < topo.num_packages; ++i) {
+		for (j = 0; j < topo.num_die; ++j) {
+			int k, l;
+
+			sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/min_freq_khz",
+				i, j);
+			k = read_sysfs_int(path);
+			sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/max_freq_khz",
+				i, j);
+			l = read_sysfs_int(path);
+			fprintf(outf, "Uncore Frequency pkg%d die%d: %d - %d MHz ", i, j, k / 1000, l / 1000);
+
+			sprintf(path,
+				"/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/initial_min_freq_khz",
+				i, j);
+			k = read_sysfs_int(path);
+			sprintf(path,
+				"/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/initial_max_freq_khz",
+				i, j);
+			l = read_sysfs_int(path);
+			fprintf(outf, "(%d - %d MHz)\n", k / 1000, l / 1000);
+		}
+	}
 }
 
 static void dump_sysfs_cstate_config(void)
@@ -5700,6 +5786,7 @@ void process_cpuid()
 
 	if (!quiet)
 		dump_cstate_pstate_config_info(family, model);
+	intel_uncore_frequency_probe();
 
 	if (!quiet)
 		print_dev_latency();
