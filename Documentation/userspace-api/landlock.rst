@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. Copyright © 2017-2020 Mickaël Salaün <mic@digikod.net>
 .. Copyright © 2019-2020 ANSSI
-.. Copyright © 2021 Microsoft Corporation
+.. Copyright © 2021-2022 Microsoft Corporation
 
 =====================================
 Landlock: unprivileged access control
@@ -17,6 +17,13 @@ in addition to the existing system-wide access-controls. This kind of sandbox
 is expected to help mitigate the security impact of bugs or
 unexpected/malicious behaviors in user space applications.  Landlock empowers
 any process, including unprivileged ones, to securely restrict themselves.
+
+We can quickly make sure that Landlock is enabled in the running system by
+looking for "landlock: Up and running" in kernel logs (as root): ``dmesg | grep
+landlock || journalctl -kg landlock`` .  Developers can also easily check for
+Landlock support with a :ref:`related system call <landlock_abi_versions>`.  If
+Landlock is not currently supported, we need to :ref:`configure the kernel
+appropriately <kernel_support>`.
 
 Landlock rules
 ==============
@@ -264,6 +271,8 @@ users, and because they may use different kernel versions, it is strongly
 encouraged to follow a best-effort security approach by checking the Landlock
 ABI version at runtime and only enforcing the supported features.
 
+.. _landlock_abi_versions:
+
 Landlock ABI versions
 ---------------------
 
@@ -387,6 +396,24 @@ Landlock previously limited linking and renaming to the same directory.
 Starting with the Landlock ABI version 2, it is now possible to securely
 control renaming and linking thanks to the new `LANDLOCK_ACCESS_FS_REFER`
 access right.
+
+.. _kernel_support:
+
+Kernel support
+==============
+
+Landlock was first introduced in Linux 5.13 but it must be configured at build
+time with `CONFIG_SECURITY_LANDLOCK=y`.  Landlock must also be enabled at boot
+time as the other security modules.  The list of security modules enabled by
+default is set with `CONFIG_LSM`.  The kernel configuration should then
+contains `CONFIG_LSM=landlock,[...]` with `[...]`  as the list of other
+potentially useful security modules for the running system (see the
+`CONFIG_LSM` help).
+
+If the running kernel doesn't have `landlock` in `CONFIG_LSM`, then we can
+still enable it by adding ``lsm=landlock,[...]`` to
+Documentation/admin-guide/kernel-parameters.rst thanks to the bootloader
+configuration.
 
 Questions and answers
 =====================
