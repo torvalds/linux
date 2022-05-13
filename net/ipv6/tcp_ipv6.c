@@ -1509,6 +1509,7 @@ reset:
 discard:
 	if (opt_skb)
 		__kfree_skb(opt_skb);
+	SKB_DR_OR(reason, NOT_SPECIFIED);
 	kfree_skb_reason(skb, reason);
 	return 0;
 csum_err:
