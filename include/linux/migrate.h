@@ -105,6 +105,11 @@ static inline void __ClearPageMovable(struct page *page)
 }
 #endif
 
+static inline bool folio_test_movable(struct folio *folio)
+{
+	return PageMovable(&folio->page);
+}
+
 #ifdef CONFIG_NUMA_BALANCING
 extern int migrate_misplaced_page(struct page *page,
 				  struct vm_area_struct *vma, int node);
