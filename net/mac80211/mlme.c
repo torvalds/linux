@@ -2608,7 +2608,6 @@ static void ieee80211_mlme_send_probe_req(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	const struct element *ssid;
 	u8 *dst = ifmgd->bssid;
 	u8 unicast_limit = max(1, max_probe_tries - 3);
 	struct sta_info *sta;
@@ -2642,19 +2641,10 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 		ifmgd->nullfunc_failed = false;
 		ieee80211_send_nullfunc(sdata->local, sdata, false);
 	} else {
-		int ssid_len;
-
-		rcu_read_lock();
-		ssid = ieee80211_bss_get_elem(ifmgd->associated, WLAN_EID_SSID);
-		if (WARN_ON_ONCE(ssid == NULL))
-			ssid_len = 0;
-		else
-			ssid_len = ssid->datalen;
-
 		ieee80211_mlme_send_probe_req(sdata, sdata->vif.addr, dst,
-					      ssid->data, ssid_len,
+					      sdata->vif.bss_conf.ssid,
+					      sdata->vif.bss_conf.ssid_len,
 					      ifmgd->associated->channel);
-		rcu_read_unlock();
 	}
 
 	ifmgd->probe_timeout = jiffies + msecs_to_jiffies(probe_wait_ms);
