@@ -317,6 +317,18 @@ static bool check_div0(struct pt_regs *regs)
 
 static void do_illegal_instruction(struct pt_regs *regs)
 {
+#ifdef CONFIG_USER_ABI_CALL0_PROBE
+	/*
+	 * When call0 application encounters an illegal instruction fast
+	 * exception handler will attempt to set PS.WOE and retry failing
+	 * instruction.
+	 * If we get here we know that that instruction is also illegal
+	 * with PS.WOE set, so it's not related to the windowed option
+	 * hence PS.WOE may be cleared.
+	 */
+	if (regs->pc == current_thread_info()->ps_woe_fix_addr)
+		regs->ps &= ~PS_WOE_MASK;
+#endif
 	if (check_div0(regs)) {
 		do_div0(regs);
 		return;

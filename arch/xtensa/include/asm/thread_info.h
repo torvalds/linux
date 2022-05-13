@@ -56,6 +56,10 @@ struct thread_info {
 	/* result of the most recent exclusive store */
 	unsigned long		atomctl8;
 #endif
+#ifdef CONFIG_USER_ABI_CALL0_PROBE
+	/* Address where PS.WOE was enabled by the ABI probing code */
+	unsigned long		ps_woe_fix_addr;
+#endif
 
 	/*
 	 * If i-th bit is set then coprocessor state is loaded into the
