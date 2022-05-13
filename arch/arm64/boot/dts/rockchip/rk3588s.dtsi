@@ -746,7 +746,7 @@
 		>;
 		low-volt-mem-read-margin = <4>;
 		intermediate-threshold-freq = <1008000>;	/* KHz */
-		rockchip,idle-threshold-freq = <2400000>;	/* KHz */
+		rockchip,idle-threshold-freq = <2208000>;	/* KHz */
 		rockchip,reboot-freq = <1800000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
@@ -959,7 +959,7 @@
 		>;
 		low-volt-mem-read-margin = <4>;
 		intermediate-threshold-freq = <1008000>;	/* KHz */
-		rockchip,idle-threshold-freq = <2400000>;	/* KHz */
+		rockchip,idle-threshold-freq = <2208000>;	/* KHz */
 		rockchip,reboot-freq = <1800000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
