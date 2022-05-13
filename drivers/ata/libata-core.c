@@ -1107,11 +1107,13 @@ static u64 ata_id_n_sectors(const u16 *id)
 			return ata_id_u32(id, ATA_ID_LBA_CAPACITY);
 	} else {
 		if (ata_id_current_chs_valid(id))
-			return id[ATA_ID_CUR_CYLS] * id[ATA_ID_CUR_HEADS] *
-			       id[ATA_ID_CUR_SECTORS];
+			return (u32)id[ATA_ID_CUR_CYLS] *
+			       (u32)id[ATA_ID_CUR_HEADS] *
+			       (u32)id[ATA_ID_CUR_SECTORS];
 		else
-			return id[ATA_ID_CYLS] * id[ATA_ID_HEADS] *
-			       id[ATA_ID_SECTORS];
+			return (u32)id[ATA_ID_CYLS] *
+			       (u32)id[ATA_ID_HEADS] *
+			       (u32)id[ATA_ID_SECTORS];
 	}
 }
 
