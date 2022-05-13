@@ -654,6 +654,9 @@ static inline void gic_handle_nmi(u32 irqnr, struct pt_regs *regs)
 
 	if (static_branch_likely(&supports_deactivate_key))
 		gic_write_eoir(irqnr);
+	else
+		isb()
+
 	/*
 	 * Leave the PSR.I bit set to prevent other NMIs to be
 	 * received while handling this one.
