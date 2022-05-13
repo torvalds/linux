@@ -1563,8 +1563,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
 	return &shmem_alloc_folio(gfp, info, index)->page;
 }
 
-static struct page *shmem_alloc_and_acct_page(gfp_t gfp,
-		struct inode *inode,
+static struct folio *shmem_alloc_and_acct_folio(gfp_t gfp, struct inode *inode,
 		pgoff_t index, bool huge)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
@@ -1586,7 +1585,7 @@ static struct page *shmem_alloc_and_acct_page(gfp_t gfp,
 	if (folio) {
 		__folio_set_locked(folio);
 		__folio_set_swapbacked(folio);
-		return &folio->page;
+		return folio;
 	}
 
 	err = -ENOMEM;
@@ -1800,7 +1799,6 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
 	struct shmem_sb_info *sbinfo;
 	struct mm_struct *charge_mm;
 	struct folio *folio;
-	struct page *page;
 	pgoff_t hindex = index;
 	gfp_t huge_gfp;
 	int error;
@@ -1818,19 +1816,18 @@ repeat:
 	sbinfo = SHMEM_SB(inode->i_sb);
 	charge_mm = vma ? vma->vm_mm : NULL;
 
-	page = pagecache_get_page(mapping, index,
-					FGP_ENTRY | FGP_HEAD | FGP_LOCK, 0);
-
-	if (page && vma && userfaultfd_minor(vma)) {
-		if (!xa_is_value(page)) {
-			unlock_page(page);
-			put_page(page);
+	folio = __filemap_get_folio(mapping, index, FGP_ENTRY | FGP_LOCK, 0);
+	if (folio && vma && userfaultfd_minor(vma)) {
+		if (!xa_is_value(folio)) {
+			folio_unlock(folio);
+			folio_put(folio);
 		}
 		*fault_type = handle_userfault(vmf, VM_UFFD_MINOR);
 		return 0;
 	}
 
-	if (xa_is_value(page)) {
+	if (xa_is_value(folio)) {
+		struct page *page = &folio->page;
 		error = shmem_swapin_page(inode, index, &page,
 					  sgp, gfp, vma, fault_type);
 		if (error == -EEXIST)
@@ -1840,17 +1837,17 @@ repeat:
 		return error;
 	}
 
-	if (page) {
-		hindex = page->index;
+	if (folio) {
+		hindex = folio->index;
 		if (sgp == SGP_WRITE)
-			mark_page_accessed(page);
-		if (PageUptodate(page))
+			folio_mark_accessed(folio);
+		if (folio_test_uptodate(folio))
 			goto out;
 		/* fallocated page */
 		if (sgp != SGP_READ)
 			goto clear;
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 	}
 
 	/*
@@ -1877,17 +1874,16 @@ repeat:
 
 	huge_gfp = vma_thp_gfp_mask(vma);
 	huge_gfp = limit_gfp_mask(huge_gfp, gfp);
-	page = shmem_alloc_and_acct_page(huge_gfp, inode, index, true);
-	if (IS_ERR(page)) {
+	folio = shmem_alloc_and_acct_folio(huge_gfp, inode, index, true);
+	if (IS_ERR(folio)) {
 alloc_nohuge:
-		page = shmem_alloc_and_acct_page(gfp, inode,
-						 index, false);
+		folio = shmem_alloc_and_acct_folio(gfp, inode, index, false);
 	}
-	if (IS_ERR(page)) {
+	if (IS_ERR(folio)) {
 		int retry = 5;
 
-		error = PTR_ERR(page);
-		page = NULL;
+		error = PTR_ERR(folio);
+		folio = NULL;
 		if (error != -ENOSPC)
 			goto unlock;
 		/*
@@ -1906,30 +1902,26 @@ alloc_nohuge:
 		goto unlock;
 	}
 
-	if (PageTransHuge(page))
-		hindex = round_down(index, HPAGE_PMD_NR);
-	else
-		hindex = index;
+	hindex = round_down(index, folio_nr_pages(folio));
 
 	if (sgp == SGP_WRITE)
-		__SetPageReferenced(page);
+		__folio_set_referenced(folio);
 
-	folio = page_folio(page);
 	error = shmem_add_to_page_cache(folio, mapping, hindex,
 					NULL, gfp & GFP_RECLAIM_MASK,
 					charge_mm);
 	if (error)
 		goto unacct;
-	lru_cache_add(page);
+	folio_add_lru(folio);
 
 	spin_lock_irq(&info->lock);
-	info->alloced += compound_nr(page);
-	inode->i_blocks += BLOCKS_PER_PAGE << compound_order(page);
+	info->alloced += folio_nr_pages(folio);
+	inode->i_blocks += BLOCKS_PER_PAGE << folio_order(folio);
 	shmem_recalc_inode(inode);
 	spin_unlock_irq(&info->lock);
 	alloced = true;
 
-	if (PageTransHuge(page) &&
+	if (folio_test_pmd_mappable(folio) &&
 	    DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE) <
 			hindex + HPAGE_PMD_NR - 1) {
 		/*
@@ -1960,22 +1952,21 @@ clear:
 	 * but SGP_FALLOC on a page fallocated earlier must initialize
 	 * it now, lest undo on failure cancel our earlier guarantee.
 	 */
-	if (sgp != SGP_WRITE && !PageUptodate(page)) {
-		int i;
+	if (sgp != SGP_WRITE && !folio_test_uptodate(folio)) {
+		long i, n = folio_nr_pages(folio);
 
-		for (i = 0; i < compound_nr(page); i++) {
-			clear_highpage(page + i);
-			flush_dcache_page(page + i);
-		}
-		SetPageUptodate(page);
+		for (i = 0; i < n; i++)
+			clear_highpage(folio_page(folio, i));
+		flush_dcache_folio(folio);
+		folio_mark_uptodate(folio);
 	}
 
 	/* Perhaps the file has been truncated since we checked */
 	if (sgp <= SGP_CACHE &&
 	    ((loff_t)index << PAGE_SHIFT) >= i_size_read(inode)) {
 		if (alloced) {
-			ClearPageDirty(page);
-			delete_from_page_cache(page);
+			folio_clear_dirty(folio);
+			filemap_remove_folio(folio);
 			spin_lock_irq(&info->lock);
 			shmem_recalc_inode(inode);
 			spin_unlock_irq(&info->lock);
@@ -1984,24 +1975,24 @@ clear:
 		goto unlock;
 	}
 out:
-	*pagep = page + index - hindex;
+	*pagep = folio_page(folio, index - hindex);
 	return 0;
 
 	/*
 	 * Error recovery.
 	 */
 unacct:
-	shmem_inode_unacct_blocks(inode, compound_nr(page));
+	shmem_inode_unacct_blocks(inode, folio_nr_pages(folio));
 
-	if (PageTransHuge(page)) {
-		unlock_page(page);
-		put_page(page);
+	if (folio_test_large(folio)) {
+		folio_unlock(folio);
+		folio_put(folio);
 		goto alloc_nohuge;
 	}
 unlock:
-	if (page) {
-		unlock_page(page);
-		put_page(page);
+	if (folio) {
+		folio_unlock(folio);
+		folio_put(folio);
 	}
 	if (error == -ENOSPC && !once++) {
 		spin_lock_irq(&info->lock);
