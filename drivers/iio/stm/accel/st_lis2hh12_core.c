@@ -25,9 +25,7 @@
 #include <linux/iio/events.h>
 #include <asm/unaligned.h>
 #include "st_lis2hh12.h"
-#ifndef CONFIG_OF
-#include <linux/platform_data/st_lis2hh12.h>
-#endif
+#include <linux/platform_data/stm/lis2hh12.h>
 
 #define ST_LIS2HH12_DEV_ATTR_SAMP_FREQ() \
 		IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO, \
