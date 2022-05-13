@@ -77,11 +77,11 @@ struct aspeed_pci_bmc_dev {
 	void *serial_priv;
 
 	u8 IntLine;
+	int legency_irq;
 };
 
 #define HOST_BMC_QUEUE_SIZE			(16 * 4)
 
-#define BMC_MSI_INT
 #define BMC_MULTI_MSI	32
 
 #define DRIVER_NAME "ASPEED BMC DEVICE"
@@ -242,10 +242,18 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 	struct aspeed_pci_bmc_dev *pci_bmc_dev;
 	struct device *dev = &pdev->dev;
 	u16 config_cmd_val;
+	int nr_entries;
 	int rc = 0;
 	int i = 0;
 
 	pr_info("ASPEED BMC PCI ID %04x:%04x, IRQ=%u\n", pdev->vendor, pdev->device, pdev->irq);
+
+	pci_bmc_dev = kzalloc(sizeof(*pci_bmc_dev), GFP_KERNEL);
+	if (!pci_bmc_dev) {
+		rc = -ENOMEM;
+		dev_err(&pdev->dev, "kmalloc() returned NULL memory.\n");
+		goto out_err;
+	}
 
 	rc = pci_enable_device(pdev);
 	if (rc != 0) {
@@ -256,38 +264,23 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 	/* set PCI host mastering  */
 	pci_set_master(pdev);
 
-#ifdef BMC_MSI_INT
-#ifdef BMC_MULTI_MSI
-	rc = pci_alloc_irq_vectors(pdev, 1, BMC_MULTI_MSI, PCI_IRQ_MSI);
-#else
-	rc = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
-#endif
-	if (rc < 0) {
-		dev_err(&pdev->dev, "cannot allocate PCI MSI, rc=%d\n", rc);
-		return rc;
+	nr_entries = pci_alloc_irq_vectors(pdev, 1, BMC_MULTI_MSI,
+				PCI_IRQ_MSIX | PCI_IRQ_MSI);
+	if (nr_entries < 0) {
+		pci_bmc_dev->legency_irq = 1;
+		pci_read_config_word(pdev, PCI_COMMAND, &config_cmd_val);
+		config_cmd_val &= ~PCI_COMMAND_INTX_DISABLE;
+		pci_write_config_word((struct pci_dev *)pdev, PCI_COMMAND, config_cmd_val);
+
+	} else {
+		pci_bmc_dev->legency_irq = 0;
+		pci_read_config_word(pdev, PCI_COMMAND, &config_cmd_val);
+		config_cmd_val |= PCI_COMMAND_INTX_DISABLE;
+		pci_write_config_word((struct pci_dev *)pdev, PCI_COMMAND, config_cmd_val);
+		pdev->irq = pci_irq_vector(pdev, BMC_MSI_IDX_BASE);
 	}
-	pr_info("xx ASPEED BMC PCI ID %04x:%04x, IRQ=%u\n", pdev->vendor, pdev->device, pdev->irq);
 
-	pci_read_config_word(pdev, PCI_COMMAND, &config_cmd_val);
-	config_cmd_val |= PCI_COMMAND_INTX_DISABLE;
-	pci_write_config_word((struct pci_dev *)pdev, PCI_COMMAND, config_cmd_val);
-	pdev->irq = pci_irq_vector(pdev, BMC_MSI_IDX_BASE);
-#else
-	rc = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_LEGACY);
-	if (rc < 0)
-		dev_err(&pdev->dev, "cannot allocate PCI INTx, rc=%d\n", rc);
-
-	pci_read_config_word(pdev, PCI_COMMAND, &config_cmd_val);
-	config_cmd_val &= ~PCI_COMMAND_INTX_DISABLE;
-	pci_write_config_word((struct pci_dev *)pdev, PCI_COMMAND, config_cmd_val);
-#endif
-
-	pci_bmc_dev = kzalloc(sizeof(*pci_bmc_dev), GFP_KERNEL);
-	if (!pci_bmc_dev) {
-		rc = -ENOMEM;
-		dev_err(&pdev->dev, "kmalloc() returned NULL memory.\n");
-		goto out_err;
-	}
+	pr_info("ASPEED BMC PCI ID %04x:%04x, IRQ=%u\n", pdev->vendor, pdev->device, pdev->irq);
 
 	init_waitqueue_head(&pci_bmc_dev->tx_wait0);
 	init_waitqueue_head(&pci_bmc_dev->tx_wait1);
@@ -388,13 +381,11 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 		uart[i].port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
 		uart[i].port.uartclk = 115200 * 16;
 
-#ifdef BMC_MULTI_MSI
-		uart[i].port.irq = pci_irq_vector(pdev, vuart_sirq[i]);
-#else
-		uart[i].port.irq = pci_irq_vector(pdev, 0);
-#endif
+		if (pci_bmc_dev->legency_irq)
+			uart[i].port.irq = pdev->irq;
+		else
+			uart[i].port.irq = pci_irq_vector(pdev, vuart_sirq[i]);
 		uart[i].port.dev = &pdev->dev;
-
 		uart[i].port.iotype = UPIO_MEM32;
 		uart[i].port.iobase = 0;
 		uart[i].port.mapbase = pci_bmc_dev->message_bar_base + (vuart_ioport[i] << 2);
