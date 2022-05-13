@@ -49,6 +49,7 @@
  */
 
 static void do_illegal_instruction(struct pt_regs *regs);
+static void do_div0(struct pt_regs *regs);
 static void do_interrupt(struct pt_regs *regs);
 #if XTENSA_FAKE_NMI
 static void do_nmi(struct pt_regs *regs);
@@ -95,7 +96,7 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 #ifdef SUPPORT_WINDOWED
 { EXCCAUSE_ALLOCA,		USER|KRNL, fast_alloca },
 #endif
-/* EXCCAUSE_INTEGER_DIVIDE_BY_ZERO unhandled */
+{ EXCCAUSE_INTEGER_DIVIDE_BY_ZERO, 0,	   do_div0 },
 /* EXCCAUSE_PRIVILEGED unhandled */
 #if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
 #ifdef CONFIG_XTENSA_UNALIGNED_USER
@@ -307,6 +308,11 @@ static void do_illegal_instruction(struct pt_regs *regs)
 	force_sig(SIGILL);
 }
 
+static void do_div0(struct pt_regs *regs)
+{
+	__die_if_kernel("Unhandled division by 0 in kernel", regs, SIGKILL);
+	force_sig_fault(SIGFPE, FPE_INTDIV, (void __user *)regs->pc);
+}
 
 /*
  * Handle unaligned memory accesses from user space. Kill task.
