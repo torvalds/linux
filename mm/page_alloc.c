@@ -4021,7 +4021,8 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
 {
 	struct zoneref *z;
 	struct zone *zone;
-	struct pglist_data *last_pgdat_dirty_limit = NULL;
+	struct pglist_data *last_pgdat = NULL;
+	bool last_pgdat_dirty_ok = false;
 	bool no_fallback;
 
 retry:
@@ -4060,13 +4061,13 @@ retry:
 		 * dirty-throttling and the flusher threads.
 		 */
 		if (ac->spread_dirty_pages) {
-			if (last_pgdat_dirty_limit == zone->zone_pgdat)
-				continue;
-
-			if (!node_dirty_ok(zone->zone_pgdat)) {
-				last_pgdat_dirty_limit = zone->zone_pgdat;
-				continue;
+			if (last_pgdat != zone->zone_pgdat) {
+				last_pgdat = zone->zone_pgdat;
+				last_pgdat_dirty_ok = node_dirty_ok(zone->zone_pgdat);
 			}
+
+			if (!last_pgdat_dirty_ok)
+				continue;
 		}
 
 		if (no_fallback && nr_online_nodes > 1 &&
