@@ -293,12 +293,35 @@ static void do_interrupt(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
+static bool check_div0(struct pt_regs *regs)
+{
+	static const u8 pattern[] = {'D', 'I', 'V', '0'};
+	const u8 *p;
+	u8 buf[5];
+
+	if (user_mode(regs)) {
+		if (copy_from_user(buf, (void __user *)regs->pc + 2, 5))
+			return 0;
+		p = buf;
+	} else {
+		p = (const u8 *)regs->pc + 2;
+	}
+
+	return memcmp(p, pattern, sizeof(pattern)) == 0 ||
+		memcmp(p + 1, pattern, sizeof(pattern)) == 0;
+}
+
 /*
  * Illegal instruction. Fatal if in kernel space.
  */
 
 static void do_illegal_instruction(struct pt_regs *regs)
 {
+	if (check_div0(regs)) {
+		do_div0(regs);
+		return;
+	}
+
 	__die_if_kernel("Illegal instruction in kernel", regs, SIGKILL);
 
 	/* If in user mode, send SIGILL signal to current process. */
