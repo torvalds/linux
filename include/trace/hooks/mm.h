@@ -12,6 +12,7 @@
 struct shmem_inode_info;
 struct folio;
 struct page_vma_mapped_walk;
+struct compact_control;
 
 DECLARE_RESTRICTED_HOOK(android_rvh_shmem_get_folio,
 			TP_PROTO(struct shmem_inode_info *info, struct folio **folio),
@@ -106,6 +107,12 @@ DECLARE_HOOK(android_vh_madvise_cold_pageout_skip,
 	TP_PROTO(struct vm_area_struct *vma, struct page *page, bool pageout, bool *need_skip),
 	TP_ARGS(vma, page, pageout, need_skip));
 
+DECLARE_HOOK(android_vh_mm_compaction_begin,
+	TP_PROTO(struct compact_control *cc, long *vendor_ret),
+	TP_ARGS(cc, vendor_ret));
+DECLARE_HOOK(android_vh_mm_compaction_end,
+	TP_PROTO(struct compact_control *cc, long vendor_ret),
+	TP_ARGS(cc, vendor_ret));
 struct mem_cgroup;
 DECLARE_HOOK(android_vh_mem_cgroup_alloc,
 	TP_PROTO(struct mem_cgroup *memcg),
