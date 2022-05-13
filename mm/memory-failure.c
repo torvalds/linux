@@ -2092,28 +2092,6 @@ core_initcall(memory_failure_init);
 		pr_info(fmt, pfn);			\
 })
 
-static inline int clear_page_hwpoison(struct ratelimit_state *rs, struct page *p)
-{
-	if (TestClearPageHWPoison(p)) {
-		unpoison_pr_info("Unpoison: Software-unpoisoned page %#lx\n",
-				 page_to_pfn(p), rs);
-		num_poisoned_pages_dec();
-		return 1;
-	}
-	return 0;
-}
-
-static inline int unpoison_taken_off_page(struct ratelimit_state *rs,
-					  struct page *p)
-{
-	if (put_page_back_buddy(p)) {
-		unpoison_pr_info("Unpoison: Software-unpoisoned page %#lx\n",
-				 page_to_pfn(p), rs);
-		return 0;
-	}
-	return -EBUSY;
-}
-
 /**
  * unpoison_memory - Unpoison a previously poisoned page
  * @pfn: Page number of the to be unpoisoned page
@@ -2131,6 +2109,7 @@ int unpoison_memory(unsigned long pfn)
 	struct page *page;
 	struct page *p;
 	int ret = -EBUSY;
+	int freeit = 0;
 	static DEFINE_RATELIMIT_STATE(unpoison_rs, DEFAULT_RATELIMIT_INTERVAL,
 					DEFAULT_RATELIMIT_BURST);
 
@@ -2171,18 +2150,15 @@ int unpoison_memory(unsigned long pfn)
 
 	ret = get_hwpoison_page(p, MF_UNPOISON);
 	if (!ret) {
-		if (clear_page_hwpoison(&unpoison_rs, page))
-			ret = 0;
-		else
-			ret = -EBUSY;
+		ret = TestClearPageHWPoison(page) ? 0 : -EBUSY;
 	} else if (ret < 0) {
 		if (ret == -EHWPOISON) {
-			ret = unpoison_taken_off_page(&unpoison_rs, p);
+			ret = put_page_back_buddy(p) ? 0 : -EBUSY;
 		} else
 			unpoison_pr_info("Unpoison: failed to grab page %#lx\n",
 					 pfn, &unpoison_rs);
 	} else {
-		int freeit = clear_page_hwpoison(&unpoison_rs, p);
+		freeit = !!TestClearPageHWPoison(p);
 
 		put_page(page);
 		if (freeit && !(pfn == my_zero_pfn(0) && page_count(p) == 1)) {
@@ -2193,6 +2169,11 @@ int unpoison_memory(unsigned long pfn)
 
 unlock_mutex:
 	mutex_unlock(&mf_mutex);
+	if (!ret || freeit) {
+		num_poisoned_pages_dec();
+		unpoison_pr_info("Unpoison: Software-unpoisoned page %#lx\n",
+				 page_to_pfn(p), &unpoison_rs);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(unpoison_memory);

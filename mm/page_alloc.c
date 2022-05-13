@@ -9497,7 +9497,6 @@ bool put_page_back_buddy(struct page *page)
 		ClearPageHWPoisonTakenOff(page);
 		__free_one_page(page, pfn, zone, 0, migratetype, FPI_NONE);
 		if (TestClearPageHWPoison(page)) {
-			num_poisoned_pages_dec();
 			ret = true;
 		}
 	}
