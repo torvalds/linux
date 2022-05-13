@@ -477,7 +477,7 @@ static inline int ipv6_has_hopopt_jumbo(const struct sk_buff *skb)
 	const struct hop_jumbo_hdr *jhdr;
 	const struct ipv6hdr *nhdr;
 
-	if (likely(skb->len <= GRO_MAX_SIZE))
+	if (likely(skb->len <= GRO_LEGACY_MAX_SIZE))
 		return 0;
 
 	if (skb->protocol != htons(ETH_P_IPV6))
