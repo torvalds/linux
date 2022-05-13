@@ -820,7 +820,7 @@ static int tegra_vde_h264_setup_frames(struct tegra_ctx *ctx,
 		if (err)
 			return err;
 
-		if (b.refs[dpb_idx].pic_order_count < b.cur_pic_order_count)
+		if (b.refs[dpb_idx].top_field_order_cnt < b.cur_pic_order_count)
 			h264->dpb_ref_frames_with_earlier_poc_nb++;
 	}
 
