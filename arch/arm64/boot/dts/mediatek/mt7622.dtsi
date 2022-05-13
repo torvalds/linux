@@ -80,6 +80,7 @@
 			enable-method = "psci";
 			clock-frequency = <1300000000>;
 			cci-control-port = <&cci_control2>;
+			next-level-cache = <&L2>;
 		};
 
 		cpu1: cpu@1 {
@@ -94,6 +95,12 @@
 			enable-method = "psci";
 			clock-frequency = <1300000000>;
 			cci-control-port = <&cci_control2>;
+			next-level-cache = <&L2>;
+		};
+
+		L2: l2-cache {
+			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 
@@ -545,6 +552,18 @@
 		status = "disabled";
 	};
 
+	snfi: spi@1100d000 {
+		compatible = "mediatek,mt7622-snand";
+		reg = <0 0x1100d000 0 0x1000>;
+		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_NFI_PD>, <&pericfg CLK_PERI_SNFI_PD>;
+		clock-names = "nfi_clk", "pad_clk";
+		nand-ecc-engine = <&bch>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
 	bch: ecc@1100e000 {
 		compatible = "mediatek,mt7622-ecc";
 		reg = <0 0x1100e000 0 0x1000>;
@@ -917,6 +936,7 @@
 		clock-names = "hsdma";
 		power-domains = <&scpsys MT7622_POWER_DOMAIN_ETHSYS>;
 		#dma-cells = <1>;
+		dma-requests = <3>;
 	};
 
 	eth: ethernet@1b100000 {
