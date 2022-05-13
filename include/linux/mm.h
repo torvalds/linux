@@ -3428,8 +3428,6 @@ madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
 }
 #endif
 
-typedef unsigned int __bitwise zap_flags_t;
-
 /*
  * Whether to drop the pte markers, for example, the uffd-wp information for
  * file-backed memory.  This should only be specified when we will completely

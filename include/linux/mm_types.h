@@ -863,4 +863,6 @@ enum fault_flag {
 	FAULT_FLAG_ORIG_PTE_VALID =	1 << 11,
 };
 
+typedef unsigned int __bitwise zap_flags_t;
+
 #endif /* _LINUX_MM_TYPES_H */
