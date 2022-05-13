@@ -83,6 +83,7 @@ struct hantro_h264_dec_reflists {
  * @ctrls:	V4L2 controls attached to a run
  * @dpb_longterm: DPB long-term
  * @dpb_valid:	  DPB valid
+ * @cur_poc:	Current picture order count
  */
 struct hantro_h264_dec_hw_ctx {
 	struct hantro_aux_buf priv;
@@ -91,6 +92,7 @@ struct hantro_h264_dec_hw_ctx {
 	struct hantro_h264_dec_ctrls ctrls;
 	u32 dpb_longterm;
 	u32 dpb_valid;
+	s32 cur_poc;
 };
 
 /**
