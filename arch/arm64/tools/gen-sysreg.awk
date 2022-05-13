@@ -184,7 +184,7 @@ END {
 	if (next_bit != 63)
 		fatal("Some fields already defined for " reg)
 
-	print "/* See " $2 " */"
+	print "/* For " reg " fields see " $2 " */"
 	print ""
 
         next_bit = 0
