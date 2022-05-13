@@ -90,7 +90,6 @@ modpost_link()
 
 		if is_enabled CONFIG_MODVERSIONS; then
 			gen_symversions
-			lds="${lds} -T .tmp_symversions.lds"
 		fi
 
 		# This might take a while, so indicate that we're doing
@@ -181,6 +180,10 @@ vmlinux_link()
 	else
 		objs="${KBUILD_VMLINUX_OBJS}"
 		libs="${KBUILD_VMLINUX_LIBS}"
+	fi
+
+	if is_enabled CONFIG_MODULES; then
+		objs="${objs} .vmlinux.export.o"
 	fi
 
 	if [ "${SRCARCH}" = "um" ]; then
@@ -312,6 +315,7 @@ cleanup()
 	rm -f vmlinux.o
 	rm -f .vmlinux.d
 	rm -f .vmlinux.objs
+	rm -f .vmlinux.export.c
 }
 
 # Use "make V=1" to debug this script
@@ -362,6 +366,10 @@ info GEN modules.builtin
 # The second line aids cases where multiple modules share the same object.
 tr '\0' '\n' < modules.builtin.modinfo | sed -n 's/^[[:alnum:]:_]*\.file=//p' |
 	tr ' ' '\n' | uniq | sed -e 's:^:kernel/:' -e 's/$/.ko/' > modules.builtin
+
+if is_enabled CONFIG_MODULES; then
+	${MAKE} -f "${srctree}/scripts/Makefile.vmlinux" .vmlinux.export.o
+fi
 
 btf_vmlinux_bin_o=""
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
