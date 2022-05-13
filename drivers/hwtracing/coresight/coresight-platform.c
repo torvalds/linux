@@ -626,7 +626,7 @@ static int acpi_coresight_parse_link(struct acpi_device *adev,
 				     const union acpi_object *link,
 				     struct coresight_connection *conn)
 {
-	int rc, dir;
+	int dir;
 	const union acpi_object *fields;
 	struct acpi_device *r_adev;
 	struct device *rdev;
@@ -643,9 +643,9 @@ static int acpi_coresight_parse_link(struct acpi_device *adev,
 	    fields[3].type != ACPI_TYPE_INTEGER)
 		return -EINVAL;
 
-	rc = acpi_bus_get_device(fields[2].reference.handle, &r_adev);
-	if (rc)
-		return rc;
+	r_adev = acpi_fetch_acpi_dev(fields[2].reference.handle);
+	if (!r_adev)
+		return -ENODEV;
 
 	dir = fields[3].integer.value;
 	if (dir == ACPI_CORESIGHT_LINK_MASTER) {

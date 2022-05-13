@@ -269,9 +269,7 @@ static void xgene_free_domains(struct xgene_msi *msi)
 
 static int xgene_msi_init_allocator(struct xgene_msi *xgene_msi)
 {
-	int size = BITS_TO_LONGS(NR_MSI_VEC) * sizeof(long);
-
-	xgene_msi->bitmap = kzalloc(size, GFP_KERNEL);
+	xgene_msi->bitmap = bitmap_zalloc(NR_MSI_VEC, GFP_KERNEL);
 	if (!xgene_msi->bitmap)
 		return -ENOMEM;
 
@@ -360,7 +358,7 @@ static int xgene_msi_remove(struct platform_device *pdev)
 
 	kfree(msi->msi_groups);
 
-	kfree(msi->bitmap);
+	bitmap_free(msi->bitmap);
 	msi->bitmap = NULL;
 
 	xgene_free_domains(msi);

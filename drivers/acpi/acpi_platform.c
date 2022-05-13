@@ -95,7 +95,7 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
  * Name of the platform device will be the same as @adev's.
  */
 struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
-					struct property_entry *properties)
+						    const struct property_entry *properties)
 {
 	struct platform_device *pdev = NULL;
 	struct platform_device_info pdevinfo;

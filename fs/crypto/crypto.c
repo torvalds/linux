@@ -248,7 +248,7 @@ EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
  * which must still be locked and not uptodate.  Normally, blocksize ==
  * PAGE_SIZE and the whole page is decrypted at once.
  *
- * This is for use by the filesystem's ->readpages() method.
+ * This is for use by the filesystem's ->readahead() method.
  *
  * Return: 0 on success; -errno on failure
  */

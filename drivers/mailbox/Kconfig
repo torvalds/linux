@@ -238,6 +238,15 @@ config STM32_IPCC
 	  with hardware for Inter-Processor Communication Controller (IPCC)
 	  between processors. Say Y here if you want to have this support.
 
+config MTK_ADSP_MBOX
+	tristate "MediaTek ADSP Mailbox Controller"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+          Say yes here to add support for "MediaTek ADSP Mailbox Controller.
+          This mailbox driver is used to send notification or short message
+          between processors with ADSP. It will place the message to share
+	  buffer and will access the ipc control.
+
 config MTK_CMDQ_MBOX
 	tristate "MediaTek CMDQ Mailbox Support"
 	depends on ARCH_MEDIATEK || COMPILE_TEST

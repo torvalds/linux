@@ -23,7 +23,7 @@ struct nvfw_hs_load_header {
 	u32 data_dma_base;
 	u32 data_size;
 	u32 num_apps;
-	u32 apps[0];
+	u32 apps[];
 };
 
 const struct nvfw_hs_load_header *

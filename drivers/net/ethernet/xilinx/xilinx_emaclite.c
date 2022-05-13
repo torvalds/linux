@@ -498,7 +498,7 @@ static void xemaclite_update_address(struct net_local *drvdata,
  * @dev:	Pointer to the network device instance
  * @address:	Void pointer to the sockaddr structure
  *
- * This function copies the HW address from the sockaddr strucutre to the
+ * This function copies the HW address from the sockaddr structure to the
  * net_device structure and updates the address in HW.
  *
  * Return:	Error if the net device is busy or 0 if the addr is set
@@ -1183,7 +1183,7 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	if (rc) {
 		dev_err(dev,
 			"Cannot register network device, aborting\n");
-		goto error;
+		goto put_node;
 	}
 
 	dev_info(dev,
@@ -1191,6 +1191,8 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 		 (unsigned long __force)ndev->mem_start, lp->base_addr, ndev->irq);
 	return 0;
 
+put_node:
+	of_node_put(lp->phy_node);
 error:
 	free_netdev(ndev);
 	return rc;

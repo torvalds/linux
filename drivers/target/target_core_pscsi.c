@@ -17,7 +17,6 @@
 #include <linux/blk_types.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/genhd.h>
 #include <linux/cdrom.h>
 #include <linux/ratelimit.h>
 #include <linux/module.h>
@@ -593,16 +592,14 @@ static void pscsi_complete_cmd(struct se_cmd *cmd, u8 scsi_status,
 {
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(cmd->se_dev);
 	struct scsi_device *sd = pdv->pdv_sd;
-	struct pscsi_plugin_task *pt = cmd->priv;
-	unsigned char *cdb;
+	unsigned char *cdb = cmd->priv;
+
 	/*
-	 * Special case for REPORT_LUNs handling where pscsi_plugin_task has
-	 * not been allocated because TCM is handling the emulation directly.
+	 * Special case for REPORT_LUNs which is emulated and not passed on.
 	 */
-	if (!pt)
+	if (!cdb)
 		return;
 
-	cdb = &pt->pscsi_cdb[0];
 	/*
 	 * Hack to make sure that Write-Protect modepage is set if R/O mode is
 	 * forced.
@@ -963,30 +960,15 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 	struct scatterlist *sgl = cmd->t_data_sg;
 	u32 sgl_nents = cmd->t_data_nents;
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(cmd->se_dev);
-	struct pscsi_plugin_task *pt;
+	struct scsi_cmnd *scmd;
 	struct request *req;
 	sense_reason_t ret;
-
-	/*
-	 * Dynamically alloc cdb space, since it may be larger than
-	 * TCM_MAX_COMMAND_SIZE
-	 */
-	pt = kzalloc(sizeof(*pt) + scsi_command_size(cmd->t_task_cdb), GFP_KERNEL);
-	if (!pt) {
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	}
-	cmd->priv = pt;
-
-	memcpy(pt->pscsi_cdb, cmd->t_task_cdb,
-		scsi_command_size(cmd->t_task_cdb));
 
 	req = scsi_alloc_request(pdv->pdv_sd->request_queue,
 			cmd->data_direction == DMA_TO_DEVICE ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
-	if (IS_ERR(req)) {
-		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		goto fail;
-	}
+	if (IS_ERR(req))
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	if (sgl) {
 		ret = pscsi_map_sg(cmd, sgl, sgl_nents, req);
@@ -996,14 +978,23 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 
 	req->end_io = pscsi_req_done;
 	req->end_io_data = cmd;
-	scsi_req(req)->cmd_len = scsi_command_size(pt->pscsi_cdb);
-	scsi_req(req)->cmd = &pt->pscsi_cdb[0];
+
+	scmd = blk_mq_rq_to_pdu(req);
+	scmd->cmd_len = scsi_command_size(cmd->t_task_cdb);
+	if (scmd->cmd_len > sizeof(scmd->cmnd)) {
+		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		goto fail_put_request;
+	}
+	memcpy(scmd->cmnd, cmd->t_task_cdb, scmd->cmd_len);
+
 	if (pdv->pdv_sd->type == TYPE_DISK ||
 	    pdv->pdv_sd->type == TYPE_ZBC)
 		req->timeout = PS_TIMEOUT_DISK;
 	else
 		req->timeout = PS_TIMEOUT_OTHER;
-	scsi_req(req)->retries = PS_RETRY;
+	scmd->allowed = PS_RETRY;
+
+	cmd->priv = scmd->cmnd;
 
 	blk_execute_rq_nowait(req, cmd->sam_task_attr == TCM_HEAD_TAG,
 			pscsi_req_done);
@@ -1012,8 +1003,6 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 
 fail_put_request:
 	blk_mq_free_request(req);
-fail:
-	kfree(pt);
 	return ret;
 }
 
@@ -1041,33 +1030,30 @@ static sector_t pscsi_get_blocks(struct se_device *dev)
 static void pscsi_req_done(struct request *req, blk_status_t status)
 {
 	struct se_cmd *cmd = req->end_io_data;
-	struct pscsi_plugin_task *pt = cmd->priv;
-	int result = scsi_req(req)->result;
-	enum sam_status scsi_status = result & 0xff;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
+	enum sam_status scsi_status = scmd->result & 0xff;
+	u8 *cdb = cmd->priv;
 
 	if (scsi_status != SAM_STAT_GOOD) {
 		pr_debug("PSCSI Status Byte exception at cmd: %p CDB:"
-			" 0x%02x Result: 0x%08x\n", cmd, pt->pscsi_cdb[0],
-			result);
+			" 0x%02x Result: 0x%08x\n", cmd, cdb[0], scmd->result);
 	}
 
-	pscsi_complete_cmd(cmd, scsi_status, scsi_req(req)->sense);
+	pscsi_complete_cmd(cmd, scsi_status, scmd->sense_buffer);
 
-	switch (host_byte(result)) {
+	switch (host_byte(scmd->result)) {
 	case DID_OK:
 		target_complete_cmd_with_length(cmd, scsi_status,
-			cmd->data_length - scsi_req(req)->resid_len);
+			cmd->data_length - scmd->resid_len);
 		break;
 	default:
 		pr_debug("PSCSI Host Byte exception at cmd: %p CDB:"
-			" 0x%02x Result: 0x%08x\n", cmd, pt->pscsi_cdb[0],
-			result);
+			" 0x%02x Result: 0x%08x\n", cmd, cdb[0], scmd->result);
 		target_complete_cmd(cmd, SAM_STAT_CHECK_CONDITION);
 		break;
 	}
 
 	blk_mq_free_request(req);
-	kfree(pt);
 }
 
 static const struct target_backend_ops pscsi_ops = {

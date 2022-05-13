@@ -211,13 +211,11 @@ static int lattice_ecp3_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int lattice_ecp3_remove(struct spi_device *spi)
+static void lattice_ecp3_remove(struct spi_device *spi)
 {
 	struct fpga_data *data = spi_get_drvdata(spi);
 
 	wait_for_completion(&data->fw_loaded);
-
-	return 0;
 }
 
 static const struct spi_device_id lattice_ecp3_id[] = {

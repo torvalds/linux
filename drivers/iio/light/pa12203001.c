@@ -452,14 +452,14 @@ static const struct dev_pm_ops pa12203001_pm_ops = {
 };
 
 static const struct acpi_device_id pa12203001_acpi_match[] = {
-	{ "TXCPA122", 0},
+	{ "TXCPA122", 0 },
 	{}
 };
 
 MODULE_DEVICE_TABLE(acpi, pa12203001_acpi_match);
 
 static const struct i2c_device_id pa12203001_id[] = {
-		{"txcpa122", 0},
+		{ "txcpa122", 0 },
 		{}
 };
 

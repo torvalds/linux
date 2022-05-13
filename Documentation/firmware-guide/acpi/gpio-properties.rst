@@ -21,18 +21,18 @@ index, like the ASL example below shows::
       Name (_CRS, ResourceTemplate ()
       {
           GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
-                  "\\_SB.GPO0", 0, ResourceConsumer) {15}
+                  "\\_SB.GPO0", 0, ResourceConsumer) { 15 }
           GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
-                  "\\_SB.GPO0", 0, ResourceConsumer) {27, 31}
+                  "\\_SB.GPO0", 0, ResourceConsumer) { 27, 31 }
       })
 
       Name (_DSD, Package ()
       {
           ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
           Package ()
-	  {
-              Package () {"reset-gpios", Package() {^BTH, 1, 1, 0 }},
-              Package () {"shutdown-gpios", Package() {^BTH, 0, 0, 0 }},
+          {
+              Package () { "reset-gpios", Package () { ^BTH, 1, 1, 0 } },
+              Package () { "shutdown-gpios", Package () { ^BTH, 0, 0, 0 } },
           }
       })
   }
@@ -123,17 +123,17 @@ Example::
       // _DSD Hierarchical Properties Extension UUID
       ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
       Package () {
-          Package () {"hog-gpio8", "G8PU"}
+          Package () { "hog-gpio8", "G8PU" }
       }
   })
 
   Name (G8PU, Package () {
       ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
       Package () {
-          Package () {"gpio-hog", 1},
-          Package () {"gpios", Package () {8, 0}},
-          Package () {"output-high", 1},
-          Package () {"line-name", "gpio8-pullup"},
+          Package () { "gpio-hog", 1 },
+          Package () { "gpios", Package () { 8, 0 } },
+          Package () { "output-high", 1 },
+          Package () { "line-name", "gpio8-pullup" },
       }
   })
 
@@ -266,15 +266,17 @@ have a device like below::
 
       Name (_CRS, ResourceTemplate () {
           GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionNone,
-                  "\\_SB.GPO0", 0, ResourceConsumer) {15}
+                  "\\_SB.GPO0", 0, ResourceConsumer) { 15 }
           GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionNone,
-                  "\\_SB.GPO0", 0, ResourceConsumer) {27}
+                  "\\_SB.GPO0", 0, ResourceConsumer) { 27 }
       })
   }
 
 The driver might expect to get the right GPIO when it does::
 
   desc = gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+  if (IS_ERR(desc))
+	...error handling...
 
 but since there is no way to know the mapping between "reset" and
 the GpioIo() in _CRS desc will hold ERR_PTR(-ENOENT).

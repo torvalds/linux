@@ -59,6 +59,7 @@ struct scsi_host_template qedi_host_template = {
 	.dma_boundary = QEDI_HW_DMA_BOUNDARY,
 	.cmd_per_lun = 128,
 	.shost_groups = qedi_shost_groups,
+	.cmd_size = sizeof(struct iscsi_cmd),
 };
 
 static void qedi_conn_free_login_resources(struct qedi_ctx *qedi,

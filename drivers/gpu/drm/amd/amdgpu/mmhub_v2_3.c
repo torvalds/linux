@@ -93,6 +93,7 @@ mmhub_v2_3_print_l2_protection_fault_status(struct amdgpu_device *adev,
 	switch (adev->ip_versions[MMHUB_HWIP][0]) {
 	case IP_VERSION(2, 3, 0):
 	case IP_VERSION(2, 4, 0):
+	case IP_VERSION(2, 4, 1):
 		mmhub_cid = mmhub_client_ids_vangogh[cid][rw];
 		break;
 	default:

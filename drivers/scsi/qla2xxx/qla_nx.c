@@ -335,20 +335,20 @@ static unsigned qla82xx_crb_hub_agt[64] = {
 };
 
 /* Device states */
-static char *q_dev_state[] = {
-	 "Unknown",
-	"Cold",
-	"Initializing",
-	"Ready",
-	"Need Reset",
-	"Need Quiescent",
-	"Failed",
-	"Quiescent",
+static const char *const q_dev_state[] = {
+	[QLA8XXX_DEV_UNKNOWN]		= "Unknown",
+	[QLA8XXX_DEV_COLD]		= "Cold/Re-init",
+	[QLA8XXX_DEV_INITIALIZING]	= "Initializing",
+	[QLA8XXX_DEV_READY]		= "Ready",
+	[QLA8XXX_DEV_NEED_RESET]	= "Need Reset",
+	[QLA8XXX_DEV_NEED_QUIESCENT]	= "Need Quiescent",
+	[QLA8XXX_DEV_FAILED]		= "Failed",
+	[QLA8XXX_DEV_QUIESCENT]		= "Quiescent",
 };
 
-char *qdev_state(uint32_t dev_state)
+const char *qdev_state(uint32_t dev_state)
 {
-	return q_dev_state[dev_state];
+	return (dev_state < MAX_STATES) ? q_dev_state[dev_state] : "Unknown";
 }
 
 /*
@@ -3061,8 +3061,7 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 
 	ql_log(ql_log_info, vha, 0x00b6,
 	    "Device state is 0x%x = %s.\n",
-	    dev_state,
-	    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unknown");
+	    dev_state, qdev_state(dev_state));
 
 	/* Force to DEV_COLD unless someone else is starting a reset */
 	if (dev_state != QLA8XXX_DEV_INITIALIZING &&
@@ -3185,8 +3184,7 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 	old_dev_state = dev_state;
 	ql_log(ql_log_info, vha, 0x009b,
 	    "Device state is 0x%x = %s.\n",
-	    dev_state,
-	    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unknown");
+	    dev_state, qdev_state(dev_state));
 
 	/* wait for 30 seconds for device to go ready */
 	dev_init_timeout = jiffies + (ha->fcoe_dev_init_timeout * HZ);
@@ -3207,9 +3205,7 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 		if (loopcount < 5) {
 			ql_log(ql_log_info, vha, 0x009d,
 			    "Device state is 0x%x = %s.\n",
-			    dev_state,
-			    dev_state < MAX_STATES ? qdev_state(dev_state) :
-			    "Unknown");
+			    dev_state, qdev_state(dev_state));
 		}
 
 		switch (dev_state) {
@@ -3439,8 +3435,7 @@ qla82xx_set_reset_owner(scsi_qla_host_t *vha)
 	} else
 		ql_log(ql_log_info, vha, 0xb031,
 		    "Device state is 0x%x = %s.\n",
-		    dev_state,
-		    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unknown");
+		    dev_state, qdev_state(dev_state));
 }
 
 /*

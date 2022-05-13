@@ -58,10 +58,6 @@ config NF_TABLES_ARP
 
 endif # NF_TABLES
 
-config NF_FLOW_TABLE_IPV4
-	tristate
-	select NF_FLOW_TABLE_INET
-
 config NF_DUP_IPV4
 	tristate "Netfilter IPv4 packet duplication to alternate destination"
 	depends on !NF_CONNTRACK || NF_CONNTRACK

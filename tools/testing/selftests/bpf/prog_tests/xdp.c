@@ -13,8 +13,14 @@ void test_xdp(void)
 	char buf[128];
 	struct ipv6hdr iph6;
 	struct iphdr iph;
-	__u32 duration, retval, size;
 	int err, prog_fd, map_fd;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.data_out = buf,
+		.data_size_out = sizeof(buf),
+		.repeat = 1,
+	);
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
 	if (CHECK_FAIL(err))
@@ -26,21 +32,23 @@ void test_xdp(void)
 	bpf_map_update_elem(map_fd, &key4, &value4, 0);
 	bpf_map_update_elem(map_fd, &key6, &value6, 0);
 
-	err = bpf_prog_test_run(prog_fd, 1, &pkt_v4, sizeof(pkt_v4),
-				buf, &size, &retval, &duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	memcpy(&iph, buf + sizeof(struct ethhdr), sizeof(iph));
-	CHECK(err || retval != XDP_TX || size != 74 ||
-	      iph.protocol != IPPROTO_IPIP, "ipv4",
-	      "err %d errno %d retval %d size %d\n",
-	      err, errno, retval, size);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, XDP_TX, "ipv4 test_run retval");
+	ASSERT_EQ(topts.data_size_out, 74, "ipv4 test_run data_size_out");
+	ASSERT_EQ(iph.protocol, IPPROTO_IPIP, "ipv4 test_run iph.protocol");
 
-	err = bpf_prog_test_run(prog_fd, 1, &pkt_v6, sizeof(pkt_v6),
-				buf, &size, &retval, &duration);
+	topts.data_in = &pkt_v6;
+	topts.data_size_in = sizeof(pkt_v6);
+	topts.data_size_out = sizeof(buf);
+
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	memcpy(&iph6, buf + sizeof(struct ethhdr), sizeof(iph6));
-	CHECK(err || retval != XDP_TX || size != 114 ||
-	      iph6.nexthdr != IPPROTO_IPV6, "ipv6",
-	      "err %d errno %d retval %d size %d\n",
-	      err, errno, retval, size);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, XDP_TX, "ipv6 test_run retval");
+	ASSERT_EQ(topts.data_size_out, 114, "ipv6 test_run data_size_out");
+	ASSERT_EQ(iph6.nexthdr, IPPROTO_IPV6, "ipv6 test_run iph6.nexthdr");
 out:
 	bpf_object__close(obj);
 }

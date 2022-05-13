@@ -12,6 +12,11 @@ struct pci_dev;
 struct pci_device_id;
 struct drm_i915_private;
 
+#define DRIVER_NAME		"i915"
+#define DRIVER_DESC		"Intel Graphics"
+#define DRIVER_DATE		"20201103"
+#define DRIVER_TIMESTAMP	1604406085
+
 extern const struct dev_pm_ops i915_pm_ops;
 
 int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent);

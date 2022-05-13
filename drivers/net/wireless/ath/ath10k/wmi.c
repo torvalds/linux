@@ -2427,7 +2427,7 @@ wmi_process_mgmt_tx_comp(struct ath10k *ar, struct mgmt_tx_compl_params *param)
 		info->flags |= IEEE80211_TX_STAT_ACK;
 		info->status.ack_signal = ATH10K_DEFAULT_NOISE_FLOOR +
 					  param->ack_rssi;
-		info->status.is_valid_ack_signal = true;
+		info->status.flags |= IEEE80211_TX_STATUS_ACK_SIGNAL_VALID;
 	}
 
 	ieee80211_tx_status_irqsafe(ar->hw, msdu);
@@ -2611,35 +2611,8 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_mac_handle_beacon(ar, skb);
 
 	if (ieee80211_is_beacon(hdr->frame_control) ||
-	    ieee80211_is_probe_resp(hdr->frame_control)) {
-		struct ieee80211_mgmt *mgmt = (void *)skb->data;
-		enum cfg80211_bss_frame_type ftype;
-		u8 *ies;
-		int ies_ch;
-
+	    ieee80211_is_probe_resp(hdr->frame_control))
 		status->boottime_ns = ktime_get_boottime_ns();
-
-		if (!ar->scan_channel)
-			goto drop;
-
-		ies = mgmt->u.beacon.variable;
-
-		if (ieee80211_is_beacon(mgmt->frame_control))
-			ftype = CFG80211_BSS_FTYPE_BEACON;
-		else
-			ftype = CFG80211_BSS_FTYPE_PRESP;
-
-		ies_ch = cfg80211_get_ies_channel_number(mgmt->u.beacon.variable,
-							 skb_tail_pointer(skb) - ies,
-							 sband->band, ftype);
-
-		if (ies_ch > 0 && ies_ch != channel) {
-			ath10k_dbg(ar, ATH10K_DBG_MGMT,
-				   "channel mismatched ds channel %d scan channel %d\n",
-				   ies_ch, channel);
-			goto drop;
-		}
-	}
 
 	ath10k_dbg(ar, ATH10K_DBG_MGMT,
 		   "event mgmt rx skb %pK len %d ftype %02x stype %02x\n",
@@ -2653,10 +2626,6 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 
 	ieee80211_rx_ni(ar->hw, skb);
 
-	return 0;
-
-drop:
-	dev_kfree_skb(skb);
 	return 0;
 }
 

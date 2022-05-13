@@ -2,8 +2,8 @@
 # Built-in dtb
 builtindtb-y		:= nsim_700
 
-ifneq ($(CONFIG_ARC_BUILTIN_DTB_NAME),"")
-	builtindtb-y	:= $(patsubst "%",%,$(CONFIG_ARC_BUILTIN_DTB_NAME))
+ifneq ($(CONFIG_ARC_BUILTIN_DTB_NAME),)
+	builtindtb-y	:= $(CONFIG_ARC_BUILTIN_DTB_NAME)
 endif
 
 obj-y   += $(builtindtb-y).dtb.o

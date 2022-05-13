@@ -1389,6 +1389,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 	dd->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	dd->copy_align = DMAENGINE_ALIGN_32_BYTES;
 	dd->max_burst = STM32_DMA_MAX_BURST;
+	dd->max_sg_burst = STM32_DMA_ALIGNED_MAX_DATA_ITEMS;
 	dd->descriptor_reuse = true;
 	dd->dev = &pdev->dev;
 	INIT_LIST_HEAD(&dd->channels);

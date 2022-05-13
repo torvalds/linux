@@ -831,7 +831,7 @@ static void ca8210_rx_done(struct cas_control *cas_ctl)
 finish:;
 }
 
-static int ca8210_remove(struct spi_device *spi_device);
+static void ca8210_remove(struct spi_device *spi_device);
 
 /**
  * ca8210_spi_transfer_complete() - Called when a single spi transfer has
@@ -1771,6 +1771,7 @@ static int ca8210_async_xmit_complete(
 			status
 		);
 		if (status != MAC_TRANSACTION_OVERFLOW) {
+			dev_kfree_skb_any(priv->tx_skb);
 			ieee802154_wake_queue(priv->hw);
 			return 0;
 		}
@@ -2974,8 +2975,8 @@ static void ca8210_hw_setup(struct ieee802154_hw *ca8210_hw)
 	ca8210_hw->phy->cca.opt = NL802154_CCA_OPT_ENERGY_CARRIER_AND;
 	ca8210_hw->phy->cca_ed_level = -9800;
 	ca8210_hw->phy->symbol_duration = 16;
-	ca8210_hw->phy->lifs_period = 40;
-	ca8210_hw->phy->sifs_period = 12;
+	ca8210_hw->phy->lifs_period = 40 * ca8210_hw->phy->symbol_duration;
+	ca8210_hw->phy->sifs_period = 12 * ca8210_hw->phy->symbol_duration;
 	ca8210_hw->flags =
 		IEEE802154_HW_AFILT |
 		IEEE802154_HW_OMIT_CKSUM |
@@ -3048,7 +3049,7 @@ static void ca8210_test_interface_clear(struct ca8210_priv *priv)
  *
  * Return: 0 or linux error code
  */
-static int ca8210_remove(struct spi_device *spi_device)
+static void ca8210_remove(struct spi_device *spi_device)
 {
 	struct ca8210_priv *priv;
 	struct ca8210_platform_data *pdata;
@@ -3088,8 +3089,6 @@ static int ca8210_remove(struct spi_device *spi_device)
 		if (IS_ENABLED(CONFIG_IEEE802154_CA8210_DEBUGFS))
 			ca8210_test_interface_clear(priv);
 	}
-
-	return 0;
 }
 
 /**

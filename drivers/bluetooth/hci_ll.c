@@ -509,7 +509,7 @@ static int send_command_from_firmware(struct ll_device *lldev,
 	return 0;
 }
 
-/**
+/*
  * download_firmware -
  *	internal function which parses through the .bts firmware
  *	script file intreprets SEND, DELAY actions only as of now

@@ -204,6 +204,7 @@ config BLK_DEV_DM
 	tristate "Device mapper support"
 	select BLOCK_HOLDER_DEPRECATED if SYSFS
 	select BLK_DEV_DM_BUILTIN
+	select BLK_MQ_STACKING
 	depends on DAX || DAX=n
 	help
 	  Device-mapper is a low level volume manager.  It works by allowing
@@ -672,18 +673,6 @@ config DM_AUDIT
 
 	  Enables audit logging of several security relevant events in the
 	  particular device-mapper targets, especially the integrity target.
-
-config DM_BOW
-	tristate "Backup block device"
-	depends on BLK_DEV_DM
-	select DM_BUFIO
-	help
-	  This device-mapper target takes a device and keeps a log of all
-	  changes using free blocks identified by issuing a trim command.
-	  This can then be restored by running a command line utility,
-	  or committed by simply replacing the target.
-
-	  If unsure, say N.
 
 config DM_USER
 	tristate "Block device in userspace"

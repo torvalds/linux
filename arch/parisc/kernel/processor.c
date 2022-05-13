@@ -19,6 +19,7 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <asm/topology.h>
 #include <asm/param.h>
 #include <asm/cache.h>
 #include <asm/hardware.h>	/* for register_parisc_driver() stuff */
@@ -317,7 +318,7 @@ void __init collect_boot_cpu_data(void)
  *
  * o Enable CPU profiling hooks.
  */
-int __init init_per_cpu(int cpunum)
+int init_per_cpu(int cpunum)
 {
 	int ret;
 	struct pdc_coproc_cfg coproc_cfg;
@@ -390,7 +391,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 				 boot_cpu_data.cpu_hz / 1000000,
 				 boot_cpu_data.cpu_hz % 1000000  );
 
-#ifdef CONFIG_PARISC_CPU_TOPOLOGY
+#ifdef CONFIG_GENERIC_ARCH_TOPOLOGY
 		seq_printf(m, "physical id\t: %d\n",
 				topology_physical_package_id(cpu));
 		seq_printf(m, "siblings\t: %d\n",
@@ -460,5 +461,6 @@ static struct parisc_driver cpu_driver __refdata = {
  */
 void __init processor_init(void)
 {
+	reset_cpu_topology();
 	register_parisc_driver(&cpu_driver);
 }

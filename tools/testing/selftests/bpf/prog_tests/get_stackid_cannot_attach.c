@@ -27,7 +27,7 @@ void test_get_stackid_cannot_attach(void)
 		return;
 
 	/* override program type */
-	bpf_program__set_perf_event(skel->progs.oncpu);
+	bpf_program__set_type(skel->progs.oncpu, BPF_PROG_TYPE_PERF_EVENT);
 
 	err = test_stacktrace_build_id__load(skel);
 	if (CHECK(err, "skel_load", "skeleton load failed: %d\n", err))

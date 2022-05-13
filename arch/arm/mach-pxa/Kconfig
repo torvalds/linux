@@ -153,16 +153,6 @@ config GUMSTIX_AM300EPD
 
 endchoice
 
-config MACH_INTELMOTE2
-	bool "Intel Mote 2 Platform"
-	select IWMMXT
-	select PXA27x
-
-config MACH_STARGATE2
-	bool "Intel Stargate 2 Platform"
-	select IWMMXT
-	select PXA27x
-
 config MACH_XCEP
 	bool "Iskratel Electronics XCEP"
 	select MTD

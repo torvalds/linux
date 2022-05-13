@@ -578,10 +578,8 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 	}
 
 	cdns_xspi->irq = platform_get_irq(pdev, 0);
-	if (cdns_xspi->irq < 0) {
-		dev_err(dev, "Failed to get IRQ\n");
+	if (cdns_xspi->irq < 0)
 		return -ENXIO;
-	}
 
 	ret = devm_request_irq(dev, cdns_xspi->irq, cdns_xspi_irq_handler,
 			       IRQF_SHARED, pdev->name, cdns_xspi);

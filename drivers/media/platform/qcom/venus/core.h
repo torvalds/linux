@@ -127,6 +127,7 @@ struct venus_format {
  * @done:	a completion for sync HFI operations
  * @error:	an error returned during last HFI sync operations
  * @sys_error:	an error flag that signal system error event
+ * @sys_err_done: a waitqueue to wait for system error recovery end
  * @core_ops:	the core operations
  * @pm_ops:	a pointer to pm operations
  * @pm_lock:	a lock for PM operations
@@ -346,6 +347,7 @@ enum venus_inst_modes {
  * @width:	current capture width
  * @height:	current capture height
  * @crop:	current crop rectangle
+ * @fw_min_cnt:	 firmware minimum buffer count
  * @out_width:	current output width
  * @out_height:	current output height
  * @colorspace:	current color space
@@ -390,6 +392,8 @@ enum venus_inst_modes {
  * @pic_struct:		bitstream progressive vs interlaced
  * @next_buf_last: a flag to mark next queued capture buffer as last
  * @drain_active:	Drain sequence is in progress
+ * @flags:	bitmask flags describing current instance mode
+ * @dpb_ids:	DPB buffer ID's
  */
 struct venus_inst {
 	struct list_head list;

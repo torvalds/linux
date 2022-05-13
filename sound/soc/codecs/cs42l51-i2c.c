@@ -31,7 +31,9 @@ static int cs42l51_i2c_probe(struct i2c_client *i2c,
 
 static int cs42l51_i2c_remove(struct i2c_client *i2c)
 {
-	return cs42l51_remove(&i2c->dev);
+	cs42l51_remove(&i2c->dev);
+
+	return 0;
 }
 
 static const struct dev_pm_ops cs42l51_pm_ops = {

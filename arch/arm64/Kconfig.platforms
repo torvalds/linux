@@ -276,6 +276,12 @@ config ARCH_TEGRA
 	help
 	  This enables support for the NVIDIA Tegra SoC family.
 
+config ARCH_TESLA_FSD
+	bool "ARMv8 based Tesla platform"
+	depends on ARCH_EXYNOS
+	help
+	  Support for ARMv8 based Tesla platforms.
+
 config ARCH_SPRD
 	bool "Spreadtrum SoC platform"
 	help
@@ -316,9 +322,6 @@ config ARCH_VISCONTI
 	select PINCTRL_VISCONTI
 	help
 	  This enables support for Toshiba Visconti SoCs Family.
-
-config ARCH_VULCAN
-	def_bool n
 
 config ARCH_XGENE
 	bool "AppliedMicro X-Gene SOC Family"

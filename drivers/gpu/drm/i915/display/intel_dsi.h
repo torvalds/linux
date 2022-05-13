@@ -79,8 +79,8 @@ struct intel_dsi {
 	 */
 	enum mipi_dsi_pixel_format pixel_format;
 
-	/* video mode format for MIPI_VIDEO_MODE_FORMAT register */
-	u32 video_mode_format;
+	/* NON_BURST_SYNC_PULSE, NON_BURST_SYNC_EVENTS, or BURST_MODE */
+	int video_mode;
 
 	/* eot for MIPI_EOT_DISABLE register */
 	u8 eotp_pkt;

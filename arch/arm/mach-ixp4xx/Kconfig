@@ -17,63 +17,6 @@ config MACH_IXP4XX_OF
 	help
 	  Say 'Y' here to support Device Tree-based IXP4xx platforms.
 
-config MACH_GATEWAY7001
-	bool "Gateway 7001"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support Gateway's
-	  7001 Access Point. For more information on this platform,
-	  see http://openwrt.org
-
-config MACH_GORAMO_MLR
-	bool "GORAMO Multi Link Router"
-	depends on IXP4XX_PCI_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support GORAMO
-	  MultiLink router.
-
-config ARCH_PRPMC1100
-	bool "PrPMC1100"
-	help
-	  Say 'Y' here if you want your kernel to support the Motorola
-	  PrPCM1100 Processor Mezanine Module. For more information on
-	  this platform, see <file:Documentation/arm/ixp4xx.rst>.
-
-comment "IXP4xx Options"
-
-config IXP4XX_PCI_LEGACY
-	bool "IXP4xx legacy PCI driver support"
-	depends on PCI
-	help
-	  Selects legacy PCI driver.
-	  Not recommended for new development.
-
-config IXP4XX_INDIRECT_PCI
-	bool "Use indirect PCI memory access"
-	depends on IXP4XX_PCI_LEGACY
-	help
-          IXP4xx provides two methods of accessing PCI memory space:
-
-          1) A direct mapped window from 0x48000000 to 0x4BFFFFFF (64MB).
-             To access PCI via this space, we simply ioremap() the BAR
-             into the kernel and we can use the standard read[bwl]/write[bwl]
-             macros. This is the preferred method due to speed but it
-             limits the system to just 64MB of PCI memory. This can be
-             problematic if using video cards and other memory-heavy devices.
-
-	  2) If > 64MB of memory space is required, the IXP4xx can be
-	     configured to use indirect registers to access the whole PCI
-	     memory space. This currently allows for up to 1 GB (0x10000000
-	     to 0x4FFFFFFF) of memory on the bus. The disadvantage of this
-	     is that every PCI access requires three local register accesses
-	     plus a spinlock, but in some cases the performance hit is
-	     acceptable. In addition, you cannot mmap() PCI devices in this
-	     case due to the indirect nature of the PCI window.
-
-	  By default, the direct method is used. Choose this option if you
-	  need to use the indirect method instead. If you don't know
-	  what you need, leave this option unselected.
-
 endmenu
 
 endif

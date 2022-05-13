@@ -123,29 +123,58 @@ static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
 	}
 }
 
+static void hugetlb_cgroup_free(struct hugetlb_cgroup *h_cgroup)
+{
+	int node;
+
+	for_each_node(node)
+		kfree(h_cgroup->nodeinfo[node]);
+	kfree(h_cgroup);
+}
+
 static struct cgroup_subsys_state *
 hugetlb_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct hugetlb_cgroup *parent_h_cgroup = hugetlb_cgroup_from_css(parent_css);
 	struct hugetlb_cgroup *h_cgroup;
+	int node;
 
-	h_cgroup = kzalloc(sizeof(*h_cgroup), GFP_KERNEL);
+	h_cgroup = kzalloc(struct_size(h_cgroup, nodeinfo, nr_node_ids),
+			   GFP_KERNEL);
+
 	if (!h_cgroup)
 		return ERR_PTR(-ENOMEM);
 
 	if (!parent_h_cgroup)
 		root_h_cgroup = h_cgroup;
 
+	/*
+	 * TODO: this routine can waste much memory for nodes which will
+	 * never be onlined. It's better to use memory hotplug callback
+	 * function.
+	 */
+	for_each_node(node) {
+		/* Set node_to_alloc to -1 for offline nodes. */
+		int node_to_alloc =
+			node_state(node, N_NORMAL_MEMORY) ? node : -1;
+		h_cgroup->nodeinfo[node] =
+			kzalloc_node(sizeof(struct hugetlb_cgroup_per_node),
+				     GFP_KERNEL, node_to_alloc);
+		if (!h_cgroup->nodeinfo[node])
+			goto fail_alloc_nodeinfo;
+	}
+
 	hugetlb_cgroup_init(h_cgroup, parent_h_cgroup);
 	return &h_cgroup->css;
+
+fail_alloc_nodeinfo:
+	hugetlb_cgroup_free(h_cgroup);
+	return ERR_PTR(-ENOMEM);
 }
 
 static void hugetlb_cgroup_css_free(struct cgroup_subsys_state *css)
 {
-	struct hugetlb_cgroup *h_cgroup;
-
-	h_cgroup = hugetlb_cgroup_from_css(css);
-	kfree(h_cgroup);
+	hugetlb_cgroup_free(hugetlb_cgroup_from_css(css));
 }
 
 /*
@@ -289,7 +318,17 @@ static void __hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
 		return;
 
 	__set_hugetlb_cgroup(page, h_cg, rsvd);
-	return;
+	if (!rsvd) {
+		unsigned long usage =
+			h_cg->nodeinfo[page_to_nid(page)]->usage[idx];
+		/*
+		 * This write is not atomic due to fetching usage and writing
+		 * to it, but that's fine because we call this with
+		 * hugetlb_lock held anyway.
+		 */
+		WRITE_ONCE(h_cg->nodeinfo[page_to_nid(page)]->usage[idx],
+			   usage + nr_pages);
+	}
 }
 
 void hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
@@ -328,8 +367,17 @@ static void __hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
 
 	if (rsvd)
 		css_put(&h_cg->css);
-
-	return;
+	else {
+		unsigned long usage =
+			h_cg->nodeinfo[page_to_nid(page)]->usage[idx];
+		/*
+		 * This write is not atomic due to fetching usage and writing
+		 * to it, but that's fine because we call this with
+		 * hugetlb_lock held anyway.
+		 */
+		WRITE_ONCE(h_cg->nodeinfo[page_to_nid(page)]->usage[idx],
+			   usage - nr_pages);
+	}
 }
 
 void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
@@ -417,6 +465,59 @@ enum {
 	RES_FAILCNT,
 	RES_RSVD_FAILCNT,
 };
+
+static int hugetlb_cgroup_read_numa_stat(struct seq_file *seq, void *dummy)
+{
+	int nid;
+	struct cftype *cft = seq_cft(seq);
+	int idx = MEMFILE_IDX(cft->private);
+	bool legacy = MEMFILE_ATTR(cft->private);
+	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(seq_css(seq));
+	struct cgroup_subsys_state *css;
+	unsigned long usage;
+
+	if (legacy) {
+		/* Add up usage across all nodes for the non-hierarchical total. */
+		usage = 0;
+		for_each_node_state(nid, N_MEMORY)
+			usage += READ_ONCE(h_cg->nodeinfo[nid]->usage[idx]);
+		seq_printf(seq, "total=%lu", usage * PAGE_SIZE);
+
+		/* Simply print the per-node usage for the non-hierarchical total. */
+		for_each_node_state(nid, N_MEMORY)
+			seq_printf(seq, " N%d=%lu", nid,
+				   READ_ONCE(h_cg->nodeinfo[nid]->usage[idx]) *
+					   PAGE_SIZE);
+		seq_putc(seq, '\n');
+	}
+
+	/*
+	 * The hierarchical total is pretty much the value recorded by the
+	 * counter, so use that.
+	 */
+	seq_printf(seq, "%stotal=%lu", legacy ? "hierarchical_" : "",
+		   page_counter_read(&h_cg->hugepage[idx]) * PAGE_SIZE);
+
+	/*
+	 * For each node, transverse the css tree to obtain the hierarchical
+	 * node usage.
+	 */
+	for_each_node_state(nid, N_MEMORY) {
+		usage = 0;
+		rcu_read_lock();
+		css_for_each_descendant_pre(css, &h_cg->css) {
+			usage += READ_ONCE(hugetlb_cgroup_from_css(css)
+						   ->nodeinfo[nid]
+						   ->usage[idx]);
+		}
+		rcu_read_unlock();
+		seq_printf(seq, " N%d=%lu", nid, usage * PAGE_SIZE);
+	}
+
+	seq_putc(seq, '\n');
+
+	return 0;
+}
 
 static u64 hugetlb_cgroup_read_u64(struct cgroup_subsys_state *css,
 				   struct cftype *cft)
@@ -668,8 +769,14 @@ static void __init __hugetlb_cgroup_file_dfl_init(int idx)
 				    events_local_file[idx]);
 	cft->flags = CFTYPE_NOT_ON_ROOT;
 
-	/* NULL terminate the last cft */
+	/* Add the numa stat file */
 	cft = &h->cgroup_files_dfl[6];
+	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.numa_stat", buf);
+	cft->seq_show = hugetlb_cgroup_read_numa_stat;
+	cft->flags = CFTYPE_NOT_ON_ROOT;
+
+	/* NULL terminate the last cft */
+	cft = &h->cgroup_files_dfl[7];
 	memset(cft, 0, sizeof(*cft));
 
 	WARN_ON(cgroup_add_dfl_cftypes(&hugetlb_cgrp_subsys,
@@ -739,8 +846,14 @@ static void __init __hugetlb_cgroup_file_legacy_init(int idx)
 	cft->write = hugetlb_cgroup_reset;
 	cft->read_u64 = hugetlb_cgroup_read_u64;
 
-	/* NULL terminate the last cft */
+	/* Add the numa stat file */
 	cft = &h->cgroup_files_legacy[8];
+	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.numa_stat", buf);
+	cft->private = MEMFILE_PRIVATE(idx, 1);
+	cft->seq_show = hugetlb_cgroup_read_numa_stat;
+
+	/* NULL terminate the last cft */
+	cft = &h->cgroup_files_legacy[9];
 	memset(cft, 0, sizeof(*cft));
 
 	WARN_ON(cgroup_add_legacy_cftypes(&hugetlb_cgrp_subsys,

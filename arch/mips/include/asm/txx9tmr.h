@@ -58,10 +58,6 @@ void txx9_clockevent_init(unsigned long baseaddr, int irq,
 			  unsigned int imbusclk);
 void txx9_tmr_init(unsigned long baseaddr);
 
-#ifdef CONFIG_CPU_TX39XX
-#define TXX9_TIMER_BITS 24
-#else
 #define TXX9_TIMER_BITS 32
-#endif
 
 #endif /* __ASM_TXX9TMR_H */

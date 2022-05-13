@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/platform_device.h>
 #include <linux/soc/ti/k3-ringacc.h>
 #include <net/devlink.h>
@@ -30,13 +30,14 @@ struct am65_cpsw_slave_data {
 	bool				mac_only;
 	struct cpsw_sl			*mac_sl;
 	struct device_node		*phy_node;
-	struct phy_device		*phy;
 	phy_interface_t			phy_if;
 	struct phy			*ifphy;
 	bool				rx_pause;
 	bool				tx_pause;
 	u8				mac_addr[ETH_ALEN];
 	int				port_vlan;
+	struct phylink			*phylink;
+	struct phylink_config		phylink_config;
 };
 
 struct am65_cpsw_port {

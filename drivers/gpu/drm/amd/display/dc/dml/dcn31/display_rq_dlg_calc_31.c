@@ -1055,6 +1055,7 @@ static void dml_rq_dlg_get_dlg_params(
 
 	float vba__refcyc_per_req_delivery_pre_l = get_refcyc_per_req_delivery_pre_l_in_us(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz;  // From VBA
 	float vba__refcyc_per_req_delivery_l = get_refcyc_per_req_delivery_l_in_us(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz;  // From VBA
+	int blank_lines;
 
 	memset(disp_dlg_regs, 0, sizeof(*disp_dlg_regs));
 	memset(disp_ttu_regs, 0, sizeof(*disp_ttu_regs));
@@ -1080,6 +1081,18 @@ static void dml_rq_dlg_get_dlg_params(
 	dlg_vblank_start = interlaced ? (vblank_start / 2) : vblank_start;
 
 	disp_dlg_regs->min_dst_y_next_start = (unsigned int) (((double) dlg_vblank_start) * dml_pow(2, 2));
+	blank_lines = (dst->vblank_end + dst->vtotal_min - dst->vblank_start - dst->vstartup_start - 1);
+	if (blank_lines < 0)
+		blank_lines = 0;
+	if (blank_lines != 0) {
+		disp_dlg_regs->optimized_min_dst_y_next_start_us =
+			((unsigned int) blank_lines * dst->hactive) / (unsigned int) dst->pixel_rate_mhz;
+		disp_dlg_regs->optimized_min_dst_y_next_start =
+			(unsigned int)(((double) (dlg_vblank_start + blank_lines)) * dml_pow(2, 2));
+	} else {
+		// use unoptimized value
+		disp_dlg_regs->optimized_min_dst_y_next_start = disp_dlg_regs->min_dst_y_next_start;
+	}
 	ASSERT(disp_dlg_regs->min_dst_y_next_start < (unsigned int)dml_pow(2, 18));
 
 	dml_print("DML_DLG: %s: min_ttu_vblank (us)         = %3.2f\n", __func__, min_ttu_vblank);

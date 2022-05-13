@@ -6,15 +6,12 @@ arch/arm64/crypto/aes-glue.c
 arch/arm64/crypto/aes-modes.S
 arch/arm64/crypto/chacha-neon-core.S
 arch/arm64/crypto/chacha-neon-glue.c
-arch/arm64/crypto/poly1305-core.S
 arch/arm64/crypto/poly1305-glue.c
-arch/arm64/crypto/sha256-core.S
 arch/arm64/crypto/sha256-glue.c
 arch/arm64/crypto/sha2-ce-core.S
 arch/arm64/crypto/sha2-ce-glue.c
 arch/arm64/crypto/sha512-ce-core.S
 arch/arm64/crypto/sha512-ce-glue.c
-arch/arm64/crypto/sha512-core.S
 arch/arm64/crypto/sha512-glue.c
 arch/arm64/include/asm/acpi.h
 arch/arm64/include/asm/alternative.h
@@ -94,6 +91,7 @@ arch/arm64/include/asm/kvm_hyp.h
 arch/arm64/include/asm/kvm_mmu.h
 arch/arm64/include/asm/kvm_mte.h
 arch/arm64/include/asm/kvm_pgtable.h
+arch/arm64/include/asm/kvm_pkvm.h
 arch/arm64/include/asm/kvm_ptrauth.h
 arch/arm64/include/asm/kvm_ras.h
 arch/arm64/include/asm/kvm_types.h
@@ -109,9 +107,11 @@ arch/arm64/include/asm/mte-def.h
 arch/arm64/include/asm/mte.h
 arch/arm64/include/asm/mte-kasan.h
 arch/arm64/include/asm/neon.h
+arch/arm64/include/asm/neon-intrinsics.h
 arch/arm64/include/asm/numa.h
 arch/arm64/include/asm/page-def.h
 arch/arm64/include/asm/page.h
+arch/arm64/include/asm/paravirt_api_clock.h
 arch/arm64/include/asm/paravirt.h
 arch/arm64/include/asm/patching.h
 arch/arm64/include/asm/pci.h
@@ -175,6 +175,7 @@ arch/arm64/include/asm/vdso/gettimeofday.h
 arch/arm64/include/asm/vdso.h
 arch/arm64/include/asm/vdso/processor.h
 arch/arm64/include/asm/vdso/vsyscall.h
+arch/arm64/include/asm/vectors.h
 arch/arm64/include/asm/vermagic.h
 arch/arm64/include/asm/virt.h
 arch/arm64/include/asm/vmalloc.h
@@ -182,6 +183,7 @@ arch/arm64/include/asm/vmap_stack.h
 arch/arm64/include/asm/word-at-a-time.h
 arch/arm64/include/asm/xen/hypervisor.h
 arch/arm64/include/asm/xen/swiotlb-xen.h
+arch/arm64/include/asm/xor.h
 arch/arm64/include/uapi/asm/auxvec.h
 arch/arm64/include/uapi/asm/bitsperlong.h
 arch/arm64/include/uapi/asm/bpf_perf_event.h
@@ -215,6 +217,7 @@ arch/arm64/kernel/efi.c
 arch/arm64/kernel/efi-entry.S
 arch/arm64/kernel/efi-header.S
 arch/arm64/kernel/efi-rt-wrapper.S
+arch/arm64/kernel/elfcore.c
 arch/arm64/kernel/entry-common.c
 arch/arm64/kernel/entry-fpsimd.S
 arch/arm64/kernel/entry.S
@@ -293,6 +296,7 @@ arch/arm64/kvm/hyp/entry.S
 arch/arm64/kvm/hypercalls.c
 arch/arm64/kvm/hyp/exception.c
 arch/arm64/kvm/hyp/fpsimd.S
+arch/arm64/kvm/hyp/hyp-constants.c
 arch/arm64/kvm/hyp/hyp-entry.S
 arch/arm64/kvm/hyp/include/hyp/adjust_pc.h
 arch/arm64/kvm/hyp/include/hyp/debug-sr.h
@@ -315,22 +319,20 @@ arch/arm64/kvm/hyp/nvhe/host.S
 arch/arm64/kvm/hyp/nvhe/hyp-init.S
 arch/arm64/kvm/hyp/nvhe/hyp.lds.S
 arch/arm64/kvm/hyp/nvhe/hyp-main.c
-arch/arm64/kvm/hyp/nvhe/hyp-reloc.S
 arch/arm64/kvm/hyp/nvhe/hyp-smp.c
+arch/arm64/kvm/hyp/nvhe/list_debug.c
 arch/arm64/kvm/hyp/nvhe/mem_protect.c
 arch/arm64/kvm/hyp/nvhe/mm.c
 arch/arm64/kvm/hyp/nvhe/page_alloc.c
 arch/arm64/kvm/hyp/nvhe/pkvm.c
 arch/arm64/kvm/hyp/nvhe/psci-relay.c
 arch/arm64/kvm/hyp/nvhe/setup.c
-arch/arm64/kvm/hyp/nvhe/stub.c
 arch/arm64/kvm/hyp/nvhe/switch.c
 arch/arm64/kvm/hyp/nvhe/sys_regs.c
 arch/arm64/kvm/hyp/nvhe/sysreg-sr.c
 arch/arm64/kvm/hyp/nvhe/timer-sr.c
 arch/arm64/kvm/hyp/nvhe/tlb.c
 arch/arm64/kvm/hyp/pgtable.c
-arch/arm64/kvm/hyp/reserved_mem.c
 arch/arm64/kvm/hyp/vgic-v2-cpuif-proxy.c
 arch/arm64/kvm/hyp/vgic-v3-sr.c
 arch/arm64/kvm/hyp/vhe/debug-sr.c
@@ -342,6 +344,7 @@ arch/arm64/kvm/inject_fault.c
 arch/arm64/kvm/irq.h
 arch/arm64/kvm/mmio.c
 arch/arm64/kvm/mmu.c
+arch/arm64/kvm/pkvm.c
 arch/arm64/kvm/pmu.c
 arch/arm64/kvm/pmu-emul.c
 arch/arm64/kvm/psci.c
@@ -370,6 +373,7 @@ arch/arm64/kvm/vgic/vgic-mmio-v3.c
 arch/arm64/kvm/vgic/vgic-v2.c
 arch/arm64/kvm/vgic/vgic-v3.c
 arch/arm64/kvm/vgic/vgic-v4.c
+arch/arm64/kvm/vmid.c
 arch/arm64/lib/clear_page.S
 arch/arm64/lib/clear_user.S
 arch/arm64/lib/copy_from_user.S
@@ -393,6 +397,7 @@ arch/arm64/lib/strncmp.S
 arch/arm64/lib/strnlen.S
 arch/arm64/lib/strrchr.S
 arch/arm64/lib/tishift.S
+arch/arm64/lib/xor-neon.c
 arch/arm64/mm/cache.S
 arch/arm64/mm/context.c
 arch/arm64/mm/copypage.c
@@ -420,6 +425,7 @@ block/bfq-iosched.h
 block/bfq-wf2q.c
 block/bio.c
 block/blk-cgroup.c
+block/blk-cgroup.h
 block/blk-cgroup-rwstat.c
 block/blk-cgroup-rwstat.h
 block/blk-core.c
@@ -427,6 +433,7 @@ block/blk-crypto.c
 block/blk-crypto-fallback.c
 block/blk-crypto-internal.h
 block/blk-crypto-profile.c
+block/blk-crypto-sysfs.c
 block/blk-flush.c
 block/blk.h
 block/blk-ia-ranges.c
@@ -477,6 +484,7 @@ block/partitions/efi.h
 block/partitions/msdos.c
 certs/common.c
 certs/common.h
+certs/extract-cert.c
 certs/system_certificates.S
 certs/system_keyring.c
 crypto/acompress.c
@@ -491,8 +499,6 @@ crypto/ansi_cprng.c
 crypto/api.c
 crypto/asymmetric_keys/asymmetric_keys.h
 crypto/asymmetric_keys/asymmetric_type.c
-crypto/asymmetric_keys/pkcs7.asn1.c
-crypto/asymmetric_keys/pkcs7.asn1.h
 crypto/asymmetric_keys/pkcs7_parser.c
 crypto/asymmetric_keys/pkcs7_parser.h
 crypto/asymmetric_keys/pkcs7_trust.c
@@ -500,10 +506,6 @@ crypto/asymmetric_keys/pkcs7_verify.c
 crypto/asymmetric_keys/public_key.c
 crypto/asymmetric_keys/restrict.c
 crypto/asymmetric_keys/signature.c
-crypto/asymmetric_keys/x509_akid.asn1.c
-crypto/asymmetric_keys/x509_akid.asn1.h
-crypto/asymmetric_keys/x509.asn1.c
-crypto/asymmetric_keys/x509.asn1.h
 crypto/asymmetric_keys/x509_cert_parser.c
 crypto/asymmetric_keys/x509_parser.h
 crypto/asymmetric_keys/x509_public_key.c
@@ -555,10 +557,6 @@ crypto/rng.c
 crypto/rsa.c
 crypto/rsa_helper.c
 crypto/rsa-pkcs1pad.c
-crypto/rsaprivkey.asn1.c
-crypto/rsaprivkey.asn1.h
-crypto/rsapubkey.asn1.c
-crypto/rsapubkey.asn1.h
 crypto/scatterwalk.c
 crypto/scompress.c
 crypto/seqiv.c
@@ -569,6 +567,7 @@ crypto/shash.c
 crypto/skcipher.c
 crypto/testmgr.c
 crypto/xcbc.c
+crypto/xor.c
 crypto/xts.c
 crypto/zstd.c
 drivers/amba/bus.c
@@ -578,6 +577,8 @@ drivers/android/binder.c
 drivers/android/binderfs.c
 drivers/android/binder_internal.h
 drivers/android/binder_trace.h
+drivers/android/debug_kinfo.c
+drivers/android/debug_kinfo.h
 drivers/android/vendor_hooks.c
 drivers/base/arch_topology.c
 drivers/base/attribute_container.c
@@ -727,6 +728,8 @@ drivers/cpuidle/cpuidle-psci.c
 drivers/cpuidle/cpuidle-psci-domain.c
 drivers/cpuidle/cpuidle-psci.h
 drivers/cpuidle/driver.c
+drivers/cpuidle/dt_idle_genpd.c
+drivers/cpuidle/dt_idle_genpd.h
 drivers/cpuidle/dt_idle_states.c
 drivers/cpuidle/dt_idle_states.h
 drivers/cpuidle/governor.c
@@ -863,10 +866,6 @@ drivers/gpu/drm/drm_damage_helper.c
 drivers/gpu/drm/drm_debugfs.c
 drivers/gpu/drm/drm_debugfs_crc.c
 drivers/gpu/drm/drm_displayid.c
-drivers/gpu/drm/drm_dp_dual_mode_helper.c
-drivers/gpu/drm/drm_dp_helper.c
-drivers/gpu/drm/drm_dp_mst_topology.c
-drivers/gpu/drm/drm_dp_mst_topology_internal.h
 drivers/gpu/drm/drm_drv.c
 drivers/gpu/drm/drm_dsc.c
 drivers/gpu/drm/drm_dumb_buffers.c
@@ -1034,6 +1033,7 @@ drivers/input/serio/libps2.c
 drivers/input/serio/serio.c
 drivers/input/serio/serport.c
 drivers/input/touchscreen.c
+drivers/input/vivaldi-fmap.c
 drivers/interconnect/bulk.c
 drivers/interconnect/core.c
 drivers/interconnect/internal.h
@@ -1078,7 +1078,6 @@ drivers/mailbox/mailbox.c
 drivers/mailbox/mailbox.h
 drivers/mailbox/sun6i-msgbox.c
 drivers/md/dm-audit.h
-drivers/md/dm-bow.c
 drivers/md/dm-bufio.c
 drivers/md/dm-builtin.c
 drivers/md/dm.c
@@ -1123,6 +1122,7 @@ drivers/media/common/videobuf2/frame_vector.c
 drivers/media/common/videobuf2/vb2-trace.c
 drivers/media/common/videobuf2/videobuf2-core.c
 drivers/media/common/videobuf2/videobuf2-dma-contig.c
+drivers/media/common/videobuf2/videobuf2-dma-sg.c
 drivers/media/common/videobuf2/videobuf2-memops.c
 drivers/media/common/videobuf2/videobuf2-v4l2.c
 drivers/media/common/videobuf2/videobuf2-vmalloc.c
@@ -1176,7 +1176,6 @@ drivers/mfd/mfd-core.c
 drivers/mfd/syscon.c
 drivers/misc/sram.c
 drivers/misc/sram.h
-drivers/misc/uid_sys_stats.c
 drivers/mmc/core/block.c
 drivers/mmc/core/block.h
 drivers/mmc/core/bus.c
@@ -1311,6 +1310,7 @@ drivers/nvdimm/label.h
 drivers/nvdimm/namespace_devs.c
 drivers/nvdimm/nd-core.h
 drivers/nvdimm/nd.h
+drivers/nvdimm/nd_perf.c
 drivers/nvdimm/of_pmem.c
 drivers/nvdimm/pfn.h
 drivers/nvdimm/pmem.c
@@ -1406,12 +1406,14 @@ drivers/pinctrl/sunxi/pinctrl-sun50i-h616.c
 drivers/pinctrl/sunxi/pinctrl-sun50i-h616-r.c
 drivers/pinctrl/sunxi/pinctrl-sunxi.c
 drivers/pinctrl/sunxi/pinctrl-sunxi.h
+drivers/powercap/powercap_sys.c
 drivers/power/reset/hisi-reboot.c
 drivers/power/reset/syscon-reboot.c
 drivers/power/supply/power_supply_core.c
 drivers/power/supply/power_supply.h
 drivers/power/supply/power_supply_leds.c
 drivers/power/supply/power_supply_sysfs.c
+drivers/power/supply/samsung-sdi-battery.h
 drivers/pps/kapi.c
 drivers/pps/kc.h
 drivers/pps/pps.c
@@ -1454,6 +1456,7 @@ drivers/reset/reset-scmi.c
 drivers/reset/reset-simple.c
 drivers/reset/reset-sunxi.c
 drivers/rpmsg/rpmsg_char.c
+drivers/rpmsg/rpmsg_char.h
 drivers/rpmsg/rpmsg_core.c
 drivers/rpmsg/rpmsg_internal.h
 drivers/rtc/class.c
@@ -1474,7 +1477,6 @@ drivers/scsi/scsi_common.c
 drivers/scsi/scsi_debugfs.c
 drivers/scsi/scsi_debugfs.h
 drivers/scsi/scsi_devinfo.c
-drivers/scsi/scsi_devinfo_tbl.c
 drivers/scsi/scsi_error.c
 drivers/scsi/scsi_ioctl.c
 drivers/scsi/scsi_lib.c
@@ -1526,8 +1528,6 @@ drivers/spi/spi.c
 drivers/spmi/spmi.c
 drivers/staging/android/ashmem.c
 drivers/staging/android/ashmem.h
-drivers/staging/android/debug_kinfo.c
-drivers/staging/android/debug_kinfo.h
 drivers/staging/android/uapi/ashmem.h
 drivers/thermal/cpufreq_cooling.c
 drivers/thermal/devfreq_cooling.c
@@ -1645,15 +1645,12 @@ drivers/usb/gadget/function/f_mass_storage.c
 drivers/usb/gadget/function/f_mass_storage.h
 drivers/usb/gadget/function/f_midi.c
 drivers/usb/gadget/function/f_ncm.c
-drivers/usb/gadget/function/f_rndis.c
 drivers/usb/gadget/function/f_serial.c
 drivers/usb/gadget/function/f_uac2.c
-drivers/usb/gadget/function/ndis.h
-drivers/usb/gadget/function/rndis.c
-drivers/usb/gadget/function/rndis.h
 drivers/usb/gadget/functions.c
 drivers/usb/gadget/function/storage_common.c
 drivers/usb/gadget/function/storage_common.h
+drivers/usb/gadget/function/uac_common.h
 drivers/usb/gadget/function/u_audio.c
 drivers/usb/gadget/function/u_audio.h
 drivers/usb/gadget/function/u_ecm.h
@@ -1665,7 +1662,6 @@ drivers/usb/gadget/function/u_fs.h
 drivers/usb/gadget/function/u_hid.h
 drivers/usb/gadget/function/u_midi.h
 drivers/usb/gadget/function/u_ncm.h
-drivers/usb/gadget/function/u_rndis.h
 drivers/usb/gadget/function/u_serial.c
 drivers/usb/gadget/function/u_serial.h
 drivers/usb/gadget/function/u_uac2.h
@@ -2155,7 +2151,6 @@ fs/sysfs/sysfs.h
 fs/timerfd.c
 fs/tracefs/inode.c
 fs/unicode/utf8-core.c
-fs/unicode/utf8data.h
 fs/unicode/utf8n.h
 fs/unicode/utf8-norm.c
 fs/userfaultfd.c
@@ -2194,6 +2189,7 @@ include/acpi/platform/acgccex.h
 include/acpi/platform/acgcc.h
 include/acpi/platform/aclinuxex.h
 include/acpi/platform/aclinux.h
+include/asm-generic/access_ok.h
 include/asm-generic/audit_change_attr.h
 include/asm-generic/audit_dir_write.h
 include/asm-generic/audit_read.h
@@ -2209,7 +2205,6 @@ include/asm-generic/bitops/builtin-fls.h
 include/asm-generic/bitops/const_hweight.h
 include/asm-generic/bitops/ext2-atomic-setbit.h
 include/asm-generic/bitops/ffz.h
-include/asm-generic/bitops/find.h
 include/asm-generic/bitops/fls64.h
 include/asm-generic/bitops/hweight.h
 include/asm-generic/bitops/instrumented-atomic.h
@@ -2288,6 +2283,7 @@ include/asm-generic/user.h
 include/asm-generic/vdso/vsyscall.h
 include/asm-generic/vga.h
 include/asm-generic/vmlinux.lds.h
+include/asm-generic/xor.h
 include/clocksource/arm_arch_timer.h
 include/crypto/acompress.h
 include/crypto/aead.h
@@ -2350,6 +2346,7 @@ include/crypto/sm3_base.h
 include/crypto/sm3.h
 include/crypto/streebog.h
 include/crypto/xts.h
+include/drm/dp/drm_dp_helper.h
 include/drm/drm_aperture.h
 include/drm/drm_atomic.h
 include/drm/drm_atomic_helper.h
@@ -2370,9 +2367,6 @@ include/drm/drm_debugfs_crc.h
 include/drm/drm_debugfs.h
 include/drm/drm_device.h
 include/drm/drm_displayid.h
-include/drm/drm_dp_dual_mode_helper.h
-include/drm/drm_dp_helper.h
-include/drm/drm_dp_mst_helper.h
 include/drm/drm_drv.h
 include/drm/drm_dsc.h
 include/drm/drm_edid.h
@@ -2571,12 +2565,12 @@ include/linux/cc_platform.h
 include/linux/cdev.h
 include/linux/cdrom.h
 include/linux/cfi.h
+include/linux/cgroup_api.h
 include/linux/cgroup-defs.h
 include/linux/cgroup.h
 include/linux/cgroup_rdma.h
 include/linux/cgroup_subsys.h
 include/linux/circ_buf.h
-include/linux/cleancache.h
 include/linux/clk/clk-conf.h
 include/linux/clkdev.h
 include/linux/clk.h
@@ -2615,6 +2609,7 @@ include/linux/cpufreq_times.h
 include/linux/cpu.h
 include/linux/cpuhotplug.h
 include/linux/cpuidle.h
+include/linux/cpumask_api.h
 include/linux/cpumask.h
 include/linux/cpu_pm.h
 include/linux/cpu_rmap.h
@@ -2663,13 +2658,13 @@ include/linux/devpts_fs.h
 include/linux/dim.h
 include/linux/dirent.h
 include/linux/dma-buf.h
-include/linux/dma-buf-map.h
 include/linux/dma-direct.h
 include/linux/dma-direction.h
 include/linux/dmaengine.h
 include/linux/dma-fence-array.h
 include/linux/dma-fence-chain.h
 include/linux/dma-fence.h
+include/linux/dma-fence-unwrap.h
 include/linux/dma-heap.h
 include/linux/dma-iommu.h
 include/linux/dma-map-ops.h
@@ -2730,15 +2725,18 @@ include/linux/fiemap.h
 include/linux/fileattr.h
 include/linux/file.h
 include/linux/filter.h
+include/linux/find.h
 include/linux/fips.h
 include/linux/firmware.h
 include/linux/firmware-map.h
 include/linux/fixp-arith.h
 include/linux/flex_proportions.h
 include/linux/font.h
+include/linux/fprobe.h
 include/linux/freelist.h
 include/linux/freezer.h
 include/linux/frontswap.h
+include/linux/fs_api.h
 include/linux/fs_context.h
 include/linux/fscrypt.h
 include/linux/fs.h
@@ -2760,7 +2758,6 @@ include/linux/gcd.h
 include/linux/genalloc.h
 include/linux/generic-radix-tree.h
 include/linux/genetlink.h
-include/linux/genhd.h
 include/linux/getcpu.h
 include/linux/gfp.h
 include/linux/glob.h
@@ -2772,6 +2769,7 @@ include/linux/gpio_keys.h
 include/linux/gpio/machine.h
 include/linux/hardirq.h
 include/linux/hash.h
+include/linux/hashtable_api.h
 include/linux/hashtable.h
 include/linux/hdmi.h
 include/linux/hid-debug.h
@@ -2783,6 +2781,7 @@ include/linux/hid-roccat.h
 include/linux/highmem.h
 include/linux/highmem-internal.h
 include/linux/highuid.h
+include/linux/hrtimer_api.h
 include/linux/hrtimer_defs.h
 include/linux/hrtimer.h
 include/linux/huge_mm.h
@@ -2809,6 +2808,7 @@ include/linux/if_arp.h
 include/linux/if_bridge.h
 include/linux/if_ether.h
 include/linux/if_fddi.h
+include/linux/if_hsr.h
 include/linux/if_link.h
 include/linux/if_ltalk.h
 include/linux/if_macvlan.h
@@ -2846,6 +2846,7 @@ include/linux/input/elan-i2c-ids.h
 include/linux/input.h
 include/linux/input/mt.h
 include/linux/input/touchscreen.h
+include/linux/input/vivaldi-fmap.h
 include/linux/instruction_pointer.h
 include/linux/instrumentation.h
 include/linux/instrumented.h
@@ -2870,6 +2871,7 @@ include/linux/io-pgtable.h
 include/linux/iopoll.h
 include/linux/ioport.h
 include/linux/ioprio.h
+include/linux/iosys-map.h
 include/linux/io_uring.h
 include/linux/iova.h
 include/linux/ipc.h
@@ -2904,6 +2906,7 @@ include/linux/jump_label.h
 include/linux/jump_label_ratelimit.h
 include/linux/kallsyms.h
 include/linux/kasan-checks.h
+include/linux/kasan-enabled.h
 include/linux/kasan.h
 include/linux/kasan-tags.h
 include/linux/kbd_kern.h
@@ -2934,14 +2937,17 @@ include/linux/klist.h
 include/linux/kmemleak.h
 include/linux/kmod.h
 include/linux/kmsg_dump.h
+include/linux/kobject_api.h
 include/linux/kobject.h
 include/linux/kobject_ns.h
 include/linux/kobj_map.h
 include/linux/kprobes.h
+include/linux/kref_api.h
 include/linux/kref.h
 include/linux/ksm.h
 include/linux/kstrtox.h
 include/linux/kthread.h
+include/linux/ktime_api.h
 include/linux/ktime.h
 include/linux/kvm_dirty_ring.h
 include/linux/kvm_host.h
@@ -2970,9 +2976,11 @@ include/linux/list_nulls.h
 include/linux/list_sort.h
 include/linux/livepatch.h
 include/linux/llc.h
+include/linux/llist_api.h
 include/linux/llist.h
 include/linux/local_lock.h
 include/linux/local_lock_internal.h
+include/linux/lockdep_api.h
 include/linux/lockdep.h
 include/linux/lockdep_types.h
 include/linux/lockref.h
@@ -3009,6 +3017,7 @@ include/linux/min_heap.h
 include/linux/minmax.h
 include/linux/miscdevice.h
 include/linux/mman.h
+include/linux/mm_api.h
 include/linux/mmap_lock.h
 include/linux/mmc/card.h
 include/linux/mmc/core.h
@@ -3047,6 +3056,7 @@ include/linux/msdos_fs.h
 include/linux/msdos_partition.h
 include/linux/msg.h
 include/linux/msi.h
+include/linux/mutex_api.h
 include/linux/mutex.h
 include/linux/namei.h
 include/linux/ndctl.h
@@ -3138,6 +3148,7 @@ include/linux/pagemap.h
 include/linux/page_owner.h
 include/linux/page_ref.h
 include/linux/page_reporting.h
+include/linux/page_table_check.h
 include/linux/pagevec.h
 include/linux/pagewalk.h
 include/linux/panic.h
@@ -3147,7 +3158,6 @@ include/linux/part_stat.h
 include/linux/path.h
 include/linux/pci-acpi.h
 include/linux/pci-ats.h
-include/linux/pci-dma-compat.h
 include/linux/pci-ecam.h
 include/linux/pci-ep-cfs.h
 include/linux/pci-epc.h
@@ -3162,11 +3172,13 @@ include/linux/percpu.h
 include/linux/percpu-refcount.h
 include/linux/percpu-rwsem.h
 include/linux/perf/arm_pmu.h
+include/linux/perf_event_api.h
 include/linux/perf_event.h
 include/linux/perf_regs.h
 include/linux/personality.h
 include/linux/pfn.h
 include/linux/pfn_t.h
+include/linux/pgtable_api.h
 include/linux/pgtable.h
 include/linux/phy_fixed.h
 include/linux/phy.h
@@ -3210,6 +3222,7 @@ include/linux/posix_acl.h
 include/linux/posix_acl_xattr.h
 include/linux/posix-clock.h
 include/linux/posix-timers.h
+include/linux/powercap.h
 include/linux/power_supply.h
 include/linux/ppp_channel.h
 include/linux/ppp-comp.h
@@ -3236,6 +3249,7 @@ include/linux/pti.h
 include/linux/ptp_classify.h
 include/linux/ptp_clock_kernel.h
 include/linux/ptp_kvm.h
+include/linux/ptrace_api.h
 include/linux/ptrace.h
 include/linux/ptr_ring.h
 include/linux/pvclock_gtod.h
@@ -3245,6 +3259,7 @@ include/linux/quota.h
 include/linux/quotaops.h
 include/linux/radix-tree.h
 include/linux/raid/detect.h
+include/linux/raid/xor.h
 include/linux/ramfs.h
 include/linux/random.h
 include/linux/randomize_kstack.h
@@ -3267,9 +3282,11 @@ include/linux/rcupdate_wait.h
 include/linux/rcu_segcblist.h
 include/linux/rcu_sync.h
 include/linux/rcutree.h
+include/linux/rcuwait_api.h
 include/linux/rcuwait.h
 include/linux/reboot.h
 include/linux/reciprocal_div.h
+include/linux/refcount_api.h
 include/linux/refcount.h
 include/linux/ref_tracker.h
 include/linux/regmap.h
@@ -3290,12 +3307,13 @@ include/linux/reset/sunxi.h
 include/linux/resource_ext.h
 include/linux/resource.h
 include/linux/restart_block.h
+include/linux/resume_user_mode.h
+include/linux/rethook.h
 include/linux/rfkill.h
 include/linux/rhashtable.h
 include/linux/rhashtable-types.h
 include/linux/ring_buffer.h
 include/linux/rmap.h
-include/linux/rndis.h
 include/linux/rodata_test.h
 include/linux/root_dev.h
 include/linux/rpmsg/byteorder.h
@@ -3310,9 +3328,11 @@ include/linux/rwlock_types.h
 include/linux/rwsem.h
 include/linux/sbitmap.h
 include/linux/scatterlist.h
+include/linux/sched/affinity.h
 include/linux/sched/autogroup.h
 include/linux/sched_clock.h
 include/linux/sched/clock.h
+include/linux/sched/cond_resched.h
 include/linux/sched/coredump.h
 include/linux/sched/cpufreq.h
 include/linux/sched/cputime.h
@@ -3328,13 +3348,16 @@ include/linux/sched/loadavg.h
 include/linux/sched/mm.h
 include/linux/sched/nohz.h
 include/linux/sched/numa_balancing.h
+include/linux/sched/posix-timers.h
 include/linux/sched/prio.h
+include/linux/sched/rseq_api.h
 include/linux/sched/rt.h
 include/linux/sched/sd_flags.h
 include/linux/sched/signal.h
 include/linux/sched/smt.h
 include/linux/sched/stat.h
 include/linux/sched/sysctl.h
+include/linux/sched/task_flags.h
 include/linux/sched/task.h
 include/linux/sched/task_stack.h
 include/linux/sched/topology.h
@@ -3361,6 +3384,7 @@ include/linux/sem.h
 include/linux/seq_buf.h
 include/linux/seq_file.h
 include/linux/seq_file_net.h
+include/linux/seqlock_api.h
 include/linux/seqlock.h
 include/linux/serdev.h
 include/linux/serial_8250.h
@@ -3391,7 +3415,9 @@ include/linux/socket.h
 include/linux/sockptr.h
 include/linux/soc/qcom/smem_state.h
 include/linux/soc/sunxi/sunxi_sram.h
+include/linux/softirq.h
 include/linux/sort.h
+include/linux/spinlock_api.h
 include/linux/spinlock_api_smp.h
 include/linux/spinlock.h
 include/linux/spinlock_types.h
@@ -3434,6 +3460,7 @@ include/linux/sunrpc/xprt.h
 include/linux/sunrpc/xprtmultipath.h
 include/linux/suspend.h
 include/linux/swab.h
+include/linux/swait_api.h
 include/linux/swait.h
 include/linux/swap_cgroup.h
 include/linux/swapfile.h
@@ -3444,6 +3471,7 @@ include/linux/swiotlb.h
 include/linux/switchtec.h
 include/linux/sync_core.h
 include/linux/sync_file.h
+include/linux/syscalls_api.h
 include/linux/syscalls.h
 include/linux/syscall_user_dispatch.h
 include/linux/syscore_ops.h
@@ -3485,7 +3513,6 @@ include/linux/trace_clock.h
 include/linux/trace_events.h
 include/linux/tracefs.h
 include/linux/trace.h
-include/linux/tracehook.h
 include/linux/tracepoint-defs.h
 include/linux/tracepoint.h
 include/linux/trace_recursion.h
@@ -3500,6 +3527,7 @@ include/linux/tty_ldisc.h
 include/linux/tty_port.h
 include/linux/typecheck.h
 include/linux/types.h
+include/linux/u64_stats_sync_api.h
 include/linux/u64_stats_sync.h
 include/linux/uaccess.h
 include/linux/ucs2_string.h
@@ -3584,6 +3612,7 @@ include/linux/vt_buffer.h
 include/linux/vt.h
 include/linux/vtime.h
 include/linux/vt_kern.h
+include/linux/wait_api.h
 include/linux/wait_bit.h
 include/linux/wait.h
 include/linux/wakeup_reason.h
@@ -3591,6 +3620,7 @@ include/linux/watchdog.h
 include/linux/watch_queue.h
 include/linux/win_minmax.h
 include/linux/wireless.h
+include/linux/workqueue_api.h
 include/linux/workqueue.h
 include/linux/writeback.h
 include/linux/ww_mutex.h
@@ -3633,6 +3663,7 @@ include/media/v4l2-mem2mem.h
 include/media/v4l2-subdev.h
 include/media/videobuf2-core.h
 include/media/videobuf2-dma-contig.h
+include/media/videobuf2-dma-sg.h
 include/media/videobuf2-memops.h
 include/media/videobuf2-v4l2.h
 include/media/videobuf2-vmalloc.h
@@ -3701,6 +3732,7 @@ include/net/inet6_connection_sock.h
 include/net/inet6_hashtables.h
 include/net/inet_common.h
 include/net/inet_connection_sock.h
+include/net/inet_dscp.h
 include/net/inet_ecn.h
 include/net/inet_frag.h
 include/net/inet_hashtables.h
@@ -3745,6 +3777,7 @@ include/net/netfilter/ipv6/nf_dup_ipv6.h
 include/net/netfilter/ipv6/nf_reject.h
 include/net/netfilter/nf_conntrack_acct.h
 include/net/netfilter/nf_conntrack_act_ct.h
+include/net/netfilter/nf_conntrack_bpf.h
 include/net/netfilter/nf_conntrack_bridge.h
 include/net/netfilter/nf_conntrack_core.h
 include/net/netfilter/nf_conntrack_count.h
@@ -3894,7 +3927,6 @@ include/scsi/scsi.h
 include/scsi/scsi_host.h
 include/scsi/scsi_ioctl.h
 include/scsi/scsi_proto.h
-include/scsi/scsi_request.h
 include/scsi/scsi_status.h
 include/scsi/scsi_tcq.h
 include/scsi/scsi_transport.h
@@ -3934,8 +3966,6 @@ include/sound/tlv.h
 include/trace/bpf_probe.h
 include/trace/define_trace.h
 include/trace/events/alarmtimer.h
-include/trace/events/android_fs.h
-include/trace/events/android_fs_template.h
 include/trace/events/asoc.h
 include/trace/events/avc.h
 include/trace/events/block.h
@@ -3990,7 +4020,6 @@ include/trace/events/power.h
 include/trace/events/printk.h
 include/trace/events/pwm.h
 include/trace/events/qdisc.h
-include/trace/events/random.h
 include/trace/events/rcu.h
 include/trace/events/regulator.h
 include/trace/events/rpm.h
@@ -4010,6 +4039,7 @@ include/trace/events/task.h
 include/trace/events/tcp.h
 include/trace/events/thermal.h
 include/trace/events/thermal_power_allocator.h
+include/trace/events/thp.h
 include/trace/events/timer.h
 include/trace/events/tlb.h
 include/trace/events/udp.h
@@ -4029,7 +4059,6 @@ include/trace/hooks/cpuidle.h
 include/trace/hooks/cpuidle_psci.h
 include/trace/hooks/creds.h
 include/trace/hooks/debug.h
-include/trace/hooks/dtask.h
 include/trace/hooks/epoch.h
 include/trace/hooks/fpsimd.h
 include/trace/hooks/ftrace_dump.h
@@ -4037,7 +4066,6 @@ include/trace/hooks/gic.h
 include/trace/hooks/gic_v3.h
 include/trace/hooks/iommu.h
 include/trace/hooks/memory.h
-include/trace/hooks/mm.h
 include/trace/hooks/module.h
 include/trace/hooks/mpam.h
 include/trace/hooks/net.h
@@ -4056,6 +4084,14 @@ include/trace/hooks/vendor_hooks.h
 include/trace/hooks/vmscan.h
 include/trace/hooks/wqlockup.h
 include/trace/perf.h
+include/trace/stages/init.h
+include/trace/stages/stage1_struct_define.h
+include/trace/stages/stage2_data_offsets.h
+include/trace/stages/stage3_trace_output.h
+include/trace/stages/stage4_event_fields.h
+include/trace/stages/stage5_get_offsets.h
+include/trace/stages/stage6_event_callback.h
+include/trace/stages/stage7_class_define.h
 include/trace/syscall.h
 include/trace/trace_events.h
 include/uapi/asm-generic/bitsperlong.h
@@ -4598,7 +4634,6 @@ kernel/bpf/offload.c
 kernel/bpf/percpu_freelist.c
 kernel/bpf/percpu_freelist.h
 kernel/bpf/preload/bpf_preload.h
-kernel/bpf/preload/iterators/bpf_preload_common.h
 kernel/bpf/prog_iter.c
 kernel/bpf/queue_stack_maps.c
 kernel/bpf/reuseport_array.c
@@ -4654,9 +4689,8 @@ kernel/futex/requeue.c
 kernel/futex/syscalls.c
 kernel/futex/waitwake.c
 kernel/gki_module.c
-kernel/gki_module_exported.h
-kernel/gki_module_protected.h
 kernel/groups.c
+kernel/hung_task.c
 kernel/iomem.c
 kernel/irq/affinity.c
 kernel/irq/autoprobe.c
@@ -4729,6 +4763,7 @@ kernel/printk/printk.c
 kernel/printk/printk_ringbuffer.c
 kernel/printk/printk_ringbuffer.h
 kernel/printk/printk_safe.c
+kernel/printk/sysctl.c
 kernel/profile.c
 kernel/ptrace.c
 kernel/range.c
@@ -4748,7 +4783,10 @@ kernel/rcu/update.c
 kernel/reboot.c
 kernel/regset.c
 kernel/resource.c
+kernel/sched/android.h
 kernel/sched/autogroup.h
+kernel/sched/build_policy.c
+kernel/sched/build_utility.c
 kernel/sched/clock.c
 kernel/sched/completion.c
 kernel/sched/core.c
@@ -4902,7 +4940,6 @@ lib/cpu_rmap.c
 lib/crc16.c
 lib/crc32.c
 lib/crc32defs.h
-lib/crc32table.h
 lib/crc8.c
 lib/crc-ccitt.c
 lib/crypto/aes.c
@@ -5029,7 +5066,6 @@ lib/nlattr.c
 lib/nmi_backtrace.c
 lib/nodemask.c
 lib/oid_registry.c
-lib/oid_registry_data.c
 lib/once.c
 lib/parser.c
 lib/pci_iomap.c
@@ -5143,7 +5179,6 @@ lib/zstd/zstd_compress_module.c
 lib/zstd/zstd_decompress_module.c
 mm/backing-dev.c
 mm/balloon_compaction.c
-mm/cleancache.c
 mm/cma.c
 mm/cma_debug.c
 mm/cma.h
@@ -5618,6 +5653,7 @@ net/mac80211/debugfs_sta.h
 net/mac80211/debug.h
 net/mac80211/driver-ops.c
 net/mac80211/driver-ops.h
+net/mac80211/eht.c
 net/mac80211/ethtool.c
 net/mac80211/fils_aead.c
 net/mac80211/fils_aead.h
@@ -5904,7 +5940,6 @@ net/wireless/rdev-ops.h
 net/wireless/reg.c
 net/wireless/reg.h
 net/wireless/scan.c
-net/wireless/shipped-certs.c
 net/wireless/sme.c
 net/wireless/sysfs.c
 net/wireless/sysfs.h
@@ -5945,9 +5980,6 @@ scripts/dtc/checks.c
 scripts/dtc/data.c
 scripts/dtc/dtc.c
 scripts/dtc/dtc.h
-scripts/dtc/dtc-lexer.lex.c
-scripts/dtc/dtc-parser.tab.c
-scripts/dtc/dtc-parser.tab.h
 scripts/dtc/fdtoverlay.c
 scripts/dtc/flattree.c
 scripts/dtc/fstree.c
@@ -5971,33 +6003,23 @@ scripts/dtc/treesource.c
 scripts/dtc/util.c
 scripts/dtc/util.h
 scripts/dtc/version_gen.h
-scripts/extract-cert.c
 scripts/genksyms/genksyms.c
 scripts/genksyms/genksyms.h
-scripts/genksyms/keywords.c
-scripts/genksyms/lex.lex.c
-scripts/genksyms/parse.tab.c
-scripts/genksyms/parse.tab.h
 scripts/kallsyms.c
 scripts/kconfig/conf.c
 scripts/kconfig/confdata.c
 scripts/kconfig/expr.c
 scripts/kconfig/expr.h
 scripts/kconfig/internal.h
-scripts/kconfig/lexer.lex.c
 scripts/kconfig/list.h
 scripts/kconfig/lkc.h
 scripts/kconfig/lkc_proto.h
 scripts/kconfig/menu.c
-scripts/kconfig/parser.tab.c
-scripts/kconfig/parser.tab.h
 scripts/kconfig/preprocess.c
 scripts/kconfig/symbol.c
 scripts/kconfig/util.c
 scripts/link-vmlinux.sh
 scripts/mod/devicetable-offsets.c
-scripts/mod/devicetable-offsets.h
-scripts/mod/elfconfig.h
 scripts/mod/empty.c
 scripts/mod/file2alias.c
 scripts/mod/mk_elfconfig.c
@@ -6035,8 +6057,6 @@ security/lsm_audit.c
 security/min_addr.c
 security/security.c
 security/selinux/avc.c
-security/selinux/av_permissions.h
-security/selinux/flask.h
 security/selinux/hooks.c
 security/selinux/include/audit.h
 security/selinux/include/avc.h
@@ -6187,7 +6207,7 @@ virt/kvm/coalesced_mmio.h
 virt/kvm/eventfd.c
 virt/kvm/irqchip.c
 virt/kvm/kvm_main.c
-virt/kvm/mmu_lock.h
+virt/kvm/kvm_mm.h
 virt/kvm/vfio.c
 virt/kvm/vfio.h
 virt/lib/irqbypass.c

@@ -25,17 +25,5 @@
  * do such IOTLB flushes automatically.
  */
 #define SVM_FLAG_SUPERVISOR_MODE	BIT(0)
-/*
- * The SVM_FLAG_GUEST_MODE flag is used when a PASID bind is for guest
- * processes. Compared to the host bind, the primary differences are:
- * 1. mm life cycle management
- * 2. fault reporting
- */
-#define SVM_FLAG_GUEST_MODE		BIT(1)
-/*
- * The SVM_FLAG_GUEST_PASID flag is used when a guest has its own PASID space,
- * which requires guest and host PASID translation at both directions.
- */
-#define SVM_FLAG_GUEST_PASID		BIT(2)
 
 #endif /* __INTEL_SVM_H__ */

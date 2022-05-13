@@ -1556,6 +1556,7 @@ static int mtk_star_probe(struct platform_device *pdev)
 	return devm_register_netdev(dev, ndev);
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id mtk_star_of_match[] = {
 	{ .compatible = "mediatek,mt8516-eth", },
 	{ .compatible = "mediatek,mt8518-eth", },
@@ -1563,6 +1564,7 @@ static const struct of_device_id mtk_star_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mtk_star_of_match);
+#endif
 
 static SIMPLE_DEV_PM_OPS(mtk_star_pm_ops,
 			 mtk_star_suspend, mtk_star_resume);

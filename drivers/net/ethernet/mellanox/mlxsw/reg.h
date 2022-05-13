@@ -4482,6 +4482,8 @@ MLXSW_ITEM32(reg, ptys, ext_eth_proto_cap, 0x08, 0, 32);
 #define MLXSW_REG_PTYS_ETH_SPEED_100GBASE_SR4		BIT(21)
 #define MLXSW_REG_PTYS_ETH_SPEED_100GBASE_KR4		BIT(22)
 #define MLXSW_REG_PTYS_ETH_SPEED_100GBASE_LR4_ER4	BIT(23)
+#define MLXSW_REG_PTYS_ETH_SPEED_100BASE_T		BIT(24)
+#define MLXSW_REG_PTYS_ETH_SPEED_1000BASE_T		BIT(25)
 #define MLXSW_REG_PTYS_ETH_SPEED_25GBASE_CR		BIT(27)
 #define MLXSW_REG_PTYS_ETH_SPEED_25GBASE_KR		BIT(28)
 #define MLXSW_REG_PTYS_ETH_SPEED_25GBASE_SR		BIT(29)
@@ -6062,6 +6064,58 @@ static inline void mlxsw_reg_pllp_unpack(char *payload, u8 *label_port,
 	*slot_index = mlxsw_reg_pllp_slot_index_get(payload);
 }
 
+/* PMTM - Port Module Type Mapping Register
+ * ----------------------------------------
+ * The PMTM register allows query or configuration of module types.
+ * The register can only be set when the module is disabled by PMAOS register
+ */
+#define MLXSW_REG_PMTM_ID 0x5067
+#define MLXSW_REG_PMTM_LEN 0x10
+
+MLXSW_REG_DEFINE(pmtm, MLXSW_REG_PMTM_ID, MLXSW_REG_PMTM_LEN);
+
+/* reg_pmtm_slot_index
+ * Slot index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmtm, slot_index, 0x00, 24, 4);
+
+/* reg_pmtm_module
+ * Module number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmtm, module, 0x00, 16, 8);
+
+enum mlxsw_reg_pmtm_module_type {
+	MLXSW_REG_PMTM_MODULE_TYPE_BACKPLANE_4_LANES = 0,
+	MLXSW_REG_PMTM_MODULE_TYPE_QSFP = 1,
+	MLXSW_REG_PMTM_MODULE_TYPE_SFP = 2,
+	MLXSW_REG_PMTM_MODULE_TYPE_BACKPLANE_SINGLE_LANE = 4,
+	MLXSW_REG_PMTM_MODULE_TYPE_BACKPLANE_2_LANES = 8,
+	MLXSW_REG_PMTM_MODULE_TYPE_CHIP2CHIP4X = 10,
+	MLXSW_REG_PMTM_MODULE_TYPE_CHIP2CHIP2X = 11,
+	MLXSW_REG_PMTM_MODULE_TYPE_CHIP2CHIP1X = 12,
+	MLXSW_REG_PMTM_MODULE_TYPE_QSFP_DD = 14,
+	MLXSW_REG_PMTM_MODULE_TYPE_OSFP = 15,
+	MLXSW_REG_PMTM_MODULE_TYPE_SFP_DD = 16,
+	MLXSW_REG_PMTM_MODULE_TYPE_DSFP = 17,
+	MLXSW_REG_PMTM_MODULE_TYPE_CHIP2CHIP8X = 18,
+	MLXSW_REG_PMTM_MODULE_TYPE_TWISTED_PAIR = 19,
+};
+
+/* reg_pmtm_module_type
+ * Module type.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pmtm, module_type, 0x04, 0, 5);
+
+static inline void mlxsw_reg_pmtm_pack(char *payload, u8 slot_index, u8 module)
+{
+	MLXSW_REG_ZERO(pmtm, payload);
+	mlxsw_reg_pmtm_slot_index_set(payload, slot_index);
+	mlxsw_reg_pmtm_module_set(payload, module);
+}
+
 /* HTGT - Host Trap Group Table
  * ----------------------------
  * Configures the properties for forwarding to CPU.
@@ -6087,9 +6141,7 @@ MLXSW_ITEM32(reg, htgt, type, 0x00, 8, 4);
 
 enum mlxsw_reg_htgt_trap_group {
 	MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
-	MLXSW_REG_HTGT_TRAP_GROUP_MFDE,
-	MLXSW_REG_HTGT_TRAP_GROUP_MTWE,
-	MLXSW_REG_HTGT_TRAP_GROUP_PMPE,
+	MLXSW_REG_HTGT_TRAP_GROUP_CORE_EVENT,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_STP,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_LACP,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_LLDP,
@@ -6732,12 +6784,14 @@ static inline void mlxsw_reg_ritr_counter_pack(char *payload, u32 index,
 		set_type = MLXSW_REG_RITR_COUNTER_SET_TYPE_BASIC;
 	else
 		set_type = MLXSW_REG_RITR_COUNTER_SET_TYPE_NO_COUNT;
-	mlxsw_reg_ritr_egress_counter_set_type_set(payload, set_type);
 
-	if (egress)
+	if (egress) {
+		mlxsw_reg_ritr_egress_counter_set_type_set(payload, set_type);
 		mlxsw_reg_ritr_egress_counter_index_set(payload, index);
-	else
+	} else {
+		mlxsw_reg_ritr_ingress_counter_set_type_set(payload, set_type);
 		mlxsw_reg_ritr_ingress_counter_index_set(payload, index);
+	}
 }
 
 static inline void mlxsw_reg_ritr_rif_pack(char *payload, u16 rif)
@@ -9985,6 +10039,7 @@ enum mlxsw_reg_mcia_eeprom_module_info_id {
 	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS	= 0x0D,
 	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28	= 0x11,
 	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_DD	= 0x18,
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_OSFP	= 0x19,
 };
 
 enum mlxsw_reg_mcia_eeprom_module_info {
@@ -11271,24 +11326,24 @@ enum mlxsw_reg_mgpir_device_type {
 	MLXSW_REG_MGPIR_DEVICE_TYPE_GEARBOX_DIE,
 };
 
-/* device_type
+/* mgpir_device_type
  * Access: RO
  */
 MLXSW_ITEM32(reg, mgpir, device_type, 0x00, 24, 4);
 
-/* devices_per_flash
+/* mgpir_devices_per_flash
  * Number of devices of device_type per flash (can be shared by few devices).
  * Access: RO
  */
 MLXSW_ITEM32(reg, mgpir, devices_per_flash, 0x00, 16, 8);
 
-/* num_of_devices
+/* mgpir_num_of_devices
  * Number of devices of device_type.
  * Access: RO
  */
 MLXSW_ITEM32(reg, mgpir, num_of_devices, 0x00, 0, 8);
 
-/* num_of_modules
+/* mgpir_num_of_modules
  * Number of modules.
  * Access: RO
  */
@@ -12568,6 +12623,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pddr),
 	MLXSW_REG(pmmp),
 	MLXSW_REG(pllp),
+	MLXSW_REG(pmtm),
 	MLXSW_REG(htgt),
 	MLXSW_REG(hpkt),
 	MLXSW_REG(rgcr),

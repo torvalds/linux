@@ -84,7 +84,6 @@ obj-$(CONFIG_DM_LOG_WRITES)	+= dm-log-writes.o
 obj-$(CONFIG_DM_INTEGRITY)	+= dm-integrity.o
 obj-$(CONFIG_DM_ZONED)		+= dm-zoned.o
 obj-$(CONFIG_DM_WRITECACHE)	+= dm-writecache.o
-obj-$(CONFIG_DM_BOW)		+= dm-bow.o
 obj-$(CONFIG_DM_USER)		+= dm-user.o
 
 ifeq ($(CONFIG_DM_INIT),y)

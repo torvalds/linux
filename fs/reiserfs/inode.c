@@ -2763,13 +2763,6 @@ static int reiserfs_write_begin(struct file *file,
 	int old_ref = 0;
 
  	inode = mapping->host;
-	*fsdata = NULL;
- 	if (flags & AOP_FLAG_CONT_EXPAND &&
- 	    (pos & (inode->i_sb->s_blocksize - 1)) == 0) {
- 		pos ++;
-		*fsdata = (void *)(unsigned long)flags;
-	}
-
 	index = pos >> PAGE_SHIFT;
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
@@ -2895,9 +2888,6 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 	struct reiserfs_transaction_handle *th;
 	unsigned start;
 	bool locked = false;
-
-	if ((unsigned long)fsdata & AOP_FLAG_CONT_EXPAND)
-		pos ++;
 
 	reiserfs_wait_on_write_block(inode->i_sb);
 	if (reiserfs_transaction_running(inode->i_sb))
@@ -3094,7 +3084,7 @@ void sd_attrs_to_i_attrs(__u16 sd_attrs, struct inode *inode)
  * decide if this buffer needs to stay around for data logging or ordered
  * write purposes
  */
-static int invalidatepage_can_drop(struct inode *inode, struct buffer_head *bh)
+static int invalidate_folio_can_drop(struct inode *inode, struct buffer_head *bh)
 {
 	int ret = 1;
 	struct reiserfs_journal *j = SB_JOURNAL(inode->i_sb);
@@ -3147,26 +3137,26 @@ free_jh:
 	return ret;
 }
 
-/* clm -- taken from fs/buffer.c:block_invalidate_page */
-static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
-				    unsigned int length)
+/* clm -- taken from fs/buffer.c:block_invalidate_folio */
+static void reiserfs_invalidate_folio(struct folio *folio, size_t offset,
+				    size_t length)
 {
 	struct buffer_head *head, *bh, *next;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	unsigned int curr_off = 0;
 	unsigned int stop = offset + length;
-	int partial_page = (offset || length < PAGE_SIZE);
+	int partial_page = (offset || length < folio_size(folio));
 	int ret = 1;
 
-	BUG_ON(!PageLocked(page));
+	BUG_ON(!folio_test_locked(folio));
 
 	if (!partial_page)
-		ClearPageChecked(page);
+		folio_clear_checked(folio);
 
-	if (!page_has_buffers(page))
+	head = folio_buffers(folio);
+	if (!head)
 		goto out;
 
-	head = page_buffers(page);
 	bh = head;
 	do {
 		unsigned int next_off = curr_off + bh->b_size;
@@ -3179,7 +3169,7 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
 		 * is this block fully invalidated?
 		 */
 		if (offset <= curr_off) {
-			if (invalidatepage_can_drop(inode, bh))
+			if (invalidate_folio_can_drop(inode, bh))
 				reiserfs_unmap_buffer(bh);
 			else
 				ret = 0;
@@ -3194,21 +3184,21 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
 	 * so real IO is not possible anymore.
 	 */
 	if (!partial_page && ret) {
-		ret = try_to_release_page(page, 0);
+		ret = filemap_release_folio(folio, 0);
 		/* maybe should BUG_ON(!ret); - neilb */
 	}
 out:
 	return;
 }
 
-static int reiserfs_set_page_dirty(struct page *page)
+static bool reiserfs_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
-	if (reiserfs_file_data_log(inode)) {
-		SetPageChecked(page);
-		return __set_page_dirty_nobuffers(page);
+	if (reiserfs_file_data_log(mapping->host)) {
+		folio_set_checked(folio);
+		return filemap_dirty_folio(mapping, folio);
 	}
-	return __set_page_dirty_buffers(page);
+	return block_dirty_folio(mapping, folio);
 }
 
 /*
@@ -3316,7 +3306,11 @@ int reiserfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 
 		/* fill in hole pointers in the expanding truncate case. */
 		if (attr->ia_size > inode->i_size) {
-			error = generic_cont_expand_simple(inode, attr->ia_size);
+			loff_t pos = attr->ia_size;
+
+			if ((pos & (inode->i_sb->s_blocksize - 1)) == 0)
+				pos++;
+			error = generic_cont_expand_simple(inode, pos);
 			if (REISERFS_I(inode)->i_prealloc_count > 0) {
 				int err;
 				struct reiserfs_transaction_handle th;
@@ -3430,10 +3424,10 @@ const struct address_space_operations reiserfs_address_space_operations = {
 	.readpage = reiserfs_readpage,
 	.readahead = reiserfs_readahead,
 	.releasepage = reiserfs_releasepage,
-	.invalidatepage = reiserfs_invalidatepage,
+	.invalidate_folio = reiserfs_invalidate_folio,
 	.write_begin = reiserfs_write_begin,
 	.write_end = reiserfs_write_end,
 	.bmap = reiserfs_aop_bmap,
 	.direct_IO = reiserfs_direct_IO,
-	.set_page_dirty = reiserfs_set_page_dirty,
+	.dirty_folio = reiserfs_dirty_folio,
 };

@@ -9,6 +9,14 @@ Description:
 
 		RO
 
+What:		/sys/class/hwmon/hwmonX/label
+Description:
+		A descriptive label that allows to uniquely identify a
+		device within the system.
+		The contents of the label are free-form.
+
+		RO
+
 What:		/sys/class/hwmon/hwmonX/update_interval
 Description:
 		The interval at which the chip will update readings.

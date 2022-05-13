@@ -138,7 +138,7 @@ EXPORT_SYMBOL_GPL(proc_create_net_data);
  * @parent: The parent directory in which to create.
  * @ops: The seq_file ops with which to read the file.
  * @write: The write method with which to 'modify' the file.
- * @data: Data for retrieval by PDE_DATA().
+ * @data: Data for retrieval by pde_data().
  *
  * Create a network namespaced proc file in the @parent directory with the
  * specified @name and @mode that allows reading of a file that displays a
@@ -153,7 +153,7 @@ EXPORT_SYMBOL_GPL(proc_create_net_data);
  * modified by the @write function.  @write should return 0 on success.
  *
  * The @data value is accessible from the @show and @write functions by calling
- * PDE_DATA() on the file inode.  The network namespace must be accessed by
+ * pde_data() on the file inode.  The network namespace must be accessed by
  * calling seq_file_net() on the seq_file struct.
  */
 struct proc_dir_entry *proc_create_net_data_write(const char *name, umode_t mode,
@@ -230,7 +230,7 @@ EXPORT_SYMBOL_GPL(proc_create_net_single);
  * @parent: The parent directory in which to create.
  * @show: The seqfile show method with which to read the file.
  * @write: The write method with which to 'modify' the file.
- * @data: Data for retrieval by PDE_DATA().
+ * @data: Data for retrieval by pde_data().
  *
  * Create a network-namespaced proc file in the @parent directory with the
  * specified @name and @mode that allows reading of a file that displays a
@@ -245,7 +245,7 @@ EXPORT_SYMBOL_GPL(proc_create_net_single);
  * modified by the @write function.  @write should return 0 on success.
  *
  * The @data value is accessible from the @show and @write functions by calling
- * PDE_DATA() on the file inode.  The network namespace must be accessed by
+ * pde_data() on the file inode.  The network namespace must be accessed by
  * calling seq_file_single_net() on the seq_file struct.
  */
 struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mode,

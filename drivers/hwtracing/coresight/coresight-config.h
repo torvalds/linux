@@ -231,7 +231,7 @@ struct cscfg_config_csdev {
 	bool enabled;
 	struct list_head node;
 	int nr_feat;
-	struct cscfg_feature_csdev *feats_csdev[0];
+	struct cscfg_feature_csdev *feats_csdev[];
 };
 
 /**

@@ -67,7 +67,7 @@ out:
 	complete_all(&param->larval->completion);
 	crypto_alg_put(&param->larval->alg);
 	kfree(param);
-	module_put_and_exit(0);
+	module_put_and_kthread_exit(0);
 }
 
 static int cryptomgr_schedule_probe(struct crypto_larval *larval)
@@ -190,7 +190,7 @@ skiptest:
 	crypto_alg_tested(param->driver, err);
 
 	kfree(param);
-	module_put_and_exit(0);
+	module_put_and_kthread_exit(0);
 }
 
 static int cryptomgr_schedule_test(struct crypto_alg *alg)

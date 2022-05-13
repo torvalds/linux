@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "intel_display_types.h"
 #include "intel_hotplug.h"
 
@@ -213,12 +214,6 @@ intel_hpd_irq_storm_switch_to_polling(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void intel_hpd_irq_setup(struct drm_i915_private *i915)
-{
-	if (i915->display_irqs_enabled && i915->hotplug_funcs)
-		i915->hotplug_funcs->hpd_irq_setup(i915);
-}
-
 static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
@@ -281,13 +276,13 @@ intel_encoder_hotplug(struct intel_encoder *encoder,
 		ret = true;
 
 	if (ret) {
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s (epoch counter %llu->%llu)\n",
-			      connector->base.base.id,
-			      connector->base.name,
-			      drm_get_connector_status_name(old_status),
-			      drm_get_connector_status_name(connector->base.status),
-			      old_epoch_counter,
-			      connector->base.epoch_counter);
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] status updated from %s to %s (epoch counter %llu->%llu)\n",
+			    connector->base.base.id,
+			    connector->base.name,
+			    drm_get_connector_status_name(old_status),
+			    drm_get_connector_status_name(connector->base.status),
+			    old_epoch_counter,
+			    connector->base.epoch_counter);
 		return INTEL_HOTPLUG_CHANGED;
 	}
 	return INTEL_HOTPLUG_UNCHANGED;

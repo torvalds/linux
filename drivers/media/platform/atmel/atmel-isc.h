@@ -10,6 +10,13 @@
  */
 #ifndef _ATMEL_ISC_H_
 
+#include <linux/clk-provider.h>
+#include <linux/platform_device.h>
+
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-device.h>
+#include <media/videobuf2-dma-contig.h>
+
 #define ISC_CLK_MAX_DIV		255
 
 enum isc_clk_id {
@@ -95,6 +102,9 @@ struct isc_format {
 			configuration.
  * @fourcc:		Fourcc code for this format.
  * @bpp:		Bytes per pixel in the current format.
+ * @bpp_v4l2:		Bytes per pixel in the current format, for v4l2.
+			This differs from 'bpp' in the sense that in planar
+			formats, it refers only to the first plane.
  * @rlp_cfg_mode:	Configuration of the RLP (rounding, limiting packaging)
  * @dcfg_imode:		Configuration of the input of the DMA module
  * @dctrl_dview:	Configuration of the output of the DMA module
@@ -105,6 +115,7 @@ struct fmt_config {
 
 	u32			fourcc;
 	u8			bpp;
+	u8			bpp_v4l2;
 
 	u32			rlp_cfg_mode;
 	u32			dcfg_imode;

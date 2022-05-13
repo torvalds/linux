@@ -180,7 +180,8 @@ static struct sdw_intel_ctx
 	if (!res)
 		return NULL;
 
-	if (acpi_bus_get_device(res->handle, &adev))
+	adev = acpi_fetch_acpi_dev(res->handle);
+	if (!adev)
 		return NULL;
 
 	if (!res->count)
@@ -294,13 +295,13 @@ err:
 static int
 sdw_intel_startup_controller(struct sdw_intel_ctx *ctx)
 {
-	struct acpi_device *adev;
+	struct acpi_device *adev = acpi_fetch_acpi_dev(ctx->handle);
 	struct sdw_intel_link_dev *ldev;
 	u32 caps;
 	u32 link_mask;
 	int i;
 
-	if (acpi_bus_get_device(ctx->handle, &adev))
+	if (!adev)
 		return -EINVAL;
 
 	/* Check SNDWLCAP.LCOUNT */

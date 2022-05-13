@@ -922,11 +922,7 @@ netdev_open_error:
 
 int rtw_ips_pwr_up(struct adapter *padapter)
 {
-	int result;
-
-	result = ips_netdrv_open(padapter);
-
-	return result;
+	return ips_netdrv_open(padapter);
 }
 
 void rtw_ips_pwr_down(struct adapter *padapter)

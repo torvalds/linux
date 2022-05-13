@@ -6,7 +6,6 @@
 
 #if !defined(_TRACE_HOOK_NET_VH_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HOOK_NET_VH_H
-#include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
 struct packet_type;

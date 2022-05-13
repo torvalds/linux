@@ -4,6 +4,8 @@
 #ifndef _ICE_FLOW_H_
 #define _ICE_FLOW_H_
 
+#include "ice_flex_type.h"
+
 #define ICE_FLOW_ENTRY_HANDLE_INVAL	0
 #define ICE_FLOW_FLD_OFF_INVAL		0xffff
 

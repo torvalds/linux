@@ -436,6 +436,17 @@
         "SampleAfterValue": "2000003"
     },
     {
+        "BriefDescription": "Number of all retired NOP instructions.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "Errata": "SKL091, SKL044",
+        "EventCode": "0xC0",
+        "EventName": "INST_RETIRED.NOP",
+        "PEBS": "1",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
+    },
+    {
         "BriefDescription": "Precise instruction retired event with HW to reduce effect of PEBS shadow in IP distribution",
         "Counter": "1",
         "CounterHTOff": "1",

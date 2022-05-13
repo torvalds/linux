@@ -107,12 +107,13 @@ Encrypted Keys
 --------------
 
 Encrypted keys do not depend on a trust source, and are faster, as they use AES
-for encryption/decryption. New keys are created from kernel-generated random
-numbers, and are encrypted/decrypted using a specified ‘master’ key. The
-‘master’ key can either be a trusted-key or user-key type. The main disadvantage
-of encrypted keys is that if they are not rooted in a trusted key, they are only
-as secure as the user key encrypting them. The master user key should therefore
-be loaded in as secure a way as possible, preferably early in boot.
+for encryption/decryption. New keys are created either from kernel-generated
+random numbers or user-provided decrypted data, and are encrypted/decrypted
+using a specified ‘master’ key. The ‘master’ key can either be a trusted-key or
+user-key type. The main disadvantage of encrypted keys is that if they are not
+rooted in a trusted key, they are only as secure as the user key encrypting
+them. The master user key should therefore be loaded in as secure a way as
+possible, preferably early in boot.
 
 
 Usage
@@ -199,6 +200,8 @@ Usage::
 
     keyctl add encrypted name "new [format] key-type:master-key-name keylen"
         ring
+    keyctl add encrypted name "new [format] key-type:master-key-name keylen
+        decrypted-data" ring
     keyctl add encrypted name "load hex_blob" ring
     keyctl update keyid "update key-type:master-key-name"
 
@@ -302,6 +305,16 @@ Load an encrypted key "evm" from saved blob::
     default trusted:kmk 32 2375725ad57798846a9bbd240de8906f006e66c03af53b1b3
     82dbbc55be2a44616e4959430436dc4f2a7a9659aa60bb4652aeb2120f149ed197c564e0
     24717c64 5972dcb82ab2dde83376d82b2e3c09ffc
+
+Instantiate an encrypted key "evm" using user-provided decrypted data::
+
+    $ keyctl add encrypted evm "new default user:kmk 32 `cat evm_decrypted_data.blob`" @u
+    794890253
+
+    $ keyctl print 794890253
+    default user:kmk 32 2375725ad57798846a9bbd240de8906f006e66c03af53b1b382d
+    bbc55be2a44616e4959430436dc4f2a7a9659aa60bb4652aeb2120f149ed197c564e0247
+    17c64 5972dcb82ab2dde83376d82b2e3c09ffc
 
 Other uses for trusted and encrypted keys, such as for disk and file encryption
 are anticipated.  In particular the new format 'ecryptfs' has been defined

@@ -5,7 +5,6 @@
  *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Denis Joseph Barrow,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  *
  *  based on other smp stuff by
  *    (c) 1995 Alan Cox, CymruNET Ltd  <alan@cymru.net>
@@ -208,14 +207,13 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->spinlock_index = 0;
-	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	lc->preempt_count = PREEMPT_DISABLED;
 	if (nmi_alloc_mcesa(&lc->mcesad))
 		goto out;
 	lowcore_ptr[cpu] = lc;
-	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, (u32)(unsigned long) lc);
+	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, __pa(lc));
 	return 0;
 
 out:
@@ -328,10 +326,17 @@ static void pcpu_delegate(struct pcpu *pcpu,
 	/* Stop target cpu (if func returns this stops the current cpu). */
 	pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
-	mem_assign_absolute(lc->restart_stack, stack);
-	mem_assign_absolute(lc->restart_fn, (unsigned long) func);
-	mem_assign_absolute(lc->restart_data, (unsigned long) data);
-	mem_assign_absolute(lc->restart_source, source_cpu);
+	if (lc) {
+		lc->restart_stack = stack;
+		lc->restart_fn = (unsigned long)func;
+		lc->restart_data = (unsigned long)data;
+		lc->restart_source = source_cpu;
+	} else {
+		put_abs_lowcore(restart_stack, stack);
+		put_abs_lowcore(restart_fn, (unsigned long)func);
+		put_abs_lowcore(restart_data, (unsigned long)data);
+		put_abs_lowcore(restart_source, source_cpu);
+	}
 	__bpon();
 	asm volatile(
 		"0:	sigp	0,%0,%2	# sigp restart to target cpu\n"
@@ -572,39 +577,27 @@ static void smp_ctl_bit_callback(void *info)
 }
 
 static DEFINE_SPINLOCK(ctl_lock);
-static unsigned long ctlreg;
 
-/*
- * Set a bit in a control register of all cpus
- */
-void smp_ctl_set_bit(int cr, int bit)
+void smp_ctl_set_clear_bit(int cr, int bit, bool set)
 {
-	struct ec_creg_mask_parms parms = { 1UL << bit, -1UL, cr };
+	struct ec_creg_mask_parms parms = { .cr = cr, };
+	u64 ctlreg;
 
+	if (set) {
+		parms.orval = 1UL << bit;
+		parms.andval = -1UL;
+	} else {
+		parms.orval = 0;
+		parms.andval = ~(1UL << bit);
+	}
 	spin_lock(&ctl_lock);
-	memcpy_absolute(&ctlreg, &S390_lowcore.cregs_save_area[cr], sizeof(ctlreg));
-	__set_bit(bit, &ctlreg);
-	memcpy_absolute(&S390_lowcore.cregs_save_area[cr], &ctlreg, sizeof(ctlreg));
+	get_abs_lowcore(ctlreg, cregs_save_area[cr]);
+	ctlreg = (ctlreg & parms.andval) | parms.orval;
+	put_abs_lowcore(cregs_save_area[cr], ctlreg);
 	spin_unlock(&ctl_lock);
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
-EXPORT_SYMBOL(smp_ctl_set_bit);
-
-/*
- * Clear a bit in a control register of all cpus
- */
-void smp_ctl_clear_bit(int cr, int bit)
-{
-	struct ec_creg_mask_parms parms = { 0, ~(1UL << bit), cr };
-
-	spin_lock(&ctl_lock);
-	memcpy_absolute(&ctlreg, &S390_lowcore.cregs_save_area[cr], sizeof(ctlreg));
-	__clear_bit(bit, &ctlreg);
-	memcpy_absolute(&S390_lowcore.cregs_save_area[cr], &ctlreg, sizeof(ctlreg));
-	spin_unlock(&ctl_lock);
-	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
-}
-EXPORT_SYMBOL(smp_ctl_clear_bit);
+EXPORT_SYMBOL(smp_ctl_set_clear_bit);
 
 #ifdef CONFIG_CRASH_DUMP
 
@@ -671,7 +664,7 @@ static __init void smp_save_cpu_regs(struct save_area *sa, u16 addr,
 				     bool is_boot_cpu, void *regs)
 {
 	if (is_boot_cpu)
-		copy_oldmem_kernel(regs, (void *) __LC_FPREGS_SAVE_AREA, 512);
+		copy_oldmem_kernel(regs, __LC_FPREGS_SAVE_AREA, 512);
 	else
 		__pcpu_sigp_relax(addr, SIGP_STORE_STATUS_AT_ADDRESS, __pa(regs));
 	save_area_add_regs(sa, regs);
@@ -1253,7 +1246,7 @@ static __always_inline void set_new_lowcore(struct lowcore *lc)
 	src.odd  = sizeof(S390_lowcore);
 	dst.even = (unsigned long) lc;
 	dst.odd  = sizeof(*lc);
-	pfx = (unsigned long) lc;
+	pfx = __pa(lc);
 
 	asm volatile(
 		"	mvcl	%[dst],%[src]\n"
@@ -1293,8 +1286,8 @@ static int __init smp_reinit_ipl_cpu(void)
 	local_irq_restore(flags);
 
 	free_pages(lc_ipl->async_stack - STACK_INIT_OFFSET, THREAD_SIZE_ORDER);
-	memblock_free_late(lc_ipl->mcck_stack - STACK_INIT_OFFSET, THREAD_SIZE);
-	memblock_free_late((unsigned long) lc_ipl, sizeof(*lc_ipl));
+	memblock_free_late(__pa(lc_ipl->mcck_stack - STACK_INIT_OFFSET), THREAD_SIZE);
+	memblock_free_late(__pa(lc_ipl), sizeof(*lc_ipl));
 
 	return 0;
 }

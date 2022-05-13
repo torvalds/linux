@@ -860,9 +860,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 		status->chain_signal[1] = mt76x02_mac_get_rssi(dev,
 							       rxwi->rssi[1],
 							       1);
-		signal = max_t(s8, signal, status->chain_signal[1]);
 	}
-	status->signal = signal;
 	status->freq = dev->mphy.chandef.chan->center_freq;
 	status->band = dev->mphy.chandef.chan->band;
 
@@ -1040,12 +1038,26 @@ EXPORT_SYMBOL_GPL(mt76x02_update_channel);
 
 static void mt76x02_check_mac_err(struct mt76x02_dev *dev)
 {
-	u32 val = mt76_rr(dev, 0x10f4);
+	if (dev->mt76.beacon_mask) {
+		if (mt76_rr(dev, MT_TX_STA_0) & MT_TX_STA_0_BEACONS) {
+			dev->beacon_hang_check = 0;
+			return;
+		}
 
-	if (!(val & BIT(29)) || !(val & (BIT(7) | BIT(5))))
-		return;
+		if (++dev->beacon_hang_check < 10)
+			return;
 
-	dev_err(dev->mt76.dev, "mac specific condition occurred\n");
+		dev->beacon_hang_check = 0;
+	} else {
+		u32 val = mt76_rr(dev, 0x10f4);
+		if (!(val & BIT(29)) || !(val & (BIT(7) | BIT(5))))
+			return;
+	}
+
+	dev_err(dev->mt76.dev, "MAC error detected\n");
+
+	mt76_wr(dev, MT_MAC_SYS_CTRL, 0);
+	mt76x02_wait_for_txrx_idle(&dev->mt76);
 
 	mt76_set(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_RESET_CSR);
 	udelay(10);
@@ -1178,8 +1190,7 @@ void mt76x02_mac_work(struct work_struct *work)
 		dev->mt76.aggr_stats[idx++] += val >> 16;
 	}
 
-	if (!dev->mt76.beacon_mask)
-		mt76x02_check_mac_err(dev);
+	mt76x02_check_mac_err(dev);
 
 	if (dev->ed_monitor)
 		mt76x02_edcca_check(dev);

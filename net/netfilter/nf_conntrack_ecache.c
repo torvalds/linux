@@ -131,13 +131,13 @@ static void ecache_work(struct work_struct *work)
 }
 
 static int __nf_conntrack_eventmask_report(struct nf_conntrack_ecache *e,
-					   const unsigned int events,
-					   const unsigned long missed,
+					   const u32 events,
+					   const u32 missed,
 					   const struct nf_ct_event *item)
 {
-	struct nf_conn *ct = item->ct;
 	struct net *net = nf_ct_net(item->ct);
 	struct nf_ct_event_notifier *notify;
+	u32 old, want;
 	int ret;
 
 	if (!((events | missed) & e->ctmask))
@@ -157,12 +157,13 @@ static int __nf_conntrack_eventmask_report(struct nf_conntrack_ecache *e,
 	if (likely(ret >= 0 && missed == 0))
 		return 0;
 
-	spin_lock_bh(&ct->lock);
-	if (ret < 0)
-		e->missed |= events;
-	else
-		e->missed &= ~missed;
-	spin_unlock_bh(&ct->lock);
+	do {
+		old = READ_ONCE(e->missed);
+		if (ret < 0)
+			want = old | events;
+		else
+			want = old & ~missed;
+	} while (cmpxchg(&e->missed, old, want) != old);
 
 	return ret;
 }
@@ -172,7 +173,7 @@ int nf_conntrack_eventmask_report(unsigned int events, struct nf_conn *ct,
 {
 	struct nf_conntrack_ecache *e;
 	struct nf_ct_event item;
-	unsigned long missed;
+	unsigned int missed;
 	int ret;
 
 	if (!nf_ct_is_confirmed(ct))
@@ -211,7 +212,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 {
 	struct nf_conntrack_ecache *e;
 	struct nf_ct_event item;
-	unsigned long events;
+	unsigned int events;
 
 	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct))
 		return;
@@ -304,12 +305,6 @@ void nf_conntrack_ecache_work(struct net *net, enum nf_ct_ecache_state state)
 #define NF_CT_EVENTS_DEFAULT 1
 static int nf_ct_events __read_mostly = NF_CT_EVENTS_DEFAULT;
 
-static const struct nf_ct_ext_type event_extend = {
-	.len	= sizeof(struct nf_conntrack_ecache),
-	.align	= __alignof__(struct nf_conntrack_ecache),
-	.id	= NF_CT_EXT_ECACHE,
-};
-
 void nf_conntrack_ecache_pernet_init(struct net *net)
 {
 	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
@@ -317,6 +312,8 @@ void nf_conntrack_ecache_pernet_init(struct net *net)
 	net->ct.sysctl_events = nf_ct_events;
 	cnet->ct_net = &net->ct;
 	INIT_DELAYED_WORK(&cnet->ecache_dwork, ecache_work);
+
+	BUILD_BUG_ON(__IPCT_MAX >= 16);	/* e->ctmask is u16 */
 }
 
 void nf_conntrack_ecache_pernet_fini(struct net *net)
@@ -324,20 +321,4 @@ void nf_conntrack_ecache_pernet_fini(struct net *net)
 	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
 	cancel_delayed_work_sync(&cnet->ecache_dwork);
-}
-
-int nf_conntrack_ecache_init(void)
-{
-	int ret = nf_ct_extend_register(&event_extend);
-	if (ret < 0)
-		pr_err("Unable to register event extension\n");
-
-	BUILD_BUG_ON(__IPCT_MAX >= 16);	/* ctmask, missed use u16 */
-
-	return ret;
-}
-
-void nf_conntrack_ecache_fini(void)
-{
-	nf_ct_extend_unregister(&event_extend);
 }

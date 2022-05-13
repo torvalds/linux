@@ -53,6 +53,7 @@
 #include <unistd.h>
 
 #include "psock_lib.h"
+#include "../kselftest.h"
 
 #define RING_NUM_FRAMES			20
 
@@ -117,7 +118,7 @@ static void sock_fanout_set_cbpf(int fd)
 	struct sock_fprog bpf_prog;
 
 	bpf_prog.filter = bpf_filter;
-	bpf_prog.len = sizeof(bpf_filter) / sizeof(struct sock_filter);
+	bpf_prog.len = ARRAY_SIZE(bpf_filter);
 
 	if (setsockopt(fd, SOL_PACKET, PACKET_FANOUT_DATA, &bpf_prog,
 		       sizeof(bpf_prog))) {
@@ -162,7 +163,7 @@ static void sock_fanout_set_ebpf(int fd)
 	memset(&attr, 0, sizeof(attr));
 	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
 	attr.insns = (unsigned long) prog;
-	attr.insn_cnt = sizeof(prog) / sizeof(prog[0]);
+	attr.insn_cnt = ARRAY_SIZE(prog);
 	attr.license = (unsigned long) "GPL";
 	attr.log_buf = (unsigned long) log_buf,
 	attr.log_size = sizeof(log_buf),

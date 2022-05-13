@@ -86,7 +86,8 @@ static int gve_rx_alloc_buffer(struct gve_priv *priv, struct device *dev,
 	dma_addr_t dma;
 	int err;
 
-	err = gve_alloc_page(priv, dev, &page, &dma, DMA_FROM_DEVICE);
+	err = gve_alloc_page(priv, dev, &page, &dma, DMA_FROM_DEVICE,
+			     GFP_ATOMIC);
 	if (err)
 		return err;
 
@@ -438,7 +439,7 @@ static bool gve_rx_ctx_init(struct gve_rx_ctx *ctx, struct gve_rx_ring *rx)
 		if (frag_size > rx->packet_buffer_size) {
 			packet_size_error = true;
 			netdev_warn(priv->dev,
-				    "RX fragment error: packet_buffer_size=%d, frag_size=%d, droping packet.",
+				    "RX fragment error: packet_buffer_size=%d, frag_size=%d, dropping packet.",
 				    rx->packet_buffer_size, be16_to_cpu(desc->len));
 		}
 		page_info = &rx->data.page_info[idx];
@@ -608,6 +609,7 @@ static bool gve_rx(struct gve_rx_ring *rx, netdev_features_t feat,
 
 	*packet_size_bytes = skb->len + (skb->protocol ? ETH_HLEN : 0);
 	*work_done = work_cnt;
+	skb_record_rx_queue(skb, rx->q_num);
 	if (skb_is_nonlinear(skb))
 		napi_gro_frags(napi);
 	else

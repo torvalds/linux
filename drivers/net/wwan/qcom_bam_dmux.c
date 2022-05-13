@@ -755,7 +755,7 @@ static int __maybe_unused bam_dmux_runtime_resume(struct device *dev)
 		return 0;
 
 	dmux->tx = dma_request_chan(dev, "tx");
-	if (IS_ERR(dmux->rx)) {
+	if (IS_ERR(dmux->tx)) {
 		dev_err(dev, "Failed to request TX DMA channel: %pe\n", dmux->tx);
 		dmux->tx = NULL;
 		bam_dmux_runtime_suspend(dev);

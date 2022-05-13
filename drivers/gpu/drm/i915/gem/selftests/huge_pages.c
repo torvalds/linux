@@ -8,9 +8,10 @@
 
 #include "i915_selftest.h"
 
-#include "gem/i915_gem_region.h"
+#include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_pm.h"
+#include "gem/i915_gem_region.h"
 
 #include "gt/intel_gt.h"
 
@@ -370,9 +371,9 @@ static int igt_check_page_sizes(struct i915_vma *vma)
 		err = -EINVAL;
 	}
 
-	if (!HAS_PAGE_SIZES(i915, vma->page_sizes.gtt)) {
+	if (!HAS_PAGE_SIZES(i915, vma->resource->page_sizes_gtt)) {
 		pr_err("unsupported page_sizes.gtt=%u, supported=%u\n",
-		       vma->page_sizes.gtt & ~supported, supported);
+		       vma->resource->page_sizes_gtt & ~supported, supported);
 		err = -EINVAL;
 	}
 
@@ -403,15 +404,9 @@ static int igt_check_page_sizes(struct i915_vma *vma)
 	if (i915_gem_object_is_lmem(obj) &&
 	    IS_ALIGNED(vma->node.start, SZ_2M) &&
 	    vma->page_sizes.sg & SZ_2M &&
-	    vma->page_sizes.gtt < SZ_2M) {
+	    vma->resource->page_sizes_gtt < SZ_2M) {
 		pr_err("gtt pages mismatch for LMEM, expected 2M GTT pages, sg(%u), gtt(%u)\n",
-		       vma->page_sizes.sg, vma->page_sizes.gtt);
-		err = -EINVAL;
-	}
-
-	if (obj->mm.page_sizes.gtt) {
-		pr_err("obj->page_sizes.gtt(%u) should never be set\n",
-		       obj->mm.page_sizes.gtt);
+		       vma->page_sizes.sg, vma->resource->page_sizes_gtt);
 		err = -EINVAL;
 	}
 
@@ -505,7 +500,7 @@ static int igt_mock_memory_region_huge_pages(void *arg)
 	int bit;
 	int err = 0;
 
-	mem = mock_region_create(i915, 0, SZ_2G, I915_GTT_PAGE_SIZE_4K, 0);
+	mem = mock_region_create(i915, 0, SZ_2G, I915_GTT_PAGE_SIZE_4K, 0, 0);
 	if (IS_ERR(mem)) {
 		pr_err("%s failed to create memory region\n", __func__);
 		return PTR_ERR(mem);
@@ -547,9 +542,9 @@ static int igt_mock_memory_region_huge_pages(void *arg)
 				goto out_unpin;
 			}
 
-			if (vma->page_sizes.gtt != page_size) {
+			if (vma->resource->page_sizes_gtt != page_size) {
 				pr_err("%s page_sizes.gtt=%u, expected=%u\n",
-				       __func__, vma->page_sizes.gtt,
+				       __func__, vma->resource->page_sizes_gtt,
 				       page_size);
 				err = -EINVAL;
 				goto out_unpin;
@@ -630,9 +625,9 @@ static int igt_mock_ppgtt_misaligned_dma(void *arg)
 
 		err = igt_check_page_sizes(vma);
 
-		if (vma->page_sizes.gtt != page_size) {
+		if (vma->resource->page_sizes_gtt != page_size) {
 			pr_err("page_sizes.gtt=%u, expected %u\n",
-			       vma->page_sizes.gtt, page_size);
+			       vma->resource->page_sizes_gtt, page_size);
 			err = -EINVAL;
 		}
 
@@ -647,7 +642,7 @@ static int igt_mock_ppgtt_misaligned_dma(void *arg)
 		 * pages.
 		 */
 		for (offset = 4096; offset < page_size; offset += 4096) {
-			err = i915_vma_unbind(vma);
+			err = i915_vma_unbind_unlocked(vma);
 			if (err)
 				goto out_unpin;
 
@@ -657,9 +652,10 @@ static int igt_mock_ppgtt_misaligned_dma(void *arg)
 
 			err = igt_check_page_sizes(vma);
 
-			if (vma->page_sizes.gtt != I915_GTT_PAGE_SIZE_4K) {
+			if (vma->resource->page_sizes_gtt != I915_GTT_PAGE_SIZE_4K) {
 				pr_err("page_sizes.gtt=%u, expected %llu\n",
-				       vma->page_sizes.gtt, I915_GTT_PAGE_SIZE_4K);
+				       vma->resource->page_sizes_gtt,
+				       I915_GTT_PAGE_SIZE_4K);
 				err = -EINVAL;
 			}
 
@@ -805,9 +801,9 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 			}
 		}
 
-		if (vma->page_sizes.gtt != expected_gtt) {
+		if (vma->resource->page_sizes_gtt != expected_gtt) {
 			pr_err("gtt=%u, expected=%u, size=%zd, single=%s\n",
-			       vma->page_sizes.gtt, expected_gtt,
+			       vma->resource->page_sizes_gtt, expected_gtt,
 			       obj->base.size, yesno(!!single));
 			err = -EINVAL;
 			break;
@@ -961,10 +957,10 @@ static int igt_mock_ppgtt_64K(void *arg)
 				}
 			}
 
-			if (vma->page_sizes.gtt != expected_gtt) {
+			if (vma->resource->page_sizes_gtt != expected_gtt) {
 				pr_err("gtt=%u, expected=%u, i=%d, single=%s\n",
-				       vma->page_sizes.gtt, expected_gtt, i,
-				       yesno(!!single));
+				       vma->resource->page_sizes_gtt,
+				       expected_gtt, i, yesno(!!single));
 				err = -EINVAL;
 				goto out_vma_unpin;
 			}
@@ -1349,7 +1345,7 @@ try_again:
 
 		err = i915_gem_object_pin_pages_unlocked(obj);
 		if (err) {
-			if (err == -ENXIO || err == -E2BIG) {
+			if (err == -ENXIO || err == -E2BIG || err == -ENOMEM) {
 				i915_gem_object_put(obj);
 				size >>= 1;
 				goto try_again;
@@ -1477,6 +1473,65 @@ static int igt_ppgtt_sanity_check(void *arg)
 	}
 
 out:
+	if (err == -ENOMEM)
+		err = 0;
+
+	return err;
+}
+
+static int igt_ppgtt_compact(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct drm_i915_gem_object *obj;
+	int err;
+
+	/*
+	 * Simple test to catch issues with compact 64K pages -- since the pt is
+	 * compacted to 256B that gives us 32 entries per pt, however since the
+	 * backing page for the pt is 4K, any extra entries we might incorrectly
+	 * write out should be ignored by the HW. If ever hit such a case this
+	 * test should catch it since some of our writes would land in scratch.
+	 */
+
+	if (!HAS_64K_PAGES(i915)) {
+		pr_info("device lacks compact 64K page support, skipping\n");
+		return 0;
+	}
+
+	if (!HAS_LMEM(i915)) {
+		pr_info("device lacks LMEM support, skipping\n");
+		return 0;
+	}
+
+	/* We want the range to cover multiple page-table boundaries. */
+	obj = i915_gem_object_create_lmem(i915, SZ_4M, 0);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	err = i915_gem_object_pin_pages_unlocked(obj);
+	if (err)
+		goto out_put;
+
+	if (obj->mm.page_sizes.phys < I915_GTT_PAGE_SIZE_64K) {
+		pr_info("LMEM compact unable to allocate huge-page(s)\n");
+		goto out_unpin;
+	}
+
+	/*
+	 * Disable 2M GTT pages by forcing the page-size to 64K for the GTT
+	 * insertion.
+	 */
+	obj->mm.page_sizes.sg = I915_GTT_PAGE_SIZE_64K;
+
+	err = igt_write_huge(i915, obj);
+	if (err)
+		pr_err("LMEM compact write-huge failed\n");
+
+out_unpin:
+	i915_gem_object_unpin_pages(obj);
+out_put:
+	i915_gem_object_put(obj);
+
 	if (err == -ENOMEM)
 		err = 0;
 
@@ -1740,6 +1795,7 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_tmpfs_fallback),
 		SUBTEST(igt_ppgtt_smoke_huge),
 		SUBTEST(igt_ppgtt_sanity_check),
+		SUBTEST(igt_ppgtt_compact),
 	};
 
 	if (!HAS_PPGTT(i915)) {

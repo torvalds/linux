@@ -33,7 +33,7 @@ static int do_attach(int idx, int prog_fd, int map_fd, const char *name)
 {
 	int err;
 
-	err = bpf_set_link_xdp_fd(idx, prog_fd, xdp_flags);
+	err = bpf_xdp_attach(idx, prog_fd, xdp_flags, NULL);
 	if (err < 0) {
 		printf("ERROR: failed to attach program to %s\n", name);
 		return err;
@@ -51,7 +51,7 @@ static int do_detach(int idx, const char *name)
 {
 	int err;
 
-	err = bpf_set_link_xdp_fd(idx, -1, xdp_flags);
+	err = bpf_xdp_detach(idx, xdp_flags, NULL);
 	if (err < 0)
 		printf("ERROR: failed to detach program from %s\n", name);
 
@@ -75,14 +75,11 @@ static void usage(const char *prog)
 
 int main(int argc, char **argv)
 {
-	struct bpf_prog_load_attr prog_load_attr = {
-		.prog_type	= BPF_PROG_TYPE_XDP,
-	};
 	const char *prog_name = "xdp_fwd";
 	struct bpf_program *prog = NULL;
 	struct bpf_program *pos;
 	const char *sec_name;
-	int prog_fd, map_fd = -1;
+	int prog_fd = -1, map_fd = -1;
 	char filename[PATH_MAX];
 	struct bpf_object *obj;
 	int opt, i, idx, err;
@@ -119,7 +116,6 @@ int main(int argc, char **argv)
 
 	if (attach) {
 		snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-		prog_load_attr.file = filename;
 
 		if (access(filename, O_RDONLY) < 0) {
 			printf("error accessing file %s: %s\n",
@@ -127,7 +123,14 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
-		err = bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd);
+		obj = bpf_object__open_file(filename, NULL);
+		if (libbpf_get_error(obj))
+			return 1;
+
+		prog = bpf_object__next_program(obj, NULL);
+		bpf_program__set_type(prog, BPF_PROG_TYPE_XDP);
+
+		err = bpf_object__load(obj);
 		if (err) {
 			printf("Does kernel support devmap lookup?\n");
 			/* If not, the error message will be:

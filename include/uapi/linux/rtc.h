@@ -133,7 +133,8 @@ struct rtc_param {
 #define RTC_FEATURE_UPDATE_INTERRUPT	4
 #define RTC_FEATURE_CORRECTION		5
 #define RTC_FEATURE_BACKUP_SWITCH_MODE	6
-#define RTC_FEATURE_CNT			7
+#define RTC_FEATURE_ALARM_WAKEUP_ONLY	7
+#define RTC_FEATURE_CNT			8
 
 /* parameter list */
 #define RTC_PARAM_FEATURES		0

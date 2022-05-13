@@ -297,6 +297,7 @@ static int virtcrypto_probe(struct virtio_device *vdev)
 	u32 mac_algo_l = 0;
 	u32 mac_algo_h = 0;
 	u32 aead_algo = 0;
+	u32 akcipher_algo = 0;
 	u32 crypto_services = 0;
 
 	if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1))
@@ -348,6 +349,9 @@ static int virtcrypto_probe(struct virtio_device *vdev)
 			mac_algo_h, &mac_algo_h);
 	virtio_cread_le(vdev, struct virtio_crypto_config,
 			aead_algo, &aead_algo);
+	if (crypto_services & (1 << VIRTIO_CRYPTO_SERVICE_AKCIPHER))
+		virtio_cread_le(vdev, struct virtio_crypto_config,
+				akcipher_algo, &akcipher_algo);
 
 	/* Add virtio crypto device to global table */
 	err = virtcrypto_devmgr_add_dev(vcrypto);
@@ -374,7 +378,7 @@ static int virtcrypto_probe(struct virtio_device *vdev)
 	vcrypto->mac_algo_h = mac_algo_h;
 	vcrypto->hash_algo = hash_algo;
 	vcrypto->aead_algo = aead_algo;
-
+	vcrypto->akcipher_algo = akcipher_algo;
 
 	dev_info(&vdev->dev,
 		"max_queues: %u, max_cipher_key_len: %u, max_auth_key_len: %u, max_size 0x%llx\n",
@@ -404,7 +408,7 @@ static int virtcrypto_probe(struct virtio_device *vdev)
 free_engines:
 	virtcrypto_clear_crypto_engines(vcrypto);
 free_vqs:
-	vcrypto->vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	virtcrypto_del_vqs(vcrypto);
 free_dev:
 	virtcrypto_devmgr_rm_dev(vcrypto);
@@ -436,7 +440,7 @@ static void virtcrypto_remove(struct virtio_device *vdev)
 
 	if (virtcrypto_dev_started(vcrypto))
 		virtcrypto_dev_stop(vcrypto);
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	virtcrypto_free_unused_reqs(vcrypto);
 	virtcrypto_clear_crypto_engines(vcrypto);
 	virtcrypto_del_vqs(vcrypto);
@@ -456,7 +460,7 @@ static int virtcrypto_freeze(struct virtio_device *vdev)
 {
 	struct virtio_crypto *vcrypto = vdev->priv;
 
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	virtcrypto_free_unused_reqs(vcrypto);
 	if (virtcrypto_dev_started(vcrypto))
 		virtcrypto_dev_stop(vcrypto);
@@ -492,7 +496,7 @@ static int virtcrypto_restore(struct virtio_device *vdev)
 free_engines:
 	virtcrypto_clear_crypto_engines(vcrypto);
 free_vqs:
-	vcrypto->vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	virtcrypto_del_vqs(vcrypto);
 	return err;
 }

@@ -25,13 +25,14 @@
  *
  */
 
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 
 #include "display/intel_display.h"
 #include "display/intel_display_types.h"
 #include "display/intel_gmbus.h"
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 
 #define _INTEL_BIOS_PRIVATE
 #include "intel_vbt_defs.h"
@@ -595,6 +596,12 @@ parse_general_features(struct drm_i915_private *i915,
 	} else {
 		i915->vbt.orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 	}
+
+	if (bdb->version >= 249 && general->afc_startup_config) {
+		i915->vbt.override_afc_startup = true;
+		i915->vbt.override_afc_startup_val = general->afc_startup_config == 0x1 ? 0x0 : 0x7;
+	}
+
 	drm_dbg_kms(&i915->drm,
 		    "BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d fdi_rx_polarity_inverted %d\n",
 		    i915->vbt.int_tv_support,
@@ -904,26 +911,6 @@ parse_psr(struct drm_i915_private *i915, const struct bdb_header *bdb)
 	/* Allowed VBT values goes from 0 to 15 */
 	i915->vbt.psr.idle_frames = psr_table->idle_frames < 0 ? 0 :
 		psr_table->idle_frames > 15 ? 15 : psr_table->idle_frames;
-
-	switch (psr_table->lines_to_wait) {
-	case 0:
-		i915->vbt.psr.lines_to_wait = PSR_0_LINES_TO_WAIT;
-		break;
-	case 1:
-		i915->vbt.psr.lines_to_wait = PSR_1_LINE_TO_WAIT;
-		break;
-	case 2:
-		i915->vbt.psr.lines_to_wait = PSR_4_LINES_TO_WAIT;
-		break;
-	case 3:
-		i915->vbt.psr.lines_to_wait = PSR_8_LINES_TO_WAIT;
-		break;
-	default:
-		drm_dbg_kms(&i915->drm,
-			    "VBT has unknown PSR lines to wait %u\n",
-			    psr_table->lines_to_wait);
-		break;
-	}
 
 	/*
 	 * New psr options 0=500us, 1=100us, 2=2500us, 3=0us
@@ -2073,14 +2060,16 @@ static void parse_ddi_port(struct drm_i915_private *i915,
 	i915->vbt.ports[port] = devdata;
 }
 
+static bool has_ddi_port_info(struct drm_i915_private *i915)
+{
+	return DISPLAY_VER(i915) >= 5 || IS_G4X(i915);
+}
+
 static void parse_ddi_ports(struct drm_i915_private *i915)
 {
 	struct intel_bios_encoder_data *devdata;
 
-	if (!HAS_DDI(i915) && !IS_CHERRYVIEW(i915))
-		return;
-
-	if (i915->vbt.version < 155)
+	if (!has_ddi_port_info(i915))
 		return;
 
 	list_for_each_entry(devdata, &i915->vbt.display_devices, node)
@@ -2335,6 +2324,63 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 	return vbt;
 }
 
+static struct vbt_header *spi_oprom_get_vbt(struct drm_i915_private *i915)
+{
+	u32 count, data, found, store = 0;
+	u32 static_region, oprom_offset;
+	u32 oprom_size = 0x200000;
+	u16 vbt_size;
+	u32 *vbt;
+
+	static_region = intel_uncore_read(&i915->uncore, SPI_STATIC_REGIONS);
+	static_region &= OPTIONROM_SPI_REGIONID_MASK;
+	intel_uncore_write(&i915->uncore, PRIMARY_SPI_REGIONID, static_region);
+
+	oprom_offset = intel_uncore_read(&i915->uncore, OROM_OFFSET);
+	oprom_offset &= OROM_OFFSET_MASK;
+
+	for (count = 0; count < oprom_size; count += 4) {
+		intel_uncore_write(&i915->uncore, PRIMARY_SPI_ADDRESS, oprom_offset + count);
+		data = intel_uncore_read(&i915->uncore, PRIMARY_SPI_TRIGGER);
+
+		if (data == *((const u32 *)"$VBT")) {
+			found = oprom_offset + count;
+			break;
+		}
+	}
+
+	if (count >= oprom_size)
+		goto err_not_found;
+
+	/* Get VBT size and allocate space for the VBT */
+	intel_uncore_write(&i915->uncore, PRIMARY_SPI_ADDRESS, found +
+		   offsetof(struct vbt_header, vbt_size));
+	vbt_size = intel_uncore_read(&i915->uncore, PRIMARY_SPI_TRIGGER);
+	vbt_size &= 0xffff;
+
+	vbt = kzalloc(round_up(vbt_size, 4), GFP_KERNEL);
+	if (!vbt)
+		goto err_not_found;
+
+	for (count = 0; count < vbt_size; count += 4) {
+		intel_uncore_write(&i915->uncore, PRIMARY_SPI_ADDRESS, found + count);
+		data = intel_uncore_read(&i915->uncore, PRIMARY_SPI_TRIGGER);
+		*(vbt + store++) = data;
+	}
+
+	if (!intel_bios_is_valid_vbt(vbt, vbt_size))
+		goto err_free_vbt;
+
+	drm_dbg_kms(&i915->drm, "Found valid VBT in SPI flash\n");
+
+	return (struct vbt_header *)vbt;
+
+err_free_vbt:
+	kfree(vbt);
+err_not_found:
+	return NULL;
+}
+
 static struct vbt_header *oprom_get_vbt(struct drm_i915_private *i915)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
@@ -2384,6 +2430,8 @@ static struct vbt_header *oprom_get_vbt(struct drm_i915_private *i915)
 
 	pci_unmap_rom(pdev, oprom);
 
+	drm_dbg_kms(&i915->drm, "Found valid VBT in PCI ROM\n");
+
 	return vbt;
 
 err_free_vbt:
@@ -2418,16 +2466,22 @@ void intel_bios_init(struct drm_i915_private *i915)
 
 	init_vbt_defaults(i915);
 
-	/* If the OpRegion does not have VBT, look in PCI ROM. */
+	/*
+	 * If the OpRegion does not have VBT, look in SPI flash through MMIO or
+	 * PCI mapping
+	 */
+	if (!vbt && IS_DGFX(i915)) {
+		oprom_vbt = spi_oprom_get_vbt(i915);
+		vbt = oprom_vbt;
+	}
+
 	if (!vbt) {
 		oprom_vbt = oprom_get_vbt(i915);
-		if (!oprom_vbt)
-			goto out;
-
 		vbt = oprom_vbt;
-
-		drm_dbg_kms(&i915->drm, "Found valid VBT in PCI ROM\n");
 	}
+
+	if (!vbt)
+		goto out;
 
 	bdb = get_bdb_header(vbt);
 	i915->vbt.version = bdb->version;
@@ -2596,37 +2650,10 @@ bool intel_bios_is_lvds_present(struct drm_i915_private *i915, u8 *i2c_pin)
  */
 bool intel_bios_is_port_present(struct drm_i915_private *i915, enum port port)
 {
-	const struct intel_bios_encoder_data *devdata;
-	const struct child_device_config *child;
-	static const struct {
-		u16 dp, hdmi;
-	} port_mapping[] = {
-		[PORT_B] = { DVO_PORT_DPB, DVO_PORT_HDMIB, },
-		[PORT_C] = { DVO_PORT_DPC, DVO_PORT_HDMIC, },
-		[PORT_D] = { DVO_PORT_DPD, DVO_PORT_HDMID, },
-		[PORT_E] = { DVO_PORT_DPE, DVO_PORT_HDMIE, },
-		[PORT_F] = { DVO_PORT_DPF, DVO_PORT_HDMIF, },
-	};
+	if (WARN_ON(!has_ddi_port_info(i915)))
+		return true;
 
-	if (HAS_DDI(i915))
-		return i915->vbt.ports[port];
-
-	/* FIXME maybe deal with port A as well? */
-	if (drm_WARN_ON(&i915->drm,
-			port == PORT_A) || port >= ARRAY_SIZE(port_mapping))
-		return false;
-
-	list_for_each_entry(devdata, &i915->vbt.display_devices, node) {
-		child = &devdata->child;
-
-		if ((child->dvo_port == port_mapping[port].dp ||
-		     child->dvo_port == port_mapping[port].hdmi) &&
-		    (child->device_type & (DEVICE_TYPE_TMDS_DVI_SIGNALING |
-					   DEVICE_TYPE_DISPLAYPORT_OUTPUT)))
-			return true;
-	}
-
-	return false;
+	return i915->vbt.ports[port];
 }
 
 /**
@@ -2638,40 +2665,18 @@ bool intel_bios_is_port_present(struct drm_i915_private *i915, enum port port)
  */
 bool intel_bios_is_port_edp(struct drm_i915_private *i915, enum port port)
 {
-	const struct intel_bios_encoder_data *devdata;
-	const struct child_device_config *child;
-	static const short port_mapping[] = {
-		[PORT_B] = DVO_PORT_DPB,
-		[PORT_C] = DVO_PORT_DPC,
-		[PORT_D] = DVO_PORT_DPD,
-		[PORT_E] = DVO_PORT_DPE,
-		[PORT_F] = DVO_PORT_DPF,
-	};
+	const struct intel_bios_encoder_data *devdata =
+		intel_bios_encoder_data_lookup(i915, port);
 
-	if (HAS_DDI(i915)) {
-		const struct intel_bios_encoder_data *devdata;
-
-		devdata = intel_bios_encoder_data_lookup(i915, port);
-
-		return devdata && intel_bios_encoder_supports_edp(devdata);
-	}
-
-	list_for_each_entry(devdata, &i915->vbt.display_devices, node) {
-		child = &devdata->child;
-
-		if (child->dvo_port == port_mapping[port] &&
-		    (child->device_type & DEVICE_TYPE_eDP_BITS) ==
-		    (DEVICE_TYPE_eDP & DEVICE_TYPE_eDP_BITS))
-			return true;
-	}
-
-	return false;
+	return devdata && intel_bios_encoder_supports_edp(devdata);
 }
 
-static bool child_dev_is_dp_dual_mode(const struct child_device_config *child)
+static bool intel_bios_encoder_supports_dp_dual_mode(const struct intel_bios_encoder_data *devdata)
 {
-	if ((child->device_type & DEVICE_TYPE_DP_DUAL_MODE_BITS) !=
-	    (DEVICE_TYPE_DP_DUAL_MODE & DEVICE_TYPE_DP_DUAL_MODE_BITS))
+	const struct child_device_config *child = &devdata->child;
+
+	if (!intel_bios_encoder_supports_dp(devdata) ||
+	    !intel_bios_encoder_supports_hdmi(devdata))
 		return false;
 
 	if (dvo_port_type(child->dvo_port) == DVO_PORT_DPA)
@@ -2688,40 +2693,10 @@ static bool child_dev_is_dp_dual_mode(const struct child_device_config *child)
 bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *i915,
 				     enum port port)
 {
-	static const struct {
-		u16 dp, hdmi;
-	} port_mapping[] = {
-		/*
-		 * Buggy VBTs may declare DP ports as having
-		 * HDMI type dvo_port :( So let's check both.
-		 */
-		[PORT_B] = { DVO_PORT_DPB, DVO_PORT_HDMIB, },
-		[PORT_C] = { DVO_PORT_DPC, DVO_PORT_HDMIC, },
-		[PORT_D] = { DVO_PORT_DPD, DVO_PORT_HDMID, },
-		[PORT_E] = { DVO_PORT_DPE, DVO_PORT_HDMIE, },
-		[PORT_F] = { DVO_PORT_DPF, DVO_PORT_HDMIF, },
-	};
-	const struct intel_bios_encoder_data *devdata;
+	const struct intel_bios_encoder_data *devdata =
+		intel_bios_encoder_data_lookup(i915, port);
 
-	if (HAS_DDI(i915)) {
-		const struct intel_bios_encoder_data *devdata;
-
-		devdata = intel_bios_encoder_data_lookup(i915, port);
-
-		return devdata && child_dev_is_dp_dual_mode(&devdata->child);
-	}
-
-	if (port == PORT_A || port >= ARRAY_SIZE(port_mapping))
-		return false;
-
-	list_for_each_entry(devdata, &i915->vbt.display_devices, node) {
-		if ((devdata->child.dvo_port == port_mapping[port].dp ||
-		     devdata->child.dvo_port == port_mapping[port].hdmi) &&
-		    child_dev_is_dp_dual_mode(&devdata->child))
-			return true;
-	}
-
-	return false;
+	return devdata && intel_bios_encoder_supports_dp_dual_mode(devdata);
 }
 
 /**

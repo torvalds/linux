@@ -517,7 +517,7 @@ static int ks8995_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ks8995_remove(struct spi_device *spi)
+static void ks8995_remove(struct spi_device *spi)
 {
 	struct ks8995_switch *ks = spi_get_drvdata(spi);
 
@@ -526,8 +526,6 @@ static int ks8995_remove(struct spi_device *spi)
 	/* assert reset */
 	if (ks->pdata && gpio_is_valid(ks->pdata->reset_gpio))
 		gpiod_set_value(gpio_to_desc(ks->pdata->reset_gpio), 1);
-
-	return 0;
 }
 
 /* ------------------------------------------------------------------------ */

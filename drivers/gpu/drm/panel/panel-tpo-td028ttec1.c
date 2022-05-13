@@ -350,15 +350,13 @@ static int td028ttec1_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int td028ttec1_remove(struct spi_device *spi)
+static void td028ttec1_remove(struct spi_device *spi)
 {
 	struct td028ttec1_panel *lcd = spi_get_drvdata(spi);
 
 	drm_panel_remove(&lcd->panel);
 	drm_panel_disable(&lcd->panel);
 	drm_panel_unprepare(&lcd->panel);
-
-	return 0;
 }
 
 static const struct of_device_id td028ttec1_of_match[] = {

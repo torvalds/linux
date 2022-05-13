@@ -30,6 +30,7 @@
 #include <linux/stat.h>
 #include <linux/sysfs.h>
 
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_rc6.h"
 #include "gt/intel_rps.h"
 #include "gt/sysfs_engines.h"

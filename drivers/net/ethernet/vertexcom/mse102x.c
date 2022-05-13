@@ -362,7 +362,7 @@ static void mse102x_rx_pkt_spi(struct mse102x_net *mse)
 		mse102x_dump_packet(__func__, skb->len, skb->data);
 
 	skb->protocol = eth_type_trans(skb, mse->ndev);
-	netif_rx_ni(skb);
+	netif_rx(skb);
 
 	mse->ndev->stats.rx_packets++;
 	mse->ndev->stats.rx_bytes += rxlen;
@@ -731,7 +731,7 @@ static int mse102x_probe_spi(struct spi_device *spi)
 	return 0;
 }
 
-static int mse102x_remove_spi(struct spi_device *spi)
+static void mse102x_remove_spi(struct spi_device *spi)
 {
 	struct mse102x_net *mse = dev_get_drvdata(&spi->dev);
 	struct mse102x_net_spi *mses = to_mse102x_spi(mse);
@@ -741,8 +741,6 @@ static int mse102x_remove_spi(struct spi_device *spi)
 
 	mse102x_remove_device_debugfs(mses);
 	unregister_netdev(mse->ndev);
-
-	return 0;
 }
 
 static const struct of_device_id mse102x_match_table[] = {

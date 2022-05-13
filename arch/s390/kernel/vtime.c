@@ -128,13 +128,12 @@ static int do_account_vtime(struct task_struct *tsk)
 
 	timer = S390_lowcore.last_update_timer;
 	clock = S390_lowcore.last_update_clock;
-	/* Use STORE CLOCK by default, STORE CLOCK FAST if available. */
-	alternative_io("stpt %0\n .insn s,0xb2050000,%1\n",
-		       "stpt %0\n .insn s,0xb27c0000,%1\n",
-		       25,
-		       ASM_OUTPUT2("=Q" (S390_lowcore.last_update_timer),
-				   "=Q" (S390_lowcore.last_update_clock)),
-		       ASM_NO_INPUT_CLOBBER("cc"));
+	asm volatile(
+		"	stpt	%0\n"	/* Store current cpu timer value */
+		"	stckf	%1"	/* Store current tod clock value */
+		: "=Q" (S390_lowcore.last_update_timer),
+		  "=Q" (S390_lowcore.last_update_clock)
+		: : "cc");
 	clock = S390_lowcore.last_update_clock - clock;
 	timer -= S390_lowcore.last_update_timer;
 

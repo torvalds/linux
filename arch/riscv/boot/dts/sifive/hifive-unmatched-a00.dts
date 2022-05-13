@@ -39,6 +39,11 @@
 		clock-frequency = <RTCCLK_FREQ>;
 		clock-output-names = "rtcclk";
 	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &uart0 {

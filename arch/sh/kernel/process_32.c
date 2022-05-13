@@ -123,7 +123,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
 #if defined(CONFIG_SH_FPU)
 		childregs->sr |= SR_FD;
 #endif
-		ti->addr_limit = KERNEL_DS;
 		ti->status &= ~TS_USEDFPU;
 		p->thread.fpu_counter = 0;
 		return 0;
@@ -132,7 +131,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
 
 	if (usp)
 		childregs->regs[15] = usp;
-	ti->addr_limit = USER_DS;
 
 	if (clone_flags & CLONE_SETTLS)
 		childregs->gbr = tls;

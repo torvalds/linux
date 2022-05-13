@@ -87,7 +87,8 @@ static int test__synthesize_stat(struct test_suite *test __maybe_unused, int sub
 	count.run = 300;
 
 	TEST_ASSERT_VAL("failed to synthesize stat_config",
-		!perf_event__synthesize_stat(NULL, 1, 2, 3, &count, process_stat_event, NULL));
+			!perf_event__synthesize_stat(NULL, (struct perf_cpu){.cpu = 1}, 2, 3,
+						     &count, process_stat_event, NULL));
 
 	return 0;
 }

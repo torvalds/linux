@@ -91,6 +91,16 @@ void mctrl_gpio_enable_ms(struct mctrl_gpios *gpios);
  */
 void mctrl_gpio_disable_ms(struct mctrl_gpios *gpios);
 
+/*
+ * Enable gpio wakeup interrupts to enable wake up source.
+ */
+void mctrl_gpio_enable_irq_wake(struct mctrl_gpios *gpios);
+
+/*
+ * Disable gpio wakeup interrupts to enable wake up source.
+ */
+void mctrl_gpio_disable_irq_wake(struct mctrl_gpios *gpios);
+
 #else /* GPIOLIB */
 
 static inline
@@ -139,6 +149,14 @@ static inline void mctrl_gpio_enable_ms(struct mctrl_gpios *gpios)
 }
 
 static inline void mctrl_gpio_disable_ms(struct mctrl_gpios *gpios)
+{
+}
+
+static inline void mctrl_gpio_enable_irq_wake(struct mctrl_gpios *gpios)
+{
+}
+
+static inline void mctrl_gpio_disable_irq_wake(struct mctrl_gpios *gpios)
 {
 }
 

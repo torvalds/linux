@@ -249,7 +249,7 @@ __lse__cmpxchg_case_##name##sz(volatile void *ptr,			\
 	"	mov	%" #w "[tmp], %" #w "[old]\n"			\
 	"	cas" #mb #sfx "\t%" #w "[tmp], %" #w "[new], %[v]\n"	\
 	"	mov	%" #w "[ret], %" #w "[tmp]"			\
-	: [ret] "+r" (x0), [v] "+Q" (*(unsigned long *)ptr),		\
+	: [ret] "+r" (x0), [v] "+Q" (*(u##sz *)ptr),			\
 	  [tmp] "=&r" (tmp)						\
 	: [old] "r" (x1), [new] "r" (x2)				\
 	: cl);								\

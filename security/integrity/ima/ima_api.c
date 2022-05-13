@@ -217,14 +217,11 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	const char *audit_cause = "failed";
 	struct inode *inode = file_inode(file);
 	const char *filename = file->f_path.dentry->d_name.name;
+	struct ima_max_digest_data hash;
 	int result = 0;
 	int length;
 	void *tmpbuf;
 	u64 i_version;
-	struct {
-		struct ima_digest_data hdr;
-		char digest[IMA_MAX_DIGEST_SIZE];
-	} hash;
 
 	/*
 	 * Always collect the modsig, because IMA might have already collected
@@ -238,9 +235,10 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 		goto out;
 
 	/*
-	 * Dectecting file change is based on i_version. On filesystems
-	 * which do not support i_version, support is limited to an initial
-	 * measurement/appraisal/audit.
+	 * Detecting file change is based on i_version. On filesystems
+	 * which do not support i_version, support was originally limited
+	 * to an initial measurement/appraisal/audit, but was modified to
+	 * assume the file changed.
 	 */
 	i_version = inode_query_iversion(inode);
 	hash.hdr.algo = algo;

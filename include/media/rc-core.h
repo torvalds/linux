@@ -130,9 +130,7 @@ struct lirc_fh {
  * @tx_resolution: resolution (in us) of output sampler
  * @lirc_dev: lirc device
  * @lirc_cdev: lirc char cdev
- * @gap_start: time when gap starts
- * @gap_duration: duration of initial gap
- * @gap: true if we're in a gap
+ * @gap_start: start time for gap after timeout if non-zero
  * @lirc_fh_lock: protects lirc_fh list
  * @lirc_fh: list of open files
  * @registered: set to true by rc_register_device(), false by
@@ -201,8 +199,6 @@ struct rc_dev {
 	struct device			lirc_dev;
 	struct cdev			lirc_cdev;
 	ktime_t				gap_start;
-	u64				gap_duration;
-	bool				gap;
 	spinlock_t			lirc_fh_lock;
 	struct list_head		lirc_fh;
 #endif
@@ -302,7 +298,7 @@ struct ir_raw_event {
 	u8                      duty_cycle;
 
 	unsigned                pulse:1;
-	unsigned                reset:1;
+	unsigned                overflow:1;
 	unsigned                timeout:1;
 	unsigned                carrier_report:1;
 };
@@ -325,9 +321,9 @@ int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 			   struct ir_raw_event *events, unsigned int max);
 int ir_raw_encode_carrier(enum rc_proto protocol);
 
-static inline void ir_raw_event_reset(struct rc_dev *dev)
+static inline void ir_raw_event_overflow(struct rc_dev *dev)
 {
-	ir_raw_event_store(dev, &((struct ir_raw_event) { .reset = true }));
+	ir_raw_event_store(dev, &((struct ir_raw_event) { .overflow = true }));
 	dev->idle = true;
 	ir_raw_event_handle(dev);
 }

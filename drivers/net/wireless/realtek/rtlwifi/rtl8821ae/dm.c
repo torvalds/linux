@@ -872,7 +872,7 @@ static void rtl8821ae_dm_false_alarm_counter_statistics(struct ieee80211_hw *hw)
 	else
 		falsealm_cnt->cnt_all = falsealm_cnt->cnt_ofdm_fail;
 
-	/*reset OFDM FA coutner*/
+	/*reset OFDM FA counter*/
 	rtl_set_bbreg(hw, ODM_REG_OFDM_FA_RST_11AC, BIT(17), 1);
 	rtl_set_bbreg(hw, ODM_REG_OFDM_FA_RST_11AC, BIT(17), 0);
 	/* reset CCK FA counter*/
@@ -1464,7 +1464,7 @@ void rtl8812ae_dm_txpower_tracking_callback_thermalmeter(
 	const u8 *delta_swing_table_idx_tup_b;
 	const u8 *delta_swing_table_idx_tdown_b;
 
-	/*2. Initilization ( 7 steps in total )*/
+	/*2. Initialization ( 7 steps in total )*/
 	rtl8812ae_get_delta_swing_table(hw,
 		&delta_swing_table_idx_tup_a,
 		&delta_swing_table_idx_tdown_a,
@@ -2502,7 +2502,7 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	rtlpriv->dm.dbginfo.num_non_be_pkt = 0;
 
 	/*===============================
-	 * list paramter for different platform
+	 * list parameter for different platform
 	 *===============================
 	 */
 	pb_is_cur_rdl_state = &rtlpriv->dm.is_cur_rdlstate;

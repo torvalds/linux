@@ -34,7 +34,7 @@ struct vgic_register_region {
 	};
 };
 
-extern struct kvm_io_device_ops kvm_io_gic_ops;
+extern const struct kvm_io_device_ops kvm_io_gic_ops;
 
 #define VGIC_ACCESS_8bit	1
 #define VGIC_ACCESS_32bit	2

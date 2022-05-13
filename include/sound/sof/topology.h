@@ -87,9 +87,6 @@ struct sof_ipc_comp {
  */
 #define SOF_BUF_UNDERRUN_PERMITTED	BIT(1)
 
-/* the UUID size in bytes, shared between FW and host */
-#define SOF_UUID_SIZE	16
-
 /* create new component buffer - SOF_IPC_TPLG_BUFFER_NEW */
 struct sof_ipc_buffer {
 	struct sof_ipc_comp comp;
@@ -237,7 +234,7 @@ struct sof_ipc_comp_process {
 	/* reserved for future use */
 	uint32_t reserved[7];
 
-	uint8_t data[0];
+	uint8_t data[];
 } __packed;
 
 /* frees components, buffers and pipelines
@@ -302,10 +299,5 @@ enum sof_event_types {
 	SOF_EVENT_NONE = 0,
 	SOF_KEYWORD_DETECT_DAPM_EVENT,
 };
-
-/* extended data struct for UUID components */
-struct sof_ipc_comp_ext {
-	uint8_t uuid[SOF_UUID_SIZE];
-}  __packed;
 
 #endif

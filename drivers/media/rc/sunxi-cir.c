@@ -126,7 +126,7 @@ static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
 	}
 
 	if (status & REG_RXSTA_ROI) {
-		ir_raw_event_reset(ir->rc);
+		ir_raw_event_overflow(ir->rc);
 	} else if (status & REG_RXSTA_RPE) {
 		ir_raw_event_set_idle(ir->rc, true);
 		ir_raw_event_handle(ir->rc);

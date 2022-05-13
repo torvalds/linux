@@ -635,7 +635,8 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 				    struct ioam6_schema *sc,
 				    u8 sclen, bool is_input)
 {
-	struct __kernel_sock_timeval ts;
+	struct timespec64 ts;
+	ktime_t tstamp;
 	u64 raw64;
 	u32 raw32;
 	u16 raw16;
@@ -680,10 +681,9 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 		if (!skb->dev) {
 			*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
 		} else {
-			if (!skb->tstamp)
-				__net_timestamp(skb);
+			tstamp = skb_tstamp_cond(skb, true);
+			ts = ktime_to_timespec64(tstamp);
 
-			skb_get_new_timestamp(skb, &ts);
 			*(__be32 *)data = cpu_to_be32((u32)ts.tv_sec);
 		}
 		data += sizeof(__be32);
@@ -694,13 +694,12 @@ static void __ioam6_fill_trace_data(struct sk_buff *skb,
 		if (!skb->dev) {
 			*(__be32 *)data = cpu_to_be32(IOAM6_U32_UNAVAILABLE);
 		} else {
-			if (!skb->tstamp)
-				__net_timestamp(skb);
+			if (!trace->type.bit2) {
+				tstamp = skb_tstamp_cond(skb, true);
+				ts = ktime_to_timespec64(tstamp);
+			}
 
-			if (!trace->type.bit2)
-				skb_get_new_timestamp(skb, &ts);
-
-			*(__be32 *)data = cpu_to_be32((u32)ts.tv_usec);
+			*(__be32 *)data = cpu_to_be32((u32)(ts.tv_nsec / NSEC_PER_USEC));
 		}
 		data += sizeof(__be32);
 	}

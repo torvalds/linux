@@ -9,12 +9,14 @@
 #define ICE_CHNL_MAX_TC		16
 
 #include "ice_hw_autogen.h"
+#include "ice_devids.h"
 #include "ice_osdep.h"
 #include "ice_controlq.h"
 #include "ice_lan_tx_rx.h"
 #include "ice_flex_type.h"
 #include "ice_protocol_type.h"
 #include "ice_sbq_cmd.h"
+#include "ice_vlan_mode.h"
 
 static inline bool ice_is_tc_ena(unsigned long bitmap, u8 tc)
 {
@@ -54,6 +56,11 @@ static inline u32 ice_round_to_num(u32 N, u32 R)
 #define ICE_DBG_AQ_DESC		BIT_ULL(25)
 #define ICE_DBG_AQ_DESC_BUF	BIT_ULL(26)
 #define ICE_DBG_AQ_CMD		BIT_ULL(27)
+#define ICE_DBG_AQ		(ICE_DBG_AQ_MSG		| \
+				 ICE_DBG_AQ_DESC	| \
+				 ICE_DBG_AQ_DESC_BUF	| \
+				 ICE_DBG_AQ_CMD)
+
 #define ICE_DBG_USER		BIT_ULL(31)
 
 enum ice_aq_res_ids {
@@ -920,6 +927,9 @@ struct ice_hw {
 	struct udp_tunnel_nic_shared udp_tunnel_shared;
 	struct udp_tunnel_nic_info udp_tunnel_nic;
 
+	/* dvm boost update information */
+	struct ice_dvm_table dvm_upd;
+
 	/* HW block tables */
 	struct ice_blk_info blk[ICE_BLK_COUNT];
 	struct mutex fl_profs_locks[ICE_BLK_COUNT];	/* lock fltr profiles */
@@ -943,6 +953,7 @@ struct ice_hw {
 	struct list_head rss_list_head;
 	struct ice_mbx_snapshot mbx_snapshot;
 	DECLARE_BITMAP(hw_ptype, ICE_FLOW_PTYPE_MAX);
+	u8 dvm_ena;
 	u16 io_expander_handle;
 };
 
@@ -1006,6 +1017,15 @@ struct ice_hw_port_stats {
 	/* flow director stats */
 	u32 fd_sb_status;
 	u64 fd_sb_match;
+};
+
+enum ice_sw_fwd_act_type {
+	ICE_FWD_TO_VSI = 0,
+	ICE_FWD_TO_VSI_LIST, /* Do not use this when adding filter */
+	ICE_FWD_TO_Q,
+	ICE_FWD_TO_QGRP,
+	ICE_DROP_PACKET,
+	ICE_INVAL_ACT
 };
 
 struct ice_aq_get_set_rss_lut_params {

@@ -4,7 +4,6 @@
  *
  *    Copyright IBM Corp. 1999, 2008
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  */
 
 #include <linux/processor.h>

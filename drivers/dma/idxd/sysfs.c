@@ -99,31 +99,39 @@ struct device_type idxd_engine_device_type = {
 
 /* Group attributes */
 
-static void idxd_set_free_tokens(struct idxd_device *idxd)
+static void idxd_set_free_rdbufs(struct idxd_device *idxd)
 {
-	int i, tokens;
+	int i, rdbufs;
 
-	for (i = 0, tokens = 0; i < idxd->max_groups; i++) {
+	for (i = 0, rdbufs = 0; i < idxd->max_groups; i++) {
 		struct idxd_group *g = idxd->groups[i];
 
-		tokens += g->tokens_reserved;
+		rdbufs += g->rdbufs_reserved;
 	}
 
-	idxd->nr_tokens = idxd->max_tokens - tokens;
+	idxd->nr_rdbufs = idxd->max_rdbufs - rdbufs;
+}
+
+static ssize_t group_read_buffers_reserved_show(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+
+	return sysfs_emit(buf, "%u\n", group->rdbufs_reserved);
 }
 
 static ssize_t group_tokens_reserved_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct idxd_group *group = confdev_to_group(dev);
-
-	return sysfs_emit(buf, "%u\n", group->tokens_reserved);
+	dev_warn_once(dev, "attribute deprecated, see read_buffers_reserved.\n");
+	return group_read_buffers_reserved_show(dev, attr, buf);
 }
 
-static ssize_t group_tokens_reserved_store(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t group_read_buffers_reserved_store(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf, size_t count)
 {
 	struct idxd_group *group = confdev_to_group(dev);
 	struct idxd_device *idxd = group->idxd;
@@ -143,33 +151,53 @@ static ssize_t group_tokens_reserved_store(struct device *dev,
 	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
-	if (val > idxd->max_tokens)
+	if (val > idxd->max_rdbufs)
 		return -EINVAL;
 
-	if (val > idxd->nr_tokens + group->tokens_reserved)
+	if (val > idxd->nr_rdbufs + group->rdbufs_reserved)
 		return -EINVAL;
 
-	group->tokens_reserved = val;
-	idxd_set_free_tokens(idxd);
+	group->rdbufs_reserved = val;
+	idxd_set_free_rdbufs(idxd);
 	return count;
+}
+
+static ssize_t group_tokens_reserved_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	dev_warn_once(dev, "attribute deprecated, see read_buffers_reserved.\n");
+	return group_read_buffers_reserved_store(dev, attr, buf, count);
 }
 
 static struct device_attribute dev_attr_group_tokens_reserved =
 		__ATTR(tokens_reserved, 0644, group_tokens_reserved_show,
 		       group_tokens_reserved_store);
 
+static struct device_attribute dev_attr_group_read_buffers_reserved =
+		__ATTR(read_buffers_reserved, 0644, group_read_buffers_reserved_show,
+		       group_read_buffers_reserved_store);
+
+static ssize_t group_read_buffers_allowed_show(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+
+	return sysfs_emit(buf, "%u\n", group->rdbufs_allowed);
+}
+
 static ssize_t group_tokens_allowed_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct idxd_group *group = confdev_to_group(dev);
-
-	return sysfs_emit(buf, "%u\n", group->tokens_allowed);
+	dev_warn_once(dev, "attribute deprecated, see read_buffers_allowed.\n");
+	return group_read_buffers_allowed_show(dev, attr, buf);
 }
 
-static ssize_t group_tokens_allowed_store(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
+static ssize_t group_read_buffers_allowed_store(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t count)
 {
 	struct idxd_group *group = confdev_to_group(dev);
 	struct idxd_device *idxd = group->idxd;
@@ -190,29 +218,49 @@ static ssize_t group_tokens_allowed_store(struct device *dev,
 		return -EPERM;
 
 	if (val < 4 * group->num_engines ||
-	    val > group->tokens_reserved + idxd->nr_tokens)
+	    val > group->rdbufs_reserved + idxd->nr_rdbufs)
 		return -EINVAL;
 
-	group->tokens_allowed = val;
+	group->rdbufs_allowed = val;
 	return count;
+}
+
+static ssize_t group_tokens_allowed_store(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	dev_warn_once(dev, "attribute deprecated, see read_buffers_allowed.\n");
+	return group_read_buffers_allowed_store(dev, attr, buf, count);
 }
 
 static struct device_attribute dev_attr_group_tokens_allowed =
 		__ATTR(tokens_allowed, 0644, group_tokens_allowed_show,
 		       group_tokens_allowed_store);
 
+static struct device_attribute dev_attr_group_read_buffers_allowed =
+		__ATTR(read_buffers_allowed, 0644, group_read_buffers_allowed_show,
+		       group_read_buffers_allowed_store);
+
+static ssize_t group_use_read_buffer_limit_show(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+
+	return sysfs_emit(buf, "%u\n", group->use_rdbuf_limit);
+}
+
 static ssize_t group_use_token_limit_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct idxd_group *group = confdev_to_group(dev);
-
-	return sysfs_emit(buf, "%u\n", group->use_token_limit);
+	dev_warn_once(dev, "attribute deprecated, see use_read_buffer_limit.\n");
+	return group_use_read_buffer_limit_show(dev, attr, buf);
 }
 
-static ssize_t group_use_token_limit_store(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t group_use_read_buffer_limit_store(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf, size_t count)
 {
 	struct idxd_group *group = confdev_to_group(dev);
 	struct idxd_device *idxd = group->idxd;
@@ -232,16 +280,28 @@ static ssize_t group_use_token_limit_store(struct device *dev,
 	if (idxd->state == IDXD_DEV_ENABLED)
 		return -EPERM;
 
-	if (idxd->token_limit == 0)
+	if (idxd->rdbuf_limit == 0)
 		return -EPERM;
 
-	group->use_token_limit = !!val;
+	group->use_rdbuf_limit = !!val;
 	return count;
+}
+
+static ssize_t group_use_token_limit_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	dev_warn_once(dev, "attribute deprecated, see use_read_buffer_limit.\n");
+	return group_use_read_buffer_limit_store(dev, attr, buf, count);
 }
 
 static struct device_attribute dev_attr_group_use_token_limit =
 		__ATTR(use_token_limit, 0644, group_use_token_limit_show,
 		       group_use_token_limit_store);
+
+static struct device_attribute dev_attr_group_use_read_buffer_limit =
+		__ATTR(use_read_buffer_limit, 0644, group_use_read_buffer_limit_show,
+		       group_use_read_buffer_limit_store);
 
 static ssize_t group_engines_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
@@ -387,8 +447,11 @@ static struct attribute *idxd_group_attributes[] = {
 	&dev_attr_group_work_queues.attr,
 	&dev_attr_group_engines.attr,
 	&dev_attr_group_use_token_limit.attr,
+	&dev_attr_group_use_read_buffer_limit.attr,
 	&dev_attr_group_tokens_allowed.attr,
+	&dev_attr_group_read_buffers_allowed.attr,
 	&dev_attr_group_tokens_reserved.attr,
+	&dev_attr_group_read_buffers_reserved.attr,
 	&dev_attr_group_traffic_class_a.attr,
 	&dev_attr_group_traffic_class_b.attr,
 	NULL,
@@ -945,6 +1008,41 @@ static ssize_t wq_occupancy_show(struct device *dev, struct device_attribute *at
 static struct device_attribute dev_attr_wq_occupancy =
 		__ATTR(occupancy, 0444, wq_occupancy_show, NULL);
 
+static ssize_t wq_enqcmds_retries_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+
+	if (wq_dedicated(wq))
+		return -EOPNOTSUPP;
+
+	return sysfs_emit(buf, "%u\n", wq->enqcmds_retries);
+}
+
+static ssize_t wq_enqcmds_retries_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+	int rc;
+	unsigned int retries;
+
+	if (wq_dedicated(wq))
+		return -EOPNOTSUPP;
+
+	rc = kstrtouint(buf, 10, &retries);
+	if (rc < 0)
+		return rc;
+
+	if (retries > IDXD_ENQCMDS_MAX_RETRIES)
+		retries = IDXD_ENQCMDS_MAX_RETRIES;
+
+	wq->enqcmds_retries = retries;
+	return count;
+}
+
+static struct device_attribute dev_attr_wq_enqcmds_retries =
+		__ATTR(enqcmds_retries, 0644, wq_enqcmds_retries_show, wq_enqcmds_retries_store);
+
 static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_clients.attr,
 	&dev_attr_wq_state.attr,
@@ -961,6 +1059,7 @@ static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_max_batch_size.attr,
 	&dev_attr_wq_ats_disable.attr,
 	&dev_attr_wq_occupancy.attr,
+	&dev_attr_wq_enqcmds_retries.attr,
 	NULL,
 };
 
@@ -1156,26 +1255,42 @@ static ssize_t errors_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(errors);
 
-static ssize_t max_tokens_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t max_read_buffers_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sysfs_emit(buf, "%u\n", idxd->max_tokens);
+	return sysfs_emit(buf, "%u\n", idxd->max_rdbufs);
 }
-static DEVICE_ATTR_RO(max_tokens);
+
+static ssize_t max_tokens_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	dev_warn_once(dev, "attribute deprecated, see max_read_buffers.\n");
+	return max_read_buffers_show(dev, attr, buf);
+}
+
+static DEVICE_ATTR_RO(max_tokens);	/* deprecated */
+static DEVICE_ATTR_RO(max_read_buffers);
+
+static ssize_t read_buffer_limit_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct idxd_device *idxd = confdev_to_idxd(dev);
+
+	return sysfs_emit(buf, "%u\n", idxd->rdbuf_limit);
+}
 
 static ssize_t token_limit_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct idxd_device *idxd = confdev_to_idxd(dev);
-
-	return sysfs_emit(buf, "%u\n", idxd->token_limit);
+	dev_warn_once(dev, "attribute deprecated, see read_buffer_limit.\n");
+	return read_buffer_limit_show(dev, attr, buf);
 }
 
-static ssize_t token_limit_store(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t read_buffer_limit_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
 {
 	struct idxd_device *idxd = confdev_to_idxd(dev);
 	unsigned long val;
@@ -1191,16 +1306,26 @@ static ssize_t token_limit_store(struct device *dev,
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
 
-	if (!idxd->hw.group_cap.token_limit)
+	if (!idxd->hw.group_cap.rdbuf_limit)
 		return -EPERM;
 
-	if (val > idxd->hw.group_cap.total_tokens)
+	if (val > idxd->hw.group_cap.total_rdbufs)
 		return -EINVAL;
 
-	idxd->token_limit = val;
+	idxd->rdbuf_limit = val;
 	return count;
 }
-static DEVICE_ATTR_RW(token_limit);
+
+static ssize_t token_limit_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	dev_warn_once(dev, "attribute deprecated, see read_buffer_limit\n");
+	return read_buffer_limit_store(dev, attr, buf, count);
+}
+
+static DEVICE_ATTR_RW(token_limit);	/* deprecated */
+static DEVICE_ATTR_RW(read_buffer_limit);
 
 static ssize_t cdev_major_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
@@ -1246,7 +1371,9 @@ static struct attribute *idxd_device_attributes[] = {
 	&dev_attr_state.attr,
 	&dev_attr_errors.attr,
 	&dev_attr_max_tokens.attr,
+	&dev_attr_max_read_buffers.attr,
 	&dev_attr_token_limit.attr,
+	&dev_attr_read_buffer_limit.attr,
 	&dev_attr_cdev_major.attr,
 	&dev_attr_cmd_status.attr,
 	NULL,
@@ -1268,8 +1395,6 @@ static void idxd_conf_device_release(struct device *dev)
 	kfree(idxd->groups);
 	kfree(idxd->wqs);
 	kfree(idxd->engines);
-	kfree(idxd->irq_entries);
-	kfree(idxd->int_handles);
 	ida_free(&idxd_ida, idxd->id);
 	kfree(idxd);
 }

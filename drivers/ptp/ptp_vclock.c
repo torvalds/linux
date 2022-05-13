@@ -57,6 +57,30 @@ static int ptp_vclock_gettime(struct ptp_clock_info *ptp,
 	return 0;
 }
 
+static int ptp_vclock_gettimex(struct ptp_clock_info *ptp,
+			       struct timespec64 *ts,
+			       struct ptp_system_timestamp *sts)
+{
+	struct ptp_vclock *vclock = info_to_vclock(ptp);
+	struct ptp_clock *pptp = vclock->pclock;
+	struct timespec64 pts;
+	unsigned long flags;
+	int err;
+	u64 ns;
+
+	err = pptp->info->gettimex64(pptp->info, &pts, sts);
+	if (err)
+		return err;
+
+	spin_lock_irqsave(&vclock->lock, flags);
+	ns = timecounter_cyc2time(&vclock->tc, timespec64_to_ns(&pts));
+	spin_unlock_irqrestore(&vclock->lock, flags);
+
+	*ts = ns_to_timespec64(ns);
+
+	return 0;
+}
+
 static int ptp_vclock_settime(struct ptp_clock_info *ptp,
 			      const struct timespec64 *ts)
 {
@@ -67,6 +91,28 @@ static int ptp_vclock_settime(struct ptp_clock_info *ptp,
 	spin_lock_irqsave(&vclock->lock, flags);
 	timecounter_init(&vclock->tc, &vclock->cc, ns);
 	spin_unlock_irqrestore(&vclock->lock, flags);
+
+	return 0;
+}
+
+static int ptp_vclock_getcrosststamp(struct ptp_clock_info *ptp,
+				     struct system_device_crosststamp *xtstamp)
+{
+	struct ptp_vclock *vclock = info_to_vclock(ptp);
+	struct ptp_clock *pptp = vclock->pclock;
+	unsigned long flags;
+	int err;
+	u64 ns;
+
+	err = pptp->info->getcrosststamp(pptp->info, xtstamp);
+	if (err)
+		return err;
+
+	spin_lock_irqsave(&vclock->lock, flags);
+	ns = timecounter_cyc2time(&vclock->tc, ktime_to_ns(xtstamp->device));
+	spin_unlock_irqrestore(&vclock->lock, flags);
+
+	xtstamp->device = ns_to_ktime(ns);
 
 	return 0;
 }
@@ -84,11 +130,9 @@ static long ptp_vclock_refresh(struct ptp_clock_info *ptp)
 static const struct ptp_clock_info ptp_vclock_info = {
 	.owner		= THIS_MODULE,
 	.name		= "ptp virtual clock",
-	/* The maximum ppb value that long scaled_ppm can support */
-	.max_adj	= 32767999,
+	.max_adj	= 500000000,
 	.adjfine	= ptp_vclock_adjfine,
 	.adjtime	= ptp_vclock_adjtime,
-	.gettime64	= ptp_vclock_gettime,
 	.settime64	= ptp_vclock_settime,
 	.do_aux_work	= ptp_vclock_refresh,
 };
@@ -124,6 +168,12 @@ struct ptp_vclock *ptp_vclock_register(struct ptp_clock *pclock)
 
 	vclock->pclock = pclock;
 	vclock->info = ptp_vclock_info;
+	if (pclock->info->gettimex64)
+		vclock->info.gettimex64 = ptp_vclock_gettimex;
+	else
+		vclock->info.gettime64 = ptp_vclock_gettime;
+	if (pclock->info->getcrosststamp)
+		vclock->info.getcrosststamp = ptp_vclock_getcrosststamp;
 	vclock->cc = ptp_vclock_cc;
 
 	snprintf(vclock->info.name, PTP_CLOCK_NAME_LEN, "ptp%d_virt",

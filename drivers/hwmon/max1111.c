@@ -254,7 +254,7 @@ err_remove:
 	return err;
 }
 
-static int max1111_remove(struct spi_device *spi)
+static void max1111_remove(struct spi_device *spi)
 {
 	struct max1111_data *data = spi_get_drvdata(spi);
 
@@ -265,7 +265,6 @@ static int max1111_remove(struct spi_device *spi)
 	sysfs_remove_group(&spi->dev.kobj, &max1110_attr_group);
 	sysfs_remove_group(&spi->dev.kobj, &max1111_attr_group);
 	mutex_destroy(&data->drvdata_lock);
-	return 0;
 }
 
 static const struct spi_device_id max1111_ids[] = {

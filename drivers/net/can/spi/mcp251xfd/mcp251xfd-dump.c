@@ -207,10 +207,10 @@ static void mcp251xfd_dump_tx_ring(const struct mcp251xfd_priv *priv,
 			.val = tx->base,
 		}, {
 			.key = MCP251XFD_DUMP_OBJECT_RING_KEY_NR,
-			.val = 0,
+			.val = tx->nr,
 		}, {
 			.key = MCP251XFD_DUMP_OBJECT_RING_KEY_FIFO_NR,
-			.val = MCP251XFD_TX_FIFO,
+			.val = tx->fifo_nr,
 		}, {
 			.key = MCP251XFD_DUMP_OBJECT_RING_KEY_OBJ_NUM,
 			.val = tx->obj_num,

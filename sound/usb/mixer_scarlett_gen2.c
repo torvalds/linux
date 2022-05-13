@@ -6,7 +6,7 @@
  *   - 6i6/18i8/18i20 Gen 2
  *   - Solo/2i2/4i4/8i6/18i8/18i20 Gen 3
  *
- *   Copyright (c) 2018-2021 by Geoffrey D. Bennett <g at b4.vu>
+ *   Copyright (c) 2018-2022 by Geoffrey D. Bennett <g at b4.vu>
  *   Copyright (c) 2020-2021 by Vladimir Sadovnikov <sadko4u@gmail.com>
  *
  *   Based on the Scarlett (Gen 1) Driver for ALSA:
@@ -60,6 +60,7 @@
  *  - phantom power, direct monitor, speaker switching, and talkback
  *    controls
  *  - disable/enable MSD mode
+ *  - disable/enable standalone mode
  *
  * <ditaa>
  *    /--------------\    18chn            20chn     /--------------\
@@ -195,6 +196,16 @@ static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 /* Maximum number of meters (sum of output port counts) */
 #define SCARLETT2_MAX_METERS 65
 
+/* There are three different sets of configuration parameters across
+ * the devices
+ */
+enum {
+	SCARLETT2_CONFIG_SET_NO_MIXER = 0,
+	SCARLETT2_CONFIG_SET_GEN_2 = 1,
+	SCARLETT2_CONFIG_SET_GEN_3 = 2,
+	SCARLETT2_CONFIG_SET_COUNT = 3
+};
+
 /* Hardware port types:
  * - None (no input to mux)
  * - Analogue I/O
@@ -308,10 +319,8 @@ struct scarlett2_device_info {
 	 */
 	u8 has_msd_mode;
 
-	/* Gen 3 devices without a mixer have a different
-	 * configuration set
-	 */
-	u8 has_mixer;
+	/* which set of configuration parameters the device uses */
+	u8 config_set;
 
 	/* line out hw volume is sw controlled */
 	u8 line_out_hw_vol;
@@ -403,6 +412,7 @@ struct scarlett2_data {
 	u8 talkback_switch;
 	u8 talkback_map[SCARLETT2_OUTPUT_MIX_MAX];
 	u8 msd_switch;
+	u8 standalone_switch;
 	struct snd_kcontrol *sync_ctl;
 	struct snd_kcontrol *master_vol_ctl;
 	struct snd_kcontrol *vol_ctls[SCARLETT2_ANALOGUE_MAX];
@@ -426,7 +436,7 @@ struct scarlett2_data {
 static const struct scarlett2_device_info s6i6_gen2_info = {
 	.usb_id = USB_ID(0x1235, 0x8203),
 
-	.has_mixer = 1,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_2,
 	.level_input_count = 2,
 	.pad_input_count = 2,
 
@@ -472,7 +482,7 @@ static const struct scarlett2_device_info s6i6_gen2_info = {
 static const struct scarlett2_device_info s18i8_gen2_info = {
 	.usb_id = USB_ID(0x1235, 0x8204),
 
-	.has_mixer = 1,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_2,
 	.level_input_count = 2,
 	.pad_input_count = 4,
 
@@ -521,7 +531,7 @@ static const struct scarlett2_device_info s18i8_gen2_info = {
 static const struct scarlett2_device_info s18i20_gen2_info = {
 	.usb_id = USB_ID(0x1235, 0x8201),
 
-	.has_mixer = 1,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_2,
 	.line_out_hw_vol = 1,
 
 	.line_out_descrs = {
@@ -576,6 +586,7 @@ static const struct scarlett2_device_info solo_gen3_info = {
 	.usb_id = USB_ID(0x1235, 0x8211),
 
 	.has_msd_mode = 1,
+	.config_set = SCARLETT2_CONFIG_SET_NO_MIXER,
 	.level_input_count = 1,
 	.level_input_first = 1,
 	.air_input_count = 1,
@@ -588,6 +599,7 @@ static const struct scarlett2_device_info s2i2_gen3_info = {
 	.usb_id = USB_ID(0x1235, 0x8210),
 
 	.has_msd_mode = 1,
+	.config_set = SCARLETT2_CONFIG_SET_NO_MIXER,
 	.level_input_count = 2,
 	.air_input_count = 2,
 	.phantom_count = 1,
@@ -599,7 +611,7 @@ static const struct scarlett2_device_info s4i4_gen3_info = {
 	.usb_id = USB_ID(0x1235, 0x8212),
 
 	.has_msd_mode = 1,
-	.has_mixer = 1,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_3,
 	.level_input_count = 2,
 	.pad_input_count = 2,
 	.air_input_count = 2,
@@ -645,7 +657,7 @@ static const struct scarlett2_device_info s8i6_gen3_info = {
 	.usb_id = USB_ID(0x1235, 0x8213),
 
 	.has_msd_mode = 1,
-	.has_mixer = 1,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_3,
 	.level_input_count = 2,
 	.pad_input_count = 2,
 	.air_input_count = 2,
@@ -698,7 +710,7 @@ static const struct scarlett2_device_info s18i8_gen3_info = {
 	.usb_id = USB_ID(0x1235, 0x8214),
 
 	.has_msd_mode = 1,
-	.has_mixer = 1,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_3,
 	.line_out_hw_vol = 1,
 	.has_speaker_switching = 1,
 	.level_input_count = 2,
@@ -768,7 +780,7 @@ static const struct scarlett2_device_info s18i20_gen3_info = {
 	.usb_id = USB_ID(0x1235, 0x8215),
 
 	.has_msd_mode = 1,
-	.has_mixer = 1,
+	.config_set = SCARLETT2_CONFIG_SET_GEN_3,
 	.line_out_hw_vol = 1,
 	.has_speaker_switching = 1,
 	.has_talkback = 1,
@@ -926,13 +938,14 @@ enum {
 	SCARLETT2_CONFIG_PAD_SWITCH = 5,
 	SCARLETT2_CONFIG_MSD_SWITCH = 6,
 	SCARLETT2_CONFIG_AIR_SWITCH = 7,
-	SCARLETT2_CONFIG_PHANTOM_SWITCH = 8,
-	SCARLETT2_CONFIG_PHANTOM_PERSISTENCE = 9,
-	SCARLETT2_CONFIG_DIRECT_MONITOR = 10,
-	SCARLETT2_CONFIG_MONITOR_OTHER_SWITCH = 11,
-	SCARLETT2_CONFIG_MONITOR_OTHER_ENABLE = 12,
-	SCARLETT2_CONFIG_TALKBACK_MAP = 13,
-	SCARLETT2_CONFIG_COUNT = 14
+	SCARLETT2_CONFIG_STANDALONE_SWITCH = 8,
+	SCARLETT2_CONFIG_PHANTOM_SWITCH = 9,
+	SCARLETT2_CONFIG_PHANTOM_PERSISTENCE = 10,
+	SCARLETT2_CONFIG_DIRECT_MONITOR = 11,
+	SCARLETT2_CONFIG_MONITOR_OTHER_SWITCH = 12,
+	SCARLETT2_CONFIG_MONITOR_OTHER_ENABLE = 13,
+	SCARLETT2_CONFIG_TALKBACK_MAP = 14,
+	SCARLETT2_CONFIG_COUNT = 15
 };
 
 /* Location, size, and activation command number for the configuration
@@ -944,13 +957,11 @@ struct scarlett2_config {
 	u8 activate;
 };
 
-/* scarlett2_config_items[0] is for devices without a mixer
- * scarlett2_config_items[1] is for devices with a mixer
- */
 static const struct scarlett2_config
-	scarlett2_config_items[2][SCARLETT2_CONFIG_COUNT] =
+	scarlett2_config_items[SCARLETT2_CONFIG_SET_COUNT]
+			      [SCARLETT2_CONFIG_COUNT] =
 
-/* Devices without a mixer (Solo and 2i2 Gen 3) */
+/* Devices without a mixer (Gen 3 Solo and 2i2) */
 { {
 	[SCARLETT2_CONFIG_MSD_SWITCH] = {
 		.offset = 0x04, .size = 8, .activate = 6 },
@@ -970,7 +981,30 @@ static const struct scarlett2_config
 	[SCARLETT2_CONFIG_AIR_SWITCH] = {
 		.offset = 0x09, .size = 1, .activate = 8 },
 
-/* Devices with a mixer (Gen 2 and all other Gen 3) */
+/* Gen 2 devices: 6i6, 18i8, 18i20 */
+}, {
+	[SCARLETT2_CONFIG_DIM_MUTE] = {
+		.offset = 0x31, .size = 8, .activate = 2 },
+
+	[SCARLETT2_CONFIG_LINE_OUT_VOLUME] = {
+		.offset = 0x34, .size = 16, .activate = 1 },
+
+	[SCARLETT2_CONFIG_MUTE_SWITCH] = {
+		.offset = 0x5c, .size = 8, .activate = 1 },
+
+	[SCARLETT2_CONFIG_SW_HW_SWITCH] = {
+		.offset = 0x66, .size = 8, .activate = 3 },
+
+	[SCARLETT2_CONFIG_LEVEL_SWITCH] = {
+		.offset = 0x7c, .size = 8, .activate = 7 },
+
+	[SCARLETT2_CONFIG_PAD_SWITCH] = {
+		.offset = 0x84, .size = 8, .activate = 8 },
+
+	[SCARLETT2_CONFIG_STANDALONE_SWITCH] = {
+		.offset = 0x8d, .size = 8, .activate = 6 },
+
+/* Gen 3 devices: 4i4, 8i6, 18i8, 18i20 */
 }, {
 	[SCARLETT2_CONFIG_DIM_MUTE] = {
 		.offset = 0x31, .size = 8, .activate = 2 },
@@ -992,6 +1026,9 @@ static const struct scarlett2_config
 
 	[SCARLETT2_CONFIG_AIR_SWITCH] = {
 		.offset = 0x8c, .size = 8, .activate = 8 },
+
+	[SCARLETT2_CONFIG_STANDALONE_SWITCH] = {
+		.offset = 0x95, .size = 8, .activate = 6 },
 
 	[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
 		.offset = 0x9c, .size = 1, .activate = 8 },
@@ -1061,9 +1098,9 @@ static int scarlett2_usb(
 {
 	struct scarlett2_data *private = mixer->private_data;
 	struct usb_device *dev = mixer->chip->dev;
-	u16 req_buf_size = sizeof(struct scarlett2_usb_packet) + req_size;
-	u16 resp_buf_size = sizeof(struct scarlett2_usb_packet) + resp_size;
 	struct scarlett2_usb_packet *req, *resp = NULL;
+	size_t req_buf_size = struct_size(req, data, req_size);
+	size_t resp_buf_size = struct_size(resp, data, resp_size);
 	int err;
 
 	req = kmalloc(req_buf_size, GFP_KERNEL);
@@ -1111,7 +1148,7 @@ static int scarlett2_usb(
 		usb_audio_err(
 			mixer->chip,
 			"Scarlett Gen 2/3 USB response result cmd %x was %d "
-			"expected %d\n",
+			"expected %zu\n",
 			cmd, err, resp_buf_size);
 		err = -EINVAL;
 		goto unlock;
@@ -1175,7 +1212,7 @@ static int scarlett2_usb_get_config(
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
 	const struct scarlett2_config *config_item =
-		&scarlett2_config_items[info->has_mixer][config_item_num];
+		&scarlett2_config_items[info->config_set][config_item_num];
 	int size, err, i;
 	u8 *buf_8;
 	u8 value;
@@ -1235,7 +1272,7 @@ static int scarlett2_usb_set_config(
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
 	const struct scarlett2_config *config_item =
-	       &scarlett2_config_items[info->has_mixer][config_item_num];
+	       &scarlett2_config_items[info->config_set][config_item_num];
 	struct {
 		__le32 offset;
 		__le32 bytes;
@@ -1692,7 +1729,7 @@ static int scarlett2_add_sync_ctl(struct usb_mixer_interface *mixer)
 	struct scarlett2_data *private = mixer->private_data;
 
 	/* devices without a mixer also don't support reporting sync status */
-	if (!private->info->has_mixer)
+	if (private->info->config_set == SCARLETT2_CONFIG_SET_NO_MIXER)
 		return 0;
 
 	return scarlett2_add_new_ctl(mixer, &scarlett2_sync_ctl,
@@ -3399,7 +3436,7 @@ static int scarlett2_add_meter_ctl(struct usb_mixer_interface *mixer)
 	struct scarlett2_data *private = mixer->private_data;
 
 	/* devices without a mixer also don't support reporting levels */
-	if (!private->info->has_mixer)
+	if (private->info->config_set == SCARLETT2_CONFIG_SET_NO_MIXER)
 		return 0;
 
 	return scarlett2_add_new_ctl(mixer, &scarlett2_meter_ctl,
@@ -3472,6 +3509,69 @@ static int scarlett2_add_msd_ctl(struct usb_mixer_interface *mixer)
 	/* Add MSD control */
 	return scarlett2_add_new_ctl(mixer, &scarlett2_msd_ctl,
 				     0, 1, "MSD Mode Switch", NULL);
+}
+
+/*** Standalone Control ***/
+
+static int scarlett2_standalone_ctl_get(struct snd_kcontrol *kctl,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct scarlett2_data *private = elem->head.mixer->private_data;
+
+	ucontrol->value.integer.value[0] = private->standalone_switch;
+	return 0;
+}
+
+static int scarlett2_standalone_ctl_put(struct snd_kcontrol *kctl,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+
+	int oval, val, err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	oval = private->standalone_switch;
+	val = !!ucontrol->value.integer.value[0];
+
+	if (oval == val)
+		goto unlock;
+
+	private->standalone_switch = val;
+
+	/* Send switch change to the device */
+	err = scarlett2_usb_set_config(mixer,
+				       SCARLETT2_CONFIG_STANDALONE_SWITCH,
+				       0, val);
+	if (err == 0)
+		err = 1;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static const struct snd_kcontrol_new scarlett2_standalone_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "",
+	.info = snd_ctl_boolean_mono_info,
+	.get  = scarlett2_standalone_ctl_get,
+	.put  = scarlett2_standalone_ctl_put,
+};
+
+static int scarlett2_add_standalone_ctl(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	if (private->info->config_set == SCARLETT2_CONFIG_SET_NO_MIXER)
+		return 0;
+
+	/* Add standalone control */
+	return scarlett2_add_new_ctl(mixer, &scarlett2_standalone_ctl,
+				     0, 1, "Standalone Switch", NULL);
 }
 
 /*** Cleanup/Suspend Callbacks ***/
@@ -3632,8 +3732,14 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 		return err;
 
 	/* the rest of the configuration is for devices with a mixer */
-	if (!info->has_mixer)
+	if (info->config_set == SCARLETT2_CONFIG_SET_NO_MIXER)
 		return 0;
+
+	err = scarlett2_usb_get_config(
+		mixer, SCARLETT2_CONFIG_STANDALONE_SWITCH,
+		1, &private->standalone_switch);
+	if (err < 0)
+		return err;
 
 	err = scarlett2_update_sync(mixer);
 	if (err < 0)
@@ -3954,6 +4060,11 @@ static int snd_scarlett_gen2_controls_create(struct usb_mixer_interface *mixer)
 
 	/* Create the talkback controls */
 	err = scarlett2_add_talkback_ctls(mixer);
+	if (err < 0)
+		return err;
+
+	/* Create the standalone control */
+	err = scarlett2_add_standalone_ctl(mixer);
 	if (err < 0)
 		return err;
 

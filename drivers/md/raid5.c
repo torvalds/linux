@@ -1060,6 +1060,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 	int i, disks = sh->disks;
 	struct stripe_head *head_sh = sh;
 	struct bio_list pending_bios = BIO_EMPTY_LIST;
+	struct r5dev *dev;
 	bool should_defer;
 
 	might_sleep();
@@ -1094,8 +1095,9 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			op_flags |= REQ_SYNC;
 
 again:
-		bi = &sh->dev[i].req;
-		rbi = &sh->dev[i].rreq; /* For writing to replacement */
+		dev = &sh->dev[i];
+		bi = &dev->req;
+		rbi = &dev->rreq; /* For writing to replacement */
 
 		rcu_read_lock();
 		rrdev = rcu_dereference(conf->disks[i].replacement);
@@ -1171,8 +1173,7 @@ again:
 
 			set_bit(STRIPE_IO_STARTED, &sh->state);
 
-			bio_set_dev(bi, rdev->bdev);
-			bio_set_op_attrs(bi, op, op_flags);
+			bio_init(bi, rdev->bdev, &dev->vec, 1, op | op_flags);
 			bi->bi_end_io = op_is_write(op)
 				? raid5_end_write_request
 				: raid5_end_read_request;
@@ -1210,9 +1211,6 @@ again:
 			bi->bi_io_vec[0].bv_len = RAID5_STRIPE_SIZE(conf);
 			bi->bi_io_vec[0].bv_offset = sh->dev[i].offset;
 			bi->bi_iter.bi_size = RAID5_STRIPE_SIZE(conf);
-			bi->bi_write_hint = sh->dev[i].write_hint;
-			if (!rrdev)
-				sh->dev[i].write_hint = RWH_WRITE_LIFE_NOT_SET;
 			/*
 			 * If this is discard request, set bi_vcnt 0. We don't
 			 * want to confuse SCSI because SCSI will replace payload
@@ -1238,8 +1236,7 @@ again:
 
 			set_bit(STRIPE_IO_STARTED, &sh->state);
 
-			bio_set_dev(rbi, rrdev->bdev);
-			bio_set_op_attrs(rbi, op, op_flags);
+			bio_init(rbi, rrdev->bdev, &dev->rvec, 1, op | op_flags);
 			BUG_ON(!op_is_write(op));
 			rbi->bi_end_io = raid5_end_write_request;
 			rbi->bi_private = sh;
@@ -1264,8 +1261,6 @@ again:
 			rbi->bi_io_vec[0].bv_len = RAID5_STRIPE_SIZE(conf);
 			rbi->bi_io_vec[0].bv_offset = sh->dev[i].offset;
 			rbi->bi_iter.bi_size = RAID5_STRIPE_SIZE(conf);
-			rbi->bi_write_hint = sh->dev[i].write_hint;
-			sh->dev[i].write_hint = RWH_WRITE_LIFE_NOT_SET;
 			/*
 			 * If this is discard request, set bi_vcnt 0. We don't
 			 * want to confuse SCSI because SCSI will replace payload
@@ -2294,7 +2289,6 @@ static struct stripe_head *alloc_stripe(struct kmem_cache *sc, gfp_t gfp,
 	int disks, struct r5conf *conf)
 {
 	struct stripe_head *sh;
-	int i;
 
 	sh = kmem_cache_zalloc(sc, gfp);
 	if (sh) {
@@ -2307,12 +2301,6 @@ static struct stripe_head *alloc_stripe(struct kmem_cache *sc, gfp_t gfp,
 		atomic_set(&sh->count, 1);
 		sh->raid_conf = conf;
 		sh->log_start = MaxSector;
-		for (i = 0; i < disks; i++) {
-			struct r5dev *dev = &sh->dev[i];
-
-			bio_init(&dev->req, &dev->vec, 1);
-			bio_init(&dev->rreq, &dev->rvec, 1);
-		}
 
 		if (raid5_has_ppl(conf)) {
 			sh->ppl_page = alloc_page(gfp);
@@ -2677,7 +2665,6 @@ static void raid5_end_read_request(struct bio * bi)
 		(unsigned long long)sh->sector, i, atomic_read(&sh->count),
 		bi->bi_status);
 	if (i == disks) {
-		bio_reset(bi);
 		BUG();
 		return;
 	}
@@ -2785,7 +2772,7 @@ static void raid5_end_read_request(struct bio * bi)
 		}
 	}
 	rdev_dec_pending(rdev, conf->mddev);
-	bio_reset(bi);
+	bio_uninit(bi);
 	clear_bit(R5_LOCKED, &sh->dev[i].flags);
 	set_bit(STRIPE_HANDLE, &sh->state);
 	raid5_release_stripe(sh);
@@ -2823,7 +2810,6 @@ static void raid5_end_write_request(struct bio *bi)
 		(unsigned long long)sh->sector, i, atomic_read(&sh->count),
 		bi->bi_status);
 	if (i == disks) {
-		bio_reset(bi);
 		BUG();
 		return;
 	}
@@ -2860,7 +2846,7 @@ static void raid5_end_write_request(struct bio *bi)
 	if (sh->batch_head && bi->bi_status && !replacement)
 		set_bit(STRIPE_BATCH_ERR, &sh->batch_head->state);
 
-	bio_reset(bi);
+	bio_uninit(bi);
 	if (!test_and_clear_bit(R5_DOUBLE_LOCKED, &sh->dev[i].flags))
 		clear_bit(R5_LOCKED, &sh->dev[i].flags);
 	set_bit(STRIPE_HANDLE, &sh->state);
@@ -3416,7 +3402,6 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx,
 		(unsigned long long)sh->sector);
 
 	spin_lock_irq(&sh->stripe_lock);
-	sh->dev[dd_idx].write_hint = bi->bi_write_hint;
 	/* Don't allow new IO added to stripes in batch list */
 	if (sh->batch_head)
 		goto overlap;
@@ -5438,14 +5423,14 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 		return 0;
 	}
 
-	align_bio = bio_clone_fast(raid_bio, GFP_NOIO, &mddev->io_acct_set);
+	align_bio = bio_alloc_clone(rdev->bdev, raid_bio, GFP_NOIO,
+				    &mddev->io_acct_set);
 	md_io_acct = container_of(align_bio, struct md_io_acct, bio_clone);
 	raid_bio->bi_next = (void *)rdev;
 	if (blk_queue_io_stat(raid_bio->bi_bdev->bd_disk->queue))
 		md_io_acct->start_time = bio_start_io_acct(raid_bio);
 	md_io_acct->orig_bio = raid_bio;
 
-	bio_set_dev(align_bio, rdev->bdev);
 	align_bio->bi_end_io = raid5_align_endio;
 	align_bio->bi_private = md_io_acct;
 	align_bio->bi_iter.bi_sector = sector;
@@ -7767,7 +7752,6 @@ static int raid5_run(struct mddev *mddev)
 		mddev->queue->limits.discard_alignment = stripe;
 		mddev->queue->limits.discard_granularity = stripe;
 
-		blk_queue_max_write_same_sectors(mddev->queue, 0);
 		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
 
 		rdev_for_each(rdev, mddev) {

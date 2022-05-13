@@ -1762,7 +1762,7 @@ static const struct intel_uncore_init_fun rkl_uncore_init __initconst = {
 
 static const struct intel_uncore_init_fun adl_uncore_init __initconst = {
 	.cpu_init = adl_uncore_cpu_init,
-	.mmio_init = tgl_uncore_mmio_init,
+	.mmio_init = adl_uncore_mmio_init,
 };
 
 static const struct intel_uncore_init_fun icx_uncore_init __initconst = {
@@ -1828,6 +1828,7 @@ static const struct x86_cpu_id intel_uncore_match[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(ROCKETLAKE,		&rkl_uncore_init),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE,		&adl_uncore_init),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		&adl_uncore_init),
+	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE,		&adl_uncore_init),
 	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X,	&spr_uncore_init),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_D,	&snr_uncore_init),
 	{},

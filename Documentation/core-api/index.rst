@@ -44,6 +44,14 @@ Library functionality that is used throughout the kernel.
    timekeeping
    errseq
 
+Low level entry and exit
+========================
+
+.. toctree::
+   :maxdepth: 1
+
+   entry
+
 Concurrency primitives
 ======================
 

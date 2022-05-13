@@ -1,52 +1,82 @@
 [
     {
+        "BriefDescription": "BACLEARs asserted for any branch type",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts requests to the Instruction Cache (ICache) for one or more bytes in an ICache Line and that cache line is in the ICache (hit).  The event strives to count on a cache line basis, so that multiple accesses which hit in a single cache line count as one ICACHE.HIT.  Specifically, the event counts when straight line code crosses the cache line boundary, or when a branch target is to a new line, and that cache line is in the ICache. This event counts differently than Intel processors based on Silvermont microarchitecture.",
-        "EventCode": "0x80",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "ICACHE.HIT",
+        "EventCode": "0xE6",
+        "EventName": "BACLEARS.ALL",
+        "PublicDescription": "Counts the number of times a BACLEAR is signaled for any reason, including, but not limited to indirect branch/call,  Jcc (Jump on Conditional Code/Jump if Condition is Met) branch, unconditional branch/call, and returns.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "References per ICache line that are available in the ICache (hit). This event counts differently than Intel processors based on Silvermont microarchitecture"
+        "UMask": "0x1"
     },
     {
+        "BriefDescription": "BACLEARs asserted for conditional branch",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts requests to the Instruction Cache (ICache)  for one or more bytes in an ICache Line and that cache line is not in the ICache (miss).  The event strives to count on a cache line basis, so that multiple accesses which miss in a single cache line count as one ICACHE.MISS.  Specifically, the event counts when straight line code crosses the cache line boundary, or when a branch target is to a new line, and that cache line is not in the ICache. This event counts differently than Intel processors based on Silvermont microarchitecture.",
-        "EventCode": "0x80",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "ICACHE.MISSES",
+        "EventCode": "0xE6",
+        "EventName": "BACLEARS.COND",
+        "PublicDescription": "Counts BACLEARS on Jcc (Jump on Conditional Code/Jump if Condition is Met) branches.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "References per ICache line that are not available in the ICache (miss). This event counts differently than Intel processors based on Silvermont microarchitecture"
+        "UMask": "0x10"
     },
     {
+        "BriefDescription": "BACLEARs asserted for return branch",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts requests to the Instruction Cache (ICache) for one or more bytes in an ICache Line.  The event strives to count on a cache line basis, so that multiple fetches to a single cache line count as one ICACHE.ACCESS.  Specifically, the event counts when accesses from straight line code crosses the cache line boundary, or when a branch target is to a new line.\r\nThis event counts differently than Intel processors based on Silvermont microarchitecture.",
-        "EventCode": "0x80",
         "Counter": "0,1,2,3",
-        "UMask": "0x3",
-        "EventName": "ICACHE.ACCESSES",
+        "EventCode": "0xE6",
+        "EventName": "BACLEARS.RETURN",
+        "PublicDescription": "Counts BACLEARS on return instructions.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "References per ICache line. This event counts differently than Intel processors based on Silvermont microarchitecture"
+        "UMask": "0x8"
     },
     {
+        "BriefDescription": "Decode restrictions due to predicting wrong instruction length",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of times the Microcode Sequencer (MS) starts a flow of uops from the MSROM. It does not count every time a uop is read from the MSROM.  The most common case that this counts is when a micro-coded instruction is encountered by the front end of the machine.  Other cases include when an instruction encounters a fault, trap, or microcode assist of any sort that initiates a flow of uops.  The event will count MS startups for uops that are speculative, and subsequently cleared by branch mispredict or a machine clear.",
-        "EventCode": "0xE7",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "MS_DECODED.MS_ENTRY",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "MS decode starts"
-    },
-    {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of times the prediction (from the predecode cache) for instruction length is incorrect.",
         "EventCode": "0xE9",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
         "EventName": "DECODE_RESTRICTION.PREDECODE_WRONG",
+        "PublicDescription": "Counts the number of times the prediction (from the predecode cache) for instruction length is incorrect.",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Decode restrictions due to predicting wrong instruction length"
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "References per ICache line. This event counts differently than Intel processors based on Silvermont microarchitecture",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "ICACHE.ACCESSES",
+        "PublicDescription": "Counts requests to the Instruction Cache (ICache) for one or more bytes in an ICache Line.  The event strives to count on a cache line basis, so that multiple fetches to a single cache line count as one ICACHE.ACCESS.  Specifically, the event counts when accesses from straight line code crosses the cache line boundary, or when a branch target is to a new line.\r\nThis event counts differently than Intel processors based on Silvermont microarchitecture.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x3"
+    },
+    {
+        "BriefDescription": "References per ICache line that are available in the ICache (hit). This event counts differently than Intel processors based on Silvermont microarchitecture",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "ICACHE.HIT",
+        "PublicDescription": "Counts requests to the Instruction Cache (ICache) for one or more bytes in an ICache Line and that cache line is in the ICache (hit).  The event strives to count on a cache line basis, so that multiple accesses which hit in a single cache line count as one ICACHE.HIT.  Specifically, the event counts when straight line code crosses the cache line boundary, or when a branch target is to a new line, and that cache line is in the ICache. This event counts differently than Intel processors based on Silvermont microarchitecture.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "References per ICache line that are not available in the ICache (miss). This event counts differently than Intel processors based on Silvermont microarchitecture",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "ICACHE.MISSES",
+        "PublicDescription": "Counts requests to the Instruction Cache (ICache)  for one or more bytes in an ICache Line and that cache line is not in the ICache (miss).  The event strives to count on a cache line basis, so that multiple accesses which miss in a single cache line count as one ICACHE.MISS.  Specifically, the event counts when straight line code crosses the cache line boundary, or when a branch target is to a new line, and that cache line is not in the ICache. This event counts differently than Intel processors based on Silvermont microarchitecture.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "MS decode starts",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE7",
+        "EventName": "MS_DECODED.MS_ENTRY",
+        "PublicDescription": "Counts the number of times the Microcode Sequencer (MS) starts a flow of uops from the MSROM. It does not count every time a uop is read from the MSROM.  The most common case that this counts is when a micro-coded instruction is encountered by the front end of the machine.  Other cases include when an instruction encounters a fault, trap, or microcode assist of any sort that initiates a flow of uops.  The event will count MS startups for uops that are speculative, and subsequently cleared by branch mispredict or a machine clear.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
     }
 ]

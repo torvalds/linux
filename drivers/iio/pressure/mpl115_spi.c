@@ -101,3 +101,4 @@ module_spi_driver(mpl115_spi_driver);
 MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
 MODULE_DESCRIPTION("Freescale MPL115A1 pressure/temperature driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_MPL115);

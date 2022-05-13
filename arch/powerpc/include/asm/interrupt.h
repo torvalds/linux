@@ -123,9 +123,6 @@ static inline void nap_adjust_return(struct pt_regs *regs)
 #endif
 }
 
-struct interrupt_state {
-};
-
 static inline void booke_restore_dbcr0(void)
 {
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
@@ -138,7 +135,7 @@ static inline void booke_restore_dbcr0(void)
 #endif
 }
 
-static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrupt_state *state)
+static inline void interrupt_enter_prepare(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC32
 	if (!arch_irq_disabled_regs(regs))
@@ -228,17 +225,17 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs, struct interrup
  * However interrupt_nmi_exit_prepare does return directly to regs, because
  * NMIs do not do "exit work" or replay soft-masked interrupts.
  */
-static inline void interrupt_exit_prepare(struct pt_regs *regs, struct interrupt_state *state)
+static inline void interrupt_exit_prepare(struct pt_regs *regs)
 {
 }
 
-static inline void interrupt_async_enter_prepare(struct pt_regs *regs, struct interrupt_state *state)
+static inline void interrupt_async_enter_prepare(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC64
 	/* Ensure interrupt_enter_prepare does not enable MSR[EE] */
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 #endif
-	interrupt_enter_prepare(regs, state);
+	interrupt_enter_prepare(regs);
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
 	 * RI=1 is set by interrupt_enter_prepare, so this thread flags access
@@ -251,7 +248,7 @@ static inline void interrupt_async_enter_prepare(struct pt_regs *regs, struct in
 	irq_enter();
 }
 
-static inline void interrupt_async_exit_prepare(struct pt_regs *regs, struct interrupt_state *state)
+static inline void interrupt_async_exit_prepare(struct pt_regs *regs)
 {
 	/*
 	 * Adjust at exit so the main handler sees the true NIA. This must
@@ -262,7 +259,7 @@ static inline void interrupt_async_exit_prepare(struct pt_regs *regs, struct int
 	nap_adjust_return(regs);
 
 	irq_exit();
-	interrupt_exit_prepare(regs, state);
+	interrupt_exit_prepare(regs);
 }
 
 struct interrupt_nmi_state {
@@ -447,13 +444,11 @@ static __always_inline void ____##func(struct pt_regs *regs);		\
 									\
 interrupt_handler void func(struct pt_regs *regs)			\
 {									\
-	struct interrupt_state state;					\
-									\
-	interrupt_enter_prepare(regs, &state);				\
+	interrupt_enter_prepare(regs);					\
 									\
 	____##func (regs);						\
 									\
-	interrupt_exit_prepare(regs, &state);				\
+	interrupt_exit_prepare(regs);					\
 }									\
 NOKPROBE_SYMBOL(func);							\
 									\
@@ -482,14 +477,13 @@ static __always_inline long ____##func(struct pt_regs *regs);		\
 									\
 interrupt_handler long func(struct pt_regs *regs)			\
 {									\
-	struct interrupt_state state;					\
 	long ret;							\
 									\
-	interrupt_enter_prepare(regs, &state);				\
+	interrupt_enter_prepare(regs);					\
 									\
 	ret = ____##func (regs);					\
 									\
-	interrupt_exit_prepare(regs, &state);				\
+	interrupt_exit_prepare(regs);					\
 									\
 	return ret;							\
 }									\
@@ -518,13 +512,11 @@ static __always_inline void ____##func(struct pt_regs *regs);		\
 									\
 interrupt_handler void func(struct pt_regs *regs)			\
 {									\
-	struct interrupt_state state;					\
-									\
-	interrupt_async_enter_prepare(regs, &state);			\
+	interrupt_async_enter_prepare(regs);				\
 									\
 	____##func (regs);						\
 									\
-	interrupt_async_exit_prepare(regs, &state);			\
+	interrupt_async_exit_prepare(regs);				\
 }									\
 NOKPROBE_SYMBOL(func);							\
 									\
@@ -612,7 +604,7 @@ DECLARE_INTERRUPT_HANDLER_RAW(do_slb_fault);
 DECLARE_INTERRUPT_HANDLER(do_bad_segment_interrupt);
 
 /* hash_utils.c */
-DECLARE_INTERRUPT_HANDLER_RAW(do_hash_fault);
+DECLARE_INTERRUPT_HANDLER(do_hash_fault);
 
 /* fault.c */
 DECLARE_INTERRUPT_HANDLER(do_page_fault);
@@ -643,6 +635,17 @@ static inline void interrupt_cond_local_irq_enable(struct pt_regs *regs)
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 }
+
+long system_call_exception(long r3, long r4, long r5, long r6, long r7, long r8,
+			   unsigned long r0, struct pt_regs *regs);
+notrace unsigned long syscall_exit_prepare(unsigned long r3, struct pt_regs *regs, long scv);
+notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs);
+notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs);
+#ifdef CONFIG_PPC64
+unsigned long syscall_exit_restart(unsigned long r3, struct pt_regs *regs);
+unsigned long interrupt_exit_user_restart(struct pt_regs *regs);
+unsigned long interrupt_exit_kernel_restart(struct pt_regs *regs);
+#endif
 
 #endif /* __ASSEMBLY__ */
 

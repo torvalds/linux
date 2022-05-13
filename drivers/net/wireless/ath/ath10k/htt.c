@@ -131,6 +131,159 @@ static const enum htt_t2h_msg_type htt_10_4_t2h_msg_types[] = {
 				HTT_T2H_MSG_TYPE_PEER_STATS,
 };
 
+const struct ath10k_htt_rx_desc_ops qca988x_rx_desc_ops = {
+	.rx_desc_size = sizeof(struct htt_rx_desc_v1),
+	.rx_desc_msdu_payload_offset = offsetof(struct htt_rx_desc_v1, msdu_payload)
+};
+
+static int ath10k_qca99x0_rx_desc_get_l3_pad_bytes(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc = container_of(rxd,
+						      struct htt_rx_desc_v1,
+						      base);
+
+	return MS(__le32_to_cpu(rx_desc->msdu_end.qca99x0.info1),
+		  RX_MSDU_END_INFO1_L3_HDR_PAD);
+}
+
+static bool ath10k_qca99x0_rx_desc_msdu_limit_error(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc = container_of(rxd,
+						      struct htt_rx_desc_v1,
+						      base);
+
+	return !!(rx_desc->msdu_end.common.info0 &
+		  __cpu_to_le32(RX_MSDU_END_INFO0_MSDU_LIMIT_ERR));
+}
+
+const struct ath10k_htt_rx_desc_ops qca99x0_rx_desc_ops = {
+	.rx_desc_size = sizeof(struct htt_rx_desc_v1),
+	.rx_desc_msdu_payload_offset = offsetof(struct htt_rx_desc_v1, msdu_payload),
+
+	.rx_desc_get_l3_pad_bytes = ath10k_qca99x0_rx_desc_get_l3_pad_bytes,
+	.rx_desc_get_msdu_limit_error = ath10k_qca99x0_rx_desc_msdu_limit_error,
+};
+
+static void ath10k_rx_desc_wcn3990_get_offsets(struct htt_rx_ring_rx_desc_offsets *off)
+{
+#define desc_offset(x) (offsetof(struct htt_rx_desc_v2, x) / 4)
+	off->mac80211_hdr_offset = __cpu_to_le16(desc_offset(rx_hdr_status));
+	off->msdu_payload_offset = __cpu_to_le16(desc_offset(msdu_payload));
+	off->ppdu_start_offset = __cpu_to_le16(desc_offset(ppdu_start));
+	off->ppdu_end_offset = __cpu_to_le16(desc_offset(ppdu_end));
+	off->mpdu_start_offset = __cpu_to_le16(desc_offset(mpdu_start));
+	off->mpdu_end_offset = __cpu_to_le16(desc_offset(mpdu_end));
+	off->msdu_start_offset = __cpu_to_le16(desc_offset(msdu_start));
+	off->msdu_end_offset = __cpu_to_le16(desc_offset(msdu_end));
+	off->rx_attention_offset = __cpu_to_le16(desc_offset(attention));
+	off->frag_info_offset = __cpu_to_le16(desc_offset(frag_info));
+#undef desc_offset
+}
+
+static struct htt_rx_desc *
+ath10k_rx_desc_wcn3990_from_raw_buffer(void *buff)
+{
+	return &((struct htt_rx_desc_v2 *)buff)->base;
+}
+
+static struct rx_attention *
+ath10k_rx_desc_wcn3990_get_attention(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v2 *rx_desc = container_of(rxd, struct htt_rx_desc_v2, base);
+
+	return &rx_desc->attention;
+}
+
+static struct rx_frag_info_common *
+ath10k_rx_desc_wcn3990_get_frag_info(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v2 *rx_desc = container_of(rxd, struct htt_rx_desc_v2, base);
+
+	return &rx_desc->frag_info.common;
+}
+
+static struct rx_mpdu_start *
+ath10k_rx_desc_wcn3990_get_mpdu_start(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v2 *rx_desc = container_of(rxd, struct htt_rx_desc_v2, base);
+
+	return &rx_desc->mpdu_start;
+}
+
+static struct rx_mpdu_end *
+ath10k_rx_desc_wcn3990_get_mpdu_end(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v2 *rx_desc = container_of(rxd, struct htt_rx_desc_v2, base);
+
+	return &rx_desc->mpdu_end;
+}
+
+static struct rx_msdu_start_common *
+ath10k_rx_desc_wcn3990_get_msdu_start(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v2 *rx_desc = container_of(rxd, struct htt_rx_desc_v2, base);
+
+	return &rx_desc->msdu_start.common;
+}
+
+static struct rx_msdu_end_common *
+ath10k_rx_desc_wcn3990_get_msdu_end(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v2 *rx_desc = container_of(rxd, struct htt_rx_desc_v2, base);
+
+	return &rx_desc->msdu_end.common;
+}
+
+static struct rx_ppdu_start *
+ath10k_rx_desc_wcn3990_get_ppdu_start(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v2 *rx_desc = container_of(rxd, struct htt_rx_desc_v2, base);
+
+	return &rx_desc->ppdu_start;
+}
+
+static struct rx_ppdu_end_common *
+ath10k_rx_desc_wcn3990_get_ppdu_end(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v2 *rx_desc = container_of(rxd, struct htt_rx_desc_v2, base);
+
+	return &rx_desc->ppdu_end.common;
+}
+
+static u8 *
+ath10k_rx_desc_wcn3990_get_rx_hdr_status(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v2 *rx_desc = container_of(rxd, struct htt_rx_desc_v2, base);
+
+	return rx_desc->rx_hdr_status;
+}
+
+static u8 *
+ath10k_rx_desc_wcn3990_get_msdu_payload(struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v2 *rx_desc = container_of(rxd, struct htt_rx_desc_v2, base);
+
+	return rx_desc->msdu_payload;
+}
+
+const struct ath10k_htt_rx_desc_ops wcn3990_rx_desc_ops = {
+	.rx_desc_size = sizeof(struct htt_rx_desc_v2),
+	.rx_desc_msdu_payload_offset = offsetof(struct htt_rx_desc_v2, msdu_payload),
+
+	.rx_desc_from_raw_buffer = ath10k_rx_desc_wcn3990_from_raw_buffer,
+	.rx_desc_get_offsets = ath10k_rx_desc_wcn3990_get_offsets,
+	.rx_desc_get_attention = ath10k_rx_desc_wcn3990_get_attention,
+	.rx_desc_get_frag_info = ath10k_rx_desc_wcn3990_get_frag_info,
+	.rx_desc_get_mpdu_start = ath10k_rx_desc_wcn3990_get_mpdu_start,
+	.rx_desc_get_mpdu_end = ath10k_rx_desc_wcn3990_get_mpdu_end,
+	.rx_desc_get_msdu_start = ath10k_rx_desc_wcn3990_get_msdu_start,
+	.rx_desc_get_msdu_end = ath10k_rx_desc_wcn3990_get_msdu_end,
+	.rx_desc_get_ppdu_start = ath10k_rx_desc_wcn3990_get_ppdu_start,
+	.rx_desc_get_ppdu_end = ath10k_rx_desc_wcn3990_get_ppdu_end,
+	.rx_desc_get_rx_hdr_status = ath10k_rx_desc_wcn3990_get_rx_hdr_status,
+	.rx_desc_get_msdu_payload = ath10k_rx_desc_wcn3990_get_msdu_payload,
+};
+
 int ath10k_htt_connect(struct ath10k_htt *htt)
 {
 	struct ath10k_htc_svc_conn_req conn_req;

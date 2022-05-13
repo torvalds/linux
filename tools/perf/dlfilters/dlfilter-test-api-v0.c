@@ -308,8 +308,6 @@ int filter_event_early(void *data, const struct perf_dlfilter_sample *sample, vo
 
 int filter_event(void *data, const struct perf_dlfilter_sample *sample, void *ctx)
 {
-	struct filter_data *d = data;
-
 	pr_debug("%s API\n", __func__);
 
 	return do_checks(data, sample, ctx, false);

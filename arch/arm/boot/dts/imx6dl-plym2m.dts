@@ -50,6 +50,11 @@
 		};
 	};
 
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&vdiv_vaccu>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -101,6 +106,64 @@
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 	};
+
+	thermal-zones {
+		chassis-thermal {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&tsens0>;
+		};
+
+		touch-thermal0 {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&touch_temp0>;
+		};
+
+		touch-thermal1 {
+			polling-delay = <20000>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&touch_temp1>;
+		};
+	};
+
+	touchscreen {
+		compatible = "resistive-adc-touch";
+		io-channels = <&adc_ts 1>, <&adc_ts 3>, <&adc_ts 4>,
+                              <&adc_ts 5>;
+		io-channel-names = "y", "z1", "z2", "x";
+		touchscreen-min-pressure = <64687>;
+		touchscreen-inverted-x;
+		touchscreen-inverted-y;
+		touchscreen-x-plate-ohms = <300>;
+		touchscreen-y-plate-ohms = <800>;
+	};
+
+	touch_temp0: touch-temperature-sensor0 {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&adc_ts 0>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <    (-40000) 736
+						85000 474>;
+	};
+
+	touch_temp1: touch-temperature-sensor1 {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&adc_ts 7>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <    (-40000) 826
+						85000 609>;
+	};
+
+	vdiv_vaccu: voltage-divider-vaccu {
+		compatible = "voltage-divider";
+		io-channels = <&adc_ts 2>;
+		output-ohms = <2500>;
+		full-ohms = <64000>;
+		#io-channel-cells = <0>;
+	};
 };
 
 &can1 {
@@ -129,26 +192,61 @@
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	status = "okay";
 
-	touchscreen@0 {
-		compatible = "ti,tsc2046";
+	adc_ts: adc@0 {
+		compatible = "ti,tsc2046e-adc";
 		reg = <0>;
 		pinctrl-0 = <&pinctrl_tsc2046>;
 		pinctrl-names ="default";
-		spi-max-frequency = <100000>;
-		interrupts-extended = <&gpio3 20 IRQ_TYPE_EDGE_FALLING>;
-		pendown-gpio = <&gpio3 20 GPIO_ACTIVE_LOW>;
+		spi-max-frequency = <1000000>;
+		interrupts-extended = <&gpio3 20 IRQ_TYPE_LEVEL_LOW>;
+		#io-channel-cells = <1>;
 
-		touchscreen-inverted-x;
-		touchscreen-inverted-y;
-		touchscreen-max-pressure = <4095>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		ti,vref-delay-usecs = /bits/ 16 <100>;
-		ti,x-plate-ohms = /bits/ 16 <800>;
-		ti,y-plate-ohms = /bits/ 16 <300>;
-		ti,debounce-max = /bits/ 16 <3>;
-		ti,debounce-tol = /bits/ 16 <70>;
-		ti,debounce-rep = /bits/ 16 <3>;
-		wakeup-source;
+		channel@0 {
+			reg = <0>;
+			settling-time-us = <300>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@1 {
+			reg = <1>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@2 {
+			reg = <2>;
+			settling-time-us = <300>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@3 {
+			reg = <3>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@4 {
+			reg = <4>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@5 {
+			reg = <5>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		/* channel 6 is not connected */
+
+		channel@7 {
+			reg = <7>;
+			settling-time-us = <300>;
+			oversampling-ratio = <5>;
+		};
 	};
 };
 
@@ -233,9 +331,10 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	temperature-sensor@70 {
+	tsens0: temperature-sensor@70 {
 		compatible = "ti,tmp103";
 		reg = <0x70>;
+		#thermal-sensor-cells = <0>;
 	};
 };
 

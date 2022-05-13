@@ -147,7 +147,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	dev->stats.rx_packets++;
 
 	skb->protocol = eth_type_trans(skb, dev);
-	netif_rx_any_context(skb);
+	netif_rx(skb);
 
 	ret = 0;
 done:
@@ -262,7 +262,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	dev->stats.rx_packets++;
 
 	skb->protocol = eth_type_trans(skb, priv->dev);
-	netif_rx_any_context(skb);
+	netif_rx(skb);
 
 	ret = 0;
 

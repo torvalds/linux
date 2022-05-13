@@ -51,6 +51,11 @@ struct snd_dma_device {
 #define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* no SG-buf support */
 #define SNDRV_DMA_TYPE_DEV_WC_SG	SNDRV_DMA_TYPE_DEV_WC
 #endif
+/* fallback types, don't use those directly */
+#ifdef CONFIG_SND_DMA_SGBUF
+#define SNDRV_DMA_TYPE_DEV_SG_FALLBACK		10
+#define SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK	11
+#endif
 
 /*
  * info for buffer allocation

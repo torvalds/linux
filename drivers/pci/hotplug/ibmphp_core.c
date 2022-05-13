@@ -50,14 +50,6 @@ static int irqs[16];    /* PIC mode IRQs we're using so far (in case MPS
 
 static int init_flag;
 
-/*
-static int get_max_adapter_speed_1 (struct hotplug_slot *, u8 *, u8);
-
-static inline int get_max_adapter_speed (struct hotplug_slot *hs, u8 *value)
-{
-	return get_max_adapter_speed_1 (hs, value, 1);
-}
-*/
 static inline int get_cur_bus_info(struct slot **sl)
 {
 	int rc = 1;
@@ -400,69 +392,6 @@ static int get_max_bus_speed(struct slot *slot)
 	debug("%s - Exit rc[%d] speed[%x]\n", __func__, rc, speed);
 	return rc;
 }
-
-/*
-static int get_max_adapter_speed_1(struct hotplug_slot *hotplug_slot, u8 *value, u8 flag)
-{
-	int rc = -ENODEV;
-	struct slot *pslot;
-	struct slot myslot;
-
-	debug("get_max_adapter_speed_1 - Entry hotplug_slot[%lx] pvalue[%lx]\n",
-						(ulong)hotplug_slot, (ulong) value);
-
-	if (flag)
-		ibmphp_lock_operations();
-
-	if (hotplug_slot && value) {
-		pslot = hotplug_slot->private;
-		if (pslot) {
-			memcpy(&myslot, pslot, sizeof(struct slot));
-			rc = ibmphp_hpc_readslot(pslot, READ_SLOTSTATUS,
-						&(myslot.status));
-
-			if (!(SLOT_LATCH (myslot.status)) &&
-					(SLOT_PRESENT (myslot.status))) {
-				rc = ibmphp_hpc_readslot(pslot,
-						READ_EXTSLOTSTATUS,
-						&(myslot.ext_status));
-				if (!rc)
-					*value = SLOT_SPEED(myslot.ext_status);
-			} else
-				*value = MAX_ADAPTER_NONE;
-		}
-	}
-
-	if (flag)
-		ibmphp_unlock_operations();
-
-	debug("get_max_adapter_speed_1 - Exit rc[%d] value[%x]\n", rc, *value);
-	return rc;
-}
-
-static int get_bus_name(struct hotplug_slot *hotplug_slot, char *value)
-{
-	int rc = -ENODEV;
-	struct slot *pslot = NULL;
-
-	debug("get_bus_name - Entry hotplug_slot[%lx]\n", (ulong)hotplug_slot);
-
-	ibmphp_lock_operations();
-
-	if (hotplug_slot) {
-		pslot = hotplug_slot->private;
-		if (pslot) {
-			rc = 0;
-			snprintf(value, 100, "Bus %x", pslot->bus);
-		}
-	} else
-		rc = -ENODEV;
-
-	ibmphp_unlock_operations();
-	debug("get_bus_name - Exit rc[%d] value[%x]\n", rc, *value);
-	return rc;
-}
-*/
 
 /****************************************************************************
  * This routine will initialize the ops data structure used in the validate
@@ -1231,9 +1160,6 @@ const struct hotplug_slot_ops ibmphp_hotplug_slot_ops = {
 	.get_attention_status =		get_attention_status,
 	.get_latch_status =		get_latch_status,
 	.get_adapter_status =		get_adapter_present,
-/*	.get_max_adapter_speed =	get_max_adapter_speed,
-	.get_bus_name_status =		get_bus_name,
-*/
 };
 
 static void ibmphp_unload(void)

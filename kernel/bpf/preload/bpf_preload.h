@@ -2,13 +2,13 @@
 #ifndef _BPF_PRELOAD_H
 #define _BPF_PRELOAD_H
 
-#include <linux/usermode_driver.h>
-#include "iterators/bpf_preload_common.h"
+struct bpf_preload_info {
+	char link_name[16];
+	struct bpf_link *link;
+};
 
 struct bpf_preload_ops {
-        struct umd_info info;
 	int (*preload)(struct bpf_preload_info *);
-	int (*finish)(void);
 	struct module *owner;
 };
 extern struct bpf_preload_ops *bpf_preload_ops;

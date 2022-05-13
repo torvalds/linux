@@ -137,7 +137,7 @@ static __always_inline int user_mode(struct pt_regs *regs)
 #endif
 }
 
-static inline int v8086_mode(struct pt_regs *regs)
+static __always_inline int v8086_mode(struct pt_regs *regs)
 {
 #ifdef CONFIG_X86_32
 	return (regs->flags & X86_VM_MASK);

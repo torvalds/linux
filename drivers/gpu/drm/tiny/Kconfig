@@ -51,6 +51,21 @@ config DRM_GM12U320
 	 This is a KMS driver for projectors which use the GM12U320 chipset
 	 for video transfer over USB2/3, such as the Acer C120 mini projector.
 
+config DRM_PANEL_MIPI_DBI
+	tristate "DRM support for MIPI DBI compatible panels"
+	depends on DRM && SPI
+	select DRM_KMS_HELPER
+	select DRM_GEM_CMA_HELPER
+	select DRM_MIPI_DBI
+	select BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+	help
+	  Say Y here if you want to enable support for MIPI DBI compatible
+	  panels. The controller command setup can be provided using a
+	  firmware file. For more information see
+	  https://github.com/notro/panel-mipi-dbi/wiki.
+	  To compile this driver as a module, choose M here.
+
 config DRM_SIMPLEDRM
 	tristate "Simple framebuffer driver"
 	depends on DRM && MMU

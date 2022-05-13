@@ -1028,20 +1028,21 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	if (ctx->priv_ctx_tx)
 		return -EEXIST;
 
-	start_marker_record = kmalloc(sizeof(*start_marker_record), GFP_KERNEL);
-	if (!start_marker_record)
-		return -ENOMEM;
+	netdev = get_netdev_for_sock(sk);
+	if (!netdev) {
+		pr_err_ratelimited("%s: netdev not found\n", __func__);
+		return -EINVAL;
+	}
 
-	offload_ctx = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_TX, GFP_KERNEL);
-	if (!offload_ctx) {
-		rc = -ENOMEM;
-		goto free_marker_record;
+	if (!(netdev->features & NETIF_F_HW_TLS_TX)) {
+		rc = -EOPNOTSUPP;
+		goto release_netdev;
 	}
 
 	crypto_info = &ctx->crypto_send.info;
 	if (crypto_info->version != TLS_1_2_VERSION) {
 		rc = -EOPNOTSUPP;
-		goto free_offload_ctx;
+		goto release_netdev;
 	}
 
 	switch (crypto_info->cipher_type) {
@@ -1057,13 +1058,13 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		break;
 	default:
 		rc = -EINVAL;
-		goto free_offload_ctx;
+		goto release_netdev;
 	}
 
 	/* Sanity-check the rec_seq_size for stack allocations */
 	if (rec_seq_size > TLS_MAX_REC_SEQ_SIZE) {
 		rc = -EINVAL;
-		goto free_offload_ctx;
+		goto release_netdev;
 	}
 
 	prot->version = crypto_info->version;
@@ -1077,7 +1078,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 			     GFP_KERNEL);
 	if (!ctx->tx.iv) {
 		rc = -ENOMEM;
-		goto free_offload_ctx;
+		goto release_netdev;
 	}
 
 	memcpy(ctx->tx.iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv, iv_size);
@@ -1089,9 +1090,21 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		goto free_iv;
 	}
 
+	start_marker_record = kmalloc(sizeof(*start_marker_record), GFP_KERNEL);
+	if (!start_marker_record) {
+		rc = -ENOMEM;
+		goto free_rec_seq;
+	}
+
+	offload_ctx = kzalloc(TLS_OFFLOAD_CONTEXT_SIZE_TX, GFP_KERNEL);
+	if (!offload_ctx) {
+		rc = -ENOMEM;
+		goto free_marker_record;
+	}
+
 	rc = tls_sw_fallback_init(sk, offload_ctx, crypto_info);
 	if (rc)
-		goto free_rec_seq;
+		goto free_offload_ctx;
 
 	/* start at rec_seq - 1 to account for the start marker record */
 	memcpy(&rcd_sn, ctx->tx.rec_seq, sizeof(rcd_sn));
@@ -1117,18 +1130,6 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	skb = tcp_write_queue_tail(sk);
 	if (skb)
 		TCP_SKB_CB(skb)->eor = 1;
-
-	netdev = get_netdev_for_sock(sk);
-	if (!netdev) {
-		pr_err_ratelimited("%s: netdev not found\n", __func__);
-		rc = -EINVAL;
-		goto disable_cad;
-	}
-
-	if (!(netdev->features & NETIF_F_HW_TLS_TX)) {
-		rc = -EOPNOTSUPP;
-		goto release_netdev;
-	}
 
 	/* Avoid offloading if the device is down
 	 * We don't want to offload new flows after
@@ -1167,20 +1168,19 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 
 release_lock:
 	up_read(&device_offload_lock);
-release_netdev:
-	dev_put(netdev);
-disable_cad:
 	clean_acked_data_disable(inet_csk(sk));
 	crypto_free_aead(offload_ctx->aead_send);
-free_rec_seq:
-	kfree(ctx->tx.rec_seq);
-free_iv:
-	kfree(ctx->tx.iv);
 free_offload_ctx:
 	kfree(offload_ctx);
 	ctx->priv_ctx_tx = NULL;
 free_marker_record:
 	kfree(start_marker_record);
+free_rec_seq:
+	kfree(ctx->tx.rec_seq);
+free_iv:
+	kfree(ctx->tx.iv);
+release_netdev:
+	dev_put(netdev);
 	return rc;
 }
 

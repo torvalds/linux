@@ -100,7 +100,7 @@ struct uart_sunzilog_port {
 #endif
 };
 
-static void sunzilog_putchar(struct uart_port *port, int ch);
+static void sunzilog_putchar(struct uart_port *port, unsigned char ch);
 
 #define ZILOG_CHANNEL_FROM_PORT(PORT)	((struct zilog_channel __iomem *)((PORT)->membase))
 #define UART_ZILOG(PORT)		((struct uart_sunzilog_port *)(PORT))
@@ -1125,7 +1125,7 @@ static void sunzilog_free_tables(void)
 
 #define ZS_PUT_CHAR_MAX_DELAY	2000	/* 10 ms */
 
-static void __maybe_unused sunzilog_putchar(struct uart_port *port, int ch)
+static void __maybe_unused sunzilog_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct zilog_channel __iomem *channel = ZILOG_CHANNEL_FROM_PORT(port);
 	int loops = ZS_PUT_CHAR_MAX_DELAY;

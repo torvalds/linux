@@ -266,10 +266,12 @@ Avanta family
 -------------
 
   Flavors:
+       - 88F6500
        - 88F6510
        - 88F6530P
        - 88F6550
        - 88F6560
+       - 88F6601
 
   Homepage:
 	https://web.archive.org/web/20181005145041/http://www.marvell.com/broadband/

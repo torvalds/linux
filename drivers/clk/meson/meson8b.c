@@ -2232,7 +2232,7 @@ static struct clk_regmap meson8b_vpu_1 = {
 };
 
 /*
- * The VPU clock has two two identical clock trees (vpu_0 and vpu_1)
+ * The VPU clock has two identical clock trees (vpu_0 and vpu_1)
  * muxed by a glitch-free switch on Meson8b and Meson8m2. The CCF can
  * actually manage this glitch-free mux because it does top-to-bottom
  * updates the each clock tree and switches to the "inactive" one when

@@ -1480,6 +1480,23 @@ asmlinkage void do_ade(struct pt_regs *regs)
 	prev_state = exception_enter();
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS,
 			1, regs, regs->cp0_badvaddr);
+
+#ifdef CONFIG_64BIT
+	/*
+	 * check, if we are hitting space between CPU implemented maximum
+	 * virtual user address and 64bit maximum virtual user address
+	 * and do exception handling to get EFAULTs for get_user/put_user
+	 */
+	if ((regs->cp0_badvaddr >= (1UL << cpu_vmbits)) &&
+	    (regs->cp0_badvaddr < XKSSEG)) {
+		if (fixup_exception(regs)) {
+			current->thread.cp0_baduaddr = regs->cp0_badvaddr;
+			return;
+		}
+		goto sigbus;
+	}
+#endif
+
 	/*
 	 * Did we catch a fault trying to load an instruction?
 	 */

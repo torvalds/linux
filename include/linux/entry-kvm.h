@@ -3,7 +3,7 @@
 #define __LINUX_ENTRYKVM_H
 
 #include <linux/static_call_types.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/syscalls.h>
 #include <linux/seccomp.h>
 #include <linux/sched.h>

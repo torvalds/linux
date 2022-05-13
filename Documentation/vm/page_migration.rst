@@ -263,15 +263,15 @@ Monitoring Migration
 The following events (counters) can be used to monitor page migration.
 
 1. PGMIGRATE_SUCCESS: Normal page migration success. Each count means that a
-   page was migrated. If the page was a non-THP page, then this counter is
-   increased by one. If the page was a THP, then this counter is increased by
-   the number of THP subpages. For example, migration of a single 2MB THP that
-   has 4KB-size base pages (subpages) will cause this counter to increase by
-   512.
+   page was migrated. If the page was a non-THP and non-hugetlb page, then
+   this counter is increased by one. If the page was a THP or hugetlb, then
+   this counter is increased by the number of THP or hugetlb subpages.
+   For example, migration of a single 2MB THP that has 4KB-size base pages
+   (subpages) will cause this counter to increase by 512.
 
 2. PGMIGRATE_FAIL: Normal page migration failure. Same counting rules as for
    PGMIGRATE_SUCCESS, above: this will be increased by the number of subpages,
-   if it was a THP.
+   if it was a THP or hugetlb.
 
 3. THP_MIGRATION_SUCCESS: A THP was migrated without being split.
 

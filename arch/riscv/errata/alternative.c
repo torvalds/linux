@@ -22,7 +22,8 @@ static struct cpu_manufacturer_info_t {
 } cpu_mfr_info;
 
 static void (*vendor_patch_func)(struct alt_entry *begin, struct alt_entry *end,
-				 unsigned long archid, unsigned long impid);
+				 unsigned long archid,
+				 unsigned long impid) __initdata;
 
 static inline void __init riscv_fill_cpu_mfr_info(void)
 {

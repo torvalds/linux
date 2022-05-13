@@ -6,7 +6,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/gpio.h>
 #include <cpu/sh7203.h>
 
 #include "sh_pfc.h"

@@ -194,10 +194,9 @@ static int slic_ds26522_init_configure(struct spi_device *spi)
 	return 0;
 }
 
-static int slic_ds26522_remove(struct spi_device *spi)
+static void slic_ds26522_remove(struct spi_device *spi)
 {
 	pr_info("DS26522 module uninstalled\n");
-	return 0;
 }
 
 static int slic_ds26522_probe(struct spi_device *spi)

@@ -971,6 +971,15 @@ void kernfs_destroy_root(struct kernfs_root *root)
 }
 
 /**
+ * kernfs_root_to_node - return the kernfs_node associated with a kernfs_root
+ * @root: root to use to lookup
+ */
+struct kernfs_node *kernfs_root_to_node(struct kernfs_root *root)
+{
+	return root->kn;
+}
+
+/**
  * kernfs_create_dir_ns - create a directory
  * @parent: parent in which to create a new directory
  * @name: name of the new directory

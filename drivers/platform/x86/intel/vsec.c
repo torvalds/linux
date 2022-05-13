@@ -32,6 +32,7 @@
 #define TABLE_OFFSET_SHIFT		3
 
 static DEFINE_IDA(intel_vsec_ida);
+static DEFINE_IDA(intel_vsec_sdsi_ida);
 
 /**
  * struct intel_vsec_header - Common fields of Intel VSEC and DVSEC registers.
@@ -63,12 +64,14 @@ enum intel_vsec_id {
 	VSEC_ID_TELEMETRY	= 2,
 	VSEC_ID_WATCHER		= 3,
 	VSEC_ID_CRASHLOG	= 4,
+	VSEC_ID_SDSI		= 65,
 };
 
 static enum intel_vsec_id intel_vsec_allow_list[] = {
 	VSEC_ID_TELEMETRY,
 	VSEC_ID_WATCHER,
 	VSEC_ID_CRASHLOG,
+	VSEC_ID_SDSI,
 };
 
 static const char *intel_vsec_name(enum intel_vsec_id id)
@@ -82,6 +85,9 @@ static const char *intel_vsec_name(enum intel_vsec_id id)
 
 	case VSEC_ID_CRASHLOG:
 		return "crashlog";
+
+	case VSEC_ID_SDSI:
+		return "sdsi";
 
 	default:
 		return NULL;
@@ -211,7 +217,11 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 	intel_vsec_dev->resource = res;
 	intel_vsec_dev->num_resources = header->num_entries;
 	intel_vsec_dev->quirks = quirks;
-	intel_vsec_dev->ida = &intel_vsec_ida;
+
+	if (header->id == VSEC_ID_SDSI)
+		intel_vsec_dev->ida = &intel_vsec_sdsi_ida;
+	else
+		intel_vsec_dev->ida = &intel_vsec_ida;
 
 	return intel_vsec_add_aux(pdev, intel_vsec_dev, intel_vsec_name(header->id));
 }

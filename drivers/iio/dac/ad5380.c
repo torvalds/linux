@@ -488,11 +488,9 @@ static int ad5380_spi_probe(struct spi_device *spi)
 	return ad5380_probe(&spi->dev, regmap, id->driver_data, id->name);
 }
 
-static int ad5380_spi_remove(struct spi_device *spi)
+static void ad5380_spi_remove(struct spi_device *spi)
 {
 	ad5380_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id ad5380_spi_ids[] = {

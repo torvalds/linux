@@ -114,37 +114,4 @@ enum iwl_dc2dc_config_id {
 	DCDC_FREQ_TUNE_SET = 0x2,
 }; /* MARKER_ID_API_E_VER_1 */
 
-/**
- * struct iwl_dc2dc_config_cmd - configure dc2dc values
- *
- * (DC2DC_CONFIG_CMD = 0x83)
- *
- * Set/Get & configure dc2dc values.
- * The command always returns the current dc2dc values.
- *
- * @flags: set/get dc2dc
- * @enable_low_power_mode: not used.
- * @dc2dc_freq_tune0: frequency divider - digital domain
- * @dc2dc_freq_tune1: frequency divider - analog domain
- */
-struct iwl_dc2dc_config_cmd {
-	__le32 flags;
-	__le32 enable_low_power_mode; /* not used */
-	__le32 dc2dc_freq_tune0;
-	__le32 dc2dc_freq_tune1;
-} __packed; /* DC2DC_CONFIG_CMD_API_S_VER_1 */
-
-/**
- * struct iwl_dc2dc_config_resp - response for iwl_dc2dc_config_cmd
- *
- * Current dc2dc values returned by the FW.
- *
- * @dc2dc_freq_tune0: frequency divider - digital domain
- * @dc2dc_freq_tune1: frequency divider - analog domain
- */
-struct iwl_dc2dc_config_resp {
-	__le32 dc2dc_freq_tune0;
-	__le32 dc2dc_freq_tune1;
-} __packed; /* DC2DC_CONFIG_RESP_API_S_VER_1 */
-
 #endif /* __iwl_fw_api_config_h__ */

@@ -286,13 +286,13 @@ static int serverworks_fixup_osb4(struct pci_dev *pdev)
 		pci_read_config_dword(isa_dev, 0x64, &reg);
 		reg &= ~0x00002000; /* disable 600ns interrupt mask */
 		if (!(reg & 0x00004000))
-			printk(KERN_DEBUG DRV_NAME ": UDMA not BIOS enabled.\n");
+			dev_info(&pdev->dev, "UDMA not BIOS enabled.\n");
 		reg |=  0x00004000; /* enable UDMA/33 support */
 		pci_write_config_dword(isa_dev, 0x64, reg);
 		pci_dev_put(isa_dev);
 		return 0;
 	}
-	printk(KERN_WARNING DRV_NAME ": Unable to find bridge.\n");
+	dev_warn(&pdev->dev, "Unable to find bridge.\n");
 	return -ENODEV;
 }
 

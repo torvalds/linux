@@ -25,7 +25,7 @@ module_param(enable, bool, 0444);
 #define DCC_STATUS_RX		(1 << 30)
 #define DCC_STATUS_TX		(1 << 29)
 
-static void dcc_uart_console_putchar(struct uart_port *port, int ch)
+static void dcc_uart_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	while (__dcc_getstatus() & DCC_STATUS_TX)
 		cpu_relax();

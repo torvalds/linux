@@ -204,21 +204,10 @@ static const struct file_operations kvmppc_exit_timing_fops = {
 	.release = single_release,
 };
 
-void kvmppc_create_vcpu_debugfs(struct kvm_vcpu *vcpu, unsigned int id)
+int kvmppc_create_vcpu_debugfs_e500(struct kvm_vcpu *vcpu,
+				    struct dentry *debugfs_dentry)
 {
-	static char dbg_fname[50];
-	struct dentry *debugfs_file;
-
-	snprintf(dbg_fname, sizeof(dbg_fname), "vm%u_vcpu%u_timing",
-		 current->pid, id);
-	debugfs_file = debugfs_create_file(dbg_fname, 0666, kvm_debugfs_dir,
-						vcpu, &kvmppc_exit_timing_fops);
-
-	vcpu->arch.debugfs_exit_timing = debugfs_file;
-}
-
-void kvmppc_remove_vcpu_debugfs(struct kvm_vcpu *vcpu)
-{
-	debugfs_remove(vcpu->arch.debugfs_exit_timing);
-	vcpu->arch.debugfs_exit_timing = NULL;
+	debugfs_create_file("timing", 0666, debugfs_dentry,
+			    vcpu, &kvmppc_exit_timing_fops);
+	return 0;
 }

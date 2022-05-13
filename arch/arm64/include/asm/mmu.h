@@ -15,6 +15,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/refcount.h>
+#include <asm/cpufeature.h>
 
 typedef struct {
 	atomic64_t	id;

@@ -24,12 +24,18 @@ int xdp_dummy_prog(struct xdp_md *ctx)
 	return XDP_PASS;
 }
 
-SEC("xdp_cpumap/dummy_cm")
+SEC("xdp/cpumap")
 int xdp_dummy_cm(struct xdp_md *ctx)
 {
 	if (ctx->ingress_ifindex == IFINDEX_LO)
 		return XDP_DROP;
 
+	return XDP_PASS;
+}
+
+SEC("xdp.frags/cpumap")
+int xdp_dummy_cm_frags(struct xdp_md *ctx)
+{
 	return XDP_PASS;
 }
 

@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
 		vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 		vcpu_load_state(vm, VCPU_ID, state);
 		run = vcpu_state(vm, VCPU_ID);
-		free(state);
+		kvm_x86_state_cleanup(state);
 
 		memset(&regs2, 0, sizeof(regs2));
 		vcpu_regs_get(vm, VCPU_ID, &regs2);

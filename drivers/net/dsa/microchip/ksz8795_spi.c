@@ -87,7 +87,7 @@ static int ksz8795_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ksz8795_spi_remove(struct spi_device *spi)
+static void ksz8795_spi_remove(struct spi_device *spi)
 {
 	struct ksz_device *dev = spi_get_drvdata(spi);
 
@@ -95,8 +95,6 @@ static int ksz8795_spi_remove(struct spi_device *spi)
 		ksz_switch_remove(dev);
 
 	spi_set_drvdata(spi, NULL);
-
-	return 0;
 }
 
 static void ksz8795_spi_shutdown(struct spi_device *spi)
@@ -124,12 +122,23 @@ static const struct of_device_id ksz8795_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, ksz8795_dt_ids);
 
+static const struct spi_device_id ksz8795_spi_ids[] = {
+	{ "ksz8765" },
+	{ "ksz8794" },
+	{ "ksz8795" },
+	{ "ksz8863" },
+	{ "ksz8873" },
+	{ },
+};
+MODULE_DEVICE_TABLE(spi, ksz8795_spi_ids);
+
 static struct spi_driver ksz8795_spi_driver = {
 	.driver = {
 		.name	= "ksz8795-switch",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(ksz8795_dt_ids),
 	},
+	.id_table = ksz8795_spi_ids,
 	.probe	= ksz8795_spi_probe,
 	.remove	= ksz8795_spi_remove,
 	.shutdown = ksz8795_spi_shutdown,

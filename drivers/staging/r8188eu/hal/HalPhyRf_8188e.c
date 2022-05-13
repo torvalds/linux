@@ -102,14 +102,12 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 	u8 ThermalValue = 0, delta, delta_LCK, delta_IQK, offset;
 	u8 ThermalValue_AVG_count = 0;
 	u32 ThermalValue_AVG = 0;
-	s32 ele_A = 0, ele_D, TempCCk, X, value32;
-	s32 Y, ele_C = 0;
-	s8 OFDM_index[2], CCK_index = 0;
-	s8 OFDM_index_old[2] = {0, 0}, CCK_index_old = 0;
+	s32 ele_D, TempCCk;
+	s8 OFDM_index, CCK_index = 0;
+	s8 OFDM_index_old = 0, CCK_index_old = 0;
 	u32 i = 0, j = 0;
-	bool is2t = false;
 
-	u8 OFDM_min_index = 6, rf; /* OFDM BB Swing should be less than +3.0dB, which is required by Arthur */
+	u8 OFDM_min_index = 6; /* OFDM BB Swing should be less than +3.0dB, which is required by Arthur */
 	s8 OFDM_index_mapping[2][index_mapping_NUM_88E] = {
 		{0, 0, 2, 3, 4, 4, 		/* 2.4G, decrease power */
 		5, 6, 7, 7, 8, 9,
@@ -131,38 +129,19 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 	/*  2012/04/25 MH Add for tx power tracking to set tx power in tx agc for 88E. */
 	odm_TxPwrTrackSetPwr88E(dm_odm);
 
-	dm_odm->RFCalibrateInfo.TXPowerTrackingCallbackCnt++; /* cosa add for debug */
-	dm_odm->RFCalibrateInfo.bTXPowerTrackingInit = true;
-
 	/*  <Kordan> RFCalibrateInfo.RegA24 will be initialized when ODM HW configuring, but MP configures with para files. */
 	dm_odm->RFCalibrateInfo.RegA24 = 0x090e1317;
 
-	ThermalValue = (u8)rtl8188e_PHY_QueryRFReg(Adapter, RF_PATH_A, RF_T_METER_88E, 0xfc00); /* 0x42: RF Reg[15:10] 88E */
-
-	if (is2t)
-		rf = 2;
-	else
-		rf = 1;
+	ThermalValue = (u8)rtl8188e_PHY_QueryRFReg(Adapter, RF_T_METER_88E, 0xfc00); /* 0x42: RF Reg[15:10] 88E */
 
 	if (ThermalValue) {
 		/* Query OFDM path A default setting */
 		ele_D = rtl8188e_PHY_QueryBBReg(Adapter, rOFDM0_XATxIQImbalance, bMaskDWord) & bMaskOFDM_D;
 		for (i = 0; i < OFDM_TABLE_SIZE_92D; i++) {	/* find the index */
 			if (ele_D == (OFDMSwingTable[i] & bMaskOFDM_D)) {
-				OFDM_index_old[0] = (u8)i;
+				OFDM_index_old = (u8)i;
 				dm_odm->BbSwingIdxOfdmBase = (u8)i;
 				break;
-			}
-		}
-
-		/* Query OFDM path B default setting */
-		if (is2t) {
-			ele_D = rtl8188e_PHY_QueryBBReg(Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord) & bMaskOFDM_D;
-			for (i = 0; i < OFDM_TABLE_SIZE_92D; i++) {	/* find the index */
-				if (ele_D == (OFDMSwingTable[i] & bMaskOFDM_D)) {
-					OFDM_index_old[1] = (u8)i;
-					break;
-				}
 			}
 		}
 
@@ -170,18 +149,10 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 		TempCCk = dm_odm->RFCalibrateInfo.RegA24;
 
 		for (i = 0; i < CCK_TABLE_SIZE; i++) {
-			if (dm_odm->RFCalibrateInfo.bCCKinCH14) {
-				if (memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch14[i][2], 4)) {
-					CCK_index_old = (u8)i;
-					dm_odm->BbSwingIdxCckBase = (u8)i;
-					break;
-				}
-			} else {
-				if (memcmp((void *)&TempCCk, (void *)&CCKSwingTable_Ch1_Ch13[i][2], 4)) {
-					CCK_index_old = (u8)i;
-					dm_odm->BbSwingIdxCckBase = (u8)i;
-					break;
-				}
+			if (memcmp((void *)&TempCCk, (void *)&cck_swing_table[i][2], 4)) {
+				CCK_index_old = (u8)i;
+				dm_odm->BbSwingIdxCckBase = (u8)i;
+				break;
 			}
 		}
 
@@ -190,8 +161,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 			dm_odm->RFCalibrateInfo.ThermalValue_LCK = ThermalValue;
 			dm_odm->RFCalibrateInfo.ThermalValue_IQK = ThermalValue;
 
-			for (i = 0; i < rf; i++)
-				dm_odm->RFCalibrateInfo.OFDM_index[i] = OFDM_index_old[i];
+			dm_odm->RFCalibrateInfo.OFDM_index = OFDM_index_old;
 			dm_odm->RFCalibrateInfo.CCK_index = CCK_index_old;
 		}
 
@@ -256,16 +226,13 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 			}
 			if (offset >= index_mapping_NUM_88E)
 				offset = index_mapping_NUM_88E - 1;
-			for (i = 0; i < rf; i++)
-				OFDM_index[i] = dm_odm->RFCalibrateInfo.OFDM_index[i] + OFDM_index_mapping[j][offset];
+			OFDM_index = dm_odm->RFCalibrateInfo.OFDM_index + OFDM_index_mapping[j][offset];
 			CCK_index = dm_odm->RFCalibrateInfo.CCK_index + OFDM_index_mapping[j][offset];
 
-			for (i = 0; i < rf; i++) {
-				if (OFDM_index[i] > OFDM_TABLE_SIZE_92D - 1)
-					OFDM_index[i] = OFDM_TABLE_SIZE_92D - 1;
-				else if (OFDM_index[i] < OFDM_min_index)
-					OFDM_index[i] = OFDM_min_index;
-			}
+			if (OFDM_index > OFDM_TABLE_SIZE_92D - 1)
+				OFDM_index = OFDM_TABLE_SIZE_92D - 1;
+			else if (OFDM_index < OFDM_min_index)
+				OFDM_index = OFDM_min_index;
 
 			if (CCK_index > CCK_TABLE_SIZE - 1)
 				CCK_index = CCK_TABLE_SIZE - 1;
@@ -277,13 +244,8 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 			if (dm_odm->RFCalibrateInfo.TxPowerTrackControl) {
 				dm_odm->RFCalibrateInfo.bDoneTxpower = true;
 
-				/* Adujst OFDM Ant_A according to IQK result */
-				ele_D = (OFDMSwingTable[(u8)OFDM_index[0]] & 0xFFC00000) >> 22;
-				X = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][0];
-				Y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][1];
-
 				/*  Revse TX power table. */
-				dm_odm->BbSwingIdxOfdm		= (u8)OFDM_index[0];
+				dm_odm->BbSwingIdxOfdm		= (u8)OFDM_index;
 				dm_odm->BbSwingIdxCck		= (u8)CCK_index;
 
 				if (dm_odm->BbSwingIdxOfdmCurrent != dm_odm->BbSwingIdxOfdm) {
@@ -294,53 +256,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 				if (dm_odm->BbSwingIdxCckCurrent != dm_odm->BbSwingIdxCck) {
 					dm_odm->BbSwingIdxCckCurrent = dm_odm->BbSwingIdxCck;
 					dm_odm->BbSwingFlagCck = true;
-				}
-
-				if (X != 0) {
-					if ((X & 0x00000200) != 0)
-						X = X | 0xFFFFFC00;
-					ele_A = ((X * ele_D) >> 8) & 0x000003FF;
-
-					/* new element C = element D x Y */
-					if ((Y & 0x00000200) != 0)
-						Y = Y | 0xFFFFFC00;
-					ele_C = ((Y * ele_D) >> 8) & 0x000003FF;
-
-					/*  2012/04/23 MH According to Luke's suggestion, we can not write BB digital */
-					/*  to increase TX power. Otherwise, EVM will be bad. */
-				}
-
-				if (is2t) {
-					ele_D = (OFDMSwingTable[(u8)OFDM_index[1]] & 0xFFC00000) >> 22;
-
-					/* new element A = element D x X */
-					X = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][4];
-					Y = dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][5];
-
-					if (X != 0) {
-						if ((X & 0x00000200) != 0)	/* consider minus */
-							X = X | 0xFFFFFC00;
-						ele_A = ((X * ele_D) >> 8) & 0x000003FF;
-
-						/* new element C = element D x Y */
-						if ((Y & 0x00000200) != 0)
-							Y = Y | 0xFFFFFC00;
-						ele_C = ((Y * ele_D) >> 8) & 0x00003FF;
-
-						/* wtite new elements A, C, D to regC88 and regC9C, element B is always 0 */
-						value32 = (ele_D << 22) | ((ele_C & 0x3F) << 16) | ele_A;
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord, value32);
-
-						value32 = (ele_C & 0x000003C0) >> 6;
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_XDTxAFE, bMaskH4Bits, value32);
-
-						value32 = ((X * ele_D) >> 7) & 0x01;
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT(28), value32);
-					} else {
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord, OFDMSwingTable[(u8)OFDM_index[1]]);
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_XDTxAFE, bMaskH4Bits, 0x00);
-						rtl8188e_PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT(28), 0x00);
-					}
 				}
 			}
 		}
@@ -353,7 +268,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 		if (dm_odm->RFCalibrateInfo.TxPowerTrackControl)
 			dm_odm->RFCalibrateInfo.ThermalValue = ThermalValue;
 	}
-	dm_odm->RFCalibrateInfo.TXPowercount = 0;
 }
 
 /* 1 7.	IQK */
@@ -405,14 +319,14 @@ phy_PathA_RxIQK(struct adapter *adapt)
 	/* 1 Get TXIMR setting */
 	/* modify RXIQK mode table */
 	rtl8188e_PHY_SetBBReg(adapt, rFPGA0_IQK, bMaskDWord, 0x00000000);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_WE_LUT, bRFRegOffsetMask, 0x800a0);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_RCK_OS, bRFRegOffsetMask, 0x30000);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_TXPA_G1, bRFRegOffsetMask, 0x0000f);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_TXPA_G2, bRFRegOffsetMask, 0xf117B);
+	rtl8188e_PHY_SetRFReg(adapt, RF_WE_LUT, bRFRegOffsetMask, 0x800a0);
+	rtl8188e_PHY_SetRFReg(adapt, RF_RCK_OS, bRFRegOffsetMask, 0x30000);
+	rtl8188e_PHY_SetRFReg(adapt, RF_TXPA_G1, bRFRegOffsetMask, 0x0000f);
+	rtl8188e_PHY_SetRFReg(adapt, RF_TXPA_G2, bRFRegOffsetMask, 0xf117B);
 
 	/* PA,PAD off */
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, 0xdf, bRFRegOffsetMask, 0x980);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, 0x56, bRFRegOffsetMask, 0x51000);
+	rtl8188e_PHY_SetRFReg(adapt, 0xdf, bRFRegOffsetMask, 0x980);
+	rtl8188e_PHY_SetRFReg(adapt, 0x56, bRFRegOffsetMask, 0x51000);
 
 	rtl8188e_PHY_SetBBReg(adapt, rFPGA0_IQK, bMaskDWord, 0x80800000);
 
@@ -454,10 +368,10 @@ phy_PathA_RxIQK(struct adapter *adapt)
 	/* 1 RX IQK */
 	/* modify RXIQK mode table */
 	rtl8188e_PHY_SetBBReg(adapt, rFPGA0_IQK, bMaskDWord, 0x00000000);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_WE_LUT, bRFRegOffsetMask, 0x800a0);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_RCK_OS, bRFRegOffsetMask, 0x30000);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_TXPA_G1, bRFRegOffsetMask, 0x0000f);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_TXPA_G2, bRFRegOffsetMask, 0xf7ffa);
+	rtl8188e_PHY_SetRFReg(adapt, RF_WE_LUT, bRFRegOffsetMask, 0x800a0);
+	rtl8188e_PHY_SetRFReg(adapt, RF_RCK_OS, bRFRegOffsetMask, 0x30000);
+	rtl8188e_PHY_SetRFReg(adapt, RF_TXPA_G1, bRFRegOffsetMask, 0x0000f);
+	rtl8188e_PHY_SetRFReg(adapt, RF_TXPA_G2, bRFRegOffsetMask, 0xf7ffa);
 	rtl8188e_PHY_SetBBReg(adapt, rFPGA0_IQK, bMaskDWord, 0x80800000);
 
 	/* IQK setting */
@@ -488,7 +402,7 @@ phy_PathA_RxIQK(struct adapter *adapt)
 
 	/* reload RF 0xdf */
 	rtl8188e_PHY_SetBBReg(adapt, rFPGA0_IQK, bMaskDWord, 0x00000000);
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, 0xdf, bRFRegOffsetMask, 0x180);
+	rtl8188e_PHY_SetRFReg(adapt, 0xdf, bRFRegOffsetMask, 0x180);
 
 	if (!(regeac & BIT(27)) &&		/* if Tx is OK, check whether Rx is OK */
 	    (((regEA4 & 0x03FF0000) >> 16) != 0x132) &&
@@ -821,10 +735,10 @@ static void phy_IQCalibrate_8188E(struct adapter *adapt, s32 result[][8], u8 t)
 	}
 }
 
-static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
+static void phy_LCCalibrate_8188E(struct adapter *adapt)
 {
 	u8 tmpreg;
-	u32 RF_Amode = 0, RF_Bmode = 0, LC_Cal;
+	u32 RF_Amode = 0, LC_Cal;
 
 	/* Check continuous TX and Packet TX */
 	tmpreg = rtw_read8(adapt, 0xd03);
@@ -837,26 +751,18 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 	if ((tmpreg & 0x70) != 0) {
 		/* 1. Read original RF mode */
 		/* Path-A */
-		RF_Amode = rtl8188e_PHY_QueryRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits);
-
-		/* Path-B */
-		if (is2t)
-			RF_Bmode = rtl8188e_PHY_QueryRFReg(adapt, RF_PATH_B, RF_AC, bMask12Bits);
+		RF_Amode = rtl8188e_PHY_QueryRFReg(adapt, RF_AC, bMask12Bits);
 
 		/* 2. Set RF mode = standby mode */
 		/* Path-A */
-		rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits, (RF_Amode & 0x8FFFF) | 0x10000);
-
-		/* Path-B */
-		if (is2t)
-			rtl8188e_PHY_SetRFReg(adapt, RF_PATH_B, RF_AC, bMask12Bits, (RF_Bmode & 0x8FFFF) | 0x10000);
+		rtl8188e_PHY_SetRFReg(adapt, RF_AC, bMask12Bits, (RF_Amode & 0x8FFFF) | 0x10000);
 	}
 
 	/* 3. Read RF reg18 */
-	LC_Cal = rtl8188e_PHY_QueryRFReg(adapt, RF_PATH_A, RF_CHNLBW, bMask12Bits);
+	LC_Cal = rtl8188e_PHY_QueryRFReg(adapt, RF_CHNLBW, bMask12Bits);
 
 	/* 4. Set LC calibration begin	bit15 */
-	rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_CHNLBW, bMask12Bits, LC_Cal | 0x08000);
+	rtl8188e_PHY_SetRFReg(adapt, RF_CHNLBW, bMask12Bits, LC_Cal | 0x08000);
 
 	msleep(100);
 
@@ -865,11 +771,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 		/* Deal with continuous TX case */
 		/* Path-A */
 		rtw_write8(adapt, 0xd03, tmpreg);
-		rtl8188e_PHY_SetRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits, RF_Amode);
-
-		/* Path-B */
-		if (is2t)
-			rtl8188e_PHY_SetRFReg(adapt, RF_PATH_B, RF_AC, bMask12Bits, RF_Bmode);
+		rtl8188e_PHY_SetRFReg(adapt, RF_AC, bMask12Bits, RF_Amode);
 	} else {
 		/*  Deal with Packet TX case */
 		rtw_write8(adapt, REG_TXPAUSE, 0x00);
@@ -885,20 +787,12 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 	bool pathaok;
 	s32 RegE94, RegE9C, RegEA4, RegEB4, RegEBC;
 	bool is12simular, is13simular, is23simular;
-	bool singletone = false, carrier_sup = false;
 	u32 IQK_BB_REG_92C[IQK_BB_REG_NUM] = {
 		rOFDM0_XARxIQImbalance, rOFDM0_XBRxIQImbalance,
 		rOFDM0_ECCAThreshold, rOFDM0_AGCRSSITable,
 		rOFDM0_XATxIQImbalance, rOFDM0_XBTxIQImbalance,
 		rOFDM0_XCTxAFE, rOFDM0_XDTxAFE,
 		rOFDM0_RxIQExtAnta};
-
-	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
-		return;
-
-	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
-	if (singletone || carrier_sup)
-		return;
 
 	if (recovery) {
 		reload_adda_reg(adapt, IQK_BB_REG_92C, dm_odm->RFCalibrateInfo.IQK_BB_backup_recover, 9);
@@ -988,21 +882,14 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 
 void PHY_LCCalibrate_8188E(struct adapter *adapt)
 {
-	bool singletone = false, carrier_sup = false;
 	u32 timeout = 2000, timecount = 0;
 	struct hal_data_8188e *pHalData = &adapt->haldata;
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
-
-	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
-		return;
-	/*  20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu) */
-	if (singletone || carrier_sup)
-		return;
 
 	while (*dm_odm->pbScanInProcess && timecount < timeout) {
 		mdelay(50);
 		timecount += 50;
 	}
 
-	phy_LCCalibrate_8188E(adapt, false);
+	phy_LCCalibrate_8188E(adapt);
 }

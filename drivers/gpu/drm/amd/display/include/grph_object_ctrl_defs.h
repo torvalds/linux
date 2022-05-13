@@ -419,28 +419,6 @@ struct integrated_info {
 	struct edp_info edp2_info;
 };
 
-/**
-* Power source ids.
-*/
-enum power_source {
-	POWER_SOURCE_AC = 0,
-	POWER_SOURCE_DC,
-	POWER_SOURCE_LIMITED_POWER,
-	POWER_SOURCE_LIMITED_POWER_2,
-	POWER_SOURCE_MAX
-};
-
-struct bios_event_info {
-	uint32_t thermal_state;
-	uint32_t backlight_level;
-	enum power_source powerSource;
-	bool has_thermal_state_changed;
-	bool has_power_source_changed;
-	bool has_forced_mode_changed;
-	bool forced_mode;
-	bool backlight_changed;
-};
-
 /*
  * DFS-bypass flag
  */

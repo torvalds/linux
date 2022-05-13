@@ -354,7 +354,7 @@ out:
 const struct address_space_operations vboxsf_reg_aops = {
 	.readpage = vboxsf_readpage,
 	.writepage = vboxsf_writepage,
-	.set_page_dirty = __set_page_dirty_nobuffers,
+	.dirty_folio = filemap_dirty_folio,
 	.write_begin = simple_write_begin,
 	.write_end = vboxsf_write_end,
 };

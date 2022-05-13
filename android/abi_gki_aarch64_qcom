@@ -465,7 +465,6 @@
   dma_unmap_page_attrs
   dma_unmap_resource
   dma_unmap_sg_attrs
-  do_exit
   do_trace_rcu_torture_read
   double_rq_lock
   do_wait_intr_irq
@@ -789,6 +788,7 @@
   irq_domain_remove
   irq_domain_set_hwirq_and_chip
   irq_domain_set_info
+  irq_domain_translate_twocell
   irq_domain_update_bus_token
   irq_domain_xlate_twocell
   irq_find_matching_fwspec
@@ -1038,9 +1038,7 @@
   of_n_addr_cells
   of_node_name_eq
   of_n_size_cells
-  of_parse_phandle
-  of_parse_phandle_with_args
-  of_parse_phandle_with_fixed_args
+  __of_parse_phandle_with_args
   of_phandle_iterator_init
   of_phandle_iterator_next
   of_phy_is_fixed_link
@@ -1074,7 +1072,6 @@
   page_pool_alloc_pages
   page_pool_create
   page_pool_destroy
-  page_pool_put_page
   page_pool_release_page
   panic
   panic_notifier_list
@@ -1164,7 +1161,6 @@
   phylink_mii_ioctl
   phylink_of_phy_connect
   phylink_resume
-  phylink_set_pcs
   phylink_set_port_modes
   phylink_speed_down
   phylink_speed_up
@@ -1413,17 +1409,6 @@
   resched_curr
   reset_control_assert
   reset_control_deassert
-  rndis_deregister
-  rndis_free_response
-  rndis_get_next_response
-  rndis_msg_parser
-  rndis_register
-  rndis_set_host_mac
-  rndis_set_param_dev
-  rndis_set_param_medium
-  rndis_set_param_vendor
-  rndis_signal_connect
-  rndis_uninit
   root_task_group
   round_jiffies_relative
   rpmsg_poll
@@ -1671,7 +1656,6 @@
   tasklet_setup
   tasklet_unlock_wait
   tasklist_lock
-  task_may_not_preempt
   __task_rq_lock
   thermal_cooling_device_register
   thermal_cooling_device_unregister
@@ -1696,44 +1680,27 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
-  __tracepoint_android_rvh_account_irq
   __tracepoint_android_rvh_after_dequeue_task
   __tracepoint_android_rvh_after_enqueue_task
-  __tracepoint_android_rvh_build_perf_domains
   __tracepoint_android_rvh_can_migrate_task
   __tracepoint_android_rvh_check_preempt_wakeup
   __tracepoint_android_rvh_cpu_cgroup_attach
   __tracepoint_android_rvh_cpu_cgroup_online
   __tracepoint_android_rvh_find_busiest_queue
   __tracepoint_android_rvh_find_lowest_rq
-  __tracepoint_android_rvh_flush_task
   __tracepoint_android_rvh_migrate_queued_task
-  __tracepoint_android_rvh_new_task_stats
   __tracepoint_android_rvh_replace_next_task_fair
-  __tracepoint_android_rvh_sched_cpu_dying
-  __tracepoint_android_rvh_sched_cpu_starting
   __tracepoint_android_rvh_sched_exec
   __tracepoint_android_rvh_sched_fork_init
   __tracepoint_android_rvh_sched_newidle_balance
   __tracepoint_android_rvh_sched_nohz_balancer_kick
   __tracepoint_android_rvh_sched_setaffinity
-  __tracepoint_android_rvh_schedule
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_set_balance_anon_file_reclaim
-  __tracepoint_android_rvh_set_gfp_zone_flags
-  __tracepoint_android_rvh_set_readahead_gfp_mask
-  __tracepoint_android_rvh_set_skip_swapcache_flags
-  __tracepoint_android_rvh_set_task_cpu
   __tracepoint_android_rvh_show_max_freq
-  __tracepoint_android_rvh_tick_entry
-  __tracepoint_android_rvh_try_to_wake_up
-  __tracepoint_android_rvh_try_to_wake_up_success
   __tracepoint_android_rvh_ttwu_cond
-  __tracepoint_android_rvh_update_cpu_capacity
   __tracepoint_android_rvh_update_cpus_allowed
-  __tracepoint_android_rvh_update_misfit_status
-  __tracepoint_android_rvh_wake_up_new_task
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_wakeup_ilocked
@@ -1775,6 +1742,7 @@
   trace_raw_output_prep
   trace_seq_printf
   trace_seq_putc
+  __trace_trigger_soft_disabled
   tracing_off
   try_module_get
   try_wait_for_completion

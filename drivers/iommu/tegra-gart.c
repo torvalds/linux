@@ -238,11 +238,6 @@ static phys_addr_t gart_iommu_iova_to_phys(struct iommu_domain *domain,
 	return pte & GART_PAGE_MASK;
 }
 
-static bool gart_iommu_capable(enum iommu_cap cap)
-{
-	return false;
-}
-
 static struct iommu_device *gart_iommu_probe_device(struct device *dev)
 {
 	if (!dev_iommu_fwspec_get(dev))
@@ -276,21 +271,22 @@ static void gart_iommu_sync(struct iommu_domain *domain,
 }
 
 static const struct iommu_ops gart_iommu_ops = {
-	.capable	= gart_iommu_capable,
 	.domain_alloc	= gart_iommu_domain_alloc,
-	.domain_free	= gart_iommu_domain_free,
-	.attach_dev	= gart_iommu_attach_dev,
-	.detach_dev	= gart_iommu_detach_dev,
 	.probe_device	= gart_iommu_probe_device,
 	.release_device	= gart_iommu_release_device,
 	.device_group	= generic_device_group,
-	.map		= gart_iommu_map,
-	.unmap		= gart_iommu_unmap,
-	.iova_to_phys	= gart_iommu_iova_to_phys,
 	.pgsize_bitmap	= GART_IOMMU_PGSIZES,
 	.of_xlate	= gart_iommu_of_xlate,
-	.iotlb_sync_map	= gart_iommu_sync_map,
-	.iotlb_sync	= gart_iommu_sync,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= gart_iommu_attach_dev,
+		.detach_dev	= gart_iommu_detach_dev,
+		.map		= gart_iommu_map,
+		.unmap		= gart_iommu_unmap,
+		.iova_to_phys	= gart_iommu_iova_to_phys,
+		.iotlb_sync_map	= gart_iommu_sync_map,
+		.iotlb_sync	= gart_iommu_sync,
+		.free		= gart_iommu_domain_free,
+	}
 };
 
 int tegra_gart_suspend(struct gart_device *gart)

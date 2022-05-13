@@ -605,6 +605,11 @@ static struct pernet_operations cttimeout_ops = {
 	.size   = sizeof(struct nfct_timeout_pernet),
 };
 
+static const struct nf_ct_timeout_hooks hooks = {
+	.timeout_find_get = ctnl_timeout_find_get,
+	.timeout_put = ctnl_timeout_put,
+};
+
 static int __init cttimeout_init(void)
 {
 	int ret;
@@ -619,8 +624,7 @@ static int __init cttimeout_init(void)
 			"nfnetlink.\n");
 		goto err_out;
 	}
-	RCU_INIT_POINTER(nf_ct_timeout_find_get_hook, ctnl_timeout_find_get);
-	RCU_INIT_POINTER(nf_ct_timeout_put_hook, ctnl_timeout_put);
+	RCU_INIT_POINTER(nf_ct_timeout_hook, &hooks);
 	return 0;
 
 err_out:
@@ -633,8 +637,7 @@ static void __exit cttimeout_exit(void)
 	nfnetlink_subsys_unregister(&cttimeout_subsys);
 
 	unregister_pernet_subsys(&cttimeout_ops);
-	RCU_INIT_POINTER(nf_ct_timeout_find_get_hook, NULL);
-	RCU_INIT_POINTER(nf_ct_timeout_put_hook, NULL);
+	RCU_INIT_POINTER(nf_ct_timeout_hook, NULL);
 	synchronize_rcu();
 }
 

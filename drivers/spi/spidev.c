@@ -453,22 +453,29 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				dev_dbg(&spi->dev, "%d bits per word\n", tmp);
 		}
 		break;
-	case SPI_IOC_WR_MAX_SPEED_HZ:
+	case SPI_IOC_WR_MAX_SPEED_HZ: {
+		u32 save;
+
 		retval = get_user(tmp, (__u32 __user *)arg);
-		if (retval == 0) {
-			u32	save = spi->max_speed_hz;
-
-			spi->max_speed_hz = tmp;
-			retval = spi_setup(spi);
-			if (retval == 0) {
-				spidev->speed_hz = tmp;
-				dev_dbg(&spi->dev, "%d Hz (max)\n",
-					spidev->speed_hz);
-			}
-			spi->max_speed_hz = save;
+		if (retval)
+			break;
+		if (tmp == 0) {
+			retval = -EINVAL;
+			break;
 		}
-		break;
 
+		save = spi->max_speed_hz;
+
+		spi->max_speed_hz = tmp;
+		retval = spi_setup(spi);
+		if (retval == 0) {
+			spidev->speed_hz = tmp;
+			dev_dbg(&spi->dev, "%d Hz (max)\n", spidev->speed_hz);
+		}
+
+		spi->max_speed_hz = save;
+		break;
+	}
 	default:
 		/* segmented and/or full-duplex I/O request */
 		/* Check message and copy into scratch area */
@@ -803,7 +810,7 @@ static int spidev_probe(struct spi_device *spi)
 	return status;
 }
 
-static int spidev_remove(struct spi_device *spi)
+static void spidev_remove(struct spi_device *spi)
 {
 	struct spidev_data	*spidev = spi_get_drvdata(spi);
 
@@ -820,8 +827,6 @@ static int spidev_remove(struct spi_device *spi)
 	if (spidev->users == 0)
 		kfree(spidev);
 	mutex_unlock(&device_list_lock);
-
-	return 0;
 }
 
 static struct spi_driver spidev_spi_driver = {

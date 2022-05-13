@@ -1618,7 +1618,6 @@ cleanup:
 
 static int sdhci_tegra_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	const struct sdhci_tegra_soc_data *soc_data;
 	struct sdhci_host *host;
 	struct sdhci_pltfm_host *pltfm_host;
@@ -1626,10 +1625,9 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int rc;
 
-	match = of_match_device(sdhci_tegra_dt_match, &pdev->dev);
-	if (!match)
+	soc_data = of_device_get_match_data(&pdev->dev);
+	if (!soc_data)
 		return -EINVAL;
-	soc_data = match->data;
 
 	host = sdhci_pltfm_init(pdev, soc_data->pdata, sizeof(*tegra_host));
 	if (IS_ERR(host))
@@ -1672,6 +1670,9 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 
 	/* HW busy detection is supported, but R1B responses are required. */
 	host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_NEED_RSP_BUSY;
+
+	/* GPIO CD can be set as a wakeup source */
+	host->mmc->caps |= MMC_CAP_CD_WAKE;
 
 	tegra_sdhci_parse_dt(host);
 
@@ -1840,13 +1841,17 @@ static int sdhci_tegra_suspend(struct device *dev)
 		return ret;
 	}
 
-	return 0;
+	return mmc_gpio_set_cd_wake(host->mmc, true);
 }
 
 static int sdhci_tegra_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	int ret;
+
+	ret = mmc_gpio_set_cd_wake(host->mmc, false);
+	if (ret)
+		return ret;
 
 	ret = pm_runtime_force_resume(dev);
 	if (ret)

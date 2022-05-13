@@ -172,8 +172,7 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 static int __init setup_hwcaps(void)
 {
 	/* instructions named N3, "backported" to esa-mode */
-	if (test_facility(0))
-		elf_hwcap |= HWCAP_ESAN3;
+	elf_hwcap |= HWCAP_ESAN3;
 
 	/* z/Architecture mode active */
 	elf_hwcap |= HWCAP_ZARCH;
@@ -191,8 +190,7 @@ static int __init setup_hwcaps(void)
 		elf_hwcap |= HWCAP_LDISP;
 
 	/* extended-immediate */
-	if (test_facility(21))
-		elf_hwcap |= HWCAP_EIMM;
+	elf_hwcap |= HWCAP_EIMM;
 
 	/* extended-translation facility 3 enhancement */
 	if (test_facility(22) && test_facility(30))
@@ -262,21 +260,7 @@ static int __init setup_elf_platform(void)
 	get_cpu_id(&cpu_id);
 	add_device_randomness(&cpu_id, sizeof(cpu_id));
 	switch (cpu_id.machine) {
-	case 0x2064:
-	case 0x2066:
-	default:	/* Use "z900" as default for 64 bit kernels. */
-		strcpy(elf_platform, "z900");
-		break;
-	case 0x2084:
-	case 0x2086:
-		strcpy(elf_platform, "z990");
-		break;
-	case 0x2094:
-	case 0x2096:
-		strcpy(elf_platform, "z9-109");
-		break;
-	case 0x2097:
-	case 0x2098:
+	default:	/* Use "z10" as default. */
 		strcpy(elf_platform, "z10");
 		break;
 	case 0x2817:
@@ -298,6 +282,10 @@ static int __init setup_elf_platform(void)
 	case 0x8561:
 	case 0x8562:
 		strcpy(elf_platform, "z15");
+		break;
+	case 0x3931:
+	case 0x3932:
+		strcpy(elf_platform, "z16");
 		break;
 	}
 	return 0;

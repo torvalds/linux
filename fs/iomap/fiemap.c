@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/iomap.h>
 #include <linux/fiemap.h>
+#include <linux/pagemap.h>
 
 static int iomap_to_fiemap(struct fiemap_extent_info *fi,
 		const struct iomap *iomap, u32 flags)

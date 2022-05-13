@@ -1309,17 +1309,19 @@ static int exynos_iommu_of_xlate(struct device *dev,
 
 static const struct iommu_ops exynos_iommu_ops = {
 	.domain_alloc = exynos_iommu_domain_alloc,
-	.domain_free = exynos_iommu_domain_free,
-	.attach_dev = exynos_iommu_attach_device,
-	.detach_dev = exynos_iommu_detach_device,
-	.map = exynos_iommu_map,
-	.unmap = exynos_iommu_unmap,
-	.iova_to_phys = exynos_iommu_iova_to_phys,
 	.device_group = generic_device_group,
 	.probe_device = exynos_iommu_probe_device,
 	.release_device = exynos_iommu_release_device,
 	.pgsize_bitmap = SECT_SIZE | LPAGE_SIZE | SPAGE_SIZE,
 	.of_xlate = exynos_iommu_of_xlate,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= exynos_iommu_attach_device,
+		.detach_dev	= exynos_iommu_detach_device,
+		.map		= exynos_iommu_map,
+		.unmap		= exynos_iommu_unmap,
+		.iova_to_phys	= exynos_iommu_iova_to_phys,
+		.free		= exynos_iommu_domain_free,
+	}
 };
 
 static int __init exynos_iommu_init(void)

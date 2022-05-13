@@ -104,7 +104,7 @@ static void sel_ib_pkey_insert(struct sel_ib_pkey *pkey)
 
 		tail = list_entry(
 			rcu_dereference_protected(
-				sel_ib_pkey_hash[idx].list.prev,
+				list_tail_rcu(&sel_ib_pkey_hash[idx].list),
 				lockdep_is_held(&sel_ib_pkey_lock)),
 			struct sel_ib_pkey, list);
 		list_del_rcu(&tail->list);

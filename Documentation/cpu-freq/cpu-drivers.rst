@@ -75,6 +75,9 @@ And optionally
  .resume - A pointer to a per-policy resume function which is called
  with interrupts disabled and _before_ the governor is started again.
 
+ .ready - A pointer to a per-policy ready function which is called after
+ the policy is fully initialized.
+
  .attr - A pointer to a NULL-terminated list of "struct freq_attr" which
  allow to export values to sysfs.
 

@@ -59,11 +59,11 @@ DECLARE_STATIC_KEY_FALSE(enable_evmcs);
 	 SECONDARY_EXEC_SHADOW_VMCS |					\
 	 SECONDARY_EXEC_TSC_SCALING |					\
 	 SECONDARY_EXEC_PAUSE_LOOP_EXITING)
-#define EVMCS1_UNSUPPORTED_VMEXIT_CTRL (VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL)
+#define EVMCS1_UNSUPPORTED_VMEXIT_CTRL					\
+	(VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL |				\
+	 VM_EXIT_SAVE_VMX_PREEMPTION_TIMER)
 #define EVMCS1_UNSUPPORTED_VMENTRY_CTRL (VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL)
 #define EVMCS1_UNSUPPORTED_VMFUNC (VMX_VMFUNC_EPTP_SWITCHING)
-
-#if IS_ENABLED(CONFIG_HYPERV)
 
 struct evmcs_field {
 	u16 offset;
@@ -73,24 +73,54 @@ struct evmcs_field {
 extern const struct evmcs_field vmcs_field_to_evmcs_1[];
 extern const unsigned int nr_evmcs_1_fields;
 
-static __always_inline int get_evmcs_offset(unsigned long field,
-					    u16 *clean_field)
+static __always_inline int evmcs_field_offset(unsigned long field,
+					      u16 *clean_field)
 {
 	unsigned int index = ROL16(field, 6);
 	const struct evmcs_field *evmcs_field;
 
-	if (unlikely(index >= nr_evmcs_1_fields)) {
-		WARN_ONCE(1, "KVM: accessing unsupported EVMCS field %lx\n",
-			  field);
+	if (unlikely(index >= nr_evmcs_1_fields))
 		return -ENOENT;
-	}
 
 	evmcs_field = &vmcs_field_to_evmcs_1[index];
+
+	/*
+	 * Use offset=0 to detect holes in eVMCS. This offset belongs to
+	 * 'revision_id' but this field has no encoding and is supposed to
+	 * be accessed directly.
+	 */
+	if (unlikely(!evmcs_field->offset))
+		return -ENOENT;
 
 	if (clean_field)
 		*clean_field = evmcs_field->clean_field;
 
 	return evmcs_field->offset;
+}
+
+static inline u64 evmcs_read_any(struct hv_enlightened_vmcs *evmcs,
+				 unsigned long field, u16 offset)
+{
+	/*
+	 * vmcs12_read_any() doesn't care whether the supplied structure
+	 * is 'struct vmcs12' or 'struct hv_enlightened_vmcs' as it takes
+	 * the exact offset of the required field, use it for convenience
+	 * here.
+	 */
+	return vmcs12_read_any((void *)evmcs, field, offset);
+}
+
+#if IS_ENABLED(CONFIG_HYPERV)
+
+static __always_inline int get_evmcs_offset(unsigned long field,
+					    u16 *clean_field)
+{
+	int offset = evmcs_field_offset(field, clean_field);
+
+	WARN_ONCE(offset < 0, "KVM: accessing unsupported EVMCS field %lx\n",
+		  field);
+
+	return offset;
 }
 
 static __always_inline void evmcs_write64(unsigned long field, u64 value)

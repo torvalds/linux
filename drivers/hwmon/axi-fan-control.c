@@ -339,7 +339,8 @@ static irqreturn_t axi_fan_control_irq_handler(int irq, void *data)
 			ctl->update_tacho_params = true;
 		} else {
 			ctl->hw_pwm_req = false;
-			sysfs_notify(&ctl->hdev->kobj, NULL, "pwm1");
+			hwmon_notify_event(ctl->hdev, hwmon_pwm,
+					   hwmon_pwm_input, 0);
 		}
 	}
 

@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/pci.h>
 #include <linux/regmap.h>
 
 #include <pcmcia/ss.h>
@@ -230,6 +231,7 @@ static int at91_cf_probe(struct platform_device *pdev)
 	struct at91_cf_socket	*cf;
 	struct at91_cf_data	*board;
 	struct resource		*io;
+	struct resource		realio;
 	int			status;
 
 	board = devm_kzalloc(&pdev->dev, sizeof(*board), GFP_KERNEL);
@@ -307,7 +309,9 @@ static int at91_cf_probe(struct platform_device *pdev)
 	 * io_offset is set to 0x10000 to avoid the check in static_find_io().
 	 * */
 	cf->socket.io_offset = 0x10000;
-	status = pci_ioremap_io(0x10000, cf->phys_baseaddr + CF_IO_PHYS);
+	realio.start = cf->socket.io_offset;
+	realio.end = realio.start + SZ_64K - 1;
+	status = pci_remap_iospace(&realio, cf->phys_baseaddr + CF_IO_PHYS);
 	if (status)
 		goto fail0a;
 

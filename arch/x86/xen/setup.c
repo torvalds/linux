@@ -719,7 +719,7 @@ static void __init xen_reserve_xen_mfnlist(void)
 }
 
 /**
- * machine_specific_memory_setup - Hook for machine specific memory setup.
+ * xen_memory_setup - Hook for machine specific memory setup.
  **/
 char * __init xen_memory_setup(void)
 {

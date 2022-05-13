@@ -265,7 +265,7 @@ void dcn31_smu_set_dram_addr_low(struct clk_mgr_internal *clk_mgr, uint32_t addr
 void dcn31_smu_transfer_dpm_table_smu_2_dram(struct clk_mgr_internal *clk_mgr);
 void dcn31_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr);
 
-void dcn31_smu_set_Z9_support(struct clk_mgr_internal *clk_mgr, bool support);
+void dcn31_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zstate_support_state support);
 void dcn31_smu_set_dtbclk(struct clk_mgr_internal *clk_mgr, bool enable);
 
 #endif /* DAL_DC_31_SMU_H_ */

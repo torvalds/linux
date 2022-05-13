@@ -57,6 +57,9 @@ static void smc_close_stream_wait(struct smc_sock *smc, long timeout)
 	if (!smc_tx_prepared_sends(&smc->conn))
 		return;
 
+	/* Send out corked data remaining in sndbuf */
+	smc_tx_pending(&smc->conn);
+
 	smc->wait_close_tx_prepared = 1;
 	add_wait_queue(sk_sleep(sk), &wait);
 	while (!signal_pending(current) && timeout) {

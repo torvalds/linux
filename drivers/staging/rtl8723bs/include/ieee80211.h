@@ -204,7 +204,7 @@ struct ieee_param {
 struct ieee_param_ex {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
-	u8 data[0];
+	u8 data[];
 };
 
 struct sta_data {

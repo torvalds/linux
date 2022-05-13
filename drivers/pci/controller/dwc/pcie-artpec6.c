@@ -380,17 +380,15 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	struct artpec6_pcie *artpec6_pcie;
 	int ret;
-	const struct of_device_id *match;
 	const struct artpec_pcie_of_data *data;
 	enum artpec_pcie_variants variant;
 	enum dw_pcie_device_mode mode;
 	u32 val;
 
-	match = of_match_device(artpec6_pcie_of_match, dev);
-	if (!match)
+	data = of_device_get_match_data(dev);
+	if (!data)
 		return -EINVAL;
 
-	data = (struct artpec_pcie_of_data *)match->data;
 	variant = (enum artpec_pcie_variants)data->variant;
 	mode = (enum dw_pcie_device_mode)data->mode;
 

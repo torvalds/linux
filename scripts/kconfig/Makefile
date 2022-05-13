@@ -69,7 +69,7 @@ localyesconfig localmodconfig: $(obj)/conf
 #  deprecated for external use
 simple-targets := oldconfig allnoconfig allyesconfig allmodconfig \
 	alldefconfig randconfig listnewconfig olddefconfig syncconfig \
-	helpnewconfig yes2modconfig mod2yesconfig
+	helpnewconfig yes2modconfig mod2yesconfig mod2noconfig
 
 PHONY += $(simple-targets)
 
@@ -134,6 +134,7 @@ help:
 	@echo  '  randconfig	  - New config with random answer to all options'
 	@echo  '  yes2modconfig	  - Change answers from yes to mod if possible'
 	@echo  '  mod2yesconfig	  - Change answers from mod to yes if possible'
+	@echo  '  mod2noconfig	  - Change answers from mod to no if possible'
 	@echo  '  listnewconfig   - List new options'
 	@echo  '  helpnewconfig   - List new options and help text'
 	@echo  '  olddefconfig	  - Same as oldconfig but sets new symbols to their'

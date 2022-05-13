@@ -169,7 +169,7 @@ static int pps_gpio_probe(struct platform_device *pdev)
 	/* GPIO setup */
 	ret = pps_gpio_setup(dev);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	/* IRQ setup */
 	ret = gpiod_to_irq(data->gpio_pin);

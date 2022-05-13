@@ -369,10 +369,8 @@ int vnt_radio_power_off(struct vnt_private *priv)
 	switch (priv->rf_type) {
 	case RF_AL2230:
 	case RF_AL2230S:
-	case RF_AIROHA7230:
 	case RF_VT3226:
 	case RF_VT3226D0:
-	case RF_VT3342A0:
 		ret = vnt_mac_reg_bits_off(priv, MAC_REG_SOFTPWRCTL,
 					   (SOFTPWRCTL_SWPE2 |
 					    SOFTPWRCTL_SWPE3));
@@ -423,10 +421,8 @@ int vnt_radio_power_on(struct vnt_private *priv)
 	switch (priv->rf_type) {
 	case RF_AL2230:
 	case RF_AL2230S:
-	case RF_AIROHA7230:
 	case RF_VT3226:
 	case RF_VT3226D0:
-	case RF_VT3342A0:
 		ret = vnt_mac_reg_bits_on(priv, MAC_REG_SOFTPWRCTL,
 					  (SOFTPWRCTL_SWPE2 |
 					   SOFTPWRCTL_SWPE3));
@@ -442,11 +438,7 @@ int vnt_set_bss_mode(struct vnt_private *priv)
 	int ret;
 	unsigned char type = priv->bb_type;
 	unsigned char data = 0;
-	unsigned char bb_vga_0 = 0x1c;
 	unsigned char bb_vga_2_3 = 0x00;
-
-	if (priv->rf_type == RF_AIROHA7230 && priv->bb_type == BB_TYPE_11A)
-		type = BB_TYPE_11G;
 
 	ret = vnt_mac_set_bb_type(priv, type);
 	if (ret)
@@ -456,7 +448,6 @@ int vnt_set_bss_mode(struct vnt_private *priv)
 
 	if (priv->bb_type == BB_TYPE_11A) {
 		data = 0x03;
-		bb_vga_0 = 0x20;
 		bb_vga_2_3 = 0x10;
 	} else if (priv->bb_type == BB_TYPE_11B) {
 		data = 0x02;
@@ -478,15 +469,6 @@ int vnt_set_bss_mode(struct vnt_private *priv)
 	ret = vnt_set_rspinf(priv, priv->bb_type);
 	if (ret)
 		return ret;
-
-	if (priv->rf_type == RF_AIROHA7230) {
-		priv->bb_vga[0] = bb_vga_0;
-
-		ret = vnt_control_out_u8(priv, MESSAGE_REQUEST_BBREG,
-					 0xe7, priv->bb_vga[0]);
-		if (ret)
-			return ret;
-	}
 
 	priv->bb_vga[2] = bb_vga_2_3;
 	priv->bb_vga[3] = bb_vga_2_3;

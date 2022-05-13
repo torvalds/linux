@@ -6,7 +6,6 @@
 #include <linux/list.h>
 #include <linux/alarmtimer.h>
 #include <linux/timerqueue.h>
-#include <linux/task_work.h>
 
 struct kernel_siginfo;
 struct task_struct;
@@ -253,7 +252,7 @@ void posix_cpu_timers_exit_group(struct task_struct *task);
 void set_process_cpu_timer(struct task_struct *task, unsigned int clock_idx,
 			   u64 *newval, u64 *oldval);
 
-void update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new);
+int update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new);
 
 void posixtimer_rearm(struct kernel_siginfo *info);
 #endif

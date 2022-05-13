@@ -491,11 +491,9 @@ static int ad5446_spi_probe(struct spi_device *spi)
 		&ad5446_spi_chip_info[id->driver_data]);
 }
 
-static int ad5446_spi_remove(struct spi_device *spi)
+static void ad5446_spi_remove(struct spi_device *spi)
 {
 	ad5446_remove(&spi->dev);
-
-	return 0;
 }
 
 static struct spi_driver ad5446_spi_driver = {

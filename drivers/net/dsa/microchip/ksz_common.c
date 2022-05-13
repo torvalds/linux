@@ -26,7 +26,7 @@ void ksz_update_port_member(struct ksz_device *dev, int port)
 	struct dsa_switch *ds = dev->ds;
 	u8 port_member = 0, cpu_port;
 	const struct dsa_port *dp;
-	int i;
+	int i, j;
 
 	if (!dsa_is_user_port(ds, port))
 		return;
@@ -45,11 +45,31 @@ void ksz_update_port_member(struct ksz_device *dev, int port)
 			continue;
 		if (!dsa_port_bridge_same(dp, other_dp))
 			continue;
+		if (other_p->stp_state != BR_STATE_FORWARDING)
+			continue;
 
-		if (other_p->stp_state == BR_STATE_FORWARDING &&
-		    p->stp_state == BR_STATE_FORWARDING) {
+		if (p->stp_state == BR_STATE_FORWARDING) {
 			val |= BIT(port);
 			port_member |= BIT(i);
+		}
+
+		/* Retain port [i]'s relationship to other ports than [port] */
+		for (j = 0; j < ds->num_ports; j++) {
+			const struct dsa_port *third_dp;
+			struct ksz_port *third_p;
+
+			if (j == i)
+				continue;
+			if (j == port)
+				continue;
+			if (!dsa_is_user_port(ds, j))
+				continue;
+			third_p = &dev->ports[j];
+			if (third_p->stp_state != BR_STATE_FORWARDING)
+				continue;
+			third_dp = dsa_to_port(ds, j);
+			if (dsa_port_bridge_same(other_dp, third_dp))
+				val |= BIT(j);
 		}
 
 		dev->dev_ops->cfg_port_member(dev, i, val | cpu_port);
@@ -110,6 +130,10 @@ static void ksz_mib_read_work(struct work_struct *work)
 		}
 		port_r_cnt(dev, i);
 		p->read = false;
+
+		if (dev->dev_ops->r_mib_stat64)
+			dev->dev_ops->r_mib_stat64(dev, i);
+
 		mutex_unlock(&mib->cnt_mutex);
 	}
 
@@ -193,7 +217,8 @@ EXPORT_SYMBOL_GPL(ksz_get_ethtool_stats);
 
 int ksz_port_bridge_join(struct dsa_switch *ds, int port,
 			 struct dsa_bridge bridge,
-			 bool *tx_fwd_offload)
+			 bool *tx_fwd_offload,
+			 struct netlink_ext_ack *extack)
 {
 	/* port_stp_state_set() will be called after to put the port in
 	 * appropriate state so there is no need to do anything.
@@ -252,7 +277,8 @@ int ksz_port_fdb_dump(struct dsa_switch *ds, int port, dsa_fdb_dump_cb_t *cb,
 EXPORT_SYMBOL_GPL(ksz_port_fdb_dump);
 
 int ksz_port_mdb_add(struct dsa_switch *ds, int port,
-		     const struct switchdev_obj_port_mdb *mdb)
+		     const struct switchdev_obj_port_mdb *mdb,
+		     struct dsa_db db)
 {
 	struct ksz_device *dev = ds->priv;
 	struct alu_struct alu;
@@ -297,7 +323,8 @@ int ksz_port_mdb_add(struct dsa_switch *ds, int port,
 EXPORT_SYMBOL_GPL(ksz_port_mdb_add);
 
 int ksz_port_mdb_del(struct dsa_switch *ds, int port,
-		     const struct switchdev_obj_port_mdb *mdb)
+		     const struct switchdev_obj_port_mdb *mdb,
+		     struct dsa_db db)
 {
 	struct ksz_device *dev = ds->priv;
 	struct alu_struct alu;
@@ -434,6 +461,12 @@ int ksz_switch_register(struct ksz_device *dev,
 			}
 		dev->synclko_125 = of_property_read_bool(dev->dev->of_node,
 							 "microchip,synclko-125");
+		dev->synclko_disable = of_property_read_bool(dev->dev->of_node,
+							     "microchip,synclko-disable");
+		if (dev->synclko_125 && dev->synclko_disable) {
+			dev_err(dev->dev, "inconsistent synclko settings\n");
+			return -EINVAL;
+		}
 	}
 
 	ret = dsa_register_switch(dev->ds);
@@ -443,7 +476,7 @@ int ksz_switch_register(struct ksz_device *dev,
 	}
 
 	/* Read MIB counters every 30 seconds to avoid overflow. */
-	dev->mib_read_interval = msecs_to_jiffies(30000);
+	dev->mib_read_interval = msecs_to_jiffies(5000);
 
 	/* Start the MIB timer. */
 	schedule_delayed_work(&dev->mib_read, 0);

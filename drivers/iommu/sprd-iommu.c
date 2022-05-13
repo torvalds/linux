@@ -416,20 +416,22 @@ static int sprd_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 
 static const struct iommu_ops sprd_iommu_ops = {
 	.domain_alloc	= sprd_iommu_domain_alloc,
-	.domain_free	= sprd_iommu_domain_free,
-	.attach_dev	= sprd_iommu_attach_device,
-	.detach_dev	= sprd_iommu_detach_device,
-	.map		= sprd_iommu_map,
-	.unmap		= sprd_iommu_unmap,
-	.iotlb_sync_map	= sprd_iommu_sync_map,
-	.iotlb_sync	= sprd_iommu_sync,
-	.iova_to_phys	= sprd_iommu_iova_to_phys,
 	.probe_device	= sprd_iommu_probe_device,
 	.release_device	= sprd_iommu_release_device,
 	.device_group	= sprd_iommu_device_group,
 	.of_xlate	= sprd_iommu_of_xlate,
 	.pgsize_bitmap	= ~0UL << SPRD_IOMMU_PAGE_SHIFT,
 	.owner		= THIS_MODULE,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= sprd_iommu_attach_device,
+		.detach_dev	= sprd_iommu_detach_device,
+		.map		= sprd_iommu_map,
+		.unmap		= sprd_iommu_unmap,
+		.iotlb_sync_map	= sprd_iommu_sync_map,
+		.iotlb_sync	= sprd_iommu_sync,
+		.iova_to_phys	= sprd_iommu_iova_to_phys,
+		.free		= sprd_iommu_domain_free,
+	}
 };
 
 static const struct of_device_id sprd_iommu_of_match[] = {

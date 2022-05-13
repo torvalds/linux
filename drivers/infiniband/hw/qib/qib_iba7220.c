@@ -634,7 +634,7 @@ static const struct qib_hwerror_msgs qib_7220_hwerror_msgs[] = {
 	QLOGIC_IB_HWE_MSG(QLOGIC_IB_HWE_PCIECPLTIMEOUT,
 			  "PCIe completion timeout"),
 	/*
-	 * In practice, it's unlikely wthat we'll see PCIe PLL, or bus
+	 * In practice, it's unlikely that we'll see PCIe PLL, or bus
 	 * parity or memory parity error failures, because most likely we
 	 * won't be able to talk to the core of the chip.  Nonetheless, we
 	 * might see them, if they are in parts of the PCIe core that aren't
@@ -2988,7 +2988,7 @@ done:
  * the utility.  Names need to be 12 chars or less (w/o newline), for proper
  * display by utility.
  * Non-error counters are first.
- * Start of "error" conters is indicated by a leading "E " on the first
+ * Start of "error" counters is indicated by a leading "E " on the first
  * "error" counter, and doesn't count in label length.
  * The EgrOvfl list needs to be last so we truncate them at the configured
  * context count for the device.

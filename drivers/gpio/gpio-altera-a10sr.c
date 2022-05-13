@@ -10,6 +10,7 @@
 #include <linux/gpio/driver.h>
 #include <linux/mfd/altera-a10sr.h>
 #include <linux/module.h>
+#include <linux/property.h>
 
 /**
  * struct altr_a10sr_gpio - Altera Max5 GPIO device private data structure
@@ -88,7 +89,7 @@ static int altr_a10sr_gpio_probe(struct platform_device *pdev)
 
 	gpio->gp = altr_a10sr_gc;
 	gpio->gp.parent = pdev->dev.parent;
-	gpio->gp.of_node = pdev->dev.of_node;
+	gpio->gp.fwnode = dev_fwnode(&pdev->dev);
 
 	return devm_gpiochip_add_data(&pdev->dev, &gpio->gp, gpio);
 }

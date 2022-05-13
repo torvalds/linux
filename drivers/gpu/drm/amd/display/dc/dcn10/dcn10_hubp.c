@@ -1311,6 +1311,20 @@ void hubp1_set_flip_int(struct hubp *hubp)
 	return;
 }
 
+/**
+ * hubp1_wait_pipe_read_start - wait for hubp ret path starting read.
+ *
+ * @hubp: hubp struct reference.
+ */
+void hubp1_wait_pipe_read_start(struct hubp *hubp)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
+	REG_WAIT(HUBPRET_READ_LINE_STATUS,
+		PIPE_READ_VBLANK, 0,
+		 1, 1000);
+}
+
 void hubp1_init(struct hubp *hubp)
 {
 	//do nothing
@@ -1345,6 +1359,7 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_soft_reset = hubp1_soft_reset,
 	.hubp_in_blank = hubp1_in_blank,
 	.hubp_set_flip_int = hubp1_set_flip_int,
+	.hubp_wait_pipe_read_start = hubp1_wait_pipe_read_start,
 };
 
 /*****************************************/

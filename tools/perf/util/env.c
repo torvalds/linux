@@ -285,13 +285,13 @@ out_enomem:
 
 int perf_env__read_cpu_topology_map(struct perf_env *env)
 {
-	int cpu, nr_cpus;
+	int idx, nr_cpus;
 
 	if (env->cpu != NULL)
 		return 0;
 
 	if (env->nr_cpus_avail == 0)
-		env->nr_cpus_avail = cpu__max_present_cpu();
+		env->nr_cpus_avail = cpu__max_present_cpu().cpu;
 
 	nr_cpus = env->nr_cpus_avail;
 	if (nr_cpus == -1)
@@ -301,10 +301,12 @@ int perf_env__read_cpu_topology_map(struct perf_env *env)
 	if (env->cpu == NULL)
 		return -ENOMEM;
 
-	for (cpu = 0; cpu < nr_cpus; ++cpu) {
-		env->cpu[cpu].core_id	= cpu_map__get_core_id(cpu);
-		env->cpu[cpu].socket_id	= cpu_map__get_socket_id(cpu);
-		env->cpu[cpu].die_id	= cpu_map__get_die_id(cpu);
+	for (idx = 0; idx < nr_cpus; ++idx) {
+		struct perf_cpu cpu = { .cpu = idx };
+
+		env->cpu[idx].core_id	= cpu__get_core_id(cpu);
+		env->cpu[idx].socket_id	= cpu__get_socket_id(cpu);
+		env->cpu[idx].die_id	= cpu__get_die_id(cpu);
 	}
 
 	env->nr_cpus_avail = nr_cpus;
@@ -381,7 +383,7 @@ static int perf_env__read_arch(struct perf_env *env)
 static int perf_env__read_nr_cpus_avail(struct perf_env *env)
 {
 	if (env->nr_cpus_avail == 0)
-		env->nr_cpus_avail = cpu__max_present_cpu();
+		env->nr_cpus_avail = cpu__max_present_cpu().cpu;
 
 	return env->nr_cpus_avail ? 0 : -ENOENT;
 }
@@ -487,7 +489,7 @@ const char *perf_env__pmu_mappings(struct perf_env *env)
 	return env->pmu_mappings;
 }
 
-int perf_env__numa_node(struct perf_env *env, int cpu)
+int perf_env__numa_node(struct perf_env *env, struct perf_cpu cpu)
 {
 	if (!env->nr_numa_map) {
 		struct numa_node *nn;
@@ -495,7 +497,7 @@ int perf_env__numa_node(struct perf_env *env, int cpu)
 
 		for (i = 0; i < env->nr_numa_nodes; i++) {
 			nn = &env->numa_nodes[i];
-			nr = max(nr, perf_cpu_map__max(nn->map));
+			nr = max(nr, perf_cpu_map__max(nn->map).cpu);
 		}
 
 		nr++;
@@ -514,13 +516,14 @@ int perf_env__numa_node(struct perf_env *env, int cpu)
 		env->nr_numa_map = nr;
 
 		for (i = 0; i < env->nr_numa_nodes; i++) {
-			int tmp, j;
+			struct perf_cpu tmp;
+			int j;
 
 			nn = &env->numa_nodes[i];
-			perf_cpu_map__for_each_cpu(j, tmp, nn->map)
-				env->numa_map[j] = i;
+			perf_cpu_map__for_each_cpu(tmp, j, nn->map)
+				env->numa_map[tmp.cpu] = i;
 		}
 	}
 
-	return cpu >= 0 && cpu < env->nr_numa_map ? env->numa_map[cpu] : -1;
+	return cpu.cpu >= 0 && cpu.cpu < env->nr_numa_map ? env->numa_map[cpu.cpu] : -1;
 }

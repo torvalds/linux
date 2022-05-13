@@ -18,12 +18,12 @@
 /* NS: CLASS field is R/O, and set to wrong 0x200 value */
 static void bcma_pcie2_fixup_class(struct pci_dev *dev)
 {
-	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
+	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0x8011, bcma_pcie2_fixup_class);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0x8012, bcma_pcie2_fixup_class);
 
-static int iproc_pcie_bcma_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int iproc_bcma_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	struct iproc_pcie *pcie = dev->sysdata;
 	struct bcma_device *bdev = container_of(pcie->dev, struct bcma_device, dev);
@@ -31,7 +31,7 @@ static int iproc_pcie_bcma_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return bcma_core_irq(bdev, 5);
 }
 
-static int iproc_pcie_bcma_probe(struct bcma_device *bdev)
+static int iproc_bcma_pcie_probe(struct bcma_device *bdev)
 {
 	struct device *dev = &bdev->dev;
 	struct iproc_pcie *pcie;
@@ -64,33 +64,33 @@ static int iproc_pcie_bcma_probe(struct bcma_device *bdev)
 	if (ret)
 		return ret;
 
-	pcie->map_irq = iproc_pcie_bcma_map_irq;
+	pcie->map_irq = iproc_bcma_pcie_map_irq;
 
 	bcma_set_drvdata(bdev, pcie);
 
 	return iproc_pcie_setup(pcie, &bridge->windows);
 }
 
-static void iproc_pcie_bcma_remove(struct bcma_device *bdev)
+static void iproc_bcma_pcie_remove(struct bcma_device *bdev)
 {
 	struct iproc_pcie *pcie = bcma_get_drvdata(bdev);
 
 	iproc_pcie_remove(pcie);
 }
 
-static const struct bcma_device_id iproc_pcie_bcma_table[] = {
+static const struct bcma_device_id iproc_bcma_pcie_table[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_NS_PCIEG2, BCMA_ANY_REV, BCMA_ANY_CLASS),
 	{},
 };
-MODULE_DEVICE_TABLE(bcma, iproc_pcie_bcma_table);
+MODULE_DEVICE_TABLE(bcma, iproc_bcma_pcie_table);
 
-static struct bcma_driver iproc_pcie_bcma_driver = {
+static struct bcma_driver iproc_bcma_pcie_driver = {
 	.name		= KBUILD_MODNAME,
-	.id_table	= iproc_pcie_bcma_table,
-	.probe		= iproc_pcie_bcma_probe,
-	.remove		= iproc_pcie_bcma_remove,
+	.id_table	= iproc_bcma_pcie_table,
+	.probe		= iproc_bcma_pcie_probe,
+	.remove		= iproc_bcma_pcie_remove,
 };
-module_bcma_driver(iproc_pcie_bcma_driver);
+module_bcma_driver(iproc_bcma_pcie_driver);
 
 MODULE_AUTHOR("Hauke Mehrtens");
 MODULE_DESCRIPTION("Broadcom iProc PCIe BCMA driver");

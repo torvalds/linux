@@ -21,6 +21,8 @@
 
 #define MMC_BKOPS_TIMEOUT_MS		(120 * 1000) /* 120s */
 #define MMC_SANITIZE_TIMEOUT_MS		(240 * 1000) /* 240s */
+#define MMC_OP_COND_PERIOD_US		(1 * 1000) /* 1ms */
+#define MMC_OP_COND_TIMEOUT_MS		1000 /* 1s */
 
 static const u8 tuning_blk_pattern_4bit[] = {
 	0xff, 0x0f, 0xff, 0x00, 0xff, 0xcc, 0xc3, 0xcc,
@@ -232,7 +234,9 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	cmd.arg = mmc_host_is_spi(host) ? 0 : ocr;
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R3 | MMC_CMD_BCR;
 
-	err = __mmc_poll_for_busy(host, 1000, &__mmc_send_op_cond_cb, &cb_data);
+	err = __mmc_poll_for_busy(host, MMC_OP_COND_PERIOD_US,
+				  MMC_OP_COND_TIMEOUT_MS,
+				  &__mmc_send_op_cond_cb, &cb_data);
 	if (err)
 		return err;
 
@@ -495,13 +499,14 @@ static int mmc_busy_cb(void *cb_data, bool *busy)
 	return 0;
 }
 
-int __mmc_poll_for_busy(struct mmc_host *host, unsigned int timeout_ms,
+int __mmc_poll_for_busy(struct mmc_host *host, unsigned int period_us,
+			unsigned int timeout_ms,
 			int (*busy_cb)(void *cb_data, bool *busy),
 			void *cb_data)
 {
 	int err;
 	unsigned long timeout;
-	unsigned int udelay = 32, udelay_max = 32768;
+	unsigned int udelay = period_us ? period_us : 32, udelay_max = 32768;
 	bool expired = false;
 	bool busy = false;
 
@@ -546,7 +551,7 @@ int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 	cb_data.retry_crc_err = retry_crc_err;
 	cb_data.busy_cmd = busy_cmd;
 
-	return __mmc_poll_for_busy(host, timeout_ms, &mmc_busy_cb, &cb_data);
+	return __mmc_poll_for_busy(host, 0, timeout_ms, &mmc_busy_cb, &cb_data);
 }
 EXPORT_SYMBOL_GPL(mmc_poll_for_busy);
 

@@ -39,7 +39,6 @@
 #include <linux/log2.h>
 #include <linux/crc16.h>
 #include <linux/dax.h>
-#include <linux/cleancache.h>
 #include <linux/uaccess.h>
 #include <linux/iversion.h>
 #include <linux/unicode.h>
@@ -1302,7 +1301,7 @@ static void ext4_put_super(struct super_block *sb)
 	kfree(sbi->s_blockgroup_lock);
 	fs_put_dax(sbi->s_daxdev);
 	fscrypt_free_dummy_policy(&sbi->s_dummy_enc_policy);
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	utf8_unload(sb->s_encoding);
 #endif
 	kfree(sbi);
@@ -1317,7 +1316,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 {
 	struct ext4_inode_info *ei;
 
-	ei = kmem_cache_alloc(ext4_inode_cachep, GFP_NOFS);
+	ei = alloc_inode_sb(sb, ext4_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
 
@@ -1962,33 +1961,26 @@ static const struct mount_opts {
 	{Opt_err, 0, 0}
 };
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 static const struct ext4_sb_encodings {
 	__u16 magic;
 	char *name;
-	char *version;
+	unsigned int version;
 } ext4_sb_encoding_map[] = {
-	{EXT4_ENC_UTF8_12_1, "utf8", "12.1.0"},
+	{EXT4_ENC_UTF8_12_1, "utf8", UNICODE_AGE(12, 1, 0)},
 };
 
-static int ext4_sb_read_encoding(const struct ext4_super_block *es,
-				 const struct ext4_sb_encodings **encoding,
-				 __u16 *flags)
+static const struct ext4_sb_encodings *
+ext4_sb_read_encoding(const struct ext4_super_block *es)
 {
 	__u16 magic = le16_to_cpu(es->s_encoding);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ext4_sb_encoding_map); i++)
 		if (magic == ext4_sb_encoding_map[i].magic)
-			break;
+			return &ext4_sb_encoding_map[i];
 
-	if (i >= ARRAY_SIZE(ext4_sb_encoding_map))
-		return -EINVAL;
-
-	*encoding = &ext4_sb_encoding_map[i];
-	*flags = le16_to_cpu(es->s_encoding_flags);
-
-	return 0;
+	return NULL;
 }
 #endif
 
@@ -2029,12 +2021,12 @@ static int ext4_set_test_dummy_encryption(struct super_block *sb, char *arg)
 #define EXT4_SPEC_s_commit_interval		(1 << 16)
 #define EXT4_SPEC_s_fc_debug_max_replay		(1 << 17)
 #define EXT4_SPEC_s_sb_block			(1 << 18)
+#define EXT4_SPEC_mb_optimize_scan		(1 << 19)
 
 struct ext4_fs_context {
 	char		*s_qf_names[EXT4_MAXQUOTAS];
 	char		*test_dummy_enc_arg;
 	int		s_jquota_fmt;	/* Format of quota to use */
-	int		mb_optimize_scan;
 #ifdef CONFIG_EXT4_DEBUG
 	int s_fc_debug_max_replay;
 #endif
@@ -2053,8 +2045,8 @@ struct ext4_fs_context {
 	unsigned int	mask_s_mount_opt;
 	unsigned int	vals_s_mount_opt2;
 	unsigned int	mask_s_mount_opt2;
-	unsigned int	vals_s_mount_flags;
-	unsigned int	mask_s_mount_flags;
+	unsigned long	vals_s_mount_flags;
+	unsigned long	mask_s_mount_flags;
 	unsigned int	opt_flags;	/* MOPT flags */
 	unsigned int	spec;
 	u32		s_max_batch_time;
@@ -2157,23 +2149,36 @@ static inline void ctx_set_##name(struct ext4_fs_context *ctx,		\
 {									\
 	ctx->mask_s_##name |= flag;					\
 	ctx->vals_s_##name |= flag;					\
-}									\
+}
+
+#define EXT4_CLEAR_CTX(name)						\
 static inline void ctx_clear_##name(struct ext4_fs_context *ctx,	\
 				    unsigned long flag)			\
 {									\
 	ctx->mask_s_##name |= flag;					\
 	ctx->vals_s_##name &= ~flag;					\
-}									\
+}
+
+#define EXT4_TEST_CTX(name)						\
 static inline unsigned long						\
 ctx_test_##name(struct ext4_fs_context *ctx, unsigned long flag)	\
 {									\
 	return (ctx->vals_s_##name & flag);				\
-}									\
+}
 
-EXT4_SET_CTX(flags);
+EXT4_SET_CTX(flags); /* set only */
 EXT4_SET_CTX(mount_opt);
+EXT4_CLEAR_CTX(mount_opt);
+EXT4_TEST_CTX(mount_opt);
 EXT4_SET_CTX(mount_opt2);
-EXT4_SET_CTX(mount_flags);
+EXT4_CLEAR_CTX(mount_opt2);
+EXT4_TEST_CTX(mount_opt2);
+
+static inline void ctx_set_mount_flag(struct ext4_fs_context *ctx, int bit)
+{
+	set_bit(bit, &ctx->mask_s_mount_flags);
+	set_bit(bit, &ctx->vals_s_mount_flags);
+}
 
 static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
@@ -2243,7 +2248,7 @@ static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			 param->key);
 		return 0;
 	case Opt_abort:
-		ctx_set_mount_flags(ctx, EXT4_MF_FS_ABORTED);
+		ctx_set_mount_flag(ctx, EXT4_MF_FS_ABORTED);
 		return 0;
 	case Opt_i_version:
 		ext4_msg(NULL, KERN_WARNING, deprecated_msg, param->key, "5.20");
@@ -2459,12 +2464,17 @@ static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			ctx_clear_mount_opt(ctx, m->mount_opt);
 		return 0;
 	case Opt_mb_optimize_scan:
-		if (result.int_32 != 0 && result.int_32 != 1) {
+		if (result.int_32 == 1) {
+			ctx_set_mount_opt2(ctx, EXT4_MOUNT2_MB_OPTIMIZE_SCAN);
+			ctx->spec |= EXT4_SPEC_mb_optimize_scan;
+		} else if (result.int_32 == 0) {
+			ctx_clear_mount_opt2(ctx, EXT4_MOUNT2_MB_OPTIMIZE_SCAN);
+			ctx->spec |= EXT4_SPEC_mb_optimize_scan;
+		} else {
 			ext4_msg(NULL, KERN_WARNING,
 				 "mb_optimize_scan should be set to 0 or 1.");
 			return -EINVAL;
 		}
-		ctx->mb_optimize_scan = result.int_32;
 		return 0;
 	}
 
@@ -3156,8 +3166,6 @@ done:
 			EXT4_BLOCKS_PER_GROUP(sb),
 			EXT4_INODES_PER_GROUP(sb),
 			sbi->s_mount_opt, sbi->s_mount_opt2);
-
-	cleancache_init_fs(sb);
 	return err;
 }
 
@@ -3478,8 +3486,9 @@ static loff_t ext4_max_size(int blkbits, int has_huge_files)
  */
 static loff_t ext4_max_bitmap_size(int bits, int has_huge_files)
 {
-	unsigned long long upper_limit, res = EXT4_NDIR_BLOCKS;
+	loff_t upper_limit, res = EXT4_NDIR_BLOCKS;
 	int meta_blocks;
+	unsigned int ppb = 1 << (bits - 2);
 
 	/*
 	 * This is calculated to be the largest file size for a dense, block
@@ -3511,27 +3520,42 @@ static loff_t ext4_max_bitmap_size(int bits, int has_huge_files)
 
 	}
 
+	/* Compute how many blocks we can address by block tree */
+	res += ppb;
+	res += ppb * ppb;
+	res += ((loff_t)ppb) * ppb * ppb;
+	/* Compute how many metadata blocks are needed */
+	meta_blocks = 1;
+	meta_blocks += 1 + ppb;
+	meta_blocks += 1 + ppb + ppb * ppb;
+	/* Does block tree limit file size? */
+	if (res + meta_blocks <= upper_limit)
+		goto check_lfs;
+
+	res = upper_limit;
+	/* How many metadata blocks are needed for addressing upper_limit? */
+	upper_limit -= EXT4_NDIR_BLOCKS;
 	/* indirect blocks */
 	meta_blocks = 1;
+	upper_limit -= ppb;
 	/* double indirect blocks */
-	meta_blocks += 1 + (1LL << (bits-2));
-	/* tripple indirect blocks */
-	meta_blocks += 1 + (1LL << (bits-2)) + (1LL << (2*(bits-2)));
-
-	upper_limit -= meta_blocks;
-	upper_limit <<= bits;
-
-	res += 1LL << (bits-2);
-	res += 1LL << (2*(bits-2));
-	res += 1LL << (3*(bits-2));
+	if (upper_limit < ppb * ppb) {
+		meta_blocks += 1 + DIV_ROUND_UP_ULL(upper_limit, ppb);
+		res -= meta_blocks;
+		goto check_lfs;
+	}
+	meta_blocks += 1 + ppb;
+	upper_limit -= ppb * ppb;
+	/* tripple indirect blocks for the rest */
+	meta_blocks += 1 + DIV_ROUND_UP_ULL(upper_limit, ppb) +
+		DIV_ROUND_UP_ULL(upper_limit, ppb*ppb);
+	res -= meta_blocks;
+check_lfs:
 	res <<= bits;
-	if (res > upper_limit)
-		res = upper_limit;
-
 	if (res > MAX_LFS_FILESIZE)
 		res = MAX_LFS_FILESIZE;
 
-	return (loff_t)res;
+	return res;
 }
 
 static ext4_fsblk_t descriptor_loc(struct super_block *sb,
@@ -3616,7 +3640,7 @@ int ext4_feature_set_ok(struct super_block *sb, int readonly)
 		return 0;
 	}
 
-#ifndef CONFIG_UNICODE
+#if !IS_ENABLED(CONFIG_UNICODE)
 	if (ext4_has_feature_casefold(sb)) {
 		ext4_msg(sb, KERN_ERR,
 			 "Filesystem with casefold feature cannot be "
@@ -4379,7 +4403,6 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 
 	/* Set defaults for the variables that will be set during parsing */
 	ctx->journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
-	ctx->mb_optimize_scan = DEFAULT_MB_OPTIMIZE_SCAN;
 
 	sbi->s_inode_readahead_blks = EXT4_DEF_INODE_READAHEAD_BLKS;
 	sbi->s_sectors_written_start =
@@ -4620,14 +4643,14 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	if (err < 0)
 		goto failed_mount;
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	if (ext4_has_feature_casefold(sb) && !sb->s_encoding) {
 		const struct ext4_sb_encodings *encoding_info;
 		struct unicode_map *encoding;
-		__u16 encoding_flags;
+		__u16 encoding_flags = le16_to_cpu(es->s_encoding_flags);
 
-		if (ext4_sb_read_encoding(es, &encoding_info,
-					  &encoding_flags)) {
+		encoding_info = ext4_sb_read_encoding(es);
+		if (!encoding_info) {
 			ext4_msg(sb, KERN_ERR,
 				 "Encoding requested by superblock is unknown");
 			goto failed_mount;
@@ -4636,15 +4659,21 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		encoding = utf8_load(encoding_info->version);
 		if (IS_ERR(encoding)) {
 			ext4_msg(sb, KERN_ERR,
-				 "can't mount with superblock charset: %s-%s "
+				 "can't mount with superblock charset: %s-%u.%u.%u "
 				 "not supported by the kernel. flags: 0x%x.",
-				 encoding_info->name, encoding_info->version,
+				 encoding_info->name,
+				 unicode_major(encoding_info->version),
+				 unicode_minor(encoding_info->version),
+				 unicode_rev(encoding_info->version),
 				 encoding_flags);
 			goto failed_mount;
 		}
 		ext4_msg(sb, KERN_INFO,"Using encoding defined by superblock: "
-			 "%s-%s with flags 0x%hx", encoding_info->name,
-			 encoding_info->version?:"\b", encoding_flags);
+			 "%s-%u.%u.%u with flags 0x%hx", encoding_info->name,
+			 unicode_major(encoding_info->version),
+			 unicode_minor(encoding_info->version),
+			 unicode_rev(encoding_info->version),
+			 encoding_flags);
 
 		sb->s_encoding = encoding;
 		sb->s_encoding_flags = encoding_flags;
@@ -5086,7 +5115,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 	INIT_LIST_HEAD(&sbi->s_fc_dentry_q[FC_Q_STAGING]);
 	sbi->s_fc_bytes = 0;
 	ext4_clear_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
-	ext4_clear_mount_flag(sb, EXT4_MF_FC_COMMITTING);
+	sbi->s_fc_ineligible_tid = 0;
 	spin_lock_init(&sbi->s_fc_lock);
 	memset(&sbi->s_fc_stats, 0, sizeof(sbi->s_fc_stats));
 	sbi->s_fc_replay_state.fc_regions = NULL;
@@ -5324,12 +5353,12 @@ no_journal:
 	 * turned off by passing "mb_optimize_scan=0". This can also be
 	 * turned on forcefully by passing "mb_optimize_scan=1".
 	 */
-	if (ctx->mb_optimize_scan == 1)
-		set_opt2(sb, MB_OPTIMIZE_SCAN);
-	else if (ctx->mb_optimize_scan == 0)
-		clear_opt2(sb, MB_OPTIMIZE_SCAN);
-	else if (sbi->s_groups_count >= MB_DEFAULT_LINEAR_SCAN_THRESHOLD)
-		set_opt2(sb, MB_OPTIMIZE_SCAN);
+	if (!(ctx->spec & EXT4_SPEC_mb_optimize_scan)) {
+		if (sbi->s_groups_count >= MB_DEFAULT_LINEAR_SCAN_THRESHOLD)
+			set_opt2(sb, MB_OPTIMIZE_SCAN);
+		else
+			clear_opt2(sb, MB_OPTIMIZE_SCAN);
+	}
 
 	err = ext4_mb_init(sb);
 	if (err) {
@@ -5518,7 +5547,7 @@ failed_mount:
 	if (sbi->s_chksum_driver)
 		crypto_free_shash(sbi->s_chksum_driver);
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	utf8_unload(sb->s_encoding);
 #endif
 
@@ -5544,7 +5573,7 @@ static int ext4_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sbi = ext4_alloc_sbi(sb);
 	if (!sbi)
-		ret = -ENOMEM;
+		return -ENOMEM;
 
 	fc->s_fs_info = sbi;
 

@@ -56,11 +56,9 @@ static int bmi088_accel_probe(struct spi_device *spi)
 				       true);
 }
 
-static int bmi088_accel_remove(struct spi_device *spi)
+static void bmi088_accel_remove(struct spi_device *spi)
 {
 	bmi088_accel_core_remove(&spi->dev);
-
-	return 0;
 }
 
 static const struct spi_device_id bmi088_accel_id[] = {
@@ -83,3 +81,4 @@ module_spi_driver(bmi088_accel_driver);
 MODULE_AUTHOR("Niek van Agt <niek.van.agt@topicproducts.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("BMI088 accelerometer driver (SPI)");
+MODULE_IMPORT_NS(IIO_BMI088);

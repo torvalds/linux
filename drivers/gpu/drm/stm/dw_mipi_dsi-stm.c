@@ -247,14 +247,6 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 	int ret, bpp;
 	u32 val;
 
-	/* Update lane capabilities according to hw version */
-	dsi->lane_min_kbps = LANE_MIN_KBPS;
-	dsi->lane_max_kbps = LANE_MAX_KBPS;
-	if (dsi->hw_version == HWVER_131) {
-		dsi->lane_min_kbps *= 2;
-		dsi->lane_max_kbps *= 2;
-	}
-
 	pll_in_khz = (unsigned int)(clk_get_rate(dsi->pllref_clk) / 1000);
 
 	/* Compute requested pll out */
@@ -330,6 +322,103 @@ dw_mipi_dsi_phy_get_timing(void *priv_data, unsigned int lane_mbps,
 	return 0;
 }
 
+#define CLK_TOLERANCE_HZ 50
+
+static enum drm_mode_status
+dw_mipi_dsi_stm_mode_valid(void *priv_data,
+			   const struct drm_display_mode *mode,
+			   unsigned long mode_flags, u32 lanes, u32 format)
+{
+	struct dw_mipi_dsi_stm *dsi = priv_data;
+	unsigned int idf, ndiv, odf, pll_in_khz, pll_out_khz;
+	int ret, bpp;
+
+	bpp = mipi_dsi_pixel_format_to_bpp(format);
+	if (bpp < 0)
+		return MODE_BAD;
+
+	/* Compute requested pll out */
+	pll_out_khz = mode->clock * bpp / lanes;
+
+	if (pll_out_khz > dsi->lane_max_kbps)
+		return MODE_CLOCK_HIGH;
+
+	if (mode_flags & MIPI_DSI_MODE_VIDEO_BURST) {
+		/* Add 20% to pll out to be higher than pixel bw */
+		pll_out_khz = (pll_out_khz * 12) / 10;
+	} else {
+		if (pll_out_khz < dsi->lane_min_kbps)
+			return MODE_CLOCK_LOW;
+	}
+
+	/* Compute best pll parameters */
+	idf = 0;
+	ndiv = 0;
+	odf = 0;
+	pll_in_khz = clk_get_rate(dsi->pllref_clk) / 1000;
+	ret = dsi_pll_get_params(dsi, pll_in_khz, pll_out_khz, &idf, &ndiv, &odf);
+	if (ret) {
+		DRM_WARN("Warning dsi_pll_get_params(): bad params\n");
+		return MODE_ERROR;
+	}
+
+	if (!(mode_flags & MIPI_DSI_MODE_VIDEO_BURST)) {
+		unsigned int px_clock_hz, target_px_clock_hz, lane_mbps;
+		int dsi_short_packet_size_px, hfp, hsync, hbp, delay_to_lp;
+		struct dw_mipi_dsi_dphy_timing dphy_timing;
+
+		/* Get the adjusted pll out value */
+		pll_out_khz = dsi_pll_get_clkout_khz(pll_in_khz, idf, ndiv, odf);
+
+		px_clock_hz = DIV_ROUND_CLOSEST_ULL(1000ULL * pll_out_khz * lanes, bpp);
+		target_px_clock_hz = mode->clock * 1000;
+		/*
+		 * Filter modes according to the clock value, particularly useful for
+		 * hdmi modes that require precise pixel clocks.
+		 */
+		if (px_clock_hz < target_px_clock_hz - CLK_TOLERANCE_HZ ||
+		    px_clock_hz > target_px_clock_hz + CLK_TOLERANCE_HZ)
+			return MODE_CLOCK_RANGE;
+
+		/* sync packets are codes as DSI short packets (4 bytes) */
+		dsi_short_packet_size_px = DIV_ROUND_UP(4 * BITS_PER_BYTE, bpp);
+
+		hfp = mode->hsync_start - mode->hdisplay;
+		hsync = mode->hsync_end - mode->hsync_start;
+		hbp = mode->htotal - mode->hsync_end;
+
+		/* hsync must be longer than 4 bytes HSS packets */
+		if (hsync < dsi_short_packet_size_px)
+			return MODE_HSYNC_NARROW;
+
+		if (mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
+			/* HBP must be longer than 4 bytes HSE packets */
+			if (hbp < dsi_short_packet_size_px)
+				return MODE_HSYNC_NARROW;
+			hbp -= dsi_short_packet_size_px;
+		} else {
+			/* With sync events HBP extends in the hsync */
+			hbp += hsync - dsi_short_packet_size_px;
+		}
+
+		lane_mbps = pll_out_khz / 1000;
+		ret = dw_mipi_dsi_phy_get_timing(priv_data, lane_mbps, &dphy_timing);
+		if (ret)
+			return MODE_ERROR;
+		/*
+		 * In non-burst mode DSI has to enter in LP during HFP
+		 * (horizontal front porch) or HBP (horizontal back porch) to
+		 * resync with LTDC pixel clock.
+		 */
+		delay_to_lp = DIV_ROUND_UP((dphy_timing.data_hs2lp + dphy_timing.data_lp2hs) *
+					   lanes * BITS_PER_BYTE, bpp);
+		if (hfp < delay_to_lp && hbp < delay_to_lp)
+			return MODE_HSYNC;
+	}
+
+	return MODE_OK;
+}
+
 static const struct dw_mipi_dsi_phy_ops dw_mipi_dsi_stm_phy_ops = {
 	.init = dw_mipi_dsi_phy_init,
 	.power_on = dw_mipi_dsi_phy_power_on,
@@ -340,6 +429,7 @@ static const struct dw_mipi_dsi_phy_ops dw_mipi_dsi_stm_phy_ops = {
 
 static struct dw_mipi_dsi_plat_data dw_mipi_dsi_stm_plat_data = {
 	.max_data_lanes = 2,
+	.mode_valid = dw_mipi_dsi_stm_mode_valid,
 	.phy_ops = &dw_mipi_dsi_stm_phy_ops,
 };
 
@@ -415,6 +505,14 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		DRM_ERROR("bad dsi hardware version\n");
 		goto err_dsi_probe;
+	}
+
+	/* set lane capabilities according to hw version */
+	dsi->lane_min_kbps = LANE_MIN_KBPS;
+	dsi->lane_max_kbps = LANE_MAX_KBPS;
+	if (dsi->hw_version == HWVER_131) {
+		dsi->lane_min_kbps *= 2;
+		dsi->lane_max_kbps *= 2;
 	}
 
 	dw_mipi_dsi_stm_plat_data.base = dsi->base;

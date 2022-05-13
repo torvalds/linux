@@ -43,6 +43,11 @@ vcpu_alloc_svm(struct kvm_vm *vm, vm_vaddr_t *p_svm_gva)
 	svm->save_area_hva = addr_gva2hva(vm, (uintptr_t)svm->save_area);
 	svm->save_area_gpa = addr_gva2gpa(vm, (uintptr_t)svm->save_area);
 
+	svm->msr = (void *)vm_vaddr_alloc_page(vm);
+	svm->msr_hva = addr_gva2hva(vm, (uintptr_t)svm->msr);
+	svm->msr_gpa = addr_gva2gpa(vm, (uintptr_t)svm->msr);
+	memset(svm->msr_hva, 0, getpagesize());
+
 	*p_svm_gva = svm_gva;
 	return svm;
 }
@@ -106,6 +111,7 @@ void generic_svm_setup(struct svm_test_data *svm, void *guest_rip, void *guest_r
 	save->dbgctl = rdmsr(MSR_IA32_DEBUGCTLMSR);
 	ctrl->intercept = (1ULL << INTERCEPT_VMRUN) |
 				(1ULL << INTERCEPT_VMMCALL);
+	ctrl->msrpm_base_pa = svm->msr_gpa;
 
 	vmcb->save.rip = (u64)guest_rip;
 	vmcb->save.rsp = (u64)guest_rsp;

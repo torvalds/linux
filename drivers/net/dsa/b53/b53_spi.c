@@ -314,7 +314,7 @@ static int b53_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int b53_spi_remove(struct spi_device *spi)
+static void b53_spi_remove(struct spi_device *spi)
 {
 	struct b53_device *dev = spi_get_drvdata(spi);
 
@@ -322,8 +322,6 @@ static int b53_spi_remove(struct spi_device *spi)
 		b53_switch_remove(dev);
 
 	spi_set_drvdata(spi, NULL);
-
-	return 0;
 }
 
 static void b53_spi_shutdown(struct spi_device *spi)

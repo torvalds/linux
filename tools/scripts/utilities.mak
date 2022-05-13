@@ -175,5 +175,5 @@ _ge-abspath = $(if $(is-executable),$(1))
 define get-executable-or-default
 $(if $($(1)),$(call _ge_attempt,$($(1)),$(1)),$(call _ge_attempt,$(2)))
 endef
-_ge_attempt = $(if $(get-executable),$(get-executable),$(call _gea_err,$(2)))
+_ge_attempt = $(or $(get-executable),$(call _gea_err,$(2)))
 _gea_err  = $(if $(1),$(error Please set '$(1)' appropriately))

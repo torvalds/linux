@@ -50,6 +50,7 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 			 const char *attach_flags_str,
 			 int level)
 {
+	char prog_name[MAX_PROG_FULL_NAME];
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
 	int prog_fd;
@@ -63,6 +64,7 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 		return -1;
 	}
 
+	get_prog_full_name(&info, prog_fd, prog_name, sizeof(prog_name));
 	if (json_output) {
 		jsonw_start_object(json_wtr);
 		jsonw_uint_field(json_wtr, "id", info.id);
@@ -73,7 +75,7 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 			jsonw_uint_field(json_wtr, "attach_type", attach_type);
 		jsonw_string_field(json_wtr, "attach_flags",
 				   attach_flags_str);
-		jsonw_string_field(json_wtr, "name", info.name);
+		jsonw_string_field(json_wtr, "name", prog_name);
 		jsonw_end_object(json_wtr);
 	} else {
 		printf("%s%-8u ", level ? "    " : "", info.id);
@@ -81,7 +83,7 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 			printf("%-15s", attach_type_name[attach_type]);
 		else
 			printf("type %-10u", attach_type);
-		printf(" %-15s %-15s\n", attach_flags_str, info.name);
+		printf(" %-15s %-15s\n", attach_flags_str, prog_name);
 	}
 
 	close(prog_fd);

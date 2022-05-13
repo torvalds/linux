@@ -639,7 +639,7 @@ struct ov5648_ctrls {
 	struct v4l2_ctrl *pixel_rate;
 
 	struct v4l2_ctrl_handler handler;
-} __packed;
+};
 
 struct ov5648_sensor {
 	struct device *dev;
@@ -1112,7 +1112,7 @@ static int ov5648_pad_configure(struct ov5648_sensor *sensor)
 
 static int ov5648_mipi_configure(struct ov5648_sensor *sensor)
 {
-	struct v4l2_fwnode_bus_mipi_csi2 *bus_mipi_csi2 =
+	struct v4l2_mbus_config_mipi_csi2 *bus_mipi_csi2 =
 		&sensor->endpoint.bus.mipi_csi2;
 	unsigned int lanes_count = bus_mipi_csi2->num_data_lanes;
 	int ret;
@@ -1692,7 +1692,7 @@ static int ov5648_state_mipi_configure(struct ov5648_sensor *sensor,
 				       u32 mbus_code)
 {
 	struct ov5648_ctrls *ctrls = &sensor->ctrls;
-	struct v4l2_fwnode_bus_mipi_csi2 *bus_mipi_csi2 =
+	struct v4l2_mbus_config_mipi_csi2 *bus_mipi_csi2 =
 		&sensor->endpoint.bus.mipi_csi2;
 	unsigned long mipi_clk_rate;
 	unsigned int bits_per_sample;
@@ -1778,8 +1778,14 @@ static int ov5648_state_configure(struct ov5648_sensor *sensor,
 
 static int ov5648_state_init(struct ov5648_sensor *sensor)
 {
-	return ov5648_state_configure(sensor, &ov5648_modes[0],
-				      ov5648_mbus_codes[0]);
+	int ret;
+
+	mutex_lock(&sensor->mutex);
+	ret = ov5648_state_configure(sensor, &ov5648_modes[0],
+				     ov5648_mbus_codes[0]);
+	mutex_unlock(&sensor->mutex);
+
+	return ret;
 }
 
 /* Sensor Base */

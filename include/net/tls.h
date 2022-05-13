@@ -626,7 +626,6 @@ tls_offload_ctx_rx(const struct tls_context *tls_ctx)
 	return (struct tls_offload_context_rx *)tls_ctx->priv_ctx_rx;
 }
 
-#if IS_ENABLED(CONFIG_TLS_DEVICE)
 static inline void *__tls_driver_ctx(struct tls_context *tls_ctx,
 				     enum tls_offload_ctx_dir direction)
 {
@@ -641,7 +640,6 @@ tls_driver_ctx(const struct sock *sk, enum tls_offload_ctx_dir direction)
 {
 	return __tls_driver_ctx(tls_get_ctx(sk), direction);
 }
-#endif
 
 #define RESYNC_REQ BIT(0)
 #define RESYNC_REQ_ASYNC BIT(1)

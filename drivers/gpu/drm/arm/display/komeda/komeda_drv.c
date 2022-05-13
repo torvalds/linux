@@ -9,6 +9,7 @@
 #include <linux/platform_device.h>
 #include <linux/component.h>
 #include <linux/pm_runtime.h>
+#include <drm/drm_module.h>
 #include <drm/drm_of.h>
 #include "komeda_dev.h"
 #include "komeda_kms.h"
@@ -92,11 +93,6 @@ static const struct component_master_ops komeda_master_ops = {
 	.unbind	= komeda_unbind,
 };
 
-static int compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
 static void komeda_add_slave(struct device *master,
 			     struct component_match **match,
 			     struct device_node *np,
@@ -106,7 +102,7 @@ static void komeda_add_slave(struct device *master,
 
 	remote = of_graph_get_remote_node(np, port, endpoint);
 	if (remote) {
-		drm_of_component_match_add(master, match, compare_of, remote);
+		drm_of_component_match_add(master, match, component_compare_of, remote);
 		of_node_put(remote);
 	}
 }
@@ -198,7 +194,7 @@ static struct platform_driver komeda_platform_driver = {
 	},
 };
 
-module_platform_driver(komeda_platform_driver);
+drm_module_platform_driver(komeda_platform_driver);
 
 MODULE_AUTHOR("James.Qian.Wang <james.qian.wang@arm.com>");
 MODULE_DESCRIPTION("Komeda KMS driver");

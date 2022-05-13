@@ -3,8 +3,7 @@
  * Mapping of DWARF debug register numbers into register names.
  *
  * Copyright IBM Corp. 2010, 2017
- * Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
- *	      Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
+ * Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  *
  */
 

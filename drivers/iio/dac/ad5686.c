@@ -536,7 +536,7 @@ error_disable_reg:
 		regulator_disable(st->reg);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ad5686_probe);
+EXPORT_SYMBOL_NS_GPL(ad5686_probe, IIO_AD5686);
 
 void ad5686_remove(struct device *dev)
 {
@@ -547,7 +547,7 @@ void ad5686_remove(struct device *dev)
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 }
-EXPORT_SYMBOL_GPL(ad5686_remove);
+EXPORT_SYMBOL_NS_GPL(ad5686_remove, IIO_AD5686);
 
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD5686/85/84 DAC");

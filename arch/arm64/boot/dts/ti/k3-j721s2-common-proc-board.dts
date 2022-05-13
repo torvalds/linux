@@ -15,8 +15,18 @@
 	model = "Texas Instruments J721S2 EVM";
 
 	chosen {
-		stdout-path = "serial10:115200n8";
-		bootargs = "console=ttyS10,115200n8 earlycon=ns16550a,mmio32,2880000";
+		stdout-path = "serial2:115200n8";
+		bootargs = "console=ttyS2,115200n8 earlycon=ns16550a,mmio32,2880000";
+	};
+
+	aliases {
+		serial1 = &mcu_uart0;
+		serial2 = &main_uart8;
+		mmc0 = &main_sdhci0;
+		mmc1 = &main_sdhci1;
+		can0 = &main_mcan16;
+		can1 = &mcu_mcan0;
+		can2 = &mcu_mcan1;
 	};
 
 	evm_12v0: fixedregulator-evm12v0 {

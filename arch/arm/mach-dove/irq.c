@@ -73,12 +73,12 @@ void __init dove_init_irq(void)
 	/*
 	 * Initialize gpiolib for GPIOs 0-71.
 	 */
-	orion_gpio_init(NULL, 0, 32, DOVE_GPIO_LO_VIRT_BASE, 0,
+	orion_gpio_init(0, 32, DOVE_GPIO_LO_VIRT_BASE, 0,
 			IRQ_DOVE_GPIO_START, gpio0_irqs);
 
-	orion_gpio_init(NULL, 32, 32, DOVE_GPIO_HI_VIRT_BASE, 0,
+	orion_gpio_init(32, 32, DOVE_GPIO_HI_VIRT_BASE, 0,
 			IRQ_DOVE_GPIO_START + 32, gpio1_irqs);
 
-	orion_gpio_init(NULL, 64, 8, DOVE_GPIO2_VIRT_BASE, 0,
+	orion_gpio_init(64, 8, DOVE_GPIO2_VIRT_BASE, 0,
 			IRQ_DOVE_GPIO_START + 64, gpio2_irqs);
 }

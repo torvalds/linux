@@ -5,6 +5,7 @@
 #include <asm/vmx.h>
 
 #include "lapic.h"
+#include "x86.h"
 
 extern bool __read_mostly enable_vpid;
 extern bool __read_mostly flexpriority_enabled;
@@ -53,7 +54,6 @@ struct nested_vmx_msrs {
 
 struct vmcs_config {
 	int size;
-	int order;
 	u32 basic_cap;
 	u32 revision_id;
 	u32 pin_based_exec_ctrl;
@@ -312,6 +312,15 @@ static inline bool cpu_has_vmx_ept_1g_page(void)
 	return vmx_capability.ept & VMX_EPT_1GB_PAGE_BIT;
 }
 
+static inline int ept_caps_to_lpage_level(u32 ept_caps)
+{
+	if (ept_caps & VMX_EPT_1GB_PAGE_BIT)
+		return PG_LEVEL_1G;
+	if (ept_caps & VMX_EPT_2MB_PAGE_BIT)
+		return PG_LEVEL_2M;
+	return PG_LEVEL_4K;
+}
+
 static inline bool cpu_has_vmx_ept_ad_bits(void)
 {
 	return vmx_capability.ept & VMX_EPT_AD_BIT;
@@ -379,6 +388,9 @@ static inline bool vmx_pt_mode_is_host_guest(void)
 static inline u64 vmx_get_perf_capabilities(void)
 {
 	u64 perf_cap = 0;
+
+	if (!enable_pmu)
+		return perf_cap;
 
 	if (boot_cpu_has(X86_FEATURE_PDCM))
 		rdmsrl(MSR_IA32_PERF_CAPABILITIES, perf_cap);

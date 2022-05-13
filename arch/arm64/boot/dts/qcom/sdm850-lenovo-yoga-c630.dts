@@ -56,19 +56,6 @@
 		};
 	};
 
-	panel {
-		compatible = "boe,nv133fhm-n61";
-		no-hpd;
-
-		ports {
-			port {
-				panel_in_edp: endpoint {
-					remote-endpoint = <&sn65dsi86_out>;
-				};
-			};
-		};
-	};
-
 	/* Reserved memory changes for IPA */
 	reserved-memory {
 		wlan_msa_mem: memory@8c400000 {
@@ -97,6 +84,12 @@
 		#clock-cells = <0>;
 
 		clock-frequency = <19200000>;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&sn65dsi86 1000000>;
+		enable-gpios = <&tlmm 11 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -419,6 +412,7 @@
 		clock-names = "refclk";
 
 		no-hpd;
+		#pwm-cells = <1>;
 
 		ports {
 			#address-cells = <1>;
@@ -435,6 +429,19 @@
 				reg = <1>;
 				sn65dsi86_out: endpoint {
 					remote-endpoint = <&panel_in_edp>;
+				};
+			};
+		};
+
+		aux-bus {
+			panel: panel {
+				compatible = "boe,nv133fhm-n61";
+				backlight = <&backlight>;
+
+				port {
+					panel_in_edp: endpoint {
+						remote-endpoint = <&sn65dsi86_out>;
+					};
 				};
 			};
 		};
@@ -806,4 +813,9 @@
 	vdd-3.3-ch1-supply = <&vreg_l23a_3p3>;
 
 	qcom,snoc-host-cap-8bit-quirk;
+};
+
+&crypto {
+	/* FIXME: qce_start triggers an SError */
+	status= "disable";
 };

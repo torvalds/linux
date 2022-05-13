@@ -18,7 +18,9 @@ struct kvm_memslots;
 
 enum kvm_mr_change;
 
+#include <linux/bits.h>
 #include <linux/types.h>
+#include <linux/spinlock_types.h>
 
 #include <asm/kvm_types.h>
 
@@ -45,12 +47,33 @@ typedef u64            hfn_t;
 
 typedef hfn_t kvm_pfn_t;
 
+enum pfn_cache_usage {
+	KVM_GUEST_USES_PFN = BIT(0),
+	KVM_HOST_USES_PFN  = BIT(1),
+	KVM_GUEST_AND_HOST_USE_PFN = KVM_GUEST_USES_PFN | KVM_HOST_USES_PFN,
+};
+
 struct gfn_to_hva_cache {
 	u64 generation;
 	gpa_t gpa;
 	unsigned long hva;
 	unsigned long len;
 	struct kvm_memory_slot *memslot;
+};
+
+struct gfn_to_pfn_cache {
+	u64 generation;
+	gpa_t gpa;
+	unsigned long uhva;
+	struct kvm_memory_slot *memslot;
+	struct kvm_vcpu *vcpu;
+	struct list_head list;
+	rwlock_t lock;
+	void *khva;
+	kvm_pfn_t pfn;
+	enum pfn_cache_usage usage;
+	bool active;
+	bool valid;
 };
 
 #ifdef KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE
@@ -87,6 +110,7 @@ struct kvm_vcpu_stat_generic {
 	u64 halt_poll_success_hist[HALT_POLL_HIST_COUNT];
 	u64 halt_poll_fail_hist[HALT_POLL_HIST_COUNT];
 	u64 halt_wait_hist[HALT_POLL_HIST_COUNT];
+	u64 blocking;
 };
 
 #define KVM_STATS_NAME_SIZE	48

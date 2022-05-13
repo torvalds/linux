@@ -147,6 +147,7 @@ static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
 #define pmd_present(pmd)	(pmd_val(pmd) & _PAGE_TABLE)
 #define pmd_clear(pmdp)		({ pmd_val(*pmdp) = 0; })
 
+#define pmd_pfn(pmd)		((pmd_val(pmd) & _TABLE_MASK) >> PAGE_SHIFT)
 /*
  * m68k does not have huge pages (020/030 actually could), but generic code
  * expects pmd_page() to exists, only to then DCE it all. Provide a dummy to

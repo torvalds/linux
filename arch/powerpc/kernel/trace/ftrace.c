@@ -22,7 +22,6 @@
 #include <linux/init.h>
 #include <linux/list.h>
 
-#include <asm/asm-prototypes.h>
 #include <asm/cacheflush.h>
 #include <asm/code-patching.h>
 #include <asm/ftrace.h>
@@ -910,30 +909,30 @@ int __init ftrace_dyn_arch_init(void)
 extern void ftrace_graph_call(void);
 extern void ftrace_graph_stub(void);
 
-int ftrace_enable_ftrace_graph_caller(void)
+static int ftrace_modify_ftrace_graph_caller(bool enable)
 {
 	unsigned long ip = (unsigned long)(&ftrace_graph_call);
 	unsigned long addr = (unsigned long)(&ftrace_graph_caller);
 	unsigned long stub = (unsigned long)(&ftrace_graph_stub);
 	ppc_inst_t old, new;
 
-	old = ftrace_call_replace(ip, stub, 0);
-	new = ftrace_call_replace(ip, addr, 0);
+	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_ARGS))
+		return 0;
+
+	old = ftrace_call_replace(ip, enable ? stub : addr, 0);
+	new = ftrace_call_replace(ip, enable ? addr : stub, 0);
 
 	return ftrace_modify_code(ip, old, new);
 }
 
+int ftrace_enable_ftrace_graph_caller(void)
+{
+	return ftrace_modify_ftrace_graph_caller(true);
+}
+
 int ftrace_disable_ftrace_graph_caller(void)
 {
-	unsigned long ip = (unsigned long)(&ftrace_graph_call);
-	unsigned long addr = (unsigned long)(&ftrace_graph_caller);
-	unsigned long stub = (unsigned long)(&ftrace_graph_stub);
-	ppc_inst_t old, new;
-
-	old = ftrace_call_replace(ip, addr, 0);
-	new = ftrace_call_replace(ip, stub, 0);
-
-	return ftrace_modify_code(ip, old, new);
+	return ftrace_modify_ftrace_graph_caller(false);
 }
 
 /*
@@ -944,6 +943,7 @@ unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
 						unsigned long sp)
 {
 	unsigned long return_hooker;
+	int bit;
 
 	if (unlikely(ftrace_graph_is_dead()))
 		goto out;
@@ -951,13 +951,27 @@ unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		goto out;
 
+	bit = ftrace_test_recursion_trylock(ip, parent);
+	if (bit < 0)
+		goto out;
+
 	return_hooker = ppc_function_entry(return_to_handler);
 
 	if (!function_graph_enter(parent, ip, 0, (unsigned long *)sp))
 		parent = return_hooker;
+
+	ftrace_test_recursion_unlock(bit);
 out:
 	return parent;
 }
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
+void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
+		       struct ftrace_ops *op, struct ftrace_regs *fregs)
+{
+	fregs->regs.link = prepare_ftrace_return(parent_ip, ip, fregs->regs.gpr[1]);
+}
+#endif
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 #ifdef PPC64_ELF_ABI_v1

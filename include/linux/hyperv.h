@@ -1261,6 +1261,8 @@ struct hv_device {
 
 	struct vmbus_channel *channel;
 	struct kset	     *channels_kset;
+	struct device_dma_parameters dma_parms;
+	u64 dma_mask;
 
 	/* place holder to keep track of the dir for hv device in debugfs */
 	struct dentry *debug_dir;
@@ -1581,6 +1583,11 @@ struct hyperv_service_callback {
 	guid_t data;
 	struct vmbus_channel *channel;
 	void (*callback)(void *context);
+};
+
+struct hv_dma_range {
+	dma_addr_t dma;
+	u32 mapping_size;
 };
 
 #define MAX_SRV_VER	0x7ffffff

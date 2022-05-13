@@ -12,6 +12,7 @@
 #include <linux/sched/signal.h>
 #include "sof-priv.h"
 #include "ops.h"
+#include "sof-utils.h"
 
 #define TRACE_FILTER_ELEMENTS_PER_ENTRY 4
 #define TRACE_FILTER_MAX_CONFIG_STRING_LENGTH 1024
@@ -308,9 +309,6 @@ static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 	lpos_64 = lpos;
 	lpos = do_div(lpos_64, buffer_size);
 
-	if (count > buffer_size - lpos) /* min() not used to avoid sparse warnings */
-		count = buffer_size - lpos;
-
 	/* get available count based on current host offset */
 	avail = sof_wait_trace_avail(sdev, lpos, buffer_size);
 	if (sdev->dtrace_error) {
@@ -319,8 +317,16 @@ static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 	}
 
 	/* make sure count is <= avail */
-	count = avail > count ? count : avail;
+	if (count > avail)
+		count = avail;
 
+	/*
+	 * make sure that all trace data is available for the CPU as the trace
+	 * data buffer might be allocated from non consistent memory.
+	 * Note: snd_dma_buffer_sync() is called for normal audio playback and
+	 *	 capture streams also.
+	 */
+	snd_dma_buffer_sync(&sdev->dmatb, SNDRV_DMA_SYNC_CPU);
 	/* copy available trace data to debugfs */
 	rem = copy_to_user(buffer, ((u8 *)(dfse->buf) + lpos), count);
 	if (rem)
@@ -411,7 +417,7 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 	sdev->host_offset = 0;
 	sdev->dtrace_draining = false;
 
-	ret = snd_sof_dma_trace_init(sdev, &params.stream_tag);
+	ret = snd_sof_dma_trace_init(sdev, &params);
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: fail in snd_sof_dma_trace_init %d\n", ret);
@@ -465,8 +471,9 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 	}
 
 	/* allocate trace data buffer */
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
-				  DMA_BUF_SIZE_FOR_TRACE, &sdev->dmatb);
+	ret = snd_dma_alloc_dir_pages(SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
+				      DMA_FROM_DEVICE, DMA_BUF_SIZE_FOR_TRACE,
+				      &sdev->dmatb);
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: can't alloc buffer for trace %d\n", ret);

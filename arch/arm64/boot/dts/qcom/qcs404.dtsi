@@ -110,7 +110,7 @@
 		};
 	};
 
-	cpu_opp_table: cpu-opp-table {
+	cpu_opp_table: opp-table-cpu {
 		compatible = "operating-points-v2-kryo-cpu";
 		opp-shared;
 
@@ -128,7 +128,7 @@
 		};
 	};
 
-	cpr_opp_table: cpr-opp-table {
+	cpr_opp_table: opp-table-cpr {
 		compatible = "operating-points-v2-qcom-level";
 
 		cpr_opp1: opp1 {

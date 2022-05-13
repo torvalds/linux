@@ -3,8 +3,6 @@
  * Simple CPU accounting cgroup controller
  */
 #include <linux/cpufreq_times.h>
-#include "sched.h"
-#include <trace/hooks/sched.h>
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 
@@ -75,8 +73,6 @@ void irqtime_account_irq(struct task_struct *curr, unsigned int offset)
 		irqtime_account_delta(irqtime, delta, CPUTIME_IRQ);
 	else if ((pc & SOFTIRQ_OFFSET) && curr != this_cpu_ksoftirqd())
 		irqtime_account_delta(irqtime, delta, CPUTIME_SOFTIRQ);
-
-	trace_android_rvh_account_irq(curr, cpu, delta);
 }
 
 static u64 irqtime_tick_accounted(u64 maxtime)

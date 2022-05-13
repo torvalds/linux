@@ -1,4 +1,4 @@
-1) Import drivers using VCHI.
+* Import drivers using VCHI.
 
 VCHI is just a tool to let drivers talk to the firmware.  Here are
 some of the ones we want:
@@ -16,71 +16,42 @@ some of the ones we want:
   to manage these buffers as dmabufs so that we can zero-copy import
   camera images into vc4 for rendering/display.
 
-2) Garbage-collect unused code
-
-One of the reasons this driver wasn't upstreamed previously was that
-there's a lot code that got built that's probably unnecessary these
-days.  Once we have the set of VCHI-using drivers we want in tree, we
-should be able to do a sweep of the code to see what's left that's
-unused.
-
-3) Make driver more portable
-
-Building this driver with arm/multi_v7_defconfig or arm64/defconfig
-leads to data corruption during the following command:
-
-  vchiq_test -f 1
-
-This should be fixed.
-
-4) Fix kernel module support
+* Fix kernel module support
 
 Even the VPU firmware doesn't support a VCHI re-connect, the driver
 should properly handle a module unload. This also includes that all
 resources must be freed (kthreads, debugfs entries, ...) and global
 variables avoided.
 
-5) Cleanup logging mechanism
+* Cleanup logging mechanism
 
 The driver should probably be using the standard kernel logging mechanisms
 such as dev_info, dev_dbg, and friends.
 
-6) Documentation
+* Documentation
 
 A short top-down description of this driver's architecture (function of
 kthreads, userspace, limitations) could be very helpful for reviewers.
 
-7) Review and comment memory barriers
+* Review and comment memory barriers
 
 There is a heavy use of memory barriers in this driver, it would be very
 beneficial to go over all of them and, if correct, comment on their merits.
 Extra points to whomever confidently reviews the remote_event_*() family of
 functions.
 
-8) Get rid of custom function return values
+* Get rid of custom function return values
 
 Most functions use a custom set of return values, we should force proper Linux
 error numbers. Special care is needed for VCHIQ_RETRY.
 
-9) Reformat core code with more sane indentations
+* Reformat core code with more sane indentations
 
 The code follows the 80 characters limitation yet tends to go 3 or 4 levels of
 indentation deep making it very unpleasant to read. This is specially relevant
 in the character driver ioctl code and in the core thread functions.
 
-10) Reorganize file structure: Move char driver to it's own file and join both
-platform files
-
-The cdev is defined alongside with the platform code in vchiq_arm.c. It would
-be nice to completely decouple it from the actual core code. For instance to be
-able to use bcm2835-audio without having /dev/vchiq created. One could argue
-it's better for security reasons or general cleanliness. It could even be
-interesting to create two different kernel modules, something the likes of
-vchiq-core.ko and vchiq-dev.ko. This would also ease the upstreaming process.
-
-The code in vchiq_bcm2835_arm.c should fit in the generic platform file.
-
-11) Get rid of all non essential global structures and create a proper per
+* Get rid of all non essential global structures and create a proper per
 device structure
 
 The first thing one generally sees in a probe function is a memory allocation
@@ -88,6 +59,15 @@ for all the device specific data. This structure is then passed all over the
 driver. This is good practice since it makes the driver work regardless of the
 number of devices probed.
 
-12) Clean up Sparse warnings from __user annotations. See
+* Clean up Sparse warnings from __user annotations. See
 vchiq_irq_queue_bulk_tx_rx(). Ensure that the address of "&waiter->bulk_waiter"
 is never disclosed to userspace.
+
+* Fix behavior of message handling
+
+The polling behavior of vchiq_bulk_transmit(), vchiq_bulk_receive() and
+vchiq_queue_kernel_message() looks broken. A possible signal should be
+propagated back to user space to let the calling task handle it before
+retrying. Hopefully these msleep(1) shouldn't be necessary anymore.
+
+https://lore.kernel.org/linux-staging/CAK8P3a3HGm1cPo4sW9fOY4E8AN8yAq3tevXxU5m8bmtmsU8WKw@mail.gmail.com/

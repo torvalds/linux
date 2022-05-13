@@ -1063,30 +1063,27 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 	intel_dp->psr.active = true;
 }
 
-static void intel_psr_enable_source(struct intel_dp *intel_dp)
+static u32 wa_16013835468_bit_get(struct intel_dp *intel_dp)
+{
+	switch (intel_dp->psr.pipe) {
+	case PIPE_A:
+		return LATENCY_REPORTING_REMOVED_PIPE_A;
+	case PIPE_B:
+		return LATENCY_REPORTING_REMOVED_PIPE_B;
+	case PIPE_C:
+		return LATENCY_REPORTING_REMOVED_PIPE_C;
+	default:
+		MISSING_CASE(intel_dp->psr.pipe);
+		return 0;
+	}
+}
+
+static void intel_psr_enable_source(struct intel_dp *intel_dp,
+				    const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
 	u32 mask;
-
-	if (intel_dp->psr.psr2_enabled && DISPLAY_VER(dev_priv) == 9) {
-		i915_reg_t reg = CHICKEN_TRANS(cpu_transcoder);
-		u32 chicken = intel_de_read(dev_priv, reg);
-
-		chicken |= PSR2_VSC_ENABLE_PROG_HEADER |
-			   PSR2_ADD_VERTICAL_LINE_COUNT;
-		intel_de_write(dev_priv, reg, chicken);
-	}
-
-	/*
-	 * Wa_16014451276:adlp
-	 * All supported adlp panels have 1-based X granularity, this may
-	 * cause issues if non-supported panels are used.
-	 */
-	if (IS_ALDERLAKE_P(dev_priv) &&
-	    intel_dp->psr.psr2_enabled)
-		intel_de_rmw(dev_priv, CHICKEN_TRANS(cpu_transcoder), 0,
-			     ADLP_1_BASED_X_GRANULARITY);
 
 	/*
 	 * Per Spec: Avoid continuous PSR exit by masking MEMUP and HPD also
@@ -1126,18 +1123,47 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp)
 			     intel_dp->psr.psr2_sel_fetch_enabled ?
 			     IGNORE_PSR2_HW_TRACKING : 0);
 
-	/* Wa_16011168373:adl-p */
-	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) &&
-	    intel_dp->psr.psr2_enabled)
-		intel_de_rmw(dev_priv,
-			     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
-			     TRANS_SET_CONTEXT_LATENCY_MASK,
-			     TRANS_SET_CONTEXT_LATENCY_VALUE(1));
+	if (intel_dp->psr.psr2_enabled) {
+		if (DISPLAY_VER(dev_priv) == 9)
+			intel_de_rmw(dev_priv, CHICKEN_TRANS(cpu_transcoder), 0,
+				     PSR2_VSC_ENABLE_PROG_HEADER |
+				     PSR2_ADD_VERTICAL_LINE_COUNT);
 
-	/* Wa_16012604467:adlp */
-	if (IS_ALDERLAKE_P(dev_priv) && intel_dp->psr.psr2_enabled)
-		intel_de_rmw(dev_priv, CLKGATE_DIS_MISC, 0,
-			     CLKGATE_DIS_MISC_DMASC_GATING_DIS);
+		/*
+		 * Wa_16014451276:adlp
+		 * All supported adlp panels have 1-based X granularity, this may
+		 * cause issues if non-supported panels are used.
+		 */
+		if (IS_ALDERLAKE_P(dev_priv))
+			intel_de_rmw(dev_priv, CHICKEN_TRANS(cpu_transcoder), 0,
+				     ADLP_1_BASED_X_GRANULARITY);
+
+		/* Wa_16011168373:adl-p */
+		if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
+			intel_de_rmw(dev_priv,
+				     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
+				     TRANS_SET_CONTEXT_LATENCY_MASK,
+				     TRANS_SET_CONTEXT_LATENCY_VALUE(1));
+
+		/* Wa_16012604467:adlp */
+		if (IS_ALDERLAKE_P(dev_priv))
+			intel_de_rmw(dev_priv, CLKGATE_DIS_MISC, 0,
+				     CLKGATE_DIS_MISC_DMASC_GATING_DIS);
+
+		/* Wa_16013835468:tgl[b0+], dg1 */
+		if (IS_TGL_DISPLAY_STEP(dev_priv, STEP_B0, STEP_FOREVER) ||
+		    IS_DG1(dev_priv)) {
+			u16 vtotal, vblank;
+
+			vtotal = crtc_state->uapi.adjusted_mode.crtc_vtotal -
+				 crtc_state->uapi.adjusted_mode.crtc_vdisplay;
+			vblank = crtc_state->uapi.adjusted_mode.crtc_vblank_end -
+				 crtc_state->uapi.adjusted_mode.crtc_vblank_start;
+			if (vblank > vtotal)
+				intel_de_rmw(dev_priv, GEN8_CHICKEN_DCPR_1, 0,
+					     wa_16013835468_bit_get(intel_dp));
+		}
+	}
 }
 
 static bool psr_interrupt_error_check(struct intel_dp *intel_dp)
@@ -1202,7 +1228,7 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 	intel_write_dp_vsc_sdp(encoder, crtc_state, &crtc_state->psr_vsc);
 	intel_snps_phy_update_psr_power_state(dev_priv, phy, true);
 	intel_psr_enable_sink(intel_dp);
-	intel_psr_enable_source(intel_dp);
+	intel_psr_enable_source(intel_dp, crtc_state);
 	intel_dp->psr.enabled = true;
 	intel_dp->psr.paused = false;
 
@@ -1290,17 +1316,24 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 			     DIS_RAM_BYPASS_PSR2_MAN_TRACK, 0);
 
-	/* Wa_16011168373:adl-p */
-	if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) &&
-	    intel_dp->psr.psr2_enabled)
-		intel_de_rmw(dev_priv,
-			     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
-			     TRANS_SET_CONTEXT_LATENCY_MASK, 0);
+	if (intel_dp->psr.psr2_enabled) {
+		/* Wa_16011168373:adl-p */
+		if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
+			intel_de_rmw(dev_priv,
+				     TRANS_SET_CONTEXT_LATENCY(intel_dp->psr.transcoder),
+				     TRANS_SET_CONTEXT_LATENCY_MASK, 0);
 
-	/* Wa_16012604467:adlp */
-	if (IS_ALDERLAKE_P(dev_priv) && intel_dp->psr.psr2_enabled)
-		intel_de_rmw(dev_priv, CLKGATE_DIS_MISC,
-			     CLKGATE_DIS_MISC_DMASC_GATING_DIS, 0);
+		/* Wa_16012604467:adlp */
+		if (IS_ALDERLAKE_P(dev_priv))
+			intel_de_rmw(dev_priv, CLKGATE_DIS_MISC,
+				     CLKGATE_DIS_MISC_DMASC_GATING_DIS, 0);
+
+		/* Wa_16013835468:tgl[b0+], dg1 */
+		if (IS_TGL_DISPLAY_STEP(dev_priv, STEP_B0, STEP_FOREVER) ||
+		    IS_DG1(dev_priv))
+			intel_de_rmw(dev_priv, GEN8_CHICKEN_DCPR_1,
+				     wa_16013835468_bit_get(intel_dp), 0);
+	}
 
 	intel_snps_phy_update_psr_power_state(dev_priv, phy, false);
 
@@ -1404,6 +1437,13 @@ static inline u32 man_trk_ctl_single_full_frame_bit_get(struct drm_i915_private 
 	return IS_ALDERLAKE_P(dev_priv) ?
 	       ADLP_PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME :
 	       PSR2_MAN_TRK_CTL_SF_SINGLE_FULL_FRAME;
+}
+
+static inline u32 man_trk_ctl_partial_frame_bit_get(struct drm_i915_private *dev_priv)
+{
+	return IS_ALDERLAKE_P(dev_priv) ?
+	       ADLP_PSR2_MAN_TRK_CTL_SF_PARTIAL_FRAME_UPDATE :
+	       PSR2_MAN_TRK_CTL_SF_PARTIAL_FRAME_UPDATE;
 }
 
 static void psr_force_hw_tracking_exit(struct intel_dp *intel_dp)
@@ -1510,7 +1550,13 @@ static void psr2_man_trk_ctl_calc(struct intel_crtc_state *crtc_state,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 val = PSR2_MAN_TRK_CTL_ENABLE;
+	u32 val = 0;
+
+	if (!IS_ALDERLAKE_P(dev_priv))
+		val = PSR2_MAN_TRK_CTL_ENABLE;
+
+	/* SF partial frame enable has to be set even on full update */
+	val |= man_trk_ctl_partial_frame_bit_get(dev_priv);
 
 	if (full_update) {
 		/*
@@ -1530,7 +1576,6 @@ static void psr2_man_trk_ctl_calc(struct intel_crtc_state *crtc_state,
 	} else {
 		drm_WARN_ON(crtc_state->uapi.crtc->dev, clip->y1 % 4 || clip->y2 % 4);
 
-		val |= PSR2_MAN_TRK_CTL_SF_PARTIAL_FRAME_UPDATE;
 		val |= PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR(clip->y1 / 4 + 1);
 		val |= PSR2_MAN_TRK_CTL_SU_REGION_END_ADDR(clip->y2 / 4 + 1);
 	}
@@ -1804,6 +1849,9 @@ static void _intel_psr_post_plane_update(const struct intel_atomic_state *state,
 
 		mutex_lock(&psr->lock);
 
+		if (psr->sink_not_reliable)
+			goto exit;
+
 		drm_WARN_ON(&dev_priv->drm, psr->enabled && !crtc_state->active_planes);
 
 		/* Only enable if there is active planes */
@@ -1814,6 +1862,7 @@ static void _intel_psr_post_plane_update(const struct intel_atomic_state *state,
 		if (crtc_state->crc_enabled && psr->enabled)
 			psr_force_hw_tracking_exit(intel_dp);
 
+exit:
 		mutex_unlock(&psr->lock);
 	}
 }

@@ -29,7 +29,7 @@ struct es7241_data {
 	struct gpio_desc *m1;
 	unsigned int fmt;
 	unsigned int mclk;
-	bool is_slave;
+	bool is_consumer;
 	const struct es7241_chip *chip;
 };
 
@@ -46,9 +46,9 @@ static void es7241_set_mode(struct es7241_data *priv,  int m0, int m1)
 	gpiod_set_value_cansleep(priv->reset, 1);
 }
 
-static int es7241_set_slave_mode(struct es7241_data *priv,
-				 const struct es7241_clock_mode *mode,
-				 unsigned int mfs)
+static int es7241_set_consumer_mode(struct es7241_data *priv,
+				    const struct es7241_clock_mode *mode,
+				    unsigned int mfs)
 {
 	int j;
 
@@ -67,9 +67,9 @@ out_ok:
 	return 0;
 }
 
-static int es7241_set_master_mode(struct es7241_data *priv,
-				  const struct es7241_clock_mode *mode,
-				  unsigned int mfs)
+static int es7241_set_provider_mode(struct es7241_data *priv,
+				    const struct es7241_clock_mode *mode,
+				    unsigned int mfs)
 {
 	/*
 	 * We can't really set clock ratio, if the mclk/lrclk is different
@@ -98,10 +98,10 @@ static int es7241_hw_params(struct snd_pcm_substream *substream,
 		if (rate < mode->rate_min || rate >= mode->rate_max)
 			continue;
 
-		if (priv->is_slave)
-			return es7241_set_slave_mode(priv, mode, mfs);
+		if (priv->is_consumer)
+			return es7241_set_consumer_mode(priv, mode, mfs);
 		else
-			return es7241_set_master_mode(priv, mode, mfs);
+			return es7241_set_provider_mode(priv, mode, mfs);
 	}
 
 	/* should not happen */
@@ -136,12 +136,12 @@ static int es7241_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
-		priv->is_slave = true;
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
+		priv->is_consumer = true;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
-		priv->is_slave = false;
+	case SND_SOC_DAIFMT_CBP_CFP:
+		priv->is_consumer = false;
 		break;
 
 	default:

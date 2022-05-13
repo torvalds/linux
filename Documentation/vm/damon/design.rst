@@ -13,12 +13,13 @@ primitives that dependent on and optimized for the target address space.  On
 the other hand, the accuracy and overhead tradeoff mechanism, which is the core
 of DAMON, is in the pure logic space.  DAMON separates the two parts in
 different layers and defines its interface to allow various low level
-primitives implementations configurable with the core logic.
+primitives implementations configurable with the core logic.  We call the low
+level primitives implementations monitoring operations.
 
 Due to this separated design and the configurable interface, users can extend
-DAMON for any address space by configuring the core logics with appropriate low
-level primitive implementations.  If appropriate one is not provided, users can
-implement the primitives on their own.
+DAMON for any address space by configuring the core logics with appropriate
+monitoring operations.  If appropriate one is not provided, users can implement
+the operations on their own.
 
 For example, physical memory, virtual memory, swap space, those for specific
 processes, NUMA nodes, files, and backing memory devices would be supportable.
@@ -26,25 +27,24 @@ Also, if some architectures or devices support special optimized access check
 primitives, those will be easily configurable.
 
 
-Reference Implementations of Address Space Specific Primitives
-==============================================================
+Reference Implementations of Address Space Specific Monitoring Operations
+=========================================================================
 
-The low level primitives for the fundamental access monitoring are defined in
-two parts:
+The monitoring operations are defined in two parts:
 
 1. Identification of the monitoring target address range for the address space.
 2. Access check of specific address range in the target space.
 
-DAMON currently provides the implementations of the primitives for the physical
+DAMON currently provides the implementations of the operations for the physical
 and virtual address spaces. Below two subsections describe how those work.
 
 
 VMA-based Target Address Range Construction
 -------------------------------------------
 
-This is only for the virtual address space primitives implementation.  That for
-the physical address space simply asks users to manually set the monitoring
-target address ranges.
+This is only for the virtual address space monitoring operations
+implementation.  That for the physical address space simply asks users to
+manually set the monitoring target address ranges.
 
 Only small parts in the super-huge virtual address space of the processes are
 mapped to the physical memory and accessed.  Thus, tracking the unmapped
@@ -84,9 +84,10 @@ table having a mapping to the address.  In this way, the implementations find
 and clear the bit(s) for next sampling target address and checks whether the
 bit(s) set again after one sampling period.  This could disturb other kernel
 subsystems using the Accessed bits, namely Idle page tracking and the reclaim
-logic.  To avoid such disturbances, DAMON makes it mutually exclusive with Idle
-page tracking and uses ``PG_idle`` and ``PG_young`` page flags to solve the
-conflict with the reclaim logic, as Idle page tracking does.
+logic.  DAMON does nothing to avoid disturbing Idle page tracking, so handling
+the interference is the responsibility of sysadmins.  However, it solves the
+conflict with the reclaim logic using ``PG_idle`` and ``PG_young`` page flags,
+as Idle page tracking does.
 
 
 Address Space Independent Core Mechanisms
@@ -94,8 +95,8 @@ Address Space Independent Core Mechanisms
 
 Below four sections describe each of the DAMON core mechanisms and the five
 monitoring attributes, ``sampling interval``, ``aggregation interval``,
-``regions update interval``, ``minimum number of regions``, and ``maximum
-number of regions``.
+``update interval``, ``minimum number of regions``, and ``maximum number of
+regions``.
 
 
 Access Frequency Monitoring
@@ -168,6 +169,8 @@ The monitoring target address range could dynamically changed.  For example,
 virtual memory could be dynamically mapped and unmapped.  Physical memory could
 be hot-plugged.
 
-As the changes could be quite frequent in some cases, DAMON checks the dynamic
-memory mapping changes and applies it to the abstracted target area only for
-each of a user-specified time interval (``regions update interval``).
+As the changes could be quite frequent in some cases, DAMON allows the
+monitoring operations to check dynamic changes including memory mapping changes
+and applies it to monitoring operations-related data structures such as the
+abstracted monitoring target memory area only for each of a user-specified time
+interval (``update interval``).

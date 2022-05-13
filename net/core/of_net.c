@@ -61,7 +61,7 @@ static int of_get_mac_addr_nvmem(struct device_node *np, u8 *addr)
 {
 	struct platform_device *pdev = of_find_device_by_node(np);
 	struct nvmem_cell *cell;
-	const void *buf;
+	const void *mac;
 	size_t len;
 	int ret;
 
@@ -78,32 +78,21 @@ static int of_get_mac_addr_nvmem(struct device_node *np, u8 *addr)
 	if (IS_ERR(cell))
 		return PTR_ERR(cell);
 
-	buf = nvmem_cell_read(cell, &len);
+	mac = nvmem_cell_read(cell, &len);
 	nvmem_cell_put(cell);
 
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
+	if (IS_ERR(mac))
+		return PTR_ERR(mac);
 
-	ret = 0;
-	if (len == ETH_ALEN) {
-		if (is_valid_ether_addr(buf))
-			memcpy(addr, buf, ETH_ALEN);
-		else
-			ret = -EINVAL;
-	} else if (len == 3 * ETH_ALEN - 1) {
-		u8 mac[ETH_ALEN];
-
-		if (mac_pton(buf, mac))
-			memcpy(addr, mac, ETH_ALEN);
-		else
-			ret = -EINVAL;
-	} else {
-		ret = -EINVAL;
+	if (len != ETH_ALEN || !is_valid_ether_addr(mac)) {
+		kfree(mac);
+		return -EINVAL;
 	}
 
-	kfree(buf);
+	memcpy(addr, mac, ETH_ALEN);
+	kfree(mac);
 
-	return ret;
+	return 0;
 }
 
 /**

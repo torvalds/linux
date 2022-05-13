@@ -76,7 +76,7 @@ struct xattr_acl_entry {
 struct xattr_smb_acl {
 	int count;
 	int next;
-	struct xattr_acl_entry entries[0];
+	struct xattr_acl_entry entries[];
 };
 
 /* 64bytes hash in xattr_ntacl is computed with sha256 */

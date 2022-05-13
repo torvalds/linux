@@ -106,9 +106,9 @@ static void emac_update_speed(struct net_device *dev)
 
 	/* set EMAC SPEED, depend on PHY  */
 	reg_val = readl(db->membase + EMAC_MAC_SUPP_REG);
-	reg_val &= ~(0x1 << 8);
+	reg_val &= ~EMAC_MAC_SUPP_100M;
 	if (db->speed == SPEED_100)
-		reg_val |= 1 << 8;
+		reg_val |= EMAC_MAC_SUPP_100M;
 	writel(reg_val, db->membase + EMAC_MAC_SUPP_REG);
 }
 
@@ -264,7 +264,7 @@ static void emac_dma_done_callback(void *arg)
 
 	/* re enable interrupt */
 	reg_val = readl(db->membase + EMAC_INT_CTL_REG);
-	reg_val |= (0x01 << 8);
+	reg_val |= EMAC_INT_CTL_RX_EN;
 	writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 
 	db->emacrx_completed_flag = 1;
@@ -429,7 +429,7 @@ static unsigned int emac_powerup(struct net_device *ndev)
 	/* initial EMAC */
 	/* flush RX FIFO */
 	reg_val = readl(db->membase + EMAC_RX_CTL_REG);
-	reg_val |= 0x8;
+	reg_val |= EMAC_RX_CTL_FLUSH_FIFO;
 	writel(reg_val, db->membase + EMAC_RX_CTL_REG);
 	udelay(1);
 
@@ -441,8 +441,8 @@ static unsigned int emac_powerup(struct net_device *ndev)
 
 	/* set MII clock */
 	reg_val = readl(db->membase + EMAC_MAC_MCFG_REG);
-	reg_val &= (~(0xf << 2));
-	reg_val |= (0xD << 2);
+	reg_val &= ~EMAC_MAC_MCFG_MII_CLKD_MASK;
+	reg_val |= EMAC_MAC_MCFG_MII_CLKD_72;
 	writel(reg_val, db->membase + EMAC_MAC_MCFG_REG);
 
 	/* clear RX counter */
@@ -506,7 +506,7 @@ static void emac_init_device(struct net_device *dev)
 
 	/* enable RX/TX0/RX Hlevel interrup */
 	reg_val = readl(db->membase + EMAC_INT_CTL_REG);
-	reg_val |= (0xf << 0) | (0x01 << 8);
+	reg_val |= (EMAC_INT_CTL_TX_EN | EMAC_INT_CTL_TX_ABRT_EN | EMAC_INT_CTL_RX_EN);
 	writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 
 	spin_unlock_irqrestore(&db->lock, flags);
@@ -637,7 +637,9 @@ static void emac_rx(struct net_device *dev)
 		if (!rxcount) {
 			db->emacrx_completed_flag = 1;
 			reg_val = readl(db->membase + EMAC_INT_CTL_REG);
-			reg_val |= (0xf << 0) | (0x01 << 8);
+			reg_val |= (EMAC_INT_CTL_TX_EN |
+					EMAC_INT_CTL_TX_ABRT_EN |
+					EMAC_INT_CTL_RX_EN);
 			writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 
 			/* had one stuck? */
@@ -669,7 +671,9 @@ static void emac_rx(struct net_device *dev)
 			writel(reg_val | EMAC_CTL_RX_EN,
 			       db->membase + EMAC_CTL_REG);
 			reg_val = readl(db->membase + EMAC_INT_CTL_REG);
-			reg_val |= (0xf << 0) | (0x01 << 8);
+			reg_val |= (EMAC_INT_CTL_TX_EN |
+					EMAC_INT_CTL_TX_ABRT_EN |
+					EMAC_INT_CTL_RX_EN);
 			writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 
 			db->emacrx_completed_flag = 1;
@@ -783,20 +787,20 @@ static irqreturn_t emac_interrupt(int irq, void *dev_id)
 	}
 
 	/* Transmit Interrupt check */
-	if (int_status & (0x01 | 0x02))
+	if (int_status & EMAC_INT_STA_TX_COMPLETE)
 		emac_tx_done(dev, db, int_status);
 
-	if (int_status & (0x04 | 0x08))
+	if (int_status & EMAC_INT_STA_TX_ABRT)
 		netdev_info(dev, " ab : %x\n", int_status);
 
 	/* Re-enable interrupt mask */
 	if (db->emacrx_completed_flag == 1) {
 		reg_val = readl(db->membase + EMAC_INT_CTL_REG);
-		reg_val |= (0xf << 0) | (0x01 << 8);
+		reg_val |= (EMAC_INT_CTL_TX_EN | EMAC_INT_CTL_TX_ABRT_EN | EMAC_INT_CTL_RX_EN);
 		writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 	} else {
 		reg_val = readl(db->membase + EMAC_INT_CTL_REG);
-		reg_val |= (0xf << 0);
+		reg_val |= (EMAC_INT_CTL_TX_EN | EMAC_INT_CTL_TX_ABRT_EN);
 		writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 	}
 
@@ -1068,6 +1072,7 @@ out_clk_disable_unprepare:
 	clk_disable_unprepare(db->clk);
 out_dispose_mapping:
 	irq_dispose_mapping(ndev->irq);
+	dma_release_channel(db->rx_chan);
 out_iounmap:
 	iounmap(db->membase);
 out:
