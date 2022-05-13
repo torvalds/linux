@@ -817,7 +817,8 @@ u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev)
 {
 	u32 host_event;
 
-	BUG_ON(!ec_dev->mkbp_event_supported);
+	if (!ec_dev->mkbp_event_supported)
+		return 0;
 
 	if (ec_dev->event_data.event_type != EC_MKBP_EVENT_HOST_EVENT)
 		return 0;
