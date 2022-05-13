@@ -348,7 +348,6 @@ static inline void prep_transhuge_page(struct page *page) {}
 static inline bool
 can_split_folio(struct folio *folio, int *pextra_pins)
 {
-	BUILD_BUG();
 	return false;
 }
 static inline int
