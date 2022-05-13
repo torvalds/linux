@@ -192,86 +192,142 @@ struct ov5640_pixfmt {
 	u32 code;
 	u32 colorspace;
 	u8 bpp;
+	u8 ctrl00;
+	enum ov5640_format_mux mux;
 };
 
 static const struct ov5640_pixfmt ov5640_dvp_formats[] = {
 	{
-		.code = MEDIA_BUS_FMT_JPEG_1X8,
-		.colorspace = V4L2_COLORSPACE_JPEG,
-		.bpp = 16,
+		/* YUV422, YUYV */
+		.code		= MEDIA_BUS_FMT_JPEG_1X8,
+		.colorspace	= V4L2_COLORSPACE_JPEG,
+		.bpp		= 16,
+		.ctrl00		= 0x30,
+		.mux		= OV5640_FMT_MUX_YUV422,
 	}, {
-		.code = MEDIA_BUS_FMT_UYVY8_2X8,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 16,
+		/* YUV422, UYVY */
+		.code		= MEDIA_BUS_FMT_UYVY8_2X8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 16,
+		.ctrl00		= 0x3f,
+		.mux		= OV5640_FMT_MUX_YUV422,
 	}, {
-		.code = MEDIA_BUS_FMT_YUYV8_2X8,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 16,
+		/* YUV422, YUYV */
+		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 16,
+		.ctrl00		= 0x30,
+		.mux		= OV5640_FMT_MUX_YUV422,
 	}, {
-		.code = MEDIA_BUS_FMT_RGB565_2X8_LE,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 16,
+		/* RGB565 {g[2:0],b[4:0]},{r[4:0],g[5:3]} */
+		.code		= MEDIA_BUS_FMT_RGB565_2X8_LE,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 16,
+		.ctrl00		= 0x6f,
+		.mux		= OV5640_FMT_MUX_RGB,
 	}, {
-		.code = MEDIA_BUS_FMT_RGB565_2X8_BE,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 16,
+		/* RGB565 {r[4:0],g[5:3]},{g[2:0],b[4:0]} */
+		.code		= MEDIA_BUS_FMT_RGB565_2X8_BE,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 16,
+		.ctrl00		= 0x61,
+		.mux		= OV5640_FMT_MUX_RGB,
 	}, {
-		.code = MEDIA_BUS_FMT_SBGGR8_1X8,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 8,
+		/* Raw, BGBG... / GRGR... */
+		.code		= MEDIA_BUS_FMT_SBGGR8_1X8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 8,
+		.ctrl00		= 0x00,
+		.mux		= OV5640_FMT_MUX_RAW_DPC,
 	}, {
-		.code = MEDIA_BUS_FMT_SGBRG8_1X8,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 8
+		/* Raw bayer, GBGB... / RGRG... */
+		.code		= MEDIA_BUS_FMT_SGBRG8_1X8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 8,
+		.ctrl00		= 0x01,
+		.mux		= OV5640_FMT_MUX_RAW_DPC,
 	}, {
-		.code = MEDIA_BUS_FMT_SGRBG8_1X8,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 8,
+		/* Raw bayer, GRGR... / BGBG... */
+		.code		= MEDIA_BUS_FMT_SGRBG8_1X8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 8,
+		.ctrl00		= 0x02,
+		.mux		= OV5640_FMT_MUX_RAW_DPC,
 	}, {
-		.code = MEDIA_BUS_FMT_SRGGB8_1X8,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 8,
+		/* Raw bayer, RGRG... / GBGB... */
+		.code		= MEDIA_BUS_FMT_SRGGB8_1X8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 8,
+		.ctrl00		= 0x03,
+		.mux		= OV5640_FMT_MUX_RAW_DPC,
 	},
 	{ /* sentinel */ }
 };
 
 static const struct ov5640_pixfmt ov5640_csi2_formats[] = {
 	{
-		.code = MEDIA_BUS_FMT_JPEG_1X8,
-		.colorspace = V4L2_COLORSPACE_JPEG,
-		.bpp = 16,
+		/* YUV422, YUYV */
+		.code		= MEDIA_BUS_FMT_JPEG_1X8,
+		.colorspace	= V4L2_COLORSPACE_JPEG,
+		.bpp		= 16,
+		.ctrl00		= 0x30,
+		.mux		= OV5640_FMT_MUX_YUV422,
 	}, {
-		.code = MEDIA_BUS_FMT_UYVY8_1X16,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 16,
+		/* YUV422, UYVY */
+		.code		= MEDIA_BUS_FMT_UYVY8_1X16,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 16,
+		.ctrl00		= 0x3f,
+		.mux		= OV5640_FMT_MUX_YUV422,
 	}, {
-		.code = MEDIA_BUS_FMT_YUYV8_1X16,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 16,
+		/* YUV422, YUYV */
+		.code		= MEDIA_BUS_FMT_YUYV8_1X16,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 16,
+		.ctrl00		= 0x30,
+		.mux		= OV5640_FMT_MUX_YUV422,
 	}, {
-		.code = MEDIA_BUS_FMT_RGB565_1X16,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 16,
+		/* RGB565 {g[2:0],b[4:0]},{r[4:0],g[5:3]} */
+		.code		= MEDIA_BUS_FMT_RGB565_1X16,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 16,
+		.ctrl00		= 0x6f,
+		.mux		= OV5640_FMT_MUX_RGB,
 	}, {
-		.code = MEDIA_BUS_FMT_BGR888_1X24,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 24,
+		/* BGR888: RGB */
+		.code		= MEDIA_BUS_FMT_BGR888_1X24,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 24,
+		.ctrl00		= 0x23,
+		.mux		= OV5640_FMT_MUX_RGB,
 	}, {
-		.code = MEDIA_BUS_FMT_SBGGR8_1X8,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 8,
+		/* Raw, BGBG... / GRGR... */
+		.code		= MEDIA_BUS_FMT_SBGGR8_1X8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 8,
+		.ctrl00		= 0x00,
+		.mux		= OV5640_FMT_MUX_RAW_DPC,
 	}, {
-		.code = MEDIA_BUS_FMT_SGBRG8_1X8,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 8
+		/* Raw bayer, GBGB... / RGRG... */
+		.code		= MEDIA_BUS_FMT_SGBRG8_1X8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 8,
+		.ctrl00		= 0x01,
+		.mux		= OV5640_FMT_MUX_RAW_DPC,
 	}, {
-		.code = MEDIA_BUS_FMT_SGRBG8_1X8,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 8,
+		/* Raw bayer, GRGR... / BGBG... */
+		.code		= MEDIA_BUS_FMT_SGRBG8_1X8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 8,
+		.ctrl00		= 0x02,
+		.mux		= OV5640_FMT_MUX_RAW_DPC,
 	}, {
-		.code = MEDIA_BUS_FMT_SRGGB8_1X8,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.bpp = 8,
+		/* Raw bayer, RGRG... / GBGB... */
+		.code		= MEDIA_BUS_FMT_SRGGB8_1X8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 8,
+		.ctrl00		= 0x03,
+		.mux		= OV5640_FMT_MUX_RAW_DPC,
 	},
 	{ /* sentinel */ }
 };
@@ -2970,76 +3026,21 @@ static int ov5640_get_selection(struct v4l2_subdev *sd,
 static int ov5640_set_framefmt(struct ov5640_dev *sensor,
 			       struct v4l2_mbus_framefmt *format)
 {
+	bool is_jpeg = format->code == MEDIA_BUS_FMT_JPEG_1X8;
+	const struct ov5640_pixfmt *pixfmt;
 	int ret = 0;
-	bool is_jpeg = false;
-	u8 fmt, mux;
 
-	switch (format->code) {
-	case MEDIA_BUS_FMT_UYVY8_1X16:
-	case MEDIA_BUS_FMT_UYVY8_2X8:
-		/* YUV422, UYVY */
-		fmt = 0x3f;
-		mux = OV5640_FMT_MUX_YUV422;
-		break;
-	case MEDIA_BUS_FMT_YUYV8_1X16:
-	case MEDIA_BUS_FMT_YUYV8_2X8:
-		/* YUV422, YUYV */
-		fmt = 0x30;
-		mux = OV5640_FMT_MUX_YUV422;
-		break;
-	case MEDIA_BUS_FMT_RGB565_2X8_LE:
-	case MEDIA_BUS_FMT_RGB565_1X16:
-		/* RGB565 {g[2:0],b[4:0]},{r[4:0],g[5:3]} */
-		fmt = 0x6F;
-		mux = OV5640_FMT_MUX_RGB;
-		break;
-	case MEDIA_BUS_FMT_RGB565_2X8_BE:
-		/* RGB565 {r[4:0],g[5:3]},{g[2:0],b[4:0]} */
-		fmt = 0x61;
-		mux = OV5640_FMT_MUX_RGB;
-		break;
-	case MEDIA_BUS_FMT_BGR888_1X24:
-		/* BGR888: RGB */
-		fmt = 0x23;
-		mux = OV5640_FMT_MUX_RGB;
-		break;
-	case MEDIA_BUS_FMT_JPEG_1X8:
-		/* YUV422, YUYV */
-		fmt = 0x30;
-		mux = OV5640_FMT_MUX_YUV422;
-		is_jpeg = true;
-		break;
-	case MEDIA_BUS_FMT_SBGGR8_1X8:
-		/* Raw, BGBG... / GRGR... */
-		fmt = 0x00;
-		mux = OV5640_FMT_MUX_RAW_DPC;
-		break;
-	case MEDIA_BUS_FMT_SGBRG8_1X8:
-		/* Raw bayer, GBGB... / RGRG... */
-		fmt = 0x01;
-		mux = OV5640_FMT_MUX_RAW_DPC;
-		break;
-	case MEDIA_BUS_FMT_SGRBG8_1X8:
-		/* Raw bayer, GRGR... / BGBG... */
-		fmt = 0x02;
-		mux = OV5640_FMT_MUX_RAW_DPC;
-		break;
-	case MEDIA_BUS_FMT_SRGGB8_1X8:
-		/* Raw bayer, RGRG... / GBGB... */
-		fmt = 0x03;
-		mux = OV5640_FMT_MUX_RAW_DPC;
-		break;
-	default:
-		return -EINVAL;
-	}
+	pixfmt = ov5640_code_to_pixfmt(sensor, format->code);
 
 	/* FORMAT CONTROL00: YUV and RGB formatting */
-	ret = ov5640_write_reg(sensor, OV5640_REG_FORMAT_CONTROL00, fmt);
+	ret = ov5640_write_reg(sensor, OV5640_REG_FORMAT_CONTROL00,
+			       pixfmt->ctrl00);
 	if (ret)
 		return ret;
 
 	/* FORMAT MUX CONTROL: ISP YUV or RGB */
-	ret = ov5640_write_reg(sensor, OV5640_REG_ISP_FORMAT_MUX_CTRL, mux);
+	ret = ov5640_write_reg(sensor, OV5640_REG_ISP_FORMAT_MUX_CTRL,
+			       pixfmt->mux);
 	if (ret)
 		return ret;
 
