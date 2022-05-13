@@ -155,19 +155,9 @@ struct raid56_bio_trace_info {
 	u8 stripe_nr;
 };
 
-static inline int nr_parity_stripes(const struct map_lookup *map)
-{
-	if (map->type & BTRFS_BLOCK_GROUP_RAID5)
-		return 1;
-	else if (map->type & BTRFS_BLOCK_GROUP_RAID6)
-		return 2;
-	else
-		return 0;
-}
-
 static inline int nr_data_stripes(const struct map_lookup *map)
 {
-	return map->num_stripes - nr_parity_stripes(map);
+	return map->num_stripes - btrfs_nr_parity_stripes(map->type);
 }
 
 #define RAID5_P_STRIPE ((u64)-2)

@@ -182,6 +182,13 @@ const char *btrfs_bg_type_to_raid_name(u64 flags)
 	return btrfs_raid_array[index].raid_name;
 }
 
+int btrfs_nr_parity_stripes(u64 type)
+{
+	enum btrfs_raid_types index = btrfs_bg_flags_to_raid_index(type);
+
+	return btrfs_raid_array[index].nparity;
+}
+
 /*
  * Fill @buf with textual description of @bg_flags, no more than @size_buf
  * bytes including terminating null byte.

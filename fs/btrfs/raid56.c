@@ -922,7 +922,6 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	const unsigned int stripe_nsectors = stripe_len >> fs_info->sectorsize_bits;
 	const unsigned int num_sectors = stripe_nsectors * real_stripes;
 	struct btrfs_raid_bio *rbio;
-	int nr_data = 0;
 	void *p;
 
 	ASSERT(IS_ALIGNED(stripe_len, PAGE_SIZE));
@@ -976,14 +975,9 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	CONSUME_ALLOC(rbio->finish_pointers, real_stripes);
 #undef  CONSUME_ALLOC
 
-	if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID5)
-		nr_data = real_stripes - 1;
-	else if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID6)
-		nr_data = real_stripes - 2;
-	else
-		BUG();
+	ASSERT(btrfs_nr_parity_stripes(bioc->map_type));
+	rbio->nr_data = real_stripes - btrfs_nr_parity_stripes(bioc->map_type);
 
-	rbio->nr_data = nr_data;
 	return rbio;
 }
 
