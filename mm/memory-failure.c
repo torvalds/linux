@@ -1751,7 +1751,7 @@ static DEFINE_MUTEX(mf_mutex);
  * enabled and no spinlocks hold.
  *
  * Return: 0 for successfully handled the memory error,
- *         -EOPNOTSUPP for memory_filter() filtered the error event,
+ *         -EOPNOTSUPP for hwpoison_filter() filtered the error event,
  *         < 0(except -EOPNOTSUPP) on failure.
  */
 int memory_failure(unsigned long pfn, int flags)
@@ -2308,7 +2308,9 @@ static void put_ref_page(struct page *page)
  * @pfn: pfn to soft-offline
  * @flags: flags. Same as memory_failure().
  *
- * Returns 0 on success, otherwise negated errno.
+ * Returns 0 on success
+ *         -EOPNOTSUPP for hwpoison_filter() filtered the error event
+ *         < 0 otherwise negated errno.
  *
  * Soft offline a page, by migration or invalidation,
  * without killing anything. This is for the case when
@@ -2358,6 +2360,16 @@ retry:
 	get_online_mems();
 	ret = get_hwpoison_page(page, flags | MF_SOFT_OFFLINE);
 	put_online_mems();
+
+	if (hwpoison_filter(page)) {
+		if (ret > 0)
+			put_page(page);
+		else
+			put_ref_page(ref_page);
+
+		mutex_unlock(&mf_mutex);
+		return -EOPNOTSUPP;
+	}
 
 	if (ret > 0) {
 		ret = soft_offline_in_use_page(page);
