@@ -1679,4 +1679,12 @@ static inline void vmw_irq_status_write(struct vmw_private *vmw,
 		outl(status, vmw->io_start + SVGA_IRQSTATUS_PORT);
 }
 
+static inline bool vmw_has_fences(struct vmw_private *vmw)
+{
+	if ((vmw->capabilities & (SVGA_CAP_COMMAND_BUFFERS |
+				  SVGA_CAP_CMD_BUFFERS_2)) != 0)
+		return true;
+	return (vmw_fifo_caps(vmw) & SVGA_FIFO_CAP_FENCE) != 0;
+}
+
 #endif
