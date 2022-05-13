@@ -1132,6 +1132,7 @@ static void action_result(unsigned long pfn, enum mf_action_page_type type,
 {
 	trace_memory_failure_event(pfn, type, result);
 
+	num_poisoned_pages_inc();
 	pr_err("Memory failure: %#lx: recovery action for %s: %s\n",
 		pfn, action_page_types[type], action_name[result]);
 }
@@ -1587,8 +1588,6 @@ retry:
 		goto out;
 	}
 
-	num_poisoned_pages_inc();
-
 	/*
 	 * Handling free hugepage.  The possible race with hugepage allocation
 	 * or demotion can be prevented by PageHWPoison flag.
@@ -1806,7 +1805,6 @@ try_again:
 	}
 
 	hpage = compound_head(p);
-	num_poisoned_pages_inc();
 
 	/*
 	 * We need/can do nothing about count=0 pages.
@@ -1830,7 +1828,6 @@ try_again:
 					/* We lost the race, try again */
 					if (retry) {
 						ClearPageHWPoison(p);
-						num_poisoned_pages_dec();
 						retry = false;
 						goto try_again;
 					}
@@ -1906,8 +1903,7 @@ try_again:
 	 */
 	if (PageCompound(p)) {
 		if (retry) {
-			if (TestClearPageHWPoison(p))
-				num_poisoned_pages_dec();
+			ClearPageHWPoison(p);
 			unlock_page(p);
 			put_page(p);
 			flags &= ~MF_COUNT_INCREASED;
@@ -1929,8 +1925,7 @@ try_again:
 	page_flags = p->flags;
 
 	if (hwpoison_filter(p)) {
-		if (TestClearPageHWPoison(p))
-			num_poisoned_pages_dec();
+		TestClearPageHWPoison(p);
 		unlock_page(p);
 		put_page(p);
 		res = -EOPNOTSUPP;
