@@ -226,6 +226,10 @@ static const struct ov5640_pixfmt {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.bpp = 16,
 	}, {
+		.code = MEDIA_BUS_FMT_BGR888_1X24,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.bpp = 24,
+	}, {
 		.code = MEDIA_BUS_FMT_SBGGR8_1X8,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.bpp = 8,
@@ -2938,6 +2942,11 @@ static int ov5640_set_framefmt(struct ov5640_dev *sensor,
 	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		/* RGB565 {r[4:0],g[5:3]},{g[2:0],b[4:0]} */
 		fmt = 0x61;
+		mux = OV5640_FMT_MUX_RGB;
+		break;
+	case MEDIA_BUS_FMT_BGR888_1X24:
+		/* BGR888: RGB */
+		fmt = 0x23;
 		mux = OV5640_FMT_MUX_RGB;
 		break;
 	case MEDIA_BUS_FMT_JPEG_1X8:
