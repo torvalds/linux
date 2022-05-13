@@ -909,6 +909,12 @@ config ANON_VMA_NAME
 	  area from being merged with adjacent virtual memory areas due to the
 	  difference in their name.
 
+config PTE_MARKER
+	bool "Marker PTEs support"
+
+	help
+	  Allows to create marker PTEs for file-backed memory.
+
 source "mm/damon/Kconfig"
 
 endmenu

@@ -2,6 +2,9 @@
 #ifndef _ASM_GENERIC_HUGETLB_H
 #define _ASM_GENERIC_HUGETLB_H
 
+#include <linux/swap.h>
+#include <linux/swapops.h>
+
 static inline pte_t mk_huge_pte(struct page *page, pgprot_t pgprot)
 {
 	return mk_pte(page, pgprot);
@@ -79,6 +82,12 @@ static inline int huge_pte_none(pte_t pte)
 	return pte_none(pte);
 }
 #endif
+
+/* Please refer to comments above pte_none_mostly() for the usage */
+static inline int huge_pte_none_mostly(pte_t pte)
+{
+	return huge_pte_none(pte) || is_pte_marker(pte);
+}
 
 #ifndef __HAVE_ARCH_HUGE_PTE_WRPROTECT
 static inline pte_t huge_pte_wrprotect(pte_t pte)

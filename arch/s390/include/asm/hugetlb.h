@@ -85,6 +85,11 @@ static inline int huge_pte_none(pte_t pte)
 	return pte_none(pte);
 }
 
+static inline int huge_pte_none_mostly(pte_t pte)
+{
+	return huge_pte_none(pte);
+}
+
 static inline int huge_pte_write(pte_t pte)
 {
 	return pte_write(pte);
