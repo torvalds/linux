@@ -2,6 +2,7 @@
 config SFC_SIENA
 	tristate "Solarflare SFC9000 support"
 	depends on PCI
+	depends on PTP_1588_CLOCK
 	select MDIO
 	select CRC32
 	help
