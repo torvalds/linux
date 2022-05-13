@@ -11,7 +11,6 @@ RTLA depends on the following libraries and tools:
 
  - libtracefs
  - libtraceevent
- - procps
 
 It also depends on python3-docutils to compile man pages.
 
