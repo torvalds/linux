@@ -3571,8 +3571,9 @@ M:	Andy Gospodarek <andy@greyhouse.net>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://sourceforge.net/projects/bonding/
+F:	Documentation/networking/bonding.rst
 F:	drivers/net/bonding/
-F:	include/net/bonding.h
+F:	include/net/bond*
 F:	include/uapi/linux/if_bonding.h
 
 BOSCH SENSORTEC BMA400 ACCELEROMETER IIO DRIVER
@@ -10138,7 +10139,7 @@ S:	Supported
 F:	drivers/net/wireless/intel/iwlegacy/
 
 INTEL WIRELESS WIFI LINK (iwlwifi)
-M:	Luca Coelho <luciano.coelho@intel.com>
+M:	Gregory Greenman <gregory.greenman@intel.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
 W:	https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi

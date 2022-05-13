@@ -25,6 +25,7 @@ TEST_PROGS += bareudp.sh
 TEST_PROGS += amt.sh
 TEST_PROGS += unicast_extensions.sh
 TEST_PROGS += udpgro_fwd.sh
+TEST_PROGS += udpgro_frglist.sh
 TEST_PROGS += veth.sh
 TEST_PROGS += ioam6.sh
 TEST_PROGS += gro.sh
@@ -60,6 +61,8 @@ TEST_FILES := settings
 
 KSFT_KHDR_INSTALL := 1
 include ../lib.mk
+
+include bpf/Makefile
 
 $(OUTPUT)/reuseport_bpf_numa: LDLIBS += -lnuma
 $(OUTPUT)/tcp_mmap: LDLIBS += -lpthread

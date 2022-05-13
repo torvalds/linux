@@ -568,10 +568,8 @@ static int
 mlxsw_sp2_ipip_rem_addr_set_gre6(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_ipip_entry *ipip_entry)
 {
-	struct __ip6_tnl_parm parms6;
-
-	parms6 = mlxsw_sp_ipip_netdev_parms6(ipip_entry->ol_dev);
-	return mlxsw_sp_ipv6_addr_kvdl_index_get(mlxsw_sp, &parms6.raddr,
+	return mlxsw_sp_ipv6_addr_kvdl_index_get(mlxsw_sp,
+						 &ipip_entry->parms.daddr.addr6,
 						 &ipip_entry->dip_kvdl_index);
 }
 
@@ -579,10 +577,7 @@ static void
 mlxsw_sp2_ipip_rem_addr_unset_gre6(struct mlxsw_sp *mlxsw_sp,
 				   const struct mlxsw_sp_ipip_entry *ipip_entry)
 {
-	struct __ip6_tnl_parm parms6;
-
-	parms6 = mlxsw_sp_ipip_netdev_parms6(ipip_entry->ol_dev);
-	mlxsw_sp_ipv6_addr_put(mlxsw_sp, &parms6.raddr);
+	mlxsw_sp_ipv6_addr_put(mlxsw_sp, &ipip_entry->parms.daddr.addr6);
 }
 
 static const struct mlxsw_sp_ipip_ops mlxsw_sp2_ipip_gre6_ops = {
