@@ -1043,15 +1043,13 @@ unsigned int t7xx_dpmaif_dl_dlq_pit_get_wr_idx(struct dpmaif_hw_info *hw_info,
 	return value & DPMAIF_DL_RD_WR_IDX_MSK;
 }
 
-static bool t7xx_dl_add_timedout(struct dpmaif_hw_info *hw_info)
+static int t7xx_dl_add_timedout(struct dpmaif_hw_info *hw_info)
 {
 	u32 value;
-	int ret;
 
-	ret = ioread32_poll_timeout_atomic(hw_info->pcie_base + DPMAIF_DL_BAT_ADD,
+	return ioread32_poll_timeout_atomic(hw_info->pcie_base + DPMAIF_DL_BAT_ADD,
 					   value, !(value & DPMAIF_DL_ADD_NOT_READY), 0,
 					   DPMAIF_CHECK_TIMEOUT_US);
-	return ret;
 }
 
 int t7xx_dpmaif_dl_snd_hw_bat_cnt(struct dpmaif_hw_info *hw_info, unsigned int bat_entry_cnt)
