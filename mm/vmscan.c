@@ -1598,40 +1598,42 @@ retry:
 			stat->nr_congested += nr_pages;
 
 		/*
-		 * If a page at the tail of the LRU is under writeback, there
+		 * If a folio at the tail of the LRU is under writeback, there
 		 * are three cases to consider.
 		 *
-		 * 1) If reclaim is encountering an excessive number of pages
-		 *    under writeback and this page is both under writeback and
-		 *    PageReclaim then it indicates that pages are being queued
-		 *    for IO but are being recycled through the LRU before the
-		 *    IO can complete. Waiting on the page itself risks an
-		 *    indefinite stall if it is impossible to writeback the
-		 *    page due to IO error or disconnected storage so instead
-		 *    note that the LRU is being scanned too quickly and the
-		 *    caller can stall after page list has been processed.
+		 * 1) If reclaim is encountering an excessive number of folios
+		 *    under writeback and this folio is both under
+		 *    writeback and has the reclaim flag set then it
+		 *    indicates that folios are being queued for I/O but
+		 *    are being recycled through the LRU before the I/O
+		 *    can complete. Waiting on the folio itself risks an
+		 *    indefinite stall if it is impossible to writeback
+		 *    the folio due to I/O error or disconnected storage
+		 *    so instead note that the LRU is being scanned too
+		 *    quickly and the caller can stall after the folio
+		 *    list has been processed.
 		 *
-		 * 2) Global or new memcg reclaim encounters a page that is
+		 * 2) Global or new memcg reclaim encounters a folio that is
 		 *    not marked for immediate reclaim, or the caller does not
 		 *    have __GFP_FS (or __GFP_IO if it's simply going to swap,
-		 *    not to fs). In this case mark the page for immediate
+		 *    not to fs). In this case mark the folio for immediate
 		 *    reclaim and continue scanning.
 		 *
 		 *    Require may_enter_fs() because we would wait on fs, which
-		 *    may not have submitted IO yet. And the loop driver might
-		 *    enter reclaim, and deadlock if it waits on a page for
+		 *    may not have submitted I/O yet. And the loop driver might
+		 *    enter reclaim, and deadlock if it waits on a folio for
 		 *    which it is needed to do the write (loop masks off
 		 *    __GFP_IO|__GFP_FS for this reason); but more thought
 		 *    would probably show more reasons.
 		 *
-		 * 3) Legacy memcg encounters a page that is already marked
-		 *    PageReclaim. memcg does not have any dirty pages
+		 * 3) Legacy memcg encounters a folio that already has the
+		 *    reclaim flag set. memcg does not have any dirty folio
 		 *    throttling so we could easily OOM just because too many
-		 *    pages are in writeback and there is nothing else to
+		 *    folios are in writeback and there is nothing else to
 		 *    reclaim. Wait for the writeback to complete.
 		 *
-		 * In cases 1) and 2) we activate the pages to get them out of
-		 * the way while we continue scanning for clean pages on the
+		 * In cases 1) and 2) we activate the folios to get them out of
+		 * the way while we continue scanning for clean folios on the
 		 * inactive list and refilling from the active list. The
 		 * observation here is that waiting for disk writes is more
 		 * expensive than potentially causing reloads down the line.
@@ -1639,38 +1641,42 @@ retry:
 		 * memory pressure on the cache working set any longer than it
 		 * takes to write them to disk.
 		 */
-		if (PageWriteback(page)) {
+		if (folio_test_writeback(folio)) {
 			/* Case 1 above */
 			if (current_is_kswapd() &&
-			    PageReclaim(page) &&
+			    folio_test_reclaim(folio) &&
 			    test_bit(PGDAT_WRITEBACK, &pgdat->flags)) {
 				stat->nr_immediate += nr_pages;
 				goto activate_locked;
 
 			/* Case 2 above */
 			} else if (writeback_throttling_sane(sc) ||
-			    !PageReclaim(page) || !may_enter_fs(page, sc->gfp_mask)) {
+			    !folio_test_reclaim(folio) ||
+			    !may_enter_fs(page, sc->gfp_mask)) {
 				/*
-				 * This is slightly racy - end_page_writeback()
-				 * might have just cleared PageReclaim, then
-				 * setting PageReclaim here end up interpreted
-				 * as PageReadahead - but that does not matter
-				 * enough to care.  What we do want is for this
-				 * page to have PageReclaim set next time memcg
-				 * reclaim reaches the tests above, so it will
-				 * then wait_on_page_writeback() to avoid OOM;
-				 * and it's also appropriate in global reclaim.
+				 * This is slightly racy -
+				 * folio_end_writeback() might have just
+				 * cleared the reclaim flag, then setting
+				 * reclaim here ends up interpreted as
+				 * the readahead flag - but that does
+				 * not matter enough to care.  What we
+				 * do want is for this folio to have
+				 * the reclaim flag set next time memcg
+				 * reclaim reaches the tests above, so
+				 * it will then folio_wait_writeback()
+				 * to avoid OOM; and it's also appropriate
+				 * in global reclaim.
 				 */
-				SetPageReclaim(page);
+				folio_set_reclaim(folio);
 				stat->nr_writeback += nr_pages;
 				goto activate_locked;
 
 			/* Case 3 above */
 			} else {
-				unlock_page(page);
-				wait_on_page_writeback(page);
-				/* then go back and try same page again */
-				list_add_tail(&page->lru, page_list);
+				folio_unlock(folio);
+				folio_wait_writeback(folio);
+				/* then go back and try same folio again */
+				list_add_tail(&folio->lru, page_list);
 				continue;
 			}
 		}
