@@ -24,7 +24,7 @@ DECLARE_EVENT_CLASS(kmem_alloc,
 		__field(	const void *,	ptr		)
 		__field(	size_t,		bytes_req	)
 		__field(	size_t,		bytes_alloc	)
-		__field(	gfp_t,		gfp_flags	)
+		__field(	unsigned long,	gfp_flags	)
 	),
 
 	TP_fast_assign(
@@ -32,7 +32,7 @@ DECLARE_EVENT_CLASS(kmem_alloc,
 		__entry->ptr		= ptr;
 		__entry->bytes_req	= bytes_req;
 		__entry->bytes_alloc	= bytes_alloc;
-		__entry->gfp_flags	= gfp_flags;
+		__entry->gfp_flags	= (__force unsigned long)gfp_flags;
 	),
 
 	TP_printk("call_site=%pS ptr=%p bytes_req=%zu bytes_alloc=%zu gfp_flags=%s",
@@ -75,7 +75,7 @@ DECLARE_EVENT_CLASS(kmem_alloc_node,
 		__field(	const void *,	ptr		)
 		__field(	size_t,		bytes_req	)
 		__field(	size_t,		bytes_alloc	)
-		__field(	gfp_t,		gfp_flags	)
+		__field(	unsigned long,	gfp_flags	)
 		__field(	int,		node		)
 	),
 
@@ -84,7 +84,7 @@ DECLARE_EVENT_CLASS(kmem_alloc_node,
 		__entry->ptr		= ptr;
 		__entry->bytes_req	= bytes_req;
 		__entry->bytes_alloc	= bytes_alloc;
-		__entry->gfp_flags	= gfp_flags;
+		__entry->gfp_flags	= (__force unsigned long)gfp_flags;
 		__entry->node		= node;
 	),
 
@@ -208,14 +208,14 @@ TRACE_EVENT(mm_page_alloc,
 	TP_STRUCT__entry(
 		__field(	unsigned long,	pfn		)
 		__field(	unsigned int,	order		)
-		__field(	gfp_t,		gfp_flags	)
+		__field(	unsigned long,	gfp_flags	)
 		__field(	int,		migratetype	)
 	),
 
 	TP_fast_assign(
 		__entry->pfn		= page ? page_to_pfn(page) : -1UL;
 		__entry->order		= order;
-		__entry->gfp_flags	= gfp_flags;
+		__entry->gfp_flags	= (__force unsigned long)gfp_flags;
 		__entry->migratetype	= migratetype;
 	),
 

@@ -367,7 +367,7 @@ static inline int gfp_migratetype(const gfp_t gfp_flags)
 		return MIGRATE_UNMOVABLE;
 
 	/* Group based on mobility */
-	return (gfp_flags & GFP_MOVABLE_MASK) >> GFP_MOVABLE_SHIFT;
+	return (__force unsigned long)(gfp_flags & GFP_MOVABLE_MASK) >> GFP_MOVABLE_SHIFT;
 }
 #undef GFP_MOVABLE_MASK
 #undef GFP_MOVABLE_SHIFT
