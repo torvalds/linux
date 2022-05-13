@@ -841,7 +841,7 @@ __ptp_ocp_adjtime_locked(struct ptp_ocp *bp, u32 adj_val)
 }
 
 static void
-ptp_ocp_adjtime_coarse(struct ptp_ocp *bp, u64 delta_ns)
+ptp_ocp_adjtime_coarse(struct ptp_ocp *bp, s64 delta_ns)
 {
 	struct timespec64 ts;
 	unsigned long flags;
@@ -850,7 +850,8 @@ ptp_ocp_adjtime_coarse(struct ptp_ocp *bp, u64 delta_ns)
 	spin_lock_irqsave(&bp->lock, flags);
 	err = __ptp_ocp_gettime_locked(bp, &ts, NULL);
 	if (likely(!err)) {
-		timespec64_add_ns(&ts, delta_ns);
+		set_normalized_timespec64(&ts, ts.tv_sec,
+					  ts.tv_nsec + delta_ns);
 		__ptp_ocp_settime_locked(bp, &ts);
 	}
 	spin_unlock_irqrestore(&bp->lock, flags);
