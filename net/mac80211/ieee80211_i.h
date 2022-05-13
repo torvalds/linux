@@ -453,9 +453,10 @@ struct ieee80211_if_managed {
 	bool nullfunc_failed;
 	u8 connection_loss:1,
 	   driver_disconnect:1,
-	   reconnect:1;
+	   reconnect:1,
+	   associated:1;
 
-	struct cfg80211_bss *associated;
+	struct cfg80211_bss *assoc_bss;
 	struct ieee80211_mgd_auth_data *auth_data;
 	struct ieee80211_mgd_assoc_data *assoc_data;
 

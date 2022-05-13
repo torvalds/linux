@@ -1376,7 +1376,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	struct cfg80211_bss *cbss = ifmgd->associated;
+	struct cfg80211_bss *cbss = ifmgd->assoc_bss;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *chanctx;
 	enum nl80211_band current_band;
@@ -2266,7 +2266,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	sdata->u.mgd.beacon_timeout = usecs_to_jiffies(ieee80211_tu_to_usec(
 		beacon_loss_count * bss_conf->beacon_int));
 
-	sdata->u.mgd.associated = cbss;
+	sdata->u.mgd.associated = true;
+	sdata->u.mgd.assoc_bss = cbss;
 	memcpy(sdata->u.mgd.bssid, cbss->bssid, ETH_ALEN);
 
 	ieee80211_check_rate_mask(sdata);
@@ -2361,7 +2362,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_stop_poll(sdata);
 
-	ifmgd->associated = NULL;
+	ifmgd->associated = false;
+	ifmgd->assoc_bss = NULL;
 	netif_carrier_off(sdata->dev);
 
 	/*
@@ -2644,7 +2646,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 		ieee80211_mlme_send_probe_req(sdata, sdata->vif.addr, dst,
 					      sdata->vif.bss_conf.ssid,
 					      sdata->vif.bss_conf.ssid_len,
-					      ifmgd->associated->channel);
+					      ifmgd->assoc_bss->channel);
 	}
 
 	ifmgd->probe_timeout = jiffies + msecs_to_jiffies(probe_wait_ms);
@@ -2734,7 +2736,7 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 	sdata_assert_lock(sdata);
 
 	if (ifmgd->associated)
-		cbss = ifmgd->associated;
+		cbss = ifmgd->assoc_bss;
 	else if (ifmgd->auth_data)
 		cbss = ifmgd->auth_data->bss;
 	else if (ifmgd->assoc_data)
@@ -2799,7 +2801,7 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 		 * AP is probably out of range (or not reachable for another
 		 * reason) so remove the bss struct for that AP.
 		 */
-		cfg80211_unlink_bss(local->hw.wiphy, ifmgd->associated);
+		cfg80211_unlink_bss(local->hw.wiphy, ifmgd->assoc_bss);
 	}
 
 	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
@@ -4185,7 +4187,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!ifmgd->associated ||
-	    !ieee80211_rx_our_beacon(bssid,  ifmgd->associated))
+	    !ieee80211_rx_our_beacon(bssid, ifmgd->assoc_bss))
 		return;
 	bssid = ifmgd->bssid;
 
@@ -6287,7 +6289,7 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 	 * to cfg80211 while that's in a locked section already
 	 * trying to tell us that the user wants to disconnect.
 	 */
-	if (ifmgd->associated != req->bss)
+	if (ifmgd->assoc_bss != req->bss)
 		return -ENOLINK;
 
 	sdata_info(sdata,
