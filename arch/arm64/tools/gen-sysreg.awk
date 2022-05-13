@@ -77,6 +77,7 @@ BEGIN {
 	print "#define __ASM_SYSREG_DEFS_H"
 	print ""
 	print "/* Generated file - do not edit */"
+	print ""
 
 	block = "None"
 }
@@ -97,8 +98,6 @@ END {
 
 	res0 = "UL(0)"
 	res1 = "UL(0)"
-
-	print ""
 
 	next_bit = 63
 
@@ -162,7 +161,8 @@ END {
 		define(reg "_RES0", "(" res0 ")")
 	if (res1 != null)
 		define(reg "_RES1", "(" res1 ")")
-	print ""
+	if (res0 != null || res1 != null)
+		print ""
 
 	reg = null
 	op0 = null
