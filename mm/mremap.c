@@ -947,7 +947,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 		return -EINTR;
 	vma = vma_lookup(mm, addr);
 	if (!vma) {
-		ret = EFAULT;
+		ret = -EFAULT;
 		goto out;
 	}
 
