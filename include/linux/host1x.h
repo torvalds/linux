@@ -31,6 +31,11 @@ u64 host1x_get_dma_mask(struct host1x *host1x);
  * struct host1x_bo_cache - host1x buffer object cache
  * @mappings: list of mappings
  * @lock: synchronizes accesses to the list of mappings
+ *
+ * Note that entries are not periodically evicted from this cache and instead need to be
+ * explicitly released. This is used primarily for DRM/KMS where the cache's reference is
+ * released when the last reference to a buffer object represented by a mapping in this
+ * cache is dropped.
  */
 struct host1x_bo_cache {
 	struct list_head mappings;
@@ -81,6 +86,7 @@ struct host1x_client_ops {
  * @parent: pointer to parent structure
  * @usecount: reference count for this structure
  * @lock: mutex for mutually exclusive concurrency
+ * @cache: host1x buffer object cache
  */
 struct host1x_client {
 	struct list_head list;
