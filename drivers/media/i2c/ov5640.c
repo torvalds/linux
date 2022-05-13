@@ -3474,14 +3474,28 @@ static int ov5640_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
+	u32 bpp = ov5640_code_to_bpp(fse->code);
+	unsigned int index = fse->index;
+
 	if (fse->pad != 0)
 		return -EINVAL;
-	if (fse->index >= OV5640_NUM_MODES)
+	if (!bpp)
 		return -EINVAL;
 
-	fse->min_width = ov5640_mode_data[fse->index].width;
+	/* Only low-resolution modes are supported for 24bpp formats. */
+	if (bpp == 24 && index >= OV5640_MODE_720P_1280_720)
+		return -EINVAL;
+
+	/* FIXME: Low resolution modes don't work in 8bpp formats. */
+	if (bpp == 8)
+		index += OV5640_MODE_720P_1280_720;
+
+	if (index >= OV5640_NUM_MODES)
+		return -EINVAL;
+
+	fse->min_width = ov5640_mode_data[index].width;
 	fse->max_width = fse->min_width;
-	fse->min_height = ov5640_mode_data[fse->index].height;
+	fse->min_height = ov5640_mode_data[index].height;
 	fse->max_height = fse->min_height;
 
 	return 0;
