@@ -1378,6 +1378,7 @@ unlock_out:
 
 err_power_down:
 	pm_runtime_put_noidle(ov7251->dev);
+	mutex_unlock(&ov7251->lock);
 	return ret;
 }
 
