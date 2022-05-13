@@ -2536,14 +2536,12 @@ static void shrink_active_list(unsigned long nr_to_scan,
 			nr_deactivate, nr_rotated, sc->priority, file);
 }
 
-unsigned long reclaim_pages(struct list_head *page_list)
+static unsigned int reclaim_page_list(struct list_head *page_list,
+				      struct pglist_data *pgdat)
 {
-	int nid = NUMA_NO_NODE;
-	unsigned int nr_reclaimed = 0;
-	LIST_HEAD(node_page_list);
 	struct reclaim_stat dummy_stat;
-	struct page *page;
-	unsigned int noreclaim_flag;
+	unsigned int nr_reclaimed;
+	struct folio *folio;
 	struct scan_control sc = {
 		.gfp_mask = GFP_KERNEL,
 		.may_writepage = 1,
@@ -2551,6 +2549,24 @@ unsigned long reclaim_pages(struct list_head *page_list)
 		.may_swap = 1,
 		.no_demotion = 1,
 	};
+
+	nr_reclaimed = shrink_page_list(page_list, pgdat, &sc, &dummy_stat, false);
+	while (!list_empty(page_list)) {
+		folio = lru_to_folio(page_list);
+		list_del(&folio->lru);
+		folio_putback_lru(folio);
+	}
+
+	return nr_reclaimed;
+}
+
+unsigned long reclaim_pages(struct list_head *page_list)
+{
+	int nid = NUMA_NO_NODE;
+	unsigned int nr_reclaimed = 0;
+	LIST_HEAD(node_page_list);
+	struct page *page;
+	unsigned int noreclaim_flag;
 
 	noreclaim_flag = memalloc_noreclaim_save();
 
@@ -2565,28 +2581,12 @@ unsigned long reclaim_pages(struct list_head *page_list)
 			continue;
 		}
 
-		nr_reclaimed += shrink_page_list(&node_page_list,
-						NODE_DATA(nid),
-						&sc, &dummy_stat, false);
-		while (!list_empty(&node_page_list)) {
-			page = lru_to_page(&node_page_list);
-			list_del(&page->lru);
-			putback_lru_page(page);
-		}
-
+		nr_reclaimed += reclaim_page_list(&node_page_list, NODE_DATA(nid));
 		nid = NUMA_NO_NODE;
 	}
 
-	if (!list_empty(&node_page_list)) {
-		nr_reclaimed += shrink_page_list(&node_page_list,
-						NODE_DATA(nid),
-						&sc, &dummy_stat, false);
-		while (!list_empty(&node_page_list)) {
-			page = lru_to_page(&node_page_list);
-			list_del(&page->lru);
-			putback_lru_page(page);
-		}
-	}
+	if (!list_empty(&node_page_list))
+		nr_reclaimed += reclaim_page_list(&node_page_list, NODE_DATA(nid));
 
 	memalloc_noreclaim_restore(noreclaim_flag);
 
