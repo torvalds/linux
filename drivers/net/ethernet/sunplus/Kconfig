@@ -23,9 +23,6 @@ config SP7021_EMAC
 	tristate "Sunplus Dual 10M/100M Ethernet devices"
 	depends on SOC_SP7021 || COMPILE_TEST
 	select PHYLIB
-	select COMMON_CLK_SP7021
-	select RESET_SUNPLUS
-	select NVMEM_SUNPLUS_OCOTP
 	help
 	  If you have Sunplus dual 10M/100M Ethernet devices, say Y.
 	  The network device creates two net-device interfaces.
