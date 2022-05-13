@@ -117,7 +117,7 @@ static int alloc_swap_slot_cache(unsigned int cpu)
 
 	/*
 	 * Do allocation outside swap_slots_cache_mutex
-	 * as kvzalloc could trigger reclaim and get_swap_page,
+	 * as kvzalloc could trigger reclaim and folio_alloc_swap,
 	 * which can lock swap_slots_cache_mutex.
 	 */
 	slots = kvcalloc(SWAP_SLOTS_CACHE_SIZE, sizeof(swp_entry_t),
@@ -213,7 +213,7 @@ static void __drain_swap_slots_cache(unsigned int type)
 	 * this function can be invoked in the cpu
 	 * hot plug path:
 	 * cpu_up -> lock cpu_hotplug -> cpu hotplug state callback
-	 *   -> memory allocation -> direct reclaim -> get_swap_page
+	 *   -> memory allocation -> direct reclaim -> folio_alloc_swap
 	 *   -> drain_swap_slots_cache
 	 *
 	 * Hence the loop over current online cpu below could miss cpu that
@@ -301,16 +301,16 @@ direct_free:
 	return 0;
 }
 
-swp_entry_t get_swap_page(struct page *page)
+swp_entry_t folio_alloc_swap(struct folio *folio)
 {
 	swp_entry_t entry;
 	struct swap_slots_cache *cache;
 
 	entry.val = 0;
 
-	if (PageTransHuge(page)) {
+	if (folio_test_large(folio)) {
 		if (IS_ENABLED(CONFIG_THP_SWAP))
-			get_swap_pages(1, &entry, HPAGE_PMD_NR);
+			get_swap_pages(1, &entry, folio_nr_pages(folio));
 		goto out;
 	}
 
@@ -344,8 +344,8 @@ repeat:
 
 	get_swap_pages(1, &entry, 1);
 out:
-	if (mem_cgroup_try_charge_swap(page, entry)) {
-		put_swap_page(page, entry);
+	if (mem_cgroup_try_charge_swap(folio, entry)) {
+		put_swap_page(&folio->page, entry);
 		entry.val = 0;
 	}
 	return entry;

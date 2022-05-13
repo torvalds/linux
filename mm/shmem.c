@@ -1313,6 +1313,7 @@ int shmem_unuse(unsigned int type)
  */
 static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 {
+	struct folio *folio = page_folio(page);
 	struct shmem_inode_info *info;
 	struct address_space *mapping;
 	struct inode *inode;
@@ -1386,7 +1387,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		SetPageUptodate(page);
 	}
 
-	swap = get_swap_page(page);
+	swap = folio_alloc_swap(folio);
 	if (!swap.val)
 		goto redirty;
 

@@ -184,13 +184,14 @@ void __delete_from_swap_cache(struct page *page,
  */
 int add_to_swap(struct page *page)
 {
+	struct folio *folio = page_folio(page);
 	swp_entry_t entry;
 	int err;
 
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_PAGE(!PageUptodate(page), page);
 
-	entry = get_swap_page(page);
+	entry = folio_alloc_swap(folio);
 	if (!entry.val)
 		return 0;
 
