@@ -305,14 +305,27 @@ void bnxt_ptp_cfg_tstamp_filters(struct bnxt *bp)
 
 	if (hwrm_req_init(bp, req, HWRM_PORT_MAC_CFG))
 		goto out;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_RX_ALL_PKT_TS) && (ptp->tstamp_filters &
+	    (PORT_MAC_CFG_REQ_FLAGS_ALL_RX_TS_CAPTURE_ENABLE |
+	     PORT_MAC_CFG_REQ_FLAGS_PTP_RX_TS_CAPTURE_DISABLE))) {
+		ptp->tstamp_filters &= ~(PORT_MAC_CFG_REQ_FLAGS_ALL_RX_TS_CAPTURE_ENABLE |
+					 PORT_MAC_CFG_REQ_FLAGS_PTP_RX_TS_CAPTURE_DISABLE);
+		netdev_warn(bp->dev, "Unsupported FW for all RX pkts timestamp filter\n");
+	}
+
 	req->flags = cpu_to_le32(ptp->tstamp_filters);
 	req->enables = cpu_to_le32(PORT_MAC_CFG_REQ_ENABLES_RX_TS_CAPTURE_PTP_MSG_TYPE);
 	req->rx_ts_capture_ptp_msg_type = cpu_to_le16(ptp->rxctl);
 
-	if (!hwrm_req_send(bp, req))
+	if (!hwrm_req_send(bp, req)) {
+		bp->ptp_all_rx_tstamp = !!(ptp->tstamp_filters &
+					   PORT_MAC_CFG_REQ_FLAGS_ALL_RX_TS_CAPTURE_ENABLE);
 		return;
+	}
 	ptp->tstamp_filters = 0;
 out:
+	bp->ptp_all_rx_tstamp = 0;
 	netdev_warn(bp->dev, "Failed to configure HW packet timestamp filters\n");
 }
 
@@ -460,8 +473,13 @@ static int bnxt_hwrm_ptp_cfg(struct bnxt *bp)
 	int rc = 0;
 
 	switch (ptp->rx_filter) {
+	case HWTSTAMP_FILTER_ALL:
+		flags = PORT_MAC_CFG_REQ_FLAGS_ALL_RX_TS_CAPTURE_ENABLE;
+		break;
 	case HWTSTAMP_FILTER_NONE:
 		flags = PORT_MAC_CFG_REQ_FLAGS_PTP_RX_TS_CAPTURE_DISABLE;
+		if (bp->fw_cap & BNXT_FW_CAP_RX_ALL_PKT_TS)
+			flags |= PORT_MAC_CFG_REQ_FLAGS_ALL_RX_TS_CAPTURE_DISABLE;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
@@ -516,6 +534,12 @@ int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 		ptp->rxctl = 0;
 		ptp->rx_filter = HWTSTAMP_FILTER_NONE;
 		break;
+	case HWTSTAMP_FILTER_ALL:
+		if (bp->fw_cap & BNXT_FW_CAP_RX_ALL_PKT_TS) {
+			ptp->rx_filter = HWTSTAMP_FILTER_ALL;
+			break;
+		}
+		return -EOPNOTSUPP;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
