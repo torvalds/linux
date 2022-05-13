@@ -1731,8 +1731,8 @@ retry:
 								page_list))
 						goto activate_locked;
 				}
-				if (!add_to_swap(page)) {
-					if (!PageTransHuge(page))
+				if (!add_to_swap(folio)) {
+					if (!folio_test_large(folio))
 						goto activate_locked_split;
 					/* Fallback to swap normal pages */
 					if (split_folio_to_list(folio,
@@ -1741,7 +1741,7 @@ retry:
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 					count_vm_event(THP_SWPOUT_FALLBACK);
 #endif
-					if (!add_to_swap(page))
+					if (!add_to_swap(folio))
 						goto activate_locked_split;
 				}
 

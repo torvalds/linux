@@ -32,7 +32,7 @@ extern struct address_space *swapper_spaces[];
 		>> SWAP_ADDRESS_SPACE_SHIFT])
 
 void show_swap_cache_info(void);
-int add_to_swap(struct page *page);
+bool add_to_swap(struct folio *folio);
 void *get_shadow_from_swap_cache(swp_entry_t entry);
 int add_to_swap_cache(struct page *page, swp_entry_t entry,
 		      gfp_t gfp, void **shadowp);
@@ -119,9 +119,9 @@ struct page *find_get_incore_page(struct address_space *mapping, pgoff_t index)
 	return find_get_page(mapping, index);
 }
 
-static inline int add_to_swap(struct page *page)
+static inline bool add_to_swap(struct folio *folio)
 {
-	return 0;
+	return false;
 }
 
 static inline void *get_shadow_from_swap_cache(swp_entry_t entry)

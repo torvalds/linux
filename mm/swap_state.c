@@ -176,24 +176,26 @@ void __delete_from_swap_cache(struct page *page,
 }
 
 /**
- * add_to_swap - allocate swap space for a page
- * @page: page we want to move to swap
+ * add_to_swap - allocate swap space for a folio
+ * @folio: folio we want to move to swap
  *
- * Allocate swap space for the page and add the page to the
- * swap cache.  Caller needs to hold the page lock. 
+ * Allocate swap space for the folio and add the folio to the
+ * swap cache.
+ *
+ * Context: Caller needs to hold the folio lock.
+ * Return: Whether the folio was added to the swap cache.
  */
-int add_to_swap(struct page *page)
+bool add_to_swap(struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	swp_entry_t entry;
 	int err;
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(!PageUptodate(page), page);
+	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
+	VM_BUG_ON_FOLIO(!folio_test_uptodate(folio), folio);
 
 	entry = folio_alloc_swap(folio);
 	if (!entry.val)
-		return 0;
+		return false;
 
 	/*
 	 * XArray node allocations from PF_MEMALLOC contexts could
@@ -206,7 +208,7 @@ int add_to_swap(struct page *page)
 	/*
 	 * Add it to the swap cache.
 	 */
-	err = add_to_swap_cache(page, entry,
+	err = add_to_swap_cache(&folio->page, entry,
 			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN, NULL);
 	if (err)
 		/*
@@ -215,22 +217,23 @@ int add_to_swap(struct page *page)
 		 */
 		goto fail;
 	/*
-	 * Normally the page will be dirtied in unmap because its pte should be
-	 * dirty. A special case is MADV_FREE page. The page's pte could have
-	 * dirty bit cleared but the page's SwapBacked bit is still set because
-	 * clearing the dirty bit and SwapBacked bit has no lock protected. For
-	 * such page, unmap will not set dirty bit for it, so page reclaim will
-	 * not write the page out. This can cause data corruption when the page
-	 * is swap in later. Always setting the dirty bit for the page solves
-	 * the problem.
+	 * Normally the folio will be dirtied in unmap because its
+	 * pte should be dirty. A special case is MADV_FREE page. The
+	 * page's pte could have dirty bit cleared but the folio's
+	 * SwapBacked flag is still set because clearing the dirty bit
+	 * and SwapBacked flag has no lock protected. For such folio,
+	 * unmap will not set dirty bit for it, so folio reclaim will
+	 * not write the folio out. This can cause data corruption when
+	 * the folio is swapped in later. Always setting the dirty flag
+	 * for the folio solves the problem.
 	 */
-	set_page_dirty(page);
+	folio_mark_dirty(folio);
 
-	return 1;
+	return true;
 
 fail:
-	put_swap_page(page, entry);
-	return 0;
+	put_swap_page(&folio->page, entry);
+	return false;
 }
 
 /*
