@@ -173,7 +173,7 @@ STANDARD FORMAT SPECIFIERS
 ==========================
 ::
 
-For --sort option:
+  For --sort option:
 
 	KEY		LONG		DESCRIPTION
 	p		pid		process ID
@@ -183,9 +183,9 @@ For --sort option:
 	T		txt		full text of block
 	ft		free_ts		timestamp of the page when it was released
 	at		alloc_ts	timestamp of the page when it was allocated
-        ator            allocator       memory allocator for pages
+	ator		allocator	memory allocator for pages
 
-For --curl option:
+  For --curl option:
 
 	KEY		LONG		DESCRIPTION
 	p		pid		process ID
@@ -193,4 +193,4 @@ For --curl option:
 	n		name		task command name
 	f		free		whether the page has been released or not
 	st		stacktrace	stack trace of the page allocation
-        ator            allocator       memory allocator for pages
+	ator		allocator	memory allocator for pages
