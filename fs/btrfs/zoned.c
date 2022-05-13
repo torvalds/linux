@@ -51,11 +51,13 @@
 #define BTRFS_MIN_ACTIVE_ZONES		(BTRFS_SUPER_MIRROR_MAX + 5)
 
 /*
- * Maximum supported zone size. Currently, SMR disks have a zone size of
- * 256MiB, and we are expecting ZNS drives to be in the 1-4GiB range. We do not
- * expect the zone size to become larger than 8GiB in the near future.
+ * Minimum / maximum supported zone size. Currently, SMR disks have a zone
+ * size of 256MiB, and we are expecting ZNS drives to be in the 1-4GiB range.
+ * We do not expect the zone size to become larger than 8GiB or smaller than
+ * 4MiB in the near future.
  */
 #define BTRFS_MAX_ZONE_SIZE		SZ_8G
+#define BTRFS_MIN_ZONE_SIZE		SZ_4M
 
 #define SUPER_INFO_SECTORS	((u64)BTRFS_SUPER_INFO_SIZE >> SECTOR_SHIFT)
 
@@ -400,6 +402,13 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 		"zoned: %s: zone size %llu larger than supported maximum %llu",
 				 rcu_str_deref(device->name),
 				 zone_info->zone_size, BTRFS_MAX_ZONE_SIZE);
+		ret = -EINVAL;
+		goto out;
+	} else if (zone_info->zone_size < BTRFS_MIN_ZONE_SIZE) {
+		btrfs_err_in_rcu(fs_info,
+		"zoned: %s: zone size %llu smaller than supported minimum %u",
+				 rcu_str_deref(device->name),
+				 zone_info->zone_size, BTRFS_MIN_ZONE_SIZE);
 		ret = -EINVAL;
 		goto out;
 	}
