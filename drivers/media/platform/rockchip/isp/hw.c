@@ -843,13 +843,13 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 		      CLK_CTRL_MI_READ | CLK_CTRL_MI_RAWRD |
 		      CLK_CTRL_ISP_RAW;
 
-		if ((dev->isp_ver == ISP_V20 ||
-		     dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32) && on)
+		if (dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32)
+			val = 0;
+
+		if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V30) && on)
 			val |= CLK_CTRL_ISP_3A;
-		if (dev->isp_ver == ISP_V32) {
-			val &= ~CLK_CTRL_ISP_RAW;
+		if (dev->isp_ver == ISP_V32)
 			rv1106_sdmmc_get_lock();
-		}
 		writel(val, dev->base_addr + CTRL_VI_ISP_CLK_CTRL);
 		if (dev->isp_ver == ISP_V32)
 			rv1106_sdmmc_put_lock();
