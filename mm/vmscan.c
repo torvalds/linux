@@ -2568,9 +2568,12 @@ unsigned long reclaim_pages(struct list_head *page_list)
 	struct page *page;
 	unsigned int noreclaim_flag;
 
+	if (list_empty(page_list))
+		return nr_reclaimed;
+
 	noreclaim_flag = memalloc_noreclaim_save();
 
-	while (!list_empty(page_list)) {
+	do {
 		page = lru_to_page(page_list);
 		if (nid == NUMA_NO_NODE)
 			nid = page_to_nid(page);
@@ -2583,10 +2586,9 @@ unsigned long reclaim_pages(struct list_head *page_list)
 
 		nr_reclaimed += reclaim_page_list(&node_page_list, NODE_DATA(nid));
 		nid = NUMA_NO_NODE;
-	}
+	} while (!list_empty(page_list));
 
-	if (!list_empty(&node_page_list))
-		nr_reclaimed += reclaim_page_list(&node_page_list, NODE_DATA(nid));
+	nr_reclaimed += reclaim_page_list(&node_page_list, NODE_DATA(nid));
 
 	memalloc_noreclaim_restore(noreclaim_flag);
 
