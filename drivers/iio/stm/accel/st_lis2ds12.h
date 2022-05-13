@@ -14,9 +14,7 @@
 #include <linux/types.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
-#ifndef CONFIG_OF
-#include <linux/platform_data/lis2ds12.h>
-#endif
+#include <linux/platform_data/stm/lis2ds12.h>
 
 #define LIS2DS12_WHO_AM_I_ADDR			0x0f
 #define LIS2DS12_WHO_AM_I_DEF			0x43
