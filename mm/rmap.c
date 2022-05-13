@@ -73,6 +73,7 @@
 #include <linux/page_idle.h>
 #include <linux/memremap.h>
 #include <linux/userfaultfd_k.h>
+#include <linux/mm_inline.h>
 
 #include <asm/tlbflush.h>
 
@@ -1584,6 +1585,13 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 		} else {
 			pteval = ptep_clear_flush(vma, address, pvmw.pte);
 		}
+
+		/*
+		 * Now the pte is cleared. If this pte was uffd-wp armed,
+		 * we may want to replace a none pte with a marker pte if
+		 * it's file-backed, so we don't lose the tracking info.
+		 */
+		pte_install_uffd_wp_if_needed(vma, address, pvmw.pte, pteval);
 
 		/* Set the dirty flag on the folio now the pte is gone. */
 		if (pte_dirty(pteval))
