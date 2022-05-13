@@ -117,14 +117,18 @@ extern struct kobj_attribute shmem_enabled_attr;
 extern unsigned long transparent_hugepage_flags;
 
 static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
-		unsigned long haddr)
+		unsigned long addr)
 {
+	unsigned long haddr;
+
 	/* Don't have to check pgoff for anonymous vma */
 	if (!vma_is_anonymous(vma)) {
 		if (!IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
 				HPAGE_PMD_NR))
 			return false;
 	}
+
+	haddr = addr & HPAGE_PMD_MASK;
 
 	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
 		return false;
@@ -342,7 +346,7 @@ static inline bool transparent_hugepage_active(struct vm_area_struct *vma)
 }
 
 static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
-		unsigned long haddr)
+		unsigned long addr)
 {
 	return false;
 }
