@@ -5,7 +5,6 @@ pinctrl-pineapple.ko
 clk-qcom.ko
 clk-dummy.ko
 gcc-pineapple.ko
-videocc-pineapple.ko
 stub-regulator.ko
 phy-qcom-ufs.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
