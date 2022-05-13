@@ -12,11 +12,24 @@
 #define GET_MTK_VDEC_PARAM(param) \
 	{ dst_param->param = src_param->param; }
 
-/*
- * The firmware expects unused reflist entries to have the value 0x20.
- */
-void mtk_vdec_h264_fixup_ref_list(u8 *ref_list, size_t num_valid)
+void mtk_vdec_h264_get_ref_list(u8 *ref_list,
+				const struct v4l2_h264_reference *v4l2_ref_list,
+				int num_valid)
 {
+	u32 i;
+
+	/*
+	 * TODO The firmware does not support field decoding. Future
+	 * implementation must use v4l2_ref_list[i].fields to obtain
+	 * the reference field parity.
+	 */
+
+	for (i = 0; i < num_valid; i++)
+		ref_list[i] = v4l2_ref_list[i].index;
+
+	/*
+	 * The firmware expects unused reflist entries to have the value 0x20.
+	 */
 	memset(&ref_list[num_valid], 0x20, 32 - num_valid);
 }
 

@@ -164,12 +164,15 @@ struct h264_fb {
 };
 
 /**
- * mtk_vdec_h264_fixup_ref_list - fixup unused reference to 0x20.
+ * mtk_vdec_h264_get_ref_list - translate V4L2 reference list
  *
- * @ref_list:	reference picture list
- * @num_valid:	used reference number
+ * @ref_list:		Mediatek reference picture list
+ * @v4l2_ref_list:	V4L2 reference picture list
+ * @num_valid:		used reference number
  */
-void mtk_vdec_h264_fixup_ref_list(u8 *ref_list, size_t num_valid);
+void mtk_vdec_h264_get_ref_list(u8 *ref_list,
+				const struct v4l2_h264_reference *v4l2_ref_list,
+				int num_valid);
 
 /**
  * mtk_vdec_h264_get_ctrl_ptr - get each CID contrl address.

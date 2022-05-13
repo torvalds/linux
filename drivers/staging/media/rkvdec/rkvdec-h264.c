@@ -100,9 +100,9 @@ struct rkvdec_h264_priv_tbl {
 #define RKVDEC_H264_DPB_SIZE 16
 
 struct rkvdec_h264_reflists {
-	u8 p[RKVDEC_H264_DPB_SIZE];
-	u8 b0[RKVDEC_H264_DPB_SIZE];
-	u8 b1[RKVDEC_H264_DPB_SIZE];
+	struct v4l2_h264_reference p[RKVDEC_H264_DPB_SIZE];
+	struct v4l2_h264_reference b0[RKVDEC_H264_DPB_SIZE];
+	struct v4l2_h264_reference b1[RKVDEC_H264_DPB_SIZE];
 	u8 num_valid;
 };
 
@@ -767,13 +767,13 @@ static void assemble_hw_rps(struct rkvdec_ctx *ctx,
 
 			switch (j) {
 			case 0:
-				idx = h264_ctx->reflists.p[i];
+				idx = h264_ctx->reflists.p[i].index;
 				break;
 			case 1:
-				idx = h264_ctx->reflists.b0[i];
+				idx = h264_ctx->reflists.b0[i].index;
 				break;
 			case 2:
-				idx = h264_ctx->reflists.b1[i];
+				idx = h264_ctx->reflists.b1[i].index;
 				break;
 			}
 

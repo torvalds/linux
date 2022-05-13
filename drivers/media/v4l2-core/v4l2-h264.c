@@ -75,12 +75,12 @@ v4l2_h264_init_reflist_builder(struct v4l2_h264_reflist_builder *b,
 			pic_order_count = dpb[i].top_field_order_cnt;
 
 		b->refs[i].pic_order_count = pic_order_count;
-		b->unordered_reflist[b->num_valid] = i;
+		b->unordered_reflist[b->num_valid].index = i;
 		b->num_valid++;
 	}
 
 	for (i = b->num_valid; i < ARRAY_SIZE(b->unordered_reflist); i++)
-		b->unordered_reflist[i] = i;
+		b->unordered_reflist[i].index = i;
 }
 EXPORT_SYMBOL_GPL(v4l2_h264_init_reflist_builder);
 
@@ -90,8 +90,8 @@ static int v4l2_h264_p_ref_list_cmp(const void *ptra, const void *ptrb,
 	const struct v4l2_h264_reflist_builder *builder = data;
 	u8 idxa, idxb;
 
-	idxa = *((u8 *)ptra);
-	idxb = *((u8 *)ptrb);
+	idxa = ((struct v4l2_h264_reference *)ptra)->index;
+	idxb = ((struct v4l2_h264_reference *)ptrb)->index;
 
 	if (WARN_ON(idxa >= V4L2_H264_NUM_DPB_ENTRIES ||
 		    idxb >= V4L2_H264_NUM_DPB_ENTRIES))
@@ -125,8 +125,8 @@ static int v4l2_h264_b0_ref_list_cmp(const void *ptra, const void *ptrb,
 	s32 poca, pocb;
 	u8 idxa, idxb;
 
-	idxa = *((u8 *)ptra);
-	idxb = *((u8 *)ptrb);
+	idxa = ((struct v4l2_h264_reference *)ptra)->index;
+	idxb = ((struct v4l2_h264_reference *)ptrb)->index;
 
 	if (WARN_ON(idxa >= V4L2_H264_NUM_DPB_ENTRIES ||
 		    idxb >= V4L2_H264_NUM_DPB_ENTRIES))
@@ -170,8 +170,8 @@ static int v4l2_h264_b1_ref_list_cmp(const void *ptra, const void *ptrb,
 	s32 poca, pocb;
 	u8 idxa, idxb;
 
-	idxa = *((u8 *)ptra);
-	idxb = *((u8 *)ptrb);
+	idxa = ((struct v4l2_h264_reference *)ptra)->index;
+	idxb = ((struct v4l2_h264_reference *)ptrb)->index;
 
 	if (WARN_ON(idxa >= V4L2_H264_NUM_DPB_ENTRIES ||
 		    idxb >= V4L2_H264_NUM_DPB_ENTRIES))
@@ -212,8 +212,8 @@ static int v4l2_h264_b1_ref_list_cmp(const void *ptra, const void *ptrb,
  * v4l2_h264_build_p_ref_list() - Build the P reference list
  *
  * @builder: reference list builder context
- * @reflist: 16-bytes array used to store the P reference list. Each entry
- *	     is an index in the DPB
+ * @reflist: 16 sized array used to store the P reference list. Each entry
+ *	     is a v4l2_h264_reference structure
  *
  * This functions builds the P reference lists. This procedure is describe in
  * section '8.2.4 Decoding process for reference picture lists construction'
@@ -222,7 +222,7 @@ static int v4l2_h264_b1_ref_list_cmp(const void *ptra, const void *ptrb,
  */
 void
 v4l2_h264_build_p_ref_list(const struct v4l2_h264_reflist_builder *builder,
-			   u8 *reflist)
+			   struct v4l2_h264_reference *reflist)
 {
 	memcpy(reflist, builder->unordered_reflist,
 	       sizeof(builder->unordered_reflist[0]) * builder->num_valid);
@@ -235,10 +235,10 @@ EXPORT_SYMBOL_GPL(v4l2_h264_build_p_ref_list);
  * v4l2_h264_build_b_ref_lists() - Build the B0/B1 reference lists
  *
  * @builder: reference list builder context
- * @b0_reflist: 16-bytes array used to store the B0 reference list. Each entry
- *		is an index in the DPB
- * @b1_reflist: 16-bytes array used to store the B1 reference list. Each entry
- *		is an index in the DPB
+ * @b0_reflist: 16 sized array used to store the B0 reference list. Each entry
+ *		is a v4l2_h264_reference structure
+ * @b1_reflist: 16 sized array used to store the B1 reference list. Each entry
+ *		is a v4l2_h264_reference structure
  *
  * This functions builds the B0/B1 reference lists. This procedure is described
  * in section '8.2.4 Decoding process for reference picture lists construction'
@@ -247,7 +247,8 @@ EXPORT_SYMBOL_GPL(v4l2_h264_build_p_ref_list);
  */
 void
 v4l2_h264_build_b_ref_lists(const struct v4l2_h264_reflist_builder *builder,
-			    u8 *b0_reflist, u8 *b1_reflist)
+			    struct v4l2_h264_reference *b0_reflist,
+			    struct v4l2_h264_reference *b1_reflist)
 {
 	memcpy(b0_reflist, builder->unordered_reflist,
 	       sizeof(builder->unordered_reflist[0]) * builder->num_valid);

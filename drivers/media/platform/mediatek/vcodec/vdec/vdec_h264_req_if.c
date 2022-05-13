@@ -102,6 +102,9 @@ static int get_vdec_decode_parameters(struct vdec_h264_slice_inst *inst)
 	const struct v4l2_ctrl_h264_scaling_matrix *scaling_matrix;
 	struct mtk_h264_dec_slice_param *slice_param = &inst->h264_slice_param;
 	struct v4l2_h264_reflist_builder reflist_builder;
+	struct v4l2_h264_reference v4l2_p0_reflist[V4L2_H264_REF_LIST_LEN];
+	struct v4l2_h264_reference v4l2_b0_reflist[V4L2_H264_REF_LIST_LEN];
+	struct v4l2_h264_reference v4l2_b1_reflist[V4L2_H264_REF_LIST_LEN];
 	u8 *p0_reflist = slice_param->decode_params.ref_pic_list_p0;
 	u8 *b0_reflist = slice_param->decode_params.ref_pic_list_b0;
 	u8 *b1_reflist = slice_param->decode_params.ref_pic_list_b1;
@@ -137,12 +140,14 @@ static int get_vdec_decode_parameters(struct vdec_h264_slice_inst *inst)
 	/* Build the reference lists */
 	v4l2_h264_init_reflist_builder(&reflist_builder, dec_params, sps,
 				       inst->dpb);
-	v4l2_h264_build_p_ref_list(&reflist_builder, p0_reflist);
-	v4l2_h264_build_b_ref_lists(&reflist_builder, b0_reflist, b1_reflist);
+	v4l2_h264_build_p_ref_list(&reflist_builder, v4l2_p0_reflist);
+	v4l2_h264_build_b_ref_lists(&reflist_builder, v4l2_b0_reflist,
+				    v4l2_b1_reflist);
+
 	/* Adapt the built lists to the firmware's expectations */
-	mtk_vdec_h264_fixup_ref_list(p0_reflist, reflist_builder.num_valid);
-	mtk_vdec_h264_fixup_ref_list(b0_reflist, reflist_builder.num_valid);
-	mtk_vdec_h264_fixup_ref_list(b1_reflist, reflist_builder.num_valid);
+	mtk_vdec_h264_get_ref_list(p0_reflist, v4l2_p0_reflist, reflist_builder.num_valid);
+	mtk_vdec_h264_get_ref_list(b0_reflist, v4l2_b0_reflist, reflist_builder.num_valid);
+	mtk_vdec_h264_get_ref_list(b1_reflist, v4l2_b1_reflist, reflist_builder.num_valid);
 
 	memcpy(&inst->vsi_ctx.h264_slice_params, slice_param,
 	       sizeof(inst->vsi_ctx.h264_slice_params));
