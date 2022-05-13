@@ -337,6 +337,7 @@ struct dc_config {
 	bool is_single_rank_dimm;
 	bool use_pipe_ctx_sync_logic;
 	bool ignore_dpref_ss;
+	bool enable_mipi_converter_optimization;
 };
 
 enum visual_confirm {

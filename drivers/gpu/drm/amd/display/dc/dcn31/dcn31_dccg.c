@@ -513,7 +513,7 @@ void dccg31_set_physymclk(
 /* Controls the generation of pixel valid for OTG in (OTG -> HPO case) */
 static void dccg31_set_dtbclk_dto(
 		struct dccg *dccg,
-		struct dtbclk_dto_params *params)
+		const struct dtbclk_dto_params *params)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 	int req_dtbclk_khz = params->pixclk_khz;
@@ -579,18 +579,17 @@ static void dccg31_set_dtbclk_dto(
 
 void dccg31_set_audio_dtbclk_dto(
 		struct dccg *dccg,
-		uint32_t req_audio_dtbclk_khz)
+		const struct dtbclk_dto_params *params)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
-	if (dccg->ref_dtbclk_khz && req_audio_dtbclk_khz) {
+	if (params->ref_dtbclk_khz && params->req_audio_dtbclk_khz) {
 		uint32_t modulo, phase;
 
 		// phase / modulo = dtbclk / dtbclk ref
-		modulo = dccg->ref_dtbclk_khz * 1000;
-		phase = div_u64((((unsigned long long)modulo * req_audio_dtbclk_khz) + dccg->ref_dtbclk_khz - 1),
-			dccg->ref_dtbclk_khz);
-
+		modulo = params->ref_dtbclk_khz * 1000;
+		phase = div_u64((((unsigned long long)modulo * params->req_audio_dtbclk_khz) + params->ref_dtbclk_khz - 1),
+			params->ref_dtbclk_khz);
 
 		REG_WRITE(DCCG_AUDIO_DTBCLK_DTO_MODULO, modulo);
 		REG_WRITE(DCCG_AUDIO_DTBCLK_DTO_PHASE, phase);

@@ -120,11 +120,11 @@ struct dccg_funcs {
 
 	void (*set_dtbclk_dto)(
 			struct dccg *dccg,
-			struct dtbclk_dto_params *dto_params);
+			const struct dtbclk_dto_params *params);
 
 	void (*set_audio_dtbclk_dto)(
 			struct dccg *dccg,
-			uint32_t req_audio_dtbclk_khz);
+			const struct dtbclk_dto_params *params);
 
 	void (*set_dispclk_change_mode)(
 			struct dccg *dccg,

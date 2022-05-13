@@ -235,7 +235,8 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 
 	if (link->connector_signal == SIGNAL_TYPE_EDP) {
 		/*in case it is not on*/
-		link->dc->hwss.edp_power_control(link, true);
+		if (!link->dc->config.edp_no_power_sequencing)
+			link->dc->hwss.edp_power_control(link, true);
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
 
@@ -1016,6 +1017,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 	bool same_edid = false;
 	enum dc_edid_status edid_status;
 	struct dc_context *dc_ctx = link->ctx;
+	struct dc *dc = dc_ctx->dc;
 	struct dc_sink *sink = NULL;
 	struct dc_sink *prev_sink = NULL;
 	struct dpcd_caps prev_dpcd_caps;
@@ -1095,6 +1097,16 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 
 			detect_edp_sink_caps(link);
 			read_current_link_settings_on_detect(link);
+
+			/* Disable power sequence on MIPI panel + converter
+			 */
+			if (dc->config.enable_mipi_converter_optimization &&
+				dc_ctx->dce_version == DCN_VERSION_3_01 &&
+				link->dpcd_caps.sink_dev_id == DP_BRANCH_DEVICE_ID_0022B9 &&
+				memcmp(&link->dpcd_caps.branch_dev_name, DP_SINK_BRANCH_DEV_NAME_7580,
+					sizeof(link->dpcd_caps.branch_dev_name)) == 0)
+				dc->config.edp_no_power_sequencing = true;
+
 			sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
 			sink_caps.signal = SIGNAL_TYPE_EDP;
 			break;
@@ -1993,7 +2005,8 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP) {
 		/*in case it is not on*/
-		link->dc->hwss.edp_power_control(link, true);
+		if (!link->dc->config.edp_no_power_sequencing)
+			link->dc->hwss.edp_power_control(link, true);
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
 

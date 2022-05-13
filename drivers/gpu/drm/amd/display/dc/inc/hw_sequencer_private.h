@@ -140,6 +140,8 @@ struct hwseq_private_funcs {
 			const struct dc_plane_state *plane_state);
 	bool (*set_shaper_3dlut)(struct pipe_ctx *pipe_ctx,
 			const struct dc_plane_state *plane_state);
+	bool (*set_mcm_luts)(struct pipe_ctx *pipe_ctx,
+			const struct dc_plane_state *plane_state);
 	void (*PLAT_58856_wa)(struct dc_state *context,
 			struct pipe_ctx *pipe_ctx);
 	void (*setup_hpo_hw_control)(const struct dce_hwseq *hws, bool enable);

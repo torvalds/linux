@@ -192,7 +192,7 @@ void dccg31_set_physymclk(
 
 void dccg31_set_audio_dtbclk_dto(
 		struct dccg *dccg,
-		uint32_t req_audio_dtbclk_khz);
+		const struct dtbclk_dto_params *params);
 
 void dccg31_set_hdmistreamclk(
 		struct dccg *dccg,
