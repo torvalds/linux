@@ -172,9 +172,9 @@ mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	}
 
 	/* action */
-	attrs->action = (!(x->xso.flags & XFRM_OFFLOAD_INBOUND)) ?
-			MLX5_ACCEL_ESP_ACTION_ENCRYPT :
-			MLX5_ACCEL_ESP_ACTION_DECRYPT;
+	attrs->action = (x->xso.dir == XFRM_DEV_OFFLOAD_OUT) ?
+				MLX5_ACCEL_ESP_ACTION_ENCRYPT :
+				      MLX5_ACCEL_ESP_ACTION_DECRYPT;
 	/* flags */
 	attrs->flags |= (x->props.mode == XFRM_MODE_TRANSPORT) ?
 			MLX5_ACCEL_ESP_FLAGS_TRANSPORT :
@@ -306,7 +306,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 	if (err)
 		goto err_hw_ctx;
 
-	if (x->xso.flags & XFRM_OFFLOAD_INBOUND) {
+	if (x->xso.dir == XFRM_DEV_OFFLOAD_IN) {
 		err = mlx5e_ipsec_sadb_rx_add(sa_entry);
 		if (err)
 			goto err_add_rule;
@@ -333,7 +333,7 @@ static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
 
-	if (x->xso.flags & XFRM_OFFLOAD_INBOUND)
+	if (x->xso.dir == XFRM_DEV_OFFLOAD_IN)
 		mlx5e_ipsec_sadb_rx_del(sa_entry);
 }
 
