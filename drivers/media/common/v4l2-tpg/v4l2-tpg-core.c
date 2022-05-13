@@ -2402,6 +2402,44 @@ static void tpg_fill_plane_extras(const struct tpg_data *tpg,
 			((params->sav_eav_f ^ vact) << 1) |
 			(hact ^ vact ^ params->sav_eav_f);
 	}
+	if (tpg->insert_hdmi_video_guard_band) {
+		unsigned int i;
+
+		switch (tpg->fourcc) {
+		case V4L2_PIX_FMT_BGR24:
+		case V4L2_PIX_FMT_RGB24:
+			for (i = 0; i < 3 * 4; i += 3) {
+				vbuf[i] = 0xab;
+				vbuf[i + 1] = 0x55;
+				vbuf[i + 2] = 0xab;
+			}
+			break;
+		case V4L2_PIX_FMT_RGB32:
+		case V4L2_PIX_FMT_ARGB32:
+		case V4L2_PIX_FMT_XRGB32:
+		case V4L2_PIX_FMT_BGRX32:
+		case V4L2_PIX_FMT_BGRA32:
+			for (i = 0; i < 4 * 4; i += 4) {
+				vbuf[i] = 0x00;
+				vbuf[i + 1] = 0xab;
+				vbuf[i + 2] = 0x55;
+				vbuf[i + 3] = 0xab;
+			}
+			break;
+		case V4L2_PIX_FMT_BGR32:
+		case V4L2_PIX_FMT_XBGR32:
+		case V4L2_PIX_FMT_ABGR32:
+		case V4L2_PIX_FMT_RGBX32:
+		case V4L2_PIX_FMT_RGBA32:
+			for (i = 0; i < 4 * 4; i += 4) {
+				vbuf[i] = 0xab;
+				vbuf[i + 1] = 0x55;
+				vbuf[i + 2] = 0xab;
+				vbuf[i + 3] = 0x00;
+			}
+			break;
+		}
+	}
 }
 
 static void tpg_fill_plane_pattern(const struct tpg_data *tpg,
