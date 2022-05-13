@@ -3476,6 +3476,10 @@ static int shmem_reconfigure(struct fs_context *fc)
 
 	raw_spin_lock(&sbinfo->stat_lock);
 	inodes = sbinfo->max_inodes - sbinfo->free_inodes;
+	if (ctx->blocks > S64_MAX) {
+		err = "Number of blocks too large";
+		goto out;
+	}
 	if ((ctx->seen & SHMEM_SEEN_BLOCKS) && ctx->blocks) {
 		if (!sbinfo->max_blocks) {
 			err = "Cannot retroactively limit size";
