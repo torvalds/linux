@@ -1544,17 +1544,23 @@ static struct page *shmem_alloc_hugepage(gfp_t gfp,
 	return &folio->page;
 }
 
-static struct page *shmem_alloc_page(gfp_t gfp,
+static struct folio *shmem_alloc_folio(gfp_t gfp,
 			struct shmem_inode_info *info, pgoff_t index)
 {
 	struct vm_area_struct pvma;
-	struct page *page;
+	struct folio *folio;
 
 	shmem_pseudo_vma_init(&pvma, info, index);
-	page = alloc_page_vma(gfp, &pvma, 0);
+	folio = vma_alloc_folio(gfp, 0, &pvma, 0, false);
 	shmem_pseudo_vma_destroy(&pvma);
 
-	return page;
+	return folio;
+}
+
+static struct page *shmem_alloc_page(gfp_t gfp,
+			struct shmem_inode_info *info, pgoff_t index)
+{
+	return &shmem_alloc_folio(gfp, info, index)->page;
 }
 
 static struct page *shmem_alloc_and_acct_page(gfp_t gfp,
