@@ -1968,6 +1968,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_ERR_RECOVER_RELOAD		0x00100000
 	#define BNXT_FW_CAP_HOT_RESET			0x00200000
 	#define BNXT_FW_CAP_PTP_RTC			0x00400000
+	#define BNXT_FW_CAP_RX_ALL_PKT_TS		0x00800000
 	#define BNXT_FW_CAP_VLAN_RX_STRIP		0x01000000
 	#define BNXT_FW_CAP_VLAN_TX_INSERT		0x02000000
 	#define BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED	0x04000000
@@ -2131,6 +2132,7 @@ struct bnxt {
 	struct bpf_prog		*xdp_prog;
 
 	struct bnxt_ptp_cfg	*ptp_cfg;
+	u8			ptp_all_rx_tstamp;
 
 	/* devlink interface and vf-rep structs */
 	struct devlink		*dl;
