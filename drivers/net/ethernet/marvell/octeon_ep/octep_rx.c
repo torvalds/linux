@@ -230,8 +230,7 @@ static int octep_free_oq(struct octep_oq *oq)
 
 	octep_oq_free_ring_buffers(oq);
 
-	if (oq->buff_info)
-		vfree(oq->buff_info);
+	vfree(oq->buff_info);
 
 	if (oq->desc_ring)
 		dma_free_coherent(oq->dev,

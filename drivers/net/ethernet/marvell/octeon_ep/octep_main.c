@@ -980,8 +980,7 @@ static void octep_device_cleanup(struct octep_device *oct)
 	dev_info(&oct->pdev->dev, "Cleaning up Octeon Device ...\n");
 
 	for (i = 0; i < OCTEP_MAX_VF; i++) {
-		if (oct->mbox[i])
-			vfree(oct->mbox[i]);
+		vfree(oct->mbox[i]);
 		oct->mbox[i] = NULL;
 	}
 

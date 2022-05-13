@@ -270,8 +270,7 @@ static void octep_free_iq(struct octep_iq *iq)
 
 	desc_ring_size = OCTEP_IQ_DESC_SIZE * CFG_GET_IQ_NUM_DESC(oct->conf);
 
-	if (iq->buff_info)
-		vfree(iq->buff_info);
+	vfree(iq->buff_info);
 
 	if (iq->desc_ring)
 		dma_free_coherent(iq->dev, desc_ring_size,
