@@ -32,57 +32,78 @@
  * This file contains setup code for the CRTC.
  */
 
-static void mga_crtc_load_lut(struct drm_crtc *crtc)
+static void mgag200_crtc_set_gamma_linear(struct mga_device *mdev,
+					  const struct drm_format_info *format)
 {
-	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = to_mga_device(dev);
-	struct drm_framebuffer *fb;
-	u16 *r_ptr, *g_ptr, *b_ptr;
 	int i;
-
-	if (!crtc->enabled)
-		return;
-
-	if (!mdev->display_pipe.plane.state)
-		return;
-
-	fb = mdev->display_pipe.plane.state->fb;
-
-	r_ptr = crtc->gamma_store;
-	g_ptr = r_ptr + crtc->gamma_size;
-	b_ptr = g_ptr + crtc->gamma_size;
 
 	WREG8(DAC_INDEX + MGA1064_INDEX, 0);
 
-	if (fb && fb->format->cpp[0] * 8 == 16) {
-		int inc = (fb->format->depth == 15) ? 8 : 4;
-		u8 r, b;
-		for (i = 0; i < MGAG200_LUT_SIZE; i += inc) {
-			if (fb->format->depth == 16) {
-				if (i > (MGAG200_LUT_SIZE >> 1)) {
-					r = b = 0;
-				} else {
-					r = *r_ptr++ >> 8;
-					b = *b_ptr++ >> 8;
-					r_ptr++;
-					b_ptr++;
-				}
-			} else {
-				r = *r_ptr++ >> 8;
-				b = *b_ptr++ >> 8;
-			}
-			/* VGA registers */
-			WREG8(DAC_INDEX + MGA1064_COL_PAL, r);
-			WREG8(DAC_INDEX + MGA1064_COL_PAL, *g_ptr++ >> 8);
-			WREG8(DAC_INDEX + MGA1064_COL_PAL, b);
+	switch (format->format) {
+	case DRM_FORMAT_RGB565:
+		/* Use better interpolation, to take 32 values from 0 to 255 */
+		for (i = 0; i < MGAG200_LUT_SIZE / 8; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i * 8 + i / 4);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i * 4 + i / 16);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i * 8 + i / 4);
 		}
-		return;
+		/* Green has one more bit, so add padding with 0 for red and blue. */
+		for (i = MGAG200_LUT_SIZE / 8; i < MGAG200_LUT_SIZE / 4; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, 0);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i * 4 + i / 16);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, 0);
+		}
+		break;
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_XRGB8888:
+		for (i = 0; i < MGAG200_LUT_SIZE; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, i);
+		}
+		break;
+	default:
+		drm_warn_once(&mdev->base, "Unsupported format %p4cc for gamma correction\n",
+			      &format->format);
+		break;
 	}
-	for (i = 0; i < MGAG200_LUT_SIZE; i++) {
-		/* VGA registers */
-		WREG8(DAC_INDEX + MGA1064_COL_PAL, *r_ptr++ >> 8);
-		WREG8(DAC_INDEX + MGA1064_COL_PAL, *g_ptr++ >> 8);
-		WREG8(DAC_INDEX + MGA1064_COL_PAL, *b_ptr++ >> 8);
+}
+
+static void mgag200_crtc_set_gamma(struct mga_device *mdev,
+				   const struct drm_format_info *format,
+				   struct drm_color_lut *lut)
+{
+	int i;
+
+	WREG8(DAC_INDEX + MGA1064_INDEX, 0);
+
+	switch (format->format) {
+	case DRM_FORMAT_RGB565:
+		/* Use better interpolation, to take 32 values from lut[0] to lut[255] */
+		for (i = 0; i < MGAG200_LUT_SIZE / 8; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i * 8 + i / 4].red >> 8);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i * 4 + i / 16].green >> 8);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i * 8 + i / 4].blue >> 8);
+		}
+		/* Green has one more bit, so add padding with 0 for red and blue. */
+		for (i = MGAG200_LUT_SIZE / 8; i < MGAG200_LUT_SIZE / 4; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, 0);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i * 4 + i / 16].green >> 8);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, 0);
+		}
+		break;
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_XRGB8888:
+		for (i = 0; i < MGAG200_LUT_SIZE; i++) {
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i].red >> 8);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i].green >> 8);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, lut[i].blue >> 8);
+		}
+		break;
+	default:
+		drm_warn_once(&mdev->base, "Unsupported format %p4cc for gamma correction\n",
+			      &format->format);
+		break;
 	}
 }
 
@@ -907,7 +928,11 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	if (mdev->type == G200_WB || mdev->type == G200_EW3)
 		mgag200_g200wb_release_bmc(mdev);
 
-	mga_crtc_load_lut(crtc);
+	if (crtc_state->gamma_lut)
+		mgag200_crtc_set_gamma(mdev, fb->format, crtc_state->gamma_lut->data);
+	else
+		mgag200_crtc_set_gamma_linear(mdev, fb->format);
+
 	mgag200_enable_display(mdev);
 
 	mgag200_handle_damage(mdev, fb, &fullscreen, &shadow_plane_state->data[0]);
@@ -958,6 +983,14 @@ mgag200_simple_display_pipe_check(struct drm_simple_display_pipe *pipe,
 			return ret;
 	}
 
+	if (crtc_state->color_mgmt_changed && crtc_state->gamma_lut) {
+		if (crtc_state->gamma_lut->length !=
+		    MGAG200_LUT_SIZE * sizeof(struct drm_color_lut)) {
+			drm_err(dev, "Wrong size for gamma_lut %zu\n",
+				crtc_state->gamma_lut->length);
+			return -EINVAL;
+		}
+	}
 	return 0;
 }
 
@@ -966,6 +999,7 @@ mgag200_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 				   struct drm_plane_state *old_state)
 {
 	struct drm_plane *plane = &pipe->plane;
+	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_device *dev = plane->dev;
 	struct mga_device *mdev = to_mga_device(dev);
 	struct drm_plane_state *state = plane->state;
@@ -978,6 +1012,9 @@ mgag200_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 		return;
 
 	mutex_lock(&mdev->rmmio_lock);
+
+	if (crtc->state->color_mgmt_changed && crtc->state->gamma_lut)
+		mgag200_crtc_set_gamma(mdev, fb->format, crtc->state->gamma_lut->data);
 
 	drm_atomic_helper_damage_iter_init(&iter, old_state, state);
 	drm_atomic_for_each_plane_damage(&iter, &damage) {
@@ -1132,8 +1169,10 @@ int mgag200_modeset_init(struct mga_device *mdev)
 
 	drm_plane_enable_fb_damage_clips(&pipe->plane);
 
-	/* FIXME: legacy gamma tables; convert to CRTC state */
+	/* FIXME: legacy gamma tables, but atomic gamma doesn't work without */
 	drm_mode_crtc_set_gamma_size(&pipe->crtc, MGAG200_LUT_SIZE);
+
+	drm_crtc_enable_color_mgmt(&pipe->crtc, 0, false, MGAG200_LUT_SIZE);
 
 	drm_mode_config_reset(dev);
 
