@@ -4734,10 +4734,8 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 
 	if (ifmgd->flags & IEEE80211_STA_CONNECTION_POLL &&
 	    ifmgd->associated) {
-		u8 bssid[ETH_ALEN];
+		u8 *bssid = ifmgd->bssid;
 		int max_tries;
-
-		memcpy(bssid, ifmgd->bssid, ETH_ALEN);
 
 		if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
 			max_tries = max_nullfunc_tries;
