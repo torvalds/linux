@@ -320,7 +320,7 @@ int attr_make_nonresident(struct ntfs_inode *ni, struct ATTRIB *attr,
 
 	err = ni_insert_nonresident(ni, attr_s->type, attr_name(attr_s),
 				    attr_s->name_len, run, 0, alen,
-				    attr_s->flags, &attr, NULL);
+				    attr_s->flags, &attr, NULL, NULL);
 	if (err)
 		goto out3;
 
@@ -637,7 +637,7 @@ pack_runs:
 		/* Insert new attribute segment. */
 		err = ni_insert_nonresident(ni, type, name, name_len, run,
 					    next_svcn, vcn - next_svcn,
-					    attr_b->flags, &attr, &mi);
+					    attr_b->flags, &attr, &mi, NULL);
 		if (err)
 			goto out;
 
@@ -855,7 +855,7 @@ int attr_data_get_block(struct ntfs_inode *ni, CLST vcn, CLST clen, CLST *lcn,
 		goto out;
 	}
 
-	asize = le64_to_cpu(attr_b->nres.alloc_size) >> sbi->cluster_bits;
+	asize = le64_to_cpu(attr_b->nres.alloc_size) >> cluster_bits;
 	if (vcn >= asize) {
 		err = -EINVAL;
 		goto out;
@@ -1047,7 +1047,7 @@ ins_ext:
 	if (evcn1 > next_svcn) {
 		err = ni_insert_nonresident(ni, ATTR_DATA, NULL, 0, run,
 					    next_svcn, evcn1 - next_svcn,
-					    attr_b->flags, &attr, &mi);
+					    attr_b->flags, &attr, &mi, NULL);
 		if (err)
 			goto out;
 	}
@@ -1647,7 +1647,7 @@ ins_ext:
 	if (evcn1 > next_svcn) {
 		err = ni_insert_nonresident(ni, ATTR_DATA, NULL, 0, run,
 					    next_svcn, evcn1 - next_svcn,
-					    attr_b->flags, &attr, &mi);
+					    attr_b->flags, &attr, &mi, NULL);
 		if (err)
 			goto out;
 	}
@@ -1812,18 +1812,12 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 				err = ni_insert_nonresident(
 					ni, ATTR_DATA, NULL, 0, run, next_svcn,
 					evcn1 - eat - next_svcn, a_flags, &attr,
-					&mi);
+					&mi, &le);
 				if (err)
 					goto out;
 
 				/* Layout of records maybe changed. */
 				attr_b = NULL;
-				le = al_find_ex(ni, NULL, ATTR_DATA, NULL, 0,
-						&next_svcn);
-				if (!le) {
-					err = -EINVAL;
-					goto out;
-				}
 			}
 
 			/* Free all allocated memory. */
@@ -1936,9 +1930,10 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 	struct ATTRIB *attr = NULL, *attr_b;
 	struct ATTR_LIST_ENTRY *le, *le_b;
 	struct mft_inode *mi, *mi_b;
-	CLST svcn, evcn1, vcn, len, end, alen, dealloc;
+	CLST svcn, evcn1, vcn, len, end, alen, dealloc, next_svcn;
 	u64 total_size, alloc_size;
 	u32 mask;
+	__le16 a_flags;
 
 	if (!bytes)
 		return 0;
@@ -2001,6 +1996,7 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 
 	svcn = le64_to_cpu(attr_b->nres.svcn);
 	evcn1 = le64_to_cpu(attr_b->nres.evcn) + 1;
+	a_flags = attr_b->flags;
 
 	if (svcn <= vcn && vcn < evcn1) {
 		attr = attr_b;
@@ -2048,6 +2044,17 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 			err = mi_pack_runs(mi, attr, run, evcn1 - svcn);
 			if (err)
 				goto out;
+			next_svcn = le64_to_cpu(attr->nres.evcn) + 1;
+			if (next_svcn < evcn1) {
+				err = ni_insert_nonresident(ni, ATTR_DATA, NULL,
+							    0, run, next_svcn,
+							    evcn1 - next_svcn,
+							    a_flags, &attr, &mi,
+							    &le);
+				if (err)
+					goto out;
+				/* Layout of records maybe changed. */
+			}
 		}
 		/* Free all allocated memory. */
 		run_truncate(run, 0);
@@ -2250,7 +2257,7 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 	if (next_svcn < evcn1 + len) {
 		err = ni_insert_nonresident(ni, ATTR_DATA, NULL, 0, run,
 					    next_svcn, evcn1 + len - next_svcn,
-					    a_flags, NULL, NULL);
+					    a_flags, NULL, NULL, NULL);
 		if (err)
 			goto out;
 	}
