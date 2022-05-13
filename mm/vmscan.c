@@ -1588,12 +1588,11 @@ retry:
 			stat->nr_unqueued_dirty += nr_pages;
 
 		/*
-		 * Treat this page as congested if the underlying BDI is or if
+		 * Treat this page as congested if
 		 * pages are cycling through the LRU so quickly that the
 		 * pages marked for immediate reclaim are making it to the
 		 * end of the LRU a second time.
 		 */
-		mapping = page_mapping(page);
 		if (writeback && PageReclaim(page))
 			stat->nr_congested += nr_pages;
 
@@ -1744,9 +1743,6 @@ retry:
 					if (!add_to_swap(folio))
 						goto activate_locked_split;
 				}
-
-				/* Adding to swap updated mapping */
-				mapping = page_mapping(page);
 			}
 		} else if (PageSwapBacked(page) && PageTransHuge(page)) {
 			/* Split shmem THP */
@@ -1787,6 +1783,7 @@ retry:
 			}
 		}
 
+		mapping = folio_mapping(folio);
 		if (folio_test_dirty(folio)) {
 			/*
 			 * Only kswapd can writeback filesystem folios
