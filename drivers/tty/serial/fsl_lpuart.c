@@ -2110,12 +2110,10 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (sport->port.rs485.flags & SER_RS485_ENABLED)
 		termios->c_cflag &= ~CRTSCTS;
 
-	if (termios->c_cflag & CRTSCTS) {
-		modem |= (UARTMODIR_RXRTSE | UARTMODIR_TXCTSE);
-	} else {
-		termios->c_cflag &= ~CRTSCTS;
+	if (termios->c_cflag & CRTSCTS)
+		modem |= UARTMODIR_RXRTSE | UARTMODIR_TXCTSE;
+	else
 		modem &= ~(UARTMODIR_RXRTSE | UARTMODIR_TXCTSE);
-	}
 
 	if (termios->c_cflag & CSTOPB)
 		bd |= UARTBAUD_SBNS;
