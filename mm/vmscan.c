@@ -1946,15 +1946,16 @@ activate_locked_split:
 		}
 activate_locked:
 		/* Not a candidate for swapping, so reclaim swap space. */
-		if (PageSwapCache(page) && (mem_cgroup_swap_full(page) ||
-						PageMlocked(page)))
-			try_to_free_swap(page);
-		VM_BUG_ON_PAGE(PageActive(page), page);
-		if (!PageMlocked(page)) {
-			int type = page_is_file_lru(page);
-			SetPageActive(page);
+		if (folio_test_swapcache(folio) &&
+		    (mem_cgroup_swap_full(&folio->page) ||
+		     folio_test_mlocked(folio)))
+			try_to_free_swap(&folio->page);
+		VM_BUG_ON_FOLIO(folio_test_active(folio), folio);
+		if (!folio_test_mlocked(folio)) {
+			int type = folio_is_file_lru(folio);
+			folio_set_active(folio);
 			stat->nr_activate[type] += nr_pages;
-			count_memcg_page_event(page, PGACTIVATE);
+			count_memcg_folio_events(folio, PGACTIVATE, nr_pages);
 		}
 keep_locked:
 		unlock_page(page);
