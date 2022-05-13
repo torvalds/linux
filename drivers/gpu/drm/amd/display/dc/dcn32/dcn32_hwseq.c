@@ -502,6 +502,97 @@ static bool dcn32_set_mpc_shaper_3dlut(
 
 	return result;
 }
+
+bool dcn32_set_mcm_luts(
+	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
+{
+	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
+	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
+	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+	bool result = true;
+	struct pwl_params *lut_params = NULL;
+
+	// 1D LUT
+	if (plane_state->blend_tf) {
+		if (plane_state->blend_tf->type == TF_TYPE_HWPWL)
+			lut_params = &plane_state->blend_tf->pwl;
+		else if (plane_state->blend_tf->type == TF_TYPE_DISTRIBUTED_POINTS) {
+			cm_helper_translate_curve_to_hw_format(
+					plane_state->blend_tf,
+					&dpp_base->regamma_params, false);
+			lut_params = &dpp_base->regamma_params;
+		}
+	}
+	result = mpc->funcs->program_1dlut(mpc, lut_params, mpcc_id);
+
+	// Shaper
+	if (plane_state->in_shaper_func) {
+		if (plane_state->in_shaper_func->type == TF_TYPE_HWPWL)
+			lut_params = &plane_state->in_shaper_func->pwl;
+		else if (plane_state->in_shaper_func->type == TF_TYPE_DISTRIBUTED_POINTS) {
+			// TODO: dpp_base replace
+			ASSERT(false);
+			cm_helper_translate_curve_to_hw_format(
+					plane_state->in_shaper_func,
+					&dpp_base->shaper_params, true);
+			lut_params = &dpp_base->shaper_params;
+		}
+	}
+
+	result = mpc->funcs->program_shaper(mpc, lut_params, mpcc_id);
+
+	// 3D
+	if (plane_state->lut3d_func && plane_state->lut3d_func->state.bits.initialized == 1)
+		result = mpc->funcs->program_3dlut(mpc, &plane_state->lut3d_func->lut_3d, mpcc_id);
+	else
+		result = mpc->funcs->program_3dlut(mpc, NULL, mpcc_id);
+
+	return result;
+}
+
+bool dcn32_set_input_transfer_func(struct dc *dc,
+				struct pipe_ctx *pipe_ctx,
+				const struct dc_plane_state *plane_state)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	struct mpc *mpc = dc->res_pool->mpc;
+	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
+
+	enum dc_transfer_func_predefined tf;
+	bool result = true;
+	struct pwl_params *params = NULL;
+
+	if (mpc == NULL || plane_state == NULL)
+		return false;
+
+	tf = TRANSFER_FUNCTION_UNITY;
+
+	if (plane_state->in_transfer_func &&
+		plane_state->in_transfer_func->type == TF_TYPE_PREDEFINED)
+		tf = plane_state->in_transfer_func->tf;
+
+	dpp_base->funcs->dpp_set_pre_degam(dpp_base, tf);
+
+	if (plane_state->in_transfer_func) {
+		if (plane_state->in_transfer_func->type == TF_TYPE_HWPWL)
+			params = &plane_state->in_transfer_func->pwl;
+		else if (plane_state->in_transfer_func->type == TF_TYPE_DISTRIBUTED_POINTS &&
+			cm3_helper_translate_curve_to_hw_format(plane_state->in_transfer_func,
+					&dpp_base->degamma_params, false))
+			params = &dpp_base->degamma_params;
+	}
+
+	result = dpp_base->funcs->dpp_program_gamcor_lut(dpp_base, params);
+
+	if (result &&
+			pipe_ctx->stream_res.opp &&
+			pipe_ctx->stream_res.opp->ctx &&
+			hws->funcs.set_mcm_luts)
+		result = hws->funcs.set_mcm_luts(pipe_ctx, plane_state);
+
+	return result;
+}
+
 bool dcn32_set_output_transfer_func(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_stream_state *stream)

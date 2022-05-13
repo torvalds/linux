@@ -697,18 +697,14 @@ static const struct dcn20_dsc_mask dsc_mask = {
 };
 
 static const struct dcn30_mpc_registers mpc_regs = {
-		MPC_REG_LIST_DCN3_0(0),
-		MPC_REG_LIST_DCN3_0(1),
-		MPC_REG_LIST_DCN3_0(2),
-		MPC_REG_LIST_DCN3_0(3),
+		MPC_REG_LIST_DCN3_2(0),
+		MPC_REG_LIST_DCN3_2(1),
+		MPC_REG_LIST_DCN3_2(2),
+		MPC_REG_LIST_DCN3_2(3),
 		MPC_OUT_MUX_REG_LIST_DCN3_0(0),
 		MPC_OUT_MUX_REG_LIST_DCN3_0(1),
 		MPC_OUT_MUX_REG_LIST_DCN3_0(2),
 		MPC_OUT_MUX_REG_LIST_DCN3_0(3),
-		MPC_MCM_REG_LIST_DCN32(0),
-		MPC_MCM_REG_LIST_DCN32(1),
-		MPC_MCM_REG_LIST_DCN32(2),
-		MPC_MCM_REG_LIST_DCN32(3),
 		MPC_DWB_MUX_REG_LIST_DCN3_0(0),
 };
 
@@ -2052,8 +2048,8 @@ static bool dcn321_resource_construct(
 	dc->caps.color.dpp.gamma_corr = 1;
 	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
 
-	dc->caps.color.dpp.hw_3d_lut = 0; //3DLUT removed from DPP
-	dc->caps.color.dpp.ogam_ram = 0;  //Blnd Gam also removed
+	dc->caps.color.dpp.hw_3d_lut = 1;
+	dc->caps.color.dpp.ogam_ram = 1;
 	// no OGAM ROM on DCN2 and later ASICs
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
 	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 0;

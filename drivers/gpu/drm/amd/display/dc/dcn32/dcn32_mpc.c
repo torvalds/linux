@@ -26,7 +26,7 @@
 #include "reg_helper.h"
 #include "dcn30/dcn30_mpc.h"
 #include "dcn30/dcn30_cm_common.h"
-#include "dcn30/dcn30_mpc.h"
+#include "dcn32_mpc.h"
 #include "basics/conversion.h"
 #include "dcn10/dcn10_cm_common.h"
 #include "dc.h"
@@ -64,6 +64,235 @@ static void mpc32_mpc_init(struct mpc *mpc)
 	}
 }
 
+static void mpc32_power_on_blnd_lut(
+	struct mpc *mpc,
+	uint32_t mpcc_id,
+	bool power_on)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+
+	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.cm) {
+		if (power_on) {
+			REG_UPDATE(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_1DLUT_MEM_PWR_FORCE, 0);
+			REG_WAIT(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_1DLUT_MEM_PWR_STATE, 0, 1, 5);
+		} else {
+			ASSERT(false);
+			/* TODO: change to mpc
+			 *  dpp_base->ctx->dc->optimized_required = true;
+			 *  dpp_base->deferred_reg_writes.bits.disable_blnd_lut = true;
+			 */
+		}
+	} else {
+		REG_SET(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], 0,
+				MPCC_MCM_1DLUT_MEM_PWR_FORCE, power_on == true ? 0 : 1);
+	}
+}
+
+static enum dc_lut_mode mpc32_get_post1dlut_current(struct mpc *mpc, uint32_t mpcc_id)
+{
+	enum dc_lut_mode mode;
+	uint32_t mode_current = 0;
+	uint32_t in_use = 0;
+
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+
+	REG_GET(MPCC_MCM_1DLUT_CONTROL[mpcc_id],
+			MPCC_MCM_1DLUT_MODE_CURRENT, &mode_current);
+	REG_GET(MPCC_MCM_1DLUT_CONTROL[mpcc_id],
+			MPCC_MCM_1DLUT_SELECT_CURRENT, &in_use);
+
+	switch (mode_current) {
+	case 0:
+	case 1:
+		mode = LUT_BYPASS;
+		break;
+
+	case 2:
+		if (in_use == 0)
+			mode = LUT_RAM_A;
+		else
+			mode = LUT_RAM_B;
+		break;
+	default:
+		mode = LUT_BYPASS;
+		break;
+	}
+	return mode;
+}
+
+static void mpc32_configure_post1dlut(
+		struct mpc *mpc,
+		uint32_t mpcc_id,
+		bool is_ram_a)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+
+	//TODO: this
+	REG_UPDATE_2(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id],
+			MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 7,
+			MPCC_MCM_1DLUT_LUT_HOST_SEL, is_ram_a == true ? 0 : 1);
+
+	REG_SET(MPCC_MCM_1DLUT_LUT_INDEX[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_INDEX, 0);
+}
+
+static void mpc32_post1dlut_get_reg_field(
+		struct dcn30_mpc *mpc,
+		struct dcn3_xfer_func_reg *reg)
+{
+	reg->shifts.exp_region0_lut_offset = mpc->mpc_shift->MPCC_MCM_1DLUT_RAMA_EXP_REGION0_LUT_OFFSET;
+	reg->masks.exp_region0_lut_offset = mpc->mpc_mask->MPCC_MCM_1DLUT_RAMA_EXP_REGION0_LUT_OFFSET;
+	reg->shifts.exp_region0_num_segments = mpc->mpc_shift->MPCC_MCM_1DLUT_RAMA_EXP_REGION0_NUM_SEGMENTS;
+	reg->masks.exp_region0_num_segments = mpc->mpc_mask->MPCC_MCM_1DLUT_RAMA_EXP_REGION0_NUM_SEGMENTS;
+	reg->shifts.exp_region1_lut_offset = mpc->mpc_shift->MPCC_MCM_1DLUT_RAMA_EXP_REGION1_LUT_OFFSET;
+	reg->masks.exp_region1_lut_offset = mpc->mpc_mask->MPCC_MCM_1DLUT_RAMA_EXP_REGION1_LUT_OFFSET;
+	reg->shifts.exp_region1_num_segments = mpc->mpc_shift->MPCC_MCM_1DLUT_RAMA_EXP_REGION1_NUM_SEGMENTS;
+	reg->masks.exp_region1_num_segments = mpc->mpc_mask->MPCC_MCM_1DLUT_RAMA_EXP_REGION1_NUM_SEGMENTS;
+
+	reg->shifts.field_region_end = mpc->mpc_shift->MPCC_MCM_1DLUT_RAMA_EXP_REGION_END_B;
+	reg->masks.field_region_end = mpc->mpc_mask->MPCC_MCM_1DLUT_RAMA_EXP_REGION_END_B;
+	reg->shifts.field_region_end_slope = mpc->mpc_shift->MPCC_MCM_1DLUT_RAMA_EXP_REGION_END_SLOPE_B;
+	reg->masks.field_region_end_slope = mpc->mpc_mask->MPCC_MCM_1DLUT_RAMA_EXP_REGION_END_SLOPE_B;
+	reg->shifts.field_region_end_base = mpc->mpc_shift->MPCC_MCM_1DLUT_RAMA_EXP_REGION_END_BASE_B;
+	reg->masks.field_region_end_base = mpc->mpc_mask->MPCC_MCM_1DLUT_RAMA_EXP_REGION_END_BASE_B;
+	reg->shifts.field_region_linear_slope = mpc->mpc_shift->MPCC_MCM_1DLUT_RAMA_EXP_REGION_START_SLOPE_B;
+	reg->masks.field_region_linear_slope = mpc->mpc_mask->MPCC_MCM_1DLUT_RAMA_EXP_REGION_START_SLOPE_B;
+	reg->shifts.exp_region_start = mpc->mpc_shift->MPCC_MCM_1DLUT_RAMA_EXP_REGION_START_B;
+	reg->masks.exp_region_start = mpc->mpc_mask->MPCC_MCM_1DLUT_RAMA_EXP_REGION_START_B;
+	reg->shifts.exp_resion_start_segment = mpc->mpc_shift->MPCC_MCM_1DLUT_RAMA_EXP_REGION_START_SEGMENT_B;
+	reg->masks.exp_resion_start_segment = mpc->mpc_mask->MPCC_MCM_1DLUT_RAMA_EXP_REGION_START_SEGMENT_B;
+}
+
+/*program blnd lut RAM A*/
+static void mpc32_program_post1dluta_settings(
+		struct mpc *mpc,
+		uint32_t mpcc_id,
+		const struct pwl_params *params)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+	struct dcn3_xfer_func_reg gam_regs;
+
+	mpc32_post1dlut_get_reg_field(mpc30, &gam_regs);
+
+	gam_regs.start_cntl_b = REG(MPCC_MCM_1DLUT_RAMA_START_CNTL_B[mpcc_id]);
+	gam_regs.start_cntl_g = REG(MPCC_MCM_1DLUT_RAMA_START_CNTL_G[mpcc_id]);
+	gam_regs.start_cntl_r = REG(MPCC_MCM_1DLUT_RAMA_START_CNTL_R[mpcc_id]);
+	gam_regs.start_slope_cntl_b = REG(MPCC_MCM_1DLUT_RAMA_START_SLOPE_CNTL_B[mpcc_id]);
+	gam_regs.start_slope_cntl_g = REG(MPCC_MCM_1DLUT_RAMA_START_SLOPE_CNTL_G[mpcc_id]);
+	gam_regs.start_slope_cntl_r = REG(MPCC_MCM_1DLUT_RAMA_START_SLOPE_CNTL_R[mpcc_id]);
+	gam_regs.start_end_cntl1_b = REG(MPCC_MCM_1DLUT_RAMA_END_CNTL1_B[mpcc_id]);
+	gam_regs.start_end_cntl2_b = REG(MPCC_MCM_1DLUT_RAMA_END_CNTL2_B[mpcc_id]);
+	gam_regs.start_end_cntl1_g = REG(MPCC_MCM_1DLUT_RAMA_END_CNTL1_G[mpcc_id]);
+	gam_regs.start_end_cntl2_g = REG(MPCC_MCM_1DLUT_RAMA_END_CNTL2_G[mpcc_id]);
+	gam_regs.start_end_cntl1_r = REG(MPCC_MCM_1DLUT_RAMA_END_CNTL1_R[mpcc_id]);
+	gam_regs.start_end_cntl2_r = REG(MPCC_MCM_1DLUT_RAMA_END_CNTL2_R[mpcc_id]);
+	gam_regs.region_start = REG(MPCC_MCM_1DLUT_RAMA_REGION_0_1[mpcc_id]);
+	gam_regs.region_end = REG(MPCC_MCM_1DLUT_RAMA_REGION_32_33[mpcc_id]);
+
+	cm_helper_program_gamcor_xfer_func(mpc->ctx, params, &gam_regs);
+}
+
+/*program blnd lut RAM B*/
+static void mpc32_program_post1dlutb_settings(
+		struct mpc *mpc,
+		uint32_t mpcc_id,
+		const struct pwl_params *params)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+	struct dcn3_xfer_func_reg gam_regs;
+
+	mpc32_post1dlut_get_reg_field(mpc30, &gam_regs);
+
+	gam_regs.start_cntl_b = REG(MPCC_MCM_1DLUT_RAMB_START_CNTL_B[mpcc_id]);
+	gam_regs.start_cntl_g = REG(MPCC_MCM_1DLUT_RAMB_START_CNTL_G[mpcc_id]);
+	gam_regs.start_cntl_r = REG(MPCC_MCM_1DLUT_RAMB_START_CNTL_R[mpcc_id]);
+	gam_regs.start_slope_cntl_b = REG(MPCC_MCM_1DLUT_RAMB_START_SLOPE_CNTL_B[mpcc_id]);
+	gam_regs.start_slope_cntl_g = REG(MPCC_MCM_1DLUT_RAMB_START_SLOPE_CNTL_G[mpcc_id]);
+	gam_regs.start_slope_cntl_r = REG(MPCC_MCM_1DLUT_RAMB_START_SLOPE_CNTL_R[mpcc_id]);
+	gam_regs.start_end_cntl1_b = REG(MPCC_MCM_1DLUT_RAMB_END_CNTL1_B[mpcc_id]);
+	gam_regs.start_end_cntl2_b = REG(MPCC_MCM_1DLUT_RAMB_END_CNTL2_B[mpcc_id]);
+	gam_regs.start_end_cntl1_g = REG(MPCC_MCM_1DLUT_RAMB_END_CNTL1_G[mpcc_id]);
+	gam_regs.start_end_cntl2_g = REG(MPCC_MCM_1DLUT_RAMB_END_CNTL2_G[mpcc_id]);
+	gam_regs.start_end_cntl1_r = REG(MPCC_MCM_1DLUT_RAMB_END_CNTL1_R[mpcc_id]);
+	gam_regs.start_end_cntl2_r = REG(MPCC_MCM_1DLUT_RAMB_END_CNTL2_R[mpcc_id]);
+	gam_regs.region_start = REG(MPCC_MCM_1DLUT_RAMB_REGION_0_1[mpcc_id]);
+	gam_regs.region_end = REG(MPCC_MCM_1DLUT_RAMB_REGION_32_33[mpcc_id]);
+
+	cm_helper_program_gamcor_xfer_func(mpc->ctx, params, &gam_regs);
+}
+
+static void mpc32_program_post1dlut_pwl(
+		struct mpc *mpc,
+		uint32_t mpcc_id,
+		const struct pwl_result_data *rgb,
+		uint32_t num)
+{
+	uint32_t i;
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+	uint32_t last_base_value_red = rgb[num-1].red_reg + rgb[num-1].delta_red_reg;
+	uint32_t last_base_value_green = rgb[num-1].green_reg + rgb[num-1].delta_green_reg;
+	uint32_t last_base_value_blue = rgb[num-1].blue_reg + rgb[num-1].delta_blue_reg;
+
+	if (is_rgb_equal(rgb, num)) {
+		for (i = 0 ; i < num; i++)
+			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].red_reg);
+		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_red);
+	} else {
+		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 4);
+		for (i = 0 ; i < num; i++)
+			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].red_reg);
+		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_red);
+
+		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 2);
+		for (i = 0 ; i < num; i++)
+			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].green_reg);
+		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_green);
+
+		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 1);
+		for (i = 0 ; i < num; i++)
+			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].blue_reg);
+		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_blue);
+	}
+}
+
+static bool mpc32_program_post1dlut(
+		struct mpc *mpc,
+		const struct pwl_params *params,
+		uint32_t mpcc_id)
+{
+	enum dc_lut_mode current_mode;
+	enum dc_lut_mode next_mode;
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+
+	if (params == NULL) {
+		REG_SET(MPCC_MCM_1DLUT_CONTROL[mpcc_id], 0, MPCC_MCM_1DLUT_MODE, 0);
+		if (mpc->ctx->dc->debug.enable_mem_low_power.bits.cm)
+			mpc32_power_on_blnd_lut(mpc, mpcc_id, false);
+		return false;
+	}
+
+	current_mode = mpc32_get_post1dlut_current(mpc, mpcc_id);
+	if (current_mode == LUT_BYPASS || current_mode == LUT_RAM_B)
+		next_mode = LUT_RAM_A;
+	else
+		next_mode = LUT_RAM_B;
+
+	mpc32_power_on_blnd_lut(mpc, mpcc_id, true);
+	mpc32_configure_post1dlut(mpc, mpcc_id, next_mode == LUT_RAM_A);
+
+	if (next_mode == LUT_RAM_A)
+		mpc32_program_post1dluta_settings(mpc, mpcc_id, params);
+	else
+		mpc32_program_post1dlutb_settings(mpc, mpcc_id, params);
+
+	mpc32_program_post1dlut_pwl(
+			mpc, mpcc_id, params->rgb_resulted, params->hw_points_num);
+
+	REG_UPDATE_2(MPCC_MCM_1DLUT_CONTROL[mpcc_id],
+			MPCC_MCM_1DLUT_MODE, 2,
+			MPCC_MCM_1DLUT_SELECT, next_mode == LUT_RAM_A ? 0 : 1);
+
+	return true;
+}
 
 static enum dc_lut_mode mpc32_get_shaper_current(struct mpc *mpc, uint32_t mpcc_id)
 {
@@ -651,6 +880,10 @@ static void mpc32_set_3dlut_mode(
 	uint32_t lut_mode;
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 
+	// set default 3DLUT to pre-blend
+	// TODO: implement movable CM location
+	REG_UPDATE(MPCC_MOVABLE_CM_LOCATION_CONTROL[mpcc_id], MPCC_MOVABLE_CM_LOCATION_CNTL, 0);
+
 	if (mode == LUT_BYPASS)
 		lut_mode = 0;
 	else if (mode == LUT_RAM_A)
@@ -775,6 +1008,7 @@ const struct mpc_funcs dcn32_mpc_funcs = {
 	.set_gamut_remap = mpc3_set_gamut_remap,
 	.program_shaper = mpc32_program_shaper,
 	.program_3dlut = mpc32_program_3dlut,
+	.program_1dlut = mpc32_program_post1dlut,
 	.acquire_rmu = NULL,
 	.release_rmu = NULL,
 	.power_on_mpc_mem_pwr = mpc3_power_on_ogam_lut,
