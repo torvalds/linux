@@ -3103,6 +3103,7 @@
 					       mds=off [X86]
 					       tsx_async_abort=off [X86]
 					       kvm.nx_huge_pages=off [X86]
+					       srbds=off [X86,INTEL]
 					       no_entry_flush [PPC]
 					       no_uaccess_flush [PPC]
 
