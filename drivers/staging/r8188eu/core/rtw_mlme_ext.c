@@ -1517,10 +1517,11 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 		}
 		break;
 	case WLAN_ACTION_DELBA:
-		if ((frame_body[3] & BIT(3)) == 0) {
+		if (u16_get_bits(le16_to_cpu(mgmt->u.action.u.delba.params),
+				 IEEE80211_DELBA_PARAM_INITIATOR_MASK) == WLAN_BACK_RECIPIENT) {
 			psta->htpriv.agg_enable_bitmap &= ~(1 << ((frame_body[3] >> 4) & 0xf));
 			psta->htpriv.candidate_tid_bitmap &= ~(1 << ((frame_body[3] >> 4) & 0xf));
-		} else if ((frame_body[3] & BIT(3)) == BIT(3)) {
+		} else {
 			tid = (frame_body[3] >> 4) & 0x0F;
 			preorder_ctrl =  &psta->recvreorder_ctrl[tid];
 			preorder_ctrl->enable = false;
