@@ -591,10 +591,8 @@ static int afe4404_remove(struct i2c_client *client)
 		iio_trigger_unregister(afe->trig);
 
 	ret = regulator_disable(afe->regulator);
-	if (ret) {
+	if (ret)
 		dev_err(afe->dev, "Unable to disable regulator\n");
-		return ret;
-	}
 
 	return 0;
 }
