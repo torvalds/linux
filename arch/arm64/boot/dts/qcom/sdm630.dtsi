@@ -1280,7 +1280,7 @@
 		sdhc_2: mmc@c084000 {
 			compatible = "qcom,sdm630-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x0c084000 0x1000>;
-			reg-names = "hc";
+			reg-names = "hc_mem";
 
 			interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
@@ -1335,7 +1335,7 @@
 			reg = <0x0c0c4000 0x1000>,
 			      <0x0c0c5000 0x1000>,
 			      <0x0c0c8000 0x8000>;
-			reg-names = "hc", "cqhci", "ice";
+			reg-names = "hc_mem", "cqe_mem", "ice_mem";
 
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
