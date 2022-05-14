@@ -1256,11 +1256,10 @@ use_clean:
 
 		bch_info(c, "checking lrus");
 		err = "error checking lrus";
-		ret = bch2_check_lrus(c, true);
+		ret = bch2_check_lrus(c);
 		if (ret)
 			goto err;
 		bch_verbose(c, "done checking lrus");
-
 		set_bit(BCH_FS_CHECK_LRUS_DONE, &c->flags);
 
 		bch_info(c, "checking alloc to lru refs");
@@ -1268,12 +1267,8 @@ use_clean:
 		ret = bch2_check_alloc_to_lru_refs(c);
 		if (ret)
 			goto err;
-		set_bit(BCH_FS_CHECK_ALLOC_TO_LRU_REFS_DONE, &c->flags);
-
-		ret = bch2_check_lrus(c, true);
-		if (ret)
-			goto err;
 		bch_verbose(c, "done checking alloc to lru refs");
+		set_bit(BCH_FS_CHECK_ALLOC_TO_LRU_REFS_DONE, &c->flags);
 	} else {
 		set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 		set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);

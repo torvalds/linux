@@ -130,7 +130,7 @@ int bch2_lru_change(struct btree_trans *trans, u64 id, u64 idx,
 }
 
 static int bch2_check_lru_key(struct btree_trans *trans,
-			      struct btree_iter *lru_iter, bool initial)
+			      struct btree_iter *lru_iter)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
@@ -193,7 +193,7 @@ fsck_err:
 	return ret;
 }
 
-int bch2_check_lrus(struct bch_fs *c, bool initial)
+int bch2_check_lrus(struct bch_fs *c)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
@@ -207,7 +207,7 @@ int bch2_check_lrus(struct bch_fs *c, bool initial)
 		ret = __bch2_trans_do(&trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
-			bch2_check_lru_key(&trans, &iter, initial));
+			bch2_check_lru_key(&trans, &iter));
 		if (ret)
 			break;
 	}
