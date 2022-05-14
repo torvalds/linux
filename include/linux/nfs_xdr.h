@@ -810,6 +810,7 @@ enum nfs4_acl_type {
 struct nfs_setaclargs {
 	struct nfs4_sequence_args	seq_args;
 	struct nfs_fh *			fh;
+	enum nfs4_acl_type		acl_type;
 	size_t				acl_len;
 	struct page **			acl_pages;
 };
@@ -821,6 +822,7 @@ struct nfs_setaclres {
 struct nfs_getaclargs {
 	struct nfs4_sequence_args 	seq_args;
 	struct nfs_fh *			fh;
+	enum nfs4_acl_type		acl_type;
 	size_t				acl_len;
 	struct page **			acl_pages;
 };
@@ -829,6 +831,7 @@ struct nfs_getaclargs {
 #define NFS4_ACL_TRUNC		0x0001	/* ACL was truncated */
 struct nfs_getaclres {
 	struct nfs4_sequence_res	seq_res;
+	enum nfs4_acl_type		acl_type;
 	size_t				acl_len;
 	size_t				acl_data_offset;
 	int				acl_flags;

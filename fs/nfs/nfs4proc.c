@@ -5911,9 +5911,11 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf,
 	struct page **pages;
 	struct nfs_getaclargs args = {
 		.fh = NFS_FH(inode),
+		.acl_type = type,
 		.acl_len = buflen,
 	};
 	struct nfs_getaclres res = {
+		.acl_type = type,
 		.acl_len = buflen,
 	};
 	struct rpc_message msg = {
@@ -6028,9 +6030,10 @@ static int __nfs4_proc_set_acl(struct inode *inode, const void *buf,
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct page *pages[NFS4ACL_MAXPAGES];
 	struct nfs_setaclargs arg = {
-		.fh		= NFS_FH(inode),
-		.acl_pages	= pages,
-		.acl_len	= buflen,
+		.fh = NFS_FH(inode),
+		.acl_type = type,
+		.acl_len = buflen,
+		.acl_pages = pages,
 	};
 	struct nfs_setaclres res;
 	struct rpc_message msg = {
