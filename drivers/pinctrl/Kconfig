@@ -331,6 +331,16 @@ config PINCTRL_MAX96752F
 	help
 	  Say Yes here to enable Pin control support for Maxim MAX96752F.
 
+config PINCTRL_MAX96755F
+	tristate "MAX96755F Pincontrol support"
+	depends on MFD_MAX96755F && OF
+	select PINMUX
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINCONF
+	help
+	  Say Yes here to enable Pin control support for Maxim MAX96755F.
+
 config PINCTRL_PALMAS
 	tristate "Pinctrl driver for the PALMAS Series MFD devices"
 	depends on OF && MFD_PALMAS
