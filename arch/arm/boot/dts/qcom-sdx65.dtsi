@@ -331,7 +331,7 @@
 			};
 		};
 
-		sdhc_1: sdhci@8804000 {
+		sdhc_1: mmc@8804000 {
 			compatible = "qcom,sdx65-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x08804000 0x1000>;
 			reg-names = "hc_mem";

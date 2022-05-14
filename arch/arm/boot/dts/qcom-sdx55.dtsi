@@ -388,7 +388,7 @@
 			reg = <0x01fc0000 0x1000>;
 		};
 
-		sdhc_1: sdhci@8804000 {
+		sdhc_1: mmc@8804000 {
 			compatible = "qcom,sdx55-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x08804000 0x1000>;
 			interrupts = <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>,
