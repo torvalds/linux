@@ -1471,7 +1471,7 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 	struct sta_info *psta = NULL;
 	struct recv_reorder_ctrl *preorder_ctrl;
 	unsigned char		*frame_body;
-	unsigned short	tid, status;
+	unsigned short	tid;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	u8 *pframe = precv_frame->rx_data;
@@ -1505,9 +1505,8 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 			issue_action_BA(padapter, mgmt->sa, WLAN_ACTION_ADDBA_RESP, 37);/* reject ADDBA Req */
 		break;
 	case WLAN_ACTION_ADDBA_RESP:
-		status = get_unaligned_le16(&frame_body[3]);
 		tid = ((frame_body[5] >> 2) & 0x7);
-		if (status == 0) {	/* successful */
+		if (mgmt->u.action.u.addba_resp.status == 0) {	/* successful */
 			psta->htpriv.agg_enable_bitmap |= 1 << tid;
 			psta->htpriv.candidate_tid_bitmap &= ~BIT(tid);
 		} else {
