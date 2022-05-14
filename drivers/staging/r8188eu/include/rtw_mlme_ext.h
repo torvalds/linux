@@ -592,8 +592,6 @@ void addba_timer_hdl(struct sta_info *psta);
 bool cckrates_included(unsigned char *rate, int ratelen);
 bool cckratesonly_included(unsigned char *rate, int ratelen);
 
-void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr);
-
 void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len);
 void correct_TSF(struct adapter *padapter, struct mlme_ext_priv *pmlmeext);
 

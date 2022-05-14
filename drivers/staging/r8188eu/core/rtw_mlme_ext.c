@@ -1497,7 +1497,11 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 	switch (mgmt->u.action.u.addba_req.action_code) {
 	case WLAN_ACTION_ADDBA_REQ:
 		memcpy(&pmlmeinfo->ADDBA_req, &frame_body[2], sizeof(struct ADDBA_request));
-		process_addba_req(padapter, (u8 *)&pmlmeinfo->ADDBA_req, mgmt->sa);
+		tid = u16_get_bits(le16_to_cpu(mgmt->u.action.u.addba_req.capab),
+				   IEEE80211_ADDBA_PARAM_TID_MASK);
+		preorder_ctrl = &psta->recvreorder_ctrl[tid];
+		preorder_ctrl->indicate_seq = 0xffff;
+		preorder_ctrl->enable = pmlmeinfo->bAcceptAddbaReq;
 
 		if (pmlmeinfo->bAcceptAddbaReq)
 			issue_action_BA(padapter, mgmt->sa, WLAN_ACTION_ADDBA_RESP, 0);

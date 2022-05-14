@@ -1464,28 +1464,6 @@ int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie, uint var_ie_l
 	return _SUCCESS;
 }
 
-void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr)
-{
-	struct sta_info *psta;
-	u16 tid;
-	u16 param;
-	struct recv_reorder_ctrl *preorder_ctrl;
-	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct ADDBA_request	*preq = (struct ADDBA_request *)paddba_req;
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
-
-	psta = rtw_get_stainfo(pstapriv, addr);
-
-	if (psta) {
-		param = le16_to_cpu(preq->BA_para_set);
-		tid = (param >> 2) & 0x0f;
-		preorder_ctrl = &psta->recvreorder_ctrl[tid];
-		preorder_ctrl->indicate_seq = 0xffff;
-		preorder_ctrl->enable = pmlmeinfo->bAcceptAddbaReq;
-	}
-}
-
 void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 {
 	u8 *pIE;
