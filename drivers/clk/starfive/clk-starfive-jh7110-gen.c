@@ -78,9 +78,9 @@ static int jh7110_clk_enable(struct clk_hw *hw)
 
 static void jh7110_clk_disable(struct clk_hw *hw)
 {
-	struct jh7110_clk *clk = jh7110_clk_from(hw);
+	//struct jh7110_clk *clk = jh7110_clk_from(hw);
 
-	jh7110_clk_reg_rmw(clk, JH7110_CLK_ENABLE, 0);
+	//jh7110_clk_reg_rmw(clk, JH7110_CLK_ENABLE, 0);
 }
 
 static int jh7110_clk_is_enabled(struct clk_hw *hw)
