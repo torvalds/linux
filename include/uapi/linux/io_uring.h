@@ -233,6 +233,11 @@ enum {
 #define IORING_RECVSEND_POLL_FIRST	(1U << 0)
 
 /*
+ * accept flags stored in sqe->ioprio
+ */
+#define IORING_ACCEPT_MULTISHOT	(1U << 0)
+
+/*
  * IO completion data structure (Completion Queue Entry)
  */
 struct io_uring_cqe {
