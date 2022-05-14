@@ -675,11 +675,7 @@ static int nfs_writepage_locked(struct page *page,
 	err = nfs_do_writepage(page, wbc, &pgio);
 	pgio.pg_error = 0;
 	nfs_pageio_complete(&pgio);
-	if (err < 0)
-		return err;
-	if (nfs_error_is_fatal(pgio.pg_error))
-		return pgio.pg_error;
-	return 0;
+	return err;
 }
 
 int nfs_writepage(struct page *page, struct writeback_control *wbc)
@@ -729,9 +725,6 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	nfs_io_completion_put(ioc);
 
 	if (err < 0)
-		goto out_err;
-	err = pgio.pg_error;
-	if (nfs_error_is_fatal(err))
 		goto out_err;
 	return 0;
 out_err:
