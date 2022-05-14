@@ -424,7 +424,7 @@ static int __bch2_request_key(char *key_description, struct bch_key *key)
 	const struct user_key_payload *ukp;
 	int ret;
 
-	keyring_key = request_key(&key_type_logon, key_description, NULL);
+	keyring_key = request_key(&key_type_user, key_description, NULL);
 	if (IS_ERR(keyring_key))
 		return PTR_ERR(keyring_key);
 
