@@ -7698,6 +7698,55 @@ static bool nfs4_xattr_list_nfs4_acl(struct dentry *dentry)
 	return nfs4_server_supports_acls(NFS_SB(dentry->d_sb), NFS4ACL_ACL);
 }
 
+#if defined(CONFIG_NFS_V4_1)
+#define XATTR_NAME_NFSV4_DACL "system.nfs4_dacl"
+
+static int nfs4_xattr_set_nfs4_dacl(const struct xattr_handler *handler,
+				    struct user_namespace *mnt_userns,
+				    struct dentry *unused, struct inode *inode,
+				    const char *key, const void *buf,
+				    size_t buflen, int flags)
+{
+	return nfs4_proc_set_acl(inode, buf, buflen, NFS4ACL_DACL);
+}
+
+static int nfs4_xattr_get_nfs4_dacl(const struct xattr_handler *handler,
+				    struct dentry *unused, struct inode *inode,
+				    const char *key, void *buf, size_t buflen)
+{
+	return nfs4_proc_get_acl(inode, buf, buflen, NFS4ACL_DACL);
+}
+
+static bool nfs4_xattr_list_nfs4_dacl(struct dentry *dentry)
+{
+	return nfs4_server_supports_acls(NFS_SB(dentry->d_sb), NFS4ACL_DACL);
+}
+
+#define XATTR_NAME_NFSV4_SACL "system.nfs4_sacl"
+
+static int nfs4_xattr_set_nfs4_sacl(const struct xattr_handler *handler,
+				    struct user_namespace *mnt_userns,
+				    struct dentry *unused, struct inode *inode,
+				    const char *key, const void *buf,
+				    size_t buflen, int flags)
+{
+	return nfs4_proc_set_acl(inode, buf, buflen, NFS4ACL_SACL);
+}
+
+static int nfs4_xattr_get_nfs4_sacl(const struct xattr_handler *handler,
+				    struct dentry *unused, struct inode *inode,
+				    const char *key, void *buf, size_t buflen)
+{
+	return nfs4_proc_get_acl(inode, buf, buflen, NFS4ACL_SACL);
+}
+
+static bool nfs4_xattr_list_nfs4_sacl(struct dentry *dentry)
+{
+	return nfs4_server_supports_acls(NFS_SB(dentry->d_sb), NFS4ACL_SACL);
+}
+
+#endif
+
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 
 static int nfs4_xattr_set_nfs4_label(const struct xattr_handler *handler,
@@ -10615,6 +10664,22 @@ static const struct xattr_handler nfs4_xattr_nfs4_acl_handler = {
 	.set	= nfs4_xattr_set_nfs4_acl,
 };
 
+#if defined(CONFIG_NFS_V4_1)
+static const struct xattr_handler nfs4_xattr_nfs4_dacl_handler = {
+	.name	= XATTR_NAME_NFSV4_DACL,
+	.list	= nfs4_xattr_list_nfs4_dacl,
+	.get	= nfs4_xattr_get_nfs4_dacl,
+	.set	= nfs4_xattr_set_nfs4_dacl,
+};
+
+static const struct xattr_handler nfs4_xattr_nfs4_sacl_handler = {
+	.name	= XATTR_NAME_NFSV4_SACL,
+	.list	= nfs4_xattr_list_nfs4_sacl,
+	.get	= nfs4_xattr_get_nfs4_sacl,
+	.set	= nfs4_xattr_set_nfs4_sacl,
+};
+#endif
+
 #ifdef CONFIG_NFS_V4_2
 static const struct xattr_handler nfs4_xattr_nfs4_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
@@ -10625,6 +10690,10 @@ static const struct xattr_handler nfs4_xattr_nfs4_user_handler = {
 
 const struct xattr_handler *nfs4_xattr_handlers[] = {
 	&nfs4_xattr_nfs4_acl_handler,
+#if defined(CONFIG_NFS_V4_1)
+	&nfs4_xattr_nfs4_dacl_handler,
+	&nfs4_xattr_nfs4_sacl_handler,
+#endif
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 	&nfs4_xattr_nfs4_label_handler,
 #endif
