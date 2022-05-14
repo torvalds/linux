@@ -149,7 +149,7 @@ jobs:
 
   x86_64_qemu:
    docker:
-     - image: lkldocker/circleci-qemu-x86_64:v1.1
+     - image: lkldocker/circleci-qemu-x86_64:v1.2
    environment:
      CROSS_COMPILE: ""
      MKARG: "dpdk=no"
