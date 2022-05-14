@@ -1510,7 +1510,7 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 		tid = u16_get_bits(le16_to_cpu(mgmt->u.action.u.addba_resp.capab),
 				   IEEE80211_ADDBA_PARAM_TID_MASK);
 		if (mgmt->u.action.u.addba_resp.status == 0) {	/* successful */
-			psta->htpriv.agg_enable_bitmap |= 1 << tid;
+			psta->htpriv.agg_enable_bitmap |= BIT(tid);
 			psta->htpriv.candidate_tid_bitmap &= ~BIT(tid);
 		} else {
 			psta->htpriv.agg_enable_bitmap &= ~BIT(tid);
