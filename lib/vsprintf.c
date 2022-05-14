@@ -776,12 +776,11 @@ static struct notifier_block random_ready = {
 
 static int __init initialize_ptr_random(void)
 {
-	int key_size = sizeof(ptr_key);
 	int ret;
 
-	/* Use hw RNG if available. */
-	if (get_random_bytes_arch(&ptr_key, key_size) == key_size) {
-		static_branch_disable(&not_filled_random_ptr_key);
+	/* Don't bother waiting for RNG to be ready if RDRAND is mixed in already. */
+	if (rng_has_arch_random()) {
+		enable_ptr_key_workfn(&enable_ptr_key_work);
 		return 0;
 	}
 
