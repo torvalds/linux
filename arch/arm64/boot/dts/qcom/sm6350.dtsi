@@ -472,7 +472,7 @@
 			clock-names = "core";
 		};
 
-		sdhc_1: sdhci@7c4000 {
+		sdhc_1: mmc@7c4000 {
 			compatible = "qcom,sm6350-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0 0x007c4000 0 0x1000>,
 				<0 0x007c5000 0 0x1000>,
@@ -921,7 +921,7 @@
 			};
 		};
 
-		sdhc_2: sdhci@8804000 {
+		sdhc_2: mmc@8804000 {
 			compatible = "qcom,sm6350-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0 0x08804000 0 0x1000>;
 

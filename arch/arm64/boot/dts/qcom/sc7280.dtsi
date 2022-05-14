@@ -857,7 +857,7 @@
 			};
 		};
 
-		sdhc_1: sdhci@7c4000 {
+		sdhc_1: mmc@7c4000 {
 			compatible = "qcom,sc7280-sdhci", "qcom,sdhci-msm-v5";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdc1_clk>, <&sdc1_cmd>, <&sdc1_data>, <&sdc1_rclk>;
@@ -3028,7 +3028,7 @@
 			};
 		};
 
-		sdhc_2: sdhci@8804000 {
+		sdhc_2: mmc@8804000 {
 			compatible = "qcom,sc7280-sdhci", "qcom,sdhci-msm-v5";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdc2_clk>, <&sdc2_cmd>, <&sdc2_data>;

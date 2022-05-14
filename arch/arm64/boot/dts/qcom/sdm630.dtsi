@@ -1277,7 +1277,7 @@
 			status = "disabled";
 		};
 
-		sdhc_2: sdhci@c084000 {
+		sdhc_2: mmc@c084000 {
 			compatible = "qcom,sdm630-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x0c084000 0x1000>;
 			reg-names = "hc";
@@ -1327,7 +1327,7 @@
 			};
 		};
 
-		sdhc_1: sdhci@c0c4000 {
+		sdhc_1: mmc@c0c4000 {
 			compatible = "qcom,sdm630-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x0c0c4000 0x1000>,
 			      <0x0c0c5000 0x1000>,

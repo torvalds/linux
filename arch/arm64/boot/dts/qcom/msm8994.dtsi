@@ -461,7 +461,7 @@
 			};
 		};
 
-		sdhc1: sdhci@f9824900 {
+		sdhc1: mmc@f9824900 {
 			compatible = "qcom,msm8994-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0xf9824900 0x1a0>, <0xf9824000 0x800>;
 			reg-names = "hc_mem", "core_mem";
@@ -484,7 +484,7 @@
 			status = "disabled";
 		};
 
-		sdhc2: sdhci@f98a4900 {
+		sdhc2: mmc@f98a4900 {
 			compatible = "qcom,msm8994-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0xf98a4900 0x11c>, <0xf98a4000 0x800>;
 			reg-names = "hc_mem", "core_mem";

@@ -435,7 +435,7 @@
 			reg = <0x045f0000 0x7000>;
 		};
 
-		sdhc_1: sdhci@4744000 {
+		sdhc_1: mmc@4744000 {
 			compatible = "qcom,sm6125-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x04744000 0x1000>, <0x04745000 0x1000>;
 			reg-names = "hc", "core";
@@ -456,7 +456,7 @@
 			status = "disabled";
 		};
 
-		sdhc_2: sdhci@4784000 {
+		sdhc_2: mmc@4784000 {
 			compatible = "qcom,sm6125-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x04784000 0x1000>;
 			reg-names = "hc";

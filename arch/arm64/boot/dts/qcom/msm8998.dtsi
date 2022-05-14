@@ -2075,7 +2075,7 @@
 			nvmem-cells = <&qusb2_hstx_trim>;
 		};
 
-		sdhc2: sdhci@c0a4900 {
+		sdhc2: mmc@c0a4900 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x0c0a4900 0x314>, <0x0c0a4000 0x800>;
 			reg-names = "hc_mem", "core_mem";
