@@ -1038,12 +1038,18 @@ static int ina2xx_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
+	int ret;
 
 	iio_device_unregister(indio_dev);
 
 	/* Powerdown */
-	return regmap_update_bits(chip->regmap, INA2XX_CONFIG,
-				  INA2XX_MODE_MASK, 0);
+	ret = regmap_update_bits(chip->regmap, INA2XX_CONFIG,
+				 INA2XX_MODE_MASK, 0);
+	if (ret)
+		dev_warn(&client->dev, "Failed to power down device (%pe)\n",
+			 ERR_PTR(ret));
+
+	return 0;
 }
 
 static const struct i2c_device_id ina2xx_id[] = {
