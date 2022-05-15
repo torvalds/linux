@@ -468,7 +468,7 @@ int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev,
 	
 	priv->pll[PLL_OF(JH7110_PLL0_OUT)] =
 			clk_hw_register_fixed_rate(priv->dev,
-			"pll0_out", "osc", 0, 1250000000);
+			"pll0_out", "osc", 0, 1000000000);
 	if (IS_ERR(priv->pll[PLL_OF(JH7110_PLL0_OUT)]))
 		return PTR_ERR(priv->pll[PLL_OF(JH7110_PLL0_OUT)]);
 
