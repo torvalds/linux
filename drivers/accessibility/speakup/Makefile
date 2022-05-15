@@ -30,3 +30,31 @@ speakup-y := \
 	thread.o \
 	varhandlers.o
 speakup-$(CONFIG_SPEAKUP_SERIALIO) += serialio.o
+
+
+clean-files := mapdata.h speakupmap.h
+
+
+# Generate mapdata.h from headers
+hostprogs += makemapdata
+makemapdata-objs := makemapdata.o
+
+quiet_cmd_mkmap = MKMAP   $@
+      cmd_mkmap = $(obj)/makemapdata > $@
+
+$(obj)/mapdata.h: $(obj)/makemapdata
+	$(call cmd,mkmap)
+
+
+# Generate speakupmap.map from mapdata.h
+hostprogs += genmap
+genmap-objs := genmap.o
+$(obj)/genmap.o: $(obj)/mapdata.h
+
+quiet_cmd_genmap = GENMAP  $@
+      cmd_genmap = $(obj)/genmap $< > $@
+
+$(obj)/speakupmap.h: $(obj)/speakupmap.map $(obj)/genmap
+	$(call cmd,genmap)
+
+$(obj)/main.o: $(obj)/speakupmap.h
