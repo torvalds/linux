@@ -23,7 +23,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.25"
+#define DRV_VERSION	"0.6.28"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -592,21 +592,19 @@ static struct ata_port_operations hpt374_fn1_port_ops = {
 
 /**
  *	hpt37x_clock_slot	-	Turn timing to PC clock entry
- *	@freq: Reported frequency timing
- *	@base: Base timing
+ *	@freq: Reported frequency in MHz
  *
- *	Turn the timing data intoa clock slot (0 for 33, 1 for 40, 2 for 50
+ *	Turn the timing data into a clock slot (0 for 33, 1 for 40, 2 for 50
  *	and 3 for 66Mhz)
  */
 
-static int hpt37x_clock_slot(unsigned int freq, unsigned int base)
+static int hpt37x_clock_slot(unsigned int freq)
 {
-	unsigned int f = (base * freq) / 192;	/* Mhz */
-	if (f < 40)
+	if (freq < 40)
 		return 0;	/* 33Mhz slot */
-	if (f < 45)
+	if (freq < 45)
 		return 1;	/* 40Mhz slot */
-	if (f < 55)
+	if (freq < 55)
 		return 2;	/* 50Mhz slot */
 	return 3;		/* 60Mhz slot */
 }
@@ -770,7 +768,8 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	u8 rev = dev->revision;
 	u8 irqmask;
 	u8 mcr1;
-	u32 freq;
+	unsigned int freq; /* MHz */
+	u32 fcnt;
 	int prefer_dpll = 1;
 
 	unsigned long iobase = pci_resource_start(dev, 4);
@@ -903,13 +902,13 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	 */
 
 	if (chip_table == &hpt374) {
-		freq = hpt374_read_freq(dev);
-		if (freq == 0)
+		fcnt = hpt374_read_freq(dev);
+		if (fcnt == 0)
 			return -ENODEV;
 	} else
-		freq = inl(iobase + 0x90);
+		fcnt = inl(iobase + 0x90);
 
-	if ((freq >> 12) != 0xABCDE) {
+	if ((fcnt >> 12) != 0xABCDE) {
 		int i;
 		u16 sr;
 		u32 total = 0;
@@ -922,16 +921,28 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			total += sr & 0x1FF;
 			udelay(15);
 		}
-		freq = total / 128;
+		fcnt = total / 128;
 	}
-	freq &= 0x1FF;
+	fcnt &= 0x1FF;
+
+	freq = (fcnt * chip_table->base) / 192;	/* Mhz */
+
+	/* Clamp to bands */
+	if (freq < 40)
+		freq = 33;
+	else if (freq < 45)
+		freq = 40;
+	else if (freq < 55)
+		freq = 50;
+	else
+		freq = 66;
 
 	/*
 	 *	Turn the frequency check into a band and then find a timing
 	 *	table to match it.
 	 */
 
-	clock_slot = hpt37x_clock_slot(freq, chip_table->base);
+	clock_slot = hpt37x_clock_slot(freq);
 	if (chip_table->clocks[clock_slot] == NULL || prefer_dpll) {
 		/*
 		 *	We need to try PLL mode instead
