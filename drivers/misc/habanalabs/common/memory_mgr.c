@@ -183,7 +183,7 @@ hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
 
 remove_idr:
 	spin_lock(&mmg->lock);
-	idr_remove(&mmg->handles, buf->handle);
+	idr_remove(&mmg->handles, lower_32_bits(buf->handle >> PAGE_SHIFT));
 	spin_unlock(&mmg->lock);
 free_buf:
 	kfree(buf);
@@ -295,7 +295,7 @@ int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 	}
 
 	buf->real_mapped_size = buf->mappable_size;
-	vma->vm_pgoff = handle;
+	vma->vm_pgoff = handle >> PAGE_SHIFT;
 
 	return 0;
 
