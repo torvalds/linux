@@ -1720,8 +1720,8 @@ static int rv1106_codec_check_micbias(struct rv1106_codec_priv *rv1106,
 	rv1106->micbias_used =
 		of_property_read_bool(np, "acodec,micbias");
 
-	/* Using 0.975*AVDD by default */
-	rv1106->micbias_volt = ACODEC_ADC_MICBIAS_VOLT_0_975;
+	/* Using 0.9*AVDD by default */
+	rv1106->micbias_volt = ACODEC_ADC_MICBIAS_VOLT_0_9;
 
 	return 0;
 }
