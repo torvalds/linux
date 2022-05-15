@@ -14,15 +14,6 @@
    actually talk to the hardware. Suggestions are welcome.
    Patches that work are more welcome though.  ;-)
 
- To Do List:
- ----------------------------------
-
- -- Modify sysctl/proc interface. I plan on having one directory per
- drive, with entries for outputing general drive information, and sysctl
- based tunable parameters such as whether the tray should auto-close for
- that drive. Suggestions (or patches) for this welcome!
-
-
  Revision History
  ----------------------------------
  1.00  Date Unknown -- David van Leeuwen <david@tm.tno.nl>
