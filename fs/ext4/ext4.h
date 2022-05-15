@@ -2745,6 +2745,8 @@ int ext4_fname_prepare_lookup(struct inode *dir, struct dentry *dentry,
 
 void ext4_fname_free_filename(struct ext4_filename *fname);
 
+int ext4_ioctl_get_encryption_pwsalt(struct file *filp, void __user *arg);
+
 #else /* !CONFIG_FS_ENCRYPTION */
 static inline int ext4_fname_setup_filename(struct inode *dir,
 					    const struct qstr *iname,
@@ -2776,6 +2778,12 @@ static inline void ext4_fname_free_filename(struct ext4_filename *fname)
 	kfree(fname->cf_name.name);
 	fname->cf_name.name = NULL;
 #endif
+}
+
+static inline int ext4_ioctl_get_encryption_pwsalt(struct file *filp,
+						   void __user *arg)
+{
+	return -EOPNOTSUPP;
 }
 #endif /* !CONFIG_FS_ENCRYPTION */
 

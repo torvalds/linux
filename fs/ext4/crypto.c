@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <linux/quotaops.h>
+#include <linux/uuid.h>
 
 #include "ext4.h"
 #include "xattr.h"
@@ -69,6 +70,59 @@ void ext4_fname_free_filename(struct ext4_filename *fname)
 	kfree(fname->cf_name.name);
 	fname->cf_name.name = NULL;
 #endif
+}
+
+static bool uuid_is_zero(__u8 u[16])
+{
+	int i;
+
+	for (i = 0; i < 16; i++)
+		if (u[i])
+			return false;
+	return true;
+}
+
+int ext4_ioctl_get_encryption_pwsalt(struct file *filp, void __user *arg)
+{
+	struct super_block *sb = file_inode(filp)->i_sb;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	int err, err2;
+	handle_t *handle;
+
+	if (!ext4_has_feature_encrypt(sb))
+		return -EOPNOTSUPP;
+
+	if (uuid_is_zero(sbi->s_es->s_encrypt_pw_salt)) {
+		err = mnt_want_write_file(filp);
+		if (err)
+			return err;
+		handle = ext4_journal_start_sb(sb, EXT4_HT_MISC, 1);
+		if (IS_ERR(handle)) {
+			err = PTR_ERR(handle);
+			goto pwsalt_err_exit;
+		}
+		err = ext4_journal_get_write_access(handle, sb, sbi->s_sbh,
+						    EXT4_JTR_NONE);
+		if (err)
+			goto pwsalt_err_journal;
+		lock_buffer(sbi->s_sbh);
+		generate_random_uuid(sbi->s_es->s_encrypt_pw_salt);
+		ext4_superblock_csum_set(sb);
+		unlock_buffer(sbi->s_sbh);
+		err = ext4_handle_dirty_metadata(handle, NULL, sbi->s_sbh);
+pwsalt_err_journal:
+		err2 = ext4_journal_stop(handle);
+		if (err2 && !err)
+			err = err2;
+pwsalt_err_exit:
+		mnt_drop_write_file(filp);
+		if (err)
+			return err;
+	}
+
+	if (copy_to_user(arg, sbi->s_es->s_encrypt_pw_salt, 16))
+		return -EFAULT;
+	return 0;
 }
 
 static int ext4_get_context(struct inode *inode, void *ctx, size_t len)
