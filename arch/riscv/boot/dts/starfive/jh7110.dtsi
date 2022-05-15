@@ -360,7 +360,7 @@
 				 <&clkgen JH7110_TIMER_CLK_APB>;
 			clock-names = "timer0", "timer1",
 				      "timer2", "timer3", "apb_clk";
-			clock-frequency = <2000000>;
+			clock-frequency = <24000000>;
 			status = "okay";
 		};
 
@@ -369,7 +369,6 @@
 			reg = <0x0 0x13070000 0x0 0x10000>;
 			interrupts = <68>;
 			interrupt-names = "wdog";
-			clock-frequency = <2000000>;
 			clocks = <&clkgen JH7110_DSKIT_WDT_CLK_WDT>,
 				 <&clkgen JH7110_DSKIT_WDT_CLK_APB>;
 			clock-names = "core_clk", "apb_clk";
