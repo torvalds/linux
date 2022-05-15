@@ -3467,20 +3467,23 @@ static void __user *io_provided_buffer_select(struct io_kiocb *req, size_t *len,
 					      struct io_buffer_list *bl,
 					      unsigned int issue_flags)
 {
-	struct io_buffer *kbuf;
+	void __user *ret = ERR_PTR(-ENOBUFS);
 
-	if (list_empty(&bl->buf_list))
-		return ERR_PTR(-ENOBUFS);
+	if (!list_empty(&bl->buf_list)) {
+		struct io_buffer *kbuf;
 
-	kbuf = list_first_entry(&bl->buf_list, struct io_buffer, list);
-	list_del(&kbuf->list);
-	if (*len > kbuf->len)
-		*len = kbuf->len;
-	req->flags |= REQ_F_BUFFER_SELECTED;
-	req->kbuf = kbuf;
-	req->buf_index = kbuf->bid;
+		kbuf = list_first_entry(&bl->buf_list, struct io_buffer, list);
+		list_del(&kbuf->list);
+		if (*len > kbuf->len)
+			*len = kbuf->len;
+		req->flags |= REQ_F_BUFFER_SELECTED;
+		req->kbuf = kbuf;
+		req->buf_index = kbuf->bid;
+		ret = u64_to_user_ptr(kbuf->addr);
+	}
+
 	io_ring_submit_unlock(req->ctx, issue_flags);
-	return u64_to_user_ptr(kbuf->addr);
+	return ret;
 }
 
 static void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
