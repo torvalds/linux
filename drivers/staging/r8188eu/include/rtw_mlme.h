@@ -363,8 +363,6 @@ struct mlme_priv {
 
 	u8 *assoc_req;
 	u32 assoc_req_len;
-	u8 *assoc_rsp;
-	u32 assoc_rsp_len;
 
 	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
 	 * in 802.11g BSS) */

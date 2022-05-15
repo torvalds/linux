@@ -40,7 +40,6 @@ static void rtw_free_mlme_ie_data(u8 **ppie, u32 *plen)
 void rtw_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv)
 {
 	kfree(pmlmepriv->assoc_req);
-	kfree(pmlmepriv->assoc_rsp);
 	rtw_free_mlme_ie_data(&pmlmepriv->wps_beacon_ie, &pmlmepriv->wps_beacon_ie_len);
 	rtw_free_mlme_ie_data(&pmlmepriv->wps_probe_req_ie, &pmlmepriv->wps_probe_req_ie_len);
 	rtw_free_mlme_ie_data(&pmlmepriv->wps_probe_resp_ie, &pmlmepriv->wps_probe_resp_ie_len);

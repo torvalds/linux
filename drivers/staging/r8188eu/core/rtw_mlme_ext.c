@@ -1272,7 +1272,6 @@ unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame
 	int res;
 	unsigned short	status;
 	struct ndis_802_11_var_ie *pIE;
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	/* struct wlan_bssid_ex *cur_network = &(pmlmeinfo->network); */
@@ -1343,11 +1342,6 @@ unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame
 	UpdateBrateTbl(padapter, pmlmeinfo->network.SupportedRates);
 
 report_assoc_result:
-	if (res > 0)
-		rtw_buf_update(&pmlmepriv->assoc_rsp, &pmlmepriv->assoc_rsp_len, pframe, pkt_len);
-	else
-		kfree(pmlmepriv->assoc_rsp);
-
 	report_join_res(padapter, res);
 
 	return _SUCCESS;
