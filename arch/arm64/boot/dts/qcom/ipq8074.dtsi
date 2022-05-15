@@ -347,6 +347,7 @@
 			compatible = "qcom,gcc-ipq8074";
 			reg = <0x01800000 0x80000>;
 			#clock-cells = <0x1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <0x1>;
 		};
 
@@ -575,6 +576,8 @@
 						<133330000>,
 						<19200000>;
 
+			power-domains = <&gcc USB0_GDSC>;
+
 			resets = <&gcc GCC_USB0_BCR>;
 			status = "disabled";
 
@@ -614,6 +617,8 @@
 			assigned-clock-rates = <133330000>,
 						<133330000>,
 						<19200000>;
+
+			power-domains = <&gcc USB1_GDSC>;
 
 			resets = <&gcc GCC_USB1_BCR>;
 			status = "disabled";
