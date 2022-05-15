@@ -78,8 +78,6 @@ int __init random_init(const char *command_line);
 bool rng_is_initialized(void);
 bool rng_has_arch_random(void);
 int wait_for_random_bytes(void);
-int register_random_ready_notifier(struct notifier_block *nb);
-int unregister_random_ready_notifier(struct notifier_block *nb);
 
 /* Calls wait_for_random_bytes() and then calls get_random_bytes(buf, nbytes).
  * Returns the result of the call to wait_for_random_bytes. */
