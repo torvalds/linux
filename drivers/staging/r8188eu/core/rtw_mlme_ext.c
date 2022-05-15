@@ -1504,7 +1504,8 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 		preorder_ctrl->enable = pmlmeinfo->bAcceptAddbaReq;
 
 		issue_action_BA(padapter, mgmt->sa, WLAN_ACTION_ADDBA_RESP,
-				pmlmeinfo->bAcceptAddbaReq ? 0 : 37);
+				pmlmeinfo->bAcceptAddbaReq ?
+					WLAN_STATUS_SUCCESS : WLAN_STATUS_REQUEST_DECLINED);
 		break;
 	case WLAN_ACTION_ADDBA_RESP:
 		tid = u16_get_bits(le16_to_cpu(mgmt->u.action.u.addba_resp.capab),
