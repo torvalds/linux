@@ -205,7 +205,6 @@ MODULE_DEVICE_TABLE(platform, si5wdt_ids);
 
 static int si5wdt_get_clock_rate(struct stf_si5_wdt *wdt)
 {
-#ifdef HWBOARD_FPGA
 	int ret;
 	u32 freq;
 
@@ -215,14 +214,13 @@ static int si5wdt_get_clock_rate(struct stf_si5_wdt *wdt)
 		wdt->freq = (u64)freq;
 		return 0;
 	}
-	dev_err(wdt->dev, "get rate failed, need clock-frequency define in dts.\n");
-#else
+	dev_dbg(wdt->dev, "get rate failed, need clock-frequency define in dts.\n");
+
 	if (!IS_ERR(wdt->core_clk)) {
 		wdt->freq = clk_get_rate(wdt->core_clk);
 		return 0;
 	}
-#endif
-
+	dev_err(wdt->dev, "get clock-frequency failed\n");
 	return -ENOENT;
 }
 

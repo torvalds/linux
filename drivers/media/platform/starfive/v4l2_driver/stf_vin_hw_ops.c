@@ -81,13 +81,8 @@ static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PCLK].clk);
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk);
 
-#ifdef HWBOARD_FPGA
 	clk_set_rate(stfcamss->sys_clk[STFCLK_APB_FUNC].clk, 51200000);
 	clk_set_rate(stfcamss->sys_clk[STFCLK_SYS_CLK].clk, 307200000);
-#else
-	reg_set_bit(vin->clkgen_base, CLK_DOM4_APB_FUNC, CLK_MUX_SEL, 0x8);
-	reg_set_bit(vin->clkgen_base, CLK_U0_VIN_SYS_CLK, CLK_MUX_SEL, 0x2);
-#endif
 
 	clk_set_phase(stfcamss->sys_clk[STFCLK_DVP_INV].clk, 0);
 	clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,

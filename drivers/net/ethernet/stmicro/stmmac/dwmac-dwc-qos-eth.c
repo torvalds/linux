@@ -42,6 +42,7 @@ struct starfive_eqos {
 	void __iomem *regs;
 	struct clk *clk_tx;
 	struct clk *clk_gtx;
+	struct clk *clk_gtxc;
 };
 
 static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
@@ -499,12 +500,24 @@ static int starfive_eqos_probe(struct platform_device *pdev,
 	if (err < 0)
 		goto disable_tx;
 
+	eqos->clk_gtxc = devm_clk_get(&pdev->dev, "gtxc");
+	if (IS_ERR(eqos->clk_gtxc)) {
+		err = PTR_ERR(eqos->clk_gtxc);
+		goto disable_gtx;
+	}
+
+	err = clk_prepare_enable(eqos->clk_gtxc);
+	if (err < 0)
+		goto disable_gtx;
+
 bypass_clk_reset_gpio:
 	data->fix_mac_speed = starfive_eqos_fix_speed;
 	data->init = NULL;
 	data->bsp_priv = eqos;
 	return 0;
 
+disable_gtx:
+	clk_disable_unprepare(eqos->clk_gtx);
 disable_tx:
 	clk_disable_unprepare(eqos->clk_tx);
 err:

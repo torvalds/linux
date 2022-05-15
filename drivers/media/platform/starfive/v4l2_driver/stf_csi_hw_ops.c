@@ -46,12 +46,7 @@ static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 
-#ifdef HWBOARD_FPGA
 	clk_set_rate(stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk, 204800000);
-#else
-	reg_set_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL, BIT(3)|BIT(2)|BIT(1)|BIT(0), 0x3<<0);
-#endif
-
 	clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
 		stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF0].clk);
