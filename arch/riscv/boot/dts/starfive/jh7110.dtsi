@@ -789,12 +789,14 @@
 				"tx",
 				"ptp_ref",
 				"stmmaceth",
-				"pclk";
+				"pclk",
+				"gtxc";
 			clocks = <&clkgen JH7110_GMAC0_GTXCLK>,
 				 <&clkgen JH7110_U0_GMAC5_CLK_TX>,
 				 <&clkgen JH7110_GMAC0_PTP>,
 				 <&clkgen JH7110_U0_GMAC5_CLK_AHB>,
-				 <&clkgen JH7110_U0_GMAC5_CLK_AXI>;
+				 <&clkgen JH7110_U0_GMAC5_CLK_AXI>,
+				 <&clkgen JH7110_GMAC0_GTXC>;
 			resets = <&rstgen RSTN_U0_DW_GMAC5_AXI64_AHB>,
 				 <&rstgen RSTN_U0_DW_GMAC5_AXI64_AXI>;
 			reset-names = "ahb", "stmmaceth";
@@ -802,10 +804,10 @@
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 			max-frame-size = <9000>;
 			phy-mode = "rgmii-id";
-			snps,multicast-filter-bins = <256>;
+			snps,multicast-filter-bins = <64>;
 			snps,perfect-filter-entries = <128>;
-			rx-fifo-depth = <262144>;
-			tx-fifo-depth = <131072>;
+			rx-fifo-depth = <2048>;
+			tx-fifo-depth = <2048>;
 			snps,fixed-burst;
 			snps,no-pbl-x8;
 			snps,force_thresh_dma_mode;
@@ -813,8 +815,8 @@
 			snps,tso;
 			snps,en-tx-lpi-clockgating;
 			snps,en-lpi;
-			snps,write-requests = <2>;
-			snps,read-requests = <16>;
+			snps,write-requests = <4>;
+			snps,read-requests = <4>;
 			snps,burst-map = <0x7>;
 			snps,txpbl = <16>;
 			snps,rxpbl = <16>;
