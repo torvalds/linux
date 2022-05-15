@@ -23,7 +23,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.29"
+#define DRV_VERSION	"0.6.30"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -644,26 +644,6 @@ static int hpt37x_calibrate_dpll(struct pci_dev *dev)
 	return 0;
 }
 
-static u32 hpt374_read_freq(struct pci_dev *pdev)
-{
-	u32 freq;
-	unsigned long io_base = pci_resource_start(pdev, 4);
-
-	if (PCI_FUNC(pdev->devfn) & 1) {
-		struct pci_dev *pdev_0;
-
-		pdev_0 = pci_get_slot(pdev->bus, pdev->devfn - 1);
-		/* Someone hot plugged the controller on us ? */
-		if (pdev_0 == NULL)
-			return 0;
-		io_base = pci_resource_start(pdev_0, 4);
-		freq = inl(io_base + 0x90);
-		pci_dev_put(pdev_0);
-	} else
-		freq = inl(io_base + 0x90);
-	return freq;
-}
-
 static int hpt37x_pci_clock(struct pci_dev *pdev, unsigned int base)
 {
 	unsigned int freq;
@@ -674,10 +654,16 @@ static int hpt37x_pci_clock(struct pci_dev *pdev, unsigned int base)
 	 * according to the old driver. In addition we must use the value
 	 * from FN 0 on the HPT374.
 	 */
-	if (pdev->device == PCI_DEVICE_ID_TTI_HPT374) {
-		fcnt = hpt374_read_freq(pdev);
-		if (!fcnt)
+	if (pdev->device == PCI_DEVICE_ID_TTI_HPT374 &&
+	    (PCI_FUNC(pdev->devfn) & 1)) {
+		struct pci_dev *pdev_fn0;
+
+		pdev_fn0 = pci_get_slot(pdev->bus, pdev->devfn - 1);
+		/* Someone hot plugged the controller on us? */
+		if (!pdev_fn0)
 			return 0;
+		fcnt = inl(pci_resource_start(pdev_fn0, 4) + 0x90);
+		pci_dev_put(pdev_fn0);
 	} else	{
 		fcnt = inl(pci_resource_start(pdev, 4) + 0x90);
 	}
