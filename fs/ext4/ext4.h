@@ -2733,7 +2733,10 @@ extern int ext4_fname_setup_ci_filename(struct inode *dir,
 					 struct ext4_filename *fname);
 #endif
 
+/* ext4 encryption related stuff goes here crypto.c */
 #ifdef CONFIG_FS_ENCRYPTION
+extern const struct fscrypt_operations ext4_cryptops;
+
 static inline void ext4_fname_from_fscrypt_name(struct ext4_filename *dst,
 						const struct fscrypt_name *src)
 {
