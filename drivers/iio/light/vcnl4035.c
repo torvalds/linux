@@ -604,14 +604,20 @@ fail_poweroff:
 static int vcnl4035_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	int ret;
 
 	pm_runtime_dont_use_autosuspend(&client->dev);
 	pm_runtime_disable(&client->dev);
 	iio_device_unregister(indio_dev);
 	pm_runtime_set_suspended(&client->dev);
 
-	return vcnl4035_set_als_power_state(iio_priv(indio_dev),
-					VCNL4035_MODE_ALS_DISABLE);
+	ret = vcnl4035_set_als_power_state(iio_priv(indio_dev),
+					   VCNL4035_MODE_ALS_DISABLE);
+	if (ret)
+		dev_warn(&client->dev, "Failed to put device into standby (%pe)\n",
+			 ERR_PTR(ret));
+
+	return 0;
 }
 
 static int __maybe_unused vcnl4035_runtime_suspend(struct device *dev)
