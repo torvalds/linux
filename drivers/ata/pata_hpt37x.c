@@ -23,7 +23,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.28"
+#define DRV_VERSION	"0.6.29"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -664,6 +664,53 @@ static u32 hpt374_read_freq(struct pci_dev *pdev)
 	return freq;
 }
 
+static int hpt37x_pci_clock(struct pci_dev *pdev, unsigned int base)
+{
+	unsigned int freq;
+	u32 fcnt;
+
+	/*
+	 * Some devices do not let this value be accessed via PCI space
+	 * according to the old driver. In addition we must use the value
+	 * from FN 0 on the HPT374.
+	 */
+	if (pdev->device == PCI_DEVICE_ID_TTI_HPT374) {
+		fcnt = hpt374_read_freq(pdev);
+		if (!fcnt)
+			return 0;
+	} else	{
+		fcnt = inl(pci_resource_start(pdev, 4) + 0x90);
+	}
+
+	if ((fcnt >> 12) != 0xABCDE) {
+		u32 total = 0;
+		int i;
+		u16 sr;
+
+		dev_warn(&pdev->dev, "BIOS clock data not set\n");
+
+		/* This is the process the HPT371 BIOS is reported to use */
+		for (i = 0; i < 128; i++) {
+			pci_read_config_word(pdev, 0x78, &sr);
+			total += sr & 0x1FF;
+			udelay(15);
+		}
+		fcnt = total / 128;
+	}
+	fcnt &= 0x1FF;
+
+	freq = (fcnt * base) / 192;	/* in MHz */
+
+	/* Clamp to bands */
+	if (freq < 40)
+		return 33;
+	if (freq < 45)
+		return 40;
+	if (freq < 55)
+		return 50;
+	return 66;
+}
+
 /**
  *	hpt37x_init_one		-	Initialise an HPT37X/302
  *	@dev: PCI device
@@ -769,7 +816,6 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	u8 irqmask;
 	u8 mcr1;
 	unsigned int freq; /* MHz */
-	u32 fcnt;
 	int prefer_dpll = 1;
 
 	unsigned long iobase = pci_resource_start(dev, 4);
@@ -895,47 +941,9 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (chip_table == &hpt372a)
 		outb(0x0e, iobase + 0x9c);
 
-	/*
-	 * Some devices do not let this value be accessed via PCI space
-	 * according to the old driver. In addition we must use the value
-	 * from FN 0 on the HPT374.
-	 */
-
-	if (chip_table == &hpt374) {
-		fcnt = hpt374_read_freq(dev);
-		if (fcnt == 0)
-			return -ENODEV;
-	} else
-		fcnt = inl(iobase + 0x90);
-
-	if ((fcnt >> 12) != 0xABCDE) {
-		int i;
-		u16 sr;
-		u32 total = 0;
-
-		dev_warn(&dev->dev, "BIOS has not set timing clocks\n");
-
-		/* This is the process the HPT371 BIOS is reported to use */
-		for (i = 0; i < 128; i++) {
-			pci_read_config_word(dev, 0x78, &sr);
-			total += sr & 0x1FF;
-			udelay(15);
-		}
-		fcnt = total / 128;
-	}
-	fcnt &= 0x1FF;
-
-	freq = (fcnt * chip_table->base) / 192;	/* Mhz */
-
-	/* Clamp to bands */
-	if (freq < 40)
-		freq = 33;
-	else if (freq < 45)
-		freq = 40;
-	else if (freq < 55)
-		freq = 50;
-	else
-		freq = 66;
+	freq = hpt37x_pci_clock(dev, chip_table->base);
+	if (!freq)
+		return -ENODEV;
 
 	/*
 	 *	Turn the frequency check into a band and then find a timing
