@@ -272,7 +272,6 @@ struct advk_pcie {
 		u32 actions;
 	} wins[OB_WIN_COUNT];
 	u8 wins_count;
-	int irq;
 	struct irq_domain *rp_irq_domain;
 	struct irq_domain *irq_domain;
 	struct irq_chip irq_chip;
@@ -1572,26 +1571,21 @@ static void advk_pcie_handle_int(struct advk_pcie *pcie)
 	}
 }
 
-static void advk_pcie_irq_handler(struct irq_desc *desc)
+static irqreturn_t advk_pcie_irq_handler(int irq, void *arg)
 {
-	struct advk_pcie *pcie = irq_desc_get_handler_data(desc);
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	u32 val, mask, status;
+	struct advk_pcie *pcie = arg;
+	u32 status;
 
-	chained_irq_enter(chip, desc);
+	status = advk_readl(pcie, HOST_CTRL_INT_STATUS_REG);
+	if (!(status & PCIE_IRQ_CORE_INT))
+		return IRQ_NONE;
 
-	val = advk_readl(pcie, HOST_CTRL_INT_STATUS_REG);
-	mask = advk_readl(pcie, HOST_CTRL_INT_MASK_REG);
-	status = val & ((~mask) & PCIE_IRQ_ALL_MASK);
+	advk_pcie_handle_int(pcie);
 
-	if (status & PCIE_IRQ_CORE_INT) {
-		advk_pcie_handle_int(pcie);
+	/* Clear interrupt */
+	advk_writel(pcie, PCIE_IRQ_CORE_INT, HOST_CTRL_INT_STATUS_REG);
 
-		/* Clear interrupt */
-		advk_writel(pcie, PCIE_IRQ_CORE_INT, HOST_CTRL_INT_STATUS_REG);
-	}
-
-	chained_irq_exit(chip, desc);
+	return IRQ_HANDLED;
 }
 
 static int advk_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
@@ -1673,7 +1667,7 @@ static int advk_pcie_probe(struct platform_device *pdev)
 	struct advk_pcie *pcie;
 	struct pci_host_bridge *bridge;
 	struct resource_entry *entry;
-	int ret;
+	int ret, irq;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(struct advk_pcie));
 	if (!bridge)
@@ -1759,9 +1753,17 @@ static int advk_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(pcie->base))
 		return PTR_ERR(pcie->base);
 
-	pcie->irq = platform_get_irq(pdev, 0);
-	if (pcie->irq < 0)
-		return pcie->irq;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	ret = devm_request_irq(dev, irq, advk_pcie_irq_handler,
+			       IRQF_SHARED | IRQF_NO_THREAD, "advk-pcie",
+			       pcie);
+	if (ret) {
+		dev_err(dev, "Failed to register interrupt\n");
+		return ret;
+	}
 
 	pcie->reset_gpio = devm_gpiod_get_from_of_node(dev, dev->of_node,
 						       "reset-gpios", 0,
@@ -1818,15 +1820,12 @@ static int advk_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	irq_set_chained_handler_and_data(pcie->irq, advk_pcie_irq_handler, pcie);
-
 	bridge->sysdata = pcie;
 	bridge->ops = &advk_pcie_ops;
 	bridge->map_irq = advk_pcie_map_irq;
 
 	ret = pci_host_probe(bridge);
 	if (ret < 0) {
-		irq_set_chained_handler_and_data(pcie->irq, NULL, NULL);
 		advk_pcie_remove_rp_irq_domain(pcie);
 		advk_pcie_remove_msi_irq_domain(pcie);
 		advk_pcie_remove_irq_domain(pcie);
@@ -1874,9 +1873,6 @@ static int advk_pcie_remove(struct platform_device *pdev)
 	advk_writel(pcie, PCIE_ISR0_ALL_MASK, PCIE_ISR0_REG);
 	advk_writel(pcie, PCIE_ISR1_ALL_MASK, PCIE_ISR1_REG);
 	advk_writel(pcie, PCIE_IRQ_ALL_MASK, HOST_CTRL_INT_STATUS_REG);
-
-	/* Remove IRQ handler */
-	irq_set_chained_handler_and_data(pcie->irq, NULL, NULL);
 
 	/* Remove IRQ domains */
 	advk_pcie_remove_rp_irq_domain(pcie);
