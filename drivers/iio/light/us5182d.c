@@ -907,13 +907,19 @@ out_err:
 static int us5182d_remove(struct i2c_client *client)
 {
 	struct us5182d_data *data = iio_priv(i2c_get_clientdata(client));
+	int ret;
 
 	iio_device_unregister(i2c_get_clientdata(client));
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 
-	return us5182d_shutdown_en(data, US5182D_CFG0_SHUTDOWN_EN);
+	ret = us5182d_shutdown_en(data, US5182D_CFG0_SHUTDOWN_EN);
+	if (ret)
+		dev_warn(&client->dev, "Failed to shut down (%pe)\n",
+			 ERR_PTR(ret));
+
+	return 0;
 }
 
 #if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM)
