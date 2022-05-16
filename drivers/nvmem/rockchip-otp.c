@@ -823,6 +823,10 @@ static const struct of_device_id rockchip_otp_match[] = {
 		.compatible = "rockchip,rk3308-otp",
 		.data = (void *)&px30_data,
 	},
+	{
+		.compatible = "rockchip,rk3308bs-otp",
+		.data = (void *)&px30s_data,
+	},
 #endif
 #ifdef CONFIG_CPU_RK3568
 	{
@@ -865,7 +869,7 @@ static int rockchip_otp_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get match data\n");
 		return -EINVAL;
 	}
-	if (soc_is_px30s())
+	if (soc_is_px30s() || soc_is_rk3308bs())
 		data = &px30s_data;
 
 	otp = devm_kzalloc(&pdev->dev, sizeof(struct rockchip_otp),
