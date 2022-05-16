@@ -117,22 +117,25 @@ enum dvbm_flow {
 
 #define DVBM_REG_OFFSET 0x2c
 
-#define SOFT_DVBM
+#define SOFT_DVBM 1
 #define UPDATE_LINE_CNT 0
 
 static void rk_dvbm_set_reg(struct dvbm_ctx *ctx, u32 offset, u32 val)
 {
-	#ifndef SOFT_DVBM
-	dvbm_debug_reg("write reg[%d] 0x%x = 0x%08x\n", offset >> 2, offset, val);
-	writel(val, ctx->reg_base + offset);
-	#endif
+	if (!SOFT_DVBM) {
+		dvbm_debug_reg("write reg[%d] 0x%x = 0x%08x\n", offset >> 2, offset, val);
+		writel(val, ctx->reg_base + offset);
+	}
 }
 
 static u32 rk_dvbm_read_reg(struct dvbm_ctx *ctx, u32 offset)
 {
-	u32 val = readl(ctx->reg_base + offset);
+	u32 val = 0;
 
-	dvbm_debug_reg("read reg[%d] 0x%x = 0x%08x\n", offset >> 2, offset, val);
+	if (!SOFT_DVBM) {
+		val = readl(ctx->reg_base + offset);
+		dvbm_debug_reg("read reg[%d] 0x%x = 0x%08x\n", offset >> 2, offset, val);
+	}
 	return val;
 }
 
@@ -671,13 +674,15 @@ static int rk_dvbm_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto failed;
 	}
-	ret = pm_runtime_get_sync(dev);
-	if (ret)
-		dev_err(dev, "pm get failed!\n");
+	if (!SOFT_DVBM) {
+		ret = pm_runtime_get_sync(dev);
+		if (ret)
+			dev_err(dev, "pm get failed!\n");
+		ret = rk_dvbm_clk_on(ctx);
+		if (ret)
+			goto failed;
+	}
 	g_ctx = ctx;
-	ret = rk_dvbm_clk_on(ctx);
-	if (ret)
-		goto failed;
 	rk_dvbm_reg_init(ctx);
 	ctx->ignore_ovfl = 1;
 	ctx->dump_s = 0x80;
@@ -704,8 +709,10 @@ static int rk_dvbm_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	dev_info(dev, "remove device\n");
-	rk_dvbm_clk_off(g_ctx);
-	pm_runtime_put(dev);
+	if (!SOFT_DVBM) {
+		rk_dvbm_clk_off(g_ctx);
+		pm_runtime_put(dev);
+	}
 	pm_runtime_disable(dev);
 
 	return 0;
