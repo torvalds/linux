@@ -1255,9 +1255,8 @@ static void chv_gpio_irq_ack(struct irq_data *d)
 	raw_spin_unlock(&chv_lock);
 }
 
-static void chv_gpio_irq_mask_unmask(struct irq_data *d, irq_hw_number_t hwirq, bool mask)
+static void chv_gpio_irq_mask_unmask(struct gpio_chip *gc, irq_hw_number_t hwirq, bool mask)
 {
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
 	u32 value, intr_line;
 	unsigned long flags;
@@ -1283,7 +1282,7 @@ static void chv_gpio_irq_mask(struct irq_data *d)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-	chv_gpio_irq_mask_unmask(d, hwirq, true);
+	chv_gpio_irq_mask_unmask(gc, hwirq, true);
 	gpiochip_disable_irq(gc, hwirq);
 }
 
@@ -1293,7 +1292,7 @@ static void chv_gpio_irq_unmask(struct irq_data *d)
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
 	gpiochip_enable_irq(gc, hwirq);
-	chv_gpio_irq_mask_unmask(d, hwirq, false);
+	chv_gpio_irq_mask_unmask(gc, hwirq, false);
 }
 
 static unsigned chv_gpio_irq_startup(struct irq_data *d)
