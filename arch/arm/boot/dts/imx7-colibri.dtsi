@@ -6,6 +6,11 @@
 #include <dt-bindings/pwm/pwm.h>
 
 / {
+	aliases {
+		rtc0 = &rtc;
+		rtc1 = &snvs_rtc;
+	};
+
 	backlight: backlight {
 		brightness-levels = <0 45 63 88 119 158 203 255>;
 		compatible = "pwm-backlight";
@@ -16,6 +21,32 @@
 		power-supply = <&reg_module_3v3>;
 		pwms = <&pwm1 0 6666667 PWM_POLARITY_INVERTED>;
 		status = "disabled";
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	extcon_usbc_det: usbc-det {
+		compatible = "linux,extcon-usb-gpio";
+		debounce = <25>;
+		id-gpio = <&gpio7 14 GPIO_ACTIVE_HIGH>; /* SODIMM 137 / USBC_DET */
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbc_det>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpiokeys>;
+
+		wakeup {
+			debounce-interval = <10>;
+			gpios = <&gpio1 1 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>; /* SODIMM 45 */
+			label = "Wake-Up";
+			linux,code = <KEY_WAKEUP>;
+			wakeup-source;
+		};
 	};
 
 	panel_dpi: panel-dpi {
@@ -513,6 +544,7 @@
 
 &usbotg1 {
 	dr_mode = "otg";
+	extcon = <0>, <&extcon_usbc_det>;
 };
 
 &usdhc1 {
