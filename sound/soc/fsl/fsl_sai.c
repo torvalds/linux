@@ -1203,6 +1203,7 @@ static const struct fsl_sai_soc_data fsl_sai_vf610_data = {
 	.reg_offset = 0,
 	.mclk0_is_mclk1 = false,
 	.flags = 0,
+	.max_register = FSL_SAI_RMR,
 };
 
 static const struct fsl_sai_soc_data fsl_sai_imx6sx_data = {
@@ -1213,6 +1214,7 @@ static const struct fsl_sai_soc_data fsl_sai_imx6sx_data = {
 	.reg_offset = 0,
 	.mclk0_is_mclk1 = true,
 	.flags = 0,
+	.max_register = FSL_SAI_RMR,
 };
 
 static const struct fsl_sai_soc_data fsl_sai_imx7ulp_data = {
@@ -1223,6 +1225,7 @@ static const struct fsl_sai_soc_data fsl_sai_imx7ulp_data = {
 	.reg_offset = 8,
 	.mclk0_is_mclk1 = false,
 	.flags = PMQOS_CPU_LATENCY,
+	.max_register = FSL_SAI_RMR,
 };
 
 static const struct fsl_sai_soc_data fsl_sai_imx8mq_data = {
@@ -1233,6 +1236,7 @@ static const struct fsl_sai_soc_data fsl_sai_imx8mq_data = {
 	.reg_offset = 8,
 	.mclk0_is_mclk1 = false,
 	.flags = 0,
+	.max_register = FSL_SAI_RMR,
 };
 
 static const struct fsl_sai_soc_data fsl_sai_imx8qm_data = {
@@ -1243,6 +1247,18 @@ static const struct fsl_sai_soc_data fsl_sai_imx8qm_data = {
 	.reg_offset = 0,
 	.mclk0_is_mclk1 = false,
 	.flags = 0,
+	.max_register = FSL_SAI_RMR,
+};
+
+static const struct fsl_sai_soc_data fsl_sai_imx8mm_data = {
+	.use_imx_pcm = true,
+	.use_edma = false,
+	.fifo_depth = 128,
+	.reg_offset = 8,
+	.mclk0_is_mclk1 = false,
+	.pins = 8,
+	.flags = 0,
+	.max_register = FSL_SAI_MCTL,
 };
 
 static const struct of_device_id fsl_sai_ids[] = {
@@ -1252,6 +1268,7 @@ static const struct of_device_id fsl_sai_ids[] = {
 	{ .compatible = "fsl,imx7ulp-sai", .data = &fsl_sai_imx7ulp_data },
 	{ .compatible = "fsl,imx8mq-sai", .data = &fsl_sai_imx8mq_data },
 	{ .compatible = "fsl,imx8qm-sai", .data = &fsl_sai_imx8qm_data },
+	{ .compatible = "fsl,imx8mm-sai", .data = &fsl_sai_imx8mm_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_sai_ids);
