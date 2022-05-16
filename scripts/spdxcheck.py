@@ -285,7 +285,9 @@ if __name__ == '__main__':
                 sys.stderr.write('\n')
                 sys.stderr.write('Files checked:     %12d\n' %parser.checked)
                 sys.stderr.write('Lines checked:     %12d\n' %parser.lines_checked)
-                sys.stderr.write('Files with SPDX:   %12d\n' %parser.spdx_valid)
+                if parser.checked:
+                    pc = int(100 * parser.spdx_valid / parser.checked)
+                    sys.stderr.write('Files with SPDX:   %12d %3d%%\n' %(parser.spdx_valid, pc))
                 sys.stderr.write('Files with errors: %12d\n' %parser.spdx_errors)
 
             sys.exit(0)
