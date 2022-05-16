@@ -6,11 +6,13 @@
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
 //
 
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/slab.h>
 #include <sound/hdaudio_ext.h>
 #include "avs.h"
 #include "messages.h"
 #include "registers.h"
+#include "trace.h"
 
 #define AVS_IPC_TIMEOUT_MS	300
 #define AVS_D0IX_DELAY_MS	300
@@ -179,6 +181,10 @@ static void avs_dsp_receive_rx(struct avs_dev *adev, u64 header)
 {
 	struct avs_ipc *ipc = adev->ipc;
 	union avs_reply_msg msg = AVS_MSG(header);
+	u64 reg;
+
+	reg = readq(avs_sram_addr(adev, AVS_FW_REGS_WINDOW));
+	trace_avs_ipc_reply_msg(header, reg);
 
 	ipc->rx.header = header;
 	/* Abort copying payload if request processing was unsuccessful. */
@@ -189,6 +195,7 @@ static void avs_dsp_receive_rx(struct avs_dev *adev, u64 header)
 			ipc->rx.size = msg.ext.large_config.data_off_size;
 
 		memcpy_fromio(ipc->rx.data, avs_uplink_addr(adev), ipc->rx.size);
+		trace_avs_msg_payload(ipc->rx.data, ipc->rx.size);
 	}
 }
 
@@ -198,6 +205,10 @@ static void avs_dsp_process_notification(struct avs_dev *adev, u64 header)
 	union avs_notify_msg msg = AVS_MSG(header);
 	size_t data_size = 0;
 	void *data = NULL;
+	u64 reg;
+
+	reg = readq(avs_sram_addr(adev, AVS_FW_REGS_WINDOW));
+	trace_avs_ipc_notify_msg(header, reg);
 
 	/* Ignore spurious notifications until handshake is established. */
 	if (!adev->ipc->ready && msg.notify_msg_type != AVS_NOTIFY_FW_READY) {
@@ -239,6 +250,7 @@ static void avs_dsp_process_notification(struct avs_dev *adev, u64 header)
 			return;
 
 		memcpy_fromio(data, avs_uplink_addr(adev), data_size);
+		trace_avs_msg_payload(data, data_size);
 	}
 
 	/* Perform notification-specific operations. */
@@ -422,9 +434,15 @@ static void avs_ipc_msg_init(struct avs_ipc *ipc, struct avs_ipc_msg *reply)
 	reinit_completion(&ipc->busy_completion);
 }
 
-static void avs_dsp_send_tx(struct avs_dev *adev, struct avs_ipc_msg *tx)
+static void avs_dsp_send_tx(struct avs_dev *adev, struct avs_ipc_msg *tx, bool read_fwregs)
 {
+	u64 reg = ULONG_MAX;
+
 	tx->header |= SKL_ADSP_HIPCI_BUSY;
+	if (read_fwregs)
+		reg = readq(avs_sram_addr(adev, AVS_FW_REGS_WINDOW));
+
+	trace_avs_request(tx, reg);
 
 	if (tx->size)
 		memcpy_toio(avs_downlink_addr(adev), tx->data, tx->size);
@@ -445,7 +463,7 @@ static int avs_dsp_do_send_msg(struct avs_dev *adev, struct avs_ipc_msg *request
 
 	spin_lock(&ipc->rx_lock);
 	avs_ipc_msg_init(ipc, reply);
-	avs_dsp_send_tx(adev, request);
+	avs_dsp_send_tx(adev, request, true);
 	spin_unlock(&ipc->rx_lock);
 
 	ret = avs_ipc_wait_busy_completion(ipc, timeout);
@@ -477,6 +495,7 @@ static int avs_dsp_send_msg_sequence(struct avs_dev *adev, struct avs_ipc_msg *r
 {
 	int ret;
 
+	trace_avs_d0ix("wake", wake_d0i0, request->header);
 	if (wake_d0i0) {
 		ret = avs_dsp_wake_d0i0(adev, request);
 		if (ret)
@@ -487,6 +506,7 @@ static int avs_dsp_send_msg_sequence(struct avs_dev *adev, struct avs_ipc_msg *r
 	if (ret)
 		return ret;
 
+	trace_avs_d0ix("schedule", schedule_d0ix, request->header);
 	if (schedule_d0ix)
 		avs_dsp_schedule_d0ix(adev, request);
 
@@ -530,7 +550,11 @@ static int avs_dsp_do_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *req
 
 	spin_lock(&ipc->rx_lock);
 	avs_ipc_msg_init(ipc, NULL);
-	avs_dsp_send_tx(adev, request);
+	/*
+	 * with hw still stalled, memory windows may not be
+	 * configured properly so avoid accessing SRAM
+	 */
+	avs_dsp_send_tx(adev, request, false);
 	spin_unlock(&ipc->rx_lock);
 
 	/* ROM messages must be sent before main core is unstalled */
