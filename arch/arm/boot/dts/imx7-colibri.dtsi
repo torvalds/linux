@@ -585,12 +585,19 @@
 	extcon = <0>, <&extcon_usbc_det>;
 };
 
+/* Colibri MMC/SD */
 &usdhc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_cd_usdhc1>;
 	cd-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
 	disable-wp;
+	no-1-8-v;
+	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
+	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_cd_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz &pinctrl_cd_usdhc1>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz &pinctrl_cd_usdhc1>;
+	pinctrl-3 = <&pinctrl_usdhc1_sleep &pinctrl_cd_usdhc1_sleep>;
+	vmmc-supply = <&reg_3v3>;
 	vqmmc-supply = <&reg_LDO2>;
+	wakeup-source;
 };
 
 &usdhc3 {
@@ -949,36 +956,48 @@
 		>;
 	};
 
-	pinctrl_usdhc1: usdhc1-grp {
+	pinctrl_usdhc1: usdhc1grp {
 		fsl,pins = <
-			MX7D_PAD_SD1_CMD__SD1_CMD	0x59
-			MX7D_PAD_SD1_CLK__SD1_CLK	0x19
-			MX7D_PAD_SD1_DATA0__SD1_DATA0	0x59
-			MX7D_PAD_SD1_DATA1__SD1_DATA1	0x59
-			MX7D_PAD_SD1_DATA2__SD1_DATA2	0x59
-			MX7D_PAD_SD1_DATA3__SD1_DATA3	0x59
+			MX7D_PAD_SD1_CLK__SD1_CLK		0x19 /* SODIMM 47 */
+			MX7D_PAD_SD1_CMD__SD1_CMD		0x59 /* SODIMM 190 */
+			MX7D_PAD_SD1_DATA0__SD1_DATA0		0x59 /* SODIMM 192 */
+			MX7D_PAD_SD1_DATA1__SD1_DATA1		0x59 /* SODIMM 49 */
+			MX7D_PAD_SD1_DATA2__SD1_DATA2		0x59 /* SODIMM 51 */
+			MX7D_PAD_SD1_DATA3__SD1_DATA3		0x59 /* SODIMM 53 */
 		>;
 	};
 
-	pinctrl_usdhc1_100mhz: usdhc1grp_100mhz {
+	pinctrl_usdhc1_100mhz: usdhc1-100mhzgrp {
 		fsl,pins = <
-			MX7D_PAD_SD1_CMD__SD1_CMD	0x5a
-			MX7D_PAD_SD1_CLK__SD1_CLK	0x1a
-			MX7D_PAD_SD1_DATA0__SD1_DATA0	0x5a
-			MX7D_PAD_SD1_DATA1__SD1_DATA1	0x5a
-			MX7D_PAD_SD1_DATA2__SD1_DATA2	0x5a
-			MX7D_PAD_SD1_DATA3__SD1_DATA3	0x5a
+			MX7D_PAD_SD1_CLK__SD1_CLK		0x1a
+			MX7D_PAD_SD1_CMD__SD1_CMD		0x5a
+			MX7D_PAD_SD1_DATA0__SD1_DATA0		0x5a
+			MX7D_PAD_SD1_DATA1__SD1_DATA1		0x5a
+			MX7D_PAD_SD1_DATA2__SD1_DATA2		0x5a
+			MX7D_PAD_SD1_DATA3__SD1_DATA3		0x5a
 		>;
 	};
 
-	pinctrl_usdhc1_200mhz: usdhc1grp_200mhz {
+	pinctrl_usdhc1_200mhz: usdhc1-200mhzgrp {
 		fsl,pins = <
-			MX7D_PAD_SD1_CMD__SD1_CMD	0x5b
-			MX7D_PAD_SD1_CLK__SD1_CLK	0x1b
-			MX7D_PAD_SD1_DATA0__SD1_DATA0	0x5b
-			MX7D_PAD_SD1_DATA1__SD1_DATA1	0x5b
-			MX7D_PAD_SD1_DATA2__SD1_DATA2	0x5b
-			MX7D_PAD_SD1_DATA3__SD1_DATA3	0x5b
+			MX7D_PAD_SD1_CLK__SD1_CLK		0x1b
+			MX7D_PAD_SD1_CMD__SD1_CMD		0x5b
+			MX7D_PAD_SD1_DATA0__SD1_DATA0		0x5b
+			MX7D_PAD_SD1_DATA1__SD1_DATA1		0x5b
+			MX7D_PAD_SD1_DATA2__SD1_DATA2		0x5b
+			MX7D_PAD_SD1_DATA3__SD1_DATA3		0x5b
+		>;
+	};
+
+	/* Avoid backfeeding with removed card power. */
+	pinctrl_usdhc1_sleep: usdhc1-slpgrp {
+		fsl,pins = <
+			MX7D_PAD_SD1_CMD__SD1_CMD		0x10
+			MX7D_PAD_SD1_CLK__SD1_CLK		0x10
+			MX7D_PAD_SD1_DATA0__SD1_DATA0		0x10
+			MX7D_PAD_SD1_DATA1__SD1_DATA1		0x10
+			MX7D_PAD_SD1_DATA2__SD1_DATA2		0x10
+			MX7D_PAD_SD1_DATA3__SD1_DATA3		0x10
 		>;
 	};
 
@@ -1077,9 +1096,15 @@
 		>;
 	};
 
-	pinctrl_cd_usdhc1: usdhc1-cd-grp {
+	pinctrl_cd_usdhc1: cdusdhc1grp {
 		fsl,pins = <
-			MX7D_PAD_LPSR_GPIO1_IO00__GPIO1_IO0	0x59 /* CD */
+			MX7D_PAD_LPSR_GPIO1_IO00__GPIO1_IO0	0x59 /* SODIMM 43 / MMC_CD */
+		>;
+	};
+
+	pinctrl_cd_usdhc1_sleep: cdusdhc1-slpgrp {
+		fsl,pins = <
+			MX7D_PAD_LPSR_GPIO1_IO00__GPIO1_IO0	0x0
 		>;
 	};
 

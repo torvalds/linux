@@ -61,10 +61,7 @@
 	status = "okay";
 };
 
+/* Colibri MMC/SD */
 &usdhc1 {
-	keep-power-in-suspend;
-	no-1-8-v;
-	wakeup-source;
-	vmmc-supply = <&reg_3v3>;
 	status = "okay";
 };
