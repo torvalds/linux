@@ -907,8 +907,7 @@ static int c8sectpfe_remove(struct platform_device *pdev)
 	if (readl(fei->io + SYS_OTHER_CLKEN))
 		writel(0, fei->io + SYS_OTHER_CLKEN);
 
-	if (fei->c8sectpfeclk)
-		clk_disable_unprepare(fei->c8sectpfeclk);
+	clk_disable_unprepare(fei->c8sectpfeclk);
 
 	return 0;
 }
