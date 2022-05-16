@@ -11592,15 +11592,15 @@ static int attach_tp(const struct bpf_program *prog, long cookie, struct bpf_lin
 {
 	char *sec_name, *tp_cat, *tp_name;
 
-	sec_name = strdup(prog->sec_name);
-	if (!sec_name)
-		return -ENOMEM;
-
 	*link = NULL;
 
 	/* no auto-attach for SEC("tp") or SEC("tracepoint") */
 	if (strcmp(prog->sec_name, "tp") == 0 || strcmp(prog->sec_name, "tracepoint") == 0)
 		return 0;
+
+	sec_name = strdup(prog->sec_name);
+	if (!sec_name)
+		return -ENOMEM;
 
 	/* extract "tp/<category>/<name>" or "tracepoint/<category>/<name>" */
 	if (str_has_pfx(prog->sec_name, "tp/"))
