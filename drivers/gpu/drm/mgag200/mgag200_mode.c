@@ -705,103 +705,8 @@ static int mgag200_vga_connector_helper_get_modes(struct drm_connector *connecto
 	return ret;
 }
 
-static uint32_t mga_vga_calculate_mode_bandwidth(struct drm_display_mode *mode,
-							int bits_per_pixel)
-{
-	uint32_t total_area, divisor;
-	uint64_t active_area, pixels_per_second, bandwidth;
-	uint64_t bytes_per_pixel = (bits_per_pixel + 7) / 8;
-
-	divisor = 1024;
-
-	if (!mode->htotal || !mode->vtotal || !mode->clock)
-		return 0;
-
-	active_area = mode->hdisplay * mode->vdisplay;
-	total_area = mode->htotal * mode->vtotal;
-
-	pixels_per_second = active_area * mode->clock * 1000;
-	do_div(pixels_per_second, total_area);
-
-	bandwidth = pixels_per_second * bytes_per_pixel * 100;
-	do_div(bandwidth, divisor);
-
-	return (uint32_t)(bandwidth);
-}
-
-#define MODE_BANDWIDTH	MODE_BAD
-
-static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
-{
-	struct drm_device *dev = connector->dev;
-	struct mga_device *mdev = to_mga_device(dev);
-	int bpp = 32;
-
-	if (IS_G200_SE(mdev)) {
-		u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
-
-		if (unique_rev_id == 0x01) {
-			if (mode->hdisplay > 1600)
-				return MODE_VIRTUAL_X;
-			if (mode->vdisplay > 1200)
-				return MODE_VIRTUAL_Y;
-			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
-				> (24400 * 1024))
-				return MODE_BANDWIDTH;
-		} else if (unique_rev_id == 0x02) {
-			if (mode->hdisplay > 1920)
-				return MODE_VIRTUAL_X;
-			if (mode->vdisplay > 1200)
-				return MODE_VIRTUAL_Y;
-			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
-				> (30100 * 1024))
-				return MODE_BANDWIDTH;
-		} else {
-			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
-				> (55000 * 1024))
-				return MODE_BANDWIDTH;
-		}
-	} else if (mdev->type == G200_WB) {
-		if (mode->hdisplay > 1280)
-			return MODE_VIRTUAL_X;
-		if (mode->vdisplay > 1024)
-			return MODE_VIRTUAL_Y;
-		if (mga_vga_calculate_mode_bandwidth(mode, bpp) >
-		    (31877 * 1024))
-			return MODE_BANDWIDTH;
-	} else if (mdev->type == G200_EV &&
-		(mga_vga_calculate_mode_bandwidth(mode, bpp)
-			> (32700 * 1024))) {
-		return MODE_BANDWIDTH;
-	} else if (mdev->type == G200_EH &&
-		(mga_vga_calculate_mode_bandwidth(mode, bpp)
-			> (37500 * 1024))) {
-		return MODE_BANDWIDTH;
-	} else if (mdev->type == G200_ER &&
-		(mga_vga_calculate_mode_bandwidth(mode,
-			bpp) > (55000 * 1024))) {
-		return MODE_BANDWIDTH;
-	}
-
-	if ((mode->hdisplay % 8) != 0 || (mode->hsync_start % 8) != 0 ||
-	    (mode->hsync_end % 8) != 0 || (mode->htotal % 8) != 0) {
-		return MODE_H_ILLEGAL;
-	}
-
-	if (mode->crtc_hdisplay > 2048 || mode->crtc_hsync_start > 4096 ||
-	    mode->crtc_hsync_end > 4096 || mode->crtc_htotal > 4096 ||
-	    mode->crtc_vdisplay > 2048 || mode->crtc_vsync_start > 4096 ||
-	    mode->crtc_vsync_end > 4096 || mode->crtc_vtotal > 4096) {
-		return MODE_BAD;
-	}
-
-	return MODE_OK;
-}
-
 static const struct drm_connector_helper_funcs mga_vga_connector_helper_funcs = {
 	.get_modes  = mgag200_vga_connector_helper_get_modes,
-	.mode_valid = mga_vga_mode_valid,
 };
 
 static const struct drm_connector_funcs mga_vga_connector_funcs = {
@@ -820,6 +725,41 @@ static enum drm_mode_status
 mgag200_simple_display_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
 				       const struct drm_display_mode *mode)
 {
+	struct mga_device *mdev = to_mga_device(pipe->crtc.dev);
+
+	if (IS_G200_SE(mdev)) {
+		u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
+
+		if (unique_rev_id == 0x01) {
+			if (mode->hdisplay > 1600)
+				return MODE_VIRTUAL_X;
+			if (mode->vdisplay > 1200)
+				return MODE_VIRTUAL_Y;
+		} else if (unique_rev_id == 0x02) {
+			if (mode->hdisplay > 1920)
+				return MODE_VIRTUAL_X;
+			if (mode->vdisplay > 1200)
+				return MODE_VIRTUAL_Y;
+		}
+	} else if (mdev->type == G200_WB) {
+		if (mode->hdisplay > 1280)
+			return MODE_VIRTUAL_X;
+		if (mode->vdisplay > 1024)
+			return MODE_VIRTUAL_Y;
+	}
+
+	if ((mode->hdisplay % 8) != 0 || (mode->hsync_start % 8) != 0 ||
+	    (mode->hsync_end % 8) != 0 || (mode->htotal % 8) != 0) {
+		return MODE_H_ILLEGAL;
+	}
+
+	if (mode->crtc_hdisplay > 2048 || mode->crtc_hsync_start > 4096 ||
+	    mode->crtc_hsync_end > 4096 || mode->crtc_htotal > 4096 ||
+	    mode->crtc_vdisplay > 2048 || mode->crtc_vsync_start > 4096 ||
+	    mode->crtc_vsync_end > 4096 || mode->crtc_vtotal > 4096) {
+		return MODE_BAD;
+	}
+
 	return MODE_OK;
 }
 
@@ -1055,6 +995,31 @@ static const uint64_t mgag200_simple_display_pipe_fmtmods[] = {
  * Mode config
  */
 
+/* Calculates a mode's required memory bandwidth (in KiB/sec). */
+static uint32_t mgag200_calculate_mode_bandwidth(const struct drm_display_mode *mode,
+						 unsigned int bits_per_pixel)
+{
+	uint32_t total_area, divisor;
+	uint64_t active_area, pixels_per_second, bandwidth;
+	uint64_t bytes_per_pixel = (bits_per_pixel + 7) / 8;
+
+	divisor = 1024;
+
+	if (!mode->htotal || !mode->vtotal || !mode->clock)
+		return 0;
+
+	active_area = mode->hdisplay * mode->vdisplay;
+	total_area = mode->htotal * mode->vtotal;
+
+	pixels_per_second = active_area * mode->clock * 1000;
+	do_div(pixels_per_second, total_area);
+
+	bandwidth = pixels_per_second * bytes_per_pixel * 100;
+	do_div(bandwidth, divisor);
+
+	return (uint32_t)bandwidth;
+}
+
 static enum drm_mode_status mgag200_mode_config_mode_valid(struct drm_device *dev,
 							   const struct drm_display_mode *mode)
 {
@@ -1069,6 +1034,33 @@ static enum drm_mode_status mgag200_mode_config_mode_valid(struct drm_device *de
 
 	if (fbpages > max_fbpages)
 		return MODE_MEM;
+
+	if (IS_G200_SE(mdev)) {
+		u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
+
+		if (unique_rev_id == 0x01) {
+			if (mgag200_calculate_mode_bandwidth(mode, max_bpp * 8) > (24400 * 1024))
+				return MODE_BAD;
+		} else if (unique_rev_id == 0x02) {
+			if (mgag200_calculate_mode_bandwidth(mode, max_bpp * 8) > (30100 * 1024))
+				return MODE_BAD;
+		} else {
+			if (mgag200_calculate_mode_bandwidth(mode, max_bpp * 8) > (55000 * 1024))
+				return MODE_BAD;
+		}
+	} else if (mdev->type == G200_WB) {
+		if (mgag200_calculate_mode_bandwidth(mode, max_bpp * 8) > (31877 * 1024))
+			return MODE_BAD;
+	} else if (mdev->type == G200_EV) {
+		if (mgag200_calculate_mode_bandwidth(mode, max_bpp * 8) > (32700 * 1024))
+			return MODE_BAD;
+	} else if (mdev->type == G200_EH) {
+		if (mgag200_calculate_mode_bandwidth(mode, max_bpp * 8) > (37500 * 1024))
+			return MODE_BAD;
+	} else if (mdev->type == G200_ER) {
+		if (mgag200_calculate_mode_bandwidth(mode, max_bpp * 8) > (55000 * 1024))
+			return MODE_BAD;
+	}
 
 	return MODE_OK;
 }
