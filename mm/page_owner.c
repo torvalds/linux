@@ -34,7 +34,7 @@ struct page_owner {
 	pid_t tgid;
 };
 
-static bool page_owner_enabled = false;
+static bool page_owner_enabled __initdata;
 DEFINE_STATIC_KEY_FALSE(page_owner_inited);
 
 static depot_stack_handle_t dummy_handle;
