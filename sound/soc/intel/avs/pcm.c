@@ -112,6 +112,23 @@ static int avs_dai_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int avs_dai_be_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *be_hw_params, struct snd_soc_dai *dai,
+				int dma_id)
+{
+	struct snd_pcm_hw_params *fe_hw_params = NULL;
+	struct snd_soc_pcm_runtime *fe, *be;
+	struct snd_soc_dpcm *dpcm;
+
+	be = asoc_substream_to_rtd(substream);
+	for_each_dpcm_fe(be, substream->stream, dpcm) {
+		fe = dpcm->fe;
+		fe_hw_params = &fe->dpcm[substream->stream].hw_params;
+	}
+
+	return avs_dai_hw_params(substream, fe_hw_params, be_hw_params, dai, dma_id);
+}
+
 static int avs_dai_prepare(struct avs_dev *adev, struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
@@ -133,6 +150,100 @@ static int avs_dai_prepare(struct avs_dev *adev, struct snd_pcm_substream *subst
 		dev_err(dai->dev, "pause path failed: %d\n", ret);
 	return ret;
 }
+
+static int avs_dai_nonhda_be_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	return avs_dai_startup(substream, dai, false);
+}
+
+static void avs_dai_nonhda_be_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	struct avs_dma_data *data;
+
+	data = snd_soc_dai_get_dma_data(dai, substream);
+
+	snd_soc_dai_set_dma_data(dai, substream, NULL);
+	kfree(data);
+}
+
+static int avs_dai_nonhda_be_hw_params(struct snd_pcm_substream *substream,
+				       struct snd_pcm_hw_params *hw_params, struct snd_soc_dai *dai)
+{
+	struct avs_dma_data *data;
+
+	data = snd_soc_dai_get_dma_data(dai, substream);
+	if (data->path)
+		return 0;
+
+	/* Actual port-id comes from topology. */
+	return avs_dai_be_hw_params(substream, hw_params, dai, 0);
+}
+
+static int avs_dai_nonhda_be_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	struct avs_dma_data *data;
+
+	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
+
+	data = snd_soc_dai_get_dma_data(dai, substream);
+	if (data->path) {
+		avs_path_free(data->path);
+		data->path = NULL;
+	}
+
+	return 0;
+}
+
+static int avs_dai_nonhda_be_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	return avs_dai_prepare(to_avs_dev(dai->dev), substream, dai);
+}
+
+static int avs_dai_nonhda_be_trigger(struct snd_pcm_substream *substream, int cmd,
+				     struct snd_soc_dai *dai)
+{
+	struct avs_dma_data *data;
+	int ret = 0;
+
+	data = snd_soc_dai_get_dma_data(dai, substream);
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		ret = avs_path_run(data->path, AVS_TPLG_TRIGGER_AUTO);
+		if (ret < 0)
+			dev_err(dai->dev, "run BE path failed: %d\n", ret);
+		break;
+
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_STOP:
+		ret = avs_path_pause(data->path);
+		if (ret < 0)
+			dev_err(dai->dev, "pause BE path failed: %d\n", ret);
+
+		if (cmd == SNDRV_PCM_TRIGGER_STOP) {
+			ret = avs_path_reset(data->path);
+			if (ret < 0)
+				dev_err(dai->dev, "reset BE path failed: %d\n", ret);
+		}
+		break;
+
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static const struct snd_soc_dai_ops avs_dai_nonhda_be_ops = {
+	.startup = avs_dai_nonhda_be_startup,
+	.shutdown = avs_dai_nonhda_be_shutdown,
+	.hw_params = avs_dai_nonhda_be_hw_params,
+	.hw_free = avs_dai_nonhda_be_hw_free,
+	.prepare = avs_dai_nonhda_be_prepare,
+	.trigger = avs_dai_nonhda_be_trigger,
+};
 
 static const unsigned int rates[] = {
 	8000, 11025, 12000, 16000,
@@ -589,7 +700,6 @@ static const struct snd_soc_component_driver avs_component_driver = {
 	.non_legacy_dai_naming	= true,
 };
 
-__maybe_unused
 static int avs_soc_component_register(struct device *dev, const char *name,
 				      const struct snd_soc_component_driver *drv,
 				      struct snd_soc_dai_driver *cpu_dais, int num_cpu_dais)
@@ -610,4 +720,114 @@ static int avs_soc_component_register(struct device *dev, const char *name,
 	INIT_LIST_HEAD(&acomp->node);
 
 	return snd_soc_add_component(&acomp->base, cpu_dais, num_cpu_dais);
+}
+
+static struct snd_soc_dai_driver dmic_cpu_dais[] = {
+{
+	.name = "DMIC Pin",
+	.ops = &avs_dai_nonhda_be_ops,
+	.capture = {
+		.stream_name	= "DMIC Rx",
+		.channels_min	= 1,
+		.channels_max	= 4,
+		.rates		= SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_48000,
+		.formats	= SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+	},
+},
+{
+	.name = "DMIC WoV Pin",
+	.ops = &avs_dai_nonhda_be_ops,
+	.capture = {
+		.stream_name	= "DMIC WoV Rx",
+		.channels_min	= 1,
+		.channels_max	= 4,
+		.rates		= SNDRV_PCM_RATE_16000,
+		.formats	= SNDRV_PCM_FMTBIT_S16_LE,
+	},
+},
+};
+
+int avs_dmic_platform_register(struct avs_dev *adev, const char *name)
+{
+	return avs_soc_component_register(adev->dev, name, &avs_component_driver, dmic_cpu_dais,
+					  ARRAY_SIZE(dmic_cpu_dais));
+}
+
+static const struct snd_soc_dai_driver i2s_dai_template = {
+	.ops = &avs_dai_nonhda_be_ops,
+	.playback = {
+		.channels_min	= 1,
+		.channels_max	= 8,
+		.rates		= SNDRV_PCM_RATE_8000_192000 |
+				  SNDRV_PCM_RATE_KNOT,
+		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S24_LE |
+				  SNDRV_PCM_FMTBIT_S32_LE,
+	},
+	.capture = {
+		.channels_min	= 1,
+		.channels_max	= 8,
+		.rates		= SNDRV_PCM_RATE_8000_192000 |
+				  SNDRV_PCM_RATE_KNOT,
+		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S24_LE |
+				  SNDRV_PCM_FMTBIT_S32_LE,
+	},
+};
+
+int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned long port_mask,
+			      unsigned long *tdms)
+{
+	struct snd_soc_dai_driver *cpus, *dai;
+	size_t ssp_count, cpu_count;
+	int i, j;
+
+	ssp_count = adev->hw_cfg.i2s_caps.ctrl_count;
+	cpu_count = hweight_long(port_mask);
+	if (tdms)
+		for_each_set_bit(i, &port_mask, ssp_count)
+			cpu_count += hweight_long(tdms[i]);
+
+	cpus = devm_kzalloc(adev->dev, sizeof(*cpus) * cpu_count, GFP_KERNEL);
+	if (!cpus)
+		return -ENOMEM;
+
+	dai = cpus;
+	for_each_set_bit(i, &port_mask, ssp_count) {
+		memcpy(dai, &i2s_dai_template, sizeof(*dai));
+
+		dai->name =
+			devm_kasprintf(adev->dev, GFP_KERNEL, "SSP%d Pin", i);
+		dai->playback.stream_name =
+			devm_kasprintf(adev->dev, GFP_KERNEL, "ssp%d Tx", i);
+		dai->capture.stream_name =
+			devm_kasprintf(adev->dev, GFP_KERNEL, "ssp%d Rx", i);
+
+		if (!dai->name || !dai->playback.stream_name || !dai->capture.stream_name)
+			return -ENOMEM;
+		dai++;
+	}
+
+	if (!tdms)
+		goto plat_register;
+
+	for_each_set_bit(i, &port_mask, ssp_count) {
+		for_each_set_bit(j, &tdms[i], ssp_count) {
+			memcpy(dai, &i2s_dai_template, sizeof(*dai));
+
+			dai->name =
+				devm_kasprintf(adev->dev, GFP_KERNEL, "SSP%d:%d Pin", i, j);
+			dai->playback.stream_name =
+				devm_kasprintf(adev->dev, GFP_KERNEL, "ssp%d:%d Tx", i, j);
+			dai->capture.stream_name =
+				devm_kasprintf(adev->dev, GFP_KERNEL, "ssp%d:%d Rx", i, j);
+
+			if (!dai->name || !dai->playback.stream_name || !dai->capture.stream_name)
+				return -ENOMEM;
+			dai++;
+		}
+	}
+
+plat_register:
+	return avs_soc_component_register(adev->dev, name, &avs_component_driver, cpus, cpu_count);
 }
