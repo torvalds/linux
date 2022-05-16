@@ -365,6 +365,13 @@ struct skl_log_state_info {
 	struct skl_log_state logs_core[];
 } __packed;
 
+struct apl_log_state_info {
+	u32 aging_timer_period;
+	u32 fifo_full_timer_period;
+	u32 core_mask;
+	struct skl_log_state logs_core[];
+} __packed;
+
 int avs_ipc_set_enable_logs(struct avs_dev *adev, u8 *log_info, size_t size);
 
 struct avs_fw_version {

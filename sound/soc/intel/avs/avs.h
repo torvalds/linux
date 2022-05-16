@@ -57,6 +57,7 @@ struct avs_dsp_ops {
 	((adev)->spec->dsp_ops->op(adev, ## __VA_ARGS__))
 
 extern const struct avs_dsp_ops skl_dsp_ops;
+extern const struct avs_dsp_ops apl_dsp_ops;
 
 #define AVS_PLATATTR_CLDMA		BIT_ULL(0)
 #define AVS_PLATATTR_IMR		BIT_ULL(1)
@@ -332,5 +333,17 @@ unsigned int __kfifo_fromio_locked(struct kfifo *fifo, const void __iomem *src, 
 	(__offset < 0) ? NULL : \
 			 (avs_sram_addr(adev, AVS_DEBUG_WINDOW) + __offset); \
 })
+
+struct apl_log_buffer_layout {
+	u32 read_ptr;
+	u32 write_ptr;
+	u8 buffer[];
+} __packed;
+
+#define apl_log_payload_size(adev) \
+	(avs_log_buffer_size(adev) - sizeof(struct apl_log_buffer_layout))
+
+#define apl_log_payload_addr(addr) \
+	(addr + sizeof(struct apl_log_buffer_layout))
 
 #endif /* __SOUND_SOC_INTEL_AVS_H */
