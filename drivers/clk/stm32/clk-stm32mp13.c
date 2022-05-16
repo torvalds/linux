@@ -359,6 +359,9 @@ enum enum_mux_cfg {
 #define CFG_MUX(_id, _offset, _shift, _witdh)\
 	_CFG_MUX(_id, _offset, _shift, _witdh, MUX_NO_RDY, 0)
 
+#define CFG_MUX_SAFE(_id, _offset, _shift, _witdh)\
+	_CFG_MUX(_id, _offset, _shift, _witdh, MUX_NO_RDY, MUX_SAFE)
+
 static const struct stm32_mux_cfg stm32mp13_muxes[] = {
 	CFG_MUX(MUX_I2C12,	RCC_I2C12CKSELR,	0, 3),
 	CFG_MUX(MUX_LPTIM45,	RCC_LPTIM45CKSELR,	0, 3),
@@ -394,10 +397,10 @@ static const struct stm32_mux_cfg stm32mp13_muxes[] = {
 	CFG_MUX(MUX_UART6,	RCC_UART6CKSELR,	0, 3),
 	CFG_MUX(MUX_USBO,	RCC_USBCKSELR,		4, 1),
 	CFG_MUX(MUX_USBPHY,	RCC_USBCKSELR,		0, 2),
-	CFG_MUX(MUX_FMC,	RCC_FMCCKSELR,		0, 2),
-	CFG_MUX(MUX_QSPI,	RCC_QSPICKSELR,		0, 2),
-	CFG_MUX(MUX_SDMMC1,	RCC_SDMMC12CKSELR,	0, 3),
-	CFG_MUX(MUX_SDMMC2,	RCC_SDMMC12CKSELR,	3, 3),
+	CFG_MUX_SAFE(MUX_FMC,	RCC_FMCCKSELR,		0, 2),
+	CFG_MUX_SAFE(MUX_QSPI,	RCC_QSPICKSELR,		0, 2),
+	CFG_MUX_SAFE(MUX_SDMMC1, RCC_SDMMC12CKSELR,	0, 3),
+	CFG_MUX_SAFE(MUX_SDMMC2, RCC_SDMMC12CKSELR,	3, 3),
 };
 
 struct clk_stm32_securiy {

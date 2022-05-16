@@ -84,6 +84,7 @@ int stm32_rcc_init(struct device *dev, const struct of_device_id *match_data,
 
 /* MUX define */
 #define MUX_NO_RDY		0xFF
+#define MUX_SAFE		BIT(7)
 
 /* DIV define */
 #define DIV_NO_RDY		0xFF

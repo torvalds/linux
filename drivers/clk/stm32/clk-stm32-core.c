@@ -495,6 +495,54 @@ static int clk_stm32_composite_is_enabled(struct clk_hw *hw)
 	return stm32_gate_is_enabled(composite->base, composite->clock_data, composite->gate_id);
 }
 
+#define MUX_SAFE_POSITION 0
+
+static int clk_stm32_has_safe_mux(struct clk_hw *hw)
+{
+	struct clk_stm32_composite *composite = to_clk_stm32_composite(hw);
+	const struct stm32_mux_cfg *mux = &composite->clock_data->muxes[composite->mux_id];
+
+	return !!(mux->flags & MUX_SAFE);
+}
+
+static void clk_stm32_set_safe_position_mux(struct clk_hw *hw)
+{
+	struct clk_stm32_composite *composite = to_clk_stm32_composite(hw);
+
+	if (!clk_stm32_composite_is_enabled(hw)) {
+		unsigned long flags = 0;
+
+		if (composite->clock_data->is_multi_mux) {
+			struct clk_hw *other_mux_hw = NULL;
+
+			other_mux_hw = composite->clock_data->is_multi_mux(hw);
+
+			if (!other_mux_hw || clk_stm32_composite_is_enabled(other_mux_hw))
+				return;
+		}
+
+		spin_lock_irqsave(composite->lock, flags);
+
+		stm32_mux_set_parent(composite->base, composite->clock_data,
+				     composite->mux_id, MUX_SAFE_POSITION);
+
+		spin_unlock_irqrestore(composite->lock, flags);
+	}
+}
+
+static void clk_stm32_safe_restore_position_mux(struct clk_hw *hw)
+{
+	struct clk_stm32_composite *composite = to_clk_stm32_composite(hw);
+	int sel = clk_hw_get_parent_index(hw);
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(composite->lock, flags);
+
+	stm32_mux_set_parent(composite->base, composite->clock_data, composite->mux_id, sel);
+
+	spin_unlock_irqrestore(composite->lock, flags);
+}
+
 static void clk_stm32_composite_gate_endisable(struct clk_hw *hw, int enable)
 {
 	struct clk_stm32_composite *composite = to_clk_stm32_composite(hw);
@@ -516,6 +564,9 @@ static int clk_stm32_composite_gate_enable(struct clk_hw *hw)
 
 	clk_stm32_composite_gate_endisable(hw, 1);
 
+	if (composite->mux_id != NO_STM32_MUX && clk_stm32_has_safe_mux(hw))
+		clk_stm32_safe_restore_position_mux(hw);
+
 	return 0;
 }
 
@@ -527,6 +578,9 @@ static void clk_stm32_composite_gate_disable(struct clk_hw *hw)
 		return;
 
 	clk_stm32_composite_gate_endisable(hw, 0);
+
+	if (composite->mux_id != NO_STM32_MUX && clk_stm32_has_safe_mux(hw))
+		clk_stm32_set_safe_position_mux(hw);
 }
 
 static void clk_stm32_composite_disable_unused(struct clk_hw *hw)
