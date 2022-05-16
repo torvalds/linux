@@ -1130,13 +1130,24 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				adev->vcn.vcn_config[adev->vcn.num_vcn_inst] =
 					ip->revision & 0xc0;
 				ip->revision &= ~0xc0;
-				adev->vcn.num_vcn_inst++;
+				if (adev->vcn.num_vcn_inst < AMDGPU_MAX_VCN_INSTANCES)
+					adev->vcn.num_vcn_inst++;
+				else
+					dev_err(adev->dev, "Too many VCN instances: %d vs %d\n",
+						adev->vcn.num_vcn_inst + 1,
+						AMDGPU_MAX_VCN_INSTANCES);
 			}
 			if (le16_to_cpu(ip->hw_id) == SDMA0_HWID ||
 			    le16_to_cpu(ip->hw_id) == SDMA1_HWID ||
 			    le16_to_cpu(ip->hw_id) == SDMA2_HWID ||
-			    le16_to_cpu(ip->hw_id) == SDMA3_HWID)
-				adev->sdma.num_instances++;
+			    le16_to_cpu(ip->hw_id) == SDMA3_HWID) {
+				if (adev->sdma.num_instances < AMDGPU_MAX_SDMA_INSTANCES)
+					adev->sdma.num_instances++;
+				else
+					dev_err(adev->dev, "Too many SDMA instances: %d vs %d\n",
+						adev->sdma.num_instances + 1,
+						AMDGPU_MAX_SDMA_INSTANCES);
+			}
 
 			if (le16_to_cpu(ip->hw_id) == UMC_HWID)
 				adev->gmc.num_umc++;
