@@ -1,0 +1,92 @@
+/* SPDX-License-Identifier: GPL-2.0  */
+/*
+ * Copyright (C) STMicroelectronics 2022 - All Rights Reserved
+ * Author: Gabriel Fernandez <gabriel.fernandez@foss.st.com> for STMicroelectronics.
+ */
+
+#include <linux/clk-provider.h>
+
+struct stm32_rcc_match_data;
+
+struct stm32_mux_cfg {
+	u16	offset;
+	u8	shift;
+	u8	width;
+	u8	flags;
+	u32	*table;
+	u8	ready;
+};
+
+struct stm32_gate_cfg {
+	u16	offset;
+	u8	bit_idx;
+	u8	set_clr;
+};
+
+struct stm32_div_cfg {
+	u16	offset;
+	u8	shift;
+	u8	width;
+	u8	flags;
+	u8	ready;
+	const struct clk_div_table *table;
+};
+
+struct stm32_composite_cfg {
+	int	mux;
+	int	gate;
+	int	div;
+};
+
+#define NO_ID 0xFFFFFFFF
+
+#define NO_STM32_MUX		0xFFFF
+#define NO_STM32_DIV		0xFFFF
+#define NO_STM32_GATE		0xFFFF
+
+struct clock_config {
+	unsigned long	id;
+	void		*clock_cfg;
+
+	struct clk_hw *(*func)(struct device *dev,
+			       const struct stm32_rcc_match_data *data,
+			       void __iomem *base,
+			       spinlock_t *lock,
+			       const struct clock_config *cfg);
+};
+
+struct clk_stm32_clock_data {
+	u16 *gate_cpt;
+	const struct stm32_gate_cfg	*gates;
+	const struct stm32_mux_cfg	*muxes;
+	const struct stm32_div_cfg	*dividers;
+};
+
+struct stm32_rcc_match_data {
+	struct clk_hw_onecell_data	*hw_clks;
+	unsigned int			num_clocks;
+	const struct clock_config	*tab_clocks;
+	unsigned int			maxbinding;
+	struct clk_stm32_clock_data	*clock_data;
+	u32				clear_offset;
+};
+
+int stm32_rcc_reset_init(struct device *dev, const struct of_device_id *match,
+			 void __iomem *base);
+
+int stm32_rcc_init(struct device *dev, const struct of_device_id *match_data,
+		   void __iomem *base);
+
+/* MUX define */
+#define MUX_NO_RDY		0xFF
+
+/* DIV define */
+#define DIV_NO_RDY		0xFF
+
+/* Clock registering */
+#define STM32_CLOCK_CFG(_binding, _clk, _struct, _register)\
+{\
+	.id		= (_binding),\
+	.clock_cfg	= (_struct) {_clk},\
+	.func		= (_register),\
+}
