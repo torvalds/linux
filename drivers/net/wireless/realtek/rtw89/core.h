@@ -3481,6 +3481,20 @@ static inline u8 rtw89_hw_to_rate_info_bw(enum rtw89_bandwidth hw_bw)
 }
 
 static inline
+enum nl80211_band rtw89_hw_to_nl80211_band(enum rtw89_band hw_band)
+{
+	switch (hw_band) {
+	default:
+	case RTW89_BAND_2G:
+		return NL80211_BAND_2GHZ;
+	case RTW89_BAND_5G:
+		return NL80211_BAND_5GHZ;
+	case RTW89_BAND_6G:
+		return NL80211_BAND_6GHZ;
+	}
+}
+
+static inline
 enum rtw89_bandwidth nl_to_rtw89_bandwidth(enum nl80211_chan_width width)
 {
 	switch (width) {
