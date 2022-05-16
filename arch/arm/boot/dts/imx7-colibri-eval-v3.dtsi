@@ -44,7 +44,6 @@
 		spi-max-frequency = <10000000>;
 		vdd-supply = <&reg_3v3>;
 		xceiver-supply = <&reg_5v0>;
-		status = "okay";
 	};
 };
 

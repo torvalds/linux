@@ -140,9 +140,6 @@
 };
 
 /* ADC2 is not available as it conflicts with AD7879 resistive touchscreen. */
-&adc2 {
-	status = "disabled";
-};
 
 &cpu0 {
 	cpu-supply = <&reg_DCDC2>;
@@ -191,13 +188,11 @@
 &flexcan1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan1>;
-	status = "disabled";
 };
 
 &flexcan2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan2>;
-	status = "disabled";
 };
 
 &gpio1 {
