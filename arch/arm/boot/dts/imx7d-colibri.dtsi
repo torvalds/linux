@@ -7,6 +7,12 @@
 #include "imx7-colibri.dtsi"
 
 / {
+	aliases {
+		/* Required to properly pass MAC addresses from bootloader. */
+		ethernet0 = &fec1;
+		ethernet1 = &fec2;
+	};
+
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>;
