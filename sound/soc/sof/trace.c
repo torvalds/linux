@@ -392,7 +392,7 @@ static int snd_sof_enable_trace(struct snd_sof_dev *sdev)
 	struct sof_ipc_reply ipc_reply;
 	int ret;
 
-	if (!sdev->dtrace_is_supported)
+	if (!sdev->fw_trace_is_supported)
 		return 0;
 
 	if (sdev->dtrace_state == SOF_DTRACE_ENABLED || !sdev->dma_trace_pages)
@@ -459,9 +459,9 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 
 	/* dtrace is only supported with SOF_IPC */
 	if (sdev->pdata->ipc_type != SOF_IPC)
-		sdev->dtrace_is_supported = false;
+		sdev->fw_trace_is_supported = false;
 
-	if (!sdev->dtrace_is_supported)
+	if (!sdev->fw_trace_is_supported)
 		return 0;
 
 	/* set false before start initialization */
@@ -521,7 +521,7 @@ EXPORT_SYMBOL(snd_sof_init_trace);
 int snd_sof_trace_update_pos(struct snd_sof_dev *sdev,
 			     struct sof_ipc_dma_trace_posn *posn)
 {
-	if (!sdev->dtrace_is_supported)
+	if (!sdev->fw_trace_is_supported)
 		return 0;
 
 	if (sdev->dtrace_state == SOF_DTRACE_ENABLED &&
@@ -541,7 +541,7 @@ int snd_sof_trace_update_pos(struct snd_sof_dev *sdev,
 /* an error has occurred within the DSP that prevents further trace */
 void snd_sof_trace_notify_for_error(struct snd_sof_dev *sdev)
 {
-	if (!sdev->dtrace_is_supported)
+	if (!sdev->fw_trace_is_supported)
 		return;
 
 	if (sdev->dtrace_state == SOF_DTRACE_ENABLED) {
@@ -559,7 +559,7 @@ static void snd_sof_release_trace(struct snd_sof_dev *sdev, bool only_stop)
 	struct sof_ipc_reply ipc_reply;
 	int ret;
 
-	if (!sdev->dtrace_is_supported || sdev->dtrace_state == SOF_DTRACE_DISABLED)
+	if (!sdev->fw_trace_is_supported || sdev->dtrace_state == SOF_DTRACE_DISABLED)
 		return;
 
 	ret = snd_sof_dma_trace_trigger(sdev, SNDRV_PCM_TRIGGER_STOP);
@@ -611,7 +611,7 @@ EXPORT_SYMBOL(snd_sof_trace_resume);
 
 void snd_sof_free_trace(struct snd_sof_dev *sdev)
 {
-	if (!sdev->dtrace_is_supported)
+	if (!sdev->fw_trace_is_supported)
 		return;
 
 	/* release trace */

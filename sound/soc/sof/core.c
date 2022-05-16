@@ -250,7 +250,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	}
 
 	if (sof_debug_check_flag(SOF_DBG_ENABLE_TRACE)) {
-		sdev->dtrace_is_supported = true;
+		sdev->fw_trace_is_supported = true;
 
 		/* init DMA trace */
 		ret = snd_sof_init_trace(sdev);
