@@ -1070,6 +1070,7 @@ const struct sof_ipc_ops ipc3_ops = {
 	.pm = &ipc3_pm_ops,
 	.pcm = &ipc3_pcm_ops,
 	.fw_loader = &ipc3_loader_ops,
+	.fw_tracing = &ipc3_dtrace_ops,
 
 	.tx_msg = sof_ipc3_tx_msg,
 	.rx_msg = sof_ipc3_rx_msg,
