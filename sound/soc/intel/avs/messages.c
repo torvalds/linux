@@ -432,7 +432,7 @@ int avs_ipc_set_dx(struct avs_dev *adev, u32 core_mask, bool powerup)
 	request.data = &dx;
 	request.size = sizeof(dx);
 
-	ret = avs_dsp_send_msg(adev, &request, NULL);
+	ret = avs_dsp_send_pm_msg(adev, &request, NULL, true);
 	if (ret)
 		avs_ipc_err(adev, &request, "set dx", ret);
 
@@ -456,7 +456,7 @@ int avs_ipc_set_d0ix(struct avs_dev *adev, bool enable_pg, bool streaming)
 
 	request.header = msg.val;
 
-	ret = avs_dsp_send_msg(adev, &request, NULL);
+	ret = avs_dsp_send_pm_msg(adev, &request, NULL, false);
 	if (ret)
 		avs_ipc_err(adev, &request, "set d0ix", ret);
 

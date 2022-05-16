@@ -13,6 +13,82 @@
 #include "registers.h"
 
 #define AVS_IPC_TIMEOUT_MS	300
+#define AVS_D0IX_DELAY_MS	300
+
+static int
+avs_dsp_set_d0ix(struct avs_dev *adev, bool enable)
+{
+	struct avs_ipc *ipc = adev->ipc;
+	int ret;
+
+	/* Is transition required? */
+	if (ipc->in_d0ix == enable)
+		return 0;
+
+	ret = avs_dsp_op(adev, set_d0ix, enable);
+	if (ret) {
+		/* Prevent further d0ix attempts on conscious IPC failure. */
+		if (ret == -AVS_EIPC)
+			atomic_inc(&ipc->d0ix_disable_depth);
+
+		ipc->in_d0ix = false;
+		return ret;
+	}
+
+	ipc->in_d0ix = enable;
+	return 0;
+}
+
+static void avs_dsp_schedule_d0ix(struct avs_dev *adev, struct avs_ipc_msg *tx)
+{
+	if (atomic_read(&adev->ipc->d0ix_disable_depth))
+		return;
+
+	mod_delayed_work(system_power_efficient_wq, &adev->ipc->d0ix_work,
+			 msecs_to_jiffies(AVS_D0IX_DELAY_MS));
+}
+
+static void avs_dsp_d0ix_work(struct work_struct *work)
+{
+	struct avs_ipc *ipc = container_of(work, struct avs_ipc, d0ix_work.work);
+
+	avs_dsp_set_d0ix(to_avs_dev(ipc->dev), true);
+}
+
+static int avs_dsp_wake_d0i0(struct avs_dev *adev, struct avs_ipc_msg *tx)
+{
+	struct avs_ipc *ipc = adev->ipc;
+
+	if (!atomic_read(&ipc->d0ix_disable_depth)) {
+		cancel_delayed_work_sync(&ipc->d0ix_work);
+		return avs_dsp_set_d0ix(adev, false);
+	}
+
+	return 0;
+}
+
+int avs_dsp_disable_d0ix(struct avs_dev *adev)
+{
+	struct avs_ipc *ipc = adev->ipc;
+
+	/* Prevent PG only on the first disable. */
+	if (atomic_add_return(1, &ipc->d0ix_disable_depth) == 1) {
+		cancel_delayed_work_sync(&ipc->d0ix_work);
+		return avs_dsp_set_d0ix(adev, false);
+	}
+
+	return 0;
+}
+
+int avs_dsp_enable_d0ix(struct avs_dev *adev)
+{
+	struct avs_ipc *ipc = adev->ipc;
+
+	if (atomic_dec_and_test(&ipc->d0ix_disable_depth))
+		queue_delayed_work(system_power_efficient_wq, &ipc->d0ix_work,
+				   msecs_to_jiffies(AVS_D0IX_DELAY_MS));
+	return 0;
+}
 
 static void avs_dsp_recovery(struct avs_dev *adev)
 {
@@ -88,6 +164,8 @@ static void avs_dsp_exception_caught(struct avs_dev *adev, union avs_notify_msg 
 
 	dev_crit(adev->dev, "communication severed, rebooting dsp..\n");
 
+	cancel_delayed_work_sync(&ipc->d0ix_work);
+	ipc->in_d0ix = false;
 	/* Re-enabled on recovery completion. */
 	pm_runtime_disable(adev->dev);
 
@@ -393,16 +471,54 @@ exit:
 	return ret;
 }
 
+static int avs_dsp_send_msg_sequence(struct avs_dev *adev, struct avs_ipc_msg *request,
+				     struct avs_ipc_msg *reply, int timeout, bool wake_d0i0,
+				     bool schedule_d0ix)
+{
+	int ret;
+
+	if (wake_d0i0) {
+		ret = avs_dsp_wake_d0i0(adev, request);
+		if (ret)
+			return ret;
+	}
+
+	ret = avs_dsp_do_send_msg(adev, request, reply, timeout);
+	if (ret)
+		return ret;
+
+	if (schedule_d0ix)
+		avs_dsp_schedule_d0ix(adev, request);
+
+	return 0;
+}
+
 int avs_dsp_send_msg_timeout(struct avs_dev *adev, struct avs_ipc_msg *request,
 			     struct avs_ipc_msg *reply, int timeout)
 {
-	return avs_dsp_do_send_msg(adev, request, reply, timeout);
+	bool wake_d0i0 = avs_dsp_op(adev, d0ix_toggle, request, true);
+	bool schedule_d0ix = avs_dsp_op(adev, d0ix_toggle, request, false);
+
+	return avs_dsp_send_msg_sequence(adev, request, reply, timeout, wake_d0i0, schedule_d0ix);
 }
 
 int avs_dsp_send_msg(struct avs_dev *adev, struct avs_ipc_msg *request,
 		     struct avs_ipc_msg *reply)
 {
 	return avs_dsp_send_msg_timeout(adev, request, reply, adev->ipc->default_timeout_ms);
+}
+
+int avs_dsp_send_pm_msg_timeout(struct avs_dev *adev, struct avs_ipc_msg *request,
+				struct avs_ipc_msg *reply, int timeout, bool wake_d0i0)
+{
+	return avs_dsp_send_msg_sequence(adev, request, reply, timeout, wake_d0i0, false);
+}
+
+int avs_dsp_send_pm_msg(struct avs_dev *adev, struct avs_ipc_msg *request,
+			struct avs_ipc_msg *reply, bool wake_d0i0)
+{
+	return avs_dsp_send_pm_msg_timeout(adev, request, reply, adev->ipc->default_timeout_ms,
+					   wake_d0i0);
 }
 
 static int avs_dsp_do_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *request, int timeout)
@@ -465,6 +581,7 @@ int avs_ipc_init(struct avs_ipc *ipc, struct device *dev)
 	ipc->ready = false;
 	ipc->default_timeout_ms = AVS_IPC_TIMEOUT_MS;
 	INIT_WORK(&ipc->recovery_work, avs_dsp_recovery_work);
+	INIT_DELAYED_WORK(&ipc->d0ix_work, avs_dsp_d0ix_work);
 	init_completion(&ipc->done_completion);
 	init_completion(&ipc->busy_completion);
 	spin_lock_init(&ipc->rx_lock);
@@ -477,4 +594,6 @@ void avs_ipc_block(struct avs_ipc *ipc)
 {
 	ipc->ready = false;
 	cancel_work_sync(&ipc->recovery_work);
+	cancel_delayed_work_sync(&ipc->d0ix_work);
+	ipc->in_d0ix = false;
 }
