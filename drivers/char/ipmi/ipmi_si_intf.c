@@ -2220,10 +2220,7 @@ static void cleanup_one_si(struct smi_info *smi_info)
 		return;
 
 	list_del(&smi_info->link);
-
-	if (smi_info->intf)
-		ipmi_unregister_smi(smi_info->intf);
-
+	ipmi_unregister_smi(smi_info->intf);
 	kfree(smi_info);
 }
 

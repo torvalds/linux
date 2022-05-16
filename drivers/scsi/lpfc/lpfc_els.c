@@ -1330,7 +1330,7 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
 		    LPFC_SLI_INTF_IF_TYPE_0) {
 			/* FLOGI needs to be 3 for WQE FCFI */
-			ct = ((SLI4_CT_FCFI >> 1) & 1) | (SLI4_CT_FCFI & 1);
+			ct = SLI4_CT_FCFI;
 			bf_set(wqe_ct, &wqe->els_req.wqe_com, ct);
 
 			/* Set the fcfi to the fcfi we registered with */
