@@ -480,7 +480,7 @@ static void smc911x_hardware_send_pkt(struct net_device *dev)
 	SMC_SET_TX_FIFO(lp, cmdB);
 
 	DBG(SMC_DEBUG_PKTS, dev, "Transmitted packet\n");
-	PRINT_PKT(buf, len <= 64 ? len : 64);
+	PRINT_PKT(buf, min(len, 64));
 
 	/* Send pkt via PIO or DMA */
 #ifdef SMC_USE_DMA
