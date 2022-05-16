@@ -175,6 +175,80 @@ static int stm32_gate_is_enabled(void __iomem *base,
 	return (readl(base + gate->offset) & BIT(gate->bit_idx)) != 0;
 }
 
+static unsigned int _get_table_div(const struct clk_div_table *table,
+				   unsigned int val)
+{
+	const struct clk_div_table *clkt;
+
+	for (clkt = table; clkt->div; clkt++)
+		if (clkt->val == val)
+			return clkt->div;
+	return 0;
+}
+
+static unsigned int _get_div(const struct clk_div_table *table,
+			     unsigned int val, unsigned long flags, u8 width)
+{
+	if (flags & CLK_DIVIDER_ONE_BASED)
+		return val;
+	if (flags & CLK_DIVIDER_POWER_OF_TWO)
+		return 1 << val;
+	if (table)
+		return _get_table_div(table, val);
+	return val + 1;
+}
+
+static unsigned long stm32_divider_get_rate(void __iomem *base,
+					    struct clk_stm32_clock_data *data,
+					    u16 div_id,
+					    unsigned long parent_rate)
+{
+	const struct stm32_div_cfg *divider = &data->dividers[div_id];
+	unsigned int val;
+	unsigned int div;
+
+	val =  readl(base + divider->offset) >> divider->shift;
+	val &= clk_div_mask(divider->width);
+	div = _get_div(divider->table, val, divider->flags, divider->width);
+
+	if (!div) {
+		WARN(!(divider->flags & CLK_DIVIDER_ALLOW_ZERO),
+		     "%d: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
+		     div_id);
+		return parent_rate;
+	}
+
+	return DIV_ROUND_UP_ULL((u64)parent_rate, div);
+}
+
+static int stm32_divider_set_rate(void __iomem *base,
+				  struct clk_stm32_clock_data *data,
+				  u16 div_id, unsigned long rate,
+				  unsigned long parent_rate)
+{
+	const struct stm32_div_cfg *divider = &data->dividers[div_id];
+	int value;
+	u32 val;
+
+	value = divider_get_val(rate, parent_rate, divider->table,
+				divider->width, divider->flags);
+	if (value < 0)
+		return value;
+
+	if (divider->flags & CLK_DIVIDER_HIWORD_MASK) {
+		val = clk_div_mask(divider->width) << (divider->shift + 16);
+	} else {
+		val = readl(base + divider->offset);
+		val &= ~(clk_div_mask(divider->width) << divider->shift);
+	}
+
+	val |= (u32)value << divider->shift;
+
+	writel(val, base + divider->offset);
+
+	return 0;
+}
+
 static u8 clk_stm32_mux_get_parent(struct clk_hw *hw)
 {
 	struct clk_stm32_mux *mux = to_clk_stm32_mux(hw);
@@ -251,6 +325,70 @@ const struct clk_ops clk_stm32_gate_ops = {
 	.disable_unused	= clk_stm32_gate_disable_unused,
 };
 
+static int clk_stm32_divider_set_rate(struct clk_hw *hw, unsigned long rate,
+				      unsigned long parent_rate)
+{
+	struct clk_stm32_div *div = to_clk_stm32_divider(hw);
+	unsigned long flags = 0;
+	int ret;
+
+	if (div->div_id == NO_STM32_DIV)
+		return rate;
+
+	spin_lock_irqsave(div->lock, flags);
+
+	ret = stm32_divider_set_rate(div->base, div->clock_data, div->div_id, rate, parent_rate);
+
+	spin_unlock_irqrestore(div->lock, flags);
+
+	return ret;
+}
+
+static long clk_stm32_divider_round_rate(struct clk_hw *hw, unsigned long rate,
+					 unsigned long *prate)
+{
+	struct clk_stm32_div *div = to_clk_stm32_divider(hw);
+	const struct stm32_div_cfg *divider;
+
+	if (div->div_id == NO_STM32_DIV)
+		return rate;
+
+	divider = &div->clock_data->dividers[div->div_id];
+
+	/* if read only, just return current value */
+	if (divider->flags & CLK_DIVIDER_READ_ONLY) {
+		u32 val;
+
+		val =  readl(div->base + divider->offset) >> divider->shift;
+		val &= clk_div_mask(divider->width);
+
+		return divider_ro_round_rate(hw, rate, prate, divider->table,
+				divider->width, divider->flags,
+				val);
+	}
+
+	return divider_round_rate_parent(hw, clk_hw_get_parent(hw),
+					 rate, prate, divider->table,
+					 divider->width, divider->flags);
+}
+
+static unsigned long clk_stm32_divider_recalc_rate(struct clk_hw *hw,
+						   unsigned long parent_rate)
+{
+	struct clk_stm32_div *div = to_clk_stm32_divider(hw);
+
+	if (div->div_id == NO_STM32_DIV)
+		return parent_rate;
+
+	return stm32_divider_get_rate(div->base, div->clock_data, div->div_id, parent_rate);
+}
+
+const struct clk_ops clk_stm32_divider_ops = {
+	.recalc_rate	= clk_stm32_divider_recalc_rate,
+	.round_rate	= clk_stm32_divider_round_rate,
+	.set_rate	= clk_stm32_divider_set_rate,
+};
+
 struct clk_hw *clk_stm32_mux_register(struct device *dev,
 				      const struct stm32_rcc_match_data *data,
 				      void __iomem *base,
@@ -285,6 +423,27 @@ struct clk_hw *clk_stm32_gate_register(struct device *dev,
 	gate->base = base;
 	gate->lock = lock;
 	gate->clock_data = data->clock_data;
+
+	err = clk_hw_register(dev, hw);
+	if (err)
+		return ERR_PTR(err);
+
+	return hw;
+}
+
+struct clk_hw *clk_stm32_div_register(struct device *dev,
+				      const struct stm32_rcc_match_data *data,
+				      void __iomem *base,
+				      spinlock_t *lock,
+				      const struct clock_config *cfg)
+{
+	struct clk_stm32_div *div = cfg->clock_cfg;
+	struct clk_hw *hw = &div->hw;
+	int err;
+
+	div->base = base;
+	div->lock = lock;
+	div->clock_data = data->clock_data;
 
 	err = clk_hw_register(dev, hw);
 	if (err)

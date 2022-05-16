@@ -415,9 +415,16 @@ static struct clk_stm32_gate eth1ck_k = {
 	.hw.init = CLK_HW_INIT_HW("eth1ck_k", &ck_ker_eth1.hw, &clk_stm32_gate_ops, 0),
 };
 
+static struct clk_stm32_div eth1ptp_k = {
+	.div_id = DIV_ETH1PTP,
+	.hw.init = CLK_HW_INIT_HW("eth1ptp_k", &ck_ker_eth1.hw, &clk_stm32_divider_ops,
+				  CLK_SET_RATE_NO_REPARENT),
+};
+
 static const struct clock_config stm32mp13_clock_cfg[] = {
 	STM32_MUX_CFG(NO_ID, ck_ker_eth1),
 	STM32_GATE_CFG(ETH1CK_K, eth1ck_k),
+	STM32_DIV_CFG(ETH1PTP_K, eth1ptp_k),
 };
 
 static u16 stm32mp13_cpt_gate[GATE_NB];
