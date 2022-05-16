@@ -34,21 +34,11 @@ enum nf_ct_ext_id {
 	NF_CT_EXT_NUM,
 };
 
-#define NF_CT_EXT_HELPER_TYPE struct nf_conn_help
-#define NF_CT_EXT_NAT_TYPE struct nf_conn_nat
-#define NF_CT_EXT_SEQADJ_TYPE struct nf_conn_seqadj
-#define NF_CT_EXT_ACCT_TYPE struct nf_conn_acct
-#define NF_CT_EXT_ECACHE_TYPE struct nf_conntrack_ecache
-#define NF_CT_EXT_TSTAMP_TYPE struct nf_conn_tstamp
-#define NF_CT_EXT_TIMEOUT_TYPE struct nf_conn_timeout
-#define NF_CT_EXT_LABELS_TYPE struct nf_conn_labels
-#define NF_CT_EXT_SYNPROXY_TYPE struct nf_conn_synproxy
-#define NF_CT_EXT_ACT_CT_TYPE struct nf_conn_act_ct_ext
-
 /* Extensions: optional stuff which isn't permanently in struct. */
 struct nf_ct_ext {
 	u8 offset[NF_CT_EXT_NUM];
 	u8 len;
+	unsigned int gen_id;
 	char data[] __aligned(8);
 };
 
@@ -62,17 +52,28 @@ static inline bool nf_ct_ext_exist(const struct nf_conn *ct, u8 id)
 	return (ct->ext && __nf_ct_ext_exist(ct->ext, id));
 }
 
-static inline void *__nf_ct_ext_find(const struct nf_conn *ct, u8 id)
+void *__nf_ct_ext_find(const struct nf_ct_ext *ext, u8 id);
+
+static inline void *nf_ct_ext_find(const struct nf_conn *ct, u8 id)
 {
-	if (!nf_ct_ext_exist(ct, id))
+	struct nf_ct_ext *ext = ct->ext;
+
+	if (!ext || !__nf_ct_ext_exist(ext, id))
 		return NULL;
+
+	if (unlikely(ext->gen_id))
+		return __nf_ct_ext_find(ext, id);
 
 	return (void *)ct->ext + ct->ext->offset[id];
 }
-#define nf_ct_ext_find(ext, id)	\
-	((id##_TYPE *)__nf_ct_ext_find((ext), (id)))
 
 /* Add this type, returns pointer to data or NULL. */
 void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp);
+
+/* ext genid.  if ext->id != ext_genid, extensions cannot be used
+ * anymore unless conntrack has CONFIRMED bit set.
+ */
+extern atomic_t nf_conntrack_ext_genid;
+void nf_ct_ext_bump_genid(void);
 
 #endif /* _NF_CONNTRACK_EXTEND_H */
