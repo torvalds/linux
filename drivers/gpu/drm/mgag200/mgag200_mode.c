@@ -691,9 +691,16 @@ static void mgag200_disable_display(struct mga_device *mdev)
 
 static int mga_vga_get_modes(struct drm_connector *connector)
 {
+	struct mga_device *mdev = to_mga_device(connector->dev);
 	struct mga_connector *mga_connector = to_mga_connector(connector);
 	struct edid *edid;
 	int ret = 0;
+
+	/*
+	 * Protect access to I/O registers from concurrent modesetting
+	 * by acquiring the I/O-register lock.
+	 */
+	mutex_lock(&mdev->rmmio_lock);
 
 	edid = drm_get_edid(connector, &mga_connector->i2c->adapter);
 	if (edid) {
@@ -701,6 +708,9 @@ static int mga_vga_get_modes(struct drm_connector *connector)
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 	}
+
+	mutex_unlock(&mdev->rmmio_lock);
+
 	return ret;
 }
 
