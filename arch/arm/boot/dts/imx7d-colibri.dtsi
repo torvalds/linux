@@ -23,10 +23,12 @@
 	cpu-supply = <&reg_DCDC2>;
 };
 
+/* NAND */
 &gpmi {
 	status = "okay";
 };
 
+/* Colibri USBH */
 &usbotg2 {
 	dr_mode = "host";
 	vbus-supply = <&reg_usbh_vbus>;

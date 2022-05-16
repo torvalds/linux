@@ -49,11 +49,13 @@
 			  "SODIMM_34";
 };
 
+/* Colibri USBH */
 &usbotg2 {
 	dr_mode = "host";
 	vbus-supply = <&reg_usbh_vbus>;
 };
 
+/* eMMC */
 &usdhc3 {
 	status = "okay";
 };

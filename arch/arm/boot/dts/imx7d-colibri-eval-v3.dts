@@ -38,14 +38,19 @@
 	status = "okay";
 };
 
+/* Colibri PWM<B> */
 &pwm2 {
+	/* The pwm2 should be disabled to enable atmel_mxt_ts touchscreen for adapter. */
 	status = "okay";
 };
 
+/* Colibri PWM<C> */
 &pwm3 {
+	/* The pwm3 should be disabled to enable atmel_mxt_ts touchscreen for adapter. */
 	status = "okay";
 };
 
+/* Colibri USBH */
 &usbotg2 {
 	status = "okay";
 };

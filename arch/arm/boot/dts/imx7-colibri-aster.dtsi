@@ -3,6 +3,7 @@
  * Copyright 2017-2022 Toradex
  */
 
+/* Colibri AD0 to AD3 */
 &adc1 {
 	status = "okay";
 };
@@ -17,26 +18,32 @@
 	status = "okay";
 };
 
+/* Colibri Fast Ethernet */
 &fec1 {
 	status = "okay";
 };
 
+/* Colibri I2C: I2C3_SDA/SCL on SODIMM 194/196 */
 &i2c4 {
 	status = "okay";
 };
 
+/* Colibri PWM<A> */
 &pwm1 {
 	status = "okay";
 };
 
+/* Colibri PWM<B> */
 &pwm2 {
 	status = "okay";
 };
 
+/* Colibri PWM<C> */
 &pwm3 {
 	status = "okay";
 };
 
+/* Colibri PWM<D> */
 &pwm4 {
 	status = "okay";
 };
@@ -46,18 +53,22 @@
 	status = "okay";
 };
 
+/* Colibri UART_A */
 &uart1 {
 	status = "okay";
 };
 
+/* Colibri UART_B */
 &uart2 {
 	status = "okay";
 };
 
+/* Colibri UART_C */
 &uart3 {
 	status = "okay";
 };
 
+/* Colibri USBC */
 &usbotg1 {
 	status = "okay";
 };

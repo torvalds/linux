@@ -13,6 +13,7 @@
 	};
 };
 
+/* NAND */
 &gpmi {
 	status = "okay";
 };

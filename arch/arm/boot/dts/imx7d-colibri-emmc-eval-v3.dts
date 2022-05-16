@@ -15,6 +15,7 @@
 		     "fsl,imx7d";
 };
 
+/* Colibri USBH */
 &usbotg2 {
 	status = "okay";
 };
