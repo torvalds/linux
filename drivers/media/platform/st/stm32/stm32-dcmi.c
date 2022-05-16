@@ -1591,24 +1591,30 @@ static int dcmi_set_default_fmt(struct stm32_dcmi *dcmi)
 	return 0;
 }
 
-/*
- * FIXME: For the time being we only support subdevices
- * which expose RGB & YUV "parallel form" mbus code (_2X8).
- * Nevertheless, this allows to support serial source subdevices
- * and serial to parallel bridges which conform to this.
- */
 static const struct dcmi_format dcmi_formats[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_RGB565,
 		.mbus_code = MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.bpp = 2,
 	}, {
+		.fourcc = V4L2_PIX_FMT_RGB565,
+		.mbus_code = MEDIA_BUS_FMT_RGB565_1X16,
+		.bpp = 2,
+	}, {
 		.fourcc = V4L2_PIX_FMT_YUYV,
 		.mbus_code = MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp = 2,
 	}, {
+		.fourcc = V4L2_PIX_FMT_YUYV,
+		.mbus_code = MEDIA_BUS_FMT_YUYV8_1X16,
+		.bpp = 2,
+	}, {
 		.fourcc = V4L2_PIX_FMT_UYVY,
 		.mbus_code = MEDIA_BUS_FMT_UYVY8_2X8,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_UYVY,
+		.mbus_code = MEDIA_BUS_FMT_UYVY8_1X16,
 		.bpp = 2,
 	}, {
 		.fourcc = V4L2_PIX_FMT_JPEG,
