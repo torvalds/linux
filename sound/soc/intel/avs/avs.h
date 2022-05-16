@@ -19,6 +19,8 @@
 
 struct avs_dev;
 struct avs_tplg;
+struct avs_tplg_library;
+struct avs_soc_component;
 
 /*
  * struct avs_dsp_ops - Platform-specific DSP operations
@@ -241,6 +243,7 @@ void avs_hda_clock_gating_enable(struct avs_dev *adev, bool enable);
 void avs_hda_power_gating_enable(struct avs_dev *adev, bool enable);
 void avs_hda_l1sen_enable(struct avs_dev *adev, bool enable);
 
+int avs_dsp_load_libraries(struct avs_dev *adev, struct avs_tplg_library *libs, u32 num_libs);
 int avs_dsp_boot_firmware(struct avs_dev *adev, bool purge);
 int avs_dsp_first_boot_firmware(struct avs_dev *adev);
 
