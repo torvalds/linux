@@ -849,8 +849,11 @@ static int mgag200_vga_connector_init(struct mga_device *mdev)
 	int ret;
 
 	i2c = mgag200_i2c_create(dev);
-	if (!i2c)
-		drm_warn(dev, "failed to add DDC bus\n");
+	if (IS_ERR(i2c)) {
+		ret = PTR_ERR(i2c)
+		drm_err(dev, "failed to add DDC bus: %d\n", ret);
+		return ret;
+	}
 
 	ret = drm_connector_init_with_ddc(dev, connector,
 					  &mga_vga_connector_funcs,

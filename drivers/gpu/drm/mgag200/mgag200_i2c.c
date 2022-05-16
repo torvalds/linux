@@ -120,7 +120,7 @@ struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev)
 
 	i2c = kzalloc(sizeof(struct mga_i2c_chan), GFP_KERNEL);
 	if (!i2c)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	i2c->data = data;
 	i2c->clock = clock;
@@ -142,11 +142,14 @@ struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev)
 	i2c->bit.getscl		= mga_gpio_getscl;
 
 	ret = i2c_bit_add_bus(&i2c->adapter);
-	if (ret) {
-		kfree(i2c);
-		i2c = NULL;
-	}
+	if (ret)
+		goto err_kfree;
+
 	return i2c;
+
+err_kfree:
+	kfree(i2c);
+	return ERR_PTR(ret);
 }
 
 void mgag200_i2c_destroy(struct mga_i2c_chan *i2c)
