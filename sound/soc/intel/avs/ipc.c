@@ -140,6 +140,7 @@ static void avs_dsp_process_notification(struct avs_dev *adev, u64 header)
 		data_size = sizeof(struct avs_notify_res_data);
 		break;
 
+	case AVS_NOTIFY_LOG_BUFFER_STATUS:
 	case AVS_NOTIFY_EXCEPTION_CAUGHT:
 		break;
 
@@ -168,6 +169,10 @@ static void avs_dsp_process_notification(struct avs_dev *adev, u64 header)
 		dev_dbg(adev->dev, "FW READY 0x%08x\n", msg.primary);
 		adev->ipc->ready = true;
 		complete(&adev->fw_ready);
+		break;
+
+	case AVS_NOTIFY_LOG_BUFFER_STATUS:
+		avs_dsp_op(adev, log_buffer_status, &msg);
 		break;
 
 	case AVS_NOTIFY_EXCEPTION_CAUGHT:

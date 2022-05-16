@@ -11,6 +11,7 @@
 
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <linux/kfifo.h>
 #include <sound/hda_codec.h>
 #include <sound/hda_register.h>
 #include <sound/soc-component.h>
@@ -42,6 +43,10 @@ struct avs_dsp_ops {
 	int (* const load_basefw)(struct avs_dev *, struct firmware *);
 	int (* const load_lib)(struct avs_dev *, struct firmware *, u32);
 	int (* const transfer_mods)(struct avs_dev *, bool, struct avs_module_entry *, u32);
+	int (* const enable_logs)(struct avs_dev *, enum avs_log_enable, u32, u32, unsigned long,
+				  u32 *);
+	int (* const log_buffer_offset)(struct avs_dev *, u32);
+	int (* const log_buffer_status)(struct avs_dev *, union avs_notify_msg *);
 	int (* const coredump)(struct avs_dev *, union avs_notify_msg *);
 };
 
@@ -73,6 +78,16 @@ struct avs_fw_entry {
 	const struct firmware *fw;
 
 	struct list_head node;
+};
+
+struct avs_debug {
+	struct kfifo trace_fifo;
+	spinlock_t fifo_lock;	/* serialize I/O for trace_fifo */
+	spinlock_t trace_lock;	/* serialize debug window I/O between each LOG_BUFFER_STATUS */
+	wait_queue_head_t trace_waitq;
+	u32 aging_timer_period;
+	u32 fifo_full_timer_period;
+	u32 logged_resources;	/* context dependent: core or library */
 };
 
 /*
@@ -115,6 +130,8 @@ struct avs_dev {
 	struct list_head path_list;
 	spinlock_t path_list_lock;
 	struct mutex path_mutex;
+
+	struct avs_debug dbg;
 };
 
 /* from hda_bus to avs_dev */
@@ -278,5 +295,20 @@ int avs_dmic_platform_register(struct avs_dev *adev, const char *name);
 int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned long port_mask,
 			      unsigned long *tdms);
 int avs_hda_platform_register(struct avs_dev *adev, const char *name);
+
+/* Firmware tracing helpers */
+
+unsigned int __kfifo_fromio_locked(struct kfifo *fifo, const void __iomem *src, unsigned int len,
+				   spinlock_t *lock);
+
+#define avs_log_buffer_size(adev) \
+	((adev)->fw_cfg.trace_log_bytes / (adev)->hw_cfg.dsp_cores)
+
+#define avs_log_buffer_addr(adev, core) \
+({ \
+	s32 __offset = avs_dsp_op(adev, log_buffer_offset, core); \
+	(__offset < 0) ? NULL : \
+			 (avs_sram_addr(adev, AVS_DEBUG_WINDOW) + __offset); \
+})
 
 #endif /* __SOUND_SOC_INTEL_AVS_H */

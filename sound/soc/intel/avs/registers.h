@@ -58,6 +58,7 @@
 #define AVS_UPLINK_WINDOW		AVS_FW_REGS_WINDOW
 /* HOST -> DSP communication window */
 #define AVS_DOWNLINK_WINDOW		1
+#define AVS_DEBUG_WINDOW		2
 
 /* registry I/O helpers */
 #define avs_sram_offset(adev, window_idx) \
