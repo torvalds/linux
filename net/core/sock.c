@@ -635,7 +635,9 @@ static int sock_bindtoindex_locked(struct sock *sk, int ifindex)
 	if (ifindex < 0)
 		goto out;
 
-	sk->sk_bound_dev_if = ifindex;
+	/* Paired with all READ_ONCE() done locklessly. */
+	WRITE_ONCE(sk->sk_bound_dev_if, ifindex);
+
 	if (sk->sk_prot->rehash)
 		sk->sk_prot->rehash(sk);
 	sk_dst_reset(sk);
@@ -713,10 +715,11 @@ static int sock_getbindtodevice(struct sock *sk, char __user *optval,
 {
 	int ret = -ENOPROTOOPT;
 #ifdef CONFIG_NETDEVICES
+	int bound_dev_if = READ_ONCE(sk->sk_bound_dev_if);
 	struct net *net = sock_net(sk);
 	char devname[IFNAMSIZ];
 
-	if (sk->sk_bound_dev_if == 0) {
+	if (bound_dev_if == 0) {
 		len = 0;
 		goto zero;
 	}
@@ -725,7 +728,7 @@ static int sock_getbindtodevice(struct sock *sk, char __user *optval,
 	if (len < IFNAMSIZ)
 		goto out;
 
-	ret = netdev_get_name(net, devname, sk->sk_bound_dev_if);
+	ret = netdev_get_name(net, devname, bound_dev_if);
 	if (ret)
 		goto out;
 
@@ -1861,7 +1864,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case SO_BINDTOIFINDEX:
-		v.val = sk->sk_bound_dev_if;
+		v.val = READ_ONCE(sk->sk_bound_dev_if);
 		break;
 
 	case SO_NETNS_COOKIE:

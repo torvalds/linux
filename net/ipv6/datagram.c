@@ -218,11 +218,11 @@ ipv4_connected:
 				err = -EINVAL;
 				goto out;
 			}
-			sk->sk_bound_dev_if = usin->sin6_scope_id;
+			WRITE_ONCE(sk->sk_bound_dev_if, usin->sin6_scope_id);
 		}
 
 		if (!sk->sk_bound_dev_if && (addr_type & IPV6_ADDR_MULTICAST))
-			sk->sk_bound_dev_if = np->mcast_oif;
+			WRITE_ONCE(sk->sk_bound_dev_if, np->mcast_oif);
 
 		/* Connect to link-local address requires an interface */
 		if (!sk->sk_bound_dev_if) {
@@ -798,7 +798,7 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 			if (src_idx) {
 				if (fl6->flowi6_oif &&
 				    src_idx != fl6->flowi6_oif &&
-				    (sk->sk_bound_dev_if != fl6->flowi6_oif ||
+				    (READ_ONCE(sk->sk_bound_dev_if) != fl6->flowi6_oif ||
 				     !sk_dev_equal_l3scope(sk, src_idx)))
 					return -EINVAL;
 				fl6->flowi6_oif = src_idx;
