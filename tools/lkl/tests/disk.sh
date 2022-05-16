@@ -8,7 +8,7 @@ function prepfs()
 {
     set -e
 
-    file=`mktemp`
+    file=`mktemp disk-XXXX`
 
     dd if=/dev/zero of=$file bs=1024 count=204800
 

@@ -111,7 +111,9 @@ lkl_test_exec()
         WRAPPER="adb shell $SU"
         file=$ANDROID_WDIR/$(basename $file)
     elif file $file | grep PE32; then
-        WRAPPER="wine"
+        if uname -s | grep Linux; then
+            WRAPPER="wine"
+	fi
     elif file $file | grep ARM; then
         WRAPPER="qemu-arm-static"
     elif file $file | grep "FreeBSD" ; then

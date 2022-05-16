@@ -2,6 +2,9 @@
 #define _HAVE_STRING_ARCH_strtok_r
 #include <string.h>
 #ifndef __MINGW32__
+#ifdef __MSYS__
+#include <cygwin/socket.h>
+#endif
 #include <arpa/inet.h>
 #else
 #define inet_pton lkl_inet_pton

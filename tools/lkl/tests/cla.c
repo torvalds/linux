@@ -5,6 +5,9 @@
 #ifdef __MINGW32__
 #include <winsock2.h>
 #else
+#ifdef __MSYS__
+#include <cygwin/socket.h>
+#endif
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
