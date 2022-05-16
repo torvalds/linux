@@ -771,6 +771,8 @@ void kfree_skb_reason(struct sk_buff *skb, enum skb_drop_reason reason)
 	if (!skb_unref(skb))
 		return;
 
+	DEBUG_NET_WARN_ON_ONCE(reason <= 0 || reason >= SKB_DROP_REASON_MAX);
+
 	trace_kfree_skb(skb, __builtin_return_address(0), reason);
 	__kfree_skb(skb);
 }
