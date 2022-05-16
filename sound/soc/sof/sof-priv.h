@@ -461,12 +461,6 @@ struct snd_sof_ipc {
 	const struct sof_ipc_ops *ops;
 };
 
-enum sof_dtrace_state {
-	SOF_DTRACE_DISABLED,
-	SOF_DTRACE_STOPPED,
-	SOF_DTRACE_ENABLED,
-};
-
 /*
  * SOF Device Level.
  */
@@ -550,16 +544,6 @@ struct snd_sof_dev {
 	/* firmwre tracing */
 	bool fw_trace_is_supported; /* set with Kconfig or module parameter */
 	void *fw_trace_data; /* private data used by firmware tracing implementation */
-
-	/* DMA for Trace */
-	struct snd_dma_buffer dmatb;
-	struct snd_dma_buffer dmatp;
-	int dma_trace_pages;
-	wait_queue_head_t trace_sleep;
-	u32 host_offset;
-	bool dtrace_error;
-	bool dtrace_draining;
-	enum sof_dtrace_state dtrace_state;
 
 	bool msi_enabled;
 
