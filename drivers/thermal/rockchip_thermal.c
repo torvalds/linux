@@ -1528,6 +1528,32 @@ static const struct rockchip_tsadc_chip rk3308_tsadc_data = {
 	},
 };
 
+static const struct rockchip_tsadc_chip rk3308bs_tsadc_data = {
+	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	.chn_num = 1, /* 1 channels for tsadc */
+
+	.conversion_time = 2100, /* us */
+
+	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
+	.tshut_temp = 95000,
+
+	.initialize = rk_tsadcv2_initialize,
+	.irq_ack = rk_tsadcv3_irq_ack,
+	.control = rk_tsadcv2_control,
+	.get_temp = rk_tsadcv2_get_temp,
+	.set_alarm_temp = rk_tsadcv2_alarm_temp,
+	.set_tshut_temp = rk_tsadcv2_tshut_temp,
+	.set_tshut_mode = rk_tsadcv2_tshut_mode,
+	.set_clk_rate = rk_tsadcv1_set_clk_rate,
+
+	.table = {
+		.kNum = 2699,
+		.bNum = 2796,
+		.data_mask = TSADCV2_DATA_MASK,
+		.mode = ADC_INCREMENT,
+	},
+};
+
 static const struct rockchip_tsadc_chip rk3328_tsadc_data = {
 	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* one channels for tsadc */
@@ -1722,6 +1748,10 @@ static const struct of_device_id of_rockchip_thermal_match[] = {
 	{
 		.compatible = "rockchip,rk3308-tsadc",
 		.data = (void *)&rk3308_tsadc_data,
+	},
+	{
+		.compatible = "rockchip,rk3308bs-tsadc",
+		.data = (void *)&rk3308bs_tsadc_data,
 	},
 #endif
 #ifdef CONFIG_CPU_RK3328
@@ -2066,6 +2096,8 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 		return -EINVAL;
 	if (soc_is_px30s())
 		thermal->chip = &px30s_tsadc_data;
+	if (soc_is_rk3308bs())
+		thermal->chip = &rk3308bs_tsadc_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	thermal->regs = devm_ioremap_resource(&pdev->dev, res);
