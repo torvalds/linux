@@ -219,7 +219,6 @@ class LinuxSourceTree:
 	def __init__(
 	      self,
 	      build_dir: str,
-	      load_config=True,
 	      kunitconfig_path='',
 	      kconfig_add: Optional[List[str]]=None,
 	      arch=None,
@@ -232,9 +231,6 @@ class LinuxSourceTree:
 		else:
 			self._arch = 'um' if arch is None else arch
 			self._ops = get_source_tree_ops(self._arch, cross_compile)
-
-		if not load_config:
-			return
 
 		if kunitconfig_path:
 			if os.path.isdir(kunitconfig_path):
