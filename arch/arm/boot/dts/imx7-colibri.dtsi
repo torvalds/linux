@@ -137,8 +137,9 @@
 	vref-supply = <&reg_DCDC3>;
 };
 
+/* ADC2 is not available as it conflicts with AD7879 resistive touchscreen. */
 &adc2 {
-	vref-supply = <&reg_DCDC3>;
+	status = "disabled";
 };
 
 &cpu0 {

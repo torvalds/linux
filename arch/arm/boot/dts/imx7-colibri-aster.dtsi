@@ -7,14 +7,6 @@
 	status = "okay";
 };
 
-/*
- * ADC2 is not available on the Aster board and
- * conflicts with AD7879 resistive touchscreen.
- */
-&adc2 {
-	status = "disabled";
-};
-
 &fec1 {
 	status = "okay";
 };
