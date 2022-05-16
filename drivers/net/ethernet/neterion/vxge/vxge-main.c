@@ -2405,7 +2405,6 @@ static void vxge_rem_msix_isr(struct vxgedev *vdev)
 	for (intr_cnt = 0; intr_cnt < (vdev->no_of_vpath * 2 + 1);
 		intr_cnt++) {
 		if (vdev->vxge_entries[intr_cnt].in_use) {
-			synchronize_irq(vdev->entries[intr_cnt].vector);
 			free_irq(vdev->entries[intr_cnt].vector,
 				vdev->vxge_entries[intr_cnt].arg);
 			vdev->vxge_entries[intr_cnt].in_use = 0;
@@ -2427,7 +2426,6 @@ static void vxge_rem_isr(struct vxgedev *vdev)
 	    vdev->config.intr_type == MSI_X) {
 		vxge_rem_msix_isr(vdev);
 	} else if (vdev->config.intr_type == INTA) {
-			synchronize_irq(vdev->pdev->irq);
 			free_irq(vdev->pdev->irq, vdev);
 	}
 }
