@@ -2014,6 +2014,20 @@ static int bq25700_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
+	/*
+	 * Make sure battery online, otherwise, writing INPUT_CURRENT and
+	 * CHARGE_CURRENT would make system power off
+	 */
+	if (of_parse_phandle(charger->dev->of_node, "ti,battery", 0)) {
+		if (IS_ERR_OR_NULL(power_supply_get_by_phandle(
+						charger->dev->of_node,
+						"ti,battery"))) {
+			dev_info(charger->dev, "No battery found\n");
+			return -EPROBE_DEFER;
+		}
+		dev_info(charger->dev, "Battery found\n");
+	}
+
 	ret = bq25700_hw_init(charger);
 	if (ret < 0) {
 		dev_err(dev, "Cannot initialize the chip.\n");
