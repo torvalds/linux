@@ -549,6 +549,7 @@ struct snd_sof_dev {
 
 	/* firmwre tracing */
 	bool fw_trace_is_supported; /* set with Kconfig or module parameter */
+	void *fw_trace_data; /* private data used by firmware tracing implementation */
 
 	/* DMA for Trace */
 	struct snd_dma_buffer dmatb;
