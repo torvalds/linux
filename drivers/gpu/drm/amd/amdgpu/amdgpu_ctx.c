@@ -296,6 +296,7 @@ static int amdgpu_ctx_set_stable_pstate(struct amdgpu_ctx *ctx,
 {
 	struct amdgpu_device *adev = ctx->adev;
 	enum amd_dpm_forced_level level;
+	u32 current_stable_pstate;
 	int r;
 
 	mutex_lock(&adev->pm.stable_pstate_ctx_lock);
@@ -303,6 +304,10 @@ static int amdgpu_ctx_set_stable_pstate(struct amdgpu_ctx *ctx,
 		r = -EBUSY;
 		goto done;
 	}
+
+	r = amdgpu_ctx_get_stable_pstate(ctx, &current_stable_pstate);
+	if (r || (stable_pstate == current_stable_pstate))
+		goto done;
 
 	switch (stable_pstate) {
 	case AMDGPU_CTX_STABLE_PSTATE_NONE:
