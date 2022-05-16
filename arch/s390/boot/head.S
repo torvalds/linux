@@ -29,202 +29,179 @@
 #include <asm/sclp.h>
 #include "boot.h"
 
-#define ARCH_OFFSET	4
-
 #define EP_OFFSET	0x10008
 #define EP_STRING	"S390EP"
 #define IPL_BS		0x730
 
 __HEAD
 ipl_start:
-	j	.Liplcont
+	mvi	__LC_AR_MODE_ID,1	# set esame flag
+	slr	%r0,%r0			# set cpuid to zero
+	lhi	%r1,2			# mode 2 = esame (dump)
+	sigp	%r1,%r0,0x12		# switch to esame mode
+	sam64				# switch to 64 bit addressing mode
+	lgh	%r1,__LC_SUBCHANNEL_ID	# test if subchannel number
+	brctg	%r1,.Lnoload		#  is valid
+	llgf	%r1,__LC_SUBCHANNEL_ID	# load ipl subchannel number
+	lghi	%r2,IPL_BS		# load start address
+	bras	%r14,.Lloader		# load rest of ipl image
+	larl	%r12,parmarea		# pointer to parameter area
+	stg	%r1,IPL_DEVICE-PARMAREA(%r12) # save ipl device number
+#
+# load parameter file from ipl device
+#
+.Lagain1:
+	larl	%r2,_end		# ramdisk loc. is temp
+	bras	%r14,.Lloader		# load parameter file
+	ltgr	%r2,%r2			# got anything ?
+	jz	.Lnopf
+	lg	%r3,MAX_COMMAND_LINE_SIZE-PARMAREA(%r12)
+	aghi	%r3,-1
+	clgr	%r2,%r3
+	jl	.Lnotrunc
+	lgr	%r2,%r3
+.Lnotrunc:
+	larl	%r4,_end
+	larl	%r13,.L_hdr
+	clc	0(3,%r4),0(%r13)	# if it is HDRx
+	jz	.Lagain1		# skip dataset header
+	larl	%r13,.L_eof
+	clc	0(3,%r4),0(%r13)	# if it is EOFx
+	jz	.Lagain1		# skip dateset trailer
+	lgr	%r5,%r2
+	la	%r6,COMMAND_LINE-PARMAREA(%r12)
+	lgr	%r7,%r2
+	aghi	%r7,1
+	mvcl	%r6,%r4
+.Lnopf:
+#
+# load ramdisk from ipl device
+#
+.Lagain2:
+	larl	%r2,_end		# addr of ramdisk
+	stg	%r2,INITRD_START-PARMAREA(%r12)
+	bras	%r14,.Lloader		# load ramdisk
+	stg	%r2,INITRD_SIZE-PARMAREA(%r12) # store size of rd
+	ltgr	%r2,%r2
+	jnz	.Lrdcont
+	stg	%r2,INITRD_START-PARMAREA(%r12) # no ramdisk found
+.Lrdcont:
+	larl	%r2,_end
+	larl	%r13,.L_hdr		# skip HDRx and EOFx
+	clc	0(3,%r2),0(%r13)
+	jz	.Lagain2
+	larl	%r13,.L_eof
+	clc	0(3,%r2),0(%r13)
+	jz	.Lagain2
+#
+# reset files in VM reader
+#
+	larl	%r13,.Lcpuid
+	stidp	0(%r13)			# store cpuid
+	tm	0(%r13),0xff		# running VM ?
+	jno	.Lnoreset
+	larl	%r2,.Lreset
+	lghi	%r3,26
+	diag	%r2,%r3,8
+	larl	%r5,.Lirb
+	stsch	0(%r5)			# check if irq is pending
+	tm	30(%r5),0x0f		# by verifying if any of the
+	jnz	.Lwaitforirq		# activity or status control
+	tm	31(%r5),0xff		# bits is set in the schib
+	jz	.Lnoreset
+.Lwaitforirq:
+	bras	%r14,.Lirqwait		# wait for IO interrupt
+	c	%r1,__LC_SUBCHANNEL_ID	# compare subchannel number
+	jne	.Lwaitforirq
+	larl	%r5,.Lirb
+	tsch	0(%r5)
+.Lnoreset:
+	j	.Lnoload
+#
+# everything loaded, go for it
+#
+.Lnoload:
+	jg	startup
 #
 # subroutine to wait for end I/O
 #
 .Lirqwait:
-	larl	%r13,.Lnewpsw		# set up IO interrupt psw
-	mvc	__LC_IO_NEW_PSW(16),0(%r13)
-	lpsw	.Lwaitpsw
+	larl	%r13,.Lnewpswmask	# set up IO interrupt psw
+	mvc	__LC_IO_NEW_PSW(8),0(%r13)
+	stg	%r14,__LC_IO_NEW_PSW+8
+	larl	%r13,.Lwaitpsw
+	lpswe	0(%r13)
 .Lioint:
-	br	%r14
-	.align	8
-.Lnewpsw:
-	.quad	0x0000000080000000,.Lioint
-.Lwaitpsw:
-	.long	0x020a0000,0x80000000+.Lioint
-
 #
 # subroutine for loading cards from the reader
 #
 .Lloader:
-	la	%r4,0(%r14)
-	la	%r3,.Lorb		# r2 = address of orb into r2
-	la	%r5,.Lirb		# r4 = address of irb
-	la	%r6,.Lccws
-	la	%r7,20
+	lgr	%r4,%r14
+	larl	%r3,.Lorb		# r2 = address of orb into r2
+	larl	%r5,.Lirb		# r4 = address of irb
+	larl	%r6,.Lccws
+	lghi	%r7,20
 .Linit:
 	st	%r2,4(%r6)		# initialize CCW data addresses
 	la	%r2,0x50(%r2)
 	la	%r6,8(%r6)
-	bct	7,.Linit
-
-	lctl	%c6,%c6,.Lcr6		# set IO subclass mask
-	slr	%r2,%r2
+	brctg	%r7,.Linit
+	larl	%r13,.Lcr6
+	lctlg	%c6,%c6,0(%r13)
+	xgr	%r2,%r2
 .Lldlp:
 	ssch	0(%r3)			# load chunk of 1600 bytes
-	bnz	.Llderr
+	jnz	.Llderr
 .Lwait4irq:
-	bas	%r14,.Lirqwait
+	bras	%r14,.Lirqwait
 	c	%r1,__LC_SUBCHANNEL_ID	# compare subchannel number
-	bne	.Lwait4irq
+	jne	.Lwait4irq
 	tsch	0(%r5)
-
-	slr	%r0,%r0
+	xgr	%r0,%r0
 	ic	%r0,8(%r5)		# get device status
-	chi	%r0,8			# channel end ?
-	be	.Lcont
-	chi	%r0,12			# channel end + device end ?
-	be	.Lcont
-
-	l	%r0,4(%r5)
-	s	%r0,8(%r3)		# r0/8 = number of ccws executed
-	mhi	%r0,10			# *10 = number of bytes in ccws
-	lh	%r3,10(%r5)		# get residual count
-	sr	%r0,%r3 		# #ccws*80-residual=#bytes read
-	ar	%r2,%r0
-
+	cghi	%r0,8			# channel end ?
+	je	.Lcont
+	cghi	%r0,12			# channel end + device end ?
+	je	.Lcont
+	llgf	%r0,4(%r5)
+	sgf	%r0,8(%r3)		# r0/8 = number of ccws executed
+	mghi	%r0,10			# *10 = number of bytes in ccws
+	llgh	%r3,10(%r5)		# get residual count
+	sgr	%r0,%r3			# #ccws*80-residual=#bytes read
+	agr	%r2,%r0
 	br	%r4			# r2 contains the total size
-
 .Lcont:
-	ahi	%r2,0x640		# add 0x640 to total size
-	la	%r6,.Lccws
-	la	%r7,20
+	aghi	%r2,0x640		# add 0x640 to total size
+	larl	%r6,.Lccws
+	lghi	%r7,20
 .Lincr:
 	l	%r0,4(%r6)		# update CCW data addresses
-	ahi	%r0,0x640
+	aghi	%r0,0x640
 	st	%r0,4(%r6)
-	ahi	%r6,8
-	bct	7,.Lincr
-
-	b	.Lldlp
+	aghi	%r6,8
+	brctg	%r7,.Lincr
+	j	.Lldlp
 .Llderr:
-	lpsw	.Lcrash
+	larl	%r13,.Lcrash
+	lpsw	0(%r13)
 
+	.align	8
+.Lwaitpsw:
+	.quad	0x0202000180000000,.Lioint
+.Lnewpswmask:
+	.quad	0x0000000180000000
 	.align	8
 .Lorb:	.long	0x00000000,0x0080ff00,.Lccws
 .Lirb:	.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-.Lcr6:	.long	0xff000000
-.Lloadp:.long	0,0
+	.align	8
+.Lcr6:	.quad	0x00000000ff000000
 	.align	8
 .Lcrash:.long	0x000a0000,0x00000000
-
 	.align	8
 .Lccws: .rept	19
 	.long	0x02600050,0x00000000
 	.endr
 	.long	0x02200050,0x00000000
-
-.Liplcont:
-	mvi	__LC_AR_MODE_ID,1	# set esame flag
-	slr	%r0,%r0			# set cpuid to zero
-	lhi	%r1,2			# mode 2 = esame (dump)
-	sigp	%r1,%r0,0x12		# switch to esame mode
-	bras	%r13,0f
-	.fill	16,4,0x0
-0:	lmh	%r0,%r15,0(%r13)	# clear high-order half of gprs
-	sam31				# switch to 31 bit addressing mode
-	lh	%r1,__LC_SUBCHANNEL_ID	# test if subchannel number
-	bct	%r1,.Lnoload		#  is valid
-	l	%r1,__LC_SUBCHANNEL_ID	# load ipl subchannel number
-	la	%r2,IPL_BS		# load start address
-	bas	%r14,.Lloader		# load rest of ipl image
-	l	%r12,.Lparm		# pointer to parameter area
-	st	%r1,IPL_DEVICE+ARCH_OFFSET-PARMAREA(%r12) # save ipl device number
-
-#
-# load parameter file from ipl device
-#
-.Lagain1:
-	l	%r2,.Linitrd		# ramdisk loc. is temp
-	bas	%r14,.Lloader		# load parameter file
-	ltr	%r2,%r2 		# got anything ?
-	bz	.Lnopf
-	l	%r3,MAX_COMMAND_LINE_SIZE+ARCH_OFFSET-PARMAREA(%r12)
-	ahi	%r3,-1
-	clr	%r2,%r3
-	bl	.Lnotrunc
-	lr	%r2,%r3
-.Lnotrunc:
-	l	%r4,.Linitrd
-	larl	%r13,.L_hdr
-	clc	0(3,%r4),0(%r13)	# if it is HDRx
-	bz	.Lagain1		# skip dataset header
-	larl	%r13,.L_eof
-	clc	0(3,%r4),0(%r13)	# if it is EOFx
-	bz	.Lagain1		# skip dateset trailer
-
-	lr	%r5,%r2
-	la	%r6,COMMAND_LINE-PARMAREA(%r12)
-	lr	%r7,%r2
-	ahi	%r7,1
-	mvcl	%r6,%r4
-.Lnopf:
-
-#
-# load ramdisk from ipl device
-#
-.Lagain2:
-	l	%r2,.Linitrd		# addr of ramdisk
-	st	%r2,INITRD_START+ARCH_OFFSET-PARMAREA(%r12)
-	bas	%r14,.Lloader		# load ramdisk
-	st	%r2,INITRD_SIZE+ARCH_OFFSET-PARMAREA(%r12) # store size of rd
-	ltr	%r2,%r2
-	bnz	.Lrdcont
-	st	%r2,INITRD_START+ARCH_OFFSET-PARMAREA(%r12) # no ramdisk found
-.Lrdcont:
-	l	%r2,.Linitrd
-
-	larl	%r13,.L_hdr		# skip HDRx and EOFx
-	clc	0(3,%r2),0(%r13)
-	bz	.Lagain2
-	larl	%r13,.L_eof
-	clc	0(3,%r2),0(%r13)
-	bz	.Lagain2
-
-#
-# reset files in VM reader
-#
-	stidp	.Lcpuid			# store cpuid
-	tm	.Lcpuid,0xff		# running VM ?
-	bno	.Lnoreset
-	la	%r2,.Lreset
-	lhi	%r3,26
-	diag	%r2,%r3,8
-	la	%r5,.Lirb
-	stsch	0(%r5)			# check if irq is pending
-	tm	30(%r5),0x0f		# by verifying if any of the
-	bnz	.Lwaitforirq		# activity or status control
-	tm	31(%r5),0xff		# bits is set in the schib
-	bz	.Lnoreset
-.Lwaitforirq:
-	bas	%r14,.Lirqwait		# wait for IO interrupt
-	c	%r1,__LC_SUBCHANNEL_ID	# compare subchannel number
-	bne	.Lwaitforirq
-	la	%r5,.Lirb
-	tsch	0(%r5)
-.Lnoreset:
-	b	.Lnoload
-
-#
-# everything loaded, go for it
-#
-.Lnoload:
-	l	%r1,.Lstartup
-	br	%r1
-
-.Linitrd:.long _end			# default address of initrd
-.Lparm:	.long  PARMAREA
-.Lstartup: .long startup
 .Lreset:.byte	0xc3,0xc8,0xc1,0xd5,0xc7,0xc5,0x40,0xd9,0xc4,0xd9,0x40
 	.byte	0xc1,0xd3,0xd3,0x40,0xd2,0xc5,0xc5,0xd7,0x40,0xd5,0xd6
 	.byte	0xc8,0xd6,0xd3,0xc4	# "change rdr all keep nohold"
