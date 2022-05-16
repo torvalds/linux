@@ -10,7 +10,7 @@ PROGS := $(patsubst %,gen/%,$(TEST_GEN_PROGS))
 # cases for statically linked and dynamically lined binaries are
 # slightly different.
 
-CFLAGS_NOBTI = -DBTI=0
+CFLAGS_NOBTI = -mbranch-protection=none -DBTI=0
 CFLAGS_BTI = -mbranch-protection=standard -DBTI=1
 
 CFLAGS_COMMON = -ffreestanding -Wall -Wextra $(CFLAGS)
