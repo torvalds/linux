@@ -166,8 +166,7 @@ static void am65_cpsw_admin_to_oper(struct net_device *ndev)
 {
 	struct am65_cpsw_port *port = am65_ndev_to_port(ndev);
 
-	if (port->qos.est_oper)
-		devm_kfree(&ndev->dev, port->qos.est_oper);
+	devm_kfree(&ndev->dev, port->qos.est_oper);
 
 	port->qos.est_oper = port->qos.est_admin;
 	port->qos.est_admin = NULL;
@@ -434,11 +433,8 @@ static void am65_cpsw_purge_est(struct net_device *ndev)
 
 	am65_cpsw_stop_est(ndev);
 
-	if (port->qos.est_admin)
-		devm_kfree(&ndev->dev, port->qos.est_admin);
-
-	if (port->qos.est_oper)
-		devm_kfree(&ndev->dev, port->qos.est_oper);
+	devm_kfree(&ndev->dev, port->qos.est_admin);
+	devm_kfree(&ndev->dev, port->qos.est_oper);
 
 	port->qos.est_oper = NULL;
 	port->qos.est_admin = NULL;
@@ -524,8 +520,7 @@ static int am65_cpsw_set_taprio(struct net_device *ndev, void *type_data)
 	ret = am65_cpsw_configure_taprio(ndev, est_new);
 	if (!ret) {
 		if (taprio->enable) {
-			if (port->qos.est_admin)
-				devm_kfree(&ndev->dev, port->qos.est_admin);
+			devm_kfree(&ndev->dev, port->qos.est_admin);
 
 			port->qos.est_admin = est_new;
 		} else {
