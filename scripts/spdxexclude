@@ -11,3 +11,7 @@ license-rules.rst
 # by the Kconfig tools
 kernel/configs/
 arch/*/configs/
+
+# Other files without copyrightable content
+/CREDITS
+/MAINTAINERS
