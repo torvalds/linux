@@ -719,6 +719,7 @@ static int validate_hash_tree(struct backing_file_context *bfc, struct file *f,
 
 			memcpy(stored_digest, addr + hash_offset_in_block[lvl],
 			       digest_size);
+
 			kunmap_atomic(addr);
 			put_page(page);
 			continue;
@@ -766,6 +767,7 @@ static int validate_hash_tree(struct backing_file_context *bfc, struct file *f,
 			memcpy(addr, buf, INCFS_DATA_FILE_BLOCK_SIZE);
 			kunmap_atomic(addr);
 			SetPageChecked(page);
+			SetPageUptodate(page);
 			unlock_page(page);
 			put_page(page);
 		}

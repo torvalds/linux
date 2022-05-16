@@ -1487,16 +1487,6 @@ static void pp_pm_compute_clocks(void *handle)
 {
 	struct pp_hwmgr *hwmgr = handle;
 	struct amdgpu_device *adev = hwmgr->adev;
-	int i = 0;
-
-	if (adev->mode_info.num_crtc)
-		amdgpu_display_bandwidth_update(adev);
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
-		struct amdgpu_ring *ring = adev->rings[i];
-		if (ring && ring->sched.ready)
-			amdgpu_fence_wait_empty(ring);
-	}
 
 	if (!amdgpu_device_has_dc_support(adev)) {
 		amdgpu_dpm_get_active_displays(adev);

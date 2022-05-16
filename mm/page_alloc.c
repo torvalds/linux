@@ -6131,7 +6131,7 @@ static int build_zonerefs_node(pg_data_t *pgdat, struct zoneref *zonerefs)
 	do {
 		zone_type--;
 		zone = pgdat->node_zones + zone_type;
-		if (managed_zone(zone)) {
+		if (populated_zone(zone)) {
 			zoneref_set_zone(zone, &zonerefs[nr_zones++]);
 			check_highest_zone(zone_type);
 		}
@@ -8919,7 +8919,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 				table = memblock_alloc_raw(size,
 							   SMP_CACHE_BYTES);
 		} else if (get_order(size) >= MAX_ORDER || hashdist) {
-			table = __vmalloc(size, gfp_flags);
+			table = vmalloc_huge(size, gfp_flags);
 			virt = true;
 			if (table)
 				huge = is_vm_area_hugepages(table);

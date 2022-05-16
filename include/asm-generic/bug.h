@@ -21,6 +21,12 @@
 #include <linux/panic.h>
 #include <linux/printk.h>
 
+struct warn_args;
+struct pt_regs;
+
+void __warn(const char *file, int line, void *caller, unsigned taint,
+	    struct pt_regs *regs, struct warn_args *args);
+
 #ifdef CONFIG_BUG
 
 #ifdef CONFIG_GENERIC_BUG
@@ -110,11 +116,6 @@ extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 #endif
 
 /* used internally by panic.c */
-struct warn_args;
-struct pt_regs;
-
-void __warn(const char *file, int line, void *caller, unsigned taint,
-	    struct pt_regs *regs, struct warn_args *args);
 
 #ifndef WARN_ON
 #define WARN_ON(condition) ({						\

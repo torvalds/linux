@@ -319,7 +319,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	regs->ret = (unsigned long)ksig->ka.sa.sa_handler;
 
 	/*
-	 * handler returns using sigreturn stub provided already by userpsace
+	 * handler returns using sigreturn stub provided already by userspace
 	 * If not, nuke the process right away
 	 */
 	if(!(ksig->ka.sa.sa_flags & SA_RESTORER))

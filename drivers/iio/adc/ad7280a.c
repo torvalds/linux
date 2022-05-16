@@ -745,7 +745,7 @@ static int ad7280a_write_thresh(struct iio_dev *indio_dev,
 		case IIO_EV_DIR_RISING:
 			addr = AD7280A_CELL_OVERVOLTAGE_REG;
 			ret = ad7280_write(st, AD7280A_DEVADDR_MASTER, addr,
-					   1, val);
+					   1, value);
 			if (ret)
 				break;
 			st->cell_threshhigh = value;
@@ -753,7 +753,7 @@ static int ad7280a_write_thresh(struct iio_dev *indio_dev,
 		case IIO_EV_DIR_FALLING:
 			addr = AD7280A_CELL_UNDERVOLTAGE_REG;
 			ret = ad7280_write(st, AD7280A_DEVADDR_MASTER, addr,
-					   1, val);
+					   1, value);
 			if (ret)
 				break;
 			st->cell_threshlow = value;
@@ -770,18 +770,18 @@ static int ad7280a_write_thresh(struct iio_dev *indio_dev,
 		case IIO_EV_DIR_RISING:
 			addr = AD7280A_AUX_ADC_OVERVOLTAGE_REG;
 			ret = ad7280_write(st, AD7280A_DEVADDR_MASTER, addr,
-					   1, val);
+					   1, value);
 			if (ret)
 				break;
-			st->aux_threshhigh = val;
+			st->aux_threshhigh = value;
 			break;
 		case IIO_EV_DIR_FALLING:
 			addr = AD7280A_AUX_ADC_UNDERVOLTAGE_REG;
 			ret = ad7280_write(st, AD7280A_DEVADDR_MASTER, addr,
-					   1, val);
+					   1, value);
 			if (ret)
 				break;
-			st->aux_threshlow = val;
+			st->aux_threshlow = value;
 			break;
 		default:
 			ret = -EINVAL;
