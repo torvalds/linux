@@ -151,14 +151,12 @@ static bool t7xx_alloc_and_map_skb_info(const struct dpmaif_ctrl *dpmaif_ctrl,
 {
 	dma_addr_t data_bus_addr;
 	struct sk_buff *skb;
-	size_t data_len;
 
 	skb = __dev_alloc_skb(size, GFP_KERNEL);
 	if (!skb)
 		return false;
 
-	data_len = skb_data_area_size(skb);
-	data_bus_addr = dma_map_single(dpmaif_ctrl->dev, skb->data, data_len, DMA_FROM_DEVICE);
+	data_bus_addr = dma_map_single(dpmaif_ctrl->dev, skb->data, size, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dpmaif_ctrl->dev, data_bus_addr)) {
 		dev_err_ratelimited(dpmaif_ctrl->dev, "DMA mapping error\n");
 		dev_kfree_skb_any(skb);
@@ -167,7 +165,7 @@ static bool t7xx_alloc_and_map_skb_info(const struct dpmaif_ctrl *dpmaif_ctrl,
 
 	cur_skb->skb = skb;
 	cur_skb->data_bus_addr = data_bus_addr;
-	cur_skb->data_len = data_len;
+	cur_skb->data_len = size;
 
 	return true;
 }
