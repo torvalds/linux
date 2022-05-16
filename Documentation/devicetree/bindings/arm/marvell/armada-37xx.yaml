@@ -20,6 +20,7 @@ properties:
               - cznic,turris-mox
               - globalscale,espressobin
               - marvell,armada-3720-db
+              - methode,edpu
               - methode,udpu
           - const: marvell,armada3720
           - const: marvell,armada3710
