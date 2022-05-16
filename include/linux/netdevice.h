@@ -3136,6 +3136,7 @@ struct softnet_data {
 	/* Another possibly contended cache line */
 	spinlock_t		defer_lock ____cacheline_aligned_in_smp;
 	int			defer_count;
+	int			defer_ipi_scheduled;
 	struct sk_buff		*defer_list;
 	call_single_data_t	defer_csd;
 };

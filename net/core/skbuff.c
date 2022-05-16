@@ -6516,8 +6516,7 @@ void skb_attempt_defer_free(struct sk_buff *skb)
 	sd->defer_count++;
 
 	/* kick every time queue length reaches 128.
-	 * This should avoid blocking in smp_call_function_single_async().
-	 * This condition should hardly be bit under normal conditions,
+	 * This condition should hardly be hit under normal conditions,
 	 * unless cpu suddenly stopped to receive NIC interrupts.
 	 */
 	kick = sd->defer_count == 128;
@@ -6527,6 +6526,6 @@ void skb_attempt_defer_free(struct sk_buff *skb)
 	/* Make sure to trigger NET_RX_SOFTIRQ on the remote CPU
 	 * if we are unlucky enough (this seems very unlikely).
 	 */
-	if (unlikely(kick))
+	if (unlikely(kick) && !cmpxchg(&sd->defer_ipi_scheduled, 0, 1))
 		smp_call_function_single_async(cpu, &sd->defer_csd);
 }
