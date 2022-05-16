@@ -260,6 +260,7 @@ enum rockchip_pin_drv_type {
 	DRV_TYPE_IO_1V8_ONLY,
 	DRV_TYPE_IO_1V8_3V0_AUTO,
 	DRV_TYPE_IO_3V3_ONLY,
+	DRV_TYPE_IO_SMIC,
 	DRV_TYPE_MAX
 };
 
