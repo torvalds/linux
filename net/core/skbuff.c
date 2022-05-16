@@ -80,6 +80,7 @@
 #include <linux/user_namespace.h>
 #include <linux/indirect_call_wrapper.h>
 
+#include "dev.h"
 #include "sock_destructor.h"
 
 struct kmem_cache *skbuff_head_cache __ro_after_init;
@@ -6496,16 +6497,21 @@ void skb_attempt_defer_free(struct sk_buff *skb)
 	int cpu = skb->alloc_cpu;
 	struct softnet_data *sd;
 	unsigned long flags;
+	unsigned int defer_max;
 	bool kick;
 
 	if (WARN_ON_ONCE(cpu >= nr_cpu_ids) ||
 	    !cpu_online(cpu) ||
 	    cpu == raw_smp_processor_id()) {
-		__kfree_skb(skb);
+nodefer:	__kfree_skb(skb);
 		return;
 	}
 
 	sd = &per_cpu(softnet_data, cpu);
+	defer_max = READ_ONCE(sysctl_skb_defer_max);
+	if (READ_ONCE(sd->defer_count) >= defer_max)
+		goto nodefer;
+
 	/* We do not send an IPI or any signal.
 	 * Remote cpu will eventually call skb_defer_free_flush()
 	 */
@@ -6515,18 +6521,14 @@ void skb_attempt_defer_free(struct sk_buff *skb)
 	WRITE_ONCE(sd->defer_list, skb);
 	sd->defer_count++;
 
-	/* kick every time queue length reaches 128.
-	 * This should avoid blocking in smp_call_function_single_async().
-	 * This condition should hardly be bit under normal conditions,
-	 * unless cpu suddenly stopped to receive NIC interrupts.
-	 */
-	kick = sd->defer_count == 128;
+	/* Send an IPI every time queue reaches half capacity. */
+	kick = sd->defer_count == (defer_max >> 1);
 
 	spin_unlock_irqrestore(&sd->defer_lock, flags);
 
 	/* Make sure to trigger NET_RX_SOFTIRQ on the remote CPU
 	 * if we are unlucky enough (this seems very unlikely).
 	 */
-	if (unlikely(kick))
+	if (unlikely(kick) && !cmpxchg(&sd->defer_ipi_scheduled, 0, 1))
 		smp_call_function_single_async(cpu, &sd->defer_csd);
 }

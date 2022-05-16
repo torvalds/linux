@@ -322,6 +322,14 @@ a leaked reference faster. A larger value may be useful to prevent false
 warnings on slow/loaded systems.
 Default value is 10, minimum 1, maximum 3600.
 
+skb_defer_max
+-------------
+
+Max size (in skbs) of the per-cpu list of skbs being freed
+by the cpu which allocated them. Used by TCP stack so far.
+
+Default: 64
+
 optmem_max
 ----------
 
