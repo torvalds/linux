@@ -756,6 +756,18 @@ static int mptcp_setsockopt_v4(struct mptcp_sock *msk, int optname,
 	return -EOPNOTSUPP;
 }
 
+static int mptcp_setsockopt_sol_tcp_defer(struct mptcp_sock *msk, sockptr_t optval,
+					  unsigned int optlen)
+{
+	struct socket *listener;
+
+	listener = __mptcp_nmpc_socket(msk);
+	if (!listener)
+		return 0; /* TCP_DEFER_ACCEPT does not fail */
+
+	return tcp_setsockopt(listener->sk, SOL_TCP, TCP_DEFER_ACCEPT, optval, optlen);
+}
+
 static int mptcp_setsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
 				    sockptr_t optval, unsigned int optlen)
 {
@@ -782,6 +794,8 @@ static int mptcp_setsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
 		return mptcp_setsockopt_sol_tcp_cork(msk, optval, optlen);
 	case TCP_NODELAY:
 		return mptcp_setsockopt_sol_tcp_nodelay(msk, optval, optlen);
+	case TCP_DEFER_ACCEPT:
+		return mptcp_setsockopt_sol_tcp_defer(msk, optval, optlen);
 	}
 
 	return -EOPNOTSUPP;
@@ -1142,6 +1156,7 @@ static int mptcp_getsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
 	case TCP_CONGESTION:
 	case TCP_INFO:
 	case TCP_CC_INFO:
+	case TCP_DEFER_ACCEPT:
 		return mptcp_getsockopt_first_sf_only(msk, SOL_TCP, optname,
 						      optval, optlen);
 	case TCP_INQ:
