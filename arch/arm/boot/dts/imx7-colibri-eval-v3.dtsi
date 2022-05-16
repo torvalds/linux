@@ -4,7 +4,7 @@
  */
 
 / {
-	/* fixed crystal dedicated to mpc258x */
+	/* Fixed crystal dedicated to MCP2515. */
 	clk16m: clk16m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
