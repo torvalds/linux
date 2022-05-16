@@ -57,7 +57,7 @@ static inline u64 get_debug_extn_cfg(void)
 
 static bool __init amd_brs_detect(void)
 {
-	if (!boot_cpu_has(X86_FEATURE_BRS))
+	if (!cpu_feature_enabled(X86_FEATURE_BRS))
 		return false;
 
 	switch (boot_cpu_data.x86) {
@@ -112,6 +112,9 @@ static inline int amd_brs_get_tos(union amd_debug_extn_cfg *cfg)
  */
 void amd_brs_reset(void)
 {
+	if (!cpu_feature_enabled(X86_FEATURE_BRS))
+		return;
+
 	/*
 	 * Reset config
 	 */
