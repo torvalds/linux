@@ -3783,10 +3783,9 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://github.com/broadcom/stblinux.git
 F:	Documentation/devicetree/bindings/arm/bcm/brcm,bcmbca.yaml
-F:	arch/arm/boot/dts/bcm47622.dtsi
-F:	arch/arm/boot/dts/bcm947622.dts
 N:	bcmbca
 N:	bcm[9]?47622
+N:	bcm[9]?63178
 
 BROADCOM BCM2711/BCM2835 ARM ARCHITECTURE
 M:	Nicolas Saenz Julienne <nsaenz@kernel.org>
