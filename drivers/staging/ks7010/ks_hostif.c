@@ -2201,8 +2201,6 @@ static void hostif_sme_work(struct work_struct *work)
 	struct ks_wlan_private *priv;
 
 	priv = container_of(work, struct ks_wlan_private, sme_work);
-	if (!priv)
-		return;
 
 	if (priv->dev_state < DEVICE_STATE_BOOT)
 		return;
