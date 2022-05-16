@@ -34,13 +34,13 @@
 	status = "okay";
 
 	mcp2515: can@0 {
+		clocks = <&clk16m>;
 		compatible = "microchip,mcp2515";
+		interrupt-parent = <&gpio5>;
+		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_can_int>;
 		reg = <0>;
-		clocks = <&clk16m>;
-		interrupt-parent = <&gpio5>;
-		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
 		spi-max-frequency = <10000000>;
 		vdd-supply = <&reg_3v3>;
 		xceiver-supply = <&reg_5v0>;
