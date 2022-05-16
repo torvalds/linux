@@ -6633,7 +6633,7 @@ static void skb_defer_free_flush(struct softnet_data *sd)
 
 	while (skb != NULL) {
 		next = skb->next;
-		__kfree_skb(skb);
+		napi_consume_skb(skb, 1);
 		skb = next;
 	}
 }
