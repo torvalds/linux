@@ -56,12 +56,6 @@
 
 &i2c4 {
 	status = "okay";
-
-	/* M41T0M6 real time clock on carrier board */
-	rtc: rtc@68 {
-		compatible = "st,m41t0";
-		reg = <0x68>;
-	};
 };
 
 &pwm1 {
@@ -77,6 +71,11 @@
 };
 
 &pwm4 {
+	status = "okay";
+};
+
+/* M41T0M6 real time clock */
+&rtc {
 	status = "okay";
 };
 

@@ -507,6 +507,13 @@
 		reset-gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;      /* SODIMM 106 / RST */
 		status = "disabled";
 	};
+
+	/* M41T0M6 real time clock on carrier board */
+	rtc: rtc@68 {
+		compatible = "st,m41t0";
+		reg = <0x68>;
+		status = "disabled";
+	};
 };
 
 &lcdif {
