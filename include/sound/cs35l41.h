@@ -11,6 +11,7 @@
 #define __CS35L41_H
 
 #include <linux/regmap.h>
+#include <linux/firmware/cirrus/cs_dsp.h>
 
 #define CS35L41_FIRSTREG		0x00000000
 #define CS35L41_LASTREG			0x03804FE8
@@ -691,6 +692,13 @@
 #define CS35L41_TEMP_WARN_ERR_RLS	0x20
 #define CS35L41_TEMP_ERR_RLS		0x40
 
+#define CS35L41_AMP_SHORT_ERR_RLS_SHIFT	1
+#define CS35L41_BST_SHORT_ERR_RLS_SHIFT	2
+#define CS35L41_BST_OVP_ERR_RLS_SHIFT	3
+#define CS35L41_BST_UVP_ERR_RLS_SHIFT	4
+#define CS35L41_TEMP_WARN_ERR_RLS_SHIFT	5
+#define CS35L41_TEMP_ERR_RLS_SHIFT	6
+
 #define CS35L41_INT1_MASK_DEFAULT	0x7FFCFE3F
 #define CS35L41_INT1_UNMASK_PUP		0xFEFFFFFF
 #define CS35L41_INT1_UNMASK_PDN		0xFF7FFFFF
@@ -794,6 +802,71 @@ struct cs35l41_otp_map_element_t {
 	u32 word_offset;
 };
 
+enum cs35l41_cspl_mbox_status {
+	CSPL_MBOX_STS_RUNNING = 0,
+	CSPL_MBOX_STS_PAUSED = 1,
+	CSPL_MBOX_STS_RDY_FOR_REINIT = 2,
+};
+
+enum cs35l41_cspl_mbox_cmd {
+	CSPL_MBOX_CMD_NONE = 0,
+	CSPL_MBOX_CMD_PAUSE = 1,
+	CSPL_MBOX_CMD_RESUME = 2,
+	CSPL_MBOX_CMD_REINIT = 3,
+	CSPL_MBOX_CMD_STOP_PRE_REINIT = 4,
+	CSPL_MBOX_CMD_HIBERNATE = 5,
+	CSPL_MBOX_CMD_OUT_OF_HIBERNATE = 6,
+	CSPL_MBOX_CMD_UNKNOWN_CMD = -1,
+	CSPL_MBOX_CMD_INVALID_SEQUENCE = -2,
+};
+
+/*
+ * IRQs
+ */
+#define CS35L41_IRQ(_irq, _name, _hand)		\
+	{					\
+		.irq = CS35L41_ ## _irq ## _IRQ,\
+		.name = _name,			\
+		.handler = _hand,		\
+	}
+
+struct cs35l41_irq {
+	int irq;
+	const char *name;
+	irqreturn_t (*handler)(int irq, void *data);
+};
+
+#define CS35L41_REG_IRQ(_reg, _irq)					\
+	[CS35L41_ ## _irq ## _IRQ] = {					\
+		.reg_offset = (CS35L41_ ## _reg) - CS35L41_IRQ1_STATUS1,\
+		.mask = CS35L41_ ## _irq ## _MASK			\
+	}
+
+/* (0x0000E010) CS35L41_IRQ1_STATUS1 */
+#define CS35L41_BST_OVP_ERR_SHIFT		6
+#define CS35L41_BST_OVP_ERR_MASK		BIT(CS35L41_BST_OVP_ERR_SHIFT)
+#define CS35L41_BST_DCM_UVP_ERR_SHIFT		7
+#define CS35L41_BST_DCM_UVP_ERR_MASK		BIT(CS35L41_BST_DCM_UVP_ERR_SHIFT)
+#define CS35L41_BST_SHORT_ERR_SHIFT		8
+#define CS35L41_BST_SHORT_ERR_MASK		BIT(CS35L41_BST_SHORT_ERR_SHIFT)
+#define CS35L41_TEMP_WARN_SHIFT			15
+#define CS35L41_TEMP_WARN_MASK			BIT(CS35L41_TEMP_WARN_SHIFT)
+#define CS35L41_TEMP_ERR_SHIFT			17
+#define CS35L41_TEMP_ERR_MASK			BIT(CS35L41_TEMP_ERR_SHIFT)
+#define CS35L41_AMP_SHORT_ERR_SHIFT		31
+#define CS35L41_AMP_SHORT_ERR_MASK		BIT(CS35L41_AMP_SHORT_ERR_SHIFT)
+
+enum cs35l41_irq_list {
+	CS35L41_BST_OVP_ERR_IRQ,
+	CS35L41_BST_DCM_UVP_ERR_IRQ,
+	CS35L41_BST_SHORT_ERR_IRQ,
+	CS35L41_TEMP_WARN_IRQ,
+	CS35L41_TEMP_ERR_IRQ,
+	CS35L41_AMP_SHORT_ERR_IRQ,
+
+	CS35L41_NUM_IRQ
+};
+
 extern struct regmap_config cs35l41_regmap_i2c;
 extern struct regmap_config cs35l41_regmap_spi;
 
@@ -805,6 +878,10 @@ int cs35l41_set_channels(struct device *dev, struct regmap *reg,
 			 unsigned int tx_num, unsigned int *tx_slot,
 			 unsigned int rx_num, unsigned int *rx_slot);
 int cs35l41_gpio_config(struct regmap *regmap, struct cs35l41_hw_cfg *hw_cfg);
+void cs35l41_configure_cs_dsp(struct device *dev, struct regmap *reg, struct cs_dsp *dsp);
+int cs35l41_set_cspl_mbox_cmd(struct device *dev, struct regmap *regmap,
+			      enum cs35l41_cspl_mbox_cmd cmd);
+int cs35l41_write_fs_errata(struct device *dev, struct regmap *regmap);
 int cs35l41_init_boost(struct device *dev, struct regmap *regmap,
 		       struct cs35l41_hw_cfg *hw_cfg);
 bool cs35l41_safe_reset(struct regmap *regmap, enum cs35l41_boost_type b_type);

@@ -208,67 +208,6 @@ static int cs35l41_dsp_preload_ev(struct snd_soc_dapm_widget *w,
 	}
 }
 
-static bool cs35l41_check_cspl_mbox_sts(enum cs35l41_cspl_mbox_cmd cmd,
-					enum cs35l41_cspl_mbox_status sts)
-{
-	switch (cmd) {
-	case CSPL_MBOX_CMD_NONE:
-	case CSPL_MBOX_CMD_UNKNOWN_CMD:
-		return true;
-	case CSPL_MBOX_CMD_PAUSE:
-	case CSPL_MBOX_CMD_OUT_OF_HIBERNATE:
-		return (sts == CSPL_MBOX_STS_PAUSED);
-	case CSPL_MBOX_CMD_RESUME:
-		return (sts == CSPL_MBOX_STS_RUNNING);
-	case CSPL_MBOX_CMD_REINIT:
-		return (sts == CSPL_MBOX_STS_RUNNING);
-	case CSPL_MBOX_CMD_STOP_PRE_REINIT:
-		return (sts == CSPL_MBOX_STS_RDY_FOR_REINIT);
-	default:
-		return false;
-	}
-}
-
-static int cs35l41_set_cspl_mbox_cmd(struct cs35l41_private *cs35l41,
-				     enum cs35l41_cspl_mbox_cmd cmd)
-{
-	unsigned int sts = 0, i;
-	int ret;
-
-	// Set mailbox cmd
-	ret = regmap_write(cs35l41->regmap, CS35L41_DSP_VIRT1_MBOX_1, cmd);
-	if (ret < 0) {
-		if (cmd != CSPL_MBOX_CMD_OUT_OF_HIBERNATE)
-			dev_err(cs35l41->dev, "Failed to write MBOX: %d\n", ret);
-		return ret;
-	}
-
-	// Read mailbox status and verify it is appropriate for the given cmd
-	for (i = 0; i < 5; i++) {
-		usleep_range(1000, 1100);
-
-		ret = regmap_read(cs35l41->regmap, CS35L41_DSP_MBOX_2, &sts);
-		if (ret < 0) {
-			dev_err(cs35l41->dev, "Failed to read MBOX STS: %d\n", ret);
-			continue;
-		}
-
-		if (!cs35l41_check_cspl_mbox_sts(cmd, sts)) {
-			dev_dbg(cs35l41->dev,
-				"[%u] cmd %u returned invalid sts %u",
-				i, cmd, sts);
-		} else {
-			return 0;
-		}
-	}
-
-	dev_err(cs35l41->dev,
-		"Failed to set mailbox cmd %u (status %u)\n",
-		cmd, sts);
-
-	return -ENOMSG;
-}
-
 static int cs35l41_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol, int event)
 {
@@ -299,9 +238,11 @@ static int cs35l41_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 			return -EINVAL;
 		}
 
-		return cs35l41_set_cspl_mbox_cmd(cs35l41, CSPL_MBOX_CMD_RESUME);
+		return cs35l41_set_cspl_mbox_cmd(cs35l41->dev, cs35l41->regmap,
+						 CSPL_MBOX_CMD_RESUME);
 	case SND_SOC_DAPM_PRE_PMD:
-		return cs35l41_set_cspl_mbox_cmd(cs35l41, CSPL_MBOX_CMD_PAUSE);
+		return cs35l41_set_cspl_mbox_cmd(cs35l41->dev, cs35l41->regmap,
+						 CSPL_MBOX_CMD_PAUSE);
 	default:
 		return 0;
 	}
@@ -739,14 +680,6 @@ static const struct snd_soc_dapm_route cs35l41_audio_map[] = {
 	{"CLASS H", NULL, "PCM Source"},
 };
 
-static const struct cs_dsp_region cs35l41_dsp1_regions[] = {
-	{ .type = WMFW_HALO_PM_PACKED,	.base = CS35L41_DSP1_PMEM_0 },
-	{ .type = WMFW_HALO_XM_PACKED,	.base = CS35L41_DSP1_XMEM_PACK_0 },
-	{ .type = WMFW_HALO_YM_PACKED,	.base = CS35L41_DSP1_YMEM_PACK_0 },
-	{. type = WMFW_ADSP2_XM,	.base = CS35L41_DSP1_XMEM_UNPACK24_0},
-	{. type = WMFW_ADSP2_YM,	.base = CS35L41_DSP1_YMEM_UNPACK24_0},
-};
-
 static int cs35l41_set_channel_map(struct snd_soc_dai *dai, unsigned int tx_n,
 				   unsigned int *tx_slot, unsigned int rx_n, unsigned int *rx_slot)
 {
@@ -1152,25 +1085,6 @@ static int cs35l41_handle_pdata(struct device *dev, struct cs35l41_hw_cfg *hw_cf
 	return 0;
 }
 
-static const struct reg_sequence cs35l41_fs_errata_patch[] = {
-	{ CS35L41_DSP1_RX1_RATE,	0x00000001 },
-	{ CS35L41_DSP1_RX2_RATE,	0x00000001 },
-	{ CS35L41_DSP1_RX3_RATE,	0x00000001 },
-	{ CS35L41_DSP1_RX4_RATE,	0x00000001 },
-	{ CS35L41_DSP1_RX5_RATE,	0x00000001 },
-	{ CS35L41_DSP1_RX6_RATE,	0x00000001 },
-	{ CS35L41_DSP1_RX7_RATE,	0x00000001 },
-	{ CS35L41_DSP1_RX8_RATE,	0x00000001 },
-	{ CS35L41_DSP1_TX1_RATE,	0x00000001 },
-	{ CS35L41_DSP1_TX2_RATE,	0x00000001 },
-	{ CS35L41_DSP1_TX3_RATE,	0x00000001 },
-	{ CS35L41_DSP1_TX4_RATE,	0x00000001 },
-	{ CS35L41_DSP1_TX5_RATE,	0x00000001 },
-	{ CS35L41_DSP1_TX6_RATE,	0x00000001 },
-	{ CS35L41_DSP1_TX7_RATE,	0x00000001 },
-	{ CS35L41_DSP1_TX8_RATE,	0x00000001 },
-};
-
 static int cs35l41_dsp_init(struct cs35l41_private *cs35l41)
 {
 	struct wm_adsp *dsp;
@@ -1178,25 +1092,14 @@ static int cs35l41_dsp_init(struct cs35l41_private *cs35l41)
 
 	dsp = &cs35l41->dsp;
 	dsp->part = "cs35l41";
-	dsp->cs_dsp.num = 1;
-	dsp->cs_dsp.type = WMFW_HALO;
-	dsp->cs_dsp.rev = 0;
 	dsp->fw = 9; /* 9 is WM_ADSP_FW_SPK_PROT in wm_adsp.c */
 	dsp->toggle_preload = true;
-	dsp->cs_dsp.dev = cs35l41->dev;
-	dsp->cs_dsp.regmap = cs35l41->regmap;
-	dsp->cs_dsp.base = CS35L41_DSP1_CTRL_BASE;
-	dsp->cs_dsp.base_sysinfo = CS35L41_DSP1_SYS_ID;
-	dsp->cs_dsp.mem = cs35l41_dsp1_regions;
-	dsp->cs_dsp.num_mems = ARRAY_SIZE(cs35l41_dsp1_regions);
-	dsp->cs_dsp.lock_regions = 0xFFFFFFFF;
 
-	ret = regmap_multi_reg_write(cs35l41->regmap, cs35l41_fs_errata_patch,
-				     ARRAY_SIZE(cs35l41_fs_errata_patch));
-	if (ret < 0) {
-		dev_err(cs35l41->dev, "Failed to write fs errata: %d\n", ret);
+	cs35l41_configure_cs_dsp(cs35l41->dev, cs35l41->regmap, &dsp->cs_dsp);
+
+	ret = cs35l41_write_fs_errata(cs35l41->dev, cs35l41->regmap);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = wm_halo_init(dsp);
 	if (ret) {
@@ -1475,7 +1378,7 @@ static int cs35l41_exit_hibernate(struct cs35l41_private *cs35l41)
 		dev_dbg(cs35l41->dev, "Exit hibernate\n");
 
 		for (j = 0; j < wake_retries; j++) {
-			ret = cs35l41_set_cspl_mbox_cmd(cs35l41,
+			ret = cs35l41_set_cspl_mbox_cmd(cs35l41->dev, cs35l41->regmap,
 							CSPL_MBOX_CMD_OUT_OF_HIBERNATE);
 			if (!ret)
 				break;

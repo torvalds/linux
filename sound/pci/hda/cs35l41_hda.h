@@ -35,6 +35,10 @@ struct cs35l41_hda {
 
 	int irq;
 	int index;
+	int channel_index;
+	unsigned volatile long irq_errors;
+	const char *amp_name;
+	struct regmap_irq_chip_data *irq_data;
 };
 
 int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int irq,

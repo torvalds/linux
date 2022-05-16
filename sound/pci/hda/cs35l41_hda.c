@@ -32,6 +32,21 @@ static const struct reg_sequence cs35l41_hda_mute[] = {
 	{ CS35L41_AMP_DIG_VOL_CTRL,	0x0000A678 }, // AMP_VOL_PCM Mute
 };
 
+/* Protection release cycle to get the speaker out of Safe-Mode */
+static void cs35l41_error_release(struct device *dev, struct regmap *regmap, unsigned int mask)
+{
+	regmap_write(regmap, CS35L41_PROTECT_REL_ERR_IGN, 0);
+	regmap_set_bits(regmap, CS35L41_PROTECT_REL_ERR_IGN, mask);
+	regmap_clear_bits(regmap, CS35L41_PROTECT_REL_ERR_IGN, mask);
+}
+
+/* Clear all errors to release safe mode. Global Enable must be cleared first. */
+static void cs35l41_irq_release(struct cs35l41_hda *cs35l41)
+{
+	cs35l41_error_release(cs35l41->dev, cs35l41->regmap, cs35l41->irq_errors);
+	cs35l41->irq_errors = 0;
+}
+
 static void cs35l41_hda_playback_hook(struct device *dev, int action)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
@@ -58,6 +73,7 @@ static void cs35l41_hda_playback_hook(struct device *dev, int action)
 					 CS35L41_AMP_EN_MASK, 0 << CS35L41_AMP_EN_SHIFT);
 		if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
 			regmap_write(reg, CS35L41_GPIO1_CTRL1, 0x00000001);
+		cs35l41_irq_release(cs35l41);
 		break;
 	default:
 		dev_warn(cs35l41->dev, "Playback action not supported: %d\n", action);
@@ -72,6 +88,17 @@ static int cs35l41_hda_channel_map(struct device *dev, unsigned int tx_num, unsi
 				    unsigned int rx_num, unsigned int *rx_slot)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
+	static const char * const channel_name[] = { "L", "R" };
+
+	if (!cs35l41->amp_name) {
+		if (*rx_slot >= ARRAY_SIZE(channel_name))
+			return -EINVAL;
+
+		cs35l41->amp_name = devm_kasprintf(cs35l41->dev, GFP_KERNEL, "%s%d",
+						   channel_name[*rx_slot], cs35l41->channel_index);
+		if (!cs35l41->amp_name)
+			return -ENOMEM;
+	}
 
 	return cs35l41_set_channels(cs35l41->dev, cs35l41->regmap, tx_num, tx_slot, rx_num,
 				    rx_slot);
@@ -92,7 +119,6 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 	comps->dev = dev;
 	strscpy(comps->name, dev_name(dev), sizeof(comps->name));
 	comps->playback_hook = cs35l41_hda_playback_hook;
-	comps->set_channel_map = cs35l41_hda_channel_map;
 
 	return 0;
 }
@@ -111,10 +137,101 @@ static const struct component_ops cs35l41_hda_comp_ops = {
 	.unbind = cs35l41_hda_unbind,
 };
 
+static irqreturn_t cs35l41_bst_short_err(int irq, void *data)
+{
+	struct cs35l41_hda *cs35l41 = data;
+
+	dev_crit_ratelimited(cs35l41->dev, "LBST Error\n");
+	set_bit(CS35L41_BST_SHORT_ERR_RLS_SHIFT, &cs35l41->irq_errors);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs35l41_bst_dcm_uvp_err(int irq, void *data)
+{
+	struct cs35l41_hda *cs35l41 = data;
+
+	dev_crit_ratelimited(cs35l41->dev, "DCM VBST Under Voltage Error\n");
+	set_bit(CS35L41_BST_UVP_ERR_RLS_SHIFT, &cs35l41->irq_errors);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs35l41_bst_ovp_err(int irq, void *data)
+{
+	struct cs35l41_hda *cs35l41 = data;
+
+	dev_crit_ratelimited(cs35l41->dev, "VBST Over Voltage error\n");
+	set_bit(CS35L41_BST_OVP_ERR_RLS_SHIFT, &cs35l41->irq_errors);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs35l41_temp_err(int irq, void *data)
+{
+	struct cs35l41_hda *cs35l41 = data;
+
+	dev_crit_ratelimited(cs35l41->dev, "Over temperature error\n");
+	set_bit(CS35L41_TEMP_ERR_RLS_SHIFT, &cs35l41->irq_errors);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs35l41_temp_warn(int irq, void *data)
+{
+	struct cs35l41_hda *cs35l41 = data;
+
+	dev_crit_ratelimited(cs35l41->dev, "Over temperature warning\n");
+	set_bit(CS35L41_TEMP_WARN_ERR_RLS_SHIFT, &cs35l41->irq_errors);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cs35l41_amp_short(int irq, void *data)
+{
+	struct cs35l41_hda *cs35l41 = data;
+
+	dev_crit_ratelimited(cs35l41->dev, "Amp short error\n");
+	set_bit(CS35L41_AMP_SHORT_ERR_RLS_SHIFT, &cs35l41->irq_errors);
+
+	return IRQ_HANDLED;
+}
+
+static const struct cs35l41_irq cs35l41_irqs[] = {
+	CS35L41_IRQ(BST_OVP_ERR, "Boost Overvoltage Error", cs35l41_bst_ovp_err),
+	CS35L41_IRQ(BST_DCM_UVP_ERR, "Boost Undervoltage Error", cs35l41_bst_dcm_uvp_err),
+	CS35L41_IRQ(BST_SHORT_ERR, "Boost Inductor Short Error", cs35l41_bst_short_err),
+	CS35L41_IRQ(TEMP_WARN, "Temperature Warning", cs35l41_temp_warn),
+	CS35L41_IRQ(TEMP_ERR, "Temperature Error", cs35l41_temp_err),
+	CS35L41_IRQ(AMP_SHORT_ERR, "Amp Short", cs35l41_amp_short),
+};
+
+static const struct regmap_irq cs35l41_reg_irqs[] = {
+	CS35L41_REG_IRQ(IRQ1_STATUS1, BST_OVP_ERR),
+	CS35L41_REG_IRQ(IRQ1_STATUS1, BST_DCM_UVP_ERR),
+	CS35L41_REG_IRQ(IRQ1_STATUS1, BST_SHORT_ERR),
+	CS35L41_REG_IRQ(IRQ1_STATUS1, TEMP_WARN),
+	CS35L41_REG_IRQ(IRQ1_STATUS1, TEMP_ERR),
+	CS35L41_REG_IRQ(IRQ1_STATUS1, AMP_SHORT_ERR),
+};
+
+static const struct regmap_irq_chip cs35l41_regmap_irq_chip = {
+	.name = "cs35l41 IRQ1 Controller",
+	.status_base = CS35L41_IRQ1_STATUS1,
+	.mask_base = CS35L41_IRQ1_MASK1,
+	.ack_base = CS35L41_IRQ1_STATUS1,
+	.num_regs = 4,
+	.irqs = cs35l41_reg_irqs,
+	.num_irqs = ARRAY_SIZE(cs35l41_reg_irqs),
+};
+
 static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41)
 {
 	struct cs35l41_hw_cfg *hw_cfg = &cs35l41->hw_cfg;
+	bool using_irq = false;
+	int irq, irq_pol;
 	int ret;
+	int i;
 
 	if (!cs35l41->hw_cfg.valid)
 		return -EINVAL;
@@ -146,6 +263,7 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41)
 		case CS35L41_NOT_USED:
 			break;
 		case CS35L41_INTERRUPT:
+			using_irq = true;
 			break;
 		default:
 			dev_err(cs35l41->dev, "Invalid GPIO2 function %d\n", hw_cfg->gpio2.func);
@@ -153,7 +271,28 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41)
 		}
 	}
 
-	cs35l41_gpio_config(cs35l41->regmap, hw_cfg);
+	irq_pol = cs35l41_gpio_config(cs35l41->regmap, hw_cfg);
+
+	if (cs35l41->irq && using_irq) {
+		ret = devm_regmap_add_irq_chip(cs35l41->dev, cs35l41->regmap, cs35l41->irq,
+					       IRQF_ONESHOT | IRQF_SHARED | irq_pol,
+					       0, &cs35l41_regmap_irq_chip, &cs35l41->irq_data);
+		if (ret)
+			return ret;
+
+		for (i = 0; i < ARRAY_SIZE(cs35l41_irqs); i++) {
+			irq = regmap_irq_get_virq(cs35l41->irq_data, cs35l41_irqs[i].irq);
+			if (irq < 0)
+				return irq;
+
+			ret = devm_request_threaded_irq(cs35l41->dev, irq, NULL,
+							cs35l41_irqs[i].handler,
+							IRQF_ONESHOT | IRQF_SHARED | irq_pol,
+							cs35l41_irqs[i].name, cs35l41);
+			if (ret)
+				return ret;
+		}
+	}
 
 	return cs35l41_hda_channel_map(cs35l41->dev, 0, NULL, 1, &hw_cfg->spk_pos);
 }
@@ -216,6 +355,11 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 	if (ret)
 		goto err;
 	hw_cfg->spk_pos = values[cs35l41->index];
+
+	cs35l41->channel_index = 0;
+	for (i = 0; i < cs35l41->index; i++)
+		if (values[i] == hw_cfg->spk_pos)
+			cs35l41->channel_index++;
 
 	property = "cirrus,gpio1-func";
 	ret = device_property_read_u32_array(physdev, property, values, nval);
@@ -281,8 +425,12 @@ no_acpi_dsd:
 
 	/* check I2C address to assign the index */
 	cs35l41->index = id == 0x40 ? 0 : 1;
+	cs35l41->hw_cfg.spk_pos = cs35l41->index;
+	cs35l41->channel_index = 0;
 	cs35l41->reset_gpio = gpiod_get_index(physdev, NULL, 0, GPIOD_OUT_HIGH);
 	cs35l41->hw_cfg.bst_type = CS35L41_EXT_BOOST_NO_VSPK_SWITCH;
+	hw_cfg->gpio2.func = CS35L41_GPIO2_INT_OPEN_DRAIN;
+	hw_cfg->gpio2.valid = true;
 	cs35l41->hw_cfg.valid = true;
 	put_device(physdev);
 
@@ -295,6 +443,9 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	unsigned int int_sts, regid, reg_revid, mtl_revid, chipid, int_status;
 	struct cs35l41_hda *cs35l41;
 	int ret;
+
+	BUILD_BUG_ON(ARRAY_SIZE(cs35l41_irqs) != ARRAY_SIZE(cs35l41_reg_irqs));
+	BUILD_BUG_ON(ARRAY_SIZE(cs35l41_irqs) != CS35L41_NUM_IRQ);
 
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
