@@ -350,7 +350,7 @@ static int scmi_regulator_probe(struct scmi_device *sdev)
 		if (ret == -ENOMEM)
 			return ret;
 	}
-
+	of_node_put(np);
 	/*
 	 * Register a regulator for each valid regulator-DT-entry that we
 	 * can successfully reach via SCMI and has a valid associated voltage
