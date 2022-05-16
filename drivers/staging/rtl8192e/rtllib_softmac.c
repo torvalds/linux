@@ -2056,8 +2056,6 @@ static inline void rtllib_sta_ps(struct work_struct *work)
 	unsigned long flags, flags2;
 
 	ieee = container_of(work, struct rtllib_device, ps_task);
-	if (!ieee)
-		return;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
