@@ -661,10 +661,12 @@ s32 gt1x_init_panel(void)
 
 void gt1x_select_addr(void)
 {
-	GTP_GPIO_OUTPUT(GTP_RST_PORT, 0);
+	if (gpio_is_valid(gt1x_rst_gpio))
+		GTP_GPIO_OUTPUT(GTP_RST_PORT, 0);
 	GTP_GPIO_OUTPUT(GTP_INT_PORT, gt1x_i2c_client->addr == 0x14);
 	usleep_range(2000, 3000);
-	GTP_GPIO_OUTPUT(GTP_RST_PORT, 1);
+	if (gpio_is_valid(gt1x_rst_gpio))
+		GTP_GPIO_OUTPUT(GTP_RST_PORT, 1);
 	usleep_range(2000, 3000);
 }
 
