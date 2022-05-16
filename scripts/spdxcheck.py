@@ -32,10 +32,16 @@ class dirinfo(object):
     def __init__(self):
         self.missing = 0
         self.total = 0
+        self.files = []
 
-    def update(self, miss):
+    def update(self, fname, basedir, miss):
         self.total += 1
         self.missing += miss
+        if miss:
+            fname = './' + fname
+            bdir = os.path.dirname(fname)
+            if bdir == basedir.rstrip('/'):
+                self.files.append(fname)
 
 # Read the spdx data from the LICENSES directory
 def read_spdxdata(repo):
@@ -245,7 +251,7 @@ class id_parser(object):
         base += '/'
 
         di = self.spdx_dirs.get(base, dirinfo())
-        di.update(fail)
+        di.update(fname, base, fail)
         self.spdx_dirs[base] = di
 
 def scan_git_tree(tree, basedir, dirdepth):
@@ -275,6 +281,8 @@ if __name__ == '__main__':
                     help='Show [sub]directory statistics.')
     ap.add_argument('-D', '--depth', type=int, default=-1,
                     help='Directory depth for -d statistics. Default: unlimited')
+    ap.add_argument('-f', '--files', action='store_true',
+                    help='Show files without SPDX.')
     ap.add_argument('-m', '--maxlines', type=int, default=15,
                     help='Maximum number of lines to scan in a file. Default 15')
     ap.add_argument('-v', '--verbose', action='store_true', help='Verbose statistics output')
@@ -363,6 +371,15 @@ if __name__ == '__main__':
                         valid = di.total - di.missing
                         pc = int(100 * valid / di.total)
                         sys.stderr.write('    %-80s: %5d of %5d  %3d%%\n' %(f, valid, di.total, pc))
+
+            if ndirs and ndirs != dirsok and args.files:
+                if args.verbose or args.dirs:
+                    sys.stderr.write('\n')
+                sys.stderr.write('Files without SPDX:\n')
+                for f in sorted(parser.spdx_dirs.keys()):
+                    di = parser.spdx_dirs[f]
+                    for f in sorted(di.files):
+                        sys.stderr.write('    %s\n' %f)
 
             sys.exit(0)
 
