@@ -66,7 +66,7 @@ struct vfio_group {
 	struct device 			dev;
 	struct cdev			cdev;
 	refcount_t			users;
-	atomic_t			container_users;
+	unsigned int			container_users;
 	struct iommu_group		*iommu_group;
 	struct vfio_container		*container;
 	struct list_head		device_list;
@@ -429,7 +429,7 @@ static void vfio_group_put(struct vfio_group *group)
 	 * properly hold the group reference.
 	 */
 	WARN_ON(!list_empty(&group->device_list));
-	WARN_ON(atomic_read(&group->container_users));
+	WARN_ON(group->container || group->container_users);
 	WARN_ON(group->notifier.head);
 
 	list_del(&group->vfio_next);
@@ -930,6 +930,7 @@ static void __vfio_group_unset_container(struct vfio_group *group)
 	iommu_group_release_dma_owner(group->iommu_group);
 
 	group->container = NULL;
+	group->container_users = 0;
 	list_del(&group->container_next);
 
 	/* Detaching the last group deprivileges a container, remove iommu */
@@ -953,17 +954,13 @@ static void __vfio_group_unset_container(struct vfio_group *group)
  */
 static int vfio_group_unset_container(struct vfio_group *group)
 {
-	int users = atomic_cmpxchg(&group->container_users, 1, 0);
-
 	lockdep_assert_held_write(&group->group_rwsem);
 
-	if (!users)
+	if (!group->container)
 		return -EINVAL;
-	if (users != 1)
+	if (group->container_users != 1)
 		return -EBUSY;
-
 	__vfio_group_unset_container(group);
-
 	return 0;
 }
 
@@ -976,7 +973,7 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 
 	lockdep_assert_held_write(&group->group_rwsem);
 
-	if (atomic_read(&group->container_users))
+	if (group->container || WARN_ON(group->container_users))
 		return -EINVAL;
 
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO))
@@ -1020,12 +1017,12 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	}
 
 	group->container = container;
+	group->container_users = 1;
 	container->noiommu = (group->type == VFIO_NO_IOMMU);
 	list_add(&group->container_next, &container->group_list);
 
 	/* Get a reference on the container and mark a user within the group */
 	vfio_container_get(container);
-	atomic_inc(&group->container_users);
 
 unlock_out:
 	up_write(&container->group_lock);
@@ -1047,22 +1044,23 @@ static int vfio_device_assign_container(struct vfio_device *device)
 
 	lockdep_assert_held_write(&group->group_rwsem);
 
-	if (0 == atomic_read(&group->container_users) ||
-	    !group->container->iommu_driver)
+	if (!group->container || !group->container->iommu_driver ||
+	    WARN_ON(!group->container_users))
 		return -EINVAL;
 
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
 	get_file(group->opened_file);
-	atomic_inc(&group->container_users);
+	group->container_users++;
 	return 0;
 }
 
 static void vfio_device_unassign_container(struct vfio_device *device)
 {
 	down_write(&device->group->group_rwsem);
-	atomic_dec(&device->group->container_users);
+	WARN_ON(device->group->container_users <= 1);
+	device->group->container_users--;
 	fput(device->group->opened_file);
 	up_write(&device->group->group_rwsem);
 }
@@ -1289,7 +1287,7 @@ static int vfio_group_fops_release(struct inode *inode, struct file *filep)
 	 */
 	WARN_ON(group->notifier.head);
 	if (group->container) {
-		WARN_ON(atomic_read(&group->container_users) != 1);
+		WARN_ON(group->container_users != 1);
 		__vfio_group_unset_container(group);
 	}
 	group->opened_file = NULL;
