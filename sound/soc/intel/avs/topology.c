@@ -381,11 +381,11 @@ static int parse_link_formatted_string(struct snd_soc_component *comp, void *ele
 	 * Dynamic naming - string formats, e.g.: ssp%d - supported only for
 	 * topologies describing single device e.g.: an I2S codec on SSP0.
 	 */
-	if (hweight_long(mach->link_mask) != 1)
+	if (hweight_long(mach->mach_params.i2s_link_mask) != 1)
 		return avs_parse_string_token(comp, elem, object, offset);
 
 	snprintf(val, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, tuple->string,
-		 __ffs(mach->link_mask));
+		 __ffs(mach->mach_params.i2s_link_mask));
 
 	return 0;
 }
@@ -1350,8 +1350,8 @@ static int avs_route_load(struct snd_soc_component *comp, int index,
 	u32 port;
 
 	/* See parse_link_formatted_string() for dynamic naming when(s). */
-	if (hweight_long(mach->link_mask) == 1) {
-		port = __ffs(mach->link_mask);
+	if (hweight_long(mach->mach_params.i2s_link_mask) == 1) {
+		port = __ffs(mach->mach_params.i2s_link_mask);
 
 		snprintf(buf, len, route->source, port);
 		strncpy((char *)route->source, buf, len);
@@ -1382,10 +1382,10 @@ static int avs_widget_load(struct snd_soc_component *comp, int index,
 	mach = dev_get_platdata(comp->card->dev);
 
 	/* See parse_link_formatted_string() for dynamic naming when(s). */
-	if (hweight_long(mach->link_mask) == 1) {
+	if (hweight_long(mach->mach_params.i2s_link_mask) == 1) {
 		kfree(w->name);
 		/* w->name is freed later by soc_tplg_dapm_widget_create() */
-		w->name = kasprintf(GFP_KERNEL, dw->name, __ffs(mach->link_mask));
+		w->name = kasprintf(GFP_KERNEL, dw->name, __ffs(mach->mach_params.i2s_link_mask));
 		if (!w->name)
 			return -ENOMEM;
 	}
