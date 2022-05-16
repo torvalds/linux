@@ -55,7 +55,7 @@ static void kunit_parse_filter_glob(struct kunit_test_filter *parsed,
 
 /* Create a copy of suite with only tests that match test_glob. */
 static struct kunit_suite *
-kunit_filter_tests(struct kunit_suite *const suite, const char *test_glob)
+kunit_filter_tests(const struct kunit_suite *const suite, const char *test_glob)
 {
 	int n = 0;
 	struct kunit_case *filtered, *test_case;
@@ -69,11 +69,9 @@ kunit_filter_tests(struct kunit_suite *const suite, const char *test_glob)
 	if (n == 0)
 		return NULL;
 
-	/* Use memcpy to workaround copy->name being const. */
-	copy = kmalloc(sizeof(*copy), GFP_KERNEL);
+	copy = kmemdup(suite, sizeof(*copy), GFP_KERNEL);
 	if (!copy)
 		return ERR_PTR(-ENOMEM);
-	memcpy(copy, suite, sizeof(*copy));
 
 	filtered = kcalloc(n + 1, sizeof(*filtered), GFP_KERNEL);
 	if (!filtered)
