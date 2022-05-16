@@ -220,6 +220,7 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args)
 	memset(dev, 0, sizeof(*dev));
 
 	dev->dev.device_id = LKL_VIRTIO_ID_NET;
+	/* configured mac address is prior to the auto-detected one. */
 	if (args) {
 		if (args->mac) {
 			dev->dev.device_features |= BIT(LKL_VIRTIO_NET_F_MAC);

@@ -23,6 +23,8 @@ cleanup_backend()
         ;;
     "loopback")
         ;;
+    "wintap")
+        ;;
     esac
 }
 
@@ -54,8 +56,9 @@ setup_backend()
     set -e
 
     if [ "$LKL_HOST_CONFIG_POSIX" != "y" ] &&
-       [ "$1" != "loopback" ]; then
-        echo "not a posix environment"
+           [ "$LKL_HOST_CONFIG_NT" != "y" ] &&
+           [ "$1" != "loopback" ]; then
+        echo "not a posix or windows environment"
         return $TEST_SKIP
     fi
 
@@ -63,6 +66,9 @@ setup_backend()
     "loopback")
         ;;
     "pipe")
+        if [ -n "$LKL_HOST_CONFIG_NT" ]; then
+            return $TEST_SKIP
+        fi
         if [ -z $(lkl_test_cmd which mkfifo) ]; then
             echo "no mkfifo command"
             return $TEST_SKIP
@@ -109,6 +115,15 @@ setup_backend()
             echo "DPDK needs user setup"
             return $TEST_SKIP
         fi
+        ;;
+    "wintap")
+        if [ -z $LKL_HOST_CONFIG_NT64 ]; then
+            echo "skipping on non-windows 64-bits host"
+            return $TEST_SKIP
+        fi
+        netsh interface ip set address \
+	      "OpenVPN TAP-Windows6" static $(ip_host) 255.255.255.0 0.0.0.0
+        netsh advfirewall set allprofiles state off
         ;;
     *)
         echo "don't know how to setup backend $1"
@@ -159,6 +174,12 @@ run_tests()
                       --ifname dpdk0 \
                       --ip $(ip_lkl) --netmask-len $TEST_IP_NETMASK \
                       --dst $(ip_host)
+        ;;
+    "wintap")
+        lkl_test_exec $script_dir/net-test --backend wintap \
+                      --ifname tap0 \
+                      --ip $(ip_lkl) --netmask-len $TEST_IP_NETMASK \
+                      --dst $(ip_host) --sleep 10
         ;;
     esac
 }

@@ -79,6 +79,7 @@ struct lkl_netdev {
 	struct lkl_dev_net_ops *ops;
 	int id;
 	uint8_t has_vnet_hdr: 1;
+	uint8_t mac[6];
 };
 
 /**
