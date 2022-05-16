@@ -771,10 +771,10 @@ static void ath11k_hw_wcn6855_reo_setup(struct ath11k_base *ab)
 		FIELD_PREP(HAL_REO1_GEN_ENABLE_AGING_FLUSH_ENABLE, 1);
 	ath11k_hif_write32(ab, reo_base + HAL_REO1_GEN_ENABLE, val);
 
-	val = ath11k_hif_read32(ab, reo_base + HAL_REO1_MISC_CTL);
+	val = ath11k_hif_read32(ab, reo_base + HAL_REO1_MISC_CTL(ab));
 	val &= ~HAL_REO1_MISC_CTL_FRAGMENT_DST_RING;
 	val |= FIELD_PREP(HAL_REO1_MISC_CTL_FRAGMENT_DST_RING, HAL_SRNG_RING_ID_REO2SW1);
-	ath11k_hif_write32(ab, reo_base + HAL_REO1_MISC_CTL, val);
+	ath11k_hif_write32(ab, reo_base + HAL_REO1_MISC_CTL(ab), val);
 
 	ath11k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_0(ab),
 			   HAL_DEFAULT_REO_TIMEOUT_USEC);
@@ -1983,6 +1983,9 @@ const struct ath11k_hw_regs ipq8074_regs = {
 
 	/* Shadow register area */
 	.hal_shadow_base_addr = 0x0,
+
+	/* REO misc control register, not used in IPQ8074 */
+	.hal_reo1_misc_ctl = 0x0,
 };
 
 const struct ath11k_hw_regs qca6390_regs = {
@@ -2065,6 +2068,9 @@ const struct ath11k_hw_regs qca6390_regs = {
 
 	/* Shadow register area */
 	.hal_shadow_base_addr = 0x000008fc,
+
+	/* REO misc control register, not used in QCA6390 */
+	.hal_reo1_misc_ctl = 0x0,
 };
 
 const struct ath11k_hw_regs qcn9074_regs = {
@@ -2147,6 +2153,9 @@ const struct ath11k_hw_regs qcn9074_regs = {
 
 	/* Shadow register area */
 	.hal_shadow_base_addr = 0x0,
+
+	/* REO misc control register, not used in QCN9074 */
+	.hal_reo1_misc_ctl = 0x0,
 };
 
 const struct ath11k_hw_regs wcn6855_regs = {
@@ -2229,6 +2238,11 @@ const struct ath11k_hw_regs wcn6855_regs = {
 
 	/* Shadow register area */
 	.hal_shadow_base_addr = 0x000008fc,
+
+	/* REO misc control register, used for fragment
+	 * destination ring config in WCN6855.
+	 */
+	.hal_reo1_misc_ctl = 0x00000630,
 };
 
 const struct ath11k_hw_regs wcn6750_regs = {
@@ -2311,6 +2325,11 @@ const struct ath11k_hw_regs wcn6750_regs = {
 
 	/* Shadow register area */
 	.hal_shadow_base_addr = 0x00000504,
+
+	/* REO misc control register, used for fragment
+	 * destination ring config in WCN6750.
+	 */
+	.hal_reo1_misc_ctl = 0x000005d8,
 };
 
 const struct ath11k_hw_hal_params ath11k_hw_hal_params_ipq8074 = {

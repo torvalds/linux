@@ -204,6 +204,7 @@ struct ath11k_hw_params {
 	u8 dp_window_idx;
 	u8 ce_window_idx;
 	bool fixed_fw_mem;
+	bool support_off_channel_tx;
 };
 
 struct ath11k_hw_ops {
@@ -379,6 +380,7 @@ struct ath11k_hw_regs {
 	u32 pcie_pcs_osc_dtct_config_base;
 
 	u32 hal_shadow_base_addr;
+	u32 hal_reo1_misc_ctl;
 };
 
 extern const struct ath11k_hw_regs ipq8074_regs;
