@@ -1322,7 +1322,7 @@
 			device_type = "pci";
 			starfive,stg-syscon = <&stg_syscon 0xc0 0xc4 0x130>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x82000000  0x0 0x30000000  0x0 0x30000000 0x0 0x06000000>;
+			ranges = <0x82000000  0x0 0x30000000  0x0 0x30000000 0x0 0x08000000>;
 			msi-parent = <&plic>;
 			interrupts = <56>;
 			interrupt-controller;
@@ -1341,10 +1341,11 @@
 				 <&rstgen RSTN_U0_PLDA_PCIE_APB>;
 			reset-names = "rst_mst0", "rst_slv0", "rst_slv",
 				      "rst_brg", "rst_core", "rst_apb";
-			clocks = <&clkgen JH7110_PCIE0_CLK_TL>,
+			clocks = <&clkgen JH7110_NOC_BUS_CLK_STG_AXI>,
+				 <&clkgen JH7110_PCIE0_CLK_TL>,
 				 <&clkgen JH7110_PCIE0_CLK_AXI_MST0>,
 				 <&clkgen JH7110_PCIE0_CLK_APB>;
-			clock-names =  "tl", "axi_mst0", "apb";
+			clock-names = "noc", "tl", "axi_mst0", "apb";
 			status = "disabled";
 		};
 
@@ -1359,7 +1360,7 @@
 			device_type = "pci";
 			starfive,stg-syscon = <&stg_syscon 0x270 0x274 0x2e0>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x82000000  0x0 0x38000000  0x0 0x38000000 0x0 0x06000000>;
+			ranges = <0x82000000  0x0 0x38000000  0x0 0x38000000 0x0 0x08000000>;
 			msi-parent = <&plic>;
 			interrupts = <57>;
 			interrupt-controller;
@@ -1378,10 +1379,11 @@
 				 <&rstgen RSTN_U1_PLDA_PCIE_APB>;
 			reset-names = "rst_mst0", "rst_slv0", "rst_slv",
 				      "rst_brg", "rst_core", "rst_apb";
-			clocks = <&clkgen JH7110_PCIE1_CLK_TL>,
+			clocks = <&clkgen JH7110_NOC_BUS_CLK_STG_AXI>,
+				 <&clkgen JH7110_PCIE1_CLK_TL>,
 				 <&clkgen JH7110_PCIE1_CLK_AXI_MST0>,
 				 <&clkgen JH7110_PCIE1_CLK_APB>;
-			clock-names =  "tl", "axi_mst0", "apb";
+			clock-names = "noc", "tl", "axi_mst0", "apb";
 			status = "disabled";
 		};
 
