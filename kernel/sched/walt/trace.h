@@ -950,6 +950,7 @@ TRACE_EVENT(sched_cpu_util,
 		__field(unsigned int,	nr_rtg_high_prio_tasks)
 		__field(u64,	prs_gprs)
 		__field(unsigned int,	lowest_mask)
+		__field(unsigned long,	thermal_pressure)
 	),
 
 	TP_fast_assign(
@@ -974,16 +975,17 @@ TRACE_EVENT(sched_cpu_util,
 			__entry->lowest_mask	= 0;
 		else
 			__entry->lowest_mask	= cpumask_bits(lowest_mask)[0];
+		__entry->thermal_pressure	= arch_scale_thermal_pressure(cpu);
 	),
 
-	TP_printk("cpu=%d nr_running=%d cpu_util=%ld cpu_util_cum=%ld capacity_curr=%lu capacity=%lu capacity_orig=%lu idle_exit_latency=%u irqload=%llu online=%u, inactive=%u, halted=%u, reserved=%u, high_irq_load=%u nr_rtg_hp=%u prs_gprs=%llu lowest_mask=0x%x",
+	TP_printk("cpu=%d nr_running=%d cpu_util=%ld cpu_util_cum=%ld capacity_curr=%lu capacity=%lu capacity_orig=%lu idle_exit_latency=%u irqload=%llu online=%u, inactive=%u, halted=%u, reserved=%u, high_irq_load=%u nr_rtg_hp=%u prs_gprs=%llu lowest_mask=0x%x thermal_pressure=%llu",
 		__entry->cpu, __entry->nr_running, __entry->cpu_util,
 		__entry->cpu_util_cum, __entry->capacity_curr,
 		__entry->capacity, __entry->capacity_orig,
 		__entry->idle_exit_latency, __entry->irqload, __entry->online,
 		__entry->inactive, __entry->halted, __entry->reserved, __entry->high_irq_load,
 		__entry->nr_rtg_high_prio_tasks, __entry->prs_gprs,
-		__entry->lowest_mask)
+		__entry->lowest_mask, __entry->thermal_pressure)
 );
 
 TRACE_EVENT(sched_compute_energy,
