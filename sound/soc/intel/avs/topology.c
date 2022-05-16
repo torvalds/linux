@@ -15,8 +15,6 @@
 #include "avs.h"
 #include "topology.h"
 
-const struct snd_soc_dai_ops avs_dai_fe_ops;
-
 /* Get pointer to vendor array at the specified offset. */
 #define avs_tplg_vendor_array_at(array, offset) \
 	((struct snd_soc_tplg_vendor_array *)((u8 *)array + offset))
