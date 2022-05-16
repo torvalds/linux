@@ -572,19 +572,6 @@
 			status = "disabled";
 		};
 
-		i2c6: i2c@12060000 {
-			compatible = "snps,designware-i2c";
-			reg = <0x0 0x12060000 0x0 0x10000>;
-			clocks = <&clkgen JH7110_I2C6_CLK_CORE>,
-				 <&clkgen JH7110_I2C6_CLK_APB>;
-			clock-names = "ref", "pclk";
-			resets = <&rstgen RSTN_U6_DW_I2C_APB>;
-			interrupts = <51>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			status = "disabled";
-		};
-
 		i2c0: i2c@10030000 {
 			compatible = "snps,designware-i2c";
 			reg = <0x0 0x10030000 0x0 0x10000>;
@@ -606,6 +593,71 @@
 			clock-names = "ref", "pclk";
 			resets = <&rstgen RSTN_U1_DW_I2C_APB>;
 			interrupts = <36>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@10050000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0x10050000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_I2C2_CLK_CORE>,
+				 <&clkgen JH7110_I2C2_CLK_APB>;
+			clock-names = "ref", "pclk";
+			resets = <&rstgen RSTN_U2_DW_I2C_APB>;
+			interrupts = <37>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@12030000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0x12030000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_I2C3_CLK_CORE>,
+				 <&clkgen JH7110_I2C3_CLK_APB>;
+			clock-names = "ref", "pclk";
+			resets = <&rstgen RSTN_U3_DW_I2C_APB>;
+			interrupts = <48>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c4: i2c@12040000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0x12040000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_I2C4_CLK_CORE>,
+				 <&clkgen JH7110_I2C4_CLK_APB>;
+			clock-names = "ref", "pclk";
+			resets = <&rstgen RSTN_U4_DW_I2C_APB>;
+			interrupts = <49>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c5: i2c@12050000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0x12050000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_I2C5_CLK_CORE>,
+				 <&clkgen JH7110_I2C5_CLK_APB>;
+			clock-names = "ref", "pclk";
+			resets = <&rstgen RSTN_U5_DW_I2C_APB>;
+			interrupts = <50>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c6: i2c@12060000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0x12060000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_I2C6_CLK_CORE>,
+				 <&clkgen JH7110_I2C6_CLK_APB>;
+			clock-names = "ref", "pclk";
+			resets = <&rstgen RSTN_U6_DW_I2C_APB>;
+			interrupts = <51>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
