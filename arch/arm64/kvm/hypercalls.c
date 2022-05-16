@@ -379,7 +379,8 @@ static int kvm_arm_set_fw_reg_bmap(struct kvm_vcpu *vcpu, u64 reg_id, u64 val)
 
 	mutex_lock(&kvm->lock);
 
-	if (test_bit(KVM_ARCH_FLAG_HAS_RAN_ONCE, &kvm->arch.flags)) {
+	if (test_bit(KVM_ARCH_FLAG_HAS_RAN_ONCE, &kvm->arch.flags) &&
+	    val != *fw_reg_bmap) {
 		ret = -EBUSY;
 		goto out;
 	}
