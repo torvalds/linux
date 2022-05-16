@@ -28,6 +28,15 @@ class SPDXdata(object):
         self.licenses = [ ]
         self.exceptions = { }
 
+class dirinfo(object):
+    def __init__(self):
+        self.missing = 0
+        self.total = 0
+
+    def update(self, miss):
+        self.total += 1
+        self.missing += miss
+
 # Read the spdx data from the LICENSES directory
 def read_spdxdata(repo):
 
@@ -93,6 +102,7 @@ class id_parser(object):
         self.checked = 0
         self.spdx_valid = 0
         self.spdx_errors = 0
+        self.spdx_dirs = {}
         self.curline = 0
         self.deepest = 0
 
@@ -167,6 +177,7 @@ class id_parser(object):
     def parse_lines(self, fd, maxlines, fname):
         self.checked += 1
         self.curline = 0
+        fail = 1
         try:
             for line in fd:
                 line = line.decode(locale.getpreferredencoding(False), errors='ignore')
@@ -192,6 +203,7 @@ class id_parser(object):
                 # Should we check for more SPDX ids in the same file and
                 # complain if there are any?
                 #
+                fail = 0
                 break
 
         except ParserException as pe:
@@ -202,6 +214,11 @@ class id_parser(object):
             else:
                 sys.stdout.write('%s: %d:0 %s\n' %(fname, self.curline, pe.txt))
             self.spdx_errors += 1
+
+        base = os.path.dirname(fname)
+        di = self.spdx_dirs.get(base, dirinfo())
+        di.update(fail)
+        self.spdx_dirs[base] = di
 
 def scan_git_tree(tree):
     for el in tree.traverse():
@@ -289,6 +306,16 @@ if __name__ == '__main__':
                     pc = int(100 * parser.spdx_valid / parser.checked)
                     sys.stderr.write('Files with SPDX:   %12d %3d%%\n' %(parser.spdx_valid, pc))
                 sys.stderr.write('Files with errors: %12d\n' %parser.spdx_errors)
+                ndirs = len(parser.spdx_dirs)
+                dirsok = 0
+                if ndirs:
+                    sys.stderr.write('\n')
+                    sys.stderr.write('Directories accounted: %8d\n' %ndirs)
+                    for di in parser.spdx_dirs.values():
+                        if not di.missing:
+                            dirsok += 1
+                    pc = int(100 * dirsok / ndirs)
+                    sys.stderr.write('Directories complete:  %8d %3d%%\n' %(dirsok, pc))
 
             sys.exit(0)
 
