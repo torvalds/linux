@@ -36,6 +36,5 @@
 };
 
 &usbotg2 {
-	vbus-supply = <&reg_usbh_vbus>;
 	status = "okay";
 };

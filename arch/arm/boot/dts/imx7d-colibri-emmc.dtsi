@@ -47,6 +47,7 @@
 
 &usbotg2 {
 	dr_mode = "host";
+	vbus-supply = <&reg_usbh_vbus>;
 };
 
 &usdhc3 {
