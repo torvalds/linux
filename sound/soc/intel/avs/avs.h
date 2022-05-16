@@ -273,5 +273,6 @@ extern const struct snd_soc_dai_ops avs_dai_fe_ops;
 int avs_dmic_platform_register(struct avs_dev *adev, const char *name);
 int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned long port_mask,
 			      unsigned long *tdms);
+int avs_hda_platform_register(struct avs_dev *adev, const char *name);
 
 #endif /* __SOUND_SOC_INTEL_AVS_H */
