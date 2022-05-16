@@ -48,6 +48,10 @@
 #define SKL_ADSP_HIPCIE_DONE		BIT(30)
 #define SKL_ADSP_HIPCT_BUSY		BIT(31)
 
+/* Intel HD Audio SRAM windows base addresses */
+#define SKL_ADSP_SRAM_BASE_OFFSET	0x8000
+#define SKL_ADSP_SRAM_WINDOW_SIZE	0x2000
+
 /* Constants used when accessing SRAM, space shared with firmware */
 #define AVS_FW_REG_BASE(adev)		((adev)->spec->sram_base_offset)
 #define AVS_FW_REG_STATUS(adev)		(AVS_FW_REG_BASE(adev) + 0x0)

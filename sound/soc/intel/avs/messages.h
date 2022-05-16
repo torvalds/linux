@@ -347,6 +347,24 @@ enum avs_log_enable {
 	AVS_LOG_ENABLE = 1
 };
 
+enum avs_skl_log_priority {
+	AVS_SKL_LOG_CRITICAL = 1,
+	AVS_SKL_LOG_HIGH,
+	AVS_SKL_LOG_MEDIUM,
+	AVS_SKL_LOG_LOW,
+	AVS_SKL_LOG_VERBOSE,
+};
+
+struct skl_log_state {
+	u32 enable;
+	u32 min_priority;
+} __packed;
+
+struct skl_log_state_info {
+	u32 core_mask;
+	struct skl_log_state logs_core[];
+} __packed;
+
 int avs_ipc_set_enable_logs(struct avs_dev *adev, u8 *log_info, size_t size);
 
 struct avs_fw_version {

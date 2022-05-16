@@ -56,6 +56,8 @@ struct avs_dsp_ops {
 #define avs_dsp_op(adev, op, ...) \
 	((adev)->spec->dsp_ops->op(adev, ## __VA_ARGS__))
 
+extern const struct avs_dsp_ops skl_dsp_ops;
+
 #define AVS_PLATATTR_CLDMA		BIT_ULL(0)
 #define AVS_PLATATTR_IMR		BIT_ULL(1)
 
@@ -248,6 +250,8 @@ void avs_ipc_block(struct avs_ipc *ipc);
 
 int avs_dsp_disable_d0ix(struct avs_dev *adev);
 int avs_dsp_enable_d0ix(struct avs_dev *adev);
+
+int skl_log_buffer_offset(struct avs_dev *adev, u32 core);
 
 /* Firmware resources management */
 

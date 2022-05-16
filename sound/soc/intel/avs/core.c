@@ -634,7 +634,25 @@ static const struct dev_pm_ops avs_dev_pm = {
 	SET_RUNTIME_PM_OPS(avs_runtime_suspend, avs_runtime_resume, NULL)
 };
 
+static const struct avs_spec skl_desc = {
+	.name = "skl",
+	.min_fw_version = {
+		.major = 9,
+		.minor = 21,
+		.hotfix = 0,
+		.build = 4732,
+	},
+	.dsp_ops = &skl_dsp_ops,
+	.core_init_mask = 1,
+	.attributes = AVS_PLATATTR_CLDMA,
+	.sram_base_offset = SKL_ADSP_SRAM_BASE_OFFSET,
+	.sram_window_size = SKL_ADSP_SRAM_WINDOW_SIZE,
+	.rom_status = SKL_ADSP_SRAM_BASE_OFFSET,
+};
+
 static const struct pci_device_id avs_ids[] = {
+	{ PCI_VDEVICE(INTEL, 0x9d70), (unsigned long)&skl_desc }, /* SKL */
+	{ PCI_VDEVICE(INTEL, 0x9d71), (unsigned long)&skl_desc }, /* KBL */
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, avs_ids);
