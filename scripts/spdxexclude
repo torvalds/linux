@@ -15,3 +15,4 @@ arch/*/configs/
 # Other files without copyrightable content
 /CREDITS
 /MAINTAINERS
+/README
