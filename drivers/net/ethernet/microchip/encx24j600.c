@@ -604,9 +604,8 @@ static void encx24j600_set_rxfilter_mode(struct encx24j600_priv *priv)
 	}
 }
 
-static int encx24j600_hw_init(struct encx24j600_priv *priv)
+static void encx24j600_hw_init(struct encx24j600_priv *priv)
 {
-	int ret = 0;
 	u16 macon2;
 
 	priv->hw_enabled = false;
@@ -649,8 +648,6 @@ static int encx24j600_hw_init(struct encx24j600_priv *priv)
 
 	if (netif_msg_hw(priv))
 		encx24j600_dump_config(priv, "Hw is initialized");
-
-	return ret;
 }
 
 static void encx24j600_hw_enable(struct encx24j600_priv *priv)
@@ -892,7 +889,7 @@ static netdev_tx_t encx24j600_tx(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* Deal with a transmit timeout */
-static void encx24j600_tx_timeout(struct net_device *dev)
+static void encx24j600_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct encx24j600_priv *priv = netdev_priv(dev);
 
@@ -1042,12 +1039,7 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 	}
 
 	/* Initialize the device HW to the consistent state */
-	if (encx24j600_hw_init(priv)) {
-		netif_err(priv, probe, ndev,
-			  DRV_NAME ": HW initialization error\n");
-		ret = -EIO;
-		goto out_free;
-	}
+	encx24j600_hw_init(priv);
 
 	kthread_init_worker(&priv->kworker);
 	kthread_init_work(&priv->tx_work, encx24j600_tx_proc);
@@ -1070,7 +1062,7 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 	if (unlikely(ret)) {
 		netif_err(priv, probe, ndev, "Error %d initializing card encx24j600 card\n",
 			  ret);
-		goto out_free;
+		goto out_stop;
 	}
 
 	eidled = encx24j600_read_reg(priv, EIDLED);
@@ -1088,6 +1080,8 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 
 out_unregister:
 	unregister_netdev(priv->ndev);
+out_stop:
+	kthread_stop(priv->kworker_task);
 out_free:
 	free_netdev(ndev);
 
@@ -1100,6 +1094,7 @@ static int encx24j600_spi_remove(struct spi_device *spi)
 	struct encx24j600_priv *priv = dev_get_drvdata(&spi->dev);
 
 	unregister_netdev(priv->ndev);
+	kthread_stop(priv->kworker_task);
 
 	free_netdev(priv->ndev);
 

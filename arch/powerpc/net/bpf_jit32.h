@@ -72,21 +72,21 @@ DECLARE_LOAD_FUNC(sk_load_half);
 DECLARE_LOAD_FUNC(sk_load_byte);
 DECLARE_LOAD_FUNC(sk_load_byte_msh);
 
-#define PPC_LBZ_OFFS(r, base, i) do { if ((i) < 32768) PPC_LBZ(r, base, i);   \
-		else {	PPC_ADDIS(r, base, IMM_HA(i));			      \
-			PPC_LBZ(r, r, IMM_L(i)); } } while(0)
+#define PPC_LBZ_OFFS(r, base, i) do { if ((i) < 32768) EMIT(PPC_RAW_LBZ(r, base, i));   \
+		else {	EMIT(PPC_RAW_ADDIS(r, base, IMM_HA(i)));	      \
+			EMIT(PPC_RAW_LBZ(r, r, IMM_L(i))); } } while(0)
 
-#define PPC_LD_OFFS(r, base, i) do { if ((i) < 32768) PPC_LD(r, base, i);     \
-		else {	PPC_ADDIS(r, base, IMM_HA(i));			      \
-			PPC_LD(r, r, IMM_L(i)); } } while(0)
+#define PPC_LD_OFFS(r, base, i) do { if ((i) < 32768) EMIT(PPC_RAW_LD(r, base, i));     \
+		else {	EMIT(PPC_RAW_ADDIS(r, base, IMM_HA(i)));			\
+			EMIT(PPC_RAW_LD(r, r, IMM_L(i))); } } while(0)
 
-#define PPC_LWZ_OFFS(r, base, i) do { if ((i) < 32768) PPC_LWZ(r, base, i);   \
-		else {	PPC_ADDIS(r, base, IMM_HA(i));			      \
-			PPC_LWZ(r, r, IMM_L(i)); } } while(0)
+#define PPC_LWZ_OFFS(r, base, i) do { if ((i) < 32768) EMIT(PPC_RAW_LWZ(r, base, i));   \
+		else {	EMIT(PPC_RAW_ADDIS(r, base, IMM_HA(i)));			\
+			EMIT(PPC_RAW_LWZ(r, r, IMM_L(i))); } } while(0)
 
-#define PPC_LHZ_OFFS(r, base, i) do { if ((i) < 32768) PPC_LHZ(r, base, i);   \
-		else {	PPC_ADDIS(r, base, IMM_HA(i));			      \
-			PPC_LHZ(r, r, IMM_L(i)); } } while(0)
+#define PPC_LHZ_OFFS(r, base, i) do { if ((i) < 32768) EMIT(PPC_RAW_LHZ(r, base, i));   \
+		else {	EMIT(PPC_RAW_ADDIS(r, base, IMM_HA(i)));			\
+			EMIT(PPC_RAW_LHZ(r, r, IMM_L(i))); } } while(0)
 
 #ifdef CONFIG_PPC64
 #define PPC_LL_OFFS(r, base, i) do { PPC_LD_OFFS(r, base, i); } while(0)
@@ -97,30 +97,30 @@ DECLARE_LOAD_FUNC(sk_load_byte_msh);
 #ifdef CONFIG_SMP
 #ifdef CONFIG_PPC64
 #define PPC_BPF_LOAD_CPU(r)		\
-	do { BUILD_BUG_ON(FIELD_SIZEOF(struct paca_struct, paca_index) != 2);	\
+	do { BUILD_BUG_ON(sizeof_field(struct paca_struct, paca_index) != 2);	\
 		PPC_LHZ_OFFS(r, 13, offsetof(struct paca_struct, paca_index));	\
 	} while (0)
 #else
 #define PPC_BPF_LOAD_CPU(r)     \
-	do { BUILD_BUG_ON(FIELD_SIZEOF(struct task_struct, cpu) != 4);		\
+	do { BUILD_BUG_ON(sizeof_field(struct task_struct, cpu) != 4);		\
 		PPC_LHZ_OFFS(r, 2, offsetof(struct task_struct, cpu));		\
 	} while(0)
 #endif
 #else
-#define PPC_BPF_LOAD_CPU(r) do { PPC_LI(r, 0); } while(0)
+#define PPC_BPF_LOAD_CPU(r) do { EMIT(PPC_RAW_LI(r, 0)); } while(0)
 #endif
 
 #define PPC_LHBRX_OFFS(r, base, i) \
-		do { PPC_LI32(r, i); PPC_LHBRX(r, r, base); } while(0)
+		do { PPC_LI32(r, i); EMIT(PPC_RAW_LHBRX(r, r, base)); } while(0)
 #ifdef __LITTLE_ENDIAN__
 #define PPC_NTOHS_OFFS(r, base, i)	PPC_LHBRX_OFFS(r, base, i)
 #else
 #define PPC_NTOHS_OFFS(r, base, i)	PPC_LHZ_OFFS(r, base, i)
 #endif
 
-#define PPC_BPF_LL(r, base, i) do { PPC_LWZ(r, base, i); } while(0)
-#define PPC_BPF_STL(r, base, i) do { PPC_STW(r, base, i); } while(0)
-#define PPC_BPF_STLU(r, base, i) do { PPC_STWU(r, base, i); } while(0)
+#define PPC_BPF_LL(r, base, i) do { EMIT(PPC_RAW_LWZ(r, base, i)); } while(0)
+#define PPC_BPF_STL(r, base, i) do { EMIT(PPC_RAW_STW(r, base, i)); } while(0)
+#define PPC_BPF_STLU(r, base, i) do { EMIT(PPC_RAW_STWU(r, base, i)); } while(0)
 
 #define SEEN_DATAREF 0x10000 /* might call external helpers */
 #define SEEN_XREG    0x20000 /* X reg is used */

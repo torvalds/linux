@@ -60,7 +60,7 @@ int snd_ak4113_create(struct snd_card *card, ak4113_read_t *read,
 	struct ak4113 *chip;
 	int err;
 	unsigned char reg;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free =     snd_ak4113_dev_free,
 	};
 
@@ -349,7 +349,7 @@ static int snd_ak4113_spdif_qget(struct snd_kcontrol *kcontrol,
 }
 
 /* Don't forget to change AK4113_CONTROLS define!!! */
-static struct snd_kcontrol_new snd_ak4113_iec958_controls[] = {
+static const struct snd_kcontrol_new snd_ak4113_iec958_controls[] = {
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		"IEC958 Parity Errors",

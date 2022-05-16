@@ -80,8 +80,10 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	if (ret)
 		return ret;
 
-	if (v9ses->cache)
-		sb->s_bdi->ra_pages = VM_READAHEAD_PAGES;
+	if (!v9ses->cache) {
+		sb->s_bdi->ra_pages = 0;
+		sb->s_bdi->io_pages = 0;
+	}
 
 	sb->s_flags |= SB_ACTIVE | SB_DIRSYNC;
 	if (!v9ses->cache)
@@ -258,8 +260,7 @@ static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 			buf->f_bavail = rs.bavail;
 			buf->f_files = rs.files;
 			buf->f_ffree = rs.ffree;
-			buf->f_fsid.val[0] = rs.fsid & 0xFFFFFFFFUL;
-			buf->f_fsid.val[1] = (rs.fsid >> 32) & 0xFFFFFFFFUL;
+			buf->f_fsid = u64_to_fsid(rs.fsid);
 			buf->f_namelen = rs.namelen;
 		}
 		if (res != -ENOSYS)

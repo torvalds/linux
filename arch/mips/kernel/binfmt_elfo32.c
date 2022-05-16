@@ -103,7 +103,7 @@ jiffies_to_old_timeval32(unsigned long jiffies, struct old_timeval32 *value)
 #undef TASK_SIZE
 #define TASK_SIZE TASK_SIZE32
 
-#undef ns_to_timeval
-#define ns_to_timeval ns_to_old_timeval32
+#undef ns_to_kernel_old_timeval
+#define ns_to_kernel_old_timeval ns_to_old_timeval32
 
 #include "../../../fs/binfmt_elf.c"

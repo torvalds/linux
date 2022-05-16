@@ -22,7 +22,7 @@ Possible uses:
 * minimizing kernel configurations (do I need this option if the
   associated code is never run?)
 
-.. _gcov: http://gcc.gnu.org/onlinedocs/gcc/Gcov.html
+.. _gcov: https://gcc.gnu.org/onlinedocs/gcc/Gcov.html
 .. _lcov: http://ltp.sourceforge.net/coverage/lcov.php
 
 
@@ -171,7 +171,7 @@ Note on compilers
 GCC and LLVM gcov tools are not necessarily compatible. Use gcov_ to work with
 GCC-generated .gcno and .gcda files, and use llvm-cov_ for Clang.
 
-.. _gcov: http://gcc.gnu.org/onlinedocs/gcc/Gcov.html
+.. _gcov: https://gcc.gnu.org/onlinedocs/gcc/Gcov.html
 .. _llvm-cov: https://llvm.org/docs/CommandGuide/llvm-cov.html
 
 Build differences between GCC and Clang gcov are handled by Kconfig. It
@@ -203,7 +203,7 @@ Cause
     may not correctly copy files from sysfs.
 
 Solution
-    Use ``cat``' to read ``.gcda`` files and ``cp -d`` to copy links.
+    Use ``cat`` to read ``.gcda`` files and ``cp -d`` to copy links.
     Alternatively use the mechanism shown in Appendix B.
 
 

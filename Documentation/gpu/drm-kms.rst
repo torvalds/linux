@@ -3,7 +3,7 @@ Kernel Mode Setting (KMS)
 =========================
 
 Drivers must initialize the mode setting core by calling
-:c:func:`drm_mode_config_init()` on the DRM device. The function
+drmm_mode_config_init() on the DRM device. The function
 initializes the :c:type:`struct drm_device <drm_device>`
 mode_config field and never fails. Once done, mode configuration must
 be setup by initializing the following fields.
@@ -181,8 +181,7 @@ Setting`_). The somewhat surprising part here is that properties are not
 directly instantiated on each object, but free-standing mode objects themselves,
 represented by :c:type:`struct drm_property <drm_property>`, which only specify
 the type and value range of a property. Any given property can be attached
-multiple times to different objects using :c:func:`drm_object_attach_property()
-<drm_object_attach_property>`.
+multiple times to different objects using drm_object_attach_property().
 
 .. kernel-doc:: include/drm/drm_mode_object.h
    :internal:
@@ -260,7 +259,8 @@ Taken all together there's two consequences for the atomic design:
   drm_connector_state <drm_connector_state>` for connectors. These are the only
   objects with userspace-visible and settable state. For internal state drivers
   can subclass these structures through embeddeding, or add entirely new state
-  structures for their globally shared hardware functions.
+  structures for their globally shared hardware functions, see :c:type:`struct
+  drm_private_state<drm_private_state>`.
 
 - An atomic update is assembled and validated as an entirely free-standing pile
   of structures within the :c:type:`drm_atomic_state <drm_atomic_state>`
@@ -268,6 +268,14 @@ Taken all together there's two consequences for the atomic design:
   structure; see the next chapter.  Only when a state is committed is it applied
   to the driver and modeset objects. This way rolling back an update boils down
   to releasing memory and unreferencing objects like framebuffers.
+
+Locking of atomic state structures is internally using :c:type:`struct
+drm_modeset_lock <drm_modeset_lock>`. As a general rule the locking shouldn't be
+exposed to drivers, instead the right locks should be automatically acquired by
+any function that duplicates or peeks into a state, like e.g.
+drm_atomic_get_crtc_state().  Locking only protects the software data
+structure, ordering of committing state changes to hardware is sequenced using
+:c:type:`struct drm_crtc_commit <drm_crtc_commit>`.
 
 Read on in this chapter, and also in :ref:`drm_atomic_helper` for more detailed
 coverage of specific topics.
@@ -389,6 +397,9 @@ Connector Functions Reference
 Writeback Connectors
 --------------------
 
+.. kernel-doc:: include/drm/drm_writeback.h
+  :internal:
+
 .. kernel-doc:: drivers/gpu/drm/drm_writeback.c
   :doc: overview
 
@@ -449,6 +460,12 @@ HDMI Specific Connector Properties
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: HDMI connector properties
 
+Standard CRTC Properties
+------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
+   :doc: standard CRTC properties
+
 Plane Composition Properties
 ----------------------------
 
@@ -478,6 +495,9 @@ Color Management Properties
 
 .. kernel-doc:: drivers/gpu/drm/drm_color_mgmt.c
    :export:
+
+.. kernel-doc:: include/drm/drm_color_mgmt.h
+   :internal:
 
 Tile Group Property
 -------------------
@@ -522,4 +542,19 @@ Vertical Blanking and Interrupt Handling Functions Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_vblank.c
+   :export:
+
+Vertical Blank Work
+===================
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_work.c
+   :doc: vblank works
+
+Vertical Blank Work Functions Reference
+---------------------------------------
+
+.. kernel-doc:: include/drm/drm_vblank_work.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_work.c
    :export:

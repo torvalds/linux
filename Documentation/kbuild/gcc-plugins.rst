@@ -1,0 +1,97 @@
+=========================
+GCC plugin infrastructure
+=========================
+
+
+Introduction
+============
+
+GCC plugins are loadable modules that provide extra features to the
+compiler [1]_. They are useful for runtime instrumentation and static analysis.
+We can analyse, change and add further code during compilation via
+callbacks [2]_, GIMPLE [3]_, IPA [4]_ and RTL passes [5]_.
+
+The GCC plugin infrastructure of the kernel supports all gcc versions from
+4.5 to 6.0, building out-of-tree modules, cross-compilation and building in a
+separate directory.
+Plugin source files have to be compilable by both a C and a C++ compiler as well
+because gcc versions 4.5 and 4.6 are compiled by a C compiler,
+gcc-4.7 can be compiled by a C or a C++ compiler,
+and versions 4.8+ can only be compiled by a C++ compiler.
+
+Currently the GCC plugin infrastructure supports only the x86, arm, arm64 and
+powerpc architectures.
+
+This infrastructure was ported from grsecurity [6]_ and PaX [7]_.
+
+--
+
+.. [1] https://gcc.gnu.org/onlinedocs/gccint/Plugins.html
+.. [2] https://gcc.gnu.org/onlinedocs/gccint/Plugin-API.html#Plugin-API
+.. [3] https://gcc.gnu.org/onlinedocs/gccint/GIMPLE.html
+.. [4] https://gcc.gnu.org/onlinedocs/gccint/IPA.html
+.. [5] https://gcc.gnu.org/onlinedocs/gccint/RTL.html
+.. [6] https://grsecurity.net/
+.. [7] https://pax.grsecurity.net/
+
+
+Files
+=====
+
+**$(src)/scripts/gcc-plugins**
+
+	This is the directory of the GCC plugins.
+
+**$(src)/scripts/gcc-plugins/gcc-common.h**
+
+	This is a compatibility header for GCC plugins.
+	It should be always included instead of individual gcc headers.
+
+**$(src)/scripts/gcc-plugin.sh**
+
+	This script checks the availability of the included headers in
+	gcc-common.h and chooses the proper host compiler to build the plugins
+	(gcc-4.7 can be built by either gcc or g++).
+
+**$(src)/scripts/gcc-plugins/gcc-generate-gimple-pass.h,
+$(src)/scripts/gcc-plugins/gcc-generate-ipa-pass.h,
+$(src)/scripts/gcc-plugins/gcc-generate-simple_ipa-pass.h,
+$(src)/scripts/gcc-plugins/gcc-generate-rtl-pass.h**
+
+	These headers automatically generate the registration structures for
+	GIMPLE, SIMPLE_IPA, IPA and RTL passes. They support all gcc versions
+	from 4.5 to 6.0.
+	They should be preferred to creating the structures by hand.
+
+
+Usage
+=====
+
+You must install the gcc plugin headers for your gcc version,
+e.g., on Ubuntu for gcc-4.9::
+
+	apt-get install gcc-4.9-plugin-dev
+
+Or on Fedora::
+
+	dnf install gcc-plugin-devel
+
+Enable a GCC plugin based feature in the kernel config::
+
+	CONFIG_GCC_PLUGIN_CYC_COMPLEXITY = y
+
+To compile only the plugin(s)::
+
+	make gcc-plugins
+
+or just run the kernel make and compile the whole kernel with
+the cyclomatic complexity GCC plugin.
+
+
+4. How to add a new GCC plugin
+==============================
+
+The GCC plugins are in $(src)/scripts/gcc-plugins/. You can use a file or a directory
+here. It must be added to $(src)/scripts/gcc-plugins/Makefile,
+$(src)/scripts/Makefile.gcc-plugins and $(src)/arch/Kconfig.
+See the cyc_complexity_plugin.c (CONFIG_GCC_PLUGIN_CYC_COMPLEXITY) GCC plugin.

@@ -98,8 +98,8 @@ enum {
 
 
 #define WPA_SELECTOR_LEN 4
-extern u8 RTW_WPA_OUI_TYPE[] ;
-extern u16 RTW_WPA_VERSION ;
+extern u8 RTW_WPA_OUI_TYPE[];
+extern u16 RTW_WPA_VERSION;
 extern u8 WPA_AUTH_KEY_MGMT_NONE[];
 extern u8 WPA_AUTH_KEY_MGMT_UNSPEC_802_1X[];
 extern u8 WPA_AUTH_KEY_MGMT_PSK_OVER_802_1X[];
@@ -139,7 +139,7 @@ typedef enum _RATEID_IDX_ {
 	RATEID_IDX_VHT_1SS = 10,
 } RATEID_IDX, *PRATEID_IDX;
 
-typedef enum _RATR_TABLE_MODE{
+typedef enum _RATR_TABLE_MODE {
 	RATR_INX_WIRELESS_NGB = 0,	/*  BGN 40 Mhz 2SS 1SS */
 	RATR_INX_WIRELESS_NG = 1,		/*  GN or N */
 	RATR_INX_WIRELESS_NB = 2,		/*  BGN 20 Mhz 2SS 1SS  or BN */
@@ -149,11 +149,10 @@ typedef enum _RATR_TABLE_MODE{
 	RATR_INX_WIRELESS_B = 6,
 	RATR_INX_WIRELESS_MC = 7,
 	RATR_INX_WIRELESS_AC_N = 8,
-}RATR_TABLE_MODE, *PRATR_TABLE_MODE;
+} RATR_TABLE_MODE, *PRATR_TABLE_MODE;
 
 
-enum NETWORK_TYPE
-{
+enum NETWORK_TYPE {
 	WIRELESS_INVALID = 0,
 	/* Sub-Element */
 	WIRELESS_11B = BIT(0), /*  tx: cck only , rx: cck only, hw: cck */
@@ -248,7 +247,7 @@ struct ieee_param_ex {
 	u8 data[0];
 };
 
-struct sta_data{
+struct sta_data {
 	u16 aid;
 	u16 capability;
 	int flags;
@@ -439,7 +438,7 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_OFDM_SHIFT_MASK_A         4
 
 
-enum MGN_RATE{
+enum MGN_RATE {
 	MGN_1M		= 0x02,
 	MGN_2M		= 0x04,
 	MGN_5_5M	= 0x0B,
@@ -906,7 +905,7 @@ enum rtw_ieee80211_spectrum_mgmt_actioncode {
 	RTW_WLAN_ACTION_SPCT_EXT_CHL_SWITCH = 5,
 };
 
-enum _PUBLIC_ACTION{
+enum _PUBLIC_ACTION {
 	ACT_PUBLIC_BSSCOEXIST = 0, /*  20/40 BSS Coexistence */
 	ACT_PUBLIC_DSE_ENABLE = 1,
 	ACT_PUBLIC_DSE_DEENABLE = 2,
@@ -953,7 +952,7 @@ enum rtw_ieee80211_back_parties {
 };
 
 /* VHT features action code */
-enum rtw_ieee80211_vht_actioncode{
+enum rtw_ieee80211_vht_actioncode {
 	RTW_WLAN_ACTION_VHT_COMPRESSED_BEAMFORMING = 0,
        RTW_WLAN_ACTION_VHT_GROUPID_MANAGEMENT = 1,
        RTW_WLAN_ACTION_VHT_OPMODE_NOTIFICATION = 2,
@@ -1128,7 +1127,7 @@ u8 *rtw_get_ie(u8*pbuf, sint index, sint *len, sint limit);
 u8 *rtw_get_ie_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui, u8 oui_len, u8 *ie, uint *ielen);
 int rtw_ies_remove_ie(u8 *ies, uint *ies_len, uint offset, u8 eid, u8 *oui, u8 oui_len);
 
-void rtw_set_supported_rate(u8 *SupportedRates, uint mode) ;
+void rtw_set_supported_rate(u8 *SupportedRates, uint mode);
 
 unsigned char *rtw_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit);
 unsigned char *rtw_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len, int limit);
@@ -1142,8 +1141,8 @@ void rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie
 
 u8 rtw_is_wps_ie(u8 *ie_ptr, uint *wps_ielen);
 u8 *rtw_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen);
-u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id , u8 *buf_attr, u32 *len_attr);
-u8 *rtw_get_wps_attr_content(u8 *wps_ie, uint wps_ielen, u16 target_attr_id , u8 *buf_content, uint *len_content);
+u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id, u8 *buf_attr, u32 *len_attr);
+u8 *rtw_get_wps_attr_content(u8 *wps_ie, uint wps_ielen, u16 target_attr_id, u8 *buf_content, uint *len_content);
 
 /**
  * for_each_ie - iterate over continuous IEs

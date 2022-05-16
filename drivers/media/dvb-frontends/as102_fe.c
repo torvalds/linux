@@ -290,7 +290,8 @@ static int as102_fe_get_frontend(struct dvb_frontend *fe,
 }
 
 static int as102_fe_get_tune_settings(struct dvb_frontend *fe,
-			struct dvb_frontend_tune_settings *settings) {
+			struct dvb_frontend_tune_settings *settings)
+{
 
 	settings->min_delay_ms = 1000;
 

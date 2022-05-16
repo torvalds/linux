@@ -6,6 +6,7 @@
 #include <pthread.h>
 
 #include <sched.h>
+#include <perf/mmap.h>
 #include "evlist.h"
 #include "evsel.h"
 #include "debug.h"
@@ -105,9 +106,9 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 * Config the evsels, setting attr->comm on the first one, etc.
 	 */
 	evsel = evlist__first(evlist);
-	perf_evsel__set_sample_bit(evsel, CPU);
-	perf_evsel__set_sample_bit(evsel, TID);
-	perf_evsel__set_sample_bit(evsel, TIME);
+	evsel__set_sample_bit(evsel, CPU);
+	evsel__set_sample_bit(evsel, TID);
+	evsel__set_sample_bit(evsel, TIME);
 	perf_evlist__config(evlist, &opts, NULL);
 
 	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask);
@@ -170,10 +171,10 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 			struct mmap *md;
 
 			md = &evlist->mmap[i];
-			if (perf_mmap__read_init(md) < 0)
+			if (perf_mmap__read_init(&md->core) < 0)
 				continue;
 
-			while ((event = perf_mmap__read_event(md)) != NULL) {
+			while ((event = perf_mmap__read_event(&md->core)) != NULL) {
 				const u32 type = event->header.type;
 				const char *name = perf_event__name(type);
 
@@ -184,14 +185,14 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 				err = perf_evlist__parse_sample(evlist, event, &sample);
 				if (err < 0) {
 					if (verbose > 0)
-						perf_event__fprintf(event, stderr);
+						perf_event__fprintf(event, NULL, stderr);
 					pr_debug("Couldn't parse sample\n");
 					goto out_delete_evlist;
 				}
 
 				if (verbose > 0) {
 					pr_info("%" PRIu64" %d ", sample.time, sample.cpu);
-					perf_event__fprintf(event, stderr);
+					perf_event__fprintf(event, NULL, stderr);
 				}
 
 				if (prev_time > sample.time) {
@@ -276,9 +277,9 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 					++errs;
 				}
 
-				perf_mmap__consume(md);
+				perf_mmap__consume(&md->core);
 			}
-			perf_mmap__read_done(md);
+			perf_mmap__read_done(&md->core);
 		}
 
 		/*

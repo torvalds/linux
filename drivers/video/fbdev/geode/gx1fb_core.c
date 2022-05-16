@@ -252,7 +252,7 @@ static int parse_panel_option(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops gx1fb_ops = {
+static const struct fb_ops gx1fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= gx1fb_check_var,
 	.fb_set_par	= gx1fb_set_par,

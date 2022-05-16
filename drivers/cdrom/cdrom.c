@@ -586,7 +586,7 @@ static int cdrom_mrw_set_lba_space(struct cdrom_device_info *cdi, int space)
 	return 0;
 }
 
-int register_cdrom(struct cdrom_device_info *cdi)
+int register_cdrom(struct gendisk *disk, struct cdrom_device_info *cdi)
 {
 	static char banner_printed;
 	const struct cdrom_device_ops *cdo = cdi->ops;
@@ -601,8 +601,11 @@ int register_cdrom(struct cdrom_device_info *cdi)
 		cdrom_sysctl_register();
 	}
 
+	cdi->disk = disk;
+	disk->cdi = cdi;
+
 	ENSURE(cdo, drive_status, CDC_DRIVE_STATUS);
-	if (cdo->check_events == NULL && cdo->media_changed == NULL)
+	if (cdo->check_events == NULL)
 		WARN_ON_ONCE(cdo->capability & (CDC_MEDIA_CHANGED | CDC_SELECT_DISC));
 	ENSURE(cdo, tray_move, CDC_CLOSE_TRAY | CDC_OPEN_TRAY);
 	ENSURE(cdo, lock_door, CDC_LOCK);
@@ -996,6 +999,12 @@ static void cdrom_count_tracks(struct cdrom_device_info *cdi, tracktype *tracks)
 	tracks->xa = 0;
 	tracks->error = 0;
 	cd_dbg(CD_COUNT_TRACKS, "entering cdrom_count_tracks\n");
+
+	if (!CDROM_CAN(CDC_PLAY_AUDIO)) {
+		tracks->error = CDS_NO_INFO;
+		return;
+	}
+
 	/* Grab the TOC header so we can see how many tracks there are */
 	ret = cdi->ops->audio_ioctl(cdi, CDROMREADTOCHDR, &header);
 	if (ret) {
@@ -1162,7 +1171,8 @@ int cdrom_open(struct cdrom_device_info *cdi, struct block_device *bdev,
 		ret = open_for_data(cdi);
 		if (ret)
 			goto err;
-		cdrom_mmc3_profile(cdi);
+		if (CDROM_CAN(CDC_GENERIC_PACKET))
+			cdrom_mmc3_profile(cdi);
 		if (mode & FMODE_WRITE) {
 			ret = -EROFS;
 			if (cdrom_open_write(cdi))
@@ -1409,8 +1419,6 @@ static int cdrom_select_disc(struct cdrom_device_info *cdi, int slot)
 
 	if (cdi->ops->check_events)
 		cdi->ops->check_events(cdi, 0, slot);
-	else
-		cdi->ops->media_changed(cdi, slot);
 
 	if (slot == CDSL_NONE) {
 		/* set media changed bits, on both queues */
@@ -1507,13 +1515,10 @@ int media_changed(struct cdrom_device_info *cdi, int queue)
 		return ret;
 
 	/* changed since last call? */
-	if (cdi->ops->check_events) {
-		BUG_ON(!queue);	/* shouldn't be called from VFS path */
-		cdrom_update_events(cdi, DISK_EVENT_MEDIA_CHANGE);
-		changed = cdi->ioctl_events & DISK_EVENT_MEDIA_CHANGE;
-		cdi->ioctl_events = 0;
-	} else
-		changed = cdi->ops->media_changed(cdi, CDSL_CURRENT);
+	BUG_ON(!queue);	/* shouldn't be called from VFS path */
+	cdrom_update_events(cdi, DISK_EVENT_MEDIA_CHANGE);
+	changed = cdi->ioctl_events & DISK_EVENT_MEDIA_CHANGE;
+	cdi->ioctl_events = 0;
 
 	if (changed) {
 		cdi->mc_flags = 0x3;    /* set bit on both queues */
@@ -1523,18 +1528,6 @@ int media_changed(struct cdrom_device_info *cdi, int queue)
 
 	cdi->mc_flags &= ~mask;         /* clear bit */
 	return ret;
-}
-
-int cdrom_media_changed(struct cdrom_device_info *cdi)
-{
-	/* This talks to the VFS, which doesn't like errors - just 1 or 0.  
-	 * Returning "0" is always safe (media hasn't been changed). Do that 
-	 * if the low-level cdrom driver dosn't support media changed. */ 
-	if (cdi == NULL || cdi->ops->media_changed == NULL)
-		return 0;
-	if (!CDROM_CAN(CDC_MEDIA_CHANGED))
-		return 0;
-	return media_changed(cdi, 0);
 }
 
 /* Requests to the low-level drivers will /always/ be done in the
@@ -2285,37 +2278,46 @@ retry:
 	return cdrom_read_cdda_old(cdi, ubuf, lba, nframes);	
 }
 
-static int cdrom_ioctl_multisession(struct cdrom_device_info *cdi,
-		void __user *argp)
+int cdrom_multisession(struct cdrom_device_info *cdi,
+		struct cdrom_multisession *info)
 {
-	struct cdrom_multisession ms_info;
 	u8 requested_format;
 	int ret;
-
-	cd_dbg(CD_DO_IOCTL, "entering CDROMMULTISESSION\n");
 
 	if (!(cdi->ops->capability & CDC_MULTI_SESSION))
 		return -ENOSYS;
 
-	if (copy_from_user(&ms_info, argp, sizeof(ms_info)))
-		return -EFAULT;
-
-	requested_format = ms_info.addr_format;
+	requested_format = info->addr_format;
 	if (requested_format != CDROM_MSF && requested_format != CDROM_LBA)
 		return -EINVAL;
-	ms_info.addr_format = CDROM_LBA;
+	info->addr_format = CDROM_LBA;
 
-	ret = cdi->ops->get_last_session(cdi, &ms_info);
+	ret = cdi->ops->get_last_session(cdi, info);
+	if (!ret)
+		sanitize_format(&info->addr, &info->addr_format,
+				requested_format);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cdrom_multisession);
+
+static int cdrom_ioctl_multisession(struct cdrom_device_info *cdi,
+		void __user *argp)
+{
+	struct cdrom_multisession info;
+	int ret;
+
+	cd_dbg(CD_DO_IOCTL, "entering CDROMMULTISESSION\n");
+
+	if (copy_from_user(&info, argp, sizeof(info)))
+		return -EFAULT;
+	ret = cdrom_multisession(cdi, &info);
 	if (ret)
 		return ret;
-
-	sanitize_format(&ms_info.addr, &ms_info.addr_format, requested_format);
-
-	if (copy_to_user(argp, &ms_info, sizeof(ms_info)))
+	if (copy_to_user(argp, &info, sizeof(info)))
 		return -EFAULT;
 
 	cd_dbg(CD_DO_IOCTL, "CDROMMULTISESSION successful\n");
-	return 0;
+	return ret;
 }
 
 static int cdrom_ioctl_eject(struct cdrom_device_info *cdi)
@@ -2656,32 +2658,37 @@ static int cdrom_ioctl_read_tochdr(struct cdrom_device_info *cdi,
 	return 0;
 }
 
+int cdrom_read_tocentry(struct cdrom_device_info *cdi,
+		struct cdrom_tocentry *entry)
+{
+	u8 requested_format = entry->cdte_format;
+	int ret;
+
+	if (requested_format != CDROM_MSF && requested_format != CDROM_LBA)
+		return -EINVAL;
+
+	/* make interface to low-level uniform */
+	entry->cdte_format = CDROM_MSF;
+	ret = cdi->ops->audio_ioctl(cdi, CDROMREADTOCENTRY, entry);
+	if (!ret)
+		sanitize_format(&entry->cdte_addr, &entry->cdte_format,
+				requested_format);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cdrom_read_tocentry);
+
 static int cdrom_ioctl_read_tocentry(struct cdrom_device_info *cdi,
 		void __user *argp)
 {
 	struct cdrom_tocentry entry;
-	u8 requested_format;
 	int ret;
-
-	/* cd_dbg(CD_DO_IOCTL, "entering CDROMREADTOCENTRY\n"); */
 
 	if (copy_from_user(&entry, argp, sizeof(entry)))
 		return -EFAULT;
-
-	requested_format = entry.cdte_format;
-	if (requested_format != CDROM_MSF && requested_format != CDROM_LBA)
-		return -EINVAL;
-	/* make interface to low-level uniform */
-	entry.cdte_format = CDROM_MSF;
-	ret = cdi->ops->audio_ioctl(cdi, CDROMREADTOCENTRY, &entry);
-	if (ret)
-		return ret;
-	sanitize_format(&entry.cdte_addr, &entry.cdte_format, requested_format);
-
-	if (copy_to_user(argp, &entry, sizeof(entry)))
+	ret = cdrom_read_tocentry(cdi, &entry);
+	if (!ret && copy_to_user(argp, &entry, sizeof(entry)))
 		return -EFAULT;
-	/* cd_dbg(CD_DO_IOCTL, "CDROMREADTOCENTRY successful\n"); */
-	return 0;
+	return ret;
 }
 
 static int cdrom_ioctl_play_msf(struct cdrom_device_info *cdi,
@@ -2882,6 +2889,9 @@ int cdrom_get_last_written(struct cdrom_device_info *cdi, long *last_written)
 	   it doesn't give enough information or fails. then we return
 	   the toc contents. */
 use_toc:
+	if (!CDROM_CAN(CDC_PLAY_AUDIO))
+		return -ENOSYS;
+
 	toc.cdte_format = CDROM_MSF;
 	toc.cdte_track = CDROM_LEADOUT;
 	if ((ret = cdi->ops->audio_ioctl(cdi, CDROMREADTOCENTRY, &toc)))
@@ -3007,9 +3017,31 @@ static noinline int mmc_ioctl_cdrom_read_audio(struct cdrom_device_info *cdi,
 	struct cdrom_read_audio ra;
 	int lba;
 
-	if (copy_from_user(&ra, (struct cdrom_read_audio __user *)arg,
-			   sizeof(ra)))
-		return -EFAULT;
+#ifdef CONFIG_COMPAT
+	if (in_compat_syscall()) {
+		struct compat_cdrom_read_audio {
+			union cdrom_addr	addr;
+			u8			addr_format;
+			compat_int_t		nframes;
+			compat_caddr_t		buf;
+		} ra32;
+
+		if (copy_from_user(&ra32, arg, sizeof(ra32)))
+			return -EFAULT;
+
+		ra = (struct cdrom_read_audio) {
+			.addr		= ra32.addr,
+			.addr_format	= ra32.addr_format,
+			.nframes	= ra32.nframes,
+			.buf		= compat_ptr(ra32.buf),
+		};
+	} else
+#endif
+	{
+		if (copy_from_user(&ra, (struct cdrom_read_audio __user *)arg,
+				   sizeof(ra)))
+			return -EFAULT;
+	}
 
 	if (ra.addr_format == CDROM_MSF)
 		lba = msf_to_lba(ra.addr.msf.minute,
@@ -3261,9 +3293,10 @@ static noinline int mmc_ioctl_cdrom_last_written(struct cdrom_device_info *cdi,
 	ret = cdrom_get_last_written(cdi, &last);
 	if (ret)
 		return ret;
-	if (copy_to_user((long __user *)arg, &last, sizeof(last)))
-		return -EFAULT;
-	return 0;
+	if (in_compat_syscall())
+		return put_user(last, (__s32 __user *)arg);
+
+	return put_user(last, (long __user *)arg);
 }
 
 static int mmc_ioctl(struct cdrom_device_info *cdi, unsigned int cmd,
@@ -3414,7 +3447,6 @@ EXPORT_SYMBOL(unregister_cdrom);
 EXPORT_SYMBOL(cdrom_open);
 EXPORT_SYMBOL(cdrom_release);
 EXPORT_SYMBOL(cdrom_ioctl);
-EXPORT_SYMBOL(cdrom_media_changed);
 EXPORT_SYMBOL(cdrom_number_of_slots);
 EXPORT_SYMBOL(cdrom_mode_select);
 EXPORT_SYMBOL(cdrom_mode_sense);
@@ -3485,7 +3517,7 @@ static int cdrom_print_info(const char *header, int val, char *info,
 }
 
 static int cdrom_sysctl_info(struct ctl_table *ctl, int write,
-                           void __user *buffer, size_t *lenp, loff_t *ppos)
+                           void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int pos;
 	char *info = cdrom_sysctl_settings.info;
@@ -3598,7 +3630,7 @@ static void cdrom_update_settings(void)
 }
 
 static int cdrom_sysctl_handler(struct ctl_table *ctl, int write,
-				void __user *buffer, size_t *lenp, loff_t *ppos)
+				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 	

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2018 HUAWEI, Inc.
- *             http://www.huawei.com/
+ *             https://www.huawei.com/
  * Created by Gao Xiang <gaoxiang25@huawei.com>
  */
 #ifndef __EROFS_FS_ZDATA_H
@@ -84,7 +84,8 @@ struct z_erofs_pcluster {
 
 #define Z_EROFS_WORKGROUP_SIZE  sizeof(struct z_erofs_pcluster)
 
-struct z_erofs_unzip_io {
+struct z_erofs_decompressqueue {
+	struct super_block *sb;
 	atomic_t pending_bios;
 	z_erofs_next_pcluster_t head;
 
@@ -92,11 +93,6 @@ struct z_erofs_unzip_io {
 		wait_queue_head_t wait;
 		struct work_struct work;
 	} u;
-};
-
-struct z_erofs_unzip_io_sb {
-	struct z_erofs_unzip_io io;
-	struct super_block *sb;
 };
 
 #define MNGD_MAPPING(sbi)	((sbi)->managed_cache->i_mapping)
@@ -148,22 +144,22 @@ static inline void z_erofs_onlinepage_init(struct page *page)
 static inline void z_erofs_onlinepage_fixup(struct page *page,
 	uintptr_t index, bool down)
 {
-	unsigned long *p, o, v, id;
-repeat:
-	p = &page_private(page);
-	o = READ_ONCE(*p);
+	union z_erofs_onlinepage_converter u = { .v = &page_private(page) };
+	int orig, orig_index, val;
 
-	id = o >> Z_EROFS_ONLINEPAGE_INDEX_SHIFT;
-	if (id) {
+repeat:
+	orig = atomic_read(u.o);
+	orig_index = orig >> Z_EROFS_ONLINEPAGE_INDEX_SHIFT;
+	if (orig_index) {
 		if (!index)
 			return;
 
-		DBG_BUGON(id != index);
+		DBG_BUGON(orig_index != index);
 	}
 
-	v = (index << Z_EROFS_ONLINEPAGE_INDEX_SHIFT) |
-		((o & Z_EROFS_ONLINEPAGE_COUNT_MASK) + (unsigned int)down);
-	if (cmpxchg(p, o, v) != o)
+	val = (index << Z_EROFS_ONLINEPAGE_INDEX_SHIFT) |
+		((orig & Z_EROFS_ONLINEPAGE_COUNT_MASK) + (unsigned int)down);
+	if (atomic_cmpxchg(u.o, orig, val) != orig)
 		goto repeat;
 }
 

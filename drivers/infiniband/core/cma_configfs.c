@@ -94,7 +94,7 @@ static int cma_configfs_params_get(struct config_item *item,
 
 static void cma_configfs_params_put(struct cma_device *cma_dev)
 {
-	cma_deref_dev(cma_dev);
+	cma_dev_put(cma_dev);
 }
 
 static ssize_t default_roce_mode_show(struct config_item *item,
@@ -123,15 +123,16 @@ static ssize_t default_roce_mode_store(struct config_item *item,
 {
 	struct cma_device *cma_dev;
 	struct cma_dev_port_group *group;
-	int gid_type = ib_cache_gid_parse_type_str(buf);
+	int gid_type;
 	ssize_t ret;
-
-	if (gid_type < 0)
-		return -EINVAL;
 
 	ret = cma_configfs_params_get(item, &cma_dev, &group);
 	if (ret)
 		return ret;
+
+	gid_type = ib_cache_gid_parse_type_str(buf);
+	if (gid_type < 0)
+		return -EINVAL;
 
 	ret = cma_set_default_gid_type(cma_dev, group->port_num, gid_type);
 
@@ -312,18 +313,31 @@ static struct config_group *make_cma_dev(struct config_group *group,
 	configfs_add_default_group(&cma_dev_group->ports_group,
 			&cma_dev_group->device_group);
 
-	cma_deref_dev(cma_dev);
+	cma_dev_put(cma_dev);
 	return &cma_dev_group->device_group;
 
 fail:
 	if (cma_dev)
-		cma_deref_dev(cma_dev);
+		cma_dev_put(cma_dev);
 	kfree(cma_dev_group);
 	return ERR_PTR(err);
 }
 
+static void drop_cma_dev(struct config_group *cgroup, struct config_item *item)
+{
+	struct config_group *group =
+		container_of(item, struct config_group, cg_item);
+	struct cma_dev_group *cma_dev_group =
+		container_of(group, struct cma_dev_group, device_group);
+
+	configfs_remove_default_groups(&cma_dev_group->ports_group);
+	configfs_remove_default_groups(&cma_dev_group->device_group);
+	config_item_put(item);
+}
+
 static struct configfs_group_operations cma_subsys_group_ops = {
 	.make_group	= make_cma_dev,
+	.drop_item	= drop_cma_dev,
 };
 
 static const struct config_item_type cma_subsys_type = {

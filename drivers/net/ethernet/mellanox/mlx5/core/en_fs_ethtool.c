@@ -33,7 +33,7 @@
 #include <linux/mlx5/fs.h>
 #include "en.h"
 #include "en/params.h"
-#include "en/xsk/umem.h"
+#include "en/xsk/pool.h"
 
 struct mlx5e_ethtool_rule {
 	struct list_head             list;
@@ -58,6 +58,7 @@ static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
 						  struct ethtool_rx_flow_spec *fs,
 						  int num_tuples)
 {
+	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5e_ethtool_table *eth_ft;
 	struct mlx5_flow_namespace *ns;
 	struct mlx5_flow_table *ft;
@@ -102,9 +103,11 @@ static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
 	table_size = min_t(u32, BIT(MLX5_CAP_FLOWTABLE(priv->mdev,
 						       flow_table_properties_nic_receive.log_max_ft_size)),
 			   MLX5E_ETHTOOL_NUM_ENTRIES);
-	ft = mlx5_create_auto_grouped_flow_table(ns, prio,
-						 table_size,
-						 MLX5E_ETHTOOL_NUM_GROUPS, 0, 0);
+
+	ft_attr.prio = prio;
+	ft_attr.max_fte = table_size;
+	ft_attr.autogroup.max_num_groups = MLX5E_ETHTOOL_NUM_GROUPS;
+	ft = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(ft))
 		return (void *)ft;
 
@@ -855,7 +858,7 @@ static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 		goto out;
 
 	priv->rss_params.rx_hash_fields[tt] = rx_hash_field;
-	mlx5e_modify_tirs_hash(priv, in, inlen);
+	mlx5e_modify_tirs_hash(priv, in);
 
 out:
 	mutex_unlock(&priv->state_lock);

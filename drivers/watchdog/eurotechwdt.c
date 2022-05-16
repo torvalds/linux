@@ -286,7 +286,7 @@ static long eurwdt_ioctl(struct file *file,
 		eurwdt_timeout = time;
 		eurwdt_set_timeout(time);
 		spin_unlock(&eurwdt_lock);
-		/* fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(eurwdt_timeout, p);
@@ -371,6 +371,7 @@ static const struct file_operations eurwdt_fops = {
 	.llseek		= no_llseek,
 	.write		= eurwdt_write,
 	.unlocked_ioctl	= eurwdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= eurwdt_open,
 	.release	= eurwdt_release,
 };

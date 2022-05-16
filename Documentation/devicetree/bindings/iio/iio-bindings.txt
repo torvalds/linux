@@ -9,7 +9,7 @@ specifier is an array of one or more cells identifying the IIO
 output on a device. The length of an IIO specifier is defined by the
 value of a #io-channel-cells property in the IIO provider node.
 
-[1] http://marc.info/?l=linux-iio&m=135902119507483&w=2
+[1] https://marc.info/?l=linux-iio&m=135902119507483&w=2
 
 ==IIO providers==
 
@@ -18,12 +18,17 @@ Required properties:
 		   with a single IIO output and 1 for nodes with multiple
 		   IIO outputs.
 
+Optional properties:
+label:		   A symbolic name for the device.
+
+
 Example for a simple configuration with no trigger:
 
 	adc: voltage-sensor@35 {
 		compatible = "maxim,max1139";
 		reg = <0x35>;
 		#io-channel-cells = <1>;
+		label = "voltage_feedback_group1";
 	};
 
 Example for a configuration with trigger:

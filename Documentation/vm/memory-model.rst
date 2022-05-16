@@ -24,7 +24,7 @@ whether it is possible to manually override that default.
    although it is still in use by several architectures.
 
 All the memory models track the status of physical page frames using
-:c:type:`struct page` arranged in one or more arrays.
+struct page arranged in one or more arrays.
 
 Regardless of the selected memory model, there exists one-to-one
 mapping between the physical page frame number (PFN) and the
@@ -46,11 +46,10 @@ maps the entire physical memory. For most architectures, the holes
 have entries in the `mem_map` array. The `struct page` objects
 corresponding to the holes are never fully initialized.
 
-To allocate the `mem_map` array, architecture specific setup code
-should call :c:func:`free_area_init_node` function or its convenience
-wrapper :c:func:`free_area_init`. Yet, the mappings array is not
-usable until the call to :c:func:`memblock_free_all` that hands all
-the memory to the page allocator.
+To allocate the `mem_map` array, architecture specific setup code should
+call :c:func:`free_area_init` function. Yet, the mappings array is not
+usable until the call to :c:func:`memblock_free_all` that hands all the
+memory to the page allocator.
 
 If an architecture enables `CONFIG_ARCH_HAS_HOLES_MEMORYMODEL` option,
 it may free parts of the `mem_map` array that do not cover the
@@ -112,7 +111,7 @@ maps for non-volatile memory devices and deferred initialization of
 the memory map for larger systems.
 
 The SPARSEMEM model presents the physical memory as a collection of
-sections. A section is represented with :c:type:`struct mem_section`
+sections. A section is represented with struct mem_section
 that contains `section_mem_map` that is, logically, a pointer to an
 array of struct pages. However, it is stored with some other magic
 that aids the sections management. The section size and maximal number
@@ -142,11 +141,8 @@ sections:
   `mem_section` objects and the number of rows is calculated to fit
   all the memory sections.
 
-The architecture setup code should call :c:func:`memory_present` for
-each active memory range or use :c:func:`memblocks_present` or
-:c:func:`sparse_memory_present_with_active_regions` wrappers to
-initialize the memory sections. Next, the actual memory maps should be
-set up using :c:func:`sparse_init`.
+The architecture setup code should call sparse_init() to
+initialize the memory sections and the memory maps.
 
 With SPARSEMEM there are two possible ways to convert a PFN to the
 corresponding `struct page` - a "classic sparse" and "sparse
@@ -160,7 +156,7 @@ frame. Inside a section, the PFN is the index to the array of pages.
 The sparse vmemmap uses a virtually mapped memory map to optimize
 pfn_to_page and page_to_pfn operations. There is a global `struct
 page *vmemmap` pointer that points to a virtually contiguous array of
-`struct page` objects. A PFN is an index to that array and the the
+`struct page` objects. A PFN is an index to that array and the
 offset of the `struct page` from `vmemmap` is the PFN of that
 page.
 
@@ -176,10 +172,10 @@ management.
 
 The virtually mapped memory map allows storing `struct page` objects
 for persistent memory devices in pre-allocated storage on those
-devices. This storage is represented with :c:type:`struct vmem_altmap`
+devices. This storage is represented with struct vmem_altmap
 that is eventually passed to vmemmap_populate() through a long chain
 of function calls. The vmemmap_populate() implementation may use the
-`vmem_altmap` along with :c:func:`altmap_alloc_block_buf` helper to
+`vmem_altmap` along with :c:func:`vmemmap_alloc_block_buf` helper to
 allocate memory map on the persistent memory device.
 
 ZONE_DEVICE

@@ -70,7 +70,7 @@ fallback:
 	return drm_fb_helper_pan_display(var, fbi);
 }
 
-static struct fb_ops omap_fb_ops = {
+static const struct fb_ops omap_fb_ops = {
 	.owner = THIS_MODULE,
 
 	.fb_check_var	= drm_fb_helper_check_var,
@@ -140,7 +140,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 		/* note: if fb creation failed, we can't rely on fb destroy
 		 * to unref the bo:
 		 */
-		drm_gem_object_put_unlocked(fbdev->bo);
+		drm_gem_object_put(fbdev->bo);
 		ret = PTR_ERR(fb);
 		goto fail;
 	}
@@ -242,13 +242,9 @@ void omap_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, helper, &omap_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, helper, priv->num_pipes);
+	ret = drm_fb_helper_init(dev, helper);
 	if (ret)
 		goto fail;
-
-	ret = drm_fb_helper_single_add_all_connectors(helper);
-	if (ret)
-		goto fini;
 
 	ret = drm_fb_helper_initial_config(helper, 32);
 	if (ret)

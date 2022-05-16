@@ -344,7 +344,7 @@ static void mdio_write(void __iomem *ioaddr, int phy_id, int location, int value
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int yellowfin_open(struct net_device *dev);
 static void yellowfin_timer(struct timer_list *t);
-static void yellowfin_tx_timeout(struct net_device *dev);
+static void yellowfin_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static int yellowfin_init_ring(struct net_device *dev);
 static netdev_tx_t yellowfin_start_xmit(struct sk_buff *skb,
 					struct net_device *dev);
@@ -434,19 +434,22 @@ static int yellowfin_init_one(struct pci_dev *pdev,
 	np->drv_flags = drv_flags;
 	np->base = ioaddr;
 
-	ring_space = pci_alloc_consistent(pdev, TX_TOTAL_SIZE, &ring_dma);
+	ring_space = dma_alloc_coherent(&pdev->dev, TX_TOTAL_SIZE, &ring_dma,
+					GFP_KERNEL);
 	if (!ring_space)
 		goto err_out_cleardev;
 	np->tx_ring = ring_space;
 	np->tx_ring_dma = ring_dma;
 
-	ring_space = pci_alloc_consistent(pdev, RX_TOTAL_SIZE, &ring_dma);
+	ring_space = dma_alloc_coherent(&pdev->dev, RX_TOTAL_SIZE, &ring_dma,
+					GFP_KERNEL);
 	if (!ring_space)
 		goto err_out_unmap_tx;
 	np->rx_ring = ring_space;
 	np->rx_ring_dma = ring_dma;
 
-	ring_space = pci_alloc_consistent(pdev, STATUS_TOTAL_SIZE, &ring_dma);
+	ring_space = dma_alloc_coherent(&pdev->dev, STATUS_TOTAL_SIZE,
+					&ring_dma, GFP_KERNEL);
 	if (!ring_space)
 		goto err_out_unmap_rx;
 	np->tx_status = ring_space;
@@ -505,12 +508,14 @@ static int yellowfin_init_one(struct pci_dev *pdev,
 	return 0;
 
 err_out_unmap_status:
-        pci_free_consistent(pdev, STATUS_TOTAL_SIZE, np->tx_status,
-		np->tx_status_dma);
+	dma_free_coherent(&pdev->dev, STATUS_TOTAL_SIZE, np->tx_status,
+			  np->tx_status_dma);
 err_out_unmap_rx:
-        pci_free_consistent(pdev, RX_TOTAL_SIZE, np->rx_ring, np->rx_ring_dma);
+	dma_free_coherent(&pdev->dev, RX_TOTAL_SIZE, np->rx_ring,
+			  np->rx_ring_dma);
 err_out_unmap_tx:
-        pci_free_consistent(pdev, TX_TOTAL_SIZE, np->tx_ring, np->tx_ring_dma);
+	dma_free_coherent(&pdev->dev, TX_TOTAL_SIZE, np->tx_ring,
+			  np->tx_ring_dma);
 err_out_cleardev:
 	pci_iounmap(pdev, ioaddr);
 err_out_free_res:
@@ -677,7 +682,7 @@ static void yellowfin_timer(struct timer_list *t)
 	add_timer(&yp->timer);
 }
 
-static void yellowfin_tx_timeout(struct net_device *dev)
+static void yellowfin_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct yellowfin_private *yp = netdev_priv(dev);
 	void __iomem *ioaddr = yp->base;
@@ -740,8 +745,10 @@ static int yellowfin_init_ring(struct net_device *dev)
 		if (skb == NULL)
 			break;
 		skb_reserve(skb, 2);	/* 16 byte align the IP header. */
-		yp->rx_ring[i].addr = cpu_to_le32(pci_map_single(yp->pci_dev,
-			skb->data, yp->rx_buf_sz, PCI_DMA_FROMDEVICE));
+		yp->rx_ring[i].addr = cpu_to_le32(dma_map_single(&yp->pci_dev->dev,
+								 skb->data,
+								 yp->rx_buf_sz,
+								 DMA_FROM_DEVICE));
 	}
 	if (i != RX_RING_SIZE) {
 		for (j = 0; j < i; j++)
@@ -831,8 +838,9 @@ static netdev_tx_t yellowfin_start_xmit(struct sk_buff *skb,
 	yp->tx_skbuff[entry] = skb;
 
 #ifdef NO_TXSTATS
-	yp->tx_ring[entry].addr = cpu_to_le32(pci_map_single(yp->pci_dev,
-		skb->data, len, PCI_DMA_TODEVICE));
+	yp->tx_ring[entry].addr = cpu_to_le32(dma_map_single(&yp->pci_dev->dev,
+							     skb->data,
+							     len, DMA_TO_DEVICE));
 	yp->tx_ring[entry].result_status = 0;
 	if (entry >= TX_RING_SIZE-1) {
 		/* New stop command. */
@@ -847,8 +855,9 @@ static netdev_tx_t yellowfin_start_xmit(struct sk_buff *skb,
 	yp->cur_tx++;
 #else
 	yp->tx_ring[entry<<1].request_cnt = len;
-	yp->tx_ring[entry<<1].addr = cpu_to_le32(pci_map_single(yp->pci_dev,
-		skb->data, len, PCI_DMA_TODEVICE));
+	yp->tx_ring[entry<<1].addr = cpu_to_le32(dma_map_single(&yp->pci_dev->dev,
+								skb->data,
+								len, DMA_TO_DEVICE));
 	/* The input_last (status-write) command is constant, but we must
 	   rewrite the subsequent 'stop' command. */
 
@@ -923,8 +932,9 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 			dev->stats.tx_packets++;
 			dev->stats.tx_bytes += skb->len;
 			/* Free the original skb. */
-			pci_unmap_single(yp->pci_dev, le32_to_cpu(yp->tx_ring[entry].addr),
-				skb->len, PCI_DMA_TODEVICE);
+			dma_unmap_single(&yp->pci_dev->dev,
+					 le32_to_cpu(yp->tx_ring[entry].addr),
+					 skb->len, DMA_TO_DEVICE);
 			dev_consume_skb_irq(skb);
 			yp->tx_skbuff[entry] = NULL;
 		}
@@ -980,9 +990,9 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 					dev->stats.tx_packets++;
 				}
 				/* Free the original skb. */
-				pci_unmap_single(yp->pci_dev,
-					yp->tx_ring[entry<<1].addr, skb->len,
-					PCI_DMA_TODEVICE);
+				dma_unmap_single(&yp->pci_dev->dev,
+						 yp->tx_ring[entry << 1].addr,
+						 skb->len, DMA_TO_DEVICE);
 				dev_consume_skb_irq(skb);
 				yp->tx_skbuff[entry] = 0;
 				/* Mark status as empty. */
@@ -1050,13 +1060,14 @@ static int yellowfin_rx(struct net_device *dev)
 		struct sk_buff *rx_skb = yp->rx_skbuff[entry];
 		s16 frame_status;
 		u16 desc_status;
-		int data_size, yf_size;
+		int data_size, __maybe_unused yf_size;
 		u8 *buf_addr;
 
 		if(!desc->result_status)
 			break;
-		pci_dma_sync_single_for_cpu(yp->pci_dev, le32_to_cpu(desc->addr),
-			yp->rx_buf_sz, PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_cpu(&yp->pci_dev->dev,
+					le32_to_cpu(desc->addr),
+					yp->rx_buf_sz, DMA_FROM_DEVICE);
 		desc_status = le32_to_cpu(desc->result_status) >> 16;
 		buf_addr = rx_skb->data;
 		data_size = (le32_to_cpu(desc->dbdma_cmd) -
@@ -1121,10 +1132,10 @@ static int yellowfin_rx(struct net_device *dev)
 			   without copying to a properly sized skbuff. */
 			if (pkt_len > rx_copybreak) {
 				skb_put(skb = rx_skb, pkt_len);
-				pci_unmap_single(yp->pci_dev,
-					le32_to_cpu(yp->rx_ring[entry].addr),
-					yp->rx_buf_sz,
-					PCI_DMA_FROMDEVICE);
+				dma_unmap_single(&yp->pci_dev->dev,
+						 le32_to_cpu(yp->rx_ring[entry].addr),
+						 yp->rx_buf_sz,
+						 DMA_FROM_DEVICE);
 				yp->rx_skbuff[entry] = NULL;
 			} else {
 				skb = netdev_alloc_skb(dev, pkt_len + 2);
@@ -1133,10 +1144,10 @@ static int yellowfin_rx(struct net_device *dev)
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				skb_copy_to_linear_data(skb, rx_skb->data, pkt_len);
 				skb_put(skb, pkt_len);
-				pci_dma_sync_single_for_device(yp->pci_dev,
-								le32_to_cpu(desc->addr),
-								yp->rx_buf_sz,
-								PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_device(&yp->pci_dev->dev,
+							   le32_to_cpu(desc->addr),
+							   yp->rx_buf_sz,
+							   DMA_FROM_DEVICE);
 			}
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
@@ -1155,8 +1166,10 @@ static int yellowfin_rx(struct net_device *dev)
 				break;				/* Better luck next round. */
 			yp->rx_skbuff[entry] = skb;
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
-			yp->rx_ring[entry].addr = cpu_to_le32(pci_map_single(yp->pci_dev,
-				skb->data, yp->rx_buf_sz, PCI_DMA_FROMDEVICE));
+			yp->rx_ring[entry].addr = cpu_to_le32(dma_map_single(&yp->pci_dev->dev,
+									     skb->data,
+									     yp->rx_buf_sz,
+									     DMA_FROM_DEVICE));
 		}
 		yp->rx_ring[entry].dbdma_cmd = cpu_to_le32(CMD_STOP);
 		yp->rx_ring[entry].result_status = 0;	/* Clear complete bit. */
@@ -1343,7 +1356,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	switch(cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
 		data->phy_id = np->phys[0] & 0x1f;
-		/* Fall Through */
+		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
 		data->val_out = mdio_read(ioaddr, data->phy_id & 0x1f, data->reg_num & 0x1f);
@@ -1379,10 +1392,12 @@ static void yellowfin_remove_one(struct pci_dev *pdev)
 	BUG_ON(!dev);
 	np = netdev_priv(dev);
 
-        pci_free_consistent(pdev, STATUS_TOTAL_SIZE, np->tx_status,
-		np->tx_status_dma);
-	pci_free_consistent(pdev, RX_TOTAL_SIZE, np->rx_ring, np->rx_ring_dma);
-	pci_free_consistent(pdev, TX_TOTAL_SIZE, np->tx_ring, np->tx_ring_dma);
+	dma_free_coherent(&pdev->dev, STATUS_TOTAL_SIZE, np->tx_status,
+			  np->tx_status_dma);
+	dma_free_coherent(&pdev->dev, RX_TOTAL_SIZE, np->rx_ring,
+			  np->rx_ring_dma);
+	dma_free_coherent(&pdev->dev, TX_TOTAL_SIZE, np->tx_ring,
+			  np->tx_ring_dma);
 	unregister_netdev (dev);
 
 	pci_iounmap(pdev, np->base);

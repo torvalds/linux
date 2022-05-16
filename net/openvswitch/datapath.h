@@ -20,8 +20,9 @@
 #include "meter.h"
 #include "vport-internal_dev.h"
 
-#define DP_MAX_PORTS           USHRT_MAX
-#define DP_VPORT_HASH_BUCKETS  1024
+#define DP_MAX_PORTS                USHRT_MAX
+#define DP_VPORT_HASH_BUCKETS       1024
+#define DP_MASKS_REBALANCE_INTERVAL 4000
 
 /**
  * struct dp_stats_percpu - per-cpu packet processing statistics for a given
@@ -37,12 +38,15 @@
  * @n_mask_hit: Number of masks looked up for flow match.
  *   @n_mask_hit / (@n_hit + @n_missed)  will be the average masks looked
  *   up per packet.
+ * @n_cache_hit: The number of received packets that had their mask found using
+ * the mask cache.
  */
 struct dp_stats_percpu {
 	u64 n_hit;
 	u64 n_missed;
 	u64 n_lost;
 	u64 n_mask_hit;
+	u64 n_cache_hit;
 	struct u64_stats_sync syncp;
 };
 
@@ -82,7 +86,7 @@ struct datapath {
 	u32 max_headroom;
 
 	/* Switch meters. */
-	struct hlist_head *meters;
+	struct dp_meter_table meter_tbl;
 };
 
 /**
@@ -131,12 +135,25 @@ struct dp_upcall_info {
 struct ovs_net {
 	struct list_head dps;
 	struct work_struct dp_notify_work;
+	struct delayed_work masks_rebalance;
 #if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
 	struct ovs_ct_limit_info *ct_limit_info;
 #endif
 
 	/* Module reference for configuring conntrack. */
 	bool xt_label;
+};
+
+/**
+ * enum ovs_pkt_hash_types - hash info to include with a packet
+ * to send to userspace.
+ * @OVS_PACKET_HASH_SW_BIT: indicates hash was computed in software stack.
+ * @OVS_PACKET_HASH_L4_BIT: indicates hash is a canonical 4-tuple hash
+ * over transport ports.
+ */
+enum ovs_pkt_hash_types {
+	OVS_PACKET_HASH_SW_BIT = (1ULL << 32),
+	OVS_PACKET_HASH_L4_BIT = (1ULL << 33),
 };
 
 extern unsigned int ovs_net_id;

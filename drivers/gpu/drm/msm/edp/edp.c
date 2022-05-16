@@ -178,8 +178,6 @@ int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
 		goto fail;
 	}
 
-	encoder->bridge = edp->bridge;
-
 	priv->bridges[priv->num_bridges++]       = edp->bridge;
 	priv->connectors[priv->num_connectors++] = edp->connector;
 

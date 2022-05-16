@@ -28,11 +28,11 @@
 #include <linux/smp.h>
 #include <linux/string.h>
 #include <linux/cache.h>
+#include <linux/pgtable.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cpu-type.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/war.h>
 #include <asm/uasm.h>
 #include <asm/setup.h>
@@ -83,14 +83,18 @@ static inline int r4k_250MHZhwbug(void)
 	return 0;
 }
 
+extern int sb1250_m3_workaround_needed(void);
+
 static inline int __maybe_unused bcm1250_m3_war(void)
 {
-	return BCM1250_M3_WAR;
+	if (IS_ENABLED(CONFIG_SB1_PASS_2_WORKAROUNDS))
+		return sb1250_m3_workaround_needed();
+	return 0;
 }
 
 static inline int __maybe_unused r10000_llsc_war(void)
 {
-	return R10000_LLSC_WAR;
+	return IS_ENABLED(CONFIG_WAR_R10000_LLSC);
 }
 
 static int use_bbit_insns(void)
@@ -571,12 +575,12 @@ void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_BMIPS4350:
 	case CPU_BMIPS4380:
 	case CPU_BMIPS5000:
-	case CPU_LOONGSON2:
-	case CPU_LOONGSON3:
+	case CPU_LOONGSON2EF:
+	case CPU_LOONGSON64:
 	case CPU_R5500:
 		if (m4kc_tlbp_war())
 			uasm_i_nop(p);
-		/* fall through */
+		fallthrough;
 	case CPU_ALCHEMY:
 		tlbw(p);
 		break;
@@ -1377,7 +1381,7 @@ static void build_r4000_tlb_refill_handler(void)
 	switch (boot_cpu_type()) {
 	default:
 		if (sizeof(long) == 4) {
-	case CPU_LOONGSON2:
+	case CPU_LOONGSON2EF:
 		/* Loongson2 ebase is different than r4k, we have more space */
 			if ((p - tlb_handler) > 64)
 				panic("TLB refill handler space exceeded");
@@ -1480,6 +1484,7 @@ static void build_r4000_tlb_refill_handler(void)
 
 static void setup_pw(void)
 {
+	unsigned int pwctl;
 	unsigned long pgd_i, pgd_w;
 #ifndef __PAGETABLE_PMD_FOLDED
 	unsigned long pmd_i, pmd_w;
@@ -1506,6 +1511,7 @@ static void setup_pw(void)
 
 	pte_i = ilog2(_PAGE_GLOBAL);
 	pte_w = 0;
+	pwctl = 1 << 30; /* Set PWDirExt */
 
 #ifndef __PAGETABLE_PMD_FOLDED
 	write_c0_pwfield(pgd_i << 24 | pmd_i << 12 | pt_i << 6 | pte_i);
@@ -1516,8 +1522,9 @@ static void setup_pw(void)
 #endif
 
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
-	write_c0_pwctl(1 << 6 | psn);
+	pwctl |= (1 << 6 | psn);
 #endif
+	write_c0_pwctl(pwctl);
 	write_c0_kpgd((long)swapper_pg_dir);
 	kscratch_used_mask |= (1 << 7); /* KScratch6 is used for KPGD */
 }

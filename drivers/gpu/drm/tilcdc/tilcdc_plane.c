@@ -11,7 +11,7 @@
 
 #include "tilcdc_drv.h"
 
-static struct drm_plane_funcs tilcdc_plane_funcs = {
+static const struct drm_plane_funcs tilcdc_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= drm_plane_cleanup,
@@ -62,8 +62,7 @@ static int tilcdc_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	if (state->fb && old_state->fb &&
-	    state->fb->format != old_state->fb->format) {
+	if (old_state->fb && state->fb->format != old_state->fb->format) {
 		dev_dbg(plane->dev->dev,
 			"%s(): pixel format change requires mode_change\n",
 			__func__);
@@ -84,9 +83,11 @@ static void tilcdc_plane_atomic_update(struct drm_plane *plane,
 	if (WARN_ON(!state->fb || !state->crtc->state))
 		return;
 
-	tilcdc_crtc_update_fb(state->crtc,
-			      state->fb,
-			      state->crtc->state->event);
+	if (tilcdc_crtc_update_fb(state->crtc,
+				  state->fb,
+				  state->crtc->state->event) == 0) {
+		state->crtc->state->event = NULL;
+	}
 }
 
 static const struct drm_plane_helper_funcs plane_helper_funcs = {

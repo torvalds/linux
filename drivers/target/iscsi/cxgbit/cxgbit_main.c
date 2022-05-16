@@ -444,7 +444,7 @@ cxgbit_uld_lro_rx_handler(void *hndl, const __be64 *rsp,
 	case CPL_RX_ISCSI_DDP:
 	case CPL_FW4_ACK:
 		lro_flush = false;
-		/* fall through */
+		fallthrough;
 	case CPL_ABORT_RPL_RSS:
 	case CPL_PASS_ESTABLISH:
 	case CPL_PEER_CLOSE:
@@ -708,7 +708,7 @@ static int __init cxgbit_init(void)
 	pr_info("%s dcb enabled.\n", DRV_NAME);
 	register_dcbevent_notifier(&cxgbit_dcbevent_nb);
 #endif
-	BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, cb) <
+	BUILD_BUG_ON(sizeof_field(struct sk_buff, cb) <
 		     sizeof(union cxgbit_skb_cb));
 	return 0;
 }

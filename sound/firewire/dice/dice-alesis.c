@@ -50,3 +50,27 @@ int snd_dice_detect_alesis_formats(struct snd_dice *dice)
 
 	return 0;
 }
+
+int snd_dice_detect_alesis_mastercontrol_formats(struct snd_dice *dice)
+{
+	int i;
+
+	dice->tx_pcm_chs[0][SND_DICE_RATE_MODE_LOW]	= 16;
+	dice->tx_pcm_chs[1][SND_DICE_RATE_MODE_LOW]	= 12;
+	dice->tx_pcm_chs[0][SND_DICE_RATE_MODE_MIDDLE]	= 12;
+	dice->tx_pcm_chs[1][SND_DICE_RATE_MODE_MIDDLE]	= 4;
+	dice->tx_pcm_chs[0][SND_DICE_RATE_MODE_HIGH]	= 8;
+	dice->tx_pcm_chs[1][SND_DICE_RATE_MODE_HIGH]	= 0;
+
+	for (i = 0; i < SND_DICE_RATE_MODE_COUNT; ++i) {
+		dice->rx_pcm_chs[0][i] = 6;
+		dice->rx_pcm_chs[1][i] = 0;
+	}
+
+	for (i = 0; i < MAX_STREAMS; ++i) {
+		dice->tx_midi_ports[i] = 2;
+		dice->rx_midi_ports[i] = 2;
+	}
+
+	return 0;
+}

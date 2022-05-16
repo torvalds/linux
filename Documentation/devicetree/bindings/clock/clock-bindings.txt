@@ -9,7 +9,7 @@ specifier is an array of zero, one or more cells identifying the clock
 output on a device.  The length of a clock specifier is defined by the
 value of a #clock-cells property in the clock provider node.
 
-[1] http://patchwork.ozlabs.org/patch/31551/
+[1] https://patchwork.ozlabs.org/patch/31551/
 
 ==Clock providers==
 
@@ -94,7 +94,7 @@ clock is connected to output 0 of the &ref.
     /* external oscillator */
     osc: oscillator {
         compatible = "fixed-clock";
-        #clock-cells = <1>;
+        #clock-cells = <0>;
         clock-frequency  = <32678>;
         clock-output-names = "osc";
     };

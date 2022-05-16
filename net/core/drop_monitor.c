@@ -26,12 +26,14 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <net/drop_monitor.h>
 #include <net/genetlink.h>
 #include <net/netevent.h>
+#include <net/flow_offload.h>
+#include <net/devlink.h>
 
 #include <trace/events/skb.h>
 #include <trace/events/napi.h>
+#include <trace/events/devlink.h>
 
 #include <asm/unaligned.h>
 
@@ -67,7 +69,7 @@ struct net_dm_hw_entry {
 
 struct net_dm_hw_entries {
 	u32 num_entries;
-	struct net_dm_hw_entry entries[0];
+	struct net_dm_hw_entry entries[];
 };
 
 struct per_cpu_dm_data {
@@ -113,13 +115,14 @@ struct net_dm_alert_ops {
 				int work, int budget);
 	void (*work_item_func)(struct work_struct *work);
 	void (*hw_work_item_func)(struct work_struct *work);
-	void (*hw_probe)(struct sk_buff *skb,
-			 const struct net_dm_hw_metadata *hw_metadata);
+	void (*hw_trap_probe)(void *ignore, const struct devlink *devlink,
+			      struct sk_buff *skb,
+			      const struct devlink_trap_metadata *metadata);
 };
 
 struct net_dm_skb_cb {
 	union {
-		struct net_dm_hw_metadata *hw_metadata;
+		struct devlink_trap_metadata *hw_metadata;
 		void *pc;
 	};
 };
@@ -212,6 +215,7 @@ static void sched_send_work(struct timer_list *t)
 static void trace_drop_common(struct sk_buff *skb, void *location)
 {
 	struct net_dm_alert_msg *msg;
+	struct net_dm_drop_point *point;
 	struct nlmsghdr *nlh;
 	struct nlattr *nla;
 	int i;
@@ -230,11 +234,13 @@ static void trace_drop_common(struct sk_buff *skb, void *location)
 	nlh = (struct nlmsghdr *)dskb->data;
 	nla = genlmsg_data(nlmsg_data(nlh));
 	msg = nla_data(nla);
+	point = msg->points;
 	for (i = 0; i < msg->entries; i++) {
-		if (!memcmp(&location, msg->points[i].pc, sizeof(void *))) {
-			msg->points[i].count++;
+		if (!memcmp(&location, &point->pc, sizeof(void *))) {
+			point->count++;
 			goto out;
 		}
+		point++;
 	}
 	if (msg->entries == dm_hit_limit)
 		goto out;
@@ -243,8 +249,8 @@ static void trace_drop_common(struct sk_buff *skb, void *location)
 	 */
 	__nla_reserve_nohdr(dskb, sizeof(struct net_dm_drop_point));
 	nla->nla_len += NLA_ALIGN(sizeof(struct net_dm_drop_point));
-	memcpy(msg->points[msg->entries].pc, &location, sizeof(void *));
-	msg->points[msg->entries].count = 1;
+	memcpy(point->pc, &location, sizeof(void *));
+	point->count = 1;
 	msg->entries++;
 
 	if (!timer_pending(&data->send_timer)) {
@@ -428,14 +434,18 @@ out:
 }
 
 static void
-net_dm_hw_summary_probe(struct sk_buff *skb,
-			const struct net_dm_hw_metadata *hw_metadata)
+net_dm_hw_trap_summary_probe(void *ignore, const struct devlink *devlink,
+			     struct sk_buff *skb,
+			     const struct devlink_trap_metadata *metadata)
 {
 	struct net_dm_hw_entries *hw_entries;
 	struct net_dm_hw_entry *hw_entry;
 	struct per_cpu_dm_data *hw_data;
 	unsigned long flags;
 	int i;
+
+	if (metadata->trap_type == DEVLINK_TRAP_TYPE_CONTROL)
+		return;
 
 	hw_data = this_cpu_ptr(&dm_hw_cpu_data);
 	spin_lock_irqsave(&hw_data->lock, flags);
@@ -446,7 +456,7 @@ net_dm_hw_summary_probe(struct sk_buff *skb,
 
 	for (i = 0; i < hw_entries->num_entries; i++) {
 		hw_entry = &hw_entries->entries[i];
-		if (!strncmp(hw_entry->trap_name, hw_metadata->trap_name,
+		if (!strncmp(hw_entry->trap_name, metadata->trap_name,
 			     NET_DM_MAX_HW_TRAP_NAME_LEN - 1)) {
 			hw_entry->count++;
 			goto out;
@@ -456,7 +466,7 @@ net_dm_hw_summary_probe(struct sk_buff *skb,
 		goto out;
 
 	hw_entry = &hw_entries->entries[hw_entries->num_entries];
-	strlcpy(hw_entry->trap_name, hw_metadata->trap_name,
+	strlcpy(hw_entry->trap_name, metadata->trap_name,
 		NET_DM_MAX_HW_TRAP_NAME_LEN - 1);
 	hw_entry->count = 1;
 	hw_entries->num_entries++;
@@ -475,7 +485,7 @@ static const struct net_dm_alert_ops net_dm_alert_summary_ops = {
 	.napi_poll_probe	= trace_napi_poll_hit,
 	.work_item_func		= send_dm_alert,
 	.hw_work_item_func	= net_dm_hw_summary_work,
-	.hw_probe		= net_dm_hw_summary_probe,
+	.hw_trap_probe		= net_dm_hw_trap_summary_probe,
 };
 
 static void net_dm_packet_trace_kfree_skb_hit(void *ignore,
@@ -701,8 +711,15 @@ static void net_dm_packet_work(struct work_struct *work)
 }
 
 static size_t
+net_dm_flow_action_cookie_size(const struct devlink_trap_metadata *hw_metadata)
+{
+	return hw_metadata->fa_cookie ?
+	       nla_total_size(hw_metadata->fa_cookie->cookie_len) : 0;
+}
+
+static size_t
 net_dm_hw_packet_report_size(size_t payload_len,
-			     const struct net_dm_hw_metadata *hw_metadata)
+			     const struct devlink_trap_metadata *hw_metadata)
 {
 	size_t size;
 
@@ -717,6 +734,8 @@ net_dm_hw_packet_report_size(size_t payload_len,
 	       nla_total_size(strlen(hw_metadata->trap_name) + 1) +
 	       /* NET_DM_ATTR_IN_PORT */
 	       net_dm_in_port_size() +
+	       /* NET_DM_ATTR_FLOW_ACTION_COOKIE */
+	       net_dm_flow_action_cookie_size(hw_metadata) +
 	       /* NET_DM_ATTR_TIMESTAMP */
 	       nla_total_size(sizeof(u64)) +
 	       /* NET_DM_ATTR_ORIG_LEN */
@@ -730,7 +749,7 @@ net_dm_hw_packet_report_size(size_t payload_len,
 static int net_dm_hw_packet_report_fill(struct sk_buff *msg,
 					struct sk_buff *skb, size_t payload_len)
 {
-	struct net_dm_hw_metadata *hw_metadata;
+	struct devlink_trap_metadata *hw_metadata;
 	struct nlattr *attr;
 	void *hdr;
 
@@ -762,6 +781,12 @@ static int net_dm_hw_packet_report_fill(struct sk_buff *msg,
 			goto nla_put_failure;
 	}
 
+	if (hw_metadata->fa_cookie &&
+	    nla_put(msg, NET_DM_ATTR_FLOW_ACTION_COOKIE,
+		    hw_metadata->fa_cookie->cookie_len,
+		    hw_metadata->fa_cookie->cookie))
+		goto nla_put_failure;
+
 	if (nla_put_u64_64bit(msg, NET_DM_ATTR_TIMESTAMP,
 			      ktime_to_ns(skb->tstamp), NET_DM_ATTR_PAD))
 		goto nla_put_failure;
@@ -791,49 +816,60 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static struct net_dm_hw_metadata *
-net_dm_hw_metadata_clone(const struct net_dm_hw_metadata *hw_metadata)
+static struct devlink_trap_metadata *
+net_dm_hw_metadata_copy(const struct devlink_trap_metadata *metadata)
 {
-	struct net_dm_hw_metadata *n_hw_metadata;
+	const struct flow_action_cookie *fa_cookie;
+	struct devlink_trap_metadata *hw_metadata;
 	const char *trap_group_name;
 	const char *trap_name;
 
-	n_hw_metadata = kmalloc(sizeof(*hw_metadata), GFP_ATOMIC);
-	if (!n_hw_metadata)
+	hw_metadata = kzalloc(sizeof(*hw_metadata), GFP_ATOMIC);
+	if (!hw_metadata)
 		return NULL;
 
-	trap_group_name = kmemdup(hw_metadata->trap_group_name,
-				  strlen(hw_metadata->trap_group_name) + 1,
-				  GFP_ATOMIC | __GFP_ZERO);
+	trap_group_name = kstrdup(metadata->trap_group_name, GFP_ATOMIC);
 	if (!trap_group_name)
 		goto free_hw_metadata;
-	n_hw_metadata->trap_group_name = trap_group_name;
+	hw_metadata->trap_group_name = trap_group_name;
 
-	trap_name = kmemdup(hw_metadata->trap_name,
-			    strlen(hw_metadata->trap_name) + 1,
-			    GFP_ATOMIC | __GFP_ZERO);
+	trap_name = kstrdup(metadata->trap_name, GFP_ATOMIC);
 	if (!trap_name)
 		goto free_trap_group;
-	n_hw_metadata->trap_name = trap_name;
+	hw_metadata->trap_name = trap_name;
 
-	n_hw_metadata->input_dev = hw_metadata->input_dev;
-	if (n_hw_metadata->input_dev)
-		dev_hold(n_hw_metadata->input_dev);
+	if (metadata->fa_cookie) {
+		size_t cookie_size = sizeof(*fa_cookie) +
+				     metadata->fa_cookie->cookie_len;
 
-	return n_hw_metadata;
+		fa_cookie = kmemdup(metadata->fa_cookie, cookie_size,
+				    GFP_ATOMIC);
+		if (!fa_cookie)
+			goto free_trap_name;
+		hw_metadata->fa_cookie = fa_cookie;
+	}
 
+	hw_metadata->input_dev = metadata->input_dev;
+	if (hw_metadata->input_dev)
+		dev_hold(hw_metadata->input_dev);
+
+	return hw_metadata;
+
+free_trap_name:
+	kfree(trap_name);
 free_trap_group:
 	kfree(trap_group_name);
 free_hw_metadata:
-	kfree(n_hw_metadata);
+	kfree(hw_metadata);
 	return NULL;
 }
 
 static void
-net_dm_hw_metadata_free(const struct net_dm_hw_metadata *hw_metadata)
+net_dm_hw_metadata_free(const struct devlink_trap_metadata *hw_metadata)
 {
 	if (hw_metadata->input_dev)
 		dev_put(hw_metadata->input_dev);
+	kfree(hw_metadata->fa_cookie);
 	kfree(hw_metadata->trap_name);
 	kfree(hw_metadata->trap_group_name);
 	kfree(hw_metadata);
@@ -841,7 +877,7 @@ net_dm_hw_metadata_free(const struct net_dm_hw_metadata *hw_metadata)
 
 static void net_dm_hw_packet_report(struct sk_buff *skb)
 {
-	struct net_dm_hw_metadata *hw_metadata;
+	struct devlink_trap_metadata *hw_metadata;
 	struct sk_buff *msg;
 	size_t payload_len;
 	int rc;
@@ -894,14 +930,18 @@ static void net_dm_hw_packet_work(struct work_struct *work)
 }
 
 static void
-net_dm_hw_packet_probe(struct sk_buff *skb,
-		       const struct net_dm_hw_metadata *hw_metadata)
+net_dm_hw_trap_packet_probe(void *ignore, const struct devlink *devlink,
+			    struct sk_buff *skb,
+			    const struct devlink_trap_metadata *metadata)
 {
-	struct net_dm_hw_metadata *n_hw_metadata;
+	struct devlink_trap_metadata *n_hw_metadata;
 	ktime_t tstamp = ktime_get_real();
 	struct per_cpu_dm_data *hw_data;
 	struct sk_buff *nskb;
 	unsigned long flags;
+
+	if (metadata->trap_type == DEVLINK_TRAP_TYPE_CONTROL)
+		return;
 
 	if (!skb_mac_header_was_set(skb))
 		return;
@@ -910,7 +950,7 @@ net_dm_hw_packet_probe(struct sk_buff *skb,
 	if (!nskb)
 		return;
 
-	n_hw_metadata = net_dm_hw_metadata_clone(hw_metadata);
+	n_hw_metadata = net_dm_hw_metadata_copy(metadata);
 	if (!n_hw_metadata)
 		goto free;
 
@@ -945,7 +985,7 @@ static const struct net_dm_alert_ops net_dm_alert_packet_ops = {
 	.napi_poll_probe	= net_dm_packet_trace_napi_poll_hit,
 	.work_item_func		= net_dm_packet_work,
 	.hw_work_item_func	= net_dm_hw_packet_work,
-	.hw_probe		= net_dm_hw_packet_probe,
+	.hw_trap_probe		= net_dm_hw_trap_packet_probe,
 };
 
 static const struct net_dm_alert_ops *net_dm_alert_ops_arr[] = {
@@ -953,25 +993,32 @@ static const struct net_dm_alert_ops *net_dm_alert_ops_arr[] = {
 	[NET_DM_ALERT_MODE_PACKET]	= &net_dm_alert_packet_ops,
 };
 
-void net_dm_hw_report(struct sk_buff *skb,
-		      const struct net_dm_hw_metadata *hw_metadata)
+#if IS_ENABLED(CONFIG_NET_DEVLINK)
+static int net_dm_hw_probe_register(const struct net_dm_alert_ops *ops)
 {
-	rcu_read_lock();
-
-	if (!monitor_hw)
-		goto out;
-
-	net_dm_alert_ops_arr[net_dm_alert_mode]->hw_probe(skb, hw_metadata);
-
-out:
-	rcu_read_unlock();
+	return register_trace_devlink_trap_report(ops->hw_trap_probe, NULL);
 }
-EXPORT_SYMBOL_GPL(net_dm_hw_report);
+
+static void net_dm_hw_probe_unregister(const struct net_dm_alert_ops *ops)
+{
+	unregister_trace_devlink_trap_report(ops->hw_trap_probe, NULL);
+	tracepoint_synchronize_unregister();
+}
+#else
+static int net_dm_hw_probe_register(const struct net_dm_alert_ops *ops)
+{
+	return -EOPNOTSUPP;
+}
+
+static void net_dm_hw_probe_unregister(const struct net_dm_alert_ops *ops)
+{
+}
+#endif
 
 static int net_dm_hw_monitor_start(struct netlink_ext_ack *extack)
 {
 	const struct net_dm_alert_ops *ops;
-	int cpu;
+	int cpu, rc;
 
 	if (monitor_hw) {
 		NL_SET_ERR_MSG_MOD(extack, "Hardware monitoring already enabled");
@@ -995,24 +1042,36 @@ static int net_dm_hw_monitor_start(struct netlink_ext_ack *extack)
 		kfree(hw_entries);
 	}
 
+	rc = net_dm_hw_probe_register(ops);
+	if (rc) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to connect probe to devlink_trap_probe() tracepoint");
+		goto err_module_put;
+	}
+
 	monitor_hw = true;
 
 	return 0;
+
+err_module_put:
+	module_put(THIS_MODULE);
+	return rc;
 }
 
 static void net_dm_hw_monitor_stop(struct netlink_ext_ack *extack)
 {
+	const struct net_dm_alert_ops *ops;
 	int cpu;
 
-	if (!monitor_hw)
+	if (!monitor_hw) {
 		NL_SET_ERR_MSG_MOD(extack, "Hardware monitoring already disabled");
+		return;
+	}
+
+	ops = net_dm_alert_ops_arr[net_dm_alert_mode];
 
 	monitor_hw = false;
 
-	/* After this call returns we are guaranteed that no CPU is processing
-	 * any hardware drops.
-	 */
-	synchronize_rcu();
+	net_dm_hw_probe_unregister(ops);
 
 	for_each_possible_cpu(cpu) {
 		struct per_cpu_dm_data *hw_data = &per_cpu(dm_hw_cpu_data, cpu);
@@ -1021,7 +1080,7 @@ static void net_dm_hw_monitor_stop(struct netlink_ext_ack *extack)
 		del_timer_sync(&hw_data->send_timer);
 		cancel_work_sync(&hw_data->dm_alert_work);
 		while ((skb = __skb_dequeue(&hw_data->drop_queue))) {
-			struct net_dm_hw_metadata *hw_metadata;
+			struct devlink_trap_metadata *hw_metadata;
 
 			hw_metadata = NET_DM_SKB_CB(skb)->hw_metadata;
 			net_dm_hw_metadata_free(hw_metadata);
@@ -1157,7 +1216,7 @@ static int net_dm_alert_mode_get_from_info(struct genl_info *info,
 	val = nla_get_u8(info->attrs[NET_DM_ATTR_ALERT_MODE]);
 
 	switch (val) {
-	case NET_DM_ALERT_MODE_SUMMARY: /* fall-through */
+	case NET_DM_ALERT_MODE_SUMMARY:
 	case NET_DM_ALERT_MODE_PACKET:
 		*p_alert_mode = val;
 		break;
@@ -1516,7 +1575,7 @@ static const struct nla_policy net_dm_nl_policy[NET_DM_ATTR_MAX + 1] = {
 	[NET_DM_ATTR_HW_DROPS]	= {. type = NLA_FLAG },
 };
 
-static const struct genl_ops dropmon_ops[] = {
+static const struct genl_small_ops dropmon_ops[] = {
 	{
 		.cmd = NET_DM_CMD_CONFIG,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -1566,8 +1625,8 @@ static struct genl_family net_drop_monitor_family __ro_after_init = {
 	.pre_doit	= net_dm_nl_pre_doit,
 	.post_doit	= net_dm_nl_post_doit,
 	.module		= THIS_MODULE,
-	.ops		= dropmon_ops,
-	.n_ops		= ARRAY_SIZE(dropmon_ops),
+	.small_ops	= dropmon_ops,
+	.n_small_ops	= ARRAY_SIZE(dropmon_ops),
 	.mcgrps		= dropmon_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(dropmon_mcgrps),
 };
@@ -1689,3 +1748,4 @@ module_exit(exit_net_drop_monitor);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Neil Horman <nhorman@tuxdriver.com>");
 MODULE_ALIAS_GENL_FAMILY("NET_DM");
+MODULE_DESCRIPTION("Monitoring code for network dropped packet alerts");

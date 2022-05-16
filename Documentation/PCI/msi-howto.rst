@@ -283,5 +283,5 @@ or disabled (0).  If 0 is found in any of the msi_bus files belonging
 to bridges between the PCI root and the device, MSIs are disabled.
 
 It is also worth checking the device driver to see whether it supports MSIs.
-For example, it may contain calls to pci_irq_alloc_vectors() with the
+For example, it may contain calls to pci_alloc_irq_vectors() with the
 PCI_IRQ_MSI or PCI_IRQ_MSIX flags.

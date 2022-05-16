@@ -176,8 +176,10 @@ static int csiphy_set_power(struct v4l2_subdev *sd, int on)
 		int ret;
 
 		ret = pm_runtime_get_sync(dev);
-		if (ret < 0)
+		if (ret < 0) {
+			pm_runtime_put_sync(dev);
 			return ret;
+		}
 
 		ret = csiphy_set_clock_rates(csiphy);
 		if (ret < 0) {
@@ -737,7 +739,7 @@ int msm_csiphy_register_entity(struct csiphy_device *csiphy,
 	pads[MSM_CSIPHY_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	pads[MSM_CSIPHY_PAD_SRC].flags = MEDIA_PAD_FL_SOURCE;
 
-	sd->entity.function = MEDIA_ENT_F_IO_V4L;
+	sd->entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 	sd->entity.ops = &csiphy_media_ops;
 	ret = media_entity_pads_init(&sd->entity, MSM_CSIPHY_PADS_NUM, pads);
 	if (ret < 0) {

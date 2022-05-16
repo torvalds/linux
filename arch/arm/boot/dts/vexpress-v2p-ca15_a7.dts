@@ -128,7 +128,7 @@
 		reg = <0 0x2a490000 0 0x1000>;
 		interrupts = <0 98 4>;
 		clocks = <&oscclk6a>, <&oscclk6a>;
-		clock-names = "wdogclk", "apb_pclk";
+		clock-names = "wdog_clk", "apb_pclk";
 	};
 
 	hdlcd@2b000000 {
@@ -608,7 +608,7 @@
 		};
 	};
 
-	smb: smb@8000000 {
+	smb: bus@8000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;

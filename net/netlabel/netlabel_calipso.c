@@ -304,7 +304,7 @@ static int netlbl_calipso_remove(struct sk_buff *skb, struct genl_info *info)
 /* NetLabel Generic NETLINK Command Definitions
  */
 
-static const struct genl_ops netlbl_calipso_ops[] = {
+static const struct genl_small_ops netlbl_calipso_ops[] = {
 	{
 	.cmd = NLBL_CALIPSO_C_ADD,
 	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -342,8 +342,8 @@ static struct genl_family netlbl_calipso_gnl_family __ro_after_init = {
 	.maxattr = NLBL_CALIPSO_A_MAX,
 	.policy = calipso_genl_policy,
 	.module = THIS_MODULE,
-	.ops = netlbl_calipso_ops,
-	.n_ops = ARRAY_SIZE(netlbl_calipso_ops),
+	.small_ops = netlbl_calipso_ops,
+	.n_small_ops = ARRAY_SIZE(netlbl_calipso_ops),
 };
 
 /* NetLabel Generic NETLINK Protocol Functions
@@ -426,7 +426,7 @@ void calipso_doi_free(struct calipso_doi *doi_def)
 /**
  * calipso_doi_remove - Remove an existing DOI from the CALIPSO protocol engine
  * @doi: the DOI value
- * @audit_secid: the LSM secid to use in the audit message
+ * @audit_info: NetLabel audit information
  *
  * Description:
  * Removes a DOI definition from the CALIPSO engine.  The NetLabel routines will
@@ -595,7 +595,7 @@ int calipso_req_setattr(struct request_sock *req,
 
 /**
  * calipso_req_delattr - Delete the CALIPSO option from a request socket
- * @reg: the request socket
+ * @req: the request socket
  *
  * Description:
  * Removes the CALIPSO option from a request socket, if present.

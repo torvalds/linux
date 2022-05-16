@@ -30,8 +30,6 @@
  * interface to PPLIB/SMU to setup clocks and pstate requirements on SoC
  */
 
-typedef bool BOOLEAN;
-
 enum pp_smu_ver {
 	/*
 	 * PP_SMU_INTERFACE_X should be interpreted as the interface defined
@@ -41,12 +39,8 @@ enum pp_smu_ver {
 	 */
 	PP_SMU_UNSUPPORTED,
 	PP_SMU_VER_RV,
-#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
 	PP_SMU_VER_NV,
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	PP_SMU_VER_RN,
-#endif
 
 	PP_SMU_VER_MAX
 };
@@ -143,7 +137,6 @@ struct pp_smu_funcs_rv {
 	void (*set_pme_wa_enable)(struct pp_smu *pp);
 };
 
-#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
 /* Used by pp_smu_funcs_nv.set_voltage_by_freq
  *
  */
@@ -245,14 +238,11 @@ struct pp_smu_funcs_nv {
 	 * DC hardware
 	 */
 	enum pp_smu_status (*set_pstate_handshake_support)(struct pp_smu *pp,
-			BOOLEAN pstate_handshake_supported);
+			bool pstate_handshake_supported);
 };
-#endif
-
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 
 #define PP_SMU_NUM_SOCCLK_DPM_LEVELS  8
-#define PP_SMU_NUM_DCFCLK_DPM_LEVELS  4
+#define PP_SMU_NUM_DCFCLK_DPM_LEVELS  8
 #define PP_SMU_NUM_FCLK_DPM_LEVELS    4
 #define PP_SMU_NUM_MEMCLK_DPM_LEVELS  4
 
@@ -288,18 +278,13 @@ struct pp_smu_funcs_rn {
 	enum pp_smu_status (*get_dpm_clock_table) (struct pp_smu *pp,
 			struct dpm_clocks *clock_table);
 };
-#endif
 
 struct pp_smu_funcs {
 	struct pp_smu ctx;
 	union {
 		struct pp_smu_funcs_rv rv_funcs;
-#ifndef CONFIG_TRIM_DRM_AMD_DC_DCN2_0
 		struct pp_smu_funcs_nv nv_funcs;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 		struct pp_smu_funcs_rn rn_funcs;
-#endif
 
 	};
 };

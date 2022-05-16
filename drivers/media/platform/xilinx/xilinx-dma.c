@@ -685,7 +685,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 		 xdev->dev->of_node,
 		 type == V4L2_BUF_TYPE_VIDEO_CAPTURE ? "output" : "input",
 		 port);
-	dma->video.vfl_type = VFL_TYPE_GRABBER;
+	dma->video.vfl_type = VFL_TYPE_VIDEO;
 	dma->video.vfl_dir = type == V4L2_BUF_TYPE_VIDEO_CAPTURE
 			   ? VFL_DIR_RX : VFL_DIR_TX;
 	dma->video.release = video_device_release_empty;
@@ -725,16 +725,17 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 
 	/* ... and the DMA channel. */
 	snprintf(name, sizeof(name), "port%u", port);
-	dma->dma = dma_request_slave_channel(dma->xdev->dev, name);
-	if (dma->dma == NULL) {
-		dev_err(dma->xdev->dev, "no VDMA channel found\n");
-		ret = -ENODEV;
+	dma->dma = dma_request_chan(dma->xdev->dev, name);
+	if (IS_ERR(dma->dma)) {
+		ret = PTR_ERR(dma->dma);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dma->xdev->dev, "no VDMA channel found\n");
 		goto error;
 	}
 
 	dma->align = 1 << dma->dma->device->copy_align;
 
-	ret = video_register_device(&dma->video, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&dma->video, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		dev_err(dma->xdev->dev, "failed to register video device\n");
 		goto error;
@@ -752,7 +753,7 @@ void xvip_dma_cleanup(struct xvip_dma *dma)
 	if (video_is_registered(&dma->video))
 		video_unregister_device(&dma->video);
 
-	if (dma->dma)
+	if (!IS_ERR_OR_NULL(dma->dma))
 		dma_release_channel(dma->dma);
 
 	media_entity_cleanup(&dma->video.entity);

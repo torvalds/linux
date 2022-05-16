@@ -597,7 +597,7 @@ static int pxafb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops pxafb_ops = {
+static const struct fb_ops pxafb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= pxafb_check_var,
 	.fb_set_par	= pxafb_set_par,
@@ -865,7 +865,7 @@ static int overlayfb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops overlay_fb_ops = {
+static const struct fb_ops overlay_fb_ops = {
 	.owner			= THIS_MODULE,
 	.fb_open		= overlayfb_open,
 	.fb_release		= overlayfb_release,
@@ -1614,7 +1614,7 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		 */
 		if (old_state != C_DISABLE_PM)
 			break;
-		/* fall through */
+		fallthrough;
 
 	case C_ENABLE:
 		/*
@@ -2237,7 +2237,6 @@ static int pxafb_probe(struct platform_device *dev)
 {
 	struct pxafb_info *fbi;
 	struct pxafb_mach_info *inf, *pdata;
-	struct resource *r;
 	int i, irq, ret;
 
 	dev_dbg(&dev->dev, "pxafb_probe\n");
@@ -2303,17 +2302,10 @@ static int pxafb_probe(struct platform_device *dev)
 		fbi->lcd_supply = NULL;
 	}
 
-	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
-		dev_err(&dev->dev, "no I/O memory resource defined\n");
-		ret = -ENODEV;
-		goto failed;
-	}
-
-	fbi->mmio_base = devm_ioremap_resource(&dev->dev, r);
+	fbi->mmio_base = devm_platform_ioremap_resource(dev, 0);
 	if (IS_ERR(fbi->mmio_base)) {
 		dev_err(&dev->dev, "failed to get I/O memory\n");
-		ret = -EBUSY;
+		ret = PTR_ERR(fbi->mmio_base);
 		goto failed;
 	}
 
@@ -2425,8 +2417,8 @@ static int pxafb_remove(struct platform_device *dev)
 
 	free_pages_exact(fbi->video_mem, fbi->video_mem_size);
 
-	dma_free_wc(&dev->dev, fbi->dma_buff_size, fbi->dma_buff,
-		    fbi->dma_buff_phys);
+	dma_free_coherent(&dev->dev, fbi->dma_buff_size, fbi->dma_buff,
+			  fbi->dma_buff_phys);
 
 	return 0;
 }

@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -23,7 +23,7 @@
  * in the file called COPYING.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -221,6 +221,31 @@ static int iwl_mvm_create_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	skb_put_data(skb, hdr, hdrlen);
 	skb_put_data(skb, (u8 *)hdr + hdrlen + pad_len, headlen - hdrlen);
 
+	/*
+	 * If we did CHECKSUM_COMPLETE, the hardware only does it right for
+	 * certain cases and starts the checksum after the SNAP. Check if
+	 * this is the case - it's easier to just bail out to CHECKSUM_NONE
+	 * in the cases the hardware didn't handle, since it's rare to see
+	 * such packets, even though the hardware did calculate the checksum
+	 * in this case, just starting after the MAC header instead.
+	 */
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+		struct {
+			u8 hdr[6];
+			__be16 type;
+		} __packed *shdr = (void *)((u8 *)hdr + hdrlen + pad_len);
+
+		if (unlikely(headlen - hdrlen < sizeof(*shdr) ||
+			     !ether_addr_equal(shdr->hdr, rfc1042_header) ||
+			     (shdr->type != htons(ETH_P_IP) &&
+			      shdr->type != htons(ETH_P_ARP) &&
+			      shdr->type != htons(ETH_P_IPV6) &&
+			      shdr->type != htons(ETH_P_8021Q) &&
+			      shdr->type != htons(ETH_P_PAE) &&
+			      shdr->type != htons(ETH_P_TDLS))))
+			skb->ip_summed = CHECKSUM_NONE;
+	}
+
 	fraglen = len - headlen;
 
 	if (fraglen) {
@@ -308,7 +333,7 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			     struct iwl_rx_mpdu_desc *desc,
 			     u32 pkt_flags, int queue, u8 *crypt_len)
 {
-	u16 status = le16_to_cpu(desc->status);
+	u32 status = le32_to_cpu(desc->status);
 
 	/*
 	 * Drop UNKNOWN frames in aggregation, unless in monitor mode
@@ -393,22 +418,36 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 	return 0;
 }
 
-static void iwl_mvm_rx_csum(struct ieee80211_sta *sta,
+static void iwl_mvm_rx_csum(struct iwl_mvm *mvm,
+			    struct ieee80211_sta *sta,
 			    struct sk_buff *skb,
-			    struct iwl_rx_mpdu_desc *desc)
+			    struct iwl_rx_packet *pkt)
 {
-	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
-	u16 flags = le16_to_cpu(desc->l3l4_flags);
-	u8 l3_prot = (u8)((flags & IWL_RX_L3L4_L3_PROTO_MASK) >>
-			  IWL_RX_L3_PROTO_POS);
+	struct iwl_rx_mpdu_desc *desc = (void *)pkt->data;
 
-	if (mvmvif->features & NETIF_F_RXCSUM &&
-	    flags & IWL_RX_L3L4_TCP_UDP_CSUM_OK &&
-	    (flags & IWL_RX_L3L4_IP_HDR_CSUM_OK ||
-	     l3_prot == IWL_RX_L3_TYPE_IPV6 ||
-	     l3_prot == IWL_RX_L3_TYPE_IPV6_FRAG))
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+		if (pkt->len_n_flags & cpu_to_le32(FH_RSCSR_RPA_EN)) {
+			u16 hwsum = be16_to_cpu(desc->v3.raw_xsum);
+
+			skb->ip_summed = CHECKSUM_COMPLETE;
+			skb->csum = csum_unfold(~(__force __sum16)hwsum);
+		}
+	} else {
+		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		struct iwl_mvm_vif *mvmvif;
+		u16 flags = le16_to_cpu(desc->l3l4_flags);
+		u8 l3_prot = (u8)((flags & IWL_RX_L3L4_L3_PROTO_MASK) >>
+				  IWL_RX_L3_PROTO_POS);
+
+		mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
+
+		if (mvmvif->features & NETIF_F_RXCSUM &&
+		    flags & IWL_RX_L3L4_TCP_UDP_CSUM_OK &&
+		    (flags & IWL_RX_L3L4_IP_HDR_CSUM_OK ||
+		     l3_prot == IWL_RX_L3_TYPE_IPV6 ||
+		     l3_prot == IWL_RX_L3_TYPE_IPV6_FRAG))
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
 }
 
 /*
@@ -514,14 +553,17 @@ static bool iwl_mvm_is_sn_less(u16 sn1, u16 sn2, u16 buffer_size)
 
 static void iwl_mvm_sync_nssn(struct iwl_mvm *mvm, u8 baid, u16 nssn)
 {
-	struct iwl_mvm_rss_sync_notif notif = {
-		.metadata.type = IWL_MVM_RXQ_NSSN_SYNC,
-		.metadata.sync = 0,
-		.nssn_sync.baid = baid,
-		.nssn_sync.nssn = nssn,
-	};
+	if (IWL_MVM_USE_NSSN_SYNC) {
+		struct iwl_mvm_rss_sync_notif notif = {
+			.metadata.type = IWL_MVM_RXQ_NSSN_SYNC,
+			.metadata.sync = 0,
+			.nssn_sync.baid = baid,
+			.nssn_sync.nssn = nssn,
+		};
 
-	iwl_mvm_sync_rx_queues_internal(mvm, (void *)&notif, sizeof(notif));
+		iwl_mvm_sync_rx_queues_internal(mvm, (void *)&notif,
+						sizeof(notif));
+	}
 }
 
 #define RX_REORDER_BUF_TIMEOUT_MQ (HZ / 10)
@@ -1542,6 +1584,19 @@ static void iwl_mvm_decode_lsig(struct sk_buff *skb,
 	}
 }
 
+static inline u8 iwl_mvm_nl80211_band_from_rx_msdu(u8 phy_band)
+{
+	switch (phy_band) {
+	case PHY_BAND_24:
+		return NL80211_BAND_2GHZ;
+	case PHY_BAND_5:
+		return NL80211_BAND_5GHZ;
+	default:
+		WARN_ONCE(1, "Unsupported phy band (%u)\n", phy_band);
+		return NL80211_BAND_5GHZ;
+	}
+}
+
 void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb, int queue)
 {
@@ -1565,7 +1620,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
 		return;
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		rate_n_flags = le32_to_cpu(desc->v3.rate_n_flags);
 		channel = desc->v3.channel;
 		gp2_on_air_rise = le32_to_cpu(desc->v3.gp2_on_air_rise);
@@ -1652,10 +1707,10 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	 * Keep packets with CRC errors (and with overrun) for monitor mode
 	 * (otherwise the firmware discards them) but mark them as bad.
 	 */
-	if (!(desc->status & cpu_to_le16(IWL_RX_MPDU_STATUS_CRC_OK)) ||
-	    !(desc->status & cpu_to_le16(IWL_RX_MPDU_STATUS_OVERRUN_OK))) {
+	if (!(desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_CRC_OK)) ||
+	    !(desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_OVERRUN_OK))) {
 		IWL_DEBUG_RX(mvm, "Bad CRC or FIFO: 0x%08X.\n",
-			     le16_to_cpu(desc->status));
+			     le32_to_cpu(desc->status));
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 	}
 	/* set the preamble flag if appropriate */
@@ -1667,7 +1722,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		u64 tsf_on_air_rise;
 
 		if (mvm->trans->trans_cfg->device_family >=
-		    IWL_DEVICE_FAMILY_22560)
+		    IWL_DEVICE_FAMILY_AX210)
 			tsf_on_air_rise = le64_to_cpu(desc->v3.tsf_on_air_rise);
 		else
 			tsf_on_air_rise = le64_to_cpu(desc->v1.tsf_on_air_rise);
@@ -1678,8 +1733,14 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	}
 
 	rx_status->device_timestamp = gp2_on_air_rise;
-	rx_status->band = channel > 14 ? NL80211_BAND_5GHZ :
-		NL80211_BAND_2GHZ;
+	if (iwl_mvm_is_band_in_rx_supported(mvm)) {
+		u8 band = BAND_IN_RX_STATUS(desc->mac_phy_idx);
+
+		rx_status->band = iwl_mvm_nl80211_band_from_rx_msdu(band);
+	} else {
+		rx_status->band = channel > 14 ? NL80211_BAND_5GHZ :
+			NL80211_BAND_2GHZ;
+	}
 	rx_status->freq = ieee80211_channel_to_frequency(channel,
 							 rx_status->band);
 	iwl_mvm_get_signal_strength(mvm, rx_status, rate_n_flags, energy_a,
@@ -1709,10 +1770,10 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	rcu_read_lock();
 
-	if (desc->status & cpu_to_le16(IWL_RX_MPDU_STATUS_SRC_STA_FOUND)) {
-		u8 id = desc->sta_id_flags & IWL_RX_MPDU_SIF_STA_ID_MASK;
+	if (desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_SRC_STA_FOUND)) {
+		u8 id = le32_get_bits(desc->status, IWL_RX_MPDU_STATUS_STA_ID);
 
-		if (!WARN_ON_ONCE(id >= ARRAY_SIZE(mvm->fw_id_to_mac_id))) {
+		if (!WARN_ON_ONCE(id >= mvm->fw->ucode_capa.num_stations)) {
 			sta = rcu_dereference(mvm->fw_id_to_mac_id[id]);
 			if (IS_ERR(sta))
 				sta = NULL;
@@ -1774,7 +1835,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		}
 
 		if (ieee80211_is_data(hdr->frame_control))
-			iwl_mvm_rx_csum(sta, skb, desc);
+			iwl_mvm_rx_csum(mvm, sta, skb, pkt);
 
 		if (iwl_mvm_is_dup(sta, queue, rx_status, hdr, desc)) {
 			kfree_skb(skb);

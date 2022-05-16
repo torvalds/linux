@@ -4,7 +4,7 @@ Kernel driver exynos_tmu
 
 Supported chips:
 
-* ARM SAMSUNG EXYNOS4, EXYNOS5 series of SoC
+* ARM Samsung Exynos4, Exynos5 series of SoC
 
   Datasheet: Not publicly available
 
@@ -14,7 +14,7 @@ Authors: Amit Daniel <amit.daniel@samsung.com>
 TMU controller Description:
 ---------------------------
 
-This driver allows to read temperature inside SAMSUNG EXYNOS4/5 series of SoC.
+This driver allows to read temperature inside Samsung Exynos4/5 series of SoC.
 
 The chip only exposes the measured 8-bit temperature code value
 through a register.
@@ -43,7 +43,7 @@ The three equations are:
        Trimming info for 85 degree Celsius (stored at TRIMINFO register)
        Temperature code measured at 85 degree Celsius which is unchanged
 
-TMU(Thermal Management Unit) in EXYNOS4/5 generates interrupt
+TMU(Thermal Management Unit) in Exynos4/5 generates interrupt
 when temperature exceeds pre-defined levels.
 The maximum number of configurable threshold is five.
 The threshold levels are defined as follows::
@@ -67,7 +67,7 @@ TMU driver description:
 The exynos thermal driver is structured as::
 
 					Kernel Core thermal framework
-				(thermal_core.c, step_wise.c, cpu_cooling.c)
+				(thermal_core.c, step_wise.c, cpufreq_cooling.c)
 								^
 								|
 								|

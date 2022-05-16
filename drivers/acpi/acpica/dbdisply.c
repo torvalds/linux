@@ -51,6 +51,8 @@ static acpi_adr_space_type acpi_gbl_space_id_list[] = {
 	ACPI_ADR_SPACE_IPMI,
 	ACPI_ADR_SPACE_GPIO,
 	ACPI_ADR_SPACE_GSBUS,
+	ACPI_ADR_SPACE_PLATFORM_COMM,
+	ACPI_ADR_SPACE_PLATFORM_RT,
 	ACPI_ADR_SPACE_DATA_TABLE,
 	ACPI_ADR_SPACE_FIXED_HARDWARE
 };
@@ -513,7 +515,6 @@ void acpi_db_display_results(void)
 		return;
 	}
 
-	obj_desc = walk_state->method_desc;
 	node = walk_state->method_node;
 
 	if (walk_state->results) {
@@ -565,7 +566,6 @@ void acpi_db_display_calling_tree(void)
 		return;
 	}
 
-	node = walk_state->method_node;
 	acpi_os_printf("Current Control Method Call Tree\n");
 
 	while (walk_state) {

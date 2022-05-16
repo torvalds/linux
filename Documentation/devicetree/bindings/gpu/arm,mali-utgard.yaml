@@ -8,7 +8,7 @@ title: ARM Mali Utgard GPU
 
 maintainers:
   - Rob Herring <robh@kernel.org>
-  - Maxime Ripard <maxime.ripard@free-electrons.com>
+  - Maxime Ripard <mripard@kernel.org>
   - Heiko Stuebner <heiko@sntech.de>
 
 properties:
@@ -25,6 +25,7 @@ properties:
               - allwinner,sun4i-a10-mali
               - allwinner,sun7i-a20-mali
               - allwinner,sun8i-h3-mali
+              - allwinner,sun8i-r40-mali
               - allwinner,sun50i-a64-mali
               - rockchip,rk3036-mali
               - rockchip,rk3066-mali
@@ -41,6 +42,7 @@ properties:
               - amlogic,meson-gxbb-mali
               - amlogic,meson-gxl-mali
               - hisilicon,hi6220-mali
+              - mediatek,mt7623-mali
               - rockchip,rk3328-mali
           - const: arm,mali-450
 
@@ -97,8 +99,9 @@ properties:
 
   memory-region: true
 
-  mali-supply:
-    maxItems: 1
+  mali-supply: true
+
+  opp-table: true
 
   power-domains:
     maxItems: 1
@@ -108,6 +111,9 @@ properties:
 
   operating-points-v2: true
 
+  "#cooling-cells":
+    const: 2
+
 required:
   - compatible
   - reg
@@ -115,6 +121,8 @@ required:
   - interrupt-names
   - clocks
   - clock-names
+
+additionalProperties: false
 
 allOf:
   - if:
@@ -124,11 +132,13 @@ allOf:
             enum:
               - allwinner,sun4i-a10-mali
               - allwinner,sun7i-a20-mali
+              - allwinner,sun8i-r40-mali
               - allwinner,sun50i-a64-mali
               - allwinner,sun50i-h5-mali
               - amlogic,meson8-mali
               - amlogic,meson8b-mali
               - hisilicon,hi6220-mali
+              - mediatek,mt7623-mali
               - rockchip,rk3036-mali
               - rockchip,rk3066-mali
               - rockchip,rk3188-mali
@@ -163,6 +173,7 @@ examples:
       clocks = <&ccu 1>, <&ccu 2>;
       clock-names = "bus", "core";
       resets = <&ccu 1>;
+      #cooling-cells = <2>;
     };
 
 ...

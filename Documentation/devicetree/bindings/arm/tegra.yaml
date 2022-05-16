@@ -11,6 +11,8 @@ maintainers:
   - Jonathan Hunter <jonathanh@nvidia.com>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     oneOf:
       - items:
@@ -33,6 +35,9 @@ properties:
               - toradex,colibri_t20-eval-v3
               - toradex,colibri_t20-iris
           - const: toradex,colibri_t20
+          - const: nvidia,tegra20
+      - items:
+          - const: acer,picasso
           - const: nvidia,tegra20
       - items:
           - enum:
@@ -58,6 +63,13 @@ properties:
           - enum:
               - toradex,colibri_t30-eval-v3
           - const: toradex,colibri_t30
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,grouper
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tilapia
+          - const: asus,grouper
           - const: nvidia,tegra30
       - items:
           - enum:
@@ -101,3 +113,17 @@ properties:
           - enum:
               - nvidia,p2972-0000
           - const: nvidia,tegra194
+      - description: Jetson Xavier NX
+        items:
+          - const: nvidia,p3668-0000
+          - const: nvidia,tegra194
+      - description: Jetson Xavier NX Developer Kit
+        items:
+          - const: nvidia,p3509-0000+p3668-0000
+          - const: nvidia,tegra194
+      - items:
+          - enum:
+              - nvidia,tegra234-vdk
+          - const: nvidia,tegra234
+
+additionalProperties: true

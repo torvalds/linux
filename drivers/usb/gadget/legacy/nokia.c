@@ -62,7 +62,6 @@ FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
 #define STRING_DESCRIPTION_IDX		USB_GADGET_FIRST_AVAIL_IDX
 
 static char manufacturer_nokia[] = "Nokia";
-static const char product_nokia[] = NOKIA_LONG_NAME;
 static const char description_nokia[] = "PC-Suite Configuration";
 
 static struct usb_string strings_dev[] = {

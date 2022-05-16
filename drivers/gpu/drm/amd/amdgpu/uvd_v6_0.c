@@ -216,7 +216,8 @@ static int uvd_v6_0_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t handle
 	uint64_t addr;
 	int i, r;
 
-	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4,
+					AMDGPU_IB_POOL_DIRECT, &job);
 	if (r)
 		return r;
 
@@ -279,7 +280,8 @@ static int uvd_v6_0_enc_get_destroy_msg(struct amdgpu_ring *ring,
 	uint64_t addr;
 	int i, r;
 
-	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4,
+					AMDGPU_IB_POOL_DIRECT, &job);
 	if (r)
 		return r;
 
@@ -416,7 +418,8 @@ static int uvd_v6_0_sw_init(void *handle)
 
 	ring = &adev->uvd.inst->ring;
 	sprintf(ring->name, "uvd");
-	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0);
+	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0,
+			     AMDGPU_RING_PRIO_DEFAULT);
 	if (r)
 		return r;
 
@@ -428,7 +431,9 @@ static int uvd_v6_0_sw_init(void *handle)
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
 			ring = &adev->uvd.inst->ring_enc[i];
 			sprintf(ring->name, "uvd_enc%d", i);
-			r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0);
+			r = amdgpu_ring_init(adev, ring, 512,
+					     &adev->uvd.inst->irq, 0,
+					     AMDGPU_RING_PRIO_DEFAULT);
 			if (r)
 				return r;
 		}
@@ -535,12 +540,9 @@ done:
 static int uvd_v6_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ring *ring = &adev->uvd.inst->ring;
 
 	if (RREG32(mmUVD_STATUS) != 0)
 		uvd_v6_0_stop(adev);
-
-	ring->sched.ready = false;
 
 	return 0;
 }
@@ -581,7 +583,7 @@ static void uvd_v6_0_mc_resume(struct amdgpu_device *adev)
 	uint64_t offset;
 	uint32_t size;
 
-	/* programm memory controller bits 0-27 */
+	/* program memory controller bits 0-27 */
 	WREG32(mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW,
 			lower_32_bits(adev->uvd.inst->gpu_addr));
 	WREG32(mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH,
@@ -823,7 +825,7 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	/* set the wb address */
 	WREG32(mmUVD_RBC_RB_RPTR_ADDR, (upper_32_bits(ring->gpu_addr) >> 2));
 
-	/* programm the RB_BASE for ring buffer */
+	/* program the RB_BASE for ring buffer */
 	WREG32(mmUVD_LMI_RBC_RB_64BIT_BAR_LOW,
 			lower_32_bits(ring->gpu_addr));
 	WREG32(mmUVD_LMI_RBC_RB_64BIT_BAR_HIGH,
@@ -1238,8 +1240,8 @@ static int uvd_v6_0_process_interrupt(struct amdgpu_device *adev,
 		break;
 	}
 
-	if (false == int_handled)
-			DRM_ERROR("Unhandled interrupt: %d %d\n",
+	if (!int_handled)
+		DRM_ERROR("Unhandled interrupt: %d %d\n",
 			  entry->src_id, entry->src_data[0]);
 
 	return 0;
@@ -1421,7 +1423,7 @@ static int uvd_v6_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	bool enable = (state == AMD_CG_STATE_GATE);
 
 	if (enable) {
 		/* wait for STATUS to clear */

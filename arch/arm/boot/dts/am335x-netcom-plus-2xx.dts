@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
+ */
+
+/*
+ * VScom OnRISC
+ * http://www.vscom.de
+ */
+
+/dts-v1/;
+
+#include "am335x-baltos.dtsi"
+#include "am335x-baltos-leds.dtsi"
+
+/ {
+	model = "NetCom Plus";
+};
+
+&am33xx_pinmux {
+	uart1_pins: pinmux_uart1_pins {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_INPUT, MUX_MODE0)			/* RX */
+			AM33XX_PADCONF(AM335X_PIN_UART1_TXD, PIN_INPUT, MUX_MODE0)			/* TX */
+			AM33XX_PADCONF(AM335X_PIN_UART1_CTSN, PIN_INPUT_PULLDOWN, MUX_MODE0)		/* CTS */
+			AM33XX_PADCONF(AM335X_PIN_UART1_RTSN, PIN_OUTPUT_PULLDOWN, MUX_MODE0)		/* RTS */
+			AM33XX_PADCONF(AM335X_PIN_LCD_VSYNC, PIN_OUTPUT_PULLDOWN, MUX_MODE7)		/* DTR */
+			AM33XX_PADCONF(AM335X_PIN_LCD_HSYNC, PIN_INPUT_PULLDOWN, MUX_MODE7)		/* DSR */
+			AM33XX_PADCONF(AM335X_PIN_LCD_PCLK, PIN_INPUT_PULLDOWN, MUX_MODE7)		/* DCD */
+			AM33XX_PADCONF(AM335X_PIN_LCD_AC_BIAS_EN, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* RI */
+		>;
+	};
+
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_SPI0_SCLK, PIN_INPUT, MUX_MODE1)		/* RX */
+			AM33XX_PADCONF(AM335X_PIN_SPI0_D0, PIN_OUTPUT, MUX_MODE1)      		/* TX */
+			AM33XX_PADCONF(AM335X_PIN_I2C0_SDA, PIN_INPUT_PULLDOWN, MUX_MODE2)	/* CTS */
+			AM33XX_PADCONF(AM335X_PIN_I2C0_SCL, PIN_OUTPUT_PULLDOWN, MUX_MODE2)	/* RTS */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD12, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* DTR */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD13, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* DSR */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD14, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* DCD */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD15, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* RI */
+		>;
+	};
+};
+
+&usb0_phy {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+	dr_mode = "host";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+	dtr-gpios = <&gpio2 22 GPIO_ACTIVE_LOW>;
+	dsr-gpios = <&gpio2 23 GPIO_ACTIVE_LOW>;
+	dcd-gpios = <&gpio2 24 GPIO_ACTIVE_LOW>;
+	rng-gpios = <&gpio2 25 GPIO_ACTIVE_LOW>;
+
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+	dtr-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+	dsr-gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
+	dcd-gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+	rng-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+
+	status = "okay";
+};
+
+&davinci_mdio {
+	phy0: ethernet-phy@0 {
+		reg = <1>;
+	};
+};
+
+&cpsw_emac0 {
+	phy-mode = "rmii";
+	dual_emac_res_vlan = <1>;
+	phy-handle = <&phy0>;
+};
+
+&cpsw_emac1 {
+	phy-mode = "rgmii-id";
+	dual_emac_res_vlan = <2>;
+	phy-handle = <&phy1>;
+};

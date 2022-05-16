@@ -271,6 +271,9 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 		break;
 
 	case SO_EE_ORIGIN_ICMP6:
+		if (err == EACCES)
+			err = EHOSTUNREACH;
+		fallthrough;
 	default:
 		_proto("Rx Received error report { orig=%u }", ee->ee_origin);
 		break;
@@ -289,56 +292,8 @@ static void rxrpc_distribute_error(struct rxrpc_peer *peer, int error,
 
 	hlist_for_each_entry_rcu(call, &peer->error_targets, error_link) {
 		rxrpc_see_call(call);
-		if (call->state < RXRPC_CALL_COMPLETE &&
-		    rxrpc_set_call_completion(call, compl, 0, -error))
-			rxrpc_notify_socket(call);
+		rxrpc_set_call_completion(call, compl, 0, -error);
 	}
-}
-
-/*
- * Add RTT information to cache.  This is called in softirq mode and has
- * exclusive access to the peer RTT data.
- */
-void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
-			rxrpc_serial_t send_serial, rxrpc_serial_t resp_serial,
-			ktime_t send_time, ktime_t resp_time)
-{
-	struct rxrpc_peer *peer = call->peer;
-	s64 rtt;
-	u64 sum = peer->rtt_sum, avg;
-	u8 cursor = peer->rtt_cursor, usage = peer->rtt_usage;
-
-	rtt = ktime_to_ns(ktime_sub(resp_time, send_time));
-	if (rtt < 0)
-		return;
-
-	spin_lock(&peer->rtt_input_lock);
-
-	/* Replace the oldest datum in the RTT buffer */
-	sum -= peer->rtt_cache[cursor];
-	sum += rtt;
-	peer->rtt_cache[cursor] = rtt;
-	peer->rtt_cursor = (cursor + 1) & (RXRPC_RTT_CACHE_SIZE - 1);
-	peer->rtt_sum = sum;
-	if (usage < RXRPC_RTT_CACHE_SIZE) {
-		usage++;
-		peer->rtt_usage = usage;
-	}
-
-	spin_unlock(&peer->rtt_input_lock);
-
-	/* Now recalculate the average */
-	if (usage == RXRPC_RTT_CACHE_SIZE) {
-		avg = sum / RXRPC_RTT_CACHE_SIZE;
-	} else {
-		avg = sum;
-		do_div(avg, usage);
-	}
-
-	/* Don't need to update this under lock */
-	peer->rtt = avg;
-	trace_rxrpc_rtt_rx(call, why, send_serial, resp_serial, rtt,
-			   usage, avg);
 }
 
 /*
@@ -364,27 +319,31 @@ static void rxrpc_peer_keepalive_dispatch(struct rxrpc_net *rxnet,
 		if (!rxrpc_get_peer_maybe(peer))
 			continue;
 
-		spin_unlock_bh(&rxnet->peer_hash_lock);
+		if (__rxrpc_use_local(peer->local)) {
+			spin_unlock_bh(&rxnet->peer_hash_lock);
 
-		keepalive_at = peer->last_tx_at + RXRPC_KEEPALIVE_TIME;
-		slot = keepalive_at - base;
-		_debug("%02x peer %u t=%d {%pISp}",
-		       cursor, peer->debug_id, slot, &peer->srx.transport);
+			keepalive_at = peer->last_tx_at + RXRPC_KEEPALIVE_TIME;
+			slot = keepalive_at - base;
+			_debug("%02x peer %u t=%d {%pISp}",
+			       cursor, peer->debug_id, slot, &peer->srx.transport);
 
-		if (keepalive_at <= base ||
-		    keepalive_at > base + RXRPC_KEEPALIVE_TIME) {
-			rxrpc_send_keepalive(peer);
-			slot = RXRPC_KEEPALIVE_TIME;
+			if (keepalive_at <= base ||
+			    keepalive_at > base + RXRPC_KEEPALIVE_TIME) {
+				rxrpc_send_keepalive(peer);
+				slot = RXRPC_KEEPALIVE_TIME;
+			}
+
+			/* A transmission to this peer occurred since last we
+			 * examined it so put it into the appropriate future
+			 * bucket.
+			 */
+			slot += cursor;
+			slot &= mask;
+			spin_lock_bh(&rxnet->peer_hash_lock);
+			list_add_tail(&peer->keepalive_link,
+				      &rxnet->peer_keepalive[slot & mask]);
+			rxrpc_unuse_local(peer->local);
 		}
-
-		/* A transmission to this peer occurred since last we examined
-		 * it so put it into the appropriate future bucket.
-		 */
-		slot += cursor;
-		slot &= mask;
-		spin_lock_bh(&rxnet->peer_hash_lock);
-		list_add_tail(&peer->keepalive_link,
-			      &rxnet->peer_keepalive[slot & mask]);
 		rxrpc_put_peer_locked(peer);
 	}
 

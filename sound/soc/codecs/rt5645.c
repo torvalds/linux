@@ -866,7 +866,7 @@ static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int val;
 
-	val = snd_soc_component_read32(component, RT5645_GLB_CLK);
+	val = snd_soc_component_read(component, RT5645_GLB_CLK);
 	val &= RT5645_SCLK_SRC_MASK;
 	if (val == RT5645_SCLK_SRC_PLL1)
 		return 1;
@@ -909,7 +909,7 @@ static int is_using_asrc(struct snd_soc_dapm_widget *source,
 		return 0;
 	}
 
-	val = (snd_soc_component_read32(component, reg) >> shift) & 0xf;
+	val = (snd_soc_component_read(component, reg) >> shift) & 0xf;
 	switch (val) {
 	case 1:
 	case 2:
@@ -3121,9 +3121,9 @@ static void rt5645_enable_push_button_irq(struct snd_soc_component *component,
 					RT5645_INT_IRQ_ST, 0x8, 0x8);
 		snd_soc_component_update_bits(component,
 					RT5650_4BTN_IL_CMD2, 0x8000, 0x8000);
-		snd_soc_component_read32(component, RT5650_4BTN_IL_CMD1);
+		snd_soc_component_read(component, RT5650_4BTN_IL_CMD1);
 		pr_debug("%s read %x = %x\n", __func__, RT5650_4BTN_IL_CMD1,
-			snd_soc_component_read32(component, RT5650_4BTN_IL_CMD1));
+			snd_soc_component_read(component, RT5650_4BTN_IL_CMD1));
 	} else {
 		snd_soc_component_update_bits(component, RT5650_4BTN_IL_CMD2, 0x8000, 0x0);
 		snd_soc_component_update_bits(component, RT5645_INT_IRQ_ST, 0x8, 0x0);
@@ -3216,7 +3216,7 @@ static int rt5645_button_detect(struct snd_soc_component *component)
 {
 	int btn_type, val;
 
-	val = snd_soc_component_read32(component, RT5650_4BTN_IL_CMD1);
+	val = snd_soc_component_read(component, RT5650_4BTN_IL_CMD1);
 	pr_debug("val=0x%x\n", val);
 	btn_type = val & 0xfff0;
 	snd_soc_component_write(component, RT5650_4BTN_IL_CMD1, val);
@@ -3270,8 +3270,11 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 		snd_soc_jack_report(rt5645->mic_jack,
 				    report, SND_JACK_MICROPHONE);
 		return;
+	case 4:
+		val = snd_soc_component_read(rt5645->component, RT5645_A_JD_CTRL1) & 0x0020;
+		break;
 	default: /* read rt5645 jd1_1 status */
-		val = snd_soc_component_read32(rt5645->component, RT5645_INT_IRQ_ST) & 0x1000;
+		val = snd_soc_component_read(rt5645->component, RT5645_INT_IRQ_ST) & 0x1000;
 		break;
 
 	}
@@ -3281,7 +3284,7 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 	} else if (!val && rt5645->jack_type != 0) {
 		/* for push button and jack out */
 		btn_type = 0;
-		if (snd_soc_component_read32(rt5645->component, RT5645_INT_IRQ_ST) & 0x4) {
+		if (snd_soc_component_read(rt5645->component, RT5645_INT_IRQ_ST) & 0x4) {
 			/* button pressed */
 			report = SND_JACK_HEADSET;
 			btn_type = rt5645_button_detect(rt5645->component);
@@ -3603,7 +3606,7 @@ static const struct rt5645_platform_data intel_braswell_platform_data = {
 static const struct rt5645_platform_data buddy_platform_data = {
 	.dmic1_data_pin = RT5645_DMIC_DATA_GPIO5,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
-	.jd_mode = 3,
+	.jd_mode = 4,
 	.level_trigger_irq = true,
 };
 
@@ -3622,6 +3625,12 @@ static const struct rt5645_platform_data asus_t100ha_platform_data = {
 	.inv_jd1_1 = true,
 };
 
+static const struct rt5645_platform_data asus_t101ha_platform_data = {
+	.dmic1_data_pin = RT5645_DMIC_DATA_IN2N,
+	.dmic2_data_pin = RT5645_DMIC2_DISABLE,
+	.jd_mode = 3,
+};
+
 static const struct rt5645_platform_data lenovo_ideapad_miix_310_pdata = {
 	.jd_mode = 3,
 	.in2_diff = true,
@@ -3634,6 +3643,12 @@ static const struct rt5645_platform_data jd_mode3_platform_data = {
 static const struct rt5645_platform_data lattepanda_board_platform_data = {
 	.jd_mode = 2,
 	.inv_jd1_1 = true
+};
+
+static const struct rt5645_platform_data kahlee_platform_data = {
+	.dmic1_data_pin = RT5645_DMIC_DATA_GPIO5,
+	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
+	.jd_mode = 3,
 };
 
 static const struct dmi_system_id dmi_platform_data[] = {
@@ -3700,6 +3715,14 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		.driver_data = (void *)&asus_t100ha_platform_data,
 	},
 	{
+		.ident = "ASUS T101HA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "T101HA"),
+		},
+		.driver_data = (void *)&asus_t101ha_platform_data,
+	},
+	{
 		.ident = "MINIX Z83-4",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "MINIX"),
@@ -3741,6 +3764,21 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		  DMI_EXACT_MATCH(DMI_BOARD_VERSION, "Default string"),
 		},
 		.driver_data = (void *)&lattepanda_board_platform_data,
+	},
+	{
+		.ident = "Chrome Kahlee",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Kahlee"),
+		},
+		.driver_data = (void *)&kahlee_platform_data,
+	},
+	{
+		.ident = "Medion E1239T",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "MEDION"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "E1239T MD60568"),
+		},
+		.driver_data = (void *)&intel_braswell_platform_data,
 	},
 	{ }
 };
@@ -3999,6 +4037,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 					   RT5645_JD1_MODE_1);
 			break;
 		case 3:
+		case 4:
 			regmap_update_bits(rt5645->regmap, RT5645_A_JD_CTRL1,
 					   RT5645_JD1_MODE_MASK,
 					   RT5645_JD1_MODE_2);

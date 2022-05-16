@@ -36,9 +36,9 @@
 static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *pos);
 
-static const struct file_operations proc_atm_dev_ops = {
-	.read =		proc_dev_atm_read,
-	.llseek =	noop_llseek,
+static const struct proc_ops atm_dev_proc_ops = {
+	.proc_read	= proc_dev_atm_read,
+	.proc_lseek	= noop_llseek,
 };
 
 static void add_stats(struct seq_file *seq, const char *aal,
@@ -134,8 +134,7 @@ static void vcc_seq_stop(struct seq_file *seq, void *v)
 static void *vcc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	v = vcc_walk(seq, 1);
-	if (v)
-		(*pos)++;
+	(*pos)++;
 	return v;
 }
 
@@ -360,7 +359,7 @@ int atm_proc_dev_register(struct atm_dev *dev)
 		goto err_out;
 
 	dev->proc_entry = proc_create_data(dev->proc_name, 0, atm_proc_root,
-					   &proc_atm_dev_ops, dev);
+					   &atm_dev_proc_ops, dev);
 	if (!dev->proc_entry)
 		goto err_free_name;
 	return 0;

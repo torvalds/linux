@@ -4,13 +4,13 @@
 #define __WCD9335_H__
 
 /*
- * WCD9335 register base can change according to the mode it works in
- * in slimbus mode the reg base starts from 0x800
- * in i2s/i2c mode the reg base is 0x0
+ * WCD9335 register base can change according to the mode it works in.
+ * In slimbus mode the reg base starts from 0x800.
+ * In i2s/i2c mode the reg base is 0x0.
  */
-#define WCD9335_REG(pg, r)	((pg << 12) | (r) | 0x800)
+#define WCD9335_REG(pg, r)	((pg << 8) | (r))
 #define WCD9335_REG_OFFSET(r)	(r & 0xFF)
-#define WCD9335_PAGE_OFFSET(r)	((r >> 12) & 0xFF)
+#define WCD9335_PAGE_OFFSET(r)	((r >> 8) & 0xFF)
 
 /* Page-0 Registers */
 #define WCD9335_PAGE0_PAGE_REGISTER		WCD9335_REG(0x00, 0x000)
@@ -600,7 +600,8 @@
 #define WCD9335_CDC_CLK_RST_CTRL_FS_CNT_ENABLE	BIT(0)
 #define WCD9335_CDC_CLK_RST_CTRL_FS_CNT_DISABLE	0
 #define WCD9335_CDC_TOP_TOP_CFG1	WCD9335_REG(0x0d, 0x082)
-#define WCD9335_MAX_REGISTER	WCD9335_REG(0x80, 0x0FF)
+#define WCD9335_MAX_REGISTER	0xffff
+#define WCD9335_SEL_REGISTER	0x800
 
 /* SLIMBUS Slave Registers */
 #define WCD9335_SLIM_PGD_PORT_INT_EN0	WCD9335_REG(0, 0x30)

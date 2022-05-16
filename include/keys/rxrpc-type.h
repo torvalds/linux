@@ -28,7 +28,7 @@ struct rxkad_key {
 	u8	primary_flag;		/* T if key for primary cell for this user */
 	u16	ticket_len;		/* length of ticket[] */
 	u8	session_key[8];		/* DES session key */
-	u8	ticket[0];		/* the encrypted ticket */
+	u8	ticket[];		/* the encrypted ticket */
 };
 
 /*
@@ -100,7 +100,7 @@ struct rxrpc_key_data_v1 {
 	u32		expiry;			/* time_t */
 	u32		kvno;
 	u8		session_key[8];
-	u8		ticket[0];
+	u8		ticket[];
 };
 
 /*

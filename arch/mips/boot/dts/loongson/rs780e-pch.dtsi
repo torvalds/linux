@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/ {
+	bus@10000000 {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0 0x10000000 0 0x10000000 0 0x10000000
+				0 0x40000000 0 0x40000000 0 0x40000000
+				0xfd 0xfe000000 0xfd 0xfe000000  0 0x2000000 /* PCI Config Space */>;
+
+		pci@1a000000 {
+			compatible = "loongson,rs780e-pci";
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			reg = <0 0x1a000000 0 0x02000000>;
+
+			ranges = <0x01000000 0 0x00004000 0 0x18004000 0 0x0000c000>,
+				 <0x02000000 0 0x40000000 0 0x40000000 0 0x40000000>;
+		};
+
+		isa {
+			compatible = "isa";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <1 0 0 0x18000000 0x4000>;
+
+			rtc0: rtc@70 {
+				compatible = "motorola,mc146818";
+				reg = <1 0x70 0x8>;
+				interrupts = <8>;
+				interrupt-parent = <&htpic>;
+			};
+
+			acpi@800 {
+				compatible = "loongson,rs780e-acpi";
+				reg = <1 0x800 0x100>;
+			};
+		};
+	};
+};

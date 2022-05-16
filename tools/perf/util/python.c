@@ -6,6 +6,7 @@
 #include <linux/err.h>
 #include <perf/cpumap.h>
 #include <traceevent/event-parse.h>
+#include <perf/mmap.h>
 #include "evlist.h"
 #include "callchain.h"
 #include "evsel.h"
@@ -14,9 +15,11 @@
 #include "thread_map.h"
 #include "trace-event.h"
 #include "mmap.h"
+#include "stat.h"
+#include "metricgroup.h"
 #include "util/env.h"
 #include <internal/lib.h>
-#include "../perf-sys.h"
+#include "util.h"
 
 #if PY_MAJOR_VERSION < 3
 #define _PyUnicode_FromString(arg) \
@@ -60,10 +63,28 @@ int parse_callchain_record(const char *arg __maybe_unused,
 struct perf_env perf_env;
 
 /*
+ * Add this one here not to drag util/stat-shadow.c
+ */
+void perf_stat__collect_metric_expr(struct evlist *evsel_list)
+{
+}
+
+/*
+ * Add this one here not to drag util/metricgroup.c
+ */
+int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
+				    struct rblist *new_metric_events,
+				    struct rblist *old_metric_events)
+{
+	return 0;
+}
+
+/*
  * Support debug printing even though util/debug.c is not linked.  That means
  * implementing 'verbose' and 'eprintf'.
  */
 int verbose;
+int debug_peo_args;
 
 int eprintf(int level, int var, const char *fmt, ...);
 
@@ -799,7 +820,7 @@ static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
 
 static void pyrf_evsel__delete(struct pyrf_evsel *pevsel)
 {
-	perf_evsel__exit(&pevsel->evsel);
+	evsel__exit(&pevsel->evsel);
 	Py_TYPE(pevsel)->tp_free((PyObject*)pevsel);
 }
 
@@ -1022,10 +1043,10 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	if (!md)
 		return NULL;
 
-	if (perf_mmap__read_init(md) < 0)
+	if (perf_mmap__read_init(&md->core) < 0)
 		goto end;
 
-	event = perf_mmap__read_event(md);
+	event = perf_mmap__read_event(&md->core);
 	if (event != NULL) {
 		PyObject *pyevent = pyrf_event__new(event);
 		struct pyrf_event *pevent = (struct pyrf_event *)pyevent;
@@ -1042,10 +1063,10 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 
 		pevent->evsel = evsel;
 
-		err = perf_evsel__parse_sample(evsel, event, &pevent->sample);
+		err = evsel__parse_sample(evsel, event, &pevent->sample);
 
 		/* Consume the even only after we parsed it out. */
-		perf_mmap__consume(md);
+		perf_mmap__consume(&md->core);
 
 		if (err)
 			return PyErr_Format(PyExc_OSError,

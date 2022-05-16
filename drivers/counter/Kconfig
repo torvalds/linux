@@ -49,6 +49,17 @@ config STM32_LPTIMER_CNT
 	  To compile this driver as a module, choose M here: the
 	  module will be called stm32-lptimer-cnt.
 
+config TI_EQEP
+	tristate "TI eQEP counter driver"
+	depends on (SOC_AM33XX || COMPILE_TEST)
+	select REGMAP_MMIO
+	help
+	  Select this option to enable the Texas Instruments Enhanced Quadrature
+	  Encoder Pulse (eQEP) counter driver.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ti-eqep.
+
 config FTM_QUADDEC
 	tristate "Flex Timer Module Quadrature decoder driver"
 	depends on HAS_IOMEM && OF
@@ -58,5 +69,16 @@ config FTM_QUADDEC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ftm-quaddec.
+
+config MICROCHIP_TCB_CAPTURE
+	tristate "Microchip Timer Counter Capture driver"
+	depends on HAS_IOMEM && OF
+	select REGMAP_MMIO
+	help
+	  Select this option to enable the Microchip Timer Counter Block
+	  capture driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called microchip-tcb-capture.
 
 endif # COUNTER

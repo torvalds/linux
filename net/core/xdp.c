@@ -11,11 +11,13 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/rhashtable.h>
+#include <linux/bug.h>
 #include <net/page_pool.h>
 
 #include <net/xdp.h>
 #include <net/xdp_priv.h> /* struct xdp_mem_allocator */
 #include <trace/events/xdp.h>
+#include <net/xdp_sock_drv.h>
 
 #define REG_STATE_NEW		0x0
 #define REG_STATE_REGISTERED	0x1
@@ -36,7 +38,7 @@ static u32 xdp_mem_id_hashfn(const void *data, u32 len, u32 seed)
 	const u32 *k = data;
 	const u32 key = *k;
 
-	BUILD_BUG_ON(FIELD_SIZEOF(struct xdp_mem_allocator, mem.id)
+	BUILD_BUG_ON(sizeof_field(struct xdp_mem_allocator, mem.id)
 		     != sizeof(u32));
 
 	/* Use cyclic increasing ID as direct hash key */
@@ -56,7 +58,7 @@ static const struct rhashtable_params mem_id_rht_params = {
 	.nelem_hint = 64,
 	.head_offset = offsetof(struct xdp_mem_allocator, node),
 	.key_offset  = offsetof(struct xdp_mem_allocator, mem.id),
-	.key_len = FIELD_SIZEOF(struct xdp_mem_allocator, mem.id),
+	.key_len = sizeof_field(struct xdp_mem_allocator, mem.id),
 	.max_size = MEM_ID_MAX,
 	.min_size = 8,
 	.automatic_shrinking = true,
@@ -70,77 +72,42 @@ static void __xdp_mem_allocator_rcu_free(struct rcu_head *rcu)
 
 	xa = container_of(rcu, struct xdp_mem_allocator, rcu);
 
-	/* Allocator have indicated safe to remove before this is called */
-	if (xa->mem.type == MEM_TYPE_PAGE_POOL)
-		page_pool_free(xa->page_pool);
-
 	/* Allow this ID to be reused */
 	ida_simple_remove(&mem_id_pool, xa->mem.id);
-
-	/* Poison memory */
-	xa->mem.id = 0xFFFF;
-	xa->mem.type = 0xF0F0;
-	xa->allocator = (void *)0xDEAD9001;
 
 	kfree(xa);
 }
 
-static bool __mem_id_disconnect(int id, bool force)
+static void mem_xa_remove(struct xdp_mem_allocator *xa)
+{
+	trace_mem_disconnect(xa);
+
+	if (!rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
+		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
+}
+
+static void mem_allocator_disconnect(void *allocator)
 {
 	struct xdp_mem_allocator *xa;
-	bool safe_to_remove = true;
+	struct rhashtable_iter iter;
 
 	mutex_lock(&mem_id_lock);
 
-	xa = rhashtable_lookup_fast(mem_id_ht, &id, mem_id_rht_params);
-	if (!xa) {
-		mutex_unlock(&mem_id_lock);
-		WARN(1, "Request remove non-existing id(%d), driver bug?", id);
-		return true;
-	}
-	xa->disconnect_cnt++;
+	rhashtable_walk_enter(mem_id_ht, &iter);
+	do {
+		rhashtable_walk_start(&iter);
 
-	/* Detects in-flight packet-pages for page_pool */
-	if (xa->mem.type == MEM_TYPE_PAGE_POOL)
-		safe_to_remove = page_pool_request_shutdown(xa->page_pool);
+		while ((xa = rhashtable_walk_next(&iter)) && !IS_ERR(xa)) {
+			if (xa->allocator == allocator)
+				mem_xa_remove(xa);
+		}
 
-	trace_mem_disconnect(xa, safe_to_remove, force);
+		rhashtable_walk_stop(&iter);
 
-	if ((safe_to_remove || force) &&
-	    !rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
-		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
+	} while (xa == ERR_PTR(-EAGAIN));
+	rhashtable_walk_exit(&iter);
 
 	mutex_unlock(&mem_id_lock);
-	return (safe_to_remove|force);
-}
-
-#define DEFER_TIME (msecs_to_jiffies(1000))
-#define DEFER_WARN_INTERVAL (30 * HZ)
-#define DEFER_MAX_RETRIES 120
-
-static void mem_id_disconnect_defer_retry(struct work_struct *wq)
-{
-	struct delayed_work *dwq = to_delayed_work(wq);
-	struct xdp_mem_allocator *xa = container_of(dwq, typeof(*xa), defer_wq);
-	bool force = false;
-
-	if (xa->disconnect_cnt > DEFER_MAX_RETRIES)
-		force = true;
-
-	if (__mem_id_disconnect(xa->mem.id, force))
-		return;
-
-	/* Periodic warning */
-	if (time_after_eq(jiffies, xa->defer_warn)) {
-		int sec = (s32)((u32)jiffies - (u32)xa->defer_start) / HZ;
-
-		pr_warn("%s() stalled mem.id=%u shutdown %d attempts %d sec\n",
-			__func__, xa->mem.id, xa->disconnect_cnt, sec);
-		xa->defer_warn = jiffies + DEFER_WARN_INTERVAL;
-	}
-
-	/* Still not ready to be disconnected, retry later */
-	schedule_delayed_work(&xa->defer_wq, DEFER_TIME);
 }
 
 void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
@@ -153,38 +120,18 @@ void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 		return;
 	}
 
-	if (xdp_rxq->mem.type != MEM_TYPE_PAGE_POOL &&
-	    xdp_rxq->mem.type != MEM_TYPE_ZERO_COPY) {
-		return;
-	}
-
 	if (id == 0)
 		return;
 
-	if (__mem_id_disconnect(id, false))
-		return;
-
-	/* Could not disconnect, defer new disconnect attempt to later */
-	mutex_lock(&mem_id_lock);
-
-	xa = rhashtable_lookup_fast(mem_id_ht, &id, mem_id_rht_params);
-	if (!xa) {
-		mutex_unlock(&mem_id_lock);
-		return;
+	if (xdp_rxq->mem.type == MEM_TYPE_PAGE_POOL) {
+		rcu_read_lock();
+		xa = rhashtable_lookup(mem_id_ht, &id, mem_id_rht_params);
+		page_pool_destroy(xa->page_pool);
+		rcu_read_unlock();
 	}
-	xa->defer_start = jiffies;
-	xa->defer_warn  = jiffies + DEFER_WARN_INTERVAL;
-
-	INIT_DELAYED_WORK(&xa->defer_wq, mem_id_disconnect_defer_retry);
-	mutex_unlock(&mem_id_lock);
-	schedule_delayed_work(&xa->defer_wq, DEFER_TIME);
 }
 EXPORT_SYMBOL_GPL(xdp_rxq_info_unreg_mem_model);
 
-/* This unregister operation will also cleanup and destroy the
- * allocator. The page_pool_free() operation is first called when it's
- * safe to remove, possibly deferred to a workqueue.
- */
 void xdp_rxq_info_unreg(struct xdp_rxq_info *xdp_rxq)
 {
 	/* Simplify driver cleanup code paths, allow unreg "unused" */
@@ -331,7 +278,7 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 	xdp_rxq->mem.type = type;
 
 	if (!allocator) {
-		if (type == MEM_TYPE_PAGE_POOL || type == MEM_TYPE_ZERO_COPY)
+		if (type == MEM_TYPE_PAGE_POOL)
 			return -EINVAL; /* Setup time check page_pool req */
 		return 0;
 	}
@@ -371,7 +318,7 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 	}
 
 	if (type == MEM_TYPE_PAGE_POOL)
-		page_pool_get(xdp_alloc->page_pool);
+		page_pool_use_xdp_mem(allocator, mem_allocator_disconnect);
 
 	mutex_unlock(&mem_id_lock);
 
@@ -386,12 +333,12 @@ EXPORT_SYMBOL_GPL(xdp_rxq_info_reg_mem_model);
 
 /* XDP RX runs under NAPI protection, and in different delivery error
  * scenarios (e.g. queue full), it is possible to return the xdp_frame
- * while still leveraging this protection.  The @napi_direct boolian
+ * while still leveraging this protection.  The @napi_direct boolean
  * is used for those calls sites.  Thus, allowing for faster recycling
  * of xdp_frames/pages in those cases.
  */
 static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
-			 unsigned long handle)
+			 struct xdp_buff *xdp)
 {
 	struct xdp_mem_allocator *xa;
 	struct page *page;
@@ -402,15 +349,8 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
 		/* mem->id is valid, checked in xdp_rxq_info_reg_mem_model() */
 		xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
 		page = virt_to_head_page(data);
-		if (likely(xa)) {
-			napi_direct &= !xdp_return_frame_no_direct();
-			page_pool_put_page(xa->page_pool, page, napi_direct);
-		} else {
-			/* Hopefully stack show who to blame for late return */
-			WARN_ONCE(1, "page_pool gone mem.id=%d", mem->id);
-			trace_mem_return_failed(mem, page);
-			put_page(page);
-		}
+		napi_direct &= !xdp_return_frame_no_direct();
+		page_pool_put_full_page(xa->page_pool, page, napi_direct);
 		rcu_read_unlock();
 		break;
 	case MEM_TYPE_PAGE_SHARED:
@@ -420,36 +360,33 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
 		page = virt_to_page(data); /* Assumes order0 page*/
 		put_page(page);
 		break;
-	case MEM_TYPE_ZERO_COPY:
+	case MEM_TYPE_XSK_BUFF_POOL:
 		/* NB! Only valid from an xdp_buff! */
-		rcu_read_lock();
-		/* mem->id is valid, checked in xdp_rxq_info_reg_mem_model() */
-		xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
-		xa->zc_alloc->free(xa->zc_alloc, handle);
-		rcu_read_unlock();
+		xsk_buff_free(xdp);
+		break;
 	default:
 		/* Not possible, checked in xdp_rxq_info_reg_mem_model() */
+		WARN(1, "Incorrect XDP memory type (%d) usage", mem->type);
 		break;
 	}
 }
 
 void xdp_return_frame(struct xdp_frame *xdpf)
 {
-	__xdp_return(xdpf->data, &xdpf->mem, false, 0);
+	__xdp_return(xdpf->data, &xdpf->mem, false, NULL);
 }
 EXPORT_SYMBOL_GPL(xdp_return_frame);
 
 void xdp_return_frame_rx_napi(struct xdp_frame *xdpf)
 {
-	__xdp_return(xdpf->data, &xdpf->mem, true, 0);
+	__xdp_return(xdpf->data, &xdpf->mem, true, NULL);
 }
 EXPORT_SYMBOL_GPL(xdp_return_frame_rx_napi);
 
 void xdp_return_buff(struct xdp_buff *xdp)
 {
-	__xdp_return(xdp->data, &xdp->rxq->mem, true, xdp->handle);
+	__xdp_return(xdp->data, &xdp->rxq->mem, true, xdp);
 }
-EXPORT_SYMBOL_GPL(xdp_return_buff);
 
 /* Only called for MEM_TYPE_PAGE_POOL see xdp.h */
 void __xdp_release_frame(void *data, struct xdp_mem_info *mem)
@@ -465,27 +402,6 @@ void __xdp_release_frame(void *data, struct xdp_mem_info *mem)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(__xdp_release_frame);
-
-int xdp_attachment_query(struct xdp_attachment_info *info,
-			 struct netdev_bpf *bpf)
-{
-	bpf->prog_id = info->prog ? info->prog->aux->id : 0;
-	bpf->prog_flags = info->prog ? info->flags : 0;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(xdp_attachment_query);
-
-bool xdp_attachment_flags_ok(struct xdp_attachment_info *info,
-			     struct netdev_bpf *bpf)
-{
-	if (info->prog && (bpf->flags ^ info->flags) & XDP_FLAGS_MODES) {
-		NL_SET_ERR_MSG(bpf->extack,
-			       "program loaded with different flags");
-		return false;
-	}
-	return true;
-}
-EXPORT_SYMBOL_GPL(xdp_attachment_flags_ok);
 
 void xdp_attachment_setup(struct xdp_attachment_info *info,
 			  struct netdev_bpf *bpf)
@@ -528,9 +444,17 @@ struct xdp_frame *xdp_convert_zc_to_xdp_frame(struct xdp_buff *xdp)
 	xdpf->len = totsize - metasize;
 	xdpf->headroom = 0;
 	xdpf->metasize = metasize;
+	xdpf->frame_sz = PAGE_SIZE;
 	xdpf->mem.type = MEM_TYPE_PAGE_ORDER0;
 
-	xdp_return_buff(xdp);
+	xsk_buff_free(xdp);
 	return xdpf;
 }
 EXPORT_SYMBOL_GPL(xdp_convert_zc_to_xdp_frame);
+
+/* Used by XDP_WARN macro, to avoid inlining WARN() in fast-path */
+void xdp_warn(const char *msg, const char *func, const int line)
+{
+	WARN(1, "XDP_WARN: %s(line:%d): %s\n", func, line, msg);
+};
+EXPORT_SYMBOL_GPL(xdp_warn);

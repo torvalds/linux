@@ -26,6 +26,30 @@ Description:
 		Read-only attribute common to all SoCs. Contains SoC family name
 		(e.g. DB8500).
 
+		On many of ARM based silicon with SMCCC v1.2+ compliant firmware
+		this will contain the JEDEC JEP106 manufacturer’s identification
+		code. The format is "jep106:XXYY" where XX is identity code and
+		YY is continuation code.
+
+		This manufacturer’s identification code is defined by one
+		or more eight (8) bit fields, each consisting of seven (7)
+		data bits plus one (1) odd parity bit. It is a single field,
+		limiting the possible number of vendors to 126. To expand
+		the maximum number of identification codes, a continuation
+		scheme has been defined.
+
+		The specified mechanism is that an identity code of 0x7F
+		represents the "continuation code" and implies the presence
+		of an additional identity code field, and this mechanism
+		may be extended to multiple continuation codes followed
+		by the manufacturer's identity code.
+
+		For example, ARM has identity code 0x7F 0x7F 0x7F 0x7F 0x3B,
+		which is code 0x3B on the fifth 'page'. This is shortened
+		as JEP106 identity code of 0x3B and a continuation code of
+		0x4 to represent the four continuation codes preceding the
+		identity code.
+
 What:		/sys/devices/socX/serial_number
 Date:		January 2019
 contact:	Bjorn Andersson <bjorn.andersson@linaro.org>
@@ -39,6 +63,12 @@ contact:	Lee Jones <lee.jones@linaro.org>
 Description:
 		Read-only attribute supported by most SoCs. In the case of
 		ST-Ericsson's chips this contains the SoC serial number.
+
+		On many of ARM based silicon with SMCCC v1.2+ compliant firmware
+		this will contain the SOC ID appended to the family attribute
+		to ensure there is no conflict in this namespace across various
+		vendors. The format is "jep106:XXYY:ZZZZ" where XX is identity
+		code, YY is continuation code and ZZZZ is the SOC ID.
 
 What:		/sys/devices/socX/revision
 Date:		January 2012

@@ -194,8 +194,8 @@
 				    "Headphone", "Headphone Jack";
 	/* Board level routing. First 2 routes copied from SoC level */
 	simple-audio-card,routing =
-		"Left DAC", "AIF1 Slot 0 Left",
-		"Right DAC", "AIF1 Slot 0 Right",
+		"Left DAC", "DACL",
+		"Right DAC", "DACR",
 		"HP", "HPCOM",
 		"Headphone Jack", "HP",
 		"MIC1", "Microphone Jack",

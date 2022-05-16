@@ -35,6 +35,8 @@
 #define CLOCK_INVALID -1
 #endif
 
+#define NSEC_PER_SEC 1000000000LL
+
 /* clock_adjtime is not available in GLIBC < 2.14 */
 #if !__GLIBC_PREREQ(2, 14)
 #include <sys/syscall.h>
@@ -132,6 +134,8 @@ static void usage(char *progname)
 		"            1 - external time stamp\n"
 		"            2 - periodic output\n"
 		" -p val     enable output with a period of 'val' nanoseconds\n"
+		" -H val     set output phase to 'val' nanoseconds (requires -p)\n"
+		" -w val     set output pulse width to 'val' nanoseconds (requires -p)\n"
 		" -P val     enable or disable (val=1|0) the system clock PPS\n"
 		" -s         set the ptp clock time from the system time\n"
 		" -S         set the system time from the ptp clock time\n"
@@ -169,7 +173,6 @@ int main(int argc, char *argv[])
 	int list_pins = 0;
 	int pct_offset = 0;
 	int n_samples = 0;
-	int perout = -1;
 	int pin_index = -1, pin_func;
 	int pps = -1;
 	int seconds = 0;
@@ -177,10 +180,13 @@ int main(int argc, char *argv[])
 
 	int64_t t1, t2, tp;
 	int64_t interval, offset;
+	int64_t perout_phase = -1;
+	int64_t pulsewidth = -1;
+	int64_t perout = -1;
 
 	progname = strrchr(argv[0], '/');
 	progname = progname ? 1+progname : argv[0];
-	while (EOF != (c = getopt(argc, argv, "cd:e:f:ghi:k:lL:p:P:sSt:T:z"))) {
+	while (EOF != (c = getopt(argc, argv, "cd:e:f:ghH:i:k:lL:p:P:sSt:T:w:z"))) {
 		switch (c) {
 		case 'c':
 			capabilities = 1;
@@ -196,6 +202,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'g':
 			gettime = 1;
+			break;
+		case 'H':
+			perout_phase = atoll(optarg);
 			break;
 		case 'i':
 			index = atoi(optarg);
@@ -215,7 +224,7 @@ int main(int argc, char *argv[])
 			}
 			break;
 		case 'p':
-			perout = atoi(optarg);
+			perout = atoll(optarg);
 			break;
 		case 'P':
 			pps = atoi(optarg);
@@ -232,6 +241,9 @@ int main(int argc, char *argv[])
 		case 'T':
 			settime = 3;
 			seconds = atoi(optarg);
+			break;
+		case 'w':
+			pulsewidth = atoi(optarg);
 			break;
 		case 'z':
 			flagtest = 1;
@@ -269,14 +281,16 @@ int main(int argc, char *argv[])
 			       "  %d programmable periodic signals\n"
 			       "  %d pulse per second\n"
 			       "  %d programmable pins\n"
-			       "  %d cross timestamping\n",
+			       "  %d cross timestamping\n"
+			       "  %d adjust_phase\n",
 			       caps.max_adj,
 			       caps.n_alarm,
 			       caps.n_ext_ts,
 			       caps.n_per_out,
 			       caps.pps,
 			       caps.n_pins,
-			       caps.cross_timestamping);
+			       caps.cross_timestamping,
+			       caps.adjust_phase);
 		}
 	}
 
@@ -389,6 +403,16 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (pulsewidth >= 0 && perout < 0) {
+		puts("-w can only be specified together with -p");
+		return -1;
+	}
+
+	if (perout_phase >= 0 && perout < 0) {
+		puts("-H can only be specified together with -p");
+		return -1;
+	}
+
 	if (perout >= 0) {
 		if (clock_gettime(clkid, &ts)) {
 			perror("clock_gettime");
@@ -396,11 +420,24 @@ int main(int argc, char *argv[])
 		}
 		memset(&perout_request, 0, sizeof(perout_request));
 		perout_request.index = index;
-		perout_request.start.sec = ts.tv_sec + 2;
-		perout_request.start.nsec = 0;
-		perout_request.period.sec = 0;
-		perout_request.period.nsec = perout;
-		if (ioctl(fd, PTP_PEROUT_REQUEST, &perout_request)) {
+		perout_request.period.sec = perout / NSEC_PER_SEC;
+		perout_request.period.nsec = perout % NSEC_PER_SEC;
+		perout_request.flags = 0;
+		if (pulsewidth >= 0) {
+			perout_request.flags |= PTP_PEROUT_DUTY_CYCLE;
+			perout_request.on.sec = pulsewidth / NSEC_PER_SEC;
+			perout_request.on.nsec = pulsewidth % NSEC_PER_SEC;
+		}
+		if (perout_phase >= 0) {
+			perout_request.flags |= PTP_PEROUT_PHASE;
+			perout_request.phase.sec = perout_phase / NSEC_PER_SEC;
+			perout_request.phase.nsec = perout_phase % NSEC_PER_SEC;
+		} else {
+			perout_request.start.sec = ts.tv_sec + 2;
+			perout_request.start.nsec = 0;
+		}
+
+		if (ioctl(fd, PTP_PEROUT_REQUEST2, &perout_request)) {
 			perror("PTP_PEROUT_REQUEST");
 		} else {
 			puts("periodic output request okay");

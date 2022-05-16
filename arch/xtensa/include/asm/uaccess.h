@@ -35,7 +35,7 @@
 #define get_fs()	(current->thread.current_ds)
 #define set_fs(val)	(current->thread.current_ds = (val))
 
-#define segment_eq(a, b)	((a).seg == (b).seg)
+#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
 
 #define __kernel_ok (uaccess_kernel())
 #define __user_ok(addr, size) \
@@ -84,7 +84,7 @@ extern long __put_user_bad(void);
 #define __put_user_check(x, ptr, size)					\
 ({									\
 	long __pu_err = -EFAULT;					\
-	__typeof__(*(ptr)) *__pu_addr = (ptr);				\
+	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
 	if (access_ok(__pu_addr, size))			\
 		__put_user_size((x), __pu_addr, (size), __pu_err);	\
 	__pu_err;							\
@@ -132,13 +132,13 @@ do {									\
 #define __check_align_1  ""
 
 #define __check_align_2				\
-	"   _bbci.l %[addr], 0, 1f	\n"	\
+	"   _bbci.l %[mem] * 0, 1f	\n"	\
 	"   movi    %[err], %[efault]	\n"	\
 	"   _j      2f			\n"
 
 #define __check_align_4				\
-	"   _bbsi.l %[addr], 0, 0f	\n"	\
-	"   _bbci.l %[addr], 1, 1f	\n"	\
+	"   _bbsi.l %[mem] * 0, 0f	\n"	\
+	"   _bbci.l %[mem] * 0 + 1, 1f	\n"	\
 	"0: movi    %[err], %[efault]	\n"	\
 	"   _j      2f			\n"
 
@@ -154,7 +154,7 @@ do {									\
 #define __put_user_asm(x_, addr_, err_, align, insn, cb)\
 __asm__ __volatile__(					\
 	__check_align_##align				\
-	"1: "insn"  %[x], %[addr], 0	\n"		\
+	"1: "insn"  %[x], %[mem]	\n"		\
 	"2:				\n"		\
 	"   .section  .fixup,\"ax\"	\n"		\
 	"   .align 4			\n"		\
@@ -167,8 +167,8 @@ __asm__ __volatile__(					\
 	"   .section  __ex_table,\"a\"	\n"		\
 	"   .long	1b, 5b		\n"		\
 	"   .previous"					\
-	:[err] "+r"(err_), [tmp] "=r"(cb)		\
-	:[x] "r"(x_), [addr] "r"(addr_), [efault] "i"(-EFAULT))
+	:[err] "+r"(err_), [tmp] "=r"(cb), [mem] "=m"(*(addr_))		\
+	:[x] "r"(x_), [efault] "i"(-EFAULT))
 
 #define __get_user_nocheck(x, ptr, size)			\
 ({								\
@@ -180,11 +180,11 @@ __asm__ __volatile__(					\
 #define __get_user_check(x, ptr, size)					\
 ({									\
 	long __gu_err = -EFAULT;					\
-	const __typeof__(*(ptr)) *__gu_addr = (ptr);			\
+	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
 	if (access_ok(__gu_addr, size))					\
 		__get_user_size((x), __gu_addr, (size), __gu_err);	\
 	else								\
-		(x) = 0;						\
+		(x) = (__typeof__(*(ptr)))0;				\
 	__gu_err;							\
 })
 
@@ -202,13 +202,15 @@ do {									\
 		u64 __x;						\
 		if (unlikely(__copy_from_user(&__x, ptr, 8))) {		\
 			retval = -EFAULT;				\
-			(x) = 0;					\
+			(x) = (__typeof__(*(ptr)))0;			\
 		} else {						\
-			(x) = *(__force __typeof__((ptr)))&__x;		\
+			(x) = *(__force __typeof__(*(ptr)) *)&__x;	\
 		}							\
 		break;							\
 	}								\
-	default: (x) = 0; __get_user_bad();				\
+	default:							\
+		(x) = (__typeof__(*(ptr)))0;				\
+		__get_user_bad();					\
 	}								\
 } while (0)
 
@@ -222,7 +224,7 @@ do {							\
 	u32 __x = 0;					\
 	__asm__ __volatile__(				\
 		__check_align_##align			\
-		"1: "insn"  %[x], %[addr], 0	\n"	\
+		"1: "insn"  %[x], %[mem]	\n"	\
 		"2:				\n"	\
 		"   .section  .fixup,\"ax\"	\n"	\
 		"   .align 4			\n"	\
@@ -236,7 +238,7 @@ do {							\
 		"   .long	1b, 5b		\n"	\
 		"   .previous"				\
 		:[err] "+r"(err_), [tmp] "=r"(cb), [x] "+r"(__x) \
-		:[addr] "r"(addr_), [efault] "i"(-EFAULT)); \
+		:[mem] "m"(*(addr_)), [efault] "i"(-EFAULT)); \
 	(x_) = (__force __typeof__(*(addr_)))__x;	\
 } while (0)
 
@@ -270,15 +272,15 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
  */
 
 static inline unsigned long
-__xtensa_clear_user(void *addr, unsigned long size)
+__xtensa_clear_user(void __user *addr, unsigned long size)
 {
-	if (!__memset(addr, 0, size))
+	if (!__memset((void __force *)addr, 0, size))
 		return size;
 	return 0;
 }
 
 static inline unsigned long
-clear_user(void *addr, unsigned long size)
+clear_user(void __user *addr, unsigned long size)
 {
 	if (access_ok(addr, size))
 		return __xtensa_clear_user(addr, size);
@@ -290,29 +292,27 @@ clear_user(void *addr, unsigned long size)
 
 #ifndef CONFIG_GENERIC_STRNCPY_FROM_USER
 
-extern long __strncpy_user(char *, const char *, long);
+extern long __strncpy_user(char *dst, const char __user *src, long count);
 
 static inline long
-strncpy_from_user(char *dst, const char *src, long count)
+strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	if (access_ok(src, 1))
 		return __strncpy_user(dst, src, count);
 	return -EFAULT;
 }
 #else
-long strncpy_from_user(char *dst, const char *src, long count);
+long strncpy_from_user(char *dst, const char __user *src, long count);
 #endif
 
 /*
  * Return the size of a string (including the ending 0!)
  */
-extern long __strnlen_user(const char *, long);
+extern long __strnlen_user(const char __user *str, long len);
 
-static inline long strnlen_user(const char *str, long len)
+static inline long strnlen_user(const char __user *str, long len)
 {
-	unsigned long top = __kernel_ok ? ~0UL : TASK_SIZE - 1;
-
-	if ((unsigned long)str > top)
+	if (!access_ok(str, 1))
 		return 0;
 	return __strnlen_user(str, len);
 }

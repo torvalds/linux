@@ -3,8 +3,10 @@
 
 #include <net/ip_tunnels.h>
 #include <net/ip6_tunnel.h>
+#include <net/inet_ecn.h>
 
 #include "spectrum_ipip.h"
+#include "reg.h"
 
 struct ip_tunnel_parm
 mlxsw_sp_ipip_netdev_parms4(const struct net_device *ol_dev)
@@ -338,3 +340,61 @@ static const struct mlxsw_sp_ipip_ops mlxsw_sp_ipip_gre4_ops = {
 const struct mlxsw_sp_ipip_ops *mlxsw_sp_ipip_ops_arr[] = {
 	[MLXSW_SP_IPIP_TYPE_GRE4] = &mlxsw_sp_ipip_gre4_ops,
 };
+
+static int mlxsw_sp_ipip_ecn_encap_init_one(struct mlxsw_sp *mlxsw_sp,
+					    u8 inner_ecn, u8 outer_ecn)
+{
+	char tieem_pl[MLXSW_REG_TIEEM_LEN];
+
+	mlxsw_reg_tieem_pack(tieem_pl, inner_ecn, outer_ecn);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tieem), tieem_pl);
+}
+
+int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp)
+{
+	int i;
+
+	/* Iterate over inner ECN values */
+	for (i = INET_ECN_NOT_ECT; i <= INET_ECN_CE; i++) {
+		u8 outer_ecn = INET_ECN_encapsulate(0, i);
+		int err;
+
+		err = mlxsw_sp_ipip_ecn_encap_init_one(mlxsw_sp, i, outer_ecn);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int mlxsw_sp_ipip_ecn_decap_init_one(struct mlxsw_sp *mlxsw_sp,
+					    u8 inner_ecn, u8 outer_ecn)
+{
+	char tidem_pl[MLXSW_REG_TIDEM_LEN];
+	bool trap_en, set_ce = false;
+	u8 new_inner_ecn;
+
+	trap_en = __INET_ECN_decapsulate(outer_ecn, inner_ecn, &set_ce);
+	new_inner_ecn = set_ce ? INET_ECN_CE : inner_ecn;
+
+	mlxsw_reg_tidem_pack(tidem_pl, outer_ecn, inner_ecn, new_inner_ecn,
+			     trap_en, trap_en ? MLXSW_TRAP_ID_DECAP_ECN0 : 0);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(tidem), tidem_pl);
+}
+
+int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp)
+{
+	int i, j, err;
+
+	/* Iterate over inner ECN values */
+	for (i = INET_ECN_NOT_ECT; i <= INET_ECN_CE; i++) {
+		/* Iterate over outer ECN values */
+		for (j = INET_ECN_NOT_ECT; j <= INET_ECN_CE; j++) {
+			err = mlxsw_sp_ipip_ecn_decap_init_one(mlxsw_sp, i, j);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}

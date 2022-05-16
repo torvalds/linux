@@ -1,5 +1,7 @@
 perf-y += header.o
-perf-y += sym-handling.o
+perf-y += machine.o
+perf-y += perf_regs.o
+perf-y += tsc.o
 perf-$(CONFIG_DWARF)     += dwarf-regs.o
 perf-$(CONFIG_LOCAL_LIBUNWIND) += unwind-libunwind.o
 perf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o

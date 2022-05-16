@@ -144,6 +144,7 @@ out:
 
 /**
  * mesh_set_ht_prot_mode - set correct HT protection mode
+ * @sdata: the (mesh) interface to handle
  *
  * Section 9.23.3.5 of IEEE 80211-2012 describes the protection rules for HT
  * mesh STA in a MBSS. Three HT protection modes are supported for now, non-HT
@@ -238,6 +239,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			    2 + sizeof(struct ieee80211_vht_operation) +
 			    ie_len_he_cap +
 			    2 + 1 + sizeof(struct ieee80211_he_operation) +
+				    sizeof(struct ieee80211_he_6ghz_oper) +
+			    2 + 1 + sizeof(struct ieee80211_he_6ghz_capa) +
 			    2 + 8 + /* peering IE */
 			    sdata->u.mesh.ie_len);
 	if (!skb)
@@ -328,7 +331,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		    mesh_add_vht_cap_ie(sdata, skb) ||
 		    mesh_add_vht_oper_ie(sdata, skb) ||
 		    mesh_add_he_cap_ie(sdata, skb, ie_len_he_cap) ||
-		    mesh_add_he_oper_ie(sdata, skb))
+		    mesh_add_he_oper_ie(sdata, skb) ||
+		    mesh_add_he_6ghz_cap_ie(sdata, skb))
 			goto free;
 	}
 
@@ -441,7 +445,9 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 					    elems->vht_cap_elem, sta);
 
 	ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband, elems->he_cap,
-					  elems->he_cap_len, sta);
+					  elems->he_cap_len,
+					  elems->he_6ghz_capa,
+					  sta);
 
 	if (bw != sta->sta.bandwidth)
 		changed |= IEEE80211_RC_BW_CHANGED;
@@ -694,7 +700,7 @@ void mesh_plink_timer(struct timer_list *t)
 			break;
 		}
 		reason = WLAN_REASON_MESH_MAX_RETRIES;
-		/* fall through */
+		fallthrough;
 	case NL80211_PLINK_CNF_RCVD:
 		/* confirm timer */
 		if (!reason)

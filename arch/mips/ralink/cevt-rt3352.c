@@ -82,12 +82,6 @@ static struct systick_device systick = {
 	},
 };
 
-static struct irqaction systick_irqaction = {
-	.handler = systick_interrupt,
-	.flags = IRQF_PERCPU | IRQF_TIMER,
-	.dev_id = &systick.dev,
-};
-
 static int systick_shutdown(struct clock_event_device *evt)
 {
 	struct systick_device *sdev;
@@ -95,7 +89,7 @@ static int systick_shutdown(struct clock_event_device *evt)
 	sdev = container_of(evt, struct systick_device, dev);
 
 	if (sdev->irq_requested)
-		free_irq(systick.dev.irq, &systick_irqaction);
+		free_irq(systick.dev.irq, &systick.dev);
 	sdev->irq_requested = 0;
 	iowrite32(0, systick.membase + SYSTICK_CONFIG);
 
@@ -104,12 +98,17 @@ static int systick_shutdown(struct clock_event_device *evt)
 
 static int systick_set_oneshot(struct clock_event_device *evt)
 {
+	const char *name = systick.dev.name;
 	struct systick_device *sdev;
+	int irq = systick.dev.irq;
 
 	sdev = container_of(evt, struct systick_device, dev);
 
-	if (!sdev->irq_requested)
-		setup_irq(systick.dev.irq, &systick_irqaction);
+	if (!sdev->irq_requested) {
+		if (request_irq(irq, systick_interrupt,
+				IRQF_PERCPU | IRQF_TIMER, name, &systick.dev))
+			pr_err("Failed to request irq %d (%s)\n", irq, name);
+	}
 	sdev->irq_requested = 1;
 	iowrite32(CFG_EXT_STK_EN | CFG_CNT_EN,
 		  systick.membase + SYSTICK_CONFIG);
@@ -125,7 +124,6 @@ static int __init ralink_systick_init(struct device_node *np)
 	if (!systick.membase)
 		return -ENXIO;
 
-	systick_irqaction.name = np->name;
 	systick.dev.name = np->name;
 	clockevents_calc_mult_shift(&systick.dev, SYSTICK_FREQ, 60);
 	systick.dev.max_delta_ns = clockevent_delta2ns(0x7fff, &systick.dev);

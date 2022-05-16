@@ -162,7 +162,7 @@ drop:
 	return -EINVAL;
 }
 
-static int mpls_build_state(struct nlattr *nla,
+static int mpls_build_state(struct net *net, struct nlattr *nla,
 			    unsigned int family, const void *cfg,
 			    struct lwtunnel_state **ts,
 			    struct netlink_ext_ack *extack)
@@ -300,5 +300,6 @@ static void __exit mpls_iptunnel_exit(void)
 module_exit(mpls_iptunnel_exit);
 
 MODULE_ALIAS_RTNL_LWT(MPLS);
+MODULE_SOFTDEP("post: mpls_gso");
 MODULE_DESCRIPTION("MultiProtocol Label Switching IP Tunnels");
 MODULE_LICENSE("GPL v2");

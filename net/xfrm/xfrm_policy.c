@@ -39,6 +39,9 @@
 #ifdef CONFIG_XFRM_STATISTICS
 #include <net/snmp.h>
 #endif
+#ifdef CONFIG_XFRM_ESPINTCP
+#include <net/espintcp.h>
+#endif
 
 #include "xfrm_hash.h"
 
@@ -119,7 +122,7 @@ struct xfrm_pol_inexact_bin {
 	/* list containing '*:*' policies */
 	struct hlist_head hhead;
 
-	seqcount_t count;
+	seqcount_spinlock_t count;
 	/* tree sorted by daddr/prefix */
 	struct rb_root root_d;
 
@@ -152,7 +155,7 @@ static struct xfrm_policy_afinfo const __rcu *xfrm_policy_afinfo[AF_INET6 + 1]
 						__read_mostly;
 
 static struct kmem_cache *xfrm_dst_cache __ro_after_init;
-static __read_mostly seqcount_t xfrm_policy_hash_generation;
+static __read_mostly seqcount_mutex_t xfrm_policy_hash_generation;
 
 static struct rhashtable xfrm_policy_inexact_table;
 static const struct rhashtable_params xfrm_pol_inexact_params;
@@ -431,7 +434,9 @@ EXPORT_SYMBOL(xfrm_policy_destroy);
 
 static void xfrm_policy_kill(struct xfrm_policy *policy)
 {
+	write_lock_bh(&policy->lock);
 	policy->walk.dead = 1;
+	write_unlock_bh(&policy->lock);
 
 	atomic_inc(&policy->genid);
 
@@ -714,7 +719,7 @@ xfrm_policy_inexact_alloc_bin(const struct xfrm_policy *pol, u8 dir)
 	INIT_HLIST_HEAD(&bin->hhead);
 	bin->root_d = RB_ROOT;
 	bin->root_s = RB_ROOT;
-	seqcount_init(&bin->count);
+	seqcount_spinlock_init(&bin->count, &net->xfrm.xfrm_policy_lock);
 
 	prev = rhashtable_lookup_get_insert_key(&xfrm_policy_inexact_table,
 						&bin->k, &bin->head,
@@ -1428,19 +1433,10 @@ static void xfrm_policy_requeue(struct xfrm_policy *old,
 	spin_unlock_bh(&pq->hold_queue.lock);
 }
 
-static bool xfrm_policy_mark_match(struct xfrm_policy *policy,
-				   struct xfrm_policy *pol)
+static inline bool xfrm_policy_mark_match(const struct xfrm_mark *mark,
+					  struct xfrm_policy *pol)
 {
-	u32 mark = policy->mark.v & policy->mark.m;
-
-	if (policy->mark.v == pol->mark.v && policy->mark.m == pol->mark.m)
-		return true;
-
-	if ((mark & pol->mark.m) == pol->mark.v &&
-	    policy->priority == pol->priority)
-		return true;
-
-	return false;
+	return mark->v == pol->mark.v && mark->m == pol->mark.m;
 }
 
 static u32 xfrm_pol_bin_key(const void *data, u32 len, u32 seed)
@@ -1503,7 +1499,7 @@ static void xfrm_policy_insert_inexact_list(struct hlist_head *chain,
 		if (pol->type == policy->type &&
 		    pol->if_id == policy->if_id &&
 		    !selector_cmp(&pol->selector, &policy->selector) &&
-		    xfrm_policy_mark_match(policy, pol) &&
+		    xfrm_policy_mark_match(&policy->mark, pol) &&
 		    xfrm_sec_ctx_match(pol->security, policy->security) &&
 		    !WARN_ON(delpol)) {
 			delpol = pol;
@@ -1538,7 +1534,7 @@ static struct xfrm_policy *xfrm_policy_insert_list(struct hlist_head *chain,
 		if (pol->type == policy->type &&
 		    pol->if_id == policy->if_id &&
 		    !selector_cmp(&pol->selector, &policy->selector) &&
-		    xfrm_policy_mark_match(policy, pol) &&
+		    xfrm_policy_mark_match(&policy->mark, pol) &&
 		    xfrm_sec_ctx_match(pol->security, policy->security) &&
 		    !WARN_ON(delpol)) {
 			if (excl)
@@ -1610,9 +1606,8 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 EXPORT_SYMBOL(xfrm_policy_insert);
 
 static struct xfrm_policy *
-__xfrm_policy_bysel_ctx(struct hlist_head *chain, u32 mark, u32 if_id,
-			u8 type, int dir,
-			struct xfrm_selector *sel,
+__xfrm_policy_bysel_ctx(struct hlist_head *chain, const struct xfrm_mark *mark,
+			u32 if_id, u8 type, int dir, struct xfrm_selector *sel,
 			struct xfrm_sec_ctx *ctx)
 {
 	struct xfrm_policy *pol;
@@ -1623,7 +1618,7 @@ __xfrm_policy_bysel_ctx(struct hlist_head *chain, u32 mark, u32 if_id,
 	hlist_for_each_entry(pol, chain, bydst) {
 		if (pol->type == type &&
 		    pol->if_id == if_id &&
-		    (mark & pol->mark.m) == pol->mark.v &&
+		    xfrm_policy_mark_match(mark, pol) &&
 		    !selector_cmp(sel, &pol->selector) &&
 		    xfrm_sec_ctx_match(ctx, pol->security))
 			return pol;
@@ -1632,11 +1627,10 @@ __xfrm_policy_bysel_ctx(struct hlist_head *chain, u32 mark, u32 if_id,
 	return NULL;
 }
 
-struct xfrm_policy *xfrm_policy_bysel_ctx(struct net *net, u32 mark, u32 if_id,
-					  u8 type, int dir,
-					  struct xfrm_selector *sel,
-					  struct xfrm_sec_ctx *ctx, int delete,
-					  int *err)
+struct xfrm_policy *
+xfrm_policy_bysel_ctx(struct net *net, const struct xfrm_mark *mark, u32 if_id,
+		      u8 type, int dir, struct xfrm_selector *sel,
+		      struct xfrm_sec_ctx *ctx, int delete, int *err)
 {
 	struct xfrm_pol_inexact_bin *bin = NULL;
 	struct xfrm_policy *pol, *ret = NULL;
@@ -1703,9 +1697,9 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(struct net *net, u32 mark, u32 if_id,
 }
 EXPORT_SYMBOL(xfrm_policy_bysel_ctx);
 
-struct xfrm_policy *xfrm_policy_byid(struct net *net, u32 mark, u32 if_id,
-				     u8 type, int dir, u32 id, int delete,
-				     int *err)
+struct xfrm_policy *
+xfrm_policy_byid(struct net *net, const struct xfrm_mark *mark, u32 if_id,
+		 u8 type, int dir, u32 id, int delete, int *err)
 {
 	struct xfrm_policy *pol, *ret;
 	struct hlist_head *chain;
@@ -1720,8 +1714,7 @@ struct xfrm_policy *xfrm_policy_byid(struct net *net, u32 mark, u32 if_id,
 	ret = NULL;
 	hlist_for_each_entry(pol, chain, byidx) {
 		if (pol->type == type && pol->index == id &&
-		    pol->if_id == if_id &&
-		    (mark & pol->mark.m) == pol->mark.v) {
+		    pol->if_id == if_id && xfrm_policy_mark_match(mark, pol)) {
 			xfrm_pol_hold(pol);
 			if (delete) {
 				*err = security_xfrm_policy_delete(
@@ -1906,7 +1899,7 @@ static int xfrm_policy_match(const struct xfrm_policy *pol,
 
 static struct xfrm_pol_inexact_node *
 xfrm_policy_lookup_inexact_addr(const struct rb_root *r,
-				seqcount_t *count,
+				seqcount_spinlock_t *count,
 				const xfrm_address_t *addr, u16 family)
 {
 	const struct rb_node *parent;
@@ -2610,7 +2603,6 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		xdst->xfrm_genid = xfrm[i]->genid;
 
 		dst1->obsolete = DST_OBSOLETE_FORCE_CHK;
-		dst1->flags |= DST_HOST;
 		dst1->lastuse = now;
 
 		dst1->input = dst_discard;
@@ -2759,6 +2751,7 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 	struct xfrm_policy_queue *pq = &pol->polq;
 	struct flowi fl;
 	struct sk_buff_head list;
+	__u32 skb_mark;
 
 	spin_lock(&pq->hold_queue.lock);
 	skb = skb_peek(&pq->hold_queue);
@@ -2768,7 +2761,12 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 	}
 	dst = skb_dst(skb);
 	sk = skb->sk;
+
+	/* Fixup the mark to support VTI. */
+	skb_mark = skb->mark;
+	skb->mark = pol->mark.v;
 	xfrm_decode_session(skb, &fl, dst->ops->family);
+	skb->mark = skb_mark;
 	spin_unlock(&pq->hold_queue.lock);
 
 	dst_hold(xfrm_dst_path(dst));
@@ -2800,7 +2798,12 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 	while (!skb_queue_empty(&list)) {
 		skb = __skb_dequeue(&list);
 
+		/* Fixup the mark to support VTI. */
+		skb_mark = skb->mark;
+		skb->mark = pol->mark.v;
 		xfrm_decode_session(skb, &fl, skb_dst(skb)->ops->family);
+		skb->mark = skb_mark;
+
 		dst_hold(xfrm_dst_path(skb_dst(skb)));
 		dst = xfrm_lookup(net, xfrm_dst_path(skb_dst(skb)), &fl, skb->sk, 0);
 		if (IS_ERR(dst)) {
@@ -2896,7 +2899,7 @@ static struct xfrm_dst *xfrm_create_dummy_bundle(struct net *net,
 	dst_copy_metrics(dst1, dst);
 
 	dst1->obsolete = DST_OBSOLETE_FORCE_CHK;
-	dst1->flags |= DST_HOST | DST_XFRM_QUEUE;
+	dst1->flags |= DST_XFRM_QUEUE;
 	dst1->lastuse = jiffies;
 
 	dst1->input = dst_discard;
@@ -3186,7 +3189,7 @@ struct dst_entry *xfrm_lookup_route(struct net *net, struct dst_entry *dst_orig,
 					    flags | XFRM_LOOKUP_QUEUE |
 					    XFRM_LOOKUP_KEEP_DST_REF);
 
-	if (IS_ERR(dst) && PTR_ERR(dst) == -EREMOTE)
+	if (PTR_ERR(dst) == -EREMOTE)
 		return make_blackhole(net, dst_orig->ops->family, dst_orig);
 
 	if (IS_ERR(dst))
@@ -3407,7 +3410,7 @@ decode_session6(struct sk_buff *skb, struct flowi *fl, bool reverse)
 		switch (nexthdr) {
 		case NEXTHDR_FRAGMENT:
 			onlyproto = 1;
-			/* fall through */
+			fallthrough;
 		case NEXTHDR_ROUTING:
 		case NEXTHDR_HOP:
 		case NEXTHDR_DEST:
@@ -4154,8 +4157,12 @@ void __init xfrm_init(void)
 {
 	register_pernet_subsys(&xfrm_net_ops);
 	xfrm_dev_init();
-	seqcount_init(&xfrm_policy_hash_generation);
+	seqcount_mutex_init(&xfrm_policy_hash_generation, &hash_resize_mutex);
 	xfrm_input_init();
+
+#ifdef CONFIG_XFRM_ESPINTCP
+	espintcp_init();
+#endif
 
 	RCU_INIT_POINTER(xfrm_if_cb, NULL);
 	synchronize_rcu();

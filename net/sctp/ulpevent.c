@@ -238,7 +238,7 @@ fail:
  * When a destination address on a multi-homed peer encounters a change
  * an interface details event is sent.
  */
-struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
+static struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
 	const struct sctp_association *asoc,
 	const struct sockaddr_storage *aaddr,
 	int flags, int state, int error, gfp_t gfp)
@@ -334,6 +334,25 @@ struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
 
 fail:
 	return NULL;
+}
+
+void sctp_ulpevent_notify_peer_addr_change(struct sctp_transport *transport,
+					   int state, int error)
+{
+	struct sctp_association *asoc = transport->asoc;
+	struct sockaddr_storage addr;
+	struct sctp_ulpevent *event;
+
+	if (asoc->state < SCTP_STATE_ESTABLISHED)
+		return;
+
+	memset(&addr, 0, sizeof(struct sockaddr_storage));
+	memcpy(&addr, &transport->ipaddr, transport->af_specific->sockaddr_len);
+
+	event = sctp_ulpevent_make_peer_addr_change(asoc, &addr, 0, state,
+						    error, GFP_ATOMIC);
+	if (event)
+		asoc->stream.si->enqueue_event(&asoc->ulpq, event);
 }
 
 /* Create and initialize an SCTP_REMOTE_ERROR notification.
@@ -509,6 +528,45 @@ struct sctp_ulpevent *sctp_ulpevent_make_send_failed(
 
 fail:
 	return NULL;
+}
+
+struct sctp_ulpevent *sctp_ulpevent_make_send_failed_event(
+	const struct sctp_association *asoc, struct sctp_chunk *chunk,
+	__u16 flags, __u32 error, gfp_t gfp)
+{
+	struct sctp_send_failed_event *ssf;
+	struct sctp_ulpevent *event;
+	struct sk_buff *skb;
+	int len;
+
+	skb = skb_copy_expand(chunk->skb, sizeof(*ssf), 0, gfp);
+	if (!skb)
+		return NULL;
+
+	len = ntohs(chunk->chunk_hdr->length);
+	len -= sctp_datachk_len(&asoc->stream);
+
+	skb_pull(skb, sctp_datachk_len(&asoc->stream));
+	event = sctp_skb2event(skb);
+	sctp_ulpevent_init(event, MSG_NOTIFICATION, skb->truesize);
+
+	ssf = skb_push(skb, sizeof(*ssf));
+	ssf->ssf_type = SCTP_SEND_FAILED_EVENT;
+	ssf->ssf_flags = flags;
+	ssf->ssf_length = sizeof(*ssf) + len;
+	skb_trim(skb, ssf->ssf_length);
+	ssf->ssf_error = error;
+
+	ssf->ssfe_info.snd_sid = chunk->sinfo.sinfo_stream;
+	ssf->ssfe_info.snd_ppid = chunk->sinfo.sinfo_ppid;
+	ssf->ssfe_info.snd_context = chunk->sinfo.sinfo_context;
+	ssf->ssfe_info.snd_assoc_id = chunk->sinfo.sinfo_assoc_id;
+	ssf->ssfe_info.snd_flags = chunk->chunk_hdr->flags;
+
+	sctp_ulpevent_set_owner(event, asoc);
+	ssf->ssf_assoc_id = sctp_assoc2id(asoc);
+
+	return event;
 }
 
 /* Create and initialize a SCTP_SHUTDOWN_EVENT notification.

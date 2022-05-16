@@ -88,7 +88,7 @@ struct ath10k_dump_file_data {
 	u8 unused[128];
 
 	/* struct ath10k_tlv_dump_data + more */
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct ath10k_dump_ram_data_hdr {
@@ -100,7 +100,7 @@ struct ath10k_dump_ram_data_hdr {
 	/* length of payload data, not including this header */
 	__le32 length;
 
-	u8 data[0];
+	u8 data[];
 };
 
 /* magic number to fill the holes not copied due to sections in regions */
@@ -115,6 +115,7 @@ enum ath10k_mem_region_type {
 	ATH10K_MEM_REGION_TYPE_IRAM2	= 5,
 	ATH10K_MEM_REGION_TYPE_IOSRAM	= 6,
 	ATH10K_MEM_REGION_TYPE_IOREG	= 7,
+	ATH10K_MEM_REGION_TYPE_MSA	= 8,
 };
 
 /* Define a section of the region which should be copied. As not all parts
@@ -155,6 +156,7 @@ struct ath10k_mem_region {
 struct ath10k_hw_mem_layout {
 	u32 hw_id;
 	u32 hw_rev;
+	enum ath10k_bus bus;
 
 	struct {
 		const struct ath10k_mem_region *regions;

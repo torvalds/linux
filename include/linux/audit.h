@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <uapi/linux/audit.h>
+#include <uapi/linux/netfilter/nf_tables.h>
 
 #define AUDIT_INO_UNSET ((unsigned long)-1)
 #define AUDIT_DEV_UNSET ((dev_t)-1)
@@ -19,7 +20,7 @@
 struct audit_sig_info {
 	uid_t		uid;
 	pid_t		pid;
-	char		ctx[0];
+	char		ctx[];
 };
 
 struct audit_buffer;
@@ -94,6 +95,29 @@ struct audit_ntp_data {
 struct audit_ntp_data {};
 #endif
 
+enum audit_nfcfgop {
+	AUDIT_XT_OP_REGISTER,
+	AUDIT_XT_OP_REPLACE,
+	AUDIT_XT_OP_UNREGISTER,
+	AUDIT_NFT_OP_TABLE_REGISTER,
+	AUDIT_NFT_OP_TABLE_UNREGISTER,
+	AUDIT_NFT_OP_CHAIN_REGISTER,
+	AUDIT_NFT_OP_CHAIN_UNREGISTER,
+	AUDIT_NFT_OP_RULE_REGISTER,
+	AUDIT_NFT_OP_RULE_UNREGISTER,
+	AUDIT_NFT_OP_SET_REGISTER,
+	AUDIT_NFT_OP_SET_UNREGISTER,
+	AUDIT_NFT_OP_SETELEM_REGISTER,
+	AUDIT_NFT_OP_SETELEM_UNREGISTER,
+	AUDIT_NFT_OP_GEN_REGISTER,
+	AUDIT_NFT_OP_OBJ_REGISTER,
+	AUDIT_NFT_OP_OBJ_UNREGISTER,
+	AUDIT_NFT_OP_OBJ_RESET,
+	AUDIT_NFT_OP_FLOWTABLE_REGISTER,
+	AUDIT_NFT_OP_FLOWTABLE_UNREGISTER,
+	AUDIT_NFT_OP_INVALID,
+};
+
 extern int is_audit_feature_set(int which);
 
 extern int __init audit_register_class(int class, unsigned *list);
@@ -156,7 +180,8 @@ extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const struct path *path);
 extern void		    audit_log_key(struct audit_buffer *ab,
 					  char *key);
-extern void		    audit_log_link_denied(const char *operation);
+extern void		    audit_log_path_denied(int type,
+						  const char *operation);
 extern void		    audit_log_lost(const char *message);
 
 extern int audit_log_task_context(struct audit_buffer *ab);
@@ -217,7 +242,7 @@ static inline void audit_log_d_path(struct audit_buffer *ab,
 { }
 static inline void audit_log_key(struct audit_buffer *ab, char *key)
 { }
-static inline void audit_log_link_denied(const char *string)
+static inline void audit_log_path_denied(int type, const char *operation)
 { }
 static inline int audit_log_task_context(struct audit_buffer *ab)
 {
@@ -267,7 +292,7 @@ extern void __audit_syscall_entry(int major, unsigned long a0, unsigned long a1,
 extern void __audit_syscall_exit(int ret_success, long ret_value);
 extern struct filename *__audit_reusename(const __user char *uptr);
 extern void __audit_getname(struct filename *name);
-
+extern void __audit_getcwd(void);
 extern void __audit_inode(struct filename *name, const struct dentry *dentry,
 				unsigned int flags);
 extern void __audit_file(const struct file *);
@@ -326,6 +351,11 @@ static inline void audit_getname(struct filename *name)
 	if (unlikely(!audit_dummy_context()))
 		__audit_getname(name);
 }
+static inline void audit_getcwd(void)
+{
+	if (unlikely(audit_context()))
+		__audit_getcwd();
+}
 static inline void audit_inode(struct filename *name,
 				const struct dentry *dentry,
 				unsigned int aflags) {
@@ -378,6 +408,8 @@ extern void __audit_log_kern_module(char *name);
 extern void __audit_fanotify(unsigned int response);
 extern void __audit_tk_injoffset(struct timespec64 offset);
 extern void __audit_ntp_log(const struct audit_ntp_data *ad);
+extern void __audit_log_nfcfg(const char *name, u8 af, unsigned int nentries,
+			      enum audit_nfcfgop op, gfp_t gfp);
 
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -513,6 +545,14 @@ static inline void audit_ntp_log(const struct audit_ntp_data *ad)
 		__audit_ntp_log(ad);
 }
 
+static inline void audit_log_nfcfg(const char *name, u8 af,
+				   unsigned int nentries,
+				   enum audit_nfcfgop op, gfp_t gfp)
+{
+	if (audit_enabled)
+		__audit_log_nfcfg(name, af, nentries, op, gfp);
+}
+
 extern int audit_n_rules;
 extern int audit_signals;
 #else /* CONFIG_AUDITSYSCALL */
@@ -544,13 +584,7 @@ static inline struct filename *audit_reusename(const __user char *name)
 }
 static inline void audit_getname(struct filename *name)
 { }
-static inline void __audit_inode(struct filename *name,
-					const struct dentry *dentry,
-					unsigned int flags)
-{ }
-static inline void __audit_inode_child(struct inode *parent,
-					const struct dentry *dentry,
-					const unsigned char type)
+static inline void audit_getcwd(void)
 { }
 static inline void audit_inode(struct filename *name,
 				const struct dentry *dentry,
@@ -645,6 +679,12 @@ static inline void audit_ntp_log(const struct audit_ntp_data *ad)
 
 static inline void audit_ptrace(struct task_struct *t)
 { }
+
+static inline void audit_log_nfcfg(const char *name, u8 af,
+				   unsigned int nentries,
+				   enum audit_nfcfgop op, gfp_t gfp)
+{ }
+
 #define audit_n_rules 0
 #define audit_signals 0
 #endif /* CONFIG_AUDITSYSCALL */
@@ -652,11 +692,6 @@ static inline void audit_ptrace(struct task_struct *t)
 static inline bool audit_loginuid_set(struct task_struct *tsk)
 {
 	return uid_valid(audit_get_loginuid(tsk));
-}
-
-static inline void audit_log_string(struct audit_buffer *ab, const char *buf)
-{
-	audit_log_n_string(ab, buf, strlen(buf));
 }
 
 #endif

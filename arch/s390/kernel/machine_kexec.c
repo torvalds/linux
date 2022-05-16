@@ -14,11 +14,8 @@
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
-#include <linux/suspend.h>
 #include <asm/cio.h>
 #include <asm/setup.h>
-#include <asm/pgtable.h>
-#include <asm/pgalloc.h>
 #include <asm/smp.h>
 #include <asm/ipl.h>
 #include <asm/diag.h>
@@ -37,36 +34,6 @@ extern const unsigned char relocate_kernel[];
 extern const unsigned long long relocate_kernel_len;
 
 #ifdef CONFIG_CRASH_DUMP
-
-/*
- * PM notifier callback for kdump
- */
-static int machine_kdump_pm_cb(struct notifier_block *nb, unsigned long action,
-			       void *ptr)
-{
-	switch (action) {
-	case PM_SUSPEND_PREPARE:
-	case PM_HIBERNATION_PREPARE:
-		if (kexec_crash_image)
-			arch_kexec_unprotect_crashkres();
-		break;
-	case PM_POST_SUSPEND:
-	case PM_POST_HIBERNATION:
-		if (kexec_crash_image)
-			arch_kexec_protect_crashkres();
-		break;
-	default:
-		return NOTIFY_DONE;
-	}
-	return NOTIFY_OK;
-}
-
-static int __init machine_kdump_pm_init(void)
-{
-	pm_notifier(machine_kdump_pm_cb, 0);
-	return 0;
-}
-arch_initcall(machine_kdump_pm_init);
 
 /*
  * Reset the system, copy boot CPU registers to absolute zero,
@@ -164,7 +131,9 @@ static bool kdump_csum_valid(struct kimage *image)
 #ifdef CONFIG_CRASH_DUMP
 	int rc;
 
+	preempt_disable();
 	rc = CALL_ON_STACK(do_start_kdump, S390_lowcore.nodat_stack, 1, image);
+	preempt_enable();
 	return rc == 0;
 #else
 	return false;
@@ -254,10 +223,10 @@ void arch_crash_save_vmcoreinfo(void)
 	VMCOREINFO_SYMBOL(lowcore_ptr);
 	VMCOREINFO_SYMBOL(high_memory);
 	VMCOREINFO_LENGTH(lowcore_ptr, NR_CPUS);
-	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
 	vmcoreinfo_append_str("SDMA=%lx\n", __sdma);
 	vmcoreinfo_append_str("EDMA=%lx\n", __edma);
 	vmcoreinfo_append_str("KERNELOFFSET=%lx\n", kaslr_offset());
+	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
 }
 
 void machine_shutdown(void)

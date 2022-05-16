@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/clk-provider.h>
 #include <linux/bcd.h>
 #include <linux/bitops.h>
 #include <linux/i2c.h>
@@ -52,6 +53,11 @@
 #define RV3028_STATUS_CLKF		BIT(6)
 #define RV3028_STATUS_EEBUSY		BIT(7)
 
+#define RV3028_CLKOUT_FD_MASK		GENMASK(2, 0)
+#define RV3028_CLKOUT_PORIE		BIT(3)
+#define RV3028_CLKOUT_CLKSY		BIT(6)
+#define RV3028_CLKOUT_CLKOE		BIT(7)
+
 #define RV3028_CTRL1_EERD		BIT(3)
 #define RV3028_CTRL1_WADA		BIT(5)
 
@@ -65,6 +71,7 @@
 
 #define RV3028_EVT_CTRL_TSR		BIT(2)
 
+#define RV3028_EEPROM_CMD_UPDATE	0x11
 #define RV3028_EEPROM_CMD_WRITE		0x21
 #define RV3028_EEPROM_CMD_READ		0x22
 
@@ -84,9 +91,12 @@ struct rv3028_data {
 	struct regmap *regmap;
 	struct rtc_device *rtc;
 	enum rv3028_type type;
+#ifdef CONFIG_COMMON_CLK
+	struct clk_hw clkout_hw;
+#endif
 };
 
-static u16 rv3028_trickle_resistors[] = {1000, 3000, 6000, 11000};
+static u16 rv3028_trickle_resistors[] = {3000, 5000, 9000, 15000};
 
 static ssize_t timestamp0_store(struct device *dev,
 				struct device_attribute *attr,
@@ -161,6 +171,88 @@ static struct attribute *rv3028_attrs[] = {
 static const struct attribute_group rv3028_attr_group = {
 	.attrs	= rv3028_attrs,
 };
+
+static int rv3028_exit_eerd(struct rv3028_data *rv3028, u32 eerd)
+{
+	if (eerd)
+		return 0;
+
+	return regmap_update_bits(rv3028->regmap, RV3028_CTRL1, RV3028_CTRL1_EERD, 0);
+}
+
+static int rv3028_enter_eerd(struct rv3028_data *rv3028, u32 *eerd)
+{
+	u32 ctrl1, status;
+	int ret;
+
+	ret = regmap_read(rv3028->regmap, RV3028_CTRL1, &ctrl1);
+	if (ret)
+		return ret;
+
+	*eerd = ctrl1 & RV3028_CTRL1_EERD;
+	if (*eerd)
+		return 0;
+
+	ret = regmap_update_bits(rv3028->regmap, RV3028_CTRL1,
+				 RV3028_CTRL1_EERD, RV3028_CTRL1_EERD);
+	if (ret)
+		return ret;
+
+	ret = regmap_read_poll_timeout(rv3028->regmap, RV3028_STATUS, status,
+				       !(status & RV3028_STATUS_EEBUSY),
+				       RV3028_EEBUSY_POLL, RV3028_EEBUSY_TIMEOUT);
+	if (ret) {
+		rv3028_exit_eerd(rv3028, *eerd);
+
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rv3028_update_eeprom(struct rv3028_data *rv3028, u32 eerd)
+{
+	u32 status;
+	int ret;
+
+	ret = regmap_write(rv3028->regmap, RV3028_EEPROM_CMD, 0x0);
+	if (ret)
+		goto exit_eerd;
+
+	ret = regmap_write(rv3028->regmap, RV3028_EEPROM_CMD, RV3028_EEPROM_CMD_UPDATE);
+	if (ret)
+		goto exit_eerd;
+
+	usleep_range(63000, RV3028_EEBUSY_TIMEOUT);
+
+	ret = regmap_read_poll_timeout(rv3028->regmap, RV3028_STATUS, status,
+				       !(status & RV3028_STATUS_EEBUSY),
+				       RV3028_EEBUSY_POLL, RV3028_EEBUSY_TIMEOUT);
+
+exit_eerd:
+	rv3028_exit_eerd(rv3028, eerd);
+
+	return ret;
+}
+
+static int rv3028_update_cfg(struct rv3028_data *rv3028, unsigned int reg,
+			     unsigned int mask, unsigned int val)
+{
+	u32 eerd;
+	int ret;
+
+	ret = rv3028_enter_eerd(rv3028, &eerd);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(rv3028->regmap, reg, mask, val);
+	if (ret) {
+		rv3028_exit_eerd(rv3028, eerd);
+		return ret;
+	}
+
+	return rv3028_update_eeprom(rv3028, eerd);
+}
 
 static irqreturn_t rv3028_handle_irq(int irq, void *dev_id)
 {
@@ -395,17 +487,32 @@ static int rv3028_read_offset(struct device *dev, long *offset)
 static int rv3028_set_offset(struct device *dev, long offset)
 {
 	struct rv3028_data *rv3028 = dev_get_drvdata(dev);
+	u32 eerd;
 	int ret;
 
 	offset = clamp(offset, -244141L, 243187L) * 1000;
 	offset = DIV_ROUND_CLOSEST(offset, OFFSET_STEP_PPT);
 
-	ret = regmap_write(rv3028->regmap, RV3028_OFFSET, offset >> 1);
-	if (ret < 0)
+	ret = rv3028_enter_eerd(rv3028, &eerd);
+	if (ret)
 		return ret;
 
-	return regmap_update_bits(rv3028->regmap, RV3028_BACKUP, BIT(7),
-				  offset << 7);
+	ret = regmap_write(rv3028->regmap, RV3028_OFFSET, offset >> 1);
+	if (ret < 0)
+		goto exit_eerd;
+
+	ret = regmap_update_bits(rv3028->regmap, RV3028_BACKUP, BIT(7),
+				 offset << 7);
+	if (ret < 0)
+		goto exit_eerd;
+
+	return rv3028_update_eeprom(rv3028, eerd);
+
+exit_eerd:
+	rv3028_exit_eerd(rv3028, eerd);
+
+	return ret;
+
 }
 
 static int rv3028_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
@@ -419,21 +526,8 @@ static int rv3028_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		if (ret < 0)
 			return ret;
 
-		if (status & RV3028_STATUS_PORF)
-			dev_warn(&rv3028->rtc->dev, "Voltage low, data loss detected.\n");
-
-		status &= RV3028_STATUS_PORF;
-
-		if (copy_to_user((void __user *)arg, &status, sizeof(int)))
-			return -EFAULT;
-
-		return 0;
-
-	case RTC_VL_CLR:
-		ret = regmap_update_bits(rv3028->regmap, RV3028_STATUS,
-					 RV3028_STATUS_PORF, 0);
-
-		return ret;
+		status = status & RV3028_STATUS_PORF ? RTC_VL_DATA_INVALID : 0;
+		return put_user(status, (unsigned int __user *)arg);
 
 	default:
 		return -ENOIOCTLCMD;
@@ -455,49 +549,36 @@ static int rv3028_nvram_read(void *priv, unsigned int offset, void *val,
 static int rv3028_eeprom_write(void *priv, unsigned int offset, void *val,
 			       size_t bytes)
 {
-	u32 status, ctrl1;
-	int i, ret, err;
+	struct rv3028_data *rv3028 = priv;
+	u32 status, eerd;
+	int i, ret;
 	u8 *buf = val;
 
-	ret = regmap_read(priv, RV3028_CTRL1, &ctrl1);
+	ret = rv3028_enter_eerd(rv3028, &eerd);
 	if (ret)
 		return ret;
 
-	if (!(ctrl1 & RV3028_CTRL1_EERD)) {
-		ret = regmap_update_bits(priv, RV3028_CTRL1,
-					 RV3028_CTRL1_EERD, RV3028_CTRL1_EERD);
-		if (ret)
-			return ret;
-
-		ret = regmap_read_poll_timeout(priv, RV3028_STATUS, status,
-					       !(status & RV3028_STATUS_EEBUSY),
-					       RV3028_EEBUSY_POLL,
-					       RV3028_EEBUSY_TIMEOUT);
-		if (ret)
-			goto restore_eerd;
-	}
-
 	for (i = 0; i < bytes; i++) {
-		ret = regmap_write(priv, RV3028_EEPROM_ADDR, offset + i);
+		ret = regmap_write(rv3028->regmap, RV3028_EEPROM_ADDR, offset + i);
 		if (ret)
 			goto restore_eerd;
 
-		ret = regmap_write(priv, RV3028_EEPROM_DATA, buf[i]);
+		ret = regmap_write(rv3028->regmap, RV3028_EEPROM_DATA, buf[i]);
 		if (ret)
 			goto restore_eerd;
 
-		ret = regmap_write(priv, RV3028_EEPROM_CMD, 0x0);
+		ret = regmap_write(rv3028->regmap, RV3028_EEPROM_CMD, 0x0);
 		if (ret)
 			goto restore_eerd;
 
-		ret = regmap_write(priv, RV3028_EEPROM_CMD,
+		ret = regmap_write(rv3028->regmap, RV3028_EEPROM_CMD,
 				   RV3028_EEPROM_CMD_WRITE);
 		if (ret)
 			goto restore_eerd;
 
 		usleep_range(RV3028_EEBUSY_POLL, RV3028_EEBUSY_TIMEOUT);
 
-		ret = regmap_read_poll_timeout(priv, RV3028_STATUS, status,
+		ret = regmap_read_poll_timeout(rv3028->regmap, RV3028_STATUS, status,
 					       !(status & RV3028_STATUS_EEBUSY),
 					       RV3028_EEBUSY_POLL,
 					       RV3028_EEBUSY_TIMEOUT);
@@ -506,13 +587,7 @@ static int rv3028_eeprom_write(void *priv, unsigned int offset, void *val,
 	}
 
 restore_eerd:
-	if (!(ctrl1 & RV3028_CTRL1_EERD))
-	{
-		err = regmap_update_bits(priv, RV3028_CTRL1, RV3028_CTRL1_EERD,
-					 0);
-		if (err && !ret)
-			ret = err;
-	}
+	rv3028_exit_eerd(rv3028, eerd);
 
 	return ret;
 }
@@ -520,66 +595,180 @@ restore_eerd:
 static int rv3028_eeprom_read(void *priv, unsigned int offset, void *val,
 			      size_t bytes)
 {
-	u32 status, ctrl1, data;
-	int i, ret, err;
+	struct rv3028_data *rv3028 = priv;
+	u32 status, eerd, data;
+	int i, ret;
 	u8 *buf = val;
 
-	ret = regmap_read(priv, RV3028_CTRL1, &ctrl1);
+	ret = rv3028_enter_eerd(rv3028, &eerd);
 	if (ret)
 		return ret;
 
-	if (!(ctrl1 & RV3028_CTRL1_EERD)) {
-		ret = regmap_update_bits(priv, RV3028_CTRL1,
-					 RV3028_CTRL1_EERD, RV3028_CTRL1_EERD);
-		if (ret)
-			return ret;
-
-		ret = regmap_read_poll_timeout(priv, RV3028_STATUS, status,
-					       !(status & RV3028_STATUS_EEBUSY),
-					       RV3028_EEBUSY_POLL,
-					       RV3028_EEBUSY_TIMEOUT);
-		if (ret)
-			goto restore_eerd;
-	}
-
 	for (i = 0; i < bytes; i++) {
-		ret = regmap_write(priv, RV3028_EEPROM_ADDR, offset + i);
+		ret = regmap_write(rv3028->regmap, RV3028_EEPROM_ADDR, offset + i);
 		if (ret)
 			goto restore_eerd;
 
-		ret = regmap_write(priv, RV3028_EEPROM_CMD, 0x0);
+		ret = regmap_write(rv3028->regmap, RV3028_EEPROM_CMD, 0x0);
 		if (ret)
 			goto restore_eerd;
 
-		ret = regmap_write(priv, RV3028_EEPROM_CMD,
+		ret = regmap_write(rv3028->regmap, RV3028_EEPROM_CMD,
 				   RV3028_EEPROM_CMD_READ);
 		if (ret)
 			goto restore_eerd;
 
-		ret = regmap_read_poll_timeout(priv, RV3028_STATUS, status,
+		ret = regmap_read_poll_timeout(rv3028->regmap, RV3028_STATUS, status,
 					       !(status & RV3028_STATUS_EEBUSY),
 					       RV3028_EEBUSY_POLL,
 					       RV3028_EEBUSY_TIMEOUT);
 		if (ret)
 			goto restore_eerd;
 
-		ret = regmap_read(priv, RV3028_EEPROM_DATA, &data);
+		ret = regmap_read(rv3028->regmap, RV3028_EEPROM_DATA, &data);
 		if (ret)
 			goto restore_eerd;
 		buf[i] = data;
 	}
 
 restore_eerd:
-	if (!(ctrl1 & RV3028_CTRL1_EERD))
-	{
-		err = regmap_update_bits(priv, RV3028_CTRL1, RV3028_CTRL1_EERD,
-					 0);
-		if (err && !ret)
-			ret = err;
-	}
+	rv3028_exit_eerd(rv3028, eerd);
 
 	return ret;
 }
+
+#ifdef CONFIG_COMMON_CLK
+#define clkout_hw_to_rv3028(hw) container_of(hw, struct rv3028_data, clkout_hw)
+
+static int clkout_rates[] = {
+	32768,
+	8192,
+	1024,
+	64,
+	32,
+	1,
+};
+
+static unsigned long rv3028_clkout_recalc_rate(struct clk_hw *hw,
+					       unsigned long parent_rate)
+{
+	int clkout, ret;
+	struct rv3028_data *rv3028 = clkout_hw_to_rv3028(hw);
+
+	ret = regmap_read(rv3028->regmap, RV3028_CLKOUT, &clkout);
+	if (ret < 0)
+		return 0;
+
+	clkout &= RV3028_CLKOUT_FD_MASK;
+	return clkout_rates[clkout];
+}
+
+static long rv3028_clkout_round_rate(struct clk_hw *hw, unsigned long rate,
+				     unsigned long *prate)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(clkout_rates); i++)
+		if (clkout_rates[i] <= rate)
+			return clkout_rates[i];
+
+	return 0;
+}
+
+static int rv3028_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
+				  unsigned long parent_rate)
+{
+	int i, ret;
+	u32 enabled;
+	struct rv3028_data *rv3028 = clkout_hw_to_rv3028(hw);
+
+	ret = regmap_read(rv3028->regmap, RV3028_CLKOUT, &enabled);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_write(rv3028->regmap, RV3028_CLKOUT, 0x0);
+	if (ret < 0)
+		return ret;
+
+	enabled &= RV3028_CLKOUT_CLKOE;
+
+	for (i = 0; i < ARRAY_SIZE(clkout_rates); i++)
+		if (clkout_rates[i] == rate)
+			return rv3028_update_cfg(rv3028, RV3028_CLKOUT, 0xff,
+						 RV3028_CLKOUT_CLKSY | enabled | i);
+
+	return -EINVAL;
+}
+
+static int rv3028_clkout_prepare(struct clk_hw *hw)
+{
+	struct rv3028_data *rv3028 = clkout_hw_to_rv3028(hw);
+
+	return regmap_write(rv3028->regmap, RV3028_CLKOUT,
+			    RV3028_CLKOUT_CLKSY | RV3028_CLKOUT_CLKOE);
+}
+
+static void rv3028_clkout_unprepare(struct clk_hw *hw)
+{
+	struct rv3028_data *rv3028 = clkout_hw_to_rv3028(hw);
+
+	regmap_write(rv3028->regmap, RV3028_CLKOUT, 0x0);
+	regmap_update_bits(rv3028->regmap, RV3028_STATUS,
+			   RV3028_STATUS_CLKF, 0);
+}
+
+static int rv3028_clkout_is_prepared(struct clk_hw *hw)
+{
+	int clkout, ret;
+	struct rv3028_data *rv3028 = clkout_hw_to_rv3028(hw);
+
+	ret = regmap_read(rv3028->regmap, RV3028_CLKOUT, &clkout);
+	if (ret < 0)
+		return ret;
+
+	return !!(clkout & RV3028_CLKOUT_CLKOE);
+}
+
+static const struct clk_ops rv3028_clkout_ops = {
+	.prepare = rv3028_clkout_prepare,
+	.unprepare = rv3028_clkout_unprepare,
+	.is_prepared = rv3028_clkout_is_prepared,
+	.recalc_rate = rv3028_clkout_recalc_rate,
+	.round_rate = rv3028_clkout_round_rate,
+	.set_rate = rv3028_clkout_set_rate,
+};
+
+static int rv3028_clkout_register_clk(struct rv3028_data *rv3028,
+				      struct i2c_client *client)
+{
+	int ret;
+	struct clk *clk;
+	struct clk_init_data init;
+	struct device_node *node = client->dev.of_node;
+
+	ret = regmap_update_bits(rv3028->regmap, RV3028_STATUS,
+				 RV3028_STATUS_CLKF, 0);
+	if (ret < 0)
+		return ret;
+
+	init.name = "rv3028-clkout";
+	init.ops = &rv3028_clkout_ops;
+	init.flags = 0;
+	init.parent_names = NULL;
+	init.num_parents = 0;
+	rv3028->clkout_hw.init = &init;
+
+	/* optional override of the clockname */
+	of_property_read_string(node, "clock-output-names", &init.name);
+
+	/* register the clock */
+	clk = devm_clk_register(&client->dev, &rv3028->clkout_hw);
+	if (!IS_ERR(clk))
+		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+
+	return 0;
+}
+#endif
 
 static struct rtc_class_ops rv3028_rtc_ops = {
 	.read_time = rv3028_get_time,
@@ -625,6 +814,8 @@ static int rv3028_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	rv3028->regmap = devm_regmap_init_i2c(client, &regmap_config);
+	if (IS_ERR(rv3028->regmap))
+		return PTR_ERR(rv3028->regmap);
 
 	i2c_set_clientdata(client, rv3028);
 
@@ -679,10 +870,8 @@ static int rv3028_probe(struct i2c_client *client)
 				break;
 
 		if (i < ARRAY_SIZE(rv3028_trickle_resistors)) {
-			ret = regmap_update_bits(rv3028->regmap, RV3028_BACKUP,
-						 RV3028_BACKUP_TCE |
-						 RV3028_BACKUP_TCR_MASK,
-						 RV3028_BACKUP_TCE | i);
+			ret = rv3028_update_cfg(rv3028, RV3028_BACKUP, RV3028_BACKUP_TCE |
+						 RV3028_BACKUP_TCR_MASK, RV3028_BACKUP_TCE | i);
 			if (ret)
 				return ret;
 		} else {
@@ -703,11 +892,14 @@ static int rv3028_probe(struct i2c_client *client)
 
 	nvmem_cfg.priv = rv3028->regmap;
 	rtc_nvmem_register(rv3028->rtc, &nvmem_cfg);
-	eeprom_cfg.priv = rv3028->regmap;
+	eeprom_cfg.priv = rv3028;
 	rtc_nvmem_register(rv3028->rtc, &eeprom_cfg);
 
 	rv3028->rtc->max_user_freq = 1;
 
+#ifdef CONFIG_COMMON_CLK
+	rv3028_clkout_register_clk(rv3028, client);
+#endif
 	return 0;
 }
 

@@ -60,6 +60,16 @@ static inline void smc_wr_tx_set_wr_id(atomic_long_t *wr_tx_id, long val)
 	atomic_long_set(wr_tx_id, val);
 }
 
+static inline void smc_wr_wakeup_tx_wait(struct smc_link *lnk)
+{
+	wake_up_all(&lnk->wr_tx_wait);
+}
+
+static inline void smc_wr_wakeup_reg_wait(struct smc_link *lnk)
+{
+	wake_up(&lnk->wr_reg_wait);
+}
+
 /* post a new receive work request to fill a completed old work request entry */
 static inline int smc_wr_rx_post(struct smc_link *link)
 {
@@ -91,11 +101,14 @@ int smc_wr_tx_put_slot(struct smc_link *link,
 		       struct smc_wr_tx_pend_priv *wr_pend_priv);
 int smc_wr_tx_send(struct smc_link *link,
 		   struct smc_wr_tx_pend_priv *wr_pend_priv);
+int smc_wr_tx_send_wait(struct smc_link *link, struct smc_wr_tx_pend_priv *priv,
+			unsigned long timeout);
 void smc_wr_tx_cq_handler(struct ib_cq *ib_cq, void *cq_context);
 void smc_wr_tx_dismiss_slots(struct smc_link *lnk, u8 wr_rx_hdr_type,
 			     smc_wr_tx_filter filter,
 			     smc_wr_tx_dismisser dismisser,
 			     unsigned long data);
+int smc_wr_tx_wait_no_pending_sends(struct smc_link *link);
 
 int smc_wr_rx_register_handler(struct smc_wr_rx_handler *handler);
 int smc_wr_rx_post_init(struct smc_link *link);

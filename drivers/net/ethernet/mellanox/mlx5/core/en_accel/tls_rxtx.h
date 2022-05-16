@@ -34,20 +34,47 @@
 #ifndef __MLX5E_TLS_RXTX_H__
 #define __MLX5E_TLS_RXTX_H__
 
+#include "accel/accel.h"
+#include "en_accel/ktls_txrx.h"
+
 #ifdef CONFIG_MLX5_EN_TLS
 
 #include <linux/skbuff.h>
 #include "en.h"
 #include "en/txrx.h"
 
-struct sk_buff *mlx5e_tls_handle_tx_skb(struct net_device *netdev,
-					struct mlx5e_txqsq *sq,
-					struct sk_buff *skb,
-					struct mlx5e_tx_wqe **wqe,
-					u16 *pi);
+u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq);
 
-void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
-			     u32 *cqe_bcnt);
+bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
+			     struct sk_buff *skb, struct mlx5e_accel_tx_tls_state *state);
+void mlx5e_tls_handle_tx_wqe(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
+			     struct mlx5e_accel_tx_tls_state *state);
+
+void mlx5e_tls_handle_rx_skb_metadata(struct mlx5e_rq *rq, struct sk_buff *skb,
+				      u32 *cqe_bcnt);
+
+static inline void
+mlx5e_tls_handle_rx_skb(struct mlx5e_rq *rq, struct sk_buff *skb,
+			struct mlx5_cqe64 *cqe, u32 *cqe_bcnt)
+{
+	if (unlikely(get_cqe_tls_offload(cqe))) /* cqe bit indicates a TLS device */
+		return mlx5e_ktls_handle_rx_skb(rq, skb, cqe, cqe_bcnt);
+
+	if (unlikely(test_bit(MLX5E_RQ_STATE_FPGA_TLS, &rq->state) && is_metadata_hdr_valid(skb)))
+		return mlx5e_tls_handle_rx_skb_metadata(rq, skb, cqe_bcnt);
+}
+
+#else
+
+static inline bool
+mlx5e_accel_is_tls(struct mlx5_cqe64 *cqe, struct sk_buff *skb) { return false; }
+static inline void
+mlx5e_tls_handle_rx_skb(struct mlx5e_rq *rq, struct sk_buff *skb,
+			struct mlx5_cqe64 *cqe, u32 *cqe_bcnt) {}
+static inline u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq)
+{
+	return 0;
+}
 
 #endif /* CONFIG_MLX5_EN_TLS */
 

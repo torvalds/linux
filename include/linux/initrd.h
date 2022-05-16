@@ -2,12 +2,6 @@
 
 #define INITRD_MINOR 250 /* shouldn't collide with /dev/ram* too soon ... */
 
-/* 1 = load ramdisk, 0 = don't load */
-extern int rd_doload;
-
-/* 1 = prompt for ramdisk, 0 = don't prompt */
-extern int rd_prompt;
-
 /* starting block # of image */
 extern int rd_image_start;
 
@@ -28,3 +22,5 @@ extern unsigned int real_root_dev;
 
 extern char __initramfs_start[];
 extern unsigned long __initramfs_size;
+
+void console_on_rootfs(void);

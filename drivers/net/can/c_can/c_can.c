@@ -356,15 +356,6 @@ static void c_can_setup_tx_object(struct net_device *dev, int iface,
 	}
 }
 
-static inline void c_can_activate_all_lower_rx_msg_obj(struct net_device *dev,
-						       int iface)
-{
-	int i;
-
-	for (i = C_CAN_MSG_OBJ_RX_FIRST; i <= C_CAN_MSG_RX_LOW_LAST; i++)
-		c_can_object_get(dev, iface, i, IF_COMM_CLR_NEWDAT);
-}
-
 static int c_can_handle_lost_msg_obj(struct net_device *dev,
 				     int iface, int objno, u32 ctrl)
 {
@@ -1304,12 +1295,22 @@ int c_can_power_up(struct net_device *dev)
 				time_after(time_out, jiffies))
 		cpu_relax();
 
-	if (time_after(jiffies, time_out))
-		return -ETIMEDOUT;
+	if (time_after(jiffies, time_out)) {
+		ret = -ETIMEDOUT;
+		goto err_out;
+	}
 
 	ret = c_can_start(dev);
-	if (!ret)
-		c_can_irq_control(priv, true);
+	if (ret)
+		goto err_out;
+
+	c_can_irq_control(priv, true);
+
+	return 0;
+
+err_out:
+	c_can_reset_ram(priv, false);
+	c_can_pm_runtime_put_sync(priv);
 
 	return ret;
 }

@@ -34,7 +34,7 @@ struct persistent_ram_buffer {
 	uint32_t    sig;
 	atomic_t    start;
 	atomic_t    size;
-	uint8_t     data[0];
+	uint8_t     data[];
 };
 
 #define PERSISTENT_RAM_SIG (0x43474244) /* DBGC */
@@ -283,7 +283,7 @@ static int notrace persistent_ram_update_user(struct persistent_ram_zone *prz,
 	const void __user *s, unsigned int start, unsigned int count)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
-	int ret = unlikely(__copy_from_user(buffer->data + start, s, count)) ?
+	int ret = unlikely(copy_from_user(buffer->data + start, s, count)) ?
 		-EFAULT : 0;
 	persistent_ram_update_ecc(prz, start, count);
 	return ret;
@@ -348,8 +348,6 @@ int notrace persistent_ram_write_user(struct persistent_ram_zone *prz,
 	int rem, ret = 0, c = count;
 	size_t start;
 
-	if (unlikely(!access_ok(s, count)))
-		return -EFAULT;
 	if (unlikely(c > prz->buffer_size)) {
 		s += c - prz->buffer_size;
 		c = prz->buffer_size;
@@ -574,7 +572,7 @@ struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 	/* Initialize general buffer state. */
 	raw_spin_lock_init(&prz->buffer_lock);
 	prz->flags = flags;
-	prz->label = label;
+	prz->label = kstrdup(label, GFP_KERNEL);
 
 	ret = persistent_ram_buffer_map(start, size, prz, memtype);
 	if (ret)

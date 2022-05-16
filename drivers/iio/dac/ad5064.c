@@ -68,8 +68,8 @@ enum ad5064_regmap_type {
  * struct ad5064_chip_info - chip specific information
  * @shared_vref:	whether the vref supply is shared between channels
  * @internal_vref:	internal reference voltage. 0 if the chip has no
-			internal vref.
- * @channel:		channel specification
+ *			internal vref.
+ * @channels:		channel specification
  * @num_channels:	number of channels
  * @regmap_type:	register map layout variant
  */
@@ -98,6 +98,7 @@ typedef int (*ad5064_write_func)(struct ad5064_state *st, unsigned int cmd,
  * @use_internal_vref:	set to true if the internal reference voltage should be
  *			used.
  * @write:		register write callback
+ * @lock:		maintain consistency between cached and dev state
  * @data:		i2c/spi transfer buffers
  */
 
@@ -111,7 +112,6 @@ struct ad5064_state {
 	bool				use_internal_vref;
 
 	ad5064_write_func		write;
-	/* Lock used to maintain consistency between cached and dev state */
 	struct mutex lock;
 
 	/*
@@ -787,7 +787,7 @@ static const char * const ad5064_vref_names[] = {
 	"vrefD",
 };
 
-static const char * const ad5064_vref_name(struct ad5064_state *st,
+static const char *ad5064_vref_name(struct ad5064_state *st,
 	unsigned int vref)
 {
 	return st->chip_info->shared_vref ? "vref" : ad5064_vref_names[vref];
@@ -874,7 +874,6 @@ static int ad5064_probe(struct device *dev, enum ad5064_type type,
 			return ret;
 	}
 
-	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
 	indio_dev->info = &ad5064_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

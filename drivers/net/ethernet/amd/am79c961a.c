@@ -422,7 +422,7 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 	spin_unlock_irqrestore(&priv->chip_lock, flags);
 }
 
-static void am79c961_timeout(struct net_device *dev)
+static void am79c961_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	printk(KERN_WARNING "%s: transmit timed out, network cable problem?\n",
 		dev->name);

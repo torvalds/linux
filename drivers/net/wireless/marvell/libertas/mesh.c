@@ -828,10 +828,8 @@ static void lbs_persist_config_remove(struct net_device *dev)
  * Check mesh FW version and appropriately send the mesh start
  * command
  */
-int lbs_init_mesh(struct lbs_private *priv)
+void lbs_init_mesh(struct lbs_private *priv)
 {
-	int ret = 0;
-
 	/* Determine mesh_fw_ver from fwrelease and fwcapinfo */
 	/* 5.0.16p0 9.0.0.p0 is known to NOT support any mesh */
 	/* 5.110.22 have mesh command with 0xa3 command id */
@@ -870,8 +868,6 @@ int lbs_init_mesh(struct lbs_private *priv)
 
 	/* Stop meshing until interface is brought up */
 	lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_STOP, 1);
-
-	return ret;
 }
 
 void lbs_start_mesh(struct lbs_private *priv)
@@ -1003,7 +999,6 @@ static int lbs_add_mesh(struct lbs_private *priv)
 	if (priv->mesh_tlv) {
 		sprintf(mesh_wdev->ssid, "mesh");
 		mesh_wdev->mesh_id_up_len = 4;
-		ret = 1;
 	}
 
 	mesh_wdev->netdev = mesh_dev;

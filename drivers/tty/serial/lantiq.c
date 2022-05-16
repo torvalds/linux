@@ -11,11 +11,11 @@
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/lantiq.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -549,7 +549,7 @@ lqasc_request_port(struct uart_port *port)
 	}
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(&pdev->dev,
+		port->membase = devm_ioremap(&pdev->dev,
 			port->mapbase, size);
 		if (port->membase == NULL)
 			return -ENOMEM;
@@ -598,6 +598,7 @@ static const struct uart_ops lqasc_pops = {
 	.verify_port =	lqasc_verify_port,
 };
 
+#ifdef CONFIG_SERIAL_LANTIQ_CONSOLE
 static void
 lqasc_console_putchar(struct uart_port *port, int ch)
 {
@@ -706,6 +707,14 @@ lqasc_serial_early_console_setup(struct earlycon_device *device,
 OF_EARLYCON_DECLARE(lantiq, "lantiq,asc", lqasc_serial_early_console_setup);
 OF_EARLYCON_DECLARE(lantiq, "intel,lgm-asc", lqasc_serial_early_console_setup);
 
+#define LANTIQ_SERIAL_CONSOLE	(&lqasc_console)
+
+#else
+
+#define LANTIQ_SERIAL_CONSOLE	NULL
+
+#endif /* CONFIG_SERIAL_LANTIQ_CONSOLE */
+
 static struct uart_driver lqasc_reg = {
 	.owner =	THIS_MODULE,
 	.driver_name =	DRVNAME,
@@ -713,7 +722,7 @@ static struct uart_driver lqasc_reg = {
 	.major =	0,
 	.minor =	0,
 	.nr =		MAXPORTS,
-	.cons =		&lqasc_console,
+	.cons =		LANTIQ_SERIAL_CONSOLE,
 };
 
 static int fetch_irq_lantiq(struct device *dev, struct ltq_uart_port *ltq_port)
@@ -815,8 +824,7 @@ static void free_irq_intel(struct uart_port *port)
 	free_irq(ltq_port->common_irq, port);
 }
 
-static int __init
-lqasc_probe(struct platform_device *pdev)
+static int lqasc_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct ltq_uart_port *ltq_port;
@@ -900,6 +908,13 @@ lqasc_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static int lqasc_remove(struct platform_device *pdev)
+{
+	struct uart_port *port = platform_get_drvdata(pdev);
+
+	return uart_remove_one_port(&lqasc_reg, port);
+}
+
 static const struct ltq_soc_data soc_data_lantiq = {
 	.fetch_irq = fetch_irq_lantiq,
 	.request_irq = request_irq_lantiq,
@@ -917,8 +932,11 @@ static const struct of_device_id ltq_asc_match[] = {
 	{ .compatible = "intel,lgm-asc", .data = &soc_data_intel },
 	{},
 };
+MODULE_DEVICE_TABLE(of, ltq_asc_match);
 
 static struct platform_driver lqasc_driver = {
+	.probe		= lqasc_probe,
+	.remove		= lqasc_remove,
 	.driver		= {
 		.name	= DRVNAME,
 		.of_match_table = ltq_asc_match,
@@ -934,10 +952,21 @@ init_lqasc(void)
 	if (ret != 0)
 		return ret;
 
-	ret = platform_driver_probe(&lqasc_driver, lqasc_probe);
+	ret = platform_driver_register(&lqasc_driver);
 	if (ret != 0)
 		uart_unregister_driver(&lqasc_reg);
 
 	return ret;
 }
-device_initcall(init_lqasc);
+
+static void __exit exit_lqasc(void)
+{
+	platform_driver_unregister(&lqasc_driver);
+	uart_unregister_driver(&lqasc_reg);
+}
+
+module_init(init_lqasc);
+module_exit(exit_lqasc);
+
+MODULE_DESCRIPTION("Serial driver for Lantiq & Intel gateway SoCs");
+MODULE_LICENSE("GPL v2");

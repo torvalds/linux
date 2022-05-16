@@ -44,15 +44,14 @@ static inline unsigned long enable_cp(unsigned long *cpenable)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	RSR_CPENABLE(*cpenable);
-	WSR_CPENABLE(*cpenable | BIT(XCHAL_CP_ID_XTIOP));
-
+	*cpenable = xtensa_get_sr(cpenable);
+	xtensa_set_sr(*cpenable | BIT(XCHAL_CP_ID_XTIOP), cpenable);
 	return flags;
 }
 
 static inline void disable_cp(unsigned long flags, unsigned long cpenable)
 {
-	WSR_CPENABLE(cpenable);
+	xtensa_set_sr(cpenable, cpenable);
 	local_irq_restore(flags);
 }
 
@@ -72,7 +71,7 @@ static inline void disable_cp(unsigned long flags, unsigned long cpenable)
 
 static int xtensa_impwire_get_direction(struct gpio_chip *gc, unsigned offset)
 {
-	return 1; /* input only */
+	return GPIO_LINE_DIRECTION_IN; /* input only */
 }
 
 static int xtensa_impwire_get_value(struct gpio_chip *gc, unsigned offset)
@@ -95,7 +94,7 @@ static void xtensa_impwire_set_value(struct gpio_chip *gc, unsigned offset,
 
 static int xtensa_expstate_get_direction(struct gpio_chip *gc, unsigned offset)
 {
-	return 0; /* output only */
+	return GPIO_LINE_DIRECTION_OUT; /* output only */
 }
 
 static int xtensa_expstate_get_value(struct gpio_chip *gc, unsigned offset)

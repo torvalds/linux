@@ -152,7 +152,7 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
 		if (timeout) {
 			rets = wait_event_interruptible_timeout
 					(cl->rx_wait,
-					(!list_empty(&cl->rd_completed)) ||
+					mei_cl_read_cb(cl, NULL) ||
 					(!mei_cl_is_connected(cl)),
 					msecs_to_jiffies(timeout));
 			if (rets == 0)
@@ -165,7 +165,7 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
 		} else {
 			if (wait_event_interruptible
 					(cl->rx_wait,
-					(!list_empty(&cl->rd_completed)) ||
+					mei_cl_read_cb(cl, NULL) ||
 					(!mei_cl_is_connected(cl)))) {
 				if (signal_pending(current))
 					return -EINTR;
@@ -198,7 +198,7 @@ copy:
 	rets = r_length;
 
 free:
-	mei_io_cb_free(cb);
+	mei_cl_del_rd_completed(cl, cb);
 out:
 	mutex_unlock(&bus->device_lock);
 
@@ -496,6 +496,68 @@ static void mei_cl_bus_module_put(struct mei_cl_device *cldev)
 }
 
 /**
+ * mei_cl_bus_vtag - get bus vtag entry wrapper
+ *     The tag for bus client is always first.
+ *
+ * @cl: host client
+ *
+ * Return: bus vtag or NULL
+ */
+static inline struct mei_cl_vtag *mei_cl_bus_vtag(struct mei_cl *cl)
+{
+	return list_first_entry_or_null(&cl->vtag_map,
+					struct mei_cl_vtag, list);
+}
+
+/**
+ * mei_cl_bus_vtag_alloc - add bus client entry to vtag map
+ *
+ * @cldev: me client device
+ *
+ * Return:
+ * * 0 on success
+ * * -ENOMEM if memory allocation failed
+ */
+static int mei_cl_bus_vtag_alloc(struct mei_cl_device *cldev)
+{
+	struct mei_cl *cl = cldev->cl;
+	struct mei_cl_vtag *cl_vtag;
+
+	/*
+	 * Bail out if the client does not supports vtags
+	 * or has already allocated one
+	 */
+	if (mei_cl_vt_support_check(cl) || mei_cl_bus_vtag(cl))
+		return 0;
+
+	cl_vtag = mei_cl_vtag_alloc(NULL, 0);
+	if (IS_ERR(cl_vtag))
+		return -ENOMEM;
+
+	list_add_tail(&cl_vtag->list, &cl->vtag_map);
+
+	return 0;
+}
+
+/**
+ * mei_cl_bus_vtag_free - remove the bus entry from vtag map
+ *
+ * @cldev: me client device
+ */
+static void mei_cl_bus_vtag_free(struct mei_cl_device *cldev)
+{
+	struct mei_cl *cl = cldev->cl;
+	struct mei_cl_vtag *cl_vtag;
+
+	cl_vtag = mei_cl_bus_vtag(cl);
+	if (!cl_vtag)
+		return;
+
+	list_del(&cl_vtag->list);
+	kfree(cl_vtag);
+}
+
+/**
  * mei_cldev_enable - enable me client device
  *     create connection with me client
  *
@@ -531,9 +593,15 @@ int mei_cldev_enable(struct mei_cl_device *cldev)
 		goto out;
 	}
 
+	ret = mei_cl_bus_vtag_alloc(cldev);
+	if (ret)
+		goto out;
+
 	ret = mei_cl_connect(cl, cldev->me_cl, NULL);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(&cldev->dev, "cannot connect\n");
+		mei_cl_bus_vtag_free(cldev);
+	}
 
 out:
 	mutex_unlock(&bus->device_lock);
@@ -585,6 +653,8 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 	mei_cldev_unregister_callbacks(cldev);
 
 	mutex_lock(&bus->device_lock);
+
+	mei_cl_bus_vtag_free(cldev);
 
 	if (!mei_cl_is_connected(cl)) {
 		dev_dbg(bus->dev, "Already disconnected\n");
@@ -745,9 +815,8 @@ static int mei_cl_device_remove(struct device *dev)
 
 	mei_cl_bus_module_put(cldev);
 	module_put(THIS_MODULE);
-	dev->driver = NULL;
-	return ret;
 
+	return ret;
 }
 
 static ssize_t name_show(struct device *dev, struct device_attribute *a,
@@ -765,7 +834,7 @@ static ssize_t uuid_show(struct device *dev, struct device_attribute *a,
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);
 
-	return scnprintf(buf, PAGE_SIZE, "%pUl", uuid);
+	return sprintf(buf, "%pUl", uuid);
 }
 static DEVICE_ATTR_RO(uuid);
 
@@ -775,7 +844,7 @@ static ssize_t version_show(struct device *dev, struct device_attribute *a,
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	u8 version = mei_me_cl_ver(cldev->me_cl);
 
-	return scnprintf(buf, PAGE_SIZE, "%02X", version);
+	return sprintf(buf, "%02X", version);
 }
 static DEVICE_ATTR_RO(version);
 
@@ -791,11 +860,55 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 }
 static DEVICE_ATTR_RO(modalias);
 
+static ssize_t max_conn_show(struct device *dev, struct device_attribute *a,
+			     char *buf)
+{
+	struct mei_cl_device *cldev = to_mei_cl_device(dev);
+	u8 maxconn = mei_me_cl_max_conn(cldev->me_cl);
+
+	return sprintf(buf, "%d", maxconn);
+}
+static DEVICE_ATTR_RO(max_conn);
+
+static ssize_t fixed_show(struct device *dev, struct device_attribute *a,
+			  char *buf)
+{
+	struct mei_cl_device *cldev = to_mei_cl_device(dev);
+	u8 fixed = mei_me_cl_fixed(cldev->me_cl);
+
+	return sprintf(buf, "%d", fixed);
+}
+static DEVICE_ATTR_RO(fixed);
+
+static ssize_t vtag_show(struct device *dev, struct device_attribute *a,
+			 char *buf)
+{
+	struct mei_cl_device *cldev = to_mei_cl_device(dev);
+	bool vt = mei_me_cl_vt(cldev->me_cl);
+
+	return sprintf(buf, "%d", vt);
+}
+static DEVICE_ATTR_RO(vtag);
+
+static ssize_t max_len_show(struct device *dev, struct device_attribute *a,
+			    char *buf)
+{
+	struct mei_cl_device *cldev = to_mei_cl_device(dev);
+	u32 maxlen = mei_me_cl_max_len(cldev->me_cl);
+
+	return sprintf(buf, "%u", maxlen);
+}
+static DEVICE_ATTR_RO(max_len);
+
 static struct attribute *mei_cldev_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_uuid.attr,
 	&dev_attr_version.attr,
 	&dev_attr_modalias.attr,
+	&dev_attr_max_conn.attr,
+	&dev_attr_fixed.attr,
+	&dev_attr_vtag.attr,
+	&dev_attr_max_len.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(mei_cldev);
@@ -873,15 +986,16 @@ static const struct device_type mei_cl_device_type = {
 
 /**
  * mei_cl_bus_set_name - set device name for me client device
+ *  <controller>-<client device>
+ *  Example: 0000:00:16.0-55213584-9a29-4916-badf-0fb7ed682aeb
  *
  * @cldev: me client device
  */
 static inline void mei_cl_bus_set_name(struct mei_cl_device *cldev)
 {
-	dev_set_name(&cldev->dev, "mei:%s:%pUl:%02X",
-		     cldev->name,
-		     mei_me_cl_uuid(cldev->me_cl),
-		     mei_me_cl_ver(cldev->me_cl));
+	dev_set_name(&cldev->dev, "%s-%pUl",
+		     dev_name(cldev->bus->dev),
+		     mei_me_cl_uuid(cldev->me_cl));
 }
 
 /**
@@ -898,7 +1012,7 @@ static struct mei_cl_device *mei_cl_bus_dev_alloc(struct mei_device *bus,
 	struct mei_cl_device *cldev;
 	struct mei_cl *cl;
 
-	cldev = kzalloc(sizeof(struct mei_cl_device), GFP_KERNEL);
+	cldev = kzalloc(sizeof(*cldev), GFP_KERNEL);
 	if (!cldev)
 		return NULL;
 

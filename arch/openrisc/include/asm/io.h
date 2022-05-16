@@ -14,6 +14,8 @@
 #ifndef __ASM_OPENRISC_IO_H
 #define __ASM_OPENRISC_IO_H
 
+#include <linux/types.h>
+
 /*
  * PCI: can we really do 0 here if we have no port IO?
  */
@@ -25,11 +27,12 @@
 #define PIO_OFFSET		0
 #define PIO_MASK		0
 
-#define ioremap_nocache ioremap
-#include <asm-generic/io.h>
-#include <asm/pgtable.h>
-
+#define ioremap ioremap
 void __iomem *ioremap(phys_addr_t offset, unsigned long size);
+
+#define iounmap iounmap
 extern void iounmap(void *addr);
+
+#include <asm-generic/io.h>
 
 #endif

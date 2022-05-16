@@ -325,18 +325,10 @@ struct pardev_cb {
 	unsigned int flags;
 };
 
-/* parport_register_device declares that a device is connected to a
-   port, and tells the kernel all it needs to know.
-   - pf is the preemption function (may be NULL for no callback)
-   - kf is the wake-up function (may be NULL for no callback)
-   - irq_func is the interrupt handler (may be NULL for no interrupts)
-   - handle is a user pointer that gets handed to callback functions.  */
-struct pardevice *parport_register_device(struct parport *port, 
-			  const char *name,
-			  int (*pf)(void *), void (*kf)(void *),
-			  void (*irq_func)(void *), 
-			  int flags, void *handle);
-
+/*
+ * parport_register_dev_model declares that a device is connected to a
+ * port, and tells the kernel all it needs to know.
+ */
 struct pardevice *
 parport_register_dev_model(struct parport *port, const char *name,
 			   const struct pardev_cb *par_dev_cb, int cnt);
@@ -460,6 +452,7 @@ extern size_t parport_ieee1284_epp_read_addr (struct parport *,
 					      void *, size_t, int);
 
 /* IEEE1284.3 functions */
+#define daisy_dev_name "Device ID probe"
 extern int parport_daisy_init (struct parport *port);
 extern void parport_daisy_fini (struct parport *port);
 extern struct pardevice *parport_open (int devnum, const char *name);

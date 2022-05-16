@@ -53,7 +53,7 @@ void blk_stat_add(struct request *rq, u64 now)
 	struct request_queue *q = rq->q;
 	struct blk_stat_callback *cb;
 	struct blk_rq_stat *stat;
-	int bucket;
+	int bucket, cpu;
 	u64 value;
 
 	value = (now >= rq->io_start_time_ns) ? now - rq->io_start_time_ns : 0;
@@ -61,6 +61,7 @@ void blk_stat_add(struct request *rq, u64 now)
 	blk_throtl_stat_add(rq, value);
 
 	rcu_read_lock();
+	cpu = get_cpu();
 	list_for_each_entry_rcu(cb, &q->stats->callbacks, list) {
 		if (!blk_stat_is_active(cb))
 			continue;
@@ -69,10 +70,10 @@ void blk_stat_add(struct request *rq, u64 now)
 		if (bucket < 0)
 			continue;
 
-		stat = &get_cpu_ptr(cb->cpu_stat)[bucket];
+		stat = &per_cpu_ptr(cb->cpu_stat, cpu)[bucket];
 		blk_rq_stat_add(stat, value);
-		put_cpu_ptr(cb->cpu_stat);
 	}
+	put_cpu();
 	rcu_read_unlock();
 }
 
@@ -136,6 +137,7 @@ void blk_stat_add_callback(struct request_queue *q,
 			   struct blk_stat_callback *cb)
 {
 	unsigned int bucket;
+	unsigned long flags;
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
@@ -146,20 +148,22 @@ void blk_stat_add_callback(struct request_queue *q,
 			blk_rq_stat_init(&cpu_stat[bucket]);
 	}
 
-	spin_lock(&q->stats->lock);
+	spin_lock_irqsave(&q->stats->lock, flags);
 	list_add_tail_rcu(&cb->list, &q->stats->callbacks);
 	blk_queue_flag_set(QUEUE_FLAG_STATS, q);
-	spin_unlock(&q->stats->lock);
+	spin_unlock_irqrestore(&q->stats->lock, flags);
 }
 
 void blk_stat_remove_callback(struct request_queue *q,
 			      struct blk_stat_callback *cb)
 {
-	spin_lock(&q->stats->lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&q->stats->lock, flags);
 	list_del_rcu(&cb->list);
 	if (list_empty(&q->stats->callbacks) && !q->stats->enable_accounting)
 		blk_queue_flag_clear(QUEUE_FLAG_STATS, q);
-	spin_unlock(&q->stats->lock);
+	spin_unlock_irqrestore(&q->stats->lock, flags);
 
 	del_timer_sync(&cb->timer);
 }
@@ -182,10 +186,12 @@ void blk_stat_free_callback(struct blk_stat_callback *cb)
 
 void blk_stat_enable_accounting(struct request_queue *q)
 {
-	spin_lock(&q->stats->lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&q->stats->lock, flags);
 	q->stats->enable_accounting = true;
 	blk_queue_flag_set(QUEUE_FLAG_STATS, q);
-	spin_unlock(&q->stats->lock);
+	spin_unlock_irqrestore(&q->stats->lock, flags);
 }
 EXPORT_SYMBOL_GPL(blk_stat_enable_accounting);
 

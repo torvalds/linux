@@ -73,6 +73,8 @@ module_param(fixed_timeout, bool, 0644);
 
 #define TIFM_MMCSD_MAX_BLOCK_SIZE  0x0800UL
 
+#define TIFM_MMCSD_REQ_TIMEOUT_MS  1000
+
 enum {
 	CMD_READY    = 0x0001,
 	FIFO_READY   = 0x0002,
@@ -333,7 +335,7 @@ static unsigned int tifm_sd_op_flags(struct mmc_command *cmd)
 		break;
 	case MMC_RSP_R1B:
 		rc |= TIFM_MMCSD_RSP_BUSY;
-		/* fall-through */
+		fallthrough;
 	case MMC_RSP_R1:
 		rc |= TIFM_MMCSD_RSP_R1;
 		break;
@@ -959,7 +961,12 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 	host = mmc_priv(mmc);
 	tifm_set_drvdata(sock, mmc);
 	host->dev = sock;
-	host->timeout_jiffies = msecs_to_jiffies(1000);
+	host->timeout_jiffies = msecs_to_jiffies(TIFM_MMCSD_REQ_TIMEOUT_MS);
+	/*
+	 * We use a fixed request timeout of 1s, hence inform the core about it.
+	 * A future improvement should instead respect the cmd->busy_timeout.
+	 */
+	mmc->max_busy_timeout = TIFM_MMCSD_REQ_TIMEOUT_MS;
 
 	tasklet_init(&host->finish_tasklet, tifm_sd_end_cmd,
 		     (unsigned long)host);

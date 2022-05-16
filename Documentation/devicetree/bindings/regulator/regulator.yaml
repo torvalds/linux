@@ -38,7 +38,12 @@ properties:
     type: boolean
 
   regulator-boot-on:
-    description: bootloader/firmware enabled regulator
+    description: bootloader/firmware enabled regulator.
+      It's expected that this regulator was left on by the bootloader.
+      If the bootloader didn't leave it on then OS should turn it on
+      at boot but shouldn't prevent it from being turned off later.
+      This property is intended to only be used for regulators where
+      software cannot read the state of the regulator.
     type: boolean
 
   regulator-allow-bypass:
@@ -118,9 +123,8 @@ properties:
       0: Disable active discharge.
       1: Enable active discharge.
       Absence of this property will leave configuration to default.
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/uint32"
-      - enum: [ 0, 1 ]
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    enum: [0, 1]
 
   regulator-coupled-with:
     description: Regulators with which the regulator is coupled. The linkage
@@ -184,9 +188,11 @@ patternProperties:
 
     additionalProperties: false
 
+additionalProperties: true
+
 examples:
   - |
-    xyzreg: regulator@0 {
+    xyzreg: regulator {
       regulator-min-microvolt = <1000000>;
       regulator-max-microvolt = <2500000>;
       regulator-always-on;

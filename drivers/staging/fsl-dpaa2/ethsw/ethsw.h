@@ -37,7 +37,9 @@
 #define ETHSW_MAX_FRAME_LENGTH	(DPAA2_MFL - VLAN_ETH_HLEN - ETH_FCS_LEN)
 #define ETHSW_L2_MAX_FRM(mtu)	((mtu) + VLAN_ETH_HLEN + ETH_FCS_LEN)
 
-extern const struct ethtool_ops ethsw_port_ethtool_ops;
+#define ETHSW_FEATURE_MAC_ADDR	BIT(0)
+
+extern const struct ethtool_ops dpaa2_switch_port_ethtool_ops;
 
 struct ethsw_core;
 
@@ -61,11 +63,18 @@ struct ethsw_core {
 	struct fsl_mc_io		*mc_io;
 	u16				dpsw_handle;
 	struct dpsw_attr		sw_attr;
+	u16				major, minor;
+	unsigned long			features;
 	int				dev_id;
 	struct ethsw_port_priv		**ports;
 
 	u8				vlans[VLAN_VID_MASK + 1];
 	bool				learning;
+
+	struct notifier_block		port_nb;
+	struct notifier_block		port_switchdev_nb;
+	struct notifier_block		port_switchdevb_nb;
+	struct workqueue_struct		*workqueue;
 };
 
 #endif	/* __ETHSW_H */

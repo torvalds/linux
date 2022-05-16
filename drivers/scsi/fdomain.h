@@ -103,7 +103,7 @@ enum {
 #define REG_FIFO_COUNT		14	/* R: FIFO Data Count */
 
 #ifdef CONFIG_PM_SLEEP
-static const struct dev_pm_ops fdomain_pm_ops;
+static const struct dev_pm_ops __maybe_unused fdomain_pm_ops;
 #define FDOMAIN_PM_OPS	(&fdomain_pm_ops)
 #else
 #define FDOMAIN_PM_OPS	NULL

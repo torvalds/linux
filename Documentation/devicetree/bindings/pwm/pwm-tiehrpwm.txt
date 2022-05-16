@@ -7,7 +7,7 @@ Required properties:
   for am654   - compatible = "ti,am654-ehrpwm", "ti-am3352-ehrpwm";
   for da850   - compatible = "ti,da850-ehrpwm", "ti-am3352-ehrpwm", "ti,am33xx-ehrpwm";
   for dra746 - compatible = "ti,dra746-ehrpwm", "ti-am3352-ehrpwm";
-- #pwm-cells: should be 3. See pwm.txt in this directory for a description of
+- #pwm-cells: should be 3. See pwm.yaml in this directory for a description of
   the cells format. The only third cell flag supported by this binding is
   PWM_POLARITY_INVERTED.
 - reg: physical base address and size of the registers map.

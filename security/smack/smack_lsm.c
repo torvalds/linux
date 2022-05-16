@@ -28,7 +28,6 @@
 #include <linux/icmpv6.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
-#include <linux/pipe_fs_i.h>
 #include <net/cipso_ipv4.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -42,6 +41,7 @@
 #include <linux/parser.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
+#include <linux/watch_queue.h>
 #include "smack.h"
 
 #define TRANS_TRUE	"TRUE"
@@ -51,11 +51,8 @@
 #define SMK_RECEIVING	1
 #define SMK_SENDING	2
 
-#ifdef SMACK_IPV6_PORT_LABELING
-DEFINE_MUTEX(smack_ipv6_lock);
+static DEFINE_MUTEX(smack_ipv6_lock);
 static LIST_HEAD(smk_ipv6_port_list);
-#endif
-static struct kmem_cache *smack_inode_cache;
 struct kmem_cache *smack_rule_cache;
 int smack_enabled;
 
@@ -317,7 +314,6 @@ static void init_inode_smack(struct inode *inode, struct smack_known *skp)
 
 	isp->smk_inode = skp;
 	isp->smk_flags = 0;
-	mutex_init(&isp->smk_lock);
 }
 
 /**
@@ -679,7 +675,7 @@ static int smack_fs_context_dup(struct fs_context *fc,
 	return 0;
 }
 
-static const struct fs_parameter_spec smack_param_specs[] = {
+static const struct fs_parameter_spec smack_fs_parameters[] = {
 	fsparam_string("smackfsdef",		Opt_fsdefault),
 	fsparam_string("smackfsdefault",	Opt_fsdefault),
 	fsparam_string("smackfsfloor",		Opt_fsfloor),
@@ -687,11 +683,6 @@ static const struct fs_parameter_spec smack_param_specs[] = {
 	fsparam_string("smackfsroot",		Opt_fsroot),
 	fsparam_string("smackfstransmute",	Opt_fstransmute),
 	{}
-};
-
-static const struct fs_parameter_description smack_fs_parameters = {
-	.name		= "smack",
-	.specs		= smack_param_specs,
 };
 
 /**
@@ -708,7 +699,7 @@ static int smack_fs_context_parse_param(struct fs_context *fc,
 	struct fs_parse_result result;
 	int opt, rc;
 
-	opt = fs_parse(fc, &smack_fs_parameters, param, &result);
+	opt = fs_parse(fc, smack_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -897,21 +888,18 @@ static int smack_sb_statfs(struct dentry *dentry)
  */
 
 /**
- * smack_bprm_set_creds - set creds for exec
+ * smack_bprm_creds_for_exec - Update bprm->cred if needed for exec
  * @bprm: the exec information
  *
  * Returns 0 if it gets a blob, -EPERM if exec forbidden and -ENOMEM otherwise
  */
-static int smack_bprm_set_creds(struct linux_binprm *bprm)
+static int smack_bprm_creds_for_exec(struct linux_binprm *bprm)
 {
 	struct inode *inode = file_inode(bprm->file);
 	struct task_smack *bsp = smack_cred(bprm->cred);
 	struct inode_smack *isp;
 	struct superblock_smack *sbsp;
 	int rc;
-
-	if (bprm->called_set_creds)
-		return 0;
 
 	isp = smack_inode(inode);
 	if (isp->smk_task == NULL || isp->smk_task == bsp->smk_task)
@@ -2326,7 +2314,6 @@ static struct smack_known *smack_ipv4host_label(struct sockaddr_in *sip)
 	return NULL;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
 /*
  * smk_ipv6_localhost - Check for local ipv6 host address
  * @sip: the address
@@ -2394,41 +2381,33 @@ static struct smack_known *smack_ipv6host_label(struct sockaddr_in6 *sip)
 
 	return NULL;
 }
-#endif /* CONFIG_IPV6 */
 
 /**
- * smack_netlabel - Set the secattr on a socket
+ * smack_netlbl_add - Set the secattr on a socket
  * @sk: the socket
- * @labeled: socket label scheme
  *
- * Convert the outbound smack value (smk_out) to a
- * secattr and attach it to the socket.
+ * Attach the outbound smack value (smk_out) to the socket.
  *
  * Returns 0 on success or an error code
  */
-static int smack_netlabel(struct sock *sk, int labeled)
+static int smack_netlbl_add(struct sock *sk)
 {
-	struct smack_known *skp;
 	struct socket_smack *ssp = sk->sk_security;
-	int rc = 0;
+	struct smack_known *skp = ssp->smk_out;
+	int rc;
 
-	/*
-	 * Usually the netlabel code will handle changing the
-	 * packet labeling based on the label.
-	 * The case of a single label host is different, because
-	 * a single label host should never get a labeled packet
-	 * even though the label is usually associated with a packet
-	 * label.
-	 */
 	local_bh_disable();
 	bh_lock_sock_nested(sk);
 
-	if (ssp->smk_out == smack_net_ambient ||
-	    labeled == SMACK_UNLABELED_SOCKET)
-		netlbl_sock_delattr(sk);
-	else {
-		skp = ssp->smk_out;
-		rc = netlbl_sock_setattr(sk, sk->sk_family, &skp->smk_netlabel);
+	rc = netlbl_sock_setattr(sk, sk->sk_family, &skp->smk_netlabel);
+	switch (rc) {
+	case 0:
+		ssp->smk_state = SMK_NETLBL_LABELED;
+		break;
+	case -EDESTADDRREQ:
+		ssp->smk_state = SMK_NETLBL_REQSKB;
+		rc = 0;
+		break;
 	}
 
 	bh_unlock_sock(sk);
@@ -2438,7 +2417,31 @@ static int smack_netlabel(struct sock *sk, int labeled)
 }
 
 /**
- * smack_netlbel_send - Set the secattr on a socket and perform access checks
+ * smack_netlbl_delete - Remove the secattr from a socket
+ * @sk: the socket
+ *
+ * Remove the outbound smack value from a socket
+ */
+static void smack_netlbl_delete(struct sock *sk)
+{
+	struct socket_smack *ssp = sk->sk_security;
+
+	/*
+	 * Take the label off the socket if one is set.
+	 */
+	if (ssp->smk_state != SMK_NETLBL_LABELED)
+		return;
+
+	local_bh_disable();
+	bh_lock_sock_nested(sk);
+	netlbl_sock_delattr(sk);
+	bh_unlock_sock(sk);
+	local_bh_enable();
+	ssp->smk_state = SMK_NETLBL_UNLABELED;
+}
+
+/**
+ * smk_ipv4_check - Perform IPv4 host access checks
  * @sk: the socket
  * @sap: the destination address
  *
@@ -2448,11 +2451,10 @@ static int smack_netlabel(struct sock *sk, int labeled)
  * Returns 0 on success or an error code.
  *
  */
-static int smack_netlabel_send(struct sock *sk, struct sockaddr_in *sap)
+static int smk_ipv4_check(struct sock *sk, struct sockaddr_in *sap)
 {
 	struct smack_known *skp;
-	int rc;
-	int sk_lbl;
+	int rc = 0;
 	struct smack_known *hkp;
 	struct socket_smack *ssp = sk->sk_security;
 	struct smk_audit_info ad;
@@ -2468,22 +2470,20 @@ static int smack_netlabel_send(struct sock *sk, struct sockaddr_in *sap)
 		ad.a.u.net->dport = sap->sin_port;
 		ad.a.u.net->v4info.daddr = sap->sin_addr.s_addr;
 #endif
-		sk_lbl = SMACK_UNLABELED_SOCKET;
 		skp = ssp->smk_out;
 		rc = smk_access(skp, hkp, MAY_WRITE, &ad);
 		rc = smk_bu_note("IPv4 host check", skp, hkp, MAY_WRITE, rc);
-	} else {
-		sk_lbl = SMACK_CIPSO_SOCKET;
-		rc = 0;
+		/*
+		 * Clear the socket netlabel if it's set.
+		 */
+		if (!rc)
+			smack_netlbl_delete(sk);
 	}
 	rcu_read_unlock();
-	if (rc != 0)
-		return rc;
 
-	return smack_netlabel(sk, sk_lbl);
+	return rc;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
 /**
  * smk_ipv6_check - check Smack access
  * @subject: subject Smack label
@@ -2516,7 +2516,6 @@ static int smk_ipv6_check(struct smack_known *subject,
 	rc = smk_bu_note("IPv6 check", subject, object, MAY_WRITE, rc);
 	return rc;
 }
-#endif /* CONFIG_IPV6 */
 
 #ifdef SMACK_IPV6_PORT_LABELING
 /**
@@ -2605,6 +2604,7 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 	mutex_unlock(&smack_ipv6_lock);
 	return;
 }
+#endif
 
 /**
  * smk_ipv6_port_check - check Smack port access
@@ -2667,7 +2667,6 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 
 	return smk_ipv6_check(skp, object, address, act);
 }
-#endif /* SMACK_IPV6_PORT_LABELING */
 
 /**
  * smack_inode_setsecurity - set smack xattrs
@@ -2719,7 +2718,7 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 	else if (strcmp(name, XATTR_SMACK_IPOUT) == 0) {
 		ssp->smk_out = skp;
 		if (sock->sk->sk_family == PF_INET) {
-			rc = smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
+			rc = smack_netlbl_add(sock->sk);
 			if (rc != 0)
 				printk(KERN_WARNING
 					"Smack: \"%s\" netlbl error %d.\n",
@@ -2770,7 +2769,7 @@ static int smack_socket_post_create(struct socket *sock, int family,
 	/*
 	 * Set the outbound netlbl.
 	 */
-	return smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
+	return smack_netlbl_add(sock->sk);
 }
 
 /**
@@ -2832,42 +2831,36 @@ static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
 				int addrlen)
 {
 	int rc = 0;
-#if IS_ENABLED(CONFIG_IPV6)
-	struct sockaddr_in6 *sip = (struct sockaddr_in6 *)sap;
-#endif
-#ifdef SMACK_IPV6_SECMARK_LABELING
-	struct smack_known *rsp;
-	struct socket_smack *ssp;
-#endif
 
 	if (sock->sk == NULL)
 		return 0;
+	if (sock->sk->sk_family != PF_INET &&
+	    (!IS_ENABLED(CONFIG_IPV6) || sock->sk->sk_family != PF_INET6))
+		return 0;
+	if (addrlen < offsetofend(struct sockaddr, sa_family))
+		return 0;
+	if (IS_ENABLED(CONFIG_IPV6) && sap->sa_family == AF_INET6) {
+		struct sockaddr_in6 *sip = (struct sockaddr_in6 *)sap;
+		struct smack_known *rsp = NULL;
 
-#ifdef SMACK_IPV6_SECMARK_LABELING
-	ssp = sock->sk->sk_security;
-#endif
+		if (addrlen < SIN6_LEN_RFC2133)
+			return 0;
+		if (__is_defined(SMACK_IPV6_SECMARK_LABELING))
+			rsp = smack_ipv6host_label(sip);
+		if (rsp != NULL) {
+			struct socket_smack *ssp = sock->sk->sk_security;
 
-	switch (sock->sk->sk_family) {
-	case PF_INET:
-		if (addrlen < sizeof(struct sockaddr_in) ||
-		    sap->sa_family != AF_INET)
-			return -EINVAL;
-		rc = smack_netlabel_send(sock->sk, (struct sockaddr_in *)sap);
-		break;
-	case PF_INET6:
-		if (addrlen < SIN6_LEN_RFC2133 || sap->sa_family != AF_INET6)
-			return -EINVAL;
-#ifdef SMACK_IPV6_SECMARK_LABELING
-		rsp = smack_ipv6host_label(sip);
-		if (rsp != NULL)
 			rc = smk_ipv6_check(ssp->smk_out, rsp, sip,
-						SMK_CONNECTING);
-#endif
-#ifdef SMACK_IPV6_PORT_LABELING
-		rc = smk_ipv6_port_check(sock->sk, sip, SMK_CONNECTING);
-#endif
-		break;
+					    SMK_CONNECTING);
+		}
+		if (__is_defined(SMACK_IPV6_PORT_LABELING))
+			rc = smk_ipv6_port_check(sock->sk, sip, SMK_CONNECTING);
+
+		return rc;
 	}
+	if (sap->sa_family != AF_INET || addrlen < sizeof(struct sockaddr_in))
+		return 0;
+	rc = smk_ipv4_check(sock->sk, (struct sockaddr_in *)sap);
 	return rc;
 }
 
@@ -3282,13 +3275,12 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 
 	isp = smack_inode(inode);
 
-	mutex_lock(&isp->smk_lock);
 	/*
 	 * If the inode is already instantiated
 	 * take the quick way out
 	 */
 	if (isp->smk_flags & SMK_INODE_INSTANT)
-		goto unlockandout;
+		return;
 
 	sbp = inode->i_sb;
 	sbsp = sbp->s_security;
@@ -3339,7 +3331,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 			break;
 		}
 		isp->smk_flags |= SMK_INODE_INSTANT;
-		goto unlockandout;
+		return;
 	}
 
 	/*
@@ -3388,7 +3380,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 * to set mount options simulate setting the
 		 * superblock default.
 		 */
-		/* Fall through */
+		fallthrough;
 	default:
 		/*
 		 * This isn't an understood special case.
@@ -3474,8 +3466,6 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 
 	isp->smk_flags |= (SMK_INODE_INSTANT | transflag);
 
-unlockandout:
-	mutex_unlock(&isp->smk_lock);
 	return;
 }
 
@@ -3688,7 +3678,7 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 		if (msg->msg_namelen < sizeof(struct sockaddr_in) ||
 		    sip->sin_family != AF_INET)
 			return -EINVAL;
-		rc = smack_netlabel_send(sock->sk, sip);
+		rc = smk_ipv4_check(sock->sk, sip);
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
@@ -3724,6 +3714,18 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 	int found = 0;
 	int acat;
 	int kcat;
+
+	/*
+	 * Netlabel found it in the cache.
+	 */
+	if ((sap->flags & NETLBL_SECATTR_CACHE) != 0)
+		return (struct smack_known *)sap->cache->data;
+
+	if ((sap->flags & NETLBL_SECATTR_SECID) != 0)
+		/*
+		 * Looks like a fallback, which gives us a secid.
+		 */
+		return smack_from_secid(sap->attr.secid);
 
 	if ((sap->flags & NETLBL_SECATTR_MLS_LVL) != 0) {
 		/*
@@ -3772,11 +3774,6 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 			return &smack_known_web;
 		return &smack_known_star;
 	}
-	if ((sap->flags & NETLBL_SECATTR_SECID) != 0)
-		/*
-		 * Looks like a fallback, which gives us a secid.
-		 */
-		return smack_from_secid(sap->attr.secid);
 	/*
 	 * Without guidance regarding the smack value
 	 * for the packet fall back on the network
@@ -3836,6 +3833,62 @@ static int smk_skb_to_addr_ipv6(struct sk_buff *skb, struct sockaddr_in6 *sip)
 #endif /* CONFIG_IPV6 */
 
 /**
+ * smack_from_skb - Smack data from the secmark in an skb
+ * @skb: packet
+ *
+ * Returns smack_known of the secmark or NULL if that won't work.
+ */
+#ifdef CONFIG_NETWORK_SECMARK
+static struct smack_known *smack_from_skb(struct sk_buff *skb)
+{
+	if (skb == NULL || skb->secmark == 0)
+		return NULL;
+
+	return smack_from_secid(skb->secmark);
+}
+#else
+static inline struct smack_known *smack_from_skb(struct sk_buff *skb)
+{
+	return NULL;
+}
+#endif
+
+/**
+ * smack_from_netlbl - Smack data from the IP options in an skb
+ * @sk: socket data came in on
+ * @family: address family
+ * @skb: packet
+ *
+ * Find the Smack label in the IP options. If it hasn't been
+ * added to the netlabel cache, add it here.
+ *
+ * Returns smack_known of the IP options or NULL if that won't work.
+ */
+static struct smack_known *smack_from_netlbl(struct sock *sk, u16 family,
+					     struct sk_buff *skb)
+{
+	struct netlbl_lsm_secattr secattr;
+	struct socket_smack *ssp = NULL;
+	struct smack_known *skp = NULL;
+	int rc;
+
+	netlbl_secattr_init(&secattr);
+
+	if (sk)
+		ssp = sk->sk_security;
+
+	if (netlbl_skbuff_getattr(skb, family, &secattr) == 0) {
+		skp = smack_from_secattr(&secattr, ssp);
+		if (secattr.flags & NETLBL_SECATTR_CACHEABLE)
+			rc = netlbl_cache_add(skb, family, &skp->smk_netlabel);
+	}
+
+	netlbl_secattr_destroy(&secattr);
+
+	return skp;
+}
+
+/**
  * smack_socket_sock_rcv_skb - Smack packet delivery access check
  * @sk: socket
  * @skb: packet
@@ -3844,7 +3897,6 @@ static int smk_skb_to_addr_ipv6(struct sk_buff *skb, struct sockaddr_in6 *sip)
  */
 static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
-	struct netlbl_lsm_secattr secattr;
 	struct socket_smack *ssp = sk->sk_security;
 	struct smack_known *skp = NULL;
 	int rc = 0;
@@ -3863,33 +3915,18 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	switch (family) {
 	case PF_INET:
-#ifdef CONFIG_SECURITY_SMACK_NETFILTER
 		/*
 		 * If there is a secmark use it rather than the CIPSO label.
 		 * If there is no secmark fall back to CIPSO.
 		 * The secmark is assumed to reflect policy better.
 		 */
-		if (skb && skb->secmark != 0) {
-			skp = smack_from_secid(skb->secmark);
-			goto access_check;
+		skp = smack_from_skb(skb);
+		if (skp == NULL) {
+			skp = smack_from_netlbl(sk, family, skb);
+			if (skp == NULL)
+				skp = smack_net_ambient;
 		}
-#endif /* CONFIG_SECURITY_SMACK_NETFILTER */
-		/*
-		 * Translate what netlabel gave us.
-		 */
-		netlbl_secattr_init(&secattr);
 
-		rc = netlbl_skbuff_getattr(skb, family, &secattr);
-		if (rc == 0)
-			skp = smack_from_secattr(&secattr, ssp);
-		else
-			skp = smack_net_ambient;
-
-		netlbl_secattr_destroy(&secattr);
-
-#ifdef CONFIG_SECURITY_SMACK_NETFILTER
-access_check:
-#endif
 #ifdef CONFIG_AUDIT
 		smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
 		ad.a.u.net->family = family;
@@ -3915,16 +3952,14 @@ access_check:
 		    proto != IPPROTO_TCP && proto != IPPROTO_DCCP)
 			break;
 #ifdef SMACK_IPV6_SECMARK_LABELING
-		if (skb && skb->secmark != 0)
-			skp = smack_from_secid(skb->secmark);
-		else if (smk_ipv6_localhost(&sadd))
-			break;
-		else
+		skp = smack_from_skb(skb);
+		if (skp == NULL) {
+			if (smk_ipv6_localhost(&sadd))
+				break;
 			skp = smack_ipv6host_label(&sadd);
-		if (skp == NULL)
-			skp = smack_net_ambient;
-		if (skb == NULL)
-			break;
+			if (skp == NULL)
+				skp = smack_net_ambient;
+		}
 #ifdef CONFIG_AUDIT
 		smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
 		ad.a.u.net->family = family;
@@ -3996,12 +4031,11 @@ static int smack_socket_getpeersec_dgram(struct socket *sock,
 					 struct sk_buff *skb, u32 *secid)
 
 {
-	struct netlbl_lsm_secattr secattr;
 	struct socket_smack *ssp = NULL;
 	struct smack_known *skp;
+	struct sock *sk = NULL;
 	int family = PF_UNSPEC;
 	u32 s = 0;	/* 0 is the invalid secid */
-	int rc;
 
 	if (skb != NULL) {
 		if (skb->protocol == htons(ETH_P_IP))
@@ -4020,27 +4054,25 @@ static int smack_socket_getpeersec_dgram(struct socket *sock,
 		s = ssp->smk_out->smk_secid;
 		break;
 	case PF_INET:
-#ifdef CONFIG_SECURITY_SMACK_NETFILTER
-		s = skb->secmark;
-		if (s != 0)
+		skp = smack_from_skb(skb);
+		if (skp) {
+			s = skp->smk_secid;
 			break;
-#endif
+		}
 		/*
 		 * Translate what netlabel gave us.
 		 */
-		if (sock != NULL && sock->sk != NULL)
-			ssp = sock->sk->sk_security;
-		netlbl_secattr_init(&secattr);
-		rc = netlbl_skbuff_getattr(skb, family, &secattr);
-		if (rc == 0) {
-			skp = smack_from_secattr(&secattr, ssp);
+		if (sock != NULL)
+			sk = sock->sk;
+		skp = smack_from_netlbl(sk, family, skb);
+		if (skp != NULL)
 			s = skp->smk_secid;
-		}
-		netlbl_secattr_destroy(&secattr);
 		break;
 	case PF_INET6:
 #ifdef SMACK_IPV6_SECMARK_LABELING
-		s = skb->secmark;
+		skp = smack_from_skb(skb);
+		if (skp)
+			s = skp->smk_secid;
 #endif
 		break;
 	}
@@ -4088,7 +4120,6 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	u16 family = sk->sk_family;
 	struct smack_known *skp;
 	struct socket_smack *ssp = sk->sk_security;
-	struct netlbl_lsm_secattr secattr;
 	struct sockaddr_in addr;
 	struct iphdr *hdr;
 	struct smack_known *hskp;
@@ -4112,29 +4143,17 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	}
 #endif /* CONFIG_IPV6 */
 
-#ifdef CONFIG_SECURITY_SMACK_NETFILTER
 	/*
 	 * If there is a secmark use it rather than the CIPSO label.
 	 * If there is no secmark fall back to CIPSO.
 	 * The secmark is assumed to reflect policy better.
 	 */
-	if (skb && skb->secmark != 0) {
-		skp = smack_from_secid(skb->secmark);
-		goto access_check;
+	skp = smack_from_skb(skb);
+	if (skp == NULL) {
+		skp = smack_from_netlbl(sk, family, skb);
+		if (skp == NULL)
+			skp = &smack_known_huh;
 	}
-#endif /* CONFIG_SECURITY_SMACK_NETFILTER */
-
-	netlbl_secattr_init(&secattr);
-	rc = netlbl_skbuff_getattr(skb, family, &secattr);
-	if (rc == 0)
-		skp = smack_from_secattr(&secattr, ssp);
-	else
-		skp = &smack_known_huh;
-	netlbl_secattr_destroy(&secattr);
-
-#ifdef CONFIG_SECURITY_SMACK_NETFILTER
-access_check:
-#endif
 
 #ifdef CONFIG_AUDIT
 	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
@@ -4239,13 +4258,14 @@ static void smack_key_free(struct key *key)
  * smack_key_permission - Smack access on a key
  * @key_ref: gets to the object
  * @cred: the credentials to use
- * @perm: requested key permissions
+ * @need_perm: requested key permission
  *
  * Return 0 if the task has read and write to the object,
  * an error code otherwise
  */
 static int smack_key_permission(key_ref_t key_ref,
-				const struct cred *cred, unsigned perm)
+				const struct cred *cred,
+				enum key_need_perm need_perm)
 {
 	struct key *keyp;
 	struct smk_audit_info ad;
@@ -4256,8 +4276,26 @@ static int smack_key_permission(key_ref_t key_ref,
 	/*
 	 * Validate requested permissions
 	 */
-	if (perm & ~KEY_NEED_ALL)
+	switch (need_perm) {
+	case KEY_NEED_READ:
+	case KEY_NEED_SEARCH:
+	case KEY_NEED_VIEW:
+		request |= MAY_READ;
+		break;
+	case KEY_NEED_WRITE:
+	case KEY_NEED_LINK:
+	case KEY_NEED_SETATTR:
+		request |= MAY_WRITE;
+		break;
+	case KEY_NEED_UNSPECIFIED:
+	case KEY_NEED_UNLINK:
+	case KEY_SYSADMIN_OVERRIDE:
+	case KEY_AUTHTOKEN_OVERRIDE:
+	case KEY_DEFER_PERM_CHECK:
+		return 0;
+	default:
 		return -EINVAL;
+	}
 
 	keyp = key_ref_to_ptr(key_ref);
 	if (keyp == NULL)
@@ -4274,7 +4312,7 @@ static int smack_key_permission(key_ref_t key_ref,
 	if (tkp == NULL)
 		return -EACCES;
 
-	if (smack_privileged_cred(CAP_MAC_OVERRIDE, cred))
+	if (smack_privileged(CAP_MAC_OVERRIDE))
 		return 0;
 
 #ifdef CONFIG_AUDIT
@@ -4282,10 +4320,6 @@ static int smack_key_permission(key_ref_t key_ref,
 	ad.a.u.key_struct.key = keyp->serial;
 	ad.a.u.key_struct.key_desc = keyp->description;
 #endif
-	if (perm & (KEY_NEED_READ | KEY_NEED_SEARCH | KEY_NEED_VIEW))
-		request |= MAY_READ;
-	if (perm & (KEY_NEED_WRITE | KEY_NEED_LINK | KEY_NEED_SETATTR))
-		request |= MAY_WRITE;
 	rc = smk_access(tkp, keyp->security, request, &ad);
 	rc = smk_bu_note("key access", tkp, keyp->security, request, rc);
 	return rc;
@@ -4320,7 +4354,80 @@ static int smack_key_getsecurity(struct key *key, char **_buffer)
 	return length;
 }
 
+
+#ifdef CONFIG_KEY_NOTIFICATIONS
+/**
+ * smack_watch_key - Smack access to watch a key for notifications.
+ * @key: The key to be watched
+ *
+ * Return 0 if the @watch->cred has permission to read from the key object and
+ * an error otherwise.
+ */
+static int smack_watch_key(struct key *key)
+{
+	struct smk_audit_info ad;
+	struct smack_known *tkp = smk_of_current();
+	int rc;
+
+	if (key == NULL)
+		return -EINVAL;
+	/*
+	 * If the key hasn't been initialized give it access so that
+	 * it may do so.
+	 */
+	if (key->security == NULL)
+		return 0;
+	/*
+	 * This should not occur
+	 */
+	if (tkp == NULL)
+		return -EACCES;
+
+	if (smack_privileged_cred(CAP_MAC_OVERRIDE, current_cred()))
+		return 0;
+
+#ifdef CONFIG_AUDIT
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_KEY);
+	ad.a.u.key_struct.key = key->serial;
+	ad.a.u.key_struct.key_desc = key->description;
+#endif
+	rc = smk_access(tkp, key->security, MAY_READ, &ad);
+	rc = smk_bu_note("key watch", tkp, key->security, MAY_READ, rc);
+	return rc;
+}
+#endif /* CONFIG_KEY_NOTIFICATIONS */
 #endif /* CONFIG_KEYS */
+
+#ifdef CONFIG_WATCH_QUEUE
+/**
+ * smack_post_notification - Smack access to post a notification to a queue
+ * @w_cred: The credentials of the watcher.
+ * @cred: The credentials of the event source (may be NULL).
+ * @n: The notification message to be posted.
+ */
+static int smack_post_notification(const struct cred *w_cred,
+				   const struct cred *cred,
+				   struct watch_notification *n)
+{
+	struct smk_audit_info ad;
+	struct smack_known *subj, *obj;
+	int rc;
+
+	/* Always let maintenance notifications through. */
+	if (n->type == WATCH_TYPE_META)
+		return 0;
+
+	if (!cred)
+		return 0;
+	subj = smk_of_task(smack_cred(cred));
+	obj = smk_of_task(smack_cred(w_cred));
+
+	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_NOTIFICATION);
+	rc = smk_access(subj, obj, MAY_WRITE, &ad);
+	rc = smk_bu_note("notification", subj, obj, MAY_WRITE, rc);
+	return rc;
+}
+#endif /* CONFIG_WATCH_QUEUE */
 
 /*
  * Smack Audit hooks
@@ -4607,7 +4714,7 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(sb_statfs, smack_sb_statfs),
 	LSM_HOOK_INIT(sb_set_mnt_opts, smack_set_mnt_opts),
 
-	LSM_HOOK_INIT(bprm_set_creds, smack_bprm_set_creds),
+	LSM_HOOK_INIT(bprm_creds_for_exec, smack_bprm_creds_for_exec),
 
 	LSM_HOOK_INIT(inode_alloc_security, smack_inode_alloc_security),
 	LSM_HOOK_INIT(inode_init_security, smack_inode_init_security),
@@ -4710,7 +4817,14 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(key_free, smack_key_free),
 	LSM_HOOK_INIT(key_permission, smack_key_permission),
 	LSM_HOOK_INIT(key_getsecurity, smack_key_getsecurity),
+#ifdef CONFIG_KEY_NOTIFICATIONS
+	LSM_HOOK_INIT(watch_key, smack_watch_key),
+#endif
 #endif /* CONFIG_KEYS */
+
+#ifdef CONFIG_WATCH_QUEUE
+	LSM_HOOK_INIT(post_notification, smack_post_notification),
+#endif
 
  /* Audit hooks */
 #ifdef CONFIG_AUDIT
@@ -4769,15 +4883,9 @@ static __init int smack_init(void)
 	struct cred *cred = (struct cred *) current->cred;
 	struct task_smack *tsp;
 
-	smack_inode_cache = KMEM_CACHE(inode_smack, 0);
-	if (!smack_inode_cache)
-		return -ENOMEM;
-
 	smack_rule_cache = KMEM_CACHE(smack_rule, 0);
-	if (!smack_rule_cache) {
-		kmem_cache_destroy(smack_inode_cache);
+	if (!smack_rule_cache)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Set the security state for the initial task.

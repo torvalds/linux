@@ -175,7 +175,7 @@ static int stmpe_read_raw(struct iio_dev *indio_dev,
 static irqreturn_t stmpe_adc_isr(int irq, void *dev_id)
 {
 	struct stmpe_adc *info = (struct stmpe_adc *)dev_id;
-	u16 data;
+	__be16 data;
 
 	if (info->channel <= STMPE_ADC_LAST_NR) {
 		int int_sta;
@@ -297,7 +297,6 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	indio_dev->name		= dev_name(&pdev->dev);
-	indio_dev->dev.parent	= &pdev->dev;
 	indio_dev->info		= &stmpe_adc_iio_info;
 	indio_dev->modes	= INDIO_DIRECT_MODE;
 

@@ -110,7 +110,6 @@ struct raw3270_request {
 };
 
 struct raw3270_request *raw3270_request_alloc(size_t size);
-struct raw3270_request *raw3270_request_alloc_bootmem(size_t size);
 void raw3270_request_free(struct raw3270_request *);
 void raw3270_request_reset(struct raw3270_request *);
 void raw3270_request_set_cmd(struct raw3270_request *, u8 cmd);
@@ -211,7 +210,7 @@ struct string
 	struct list_head update;
 	unsigned long size;
 	unsigned long len;
-	char string[0];
+	char string[];
 } __attribute__ ((aligned(8)));
 
 static inline struct string *

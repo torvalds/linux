@@ -255,11 +255,11 @@ static unsigned int jmb38x_ms_write_data(struct jmb38x_ms_host *host,
 	case 3:
 		host->io_word[0] |= buf[off + 2] << 16;
 		host->io_pos++;
-		/* fall through */
+		fallthrough;
 	case 2:
 		host->io_word[0] |= buf[off + 1] << 8;
 		host->io_pos++;
-		/* fall through */
+		fallthrough;
 	case 1:
 		host->io_word[0] |= buf[off];
 		host->io_pos++;
@@ -314,7 +314,7 @@ static int jmb38x_ms_transfer_data(struct jmb38x_ms_host *host)
 	}
 
 	while (length) {
-		unsigned int uninitialized_var(p_off);
+		unsigned int p_off;
 
 		if (host->req->long_data) {
 			pg = nth_page(sg_page(&host->req->sg),
@@ -433,13 +433,13 @@ static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 		writel(((1 << 16) & BLOCK_COUNT_MASK)
 		       | (data_len & BLOCK_SIZE_MASK),
 		       host->addr + BLOCK);
-			t_val = readl(host->addr + INT_STATUS_ENABLE);
-			t_val |= host->req->data_dir == READ
-				 ? INT_STATUS_FIFO_RRDY
-				 : INT_STATUS_FIFO_WRDY;
+		t_val = readl(host->addr + INT_STATUS_ENABLE);
+		t_val |= host->req->data_dir == READ
+			 ? INT_STATUS_FIFO_RRDY
+			 : INT_STATUS_FIFO_WRDY;
 
-			writel(t_val, host->addr + INT_STATUS_ENABLE);
-			writel(t_val, host->addr + INT_SIGNAL_ENABLE);
+		writel(t_val, host->addr + INT_STATUS_ENABLE);
+		writel(t_val, host->addr + INT_SIGNAL_ENABLE);
 	} else {
 		cmd &= ~(TPC_DATA_SEL | 0xf);
 		host->cmd_flags |= REG_DATA;
@@ -793,11 +793,10 @@ static int jmb38x_ms_pmos(struct pci_dev *pdev, int flag)
         return 0;
 }
 
-#ifdef CONFIG_PM
-
-static int jmb38x_ms_suspend(struct pci_dev *dev, pm_message_t state)
+static int __maybe_unused jmb38x_ms_suspend(struct device *dev)
 {
-	struct jmb38x_ms *jm = pci_get_drvdata(dev);
+	struct jmb38x_ms *jm = dev_get_drvdata(dev);
+
 	int cnt;
 
 	for (cnt = 0; cnt < jm->host_cnt; ++cnt) {
@@ -806,26 +805,17 @@ static int jmb38x_ms_suspend(struct pci_dev *dev, pm_message_t state)
 		memstick_suspend_host(jm->hosts[cnt]);
 	}
 
-	pci_save_state(dev);
-	pci_enable_wake(dev, pci_choose_state(dev, state), 0);
-	pci_disable_device(dev);
-	pci_set_power_state(dev, pci_choose_state(dev, state));
+	device_wakeup_disable(dev);
+
 	return 0;
 }
 
-static int jmb38x_ms_resume(struct pci_dev *dev)
+static int __maybe_unused jmb38x_ms_resume(struct device *dev)
 {
-	struct jmb38x_ms *jm = pci_get_drvdata(dev);
+	struct jmb38x_ms *jm = dev_get_drvdata(dev);
 	int rc;
 
-	pci_set_power_state(dev, PCI_D0);
-	pci_restore_state(dev);
-	rc = pci_enable_device(dev);
-	if (rc)
-		return rc;
-	pci_set_master(dev);
-
-	jmb38x_ms_pmos(dev, 1);
+	jmb38x_ms_pmos(to_pci_dev(dev), 1);
 
 	for (rc = 0; rc < jm->host_cnt; ++rc) {
 		if (!jm->hosts[rc])
@@ -837,18 +827,11 @@ static int jmb38x_ms_resume(struct pci_dev *dev)
 	return 0;
 }
 
-#else
-
-#define jmb38x_ms_suspend NULL
-#define jmb38x_ms_resume NULL
-
-#endif /* CONFIG_PM */
-
 static int jmb38x_ms_count_slots(struct pci_dev *pdev)
 {
 	int cnt, rc = 0;
 
-	for (cnt = 0; cnt < PCI_ROM_RESOURCE; ++cnt) {
+	for (cnt = 0; cnt < PCI_STD_NUM_BARS; ++cnt) {
 		if (!(IORESOURCE_MEM & pci_resource_flags(pdev, cnt)))
 			break;
 
@@ -1030,13 +1013,14 @@ static struct pci_device_id jmb38x_ms_id_tbl [] = {
 	{ }
 };
 
+static SIMPLE_DEV_PM_OPS(jmb38x_ms_pm_ops, jmb38x_ms_suspend, jmb38x_ms_resume);
+
 static struct pci_driver jmb38x_ms_driver = {
 	.name = DRIVER_NAME,
 	.id_table = jmb38x_ms_id_tbl,
 	.probe = jmb38x_ms_probe,
 	.remove = jmb38x_ms_remove,
-	.suspend = jmb38x_ms_suspend,
-	.resume = jmb38x_ms_resume
+	.driver.pm = &jmb38x_ms_pm_ops,
 };
 
 module_pci_driver(jmb38x_ms_driver);

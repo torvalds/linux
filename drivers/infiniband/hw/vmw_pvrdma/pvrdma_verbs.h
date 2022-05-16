@@ -399,31 +399,31 @@ int pvrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 int pvrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
 void pvrdma_dealloc_ucontext(struct ib_ucontext *context);
 int pvrdma_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
-void pvrdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
+int pvrdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
 struct ib_mr *pvrdma_get_dma_mr(struct ib_pd *pd, int acc);
 struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				 u64 virt_addr, int access_flags,
 				 struct ib_udata *udata);
 int pvrdma_dereg_mr(struct ib_mr *mr, struct ib_udata *udata);
 struct ib_mr *pvrdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-			      u32 max_num_sg, struct ib_udata *udata);
+			      u32 max_num_sg);
 int pvrdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 		     int sg_nents, unsigned int *sg_offset);
 int pvrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		     struct ib_udata *udata);
-void pvrdma_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
+int pvrdma_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 int pvrdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 int pvrdma_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
-int pvrdma_create_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr, u32 flags,
+int pvrdma_create_ah(struct ib_ah *ah, struct rdma_ah_init_attr *init_attr,
 		     struct ib_udata *udata);
-void pvrdma_destroy_ah(struct ib_ah *ah, u32 flags);
+int pvrdma_destroy_ah(struct ib_ah *ah, u32 flags);
 
 int pvrdma_create_srq(struct ib_srq *srq, struct ib_srq_init_attr *init_attr,
 		      struct ib_udata *udata);
 int pvrdma_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		      enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int pvrdma_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
-void pvrdma_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
+int pvrdma_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
 
 struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			       struct ib_qp_init_attr *init_attr,

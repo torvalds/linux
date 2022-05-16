@@ -147,10 +147,6 @@ static void __init pas_setup_arch(void)
 	/* Lookup PCI hosts */
 	pas_pci_init();
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
-
 	/* Remap SDC register for doing reset */
 	/* XXXOJN This should maybe come out of the device tree */
 	reset_reg = ioremap(0xfc101100, 4);

@@ -7,6 +7,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <asm/page.h>
 
@@ -17,10 +18,12 @@
 
 struct smcd_dev_list smcd_dev_list = {
 	.list = LIST_HEAD_INIT(smcd_dev_list.list),
-	.lock = __SPIN_LOCK_UNLOCKED(smcd_dev_list.lock)
+	.mutex = __MUTEX_INITIALIZER(smcd_dev_list.mutex)
 };
 
-/* Test if an ISM communication is possible. */
+bool smc_ism_v2_capable;
+
+/* Test if an ISM communication is possible - same CPC */
 int smc_ism_cantalk(u64 peer_gid, unsigned short vlan_id, struct smcd_dev *smcd)
 {
 	return smcd->ops->query_remote_gid(smcd, peer_gid, vlan_id ? 1 : 0,
@@ -36,6 +39,16 @@ int smc_ism_write(struct smcd_dev *smcd, const struct smc_ism_position *pos,
 				  pos->offset, data, len);
 
 	return rc < 0 ? rc : 0;
+}
+
+void smc_ism_get_system_eid(struct smcd_dev *smcd, u8 **eid)
+{
+	smcd->ops->get_system_eid(smcd, eid);
+}
+
+u16 smc_ism_get_chid(struct smcd_dev *smcd)
+{
+	return smcd->ops->get_chid(smcd);
 }
 
 /* Set a connection using this DMBE. */
@@ -146,6 +159,10 @@ out:
 int smc_ism_unregister_dmb(struct smcd_dev *smcd, struct smc_buf_desc *dmb_desc)
 {
 	struct smcd_dmb dmb;
+	int rc = 0;
+
+	if (!dmb_desc->dma_addr)
+		return rc;
 
 	memset(&dmb, 0, sizeof(dmb));
 	dmb.dmb_tok = dmb_desc->token;
@@ -153,7 +170,13 @@ int smc_ism_unregister_dmb(struct smcd_dev *smcd, struct smc_buf_desc *dmb_desc)
 	dmb.cpu_addr = dmb_desc->cpu_addr;
 	dmb.dma_addr = dmb_desc->dma_addr;
 	dmb.dmb_len = dmb_desc->len;
-	return smcd->ops->unregister_dmb(smcd, &dmb);
+	rc = smcd->ops->unregister_dmb(smcd, &dmb);
+	if (!rc || rc == ISM_ERROR) {
+		dmb_desc->cpu_addr = NULL;
+		dmb_desc->dma_addr = 0;
+	}
+
+	return rc;
 }
 
 int smc_ism_register_dmb(struct smc_link_group *lgr, int dmb_len,
@@ -226,6 +249,9 @@ int smc_ism_signal_shutdown(struct smc_link_group *lgr)
 	int rc;
 	union smcd_sw_event_info ev_info;
 
+	if (lgr->peer_shutdown)
+		return 0;
+
 	memcpy(ev_info.uid, lgr->id, SMC_LGR_ID_SIZE);
 	ev_info.vlan_id = lgr->vlan_id;
 	ev_info.code = ISM_EVENT_REQUEST;
@@ -283,10 +309,14 @@ struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 	device_initialize(&smcd->dev);
 	dev_set_name(&smcd->dev, name);
 	smcd->ops = ops;
-	smc_pnetid_by_dev_port(parent, 0, smcd->pnetid);
+	if (smc_pnetid_by_dev_port(parent, 0, smcd->pnetid))
+		smc_pnetid_by_table_smcd(smcd);
 
 	spin_lock_init(&smcd->lock);
+	spin_lock_init(&smcd->lgr_lock);
 	INIT_LIST_HEAD(&smcd->vlan);
+	INIT_LIST_HEAD(&smcd->lgr_list);
+	init_waitqueue_head(&smcd->lgrs_deleted);
 	smcd->event_wq = alloc_ordered_workqueue("ism_evt_wq-%s)",
 						 WQ_MEM_RECLAIM, name);
 	if (!smcd->event_wq) {
@@ -300,9 +330,24 @@ EXPORT_SYMBOL_GPL(smcd_alloc_dev);
 
 int smcd_register_dev(struct smcd_dev *smcd)
 {
-	spin_lock(&smcd_dev_list.lock);
-	list_add_tail(&smcd->list, &smcd_dev_list.list);
-	spin_unlock(&smcd_dev_list.lock);
+	mutex_lock(&smcd_dev_list.mutex);
+	if (list_empty(&smcd_dev_list.list)) {
+		u8 *system_eid = NULL;
+
+		smc_ism_get_system_eid(smcd, &system_eid);
+		if (system_eid[24] != '0' || system_eid[28] != '0')
+			smc_ism_v2_capable = true;
+	}
+	/* sort list: devices without pnetid before devices with pnetid */
+	if (smcd->pnetid[0])
+		list_add_tail(&smcd->list, &smcd_dev_list.list);
+	else
+		list_add(&smcd->list, &smcd_dev_list.list);
+	mutex_unlock(&smcd_dev_list.mutex);
+
+	pr_warn_ratelimited("smc: adding smcd device %s with pnetid %.16s%s\n",
+			    dev_name(&smcd->dev), smcd->pnetid,
+			    smcd->pnetid_by_user ? " (user defined)" : "");
 
 	return device_add(&smcd->dev);
 }
@@ -310,12 +355,15 @@ EXPORT_SYMBOL_GPL(smcd_register_dev);
 
 void smcd_unregister_dev(struct smcd_dev *smcd)
 {
-	spin_lock(&smcd_dev_list.lock);
-	list_del(&smcd->list);
-	spin_unlock(&smcd_dev_list.lock);
+	pr_warn_ratelimited("smc: removing smcd device %s\n",
+			    dev_name(&smcd->dev));
+	mutex_lock(&smcd_dev_list.mutex);
+	list_del_init(&smcd->list);
+	mutex_unlock(&smcd_dev_list.mutex);
+	smcd->going_away = 1;
+	smc_smcd_terminate_all(smcd);
 	flush_workqueue(smcd->event_wq);
 	destroy_workqueue(smcd->event_wq);
-	smc_smcd_terminate(smcd, 0, VLAN_VID_MASK);
 
 	device_del(&smcd->dev);
 }
@@ -342,6 +390,8 @@ void smcd_handle_event(struct smcd_dev *smcd, struct smcd_event *event)
 {
 	struct smc_ism_event_work *wrk;
 
+	if (smcd->going_away)
+		return;
 	/* copy event to event work queue, and let it be handled there */
 	wrk = kmalloc(sizeof(*wrk), GFP_ATOMIC);
 	if (!wrk)
@@ -367,8 +417,13 @@ void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno)
 
 	spin_lock_irqsave(&smcd->lock, flags);
 	conn = smcd->conn[dmbno];
-	if (conn)
+	if (conn && !conn->killed)
 		tasklet_schedule(&conn->rx_tsklet);
 	spin_unlock_irqrestore(&smcd->lock, flags);
 }
 EXPORT_SYMBOL_GPL(smcd_handle_irq);
+
+void __init smc_ism_init(void)
+{
+	smc_ism_v2_capable = false;
+}

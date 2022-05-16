@@ -17,11 +17,17 @@ menuconfig MIPS_PLATFORM_DEVICES
 if MIPS_PLATFORM_DEVICES
 
 config CPU_HWMON
-	tristate "Loongson CPU HWMon Driver"
-	depends on LOONGSON_MACH3X
+	tristate "Loongson-3 CPU HWMon Driver"
+	depends on MACH_LOONGSON64
 	select HWMON
 	default y
 	help
 	  Loongson-3A/3B CPU Hwmon (temperature sensor) driver.
+
+config RS780E_ACPI
+	bool "Loongson RS780E ACPI Controller"
+	depends on MACH_LOONGSON64 || COMPILE_TEST
+	help
+	  Loongson RS780E PCH ACPI Controller driver.
 
 endif # MIPS_PLATFORM_DEVICES

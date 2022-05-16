@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * xHCI host controller driver
  *
@@ -289,23 +289,12 @@ DECLARE_EVENT_CLASS(xhci_log_urb,
 	),
 	TP_printk("ep%d%s-%s: urb %p pipe %u slot %d length %d/%d sgs %d/%d stream %d flags %08x",
 			__entry->epnum, __entry->dir_in ? "in" : "out",
-			({ char *s;
-			switch (__entry->type) {
-			case USB_ENDPOINT_XFER_INT:
-				s = "intr";
-				break;
-			case USB_ENDPOINT_XFER_CONTROL:
-				s = "control";
-				break;
-			case USB_ENDPOINT_XFER_BULK:
-				s = "bulk";
-				break;
-			case USB_ENDPOINT_XFER_ISOC:
-				s = "isoc";
-				break;
-			default:
-				s = "UNKNOWN";
-			} s; }), __entry->urb, __entry->pipe, __entry->slot_id,
+			__print_symbolic(__entry->type,
+				   { USB_ENDPOINT_XFER_INT,	"intr" },
+				   { USB_ENDPOINT_XFER_CONTROL,	"control" },
+				   { USB_ENDPOINT_XFER_BULK,	"bulk" },
+				   { USB_ENDPOINT_XFER_ISOC,	"isoc" }),
+			__entry->urb, __entry->pipe, __entry->slot_id,
 			__entry->actual, __entry->length, __entry->num_mapped_sgs,
 			__entry->num_sgs, __entry->stream, __entry->flags
 		)
@@ -558,6 +547,32 @@ DEFINE_EVENT(xhci_log_portsc, xhci_get_port_status,
 DEFINE_EVENT(xhci_log_portsc, xhci_hub_status_data,
 	     TP_PROTO(u32 portnum, u32 portsc),
 	     TP_ARGS(portnum, portsc)
+);
+
+DECLARE_EVENT_CLASS(xhci_log_doorbell,
+	TP_PROTO(u32 slot, u32 doorbell),
+	TP_ARGS(slot, doorbell),
+	TP_STRUCT__entry(
+		__field(u32, slot)
+		__field(u32, doorbell)
+	),
+	TP_fast_assign(
+		__entry->slot = slot;
+		__entry->doorbell = doorbell;
+	),
+	TP_printk("Ring doorbell for %s",
+		xhci_decode_doorbell(__entry->slot, __entry->doorbell)
+	)
+);
+
+DEFINE_EVENT(xhci_log_doorbell, xhci_ring_ep_doorbell,
+	     TP_PROTO(u32 slot, u32 doorbell),
+	     TP_ARGS(slot, doorbell)
+);
+
+DEFINE_EVENT(xhci_log_doorbell, xhci_ring_host_doorbell,
+	     TP_PROTO(u32 slot, u32 doorbell),
+	     TP_ARGS(slot, doorbell)
 );
 
 DECLARE_EVENT_CLASS(xhci_dbc_log_request,

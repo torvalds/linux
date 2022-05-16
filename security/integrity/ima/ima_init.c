@@ -11,8 +11,6 @@
  *             initialization and cleanup functions
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/init.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -21,13 +19,13 @@
 #include "ima.h"
 
 /* name for boot aggregate entry */
-static const char boot_aggregate_name[] = "boot_aggregate";
+const char boot_aggregate_name[] = "boot_aggregate";
 struct tpm_chip *ima_tpm_chip;
 
 /* Add the boot aggregate to the IMA measurement list and extend
  * the PCR register.
  *
- * Calculate the boot aggregate, a SHA1 over tpm registers 0-7,
+ * Calculate the boot aggregate, a hash over tpm registers 0-7,
  * assuming a TPM chip exists, and zeroes if the TPM chip does not
  * exist.  Add the boot aggregate measurement to the measurement
  * list and extend the PCR register.
@@ -51,15 +49,27 @@ static int __init ima_add_boot_aggregate(void)
 	int violation = 0;
 	struct {
 		struct ima_digest_data hdr;
-		char digest[TPM_DIGEST_SIZE];
+		char digest[TPM_MAX_DIGEST_SIZE];
 	} hash;
 
 	memset(iint, 0, sizeof(*iint));
 	memset(&hash, 0, sizeof(hash));
 	iint->ima_hash = &hash.hdr;
-	iint->ima_hash->algo = HASH_ALGO_SHA1;
-	iint->ima_hash->length = SHA1_DIGEST_SIZE;
+	iint->ima_hash->algo = ima_hash_algo;
+	iint->ima_hash->length = hash_digest_size[ima_hash_algo];
 
+	/*
+	 * With TPM 2.0 hash agility, TPM chips could support multiple TPM
+	 * PCR banks, allowing firmware to configure and enable different
+	 * banks.  The SHA1 bank is not necessarily enabled.
+	 *
+	 * Use the same hash algorithm for reading the TPM PCRs as for
+	 * calculating the boot aggregate digest.  Preference is given to
+	 * the configured IMA default hash algorithm.  Otherwise, use the
+	 * TCG required banks - SHA256 for TPM 2.0, SHA1 for TPM 1.2.
+	 * Ultimately select SHA1 also for TPM 2.0 if the SHA256 PCR bank
+	 * is not found.
+	 */
 	if (ima_tpm_chip) {
 		result = ima_calc_boot_aggregate(&hash.hdr);
 		if (result < 0) {
@@ -131,5 +141,11 @@ int __init ima_init(void)
 
 	ima_init_policy();
 
-	return ima_fs_init();
+	rc = ima_fs_init();
+	if (rc != 0)
+		return rc;
+
+	ima_init_key_queue();
+
+	return rc;
 }

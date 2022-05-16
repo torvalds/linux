@@ -1,61 +1,28 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright (c) 2015-2019 Intel Corporation
 
 #include <linux/acpi.h>
 #include <sound/intel-nhlt.h>
 
-#define NHLT_ACPI_HEADER_SIG	"NHLT"
-
-/* Unique identification for getting NHLT blobs */
-static guid_t osc_guid =
-	GUID_INIT(0xA69F886E, 0x6CEB, 0x4594,
-		  0xA4, 0x1F, 0x7B, 0x5D, 0xCE, 0x24, 0xC5, 0x53);
-
 struct nhlt_acpi_table *intel_nhlt_init(struct device *dev)
 {
-	acpi_handle handle;
-	union acpi_object *obj;
-	struct nhlt_resource_desc *nhlt_ptr;
-	struct nhlt_acpi_table *nhlt_table = NULL;
+	struct nhlt_acpi_table *nhlt;
+	acpi_status status;
 
-	handle = ACPI_HANDLE(dev);
-	if (!handle) {
-		dev_err(dev, "Didn't find ACPI_HANDLE\n");
+	status = acpi_get_table(ACPI_SIG_NHLT, 0,
+				(struct acpi_table_header **)&nhlt);
+	if (ACPI_FAILURE(status)) {
+		dev_warn(dev, "NHLT table not found\n");
 		return NULL;
 	}
 
-	obj = acpi_evaluate_dsm(handle, &osc_guid, 1, 1, NULL);
-
-	if (!obj)
-		return NULL;
-
-	if (obj->type != ACPI_TYPE_BUFFER) {
-		dev_dbg(dev, "No NHLT table found\n");
-		ACPI_FREE(obj);
-		return NULL;
-	}
-
-	nhlt_ptr = (struct nhlt_resource_desc  *)obj->buffer.pointer;
-	if (nhlt_ptr->length)
-		nhlt_table = (struct nhlt_acpi_table *)
-			memremap(nhlt_ptr->min_addr, nhlt_ptr->length,
-				 MEMREMAP_WB);
-	ACPI_FREE(obj);
-	if (nhlt_table &&
-	    (strncmp(nhlt_table->header.signature,
-		     NHLT_ACPI_HEADER_SIG,
-		     strlen(NHLT_ACPI_HEADER_SIG)) != 0)) {
-		memunmap(nhlt_table);
-		dev_err(dev, "NHLT ACPI header signature incorrect\n");
-		return NULL;
-	}
-	return nhlt_table;
+	return nhlt;
 }
 EXPORT_SYMBOL_GPL(intel_nhlt_init);
 
 void intel_nhlt_free(struct nhlt_acpi_table *nhlt)
 {
-	memunmap((void *)nhlt);
+	acpi_put_table((struct acpi_table_header *)nhlt);
 }
 EXPORT_SYMBOL_GPL(intel_nhlt_free);
 
@@ -102,6 +69,3 @@ int intel_nhlt_get_dmic_geo(struct device *dev, struct nhlt_acpi_table *nhlt)
 	return dmic_geo;
 }
 EXPORT_SYMBOL_GPL(intel_nhlt_get_dmic_geo);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Intel NHLT driver");

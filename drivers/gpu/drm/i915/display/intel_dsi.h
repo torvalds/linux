@@ -45,8 +45,9 @@ struct intel_dsi {
 	struct intel_dsi_host *dsi_hosts[I915_MAX_PORTS];
 	intel_wakeref_t io_wakeref[I915_MAX_PORTS];
 
-	/* GPIO Desc for CRC based Panel control */
+	/* GPIO Desc for panel and backlight control */
 	struct gpio_desc *gpio_panel;
+	struct gpio_desc *gpio_backlight;
 
 	struct intel_connector *attached_connector;
 
@@ -67,6 +68,9 @@ struct intel_dsi {
 
 	/* number of DSI lanes */
 	unsigned int lane_count;
+
+	/* i2c bus associated with the slave device */
+	int i2c_bus_num;
 
 	/*
 	 * video mode pixel format
@@ -141,9 +145,9 @@ static inline struct intel_dsi_host *to_intel_dsi_host(struct mipi_dsi_host *h)
 #define for_each_dsi_phy(__phy, __phys_mask) \
 	for_each_phy_masked(__phy, __phys_mask)
 
-static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
+static inline struct intel_dsi *enc_to_intel_dsi(struct intel_encoder *encoder)
 {
-	return container_of(encoder, struct intel_dsi, base.base);
+	return container_of(&encoder->base, struct intel_dsi, base.base);
 }
 
 static inline bool is_vid_mode(struct intel_dsi *intel_dsi)
@@ -158,7 +162,7 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 
 static inline u16 intel_dsi_encoder_ports(struct intel_encoder *encoder)
 {
-	return enc_to_intel_dsi(&encoder->base)->ports;
+	return enc_to_intel_dsi(encoder)->ports;
 }
 
 /* icl_dsi.c */
@@ -203,6 +207,8 @@ void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
 
 /* intel_dsi_vbt.c */
 bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id);
+void intel_dsi_vbt_gpio_init(struct intel_dsi *intel_dsi, bool panel_is_on);
+void intel_dsi_vbt_gpio_cleanup(struct intel_dsi *intel_dsi);
 void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 				 enum mipi_seq seq_id);
 void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec);

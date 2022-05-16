@@ -64,6 +64,9 @@ reusable (optional) - empty property
       system can use that region to store volatile or cached data that
       can be otherwise regenerated or migrated elsewhere.
 
+A node must not carry both the no-map and the reusable property as these are
+logically contradictory.
+
 Linux implementation note:
 - If a "linux,cma-default" property is present, then Linux will use the
   region for the default pool of the contiguous memory allocator.
@@ -77,6 +80,8 @@ Regions in the /reserved-memory node may be referenced by other device
 nodes by adding a memory-region property to the device node.
 
 memory-region (optional) - phandle, specifier pairs to children of /reserved-memory
+memory-region-names (optional) - a list of names, one for each corresponding
+  entry in the memory-region property
 
 Example
 -------

@@ -12,4 +12,6 @@ additions to this manual.
    configure-git
    rebasing-and-merging
    pull-requests
+   maintainer-entry-profile
+   modifying-patches
 

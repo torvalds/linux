@@ -554,7 +554,7 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
  * physically contiguous fragment starting at
  * skb->data, for length of skb_headlen(skb).
  */
-static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
 	unsigned int txsize = priv->tx_ring_size;
@@ -562,7 +562,7 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct tse_buffer *buffer = NULL;
 	int nfrags = skb_shinfo(skb)->nr_frags;
 	unsigned int nopaged_len = skb_headlen(skb);
-	enum netdev_tx ret = NETDEV_TX_OK;
+	netdev_tx_t ret = NETDEV_TX_OK;
 	dma_addr_t dma_addr;
 
 	spin_lock_bh(&priv->tx_lock);
@@ -730,12 +730,12 @@ static int altera_tse_phy_get_addr_mdio_create(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
 	struct device_node *np = priv->device->of_node;
-	int ret = 0;
+	int ret;
 
-	priv->phy_iface = of_get_phy_mode(np);
+	ret = of_get_phy_mode(np, &priv->phy_iface);
 
 	/* Avoid get phy addr and create mdio if no phy is present */
-	if (!priv->phy_iface)
+	if (ret)
 		return 0;
 
 	/* try to get PHY address from device tree, use PHY autodetection if
@@ -1332,10 +1332,10 @@ static int request_and_map(struct platform_device *pdev, const char *name,
 		return -EBUSY;
 	}
 
-	*ptr = devm_ioremap_nocache(device, region->start,
+	*ptr = devm_ioremap(device, region->start,
 				    resource_size(region));
 	if (*ptr == NULL) {
-		dev_err(device, "ioremap_nocache of %s failed!", name);
+		dev_err(device, "ioremap of %s failed!", name);
 		return -ENOMEM;
 	}
 

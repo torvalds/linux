@@ -68,7 +68,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 
 asmlinkage long _sys_rt_sigreturn(struct pt_regs *regs)
 {
-	struct rt_sigframe *frame = (struct rt_sigframe __user *)regs->sp;
+	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)regs->sp;
 	sigset_t set;
 
 	/*
@@ -76,7 +76,7 @@ asmlinkage long _sys_rt_sigreturn(struct pt_regs *regs)
 	 * then frame should be dword aligned here.  If it's
 	 * not, then the user is trying to mess with us.
 	 */
-	if (((long)frame) & 3)
+	if (((unsigned long)frame) & 3)
 		goto badframe;
 
 	if (!access_ok(frame, sizeof(*frame)))
@@ -151,7 +151,7 @@ static inline void __user *get_sigframe(struct ksignal *ksig,
 static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 			  struct pt_regs *regs)
 {
-	struct rt_sigframe *frame;
+	struct rt_sigframe __user *frame;
 	unsigned long return_ip;
 	int err = 0;
 
@@ -181,10 +181,10 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 		l.ori r11,r0,__NR_sigreturn
 		l.sys 1
 	 */
-	err |= __put_user(0xa960,             (short *)(frame->retcode + 0));
-	err |= __put_user(__NR_rt_sigreturn,  (short *)(frame->retcode + 2));
-	err |= __put_user(0x20000001, (unsigned long *)(frame->retcode + 4));
-	err |= __put_user(0x15000000, (unsigned long *)(frame->retcode + 8));
+	err |= __put_user(0xa960,             (short __user *)(frame->retcode + 0));
+	err |= __put_user(__NR_rt_sigreturn,  (short __user *)(frame->retcode + 2));
+	err |= __put_user(0x20000001, (unsigned long __user *)(frame->retcode + 4));
+	err |= __put_user(0x15000000, (unsigned long __user *)(frame->retcode + 8));
 
 	if (err)
 		return -EFAULT;
@@ -244,7 +244,7 @@ int do_signal(struct pt_regs *regs, int syscall)
 		switch (retval) {
 		case -ERESTART_RESTARTBLOCK:
 			restart = -2;
-			/* Fall through */
+			fallthrough;
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
@@ -311,7 +311,6 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 				}
 				syscall = 0;
 			} else {
-				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);
 			}
 		}

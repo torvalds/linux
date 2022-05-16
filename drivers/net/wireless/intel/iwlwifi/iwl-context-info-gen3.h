@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018, 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018, 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,6 +93,11 @@ enum iwl_prph_scratch_mtr_format {
  * @IWL_PRPH_SCRATCH_MTR_FORMAT: a mask for the size of the tfd.
  *	There are 4 optional values: 0: 16 bit, 1: 32 bit, 2: 64 bit,
  *	3: 256 bit.
+ * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_MASK: RB size full information, ignored
+ *	by older firmware versions, so set IWL_PRPH_SCRATCH_RB_SIZE_4K
+ *	appropriately; use the below values for this.
+ * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_8K: 8kB RB size
+ * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_12K: 12kB RB size
  */
 enum iwl_prph_scratch_flags {
 	IWL_PRPH_SCRATCH_EARLY_DEBUG_EN		= BIT(4),
@@ -103,6 +108,9 @@ enum iwl_prph_scratch_flags {
 	IWL_PRPH_SCRATCH_RB_SIZE_4K		= BIT(16),
 	IWL_PRPH_SCRATCH_MTR_MODE		= BIT(17),
 	IWL_PRPH_SCRATCH_MTR_FORMAT		= BIT(18) | BIT(19),
+	IWL_PRPH_SCRATCH_RB_SIZE_EXT_MASK	= 0xf << 20,
+	IWL_PRPH_SCRATCH_RB_SIZE_EXT_8K		= 8 << 20,
+	IWL_PRPH_SCRATCH_RB_SIZE_EXT_12K	= 9 << 20,
 };
 
 /*
@@ -130,16 +138,16 @@ struct iwl_prph_scratch_control {
 } __packed; /* PERIPH_SCRATCH_CONTROL_S */
 
 /*
- * struct iwl_prph_scratch_ror_cfg - ror config
- * @ror_base_addr: ror start address
- * @ror_size: ror size in DWs
+ * struct iwl_prph_scratch_pnvm_cfg - ror config
+ * @pnvm_base_addr: PNVM start address
+ * @pnvm_size: PNVM size in DWs
  * @reserved: reserved
  */
-struct iwl_prph_scratch_ror_cfg {
-	__le64 ror_base_addr;
-	__le32 ror_size;
+struct iwl_prph_scratch_pnvm_cfg {
+	__le64 pnvm_base_addr;
+	__le32 pnvm_size;
 	__le32 reserved;
-} __packed; /* PERIPH_SCRATCH_ROR_CFG_S */
+} __packed; /* PERIPH_SCRATCH_PNVM_CFG_S */
 
 /*
  * struct iwl_prph_scratch_hwm_cfg - hwm config
@@ -167,14 +175,14 @@ struct iwl_prph_scratch_rbd_cfg {
  * struct iwl_prph_scratch_ctrl_cfg - prph scratch ctrl and config
  * @version: version information of context info and HW
  * @control: control flags of FH configurations
- * @ror_cfg: ror configuration
+ * @pnvm_cfg: ror configuration
  * @hwm_cfg: hwm configuration
  * @rbd_cfg: default RX queue configuration
  */
 struct iwl_prph_scratch_ctrl_cfg {
 	struct iwl_prph_scratch_version version;
 	struct iwl_prph_scratch_control control;
-	struct iwl_prph_scratch_ror_cfg ror_cfg;
+	struct iwl_prph_scratch_pnvm_cfg pnvm_cfg;
 	struct iwl_prph_scratch_hwm_cfg hwm_cfg;
 	struct iwl_prph_scratch_rbd_cfg rbd_cfg;
 } __packed; /* PERIPH_SCRATCH_CTRL_CFG_S */
@@ -282,5 +290,8 @@ struct iwl_context_info_gen3 {
 int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 				 const struct fw_img *fw);
 void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans);
+
+int iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
+					  const void *data, u32 len);
 
 #endif /* __iwl_context_info_file_gen3_h__ */

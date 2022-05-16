@@ -51,7 +51,7 @@ struct nd_cmd_translate_spa {
 		__u32 nfit_device_handle;
 		__u32 _reserved;
 		__u64 dpa;
-	} __packed devices[0];
+	} __packed devices[];
 
 } __packed;
 
@@ -74,7 +74,7 @@ struct nd_cmd_ars_err_inj_stat {
 	struct nd_error_stat_query_record {
 		__u64 err_inj_stat_spa_range_base;
 		__u64 err_inj_stat_spa_range_length;
-	} __packed record[0];
+	} __packed record[];
 } __packed;
 
 #define ND_INTEL_SMART			 1
@@ -180,7 +180,7 @@ struct nd_intel_fw_send_data {
 	__u32 context;
 	__u32 offset;
 	__u32 length;
-	__u8 data[0];
+	__u8 data[];
 /* this field is not declared due ot variable data from input */
 /*	__u32 status; */
 } __packed;
@@ -207,8 +207,6 @@ typedef struct nfit_test_resource *(*nfit_test_lookup_fn)(resource_size_t);
 typedef union acpi_object *(*nfit_test_evaluate_dsm_fn)(acpi_handle handle,
 		 const guid_t *guid, u64 rev, u64 func,
 		 union acpi_object *argv4);
-void __iomem *__wrap_ioremap_nocache(resource_size_t offset,
-		unsigned long size);
 void __wrap_iounmap(volatile void __iomem *addr);
 void nfit_test_setup(nfit_test_lookup_fn lookup,
 		nfit_test_evaluate_dsm_fn evaluate);

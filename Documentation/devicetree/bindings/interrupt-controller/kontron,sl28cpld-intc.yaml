@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/kontron,sl28cpld-intc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Interrupt controller driver for the sl28cpld board management controller
+
+maintainers:
+  - Michael Walle <michael@walle.cc>
+
+description: |
+  This module is part of the sl28cpld multi-function device. For more
+  details see ../mfd/kontron,sl28cpld.yaml.
+
+  The following interrupts are available. All types and levels are fixed
+  and handled by the board management controller.
+
+  ==== ============= ==================================
+   IRQ line/device   description
+  ==== ============= ==================================
+    0  RTC_INT#      Interrupt line from on-board RTC
+    1  SMB_ALERT#    Event on SMB_ALERT# line (P1)
+    2  ESPI_ALERT0#  Event on ESPI_ALERT0# line (S43)
+    3  ESPI_ALERT1#  Event on ESPI_ALERT1# line (S44)
+    4  PWR_BTN#      Event on PWR_BTN# line (P128)
+    5  SLEEP#        Event on SLEEP# line (S149)
+    6  watchdog      Interrupt of the internal watchdog
+    7  n/a           not used
+  ==== ============= ==================================
+
+properties:
+  compatible:
+    enum:
+      - kontron,sl28cpld-intc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  "#interrupt-cells":
+    const: 2
+
+  interrupt-controller: true
+
+required:
+  - compatible
+  - interrupts
+  - "#interrupt-cells"
+  - interrupt-controller
+
+additionalProperties: false

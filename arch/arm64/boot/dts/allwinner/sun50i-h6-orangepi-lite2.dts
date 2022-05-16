@@ -1,11 +1,74 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
-/*
- * Copyright (C) 2018 Jagan Teki <jagan@openedev.com>
- */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2018 Jagan Teki <jagan@openedev.com>
 
 #include "sun50i-h6-orangepi.dtsi"
 
 / {
 	model = "OrangePi Lite2";
 	compatible = "xunlong,orangepi-lite2", "allwinner,sun50i-h6";
+
+	aliases {
+		serial1 = &uart1; /* BT-UART */
+	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rtc 1>;
+		clock-names = "ext_clock";
+		reset-gpios = <&r_pio 1 3 GPIO_ACTIVE_LOW>; /* PM3 */
+		post-power-on-delay-ms = <200>;
+	};
+};
+
+&mmc1 {
+	vmmc-supply = <&reg_cldo2>;
+	vqmmc-supply = <&reg_bldo3>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+
+	brcm: sdio-wifi@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+		interrupt-parent = <&r_pio>;
+		interrupts = <1 0 IRQ_TYPE_LEVEL_LOW>;	/* PM0 */
+		interrupt-names = "host-wake";
+	};
+};
+
+&reg_cldo2 {
+	/*
+	 * This regulator is connected with CLDO3.
+	 * Before the kernel can support synchronized
+	 * enable of coupled regulators, keep them
+	 * both always on as a ugly hack.
+	 */
+	regulator-always-on;
+};
+
+&reg_cldo3 {
+	/*
+	 * This regulator is connected with CLDO2.
+	 * See the comments for CLDO2.
+	 */
+	regulator-always-on;
+};
+
+/* There's the BT part of the AP6255 connected to that UART */
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
+	uart-has-rtscts;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm4345c5";
+		clocks = <&rtc 1>;
+		clock-names = "lpo";
+		device-wakeup-gpios = <&r_pio 1 2 GPIO_ACTIVE_HIGH>; /* PM2 */
+		host-wakeup-gpios = <&r_pio 1 1 GPIO_ACTIVE_HIGH>; /* PM1 */
+		shutdown-gpios = <&r_pio 1 4 GPIO_ACTIVE_HIGH>; /* PM4 */
+		max-speed = <1500000>;
+	};
 };

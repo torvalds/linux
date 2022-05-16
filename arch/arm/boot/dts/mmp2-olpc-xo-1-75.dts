@@ -57,30 +57,12 @@
 			linux,code = <SW_TABLET_MODE>;
 			wakeup-source;
 		};
-
-		microphone_insert {
-			label = "Microphone Plug";
-			gpios = <&gpio 96 GPIO_ACTIVE_HIGH>;
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_MICROPHONE_INSERT>;
-			debounce-interval = <100>;
-			wakeup-source;
-		};
-
-		headphone_insert {
-			label = "Headphone Plug";
-			gpios = <&gpio 97 GPIO_ACTIVE_HIGH>;
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_HEADPHONE_INSERT>;
-			debounce-interval = <100>;
-			wakeup-source;
-		};
 	};
 
-	camera_i2c {
+	i2c {
 		compatible = "i2c-gpio";
-		gpios = <&gpio 109 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>,
-			<&gpio 108 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&gpio 109 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio 108 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		i2c-gpio,timeout-ms = <1000>;
@@ -121,6 +103,18 @@
 		compatible = "mmc-pwrseq-sd8787";
 		powerdown-gpios = <&gpio 57 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio 58 GPIO_ACTIVE_HIGH>;
+	};
+
+	sound-card {
+		compatible = "audio-graph-card";
+		label = "OLPC XO";
+		dais = <&sspa0_dai>;
+		routing = "Headphones", "HPOL",
+			  "Headphones", "HPOR",
+			  "MIC2", "Mic Jack";
+		widgets = "Headphone", "Headphones", "Microphone", "Mic Jack";
+		hp-det-gpio = <&gpio 97 GPIO_ACTIVE_HIGH>;
+		mic-det-gpio = <&gpio 96 GPIO_ACTIVE_HIGH>;
 	};
 
 	soc {
@@ -197,6 +191,14 @@
 		compatible = "realtek,alc5631";
 		reg = <0x1a>;
 		status = "okay";
+
+		port {
+			rt5631_0: endpoint {
+				mclk-fs = <256>;
+				clocks = <&audio_clk 0>;
+				remote-endpoint = <&sspa0_0>;
+			};
+		};
 	};
 };
 
@@ -224,12 +226,12 @@
 	#address-cells = <0>;
 	spi-slave;
 	status = "okay";
-	ready-gpio = <&gpio 125 GPIO_ACTIVE_HIGH>;
+	ready-gpios = <&gpio 125 GPIO_ACTIVE_HIGH>;
 
 	slave {
 		compatible = "olpc,xo1.75-ec";
 		spi-cpha;
-		cmd-gpio = <&gpio 155 GPIO_ACTIVE_HIGH>;
+		cmd-gpios = <&gpio 155 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -241,4 +243,35 @@
 			remote-endpoint = <&ov7670_0>;
 		};
 	};
+};
+
+&asram {
+	status = "okay";
+};
+
+&adma0 {
+	status = "okay";
+};
+
+&audio_clk {
+	status = "okay";
+};
+
+&sspa0 {
+	status = "okay";
+	dmas = <&adma0 0>, <&adma0 1>;
+	dma-names = "tx", "rx";
+
+	sspa0_dai: port {
+		sspa0_0: endpoint {
+			remote-endpoint = <&rt5631_0>;
+			frame-master;
+			bitclock-master;
+			dai-format = "i2s";
+		};
+	};
+};
+
+&gpu {
+	status = "okay";
 };

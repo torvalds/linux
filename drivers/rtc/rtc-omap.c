@@ -9,7 +9,6 @@
  * Copyright (C) 2014 Johan Hovold <johan@kernel.org>
  */
 
-#include <dt-bindings/gpio/gpio.h>
 #include <linux/bcd.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -616,7 +615,7 @@ static int rtc_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	*config = pinconf_to_config_packed(param, arg);
 
@@ -727,7 +726,6 @@ static struct nvmem_config omap_rtc_nvmem_config = {
 static int omap_rtc_probe(struct platform_device *pdev)
 {
 	struct omap_rtc	*rtc;
-	struct resource	*res;
 	u8 reg, mask, new_ctrl;
 	const struct platform_device_id *id_entry;
 	const struct of_device_id *of_id;
@@ -764,8 +762,7 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	if (!IS_ERR(rtc->clk))
 		clk_prepare_enable(rtc->clk);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rtc->base = devm_ioremap_resource(&pdev->dev, res);
+	rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->base)) {
 		clk_disable_unprepare(rtc->clk);
 		return PTR_ERR(rtc->base);

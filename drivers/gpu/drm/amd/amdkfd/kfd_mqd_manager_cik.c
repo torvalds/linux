@@ -374,7 +374,6 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 
 	switch (type) {
 	case KFD_MQD_TYPE_CP:
-	case KFD_MQD_TYPE_COMPUTE:
 		mqd->allocate_mqd = allocate_mqd;
 		mqd->init_mqd = init_mqd;
 		mqd->free_mqd = free_mqd;
@@ -401,7 +400,7 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 #endif
 		break;
 	case KFD_MQD_TYPE_DIQ:
-		mqd->allocate_mqd = allocate_hiq_mqd;
+		mqd->allocate_mqd = allocate_mqd;
 		mqd->init_mqd = init_mqd_hiq;
 		mqd->free_mqd = free_mqd;
 		mqd->load_mqd = load_mqd;
@@ -442,7 +441,7 @@ struct mqd_manager *mqd_manager_init_cik_hawaii(enum KFD_MQD_TYPE type,
 	mqd = mqd_manager_init_cik(type, dev);
 	if (!mqd)
 		return NULL;
-	if ((type == KFD_MQD_TYPE_CP) || (type == KFD_MQD_TYPE_COMPUTE))
+	if (type == KFD_MQD_TYPE_CP)
 		mqd->update_mqd = update_mqd_hawaii;
 	return mqd;
 }

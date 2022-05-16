@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/types.h>
+#include <linux/seq_file.h>
 
 struct flag_info {
 	u64		mask;
@@ -17,3 +18,5 @@ struct pgtable_level {
 };
 
 extern struct pgtable_level pg_level[5];
+
+void pt_dump_size(struct seq_file *m, unsigned long delta);

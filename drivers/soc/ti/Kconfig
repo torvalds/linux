@@ -80,6 +80,38 @@ config TI_SCI_PM_DOMAINS
 	  called ti_sci_pm_domains. Note this is needed early in boot before
 	  rootfs may be available.
 
+config TI_K3_RINGACC
+	bool "K3 Ring accelerator Sub System"
+	depends on ARCH_K3 || COMPILE_TEST
+	depends on TI_SCI_INTA_IRQCHIP
+	help
+	  Say y here to support the K3 Ring accelerator module.
+	  The Ring Accelerator (RINGACC or RA)  provides hardware acceleration
+	  to enable straightforward passing of work between a producer
+	  and a consumer. There is one RINGACC module per NAVSS on TI AM65x SoCs
+	  If unsure, say N.
+
+config TI_K3_SOCINFO
+	bool
+	depends on ARCH_K3 || COMPILE_TEST
+	select SOC_BUS
+	select MFD_SYSCON
+	help
+	  Include support for the SoC bus socinfo for the TI K3 Multicore SoC
+	  platforms to provide information about the SoC family and
+	  variant to user space.
+
+config TI_PRUSS
+	tristate "TI PRU-ICSS Subsystem Platform drivers"
+	depends on SOC_AM33XX || SOC_AM43XX || SOC_DRA7XX || ARCH_KEYSTONE || ARCH_K3
+	select MFD_SYSCON
+	help
+	  TI PRU-ICSS Subsystem platform specific support.
+
+	  Say Y or M here to support the Programmable Realtime Unit (PRU)
+	  processors on various TI SoCs. It's safe to say N here if you're
+	  not interested in the PRU or if you are unsure.
+
 endif # SOC_TI
 
 config TI_SCI_INTA_MSI_DOMAIN

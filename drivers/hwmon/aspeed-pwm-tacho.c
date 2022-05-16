@@ -851,6 +851,8 @@ static int aspeed_create_fan(struct device *dev,
 	ret = of_property_read_u32(child, "reg", &pwm_port);
 	if (ret)
 		return ret;
+	if (pwm_port >= ARRAY_SIZE(pwm_port_params))
+		return -EINVAL;
 	aspeed_create_pwm_port(priv, (u8)pwm_port);
 
 	ret = of_property_count_u8_elems(child, "cooling-levels");
@@ -891,17 +893,12 @@ static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 	struct device_node *np, *child;
 	struct aspeed_pwm_tacho_data *priv;
 	void __iomem *regs;
-	struct resource *res;
 	struct device *hwmon;
 	struct clk *clk;
 	int ret;
 
 	np = dev->of_node;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-	regs = devm_ioremap_resource(dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);

@@ -40,8 +40,8 @@ enum clock_type {
 };
 
 struct pll_value {
-	enum clock_type clockType;
-	unsigned long inputFreq; /* Input clock frequency to the PLL */
+	enum clock_type clock_type;
+	unsigned long input_freq; /* Input clock frequency to the PLL */
 
 	/* Use this when clockType = PANEL_PLL */
 	unsigned long M;
@@ -53,41 +53,41 @@ struct pll_value {
 /* input struct to initChipParam() function */
 struct initchip_param {
 	/* Use power mode 0 or 1 */
-	unsigned short powerMode;
+	unsigned short power_mode;
 
 	/*
 	 * Speed of main chip clock in MHz unit
 	 * 0 = keep the current clock setting
 	 * Others = the new main chip clock
 	 */
-	unsigned short chipClock;
+	unsigned short chip_clock;
 
 	/*
 	 * Speed of memory clock in MHz unit
 	 * 0 = keep the current clock setting
 	 * Others = the new memory clock
 	 */
-	unsigned short memClock;
+	unsigned short mem_clock;
 
 	/*
 	 * Speed of master clock in MHz unit
 	 * 0 = keep the current clock setting
 	 * Others = the new master clock
 	 */
-	unsigned short masterClock;
+	unsigned short master_clock;
 
 	/*
 	 * 0 = leave all engine state untouched.
 	 * 1 = make sure they are off: 2D, Overlay,
 	 * video alpha, alpha, hardware cursors
 	 */
-	unsigned short setAllEngOff;
+	unsigned short set_all_eng_off;
 
 	/*
 	 * 0 = Do not reset the memory controller
 	 * 1 = Reset the memory controller
 	 */
-	unsigned char resetMemory;
+	unsigned char reset_memory;
 
 	/* More initialization parameter can be added if needed */
 };
@@ -95,7 +95,7 @@ struct initchip_param {
 enum logical_chip_type sm750_get_chip_type(void);
 void sm750_set_chip_type(unsigned short dev_id, u8 rev_id);
 unsigned int sm750_calc_pll_value(unsigned int request, struct  pll_value *pll);
-unsigned int sm750_format_pll_reg(struct pll_value *pPLL);
+unsigned int sm750_format_pll_reg(struct pll_value *p_PLL);
 unsigned int ddk750_get_vm_size(void);
 int ddk750_init_hw(struct initchip_param *pinit_param);
 

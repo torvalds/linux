@@ -961,7 +961,7 @@ int snd_vx_mixer_new(struct vx_core *chip)
 		return err;
 	/* VU, peak, saturation meters */
 	for (c = 0; c < 2; c++) {
-		static char *dir[2] = { "Output", "Input" };
+		static const char * const dir[2] = { "Output", "Input" };
 		for (i = 0; i < chip->hw->num_ins; i++) {
 			int val = (i * 2) | (c << 8);
 			if (c == 1) {

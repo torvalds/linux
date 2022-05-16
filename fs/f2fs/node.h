@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * fs/f2fs/node.h
  *
@@ -14,6 +14,9 @@
 /* # of pages to perform synchronous readahead before building free nids */
 #define FREE_NID_PAGES	8
 #define MAX_FREE_NIDS	(NAT_ENTRY_PER_BLOCK * FREE_NID_PAGES)
+
+/* size of free nid batch when shrinking */
+#define SHRINK_NID_BATCH_SIZE	8
 
 #define DEF_RA_NID_PAGES	0	/* # of nid pages to be readaheaded */
 

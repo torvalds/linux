@@ -2,16 +2,15 @@
 # SPDX-License-Identifier: GPL-2.0
 
 ROUTER_NUM_NETIFS=4
+: ${TIMEOUT:=20000} # ms
 
 router_h1_create()
 {
 	simple_if_init $h1 192.0.1.1/24
-	ip route add 193.0.0.0/8 via 192.0.1.2 dev $h1
 }
 
 router_h1_destroy()
 {
-	ip route del 193.0.0.0/8 via 192.0.1.2 dev $h1
 	simple_if_fini $h1 192.0.1.1/24
 }
 
@@ -64,13 +63,15 @@ router_setup_prepare()
 	router_create
 }
 
-router_offload_validate()
+wait_for_routes()
 {
-	local route_count=$1
-	local offloaded_count
+	local t0=$1; shift
+	local route_count=$1; shift
 
-	offloaded_count=$(ip route | grep -o 'offload' | wc -l)
-	[[ $offloaded_count -ge $route_count ]]
+	local t1=$(ip route | grep -o 'offload' | wc -l)
+	local delta=$((t1 - t0))
+	echo $delta
+	[[ $delta -ge $route_count ]]
 }
 
 router_routes_create()
@@ -90,8 +91,8 @@ router_routes_create()
 					break 3
 				fi
 
-				echo route add 193.${i}.${j}.${k}/32 via \
-				       192.0.2.1 dev $rp2  >> $ROUTE_FILE
+				echo route add 193.${i}.${j}.${k}/32 dev $rp2 \
+					>> $ROUTE_FILE
 				((count++))
 			done
 		done
@@ -111,44 +112,18 @@ router_test()
 {
 	local route_count=$1
 	local should_fail=$2
-	local count=0
+	local delta
 
 	RET=0
 
+	local t0=$(ip route | grep -o 'offload' | wc -l)
 	router_routes_create $route_count
+	delta=$(busywait "$TIMEOUT" wait_for_routes $t0 $route_count)
 
-	router_offload_validate $route_count
-	check_err_fail $should_fail $? "Offload of $route_count routes"
+	check_err_fail $should_fail $? "Offload routes: Expected $route_count, got $delta."
 	if [[ $RET -ne 0 ]] || [[ $should_fail -eq 1 ]]; then
 		return
 	fi
-
-	tc filter add dev $h2 ingress protocol ip pref 1 flower \
-		skip_sw dst_ip 193.0.0.0/8 action drop
-
-	for i in {0..255}
-	do
-		for j in {0..255}
-		do
-			for k in {0..255}
-			do
-				if [[ $count -eq $route_count ]]; then
-					break 3
-				fi
-
-				$MZ $h1 -c 1 -p 64 -a $h1mac -b $rp1mac \
-					-A 192.0.1.1 -B 193.${i}.${j}.${k} \
-					-t ip -q
-				((count++))
-			done
-		done
-	done
-
-	tc_check_packets "dev $h2 ingress" 1 $route_count
-	check_err $? "Offload mismatch"
-
-	tc filter del dev $h2 ingress protocol ip pref 1 flower \
-		skip_sw dst_ip 193.0.0.0/8 action drop
 
 	router_routes_destroy
 }

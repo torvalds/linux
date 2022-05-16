@@ -5,9 +5,10 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 struct strarray {
-	int	    offset;
+	u64	    offset;
 	int	    nr_entries;
 	const char *prefix;
 	const char **entries;
@@ -27,7 +28,11 @@ struct strarray {
 }
 
 size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, bool show_prefix, int val);
+size_t strarray__scnprintf_suffix(struct strarray *sa, char *bf, size_t size, const char *intfmt, bool show_suffix, int val);
 size_t strarray__scnprintf_flags(struct strarray *sa, char *bf, size_t size, bool show_prefix, unsigned long flags);
+
+bool strarray__strtoul(struct strarray *sa, char *bf, size_t size, u64 *ret);
+bool strarray__strtoul_flags(struct strarray *sa, char *bf, size_t size, u64 *ret);
 
 struct trace;
 struct thread;
@@ -50,6 +55,8 @@ struct strarrays {
 }
 
 size_t strarrays__scnprintf(struct strarrays *sas, char *bf, size_t size, const char *intfmt, bool show_prefix, int val);
+
+bool strarrays__strtoul(struct strarrays *sas, char *bf, size_t size, u64 *ret);
 
 size_t pid__scnprintf_fd(struct trace *trace, pid_t pid, int fd, char *bf, size_t size);
 
@@ -78,8 +85,11 @@ struct augmented_arg {
 	u64  value[];
 };
 
+struct syscall_arg_fmt;
+
 /**
  * @val: value of syscall argument being formatted
+ * @len: for tracepoint dynamic arrays, if fmt->nr_entries == 0, then its not a fixed array, look at arg->len
  * @args: All the args, use syscall_args__val(arg, nth) to access one
  * @augmented_args: Extra data that can be collected, for instance, with eBPF for expanding the pathname for open, etc
  * @augmented_args_size: augmented_args total payload size
@@ -94,6 +104,7 @@ struct augmented_arg {
 struct syscall_arg {
 	unsigned long val;
 	unsigned char *args;
+	struct syscall_arg_fmt *fmt;
 	struct {
 		struct augmented_arg *args;
 		int		     size;
@@ -101,6 +112,7 @@ struct syscall_arg {
 	struct thread *thread;
 	struct trace  *trace;
 	void	      *parm;
+	u16	      len;
 	u8	      idx;
 	u8	      mask;
 	bool	      show_string_prefix;
@@ -110,6 +122,27 @@ unsigned long syscall_arg__val(struct syscall_arg *arg, u8 idx);
 
 size_t syscall_arg__scnprintf_strarray_flags(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_STRARRAY_FLAGS syscall_arg__scnprintf_strarray_flags
+
+bool syscall_arg__strtoul_strarray(char *bf, size_t size, struct syscall_arg *arg, u64 *ret);
+#define STUL_STRARRAY syscall_arg__strtoul_strarray
+
+bool syscall_arg__strtoul_strarray_flags(char *bf, size_t size, struct syscall_arg *arg, u64 *ret);
+#define STUL_STRARRAY_FLAGS syscall_arg__strtoul_strarray_flags
+
+bool syscall_arg__strtoul_strarrays(char *bf, size_t size, struct syscall_arg *arg, u64 *ret);
+#define STUL_STRARRAYS syscall_arg__strtoul_strarrays
+
+size_t syscall_arg__scnprintf_x86_irq_vectors(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_X86_IRQ_VECTORS syscall_arg__scnprintf_x86_irq_vectors
+
+bool syscall_arg__strtoul_x86_irq_vectors(char *bf, size_t size, struct syscall_arg *arg, u64 *ret);
+#define STUL_X86_IRQ_VECTORS syscall_arg__strtoul_x86_irq_vectors
+
+size_t syscall_arg__scnprintf_x86_MSR(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_X86_MSR syscall_arg__scnprintf_x86_MSR
+
+bool syscall_arg__strtoul_x86_MSR(char *bf, size_t size, struct syscall_arg *arg, u64 *ret);
+#define STUL_X86_MSR syscall_arg__strtoul_x86_MSR
 
 size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_STRARRAYS syscall_arg__scnprintf_strarrays
@@ -179,6 +212,8 @@ size_t syscall_arg__scnprintf_x86_arch_prctl_code(char *bf, size_t size, struct 
 
 size_t syscall_arg__scnprintf_prctl_option(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_PRCTL_OPTION syscall_arg__scnprintf_prctl_option
+
+extern struct strarray strarray__prctl_options;
 
 size_t syscall_arg__scnprintf_prctl_arg2(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_PRCTL_ARG2 syscall_arg__scnprintf_prctl_arg2

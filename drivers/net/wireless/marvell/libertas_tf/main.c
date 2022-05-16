@@ -15,7 +15,6 @@
 /* thinfirm version: 5.132.X.pX */
 #define LBTF_FW_VER_MIN		0x05840300
 #define LBTF_FW_VER_MAX		0x0584ffff
-#define QOS_CONTROL_LEN		2
 
 /* Module parameters */
 unsigned int lbtf_debug;
@@ -121,7 +120,7 @@ static void lbtf_cmd_work(struct work_struct *work)
 	lbtf_deb_leave(LBTF_DEB_CMD);
 }
 
-/**
+/*
  *  This function handles the timeout of command sending.
  *  It will re-send the same command again.
  */
@@ -542,10 +541,8 @@ done:
 }
 EXPORT_SYMBOL_GPL(lbtf_rx);
 
-/**
+/*
  * lbtf_add_card: Add and initialize the card.
- *
- *  @card    A pointer to card
  *
  *  Returns: pointer to struct lbtf_priv.
  */

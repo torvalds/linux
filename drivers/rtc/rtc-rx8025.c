@@ -67,7 +67,6 @@ static const struct i2c_device_id rx8025_id[] = {
 MODULE_DEVICE_TABLE(i2c, rx8025_id);
 
 struct rx8025_data {
-	struct i2c_client *client;
 	struct rtc_device *rtc;
 	u8 ctrl1;
 };
@@ -103,10 +102,10 @@ static s32 rx8025_write_regs(const struct i2c_client *client,
 
 static int rx8025_check_validity(struct device *dev)
 {
-	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
+	struct i2c_client *client = to_i2c_client(dev);
 	int ctrl2;
 
-	ctrl2 = rx8025_read_reg(rx8025->client, RX8025_REG_CTRL2);
+	ctrl2 = rx8025_read_reg(client, RX8025_REG_CTRL2);
 	if (ctrl2 < 0)
 		return ctrl2;
 
@@ -178,6 +177,7 @@ out:
 
 static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
 	u8 date[7];
 	int err;
@@ -186,7 +186,7 @@ static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 	if (err)
 		return err;
 
-	err = rx8025_read_regs(rx8025->client, RX8025_REG_SEC, 7, date);
+	err = rx8025_read_regs(client, RX8025_REG_SEC, 7, date);
 	if (err)
 		return err;
 
@@ -211,6 +211,7 @@ static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 
 static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
 	u8 date[7];
 	int ret;
@@ -237,11 +238,11 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 
 	dev_dbg(dev, "%s: write %7ph\n", __func__, date);
 
-	ret = rx8025_write_regs(rx8025->client, RX8025_REG_SEC, 7, date);
+	ret = rx8025_write_regs(client, RX8025_REG_SEC, 7, date);
 	if (ret < 0)
 		return ret;
 
-	return rx8025_reset_validity(rx8025->client);
+	return rx8025_reset_validity(client);
 }
 
 static int rx8025_init_client(struct i2c_client *client)
@@ -251,7 +252,7 @@ static int rx8025_init_client(struct i2c_client *client)
 	int need_clear = 0;
 	int err;
 
-	err = rx8025_read_regs(rx8025->client, RX8025_REG_CTRL1, 2, ctrl);
+	err = rx8025_read_regs(client, RX8025_REG_CTRL1, 2, ctrl);
 	if (err)
 		goto out;
 
@@ -280,8 +281,8 @@ out:
 /* Alarm support */
 static int rx8025_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
-	struct i2c_client *client = rx8025->client;
 	u8 ald[2];
 	int ctrl2, err;
 
@@ -347,18 +348,18 @@ static int rx8025_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 
 	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_DALE) {
 		rx8025->ctrl1 &= ~RX8025_BIT_CTRL1_DALE;
-		err = rx8025_write_reg(rx8025->client, RX8025_REG_CTRL1,
+		err = rx8025_write_reg(client, RX8025_REG_CTRL1,
 				       rx8025->ctrl1);
 		if (err)
 			return err;
 	}
-	err = rx8025_write_regs(rx8025->client, RX8025_REG_ALDMIN, 2, ald);
+	err = rx8025_write_regs(client, RX8025_REG_ALDMIN, 2, ald);
 	if (err)
 		return err;
 
 	if (t->enabled) {
 		rx8025->ctrl1 |= RX8025_BIT_CTRL1_DALE;
-		err = rx8025_write_reg(rx8025->client, RX8025_REG_CTRL1,
+		err = rx8025_write_reg(client, RX8025_REG_CTRL1,
 				       rx8025->ctrl1);
 		if (err)
 			return err;
@@ -369,6 +370,7 @@ static int rx8025_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 
 static int rx8025_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rx8025_data *rx8025 = dev_get_drvdata(dev);
 	u8 ctrl1;
 	int err;
@@ -381,7 +383,7 @@ static int rx8025_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	if (ctrl1 != rx8025->ctrl1) {
 		rx8025->ctrl1 = ctrl1;
-		err = rx8025_write_reg(rx8025->client, RX8025_REG_CTRL1,
+		err = rx8025_write_reg(client, RX8025_REG_CTRL1,
 				       rx8025->ctrl1);
 		if (err)
 			return err;
@@ -516,7 +518,6 @@ static int rx8025_probe(struct i2c_client *client,
 	if (!rx8025)
 		return -ENOMEM;
 
-	rx8025->client = client;
 	i2c_set_clientdata(client, rx8025);
 
 	err = rx8025_init_client(client);

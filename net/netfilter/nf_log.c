@@ -414,7 +414,7 @@ static struct ctl_table nf_log_sysctl_ftable[] = {
 };
 
 static int nf_log_proc_dostring(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
+			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	const struct nf_logger *logger;
 	char buf[NFLOGGER_NAME_LEN];

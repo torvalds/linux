@@ -5,8 +5,11 @@
 #define __HCLGE_CMD_H
 #include <linux/types.h>
 #include <linux/io.h>
+#include <linux/etherdevice.h>
+#include "hnae3.h"
 
 #define HCLGE_CMDQ_TX_TIMEOUT		30000
+#define HCLGE_DESC_DATA_LEN		6
 
 struct hclge_dev;
 struct hclge_desc {
@@ -18,7 +21,7 @@ struct hclge_desc {
 	__le16 flag;
 	__le16 retval;
 	__le16 rsv;
-	__le32 data[6];
+	__le32 data[HCLGE_DESC_DATA_LEN];
 };
 
 struct hclge_cmq_ring {
@@ -61,6 +64,7 @@ enum hclge_cmd_status {
 struct hclge_misc_vector {
 	u8 __iomem *addr;
 	int vector_irq;
+	char name[HNAE3_INT_NAME_LEN];
 };
 
 struct hclge_cmq {
@@ -111,7 +115,8 @@ enum hclge_opcode_type {
 	HCLGE_OPC_DFX_RCB_REG		= 0x004D,
 	HCLGE_OPC_DFX_TQP_REG		= 0x004E,
 	HCLGE_OPC_DFX_SSU_REG_2		= 0x004F,
-	HCLGE_OPC_DFX_QUERY_CHIP_CAP	= 0x0050,
+
+	HCLGE_OPC_QUERY_DEV_SPECS	= 0x0050,
 
 	/* MAC command */
 	HCLGE_OPC_CONFIG_MAC_MODE	= 0x0301,
@@ -180,11 +185,11 @@ enum hclge_opcode_type {
 	/* TQP commands */
 	HCLGE_OPC_CFG_TX_QUEUE		= 0x0B01,
 	HCLGE_OPC_QUERY_TX_POINTER	= 0x0B02,
-	HCLGE_OPC_QUERY_TX_STATUS	= 0x0B03,
+	HCLGE_OPC_QUERY_TX_STATS	= 0x0B03,
 	HCLGE_OPC_TQP_TX_QUEUE_TC	= 0x0B04,
 	HCLGE_OPC_CFG_RX_QUEUE		= 0x0B11,
 	HCLGE_OPC_QUERY_RX_POINTER	= 0x0B12,
-	HCLGE_OPC_QUERY_RX_STATUS	= 0x0B13,
+	HCLGE_OPC_QUERY_RX_STATS	= 0x0B13,
 	HCLGE_OPC_STASH_RX_QUEUE_LRO	= 0x0B16,
 	HCLGE_OPC_CFG_RX_QUEUE_LRO	= 0x0B17,
 	HCLGE_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
@@ -244,7 +249,7 @@ enum hclge_opcode_type {
 	/* QCN commands */
 	HCLGE_OPC_QCN_MOD_CFG		= 0x1A01,
 	HCLGE_OPC_QCN_GRP_TMPLT_CFG	= 0x1A02,
-	HCLGE_OPC_QCN_SHAPPING_IR_CFG	= 0x1A03,
+	HCLGE_OPC_QCN_SHAPPING_CFG	= 0x1A03,
 	HCLGE_OPC_QCN_SHAPPING_BS_CFG	= 0x1A04,
 	HCLGE_OPC_QCN_QSET_LINK_CFG	= 0x1A05,
 	HCLGE_OPC_QCN_RP_STATUS_GET	= 0x1A06,
@@ -259,12 +264,15 @@ enum hclge_opcode_type {
 
 	/* NCL config command */
 	HCLGE_OPC_QUERY_NCL_CONFIG	= 0x7011,
+
 	/* M7 stats command */
 	HCLGE_OPC_M7_STATS_BD		= 0x7012,
 	HCLGE_OPC_M7_STATS_INFO		= 0x7013,
 	HCLGE_OPC_M7_COMPAT_CFG		= 0x701A,
 
 	/* SFP command */
+	HCLGE_OPC_GET_SFP_EEPROM	= 0x7100,
+	HCLGE_OPC_GET_SFP_EXIST		= 0x7101,
 	HCLGE_OPC_GET_SFP_INFO		= 0x7104,
 
 	/* Error INT commands */
@@ -355,9 +363,26 @@ struct hclge_rx_priv_buff_cmd {
 	u8 rsv[6];
 };
 
+enum HCLGE_CAP_BITS {
+	HCLGE_CAP_UDP_GSO_B,
+	HCLGE_CAP_QB_B,
+	HCLGE_CAP_FD_FORWARD_TC_B,
+	HCLGE_CAP_PTP_B,
+	HCLGE_CAP_INT_QL_B,
+	HCLGE_CAP_SIMPLE_BD_B,
+	HCLGE_CAP_TX_PUSH_B,
+	HCLGE_CAP_PHY_IMP_B,
+	HCLGE_CAP_TQP_TXRX_INDEP_B,
+	HCLGE_CAP_HW_PAD_B,
+	HCLGE_CAP_STASH_B,
+};
+
+#define HCLGE_QUERY_CAP_LENGTH		3
 struct hclge_query_version_cmd {
 	__le32 firmware;
-	__le32 firmware_rsv[5];
+	__le32 hardware;
+	__le32 rsv;
+	__le32 caps[HCLGE_QUERY_CAP_LENGTH]; /* capabilities of device */
 };
 
 #define HCLGE_RX_PRIV_EN_B	15
@@ -428,8 +453,10 @@ struct hclge_rx_pkt_buf_cmd {
 #define HCLGE_PF_MAC_NUM_MASK	0x3
 #define HCLGE_PF_STATE_MAIN	BIT(HCLGE_PF_STATE_MAIN_B)
 #define HCLGE_PF_STATE_DONE	BIT(HCLGE_PF_STATE_DONE_B)
+#define HCLGE_VF_RST_STATUS_CMD	4
+
 struct hclge_func_status_cmd {
-	__le32  vf_rst_state[4];
+	__le32  vf_rst_state[HCLGE_VF_RST_STATUS_CMD];
 	u8 pf_state;
 	u8 mac_id;
 	u8 rsv1;
@@ -482,13 +509,17 @@ struct hclge_pf_res_cmd {
 #define HCLGE_CFG_RSS_SIZE_M	GENMASK(31, 24)
 #define HCLGE_CFG_SPEED_ABILITY_S	0
 #define HCLGE_CFG_SPEED_ABILITY_M	GENMASK(7, 0)
+#define HCLGE_CFG_SPEED_ABILITY_EXT_S	10
+#define HCLGE_CFG_SPEED_ABILITY_EXT_M	GENMASK(15, 10)
 #define HCLGE_CFG_UMV_TBL_SPACE_S	16
 #define HCLGE_CFG_UMV_TBL_SPACE_M	GENMASK(31, 16)
+
+#define HCLGE_CFG_CMD_CNT		4
 
 struct hclge_cfg_param_cmd {
 	__le32 offset;
 	__le32 rsv;
-	__le32 param[4];
+	__le32 param[HCLGE_CFG_CMD_CNT];
 };
 
 #define HCLGE_MAC_MODE		0x0
@@ -712,8 +743,7 @@ struct hclge_mac_mgr_tbl_entry_cmd {
 	u8      flags;
 	u8      resp_code;
 	__le16  vlan_tag;
-	__le32  mac_addr_hi32;
-	__le16  mac_addr_lo16;
+	u8      mac_addr[ETH_ALEN];
 	__le16  rsv1;
 	__le16  ethter_type;
 	__le16  egress_port;
@@ -725,31 +755,6 @@ struct hclge_mac_mgr_tbl_entry_cmd {
 	u8      rsv3[2];
 };
 
-struct hclge_mac_vlan_add_cmd {
-	__le16  flags;
-	__le16  mac_addr_hi16;
-	__le32  mac_addr_lo32;
-	__le32  mac_addr_msk_hi32;
-	__le16  mac_addr_msk_lo16;
-	__le16  vlan_tag;
-	__le16  ingress_port;
-	__le16  egress_port;
-	u8      rsv[4];
-};
-
-#define HNS3_MAC_VLAN_CFG_FLAG_BIT 0
-struct hclge_mac_vlan_remove_cmd {
-	__le16  flags;
-	__le16  mac_addr_hi16;
-	__le32  mac_addr_lo32;
-	__le32  mac_addr_msk_hi32;
-	__le16  mac_addr_msk_lo16;
-	__le16  vlan_tag;
-	__le16  ingress_port;
-	__le16  egress_port;
-	u8      rsv[4];
-};
-
 struct hclge_vlan_filter_ctrl_cmd {
 	u8 vlan_type;
 	u8 vlan_fe;
@@ -758,12 +763,19 @@ struct hclge_vlan_filter_ctrl_cmd {
 	u8 rsv2[19];
 };
 
+#define HCLGE_VLAN_ID_OFFSET_STEP	160
+#define HCLGE_VLAN_BYTE_SIZE		8
+#define	HCLGE_VLAN_OFFSET_BITMAP \
+	(HCLGE_VLAN_ID_OFFSET_STEP / HCLGE_VLAN_BYTE_SIZE)
+
 struct hclge_vlan_filter_pf_cfg_cmd {
 	u8 vlan_offset;
 	u8 vlan_cfg;
 	u8 rsv[2];
-	u8 vlan_offset_bitmap[20];
+	u8 vlan_offset_bitmap[HCLGE_VLAN_OFFSET_BITMAP];
 };
+
+#define HCLGE_MAX_VF_BYTES  16
 
 struct hclge_vlan_filter_vf_cfg_cmd {
 	__le16 vlan_id;
@@ -771,7 +783,7 @@ struct hclge_vlan_filter_vf_cfg_cmd {
 	u8  rsv;
 	u8  vlan_cfg;
 	u8  rsv1[3];
-	u8  vf_bitmap[16];
+	u8  vf_bitmap[HCLGE_MAX_VF_BYTES];
 };
 
 #define HCLGE_SWITCH_ANTI_SPOOF_B	0U
@@ -806,6 +818,7 @@ enum hclge_mac_vlan_cfg_sel {
 #define HCLGE_CFG_NIC_ROCE_SEL_B	4
 #define HCLGE_ACCEPT_TAG2_B		5
 #define HCLGE_ACCEPT_UNTAG2_B		6
+#define HCLGE_VF_NUM_PER_BYTE		8
 
 struct hclge_vport_vtag_tx_cfg_cmd {
 	u8 vport_vlan_cfg;
@@ -813,7 +826,7 @@ struct hclge_vport_vtag_tx_cfg_cmd {
 	u8 rsv1[2];
 	__le16 def_vlan_tag1;
 	__le16 def_vlan_tag2;
-	u8 vf_bitmap[8];
+	u8 vf_bitmap[HCLGE_VF_NUM_PER_BYTE];
 	u8 rsv2[8];
 };
 
@@ -825,7 +838,7 @@ struct hclge_vport_vtag_rx_cfg_cmd {
 	u8 vport_vlan_cfg;
 	u8 vf_offset;
 	u8 rsv1[6];
-	u8 vf_bitmap[8];
+	u8 vf_bitmap[HCLGE_VF_NUM_PER_BYTE];
 	u8 rsv2[8];
 };
 
@@ -864,7 +877,7 @@ struct hclge_mac_ethertype_idx_rd_cmd {
 	u8	flags;
 	u8	resp_code;
 	__le16  vlan_tag;
-	u8      mac_addr[6];
+	u8      mac_addr[ETH_ALEN];
 	__le16  index;
 	__le16	ethter_type;
 	__le16  egress_port;
@@ -891,8 +904,8 @@ struct hclge_cfg_tso_status_cmd {
 
 #define HCLGE_GRO_EN_B		0
 struct hclge_cfg_gro_status_cmd {
-	__le16 gro_en;
-	u8 rsv[22];
+	u8 gro_en;
+	u8 rsv[23];
 };
 
 #define HCLGE_TSO_MSS_MIN	256
@@ -1063,6 +1076,33 @@ struct hclge_firmware_compat_cmd {
 	u8 rsv[20];
 };
 
+#define HCLGE_SFP_INFO_CMD_NUM	6
+#define HCLGE_SFP_INFO_BD0_LEN	20
+#define HCLGE_SFP_INFO_BDX_LEN	24
+#define HCLGE_SFP_INFO_MAX_LEN \
+	(HCLGE_SFP_INFO_BD0_LEN + \
+	(HCLGE_SFP_INFO_CMD_NUM - 1) * HCLGE_SFP_INFO_BDX_LEN)
+
+struct hclge_sfp_info_bd0_cmd {
+	__le16 offset;
+	__le16 read_len;
+	u8 data[HCLGE_SFP_INFO_BD0_LEN];
+};
+
+#define HCLGE_QUERY_DEV_SPECS_BD_NUM		4
+
+struct hclge_dev_specs_0_cmd {
+	__le32 rsv0;
+	__le32 mac_entry_num;
+	__le32 mng_entry_num;
+	__le16 rss_ind_tbl_size;
+	__le16 rss_key_size;
+	__le16 int_ql_max;
+	u8 max_non_tso_bd_num;
+	u8 rsv1;
+	__le32 max_tm_rate;
+};
+
 int hclge_cmd_init(struct hclge_dev *hdev);
 static inline void hclge_write_reg(void __iomem *base, u32 reg, u32 value)
 {
@@ -1089,9 +1129,6 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num);
 void hclge_cmd_setup_basic_desc(struct hclge_desc *desc,
 				enum hclge_opcode_type opcode, bool is_read);
 void hclge_cmd_reuse_desc(struct hclge_desc *desc, bool is_read);
-
-int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev,
-			       struct hclge_promisc_param *param);
 
 enum hclge_cmd_status hclge_cmd_mdio_write(struct hclge_hw *hw,
 					   struct hclge_desc *desc);

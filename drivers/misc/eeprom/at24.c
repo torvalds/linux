@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at24.c - handle most I2C EEPROMs
  *
@@ -6,23 +6,24 @@
  * Copyright (C) 2008 Wolfram Sang, Pengutronix
  */
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/mutex.h>
-#include <linux/mod_devicetable.h>
-#include <linux/bitops.h>
-#include <linux/jiffies.h>
-#include <linux/property.h>
 #include <linux/acpi.h>
+#include <linux/bitops.h>
+#include <linux/capability.h>
+#include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/nvmem-provider.h>
-#include <linux/regmap.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/gpio/consumer.h>
+#include <linux/property.h>
+#include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 
 /* Address pointer is 16 bit. */
 #define AT24_FLAG_ADDR16	BIT(7)
@@ -88,8 +89,8 @@ struct at24_data {
 	u8 flags;
 
 	struct nvmem_device *nvmem;
-
-	struct gpio_desc *wp_gpio;
+	struct regulator *vcc_reg;
+	void (*read_post)(unsigned int off, char *buf, size_t count);
 
 	/*
 	 * Some chips tie up multiple I2C addresses; dummy devices reserve
@@ -122,12 +123,39 @@ MODULE_PARM_DESC(at24_write_timeout, "Time (in ms) to try writes (default 25)");
 struct at24_chip_data {
 	u32 byte_len;
 	u8 flags;
+	void (*read_post)(unsigned int off, char *buf, size_t count);
 };
 
 #define AT24_CHIP_DATA(_name, _len, _flags)				\
 	static const struct at24_chip_data _name = {			\
 		.byte_len = _len, .flags = _flags,			\
 	}
+
+#define AT24_CHIP_DATA_CB(_name, _len, _flags, _read_post)		\
+	static const struct at24_chip_data _name = {			\
+		.byte_len = _len, .flags = _flags,			\
+		.read_post = _read_post,				\
+	}
+
+static void at24_read_post_vaio(unsigned int off, char *buf, size_t count)
+{
+	int i;
+
+	if (capable(CAP_SYS_ADMIN))
+		return;
+
+	/*
+	 * Hide VAIO private settings to regular users:
+	 * - BIOS passwords: bytes 0x00 to 0x0f
+	 * - UUID: bytes 0x10 to 0x1f
+	 * - Serial number: 0xc0 to 0xdf
+	 */
+	for (i = 0; i < count; i++) {
+		if ((off + i <= 0x1f) ||
+		    (off + i >= 0xc0 && off + i <= 0xdf))
+			buf[i] = 0;
+	}
+}
 
 /* needs 8 addresses as A0-A2 are ignored */
 AT24_CHIP_DATA(at24_data_24c00, 128 / 8, AT24_FLAG_TAKE8ADDR);
@@ -145,6 +173,10 @@ AT24_CHIP_DATA(at24_data_24mac602, 64 / 8,
 /* spd is a 24c02 in memory DIMMs */
 AT24_CHIP_DATA(at24_data_spd, 2048 / 8,
 	AT24_FLAG_READONLY | AT24_FLAG_IRUGO);
+/* 24c02_vaio is a 24c02 on some Sony laptops */
+AT24_CHIP_DATA_CB(at24_data_24c02_vaio, 2048 / 8,
+	AT24_FLAG_READONLY | AT24_FLAG_IRUGO,
+	at24_read_post_vaio);
 AT24_CHIP_DATA(at24_data_24c04, 4096 / 8, 0);
 AT24_CHIP_DATA(at24_data_24cs04, 16,
 	AT24_FLAG_SERIAL | AT24_FLAG_READONLY);
@@ -178,6 +210,7 @@ static const struct i2c_device_id at24_ids[] = {
 	{ "24mac402",	(kernel_ulong_t)&at24_data_24mac402 },
 	{ "24mac602",	(kernel_ulong_t)&at24_data_24mac602 },
 	{ "spd",	(kernel_ulong_t)&at24_data_spd },
+	{ "24c02-vaio",	(kernel_ulong_t)&at24_data_24c02_vaio },
 	{ "24c04",	(kernel_ulong_t)&at24_data_24c04 },
 	{ "24cs04",	(kernel_ulong_t)&at24_data_24cs04 },
 	{ "24c08",	(kernel_ulong_t)&at24_data_24c08 },
@@ -226,8 +259,9 @@ static const struct of_device_id at24_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, at24_of_match);
 
-static const struct acpi_device_id at24_acpi_ids[] = {
+static const struct acpi_device_id __maybe_unused at24_acpi_ids[] = {
 	{ "INT3499",	(kernel_ulong_t)&at24_data_INT3499 },
+	{ "TPF0001",	(kernel_ulong_t)&at24_data_24c1024 },
 	{ /* END OF LIST */ }
 };
 MODULE_DEVICE_TABLE(acpi, at24_acpi_ids);
@@ -388,7 +422,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	struct at24_data *at24;
 	struct device *dev;
 	char *buf = val;
-	int ret;
+	int i, ret;
 
 	at24 = priv;
 	dev = at24_base_client_dev(at24);
@@ -411,21 +445,21 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	 */
 	mutex_lock(&at24->lock);
 
-	while (count) {
-		ret = at24_regmap_read(at24, buf, off, count);
+	for (i = 0; count; i += ret, count -= ret) {
+		ret = at24_regmap_read(at24, buf + i, off + i, count);
 		if (ret < 0) {
 			mutex_unlock(&at24->lock);
 			pm_runtime_put(dev);
 			return ret;
 		}
-		buf += ret;
-		off += ret;
-		count -= ret;
 	}
 
 	mutex_unlock(&at24->lock);
 
 	pm_runtime_put(dev);
+
+	if (unlikely(at24->read_post))
+		at24->read_post(off, buf, i);
 
 	return 0;
 }
@@ -457,12 +491,10 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	 * from this host, but not from other I2C masters.
 	 */
 	mutex_lock(&at24->lock);
-	gpiod_set_value_cansleep(at24->wp_gpio, 0);
 
 	while (count) {
 		ret = at24_regmap_write(at24, buf, off, count);
 		if (ret < 0) {
-			gpiod_set_value_cansleep(at24->wp_gpio, 1);
 			mutex_unlock(&at24->lock);
 			pm_runtime_put(dev);
 			return ret;
@@ -472,7 +504,6 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 		count -= ret;
 	}
 
-	gpiod_set_value_cansleep(at24->wp_gpio, 1);
 	mutex_unlock(&at24->lock);
 
 	pm_runtime_put(dev);
@@ -657,14 +688,15 @@ static int at24_probe(struct i2c_client *client)
 	at24->byte_len = byte_len;
 	at24->page_size = page_size;
 	at24->flags = flags;
+	at24->read_post = cdata->read_post;
 	at24->num_addresses = num_addresses;
 	at24->offset_adj = at24_get_offset_adj(flags, byte_len);
 	at24->client[0].client = client;
 	at24->client[0].regmap = regmap;
 
-	at24->wp_gpio = devm_gpiod_get_optional(dev, "wp", GPIOD_OUT_HIGH);
-	if (IS_ERR(at24->wp_gpio))
-		return PTR_ERR(at24->wp_gpio);
+	at24->vcc_reg = devm_regulator_get(dev, "vcc");
+	if (IS_ERR(at24->vcc_reg))
+		return PTR_ERR(at24->vcc_reg);
 
 	writable = !(flags & AT24_FLAG_READONLY);
 	if (writable) {
@@ -681,7 +713,28 @@ static int at24_probe(struct i2c_client *client)
 			return err;
 	}
 
-	nvmem_config.name = dev_name(dev);
+	/*
+	 * If the 'label' property is not present for the AT24 EEPROM,
+	 * then nvmem_config.id is initialised to NVMEM_DEVID_AUTO,
+	 * and this will append the 'devid' to the name of the NVMEM
+	 * device. This is purely legacy and the AT24 driver has always
+	 * defaulted to this. However, if the 'label' property is
+	 * present then this means that the name is specified by the
+	 * firmware and this name should be used verbatim and so it is
+	 * not necessary to append the 'devid'.
+	 */
+	if (device_property_present(dev, "label")) {
+		nvmem_config.id = NVMEM_DEVID_NONE;
+		err = device_property_read_string(dev, "label",
+						  &nvmem_config.name);
+		if (err)
+			return err;
+	} else {
+		nvmem_config.id = NVMEM_DEVID_AUTO;
+		nvmem_config.name = dev_name(dev);
+	}
+
+	nvmem_config.type = NVMEM_TYPE_EEPROM;
 	nvmem_config.dev = dev;
 	nvmem_config.read_only = !writable;
 	nvmem_config.root_only = !(flags & AT24_FLAG_IRUGO);
@@ -695,45 +748,86 @@ static int at24_probe(struct i2c_client *client)
 	nvmem_config.word_size = 1;
 	nvmem_config.size = byte_len;
 
-	at24->nvmem = devm_nvmem_register(dev, &nvmem_config);
-	if (IS_ERR(at24->nvmem))
-		return PTR_ERR(at24->nvmem);
-
 	i2c_set_clientdata(client, at24);
+
+	err = regulator_enable(at24->vcc_reg);
+	if (err) {
+		dev_err(dev, "Failed to enable vcc regulator\n");
+		return err;
+	}
 
 	/* enable runtime pm */
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
+
+	at24->nvmem = devm_nvmem_register(dev, &nvmem_config);
+	if (IS_ERR(at24->nvmem)) {
+		pm_runtime_disable(dev);
+		regulator_disable(at24->vcc_reg);
+		return PTR_ERR(at24->nvmem);
+	}
 
 	/*
 	 * Perform a one-byte test read to verify that the
 	 * chip is functional.
 	 */
 	err = at24_read(at24, 0, &test_byte, 1);
-	pm_runtime_idle(dev);
 	if (err) {
 		pm_runtime_disable(dev);
+		regulator_disable(at24->vcc_reg);
 		return -ENODEV;
 	}
 
-	dev_info(dev, "%u byte %s EEPROM, %s, %u bytes/write\n",
-		 byte_len, client->name,
-		 writable ? "writable" : "read-only", at24->write_max);
+	pm_runtime_idle(dev);
+
+	if (writable)
+		dev_info(dev, "%u byte %s EEPROM, writable, %u bytes/write\n",
+			 byte_len, client->name, at24->write_max);
+	else
+		dev_info(dev, "%u byte %s EEPROM, read-only\n",
+			 byte_len, client->name);
 
 	return 0;
 }
 
 static int at24_remove(struct i2c_client *client)
 {
+	struct at24_data *at24 = i2c_get_clientdata(client);
+
 	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		regulator_disable(at24->vcc_reg);
 	pm_runtime_set_suspended(&client->dev);
 
 	return 0;
 }
 
+static int __maybe_unused at24_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct at24_data *at24 = i2c_get_clientdata(client);
+
+	return regulator_disable(at24->vcc_reg);
+}
+
+static int __maybe_unused at24_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct at24_data *at24 = i2c_get_clientdata(client);
+
+	return regulator_enable(at24->vcc_reg);
+}
+
+static const struct dev_pm_ops at24_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(at24_suspend, at24_resume, NULL)
+};
+
 static struct i2c_driver at24_driver = {
 	.driver = {
 		.name = "at24",
+		.pm = &at24_pm_ops,
 		.of_match_table = at24_of_match,
 		.acpi_match_table = ACPI_PTR(at24_acpi_ids),
 	},

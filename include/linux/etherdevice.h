@@ -20,6 +20,7 @@
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
 #include <linux/random.h>
+#include <linux/crc32.h>
 #include <asm/unaligned.h>
 #include <asm/bitsperlong.h>
 
@@ -43,7 +44,6 @@ __be16 eth_header_parse_protocol(const struct sk_buff *skb);
 int eth_prepare_mac_addr_change(struct net_device *dev, void *p);
 void eth_commit_mac_addr_change(struct net_device *dev, void *p);
 int eth_mac_addr(struct net_device *dev, void *p);
-int eth_change_mtu(struct net_device *dev, int new_mtu);
 int eth_validate_addr(struct net_device *dev);
 
 struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
@@ -264,6 +264,17 @@ static inline void eth_hw_addr_random(struct net_device *dev)
 {
 	dev->addr_assign_type = NET_ADDR_RANDOM;
 	eth_random_addr(dev->dev_addr);
+}
+
+/**
+ * eth_hw_addr_crc - Calculate CRC from netdev_hw_addr
+ * @ha: pointer to hardware address
+ *
+ * Calculate CRC from a hardware address as basis for filter hashes.
+ */
+static inline u32 eth_hw_addr_crc(struct netdev_hw_addr *ha)
+{
+	return ether_crc(ETH_ALEN, ha->addr);
 }
 
 /**

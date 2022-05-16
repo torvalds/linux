@@ -82,7 +82,7 @@ static struct renesas_sdhi_scc rcar_gen3_scc_taps[] = {
 	{
 		.clk_rate = 0,
 		.tap = 0x00000300,
-		.tap_hs400 = 0x00000704,
+		.tap_hs400_4tap = 0x00000100,
 	},
 };
 
@@ -229,15 +229,15 @@ static void renesas_sdhi_internal_dmac_issue_tasklet_fn(unsigned long arg)
 					    DTRAN_CTRL_DM_START);
 }
 
-static void renesas_sdhi_internal_dmac_complete_tasklet_fn(unsigned long arg)
+static bool renesas_sdhi_internal_dmac_complete(struct tmio_mmc_host *host)
 {
-	struct tmio_mmc_host *host = (struct tmio_mmc_host *)arg;
 	enum dma_data_direction dir;
 
-	spin_lock_irq(&host->lock);
+	if (!host->dma_on)
+		return false;
 
 	if (!host->data)
-		goto out;
+		return false;
 
 	if (host->data->flags & MMC_DATA_READ)
 		dir = DMA_FROM_DEVICE;
@@ -250,9 +250,28 @@ static void renesas_sdhi_internal_dmac_complete_tasklet_fn(unsigned long arg)
 	if (dir == DMA_FROM_DEVICE)
 		clear_bit(SDHI_INTERNAL_DMAC_RX_IN_USE, &global_flags);
 
+	host->dma_on = false;
+
+	return true;
+}
+
+static void renesas_sdhi_internal_dmac_complete_tasklet_fn(unsigned long arg)
+{
+	struct tmio_mmc_host *host = (struct tmio_mmc_host *)arg;
+
+	spin_lock_irq(&host->lock);
+	if (!renesas_sdhi_internal_dmac_complete(host))
+		goto out;
+
 	tmio_mmc_do_data_irq(host);
 out:
 	spin_unlock_irq(&host->lock);
+}
+
+static void renesas_sdhi_internal_dmac_end_dma(struct tmio_mmc_host *host)
+{
+	if (host->data)
+		renesas_sdhi_internal_dmac_complete(host);
 }
 
 static void
@@ -292,47 +311,30 @@ static const struct tmio_mmc_dma_ops renesas_sdhi_internal_dmac_dma_ops = {
 	.release = renesas_sdhi_internal_dmac_release_dma,
 	.abort = renesas_sdhi_internal_dmac_abort_dma,
 	.dataend = renesas_sdhi_internal_dmac_dataend_dma,
+	.end = renesas_sdhi_internal_dmac_end_dma,
 };
 
 /*
  * Whitelist of specific R-Car Gen3 SoC ES versions to use this DMAC
  * implementation as others may use a different implementation.
  */
-static const struct soc_device_attribute soc_whitelist[] = {
-	/* specific ones */
+static const struct soc_device_attribute soc_dma_quirks[] = {
 	{ .soc_id = "r7s9210",
 	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ADDR_MODE_FIXED_ONLY) },
 	{ .soc_id = "r8a7795", .revision = "ES1.*",
 	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ONE_RX_ONLY) },
 	{ .soc_id = "r8a7796", .revision = "ES1.0",
 	  .data = (void *)BIT(SDHI_INTERNAL_DMAC_ONE_RX_ONLY) },
-	/* generic ones */
-	{ .soc_id = "r8a774a1" },
-	{ .soc_id = "r8a774c0" },
-	{ .soc_id = "r8a77470" },
-	{ .soc_id = "r8a7795" },
-	{ .soc_id = "r8a7796" },
-	{ .soc_id = "r8a77965" },
-	{ .soc_id = "r8a77970" },
-	{ .soc_id = "r8a77980" },
-	{ .soc_id = "r8a77990" },
-	{ .soc_id = "r8a77995" },
 	{ /* sentinel */ }
 };
 
 static int renesas_sdhi_internal_dmac_probe(struct platform_device *pdev)
 {
-	const struct soc_device_attribute *soc = soc_device_match(soc_whitelist);
+	const struct soc_device_attribute *soc = soc_device_match(soc_dma_quirks);
 	struct device *dev = &pdev->dev;
 
-	if (!soc)
-		return -ENODEV;
-
-	global_flags |= (unsigned long)soc->data;
-
-	dev->dma_parms = devm_kzalloc(dev, sizeof(*dev->dma_parms), GFP_KERNEL);
-	if (!dev->dma_parms)
-		return -ENOMEM;
+	if (soc)
+		global_flags |= (unsigned long)soc->data;
 
 	/* value is max of SD_SECCNT. Confirmed by HW engineers */
 	dma_set_max_seg_size(dev, 0xffffffff);
@@ -351,6 +353,7 @@ static const struct dev_pm_ops renesas_sdhi_internal_dmac_dev_pm_ops = {
 static struct platform_driver renesas_internal_dmac_sdhi_driver = {
 	.driver		= {
 		.name	= "renesas_sdhi_internal_dmac",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= &renesas_sdhi_internal_dmac_dev_pm_ops,
 		.of_match_table = renesas_sdhi_internal_dmac_of_match,
 	},

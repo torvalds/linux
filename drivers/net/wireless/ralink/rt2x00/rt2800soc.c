@@ -156,6 +156,7 @@ static const struct ieee80211_ops rt2800soc_mac80211_ops = {
 	.get_survey		= rt2800_get_survey,
 	.get_ringparam		= rt2x00mac_get_ringparam,
 	.tx_frames_pending	= rt2x00mac_tx_frames_pending,
+	.reconfig_complete	= rt2x00mac_reconfig_complete,
 };
 
 static const struct rt2800_ops rt2800soc_rt2800_ops = {

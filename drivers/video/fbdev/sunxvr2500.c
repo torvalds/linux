@@ -63,7 +63,7 @@ static int s3d_setcolreg(unsigned regno,
 	return 0;
 }
 
-static struct fb_ops s3d_ops = {
+static const struct fb_ops s3d_ops = {
 	.owner			= THIS_MODULE,
 	.fb_setcolreg		= s3d_setcolreg,
 	.fb_fillrect		= cfb_fillrect,

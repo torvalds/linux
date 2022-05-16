@@ -1,8 +1,12 @@
-:orphan:
+.. SPDX-License-Identifier: GPL-2.0
 
 .. UBIFS Authentication
 .. sigma star gmbh
 .. 2018
+
+============================
+UBIFS Authentication Support
+============================
 
 Introduction
 ============
@@ -92,11 +96,11 @@ UBIFS Index & Tree Node Cache
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Basic on-flash UBIFS entities are called *nodes*. UBIFS knows different types
-of nodes. Eg. data nodes (`struct ubifs_data_node`) which store chunks of file
-contents or inode nodes (`struct ubifs_ino_node`) which represent VFS inodes.
-Almost all types of nodes share a common header (`ubifs_ch`) containing basic
+of nodes. Eg. data nodes (``struct ubifs_data_node``) which store chunks of file
+contents or inode nodes (``struct ubifs_ino_node``) which represent VFS inodes.
+Almost all types of nodes share a common header (``ubifs_ch``) containing basic
 information like node type, node length, a sequence number, etc. (see
-`fs/ubifs/ubifs-media.h`in kernel source). Exceptions are entries of the LPT
+``fs/ubifs/ubifs-media.h`` in kernel source). Exceptions are entries of the LPT
 and some less important node types like padding nodes which are used to pad
 unusable content at the end of LEBs.
 
@@ -431,9 +435,9 @@ will then have to be provided beforehand in the normal way.
 References
 ==========
 
-[CRYPTSETUP2]        http://www.saout.de/pipermail/dm-crypt/2017-November/005745.html
+[CRYPTSETUP2]        https://www.saout.de/pipermail/dm-crypt/2017-November/005745.html
 
-[DMC-CBC-ATTACK]     http://www.jakoblell.com/blog/2013/12/22/practical-malleability-attack-against-cbc-encrypted-luks-partitions/
+[DMC-CBC-ATTACK]     https://www.jakoblell.com/blog/2013/12/22/practical-malleability-attack-against-cbc-encrypted-luks-partitions/
 
 [DM-INTEGRITY]       https://www.kernel.org/doc/Documentation/device-mapper/dm-integrity.rst
 

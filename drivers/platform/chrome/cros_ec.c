@@ -16,7 +16,8 @@
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/suspend.h>
-#include <asm/unaligned.h>
+
+#include "cros_ec.h"
 
 #define CROS_EC_DEV_EC_INDEX 0
 #define CROS_EC_DEV_PD_INDEX 1
@@ -31,13 +32,32 @@ static struct cros_ec_platform pd_p = {
 	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX),
 };
 
-static irqreturn_t ec_irq_thread(int irq, void *data)
+static irqreturn_t ec_irq_handler(int irq, void *data)
 {
 	struct cros_ec_device *ec_dev = data;
-	bool wake_event = true;
+
+	ec_dev->last_event_time = cros_ec_get_time_ns();
+
+	return IRQ_WAKE_THREAD;
+}
+
+/**
+ * cros_ec_handle_event() - process and forward pending events on EC
+ * @ec_dev: Device with events to process.
+ *
+ * Call this function in a loop when the kernel is notified that the EC has
+ * pending events.
+ *
+ * Return: true if more events are still pending and this function should be
+ * called again.
+ */
+bool cros_ec_handle_event(struct cros_ec_device *ec_dev)
+{
+	bool wake_event;
+	bool ec_has_more_events;
 	int ret;
 
-	ret = cros_ec_get_next_event(ec_dev, &wake_event);
+	ret = cros_ec_get_next_event(ec_dev, &wake_event, &ec_has_more_events);
 
 	/*
 	 * Signal only if wake host events or any interrupt if
@@ -50,6 +70,20 @@ static irqreturn_t ec_irq_thread(int irq, void *data)
 	if (ret > 0)
 		blocking_notifier_call_chain(&ec_dev->event_notifier,
 					     0, ec_dev);
+
+	return ec_has_more_events;
+}
+EXPORT_SYMBOL(cros_ec_handle_event);
+
+static irqreturn_t ec_irq_thread(int irq, void *data)
+{
+	struct cros_ec_device *ec_dev = data;
+	bool ec_has_more_events;
+
+	do {
+		ec_has_more_events = cros_ec_handle_event(ec_dev);
+	} while (ec_has_more_events);
+
 	return IRQ_HANDLED;
 }
 
@@ -86,7 +120,7 @@ static int cros_ec_sleep_event(struct cros_ec_device *ec_dev, u8 sleep_event)
 
 	buf.msg.command = EC_CMD_HOST_SLEEP_EVENT;
 
-	ret = cros_ec_cmd_xfer(ec_dev, &buf.msg);
+	ret = cros_ec_cmd_xfer_status(ec_dev, &buf.msg);
 
 	/* For now, report failure to transition to S0ix with a warning. */
 	if (ret >= 0 && ec_dev->host_sleep_v1 &&
@@ -104,6 +138,33 @@ static int cros_ec_sleep_event(struct cros_ec_device *ec_dev, u8 sleep_event)
 	return ret;
 }
 
+static int cros_ec_ready_event(struct notifier_block *nb,
+			       unsigned long queued_during_suspend,
+			       void *_notify)
+{
+	struct cros_ec_device *ec_dev = container_of(nb, struct cros_ec_device,
+						     notifier_ready);
+	u32 host_event = cros_ec_get_host_event(ec_dev);
+
+	if (host_event & EC_HOST_EVENT_MASK(EC_HOST_EVENT_INTERFACE_READY)) {
+		mutex_lock(&ec_dev->lock);
+		cros_ec_query_all(ec_dev);
+		mutex_unlock(&ec_dev->lock);
+		return NOTIFY_OK;
+	}
+
+	return NOTIFY_DONE;
+}
+
+/**
+ * cros_ec_register() - Register a new ChromeOS EC, using the provided info.
+ * @ec_dev: Device to register.
+ *
+ * Before calling this, allocate a pointer to a new device and then fill
+ * in all the fields up to the --private-- marker.
+ *
+ * Return: 0 on success or negative error code.
+ */
 int cros_ec_register(struct cros_ec_device *ec_dev)
 {
 	struct device *dev = ec_dev->dev;
@@ -131,10 +192,12 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		return err;
 	}
 
-	if (ec_dev->irq) {
-		err = devm_request_threaded_irq(dev, ec_dev->irq, NULL,
-				ec_irq_thread, IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				"chromeos-ec", ec_dev);
+	if (ec_dev->irq > 0) {
+		err = devm_request_threaded_irq(dev, ec_dev->irq,
+						ec_irq_handler,
+						ec_irq_thread,
+						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						"chromeos-ec", ec_dev);
 		if (err) {
 			dev_err(dev, "Failed to request IRQ %d: %d",
 				ec_dev->irq, err);
@@ -192,12 +255,32 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		dev_dbg(ec_dev->dev, "Error %d clearing sleep event to ec",
 			err);
 
+	if (ec_dev->mkbp_event_supported) {
+		/*
+		 * Register the notifier for EC_HOST_EVENT_INTERFACE_READY
+		 * event.
+		 */
+		ec_dev->notifier_ready.notifier_call = cros_ec_ready_event;
+		err = blocking_notifier_chain_register(&ec_dev->event_notifier,
+						      &ec_dev->notifier_ready);
+		if (err)
+			return err;
+	}
+
 	dev_info(dev, "Chrome EC device registered\n");
 
 	return 0;
 }
 EXPORT_SYMBOL(cros_ec_register);
 
+/**
+ * cros_ec_unregister() - Remove a ChromeOS EC.
+ * @ec_dev: Device to unregister.
+ *
+ * Call this to deregister a ChromeOS EC, then clean up any private data.
+ *
+ * Return: 0 on success or negative error code.
+ */
 int cros_ec_unregister(struct cros_ec_device *ec_dev)
 {
 	if (ec_dev->pd)
@@ -209,6 +292,14 @@ int cros_ec_unregister(struct cros_ec_device *ec_dev)
 EXPORT_SYMBOL(cros_ec_unregister);
 
 #ifdef CONFIG_PM_SLEEP
+/**
+ * cros_ec_suspend() - Handle a suspend operation for the ChromeOS EC device.
+ * @ec_dev: Device to suspend.
+ *
+ * This can be called by drivers to handle a suspend event.
+ *
+ * Return: 0 on success or negative error code.
+ */
 int cros_ec_suspend(struct cros_ec_device *ec_dev)
 {
 	struct device *dev = ec_dev->dev;
@@ -238,11 +329,19 @@ EXPORT_SYMBOL(cros_ec_suspend);
 static void cros_ec_report_events_during_suspend(struct cros_ec_device *ec_dev)
 {
 	while (ec_dev->mkbp_event_supported &&
-	       cros_ec_get_next_event(ec_dev, NULL) > 0)
+	       cros_ec_get_next_event(ec_dev, NULL, NULL) > 0)
 		blocking_notifier_call_chain(&ec_dev->event_notifier,
 					     1, ec_dev);
 }
 
+/**
+ * cros_ec_resume() - Handle a resume operation for the ChromeOS EC device.
+ * @ec_dev: Device to resume.
+ *
+ * This can be called by drivers to handle a resume event.
+ *
+ * Return: 0 on success or negative error code.
+ */
 int cros_ec_resume(struct cros_ec_device *ec_dev)
 {
 	int ret;

@@ -206,6 +206,8 @@ struct cqhci_host_ops {
 	void (*disable)(struct mmc_host *mmc, bool recovery);
 	void (*update_dcmd_desc)(struct mmc_host *mmc, struct mmc_request *mrq,
 				 u64 *data);
+	void (*pre_enable)(struct mmc_host *mmc);
+	void (*post_disable)(struct mmc_host *mmc);
 };
 
 static inline void cqhci_writel(struct cqhci_host *host, u32 val, int reg)
@@ -230,7 +232,11 @@ irqreturn_t cqhci_irq(struct mmc_host *mmc, u32 intmask, int cmd_error,
 		      int data_error);
 int cqhci_init(struct cqhci_host *cq_host, struct mmc_host *mmc, bool dma64);
 struct cqhci_host *cqhci_pltfm_init(struct platform_device *pdev);
-int cqhci_suspend(struct mmc_host *mmc);
+int cqhci_deactivate(struct mmc_host *mmc);
+static inline int cqhci_suspend(struct mmc_host *mmc)
+{
+	return cqhci_deactivate(mmc);
+}
 int cqhci_resume(struct mmc_host *mmc);
 
 #endif

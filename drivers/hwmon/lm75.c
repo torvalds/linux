@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/util_macros.h>
+#include <linux/regulator/consumer.h>
 #include "lm75.h"
 
 /*
@@ -101,6 +102,7 @@ static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 struct lm75_data {
 	struct i2c_client		*client;
 	struct regmap			*regmap;
+	struct regulator		*vs;
 	u8				orig_conf;
 	u8				current_conf;
 	u8				resolution;	/* In bits, 9 to 16 */
@@ -534,6 +536,13 @@ static const struct regmap_config lm75_regmap_config = {
 	.use_single_write = true,
 };
 
+static void lm75_disable_regulator(void *data)
+{
+	struct lm75_data *lm75 = data;
+
+	regulator_disable(lm75->vs);
+}
+
 static void lm75_remove(void *data)
 {
 	struct lm75_data *lm75 = data;
@@ -542,8 +551,9 @@ static void lm75_remove(void *data)
 	i2c_smbus_write_byte_data(client, LM75_REG_CONF, lm75->orig_conf);
 }
 
-static int
-lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static const struct i2c_device_id lm75_ids[];
+
+static int lm75_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -554,7 +564,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (client->dev.of_node)
 		kind = (enum lm75_type)of_device_get_match_data(&client->dev);
 	else
-		kind = id->driver_data;
+		kind = i2c_match_id(lm75_ids, client)->driver_data;
 
 	if (!i2c_check_functionality(client->adapter,
 			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
@@ -566,6 +576,10 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	data->client = client;
 	data->kind = kind;
+
+	data->vs = devm_regulator_get(dev, "vs");
+	if (IS_ERR(data->vs))
+		return PTR_ERR(data->vs);
 
 	data->regmap = devm_regmap_init_i2c(client, &lm75_regmap_config);
 	if (IS_ERR(data->regmap))
@@ -580,6 +594,17 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Save default sample time and resolution*/
 	data->sample_time = data->params->default_sample_time;
 	data->resolution = data->params->default_resolution;
+
+	/* Enable the power */
+	err = regulator_enable(data->vs);
+	if (err) {
+		dev_err(dev, "failed to enable regulator: %d\n", err);
+		return err;
+	}
+
+	err = devm_add_action_or_reset(dev, lm75_disable_regulator, data);
+	if (err)
+		return err;
 
 	/* Cache original configuration */
 	status = i2c_smbus_read_byte_data(client, LM75_REG_CONF);
@@ -797,8 +822,10 @@ static int lm75_detect(struct i2c_client *new_client,
 
 	/* First check for LM75A */
 	if (i2c_smbus_read_byte_data(new_client, 7) == LM75A_ID) {
-		/* LM75A returns 0xff on unused registers so
-		   just to be sure we check for that too. */
+		/*
+		 * LM75A returns 0xff on unused registers so
+		 * just to be sure we check for that too.
+		 */
 		if (i2c_smbus_read_byte_data(new_client, 4) != 0xff
 		 || i2c_smbus_read_byte_data(new_client, 5) != 0xff
 		 || i2c_smbus_read_byte_data(new_client, 6) != 0xff)
@@ -849,6 +876,7 @@ static int lm75_suspend(struct device *dev)
 {
 	int status;
 	struct i2c_client *client = to_i2c_client(dev);
+
 	status = i2c_smbus_read_byte_data(client, LM75_REG_CONF);
 	if (status < 0) {
 		dev_dbg(&client->dev, "Can't read config? %d\n", status);
@@ -863,6 +891,7 @@ static int lm75_resume(struct device *dev)
 {
 	int status;
 	struct i2c_client *client = to_i2c_client(dev);
+
 	status = i2c_smbus_read_byte_data(client, LM75_REG_CONF);
 	if (status < 0) {
 		dev_dbg(&client->dev, "Can't read config? %d\n", status);
@@ -889,7 +918,7 @@ static struct i2c_driver lm75_driver = {
 		.of_match_table = of_match_ptr(lm75_of_match),
 		.pm	= LM75_DEV_PM_OPS,
 	},
-	.probe		= lm75_probe,
+	.probe_new	= lm75_probe,
 	.id_table	= lm75_ids,
 	.detect		= lm75_detect,
 	.address_list	= normal_i2c,

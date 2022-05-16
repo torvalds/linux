@@ -4,7 +4,9 @@
 
 #include <asm/atomic_ll_sc.h>
 
-#if defined(CONFIG_AS_LSE) && defined(CONFIG_ARM64_LSE_ATOMICS)
+#ifdef CONFIG_ARM64_LSE_ATOMICS
+
+#define __LSE_PREAMBLE	".arch_extension lse\n"
 
 #include <linux/compiler_types.h>
 #include <linux/export.h>
@@ -13,8 +15,6 @@
 #include <asm/alternative.h>
 #include <asm/atomic_lse.h>
 #include <asm/cpucaps.h>
-
-__asm__(".arch_extension	lse");
 
 extern struct static_key_false cpu_hwcap_keys[ARM64_NCAPS];
 extern struct static_key_false arm64_const_caps_ready;
@@ -34,9 +34,9 @@ static inline bool system_uses_lse_atomics(void)
 
 /* In-line patching at runtime */
 #define ARM64_LSE_ATOMIC_INSN(llsc, lse)				\
-	ALTERNATIVE(llsc, lse, ARM64_HAS_LSE_ATOMICS)
+	ALTERNATIVE(llsc, __LSE_PREAMBLE lse, ARM64_HAS_LSE_ATOMICS)
 
-#else	/* CONFIG_AS_LSE && CONFIG_ARM64_LSE_ATOMICS */
+#else	/* CONFIG_ARM64_LSE_ATOMICS */
 
 static inline bool system_uses_lse_atomics(void) { return false; }
 
@@ -44,5 +44,5 @@ static inline bool system_uses_lse_atomics(void) { return false; }
 
 #define ARM64_LSE_ATOMIC_INSN(llsc, lse)	llsc
 
-#endif	/* CONFIG_AS_LSE && CONFIG_ARM64_LSE_ATOMICS */
+#endif	/* CONFIG_ARM64_LSE_ATOMICS */
 #endif	/* __ASM_LSE_H */

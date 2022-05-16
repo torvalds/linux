@@ -26,6 +26,8 @@
 #include <media/imx.h>
 #include "imx-media.h"
 
+#define IMX_CAPTURE_NAME "imx-capture"
+
 struct capture_priv {
 	struct imx_media_video_dev vdev;
 
@@ -69,8 +71,8 @@ static int vidioc_querycap(struct file *file, void *fh,
 {
 	struct capture_priv *priv = video_drvdata(file);
 
-	strscpy(cap->driver, "imx-media-capture", sizeof(cap->driver));
-	strscpy(cap->card, "imx-media-capture", sizeof(cap->card));
+	strscpy(cap->driver, IMX_CAPTURE_NAME, sizeof(cap->driver));
+	strscpy(cap->card, IMX_CAPTURE_NAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:%s", priv->src_sd->name);
 
@@ -89,11 +91,11 @@ static int capture_enum_framesizes(struct file *file, void *fh,
 	};
 	int ret;
 
-	cc = imx_media_find_format(fsize->pixel_format, CS_SEL_ANY, true);
+	cc = imx_media_find_pixel_format(fsize->pixel_format, PIXFMT_SEL_ANY);
 	if (!cc)
 		return -EINVAL;
 
-	fse.code = cc->codes[0];
+	fse.code = cc->codes ? cc->codes[0] : 0;
 
 	ret = v4l2_subdev_call(priv->src_sd, pad, enum_frame_size, NULL, &fse);
 	if (ret)
@@ -131,11 +133,11 @@ static int capture_enum_frameintervals(struct file *file, void *fh,
 	};
 	int ret;
 
-	cc = imx_media_find_format(fival->pixel_format, CS_SEL_ANY, true);
+	cc = imx_media_find_pixel_format(fival->pixel_format, PIXFMT_SEL_ANY);
 	if (!cc)
 		return -EINVAL;
 
-	fie.code = cc->codes[0];
+	fie.code = cc->codes ? cc->codes[0] : 0;
 
 	ret = v4l2_subdev_call(priv->src_sd, pad, enum_frame_interval,
 			       NULL, &fie);
@@ -165,17 +167,19 @@ static int capture_enum_fmt_vid_cap(struct file *file, void *fh,
 		return ret;
 	}
 
-	cc_src = imx_media_find_ipu_format(fmt_src.format.code, CS_SEL_ANY);
+	cc_src = imx_media_find_ipu_format(fmt_src.format.code,
+					   PIXFMT_SEL_YUV_RGB);
 	if (cc_src) {
-		u32 cs_sel = (cc_src->cs == IPUV3_COLORSPACE_YUV) ?
-			CS_SEL_YUV : CS_SEL_RGB;
+		enum imx_pixfmt_sel fmt_sel =
+			(cc_src->cs == IPUV3_COLORSPACE_YUV) ?
+			PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
 
-		ret = imx_media_enum_format(&fourcc, f->index, cs_sel);
+		ret = imx_media_enum_pixel_formats(&fourcc, f->index, fmt_sel);
 		if (ret)
 			return ret;
 	} else {
 		cc_src = imx_media_find_mbus_format(fmt_src.format.code,
-						    CS_SEL_ANY, true);
+						    PIXFMT_SEL_ANY);
 		if (WARN_ON(!cc_src))
 			return -EINVAL;
 
@@ -207,22 +211,24 @@ static int __capture_try_fmt_vid_cap(struct capture_priv *priv,
 {
 	const struct imx_media_pixfmt *cc, *cc_src;
 
-	cc_src = imx_media_find_ipu_format(fmt_src->format.code, CS_SEL_ANY);
+	cc_src = imx_media_find_ipu_format(fmt_src->format.code,
+					   PIXFMT_SEL_YUV_RGB);
 	if (cc_src) {
-		u32 fourcc, cs_sel;
+		enum imx_pixfmt_sel fmt_sel;
+		u32 fourcc;
 
-		cs_sel = (cc_src->cs == IPUV3_COLORSPACE_YUV) ?
-			CS_SEL_YUV : CS_SEL_RGB;
+		fmt_sel = (cc_src->cs == IPUV3_COLORSPACE_YUV) ?
+			PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
 		fourcc = f->fmt.pix.pixelformat;
 
-		cc = imx_media_find_format(fourcc, cs_sel, false);
+		cc = imx_media_find_pixel_format(fourcc, fmt_sel);
 		if (!cc) {
-			imx_media_enum_format(&fourcc, 0, cs_sel);
-			cc = imx_media_find_format(fourcc, cs_sel, false);
+			imx_media_enum_pixel_formats(&fourcc, 0, fmt_sel);
+			cc = imx_media_find_pixel_format(fourcc, fmt_sel);
 		}
 	} else {
 		cc_src = imx_media_find_mbus_format(fmt_src->format.code,
-						    CS_SEL_ANY, true);
+						    PIXFMT_SEL_ANY);
 		if (WARN_ON(!cc_src))
 			return -EINVAL;
 
@@ -641,7 +647,7 @@ static int capture_open(struct file *file)
 	if (ret)
 		v4l2_err(priv->src_sd, "v4l2_fh_open failed\n");
 
-	ret = v4l2_pipeline_pm_use(&vfd->entity, 1);
+	ret = v4l2_pipeline_pm_get(&vfd->entity);
 	if (ret)
 		v4l2_fh_release(file);
 
@@ -662,7 +668,7 @@ static int capture_release(struct file *file)
 		vq->owner = NULL;
 	}
 
-	v4l2_pipeline_pm_use(&vfd->entity, 0);
+	v4l2_pipeline_pm_put(&vfd->entity);
 
 	v4l2_fh_release(file);
 	mutex_unlock(&priv->mutex);
@@ -740,7 +746,7 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 
 	vfd->v4l2_dev = v4l2_dev;
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(sd, "Failed to register video device\n");
 		return ret;
@@ -765,13 +771,6 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 
 	INIT_LIST_HEAD(&priv->ready_q);
 
-	priv->vdev_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_pads_init(&vfd->entity, 1, &priv->vdev_pad);
-	if (ret) {
-		v4l2_err(sd, "failed to init dev pad\n");
-		goto unreg;
-	}
-
 	/* create the link from the src_sd devnode pad to device node */
 	ret = media_create_pad_link(&sd->entity, priv->src_sd_pad,
 				    &vfd->entity, 0, 0);
@@ -783,7 +782,7 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 	/* setup default format */
 	fmt_src.pad = priv->src_sd_pad;
 	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt_src);
+	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt_src);
 	if (ret) {
 		v4l2_err(sd, "failed to get src_sd format\n");
 		goto unreg;
@@ -794,8 +793,8 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 				      &fmt_src.format, NULL);
 	vdev->compose.width = fmt_src.format.width;
 	vdev->compose.height = fmt_src.format.height;
-	vdev->cc = imx_media_find_format(vdev->fmt.fmt.pix.pixelformat,
-					 CS_SEL_ANY, false);
+	vdev->cc = imx_media_find_pixel_format(vdev->fmt.fmt.pix.pixelformat,
+					       PIXFMT_SEL_ANY);
 
 	v4l2_info(sd, "Registered %s as /dev/%s\n", vfd->name,
 		  video_device_node_name(vfd));
@@ -834,6 +833,7 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 {
 	struct capture_priv *priv;
 	struct video_device *vfd;
+	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -857,6 +857,13 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 	vfd->lock = &priv->mutex;
 	vfd->queue = &priv->q;
 	priv->vdev.vfd = vfd;
+
+	priv->vdev_pad.flags = MEDIA_PAD_FL_SINK;
+	ret = media_entity_pads_init(&vfd->entity, 1, &priv->vdev_pad);
+	if (ret) {
+		video_device_release(vfd);
+		return ERR_PTR(ret);
+	}
 
 	INIT_LIST_HEAD(&priv->vdev.list);
 

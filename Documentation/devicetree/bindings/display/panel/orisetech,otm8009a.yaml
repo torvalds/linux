@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/orisetech,otm8009a.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Orise Tech OTM8009A 3.97" 480x800 TFT LCD panel (MIPI-DSI video mode)
+
+maintainers:
+  - Philippe CORNU <philippe.cornu@st.com>
+
+description: |
+             The Orise Tech OTM8009A is a 3.97" 480x800 TFT LCD panel connected using
+             a MIPI-DSI video interface. Its backlight is managed through the DSI link.
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+
+  compatible:
+    const: orisetech,otm8009a
+
+  reg:
+    maxItems: 1
+    description: DSI virtual channel
+
+  enable-gpios: true
+  port: true
+  power-supply: true
+
+  reset-gpios:
+    maxItems: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    dsi {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      panel@0 {
+        compatible = "orisetech,otm8009a";
+        reg = <0>;
+        reset-gpios = <&gpiof 15 0>;
+        power-supply = <&v1v8>;
+      };
+    };
+...
+

@@ -175,7 +175,6 @@
 				#size-cells = <0>;
 				interrupts = <11>;
 				clock-frequency = <400000>;
-				timeout-ms = <1000>;
 				clocks = <&core_clk 0>;
 				status = "okay";
 			};
@@ -248,7 +247,7 @@
 				marvell,#interrupts = <5>;
 			};
 
-			intc: main-interrupt-ctrl@20200 {
+			intc: interrupt-controller@20200 {
 				compatible = "marvell,orion-intc";
 				interrupt-controller;
 				#interrupt-cells = <1>;
@@ -784,7 +783,7 @@
 				status = "disabled";
 			};
 
-			crypto_sram: sa-sram@ffffe000 {
+			crypto_sram: sram@ffffe000 {
 				compatible = "mmio-sram";
 				reg = <0xffffe000 0x800>;
 				clocks = <&gate_clk 15>;

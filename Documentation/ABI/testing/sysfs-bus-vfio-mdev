@@ -28,8 +28,9 @@ Description:
 		Writing UUID to this file will create mediated device of
 		type <type-id> for parent device <device>. This is a
 		write-only file.
-		For example:
-		# echo "83b8f4f2-509f-382f-3c1e-e6bfe0fa1001" >	\
+		For example::
+
+		  # echo "83b8f4f2-509f-382f-3c1e-e6bfe0fa1001" >	\
 		       /sys/devices/foo/mdev_supported_types/foo-1/create
 
 What:           /sys/.../mdev_supported_types/<type-id>/devices/
@@ -107,5 +108,6 @@ Description:
 		Writing '1' to this file destroys the mediated device. The
 		vendor driver can fail the remove() callback if that device
 		is active and the vendor driver doesn't support hot unplug.
-		Example:
-		# echo 1 > /sys/bus/mdev/devices/<UUID>/remove
+		Example::
+
+		  # echo 1 > /sys/bus/mdev/devices/<UUID>/remove

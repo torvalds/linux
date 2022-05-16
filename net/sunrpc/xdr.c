@@ -19,6 +19,9 @@
 #include <linux/bvec.h>
 #include <trace/events/sunrpc.h>
 
+static void _copy_to_pages(struct page **, size_t, const char *, size_t);
+
+
 /*
  * XDR functions for basic NFS types
  */
@@ -202,6 +205,88 @@ EXPORT_SYMBOL_GPL(xdr_inline_pages);
  */
 
 /**
+ * _shift_data_left_pages
+ * @pages: vector of pages containing both the source and dest memory area.
+ * @pgto_base: page vector address of destination
+ * @pgfrom_base: page vector address of source
+ * @len: number of bytes to copy
+ *
+ * Note: the addresses pgto_base and pgfrom_base are both calculated in
+ *       the same way:
+ *            if a memory area starts at byte 'base' in page 'pages[i]',
+ *            then its address is given as (i << PAGE_CACHE_SHIFT) + base
+ * Alse note: pgto_base must be < pgfrom_base, but the memory areas
+ * 	they point to may overlap.
+ */
+static void
+_shift_data_left_pages(struct page **pages, size_t pgto_base,
+			size_t pgfrom_base, size_t len)
+{
+	struct page **pgfrom, **pgto;
+	char *vfrom, *vto;
+	size_t copy;
+
+	BUG_ON(pgfrom_base <= pgto_base);
+
+	pgto = pages + (pgto_base >> PAGE_SHIFT);
+	pgfrom = pages + (pgfrom_base >> PAGE_SHIFT);
+
+	pgto_base &= ~PAGE_MASK;
+	pgfrom_base &= ~PAGE_MASK;
+
+	do {
+		if (pgto_base >= PAGE_SIZE) {
+			pgto_base = 0;
+			pgto++;
+		}
+		if (pgfrom_base >= PAGE_SIZE){
+			pgfrom_base = 0;
+			pgfrom++;
+		}
+
+		copy = len;
+		if (copy > (PAGE_SIZE - pgto_base))
+			copy = PAGE_SIZE - pgto_base;
+		if (copy > (PAGE_SIZE - pgfrom_base))
+			copy = PAGE_SIZE - pgfrom_base;
+
+		vto = kmap_atomic(*pgto);
+		if (*pgto != *pgfrom) {
+			vfrom = kmap_atomic(*pgfrom);
+			memcpy(vto + pgto_base, vfrom + pgfrom_base, copy);
+			kunmap_atomic(vfrom);
+		} else
+			memmove(vto + pgto_base, vto + pgfrom_base, copy);
+		flush_dcache_page(*pgto);
+		kunmap_atomic(vto);
+
+		pgto_base += copy;
+		pgfrom_base += copy;
+
+	} while ((len -= copy) != 0);
+}
+
+static void
+_shift_data_left_tail(struct xdr_buf *buf, unsigned int pgto, size_t len)
+{
+	struct kvec *tail = buf->tail;
+
+	if (len > tail->iov_len)
+		len = tail->iov_len;
+
+	_copy_to_pages(buf->pages,
+		       buf->page_base + pgto,
+		       (char *)tail->iov_base,
+		       len);
+	tail->iov_len -= len;
+
+	if (tail->iov_len > 0)
+		memmove((char *)tail->iov_base,
+				tail->iov_base + len,
+				tail->iov_len);
+}
+
+/**
  * _shift_data_right_pages
  * @pages: vector of pages containing both the source and dest memory area.
  * @pgto_base: page vector address of destination
@@ -264,6 +349,46 @@ _shift_data_right_pages(struct page **pages, size_t pgto_base,
 		kunmap_atomic(vto);
 
 	} while ((len -= copy) != 0);
+}
+
+static unsigned int
+_shift_data_right_tail(struct xdr_buf *buf, unsigned int pgfrom, size_t len)
+{
+	struct kvec *tail = buf->tail;
+	unsigned int tailbuf_len;
+	unsigned int result = 0;
+	size_t copy;
+
+	tailbuf_len = buf->buflen - buf->head->iov_len - buf->page_len;
+
+	/* Shift the tail first */
+	if (tailbuf_len != 0) {
+		unsigned int free_space = tailbuf_len - tail->iov_len;
+
+		if (len < free_space)
+			free_space = len;
+		if (len > free_space)
+			len = free_space;
+
+		tail->iov_len += free_space;
+		copy = len;
+
+		if (tail->iov_len > len) {
+			char *p = (char *)tail->iov_base + len;
+			memmove(p, tail->iov_base, tail->iov_len - free_space);
+			result += tail->iov_len - free_space;
+		} else
+			copy = tail->iov_len;
+
+		/* Copy from the inlined pages into the tail */
+		_copy_from_pages((char *)tail->iov_base,
+					 buf->pages,
+					 buf->page_base + pgfrom,
+					 copy);
+		result += copy;
+	}
+
+	return result;
 }
 
 /**
@@ -351,6 +476,38 @@ _copy_from_pages(char *p, struct page **pages, size_t pgbase, size_t len)
 EXPORT_SYMBOL_GPL(_copy_from_pages);
 
 /**
+ * _zero_pages
+ * @pages: array of pages
+ * @pgbase: beginning page vector address
+ * @len: length
+ */
+static void
+_zero_pages(struct page **pages, size_t pgbase, size_t len)
+{
+	struct page **page;
+	char *vpage;
+	size_t zero;
+
+	page = pages + (pgbase >> PAGE_SHIFT);
+	pgbase &= ~PAGE_MASK;
+
+	do {
+		zero = PAGE_SIZE - pgbase;
+		if (zero > len)
+			zero = len;
+
+		vpage = kmap_atomic(*page);
+		memset(vpage + pgbase, 0, zero);
+		kunmap_atomic(vpage);
+
+		flush_dcache_page(*page);
+		pgbase = 0;
+		page++;
+
+	} while ((len -= zero) != 0);
+}
+
+/**
  * xdr_shrink_bufhead
  * @buf: xdr_buf
  * @len: bytes to remove from buf->head[0]
@@ -436,50 +593,23 @@ xdr_shrink_bufhead(struct xdr_buf *buf, size_t len)
 }
 
 /**
- * xdr_shrink_pagelen
+ * xdr_shrink_pagelen - shrinks buf->pages by up to @len bytes
  * @buf: xdr_buf
  * @len: bytes to remove from buf->pages
  *
- * Shrinks XDR buffer's page array buf->pages by
- * 'len' bytes. The extra data is not lost, but is instead
- * moved into the tail.
+ * The extra data is not lost, but is instead moved into buf->tail.
+ * Returns the actual number of bytes moved.
  */
 static unsigned int
 xdr_shrink_pagelen(struct xdr_buf *buf, size_t len)
 {
-	struct kvec *tail;
-	size_t copy;
 	unsigned int pglen = buf->page_len;
-	unsigned int tailbuf_len;
 	unsigned int result;
 
-	result = 0;
-	tail = buf->tail;
-	BUG_ON (len > pglen);
+	if (len > buf->page_len)
+		len = buf-> page_len;
 
-	tailbuf_len = buf->buflen - buf->head->iov_len - buf->page_len;
-
-	/* Shift the tail first */
-	if (tailbuf_len != 0) {
-		unsigned int free_space = tailbuf_len - tail->iov_len;
-
-		if (len < free_space)
-			free_space = len;
-		tail->iov_len += free_space;
-
-		copy = len;
-		if (tail->iov_len > len) {
-			char *p = (char *)tail->iov_base + len;
-			memmove(p, tail->iov_base, tail->iov_len - len);
-			result += tail->iov_len - len;
-		} else
-			copy = tail->iov_len;
-		/* Copy from the inlined pages into the tail */
-		_copy_from_pages((char *)tail->iov_base,
-				buf->pages, buf->page_base + pglen - len,
-				copy);
-		result += copy;
-	}
+	result = _shift_data_right_tail(buf, pglen - len, len);
 	buf->page_len -= len;
 	buf->buflen -= len;
 	/* Have we truncated the message? */
@@ -505,6 +635,19 @@ unsigned int xdr_stream_pos(const struct xdr_stream *xdr)
 	return (unsigned int)(XDR_QUADLEN(xdr->buf->len) - xdr->nwords) << 2;
 }
 EXPORT_SYMBOL_GPL(xdr_stream_pos);
+
+/**
+ * xdr_page_pos - Return the current offset from the start of the xdr pages
+ * @xdr: pointer to struct xdr_stream
+ */
+unsigned int xdr_page_pos(const struct xdr_stream *xdr)
+{
+	unsigned int pos = xdr_stream_pos(xdr);
+
+	WARN_ON(pos < xdr->buf->head[0].iov_len);
+	return pos - xdr->buf->head[0].iov_len;
+}
+EXPORT_SYMBOL_GPL(xdr_page_pos);
 
 /**
  * xdr_init_encode - Initialize a struct xdr_stream for sending data.
@@ -649,6 +792,51 @@ __be32 * xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes)
 }
 EXPORT_SYMBOL_GPL(xdr_reserve_space);
 
+
+/**
+ * xdr_reserve_space_vec - Reserves a large amount of buffer space for sending
+ * @xdr: pointer to xdr_stream
+ * @vec: pointer to a kvec array
+ * @nbytes: number of bytes to reserve
+ *
+ * Reserves enough buffer space to encode 'nbytes' of data and stores the
+ * pointers in 'vec'. The size argument passed to xdr_reserve_space() is
+ * determined based on the number of bytes remaining in the current page to
+ * avoid invalidating iov_base pointers when xdr_commit_encode() is called.
+ */
+int xdr_reserve_space_vec(struct xdr_stream *xdr, struct kvec *vec, size_t nbytes)
+{
+	int thislen;
+	int v = 0;
+	__be32 *p;
+
+	/*
+	 * svcrdma requires every READ payload to start somewhere
+	 * in xdr->pages.
+	 */
+	if (xdr->iov == xdr->buf->head) {
+		xdr->iov = NULL;
+		xdr->end = xdr->p;
+	}
+
+	while (nbytes) {
+		thislen = xdr->buf->page_len % PAGE_SIZE;
+		thislen = min_t(size_t, nbytes, PAGE_SIZE - thislen);
+
+		p = xdr_reserve_space(xdr, thislen);
+		if (!p)
+			return -EIO;
+
+		vec[v].iov_base = p;
+		vec[v].iov_len = thislen;
+		v++;
+		nbytes -= thislen;
+	}
+
+	return v;
+}
+EXPORT_SYMBOL_GPL(xdr_reserve_space_vec);
+
 /**
  * xdr_truncate_encode - truncate an encode buffer
  * @xdr: pointer to xdr_stream
@@ -659,7 +847,7 @@ EXPORT_SYMBOL_GPL(xdr_reserve_space);
  * head, tail, and page lengths are adjusted to correspond.
  *
  * If this means moving xdr->p to a different buffer, we assume that
- * that the end pointer should be set to the end of the current page,
+ * the end pointer should be set to the end of the current page,
  * except in the case of the head buffer when we assume the head
  * buffer's current length represents the end of the available buffer.
  *
@@ -826,6 +1014,13 @@ static int xdr_set_page_base(struct xdr_stream *xdr,
 	return 0;
 }
 
+static void xdr_set_page(struct xdr_stream *xdr, unsigned int base,
+			 unsigned int len)
+{
+	if (xdr_set_page_base(xdr, base, len) < 0)
+		xdr_set_iov(xdr, xdr->buf->tail, xdr->nwords << 2);
+}
+
 static void xdr_set_next_page(struct xdr_stream *xdr)
 {
 	unsigned int newbase;
@@ -833,8 +1028,7 @@ static void xdr_set_next_page(struct xdr_stream *xdr)
 	newbase = (1 + xdr->page_ptr - xdr->buf->pages) << PAGE_SHIFT;
 	newbase -= xdr->buf->page_base;
 
-	if (xdr_set_page_base(xdr, newbase, PAGE_SIZE) < 0)
-		xdr_set_iov(xdr, xdr->buf->tail, xdr->nwords << 2);
+	xdr_set_page(xdr, newbase, PAGE_SIZE);
 }
 
 static bool xdr_set_next_buffer(struct xdr_stream *xdr)
@@ -842,8 +1036,7 @@ static bool xdr_set_next_buffer(struct xdr_stream *xdr)
 	if (xdr->page_ptr != NULL)
 		xdr_set_next_page(xdr);
 	else if (xdr->iov == xdr->buf->head) {
-		if (xdr_set_page_base(xdr, 0, PAGE_SIZE) < 0)
-			xdr_set_iov(xdr, xdr->buf->tail, xdr->nwords << 2);
+		xdr_set_page(xdr, 0, PAGE_SIZE);
 	}
 	return xdr->p != xdr->end;
 }
@@ -980,10 +1173,25 @@ out_overflow:
 }
 EXPORT_SYMBOL_GPL(xdr_inline_decode);
 
+static void xdr_realign_pages(struct xdr_stream *xdr)
+{
+	struct xdr_buf *buf = xdr->buf;
+	struct kvec *iov = buf->head;
+	unsigned int cur = xdr_stream_pos(xdr);
+	unsigned int copied, offset;
+
+	/* Realign pages to current pointer position */
+	if (iov->iov_len > cur) {
+		offset = iov->iov_len - cur;
+		copied = xdr_shrink_bufhead(buf, offset);
+		trace_rpc_xdr_alignment(xdr, offset, copied);
+		xdr->nwords = XDR_QUADLEN(buf->len - cur);
+	}
+}
+
 static unsigned int xdr_align_pages(struct xdr_stream *xdr, unsigned int len)
 {
 	struct xdr_buf *buf = xdr->buf;
-	struct kvec *iov;
 	unsigned int nwords = XDR_QUADLEN(len);
 	unsigned int cur = xdr_stream_pos(xdr);
 	unsigned int copied, offset;
@@ -991,15 +1199,7 @@ static unsigned int xdr_align_pages(struct xdr_stream *xdr, unsigned int len)
 	if (xdr->nwords == 0)
 		return 0;
 
-	/* Realign pages to current pointer position */
-	iov = buf->head;
-	if (iov->iov_len > cur) {
-		offset = iov->iov_len - cur;
-		copied = xdr_shrink_bufhead(buf, offset);
-		trace_rpc_xdr_alignment(xdr, offset, copied);
-		xdr->nwords = XDR_QUADLEN(buf->len - cur);
-	}
-
+	xdr_realign_pages(xdr);
 	if (nwords > xdr->nwords) {
 		nwords = xdr->nwords;
 		len = nwords << 2;
@@ -1058,6 +1258,79 @@ unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 }
 EXPORT_SYMBOL_GPL(xdr_read_pages);
 
+uint64_t xdr_align_data(struct xdr_stream *xdr, uint64_t offset, uint32_t length)
+{
+	struct xdr_buf *buf = xdr->buf;
+	unsigned int from, bytes;
+	unsigned int shift = 0;
+
+	if ((offset + length) < offset ||
+	    (offset + length) > buf->page_len)
+		length = buf->page_len - offset;
+
+	xdr_realign_pages(xdr);
+	from = xdr_page_pos(xdr);
+	bytes = xdr->nwords << 2;
+	if (length < bytes)
+		bytes = length;
+
+	/* Move page data to the left */
+	if (from > offset) {
+		shift = min_t(unsigned int, bytes, buf->page_len - from);
+		_shift_data_left_pages(buf->pages,
+				       buf->page_base + offset,
+				       buf->page_base + from,
+				       shift);
+		bytes -= shift;
+
+		/* Move tail data into the pages, if necessary */
+		if (bytes > 0)
+			_shift_data_left_tail(buf, offset + shift, bytes);
+	}
+
+	xdr->nwords -= XDR_QUADLEN(length);
+	xdr_set_page(xdr, from + length, PAGE_SIZE);
+	return length;
+}
+EXPORT_SYMBOL_GPL(xdr_align_data);
+
+uint64_t xdr_expand_hole(struct xdr_stream *xdr, uint64_t offset, uint64_t length)
+{
+	struct xdr_buf *buf = xdr->buf;
+	unsigned int bytes;
+	unsigned int from;
+	unsigned int truncated = 0;
+
+	if ((offset + length) < offset ||
+	    (offset + length) > buf->page_len)
+		length = buf->page_len - offset;
+
+	xdr_realign_pages(xdr);
+	from = xdr_page_pos(xdr);
+	bytes = xdr->nwords << 2;
+
+	if (offset + length + bytes > buf->page_len) {
+		unsigned int shift = (offset + length + bytes) - buf->page_len;
+		unsigned int res = _shift_data_right_tail(buf, from + bytes - shift, shift);
+		truncated = shift - res;
+		xdr->nwords -= XDR_QUADLEN(truncated);
+		bytes -= shift;
+	}
+
+	/* Now move the page data over and zero pages */
+	if (bytes > 0)
+		_shift_data_right_pages(buf->pages,
+					buf->page_base + offset + length,
+					buf->page_base + from,
+					bytes);
+	_zero_pages(buf->pages, buf->page_base + offset, length);
+
+	buf->len += length - (from - offset) - truncated;
+	xdr_set_page(xdr, offset + length, PAGE_SIZE);
+	return length;
+}
+EXPORT_SYMBOL_GPL(xdr_expand_hole);
+
 /**
  * xdr_enter_page - decode data from the XDR page
  * @xdr: pointer to xdr_stream struct
@@ -1080,7 +1353,7 @@ void xdr_enter_page(struct xdr_stream *xdr, unsigned int len)
 }
 EXPORT_SYMBOL_GPL(xdr_enter_page);
 
-static struct kvec empty_iov = {.iov_base = NULL, .iov_len = 0};
+static const struct kvec empty_iov = {.iov_base = NULL, .iov_len = 0};
 
 void
 xdr_buf_from_iov(struct kvec *iov, struct xdr_buf *buf)
@@ -1119,6 +1392,7 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 		base = 0;
 	} else {
 		base -= buf->head[0].iov_len;
+		subbuf->head[0].iov_base = buf->head[0].iov_base;
 		subbuf->head[0].iov_len = 0;
 	}
 
@@ -1131,6 +1405,8 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 		base = 0;
 	} else {
 		base -= buf->page_len;
+		subbuf->pages = buf->pages;
+		subbuf->page_base = 0;
 		subbuf->page_len = 0;
 	}
 
@@ -1142,6 +1418,7 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 		base = 0;
 	} else {
 		base -= buf->tail[0].iov_len;
+		subbuf->tail[0].iov_base = buf->tail[0].iov_base;
 		subbuf->tail[0].iov_len = 0;
 	}
 
@@ -1150,6 +1427,47 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xdr_buf_subsegment);
+
+/**
+ * xdr_buf_trim - lop at most "len" bytes off the end of "buf"
+ * @buf: buf to be trimmed
+ * @len: number of bytes to reduce "buf" by
+ *
+ * Trim an xdr_buf by the given number of bytes by fixing up the lengths. Note
+ * that it's possible that we'll trim less than that amount if the xdr_buf is
+ * too small, or if (for instance) it's all in the head and the parser has
+ * already read too far into it.
+ */
+void xdr_buf_trim(struct xdr_buf *buf, unsigned int len)
+{
+	size_t cur;
+	unsigned int trim = len;
+
+	if (buf->tail[0].iov_len) {
+		cur = min_t(size_t, buf->tail[0].iov_len, trim);
+		buf->tail[0].iov_len -= cur;
+		trim -= cur;
+		if (!trim)
+			goto fix_len;
+	}
+
+	if (buf->page_len) {
+		cur = min_t(unsigned int, buf->page_len, trim);
+		buf->page_len -= cur;
+		trim -= cur;
+		if (!trim)
+			goto fix_len;
+	}
+
+	if (buf->head[0].iov_len) {
+		cur = min_t(size_t, buf->head[0].iov_len, trim);
+		buf->head[0].iov_len -= cur;
+		trim -= cur;
+	}
+fix_len:
+	buf->len -= (len - trim);
+}
+EXPORT_SYMBOL_GPL(xdr_buf_trim);
 
 static void __read_bytes_from_xdr_buf(struct xdr_buf *subbuf, void *obj, unsigned int len)
 {
@@ -1235,61 +1553,6 @@ xdr_encode_word(struct xdr_buf *buf, unsigned int base, u32 obj)
 	return write_bytes_to_xdr_buf(buf, base, &raw, sizeof(obj));
 }
 EXPORT_SYMBOL_GPL(xdr_encode_word);
-
-/**
- * xdr_buf_read_mic() - obtain the address of the GSS mic from xdr buf
- * @buf: pointer to buffer containing a mic
- * @mic: on success, returns the address of the mic
- * @offset: the offset in buf where mic may be found
- *
- * This function may modify the xdr buf if the mic is found to be straddling
- * a boundary between head, pages, and tail.  On success the mic can be read
- * from the address returned.  There is no need to free the mic.
- *
- * Return: Success returns 0, otherwise an integer error.
- */
-int xdr_buf_read_mic(struct xdr_buf *buf, struct xdr_netobj *mic, unsigned int offset)
-{
-	struct xdr_buf subbuf;
-	unsigned int boundary;
-
-	if (xdr_decode_word(buf, offset, &mic->len))
-		return -EFAULT;
-	offset += 4;
-
-	/* Is the mic partially in the head? */
-	boundary = buf->head[0].iov_len;
-	if (offset < boundary && (offset + mic->len) > boundary)
-		xdr_shift_buf(buf, boundary - offset);
-
-	/* Is the mic partially in the pages? */
-	boundary += buf->page_len;
-	if (offset < boundary && (offset + mic->len) > boundary)
-		xdr_shrink_pagelen(buf, boundary - offset);
-
-	if (xdr_buf_subsegment(buf, &subbuf, offset, mic->len))
-		return -EFAULT;
-
-	/* Is the mic contained entirely in the head? */
-	mic->data = subbuf.head[0].iov_base;
-	if (subbuf.head[0].iov_len == mic->len)
-		return 0;
-	/* ..or is the mic contained entirely in the tail? */
-	mic->data = subbuf.tail[0].iov_base;
-	if (subbuf.tail[0].iov_len == mic->len)
-		return 0;
-
-	/* Find a contiguous area in @buf to hold all of @mic */
-	if (mic->len > buf->buflen - buf->len)
-		return -ENOMEM;
-	if (buf->tail[0].iov_len != 0)
-		mic->data = buf->tail[0].iov_base + buf->tail[0].iov_len;
-	else
-		mic->data = buf->head[0].iov_base + buf->head[0].iov_len;
-	__read_bytes_from_xdr_buf(&subbuf, mic->data, mic->len);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(xdr_buf_read_mic);
 
 /* Returns 0 on success, or else a negative error code. */
 static int

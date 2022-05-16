@@ -37,7 +37,7 @@ static int bw2_ioctl(struct fb_info *, unsigned int, unsigned long);
  *  Frame buffer operations
  */
 
-static struct fb_ops bw2_ops = {
+static const struct fb_ops bw2_ops = {
 	.owner			= THIS_MODULE,
 	.fb_blank		= bw2_blank,
 	.fb_fillrect		= cfb_fillrect,

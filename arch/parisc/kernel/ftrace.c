@@ -21,7 +21,7 @@
 #include <asm/ftrace.h>
 #include <asm/patch.h>
 
-#define __hot __attribute__ ((__section__ (".text.hot")))
+#define __hot __section(".text.hot")
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*
@@ -64,7 +64,8 @@ void notrace __hot ftrace_function_trampoline(unsigned long parent,
 				function_trace_op, regs);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	if (ftrace_graph_return != (trace_func_graph_ret_t) ftrace_stub ||
+	if (dereference_function_descriptor(ftrace_graph_return) !=
+	    dereference_function_descriptor(ftrace_stub) ||
 	    ftrace_graph_entry != ftrace_graph_entry_stub) {
 		unsigned long *parent_rp;
 
@@ -172,7 +173,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	ip = (void *)(rec->ip + 4 - size);
 
-	ret = probe_kernel_read(insn, ip, size);
+	ret = copy_from_kernel_nofault(insn, ip, size);
 	if (ret)
 		return ret;
 

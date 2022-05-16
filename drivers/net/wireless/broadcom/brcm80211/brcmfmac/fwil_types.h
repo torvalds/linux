@@ -19,7 +19,7 @@
 #define BRCMF_ARP_OL_PEER_AUTO_REPLY	0x00000008
 
 #define	BRCMF_BSS_INFO_VERSION	109 /* curr ver of brcmf_bss_info_le struct */
-#define BRCMF_BSS_RSSI_ON_CHANNEL	0x0002
+#define BRCMF_BSS_RSSI_ON_CHANNEL	0x0004
 
 #define BRCMF_STA_BRCM			0x00000001	/* Running a Broadcom driver */
 #define BRCMF_STA_WME			0x00000002	/* WMM association */
@@ -60,6 +60,8 @@
 
 #define BRCMF_WSEC_MAX_PSK_LEN		32
 #define	BRCMF_WSEC_PASSPHRASE		BIT(0)
+
+#define BRCMF_WSEC_MAX_SAE_PASSWORD_LEN 128
 
 /* primary (ie tx) key */
 #define BRCMF_PRIMARY_KEY		(1 << 1)
@@ -516,6 +518,17 @@ struct brcmf_wsec_pmk_le {
 	__le16  key_len;
 	__le16  flags;
 	u8 key[2 * BRCMF_WSEC_MAX_PSK_LEN + 1];
+};
+
+/**
+ * struct brcmf_wsec_sae_pwd_le - firmware SAE password material.
+ *
+ * @key_len: number of octets in key materials.
+ * @key: SAE password material.
+ */
+struct brcmf_wsec_sae_pwd_le {
+	__le16 key_len;
+	u8 key[BRCMF_WSEC_MAX_SAE_PASSWORD_LEN];
 };
 
 /* Used to get specific STA parameters */

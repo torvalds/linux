@@ -384,14 +384,13 @@ struct lpfc_io_buf {
 
 	struct lpfc_nodelist *ndlp;
 	uint32_t timeout;
-	uint16_t flags;  /* TBD convert exch_busy to flags */
+	uint16_t flags;
 #define LPFC_SBUF_XBUSY		0x1	/* SLI4 hba reported XB on WCQE cmpl */
 #define LPFC_SBUF_BUMP_QDEPTH	0x2	/* bumped queue depth counter */
 					/* External DIF device IO conversions */
 #define LPFC_SBUF_NORMAL_DIF	0x4	/* normal mode to insert/strip */
 #define LPFC_SBUF_PASS_DIF	0x8	/* insert/strip mode to passthru */
 #define LPFC_SBUF_NOT_POSTED    0x10    /* SGL failed post to FW. */
-	uint16_t exch_busy;     /* SLI4 hba reported XB on complete WCQE */
 	uint16_t status;	/* From IOCB Word 7- ulpStatus */
 	uint32_t result;	/* From IOCB Word 4. */
 
@@ -447,6 +446,6 @@ struct lpfc_io_buf {
 	uint64_t ts_last_cmd;
 	uint64_t ts_cmd_wqput;
 	uint64_t ts_isr_cmpl;
-	uint64_t ts_data_nvme;
+	uint64_t ts_data_io;
 #endif
 };

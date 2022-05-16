@@ -265,10 +265,10 @@ static void cleanup_ipmi_si(void);
 #ifdef DEBUG_TIMING
 void debug_timestamp(char *msg)
 {
-	struct timespec t;
+	struct timespec64 t;
 
-	ktime_get_ts(&t);
-	pr_debug("**%s: %ld.%9.9ld\n", msg, (long) t.tv_sec, t.tv_nsec);
+	ktime_get_ts64(&t);
+	pr_debug("**%s: %lld.%9.9ld\n", msg, t.tv_sec, t.tv_nsec);
 }
 #else
 #define debug_timestamp(x)
@@ -935,38 +935,25 @@ static void set_run_to_completion(void *send_info, bool i_run_to_completion)
 }
 
 /*
- * Use -1 in the nsec value of the busy waiting timespec to tell that
- * we are spinning in kipmid looking for something and not delaying
- * between checks
+ * Use -1 as a special constant to tell that we are spinning in kipmid
+ * looking for something and not delaying between checks
  */
-static inline void ipmi_si_set_not_busy(struct timespec *ts)
-{
-	ts->tv_nsec = -1;
-}
-static inline int ipmi_si_is_busy(struct timespec *ts)
-{
-	return ts->tv_nsec != -1;
-}
-
+#define IPMI_TIME_NOT_BUSY ns_to_ktime(-1ull)
 static inline bool ipmi_thread_busy_wait(enum si_sm_result smi_result,
 					 const struct smi_info *smi_info,
-					 struct timespec *busy_until)
+					 ktime_t *busy_until)
 {
 	unsigned int max_busy_us = 0;
 
 	if (smi_info->si_num < num_max_busy_us)
 		max_busy_us = kipmid_max_busy_us[smi_info->si_num];
 	if (max_busy_us == 0 || smi_result != SI_SM_CALL_WITH_DELAY)
-		ipmi_si_set_not_busy(busy_until);
-	else if (!ipmi_si_is_busy(busy_until)) {
-		ktime_get_ts(busy_until);
-		timespec_add_ns(busy_until, max_busy_us * NSEC_PER_USEC);
+		*busy_until = IPMI_TIME_NOT_BUSY;
+	else if (*busy_until == IPMI_TIME_NOT_BUSY) {
+		*busy_until = ktime_get() + max_busy_us * NSEC_PER_USEC;
 	} else {
-		struct timespec now;
-
-		ktime_get_ts(&now);
-		if (unlikely(timespec_compare(&now, busy_until) > 0)) {
-			ipmi_si_set_not_busy(busy_until);
+		if (unlikely(ktime_get() > *busy_until)) {
+			*busy_until = IPMI_TIME_NOT_BUSY;
 			return false;
 		}
 	}
@@ -981,16 +968,15 @@ static inline bool ipmi_thread_busy_wait(enum si_sm_result smi_result,
  * that are not BT and do not have interrupts.  It starts spinning
  * when an operation is complete or until max_busy tells it to stop
  * (if that is enabled).  See the paragraph on kimid_max_busy_us in
- * Documentation/IPMI.txt for details.
+ * Documentation/driver-api/ipmi.rst for details.
  */
 static int ipmi_thread(void *data)
 {
 	struct smi_info *smi_info = data;
 	unsigned long flags;
 	enum si_sm_result smi_result;
-	struct timespec busy_until = { 0, 0 };
+	ktime_t busy_until = IPMI_TIME_NOT_BUSY;
 
-	ipmi_si_set_not_busy(&busy_until);
 	set_user_nice(current, MAX_NICE);
 	while (!kthread_should_stop()) {
 		int busy_wait;
@@ -1330,6 +1316,7 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	unsigned char         *resp;
 	unsigned long         resp_len;
 	int                   rv = 0;
+	unsigned int          retry_count = 0;
 
 	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
 	if (!resp)
@@ -1341,6 +1328,8 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	 */
 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
 	msg[1] = IPMI_GET_DEVICE_ID_CMD;
+
+retry:
 	smi_info->handlers->start_transaction(smi_info->si_sm, msg, 2);
 
 	rv = wait_for_msg_done(smi_info);
@@ -1353,6 +1342,20 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	/* Check and record info from the get device id, in case we need it. */
 	rv = ipmi_demangle_device_id(resp[0] >> 2, resp[1],
 			resp + 2, resp_len - 2, &smi_info->device_id);
+	if (rv) {
+		/* record completion code */
+		unsigned char cc = *(resp + 2);
+
+		if ((cc == IPMI_DEVICE_IN_FW_UPDATE_ERR
+		    || cc == IPMI_DEVICE_IN_INIT_ERR
+		    || cc == IPMI_NOT_IN_MY_STATE_ERR)
+		    && ++retry_count <= GET_DEVICE_ID_MAX_RETRY) {
+			dev_warn(smi_info->io.dev,
+			    "BMC returned 0x%2.2x, retry get bmc device id\n",
+			    cc);
+			goto retry;
+		}
+	}
 
 out:
 	kfree(resp);
@@ -1977,7 +1980,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	/* Do this early so it's available for logs. */
 	if (!new_smi->io.dev) {
 		pr_err("IPMI interface added with no device\n");
-		rv = EIO;
+		rv = -EIO;
 		goto out_err;
 	}
 

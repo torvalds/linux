@@ -83,7 +83,7 @@ static void process_basic_block(struct addr_map_symbol *start,
 				struct addr_map_symbol *end,
 				struct branch_flags *flags)
 {
-	struct symbol *sym = start->sym;
+	struct symbol *sym = start->ms.sym;
 	struct annotation *notes = sym ? symbol__annotation(sym) : NULL;
 	struct block_range_iter iter;
 	struct block_range *entry;
@@ -201,7 +201,7 @@ static int process_branch_callback(struct evsel *evsel,
 	if (a.map != NULL)
 		a.map->dso->hit = 1;
 
-	hist__account_cycles(sample->branch_stack, al, sample, false);
+	hist__account_cycles(sample->branch_stack, al, sample, false, NULL);
 
 	ret = hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
 	return ret;
@@ -212,11 +212,9 @@ static bool has_annotation(struct perf_annotate *ann)
 	return ui__has_annotation() || ann->use_stdio2;
 }
 
-static int perf_evsel__add_sample(struct evsel *evsel,
-				  struct perf_sample *sample,
-				  struct addr_location *al,
-				  struct perf_annotate *ann,
-				  struct machine *machine)
+static int evsel__add_sample(struct evsel *evsel, struct perf_sample *sample,
+			     struct addr_location *al, struct perf_annotate *ann,
+			     struct machine *machine)
 {
 	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
@@ -278,7 +276,7 @@ static int process_sample_event(struct perf_tool *tool,
 		goto out_put;
 
 	if (!al.filtered &&
-	    perf_evsel__add_sample(evsel, sample, &al, ann, machine)) {
+	    evsel__add_sample(evsel, sample, &al, ann, machine)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
 		ret = -1;
@@ -301,9 +299,9 @@ static int hist_entry__tty_annotate(struct hist_entry *he,
 				    struct perf_annotate *ann)
 {
 	if (!ann->use_stdio2)
-		return symbol__tty_annotate(he->ms.sym, he->ms.map, evsel, &ann->opts);
+		return symbol__tty_annotate(&he->ms, evsel, &ann->opts);
 
-	return symbol__tty_annotate2(he->ms.sym, he->ms.map, evsel, &ann->opts);
+	return symbol__tty_annotate2(&he->ms, evsel, &ann->opts);
 }
 
 static void hists__find_annotations(struct hists *hists,
@@ -433,11 +431,10 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			total_nr_samples += nr_samples;
 			hists__collapse_resort(hists, NULL);
 			/* Don't sort callchain */
-			perf_evsel__reset_sample_bit(pos, CALLCHAIN);
-			perf_evsel__output_resort(pos, NULL);
+			evsel__reset_sample_bit(pos, CALLCHAIN);
+			evsel__output_resort(pos, NULL);
 
-			if (symbol_conf.event_group &&
-			    !perf_evsel__is_group_leader(pos))
+			if (symbol_conf.event_group && !evsel__is_group_leader(pos))
 				continue;
 
 			hists__find_annotations(hists, pos, ann);
@@ -535,6 +532,10 @@ int cmd_annotate(int argc, const char **argv)
 		    "Display raw encoding of assembly instructions (default)"),
 	OPT_STRING('M', "disassembler-style", &annotate.opts.disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
+	OPT_STRING(0, "prefix", &annotate.opts.prefix, "prefix",
+		    "Add prefix to source file path names in programs (with --prefix-strip)"),
+	OPT_STRING(0, "prefix-strip", &annotate.opts.prefix_strip, "N",
+		    "Strip first N entries of source file path name in programs (with --prefix)"),
 	OPT_STRING(0, "objdump", &annotate.opts.objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
 	OPT_BOOLEAN(0, "group", &symbol_conf.event_group,
@@ -562,6 +563,8 @@ int cmd_annotate(int argc, const char **argv)
 	if (ret < 0)
 		return ret;
 
+	annotation_config__init(&annotate.opts);
+
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
 	if (argc) {
 		/*
@@ -573,6 +576,9 @@ int cmd_annotate(int argc, const char **argv)
 
 		annotate.sym_hist_filter = argv[0];
 	}
+
+	if (annotate_check_args(&annotate.opts) < 0)
+		return -EINVAL;
 
 	if (symbol_conf.show_nr_samples && annotate.use_gtk) {
 		pr_err("--show-nr-samples is not available in --gtk mode at this time\n");
@@ -597,8 +603,6 @@ int cmd_annotate(int argc, const char **argv)
 	ret = symbol__annotation_init();
 	if (ret < 0)
 		goto out_delete;
-
-	annotation_config__init();
 
 	symbol_conf.try_vmlinux_path = true;
 

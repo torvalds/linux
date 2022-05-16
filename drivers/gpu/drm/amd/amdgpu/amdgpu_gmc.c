@@ -27,6 +27,9 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 
 #include "amdgpu.h"
+#include "amdgpu_gmc.h"
+#include "amdgpu_ras.h"
+#include "amdgpu_xgmi.h"
 
 /**
  * amdgpu_gmc_get_pde_for_bo - get the PDE for a BO
@@ -134,8 +137,8 @@ uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo)
 /**
  * amdgpu_gmc_vram_location - try to find VRAM location
  *
- * @adev: amdgpu device structure holding all necessary informations
- * @mc: memory controller structure holding memory informations
+ * @adev: amdgpu device structure holding all necessary information
+ * @mc: memory controller structure holding memory information
  * @base: base address at which to put VRAM
  *
  * Function will try to place VRAM at base address provided
@@ -163,8 +166,8 @@ void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 /**
  * amdgpu_gmc_gart_location - try to find GART location
  *
- * @adev: amdgpu device structure holding all necessary informations
- * @mc: memory controller structure holding memory informations
+ * @adev: amdgpu device structure holding all necessary information
+ * @mc: memory controller structure holding memory information
  *
  * Function will place try to place GART before or after VRAM.
  *
@@ -205,8 +208,8 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 
 /**
  * amdgpu_gmc_agp_location - try to find AGP location
- * @adev: amdgpu device structure holding all necessary informations
- * @mc: memory controller structure holding memory informations
+ * @adev: amdgpu device structure holding all necessary information
+ * @mc: memory controller structure holding memory information
  *
  * Function will place try to find a place for the AGP BAR in the MC address
  * space.
@@ -221,7 +224,7 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	u64 size_af, size_bf;
 
 	if (amdgpu_sriov_vf(adev)) {
-		mc->agp_start = 0xffffffff;
+		mc->agp_start = 0xffffffffffff;
 		mc->agp_end = 0x0;
 		mc->agp_size = 0;
 
@@ -304,4 +307,210 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
 	fault->next = gmc->fault_hash[hash].idx;
 	gmc->fault_hash[hash].idx = gmc->last_fault++;
 	return false;
+}
+
+int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	if (adev->umc.funcs && adev->umc.funcs->ras_late_init) {
+		r = adev->umc.funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
+	if (adev->mmhub.funcs && adev->mmhub.funcs->ras_late_init) {
+		r = adev->mmhub.funcs->ras_late_init(adev);
+		if (r)
+			return r;
+	}
+
+	return amdgpu_xgmi_ras_late_init(adev);
+}
+
+void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
+{
+	amdgpu_umc_ras_fini(adev);
+	amdgpu_mmhub_ras_fini(adev);
+	amdgpu_xgmi_ras_fini(adev);
+}
+
+	/*
+	 * The latest engine allocation on gfx9/10 is:
+	 * Engine 2, 3: firmware
+	 * Engine 0, 1, 4~16: amdgpu ring,
+	 *                    subject to change when ring number changes
+	 * Engine 17: Gart flushes
+	 */
+#define GFXHUB_FREE_VM_INV_ENGS_BITMAP		0x1FFF3
+#define MMHUB_FREE_VM_INV_ENGS_BITMAP		0x1FFF3
+
+int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	unsigned vm_inv_engs[AMDGPU_MAX_VMHUBS] =
+		{GFXHUB_FREE_VM_INV_ENGS_BITMAP, MMHUB_FREE_VM_INV_ENGS_BITMAP,
+		GFXHUB_FREE_VM_INV_ENGS_BITMAP};
+	unsigned i;
+	unsigned vmhub, inv_eng;
+
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+		vmhub = ring->funcs->vmhub;
+
+		if (ring == &adev->mes.ring)
+			continue;
+
+		inv_eng = ffs(vm_inv_engs[vmhub]);
+		if (!inv_eng) {
+			dev_err(adev->dev, "no VM inv eng for ring %s\n",
+				ring->name);
+			return -EINVAL;
+		}
+
+		ring->vm_inv_eng = inv_eng - 1;
+		vm_inv_engs[vmhub] &= ~(1 << ring->vm_inv_eng);
+
+		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
+			 ring->name, ring->vm_inv_eng, ring->funcs->vmhub);
+	}
+
+	return 0;
+}
+
+/**
+ * amdgpu_tmz_set -- check and set if a device supports TMZ
+ * @adev: amdgpu_device pointer
+ *
+ * Check and set if an the device @adev supports Trusted Memory
+ * Zones (TMZ).
+ */
+void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+	case CHIP_RENOIR:
+	case CHIP_NAVI10:
+	case CHIP_NAVI14:
+	case CHIP_NAVI12:
+		/* Don't enable it by default yet.
+		 */
+		if (amdgpu_tmz < 1) {
+			adev->gmc.tmz_enabled = false;
+			dev_info(adev->dev,
+				 "Trusted Memory Zone (TMZ) feature disabled as experimental (default)\n");
+		} else {
+			adev->gmc.tmz_enabled = true;
+			dev_info(adev->dev,
+				 "Trusted Memory Zone (TMZ) feature enabled as experimental (cmd line)\n");
+		}
+		break;
+	default:
+		adev->gmc.tmz_enabled = false;
+		dev_warn(adev->dev,
+			 "Trusted Memory Zone (TMZ) feature not supported\n");
+		break;
+	}
+}
+
+/**
+ * amdgpu_noretry_set -- set per asic noretry defaults
+ * @adev: amdgpu_device pointer
+ *
+ * Set a per asic default for the no-retry parameter.
+ *
+ */
+void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
+{
+	struct amdgpu_gmc *gmc = &adev->gmc;
+
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+		/* Raven currently has issues with noretry
+		 * regardless of what we decide for other
+		 * asics, we should leave raven with
+		 * noretry = 0 until we root cause the
+		 * issues.
+		 */
+		if (amdgpu_noretry == -1)
+			gmc->noretry = 0;
+		else
+			gmc->noretry = amdgpu_noretry;
+		break;
+	default:
+		/* default this to 0 for now, but we may want
+		 * to change this in the future for certain
+		 * GPUs as it can increase performance in
+		 * certain cases.
+		 */
+		if (amdgpu_noretry == -1)
+			gmc->noretry = 0;
+		else
+			gmc->noretry = amdgpu_noretry;
+		break;
+	}
+}
+
+void amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,
+				   bool enable)
+{
+	struct amdgpu_vmhub *hub;
+	u32 tmp, reg, i;
+
+	hub = &adev->vmhub[hub_type];
+	for (i = 0; i < 16; i++) {
+		reg = hub->vm_context0_cntl + hub->ctx_distance * i;
+
+		tmp = RREG32(reg);
+		if (enable)
+			tmp |= hub->vm_cntx_cntl_vm_fault;
+		else
+			tmp &= ~hub->vm_cntx_cntl_vm_fault;
+
+		WREG32(reg, tmp);
+	}
+}
+
+void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
+{
+	unsigned size;
+
+	/*
+	 * TODO:
+	 * Currently there is a bug where some memory client outside
+	 * of the driver writes to first 8M of VRAM on S3 resume,
+	 * this overrides GART which by default gets placed in first 8M and
+	 * causes VM_FAULTS once GTT is accessed.
+	 * Keep the stolen memory reservation until the while this is not solved.
+	 */
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+	case CHIP_RAVEN:
+	case CHIP_RENOIR:
+		adev->mman.keep_stolen_vga_memory = true;
+		break;
+	default:
+		adev->mman.keep_stolen_vga_memory = false;
+		break;
+	}
+
+	if (!amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_DCE))
+		size = 0;
+	else
+		size = amdgpu_gmc_get_vbios_fb_size(adev);
+
+	if (adev->mman.keep_stolen_vga_memory)
+		size = max(size, (unsigned)AMDGPU_VBIOS_VGA_ALLOCATION);
+
+	/* set to 0 if the pre-OS buffer uses up most of vram */
+	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
+		size = 0;
+
+	if (size > AMDGPU_VBIOS_VGA_ALLOCATION) {
+		adev->mman.stolen_vga_size = AMDGPU_VBIOS_VGA_ALLOCATION;
+		adev->mman.stolen_extended_size = size - adev->mman.stolen_vga_size;
+	} else {
+		adev->mman.stolen_vga_size = size;
+		adev->mman.stolen_extended_size = 0;
+	}
 }

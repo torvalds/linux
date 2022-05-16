@@ -18,11 +18,6 @@
 #include <net/ip.h>
 #include <net/xfrm.h>
 
-int xfrm4_extract_input(struct xfrm_state *x, struct sk_buff *skb)
-{
-	return xfrm4_extract_header(skb);
-}
-
 static int xfrm4_rcv_encap_finish2(struct net *net, struct sock *sk,
 				   struct sk_buff *skb)
 {

@@ -10,7 +10,7 @@
 #include <sys/sysinfo.h>
 #include <sys/ioctl.h>
 #include <signal.h>
-#include <libbpf.h>
+#include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include <sys/resource.h>
 #include <libgen.h>
@@ -18,7 +18,6 @@
 
 #include "perf-sys.h"
 
-#define MAX_CPUS 128
 static int if_idx;
 static char *if_name;
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
@@ -52,13 +51,13 @@ static int do_detach(int idx, const char *name)
 	__u32 curr_prog_id = 0;
 	int err = 0;
 
-	err = bpf_get_link_xdp_id(idx, &curr_prog_id, 0);
+	err = bpf_get_link_xdp_id(idx, &curr_prog_id, xdp_flags);
 	if (err) {
 		printf("bpf_get_link_xdp_id failed\n");
 		return err;
 	}
 	if (prog_id == curr_prog_id) {
-		err = bpf_set_link_xdp_fd(idx, -1, 0);
+		err = bpf_set_link_xdp_fd(idx, -1, xdp_flags);
 		if (err < 0)
 			printf("ERROR: failed to detach prog from %s\n", name);
 	} else if (!curr_prog_id) {
@@ -115,7 +114,7 @@ int main(int argc, char **argv)
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
 	struct perf_buffer_opts pb_opts = {};
-	const char *optstr = "F";
+	const char *optstr = "FS";
 	int prog_fd, map_fd, opt;
 	struct bpf_object *obj;
 	struct bpf_map *map;
@@ -127,11 +126,17 @@ int main(int argc, char **argv)
 		case 'F':
 			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
 			break;
+		case 'S':
+			xdp_flags |= XDP_FLAGS_SKB_MODE;
+			break;
 		default:
 			usage(basename(argv[0]));
 			return 1;
 		}
 	}
+
+	if (!(xdp_flags & XDP_FLAGS_SKB_MODE))
+		xdp_flags |= XDP_FLAGS_DRV_MODE;
 
 	if (optind == argc) {
 		usage(basename(argv[0]));
@@ -150,7 +155,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	if (!prog_fd) {
-		printf("load_bpf_file: %s\n", strerror(errno));
+		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
 		return 1;
 	}
 

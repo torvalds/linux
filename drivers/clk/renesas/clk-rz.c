@@ -37,8 +37,8 @@ static u16 __init rz_cpg_read_mode_pins(void)
 	void __iomem *ppr0, *pibc0;
 	u16 modes;
 
-	ppr0 = ioremap_nocache(PPR0, 2);
-	pibc0 = ioremap_nocache(PIBC0, 2);
+	ppr0 = ioremap(PPR0, 2);
+	pibc0 = ioremap(PIBC0, 2);
 	BUG_ON(!ppr0 || !pibc0);
 	iowrite16(4, pibc0);	/* enable input buffer */
 	modes = ioread16(ppr0);

@@ -136,19 +136,26 @@ static void overlay_set_win(struct mmp_overlay *overlay, struct mmp_win *win)
 	mutex_lock(&overlay->access_ok);
 
 	if (overlay_is_vid(overlay)) {
-		writel_relaxed(win->pitch[0], &regs->v_pitch_yc);
-		writel_relaxed(win->pitch[2] << 16 |
-				win->pitch[1], &regs->v_pitch_uv);
+		writel_relaxed(win->pitch[0],
+				(void __iomem *)&regs->v_pitch_yc);
+		writel_relaxed(win->pitch[2] << 16 | win->pitch[1],
+				(void __iomem *)&regs->v_pitch_uv);
 
-		writel_relaxed((win->ysrc << 16) | win->xsrc, &regs->v_size);
-		writel_relaxed((win->ydst << 16) | win->xdst, &regs->v_size_z);
-		writel_relaxed(win->ypos << 16 | win->xpos, &regs->v_start);
+		writel_relaxed((win->ysrc << 16) | win->xsrc,
+				(void __iomem *)&regs->v_size);
+		writel_relaxed((win->ydst << 16) | win->xdst,
+				(void __iomem *)&regs->v_size_z);
+		writel_relaxed(win->ypos << 16 | win->xpos,
+				(void __iomem *)&regs->v_start);
 	} else {
-		writel_relaxed(win->pitch[0], &regs->g_pitch);
+		writel_relaxed(win->pitch[0], (void __iomem *)&regs->g_pitch);
 
-		writel_relaxed((win->ysrc << 16) | win->xsrc, &regs->g_size);
-		writel_relaxed((win->ydst << 16) | win->xdst, &regs->g_size_z);
-		writel_relaxed(win->ypos << 16 | win->xpos, &regs->g_start);
+		writel_relaxed((win->ysrc << 16) | win->xsrc,
+				(void __iomem *)&regs->g_size);
+		writel_relaxed((win->ydst << 16) | win->xdst,
+				(void __iomem *)&regs->g_size_z);
+		writel_relaxed(win->ypos << 16 | win->xpos,
+				(void __iomem *)&regs->g_start);
 	}
 
 	dmafetch_set_fmt(overlay);
@@ -233,11 +240,11 @@ static int overlay_set_addr(struct mmp_overlay *overlay, struct mmp_addr *addr)
 	memcpy(&overlay->addr, addr, sizeof(struct mmp_addr));
 
 	if (overlay_is_vid(overlay)) {
-		writel_relaxed(addr->phys[0], &regs->v_y0);
-		writel_relaxed(addr->phys[1], &regs->v_u0);
-		writel_relaxed(addr->phys[2], &regs->v_v0);
+		writel_relaxed(addr->phys[0], (void __iomem *)&regs->v_y0);
+		writel_relaxed(addr->phys[1], (void __iomem *)&regs->v_u0);
+		writel_relaxed(addr->phys[2], (void __iomem *)&regs->v_v0);
 	} else
-		writel_relaxed(addr->phys[0], &regs->g_0);
+		writel_relaxed(addr->phys[0], (void __iomem *)&regs->g_0);
 
 	return overlay->addr.phys[0];
 }
@@ -268,16 +275,18 @@ static void path_set_mode(struct mmp_path *path, struct mmp_mode *mode)
 	tmp |= dsi_rbswap & CFG_INTFRBSWAP_MASK;
 	writel_relaxed(tmp, ctrl_regs(path) + intf_rbswap_ctrl(path->id));
 
-	writel_relaxed((mode->yres << 16) | mode->xres, &regs->screen_active);
+	writel_relaxed((mode->yres << 16) | mode->xres,
+		(void __iomem *)&regs->screen_active);
 	writel_relaxed((mode->left_margin << 16) | mode->right_margin,
-		&regs->screen_h_porch);
+		(void __iomem *)&regs->screen_h_porch);
 	writel_relaxed((mode->upper_margin << 16) | mode->lower_margin,
-		&regs->screen_v_porch);
+		(void __iomem *)&regs->screen_v_porch);
 	total_x = mode->xres + mode->left_margin + mode->right_margin +
 		mode->hsync_len;
 	total_y = mode->yres + mode->upper_margin + mode->lower_margin +
 		mode->vsync_len;
-	writel_relaxed((total_y << 16) | total_x, &regs->screen_size);
+	writel_relaxed((total_y << 16) | total_x,
+		(void __iomem *)&regs->screen_size);
 
 	/* vsync ctrl */
 	if (path->output_type == PATH_OUT_DSI)
@@ -285,7 +294,7 @@ static void path_set_mode(struct mmp_path *path, struct mmp_mode *mode)
 	else
 		vsync_ctrl = ((mode->xres + mode->right_margin) << 16)
 					| (mode->xres + mode->right_margin);
-	writel_relaxed(vsync_ctrl, &regs->vsync_ctrl);
+	writel_relaxed(vsync_ctrl, (void __iomem *)&regs->vsync_ctrl);
 
 	/* set pixclock div */
 	sclk_src = clk_get_rate(path_to_ctrl(path)->clk);
@@ -366,9 +375,9 @@ static void path_set_default(struct mmp_path *path)
 	writel_relaxed(dma_ctrl1, ctrl_regs(path) + dma_ctrl(1, path->id));
 
 	/* Configure default register values */
-	writel_relaxed(0x00000000, &regs->blank_color);
-	writel_relaxed(0x00000000, &regs->g_1);
-	writel_relaxed(0x00000000, &regs->g_start);
+	writel_relaxed(0x00000000, (void __iomem *)&regs->blank_color);
+	writel_relaxed(0x00000000, (void __iomem *)&regs->g_1);
+	writel_relaxed(0x00000000, (void __iomem *)&regs->g_start);
 
 	/*
 	 * 1.enable multiple burst request in DMA AXI
@@ -447,7 +456,6 @@ static int mmphw_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "%s: no IRQ defined\n", __func__);
 		ret = -ENOENT;
 		goto failed;
 	}
@@ -485,7 +493,7 @@ static int mmphw_probe(struct platform_device *pdev)
 		goto failed;
 	}
 
-	ctrl->reg_base = devm_ioremap_nocache(ctrl->dev,
+	ctrl->reg_base = devm_ioremap(ctrl->dev,
 			res->start, resource_size(res));
 	if (ctrl->reg_base == NULL) {
 		dev_err(ctrl->dev, "%s: res %pR map failed\n", __func__, res);

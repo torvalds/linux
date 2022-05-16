@@ -459,8 +459,8 @@ int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
 	else
 		ieee->raw_tx = 0;
 
-	printk(KERN_INFO"raw TX is %s\n",
-	      ieee->raw_tx ? "enabled" : "disabled");
+	netdev_info(ieee->dev, "raw TX is %s\n",
+		    ieee->raw_tx ? "enabled" : "disabled");
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
 		if (prev == 0 && ieee->raw_tx) {

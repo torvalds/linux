@@ -93,7 +93,7 @@ static int cap_validate_magic(cap_user_header_t header, unsigned *tocopy)
 		break;
 	case _LINUX_CAPABILITY_VERSION_2:
 		warn_deprecated_v2();
-		/* fall through - v3 is otherwise equivalent to v2. */
+		fallthrough;	/* v3 is otherwise equivalent to v2 */
 	case _LINUX_CAPABILITY_VERSION_3:
 		*tocopy = _LINUX_CAPABILITY_U32S_3;
 		break;
@@ -418,7 +418,7 @@ EXPORT_SYMBOL(ns_capable_noaudit);
 /**
  * ns_capable_setid - Determine if the current task has a superior capability
  * in effect, while signalling that this check is being done from within a
- * setid syscall.
+ * setid or setgroups syscall.
  * @ns:  The usernamespace we want the capability in
  * @cap: The capability to be tested for
  *

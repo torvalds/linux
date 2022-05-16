@@ -9,8 +9,8 @@
 
 #define FONTDATAMAX (11*256)
 
-static const unsigned char fontdata_6x11[FONTDATAMAX] = {
-
+static const struct font_data fontdata_6x11 = {
+	{ 0, 0, FONTDATAMAX, 0 }, {
 	/* 0 0x00 '^@' */
 	0x00, /* 00000000 */
 	0x00, /* 00000000 */
@@ -3338,8 +3338,7 @@ static const unsigned char fontdata_6x11[FONTDATAMAX] = {
 	0x00, /* 00000000 */
 	0x00, /* 00000000 */
 	0x00, /* 00000000 */
-
-};
+} };
 
 
 const struct font_desc font_vga_6x11 = {
@@ -3347,7 +3346,7 @@ const struct font_desc font_vga_6x11 = {
 	.name	= "ProFont6x11",
 	.width	= 6,
 	.height	= 11,
-	.data	= fontdata_6x11,
+	.data	= fontdata_6x11.data,
 	/* Try avoiding this font if possible unless on MAC */
 	.pref	= -2000,
 };

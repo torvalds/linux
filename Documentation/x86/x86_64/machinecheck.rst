@@ -81,5 +81,5 @@ TBD document entries for AMD threshold interrupt configuration
 For more details about the x86 machine check architecture
 see the Intel and AMD architecture manuals from their developer websites.
 
-For more details about the architecture see
+For more details about the architecture
 see http://one.firstfloor.org/~andi/mce.pdf

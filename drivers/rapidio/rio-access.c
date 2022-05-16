@@ -9,6 +9,8 @@
 #include <linux/rio.h>
 #include <linux/module.h>
 
+#include <linux/rio_drv.h>
+
 /*
  *  Wrappers for all RIO configuration access functions.  They just check
  *  alignment and call the low-level functions pointed to by rio_mport->ops.

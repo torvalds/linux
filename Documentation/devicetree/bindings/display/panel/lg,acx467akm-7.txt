@@ -1,7 +1,0 @@
-LG ACX467AKM-7 4.95" 1080×1920 LCD Panel
-
-Required properties:
-- compatible: must be "lg,acx467akm-7"
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

@@ -76,7 +76,7 @@ static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
  */
 int afs_write_begin(struct file *file, struct address_space *mapping,
 		    loff_t pos, unsigned len, unsigned flags,
-		    struct page **pagep, void **fsdata)
+		    struct page **_page, void **fsdata)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	struct page *page;
@@ -89,11 +89,6 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 
 	_enter("{%llx:%llu},{%lx},%u,%u",
 	       vnode->fid.vid, vnode->fid.vnode, index, from, to);
-
-	/* We want to store information about how much of a page is altered in
-	 * page->private.
-	 */
-	BUILD_BUG_ON(PAGE_SIZE > 32768 && sizeof(page->private) < 8);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
@@ -110,9 +105,6 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 		SetPageUptodate(page);
 	}
 
-	/* page won't leak in error case: it eventually gets cleaned off LRU */
-	*pagep = page;
-
 try_again:
 	/* See if this page is already partially written in a way that we can
 	 * merge the new write with.
@@ -120,8 +112,8 @@ try_again:
 	t = f = 0;
 	if (PagePrivate(page)) {
 		priv = page_private(page);
-		f = priv & AFS_PRIV_MAX;
-		t = priv >> AFS_PRIV_SHIFT;
+		f = afs_page_dirty_from(priv);
+		t = afs_page_dirty_to(priv);
 		ASSERTCMP(f, <=, t);
 	}
 
@@ -138,21 +130,9 @@ try_again:
 		if (!test_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags) &&
 		    (to < f || from > t))
 			goto flush_conflicting_write;
-		if (from < f)
-			f = from;
-		if (to > t)
-			t = to;
-	} else {
-		f = from;
-		t = to;
 	}
 
-	priv = (unsigned long)t << AFS_PRIV_SHIFT;
-	priv |= f;
-	trace_afs_page_dirty(vnode, tracepoint_string("begin"),
-			     page->index, priv);
-	SetPagePrivate(page);
-	set_page_private(page, priv);
+	*_page = page;
 	_leave(" = 0");
 	return 0;
 
@@ -162,17 +142,18 @@ try_again:
 flush_conflicting_write:
 	_debug("flush conflict");
 	ret = write_one_page(page);
-	if (ret < 0) {
-		_leave(" = %d", ret);
-		return ret;
-	}
+	if (ret < 0)
+		goto error;
 
 	ret = lock_page_killable(page);
-	if (ret < 0) {
-		_leave(" = %d", ret);
-		return ret;
-	}
+	if (ret < 0)
+		goto error;
 	goto try_again;
+
+error:
+	put_page(page);
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*
@@ -184,21 +165,27 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	struct key *key = afs_file_key(file);
+	unsigned long priv;
+	unsigned int f, from = pos & (PAGE_SIZE - 1);
+	unsigned int t, to = from + copied;
 	loff_t i_size, maybe_i_size;
-	int ret;
+	int ret = 0;
 
 	_enter("{%llx:%llu},{%lx}",
 	       vnode->fid.vid, vnode->fid.vnode, page->index);
+
+	if (copied == 0)
+		goto out;
 
 	maybe_i_size = pos + copied;
 
 	i_size = i_size_read(&vnode->vfs_inode);
 	if (maybe_i_size > i_size) {
-		spin_lock(&vnode->wb_lock);
+		write_seqlock(&vnode->cb_lock);
 		i_size = i_size_read(&vnode->vfs_inode);
 		if (maybe_i_size > i_size)
 			i_size_write(&vnode->vfs_inode, maybe_i_size);
-		spin_unlock(&vnode->wb_lock);
+		write_sequnlock(&vnode->cb_lock);
 	}
 
 	if (!PageUptodate(page)) {
@@ -213,6 +200,25 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 				goto out;
 		}
 		SetPageUptodate(page);
+	}
+
+	if (PagePrivate(page)) {
+		priv = page_private(page);
+		f = afs_page_dirty_from(priv);
+		t = afs_page_dirty_to(priv);
+		if (from < f)
+			f = from;
+		if (to > t)
+			t = to;
+		priv = afs_page_dirty(f, t);
+		set_page_private(page, priv);
+		trace_afs_page_dirty(vnode, tracepoint_string("dirty+"),
+				     page->index, priv);
+	} else {
+		priv = afs_page_dirty(from, to);
+		attach_page_private(page, (void *)priv);
+		trace_afs_page_dirty(vnode, tracepoint_string("dirty"),
+				     page->index, priv);
 	}
 
 	set_page_dirty(page);
@@ -334,10 +340,9 @@ static void afs_pages_written_back(struct afs_vnode *vnode,
 		ASSERTCMP(pv.nr, ==, count);
 
 		for (loop = 0; loop < count; loop++) {
-			priv = page_private(pv.pages[loop]);
+			priv = (unsigned long)detach_page_private(pv.pages[loop]);
 			trace_afs_page_dirty(vnode, tracepoint_string("clear"),
 					     pv.pages[loop]->index, priv);
-			set_page_private(pv.pages[loop], 0);
 			end_page_writeback(pv.pages[loop]);
 		}
 		first += count;
@@ -349,18 +354,79 @@ static void afs_pages_written_back(struct afs_vnode *vnode,
 }
 
 /*
+ * Find a key to use for the writeback.  We cached the keys used to author the
+ * writes on the vnode.  *_wbk will contain the last writeback key used or NULL
+ * and we need to start from there if it's set.
+ */
+static int afs_get_writeback_key(struct afs_vnode *vnode,
+				 struct afs_wb_key **_wbk)
+{
+	struct afs_wb_key *wbk = NULL;
+	struct list_head *p;
+	int ret = -ENOKEY, ret2;
+
+	spin_lock(&vnode->wb_lock);
+	if (*_wbk)
+		p = (*_wbk)->vnode_link.next;
+	else
+		p = vnode->wb_keys.next;
+
+	while (p != &vnode->wb_keys) {
+		wbk = list_entry(p, struct afs_wb_key, vnode_link);
+		_debug("wbk %u", key_serial(wbk->key));
+		ret2 = key_validate(wbk->key);
+		if (ret2 == 0) {
+			refcount_inc(&wbk->usage);
+			_debug("USE WB KEY %u", key_serial(wbk->key));
+			break;
+		}
+
+		wbk = NULL;
+		if (ret == -ENOKEY)
+			ret = ret2;
+		p = p->next;
+	}
+
+	spin_unlock(&vnode->wb_lock);
+	if (*_wbk)
+		afs_put_wb_key(*_wbk);
+	*_wbk = wbk;
+	return 0;
+}
+
+static void afs_store_data_success(struct afs_operation *op)
+{
+	struct afs_vnode *vnode = op->file[0].vnode;
+
+	op->ctime = op->file[0].scb.status.mtime_client;
+	afs_vnode_commit_status(op, &op->file[0]);
+	if (op->error == 0) {
+		if (!op->store.laundering)
+			afs_pages_written_back(vnode, op->store.first, op->store.last);
+		afs_stat_v(vnode, n_stores);
+		atomic_long_add((op->store.last * PAGE_SIZE + op->store.last_to) -
+				(op->store.first * PAGE_SIZE + op->store.first_offset),
+				&afs_v2net(vnode)->n_store_bytes);
+	}
+}
+
+static const struct afs_operation_ops afs_store_data_operation = {
+	.issue_afs_rpc	= afs_fs_store_data,
+	.issue_yfs_rpc	= yfs_fs_store_data,
+	.success	= afs_store_data_success,
+};
+
+/*
  * write to a file
  */
 static int afs_store_data(struct address_space *mapping,
 			  pgoff_t first, pgoff_t last,
-			  unsigned offset, unsigned to)
+			  unsigned offset, unsigned to, bool laundering)
 {
 	struct afs_vnode *vnode = AFS_FS_I(mapping->host);
-	struct afs_fs_cursor fc;
-	struct afs_status_cb *scb;
+	struct afs_operation *op;
 	struct afs_wb_key *wbk = NULL;
-	struct list_head *p;
-	int ret = -ENOKEY, ret2;
+	int ret;
 
 	_enter("%s{%llx:%llu.%u},%lx,%lx,%x,%x",
 	       vnode->volume->name,
@@ -369,62 +435,35 @@ static int afs_store_data(struct address_space *mapping,
 	       vnode->fid.unique,
 	       first, last, offset, to);
 
-	scb = kzalloc(sizeof(struct afs_status_cb), GFP_NOFS);
-	if (!scb)
+	ret = afs_get_writeback_key(vnode, &wbk);
+	if (ret) {
+		_leave(" = %d [no keys]", ret);
+		return ret;
+	}
+
+	op = afs_alloc_operation(wbk->key, vnode->volume);
+	if (IS_ERR(op)) {
+		afs_put_wb_key(wbk);
 		return -ENOMEM;
+	}
 
-	spin_lock(&vnode->wb_lock);
-	p = vnode->wb_keys.next;
+	afs_op_set_vnode(op, 0, vnode);
+	op->file[0].dv_delta = 1;
+	op->store.mapping = mapping;
+	op->store.first = first;
+	op->store.last = last;
+	op->store.first_offset = offset;
+	op->store.last_to = to;
+	op->store.laundering = laundering;
+	op->mtime = vnode->vfs_inode.i_mtime;
+	op->flags |= AFS_OPERATION_UNINTR;
+	op->ops = &afs_store_data_operation;
 
-	/* Iterate through the list looking for a valid key to use. */
 try_next_key:
-	while (p != &vnode->wb_keys) {
-		wbk = list_entry(p, struct afs_wb_key, vnode_link);
-		_debug("wbk %u", key_serial(wbk->key));
-		ret2 = key_validate(wbk->key);
-		if (ret2 == 0)
-			goto found_key;
-		if (ret == -ENOKEY)
-			ret = ret2;
-		p = p->next;
-	}
+	afs_begin_vnode_operation(op);
+	afs_wait_for_operation(op);
 
-	spin_unlock(&vnode->wb_lock);
-	afs_put_wb_key(wbk);
-	kfree(scb);
-	_leave(" = %d [no keys]", ret);
-	return ret;
-
-found_key:
-	refcount_inc(&wbk->usage);
-	spin_unlock(&vnode->wb_lock);
-
-	_debug("USE WB KEY %u", key_serial(wbk->key));
-
-	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, wbk->key, false)) {
-		afs_dataversion_t data_version = vnode->status.data_version + 1;
-
-		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
-			afs_fs_store_data(&fc, mapping, first, last, offset, to, scb);
-		}
-
-		afs_check_for_remote_deletion(&fc, vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break,
-					&data_version, scb);
-		if (fc.ac.error == 0)
-			afs_pages_written_back(vnode, first, last);
-		ret = afs_end_vnode_operation(&fc);
-	}
-
-	switch (ret) {
-	case 0:
-		afs_stat_v(vnode, n_stores);
-		atomic_long_add((last * PAGE_SIZE + to) -
-				(first * PAGE_SIZE + offset),
-				&afs_v2net(vnode)->n_store_bytes);
-		break;
+	switch (op->error) {
 	case -EACCES:
 	case -EPERM:
 	case -ENOKEY:
@@ -432,16 +471,19 @@ found_key:
 	case -EKEYREJECTED:
 	case -EKEYREVOKED:
 		_debug("next");
-		spin_lock(&vnode->wb_lock);
-		p = wbk->vnode_link.next;
-		afs_put_wb_key(wbk);
-		goto try_next_key;
+
+		ret = afs_get_writeback_key(vnode, &wbk);
+		if (ret == 0) {
+			key_put(op->key);
+			op->key = key_get(wbk->key);
+			goto try_next_key;
+		}
+		break;
 	}
 
 	afs_put_wb_key(wbk);
-	kfree(scb);
-	_leave(" = %d", ret);
-	return ret;
+	_leave(" = %d", op->error);
+	return afs_put_operation(op);
 }
 
 /*
@@ -458,6 +500,7 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 	unsigned long count, priv;
 	unsigned n, offset, to, f, t;
 	pgoff_t start, first, last;
+	loff_t i_size, end;
 	int loop, ret;
 
 	_enter(",%lx", primary_page->index);
@@ -473,8 +516,8 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 	 */
 	start = primary_page->index;
 	priv = page_private(primary_page);
-	offset = priv & AFS_PRIV_MAX;
-	to = priv >> AFS_PRIV_SHIFT;
+	offset = afs_page_dirty_from(priv);
+	to = afs_page_dirty_to(priv);
 	trace_afs_page_dirty(vnode, tracepoint_string("store"),
 			     primary_page->index, priv);
 
@@ -519,8 +562,8 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 			}
 
 			priv = page_private(page);
-			f = priv & AFS_PRIV_MAX;
-			t = priv >> AFS_PRIV_SHIFT;
+			f = afs_page_dirty_from(priv);
+			t = afs_page_dirty_to(priv);
 			if (f != 0 &&
 			    !test_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags)) {
 				unlock_page(page);
@@ -558,9 +601,14 @@ no_more:
 	first = primary_page->index;
 	last = first + count - 1;
 
-	_debug("write back %lx[%u..] to %lx[..%u]", first, offset, last, to);
+	end = (loff_t)last * PAGE_SIZE + to;
+	i_size = i_size_read(&vnode->vfs_inode);
 
-	ret = afs_store_data(mapping, first, last, offset, to);
+	_debug("write back %lx[%u..] to %lx[..%u]", first, offset, last, to);
+	if (end > i_size)
+		to = i_size & ~PAGE_MASK;
+
+	ret = afs_store_data(mapping, first, last, offset, to, false);
 	switch (ret) {
 	case 0:
 		ret = count;
@@ -568,7 +616,7 @@ no_more:
 
 	default:
 		pr_notice("kAFS: Unexpected error from FS.StoreData %d\n", ret);
-		/* Fall through */
+		fallthrough;
 	case -EACCES:
 	case -EPERM:
 	case -ENOKEY:
@@ -697,10 +745,20 @@ static int afs_writepages_region(struct address_space *mapping,
 int afs_writepages(struct address_space *mapping,
 		   struct writeback_control *wbc)
 {
+	struct afs_vnode *vnode = AFS_FS_I(mapping->host);
 	pgoff_t start, end, next;
 	int ret;
 
 	_enter("");
+
+	/* We have to be careful as we can end up racing with setattr()
+	 * truncating the pagecache since the caller doesn't take a lock here
+	 * to prevent it.
+	 */
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		down_read(&vnode->validate_lock);
+	else if (!down_read_trylock(&vnode->validate_lock))
+		return 0;
 
 	if (wbc->range_cyclic) {
 		start = mapping->writeback_index;
@@ -721,6 +779,7 @@ int afs_writepages(struct address_space *mapping,
 		ret = afs_writepages_region(mapping, wbc, start, end, &next);
 	}
 
+	up_read(&vnode->validate_lock);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -805,12 +864,15 @@ vm_fault_t afs_page_mkwrite(struct vm_fault *vmf)
 	 */
 	wait_on_page_writeback(vmf->page);
 
-	priv = (unsigned long)PAGE_SIZE << AFS_PRIV_SHIFT; /* To */
-	priv |= 0; /* From */
+	priv = afs_page_dirty(0, PAGE_SIZE);
+	priv = afs_page_dirty_mmapped(priv);
 	trace_afs_page_dirty(vnode, tracepoint_string("mkwrite"),
 			     vmf->page->index, priv);
-	SetPagePrivate(vmf->page);
-	set_page_private(vmf->page, priv);
+	if (PagePrivate(vmf->page))
+		set_page_private(vmf->page, priv);
+	else
+		attach_page_private(vmf->page, (void *)priv);
+	file_update_time(file);
 
 	sb_end_pagefault(inode->i_sb);
 	return VM_FAULT_LOCKED;
@@ -862,19 +924,18 @@ int afs_launder_page(struct page *page)
 		f = 0;
 		t = PAGE_SIZE;
 		if (PagePrivate(page)) {
-			f = priv & AFS_PRIV_MAX;
-			t = priv >> AFS_PRIV_SHIFT;
+			f = afs_page_dirty_from(priv);
+			t = afs_page_dirty_to(priv);
 		}
 
 		trace_afs_page_dirty(vnode, tracepoint_string("launder"),
 				     page->index, priv);
-		ret = afs_store_data(mapping, page->index, page->index, t, f);
+		ret = afs_store_data(mapping, page->index, page->index, t, f, true);
 	}
 
+	priv = (unsigned long)detach_page_private(page);
 	trace_afs_page_dirty(vnode, tracepoint_string("laundered"),
 			     page->index, priv);
-	set_page_private(page, 0);
-	ClearPagePrivate(page);
 
 #ifdef CONFIG_AFS_FSCACHE
 	if (PageFsCache(page)) {

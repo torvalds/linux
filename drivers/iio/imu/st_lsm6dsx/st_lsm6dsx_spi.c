@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/of.h>
 #include <linux/regmap.h>
 
 #include "st_lsm6dsx.h"
@@ -87,6 +86,14 @@ static const struct of_device_id st_lsm6dsx_spi_of_match[] = {
 		.compatible = "st,lsm9ds1-imu",
 		.data = (void *)ST_LSM9DS1_ID,
 	},
+	{
+		.compatible = "st,lsm6ds0",
+		.data = (void *)ST_LSM6DS0_ID,
+	},
+	{
+		.compatible = "st,lsm6dsrx",
+		.data = (void *)ST_LSM6DSRX_ID,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lsm6dsx_spi_of_match);
@@ -104,6 +111,8 @@ static const struct spi_device_id st_lsm6dsx_spi_id_table[] = {
 	{ ST_LSM6DS3TRC_DEV_NAME, ST_LSM6DS3TRC_ID },
 	{ ST_ISM330DHCX_DEV_NAME, ST_ISM330DHCX_ID },
 	{ ST_LSM9DS1_DEV_NAME, ST_LSM9DS1_ID },
+	{ ST_LSM6DS0_DEV_NAME, ST_LSM6DS0_ID },
+	{ ST_LSM6DSRX_DEV_NAME, ST_LSM6DSRX_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_lsm6dsx_spi_id_table);
@@ -112,7 +121,7 @@ static struct spi_driver st_lsm6dsx_driver = {
 	.driver = {
 		.name = "st_lsm6dsx_spi",
 		.pm = &st_lsm6dsx_pm_ops,
-		.of_match_table = of_match_ptr(st_lsm6dsx_spi_of_match),
+		.of_match_table = st_lsm6dsx_spi_of_match,
 	},
 	.probe = st_lsm6dsx_spi_probe,
 	.id_table = st_lsm6dsx_spi_id_table,

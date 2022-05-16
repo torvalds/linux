@@ -8,14 +8,18 @@
 #ifndef WILCO_EC_H
 #define WILCO_EC_H
 
-#include <linux/device.h>
-#include <linux/kernel.h>
+#include <linux/mutex.h>
+#include <linux/types.h>
 
 /* Message flags for using the mailbox() interface */
 #define WILCO_EC_FLAG_NO_RESPONSE	BIT(0) /* EC does not respond */
 
 /* Normal commands have a maximum 32 bytes of data */
 #define EC_MAILBOX_DATA_SIZE		32
+
+struct device;
+struct resource;
+struct platform_device;
 
 /**
  * struct wilco_ec_device - Wilco Embedded Controller handle.
@@ -29,6 +33,7 @@
  * @data_size: Size of the data buffer used for EC communication.
  * @debugfs_pdev: The child platform_device used by the debugfs sub-driver.
  * @rtc_pdev: The child platform_device used by the RTC sub-driver.
+ * @charger_pdev: Child platform_device used by the charger config sub-driver.
  * @telem_pdev: The child platform_device used by the telemetry sub-driver.
  */
 struct wilco_ec_device {
@@ -41,6 +46,7 @@ struct wilco_ec_device {
 	size_t data_size;
 	struct platform_device *debugfs_pdev;
 	struct platform_device *rtc_pdev;
+	struct platform_device *charger_pdev;
 	struct platform_device *telem_pdev;
 };
 
@@ -77,7 +83,7 @@ struct wilco_ec_response {
 	u16 result;
 	u16 data_size;
 	u8 reserved[2];
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /**
@@ -119,6 +125,19 @@ struct wilco_ec_message {
  * Return: Number of bytes received or negative error code on failure.
  */
 int wilco_ec_mailbox(struct wilco_ec_device *ec, struct wilco_ec_message *msg);
+
+/**
+ * wilco_keyboard_leds_init() - Set up the keyboard backlight LEDs.
+ * @ec: EC device to query.
+ *
+ * After this call, the keyboard backlight will be exposed through a an LED
+ * device at /sys/class/leds.
+ *
+ * This may sleep because it uses wilco_ec_mailbox().
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int wilco_keyboard_leds_init(struct wilco_ec_device *ec);
 
 /*
  * A Property is typically a data item that is stored to NVRAM

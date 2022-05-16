@@ -2,7 +2,7 @@
 /*
  * dts file for Xilinx ZynqMP zc1751-xm018-dc4
  *
- * (C) Copyright 2015 - 2018, Xilinx, Inc.
+ * (C) Copyright 2015 - 2019, Xilinx, Inc.
  *
  * Michal Simek <michal.simek@xilinx.com>
  */
@@ -10,7 +10,7 @@
 /dts-v1/;
 
 #include "zynqmp.dtsi"
-#include "zynqmp-clk.dtsi"
+#include "zynqmp-clk-ccf.dtsi"
 
 / {
 	model = "ZynqMP zc1751-xm018-dc4";

@@ -71,7 +71,7 @@ int main (void)
 		printf("\tsmi_cmd=0x?? smi_port=0x?? smi_sig=1\n");
 		printf("\nUnfortunately, you have to know what exactly are "
 		       "smi_cmd and smi_port, and this\nis system "
-		       "dependant.\n");
+		       "dependent.\n");
 	}
 	return 1;
 }

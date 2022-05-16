@@ -36,6 +36,8 @@
 #include "mconsole_kern.h"
 #include <os.h>
 
+static struct vfsmount *proc_mnt = NULL;
+
 static int do_unlink_socket(struct notifier_block *notifier,
 			    unsigned long what, void *data)
 {
@@ -123,7 +125,7 @@ void mconsole_log(struct mc_request *req)
 
 void mconsole_proc(struct mc_request *req)
 {
-	struct vfsmount *mnt = task_active_pid_ns(current)->proc_mnt;
+	struct vfsmount *mnt = proc_mnt;
 	char *buf;
 	int len;
 	struct file *file;
@@ -134,6 +136,10 @@ void mconsole_proc(struct mc_request *req)
 	ptr += strlen("proc");
 	ptr = skip_spaces(ptr);
 
+	if (!mnt) {
+		mconsole_reply(req, "Proc not available", 1, 0);
+		goto out;
+	}
 	file = file_open_root(mnt->mnt_root, mnt, ptr, O_RDONLY, 0);
 	if (IS_ERR(file)) {
 		mconsole_reply(req, "Failed to open file", 1, 0);
@@ -642,7 +648,7 @@ static void stack_proc(void *arg)
 {
 	struct task_struct *task = arg;
 
-	show_stack(task, NULL);
+	show_stack(task, NULL, KERN_INFO);
 }
 
 /*
@@ -683,6 +689,24 @@ void mconsole_stack(struct mc_request *req)
 	with_console(req, stack_proc, to);
 }
 
+static int __init mount_proc(void)
+{
+	struct file_system_type *proc_fs_type;
+	struct vfsmount *mnt;
+
+	proc_fs_type = get_fs_type("proc");
+	if (!proc_fs_type)
+		return -ENODEV;
+
+	mnt = kern_mount(proc_fs_type);
+	put_filesystem(proc_fs_type);
+	if (IS_ERR(mnt))
+		return PTR_ERR(mnt);
+
+	proc_mnt = mnt;
+	return 0;
+}
+
 /*
  * Changed by mconsole_setup, which is __setup, and called before SMP is
  * active.
@@ -695,6 +719,8 @@ static int __init mconsole_init(void)
 	long sock;
 	int err;
 	char file[UNIX_PATH_MAX];
+
+	mount_proc();
 
 	if (umid_file_name("mconsole", file, sizeof(file)))
 		return -1;
@@ -752,10 +778,9 @@ static ssize_t mconsole_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations mconsole_proc_fops = {
-	.owner		= THIS_MODULE,
-	.write		= mconsole_proc_write,
-	.llseek		= noop_llseek,
+static const struct proc_ops mconsole_proc_ops = {
+	.proc_write	= mconsole_proc_write,
+	.proc_lseek	= noop_llseek,
 };
 
 static int create_proc_mconsole(void)
@@ -765,7 +790,7 @@ static int create_proc_mconsole(void)
 	if (notify_socket == NULL)
 		return 0;
 
-	ent = proc_create("mconsole", 0200, NULL, &mconsole_proc_fops);
+	ent = proc_create("mconsole", 0200, NULL, &mconsole_proc_ops);
 	if (ent == NULL) {
 		printk(KERN_INFO "create_proc_mconsole : proc_create failed\n");
 		return 0;

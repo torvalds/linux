@@ -18,12 +18,12 @@
 #include <linux/smp.h>
 #include <linux/kdebug.h>
 #include <linux/export.h>
+#include <linux/pgtable.h>
 
 #include <asm/delay.h>
 #include <asm/ptrace.h>
 #include <asm/oplib.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/unistd.h>
 #include <asm/traps.h>
 

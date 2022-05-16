@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 comedi_h.py
 *.pyc
 ni_values.py

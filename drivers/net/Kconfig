@@ -7,7 +7,7 @@ menuconfig NETDEVICES
 	default y if UML
 	depends on NET
 	bool "Network device support"
-	---help---
+	help
 	  You can say N here if you don't intend to connect your Linux box to
 	  any other computer at all.
 
@@ -32,7 +32,7 @@ config MII
 config NET_CORE
 	default y
 	bool "Network core driver support"
-	---help---
+	help
 	  You can say N here if you do not intend to use any of the
 	  networking core drivers (i.e. VLAN, bridging, bonding, etc.)
 
@@ -42,7 +42,7 @@ config BONDING
 	tristate "Bonding driver support"
 	depends on INET
 	depends on IPV6 || IPV6=n
-	---help---
+	help
 	  Say 'Y' or 'M' if you wish to be able to 'bond' multiple Ethernet
 	  Channels together. This is called 'Etherchannel' by Cisco,
 	  'Trunking' by Sun, 802.3ad by the IEEE, and 'Bonding' in Linux.
@@ -50,7 +50,7 @@ config BONDING
 	  The driver supports multiple bonding modes to allow for both high
 	  performance and high availability operation.
 
-	  Refer to <file:Documentation/networking/bonding.txt> for more
+	  Refer to <file:Documentation/networking/bonding.rst> for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the module
@@ -58,7 +58,7 @@ config BONDING
 
 config DUMMY
 	tristate "Dummy net driver support"
-	---help---
+	help
 	  This is essentially a bit-bucket device (i.e. traffic you send to
 	  this device is consigned into oblivion) with a configurable IP
 	  address. It is most commonly used in order to make your currently
@@ -71,9 +71,52 @@ config DUMMY
 	  To compile this driver as a module, choose M here: the module
 	  will be called dummy.
 
+config WIREGUARD
+	tristate "WireGuard secure network tunnel"
+	depends on NET && INET
+	depends on IPV6 || !IPV6
+	select NET_UDP_TUNNEL
+	select DST_CACHE
+	select CRYPTO
+	select CRYPTO_LIB_CURVE25519
+	select CRYPTO_LIB_CHACHA20POLY1305
+	select CRYPTO_LIB_BLAKE2S
+	select CRYPTO_CHACHA20_X86_64 if X86 && 64BIT
+	select CRYPTO_POLY1305_X86_64 if X86 && 64BIT
+	select CRYPTO_BLAKE2S_X86 if X86 && 64BIT
+	select CRYPTO_CURVE25519_X86 if X86 && 64BIT
+	select ARM_CRYPTO if ARM
+	select ARM64_CRYPTO if ARM64
+	select CRYPTO_CHACHA20_NEON if (ARM || ARM64) && KERNEL_MODE_NEON
+	select CRYPTO_POLY1305_NEON if ARM64 && KERNEL_MODE_NEON
+	select CRYPTO_POLY1305_ARM if ARM
+	select CRYPTO_CURVE25519_NEON if ARM && KERNEL_MODE_NEON
+	select CRYPTO_CHACHA_MIPS if CPU_MIPS32_R2
+	select CRYPTO_POLY1305_MIPS if CPU_MIPS32 || (CPU_MIPS64 && 64BIT)
+	help
+	  WireGuard is a secure, fast, and easy to use replacement for IPSec
+	  that uses modern cryptography and clever networking tricks. It's
+	  designed to be fairly general purpose and abstract enough to fit most
+	  use cases, while at the same time remaining extremely simple to
+	  configure. See www.wireguard.com for more info.
+
+	  It's safe to say Y or M here, as the driver is very lightweight and
+	  is only in use when an administrator chooses to add an interface.
+
+config WIREGUARD_DEBUG
+	bool "Debugging checks and verbose messages"
+	depends on WIREGUARD
+	help
+	  This will write log messages for handshake and other events
+	  that occur for a WireGuard interface. It will also perform some
+	  extra validation checks and unit tests at various points. This is
+	  only useful for debugging.
+
+	  Say N here unless you know what you're doing.
+
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
-	---help---
+	help
 	  If you have two serial connections to some other computer (this
 	  usually requires two modems and two telephone lines) and you use
 	  SLIP (the protocol for sending Internet traffic over telephone
@@ -83,7 +126,7 @@ config EQUALIZER
 	  Linux driver or with a Livingston Portmaster 2e.
 
 	  Say Y if you want this and read
-	  <file:Documentation/networking/eql.txt>.  You may also want to read
+	  <file:Documentation/networking/eql.rst>.  You may also want to read
 	  section 6.2 of the NET-3-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
@@ -106,7 +149,8 @@ config NET_FC
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
-	---help---
+	select NET_REDIRECT
+	help
 	  This is an intermediate driver that allows sharing of
 	  resources.
 	  To compile this driver as a module, choose M here: the module
@@ -120,7 +164,7 @@ source "drivers/net/team/Kconfig"
 
 config MACVLAN
 	tristate "MAC-VLAN support"
-	---help---
+	help
 	  This allows one to create virtual interfaces that map packets to
 	  or from specific MAC addresses to a particular interface.
 
@@ -153,29 +197,29 @@ config IPVLAN_L3S
 	select NET_L3_MASTER_DEV
 
 config IPVLAN
-    tristate "IP-VLAN support"
-    depends on INET
-    depends on IPV6 || !IPV6
-    ---help---
-      This allows one to create virtual devices off of a main interface
-      and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
-      on packets. All interfaces (including the main interface) share L2
-      making it transparent to the connected L2 switch.
+	tristate "IP-VLAN support"
+	depends on INET
+	depends on IPV6 || !IPV6
+	help
+	  This allows one to create virtual devices off of a main interface
+	  and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
+	  on packets. All interfaces (including the main interface) share L2
+	  making it transparent to the connected L2 switch.
 
-      Ipvlan devices can be added using the "ip" command from the
-      iproute2 package starting with the iproute2-3.19 release:
+	  Ipvlan devices can be added using the "ip" command from the
+	  iproute2 package starting with the iproute2-3.19 release:
 
-      "ip link add link <main-dev> [ NAME ] type ipvlan"
+	  "ip link add link <main-dev> [ NAME ] type ipvlan"
 
-      To compile this driver as a module, choose M here: the module
-      will be called ipvlan.
+	  To compile this driver as a module, choose M here: the module
+	  will be called ipvlan.
 
 config IPVTAP
 	tristate "IP-VLAN based tap driver"
 	depends on IPVLAN
 	depends on INET
 	select TAP
-	---help---
+	help
 	  This adds a specialized tap character device driver that is based
 	  on the IP-VLAN network interface, called ipvtap. An ipvtap device
 	  can be added in the same way as a ipvlan device, using 'type
@@ -185,11 +229,11 @@ config IPVTAP
 	  will be called ipvtap.
 
 config VXLAN
-       tristate "Virtual eXtensible Local Area Network (VXLAN)"
-       depends on INET
-       select NET_UDP_TUNNEL
-       select GRO_CELLS
-       ---help---
+	tristate "Virtual eXtensible Local Area Network (VXLAN)"
+	depends on INET
+	select NET_UDP_TUNNEL
+	select GRO_CELLS
+	help
 	  This allows one to create vxlan virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
 	  to tunnel virtual network infrastructure in virtualized environments.
@@ -200,12 +244,12 @@ config VXLAN
 	  will be called vxlan.
 
 config GENEVE
-       tristate "Generic Network Virtualization Encapsulation"
-       depends on INET
-       depends on IPV6 || !IPV6
-       select NET_UDP_TUNNEL
-       select GRO_CELLS
-       ---help---
+	tristate "Generic Network Virtualization Encapsulation"
+	depends on INET
+	depends on IPV6 || !IPV6
+	select NET_UDP_TUNNEL
+	select GRO_CELLS
+	help
 	  This allows one to create geneve virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. GENEVE is often used
 	  to tunnel virtual network infrastructure in virtualized environments.
@@ -215,11 +259,24 @@ config GENEVE
 	  To compile this driver as a module, choose M here: the module
 	  will be called geneve.
 
+config BAREUDP
+       tristate "Bare UDP Encapsulation"
+       depends on INET
+       depends on IPV6 || !IPV6
+       select NET_UDP_TUNNEL
+       select GRO_CELLS
+       help
+          This adds a bare UDP tunnel module for tunnelling different
+          kinds of traffic like MPLS, IP, etc. inside a UDP tunnel.
+
+          To compile this driver as a module, choose M here: the module
+          will be called bareudp.
+
 config GTP
 	tristate "GPRS Tunneling Protocol datapath (GTP-U)"
 	depends on INET
 	select NET_UDP_TUNNEL
-	---help---
+	help
 	  This allows one to create gtp virtual interfaces that provide
 	  the GPRS Tunneling Protocol datapath (GTP-U). This tunneling protocol
 	  is used to prevent subscribers from accessing mobile carrier core
@@ -238,14 +295,14 @@ config MACSEC
 	select CRYPTO_AES
 	select CRYPTO_GCM
 	select GRO_CELLS
-	---help---
+	help
 	   MACsec is an encryption standard for Ethernet.
 
 config NETCONSOLE
 	tristate "Network console logging support"
-	---help---
-	If you want to log kernel messages over the network, enable this.
-	See <file:Documentation/networking/netconsole.txt> for details.
+	help
+	  If you want to log kernel messages over the network, enable this.
+	  See <file:Documentation/networking/netconsole.rst> for details.
 
 config NETCONSOLE_DYNAMIC
 	bool "Dynamic reconfiguration of logging targets"
@@ -255,7 +312,7 @@ config NETCONSOLE_DYNAMIC
 	  This option enables the ability to dynamically reconfigure target
 	  parameters (interface, IP addresses, port numbers, MAC addresses)
 	  at runtime through a userspace interface exported using configfs.
-	  See <file:Documentation/networking/netconsole.txt> for details.
+	  See <file:Documentation/networking/netconsole.rst> for details.
 
 config NETPOLL
 	def_bool NETCONSOLE
@@ -286,7 +343,7 @@ config TUN
 	tristate "Universal TUN/TAP device driver support"
 	depends on INET
 	select CRC32
-	---help---
+	help
 	  TUN/TAP provides packet reception and transmission for user space
 	  programs.  It can be viewed as a simple Point-to-Point or Ethernet
 	  device, which instead of receiving packets from a physical media,
@@ -298,7 +355,7 @@ config TUN
 	  devices, driver will automatically delete tunXX or tapXX device and
 	  all routes corresponding to it.
 
-	  Please read <file:Documentation/networking/tuntap.txt> for more
+	  Please read <file:Documentation/networking/tuntap.rst> for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the module
@@ -308,14 +365,14 @@ config TUN
 
 config TAP
 	tristate
-	---help---
+	help
 	  This option is selected by any driver implementing tap user space
 	  interface for a virtual interface to re-use core tap functionality.
 
 config TUN_VNET_CROSS_LE
 	bool "Support for cross-endian vnet headers on little-endian kernels"
 	default n
-	---help---
+	help
 	  This option allows TUN/TAP and MACVTAP device drivers in a
 	  little-endian kernel to parse vnet headers that come from a
 	  big-endian legacy virtio device.
@@ -328,7 +385,7 @@ config TUN_VNET_CROSS_LE
 
 config VETH
 	tristate "Virtual ethernet pair device"
-	---help---
+	help
 	  This device is a local ethernet tunnel. Devices are created in pairs.
 	  When one end receives the packet it appears on its pair and vice
 	  versa.
@@ -337,13 +394,13 @@ config VIRTIO_NET
 	tristate "Virtio network driver"
 	depends on VIRTIO
 	select NET_FAILOVER
-	---help---
+	help
 	  This is the virtual network driver for virtio.  It can be used with
 	  QEMU based VMMs (like KVM or Xen).  Say Y or M.
 
 config NLMON
 	tristate "Virtual netlink monitoring device"
-	---help---
+	help
 	  This option enables a monitoring net device for netlink skbs. The
 	  purpose of this is to analyze netlink messages with packet sockets.
 	  Thus applications like tcpdump will be able to see local netlink
@@ -357,17 +414,17 @@ config NET_VRF
 	depends on NET_L3_MASTER_DEV
 	depends on IPV6 || IPV6=n
 	depends on IPV6_MULTIPLE_TABLES || IPV6=n
-	---help---
+	help
 	  This option enables the support for mapping interfaces into VRF's. The
 	  support enables VRF devices.
 
 config VSOCKMON
-    tristate "Virtual vsock monitoring device"
-    depends on VHOST_VSOCK
-    ---help---
-     This option enables a monitoring net device for vsock sockets. It is
-     mostly intended for developers or support to debug vsock issues. If
-     unsure, say N.
+	tristate "Virtual vsock monitoring device"
+	depends on VHOST_VSOCK
+	help
+	  This option enables a monitoring net device for vsock sockets. It is
+	  mostly intended for developers or support to debug vsock issues. If
+	  unsure, say N.
 
 endif # NET_CORE
 
@@ -388,10 +445,12 @@ source "drivers/net/fddi/Kconfig"
 
 source "drivers/net/hippi/Kconfig"
 
+source "drivers/net/ipa/Kconfig"
+
 config NET_SB1000
 	tristate "General Instruments Surfboard 1000"
 	depends on PNP
-	---help---
+	help
 	  This is a driver for the General Instrument (also known as
 	  NextLevel) SURFboard 1000 internal
 	  cable modem. This is an ISA card which is used by a number of cable
@@ -401,7 +460,7 @@ config NET_SB1000
 
 	  At present this driver only compiles as a module, so say M here if
 	  you have this card. The module will be called sb1000. Then read
-	  <file:Documentation/networking/device_drivers/sb1000.txt> for
+	  <file:Documentation/networking/device_drivers/cable/sb1000.rst> for
 	  information on how to use this module, as it needs special ppp
 	  scripts for establishing a connection. Further documentation
 	  and the necessary scripts can be found at:
@@ -413,6 +472,10 @@ config NET_SB1000
 	  If you don't have this card, of course say N.
 
 source "drivers/net/phy/Kconfig"
+
+source "drivers/net/mdio/Kconfig"
+
+source "drivers/net/pcs/Kconfig"
 
 source "drivers/net/plip/Kconfig"
 
@@ -436,6 +499,7 @@ config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"
 	depends on XEN
 	select XEN_XENBUS_FRONTEND
+	select PAGE_POOL
 	default y
 	help
 	  This driver provides support for Xen paravirtual network
@@ -489,12 +553,12 @@ config FUJITSU_ES
 	  This driver provides support for Extended Socket network device
 	  on Extended Partitioning of FUJITSU PRIMEQUEST 2000 E2 series.
 
-config THUNDERBOLT_NET
-	tristate "Networking over Thunderbolt cable"
-	depends on THUNDERBOLT && INET
+config USB4_NET
+	tristate "Networking over USB4 and Thunderbolt cables"
+	depends on USB4 && INET
 	help
-	  Select this if you want to create network between two
-	  computers over a Thunderbolt cable. The driver supports Apple
+	  Select this if you want to create network between two computers
+	  over a USB4 and Thunderbolt cables. The driver supports Apple
 	  ThunderboltIP protocol and allows communication with any host
 	  supporting the same protocol including Windows and macOS.
 
@@ -506,6 +570,8 @@ source "drivers/net/hyperv/Kconfig"
 config NETDEVSIM
 	tristate "Simulated networking device"
 	depends on DEBUG_FS
+	depends on INET
+	depends on IPV6 || IPV6=n
 	select NET_DEVLINK
 	help
 	  This driver is a developer testing tool and software model that can

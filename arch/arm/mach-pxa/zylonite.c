@@ -117,7 +117,6 @@ static struct pwm_lookup zylonite_pwm_lookup[] = {
 static struct platform_pwm_backlight_data zylonite_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
-	.enable_gpio	= -1,
 };
 
 static struct platform_device zylonite_backlight_device = {

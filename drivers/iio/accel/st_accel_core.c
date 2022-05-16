@@ -15,7 +15,6 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -905,6 +904,83 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.multi_read_bit = true,
 		.bootime = 2,
 	},
+	{
+		.wai = 0x41,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+		.sensors_supported = {
+			[0] = LIS2HH12_ACCEL_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_accel_16bit_channels,
+		.odr = {
+			.addr = 0x20,
+			.mask = 0x70,
+			.odr_avl = {
+				{ .hz = 10, .value = 0x01, },
+				{ .hz = 50, .value = 0x02, },
+				{ .hz = 100, .value = 0x03, },
+				{ .hz = 200, .value = 0x04, },
+				{ .hz = 400, .value = 0x05, },
+				{ .hz = 800, .value = 0x06, },
+			},
+		},
+		.pw = {
+			.addr = 0x20,
+			.mask = 0x70,
+			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
+		},
+		.enable_axis = {
+			.addr = ST_SENSORS_DEFAULT_AXIS_ADDR,
+			.mask = ST_SENSORS_DEFAULT_AXIS_MASK,
+		},
+		.fs = {
+			.addr = 0x23,
+			.mask = 0x30,
+			.fs_avl = {
+				[0] = {
+					.num = ST_ACCEL_FS_AVL_2G,
+					.value = 0x00,
+					.gain = IIO_G_TO_M_S_2(61),
+				},
+				[1] = {
+					.num = ST_ACCEL_FS_AVL_4G,
+					.value = 0x02,
+					.gain = IIO_G_TO_M_S_2(122),
+				},
+				[2] = {
+					.num = ST_ACCEL_FS_AVL_8G,
+					.value = 0x03,
+					.gain = IIO_G_TO_M_S_2(244),
+				},
+			},
+		},
+		.bdu = {
+			.addr = 0x20,
+			.mask = 0x08,
+		},
+		.drdy_irq = {
+			.int1 = {
+				.addr = 0x22,
+				.mask = 0x01,
+			},
+			.int2 = {
+				.addr = 0x25,
+				.mask = 0x01,
+			},
+			.addr_ihl = 0x24,
+			.mask_ihl = 0x02,
+			.stat_drdy = {
+				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
+				.mask = 0x07,
+			},
+		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
+		},
+		.multi_read_bit = true,
+		.bootime = 2,
+	},
+
 };
 
 static int st_accel_read_raw(struct iio_dev *indio_dev,
@@ -993,6 +1069,7 @@ static const struct iio_trigger_ops st_accel_trigger_ops = {
 #define ST_ACCEL_TRIGGER_OPS NULL
 #endif
 
+#ifdef CONFIG_ACPI
 static const struct iio_mount_matrix *
 get_mount_matrix(const struct iio_dev *indio_dev,
 		 const struct iio_chan_spec *chan)
@@ -1013,7 +1090,6 @@ static const struct iio_chan_spec_ext_info mount_matrix_ext_info[] = {
 static int apply_acpi_orientation(struct iio_dev *indio_dev,
 				  struct iio_chan_spec *channels)
 {
-#ifdef CONFIG_ACPI
 	struct st_sensor_data *adata = iio_priv(indio_dev);
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	struct acpi_device *adev;
@@ -1141,10 +1217,14 @@ static int apply_acpi_orientation(struct iio_dev *indio_dev,
 out:
 	kfree(buffer.pointer);
 	return ret;
-#else /* !CONFIG_ACPI */
-	return 0;
-#endif
 }
+#else /* !CONFIG_ACPI */
+static int apply_acpi_orientation(struct iio_dev *indio_dev,
+				  struct iio_chan_spec *channels)
+{
+	return 0;
+}
+#endif
 
 /*
  * st_accel_get_settings() - get sensor settings from device name
@@ -1167,8 +1247,7 @@ EXPORT_SYMBOL(st_accel_get_settings);
 int st_accel_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *adata = iio_priv(indio_dev);
-	struct st_sensors_platform_data *pdata =
-		(struct st_sensors_platform_data *)adata->dev->platform_data;
+	struct st_sensors_platform_data *pdata = dev_get_platdata(adata->dev);
 	struct iio_chan_spec *channels;
 	size_t channels_size;
 	int err;
@@ -1201,8 +1280,7 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 			 "failed to apply ACPI orientation data: %d\n", err);
 
 	indio_dev->channels = channels;
-	adata->current_fullscale = (struct st_sensor_fullscale_avl *)
-					&adata->sensor_settings->fs.fs_avl[0];
+	adata->current_fullscale = &adata->sensor_settings->fs.fs_avl[0];
 	adata->odr = adata->sensor_settings->odr.odr_avl[0].hz;
 
 	if (!pdata)

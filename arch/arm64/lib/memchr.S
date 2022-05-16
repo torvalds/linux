@@ -19,7 +19,7 @@
  * Returns:
  *	x0 - address of first occurrence of 'c' or 0
  */
-WEAK(memchr)
+SYM_FUNC_START_WEAK_PI(memchr)
 	and	w1, w1, #0xff
 1:	subs	x2, x2, #1
 	b.mi	2f
@@ -30,5 +30,5 @@ WEAK(memchr)
 	ret
 2:	mov	x0, #0
 	ret
-ENDPIPROC(memchr)
+SYM_FUNC_END_PI(memchr)
 EXPORT_SYMBOL_NOKASAN(memchr)

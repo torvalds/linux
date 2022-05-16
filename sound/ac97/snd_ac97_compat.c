@@ -53,7 +53,7 @@ static unsigned short compat_ac97_read(struct snd_ac97 *ac97,
 	return actrl->ops->read(actrl, ac97->num, reg);
 }
 
-static struct snd_ac97_bus_ops compat_snd_ac97_bus_ops = {
+static const struct snd_ac97_bus_ops compat_snd_ac97_bus_ops = {
 	.reset = compat_ac97_reset,
 	.warm_reset = compat_ac97_warm_reset,
 	.write = compat_ac97_write,

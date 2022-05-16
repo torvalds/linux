@@ -50,13 +50,8 @@ static int mdp4_lvds_connector_get_modes(struct drm_connector *connector)
 	struct drm_panel *panel = mdp4_lvds_connector->panel;
 	int ret = 0;
 
-	if (panel) {
-		drm_panel_attach(panel, connector);
-
-		ret = panel->funcs->get_modes(panel);
-
-		drm_panel_detach(panel);
-	}
+	if (panel)
+		ret = drm_panel_get_modes(panel, connector);
 
 	return ret;
 }

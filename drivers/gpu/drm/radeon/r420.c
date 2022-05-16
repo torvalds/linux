@@ -26,13 +26,13 @@
  *          Jerome Glisse
  */
 
+#include <linux/pci.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
-#include <drm/drm_pci.h>
 
 #include "atom.h"
 #include "r100d.h"
@@ -115,7 +115,7 @@ void r420_pipes_init(struct radeon_device *rdev)
 	default:
 		/* force to 1 pipe */
 		num_pipes = 1;
-		/* fall through */
+		fallthrough;
 	case 1:
 		tmp = (0 << 1);
 		break;

@@ -20,8 +20,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
-
-#include "most/core.h"
+#include <linux/most.h>
 #include "hal.h"
 #include "errors.h"
 #include "sysfs.h"
@@ -47,7 +46,7 @@ MODULE_PARM_DESC(fcnt, "Num of frames per sub-buffer for sync channels as a powe
 static DEFINE_SPINLOCK(dim_lock);
 
 static void dim2_tasklet_fn(unsigned long data);
-static DECLARE_TASKLET(dim2_tasklet, dim2_tasklet_fn, 0);
+static DECLARE_TASKLET_OLD(dim2_tasklet, dim2_tasklet_fn);
 
 /**
  * struct hdm_channel - private structure to keep channel specific data
@@ -101,12 +100,12 @@ struct dim2_hdm {
 	struct medialb_bus bus;
 	void (*on_netinfo)(struct most_interface *most_iface,
 			   unsigned char link_state, unsigned char *addrs);
-	void (*disable_platform)(struct platform_device *);
+	void (*disable_platform)(struct platform_device *pdev);
 };
 
 struct dim2_platform_data {
-	int (*enable)(struct platform_device *);
-	void (*disable)(struct platform_device *);
+	int (*enable)(struct platform_device *pdev);
+	void (*disable)(struct platform_device *pdev);
 };
 
 #define iface_to_hdm(iface) container_of(iface, struct dim2_hdm, most_iface)
@@ -854,8 +853,9 @@ static int dim2_probe(struct platform_device *pdev)
 	dev->most_iface.poison_channel = poison_channel;
 	dev->most_iface.request_netinfo = request_netinfo;
 	dev->most_iface.driver_dev = &pdev->dev;
+	dev->most_iface.dev = &dev->dev;
 	dev->dev.init_name = "dim2_state";
-	dev->dev.parent = &dev->most_iface.dev;
+	dev->dev.parent = &pdev->dev;
 
 	ret = most_register_interface(&dev->most_iface);
 	if (ret) {

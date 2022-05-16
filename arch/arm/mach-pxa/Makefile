@@ -40,11 +40,6 @@ obj-$(CONFIG_MACH_ARCOM_ZEUS)	+= zeus.o
 obj-$(CONFIG_MACH_BALLOON3)	+= balloon3.o
 obj-$(CONFIG_MACH_CSB726)	+= csb726.o
 obj-$(CONFIG_CSB726_CSB701)	+= csb701.o
-obj-$(CONFIG_MACH_ARMCORE)      += cm-x2xx.o cm-x255.o cm-x270.o
-ifeq ($(CONFIG_PCI),y)
-obj-$(CONFIG_MACH_ARMCORE)	+= cm-x2xx-pci.o
-endif
-obj-$(CONFIG_MACH_EM_X270)	+= em-x270.o
 obj-$(CONFIG_MACH_CM_X300)      += cm-x300.o
 obj-$(CONFIG_MACH_CAPC7117)     += capc7117.o mxm8x10.o
 obj-$(CONFIG_ARCH_GUMSTIX)	+= gumstix.o

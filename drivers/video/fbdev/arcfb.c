@@ -419,7 +419,7 @@ static int arcfb_ioctl(struct fb_info *info,
 			schedule();
 			finish_wait(&arcfb_waitq, &wait);
 		}
-		/* fall through */
+		fallthrough;
 
 		case FBIO_GETCONTROL2:
 		{
@@ -491,7 +491,7 @@ static ssize_t arcfb_write(struct fb_info *info, const char __user *buf,
 	return err;
 }
 
-static struct fb_ops arcfb_ops = {
+static const struct fb_ops arcfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= arcfb_open,
 	.fb_read        = fb_sys_read,
@@ -544,10 +544,6 @@ static int arcfb_probe(struct platform_device *dev)
 	par->cslut[1] = 0x06;
 	info->flags = FBINFO_FLAG_DEFAULT;
 	spin_lock_init(&par->lock);
-	retval = register_framebuffer(info);
-	if (retval < 0)
-		goto err1;
-	platform_set_drvdata(dev, info);
 	if (irq) {
 		par->irq = irq;
 		if (request_irq(par->irq, &arcfb_interrupt, IRQF_SHARED,
@@ -558,6 +554,10 @@ static int arcfb_probe(struct platform_device *dev)
 			goto err1;
 		}
 	}
+	retval = register_framebuffer(info);
+	if (retval < 0)
+		goto err1;
+	platform_set_drvdata(dev, info);
 	fb_info(info, "Arc frame buffer device, using %dK of video memory\n",
 		videomemorysize >> 10);
 
@@ -593,6 +593,8 @@ static int arcfb_remove(struct platform_device *dev)
 
 	if (info) {
 		unregister_framebuffer(info);
+		if (irq)
+			free_irq(((struct arcfb_par *)(info->par))->irq, info);
 		vfree((void __force *)info->screen_base);
 		framebuffer_release(info);
 	}

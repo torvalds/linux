@@ -75,7 +75,7 @@ static void BlinkWorkItemCallback(struct work_struct *work);
  *		Initialize an LED_871x object.
  */
 static void InitLed871x(struct _adapter *padapter, struct LED_871x *pLed,
-		 enum LED_PIN_871x	LedPin)
+			enum LED_PIN_871x	LedPin)
 {
 	pLed->padapter = padapter;
 	pLed->LedPin = LedPin;

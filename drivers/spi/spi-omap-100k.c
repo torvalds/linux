@@ -19,7 +19,6 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/slab.h>
 
 #include <linux/spi/spi.h>
@@ -128,7 +127,7 @@ static void spi100k_write_data(struct spi_master *master, int len, int data)
 
 static int spi100k_read_data(struct spi_master *master, int len)
 {
-	int dataH, dataL;
+	int dataL;
 	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
 
 	/* Always do at least 16 bits */
@@ -146,7 +145,7 @@ static int spi100k_read_data(struct spi_master *master, int len)
 	udelay(1000);
 
 	dataL = readw(spi100k->base + SPI_RX_LSB);
-	dataH = readw(spi100k->base + SPI_RX_MSB);
+	readw(spi100k->base + SPI_RX_MSB);
 	spi100k_disable_clock(master);
 
 	return dataL;
@@ -321,8 +320,7 @@ static int omap1_spi100k_transfer_one_message(struct spi_master *master,
 			}
 		}
 
-		if (t->delay_usecs)
-			udelay(t->delay_usecs);
+		spi_transfer_delay_exec(t);
 
 		/* ignore the "leave it on after last xfer" hint */
 

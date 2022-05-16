@@ -63,21 +63,27 @@ static const struct drm_mode_config_funcs aspeed_gfx_mode_config_funcs = {
 	.atomic_commit		= drm_atomic_helper_commit,
 };
 
-static void aspeed_gfx_setup_mode_config(struct drm_device *drm)
+static int aspeed_gfx_setup_mode_config(struct drm_device *drm)
 {
-	drm_mode_config_init(drm);
+	int ret;
+
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		return ret;
 
 	drm->mode_config.min_width = 0;
 	drm->mode_config.min_height = 0;
 	drm->mode_config.max_width = 800;
 	drm->mode_config.max_height = 600;
 	drm->mode_config.funcs = &aspeed_gfx_mode_config_funcs;
+
+	return ret;
 }
 
 static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
 {
 	struct drm_device *drm = data;
-	struct aspeed_gfx *priv = drm->dev_private;
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
 	u32 reg;
 
 	reg = readl(priv->base + CRT_CTRL1);
@@ -96,14 +102,9 @@ static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
 static int aspeed_gfx_load(struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
-	struct aspeed_gfx *priv;
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
 	struct resource *res;
 	int ret;
-
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-	drm->dev_private = priv;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(drm->dev, res);
@@ -149,7 +150,9 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	writel(0, priv->base + CRT_CTRL1);
 	writel(0, priv->base + CRT_CTRL2);
 
-	aspeed_gfx_setup_mode_config(drm);
+	ret = aspeed_gfx_setup_mode_config(drm);
+	if (ret < 0)
+		return ret;
 
 	ret = drm_vblank_init(drm, 1);
 	if (ret < 0) {
@@ -178,24 +181,19 @@ static int aspeed_gfx_load(struct drm_device *drm)
 
 	drm_mode_config_reset(drm);
 
-	drm_fbdev_generic_setup(drm, 32);
-
 	return 0;
 }
 
 static void aspeed_gfx_unload(struct drm_device *drm)
 {
 	drm_kms_helper_poll_fini(drm);
-	drm_mode_config_cleanup(drm);
-
-	drm->dev_private = NULL;
 }
 
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver aspeed_gfx_driver = {
 	.driver_features        = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
-	.gem_create_object	= drm_cma_gem_create_object_default_funcs,
+	.gem_create_object	= drm_gem_cma_create_object_default_funcs,
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
@@ -216,27 +214,27 @@ static const struct of_device_id aspeed_gfx_match[] = {
 
 static int aspeed_gfx_probe(struct platform_device *pdev)
 {
-	struct drm_device *drm;
+	struct aspeed_gfx *priv;
 	int ret;
 
-	drm = drm_dev_alloc(&aspeed_gfx_driver, &pdev->dev);
-	if (IS_ERR(drm))
-		return PTR_ERR(drm);
+	priv = devm_drm_dev_alloc(&pdev->dev, &aspeed_gfx_driver,
+				  struct aspeed_gfx, drm);
+	if (IS_ERR(priv))
+		return PTR_ERR(priv);
 
-	ret = aspeed_gfx_load(drm);
+	ret = aspeed_gfx_load(&priv->drm);
 	if (ret)
-		goto err_free;
+		return ret;
 
-	ret = drm_dev_register(drm, 0);
+	ret = drm_dev_register(&priv->drm, 0);
 	if (ret)
 		goto err_unload;
 
+	drm_fbdev_generic_setup(&priv->drm, 32);
 	return 0;
 
 err_unload:
-	aspeed_gfx_unload(drm);
-err_free:
-	drm_dev_put(drm);
+	aspeed_gfx_unload(&priv->drm);
 
 	return ret;
 }
@@ -247,7 +245,6 @@ static int aspeed_gfx_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(drm);
 	aspeed_gfx_unload(drm);
-	drm_dev_put(drm);
 
 	return 0;
 }

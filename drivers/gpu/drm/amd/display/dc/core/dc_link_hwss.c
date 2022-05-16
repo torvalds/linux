@@ -12,12 +12,39 @@
 #include "dc_link_ddc.h"
 #include "dm_helpers.h"
 #include "dpcd_defs.h"
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #include "dsc.h"
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #include "resource.h"
-#endif
+#include "clk_mgr.h"
+
+static uint8_t convert_to_count(uint8_t lttpr_repeater_count)
+{
+	switch (lttpr_repeater_count) {
+	case 0x80: // 1 lttpr repeater
+		return 1;
+	case 0x40: // 2 lttpr repeaters
+		return 2;
+	case 0x20: // 3 lttpr repeaters
+		return 3;
+	case 0x10: // 4 lttpr repeaters
+		return 4;
+	case 0x08: // 5 lttpr repeaters
+		return 5;
+	case 0x04: // 6 lttpr repeaters
+		return 6;
+	case 0x02: // 7 lttpr repeaters
+		return 7;
+	case 0x01: // 8 lttpr repeaters
+		return 8;
+	default:
+		break;
+	}
+	return 0; // invalid value
+}
+
+static inline bool is_immediate_downstream(struct dc_link *link, uint32_t offset)
+{
+	return (convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) == offset);
+}
 
 enum dc_status core_link_read_dpcd(
 	struct dc_link *link,
@@ -69,14 +96,20 @@ void dp_enable_link_phy(
 	const struct dc_link_settings *link_settings)
 {
 	struct link_encoder *link_enc = link->link_enc;
-	struct dc  *core_dc = link->ctx->dc;
-	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+	struct dc  *dc = link->ctx->dc;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 
 	struct pipe_ctx *pipes =
 			link->dc->current_state->res_ctx.pipe_ctx;
 	struct clock_source *dp_cs =
 			link->dc->res_pool->dp_clock_source;
 	unsigned int i;
+
+	if (link->connector_signal == SIGNAL_TYPE_EDP) {
+		link->dc->hwss.edp_power_control(link, true);
+		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
+	}
+
 	/* If the current pixel clock source is not DTO(happens after
 	 * switching from HDMI passive dongle to DP on the same connector),
 	 * switch the pixel clock source to DTO.
@@ -97,6 +130,11 @@ void dp_enable_link_phy(
 		}
 	}
 
+	link->cur_link_settings = *link_settings;
+
+	if (dc->clk_mgr->funcs->notify_link_rate_change)
+		dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
+
 	if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->lock_phy(dmcu);
 
@@ -115,8 +153,6 @@ void dp_enable_link_phy(
 	if (dmcu != NULL && dmcu->funcs->unlock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
 
-	link->cur_link_settings = *link_settings;
-
 	dp_receiver_power_ctrl(link, true);
 }
 
@@ -125,48 +161,60 @@ bool edp_receiver_ready_T9(struct dc_link *link)
 	unsigned int tries = 0;
 	unsigned char sinkstatus = 0;
 	unsigned char edpRev = 0;
-	enum dc_status result = DC_OK;
-	result = core_link_read_dpcd(link, DP_EDP_DPCD_REV, &edpRev, sizeof(edpRev));
-	if (edpRev < DP_EDP_12)
-		return true;
-	/* start from eDP version 1.2, SINK_STAUS indicate the sink is ready.*/
-	do {
-		sinkstatus = 1;
-		result = core_link_read_dpcd(link, DP_SINK_STATUS, &sinkstatus, sizeof(sinkstatus));
-		if (sinkstatus == 0)
-			break;
-		if (result != DC_OK)
-			break;
-		udelay(100); //MAx T9
-	} while (++tries < 50);
+	enum dc_status result;
 
-	if (link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off > 0)
+	result = core_link_read_dpcd(link, DP_EDP_DPCD_REV, &edpRev, sizeof(edpRev));
+
+     /* start from eDP version 1.2, SINK_STAUS indicate the sink is ready.*/
+	if (result == DC_OK && edpRev >= DP_EDP_12) {
+		do {
+			sinkstatus = 1;
+			result = core_link_read_dpcd(link, DP_SINK_STATUS, &sinkstatus, sizeof(sinkstatus));
+			if (sinkstatus == 0)
+				break;
+			if (result != DC_OK)
+				break;
+			udelay(100); //MAx T9
+		} while (++tries < 50);
+	}
+
+	if (link->local_sink &&
+			link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off > 0)
 		udelay(link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off * 1000);
 
 	return result;
 }
 bool edp_receiver_ready_T7(struct dc_link *link)
 {
-	unsigned int tries = 0;
 	unsigned char sinkstatus = 0;
 	unsigned char edpRev = 0;
-	enum dc_status result = DC_OK;
+	enum dc_status result;
+
+	/* use absolute time stamp to constrain max T7*/
+	unsigned long long enter_timestamp = 0;
+	unsigned long long finish_timestamp = 0;
+	unsigned long long time_taken_in_ns = 0;
 
 	result = core_link_read_dpcd(link, DP_EDP_DPCD_REV, &edpRev, sizeof(edpRev));
-	if (result == DC_OK && edpRev < DP_EDP_12)
-		return true;
-	/* start from eDP version 1.2, SINK_STAUS indicate the sink is ready.*/
-	do {
-		sinkstatus = 0;
-		result = core_link_read_dpcd(link, DP_SINK_STATUS, &sinkstatus, sizeof(sinkstatus));
-		if (sinkstatus == 1)
-			break;
-		if (result != DC_OK)
-			break;
-		udelay(25); //MAx T7 is 50ms
-	} while (++tries < 300);
 
-	if (link->local_sink->edid_caps.panel_patch.extra_t7_ms > 0)
+	if (result == DC_OK && edpRev >= DP_EDP_12) {
+		/* start from eDP version 1.2, SINK_STAUS indicate the sink is ready.*/
+		enter_timestamp = dm_get_timestamp(link->ctx);
+		do {
+			sinkstatus = 0;
+			result = core_link_read_dpcd(link, DP_SINK_STATUS, &sinkstatus, sizeof(sinkstatus));
+			if (sinkstatus == 1)
+				break;
+			if (result != DC_OK)
+				break;
+			udelay(25);
+			finish_timestamp = dm_get_timestamp(link->ctx);
+			time_taken_in_ns = dm_get_elapse_time_in_ns(link->ctx, finish_timestamp, enter_timestamp);
+		} while (time_taken_in_ns < 50 * 1000000); //MAx T7 is 50ms
+	}
+
+	if (link->local_sink &&
+			link->local_sink->edid_caps.panel_patch.extra_t7_ms > 0)
 		udelay(link->local_sink->edid_caps.panel_patch.extra_t7_ms * 1000);
 
 	return result;
@@ -174,13 +222,15 @@ bool edp_receiver_ready_T7(struct dc_link *link)
 
 void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 {
-	struct dc  *core_dc = link->ctx->dc;
-	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+	struct dc  *dc = link->ctx->dc;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 
 	if (!link->wa_flags.dp_keep_receiver_powered)
 		dp_receiver_power_ctrl(link, false);
 
 	if (signal == SIGNAL_TYPE_EDP) {
+		if (link->dc->hwss.edp_backlight_control)
+			link->dc->hwss.edp_backlight_control(link, false);
 		link->link_enc->funcs->disable_output(link->link_enc, signal);
 		link->dc->hwss.edp_power_control(link, false);
 	} else {
@@ -196,6 +246,9 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 	/* Clear current link setting.*/
 	memset(&link->cur_link_settings, 0,
 			sizeof(link->cur_link_settings));
+
+	if (dc->clk_mgr->funcs->notify_link_rate_change)
+		dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
 }
 
 void dp_disable_link_phy_mst(struct dc_link *link, enum signal_type signal)
@@ -212,7 +265,8 @@ void dp_disable_link_phy_mst(struct dc_link *link, enum signal_type signal)
 
 bool dp_set_hw_training_pattern(
 	struct dc_link *link,
-	enum dc_dp_training_pattern pattern)
+	enum dc_dp_training_pattern pattern,
+	uint32_t offset)
 {
 	enum dp_test_pattern test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 
@@ -240,9 +294,13 @@ bool dp_set_hw_training_pattern(
 
 void dp_set_hw_lane_settings(
 	struct dc_link *link,
-	const struct link_training_settings *link_settings)
+	const struct link_training_settings *link_settings,
+	uint32_t offset)
 {
 	struct link_encoder *encoder = link->link_enc;
+
+	if (link->lttpr_non_transparent_mode && !is_immediate_downstream(link, offset))
+		return;
 
 	/* call Encoder to set lane settings */
 	encoder->funcs->dp_set_lane_settings(encoder, link_settings);
@@ -277,7 +335,8 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 		if (pipes[i].stream != NULL &&
 			!pipes[i].top_pipe && !pipes[i].prev_odm_pipe &&
 			pipes[i].stream->link != NULL &&
-			pipes[i].stream_res.stream_enc != NULL) {
+			pipes[i].stream_res.stream_enc != NULL &&
+			pipes[i].stream->link == link) {
 			udelay(100);
 
 			pipes[i].stream_res.stream_enc->funcs->dp_blank(
@@ -301,20 +360,12 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			memset(&link->cur_link_settings, 0,
 				sizeof(link->cur_link_settings));
 
-			link->link_enc->funcs->enable_dp_output(
-						link->link_enc,
-						link_setting,
-						pipes[i].clock_source->id);
-			link->cur_link_settings = *link_setting;
-
-			dp_receiver_power_ctrl(link, true);
-
 			perform_link_training_with_retries(
-					link,
 					link_setting,
 					skip_video_pattern,
-					LINK_TRAINING_ATTEMPTS);
-
+					LINK_TRAINING_ATTEMPTS,
+					&pipes[i],
+					SIGNAL_TYPE_DISPLAY_PORT);
 
 			link->dc->hwss.enable_stream(&pipes[i]);
 
@@ -338,7 +389,6 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 	}
 }
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #define DC_LOGGER \
 	dsc->ctx->logger
 static void dsc_optc_config_log(struct display_stream_compressor *dsc,
@@ -364,14 +414,14 @@ static void dsc_optc_config_log(struct display_stream_compressor *dsc,
 
 static bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable)
 {
-	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	bool result = false;
 
-	if (IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
+	if (dc_is_virtual_signal(stream->signal) || IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		result = true;
 	else
-		result = dm_helpers_dp_write_dsc_enable(core_dc->ctx, stream, enable);
+		result = dm_helpers_dp_write_dsc_enable(dc->ctx, stream, enable);
 	return result;
 }
 
@@ -381,7 +431,7 @@ static bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable)
 void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 {
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
-	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
@@ -399,6 +449,7 @@ void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		dsc_cfg.pic_height = stream->timing.v_addressable + stream->timing.v_border_top + stream->timing.v_border_bottom;
 		dsc_cfg.pixel_encoding = stream->timing.pixel_encoding;
 		dsc_cfg.color_depth = stream->timing.display_color_depth;
+		dsc_cfg.is_odm = pipe_ctx->next_odm_pipe ? true : false;
 		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
 		ASSERT(dsc_cfg.dc_dsc_cfg.num_slices_h % opp_cnt == 0);
 		dsc_cfg.dc_dsc_cfg.num_slices_h /= opp_cnt;
@@ -417,7 +468,7 @@ void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		optc_dsc_mode = dsc_optc_cfg.is_pixel_format_444 ? OPTC_DSC_ENABLED_444 : OPTC_DSC_ENABLED_NATIVE_SUBSAMPLED;
 
 		/* Enable DSC in encoder */
-		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 			DC_LOG_DSC("Setting stream encoder DSC config for engine %d:", (int)pipe_ctx->stream_res.stream_enc->id);
 			dsc_optc_config_log(dsc, &dsc_optc_cfg);
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(pipe_ctx->stream_res.stream_enc,
@@ -442,13 +493,15 @@ void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 				OPTC_DSC_DISABLED, 0, 0);
 
 		/* disable DSC in stream encoder */
-		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
-			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
-					pipe_ctx->stream_res.stream_enc,
-					OPTC_DSC_DISABLED, 0, 0);
+		if (dc_is_dp_signal(stream->signal)) {
 
-			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
-					pipe_ctx->stream_res.stream_enc, false, NULL);
+			if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
+						pipe_ctx->stream_res.stream_enc,
+						OPTC_DSC_DISABLED, 0, 0);
+				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
+							pipe_ctx->stream_res.stream_enc, false, NULL);
+			}
 		}
 
 		/* disable DSC block */
@@ -485,7 +538,6 @@ out:
 bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable)
 {
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
-	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 
 	if (!pipe_ctx->stream->timing.flags.DSC || !dsc)
@@ -495,16 +547,20 @@ bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable)
 		struct dsc_config dsc_cfg;
 		uint8_t dsc_packed_pps[128];
 
+		memset(&dsc_cfg, 0, sizeof(dsc_cfg));
+		memset(dsc_packed_pps, 0, 128);
+
 		/* Enable DSC hw block */
 		dsc_cfg.pic_width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
 		dsc_cfg.pic_height = stream->timing.v_addressable + stream->timing.v_border_top + stream->timing.v_border_bottom;
 		dsc_cfg.pixel_encoding = stream->timing.pixel_encoding;
 		dsc_cfg.color_depth = stream->timing.display_color_depth;
+		dsc_cfg.is_odm = pipe_ctx->next_odm_pipe ? true : false;
 		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
 
 		DC_LOG_DSC(" ");
 		dsc->funcs->dsc_get_packed_pps(dsc, &dsc_cfg, &dsc_packed_pps[0]);
-		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+		if (dc_is_dp_signal(stream->signal)) {
 			DC_LOG_DSC("Setting stream encoder DSC PPS SDP for engine %d\n", (int)pipe_ctx->stream_res.stream_enc->id);
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
 									pipe_ctx->stream_res.stream_enc,
@@ -513,7 +569,7 @@ bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable)
 		}
 	} else {
 		/* disable DSC PPS in stream encoder */
-		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+		if (dc_is_dp_signal(stream->signal)) {
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
 						pipe_ctx->stream_res.stream_enc, false, NULL);
 		}
@@ -536,5 +592,4 @@ bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx)
 	dp_set_dsc_pps_sdp(pipe_ctx, true);
 	return true;
 }
-#endif
 

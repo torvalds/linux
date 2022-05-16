@@ -226,7 +226,7 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	/* disable irqs */
 	vega10_ih_disable_interrupts(adev);
 
-	adev->nbio_funcs->ih_control(adev);
+	adev->nbio.funcs->ih_control(adev);
 
 	ih = &adev->irq.ih;
 	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
@@ -234,16 +234,9 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI, (ih->gpu_addr >> 40) & 0xff);
 
 	ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
-	ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
 	ih_rb_cntl = vega10_ih_rb_cntl(ih, ih_rb_cntl);
-	if (adev->irq.ih.use_bus_addr) {
-		ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN, MC_SPACE_GPA_ENABLE, 1);
-	} else {
-		ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN, MC_SPACE_FBPA_ENABLE, 1);
-	}
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RPTR_REARM,
 				   !!adev->irq.msi_enabled);
-
 	if (amdgpu_sriov_vf(adev)) {
 		if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL, ih_rb_cntl)) {
 			DRM_ERROR("PSP program IH_RB_CNTL failed!\n");
@@ -253,10 +246,19 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
 	}
 
-	if ((adev->asic_type == CHIP_ARCTURUS
-		&& adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT)
-		|| adev->asic_type == CHIP_RENOIR)
+	if ((adev->asic_type == CHIP_ARCTURUS &&
+	     adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) ||
+	    adev->asic_type == CHIP_RENOIR) {
+		ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
+		if (adev->irq.ih.use_bus_addr) {
+			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
+						   MC_SPACE_GPA_ENABLE, 1);
+		} else {
+			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
+						   MC_SPACE_FBPA_ENABLE, 1);
+		}
 		WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
+	}
 
 	/* set the writeback address whether it's enabled or not */
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_LO,
@@ -675,10 +677,49 @@ static int vega10_ih_soft_reset(void *handle)
 	return 0;
 }
 
+static void vega10_ih_update_clockgating_state(struct amdgpu_device *adev,
+					       bool enable)
+{
+	uint32_t data, def, field_val;
+
+	if (adev->cg_flags & AMD_CG_SUPPORT_IH_CG) {
+		def = data = RREG32_SOC15(OSSSYS, 0, mmIH_CLK_CTRL);
+		field_val = enable ? 0 : 1;
+		/**
+		 * Vega10 does not have IH_RETRY_INT_CAM_MEM_CLK_SOFT_OVERRIDE
+		 * and IH_BUFFER_MEM_CLK_SOFT_OVERRIDE field.
+		 */
+		if (adev->asic_type > CHIP_VEGA10) {
+			data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     IH_RETRY_INT_CAM_MEM_CLK_SOFT_OVERRIDE, field_val);
+			data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     IH_BUFFER_MEM_CLK_SOFT_OVERRIDE, field_val);
+		}
+
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     DBUS_MUX_CLK_SOFT_OVERRIDE, field_val);
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     OSSSYS_SHARE_CLK_SOFT_OVERRIDE, field_val);
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     LIMIT_SMN_CLK_SOFT_OVERRIDE, field_val);
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     DYN_CLK_SOFT_OVERRIDE, field_val);
+		data = REG_SET_FIELD(data, IH_CLK_CTRL,
+				     REG_CLK_SOFT_OVERRIDE, field_val);
+		if (def != data)
+			WREG32_SOC15(OSSSYS, 0, mmIH_CLK_CTRL, data);
+	}
+}
+
 static int vega10_ih_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	vega10_ih_update_clockgating_state(adev,
+				state == AMD_CG_STATE_GATE);
 	return 0;
+
 }
 
 static int vega10_ih_set_powergating_state(void *handle,

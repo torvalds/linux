@@ -15,7 +15,7 @@
 #include <netinet/ether.h>
 #include <unistd.h>
 #include <time.h>
-#include "libbpf.h"
+#include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include "bpf_util.h"
 #include "xdp_tx_iptunnel_common.h"
@@ -231,7 +231,7 @@ int main(int argc, char **argv)
 			xdp_flags |= XDP_FLAGS_SKB_MODE;
 			break;
 		case 'N':
-			xdp_flags |= XDP_FLAGS_DRV_MODE;
+			/* default, set below */
 			break;
 		case 'F':
 			xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;
@@ -242,6 +242,9 @@ int main(int argc, char **argv)
 		}
 		opt_flags[opt] = 0;
 	}
+
+	if (!(xdp_flags & XDP_FLAGS_SKB_MODE))
+		xdp_flags |= XDP_FLAGS_DRV_MODE;
 
 	for (i = 0; i < strlen(optstr); i++) {
 		if (opt_flags[(unsigned int)optstr[i]]) {
@@ -268,7 +271,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	if (!prog_fd) {
-		printf("load_bpf_file: %s\n", strerror(errno));
+		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
 		return 1;
 	}
 

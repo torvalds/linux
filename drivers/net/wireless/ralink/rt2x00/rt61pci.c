@@ -2130,7 +2130,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		case 6: /* Failure, excessive retries */
 			__set_bit(TXDONE_EXCESSIVE_RETRY, &txdesc.flags);
-			/* Fall through - this is a failed frame! */
+			fallthrough;	/* this is a failed frame! */
 		default: /* Failure */
 			__set_bit(TXDONE_FAILURE, &txdesc.flags);
 		}
@@ -2190,34 +2190,38 @@ static void rt61pci_enable_mcu_interrupt(struct rt2x00_dev *rt2x00dev,
 	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
-static void rt61pci_txstatus_tasklet(unsigned long data)
+static void rt61pci_txstatus_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t,
+						    txstatus_tasklet);
+
 	rt61pci_txdone(rt2x00dev);
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_TXDONE);
 }
 
-static void rt61pci_tbtt_tasklet(unsigned long data)
+static void rt61pci_tbtt_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t, tbtt_tasklet);
 	rt2x00lib_beacondone(rt2x00dev);
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_BEACON_DONE);
 }
 
-static void rt61pci_rxdone_tasklet(unsigned long data)
+static void rt61pci_rxdone_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t,
+						    rxdone_tasklet);
 	if (rt2x00mmio_rxdone(rt2x00dev))
 		tasklet_schedule(&rt2x00dev->rxdone_tasklet);
 	else if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_RXDONE);
 }
 
-static void rt61pci_autowake_tasklet(unsigned long data)
+static void rt61pci_autowake_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t,
+						    autowake_tasklet);
 	rt61pci_wakeup(rt2x00dev);
 	rt2x00mmio_register_write(rt2x00dev,
 				  M2H_CMD_DONE_CSR, 0xffffffff);
@@ -2953,7 +2957,6 @@ static void rt61pci_queue_init(struct data_queue *queue)
 		break;
 
 	case QID_ATIM:
-		/* fallthrough */
 	default:
 		BUG();
 		break;
@@ -3009,8 +3012,7 @@ static struct pci_driver rt61pci_driver = {
 	.id_table	= rt61pci_device_table,
 	.probe		= rt61pci_probe,
 	.remove		= rt2x00pci_remove,
-	.suspend	= rt2x00pci_suspend,
-	.resume		= rt2x00pci_resume,
+	.driver.pm	= &rt2x00pci_pm_ops,
 };
 
 module_pci_driver(rt61pci_driver);

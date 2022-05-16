@@ -9,8 +9,16 @@
 #include <uapi/linux/mdio.h>
 #include <linux/mod_devicetable.h>
 
+/* Or MII_ADDR_C45 into regnum for read/write on mii_bus to enable the 21 bit
+ * IEEE 802.3ae clause 45 addressing mode used by 10GIGE phy chips.
+ */
+#define MII_ADDR_C45		(1<<30)
+#define MII_DEVADDR_C45_SHIFT	16
+#define MII_REGADDR_C45_MASK	GENMASK(15, 0)
+
 struct gpio_desc;
 struct mii_bus;
+struct reset_control;
 
 /* Multiple levels of nesting are possible. However typically this is
  * limited to nested DSA like layer, a MUX layer, and the normal
@@ -298,7 +306,7 @@ static inline u32 linkmode_adv_to_mii_10gbt_adv_t(unsigned long *advertising)
 /**
  * mii_10gbt_stat_mod_linkmode_lpa_t
  * @advertising: target the linkmode advertisement settings
- * @adv: value of the C45 10GBASE-T AN STATUS register
+ * @lpa: value of the C45 10GBASE-T AN STATUS register
  *
  * A small helper function that translates C45 10GBASE-T AN STATUS register bits
  * to linkmode advertisement settings. Other bits in advertising aren't changed.
@@ -316,11 +324,45 @@ static inline void mii_10gbt_stat_mod_linkmode_lpa_t(unsigned long *advertising,
 
 int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
 int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
+int __mdiobus_modify_changed(struct mii_bus *bus, int addr, u32 regnum,
+			     u16 mask, u16 set);
 
 int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
 int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum);
 int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
 int mdiobus_write_nested(struct mii_bus *bus, int addr, u32 regnum, u16 val);
+int mdiobus_modify(struct mii_bus *bus, int addr, u32 regnum, u16 mask,
+		   u16 set);
+
+static inline u32 mdiobus_c45_addr(int devad, u16 regnum)
+{
+	return MII_ADDR_C45 | devad << MII_DEVADDR_C45_SHIFT | regnum;
+}
+
+static inline int __mdiobus_c45_read(struct mii_bus *bus, int prtad, int devad,
+				     u16 regnum)
+{
+	return __mdiobus_read(bus, prtad, mdiobus_c45_addr(devad, regnum));
+}
+
+static inline int __mdiobus_c45_write(struct mii_bus *bus, int prtad, int devad,
+				      u16 regnum, u16 val)
+{
+	return __mdiobus_write(bus, prtad, mdiobus_c45_addr(devad, regnum),
+			       val);
+}
+
+static inline int mdiobus_c45_read(struct mii_bus *bus, int prtad, int devad,
+				   u16 regnum)
+{
+	return mdiobus_read(bus, prtad, mdiobus_c45_addr(devad, regnum));
+}
+
+static inline int mdiobus_c45_write(struct mii_bus *bus, int prtad, int devad,
+				    u16 regnum, u16 val)
+{
+	return mdiobus_write(bus, prtad, mdiobus_c45_addr(devad, regnum), val);
+}
 
 int mdiobus_register_device(struct mdio_device *mdiodev);
 int mdiobus_unregister_device(struct mdio_device *mdiodev);
@@ -329,6 +371,7 @@ struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr);
 
 /**
  * mdio_module_driver() - Helper macro for registering mdio drivers
+ * @_mdio_driver: driver to register
  *
  * Helper macro for MDIO drivers which do not do anything special in module
  * init/exit. Each module may only use this macro once, and calling it

@@ -141,9 +141,8 @@ prepare_add_efi_setup_data(struct boot_params *params,
 	struct setup_data *sd = (void *)params + efi_setup_data_offset;
 	struct efi_setup_data *esd = (void *)sd + sizeof(struct setup_data);
 
-	esd->fw_vendor = efi.fw_vendor;
-	esd->runtime = efi.runtime;
-	esd->tables = efi.config_table;
+	esd->fw_vendor = efi_fw_vendor;
+	esd->tables = efi_config_table;
 	esd->smbios = efi.smbios;
 
 	sd->type = SETUP_EFI;
@@ -169,15 +168,6 @@ setup_efi_state(struct boot_params *params, unsigned long params_load_addr,
 		return 0;
 
 	if (!current_ei->efi_memmap_size)
-		return 0;
-
-	/*
-	 * If 1:1 mapping is not enabled, second kernel can not setup EFI
-	 * and use EFI run time services. User space will have to pass
-	 * acpi_rsdp=<addr> on kernel command line to make second kernel boot
-	 * without efi.
-	 */
-	if (efi_enabled(EFI_OLD_MEMMAP))
 		return 0;
 
 	params->secure_boot = boot_params.secure_boot;
@@ -210,8 +200,7 @@ setup_boot_parameters(struct kimage *image, struct boot_params *params,
 	params->hdr.hardware_subarch = boot_params.hdr.hardware_subarch;
 
 	/* Copying screen_info will do? */
-	memcpy(&params->screen_info, &boot_params.screen_info,
-				sizeof(struct screen_info));
+	memcpy(&params->screen_info, &screen_info, sizeof(struct screen_info));
 
 	/* Fill in memsize later */
 	params->screen_info.ext_mem_k = 0;

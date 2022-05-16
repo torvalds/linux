@@ -884,8 +884,8 @@ static int omap_correct_data(struct nand_chip *chip, u_char *dat,
 	int stat = 0;
 
 	/* Ex NAND_ECC_HW12_2048 */
-	if ((info->nand.ecc.mode == NAND_ECC_HW) &&
-			(info->nand.ecc.size  == 2048))
+	if (info->nand.ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST &&
+	    info->nand.ecc.size == 2048)
 		blockCnt = 4;
 	else
 		blockCnt = 1;
@@ -1967,10 +1967,8 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 
 	case NAND_OMAP_PREFETCH_IRQ:
 		info->gpmc_irq_fifo = platform_get_irq(info->pdev, 0);
-		if (info->gpmc_irq_fifo <= 0) {
-			dev_err(dev, "Error getting fifo IRQ\n");
+		if (info->gpmc_irq_fifo <= 0)
 			return -ENODEV;
-		}
 		err = devm_request_irq(dev, info->gpmc_irq_fifo,
 				       omap_nand_irq, IRQF_SHARED,
 				       "gpmc-nand-fifo", info);
@@ -1982,10 +1980,8 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 		}
 
 		info->gpmc_irq_count = platform_get_irq(info->pdev, 1);
-		if (info->gpmc_irq_count <= 0) {
-			dev_err(dev, "Error getting IRQ count\n");
+		if (info->gpmc_irq_count <= 0)
 			return -ENODEV;
-		}
 		err = devm_request_irq(dev, info->gpmc_irq_count,
 				       omap_nand_irq, IRQF_SHARED,
 				       "gpmc-nand-count", info);
@@ -2010,12 +2006,12 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 		return -EINVAL;
 
 	/*
-	 * Bail out earlier to let NAND_ECC_SOFT code create its own
+	 * Bail out earlier to let NAND_ECC_ENGINE_TYPE_SOFT code create its own
 	 * ooblayout instead of using ours.
 	 */
 	if (info->ecc_opt == OMAP_ECC_HAM1_CODE_SW) {
-		chip->ecc.mode = NAND_ECC_SOFT;
-		chip->ecc.algo = NAND_ECC_HAMMING;
+		chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 		return 0;
 	}
 
@@ -2023,7 +2019,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 	switch (info->ecc_opt) {
 	case OMAP_ECC_HAM1_CODE_HW:
 		dev_info(dev, "nand: using OMAP_ECC_HAM1_CODE_HW\n");
-		chip->ecc.mode		= NAND_ECC_HW;
+		chip->ecc.engine_type	= NAND_ECC_ENGINE_TYPE_ON_HOST;
 		chip->ecc.bytes		= 3;
 		chip->ecc.size		= 512;
 		chip->ecc.strength	= 1;
@@ -2040,7 +2036,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 
 	case OMAP_ECC_BCH4_CODE_HW_DETECTION_SW:
 		pr_info("nand: using OMAP_ECC_BCH4_CODE_HW_DETECTION_SW\n");
-		chip->ecc.mode		= NAND_ECC_HW;
+		chip->ecc.engine_type	= NAND_ECC_ENGINE_TYPE_ON_HOST;
 		chip->ecc.size		= 512;
 		chip->ecc.bytes		= 7;
 		chip->ecc.strength	= 4;
@@ -2060,7 +2056,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 
 	case OMAP_ECC_BCH4_CODE_HW:
 		pr_info("nand: using OMAP_ECC_BCH4_CODE_HW ECC scheme\n");
-		chip->ecc.mode		= NAND_ECC_HW;
+		chip->ecc.engine_type	= NAND_ECC_ENGINE_TYPE_ON_HOST;
 		chip->ecc.size		= 512;
 		/* 14th bit is kept reserved for ROM-code compatibility */
 		chip->ecc.bytes		= 7 + 1;
@@ -2082,7 +2078,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 
 	case OMAP_ECC_BCH8_CODE_HW_DETECTION_SW:
 		pr_info("nand: using OMAP_ECC_BCH8_CODE_HW_DETECTION_SW\n");
-		chip->ecc.mode		= NAND_ECC_HW;
+		chip->ecc.engine_type	= NAND_ECC_ENGINE_TYPE_ON_HOST;
 		chip->ecc.size		= 512;
 		chip->ecc.bytes		= 13;
 		chip->ecc.strength	= 8;
@@ -2102,7 +2098,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 
 	case OMAP_ECC_BCH8_CODE_HW:
 		pr_info("nand: using OMAP_ECC_BCH8_CODE_HW ECC scheme\n");
-		chip->ecc.mode		= NAND_ECC_HW;
+		chip->ecc.engine_type	= NAND_ECC_ENGINE_TYPE_ON_HOST;
 		chip->ecc.size		= 512;
 		/* 14th bit is kept reserved for ROM-code compatibility */
 		chip->ecc.bytes		= 13 + 1;
@@ -2125,7 +2121,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 
 	case OMAP_ECC_BCH16_CODE_HW:
 		pr_info("Using OMAP_ECC_BCH16_CODE_HW ECC scheme\n");
-		chip->ecc.mode		= NAND_ECC_HW;
+		chip->ecc.engine_type	= NAND_ECC_ENGINE_TYPE_ON_HOST;
 		chip->ecc.size		= 512;
 		chip->ecc.bytes		= 26;
 		chip->ecc.strength	= 16;
@@ -2287,14 +2283,18 @@ static int omap_nand_remove(struct platform_device *pdev)
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct omap_nand_info *info = mtd_to_omap(mtd);
+	int ret;
+
 	if (nand_chip->ecc.priv) {
 		nand_bch_free(nand_chip->ecc.priv);
 		nand_chip->ecc.priv = NULL;
 	}
 	if (info->dma)
 		dma_release_channel(info->dma);
-	nand_release(nand_chip);
-	return 0;
+	ret = mtd_device_unregister(mtd);
+	WARN_ON(ret);
+	nand_cleanup(nand_chip);
+	return ret;
 }
 
 static const struct of_device_id omap_nand_ids[] = {

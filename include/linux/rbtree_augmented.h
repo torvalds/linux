@@ -21,7 +21,7 @@
  * rb_insert_augmented() and rb_erase_augmented() are intended to be public.
  * The rest are implementation details you are not expected to depend on.
  *
- * See Documentation/rbtree.txt for documentation and samples.
+ * See Documentation/core-api/rbtree.rst for documentation and samples.
  */
 
 struct rb_augment_callbacks {
@@ -283,14 +283,12 @@ __rb_erase_augmented(struct rb_node *node, struct rb_root *root,
 		__rb_change_child(node, successor, tmp, root);
 
 		if (child2) {
-			successor->__rb_parent_color = pc;
 			rb_set_parent_color(child2, parent, RB_BLACK);
 			rebalance = NULL;
 		} else {
-			unsigned long pc2 = successor->__rb_parent_color;
-			successor->__rb_parent_color = pc;
-			rebalance = __rb_is_black(pc2) ? parent : NULL;
+			rebalance = rb_is_black(successor) ? parent : NULL;
 		}
+		successor->__rb_parent_color = pc;
 		tmp = successor;
 	}
 

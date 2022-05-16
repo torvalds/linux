@@ -13,7 +13,7 @@
 static unsigned int classify(const struct sk_buff *skb)
 {
 	if (likely(skb->dev && skb->dev->phydev &&
-		   skb->dev->phydev->drv))
+		   skb->dev->phydev->mii_ts))
 		return ptp_classify_raw(skb);
 	else
 		return PTP_CLASS_NONE;
@@ -21,7 +21,7 @@ static unsigned int classify(const struct sk_buff *skb)
 
 void skb_clone_tx_timestamp(struct sk_buff *skb)
 {
-	struct phy_device *phydev;
+	struct mii_timestamper *mii_ts;
 	struct sk_buff *clone;
 	unsigned int type;
 
@@ -32,22 +32,22 @@ void skb_clone_tx_timestamp(struct sk_buff *skb)
 	if (type == PTP_CLASS_NONE)
 		return;
 
-	phydev = skb->dev->phydev;
-	if (likely(phydev->drv->txtstamp)) {
+	mii_ts = skb->dev->phydev->mii_ts;
+	if (likely(mii_ts->txtstamp)) {
 		clone = skb_clone_sk(skb);
 		if (!clone)
 			return;
-		phydev->drv->txtstamp(phydev, clone, type);
+		mii_ts->txtstamp(mii_ts, clone, type);
 	}
 }
 EXPORT_SYMBOL_GPL(skb_clone_tx_timestamp);
 
 bool skb_defer_rx_timestamp(struct sk_buff *skb)
 {
-	struct phy_device *phydev;
+	struct mii_timestamper *mii_ts;
 	unsigned int type;
 
-	if (!skb->dev || !skb->dev->phydev || !skb->dev->phydev->drv)
+	if (!skb->dev || !skb->dev->phydev || !skb->dev->phydev->mii_ts)
 		return false;
 
 	if (skb_headroom(skb) < ETH_HLEN)
@@ -62,9 +62,9 @@ bool skb_defer_rx_timestamp(struct sk_buff *skb)
 	if (type == PTP_CLASS_NONE)
 		return false;
 
-	phydev = skb->dev->phydev;
-	if (likely(phydev->drv->rxtstamp))
-		return phydev->drv->rxtstamp(phydev, skb, type);
+	mii_ts = skb->dev->phydev->mii_ts;
+	if (likely(mii_ts->rxtstamp))
+		return mii_ts->rxtstamp(mii_ts, skb, type);
 
 	return false;
 }

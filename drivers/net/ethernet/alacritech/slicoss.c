@@ -26,7 +26,6 @@
 #include "slic.h"
 
 #define DRV_NAME			"slicoss"
-#define DRV_VERSION			"1.0"
 
 static const struct pci_device_id slic_id_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ALACRITECH,
@@ -1533,7 +1532,6 @@ static void slic_get_drvinfo(struct net_device *dev,
 	struct slic_device *sdev = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(sdev->pdev), sizeof(info->bus_info));
 }
 
@@ -1714,13 +1712,13 @@ static bool slic_is_fiber(unsigned short subdev)
 {
 	switch (subdev) {
 	/* Mojave */
-	case PCI_SUBDEVICE_ID_ALACRITECH_1000X1F: /* fallthrough */
-	case PCI_SUBDEVICE_ID_ALACRITECH_SES1001F: /* fallthrough */
+	case PCI_SUBDEVICE_ID_ALACRITECH_1000X1F:
+	case PCI_SUBDEVICE_ID_ALACRITECH_SES1001F: fallthrough;
 	/* Oasis */
-	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2002XF: /* fallthrough */
-	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2001XF: /* fallthrough */
-	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2104EF: /* fallthrough */
-	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2102EF: /* fallthrough */
+	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2002XF:
+	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2001XF:
+	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2104EF:
+	case PCI_SUBDEVICE_ID_ALACRITECH_SEN2102EF:
 		return true;
 	}
 	return false;
@@ -1791,7 +1789,7 @@ static int slic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	sdev->is_fiber = slic_is_fiber(pdev->subsystem_device);
 	sdev->pdev = pdev;
 	sdev->netdev = dev;
-	sdev->regs = ioremap_nocache(pci_resource_start(pdev, 0),
+	sdev->regs = ioremap(pci_resource_start(pdev, 0),
 				     pci_resource_len(pdev, 0));
 	if (!sdev->regs) {
 		dev_err(&pdev->dev, "failed to map registers\n");
@@ -1852,4 +1850,3 @@ module_pci_driver(slic_driver);
 MODULE_DESCRIPTION("Alacritech non-accelerated SLIC driver");
 MODULE_AUTHOR("Lino Sanfilippo <LinoSanfilippo@gmx.de>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

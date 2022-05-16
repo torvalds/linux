@@ -433,7 +433,7 @@ static int check_mkey(struct qib_ibport *ibp, struct ib_smp *smp, int mad_flags)
 			/* Bad mkey not a violation below level 2 */
 			if (ibp->rvp.mkeyprot < 2)
 				break;
-			/* fall through */
+			fallthrough;
 		case IB_MGMT_METHOD_SET:
 		case IB_MGMT_METHOD_TRAP_REPRESS:
 			if (ibp->rvp.mkey_violations != 0xFFFF)
@@ -828,7 +828,7 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	case IB_PORT_NOP:
 		if (lstate == 0)
 			break;
-		/* FALLTHROUGH */
+		fallthrough;
 	case IB_PORT_DOWN:
 		if (lstate == 0)
 			lstate = QIB_IB_LINKDOWN_ONLY;
@@ -1928,7 +1928,7 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 				ret = IB_MAD_RESULT_SUCCESS;
 				goto bail;
 			}
-			/* FALLTHROUGH */
+			fallthrough;
 		default:
 			smp->status |= IB_SMP_UNSUP_METH_ATTR;
 			ret = reply(smp);
@@ -1962,7 +1962,7 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 				ret = IB_MAD_RESULT_SUCCESS;
 				goto bail;
 			}
-			/* FALLTHROUGH */
+			fallthrough;
 		default:
 			smp->status |= IB_SMP_UNSUP_METH_ATTR;
 			ret = reply(smp);
@@ -2098,8 +2098,6 @@ static int cc_get_classportinfo(struct ib_cc_mad *ccp,
 	struct ib_cc_classportinfo_attr *p =
 		(struct ib_cc_classportinfo_attr *)ccp->mgmt_data;
 
-	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
-
 	p->base_version = 1;
 	p->class_version = 1;
 	p->cap_mask = 0;
@@ -2120,8 +2118,6 @@ static int cc_get_congestion_info(struct ib_cc_mad *ccp,
 	struct qib_ibport *ibp = to_iport(ibdev, port);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 
-	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
-
 	p->congestion_info = 0;
 	p->control_table_cap = ppd->cc_max_table_entries;
 
@@ -2137,8 +2133,6 @@ static int cc_get_congestion_setting(struct ib_cc_mad *ccp,
 	struct qib_ibport *ibp = to_iport(ibdev, port);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	struct ib_cc_congestion_entry_shadow *entries;
-
-	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
 
 	spin_lock(&ppd->cc_shadow_lock);
 
@@ -2175,8 +2169,6 @@ static int cc_get_congestion_control_table(struct ib_cc_mad *ccp,
 	/* Is the table index more than what is supported? */
 	if (cct_block_index > IB_CC_TABLE_CAP_DEFAULT - 1)
 		goto bail;
-
-	memset(ccp->mgmt_data, 0, sizeof(ccp->mgmt_data));
 
 	spin_lock(&ppd->cc_shadow_lock);
 
@@ -2296,92 +2288,55 @@ bail:
 	return reply_failure((struct ib_smp *) ccp);
 }
 
-static int check_cc_key(struct qib_ibport *ibp,
-			struct ib_cc_mad *ccp, int mad_flags)
-{
-	return 0;
-}
-
 static int process_cc(struct ib_device *ibdev, int mad_flags,
 			u8 port, const struct ib_mad *in_mad,
 			struct ib_mad *out_mad)
 {
 	struct ib_cc_mad *ccp = (struct ib_cc_mad *)out_mad;
-	struct qib_ibport *ibp = to_iport(ibdev, port);
-	int ret;
-
 	*out_mad = *in_mad;
 
 	if (ccp->class_version != 2) {
 		ccp->status |= IB_SMP_UNSUP_VERSION;
-		ret = reply((struct ib_smp *)ccp);
-		goto bail;
+		return reply((struct ib_smp *)ccp);
 	}
-
-	ret = check_cc_key(ibp, ccp, mad_flags);
-	if (ret)
-		goto bail;
 
 	switch (ccp->method) {
 	case IB_MGMT_METHOD_GET:
 		switch (ccp->attr_id) {
 		case IB_CC_ATTR_CLASSPORTINFO:
-			ret = cc_get_classportinfo(ccp, ibdev);
-			goto bail;
-
+			return cc_get_classportinfo(ccp, ibdev);
 		case IB_CC_ATTR_CONGESTION_INFO:
-			ret = cc_get_congestion_info(ccp, ibdev, port);
-			goto bail;
-
+			return cc_get_congestion_info(ccp, ibdev, port);
 		case IB_CC_ATTR_CA_CONGESTION_SETTING:
-			ret = cc_get_congestion_setting(ccp, ibdev, port);
-			goto bail;
-
+			return cc_get_congestion_setting(ccp, ibdev, port);
 		case IB_CC_ATTR_CONGESTION_CONTROL_TABLE:
-			ret = cc_get_congestion_control_table(ccp, ibdev, port);
-			goto bail;
-
-			/* FALLTHROUGH */
+			return cc_get_congestion_control_table(ccp, ibdev, port);
 		default:
 			ccp->status |= IB_SMP_UNSUP_METH_ATTR;
-			ret = reply((struct ib_smp *) ccp);
-			goto bail;
+			return reply((struct ib_smp *) ccp);
 		}
-
 	case IB_MGMT_METHOD_SET:
 		switch (ccp->attr_id) {
 		case IB_CC_ATTR_CA_CONGESTION_SETTING:
-			ret = cc_set_congestion_setting(ccp, ibdev, port);
-			goto bail;
-
+			return cc_set_congestion_setting(ccp, ibdev, port);
 		case IB_CC_ATTR_CONGESTION_CONTROL_TABLE:
-			ret = cc_set_congestion_control_table(ccp, ibdev, port);
-			goto bail;
-
-			/* FALLTHROUGH */
+			return cc_set_congestion_control_table(ccp, ibdev, port);
 		default:
 			ccp->status |= IB_SMP_UNSUP_METH_ATTR;
-			ret = reply((struct ib_smp *) ccp);
-			goto bail;
+			return reply((struct ib_smp *) ccp);
 		}
-
 	case IB_MGMT_METHOD_GET_RESP:
 		/*
 		 * The ib_mad module will call us to process responses
 		 * before checking for other consumers.
 		 * Just tell the caller to process it normally.
 		 */
-		ret = IB_MAD_RESULT_SUCCESS;
-		goto bail;
-
-	case IB_MGMT_METHOD_TRAP:
-	default:
-		ccp->status |= IB_SMP_UNSUP_METHOD;
-		ret = reply((struct ib_smp *) ccp);
+		return IB_MAD_RESULT_SUCCESS;
 	}
 
-bail:
-	return ret;
+	/* method is unsupported */
+	ccp->status |= IB_SMP_UNSUP_METHOD;
+	return reply((struct ib_smp *) ccp);
 }
 
 /**
@@ -2405,28 +2360,21 @@ bail:
  */
 int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
-		    const struct ib_mad_hdr *in, size_t in_mad_size,
-		    struct ib_mad_hdr *out, size_t *out_mad_size,
-		    u16 *out_mad_pkey_index)
+		    const struct ib_mad *in, struct ib_mad *out,
+		    size_t *out_mad_size, u16 *out_mad_pkey_index)
 {
 	int ret;
 	struct qib_ibport *ibp = to_iport(ibdev, port);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
-	const struct ib_mad *in_mad = (const struct ib_mad *)in;
-	struct ib_mad *out_mad = (struct ib_mad *)out;
 
-	if (WARN_ON_ONCE(in_mad_size != sizeof(*in_mad) ||
-			 *out_mad_size != sizeof(*out_mad)))
-		return IB_MAD_RESULT_FAILURE;
-
-	switch (in_mad->mad_hdr.mgmt_class) {
+	switch (in->mad_hdr.mgmt_class) {
 	case IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE:
 	case IB_MGMT_CLASS_SUBN_LID_ROUTED:
-		ret = process_subn(ibdev, mad_flags, port, in_mad, out_mad);
+		ret = process_subn(ibdev, mad_flags, port, in, out);
 		goto bail;
 
 	case IB_MGMT_CLASS_PERF_MGMT:
-		ret = process_perf(ibdev, port, in_mad, out_mad);
+		ret = process_perf(ibdev, port, in, out);
 		goto bail;
 
 	case IB_MGMT_CLASS_CONG_MGMT:
@@ -2435,7 +2383,7 @@ int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 			ret = IB_MAD_RESULT_SUCCESS;
 			goto bail;
 		}
-		ret = process_cc(ibdev, mad_flags, port, in_mad, out_mad);
+		ret = process_cc(ibdev, mad_flags, port, in, out);
 		goto bail;
 
 	default:

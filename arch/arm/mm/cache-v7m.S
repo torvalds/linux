@@ -183,13 +183,13 @@ flush_levels:
 	and	r1, r1, #7			@ mask of the bits for current cache only
 	cmp	r1, #2				@ see what cache we have at this level
 	blt	skip				@ skip if no cache, or just i-cache
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	save_and_disable_irqs_notrace r9	@ make cssr&csidr read atomic
 #endif
 	write_csselr r10, r1			@ set current cache level
 	isb					@ isb to sych the new cssr&csidr
 	read_ccsidr r1				@ read the new csidr
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	restore_irqs_notrace r9
 #endif
 	and	r2, r1, #7			@ extract the length of the cache lines

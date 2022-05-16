@@ -64,7 +64,7 @@ struct snd_info_entry {
 	unsigned short content;
 	union {
 		struct snd_info_entry_text text;
-		struct snd_info_entry_ops *ops;
+		const struct snd_info_entry_ops *ops;
 	} c;
 	struct snd_info_entry *parent;
 	struct module *module;

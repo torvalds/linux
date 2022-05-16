@@ -32,6 +32,19 @@ static unsigned int dmic_wakeup_delay;
 
 static struct snd_soc_jack rockchip_sound_jack;
 
+/* Headset jack detection DAPM pins */
+static struct snd_soc_jack_pin rockchip_sound_jack_pins[] = {
+	{
+		.pin = "Headphones",
+		.mask = SND_JACK_HEADPHONE,
+	},
+	{
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+
+};
+
 static const struct snd_soc_dapm_widget rockchip_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphones", NULL),
 	SND_SOC_DAPM_SPK("Speakers", NULL),
@@ -51,13 +64,13 @@ static const struct snd_kcontrol_new rockchip_controls[] = {
 static int rockchip_sound_max98357a_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	unsigned int mclk;
 	int ret;
 
 	mclk = params_rate(params) * SOUND_FS;
 
-	ret = snd_soc_dai_set_sysclk(rtd->cpu_dai, 0, mclk, 0);
+	ret = snd_soc_dai_set_sysclk(asoc_rtd_to_cpu(rtd, 0), 0, mclk, 0);
 	if (ret) {
 		dev_err(rtd->card->dev, "%s() error setting sysclk to %u: %d\n",
 				__func__, mclk, ret);
@@ -70,9 +83,9 @@ static int rockchip_sound_max98357a_hw_params(struct snd_pcm_substream *substrea
 static int rockchip_sound_rt5514_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	unsigned int mclk;
 	int ret;
 
@@ -102,9 +115,9 @@ static int rockchip_sound_rt5514_hw_params(struct snd_pcm_substream *substream,
 static int rockchip_sound_da7219_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int mclk, ret;
 
 	/* in bypass mode, the mclk has to be one of the frequencies below */
@@ -153,8 +166,8 @@ static int rockchip_sound_da7219_hw_params(struct snd_pcm_substream *substream,
 
 static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component = rtd->codec_dais[0]->component;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int ret;
 
 	/* We need default MCLK and PLL settings for the accessory detection */
@@ -176,7 +189,9 @@ static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 				    SND_JACK_HEADSET | SND_JACK_LINEOUT |
 				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 				    SND_JACK_BTN_2 | SND_JACK_BTN_3,
-				    &rockchip_sound_jack, NULL, 0);
+				    &rockchip_sound_jack,
+				    rockchip_sound_jack_pins,
+				    ARRAY_SIZE(rockchip_sound_jack_pins));
 
 	if (ret) {
 		dev_err(rtd->card->dev, "New Headset Jack failed! (%d)\n", ret);
@@ -200,13 +215,13 @@ static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 static int rockchip_sound_dmic_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	unsigned int mclk;
 	int ret;
 
 	mclk = params_rate(params) * SOUND_FS;
 
-	ret = snd_soc_dai_set_sysclk(rtd->cpu_dai, 0, mclk, 0);
+	ret = snd_soc_dai_set_sysclk(asoc_rtd_to_cpu(rtd, 0), 0, mclk, 0);
 	if (ret) {
 		dev_err(rtd->card->dev, "%s() error setting sysclk to %u: %d\n",
 				__func__, mclk, ret);
@@ -219,19 +234,32 @@ static int rockchip_sound_dmic_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int rockchip_sound_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE;
+	return snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_RATE,
+			8000, 96000);
+}
+
 static const struct snd_soc_ops rockchip_sound_max98357a_ops = {
+	.startup = rockchip_sound_startup,
 	.hw_params = rockchip_sound_max98357a_hw_params,
 };
 
 static const struct snd_soc_ops rockchip_sound_rt5514_ops = {
+	.startup = rockchip_sound_startup,
 	.hw_params = rockchip_sound_rt5514_hw_params,
 };
 
 static const struct snd_soc_ops rockchip_sound_da7219_ops = {
+	.startup = rockchip_sound_startup,
 	.hw_params = rockchip_sound_da7219_hw_params,
 };
 
 static const struct snd_soc_ops rockchip_sound_dmic_ops = {
+	.startup = rockchip_sound_startup,
 	.hw_params = rockchip_sound_dmic_hw_params,
 };
 

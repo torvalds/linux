@@ -95,7 +95,6 @@ static int register_dpio_irq_handlers(struct fsl_mc_device *dpio_dev, int cpu)
 {
 	int error;
 	struct fsl_mc_device_irq *irq;
-	cpumask_t mask;
 
 	irq = dpio_dev->irqs[0];
 	error = devm_request_irq(&dpio_dev->dev,
@@ -112,9 +111,7 @@ static int register_dpio_irq_handlers(struct fsl_mc_device *dpio_dev, int cpu)
 	}
 
 	/* set the affinity hint */
-	cpumask_clear(&mask);
-	cpumask_set_cpu(cpu, &mask);
-	if (irq_set_affinity_hint(irq->msi_desc->irq, &mask))
+	if (irq_set_affinity_hint(irq->msi_desc->irq, cpumask_of(cpu)))
 		dev_err(&dpio_dev->dev,
 			"irq_set_affinity failed irq %d cpu %d\n",
 			irq->msi_desc->irq, cpu);
@@ -233,16 +230,16 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 		goto err_allocate_irqs;
 	}
 
-	err = register_dpio_irq_handlers(dpio_dev, desc.cpu);
-	if (err)
-		goto err_register_dpio_irq;
-
 	priv->io = dpaa2_io_create(&desc, dev);
 	if (!priv->io) {
 		dev_err(dev, "dpaa2_io_create failed\n");
 		err = -ENOMEM;
 		goto err_dpaa2_io_create;
 	}
+
+	err = register_dpio_irq_handlers(dpio_dev, desc.cpu);
+	if (err)
+		goto err_register_dpio_irq;
 
 	dev_info(dev, "probed\n");
 	dev_dbg(dev, "   receives_notifications = %d\n",

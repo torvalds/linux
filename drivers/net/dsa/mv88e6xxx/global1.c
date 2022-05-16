@@ -75,6 +75,37 @@ static int mv88e6xxx_g1_wait_init_ready(struct mv88e6xxx_chip *chip)
 	return mv88e6xxx_g1_wait_bit(chip, MV88E6XXX_G1_STS, bit, 1);
 }
 
+void mv88e6xxx_g1_wait_eeprom_done(struct mv88e6xxx_chip *chip)
+{
+	const unsigned long timeout = jiffies + 1 * HZ;
+	u16 val;
+	int err;
+
+	/* Wait up to 1 second for the switch to finish reading the
+	 * EEPROM.
+	 */
+	while (time_before(jiffies, timeout)) {
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &val);
+		if (err) {
+			dev_err(chip->dev, "Error reading status");
+			return;
+		}
+
+		/* If the switch is still resetting, it may not
+		 * respond on the bus, and so MDIO read returns
+		 * 0xffff. Differentiate between that, and waiting for
+		 * the EEPROM to be done by bit 0 being set.
+		 */
+		if (val != 0xffff &&
+		    val & BIT(MV88E6XXX_G1_STS_IRQ_EEPROM_DONE))
+			return;
+
+		usleep_range(1000, 2000);
+	}
+
+	dev_err(chip->dev, "Timeout waiting for EEPROM done");
+}
+
 /* Offset 0x01: Switch MAC Address Register Bytes 0 & 1
  * Offset 0x02: Switch MAC Address Register Bytes 2 & 3
  * Offset 0x03: Switch MAC Address Register Bytes 4 & 5
@@ -196,6 +227,23 @@ int mv88e6185_g1_ppu_disable(struct mv88e6xxx_chip *chip)
 	return mv88e6185_g1_wait_ppu_disabled(chip);
 }
 
+int mv88e6185_g1_set_max_frame_size(struct mv88e6xxx_chip *chip, int mtu)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &val);
+	if (err)
+		return err;
+
+	val &= ~MV88E6185_G1_CTL1_MAX_FRAME_1632;
+
+	if (mtu > 1518)
+		val |= MV88E6185_G1_CTL1_MAX_FRAME_1632;
+
+	return mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, val);
+}
+
 /* Offset 0x10: IP-PRI Mapping Register 0
  * Offset 0x11: IP-PRI Mapping Register 1
  * Offset 0x12: IP-PRI Mapping Register 2
@@ -263,8 +311,11 @@ int mv88e6250_g1_ieee_pri_map(struct mv88e6xxx_chip *chip)
 /* Offset 0x1a: Monitor Control */
 /* Offset 0x1a: Monitor & MGMT Control on some devices */
 
-int mv88e6095_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port)
+int mv88e6095_g1_set_egress_port(struct mv88e6xxx_chip *chip,
+				 enum mv88e6xxx_egress_direction direction,
+				 int port)
 {
+	int *dest_port_chip;
 	u16 reg;
 	int err;
 
@@ -272,13 +323,28 @@ int mv88e6095_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	reg &= ~(MV88E6185_G1_MONITOR_CTL_INGRESS_DEST_MASK |
-		 MV88E6185_G1_MONITOR_CTL_EGRESS_DEST_MASK);
+	switch (direction) {
+	case MV88E6XXX_EGRESS_DIR_INGRESS:
+		dest_port_chip = &chip->ingress_dest_port;
+		reg &= ~MV88E6185_G1_MONITOR_CTL_INGRESS_DEST_MASK;
+		reg |= port <<
+		       __bf_shf(MV88E6185_G1_MONITOR_CTL_INGRESS_DEST_MASK);
+		break;
+	case MV88E6XXX_EGRESS_DIR_EGRESS:
+		dest_port_chip = &chip->egress_dest_port;
+		reg &= ~MV88E6185_G1_MONITOR_CTL_EGRESS_DEST_MASK;
+		reg |= port <<
+		       __bf_shf(MV88E6185_G1_MONITOR_CTL_EGRESS_DEST_MASK);
+		break;
+	default:
+		return -EINVAL;
+	}
 
-	reg |= port << __bf_shf(MV88E6185_G1_MONITOR_CTL_INGRESS_DEST_MASK) |
-		port << __bf_shf(MV88E6185_G1_MONITOR_CTL_EGRESS_DEST_MASK);
+	err = mv88e6xxx_g1_write(chip, MV88E6185_G1_MONITOR_CTL, reg);
+	if (!err)
+		*dest_port_chip = port;
 
-	return mv88e6xxx_g1_write(chip, MV88E6185_G1_MONITOR_CTL, reg);
+	return err;
 }
 
 /* Older generations also call this the ARP destination. It has been
@@ -310,27 +376,42 @@ static int mv88e6390_g1_monitor_write(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_g1_write(chip, MV88E6390_G1_MONITOR_MGMT_CTL, reg);
 }
 
-int mv88e6390_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port)
+int mv88e6390_g1_set_egress_port(struct mv88e6xxx_chip *chip,
+				 enum mv88e6xxx_egress_direction direction,
+				 int port)
 {
+	int *dest_port_chip;
 	u16 ptr;
 	int err;
 
-	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_INGRESS_DEST;
-	err = mv88e6390_g1_monitor_write(chip, ptr, port);
-	if (err)
-		return err;
+	switch (direction) {
+	case MV88E6XXX_EGRESS_DIR_INGRESS:
+		dest_port_chip = &chip->ingress_dest_port;
+		ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_INGRESS_DEST;
+		break;
+	case MV88E6XXX_EGRESS_DIR_EGRESS:
+		dest_port_chip = &chip->egress_dest_port;
+		ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_EGRESS_DEST;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_EGRESS_DEST;
 	err = mv88e6390_g1_monitor_write(chip, ptr, port);
-	if (err)
-		return err;
+	if (!err)
+		*dest_port_chip = port;
 
-	return 0;
+	return err;
 }
 
 int mv88e6390_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port)
 {
 	u16 ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_CPU_DEST;
+
+	/* Use the default high priority for management frames sent to
+	 * the CPU.
+	 */
+	port |= MV88E6390_G1_MONITOR_MGMT_CTL_PTR_CPU_DEST_MGMTPRI;
 
 	return mv88e6390_g1_monitor_write(chip, ptr, port);
 }

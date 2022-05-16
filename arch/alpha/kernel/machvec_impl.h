@@ -7,8 +7,6 @@
  * This file has goodies to help simplify instantiation of machine vectors.
  */
 
-#include <asm/pgalloc.h>
-
 /* Whee.  These systems don't have an HAE:
        IRONGATE, MARVEL, POLARIS, TSUNAMI, TITAN, WILDFIRE
    Fix things up for the GENERIC kernel by defining the HAE address

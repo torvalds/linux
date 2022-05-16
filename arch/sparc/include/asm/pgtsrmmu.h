@@ -17,39 +17,9 @@
 /* Number of contexts is implementation-dependent; 64k is the most we support */
 #define SRMMU_MAX_CONTEXTS	65536
 
-/* PMD_SHIFT determines the size of the area a second-level page table entry can map */
-#define SRMMU_REAL_PMD_SHIFT		18
-#define SRMMU_REAL_PMD_SIZE		(1UL << SRMMU_REAL_PMD_SHIFT)
-#define SRMMU_REAL_PMD_MASK		(~(SRMMU_REAL_PMD_SIZE-1))
-#define SRMMU_REAL_PMD_ALIGN(__addr)	(((__addr)+SRMMU_REAL_PMD_SIZE-1)&SRMMU_REAL_PMD_MASK)
-
-/* PGDIR_SHIFT determines what a third-level page table entry can map */
-#define SRMMU_PGDIR_SHIFT       24
-#define SRMMU_PGDIR_SIZE        (1UL << SRMMU_PGDIR_SHIFT)
-#define SRMMU_PGDIR_MASK        (~(SRMMU_PGDIR_SIZE-1))
-#define SRMMU_PGDIR_ALIGN(addr) (((addr)+SRMMU_PGDIR_SIZE-1)&SRMMU_PGDIR_MASK)
-
-#define SRMMU_REAL_PTRS_PER_PTE	64
-#define SRMMU_REAL_PTRS_PER_PMD	64
-#define SRMMU_PTRS_PER_PGD	256
-
-#define SRMMU_REAL_PTE_TABLE_SIZE	(SRMMU_REAL_PTRS_PER_PTE*4)
-#define SRMMU_PMD_TABLE_SIZE		(SRMMU_REAL_PTRS_PER_PMD*4)
-#define SRMMU_PGD_TABLE_SIZE		(SRMMU_PTRS_PER_PGD*4)
-
-/*
- * To support pagetables in highmem, Linux introduces APIs which
- * return struct page* and generally manipulate page tables when
- * they are not mapped into kernel space. Our hardware page tables
- * are smaller than pages. We lump hardware tabes into big, page sized
- * software tables.
- *
- * PMD_SHIFT determines the size of the area a second-level page table entry
- * can map, and our pmd_t is 16 times larger than normal.  The values which
- * were once defined here are now generic for 4c and srmmu, so they're
- * found in pgtable.h.
- */
-#define SRMMU_PTRS_PER_PMD	4
+#define SRMMU_PTE_TABLE_SIZE		(PTRS_PER_PTE*4)
+#define SRMMU_PMD_TABLE_SIZE		(PTRS_PER_PMD*4)
+#define SRMMU_PGD_TABLE_SIZE		(PTRS_PER_PGD*4)
 
 /* Definition of the values in the ET field of PTD's and PTE's */
 #define SRMMU_ET_MASK         0x3

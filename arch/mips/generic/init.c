@@ -5,10 +5,10 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/irqchip.h>
+#include <linux/of_clk.h>
 #include <linux/of_fdt.h>
 
 #include <asm/bootinfo.h>
@@ -20,9 +20,9 @@
 #include <asm/smp-ops.h>
 #include <asm/time.h>
 
-static __initdata const void *fdt;
-static __initdata const struct mips_machine *mach;
-static __initdata const void *mach_match_data;
+static __initconst const void *fdt;
+static __initconst const struct mips_machine *mach;
+static __initconst const void *mach_match_data;
 
 void __init prom_init(void)
 {
@@ -39,12 +39,11 @@ void __init *plat_get_fdt(void)
 		/* Already set up */
 		return (void *)fdt;
 
-	if ((fw_arg0 == -2) && !fdt_check_header((void *)fw_passed_dtb)) {
+	if (fw_passed_dtb && !fdt_check_header((void *)fw_passed_dtb)) {
 		/*
-		 * We booted using the UHI boot protocol, so we have been
-		 * provided with the appropriate device tree for the board.
-		 * Make use of it & search for any machine struct based upon
-		 * the root compatible string.
+		 * We have been provided with the appropriate device tree for
+		 * the board. Make use of it & search for any machine struct
+		 * based upon the root compatible string.
 		 */
 		fdt = (void *)fw_passed_dtb;
 
@@ -106,7 +105,7 @@ void __init plat_mem_setup(void)
 	if (mach && mach->fixup_fdt)
 		fdt = mach->fixup_fdt(fdt, mach_match_data);
 
-	strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
+	fw_init_cmdline();
 	__dt_setup_arch((void *)fdt);
 }
 

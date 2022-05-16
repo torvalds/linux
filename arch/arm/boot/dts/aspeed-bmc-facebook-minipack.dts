@@ -2,7 +2,7 @@
 // Copyright (c) 2018 Facebook Inc.
 /dts-v1/;
 
-#include "aspeed-g5.dtsi"
+#include "ast2500-facebook-netbmc-common.dtsi"
 
 / {
 	model = "Facebook Minipack 100 BMC";
@@ -76,15 +76,6 @@
 		stdout-path = &uart1;
 		bootargs = "debug console=ttyS1,9600n8 root=/dev/ram rw";
 	};
-
-	memory@80000000 {
-		reg = <0x80000000 0x20000000>;
-	};
-};
-
-&wdt1 {
-	status = "okay";
-	aspeed,reset-type = "system";
 };
 
 &wdt2 {
@@ -92,19 +83,72 @@
 	aspeed,reset-type = "system";
 };
 
-&fmc {
-	status = "okay";
-	flash@0 {
-		status = "okay";
-		m25p,fast-read;
-		label = "bmc";
-#include "facebook-bmc-flash-layout.dtsi"
+/*
+ * Both firmware flashes are 64MB on Minipack BMC.
+ */
+&fmc_flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/*
+		 * u-boot partition: 384KB.
+		 */
+		u-boot@0 {
+			reg = <0x0 0x60000>;
+			label = "u-boot";
+		};
+
+		/*
+		 * u-boot environment variables: 128KB.
+		 */
+		u-boot-env@60000 {
+			reg = <0x60000 0x20000>;
+			label = "env";
+		};
+
+		/*
+		 * FIT image: 59.5 MB.
+		 */
+		fit@80000 {
+			reg = <0x80000 0x3b80000>;
+			label = "fit";
+		};
+
+		/*
+		 * "data0" partition (4MB) is reserved for persistent
+		 * data store.
+		 */
+		data0@3800000 {
+			reg = <0x3c00000 0x400000>;
+			label = "data0";
+		};
+
+		/*
+		 * "flash0" partition (covering the entire flash) is
+		 * explicitly created to avoid breaking legacy applications.
+		 */
+		flash0@0 {
+			reg = <0x0 0x4000000>;
+			label = "flash0";
+		};
+	};
+};
+
+&fmc_flash1 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		flash1@0 {
+			reg = <0x0 0x4000000>;
+		};
 	};
 };
 
 &uart1 {
-	status = "okay";
-	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_txd1_default
 		     &pinctrl_rxd1_default
 		     &pinctrl_ncts1_default
@@ -120,29 +164,11 @@
 		     &pinctrl_rxd2_default>;
 };
 
-&uart3 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_txd3_default
-		     &pinctrl_rxd3_default>;
-};
-
 &uart4 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_txd4_default
 		     &pinctrl_rxd4_default>;
-};
-
-&uart5 {
-	status = "okay";
-};
-
-&mac1 {
-	status = "okay";
-	no-hw-checksum;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
 };
 
 &i2c0 {
@@ -421,9 +447,5 @@
 };
 
 &i2c13 {
-	status = "okay";
-};
-
-&vhub {
 	status = "okay";
 };

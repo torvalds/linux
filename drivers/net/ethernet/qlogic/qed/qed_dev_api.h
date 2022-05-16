@@ -1,33 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #ifndef _QED_DEV_API_H
@@ -230,30 +204,6 @@ enum qed_dmae_address_type_t {
 	QED_DMAE_ADDRESS_GRC
 };
 
-/* value of flags If QED_DMAE_FLAG_RW_REPL_SRC flag is set and the
- * source is a block of length DMAE_MAX_RW_SIZE and the
- * destination is larger, the source block will be duplicated as
- * many times as required to fill the destination block. This is
- * used mostly to write a zeroed buffer to destination address
- * using DMA
- */
-#define QED_DMAE_FLAG_RW_REPL_SRC	0x00000001
-#define QED_DMAE_FLAG_VF_SRC		0x00000002
-#define QED_DMAE_FLAG_VF_DST		0x00000004
-#define QED_DMAE_FLAG_COMPLETION_DST	0x00000008
-#define QED_DMAE_FLAG_PORT		0x00000010
-#define QED_DMAE_FLAG_PF_SRC		0x00000020
-#define QED_DMAE_FLAG_PF_DST		0x00000040
-
-struct qed_dmae_params {
-	u32 flags; /* consists of QED_DMAE_FLAG_* values */
-	u8 src_vfid;
-	u8 dst_vfid;
-	u8 port_id;
-	u8 src_pfid;
-	u8 dst_pfid;
-};
-
 /**
  * @brief qed_dmae_host2grc - copy data from source addr to
  * dmae registers using the given ptt
@@ -304,35 +254,9 @@ int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
 		       dma_addr_t dest_addr,
 		       u32 size_in_dwords, struct qed_dmae_params *p_params);
 
-/**
- * @brief qed_chain_alloc - Allocate and initialize a chain
- *
- * @param p_hwfn
- * @param intended_use
- * @param mode
- * @param num_elems
- * @param elem_size
- * @param p_chain
- * @param ext_pbl - a possible external PBL
- *
- * @return int
- */
-int
-qed_chain_alloc(struct qed_dev *cdev,
-		enum qed_chain_use_mode intended_use,
-		enum qed_chain_mode mode,
-		enum qed_chain_cnt_type cnt_type,
-		u32 num_elems,
-		size_t elem_size,
-		struct qed_chain *p_chain, struct qed_chain_ext_pbl *ext_pbl);
-
-/**
- * @brief qed_chain_free - Free chain DMA memory
- *
- * @param p_hwfn
- * @param p_chain
- */
-void qed_chain_free(struct qed_dev *cdev, struct qed_chain *p_chain);
+int qed_chain_alloc(struct qed_dev *cdev, struct qed_chain *chain,
+		    struct qed_chain_init_params *params);
+void qed_chain_free(struct qed_dev *cdev, struct qed_chain *chain);
 
 /**
  * @@brief qed_fw_l2_queue - Get absolute L2 queue ID

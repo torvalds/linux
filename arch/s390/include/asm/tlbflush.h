@@ -5,8 +5,6 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <asm/processor.h>
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 
 /*
  * Flush all TLB entries on the local CPU.
@@ -31,8 +29,6 @@ static inline void __tlb_flush_idte(unsigned long asce)
 		"	.insn	rrf,0xb98e0000,0,%0,%1,0"
 		: : "a" (opt), "a" (asce) : "cc");
 }
-
-void smp_ptlb_all(void);
 
 /*
  * Flush all TLB entries on all CPUs.

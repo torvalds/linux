@@ -6,10 +6,10 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/of.h>
+#include <linux/of_clk.h>
 
 #include <asm/mips-cps.h>
 #include <asm/time.h>

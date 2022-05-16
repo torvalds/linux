@@ -50,10 +50,10 @@ Attributes
 
 Attributes of devices can be exported by a device driver through sysfs.
 
-Please see Documentation/filesystems/sysfs.txt for more information
+Please see Documentation/filesystems/sysfs.rst for more information
 on how sysfs works.
 
-As explained in Documentation/kobject.txt, device attributes must be
+As explained in Documentation/core-api/kobject.rst, device attributes must be
 created before the KOBJ_ADD uevent is generated. The only way to realize
 that is by defining an attribute group.
 

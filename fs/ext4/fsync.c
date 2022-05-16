@@ -44,30 +44,28 @@
  */
 static int ext4_sync_parent(struct inode *inode)
 {
-	struct dentry *dentry = NULL;
-	struct inode *next;
+	struct dentry *dentry, *next;
 	int ret = 0;
 
 	if (!ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY))
 		return 0;
-	inode = igrab(inode);
+	dentry = d_find_any_alias(inode);
+	if (!dentry)
+		return 0;
 	while (ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY)) {
 		ext4_clear_inode_state(inode, EXT4_STATE_NEWENTRY);
-		dentry = d_find_any_alias(inode);
-		if (!dentry)
-			break;
-		next = igrab(d_inode(dentry->d_parent));
+
+		next = dget_parent(dentry);
 		dput(dentry);
-		if (!next)
-			break;
-		iput(inode);
-		inode = next;
+		dentry = next;
+		inode = dentry->d_inode;
+
 		/*
 		 * The directory inode may have gone through rmdir by now. But
 		 * the inode itself and its blocks are still allocated (we hold
-		 * a reference to the inode so it didn't go through
-		 * ext4_evict_inode()) and so we are safe to flush metadata
-		 * blocks and the inode.
+		 * a reference to the inode via its dentry), so it didn't go
+		 * through ext4_evict_inode()) and so we are safe to flush
+		 * metadata blocks and the inode.
 		 */
 		ret = sync_mapping_buffers(inode->i_mapping);
 		if (ret)
@@ -76,8 +74,45 @@ static int ext4_sync_parent(struct inode *inode)
 		if (ret)
 			break;
 	}
-	iput(inode);
+	dput(dentry);
 	return ret;
+}
+
+static int ext4_fsync_nojournal(struct inode *inode, bool datasync,
+				bool *needs_barrier)
+{
+	int ret, err;
+
+	ret = sync_mapping_buffers(inode->i_mapping);
+	if (!(inode->i_state & I_DIRTY_ALL))
+		return ret;
+	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
+		return ret;
+
+	err = sync_inode_metadata(inode, 1);
+	if (!ret)
+		ret = err;
+
+	if (!ret)
+		ret = ext4_sync_parent(inode);
+	if (test_opt(inode->i_sb, BARRIER))
+		*needs_barrier = true;
+
+	return ret;
+}
+
+static int ext4_fsync_journal(struct inode *inode, bool datasync,
+			     bool *needs_barrier)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
+	tid_t commit_tid = datasync ? ei->i_datasync_tid : ei->i_sync_tid;
+
+	if (journal->j_flags & JBD2_BARRIER &&
+	    !jbd2_trans_will_send_data_barrier(journal, commit_tid))
+		*needs_barrier = true;
+
+	return ext4_fc_commit(journal, commit_tid);
 }
 
 /*
@@ -91,17 +126,14 @@ static int ext4_sync_parent(struct inode *inode)
  * What we do is just kick off a commit and wait on it.  This will snapshot the
  * inode to disk.
  */
-
 int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
 	int ret = 0, err;
-	tid_t commit_tid;
 	bool needs_barrier = false;
+	struct inode *inode = file->f_mapping->host;
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
-	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+	if (unlikely(ext4_forced_shutdown(sbi)))
 		return -EIO;
 
 	J_ASSERT(ext4_journal_current_handle() == NULL);
@@ -111,23 +143,15 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (sb_rdonly(inode->i_sb)) {
 		/* Make sure that we read updated s_mount_flags value */
 		smp_rmb();
-		if (EXT4_SB(inode->i_sb)->s_mount_flags & EXT4_MF_FS_ABORTED)
+		if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FS_ABORTED))
 			ret = -EROFS;
-		goto out;
-	}
-
-	if (!journal) {
-		ret = __generic_file_fsync(file, start, end, datasync);
-		if (!ret)
-			ret = ext4_sync_parent(inode);
-		if (test_opt(inode->i_sb, BARRIER))
-			goto issue_flush;
 		goto out;
 	}
 
 	ret = file_write_and_wait_range(file, start, end);
 	if (ret)
-		return ret;
+		goto out;
+
 	/*
 	 * data=writeback,ordered:
 	 *  The caller's filemap_fdatawrite()/wait will sync the data.
@@ -142,19 +166,15 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 *  (they were dirtied by commit).  But that's OK - the blocks are
 	 *  safe in-journal, which is all fsync() needs to ensure.
 	 */
-	if (ext4_should_journal_data(inode)) {
+	if (!sbi->s_journal)
+		ret = ext4_fsync_nojournal(inode, datasync, &needs_barrier);
+	else if (ext4_should_journal_data(inode))
 		ret = ext4_force_commit(inode->i_sb);
-		goto out;
-	}
+	else
+		ret = ext4_fsync_journal(inode, datasync, &needs_barrier);
 
-	commit_tid = datasync ? ei->i_datasync_tid : ei->i_sync_tid;
-	if (journal->j_flags & JBD2_BARRIER &&
-	    !jbd2_trans_will_send_data_barrier(journal, commit_tid))
-		needs_barrier = true;
-	ret = jbd2_complete_transaction(journal, commit_tid);
 	if (needs_barrier) {
-	issue_flush:
-		err = blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+		err = blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL);
 		if (!ret)
 			ret = err;
 	}

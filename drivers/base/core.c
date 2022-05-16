@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/netdevice.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 #include <linux/sysfs.h>
 
 #include "base.h"
@@ -45,6 +46,14 @@ early_param("sysfs.deprecated", sysfs_deprecated_setup);
 #endif
 
 /* Device links support. */
+static LIST_HEAD(wait_for_suppliers);
+static DEFINE_MUTEX(wfs_lock);
+static LIST_HEAD(deferred_sync);
+static unsigned int defer_sync_state_count = 1;
+static unsigned int defer_fw_devlink_count;
+static LIST_HEAD(deferred_fw_devlink);
+static DEFINE_MUTEX(defer_fw_devlink_lock);
+static bool fw_devlink_is_permissive(void);
 
 #ifdef CONFIG_SRCU
 static DEFINE_MUTEX(device_links_lock);
@@ -60,12 +69,12 @@ static inline void device_links_write_unlock(void)
 	mutex_unlock(&device_links_lock);
 }
 
-int device_links_read_lock(void)
+int device_links_read_lock(void) __acquires(&device_links_srcu)
 {
 	return srcu_read_lock(&device_links_srcu);
 }
 
-void device_links_read_unlock(int idx)
+void device_links_read_unlock(int idx) __releases(&device_links_srcu)
 {
 	srcu_read_unlock(&device_links_srcu, idx);
 }
@@ -114,7 +123,7 @@ int device_links_read_lock_held(void)
  * Check if @target depends on @dev or any device dependent on it (its child or
  * its consumer etc).  Return 1 if that is the case or 0 otherwise.
  */
-static int device_is_dependent(struct device *dev, void *target)
+int device_is_dependent(struct device *dev, void *target)
 {
 	struct device_link *link;
 	int ret;
@@ -127,6 +136,9 @@ static int device_is_dependent(struct device *dev, void *target)
 		return ret;
 
 	list_for_each_entry(link, &dev->links.consumers, s_node) {
+		if (link->flags == (DL_FLAG_SYNC_STATE_ONLY | DL_FLAG_MANAGED))
+			continue;
+
 		if (link->consumer == target)
 			return 1;
 
@@ -196,8 +208,11 @@ static int device_reorder_to_tail(struct device *dev, void *not_used)
 		device_pm_move_last(dev);
 
 	device_for_each_child(dev, NULL, device_reorder_to_tail);
-	list_for_each_entry(link, &dev->links.consumers, s_node)
+	list_for_each_entry(link, &dev->links.consumers, s_node) {
+		if (link->flags == (DL_FLAG_SYNC_STATE_ONLY | DL_FLAG_MANAGED))
+			continue;
 		device_reorder_to_tail(link->consumer, NULL);
+	}
 
 	return 0;
 }
@@ -222,9 +237,223 @@ void device_pm_move_to_tail(struct device *dev)
 	device_links_read_unlock(idx);
 }
 
+#define to_devlink(dev)	container_of((dev), struct device_link, link_dev)
+
+static ssize_t status_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	const char *output;
+
+	switch (to_devlink(dev)->status) {
+	case DL_STATE_NONE:
+		output = "not tracked";
+		break;
+	case DL_STATE_DORMANT:
+		output = "dormant";
+		break;
+	case DL_STATE_AVAILABLE:
+		output = "available";
+		break;
+	case DL_STATE_CONSUMER_PROBE:
+		output = "consumer probing";
+		break;
+	case DL_STATE_ACTIVE:
+		output = "active";
+		break;
+	case DL_STATE_SUPPLIER_UNBIND:
+		output = "supplier unbinding";
+		break;
+	default:
+		output = "unknown";
+		break;
+	}
+
+	return sysfs_emit(buf, "%s\n", output);
+}
+static DEVICE_ATTR_RO(status);
+
+static ssize_t auto_remove_on_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct device_link *link = to_devlink(dev);
+	const char *output;
+
+	if (link->flags & DL_FLAG_AUTOREMOVE_SUPPLIER)
+		output = "supplier unbind";
+	else if (link->flags & DL_FLAG_AUTOREMOVE_CONSUMER)
+		output = "consumer unbind";
+	else
+		output = "never";
+
+	return sysfs_emit(buf, "%s\n", output);
+}
+static DEVICE_ATTR_RO(auto_remove_on);
+
+static ssize_t runtime_pm_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct device_link *link = to_devlink(dev);
+
+	return sysfs_emit(buf, "%d\n", !!(link->flags & DL_FLAG_PM_RUNTIME));
+}
+static DEVICE_ATTR_RO(runtime_pm);
+
+static ssize_t sync_state_only_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct device_link *link = to_devlink(dev);
+
+	return sysfs_emit(buf, "%d\n",
+			  !!(link->flags & DL_FLAG_SYNC_STATE_ONLY));
+}
+static DEVICE_ATTR_RO(sync_state_only);
+
+static struct attribute *devlink_attrs[] = {
+	&dev_attr_status.attr,
+	&dev_attr_auto_remove_on.attr,
+	&dev_attr_runtime_pm.attr,
+	&dev_attr_sync_state_only.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(devlink);
+
+static void device_link_free(struct device_link *link)
+{
+	while (refcount_dec_not_one(&link->rpm_active))
+		pm_runtime_put(link->supplier);
+
+	put_device(link->consumer);
+	put_device(link->supplier);
+	kfree(link);
+}
+
+#ifdef CONFIG_SRCU
+static void __device_link_free_srcu(struct rcu_head *rhead)
+{
+	device_link_free(container_of(rhead, struct device_link, rcu_head));
+}
+
+static void devlink_dev_release(struct device *dev)
+{
+	struct device_link *link = to_devlink(dev);
+
+	call_srcu(&device_links_srcu, &link->rcu_head, __device_link_free_srcu);
+}
+#else
+static void devlink_dev_release(struct device *dev)
+{
+	device_link_free(to_devlink(dev));
+}
+#endif
+
+static struct class devlink_class = {
+	.name = "devlink",
+	.owner = THIS_MODULE,
+	.dev_groups = devlink_groups,
+	.dev_release = devlink_dev_release,
+};
+
+static int devlink_add_symlinks(struct device *dev,
+				struct class_interface *class_intf)
+{
+	int ret;
+	size_t len;
+	struct device_link *link = to_devlink(dev);
+	struct device *sup = link->supplier;
+	struct device *con = link->consumer;
+	char *buf;
+
+	len = max(strlen(dev_name(sup)), strlen(dev_name(con)));
+	len += strlen("supplier:") + 1;
+	buf = kzalloc(len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = sysfs_create_link(&link->link_dev.kobj, &sup->kobj, "supplier");
+	if (ret)
+		goto out;
+
+	ret = sysfs_create_link(&link->link_dev.kobj, &con->kobj, "consumer");
+	if (ret)
+		goto err_con;
+
+	snprintf(buf, len, "consumer:%s", dev_name(con));
+	ret = sysfs_create_link(&sup->kobj, &link->link_dev.kobj, buf);
+	if (ret)
+		goto err_con_dev;
+
+	snprintf(buf, len, "supplier:%s", dev_name(sup));
+	ret = sysfs_create_link(&con->kobj, &link->link_dev.kobj, buf);
+	if (ret)
+		goto err_sup_dev;
+
+	goto out;
+
+err_sup_dev:
+	snprintf(buf, len, "consumer:%s", dev_name(con));
+	sysfs_remove_link(&sup->kobj, buf);
+err_con_dev:
+	sysfs_remove_link(&link->link_dev.kobj, "consumer");
+err_con:
+	sysfs_remove_link(&link->link_dev.kobj, "supplier");
+out:
+	kfree(buf);
+	return ret;
+}
+
+static void devlink_remove_symlinks(struct device *dev,
+				   struct class_interface *class_intf)
+{
+	struct device_link *link = to_devlink(dev);
+	size_t len;
+	struct device *sup = link->supplier;
+	struct device *con = link->consumer;
+	char *buf;
+
+	sysfs_remove_link(&link->link_dev.kobj, "consumer");
+	sysfs_remove_link(&link->link_dev.kobj, "supplier");
+
+	len = max(strlen(dev_name(sup)), strlen(dev_name(con)));
+	len += strlen("supplier:") + 1;
+	buf = kzalloc(len, GFP_KERNEL);
+	if (!buf) {
+		WARN(1, "Unable to properly free device link symlinks!\n");
+		return;
+	}
+
+	snprintf(buf, len, "supplier:%s", dev_name(sup));
+	sysfs_remove_link(&con->kobj, buf);
+	snprintf(buf, len, "consumer:%s", dev_name(con));
+	sysfs_remove_link(&sup->kobj, buf);
+	kfree(buf);
+}
+
+static struct class_interface devlink_class_intf = {
+	.class = &devlink_class,
+	.add_dev = devlink_add_symlinks,
+	.remove_dev = devlink_remove_symlinks,
+};
+
+static int __init devlink_class_init(void)
+{
+	int ret;
+
+	ret = class_register(&devlink_class);
+	if (ret)
+		return ret;
+
+	ret = class_interface_register(&devlink_class_intf);
+	if (ret)
+		class_unregister(&devlink_class);
+
+	return ret;
+}
+postcore_initcall(devlink_class_init);
+
 #define DL_MANAGED_LINK_FLAGS (DL_FLAG_AUTOREMOVE_CONSUMER | \
 			       DL_FLAG_AUTOREMOVE_SUPPLIER | \
-			       DL_FLAG_AUTOPROBE_CONSUMER)
+			       DL_FLAG_AUTOPROBE_CONSUMER  | \
+			       DL_FLAG_SYNC_STATE_ONLY)
 
 #define DL_ADD_VALID_FLAGS (DL_MANAGED_LINK_FLAGS | DL_FLAG_STATELESS | \
 			    DL_FLAG_PM_RUNTIME | DL_FLAG_RPM_ACTIVE)
@@ -292,6 +521,8 @@ struct device_link *device_link_add(struct device *consumer,
 
 	if (!consumer || !supplier || flags & ~DL_ADD_VALID_FLAGS ||
 	    (flags & DL_FLAG_STATELESS && flags & DL_MANAGED_LINK_FLAGS) ||
+	    (flags & DL_FLAG_SYNC_STATE_ONLY &&
+	     flags != DL_FLAG_SYNC_STATE_ONLY) ||
 	    (flags & DL_FLAG_AUTOPROBE_CONSUMER &&
 	     flags & (DL_FLAG_AUTOREMOVE_CONSUMER |
 		      DL_FLAG_AUTOREMOVE_SUPPLIER)))
@@ -312,11 +543,14 @@ struct device_link *device_link_add(struct device *consumer,
 
 	/*
 	 * If the supplier has not been fully registered yet or there is a
-	 * reverse dependency between the consumer and the supplier already in
-	 * the graph, return NULL.
+	 * reverse (non-SYNC_STATE_ONLY) dependency between the consumer and
+	 * the supplier already in the graph, return NULL. If the link is a
+	 * SYNC_STATE_ONLY link, we don't check for reverse dependencies
+	 * because it only affects sync_state() callbacks.
 	 */
 	if (!device_pm_initialized(supplier)
-	    || device_is_dependent(consumer, supplier)) {
+	    || (!(flags & DL_FLAG_SYNC_STATE_ONLY) &&
+		  device_is_dependent(consumer, supplier))) {
 		link = NULL;
 		goto out;
 	}
@@ -343,9 +577,15 @@ struct device_link *device_link_add(struct device *consumer,
 		}
 
 		if (flags & DL_FLAG_STATELESS) {
-			link->flags |= DL_FLAG_STATELESS;
 			kref_get(&link->kref);
-			goto out;
+			if (link->flags & DL_FLAG_SYNC_STATE_ONLY &&
+			    !(link->flags & DL_FLAG_STATELESS)) {
+				link->flags |= DL_FLAG_STATELESS;
+				goto reorder;
+			} else {
+				link->flags |= DL_FLAG_STATELESS;
+				goto out;
+			}
 		}
 
 		/*
@@ -367,6 +607,12 @@ struct device_link *device_link_add(struct device *consumer,
 			link->flags |= DL_FLAG_MANAGED;
 			device_link_init_status(link, consumer, supplier);
 		}
+		if (link->flags & DL_FLAG_SYNC_STATE_ONLY &&
+		    !(flags & DL_FLAG_SYNC_STATE_ONLY)) {
+			link->flags &= ~DL_FLAG_SYNC_STATE_ONLY;
+			goto reorder;
+		}
+
 		goto out;
 	}
 
@@ -376,13 +622,6 @@ struct device_link *device_link_add(struct device *consumer,
 
 	refcount_set(&link->rpm_active, 1);
 
-	if (flags & DL_FLAG_PM_RUNTIME) {
-		if (flags & DL_FLAG_RPM_ACTIVE)
-			refcount_inc(&link->rpm_active);
-
-		pm_runtime_new_link(consumer);
-	}
-
 	get_device(supplier);
 	link->supplier = supplier;
 	INIT_LIST_HEAD(&link->s_node);
@@ -391,6 +630,25 @@ struct device_link *device_link_add(struct device *consumer,
 	INIT_LIST_HEAD(&link->c_node);
 	link->flags = flags;
 	kref_init(&link->kref);
+
+	link->link_dev.class = &devlink_class;
+	device_set_pm_not_required(&link->link_dev);
+	dev_set_name(&link->link_dev, "%s--%s",
+		     dev_name(supplier), dev_name(consumer));
+	if (device_register(&link->link_dev)) {
+		put_device(consumer);
+		put_device(supplier);
+		kfree(link);
+		link = NULL;
+		goto out;
+	}
+
+	if (flags & DL_FLAG_PM_RUNTIME) {
+		if (flags & DL_FLAG_RPM_ACTIVE)
+			refcount_inc(&link->rpm_active);
+
+		pm_runtime_new_link(consumer);
+	}
 
 	/* Determine the initial link state. */
 	if (flags & DL_FLAG_STATELESS)
@@ -406,6 +664,17 @@ struct device_link *device_link_add(struct device *consumer,
 	    flags & DL_FLAG_PM_RUNTIME)
 		pm_runtime_resume(supplier);
 
+	list_add_tail_rcu(&link->s_node, &supplier->links.consumers);
+	list_add_tail_rcu(&link->c_node, &consumer->links.suppliers);
+
+	if (flags & DL_FLAG_SYNC_STATE_ONLY) {
+		dev_dbg(consumer,
+			"Linked as a sync state only consumer to %s\n",
+			dev_name(supplier));
+		goto out;
+	}
+
+reorder:
 	/*
 	 * Move the consumer and all of the devices depending on it to the end
 	 * of dpm_list and the devices_kset list.
@@ -415,12 +684,9 @@ struct device_link *device_link_add(struct device *consumer,
 	 */
 	device_reorder_to_tail(consumer, NULL);
 
-	list_add_tail_rcu(&link->s_node, &supplier->links.consumers);
-	list_add_tail_rcu(&link->c_node, &consumer->links.suppliers);
-
 	dev_dbg(consumer, "Linked as a consumer to %s\n", dev_name(supplier));
 
- out:
+out:
 	device_pm_unlock();
 	device_links_write_unlock();
 
@@ -431,22 +697,75 @@ struct device_link *device_link_add(struct device *consumer,
 }
 EXPORT_SYMBOL_GPL(device_link_add);
 
-static void device_link_free(struct device_link *link)
+/**
+ * device_link_wait_for_supplier - Add device to wait_for_suppliers list
+ * @consumer: Consumer device
+ *
+ * Marks the @consumer device as waiting for suppliers to become available by
+ * adding it to the wait_for_suppliers list. The consumer device will never be
+ * probed until it's removed from the wait_for_suppliers list.
+ *
+ * The caller is responsible for adding the links to the supplier devices once
+ * they are available and removing the @consumer device from the
+ * wait_for_suppliers list once links to all the suppliers have been created.
+ *
+ * This function is NOT meant to be called from the probe function of the
+ * consumer but rather from code that creates/adds the consumer device.
+ */
+static void device_link_wait_for_supplier(struct device *consumer,
+					  bool need_for_probe)
 {
-	while (refcount_dec_not_one(&link->rpm_active))
-		pm_runtime_put(link->supplier);
+	mutex_lock(&wfs_lock);
+	list_add_tail(&consumer->links.needs_suppliers, &wait_for_suppliers);
+	consumer->links.need_for_probe = need_for_probe;
+	mutex_unlock(&wfs_lock);
+}
 
-	put_device(link->consumer);
-	put_device(link->supplier);
-	kfree(link);
+static void device_link_wait_for_mandatory_supplier(struct device *consumer)
+{
+	device_link_wait_for_supplier(consumer, true);
+}
+
+static void device_link_wait_for_optional_supplier(struct device *consumer)
+{
+	device_link_wait_for_supplier(consumer, false);
+}
+
+/**
+ * device_link_add_missing_supplier_links - Add links from consumer devices to
+ *					    supplier devices, leaving any
+ *					    consumer with inactive suppliers on
+ *					    the wait_for_suppliers list
+ *
+ * Loops through all consumers waiting on suppliers and tries to add all their
+ * supplier links. If that succeeds, the consumer device is removed from
+ * wait_for_suppliers list. Otherwise, they are left in the wait_for_suppliers
+ * list.  Devices left on the wait_for_suppliers list will not be probed.
+ *
+ * The fwnode add_links callback is expected to return 0 if it has found and
+ * added all the supplier links for the consumer device. It should return an
+ * error if it isn't able to do so.
+ *
+ * The caller of device_link_wait_for_supplier() is expected to call this once
+ * it's aware of potential suppliers becoming available.
+ */
+static void device_link_add_missing_supplier_links(void)
+{
+	struct device *dev, *tmp;
+
+	mutex_lock(&wfs_lock);
+	list_for_each_entry_safe(dev, tmp, &wait_for_suppliers,
+				 links.needs_suppliers) {
+		int ret = fwnode_call_int_op(dev->fwnode, add_links, dev);
+		if (!ret)
+			list_del_init(&dev->links.needs_suppliers);
+		else if (ret != -ENODEV || fw_devlink_is_permissive())
+			dev->links.need_for_probe = false;
+	}
+	mutex_unlock(&wfs_lock);
 }
 
 #ifdef CONFIG_SRCU
-static void __device_link_free_srcu(struct rcu_head *rhead)
-{
-	device_link_free(container_of(rhead, struct device_link, rcu_head));
-}
-
 static void __device_link_del(struct kref *kref)
 {
 	struct device_link *link = container_of(kref, struct device_link, kref);
@@ -454,12 +773,11 @@ static void __device_link_del(struct kref *kref)
 	dev_dbg(link->consumer, "Dropping the link to %s\n",
 		dev_name(link->supplier));
 
-	if (link->flags & DL_FLAG_PM_RUNTIME)
-		pm_runtime_drop_link(link->consumer);
+	pm_runtime_drop_link(link);
 
 	list_del_rcu(&link->s_node);
 	list_del_rcu(&link->c_node);
-	call_srcu(&device_links_srcu, &link->rcu_head, __device_link_free_srcu);
+	device_unregister(&link->link_dev);
 }
 #else /* !CONFIG_SRCU */
 static void __device_link_del(struct kref *kref)
@@ -469,12 +787,11 @@ static void __device_link_del(struct kref *kref)
 	dev_info(link->consumer, "Dropping the link to %s\n",
 		 dev_name(link->supplier));
 
-	if (link->flags & DL_FLAG_PM_RUNTIME)
-		pm_runtime_drop_link(link->consumer);
+	pm_runtime_drop_link(link);
 
 	list_del(&link->s_node);
 	list_del(&link->c_node);
-	device_link_free(link);
+	device_unregister(&link->link_dev);
 }
 #endif /* !CONFIG_SRCU */
 
@@ -498,9 +815,7 @@ static void device_link_put_kref(struct device_link *link)
 void device_link_del(struct device_link *link)
 {
 	device_links_write_lock();
-	device_pm_lock();
 	device_link_put_kref(link);
-	device_pm_unlock();
 	device_links_write_unlock();
 }
 EXPORT_SYMBOL_GPL(device_link_del);
@@ -521,7 +836,6 @@ void device_link_remove(void *consumer, struct device *supplier)
 		return;
 
 	device_links_write_lock();
-	device_pm_lock();
 
 	list_for_each_entry(link, &supplier->links.consumers, s_node) {
 		if (link->consumer == consumer) {
@@ -530,7 +844,6 @@ void device_link_remove(void *consumer, struct device *supplier)
 		}
 	}
 
-	device_pm_unlock();
 	device_links_write_unlock();
 }
 EXPORT_SYMBOL_GPL(device_link_remove);
@@ -539,9 +852,17 @@ static void device_links_missing_supplier(struct device *dev)
 {
 	struct device_link *link;
 
-	list_for_each_entry(link, &dev->links.suppliers, c_node)
-		if (link->status == DL_STATE_CONSUMER_PROBE)
+	list_for_each_entry(link, &dev->links.suppliers, c_node) {
+		if (link->status != DL_STATE_CONSUMER_PROBE)
+			continue;
+
+		if (link->supplier->links.status == DL_DEV_DRIVER_BOUND) {
 			WRITE_ONCE(link->status, DL_STATE_AVAILABLE);
+		} else {
+			WARN_ON(!(link->flags & DL_FLAG_SYNC_STATE_ONLY));
+			WRITE_ONCE(link->status, DL_STATE_DORMANT);
+		}
+	}
 }
 
 /**
@@ -565,13 +886,26 @@ int device_links_check_suppliers(struct device *dev)
 	struct device_link *link;
 	int ret = 0;
 
+	/*
+	 * Device waiting for supplier to become available is not allowed to
+	 * probe.
+	 */
+	mutex_lock(&wfs_lock);
+	if (!list_empty(&dev->links.needs_suppliers) &&
+	    dev->links.need_for_probe) {
+		mutex_unlock(&wfs_lock);
+		return -EPROBE_DEFER;
+	}
+	mutex_unlock(&wfs_lock);
+
 	device_links_write_lock();
 
 	list_for_each_entry(link, &dev->links.suppliers, c_node) {
 		if (!(link->flags & DL_FLAG_MANAGED))
 			continue;
 
-		if (link->status != DL_STATE_AVAILABLE) {
+		if (link->status != DL_STATE_AVAILABLE &&
+		    !(link->flags & DL_FLAG_SYNC_STATE_ONLY)) {
 			device_links_missing_supplier(dev);
 			ret = -EPROBE_DEFER;
 			break;
@@ -583,6 +917,159 @@ int device_links_check_suppliers(struct device *dev)
 	device_links_write_unlock();
 	return ret;
 }
+
+/**
+ * __device_links_queue_sync_state - Queue a device for sync_state() callback
+ * @dev: Device to call sync_state() on
+ * @list: List head to queue the @dev on
+ *
+ * Queues a device for a sync_state() callback when the device links write lock
+ * isn't held. This allows the sync_state() execution flow to use device links
+ * APIs.  The caller must ensure this function is called with
+ * device_links_write_lock() held.
+ *
+ * This function does a get_device() to make sure the device is not freed while
+ * on this list.
+ *
+ * So the caller must also ensure that device_links_flush_sync_list() is called
+ * as soon as the caller releases device_links_write_lock().  This is necessary
+ * to make sure the sync_state() is called in a timely fashion and the
+ * put_device() is called on this device.
+ */
+static void __device_links_queue_sync_state(struct device *dev,
+					    struct list_head *list)
+{
+	struct device_link *link;
+
+	if (!dev_has_sync_state(dev))
+		return;
+	if (dev->state_synced)
+		return;
+
+	list_for_each_entry(link, &dev->links.consumers, s_node) {
+		if (!(link->flags & DL_FLAG_MANAGED))
+			continue;
+		if (link->status != DL_STATE_ACTIVE)
+			return;
+	}
+
+	/*
+	 * Set the flag here to avoid adding the same device to a list more
+	 * than once. This can happen if new consumers get added to the device
+	 * and probed before the list is flushed.
+	 */
+	dev->state_synced = true;
+
+	if (WARN_ON(!list_empty(&dev->links.defer_hook)))
+		return;
+
+	get_device(dev);
+	list_add_tail(&dev->links.defer_hook, list);
+}
+
+/**
+ * device_links_flush_sync_list - Call sync_state() on a list of devices
+ * @list: List of devices to call sync_state() on
+ * @dont_lock_dev: Device for which lock is already held by the caller
+ *
+ * Calls sync_state() on all the devices that have been queued for it. This
+ * function is used in conjunction with __device_links_queue_sync_state(). The
+ * @dont_lock_dev parameter is useful when this function is called from a
+ * context where a device lock is already held.
+ */
+static void device_links_flush_sync_list(struct list_head *list,
+					 struct device *dont_lock_dev)
+{
+	struct device *dev, *tmp;
+
+	list_for_each_entry_safe(dev, tmp, list, links.defer_hook) {
+		list_del_init(&dev->links.defer_hook);
+
+		if (dev != dont_lock_dev)
+			device_lock(dev);
+
+		if (dev->bus->sync_state)
+			dev->bus->sync_state(dev);
+		else if (dev->driver && dev->driver->sync_state)
+			dev->driver->sync_state(dev);
+
+		if (dev != dont_lock_dev)
+			device_unlock(dev);
+
+		put_device(dev);
+	}
+}
+
+void device_links_supplier_sync_state_pause(void)
+{
+	device_links_write_lock();
+	defer_sync_state_count++;
+	device_links_write_unlock();
+}
+
+void device_links_supplier_sync_state_resume(void)
+{
+	struct device *dev, *tmp;
+	LIST_HEAD(sync_list);
+
+	device_links_write_lock();
+	if (!defer_sync_state_count) {
+		WARN(true, "Unmatched sync_state pause/resume!");
+		goto out;
+	}
+	defer_sync_state_count--;
+	if (defer_sync_state_count)
+		goto out;
+
+	list_for_each_entry_safe(dev, tmp, &deferred_sync, links.defer_hook) {
+		/*
+		 * Delete from deferred_sync list before queuing it to
+		 * sync_list because defer_hook is used for both lists.
+		 */
+		list_del_init(&dev->links.defer_hook);
+		__device_links_queue_sync_state(dev, &sync_list);
+	}
+out:
+	device_links_write_unlock();
+
+	device_links_flush_sync_list(&sync_list, NULL);
+}
+
+static int sync_state_resume_initcall(void)
+{
+	device_links_supplier_sync_state_resume();
+	return 0;
+}
+late_initcall(sync_state_resume_initcall);
+
+static void __device_links_supplier_defer_sync(struct device *sup)
+{
+	if (list_empty(&sup->links.defer_hook) && dev_has_sync_state(sup))
+		list_add_tail(&sup->links.defer_hook, &deferred_sync);
+}
+
+static void device_link_drop_managed(struct device_link *link)
+{
+	link->flags &= ~DL_FLAG_MANAGED;
+	WRITE_ONCE(link->status, DL_STATE_NONE);
+	kref_put(&link->kref, __device_link_del);
+}
+
+static ssize_t waiting_for_supplier_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	bool val;
+
+	device_lock(dev);
+	mutex_lock(&wfs_lock);
+	val = !list_empty(&dev->links.needs_suppliers)
+	      && dev->links.need_for_probe;
+	mutex_unlock(&wfs_lock);
+	device_unlock(dev);
+	return sysfs_emit(buf, "%u\n", val);
+}
+static DEVICE_ATTR_RO(waiting_for_supplier);
 
 /**
  * device_links_driver_bound - Update device links after probing its driver.
@@ -597,7 +1084,18 @@ int device_links_check_suppliers(struct device *dev)
  */
 void device_links_driver_bound(struct device *dev)
 {
-	struct device_link *link;
+	struct device_link *link, *ln;
+	LIST_HEAD(sync_list);
+
+	/*
+	 * If a device probes successfully, it's expected to have created all
+	 * the device links it needs to or make new device links as it needs
+	 * them. So, it no longer needs to wait on any suppliers.
+	 */
+	mutex_lock(&wfs_lock);
+	list_del_init(&dev->links.needs_suppliers);
+	mutex_unlock(&wfs_lock);
+	device_remove_file(dev, &dev_attr_waiting_for_supplier);
 
 	device_links_write_lock();
 
@@ -622,24 +1120,47 @@ void device_links_driver_bound(struct device *dev)
 			driver_deferred_probe_add(link->consumer);
 	}
 
-	list_for_each_entry(link, &dev->links.suppliers, c_node) {
+	if (defer_sync_state_count)
+		__device_links_supplier_defer_sync(dev);
+	else
+		__device_links_queue_sync_state(dev, &sync_list);
+
+	list_for_each_entry_safe(link, ln, &dev->links.suppliers, c_node) {
+		struct device *supplier;
+
 		if (!(link->flags & DL_FLAG_MANAGED))
 			continue;
 
-		WARN_ON(link->status != DL_STATE_CONSUMER_PROBE);
-		WRITE_ONCE(link->status, DL_STATE_ACTIVE);
+		supplier = link->supplier;
+		if (link->flags & DL_FLAG_SYNC_STATE_ONLY) {
+			/*
+			 * When DL_FLAG_SYNC_STATE_ONLY is set, it means no
+			 * other DL_MANAGED_LINK_FLAGS have been set. So, it's
+			 * save to drop the managed link completely.
+			 */
+			device_link_drop_managed(link);
+		} else {
+			WARN_ON(link->status != DL_STATE_CONSUMER_PROBE);
+			WRITE_ONCE(link->status, DL_STATE_ACTIVE);
+		}
+
+		/*
+		 * This needs to be done even for the deleted
+		 * DL_FLAG_SYNC_STATE_ONLY device link in case it was the last
+		 * device link that was preventing the supplier from getting a
+		 * sync_state() call.
+		 */
+		if (defer_sync_state_count)
+			__device_links_supplier_defer_sync(supplier);
+		else
+			__device_links_queue_sync_state(supplier, &sync_list);
 	}
 
 	dev->links.status = DL_DEV_DRIVER_BOUND;
 
 	device_links_write_unlock();
-}
 
-static void device_link_drop_managed(struct device_link *link)
-{
-	link->flags &= ~DL_FLAG_MANAGED;
-	WRITE_ONCE(link->status, DL_STATE_NONE);
-	kref_put(&link->kref, __device_link_del);
+	device_links_flush_sync_list(&sync_list, dev);
 }
 
 /**
@@ -662,11 +1183,21 @@ static void __device_links_no_driver(struct device *dev)
 		if (!(link->flags & DL_FLAG_MANAGED))
 			continue;
 
-		if (link->flags & DL_FLAG_AUTOREMOVE_CONSUMER)
+		if (link->flags & DL_FLAG_AUTOREMOVE_CONSUMER) {
 			device_link_drop_managed(link);
-		else if (link->status == DL_STATE_CONSUMER_PROBE ||
-			 link->status == DL_STATE_ACTIVE)
+			continue;
+		}
+
+		if (link->status != DL_STATE_CONSUMER_PROBE &&
+		    link->status != DL_STATE_ACTIVE)
+			continue;
+
+		if (link->supplier->links.status == DL_DEV_DRIVER_BOUND) {
 			WRITE_ONCE(link->status, DL_STATE_AVAILABLE);
+		} else {
+			WARN_ON(!(link->flags & DL_FLAG_SYNC_STATE_ONLY));
+			WRITE_ONCE(link->status, DL_STATE_DORMANT);
+		}
 	}
 
 	dev->links.status = DL_DEV_NO_DRIVER;
@@ -744,6 +1275,7 @@ void device_links_driver_cleanup(struct device *dev)
 		WRITE_ONCE(link->status, DL_STATE_DORMANT);
 	}
 
+	list_del_init(&dev->links.defer_hook);
 	__device_links_no_driver(dev);
 
 	device_links_write_unlock();
@@ -813,7 +1345,8 @@ void device_links_unbind_consumers(struct device *dev)
 	list_for_each_entry(link, &dev->links.consumers, s_node) {
 		enum device_link_state status;
 
-		if (!(link->flags & DL_FLAG_MANAGED))
+		if (!(link->flags & DL_FLAG_MANAGED) ||
+		    link->flags & DL_FLAG_SYNC_STATE_ONLY)
 			continue;
 
 		status = link->status;
@@ -849,6 +1382,13 @@ static void device_links_purge(struct device *dev)
 {
 	struct device_link *link, *ln;
 
+	if (dev->class == &devlink_class)
+		return;
+
+	mutex_lock(&wfs_lock);
+	list_del(&dev->links.needs_suppliers);
+	mutex_unlock(&wfs_lock);
+
 	/*
 	 * Delete all of the remaining links from this device to any other
 	 * devices (either consumers or suppliers).
@@ -869,6 +1409,169 @@ static void device_links_purge(struct device *dev)
 	device_links_write_unlock();
 }
 
+static u32 fw_devlink_flags = DL_FLAG_SYNC_STATE_ONLY;
+static int __init fw_devlink_setup(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	if (strcmp(arg, "off") == 0) {
+		fw_devlink_flags = 0;
+	} else if (strcmp(arg, "permissive") == 0) {
+		fw_devlink_flags = DL_FLAG_SYNC_STATE_ONLY;
+	} else if (strcmp(arg, "on") == 0) {
+		fw_devlink_flags = DL_FLAG_AUTOPROBE_CONSUMER;
+	} else if (strcmp(arg, "rpm") == 0) {
+		fw_devlink_flags = DL_FLAG_AUTOPROBE_CONSUMER |
+				   DL_FLAG_PM_RUNTIME;
+	}
+	return 0;
+}
+early_param("fw_devlink", fw_devlink_setup);
+
+u32 fw_devlink_get_flags(void)
+{
+	return fw_devlink_flags;
+}
+
+static bool fw_devlink_is_permissive(void)
+{
+	return fw_devlink_flags == DL_FLAG_SYNC_STATE_ONLY;
+}
+
+static void fw_devlink_link_device(struct device *dev)
+{
+	int fw_ret;
+
+	if (!fw_devlink_flags)
+		return;
+
+	mutex_lock(&defer_fw_devlink_lock);
+	if (!defer_fw_devlink_count)
+		device_link_add_missing_supplier_links();
+
+	/*
+	 * The device's fwnode not having add_links() doesn't affect if other
+	 * consumers can find this device as a supplier.  So, this check is
+	 * intentionally placed after device_link_add_missing_supplier_links().
+	 */
+	if (!fwnode_has_op(dev->fwnode, add_links))
+		goto out;
+
+	/*
+	 * If fw_devlink is being deferred, assume all devices have mandatory
+	 * suppliers they need to link to later. Then, when the fw_devlink is
+	 * resumed, all these devices will get a chance to try and link to any
+	 * suppliers they have.
+	 */
+	if (!defer_fw_devlink_count) {
+		fw_ret = fwnode_call_int_op(dev->fwnode, add_links, dev);
+		if (fw_ret == -ENODEV && fw_devlink_is_permissive())
+			fw_ret = -EAGAIN;
+	} else {
+		fw_ret = -ENODEV;
+		/*
+		 * defer_hook is not used to add device to deferred_sync list
+		 * until device is bound. Since deferred fw devlink also blocks
+		 * probing, same list hook can be used for deferred_fw_devlink.
+		 */
+		list_add_tail(&dev->links.defer_hook, &deferred_fw_devlink);
+	}
+
+	if (fw_ret == -ENODEV)
+		device_link_wait_for_mandatory_supplier(dev);
+	else if (fw_ret)
+		device_link_wait_for_optional_supplier(dev);
+
+out:
+	mutex_unlock(&defer_fw_devlink_lock);
+}
+
+/**
+ * fw_devlink_pause - Pause parsing of fwnode to create device links
+ *
+ * Calling this function defers any fwnode parsing to create device links until
+ * fw_devlink_resume() is called. Both these functions are ref counted and the
+ * caller needs to match the calls.
+ *
+ * While fw_devlink is paused:
+ * - Any device that is added won't have its fwnode parsed to create device
+ *   links.
+ * - The probe of the device will also be deferred during this period.
+ * - Any devices that were already added, but waiting for suppliers won't be
+ *   able to link to newly added devices.
+ *
+ * Once fw_devlink_resume():
+ * - All the fwnodes that was not parsed will be parsed.
+ * - All the devices that were deferred probing will be reattempted if they
+ *   aren't waiting for any more suppliers.
+ *
+ * This pair of functions, is mainly meant to optimize the parsing of fwnodes
+ * when a lot of devices that need to link to each other are added in a short
+ * interval of time. For example, adding all the top level devices in a system.
+ *
+ * For example, if N devices are added and:
+ * - All the consumers are added before their suppliers
+ * - All the suppliers of the N devices are part of the N devices
+ *
+ * Then:
+ *
+ * - With the use of fw_devlink_pause() and fw_devlink_resume(), each device
+ *   will only need one parsing of its fwnode because it is guaranteed to find
+ *   all the supplier devices already registered and ready to link to. It won't
+ *   have to do another pass later to find one or more suppliers it couldn't
+ *   find in the first parse of the fwnode. So, we'll only need O(N) fwnode
+ *   parses.
+ *
+ * - Without the use of fw_devlink_pause() and fw_devlink_resume(), we would
+ *   end up doing O(N^2) parses of fwnodes because every device that's added is
+ *   guaranteed to trigger a parse of the fwnode of every device added before
+ *   it. This O(N^2) parse is made worse by the fact that when a fwnode of a
+ *   device is parsed, all it descendant devices might need to have their
+ *   fwnodes parsed too (even if the devices themselves aren't added).
+ */
+void fw_devlink_pause(void)
+{
+	mutex_lock(&defer_fw_devlink_lock);
+	defer_fw_devlink_count++;
+	mutex_unlock(&defer_fw_devlink_lock);
+}
+
+/** fw_devlink_resume - Resume parsing of fwnode to create device links
+ *
+ * This function is used in conjunction with fw_devlink_pause() and is ref
+ * counted. See documentation for fw_devlink_pause() for more details.
+ */
+void fw_devlink_resume(void)
+{
+	struct device *dev, *tmp;
+	LIST_HEAD(probe_list);
+
+	mutex_lock(&defer_fw_devlink_lock);
+	if (!defer_fw_devlink_count) {
+		WARN(true, "Unmatched fw_devlink pause/resume!");
+		goto out;
+	}
+
+	defer_fw_devlink_count--;
+	if (defer_fw_devlink_count)
+		goto out;
+
+	device_link_add_missing_supplier_links();
+	list_splice_tail_init(&deferred_fw_devlink, &probe_list);
+out:
+	mutex_unlock(&defer_fw_devlink_lock);
+
+	/*
+	 * bus_probe_device() can cause new devices to get added and they'll
+	 * try to grab defer_fw_devlink_lock. So, this needs to be done outside
+	 * the defer_fw_devlink_lock.
+	 */
+	list_for_each_entry_safe(dev, tmp, &probe_list, links.defer_hook) {
+		list_del_init(&dev->links.defer_hook);
+		bus_probe_device(dev);
+	}
+}
 /* Device links support end. */
 
 int (*platform_notify)(struct device *dev) = NULL;
@@ -1014,7 +1717,7 @@ ssize_t device_show_ulong(struct device *dev,
 			  char *buf)
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
-	return snprintf(buf, PAGE_SIZE, "%lx\n", *(unsigned long *)(ea->var));
+	return sysfs_emit(buf, "%lx\n", *(unsigned long *)(ea->var));
 }
 EXPORT_SYMBOL_GPL(device_show_ulong);
 
@@ -1044,7 +1747,7 @@ ssize_t device_show_int(struct device *dev,
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", *(int *)(ea->var));
+	return sysfs_emit(buf, "%d\n", *(int *)(ea->var));
 }
 EXPORT_SYMBOL_GPL(device_show_int);
 
@@ -1065,7 +1768,7 @@ ssize_t device_show_bool(struct device *dev, struct device_attribute *attr,
 {
 	struct dev_ext_attribute *ea = to_ext_attr(attr);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", *(bool *)(ea->var));
+	return sysfs_emit(buf, "%d\n", *(bool *)(ea->var));
 }
 EXPORT_SYMBOL_GPL(device_show_bool);
 
@@ -1093,6 +1796,8 @@ static void device_release(struct kobject *kobj)
 	 */
 	devres_release_all(dev);
 
+	kfree(dev->dma_range_map);
+
 	if (dev->release)
 		dev->release(dev);
 	else if (dev->type && dev->type->release)
@@ -1100,7 +1805,7 @@ static void device_release(struct kobject *kobj)
 	else if (dev->class && dev->class->dev_release)
 		dev->class->dev_release(dev);
 	else
-		WARN(1, KERN_ERR "Device '%s' does not have a release() function, it is broken and must be fixed. See Documentation/kobject.txt.\n",
+		WARN(1, KERN_ERR "Device '%s' does not have a release() function, it is broken and must be fixed. See Documentation/core-api/kobject.rst.\n",
 			dev_name(dev));
 	kfree(p);
 }
@@ -1237,7 +1942,7 @@ static ssize_t uevent_show(struct device *dev, struct device_attribute *attr,
 	struct kset *kset;
 	struct kobj_uevent_env *env = NULL;
 	int i;
-	size_t count = 0;
+	int len = 0;
 	int retval;
 
 	/* search the kset, the device belongs to */
@@ -1267,10 +1972,10 @@ static ssize_t uevent_show(struct device *dev, struct device_attribute *attr,
 
 	/* copy keys to file */
 	for (i = 0; i < env->envp_idx; i++)
-		count += sprintf(&buf[count], "%s\n", env->envp[i]);
+		len += sysfs_emit_at(buf, len, "%s\n", env->envp[i]);
 out:
 	kfree(env);
-	return count;
+	return len;
 }
 
 static ssize_t uevent_store(struct device *dev, struct device_attribute *attr,
@@ -1297,7 +2002,7 @@ static ssize_t online_show(struct device *dev, struct device_attribute *attr,
 	device_lock(dev);
 	val = !dev->offline;
 	device_unlock(dev);
-	return sprintf(buf, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t online_store(struct device *dev, struct device_attribute *attr,
@@ -1491,8 +2196,16 @@ static int device_add_attrs(struct device *dev)
 			goto err_remove_dev_groups;
 	}
 
+	if (fw_devlink_flags && !fw_devlink_is_permissive()) {
+		error = device_create_file(dev, &dev_attr_waiting_for_supplier);
+		if (error)
+			goto err_remove_dev_online;
+	}
+
 	return 0;
 
+ err_remove_dev_online:
+	device_remove_file(dev, &dev_attr_online);
  err_remove_dev_groups:
 	device_remove_groups(dev, dev->groups);
  err_remove_type_groups:
@@ -1510,6 +2223,7 @@ static void device_remove_attrs(struct device *dev)
 	struct class *class = dev->class;
 	const struct device_type *type = dev->type;
 
+	device_remove_file(dev, &dev_attr_waiting_for_supplier);
 	device_remove_file(dev, &dev_attr_online);
 	device_remove_groups(dev, dev->groups);
 
@@ -1713,6 +2427,8 @@ void device_initialize(struct device *dev)
 #endif
 	INIT_LIST_HEAD(&dev->links.consumers);
 	INIT_LIST_HEAD(&dev->links.suppliers);
+	INIT_LIST_HEAD(&dev->links.needs_suppliers);
+	INIT_LIST_HEAD(&dev->links.defer_hook);
 	dev->links.status = DL_DEV_NO_DRIVER;
 }
 EXPORT_SYMBOL_GPL(device_initialize);
@@ -2199,6 +2915,24 @@ int device_add(struct device *dev)
 					     BUS_NOTIFY_ADD_DEVICE, dev);
 
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
+
+	/*
+	 * Check if any of the other devices (consumers) have been waiting for
+	 * this device (supplier) to be added so that they can create a device
+	 * link to it.
+	 *
+	 * This needs to happen after device_pm_add() because device_link_add()
+	 * requires the supplier be registered before it's called.
+	 *
+	 * But this also needs to happen before bus_probe_device() to make sure
+	 * waiting consumers can link to it before the driver is bound to the
+	 * device and the driver sync_state callback is called for this device.
+	 */
+	if (dev->fwnode && !dev->fwnode->dev) {
+		dev->fwnode->dev = dev;
+		fw_devlink_link_device(dev);
+	}
+
 	bus_probe_device(dev);
 	if (parent)
 		klist_add_tail(&dev->p->knode_parent,
@@ -2338,14 +3072,19 @@ void device_del(struct device *dev)
 	struct device *parent = dev->parent;
 	struct kobject *glue_dir = NULL;
 	struct class_interface *class_intf;
+	unsigned int noio_flag;
 
 	device_lock(dev);
 	kill_device(dev);
 	device_unlock(dev);
 
+	if (dev->fwnode && dev->fwnode->dev == dev)
+		dev->fwnode->dev = NULL;
+
 	/* Notify clients of device removal.  This call must come
 	 * before dpm_sysfs_remove().
 	 */
+	noio_flag = memalloc_noio_save();
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DEL_DEVICE, dev);
@@ -2387,6 +3126,7 @@ void device_del(struct device *dev)
 	glue_dir = get_glue_dir(dev);
 	kobject_del(&dev->kobj);
 	cleanup_glue_dir(dev, glue_dir);
+	memalloc_noio_restore(noio_flag);
 	put_device(parent);
 }
 EXPORT_SYMBOL_GPL(device_del);
@@ -2597,7 +3337,7 @@ struct device *device_find_child_by_name(struct device *parent,
 
 	klist_iter_init(&parent->p->klist_children, &i);
 	while ((child = next_device(&i)))
-		if (!strcmp(dev_name(child), name) && get_device(child))
+		if (sysfs_streq(dev_name(child), name) && get_device(child))
 			break;
 	klist_iter_exit(&i);
 	return child;
@@ -2855,40 +3595,6 @@ error:
 }
 
 /**
- * device_create_vargs - creates a device and registers it with sysfs
- * @class: pointer to the struct class that this device should be registered to
- * @parent: pointer to the parent struct device of this new device, if any
- * @devt: the dev_t for the char device to be added
- * @drvdata: the data to be added to the device for callbacks
- * @fmt: string for the device's name
- * @args: va_list for the device's name
- *
- * This function can be used by char device classes.  A struct device
- * will be created in sysfs, registered to the specified class.
- *
- * A "dev" file will be created, showing the dev_t for the device, if
- * the dev_t is not 0,0.
- * If a pointer to a parent struct device is passed in, the newly created
- * struct device will be a child of that device in sysfs.
- * The pointer to the struct device will be returned from the call.
- * Any further sysfs files that might be required can be created using this
- * pointer.
- *
- * Returns &struct device pointer on success, or ERR_PTR() on error.
- *
- * Note: the struct class passed to this function must have previously
- * been created with a call to class_create().
- */
-struct device *device_create_vargs(struct class *class, struct device *parent,
-				   dev_t devt, void *drvdata, const char *fmt,
-				   va_list args)
-{
-	return device_create_groups_vargs(class, parent, devt, drvdata, NULL,
-					  fmt, args);
-}
-EXPORT_SYMBOL_GPL(device_create_vargs);
-
-/**
  * device_create - creates a device and registers it with sysfs
  * @class: pointer to the struct class that this device should be registered to
  * @parent: pointer to the parent struct device of this new device, if any
@@ -2919,7 +3625,8 @@ struct device *device_create(struct class *class, struct device *parent,
 	struct device *dev;
 
 	va_start(vargs, fmt);
-	dev = device_create_vargs(class, parent, devt, drvdata, fmt, vargs);
+	dev = device_create_groups_vargs(class, parent, devt, drvdata, NULL,
+					  fmt, vargs);
 	va_end(vargs);
 	return dev;
 }
@@ -3170,6 +3877,126 @@ out:
 }
 EXPORT_SYMBOL_GPL(device_move);
 
+static int device_attrs_change_owner(struct device *dev, kuid_t kuid,
+				     kgid_t kgid)
+{
+	struct kobject *kobj = &dev->kobj;
+	struct class *class = dev->class;
+	const struct device_type *type = dev->type;
+	int error;
+
+	if (class) {
+		/*
+		 * Change the device groups of the device class for @dev to
+		 * @kuid/@kgid.
+		 */
+		error = sysfs_groups_change_owner(kobj, class->dev_groups, kuid,
+						  kgid);
+		if (error)
+			return error;
+	}
+
+	if (type) {
+		/*
+		 * Change the device groups of the device type for @dev to
+		 * @kuid/@kgid.
+		 */
+		error = sysfs_groups_change_owner(kobj, type->groups, kuid,
+						  kgid);
+		if (error)
+			return error;
+	}
+
+	/* Change the device groups of @dev to @kuid/@kgid. */
+	error = sysfs_groups_change_owner(kobj, dev->groups, kuid, kgid);
+	if (error)
+		return error;
+
+	if (device_supports_offline(dev) && !dev->offline_disabled) {
+		/* Change online device attributes of @dev to @kuid/@kgid. */
+		error = sysfs_file_change_owner(kobj, dev_attr_online.attr.name,
+						kuid, kgid);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
+/**
+ * device_change_owner - change the owner of an existing device.
+ * @dev: device.
+ * @kuid: new owner's kuid
+ * @kgid: new owner's kgid
+ *
+ * This changes the owner of @dev and its corresponding sysfs entries to
+ * @kuid/@kgid. This function closely mirrors how @dev was added via driver
+ * core.
+ *
+ * Returns 0 on success or error code on failure.
+ */
+int device_change_owner(struct device *dev, kuid_t kuid, kgid_t kgid)
+{
+	int error;
+	struct kobject *kobj = &dev->kobj;
+
+	dev = get_device(dev);
+	if (!dev)
+		return -EINVAL;
+
+	/*
+	 * Change the kobject and the default attributes and groups of the
+	 * ktype associated with it to @kuid/@kgid.
+	 */
+	error = sysfs_change_owner(kobj, kuid, kgid);
+	if (error)
+		goto out;
+
+	/*
+	 * Change the uevent file for @dev to the new owner. The uevent file
+	 * was created in a separate step when @dev got added and we mirror
+	 * that step here.
+	 */
+	error = sysfs_file_change_owner(kobj, dev_attr_uevent.attr.name, kuid,
+					kgid);
+	if (error)
+		goto out;
+
+	/*
+	 * Change the device groups, the device groups associated with the
+	 * device class, and the groups associated with the device type of @dev
+	 * to @kuid/@kgid.
+	 */
+	error = device_attrs_change_owner(dev, kuid, kgid);
+	if (error)
+		goto out;
+
+	error = dpm_sysfs_change_owner(dev, kuid, kgid);
+	if (error)
+		goto out;
+
+#ifdef CONFIG_BLOCK
+	if (sysfs_deprecated && dev->class == &block_class)
+		goto out;
+#endif
+
+	/*
+	 * Change the owner of the symlink located in the class directory of
+	 * the device class associated with @dev which points to the actual
+	 * directory entry for @dev to @kuid/@kgid. This ensures that the
+	 * symlink shows the same permissions as its target.
+	 */
+	error = sysfs_link_change_owner(&dev->class->p->subsys.kobj, &dev->kobj,
+					dev_name(dev), kuid, kgid);
+	if (error)
+		goto out;
+
+out:
+	put_device(dev);
+	return error;
+}
+EXPORT_SYMBOL_GPL(device_change_owner);
+
 /**
  * device_shutdown - call ->shutdown() on each device to shutdown.
  */
@@ -3247,22 +4074,21 @@ void device_shutdown(void)
  */
 
 #ifdef CONFIG_PRINTK
-static int
-create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
+static void
+set_dev_info(const struct device *dev, struct dev_printk_info *dev_info)
 {
 	const char *subsys;
-	size_t pos = 0;
+
+	memset(dev_info, 0, sizeof(*dev_info));
 
 	if (dev->class)
 		subsys = dev->class->name;
 	else if (dev->bus)
 		subsys = dev->bus->name;
 	else
-		return 0;
+		return;
 
-	pos += snprintf(hdr + pos, hdrlen - pos, "SUBSYSTEM=%s", subsys);
-	if (pos >= hdrlen)
-		goto overflow;
+	strscpy(dev_info->subsystem, subsys, sizeof(dev_info->subsystem));
 
 	/*
 	 * Add device identifier DEVICE=:
@@ -3278,41 +4104,28 @@ create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
 			c = 'b';
 		else
 			c = 'c';
-		pos++;
-		pos += snprintf(hdr + pos, hdrlen - pos,
-				"DEVICE=%c%u:%u",
-				c, MAJOR(dev->devt), MINOR(dev->devt));
+
+		snprintf(dev_info->device, sizeof(dev_info->device),
+			 "%c%u:%u", c, MAJOR(dev->devt), MINOR(dev->devt));
 	} else if (strcmp(subsys, "net") == 0) {
 		struct net_device *net = to_net_dev(dev);
 
-		pos++;
-		pos += snprintf(hdr + pos, hdrlen - pos,
-				"DEVICE=n%u", net->ifindex);
+		snprintf(dev_info->device, sizeof(dev_info->device),
+			 "n%u", net->ifindex);
 	} else {
-		pos++;
-		pos += snprintf(hdr + pos, hdrlen - pos,
-				"DEVICE=+%s:%s", subsys, dev_name(dev));
+		snprintf(dev_info->device, sizeof(dev_info->device),
+			 "+%s:%s", subsys, dev_name(dev));
 	}
-
-	if (pos >= hdrlen)
-		goto overflow;
-
-	return pos;
-
-overflow:
-	dev_WARN(dev, "device/subsystem name too long");
-	return 0;
 }
 
 int dev_vprintk_emit(int level, const struct device *dev,
 		     const char *fmt, va_list args)
 {
-	char hdr[128];
-	size_t hdrlen;
+	struct dev_printk_info dev_info;
 
-	hdrlen = create_syslog_header(dev, hdr, sizeof(hdr));
+	set_dev_info(dev, &dev_info);
 
-	return vprintk_emit(0, level, hdrlen ? hdr : NULL, hdrlen, fmt, args);
+	return vprintk_emit(0, level, &dev_info, fmt, args);
 }
 EXPORT_SYMBOL(dev_vprintk_emit);
 
@@ -3385,6 +4198,55 @@ define_dev_printk_level(_dev_info, KERN_INFO);
 
 #endif
 
+/**
+ * dev_err_probe - probe error check and log helper
+ * @dev: the pointer to the struct device
+ * @err: error value to test
+ * @fmt: printf-style format string
+ * @...: arguments as specified in the format string
+ *
+ * This helper implements common pattern present in probe functions for error
+ * checking: print debug or error message depending if the error value is
+ * -EPROBE_DEFER and propagate error upwards.
+ * In case of -EPROBE_DEFER it sets also defer probe reason, which can be
+ * checked later by reading devices_deferred debugfs attribute.
+ * It replaces code sequence::
+ *
+ * 	if (err != -EPROBE_DEFER)
+ * 		dev_err(dev, ...);
+ * 	else
+ * 		dev_dbg(dev, ...);
+ * 	return err;
+ *
+ * with::
+ *
+ * 	return dev_err_probe(dev, err, ...);
+ *
+ * Returns @err.
+ *
+ */
+int dev_err_probe(const struct device *dev, int err, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	if (err != -EPROBE_DEFER) {
+		dev_err(dev, "error %pe: %pV", ERR_PTR(err), &vaf);
+	} else {
+		device_set_deferred_probe_reason(dev, &vaf);
+		dev_dbg(dev, "error %pe: %pV", ERR_PTR(err), &vaf);
+	}
+
+	va_end(args);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(dev_err_probe);
+
 static inline bool fwnode_is_primary(struct fwnode_handle *fwnode)
 {
 	return fwnode && !IS_ERR(fwnode->secondary);
@@ -3400,9 +4262,10 @@ static inline bool fwnode_is_primary(struct fwnode_handle *fwnode)
  */
 void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode)
 {
-	if (fwnode) {
-		struct fwnode_handle *fn = dev->fwnode;
+	struct device *parent = dev->parent;
+	struct fwnode_handle *fn = dev->fwnode;
 
+	if (fwnode) {
 		if (fwnode_is_primary(fn))
 			fn = fn->secondary;
 
@@ -3412,8 +4275,13 @@ void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode)
 		}
 		dev->fwnode = fwnode;
 	} else {
-		dev->fwnode = fwnode_is_primary(dev->fwnode) ?
-			dev->fwnode->secondary : NULL;
+		if (fwnode_is_primary(fn)) {
+			dev->fwnode = fn->secondary;
+			if (!(parent && fn == parent->fwnode))
+				fn->secondary = ERR_PTR(-ENODEV);
+		} else {
+			dev->fwnode = NULL;
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(set_primary_fwnode);
@@ -3437,6 +4305,7 @@ void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode)
 	else
 		dev->fwnode = fwnode;
 }
+EXPORT_SYMBOL_GPL(set_secondary_fwnode);
 
 /**
  * device_set_of_node_from_dev - reuse device-tree node of another device

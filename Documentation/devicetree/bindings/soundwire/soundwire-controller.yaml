@@ -57,6 +57,8 @@ required:
   - "#address-cells"
   - "#size-cells"
 
+additionalProperties: true
+
 examples:
   - |
     soundwire@c2d0000 {
@@ -69,6 +71,7 @@ examples:
             reg = <0 1>;
             powerdown-gpios = <&wcdpinctrl 2 0>;
             #thermal-sensor-cells = <0>;
+            #sound-dai-cells = <0>;
         };
 
         speaker@0,2 {
@@ -76,6 +79,7 @@ examples:
             reg = <0 2>;
             powerdown-gpios = <&wcdpinctrl 2 0>;
             #thermal-sensor-cells = <0>;
+            #sound-dai-cells = <0>;
         };
     };
 

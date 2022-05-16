@@ -74,17 +74,23 @@
 /*
  * internal functions
  */
-static void rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc);
-static void rpcrdma_reps_destroy(struct rpcrdma_buffer *buf);
+static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt);
+static void rpcrdma_sendctxs_destroy(struct rpcrdma_xprt *r_xprt);
+static void rpcrdma_sendctx_put_locked(struct rpcrdma_xprt *r_xprt,
+				       struct rpcrdma_sendctx *sc);
+static int rpcrdma_reqs_setup(struct rpcrdma_xprt *r_xprt);
+static void rpcrdma_reqs_reset(struct rpcrdma_xprt *r_xprt);
+static void rpcrdma_rep_destroy(struct rpcrdma_rep *rep);
+static void rpcrdma_reps_unmap(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt);
-static void rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf);
-static void rpcrdma_mr_free(struct rpcrdma_mr *mr);
+static void rpcrdma_mrs_destroy(struct rpcrdma_xprt *r_xprt);
+static void rpcrdma_ep_get(struct rpcrdma_ep *ep);
+static int rpcrdma_ep_put(struct rpcrdma_ep *ep);
 static struct rpcrdma_regbuf *
 rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction,
 		     gfp_t flags);
 static void rpcrdma_regbuf_dma_unmap(struct rpcrdma_regbuf *rb);
 static void rpcrdma_regbuf_free(struct rpcrdma_regbuf *rb);
-static void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp);
 
 /* Wait for outstanding transport work to finish. ib_drain_qp
  * handles the drains in the wrong order for us, so open code
@@ -92,17 +98,20 @@ static void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp);
  */
 static void rpcrdma_xprt_drain(struct rpcrdma_xprt *r_xprt)
 {
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
+	struct rdma_cm_id *id = ep->re_id;
 
 	/* Flush Receives, then wait for deferred Reply work
 	 * to complete.
 	 */
-	ib_drain_rq(ia->ri_id->qp);
+	ib_drain_rq(id->qp);
 
 	/* Deferred Reply processing might have scheduled
 	 * local invalidations.
 	 */
-	ib_drain_sq(ia->ri_id->qp);
+	ib_drain_sq(id->qp);
+
+	rpcrdma_ep_put(ep);
 }
 
 /**
@@ -111,53 +120,74 @@ static void rpcrdma_xprt_drain(struct rpcrdma_xprt *r_xprt)
  * @context: ep that owns QP where event occurred
  *
  * Called from the RDMA provider (device driver) possibly in an interrupt
- * context.
+ * context. The QP is always destroyed before the ID, so the ID will be
+ * reliably available when this handler is invoked.
  */
-static void
-rpcrdma_qp_event_handler(struct ib_event *event, void *context)
+static void rpcrdma_qp_event_handler(struct ib_event *event, void *context)
 {
 	struct rpcrdma_ep *ep = context;
-	struct rpcrdma_xprt *r_xprt = container_of(ep, struct rpcrdma_xprt,
-						   rx_ep);
 
-	trace_xprtrdma_qp_event(r_xprt, event);
+	trace_xprtrdma_qp_event(ep, event);
+}
+
+/* Ensure xprt_force_disconnect() is invoked exactly once when a
+ * connection is closed or lost. (The important thing is it needs
+ * to be invoked "at least" once).
+ */
+static void rpcrdma_force_disconnect(struct rpcrdma_ep *ep)
+{
+	if (atomic_add_unless(&ep->re_force_disconnect, 1, 1))
+		xprt_force_disconnect(ep->re_xprt);
+}
+
+/**
+ * rpcrdma_flush_disconnect - Disconnect on flushed completion
+ * @r_xprt: transport to disconnect
+ * @wc: work completion entry
+ *
+ * Must be called in process context.
+ */
+void rpcrdma_flush_disconnect(struct rpcrdma_xprt *r_xprt, struct ib_wc *wc)
+{
+	if (wc->status != IB_WC_SUCCESS)
+		rpcrdma_force_disconnect(r_xprt->rx_ep);
 }
 
 /**
  * rpcrdma_wc_send - Invoked by RDMA provider for each polled Send WC
- * @cq:	completion queue (ignored)
- * @wc:	completed WR
+ * @cq:	completion queue
+ * @wc:	WCE for a completed Send WR
  *
  */
-static void
-rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
+static void rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct rpcrdma_sendctx *sc =
 		container_of(cqe, struct rpcrdma_sendctx, sc_cqe);
+	struct rpcrdma_xprt *r_xprt = cq->cq_context;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_send(sc, wc);
-	rpcrdma_sendctx_put_locked(sc);
+	rpcrdma_sendctx_put_locked(r_xprt, sc);
+	rpcrdma_flush_disconnect(r_xprt, wc);
 }
 
 /**
  * rpcrdma_wc_receive - Invoked by RDMA provider for each polled Receive WC
- * @cq:	completion queue (ignored)
- * @wc:	completed WR
+ * @cq:	completion queue
+ * @wc:	WCE for a completed Receive WR
  *
  */
-static void
-rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
+static void rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct rpcrdma_rep *rep = container_of(cqe, struct rpcrdma_rep,
 					       rr_cqe);
-	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
+	struct rpcrdma_xprt *r_xprt = cq->cq_context;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_receive(wc);
-	--r_xprt->rx_ep.rep_receive_count;
+	--r_xprt->rx_ep->re_receive_count;
 	if (wc->status != IB_WC_SUCCESS)
 		goto out_flushed;
 
@@ -170,42 +200,39 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 				   rdmab_addr(rep->rr_rdmabuf),
 				   wc->byte_len, DMA_FROM_DEVICE);
 
-	rpcrdma_post_recvs(r_xprt, false);
 	rpcrdma_reply_handler(rep);
 	return;
 
 out_flushed:
-	rpcrdma_recv_buffer_put(rep);
+	rpcrdma_flush_disconnect(r_xprt, wc);
+	rpcrdma_rep_destroy(rep);
 }
 
-static void
-rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
-			       struct rdma_conn_param *param)
+static void rpcrdma_update_cm_private(struct rpcrdma_ep *ep,
+				      struct rdma_conn_param *param)
 {
 	const struct rpcrdma_connect_private *pmsg = param->private_data;
 	unsigned int rsize, wsize;
 
 	/* Default settings for RPC-over-RDMA Version One */
-	r_xprt->rx_ia.ri_implicit_roundup = xprt_rdma_pad_optimize;
+	ep->re_implicit_roundup = xprt_rdma_pad_optimize;
 	rsize = RPCRDMA_V1_DEF_INLINE_SIZE;
 	wsize = RPCRDMA_V1_DEF_INLINE_SIZE;
 
 	if (pmsg &&
 	    pmsg->cp_magic == rpcrdma_cmp_magic &&
 	    pmsg->cp_version == RPCRDMA_CMP_VERSION) {
-		r_xprt->rx_ia.ri_implicit_roundup = true;
+		ep->re_implicit_roundup = true;
 		rsize = rpcrdma_decode_buffer_size(pmsg->cp_send_size);
 		wsize = rpcrdma_decode_buffer_size(pmsg->cp_recv_size);
 	}
 
-	if (rsize < r_xprt->rx_ep.rep_inline_recv)
-		r_xprt->rx_ep.rep_inline_recv = rsize;
-	if (wsize < r_xprt->rx_ep.rep_inline_send)
-		r_xprt->rx_ep.rep_inline_send = wsize;
-	dprintk("RPC:       %s: max send %u, max recv %u\n", __func__,
-		r_xprt->rx_ep.rep_inline_send,
-		r_xprt->rx_ep.rep_inline_recv);
-	rpcrdma_set_max_header_sizes(r_xprt);
+	if (rsize < ep->re_inline_recv)
+		ep->re_inline_recv = rsize;
+	if (wsize < ep->re_inline_send)
+		ep->re_inline_send = wsize;
+
+	rpcrdma_set_max_header_sizes(ep);
 }
 
 /**
@@ -219,121 +246,104 @@ rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
 static int
 rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
-	struct rpcrdma_xprt *r_xprt = id->context;
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
-	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
+	struct sockaddr *sap = (struct sockaddr *)&id->route.addr.dst_addr;
+	struct rpcrdma_ep *ep = id->context;
 
 	might_sleep();
 
-	trace_xprtrdma_cm_event(r_xprt, event);
 	switch (event->event) {
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
-		ia->ri_async_rc = 0;
-		complete(&ia->ri_done);
+		ep->re_async_rc = 0;
+		complete(&ep->re_done);
 		return 0;
 	case RDMA_CM_EVENT_ADDR_ERROR:
-		ia->ri_async_rc = -EPROTO;
-		complete(&ia->ri_done);
+		ep->re_async_rc = -EPROTO;
+		complete(&ep->re_done);
 		return 0;
 	case RDMA_CM_EVENT_ROUTE_ERROR:
-		ia->ri_async_rc = -ENETUNREACH;
-		complete(&ia->ri_done);
+		ep->re_async_rc = -ENETUNREACH;
+		complete(&ep->re_done);
 		return 0;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-		pr_info("rpcrdma: removing device %s for %s:%s\n",
-			ia->ri_id->device->name,
-			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt));
-#endif
-		set_bit(RPCRDMA_IAF_REMOVING, &ia->ri_flags);
-		ep->rep_connected = -ENODEV;
-		xprt_force_disconnect(xprt);
-		wait_for_completion(&ia->ri_remove_done);
-
-		ia->ri_id = NULL;
-		/* Return 1 to ensure the core destroys the id. */
-		return 1;
+		pr_info("rpcrdma: removing device %s for %pISpc\n",
+			ep->re_id->device->name, sap);
+		fallthrough;
+	case RDMA_CM_EVENT_ADDR_CHANGE:
+		ep->re_connect_status = -ENODEV;
+		goto disconnected;
 	case RDMA_CM_EVENT_ESTABLISHED:
-		++xprt->connect_cookie;
-		ep->rep_connected = 1;
-		rpcrdma_update_connect_private(r_xprt, &event->param.conn);
-		wake_up_all(&ep->rep_connect_wait);
+		rpcrdma_ep_get(ep);
+		ep->re_connect_status = 1;
+		rpcrdma_update_cm_private(ep, &event->param.conn);
+		trace_xprtrdma_inline_thresh(ep);
+		wake_up_all(&ep->re_connect_wait);
 		break;
 	case RDMA_CM_EVENT_CONNECT_ERROR:
-		ep->rep_connected = -ENOTCONN;
-		goto disconnected;
+		ep->re_connect_status = -ENOTCONN;
+		goto wake_connect_worker;
 	case RDMA_CM_EVENT_UNREACHABLE:
-		ep->rep_connected = -ENETUNREACH;
-		goto disconnected;
+		ep->re_connect_status = -ENETUNREACH;
+		goto wake_connect_worker;
 	case RDMA_CM_EVENT_REJECTED:
-		dprintk("rpcrdma: connection to %s:%s rejected: %s\n",
-			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt),
-			rdma_reject_msg(id, event->status));
-		ep->rep_connected = -ECONNREFUSED;
+		dprintk("rpcrdma: connection to %pISpc rejected: %s\n",
+			sap, rdma_reject_msg(id, event->status));
+		ep->re_connect_status = -ECONNREFUSED;
 		if (event->status == IB_CM_REJ_STALE_CONN)
-			ep->rep_connected = -EAGAIN;
-		goto disconnected;
+			ep->re_connect_status = -ENOTCONN;
+wake_connect_worker:
+		wake_up_all(&ep->re_connect_wait);
+		return 0;
 	case RDMA_CM_EVENT_DISCONNECTED:
-		ep->rep_connected = -ECONNABORTED;
+		ep->re_connect_status = -ECONNABORTED;
 disconnected:
-		xprt_force_disconnect(xprt);
-		wake_up_all(&ep->rep_connect_wait);
-		break;
+		rpcrdma_force_disconnect(ep);
+		return rpcrdma_ep_put(ep);
 	default:
 		break;
 	}
 
-	dprintk("RPC:       %s: %s:%s on %s/frwr: %s\n", __func__,
-		rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt),
-		ia->ri_id->device->name, rdma_event_msg(event->event));
+	dprintk("RPC:       %s: %pISpc on %s/frwr: %s\n", __func__, sap,
+		ep->re_id->device->name, rdma_event_msg(event->event));
 	return 0;
 }
 
-static struct rdma_cm_id *
-rpcrdma_create_id(struct rpcrdma_xprt *xprt, struct rpcrdma_ia *ia)
+static struct rdma_cm_id *rpcrdma_create_id(struct rpcrdma_xprt *r_xprt,
+					    struct rpcrdma_ep *ep)
 {
 	unsigned long wtimeout = msecs_to_jiffies(RDMA_RESOLVE_TIMEOUT) + 1;
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	struct rdma_cm_id *id;
 	int rc;
 
-	trace_xprtrdma_conn_start(xprt);
+	init_completion(&ep->re_done);
 
-	init_completion(&ia->ri_done);
-	init_completion(&ia->ri_remove_done);
-
-	id = rdma_create_id(xprt->rx_xprt.xprt_net, rpcrdma_cm_event_handler,
-			    xprt, RDMA_PS_TCP, IB_QPT_RC);
+	id = rdma_create_id(xprt->xprt_net, rpcrdma_cm_event_handler, ep,
+			    RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(id))
 		return id;
 
-	ia->ri_async_rc = -ETIMEDOUT;
-	rc = rdma_resolve_addr(id, NULL,
-			       (struct sockaddr *)&xprt->rx_xprt.addr,
+	ep->re_async_rc = -ETIMEDOUT;
+	rc = rdma_resolve_addr(id, NULL, (struct sockaddr *)&xprt->addr,
 			       RDMA_RESOLVE_TIMEOUT);
 	if (rc)
 		goto out;
-	rc = wait_for_completion_interruptible_timeout(&ia->ri_done, wtimeout);
-	if (rc < 0) {
-		trace_xprtrdma_conn_tout(xprt);
+	rc = wait_for_completion_interruptible_timeout(&ep->re_done, wtimeout);
+	if (rc < 0)
 		goto out;
-	}
 
-	rc = ia->ri_async_rc;
+	rc = ep->re_async_rc;
 	if (rc)
 		goto out;
 
-	ia->ri_async_rc = -ETIMEDOUT;
+	ep->re_async_rc = -ETIMEDOUT;
 	rc = rdma_resolve_route(id, RDMA_RESOLVE_TIMEOUT);
 	if (rc)
 		goto out;
-	rc = wait_for_completion_interruptible_timeout(&ia->ri_done, wtimeout);
-	if (rc < 0) {
-		trace_xprtrdma_conn_tout(xprt);
+	rc = wait_for_completion_interruptible_timeout(&ep->re_done, wtimeout);
+	if (rc < 0)
 		goto out;
-	}
-	rc = ia->ri_async_rc;
+	rc = ep->re_async_rc;
 	if (rc)
 		goto out;
 
@@ -344,442 +354,253 @@ out:
 	return ERR_PTR(rc);
 }
 
-/*
- * Exported functions.
- */
-
-/**
- * rpcrdma_ia_open - Open and initialize an Interface Adapter.
- * @xprt: transport with IA to (re)initialize
- *
- * Returns 0 on success, negative errno if an appropriate
- * Interface Adapter could not be found and opened.
- */
-int
-rpcrdma_ia_open(struct rpcrdma_xprt *xprt)
+static void rpcrdma_ep_destroy(struct kref *kref)
 {
-	struct rpcrdma_ia *ia = &xprt->rx_ia;
+	struct rpcrdma_ep *ep = container_of(kref, struct rpcrdma_ep, re_kref);
+
+	if (ep->re_id->qp) {
+		rdma_destroy_qp(ep->re_id);
+		ep->re_id->qp = NULL;
+	}
+
+	if (ep->re_attr.recv_cq)
+		ib_free_cq(ep->re_attr.recv_cq);
+	ep->re_attr.recv_cq = NULL;
+	if (ep->re_attr.send_cq)
+		ib_free_cq(ep->re_attr.send_cq);
+	ep->re_attr.send_cq = NULL;
+
+	if (ep->re_pd)
+		ib_dealloc_pd(ep->re_pd);
+	ep->re_pd = NULL;
+
+	kfree(ep);
+	module_put(THIS_MODULE);
+}
+
+static noinline void rpcrdma_ep_get(struct rpcrdma_ep *ep)
+{
+	kref_get(&ep->re_kref);
+}
+
+/* Returns:
+ *     %0 if @ep still has a positive kref count, or
+ *     %1 if @ep was destroyed successfully.
+ */
+static noinline int rpcrdma_ep_put(struct rpcrdma_ep *ep)
+{
+	return kref_put(&ep->re_kref, rpcrdma_ep_destroy);
+}
+
+static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_connect_private *pmsg;
+	struct ib_device *device;
+	struct rdma_cm_id *id;
+	struct rpcrdma_ep *ep;
 	int rc;
 
-	ia->ri_id = rpcrdma_create_id(xprt, ia);
-	if (IS_ERR(ia->ri_id)) {
-		rc = PTR_ERR(ia->ri_id);
-		goto out_err;
+	ep = kzalloc(sizeof(*ep), GFP_NOFS);
+	if (!ep)
+		return -ENOTCONN;
+	ep->re_xprt = &r_xprt->rx_xprt;
+	kref_init(&ep->re_kref);
+
+	id = rpcrdma_create_id(r_xprt, ep);
+	if (IS_ERR(id)) {
+		kfree(ep);
+		return PTR_ERR(id);
 	}
+	__module_get(THIS_MODULE);
+	device = id->device;
+	ep->re_id = id;
 
-	ia->ri_pd = ib_alloc_pd(ia->ri_id->device, 0);
-	if (IS_ERR(ia->ri_pd)) {
-		rc = PTR_ERR(ia->ri_pd);
-		pr_err("rpcrdma: ib_alloc_pd() returned %d\n", rc);
-		goto out_err;
-	}
-
-	switch (xprt_rdma_memreg_strategy) {
-	case RPCRDMA_FRWR:
-		if (frwr_is_supported(ia->ri_id->device))
-			break;
-		/*FALLTHROUGH*/
-	default:
-		pr_err("rpcrdma: Device %s does not support memreg mode %d\n",
-		       ia->ri_id->device->name, xprt_rdma_memreg_strategy);
-		rc = -EINVAL;
-		goto out_err;
-	}
-
-	return 0;
-
-out_err:
-	rpcrdma_ia_close(ia);
-	return rc;
-}
-
-/**
- * rpcrdma_ia_remove - Handle device driver unload
- * @ia: interface adapter being removed
- *
- * Divest transport H/W resources associated with this adapter,
- * but allow it to be restored later.
- */
-void
-rpcrdma_ia_remove(struct rpcrdma_ia *ia)
-{
-	struct rpcrdma_xprt *r_xprt = container_of(ia, struct rpcrdma_xprt,
-						   rx_ia);
-	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
-	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	struct rpcrdma_req *req;
-
-	cancel_work_sync(&buf->rb_refresh_worker);
-
-	/* This is similar to rpcrdma_ep_destroy, but:
-	 * - Don't cancel the connect worker.
-	 * - Don't call rpcrdma_ep_disconnect, which waits
-	 *   for another conn upcall, which will deadlock.
-	 * - rdma_disconnect is unneeded, the underlying
-	 *   connection is already gone.
-	 */
-	if (ia->ri_id->qp) {
-		rpcrdma_xprt_drain(r_xprt);
-		rdma_destroy_qp(ia->ri_id);
-		ia->ri_id->qp = NULL;
-	}
-	ib_free_cq(ep->rep_attr.recv_cq);
-	ep->rep_attr.recv_cq = NULL;
-	ib_free_cq(ep->rep_attr.send_cq);
-	ep->rep_attr.send_cq = NULL;
-
-	/* The ULP is responsible for ensuring all DMA
-	 * mappings and MRs are gone.
-	 */
-	rpcrdma_reps_destroy(buf);
-	list_for_each_entry(req, &buf->rb_allreqs, rl_all) {
-		rpcrdma_regbuf_dma_unmap(req->rl_rdmabuf);
-		rpcrdma_regbuf_dma_unmap(req->rl_sendbuf);
-		rpcrdma_regbuf_dma_unmap(req->rl_recvbuf);
-	}
-	rpcrdma_mrs_destroy(buf);
-	ib_dealloc_pd(ia->ri_pd);
-	ia->ri_pd = NULL;
-
-	/* Allow waiters to continue */
-	complete(&ia->ri_remove_done);
-
-	trace_xprtrdma_remove(r_xprt);
-}
-
-/**
- * rpcrdma_ia_close - Clean up/close an IA.
- * @ia: interface adapter to close
- *
- */
-void
-rpcrdma_ia_close(struct rpcrdma_ia *ia)
-{
-	if (ia->ri_id != NULL && !IS_ERR(ia->ri_id)) {
-		if (ia->ri_id->qp)
-			rdma_destroy_qp(ia->ri_id);
-		rdma_destroy_id(ia->ri_id);
-	}
-	ia->ri_id = NULL;
-
-	/* If the pd is still busy, xprtrdma missed freeing a resource */
-	if (ia->ri_pd && !IS_ERR(ia->ri_pd))
-		ib_dealloc_pd(ia->ri_pd);
-	ia->ri_pd = NULL;
-}
-
-/**
- * rpcrdma_ep_create - Create unconnected endpoint
- * @r_xprt: transport to instantiate
- *
- * Returns zero on success, or a negative errno.
- */
-int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct rpcrdma_connect_private *pmsg = &ep->rep_cm_private;
-	struct ib_cq *sendcq, *recvcq;
-	unsigned int max_sge;
-	int rc;
-
-	ep->rep_max_requests = xprt_rdma_slot_table_entries;
-	ep->rep_inline_send = xprt_rdma_max_inline_write;
-	ep->rep_inline_recv = xprt_rdma_max_inline_read;
-
-	max_sge = min_t(unsigned int, ia->ri_id->device->attrs.max_send_sge,
-			RPCRDMA_MAX_SEND_SGES);
-	if (max_sge < RPCRDMA_MIN_SEND_SGES) {
-		pr_warn("rpcrdma: HCA provides only %d send SGEs\n", max_sge);
-		return -ENOMEM;
-	}
-	ia->ri_max_send_sges = max_sge;
-
-	rc = frwr_open(ia, ep);
+	ep->re_max_requests = r_xprt->rx_xprt.max_reqs;
+	ep->re_inline_send = xprt_rdma_max_inline_write;
+	ep->re_inline_recv = xprt_rdma_max_inline_read;
+	rc = frwr_query_device(ep, device);
 	if (rc)
-		return rc;
+		goto out_destroy;
 
-	ep->rep_attr.event_handler = rpcrdma_qp_event_handler;
-	ep->rep_attr.qp_context = ep;
-	ep->rep_attr.srq = NULL;
-	ep->rep_attr.cap.max_send_sge = max_sge;
-	ep->rep_attr.cap.max_recv_sge = 1;
-	ep->rep_attr.cap.max_inline_data = 0;
-	ep->rep_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
-	ep->rep_attr.qp_type = IB_QPT_RC;
-	ep->rep_attr.port_num = ~0;
+	r_xprt->rx_buf.rb_max_requests = cpu_to_be32(ep->re_max_requests);
+
+	ep->re_attr.event_handler = rpcrdma_qp_event_handler;
+	ep->re_attr.qp_context = ep;
+	ep->re_attr.srq = NULL;
+	ep->re_attr.cap.max_inline_data = 0;
+	ep->re_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
+	ep->re_attr.qp_type = IB_QPT_RC;
+	ep->re_attr.port_num = ~0;
 
 	dprintk("RPC:       %s: requested max: dtos: send %d recv %d; "
 		"iovs: send %d recv %d\n",
 		__func__,
-		ep->rep_attr.cap.max_send_wr,
-		ep->rep_attr.cap.max_recv_wr,
-		ep->rep_attr.cap.max_send_sge,
-		ep->rep_attr.cap.max_recv_sge);
+		ep->re_attr.cap.max_send_wr,
+		ep->re_attr.cap.max_recv_wr,
+		ep->re_attr.cap.max_send_sge,
+		ep->re_attr.cap.max_recv_sge);
 
-	ep->rep_send_batch = ep->rep_max_requests >> 3;
-	ep->rep_send_count = ep->rep_send_batch;
-	init_waitqueue_head(&ep->rep_connect_wait);
-	ep->rep_receive_count = 0;
+	ep->re_send_batch = ep->re_max_requests >> 3;
+	ep->re_send_count = ep->re_send_batch;
+	init_waitqueue_head(&ep->re_connect_wait);
 
-	sendcq = ib_alloc_cq_any(ia->ri_id->device, NULL,
-				 ep->rep_attr.cap.max_send_wr + 1,
-				 IB_POLL_WORKQUEUE);
-	if (IS_ERR(sendcq)) {
-		rc = PTR_ERR(sendcq);
-		goto out1;
+	ep->re_attr.send_cq = ib_alloc_cq_any(device, r_xprt,
+					      ep->re_attr.cap.max_send_wr,
+					      IB_POLL_WORKQUEUE);
+	if (IS_ERR(ep->re_attr.send_cq)) {
+		rc = PTR_ERR(ep->re_attr.send_cq);
+		goto out_destroy;
 	}
 
-	recvcq = ib_alloc_cq_any(ia->ri_id->device, NULL,
-				 ep->rep_attr.cap.max_recv_wr + 1,
-				 IB_POLL_WORKQUEUE);
-	if (IS_ERR(recvcq)) {
-		rc = PTR_ERR(recvcq);
-		goto out2;
+	ep->re_attr.recv_cq = ib_alloc_cq_any(device, r_xprt,
+					      ep->re_attr.cap.max_recv_wr,
+					      IB_POLL_WORKQUEUE);
+	if (IS_ERR(ep->re_attr.recv_cq)) {
+		rc = PTR_ERR(ep->re_attr.recv_cq);
+		goto out_destroy;
 	}
-
-	ep->rep_attr.send_cq = sendcq;
-	ep->rep_attr.recv_cq = recvcq;
+	ep->re_receive_count = 0;
 
 	/* Initialize cma parameters */
-	memset(&ep->rep_remote_cma, 0, sizeof(ep->rep_remote_cma));
+	memset(&ep->re_remote_cma, 0, sizeof(ep->re_remote_cma));
 
 	/* Prepare RDMA-CM private message */
+	pmsg = &ep->re_cm_private;
 	pmsg->cp_magic = rpcrdma_cmp_magic;
 	pmsg->cp_version = RPCRDMA_CMP_VERSION;
 	pmsg->cp_flags |= RPCRDMA_CMP_F_SND_W_INV_OK;
-	pmsg->cp_send_size = rpcrdma_encode_buffer_size(ep->rep_inline_send);
-	pmsg->cp_recv_size = rpcrdma_encode_buffer_size(ep->rep_inline_recv);
-	ep->rep_remote_cma.private_data = pmsg;
-	ep->rep_remote_cma.private_data_len = sizeof(*pmsg);
+	pmsg->cp_send_size = rpcrdma_encode_buffer_size(ep->re_inline_send);
+	pmsg->cp_recv_size = rpcrdma_encode_buffer_size(ep->re_inline_recv);
+	ep->re_remote_cma.private_data = pmsg;
+	ep->re_remote_cma.private_data_len = sizeof(*pmsg);
 
 	/* Client offers RDMA Read but does not initiate */
-	ep->rep_remote_cma.initiator_depth = 0;
-	ep->rep_remote_cma.responder_resources =
-		min_t(int, U8_MAX, ia->ri_id->device->attrs.max_qp_rd_atom);
+	ep->re_remote_cma.initiator_depth = 0;
+	ep->re_remote_cma.responder_resources =
+		min_t(int, U8_MAX, device->attrs.max_qp_rd_atom);
 
 	/* Limit transport retries so client can detect server
 	 * GID changes quickly. RPC layer handles re-establishing
 	 * transport connection and retransmission.
 	 */
-	ep->rep_remote_cma.retry_count = 6;
+	ep->re_remote_cma.retry_count = 6;
 
 	/* RPC-over-RDMA handles its own flow control. In addition,
 	 * make all RNR NAKs visible so we know that RPC-over-RDMA
 	 * flow control is working correctly (no NAKs should be seen).
 	 */
-	ep->rep_remote_cma.flow_control = 0;
-	ep->rep_remote_cma.rnr_retry_count = 0;
+	ep->re_remote_cma.flow_control = 0;
+	ep->re_remote_cma.rnr_retry_count = 0;
 
+	ep->re_pd = ib_alloc_pd(device, 0);
+	if (IS_ERR(ep->re_pd)) {
+		rc = PTR_ERR(ep->re_pd);
+		goto out_destroy;
+	}
+
+	rc = rdma_create_qp(id, ep->re_pd, &ep->re_attr);
+	if (rc)
+		goto out_destroy;
+
+	r_xprt->rx_ep = ep;
 	return 0;
 
-out2:
-	ib_free_cq(sendcq);
-out1:
+out_destroy:
+	rpcrdma_ep_put(ep);
+	rdma_destroy_id(id);
 	return rc;
 }
 
 /**
- * rpcrdma_ep_destroy - Disconnect and destroy endpoint.
- * @r_xprt: transport instance to shut down
+ * rpcrdma_xprt_connect - Connect an unconnected transport
+ * @r_xprt: controlling transport instance
  *
+ * Returns 0 on success or a negative errno.
  */
-void rpcrdma_ep_destroy(struct rpcrdma_xprt *r_xprt)
+int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt)
 {
-	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-
-	if (ia->ri_id && ia->ri_id->qp) {
-		rpcrdma_ep_disconnect(ep, ia);
-		rdma_destroy_qp(ia->ri_id);
-		ia->ri_id->qp = NULL;
-	}
-
-	if (ep->rep_attr.recv_cq)
-		ib_free_cq(ep->rep_attr.recv_cq);
-	if (ep->rep_attr.send_cq)
-		ib_free_cq(ep->rep_attr.send_cq);
-}
-
-/* Re-establish a connection after a device removal event.
- * Unlike a normal reconnection, a fresh PD and a new set
- * of MRs and buffers is needed.
- */
-static int rpcrdma_ep_recreate_xprt(struct rpcrdma_xprt *r_xprt,
-				    struct ib_qp_init_attr *qp_init_attr)
-{
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	int rc, err;
-
-	trace_xprtrdma_reinsert(r_xprt);
-
-	rc = -EHOSTUNREACH;
-	if (rpcrdma_ia_open(r_xprt))
-		goto out1;
-
-	rc = -ENOMEM;
-	err = rpcrdma_ep_create(r_xprt);
-	if (err) {
-		pr_err("rpcrdma: rpcrdma_ep_create returned %d\n", err);
-		goto out2;
-	}
-
-	rc = -ENETUNREACH;
-	err = rdma_create_qp(ia->ri_id, ia->ri_pd, qp_init_attr);
-	if (err) {
-		pr_err("rpcrdma: rdma_create_qp returned %d\n", err);
-		goto out3;
-	}
-
-	rpcrdma_mrs_create(r_xprt);
-	return 0;
-
-out3:
-	rpcrdma_ep_destroy(r_xprt);
-out2:
-	rpcrdma_ia_close(ia);
-out1:
-	return rc;
-}
-
-static int rpcrdma_ep_reconnect(struct rpcrdma_xprt *r_xprt,
-				struct ib_qp_init_attr *qp_init_attr)
-{
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct rdma_cm_id *id, *old;
-	int err, rc;
-
-	trace_xprtrdma_reconnect(r_xprt);
-
-	rpcrdma_ep_disconnect(&r_xprt->rx_ep, ia);
-
-	rc = -EHOSTUNREACH;
-	id = rpcrdma_create_id(r_xprt, ia);
-	if (IS_ERR(id))
-		goto out;
-
-	/* As long as the new ID points to the same device as the
-	 * old ID, we can reuse the transport's existing PD and all
-	 * previously allocated MRs. Also, the same device means
-	 * the transport's previous DMA mappings are still valid.
-	 *
-	 * This is a sanity check only. There should be no way these
-	 * point to two different devices here.
-	 */
-	old = id;
-	rc = -ENETUNREACH;
-	if (ia->ri_id->device != id->device) {
-		pr_err("rpcrdma: can't reconnect on different device!\n");
-		goto out_destroy;
-	}
-
-	err = rdma_create_qp(id, ia->ri_pd, qp_init_attr);
-	if (err)
-		goto out_destroy;
-
-	/* Atomically replace the transport's ID and QP. */
-	rc = 0;
-	old = ia->ri_id;
-	ia->ri_id = id;
-	rdma_destroy_qp(old);
-
-out_destroy:
-	rdma_destroy_id(old);
-out:
-	return rc;
-}
-
-/*
- * Connect unconnected endpoint.
- */
-int
-rpcrdma_ep_connect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
-{
-	struct rpcrdma_xprt *r_xprt = container_of(ia, struct rpcrdma_xprt,
-						   rx_ia);
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
-	struct ib_qp_init_attr qp_init_attr;
+	struct rpcrdma_ep *ep;
 	int rc;
 
-retry:
-	memcpy(&qp_init_attr, &ep->rep_attr, sizeof(qp_init_attr));
-	switch (ep->rep_connected) {
-	case 0:
-		dprintk("RPC:       %s: connecting...\n", __func__);
-		rc = rdma_create_qp(ia->ri_id, ia->ri_pd, &qp_init_attr);
-		if (rc) {
-			rc = -ENETUNREACH;
-			goto out_noupdate;
-		}
-		break;
-	case -ENODEV:
-		rc = rpcrdma_ep_recreate_xprt(r_xprt, &qp_init_attr);
-		if (rc)
-			goto out_noupdate;
-		break;
-	default:
-		rc = rpcrdma_ep_reconnect(r_xprt, &qp_init_attr);
-		if (rc)
-			goto out;
-	}
+	rc = rpcrdma_ep_create(r_xprt);
+	if (rc)
+		return rc;
+	ep = r_xprt->rx_ep;
 
-	ep->rep_connected = 0;
 	xprt_clear_connected(xprt);
+	rpcrdma_reset_cwnd(r_xprt);
 
+	/* Bump the ep's reference count while there are
+	 * outstanding Receives.
+	 */
+	rpcrdma_ep_get(ep);
 	rpcrdma_post_recvs(r_xprt, true);
 
-	rc = rdma_connect(ia->ri_id, &ep->rep_remote_cma);
+	rc = rdma_connect(ep->re_id, &ep->re_remote_cma);
 	if (rc)
 		goto out;
 
 	if (xprt->reestablish_timeout < RPCRDMA_INIT_REEST_TO)
 		xprt->reestablish_timeout = RPCRDMA_INIT_REEST_TO;
-	wait_event_interruptible(ep->rep_connect_wait, ep->rep_connected != 0);
-	if (ep->rep_connected <= 0) {
-		if (ep->rep_connected == -EAGAIN)
-			goto retry;
-		rc = ep->rep_connected;
+	wait_event_interruptible(ep->re_connect_wait,
+				 ep->re_connect_status != 0);
+	if (ep->re_connect_status <= 0) {
+		rc = ep->re_connect_status;
 		goto out;
 	}
 
-	dprintk("RPC:       %s: connected\n", __func__);
+	rc = rpcrdma_sendctxs_create(r_xprt);
+	if (rc) {
+		rc = -ENOTCONN;
+		goto out;
+	}
+
+	rc = rpcrdma_reqs_setup(r_xprt);
+	if (rc) {
+		rc = -ENOTCONN;
+		goto out;
+	}
+	rpcrdma_mrs_create(r_xprt);
 
 out:
-	if (rc)
-		ep->rep_connected = rc;
-
-out_noupdate:
+	trace_xprtrdma_connect(r_xprt, rc);
 	return rc;
 }
 
 /**
- * rpcrdma_ep_disconnect - Disconnect underlying transport
- * @ep: endpoint to disconnect
- * @ia: associated interface adapter
+ * rpcrdma_xprt_disconnect - Disconnect underlying transport
+ * @r_xprt: controlling transport instance
  *
- * This is separate from destroy to facilitate the ability
- * to reconnect without recreating the endpoint.
+ * Caller serializes. Either the transport send lock is held,
+ * or we're being called to destroy the transport.
  *
- * This call is not reentrant, and must not be made in parallel
- * on the same endpoint.
+ * On return, @r_xprt is completely divested of all hardware
+ * resources and prepared for the next ->connect operation.
  */
-void
-rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
+void rpcrdma_xprt_disconnect(struct rpcrdma_xprt *r_xprt)
 {
-	struct rpcrdma_xprt *r_xprt = container_of(ep, struct rpcrdma_xprt,
-						   rx_ep);
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
+	struct rdma_cm_id *id;
 	int rc;
 
-	/* returns without wait if ID is not connected */
-	rc = rdma_disconnect(ia->ri_id);
-	if (!rc)
-		wait_event_interruptible(ep->rep_connect_wait,
-							ep->rep_connected != 1);
-	else
-		ep->rep_connected = rc;
+	if (!ep)
+		return;
+
+	id = ep->re_id;
+	rc = rdma_disconnect(id);
 	trace_xprtrdma_disconnect(r_xprt, rc);
 
 	rpcrdma_xprt_drain(r_xprt);
+	rpcrdma_reps_unmap(r_xprt);
+	rpcrdma_reqs_reset(r_xprt);
+	rpcrdma_mrs_destroy(r_xprt);
+	rpcrdma_sendctxs_destroy(r_xprt);
+
+	if (rpcrdma_ep_put(ep))
+		rdma_destroy_id(id);
+
+	r_xprt->rx_ep = NULL;
 }
 
 /* Fixed-size circular FIFO queue. This implementation is wait-free and
@@ -799,27 +620,28 @@ rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
  * queue activity, and rpcrdma_xprt_drain has flushed all remaining
  * Send requests.
  */
-static void rpcrdma_sendctxs_destroy(struct rpcrdma_buffer *buf)
+static void rpcrdma_sendctxs_destroy(struct rpcrdma_xprt *r_xprt)
 {
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	unsigned long i;
 
+	if (!buf->rb_sc_ctxs)
+		return;
 	for (i = 0; i <= buf->rb_sc_last; i++)
 		kfree(buf->rb_sc_ctxs[i]);
 	kfree(buf->rb_sc_ctxs);
+	buf->rb_sc_ctxs = NULL;
 }
 
-static struct rpcrdma_sendctx *rpcrdma_sendctx_create(struct rpcrdma_ia *ia)
+static struct rpcrdma_sendctx *rpcrdma_sendctx_create(struct rpcrdma_ep *ep)
 {
 	struct rpcrdma_sendctx *sc;
 
-	sc = kzalloc(struct_size(sc, sc_sges, ia->ri_max_send_sges),
+	sc = kzalloc(struct_size(sc, sc_sges, ep->re_attr.cap.max_send_sge),
 		     GFP_KERNEL);
 	if (!sc)
 		return NULL;
 
-	sc->sc_wr.wr_cqe = &sc->sc_cqe;
-	sc->sc_wr.sg_list = sc->sc_sges;
-	sc->sc_wr.opcode = IB_WR_SEND;
 	sc->sc_cqe.done = rpcrdma_wc_send;
 	return sc;
 }
@@ -835,22 +657,22 @@ static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt)
 	 * the ->send_request call to fail temporarily before too many
 	 * Sends are posted.
 	 */
-	i = buf->rb_max_requests + RPCRDMA_MAX_BC_REQUESTS;
-	dprintk("RPC:       %s: allocating %lu send_ctxs\n", __func__, i);
+	i = r_xprt->rx_ep->re_max_requests + RPCRDMA_MAX_BC_REQUESTS;
 	buf->rb_sc_ctxs = kcalloc(i, sizeof(sc), GFP_KERNEL);
 	if (!buf->rb_sc_ctxs)
 		return -ENOMEM;
 
 	buf->rb_sc_last = i - 1;
 	for (i = 0; i <= buf->rb_sc_last; i++) {
-		sc = rpcrdma_sendctx_create(&r_xprt->rx_ia);
+		sc = rpcrdma_sendctx_create(r_xprt->rx_ep);
 		if (!sc)
 			return -ENOMEM;
 
-		sc->sc_xprt = r_xprt;
 		buf->rb_sc_ctxs[i] = sc;
 	}
 
+	buf->rb_sc_head = 0;
+	buf->rb_sc_tail = 0;
 	return 0;
 }
 
@@ -910,6 +732,7 @@ out_emptyq:
 
 /**
  * rpcrdma_sendctx_put_locked - Release a send context
+ * @r_xprt: controlling transport instance
  * @sc: send context to release
  *
  * Usage: Called from Send completion to return a sendctxt
@@ -917,10 +740,10 @@ out_emptyq:
  *
  * The caller serializes calls to this function (per transport).
  */
-static void
-rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc)
+static void rpcrdma_sendctx_put_locked(struct rpcrdma_xprt *r_xprt,
+				       struct rpcrdma_sendctx *sc)
 {
-	struct rpcrdma_buffer *buf = &sc->sc_xprt->rx_buf;
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	unsigned long next_tail;
 
 	/* Unmap SGEs of previously completed but unsignaled
@@ -938,17 +761,17 @@ rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc)
 	/* Paired with READ_ONCE */
 	smp_store_release(&buf->rb_sc_tail, next_tail);
 
-	xprt_write_space(&sc->sc_xprt->rx_xprt);
+	xprt_write_space(&r_xprt->rx_xprt);
 }
 
 static void
 rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 	unsigned int count;
 
-	for (count = 0; count < ia->ri_max_segs; count++) {
+	for (count = 0; count < ep->re_max_rdma_segs; count++) {
 		struct rpcrdma_mr *mr;
 		int rc;
 
@@ -956,16 +779,14 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 		if (!mr)
 			break;
 
-		rc = frwr_init_mr(ia, mr);
+		rc = frwr_mr_init(r_xprt, mr);
 		if (rc) {
 			kfree(mr);
 			break;
 		}
 
-		mr->mr_xprt = r_xprt;
-
 		spin_lock(&buf->rb_lock);
-		list_add(&mr->mr_list, &buf->rb_mrs);
+		rpcrdma_mr_push(mr, &buf->rb_mrs);
 		list_add(&mr->mr_all, &buf->rb_all_mrs);
 		spin_unlock(&buf->rb_lock);
 	}
@@ -987,6 +808,28 @@ rpcrdma_mr_refresh_worker(struct work_struct *work)
 }
 
 /**
+ * rpcrdma_mrs_refresh - Wake the MR refresh worker
+ * @r_xprt: controlling transport instance
+ *
+ */
+void rpcrdma_mrs_refresh(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
+
+	/* If there is no underlying connection, it's no use
+	 * to wake the refresh worker.
+	 */
+	if (ep->re_connect_status == 1) {
+		/* The work is scheduled on a WQ_MEM_RECLAIM
+		 * workqueue in order to prevent MR allocation
+		 * from recursing into NFS during direct reclaim.
+		 */
+		queue_work(xprtiod_workqueue, &buf->rb_refresh_worker);
+	}
+}
+
+/**
  * rpcrdma_req_create - Allocate an rpcrdma_req object
  * @r_xprt: controlling r_xprt
  * @size: initial size, in bytes, of send and receive buffers
@@ -998,32 +841,19 @@ struct rpcrdma_req *rpcrdma_req_create(struct rpcrdma_xprt *r_xprt, size_t size,
 				       gfp_t flags)
 {
 	struct rpcrdma_buffer *buffer = &r_xprt->rx_buf;
-	struct rpcrdma_regbuf *rb;
 	struct rpcrdma_req *req;
-	size_t maxhdrsize;
 
 	req = kzalloc(sizeof(*req), flags);
 	if (req == NULL)
 		goto out1;
 
-	/* Compute maximum header buffer size in bytes */
-	maxhdrsize = rpcrdma_fixed_maxsz + 3 +
-		     r_xprt->rx_ia.ri_max_segs * rpcrdma_readchunk_maxsz;
-	maxhdrsize *= sizeof(__be32);
-	rb = rpcrdma_regbuf_alloc(__roundup_pow_of_two(maxhdrsize),
-				  DMA_TO_DEVICE, flags);
-	if (!rb)
-		goto out2;
-	req->rl_rdmabuf = rb;
-	xdr_buf_init(&req->rl_hdrbuf, rdmab_data(rb), rdmab_length(rb));
-
 	req->rl_sendbuf = rpcrdma_regbuf_alloc(size, DMA_TO_DEVICE, flags);
 	if (!req->rl_sendbuf)
-		goto out3;
+		goto out2;
 
 	req->rl_recvbuf = rpcrdma_regbuf_alloc(size, DMA_NONE, flags);
 	if (!req->rl_recvbuf)
-		goto out4;
+		goto out3;
 
 	INIT_LIST_HEAD(&req->rl_free_mrs);
 	INIT_LIST_HEAD(&req->rl_registered);
@@ -1032,18 +862,101 @@ struct rpcrdma_req *rpcrdma_req_create(struct rpcrdma_xprt *r_xprt, size_t size,
 	spin_unlock(&buffer->rb_lock);
 	return req;
 
-out4:
-	kfree(req->rl_sendbuf);
 out3:
-	kfree(req->rl_rdmabuf);
+	kfree(req->rl_sendbuf);
 out2:
 	kfree(req);
 out1:
 	return NULL;
 }
 
-static struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
-					      bool temp)
+/**
+ * rpcrdma_req_setup - Per-connection instance setup of an rpcrdma_req object
+ * @r_xprt: controlling transport instance
+ * @req: rpcrdma_req object to set up
+ *
+ * Returns zero on success, and a negative errno on failure.
+ */
+int rpcrdma_req_setup(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
+{
+	struct rpcrdma_regbuf *rb;
+	size_t maxhdrsize;
+
+	/* Compute maximum header buffer size in bytes */
+	maxhdrsize = rpcrdma_fixed_maxsz + 3 +
+		     r_xprt->rx_ep->re_max_rdma_segs * rpcrdma_readchunk_maxsz;
+	maxhdrsize *= sizeof(__be32);
+	rb = rpcrdma_regbuf_alloc(__roundup_pow_of_two(maxhdrsize),
+				  DMA_TO_DEVICE, GFP_KERNEL);
+	if (!rb)
+		goto out;
+
+	if (!__rpcrdma_regbuf_dma_map(r_xprt, rb))
+		goto out_free;
+
+	req->rl_rdmabuf = rb;
+	xdr_buf_init(&req->rl_hdrbuf, rdmab_data(rb), rdmab_length(rb));
+	return 0;
+
+out_free:
+	rpcrdma_regbuf_free(rb);
+out:
+	return -ENOMEM;
+}
+
+/* ASSUMPTION: the rb_allreqs list is stable for the duration,
+ * and thus can be walked without holding rb_lock. Eg. the
+ * caller is holding the transport send lock to exclude
+ * device removal or disconnection.
+ */
+static int rpcrdma_reqs_setup(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct rpcrdma_req *req;
+	int rc;
+
+	list_for_each_entry(req, &buf->rb_allreqs, rl_all) {
+		rc = rpcrdma_req_setup(r_xprt, req);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
+
+static void rpcrdma_req_reset(struct rpcrdma_req *req)
+{
+	/* Credits are valid for only one connection */
+	req->rl_slot.rq_cong = 0;
+
+	rpcrdma_regbuf_free(req->rl_rdmabuf);
+	req->rl_rdmabuf = NULL;
+
+	rpcrdma_regbuf_dma_unmap(req->rl_sendbuf);
+	rpcrdma_regbuf_dma_unmap(req->rl_recvbuf);
+
+	frwr_reset(req);
+}
+
+/* ASSUMPTION: the rb_allreqs list is stable for the duration,
+ * and thus can be walked without holding rb_lock. Eg. the
+ * caller is holding the transport send lock to exclude
+ * device removal or disconnection.
+ */
+static void rpcrdma_reqs_reset(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct rpcrdma_req *req;
+
+	list_for_each_entry(req, &buf->rb_allreqs, rl_all)
+		rpcrdma_req_reset(req);
+}
+
+/* No locking needed here. This function is called only by the
+ * Receive completion handler.
+ */
+static noinline
+struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
+				       bool temp)
 {
 	struct rpcrdma_rep *rep;
 
@@ -1051,10 +964,13 @@ static struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
 	if (rep == NULL)
 		goto out;
 
-	rep->rr_rdmabuf = rpcrdma_regbuf_alloc(r_xprt->rx_ep.rep_inline_recv,
+	rep->rr_rdmabuf = rpcrdma_regbuf_alloc(r_xprt->rx_ep->re_inline_recv,
 					       DMA_FROM_DEVICE, GFP_KERNEL);
 	if (!rep->rr_rdmabuf)
 		goto out_free;
+
+	if (!rpcrdma_regbuf_dma_map(r_xprt, rep->rr_rdmabuf))
+		goto out_free_regbuf;
 
 	xdr_buf_init(&rep->rr_hdrbuf, rdmab_data(rep->rr_rdmabuf),
 		     rdmab_length(rep->rr_rdmabuf));
@@ -1065,16 +981,23 @@ static struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
 	rep->rr_recv_wr.sg_list = &rep->rr_rdmabuf->rg_iov;
 	rep->rr_recv_wr.num_sge = 1;
 	rep->rr_temp = temp;
+	list_add(&rep->rr_all, &r_xprt->rx_buf.rb_all_reps);
 	return rep;
 
+out_free_regbuf:
+	rpcrdma_regbuf_free(rep->rr_rdmabuf);
 out_free:
 	kfree(rep);
 out:
 	return NULL;
 }
 
+/* No locking needed here. This function is invoked only by the
+ * Receive completion handler, or during transport shutdown.
+ */
 static void rpcrdma_rep_destroy(struct rpcrdma_rep *rep)
 {
+	list_del(&rep->rr_all);
 	rpcrdma_regbuf_free(rep->rr_rdmabuf);
 	kfree(rep);
 }
@@ -1093,10 +1016,18 @@ static struct rpcrdma_rep *rpcrdma_rep_get_locked(struct rpcrdma_buffer *buf)
 static void rpcrdma_rep_put(struct rpcrdma_buffer *buf,
 			    struct rpcrdma_rep *rep)
 {
-	if (!rep->rr_temp)
-		llist_add(&rep->rr_node, &buf->rb_free_reps);
-	else
-		rpcrdma_rep_destroy(rep);
+	llist_add(&rep->rr_node, &buf->rb_free_reps);
+}
+
+static void rpcrdma_reps_unmap(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct rpcrdma_rep *rep;
+
+	list_for_each_entry(rep, &buf->rb_all_reps, rr_all) {
+		rpcrdma_regbuf_dma_unmap(rep->rr_rdmabuf);
+		rep->rr_temp = true;
+	}
 }
 
 static void rpcrdma_reps_destroy(struct rpcrdma_buffer *buf)
@@ -1118,35 +1049,28 @@ int rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	int i, rc;
 
-	buf->rb_max_requests = r_xprt->rx_ep.rep_max_requests;
 	buf->rb_bc_srv_max_requests = 0;
 	spin_lock_init(&buf->rb_lock);
 	INIT_LIST_HEAD(&buf->rb_mrs);
 	INIT_LIST_HEAD(&buf->rb_all_mrs);
 	INIT_WORK(&buf->rb_refresh_worker, rpcrdma_mr_refresh_worker);
 
-	rpcrdma_mrs_create(r_xprt);
-
 	INIT_LIST_HEAD(&buf->rb_send_bufs);
 	INIT_LIST_HEAD(&buf->rb_allreqs);
+	INIT_LIST_HEAD(&buf->rb_all_reps);
 
 	rc = -ENOMEM;
-	for (i = 0; i < buf->rb_max_requests; i++) {
+	for (i = 0; i < r_xprt->rx_xprt.max_reqs; i++) {
 		struct rpcrdma_req *req;
 
-		req = rpcrdma_req_create(r_xprt, RPCRDMA_V1_DEF_INLINE_SIZE,
+		req = rpcrdma_req_create(r_xprt, RPCRDMA_V1_DEF_INLINE_SIZE * 2,
 					 GFP_KERNEL);
 		if (!req)
 			goto out;
 		list_add(&req->rl_list, &buf->rb_send_bufs);
 	}
 
-	buf->rb_credits = 1;
 	init_llist_head(&buf->rb_free_reps);
-
-	rc = rpcrdma_sendctxs_create(r_xprt);
-	if (rc)
-		goto out;
 
 	return 0;
 out:
@@ -1158,15 +1082,24 @@ out:
  * rpcrdma_req_destroy - Destroy an rpcrdma_req object
  * @req: unused object to be destroyed
  *
- * This function assumes that the caller prevents concurrent device
- * unload and transport tear-down.
+ * Relies on caller holding the transport send lock to protect
+ * removing req->rl_all from buf->rb_all_reqs safely.
  */
 void rpcrdma_req_destroy(struct rpcrdma_req *req)
 {
+	struct rpcrdma_mr *mr;
+
 	list_del(&req->rl_all);
 
-	while (!list_empty(&req->rl_free_mrs))
-		rpcrdma_mr_free(rpcrdma_mr_pop(&req->rl_free_mrs));
+	while ((mr = rpcrdma_mr_pop(&req->rl_free_mrs))) {
+		struct rpcrdma_buffer *buf = &mr->mr_xprt->rx_buf;
+
+		spin_lock(&buf->rb_lock);
+		list_del(&mr->mr_all);
+		spin_unlock(&buf->rb_lock);
+
+		frwr_release_mr(mr);
+	}
 
 	rpcrdma_regbuf_free(req->rl_recvbuf);
 	rpcrdma_regbuf_free(req->rl_sendbuf);
@@ -1174,28 +1107,33 @@ void rpcrdma_req_destroy(struct rpcrdma_req *req)
 	kfree(req);
 }
 
-static void
-rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf)
+/**
+ * rpcrdma_mrs_destroy - Release all of a transport's MRs
+ * @r_xprt: controlling transport instance
+ *
+ * Relies on caller holding the transport send lock to protect
+ * removing mr->mr_list from req->rl_free_mrs safely.
+ */
+static void rpcrdma_mrs_destroy(struct rpcrdma_xprt *r_xprt)
 {
-	struct rpcrdma_xprt *r_xprt = container_of(buf, struct rpcrdma_xprt,
-						   rx_buf);
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_mr *mr;
-	unsigned int count;
 
-	count = 0;
+	cancel_work_sync(&buf->rb_refresh_worker);
+
 	spin_lock(&buf->rb_lock);
 	while ((mr = list_first_entry_or_null(&buf->rb_all_mrs,
 					      struct rpcrdma_mr,
 					      mr_all)) != NULL) {
+		list_del(&mr->mr_list);
 		list_del(&mr->mr_all);
 		spin_unlock(&buf->rb_lock);
 
 		frwr_release_mr(mr);
-		count++;
+
 		spin_lock(&buf->rb_lock);
 	}
 	spin_unlock(&buf->rb_lock);
-	r_xprt->rx_stats.mrs_allocated = 0;
 }
 
 /**
@@ -1209,9 +1147,6 @@ rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf)
 void
 rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 {
-	cancel_work_sync(&buf->rb_refresh_worker);
-
-	rpcrdma_sendctxs_destroy(buf);
 	rpcrdma_reps_destroy(buf);
 
 	while (!list_empty(&buf->rb_send_bufs)) {
@@ -1222,8 +1157,6 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 		list_del(&req->rl_list);
 		rpcrdma_req_destroy(req);
 	}
-
-	rpcrdma_mrs_destroy(buf);
 }
 
 /**
@@ -1256,23 +1189,12 @@ void rpcrdma_mr_put(struct rpcrdma_mr *mr)
 
 	if (mr->mr_dir != DMA_NONE) {
 		trace_xprtrdma_mr_unmap(mr);
-		ib_dma_unmap_sg(r_xprt->rx_ia.ri_id->device,
+		ib_dma_unmap_sg(r_xprt->rx_ep->re_id->device,
 				mr->mr_sg, mr->mr_nents, mr->mr_dir);
 		mr->mr_dir = DMA_NONE;
 	}
 
 	rpcrdma_mr_push(mr, &mr->mr_req->rl_free_mrs);
-}
-
-static void rpcrdma_mr_free(struct rpcrdma_mr *mr)
-{
-	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
-	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-
-	mr->mr_req = NULL;
-	spin_lock(&buf->rb_lock);
-	rpcrdma_mr_push(mr, &buf->rb_mrs);
-	spin_unlock(&buf->rb_lock);
 }
 
 /**
@@ -1385,7 +1307,7 @@ bool rpcrdma_regbuf_realloc(struct rpcrdma_regbuf *rb, size_t size, gfp_t flags)
 bool __rpcrdma_regbuf_dma_map(struct rpcrdma_xprt *r_xprt,
 			      struct rpcrdma_regbuf *rb)
 {
-	struct ib_device *device = r_xprt->rx_ia.ri_id->device;
+	struct ib_device *device = r_xprt->rx_ep->re_id->device;
 
 	if (rb->rg_direction == DMA_NONE)
 		return false;
@@ -1398,7 +1320,7 @@ bool __rpcrdma_regbuf_dma_map(struct rpcrdma_xprt *r_xprt,
 	}
 
 	rb->rg_device = device;
-	rb->rg_iov.lkey = r_xprt->rx_ia.ri_pd->local_dma_lkey;
+	rb->rg_iov.lkey = r_xprt->rx_ep->re_pd->local_dma_lkey;
 	return true;
 }
 
@@ -1424,43 +1346,45 @@ static void rpcrdma_regbuf_free(struct rpcrdma_regbuf *rb)
 }
 
 /**
- * rpcrdma_ep_post - Post WRs to a transport's Send Queue
- * @ia: transport's device information
- * @ep: transport's RDMA endpoint information
+ * rpcrdma_post_sends - Post WRs to a transport's Send Queue
+ * @r_xprt: controlling transport instance
  * @req: rpcrdma_req containing the Send WR to post
  *
  * Returns 0 if the post was successful, otherwise -ENOTCONN
  * is returned.
  */
-int
-rpcrdma_ep_post(struct rpcrdma_ia *ia,
-		struct rpcrdma_ep *ep,
-		struct rpcrdma_req *req)
+int rpcrdma_post_sends(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
-	struct ib_send_wr *send_wr = &req->rl_sendctx->sc_wr;
+	struct ib_send_wr *send_wr = &req->rl_wr;
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 	int rc;
 
-	if (!ep->rep_send_count || kref_read(&req->rl_kref) > 1) {
+	if (!ep->re_send_count || kref_read(&req->rl_kref) > 1) {
 		send_wr->send_flags |= IB_SEND_SIGNALED;
-		ep->rep_send_count = ep->rep_send_batch;
+		ep->re_send_count = ep->re_send_batch;
 	} else {
 		send_wr->send_flags &= ~IB_SEND_SIGNALED;
-		--ep->rep_send_count;
+		--ep->re_send_count;
 	}
 
-	rc = frwr_send(ia, req);
-	trace_xprtrdma_post_send(req, rc);
+	trace_xprtrdma_post_send(req);
+	rc = frwr_send(r_xprt, req);
 	if (rc)
 		return -ENOTCONN;
 	return 0;
 }
 
-static void
-rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
+/**
+ * rpcrdma_post_recvs - Refill the Receive Queue
+ * @r_xprt: controlling transport instance
+ * @temp: mark Receive buffers to be deleted after use
+ *
+ */
+void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
-	struct ib_recv_wr *i, *wr, *bad_wr;
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
+	struct ib_recv_wr *wr, *bad_wr;
 	struct rpcrdma_rep *rep;
 	int needed, count, rc;
 
@@ -1468,9 +1392,9 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 	count = 0;
 
 	needed = buf->rb_credits + (buf->rb_bc_srv_max_requests << 1);
-	if (likely(ep->rep_receive_count > needed))
+	if (likely(ep->re_receive_count > needed))
 		goto out;
-	needed -= ep->rep_receive_count;
+	needed -= ep->re_receive_count;
 	if (!temp)
 		needed += RPCRDMA_MAX_RECV_BATCH;
 
@@ -1478,29 +1402,25 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 	wr = NULL;
 	while (needed) {
 		rep = rpcrdma_rep_get_locked(buf);
+		if (rep && rep->rr_temp) {
+			rpcrdma_rep_destroy(rep);
+			continue;
+		}
 		if (!rep)
 			rep = rpcrdma_rep_create(r_xprt, temp);
 		if (!rep)
 			break;
 
+		trace_xprtrdma_post_recv(rep);
 		rep->rr_recv_wr.next = wr;
 		wr = &rep->rr_recv_wr;
 		--needed;
+		++count;
 	}
 	if (!wr)
 		goto out;
 
-	for (i = wr; i; i = i->next) {
-		rep = container_of(i, struct rpcrdma_rep, rr_recv_wr);
-
-		if (!rpcrdma_regbuf_dma_map(r_xprt, rep->rr_rdmabuf))
-			goto release_wrs;
-
-		trace_xprtrdma_post_recv(rep);
-		++count;
-	}
-
-	rc = ib_post_recv(r_xprt->rx_ia.ri_id->qp, wr,
+	rc = ib_post_recv(ep->re_id->qp, wr,
 			  (const struct ib_recv_wr **)&bad_wr);
 out:
 	trace_xprtrdma_post_recvs(r_xprt, count, rc);
@@ -1514,13 +1434,6 @@ out:
 			--count;
 		}
 	}
-	ep->rep_receive_count += count;
+	ep->re_receive_count += count;
 	return;
-
-release_wrs:
-	for (i = wr; i;) {
-		rep = container_of(i, struct rpcrdma_rep, rr_recv_wr);
-		i = i->next;
-		rpcrdma_recv_buffer_put(rep);
-	}
 }

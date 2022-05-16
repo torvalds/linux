@@ -48,7 +48,7 @@
  * R4000-specific cacheops
  */
 #define Create_Dirty_Excl_D		(Cache_D | 0x0c)
-#define Fill				(Cache_I | 0x14)
+#define Fill_I				(Cache_I | 0x14)
 #define Hit_Writeback_I			(Cache_I | Hit_Writeback)
 #define Hit_Writeback_D			(Cache_D | Hit_Writeback)
 

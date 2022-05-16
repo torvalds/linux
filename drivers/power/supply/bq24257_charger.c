@@ -5,9 +5,9 @@
  * Copyright (C) 2015 Intel Corporation
  *
  * Datasheets:
- * http://www.ti.com/product/bq24250
- * http://www.ti.com/product/bq24251
- * http://www.ti.com/product/bq24257
+ * https://www.ti.com/product/bq24250
+ * https://www.ti.com/product/bq24251
+ * https://www.ti.com/product/bq24257
  */
 
 #include <linux/module.h>
@@ -1152,6 +1152,7 @@ static const struct of_device_id bq24257_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, bq24257_of_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id bq24257_acpi_match[] = {
 	{ "BQ242500", BQ24250 },
 	{ "BQ242510", BQ24251 },
@@ -1159,6 +1160,7 @@ static const struct acpi_device_id bq24257_acpi_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, bq24257_acpi_match);
+#endif
 
 static struct i2c_driver bq24257_driver = {
 	.driver = {

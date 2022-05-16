@@ -16,6 +16,8 @@ obj-m :=
 lib-y :=
 lib-m :=
 always :=
+always-y :=
+always-m :=
 targets :=
 subdir-y :=
 subdir-m :=
@@ -43,9 +45,18 @@ include $(kbuild-file)
 
 include scripts/Makefile.lib
 
-# Do not include host rules unless needed
-ifneq ($(hostprogs-y)$(hostprogs-m)$(hostlibs-y)$(hostlibs-m)$(hostcxxlibs-y)$(hostcxxlibs-m),)
+# Do not include hostprogs rules unless needed.
+# $(sort ...) is used here to remove duplicated words and excessive spaces.
+hostprogs := $(sort $(hostprogs))
+ifneq ($(hostprogs),)
 include scripts/Makefile.host
+endif
+
+# Do not include userprogs rules unless needed.
+# $(sort ...) is used here to remove duplicated words and excessive spaces.
+userprogs := $(sort $(userprogs))
+ifneq ($(userprogs),)
+include scripts/Makefile.userprogs
 endif
 
 ifndef obj
@@ -61,20 +72,27 @@ endif
 
 # ===========================================================================
 
+# subdir-builtin and subdir-modorder may contain duplications. Use $(sort ...)
+subdir-builtin := $(sort $(filter %/built-in.a, $(real-obj-y)))
+subdir-modorder := $(sort $(filter %/modules.order, $(obj-m)))
+
+targets-for-builtin := $(extra-y)
+
 ifneq ($(strip $(lib-y) $(lib-m) $(lib-)),)
-lib-target := $(obj)/lib.a
-real-obj-y += $(obj)/lib-ksyms.o
+targets-for-builtin += $(obj)/lib.a
 endif
 
-ifneq ($(strip $(real-obj-y) $(need-builtin)),)
-builtin-target := $(obj)/built-in.a
+ifdef need-builtin
+targets-for-builtin += $(obj)/built-in.a
 endif
 
-ifeq ($(CONFIG_MODULES)$(need-modorder),y1)
-modorder-target := $(obj)/modules.order
+targets-for-modules := $(patsubst %.o, %.mod, $(filter %.o, $(obj-m)))
+
+ifdef need-modorder
+targets-for-modules += $(obj)/modules.order
 endif
 
-mod-targets := $(patsubst %.o, %.mod, $(obj-m))
+targets += $(targets-for-builtin) $(targets-for-modules)
 
 # Linus' kernel sanity checking tool
 ifeq ($(KBUILD_CHECKSRC),1)
@@ -93,7 +111,7 @@ endif
 # ---------------------------------------------------------------------------
 
 quiet_cmd_cc_s_c = CC $(quiet_modtag)  $@
-      cmd_cc_s_c = $(CC) $(filter-out $(DEBUG_CFLAGS), $(c_flags)) $(DISABLE_LTO) -fverbose-asm -S -o $@ $<
+      cmd_cc_s_c = $(CC) $(filter-out $(DEBUG_CFLAGS), $(c_flags)) -fverbose-asm -S -o $@ $<
 
 $(obj)/%.s: $(src)/%.c FORCE
 	$(call if_changed_dep,cc_s_c)
@@ -234,12 +252,15 @@ objtool_dep = $(objtool_obj)					\
 ifdef CONFIG_TRIM_UNUSED_KSYMS
 cmd_gen_ksymdeps = \
 	$(CONFIG_SHELL) $(srctree)/scripts/gen_ksymdeps.sh $@ >> $(dot-target).cmd
+
+# List module undefined symbols
+undefined_syms = $(NM) $< | $(AWK) '$$1 == "U" { printf("%s%s", x++ ? " " : "", $$2) }';
 endif
 
 define rule_cc_o_c
-	$(call cmd,checksrc)
 	$(call cmd_and_fixdep,cc_o_c)
 	$(call cmd,gen_ksymdeps)
+	$(call cmd,checksrc)
 	$(call cmd,checkdoc)
 	$(call cmd,objtool)
 	$(call cmd,modversions_c)
@@ -253,27 +274,18 @@ define rule_as_o_S
 	$(call cmd,modversions_S)
 endef
 
-# List module undefined symbols (or empty line if not enabled)
-ifdef CONFIG_TRIM_UNUSED_KSYMS
-cmd_undef_syms = $(NM) $< | sed -n 's/^  *U //p' | xargs echo
-else
-cmd_undef_syms = echo
-endif
-
 # Built-in and composite module parts
 $(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_dep) FORCE
-	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
+	$(call cmd,force_checksrc)
 
 cmd_mod = { \
 	echo $(if $($*-objs)$($*-y)$($*-m), $(addprefix $(obj)/, $($*-objs) $($*-y) $($*-m)), $(@:.mod=.o)); \
-	$(cmd_undef_syms); \
+	$(undefined_syms) echo; \
 	} > $@
 
 $(obj)/%.mod: $(obj)/%.o FORCE
 	$(call if_changed,mod)
-
-targets += $(mod-targets)
 
 quiet_cmd_cc_lst_c = MKLST   $@
       cmd_cc_lst_c = $(CC) $(c_flags) -g -c -o $*.o $< && \
@@ -282,15 +294,6 @@ quiet_cmd_cc_lst_c = MKLST   $@
 
 $(obj)/%.lst: $(src)/%.c FORCE
 	$(call if_changed_dep,cc_lst_c)
-
-# header test (header-test-y, header-test-m target)
-# ---------------------------------------------------------------------------
-
-quiet_cmd_cc_s_h = CC      $@
-      cmd_cc_s_h = $(CC) $(c_flags) -S -o $@ -x c /dev/null -include $<
-
-$(obj)/%.h.s: $(src)/%.h FORCE
-	$(call if_changed_dep,cc_s_h)
 
 # Compile assembler sources (.S)
 # ---------------------------------------------------------------------------
@@ -356,8 +359,9 @@ endif
 $(obj)/%.o: $(src)/%.S $(objtool_dep) FORCE
 	$(call if_changed_rule,as_o_S)
 
-targets += $(filter-out $(subdir-obj-y), $(real-obj-y)) $(real-obj-m) $(lib-y)
-targets += $(extra-y) $(MAKECMDGOALS) $(always)
+targets += $(filter-out $(subdir-builtin), $(real-obj-y))
+targets += $(filter-out $(subdir-modorder), $(real-obj-m))
+targets += $(lib-y) $(always-y) $(MAKECMDGOALS)
 
 # Linker scripts preprocessor (.lds.S -> .lds)
 # ---------------------------------------------------------------------------
@@ -381,64 +385,39 @@ $(obj)/%.asn1.c $(obj)/%.asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
 # ---------------------------------------------------------------------------
 
 # To build objects in subdirs, we need to descend into the directories
-$(sort $(subdir-obj-y)): $(subdir-ym) ;
+$(subdir-builtin): $(obj)/%/built-in.a: $(obj)/% ;
+$(subdir-modorder): $(obj)/%/modules.order: $(obj)/% ;
 
 #
 # Rule to compile a set of .o files into one .a file (without symbol table)
 #
-ifdef builtin-target
 
 quiet_cmd_ar_builtin = AR      $@
       cmd_ar_builtin = rm -f $@; $(AR) cDPrST $@ $(real-prereqs)
 
-$(builtin-target): $(real-obj-y) FORCE
+$(obj)/built-in.a: $(real-obj-y) FORCE
 	$(call if_changed,ar_builtin)
-
-targets += $(builtin-target)
-endif # builtin-target
 
 #
 # Rule to create modules.order file
 #
 # Create commands to either record .ko file or cat modules.order from
 # a subdirectory
-$(modorder-target): $(subdir-ym) FORCE
-	$(Q){ $(foreach m, $(modorder), \
-	$(if $(filter %/modules.order, $m), cat $m, echo $m);) :; } \
+# Add $(obj-m) as the prerequisite to avoid updating the timestamp of
+# modules.order unless contained modules are updated.
+
+cmd_modules_order = { $(foreach m, $(real-prereqs), \
+	$(if $(filter %/modules.order, $m), cat $m, echo $(patsubst %.o,%.ko,$m));) :; } \
 	| $(AWK) '!x[$$0]++' - > $@
+
+$(obj)/modules.order: $(obj-m) FORCE
+	$(call if_changed,modules_order)
 
 #
 # Rule to compile a set of .o files into one .a file (with symbol table)
 #
-ifdef lib-target
-
-$(lib-target): $(lib-y) FORCE
+$(obj)/lib.a: $(lib-y) FORCE
 	$(call if_changed,ar)
-
-targets += $(lib-target)
-
-dummy-object = $(obj)/.lib_exports.o
-ksyms-lds = $(dot-target).lds
-ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
-ref_prefix = EXTERN(_
-else
-ref_prefix = EXTERN(
-endif
-
-quiet_cmd_export_list = EXPORTS $@
-cmd_export_list = $(OBJDUMP) -h $< | \
-	sed -ne '/___ksymtab/s/.*+\([^ ]*\).*/$(ref_prefix)\1)/p' >$(ksyms-lds);\
-	rm -f $(dummy-object);\
-	echo | $(CC) $(a_flags) -c -o $(dummy-object) -x assembler -;\
-	$(LD) $(ld_flags) -r -o $@ -T $(ksyms-lds) $(dummy-object);\
-	rm $(dummy-object) $(ksyms-lds)
-
-$(obj)/lib-ksyms.o: $(lib-target) FORCE
-	$(call if_changed,export_list)
-
-targets += $(obj)/lib-ksyms.o
-
-endif
 
 # NOTE:
 # Do not replace $(filter %.o,^) with $(real-prereqs). When a single object
@@ -474,17 +453,20 @@ targets += $(call intermediate_targets, .asn1.o, .asn1.c .asn1.h) \
 
 ifdef single-build
 
+KBUILD_SINGLE_TARGETS := $(filter $(obj)/%, $(KBUILD_SINGLE_TARGETS))
+
 curdir-single := $(sort $(foreach x, $(KBUILD_SINGLE_TARGETS), \
 			$(if $(filter $(x) $(basename $(x)).o, $(targets)), $(x))))
 
 # Handle single targets without any rule: show "Nothing to be done for ..." or
 # "No rule to make target ..." depending on whether the target exists.
 unknown-single := $(filter-out $(addsuffix /%, $(subdir-ym)), \
-			$(filter $(obj)/%, \
-				$(filter-out $(curdir-single), \
-					$(KBUILD_SINGLE_TARGETS))))
+			$(filter-out $(curdir-single), $(KBUILD_SINGLE_TARGETS)))
 
-__build: $(curdir-single) $(subdir-ym)
+single-subdirs := $(foreach d, $(subdir-ym), \
+			$(if $(filter $(d)/%, $(KBUILD_SINGLE_TARGETS)), $(d)))
+
+__build: $(curdir-single) $(single-subdirs)
 ifneq ($(unknown-single),)
 	$(Q)$(MAKE) -f /dev/null $(unknown-single)
 endif
@@ -499,9 +481,9 @@ endif
 
 else
 
-__build: $(if $(KBUILD_BUILTIN),$(builtin-target) $(lib-target) $(extra-y)) \
-	 $(if $(KBUILD_MODULES),$(obj-m) $(mod-targets) $(modorder-target)) \
-	 $(subdir-ym) $(always)
+__build: $(if $(KBUILD_BUILTIN), $(targets-for-builtin)) \
+	 $(if $(KBUILD_MODULES), $(targets-for-modules)) \
+	 $(subdir-ym) $(always-y)
 	@:
 
 endif
@@ -513,8 +495,8 @@ PHONY += $(subdir-ym)
 $(subdir-ym):
 	$(Q)$(MAKE) $(build)=$@ \
 	$(if $(filter $@/, $(KBUILD_SINGLE_TARGETS)),single-build=) \
-	need-builtin=$(if $(filter $@/built-in.a, $(subdir-obj-y)),1) \
-	need-modorder=$(if $(need-modorder),$(if $(filter $@/modules.order, $(modorder)),1))
+	need-builtin=$(if $(filter $@/built-in.a, $(subdir-builtin)),1) \
+	need-modorder=$(if $(filter $@/modules.order, $(subdir-modorder)),1)
 
 # Add FORCE to the prequisites of a target to force it to be always rebuilt.
 # ---------------------------------------------------------------------------
@@ -532,15 +514,13 @@ existing-targets := $(wildcard $(sort $(targets)))
 
 -include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
 
-ifdef building_out_of_srctree
 # Create directories for object files if they do not exist
-obj-dirs := $(sort $(obj) $(patsubst %/,%, $(dir $(targets))))
+obj-dirs := $(sort $(patsubst %/,%, $(dir $(targets))))
 # If targets exist, their directories apparently exist. Skip mkdir.
 existing-dirs := $(sort $(patsubst %/,%, $(dir $(existing-targets))))
 obj-dirs := $(strip $(filter-out $(existing-dirs), $(obj-dirs)))
 ifneq ($(obj-dirs),)
 $(shell mkdir -p $(obj-dirs))
-endif
 endif
 
 .PHONY: $(PHONY)

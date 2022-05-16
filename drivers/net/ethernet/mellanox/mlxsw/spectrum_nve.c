@@ -67,7 +67,7 @@ struct mlxsw_sp_nve_mc_record {
 	struct mlxsw_sp_nve_mc_list *mc_list;
 	const struct mlxsw_sp_nve_mc_record_ops *ops;
 	u32 kvdl_index;
-	struct mlxsw_sp_nve_mc_entry entries[0];
+	struct mlxsw_sp_nve_mc_entry entries[];
 };
 
 struct mlxsw_sp_nve_mc_list {
@@ -713,27 +713,6 @@ static void mlxsw_sp_nve_flood_ip_flush(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_nve_mc_list_put(mlxsw_sp, mc_list);
 }
 
-u32 mlxsw_sp_nve_decap_tunnel_index_get(const struct mlxsw_sp *mlxsw_sp)
-{
-	WARN_ON(mlxsw_sp->nve->num_nve_tunnels == 0);
-
-	return mlxsw_sp->nve->tunnel_index;
-}
-
-bool mlxsw_sp_nve_ipv4_route_is_decap(const struct mlxsw_sp *mlxsw_sp,
-				      u32 tb_id, __be32 addr)
-{
-	struct mlxsw_sp_nve *nve = mlxsw_sp->nve;
-	struct mlxsw_sp_nve_config *config = &nve->config;
-
-	if (nve->num_nve_tunnels &&
-	    config->ul_proto == MLXSW_SP_L3_PROTO_IPV4 &&
-	    config->ul_sip.addr4 == addr && config->ul_tb_id == tb_id)
-		return true;
-
-	return false;
-}
-
 static int mlxsw_sp_nve_tunnel_init(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_nve_config *config)
 {
@@ -743,6 +722,8 @@ static int mlxsw_sp_nve_tunnel_init(struct mlxsw_sp *mlxsw_sp,
 
 	if (nve->num_nve_tunnels++ != 0)
 		return 0;
+
+	nve->config = *config;
 
 	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
 				  &nve->tunnel_index);
@@ -760,6 +741,7 @@ err_ops_init:
 	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ADJ, 1,
 			   nve->tunnel_index);
 err_kvdl_alloc:
+	memset(&nve->config, 0, sizeof(nve->config));
 	nve->num_nve_tunnels--;
 	return err;
 }
@@ -840,8 +822,6 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 		goto err_fid_vni_set;
 	}
 
-	nve->config = config;
-
 	err = ops->fdb_replay(params->dev, params->vni, extack);
 	if (err)
 		goto err_fdb_replay;
@@ -870,7 +850,7 @@ void mlxsw_sp_nve_fid_disable(struct mlxsw_sp *mlxsw_sp,
 		    mlxsw_sp_fid_vni(fid, &vni)))
 		goto out;
 
-	nve_dev = dev_get_by_index(&init_net, nve_ifindex);
+	nve_dev = dev_get_by_index(mlxsw_sp_net(mlxsw_sp), nve_ifindex);
 	if (!nve_dev)
 		goto out;
 

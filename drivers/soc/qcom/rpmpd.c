@@ -4,6 +4,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pm_domain.h>
 #include <linux/of.h>
@@ -115,6 +116,28 @@ struct rpmpd_desc {
 
 static DEFINE_MUTEX(rpmpd_lock);
 
+/* msm8976 RPM Power Domains */
+DEFINE_RPMPD_PAIR(msm8976, vddcx, vddcx_ao, SMPA, LEVEL, 2);
+DEFINE_RPMPD_PAIR(msm8976, vddmx, vddmx_ao, SMPA, LEVEL, 6);
+
+DEFINE_RPMPD_VFL(msm8976, vddcx_vfl, RWSC, 2);
+DEFINE_RPMPD_VFL(msm8976, vddmx_vfl, RWSM, 6);
+
+static struct rpmpd *msm8976_rpmpds[] = {
+	[MSM8976_VDDCX] =	&msm8976_vddcx,
+	[MSM8976_VDDCX_AO] =	&msm8976_vddcx_ao,
+	[MSM8976_VDDCX_VFL] =	&msm8976_vddcx_vfl,
+	[MSM8976_VDDMX] =	&msm8976_vddmx,
+	[MSM8976_VDDMX_AO] =	&msm8976_vddmx_ao,
+	[MSM8976_VDDMX_VFL] =	&msm8976_vddmx_vfl,
+};
+
+static const struct rpmpd_desc msm8976_desc = {
+	.rpmpds = msm8976_rpmpds,
+	.num_pds = ARRAY_SIZE(msm8976_rpmpds),
+	.max_state = RPM_SMD_LEVEL_TURBO_HIGH,
+};
+
 /* msm8996 RPM Power domains */
 DEFINE_RPMPD_PAIR(msm8996, vddcx, vddcx_ao, SMPA, CORNER, 1);
 DEFINE_RPMPD_PAIR(msm8996, vddmx, vddmx_ao, SMPA, CORNER, 2);
@@ -198,11 +221,13 @@ static const struct rpmpd_desc qcs404_desc = {
 };
 
 static const struct of_device_id rpmpd_match_table[] = {
+	{ .compatible = "qcom,msm8976-rpmpd", .data = &msm8976_desc },
 	{ .compatible = "qcom,msm8996-rpmpd", .data = &msm8996_desc },
 	{ .compatible = "qcom,msm8998-rpmpd", .data = &msm8998_desc },
 	{ .compatible = "qcom,qcs404-rpmpd", .data = &qcs404_desc },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, rpmpd_match_table);
 
 static int rpmpd_send_enable(struct rpmpd *pd, bool enable)
 {
@@ -399,3 +424,6 @@ static int __init rpmpd_init(void)
 	return platform_driver_register(&rpmpd_driver);
 }
 core_initcall(rpmpd_init);
+
+MODULE_DESCRIPTION("Qualcomm Technologies, Inc. RPM Power Domain Driver");
+MODULE_LICENSE("GPL v2");

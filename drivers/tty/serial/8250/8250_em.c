@@ -39,7 +39,7 @@ static void serial8250_em_serial_out(struct uart_port *p, int offset, int value)
 		break;
 	case UART_IER: /* IER @ 0x04 */
 		value &= 0x0f; /* only 4 valid bits - not Xscale */
-		/* fall-through */
+		fallthrough;
 	case UART_DLL_EM: /* DLL @ 0x24 (+9) */
 	case UART_DLM_EM: /* DLM @ 0x28 (+9) */
 		writel(value, p->membase + (offset << 2));
@@ -78,14 +78,18 @@ static void serial8250_em_serial_dl_write(struct uart_8250_port *up, int value)
 
 static int serial8250_em_probe(struct platform_device *pdev)
 {
-	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	struct serial8250_em_priv *priv;
 	struct uart_8250_port up;
-	int ret;
+	struct resource *regs;
+	int irq, ret;
 
-	if (!regs || !irq) {
-		dev_err(&pdev->dev, "missing registers or irq\n");
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!regs) {
+		dev_err(&pdev->dev, "missing registers\n");
 		return -EINVAL;
 	}
 
@@ -101,7 +105,7 @@ static int serial8250_em_probe(struct platform_device *pdev)
 
 	memset(&up, 0, sizeof(up));
 	up.port.mapbase = regs->start;
-	up.port.irq = irq->start;
+	up.port.irq = irq;
 	up.port.type = PORT_UNKNOWN;
 	up.port.flags = UPF_BOOT_AUTOCONF | UPF_FIXED_PORT | UPF_IOREMAP;
 	up.port.dev = &pdev->dev;

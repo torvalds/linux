@@ -6,7 +6,7 @@
  *
  * Thanks to Afatech who kindly provided information.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "af9005.h"
 
@@ -554,7 +554,7 @@ static int af9005_boot_packet(struct usb_device *udev, int type, u8 *reply,
 			      u8 *buf, int size)
 {
 	u16 checksum;
-	int act_len, i, ret;
+	int act_len = 0, i, ret;
 
 	memset(buf, 0, size);
 	buf[0] = (u8) (FW_BULKOUT_SIZE & 0xff);
@@ -955,8 +955,8 @@ static int af9005_pid_filter(struct dvb_usb_adapter *adap, int index,
 }
 
 static int af9005_identify_state(struct usb_device *udev,
-				 struct dvb_usb_device_properties *props,
-				 struct dvb_usb_device_description **desc,
+				 const struct dvb_usb_device_properties *props,
+				 const struct dvb_usb_device_description **desc,
 				 int *cold)
 {
 	int ret;
@@ -976,8 +976,9 @@ static int af9005_identify_state(struct usb_device *udev,
 	else if (reply == 0x02)
 		*cold = 0;
 	else
-		return -EIO;
-	deb_info("Identify state cold = %d\n", *cold);
+		ret = -EIO;
+	if (!ret)
+		deb_info("Identify state cold = %d\n", *cold);
 
 err:
 	kfree(buf);

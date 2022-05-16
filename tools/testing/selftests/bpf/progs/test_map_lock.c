@@ -2,7 +2,7 @@
 // Copyright (c) 2019 Facebook
 #include <linux/bpf.h>
 #include <linux/version.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 #define VAR_NUM 16
 

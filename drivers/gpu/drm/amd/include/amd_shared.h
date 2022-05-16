@@ -40,6 +40,48 @@ enum amd_chip_flags {
 	AMD_EXP_HW_SUPPORT = 0x00080000UL,
 };
 
+enum amd_apu_flags {
+	AMD_APU_IS_RAVEN = 0x00000001UL,
+	AMD_APU_IS_RAVEN2 = 0x00000002UL,
+	AMD_APU_IS_PICASSO = 0x00000004UL,
+	AMD_APU_IS_RENOIR = 0x00000008UL,
+	AMD_APU_IS_GREEN_SARDINE = 0x00000010UL,
+};
+
+/**
+* DOC: IP Blocks
+*
+* GPUs are composed of IP (intellectual property) blocks. These
+* IP blocks provide various functionalities: display, graphics,
+* video decode, etc. The IP blocks that comprise a particular GPU
+* are listed in the GPU's respective SoC file. amdgpu_device.c
+* acquires the list of IP blocks for the GPU in use on initialization.
+* It can then operate on this list to perform standard driver operations
+* such as: init, fini, suspend, resume, etc.
+* 
+*
+* IP block implementations are named using the following convention:
+* <functionality>_v<version> (E.g.: gfx_v6_0).
+*/
+
+/**
+* enum amd_ip_block_type - Used to classify IP blocks by functionality.
+*
+* @AMD_IP_BLOCK_TYPE_COMMON: GPU Family
+* @AMD_IP_BLOCK_TYPE_GMC: Graphics Memory Controller
+* @AMD_IP_BLOCK_TYPE_IH: Interrupt Handler
+* @AMD_IP_BLOCK_TYPE_SMC: System Management Controller
+* @AMD_IP_BLOCK_TYPE_PSP: Platform Security Processor
+* @AMD_IP_BLOCK_TYPE_DCE: Display and Compositing Engine
+* @AMD_IP_BLOCK_TYPE_GFX: Graphics and Compute Engine
+* @AMD_IP_BLOCK_TYPE_SDMA: System DMA Engine
+* @AMD_IP_BLOCK_TYPE_UVD: Unified Video Decoder
+* @AMD_IP_BLOCK_TYPE_VCE: Video Compression Engine
+* @AMD_IP_BLOCK_TYPE_ACP: Audio Co-Processor
+* @AMD_IP_BLOCK_TYPE_VCN: Video Core/Codec Next
+* @AMD_IP_BLOCK_TYPE_MES: Micro-Engine Scheduler
+* @AMD_IP_BLOCK_TYPE_JPEG: JPEG Engine
+*/
 enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_COMMON,
 	AMD_IP_BLOCK_TYPE_GMC,
@@ -53,7 +95,8 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_VCE,
 	AMD_IP_BLOCK_TYPE_ACP,
 	AMD_IP_BLOCK_TYPE_VCN,
-	AMD_IP_BLOCK_TYPE_MES
+	AMD_IP_BLOCK_TYPE_MES,
+	AMD_IP_BLOCK_TYPE_JPEG
 };
 
 enum amd_clockgating_state {
@@ -99,6 +142,7 @@ enum amd_powergating_state {
 #define AMD_CG_SUPPORT_IH_CG			(1 << 27)
 #define AMD_CG_SUPPORT_ATHUB_LS			(1 << 28)
 #define AMD_CG_SUPPORT_ATHUB_MGCG		(1 << 29)
+#define AMD_CG_SUPPORT_JPEG_MGCG		(1 << 30)
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
 #define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)
@@ -117,7 +161,36 @@ enum amd_powergating_state {
 #define AMD_PG_SUPPORT_VCN			(1 << 14)
 #define AMD_PG_SUPPORT_VCN_DPG			(1 << 15)
 #define AMD_PG_SUPPORT_ATHUB			(1 << 16)
+#define AMD_PG_SUPPORT_JPEG			(1 << 17)
 
+/**
+ * enum PP_FEATURE_MASK - Used to mask power play features.
+ *
+ * @PP_SCLK_DPM_MASK: Dynamic adjustment of the system (graphics) clock.
+ * @PP_MCLK_DPM_MASK: Dynamic adjustment of the memory clock.
+ * @PP_PCIE_DPM_MASK: Dynamic adjustment of PCIE clocks and lanes.
+ * @PP_SCLK_DEEP_SLEEP_MASK: System (graphics) clock deep sleep.
+ * @PP_POWER_CONTAINMENT_MASK: Power containment.
+ * @PP_UVD_HANDSHAKE_MASK: Unified video decoder handshake.
+ * @PP_SMC_VOLTAGE_CONTROL_MASK: Dynamic voltage control.
+ * @PP_VBI_TIME_SUPPORT_MASK: Vertical blank interval support.
+ * @PP_ULV_MASK: Ultra low voltage.
+ * @PP_ENABLE_GFX_CG_THRU_SMU: SMU control of GFX engine clockgating.
+ * @PP_CLOCK_STRETCH_MASK: Clock stretching.
+ * @PP_OD_FUZZY_FAN_CONTROL_MASK: Overdrive fuzzy fan control.
+ * @PP_SOCCLK_DPM_MASK: Dynamic adjustment of the SoC clock.
+ * @PP_DCEFCLK_DPM_MASK: Dynamic adjustment of the Display Controller Engine Fabric clock.
+ * @PP_OVERDRIVE_MASK: Over- and under-clocking support.
+ * @PP_GFXOFF_MASK: Dynamic graphics engine power control.
+ * @PP_ACG_MASK: Adaptive clock generator.
+ * @PP_STUTTER_MODE: Stutter mode.
+ * @PP_AVFS_MASK: Adaptive voltage and frequency scaling.
+ *
+ * To override these settings on boot, append amdgpu.ppfeaturemask=<mask> to
+ * the kernel's command line parameters. This is usually done through a system's
+ * boot loader (E.g. GRUB). If manually loading the driver, pass
+ * ppfeaturemask=<mask> as a modprobe parameter.
+ */
 enum PP_FEATURE_MASK {
 	PP_SCLK_DPM_MASK = 0x1,
 	PP_MCLK_DPM_MASK = 0x2,
@@ -143,59 +216,71 @@ enum PP_FEATURE_MASK {
 enum DC_FEATURE_MASK {
 	DC_FBC_MASK = 0x1,
 	DC_MULTI_MON_PP_MCLK_SWITCH_MASK = 0x2,
+	DC_DISABLE_FRACTIONAL_PWM_MASK = 0x4,
+	DC_PSR_MASK = 0x8,
+};
+
+enum DC_DEBUG_MASK {
+	DC_DISABLE_PIPE_SPLIT = 0x1,
+	DC_DISABLE_STUTTER = 0x2,
+	DC_DISABLE_DSC = 0x4,
+	DC_DISABLE_CLOCK_GATING = 0x8
 };
 
 enum amd_dpm_forced_level;
+
 /**
  * struct amd_ip_funcs - general hooks for managing amdgpu IP Blocks
+ * @name: Name of IP block
+ * @early_init: sets up early driver state (pre sw_init),
+ *              does not configure hw - Optional
+ * @late_init: sets up late driver/hw state (post hw_init) - Optional
+ * @sw_init: sets up driver state, does not configure hw
+ * @sw_fini: tears down driver state, does not configure hw
+ * @hw_init: sets up the hw state
+ * @hw_fini: tears down the hw state
+ * @late_fini: final cleanup
+ * @suspend: handles IP specific hw/sw changes for suspend
+ * @resume: handles IP specific hw/sw changes for resume
+ * @is_idle: returns current IP block idle status
+ * @wait_for_idle: poll for idle
+ * @check_soft_reset: check soft reset the IP block
+ * @pre_soft_reset: pre soft reset the IP block
+ * @soft_reset: soft reset the IP block
+ * @post_soft_reset: post soft reset the IP block
+ * @set_clockgating_state: enable/disable cg for the IP block
+ * @set_powergating_state: enable/disable pg for the IP block
+ * @get_clockgating_state: get current clockgating status
+ * @enable_umd_pstate: enable UMD powerstate
+ *
+ * These hooks provide an interface for controlling the operational state
+ * of IP blocks. After acquiring a list of IP blocks for the GPU in use,
+ * the driver can make chip-wide state changes by walking this list and
+ * making calls to hooks from each IP block. This list is ordered to ensure
+ * that the driver initializes the IP blocks in a safe sequence.
  */
 struct amd_ip_funcs {
-	/** @name: Name of IP block */
 	char *name;
-	/**
-	 * @early_init:
-	 *
-	 * sets up early driver state (pre sw_init),
-	 * does not configure hw - Optional
-	 */
 	int (*early_init)(void *handle);
-	/** @late_init: sets up late driver/hw state (post hw_init) - Optional */
 	int (*late_init)(void *handle);
-	/** @sw_init: sets up driver state, does not configure hw */
 	int (*sw_init)(void *handle);
-	/** @sw_fini: tears down driver state, does not configure hw */
 	int (*sw_fini)(void *handle);
-	/** @hw_init: sets up the hw state */
 	int (*hw_init)(void *handle);
-	/** @hw_fini: tears down the hw state */
 	int (*hw_fini)(void *handle);
-	/** @late_fini: final cleanup */
 	void (*late_fini)(void *handle);
-	/** @suspend: handles IP specific hw/sw changes for suspend */
 	int (*suspend)(void *handle);
-	/** @resume: handles IP specific hw/sw changes for resume */
 	int (*resume)(void *handle);
-	/** @is_idle: returns current IP block idle status */
 	bool (*is_idle)(void *handle);
-	/** @wait_for_idle: poll for idle */
 	int (*wait_for_idle)(void *handle);
-	/** @check_soft_reset: check soft reset the IP block */
 	bool (*check_soft_reset)(void *handle);
-	/** @pre_soft_reset: pre soft reset the IP block */
 	int (*pre_soft_reset)(void *handle);
-	/** @soft_reset: soft reset the IP block */
 	int (*soft_reset)(void *handle);
-	/** @post_soft_reset: post soft reset the IP block */
 	int (*post_soft_reset)(void *handle);
-	/** @set_clockgating_state: enable/disable cg for the IP block */
 	int (*set_clockgating_state)(void *handle,
 				     enum amd_clockgating_state state);
-	/** @set_powergating_state: enable/disable pg for the IP block */
 	int (*set_powergating_state)(void *handle,
 				     enum amd_powergating_state state);
-	/** @get_clockgating_state: get current clockgating status */
 	void (*get_clockgating_state)(void *handle, u32 *flags);
-	/** @enable_umd_pstate: enable UMD powerstate */
 	int (*enable_umd_pstate)(void *handle, enum amd_dpm_forced_level *level);
 };
 

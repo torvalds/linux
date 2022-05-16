@@ -269,7 +269,7 @@ bfa_ioc_sm_enabling(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	case IOC_E_PFFAILED:
-		/* !!! fall through !!! */
+		fallthrough;
 	case IOC_E_HWERROR:
 		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_fail);
@@ -321,7 +321,7 @@ bfa_ioc_sm_getattr(struct bfa_ioc *ioc, enum ioc_event event)
 	case IOC_E_PFFAILED:
 	case IOC_E_HWERROR:
 		del_timer(&ioc->ioc_timer);
-		/* fall through */
+		fallthrough;
 	case IOC_E_TIMEOUT:
 		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_fail);
@@ -365,7 +365,8 @@ bfa_ioc_sm_op(struct bfa_ioc *ioc, enum ioc_event event)
 	case IOC_E_PFFAILED:
 	case IOC_E_HWERROR:
 		bfa_ioc_hb_stop(ioc);
-		/* !!! fall through !!! */
+		fallthrough;
+
 	case IOC_E_HBFAIL:
 		if (ioc->iocpf.auto_recover)
 			bfa_fsm_set_state(ioc, bfa_ioc_sm_fail_retry);
@@ -780,7 +781,7 @@ bfa_iocpf_sm_enabling(struct bfa_iocpf *iocpf, enum iocpf_event event)
 
 	case IOCPF_E_INITFAIL:
 		del_timer(&ioc->iocpf_timer);
-		/* fall through */
+		fallthrough;
 
 	case IOCPF_E_TIMEOUT:
 		bfa_nw_ioc_hw_sem_release(ioc);
@@ -849,7 +850,7 @@ bfa_iocpf_sm_disabling(struct bfa_iocpf *iocpf, enum iocpf_event event)
 
 	case IOCPF_E_FAIL:
 		del_timer(&ioc->iocpf_timer);
-		/* fall through*/
+		fallthrough;
 
 	case IOCPF_E_TIMEOUT:
 		bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_FAIL);
@@ -1124,11 +1125,10 @@ bfa_nw_ioc_sem_release(void __iomem *sem_reg)
 static void
 bfa_ioc_fwver_clear(struct bfa_ioc *ioc)
 {
-	u32 pgnum, pgoff, loff = 0;
+	u32 pgnum, loff = 0;
 	int i;
 
 	pgnum = PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, loff);
-	pgoff = PSS_SMEM_PGOFF(loff);
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
 	for (i = 0; i < (sizeof(struct bfi_ioc_image_hdr) / sizeof(u32)); i++) {
@@ -1536,7 +1536,6 @@ static int
 bfa_flash_fifo_flush(void __iomem *pci_bar)
 {
 	u32 i;
-	u32 t;
 	union bfa_flash_dev_status_reg dev_status;
 
 	dev_status.i = readl(pci_bar + FLI_DEV_STATUS_REG);
@@ -1546,7 +1545,7 @@ bfa_flash_fifo_flush(void __iomem *pci_bar)
 
 	/* fifo counter in terms of words */
 	for (i = 0; i < dev_status.r.fifo_cnt; i++)
-		t = readl(pci_bar + FLI_RDDATA_REG);
+		readl(pci_bar + FLI_RDDATA_REG);
 
 	/* Check the device status. It may take some time. */
 	for (i = 0; i < BFA_FLASH_CHECK_MAX; i++) {
@@ -1765,7 +1764,7 @@ bfa_ioc_flash_fwver_cmp(struct bfa_ioc *ioc,
 		return BFI_IOC_IMG_VER_INCOMP;
 }
 
-/**
+/*
  * Returns TRUE if driver is willing to work with current smem f/w version.
  */
 bool
@@ -2471,6 +2470,7 @@ bfa_ioc_isr(struct bfa_ioc *ioc, struct bfi_mbmsg *m)
  *
  * @ioc:	memory for IOC
  * @bfa:	driver instance structure
+ * @cbfn:	callback function
  */
 void
 bfa_nw_ioc_attach(struct bfa_ioc *ioc, void *bfa, struct bfa_ioc_cbfn *cbfn)
@@ -2502,7 +2502,9 @@ bfa_nw_ioc_detach(struct bfa_ioc *ioc)
 /**
  * bfa_nw_ioc_pci_init - Setup IOC PCI properties.
  *
+ * @ioc:	memory for IOC
  * @pcidev:	PCI device information for this IOC
+ * @clscode:	class code
  */
 void
 bfa_nw_ioc_pci_init(struct bfa_ioc *ioc, struct bfa_pcidev *pcidev,
@@ -2571,6 +2573,7 @@ bfa_nw_ioc_pci_init(struct bfa_ioc *ioc, struct bfa_pcidev *pcidev,
 /**
  * bfa_nw_ioc_mem_claim - Initialize IOC dma memory
  *
+ * @ioc:	memory for IOC
  * @dm_kva:	kernel virtual address of IOC dma memory
  * @dm_pa:	physical address of IOC dma memory
  */
@@ -2638,6 +2641,8 @@ bfa_nw_ioc_mbox_regisr(struct bfa_ioc *ioc, enum bfi_mclass mc,
  *
  * @ioc:	IOC instance
  * @cmd:	Mailbox command
+ * @cbfn:	callback function
+ * @cbarg:	arguments to callback
  *
  * Waits if mailbox is busy. Responsibility of caller to serialize
  */

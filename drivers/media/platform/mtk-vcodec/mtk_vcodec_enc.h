@@ -9,7 +9,7 @@
 #define _MTK_VCODEC_ENC_H_
 
 #include <media/videobuf2-core.h>
-#include <media/videobuf2-v4l2.h>
+#include <media/v4l2-mem2mem.h>
 
 #define MTK_VENC_IRQ_STATUS_SPS	0x1
 #define MTK_VENC_IRQ_STATUS_PPS	0x2
@@ -23,15 +23,15 @@
 
 /**
  * struct mtk_video_enc_buf - Private data related to each VB2 buffer.
- * @vb: Pointer to related VB2 buffer.
+ * @m2m_buf:	M2M buffer
  * @list:	list that buffer link to
  * @param_change: Types of encode parameter change before encoding this
  *				buffer
  * @enc_params: Encode parameters changed before encode this buffer
  */
 struct mtk_video_enc_buf {
-	struct vb2_v4l2_buffer vb;
-	struct list_head list;
+	struct v4l2_m2m_buffer m2m_buf;
+
 	u32 param_change;
 	struct mtk_enc_params enc_params;
 };

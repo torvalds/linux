@@ -719,8 +719,6 @@ static const struct snd_soc_dai_ops ux500_msp_dai_ops[] = {
 
 static struct snd_soc_dai_driver ux500_msp_dai_drv = {
 	.probe                 = ux500_msp_dai_probe,
-	.suspend               = NULL,
-	.resume                = NULL,
 	.playback.channels_min = UX500_MSP_MIN_CHANNELS,
 	.playback.channels_max = UX500_MSP_MAX_CHANNELS,
 	.playback.rates        = UX500_I2S_RATES,

@@ -73,13 +73,13 @@ enum {
 };
 
 #define CPSW_STAT(m)		CPSW_STATS,				\
-				FIELD_SIZEOF(struct cpsw_hw_stats, m), \
+				sizeof_field(struct cpsw_hw_stats, m), \
 				offsetof(struct cpsw_hw_stats, m)
 #define CPDMA_RX_STAT(m)	CPDMA_RX_STATS,				   \
-				FIELD_SIZEOF(struct cpdma_chan_stats, m), \
+				sizeof_field(struct cpdma_chan_stats, m), \
 				offsetof(struct cpdma_chan_stats, m)
 #define CPDMA_TX_STAT(m)	CPDMA_TX_STATS,				   \
-				FIELD_SIZEOF(struct cpdma_chan_stats, m), \
+				sizeof_field(struct cpdma_chan_stats, m), \
 				offsetof(struct cpdma_chan_stats, m)
 
 static const struct cpsw_stats cpsw_gstrings_stats[] = {
@@ -339,7 +339,8 @@ int cpsw_get_regs_len(struct net_device *ndev)
 {
 	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
 
-	return cpsw->data.ale_entries * ALE_ENTRY_WORDS * sizeof(u32);
+	return cpsw_ale_get_num_entries(cpsw->ale) *
+	       ALE_ENTRY_WORDS * sizeof(u32);
 }
 
 void cpsw_get_regs(struct net_device *ndev, struct ethtool_regs *regs, void *p)
@@ -727,7 +728,6 @@ int cpsw_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info)
 		(1 << HWTSTAMP_TX_ON);
 	info->rx_filters =
 		(1 << HWTSTAMP_FILTER_NONE) |
-		(1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 	return 0;
 }

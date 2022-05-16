@@ -21,9 +21,9 @@
 #include <drm/drm_format_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_rect.h>
-#include <drm/drm_vblank.h>
 
 /* controller-specific commands */
 #define ST7586_DISP_MODE_GRAY	0x38
@@ -118,9 +118,6 @@ static void st7586_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	struct mipi_dbi *dbi = &dbidev->dbi;
 	int start, end, idx, ret = 0;
 
-	if (!dbidev->enabled)
-		return;
-
 	if (!drm_dev_enter(fb->dev, &idx))
 		return;
 
@@ -159,18 +156,13 @@ static void st7586_pipe_update(struct drm_simple_display_pipe *pipe,
 			       struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = pipe->plane.state;
-	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_rect rect;
+
+	if (!pipe->crtc.state->active)
+		return;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		st7586_fb_dirty(state->fb, &rect);
-
-	if (crtc->state->event) {
-		spin_lock_irq(&crtc->dev->event_lock);
-		drm_crtc_send_vblank_event(crtc, crtc->state->event);
-		spin_unlock_irq(&crtc->dev->event_lock);
-		crtc->state->event = NULL;
-	}
 }
 
 static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
@@ -240,12 +232,11 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	mipi_dbi_command(dbi, ST7586_SET_DISP_DUTY, 0x7f);
 	mipi_dbi_command(dbi, ST7586_SET_PART_DISP, 0xa0);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_PARTIAL_AREA, 0x00, 0x00, 0x00, 0x77);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_PARTIAL_ROWS, 0x00, 0x00, 0x00, 0x77);
 	mipi_dbi_command(dbi, MIPI_DCS_EXIT_INVERT_MODE);
 
 	msleep(100);
 
-	dbidev->enabled = true;
 	st7586_fb_dirty(fb, &rect);
 
 	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
@@ -266,11 +257,7 @@ static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
 
 	DRM_DEBUG_KMS("\n");
 
-	if (!dbidev->enabled)
-		return;
-
 	mipi_dbi_command(&dbidev->dbi, MIPI_DCS_SET_DISPLAY_OFF);
-	dbidev->enabled = false;
 }
 
 static const u32 st7586_formats[] = {
@@ -293,8 +280,7 @@ DEFINE_DRM_GEM_CMA_FOPS(st7586_fops);
 static struct drm_driver st7586_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &st7586_fops,
-	.release		= mipi_dbi_release,
-	DRM_GEM_CMA_VMAP_DRIVER_OPS,
+	DRM_GEM_CMA_DRIVER_OPS_VMAP,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7586",
 	.desc			= "Sitronix ST7586",
@@ -326,19 +312,13 @@ static int st7586_probe(struct spi_device *spi)
 	size_t bufsize;
 	int ret;
 
-	dbidev = kzalloc(sizeof(*dbidev), GFP_KERNEL);
-	if (!dbidev)
-		return -ENOMEM;
+	dbidev = devm_drm_dev_alloc(dev, &st7586_driver,
+				    struct mipi_dbi_dev, drm);
+	if (IS_ERR(dbidev))
+		return PTR_ERR(dbidev);
 
 	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
-	ret = devm_drm_dev_init(dev, drm, &st7586_driver);
-	if (ret) {
-		kfree(dbidev);
-		return ret;
-	}
-
-	drm_mode_config_init(drm);
 
 	bufsize = (st7586_mode.vdisplay + 2) / 3 * st7586_mode.hdisplay;
 

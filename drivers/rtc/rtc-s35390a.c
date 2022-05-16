@@ -423,8 +423,6 @@ static const struct rtc_class_ops s35390a_rtc_ops = {
 	.ioctl          = s35390a_rtc_ioctl,
 };
 
-static struct i2c_driver s35390a_driver;
-
 static int s35390a_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -456,6 +454,10 @@ static int s35390a_probe(struct i2c_client *client,
 		}
 	}
 
+	s35390a->rtc = devm_rtc_allocate_device(dev);
+	if (IS_ERR(s35390a->rtc))
+		return PTR_ERR(s35390a->rtc);
+
 	err_read = s35390a_read_status(s35390a, &status1);
 	if (err_read < 0) {
 		dev_err(dev, "error resetting chip\n");
@@ -485,11 +487,9 @@ static int s35390a_probe(struct i2c_client *client,
 
 	device_set_wakeup_capable(dev, 1);
 
-	s35390a->rtc = devm_rtc_device_register(dev, s35390a_driver.driver.name,
-						&s35390a_rtc_ops, THIS_MODULE);
-
-	if (IS_ERR(s35390a->rtc))
-		return PTR_ERR(s35390a->rtc);
+	s35390a->rtc->ops = &s35390a_rtc_ops;
+	s35390a->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	s35390a->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	/* supports per-minute alarms only, therefore set uie_unsupported */
 	s35390a->rtc->uie_unsupported = 1;
@@ -497,7 +497,7 @@ static int s35390a_probe(struct i2c_client *client,
 	if (status1 & S35390A_FLAG_INT2)
 		rtc_update_irq(s35390a->rtc, 1, RTC_AF);
 
-	return 0;
+	return rtc_register_device(s35390a->rtc);
 }
 
 static struct i2c_driver s35390a_driver = {

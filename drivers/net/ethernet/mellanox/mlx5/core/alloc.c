@@ -56,8 +56,8 @@ static void *mlx5_dma_zalloc_coherent_node(struct mlx5_core_dev *dev,
 					   size_t size, dma_addr_t *dma_handle,
 					   int node)
 {
+	struct device *device = mlx5_core_dma_dev(dev);
 	struct mlx5_priv *priv = &dev->priv;
-	struct device *device = dev->device;
 	int original_node;
 	void *cpu_handle;
 
@@ -71,8 +71,8 @@ static void *mlx5_dma_zalloc_coherent_node(struct mlx5_core_dev *dev,
 	return cpu_handle;
 }
 
-int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			struct mlx5_frag_buf *buf, int node)
+static int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
+			       struct mlx5_frag_buf *buf, int node)
 {
 	dma_addr_t t;
 
@@ -111,7 +111,7 @@ EXPORT_SYMBOL(mlx5_buf_alloc);
 
 void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 {
-	dma_free_coherent(dev->device, buf->size, buf->frags->buf,
+	dma_free_coherent(mlx5_core_dma_dev(dev), buf->size, buf->frags->buf,
 			  buf->frags->map);
 
 	kfree(buf->frags);
@@ -140,7 +140,7 @@ int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 		if (!frag->buf)
 			goto err_free_buf;
 		if (frag->map & ((1 << buf->page_shift) - 1)) {
-			dma_free_coherent(dev->device, frag_sz,
+			dma_free_coherent(mlx5_core_dma_dev(dev), frag_sz,
 					  buf->frags[i].buf, buf->frags[i].map);
 			mlx5_core_warn(dev, "unexpected map alignment: %pad, page_shift=%d\n",
 				       &frag->map, buf->page_shift);
@@ -153,7 +153,7 @@ int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 
 err_free_buf:
 	while (i--)
-		dma_free_coherent(dev->device, PAGE_SIZE, buf->frags[i].buf,
+		dma_free_coherent(mlx5_core_dma_dev(dev), PAGE_SIZE, buf->frags[i].buf,
 				  buf->frags[i].map);
 	kfree(buf->frags);
 err_out:
@@ -169,7 +169,7 @@ void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 	for (i = 0; i < buf->npages; i++) {
 		int frag_sz = min_t(int, size, PAGE_SIZE);
 
-		dma_free_coherent(dev->device, frag_sz, buf->frags[i].buf,
+		dma_free_coherent(mlx5_core_dma_dev(dev), frag_sz, buf->frags[i].buf,
 				  buf->frags[i].map);
 		size -= frag_sz;
 	}
@@ -275,7 +275,7 @@ void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db)
 	__set_bit(db->index, db->u.pgdir->bitmap);
 
 	if (bitmap_full(db->u.pgdir->bitmap, db_per_page)) {
-		dma_free_coherent(dev->device, PAGE_SIZE,
+		dma_free_coherent(mlx5_core_dma_dev(dev), PAGE_SIZE,
 				  db->u.pgdir->db_page, db->u.pgdir->db_dma);
 		list_del(&db->u.pgdir->list);
 		bitmap_free(db->u.pgdir->bitmap);
@@ -299,11 +299,18 @@ void mlx5_fill_page_array(struct mlx5_frag_buf *buf, __be64 *pas)
 }
 EXPORT_SYMBOL_GPL(mlx5_fill_page_array);
 
-void mlx5_fill_page_frag_array(struct mlx5_frag_buf *buf, __be64 *pas)
+void mlx5_fill_page_frag_array_perm(struct mlx5_frag_buf *buf, __be64 *pas, u8 perm)
 {
 	int i;
 
+	WARN_ON(perm & 0xfc);
 	for (i = 0; i < buf->npages; i++)
-		pas[i] = cpu_to_be64(buf->frags[i].map);
+		pas[i] = cpu_to_be64(buf->frags[i].map | perm);
+}
+EXPORT_SYMBOL_GPL(mlx5_fill_page_frag_array_perm);
+
+void mlx5_fill_page_frag_array(struct mlx5_frag_buf *buf, __be64 *pas)
+{
+	mlx5_fill_page_frag_array_perm(buf, pas, 0);
 }
 EXPORT_SYMBOL_GPL(mlx5_fill_page_frag_array);

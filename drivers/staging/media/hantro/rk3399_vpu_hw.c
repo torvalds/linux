@@ -47,10 +47,10 @@ static const struct hantro_fmt rk3399_vpu_enc_fmts[] = {
 		.frmsize = {
 			.min_width = 96,
 			.max_width = 8192,
-			.step_width = JPEG_MB_DIM,
+			.step_width = MB_DIM,
 			.min_height = 32,
 			.max_height = 8192,
-			.step_height = JPEG_MB_DIM,
+			.step_height = MB_DIM,
 		},
 	},
 };
@@ -67,10 +67,10 @@ static const struct hantro_fmt rk3399_vpu_dec_fmts[] = {
 		.frmsize = {
 			.min_width = 48,
 			.max_width = 1920,
-			.step_width = MPEG2_MB_DIM,
+			.step_width = MB_DIM,
 			.min_height = 48,
 			.max_height = 1088,
-			.step_height = MPEG2_MB_DIM,
+			.step_height = MB_DIM,
 		},
 	},
 	{
@@ -80,10 +80,10 @@ static const struct hantro_fmt rk3399_vpu_dec_fmts[] = {
 		.frmsize = {
 			.min_width = 48,
 			.max_width = 3840,
-			.step_width = VP8_MB_DIM,
+			.step_width = MB_DIM,
 			.min_height = 48,
 			.max_height = 2160,
-			.step_height = VP8_MB_DIM,
+			.step_height = MB_DIM,
 		},
 	},
 };
@@ -92,17 +92,16 @@ static irqreturn_t rk3399_vepu_irq(int irq, void *dev_id)
 {
 	struct hantro_dev *vpu = dev_id;
 	enum vb2_buffer_state state;
-	u32 status, bytesused;
+	u32 status;
 
 	status = vepu_read(vpu, VEPU_REG_INTERRUPT);
-	bytesused = vepu_read(vpu, VEPU_REG_STR_BUF_LIMIT) / 8;
 	state = (status & VEPU_REG_INTERRUPT_FRAME_READY) ?
 		VB2_BUF_STATE_DONE : VB2_BUF_STATE_ERROR;
 
 	vepu_write(vpu, 0, VEPU_REG_INTERRUPT);
 	vepu_write(vpu, 0, VEPU_REG_AXI_CTRL);
 
-	hantro_irq_done(vpu, bytesused, state);
+	hantro_irq_done(vpu, state);
 
 	return IRQ_HANDLED;
 }
@@ -120,7 +119,7 @@ static irqreturn_t rk3399_vdpu_irq(int irq, void *dev_id)
 	vdpu_write(vpu, 0, VDPU_REG_INTERRUPT);
 	vdpu_write(vpu, 0, VDPU_REG_AXI_CTRL);
 
-	hantro_irq_done(vpu, 0, state);
+	hantro_irq_done(vpu, state);
 
 	return IRQ_HANDLED;
 }

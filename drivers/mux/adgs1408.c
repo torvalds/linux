@@ -6,9 +6,9 @@
  */
 
 #include <linux/err.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mux/driver.h>
-#include <linux/of_platform.h>
 #include <linux/property.h>
 #include <linux/spi/spi.h>
 
@@ -59,7 +59,7 @@ static int adgs1408_probe(struct spi_device *spi)
 	s32 idle_state;
 	int ret;
 
-	chip_id = (enum adgs1408_chip_id)of_device_get_match_data(dev);
+	chip_id = (enum adgs1408_chip_id)device_get_match_data(dev);
 	if (!chip_id)
 		chip_id = spi_get_device_id(spi)->driver_data;
 
@@ -93,7 +93,7 @@ static int adgs1408_probe(struct spi_device *spi)
 			mux->idle_state = idle_state;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		dev_err(dev, "invalid idle-state %d\n", idle_state);
 		return -EINVAL;
@@ -119,7 +119,7 @@ MODULE_DEVICE_TABLE(of, adgs1408_of_match);
 static struct spi_driver adgs1408_driver = {
 	.driver = {
 		.name = "adgs1408",
-		.of_match_table = of_match_ptr(adgs1408_of_match),
+		.of_match_table = adgs1408_of_match,
 	},
 	.probe = adgs1408_probe,
 	.id_table = adgs1408_spi_id,

@@ -178,13 +178,11 @@ static struct platform_pwm_backlight_data tavorevb_backlight_data[] = {
 		/* primary backlight */
 		.max_brightness	= 100,
 		.dft_brightness	= 100,
-		.enable_gpio	= -1,
 	},
 	[1] = {
 		/* secondary backlight */
 		.max_brightness	= 100,
 		.dft_brightness	= 100,
-		.enable_gpio	= -1,
 	},
 };
 

@@ -43,12 +43,6 @@ struct i2c_adapter *zd1301_demod_get_i2c_adapter(struct platform_device *pdev);
 
 #else
 
-/**
- * zd1301_demod_get_dvb_frontend() - Attach a zd1301 frontend
- * @dev: Pointer to platform device
- *
- * Return: Pointer to %struct dvb_frontend or NULL if attach fails.
- */
 static inline struct dvb_frontend *zd1301_demod_get_dvb_frontend(struct platform_device *dev)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);

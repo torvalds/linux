@@ -37,6 +37,8 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/tso.h>
+#include <net/page_pool.h>
+#include <linux/bpf_trace.h>
 
 /* Registers */
 #define MVNETA_RXQ_CONFIG_REG(q)                (0x1400 + ((q) << 2))
@@ -104,9 +106,11 @@
 #define      MVNETA_TX_IN_PRGRS                  BIT(1)
 #define      MVNETA_TX_FIFO_EMPTY                BIT(8)
 #define MVNETA_RX_MIN_FRAME_SIZE                 0x247c
+/* Only exists on Armada XP and Armada 370 */
 #define MVNETA_SERDES_CFG			 0x24A0
 #define      MVNETA_SGMII_SERDES_PROTO		 0x0cc7
 #define      MVNETA_QSGMII_SERDES_PROTO		 0x0667
+#define      MVNETA_HSGMII_SERDES_PROTO		 0x1107
 #define MVNETA_TYPE_PRIO                         0x24bc
 #define      MVNETA_FORCE_UNI                    BIT(21)
 #define MVNETA_TXQ_CMD_1                         0x24e4
@@ -322,6 +326,12 @@
 	      ETH_HLEN + ETH_FCS_LEN,			     \
 	      cache_line_size())
 
+/* Driver assumes that the last 3 bits are 0 */
+#define MVNETA_SKB_HEADROOM	ALIGN(max(NET_SKB_PAD, XDP_PACKET_HEADROOM), 8)
+#define MVNETA_SKB_PAD	(SKB_DATA_ALIGN(sizeof(struct skb_shared_info) + \
+			 MVNETA_SKB_HEADROOM))
+#define MVNETA_MAX_RX_BUF_SIZE	(PAGE_SIZE - MVNETA_SKB_PAD)
+
 #define IS_TSO_HEADER(txq, addr) \
 	((addr >= txq->tso_hdrs_phys) && \
 	 (addr < txq->tso_hdrs_phys + txq->size * TSO_HEADER_SIZE))
@@ -333,6 +343,13 @@ enum {
 	ETHTOOL_STAT_EEE_WAKEUP,
 	ETHTOOL_STAT_SKB_ALLOC_ERR,
 	ETHTOOL_STAT_REFILL_ERR,
+	ETHTOOL_XDP_REDIRECT,
+	ETHTOOL_XDP_PASS,
+	ETHTOOL_XDP_DROP,
+	ETHTOOL_XDP_TX,
+	ETHTOOL_XDP_TX_ERR,
+	ETHTOOL_XDP_XMIT,
+	ETHTOOL_XDP_XMIT_ERR,
 	ETHTOOL_MAX_STATS,
 };
 
@@ -345,6 +362,11 @@ struct mvneta_statistic {
 #define T_REG_32	32
 #define T_REG_64	64
 #define T_SW		1
+
+#define MVNETA_XDP_PASS		0
+#define MVNETA_XDP_DROPPED	BIT(0)
+#define MVNETA_XDP_TX		BIT(1)
+#define MVNETA_XDP_REDIR	BIT(2)
 
 static const struct mvneta_statistic mvneta_statistics[] = {
 	{ 0x3000, T_REG_64, "good_octets_received", },
@@ -382,14 +404,42 @@ static const struct mvneta_statistic mvneta_statistics[] = {
 	{ ETHTOOL_STAT_EEE_WAKEUP, T_SW, "eee_wakeup_errors", },
 	{ ETHTOOL_STAT_SKB_ALLOC_ERR, T_SW, "skb_alloc_errors", },
 	{ ETHTOOL_STAT_REFILL_ERR, T_SW, "refill_errors", },
+	{ ETHTOOL_XDP_REDIRECT, T_SW, "rx_xdp_redirect", },
+	{ ETHTOOL_XDP_PASS, T_SW, "rx_xdp_pass", },
+	{ ETHTOOL_XDP_DROP, T_SW, "rx_xdp_drop", },
+	{ ETHTOOL_XDP_TX, T_SW, "rx_xdp_tx", },
+	{ ETHTOOL_XDP_TX_ERR, T_SW, "rx_xdp_tx_errors", },
+	{ ETHTOOL_XDP_XMIT, T_SW, "tx_xdp_xmit", },
+	{ ETHTOOL_XDP_XMIT_ERR, T_SW, "tx_xdp_xmit_errors", },
 };
 
-struct mvneta_pcpu_stats {
-	struct	u64_stats_sync syncp;
+struct mvneta_stats {
 	u64	rx_packets;
 	u64	rx_bytes;
 	u64	tx_packets;
 	u64	tx_bytes;
+	/* xdp */
+	u64	xdp_redirect;
+	u64	xdp_pass;
+	u64	xdp_drop;
+	u64	xdp_xmit;
+	u64	xdp_xmit_err;
+	u64	xdp_tx;
+	u64	xdp_tx_err;
+};
+
+struct mvneta_ethtool_stats {
+	struct mvneta_stats ps;
+	u64	skb_alloc_error;
+	u64	refill_error;
+};
+
+struct mvneta_pcpu_stats {
+	struct u64_stats_sync syncp;
+
+	struct mvneta_ethtool_stats es;
+	u64	rx_dropped;
+	u64	rx_errors;
 };
 
 struct mvneta_pcpu_port {
@@ -403,10 +453,16 @@ struct mvneta_pcpu_port {
 	u32			cause_rx_tx;
 };
 
+enum {
+	__MVNETA_DOWN,
+};
+
 struct mvneta_port {
 	u8 id;
 	struct mvneta_pcpu_port __percpu	*ports;
 	struct mvneta_pcpu_stats __percpu	*stats;
+
+	unsigned long state;
 
 	int pkt_size;
 	void __iomem *base;
@@ -424,6 +480,8 @@ struct mvneta_port {
 
 	u32 cause_rx_tx;
 	struct napi_struct napi;
+
+	struct bpf_prog *xdp_prog;
 
 	/* Core clock */
 	struct clk *clk;
@@ -545,6 +603,20 @@ struct mvneta_rx_desc {
 };
 #endif
 
+enum mvneta_tx_buf_type {
+	MVNETA_TYPE_SKB,
+	MVNETA_TYPE_XDP_TX,
+	MVNETA_TYPE_XDP_NDO,
+};
+
+struct mvneta_tx_buf {
+	enum mvneta_tx_buf_type type;
+	union {
+		struct xdp_frame *xdpf;
+		struct sk_buff *skb;
+	};
+};
+
 struct mvneta_tx_queue {
 	/* Number of this TX queue, in the range 0-7 */
 	u8 id;
@@ -560,8 +632,8 @@ struct mvneta_tx_queue {
 	int tx_stop_threshold;
 	int tx_wake_threshold;
 
-	/* Array of transmitted skb */
-	struct sk_buff **tx_skb;
+	/* Array of transmitted buffers */
+	struct mvneta_tx_buf *buf;
 
 	/* Index of last TX DMA descriptor that was inserted */
 	int txq_put_index;
@@ -603,6 +675,10 @@ struct mvneta_rx_queue {
 	u32 pkts_coal;
 	u32 time_coal;
 
+	/* page_pool */
+	struct page_pool *page_pool;
+	struct xdp_rxq_info xdp_rxq;
+
 	/* Virtual address of the RX buffer */
 	void  **buf_virt_addr;
 
@@ -621,14 +697,6 @@ struct mvneta_rx_queue {
 	/* Index of first RX DMA descriptor to refill */
 	int first_to_refill;
 	u32 refill_num;
-
-	/* pointer to uncomplete skb buffer */
-	struct sk_buff *skb;
-	int left_size;
-
-	/* error counters */
-	u32 skb_alloc_err;
-	u32 refill_err;
 };
 
 static enum cpuhp_state online_hpstate;
@@ -641,7 +709,6 @@ static int txq_number = 8;
 static int rxq_def;
 
 static int rx_copybreak __read_mostly = 256;
-static int rx_header_size __read_mostly = 128;
 
 /* HW BM need that each port be identify by a unique ID */
 static int global_port_id;
@@ -684,13 +751,12 @@ static void mvneta_txq_inc_put(struct mvneta_tx_queue *txq)
 static void mvneta_mib_counters_clear(struct mvneta_port *pp)
 {
 	int i;
-	u32 dummy;
 
 	/* Perform dummy reads from MIB counters */
 	for (i = 0; i < MVNETA_MIB_LATE_COLLISION; i += 4)
-		dummy = mvreg_read(pp, (MVNETA_MIB_COUNTERS_BASE + i));
-	dummy = mvreg_read(pp, MVNETA_RX_DISCARD_FRAME_COUNT);
-	dummy = mvreg_read(pp, MVNETA_OVERRUN_FRAME_COUNT);
+		mvreg_read(pp, (MVNETA_MIB_COUNTERS_BASE + i));
+	mvreg_read(pp, MVNETA_RX_DISCARD_FRAME_COUNT);
+	mvreg_read(pp, MVNETA_OVERRUN_FRAME_COUNT);
 }
 
 /* Get System Network Statistics */
@@ -706,26 +772,29 @@ mvneta_get_stats64(struct net_device *dev,
 		struct mvneta_pcpu_stats *cpu_stats;
 		u64 rx_packets;
 		u64 rx_bytes;
+		u64 rx_dropped;
+		u64 rx_errors;
 		u64 tx_packets;
 		u64 tx_bytes;
 
 		cpu_stats = per_cpu_ptr(pp->stats, cpu);
 		do {
 			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
-			rx_packets = cpu_stats->rx_packets;
-			rx_bytes   = cpu_stats->rx_bytes;
-			tx_packets = cpu_stats->tx_packets;
-			tx_bytes   = cpu_stats->tx_bytes;
+			rx_packets = cpu_stats->es.ps.rx_packets;
+			rx_bytes   = cpu_stats->es.ps.rx_bytes;
+			rx_dropped = cpu_stats->rx_dropped;
+			rx_errors  = cpu_stats->rx_errors;
+			tx_packets = cpu_stats->es.ps.tx_packets;
+			tx_bytes   = cpu_stats->es.ps.tx_bytes;
 		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
 		stats->rx_packets += rx_packets;
 		stats->rx_bytes   += rx_bytes;
+		stats->rx_dropped += rx_dropped;
+		stats->rx_errors  += rx_errors;
 		stats->tx_packets += tx_packets;
 		stats->tx_bytes   += tx_bytes;
 	}
-
-	stats->rx_errors	= dev->stats.rx_errors;
-	stats->rx_dropped	= dev->stats.rx_dropped;
 
 	stats->tx_dropped	= dev->stats.tx_dropped;
 }
@@ -1134,6 +1203,7 @@ bm_mtu_err:
 	mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_short, 1 << pp->id);
 
 	pp->bm_priv = NULL;
+	pp->rx_offset_correction = MVNETA_SKB_HEADROOM;
 	mvreg_write(pp, MVNETA_ACC_MODE, MVNETA_ACC_MODE_EXT1);
 	netdev_info(pp->dev, "fail to update MTU, fall back to software BM\n");
 }
@@ -1703,7 +1773,13 @@ static u32 mvneta_txq_desc_csum(int l3_offs, int l3_proto,
 static void mvneta_rx_error(struct mvneta_port *pp,
 			    struct mvneta_rx_desc *rx_desc)
 {
+	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 	u32 status = rx_desc->status;
+
+	/* update per-cpu counter */
+	u64_stats_update_begin(&stats->syncp);
+	stats->rx_errors++;
+	u64_stats_update_end(&stats->syncp);
 
 	switch (status & MVNETA_RXD_ERR_CODE_MASK) {
 	case MVNETA_RXD_ERR_CRC:
@@ -1755,30 +1831,34 @@ static struct mvneta_tx_queue *mvneta_tx_done_policy(struct mvneta_port *pp,
 /* Free tx queue skbuffs */
 static void mvneta_txq_bufs_free(struct mvneta_port *pp,
 				 struct mvneta_tx_queue *txq, int num,
-				 struct netdev_queue *nq)
+				 struct netdev_queue *nq, bool napi)
 {
 	unsigned int bytes_compl = 0, pkts_compl = 0;
 	int i;
 
 	for (i = 0; i < num; i++) {
+		struct mvneta_tx_buf *buf = &txq->buf[txq->txq_get_index];
 		struct mvneta_tx_desc *tx_desc = txq->descs +
 			txq->txq_get_index;
-		struct sk_buff *skb = txq->tx_skb[txq->txq_get_index];
-
-		if (skb) {
-			bytes_compl += skb->len;
-			pkts_compl++;
-		}
 
 		mvneta_txq_inc_get(txq);
 
-		if (!IS_TSO_HEADER(txq, tx_desc->buf_phys_addr))
+		if (!IS_TSO_HEADER(txq, tx_desc->buf_phys_addr) &&
+		    buf->type != MVNETA_TYPE_XDP_TX)
 			dma_unmap_single(pp->dev->dev.parent,
 					 tx_desc->buf_phys_addr,
 					 tx_desc->data_size, DMA_TO_DEVICE);
-		if (!skb)
-			continue;
-		dev_kfree_skb_any(skb);
+		if (buf->type == MVNETA_TYPE_SKB && buf->skb) {
+			bytes_compl += buf->skb->len;
+			pkts_compl++;
+			dev_kfree_skb_any(buf->skb);
+		} else if (buf->type == MVNETA_TYPE_XDP_TX ||
+			   buf->type == MVNETA_TYPE_XDP_NDO) {
+			if (napi && buf->type == MVNETA_TYPE_XDP_TX)
+				xdp_return_frame_rx_napi(buf->xdpf);
+			else
+				xdp_return_frame(buf->xdpf);
+		}
 	}
 
 	netdev_tx_completed_queue(nq, pkts_compl, bytes_compl);
@@ -1795,7 +1875,7 @@ static void mvneta_txq_done(struct mvneta_port *pp,
 	if (!tx_done)
 		return;
 
-	mvneta_txq_bufs_free(pp, txq, tx_done, nq);
+	mvneta_txq_bufs_free(pp, txq, tx_done, nq, true);
 
 	txq->count -= tx_done;
 
@@ -1815,20 +1895,14 @@ static int mvneta_rx_refill(struct mvneta_port *pp,
 	dma_addr_t phys_addr;
 	struct page *page;
 
-	page = __dev_alloc_page(gfp_mask);
+	page = page_pool_alloc_pages(rxq->page_pool,
+				     gfp_mask | __GFP_NOWARN);
 	if (!page)
 		return -ENOMEM;
 
-	/* map page for use */
-	phys_addr = dma_map_page(pp->dev->dev.parent, page, 0, PAGE_SIZE,
-				 DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(pp->dev->dev.parent, phys_addr))) {
-		__free_page(page);
-		return -ENOMEM;
-	}
-
-	phys_addr += pp->rx_offset_correction;
+	phys_addr = page_pool_get_dma_addr(page) + pp->rx_offset_correction;
 	mvneta_rx_desc_fill(rx_desc, phys_addr, page, rxq);
+
 	return 0;
 }
 
@@ -1894,10 +1968,28 @@ static void mvneta_rxq_drop_pkts(struct mvneta_port *pp,
 		if (!data || !(rx_desc->buf_phys_addr))
 			continue;
 
-		dma_unmap_page(pp->dev->dev.parent, rx_desc->buf_phys_addr,
-			       PAGE_SIZE, DMA_FROM_DEVICE);
-		__free_page(data);
+		page_pool_put_full_page(rxq->page_pool, data, false);
 	}
+	if (xdp_rxq_info_is_reg(&rxq->xdp_rxq))
+		xdp_rxq_info_unreg(&rxq->xdp_rxq);
+	page_pool_destroy(rxq->page_pool);
+	rxq->page_pool = NULL;
+}
+
+static void
+mvneta_update_stats(struct mvneta_port *pp,
+		    struct mvneta_stats *ps)
+{
+	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
+
+	u64_stats_update_begin(&stats->syncp);
+	stats->es.ps.rx_packets += ps->rx_packets;
+	stats->es.ps.rx_bytes += ps->rx_bytes;
+	/* xdp */
+	stats->es.ps.xdp_redirect += ps->xdp_redirect;
+	stats->es.ps.xdp_pass += ps->xdp_pass;
+	stats->es.ps.xdp_drop += ps->xdp_drop;
+	u64_stats_update_end(&stats->syncp);
 }
 
 static inline
@@ -1911,9 +2003,15 @@ int mvneta_rx_refill_queue(struct mvneta_port *pp, struct mvneta_rx_queue *rxq)
 		rx_desc = rxq->descs + curr_desc;
 		if (!(rx_desc->buf_phys_addr)) {
 			if (mvneta_rx_refill(pp, rx_desc, rxq, GFP_ATOMIC)) {
+				struct mvneta_pcpu_stats *stats;
+
 				pr_err("Can't refill queue %d. Done %d from %d\n",
 				       rxq->id, i, rxq->refill_num);
-				rxq->refill_err++;
+
+				stats = this_cpu_ptr(pp->stats);
+				u64_stats_update_begin(&stats->syncp);
+				stats->es.refill_error++;
+				u64_stats_update_end(&stats->syncp);
 				break;
 			}
 		}
@@ -1925,38 +2023,346 @@ int mvneta_rx_refill_queue(struct mvneta_port *pp, struct mvneta_rx_queue *rxq)
 	return i;
 }
 
+static void
+mvneta_xdp_put_buff(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
+		    struct xdp_buff *xdp, int sync_len, bool napi)
+{
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
+	int i;
+
+	for (i = 0; i < sinfo->nr_frags; i++)
+		page_pool_put_full_page(rxq->page_pool,
+					skb_frag_page(&sinfo->frags[i]), napi);
+	page_pool_put_page(rxq->page_pool, virt_to_head_page(xdp->data),
+			   sync_len, napi);
+}
+
+static int
+mvneta_xdp_submit_frame(struct mvneta_port *pp, struct mvneta_tx_queue *txq,
+			struct xdp_frame *xdpf, bool dma_map)
+{
+	struct mvneta_tx_desc *tx_desc;
+	struct mvneta_tx_buf *buf;
+	dma_addr_t dma_addr;
+
+	if (txq->count >= txq->tx_stop_threshold)
+		return MVNETA_XDP_DROPPED;
+
+	tx_desc = mvneta_txq_next_desc_get(txq);
+
+	buf = &txq->buf[txq->txq_put_index];
+	if (dma_map) {
+		/* ndo_xdp_xmit */
+		dma_addr = dma_map_single(pp->dev->dev.parent, xdpf->data,
+					  xdpf->len, DMA_TO_DEVICE);
+		if (dma_mapping_error(pp->dev->dev.parent, dma_addr)) {
+			mvneta_txq_desc_put(txq);
+			return MVNETA_XDP_DROPPED;
+		}
+		buf->type = MVNETA_TYPE_XDP_NDO;
+	} else {
+		struct page *page = virt_to_page(xdpf->data);
+
+		dma_addr = page_pool_get_dma_addr(page) +
+			   sizeof(*xdpf) + xdpf->headroom;
+		dma_sync_single_for_device(pp->dev->dev.parent, dma_addr,
+					   xdpf->len, DMA_BIDIRECTIONAL);
+		buf->type = MVNETA_TYPE_XDP_TX;
+	}
+	buf->xdpf = xdpf;
+
+	tx_desc->command = MVNETA_TXD_FLZ_DESC;
+	tx_desc->buf_phys_addr = dma_addr;
+	tx_desc->data_size = xdpf->len;
+
+	mvneta_txq_inc_put(txq);
+	txq->pending++;
+	txq->count++;
+
+	return MVNETA_XDP_TX;
+}
+
+static int
+mvneta_xdp_xmit_back(struct mvneta_port *pp, struct xdp_buff *xdp)
+{
+	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
+	struct mvneta_tx_queue *txq;
+	struct netdev_queue *nq;
+	struct xdp_frame *xdpf;
+	int cpu;
+	u32 ret;
+
+	xdpf = xdp_convert_buff_to_frame(xdp);
+	if (unlikely(!xdpf))
+		return MVNETA_XDP_DROPPED;
+
+	cpu = smp_processor_id();
+	txq = &pp->txqs[cpu % txq_number];
+	nq = netdev_get_tx_queue(pp->dev, txq->id);
+
+	__netif_tx_lock(nq, cpu);
+	ret = mvneta_xdp_submit_frame(pp, txq, xdpf, false);
+	if (ret == MVNETA_XDP_TX) {
+		u64_stats_update_begin(&stats->syncp);
+		stats->es.ps.tx_bytes += xdpf->len;
+		stats->es.ps.tx_packets++;
+		stats->es.ps.xdp_tx++;
+		u64_stats_update_end(&stats->syncp);
+
+		mvneta_txq_pend_desc_add(pp, txq, 0);
+	} else {
+		u64_stats_update_begin(&stats->syncp);
+		stats->es.ps.xdp_tx_err++;
+		u64_stats_update_end(&stats->syncp);
+	}
+	__netif_tx_unlock(nq);
+
+	return ret;
+}
+
+static int
+mvneta_xdp_xmit(struct net_device *dev, int num_frame,
+		struct xdp_frame **frames, u32 flags)
+{
+	struct mvneta_port *pp = netdev_priv(dev);
+	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
+	int i, nxmit_byte = 0, nxmit = num_frame;
+	int cpu = smp_processor_id();
+	struct mvneta_tx_queue *txq;
+	struct netdev_queue *nq;
+	u32 ret;
+
+	if (unlikely(test_bit(__MVNETA_DOWN, &pp->state)))
+		return -ENETDOWN;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	txq = &pp->txqs[cpu % txq_number];
+	nq = netdev_get_tx_queue(pp->dev, txq->id);
+
+	__netif_tx_lock(nq, cpu);
+	for (i = 0; i < num_frame; i++) {
+		ret = mvneta_xdp_submit_frame(pp, txq, frames[i], true);
+		if (ret == MVNETA_XDP_TX) {
+			nxmit_byte += frames[i]->len;
+		} else {
+			xdp_return_frame_rx_napi(frames[i]);
+			nxmit--;
+		}
+	}
+
+	if (unlikely(flags & XDP_XMIT_FLUSH))
+		mvneta_txq_pend_desc_add(pp, txq, 0);
+	__netif_tx_unlock(nq);
+
+	u64_stats_update_begin(&stats->syncp);
+	stats->es.ps.tx_bytes += nxmit_byte;
+	stats->es.ps.tx_packets += nxmit;
+	stats->es.ps.xdp_xmit += nxmit;
+	stats->es.ps.xdp_xmit_err += num_frame - nxmit;
+	u64_stats_update_end(&stats->syncp);
+
+	return nxmit;
+}
+
+static int
+mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
+	       struct bpf_prog *prog, struct xdp_buff *xdp,
+	       u32 frame_sz, struct mvneta_stats *stats)
+{
+	unsigned int len, data_len, sync;
+	u32 ret, act;
+
+	len = xdp->data_end - xdp->data_hard_start - pp->rx_offset_correction;
+	data_len = xdp->data_end - xdp->data;
+	act = bpf_prog_run_xdp(prog, xdp);
+
+	/* Due xdp_adjust_tail: DMA sync for_device cover max len CPU touch */
+	sync = xdp->data_end - xdp->data_hard_start - pp->rx_offset_correction;
+	sync = max(sync, len);
+
+	switch (act) {
+	case XDP_PASS:
+		stats->xdp_pass++;
+		return MVNETA_XDP_PASS;
+	case XDP_REDIRECT: {
+		int err;
+
+		err = xdp_do_redirect(pp->dev, xdp, prog);
+		if (unlikely(err)) {
+			mvneta_xdp_put_buff(pp, rxq, xdp, sync, true);
+			ret = MVNETA_XDP_DROPPED;
+		} else {
+			ret = MVNETA_XDP_REDIR;
+			stats->xdp_redirect++;
+		}
+		break;
+	}
+	case XDP_TX:
+		ret = mvneta_xdp_xmit_back(pp, xdp);
+		if (ret != MVNETA_XDP_TX)
+			mvneta_xdp_put_buff(pp, rxq, xdp, sync, true);
+		break;
+	default:
+		bpf_warn_invalid_xdp_action(act);
+		fallthrough;
+	case XDP_ABORTED:
+		trace_xdp_exception(pp->dev, prog, act);
+		fallthrough;
+	case XDP_DROP:
+		mvneta_xdp_put_buff(pp, rxq, xdp, sync, true);
+		ret = MVNETA_XDP_DROPPED;
+		stats->xdp_drop++;
+		break;
+	}
+
+	stats->rx_bytes += frame_sz + xdp->data_end - xdp->data - data_len;
+	stats->rx_packets++;
+
+	return ret;
+}
+
+static void
+mvneta_swbm_rx_frame(struct mvneta_port *pp,
+		     struct mvneta_rx_desc *rx_desc,
+		     struct mvneta_rx_queue *rxq,
+		     struct xdp_buff *xdp, int *size,
+		     struct page *page)
+{
+	unsigned char *data = page_address(page);
+	int data_len = -MVNETA_MH_SIZE, len;
+	struct net_device *dev = pp->dev;
+	enum dma_data_direction dma_dir;
+	struct skb_shared_info *sinfo;
+
+	if (*size > MVNETA_MAX_RX_BUF_SIZE) {
+		len = MVNETA_MAX_RX_BUF_SIZE;
+		data_len += len;
+	} else {
+		len = *size;
+		data_len += len - ETH_FCS_LEN;
+	}
+	*size = *size - len;
+
+	dma_dir = page_pool_get_dma_dir(rxq->page_pool);
+	dma_sync_single_for_cpu(dev->dev.parent,
+				rx_desc->buf_phys_addr,
+				len, dma_dir);
+
+	rx_desc->buf_phys_addr = 0;
+
+	/* Prefetch header */
+	prefetch(data);
+
+	xdp->data_hard_start = data;
+	xdp->data = data + pp->rx_offset_correction + MVNETA_MH_SIZE;
+	xdp->data_end = xdp->data + data_len;
+	xdp_set_data_meta_invalid(xdp);
+
+	sinfo = xdp_get_shared_info_from_buff(xdp);
+	sinfo->nr_frags = 0;
+}
+
+static void
+mvneta_swbm_add_rx_fragment(struct mvneta_port *pp,
+			    struct mvneta_rx_desc *rx_desc,
+			    struct mvneta_rx_queue *rxq,
+			    struct xdp_buff *xdp, int *size,
+			    struct page *page)
+{
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
+	struct net_device *dev = pp->dev;
+	enum dma_data_direction dma_dir;
+	int data_len, len;
+
+	if (*size > MVNETA_MAX_RX_BUF_SIZE) {
+		len = MVNETA_MAX_RX_BUF_SIZE;
+		data_len = len;
+	} else {
+		len = *size;
+		data_len = len - ETH_FCS_LEN;
+	}
+	dma_dir = page_pool_get_dma_dir(rxq->page_pool);
+	dma_sync_single_for_cpu(dev->dev.parent,
+				rx_desc->buf_phys_addr,
+				len, dma_dir);
+	rx_desc->buf_phys_addr = 0;
+
+	if (data_len > 0 && sinfo->nr_frags < MAX_SKB_FRAGS) {
+		skb_frag_t *frag = &sinfo->frags[sinfo->nr_frags];
+
+		skb_frag_off_set(frag, pp->rx_offset_correction);
+		skb_frag_size_set(frag, data_len);
+		__skb_frag_set_page(frag, page);
+		sinfo->nr_frags++;
+	} else {
+		page_pool_put_full_page(rxq->page_pool, page, true);
+	}
+	*size -= len;
+}
+
+static struct sk_buff *
+mvneta_swbm_build_skb(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
+		      struct xdp_buff *xdp, u32 desc_status)
+{
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
+	int i, num_frags = sinfo->nr_frags;
+	struct sk_buff *skb;
+
+	skb = build_skb(xdp->data_hard_start, PAGE_SIZE);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	page_pool_release_page(rxq->page_pool, virt_to_page(xdp->data));
+
+	skb_reserve(skb, xdp->data - xdp->data_hard_start);
+	skb_put(skb, xdp->data_end - xdp->data);
+	mvneta_rx_csum(pp, desc_status, skb);
+
+	for (i = 0; i < num_frags; i++) {
+		skb_frag_t *frag = &sinfo->frags[i];
+
+		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+				skb_frag_page(frag), skb_frag_off(frag),
+				skb_frag_size(frag), PAGE_SIZE);
+		page_pool_release_page(rxq->page_pool, skb_frag_page(frag));
+	}
+
+	return skb;
+}
+
 /* Main rx processing when using software buffer management */
 static int mvneta_rx_swbm(struct napi_struct *napi,
 			  struct mvneta_port *pp, int budget,
 			  struct mvneta_rx_queue *rxq)
 {
+	int rx_proc = 0, rx_todo, refill, size = 0;
 	struct net_device *dev = pp->dev;
-	int rx_todo, rx_proc;
-	int refill = 0;
-	u32 rcvd_pkts = 0;
-	u32 rcvd_bytes = 0;
+	struct xdp_buff xdp_buf = {
+		.frame_sz = PAGE_SIZE,
+		.rxq = &rxq->xdp_rxq,
+	};
+	struct mvneta_stats ps = {};
+	struct bpf_prog *xdp_prog;
+	u32 desc_status, frame_sz;
 
 	/* Get number of received packets */
 	rx_todo = mvneta_rxq_busy_desc_num_get(pp, rxq);
-	rx_proc = 0;
+
+	rcu_read_lock();
+	xdp_prog = READ_ONCE(pp->xdp_prog);
 
 	/* Fairness NAPI loop */
-	while ((rcvd_pkts < budget) && (rx_proc < rx_todo)) {
+	while (rx_proc < budget && rx_proc < rx_todo) {
 		struct mvneta_rx_desc *rx_desc = mvneta_rxq_next_desc_get(rxq);
-		unsigned char *data;
-		struct page *page;
-		dma_addr_t phys_addr;
 		u32 rx_status, index;
-		int rx_bytes, skb_size, copy_size;
-		int frag_num, frag_size, frag_offset;
+		struct sk_buff *skb;
+		struct page *page;
 
 		index = rx_desc - rxq->descs;
 		page = (struct page *)rxq->buf_virt_addr[index];
-		data = page_address(page);
-		/* Prefetch header */
-		prefetch(data);
 
-		phys_addr = rx_desc->buf_phys_addr;
 		rx_status = rx_desc->status;
 		rx_proc++;
 		rxq->refill_num++;
@@ -1965,124 +2371,72 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 			/* Check errors only for FIRST descriptor */
 			if (rx_status & MVNETA_RXD_ERR_SUMMARY) {
 				mvneta_rx_error(pp, rx_desc);
-				dev->stats.rx_errors++;
-				/* leave the descriptor untouched */
-				continue;
+				goto next;
 			}
-			rx_bytes = rx_desc->data_size -
-				   (ETH_FCS_LEN + MVNETA_MH_SIZE);
 
-			/* Allocate small skb for each new packet */
-			skb_size = max(rx_copybreak, rx_header_size);
-			rxq->skb = netdev_alloc_skb_ip_align(dev, skb_size);
-			if (unlikely(!rxq->skb)) {
-				netdev_err(dev,
-					   "Can't allocate skb on queue %d\n",
-					   rxq->id);
-				dev->stats.rx_dropped++;
-				rxq->skb_alloc_err++;
-				continue;
-			}
-			copy_size = min(skb_size, rx_bytes);
+			size = rx_desc->data_size;
+			frame_sz = size - ETH_FCS_LEN;
+			desc_status = rx_status;
 
-			/* Copy data from buffer to SKB, skip Marvell header */
-			memcpy(rxq->skb->data, data + MVNETA_MH_SIZE,
-			       copy_size);
-			skb_put(rxq->skb, copy_size);
-			rxq->left_size = rx_bytes - copy_size;
-
-			mvneta_rx_csum(pp, rx_status, rxq->skb);
-			if (rxq->left_size == 0) {
-				int size = copy_size + MVNETA_MH_SIZE;
-
-				dma_sync_single_range_for_cpu(dev->dev.parent,
-							      phys_addr, 0,
-							      size,
-							      DMA_FROM_DEVICE);
-
-				/* leave the descriptor and buffer untouched */
-			} else {
-				/* refill descriptor with new buffer later */
-				rx_desc->buf_phys_addr = 0;
-
-				frag_num = 0;
-				frag_offset = copy_size + MVNETA_MH_SIZE;
-				frag_size = min(rxq->left_size,
-						(int)(PAGE_SIZE - frag_offset));
-				skb_add_rx_frag(rxq->skb, frag_num, page,
-						frag_offset, frag_size,
-						PAGE_SIZE);
-				dma_unmap_page(dev->dev.parent, phys_addr,
-					       PAGE_SIZE, DMA_FROM_DEVICE);
-				rxq->left_size -= frag_size;
-			}
+			mvneta_swbm_rx_frame(pp, rx_desc, rxq, &xdp_buf,
+					     &size, page);
 		} else {
-			/* Middle or Last descriptor */
-			if (unlikely(!rxq->skb)) {
-				pr_debug("no skb for rx_status 0x%x\n",
-					 rx_status);
+			if (unlikely(!xdp_buf.data_hard_start)) {
+				rx_desc->buf_phys_addr = 0;
+				page_pool_put_full_page(rxq->page_pool, page,
+							true);
 				continue;
 			}
-			if (!rxq->left_size) {
-				/* last descriptor has only FCS */
-				/* and can be discarded */
-				dma_sync_single_range_for_cpu(dev->dev.parent,
-							      phys_addr, 0,
-							      ETH_FCS_LEN,
-							      DMA_FROM_DEVICE);
-				/* leave the descriptor and buffer untouched */
-			} else {
-				/* refill descriptor with new buffer later */
-				rx_desc->buf_phys_addr = 0;
 
-				frag_num = skb_shinfo(rxq->skb)->nr_frags;
-				frag_offset = 0;
-				frag_size = min(rxq->left_size,
-						(int)(PAGE_SIZE - frag_offset));
-				skb_add_rx_frag(rxq->skb, frag_num, page,
-						frag_offset, frag_size,
-						PAGE_SIZE);
-
-				dma_unmap_page(dev->dev.parent, phys_addr,
-					       PAGE_SIZE, DMA_FROM_DEVICE);
-
-				rxq->left_size -= frag_size;
-			}
+			mvneta_swbm_add_rx_fragment(pp, rx_desc, rxq, &xdp_buf,
+						    &size, page);
 		} /* Middle or Last descriptor */
 
 		if (!(rx_status & MVNETA_RXD_LAST_DESC))
 			/* no last descriptor this time */
 			continue;
 
-		if (rxq->left_size) {
-			pr_err("get last desc, but left_size (%d) != 0\n",
-			       rxq->left_size);
-			dev_kfree_skb_any(rxq->skb);
-			rxq->left_size = 0;
-			rxq->skb = NULL;
-			continue;
+		if (size) {
+			mvneta_xdp_put_buff(pp, rxq, &xdp_buf, -1, true);
+			goto next;
 		}
-		rcvd_pkts++;
-		rcvd_bytes += rxq->skb->len;
 
-		/* Linux processing */
-		rxq->skb->protocol = eth_type_trans(rxq->skb, dev);
+		if (xdp_prog &&
+		    mvneta_run_xdp(pp, rxq, xdp_prog, &xdp_buf, frame_sz, &ps))
+			goto next;
 
-		napi_gro_receive(napi, rxq->skb);
+		skb = mvneta_swbm_build_skb(pp, rxq, &xdp_buf, desc_status);
+		if (IS_ERR(skb)) {
+			struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 
-		/* clean uncomplete skb pointer in queue */
-		rxq->skb = NULL;
-		rxq->left_size = 0;
+			mvneta_xdp_put_buff(pp, rxq, &xdp_buf, -1, true);
+
+			u64_stats_update_begin(&stats->syncp);
+			stats->es.skb_alloc_error++;
+			stats->rx_dropped++;
+			u64_stats_update_end(&stats->syncp);
+
+			goto next;
+		}
+
+		ps.rx_bytes += skb->len;
+		ps.rx_packets++;
+
+		skb->protocol = eth_type_trans(skb, dev);
+		napi_gro_receive(napi, skb);
+next:
+		xdp_buf.data_hard_start = NULL;
 	}
+	rcu_read_unlock();
 
-	if (rcvd_pkts) {
-		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
+	if (xdp_buf.data_hard_start)
+		mvneta_xdp_put_buff(pp, rxq, &xdp_buf, -1, true);
 
-		u64_stats_update_begin(&stats->syncp);
-		stats->rx_packets += rcvd_pkts;
-		stats->rx_bytes   += rcvd_bytes;
-		u64_stats_update_end(&stats->syncp);
-	}
+	if (ps.xdp_redirect)
+		xdp_do_flush_map();
+
+	if (ps.rx_packets)
+		mvneta_update_stats(pp, &ps);
 
 	/* return some buffers to hardware queue, one at a time is too slow */
 	refill = mvneta_rx_refill_queue(pp, rxq);
@@ -2090,7 +2444,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 	/* Update rxq management counters */
 	mvneta_rxq_desc_num_update(pp, rxq, rx_proc, refill);
 
-	return rcvd_pkts;
+	return ps.rx_packets;
 }
 
 /* Main rx processing when using hardware buffer management */
@@ -2137,7 +2491,6 @@ err_drop_frame_ret_pool:
 			mvneta_bm_pool_put_bp(pp->bm_priv, bm_pool,
 					      rx_desc->buf_phys_addr);
 err_drop_frame:
-			dev->stats.rx_errors++;
 			mvneta_rx_error(pp, rx_desc);
 			/* leave the descriptor untouched */
 			continue;
@@ -2175,8 +2528,15 @@ err_drop_frame:
 		/* Refill processing */
 		err = hwbm_pool_refill(&bm_pool->hwbm_pool, GFP_ATOMIC);
 		if (err) {
+			struct mvneta_pcpu_stats *stats;
+
 			netdev_err(dev, "Linux processing - Can't refill\n");
-			rxq->refill_err++;
+
+			stats = this_cpu_ptr(pp->stats);
+			u64_stats_update_begin(&stats->syncp);
+			stats->es.refill_error++;
+			u64_stats_update_end(&stats->syncp);
+
 			goto err_drop_frame_ret_pool;
 		}
 
@@ -2210,8 +2570,8 @@ err_drop_frame:
 		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 
 		u64_stats_update_begin(&stats->syncp);
-		stats->rx_packets += rcvd_pkts;
-		stats->rx_bytes   += rcvd_bytes;
+		stats->es.ps.rx_packets += rcvd_pkts;
+		stats->es.ps.rx_bytes += rcvd_bytes;
 		u64_stats_update_end(&stats->syncp);
 	}
 
@@ -2225,16 +2585,19 @@ static inline void
 mvneta_tso_put_hdr(struct sk_buff *skb,
 		   struct mvneta_port *pp, struct mvneta_tx_queue *txq)
 {
-	struct mvneta_tx_desc *tx_desc;
 	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	struct mvneta_tx_buf *buf = &txq->buf[txq->txq_put_index];
+	struct mvneta_tx_desc *tx_desc;
 
-	txq->tx_skb[txq->txq_put_index] = NULL;
 	tx_desc = mvneta_txq_next_desc_get(txq);
 	tx_desc->data_size = hdr_len;
 	tx_desc->command = mvneta_skb_tx_csum(pp, skb);
 	tx_desc->command |= MVNETA_TXD_F_DESC;
 	tx_desc->buf_phys_addr = txq->tso_hdrs_phys +
 				 txq->txq_put_index * TSO_HEADER_SIZE;
+	buf->type = MVNETA_TYPE_SKB;
+	buf->skb = NULL;
+
 	mvneta_txq_inc_put(txq);
 }
 
@@ -2243,6 +2606,7 @@ mvneta_tso_put_data(struct net_device *dev, struct mvneta_tx_queue *txq,
 		    struct sk_buff *skb, char *data, int size,
 		    bool last_tcp, bool is_last)
 {
+	struct mvneta_tx_buf *buf = &txq->buf[txq->txq_put_index];
 	struct mvneta_tx_desc *tx_desc;
 
 	tx_desc = mvneta_txq_next_desc_get(txq);
@@ -2256,7 +2620,8 @@ mvneta_tso_put_data(struct net_device *dev, struct mvneta_tx_queue *txq,
 	}
 
 	tx_desc->command = 0;
-	txq->tx_skb[txq->txq_put_index] = NULL;
+	buf->type = MVNETA_TYPE_SKB;
+	buf->skb = NULL;
 
 	if (last_tcp) {
 		/* last descriptor in the TCP packet */
@@ -2264,7 +2629,7 @@ mvneta_tso_put_data(struct net_device *dev, struct mvneta_tx_queue *txq,
 
 		/* last descriptor in SKB */
 		if (is_last)
-			txq->tx_skb[txq->txq_put_index] = skb;
+			buf->skb = skb;
 	}
 	mvneta_txq_inc_put(txq);
 	return 0;
@@ -2273,11 +2638,10 @@ mvneta_tso_put_data(struct net_device *dev, struct mvneta_tx_queue *txq,
 static int mvneta_tx_tso(struct sk_buff *skb, struct net_device *dev,
 			 struct mvneta_tx_queue *txq)
 {
-	int total_len, data_left;
+	int hdr_len, total_len, data_left;
 	int desc_count = 0;
 	struct mvneta_port *pp = netdev_priv(dev);
 	struct tso_t tso;
-	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 	int i;
 
 	/* Count needed descriptors */
@@ -2290,7 +2654,7 @@ static int mvneta_tx_tso(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	/* Initialize the TSO handler, and prepare the first payload */
-	tso_start(skb, &tso);
+	hdr_len = tso_start(skb, &tso);
 
 	total_len = skb->len - hdr_len;
 	while (total_len > 0) {
@@ -2349,6 +2713,7 @@ static int mvneta_tx_frag_process(struct mvneta_port *pp, struct sk_buff *skb,
 	int i, nr_frags = skb_shinfo(skb)->nr_frags;
 
 	for (i = 0; i < nr_frags; i++) {
+		struct mvneta_tx_buf *buf = &txq->buf[txq->txq_put_index];
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		void *addr = skb_frag_address(frag);
 
@@ -2368,12 +2733,13 @@ static int mvneta_tx_frag_process(struct mvneta_port *pp, struct sk_buff *skb,
 		if (i == nr_frags - 1) {
 			/* Last descriptor */
 			tx_desc->command = MVNETA_TXD_L_DESC | MVNETA_TXD_Z_PAD;
-			txq->tx_skb[txq->txq_put_index] = skb;
+			buf->skb = skb;
 		} else {
 			/* Descriptor in the middle: Not First, Not Last */
 			tx_desc->command = 0;
-			txq->tx_skb[txq->txq_put_index] = NULL;
+			buf->skb = NULL;
 		}
+		buf->type = MVNETA_TYPE_SKB;
 		mvneta_txq_inc_put(txq);
 	}
 
@@ -2401,6 +2767,7 @@ static netdev_tx_t mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 	struct mvneta_port *pp = netdev_priv(dev);
 	u16 txq_id = skb_get_queue_mapping(skb);
 	struct mvneta_tx_queue *txq = &pp->txqs[txq_id];
+	struct mvneta_tx_buf *buf = &txq->buf[txq->txq_put_index];
 	struct mvneta_tx_desc *tx_desc;
 	int len = skb->len;
 	int frags = 0;
@@ -2433,16 +2800,17 @@ static netdev_tx_t mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 	}
 
+	buf->type = MVNETA_TYPE_SKB;
 	if (frags == 1) {
 		/* First and Last descriptor */
 		tx_cmd |= MVNETA_TXD_FLZ_DESC;
 		tx_desc->command = tx_cmd;
-		txq->tx_skb[txq->txq_put_index] = skb;
+		buf->skb = skb;
 		mvneta_txq_inc_put(txq);
 	} else {
 		/* First but not Last */
 		tx_cmd |= MVNETA_TXD_F_DESC;
-		txq->tx_skb[txq->txq_put_index] = NULL;
+		buf->skb = NULL;
 		mvneta_txq_inc_put(txq);
 		tx_desc->command = tx_cmd;
 		/* Continue with other skb fragments */
@@ -2459,8 +2827,8 @@ static netdev_tx_t mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 
 out:
 	if (frags > 0) {
-		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 		struct netdev_queue *nq = netdev_get_tx_queue(dev, txq_id);
+		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 
 		netdev_tx_sent_queue(nq, len);
 
@@ -2475,8 +2843,8 @@ out:
 			txq->pending += frags;
 
 		u64_stats_update_begin(&stats->syncp);
-		stats->tx_packets++;
-		stats->tx_bytes  += len;
+		stats->es.ps.tx_bytes += len;
+		stats->es.ps.tx_packets++;
 		u64_stats_update_end(&stats->syncp);
 	} else {
 		dev->stats.tx_dropped++;
@@ -2495,7 +2863,7 @@ static void mvneta_txq_done_force(struct mvneta_port *pp,
 	struct netdev_queue *nq = netdev_get_tx_queue(pp->dev, txq->id);
 	int tx_done = txq->count;
 
-	mvneta_txq_bufs_free(pp, txq, tx_done, nq);
+	mvneta_txq_bufs_free(pp, txq, tx_done, nq, false);
 
 	/* reset txq */
 	txq->count = 0;
@@ -2789,11 +3157,10 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 	/* For the case where the last mvneta_poll did not process all
 	 * RX packets
 	 */
-	rx_queue = fls(((cause_rx_tx >> 8) & 0xff));
-
 	cause_rx_tx |= pp->neta_armada3700 ? pp->cause_rx_tx :
 		port->cause_rx_tx;
 
+	rx_queue = fls(((cause_rx_tx >> 8) & 0xff));
 	if (rx_queue) {
 		rx_queue = rx_queue - 1;
 		if (pp->bm_priv)
@@ -2830,11 +3197,57 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 	return rx_done;
 }
 
+static int mvneta_create_page_pool(struct mvneta_port *pp,
+				   struct mvneta_rx_queue *rxq, int size)
+{
+	struct bpf_prog *xdp_prog = READ_ONCE(pp->xdp_prog);
+	struct page_pool_params pp_params = {
+		.order = 0,
+		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
+		.pool_size = size,
+		.nid = NUMA_NO_NODE,
+		.dev = pp->dev->dev.parent,
+		.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE,
+		.offset = pp->rx_offset_correction,
+		.max_len = MVNETA_MAX_RX_BUF_SIZE,
+	};
+	int err;
+
+	rxq->page_pool = page_pool_create(&pp_params);
+	if (IS_ERR(rxq->page_pool)) {
+		err = PTR_ERR(rxq->page_pool);
+		rxq->page_pool = NULL;
+		return err;
+	}
+
+	err = xdp_rxq_info_reg(&rxq->xdp_rxq, pp->dev, rxq->id);
+	if (err < 0)
+		goto err_free_pp;
+
+	err = xdp_rxq_info_reg_mem_model(&rxq->xdp_rxq, MEM_TYPE_PAGE_POOL,
+					 rxq->page_pool);
+	if (err)
+		goto err_unregister_rxq;
+
+	return 0;
+
+err_unregister_rxq:
+	xdp_rxq_info_unreg(&rxq->xdp_rxq);
+err_free_pp:
+	page_pool_destroy(rxq->page_pool);
+	rxq->page_pool = NULL;
+	return err;
+}
+
 /* Handle rxq fill: allocates rxq skbs; called when initializing a port */
 static int mvneta_rxq_fill(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 			   int num)
 {
-	int i;
+	int i, err;
+
+	err = mvneta_create_page_pool(pp, rxq, num);
+	if (err < 0)
+		return err;
 
 	for (i = 0; i < num; i++) {
 		memset(rxq->descs + i, 0, sizeof(struct mvneta_rx_desc));
@@ -2908,7 +3321,7 @@ static void mvneta_rxq_hw_init(struct mvneta_port *pp,
 		/* Set Offset */
 		mvneta_rxq_offset_set(pp, rxq, 0);
 		mvneta_rxq_buf_size_set(pp, rxq, PAGE_SIZE < SZ_64K ?
-					PAGE_SIZE :
+					MVNETA_MAX_RX_BUF_SIZE :
 					MVNETA_RX_BUF_SIZE(pp->pkt_size));
 		mvneta_rxq_bm_disable(pp, rxq);
 		mvneta_rxq_fill(pp, rxq, rxq->size);
@@ -2947,9 +3360,6 @@ static void mvneta_rxq_deinit(struct mvneta_port *pp,
 {
 	mvneta_rxq_drop_pkts(pp, rxq);
 
-	if (rxq->skb)
-		dev_kfree_skb_any(rxq->skb);
-
 	if (rxq->descs)
 		dma_free_coherent(pp->dev->dev.parent,
 				  rxq->size * MVNETA_DESC_ALIGNED_SIZE,
@@ -2962,8 +3372,6 @@ static void mvneta_rxq_deinit(struct mvneta_port *pp,
 	rxq->descs_phys        = 0;
 	rxq->first_to_refill   = 0;
 	rxq->refill_num        = 0;
-	rxq->skb               = NULL;
-	rxq->left_size         = 0;
 }
 
 static int mvneta_txq_sw_init(struct mvneta_port *pp,
@@ -2989,26 +3397,16 @@ static int mvneta_txq_sw_init(struct mvneta_port *pp,
 
 	txq->last_desc = txq->size - 1;
 
-	txq->tx_skb = kmalloc_array(txq->size, sizeof(*txq->tx_skb),
-				    GFP_KERNEL);
-	if (!txq->tx_skb) {
-		dma_free_coherent(pp->dev->dev.parent,
-				  txq->size * MVNETA_DESC_ALIGNED_SIZE,
-				  txq->descs, txq->descs_phys);
+	txq->buf = kmalloc_array(txq->size, sizeof(*txq->buf), GFP_KERNEL);
+	if (!txq->buf)
 		return -ENOMEM;
-	}
 
 	/* Allocate DMA buffers for TSO MAC/IP/TCP headers */
 	txq->tso_hdrs = dma_alloc_coherent(pp->dev->dev.parent,
 					   txq->size * TSO_HEADER_SIZE,
 					   &txq->tso_hdrs_phys, GFP_KERNEL);
-	if (!txq->tso_hdrs) {
-		kfree(txq->tx_skb);
-		dma_free_coherent(pp->dev->dev.parent,
-				  txq->size * MVNETA_DESC_ALIGNED_SIZE,
-				  txq->descs, txq->descs_phys);
+	if (!txq->tso_hdrs)
 		return -ENOMEM;
-	}
 
 	/* Setup XPS mapping */
 	if (txq_number > 1)
@@ -3056,7 +3454,7 @@ static void mvneta_txq_sw_deinit(struct mvneta_port *pp,
 {
 	struct netdev_queue *nq = netdev_get_tx_queue(pp->dev, txq->id);
 
-	kfree(txq->tx_skb);
+	kfree(txq->buf);
 
 	if (txq->tso_hdrs)
 		dma_free_coherent(pp->dev->dev.parent,
@@ -3150,26 +3548,60 @@ static int mvneta_setup_txqs(struct mvneta_port *pp)
 	return 0;
 }
 
-static int mvneta_comphy_init(struct mvneta_port *pp)
+static int mvneta_comphy_init(struct mvneta_port *pp, phy_interface_t interface)
 {
 	int ret;
 
-	if (!pp->comphy)
-		return 0;
-
-	ret = phy_set_mode_ext(pp->comphy, PHY_MODE_ETHERNET,
-			       pp->phy_interface);
+	ret = phy_set_mode_ext(pp->comphy, PHY_MODE_ETHERNET, interface);
 	if (ret)
 		return ret;
 
 	return phy_power_on(pp->comphy);
 }
 
+static int mvneta_config_interface(struct mvneta_port *pp,
+				   phy_interface_t interface)
+{
+	int ret = 0;
+
+	if (pp->comphy) {
+		if (interface == PHY_INTERFACE_MODE_SGMII ||
+		    interface == PHY_INTERFACE_MODE_1000BASEX ||
+		    interface == PHY_INTERFACE_MODE_2500BASEX) {
+			ret = mvneta_comphy_init(pp, interface);
+		}
+	} else {
+		switch (interface) {
+		case PHY_INTERFACE_MODE_QSGMII:
+			mvreg_write(pp, MVNETA_SERDES_CFG,
+				    MVNETA_QSGMII_SERDES_PROTO);
+			break;
+
+		case PHY_INTERFACE_MODE_SGMII:
+		case PHY_INTERFACE_MODE_1000BASEX:
+			mvreg_write(pp, MVNETA_SERDES_CFG,
+				    MVNETA_SGMII_SERDES_PROTO);
+			break;
+
+		case PHY_INTERFACE_MODE_2500BASEX:
+			mvreg_write(pp, MVNETA_SERDES_CFG,
+				    MVNETA_HSGMII_SERDES_PROTO);
+			break;
+		default:
+			break;
+		}
+	}
+
+	pp->phy_interface = interface;
+
+	return ret;
+}
+
 static void mvneta_start_dev(struct mvneta_port *pp)
 {
 	int cpu;
 
-	WARN_ON(mvneta_comphy_init(pp));
+	WARN_ON(mvneta_config_interface(pp, pp->phy_interface));
 
 	mvneta_max_rx_size_set(pp, pp->pkt_size);
 	mvneta_txq_max_tx_size_set(pp, pp->pkt_size);
@@ -3197,12 +3629,23 @@ static void mvneta_start_dev(struct mvneta_port *pp)
 		    MVNETA_CAUSE_LINK_CHANGE);
 
 	phylink_start(pp->phylink);
+
+	/* We may have called phylink_speed_down before */
+	phylink_speed_up(pp->phylink);
+
 	netif_tx_start_all_queues(pp->dev);
+
+	clear_bit(__MVNETA_DOWN, &pp->state);
 }
 
 static void mvneta_stop_dev(struct mvneta_port *pp)
 {
 	unsigned int cpu;
+
+	set_bit(__MVNETA_DOWN, &pp->state);
+
+	if (device_may_wakeup(&pp->dev->dev))
+		phylink_speed_down(pp->phylink, false);
 
 	phylink_stop(pp->phylink);
 
@@ -3261,6 +3704,11 @@ static int mvneta_change_mtu(struct net_device *dev, int mtu)
 		netdev_info(dev, "Illegal MTU value %d, rounding to %d\n",
 			    mtu, ALIGN(MVNETA_RX_PKT_SIZE(mtu), 8));
 		mtu = ALIGN(MVNETA_RX_PKT_SIZE(mtu), 8);
+	}
+
+	if (pp->xdp_prog && mtu > MVNETA_MAX_RX_BUF_SIZE) {
+		netdev_info(dev, "Illegal MTU value %d for XDP mode\n", mtu);
+		return -EINVAL;
 	}
 
 	dev->mtu = mtu;
@@ -3411,8 +3859,8 @@ static void mvneta_validate(struct phylink_config *config,
 	phylink_helper_basex_speed(state);
 }
 
-static int mvneta_mac_link_state(struct phylink_config *config,
-				 struct phylink_link_state *state)
+static void mvneta_mac_pcs_get_state(struct phylink_config *config,
+				     struct phylink_link_state *state)
 {
 	struct net_device *ndev = to_net_dev(config->dev);
 	struct mvneta_port *pp = netdev_priv(ndev);
@@ -3438,8 +3886,6 @@ static int mvneta_mac_link_state(struct phylink_config *config,
 		state->pause |= MLO_PAUSE_RX;
 	if (gmac_stat & MVNETA_GMAC_TX_FLOW_CTRL_ENABLE)
 		state->pause |= MLO_PAUSE_TX;
-
-	return 1;
 }
 
 static void mvneta_mac_an_restart(struct phylink_config *config)
@@ -3472,13 +3918,9 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 	new_clk = gmac_clk & ~MVNETA_GMAC_1MS_CLOCK_ENABLE;
 	new_an = gmac_an & ~(MVNETA_GMAC_INBAND_AN_ENABLE |
 			     MVNETA_GMAC_INBAND_RESTART_AN |
-			     MVNETA_GMAC_CONFIG_MII_SPEED |
-			     MVNETA_GMAC_CONFIG_GMII_SPEED |
 			     MVNETA_GMAC_AN_SPEED_EN |
 			     MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL |
-			     MVNETA_GMAC_CONFIG_FLOW_CTRL |
 			     MVNETA_GMAC_AN_FLOW_CTRL_EN |
-			     MVNETA_GMAC_CONFIG_FULL_DUPLEX |
 			     MVNETA_GMAC_AN_DUPLEX_EN);
 
 	/* Even though it might look weird, when we're configured in
@@ -3493,24 +3935,20 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 
 	if (phylink_test(state->advertising, Pause))
 		new_an |= MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL;
-	if (state->pause & MLO_PAUSE_TXRX_MASK)
-		new_an |= MVNETA_GMAC_CONFIG_FLOW_CTRL;
 
 	if (!phylink_autoneg_inband(mode)) {
-		/* Phy or fixed speed */
-		if (state->duplex)
-			new_an |= MVNETA_GMAC_CONFIG_FULL_DUPLEX;
-
-		if (state->speed == SPEED_1000 || state->speed == SPEED_2500)
-			new_an |= MVNETA_GMAC_CONFIG_GMII_SPEED;
-		else if (state->speed == SPEED_100)
-			new_an |= MVNETA_GMAC_CONFIG_MII_SPEED;
+		/* Phy or fixed speed - nothing to do, leave the
+		 * configured speed, duplex and flow control as-is.
+		 */
 	} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
 		/* SGMII mode receives the state from the PHY */
 		new_ctrl2 |= MVNETA_GMAC2_INBAND_AN_ENABLE;
 		new_clk |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
 		new_an = (new_an & ~(MVNETA_GMAC_FORCE_LINK_DOWN |
-				     MVNETA_GMAC_FORCE_LINK_PASS)) |
+				     MVNETA_GMAC_FORCE_LINK_PASS |
+				     MVNETA_GMAC_CONFIG_MII_SPEED |
+				     MVNETA_GMAC_CONFIG_GMII_SPEED |
+				     MVNETA_GMAC_CONFIG_FULL_DUPLEX)) |
 			 MVNETA_GMAC_INBAND_AN_ENABLE |
 			 MVNETA_GMAC_AN_SPEED_EN |
 			 MVNETA_GMAC_AN_DUPLEX_EN;
@@ -3519,7 +3957,8 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 		new_ctrl0 |= MVNETA_GMAC0_PORT_1000BASE_X;
 		new_clk |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
 		new_an = (new_an & ~(MVNETA_GMAC_FORCE_LINK_DOWN |
-				     MVNETA_GMAC_FORCE_LINK_PASS)) |
+				     MVNETA_GMAC_FORCE_LINK_PASS |
+				     MVNETA_GMAC_CONFIG_MII_SPEED)) |
 			 MVNETA_GMAC_INBAND_AN_ENABLE |
 			 MVNETA_GMAC_CONFIG_GMII_SPEED |
 			 /* The MAC only supports FD mode */
@@ -3544,17 +3983,13 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 	/* When at 2.5G, the link partner can send frames with shortened
 	 * preambles.
 	 */
-	if (state->speed == SPEED_2500)
+	if (state->interface == PHY_INTERFACE_MODE_2500BASEX)
 		new_ctrl4 |= MVNETA_GMAC4_SHORT_PREAMBLE_ENABLE;
 
-	if (pp->comphy && pp->phy_interface != state->interface &&
-	    (state->interface == PHY_INTERFACE_MODE_SGMII ||
-	     state->interface == PHY_INTERFACE_MODE_1000BASEX ||
-	     state->interface == PHY_INTERFACE_MODE_2500BASEX)) {
-		pp->phy_interface = state->interface;
-
-		WARN_ON(phy_power_off(pp->comphy));
-		WARN_ON(mvneta_comphy_init(pp));
+	if (pp->phy_interface != state->interface) {
+		if (pp->comphy)
+			WARN_ON(phy_power_off(pp->comphy));
+		WARN_ON(mvneta_config_interface(pp, state->interface));
 	}
 
 	if (new_ctrl0 != gmac_ctrl0)
@@ -3607,9 +4042,11 @@ static void mvneta_mac_link_down(struct phylink_config *config,
 	mvneta_set_eee(pp, false);
 }
 
-static void mvneta_mac_link_up(struct phylink_config *config, unsigned int mode,
-			       phy_interface_t interface,
-			       struct phy_device *phy)
+static void mvneta_mac_link_up(struct phylink_config *config,
+			       struct phy_device *phy,
+			       unsigned int mode, phy_interface_t interface,
+			       int speed, int duplex,
+			       bool tx_pause, bool rx_pause)
 {
 	struct net_device *ndev = to_net_dev(config->dev);
 	struct mvneta_port *pp = netdev_priv(ndev);
@@ -3617,8 +4054,36 @@ static void mvneta_mac_link_up(struct phylink_config *config, unsigned int mode,
 
 	if (!phylink_autoneg_inband(mode)) {
 		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
-		val &= ~MVNETA_GMAC_FORCE_LINK_DOWN;
+		val &= ~(MVNETA_GMAC_FORCE_LINK_DOWN |
+			 MVNETA_GMAC_CONFIG_MII_SPEED |
+			 MVNETA_GMAC_CONFIG_GMII_SPEED |
+			 MVNETA_GMAC_CONFIG_FLOW_CTRL |
+			 MVNETA_GMAC_CONFIG_FULL_DUPLEX);
 		val |= MVNETA_GMAC_FORCE_LINK_PASS;
+
+		if (speed == SPEED_1000 || speed == SPEED_2500)
+			val |= MVNETA_GMAC_CONFIG_GMII_SPEED;
+		else if (speed == SPEED_100)
+			val |= MVNETA_GMAC_CONFIG_MII_SPEED;
+
+		if (duplex == DUPLEX_FULL)
+			val |= MVNETA_GMAC_CONFIG_FULL_DUPLEX;
+
+		if (tx_pause || rx_pause)
+			val |= MVNETA_GMAC_CONFIG_FLOW_CTRL;
+
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+	} else {
+		/* When inband doesn't cover flow control or flow control is
+		 * disabled, we need to manually configure it. This bit will
+		 * only have effect if MVNETA_GMAC_AN_FLOW_CTRL_EN is unset.
+		 */
+		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+		val &= ~MVNETA_GMAC_CONFIG_FLOW_CTRL;
+
+		if (tx_pause || rx_pause)
+			val |= MVNETA_GMAC_CONFIG_FLOW_CTRL;
+
 		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
 	}
 
@@ -3632,7 +4097,7 @@ static void mvneta_mac_link_up(struct phylink_config *config, unsigned int mode,
 
 static const struct phylink_mac_ops mvneta_phylink_ops = {
 	.validate = mvneta_validate,
-	.mac_link_state = mvneta_mac_link_state,
+	.mac_pcs_get_state = mvneta_mac_pcs_get_state,
 	.mac_an_restart = mvneta_mac_an_restart,
 	.mac_config = mvneta_mac_config,
 	.mac_link_down = mvneta_mac_link_down,
@@ -3649,6 +4114,10 @@ static int mvneta_mdio_probe(struct mvneta_port *pp)
 
 	phylink_ethtool_get_wol(pp->phylink, &wol);
 	device_set_wakeup_capable(&pp->dev->dev, !!wol.supported);
+
+	/* PHY WoL may be enabled but device wakeup disabled */
+	if (wol.supported)
+		device_set_wakeup_enable(&pp->dev->dev, !!wol.wolopts);
 
 	return err;
 }
@@ -3932,6 +4401,48 @@ static int mvneta_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return phylink_mii_ioctl(pp->phylink, ifr, cmd);
 }
 
+static int mvneta_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
+			    struct netlink_ext_ack *extack)
+{
+	bool need_update, running = netif_running(dev);
+	struct mvneta_port *pp = netdev_priv(dev);
+	struct bpf_prog *old_prog;
+
+	if (prog && dev->mtu > MVNETA_MAX_RX_BUF_SIZE) {
+		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames not supported on XDP");
+		return -EOPNOTSUPP;
+	}
+
+	if (pp->bm_priv) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Hardware Buffer Management not supported on XDP");
+		return -EOPNOTSUPP;
+	}
+
+	need_update = !!pp->xdp_prog != !!prog;
+	if (running && need_update)
+		mvneta_stop(dev);
+
+	old_prog = xchg(&pp->xdp_prog, prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	if (running && need_update)
+		return mvneta_open(dev);
+
+	return 0;
+}
+
+static int mvneta_xdp(struct net_device *dev, struct netdev_bpf *xdp)
+{
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return mvneta_xdp_setup(dev, xdp->prog, xdp->extack);
+	default:
+		return -EINVAL;
+	}
+}
+
 /* Ethtool methods */
 
 /* Set link ksettings (phy address, speed) for ethtools */
@@ -4078,45 +4589,112 @@ static void mvneta_ethtool_get_strings(struct net_device *netdev, u32 sset,
 	}
 }
 
+static void
+mvneta_ethtool_update_pcpu_stats(struct mvneta_port *pp,
+				 struct mvneta_ethtool_stats *es)
+{
+	unsigned int start;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct mvneta_pcpu_stats *stats;
+		u64 skb_alloc_error;
+		u64 refill_error;
+		u64 xdp_redirect;
+		u64 xdp_xmit_err;
+		u64 xdp_tx_err;
+		u64 xdp_pass;
+		u64 xdp_drop;
+		u64 xdp_xmit;
+		u64 xdp_tx;
+
+		stats = per_cpu_ptr(pp->stats, cpu);
+		do {
+			start = u64_stats_fetch_begin_irq(&stats->syncp);
+			skb_alloc_error = stats->es.skb_alloc_error;
+			refill_error = stats->es.refill_error;
+			xdp_redirect = stats->es.ps.xdp_redirect;
+			xdp_pass = stats->es.ps.xdp_pass;
+			xdp_drop = stats->es.ps.xdp_drop;
+			xdp_xmit = stats->es.ps.xdp_xmit;
+			xdp_xmit_err = stats->es.ps.xdp_xmit_err;
+			xdp_tx = stats->es.ps.xdp_tx;
+			xdp_tx_err = stats->es.ps.xdp_tx_err;
+		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+
+		es->skb_alloc_error += skb_alloc_error;
+		es->refill_error += refill_error;
+		es->ps.xdp_redirect += xdp_redirect;
+		es->ps.xdp_pass += xdp_pass;
+		es->ps.xdp_drop += xdp_drop;
+		es->ps.xdp_xmit += xdp_xmit;
+		es->ps.xdp_xmit_err += xdp_xmit_err;
+		es->ps.xdp_tx += xdp_tx;
+		es->ps.xdp_tx_err += xdp_tx_err;
+	}
+}
+
 static void mvneta_ethtool_update_stats(struct mvneta_port *pp)
 {
+	struct mvneta_ethtool_stats stats = {};
 	const struct mvneta_statistic *s;
 	void __iomem *base = pp->base;
 	u32 high, low;
 	u64 val;
 	int i;
 
+	mvneta_ethtool_update_pcpu_stats(pp, &stats);
 	for (i = 0, s = mvneta_statistics;
 	     s < mvneta_statistics + ARRAY_SIZE(mvneta_statistics);
 	     s++, i++) {
-		val = 0;
-
 		switch (s->type) {
 		case T_REG_32:
 			val = readl_relaxed(base + s->offset);
+			pp->ethtool_stats[i] += val;
 			break;
 		case T_REG_64:
 			/* Docs say to read low 32-bit then high */
 			low = readl_relaxed(base + s->offset);
 			high = readl_relaxed(base + s->offset + 4);
 			val = (u64)high << 32 | low;
+			pp->ethtool_stats[i] += val;
 			break;
 		case T_SW:
 			switch (s->offset) {
 			case ETHTOOL_STAT_EEE_WAKEUP:
 				val = phylink_get_eee_err(pp->phylink);
+				pp->ethtool_stats[i] += val;
 				break;
 			case ETHTOOL_STAT_SKB_ALLOC_ERR:
-				val = pp->rxqs[0].skb_alloc_err;
+				pp->ethtool_stats[i] = stats.skb_alloc_error;
 				break;
 			case ETHTOOL_STAT_REFILL_ERR:
-				val = pp->rxqs[0].refill_err;
+				pp->ethtool_stats[i] = stats.refill_error;
+				break;
+			case ETHTOOL_XDP_REDIRECT:
+				pp->ethtool_stats[i] = stats.ps.xdp_redirect;
+				break;
+			case ETHTOOL_XDP_PASS:
+				pp->ethtool_stats[i] = stats.ps.xdp_pass;
+				break;
+			case ETHTOOL_XDP_DROP:
+				pp->ethtool_stats[i] = stats.ps.xdp_drop;
+				break;
+			case ETHTOOL_XDP_TX:
+				pp->ethtool_stats[i] = stats.ps.xdp_tx;
+				break;
+			case ETHTOOL_XDP_TX_ERR:
+				pp->ethtool_stats[i] = stats.ps.xdp_tx_err;
+				break;
+			case ETHTOOL_XDP_XMIT:
+				pp->ethtool_stats[i] = stats.ps.xdp_xmit;
+				break;
+			case ETHTOOL_XDP_XMIT_ERR:
+				pp->ethtool_stats[i] = stats.ps.xdp_xmit_err;
 				break;
 			}
 			break;
 		}
-
-		pp->ethtool_stats[i] += val;
 	}
 }
 
@@ -4328,9 +4906,13 @@ static const struct net_device_ops mvneta_netdev_ops = {
 	.ndo_fix_features    = mvneta_fix_features,
 	.ndo_get_stats64     = mvneta_get_stats64,
 	.ndo_do_ioctl        = mvneta_ioctl,
+	.ndo_bpf	     = mvneta_xdp,
+	.ndo_xdp_xmit        = mvneta_xdp_xmit,
 };
 
 static const struct ethtool_ops mvneta_eth_tool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.nway_reset	= mvneta_ethtool_nway_reset,
 	.get_link       = ethtool_op_get_link,
 	.set_coalesce   = mvneta_ethtool_set_coalesce,
@@ -4455,12 +5037,10 @@ static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 	/* MAC Cause register should be cleared */
 	mvreg_write(pp, MVNETA_UNIT_INTR_CAUSE, 0);
 
-	if (phy_mode == PHY_INTERFACE_MODE_QSGMII)
-		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_QSGMII_SERDES_PROTO);
-	else if (phy_mode == PHY_INTERFACE_MODE_SGMII ||
-		 phy_interface_mode_is_8023z(phy_mode))
-		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_SGMII_SERDES_PROTO);
-	else if (!phy_interface_mode_is_rgmii(phy_mode))
+	if (phy_mode != PHY_INTERFACE_MODE_QSGMII &&
+	    phy_mode != PHY_INTERFACE_MODE_SGMII &&
+	    !phy_interface_mode_is_8023z(phy_mode) &&
+	    !phy_interface_mode_is_rgmii(phy_mode))
 		return -EINVAL;
 
 	return 0;
@@ -4477,9 +5057,9 @@ static int mvneta_probe(struct platform_device *pdev)
 	struct phy *comphy;
 	const char *dt_mac_addr;
 	char hw_mac_addr[ETH_ALEN];
+	phy_interface_t phy_mode;
 	const char *mac_from;
 	int tx_csum_limit;
-	int phy_mode;
 	int err;
 	int cpu;
 
@@ -4492,10 +5072,9 @@ static int mvneta_probe(struct platform_device *pdev)
 	if (dev->irq == 0)
 		return -EINVAL;
 
-	phy_mode = of_get_phy_mode(dn);
-	if (phy_mode < 0) {
+	err = of_get_phy_mode(dn, &phy_mode);
+	if (err) {
 		dev_err(&pdev->dev, "incorrect phy-mode\n");
-		err = -EINVAL;
 		goto err_free_irq;
 	}
 
@@ -4618,7 +5197,6 @@ static int mvneta_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	pp->id = global_port_id++;
-	pp->rx_offset_correction = 0; /* not relevant for SW BM */
 
 	/* Obtain access to BM resources if enabled and already initialized */
 	bm_node = of_parse_phandle(dn, "buffer-manager", 0);
@@ -4643,14 +5221,18 @@ static int mvneta_probe(struct platform_device *pdev)
 	}
 	of_node_put(bm_node);
 
+	/* sw buffer management */
+	if (!pp->bm_priv)
+		pp->rx_offset_correction = MVNETA_SKB_HEADROOM;
+
 	err = mvneta_init(&pdev->dev, pp);
 	if (err < 0)
 		goto err_netdev;
 
-	err = mvneta_port_power_up(pp, phy_mode);
+	err = mvneta_port_power_up(pp, pp->phy_interface);
 	if (err < 0) {
 		dev_err(&pdev->dev, "can't power up port\n");
-		goto err_netdev;
+		return err;
 	}
 
 	/* Armada3700 network controller does not support per-cpu
@@ -4800,6 +5382,7 @@ static int mvneta_resume(struct device *device)
 		err = mvneta_bm_port_init(pdev, pp);
 		if (err < 0) {
 			dev_info(&pdev->dev, "use SW buffer management\n");
+			pp->rx_offset_correction = MVNETA_SKB_HEADROOM;
 			pp->bm_priv = NULL;
 		}
 	}
@@ -4872,7 +5455,7 @@ static int __init mvneta_driver_init(void)
 {
 	int ret;
 
-	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, "net/mvmeta:online",
+	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, "net/mvneta:online",
 				      mvneta_cpu_online,
 				      mvneta_cpu_down_prepare);
 	if (ret < 0)

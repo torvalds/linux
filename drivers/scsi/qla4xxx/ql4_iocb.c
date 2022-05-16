@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic iSCSI HBA Driver
  * Copyright (c)  2003-2013 QLogic Corporation
- *
- * See LICENSE.qla4xxx for copyright and licensing details.
  */
 
 #include "ql4_def.h"
@@ -78,7 +77,7 @@ static int qla4xxx_get_req_pkt(struct scsi_qla_host *ha,
  * @ha: Pointer to host adapter structure.
  * @ddb_entry: Pointer to device database entry
  * @lun: SCSI LUN
- * @marker_type: marker identifier
+ * @mrkr_mod: marker identifier
  *
  * This routine issues a marker IOCB.
  **/

@@ -14,6 +14,7 @@
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/hyperv.h>
@@ -40,34 +41,34 @@ EXPORT_SYMBOL_GPL(vmbus_connection);
 __u32 vmbus_proto_version;
 EXPORT_SYMBOL_GPL(vmbus_proto_version);
 
-static __u32 vmbus_get_next_version(__u32 current_version)
-{
-	switch (current_version) {
-	case (VERSION_WIN7):
-		return VERSION_WS2008;
+/*
+ * Table of VMBus versions listed from newest to oldest.
+ */
+static __u32 vmbus_versions[] = {
+	VERSION_WIN10_V5_2,
+	VERSION_WIN10_V5_1,
+	VERSION_WIN10_V5,
+	VERSION_WIN10_V4_1,
+	VERSION_WIN10,
+	VERSION_WIN8_1,
+	VERSION_WIN8,
+	VERSION_WIN7,
+	VERSION_WS2008
+};
 
-	case (VERSION_WIN8):
-		return VERSION_WIN7;
+/*
+ * Maximal VMBus protocol version guests can negotiate.  Useful to cap the
+ * VMBus version for testing and debugging purpose.
+ */
+static uint max_version = VERSION_WIN10_V5_2;
 
-	case (VERSION_WIN8_1):
-		return VERSION_WIN8;
-
-	case (VERSION_WIN10):
-		return VERSION_WIN8_1;
-
-	case (VERSION_WIN10_V5):
-		return VERSION_WIN10;
-
-	case (VERSION_WS2008):
-	default:
-		return VERSION_INVAL;
-	}
-}
+module_param(max_version, uint, S_IRUGO);
+MODULE_PARM_DESC(max_version,
+		 "Maximal VMBus protocol version which can be negotiated");
 
 int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo, u32 version)
 {
 	int ret = 0;
-	unsigned int cur_cpu;
 	struct vmbus_channel_initiate_contact *msg;
 	unsigned long flags;
 
@@ -80,12 +81,12 @@ int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo, u32 version)
 	msg->vmbus_version_requested = version;
 
 	/*
-	 * VMBus protocol 5.0 (VERSION_WIN10_V5) requires that we must use
-	 * VMBUS_MESSAGE_CONNECTION_ID_4 for the Initiate Contact Message,
+	 * VMBus protocol 5.0 (VERSION_WIN10_V5) and higher require that we must
+	 * use VMBUS_MESSAGE_CONNECTION_ID_4 for the Initiate Contact Message,
 	 * and for subsequent messages, we must use the Message Connection ID
 	 * field in the host-returned Version Response Message. And, with
-	 * VERSION_WIN10_V5, we don't use msg->interrupt_page, but we tell
-	 * the host explicitly that we still use VMBUS_MESSAGE_SINT(2) for
+	 * VERSION_WIN10_V5 and higher, we don't use msg->interrupt_page, but we
+	 * tell the host explicitly that we still use VMBUS_MESSAGE_SINT(2) for
 	 * compatibility.
 	 *
 	 * On old hosts, we should always use VMBUS_MESSAGE_CONNECTION_ID (1).
@@ -100,24 +101,7 @@ int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo, u32 version)
 
 	msg->monitor_page1 = virt_to_phys(vmbus_connection.monitor_pages[0]);
 	msg->monitor_page2 = virt_to_phys(vmbus_connection.monitor_pages[1]);
-	/*
-	 * We want all channel messages to be delivered on CPU 0.
-	 * This has been the behavior pre-win8. This is not
-	 * perf issue and having all channel messages delivered on CPU 0
-	 * would be ok.
-	 * For post win8 hosts, we support receiving channel messagges on
-	 * all the CPUs. This is needed for kexec to work correctly where
-	 * the CPU attempting to connect may not be CPU 0.
-	 */
-	if (version >= VERSION_WIN8_1) {
-		cur_cpu = get_cpu();
-		msg->target_vcpu = hv_cpu_number_to_vp_number(cur_cpu);
-		vmbus_connection.connect_cpu = cur_cpu;
-		put_cpu();
-	} else {
-		msg->target_vcpu = 0;
-		vmbus_connection.connect_cpu = 0;
-	}
+	msg->target_vcpu = hv_cpu_number_to_vp_number(VMBUS_CONNECT_CPU);
 
 	/*
 	 * Add to list before we send the request since we may
@@ -169,8 +153,8 @@ int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo, u32 version)
  */
 int vmbus_connect(void)
 {
-	int ret = 0;
 	struct vmbus_channel_msginfo *msginfo = NULL;
+	int i, ret = 0;
 	__u32 version;
 
 	/* Initialize the vmbus connection */
@@ -206,7 +190,7 @@ int vmbus_connect(void)
 	 * abstraction stuff
 	 */
 	vmbus_connection.int_page =
-	(void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO, 0);
+	(void *)hv_alloc_hyperv_zeroed_page();
 	if (vmbus_connection.int_page == NULL) {
 		ret = -ENOMEM;
 		goto cleanup;
@@ -215,14 +199,14 @@ int vmbus_connect(void)
 	vmbus_connection.recv_int_page = vmbus_connection.int_page;
 	vmbus_connection.send_int_page =
 		(void *)((unsigned long)vmbus_connection.int_page +
-			(PAGE_SIZE >> 1));
+			(HV_HYP_PAGE_SIZE >> 1));
 
 	/*
 	 * Setup the monitor notification facility. The 1st page for
 	 * parent->child and the 2nd page for child->parent
 	 */
-	vmbus_connection.monitor_pages[0] = (void *)__get_free_pages((GFP_KERNEL|__GFP_ZERO), 0);
-	vmbus_connection.monitor_pages[1] = (void *)__get_free_pages((GFP_KERNEL|__GFP_ZERO), 0);
+	vmbus_connection.monitor_pages[0] = (void *)hv_alloc_hyperv_zeroed_page();
+	vmbus_connection.monitor_pages[1] = (void *)hv_alloc_hyperv_zeroed_page();
 	if ((vmbus_connection.monitor_pages[0] == NULL) ||
 	    (vmbus_connection.monitor_pages[1] == NULL)) {
 		ret = -ENOMEM;
@@ -244,25 +228,33 @@ int vmbus_connect(void)
 	 * version.
 	 */
 
-	version = VERSION_CURRENT;
+	for (i = 0; ; i++) {
+		if (i == ARRAY_SIZE(vmbus_versions))
+			goto cleanup;
 
-	do {
+		version = vmbus_versions[i];
+		if (version > max_version)
+			continue;
+
 		ret = vmbus_negotiate_version(msginfo, version);
 		if (ret == -ETIMEDOUT)
 			goto cleanup;
 
 		if (vmbus_connection.conn_state == CONNECTED)
 			break;
-
-		version = vmbus_get_next_version(version);
-	} while (version != VERSION_INVAL);
-
-	if (version == VERSION_INVAL)
-		goto cleanup;
+	}
 
 	vmbus_proto_version = version;
 	pr_info("Vmbus version:%d.%d\n",
 		version >> 16, version & 0xFFFF);
+
+	vmbus_connection.channels = kcalloc(MAX_CHANNEL_RELIDS,
+					    sizeof(struct vmbus_channel *),
+					    GFP_KERNEL);
+	if (vmbus_connection.channels == NULL) {
+		ret = -ENOMEM;
+		goto cleanup;
+	}
 
 	kfree(msginfo);
 	return 0;
@@ -295,12 +287,12 @@ void vmbus_disconnect(void)
 		destroy_workqueue(vmbus_connection.work_queue);
 
 	if (vmbus_connection.int_page) {
-		free_pages((unsigned long)vmbus_connection.int_page, 0);
+		hv_free_hyperv_page((unsigned long)vmbus_connection.int_page);
 		vmbus_connection.int_page = NULL;
 	}
 
-	free_pages((unsigned long)vmbus_connection.monitor_pages[0], 0);
-	free_pages((unsigned long)vmbus_connection.monitor_pages[1], 0);
+	hv_free_hyperv_page((unsigned long)vmbus_connection.monitor_pages[0]);
+	hv_free_hyperv_page((unsigned long)vmbus_connection.monitor_pages[1]);
 	vmbus_connection.monitor_pages[0] = NULL;
 	vmbus_connection.monitor_pages[1] = NULL;
 }
@@ -311,33 +303,9 @@ void vmbus_disconnect(void)
  */
 struct vmbus_channel *relid2channel(u32 relid)
 {
-	struct vmbus_channel *channel;
-	struct vmbus_channel *found_channel  = NULL;
-	struct list_head *cur, *tmp;
-	struct vmbus_channel *cur_sc;
-
-	BUG_ON(!mutex_is_locked(&vmbus_connection.channel_mutex));
-
-	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
-		if (channel->offermsg.child_relid == relid) {
-			found_channel = channel;
-			break;
-		} else if (!list_empty(&channel->sc_list)) {
-			/*
-			 * Deal with sub-channels.
-			 */
-			list_for_each_safe(cur, tmp, &channel->sc_list) {
-				cur_sc = list_entry(cur, struct vmbus_channel,
-							sc_list);
-				if (cur_sc->offermsg.child_relid == relid) {
-					found_channel = cur_sc;
-					break;
-				}
-			}
-		}
-	}
-
-	return found_channel;
+	if (WARN_ON(relid >= MAX_CHANNEL_RELIDS))
+		return NULL;
+	return READ_ONCE(vmbus_connection.channels[relid]);
 }
 
 /*
@@ -361,6 +329,7 @@ void vmbus_on_event(unsigned long data)
 
 	trace_vmbus_on_event(channel);
 
+	hv_debug_delay_test(channel, INTERRUPT_DELAY);
 	do {
 		void (*callback_fn)(void *);
 
@@ -413,7 +382,7 @@ int vmbus_post_msg(void *buffer, size_t buflen, bool can_sleep)
 		case HV_STATUS_INVALID_CONNECTION_ID:
 			/*
 			 * See vmbus_negotiate_version(): VMBus protocol 5.0
-			 * requires that we must use
+			 * and higher require that we must use
 			 * VMBUS_MESSAGE_CONNECTION_ID_4 for the Initiate
 			 * Contact message, but on old hosts that only
 			 * support VMBus protocol 4.0 or lower, here we get

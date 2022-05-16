@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/string.h>
 #include <linux/usb/of.h>
 #include <linux/workqueue.h>
 
@@ -110,6 +111,7 @@ struct rcar_gen3_chan {
 	struct work_struct work;
 	struct mutex lock;	/* protects rphys[...].powered */
 	enum usb_dr_mode dr_mode;
+	int irq;
 	bool extcon_host;
 	bool is_otg_channel;
 	bool uses_otg_pins;
@@ -320,9 +322,9 @@ static ssize_t role_store(struct device *dev, struct device_attribute *attr,
 	if (!ch->is_otg_channel || !rcar_gen3_is_any_rphy_initialized(ch))
 		return -EIO;
 
-	if (!strncmp(buf, "host", strlen("host")))
+	if (sysfs_streq(buf, "host"))
 		new_mode = PHY_MODE_USB_HOST;
-	else if (!strncmp(buf, "peripheral", strlen("peripheral")))
+	else if (sysfs_streq(buf, "peripheral"))
 		new_mode = PHY_MODE_USB_DEVICE;
 	else
 		return -EINVAL;
@@ -388,12 +390,40 @@ static void rcar_gen3_init_otg(struct rcar_gen3_chan *ch)
 	rcar_gen3_device_recognition(ch);
 }
 
+static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
+{
+	struct rcar_gen3_chan *ch = _ch;
+	void __iomem *usb2_base = ch->base;
+	u32 status = readl(usb2_base + USB2_OBINTSTA);
+	irqreturn_t ret = IRQ_NONE;
+
+	if (status & USB2_OBINT_BITS) {
+		dev_vdbg(ch->dev, "%s: %08x\n", __func__, status);
+		writel(USB2_OBINT_BITS, usb2_base + USB2_OBINTSTA);
+		rcar_gen3_device_recognition(ch);
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
+}
+
 static int rcar_gen3_phy_usb2_init(struct phy *p)
 {
 	struct rcar_gen3_phy *rphy = phy_get_drvdata(p);
 	struct rcar_gen3_chan *channel = rphy->ch;
 	void __iomem *usb2_base = channel->base;
 	u32 val;
+	int ret;
+
+	if (!rcar_gen3_is_any_rphy_initialized(channel) && channel->irq >= 0) {
+		INIT_WORK(&channel->work, rcar_gen3_phy_usb2_work);
+		ret = request_irq(channel->irq, rcar_gen3_phy_usb2_irq,
+				  IRQF_SHARED, dev_name(channel->dev), channel);
+		if (ret < 0) {
+			dev_err(channel->dev, "No irq handler (%d)\n", channel->irq);
+			return ret;
+		}
+	}
 
 	/* Initialize USB2 part */
 	val = readl(usb2_base + USB2_INT_ENABLE);
@@ -431,6 +461,9 @@ static int rcar_gen3_phy_usb2_exit(struct phy *p)
 	if (!rcar_gen3_is_any_rphy_initialized(channel))
 		val &= ~USB2_INT_ENABLE_UCOM_INTEN;
 	writel(val, usb2_base + USB2_INT_ENABLE);
+
+	if (channel->irq >= 0 && !rcar_gen3_is_any_rphy_initialized(channel))
+		free_irq(channel->irq, channel);
 
 	return 0;
 }
@@ -501,23 +534,6 @@ static const struct phy_ops rz_g1c_phy_usb2_ops = {
 	.exit		= rcar_gen3_phy_usb2_exit,
 	.owner		= THIS_MODULE,
 };
-
-static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
-{
-	struct rcar_gen3_chan *ch = _ch;
-	void __iomem *usb2_base = ch->base;
-	u32 status = readl(usb2_base + USB2_OBINTSTA);
-	irqreturn_t ret = IRQ_NONE;
-
-	if (status & USB2_OBINT_BITS) {
-		dev_vdbg(ch->dev, "%s: %08x\n", __func__, status);
-		writel(USB2_OBINT_BITS, usb2_base + USB2_OBINTSTA);
-		rcar_gen3_device_recognition(ch);
-		ret = IRQ_HANDLED;
-	}
-
-	return ret;
-}
 
 static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
 	{
@@ -597,7 +613,7 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	struct phy_provider *provider;
 	struct resource *res;
 	const struct phy_ops *phy_usb2_ops;
-	int irq, ret = 0, i;
+	int ret = 0, i;
 
 	if (!dev->of_node) {
 		dev_err(dev, "This driver needs device tree\n");
@@ -613,16 +629,8 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	if (IS_ERR(channel->base))
 		return PTR_ERR(channel->base);
 
-	/* call request_irq for OTG */
-	irq = platform_get_irq(pdev, 0);
-	if (irq >= 0) {
-		INIT_WORK(&channel->work, rcar_gen3_phy_usb2_work);
-		irq = devm_request_irq(dev, irq, rcar_gen3_phy_usb2_irq,
-				       IRQF_SHARED, dev_name(dev), channel);
-		if (irq < 0)
-			dev_err(dev, "No irq handler (%d)\n", irq);
-	}
-
+	/* get irq number here and request_irq for OTG in phy_init */
+	channel->irq = platform_get_irq_optional(pdev, 0);
 	channel->dr_mode = rcar_gen3_get_dr_mode(dev->of_node);
 	if (channel->dr_mode != USB_DR_MODE_UNKNOWN) {
 		int ret;

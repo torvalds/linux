@@ -259,15 +259,15 @@ static int _rtl_usb_init_tx(struct ieee80211_hw *hw)
 						    ? USB_HIGH_SPEED_BULK_SIZE
 						    : USB_FULL_SPEED_BULK_SIZE;
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "USB Max Bulk-out Size=%d\n",
-		 rtlusb->max_bulk_out_size);
+	rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG, "USB Max Bulk-out Size=%d\n",
+		rtlusb->max_bulk_out_size);
 
 	for (i = 0; i < __RTL_TXQ_NUM; i++) {
 		u32 ep_num = rtlusb->ep_map.ep_mapping[i];
 
 		if (!ep_num) {
-			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-				 "Invalid endpoint map setting!\n");
+			rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
+				"Invalid endpoint map setting!\n");
 			return -EINVAL;
 		}
 	}
@@ -289,7 +289,7 @@ static int _rtl_usb_init_tx(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static void _rtl_rx_work(unsigned long param);
+static void _rtl_rx_work(struct tasklet_struct *t);
 
 static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 {
@@ -310,8 +310,8 @@ static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 	init_usb_anchor(&rtlusb->rx_cleanup_urbs);
 
 	skb_queue_head_init(&rtlusb->rx_queue);
-	rtlusb->rx_work_tasklet.func = _rtl_rx_work;
-	rtlusb->rx_work_tasklet.data = (unsigned long)rtlusb;
+	rtlusb->rx_work_tasklet.func = (void(*))_rtl_rx_work;
+	rtlusb->rx_work_tasklet.data = (unsigned long)&rtlusb->rx_work_tasklet;
 
 	return 0;
 }
@@ -337,10 +337,10 @@ static int _rtl_usb_init(struct ieee80211_hw *hw)
 		else if (usb_endpoint_dir_out(pep_desc))
 			rtlusb->out_ep_nums++;
 
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 "USB EP(0x%02x), MaxPacketSize=%d, Interval=%d\n",
-			 pep_desc->bEndpointAddress, pep_desc->wMaxPacketSize,
-			 pep_desc->bInterval);
+		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
+			"USB EP(0x%02x), MaxPacketSize=%d, Interval=%d\n",
+			pep_desc->bEndpointAddress, pep_desc->wMaxPacketSize,
+			pep_desc->bInterval);
 	}
 	if (rtlusb->in_ep_nums <  rtlpriv->cfg->usb_interface_cfg->in_ep_num) {
 		pr_err("Too few input end points found\n");
@@ -528,9 +528,9 @@ static void _rtl_rx_pre_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 #define __RX_SKB_MAX_QUEUED	64
 
-static void _rtl_rx_work(unsigned long param)
+static void _rtl_rx_work(struct tasklet_struct *t)
 {
-	struct rtl_usb *rtlusb = (struct rtl_usb *)param;
+	struct rtl_usb *rtlusb = from_tasklet(rtlusb, t, rx_work_tasklet);
 	struct ieee80211_hw *hw = usb_get_intfdata(rtlusb->intf);
 	struct sk_buff *skb;
 
@@ -680,8 +680,10 @@ static void _rtl_usb_cleanup_rx(struct ieee80211_hw *hw)
 	tasklet_kill(&rtlusb->rx_work_tasklet);
 	cancel_work_sync(&rtlpriv->works.lps_change_work);
 
-	flush_workqueue(rtlpriv->works.rtl_wq);
-	destroy_workqueue(rtlpriv->works.rtl_wq);
+	if (rtlpriv->works.rtl_wq) {
+		destroy_workqueue(rtlpriv->works.rtl_wq);
+		rtlpriv->works.rtl_wq = NULL;
+	}
 
 	skb_queue_purge(&rtlusb->rx_queue);
 
@@ -718,8 +720,11 @@ static int _rtl_usb_receive(struct ieee80211_hw *hw)
 
 		usb_anchor_urb(urb, &rtlusb->rx_submitted);
 		err = usb_submit_urb(urb, GFP_KERNEL);
-		if (err)
+		if (err) {
+			usb_unanchor_urb(urb);
+			usb_free_urb(urb);
 			goto err_out;
+		}
 		usb_free_urb(urb);
 	}
 	return 0;
@@ -881,10 +886,8 @@ static struct urb *_rtl_usb_tx_urb_setup(struct ieee80211_hw *hw,
 
 	WARN_ON(NULL == skb);
 	_urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!_urb) {
-		kfree_skb(skb);
+	if (!_urb)
 		return NULL;
-	}
 	_rtl_install_trx_info(rtlusb, skb, ep_num);
 	usb_fill_bulk_urb(_urb, rtlusb->udev, usb_sndbulkpipe(rtlusb->udev,
 			  ep_num), skb->data, skb->len, _rtl_tx_complete, skb);
@@ -898,7 +901,6 @@ static void _rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	u32 ep_num;
 	struct urb *_urb = NULL;
-	struct sk_buff *_skb = NULL;
 
 	WARN_ON(NULL == rtlusb->usb_tx_aggregate_hdl);
 	if (unlikely(IS_USB_STOP(rtlusb))) {
@@ -907,8 +909,7 @@ static void _rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 		return;
 	}
 	ep_num = rtlusb->ep_map.ep_mapping[qnum];
-	_skb = skb;
-	_urb = _rtl_usb_tx_urb_setup(hw, _skb, ep_num);
+	_urb = _rtl_usb_tx_urb_setup(hw, skb, ep_num);
 	if (unlikely(!_urb)) {
 		pr_err("Can't allocate urb. Drop skb!\n");
 		kfree_skb(skb);
@@ -932,7 +933,7 @@ static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw,
 
 	memset(&tcb_desc, 0, sizeof(struct rtl_tcb_desc));
 	if (ieee80211_is_auth(fc)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG, "MAC80211_LINKING\n");
+		rtl_dbg(rtlpriv, COMP_SEND, DBG_DMESG, "MAC80211_LINKING\n");
 	}
 
 	if (rtlpriv->psc.sw_ps_enabled) {
@@ -1021,8 +1022,10 @@ int rtl_usb_probe(struct usb_interface *intf,
 	rtlpriv->hw = hw;
 	rtlpriv->usb_data = kcalloc(RTL_USB_MAX_RX_COUNT, sizeof(u32),
 				    GFP_KERNEL);
-	if (!rtlpriv->usb_data)
+	if (!rtlpriv->usb_data) {
+		ieee80211_free_hw(hw);
 		return -ENOMEM;
+	}
 
 	/* this spin lock must be initialized early */
 	spin_lock_init(&rtlpriv->locks.usb_lock);
@@ -1083,6 +1086,8 @@ error_out2:
 	_rtl_usb_io_handler_release(hw);
 	usb_put_dev(udev);
 	complete(&rtlpriv->firmware_loading_complete);
+	kfree(rtlpriv->usb_data);
+	ieee80211_free_hw(hw);
 	return -ENODEV;
 }
 EXPORT_SYMBOL(rtl_usb_probe);

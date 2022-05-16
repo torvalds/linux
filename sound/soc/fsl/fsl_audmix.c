@@ -116,13 +116,9 @@ static int fsl_audmix_put_mix_clk_src(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int *item = ucontrol->value.enumerated.item;
 	unsigned int reg_val, val, mix_clk;
-	int ret = 0;
 
 	/* Get current state */
-	ret = snd_soc_component_read(comp, FSL_AUDMIX_CTR, &reg_val);
-	if (ret)
-		return ret;
-
+	reg_val = snd_soc_component_read(comp, FSL_AUDMIX_CTR);
 	mix_clk = ((reg_val & FSL_AUDMIX_CTR_MIXCLK_MASK)
 			>> FSL_AUDMIX_CTR_MIXCLK_SHIFT);
 	val = snd_soc_enum_item_to_val(e, item[0]);
@@ -159,12 +155,10 @@ static int fsl_audmix_put_out_src(struct snd_kcontrol *kcontrol,
 	unsigned int *item = ucontrol->value.enumerated.item;
 	u32 out_src, mix_clk;
 	unsigned int reg_val, val, mask = 0, ctr = 0;
-	int ret = 0;
+	int ret;
 
 	/* Get current state */
-	ret = snd_soc_component_read(comp, FSL_AUDMIX_CTR, &reg_val);
-	if (ret)
-		return ret;
+	reg_val = snd_soc_component_read(comp, FSL_AUDMIX_CTR);
 
 	/* "From" state */
 	out_src = ((reg_val & FSL_AUDMIX_CTR_OUTSRC_MASK)
@@ -205,10 +199,18 @@ static int fsl_audmix_put_out_src(struct snd_kcontrol *kcontrol,
 
 static const struct snd_kcontrol_new fsl_audmix_snd_controls[] = {
 	/* FSL_AUDMIX_CTR controls */
-	SOC_ENUM_EXT("Mixing Clock Source", fsl_audmix_enum[0],
-		     snd_soc_get_enum_double, fsl_audmix_put_mix_clk_src),
-	SOC_ENUM_EXT("Output Source", fsl_audmix_enum[1],
-		     snd_soc_get_enum_double, fsl_audmix_put_out_src),
+	{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Mixing Clock Source",
+		.info = snd_soc_info_enum_double,
+		.access = SNDRV_CTL_ELEM_ACCESS_WRITE,
+		.put = fsl_audmix_put_mix_clk_src,
+		.private_value = (unsigned long)&fsl_audmix_enum[0] },
+	{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Output Source",
+		.info = snd_soc_info_enum_double,
+		.access = SNDRV_CTL_ELEM_ACCESS_WRITE,
+		.put = fsl_audmix_put_out_src,
+		.private_value = (unsigned long)&fsl_audmix_enum[1] },
 	SOC_ENUM("Output Width", fsl_audmix_enum[2]),
 	SOC_ENUM("Frame Rate Diff Error", fsl_audmix_enum[3]),
 	SOC_ENUM("Clock Freq Diff Error", fsl_audmix_enum[4]),
@@ -286,6 +288,7 @@ static int fsl_audmix_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				  struct snd_soc_dai *dai)
 {
 	struct fsl_audmix *priv = snd_soc_dai_get_drvdata(dai);
+	unsigned long lock_flags;
 
 	/* Capture stream shall not be handled */
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
@@ -295,12 +298,16 @@ static int fsl_audmix_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		spin_lock_irqsave(&priv->lock, lock_flags);
 		priv->tdms |= BIT(dai->driver->id);
+		spin_unlock_irqrestore(&priv->lock, lock_flags);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		spin_lock_irqsave(&priv->lock, lock_flags);
 		priv->tdms &= ~BIT(dai->driver->id);
+		spin_unlock_irqrestore(&priv->lock, lock_flags);
 		break;
 	default:
 		return -EINVAL;
@@ -491,6 +498,7 @@ static int fsl_audmix_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->ipg_clk);
 	}
 
+	spin_lock_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
 	pm_runtime_enable(dev);
 
@@ -499,21 +507,28 @@ static int fsl_audmix_probe(struct platform_device *pdev)
 					      ARRAY_SIZE(fsl_audmix_dai));
 	if (ret) {
 		dev_err(dev, "failed to register ASoC DAI\n");
-		return ret;
+		goto err_disable_pm;
 	}
 
 	priv->pdev = platform_device_register_data(dev, mdrv, 0, NULL, 0);
 	if (IS_ERR(priv->pdev)) {
 		ret = PTR_ERR(priv->pdev);
 		dev_err(dev, "failed to register platform %s: %d\n", mdrv, ret);
+		goto err_disable_pm;
 	}
 
+	return 0;
+
+err_disable_pm:
+	pm_runtime_disable(dev);
 	return ret;
 }
 
 static int fsl_audmix_remove(struct platform_device *pdev)
 {
 	struct fsl_audmix *priv = dev_get_drvdata(&pdev->dev);
+
+	pm_runtime_disable(&pdev->dev);
 
 	if (priv->pdev)
 		platform_device_unregister(priv->pdev);

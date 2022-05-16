@@ -34,11 +34,7 @@ static unsigned long	def_vyres;
 static unsigned int	def_rotate;
 static unsigned int	def_mirror;
 
-#ifdef CONFIG_FB_OMAP_MANUAL_UPDATE
-static bool		manual_update = 1;
-#else
-static bool		manual_update;
-#endif
+static bool	manual_update = IS_BUILTIN(CONFIG_FB_OMAP_MANUAL_UPDATE);
 
 static struct platform_device	*fbdev_pdev;
 static struct lcd_panel		*fbdev_panel;
@@ -257,7 +253,7 @@ static int _setcolreg(struct fb_info *info, u_int regno, u_int red, u_int green,
 		if (fbdev->ctrl->setcolreg)
 			r = fbdev->ctrl->setcolreg(regno, red, green, blue,
 							transp, update_hw_pal);
-		/* Fallthrough */
+		fallthrough;
 	case OMAPFB_COLOR_RGB565:
 	case OMAPFB_COLOR_RGB444:
 		if (r != 0)
@@ -447,7 +443,7 @@ static int set_color_mode(struct omapfb_plane_struct *plane,
 		return 0;
 	case 12:
 		var->bits_per_pixel = 16;
-		/* fall through */
+		fallthrough;
 	case 16:
 		if (plane->fbdev->panel->bpp == 12)
 			plane->color_mode = OMAPFB_COLOR_RGB444;
@@ -1052,7 +1048,7 @@ static int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd,
 {
 	struct omapfb_plane_struct *plane = fbi->par;
 	struct omapfb_device	*fbdev = plane->fbdev;
-	struct fb_ops		*ops = fbi->fbops;
+	const struct fb_ops *ops = fbi->fbops;
 	union {
 		struct omapfb_update_window	update_window;
 		struct omapfb_plane_info	plane_info;
@@ -1247,7 +1243,7 @@ static ssize_t omapfb_show_caps_num(struct device *dev,
 	size = 0;
 	while (size < PAGE_SIZE && plane < OMAPFB_PLANE_NUM) {
 		omapfb_get_caps(fbdev, plane, &caps);
-		size += snprintf(&buf[size], PAGE_SIZE - size,
+		size += scnprintf(&buf[size], PAGE_SIZE - size,
 			"plane#%d %#010x %#010x %#010x\n",
 			plane, caps.ctrl, caps.plane_color, caps.wnd_color);
 		plane++;
@@ -1268,28 +1264,28 @@ static ssize_t omapfb_show_caps_text(struct device *dev,
 	size = 0;
 	while (size < PAGE_SIZE && plane < OMAPFB_PLANE_NUM) {
 		omapfb_get_caps(fbdev, plane, &caps);
-		size += snprintf(&buf[size], PAGE_SIZE - size,
+		size += scnprintf(&buf[size], PAGE_SIZE - size,
 				 "plane#%d:\n", plane);
 		for (i = 0; i < ARRAY_SIZE(ctrl_caps) &&
 		     size < PAGE_SIZE; i++) {
 			if (ctrl_caps[i].flag & caps.ctrl)
-				size += snprintf(&buf[size], PAGE_SIZE - size,
+				size += scnprintf(&buf[size], PAGE_SIZE - size,
 					" %s\n", ctrl_caps[i].name);
 		}
-		size += snprintf(&buf[size], PAGE_SIZE - size,
+		size += scnprintf(&buf[size], PAGE_SIZE - size,
 				 " plane colors:\n");
 		for (i = 0; i < ARRAY_SIZE(color_caps) &&
 		     size < PAGE_SIZE; i++) {
 			if (color_caps[i].flag & caps.plane_color)
-				size += snprintf(&buf[size], PAGE_SIZE - size,
+				size += scnprintf(&buf[size], PAGE_SIZE - size,
 					"  %s\n", color_caps[i].name);
 		}
-		size += snprintf(&buf[size], PAGE_SIZE - size,
+		size += scnprintf(&buf[size], PAGE_SIZE - size,
 				 " window colors:\n");
 		for (i = 0; i < ARRAY_SIZE(color_caps) &&
 		     size < PAGE_SIZE; i++) {
 			if (color_caps[i].flag & caps.wnd_color)
-				size += snprintf(&buf[size], PAGE_SIZE - size,
+				size += scnprintf(&buf[size], PAGE_SIZE - size,
 					"  %s\n", color_caps[i].name);
 		}
 
@@ -1535,27 +1531,27 @@ static void omapfb_free_resources(struct omapfb_device *fbdev, int state)
 	case OMAPFB_ACTIVE:
 		for (i = 0; i < fbdev->mem_desc.region_cnt; i++)
 			unregister_framebuffer(fbdev->fb_info[i]);
-		/* fall through */
+		fallthrough;
 	case 7:
 		omapfb_unregister_sysfs(fbdev);
-		/* fall through */
+		fallthrough;
 	case 6:
 		if (fbdev->panel->disable)
 			fbdev->panel->disable(fbdev->panel);
-		/* fall through */
+		fallthrough;
 	case 5:
 		omapfb_set_update_mode(fbdev, OMAPFB_UPDATE_DISABLED);
-		/* fall through */
+		fallthrough;
 	case 4:
 		planes_cleanup(fbdev);
-		/* fall through */
+		fallthrough;
 	case 3:
 		ctrl_cleanup(fbdev);
-		/* fall through */
+		fallthrough;
 	case 2:
 		if (fbdev->panel->cleanup)
 			fbdev->panel->cleanup(fbdev->panel);
-		/* fall through */
+		fallthrough;
 	case 1:
 		dev_set_drvdata(fbdev->dev, NULL);
 		kfree(fbdev);
@@ -1858,7 +1854,7 @@ static int __init omapfb_setup(char *options)
 			case 'm':
 			case 'M':
 				vram *= 1024;
-				/* Fall through */
+				fallthrough;
 			case 'k':
 			case 'K':
 				vram *= 1024;

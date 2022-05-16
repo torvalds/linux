@@ -28,9 +28,10 @@ Required properties :
   See ../reset/reset.txt for details.
 - reset-names : Must include the following entries:
   - soctherm
-- #thermal-sensor-cells : Should be 1. See ./thermal.txt for a description
-    of this property. See <dt-bindings/thermal/tegra124-soctherm.h> for a
-    list of valid values when referring to thermal sensors.
+- #thermal-sensor-cells : Should be 1. For a description of this property, see
+     Documentation/devicetree/bindings/thermal/thermal-sensor.yaml.
+    See <dt-bindings/thermal/tegra124-soctherm.h> for a list of valid values
+    when referring to thermal sensors.
 - throttle-cfgs: A sub-node which is a container of configuration for each
     hardware throttle events. These events can be set as cooling devices.
   * throttle events: Sub-nodes must be named as "light" or "heavy".
@@ -62,7 +63,8 @@ Required properties :
         TEGRA_SOCTHERM_THROT_LEVEL_MED (75%),
         TEGRA_SOCTHERM_THROT_LEVEL_HIGH (85%).
       - #cooling-cells: Should be 1. This cooling device only support on/off state.
-        See ./thermal.txt for a description of this property.
+        For a description of this property see:
+	Documentation/devicetree/bindings/thermal/thermal-cooling-devices.yaml
 
       Optional properties: The following properties are T210 specific and
       valid only for OCx throttle events.

@@ -18,12 +18,14 @@ struct intel_plane_state;
 
 extern const struct drm_plane_helper_funcs intel_plane_helper_funcs;
 
+unsigned int intel_plane_pixel_rate(const struct intel_crtc_state *crtc_state,
+				    const struct intel_plane_state *plane_state);
+
 unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
 				   const struct intel_plane_state *plane_state);
+void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
+				       const struct intel_plane_state *from_plane_state);
 void intel_update_plane(struct intel_plane *plane,
-			const struct intel_crtc_state *crtc_state,
-			const struct intel_plane_state *plane_state);
-void intel_update_slave(struct intel_plane *plane,
 			const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state);
 void intel_disable_plane(struct intel_plane *plane,
@@ -41,9 +43,16 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 					struct intel_crtc_state *crtc_state,
 					const struct intel_plane_state *old_plane_state,
 					struct intel_plane_state *intel_state);
+int intel_plane_atomic_check(struct intel_atomic_state *state,
+			     struct intel_plane *plane);
 int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_state,
 				    struct intel_crtc_state *crtc_state,
 				    const struct intel_plane_state *old_plane_state,
 				    struct intel_plane_state *plane_state);
+int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
+			       struct intel_plane *plane,
+			       bool *need_cdclk_calc);
+void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
+			       struct intel_plane_state *plane_state);
 
 #endif /* __INTEL_ATOMIC_PLANE_H__ */

@@ -888,6 +888,7 @@ static const struct ni_board_struct ni_boards[] = {
 	},
 	[BOARD_PCIE6251] = {
 		.name		= "pcie-6251",
+		.alt_route_name	= "pci-6251",
 		.n_adchan	= 16,
 		.ai_maxdata	= 0xffff,
 		.ai_fifo_depth	= 4095,
@@ -976,6 +977,7 @@ static const struct ni_board_struct ni_boards[] = {
 	},
 	[BOARD_PCIE6259] = {
 		.name		= "pcie-6259",
+		.alt_route_name	= "pci-6259",
 		.n_adchan	= 32,
 		.ai_maxdata	= 0xffff,
 		.ai_fifo_depth	= 4095,
@@ -1212,7 +1214,7 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 	struct ni_private *devpriv = dev->private;
 	struct mite *mite = devpriv->mite;
 	resource_size_t daq_phys_addr;
-	static const int Start_Cal_EEPROM = 0x400;
+	static const int start_cal_eeprom = 0x400;
 	static const unsigned int window_size = 10;
 	unsigned int old_iodwbsr_bits;
 	unsigned int old_iodwbsr1_bits;
@@ -1232,7 +1234,7 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 	writel(0xf, mite->mmio + 0x30);
 
 	for (i = 0; i < M_SERIES_EEPROM_SIZE; ++i)
-		devpriv->eeprom_buffer[i] = ni_readb(dev, Start_Cal_EEPROM + i);
+		devpriv->eeprom_buffer[i] = ni_readb(dev, start_cal_eeprom + i);
 
 	writel(old_iodwbsr1_bits, mite->mmio + MITE_IODWBSR_1);
 	writel(old_iodwbsr_bits, mite->mmio + MITE_IODWBSR);
@@ -1470,6 +1472,6 @@ static struct pci_driver ni_pcimio_pci_driver = {
 };
 module_comedi_pci_driver(ni_pcimio_driver, ni_pcimio_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");

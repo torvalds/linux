@@ -3,6 +3,11 @@
 config HAVE_ARCH_KGDB
 	bool
 
+# set if architecture has the its kgdb_arch_handle_qxfer_pkt
+# function to enable gdb stub to address XML packet sent from GDB.
+config HAVE_ARCH_KGDB_QXFER_PKT
+	bool
+
 menuconfig KGDB
 	bool "KGDB: kernel debugger"
 	depends on HAVE_ARCH_KGDB
@@ -18,6 +23,21 @@ menuconfig KGDB
 	  unsure, say N.
 
 if KGDB
+
+config KGDB_HONOUR_BLOCKLIST
+	bool "KGDB: use kprobe blocklist to prohibit unsafe breakpoints"
+	depends on HAVE_KPROBES
+	depends on MODULES
+	select KPROBES
+	default y
+	help
+	  If set to Y the debug core will use the kprobe blocklist to
+	  identify symbols where it is unsafe to set breakpoints.
+	  In particular this disallows instrumentation of functions
+	  called during debug trap handling and thus makes it very
+	  difficult to inadvertently provoke recursive trap handling.
+
+	  If unsure, say Y.
 
 config KGDB_SERIAL_CONSOLE
 	tristate "KGDB: use kgdb over the serial console"
@@ -64,9 +84,9 @@ config KGDB_LOW_LEVEL_TRAP
        depends on X86 || MIPS
        default n
        help
-         This will add an extra call back to kgdb for the breakpoint
-         exception handler which will allow kgdb to step through a
-         notify handler.
+	 This will add an extra call back to kgdb for the breakpoint
+	 exception handler which will allow kgdb to step through a
+	 notify handler.
 
 config KGDB_KDB
 	bool "KGDB_KDB: include kdb frontend for kgdb"
@@ -96,7 +116,7 @@ config KDB_DEFAULT_ENABLE
 
 	  The config option merely sets the default at boot time. Both
 	  issuing 'echo X > /sys/module/kdb/parameters/cmd_enable' or
-          setting with kdb.cmd_enable=X kernel command line option will
+	  setting with kdb.cmd_enable=X kernel command line option will
 	  override the default settings.
 
 config KDB_KEYBOARD
@@ -123,5 +143,23 @@ config KDB_CONTINUE_CATASTROPHIC
 	  No guarantees that the kernel is still usable in this situation.
 	  CONFIG_KDB_CONTINUE_CATASTROPHIC == 2. KDB forces a reboot.
 	  If you are not sure, say 0.
+
+config ARCH_HAS_EARLY_DEBUG
+	bool
+	default n
+	help
+	  If an architecture can definitely handle entering the debugger
+	  when early_param's are parsed then it select this config.
+	  Otherwise, if "kgdbwait" is passed on the kernel command line it
+	  won't actually be processed until dbg_late_init() just after the
+	  call to kgdb_arch_late() is made.
+
+	  NOTE: Even if this isn't selected by an architecture we will
+	  still try to register kgdb to handle breakpoints and crashes
+	  when early_param's are parsed, we just won't act on the
+	  "kgdbwait" parameter until dbg_late_init().  If you get a
+	  crash and try to drop into kgdb somewhere between these two
+	  places you might or might not end up being able to use kgdb
+	  depending on exactly how far along the architecture has initted.
 
 endif # KGDB

@@ -20,23 +20,13 @@ static const efi_char16_t efi_MemoryOverWriteRequest_name[] =
 #define MEMORY_ONLY_RESET_CONTROL_GUID \
 	EFI_GUID(0xe20939be, 0x32d4, 0x41be, 0xa1, 0x50, 0x89, 0x7f, 0x85, 0xd4, 0x98, 0x29)
 
-#define get_efi_var(name, vendor, ...) \
-	efi_call_runtime(get_variable, \
-			 (efi_char16_t *)(name), (efi_guid_t *)(vendor), \
-			 __VA_ARGS__)
-
-#define set_efi_var(name, vendor, ...) \
-	efi_call_runtime(set_variable, \
-			 (efi_char16_t *)(name), (efi_guid_t *)(vendor), \
-			 __VA_ARGS__)
-
 /*
  * Enable reboot attack mitigation. This requests that the firmware clear the
  * RAM on next reboot before proceeding with boot, ensuring that any secrets
  * are cleared. If userland has ensured that all secrets have been removed
  * from RAM before reboot it can simply reset this variable.
  */
-void efi_enable_reset_attack_mitigation(efi_system_table_t *sys_table_arg)
+void efi_enable_reset_attack_mitigation(void)
 {
 	u8 val = 1;
 	efi_guid_t var_guid = MEMORY_ONLY_RESET_CONTROL_GUID;
@@ -57,35 +47,34 @@ void efi_enable_reset_attack_mitigation(efi_system_table_t *sys_table_arg)
 
 #endif
 
-void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
+void efi_retrieve_tpm2_eventlog(void)
 {
 	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
 	efi_guid_t linux_eventlog_guid = LINUX_EFI_TPM_EVENT_LOG_GUID;
 	efi_status_t status;
 	efi_physical_addr_t log_location = 0, log_last_entry = 0;
 	struct linux_efi_tpm_eventlog *log_tbl = NULL;
-	struct efi_tcg2_final_events_table *final_events_table;
+	struct efi_tcg2_final_events_table *final_events_table = NULL;
 	unsigned long first_entry_addr, last_entry_addr;
 	size_t log_size, last_entry_size;
 	efi_bool_t truncated;
 	int version = EFI_TCG2_EVENT_LOG_FORMAT_TCG_2;
-	void *tcg2_protocol = NULL;
+	efi_tcg2_protocol_t *tcg2_protocol = NULL;
 	int final_events_size = 0;
 
-	status = efi_call_early(locate_protocol, &tcg2_guid, NULL,
-				&tcg2_protocol);
+	status = efi_bs_call(locate_protocol, &tcg2_guid, NULL,
+			     (void **)&tcg2_protocol);
 	if (status != EFI_SUCCESS)
 		return;
 
-	status = efi_call_proto(efi_tcg2_protocol, get_event_log,
-				tcg2_protocol, version, &log_location,
-				&log_last_entry, &truncated);
+	status = efi_call_proto(tcg2_protocol, get_event_log, version,
+				&log_location, &log_last_entry, &truncated);
 
 	if (status != EFI_SUCCESS || !log_location) {
 		version = EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2;
-		status = efi_call_proto(efi_tcg2_protocol, get_event_log,
-					tcg2_protocol, version, &log_location,
-					&log_last_entry, &truncated);
+		status = efi_call_proto(tcg2_protocol, get_event_log, version,
+					&log_location, &log_last_entry,
+					&truncated);
 		if (status != EFI_SUCCESS || !log_location)
 			return;
 
@@ -126,13 +115,11 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
 	}
 
 	/* Allocate space for the logs and copy them. */
-	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-				sizeof(*log_tbl) + log_size,
-				(void **) &log_tbl);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA,
+			     sizeof(*log_tbl) + log_size, (void **)&log_tbl);
 
 	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table_arg,
-			   "Unable to allocate memory for event log\n");
+		efi_err("Unable to allocate memory for event log\n");
 		return;
 	}
 
@@ -140,8 +127,8 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
 	 * Figure out whether any events have already been logged to the
 	 * final events structure, and if so how much space they take up
 	 */
-	final_events_table = get_efi_config_table(sys_table_arg,
-						LINUX_EFI_TPM_FINAL_LOG_GUID);
+	if (version == EFI_TCG2_EVENT_LOG_FORMAT_TCG_2)
+		final_events_table = get_efi_config_table(LINUX_EFI_TPM_FINAL_LOG_GUID);
 	if (final_events_table && final_events_table->nr_events) {
 		struct tcg_pcr_event2_head *header;
 		int offset;
@@ -169,12 +156,12 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
 	log_tbl->version = version;
 	memcpy(log_tbl->log, (void *) first_entry_addr, log_size);
 
-	status = efi_call_early(install_configuration_table,
-				&linux_eventlog_guid, log_tbl);
+	status = efi_bs_call(install_configuration_table,
+			     &linux_eventlog_guid, log_tbl);
 	if (status != EFI_SUCCESS)
 		goto err_free;
 	return;
 
 err_free:
-	efi_call_early(free_pool, log_tbl);
+	efi_bs_call(free_pool, log_tbl);
 }

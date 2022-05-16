@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -148,7 +148,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  *
  * Bits 3:0:
  * Define the maximum number of pending read requests.
- * Maximum configration value allowed is 0xC
+ * Maximum configuration value allowed is 0xC
  * Bits 9:8:
  * Define the maximum transfer size. (64 / 128 / 256)
  * Bit 10:
@@ -611,10 +611,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  */
 #define FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
 
-#define MQ_RX_TABLE_SIZE	512
-#define MQ_RX_TABLE_MASK	(MQ_RX_TABLE_SIZE - 1)
-#define MQ_RX_NUM_RBDS		(MQ_RX_TABLE_SIZE - 1)
-#define RX_POOL_SIZE		(MQ_RX_NUM_RBDS +	\
+#define RX_POOL_SIZE(rbds)	((rbds) - 1 +	\
 				 IWL_MAX_RX_HW_QUEUES *	\
 				 (RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC))
 /* cb size is the exponent */
@@ -649,8 +646,7 @@ struct iwl_rb_status {
 #define TFD_QUEUE_CB_SIZE(x)	(ilog2(x) - 3)
 #define TFD_QUEUE_SIZE_BC_DUP	(64)
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
-#define TFD_QUEUE_BC_SIZE_GEN3	(TFD_QUEUE_SIZE_MAX_GEN3 + \
-				 TFD_QUEUE_SIZE_BC_DUP)
+#define TFD_QUEUE_BC_SIZE_GEN3	1024
 #define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
 #define IWL_NUM_OF_TBS		20
 #define IWL_TFH_NUM_TBS		25
@@ -768,7 +764,7 @@ struct iwlagn_scd_bc_tbl {
 
 /**
  * struct iwl_gen3_bc_tbl scheduler byte count table gen3
- * For 22560 and on:
+ * For AX210 and on:
  * @tfd_offset: 0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved

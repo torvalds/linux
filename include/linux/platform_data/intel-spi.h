@@ -13,6 +13,7 @@ enum intel_spi_type {
 	INTEL_SPI_BYT = 1,
 	INTEL_SPI_LPT,
 	INTEL_SPI_BXT,
+	INTEL_SPI_CNL,
 };
 
 /**

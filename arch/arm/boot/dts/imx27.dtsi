@@ -134,7 +134,7 @@
 			};
 
 			pwm: pwm@10006000 {
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				compatible = "fsl,imx27-pwm";
 				reg = <0x10006000 0x1000>;
 				interrupts = <23>;
@@ -265,7 +265,7 @@
 				status = "disabled";
 			};
 
-			sdhci1: sdhci@10013000 {
+			sdhci1: mmc@10013000 {
 				compatible = "fsl,imx27-mmc", "fsl,imx21-mmc";
 				reg = <0x10013000 0x1000>;
 				interrupts = <11>;
@@ -277,7 +277,7 @@
 				status = "disabled";
 			};
 
-			sdhci2: sdhci@10014000 {
+			sdhci2: mmc@10014000 {
 				compatible = "fsl,imx27-mmc", "fsl,imx21-mmc";
 				reg = <0x10014000 0x1000>;
 				interrupts = <10>;
@@ -431,7 +431,7 @@
 				status = "disabled";
 			};
 
-			sdhci3: sdhci@1001e000 {
+			sdhci3: mmc@1001e000 {
 				compatible = "fsl,imx27-mmc", "fsl,imx21-mmc";
 				reg = <0x1001e000 0x1000>;
 				interrupts = <9>;
@@ -525,7 +525,7 @@
 				reg = <0x10024600 0x200>;
 			};
 
-			sahara2: sahara@10025000 {
+			sahara2: crypto@10025000 {
 				compatible = "fsl,imx27-sahara";
 				reg = <0x10025000 0x1000>;
 				interrupts = <59>;
@@ -540,7 +540,7 @@
 				#clock-cells = <1>;
 			};
 
-			iim: iim@10028000 {
+			iim: efuse@10028000 {
 				compatible = "fsl,imx27-iim";
 				reg = <0x10028000 0x1000>;
 				interrupts = <62>;
@@ -558,7 +558,7 @@
 			};
 		};
 
-		nfc: nand@d8000000 {
+		nfc: nand-controller@d8000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "fsl,imx27-nand";
@@ -585,7 +585,7 @@
 			status = "disabled";
 		};
 
-		iram: iram@ffff4c00 {
+		iram: sram@ffff4c00 {
 			compatible = "mmio-sram";
 			reg = <0xffff4c00 0xb400>;
 		};

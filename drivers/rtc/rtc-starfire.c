@@ -27,7 +27,7 @@ static u32 starfire_get_time(void)
 
 static int starfire_read_time(struct device *dev, struct rtc_time *tm)
 {
-	rtc_time_to_tm(starfire_get_time(), tm);
+	rtc_time64_to_tm(starfire_get_time(), tm);
 	return 0;
 }
 
@@ -39,14 +39,16 @@ static int __init starfire_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 
-	rtc = devm_rtc_device_register(&pdev->dev, "starfire",
-				&starfire_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
+	rtc->ops = &starfire_rtc_ops;
+	rtc->range_max = U32_MAX;
+
 	platform_set_drvdata(pdev, rtc);
 
-	return 0;
+	return rtc_register_device(rtc);
 }
 
 static struct platform_driver starfire_rtc_driver = {

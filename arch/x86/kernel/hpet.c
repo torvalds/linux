@@ -84,7 +84,7 @@ static inline void hpet_writel(unsigned int d, unsigned int a)
 
 static inline void hpet_set_mapping(void)
 {
-	hpet_virt_address = ioremap_nocache(hpet_address, HPET_MMAP_SIZE);
+	hpet_virt_address = ioremap(hpet_address, HPET_MMAP_SIZE);
 }
 
 static inline void hpet_clear_mapping(void)

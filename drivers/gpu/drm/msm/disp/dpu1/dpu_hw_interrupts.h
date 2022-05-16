@@ -187,6 +187,7 @@ struct dpu_hw_intr {
 	u32 *save_irq_status;
 	u32 irq_idx_tbl_size;
 	spinlock_t irq_lock;
+	unsigned long irq_mask;
 };
 
 /**

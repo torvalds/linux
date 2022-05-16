@@ -42,6 +42,10 @@
 #define AFE_PARAM_ID_I2S_CONFIG	0x0001020D
 #define AFE_PARAM_ID_TDM_CONFIG	0x0001029D
 #define AFE_PARAM_ID_PORT_SLOT_MAPPING_CONFIG	0x00010297
+#define AFE_PARAM_ID_CODEC_DMA_CONFIG	0x000102B8
+#define AFE_CMD_REMOTE_LPASS_CORE_HW_VOTE_REQUEST	0x000100f4
+#define AFE_CMD_RSP_REMOTE_LPASS_CORE_HW_VOTE_REQUEST   0x000100f5
+#define AFE_CMD_REMOTE_LPASS_CORE_HW_DEVOTE_REQUEST	0x000100f6
 
 /* I2S config specific */
 #define AFE_API_VERSION_I2S_CONFIG	0x1
@@ -299,22 +303,71 @@
 #define AFE_PORT_ID_QUINARY_TDM_TX_7 \
 	(AFE_PORT_ID_QUINARY_TDM_TX + 0x0E)
 
+/* AFE WSA Codec DMA Rx port 0 */
+#define AFE_PORT_ID_WSA_CODEC_DMA_RX_0	0xB000
+/* AFE WSA Codec DMA Tx port 0 */
+#define AFE_PORT_ID_WSA_CODEC_DMA_TX_0	0xB001
+/* AFE WSA Codec DMA Rx port 1 */
+#define AFE_PORT_ID_WSA_CODEC_DMA_RX_1	0xB002
+/* AFE WSA Codec DMA Tx port 1 */
+#define AFE_PORT_ID_WSA_CODEC_DMA_TX_1	0xB003
+/* AFE WSA Codec DMA Tx port 2 */
+#define AFE_PORT_ID_WSA_CODEC_DMA_TX_2	0xB005
+/* AFE VA Codec DMA Tx port 0 */
+#define AFE_PORT_ID_VA_CODEC_DMA_TX_0	0xB021
+/* AFE VA Codec DMA Tx port 1 */
+#define AFE_PORT_ID_VA_CODEC_DMA_TX_1	0xB023
+/* AFE VA Codec DMA Tx port 2 */
+#define AFE_PORT_ID_VA_CODEC_DMA_TX_2	0xB025
+/* AFE Rx Codec DMA Rx port 0 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_0	0xB030
+/* AFE Tx Codec DMA Tx port 0 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_0	0xB031
+/* AFE Rx Codec DMA Rx port 1 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_1	0xB032
+/* AFE Tx Codec DMA Tx port 1 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_1	0xB033
+/* AFE Rx Codec DMA Rx port 2 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_2	0xB034
+/* AFE Tx Codec DMA Tx port 2 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_2	0xB035
+/* AFE Rx Codec DMA Rx port 3 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_3	0xB036
+/* AFE Tx Codec DMA Tx port 3 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_3	0xB037
+/* AFE Rx Codec DMA Rx port 4 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_4	0xB038
+/* AFE Tx Codec DMA Tx port 4 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_4	0xB039
+/* AFE Rx Codec DMA Rx port 5 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_5	0xB03A
+/* AFE Tx Codec DMA Tx port 5 */
+#define AFE_PORT_ID_TX_CODEC_DMA_TX_5	0xB03B
+/* AFE Rx Codec DMA Rx port 6 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_6	0xB03C
+/* AFE Rx Codec DMA Rx port 7 */
+#define AFE_PORT_ID_RX_CODEC_DMA_RX_7	0xB03E
+
 #define Q6AFE_LPASS_MODE_CLK1_VALID 1
 #define Q6AFE_LPASS_MODE_CLK2_VALID 2
 #define Q6AFE_LPASS_CLK_SRC_INTERNAL 1
 #define Q6AFE_LPASS_CLK_ROOT_DEFAULT 0
 #define AFE_API_VERSION_TDM_CONFIG              1
 #define AFE_API_VERSION_SLOT_MAPPING_CONFIG	1
+#define AFE_API_VERSION_CODEC_DMA_CONFIG	1
 
 #define TIMEOUT_MS 1000
 #define AFE_CMD_RESP_AVAIL	0
 #define AFE_CMD_RESP_NONE	1
+#define AFE_CLK_TOKEN		1024
 
 struct q6afe {
 	struct apr_device *apr;
 	struct device *dev;
 	struct q6core_svc_api_info ainfo;
 	struct mutex lock;
+	struct aprv2_ibasic_rsp_result_t result;
+	wait_queue_head_t wait;
 	struct list_head port_list;
 	spinlock_t port_list_lock;
 };
@@ -448,11 +501,21 @@ struct afe_param_id_tdm_cfg {
 	u32	slot_mask;
 } __packed;
 
+struct afe_param_id_cdc_dma_cfg {
+	u32	cdc_dma_cfg_minor_version;
+	u32	sample_rate;
+	u16	bit_width;
+	u16	data_format;
+	u16	num_channels;
+	u16	active_channels_mask;
+} __packed;
+
 union afe_port_config {
 	struct afe_param_id_hdmi_multi_chan_audio_cfg hdmi_multi_ch;
 	struct afe_param_id_slimbus_cfg           slim_cfg;
 	struct afe_param_id_i2s_cfg	i2s_cfg;
 	struct afe_param_id_tdm_cfg	tdm_cfg;
+	struct afe_param_id_cdc_dma_cfg	dma_cfg;
 } __packed;
 
 
@@ -485,6 +548,18 @@ struct q6afe_port {
 	struct kref refcount;
 	struct list_head node;
 };
+
+struct afe_cmd_remote_lpass_core_hw_vote_request {
+        uint32_t  hw_block_id;
+        char client_name[8];
+} __packed;
+
+struct afe_cmd_remote_lpass_core_hw_devote_request {
+        uint32_t  hw_block_id;
+        uint32_t client_handle;
+} __packed;
+
+
 
 struct afe_port_map {
 	int port_id;
@@ -707,6 +782,50 @@ static struct afe_port_map port_maps[AFE_PORT_MAX] = {
 				QUINARY_TDM_TX_7, 0, 1},
 	[DISPLAY_PORT_RX] = { AFE_PORT_ID_HDMI_OVER_DP_RX,
 				DISPLAY_PORT_RX, 1, 1},
+	[WSA_CODEC_DMA_RX_0] = { AFE_PORT_ID_WSA_CODEC_DMA_RX_0,
+				WSA_CODEC_DMA_RX_0, 1, 1},
+	[WSA_CODEC_DMA_TX_0] = { AFE_PORT_ID_WSA_CODEC_DMA_TX_0,
+				WSA_CODEC_DMA_TX_0, 0, 1},
+	[WSA_CODEC_DMA_RX_1] = { AFE_PORT_ID_WSA_CODEC_DMA_RX_1,
+				WSA_CODEC_DMA_RX_1, 1, 1},
+	[WSA_CODEC_DMA_TX_1] = { AFE_PORT_ID_WSA_CODEC_DMA_TX_1,
+				WSA_CODEC_DMA_TX_1, 0, 1},
+	[WSA_CODEC_DMA_TX_2] = { AFE_PORT_ID_WSA_CODEC_DMA_TX_2,
+				WSA_CODEC_DMA_TX_2, 0, 1},
+	[VA_CODEC_DMA_TX_0] = { AFE_PORT_ID_VA_CODEC_DMA_TX_0,
+				VA_CODEC_DMA_TX_0, 0, 1},
+	[VA_CODEC_DMA_TX_1] = { AFE_PORT_ID_VA_CODEC_DMA_TX_1,
+				VA_CODEC_DMA_TX_1, 0, 1},
+	[VA_CODEC_DMA_TX_2] = { AFE_PORT_ID_VA_CODEC_DMA_TX_2,
+				VA_CODEC_DMA_TX_2, 0, 1},
+	[RX_CODEC_DMA_RX_0] = { AFE_PORT_ID_RX_CODEC_DMA_RX_0,
+				RX_CODEC_DMA_RX_0, 1, 1},
+	[TX_CODEC_DMA_TX_0] = { AFE_PORT_ID_TX_CODEC_DMA_TX_0,
+				TX_CODEC_DMA_TX_0, 0, 1},
+	[RX_CODEC_DMA_RX_1] = { AFE_PORT_ID_RX_CODEC_DMA_RX_1,
+				RX_CODEC_DMA_RX_1, 1, 1},
+	[TX_CODEC_DMA_TX_1] = { AFE_PORT_ID_TX_CODEC_DMA_TX_1,
+				TX_CODEC_DMA_TX_1, 0, 1},
+	[RX_CODEC_DMA_RX_2] = { AFE_PORT_ID_RX_CODEC_DMA_RX_2,
+				RX_CODEC_DMA_RX_2, 1, 1},
+	[TX_CODEC_DMA_TX_2] = { AFE_PORT_ID_TX_CODEC_DMA_TX_2,
+				TX_CODEC_DMA_TX_2, 0, 1},
+	[RX_CODEC_DMA_RX_3] = { AFE_PORT_ID_RX_CODEC_DMA_RX_3,
+				RX_CODEC_DMA_RX_3, 1, 1},
+	[TX_CODEC_DMA_TX_3] = { AFE_PORT_ID_TX_CODEC_DMA_TX_3,
+				TX_CODEC_DMA_TX_3, 0, 1},
+	[RX_CODEC_DMA_RX_4] = { AFE_PORT_ID_RX_CODEC_DMA_RX_4,
+				RX_CODEC_DMA_RX_4, 1, 1},
+	[TX_CODEC_DMA_TX_4] = { AFE_PORT_ID_TX_CODEC_DMA_TX_4,
+				TX_CODEC_DMA_TX_4, 0, 1},
+	[RX_CODEC_DMA_RX_5] = { AFE_PORT_ID_RX_CODEC_DMA_RX_5,
+				RX_CODEC_DMA_RX_5, 1, 1},
+	[TX_CODEC_DMA_TX_5] = { AFE_PORT_ID_TX_CODEC_DMA_TX_5,
+				TX_CODEC_DMA_TX_5, 0, 1},
+	[RX_CODEC_DMA_RX_6] = { AFE_PORT_ID_RX_CODEC_DMA_RX_6,
+				RX_CODEC_DMA_RX_6, 1, 1},
+	[RX_CODEC_DMA_RX_7] = { AFE_PORT_ID_RX_CODEC_DMA_RX_7,
+				RX_CODEC_DMA_RX_7, 1, 1},
 };
 
 static void q6afe_port_free(struct kref *ref)
@@ -769,6 +888,9 @@ static int q6afe_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 				port->result = *res;
 				wake_up(&port->wait);
 				kref_put(&port->refcount, q6afe_port_free);
+			} else if (hdr->token == AFE_CLK_TOKEN) {
+				afe->result = *res;
+				wake_up(&afe->wait);
 			}
 			break;
 		default:
@@ -776,6 +898,11 @@ static int q6afe_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 			break;
 		}
 	}
+		break;
+	case AFE_CMD_RSP_REMOTE_LPASS_CORE_HW_VOTE_REQUEST:
+		afe->result.opcode = hdr->opcode;
+		afe->result.status = res->status;
+		wake_up(&afe->wait);
 		break;
 	default:
 		break;
@@ -801,15 +928,23 @@ int q6afe_get_port_id(int index)
 EXPORT_SYMBOL_GPL(q6afe_get_port_id);
 
 static int afe_apr_send_pkt(struct q6afe *afe, struct apr_pkt *pkt,
-			    struct q6afe_port *port)
+			    struct q6afe_port *port, uint32_t rsp_opcode)
 {
 	wait_queue_head_t *wait = &port->wait;
-	struct apr_hdr *hdr = &pkt->hdr;
+	struct aprv2_ibasic_rsp_result_t *result;
 	int ret;
 
 	mutex_lock(&afe->lock);
-	port->result.opcode = 0;
-	port->result.status = 0;
+	if (port) {
+		wait = &port->wait;
+		result = &port->result;
+	} else {
+		result = &afe->result;
+		wait = &afe->wait;
+	}
+
+	result->opcode = 0;
+	result->status = 0;
 
 	ret = apr_send_pkt(afe->apr, pkt);
 	if (ret < 0) {
@@ -818,13 +953,13 @@ static int afe_apr_send_pkt(struct q6afe *afe, struct apr_pkt *pkt,
 		goto err;
 	}
 
-	ret = wait_event_timeout(*wait, (port->result.opcode == hdr->opcode),
+	ret = wait_event_timeout(*wait, (result->opcode == rsp_opcode),
 				 msecs_to_jiffies(TIMEOUT_MS));
 	if (!ret) {
 		ret = -ETIMEDOUT;
-	} else if (port->result.status > 0) {
+	} else if (result->status > 0) {
 		dev_err(afe->dev, "DSP returned error[%x]\n",
-			port->result.status);
+			result->status);
 		ret = -EINVAL;
 	} else {
 		ret = 0;
@@ -836,14 +971,13 @@ err:
 	return ret;
 }
 
-static int q6afe_port_set_param(struct q6afe_port *port, void *data,
-				int param_id, int module_id, int psize)
+static int q6afe_set_param(struct q6afe *afe, struct q6afe_port *port,
+			   void *data, int param_id, int module_id, int psize,
+			   int token)
 {
 	struct afe_svc_cmd_set_param *param;
 	struct afe_port_param_data_v2 *pdata;
-	struct q6afe *afe = port->afe;
 	struct apr_pkt *pkt;
-	u16 port_id = port->id;
 	int ret, pkt_size;
 	void *p, *pl;
 
@@ -864,7 +998,7 @@ static int q6afe_port_set_param(struct q6afe_port *port, void *data,
 	pkt->hdr.pkt_size = pkt_size;
 	pkt->hdr.src_port = 0;
 	pkt->hdr.dest_port = 0;
-	pkt->hdr.token = port->token;
+	pkt->hdr.token = token;
 	pkt->hdr.opcode = AFE_SVC_CMD_SET_PARAM;
 
 	param->payload_size = sizeof(*pdata) + psize;
@@ -875,13 +1009,19 @@ static int q6afe_port_set_param(struct q6afe_port *port, void *data,
 	pdata->param_id = param_id;
 	pdata->param_size = psize;
 
-	ret = afe_apr_send_pkt(afe, pkt, port);
+	ret = afe_apr_send_pkt(afe, pkt, port, AFE_SVC_CMD_SET_PARAM);
 	if (ret)
-		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
-		       port_id, ret);
+		dev_err(afe->dev, "AFE set params failed %d\n", ret);
 
 	kfree(pkt);
 	return ret;
+}
+
+static int q6afe_port_set_param(struct q6afe_port *port, void *data,
+				int param_id, int module_id, int psize)
+{
+	return q6afe_set_param(port->afe, port, data, param_id, module_id,
+			       psize, port->token);
 }
 
 static int q6afe_port_set_param_v2(struct q6afe_port *port, void *data,
@@ -924,7 +1064,7 @@ static int q6afe_port_set_param_v2(struct q6afe_port *port, void *data,
 	pdata->param_id = param_id;
 	pdata->param_size = psize;
 
-	ret = afe_apr_send_pkt(afe, pkt, port);
+	ret = afe_apr_send_pkt(afe, pkt, port, AFE_PORT_CMD_SET_PARAM_V2);
 	if (ret)
 		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
 		       port_id, ret);
@@ -933,7 +1073,7 @@ static int q6afe_port_set_param_v2(struct q6afe_port *port, void *data,
 	return ret;
 }
 
-static int q6afe_set_lpass_clock(struct q6afe_port *port,
+static int q6afe_port_set_lpass_clock(struct q6afe_port *port,
 				 struct afe_clk_cfg *cfg)
 {
 	return q6afe_port_set_param_v2(port, cfg,
@@ -958,6 +1098,25 @@ static int q6afe_set_digital_codec_core_clock(struct q6afe_port *port,
 				       sizeof(*cfg));
 }
 
+int q6afe_set_lpass_clock(struct device *dev, int clk_id, int attri,
+			  int clk_root, unsigned int freq)
+{
+	struct q6afe *afe = dev_get_drvdata(dev->parent);
+	struct afe_clk_set cset = {0,};
+
+	cset.clk_set_minor_version = AFE_API_VERSION_CLOCK_SET;
+	cset.clk_id = clk_id;
+	cset.clk_freq_in_hz = freq;
+	cset.clk_attri = attri;
+	cset.clk_root = clk_root;
+	cset.enable = !!freq;
+
+	return q6afe_set_param(afe, NULL, &cset, AFE_PARAM_ID_CLOCK_SET,
+			       AFE_MODULE_CLOCK_SET, sizeof(cset),
+			       AFE_CLK_TOKEN);
+}
+EXPORT_SYMBOL_GPL(q6afe_set_lpass_clock);
+
 int q6afe_port_set_sysclk(struct q6afe_port *port, int clk_id,
 			  int clk_src, int clk_root,
 			  unsigned int freq, int dir)
@@ -980,7 +1139,7 @@ int q6afe_port_set_sysclk(struct q6afe_port *port, int clk_id,
 		ccfg.clk_src = clk_src;
 		ccfg.clk_root = clk_root;
 		ccfg.clk_set_mode = Q6AFE_LPASS_MODE_CLK1_VALID;
-		ret = q6afe_set_lpass_clock(port, &ccfg);
+		ret = q6afe_port_set_lpass_clock(port, &ccfg);
 		break;
 
 	case LPAIF_OSR_CLK:
@@ -989,11 +1148,12 @@ int q6afe_port_set_sysclk(struct q6afe_port *port, int clk_id,
 		ccfg.clk_src = clk_src;
 		ccfg.clk_root = clk_root;
 		ccfg.clk_set_mode = Q6AFE_LPASS_MODE_CLK2_VALID;
-		ret = q6afe_set_lpass_clock(port, &ccfg);
+		ret = q6afe_port_set_lpass_clock(port, &ccfg);
 		break;
 	case Q6AFE_LPASS_CLK_ID_PRI_MI2S_IBIT ... Q6AFE_LPASS_CLK_ID_QUI_MI2S_OSR:
 	case Q6AFE_LPASS_CLK_ID_MCLK_1 ... Q6AFE_LPASS_CLK_ID_INT_MCLK_1:
 	case Q6AFE_LPASS_CLK_ID_PRI_TDM_IBIT ... Q6AFE_LPASS_CLK_ID_QUIN_TDM_EBIT:
+	case Q6AFE_LPASS_CLK_ID_WSA_CORE_MCLK ... Q6AFE_LPASS_CLK_ID_VA_CORE_2X_MCLK:
 		cset.clk_set_minor_version = AFE_API_VERSION_CLOCK_SET;
 		cset.clk_id = clk_id;
 		cset.clk_freq_in_hz = freq;
@@ -1054,7 +1214,7 @@ int q6afe_port_stop(struct q6afe_port *port)
 	stop->port_id = port_id;
 	stop->reserved = 0;
 
-	ret = afe_apr_send_pkt(afe, pkt, port);
+	ret = afe_apr_send_pkt(afe, pkt, port, AFE_PORT_CMD_DEVICE_STOP);
 	if (ret)
 		dev_err(afe->dev, "AFE close failed %d\n", ret);
 
@@ -1289,6 +1449,28 @@ int q6afe_i2s_port_prepare(struct q6afe_port *port, struct q6afe_i2s_cfg *cfg)
 EXPORT_SYMBOL_GPL(q6afe_i2s_port_prepare);
 
 /**
+ * q6afe_dam_port_prepare() - Prepare dma afe port.
+ *
+ * @port: Instance of afe port
+ * @cfg: DMA configuration for the afe port
+ *
+ */
+void q6afe_cdc_dma_port_prepare(struct q6afe_port *port,
+				struct q6afe_cdc_dma_cfg *cfg)
+{
+	union afe_port_config *pcfg = &port->port_cfg;
+	struct afe_param_id_cdc_dma_cfg *dma_cfg = &pcfg->dma_cfg;
+
+	dma_cfg->cdc_dma_cfg_minor_version = AFE_API_VERSION_CODEC_DMA_CONFIG;
+	dma_cfg->sample_rate = cfg->sample_rate;
+	dma_cfg->bit_width = cfg->bit_width;
+	dma_cfg->data_format = cfg->data_format;
+	dma_cfg->num_channels = cfg->num_channels;
+	if (!cfg->active_channels_mask)
+		dma_cfg->active_channels_mask = (1 << cfg->num_channels) - 1;
+}
+EXPORT_SYMBOL_GPL(q6afe_cdc_dma_port_prepare);
+/**
  * q6afe_port_start() - Start a afe port
  *
  * @port: Instance of port to start
@@ -1344,7 +1526,7 @@ int q6afe_port_start(struct q6afe_port *port)
 
 	start->port_id = port_id;
 
-	ret = afe_apr_send_pkt(afe, pkt, port);
+	ret = afe_apr_send_pkt(afe, pkt, port, AFE_PORT_CMD_DEVICE_START);
 	if (ret)
 		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
 			port_id, ret);
@@ -1420,7 +1602,9 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 	case AFE_PORT_ID_PRIMARY_TDM_RX ... AFE_PORT_ID_QUINARY_TDM_TX_7:
 		cfg_type = AFE_PARAM_ID_TDM_CONFIG;
 		break;
-
+	case AFE_PORT_ID_WSA_CODEC_DMA_RX_0 ... AFE_PORT_ID_RX_CODEC_DMA_RX_7:
+		cfg_type = AFE_PARAM_ID_CODEC_DMA_CONFIG;
+	break;
 	default:
 		dev_err(dev, "Invalid port id 0x%x\n", port_id);
 		return ERR_PTR(-EINVAL);
@@ -1458,6 +1642,85 @@ void q6afe_port_put(struct q6afe_port *port)
 }
 EXPORT_SYMBOL_GPL(q6afe_port_put);
 
+int q6afe_unvote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
+			       uint32_t client_handle)
+{
+	struct q6afe *afe = dev_get_drvdata(dev->parent);
+	struct afe_cmd_remote_lpass_core_hw_devote_request *vote_cfg;
+	struct apr_pkt *pkt;
+	int ret = 0;
+	int pkt_size;
+	void *p;
+
+	pkt_size = APR_HDR_SIZE + sizeof(*vote_cfg);
+	p = kzalloc(pkt_size, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	pkt = p;
+	vote_cfg = p + APR_HDR_SIZE;
+
+	pkt->hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+					   APR_HDR_LEN(APR_HDR_SIZE),
+					   APR_PKT_VER);
+	pkt->hdr.pkt_size = pkt_size;
+	pkt->hdr.src_port = 0;
+	pkt->hdr.dest_port = 0;
+	pkt->hdr.token = hw_block_id;
+	pkt->hdr.opcode = AFE_CMD_REMOTE_LPASS_CORE_HW_DEVOTE_REQUEST;
+	vote_cfg->hw_block_id = hw_block_id;
+	vote_cfg->client_handle = client_handle;
+
+	ret = apr_send_pkt(afe->apr, pkt);
+	if (ret < 0)
+		dev_err(afe->dev, "AFE failed to unvote (%d)\n", hw_block_id);
+
+	kfree(pkt);
+	return ret;
+}
+EXPORT_SYMBOL(q6afe_unvote_lpass_core_hw);
+
+int q6afe_vote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
+			     char *client_name, uint32_t *client_handle)
+{
+	struct q6afe *afe = dev_get_drvdata(dev->parent);
+	struct afe_cmd_remote_lpass_core_hw_vote_request *vote_cfg;
+	struct apr_pkt *pkt;
+	int ret = 0;
+	int pkt_size;
+	void *p;
+
+	pkt_size = APR_HDR_SIZE + sizeof(*vote_cfg);
+	p = kzalloc(pkt_size, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	pkt = p;
+	vote_cfg = p + APR_HDR_SIZE;
+
+	pkt->hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+					   APR_HDR_LEN(APR_HDR_SIZE),
+					   APR_PKT_VER);
+	pkt->hdr.pkt_size = pkt_size;
+	pkt->hdr.src_port = 0;
+	pkt->hdr.dest_port = 0;
+	pkt->hdr.token = hw_block_id;
+	pkt->hdr.opcode = AFE_CMD_REMOTE_LPASS_CORE_HW_VOTE_REQUEST;
+	vote_cfg->hw_block_id = hw_block_id;
+	strlcpy(vote_cfg->client_name, client_name,
+			sizeof(vote_cfg->client_name));
+
+	ret = afe_apr_send_pkt(afe, pkt, NULL,
+			       AFE_CMD_RSP_REMOTE_LPASS_CORE_HW_VOTE_REQUEST);
+	if (ret)
+		dev_err(afe->dev, "AFE failed to vote (%d)\n", hw_block_id);
+
+
+	kfree(pkt);
+	return ret;
+}
+EXPORT_SYMBOL(q6afe_vote_lpass_core_hw);
+
 static int q6afe_probe(struct apr_device *adev)
 {
 	struct q6afe *afe;
@@ -1470,6 +1733,7 @@ static int q6afe_probe(struct apr_device *adev)
 	q6core_get_svc_api_info(adev->svc_id, &afe->ainfo);
 	afe->apr = adev;
 	mutex_init(&afe->lock);
+	init_waitqueue_head(&afe->wait);
 	afe->dev = dev;
 	INIT_LIST_HEAD(&afe->port_list);
 	spin_lock_init(&afe->port_list_lock);
@@ -1486,11 +1750,13 @@ static int q6afe_remove(struct apr_device *adev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id q6afe_device_id[]  = {
 	{ .compatible = "qcom,q6afe" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, q6afe_device_id);
+#endif
 
 static struct apr_driver qcom_q6afe_driver = {
 	.probe = q6afe_probe,

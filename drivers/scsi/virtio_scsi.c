@@ -100,7 +100,7 @@ static void virtscsi_compute_resid(struct scsi_cmnd *sc, u32 resid)
 		scsi_set_resid(sc, resid);
 }
 
-/**
+/*
  * virtscsi_complete_cmd - finish a scsi_cmd and invoke scsi_done
  *
  * Called with vq_lock held.
@@ -148,7 +148,7 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 	default:
 		scmd_printk(KERN_WARNING, sc, "Unknown response %d",
 			    resp->response);
-		/* fall through */
+		fallthrough;
 	case VIRTIO_SCSI_S_FAILURE:
 		set_host_byte(sc, DID_ERROR);
 		break;
@@ -284,7 +284,12 @@ static void virtscsi_handle_transport_reset(struct virtio_scsi *vscsi,
 
 	switch (virtio32_to_cpu(vscsi->vdev, event->reason)) {
 	case VIRTIO_SCSI_EVT_RESET_RESCAN:
-		scsi_add_device(shost, 0, target, lun);
+		if (lun == 0) {
+			scsi_scan_target(&shost->shost_gendev, 0, target,
+					 SCAN_WILD_CARD, SCSI_SCAN_INITIAL);
+		} else {
+			scsi_add_device(shost, 0, target, lun);
+		}
 		break;
 	case VIRTIO_SCSI_EVT_RESET_REMOVED:
 		sdev = scsi_device_lookup(shost, 0, target, lun);
@@ -349,6 +354,14 @@ static void virtscsi_rescan_hotunplug(struct virtio_scsi *vscsi)
 
 		if (result == 0 && inq_result[0] >> 5) {
 			/* PQ indicates the LUN is not attached */
+			scsi_remove_device(sdev);
+		} else if (host_byte(result) == DID_BAD_TARGET) {
+			/*
+			 * If all LUNs of a virtio-scsi device are unplugged
+			 * it will respond with BAD TARGET on any INQUIRY
+			 * command.
+			 * Remove the device in this case as well.
+			 */
 			scsi_remove_device(sdev);
 		}
 	}
@@ -742,19 +755,18 @@ static struct scsi_host_template virtscsi_host_template = {
 	.dma_boundary = UINT_MAX,
 	.map_queues = virtscsi_map_queues,
 	.track_queue_depth = 1,
-	.force_blk_mq = 1,
 };
 
 #define virtscsi_config_get(vdev, fld) \
 	({ \
-		typeof(((struct virtio_scsi_config *)0)->fld) __val; \
+		__virtio_native_type(struct virtio_scsi_config, fld) __val; \
 		virtio_cread(vdev, struct virtio_scsi_config, fld, &__val); \
 		__val; \
 	})
 
 #define virtscsi_config_set(vdev, fld, val) \
 	do { \
-		typeof(((struct virtio_scsi_config *)0)->fld) __val = (val); \
+		__virtio_native_type(struct virtio_scsi_config, fld) __val = (val); \
 		virtio_cwrite(vdev, struct virtio_scsi_config, fld, &__val); \
 	} while(0)
 
@@ -1003,14 +1015,10 @@ static int __init init(void)
 	return 0;
 
 error:
-	if (virtscsi_cmd_pool) {
-		mempool_destroy(virtscsi_cmd_pool);
-		virtscsi_cmd_pool = NULL;
-	}
-	if (virtscsi_cmd_cache) {
-		kmem_cache_destroy(virtscsi_cmd_cache);
-		virtscsi_cmd_cache = NULL;
-	}
+	mempool_destroy(virtscsi_cmd_pool);
+	virtscsi_cmd_pool = NULL;
+	kmem_cache_destroy(virtscsi_cmd_cache);
+	virtscsi_cmd_cache = NULL;
 	return ret;
 }
 

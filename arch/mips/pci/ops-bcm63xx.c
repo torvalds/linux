@@ -474,7 +474,7 @@ static int bcm63xx_pcie_can_access(struct pci_bus *bus, int devfn)
 		if (PCI_SLOT(devfn) == 0)
 			return bcm_pcie_readl(PCIE_DLSTATUS_REG)
 					& DLSTATUS_PHYLINKUP;
-		/* else, fall through */
+		fallthrough;
 	default:
 		return false;
 	}

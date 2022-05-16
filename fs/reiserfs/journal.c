@@ -32,7 +32,7 @@
  *                      to disk for all backgrounded commits that have been
  *                      around too long.
  *		     -- Note, if you call this as an immediate flush from
- *		        from within kupdate, it will ignore the immediate flag
+ *		        within kupdate, it will ignore the immediate flag
  */
 
 #include <linux/time.h>
@@ -56,8 +56,6 @@
 /* gets a struct reiserfs_journal_list * from a list head */
 #define JOURNAL_LIST_ENTRY(h) (list_entry((h), struct reiserfs_journal_list, \
                                j_list))
-#define JOURNAL_WORK_ENTRY(h) (list_entry((h), struct reiserfs_journal_list, \
-                               j_working_list))
 
 /* must be correct to keep the desc and commit structs at 4k */
 #define JOURNAL_TRANS_HALF 1018
@@ -2601,7 +2599,6 @@ static int journal_init_dev(struct super_block *super,
 	int result;
 	dev_t jdev;
 	fmode_t blkdev_mode = FMODE_READ | FMODE_WRITE | FMODE_EXCL;
-	char b[BDEVNAME_SIZE];
 
 	result = 0;
 
@@ -2623,8 +2620,8 @@ static int journal_init_dev(struct super_block *super,
 			result = PTR_ERR(journal->j_dev_bd);
 			journal->j_dev_bd = NULL;
 			reiserfs_warning(super, "sh-458",
-					 "cannot init journal device '%s': %i",
-					 __bdevname(jdev, b), result);
+					 "cannot init journal device unknown-block(%u,%u): %i",
+					 MAJOR(jdev), MINOR(jdev), result);
 			return result;
 		} else if (jdev != super->s_dev)
 			set_blocksize(journal->j_dev_bd, super->s_blocksize);

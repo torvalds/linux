@@ -29,8 +29,12 @@ What:           /sys/class/genwqe/genwqe<n>_card/reload_bitstream
 Date:           May 2014
 Contact:        klebers@linux.vnet.ibm.com
 Description:    Interface to trigger a PCIe card reset to reload the bitstream.
+
+		::
+
                   sudo sh -c 'echo 1 > \
                     /sys/class/genwqe/genwqe0_card/reload_bitstream'
+
                 If successfully, the card will come back with the bitstream set
                 on 'next_bitstream'.
 
@@ -64,8 +68,11 @@ Description:    Base clock frequency of the card.
 What:           /sys/class/genwqe/genwqe<n>_card/device/sriov_numvfs
 Date:           Oct 2013
 Contact:        haver@linux.vnet.ibm.com
-Description:    Enable VFs (1..15):
+Description:    Enable VFs (1..15)::
+
                   sudo sh -c 'echo 15 > \
                     /sys/bus/pci/devices/0000\:1b\:00.0/sriov_numvfs'
-                Disable VFs:
+
+                Disable VFs::
+
                   Write a 0 into the same sysfs entry.

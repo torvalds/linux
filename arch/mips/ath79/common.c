@@ -41,7 +41,7 @@ static void __iomem *ath79_ddr_pci_win_base;
 
 void ath79_ddr_ctrl_init(void)
 {
-	ath79_ddr_base = ioremap_nocache(AR71XX_DDR_CTRL_BASE,
+	ath79_ddr_base = ioremap(AR71XX_DDR_CTRL_BASE,
 					 AR71XX_DDR_CTRL_SIZE);
 	if (soc_is_ar913x() || soc_is_ar724x() || soc_is_ar933x()) {
 		ath79_ddr_wb_flush_base = ath79_ddr_base + 0x7c;

@@ -34,6 +34,355 @@
 			clock-frequency = <24000000>;
 		};
 	};
+
+	bus_wcore_opp_table: opp_table2 {
+		compatible = "operating-points-v2";
+
+		/* derived from 532MHz MPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <88700000>;
+			opp-microvolt = <925000 925000 1400000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <133000000>;
+			opp-microvolt = <950000 950000 1400000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <177400000>;
+			opp-microvolt = <950000 950000 1400000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <266000000>;
+			opp-microvolt = <950000 950000 1400000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <532000000>;
+			opp-microvolt = <1000000 1000000 1400000>;
+		};
+	};
+
+	bus_noc_opp_table: opp_table3 {
+		compatible = "operating-points-v2";
+
+		/* derived from 666MHz CPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <66600000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <74000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <83250000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <111000000>;
+		};
+	};
+
+	bus_fsys_apb_opp_table: opp_table4 {
+		compatible = "operating-points-v2";
+
+		/* derived from 666MHz CPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <111000000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <222000000>;
+		};
+	};
+
+	bus_fsys2_opp_table: opp_table5 {
+		compatible = "operating-points-v2";
+
+		/* derived from 600MHz DPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <75000000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <120000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <200000000>;
+		};
+	};
+
+	bus_mfc_opp_table: opp_table6 {
+		compatible = "operating-points-v2";
+
+		/* derived from 666MHz CPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <83250000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <111000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <166500000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <222000000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <333000000>;
+		};
+	};
+
+	bus_gen_opp_table: opp_table7 {
+		compatible = "operating-points-v2";
+
+		/* derived from 532MHz MPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <88700000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <133000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <178000000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <266000000>;
+		};
+	};
+
+	bus_peri_opp_table: opp_table8 {
+		compatible = "operating-points-v2";
+
+		/* derived from 666MHz CPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <66600000>;
+		};
+	};
+
+	bus_g2d_opp_table: opp_table9 {
+		compatible = "operating-points-v2";
+
+		/* derived from 666MHz CPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <83250000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <111000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <166500000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <222000000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <333000000>;
+		};
+	};
+
+	bus_g2d_acp_opp_table: opp_table10 {
+		compatible = "operating-points-v2";
+
+		/* derived from 532MHz MPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <66500000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <133000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <178000000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <266000000>;
+		};
+	};
+
+	bus_jpeg_opp_table: opp_table11 {
+		compatible = "operating-points-v2";
+
+		/* derived from 600MHz DPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <75000000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <150000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <200000000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <300000000>;
+		};
+	};
+
+	bus_jpeg_apb_opp_table: opp_table12 {
+		compatible = "operating-points-v2";
+
+		/* derived from 666MHz CPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <83250000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <111000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <133000000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <166500000>;
+		};
+	};
+
+	bus_disp1_fimd_opp_table: opp_table13 {
+		compatible = "operating-points-v2";
+
+		/* derived from 600MHz DPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <120000000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <200000000>;
+		};
+	};
+
+	bus_disp1_opp_table: opp_table14 {
+		compatible = "operating-points-v2";
+
+		/* derived from 600MHz DPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <120000000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <200000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <300000000>;
+		};
+	};
+
+	bus_gscl_opp_table: opp_table15 {
+		compatible = "operating-points-v2";
+
+		/* derived from 600MHz DPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <150000000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <200000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <300000000>;
+		};
+	};
+
+	bus_mscl_opp_table: opp_table16 {
+		compatible = "operating-points-v2";
+
+		/* derived from 666MHz CPLL */
+		opp00 {
+			opp-hz = /bits/ 64 <84000000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <167000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <222000000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <333000000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <666000000>;
+		};
+	};
+
+	dmc_opp_table: opp_table17 {
+		compatible = "operating-points-v2";
+
+		opp00 {
+			opp-hz = /bits/ 64 <165000000>;
+			opp-microvolt = <875000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <206000000>;
+			opp-microvolt = <875000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <275000000>;
+			opp-microvolt = <875000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <413000000>;
+			opp-microvolt = <887500>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <543000000>;
+			opp-microvolt = <937500>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <633000000>;
+			opp-microvolt = <1012500>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <728000000>;
+			opp-microvolt = <1037500>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <825000000>;
+			opp-microvolt = <1050000>;
+		};
+	};
+
+	samsung_K3QF2F20DB: lpddr3 {
+		compatible	= "samsung,K3QF2F20DB", "jedec,lpddr3";
+		density		= <16384>;
+		io-width	= <32>;
+		#address-cells	= <1>;
+		#size-cells	= <0>;
+
+		tRFC-min-tck		= <17>;
+		tRRD-min-tck		= <2>;
+		tRPab-min-tck		= <2>;
+		tRPpb-min-tck		= <2>;
+		tRCD-min-tck		= <3>;
+		tRC-min-tck		= <6>;
+		tRAS-min-tck		= <5>;
+		tWTR-min-tck		= <2>;
+		tWR-min-tck		= <7>;
+		tRTP-min-tck		= <2>;
+		tW2W-C2C-min-tck	= <0>;
+		tR2R-C2C-min-tck	= <0>;
+		tWL-min-tck		= <8>;
+		tDQSCK-min-tck		= <5>;
+		tRL-min-tck		= <14>;
+		tFAW-min-tck		= <5>;
+		tXSR-min-tck		= <12>;
+		tXP-min-tck		= <2>;
+		tCKE-min-tck		= <2>;
+		tCKESR-min-tck		= <2>;
+		tMRD-min-tck		= <5>;
+
+		timings_samsung_K3QF2F20DB_800mhz: lpddr3-timings@800000000 {
+			compatible	= "jedec,lpddr3-timings";
+			/* workaround: 'reg' shows max-freq */
+			reg		= <800000000>;
+			min-freq	= <100000000>;
+			tRFC		= <65000>;
+			tRRD		= <6000>;
+			tRPab		= <12000>;
+			tRPpb		= <12000>;
+			tRCD		= <10000>;
+			tRC		= <33750>;
+			tRAS		= <23000>;
+			tWTR		= <3750>;
+			tWR		= <7500>;
+			tRTP		= <3750>;
+			tW2W-C2C	= <0>;
+			tR2R-C2C	= <0>;
+			tFAW		= <25000>;
+			tXSR		= <70000>;
+			tXP		= <3750>;
+			tCKE		= <3750>;
+			tCKESR		= <3750>;
+			tMRD		= <7000>;
+		};
+	};
 };
 
 &adc {
@@ -42,6 +391,7 @@
 };
 
 &bus_wcore {
+	operating-points-v2 = <&bus_wcore_opp_table>;
 	devfreq-events = <&nocp_mem0_0>, <&nocp_mem0_1>,
 			<&nocp_mem1_0>, <&nocp_mem1_1>;
 	vdd-supply = <&buck3_reg>;
@@ -50,76 +400,85 @@
 };
 
 &bus_noc {
+	operating-points-v2 = <&bus_noc_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_fsys_apb {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_fsys {
+	operating-points-v2 = <&bus_fsys_apb_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_fsys2 {
+	operating-points-v2 = <&bus_fsys2_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_mfc {
+	operating-points-v2 = <&bus_mfc_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_gen {
+	operating-points-v2 = <&bus_gen_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_peri {
+	operating-points-v2 = <&bus_peri_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_g2d {
+	operating-points-v2 = <&bus_g2d_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_g2d_acp {
+	operating-points-v2 = <&bus_g2d_acp_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_jpeg {
+	operating-points-v2 = <&bus_jpeg_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_jpeg_apb {
+	operating-points-v2 = <&bus_jpeg_apb_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_disp1_fimd {
+	operating-points-v2 = <&bus_disp1_fimd_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_disp1 {
+	operating-points-v2 = <&bus_disp1_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_gscl_scaler {
+	operating-points-v2 = <&bus_gscl_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
 
 &bus_mscl {
+	operating-points-v2 = <&bus_mscl_opp_table>;
 	devfreq = <&bus_wcore>;
 	status = "okay";
 };
@@ -130,6 +489,15 @@
 
 &cpu4 {
 	cpu-supply = <&buck2_reg>;
+};
+
+&dmc {
+	devfreq-events = <&ppmu_event3_dmc0_0>,	<&ppmu_event3_dmc0_1>,
+			<&ppmu_event3_dmc1_0>, <&ppmu_event3_dmc1_1>;
+	device-handle = <&samsung_K3QF2F20DB>;
+	operating-points-v2 = <&dmc_opp_table>;
+	vdd-supply = <&buck1_reg>;
+	status = "okay";
 };
 
 &hsi2c_4 {
@@ -500,6 +868,8 @@
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-coupled-with = <&buck3_reg>;
+				regulator-coupled-max-spread = <300000>;
 
 				regulator-state-mem {
 					regulator-off-in-suspend;
@@ -512,6 +882,8 @@
 				regulator-max-microvolt = <1400000>;
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-coupled-with = <&buck2_reg>;
+				regulator-coupled-max-spread = <300000>;
 
 				regulator-state-mem {
 					regulator-off-in-suspend;
@@ -522,8 +894,8 @@
 				regulator-name = "vdd_g3d";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1400000>;
-				regulator-always-on;
 				regulator-boot-on;
+				regulator-always-on;
 
 				regulator-state-mem {
 					regulator-off-in-suspend;
@@ -634,6 +1006,22 @@
 	};
 };
 
+&ppmu_dmc0_0 {
+	status = "okay";
+};
+
+&ppmu_dmc0_1 {
+	status = "okay";
+};
+
+&ppmu_dmc1_0 {
+	status = "okay";
+};
+
+&ppmu_dmc1_1 {
+	status = "okay";
+};
+
 &tmu_cpu0 {
 	vtmu-supply = <&ldo7_reg>;
 };
@@ -652,6 +1040,11 @@
 
 &tmu_gpu {
 	vtmu-supply = <&ldo7_reg>;
+};
+
+&gpu {
+	mali-supply = <&buck4_reg>;
+	status = "okay";
 };
 
 &rtc {

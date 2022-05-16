@@ -56,6 +56,10 @@
 #include "../pinctrl-utils.h"
 #include "pinctrl-meson.h"
 
+static const unsigned int meson_bit_strides[] = {
+	1, 1, 1, 1, 1, 2, 1
+};
+
 /**
  * meson_get_bank() - find the bank containing a given pin
  *
@@ -96,8 +100,9 @@ static void meson_calc_reg_and_bit(struct meson_bank *bank, unsigned int pin,
 {
 	struct meson_reg_desc *desc = &bank->regs[reg_type];
 
-	*reg = desc->reg * 4;
-	*bit = desc->bit + pin - bank->first;
+	*bit = (desc->bit + pin - bank->first) * meson_bit_strides[reg_type];
+	*reg = (desc->reg + (*bit / 32)) * 4;
+	*bit &= 0x1f;
 }
 
 static int meson_get_groups_count(struct pinctrl_dev *pcdev)
@@ -314,7 +319,6 @@ static int meson_pinconf_set_drive_strength(struct meson_pinctrl *pc,
 		return ret;
 
 	meson_calc_reg_and_bit(bank, pin, REG_DS, &reg, &bit);
-	bit = bit << 1;
 
 	if (drive_strength_ua <= 500) {
 		ds_val = MESON_PINCONF_DRV_500UA;
@@ -548,6 +552,18 @@ static const struct pinconf_ops meson_pinconf_ops = {
 	.is_generic		= true,
 };
 
+static int meson_gpio_get_direction(struct gpio_chip *chip, unsigned gpio)
+{
+	struct meson_pinctrl *pc = gpiochip_get_data(chip);
+	int ret;
+
+	ret = meson_pinconf_get_output(pc, gpio);
+	if (ret < 0)
+		return ret;
+
+	return ret ? GPIO_LINE_DIRECTION_OUT : GPIO_LINE_DIRECTION_IN;
+}
+
 static int meson_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 {
 	return meson_pinconf_set_output(gpiochip_get_data(chip), gpio, false);
@@ -590,6 +606,8 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 	pc->chip.parent = pc->dev;
 	pc->chip.request = gpiochip_generic_request;
 	pc->chip.free = gpiochip_generic_free;
+	pc->chip.set_config = gpiochip_generic_config;
+	pc->chip.get_direction = meson_gpio_get_direction;
 	pc->chip.direction_input = meson_gpio_direction_input;
 	pc->chip.direction_output = meson_gpio_direction_output;
 	pc->chip.get = meson_gpio_get;
@@ -625,7 +643,7 @@ static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
 
 	i = of_property_match_string(node, "reg-names", name);
 	if (of_address_to_resource(node, i, &res))
-		return ERR_PTR(-ENOENT);
+		return NULL;
 
 	base = devm_ioremap_resource(pc->dev, &res);
 	if (IS_ERR(base))
@@ -665,32 +683,52 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 	pc->of_node = gpio_np;
 
 	pc->reg_mux = meson_map_resource(pc, gpio_np, "mux");
-	if (IS_ERR(pc->reg_mux)) {
+	if (IS_ERR_OR_NULL(pc->reg_mux)) {
 		dev_err(pc->dev, "mux registers not found\n");
-		return PTR_ERR(pc->reg_mux);
+		return pc->reg_mux ? PTR_ERR(pc->reg_mux) : -ENOENT;
 	}
 
 	pc->reg_gpio = meson_map_resource(pc, gpio_np, "gpio");
-	if (IS_ERR(pc->reg_gpio)) {
+	if (IS_ERR_OR_NULL(pc->reg_gpio)) {
 		dev_err(pc->dev, "gpio registers not found\n");
-		return PTR_ERR(pc->reg_gpio);
+		return pc->reg_gpio ? PTR_ERR(pc->reg_gpio) : -ENOENT;
 	}
 
 	pc->reg_pull = meson_map_resource(pc, gpio_np, "pull");
-	/* Use gpio region if pull one is not present */
 	if (IS_ERR(pc->reg_pull))
-		pc->reg_pull = pc->reg_gpio;
+		pc->reg_pull = NULL;
 
 	pc->reg_pullen = meson_map_resource(pc, gpio_np, "pull-enable");
-	/* Use pull region if pull-enable one is not present */
 	if (IS_ERR(pc->reg_pullen))
-		pc->reg_pullen = pc->reg_pull;
+		pc->reg_pullen = NULL;
 
 	pc->reg_ds = meson_map_resource(pc, gpio_np, "ds");
 	if (IS_ERR(pc->reg_ds)) {
 		dev_dbg(pc->dev, "ds registers not found - skipping\n");
 		pc->reg_ds = NULL;
 	}
+
+	if (pc->data->parse_dt)
+		return pc->data->parse_dt(pc);
+
+	return 0;
+}
+
+int meson8_aobus_parse_dt_extra(struct meson_pinctrl *pc)
+{
+	if (!pc->reg_pull)
+		return -EINVAL;
+
+	pc->reg_pullen = pc->reg_pull;
+
+	return 0;
+}
+
+int meson_a1_parse_dt_extra(struct meson_pinctrl *pc)
+{
+	pc->reg_pull = pc->reg_gpio;
+	pc->reg_pullen = pc->reg_gpio;
+	pc->reg_ds = pc->reg_gpio;
 
 	return 0;
 }

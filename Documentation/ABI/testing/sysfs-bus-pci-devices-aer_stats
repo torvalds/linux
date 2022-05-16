@@ -1,6 +1,6 @@
-==========================
 PCIe Device AER statistics
-==========================
+--------------------------
+
 These attributes show up under all the devices that are AER capable. These
 statistical counters indicate the errors "as seen/reported by the device".
 Note that this may mean that if an endpoint is causing problems, the AER
@@ -17,19 +17,18 @@ Description:	List of correctable errors seen and reported by this
 		PCI device using ERR_COR. Note that since multiple errors may
 		be reported using a single ERR_COR message, thus
 		TOTAL_ERR_COR at the end of the file may not match the actual
-		total of all the errors in the file. Sample output:
--------------------------------------------------------------------------
-localhost /sys/devices/pci0000:00/0000:00:1c.0 # cat aer_dev_correctable
-Receiver Error 2
-Bad TLP 0
-Bad DLLP 0
-RELAY_NUM Rollover 0
-Replay Timer Timeout 0
-Advisory Non-Fatal 0
-Corrected Internal Error 0
-Header Log Overflow 0
-TOTAL_ERR_COR 2
--------------------------------------------------------------------------
+		total of all the errors in the file. Sample output::
+
+		    localhost /sys/devices/pci0000:00/0000:00:1c.0 # cat aer_dev_correctable
+		    Receiver Error 2
+		    Bad TLP 0
+		    Bad DLLP 0
+		    RELAY_NUM Rollover 0
+		    Replay Timer Timeout 0
+		    Advisory Non-Fatal 0
+		    Corrected Internal Error 0
+		    Header Log Overflow 0
+		    TOTAL_ERR_COR 2
 
 What:		/sys/bus/pci/devices/<dev>/aer_dev_fatal
 Date:		July 2018
@@ -39,28 +38,27 @@ Description:	List of uncorrectable fatal errors seen and reported by this
 		PCI device using ERR_FATAL. Note that since multiple errors may
 		be reported using a single ERR_FATAL message, thus
 		TOTAL_ERR_FATAL at the end of the file may not match the actual
-		total of all the errors in the file. Sample output:
--------------------------------------------------------------------------
-localhost /sys/devices/pci0000:00/0000:00:1c.0 # cat aer_dev_fatal
-Undefined 0
-Data Link Protocol 0
-Surprise Down Error 0
-Poisoned TLP 0
-Flow Control Protocol 0
-Completion Timeout 0
-Completer Abort 0
-Unexpected Completion 0
-Receiver Overflow 0
-Malformed TLP 0
-ECRC 0
-Unsupported Request 0
-ACS Violation 0
-Uncorrectable Internal Error 0
-MC Blocked TLP 0
-AtomicOp Egress Blocked 0
-TLP Prefix Blocked Error 0
-TOTAL_ERR_FATAL 0
--------------------------------------------------------------------------
+		total of all the errors in the file. Sample output::
+
+		    localhost /sys/devices/pci0000:00/0000:00:1c.0 # cat aer_dev_fatal
+		    Undefined 0
+		    Data Link Protocol 0
+		    Surprise Down Error 0
+		    Poisoned TLP 0
+		    Flow Control Protocol 0
+		    Completion Timeout 0
+		    Completer Abort 0
+		    Unexpected Completion 0
+		    Receiver Overflow 0
+		    Malformed TLP 0
+		    ECRC 0
+		    Unsupported Request 0
+		    ACS Violation 0
+		    Uncorrectable Internal Error 0
+		    MC Blocked TLP 0
+		    AtomicOp Egress Blocked 0
+		    TLP Prefix Blocked Error 0
+		    TOTAL_ERR_FATAL 0
 
 What:		/sys/bus/pci/devices/<dev>/aer_dev_nonfatal
 Date:		July 2018
@@ -70,32 +68,31 @@ Description:	List of uncorrectable nonfatal errors seen and reported by this
 		PCI device using ERR_NONFATAL. Note that since multiple errors
 		may be reported using a single ERR_FATAL message, thus
 		TOTAL_ERR_NONFATAL at the end of the file may not match the
-		actual total of all the errors in the file. Sample output:
--------------------------------------------------------------------------
-localhost /sys/devices/pci0000:00/0000:00:1c.0 # cat aer_dev_nonfatal
-Undefined 0
-Data Link Protocol 0
-Surprise Down Error 0
-Poisoned TLP 0
-Flow Control Protocol 0
-Completion Timeout 0
-Completer Abort 0
-Unexpected Completion 0
-Receiver Overflow 0
-Malformed TLP 0
-ECRC 0
-Unsupported Request 0
-ACS Violation 0
-Uncorrectable Internal Error 0
-MC Blocked TLP 0
-AtomicOp Egress Blocked 0
-TLP Prefix Blocked Error 0
-TOTAL_ERR_NONFATAL 0
--------------------------------------------------------------------------
+		actual total of all the errors in the file. Sample output::
 
-============================
+		    localhost /sys/devices/pci0000:00/0000:00:1c.0 # cat aer_dev_nonfatal
+		    Undefined 0
+		    Data Link Protocol 0
+		    Surprise Down Error 0
+		    Poisoned TLP 0
+		    Flow Control Protocol 0
+		    Completion Timeout 0
+		    Completer Abort 0
+		    Unexpected Completion 0
+		    Receiver Overflow 0
+		    Malformed TLP 0
+		    ECRC 0
+		    Unsupported Request 0
+		    ACS Violation 0
+		    Uncorrectable Internal Error 0
+		    MC Blocked TLP 0
+		    AtomicOp Egress Blocked 0
+		    TLP Prefix Blocked Error 0
+		    TOTAL_ERR_NONFATAL 0
+
 PCIe Rootport AER statistics
-============================
+----------------------------
+
 These attributes show up under only the rootports (or root complex event
 collectors) that are AER capable. These indicate the number of error messages as
 "reported to" the rootport. Please note that the rootports also transmit

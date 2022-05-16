@@ -16,31 +16,7 @@
 #include <linux/clk.h>
 
 #include "sdhci-pltfm.h"
-
-/* F_SDH30 extended Controller registers */
-#define F_SDH30_AHB_CONFIG		0x100
-#define  F_SDH30_AHB_BIGED		0x00000040
-#define  F_SDH30_BUSLOCK_DMA		0x00000020
-#define  F_SDH30_BUSLOCK_EN		0x00000010
-#define  F_SDH30_SIN			0x00000008
-#define  F_SDH30_AHB_INCR_16		0x00000004
-#define  F_SDH30_AHB_INCR_8		0x00000002
-#define  F_SDH30_AHB_INCR_4		0x00000001
-
-#define F_SDH30_TUNING_SETTING		0x108
-#define  F_SDH30_CMD_CHK_DIS		0x00010000
-
-#define F_SDH30_IO_CONTROL2		0x114
-#define  F_SDH30_CRES_O_DN		0x00080000
-#define  F_SDH30_MSEL_O_1_8		0x00040000
-
-#define F_SDH30_ESD_CONTROL		0x124
-#define  F_SDH30_EMMC_RST		0x00000002
-#define  F_SDH30_EMMC_HS200		0x01000000
-
-#define F_SDH30_CMD_DAT_DELAY		0x200
-
-#define F_SDH30_MIN_CLOCK		400000
+#include "sdhci_f_sdh30.h"
 
 struct f_sdhost_priv {
 	struct clk *clk_iface;
@@ -113,7 +89,6 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	int irq, ctrl = 0, ret = 0;
 	struct f_sdhost_priv *priv;
 	u32 reg = 0;
@@ -147,8 +122,7 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 	host->ops = &sdhci_f_sdh30_ops;
 	host->irq = irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	host->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(host->ioaddr)) {
 		ret = PTR_ERR(host->ioaddr);
 		goto err;
@@ -245,6 +219,7 @@ MODULE_DEVICE_TABLE(acpi, f_sdh30_acpi_ids);
 static struct platform_driver sdhci_f_sdh30_driver = {
 	.driver = {
 		.name = "f_sdh30",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(f_sdh30_dt_ids),
 		.acpi_match_table = ACPI_PTR(f_sdh30_acpi_ids),
 		.pm	= &sdhci_pltfm_pmops,

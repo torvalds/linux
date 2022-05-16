@@ -188,13 +188,7 @@ static const struct drm_encoder_helper_funcs
 	.commit = mdfld_dsi_dpi_commit,
 };
 
-/*TPO DPI encoder funcs*/
-static const struct drm_encoder_funcs mdfld_tpo_dpi_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 const struct panel_funcs mdfld_tmd_vid_funcs = {
-	.encoder_funcs = &mdfld_tpo_dpi_encoder_funcs,
 	.encoder_helper_funcs = &mdfld_tpo_dpi_encoder_helper_funcs,
 	.get_config_mode = &tmd_vid_get_config_mode,
 	.get_panel_info = tmd_vid_get_panel_info,

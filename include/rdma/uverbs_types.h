@@ -1,33 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #ifndef _UVERBS_TYPES_
@@ -83,9 +56,9 @@ enum rdma_lookup_mode {
  */
 struct uverbs_obj_type_class {
 	struct ib_uobject *(*alloc_begin)(const struct uverbs_api_object *obj,
-					  struct ib_uverbs_file *ufile);
+					  struct uverbs_attr_bundle *attrs);
 	/* This consumes the kref on uobj */
-	int (*alloc_commit)(struct ib_uobject *uobj);
+	void (*alloc_commit)(struct ib_uobject *uobj);
 	/* This does not consume the kref on uobj */
 	void (*alloc_abort)(struct ib_uobject *uobj);
 
@@ -98,7 +71,6 @@ struct uverbs_obj_type_class {
 				       enum rdma_remove_reason why,
 				       struct uverbs_attr_bundle *attrs);
 	void (*remove_handle)(struct ib_uobject *uobj);
-	u8    needs_kfree_rcu;
 };
 
 struct uverbs_obj_type {
@@ -138,23 +110,35 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 void rdma_lookup_put_uobject(struct ib_uobject *uobj,
 			     enum rdma_lookup_mode mode);
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
-					    struct ib_uverbs_file *ufile,
 					    struct uverbs_attr_bundle *attrs);
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj,
-			      struct uverbs_attr_bundle *attrs);
-int __must_check rdma_alloc_commit_uobject(struct ib_uobject *uobj,
-					   struct uverbs_attr_bundle *attrs);
+			      struct uverbs_attr_bundle *attrs,
+			      bool hw_obj_valid);
+void rdma_alloc_commit_uobject(struct ib_uobject *uobj,
+			       struct uverbs_attr_bundle *attrs);
+
+/*
+ * uverbs_uobject_get is called in order to increase the reference count on
+ * an uobject. This is useful when a handler wants to keep the uobject's memory
+ * alive, regardless if this uobject is still alive in the context's objects
+ * repository. Objects are put via uverbs_uobject_put.
+ */
+static inline void uverbs_uobject_get(struct ib_uobject *uobject)
+{
+	kref_get(&uobject->ref);
+}
+void uverbs_uobject_put(struct ib_uobject *uobject);
 
 struct uverbs_obj_fd_type {
 	/*
 	 * In fd based objects, uverbs_obj_type_ops points to generic
 	 * fd operations. In order to specialize the underlying types (e.g.
 	 * completion_channel), we use fops, name and flags for fd creation.
-	 * context_closed is called when the context is closed either when
-	 * the driver is removed or the process terminated.
+	 * destroy_object is called when the uobject is to be destroyed,
+	 * because the driver is removed or the FD is closed.
 	 */
 	struct uverbs_obj_type  type;
-	int (*context_closed)(struct ib_uobject *uobj,
+	int (*destroy_object)(struct ib_uobject *uobj,
 			      enum rdma_remove_reason why);
 	const struct file_operations	*fops;
 	const char			*name;
@@ -163,11 +147,11 @@ struct uverbs_obj_fd_type {
 
 extern const struct uverbs_obj_type_class uverbs_idr_class;
 extern const struct uverbs_obj_type_class uverbs_fd_class;
-void uverbs_close_fd(struct file *f);
+int uverbs_uobject_fd_release(struct inode *inode, struct file *filp);
 
 #define UVERBS_BUILD_BUG_ON(cond) (sizeof(char[1 - 2 * !!(cond)]) -	\
 				   sizeof(char))
-#define UVERBS_TYPE_ALLOC_FD(_obj_size, _context_closed, _fops, _name, _flags)\
+#define UVERBS_TYPE_ALLOC_FD(_obj_size, _destroy_object, _fops, _name, _flags) \
 	((&((const struct uverbs_obj_fd_type)				\
 	 {.type = {							\
 		.type_class = &uverbs_fd_class,				\
@@ -175,7 +159,7 @@ void uverbs_close_fd(struct file *f);
 			UVERBS_BUILD_BUG_ON((_obj_size) <               \
 					    sizeof(struct ib_uobject)), \
 	 },								\
-	 .context_closed = _context_closed,				\
+	 .destroy_object = _destroy_object,				\
 	 .fops = _fops,							\
 	 .name = _name,							\
 	 .flags = _flags}))->type)

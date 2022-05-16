@@ -43,11 +43,17 @@ enum ad7887_channels {
 /**
  * struct ad7887_chip_info - chip specifc information
  * @int_vref_mv:	the internal reference voltage
- * @channel:		channel specification
+ * @channels:		channels specification
+ * @num_channels:	number of channels
+ * @dual_channels:	channels specification in dual mode
+ * @num_dual_channels:	number of channels in dual mode
  */
 struct ad7887_chip_info {
 	u16				int_vref_mv;
-	struct iio_chan_spec		channel[3];
+	const struct iio_chan_spec	*channels;
+	unsigned int			num_channels;
+	const struct iio_chan_spec	*dual_channels;
+	unsigned int			num_dual_channels;
 };
 
 struct ad7887_state {
@@ -103,7 +109,7 @@ static int ad7887_ring_postdisable(struct iio_dev *indio_dev)
 	return spi_sync(st->spi, &st->msg[AD7887_CH0]);
 }
 
-/**
+/*
  * ad7887_trigger_handler() bh of trigger launched polling to ring buffer
  *
  * Currently there is no option in this driver to disable the saving of
@@ -130,8 +136,6 @@ done:
 
 static const struct iio_buffer_setup_ops ad7887_ring_setup_ops = {
 	.preenable = &ad7887_ring_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &ad7887_ring_postdisable,
 };
 
@@ -183,45 +187,43 @@ static int ad7887_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+#define AD7887_CHANNEL(x) { \
+	.type = IIO_VOLTAGE, \
+	.indexed = 1, \
+	.channel = (x), \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
+	.address = (x), \
+	.scan_index = (x), \
+	.scan_type = { \
+		.sign = 'u', \
+		.realbits = 12, \
+		.storagebits = 16, \
+		.shift = 0, \
+		.endianness = IIO_BE, \
+	}, \
+}
+
+static const struct iio_chan_spec ad7887_channels[] = {
+	AD7887_CHANNEL(0),
+	IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
+static const struct iio_chan_spec ad7887_dual_channels[] = {
+	AD7887_CHANNEL(0),
+	AD7887_CHANNEL(1),
+	IIO_CHAN_SOFT_TIMESTAMP(2),
+};
 
 static const struct ad7887_chip_info ad7887_chip_info_tbl[] = {
 	/*
 	 * More devices added in future
 	 */
 	[ID_AD7887] = {
-		.channel[0] = {
-			.type = IIO_VOLTAGE,
-			.indexed = 1,
-			.channel = 1,
-			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-			.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
-			.address = 1,
-			.scan_index = 1,
-			.scan_type = {
-				.sign = 'u',
-				.realbits = 12,
-				.storagebits = 16,
-				.shift = 0,
-				.endianness = IIO_BE,
-			},
-		},
-		.channel[1] = {
-			.type = IIO_VOLTAGE,
-			.indexed = 1,
-			.channel = 0,
-			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-			.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
-			.address = 0,
-			.scan_index = 0,
-			.scan_type = {
-				.sign = 'u',
-				.realbits = 12,
-				.storagebits = 16,
-				.shift = 0,
-				.endianness = IIO_BE,
-			},
-		},
-		.channel[2] = IIO_CHAN_SOFT_TIMESTAMP(2),
+		.channels = ad7887_channels,
+		.num_channels = ARRAY_SIZE(ad7887_channels),
+		.dual_channels = ad7887_dual_channels,
+		.num_dual_channels = ARRAY_SIZE(ad7887_dual_channels),
 		.int_vref_mv = 2500,
 	},
 };
@@ -260,9 +262,6 @@ static int ad7887_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 	st->spi = spi;
 
-	/* Estabilish that the iio_dev is a child of the spi device */
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad7887_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -306,11 +305,11 @@ static int ad7887_probe(struct spi_device *spi)
 		spi_message_init(&st->msg[AD7887_CH1]);
 		spi_message_add_tail(&st->xfer[3], &st->msg[AD7887_CH1]);
 
-		indio_dev->channels = st->chip_info->channel;
-		indio_dev->num_channels = 3;
+		indio_dev->channels = st->chip_info->dual_channels;
+		indio_dev->num_channels = st->chip_info->num_dual_channels;
 	} else {
-		indio_dev->channels = &st->chip_info->channel[1];
-		indio_dev->num_channels = 2;
+		indio_dev->channels = st->chip_info->channels;
+		indio_dev->num_channels = st->chip_info->num_channels;
 	}
 
 	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,

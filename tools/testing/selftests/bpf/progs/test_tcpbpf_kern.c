@@ -10,8 +10,8 @@
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/tcp.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 #include "test_tcpbpf.h"
 
 struct {
@@ -54,6 +54,7 @@ SEC("sockops")
 int bpf_testcb(struct bpf_sock_ops *skops)
 {
 	char header[sizeof(struct ipv6hdr) + sizeof(struct tcphdr)];
+	struct bpf_sock_ops *reuse = skops;
 	struct tcphdr *thdr;
 	int good_call_rv = 0;
 	int bad_call_rv = 0;
@@ -61,6 +62,46 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 	int rv = -1;
 	int v = 0;
 	int op;
+
+	/* Test reading fields in bpf_sock_ops using single register */
+	asm volatile (
+		"%[reuse] = *(u32 *)(%[reuse] +96)"
+		: [reuse] "+r"(reuse)
+		:);
+
+	asm volatile (
+		"%[op] = *(u32 *)(%[skops] +96)"
+		: [op] "+r"(op)
+		: [skops] "r"(skops)
+		:);
+
+	asm volatile (
+		"r9 = %[skops];\n"
+		"r8 = *(u32 *)(r9 +164);\n"
+		"*(u32 *)(r9 +164) = r8;\n"
+		:: [skops] "r"(skops)
+		: "r9", "r8");
+
+	asm volatile (
+		"r1 = %[skops];\n"
+		"r1 = *(u64 *)(r1 +184);\n"
+		"if r1 == 0 goto +1;\n"
+		"r1 = *(u32 *)(r1 +4);\n"
+		:: [skops] "r"(skops):"r1");
+
+	asm volatile (
+		"r9 = %[skops];\n"
+		"r9 = *(u64 *)(r9 +184);\n"
+		"if r9 == 0 goto +1;\n"
+		"r9 = *(u32 *)(r9 +4);\n"
+		:: [skops] "r"(skops):"r9");
+
+	asm volatile (
+		"r1 = %[skops];\n"
+		"r2 = *(u64 *)(r1 +184);\n"
+		"if r2 == 0 goto +1;\n"
+		"r2 = *(u32 *)(r2 +4);\n"
+		:: [skops] "r"(skops):"r1", "r2");
 
 	op = (int) skops->op;
 
@@ -131,6 +172,7 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 				g.bytes_received = skops->bytes_received;
 				g.bytes_acked = skops->bytes_acked;
 			}
+			g.num_close_events++;
 			bpf_map_update_elem(&global_map, &key, &g,
 					    BPF_ANY);
 		}

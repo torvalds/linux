@@ -354,21 +354,16 @@ static void rtc7301_init(struct rtc7301_priv *priv)
 
 static int __init rtc7301_rtc_probe(struct platform_device *dev)
 {
-	struct resource *res;
 	void __iomem *regs;
 	struct rtc7301_priv *priv;
 	struct rtc_device *rtc;
 	int ret;
 
-	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	regs = devm_ioremap_resource(&dev->dev, res);
+	regs = devm_platform_ioremap_resource(dev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 

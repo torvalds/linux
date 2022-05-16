@@ -82,12 +82,11 @@ static const u32 reg[][4] = {
 
 static int dmm_dma_copy(struct dmm *dmm, dma_addr_t src, dma_addr_t dst)
 {
-	struct dma_device *dma_dev = dmm->wa_dma_chan->device;
 	struct dma_async_tx_descriptor *tx;
 	enum dma_status status;
 	dma_cookie_t cookie;
 
-	tx = dma_dev->device_prep_dma_memcpy(dmm->wa_dma_chan, dst, src, 4, 0);
+	tx = dmaengine_prep_dma_memcpy(dmm->wa_dma_chan, dst, src, 4, 0);
 	if (!tx) {
 		dev_err(dmm->dev, "Failed to prepare DMA memcpy\n");
 		return -EIO;
@@ -99,7 +98,6 @@ static int dmm_dma_copy(struct dmm *dmm, dma_addr_t src, dma_addr_t dst)
 		return -EIO;
 	}
 
-	dma_async_issue_pending(dmm->wa_dma_chan);
 	status = dma_sync_wait(dmm->wa_dma_chan, cookie);
 	if (status != DMA_COMPLETE)
 		dev_err(dmm->dev, "i878 wa DMA copy failure\n");

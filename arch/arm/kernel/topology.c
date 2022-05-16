@@ -95,7 +95,7 @@ static void __init parse_dt_topology(void)
 				 GFP_NOWAIT);
 
 	for_each_possible_cpu(cpu) {
-		const u32 *rate;
+		const __be32 *rate;
 		int len;
 
 		/* too early to use cpu->of_node */
@@ -178,15 +178,6 @@ static inline void update_cpu_capacity(unsigned int cpuid) {}
 #endif
 
 /*
- * The current assumption is that we can power gate each core independently.
- * This will be superseded by DT binding once available.
- */
-const struct cpumask *cpu_corepower_mask(int cpu)
-{
-	return &cpu_topology[cpu].thread_sibling;
-}
-
-/*
  * store_cpu_topology is called at boot when only one cpu is running
  * and with the mutex cpu_hotplug.lock locked, when several cpus have booted,
  * which prevents simultaneous write access to cpu_topology array
@@ -196,9 +187,8 @@ void store_cpu_topology(unsigned int cpuid)
 	struct cpu_topology *cpuid_topo = &cpu_topology[cpuid];
 	unsigned int mpidr;
 
-	/* If the cpu topology has been already set, just return */
-	if (cpuid_topo->core_id != -1)
-		return;
+	if (cpuid_topo->package_id != -1)
+		goto topology_populated;
 
 	mpidr = read_cpuid_mpidr();
 
@@ -231,29 +221,16 @@ void store_cpu_topology(unsigned int cpuid)
 		cpuid_topo->package_id = -1;
 	}
 
-	update_siblings_masks(cpuid);
-
 	update_cpu_capacity(cpuid);
 
 	pr_info("CPU%u: thread %d, cpu %d, socket %d, mpidr %x\n",
 		cpuid, cpu_topology[cpuid].thread_id,
 		cpu_topology[cpuid].core_id,
 		cpu_topology[cpuid].package_id, mpidr);
-}
 
-static inline int cpu_corepower_flags(void)
-{
-	return SD_SHARE_PKG_RESOURCES  | SD_SHARE_POWERDOMAIN;
+topology_populated:
+	update_siblings_masks(cpuid);
 }
-
-static struct sched_domain_topology_level arm_topology[] = {
-#ifdef CONFIG_SCHED_MC
-	{ cpu_corepower_mask, cpu_corepower_flags, SD_INIT_NAME(GMC) },
-	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
-#endif
-	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
-	{ NULL, },
-};
 
 /*
  * init_cpu_topology is called at boot when only one cpu is running
@@ -265,7 +242,4 @@ void __init init_cpu_topology(void)
 	smp_wmb();
 
 	parse_dt_topology();
-
-	/* Set scheduler topology descriptor */
-	set_sched_topology(arm_topology);
 }

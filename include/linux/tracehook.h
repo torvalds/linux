@@ -178,9 +178,9 @@ static inline void set_notify_resume(struct task_struct *task)
  */
 static inline void tracehook_notify_resume(struct pt_regs *regs)
 {
+	clear_thread_flag(TIF_NOTIFY_RESUME);
 	/*
-	 * The caller just cleared TIF_NOTIFY_RESUME. This barrier
-	 * pairs with task_work_add()->set_notify_resume() after
+	 * This barrier pairs with task_work_add()->set_notify_resume() after
 	 * hlist_add_head(task->task_works);
 	 */
 	smp_mb__after_atomic();

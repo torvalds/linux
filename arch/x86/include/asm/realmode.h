@@ -14,13 +14,16 @@
 #include <linux/types.h>
 #include <asm/io.h>
 
-/* This must match data at realmode.S */
+/* This must match data at realmode/rm/header.S */
 struct real_mode_header {
 	u32	text_start;
 	u32	ro_end;
 	/* SMP trampoline */
 	u32	trampoline_start;
 	u32	trampoline_header;
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+	u32	sev_es_trampoline_start;
+#endif
 #ifdef CONFIG_X86_64
 	u32	trampoline_pgd;
 #endif
@@ -36,7 +39,7 @@ struct real_mode_header {
 #endif
 };
 
-/* This must match data at trampoline_32/64.S */
+/* This must match data at realmode/rm/trampoline_{32,64}.S */
 struct trampoline_header {
 #ifdef CONFIG_X86_32
 	u32 start;
@@ -57,6 +60,9 @@ extern unsigned char real_mode_blob_end[];
 extern unsigned long initial_code;
 extern unsigned long initial_gs;
 extern unsigned long initial_stack;
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+extern unsigned long initial_vc_handler;
+#endif
 
 extern unsigned char real_mode_blob[];
 extern unsigned char real_mode_relocs[];
@@ -66,6 +72,7 @@ extern unsigned char startup_32_smp[];
 extern unsigned char boot_gdt[];
 #else
 extern unsigned char secondary_startup_64[];
+extern unsigned char secondary_startup_64_no_verify[];
 #endif
 
 static inline size_t real_mode_size_needed(void)

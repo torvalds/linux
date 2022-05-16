@@ -8,7 +8,7 @@ target architecture, specifically, is the 32-bit OpenRISC 1000 family (or1k).
 For information about OpenRISC processors and ongoing development:
 
 	=======		=============================
-	website		http://openrisc.io
+	website		https://openrisc.io
 	email		openrisc@lists.librecores.org
 	=======		=============================
 
@@ -37,8 +37,8 @@ or Stafford's toolchain build and release scripts.
 
 Build the Linux kernel as usual::
 
-	make ARCH=openrisc defconfig
-	make ARCH=openrisc
+	make ARCH=openrisc CROSS_COMPILE="or1k-linux-" defconfig
+	make ARCH=openrisc CROSS_COMPILE="or1k-linux-"
 
 3) Running on FPGA (optional)
 

@@ -146,7 +146,7 @@ static int skl_format_to_drm(int format, bool rgb_order, bool alpha,
 static u32 intel_vgpu_get_stride(struct intel_vgpu *vgpu, int pipe,
 	u32 tiled, int stride_mask, int bpp)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 
 	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(pipe)) & stride_mask;
 	u32 stride = stride_reg;
@@ -202,8 +202,8 @@ static int get_active_pipe(struct intel_vgpu *vgpu)
 int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	struct intel_vgpu_primary_plane_format *plane)
 {
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 	u32 val, fmt;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int pipe;
 
 	pipe = get_active_pipe(vgpu);
@@ -332,9 +332,9 @@ static int cursor_mode_to_drm(int mode)
 int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 	struct intel_vgpu_cursor_plane_format *plane)
 {
+	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 	u32 val, mode, index;
 	u32 alpha_plane, alpha_force;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int pipe;
 
 	pipe = get_active_pipe(vgpu);

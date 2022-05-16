@@ -413,6 +413,8 @@ struct ide_disk_ops {
 				      sector_t);
 	int		(*ioctl)(struct ide_drive_s *, struct block_device *,
 				 fmode_t, unsigned int, unsigned long);
+	int		(*compat_ioctl)(struct ide_drive_s *, struct block_device *,
+					fmode_t, unsigned int, unsigned long);
 };
 
 /* ATAPI device flags */
@@ -488,8 +490,6 @@ enum {
 	IDE_DFLAG_NOPROBE		= BIT(9),
 	/* need to do check_media_change() */
 	IDE_DFLAG_REMOVABLE		= BIT(10),
-	/* needed for removable devices */
-	IDE_DFLAG_ATTACH		= BIT(11),
 	IDE_DFLAG_FORCED_GEOM		= BIT(12),
 	/* disallow setting unmask bit */
 	IDE_DFLAG_NO_UNMASK		= BIT(13),
@@ -942,6 +942,10 @@ ide_decl_devset(using_dma);
 ide_devset_get(_name, _field); \
 ide_devset_set(_name, _field); \
 IDE_DEVSET(_name, DS_SYNC, get_##_name, set_##_name)
+
+#define ide_devset_ro_field(_name, _field) \
+ide_devset_get(_name, _field); \
+IDE_DEVSET(_name, 0, get_##_name, NULL)
 
 #define ide_devset_rw_flag(_name, _field) \
 ide_devset_get_flag(_name, _field); \

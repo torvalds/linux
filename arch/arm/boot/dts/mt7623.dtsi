@@ -3,6 +3,7 @@
  * Copyright (c) 2017-2018 MediaTek Inc.
  * Author: John Crispin <john@phrozen.org>
  *	   Sean Wang <sean.wang@mediatek.com>
+ *	   Ryder Lee <ryder.lee@mediatek.com>
  *
  */
 
@@ -13,7 +14,6 @@
 #include <dt-bindings/power/mt2701-power.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/phy/phy.h>
-#include <dt-bindings/memory/mt2701-larb-port.h>
 #include <dt-bindings/reset/mt2701-resets.h>
 #include <dt-bindings/thermal/thermal.h>
 
@@ -268,7 +268,7 @@
 		reg = <0 0x10005000 0 0x1000>;
 	};
 
-	scpsys: scpsys@10006000 {
+	scpsys: power-controller@10006000 {
 		compatible = "mediatek,mt7623-scpsys",
 			     "mediatek,mt2701-scpsys",
 			     "syscon";
@@ -294,17 +294,6 @@
 		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&system_clk>, <&rtc32k>;
 		clock-names = "system-clk", "rtc-clk";
-	};
-
-	smi_common: smi@1000c000 {
-		compatible = "mediatek,mt7623-smi-common",
-			     "mediatek,mt2701-smi-common";
-		reg = <0 0x1000c000 0 0x1000>;
-		clocks = <&infracfg CLK_INFRA_SMI>,
-			 <&mmsys CLK_MM_SMI_COMMON>,
-			 <&infracfg CLK_INFRA_SMI>;
-		clock-names = "apb", "smi", "async";
-		power-domains = <&scpsys MT2701_POWER_DOMAIN_DISP>;
 	};
 
 	pwrap: pwrap@1000d000 {
@@ -336,17 +325,6 @@
 		#interrupt-cells = <3>;
 		interrupt-parent = <&gic>;
 		reg = <0 0x10200100 0 0x1c>;
-	};
-
-	iommu: mmsys_iommu@10205000 {
-		compatible = "mediatek,mt7623-m4u",
-			     "mediatek,mt2701-m4u";
-		reg = <0 0x10205000 0 0x1000>;
-		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_LOW>;
-		clocks = <&infracfg CLK_INFRA_M4U>;
-		clock-names = "bclk";
-		mediatek,larbs = <&larb0 &larb1 &larb2>;
-		#iommu-cells = <1>;
 	};
 
 	efuse: efuse@10206000 {
@@ -724,88 +702,12 @@
 		status = "disabled";
 	};
 
-	g3dsys: syscon@13000000 {
-		compatible = "mediatek,mt7623-g3dsys",
-			     "mediatek,mt2701-g3dsys",
-			     "syscon";
-		reg = <0 0x13000000 0 0x200>;
-		#clock-cells = <1>;
-		#reset-cells = <1>;
-	};
-
-	mmsys: syscon@14000000 {
-		compatible = "mediatek,mt7623-mmsys",
-			     "mediatek,mt2701-mmsys",
-			     "syscon";
-		reg = <0 0x14000000 0 0x1000>;
-		#clock-cells = <1>;
-	};
-
-	larb0: larb@14010000 {
-		compatible = "mediatek,mt7623-smi-larb",
-			     "mediatek,mt2701-smi-larb";
-		reg = <0 0x14010000 0 0x1000>;
-		mediatek,smi = <&smi_common>;
-		mediatek,larb-id = <0>;
-		clocks = <&mmsys CLK_MM_SMI_LARB0>,
-			 <&mmsys CLK_MM_SMI_LARB0>;
-		clock-names = "apb", "smi";
-		power-domains = <&scpsys MT2701_POWER_DOMAIN_DISP>;
-	};
-
-	imgsys: syscon@15000000 {
-		compatible = "mediatek,mt7623-imgsys",
-			     "mediatek,mt2701-imgsys",
-			     "syscon";
-		reg = <0 0x15000000 0 0x1000>;
-		#clock-cells = <1>;
-	};
-
-	larb2: larb@15001000 {
-		compatible = "mediatek,mt7623-smi-larb",
-			     "mediatek,mt2701-smi-larb";
-		reg = <0 0x15001000 0 0x1000>;
-		mediatek,smi = <&smi_common>;
-		mediatek,larb-id = <2>;
-		clocks = <&imgsys CLK_IMG_SMI_COMM>,
-			 <&imgsys CLK_IMG_SMI_COMM>;
-		clock-names = "apb", "smi";
-		power-domains = <&scpsys MT2701_POWER_DOMAIN_ISP>;
-	};
-
-	jpegdec: jpegdec@15004000 {
-		compatible = "mediatek,mt7623-jpgdec",
-			     "mediatek,mt2701-jpgdec";
-		reg = <0 0x15004000 0 0x1000>;
-		interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_LOW>;
-		clocks =  <&imgsys CLK_IMG_JPGDEC_SMI>,
-			  <&imgsys CLK_IMG_JPGDEC>;
-		clock-names = "jpgdec-smi",
-			      "jpgdec";
-		power-domains = <&scpsys MT2701_POWER_DOMAIN_ISP>;
-		mediatek,larb = <&larb2>;
-		iommus = <&iommu MT2701_M4U_PORT_JPGDEC_WDMA>,
-			 <&iommu MT2701_M4U_PORT_JPGDEC_BSDMA>;
-	};
-
 	vdecsys: syscon@16000000 {
 		compatible = "mediatek,mt7623-vdecsys",
 			     "mediatek,mt2701-vdecsys",
 			     "syscon";
 		reg = <0 0x16000000 0 0x1000>;
 		#clock-cells = <1>;
-	};
-
-	larb1: larb@16010000 {
-		compatible = "mediatek,mt7623-smi-larb",
-			     "mediatek,mt2701-smi-larb";
-		reg = <0 0x16010000 0 0x1000>;
-		mediatek,smi = <&smi_common>;
-		mediatek,larb-id = <1>;
-		clocks = <&vdecsys CLK_VDEC_CKGEN>,
-			 <&vdecsys CLK_VDEC_LARB>;
-		clock-names = "apb", "smi";
-		power-domains = <&scpsys MT2701_POWER_DOMAIN_VDEC>;
 	};
 
 	hifsys: syscon@1a000000 {

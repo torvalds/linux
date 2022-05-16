@@ -6,7 +6,7 @@
  *      For the new V3 MMU we remap the TLB from virtual == physical
  *      to the standard Linux mapping used in earlier MMU's.
  *
- *      The the MMU we also support a new configuration register that
+ *      For the MMU we also support a new configuration register that
  *      specifies how the S32C1I instruction operates with the cache
  *      controller.
  *
@@ -23,7 +23,8 @@
 #ifndef _XTENSA_INITIALIZE_MMU_H
 #define _XTENSA_INITIALIZE_MMU_H
 
-#include <asm/pgtable.h>
+#include <linux/init.h>
+#include <linux/pgtable.h>
 #include <asm/vectors.h>
 
 #if XCHAL_HAVE_PTP_MMU
@@ -183,7 +184,7 @@
 #endif
 
 #if XCHAL_HAVE_MPU
-	.data
+	__REFCONST
 	.align	4
 .Lattribute_table:
 	.long 0x000000, 0x1fff00, 0x1ddf00, 0x1eef00

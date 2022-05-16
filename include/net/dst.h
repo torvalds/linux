@@ -35,7 +35,6 @@ struct dst_entry {
 	int			(*output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 
 	unsigned short		flags;
-#define DST_HOST		0x0001
 #define DST_NOXFRM		0x0002
 #define DST_NOPOLICY		0x0004
 #define DST_NOCOUNT		0x0008
@@ -82,7 +81,7 @@ struct dst_entry {
 struct dst_metrics {
 	u32		metrics[RTAX_MAX];
 	refcount_t	refcnt;
-};
+} __aligned(4);		/* Low pointer bits contain DST_METRICS_FLAGS */
 extern const struct dst_metrics dst_default_metrics;
 
 u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old);
@@ -215,7 +214,7 @@ dst_allfrag(const struct dst_entry *dst)
 static inline int
 dst_metric_locked(const struct dst_entry *dst, int metric)
 {
-	return dst_metric(dst, RTAX_LOCK) & (1<<metric);
+	return dst_metric(dst, RTAX_LOCK) & (1 << metric);
 }
 
 static inline void dst_hold(struct dst_entry *dst)
@@ -401,7 +400,15 @@ static inline struct neighbour *dst_neigh_lookup(const struct dst_entry *dst, co
 static inline struct neighbour *dst_neigh_lookup_skb(const struct dst_entry *dst,
 						     struct sk_buff *skb)
 {
-	struct neighbour *n =  dst->ops->neigh_lookup(dst, skb, NULL);
+	struct neighbour *n = NULL;
+
+	/* The packets from tunnel devices (eg bareudp) may have only
+	 * metadata in the dst pointer of skb. Hence a pointer check of
+	 * neigh_lookup is needed.
+	 */
+	if (dst->ops->neigh_lookup)
+		n = dst->ops->neigh_lookup(dst, skb, NULL);
+
 	return IS_ERR(n) ? NULL : n;
 }
 
@@ -516,17 +523,16 @@ static inline void skb_dst_update_pmtu(struct sk_buff *skb, u32 mtu)
 	struct dst_entry *dst = skb_dst(skb);
 
 	if (dst && dst->ops->update_pmtu)
-		dst->ops->update_pmtu(dst, NULL, skb, mtu);
+		dst->ops->update_pmtu(dst, NULL, skb, mtu, true);
 }
 
-static inline void skb_tunnel_check_pmtu(struct sk_buff *skb,
-					 struct dst_entry *encap_dst,
-					 int headroom)
+/* update dst pmtu but not do neighbor confirm */
+static inline void skb_dst_update_pmtu_no_confirm(struct sk_buff *skb, u32 mtu)
 {
-	u32 encap_mtu = dst_mtu(encap_dst);
+	struct dst_entry *dst = skb_dst(skb);
 
-	if (skb->len > encap_mtu - headroom)
-		skb_dst_update_pmtu(skb, encap_mtu - headroom);
+	if (dst && dst->ops->update_pmtu)
+		dst->ops->update_pmtu(dst, NULL, skb, mtu, false);
 }
 
 #endif /* _NET_DST_H */

@@ -19,6 +19,8 @@
 #define HCLGE_TM_TX_SCHD_DWRR_MSK	BIT(0)
 #define HCLGE_TM_TX_SCHD_SP_MSK		(0xFE)
 
+#define HCLGE_ETHER_MAX_RATE	100000
+
 struct hclge_pg_to_pri_link_cmd {
 	u8 pg_id;
 	u8 rsvd1[3];
@@ -96,6 +98,12 @@ struct hclge_pg_shapping_cmd {
 	__le32 pg_shapping_para;
 };
 
+struct hclge_qs_shapping_cmd {
+	__le16 qs_id;
+	u8 rsvd[2];
+	__le32 qs_shapping_para;
+};
+
 #define HCLGE_BP_GRP_NUM		32
 #define HCLGE_BP_SUB_GRP_ID_S		0
 #define HCLGE_BP_SUB_GRP_ID_M		GENMASK(4, 0)
@@ -133,6 +141,12 @@ struct hclge_port_shapping_cmd {
 	__le32 port_shapping_para;
 };
 
+struct hclge_shaper_ir_para {
+	u8 ir_b; /* IR_B parameter of IR shaper */
+	u8 ir_u; /* IR_U parameter of IR shaper */
+	u8 ir_s; /* IR_S parameter of IR shaper */
+};
+
 #define hclge_tm_set_field(dest, string, val) \
 			   hnae3_set_field((dest), \
 			   (HCLGE_TM_SHAP_##string##_MSK), \
@@ -154,4 +168,6 @@ int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx);
 int hclge_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr);
 int hclge_pfc_rx_stats_get(struct hclge_dev *hdev, u64 *stats);
 int hclge_pfc_tx_stats_get(struct hclge_dev *hdev, u64 *stats);
+int hclge_tm_qs_shaper_cfg(struct hclge_vport *vport, int max_tx_rate);
+
 #endif

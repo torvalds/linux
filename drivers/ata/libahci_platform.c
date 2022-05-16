@@ -43,7 +43,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_ops);
  * RETURNS:
  * 0 on success otherwise a negative error code
  */
-static int ahci_platform_enable_phys(struct ahci_host_priv *hpriv)
+int ahci_platform_enable_phys(struct ahci_host_priv *hpriv)
 {
 	int rc, i;
 
@@ -59,7 +59,7 @@ static int ahci_platform_enable_phys(struct ahci_host_priv *hpriv)
 		}
 
 		rc = phy_power_on(hpriv->phys[i]);
-		if (rc) {
+		if (rc && !(rc == -EOPNOTSUPP && (hpriv->flags & AHCI_HFLAG_IGN_NOTSUPP_POWER_ON))) {
 			phy_exit(hpriv->phys[i]);
 			goto disable_phys;
 		}
@@ -74,6 +74,7 @@ disable_phys:
 	}
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ahci_platform_enable_phys);
 
 /**
  * ahci_platform_disable_phys - Disable PHYs
@@ -81,7 +82,7 @@ disable_phys:
  *
  * This function disables all PHYs found in hpriv->phys.
  */
-static void ahci_platform_disable_phys(struct ahci_host_priv *hpriv)
+void ahci_platform_disable_phys(struct ahci_host_priv *hpriv)
 {
 	int i;
 
@@ -90,6 +91,7 @@ static void ahci_platform_disable_phys(struct ahci_host_priv *hpriv)
 		phy_exit(hpriv->phys[i]);
 	}
 }
+EXPORT_SYMBOL_GPL(ahci_platform_disable_phys);
 
 /**
  * ahci_platform_enable_clks - Enable platform clocks
@@ -324,7 +326,7 @@ static int ahci_platform_get_phy(struct ahci_host_priv *hpriv, u32 port,
 				node);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case -ENODEV:
 		/* continue normally */
 		hpriv->phys[port] = NULL;

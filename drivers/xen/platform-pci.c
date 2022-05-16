@@ -74,7 +74,7 @@ static int xen_allocate_irq(struct pci_dev *pdev)
 			"xen-platform-pci", pdev);
 }
 
-static int platform_pci_resume(struct pci_dev *pdev)
+static int platform_pci_resume(struct device *dev)
 {
 	int err;
 
@@ -83,7 +83,7 @@ static int platform_pci_resume(struct pci_dev *pdev)
 
 	err = xen_set_callback_via(callback_via);
 	if (err) {
-		dev_err(&pdev->dev, "platform_pci_resume failure!\n");
+		dev_err(dev, "platform_pci_resume failure!\n");
 		return err;
 	}
 	return 0;
@@ -168,13 +168,17 @@ static const struct pci_device_id platform_pci_tbl[] = {
 	{0,}
 };
 
+static const struct dev_pm_ops platform_pm_ops = {
+	.resume_noirq =   platform_pci_resume,
+};
+
 static struct pci_driver platform_driver = {
 	.name =           DRV_NAME,
 	.probe =          platform_pci_probe,
 	.id_table =       platform_pci_tbl,
-#ifdef CONFIG_PM
-	.resume_early =   platform_pci_resume,
-#endif
+	.driver = {
+		.pm =     &platform_pm_ops,
+	},
 };
 
 builtin_pci_driver(platform_driver);

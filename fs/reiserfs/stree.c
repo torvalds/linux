@@ -918,12 +918,6 @@ int comp_items(const struct item_head *stored_ih, const struct treepath *path)
 	return memcmp(stored_ih, ih, IH_SIZE);
 }
 
-/* unformatted nodes are not logged anymore, ever.  This is safe now */
-#define held_by_others(bh) (atomic_read(&(bh)->b_count) > 1)
-
-/* block can not be forgotten as it is in I/O or held by someone */
-#define block_in_use(bh) (buffer_locked(bh) || (held_by_others(bh)))
-
 /* prepare for delete or cut of direct item */
 static inline int prepare_for_direct_item(struct treepath *path,
 					  struct item_head *le_ih,
@@ -2246,7 +2240,8 @@ error_out:
 	/* also releases the path */
 	unfix_nodes(&s_ins_balance);
 #ifdef REISERQUOTA_DEBUG
-	reiserfs_debug(th->t_super, REISERFS_DEBUG_CODE,
+	if (inode)
+		reiserfs_debug(th->t_super, REISERFS_DEBUG_CODE,
 		       "reiserquota insert_item(): freeing %u id=%u type=%c",
 		       quota_bytes, inode->i_uid, head2type(ih));
 #endif

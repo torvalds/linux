@@ -776,7 +776,7 @@ static void set_rx_mode(struct net_device *dev);
 #ifdef CONFIG_PCI
 static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 #endif
-static void vortex_tx_timeout(struct net_device *dev);
+static void vortex_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static void acpi_set_WOL(struct net_device *dev);
 static const struct ethtool_ops vortex_ethtool_ops;
 static void set_8021q_mode(struct net_device *dev, int enable);
@@ -1149,7 +1149,7 @@ static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 
 	print_info = (vortex_debug > 1);
 	if (print_info)
-		pr_info("See Documentation/networking/device_drivers/3com/vortex.txt\n");
+		pr_info("See Documentation/networking/device_drivers/ethernet/3com/vortex.rst\n");
 
 	pr_info("%s: 3Com %s %s at %p.\n",
 	       print_name,
@@ -1548,7 +1548,7 @@ vortex_up(struct net_device *dev)
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr = vp->ioaddr;
 	unsigned int config;
-	int i, mii_reg1, mii_reg5, err = 0;
+	int i, mii_reg5, err = 0;
 
 	if (VORTEX_PCI(vp)) {
 		pci_set_power_state(VORTEX_PCI(vp), PCI_D0);	/* Go active */
@@ -1605,7 +1605,7 @@ vortex_up(struct net_device *dev)
 	window_write32(vp, config, 3, Wn3_Config);
 
 	if (dev->if_port == XCVR_MII || dev->if_port == XCVR_NWAY) {
-		mii_reg1 = mdio_read(dev, vp->phys[0], MII_BMSR);
+		mdio_read(dev, vp->phys[0], MII_BMSR);
 		mii_reg5 = mdio_read(dev, vp->phys[0], MII_LPA);
 		vp->partner_flow_ctrl = ((mii_reg5 & 0x0400) != 0);
 		vp->mii.full_duplex = vp->full_duplex;
@@ -1877,7 +1877,7 @@ leave_media_alone:
 		iowrite16(FakeIntr, ioaddr + EL3_CMD);
 }
 
-static void vortex_tx_timeout(struct net_device *dev)
+static void vortex_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr = vp->ioaddr;
@@ -1954,7 +1954,7 @@ vortex_error(struct net_device *dev, int status)
 				   dev->name, tx_status);
 			if (tx_status == 0x82) {
 				pr_err("Probably a duplex mismatch.  See "
-						"Documentation/networking/device_drivers/3com/vortex.txt\n");
+						"Documentation/networking/device_drivers/ethernet/3com/vortex.rst\n");
 			}
 			dump_tx_ring(dev);
 		}

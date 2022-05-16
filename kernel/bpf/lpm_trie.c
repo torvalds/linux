@@ -25,7 +25,7 @@ struct lpm_trie_node {
 	struct lpm_trie_node __rcu	*child[2];
 	u32				prefixlen;
 	u32				flags;
-	u8				data[0];
+	u8				data[];
 };
 
 struct lpm_trie {
@@ -34,7 +34,7 @@ struct lpm_trie {
 	size_t				n_entries;
 	size_t				max_prefixlen;
 	size_t				data_size;
-	raw_spinlock_t			lock;
+	spinlock_t			lock;
 };
 
 /* This trie implements a longest prefix match algorithm that can be used to
@@ -315,7 +315,7 @@ static int trie_update_elem(struct bpf_map *map,
 	if (key->prefixlen > trie->max_prefixlen)
 		return -EINVAL;
 
-	raw_spin_lock_irqsave(&trie->lock, irq_flags);
+	spin_lock_irqsave(&trie->lock, irq_flags);
 
 	/* Allocate and fill a new node */
 
@@ -422,7 +422,7 @@ out:
 		kfree(im_node);
 	}
 
-	raw_spin_unlock_irqrestore(&trie->lock, irq_flags);
+	spin_unlock_irqrestore(&trie->lock, irq_flags);
 
 	return ret;
 }
@@ -442,7 +442,7 @@ static int trie_delete_elem(struct bpf_map *map, void *_key)
 	if (key->prefixlen > trie->max_prefixlen)
 		return -EINVAL;
 
-	raw_spin_lock_irqsave(&trie->lock, irq_flags);
+	spin_lock_irqsave(&trie->lock, irq_flags);
 
 	/* Walk the tree looking for an exact key/length match and keeping
 	 * track of the path we traverse.  We will need to know the node
@@ -518,7 +518,7 @@ static int trie_delete_elem(struct bpf_map *map, void *_key)
 	kfree_rcu(node, rcu);
 
 out:
-	raw_spin_unlock_irqrestore(&trie->lock, irq_flags);
+	spin_unlock_irqrestore(&trie->lock, irq_flags);
 
 	return ret;
 }
@@ -543,7 +543,7 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 	u64 cost = sizeof(*trie), cost_per_node;
 	int ret;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!bpf_capable())
 		return ERR_PTR(-EPERM);
 
 	/* check sanity of attributes */
@@ -575,7 +575,7 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 	if (ret)
 		goto out_err;
 
-	raw_spin_lock_init(&trie->lock);
+	spin_lock_init(&trie->lock);
 
 	return &trie->map;
 out_err:
@@ -588,11 +588,6 @@ static void trie_free(struct bpf_map *map)
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
 	struct lpm_trie_node __rcu **slot;
 	struct lpm_trie_node *node;
-
-	/* Wait for outstanding programs to complete
-	 * update/lookup/delete/get_next_key and free the trie.
-	 */
-	synchronize_rcu();
 
 	/* Always start at the root and walk down to a node that has no
 	 * children. Then free that node, nullify its reference in the parent
@@ -735,7 +730,9 @@ static int trie_check_btf(const struct bpf_map *map,
 	       -EINVAL : 0;
 }
 
+static int trie_map_btf_id;
 const struct bpf_map_ops trie_map_ops = {
+	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = trie_alloc,
 	.map_free = trie_free,
 	.map_get_next_key = trie_get_next_key,
@@ -743,4 +740,6 @@ const struct bpf_map_ops trie_map_ops = {
 	.map_update_elem = trie_update_elem,
 	.map_delete_elem = trie_delete_elem,
 	.map_check_btf = trie_check_btf,
+	.map_btf_name = "lpm_trie",
+	.map_btf_id = &trie_map_btf_id,
 };

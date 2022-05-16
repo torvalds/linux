@@ -6,7 +6,7 @@
 
 #include <string.h>
 
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 #define NUM_CGROUP_LEVELS	4
 

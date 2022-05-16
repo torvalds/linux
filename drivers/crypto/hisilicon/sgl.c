@@ -2,37 +2,13 @@
 /* Copyright (c) 2019 HiSilicon Limited. */
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
-#include "./sgl.h"
+#include <linux/slab.h>
+#include "qm.h"
 
 #define HISI_ACC_SGL_SGE_NR_MIN		1
-#define HISI_ACC_SGL_SGE_NR_MAX		255
-#define HISI_ACC_SGL_SGE_NR_DEF		10
 #define HISI_ACC_SGL_NR_MAX		256
 #define HISI_ACC_SGL_ALIGN_SIZE		64
-
-static int acc_sgl_sge_set(const char *val, const struct kernel_param *kp)
-{
-	int ret;
-	u32 n;
-
-	if (!val)
-		return -EINVAL;
-
-	ret = kstrtou32(val, 10, &n);
-	if (ret != 0 || n > HISI_ACC_SGL_SGE_NR_MAX || n == 0)
-		return -EINVAL;
-
-	return param_set_int(val, kp);
-}
-
-static const struct kernel_param_ops acc_sgl_sge_ops = {
-	.set = acc_sgl_sge_set,
-	.get = param_get_int,
-};
-
-static u32 acc_sgl_sge_nr = HISI_ACC_SGL_SGE_NR_DEF;
-module_param_cb(acc_sgl_sge_nr, &acc_sgl_sge_ops, &acc_sgl_sge_nr, 0444);
-MODULE_PARM_DESC(acc_sgl_sge_nr, "Number of sge in sgl(1-255)");
+#define HISI_ACC_MEM_BLOCK_NR		5
 
 struct acc_hw_sge {
 	dma_addr_t buf;
@@ -55,37 +31,92 @@ struct hisi_acc_hw_sgl {
 	struct acc_hw_sge sge_entries[];
 } __aligned(1);
 
+struct hisi_acc_sgl_pool {
+	struct mem_block {
+		struct hisi_acc_hw_sgl *sgl;
+		dma_addr_t sgl_dma;
+		size_t size;
+	} mem_block[HISI_ACC_MEM_BLOCK_NR];
+	u32 sgl_num_per_block;
+	u32 block_num;
+	u32 count;
+	u32 sge_nr;
+	size_t sgl_size;
+};
+
 /**
  * hisi_acc_create_sgl_pool() - Create a hw sgl pool.
  * @dev: The device which hw sgl pool belongs to.
- * @pool: Pointer of pool.
  * @count: Count of hisi_acc_hw_sgl in pool.
+ * @sge_nr: The count of sge in hw_sgl
  *
  * This function creates a hw sgl pool, after this user can get hw sgl memory
  * from it.
  */
-int hisi_acc_create_sgl_pool(struct device *dev,
-			     struct hisi_acc_sgl_pool *pool, u32 count)
+struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
+						   u32 count, u32 sge_nr)
 {
-	u32 sgl_size;
-	u32 size;
+	u32 sgl_size, block_size, sgl_num_per_block, block_num, remain_sgl = 0;
+	struct hisi_acc_sgl_pool *pool;
+	struct mem_block *block;
+	u32 i, j;
 
-	if (!dev || !pool || !count)
-		return -EINVAL;
+	if (!dev || !count || !sge_nr || sge_nr > HISI_ACC_SGL_SGE_NR_MAX)
+		return ERR_PTR(-EINVAL);
 
-	sgl_size = sizeof(struct acc_hw_sge) * acc_sgl_sge_nr +
+	sgl_size = sizeof(struct acc_hw_sge) * sge_nr +
 		   sizeof(struct hisi_acc_hw_sgl);
-	size = sgl_size * count;
+	block_size = 1 << (PAGE_SHIFT + MAX_ORDER <= 32 ?
+			   PAGE_SHIFT + MAX_ORDER - 1 : 31);
+	sgl_num_per_block = block_size / sgl_size;
+	block_num = count / sgl_num_per_block;
+	remain_sgl = count % sgl_num_per_block;
 
-	pool->sgl = dma_alloc_coherent(dev, size, &pool->sgl_dma, GFP_KERNEL);
-	if (!pool->sgl)
-		return -ENOMEM;
+	if ((!remain_sgl && block_num > HISI_ACC_MEM_BLOCK_NR) ||
+	    (remain_sgl > 0 && block_num > HISI_ACC_MEM_BLOCK_NR - 1))
+		return ERR_PTR(-EINVAL);
 
-	pool->size = size;
+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	if (!pool)
+		return ERR_PTR(-ENOMEM);
+	block = pool->mem_block;
+
+	for (i = 0; i < block_num; i++) {
+		block[i].sgl = dma_alloc_coherent(dev, block_size,
+						  &block[i].sgl_dma,
+						  GFP_KERNEL);
+		if (!block[i].sgl)
+			goto err_free_mem;
+
+		block[i].size = block_size;
+	}
+
+	if (remain_sgl > 0) {
+		block[i].sgl = dma_alloc_coherent(dev, remain_sgl * sgl_size,
+						  &block[i].sgl_dma,
+						  GFP_KERNEL);
+		if (!block[i].sgl)
+			goto err_free_mem;
+
+		block[i].size = remain_sgl * sgl_size;
+	}
+
+	pool->sgl_num_per_block = sgl_num_per_block;
+	pool->block_num = remain_sgl ? block_num + 1 : block_num;
 	pool->count = count;
 	pool->sgl_size = sgl_size;
+	pool->sge_nr = sge_nr;
 
-	return 0;
+	return pool;
+
+err_free_mem:
+	for (j = 0; j < i; j++) {
+		dma_free_coherent(dev, block_size, block[j].sgl,
+				  block[j].sgl_dma);
+		memset(block + j, 0, sizeof(*block));
+	}
+	kfree(pool);
+	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL_GPL(hisi_acc_create_sgl_pool);
 
@@ -98,38 +129,57 @@ EXPORT_SYMBOL_GPL(hisi_acc_create_sgl_pool);
  */
 void hisi_acc_free_sgl_pool(struct device *dev, struct hisi_acc_sgl_pool *pool)
 {
-	dma_free_coherent(dev, pool->size, pool->sgl, pool->sgl_dma);
-	memset(pool, 0, sizeof(struct hisi_acc_sgl_pool));
+	struct mem_block *block;
+	int i;
+
+	if (!dev || !pool)
+		return;
+
+	block = pool->mem_block;
+
+	for (i = 0; i < pool->block_num; i++)
+		dma_free_coherent(dev, block[i].size, block[i].sgl,
+				  block[i].sgl_dma);
+
+	kfree(pool);
 }
 EXPORT_SYMBOL_GPL(hisi_acc_free_sgl_pool);
 
-struct hisi_acc_hw_sgl *acc_get_sgl(struct hisi_acc_sgl_pool *pool, u32 index,
-				    dma_addr_t *hw_sgl_dma)
+static struct hisi_acc_hw_sgl *acc_get_sgl(struct hisi_acc_sgl_pool *pool,
+					   u32 index, dma_addr_t *hw_sgl_dma)
 {
-	if (!pool || !hw_sgl_dma || index >= pool->count || !pool->sgl)
+	struct mem_block *block;
+	u32 block_index, offset;
+
+	if (!pool || !hw_sgl_dma || index >= pool->count)
 		return ERR_PTR(-EINVAL);
 
-	*hw_sgl_dma = pool->sgl_dma + pool->sgl_size * index;
-	return (void *)pool->sgl + pool->sgl_size * index;
-}
+	block = pool->mem_block;
+	block_index = index / pool->sgl_num_per_block;
+	offset = index % pool->sgl_num_per_block;
 
-void acc_put_sgl(struct hisi_acc_sgl_pool *pool, u32 index) {}
+	*hw_sgl_dma = block[block_index].sgl_dma + pool->sgl_size * offset;
+	return (void *)block[block_index].sgl + pool->sgl_size * offset;
+}
 
 static void sg_map_to_hw_sg(struct scatterlist *sgl,
 			    struct acc_hw_sge *hw_sge)
 {
-	hw_sge->buf = sgl->dma_address;
-	hw_sge->len = sgl->dma_length;
+	hw_sge->buf = sg_dma_address(sgl);
+	hw_sge->len = cpu_to_le32(sg_dma_len(sgl));
 }
 
 static void inc_hw_sgl_sge(struct hisi_acc_hw_sgl *hw_sgl)
 {
-	hw_sgl->entry_sum_in_sgl++;
+	u16 var = le16_to_cpu(hw_sgl->entry_sum_in_sgl);
+
+	var++;
+	hw_sgl->entry_sum_in_sgl = cpu_to_le16(var);
 }
 
 static void update_hw_sgl_sum_sge(struct hisi_acc_hw_sgl *hw_sgl, u16 sum)
 {
-	hw_sgl->entry_sum_in_chain = sum;
+	hw_sgl->entry_sum_in_chain = cpu_to_le16(sum);
 }
 
 /**
@@ -153,38 +203,41 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 	dma_addr_t curr_sgl_dma = 0;
 	struct acc_hw_sge *curr_hw_sge;
 	struct scatterlist *sg;
-	int sg_n = sg_nents(sgl);
-	int i, ret;
+	int i, sg_n, sg_n_mapped;
 
-	if (!dev || !sgl || !pool || !hw_sgl_dma || sg_n > acc_sgl_sge_nr)
+	if (!dev || !sgl || !pool || !hw_sgl_dma)
 		return ERR_PTR(-EINVAL);
 
-	ret = dma_map_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
-	if (!ret)
+	sg_n = sg_nents(sgl);
+
+	sg_n_mapped = dma_map_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
+	if (!sg_n_mapped)
 		return ERR_PTR(-EINVAL);
+
+	if (sg_n_mapped > pool->sge_nr) {
+		dma_unmap_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
+		return ERR_PTR(-EINVAL);
+	}
 
 	curr_hw_sgl = acc_get_sgl(pool, index, &curr_sgl_dma);
-	if (!curr_hw_sgl) {
-		ret = -ENOMEM;
-		goto err_unmap_sg;
+	if (IS_ERR(curr_hw_sgl)) {
+		dma_unmap_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
+		return ERR_PTR(-ENOMEM);
+
 	}
-	curr_hw_sgl->entry_length_in_sgl = acc_sgl_sge_nr;
+	curr_hw_sgl->entry_length_in_sgl = cpu_to_le16(pool->sge_nr);
 	curr_hw_sge = curr_hw_sgl->sge_entries;
 
-	for_each_sg(sgl, sg, sg_n, i) {
+	for_each_sg(sgl, sg, sg_n_mapped, i) {
 		sg_map_to_hw_sg(sg, curr_hw_sge);
 		inc_hw_sgl_sge(curr_hw_sgl);
 		curr_hw_sge++;
 	}
 
-	update_hw_sgl_sum_sge(curr_hw_sgl, acc_sgl_sge_nr);
+	update_hw_sgl_sum_sge(curr_hw_sgl, pool->sge_nr);
 	*hw_sgl_dma = curr_sgl_dma;
 
 	return curr_hw_sgl;
-
-err_unmap_sg:
-	dma_unmap_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(hisi_acc_sg_buf_map_to_hw_sgl);
 
@@ -201,6 +254,9 @@ EXPORT_SYMBOL_GPL(hisi_acc_sg_buf_map_to_hw_sgl);
 void hisi_acc_sg_buf_unmap(struct device *dev, struct scatterlist *sgl,
 			   struct hisi_acc_hw_sgl *hw_sgl)
 {
+	if (!dev || !sgl || !hw_sgl)
+		return;
+
 	dma_unmap_sg(dev, sgl, sg_nents(sgl), DMA_BIDIRECTIONAL);
 
 	hw_sgl->entry_sum_in_chain = 0;
@@ -208,7 +264,3 @@ void hisi_acc_sg_buf_unmap(struct device *dev, struct scatterlist *sgl,
 	hw_sgl->entry_length_in_sgl = 0;
 }
 EXPORT_SYMBOL_GPL(hisi_acc_sg_buf_unmap);
-
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Zhou Wang <wangzhou1@hisilicon.com>");
-MODULE_DESCRIPTION("HiSilicon Accelerator SGL support");

@@ -12,13 +12,15 @@
 #define _FSCRYPT_PRIVATE_H
 
 #include <linux/fscrypt.h>
+#include <linux/siphash.h>
 #include <crypto/hash.h>
+#include <linux/blk-crypto.h>
 
 #define CONST_STRLEN(str)	(sizeof(str) - 1)
 
-#define FS_KEY_DERIVATION_NONCE_SIZE	16
+#define FSCRYPT_FILE_NONCE_SIZE	16
 
-#define FSCRYPT_MIN_KEY_SIZE		16
+#define FSCRYPT_MIN_KEY_SIZE	16
 
 #define FSCRYPT_CONTEXT_V1	1
 #define FSCRYPT_CONTEXT_V2	2
@@ -29,7 +31,7 @@ struct fscrypt_context_v1 {
 	u8 filenames_encryption_mode;
 	u8 flags;
 	u8 master_key_descriptor[FSCRYPT_KEY_DESCRIPTOR_SIZE];
-	u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
+	u8 nonce[FSCRYPT_FILE_NONCE_SIZE];
 };
 
 struct fscrypt_context_v2 {
@@ -39,10 +41,10 @@ struct fscrypt_context_v2 {
 	u8 flags;
 	u8 __reserved[4];
 	u8 master_key_identifier[FSCRYPT_KEY_IDENTIFIER_SIZE];
-	u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
+	u8 nonce[FSCRYPT_FILE_NONCE_SIZE];
 };
 
-/**
+/*
  * fscrypt_context - the encryption context of an inode
  *
  * This is the on-disk equivalent of an fscrypt_policy, stored alongside each
@@ -75,7 +77,26 @@ static inline int fscrypt_context_size(const union fscrypt_context *ctx)
 	return 0;
 }
 
-#undef fscrypt_policy
+/* Check whether an fscrypt_context has a recognized version number and size */
+static inline bool fscrypt_context_is_valid(const union fscrypt_context *ctx,
+					    int ctx_size)
+{
+	return ctx_size >= 1 && ctx_size == fscrypt_context_size(ctx);
+}
+
+/* Retrieve the context's nonce, assuming the context was already validated */
+static inline const u8 *fscrypt_context_nonce(const union fscrypt_context *ctx)
+{
+	switch (ctx->version) {
+	case FSCRYPT_CONTEXT_V1:
+		return ctx->v1.nonce;
+	case FSCRYPT_CONTEXT_V2:
+		return ctx->v2.nonce;
+	}
+	WARN_ON(1);
+	return NULL;
+}
+
 union fscrypt_policy {
 	u8 version;
 	struct fscrypt_policy_v1 v1;
@@ -136,13 +157,7 @@ fscrypt_policy_flags(const union fscrypt_policy *policy)
 	BUG();
 }
 
-static inline bool
-fscrypt_is_direct_key_policy(const union fscrypt_policy *policy)
-{
-	return fscrypt_policy_flags(policy) & FSCRYPT_POLICY_FLAG_DIRECT_KEY;
-}
-
-/**
+/*
  * For encrypted symlinks, the ciphertext length is stored at the beginning
  * of the string in little-endian format.
  */
@@ -150,6 +165,20 @@ struct fscrypt_symlink_data {
 	__le16 len;
 	char encrypted_path[1];
 } __packed;
+
+/**
+ * struct fscrypt_prepared_key - a key prepared for actual encryption/decryption
+ * @tfm: crypto API transform object
+ * @blk_key: key for blk-crypto
+ *
+ * Normally only one of the fields will be non-NULL.
+ */
+struct fscrypt_prepared_key {
+	struct crypto_skcipher *tfm;
+#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
+	struct fscrypt_blk_crypto_key *blk_key;
+#endif
+};
 
 /*
  * fscrypt_info - the "encryption key" for an inode
@@ -160,14 +189,19 @@ struct fscrypt_symlink_data {
  */
 struct fscrypt_info {
 
-	/* The actual crypto transform used for encryption and decryption */
-	struct crypto_skcipher *ci_ctfm;
+	/* The key in a form prepared for actual encryption/decryption */
+	struct fscrypt_prepared_key ci_enc_key;
 
+	/* True if ci_enc_key should be freed when this fscrypt_info is freed */
+	bool ci_owns_key;
+
+#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
 	/*
-	 * Cipher for ESSIV IV generation.  Only set for CBC contents
-	 * encryption, otherwise is NULL.
+	 * True if this inode will use inline encryption (blk-crypto) instead of
+	 * the traditional filesystem-layer encryption.
 	 */
-	struct crypto_cipher *ci_essiv_tfm;
+	bool ci_inlinecrypt;
+#endif
 
 	/*
 	 * Encryption mode used for this inode.  It corresponds to either the
@@ -193,15 +227,26 @@ struct fscrypt_info {
 
 	/*
 	 * If non-NULL, then encryption is done using the master key directly
-	 * and ci_ctfm will equal ci_direct_key->dk_ctfm.
+	 * and ci_enc_key will equal ci_direct_key->dk_key.
 	 */
 	struct fscrypt_direct_key *ci_direct_key;
+
+	/*
+	 * This inode's hash key for filenames.  This is a 128-bit SipHash-2-4
+	 * key.  This is only set for directories that use a keyed dirhash over
+	 * the plaintext filenames -- currently just casefolded directories.
+	 */
+	siphash_key_t ci_dirhash_key;
+	bool ci_dirhash_key_initialized;
 
 	/* The encryption policy used by this inode */
 	union fscrypt_policy ci_policy;
 
 	/* This inode's nonce, copied from the fscrypt_context */
-	u8 ci_nonce[FS_KEY_DERIVATION_NONCE_SIZE];
+	u8 ci_nonce[FSCRYPT_FILE_NONCE_SIZE];
+
+	/* Hashed inode number.  Only set for IV_INO_LBLK_32 */
+	u32 ci_hashed_ino;
 };
 
 typedef enum {
@@ -209,38 +254,16 @@ typedef enum {
 	FS_ENCRYPT,
 } fscrypt_direction_t;
 
-#define FS_CTX_REQUIRES_FREE_ENCRYPT_FL		0x00000001
-
-static inline bool fscrypt_valid_enc_modes(u32 contents_mode,
-					   u32 filenames_mode)
-{
-	if (contents_mode == FSCRYPT_MODE_AES_128_CBC &&
-	    filenames_mode == FSCRYPT_MODE_AES_128_CTS)
-		return true;
-
-	if (contents_mode == FSCRYPT_MODE_AES_256_XTS &&
-	    filenames_mode == FSCRYPT_MODE_AES_256_CTS)
-		return true;
-
-	if (contents_mode == FSCRYPT_MODE_ADIANTUM &&
-	    filenames_mode == FSCRYPT_MODE_ADIANTUM)
-		return true;
-
-	return false;
-}
-
 /* crypto.c */
 extern struct kmem_cache *fscrypt_info_cachep;
-extern int fscrypt_initialize(unsigned int cop_flags);
-extern int fscrypt_crypt_block(const struct inode *inode,
-			       fscrypt_direction_t rw, u64 lblk_num,
-			       struct page *src_page, struct page *dest_page,
-			       unsigned int len, unsigned int offs,
-			       gfp_t gfp_flags);
-extern struct page *fscrypt_alloc_bounce_page(gfp_t gfp_flags);
-extern const struct dentry_operations fscrypt_d_ops;
+int fscrypt_initialize(unsigned int cop_flags);
+int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
+			u64 lblk_num, struct page *src_page,
+			struct page *dest_page, unsigned int len,
+			unsigned int offs, gfp_t gfp_flags);
+struct page *fscrypt_alloc_bounce_page(gfp_t gfp_flags);
 
-extern void __printf(3, 4) __cold
+void __printf(3, 4) __cold
 fscrypt_msg(const struct inode *inode, const char *level, const char *fmt, ...);
 
 #define fscrypt_warn(inode, fmt, ...)		\
@@ -256,20 +279,22 @@ union fscrypt_iv {
 		__le64 lblk_num;
 
 		/* per-file nonce; only set in DIRECT_KEY mode */
-		u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE];
+		u8 nonce[FSCRYPT_FILE_NONCE_SIZE];
 	};
 	u8 raw[FSCRYPT_MAX_IV_SIZE];
+	__le64 dun[FSCRYPT_MAX_IV_SIZE / sizeof(__le64)];
 };
 
 void fscrypt_generate_iv(union fscrypt_iv *iv, u64 lblk_num,
 			 const struct fscrypt_info *ci);
 
 /* fname.c */
-extern int fname_encrypt(struct inode *inode, const struct qstr *iname,
-			 u8 *out, unsigned int olen);
-extern bool fscrypt_fname_encrypted_size(const struct inode *inode,
-					 u32 orig_len, u32 max_len,
-					 u32 *encrypted_len_ret);
+int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
+			  u8 *out, unsigned int olen);
+bool fscrypt_fname_encrypted_size(const union fscrypt_policy *policy,
+				  u32 orig_len, u32 max_len,
+				  u32 *encrypted_len_ret);
+extern const struct dentry_operations fscrypt_d_ops;
 
 /* hkdf.c */
 
@@ -277,8 +302,8 @@ struct fscrypt_hkdf {
 	struct crypto_shash *hmac_tfm;
 };
 
-extern int fscrypt_init_hkdf(struct fscrypt_hkdf *hkdf, const u8 *master_key,
-			     unsigned int master_key_size);
+int fscrypt_init_hkdf(struct fscrypt_hkdf *hkdf, const u8 *master_key,
+		      unsigned int master_key_size);
 
 /*
  * The list of contexts in which fscrypt uses HKDF.  These values are used as
@@ -287,15 +312,91 @@ extern int fscrypt_init_hkdf(struct fscrypt_hkdf *hkdf, const u8 *master_key,
  * outputs are unique and cryptographically isolated, i.e. knowledge of one
  * output doesn't reveal another.
  */
-#define HKDF_CONTEXT_KEY_IDENTIFIER	1
-#define HKDF_CONTEXT_PER_FILE_KEY	2
-#define HKDF_CONTEXT_PER_MODE_KEY	3
+#define HKDF_CONTEXT_KEY_IDENTIFIER	1 /* info=<empty>		*/
+#define HKDF_CONTEXT_PER_FILE_ENC_KEY	2 /* info=file_nonce		*/
+#define HKDF_CONTEXT_DIRECT_KEY		3 /* info=mode_num		*/
+#define HKDF_CONTEXT_IV_INO_LBLK_64_KEY	4 /* info=mode_num||fs_uuid	*/
+#define HKDF_CONTEXT_DIRHASH_KEY	5 /* info=file_nonce		*/
+#define HKDF_CONTEXT_IV_INO_LBLK_32_KEY	6 /* info=mode_num||fs_uuid	*/
+#define HKDF_CONTEXT_INODE_HASH_KEY	7 /* info=<empty>		*/
 
-extern int fscrypt_hkdf_expand(struct fscrypt_hkdf *hkdf, u8 context,
-			       const u8 *info, unsigned int infolen,
-			       u8 *okm, unsigned int okmlen);
+int fscrypt_hkdf_expand(const struct fscrypt_hkdf *hkdf, u8 context,
+			const u8 *info, unsigned int infolen,
+			u8 *okm, unsigned int okmlen);
 
-extern void fscrypt_destroy_hkdf(struct fscrypt_hkdf *hkdf);
+void fscrypt_destroy_hkdf(struct fscrypt_hkdf *hkdf);
+
+/* inline_crypt.c */
+#ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
+int fscrypt_select_encryption_impl(struct fscrypt_info *ci);
+
+static inline bool
+fscrypt_using_inline_encryption(const struct fscrypt_info *ci)
+{
+	return ci->ci_inlinecrypt;
+}
+
+int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
+				     const u8 *raw_key,
+				     const struct fscrypt_info *ci);
+
+void fscrypt_destroy_inline_crypt_key(struct fscrypt_prepared_key *prep_key);
+
+/*
+ * Check whether the crypto transform or blk-crypto key has been allocated in
+ * @prep_key, depending on which encryption implementation the file will use.
+ */
+static inline bool
+fscrypt_is_key_prepared(struct fscrypt_prepared_key *prep_key,
+			const struct fscrypt_info *ci)
+{
+	/*
+	 * The two smp_load_acquire()'s here pair with the smp_store_release()'s
+	 * in fscrypt_prepare_inline_crypt_key() and fscrypt_prepare_key().
+	 * I.e., in some cases (namely, if this prep_key is a per-mode
+	 * encryption key) another task can publish blk_key or tfm concurrently,
+	 * executing a RELEASE barrier.  We need to use smp_load_acquire() here
+	 * to safely ACQUIRE the memory the other task published.
+	 */
+	if (fscrypt_using_inline_encryption(ci))
+		return smp_load_acquire(&prep_key->blk_key) != NULL;
+	return smp_load_acquire(&prep_key->tfm) != NULL;
+}
+
+#else /* CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
+
+static inline int fscrypt_select_encryption_impl(struct fscrypt_info *ci)
+{
+	return 0;
+}
+
+static inline bool
+fscrypt_using_inline_encryption(const struct fscrypt_info *ci)
+{
+	return false;
+}
+
+static inline int
+fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
+				 const u8 *raw_key,
+				 const struct fscrypt_info *ci)
+{
+	WARN_ON(1);
+	return -EOPNOTSUPP;
+}
+
+static inline void
+fscrypt_destroy_inline_crypt_key(struct fscrypt_prepared_key *prep_key)
+{
+}
+
+static inline bool
+fscrypt_is_key_prepared(struct fscrypt_prepared_key *prep_key,
+			const struct fscrypt_info *ci)
+{
+	return smp_load_acquire(&prep_key->tfm) != NULL;
+}
+#endif /* !CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
 
 /* keyring.c */
 
@@ -386,8 +487,17 @@ struct fscrypt_master_key {
 	struct list_head	mk_decrypted_inodes;
 	spinlock_t		mk_decrypted_inodes_lock;
 
-	/* Per-mode tfms for DIRECT_KEY policies, allocated on-demand */
-	struct crypto_skcipher	*mk_mode_keys[__FSCRYPT_MODE_MAX + 1];
+	/*
+	 * Per-mode encryption keys for the various types of encryption policies
+	 * that use them.  Allocated and derived on-demand.
+	 */
+	struct fscrypt_prepared_key mk_direct_keys[__FSCRYPT_MODE_MAX + 1];
+	struct fscrypt_prepared_key mk_iv_ino_lblk_64_keys[__FSCRYPT_MODE_MAX + 1];
+	struct fscrypt_prepared_key mk_iv_ino_lblk_32_keys[__FSCRYPT_MODE_MAX + 1];
+
+	/* Hash key for inode numbers.  Initialized only when needed. */
+	siphash_key_t		mk_ino_hash_key;
+	bool			mk_ino_hash_key_initialized;
 
 } __randomize_layout;
 
@@ -427,14 +537,17 @@ static inline int master_key_spec_len(const struct fscrypt_key_specifier *spec)
 	return 0;
 }
 
-extern struct key *
+struct key *
 fscrypt_find_master_key(struct super_block *sb,
 			const struct fscrypt_key_specifier *mk_spec);
 
-extern int fscrypt_verify_key_added(struct super_block *sb,
-				    const u8 identifier[FSCRYPT_KEY_IDENTIFIER_SIZE]);
+int fscrypt_add_test_dummy_key(struct super_block *sb,
+			       struct fscrypt_key_specifier *key_spec);
 
-extern int __init fscrypt_init_keyring(void);
+int fscrypt_verify_key_added(struct super_block *sb,
+			     const u8 identifier[FSCRYPT_KEY_IDENTIFIER_SIZE]);
+
+int __init fscrypt_init_keyring(void);
 
 /* keysetup.c */
 
@@ -443,40 +556,43 @@ struct fscrypt_mode {
 	const char *cipher_str;
 	int keysize;
 	int ivsize;
-	bool logged_impl_name;
-	bool needs_essiv;
+	int logged_impl_name;
+	enum blk_crypto_mode_num blk_crypto_mode;
 };
 
-static inline bool
-fscrypt_mode_supports_direct_key(const struct fscrypt_mode *mode)
-{
-	return mode->ivsize >= offsetofend(union fscrypt_iv, nonce);
-}
+extern struct fscrypt_mode fscrypt_modes[];
 
-extern struct crypto_skcipher *
-fscrypt_allocate_skcipher(struct fscrypt_mode *mode, const u8 *raw_key,
-			  const struct inode *inode);
+int fscrypt_prepare_key(struct fscrypt_prepared_key *prep_key,
+			const u8 *raw_key, const struct fscrypt_info *ci);
 
-extern int fscrypt_set_derived_key(struct fscrypt_info *ci,
-				   const u8 *derived_key);
+void fscrypt_destroy_prepared_key(struct fscrypt_prepared_key *prep_key);
+
+int fscrypt_set_per_file_enc_key(struct fscrypt_info *ci, const u8 *raw_key);
+
+int fscrypt_derive_dirhash_key(struct fscrypt_info *ci,
+			       const struct fscrypt_master_key *mk);
+
+void fscrypt_hash_inode_number(struct fscrypt_info *ci,
+			       const struct fscrypt_master_key *mk);
 
 /* keysetup_v1.c */
 
-extern void fscrypt_put_direct_key(struct fscrypt_direct_key *dk);
+void fscrypt_put_direct_key(struct fscrypt_direct_key *dk);
 
-extern int fscrypt_setup_v1_file_key(struct fscrypt_info *ci,
-				     const u8 *raw_master_key);
+int fscrypt_setup_v1_file_key(struct fscrypt_info *ci,
+			      const u8 *raw_master_key);
 
-extern int fscrypt_setup_v1_file_key_via_subscribed_keyrings(
-					struct fscrypt_info *ci);
+int fscrypt_setup_v1_file_key_via_subscribed_keyrings(struct fscrypt_info *ci);
+
 /* policy.c */
 
-extern bool fscrypt_policies_equal(const union fscrypt_policy *policy1,
-				   const union fscrypt_policy *policy2);
-extern bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
-				     const struct inode *inode);
-extern int fscrypt_policy_from_context(union fscrypt_policy *policy_u,
-				       const union fscrypt_context *ctx_u,
-				       int ctx_size);
+bool fscrypt_policies_equal(const union fscrypt_policy *policy1,
+			    const union fscrypt_policy *policy2);
+bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
+			      const struct inode *inode);
+int fscrypt_policy_from_context(union fscrypt_policy *policy_u,
+				const union fscrypt_context *ctx_u,
+				int ctx_size);
+const union fscrypt_policy *fscrypt_policy_to_inherit(struct inode *dir);
 
 #endif /* _FSCRYPT_PRIVATE_H */

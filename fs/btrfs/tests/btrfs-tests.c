@@ -86,6 +86,27 @@ static void btrfs_destroy_test_fs(void)
 	unregister_filesystem(&test_type);
 }
 
+struct btrfs_device *btrfs_alloc_dummy_device(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_device *dev;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	extent_io_tree_init(NULL, &dev->alloc_state, 0, NULL);
+	INIT_LIST_HEAD(&dev->dev_list);
+	list_add(&dev->dev_list, &fs_info->fs_devices->devices);
+
+	return dev;
+}
+
+static void btrfs_free_dummy_device(struct btrfs_device *dev)
+{
+	extent_io_tree_release(&dev->alloc_state);
+	kfree(dev);
+}
+
 struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 {
 	struct btrfs_fs_info *fs_info = kzalloc(sizeof(struct btrfs_fs_info),
@@ -99,6 +120,8 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 		kfree(fs_info);
 		return NULL;
 	}
+	INIT_LIST_HEAD(&fs_info->fs_devices->devices);
+
 	fs_info->super_copy = kzalloc(sizeof(struct btrfs_super_block),
 				      GFP_KERNEL);
 	if (!fs_info->super_copy) {
@@ -107,38 +130,10 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 		return NULL;
 	}
 
+	btrfs_init_fs_info(fs_info);
+
 	fs_info->nodesize = nodesize;
 	fs_info->sectorsize = sectorsize;
-
-	if (init_srcu_struct(&fs_info->subvol_srcu)) {
-		kfree(fs_info->fs_devices);
-		kfree(fs_info->super_copy);
-		kfree(fs_info);
-		return NULL;
-	}
-
-	spin_lock_init(&fs_info->buffer_lock);
-	spin_lock_init(&fs_info->qgroup_lock);
-	spin_lock_init(&fs_info->super_lock);
-	spin_lock_init(&fs_info->fs_roots_radix_lock);
-	spin_lock_init(&fs_info->tree_mod_seq_lock);
-	mutex_init(&fs_info->qgroup_ioctl_lock);
-	mutex_init(&fs_info->qgroup_rescan_lock);
-	rwlock_init(&fs_info->tree_mod_log_lock);
-	fs_info->running_transaction = NULL;
-	fs_info->qgroup_tree = RB_ROOT;
-	fs_info->qgroup_ulist = NULL;
-	atomic64_set(&fs_info->tree_mod_seq, 0);
-	INIT_LIST_HEAD(&fs_info->dirty_qgroups);
-	INIT_LIST_HEAD(&fs_info->dead_roots);
-	INIT_LIST_HEAD(&fs_info->tree_mod_seq_list);
-	INIT_RADIX_TREE(&fs_info->buffer_radix, GFP_ATOMIC);
-	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
-	extent_io_tree_init(fs_info, &fs_info->freed_extents[0],
-			    IO_TREE_FS_INFO_FREED_EXTENTS0, NULL);
-	extent_io_tree_init(fs_info, &fs_info->freed_extents[1],
-			    IO_TREE_FS_INFO_FREED_EXTENTS1, NULL);
-	fs_info->pinned_extents = &fs_info->freed_extents[0];
 	set_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 
 	test_mnt->mnt_sb->s_fs_info = fs_info;
@@ -150,6 +145,7 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 {
 	struct radix_tree_iter iter;
 	void **slot;
+	struct btrfs_device *dev, *tmp;
 
 	if (!fs_info)
 		return;
@@ -180,10 +176,16 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 	}
 	spin_unlock(&fs_info->buffer_lock);
 
+	btrfs_mapping_tree_free(&fs_info->mapping_tree);
+	list_for_each_entry_safe(dev, tmp, &fs_info->fs_devices->devices,
+				 dev_list) {
+		btrfs_free_dummy_device(dev);
+	}
 	btrfs_free_qgroup_config(fs_info);
 	btrfs_free_fs_roots(fs_info);
-	cleanup_srcu_struct(&fs_info->subvol_srcu);
 	kfree(fs_info->super_copy);
+	btrfs_check_leaked_roots(fs_info);
+	btrfs_extent_buffer_leak_debug_check(fs_info);
 	kfree(fs_info->fs_devices);
 	kfree(fs_info);
 }
@@ -195,18 +197,14 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 	/* Will be freed by btrfs_free_fs_roots */
 	if (WARN_ON(test_bit(BTRFS_ROOT_IN_RADIX, &root->state)))
 		return;
-	if (root->node) {
-		/* One for allocate_extent_buffer */
-		free_extent_buffer(root->node);
-	}
-	kfree(root);
+	btrfs_put_root(root);
 }
 
-struct btrfs_block_group_cache *
+struct btrfs_block_group *
 btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info,
 			      unsigned long length)
 {
-	struct btrfs_block_group_cache *cache;
+	struct btrfs_block_group *cache;
 
 	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
 	if (!cache)
@@ -218,9 +216,8 @@ btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info,
 		return NULL;
 	}
 
-	cache->key.objectid = 0;
-	cache->key.offset = length;
-	cache->key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
+	cache->start = 0;
+	cache->length = length;
 	cache->full_stripe_len = fs_info->sectorsize;
 	cache->fs_info = fs_info;
 
@@ -233,7 +230,7 @@ btrfs_alloc_dummy_block_group(struct btrfs_fs_info *fs_info,
 	return cache;
 }
 
-void btrfs_free_dummy_block_group(struct btrfs_block_group_cache *cache)
+void btrfs_free_dummy_block_group(struct btrfs_block_group *cache)
 {
 	if (!cache)
 		return;

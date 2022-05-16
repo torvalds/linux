@@ -260,20 +260,20 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			if (unlikely(!new_skb))
 				goto done;
 
-			mapping = pci_map_single(priv->pdev,
-					       skb_tail_pointer(new_skb),
-					       MAX_RX_SIZE, PCI_DMA_FROMDEVICE);
+			mapping = dma_map_single(&priv->pdev->dev,
+						 skb_tail_pointer(new_skb),
+						 MAX_RX_SIZE, DMA_FROM_DEVICE);
 
-			if (pci_dma_mapping_error(priv->pdev, mapping)) {
+			if (dma_mapping_error(&priv->pdev->dev, mapping)) {
 				kfree_skb(new_skb);
 				dev_err(&priv->pdev->dev, "RX DMA map error\n");
 
 				goto done;
 			}
 
-			pci_unmap_single(priv->pdev,
+			dma_unmap_single(&priv->pdev->dev,
 					 *((dma_addr_t *)skb->cb),
-					 MAX_RX_SIZE, PCI_DMA_FROMDEVICE);
+					 MAX_RX_SIZE, DMA_FROM_DEVICE);
 			skb_put(skb, flags & 0xFFF);
 
 			rx_status.antenna = (flags2 >> 15) & 1;
@@ -355,8 +355,8 @@ static void rtl8180_handle_tx(struct ieee80211_hw *dev, unsigned int prio)
 
 		ring->idx = (ring->idx + 1) % ring->entries;
 		skb = __skb_dequeue(&ring->queue);
-		pci_unmap_single(priv->pdev, le32_to_cpu(entry->tx_buf),
-				 skb->len, PCI_DMA_TODEVICE);
+		dma_unmap_single(&priv->pdev->dev, le32_to_cpu(entry->tx_buf),
+				 skb->len, DMA_TO_DEVICE);
 
 		info = IEEE80211_SKB_CB(skb);
 		ieee80211_tx_info_clear_status(info);
@@ -473,10 +473,10 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 	prio = skb_get_queue_mapping(skb);
 	ring = &priv->tx_ring[prio];
 
-	mapping = pci_map_single(priv->pdev, skb->data,
-				 skb->len, PCI_DMA_TODEVICE);
+	mapping = dma_map_single(&priv->pdev->dev, skb->data, skb->len,
+				 DMA_TO_DEVICE);
 
-	if (pci_dma_mapping_error(priv->pdev, mapping)) {
+	if (dma_mapping_error(&priv->pdev->dev, mapping)) {
 		kfree_skb(skb);
 		dev_err(&priv->pdev->dev, "TX DMA mapping error\n");
 		return;
@@ -1004,8 +1004,9 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 	else
 		priv->rx_ring_sz = sizeof(struct rtl8180_rx_desc);
 
-	priv->rx_ring = pci_zalloc_consistent(priv->pdev, priv->rx_ring_sz * 32,
-					      &priv->rx_ring_dma);
+	priv->rx_ring = dma_alloc_coherent(&priv->pdev->dev,
+					   priv->rx_ring_sz * 32,
+					   &priv->rx_ring_dma, GFP_KERNEL);
 	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
 		wiphy_err(dev->wiphy, "Cannot allocate RX ring\n");
 		return -ENOMEM;
@@ -1018,20 +1019,23 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 		dma_addr_t *mapping;
 		entry = priv->rx_ring + priv->rx_ring_sz*i;
 		if (!skb) {
-			pci_free_consistent(priv->pdev, priv->rx_ring_sz * 32,
-					priv->rx_ring, priv->rx_ring_dma);
+			dma_free_coherent(&priv->pdev->dev,
+					  priv->rx_ring_sz * 32,
+					  priv->rx_ring, priv->rx_ring_dma);
 			wiphy_err(dev->wiphy, "Cannot allocate RX skb\n");
 			return -ENOMEM;
 		}
 		priv->rx_buf[i] = skb;
 		mapping = (dma_addr_t *)skb->cb;
-		*mapping = pci_map_single(priv->pdev, skb_tail_pointer(skb),
-					  MAX_RX_SIZE, PCI_DMA_FROMDEVICE);
+		*mapping = dma_map_single(&priv->pdev->dev,
+					  skb_tail_pointer(skb), MAX_RX_SIZE,
+					  DMA_FROM_DEVICE);
 
-		if (pci_dma_mapping_error(priv->pdev, *mapping)) {
+		if (dma_mapping_error(&priv->pdev->dev, *mapping)) {
 			kfree_skb(skb);
-			pci_free_consistent(priv->pdev, priv->rx_ring_sz * 32,
-					priv->rx_ring, priv->rx_ring_dma);
+			dma_free_coherent(&priv->pdev->dev,
+					  priv->rx_ring_sz * 32,
+					  priv->rx_ring, priv->rx_ring_dma);
 			wiphy_err(dev->wiphy, "Cannot map DMA for RX skb\n");
 			return -ENOMEM;
 		}
@@ -1054,14 +1058,13 @@ static void rtl8180_free_rx_ring(struct ieee80211_hw *dev)
 		if (!skb)
 			continue;
 
-		pci_unmap_single(priv->pdev,
-				 *((dma_addr_t *)skb->cb),
-				 MAX_RX_SIZE, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&priv->pdev->dev, *((dma_addr_t *)skb->cb),
+				 MAX_RX_SIZE, DMA_FROM_DEVICE);
 		kfree_skb(skb);
 	}
 
-	pci_free_consistent(priv->pdev, priv->rx_ring_sz * 32,
-			    priv->rx_ring, priv->rx_ring_dma);
+	dma_free_coherent(&priv->pdev->dev, priv->rx_ring_sz * 32,
+			  priv->rx_ring, priv->rx_ring_dma);
 	priv->rx_ring = NULL;
 }
 
@@ -1073,8 +1076,8 @@ static int rtl8180_init_tx_ring(struct ieee80211_hw *dev,
 	dma_addr_t dma;
 	int i;
 
-	ring = pci_zalloc_consistent(priv->pdev, sizeof(*ring) * entries,
-				     &dma);
+	ring = dma_alloc_coherent(&priv->pdev->dev, sizeof(*ring) * entries,
+				  &dma, GFP_KERNEL);
 	if (!ring || (unsigned long)ring & 0xFF) {
 		wiphy_err(dev->wiphy, "Cannot allocate TX ring (prio = %d)\n",
 			  prio);
@@ -1103,14 +1106,15 @@ static void rtl8180_free_tx_ring(struct ieee80211_hw *dev, unsigned int prio)
 		struct rtl8180_tx_desc *entry = &ring->desc[ring->idx];
 		struct sk_buff *skb = __skb_dequeue(&ring->queue);
 
-		pci_unmap_single(priv->pdev, le32_to_cpu(entry->tx_buf),
-				 skb->len, PCI_DMA_TODEVICE);
+		dma_unmap_single(&priv->pdev->dev, le32_to_cpu(entry->tx_buf),
+				 skb->len, DMA_TO_DEVICE);
 		kfree_skb(skb);
 		ring->idx = (ring->idx + 1) % ring->entries;
 	}
 
-	pci_free_consistent(priv->pdev, sizeof(*ring->desc)*ring->entries,
-			    ring->desc, ring->dma);
+	dma_free_coherent(&priv->pdev->dev,
+			  sizeof(*ring->desc) * ring->entries, ring->desc,
+			  ring->dma);
 	ring->desc = NULL;
 }
 
@@ -1754,8 +1758,8 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		goto err_free_reg;
 	}
 
-	if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) ||
-	    (err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))) {
+	if ((err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) ||
+	    (err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32)))) {
 		printk(KERN_ERR "%s (rtl8180): No suitable DMA available\n",
 		       pci_name(pdev));
 		goto err_free_reg;
@@ -1966,32 +1970,17 @@ static void rtl8180_remove(struct pci_dev *pdev)
 	ieee80211_free_hw(dev);
 }
 
-#ifdef CONFIG_PM
-static int rtl8180_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-	return 0;
-}
+#define rtl8180_suspend NULL
+#define rtl8180_resume NULL
 
-static int rtl8180_resume(struct pci_dev *pdev)
-{
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	return 0;
-}
-
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(rtl8180_pm_ops, rtl8180_suspend, rtl8180_resume);
 
 static struct pci_driver rtl8180_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rtl8180_table,
 	.probe		= rtl8180_probe,
 	.remove		= rtl8180_remove,
-#ifdef CONFIG_PM
-	.suspend	= rtl8180_suspend,
-	.resume		= rtl8180_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= &rtl8180_pm_ops,
 };
 
 module_pci_driver(rtl8180_driver);

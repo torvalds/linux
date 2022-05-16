@@ -34,6 +34,8 @@ const char * const led_colors[LED_COLOR_ID_MAX] = {
 	[LED_COLOR_ID_VIOLET] = "violet",
 	[LED_COLOR_ID_YELLOW] = "yellow",
 	[LED_COLOR_ID_IR] = "ir",
+	[LED_COLOR_ID_MULTI] = "multicolor",
+	[LED_COLOR_ID_RGB] = "rgb",
 };
 EXPORT_SYMBOL_GPL(led_colors);
 
@@ -422,6 +424,10 @@ int led_compose_name(struct device *dev, struct led_init_data *init_data,
 	struct led_properties props = {};
 	struct fwnode_handle *fwnode = init_data->fwnode;
 	const char *devicename = init_data->devicename;
+
+	/* We want to label LEDs that can produce full range of colors
+	 * as RGB, not multicolor */
+	BUG_ON(props.color == LED_COLOR_ID_MULTI);
 
 	if (!led_classdev_name)
 		return -EINVAL;

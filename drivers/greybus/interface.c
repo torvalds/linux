@@ -620,7 +620,7 @@ static struct attribute *interface_common_attrs[] = {
 static umode_t interface_unipro_is_visible(struct kobject *kobj,
 					   struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
 
 	switch (intf->type) {
@@ -635,7 +635,7 @@ static umode_t interface_unipro_is_visible(struct kobject *kobj,
 static umode_t interface_greybus_is_visible(struct kobject *kobj,
 					    struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
 
 	switch (intf->type) {
@@ -649,7 +649,7 @@ static umode_t interface_greybus_is_visible(struct kobject *kobj,
 static umode_t interface_power_is_visible(struct kobject *kobj,
 					  struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
 
 	switch (intf->type) {
@@ -1233,7 +1233,7 @@ int gb_interface_add(struct gb_interface *intf)
 	case GB_INTERFACE_TYPE_GREYBUS:
 		dev_info(&intf->dev, "GMP VID=0x%08x, PID=0x%08x\n",
 			 intf->vendor_id, intf->product_id);
-		/* fall-through */
+		fallthrough;
 	case GB_INTERFACE_TYPE_UNIPRO:
 		dev_info(&intf->dev, "DDBL1 Manufacturer=0x%08x, Product=0x%08x\n",
 			 intf->ddbl1_manufacturer_id,

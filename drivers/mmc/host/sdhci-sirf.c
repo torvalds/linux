@@ -194,7 +194,7 @@ static int sdhci_sirf_probe(struct platform_device *pdev)
 	 * We must request the IRQ after sdhci_add_host(), as the tasklet only
 	 * gets setup in sdhci_add_host() and we oops.
 	 */
-	ret = mmc_gpiod_request_cd(host->mmc, "cd", 0, false, 0, NULL);
+	ret = mmc_gpiod_request_cd(host->mmc, "cd", 0, false, 0);
 	if (ret == -EPROBE_DEFER)
 		goto err_request_cd;
 	if (!ret)
@@ -220,6 +220,7 @@ MODULE_DEVICE_TABLE(of, sdhci_sirf_of_match);
 static struct platform_driver sdhci_sirf_driver = {
 	.driver		= {
 		.name	= "sdhci-sirf",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_sirf_of_match,
 		.pm	= &sdhci_pltfm_pmops,
 	},

@@ -85,8 +85,7 @@ frag_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 		 !((fraginfo->flags & IP6T_FRAG_NMF) &&
 		   (ntohs(fh->frag_off) & IP6_MF)));
 
-	return (fh != NULL) &&
-		id_match(fraginfo->ids[0], fraginfo->ids[1],
+	return id_match(fraginfo->ids[0], fraginfo->ids[1],
 			 ntohl(fh->identification),
 			 !!(fraginfo->invflags & IP6T_FRAG_INV_IDS)) &&
 		!((fraginfo->flags & IP6T_FRAG_RES) &&

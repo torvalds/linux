@@ -31,6 +31,9 @@
 #define GFX_CMD_RESERVED_MASK       0x7FF00000
 #define GFX_CMD_RESPONSE_MASK       0x80000000
 
+/* USBC PD FW version retrieval command */
+#define C2PMSG_CMD_GFX_USB_PD_FW_VER 0x2000000
+
 /* TEE Gfx Command IDs for the register interface.
 *  Command ID must be between 0x00010000 and 0x000F0000.
 */
@@ -80,19 +83,6 @@ struct psp_gfx_ctrl
 */
 #define GFX_FLAG_RESPONSE               0x80000000
 
-/* Gbr IH registers ID */
-enum ih_reg_id {
-	IH_RB		= 0,		// IH_RB_CNTL
-	IH_RB_RNG1	= 1,		// IH_RB_CNTL_RING1
-	IH_RB_RNG2	= 2,		// IH_RB_CNTL_RING2
-};
-
-/* Command to setup Gibraltar IH register */
-struct psp_gfx_cmd_gbr_ih_reg {
-	uint32_t		reg_value;	/* Value to be set to the IH_RB_CNTL... register*/
-	enum ih_reg_id		reg_id;		/* ID of the register */
-};
-
 /* TEE Gfx Command IDs for the ring buffer interface. */
 enum psp_gfx_cmd_id
 {
@@ -107,6 +97,7 @@ enum psp_gfx_cmd_id
     GFX_CMD_ID_SETUP_VMR    = 0x00000009,   /* setup VMR region */
     GFX_CMD_ID_DESTROY_VMR  = 0x0000000A,   /* destroy VMR region */
     GFX_CMD_ID_PROG_REG     = 0x0000000B,   /* program regs */
+    GFX_CMD_ID_CLEAR_VF_FW  = 0x0000000D,   /* Clear VF FW, to be used on VF shutdown. */
     /* IDs upto 0x1F are reserved for older programs (Raven, Vega 10/12/20) */
     GFX_CMD_ID_LOAD_TOC     = 0x00000020,   /* Load TOC and obtain TMR size */
     GFX_CMD_ID_AUTOLOAD_RLC = 0x00000021,   /* Indicates all graphics fw loaded, start RLC autoload */
@@ -210,7 +201,7 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_UVD1        = 23,   /* UVD1                     VG-20   */
 	GFX_FW_TYPE_TOC         = 24,   /* TOC                      NV-10   */
 	GFX_FW_TYPE_RLC_P                           = 25,   /* RLC P                    NV      */
-	GFX_FW_TYPE_RLX6                            = 26,   /* RLX6                     NV      */
+	GFX_FW_TYPE_RLC_IRAM                        = 26,   /* RLC_IRAM                 NV      */
 	GFX_FW_TYPE_GLOBAL_TAP_DELAYS               = 27,   /* GLOBAL TAP DELAYS        NV      */
 	GFX_FW_TYPE_SE0_TAP_DELAYS                  = 28,   /* SE0 TAP DELAYS           NV      */
 	GFX_FW_TYPE_SE1_TAP_DELAYS                  = 29,   /* SE1 TAP DELAYS           NV      */
@@ -232,7 +223,7 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_ACCUM_CTRL_RAM                  = 45,   /* ACCUM CTRL RAM           NV      */
 	GFX_FW_TYPE_RLCP_CAM                        = 46,   /* RLCP CAM                 NV      */
 	GFX_FW_TYPE_RLC_SPP_CAM_EXT                 = 47,   /* RLC SPP CAM EXT          NV      */
-	GFX_FW_TYPE_RLX6_DRAM_BOOT                  = 48,   /* RLX6 DRAM BOOT           NV      */
+	GFX_FW_TYPE_RLC_DRAM_BOOT                   = 48,   /* RLC DRAM BOOT            NV      */
 	GFX_FW_TYPE_VCN0_RAM                        = 49,   /* VCN_RAM                  NV + RN */
 	GFX_FW_TYPE_VCN1_RAM                        = 50,   /* VCN_RAM                  NV + RN */
 	GFX_FW_TYPE_DMUB                            = 51,   /* DMUB                          RN */
@@ -242,6 +233,7 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_SDMA5                           = 55,   /* SDMA5                    MI      */
 	GFX_FW_TYPE_SDMA6                           = 56,   /* SDMA6                    MI      */
 	GFX_FW_TYPE_SDMA7                           = 57,   /* SDMA7                    MI      */
+	GFX_FW_TYPE_VCN1                            = 58,   /* VCN1                     MI      */
 	GFX_FW_TYPE_MAX
 };
 
@@ -359,6 +351,13 @@ struct psp_gfx_rb_frame
     uint8_t     reserved1[2];       /* +34 reserved, must be 0 */
     uint32_t    reserved2[7];       /* +36 reserved, must be 0 */
                 /* total 64 bytes */
+};
+
+#define PSP_ERR_UNKNOWN_COMMAND 0x00000100
+
+enum tee_error_code {
+    TEE_SUCCESS                         = 0x00000000,
+    TEE_ERROR_NOT_SUPPORTED             = 0xFFFF000A,
 };
 
 #endif /* _PSP_TEE_GFX_IF_H_ */

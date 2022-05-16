@@ -1,12 +1,11 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Kprobe event with comm arguments
-
-[ -f kprobe_events ] || exit_unsupported # this is configurable
+# requires: kprobe_events
 
 grep -A1 "fetcharg:" README | grep -q "\$comm" || exit_unsupported # this is too old
 
-echo 'p:testprobe _do_fork comm=$comm ' > kprobe_events
+echo "p:testprobe $FUNCTION_FORK comm=\$comm " > kprobe_events
 grep testprobe kprobe_events | grep -q 'comm=$comm'
 test -d events/kprobes/testprobe
 

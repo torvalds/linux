@@ -4,7 +4,8 @@
  *
  * We call the USB code inside a Linux-based peripheral device a "gadget"
  * driver, except for the hardware-specific bus glue.  One USB host can
- * master many USB gadgets, but the gadgets are only slaved to one host.
+ * talk to many USB gadgets, but the gadgets are only able to communicate
+ * to one host.
  *
  *
  * (C) Copyright 2002-2004 by David Brownell
@@ -42,6 +43,8 @@ struct usb_ep;
  * @num_mapped_sgs: number of SG entries mapped to DMA (internal)
  * @length: Length of that data
  * @stream_id: The stream id, when USB3.0 bulk streams are being used
+ * @is_last: Indicates if this is the last request of a stream_id before
+ *	switching to a different stream (required for DWC3 controllers).
  * @no_interrupt: If true, hints that no completion irq is needed.
  *	Helpful sometimes with deep request queues that are handled
  *	directly by DMA controllers.
@@ -104,6 +107,7 @@ struct usb_request {
 	unsigned		num_mapped_sgs;
 
 	unsigned		stream_id:16;
+	unsigned		is_last:1;
 	unsigned		no_interrupt:1;
 	unsigned		zero:1;
 	unsigned		short_not_ok:1;
@@ -325,7 +329,7 @@ struct usb_gadget_ops {
 };
 
 /**
- * struct usb_gadget - represents a usb slave device
+ * struct usb_gadget - represents a usb device
  * @work: (internal use) Workqueue to be used for sysfs_notify()
  * @udc: struct usb_udc pointer for this gadget
  * @ops: Function pointers used to access hardware-specific operations.
@@ -373,6 +377,7 @@ struct usb_gadget_ops {
  * @connected: True if gadget is connected.
  * @lpm_capable: If the gadget max_speed is FULL or HIGH, this flag
  *	indicates that it supports LPM as per the LPM ECN & errata.
+ * @irq: the interrupt number for device controller.
  *
  * Gadgets have a mostly-portable "gadget driver" implementing device
  * functions, handling all usb configurations and interfaces.  Gadget
@@ -427,9 +432,11 @@ struct usb_gadget {
 	unsigned			deactivated:1;
 	unsigned			connected:1;
 	unsigned			lpm_capable:1;
+	int				irq;
 };
 #define work_to_gadget(w)	(container_of((w), struct usb_gadget, work))
 
+/* Interface to the device model */
 static inline void set_gadget_data(struct usb_gadget *gadget, void *data)
 	{ dev_set_drvdata(&gadget->dev, data); }
 static inline void *get_gadget_data(struct usb_gadget *gadget)
@@ -438,6 +445,26 @@ static inline struct usb_gadget *dev_to_usb_gadget(struct device *dev)
 {
 	return container_of(dev, struct usb_gadget, dev);
 }
+static inline struct usb_gadget *usb_get_gadget(struct usb_gadget *gadget)
+{
+	get_device(&gadget->dev);
+	return gadget;
+}
+static inline void usb_put_gadget(struct usb_gadget *gadget)
+{
+	put_device(&gadget->dev);
+}
+extern void usb_initialize_gadget(struct device *parent,
+		struct usb_gadget *gadget, void (*release)(struct device *dev));
+extern int usb_add_gadget(struct usb_gadget *gadget);
+extern void usb_del_gadget(struct usb_gadget *gadget);
+
+/* Legacy device-model interface */
+extern int usb_add_gadget_udc_release(struct device *parent,
+		struct usb_gadget *gadget, void (*release)(struct device *dev));
+extern int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget);
+extern void usb_del_gadget_udc(struct usb_gadget *gadget);
+extern char *usb_get_gadget_udc_name(void);
 
 /* iterates the non-control endpoints; 'tmp' is a struct usb_ep pointer */
 #define gadget_for_each_ep(tmp, gadget) \
@@ -597,7 +624,7 @@ static inline int usb_gadget_activate(struct usb_gadget *gadget)
 /*-------------------------------------------------------------------------*/
 
 /**
- * struct usb_gadget_driver - driver for usb 'slave' devices
+ * struct usb_gadget_driver - driver for usb gadget devices
  * @function: String describing the gadget's function
  * @max_speed: Highest speed the driver handles.
  * @setup: Invoked for ep0 control requests that aren't handled by
@@ -725,15 +752,9 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver);
  * it will first disconnect().  The driver is also requested
  * to unbind() and clean up any device state, before this procedure
  * finally returns.  It's expected that the unbind() functions
- * will in in exit sections, so may not be linked in some kernels.
+ * will be in exit sections, so may not be linked in some kernels.
  */
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver);
-
-extern int usb_add_gadget_udc_release(struct device *parent,
-		struct usb_gadget *gadget, void (*release)(struct device *dev));
-extern int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget);
-extern void usb_del_gadget_udc(struct usb_gadget *gadget);
-extern char *usb_get_gadget_udc_name(void);
 
 /*-------------------------------------------------------------------------*/
 
@@ -767,11 +788,14 @@ struct usb_gadget_strings {
 
 struct usb_gadget_string_container {
 	struct list_head        list;
-	u8                      *stash[0];
+	u8                      *stash[];
 };
 
 /* put descriptor for string with that id into buf (buflen >= 256) */
 int usb_gadget_get_string(const struct usb_gadget_strings *table, int id, u8 *buf);
+
+/* check if the given language identifier is valid */
+bool usb_validate_langid(u16 langid);
 
 /*-------------------------------------------------------------------------*/
 

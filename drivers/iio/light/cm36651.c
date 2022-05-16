@@ -532,7 +532,7 @@ static int cm36651_write_prox_event_config(struct iio_dev *indio_dev,
 					int state)
 {
 	struct cm36651_data *cm36651 = iio_priv(indio_dev);
-	int cmd, ret = -EINVAL;
+	int cmd, ret;
 
 	mutex_lock(&cm36651->lock);
 
@@ -662,7 +662,6 @@ static int cm36651_probe(struct i2c_client *client,
 	}
 
 	mutex_init(&cm36651->lock);
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = cm36651_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cm36651_channels);
 	indio_dev->info = &cm36651_info;

@@ -276,10 +276,6 @@ void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key)
 	ovs_ct_update_key(skb, NULL, key, false, false);
 }
 
-#define IN6_ADDR_INITIALIZER(ADDR) \
-	{ (ADDR).s6_addr32[0], (ADDR).s6_addr32[1], \
-	  (ADDR).s6_addr32[2], (ADDR).s6_addr32[3] }
-
 int ovs_ct_put_key(const struct sw_flow_key *swkey,
 		   const struct sw_flow_key *output, struct sk_buff *skb)
 {
@@ -301,24 +297,30 @@ int ovs_ct_put_key(const struct sw_flow_key *swkey,
 
 	if (swkey->ct_orig_proto) {
 		if (swkey->eth.type == htons(ETH_P_IP)) {
-			struct ovs_key_ct_tuple_ipv4 orig = {
-				output->ipv4.ct_orig.src,
-				output->ipv4.ct_orig.dst,
-				output->ct.orig_tp.src,
-				output->ct.orig_tp.dst,
-				output->ct_orig_proto,
-			};
+			struct ovs_key_ct_tuple_ipv4 orig;
+
+			memset(&orig, 0, sizeof(orig));
+			orig.ipv4_src = output->ipv4.ct_orig.src;
+			orig.ipv4_dst = output->ipv4.ct_orig.dst;
+			orig.src_port = output->ct.orig_tp.src;
+			orig.dst_port = output->ct.orig_tp.dst;
+			orig.ipv4_proto = output->ct_orig_proto;
+
 			if (nla_put(skb, OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV4,
 				    sizeof(orig), &orig))
 				return -EMSGSIZE;
 		} else if (swkey->eth.type == htons(ETH_P_IPV6)) {
-			struct ovs_key_ct_tuple_ipv6 orig = {
-				IN6_ADDR_INITIALIZER(output->ipv6.ct_orig.src),
-				IN6_ADDR_INITIALIZER(output->ipv6.ct_orig.dst),
-				output->ct.orig_tp.src,
-				output->ct.orig_tp.dst,
-				output->ct_orig_proto,
-			};
+			struct ovs_key_ct_tuple_ipv6 orig;
+
+			memset(&orig, 0, sizeof(orig));
+			memcpy(orig.ipv6_src, output->ipv6.ct_orig.src.s6_addr32,
+			       sizeof(orig.ipv6_src));
+			memcpy(orig.ipv6_dst, output->ipv6.ct_orig.dst.s6_addr32,
+			       sizeof(orig.ipv6_dst));
+			orig.src_port = output->ct.orig_tp.src;
+			orig.dst_port = output->ct.orig_tp.dst;
+			orig.ipv6_proto = output->ct_orig_proto;
+
 			if (nla_put(skb, OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV6,
 				    sizeof(orig), &orig))
 				return -EMSGSIZE;
@@ -776,7 +778,7 @@ static int ovs_ct_nat_execute(struct sk_buff *skb, struct nf_conn *ct,
 			}
 		}
 		/* Non-ICMP, fall thru to initialize if needed. */
-		/* fall through */
+		fallthrough;
 	case IP_CT_NEW:
 		/* Seen it before?  This can happen for loopback, retrans,
 		 * or local packets.
@@ -903,6 +905,21 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 	}
 	err = ovs_ct_nat_execute(skb, ct, ctinfo, &info->range, maniptype);
 
+	if (err == NF_ACCEPT && ct->status & IPS_DST_NAT) {
+		if (ct->status & IPS_SRC_NAT) {
+			if (maniptype == NF_NAT_MANIP_SRC)
+				maniptype = NF_NAT_MANIP_DST;
+			else
+				maniptype = NF_NAT_MANIP_SRC;
+
+			err = ovs_ct_nat_execute(skb, ct, ctinfo, &info->range,
+						 maniptype);
+		} else if (CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL) {
+			err = ovs_ct_nat_execute(skb, ct, ctinfo, NULL,
+						 NF_NAT_MANIP_SRC);
+		}
+	}
+
 	/* Mark NAT done if successful and update the flow key. */
 	if (err == NF_ACCEPT)
 		ovs_nat_update_key(key, skb, maniptype);
@@ -971,6 +988,8 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 
 	ct = nf_ct_get(skb, &ctinfo);
 	if (ct) {
+		bool add_helper = false;
+
 		/* Packets starting a new connection must be NATted before the
 		 * helper, so that the helper knows about the NAT.  We enforce
 		 * this by delaying both NAT and helper calls for unconfirmed
@@ -988,16 +1007,17 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		}
 
 		/* Userspace may decide to perform a ct lookup without a helper
-		 * specified followed by a (recirculate and) commit with one.
-		 * Therefore, for unconfirmed connections which we will commit,
-		 * we need to attach the helper here.
+		 * specified followed by a (recirculate and) commit with one,
+		 * or attach a helper in a later commit.  Therefore, for
+		 * connections which we will commit, we may need to attach
+		 * the helper here.
 		 */
-		if (!nf_ct_is_confirmed(ct) && info->commit &&
-		    info->helper && !nfct_help(ct)) {
+		if (info->commit && info->helper && !nfct_help(ct)) {
 			int err = __nf_ct_try_assign_helper(ct, info->ct,
 							    GFP_ATOMIC);
 			if (err)
 				return err;
+			add_helper = true;
 
 			/* helper installed, add seqadj if NAT is required */
 			if (info->nat && !nfct_seqadj(ct)) {
@@ -1007,11 +1027,13 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		}
 
 		/* Call the helper only if:
-		 * - nf_conntrack_in() was executed above ("!cached") for a
-		 *   confirmed connection, or
+		 * - nf_conntrack_in() was executed above ("!cached") or a
+		 *   helper was just attached ("add_helper") for a confirmed
+		 *   connection, or
 		 * - When committing an unconfirmed connection.
 		 */
-		if ((nf_ct_is_confirmed(ct) ? !cached : info->commit) &&
+		if ((nf_ct_is_confirmed(ct) ? !cached || add_helper :
+					      info->commit) &&
 		    ovs_ct_helper(skb, info->family) != NF_ACCEPT) {
 			return -EINVAL;
 		}
@@ -1522,7 +1544,7 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 		switch (type) {
 		case OVS_CT_ATTR_FORCE_COMMIT:
 			info->force = true;
-			/* fall through. */
+			fallthrough;
 		case OVS_CT_ATTR_COMMIT:
 			info->commit = true;
 			break;
@@ -1879,11 +1901,12 @@ static void ovs_ct_limit_exit(struct net *net, struct ovs_net *ovs_net)
 		struct hlist_head *head = &info->limits[i];
 		struct ovs_ct_limit *ct_limit;
 
-		hlist_for_each_entry_rcu(ct_limit, head, hlist_node)
+		hlist_for_each_entry_rcu(ct_limit, head, hlist_node,
+					 lockdep_ovsl_is_held())
 			kfree_rcu(ct_limit, rcu);
 	}
-	kfree(ovs_net->ct_limit_info->limits);
-	kfree(ovs_net->ct_limit_info);
+	kfree(info->limits);
+	kfree(info);
 }
 
 static struct sk_buff *
@@ -2212,7 +2235,7 @@ exit_err:
 	return err;
 }
 
-static struct genl_ops ct_limit_genl_ops[] = {
+static const struct genl_small_ops ct_limit_genl_ops[] = {
 	{ .cmd = OVS_CT_LIMIT_CMD_SET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM, /* Requires CAP_NET_ADMIN
@@ -2244,8 +2267,8 @@ struct genl_family dp_ct_limit_genl_family __ro_after_init = {
 	.policy = ct_limit_policy,
 	.netnsok = true,
 	.parallel_ops = true,
-	.ops = ct_limit_genl_ops,
-	.n_ops = ARRAY_SIZE(ct_limit_genl_ops),
+	.small_ops = ct_limit_genl_ops,
+	.n_small_ops = ARRAY_SIZE(ct_limit_genl_ops),
 	.mcgrps = &ovs_ct_limit_multicast_group,
 	.n_mcgrps = 1,
 	.module = THIS_MODULE,

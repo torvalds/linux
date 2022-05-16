@@ -8,6 +8,8 @@
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include <net/ncsi.h>
 #include <net/net_namespace.h>
@@ -472,7 +474,7 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 	switch (nd->state) {
 	case ncsi_dev_state_suspend:
 		nd->state = ncsi_dev_state_suspend_select;
-		/* Fall through */
+		fallthrough;
 	case ncsi_dev_state_suspend_select:
 		ndp->pending_req_num = 1;
 
@@ -730,6 +732,34 @@ static int ncsi_oem_gma_handler_mlx(struct ncsi_cmd_arg *nca)
 	return ret;
 }
 
+static int ncsi_oem_smaf_mlx(struct ncsi_cmd_arg *nca)
+{
+	union {
+		u8 data_u8[NCSI_OEM_MLX_CMD_SMAF_LEN];
+		u32 data_u32[NCSI_OEM_MLX_CMD_SMAF_LEN / sizeof(u32)];
+	} u;
+	int ret = 0;
+
+	memset(&u, 0, sizeof(u));
+	u.data_u32[0] = ntohl(NCSI_OEM_MFR_MLX_ID);
+	u.data_u8[5] = NCSI_OEM_MLX_CMD_SMAF;
+	u.data_u8[6] = NCSI_OEM_MLX_CMD_SMAF_PARAM;
+	memcpy(&u.data_u8[MLX_SMAF_MAC_ADDR_OFFSET],
+	       nca->ndp->ndev.dev->dev_addr,	ETH_ALEN);
+	u.data_u8[MLX_SMAF_MED_SUPPORT_OFFSET] =
+		(MLX_MC_RBT_AVL | MLX_MC_RBT_SUPPORT);
+
+	nca->payload = NCSI_OEM_MLX_CMD_SMAF_LEN;
+	nca->data = u.data_u8;
+
+	ret = ncsi_xmit_cmd(nca);
+	if (ret)
+		netdev_err(nca->ndp->ndev.dev,
+			   "NCSI: Failed to transmit cmd 0x%x during probe\n",
+			   nca->type);
+	return ret;
+}
+
 /* OEM Command handlers initialization */
 static struct ncsi_oem_gma_handler {
 	unsigned int	mfr_id;
@@ -763,9 +793,6 @@ static int ncsi_gma_handler(struct ncsi_cmd_arg *nca, unsigned int mf_id)
 			   mf_id);
 		return -1;
 	}
-
-	/* Set the flag for GMA command which should only be called once */
-	nca->ndp->gma_flag = 1;
 
 	/* Get Mac address from NCSI device */
 	return nch->handler(nca);
@@ -1275,7 +1302,7 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
 	switch (nd->state) {
 	case ncsi_dev_state_probe:
 		nd->state = ncsi_dev_state_probe_deselect;
-		/* Fall through */
+		fallthrough;
 	case ncsi_dev_state_probe_deselect:
 		ndp->pending_req_num = 8;
 
@@ -1313,8 +1340,38 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
 			break;
 		}
 		nd->state = ncsi_dev_state_probe_cis;
+		if (IS_ENABLED(CONFIG_NCSI_OEM_CMD_GET_MAC) &&
+		    ndp->mlx_multi_host)
+			nd->state = ncsi_dev_state_probe_mlx_gma;
+
 		schedule_work(&ndp->work);
 		break;
+#if IS_ENABLED(CONFIG_NCSI_OEM_CMD_GET_MAC)
+	case ncsi_dev_state_probe_mlx_gma:
+		ndp->pending_req_num = 1;
+
+		nca.type = NCSI_PKT_CMD_OEM;
+		nca.package = ndp->active_package->id;
+		nca.channel = 0;
+		ret = ncsi_oem_gma_handler_mlx(&nca);
+		if (ret)
+			goto error;
+
+		nd->state = ncsi_dev_state_probe_mlx_smaf;
+		break;
+	case ncsi_dev_state_probe_mlx_smaf:
+		ndp->pending_req_num = 1;
+
+		nca.type = NCSI_PKT_CMD_OEM;
+		nca.package = ndp->active_package->id;
+		nca.channel = 0;
+		ret = ncsi_oem_smaf_mlx(&nca);
+		if (ret)
+			goto error;
+
+		nd->state = ncsi_dev_state_probe_cis;
+		break;
+#endif /* CONFIG_NCSI_OEM_CMD_GET_MAC */
 	case ncsi_dev_state_probe_cis:
 		ndp->pending_req_num = NCSI_RESERVED_CHANNEL;
 
@@ -1624,6 +1681,8 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 {
 	struct ncsi_dev_priv *ndp;
 	struct ncsi_dev *nd;
+	struct platform_device *pdev;
+	struct device_node *np;
 	unsigned long flags;
 	int i;
 
@@ -1667,8 +1726,12 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	ndp->ptype.dev = dev;
 	dev_add_pack(&ndp->ptype);
 
-	/* Set up generic netlink interface */
-	ncsi_init_netlink(dev);
+	pdev = to_platform_device(dev->dev.parent);
+	if (pdev) {
+		np = pdev->dev.of_node;
+		if (np && of_get_property(np, "mlx,multi-host", NULL))
+			ndp->mlx_multi_host = true;
+	}
 
 	return nd;
 }
@@ -1825,8 +1888,6 @@ void ncsi_unregister_dev(struct ncsi_dev *nd)
 	spin_lock_irqsave(&ncsi_dev_lock, flags);
 	list_del_rcu(&ndp->node);
 	spin_unlock_irqrestore(&ncsi_dev_lock, flags);
-
-	ncsi_unregister_netlink(nd->dev);
 
 	kfree(ndp);
 }

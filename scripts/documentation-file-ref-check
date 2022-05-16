@@ -12,7 +12,7 @@ use Getopt::Long qw(:config no_auto_abbrev);
 # to mention a past documentation file, for example, to give credits for
 # the original work.
 my %false_positives = (
-	"Documentation/scsi/scsi_mid_low_api.txt" => "Documentation/Configure.help",
+	"Documentation/scsi/scsi_mid_low_api.rst" => "Documentation/Configure.help",
 	"drivers/vhost/vhost.c" => "Documentation/virtual/lguest/lguest.c",
 );
 
@@ -25,7 +25,7 @@ my $fix = 0;
 my $warn = 0;
 
 if (! -d ".git") {
-	printf "Warning: can't check if file exists, as this is not a git tree";
+	printf "Warning: can't check if file exists, as this is not a git tree\n";
 	exit 0;
 }
 
@@ -51,7 +51,9 @@ open IN, "git grep ':doc:\`' Documentation/|"
      or die "Failed to run git grep";
 while (<IN>) {
 	next if (!m,^([^:]+):.*\:doc\:\`([^\`]+)\`,);
+	next if (m,sphinx/,);
 
+	my $file = $1;
 	my $d = $1;
 	my $doc_ref = $2;
 
@@ -60,7 +62,12 @@ while (<IN>) {
 	$d =~ s,(.*/).*,$1,;
 	$f =~ s,.*\<([^\>]+)\>,$1,;
 
-	$f ="$d$f.rst";
+	if ($f =~ m,^/,) {
+		$f = "$f.rst";
+		$f =~ s,^/,Documentation/,;
+	} else {
+		$f = "$d$f.rst";
+	}
 
 	next if (grep -e, glob("$f"));
 
@@ -69,7 +76,7 @@ while (<IN>) {
 	}
 	$doc_fix++;
 
-	print STDERR "$f: :doc:`$doc_ref`\n";
+	print STDERR "$file: :doc:`$doc_ref`\n";
 }
 close IN;
 

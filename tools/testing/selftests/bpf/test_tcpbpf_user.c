@@ -16,6 +16,9 @@
 
 #include "test_tcpbpf.h"
 
+/* 3 comes from one listening socket + both ends of the connection */
+#define EXPECTED_CLOSE_EVENTS		3
+
 #define EXPECT_EQ(expected, actual, fmt)			\
 	do {							\
 		if ((expected) != (actual)) {			\
@@ -23,13 +26,14 @@
 			       "    Actual: %" fmt "\n"		\
 			       "  Expected: %" fmt "\n",	\
 			       (actual), (expected));		\
-			goto err;				\
+			ret--;					\
 		}						\
 	} while (0)
 
 int verify_result(const struct tcpbpf_globals *result)
 {
 	__u32 expected_events;
+	int ret = 0;
 
 	expected_events = ((1 << BPF_SOCK_OPS_TIMEOUT_INIT) |
 			   (1 << BPF_SOCK_OPS_RWND_INIT) |
@@ -48,15 +52,15 @@ int verify_result(const struct tcpbpf_globals *result)
 	EXPECT_EQ(0x80, result->bad_cb_test_rv, PRIu32);
 	EXPECT_EQ(0, result->good_cb_test_rv, PRIu32);
 	EXPECT_EQ(1, result->num_listen, PRIu32);
+	EXPECT_EQ(EXPECTED_CLOSE_EVENTS, result->num_close_events, PRIu32);
 
-	return 0;
-err:
-	return -1;
+	return ret;
 }
 
 int verify_sockopt_result(int sock_map_fd)
 {
 	__u32 key = 0;
+	int ret = 0;
 	int res;
 	int rv;
 
@@ -69,9 +73,7 @@ int verify_sockopt_result(int sock_map_fd)
 	rv = bpf_map_lookup_elem(sock_map_fd, &key, &res);
 	EXPECT_EQ(0, rv, "d");
 	EXPECT_EQ(1, res, "d");
-	return 0;
-err:
-	return -1;
+	return ret;
 }
 
 static int bpf_find_map(const char *test, struct bpf_object *obj,
@@ -96,17 +98,12 @@ int main(int argc, char **argv)
 	int error = EXIT_FAILURE;
 	struct bpf_object *obj;
 	int cg_fd = -1;
+	int retry = 10;
 	__u32 key = 0;
 	int rv;
 
-	if (setup_cgroup_environment())
-		goto err;
-
-	cg_fd = create_and_get_cgroup(cg_path);
+	cg_fd = cgroup_setup_and_join(cg_path);
 	if (cg_fd < 0)
-		goto err;
-
-	if (join_cgroup(cg_path))
 		goto err;
 
 	if (bpf_prog_load(file, BPF_PROG_TYPE_SOCK_OPS, &obj, &prog_fd)) {
@@ -134,10 +131,18 @@ int main(int argc, char **argv)
 	if (sock_map_fd < 0)
 		goto err;
 
+retry_lookup:
 	rv = bpf_map_lookup_elem(map_fd, &key, &g);
 	if (rv != 0) {
 		printf("FAILED: bpf_map_lookup_elem returns %d\n", rv);
 		goto err;
+	}
+
+	if (g.num_close_events != EXPECTED_CLOSE_EVENTS && retry--) {
+		printf("Unexpected number of close events (%d), retrying!\n",
+		       g.num_close_events);
+		usleep(100);
+		goto retry_lookup;
 	}
 
 	if (verify_result(&g)) {

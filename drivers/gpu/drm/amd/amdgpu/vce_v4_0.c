@@ -476,7 +476,8 @@ static int vce_v4_0_sw_init(void *handle)
 			else
 				ring->doorbell_index = adev->doorbell_index.uvd_vce.vce_ring2_3 * 2 + 1;
 		}
-		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0);
+		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0,
+				     AMDGPU_RING_PRIO_DEFAULT);
 		if (r)
 			return r;
 	}
@@ -539,7 +540,6 @@ static int vce_v4_0_hw_init(void *handle)
 static int vce_v4_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		/* vce_v4_0_wait_for_idle(handle); */
@@ -548,9 +548,6 @@ static int vce_v4_0_hw_fini(void *handle)
 		/* full access mode, so don't touch any VCE register */
 		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
 	}
-
-	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].sched.ready = false;
 
 	return 0;
 }
@@ -887,7 +884,7 @@ static int vce_v4_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	bool enable = (state == AMD_CG_STATE_GATE);
 	int i;
 
 	if ((adev->asic_type == CHIP_POLARIS10) ||
@@ -994,7 +991,8 @@ static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
 	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 
 	/* wait for reg writes */
-	vce_v4_0_emit_reg_wait(ring, hub->ctx0_ptb_addr_lo32 + vmid * 2,
+	vce_v4_0_emit_reg_wait(ring, hub->ctx0_ptb_addr_lo32 +
+			       vmid * hub->ctx_addr_distance,
 			       lower_32_bits(pd_addr), 0xffffffff);
 }
 

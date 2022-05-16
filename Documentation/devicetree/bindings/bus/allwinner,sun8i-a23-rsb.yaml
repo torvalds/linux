@@ -8,7 +8,7 @@ title: Allwinner A23 RSB Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   "#address-cells":
@@ -21,8 +21,8 @@ properties:
     oneOf:
       - const: allwinner,sun8i-a23-rsb
       - items:
-        - const: allwinner,sun8i-a83t-rsb
-        - const: allwinner,sun8i-a23-rsb
+          - const: allwinner,sun8i-a83t-rsb
+          - const: allwinner,sun8i-a23-rsb
 
   reg:
     maxItems: 1
@@ -70,7 +70,6 @@ examples:
         #size-cells = <0>;
 
         pmic@3e3 {
-            compatible = "...";
             reg = <0x3e3>;
 
             /* ... */

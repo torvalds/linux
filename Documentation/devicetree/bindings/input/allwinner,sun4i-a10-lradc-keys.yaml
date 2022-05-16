@@ -8,7 +8,7 @@ title: Allwinner A10 LRADC Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   compatible:
@@ -16,8 +16,8 @@ properties:
       - const: allwinner,sun4i-a10-lradc-keys
       - const: allwinner,sun8i-a83t-r-lradc
       - items:
-        - const: allwinner,sun50i-a64-lradc
-        - const: allwinner,sun8i-a83t-r-lradc
+          - const: allwinner,sun50i-a64-lradc
+          - const: allwinner,sun8i-a83t-r-lradc
 
   reg:
     maxItems: 1
@@ -42,9 +42,8 @@ patternProperties:
         description: Keycode to emit
 
       channel:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [0, 1]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1]
         description: ADC Channel this key is attached to
 
       voltage:

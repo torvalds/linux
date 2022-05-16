@@ -34,42 +34,17 @@
  */
 __wsum csum_partial(const void *buff, int len, __wsum sum);
 
-__wsum __csum_partial_copy_kernel(const void *src, void *dst,
-				  int len, __wsum sum, int *err_ptr);
-
-__wsum __csum_partial_copy_from_user(const void *src, void *dst,
-				     int len, __wsum sum, int *err_ptr);
-__wsum __csum_partial_copy_to_user(const void *src, void *dst,
-				   int len, __wsum sum, int *err_ptr);
-/*
- * this is a new version of the above that records errors it finds in *errp,
- * but continues and zeros the rest of the buffer.
- */
-static inline
-__wsum csum_partial_copy_from_user(const void __user *src, void *dst, int len,
-				   __wsum sum, int *err_ptr)
-{
-	might_fault();
-	if (uaccess_kernel())
-		return __csum_partial_copy_kernel((__force void *)src, dst,
-						  len, sum, err_ptr);
-	else
-		return __csum_partial_copy_from_user((__force void *)src, dst,
-						     len, sum, err_ptr);
-}
+__wsum __csum_partial_copy_from_user(const void __user *src, void *dst, int len);
+__wsum __csum_partial_copy_to_user(const void *src, void __user *dst, int len);
 
 #define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
 static inline
-__wsum csum_and_copy_from_user(const void __user *src, void *dst,
-			       int len, __wsum sum, int *err_ptr)
+__wsum csum_and_copy_from_user(const void __user *src, void *dst, int len)
 {
-	if (access_ok(src, len))
-		return csum_partial_copy_from_user(src, dst, len, sum,
-						   err_ptr);
-	if (len)
-		*err_ptr = -EFAULT;
-
-	return sum;
+	might_fault();
+	if (!access_ok(src, len))
+		return 0;
+	return __csum_partial_copy_from_user(src, dst, len);
 }
 
 /*
@@ -77,33 +52,24 @@ __wsum csum_and_copy_from_user(const void __user *src, void *dst,
  */
 #define HAVE_CSUM_COPY_USER
 static inline
-__wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
-			     __wsum sum, int *err_ptr)
+__wsum csum_and_copy_to_user(const void *src, void __user *dst, int len)
 {
 	might_fault();
-	if (access_ok(dst, len)) {
-		if (uaccess_kernel())
-			return __csum_partial_copy_kernel(src,
-							  (__force void *)dst,
-							  len, sum, err_ptr);
-		else
-			return __csum_partial_copy_to_user(src,
-							   (__force void *)dst,
-							   len, sum, err_ptr);
-	}
-	if (len)
-		*err_ptr = -EFAULT;
-
-	return (__force __wsum)-1; /* invalid checksum */
+	if (!access_ok(dst, len))
+		return 0;
+	return __csum_partial_copy_to_user(src, dst, len);
 }
 
 /*
  * the same as csum_partial, but copies from user space (but on MIPS
  * we have just one address space, so this is identical to the above)
  */
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
-				       int len, __wsum sum);
-#define csum_partial_copy_nocheck csum_partial_copy_nocheck
+#define _HAVE_ARCH_CSUM_AND_COPY
+__wsum __csum_partial_copy_nocheck(const void *src, void *dst, int len);
+static inline __wsum csum_partial_copy_nocheck(const void *src, void *dst, int len)
+{
+	return __csum_partial_copy_nocheck(src, dst, len);
+}
 
 /*
  *	Fold a partial checksum without adding pseudo headers
@@ -113,9 +79,9 @@ static inline __sum16 csum_fold(__wsum csum)
 	u32 sum = (__force u32)csum;
 
 	sum += (sum << 16);
-	csum = (sum < csum);
+	csum = (__force __wsum)(sum < (__force u32)csum);
 	sum >>= 16;
-	sum += csum;
+	sum += (__force u32)csum;
 
 	return (__force __sum16)~sum;
 }

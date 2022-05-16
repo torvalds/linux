@@ -25,6 +25,11 @@ firmware_request_nowarn
 .. kernel-doc:: drivers/base/firmware_loader/main.c
    :functions: firmware_request_nowarn
 
+firmware_request_platform
+-------------------------
+.. kernel-doc:: drivers/base/firmware_loader/main.c
+   :functions: firmware_request_platform
+
 request_firmware_direct
 -----------------------
 .. kernel-doc:: drivers/base/firmware_loader/main.c
@@ -71,5 +76,5 @@ firmware. For example if you used request_firmware() and it returns,
 the driver has the firmware image accessible in fw_entry->{data,size}.
 If something went wrong request_firmware() returns non-zero and fw_entry
 is set to NULL. Once your driver is done with processing the firmware it
-can call call release_firmware(fw_entry) to release the firmware image
+can call release_firmware(fw_entry) to release the firmware image
 and any related resource.

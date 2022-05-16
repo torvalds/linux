@@ -2060,7 +2060,8 @@
 
 // addressBlock: gc_sqdec
 //SQ_CONFIG
-#define SQ_CONFIG__UNUSED__SHIFT                                                                              0x0
+#define SQ_CONFIG__DISABLE_BARRIER_WAITCNT__SHIFT                                                             0x0
+#define SQ_CONFIG__UNUSED__SHIFT                                                                              0x1
 #define SQ_CONFIG__OVERRIDE_ALU_BUSY__SHIFT                                                                   0x7
 #define SQ_CONFIG__DEBUG_EN__SHIFT                                                                            0x8
 #define SQ_CONFIG__DEBUG_SINGLE_MEMOP__SHIFT                                                                  0x9
@@ -2079,7 +2080,8 @@
 #define SQ_CONFIG__DISABLE_SP_REDUNDANT_THREAD_GATING__SHIFT                                                  0x1d
 #define SQ_CONFIG__DISABLE_FLAT_SOFT_CLAUSE__SHIFT                                                            0x1e
 #define SQ_CONFIG__DISABLE_MIMG_SOFT_CLAUSE__SHIFT                                                            0x1f
-#define SQ_CONFIG__UNUSED_MASK                                                                                0x0000007FL
+#define SQ_CONFIG__DISABLE_BARRIER_WAITCNT_MASK                                                               0x00000001L
+#define SQ_CONFIG__UNUSED_MASK                                                                                0x0000007EL
 #define SQ_CONFIG__OVERRIDE_ALU_BUSY_MASK                                                                     0x00000080L
 #define SQ_CONFIG__DEBUG_EN_MASK                                                                              0x00000100L
 #define SQ_CONFIG__DEBUG_SINGLE_MEMOP_MASK                                                                    0x00000200L
@@ -6661,7 +6663,6 @@
 #define ATC_L2_CGTT_CLK_CTRL__SOFT_STALL_OVERRIDE_MASK                                                        0x00FF0000L
 #define ATC_L2_CGTT_CLK_CTRL__SOFT_OVERRIDE_MASK                                                              0xFF000000L
 
-
 // addressBlock: gc_utcl2_vml2pfdec
 //VM_L2_CNTL
 #define VM_L2_CNTL__ENABLE_L2_CACHE__SHIFT                                                                    0x0
@@ -6991,7 +6992,22 @@
 #define VM_L2_CGTT_CLK_CTRL__MGLS_OVERRIDE_MASK                                                               0x00008000L
 #define VM_L2_CGTT_CLK_CTRL__SOFT_STALL_OVERRIDE_MASK                                                         0x00FF0000L
 #define VM_L2_CGTT_CLK_CTRL__SOFT_OVERRIDE_MASK                                                               0xFF000000L
-
+//VM_L2_MEM_ECC_INDEX
+#define VM_L2_MEM_ECC_INDEX__INDEX__SHIFT                                                                     0x0
+#define VM_L2_MEM_ECC_INDEX__INDEX_MASK                                                                       0x000000FFL
+//VM_L2_WALKER_MEM_ECC_INDEX
+#define VM_L2_WALKER_MEM_ECC_INDEX__INDEX__SHIFT                                                              0x0
+#define VM_L2_WALKER_MEM_ECC_INDEX__INDEX_MASK                                                                0x000000FFL
+//VM_L2_MEM_ECC_CNT
+#define VM_L2_MEM_ECC_CNT__SEC_COUNT__SHIFT                                                                   0xc
+#define VM_L2_MEM_ECC_CNT__DED_COUNT__SHIFT                                                                   0xe
+#define VM_L2_MEM_ECC_CNT__SEC_COUNT_MASK                                                                     0x00003000L
+#define VM_L2_MEM_ECC_CNT__DED_COUNT_MASK                                                                     0x0000C000L
+//VM_L2_WALKER_MEM_ECC_CNT
+#define VM_L2_WALKER_MEM_ECC_CNT__SEC_COUNT__SHIFT                                                            0xc
+#define VM_L2_WALKER_MEM_ECC_CNT__DED_COUNT__SHIFT                                                            0xe
+#define VM_L2_WALKER_MEM_ECC_CNT__SEC_COUNT_MASK                                                              0x00003000L
+#define VM_L2_WALKER_MEM_ECC_CNT__DED_COUNT_MASK                                                              0x0000C000L
 
 // addressBlock: gc_utcl2_vml2vcdec
 //VM_CONTEXT0_CNTL
@@ -8725,10 +8741,16 @@
 #define TCP_ADDR_CONFIG__NUM_BANKS__SHIFT                                                                     0x4
 #define TCP_ADDR_CONFIG__COLHI_WIDTH__SHIFT                                                                   0x6
 #define TCP_ADDR_CONFIG__RB_SPLIT_COLHI__SHIFT                                                                0x9
+#define TCP_ADDR_CONFIG__ENABLE64KHASH__SHIFT                                                                 0xb
+#define TCP_ADDR_CONFIG__ENABLE2MHASH__SHIFT                                                                  0xc
+#define TCP_ADDR_CONFIG__ENABLE1GHASH__SHIFT                                                                  0xd
 #define TCP_ADDR_CONFIG__NUM_TCC_BANKS_MASK                                                                   0x0000000FL
 #define TCP_ADDR_CONFIG__NUM_BANKS_MASK                                                                       0x00000030L
 #define TCP_ADDR_CONFIG__COLHI_WIDTH_MASK                                                                     0x000001C0L
 #define TCP_ADDR_CONFIG__RB_SPLIT_COLHI_MASK                                                                  0x00000200L
+#define TCP_ADDR_CONFIG__ENABLE64KHASH_MASK                                                                   0x00000800L
+#define TCP_ADDR_CONFIG__ENABLE2MHASH_MASK                                                                    0x00001000L
+#define TCP_ADDR_CONFIG__ENABLE1GHASH_MASK                                                                    0x00002000L
 //TCP_CREDIT
 #define TCP_CREDIT__LFIFO_CREDIT__SHIFT                                                                       0x0
 #define TCP_CREDIT__REQ_FIFO_CREDIT__SHIFT                                                                    0x10
@@ -28328,6 +28350,33 @@
 
 
 // addressBlock: sqind
+//SQ_DEBUG_STS_GLOBAL
+#define SQ_DEBUG_STS_GLOBAL2__FIFO_LEVEL_GFX0_MASK 0x000000ffL
+#define SQ_DEBUG_STS_GLOBAL2__FIFO_LEVEL_GFX0__SHIFT 0x00000000
+#define SQ_DEBUG_STS_GLOBAL2__FIFO_LEVEL_GFX1_MASK 0x0000ff00L
+#define SQ_DEBUG_STS_GLOBAL2__FIFO_LEVEL_GFX1__SHIFT 0x00000008
+#define SQ_DEBUG_STS_GLOBAL2__FIFO_LEVEL_HOST_MASK 0xff000000L
+#define SQ_DEBUG_STS_GLOBAL2__FIFO_LEVEL_HOST__SHIFT 0x00000018
+#define SQ_DEBUG_STS_GLOBAL2__FIFO_LEVEL_IMMED_MASK 0x00ff0000L
+#define SQ_DEBUG_STS_GLOBAL2__FIFO_LEVEL_IMMED__SHIFT 0x00000010
+#define SQ_DEBUG_STS_GLOBAL3__FIFO_LEVEL_HOST_CMD_MASK 0x0000000fL
+#define SQ_DEBUG_STS_GLOBAL3__FIFO_LEVEL_HOST_CMD__SHIFT 0x00000000
+#define SQ_DEBUG_STS_GLOBAL3__FIFO_LEVEL_HOST_REG_MASK 0x000000f0L
+#define SQ_DEBUG_STS_GLOBAL3__FIFO_LEVEL_HOST_REG__SHIFT 0x00000004
+#define SQ_DEBUG_STS_GLOBAL__BUSY_MASK 0x00000001L
+#define SQ_DEBUG_STS_GLOBAL__BUSY__SHIFT 0x00000000
+#define SQ_DEBUG_STS_GLOBAL__INTERRUPT_MSG_BUSY_MASK 0x00000002L
+#define SQ_DEBUG_STS_GLOBAL__INTERRUPT_MSG_BUSY__SHIFT 0x00000001
+#define SQ_DEBUG_STS_GLOBAL__WAVE_LEVEL_SH0_MASK 0x0000fff0L
+#define SQ_DEBUG_STS_GLOBAL__WAVE_LEVEL_SH0__SHIFT 0x00000004
+#define SQ_DEBUG_STS_GLOBAL__WAVE_LEVEL_SH1_MASK 0x0fff0000L
+#define SQ_DEBUG_STS_GLOBAL__WAVE_LEVEL_SH1__SHIFT 0x00000010
+
+//SQ_DEBUG_STS_LOCAL
+#define SQ_DEBUG_STS_LOCAL__BUSY_MASK                                                                         0x00000001L
+#define SQ_DEBUG_STS_LOCAL__BUSY__SHIFT                                                                       0x00000000
+#define SQ_DEBUG_STS_LOCAL__WAVE_LEVEL_MASK                                                                   0x000003f0L
+#define SQ_DEBUG_STS_LOCAL__WAVE_LEVEL__SHIFT                                                                 0x00000004
 //SQ_WAVE_MODE
 #define SQ_WAVE_MODE__FP_ROUND__SHIFT                                                                         0x0
 #define SQ_WAVE_MODE__FP_DENORM__SHIFT                                                                        0x4

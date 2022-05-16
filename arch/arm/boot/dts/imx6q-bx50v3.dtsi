@@ -102,9 +102,14 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		switch@0 {
+		switch: switch@0 {
 			compatible = "marvell,mv88e6085"; /* 88e6240*/
 			reg = <0>;
+
+			interrupt-parent = <&gpio2>;
+			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 
 			switch_ports: ports {
 				#address-cells = <1>;
@@ -117,22 +122,32 @@
 
 				switchphy0: switchphy@0 {
 					reg = <0>;
+					interrupt-parent = <&switch>;
+					interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
 				};
 
 				switchphy1: switchphy@1 {
 					reg = <1>;
+					interrupt-parent = <&switch>;
+					interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
 				};
 
 				switchphy2: switchphy@2 {
 					reg = <2>;
+					interrupt-parent = <&switch>;
+					interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
 				};
 
 				switchphy3: switchphy@3 {
 					reg = <3>;
+					interrupt-parent = <&switch>;
+					interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
 				};
 
 				switchphy4: switchphy@4 {
 					reg = <4>;
+					interrupt-parent = <&switch>;
+					interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
 				};
 			};
 		};
@@ -140,7 +155,7 @@
 };
 
 &ecspi5 {
-	cs-gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi5>;
 	status = "okay";
@@ -233,42 +248,42 @@
 				interrupt-parent = <&gpio2>;
 				interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
-				P12 {
+				P12-hog {
 					gpio-hog;
 					gpios = <10 0>;
 					output-low;
 					line-name = "PCA9539-P12";
 				};
 
-				P13 {
+				P13-hog {
 					gpio-hog;
 					gpios = <11 0>;
 					output-low;
 					line-name = "PCA9539-P13";
 				};
 
-				P14 {
+				P14-hog {
 					gpio-hog;
 					gpios = <12 0>;
 					output-low;
 					line-name = "PCA9539-P14";
 				};
 
-				P15 {
+				P15-hog {
 					gpio-hog;
 					gpios = <13 0>;
 					output-low;
 					line-name = "PCA9539-P15";
 				};
 
-				P16 {
+				P16-hog {
 					gpio-hog;
 					gpios = <14 0>;
 					output-low;
 					line-name = "PCA9539-P16";
 				};
 
-				P17 {
+				P17-hog {
 					gpio-hog;
 					gpios = <15 0>;
 					output-low;
@@ -376,4 +391,19 @@
 		#size-cells = <2>;
 		#interrupt-cells = <1>;
 	};
+};
+
+&clks {
+	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
+			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
+			  <&clks IMX6QDL_CLK_IPU1_DI0_PRE_SEL>,
+			  <&clks IMX6QDL_CLK_IPU1_DI1_PRE_SEL>,
+			  <&clks IMX6QDL_CLK_IPU2_DI0_PRE_SEL>,
+			  <&clks IMX6QDL_CLK_IPU2_DI1_PRE_SEL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>,
+				 <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD0_352M>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD0_352M>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD0_352M>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD0_352M>;
 };

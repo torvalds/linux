@@ -136,8 +136,6 @@ enables the mitigation by default.
 The mitigation can be controlled at boot time via a kernel command line option.
 See :ref:`taa_mitigation_control_command_line`.
 
-.. _virt_mechanism:
-
 Virtualization mitigation
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -174,7 +172,10 @@ the option "tsx_async_abort=". The valid arguments for this option are:
                 CPU is not vulnerable to cross-thread TAA attacks.
   ============  =============================================================
 
-Not specifying this option is equivalent to "tsx_async_abort=full".
+Not specifying this option is equivalent to "tsx_async_abort=full". For
+processors that are affected by both TAA and MDS, specifying just
+"tsx_async_abort=off" without an accompanying "mds=off" will have no
+effect as the same mitigation is used for both vulnerabilities.
 
 The kernel command line also allows to control the TSX feature using the
 parameter "tsx=" on CPUs which support TSX control. MSR_IA32_TSX_CTRL is used

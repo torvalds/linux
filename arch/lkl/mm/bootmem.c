@@ -10,6 +10,8 @@ void *empty_zero_page;
 
 void __init bootmem_init(unsigned long mem_sz)
 {
+	unsigned long zones_max_pfn[MAX_NR_ZONES] = {0, };
+
 	mem_size = mem_sz;
 
 	if (lkl_ops->page_alloc) {
@@ -41,21 +43,17 @@ void __init bootmem_init(unsigned long mem_sz)
 	empty_zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 	memset((void *)empty_zero_page, 0, PAGE_SIZE);
 
-	{
-		unsigned long zones_size[MAX_NR_ZONES] = {0, };
-
-		zones_size[ZONE_NORMAL] = (mem_size) >> PAGE_SHIFT;
-		free_area_init(zones_size);
-	}
+	zones_max_pfn[ZONE_NORMAL] = max_low_pfn;
+	free_area_init(zones_max_pfn);
 }
 
 void __init mem_init(void)
 {
-	max_mapnr = (((unsigned long)high_memory) - PAGE_OFFSET) >> PAGE_SHIFT;
-	/* this will put all memory onto the freelists */
-	totalram_pages_add(memblock_free_all());
-	pr_info("Memory available: %luk/%luk RAM\n",
-		(nr_free_pages() << PAGE_SHIFT) >> 10, mem_size >> 10);
+	memblock_free_all();
+	max_low_pfn = totalram_pages();
+	max_pfn = max_low_pfn;
+	max_mapnr = max_pfn;
+	mem_init_print_info(NULL);
 }
 
 /*

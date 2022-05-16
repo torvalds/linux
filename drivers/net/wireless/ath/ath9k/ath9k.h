@@ -713,7 +713,7 @@ struct ath_beacon {
 	bool tx_last;
 };
 
-void ath9k_beacon_tasklet(unsigned long data);
+void ath9k_beacon_tasklet(struct tasklet_struct *t);
 void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *main_vif,
 			 bool beacons);
 void ath9k_beacon_assign_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
@@ -1117,7 +1117,7 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 	common->bus_ops->read_cachesize(common, csz);
 }
 
-void ath9k_tasklet(unsigned long data);
+void ath9k_tasklet(struct tasklet_struct *t);
 int ath_cabq_update(struct ath_softc *);
 u8 ath9k_parse_mpdudensity(u8 mpdudensity);
 irqreturn_t ath_isr(int irq, void *dev);

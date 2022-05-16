@@ -8,9 +8,15 @@
 #include "lag_mp.h"
 
 enum {
+	MLX5_LAG_P1,
+	MLX5_LAG_P2,
+};
+
+enum {
 	MLX5_LAG_FLAG_ROCE   = 1 << 0,
 	MLX5_LAG_FLAG_SRIOV  = 1 << 1,
 	MLX5_LAG_FLAG_MULTIPATH = 1 << 2,
+	MLX5_LAG_FLAG_READY = 1 << 3,
 };
 
 #define MLX5_LAG_MODE_FLAGS (MLX5_LAG_FLAG_ROCE | MLX5_LAG_FLAG_SRIOV |\
@@ -52,6 +58,12 @@ static inline bool
 __mlx5_lag_is_active(struct mlx5_lag *ldev)
 {
 	return !!(ldev->flags & MLX5_LAG_MODE_FLAGS);
+}
+
+static inline bool
+mlx5_lag_is_ready(struct mlx5_lag *ldev)
+{
+	return ldev->flags & MLX5_LAG_FLAG_READY;
 }
 
 void mlx5_modify_lag(struct mlx5_lag *ldev,

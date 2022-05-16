@@ -8,11 +8,14 @@ config SND_HDA
 	select SND_JACK
 	select SND_HDA_CORE
 
+config SND_HDA_GENERIC_LEDS
+       bool
+
 config SND_HDA_INTEL
 	tristate "HD Audio PCI"
 	depends on SND_PCI
 	select SND_HDA
-	select SND_INTEL_NHLT if ACPI
+	select SND_INTEL_DSP_CONFIG
 	help
 	  Say Y here to include support for Intel "High Definition
 	  Audio" (Azalia) and its compatible devices.
@@ -22,15 +25,6 @@ config SND_HDA_INTEL
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hda-intel.
-
-config SND_HDA_INTEL_DETECT_DMIC
-	bool "DMIC detection and probe abort"
-	depends on SND_HDA_INTEL
-	help
-	  Say Y to detect digital microphones on SKL+ devices. DMICs
-	  cannot be handled by the HDaudio legacy driver and are
-	  currently only supported by the SOF driver.
-	  If unsure say N.
 
 config SND_HDA_TEGRA
 	tristate "NVIDIA Tegra HD Audio"
@@ -100,6 +94,7 @@ config SND_HDA_PATCH_LOADER
 config SND_HDA_CODEC_REALTEK
 	tristate "Build Realtek HD-audio codec support"
 	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to include Realtek HD-audio codec support in
 	  snd-hda-intel driver, such as ALC880.
@@ -108,10 +103,10 @@ comment "Set to Y if you want auto-loading the codec driver"
 	depends on SND_HDA=y && SND_HDA_CODEC_REALTEK=m
 
 config SND_HDA_CODEC_ANALOG
-	tristate "Build Analog Device HD-audio codec support"
+	tristate "Build Analog Devices HD-audio codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y or M here to include Analog Device HD-audio codec support in
+	  Say Y or M here to include Analog Devices HD-audio codec support in
 	  snd-hda-intel driver, such as AD1986A.
 
 comment "Set to Y if you want auto-loading the codec driver"
@@ -120,6 +115,7 @@ comment "Set to Y if you want auto-loading the codec driver"
 config SND_HDA_CODEC_SIGMATEL
 	tristate "Build IDT/Sigmatel HD-audio codec support"
 	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to include IDT (Sigmatel) HD-audio codec support in
 	  snd-hda-intel driver, such as STAC9200.
@@ -164,6 +160,7 @@ comment "Set to Y if you want auto-loading the codec driver"
 config SND_HDA_CODEC_CONEXANT
 	tristate "Build Conexant HD-audio codec support"
 	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to include Conexant HD-audio codec support in
 	  snd-hda-intel driver, such as CX20549.
@@ -193,6 +190,7 @@ comment "Set to Y if you want auto-loading the codec driver"
 config SND_HDA_CODEC_CA0132_DSP
 	bool "Support new DSP code for CA0132 codec"
 	depends on SND_HDA_CODEC_CA0132
+	default y
 	select SND_HDA_DSP_LOADER
 	select FW_LOADER
 	help
@@ -223,6 +221,10 @@ comment "Set to Y if you want auto-loading the codec driver"
 
 config SND_HDA_GENERIC
 	tristate "Enable generic HD-audio codec parser"
+	select NEW_LEDS if SND_HDA_GENERIC_LEDS
+	select LEDS_CLASS if SND_HDA_GENERIC_LEDS
+	select LEDS_TRIGGERS if SND_HDA_GENERIC_LEDS
+	select LEDS_TRIGGER_AUDIO if SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to enable the generic HD-audio codec parser
 	  in snd-hda-intel driver.
@@ -237,6 +239,20 @@ config SND_HDA_POWER_SAVE_DEFAULT
 	help
 	  The default time-out value in seconds for HD-audio automatic
 	  power-save mode.  0 means to disable the power-save mode.
+
+config SND_HDA_INTEL_HDMI_SILENT_STREAM
+	bool "Enable Silent Stream always for HDMI"
+	depends on SND_HDA_INTEL
+	help
+	  Intel hardware has a feature called 'silent stream', that
+	  keeps external HDMI receiver's analog circuitry powered on
+	  avoiding 2-3 sec silence during playback start. This mechanism
+	  relies on setting channel_id as 0xf, sending info packet and
+	  preventing codec D3 entry (increasing  platform static power
+	  consumption when HDMI receiver is plugged-in). 2-3 sec silence
+	  at the playback start is expected whenever there is format change.
+	  (default is 2 channel format).
+	  Say Y to enable Silent Stream feature.
 
 endif
 

@@ -51,12 +51,13 @@ static const struct btmtksdio_data mt7668_data = {
 };
 
 static const struct sdio_device_id btmtksdio_table[] = {
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, 0x7663),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, SDIO_DEVICE_ID_MEDIATEK_MT7663),
 	 .driver_data = (kernel_ulong_t)&mt7663_data },
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, 0x7668),
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MEDIATEK, SDIO_DEVICE_ID_MEDIATEK_MT7668),
 	 .driver_data = (kernel_ulong_t)&mt7668_data },
 	{ }	/* Terminating entry */
 };
+MODULE_DEVICE_TABLE(sdio, btmtksdio_table);
 
 #define MTK_REG_CHLPCR		0x4	/* W1S */
 #define C_INT_EN_SET		BIT(0)
@@ -495,7 +496,7 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 	sdio_claim_host(bdev->func);
 
 	/* Disable interrupt */
-	sdio_writel(func, C_INT_EN_CLR, MTK_REG_CHLPCR, 0);
+	sdio_writel(func, C_INT_EN_CLR, MTK_REG_CHLPCR, NULL);
 
 	int_status = sdio_readl(func, MTK_REG_CHISR, NULL);
 
@@ -529,7 +530,7 @@ static void btmtksdio_interrupt(struct sdio_func *func)
 	}
 
 	/* Enable interrupt */
-	sdio_writel(func, C_INT_EN_SET, MTK_REG_CHLPCR, 0);
+	sdio_writel(func, C_INT_EN_SET, MTK_REG_CHLPCR, NULL);
 
 	pm_runtime_mark_last_busy(bdev->dev);
 	pm_runtime_put_autosuspend(bdev->dev);
@@ -684,11 +685,25 @@ static int mtk_setup_firmware(struct hci_dev *hdev, const char *fwname)
 	const u8 *fw_ptr;
 	size_t fw_size;
 	int err, dlen;
-	u8 flag;
+	u8 flag, param;
 
 	err = request_firmware(&fw, fwname, &hdev->dev);
 	if (err < 0) {
 		bt_dev_err(hdev, "Failed to load firmware file (%d)", err);
+		return err;
+	}
+
+	/* Power on data RAM the firmware relies on. */
+	param = 1;
+	wmt_params.op = MTK_WMT_FUNC_CTRL;
+	wmt_params.flag = 3;
+	wmt_params.dlen = sizeof(param);
+	wmt_params.data = &param;
+	wmt_params.status = NULL;
+
+	err = mtk_hci_wmt_sync(hdev, &wmt_params);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to power on data RAM (%d)", err);
 		return err;
 	}
 

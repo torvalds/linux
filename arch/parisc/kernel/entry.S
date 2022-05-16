@@ -19,7 +19,6 @@
 #include <asm/psw.h>
 #include <asm/cache.h>		/* for L1_CACHE_SHIFT */
 #include <asm/assembly.h>	/* for LDREG/STREG defines */
-#include <asm/pgtable.h>
 #include <asm/signal.h>
 #include <asm/unistd.h>
 #include <asm/ldcw.h>
@@ -28,6 +27,7 @@
 #include <asm/alternative.h>
 
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 
 #ifdef CONFIG_64BIT
 	.level 2.0w
@@ -454,7 +454,6 @@
 	nop
 	LDREG		0(\ptp),\pte
 	bb,<,n		\pte,_PAGE_PRESENT_BIT,3f
-	LDCW		0(\tmp),\tmp1
 	b		\fault
 	stw		\spc,0(\tmp)
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
@@ -464,23 +463,26 @@
 3:
 	.endm
 
-	/* Release pa_tlb_lock lock without reloading lock address. */
-	.macro		tlb_unlock0	spc,tmp,tmp1
+	/* Release pa_tlb_lock lock without reloading lock address.
+	   Note that the values in the register spc are limited to
+	   NR_SPACE_IDS (262144). Thus, the stw instruction always
+	   stores a nonzero value even when register spc is 64 bits.
+	   We use an ordered store to ensure all prior accesses are
+	   performed prior to releasing the lock. */
+	.macro		tlb_unlock0	spc,tmp
 #ifdef CONFIG_SMP
 98:	or,COND(=)	%r0,\spc,%r0
-	LDCW		0(\tmp),\tmp1
-	or,COND(=)	%r0,\spc,%r0
-	stw		\spc,0(\tmp)
+	stw,ma		\spc,0(\tmp)
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 	.endm
 
 	/* Release pa_tlb_lock lock. */
-	.macro		tlb_unlock1	spc,tmp,tmp1
+	.macro		tlb_unlock1	spc,tmp
 #ifdef CONFIG_SMP
 98:	load_pa_tlb_lock \tmp
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
-	tlb_unlock0	\spc,\tmp,\tmp1
+	tlb_unlock0	\spc,\tmp
 #endif
 	.endm
 
@@ -897,19 +899,19 @@ intr_check_sig:
 	 * Only do signals if we are returning to user space
 	 */
 	LDREG	PT_IASQ0(%r16), %r20
-	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* backward */
+	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* forward */
 	LDREG	PT_IASQ1(%r16), %r20
-	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* backward */
-
-	/* NOTE: We need to enable interrupts if we have to deliver
-	 * signals. We used to do this earlier but it caused kernel
-	 * stack overflows. */
-	ssm     PSW_SM_I, %r0
+	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* forward */
 
 	copy	%r0, %r25			/* long in_syscall = 0 */
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
+
+	/* NOTE: We need to enable interrupts if we have to deliver
+	 * signals. We used to do this earlier but it caused kernel
+	 * stack overflows. */
+	ssm	PSW_SM_I, %r0
 
 	BL	do_notify_resume,%r2
 	copy	%r16, %r26			/* struct pt_regs *regs */
@@ -940,14 +942,14 @@ intr_restore:
 	rfi
 	nop
 
-#ifndef CONFIG_PREEMPT
+#ifndef CONFIG_PREEMPTION
 # define intr_do_preempt	intr_restore
-#endif /* !CONFIG_PREEMPT */
+#endif /* !CONFIG_PREEMPTION */
 
 	.import schedule,code
 intr_do_resched:
 	/* Only call schedule on return to userspace. If we're returning
-	 * to kernel space, we may schedule if CONFIG_PREEMPT, otherwise
+	 * to kernel space, we may schedule if CONFIG_PREEMPTION, otherwise
 	 * we jump back to intr_restore.
 	 */
 	LDREG	PT_IASQ0(%r16), %r20
@@ -979,7 +981,7 @@ intr_do_resched:
 	 * and preempt_count is 0. otherwise, we continue on
 	 * our merry way back to the current running task.
 	 */
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	.import preempt_schedule_irq,code
 intr_do_preempt:
 	rsm	PSW_SM_I, %r0		/* disable interrupts */
@@ -999,7 +1001,7 @@ intr_do_preempt:
 	nop
 
 	b,n	intr_restore		/* ssm PSW_SM_I done by intr_restore */
-#endif /* CONFIG_PREEMPT */
+#endif /* CONFIG_PREEMPTION */
 
 	/*
 	 * External interrupts.
@@ -1163,7 +1165,7 @@ dtlb_miss_20w:
 	
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1189,7 +1191,7 @@ nadtlb_miss_20w:
 
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1223,7 +1225,7 @@ dtlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1256,7 +1258,7 @@ nadtlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1285,7 +1287,7 @@ dtlb_miss_20:
 
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1313,7 +1315,7 @@ nadtlb_miss_20:
 	
 	idtlbt		pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1420,7 +1422,7 @@ itlb_miss_20w:
 	
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1444,7 +1446,7 @@ naitlb_miss_20w:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1478,7 +1480,7 @@ itlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1502,7 +1504,7 @@ naitlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1532,7 +1534,7 @@ itlb_miss_20:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1552,7 +1554,7 @@ naitlb_miss_20:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0,t1
+	tlb_unlock1	spc,t0
 	rfir
 	nop
 
@@ -1582,7 +1584,7 @@ dbit_trap_20w:
 		
 	idtlbt          pte,prot
 
-	tlb_unlock0	spc,t0,t1
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 #else
@@ -1608,7 +1610,7 @@ dbit_trap_11:
 
 	mtsp            t1, %sr1     /* Restore sr1 */
 
-	tlb_unlock0	spc,t0,t1
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 
@@ -1628,7 +1630,7 @@ dbit_trap_20:
 	
 	idtlbt		pte,prot
 
-	tlb_unlock0	spc,t0,t1
+	tlb_unlock0	spc,t0
 	rfir
 	nop
 #endif

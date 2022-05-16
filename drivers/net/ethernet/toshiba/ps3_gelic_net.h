@@ -308,7 +308,7 @@ struct gelic_port {
 	struct gelic_card *card;
 	struct net_device *netdev;
 	enum gelic_port_type type;
-	long priv[0]; /* long for alignment */
+	long priv[]; /* long for alignment */
 };
 
 static inline struct gelic_card *port_to_card(struct gelic_port *p)
@@ -359,7 +359,7 @@ int gelic_net_open(struct net_device *netdev);
 int gelic_net_stop(struct net_device *netdev);
 netdev_tx_t gelic_net_xmit(struct sk_buff *skb, struct net_device *netdev);
 void gelic_net_set_multi(struct net_device *netdev);
-void gelic_net_tx_timeout(struct net_device *netdev);
+void gelic_net_tx_timeout(struct net_device *netdev, unsigned int txqueue);
 int gelic_net_setup_netdev(struct net_device *netdev, struct gelic_card *card);
 
 /* shared ethtool ops */

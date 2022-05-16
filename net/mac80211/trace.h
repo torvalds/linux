@@ -22,7 +22,8 @@
 #define LOCAL_PR_ARG	__entry->wiphy_name
 
 #define STA_ENTRY	__array(char, sta_addr, ETH_ALEN)
-#define STA_ASSIGN	(sta ? memcpy(__entry->sta_addr, sta->addr, ETH_ALEN) : memset(__entry->sta_addr, 0, ETH_ALEN))
+#define STA_ASSIGN	(sta ? memcpy(__entry->sta_addr, sta->addr, ETH_ALEN) : \
+				eth_zero_addr(__entry->sta_addr))
 #define STA_NAMED_ASSIGN(s)	memcpy(__entry->sta_addr, (s)->addr, ETH_ALEN)
 #define STA_PR_FMT	" sta:%pM"
 #define STA_PR_ARG	__entry->sta_addr
@@ -37,32 +38,42 @@
 #define VIF_PR_ARG	__get_str(vif_name), __entry->vif_type, __entry->p2p ? "/p2p" : ""
 
 #define CHANDEF_ENTRY	__field(u32, control_freq)					\
+			__field(u32, freq_offset)					\
 			__field(u32, chan_width)					\
 			__field(u32, center_freq1)					\
+			__field(u32, freq1_offset)					\
 			__field(u32, center_freq2)
 #define CHANDEF_ASSIGN(c)							\
 			__entry->control_freq = (c) ? ((c)->chan ? (c)->chan->center_freq : 0) : 0;	\
+			__entry->freq_offset = (c) ? ((c)->chan ? (c)->chan->freq_offset : 0) : 0;	\
 			__entry->chan_width = (c) ? (c)->width : 0;			\
 			__entry->center_freq1 = (c) ? (c)->center_freq1 : 0;		\
+			__entry->freq1_offset = (c) ? (c)->freq1_offset : 0;		\
 			__entry->center_freq2 = (c) ? (c)->center_freq2 : 0;
-#define CHANDEF_PR_FMT	" control:%d MHz width:%d center: %d/%d MHz"
-#define CHANDEF_PR_ARG	__entry->control_freq, __entry->chan_width,			\
-			__entry->center_freq1, __entry->center_freq2
+#define CHANDEF_PR_FMT	" control:%d.%03d MHz width:%d center: %d.%03d/%d MHz"
+#define CHANDEF_PR_ARG	__entry->control_freq, __entry->freq_offset, __entry->chan_width, \
+			__entry->center_freq1, __entry->freq1_offset, __entry->center_freq2
 
 #define MIN_CHANDEF_ENTRY								\
 			__field(u32, min_control_freq)					\
+			__field(u32, min_freq_offset)					\
 			__field(u32, min_chan_width)					\
 			__field(u32, min_center_freq1)					\
+			__field(u32, min_freq1_offset)					\
 			__field(u32, min_center_freq2)
 
 #define MIN_CHANDEF_ASSIGN(c)								\
 			__entry->min_control_freq = (c)->chan ? (c)->chan->center_freq : 0;	\
+			__entry->min_freq_offset = (c)->chan ? (c)->chan->freq_offset : 0;	\
 			__entry->min_chan_width = (c)->width;				\
 			__entry->min_center_freq1 = (c)->center_freq1;			\
+			__entry->freq1_offset = (c)->freq1_offset;			\
 			__entry->min_center_freq2 = (c)->center_freq2;
-#define MIN_CHANDEF_PR_FMT	" min_control:%d MHz min_width:%d min_center: %d/%d MHz"
-#define MIN_CHANDEF_PR_ARG	__entry->min_control_freq, __entry->min_chan_width,	\
-			__entry->min_center_freq1, __entry->min_center_freq2
+#define MIN_CHANDEF_PR_FMT	" min_control:%d.%03d MHz min_width:%d min_center: %d.%03d/%d MHz"
+#define MIN_CHANDEF_PR_ARG	__entry->min_control_freq, __entry->min_freq_offset,	\
+			__entry->min_chan_width,					\
+			__entry->min_center_freq1, __entry->min_freq1_offset,		\
+			__entry->min_center_freq2
 
 #define CHANCTX_ENTRY	CHANDEF_ENTRY							\
 			MIN_CHANDEF_ENTRY						\
@@ -408,20 +419,21 @@ TRACE_EVENT(drv_bss_info_changed,
 		__field(u32, basic_rates)
 		__array(int, mcast_rate, NUM_NL80211_BANDS)
 		__field(u16, ht_operation_mode)
-		__field(s32, cqm_rssi_thold);
-		__field(s32, cqm_rssi_hyst);
-		__field(u32, channel_width);
-		__field(u32, channel_cfreq1);
+		__field(s32, cqm_rssi_thold)
+		__field(s32, cqm_rssi_hyst)
+		__field(u32, channel_width)
+		__field(u32, channel_cfreq1)
+		__field(u32, channel_cfreq1_offset)
 		__dynamic_array(u32, arp_addr_list,
 				info->arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
 					IEEE80211_BSS_ARP_ADDR_LIST_LEN :
-					info->arp_addr_cnt);
-		__field(int, arp_addr_cnt);
-		__field(bool, qos);
-		__field(bool, idle);
-		__field(bool, ps);
-		__dynamic_array(u8, ssid, info->ssid_len);
-		__field(bool, hidden_ssid);
+					info->arp_addr_cnt)
+		__field(int, arp_addr_cnt)
+		__field(bool, qos)
+		__field(bool, idle)
+		__field(bool, ps)
+		__dynamic_array(u8, ssid, info->ssid_len)
+		__field(bool, hidden_ssid)
 		__field(int, txpower)
 		__field(u8, p2p_oppps_ctwindow)
 	),
@@ -452,6 +464,7 @@ TRACE_EVENT(drv_bss_info_changed,
 		__entry->cqm_rssi_hyst = info->cqm_rssi_hyst;
 		__entry->channel_width = info->chandef.width;
 		__entry->channel_cfreq1 = info->chandef.center_freq1;
+		__entry->channel_cfreq1_offset = info->chandef.freq1_offset;
 		__entry->arp_addr_cnt = info->arp_addr_cnt;
 		memcpy(__get_dynamic_array(arp_addr_list), info->arp_addr_list,
 		       sizeof(u32) * (info->arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
@@ -1223,6 +1236,7 @@ TRACE_EVENT(drv_remain_on_channel,
 		LOCAL_ENTRY
 		VIF_ENTRY
 		__field(int, center_freq)
+		__field(int, freq_offset)
 		__field(unsigned int, duration)
 		__field(u32, type)
 	),
@@ -1231,14 +1245,16 @@ TRACE_EVENT(drv_remain_on_channel,
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		__entry->center_freq = chan->center_freq;
+		__entry->freq_offset = chan->freq_offset;
 		__entry->duration = duration;
 		__entry->type = type;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT  VIF_PR_FMT " freq:%dMHz duration:%dms type=%d",
+		LOCAL_PR_FMT  VIF_PR_FMT " freq:%d.%03dMHz duration:%dms type=%d",
 		LOCAL_PR_ARG, VIF_PR_ARG,
-		__entry->center_freq, __entry->duration, __entry->type
+		__entry->center_freq, __entry->freq_offset,
+		__entry->duration, __entry->type
 	)
 );
 
@@ -1546,8 +1562,10 @@ struct trace_vif_entry {
 
 struct trace_chandef_entry {
 	u32 control_freq;
+	u32 freq_offset;
 	u32 chan_width;
 	u32 center_freq1;
+	u32 freq1_offset;
 	u32 center_freq2;
 } __packed;
 
@@ -1597,18 +1615,26 @@ TRACE_EVENT(drv_switch_vif_chanctx,
 					sizeof(local_vifs[i].vif.vif_name));
 				SWITCH_ENTRY_ASSIGN(old_chandef.control_freq,
 						old_ctx->def.chan->center_freq);
+				SWITCH_ENTRY_ASSIGN(old_chandef.freq_offset,
+						old_ctx->def.chan->freq_offset);
 				SWITCH_ENTRY_ASSIGN(old_chandef.chan_width,
 						    old_ctx->def.width);
 				SWITCH_ENTRY_ASSIGN(old_chandef.center_freq1,
 						    old_ctx->def.center_freq1);
+				SWITCH_ENTRY_ASSIGN(old_chandef.freq1_offset,
+						    old_ctx->def.freq1_offset);
 				SWITCH_ENTRY_ASSIGN(old_chandef.center_freq2,
 						    old_ctx->def.center_freq2);
 				SWITCH_ENTRY_ASSIGN(new_chandef.control_freq,
 						new_ctx->def.chan->center_freq);
+				SWITCH_ENTRY_ASSIGN(new_chandef.freq_offset,
+						new_ctx->def.chan->freq_offset);
 				SWITCH_ENTRY_ASSIGN(new_chandef.chan_width,
 						    new_ctx->def.width);
 				SWITCH_ENTRY_ASSIGN(new_chandef.center_freq1,
 						    new_ctx->def.center_freq1);
+				SWITCH_ENTRY_ASSIGN(new_chandef.freq1_offset,
+						    new_ctx->def.freq1_offset);
 				SWITCH_ENTRY_ASSIGN(new_chandef.center_freq2,
 						    new_ctx->def.center_freq2);
 			}
@@ -1672,8 +1698,8 @@ TRACE_EVENT(drv_start_ap,
 		VIF_ENTRY
 		__field(u8, dtimper)
 		__field(u16, bcnint)
-		__dynamic_array(u8, ssid, info->ssid_len);
-		__field(bool, hidden_ssid);
+		__dynamic_array(u8, ssid, info->ssid_len)
+		__field(bool, hidden_ssid)
 	),
 
 	TP_fast_assign(
@@ -1739,7 +1765,7 @@ TRACE_EVENT(drv_join_ibss,
 		VIF_ENTRY
 		__field(u8, dtimper)
 		__field(u16, bcnint)
-		__dynamic_array(u8, ssid, info->ssid_len);
+		__dynamic_array(u8, ssid, info->ssid_len)
 	),
 
 	TP_fast_assign(
@@ -2705,6 +2731,39 @@ TRACE_EVENT(drv_get_ftm_responder_stats,
 	TP_printk(
 		LOCAL_PR_FMT VIF_PR_FMT,
 		LOCAL_PR_ARG, VIF_PR_ARG
+	)
+);
+
+DEFINE_EVENT(local_sdata_addr_evt, drv_update_vif_offload,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
+
+TRACE_EVENT(drv_sta_set_4addr,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta, bool enabled),
+
+	TP_ARGS(local, sdata, sta, enabled),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+		__field(bool, enabled)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_ASSIGN;
+		__entry->enabled = enabled;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT  STA_PR_FMT " enabled:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->enabled
 	)
 );
 

@@ -1,15 +1,17 @@
 # SPDX-License-Identifier: GPL-2.0-only
 if VIDEO_V4L2
 
-comment "SPI drivers hidden by 'Autoselect ancillary drivers'"
-	depends on MEDIA_HIDE_ANCILLARY_SUBDRV
+comment "SPI I2C drivers auto-selected by 'Autoselect ancillary drivers'"
+	depends on MEDIA_HIDE_ANCILLARY_SUBDRV && SPI
 
 menu "SPI helper chips"
 	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
 
 config VIDEO_GS1662
 	tristate "Gennum Serializers video"
-	depends on SPI && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on SPI && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  Enable the GS1662 driver which serializes video streams.
 

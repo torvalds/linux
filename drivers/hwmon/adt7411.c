@@ -666,8 +666,7 @@ static const struct hwmon_chip_info adt7411_chip_info = {
 	.info = adt7411_info,
 };
 
-static int adt7411_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int adt7411_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct adt7411_data *data;
@@ -707,7 +706,7 @@ static struct i2c_driver adt7411_driver = {
 	.driver		= {
 		.name		= "adt7411",
 	},
-	.probe  = adt7411_probe,
+	.probe_new = adt7411_probe,
 	.id_table = adt7411_id,
 	.detect = adt7411_detect,
 	.address_list = normal_i2c,
@@ -716,7 +715,6 @@ static struct i2c_driver adt7411_driver = {
 
 module_i2c_driver(adt7411_driver);
 
-MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de> and "
-	"Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Sascha Hauer, Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("ADT7411 driver");
 MODULE_LICENSE("GPL v2");

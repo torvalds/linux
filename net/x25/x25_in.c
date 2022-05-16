@@ -349,7 +349,7 @@ static int x25_state4_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 
 		case X25_RESET_REQUEST:
 			x25_write_internal(sk, X25_RESET_CONFIRMATION);
-			/* fall through */
+			fallthrough;
 		case X25_RESET_CONFIRMATION: {
 			x25_stop_timer(sk);
 			x25->condition = 0x00;
@@ -382,6 +382,35 @@ out_clear:
 	return 0;
 }
 
+/*
+ * State machine for state 5, Call Accepted / Call Connected pending (X25_ACCPT_APPRV_FLAG).
+ * The handling of the timer(s) is in file x25_timer.c
+ * Handling of state 0 and connection release is in af_x25.c.
+ */
+static int x25_state5_machine(struct sock *sk, struct sk_buff *skb, int frametype)
+{
+	struct x25_sock *x25 = x25_sk(sk);
+
+	switch (frametype) {
+		case X25_CLEAR_REQUEST:
+			if (!pskb_may_pull(skb, X25_STD_MIN_LEN + 2)) {
+				x25_write_internal(sk, X25_CLEAR_REQUEST);
+				x25->state = X25_STATE_2;
+				x25_start_t23timer(sk);
+				return 0;
+			}
+
+			x25_write_internal(sk, X25_CLEAR_CONFIRMATION);
+			x25_disconnect(sk, 0, skb->data[3], skb->data[4]);
+			break;
+
+		default:
+			break;
+	}
+
+	return 0;
+}
+
 /* Higher level upcall for a LAPB frame */
 int x25_process_rx_frame(struct sock *sk, struct sk_buff *skb)
 {
@@ -405,6 +434,9 @@ int x25_process_rx_frame(struct sock *sk, struct sk_buff *skb)
 		break;
 	case X25_STATE_4:
 		queued = x25_state4_machine(sk, skb, frametype);
+		break;
+	case X25_STATE_5:
+		queued = x25_state5_machine(sk, skb, frametype);
 		break;
 	}
 

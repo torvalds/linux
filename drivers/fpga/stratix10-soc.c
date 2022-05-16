@@ -154,11 +154,11 @@ static void s10_receive_callback(struct stratix10_svc_client *client,
 	 * Here we set status bits as we receive them.  Elsewhere, we always use
 	 * test_and_clear_bit() to check status in priv->status
 	 */
-	for (i = 0; i <= SVC_STATUS_RECONFIG_ERROR; i++)
+	for (i = 0; i <= SVC_STATUS_ERROR; i++)
 		if (status & (1 << i))
 			set_bit(i, &priv->status);
 
-	if (status & BIT(SVC_STATUS_RECONFIG_BUFFER_DONE)) {
+	if (status & BIT(SVC_STATUS_BUFFER_DONE)) {
 		s10_unlock_bufs(priv, data->kaddr1);
 		s10_unlock_bufs(priv, data->kaddr2);
 		s10_unlock_bufs(priv, data->kaddr3);
@@ -196,21 +196,16 @@ static int s10_ops_write_init(struct fpga_manager *mgr,
 	if (ret < 0)
 		goto init_done;
 
-	ret = wait_for_completion_interruptible_timeout(
+	ret = wait_for_completion_timeout(
 		&priv->status_return_completion, S10_RECONFIG_TIMEOUT);
 	if (!ret) {
 		dev_err(dev, "timeout waiting for RECONFIG_REQUEST\n");
 		ret = -ETIMEDOUT;
 		goto init_done;
 	}
-	if (ret < 0) {
-		dev_err(dev, "error (%d) waiting for RECONFIG_REQUEST\n", ret);
-		goto init_done;
-	}
 
 	ret = 0;
-	if (!test_and_clear_bit(SVC_STATUS_RECONFIG_REQUEST_OK,
-				&priv->status)) {
+	if (!test_and_clear_bit(SVC_STATUS_OK, &priv->status)) {
 		ret = -ETIMEDOUT;
 		goto init_done;
 	}
@@ -319,21 +314,19 @@ static int s10_ops_write(struct fpga_manager *mgr, const char *buf,
 		 */
 		wait_status = 1; /* not timed out */
 		if (!priv->status)
-			wait_status = wait_for_completion_interruptible_timeout(
+			wait_status = wait_for_completion_timeout(
 				&priv->status_return_completion,
 				S10_BUFFER_TIMEOUT);
 
-		if (test_and_clear_bit(SVC_STATUS_RECONFIG_BUFFER_DONE,
-				       &priv->status) ||
-		    test_and_clear_bit(SVC_STATUS_RECONFIG_BUFFER_SUBMITTED,
+		if (test_and_clear_bit(SVC_STATUS_BUFFER_DONE, &priv->status) ||
+		    test_and_clear_bit(SVC_STATUS_BUFFER_SUBMITTED,
 				       &priv->status)) {
 			ret = 0;
 			continue;
 		}
 
-		if (test_and_clear_bit(SVC_STATUS_RECONFIG_ERROR,
-				       &priv->status)) {
-			dev_err(dev, "ERROR - giving up - SVC_STATUS_RECONFIG_ERROR\n");
+		if (test_and_clear_bit(SVC_STATUS_ERROR, &priv->status)) {
+			dev_err(dev, "ERROR - giving up - SVC_STATUS_ERROR\n");
 			ret = -EFAULT;
 			break;
 		}
@@ -341,13 +334,6 @@ static int s10_ops_write(struct fpga_manager *mgr, const char *buf,
 		if (!wait_status) {
 			dev_err(dev, "timeout waiting for svc layer buffers\n");
 			ret = -ETIMEDOUT;
-			break;
-		}
-		if (wait_status < 0) {
-			ret = wait_status;
-			dev_err(dev,
-				"error (%d) waiting for svc layer buffers\n",
-				ret);
 			break;
 		}
 	}
@@ -375,7 +361,7 @@ static int s10_ops_write_complete(struct fpga_manager *mgr,
 		if (ret < 0)
 			break;
 
-		ret = wait_for_completion_interruptible_timeout(
+		ret = wait_for_completion_timeout(
 			&priv->status_return_completion, timeout);
 		if (!ret) {
 			dev_err(dev,
@@ -383,23 +369,15 @@ static int s10_ops_write_complete(struct fpga_manager *mgr,
 			ret = -ETIMEDOUT;
 			break;
 		}
-		if (ret < 0) {
-			dev_err(dev,
-				"error (%d) waiting for RECONFIG_COMPLETED\n",
-				ret);
-			break;
-		}
 		/* Not error or timeout, so ret is # of jiffies until timeout */
 		timeout = ret;
 		ret = 0;
 
-		if (test_and_clear_bit(SVC_STATUS_RECONFIG_COMPLETED,
-				       &priv->status))
+		if (test_and_clear_bit(SVC_STATUS_COMPLETED, &priv->status))
 			break;
 
-		if (test_and_clear_bit(SVC_STATUS_RECONFIG_ERROR,
-				       &priv->status)) {
-			dev_err(dev, "ERROR - giving up - SVC_STATUS_RECONFIG_ERROR\n");
+		if (test_and_clear_bit(SVC_STATUS_ERROR, &priv->status)) {
+			dev_err(dev, "ERROR - giving up - SVC_STATUS_ERROR\n");
 			ret = -EFAULT;
 			break;
 		}
@@ -482,7 +460,8 @@ static int s10_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id s10_of_match[] = {
-	{ .compatible = "intel,stratix10-soc-fpga-mgr", },
+	{.compatible = "intel,stratix10-soc-fpga-mgr"},
+	{.compatible = "intel,agilex-soc-fpga-mgr"},
 	{},
 };
 

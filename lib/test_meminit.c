@@ -183,6 +183,9 @@ static bool __init check_buf(void *buf, int size, bool want_ctor,
 	return fail;
 }
 
+#define BULK_SIZE 100
+static void *bulk_array[BULK_SIZE];
+
 /*
  * Test kmem_cache with given parameters:
  *  want_ctor - use a constructor;
@@ -203,9 +206,24 @@ static int __init do_kmem_cache_size(size_t size, bool want_ctor,
 			      want_rcu ? SLAB_TYPESAFE_BY_RCU : 0,
 			      want_ctor ? test_ctor : NULL);
 	for (iter = 0; iter < 10; iter++) {
+		/* Do a test of bulk allocations */
+		if (!want_rcu && !want_ctor) {
+			int ret;
+
+			ret = kmem_cache_alloc_bulk(c, alloc_mask, BULK_SIZE, bulk_array);
+			if (!ret) {
+				fail = true;
+			} else {
+				int i;
+				for (i = 0; i < ret; i++)
+					fail |= check_buf(bulk_array[i], size, want_ctor, want_rcu, want_zero);
+				kmem_cache_free_bulk(c, ret, bulk_array);
+			}
+		}
+
 		buf = kmem_cache_alloc(c, alloc_mask);
 		/* Check that buf is zeroed, if it must be. */
-		fail = check_buf(buf, size, want_ctor, want_rcu, want_zero);
+		fail |= check_buf(buf, size, want_ctor, want_rcu, want_zero);
 		fill_with_garbage_skip(buf, size, want_ctor ? CTOR_BYTES : 0);
 
 		if (!want_rcu) {

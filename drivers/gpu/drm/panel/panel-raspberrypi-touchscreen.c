@@ -44,8 +44,6 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/fb.h>
-#include <linux/gpio.h>
-#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -211,7 +209,6 @@ static const struct drm_display_mode rpi_touchscreen_modes[] = {
 		.vsync_start = 480 + 7,
 		.vsync_end = 480 + 7 + 2,
 		.vtotal = 480 + 7 + 2 + 21,
-		.vrefresh = 60,
 	},
 };
 
@@ -311,10 +308,9 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int rpi_touchscreen_get_modes(struct drm_panel *panel)
+static int rpi_touchscreen_get_modes(struct drm_panel *panel,
+				     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
-	struct drm_device *drm = panel->drm;
 	unsigned int i, num = 0;
 	static const u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
@@ -322,10 +318,11 @@ static int rpi_touchscreen_get_modes(struct drm_panel *panel)
 		const struct drm_display_mode *m = &rpi_touchscreen_modes[i];
 		struct drm_display_mode *mode;
 
-		mode = drm_mode_duplicate(drm, m);
+		mode = drm_mode_duplicate(connector->dev, m);
 		if (!mode) {
-			dev_err(drm->dev, "failed to add mode %ux%u@%u\n",
-				m->hdisplay, m->vdisplay, m->vrefresh);
+			dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
+				m->hdisplay, m->vdisplay,
+				drm_mode_vrefresh(m));
 			continue;
 		}
 
@@ -364,7 +361,7 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 	struct rpi_touchscreen *ts;
 	struct device_node *endpoint, *dsi_host_node;
 	struct mipi_dsi_host *host;
-	int ret, ver;
+	int ver;
 	struct mipi_dsi_device_info info = {
 		.type = RPI_DSI_DRIVER_NAME,
 		.channel = 0,
@@ -426,15 +423,13 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 		return PTR_ERR(ts->dsi);
 	}
 
-	ts->base.dev = dev;
-	ts->base.funcs = &rpi_touchscreen_funcs;
+	drm_panel_init(&ts->base, dev, &rpi_touchscreen_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 
 	/* This appears last, as it's what will unblock the DSI host
 	 * driver's component bind function.
 	 */
-	ret = drm_panel_add(&ts->base);
-	if (ret)
-		return ret;
+	drm_panel_add(&ts->base);
 
 	return 0;
 

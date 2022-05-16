@@ -775,6 +775,9 @@ static int lpc32xx_nand_attach_chip(struct nand_chip *chip)
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct lpc32xx_nand_host *host = nand_get_controller_data(chip);
 
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
 	/* OOB and ECC CPU and DMA work areas */
 	host->ecc_buf = (uint32_t *)(host->data_buf + LPC32XX_DMA_DATA_SIZE);
 
@@ -786,11 +789,22 @@ static int lpc32xx_nand_attach_chip(struct nand_chip *chip)
 	if (mtd->writesize <= 512)
 		mtd_set_ooblayout(mtd, &lpc32xx_ooblayout_ops);
 
+	chip->ecc.placement = NAND_ECC_PLACEMENT_INTERLEAVED;
 	/* These sizes remain the same regardless of page size */
 	chip->ecc.size = 256;
+	chip->ecc.strength = 1;
 	chip->ecc.bytes = LPC32XX_SLC_DEV_ECC_BYTES;
 	chip->ecc.prepad = 0;
 	chip->ecc.postpad = 0;
+	chip->ecc.read_page_raw = lpc32xx_nand_read_page_raw_syndrome;
+	chip->ecc.read_page = lpc32xx_nand_read_page_syndrome;
+	chip->ecc.write_page_raw = lpc32xx_nand_write_page_raw_syndrome;
+	chip->ecc.write_page = lpc32xx_nand_write_page_syndrome;
+	chip->ecc.write_oob = lpc32xx_nand_write_oob_syndrome;
+	chip->ecc.read_oob = lpc32xx_nand_read_oob_syndrome;
+	chip->ecc.calculate = lpc32xx_nand_ecc_calculate;
+	chip->ecc.correct = nand_correct_data;
+	chip->ecc.hwctl = lpc32xx_nand_ecc_enable;
 
 	/*
 	 * Use a custom BBT marker setup for small page FLASH that
@@ -881,20 +895,9 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 
 	/* NAND callbacks for LPC32xx SLC hardware */
-	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
 	chip->legacy.read_byte = lpc32xx_nand_read_byte;
 	chip->legacy.read_buf = lpc32xx_nand_read_buf;
 	chip->legacy.write_buf = lpc32xx_nand_write_buf;
-	chip->ecc.read_page_raw = lpc32xx_nand_read_page_raw_syndrome;
-	chip->ecc.read_page = lpc32xx_nand_read_page_syndrome;
-	chip->ecc.write_page_raw = lpc32xx_nand_write_page_raw_syndrome;
-	chip->ecc.write_page = lpc32xx_nand_write_page_syndrome;
-	chip->ecc.write_oob = lpc32xx_nand_write_oob_syndrome;
-	chip->ecc.read_oob = lpc32xx_nand_read_oob_syndrome;
-	chip->ecc.calculate = lpc32xx_nand_ecc_calculate;
-	chip->ecc.correct = nand_correct_data;
-	chip->ecc.strength = 1;
-	chip->ecc.hwctl = lpc32xx_nand_ecc_enable;
 
 	/*
 	 * Allocate a large enough buffer for a single huge page plus
@@ -947,8 +950,12 @@ static int lpc32xx_nand_remove(struct platform_device *pdev)
 {
 	uint32_t tmp;
 	struct lpc32xx_nand_host *host = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &host->nand_chip;
+	int ret;
 
-	nand_release(&host->nand_chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 	dma_release_channel(host->dma_chan);
 
 	/* Force CE high */

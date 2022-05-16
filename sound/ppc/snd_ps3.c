@@ -227,14 +227,14 @@ static int snd_ps3_program_dma(struct snd_ps3_card_info *card,
 	switch (filltype) {
 	case SND_PS3_DMA_FILLTYPE_SILENT_FIRSTFILL:
 		silent = 1;
-		/* intentionally fall thru */
+		fallthrough;
 	case SND_PS3_DMA_FILLTYPE_FIRSTFILL:
 		ch0_kick_event = PS3_AUDIO_KICK_EVENT_ALWAYS;
 		break;
 
 	case SND_PS3_DMA_FILLTYPE_SILENT_RUNNING:
 		silent = 1;
-		/* intentionally fall thru */
+		fallthrough;
 	case SND_PS3_DMA_FILLTYPE_RUNNING:
 		ch0_kick_event = PS3_AUDIO_KICK_EVENT_SERIALOUT0_EMPTY;
 		break;
@@ -535,22 +535,6 @@ static int snd_ps3_pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 };
 
-static int snd_ps3_pcm_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *hw_params)
-{
-	size_t size;
-
-	/* alloc transport buffer */
-	size = params_buffer_bytes(hw_params);
-	snd_pcm_lib_malloc_pages(substream, size);
-	return 0;
-};
-
-static int snd_ps3_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
-};
-
 static int snd_ps3_delay_to_bytes(struct snd_pcm_substream *substream,
 				  unsigned int delay_ms)
 {
@@ -731,7 +715,7 @@ static int snd_ps3_spdif_default_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new spdif_ctls[] = {
+static const struct snd_kcontrol_new spdif_ctls[] = {
 	{
 		.access = SNDRV_CTL_ELEM_ACCESS_READ,
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
@@ -758,9 +742,6 @@ static struct snd_kcontrol_new spdif_ctls[] = {
 static const struct snd_pcm_ops snd_ps3_pcm_spdif_ops = {
 	.open = snd_ps3_pcm_open,
 	.close = snd_ps3_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_ps3_pcm_hw_params,
-	.hw_free = snd_ps3_pcm_hw_free,
 	.prepare = snd_ps3_pcm_prepare,
 	.trigger = snd_ps3_pcm_trigger,
 	.pointer = snd_ps3_pcm_pointer,
@@ -945,7 +926,7 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 			    PAGE_SHIFT, /* use system page size */
 			    0, /* dma type; not used */
 			    NULL,
-			    _ALIGN_UP(SND_PS3_DMA_REGION_SIZE, PAGE_SIZE));
+			    ALIGN(SND_PS3_DMA_REGION_SIZE, PAGE_SIZE));
 	dev->d_region->ioid = PS3_AUDIO_IOID;
 
 	ret = ps3_dma_region_create(dev->d_region);
@@ -1007,11 +988,11 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 
 	the_card.pcm->info_flags = SNDRV_PCM_INFO_NONINTERLEAVED;
 	/* pre-alloc PCM DMA buffer*/
-	snd_pcm_lib_preallocate_pages_for_all(the_card.pcm,
-					SNDRV_DMA_TYPE_DEV,
-					&dev->core,
-					SND_PS3_PCM_PREALLOC_SIZE,
-					SND_PS3_PCM_PREALLOC_SIZE);
+	snd_pcm_set_managed_buffer_all(the_card.pcm,
+				       SNDRV_DMA_TYPE_DEV,
+				       &dev->core,
+				       SND_PS3_PCM_PREALLOC_SIZE,
+				       SND_PS3_PCM_PREALLOC_SIZE);
 
 	/*
 	 * allocate null buffer

@@ -86,7 +86,7 @@ static u32 convert_fid_to_vco_fid(u32 fid)
  */
 static int pending_bit_stuck(void)
 {
-	u32 lo, hi;
+	u32 lo, hi __always_unused;
 
 	rdmsr(MSR_FIDVID_STATUS, lo, hi);
 	return lo & MSR_S_LO_CHANGE_PENDING ? 1 : 0;
@@ -282,7 +282,7 @@ static int core_voltage_pre_transition(struct powernow_k8_data *data,
 {
 	u32 rvosteps = data->rvo;
 	u32 savefid = data->currfid;
-	u32 maxvid, lo, rvomult = 1;
+	u32 maxvid, lo __always_unused, rvomult = 1;
 
 	pr_debug("ph1 (cpu%d): start, currfid 0x%x, currvid 0x%x, reqvid 0x%x, rvo 0x%x\n",
 		smp_processor_id(),
@@ -452,7 +452,7 @@ static int core_voltage_post_transition(struct powernow_k8_data *data,
 
 static const struct x86_cpu_id powernow_k8_ids[] = {
 	/* IO based frequency switching */
-	{ X86_VENDOR_AMD, 0xf },
+	X86_MATCH_VENDOR_FAM(AMD, 0xf, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, powernow_k8_ids);

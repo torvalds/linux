@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2003-2018, Intel Corporation. All rights reserved.
+ * Copyright (c) 2003-2020, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -81,6 +81,27 @@ err_unlock:
 }
 
 /**
+ * mei_cl_vtag_remove_by_fp - remove vtag that corresponds to fp from list
+ *
+ * @cl: host client
+ * @fp: pointer to file structure
+ *
+ */
+static void mei_cl_vtag_remove_by_fp(const struct mei_cl *cl,
+				     const struct file *fp)
+{
+	struct mei_cl_vtag *vtag_l, *next;
+
+	list_for_each_entry_safe(vtag_l, next, &cl->vtag_map, list) {
+		if (vtag_l->fp == fp) {
+			list_del(&vtag_l->list);
+			kfree(vtag_l);
+			return;
+		}
+	}
+}
+
+/**
  * mei_release - the release function
  *
  * @inode: pointer to inode structure
@@ -101,16 +122,34 @@ static int mei_release(struct inode *inode, struct file *file)
 
 	mutex_lock(&dev->device_lock);
 
-	rets = mei_cl_disconnect(cl);
+	mei_cl_vtag_remove_by_fp(cl, file);
 
-	mei_cl_flush_queues(cl, file);
+	if (!list_empty(&cl->vtag_map)) {
+		cl_dbg(dev, cl, "not the last vtag\n");
+		mei_cl_flush_queues(cl, file);
+		rets = 0;
+		goto out;
+	}
+
+	rets = mei_cl_disconnect(cl);
+	/*
+	 * Check again: This is necessary since disconnect releases the lock
+	 * and another client can connect in the meantime.
+	 */
+	if (!list_empty(&cl->vtag_map)) {
+		cl_dbg(dev, cl, "not the last vtag after disconnect\n");
+		mei_cl_flush_queues(cl, file);
+		goto out;
+	}
+
+	mei_cl_flush_queues(cl, NULL);
 	cl_dbg(dev, cl, "removing\n");
 
 	mei_cl_unlink(cl);
-
-	file->private_data = NULL;
-
 	kfree(cl);
+
+out:
+	file->private_data = NULL;
 
 	mutex_unlock(&dev->device_lock);
 	return rets;
@@ -178,7 +217,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 	mutex_unlock(&dev->device_lock);
 	if (wait_event_interruptible(cl->rx_wait,
-				     !list_empty(&cl->rd_completed) ||
+				     mei_cl_read_cb(cl, file) ||
 				     !mei_cl_is_connected(cl))) {
 		if (signal_pending(current))
 			return -EINTR;
@@ -229,7 +268,7 @@ copy_buffer:
 		goto out;
 
 free:
-	mei_io_cb_free(cb);
+	mei_cl_del_rd_completed(cl, cb);
 	*offset = 0;
 
 out:
@@ -237,6 +276,28 @@ out:
 	mutex_unlock(&dev->device_lock);
 	return rets;
 }
+
+/**
+ * mei_cl_vtag_by_fp - obtain the vtag by file pointer
+ *
+ * @cl: host client
+ * @fp: pointer to file structure
+ *
+ * Return: vtag value on success, otherwise 0
+ */
+static u8 mei_cl_vtag_by_fp(const struct mei_cl *cl, const struct file *fp)
+{
+	struct mei_cl_vtag *cl_vtag;
+
+	if (!fp)
+		return 0;
+
+	list_for_each_entry(cl_vtag, &cl->vtag_map, list)
+		if (cl_vtag->fp == fp)
+			return cl_vtag->vtag;
+	return 0;
+}
+
 /**
  * mei_write - the write function.
  *
@@ -314,6 +375,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		rets = -ENOMEM;
 		goto out;
 	}
+	cb->vtag = mei_cl_vtag_by_fp(cl, file);
 
 	rets = copy_from_user(cb->buf.data, ubuf, length);
 	if (rets) {
@@ -333,17 +395,18 @@ out:
  * mei_ioctl_connect_client - the connect to fw client IOCTL function
  *
  * @file: private data of the file object
- * @data: IOCTL connect data, input and output parameters
+ * @in_client_uuid: requested UUID for connection
+ * @client: IOCTL connect data, output parameters
  *
  * Locking: called under "dev->device_lock" lock
  *
  * Return: 0 on success, <0 on failure.
  */
 static int mei_ioctl_connect_client(struct file *file,
-			struct mei_connect_client_data *data)
+				    const uuid_le *in_client_uuid,
+				    struct mei_client *client)
 {
 	struct mei_device *dev;
-	struct mei_client *client;
 	struct mei_me_client *me_cl;
 	struct mei_cl *cl;
 	int rets;
@@ -351,18 +414,15 @@ static int mei_ioctl_connect_client(struct file *file,
 	cl = file->private_data;
 	dev = cl->dev;
 
-	if (dev->dev_state != MEI_DEV_ENABLED)
-		return -ENODEV;
-
 	if (cl->state != MEI_FILE_INITIALIZING &&
 	    cl->state != MEI_FILE_DISCONNECTED)
 		return  -EBUSY;
 
 	/* find ME client we're trying to connect to */
-	me_cl = mei_me_cl_by_uuid(dev, &data->in_client_uuid);
+	me_cl = mei_me_cl_by_uuid(dev, in_client_uuid);
 	if (!me_cl) {
 		dev_dbg(dev->dev, "Cannot connect to FW Client UUID = %pUl\n",
-			&data->in_client_uuid);
+			in_client_uuid);
 		rets = -ENOTTY;
 		goto end;
 	}
@@ -372,7 +432,7 @@ static int mei_ioctl_connect_client(struct file *file,
 			 !dev->allow_fixed_address : !dev->hbm_f_fa_supported;
 		if (forbidden) {
 			dev_dbg(dev->dev, "Connection forbidden to FW Client UUID = %pUl\n",
-				&data->in_client_uuid);
+				in_client_uuid);
 			rets = -ENOTTY;
 			goto end;
 		}
@@ -386,7 +446,6 @@ static int mei_ioctl_connect_client(struct file *file,
 			me_cl->props.max_msg_length);
 
 	/* prepare the output buffer */
-	client = &data->out_client_properties;
 	client->max_msg_length = me_cl->props.max_msg_length;
 	client->protocol_version = me_cl->props.protocol_version;
 	dev_dbg(dev->dev, "Can connect?\n");
@@ -396,6 +455,135 @@ static int mei_ioctl_connect_client(struct file *file,
 end:
 	mei_me_cl_put(me_cl);
 	return rets;
+}
+
+/**
+ * mei_vt_support_check - check if client support vtags
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * @dev: mei_device
+ * @uuid: client UUID
+ *
+ * Return:
+ *	0 - supported
+ *	-ENOTTY - no such client
+ *	-EOPNOTSUPP - vtags are not supported by client
+ */
+static int mei_vt_support_check(struct mei_device *dev, const uuid_le *uuid)
+{
+	struct mei_me_client *me_cl;
+	int ret;
+
+	if (!dev->hbm_f_vt_supported)
+		return -EOPNOTSUPP;
+
+	me_cl = mei_me_cl_by_uuid(dev, uuid);
+	if (!me_cl) {
+		dev_dbg(dev->dev, "Cannot connect to FW Client UUID = %pUl\n",
+			uuid);
+		return -ENOTTY;
+	}
+	ret = me_cl->props.vt_supported ? 0 : -EOPNOTSUPP;
+	mei_me_cl_put(me_cl);
+
+	return ret;
+}
+
+/**
+ * mei_ioctl_connect_vtag - connect to fw client with vtag IOCTL function
+ *
+ * @file: private data of the file object
+ * @in_client_uuid: requested UUID for connection
+ * @client: IOCTL connect data, output parameters
+ * @vtag: vm tag
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * Return: 0 on success, <0 on failure.
+ */
+static int mei_ioctl_connect_vtag(struct file *file,
+				  const uuid_le *in_client_uuid,
+				  struct mei_client *client,
+				  u8 vtag)
+{
+	struct mei_device *dev;
+	struct mei_cl *cl;
+	struct mei_cl *pos;
+	struct mei_cl_vtag *cl_vtag;
+
+	cl = file->private_data;
+	dev = cl->dev;
+
+	dev_dbg(dev->dev, "FW Client %pUl vtag %d\n", in_client_uuid, vtag);
+
+	switch (cl->state) {
+	case MEI_FILE_DISCONNECTED:
+		if (mei_cl_vtag_by_fp(cl, file) != vtag) {
+			dev_err(dev->dev, "reconnect with different vtag\n");
+			return -EINVAL;
+		}
+		break;
+	case MEI_FILE_INITIALIZING:
+		/* malicious connect from another thread may push vtag */
+		if (!IS_ERR(mei_cl_fp_by_vtag(cl, vtag))) {
+			dev_err(dev->dev, "vtag already filled\n");
+			return -EINVAL;
+		}
+
+		list_for_each_entry(pos, &dev->file_list, link) {
+			if (pos == cl)
+				continue;
+			if (!pos->me_cl)
+				continue;
+
+			/* only search for same UUID */
+			if (uuid_le_cmp(*mei_cl_uuid(pos), *in_client_uuid))
+				continue;
+
+			/* if tag already exist try another fp */
+			if (!IS_ERR(mei_cl_fp_by_vtag(pos, vtag)))
+				continue;
+
+			/* replace cl with acquired one */
+			dev_dbg(dev->dev, "replacing with existing cl\n");
+			mei_cl_unlink(cl);
+			kfree(cl);
+			file->private_data = pos;
+			cl = pos;
+			break;
+		}
+
+		cl_vtag = mei_cl_vtag_alloc(file, vtag);
+		if (IS_ERR(cl_vtag))
+			return -ENOMEM;
+
+		list_add_tail(&cl_vtag->list, &cl->vtag_map);
+		break;
+	default:
+		return -EBUSY;
+	}
+
+	while (cl->state != MEI_FILE_INITIALIZING &&
+	       cl->state != MEI_FILE_DISCONNECTED &&
+	       cl->state != MEI_FILE_CONNECTED) {
+		mutex_unlock(&dev->device_lock);
+		wait_event_timeout(cl->wait,
+				   (cl->state == MEI_FILE_CONNECTED ||
+				    cl->state == MEI_FILE_DISCONNECTED ||
+				    cl->state == MEI_FILE_DISCONNECT_REQUIRED ||
+				    cl->state == MEI_FILE_DISCONNECT_REPLY),
+				   mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
+		mutex_lock(&dev->device_lock);
+	}
+
+	if (!mei_cl_is_connected(cl))
+		return mei_ioctl_connect_client(file, in_client_uuid, client);
+
+	client->max_msg_length = cl->me_cl->props.max_msg_length;
+	client->protocol_version = cl->me_cl->props.protocol_version;
+
+	return 0;
 }
 
 /**
@@ -454,7 +642,11 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 {
 	struct mei_device *dev;
 	struct mei_cl *cl = file->private_data;
-	struct mei_connect_client_data connect_data;
+	struct mei_connect_client_data conn;
+	struct mei_connect_client_data_vtag conn_vtag;
+	const uuid_le *cl_uuid;
+	struct mei_client *props;
+	u8 vtag;
 	u32 notify_get, notify_req;
 	int rets;
 
@@ -475,20 +667,68 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 	switch (cmd) {
 	case IOCTL_MEI_CONNECT_CLIENT:
 		dev_dbg(dev->dev, ": IOCTL_MEI_CONNECT_CLIENT.\n");
-		if (copy_from_user(&connect_data, (char __user *)data,
-				sizeof(struct mei_connect_client_data))) {
+		if (copy_from_user(&conn, (char __user *)data, sizeof(conn))) {
+			dev_dbg(dev->dev, "failed to copy data from userland\n");
+			rets = -EFAULT;
+			goto out;
+		}
+		cl_uuid = &conn.in_client_uuid;
+		props = &conn.out_client_properties;
+		vtag = 0;
+
+		rets = mei_vt_support_check(dev, cl_uuid);
+		if (rets == -ENOTTY)
+			goto out;
+		if (!rets)
+			rets = mei_ioctl_connect_vtag(file, cl_uuid, props,
+						      vtag);
+		else
+			rets = mei_ioctl_connect_client(file, cl_uuid, props);
+		if (rets)
+			goto out;
+
+		/* if all is ok, copying the data back to user. */
+		if (copy_to_user((char __user *)data, &conn, sizeof(conn))) {
+			dev_dbg(dev->dev, "failed to copy data to userland\n");
+			rets = -EFAULT;
+			goto out;
+		}
+
+		break;
+
+	case IOCTL_MEI_CONNECT_CLIENT_VTAG:
+		dev_dbg(dev->dev, "IOCTL_MEI_CONNECT_CLIENT_VTAG\n");
+		if (copy_from_user(&conn_vtag, (char __user *)data,
+				   sizeof(conn_vtag))) {
 			dev_dbg(dev->dev, "failed to copy data from userland\n");
 			rets = -EFAULT;
 			goto out;
 		}
 
-		rets = mei_ioctl_connect_client(file, &connect_data);
+		cl_uuid = &conn_vtag.connect.in_client_uuid;
+		props = &conn_vtag.out_client_properties;
+		vtag = conn_vtag.connect.vtag;
+
+		rets = mei_vt_support_check(dev, cl_uuid);
+		if (rets == -EOPNOTSUPP)
+			dev_dbg(dev->dev, "FW Client %pUl does not support vtags\n",
+				cl_uuid);
+		if (rets)
+			goto out;
+
+		if (!vtag) {
+			dev_dbg(dev->dev, "vtag can't be zero\n");
+			rets = -EINVAL;
+			goto out;
+		}
+
+		rets = mei_ioctl_connect_vtag(file, cl_uuid, props, vtag);
 		if (rets)
 			goto out;
 
 		/* if all is ok, copying the data back to user. */
-		if (copy_to_user((char __user *)data, &connect_data,
-				sizeof(struct mei_connect_client_data))) {
+		if (copy_to_user((char __user *)data, &conn_vtag,
+				 sizeof(conn_vtag))) {
 			dev_dbg(dev->dev, "failed to copy data to userland\n");
 			rets = -EFAULT;
 			goto out;
@@ -533,24 +773,6 @@ out:
 }
 
 /**
- * mei_compat_ioctl - the compat IOCTL function
- *
- * @file: pointer to file structure
- * @cmd: ioctl command
- * @data: pointer to mei message structure
- *
- * Return: 0 on success , <0 on error
- */
-#ifdef CONFIG_COMPAT
-static long mei_compat_ioctl(struct file *file,
-			unsigned int cmd, unsigned long data)
-{
-	return mei_ioctl(file, cmd, (unsigned long)compat_ptr(data));
-}
-#endif
-
-
-/**
  * mei_poll - the poll function
  *
  * @file: pointer to file structure
@@ -590,7 +812,7 @@ static __poll_t mei_poll(struct file *file, poll_table *wait)
 	if (req_events & (EPOLLIN | EPOLLRDNORM)) {
 		poll_wait(file, &cl->rx_wait, wait);
 
-		if (!list_empty(&cl->rd_completed))
+		if (mei_cl_read_cb(cl, file))
 			mask |= EPOLLIN | EPOLLRDNORM;
 		else
 			mei_cl_read_start(cl, mei_cl_mtu(cl), file);
@@ -699,6 +921,29 @@ static int mei_fasync(int fd, struct file *file, int band)
 
 	return fasync_helper(fd, file, band, &cl->ev_async);
 }
+
+/**
+ * trc_show - mei device trc attribute show method
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf:  char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t trc_show(struct device *device,
+			struct device_attribute *attr, char *buf)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	u32 trc;
+	int ret;
+
+	ret = mei_trc_status(dev, &trc);
+	if (ret)
+		return ret;
+	return sprintf(buf, "%08X\n", trc);
+}
+static DEVICE_ATTR_RO(trc);
 
 /**
  * fw_status_show - mei device fw_status attribute show method
@@ -880,6 +1125,30 @@ void mei_set_devstate(struct mei_device *dev, enum mei_dev_state state)
 	}
 }
 
+/**
+ * kind_show - display device kind
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf: char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t kind_show(struct device *device,
+			 struct device_attribute *attr, char *buf)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	ssize_t ret;
+
+	if (dev->kind)
+		ret = sprintf(buf, "%s\n", dev->kind);
+	else
+		ret = sprintf(buf, "%s\n", "mei");
+
+	return ret;
+}
+static DEVICE_ATTR_RO(kind);
+
 static struct attribute *mei_attrs[] = {
 	&dev_attr_fw_status.attr,
 	&dev_attr_hbm_ver.attr,
@@ -887,6 +1156,8 @@ static struct attribute *mei_attrs[] = {
 	&dev_attr_tx_queue_limit.attr,
 	&dev_attr_fw_ver.attr,
 	&dev_attr_dev_state.attr,
+	&dev_attr_trc.attr,
+	&dev_attr_kind.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(mei);
@@ -898,9 +1169,7 @@ static const struct file_operations mei_fops = {
 	.owner = THIS_MODULE,
 	.read = mei_read,
 	.unlocked_ioctl = mei_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = mei_compat_ioctl,
-#endif
+	.compat_ioctl = compat_ptr_ioctl,
 	.open = mei_open,
 	.release = mei_release,
 	.write = mei_write,

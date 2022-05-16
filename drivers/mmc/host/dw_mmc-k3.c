@@ -238,7 +238,7 @@ static void dw_mci_hs_set_timing(struct dw_mci *host, int timing,
 		if (smpl_phase >= USE_DLY_MIN_SMPL &&
 				smpl_phase <= USE_DLY_MAX_SMPL)
 			use_smpl_dly = 1;
-			/* fallthrough */
+		fallthrough;
 	case MMC_TIMING_UHS_SDR50:
 		if (smpl_phase >= ENABLE_SHIFT_MIN_SMPL &&
 				smpl_phase <= ENABLE_SHIFT_MAX_SMPL)
@@ -424,7 +424,7 @@ static int dw_mci_hi3660_switch_voltage(struct mmc_host *mmc,
 
 	if (!IS_ERR(mmc->supply.vqmmc)) {
 		ret = mmc_regulator_set_vqmmc(mmc, ios);
-		if (ret) {
+		if (ret < 0) {
 			dev_err(host->dev, "Regulator set error %d\n", ret);
 			return ret;
 		}
@@ -473,6 +473,7 @@ static struct platform_driver dw_mci_k3_pltfm_driver = {
 	.remove		= dw_mci_pltfm_remove,
 	.driver		= {
 		.name		= "dwmmc_k3",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= dw_mci_k3_match,
 		.pm		= &dw_mci_k3_dev_pm_ops,
 	},

@@ -19,7 +19,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 /* Panel specific color-format bits */
 #define COL_FMT_16BPP 0x55
@@ -192,7 +191,7 @@ static const u32 rad_bus_formats[] = {
 };
 
 static const u32 rad_bus_flags = DRM_BUS_FLAG_DE_LOW |
-				 DRM_BUS_FLAG_PIXDATA_NEGEDGE;
+				 DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE;
 
 struct rad_panel {
 	struct drm_panel panel;
@@ -218,7 +217,6 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start = 1920 + 10,
 	.vsync_end = 1920 + 10 + 2,
 	.vtotal = 1920 + 10 + 2 + 4,
-	.vrefresh = 60,
 	.width_mm = 68,
 	.height_mm = 121,
 	.flags = DRM_MODE_FLAG_NHSYNC |
@@ -330,7 +328,7 @@ static int rad_panel_enable(struct drm_panel *panel)
 
 	ret = rad_panel_push_cmd_list(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to send MCS (%d)\n", ret);
+		dev_err(dev, "Failed to send MCS (%d)\n", ret);
 		goto fail;
 	}
 
@@ -342,7 +340,7 @@ static int rad_panel_enable(struct drm_panel *panel)
 	/* Software reset */
 	ret = mipi_dsi_dcs_soft_reset(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to do Software Reset (%d)\n", ret);
+		dev_err(dev, "Failed to do Software Reset (%d)\n", ret);
 		goto fail;
 	}
 
@@ -351,33 +349,32 @@ static int rad_panel_enable(struct drm_panel *panel)
 	/* Set DSI mode */
 	ret = mipi_dsi_generic_write(dsi, (u8[]){ 0xC2, 0x0B }, 2);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to set DSI mode (%d)\n", ret);
+		dev_err(dev, "Failed to set DSI mode (%d)\n", ret);
 		goto fail;
 	}
 	/* Set tear ON */
 	ret = mipi_dsi_dcs_set_tear_on(dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to set tear ON (%d)\n", ret);
+		dev_err(dev, "Failed to set tear ON (%d)\n", ret);
 		goto fail;
 	}
 	/* Set tear scanline */
 	ret = mipi_dsi_dcs_set_tear_scanline(dsi, 0x380);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to set tear scanline (%d)\n", ret);
+		dev_err(dev, "Failed to set tear scanline (%d)\n", ret);
 		goto fail;
 	}
 	/* Set pixel format */
 	ret = mipi_dsi_dcs_set_pixel_format(dsi, color_format);
-	DRM_DEV_DEBUG_DRIVER(dev, "Interface color format set to 0x%x\n",
-			     color_format);
+	dev_dbg(dev, "Interface color format set to 0x%x\n", color_format);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to set pixel format (%d)\n", ret);
+		dev_err(dev, "Failed to set pixel format (%d)\n", ret);
 		goto fail;
 	}
 	/* Exit sleep mode */
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to exit sleep mode (%d)\n", ret);
+		dev_err(dev, "Failed to exit sleep mode (%d)\n", ret);
 		goto fail;
 	}
 
@@ -385,7 +382,7 @@ static int rad_panel_enable(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_set_display_on(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to set display ON (%d)\n", ret);
+		dev_err(dev, "Failed to set display ON (%d)\n", ret);
 		goto fail;
 	}
 
@@ -419,7 +416,7 @@ static int rad_panel_disable(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to set display OFF (%d)\n", ret);
+		dev_err(dev, "Failed to set display OFF (%d)\n", ret);
 		return ret;
 	}
 
@@ -427,7 +424,7 @@ static int rad_panel_disable(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_enter_sleep_mode(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to enter sleep mode (%d)\n", ret);
+		dev_err(dev, "Failed to enter sleep mode (%d)\n", ret);
 		return ret;
 	}
 
@@ -436,22 +433,22 @@ static int rad_panel_disable(struct drm_panel *panel)
 	return 0;
 }
 
-static int rad_panel_get_modes(struct drm_panel *panel)
+static int rad_panel_get_modes(struct drm_panel *panel,
+			       struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
-		DRM_DEV_ERROR(panel->dev, "failed to add mode %ux%ux@%u\n",
-			      default_mode.hdisplay, default_mode.vdisplay,
-			      default_mode.vrefresh);
+		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
+			default_mode.hdisplay, default_mode.vdisplay,
+			drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 
 	drm_mode_set_name(mode);
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(connector, mode);
 
 	connector->display_info.width_mm = mode->width_mm;
 	connector->display_info.height_mm = mode->height_mm;
@@ -555,8 +552,7 @@ static int rad_panel_probe(struct mipi_dsi_device *dsi)
 	panel->dsi = dsi;
 
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags =  MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO |
-			   MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	dsi->mode_flags =  MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO;
 
 	ret = of_property_read_u32(np, "video-mode", &video_mode);
 	if (!ret) {
@@ -606,14 +602,11 @@ static int rad_panel_probe(struct mipi_dsi_device *dsi)
 	if (ret)
 		return ret;
 
-	drm_panel_init(&panel->panel);
-	panel->panel.funcs = &rad_panel_funcs;
-	panel->panel.dev = dev;
+	drm_panel_init(&panel->panel, dev, &rad_panel_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 	dev_set_drvdata(dev, panel);
 
-	ret = drm_panel_add(&panel->panel);
-	if (ret)
-		return ret;
+	drm_panel_add(&panel->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret)
@@ -630,8 +623,7 @@ static int rad_panel_remove(struct mipi_dsi_device *dsi)
 
 	ret = mipi_dsi_detach(dsi);
 	if (ret)
-		DRM_DEV_ERROR(dev, "Failed to detach from host (%d)\n",
-			      ret);
+		dev_err(dev, "Failed to detach from host (%d)\n", ret);
 
 	drm_panel_remove(&rad->panel);
 

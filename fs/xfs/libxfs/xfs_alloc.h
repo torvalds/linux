@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
@@ -54,7 +54,6 @@ typedef struct xfs_alloc_arg {
 	struct xfs_mount *mp;		/* file system mount point */
 	struct xfs_buf	*agbp;		/* buffer for a.g. freelist header */
 	struct xfs_perag *pag;		/* per-ag struct for this agno */
-	struct xfs_inode *ip;		/* for userdata zeroing method */
 	xfs_fsblock_t	fsbno;		/* file system block number */
 	xfs_agnumber_t	agno;		/* allocation group number */
 	xfs_agblock_t	agbno;		/* allocation group-relative block # */
@@ -83,20 +82,7 @@ typedef struct xfs_alloc_arg {
  */
 #define XFS_ALLOC_USERDATA		(1 << 0)/* allocation is for user data*/
 #define XFS_ALLOC_INITIAL_USER_DATA	(1 << 1)/* special case start of file */
-#define XFS_ALLOC_USERDATA_ZERO		(1 << 2)/* zero extent on allocation */
-#define XFS_ALLOC_NOBUSY		(1 << 3)/* Busy extents not allowed */
-
-static inline bool
-xfs_alloc_is_userdata(int datatype)
-{
-	return (datatype & ~XFS_ALLOC_NOBUSY) != 0;
-}
-
-static inline bool
-xfs_alloc_allow_busy_reuse(int datatype)
-{
-	return (datatype & XFS_ALLOC_NOBUSY) == 0;
-}
+#define XFS_ALLOC_NOBUSY		(1 << 2)/* Busy extents not allowed */
 
 /* freespace limit calculations */
 #define XFS_ALLOC_AGFL_RESERVE	4
@@ -249,5 +235,14 @@ typedef int (*xfs_agfl_walk_fn)(struct xfs_mount *mp, xfs_agblock_t bno,
 		void *priv);
 int xfs_agfl_walk(struct xfs_mount *mp, struct xfs_agf *agf,
 		struct xfs_buf *agflbp, xfs_agfl_walk_fn walk_fn, void *priv);
+
+static inline __be32 *
+xfs_buf_to_agfl_bno(
+	struct xfs_buf		*bp)
+{
+	if (xfs_sb_version_hascrc(&bp->b_mount->m_sb))
+		return bp->b_addr + sizeof(struct xfs_agfl);
+	return bp->b_addr;
+}
 
 #endif	/* __XFS_ALLOC_H__ */

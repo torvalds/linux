@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/magnetometer/asahi-kasei,ak8975.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AsahiKASEI AK8975 magnetometer sensor
+
+maintainers:
+  - Jonathan Albrieux <jonathan.albrieux@gmail.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - asahi-kasei,ak8975
+          - asahi-kasei,ak8963
+          - asahi-kasei,ak09911
+          - asahi-kasei,ak09912
+      - enum:
+          - ak8975
+          - ak8963
+          - ak09911
+          - ak09912
+        deprecated: true
+
+  reg:
+    maxItems: 1
+
+  gpios:
+    maxItems: 1
+    description: |
+      AK8975 has a "Data ready" pin (DRDY) which informs that data
+      is ready to be read and is possible to listen on it. If used,
+      this should be active high. Prefer interrupt over this.
+
+  interrupts:
+    maxItems: 1
+    description: interrupt for DRDY pin. Triggered on rising edge.
+
+  vdd-supply:
+    description: |
+      an optional regulator that needs to be on to provide VDD power to
+      the sensor.
+
+  mount-matrix:
+    description: an optional 3x3 mounting rotation matrix.
+
+  reset-gpios:
+    description: |
+      an optional pin needed for AK09911 to set the reset state. This should
+      be usually active low
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        magnetometer@c {
+            compatible = "asahi-kasei,ak8975";
+            reg = <0x0c>;
+            interrupt-parent = <&gpio6>;
+            interrupts = <15 IRQ_TYPE_EDGE_RISING>;
+            vdd-supply = <&ldo_3v3_gnss>;
+            reset-gpios = <&msmgpio 111 GPIO_ACTIVE_LOW>;
+            mount-matrix = "-0.984807753012208",  /* x0 */
+                           "0",                   /* y0 */
+                           "-0.173648177666930",  /* z0 */
+                           "0",                   /* x1 */
+                           "-1",                  /* y1 */
+                           "0",                   /* z1 */
+                           "-0.173648177666930",  /* x2 */
+                           "0",                   /* y2 */
+                           "0.984807753012208";   /* z2 */
+        };
+    };

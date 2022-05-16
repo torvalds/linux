@@ -103,8 +103,6 @@
 
 #define TX_TIMEOUT      (5*HZ)
 
-const char gfar_driver_version[] = "2.0";
-
 MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION("Gianfar Ethernet Driver");
 MODULE_LICENSE("GPL");
@@ -641,6 +639,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	const char *model;
 	const void *mac_addr;
 	int err = 0, i;
+	phy_interface_t interface;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
 	struct device_node *np = ofdev->dev.of_node;
@@ -751,8 +750,10 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 				continue;
 
 			err = gfar_parse_group(child, priv, model);
-			if (err)
+			if (err) {
+				of_node_put(child);
 				goto err_grp_init;
+			}
 		}
 	} else { /* SQ_SG_MODE */
 		err = gfar_parse_group(np, priv, model);
@@ -780,8 +781,12 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 
 	mac_addr = of_get_mac_address(np);
 
-	if (!IS_ERR(mac_addr))
+	if (!IS_ERR(mac_addr)) {
 		ether_addr_copy(dev->dev_addr, mac_addr);
+	} else {
+		eth_hw_addr_random(dev);
+		dev_info(&ofdev->dev, "Using random MAC address: %pM\n", dev->dev_addr);
+	}
 
 	if (model && !strcasecmp(model, "TSEC"))
 		priv->device_flags |= FSL_GIANFAR_DEV_HAS_GIGABIT |
@@ -805,9 +810,9 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	 * rgmii-id really needs to be specified. Other types can be
 	 * detected by hardware
 	 */
-	err = of_get_phy_mode(np);
-	if (err >= 0)
-		priv->interface = err;
+	err = of_get_phy_mode(np, &interface);
+	if (!err)
+		priv->interface = interface;
 	else
 		priv->interface = gfar_get_interface(dev);
 
@@ -1824,20 +1829,12 @@ static netdev_tx_t gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		fcb_len = GMAC_FCB_LEN + GMAC_TXPAL_LEN;
 
 	/* make space for additional header when fcb is needed */
-	if (fcb_len && unlikely(skb_headroom(skb) < fcb_len)) {
-		struct sk_buff *skb_new;
-
-		skb_new = skb_realloc_headroom(skb, fcb_len);
-		if (!skb_new) {
+	if (fcb_len) {
+		if (unlikely(skb_cow_head(skb, fcb_len))) {
 			dev->stats.tx_errors++;
 			dev_kfree_skb_any(skb);
 			return NETDEV_TX_OK;
 		}
-
-		if (skb->sk)
-			skb_set_owner_w(skb_new, skb->sk);
-		dev_consume_skb_any(skb);
-		skb = skb_new;
 	}
 
 	/* total number of fragments in the SKB */
@@ -2092,7 +2089,7 @@ static void gfar_reset_task(struct work_struct *work)
 	reset_gfar(priv->ndev);
 }
 
-static void gfar_timeout(struct net_device *dev)
+static void gfar_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
@@ -2204,13 +2201,17 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	skb_dirtytx = tx_queue->skb_dirtytx;
 
 	while ((skb = tx_queue->tx_skbuff[skb_dirtytx])) {
+		bool do_tstamp;
+
+		do_tstamp = (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+			    priv->hwts_tx_en;
 
 		frags = skb_shinfo(skb)->nr_frags;
 
 		/* When time stamping, one additional TxBD must be freed.
 		 * Also, we need to dma_unmap_single() the TxPAL.
 		 */
-		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS))
+		if (unlikely(do_tstamp))
 			nr_txbds = frags + 2;
 		else
 			nr_txbds = frags + 1;
@@ -2224,7 +2225,7 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 		    (lstatus & BD_LENGTH_MASK))
 			break;
 
-		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
+		if (unlikely(do_tstamp)) {
 			next = next_txbd(bdp, base, tx_ring_size);
 			buflen = be16_to_cpu(next->length) +
 				 GMAC_FCB_LEN + GMAC_TXPAL_LEN;
@@ -2234,7 +2235,7 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 		dma_unmap_single(priv->dev, be32_to_cpu(bdp->bufPtr),
 				 buflen, DMA_TO_DEVICE);
 
-		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
+		if (unlikely(do_tstamp)) {
 			struct skb_shared_hwtstamps shhwtstamps;
 			u64 *ns = (u64 *)(((uintptr_t)skb->data + 0x10) &
 					  ~0x7UL);
@@ -3371,7 +3372,7 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	if (dev->features & NETIF_F_IP_CSUM ||
 	    priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER)
-		dev->needed_headroom = GMAC_FCB_LEN;
+		dev->needed_headroom = GMAC_FCB_LEN + GMAC_TXPAL_LEN;
 
 	/* Initializing some of the rx/tx queue level parameters */
 	for (i = 0; i < priv->num_tx_queues; i++) {

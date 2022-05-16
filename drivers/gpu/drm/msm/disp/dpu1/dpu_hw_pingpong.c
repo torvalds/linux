@@ -28,8 +28,18 @@
 #define PP_FBC_BUDGET_CTL               0x038
 #define PP_FBC_LOSSY_MODE               0x03C
 
-static struct dpu_pingpong_cfg *_pingpong_offset(enum dpu_pingpong pp,
-		struct dpu_mdss_cfg *m,
+#define PP_DITHER_EN			0x000
+#define PP_DITHER_BITDEPTH		0x004
+#define PP_DITHER_MATRIX		0x008
+
+#define DITHER_DEPTH_MAP_INDEX 9
+
+static u32 dither_depth_map[DITHER_DEPTH_MAP_INDEX] = {
+	0, 0, 0, 0, 0, 0, 0, 1, 2
+};
+
+static const struct dpu_pingpong_cfg *_pingpong_offset(enum dpu_pingpong pp,
+		const struct dpu_mdss_cfg *m,
 		void __iomem *addr,
 		struct dpu_hw_blk_reg_map *b)
 {
@@ -47,6 +57,37 @@ static struct dpu_pingpong_cfg *_pingpong_offset(enum dpu_pingpong pp,
 	}
 
 	return ERR_PTR(-EINVAL);
+}
+
+static void dpu_hw_pp_setup_dither(struct dpu_hw_pingpong *pp,
+				    struct dpu_hw_dither_cfg *cfg)
+{
+	struct dpu_hw_blk_reg_map *c;
+	u32 i, base, data = 0;
+
+	c = &pp->hw;
+	base = pp->caps->sblk->dither.base;
+	if (!cfg) {
+		DPU_REG_WRITE(c, base + PP_DITHER_EN, 0);
+		return;
+	}
+
+	data = dither_depth_map[cfg->c0_bitdepth] & REG_MASK(2);
+	data |= (dither_depth_map[cfg->c1_bitdepth] & REG_MASK(2)) << 2;
+	data |= (dither_depth_map[cfg->c2_bitdepth] & REG_MASK(2)) << 4;
+	data |= (dither_depth_map[cfg->c3_bitdepth] & REG_MASK(2)) << 6;
+	data |= (cfg->temporal_en) ? (1 << 8) : 0;
+
+	DPU_REG_WRITE(c, base + PP_DITHER_BITDEPTH, data);
+
+	for (i = 0; i < DITHER_MATRIX_SZ - 3; i += 4) {
+		data = (cfg->matrix[i] & REG_MASK(4)) |
+			((cfg->matrix[i + 1] & REG_MASK(4)) << 4) |
+			((cfg->matrix[i + 2] & REG_MASK(4)) << 8) |
+			((cfg->matrix[i + 3] & REG_MASK(4)) << 12);
+		DPU_REG_WRITE(c, base + PP_DITHER_MATRIX + i, data);
+	}
+	DPU_REG_WRITE(c, base + PP_DITHER_EN, 1);
 }
 
 static int dpu_hw_pp_setup_te_config(struct dpu_hw_pingpong *pp,
@@ -180,25 +221,28 @@ static u32 dpu_hw_pp_get_line_count(struct dpu_hw_pingpong *pp)
 	return line;
 }
 
-static void _setup_pingpong_ops(struct dpu_hw_pingpong_ops *ops,
-	const struct dpu_pingpong_cfg *hw_cap)
+static void _setup_pingpong_ops(struct dpu_hw_pingpong *c,
+				unsigned long features)
 {
-	ops->setup_tearcheck = dpu_hw_pp_setup_te_config;
-	ops->enable_tearcheck = dpu_hw_pp_enable_te;
-	ops->connect_external_te = dpu_hw_pp_connect_external_te;
-	ops->get_vsync_info = dpu_hw_pp_get_vsync_info;
-	ops->poll_timeout_wr_ptr = dpu_hw_pp_poll_timeout_wr_ptr;
-	ops->get_line_count = dpu_hw_pp_get_line_count;
+	c->ops.setup_tearcheck = dpu_hw_pp_setup_te_config;
+	c->ops.enable_tearcheck = dpu_hw_pp_enable_te;
+	c->ops.connect_external_te = dpu_hw_pp_connect_external_te;
+	c->ops.get_vsync_info = dpu_hw_pp_get_vsync_info;
+	c->ops.poll_timeout_wr_ptr = dpu_hw_pp_poll_timeout_wr_ptr;
+	c->ops.get_line_count = dpu_hw_pp_get_line_count;
+
+	if (test_bit(DPU_PINGPONG_DITHER, &features))
+		c->ops.setup_dither = dpu_hw_pp_setup_dither;
 };
 
 static struct dpu_hw_blk_ops dpu_hw_ops;
 
 struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 		void __iomem *addr,
-		struct dpu_mdss_cfg *m)
+		const struct dpu_mdss_cfg *m)
 {
 	struct dpu_hw_pingpong *c;
-	struct dpu_pingpong_cfg *cfg;
+	const struct dpu_pingpong_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
@@ -212,7 +256,7 @@ struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 
 	c->idx = idx;
 	c->caps = cfg;
-	_setup_pingpong_ops(&c->ops, c->caps);
+	_setup_pingpong_ops(c, c->caps->features);
 
 	dpu_hw_blk_init(&c->base, DPU_HW_BLK_PINGPONG, idx, &dpu_hw_ops);
 

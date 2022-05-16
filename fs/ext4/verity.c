@@ -113,6 +113,9 @@ static int ext4_begin_enable_verity(struct file *filp)
 	handle_t *handle;
 	int err;
 
+	if (IS_DAX(inode) || ext4_test_inode_flag(inode, EXT4_INODE_DAX))
+		return -EINVAL;
+
 	if (ext4_verity_in_progress(inode))
 		return -EBUSY;
 
@@ -241,7 +244,7 @@ static int ext4_end_enable_verity(struct file *filp, const void *desc,
 		if (err)
 			goto out_stop;
 		ext4_set_inode_flag(inode, EXT4_INODE_VERITY);
-		ext4_set_inode_flags(inode);
+		ext4_set_inode_flags(inode, false);
 		err = ext4_mark_iloc_dirty(handle, inode, &iloc);
 	}
 out_stop:
@@ -343,11 +346,23 @@ static int ext4_get_verity_descriptor(struct inode *inode, void *buf,
 }
 
 static struct page *ext4_read_merkle_tree_page(struct inode *inode,
-					       pgoff_t index)
+					       pgoff_t index,
+					       unsigned long num_ra_pages)
 {
+	DEFINE_READAHEAD(ractl, NULL, inode->i_mapping, index);
+	struct page *page;
+
 	index += ext4_verity_metadata_pos(inode) >> PAGE_SHIFT;
 
-	return read_mapping_page(inode->i_mapping, index, NULL);
+	page = find_get_page_flags(inode->i_mapping, index, FGP_ACCESSED);
+	if (!page || !PageUptodate(page)) {
+		if (page)
+			put_page(page);
+		else if (num_ra_pages > 1)
+			page_cache_ra_unbounded(&ractl, num_ra_pages, 0);
+		page = read_mapping_page(inode->i_mapping, index, NULL);
+	}
+	return page;
 }
 
 static int ext4_write_merkle_tree_block(struct inode *inode, const void *buf,

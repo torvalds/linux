@@ -601,8 +601,6 @@ out_ret:
 	return ret;
 }
 
-#define ILA_HASH_TABLE_SIZE 1024
-
 int ila_xlat_init_net(struct net *net)
 {
 	struct ila_net *ilan = net_generic(net, ila_net_id);

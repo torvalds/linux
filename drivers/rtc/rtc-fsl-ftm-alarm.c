@@ -3,7 +3,7 @@
  * Freescale FlexTimer Module (FTM) alarm device driver.
  *
  * Copyright 2014 Freescale Semiconductor, Inc.
- * Copyright 2019 NXP
+ * Copyright 2019-2020 NXP
  *
  */
 
@@ -20,6 +20,8 @@
 #include <linux/fsl/ftm.h>
 #include <linux/rtc.h>
 #include <linux/time.h>
+#include <linux/acpi.h>
+#include <linux/pm_wakeirq.h>
 
 #define FTM_SC_CLK(c)		((c) << FTM_SC_CLK_MASK_SHIFT)
 
@@ -151,6 +153,8 @@ static irqreturn_t ftm_rtc_alarm_interrupt(int irq, void *dev)
 {
 	struct ftm_rtc *rtc = dev;
 
+	rtc_update_irq(rtc->rtc_dev, 1, RTC_IRQF | RTC_AF);
+
 	ftm_irq_acknowledge(rtc);
 	ftm_irq_disable(rtc);
 	ftm_clean_alarm(rtc);
@@ -180,10 +184,7 @@ static int ftm_rtc_alarm_irq_enable(struct device *dev,
  */
 static int ftm_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct timespec64 ts64;
-
-	ktime_get_real_ts64(&ts64);
-	rtc_time_to_tm(ts64.tv_sec, tm);
+	rtc_time64_to_tm(ktime_get_real_seconds(), tm);
 
 	return 0;
 }
@@ -206,16 +207,14 @@ static int ftm_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
  */
 static int ftm_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	struct rtc_time tm;
-	unsigned long now, alm_time, cycle;
+	time64_t alm_time;
+	unsigned long long cycle;
 	struct ftm_rtc *rtc = dev_get_drvdata(dev);
 
-	ftm_rtc_read_time(dev, &tm);
-	rtc_tm_to_time(&tm, &now);
-	rtc_tm_to_time(&alm->time, &alm_time);
+	alm_time = rtc_tm_to_time64(&alm->time);
 
 	ftm_clean_alarm(rtc);
-	cycle = (alm_time - now) * rtc->alarm_freq;
+	cycle = (alm_time - ktime_get_real_seconds()) * rtc->alarm_freq;
 	if (cycle > MAX_COUNT_VAL) {
 		pr_err("Out of alarm range {0~262} seconds.\n");
 		return -ERANGE;
@@ -247,8 +246,6 @@ static const struct rtc_class_ops ftm_rtc_ops = {
 
 static int ftm_rtc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct resource *r;
 	int irq;
 	int ret;
 	struct ftm_rtc *rtc;
@@ -265,36 +262,33 @@ static int ftm_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->rtc_dev))
 		return PTR_ERR(rtc->rtc_dev);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "cannot get resource for rtc\n");
-		return -ENODEV;
-	}
-
-	rtc->base = devm_ioremap_resource(&pdev->dev, r);
+	rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->base)) {
 		dev_err(&pdev->dev, "cannot ioremap resource for rtc\n");
 		return PTR_ERR(rtc->base);
 	}
 
-	irq = irq_of_parse_and_map(np, 0);
-	if (irq <= 0) {
-		dev_err(&pdev->dev, "unable to get IRQ from DT, %d\n", irq);
-		return -EINVAL;
-	}
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	ret = devm_request_irq(&pdev->dev, irq, ftm_rtc_alarm_interrupt,
-			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), rtc);
+			       0, dev_name(&pdev->dev), rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request irq\n");
 		return ret;
 	}
 
-	rtc->big_endian = of_property_read_bool(np, "big-endian");
+	rtc->big_endian =
+		device_property_read_bool(&pdev->dev, "big-endian");
+
 	rtc->alarm_freq = (u32)FIXED_FREQ_CLK / (u32)MAX_FREQ_DIV;
 	rtc->rtc_dev->ops = &ftm_rtc_ops;
 
 	device_init_wakeup(&pdev->dev, true);
+	ret = dev_pm_set_wake_irq(&pdev->dev, irq);
+	if (ret)
+		dev_err(&pdev->dev, "failed to enable irq wake\n");
 
 	ret = rtc_register_device(rtc->rtc_dev);
 	if (ret) {
@@ -317,11 +311,18 @@ static const struct of_device_id ftm_rtc_match[] = {
 	{ },
 };
 
+static const struct acpi_device_id ftm_imx_acpi_ids[] = {
+	{"NXP0014",},
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, ftm_imx_acpi_ids);
+
 static struct platform_driver ftm_rtc_driver = {
 	.probe		= ftm_rtc_probe,
 	.driver		= {
 		.name	= "ftm-alarm",
 		.of_match_table = ftm_rtc_match,
+		.acpi_match_table = ACPI_PTR(ftm_imx_acpi_ids),
 	},
 };
 

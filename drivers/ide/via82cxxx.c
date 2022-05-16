@@ -175,8 +175,7 @@ static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
 static void via_set_drive(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	ide_drive_t *peer = ide_get_pair_dev(drive);
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	struct ide_host *host = pci_get_drvdata(dev);
+	struct ide_host *host = dev_get_drvdata(hwif->dev);
 	struct via82cxxx_dev *vdev = host->host_priv;
 	struct ide_timing t, p;
 	unsigned int T, UT;

@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+nvkm-y += nvkm/subdev/acr/base.o
+nvkm-y += nvkm/subdev/acr/hsfw.o
+nvkm-y += nvkm/subdev/acr/lsfw.o
+nvkm-y += nvkm/subdev/acr/gm200.o
+nvkm-y += nvkm/subdev/acr/gm20b.o
+nvkm-y += nvkm/subdev/acr/gp102.o
+nvkm-y += nvkm/subdev/acr/gp108.o
+nvkm-y += nvkm/subdev/acr/gp10b.o
+nvkm-y += nvkm/subdev/acr/tu102.o

@@ -11,7 +11,7 @@ allOf:
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   "#address-cells": true
@@ -75,13 +75,12 @@ patternProperties:
       allwinner,rb:
         description:
           Contains the native Ready/Busy IDs.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
-          - minItems: 1
-            maxItems: 2
-            items:
-              minimum: 0
-              maximum: 1
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 2
+        items:
+          minimum: 0
+          maximum: 1
 
     additionalProperties: false
 

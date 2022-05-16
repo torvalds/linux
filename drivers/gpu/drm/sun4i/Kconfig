@@ -17,18 +17,18 @@ config DRM_SUN4I
 if DRM_SUN4I
 
 config DRM_SUN4I_HDMI
-       tristate "Allwinner A10 HDMI Controller Support"
-       default DRM_SUN4I
-       help
+	tristate "Allwinner A10 HDMI Controller Support"
+	default DRM_SUN4I
+	help
 	  Choose this option if you have an Allwinner SoC with an HDMI
 	  controller.
 
 config DRM_SUN4I_HDMI_CEC
-       bool "Allwinner A10 HDMI CEC Support"
-       depends on DRM_SUN4I_HDMI
-       select CEC_CORE
-       select CEC_PIN
-       help
+	bool "Allwinner A10 HDMI CEC Support"
+	depends on DRM_SUN4I_HDMI
+	select CEC_CORE
+	select CEC_PIN
+	help
 	  Choose this option if you have an Allwinner SoC with an HDMI
 	  controller and want to use CEC.
 

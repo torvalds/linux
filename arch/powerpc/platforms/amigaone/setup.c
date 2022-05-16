@@ -146,7 +146,6 @@ static int __init amigaone_probe(void)
 		 */
 		cur_cpu_spec->cpu_features &= ~CPU_FTR_NEED_COHERENT;
 
-		ISA_DMA_THRESHOLD = 0x00ffffff;
 		DMA_MODE_READ = 0x44;
 		DMA_MODE_WRITE = 0x48;
 

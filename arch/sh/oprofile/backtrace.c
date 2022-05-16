@@ -19,12 +19,6 @@
 #include <asm/sections.h>
 #include <asm/stacktrace.h>
 
-static int backtrace_stack(void *data, char *name)
-{
-	/* Yes, we want all stacks */
-	return 0;
-}
-
 static void backtrace_address(void *data, unsigned long addr, int reliable)
 {
 	unsigned int *depth = data;
@@ -34,7 +28,6 @@ static void backtrace_address(void *data, unsigned long addr, int reliable)
 }
 
 static struct stacktrace_ops backtrace_ops = {
-	.stack = backtrace_stack,
 	.address = backtrace_address,
 };
 

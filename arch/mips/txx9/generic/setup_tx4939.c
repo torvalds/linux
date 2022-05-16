@@ -22,7 +22,6 @@
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/txx9/ndfmc.h>
-#include <asm/bootinfo.h>
 #include <asm/reboot.h>
 #include <asm/traps.h>
 #include <asm/txx9irq.h>
@@ -93,22 +92,6 @@ static void __init tx4939_be_init(void)
 static struct resource tx4939_sdram_resource[4];
 static struct resource tx4939_sram_resource;
 #define TX4939_SRAM_SIZE 0x800
-
-void __init tx4939_add_memory_regions(void)
-{
-	int i;
-	unsigned long start, size;
-	u64 win;
-
-	for (i = 0; i < 4; i++) {
-		if (!((__u32)____raw_readq(&tx4939_ddrcptr->winen) & (1 << i)))
-			continue;
-		win = ____raw_readq(&tx4939_ddrcptr->win[i]);
-		start = (unsigned long)(win >> 48);
-		size = (((unsigned long)(win >> 32) & 0xffff) + 1) - start;
-		add_memory_region(start << 20, size << 20, BOOT_MEM_RAM);
-	}
-}
 
 void __init tx4939_setup(void)
 {

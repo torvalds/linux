@@ -25,10 +25,10 @@ properties:
   compatible:
     items:
       - enum:
-        - intel,ixp42x-interrupt
-        - intel,ixp43x-interrupt
-        - intel,ixp45x-interrupt
-        - intel,ixp46x-interrupt
+          - intel,ixp42x-interrupt
+          - intel,ixp43x-interrupt
+          - intel,ixp45x-interrupt
+          - intel,ixp46x-interrupt
 
   reg:
     maxItems: 1
@@ -43,6 +43,8 @@ required:
   - reg
   - interrupt-controller
   - '#interrupt-cells'
+
+additionalProperties: false
 
 examples:
   - |

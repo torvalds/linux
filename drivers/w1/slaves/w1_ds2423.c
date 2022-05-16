@@ -117,7 +117,7 @@ static struct attribute *w1_f1d_attrs[] = {
 };
 ATTRIBUTE_GROUPS(w1_f1d);
 
-static struct w1_family_ops w1_f1d_fops = {
+static const struct w1_family_ops w1_f1d_fops = {
 	.groups		= w1_f1d_groups,
 };
 

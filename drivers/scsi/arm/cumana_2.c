@@ -23,11 +23,11 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
+#include <linux/pgtable.h>
 
 #include <asm/dma.h>
 #include <asm/ecard.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 
 #include "../scsi.h"
 #include <scsi/scsi_host.h>
@@ -166,14 +166,15 @@ cumanascsi_2_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 
 		bufs = copy_SCp_to_sg(&info->sg[0], SCp, NR_SG);
 
-		if (direction == DMA_OUT)
-			map_dir = DMA_TO_DEVICE,
-			dma_dir = DMA_MODE_WRITE,
+		if (direction == DMA_OUT) {
+			map_dir = DMA_TO_DEVICE;
+			dma_dir = DMA_MODE_WRITE;
 			alatch_dir = ALATCH_DMA_OUT;
-		else
-			map_dir = DMA_FROM_DEVICE,
-			dma_dir = DMA_MODE_READ,
+		} else {
+			map_dir = DMA_FROM_DEVICE;
+			dma_dir = DMA_MODE_READ;
 			alatch_dir = ALATCH_DMA_IN;
+		}
 
 		dma_map_sg(dev, info->sg, bufs, map_dir);
 
@@ -326,10 +327,12 @@ cumanascsi_2_set_proc_info(struct Scsi_Host *host, char *buffer, int length)
 				cumanascsi_2_terminator_ctl(host, 0);
 			else
 				ret = -EINVAL;
-		} else
+		} else {
 			ret = -EINVAL;
-	} else
+		}
+	} else {
 		ret = -EINVAL;
+	}
 
 	return ret;
 }
@@ -450,7 +453,7 @@ static int cumanascsi2_probe(struct expansion_card *ec,
 
 	if (info->info.scsi.dma != NO_DMA)
 		free_dma(info->info.scsi.dma);
-	free_irq(ec->irq, host);
+	free_irq(ec->irq, info);
 
  out_release:
 	fas216_release(host);

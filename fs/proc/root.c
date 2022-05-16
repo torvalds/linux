@@ -32,25 +32,85 @@
 struct proc_fs_context {
 	struct pid_namespace	*pid_ns;
 	unsigned int		mask;
-	int			hidepid;
+	enum proc_hidepid	hidepid;
 	int			gid;
+	enum proc_pidonly	pidonly;
 };
 
 enum proc_param {
 	Opt_gid,
 	Opt_hidepid,
+	Opt_subset,
 };
 
-static const struct fs_parameter_spec proc_param_specs[] = {
+static const struct fs_parameter_spec proc_fs_parameters[] = {
 	fsparam_u32("gid",	Opt_gid),
-	fsparam_u32("hidepid",	Opt_hidepid),
+	fsparam_string("hidepid",	Opt_hidepid),
+	fsparam_string("subset",	Opt_subset),
 	{}
 };
 
-static const struct fs_parameter_description proc_fs_parameters = {
-	.name		= "proc",
-	.specs		= proc_param_specs,
-};
+static inline int valid_hidepid(unsigned int value)
+{
+	return (value == HIDEPID_OFF ||
+		value == HIDEPID_NO_ACCESS ||
+		value == HIDEPID_INVISIBLE ||
+		value == HIDEPID_NOT_PTRACEABLE);
+}
+
+static int proc_parse_hidepid_param(struct fs_context *fc, struct fs_parameter *param)
+{
+	struct proc_fs_context *ctx = fc->fs_private;
+	struct fs_parameter_spec hidepid_u32_spec = fsparam_u32("hidepid", Opt_hidepid);
+	struct fs_parse_result result;
+	int base = (unsigned long)hidepid_u32_spec.data;
+
+	if (param->type != fs_value_is_string)
+		return invalf(fc, "proc: unexpected type of hidepid value\n");
+
+	if (!kstrtouint(param->string, base, &result.uint_32)) {
+		if (!valid_hidepid(result.uint_32))
+			return invalf(fc, "proc: unknown value of hidepid - %s\n", param->string);
+		ctx->hidepid = result.uint_32;
+		return 0;
+	}
+
+	if (!strcmp(param->string, "off"))
+		ctx->hidepid = HIDEPID_OFF;
+	else if (!strcmp(param->string, "noaccess"))
+		ctx->hidepid = HIDEPID_NO_ACCESS;
+	else if (!strcmp(param->string, "invisible"))
+		ctx->hidepid = HIDEPID_INVISIBLE;
+	else if (!strcmp(param->string, "ptraceable"))
+		ctx->hidepid = HIDEPID_NOT_PTRACEABLE;
+	else
+		return invalf(fc, "proc: unknown value of hidepid - %s\n", param->string);
+
+	return 0;
+}
+
+static int proc_parse_subset_param(struct fs_context *fc, char *value)
+{
+	struct proc_fs_context *ctx = fc->fs_private;
+
+	while (value) {
+		char *ptr = strchr(value, ',');
+
+		if (ptr != NULL)
+			*ptr++ = '\0';
+
+		if (*value != '\0') {
+			if (!strcmp(value, "pid")) {
+				ctx->pidonly = PROC_PIDONLY_ON;
+			} else {
+				return invalf(fc, "proc: unsupported subset option - %s\n", value);
+			}
+		}
+		value = ptr;
+	}
+
+	return 0;
+}
 
 static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
@@ -58,7 +118,7 @@ static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct fs_parse_result result;
 	int opt;
 
-	opt = fs_parse(fc, &proc_fs_parameters, param, &result);
+	opt = fs_parse(fc, proc_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -68,10 +128,13 @@ static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 
 	case Opt_hidepid:
-		ctx->hidepid = result.uint_32;
-		if (ctx->hidepid < HIDEPID_OFF ||
-		    ctx->hidepid > HIDEPID_INVISIBLE)
-			return invalf(fc, "proc: hidepid value must be between 0 and 2.\n");
+		if (proc_parse_hidepid_param(fc, param))
+			return -EINVAL;
+		break;
+
+	case Opt_subset:
+		if (proc_parse_subset_param(fc, param->string) < 0)
+			return -EINVAL;
 		break;
 
 	default:
@@ -82,26 +145,33 @@ static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	return 0;
 }
 
-static void proc_apply_options(struct super_block *s,
+static void proc_apply_options(struct proc_fs_info *fs_info,
 			       struct fs_context *fc,
-			       struct pid_namespace *pid_ns,
 			       struct user_namespace *user_ns)
 {
 	struct proc_fs_context *ctx = fc->fs_private;
 
 	if (ctx->mask & (1 << Opt_gid))
-		pid_ns->pid_gid = make_kgid(user_ns, ctx->gid);
+		fs_info->pid_gid = make_kgid(user_ns, ctx->gid);
 	if (ctx->mask & (1 << Opt_hidepid))
-		pid_ns->hide_pid = ctx->hidepid;
+		fs_info->hide_pid = ctx->hidepid;
+	if (ctx->mask & (1 << Opt_subset))
+		fs_info->pidonly = ctx->pidonly;
 }
 
 static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 {
-	struct pid_namespace *pid_ns = get_pid_ns(s->s_fs_info);
+	struct proc_fs_context *ctx = fc->fs_private;
 	struct inode *root_inode;
+	struct proc_fs_info *fs_info;
 	int ret;
 
-	proc_apply_options(s, fc, pid_ns, current_user_ns());
+	fs_info = kzalloc(sizeof(*fs_info), GFP_KERNEL);
+	if (!fs_info)
+		return -ENOMEM;
+
+	fs_info->pid_ns = get_pid_ns(ctx->pid_ns);
+	proc_apply_options(fs_info, fc, current_user_ns());
 
 	/* User space would break if executables or devices appear on proc */
 	s->s_iflags |= SB_I_USERNS_VISIBLE | SB_I_NOEXEC | SB_I_NODEV;
@@ -111,6 +181,7 @@ static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 	s->s_magic = PROC_SUPER_MAGIC;
 	s->s_op = &proc_sops;
 	s->s_time_gran = 1;
+	s->s_fs_info = fs_info;
 
 	/*
 	 * procfs isn't actually a stacking filesystem; however, there is
@@ -118,7 +189,7 @@ static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 	 * top of it
 	 */
 	s->s_stack_depth = FILESYSTEM_MAX_STACK_DEPTH;
-	
+
 	/* procfs dentries and inodes don't require IO to create */
 	s->s_shrink.seeks = 0;
 
@@ -145,19 +216,17 @@ static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 static int proc_reconfigure(struct fs_context *fc)
 {
 	struct super_block *sb = fc->root->d_sb;
-	struct pid_namespace *pid = sb->s_fs_info;
+	struct proc_fs_info *fs_info = proc_sb_info(sb);
 
 	sync_filesystem(sb);
 
-	proc_apply_options(sb, fc, pid, current_user_ns());
+	proc_apply_options(fs_info, fc, current_user_ns());
 	return 0;
 }
 
 static int proc_get_tree(struct fs_context *fc)
 {
-	struct proc_fs_context *ctx = fc->fs_private;
-
-	return get_tree_keyed(fc, proc_fill_super, ctx->pid_ns);
+	return get_tree_nodev(fc, proc_fill_super);
 }
 
 static void proc_fs_context_free(struct fs_context *fc)
@@ -193,21 +262,25 @@ static int proc_init_fs_context(struct fs_context *fc)
 
 static void proc_kill_sb(struct super_block *sb)
 {
-	struct pid_namespace *ns;
+	struct proc_fs_info *fs_info = proc_sb_info(sb);
 
-	ns = (struct pid_namespace *)sb->s_fs_info;
-	if (ns->proc_self)
-		dput(ns->proc_self);
-	if (ns->proc_thread_self)
-		dput(ns->proc_thread_self);
+	if (!fs_info) {
+		kill_anon_super(sb);
+		return;
+	}
+
+	dput(fs_info->proc_self);
+	dput(fs_info->proc_thread_self);
+
 	kill_anon_super(sb);
-	put_pid_ns(ns);
+	put_pid_ns(fs_info->pid_ns);
+	kfree(fs_info);
 }
 
 static struct file_system_type proc_fs_type = {
 	.name			= "proc",
 	.init_fs_context	= proc_init_fs_context,
-	.parameters		= &proc_fs_parameters,
+	.parameters		= proc_fs_parameters,
 	.kill_sb		= proc_kill_sb,
 	.fs_flags		= FS_USERNS_MOUNT | FS_DISALLOW_NOTIFY_PERM,
 };
@@ -292,44 +365,8 @@ struct proc_dir_entry proc_root = {
 	.nlink		= 2, 
 	.refcnt		= REFCOUNT_INIT(1),
 	.proc_iops	= &proc_root_inode_operations, 
-	.proc_fops	= &proc_root_operations,
+	.proc_dir_ops	= &proc_root_operations,
 	.parent		= &proc_root,
 	.subdir		= RB_ROOT,
 	.name		= "/proc",
 };
-
-int pid_ns_prepare_proc(struct pid_namespace *ns)
-{
-	struct proc_fs_context *ctx;
-	struct fs_context *fc;
-	struct vfsmount *mnt;
-
-	fc = fs_context_for_mount(&proc_fs_type, SB_KERNMOUNT);
-	if (IS_ERR(fc))
-		return PTR_ERR(fc);
-
-	if (fc->user_ns != ns->user_ns) {
-		put_user_ns(fc->user_ns);
-		fc->user_ns = get_user_ns(ns->user_ns);
-	}
-
-	ctx = fc->fs_private;
-	if (ctx->pid_ns != ns) {
-		put_pid_ns(ctx->pid_ns);
-		get_pid_ns(ns);
-		ctx->pid_ns = ns;
-	}
-
-	mnt = fc_mount(fc);
-	put_fs_context(fc);
-	if (IS_ERR(mnt))
-		return PTR_ERR(mnt);
-
-	ns->proc_mnt = mnt;
-	return 0;
-}
-
-void pid_ns_release_proc(struct pid_namespace *ns)
-{
-	kern_unmount(ns->proc_mnt);
-}

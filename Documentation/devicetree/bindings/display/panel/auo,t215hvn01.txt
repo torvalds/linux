@@ -1,7 +1,0 @@
-AU Optronics Corporation 21.5" FHD (1920x1080) color TFT LCD panel
-
-Required properties:
-- compatible: should be "auo,t215hvn01"
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

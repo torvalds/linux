@@ -62,9 +62,9 @@
 
 /*
  * unsigned int
- * csum_partial_copy_from_user(const char *src, char *dst, int len, int sum, int *err_ptr)
- *  r0 = src, r1 = dst, r2 = len, r3 = sum, [sp] = *err_ptr
- *  Returns : r0 = checksum, [[sp, #0], #0] = 0 or -EFAULT
+ * csum_partial_copy_from_user(const char *src, char *dst, int len)
+ *  r0 = src, r1 = dst, r2 = len
+ *  Returns : r0 = checksum or 0
  */
 
 #define FN_ENTRY	ENTRY(csum_partial_copy_from_user)
@@ -73,25 +73,11 @@
 #include "csumpartialcopygeneric.S"
 
 /*
- * FIXME: minor buglet here
- * We don't return the checksum for the data present in the buffer.  To do
- * so properly, we would have to add in whatever registers were loaded before
- * the fault, which, with the current asm above is not predictable.
+ * We report fault by returning 0 csum - impossible in normal case, since
+ * we start with 0xffffffff for initial sum.
  */
 		.pushsection .text.fixup,"ax"
 		.align	4
-9001:		mov	r4, #-EFAULT
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
-		ldr	r5, [sp, #9*4]		@ *err_ptr
-#else
-		ldr	r5, [sp, #8*4]		@ *err_ptr
-#endif
-		str	r4, [r5]
-		ldmia	sp, {r1, r2}		@ retrieve dst, len
-		add	r2, r2, r1
-		mov	r0, #0			@ zero the buffer
-9002:		teq	r2, r1
-		strbne	r0, [r1], #1
-		bne	9002b
+9001:		mov	r0, #0
 		load_regs
 		.popsection

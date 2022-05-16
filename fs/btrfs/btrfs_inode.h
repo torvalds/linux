@@ -7,6 +7,7 @@
 #define BTRFS_INODE_H
 
 #include <linux/hash.h>
+#include <linux/refcount.h>
 #include "extent_map.h"
 #include "extent_io.h"
 #include "ordered-data.h"
@@ -20,14 +21,18 @@
  * new data the application may have written before commit.
  */
 enum {
-	BTRFS_INODE_ORDERED_DATA_CLOSE,
+	BTRFS_INODE_FLUSH_ON_CLOSE,
 	BTRFS_INODE_DUMMY,
 	BTRFS_INODE_IN_DEFRAG,
 	BTRFS_INODE_HAS_ASYNC_EXTENT,
+	 /*
+	  * Always set under the VFS' inode lock, otherwise it can cause races
+	  * during fsync (we start as a fast fsync and then end up in a full
+	  * fsync racing with ordered extent completion).
+	  */
 	BTRFS_INODE_NEEDS_FULL_SYNC,
 	BTRFS_INODE_COPY_EVERYTHING,
 	BTRFS_INODE_IN_DELALLOC_LIST,
-	BTRFS_INODE_READDIO_NEED_LOCK,
 	BTRFS_INODE_HAS_PROPS,
 	BTRFS_INODE_SNAPSHOT_FLUSH,
 };
@@ -60,11 +65,14 @@ struct btrfs_inode {
 	 */
 	struct extent_io_tree io_failure_tree;
 
+	/*
+	 * Keep track of where the inode has extent items mapped in order to
+	 * make sure the i_size adjustments are accurate
+	 */
+	struct extent_io_tree file_extent_tree;
+
 	/* held while logging the inode in tree-log.c */
 	struct mutex log_mutex;
-
-	/* held while doing delalloc reservations */
-	struct mutex delalloc_mutex;
 
 	/* used to order data wrt metadata */
 	struct btrfs_ordered_inode_tree ordered_tree;
@@ -148,6 +156,17 @@ struct btrfs_inode {
 	u64 last_unlink_trans;
 
 	/*
+	 * The id/generation of the last transaction where this inode was
+	 * either the source or the destination of a clone/dedupe operation.
+	 * Used when logging an inode to know if there are shared extents that
+	 * need special care when logging checksum items, to avoid duplicate
+	 * checksum items in a log (which can lead to a corruption where we end
+	 * up with missing checksum ranges after log replay).
+	 * Protected by the vfs inode lock.
+	 */
+	u64 last_reflink_trans;
+
+	/*
 	 * Number of bytes outstanding that are going to need csums.  This is
 	 * used in ENOSPC accounting.
 	 */
@@ -196,6 +215,11 @@ struct btrfs_inode {
 
 	struct inode vfs_inode;
 };
+
+static inline u32 btrfs_inode_sectorsize(const struct btrfs_inode *inode)
+{
+	return inode->root->fs_info->sectorsize;
+}
 
 static inline struct btrfs_inode *BTRFS_I(const struct inode *inode)
 {
@@ -290,52 +314,24 @@ static inline int btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 	return ret;
 }
 
-#define BTRFS_DIO_ORIG_BIO_SUBMITTED	0x1
-
 struct btrfs_dio_private {
 	struct inode *inode;
-	unsigned long flags;
 	u64 logical_offset;
 	u64 disk_bytenr;
 	u64 bytes;
-	void *private;
 
-	/* number of bios pending for this dio */
-	atomic_t pending_bios;
-
-	/* IO errors */
-	int errors;
-
-	/* orig_bio is our btrfs_io_bio */
-	struct bio *orig_bio;
+	/*
+	 * References to this structure. There is one reference per in-flight
+	 * bio plus one while we're still setting up.
+	 */
+	refcount_t refs;
 
 	/* dio_bio came from fs/direct-io.c */
 	struct bio *dio_bio;
 
-	/*
-	 * The original bio may be split to several sub-bios, this is
-	 * done during endio of sub-bios
-	 */
-	blk_status_t (*subio_endio)(struct inode *, struct btrfs_io_bio *,
-			blk_status_t);
+	/* Array of checksums */
+	u8 csums[];
 };
-
-/*
- * Disable DIO read nolock optimization, so new dio readers will be forced
- * to grab i_mutex. It is used to avoid the endless truncate due to
- * nonlocked dio read.
- */
-static inline void btrfs_inode_block_unlocked_dio(struct btrfs_inode *inode)
-{
-	set_bit(BTRFS_INODE_READDIO_NEED_LOCK, &inode->runtime_flags);
-	smp_mb();
-}
-
-static inline void btrfs_inode_resume_unlocked_dio(struct btrfs_inode *inode)
-{
-	smp_mb__before_atomic();
-	clear_bit(BTRFS_INODE_READDIO_NEED_LOCK, &inode->runtime_flags);
-}
 
 /* Array of bytes with variable length, hexadecimal format 0x1234 */
 #define CSUM_FMT				"0x%*phN"

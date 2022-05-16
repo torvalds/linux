@@ -26,7 +26,6 @@
 #ifndef __DML20V2_DISPLAY_RQ_DLG_CALC_H__
 #define __DML20V2_DISPLAY_RQ_DLG_CALC_H__
 
-#include "../dml_common_defs.h"
 #include "../display_rq_dlg_helpers.h"
 
 struct display_mode_lib;
@@ -34,7 +33,7 @@ struct display_mode_lib;
 
 // Function: dml_rq_dlg_get_rq_reg
 //  Main entry point for test to get the register values out of this DML class.
-//  This function calls <get_rq_param> and <extract_rq_regs> fucntions to calculate
+//  This function calls <get_rq_param> and <extract_rq_regs> functions to calculate
 //  and then populate the rq_regs struct
 // Input:
 //  pipe_src_param - pipe source configuration (e.g. vp, pitch, etc.)

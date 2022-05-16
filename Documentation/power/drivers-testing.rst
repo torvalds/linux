@@ -39,9 +39,10 @@ c) Compile the driver directly into the kernel and try the test modes of
 d) Attempt to hibernate with the driver compiled directly into the kernel
    in the "reboot", "shutdown" and "platform" modes.
 
-e) Try the test modes of suspend (see: Documentation/power/basic-pm-debugging.rst,
-   2).  [As far as the STR tests are concerned, it should not matter whether or
-   not the driver is built as a module.]
+e) Try the test modes of suspend (see:
+   Documentation/power/basic-pm-debugging.rst, 2).  [As far as the STR tests are
+   concerned, it should not matter whether or not the driver is built as a
+   module.]
 
 f) Attempt to suspend to RAM using the s2ram tool with the driver loaded
    (see: Documentation/power/basic-pm-debugging.rst, 2).

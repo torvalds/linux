@@ -178,8 +178,6 @@ void msm_vfe_unregister_entities(struct vfe_device *vfe);
 void msm_vfe_get_vfe_id(struct media_entity *entity, u8 *id);
 void msm_vfe_get_vfe_line_id(struct media_entity *entity, enum vfe_line_id *id);
 
-void msm_vfe_stop_streaming(struct vfe_device *vfe);
-
 extern const struct vfe_hw_ops vfe_ops_4_1;
 extern const struct vfe_hw_ops vfe_ops_4_7;
 

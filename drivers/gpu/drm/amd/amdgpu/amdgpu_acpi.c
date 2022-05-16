@@ -64,7 +64,9 @@ struct amdgpu_atif {
 	struct amdgpu_atif_notifications notifications;
 	struct amdgpu_atif_functions functions;
 	struct amdgpu_atif_notification_cfg notification_cfg;
-	struct amdgpu_encoder *encoder_for_bl;
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+	struct backlight_device *bd;
+#endif
 	struct amdgpu_dm_backlight_caps backlight_caps;
 };
 
@@ -444,32 +446,28 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 
 		DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
 
-		/* todo: add DC handling */
-		if ((req.pending & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST) &&
-		    !amdgpu_device_has_dc_support(adev)) {
-			struct amdgpu_encoder *enc = atif->encoder_for_bl;
-
-			if (enc) {
-				struct amdgpu_encoder_atom_dig *dig = enc->enc_priv;
-
+		if (req.pending & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST) {
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+			if (atif->bd) {
 				DRM_DEBUG_DRIVER("Changing brightness to %d\n",
 						 req.backlight_level);
-
-				amdgpu_display_backlight_set_level(adev, enc, req.backlight_level);
-
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-				backlight_force_update(dig->bl_dev,
-						       BACKLIGHT_UPDATE_HOTKEY);
-#endif
+				/*
+				 * XXX backlight_device_set_brightness() is
+				 * hardwired to post BACKLIGHT_UPDATE_SYSFS.
+				 * It probably should accept 'reason' parameter.
+				 */
+				backlight_device_set_brightness(atif->bd, req.backlight_level);
 			}
+#endif
 		}
+
 		if (req.pending & ATIF_DGPU_DISPLAY_EVENT) {
 			if (adev->flags & AMD_IS_PX) {
-				pm_runtime_get_sync(adev->ddev->dev);
+				pm_runtime_get_sync(adev_to_drm(adev)->dev);
 				/* Just fire off a uevent and let userspace tell us what to do */
-				drm_helper_hpd_irq_event(adev->ddev);
-				pm_runtime_mark_last_busy(adev->ddev->dev);
-				pm_runtime_put_autosuspend(adev->ddev->dev);
+				drm_helper_hpd_irq_event(adev_to_drm(adev));
+				pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
+				pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 			}
 		}
 		/* TODO: check other events */
@@ -808,24 +806,33 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 	}
 	adev->atif = atif;
 
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 	if (atif->notifications.brightness_change) {
-		struct drm_encoder *tmp;
+		if (amdgpu_device_has_dc_support(adev)) {
+#if defined(CONFIG_DRM_AMD_DC)
+			struct amdgpu_display_manager *dm = &adev->dm;
+			atif->bd = dm->backlight_dev;
+#endif
+		} else {
+			struct drm_encoder *tmp;
 
-		/* Find the encoder controlling the brightness */
-		list_for_each_entry(tmp, &adev->ddev->mode_config.encoder_list,
-				head) {
-			struct amdgpu_encoder *enc = to_amdgpu_encoder(tmp);
+			/* Find the encoder controlling the brightness */
+			list_for_each_entry(tmp, &adev_to_drm(adev)->mode_config.encoder_list,
+					    head) {
+				struct amdgpu_encoder *enc = to_amdgpu_encoder(tmp);
 
-			if ((enc->devices & (ATOM_DEVICE_LCD_SUPPORT)) &&
-			    enc->enc_priv) {
-				struct amdgpu_encoder_atom_dig *dig = enc->enc_priv;
-				if (dig->bl_dev) {
-					atif->encoder_for_bl = enc;
-					break;
+				if ((enc->devices & (ATOM_DEVICE_LCD_SUPPORT)) &&
+				    enc->enc_priv) {
+					struct amdgpu_encoder_atom_dig *dig = enc->enc_priv;
+					if (dig->bl_dev) {
+						atif->bd = dig->bl_dev;
+						break;
+					}
 				}
 			}
 		}
 	}
+#endif
 
 	if (atif->functions.sbios_requests && !atif->functions.system_params) {
 		/* XXX check this workraround, if sbios request function is

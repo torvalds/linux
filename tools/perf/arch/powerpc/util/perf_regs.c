@@ -4,10 +4,17 @@
 #include <regex.h>
 #include <linux/zalloc.h>
 
-#include "../../util/perf_regs.h"
-#include "../../util/debug.h"
+#include "../../../util/perf_regs.h"
+#include "../../../util/debug.h"
+#include "../../../util/event.h"
+#include "../../../util/header.h"
+#include "../../../perf-sys.h"
+#include "utils_header.h"
 
 #include <linux/kernel.h>
+
+#define PVR_POWER9		0x004E
+#define PVR_POWER10		0x0080
 
 const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(r0, PERF_REG_POWERPC_R0),
@@ -55,6 +62,12 @@ const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(dsisr, PERF_REG_POWERPC_DSISR),
 	SMPL_REG(sier, PERF_REG_POWERPC_SIER),
 	SMPL_REG(mmcra, PERF_REG_POWERPC_MMCRA),
+	SMPL_REG(mmcr0, PERF_REG_POWERPC_MMCR0),
+	SMPL_REG(mmcr1, PERF_REG_POWERPC_MMCR1),
+	SMPL_REG(mmcr2, PERF_REG_POWERPC_MMCR2),
+	SMPL_REG(mmcr3, PERF_REG_POWERPC_MMCR3),
+	SMPL_REG(sier2, PERF_REG_POWERPC_SIER2),
+	SMPL_REG(sier3, PERF_REG_POWERPC_SIER3),
 	SMPL_REG_END
 };
 
@@ -162,4 +175,46 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 	}
 
 	return SDT_ARG_VALID;
+}
+
+uint64_t arch__intr_reg_mask(void)
+{
+	struct perf_event_attr attr = {
+		.type                   = PERF_TYPE_HARDWARE,
+		.config                 = PERF_COUNT_HW_CPU_CYCLES,
+		.sample_type            = PERF_SAMPLE_REGS_INTR,
+		.precise_ip             = 1,
+		.disabled               = 1,
+		.exclude_kernel         = 1,
+	};
+	int fd;
+	u32 version;
+	u64 extended_mask = 0, mask = PERF_REGS_MASK;
+
+	/*
+	 * Get the PVR value to set the extended
+	 * mask specific to platform.
+	 */
+	version = (((mfspr(SPRN_PVR)) >>  16) & 0xFFFF);
+	if (version == PVR_POWER9)
+		extended_mask = PERF_REG_PMU_MASK_300;
+	else if (version == PVR_POWER10)
+		extended_mask = PERF_REG_PMU_MASK_31;
+	else
+		return mask;
+
+	attr.sample_regs_intr = extended_mask;
+	attr.sample_period = 1;
+	event_attr_init(&attr);
+
+	/*
+	 * check if the pmu supports perf extended regs, before
+	 * returning the register mask to sample.
+	 */
+	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+	if (fd != -1) {
+		close(fd);
+		mask |= extended_mask;
+	}
+	return mask;
 }

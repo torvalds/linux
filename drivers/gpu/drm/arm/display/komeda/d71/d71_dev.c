@@ -20,8 +20,10 @@ static u64 get_lpu_event(struct d71_pipeline *d71_pipeline)
 		evts |= KOMEDA_EVENT_IBSY;
 	if (raw_status & LPU_IRQ_EOW)
 		evts |= KOMEDA_EVENT_EOW;
+	if (raw_status & LPU_IRQ_OVR)
+		evts |= KOMEDA_EVENT_OVR;
 
-	if (raw_status & (LPU_IRQ_ERR | LPU_IRQ_IBSY)) {
+	if (raw_status & (LPU_IRQ_ERR | LPU_IRQ_IBSY | LPU_IRQ_OVR)) {
 		u32 restore = 0, tbu_status;
 		/* Check error of LPU status */
 		status = malidp_read32(reg, BLK_STATUS);
@@ -45,6 +47,15 @@ static u64 get_lpu_event(struct d71_pipeline *d71_pipeline)
 			restore |= LPU_STATUS_ACE3;
 			evts |= KOMEDA_ERR_ACE3;
 		}
+		if (status & LPU_STATUS_FEMPTY) {
+			restore |= LPU_STATUS_FEMPTY;
+			evts |= KOMEDA_EVENT_EMPTY;
+		}
+		if (status & LPU_STATUS_FFULL) {
+			restore |= LPU_STATUS_FFULL;
+			evts |= KOMEDA_EVENT_FULL;
+		}
+
 		if (restore != 0)
 			malidp_write32_mask(reg, BLK_STATUS, restore, 0);
 
@@ -195,7 +206,7 @@ d71_irq_handler(struct komeda_dev *mdev, struct komeda_events *evts)
 	if (gcu_status & GLB_IRQ_STATUS_PIPE1)
 		evts->pipes[1] |= get_pipeline_event(d71->pipes[1], gcu_status);
 
-	return gcu_status ? IRQ_HANDLED : IRQ_NONE;
+	return IRQ_RETVAL(gcu_status);
 }
 
 #define ENABLED_GCU_IRQS	(GCU_IRQ_CVAL0 | GCU_IRQ_CVAL1 | \
@@ -371,22 +382,32 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 		goto err_cleanup;
 	}
 
-	/* probe PERIPH */
+	/* Only the legacy HW has the periph block, the newer merges the periph
+	 * into GCU
+	 */
 	value = malidp_read32(d71->periph_addr, BLK_BLOCK_INFO);
-	if (BLOCK_INFO_BLK_TYPE(value) != D71_BLK_TYPE_PERIPH) {
-		DRM_ERROR("access blk periph but got blk: %d.\n",
-			  BLOCK_INFO_BLK_TYPE(value));
-		err = -EINVAL;
-		goto err_cleanup;
+	if (BLOCK_INFO_BLK_TYPE(value) != D71_BLK_TYPE_PERIPH)
+		d71->periph_addr = NULL;
+
+	if (d71->periph_addr) {
+		/* probe PERIPHERAL in legacy HW */
+		value = malidp_read32(d71->periph_addr, PERIPH_CONFIGURATION_ID);
+
+		d71->max_line_size	= value & PERIPH_MAX_LINE_SIZE ? 4096 : 2048;
+		d71->max_vsize		= 4096;
+		d71->num_rich_layers	= value & PERIPH_NUM_RICH_LAYERS ? 2 : 1;
+		d71->supports_dual_link	= !!(value & PERIPH_SPLIT_EN);
+		d71->integrates_tbu	= !!(value & PERIPH_TBU_EN);
+	} else {
+		value = malidp_read32(d71->gcu_addr, GCU_CONFIGURATION_ID0);
+		d71->max_line_size	= GCU_MAX_LINE_SIZE(value);
+		d71->max_vsize		= GCU_MAX_NUM_LINES(value);
+
+		value = malidp_read32(d71->gcu_addr, GCU_CONFIGURATION_ID1);
+		d71->num_rich_layers	= GCU_NUM_RICH_LAYERS(value);
+		d71->supports_dual_link	= GCU_DISPLAY_SPLIT_EN(value);
+		d71->integrates_tbu	= GCU_DISPLAY_TBU_EN(value);
 	}
-
-	value = malidp_read32(d71->periph_addr, PERIPH_CONFIGURATION_ID);
-
-	d71->max_line_size	= value & PERIPH_MAX_LINE_SIZE ? 4096 : 2048;
-	d71->max_vsize		= 4096;
-	d71->num_rich_layers	= value & PERIPH_NUM_RICH_LAYERS ? 2 : 1;
-	d71->supports_dual_link	= value & PERIPH_SPLIT_EN ? true : false;
-	d71->integrates_tbu	= value & PERIPH_TBU_EN ? true : false;
 
 	for (i = 0; i < d71->num_pipelines; i++) {
 		pipe = komeda_pipeline_add(mdev, sizeof(struct d71_pipeline),
@@ -395,11 +416,30 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 			err = PTR_ERR(pipe);
 			goto err_cleanup;
 		}
+
+		/* D71 HW doesn't update shadow registers when display output
+		 * is turning off, so when we disable all pipeline components
+		 * together with display output disable by one flush or one
+		 * operation, the disable operation updated registers will not
+		 * be flush to or valid in HW, which may leads problem.
+		 * To workaround this problem, introduce a two phase disable.
+		 * Phase1: Disabling components with display is on to make sure
+		 *	   the disable can be flushed to HW.
+		 * Phase2: Only turn-off display output.
+		 */
+		value = KOMEDA_PIPELINE_IMPROCS |
+			BIT(KOMEDA_COMPONENT_TIMING_CTRLR);
+
+		pipe->standalone_disabled_comps = value;
+
 		d71->pipes[i] = to_d71_pipeline(pipe);
 	}
 
-	/* loop the register blks and probe */
-	i = 2; /* exclude GCU and PERIPH */
+	/* loop the register blks and probe.
+	 * NOTE: d71->num_blocks includes reserved blocks.
+	 * d71->num_blocks = GCU + valid blocks + reserved blocks
+	 */
+	i = 1; /* exclude GCU */
 	offset = D71_BLOCK_SIZE; /* skip GCU */
 	while (i < d71->num_blocks) {
 		blk_base = mdev->reg_base + (offset >> 2);
@@ -409,9 +449,9 @@ static int d71_enum_resources(struct komeda_dev *mdev)
 			err = d71_probe_block(d71, &blk, blk_base);
 			if (err)
 				goto err_cleanup;
-			i++;
 		}
 
+		i++;
 		offset += D71_BLOCK_SIZE;
 	}
 
@@ -561,26 +601,43 @@ static int d71_disconnect_iommu(struct komeda_dev *mdev)
 }
 
 static const struct komeda_dev_funcs d71_chip_funcs = {
-	.init_format_table = d71_init_fmt_tbl,
-	.enum_resources	= d71_enum_resources,
-	.cleanup	= d71_cleanup,
-	.irq_handler	= d71_irq_handler,
-	.enable_irq	= d71_enable_irq,
-	.disable_irq	= d71_disable_irq,
-	.on_off_vblank	= d71_on_off_vblank,
-	.change_opmode	= d71_change_opmode,
-	.flush		= d71_flush,
-	.connect_iommu	= d71_connect_iommu,
-	.disconnect_iommu = d71_disconnect_iommu,
+	.init_format_table	= d71_init_fmt_tbl,
+	.enum_resources		= d71_enum_resources,
+	.cleanup		= d71_cleanup,
+	.irq_handler		= d71_irq_handler,
+	.enable_irq		= d71_enable_irq,
+	.disable_irq		= d71_disable_irq,
+	.on_off_vblank		= d71_on_off_vblank,
+	.change_opmode		= d71_change_opmode,
+	.flush			= d71_flush,
+	.connect_iommu		= d71_connect_iommu,
+	.disconnect_iommu	= d71_disconnect_iommu,
+	.dump_register		= d71_dump,
 };
 
 const struct komeda_dev_funcs *
 d71_identify(u32 __iomem *reg_base, struct komeda_chip_info *chip)
 {
+	const struct komeda_dev_funcs *funcs;
+	u32 product_id;
+
+	chip->core_id = malidp_read32(reg_base, GLB_CORE_ID);
+
+	product_id = MALIDP_CORE_ID_PRODUCT_ID(chip->core_id);
+
+	switch (product_id) {
+	case MALIDP_D71_PRODUCT_ID:
+	case MALIDP_D32_PRODUCT_ID:
+		funcs = &d71_chip_funcs;
+		break;
+	default:
+		DRM_ERROR("Unsupported product: 0x%x\n", product_id);
+		return NULL;
+	}
+
 	chip->arch_id	= malidp_read32(reg_base, GLB_ARCH_ID);
-	chip->core_id	= malidp_read32(reg_base, GLB_CORE_ID);
 	chip->core_info	= malidp_read32(reg_base, GLB_CORE_INFO);
 	chip->bus_width	= D71_BUS_WIDTH_16_BYTES;
 
-	return &d71_chip_funcs;
+	return funcs;
 }

@@ -420,7 +420,7 @@ static struct snd_soc_ops ams_delta_ops;
  * Shares hardware with codec config pulse generation */
 static bool ams_delta_muted = 1;
 
-static int ams_delta_digital_mute(struct snd_soc_dai *dai, int mute)
+static int ams_delta_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	int apply;
 
@@ -439,18 +439,19 @@ static int ams_delta_digital_mute(struct snd_soc_dai *dai, int mute)
 
 /* Our codec DAI probably doesn't have its own .ops structure */
 static const struct snd_soc_dai_ops ams_delta_dai_ops = {
-	.digital_mute = ams_delta_digital_mute,
+	.mute_stream = ams_delta_mute,
+	.no_capture_mute = 1,
 };
 
 /* Will be used if the codec ever has its own digital_mute function */
 static int ams_delta_startup(struct snd_pcm_substream *substream)
 {
-	return ams_delta_digital_mute(NULL, 0);
+	return ams_delta_mute(NULL, 0, substream->stream);
 }
 
 static void ams_delta_shutdown(struct snd_pcm_substream *substream)
 {
-	ams_delta_digital_mute(NULL, 1);
+	ams_delta_mute(NULL, 1, substream->stream);
 }
 
 
@@ -460,14 +461,14 @@ static void ams_delta_shutdown(struct snd_pcm_substream *substream)
 
 static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dapm_context *dapm = &card->dapm;
 	int ret;
 	/* Codec is ready, now add/activate board specific controls */
 
 	/* Store a pointer to the codec structure for tty ldisc use */
-	cx20442_codec = rtd->codec_dai->component;
+	cx20442_codec = asoc_rtd_to_codec(rtd, 0)->component;
 
 	/* Add hook switch - can be used to control the codec from userspace
 	 * even if line discipline fails */

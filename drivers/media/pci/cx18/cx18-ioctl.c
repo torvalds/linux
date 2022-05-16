@@ -466,14 +466,24 @@ static int cx18_enum_fmt_vid_cap(struct file *file, void *fh,
 					struct v4l2_fmtdesc *fmt)
 {
 	static const struct v4l2_fmtdesc formats[] = {
-		{ 0, V4L2_BUF_TYPE_VIDEO_CAPTURE, 0,
-		  "HM12 (YUV 4:1:1)", V4L2_PIX_FMT_HM12, { 0, 0, 0, 0 }
+		{
+			.index = 0,
+			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+			.description = "HM12 (YUV 4:1:1)",
+			.pixelformat = V4L2_PIX_FMT_HM12,
 		},
-		{ 1, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FMT_FLAG_COMPRESSED,
-		  "MPEG", V4L2_PIX_FMT_MPEG, { 0, 0, 0, 0 }
+		{
+			.index = 1,
+			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+			.flags = V4L2_FMT_FLAG_COMPRESSED,
+			.description = "MPEG",
+			.pixelformat = V4L2_PIX_FMT_MPEG,
 		},
-		{ 2, V4L2_BUF_TYPE_VIDEO_CAPTURE, 0,
-		  "UYVY 4:2:2", V4L2_PIX_FMT_UYVY, { 0, 0, 0, 0 }
+		{
+			.index = 2,
+			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+			.description = "UYVY 4:2:2",
+			.pixelformat = V4L2_PIX_FMT_UYVY,
 		},
 	};
 
@@ -664,7 +674,7 @@ static int _cx18_process_idx_data(struct cx18_buffer *buf,
 	struct cx18_enc_idx_entry *e_buf;
 
 	/* Frame type lookup: 1=I, 2=P, 4=B */
-	const int mapping[8] = {
+	static const int mapping[8] = {
 		-1, V4L2_ENC_IDX_FRAME_I, V4L2_ENC_IDX_FRAME_P,
 		-1, V4L2_ENC_IDX_FRAME_B, -1, -1, -1
 	};

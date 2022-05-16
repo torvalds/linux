@@ -28,13 +28,15 @@ static long clk_factor_round_rate(struct clk_hw *hw, unsigned long drate,
 		unsigned long *prate)
 {
 	struct mmp_clk_factor *factor = to_clk_factor(hw);
-	unsigned long rate = 0, prev_rate;
+	u64 rate = 0, prev_rate;
 	int i;
 
 	for (i = 0; i < factor->ftbl_cnt; i++) {
 		prev_rate = rate;
-		rate = (((*prate / 10000) * factor->ftbl[i].den) /
-			(factor->ftbl[i].num * factor->masks->factor)) * 10000;
+		rate = *prate;
+		rate *= factor->ftbl[i].den;
+		do_div(rate, factor->ftbl[i].num * factor->masks->factor);
+
 		if (rate > drate)
 			break;
 	}
@@ -54,6 +56,7 @@ static unsigned long clk_factor_recalc_rate(struct clk_hw *hw,
 	struct mmp_clk_factor *factor = to_clk_factor(hw);
 	struct mmp_clk_factor_masks *masks = factor->masks;
 	unsigned int val, num, den;
+	u64 rate;
 
 	val = readl_relaxed(factor->base);
 
@@ -66,8 +69,11 @@ static unsigned long clk_factor_recalc_rate(struct clk_hw *hw,
 	if (!den)
 		return 0;
 
-	return (((parent_rate / 10000)  * den) /
-			(num * factor->masks->factor)) * 10000;
+	rate = parent_rate;
+	rate *= den;
+	do_div(rate, num * factor->masks->factor);
+
+	return rate;
 }
 
 /* Configures new clock rate*/
@@ -78,12 +84,14 @@ static int clk_factor_set_rate(struct clk_hw *hw, unsigned long drate,
 	struct mmp_clk_factor_masks *masks = factor->masks;
 	int i;
 	unsigned long val;
-	unsigned long rate = 0;
 	unsigned long flags = 0;
+	u64 rate = 0;
 
 	for (i = 0; i < factor->ftbl_cnt; i++) {
-		rate = (((prate / 10000) * factor->ftbl[i].den) /
-			(factor->ftbl[i].num * factor->masks->factor)) * 10000;
+		rate = prate;
+		rate *= factor->ftbl[i].den;
+		do_div(rate, factor->ftbl[i].num * factor->masks->factor);
+
 		if (rate > drate)
 			break;
 	}
@@ -109,7 +117,7 @@ static int clk_factor_set_rate(struct clk_hw *hw, unsigned long drate,
 	return 0;
 }
 
-static void clk_factor_init(struct clk_hw *hw)
+static int clk_factor_init(struct clk_hw *hw)
 {
 	struct mmp_clk_factor *factor = to_clk_factor(hw);
 	struct mmp_clk_factor_masks *masks = factor->masks;
@@ -140,12 +148,17 @@ static void clk_factor_init(struct clk_hw *hw)
 		val &= ~(masks->den_mask << masks->den_shift);
 		val |= (factor->ftbl[0].den & masks->den_mask) <<
 			masks->den_shift;
+	}
 
+	if (!(val & masks->enable_mask) || i >= factor->ftbl_cnt) {
+		val |= masks->enable_mask;
 		writel(val, factor->base);
 	}
 
 	if (factor->lock)
 		spin_unlock_irqrestore(factor->lock, flags);
+
+	return 0;
 }
 
 static const struct clk_ops clk_factor_ops = {

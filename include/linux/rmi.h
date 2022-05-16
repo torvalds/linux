@@ -102,15 +102,16 @@ struct rmi_2d_sensor_platform_data {
 };
 
 /**
- * struct rmi_f30_data - overrides defaults for a single F30 GPIOs/LED chip.
+ * struct rmi_gpio_data - overrides defaults for a single F30/F3A GPIOs/LED
+ * chip.
  * @buttonpad - the touchpad is a buttonpad, so enable only the first actual
  * button that is found.
- * @trackstick_buttons - Set when the function 30 is handling the physical
+ * @trackstick_buttons - Set when the function 30 or 3a is handling the physical
  * buttons of the trackstick (as a PS/2 passthrough device).
- * @disable - the touchpad incorrectly reports F30 and it should be ignored.
+ * @disable - the touchpad incorrectly reports F30/F3A and it should be ignored.
  * This is a special case which is due to misconfigured firmware.
  */
-struct rmi_f30_data {
+struct rmi_gpio_data {
 	bool buttonpad;
 	bool trackstick_buttons;
 	bool disable;
@@ -206,7 +207,7 @@ struct rmi_device_platform_data_spi {
  *
  * @reset_delay_ms - after issuing a reset command to the touch sensor, the
  * driver waits a few milliseconds to give the firmware a chance to
- * to re-initialize.  You can override the default wait period here.
+ * re-initialize.  You can override the default wait period here.
  * @irq: irq associated with the attn gpio line, or negative
  */
 struct rmi_device_platform_data {
@@ -218,7 +219,7 @@ struct rmi_device_platform_data {
 	/* function handler pdata */
 	struct rmi_2d_sensor_platform_data sensor_pdata;
 	struct rmi_f01_power_management power_management;
-	struct rmi_f30_data f30_data;
+	struct rmi_gpio_data gpio_data;
 };
 
 /**

@@ -290,7 +290,7 @@ static int wm5110_hp_pre_enable(struct snd_soc_dapm_widget *w)
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct arizona_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->arizona;
-	unsigned int val = snd_soc_component_read32(component, ARIZONA_DRE_ENABLE);
+	unsigned int val = snd_soc_component_read(component, ARIZONA_DRE_ENABLE);
 	const struct reg_sequence *wseq;
 	int nregs;
 
@@ -326,7 +326,7 @@ static int wm5110_hp_pre_disable(struct snd_soc_dapm_widget *w)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct arizona_priv *priv = snd_soc_component_get_drvdata(component);
-	unsigned int val = snd_soc_component_read32(component, ARIZONA_DRE_ENABLE);
+	unsigned int val = snd_soc_component_read(component, ARIZONA_DRE_ENABLE);
 
 	switch (w->shift) {
 	case ARIZONA_OUT1L_ENA_SHIFT:
@@ -524,7 +524,7 @@ static int wm5110_in_analog_ev(struct snd_soc_dapm_widget *w,
 		wm5110->in_post_pending++;
 		return 0;
 	case SND_SOC_DAPM_PRE_PMU:
-		wm5110->in_pga_cache[w->shift] = snd_soc_component_read32(component, reg);
+		wm5110->in_pga_cache[w->shift] = snd_soc_component_read(component, reg);
 
 		snd_soc_component_update_bits(component, reg, mask,
 				    0x40 << ARIZONA_IN1L_PGA_VOL_SHIFT);
@@ -2237,22 +2237,22 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 	},
 };
 
-static int wm5110_open(struct snd_compr_stream *stream)
+static int wm5110_open(struct snd_soc_component *component,
+		       struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct wm5110_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->core.arizona;
 	int n_adsp;
 
-	if (strcmp(rtd->codec_dai->name, "wm5110-dsp-voicectrl") == 0) {
+	if (strcmp(asoc_rtd_to_codec(rtd, 0)->name, "wm5110-dsp-voicectrl") == 0) {
 		n_adsp = 2;
-	} else if (strcmp(rtd->codec_dai->name, "wm5110-dsp-trace") == 0) {
+	} else if (strcmp(asoc_rtd_to_codec(rtd, 0)->name, "wm5110-dsp-trace") == 0) {
 		n_adsp = 0;
 	} else {
 		dev_err(arizona->dev,
 			"No suitable compressed stream for DAI '%s'\n",
-			rtd->codec_dai->name);
+			asoc_rtd_to_codec(rtd, 0)->name);
 		return -EINVAL;
 	}
 
@@ -2355,7 +2355,7 @@ static unsigned int wm5110_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_6R,
 };
 
-static struct snd_compr_ops wm5110_compr_ops = {
+static struct snd_compress_ops wm5110_compress_ops = {
 	.open		= wm5110_open,
 	.free		= wm_adsp_compr_free,
 	.set_params	= wm_adsp_compr_set_params,
@@ -2371,7 +2371,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm5110 = {
 	.set_sysclk		= arizona_set_sysclk,
 	.set_pll		= wm5110_set_fll,
 	.name			= DRV_NAME,
-	.compr_ops		= &wm5110_compr_ops,
+	.compress_ops		= &wm5110_compress_ops,
 	.controls		= wm5110_snd_controls,
 	.num_controls		= ARRAY_SIZE(wm5110_snd_controls),
 	.dapm_widgets		= wm5110_dapm_widgets,

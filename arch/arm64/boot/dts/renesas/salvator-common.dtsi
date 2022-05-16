@@ -232,8 +232,7 @@
 
 		gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vcc_sdhi3: regulator-vcc-sdhi3 {
@@ -256,8 +255,7 @@
 
 		gpios = <&gpio3 14 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
+		states = <3300000 1>, <1800000 0>;
 	};
 
 	vga {
@@ -835,6 +833,7 @@
 	mmc-hs400-1_8v;
 	non-removable;
 	fixed-emmc-driver-type = <1>;
+	full-pwr-cycle-in-suspend;
 	status = "okay";
 };
 

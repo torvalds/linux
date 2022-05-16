@@ -4,7 +4,9 @@ The Atmel PIO4 controller is used to select the function of a pin and to
 configure it.
 
 Required properties:
-- compatible: "atmel,sama5d2-pinctrl".
+- compatible:
+	"atmel,sama5d2-pinctrl"
+	"microchip,sama7g5-pinctrl"
 - reg: base address and length of the PIO controller.
 - interrupts: interrupt outputs from the controller, one for each bank.
 - interrupt-controller: mark the device node as an interrupt controller.

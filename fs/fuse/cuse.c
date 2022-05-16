@@ -57,6 +57,7 @@
 
 struct cuse_conn {
 	struct list_head	list;	/* linked on cuse_conntbl */
+	struct fuse_mount	fm;	/* Dummy mount referencing fc */
 	struct fuse_conn	fc;	/* fuse connection */
 	struct cdev		*cdev;	/* associated character device */
 	struct device		*dev;	/* device representing @cdev */
@@ -134,7 +135,7 @@ static int cuse_open(struct inode *inode, struct file *file)
 	 * Generic permission check is already done against the chrdev
 	 * file, proceed to open.
 	 */
-	rc = fuse_do_open(&cc->fc, 0, file, 0);
+	rc = fuse_do_open(&cc->fm, 0, file, 0);
 	if (rc)
 		fuse_conn_put(&cc->fc);
 	return rc;
@@ -143,10 +144,10 @@ static int cuse_open(struct inode *inode, struct file *file)
 static int cuse_release(struct inode *inode, struct file *file)
 {
 	struct fuse_file *ff = file->private_data;
-	struct fuse_conn *fc = ff->fc;
+	struct fuse_mount *fm = ff->fm;
 
 	fuse_sync_release(NULL, ff, file->f_flags);
-	fuse_conn_put(fc);
+	fuse_conn_put(fm->fc);
 
 	return 0;
 }
@@ -155,7 +156,7 @@ static long cuse_file_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
 	struct fuse_file *ff = file->private_data;
-	struct cuse_conn *cc = fc_to_cc(ff->fc);
+	struct cuse_conn *cc = fc_to_cc(ff->fm->fc);
 	unsigned int flags = 0;
 
 	if (cc->unrestricted_ioctl)
@@ -168,7 +169,7 @@ static long cuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 				   unsigned long arg)
 {
 	struct fuse_file *ff = file->private_data;
-	struct cuse_conn *cc = fc_to_cc(ff->fc);
+	struct cuse_conn *cc = fc_to_cc(ff->fm->fc);
 	unsigned int flags = FUSE_IOCTL_COMPAT;
 
 	if (cc->unrestricted_ioctl)
@@ -270,7 +271,7 @@ static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
 static int cuse_parse_devinfo(char *p, size_t len, struct cuse_devinfo *devinfo)
 {
 	char *end = p + len;
-	char *uninitialized_var(key), *uninitialized_var(val);
+	char *key, *val;
 	int rc;
 
 	while (true) {
@@ -313,9 +314,10 @@ struct cuse_init_args {
  * required data structures for it.  Please read the comment at the
  * top of this file for high level overview.
  */
-static void cuse_process_init_reply(struct fuse_conn *fc,
+static void cuse_process_init_reply(struct fuse_mount *fm,
 				    struct fuse_args *args, int error)
 {
+	struct fuse_conn *fc = fm->fc;
 	struct cuse_init_args *ia = container_of(args, typeof(*ia), ap.args);
 	struct fuse_args_pages *ap = &ia->ap;
 	struct cuse_conn *cc = fc_to_cc(fc), *pos;
@@ -424,7 +426,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 {
 	int rc;
 	struct page *page;
-	struct fuse_conn *fc = &cc->fc;
+	struct fuse_mount *fm = &cc->fm;
 	struct cuse_init_args *ia;
 	struct fuse_args_pages *ap;
 
@@ -451,8 +453,8 @@ static int cuse_send_init(struct cuse_conn *cc)
 	ap->args.out_args[0].size = sizeof(ia->out);
 	ap->args.out_args[0].value = &ia->out;
 	ap->args.out_args[1].size = CUSE_INIT_INFO_MAX;
-	ap->args.out_argvar = 1;
-	ap->args.out_pages = 1;
+	ap->args.out_argvar = true;
+	ap->args.out_pages = true;
 	ap->num_pages = 1;
 	ap->pages = &ia->page;
 	ap->descs = &ia->desc;
@@ -460,7 +462,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 	ia->desc.length = ap->args.out_args[1].size;
 	ap->args.end = cuse_process_init_reply;
 
-	rc = fuse_simple_background(fc, &ap->args, GFP_KERNEL);
+	rc = fuse_simple_background(fm, &ap->args, GFP_KERNEL);
 	if (rc) {
 		kfree(ia);
 err_free_page:
@@ -506,7 +508,8 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	 * Limit the cuse channel to requests that can
 	 * be represented in file->f_cred->user_ns.
 	 */
-	fuse_conn_init(&cc->fc, file->f_cred->user_ns, &fuse_dev_fiq_ops, NULL);
+	fuse_conn_init(&cc->fc, &cc->fm, file->f_cred->user_ns,
+		       &fuse_dev_fiq_ops, NULL);
 
 	fud = fuse_dev_alloc_install(&cc->fc);
 	if (!fud) {

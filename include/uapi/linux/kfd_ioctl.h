@@ -26,8 +26,12 @@
 #include <drm/drm.h>
 #include <linux/ioctl.h>
 
+/*
+ * - 1.1 - initial version
+ * - 1.3 - Add SMI events support
+ */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 1
+#define KFD_IOCTL_MINOR_VERSION 3
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
@@ -251,7 +255,7 @@ struct kfd_memory_exception_failure {
 	__u32 imprecise;	/* Can't determine the	exact fault address */
 };
 
-/* memory exception data*/
+/* memory exception data */
 struct kfd_hsa_memory_exception_data {
 	struct kfd_memory_exception_failure failure;
 	__u64 va;
@@ -410,6 +414,20 @@ struct kfd_ioctl_unmap_memory_from_gpu_args {
 	__u32 n_success;		/* to/from KFD */
 };
 
+/* Allocate GWS for specific queue
+ *
+ * @queue_id:    queue's id that GWS is allocated for
+ * @num_gws:     how many GWS to allocate
+ * @first_gws:   index of the first GWS allocated.
+ *               only support contiguous GWS allocation
+ */
+struct kfd_ioctl_alloc_queue_gws_args {
+	__u32 queue_id;		/* to KFD */
+	__u32 num_gws;		/* to KFD */
+	__u32 first_gws;	/* from KFD */
+	__u32 pad;
+};
+
 struct kfd_ioctl_get_dmabuf_info_args {
 	__u64 size;		/* from KFD */
 	__u64 metadata_ptr;	/* to KFD */
@@ -426,6 +444,24 @@ struct kfd_ioctl_import_dmabuf_args {
 	__u64 handle;	/* from KFD */
 	__u32 gpu_id;	/* to KFD */
 	__u32 dmabuf_fd;	/* to KFD */
+};
+
+/*
+ * KFD SMI(System Management Interface) events
+ */
+enum kfd_smi_event {
+	KFD_SMI_EVENT_NONE = 0, /* not used */
+	KFD_SMI_EVENT_VMFAULT = 1, /* event start counting at 1 */
+	KFD_SMI_EVENT_THERMAL_THROTTLE = 2,
+	KFD_SMI_EVENT_GPU_PRE_RESET = 3,
+	KFD_SMI_EVENT_GPU_POST_RESET = 4,
+};
+
+#define KFD_SMI_EVENT_MASK_FROM_INDEX(i) (1ULL << ((i) - 1))
+
+struct kfd_ioctl_smi_events_args {
+	__u32 gpuid;	/* to KFD */
+	__u32 anon_fd;	/* from KFD */
 };
 
 /* Register offset inside the remapped mmio page
@@ -529,7 +565,13 @@ enum kfd_mmio_remap {
 #define AMDKFD_IOC_IMPORT_DMABUF		\
 		AMDKFD_IOWR(0x1D, struct kfd_ioctl_import_dmabuf_args)
 
+#define AMDKFD_IOC_ALLOC_QUEUE_GWS		\
+		AMDKFD_IOWR(0x1E, struct kfd_ioctl_alloc_queue_gws_args)
+
+#define AMDKFD_IOC_SMI_EVENTS			\
+		AMDKFD_IOWR(0x1F, struct kfd_ioctl_smi_events_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x1E
+#define AMDKFD_COMMAND_END		0x20
 
 #endif

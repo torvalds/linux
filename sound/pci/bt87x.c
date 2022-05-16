@@ -30,7 +30,7 @@ static int index[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = -2}; /* Exclude the
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 static int digital_rate[SNDRV_CARDS];	/* digital input rate */
-static bool load_all;	/* allow to load the non-whitelisted cards */
+static bool load_all;	/* allow to load cards not the allowlist */
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Bt87x soundcard");
@@ -41,7 +41,7 @@ MODULE_PARM_DESC(enable, "Enable Bt87x soundcard");
 module_param_array(digital_rate, int, NULL, 0444);
 MODULE_PARM_DESC(digital_rate, "Digital input rate for Bt87x soundcard");
 module_param(load_all, bool, 0444);
-MODULE_PARM_DESC(load_all, "Allow to load the non-whitelisted cards");
+MODULE_PARM_DESC(load_all, "Allow to load cards not on the allowlist");
 
 
 /* register offsets */
@@ -150,7 +150,7 @@ struct snd_bt87x_board {
 	unsigned no_digital:1;	/* No digital input */
 };
 
-static struct snd_bt87x_board snd_bt87x_boards[] = {
+static const struct snd_bt87x_board snd_bt87x_boards[] = {
 	[SND_BT87X_BOARD_UNKNOWN] = {
 		.dig_rate = 32000, /* just a guess */
 	},
@@ -217,7 +217,7 @@ static int snd_bt87x_create_risc(struct snd_bt87x *chip, struct snd_pcm_substrea
 	__le32 *risc;
 
 	if (chip->dma_risc.area == NULL) {
-		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(chip->pci),
+		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
 					PAGE_ALIGN(MAX_RISC_SIZE), &chip->dma_risc) < 0)
 			return -ENOMEM;
 	}
@@ -271,13 +271,8 @@ static void snd_bt87x_free_risc(struct snd_bt87x *chip)
 
 static void snd_bt87x_pci_error(struct snd_bt87x *chip, unsigned int status)
 {
-	u16 pci_status;
+	int pci_status = pci_status_get_and_clear_errors(chip->pci);
 
-	pci_read_config_word(chip->pci, PCI_STATUS, &pci_status);
-	pci_status &= PCI_STATUS_PARITY | PCI_STATUS_SIG_TARGET_ABORT |
-		PCI_STATUS_REC_TARGET_ABORT | PCI_STATUS_REC_MASTER_ABORT |
-		PCI_STATUS_SIG_SYSTEM_ERROR | PCI_STATUS_DETECTED_PARITY;
-	pci_write_config_word(chip->pci, PCI_STATUS, pci_status);
 	if (pci_status != PCI_STATUS_DETECTED_PARITY)
 		dev_err(chip->card->dev,
 			"Aieee - PCI error! status %#08x, PCI status %#04x\n",
@@ -452,12 +447,7 @@ static int snd_bt87x_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
-	int err;
 
-	err = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
 	return snd_bt87x_create_risc(chip, substream,
 				     params_periods(hw_params),
 				     params_period_bytes(hw_params));
@@ -468,7 +458,6 @@ static int snd_bt87x_hw_free(struct snd_pcm_substream *substream)
 	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
 
 	snd_bt87x_free_risc(chip);
-	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
@@ -539,13 +528,11 @@ static snd_pcm_uframes_t snd_bt87x_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_bt87x_pcm_ops = {
 	.open = snd_bt87x_pcm_open,
 	.close = snd_bt87x_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_bt87x_hw_params,
 	.hw_free = snd_bt87x_hw_free,
 	.prepare = snd_bt87x_prepare,
 	.trigger = snd_bt87x_trigger,
 	.pointer = snd_bt87x_pointer,
-	.page = snd_pcm_sgbuf_ops_page,
 };
 
 static int snd_bt87x_capture_volume_info(struct snd_kcontrol *kcontrol,
@@ -700,10 +687,10 @@ static int snd_bt87x_pcm(struct snd_bt87x *chip, int device, char *name)
 	pcm->private_data = chip;
 	strcpy(pcm->name, name);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_bt87x_pcm_ops);
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-					      snd_dma_pci_data(chip->pci),
-					      128 * 1024,
-					      ALIGN(255 * 4092, 1024));
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+				       &chip->pci->dev,
+				       128 * 1024,
+				       ALIGN(255 * 4092, 1024));
 	return 0;
 }
 
@@ -713,7 +700,7 @@ static int snd_bt87x_create(struct snd_card *card,
 {
 	struct snd_bt87x *chip;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_bt87x_dev_free
 	};
 
@@ -759,8 +746,8 @@ static int snd_bt87x_create(struct snd_card *card,
 		goto fail;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	pci_set_master(pci);
-	synchronize_irq(chip->irq);
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 	if (err < 0)
@@ -814,7 +801,7 @@ MODULE_DEVICE_TABLE(pci, snd_bt87x_ids);
  * (DVB cards use the audio function to transfer MPEG data) */
 static struct {
 	unsigned short subvendor, subdevice;
-} blacklist[] = {
+} denylist[] = {
 	{0x0071, 0x0101}, /* Nebula Electronics DigiTV */
 	{0x11bd, 0x001c}, /* Pinnacle PCTV Sat */
 	{0x11bd, 0x0026}, /* Pinnacle PCTV SAT CI */
@@ -830,7 +817,7 @@ static struct {
 
 static struct pci_driver driver;
 
-/* return the id of the card, or a negative value if it's blacklisted */
+/* return the id of the card, or a negative value if it's on the denylist */
 static int snd_bt87x_detect_card(struct pci_dev *pci)
 {
 	int i;
@@ -840,9 +827,9 @@ static int snd_bt87x_detect_card(struct pci_dev *pci)
 	if (supported && supported->driver_data > 0)
 		return supported->driver_data;
 
-	for (i = 0; i < ARRAY_SIZE(blacklist); ++i)
-		if (blacklist[i].subvendor == pci->subsystem_vendor &&
-		    blacklist[i].subdevice == pci->subsystem_device) {
+	for (i = 0; i < ARRAY_SIZE(denylist); ++i)
+		if (denylist[i].subvendor == pci->subsystem_vendor &&
+		    denylist[i].subdevice == pci->subsystem_device) {
 			dev_dbg(&pci->dev,
 				"card %#04x-%#04x:%#04x has no audio\n",
 				    pci->device, pci->subsystem_vendor, pci->subsystem_device);

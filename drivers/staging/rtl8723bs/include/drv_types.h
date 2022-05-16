@@ -77,7 +77,7 @@ enum _NIC_VERSION {
 #define SPEC_DEV_ID_RF_CONFIG_2T2R BIT(4)
 #define SPEC_DEV_ID_ASSIGN_IFNAME BIT(5)
 
-struct specific_device_id{
+struct specific_device_id {
 
 	u32 	flags;
 
@@ -86,8 +86,7 @@ struct specific_device_id{
 
 };
 
-struct registry_priv
-{
+struct registry_priv {
 	u8 chip_version;
 	u8 rfintfs;
 	u8 lbkmode;
@@ -151,8 +150,8 @@ struct registry_priv
 
 	u8 lowrate_two_xmit;
 
-	u8 rf_config ;
-	u8 low_power ;
+	u8 rf_config;
+	u8 low_power;
 
 	u8 wifi_spec;/*  !turbo_mode */
 
@@ -196,9 +195,6 @@ struct registry_priv
 	u8 bEn_RFE;
 	u8 RFE_Type;
 	u8  check_fw_ps;
-
-	u8 load_phy_file;
-	u8 RegDecryptCustomFile;
 
 #ifdef CONFIG_MULTI_VIR_IFACES
 	u8 ext_iface_num;/* primary/secondary iface is excluded */
@@ -421,8 +417,7 @@ struct cam_entry_cache {
 	((u8 *)(x))[6], ((u8 *)(x))[7], ((u8 *)(x))[8], ((u8 *)(x))[9], ((u8 *)(x))[10], ((u8 *)(x))[11], \
 	((u8 *)(x))[12], ((u8 *)(x))[13], ((u8 *)(x))[14], ((u8 *)(x))[15]
 
-struct dvobj_priv
-{
+struct dvobj_priv {
 	/*-------- below is common data --------*/
 	struct adapter *if1; /* PRIMARY_ADAPTER */
 	struct adapter *if2; /* SECONDARY_ADAPTER */
@@ -501,11 +496,11 @@ enum ADAPTER_TYPE {
 	MAX_ADAPTER = 0xFF,
 };
 
-typedef enum _DRIVER_STATE{
+typedef enum _DRIVER_STATE {
 	DRIVER_NORMAL = 0,
 	DRIVER_DISAPPEAR = 1,
 	DRIVER_REPLACE_DONGLE = 2,
-}DRIVER_STATE;
+} DRIVER_STATE;
 
 struct adapter {
 	int	DriverState;/*  for disable driver using module, use dongle to replace module. */
@@ -693,7 +688,6 @@ void rtw_indicate_wx_disassoc_event(struct adapter *padapter);
 void indicate_wx_scan_complete_event(struct adapter *padapter);
 int rtw_change_ifname(struct adapter *padapter, const char *ifname);
 
-extern char *rtw_phy_file_path;
 extern char *rtw_initmac;
 extern int rtw_mc2u_disable;
 extern int rtw_ht_enable;

@@ -846,7 +846,7 @@ static struct sg_table *mbochs_map_dmabuf(struct dma_buf_attachment *at,
 	if (sg_alloc_table_from_pages(sg, dmabuf->pages, dmabuf->pagecount,
 				      0, dmabuf->mode.size, GFP_KERNEL) < 0)
 		goto err2;
-	if (!dma_map_sg(at->dev, sg->sgl, sg->nents, direction))
+	if (dma_map_sgtable(at->dev, sg, direction, 0))
 		goto err3;
 
 	return sg;
@@ -868,6 +868,7 @@ static void mbochs_unmap_dmabuf(struct dma_buf_attachment *at,
 
 	dev_dbg(dev, "%s: %d\n", __func__, dmabuf->id);
 
+	dma_unmap_sgtable(at->dev, sg, direction, 0);
 	sg_free_table(sg);
 	kfree(sg);
 }
@@ -891,26 +892,10 @@ static void mbochs_release_dmabuf(struct dma_buf *buf)
 	mutex_unlock(&mdev_state->ops_lock);
 }
 
-static void *mbochs_kmap_dmabuf(struct dma_buf *buf, unsigned long page_num)
-{
-	struct mbochs_dmabuf *dmabuf = buf->priv;
-	struct page *page = dmabuf->pages[page_num];
-
-	return kmap(page);
-}
-
-static void mbochs_kunmap_dmabuf(struct dma_buf *buf, unsigned long page_num,
-				 void *vaddr)
-{
-	kunmap(vaddr);
-}
-
 static struct dma_buf_ops mbochs_dmabuf_ops = {
 	.map_dma_buf	  = mbochs_map_dmabuf,
 	.unmap_dma_buf	  = mbochs_unmap_dmabuf,
 	.release	  = mbochs_release_dmabuf,
-	.map		  = mbochs_kmap_dmabuf,
-	.unmap		  = mbochs_kunmap_dmabuf,
 	.mmap		  = mbochs_mmap_dmabuf,
 };
 

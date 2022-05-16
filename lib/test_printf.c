@@ -22,6 +22,8 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 
+#include <linux/property.h>
+
 #include "../tools/testing/selftests/kselftest_module.h"
 
 #define BUF_SIZE 256
@@ -212,6 +214,7 @@ test_string(void)
 #define PTR_STR "ffff0123456789ab"
 #define PTR_VAL_NO_CRNG "(____ptrval____)"
 #define ZEROS "00000000"	/* hex 32 zero bits */
+#define ONES "ffffffff"		/* hex 32 one bits */
 
 static int __init
 plain_format(void)
@@ -243,6 +246,7 @@ plain_format(void)
 #define PTR_STR "456789ab"
 #define PTR_VAL_NO_CRNG "(ptrval)"
 #define ZEROS ""
+#define ONES ""
 
 static int __init
 plain_format(void)
@@ -328,12 +332,26 @@ test_hashed(const char *fmt, const void *p)
 	test(buf, fmt, p);
 }
 
+/*
+ * NULL pointers aren't hashed.
+ */
 static void __init
 null_pointer(void)
 {
-	test_hashed("%p", NULL);
+	test(ZEROS "00000000", "%p", NULL);
 	test(ZEROS "00000000", "%px", NULL);
 	test("(null)", "%pE", NULL);
+}
+
+/*
+ * Error pointers aren't hashed.
+ */
+static void __init
+error_pointer(void)
+{
+	test(ONES "fffffff5", "%p", ERR_PTR(-11));
+	test(ONES "fffffff5", "%px", ERR_PTR(-11));
+	test("(efault)", "%pE", ERR_PTR(-11));
 }
 
 #define PTR_INVALID ((void *)0x000000ab)
@@ -476,7 +494,7 @@ struct_va_format(void)
 }
 
 static void __init
-struct_rtc_time(void)
+time_and_date(void)
 {
 	/* 1543210543 */
 	const struct rtc_time tm = {
@@ -487,14 +505,21 @@ struct_rtc_time(void)
 		.tm_mon = 10,
 		.tm_year = 118,
 	};
+	/* 2019-01-04T15:32:23 */
+	time64_t t = 1546615943;
 
-	test("(%ptR?)", "%pt", &tm);
+	test("(%pt?)", "%pt", &tm);
 	test("2018-11-26T05:35:43", "%ptR", &tm);
 	test("0118-10-26T05:35:43", "%ptRr", &tm);
 	test("05:35:43|2018-11-26", "%ptRt|%ptRd", &tm, &tm);
 	test("05:35:43|0118-10-26", "%ptRtr|%ptRdr", &tm, &tm);
 	test("05:35:43|2018-11-26", "%ptRttr|%ptRdtr", &tm, &tm);
 	test("05:35:43 tr|2018-11-26 tr", "%ptRt tr|%ptRd tr", &tm, &tm);
+
+	test("2019-01-04T15:32:23", "%ptT", &t);
+	test("0119-00-04T15:32:23", "%ptTr", &t);
+	test("15:32:23|2019-01-04", "%ptTt|%ptTd", &t, &t);
+	test("15:32:23|0119-00-04", "%ptTtr|%ptTdr", &t, &t);
 }
 
 static void __init
@@ -593,11 +618,63 @@ flags(void)
 	kfree(cmp_buffer);
 }
 
+static void __init fwnode_pointer(void)
+{
+	const struct software_node softnodes[] = {
+		{ .name = "first", },
+		{ .name = "second", .parent = &softnodes[0], },
+		{ .name = "third", .parent = &softnodes[1], },
+		{ NULL /* Guardian */ }
+	};
+	const char * const full_name = "first/second/third";
+	const char * const full_name_second = "first/second";
+	const char * const second_name = "second";
+	const char * const third_name = "third";
+	int rval;
+
+	rval = software_node_register_nodes(softnodes);
+	if (rval) {
+		pr_warn("cannot register softnodes; rval %d\n", rval);
+		return;
+	}
+
+	test(full_name_second, "%pfw", software_node_fwnode(&softnodes[1]));
+	test(full_name, "%pfw", software_node_fwnode(&softnodes[2]));
+	test(full_name, "%pfwf", software_node_fwnode(&softnodes[2]));
+	test(second_name, "%pfwP", software_node_fwnode(&softnodes[1]));
+	test(third_name, "%pfwP", software_node_fwnode(&softnodes[2]));
+
+	software_node_unregister(&softnodes[2]);
+	software_node_unregister(&softnodes[1]);
+	software_node_unregister(&softnodes[0]);
+}
+
+static void __init
+errptr(void)
+{
+	test("-1234", "%pe", ERR_PTR(-1234));
+
+	/* Check that %pe with a non-ERR_PTR gets treated as ordinary %p. */
+	BUILD_BUG_ON(IS_ERR(PTR));
+	test_hashed("%pe", PTR);
+
+#ifdef CONFIG_SYMBOLIC_ERRNAME
+	test("(-ENOTSOCK)", "(%pe)", ERR_PTR(-ENOTSOCK));
+	test("(-EAGAIN)", "(%pe)", ERR_PTR(-EAGAIN));
+	BUILD_BUG_ON(EAGAIN != EWOULDBLOCK);
+	test("(-EAGAIN)", "(%pe)", ERR_PTR(-EWOULDBLOCK));
+	test("[-EIO    ]", "[%-8pe]", ERR_PTR(-EIO));
+	test("[    -EIO]", "[%8pe]", ERR_PTR(-EIO));
+	test("-EPROBE_DEFER", "%pe", ERR_PTR(-EPROBE_DEFER));
+#endif
+}
+
 static void __init
 test_pointer(void)
 {
 	plain();
 	null_pointer();
+	error_pointer();
 	invalid_pointer();
 	symbol_ptr();
 	kernel_ptr();
@@ -610,11 +687,13 @@ test_pointer(void)
 	uuid();
 	dentry();
 	struct_va_format();
-	struct_rtc_time();
+	time_and_date();
 	struct_clk();
 	bitmap();
 	netdev_features();
 	flags();
+	errptr();
+	fwnode_pointer();
 }
 
 static void __init selftest(void)

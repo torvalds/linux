@@ -34,7 +34,7 @@
  */
 
 
-#define TASKSTATS_VERSION	9
+#define TASKSTATS_VERSION	10
 #define TS_COMM_LEN		32	/* should be >= TASK_COMM_LEN
 					 * in linux/sched.h */
 
@@ -112,6 +112,7 @@ struct taskstats {
 	__u32	ac_gid;			/* Group ID */
 	__u32	ac_pid;			/* Process ID */
 	__u32	ac_ppid;		/* Parent process ID */
+	/* __u32 range means times from 1970 to 2106 */
 	__u32	ac_btime;		/* Begin time [sec since 1970] */
 	__u64	ac_etime __attribute__((aligned(8)));
 					/* Elapsed time [usec] */
@@ -168,6 +169,9 @@ struct taskstats {
 	/* Delay waiting for thrashing page */
 	__u64	thrashing_count;
 	__u64	thrashing_delay_total;
+
+	/* v10: 64-bit btime to avoid overflow */
+	__u64	ac_btime64;		/* 64-bit begin time */
 };
 
 

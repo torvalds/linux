@@ -56,7 +56,6 @@
 	{(1UL << GLF_REPLY_PENDING),		"r" },		\
 	{(1UL << GLF_INITIAL),			"I" },		\
 	{(1UL << GLF_FROZEN),			"F" },		\
-	{(1UL << GLF_QUEUED),			"q" },		\
 	{(1UL << GLF_LRU),			"L" },		\
 	{(1UL << GLF_OBJECT),			"o" },		\
 	{(1UL << GLF_BLOCKING),			"b" })
@@ -388,15 +387,17 @@ TRACE_EVENT(gfs2_log_blocks,
 	TP_STRUCT__entry(
 		__field(        dev_t,  dev                     )
 		__field(	int,	blocks			)
+		__field(	int,	blks_free		)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= sdp->sd_vfs->s_dev;
 		__entry->blocks		= blocks;
+		__entry->blks_free	= atomic_read(&sdp->sd_log_blks_free);
 	),
 
-	TP_printk("%u,%u log reserve %d", MAJOR(__entry->dev),
-		  MINOR(__entry->dev), __entry->blocks)
+	TP_printk("%u,%u log reserve %d %d", MAJOR(__entry->dev),
+		  MINOR(__entry->dev), __entry->blocks, __entry->blks_free)
 );
 
 /* Writing back the AIL */

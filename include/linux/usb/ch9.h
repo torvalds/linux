@@ -6,13 +6,13 @@
  * Wireless USB 1.0 (spread around).  Linux has several APIs in C that
  * need these:
  *
- * - the master/host side Linux-USB kernel driver API;
+ * - the host side Linux-USB kernel driver API;
  * - the "usbfs" user space API; and
- * - the Linux "gadget" slave/device/peripheral side driver API.
+ * - the Linux "gadget" device/peripheral side driver API.
  *
  * USB 2.0 adds an additional "On The Go" (OTG) mode, which lets systems
- * act either as a USB master/host or as a USB slave/device.  That means
- * the master and slave side APIs benefit from working well together.
+ * act either as a USB host or as a USB device.  That means the host and
+ * device side APIs benefit from working well together.
  *
  * There's also "Wireless USB", using low power short range radios for
  * peripheral interconnection but otherwise building on the USB framework.

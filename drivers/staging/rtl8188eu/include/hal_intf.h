@@ -209,7 +209,7 @@ void	rtw_hal_set_bwmode(struct adapter *padapter,
 void	rtw_hal_set_chan(struct adapter *padapter, u8 channel);
 void	rtw_hal_dm_watchdog(struct adapter *padapter);
 
-u8	rtw_hal_antdiv_before_linked(struct adapter *padapter);
+bool rtw_hal_antdiv_before_linked(struct adapter *padapter);
 void	rtw_hal_antdiv_rssi_compared(struct adapter *padapter,
 				     struct wlan_bssid_ex *dst,
 				     struct wlan_bssid_ex *src);

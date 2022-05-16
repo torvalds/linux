@@ -99,6 +99,14 @@ struct psp_firmware_header_v1_2 {
 	uint32_t kdb_size_bytes;
 };
 
+/* version_major=1, version_minor=3 */
+struct psp_firmware_header_v1_3 {
+	struct psp_firmware_header_v1_1 v1_1;
+	uint32_t spl_header_version;
+	uint32_t spl_offset_bytes;
+	uint32_t spl_size_bytes;
+};
+
 /* version_major=1, version_minor=0 */
 struct ta_firmware_header_v1_0 {
 	struct common_firmware_header header;
@@ -108,6 +116,36 @@ struct ta_firmware_header_v1_0 {
 	uint32_t ta_ras_ucode_version;
 	uint32_t ta_ras_offset_bytes;
 	uint32_t ta_ras_size_bytes;
+	uint32_t ta_hdcp_ucode_version;
+	uint32_t ta_hdcp_offset_bytes;
+	uint32_t ta_hdcp_size_bytes;
+	uint32_t ta_dtm_ucode_version;
+	uint32_t ta_dtm_offset_bytes;
+	uint32_t ta_dtm_size_bytes;
+};
+
+enum ta_fw_type {
+	TA_FW_TYPE_UNKOWN,
+	TA_FW_TYPE_PSP_ASD,
+	TA_FW_TYPE_PSP_XGMI,
+	TA_FW_TYPE_PSP_RAS,
+	TA_FW_TYPE_PSP_HDCP,
+	TA_FW_TYPE_PSP_DTM,
+	TA_FW_TYPE_PSP_RAP,
+};
+
+struct ta_fw_bin_desc {
+	uint32_t fw_type;
+	uint32_t fw_version;
+	uint32_t offset_bytes;
+	uint32_t size_bytes;
+};
+
+/* version_major=2, version_minor=0 */
+struct ta_firmware_header_v2_0 {
+	struct common_firmware_header header;
+	uint32_t ta_fw_bin_count;
+	struct ta_fw_bin_desc ta_fw_bin[];
 };
 
 /* version_major=1, version_minor=0 */
@@ -184,6 +222,15 @@ struct rlc_firmware_header_v2_1 {
 	uint32_t save_restore_list_srm_offset_bytes;
 };
 
+/* version_major=2, version_minor=1 */
+struct rlc_firmware_header_v2_2 {
+	struct rlc_firmware_header_v2_1 v2_1;
+	uint32_t rlc_iram_ucode_size_bytes;
+	uint32_t rlc_iram_ucode_offset_bytes;
+	uint32_t rlc_dram_ucode_size_bytes;
+	uint32_t rlc_dram_ucode_offset_bytes;
+};
+
 /* version_major=1, version_minor=0 */
 struct sdma_firmware_header_v1_0 {
 	struct common_firmware_header header;
@@ -245,6 +292,13 @@ struct dmcu_firmware_header_v1_0 {
 	uint32_t intv_size_bytes;  /* size of interrupt vectors, in bytes */
 };
 
+/* version_major=1, version_minor=0 */
+struct dmcub_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint32_t inst_const_bytes; /* size of instruction region, in bytes */
+	uint32_t bss_data_bytes; /* size of bss/data region, in bytes */
+};
+
 /* header is fixed size */
 union amdgpu_firmware_header {
 	struct common_firmware_header common;
@@ -253,7 +307,9 @@ union amdgpu_firmware_header {
 	struct smc_firmware_header_v2_0 smc_v2_0;
 	struct psp_firmware_header_v1_0 psp;
 	struct psp_firmware_header_v1_1 psp_v1_1;
+	struct psp_firmware_header_v1_3 psp_v1_3;
 	struct ta_firmware_header_v1_0 ta;
+	struct ta_firmware_header_v2_0 ta_v2_0;
 	struct gfx_firmware_header_v1_0 gfx;
 	struct rlc_firmware_header_v1_0 rlc;
 	struct rlc_firmware_header_v2_0 rlc_v2_0;
@@ -262,8 +318,11 @@ union amdgpu_firmware_header {
 	struct sdma_firmware_header_v1_1 sdma_v1_1;
 	struct gpu_info_firmware_header_v1_0 gpu_info;
 	struct dmcu_firmware_header_v1_0 dmcu;
+	struct dmcub_firmware_header_v1_0 dmcub;
 	uint8_t raw[0x100];
 };
+
+#define UCODE_MAX_TA_PACKAGING ((sizeof(union amdgpu_firmware_header) - sizeof(struct common_firmware_header) - 4) / sizeof(struct ta_fw_bin_desc))
 
 /*
  * fw loading support
@@ -286,10 +345,12 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_CP_MEC2_JT,
 	AMDGPU_UCODE_ID_CP_MES,
 	AMDGPU_UCODE_ID_CP_MES_DATA,
-	AMDGPU_UCODE_ID_RLC_G,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM,
+	AMDGPU_UCODE_ID_RLC_IRAM,
+	AMDGPU_UCODE_ID_RLC_DRAM,
+	AMDGPU_UCODE_ID_RLC_G,
 	AMDGPU_UCODE_ID_STORAGE,
 	AMDGPU_UCODE_ID_SMC,
 	AMDGPU_UCODE_ID_UVD,
@@ -301,6 +362,7 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_DMCU_INTV,
 	AMDGPU_UCODE_ID_VCN0_RAM,
 	AMDGPU_UCODE_ID_VCN1_RAM,
+	AMDGPU_UCODE_ID_DMCUB,
 	AMDGPU_UCODE_ID_MAXIMUM,
 };
 

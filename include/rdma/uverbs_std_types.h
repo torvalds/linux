@@ -1,33 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #ifndef _UVERBS_STD_TYPES__
@@ -88,7 +61,7 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
 
 static inline void uobj_put_destroy(struct ib_uobject *uobj)
 {
-	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
+	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_DESTROY);
 }
 
 static inline void uobj_put_read(struct ib_uobject *uobj)
@@ -104,28 +77,31 @@ static inline void uobj_put_write(struct ib_uobject *uobj)
 	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 }
 
-static inline int __must_check
-uobj_alloc_commit(struct ib_uobject *uobj, struct uverbs_attr_bundle *attrs)
-{
-	int ret = rdma_alloc_commit_uobject(uobj, attrs);
-
-	if (ret)
-		return ret;
-	return 0;
-}
-
 static inline void uobj_alloc_abort(struct ib_uobject *uobj,
 				    struct uverbs_attr_bundle *attrs)
 {
-	rdma_alloc_abort_uobject(uobj, attrs);
+	rdma_alloc_abort_uobject(uobj, attrs, false);
+}
+
+static inline void uobj_finalize_uobj_create(struct ib_uobject *uobj,
+					     struct uverbs_attr_bundle *attrs)
+{
+	/*
+	 * Tell the core code that the write() handler has completed
+	 * initializing the object and that the core should commit or
+	 * abort this object based upon the return code from the write()
+	 * method. Similar to what uverbs_finalize_uobj_create() does for
+	 * ioctl()
+	 */
+	WARN_ON(attrs->uobject);
+	attrs->uobject = uobj;
 }
 
 static inline struct ib_uobject *
 __uobj_alloc(const struct uverbs_api_object *obj,
 	     struct uverbs_attr_bundle *attrs, struct ib_device **ib_dev)
 {
-	struct ib_uobject *uobj =
-		rdma_alloc_begin_uobject(obj, attrs->ufile, attrs);
+	struct ib_uobject *uobj = rdma_alloc_begin_uobject(obj, attrs);
 
 	if (!IS_ERR(uobj))
 		*ib_dev = attrs->context->device;

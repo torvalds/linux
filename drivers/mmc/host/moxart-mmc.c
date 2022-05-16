@@ -608,8 +608,8 @@ static int moxart_probe(struct platform_device *pdev)
 	host->timeout = msecs_to_jiffies(1000);
 	host->sysclk = clk_get_rate(clk);
 	host->fifo_width = readl(host->base + REG_FEATURE) << 2;
-	host->dma_chan_tx = dma_request_slave_channel_reason(dev, "tx");
-	host->dma_chan_rx = dma_request_slave_channel_reason(dev, "rx");
+	host->dma_chan_tx = dma_request_chan(dev, "tx");
+	host->dma_chan_rx = dma_request_chan(dev, "rx");
 
 	spin_lock_init(&host->lock);
 
@@ -689,19 +689,18 @@ static int moxart_remove(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, NULL);
 
-	if (mmc) {
-		if (!IS_ERR(host->dma_chan_tx))
-			dma_release_channel(host->dma_chan_tx);
-		if (!IS_ERR(host->dma_chan_rx))
-			dma_release_channel(host->dma_chan_rx);
-		mmc_remove_host(mmc);
-		mmc_free_host(mmc);
+	if (!IS_ERR(host->dma_chan_tx))
+		dma_release_channel(host->dma_chan_tx);
+	if (!IS_ERR(host->dma_chan_rx))
+		dma_release_channel(host->dma_chan_rx);
+	mmc_remove_host(mmc);
+	mmc_free_host(mmc);
 
-		writel(0, host->base + REG_INTERRUPT_MASK);
-		writel(0, host->base + REG_POWER_CONTROL);
-		writel(readl(host->base + REG_CLOCK_CONTROL) | CLK_OFF,
-		       host->base + REG_CLOCK_CONTROL);
-	}
+	writel(0, host->base + REG_INTERRUPT_MASK);
+	writel(0, host->base + REG_POWER_CONTROL);
+	writel(readl(host->base + REG_CLOCK_CONTROL) | CLK_OFF,
+	       host->base + REG_CLOCK_CONTROL);
+
 	return 0;
 }
 
@@ -717,6 +716,7 @@ static struct platform_driver moxart_mmc_driver = {
 	.remove     = moxart_remove,
 	.driver     = {
 		.name		= "mmc-moxart",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= moxart_mmc_match,
 	},
 };

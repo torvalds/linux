@@ -53,24 +53,12 @@ struct btrfs_workqueue {
 	struct __btrfs_workqueue *high;
 };
 
-static void normal_work_helper(struct btrfs_work *work);
-
-#define BTRFS_WORK_HELPER(name)					\
-noinline_for_stack void btrfs_##name(struct work_struct *arg)		\
-{									\
-	struct btrfs_work *work = container_of(arg, struct btrfs_work,	\
-					       normal_work);		\
-	normal_work_helper(work);					\
-}
-
-struct btrfs_fs_info *
-btrfs_workqueue_owner(const struct __btrfs_workqueue *wq)
+struct btrfs_fs_info * __pure btrfs_workqueue_owner(const struct __btrfs_workqueue *wq)
 {
 	return wq->fs_info;
 }
 
-struct btrfs_fs_info *
-btrfs_work_owner(const struct btrfs_work *work)
+struct btrfs_fs_info * __pure btrfs_work_owner(const struct btrfs_work *work)
 {
 	return work->wq->fs_info;
 }
@@ -88,29 +76,6 @@ bool btrfs_workqueue_normal_congested(const struct btrfs_workqueue *wq)
 
 	return atomic_read(&wq->normal->pending) > wq->normal->thresh * 2;
 }
-
-BTRFS_WORK_HELPER(worker_helper);
-BTRFS_WORK_HELPER(delalloc_helper);
-BTRFS_WORK_HELPER(flush_delalloc_helper);
-BTRFS_WORK_HELPER(cache_helper);
-BTRFS_WORK_HELPER(submit_helper);
-BTRFS_WORK_HELPER(fixup_helper);
-BTRFS_WORK_HELPER(endio_helper);
-BTRFS_WORK_HELPER(endio_meta_helper);
-BTRFS_WORK_HELPER(endio_meta_write_helper);
-BTRFS_WORK_HELPER(endio_raid56_helper);
-BTRFS_WORK_HELPER(endio_repair_helper);
-BTRFS_WORK_HELPER(rmw_helper);
-BTRFS_WORK_HELPER(endio_write_helper);
-BTRFS_WORK_HELPER(freespace_write_helper);
-BTRFS_WORK_HELPER(delayed_meta_helper);
-BTRFS_WORK_HELPER(readahead_helper);
-BTRFS_WORK_HELPER(qgroup_rescan_helper);
-BTRFS_WORK_HELPER(extent_refs_helper);
-BTRFS_WORK_HELPER(scrub_helper);
-BTRFS_WORK_HELPER(scrubwrc_helper);
-BTRFS_WORK_HELPER(scrubnc_helper);
-BTRFS_WORK_HELPER(scrubparity_helper);
 
 static struct __btrfs_workqueue *
 __btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info, const char *name,
@@ -252,16 +217,16 @@ out:
 	}
 }
 
-static void run_ordered_work(struct __btrfs_workqueue *wq)
+static void run_ordered_work(struct __btrfs_workqueue *wq,
+			     struct btrfs_work *self)
 {
 	struct list_head *list = &wq->ordered_list;
 	struct btrfs_work *work;
 	spinlock_t *lock = &wq->list_lock;
 	unsigned long flags;
+	bool free_self = false;
 
 	while (1) {
-		void *wtag;
-
 		spin_lock_irqsave(lock, flags);
 		if (list_empty(list))
 			break;
@@ -287,22 +252,53 @@ static void run_ordered_work(struct __btrfs_workqueue *wq)
 		list_del(&work->ordered_list);
 		spin_unlock_irqrestore(lock, flags);
 
-		/*
-		 * We don't want to call the ordered free functions with the
-		 * lock held though. Save the work as tag for the trace event,
-		 * because the callback could free the structure.
-		 */
-		wtag = work;
-		work->ordered_free(work);
-		trace_btrfs_all_work_done(wq->fs_info, wtag);
+		if (work == self) {
+			/*
+			 * This is the work item that the worker is currently
+			 * executing.
+			 *
+			 * The kernel workqueue code guarantees non-reentrancy
+			 * of work items. I.e., if a work item with the same
+			 * address and work function is queued twice, the second
+			 * execution is blocked until the first one finishes. A
+			 * work item may be freed and recycled with the same
+			 * work function; the workqueue code assumes that the
+			 * original work item cannot depend on the recycled work
+			 * item in that case (see find_worker_executing_work()).
+			 *
+			 * Note that different types of Btrfs work can depend on
+			 * each other, and one type of work on one Btrfs
+			 * filesystem may even depend on the same type of work
+			 * on another Btrfs filesystem via, e.g., a loop device.
+			 * Therefore, we must not allow the current work item to
+			 * be recycled until we are really done, otherwise we
+			 * break the above assumption and can deadlock.
+			 */
+			free_self = true;
+		} else {
+			/*
+			 * We don't want to call the ordered free functions with
+			 * the lock held.
+			 */
+			work->ordered_free(work);
+			/* NB: work must not be dereferenced past this point. */
+			trace_btrfs_all_work_done(wq->fs_info, work);
+		}
 	}
 	spin_unlock_irqrestore(lock, flags);
+
+	if (free_self) {
+		self->ordered_free(self);
+		/* NB: self must not be dereferenced past this point. */
+		trace_btrfs_all_work_done(wq->fs_info, self);
+	}
 }
 
-static void normal_work_helper(struct btrfs_work *work)
+static void btrfs_work_helper(struct work_struct *normal_work)
 {
+	struct btrfs_work *work = container_of(normal_work, struct btrfs_work,
+					       normal_work);
 	struct __btrfs_workqueue *wq;
-	void *wtag;
 	int need_order = 0;
 
 	/*
@@ -316,29 +312,26 @@ static void normal_work_helper(struct btrfs_work *work)
 	if (work->ordered_func)
 		need_order = 1;
 	wq = work->wq;
-	/* Safe for tracepoints in case work gets freed by the callback */
-	wtag = work;
 
 	trace_btrfs_work_sched(work);
 	thresh_exec_hook(wq);
 	work->func(work);
 	if (need_order) {
 		set_bit(WORK_DONE_BIT, &work->flags);
-		run_ordered_work(wq);
+		run_ordered_work(wq, work);
+	} else {
+		/* NB: work must not be dereferenced past this point. */
+		trace_btrfs_all_work_done(wq->fs_info, work);
 	}
-	if (!need_order)
-		trace_btrfs_all_work_done(wq->fs_info, wtag);
 }
 
-void btrfs_init_work(struct btrfs_work *work, btrfs_work_func_t uniq_func,
-		     btrfs_func_t func,
-		     btrfs_func_t ordered_func,
-		     btrfs_func_t ordered_free)
+void btrfs_init_work(struct btrfs_work *work, btrfs_func_t func,
+		     btrfs_func_t ordered_func, btrfs_func_t ordered_free)
 {
 	work->func = func;
 	work->ordered_func = ordered_func;
 	work->ordered_free = ordered_free;
-	INIT_WORK(&work->normal_work, uniq_func);
+	INIT_WORK(&work->normal_work, btrfs_work_helper);
 	INIT_LIST_HEAD(&work->ordered_list);
 	work->flags = 0;
 }
@@ -401,4 +394,12 @@ void btrfs_workqueue_set_max(struct btrfs_workqueue *wq, int limit_active)
 void btrfs_set_work_high_priority(struct btrfs_work *work)
 {
 	set_bit(WORK_HIGH_PRIO_BIT, &work->flags);
+}
+
+void btrfs_flush_workqueue(struct btrfs_workqueue *wq)
+{
+	if (wq->high)
+		flush_workqueue(wq->high->normal_wq);
+
+	flush_workqueue(wq->normal->normal_wq);
 }

@@ -70,6 +70,7 @@ err_create_wq:
 err_topology:
 	kfd_chardev_exit();
 err_ioctl:
+	pr_err("KFD is disabled due to module initialization failure\n");
 	return err;
 }
 
@@ -82,7 +83,7 @@ static void kfd_exit(void)
 	kfd_chardev_exit();
 }
 
-int kgd2kfd_init()
+int kgd2kfd_init(void)
 {
 	return kfd_init();
 }

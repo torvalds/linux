@@ -56,6 +56,13 @@ static int sun6i_drc_bind(struct device *dev, struct device *master,
 		ret = PTR_ERR(drc->mod_clk);
 		goto err_disable_bus_clk;
 	}
+
+	ret = clk_set_rate_exclusive(drc->mod_clk, 300000000);
+	if (ret) {
+		dev_err(dev, "Couldn't set the module clock frequency\n");
+		goto err_disable_bus_clk;
+	}
+
 	clk_prepare_enable(drc->mod_clk);
 
 	return 0;
@@ -72,6 +79,7 @@ static void sun6i_drc_unbind(struct device *dev, struct device *master,
 {
 	struct sun6i_drc *drc = dev_get_drvdata(dev);
 
+	clk_rate_exclusive_put(drc->mod_clk);
 	clk_disable_unprepare(drc->mod_clk);
 	clk_disable_unprepare(drc->bus_clk);
 	reset_control_assert(drc->reset);

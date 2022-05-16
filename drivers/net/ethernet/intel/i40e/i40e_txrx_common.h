@@ -4,13 +4,9 @@
 #ifndef I40E_TXRX_COMMON_
 #define I40E_TXRX_COMMON_
 
-void i40e_fd_handle_status(struct i40e_ring *rx_ring,
-			   union i40e_rx_desc *rx_desc, u8 prog_id);
 int i40e_xmit_xdp_tx_ring(struct xdp_buff *xdp, struct i40e_ring *xdp_ring);
-struct i40e_rx_buffer *i40e_clean_programming_status(
-	struct i40e_ring *rx_ring,
-	union i40e_rx_desc *rx_desc,
-	u64 qw);
+void i40e_clean_programming_status(struct i40e_ring *rx_ring, u64 qword0_raw,
+				   u64 qword1);
 void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 			     union i40e_rx_desc *rx_desc, struct sk_buff *skb);
 void i40e_xdp_ring_update_tail(struct i40e_ring *xdp_ring);
@@ -25,9 +21,9 @@ void i40e_release_rx_desc(struct i40e_ring *rx_ring, u32 val);
 #define I40E_XDP_TX		BIT(1)
 #define I40E_XDP_REDIR		BIT(2)
 
-/**
+/*
  * build_ctob - Builds the Tx descriptor (cmd, offset and type) qword
- **/
+ */
 static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 				u32 td_tag)
 {
@@ -41,7 +37,7 @@ static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
 /**
  * i40e_update_tx_stats - Update the egress statistics for the Tx ring
  * @tx_ring: Tx ring to update
- * @total_packet: total packets sent
+ * @total_packets: total packets sent
  * @total_bytes: total bytes sent
  **/
 static inline void i40e_update_tx_stats(struct i40e_ring *tx_ring,
@@ -82,6 +78,25 @@ static inline void i40e_arm_wb(struct i40e_ring *tx_ring,
 		    (I40E_DESC_UNUSED(tx_ring) != tx_ring->count))
 			tx_ring->arm_wb = true;
 	}
+}
+
+/**
+ * i40e_rx_is_programming_status - check for programming status descriptor
+ * @qword1: qword1 representing status_error_len in CPU ordering
+ *
+ * The value of in the descriptor length field indicate if this
+ * is a programming status descriptor for flow director or FCoE
+ * by the value of I40E_RX_PROG_STATUS_DESC_LENGTH, otherwise
+ * it is a packet descriptor.
+ **/
+static inline bool i40e_rx_is_programming_status(u64 qword1)
+{
+	/* The Rx filter programming status and SPH bit occupy the same
+	 * spot in the descriptor. Since we don't support packet split we
+	 * can just reuse the bit as an indication that this is a
+	 * programming status descriptor.
+	 */
+	return qword1 & I40E_RXD_QW1_LENGTH_SPH_MASK;
 }
 
 void i40e_xsk_clean_rx_ring(struct i40e_ring *rx_ring);

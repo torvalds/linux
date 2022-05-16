@@ -240,7 +240,7 @@ static void __init remove_gic(void *fdt)
 		 * On systems using the RocIT system controller a GIC may be
 		 * present without a CM. Detect whether that is the case.
 		 */
-		biu_base = ioremap_nocache(MSC01_BIU_REG_BASE,
+		biu_base = ioremap(MSC01_BIU_REG_BASE,
 				MSC01_BIU_ADDRSPACE_SZ);
 		sc_cfg = __raw_readl(biu_base + MSC01_SC_CFG_OFS);
 		if (sc_cfg & MSC01_SC_CFG_GICPRES_MSK) {

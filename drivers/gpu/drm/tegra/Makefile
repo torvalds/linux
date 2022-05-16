@@ -5,6 +5,7 @@ tegra-drm-y := \
 	drm.o \
 	gem.o \
 	fb.o \
+	dp.o \
 	hub.o \
 	plane.o \
 	dc.o \

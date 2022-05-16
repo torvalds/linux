@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
 
@@ -11,6 +10,140 @@
 
 static struct dentry *qla2x00_dfs_root;
 static atomic_t qla2x00_dfs_root_count;
+
+#define QLA_DFS_RPORT_DEVLOSS_TMO	1
+
+static int
+qla_dfs_rport_get(struct fc_port *fp, int attr_id, u64 *val)
+{
+	switch (attr_id) {
+	case QLA_DFS_RPORT_DEVLOSS_TMO:
+		/* Only supported for FC-NVMe devices that are registered. */
+		if (!(fp->nvme_flag & NVME_FLAG_REGISTERED))
+			return -EIO;
+		*val = fp->nvme_remote_port->dev_loss_tmo;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int
+qla_dfs_rport_set(struct fc_port *fp, int attr_id, u64 val)
+{
+	switch (attr_id) {
+	case QLA_DFS_RPORT_DEVLOSS_TMO:
+		/* Only supported for FC-NVMe devices that are registered. */
+		if (!(fp->nvme_flag & NVME_FLAG_REGISTERED))
+			return -EIO;
+#if (IS_ENABLED(CONFIG_NVME_FC))
+		return nvme_fc_set_remoteport_devloss(fp->nvme_remote_port,
+						      val);
+#else /* CONFIG_NVME_FC */
+		return -EINVAL;
+#endif /* CONFIG_NVME_FC */
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+#define DEFINE_QLA_DFS_RPORT_RW_ATTR(_attr_id, _attr)		\
+static int qla_dfs_rport_##_attr##_get(void *data, u64 *val)	\
+{								\
+	struct fc_port *fp = data;				\
+	return qla_dfs_rport_get(fp, _attr_id, val);		\
+}								\
+static int qla_dfs_rport_##_attr##_set(void *data, u64 val)	\
+{								\
+	struct fc_port *fp = data;				\
+	return qla_dfs_rport_set(fp, _attr_id, val);		\
+}								\
+DEFINE_DEBUGFS_ATTRIBUTE(qla_dfs_rport_##_attr##_fops,		\
+		qla_dfs_rport_##_attr##_get,			\
+		qla_dfs_rport_##_attr##_set, "%llu\n")
+
+/*
+ * Wrapper for getting fc_port fields.
+ *
+ * _attr    : Attribute name.
+ * _get_val : Accessor macro to retrieve the value.
+ */
+#define DEFINE_QLA_DFS_RPORT_FIELD_GET(_attr, _get_val)			\
+static int qla_dfs_rport_field_##_attr##_get(void *data, u64 *val)	\
+{									\
+	struct fc_port *fp = data;					\
+	*val = _get_val;						\
+	return 0;							\
+}									\
+DEFINE_DEBUGFS_ATTRIBUTE(qla_dfs_rport_field_##_attr##_fops,		\
+		qla_dfs_rport_field_##_attr##_get,			\
+		NULL, "%llu\n")
+
+#define DEFINE_QLA_DFS_RPORT_ACCESS(_attr, _get_val) \
+	DEFINE_QLA_DFS_RPORT_FIELD_GET(_attr, _get_val)
+
+#define DEFINE_QLA_DFS_RPORT_FIELD(_attr) \
+	DEFINE_QLA_DFS_RPORT_FIELD_GET(_attr, fp->_attr)
+
+DEFINE_QLA_DFS_RPORT_RW_ATTR(QLA_DFS_RPORT_DEVLOSS_TMO, dev_loss_tmo);
+
+DEFINE_QLA_DFS_RPORT_FIELD(disc_state);
+DEFINE_QLA_DFS_RPORT_FIELD(scan_state);
+DEFINE_QLA_DFS_RPORT_FIELD(fw_login_state);
+DEFINE_QLA_DFS_RPORT_FIELD(login_pause);
+DEFINE_QLA_DFS_RPORT_FIELD(flags);
+DEFINE_QLA_DFS_RPORT_FIELD(nvme_flag);
+DEFINE_QLA_DFS_RPORT_FIELD(last_rscn_gen);
+DEFINE_QLA_DFS_RPORT_FIELD(rscn_gen);
+DEFINE_QLA_DFS_RPORT_FIELD(login_gen);
+DEFINE_QLA_DFS_RPORT_FIELD(loop_id);
+DEFINE_QLA_DFS_RPORT_FIELD_GET(port_id, fp->d_id.b24);
+DEFINE_QLA_DFS_RPORT_FIELD_GET(sess_kref, kref_read(&fp->sess_kref));
+
+void
+qla2x00_dfs_create_rport(scsi_qla_host_t *vha, struct fc_port *fp)
+{
+	char wwn[32];
+
+#define QLA_CREATE_RPORT_FIELD_ATTR(_attr)			\
+	debugfs_create_file(#_attr, 0400, fp->dfs_rport_dir,	\
+		fp, &qla_dfs_rport_field_##_attr##_fops)
+
+	if (!vha->dfs_rport_root || fp->dfs_rport_dir)
+		return;
+
+	sprintf(wwn, "pn-%016llx", wwn_to_u64(fp->port_name));
+	fp->dfs_rport_dir = debugfs_create_dir(wwn, vha->dfs_rport_root);
+	if (!fp->dfs_rport_dir)
+		return;
+	if (NVME_TARGET(vha->hw, fp))
+		debugfs_create_file("dev_loss_tmo", 0600, fp->dfs_rport_dir,
+				    fp, &qla_dfs_rport_dev_loss_tmo_fops);
+
+	QLA_CREATE_RPORT_FIELD_ATTR(disc_state);
+	QLA_CREATE_RPORT_FIELD_ATTR(scan_state);
+	QLA_CREATE_RPORT_FIELD_ATTR(fw_login_state);
+	QLA_CREATE_RPORT_FIELD_ATTR(login_pause);
+	QLA_CREATE_RPORT_FIELD_ATTR(flags);
+	QLA_CREATE_RPORT_FIELD_ATTR(nvme_flag);
+	QLA_CREATE_RPORT_FIELD_ATTR(last_rscn_gen);
+	QLA_CREATE_RPORT_FIELD_ATTR(rscn_gen);
+	QLA_CREATE_RPORT_FIELD_ATTR(login_gen);
+	QLA_CREATE_RPORT_FIELD_ATTR(loop_id);
+	QLA_CREATE_RPORT_FIELD_ATTR(port_id);
+	QLA_CREATE_RPORT_FIELD_ATTR(sess_kref);
+}
+
+void
+qla2x00_dfs_remove_rport(scsi_qla_host_t *vha, struct fc_port *fp)
+{
+	if (!vha->dfs_rport_root || !fp->dfs_rport_dir)
+		return;
+	debugfs_remove_recursive(fp->dfs_rport_dir);
+	fp->dfs_rport_dir = NULL;
+}
 
 static int
 qla2x00_dfs_tgt_sess_show(struct seq_file *s, void *unused)
@@ -37,89 +170,63 @@ qla2x00_dfs_tgt_sess_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int
-qla2x00_dfs_tgt_sess_open(struct inode *inode, struct file *file)
-{
-	scsi_qla_host_t *vha = inode->i_private;
-
-	return single_open(file, qla2x00_dfs_tgt_sess_show, vha);
-}
-
-static const struct file_operations dfs_tgt_sess_ops = {
-	.open		= qla2x00_dfs_tgt_sess_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(qla2x00_dfs_tgt_sess);
 
 static int
 qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 {
 	scsi_qla_host_t *vha = s->private;
 	struct qla_hw_data *ha = vha->hw;
-	struct gid_list_info *gid_list, *gid;
+	struct gid_list_info *gid_list;
 	dma_addr_t gid_list_dma;
 	fc_port_t fc_port;
+	char *id_iter;
 	int rc, i;
 	uint16_t entries, loop_id;
-	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
 
 	seq_printf(s, "%s\n", vha->host_str);
-	if (tgt) {
-		gid_list = dma_alloc_coherent(&ha->pdev->dev,
-		    qla2x00_gid_list_size(ha),
-		    &gid_list_dma, GFP_KERNEL);
-		if (!gid_list) {
-			ql_dbg(ql_dbg_user, vha, 0x7018,
-			    "DMA allocation failed for %u\n",
-			     qla2x00_gid_list_size(ha));
-			return 0;
-		}
-
-		rc = qla24xx_gidlist_wait(vha, gid_list, gid_list_dma,
-		    &entries);
-		if (rc != QLA_SUCCESS)
-			goto out_free_id_list;
-
-		gid = gid_list;
-
-		seq_puts(s, "Port Name	Port ID 	Loop ID\n");
-
-		for (i = 0; i < entries; i++) {
-			loop_id = le16_to_cpu(gid->loop_id);
-			memset(&fc_port, 0, sizeof(fc_port_t));
-
-			fc_port.loop_id = loop_id;
-
-			rc = qla24xx_gpdb_wait(vha, &fc_port, 0);
-			seq_printf(s, "%8phC  %02x%02x%02x  %d\n",
-				fc_port.port_name, fc_port.d_id.b.domain,
-				fc_port.d_id.b.area, fc_port.d_id.b.al_pa,
-				fc_port.loop_id);
-			gid = (void *)gid + ha->gid_list_info_size;
-		}
-out_free_id_list:
-		dma_free_coherent(&ha->pdev->dev, qla2x00_gid_list_size(ha),
-		    gid_list, gid_list_dma);
+	gid_list = dma_alloc_coherent(&ha->pdev->dev,
+				      qla2x00_gid_list_size(ha),
+				      &gid_list_dma, GFP_KERNEL);
+	if (!gid_list) {
+		ql_dbg(ql_dbg_user, vha, 0x7018,
+		       "DMA allocation failed for %u\n",
+		       qla2x00_gid_list_size(ha));
+		return 0;
 	}
+
+	rc = qla24xx_gidlist_wait(vha, gid_list, gid_list_dma,
+				  &entries);
+	if (rc != QLA_SUCCESS)
+		goto out_free_id_list;
+
+	id_iter = (char *)gid_list;
+
+	seq_puts(s, "Port Name	Port ID		Loop ID\n");
+
+	for (i = 0; i < entries; i++) {
+		struct gid_list_info *gid =
+			(struct gid_list_info *)id_iter;
+		loop_id = le16_to_cpu(gid->loop_id);
+		memset(&fc_port, 0, sizeof(fc_port_t));
+
+		fc_port.loop_id = loop_id;
+
+		rc = qla24xx_gpdb_wait(vha, &fc_port, 0);
+		seq_printf(s, "%8phC  %02x%02x%02x  %d\n",
+			   fc_port.port_name, fc_port.d_id.b.domain,
+			   fc_port.d_id.b.area, fc_port.d_id.b.al_pa,
+			   fc_port.loop_id);
+		id_iter += ha->gid_list_info_size;
+	}
+out_free_id_list:
+	dma_free_coherent(&ha->pdev->dev, qla2x00_gid_list_size(ha),
+			  gid_list, gid_list_dma);
 
 	return 0;
 }
 
-static int
-qla2x00_dfs_tgt_port_database_open(struct inode *inode, struct file *file)
-{
-	scsi_qla_host_t *vha = inode->i_private;
-
-	return single_open(file, qla2x00_dfs_tgt_port_database_show, vha);
-}
-
-static const struct file_operations dfs_tgt_port_database_ops = {
-	.open		= qla2x00_dfs_tgt_port_database_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(qla2x00_dfs_tgt_port_database);
 
 static int
 qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
@@ -127,6 +234,8 @@ qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 	struct scsi_qla_host *vha = s->private;
 	uint16_t mb[MAX_IOCB_MB_REG];
 	int rc;
+	struct qla_hw_data *ha = vha->hw;
+	u16 iocbs_used, i;
 
 	rc = qla24xx_res_count_wait(vha, mb, SIZEOF_IOCB_MB_REG);
 	if (rc != QLA_SUCCESS) {
@@ -134,11 +243,11 @@ qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 	} else {
 		seq_puts(s, "FW Resource count\n\n");
 		seq_printf(s, "Original TGT exchg count[%d]\n", mb[1]);
-		seq_printf(s, "current TGT exchg count[%d]\n", mb[2]);
-		seq_printf(s, "original Initiator Exchange count[%d]\n", mb[3]);
-		seq_printf(s, "Current Initiator Exchange count[%d]\n", mb[6]);
-		seq_printf(s, "Original IOCB count[%d]\n", mb[7]);
-		seq_printf(s, "Current IOCB count[%d]\n", mb[10]);
+		seq_printf(s, "Current TGT exchg count[%d]\n", mb[2]);
+		seq_printf(s, "Current Initiator Exchange count[%d]\n", mb[3]);
+		seq_printf(s, "Original Initiator Exchange count[%d]\n", mb[6]);
+		seq_printf(s, "Current IOCB count[%d]\n", mb[7]);
+		seq_printf(s, "Original IOCB count[%d]\n", mb[10]);
 		seq_printf(s, "MAX VP count[%d]\n", mb[11]);
 		seq_printf(s, "MAX FCF count[%d]\n", mb[12]);
 		seq_printf(s, "Current free pageable XCB buffer cnt[%d]\n",
@@ -149,26 +258,24 @@ qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 		    mb[22]);
 		seq_printf(s, "Original Target fast XCB buffer cnt[%d]\n",
 		    mb[23]);
+	}
 
+	if (ql2xenforce_iocb_limit) {
+		/* lock is not require. It's an estimate. */
+		iocbs_used = ha->base_qpair->fwres.iocbs_used;
+		for (i = 0; i < ha->max_qpairs; i++) {
+			if (ha->queue_pair_map[i])
+				iocbs_used += ha->queue_pair_map[i]->fwres.iocbs_used;
+		}
+
+		seq_printf(s, "Driver: estimate iocb used [%d] high water limit [%d]\n",
+			   iocbs_used, ha->base_qpair->fwres.iocbs_limit);
 	}
 
 	return 0;
 }
 
-static int
-qla_dfs_fw_resource_cnt_open(struct inode *inode, struct file *file)
-{
-	struct scsi_qla_host *vha = inode->i_private;
-
-	return single_open(file, qla_dfs_fw_resource_cnt_show, vha);
-}
-
-static const struct file_operations dfs_fw_resource_cnt_ops = {
-	.open           = qla_dfs_fw_resource_cnt_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(qla_dfs_fw_resource_cnt);
 
 static int
 qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
@@ -245,20 +352,7 @@ qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int
-qla_dfs_tgt_counters_open(struct inode *inode, struct file *file)
-{
-	struct scsi_qla_host *vha = inode->i_private;
-
-	return single_open(file, qla_dfs_tgt_counters_show, vha);
-}
-
-static const struct file_operations dfs_tgt_counters_ops = {
-	.open           = qla_dfs_tgt_counters_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(qla_dfs_tgt_counters);
 
 static int
 qla2x00_dfs_fce_show(struct seq_file *s, void *unused)
@@ -460,23 +554,35 @@ create_dir:
 
 create_nodes:
 	ha->dfs_fw_resource_cnt = debugfs_create_file("fw_resource_count",
-	    S_IRUSR, ha->dfs_dir, vha, &dfs_fw_resource_cnt_ops);
+	    S_IRUSR, ha->dfs_dir, vha, &qla_dfs_fw_resource_cnt_fops);
 
 	ha->dfs_tgt_counters = debugfs_create_file("tgt_counters", S_IRUSR,
-	    ha->dfs_dir, vha, &dfs_tgt_counters_ops);
+	    ha->dfs_dir, vha, &qla_dfs_tgt_counters_fops);
 
 	ha->tgt.dfs_tgt_port_database = debugfs_create_file("tgt_port_database",
-	    S_IRUSR,  ha->dfs_dir, vha, &dfs_tgt_port_database_ops);
+	    S_IRUSR,  ha->dfs_dir, vha, &qla2x00_dfs_tgt_port_database_fops);
 
 	ha->dfs_fce = debugfs_create_file("fce", S_IRUSR, ha->dfs_dir, vha,
 	    &dfs_fce_ops);
 
 	ha->tgt.dfs_tgt_sess = debugfs_create_file("tgt_sess",
-		S_IRUSR, ha->dfs_dir, vha, &dfs_tgt_sess_ops);
+		S_IRUSR, ha->dfs_dir, vha, &qla2x00_dfs_tgt_sess_fops);
 
-	if (IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha))
+	if (IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha)) {
 		ha->tgt.dfs_naqp = debugfs_create_file("naqp",
 		    0400, ha->dfs_dir, vha, &dfs_naqp_ops);
+		if (!ha->tgt.dfs_naqp) {
+			ql_log(ql_log_warn, vha, 0xd011,
+			       "Unable to create debugFS naqp node.\n");
+			goto out;
+		}
+	}
+	vha->dfs_rport_root = debugfs_create_dir("rports", ha->dfs_dir);
+	if (!vha->dfs_rport_root) {
+		ql_log(ql_log_warn, vha, 0xd012,
+		       "Unable to create debugFS rports node.\n");
+		goto out;
+	}
 out:
 	return 0;
 }
@@ -514,6 +620,11 @@ qla2x00_dfs_remove(scsi_qla_host_t *vha)
 	if (ha->dfs_fce) {
 		debugfs_remove(ha->dfs_fce);
 		ha->dfs_fce = NULL;
+	}
+
+	if (vha->dfs_rport_root) {
+		debugfs_remove_recursive(vha->dfs_rport_root);
+		vha->dfs_rport_root = NULL;
 	}
 
 	if (ha->dfs_dir) {

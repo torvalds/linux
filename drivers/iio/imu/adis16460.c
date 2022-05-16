@@ -80,15 +80,15 @@ static int adis16460_show_serial_number(void *arg, u64 *val)
 
 	ret = adis_read_reg_16(&adis16460->adis, ADIS16460_REG_SERIAL_NUM,
 		&serial);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	*val = serial;
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(adis16460_serial_number_fops,
-	adis16460_show_serial_number, NULL, "0x%.4llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(adis16460_serial_number_fops,
+		adis16460_show_serial_number, NULL, "0x%.4llx\n");
 
 static int adis16460_show_product_id(void *arg, u64 *val)
 {
@@ -98,15 +98,15 @@ static int adis16460_show_product_id(void *arg, u64 *val)
 
 	ret = adis_read_reg_16(&adis16460->adis, ADIS16460_REG_PROD_ID,
 		&prod_id);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	*val = prod_id;
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(adis16460_product_id_fops,
-	adis16460_show_product_id, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(adis16460_product_id_fops,
+		adis16460_show_product_id, NULL, "%llu\n");
 
 static int adis16460_show_flash_count(void *arg, u64 *val)
 {
@@ -116,26 +116,27 @@ static int adis16460_show_flash_count(void *arg, u64 *val)
 
 	ret = adis_read_reg_32(&adis16460->adis, ADIS16460_REG_FLASH_CNT,
 		&flash_count);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	*val = flash_count;
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(adis16460_flash_count_fops,
-	adis16460_show_flash_count, NULL, "%lld\n");
+DEFINE_DEBUGFS_ATTRIBUTE(adis16460_flash_count_fops,
+		adis16460_show_flash_count, NULL, "%lld\n");
 
 static int adis16460_debugfs_init(struct iio_dev *indio_dev)
 {
 	struct adis16460 *adis16460 = iio_priv(indio_dev);
+	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
 
-	debugfs_create_file("serial_number", 0400, indio_dev->debugfs_dentry,
-		adis16460, &adis16460_serial_number_fops);
-	debugfs_create_file("product_id", 0400, indio_dev->debugfs_dentry,
-		adis16460, &adis16460_product_id_fops);
-	debugfs_create_file("flash_count", 0400, indio_dev->debugfs_dentry,
-		adis16460, &adis16460_flash_count_fops);
+	debugfs_create_file_unsafe("serial_number", 0400,
+			d, adis16460, &adis16460_serial_number_fops);
+	debugfs_create_file_unsafe("product_id", 0400,
+			d, adis16460, &adis16460_product_id_fops);
+	debugfs_create_file_unsafe("flash_count", 0400,
+			d, adis16460, &adis16460_flash_count_fops);
 
 	return 0;
 }
@@ -176,7 +177,7 @@ static int adis16460_get_freq(struct iio_dev *indio_dev, int *val, int *val2)
 	unsigned int freq;
 
 	ret = adis_read_reg_16(&st->adis, ADIS16460_REG_DEC_RATE, &t);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	freq = 2048000 / (t + 1);
@@ -333,40 +334,6 @@ static int adis16460_enable_irq(struct adis *adis, bool enable)
 	return 0;
 }
 
-static int adis16460_initial_setup(struct iio_dev *indio_dev)
-{
-	struct adis16460 *st = iio_priv(indio_dev);
-	uint16_t prod_id;
-	unsigned int device_id;
-	int ret;
-
-	adis_reset(&st->adis);
-	msleep(222);
-
-	ret = adis_write_reg_16(&st->adis, ADIS16460_REG_GLOB_CMD, BIT(1));
-	if (ret)
-		return ret;
-	msleep(75);
-
-	ret = adis_check_status(&st->adis);
-	if (ret)
-		return ret;
-
-	ret = adis_read_reg_16(&st->adis, ADIS16460_REG_PROD_ID, &prod_id);
-	if (ret)
-		return ret;
-
-	ret = sscanf(indio_dev->name, "adis%u\n", &device_id);
-	if (ret != 1)
-		return -EINVAL;
-
-	if (prod_id != device_id)
-		dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do not match.",
-				device_id, prod_id);
-
-	return 0;
-}
-
 #define ADIS16460_DIAG_STAT_IN_CLK_OOS	7
 #define ADIS16460_DIAG_STAT_FLASH_MEM	6
 #define ADIS16460_DIAG_STAT_SELF_TEST	5
@@ -383,9 +350,19 @@ static const char * const adis16460_status_error_msgs[] = {
 	[ADIS16460_DIAG_STAT_FLASH_UPT] = "Flash update failure",
 };
 
+static const struct adis_timeout adis16460_timeouts = {
+	.reset_ms = 225,
+	.sw_reset_ms = 225,
+	.self_test_ms = 10,
+};
+
 static const struct adis_data adis16460_data = {
 	.diag_stat_reg = ADIS16460_REG_DIAG_STAT,
 	.glob_cmd_reg = ADIS16460_REG_GLOB_CMD,
+	.prod_id_reg = ADIS16460_REG_PROD_ID,
+	.prod_id = 16460,
+	.self_test_mask = BIT(2),
+	.self_test_reg = ADIS16460_REG_GLOB_CMD,
 	.has_paging = false,
 	.read_delay = 5,
 	.write_delay = 5,
@@ -398,6 +375,7 @@ static const struct adis_data adis16460_data = {
 		BIT(ADIS16460_DIAG_STAT_SPI_COMM) |
 		BIT(ADIS16460_DIAG_STAT_FLASH_UPT),
 	.enable_irq = adis16460_enable_irq,
+	.timeouts = &adis16460_timeouts,
 };
 
 static int adis16460_probe(struct spi_device *spi)
@@ -415,7 +393,6 @@ static int adis16460_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 
 	st->chip_info = &adis16460_chip_info;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
@@ -426,37 +403,21 @@ static int adis16460_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = adis_setup_buffer_and_trigger(&st->adis, indio_dev, NULL);
+	ret = devm_adis_setup_buffer_and_trigger(&st->adis, indio_dev, NULL);
 	if (ret)
 		return ret;
 
 	adis16460_enable_irq(&st->adis, 0);
 
-	ret = adis16460_initial_setup(indio_dev);
+	ret = __adis_initial_startup(&st->adis);
 	if (ret)
-		goto error_cleanup_buffer;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret)
-		goto error_cleanup_buffer;
+		return ret;
 
 	adis16460_debugfs_init(indio_dev);
-
-	return 0;
-
-error_cleanup_buffer:
-	adis_cleanup_buffer_and_trigger(&st->adis, indio_dev);
-	return ret;
-}
-
-static int adis16460_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct adis16460 *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	adis_cleanup_buffer_and_trigger(&st->adis, indio_dev);
 
 	return 0;
 }
@@ -480,7 +441,6 @@ static struct spi_driver adis16460_driver = {
 	},
 	.id_table = adis16460_ids,
 	.probe = adis16460_probe,
-	.remove = adis16460_remove,
 };
 module_spi_driver(adis16460_driver);
 

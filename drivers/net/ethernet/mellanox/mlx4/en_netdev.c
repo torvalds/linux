@@ -51,7 +51,8 @@
 #include "en_port.h"
 
 #define MLX4_EN_MAX_XDP_MTU ((int)(PAGE_SIZE - ETH_HLEN - (2 * VLAN_HLEN) - \
-				   XDP_PACKET_HEADROOM))
+				XDP_PACKET_HEADROOM -			    \
+				SKB_DATA_ALIGN(sizeof(struct skb_shared_info))))
 
 int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 {
@@ -1363,28 +1364,24 @@ static void mlx4_en_delete_rss_steer_rules(struct mlx4_en_priv *priv)
 	}
 }
 
-static void mlx4_en_tx_timeout(struct net_device *dev)
+static void mlx4_en_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	int i;
+	struct mlx4_en_tx_ring *tx_ring = priv->tx_ring[TX][txqueue];
 
 	if (netif_msg_timer(priv))
 		en_warn(priv, "Tx timeout called on port:%d\n", priv->port);
 
-	for (i = 0; i < priv->tx_ring_num[TX]; i++) {
-		struct mlx4_en_tx_ring *tx_ring = priv->tx_ring[TX][i];
-
-		if (!netif_tx_queue_stopped(netdev_get_tx_queue(dev, i)))
-			continue;
-		en_warn(priv, "TX timeout on queue: %d, QP: 0x%x, CQ: 0x%x, Cons: 0x%x, Prod: 0x%x\n",
-			i, tx_ring->qpn, tx_ring->sp_cqn,
-			tx_ring->cons, tx_ring->prod);
-	}
+	en_warn(priv, "TX timeout on queue: %d, QP: 0x%x, CQ: 0x%x, Cons: 0x%x, Prod: 0x%x\n",
+		txqueue, tx_ring->qpn, tx_ring->sp_cqn,
+		tx_ring->cons, tx_ring->prod);
 
 	priv->port_stats.tx_timeout++;
-	en_dbg(DRV, priv, "Scheduling watchdog\n");
-	queue_work(mdev->workqueue, &priv->watchdog_task);
+	if (!test_and_set_bit(MLX4_EN_STATE_FLAG_RESTARTING, &priv->state)) {
+		en_dbg(DRV, priv, "Scheduling port restart\n");
+		queue_work(mdev->workqueue, &priv->restart_task);
+	}
 }
 
 
@@ -1738,6 +1735,7 @@ int mlx4_en_start_port(struct net_device *dev)
 				mlx4_en_deactivate_cq(priv, cq);
 				goto tx_err;
 			}
+			clear_bit(MLX4_EN_TX_RING_STATE_RECOVERING, &tx_ring->state);
 			if (t != TX_XDP) {
 				tx_ring->tx_queue = netdev_get_tx_queue(dev, i);
 				tx_ring->recycle_ring = NULL;
@@ -1821,7 +1819,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	queue_work(mdev->workqueue, &priv->rx_mode_task);
 
 	if (priv->mdev->dev->caps.tunnel_offload_mode == MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
-		udp_tunnel_get_rx_info(dev);
+		udp_tunnel_nic_reset_ntf(dev);
 
 	priv->port_up = true;
 
@@ -1834,6 +1832,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		local_bh_enable();
 	}
 
+	clear_bit(MLX4_EN_STATE_FLAG_RESTARTING, &priv->state);
 	netif_tx_start_all_queues(dev);
 	netif_device_attach(dev);
 
@@ -2004,7 +2003,7 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 static void mlx4_en_restart(struct work_struct *work)
 {
 	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
-						 watchdog_task);
+						 restart_task);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct net_device *dev = priv->dev;
 
@@ -2295,11 +2294,7 @@ int mlx4_en_try_alloc_resources(struct mlx4_en_priv *priv,
 		lockdep_is_held(&priv->mdev->state_lock));
 
 	if (xdp_prog && carry_xdp_prog) {
-		xdp_prog = bpf_prog_add(xdp_prog, tmp->rx_ring_num);
-		if (IS_ERR(xdp_prog)) {
-			mlx4_en_free_resources(tmp);
-			return PTR_ERR(xdp_prog);
-		}
+		bpf_prog_add(xdp_prog, tmp->rx_ring_num);
 		for (i = 0; i < tmp->rx_ring_num; i++)
 			rcu_assign_pointer(tmp->rx_ring[i]->xdp_prog,
 					   xdp_prog);
@@ -2386,7 +2381,7 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 	if (netif_running(dev)) {
 		mutex_lock(&mdev->state_lock);
 		if (!mdev->device_up) {
-			/* NIC is probably restarting - let watchdog task reset
+			/* NIC is probably restarting - let restart task reset
 			 * the port */
 			en_dbg(DRV, priv, "Change MTU called with card down!?\n");
 		} else {
@@ -2395,7 +2390,9 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 			if (err) {
 				en_err(priv, "Failed restarting port:%d\n",
 					 priv->port);
-				queue_work(mdev->workqueue, &priv->watchdog_task);
+				if (!test_and_set_bit(MLX4_EN_STATE_FLAG_RESTARTING,
+						      &priv->state))
+					queue_work(mdev->workqueue, &priv->restart_task);
 			}
 		}
 		mutex_unlock(&mdev->state_lock);
@@ -2637,89 +2634,32 @@ static int mlx4_en_get_phys_port_id(struct net_device *dev,
 	return 0;
 }
 
-static void mlx4_en_add_vxlan_offloads(struct work_struct *work)
+static int mlx4_udp_tunnel_sync(struct net_device *dev, unsigned int table)
 {
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct udp_tunnel_info ti;
 	int ret;
-	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
-						 vxlan_add_task);
+
+	udp_tunnel_nic_get_port(dev, table, 0, &ti);
+	priv->vxlan_port = ti.port;
 
 	ret = mlx4_config_vxlan_port(priv->mdev->dev, priv->vxlan_port);
 	if (ret)
-		goto out;
+		return ret;
 
-	ret = mlx4_SET_PORT_VXLAN(priv->mdev->dev, priv->port,
-				  VXLAN_STEER_BY_OUTER_MAC, 1);
-out:
-	if (ret) {
-		en_err(priv, "failed setting L2 tunnel configuration ret %d\n", ret);
-		return;
-	}
+	return mlx4_SET_PORT_VXLAN(priv->mdev->dev, priv->port,
+				   VXLAN_STEER_BY_OUTER_MAC,
+				   !!priv->vxlan_port);
 }
 
-static void mlx4_en_del_vxlan_offloads(struct work_struct *work)
-{
-	int ret;
-	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
-						 vxlan_del_task);
-	ret = mlx4_SET_PORT_VXLAN(priv->mdev->dev, priv->port,
-				  VXLAN_STEER_BY_OUTER_MAC, 0);
-	if (ret)
-		en_err(priv, "failed setting L2 tunnel configuration ret %d\n", ret);
-
-	priv->vxlan_port = 0;
-}
-
-static void mlx4_en_add_vxlan_port(struct  net_device *dev,
-				   struct udp_tunnel_info *ti)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	__be16 port = ti->port;
-	__be16 current_port;
-
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
-		return;
-
-	if (ti->sa_family != AF_INET)
-		return;
-
-	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
-		return;
-
-	current_port = priv->vxlan_port;
-	if (current_port && current_port != port) {
-		en_warn(priv, "vxlan port %d configured, can't add port %d\n",
-			ntohs(current_port), ntohs(port));
-		return;
-	}
-
-	priv->vxlan_port = port;
-	queue_work(priv->mdev->workqueue, &priv->vxlan_add_task);
-}
-
-static void mlx4_en_del_vxlan_port(struct  net_device *dev,
-				   struct udp_tunnel_info *ti)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	__be16 port = ti->port;
-	__be16 current_port;
-
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
-		return;
-
-	if (ti->sa_family != AF_INET)
-		return;
-
-	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
-		return;
-
-	current_port = priv->vxlan_port;
-	if (current_port != port) {
-		en_dbg(DRV, priv, "vxlan port %d isn't configured, ignoring\n", ntohs(port));
-		return;
-	}
-
-	queue_work(priv->mdev->workqueue, &priv->vxlan_del_task);
-}
+static const struct udp_tunnel_nic_info mlx4_udp_tunnels = {
+	.sync_table	= mlx4_udp_tunnel_sync,
+	.flags		= UDP_TUNNEL_NIC_INFO_MAY_SLEEP |
+			  UDP_TUNNEL_NIC_INFO_IPV4_ONLY,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN, },
+	},
+};
 
 static netdev_features_t mlx4_en_features_check(struct sk_buff *skb,
 						struct net_device *dev,
@@ -2791,11 +2731,9 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	 * program for a new one.
 	 */
 	if (priv->tx_ring_num[TX_XDP] == xdp_ring_num) {
-		if (prog) {
-			prog = bpf_prog_add(prog, priv->rx_ring_num - 1);
-			if (IS_ERR(prog))
-				return PTR_ERR(prog);
-		}
+		if (prog)
+			bpf_prog_add(prog, priv->rx_ring_num - 1);
+
 		mutex_lock(&mdev->state_lock);
 		for (i = 0; i < priv->rx_ring_num; i++) {
 			old_prog = rcu_dereference_protected(
@@ -2816,13 +2754,8 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	if (!tmp)
 		return -ENOMEM;
 
-	if (prog) {
-		prog = bpf_prog_add(prog, priv->rx_ring_num - 1);
-		if (IS_ERR(prog)) {
-			err = PTR_ERR(prog);
-			goto out;
-		}
-	}
+	if (prog)
+		bpf_prog_add(prog, priv->rx_ring_num - 1);
 
 	mutex_lock(&mdev->state_lock);
 	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
@@ -2865,36 +2798,15 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 		if (err) {
 			en_err(priv, "Failed starting port %d for XDP change\n",
 			       priv->port);
-			queue_work(mdev->workqueue, &priv->watchdog_task);
+			if (!test_and_set_bit(MLX4_EN_STATE_FLAG_RESTARTING, &priv->state))
+				queue_work(mdev->workqueue, &priv->restart_task);
 		}
 	}
 
 unlock_out:
 	mutex_unlock(&mdev->state_lock);
-out:
 	kfree(tmp);
 	return err;
-}
-
-static u32 mlx4_xdp_query(struct net_device *dev)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
-	const struct bpf_prog *xdp_prog;
-	u32 prog_id = 0;
-
-	if (!priv->tx_ring_num[TX_XDP])
-		return prog_id;
-
-	mutex_lock(&mdev->state_lock);
-	xdp_prog = rcu_dereference_protected(
-		priv->rx_ring[0]->xdp_prog,
-		lockdep_is_held(&mdev->state_lock));
-	if (xdp_prog)
-		prog_id = xdp_prog->aux->id;
-	mutex_unlock(&mdev->state_lock);
-
-	return prog_id;
 }
 
 static int mlx4_xdp(struct net_device *dev, struct netdev_bpf *xdp)
@@ -2902,9 +2814,6 @@ static int mlx4_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return mlx4_xdp_set(dev, xdp->prog);
-	case XDP_QUERY_PROG:
-		xdp->prog_id = mlx4_xdp_query(dev);
-		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -2931,8 +2840,8 @@ static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_rx_flow_steer	= mlx4_en_filter_rfs,
 #endif
 	.ndo_get_phys_port_id	= mlx4_en_get_phys_port_id,
-	.ndo_udp_tunnel_add	= mlx4_en_add_vxlan_port,
-	.ndo_udp_tunnel_del	= mlx4_en_del_vxlan_port,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_features_check	= mlx4_en_features_check,
 	.ndo_set_tx_maxrate	= mlx4_en_set_tx_maxrate,
 	.ndo_bpf		= mlx4_xdp,
@@ -2965,8 +2874,8 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 	.ndo_rx_flow_steer	= mlx4_en_filter_rfs,
 #endif
 	.ndo_get_phys_port_id	= mlx4_en_get_phys_port_id,
-	.ndo_udp_tunnel_add	= mlx4_en_add_vxlan_port,
-	.ndo_udp_tunnel_del	= mlx4_en_del_vxlan_port,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_features_check	= mlx4_en_features_check,
 	.ndo_set_tx_maxrate	= mlx4_en_set_tx_maxrate,
 	.ndo_bpf		= mlx4_xdp,
@@ -3263,12 +3172,10 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->counter_index = MLX4_SINK_COUNTER_INDEX(mdev->dev);
 	spin_lock_init(&priv->stats_lock);
 	INIT_WORK(&priv->rx_mode_task, mlx4_en_do_set_rx_mode);
-	INIT_WORK(&priv->watchdog_task, mlx4_en_restart);
+	INIT_WORK(&priv->restart_task, mlx4_en_restart);
 	INIT_WORK(&priv->linkstate_task, mlx4_en_linkstate);
 	INIT_DELAYED_WORK(&priv->stats_task, mlx4_en_do_get_stats);
 	INIT_DELAYED_WORK(&priv->service_task, mlx4_en_service_task);
-	INIT_WORK(&priv->vxlan_add_task, mlx4_en_add_vxlan_offloads);
-	INIT_WORK(&priv->vxlan_del_task, mlx4_en_del_vxlan_offloads);
 #ifdef CONFIG_RFS_ACCEL
 	INIT_LIST_HEAD(&priv->filters);
 	spin_lock_init(&priv->filters_lock);
@@ -3423,6 +3330,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 				       NETIF_F_GSO_UDP_TUNNEL |
 				       NETIF_F_GSO_UDP_TUNNEL_CSUM |
 				       NETIF_F_GSO_PARTIAL;
+
+		dev->udp_tunnel_nic_info = &mlx4_udp_tunnels;
 	}
 
 	dev->vlan_features = dev->hw_features;

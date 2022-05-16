@@ -19,7 +19,7 @@
 
 #include "ohci.h"
 
-#define DRIVER_DESC "OHCI EXYNOS driver"
+#define DRIVER_DESC "OHCI Exynos driver"
 
 static const char hcd_name[] = "ohci-exynos";
 static struct hc_driver __read_mostly exynos_ohci_hc_driver;
@@ -171,9 +171,8 @@ static int exynos_ohci_probe(struct platform_device *pdev)
 	hcd->rsrc_len = resource_size(res);
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
-		dev_err(&pdev->dev, "Failed to get IRQ\n");
-		err = -ENODEV;
+	if (irq < 0) {
+		err = irq;
 		goto fail_io;
 	}
 

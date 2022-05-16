@@ -21,7 +21,7 @@
 
 	.align 11
 
-ENTRY(__hyp_stub_vectors)
+SYM_CODE_START(__hyp_stub_vectors)
 	ventry	el2_sync_invalid		// Synchronous EL2t
 	ventry	el2_irq_invalid			// IRQ EL2t
 	ventry	el2_fiq_invalid			// FIQ EL2t
@@ -41,11 +41,11 @@ ENTRY(__hyp_stub_vectors)
 	ventry	el1_irq_invalid			// IRQ 32-bit EL1
 	ventry	el1_fiq_invalid			// FIQ 32-bit EL1
 	ventry	el1_error_invalid		// Error 32-bit EL1
-ENDPROC(__hyp_stub_vectors)
+SYM_CODE_END(__hyp_stub_vectors)
 
 	.align 11
 
-el1_sync:
+SYM_CODE_START_LOCAL(el1_sync)
 	cmp	x0, #HVC_SET_VECTORS
 	b.ne	2f
 	msr	vbar_el2, x1
@@ -63,17 +63,17 @@ el1_sync:
 	beq	9f				// Nothing to reset!
 
 	/* Someone called kvm_call_hyp() against the hyp-stub... */
-	ldr	x0, =HVC_STUB_ERR
+	mov_q	x0, HVC_STUB_ERR
 	eret
 
 9:	mov	x0, xzr
 	eret
-ENDPROC(el1_sync)
+SYM_CODE_END(el1_sync)
 
 .macro invalid_vector	label
-\label:
+SYM_CODE_START_LOCAL(\label)
 	b \label
-ENDPROC(\label)
+SYM_CODE_END(\label)
 .endm
 
 	invalid_vector	el2_sync_invalid
@@ -106,15 +106,15 @@ ENDPROC(\label)
  * initialisation entry point.
  */
 
-ENTRY(__hyp_set_vectors)
+SYM_FUNC_START(__hyp_set_vectors)
 	mov	x1, x0
 	mov	x0, #HVC_SET_VECTORS
 	hvc	#0
 	ret
-ENDPROC(__hyp_set_vectors)
+SYM_FUNC_END(__hyp_set_vectors)
 
-ENTRY(__hyp_reset_vectors)
+SYM_FUNC_START(__hyp_reset_vectors)
 	mov	x0, #HVC_RESET_VECTORS
 	hvc	#0
 	ret
-ENDPROC(__hyp_reset_vectors)
+SYM_FUNC_END(__hyp_reset_vectors)

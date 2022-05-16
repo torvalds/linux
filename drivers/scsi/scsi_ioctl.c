@@ -117,14 +117,14 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 		case NOT_READY:	/* This happens if there is no disc in drive */
 			if (sdev->removable)
 				break;
-			/* FALLTHROUGH */
+			fallthrough;
 		case UNIT_ATTENTION:
 			if (sdev->removable) {
 				sdev->changed = 1;
 				result = 0;	/* This is no longer considered an error */
 				break;
 			}
-			/* FALLTHROUGH -- for non-removable media */
+			fallthrough;	/* for non-removable media */
 		default:
 			sdev_printk(KERN_INFO, sdev,
 				    "ioctl_internal_command return code = %x\n",
@@ -189,17 +189,7 @@ static int scsi_ioctl_get_pci(struct scsi_device *sdev, void __user *arg)
 }
 
 
-/**
- * scsi_ioctl - Dispatch ioctl to scsi device
- * @sdev: scsi device receiving ioctl
- * @cmd: which ioctl is it
- * @arg: data associated with ioctl
- *
- * Description: The scsi_ioctl() function differs from most ioctls in that it
- * does not take a major/minor number as the dev field.  Rather, it takes
- * a pointer to a &struct scsi_device.
- */
-int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
+static int scsi_ioctl_common(struct scsi_device *sdev, int cmd, void __user *arg)
 {
 	char scsi_cmd[MAX_COMMAND_SIZE];
 	struct scsi_sense_hdr sense_hdr;
@@ -221,18 +211,18 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 	}
 
 	switch (cmd) {
-	case SCSI_IOCTL_GET_IDLUN:
-		if (!access_ok(arg, sizeof(struct scsi_idlun)))
+	case SCSI_IOCTL_GET_IDLUN: {
+		struct scsi_idlun v = {
+			.dev_id = (sdev->id & 0xff)
+				 + ((sdev->lun & 0xff) << 8)
+				 + ((sdev->channel & 0xff) << 16)
+				 + ((sdev->host->host_no & 0xff) << 24),
+			.host_unique_id = sdev->host->unique_id
+		};
+		if (copy_to_user(arg, &v, sizeof(struct scsi_idlun)))
 			return -EFAULT;
-
-		__put_user((sdev->id & 0xff)
-			 + ((sdev->lun & 0xff) << 8)
-			 + ((sdev->channel & 0xff) << 16)
-			 + ((sdev->host->host_no & 0xff) << 24),
-			 &((struct scsi_idlun __user *)arg)->dev_id);
-		__put_user(sdev->host->unique_id,
-			 &((struct scsi_idlun __user *)arg)->host_unique_id);
 		return 0;
+	}
 	case SCSI_IOCTL_GET_BUS_NUMBER:
 		return put_user(sdev->host->host_no, (int __user *)arg);
 	case SCSI_IOCTL_PROBE_HOST:
@@ -266,13 +256,49 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
                 return scsi_ioctl_get_pci(sdev, arg);
 	case SG_SCSI_RESET:
 		return scsi_ioctl_reset(sdev, arg);
-	default:
-		if (sdev->host->hostt->ioctl)
-			return sdev->host->hostt->ioctl(sdev, cmd, arg);
 	}
+	return -ENOIOCTLCMD;
+}
+
+/**
+ * scsi_ioctl - Dispatch ioctl to scsi device
+ * @sdev: scsi device receiving ioctl
+ * @cmd: which ioctl is it
+ * @arg: data associated with ioctl
+ *
+ * Description: The scsi_ioctl() function differs from most ioctls in that it
+ * does not take a major/minor number as the dev field.  Rather, it takes
+ * a pointer to a &struct scsi_device.
+ */
+int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
+{
+	int ret = scsi_ioctl_common(sdev, cmd, arg);
+
+	if (ret != -ENOIOCTLCMD)
+		return ret;
+
+	if (sdev->host->hostt->ioctl)
+		return sdev->host->hostt->ioctl(sdev, cmd, arg);
+
 	return -EINVAL;
 }
 EXPORT_SYMBOL(scsi_ioctl);
+
+#ifdef CONFIG_COMPAT
+int scsi_compat_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
+{
+	int ret = scsi_ioctl_common(sdev, cmd, arg);
+
+	if (ret != -ENOIOCTLCMD)
+		return ret;
+
+	if (sdev->host->hostt->compat_ioctl)
+		return sdev->host->hostt->compat_ioctl(sdev, cmd, arg);
+
+	return ret;
+}
+EXPORT_SYMBOL(scsi_compat_ioctl);
+#endif
 
 /*
  * We can process a reset even when a device isn't fully operable.

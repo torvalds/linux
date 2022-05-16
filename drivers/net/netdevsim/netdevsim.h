@@ -13,12 +13,14 @@
  * THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  */
 
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/u64_stats_sync.h>
 #include <net/devlink.h>
+#include <net/udp_tunnel.h>
 #include <net/xdp.h>
 
 #define DRV_NAME	"netdevsim"
@@ -29,6 +31,7 @@
 
 #define NSIM_IPSEC_MAX_SA_COUNT		33
 #define NSIM_IPSEC_VALID		BIT(31)
+#define NSIM_UDP_TUNNEL_N_PORTS		4
 
 struct nsim_sa {
 	struct xfrm_state *xs;
@@ -46,6 +49,13 @@ struct nsim_ipsec {
 	u32 count;
 	u32 tx;
 	u32 ok;
+};
+
+struct nsim_ethtool {
+	bool rx;
+	bool tx;
+	bool report_stats_rx;
+	bool report_stats_tx;
 };
 
 struct netdevsim {
@@ -72,11 +82,27 @@ struct netdevsim {
 
 	bool bpf_map_accept;
 	struct nsim_ipsec ipsec;
+	struct {
+		u32 inject_error;
+		u32 sleep;
+		u32 __ports[2][NSIM_UDP_TUNNEL_N_PORTS];
+		u32 (*ports)[NSIM_UDP_TUNNEL_N_PORTS];
+		struct debugfs_u32_array dfs_ports[2];
+	} udp_ports;
+
+	struct nsim_ethtool ethtool;
 };
 
 struct netdevsim *
 nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port);
 void nsim_destroy(struct netdevsim *ns);
+
+void nsim_ethtool_init(struct netdevsim *ns);
+
+void nsim_udp_tunnels_debugfs_create(struct nsim_dev *nsim_dev);
+int nsim_udp_tunnels_info_create(struct nsim_dev *nsim_dev,
+				 struct net_device *dev);
+void nsim_udp_tunnels_info_destroy(struct net_device *dev);
 
 #ifdef CONFIG_BPF_SYSCALL
 int nsim_bpf_dev_init(struct nsim_dev *nsim_dev);
@@ -108,7 +134,7 @@ static inline void nsim_bpf_uninit(struct netdevsim *ns)
 
 static inline int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 {
-	return bpf->command == XDP_QUERY_PROG ? 0 : -EOPNOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static inline int nsim_bpf_disable_tc(struct netdevsim *ns)
@@ -134,6 +160,18 @@ enum nsim_resource_id {
 	NSIM_RESOURCE_IPV6_FIB_RULES,
 };
 
+struct nsim_dev_health {
+	struct devlink_health_reporter *empty_reporter;
+	struct devlink_health_reporter *dummy_reporter;
+	struct dentry *ddir;
+	char *recovered_break_msg;
+	u32 binary_len;
+	bool fail_recover;
+};
+
+int nsim_dev_health_init(struct nsim_dev *nsim_dev, struct devlink *devlink);
+void nsim_dev_health_exit(struct nsim_dev *nsim_dev);
+
 struct nsim_dev_port {
 	struct list_head list;
 	struct devlink_port devlink_port;
@@ -148,8 +186,10 @@ struct nsim_dev {
 	struct nsim_trap_data *trap_data;
 	struct dentry *ddir;
 	struct dentry *ports_ddir;
+	struct dentry *take_snapshot;
 	struct bpf_offload_dev *bpf_dev;
 	bool bpf_bind_accept;
+	bool bpf_bind_verifier_accept;
 	u32 bpf_bind_verifier_delay;
 	struct dentry *ddir_bpf_bound_progs;
 	u32 prog_id_gen;
@@ -159,10 +199,34 @@ struct nsim_dev {
 	struct list_head port_list;
 	struct mutex port_list_lock; /* protects port list */
 	bool fw_update_status;
+	u32 fw_update_overwrite_mask;
 	u32 max_macs;
 	bool test1;
+	bool dont_allow_reload;
+	bool fail_reload;
 	struct devlink_region *dummy_region;
+	struct nsim_dev_health health;
+	struct flow_action_cookie *fa_cookie;
+	spinlock_t fa_cookie_lock; /* protects fa_cookie */
+	bool fail_trap_group_set;
+	bool fail_trap_policer_set;
+	bool fail_trap_policer_counter_get;
+	struct {
+		struct udp_tunnel_nic_shared utn_shared;
+		u32 __ports[2][NSIM_UDP_TUNNEL_N_PORTS];
+		bool sync_all;
+		bool open_only;
+		bool ipv4_only;
+		bool shared;
+		bool static_iana_vxlan;
+		u32 sleep;
+	} udp_ports;
 };
+
+static inline struct net *nsim_dev_net(struct nsim_dev *nsim_dev)
+{
+	return devlink_net(priv_to_devlink(nsim_dev));
+}
 
 int nsim_dev_init(void);
 void nsim_dev_exit(void);
@@ -173,11 +237,11 @@ int nsim_dev_port_add(struct nsim_bus_dev *nsim_bus_dev,
 int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev,
 		      unsigned int port_index);
 
-int nsim_fib_init(void);
-void nsim_fib_exit(void);
-u64 nsim_fib_get_val(struct net *net, enum nsim_resource_id res_id, bool max);
-int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val,
-		     struct netlink_ext_ack *extack);
+struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
+				      struct netlink_ext_ack *extack);
+void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *fib_data);
+u64 nsim_fib_get_val(struct nsim_fib_data *fib_data,
+		     enum nsim_resource_id res_id, bool max);
 
 #if IS_ENABLED(CONFIG_XFRM_OFFLOAD)
 void nsim_ipsec_init(struct netdevsim *ns);
@@ -215,8 +279,14 @@ struct nsim_bus_dev {
 	struct device dev;
 	struct list_head list;
 	unsigned int port_count;
+	struct net *initial_net; /* Purpose of this is to carry net pointer
+				  * during the probe time only.
+				  */
 	unsigned int num_vfs;
 	struct nsim_vf_config *vfconfigs;
+	/* Lock for devlink->reload_enabled in netdevsim module */
+	struct mutex nsim_bus_reload_lock;
+	bool init;
 };
 
 int nsim_bus_init(void);

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
+ * Copyright(c) 2015 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -72,13 +72,6 @@
  * compilation unit
  */
 
-/*
- * If a packet's QP[23:16] bits match this value, then it is
- * a PSM packet and the hardware will expect a KDETH header
- * following the BTH.
- */
-#define DEFAULT_KDETH_QP 0x80
-
 /* driver/hw feature set bitmask */
 #define HFI1_CAP_USER_SHIFT      24
 #define HFI1_CAP_MASK            ((1UL << HFI1_CAP_USER_SHIFT) - 1)
@@ -149,7 +142,8 @@
 				   HFI1_CAP_NO_INTEGRITY |		\
 				   HFI1_CAP_PKEY_CHECK |		\
 				   HFI1_CAP_TID_RDMA |			\
-				   HFI1_CAP_OPFN) <<			\
+				   HFI1_CAP_OPFN |			\
+				   HFI1_CAP_AIP) <<			\
 				  HFI1_CAP_USER_SHIFT)
 /*
  * Set of capabilities that need to be enabled for kernel context in
@@ -166,6 +160,7 @@
 				 HFI1_CAP_PKEY_CHECK |			\
 				 HFI1_CAP_MULTI_PKT_EGR |		\
 				 HFI1_CAP_EXTENDED_PSN |		\
+				 HFI1_CAP_AIP |				\
 				 ((HFI1_CAP_HDRSUPP |			\
 				   HFI1_CAP_MULTI_PKT_EGR |		\
 				   HFI1_CAP_STATIC_RATE_CTRL |		\
@@ -322,6 +317,9 @@ struct diag_pkt {
 
 /* RHF receive type error - bypass packet errors */
 #define RHF_RTE_BYPASS_NO_ERR		0x0
+
+/* MAX RcvSEQ */
+#define RHF_MAX_SEQ 13
 
 /* IB - LRH header constants */
 #define HFI1_LRH_GRH 0x0003      /* 1. word of IB LRH - next header: GRH */

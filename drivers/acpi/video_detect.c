@@ -35,9 +35,6 @@
 #include <linux/workqueue.h>
 #include <acpi/video.h>
 
-ACPI_MODULE_NAME("video");
-#define _COMPONENT		ACPI_VIDEO_COMPONENT
-
 void acpi_video_unregister_backlight(void);
 
 static bool backlight_notifier_registered;
@@ -181,14 +178,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201s"),
 		},
 	},
-        {
-         .callback = video_detect_force_video,
-         .ident = "ThinkPad X201T",
-         .matches = {
-                DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-                DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201T"),
-                },
-        },
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "ThinkPad X201T",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201T"),
+		},
+	},
 
 	/* The native backlight controls do not work on some older machines */
 	{
@@ -282,6 +279,15 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "530U4E/540U4E"),
 		},
 	},
+	/* https://bugs.launchpad.net/bugs/1894667 */
+	{
+	 .callback = video_detect_force_video,
+	 .ident = "HP 635 Notebook",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP 635 Notebook PC"),
+		},
+	},
 
 	/* Non win8 machines which need native backlight nevertheless */
 	{
@@ -300,6 +306,22 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "102434U"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
+	 .ident = "Lenovo E41-25",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "81FS"),
+		},
+	},
+	{
+	 .callback = video_detect_force_native,
+	 .ident = "Lenovo E41-45",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "82BK"),
 		},
 	},
 	{
@@ -337,11 +359,43 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
+	 .callback = video_detect_force_native,
+	 .ident = "Acer Aspire 5738z",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5738"),
+		DMI_MATCH(DMI_BOARD_NAME, "JV50"),
+		},
+	},
+	{
+	 /* https://bugzilla.kernel.org/show_bug.cgi?id=207835 */
+	 .callback = video_detect_force_native,
+	 .ident = "Acer TravelMate 5735Z",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 5735Z"),
+		DMI_MATCH(DMI_BOARD_NAME, "BA51_MV"),
+		},
+	},
+
+	/*
+	 * Desktops which falsely report a backlight and which our heuristics
+	 * for this do not catch.
+	 */
+	{
 	 .callback = video_detect_force_none,
 	 .ident = "Dell OptiPlex 9020M",
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "OptiPlex 9020M"),
+		},
+	},
+	{
+	 .callback = video_detect_force_none,
+	 .ident = "MSI MS-7721",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "MSI"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "MS-7721"),
 		},
 	},
 	{ },

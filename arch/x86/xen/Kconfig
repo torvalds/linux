@@ -19,6 +19,7 @@ config XEN_PV
 	bool "Xen PV guest support"
 	default y
 	depends on XEN
+	depends on X86_64
 	select PARAVIRT_XXL
 	select XEN_HAVE_PVMMU
 	select XEN_HAVE_VPMU
@@ -50,7 +51,7 @@ config XEN_PVHVM_SMP
 
 config XEN_512GB
 	bool "Limit Xen pv-domain memory to 512GB"
-	depends on XEN_PV && X86_64
+	depends on XEN_PV
 	default y
 	help
 	  Limit paravirtualized user domains to 512GB of RAM.
@@ -62,10 +63,10 @@ config XEN_512GB
 	  boot parameter "xen_512gb_limit".
 
 config XEN_SAVE_RESTORE
-       bool
-       depends on XEN
-       select HIBERNATE_CALLBACKS
-       default y
+	bool
+	depends on XEN
+	select HIBERNATE_CALLBACKS
+	default y
 
 config XEN_DEBUG_FS
 	bool "Enable Xen debug and tuning parameters in debugfs"

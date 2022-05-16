@@ -70,7 +70,7 @@ struct hostif_data_request {
 #define TYPE_DATA 0x0000
 #define TYPE_AUTH 0x0001
 	__le16 reserved;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define TYPE_PMK1 0x0001
@@ -194,7 +194,7 @@ enum mib_data_type {
 struct hostif_mib_value {
 	__le16 size;
 	__le16 type;
-	u8 body[0];
+	u8 body[];
 } __packed;
 
 struct hostif_mib_get_confirm_t {

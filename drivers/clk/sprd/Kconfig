@@ -13,4 +13,12 @@ config SPRD_SC9860_CLK
 	tristate "Support for the Spreadtrum SC9860 clocks"
 	depends on (ARM64 && ARCH_SPRD) || COMPILE_TEST
 	default ARM64 && ARCH_SPRD
+
+config SPRD_SC9863A_CLK
+	tristate "Support for the Spreadtrum SC9863A clocks"
+	depends on (ARM64 && ARCH_SPRD) || COMPILE_TEST
+	default ARM64 && ARCH_SPRD
+	help
+	  Support for the global clock controller on sc9863a devices.
+	  Say Y if you want to use peripheral devices on sc9863a SoC.
 endif

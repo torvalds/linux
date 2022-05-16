@@ -7,12 +7,12 @@
 
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -30,6 +30,9 @@
  * @spi:		the device for this driver instance
  * @config:		cached config register value
  * @dac_cache:		current DAC raw value (chip does not support readback)
+ * @vdd_reg:		reference to VDD regulator
+ * @vref_reg:		reference to VREF regulator
+ * @lock:		protect writes and cache updates
  * @data:		spi transfer buffer
  */
 
@@ -41,6 +44,7 @@ struct ad7303_state {
 	struct regulator *vdd_reg;
 	struct regulator *vref_reg;
 
+	struct mutex lock;
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -79,7 +83,7 @@ static ssize_t ad7303_write_dac_powerdown(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 
 	if (pwr_down)
 		st->config |= AD7303_CFG_POWER_DOWN(chan->channel);
@@ -90,7 +94,7 @@ static ssize_t ad7303_write_dac_powerdown(struct iio_dev *indio_dev,
 	 * mode, so just write one of the DAC channels again */
 	ad7303_write(st, chan->channel, st->dac_cache[chan->channel]);
 
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 	return len;
 }
 
@@ -116,7 +120,9 @@ static int ad7303_read_raw(struct iio_dev *indio_dev,
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
+		mutex_lock(&st->lock);
 		*val = st->dac_cache[chan->channel];
+		mutex_unlock(&st->lock);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		vref_uv = ad7303_get_vref(st, chan);
@@ -144,11 +150,11 @@ static int ad7303_write_raw(struct iio_dev *indio_dev,
 		if (val >= (1 << chan->scan_type.realbits) || val < 0)
 			return -EINVAL;
 
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&st->lock);
 		ret = ad7303_write(st, chan->address, val);
 		if (ret == 0)
 			st->dac_cache[chan->channel] = val;
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&st->lock);
 		break;
 	default:
 		ret = -EINVAL;
@@ -199,7 +205,6 @@ static int ad7303_probe(struct spi_device *spi)
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct iio_dev *indio_dev;
 	struct ad7303_state *st;
-	bool ext_ref;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
@@ -211,6 +216,8 @@ static int ad7303_probe(struct spi_device *spi)
 
 	st->spi = spi;
 
+	mutex_init(&st->lock);
+
 	st->vdd_reg = devm_regulator_get(&spi->dev, "Vdd");
 	if (IS_ERR(st->vdd_reg))
 		return PTR_ERR(st->vdd_reg);
@@ -219,24 +226,15 @@ static int ad7303_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	if (spi->dev.of_node) {
-		ext_ref = of_property_read_bool(spi->dev.of_node,
-				"REF-supply");
-	} else {
-		struct ad7303_platform_data *pdata = spi->dev.platform_data;
-		if (pdata && pdata->use_external_ref)
-			ext_ref = true;
-		else
-		    ext_ref = false;
+	st->vref_reg = devm_regulator_get_optional(&spi->dev, "REF");
+	if (IS_ERR(st->vref_reg)) {
+		ret = PTR_ERR(st->vref_reg);
+		if (ret != -ENODEV)
+			goto err_disable_vdd_reg;
+		st->vref_reg = NULL;
 	}
 
-	if (ext_ref) {
-		st->vref_reg = devm_regulator_get(&spi->dev, "REF");
-		if (IS_ERR(st->vref_reg)) {
-			ret = PTR_ERR(st->vref_reg);
-			goto err_disable_vdd_reg;
-		}
-
+	if (st->vref_reg) {
 		ret = regulator_enable(st->vref_reg);
 		if (ret)
 			goto err_disable_vdd_reg;
@@ -244,7 +242,6 @@ static int ad7303_probe(struct spi_device *spi)
 		st->config |= AD7303_CFG_EXTERNAL_VREF;
 	}
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &ad7303_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -294,7 +291,7 @@ MODULE_DEVICE_TABLE(spi, ad7303_spi_ids);
 static struct spi_driver ad7303_driver = {
 	.driver = {
 		.name = "ad7303",
-		.of_match_table = of_match_ptr(ad7303_spi_of_match),
+		.of_match_table = ad7303_spi_of_match,
 	},
 	.probe = ad7303_probe,
 	.remove = ad7303_remove,

@@ -115,12 +115,6 @@ void hns_roce_table_put(struct hns_roce_dev *hr_dev,
 void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_hem_table *table, unsigned long obj,
 			  dma_addr_t *dma_handle);
-int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
-			     struct hns_roce_hem_table *table,
-			     unsigned long start, unsigned long end);
-void hns_roce_table_put_range(struct hns_roce_dev *hr_dev,
-			      struct hns_roce_hem_table *table,
-			      unsigned long start, unsigned long end);
 int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_hem_table *table, u32 type,
 			    unsigned long obj_size, unsigned long nobj,
@@ -133,14 +127,13 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 			   struct hns_roce_hem_mhop *mhop);
 bool hns_roce_check_whether_mhop(struct hns_roce_dev *hr_dev, u32 type);
 
-void hns_roce_hem_list_init(struct hns_roce_hem_list *hem_list,
-			    int bt_page_order);
+void hns_roce_hem_list_init(struct hns_roce_hem_list *hem_list);
 int hns_roce_hem_list_calc_root_ba(const struct hns_roce_buf_region *regions,
 				   int region_cnt, int unit);
 int hns_roce_hem_list_request(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_hem_list *hem_list,
 			      const struct hns_roce_buf_region *regions,
-			      int region_cnt);
+			      int region_cnt, unsigned int bt_pg_shift);
 void hns_roce_hem_list_release(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_hem_list *hem_list);
 void *hns_roce_hem_list_find_mtt(struct hns_roce_dev *hr_dev,

@@ -14,6 +14,7 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include <video/of_videomode.h>
 #include <video/videomode.h>
@@ -41,11 +42,6 @@ static inline struct exynos_dpi *encoder_to_dpi(struct drm_encoder *e)
 static enum drm_connector_status
 exynos_dpi_detect(struct drm_connector *connector, bool force)
 {
-	struct exynos_dpi *ctx = connector_to_dpi(connector);
-
-	if (ctx->panel && !ctx->panel->connector)
-		drm_panel_attach(ctx->panel, &ctx->connector);
-
 	return connector_status_connected;
 }
 
@@ -85,7 +81,7 @@ static int exynos_dpi_get_modes(struct drm_connector *connector)
 	}
 
 	if (ctx->panel)
-		return ctx->panel->funcs->get_modes(ctx->panel);
+		return drm_panel_get_modes(ctx->panel, connector);
 
 	return 0;
 }
@@ -149,10 +145,6 @@ static const struct drm_encoder_helper_funcs exynos_dpi_encoder_helper_funcs = {
 	.disable = exynos_dpi_disable,
 };
 
-static const struct drm_encoder_funcs exynos_dpi_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 enum {
 	FIMD_PORT_IN0,
 	FIMD_PORT_IN1,
@@ -201,8 +193,7 @@ int exynos_dpi_bind(struct drm_device *dev, struct drm_encoder *encoder)
 {
 	int ret;
 
-	drm_encoder_init(dev, encoder, &exynos_dpi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_TMDS);
 
 	drm_encoder_helper_add(encoder, &exynos_dpi_encoder_helper_funcs);
 
@@ -252,9 +243,6 @@ int exynos_dpi_remove(struct drm_encoder *encoder)
 	struct exynos_dpi *ctx = encoder_to_dpi(encoder);
 
 	exynos_dpi_disable(&ctx->encoder);
-
-	if (ctx->panel)
-		drm_panel_detach(ctx->panel);
 
 	return 0;
 }

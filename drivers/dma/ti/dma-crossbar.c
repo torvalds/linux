@@ -133,7 +133,6 @@ static int ti_am335x_xbar_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct device_node *dma_node;
 	struct ti_am335x_xbar_data *xbar;
-	struct resource *res;
 	void __iomem *iomem;
 	int i, ret;
 
@@ -173,8 +172,7 @@ static int ti_am335x_xbar_probe(struct platform_device *pdev)
 		xbar->xbar_events = TI_AM335X_XBAR_LINES;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iomem = devm_ioremap_resource(&pdev->dev, res);
+	iomem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(iomem))
 		return PTR_ERR(iomem);
 
@@ -323,7 +321,6 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	struct device_node *dma_node;
 	struct ti_dra7_xbar_data *xbar;
 	struct property *prop;
-	struct resource *res;
 	u32 safe_val;
 	int sz;
 	void __iomem *iomem;
@@ -403,8 +400,7 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 		kfree(rsv_events);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iomem = devm_ioremap_resource(&pdev->dev, res);
+	iomem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(iomem))
 		return PTR_ERR(iomem);
 

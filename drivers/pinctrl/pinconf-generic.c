@@ -231,9 +231,10 @@ static void parse_dt_cfg(struct device_node *np,
  * pinconf_generic_parse_dt_config()
  * parse the config properties into generic pinconfig values.
  * @np: node containing the pinconfig properties
+ * @pctldev: pincontrol device
  * @configs: array with nconfigs entries containing the generic pinconf values
  *           must be freed when no longer necessary.
- * @nconfigs: umber of configurations
+ * @nconfigs: number of configurations
  */
 int pinconf_generic_parse_dt_config(struct device_node *np,
 				    struct pinctrl_dev *pctldev,
@@ -286,6 +287,7 @@ out:
 	kfree(cfg);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(pinconf_generic_parse_dt_config);
 
 int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np, struct pinctrl_map **map,

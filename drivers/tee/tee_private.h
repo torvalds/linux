@@ -37,7 +37,8 @@ struct tee_shm_pool {
  * @num_users:	number of active users of this device
  * @c_no_user:	completion used when unregistering the device
  * @mutex:	mutex protecting @num_users and @idr
- * @idr:	register of shared memory object allocated on this device
+ * @idr:	register of user space shared memory objects allocated or
+ *		registered on this device
  * @pool:	shared memory pool
  */
 struct tee_device {

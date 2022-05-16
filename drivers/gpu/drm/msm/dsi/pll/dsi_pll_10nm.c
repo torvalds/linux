@@ -411,6 +411,12 @@ static int dsi_pll_10nm_vco_prepare(struct clk_hw *hw)
 	if (pll_10nm->slave)
 		dsi_pll_enable_pll_bias(pll_10nm->slave);
 
+	rc = dsi_pll_10nm_vco_set_rate(hw,pll_10nm->vco_current_rate, 0);
+	if (rc) {
+		pr_err("vco_set_rate failed, rc=%d\n", rc);
+		return rc;
+	}
+
 	/* Start PLL */
 	pll_write(pll_10nm->phy_cmn_mmio + REG_DSI_10nm_PHY_CMN_PLL_CNTRL,
 		  0x01);
@@ -751,9 +757,9 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm)
 	snprintf(parent4, 32, "dsi%d_pll_post_out_div_clk", pll_10nm->id);
 
 	hw = clk_hw_register_mux(dev, clk_name,
-				 (const char *[]){
+				 ((const char *[]){
 				 parent, parent2, parent3, parent4
-				 }, 4, 0, pll_10nm->phy_cmn_mmio +
+				 }), 4, 0, pll_10nm->phy_cmn_mmio +
 				 REG_DSI_10nm_PHY_CMN_CLK_CFG1,
 				 0, 2, 0, NULL);
 	if (IS_ERR(hw)) {

@@ -300,7 +300,7 @@ static ssize_t perf_write(struct file *file, const char __user *buf,
 	else
 		return -EFAULT;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!perfmon_capable())
 		return -EACCES;
 
 	if (count != sizeof(uint32_t))
@@ -792,7 +792,7 @@ static int perf_write_image(uint64_t *memaddr)
 		return -1;
 	}
 
-	runway = ioremap_nocache(cpu_device->hpa.start, 4096);
+	runway = ioremap(cpu_device->hpa.start, 4096);
 	if (!runway) {
 		pr_err("perf_write_image: ioremap failed!\n");
 		return -ENOMEM;

@@ -22,7 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 
@@ -302,10 +302,13 @@ static int sa1111_retrigger_irq(struct irq_data *d)
 			break;
 	}
 
-	if (i == 8)
+	if (i == 8) {
 		pr_err("Danger Will Robinson: failed to re-trigger IRQ%d\n",
 		       d->irq);
-	return i == 8 ? -1 : 0;
+		return 0;
+	}
+
+	return 1;
 }
 
 static int sa1111_type_irq(struct irq_data *d, unsigned int flags)

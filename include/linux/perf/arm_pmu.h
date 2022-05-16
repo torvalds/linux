@@ -73,6 +73,7 @@ enum armpmu_attr_groups {
 	ARMPMU_ATTR_GROUP_COMMON,
 	ARMPMU_ATTR_GROUP_EVENTS,
 	ARMPMU_ATTR_GROUP_FORMATS,
+	ARMPMU_ATTR_GROUP_CAPS,
 	ARMPMU_NR_ATTR_GROUPS
 };
 
@@ -80,6 +81,7 @@ struct arm_pmu {
 	struct pmu	pmu;
 	cpumask_t	supported_cpus;
 	char		*name;
+	int		pmuver;
 	irqreturn_t	(*handle_irq)(struct arm_pmu *pmu);
 	void		(*enable)(struct perf_event *event);
 	void		(*disable)(struct perf_event *event);
@@ -108,6 +110,8 @@ struct arm_pmu {
 	struct notifier_block	cpu_pm_nb;
 	/* the attr_groups array must be NULL-terminated */
 	const struct attribute_group *attr_groups[ARMPMU_NR_ATTR_GROUPS + 1];
+	/* store the PMMIR_EL1 to expose slots */
+	u64		reg_pmmir;
 
 	/* Only to be used by ACPI probing code */
 	unsigned long acpi_cpuid;

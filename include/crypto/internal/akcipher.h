@@ -78,15 +78,9 @@ static inline void *akcipher_instance_ctx(struct akcipher_instance *inst)
 	return crypto_instance_ctx(akcipher_crypto_instance(inst));
 }
 
-static inline void crypto_set_akcipher_spawn(
-		struct crypto_akcipher_spawn *spawn,
-		struct crypto_instance *inst)
-{
-	crypto_set_spawn(&spawn->base, inst);
-}
-
-int crypto_grab_akcipher(struct crypto_akcipher_spawn *spawn, const char *name,
-		u32 type, u32 mask);
+int crypto_grab_akcipher(struct crypto_akcipher_spawn *spawn,
+			 struct crypto_instance *inst,
+			 const char *name, u32 type, u32 mask);
 
 static inline struct crypto_akcipher *crypto_spawn_akcipher(
 		struct crypto_akcipher_spawn *spawn)

@@ -3,6 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
  * Copyright (c) 2004-2008 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
@@ -433,7 +434,7 @@ xpc_discovery(void)
 	 */
 	region_size = xp_region_size;
 
-	if (is_uv())
+	if (is_uv_system())
 		max_regions = 256;
 	else {
 		max_regions = 64;
@@ -441,10 +442,10 @@ xpc_discovery(void)
 		switch (region_size) {
 		case 128:
 			max_regions *= 2;
-			/* fall through */
+			fallthrough;
 		case 64:
 			max_regions *= 2;
-			/* fall through */
+			fallthrough;
 		case 32:
 			max_regions *= 2;
 			region_size = 16;

@@ -181,7 +181,7 @@ int bnx2i_arm_cq_event_coalescing(struct bnx2i_endpoint *ep, u8 action)
 
 /**
  * bnx2i_get_rq_buf - copy RQ buffer contents to driver buffer
- * @conn:		iscsi connection on which RQ event occurred
+ * @bnx2i_conn:		iscsi connection on which RQ event occurred
  * @ptr:		driver buffer to which RQ buffer contents is to
  *			be copied
  * @len:		length of valid data inside RQ buf
@@ -223,7 +223,7 @@ static void bnx2i_ring_577xx_doorbell(struct bnx2i_conn *conn)
 
 /**
  * bnx2i_put_rq_buf - Replenish RQ buffer, if required ring on chip doorbell
- * @conn:	iscsi connection on which event to post
+ * @bnx2i_conn:	iscsi connection on which event to post
  * @count:	number of RQ buffer being posted to chip
  *
  * No need to ring hardware doorbell for 57710 family of devices
@@ -258,7 +258,7 @@ void bnx2i_put_rq_buf(struct bnx2i_conn *bnx2i_conn, int count)
 
 /**
  * bnx2i_ring_sq_dbell - Ring SQ doorbell to wake-up the processing engine
- * @conn: 		iscsi connection to which new SQ entries belong
+ * @bnx2i_conn:		iscsi connection to which new SQ entries belong
  * @count: 		number of SQ WQEs to post
  *
  * SQ DB is updated in host memory and TX Doorbell is rung for 57710 family
@@ -283,7 +283,7 @@ static void bnx2i_ring_sq_dbell(struct bnx2i_conn *bnx2i_conn, int count)
 
 /**
  * bnx2i_ring_dbell_update_sq_params - update SQ driver parameters
- * @conn:	iscsi connection to which new SQ entries belong
+ * @bnx2i_conn:	iscsi connection to which new SQ entries belong
  * @count:	number of SQ WQEs to post
  *
  * this routine will update SQ driver parameters and ring the doorbell
@@ -320,9 +320,9 @@ static void bnx2i_ring_dbell_update_sq_params(struct bnx2i_conn *bnx2i_conn,
 
 /**
  * bnx2i_send_iscsi_login - post iSCSI login request MP WQE to hardware
- * @conn:	iscsi connection
- * @cmd:	driver command structure which is requesting
- *		a WQE to sent to chip for further processing
+ * @bnx2i_conn:	iscsi connection
+ * @task: transport layer's command structure pointer which is requesting
+ *	  a WQE to sent to chip for further processing
  *
  * prepare and post an iSCSI Login request WQE to CNIC firmware
  */
@@ -373,7 +373,7 @@ int bnx2i_send_iscsi_login(struct bnx2i_conn *bnx2i_conn,
 
 /**
  * bnx2i_send_iscsi_tmf - post iSCSI task management request MP WQE to hardware
- * @conn:	iscsi connection
+ * @bnx2i_conn:	iscsi connection
  * @mtask:	driver command structure which is requesting
  *		a WQE to sent to chip for further processing
  *
@@ -447,7 +447,7 @@ int bnx2i_send_iscsi_tmf(struct bnx2i_conn *bnx2i_conn,
 
 /**
  * bnx2i_send_iscsi_text - post iSCSI text WQE to hardware
- * @conn:	iscsi connection
+ * @bnx2i_conn:	iscsi connection
  * @mtask:	driver command structure which is requesting
  *		a WQE to sent to chip for further processing
  *
@@ -495,7 +495,7 @@ int bnx2i_send_iscsi_text(struct bnx2i_conn *bnx2i_conn,
 
 /**
  * bnx2i_send_iscsi_scsicmd - post iSCSI scsicmd request WQE to hardware
- * @conn:	iscsi connection
+ * @bnx2i_conn:	iscsi connection
  * @cmd:	driver command structure which is requesting
  *		a WQE to sent to chip for further processing
  *
@@ -517,9 +517,9 @@ int bnx2i_send_iscsi_scsicmd(struct bnx2i_conn *bnx2i_conn,
 
 /**
  * bnx2i_send_iscsi_nopout - post iSCSI NOPOUT request WQE to hardware
- * @conn:		iscsi connection
- * @cmd:		driver command structure which is requesting
- *			a WQE to sent to chip for further processing
+ * @bnx2i_conn:		iscsi connection
+ * @task:		transport layer's command structure pointer which is
+ *                      requesting a WQE to sent to chip for further processing
  * @datap:		payload buffer pointer
  * @data_len:		payload data length
  * @unsol:		indicated whether nopout pdu is unsolicited pdu or
@@ -579,9 +579,9 @@ int bnx2i_send_iscsi_nopout(struct bnx2i_conn *bnx2i_conn,
 
 /**
  * bnx2i_send_iscsi_logout - post iSCSI logout request WQE to hardware
- * @conn:	iscsi connection
- * @cmd:	driver command structure which is requesting
- *		a WQE to sent to chip for further processing
+ * @bnx2i_conn:	iscsi connection
+ * @task:	transport layer's command structure pointer which is
+ *		requesting a WQE to sent to chip for further processing
  *
  * prepare and post logout request WQE to CNIC firmware
  */
@@ -678,7 +678,8 @@ void bnx2i_update_iscsi_conn(struct iscsi_conn *conn)
 
 /**
  * bnx2i_ep_ofld_timer - post iSCSI logout request WQE to hardware
- * @data:	endpoint (transport handle) structure pointer
+ * @t:	timer context used to fetch the endpoint (transport
+ *	handle) structure pointer
  *
  * routine to handle connection offload/destroy request timeout
  */
@@ -1662,7 +1663,7 @@ static void bnx2i_process_nopin_local_cmpl(struct iscsi_session *session,
 
 /**
  * bnx2i_unsol_pdu_adjust_rq - makes adjustments to RQ after unsol pdu is recvd
- * @conn:	iscsi connection
+ * @bnx2i_conn:	iscsi connection
  *
  * Firmware advances RQ producer index for every unsolicited PDU even if
  *	payload data length is '0'. This function makes corresponding
@@ -1885,7 +1886,9 @@ int bnx2i_percpu_io_thread(void *arg)
 
 /**
  * bnx2i_queue_scsi_cmd_resp - queue cmd completion to the percpu thread
+ * @session:		iscsi session
  * @bnx2i_conn:		bnx2i connection
+ * @cqe:		pointer to newly DMA'ed CQE entry for processing
  *
  * this function is called by generic KCQ handler to queue all pending cmd
  * completion CQEs
@@ -2466,8 +2469,9 @@ static void bnx2i_process_ofld_cmpl(struct bnx2i_hba *hba,
 
 /**
  * bnx2i_indicate_kcqe - process iscsi conn update completion KCQE
- * @hba:		adapter structure pointer
- * @update_kcqe:	kcqe pointer
+ * @context:		adapter structure pointer
+ * @kcqe:		kcqe pointer
+ * @num_cqe:		number of kcqes to process
  *
  * Generic KCQ event handler/dispatcher
  */
@@ -2614,8 +2618,7 @@ static void bnx2i_cm_abort_cmpl(struct cnic_sock *cm_sk)
 
 /**
  * bnx2i_cm_remote_close - process received TCP FIN
- * @hba:		adapter structure pointer
- * @update_kcqe:	kcqe pointer
+ * @cm_sk:	cnic sock structure pointer
  *
  * function callback exported via bnx2i - cnic driver interface to indicate
  *	async TCP events such as FIN
@@ -2631,8 +2634,7 @@ static void bnx2i_cm_remote_close(struct cnic_sock *cm_sk)
 
 /**
  * bnx2i_cm_remote_abort - process TCP RST and start conn cleanup
- * @hba:		adapter structure pointer
- * @update_kcqe:	kcqe pointer
+ * @cm_sk:	cnic sock structure pointer
  *
  * function callback exported via bnx2i - cnic driver interface to
  *	indicate async TCP events (RST) sent by the peer.
@@ -2669,10 +2671,9 @@ static int bnx2i_send_nl_mesg(void *context, u32 msg_type,
 }
 
 
-/**
+/*
  * bnx2i_cnic_cb - global template of bnx2i - cnic driver interface structure
  *			carrying callback function pointers
- *
  */
 struct cnic_ulp_ops bnx2i_cnic_cb = {
 	.cnic_init = bnx2i_ulp_init,
@@ -2715,7 +2716,7 @@ int bnx2i_map_ep_dbell_regs(struct bnx2i_endpoint *ep)
 		reg_base = pci_resource_start(ep->hba->pcidev,
 					      BNX2X_DOORBELL_PCI_BAR);
 		reg_off = (1 << BNX2X_DB_SHIFT) * (cid_num & 0x1FFFF);
-		ep->qp.ctx_base = ioremap_nocache(reg_base + reg_off, 4);
+		ep->qp.ctx_base = ioremap(reg_base + reg_off, 4);
 		if (!ep->qp.ctx_base)
 			return -ENOMEM;
 		goto arm_cq;
@@ -2736,7 +2737,7 @@ int bnx2i_map_ep_dbell_regs(struct bnx2i_endpoint *ep)
 		/* 5709 device in normal node and 5706/5708 devices */
 		reg_off = CTX_OFFSET + (MB_KERNEL_CTX_SIZE * cid_num);
 
-	ep->qp.ctx_base = ioremap_nocache(ep->hba->reg_base + reg_off,
+	ep->qp.ctx_base = ioremap(ep->hba->reg_base + reg_off,
 					  MB_KERNEL_CTX_SIZE);
 	if (!ep->qp.ctx_base)
 		return -ENOMEM;

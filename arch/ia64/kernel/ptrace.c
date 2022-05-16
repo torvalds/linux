@@ -25,15 +25,11 @@
 #include <linux/elf.h>
 #include <linux/tracehook.h>
 
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/ptrace_offsets.h>
 #include <asm/rse.h>
 #include <linux/uaccess.h>
 #include <asm/unwind.h>
-#ifdef CONFIG_PERFMON
-#include <asm/perfmon.h>
-#endif
 
 #include "entry.h"
 
@@ -1274,52 +1270,43 @@ struct regset_getset {
 	int ret;
 };
 
+static const ptrdiff_t pt_offsets[32] =
+{
+#define R(n) offsetof(struct pt_regs, r##n)
+	[0] = -1, R(1), R(2), R(3),
+	[4] = -1, [5] = -1, [6] = -1, [7] = -1,
+	R(8), R(9), R(10), R(11), R(12), R(13), R(14), R(15),
+	R(16), R(17), R(18), R(19), R(20), R(21), R(22), R(23),
+	R(24), R(25), R(26), R(27), R(28), R(29), R(30), R(31),
+#undef R
+};
+
 static int
 access_elf_gpreg(struct task_struct *target, struct unw_frame_info *info,
 		unsigned long addr, unsigned long *data, int write_access)
 {
-	struct pt_regs *pt;
-	unsigned long *ptr = NULL;
-	int ret;
-	char nat = 0;
+	struct pt_regs *pt = task_pt_regs(target);
+	unsigned reg = addr / sizeof(unsigned long);
+	ptrdiff_t d = pt_offsets[reg];
 
-	pt = task_pt_regs(target);
-	switch (addr) {
-	case ELF_GR_OFFSET(1):
-		ptr = &pt->r1;
-		break;
-	case ELF_GR_OFFSET(2):
-	case ELF_GR_OFFSET(3):
-		ptr = (void *)&pt->r2 + (addr - ELF_GR_OFFSET(2));
-		break;
-	case ELF_GR_OFFSET(4) ... ELF_GR_OFFSET(7):
+	if (d >= 0) {
+		unsigned long *ptr = (void *)pt + d;
+		if (write_access)
+			*ptr = *data;
+		else
+			*data = *ptr;
+		return 0;
+	} else {
+		char nat = 0;
 		if (write_access) {
 			/* read NaT bit first: */
 			unsigned long dummy;
-
-			ret = unw_get_gr(info, addr/8, &dummy, &nat);
+			int ret = unw_get_gr(info, reg, &dummy, &nat);
 			if (ret < 0)
 				return ret;
 		}
-		return unw_access_gr(info, addr/8, data, &nat, write_access);
-	case ELF_GR_OFFSET(8) ... ELF_GR_OFFSET(11):
-		ptr = (void *)&pt->r8 + addr - ELF_GR_OFFSET(8);
-		break;
-	case ELF_GR_OFFSET(12):
-	case ELF_GR_OFFSET(13):
-		ptr = (void *)&pt->r12 + addr - ELF_GR_OFFSET(12);
-		break;
-	case ELF_GR_OFFSET(14):
-		ptr = &pt->r14;
-		break;
-	case ELF_GR_OFFSET(15):
-		ptr = &pt->r15;
+		return unw_access_gr(info, reg, data, &nat, write_access);
 	}
-	if (write_access)
-		*ptr = *data;
-	else
-		*data = *ptr;
-	return 0;
 }
 
 static int
@@ -1491,7 +1478,7 @@ static int
 access_elf_reg(struct task_struct *target, struct unw_frame_info *info,
 		unsigned long addr, unsigned long *data, int write_access)
 {
-	if (addr >= ELF_GR_OFFSET(1) && addr <= ELF_GR_OFFSET(15))
+	if (addr >= ELF_GR_OFFSET(1) && addr <= ELF_GR_OFFSET(31))
 		return access_elf_gpreg(target, info, addr, data, write_access);
 	else if (addr >= ELF_BR_OFFSET(0) && addr <= ELF_BR_OFFSET(7))
 		return access_elf_breg(target, info, addr, data, write_access);
@@ -1499,12 +1486,17 @@ access_elf_reg(struct task_struct *target, struct unw_frame_info *info,
 		return access_elf_areg(target, info, addr, data, write_access);
 }
 
+struct regset_membuf {
+	struct membuf to;
+	int ret;
+};
+
 void do_gpregs_get(struct unw_frame_info *info, void *arg)
 {
-	struct pt_regs *pt;
-	struct regset_getset *dst = arg;
-	elf_greg_t tmp[16];
-	unsigned int i, index, min_copy;
+	struct regset_membuf *dst = arg;
+	struct membuf to = dst->to;
+	unsigned int n;
+	elf_greg_t reg;
 
 	if (unw_unwind_to_user(info) < 0)
 		return;
@@ -1522,165 +1514,53 @@ void do_gpregs_get(struct unw_frame_info *info, void *arg)
 
 
 	/* Skip r0 */
-	if (dst->count > 0 && dst->pos < ELF_GR_OFFSET(1)) {
-		dst->ret = user_regset_copyout_zero(&dst->pos, &dst->count,
-						      &dst->u.get.kbuf,
-						      &dst->u.get.ubuf,
-						      0, ELF_GR_OFFSET(1));
-		if (dst->ret || dst->count == 0)
+	membuf_zero(&to, 8);
+	for (n = 8; to.left && n < ELF_AR_END_OFFSET; n += 8) {
+		if (access_elf_reg(info->task, info, n, &reg, 0) < 0) {
+			dst->ret = -EIO;
 			return;
-	}
-
-	/* gr1 - gr15 */
-	if (dst->count > 0 && dst->pos < ELF_GR_OFFSET(16)) {
-		index = (dst->pos - ELF_GR_OFFSET(1)) / sizeof(elf_greg_t);
-		min_copy = ELF_GR_OFFSET(16) > (dst->pos + dst->count) ?
-			 (dst->pos + dst->count) : ELF_GR_OFFSET(16);
-		for (i = dst->pos; i < min_copy; i += sizeof(elf_greg_t),
-				index++)
-			if (access_elf_reg(dst->target, info, i,
-						&tmp[index], 0) < 0) {
-				dst->ret = -EIO;
-				return;
-			}
-		dst->ret = user_regset_copyout(&dst->pos, &dst->count,
-				&dst->u.get.kbuf, &dst->u.get.ubuf, tmp,
-				ELF_GR_OFFSET(1), ELF_GR_OFFSET(16));
-		if (dst->ret || dst->count == 0)
-			return;
-	}
-
-	/* r16-r31 */
-	if (dst->count > 0 && dst->pos < ELF_NAT_OFFSET) {
-		pt = task_pt_regs(dst->target);
-		dst->ret = user_regset_copyout(&dst->pos, &dst->count,
-				&dst->u.get.kbuf, &dst->u.get.ubuf, &pt->r16,
-				ELF_GR_OFFSET(16), ELF_NAT_OFFSET);
-		if (dst->ret || dst->count == 0)
-			return;
-	}
-
-	/* nat, pr, b0 - b7 */
-	if (dst->count > 0 && dst->pos < ELF_CR_IIP_OFFSET) {
-		index = (dst->pos - ELF_NAT_OFFSET) / sizeof(elf_greg_t);
-		min_copy = ELF_CR_IIP_OFFSET > (dst->pos + dst->count) ?
-			 (dst->pos + dst->count) : ELF_CR_IIP_OFFSET;
-		for (i = dst->pos; i < min_copy; i += sizeof(elf_greg_t),
-				index++)
-			if (access_elf_reg(dst->target, info, i,
-						&tmp[index], 0) < 0) {
-				dst->ret = -EIO;
-				return;
-			}
-		dst->ret = user_regset_copyout(&dst->pos, &dst->count,
-				&dst->u.get.kbuf, &dst->u.get.ubuf, tmp,
-				ELF_NAT_OFFSET, ELF_CR_IIP_OFFSET);
-		if (dst->ret || dst->count == 0)
-			return;
-	}
-
-	/* ip cfm psr ar.rsc ar.bsp ar.bspstore ar.rnat
-	 * ar.ccv ar.unat ar.fpsr ar.pfs ar.lc ar.ec ar.csd ar.ssd
-	 */
-	if (dst->count > 0 && dst->pos < (ELF_AR_END_OFFSET)) {
-		index = (dst->pos - ELF_CR_IIP_OFFSET) / sizeof(elf_greg_t);
-		min_copy = ELF_AR_END_OFFSET > (dst->pos + dst->count) ?
-			 (dst->pos + dst->count) : ELF_AR_END_OFFSET;
-		for (i = dst->pos; i < min_copy; i += sizeof(elf_greg_t),
-				index++)
-			if (access_elf_reg(dst->target, info, i,
-						&tmp[index], 0) < 0) {
-				dst->ret = -EIO;
-				return;
-			}
-		dst->ret = user_regset_copyout(&dst->pos, &dst->count,
-				&dst->u.get.kbuf, &dst->u.get.ubuf, tmp,
-				ELF_CR_IIP_OFFSET, ELF_AR_END_OFFSET);
+		}
+		membuf_store(&to, reg);
 	}
 }
 
 void do_gpregs_set(struct unw_frame_info *info, void *arg)
 {
-	struct pt_regs *pt;
 	struct regset_getset *dst = arg;
-	elf_greg_t tmp[16];
-	unsigned int i, index;
 
 	if (unw_unwind_to_user(info) < 0)
 		return;
 
+	if (!dst->count)
+		return;
 	/* Skip r0 */
-	if (dst->count > 0 && dst->pos < ELF_GR_OFFSET(1)) {
+	if (dst->pos < ELF_GR_OFFSET(1)) {
 		dst->ret = user_regset_copyin_ignore(&dst->pos, &dst->count,
 						       &dst->u.set.kbuf,
 						       &dst->u.set.ubuf,
 						       0, ELF_GR_OFFSET(1));
-		if (dst->ret || dst->count == 0)
-			return;
-	}
-
-	/* gr1-gr15 */
-	if (dst->count > 0 && dst->pos < ELF_GR_OFFSET(16)) {
-		i = dst->pos;
-		index = (dst->pos - ELF_GR_OFFSET(1)) / sizeof(elf_greg_t);
-		dst->ret = user_regset_copyin(&dst->pos, &dst->count,
-				&dst->u.set.kbuf, &dst->u.set.ubuf, tmp,
-				ELF_GR_OFFSET(1), ELF_GR_OFFSET(16));
 		if (dst->ret)
 			return;
-		for ( ; i < dst->pos; i += sizeof(elf_greg_t), index++)
-			if (access_elf_reg(dst->target, info, i,
-						&tmp[index], 1) < 0) {
-				dst->ret = -EIO;
-				return;
-			}
-		if (dst->count == 0)
-			return;
 	}
 
-	/* gr16-gr31 */
-	if (dst->count > 0 && dst->pos < ELF_NAT_OFFSET) {
-		pt = task_pt_regs(dst->target);
-		dst->ret = user_regset_copyin(&dst->pos, &dst->count,
-				&dst->u.set.kbuf, &dst->u.set.ubuf, &pt->r16,
-				ELF_GR_OFFSET(16), ELF_NAT_OFFSET);
-		if (dst->ret || dst->count == 0)
-			return;
-	}
+	while (dst->count && dst->pos < ELF_AR_END_OFFSET) {
+		unsigned int n, from, to;
+		elf_greg_t tmp[16];
 
-	/* nat, pr, b0 - b7 */
-	if (dst->count > 0 && dst->pos < ELF_CR_IIP_OFFSET) {
-		i = dst->pos;
-		index = (dst->pos - ELF_NAT_OFFSET) / sizeof(elf_greg_t);
+		from = dst->pos;
+		to = from + sizeof(tmp);
+		if (to > ELF_AR_END_OFFSET)
+			to = ELF_AR_END_OFFSET;
+		/* get up to 16 values */
 		dst->ret = user_regset_copyin(&dst->pos, &dst->count,
 				&dst->u.set.kbuf, &dst->u.set.ubuf, tmp,
-				ELF_NAT_OFFSET, ELF_CR_IIP_OFFSET);
+				from, to);
 		if (dst->ret)
 			return;
-		for (; i < dst->pos; i += sizeof(elf_greg_t), index++)
-			if (access_elf_reg(dst->target, info, i,
-						&tmp[index], 1) < 0) {
-				dst->ret = -EIO;
-				return;
-			}
-		if (dst->count == 0)
-			return;
-	}
-
-	/* ip cfm psr ar.rsc ar.bsp ar.bspstore ar.rnat
-	 * ar.ccv ar.unat ar.fpsr ar.pfs ar.lc ar.ec ar.csd ar.ssd
-	 */
-	if (dst->count > 0 && dst->pos < (ELF_AR_END_OFFSET)) {
-		i = dst->pos;
-		index = (dst->pos - ELF_CR_IIP_OFFSET) / sizeof(elf_greg_t);
-		dst->ret = user_regset_copyin(&dst->pos, &dst->count,
-				&dst->u.set.kbuf, &dst->u.set.ubuf, tmp,
-				ELF_CR_IIP_OFFSET, ELF_AR_END_OFFSET);
-		if (dst->ret)
-			return;
-		for ( ; i < dst->pos; i += sizeof(elf_greg_t), index++)
-			if (access_elf_reg(dst->target, info, i,
-						&tmp[index], 1) < 0) {
+		/* now copy them into registers */
+		for (n = 0; from < dst->pos; from += sizeof(elf_greg_t), n++)
+			if (access_elf_reg(dst->target, info, from,
+						&tmp[n], 1) < 0) {
 				dst->ret = -EIO;
 				return;
 			}
@@ -1691,60 +1571,36 @@ void do_gpregs_set(struct unw_frame_info *info, void *arg)
 
 void do_fpregs_get(struct unw_frame_info *info, void *arg)
 {
-	struct regset_getset *dst = arg;
-	struct task_struct *task = dst->target;
-	elf_fpreg_t tmp[30];
-	int index, min_copy, i;
+	struct task_struct *task = info->task;
+	struct regset_membuf *dst = arg;
+	struct membuf to = dst->to;
+	elf_fpreg_t reg;
+	unsigned int n;
 
 	if (unw_unwind_to_user(info) < 0)
 		return;
 
 	/* Skip pos 0 and 1 */
-	if (dst->count > 0 && dst->pos < ELF_FP_OFFSET(2)) {
-		dst->ret = user_regset_copyout_zero(&dst->pos, &dst->count,
-						      &dst->u.get.kbuf,
-						      &dst->u.get.ubuf,
-						      0, ELF_FP_OFFSET(2));
-		if (dst->count == 0 || dst->ret)
-			return;
-	}
+	membuf_zero(&to, 2 * sizeof(elf_fpreg_t));
 
 	/* fr2-fr31 */
-	if (dst->count > 0 && dst->pos < ELF_FP_OFFSET(32)) {
-		index = (dst->pos - ELF_FP_OFFSET(2)) / sizeof(elf_fpreg_t);
-
-		min_copy = min(((unsigned int)ELF_FP_OFFSET(32)),
-				dst->pos + dst->count);
-		for (i = dst->pos; i < min_copy; i += sizeof(elf_fpreg_t),
-				index++)
-			if (unw_get_fr(info, i / sizeof(elf_fpreg_t),
-					 &tmp[index])) {
-				dst->ret = -EIO;
-				return;
-			}
-		dst->ret = user_regset_copyout(&dst->pos, &dst->count,
-				&dst->u.get.kbuf, &dst->u.get.ubuf, tmp,
-				ELF_FP_OFFSET(2), ELF_FP_OFFSET(32));
-		if (dst->count == 0 || dst->ret)
+	for (n = 2; to.left && n < 32; n++) {
+		if (unw_get_fr(info, n, &reg)) {
+			dst->ret = -EIO;
 			return;
+		}
+		membuf_write(&to, &reg, sizeof(reg));
 	}
 
 	/* fph */
-	if (dst->count > 0) {
-		ia64_flush_fph(dst->target);
-		if (task->thread.flags & IA64_THREAD_FPH_VALID)
-			dst->ret = user_regset_copyout(
-				&dst->pos, &dst->count,
-				&dst->u.get.kbuf, &dst->u.get.ubuf,
-				&dst->target->thread.fph,
-				ELF_FP_OFFSET(32), -1);
-		else
-			/* Zero fill instead.  */
-			dst->ret = user_regset_copyout_zero(
-				&dst->pos, &dst->count,
-				&dst->u.get.kbuf, &dst->u.get.ubuf,
-				ELF_FP_OFFSET(32), -1);
-	}
+	if (!to.left)
+		return;
+
+	ia64_flush_fph(task);
+	if (task->thread.flags & IA64_THREAD_FPH_VALID)
+		membuf_write(&to, &task->thread.fph, 96 * sizeof(reg));
+	else
+		membuf_zero(&to, 96 * sizeof(reg));
 }
 
 void do_fpregs_set(struct unw_frame_info *info, void *arg)
@@ -1820,6 +1676,20 @@ void do_fpregs_set(struct unw_frame_info *info, void *arg)
 	}
 }
 
+static void
+unwind_and_call(void (*call)(struct unw_frame_info *, void *),
+	       struct task_struct *target, void *data)
+{
+	if (target == current)
+		unw_init_running(call, data);
+	else {
+		struct unw_frame_info info;
+		memset(&info, 0, sizeof(info));
+		unw_init_from_blocked_task(&info, target);
+		(*call)(&info, data);
+	}
+}
+
 static int
 do_regset_call(void (*call)(struct unw_frame_info *, void *),
 	       struct task_struct *target,
@@ -1831,27 +1701,18 @@ do_regset_call(void (*call)(struct unw_frame_info *, void *),
 				 .pos = pos, .count = count,
 				 .u.set = { .kbuf = kbuf, .ubuf = ubuf },
 				 .ret = 0 };
-
-	if (target == current)
-		unw_init_running(call, &info);
-	else {
-		struct unw_frame_info ufi;
-		memset(&ufi, 0, sizeof(ufi));
-		unw_init_from_blocked_task(&ufi, target);
-		(*call)(&ufi, &info);
-	}
-
+	unwind_and_call(call, target, &info);
 	return info.ret;
 }
 
 static int
 gpregs_get(struct task_struct *target,
 	   const struct user_regset *regset,
-	   unsigned int pos, unsigned int count,
-	   void *kbuf, void __user *ubuf)
+	   struct membuf to)
 {
-	return do_regset_call(do_gpregs_get, target, regset, pos, count,
-		kbuf, ubuf);
+	struct regset_membuf info = {.to = to};
+	unwind_and_call(do_gpregs_get, target, &info);
+	return info.ret;
 }
 
 static int gpregs_set(struct task_struct *target,
@@ -1893,11 +1754,11 @@ fpregs_active(struct task_struct *target, const struct user_regset *regset)
 
 static int fpregs_get(struct task_struct *target,
 		const struct user_regset *regset,
-		unsigned int pos, unsigned int count,
-		void *kbuf, void __user *ubuf)
+		struct membuf to)
 {
-	return do_regset_call(do_fpregs_get, target, regset, pos, count,
-		kbuf, ubuf);
+	struct regset_membuf info = {.to = to};
+	unwind_and_call(do_fpregs_get, target, &info);
+	return info.ret;
 }
 
 static int fpregs_set(struct task_struct *target,
@@ -1914,7 +1775,6 @@ access_uarea(struct task_struct *child, unsigned long addr,
 	      unsigned long *data, int write_access)
 {
 	unsigned int pos = -1; /* an invalid value */
-	int ret;
 	unsigned long *ptr, regnum;
 
 	if ((addr & 0x7) != 0) {
@@ -1946,14 +1806,39 @@ access_uarea(struct task_struct *child, unsigned long addr,
 	}
 
 	if (pos != -1) {
-		if (write_access)
-			ret = fpregs_set(child, NULL, pos,
-				sizeof(unsigned long), data, NULL);
-		else
-			ret = fpregs_get(child, NULL, pos,
-				sizeof(unsigned long), data, NULL);
-		if (ret != 0)
-			return -1;
+		unsigned reg = pos / sizeof(elf_fpreg_t);
+		int which_half = (pos / sizeof(unsigned long)) & 1;
+
+		if (reg < 32) { /* fr2-fr31 */
+			struct unw_frame_info info;
+			elf_fpreg_t fpreg;
+
+			memset(&info, 0, sizeof(info));
+			unw_init_from_blocked_task(&info, child);
+			if (unw_unwind_to_user(&info) < 0)
+				return 0;
+
+			if (unw_get_fr(&info, reg, &fpreg))
+				return -1;
+			if (write_access) {
+				fpreg.u.bits[which_half] = *data;
+				if (unw_set_fr(&info, reg, fpreg))
+					return -1;
+			} else {
+				*data = fpreg.u.bits[which_half];
+			}
+		} else { /* fph */
+			elf_fpreg_t *p = &child->thread.fph[reg - 32];
+			unsigned long *bits = &p->u.bits[which_half];
+
+			ia64_sync_fph(child);
+			if (write_access)
+				*bits = *data;
+			else if (child->thread.flags & IA64_THREAD_FPH_VALID)
+				*data = *bits;
+			else
+				*data = 0;
+		}
 		return 0;
 	}
 
@@ -2039,15 +1924,14 @@ access_uarea(struct task_struct *child, unsigned long addr,
 	}
 
 	if (pos != -1) {
-		if (write_access)
-			ret = gpregs_set(child, NULL, pos,
-				sizeof(unsigned long), data, NULL);
-		else
-			ret = gpregs_get(child, NULL, pos,
-				sizeof(unsigned long), data, NULL);
-		if (ret != 0)
-			return -1;
-		return 0;
+		struct unw_frame_info info;
+
+		memset(&info, 0, sizeof(info));
+		unw_init_from_blocked_task(&info, child);
+		if (unw_unwind_to_user(&info) < 0)
+			return 0;
+
+		return access_elf_reg(child, &info, pos, data, write_access);
 	}
 
 	/* access debug registers */
@@ -2064,27 +1948,6 @@ access_uarea(struct task_struct *child, unsigned long addr,
 				"address 0x%lx\n", addr);
 		return -1;
 	}
-#ifdef CONFIG_PERFMON
-	/*
-	 * Check if debug registers are used by perfmon. This
-	 * test must be done once we know that we can do the
-	 * operation, i.e. the arguments are all valid, but
-	 * before we start modifying the state.
-	 *
-	 * Perfmon needs to keep a count of how many processes
-	 * are trying to modify the debug registers for system
-	 * wide monitoring sessions.
-	 *
-	 * We also include read access here, because they may
-	 * cause the PMU-installed debug register state
-	 * (dbr[], ibr[]) to be reset. The two arrays are also
-	 * used by perfmon, but we do not use
-	 * IA64_THREAD_DBG_VALID. The registers are restored
-	 * by the PMU context switch code.
-	 */
-	if (pfm_use_debug_registers(child))
-		return -1;
-#endif
 
 	if (!(child->thread.flags & IA64_THREAD_DBG_VALID)) {
 		child->thread.flags |= IA64_THREAD_DBG_VALID;
@@ -2113,14 +1976,14 @@ static const struct user_regset native_regsets[] = {
 		.core_note_type = NT_PRSTATUS,
 		.n = ELF_NGREG,
 		.size = sizeof(elf_greg_t), .align = sizeof(elf_greg_t),
-		.get = gpregs_get, .set = gpregs_set,
+		.regset_get = gpregs_get, .set = gpregs_set,
 		.writeback = gpregs_writeback
 	},
 	{
 		.core_note_type = NT_PRFPREG,
 		.n = ELF_NFPREG,
 		.size = sizeof(elf_fpreg_t), .align = sizeof(elf_fpreg_t),
-		.get = fpregs_get, .set = fpregs_set, .active = fpregs_active
+		.regset_get = fpregs_get, .set = fpregs_set, .active = fpregs_active
 	},
 };
 

@@ -36,6 +36,7 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 #include <net/sctp/stream_sched.h>
+#include <trace/events/sctp.h>
 
 /* Declare internal functions here.  */
 static int sctp_acked(struct sctp_sackhdr *sack, __u32 tsn);
@@ -279,7 +280,7 @@ void sctp_outq_free(struct sctp_outq *q)
 /* Put a new chunk in an sctp_outq.  */
 void sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 {
-	struct net *net = sock_net(q->asoc->base.sk);
+	struct net *net = q->asoc->base.net;
 
 	pr_debug("%s: outq:%p, chunk:%p[%s]\n", __func__, q, chunk,
 		 chunk && chunk->chunk_hdr ?
@@ -533,7 +534,7 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 		     enum sctp_retransmit_reason reason)
 {
-	struct net *net = sock_net(q->asoc->base.sk);
+	struct net *net = q->asoc->base.net;
 
 	switch (reason) {
 	case SCTP_RTXR_T3_RTX:
@@ -911,7 +912,7 @@ static void sctp_outq_flush_ctrl(struct sctp_flush_ctx *ctx)
 		case SCTP_CID_ABORT:
 			if (sctp_test_T_bit(chunk))
 				ctx->packet->vtag = ctx->asoc->c.my_vtag;
-			/* fallthru */
+			fallthrough;
 
 		/* The following chunks are "response" chunks, i.e.
 		 * they are generated in response to something we
@@ -926,7 +927,7 @@ static void sctp_outq_flush_ctrl(struct sctp_flush_ctx *ctx)
 		case SCTP_CID_ECN_CWR:
 		case SCTP_CID_ASCONF_ACK:
 			one_packet = 1;
-			/* Fall through */
+			fallthrough;
 
 		case SCTP_CID_SACK:
 		case SCTP_CID_HEARTBEAT:
@@ -1029,7 +1030,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 		if (!ctx->packet || !ctx->packet->has_cookie_echo)
 			return;
 
-		/* fall through */
+		fallthrough;
 	case SCTP_STATE_ESTABLISHED:
 	case SCTP_STATE_SHUTDOWN_PENDING:
 	case SCTP_STATE_SHUTDOWN_RECEIVED:
@@ -1237,6 +1238,12 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 
 	/* Grab the association's destination address list. */
 	transport_list = &asoc->peer.transport_addr_list;
+
+	/* SCTP path tracepoint for congestion control debugging. */
+	if (trace_sctp_probe_path_enabled()) {
+		list_for_each_entry(transport, transport_list, transports)
+			trace_sctp_probe_path(transport, asoc);
+	}
 
 	sack_ctsn = ntohl(sack->cum_tsn_ack);
 	gap_ack_blocks = ntohs(sack->num_gap_ack_blocks);
@@ -1884,6 +1891,6 @@ void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 ctsn)
 
 	if (ftsn_chunk) {
 		list_add_tail(&ftsn_chunk->list, &q->control_chunk_list);
-		SCTP_INC_STATS(sock_net(asoc->base.sk), SCTP_MIB_OUTCTRLCHUNKS);
+		SCTP_INC_STATS(asoc->base.net, SCTP_MIB_OUTCTRLCHUNKS);
 	}
 }

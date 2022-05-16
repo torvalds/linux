@@ -175,7 +175,7 @@ static bool clk_main_rc_osc_ready(struct regmap *regmap)
 
 	regmap_read(regmap, AT91_PMC_SR, &status);
 
-	return status & AT91_PMC_MOSCRCS;
+	return !!(status & AT91_PMC_MOSCRCS);
 }
 
 static int clk_main_rc_osc_prepare(struct clk_hw *hw)
@@ -336,7 +336,7 @@ static int clk_rm9200_main_is_prepared(struct clk_hw *hw)
 
 	regmap_read(clkmain->regmap, AT91_CKGR_MCFR, &status);
 
-	return status & AT91_PMC_MAINRDY ? 1 : 0;
+	return !!(status & AT91_PMC_MAINRDY);
 }
 
 static unsigned long clk_rm9200_main_recalc_rate(struct clk_hw *hw,
@@ -398,7 +398,7 @@ static inline bool clk_sam9x5_main_ready(struct regmap *regmap)
 
 	regmap_read(regmap, AT91_PMC_SR, &status);
 
-	return status & AT91_PMC_MOSCSELS ? 1 : 0;
+	return !!(status & AT91_PMC_MOSCSELS);
 }
 
 static int clk_sam9x5_main_prepare(struct clk_hw *hw)
@@ -437,12 +437,17 @@ static int clk_sam9x5_main_set_parent(struct clk_hw *hw, u8 index)
 		return -EINVAL;
 
 	regmap_read(regmap, AT91_CKGR_MOR, &tmp);
-	tmp &= ~MOR_KEY_MASK;
 
 	if (index && !(tmp & AT91_PMC_MOSCSEL))
-		regmap_write(regmap, AT91_CKGR_MOR, tmp | AT91_PMC_MOSCSEL);
+		tmp = AT91_PMC_MOSCSEL;
 	else if (!index && (tmp & AT91_PMC_MOSCSEL))
-		regmap_write(regmap, AT91_CKGR_MOR, tmp & ~AT91_PMC_MOSCSEL);
+		tmp = 0;
+	else
+		return 0;
+
+	regmap_update_bits(regmap, AT91_CKGR_MOR,
+			   AT91_PMC_MOSCSEL | MOR_KEY_MASK,
+			   tmp | AT91_PMC_KEY);
 
 	while (!clk_sam9x5_main_ready(regmap))
 		cpu_relax();

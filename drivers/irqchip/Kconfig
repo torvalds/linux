@@ -148,7 +148,7 @@ config DAVINCI_CP_INTC
 config DW_APB_ICTL
 	bool
 	select GENERIC_IRQ_CHIP
-	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
 
 config FARADAY_FTINTC010
 	bool
@@ -180,7 +180,6 @@ config IRQ_MIPS_CPU
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_IPI if SYS_SUPPORTS_MULTITHREADING
 	select IRQ_DOMAIN
-	select IRQ_DOMAIN_HIERARCHY if GENERIC_IRQ_IPI
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
 
 config CLPS711X_IRQCHIP
@@ -232,12 +231,12 @@ config RENESAS_INTC_IRQPIN
 	  interrupt pins, as found on SH/R-Mobile and R-Car Gen1 SoCs.
 
 config RENESAS_IRQC
-	bool "Renesas R-Mobile APE6 and R-Car IRQC support" if COMPILE_TEST
+	bool "Renesas R-Mobile APE6, R-Car Gen{2,3} and RZ/G{1,2} IRQC support" if COMPILE_TEST
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 	help
 	  Enable support for the Renesas Interrupt Controller for external
-	  devices, as found on R-Mobile APE6, R-Car Gen2, and R-Car Gen3 SoCs.
+	  devices, as found on R-Mobile APE6, R-Car Gen{2,3} and RZ/G{1,2} SoCs.
 
 config RENESAS_RZA1_IRQC
 	bool "Renesas RZ/A1 IRQC support" if COMPILE_TEST
@@ -245,6 +244,14 @@ config RENESAS_RZA1_IRQC
 	help
 	  Enable support for the Renesas RZ/A1 Interrupt Controller, to use up
 	  to 8 external interrupts with configurable sense select.
+
+config SL28CPLD_INTC
+	bool "Kontron sl28cpld IRQ controller"
+	depends on MFD_SL28CPLD=y || COMPILE_TEST
+	select REGMAP_IRQ
+	help
+	  Interrupt controller driver for the board management controller
+	  found on the Kontron sl28 CPLD.
 
 config ST_IRQCHIP
 	bool
@@ -307,7 +314,6 @@ config KEYSTONE_IRQ
 config MIPS_GIC
 	bool
 	select GENERIC_IRQ_IPI
-	select IRQ_DOMAIN_HIERARCHY
 	select MIPS_CM
 
 config INGENIC_IRQ
@@ -369,6 +375,10 @@ config MVEBU_PIC
 
 config MVEBU_SEI
         bool
+
+config LS_EXTIRQ
+	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
+	select MFD_SYSCON
 
 config LS_SCFG_MSI
 	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
@@ -434,7 +444,7 @@ config CSKY_MPINTC
 	help
 	  Say yes here to enable C-SKY SMP interrupt controller driver used
 	  for C-SKY SMP system.
-	  In fact it's not mmio map in hw and it use ld/st to visit the
+	  In fact it's not mmio map in hardware and it uses ld/st to visit the
 	  controller's register inside CPU.
 
 config CSKY_APB_INTC
@@ -442,7 +452,7 @@ config CSKY_APB_INTC
 	depends on CSKY
 	help
 	  Say yes here to enable C-SKY APB interrupt controller driver used
-	  by C-SKY single core SOC system. It use mmio map apb-bus to visit
+	  by C-SKY single core SOC system. It uses mmio map apb-bus to visit
 	  the controller's register.
 
 config IMX_IRQSTEER
@@ -452,6 +462,12 @@ config IMX_IRQSTEER
 	select IRQ_DOMAIN
 	help
 	  Support for the i.MX IRQSTEER interrupt multiplexer/remapper.
+
+config IMX_INTMUX
+	def_bool y if ARCH_MXC || COMPILE_TEST
+	select IRQ_DOMAIN
+	help
+	  Support for the i.MX INTMUX interrupt multiplexer.
 
 config LS1X_IRQ
 	bool "Loongson-1 Interrupt Controller"
@@ -483,11 +499,33 @@ config TI_SCI_INTA_IRQCHIP
 	  If you wish to use interrupt aggregator irq resources managed by the
 	  TI System Controller, say Y here. Otherwise, say N.
 
-endmenu
+config TI_PRUSS_INTC
+	tristate "TI PRU-ICSS Interrupt Controller"
+	depends on ARCH_DAVINCI || SOC_AM33XX || SOC_AM43XX || SOC_DRA7XX || ARCH_KEYSTONE || ARCH_K3
+	select IRQ_DOMAIN
+	help
+	  This enables support for the PRU-ICSS Local Interrupt Controller
+	  present within a PRU-ICSS subsystem present on various TI SoCs.
+	  The PRUSS INTC enables various interrupts to be routed to multiple
+	  different processors within the SoC.
+
+config RISCV_INTC
+	bool "RISC-V Local Interrupt Controller"
+	depends on RISCV
+	default y
+	help
+	   This enables support for the per-HART local interrupt controller
+	   found in standard RISC-V systems.  The per-HART local interrupt
+	   controller handles timer interrupts, software interrupts, and
+	   hardware interrupts. Without a per-HART local interrupt controller,
+	   a RISC-V system will be unable to handle any interrupts.
+
+	   If you don't know what to do here, say Y.
 
 config SIFIVE_PLIC
 	bool "SiFive Platform-Level Interrupt Controller"
 	depends on RISCV
+	select IRQ_DOMAIN_HIERARCHY
 	help
 	   This enables support for the PLIC chip found in SiFive (and
 	   potentially other) RISC-V systems.  The PLIC controls devices
@@ -496,3 +534,66 @@ config SIFIVE_PLIC
 	   interrupt sources are subordinate to the PLIC.
 
 	   If you don't know what to do here, say Y.
+
+config EXYNOS_IRQ_COMBINER
+	bool "Samsung Exynos IRQ combiner support" if COMPILE_TEST
+	depends on (ARCH_EXYNOS && ARM) || COMPILE_TEST
+	help
+	  Say yes here to add support for the IRQ combiner devices embedded
+	  in Samsung Exynos chips.
+
+config LOONGSON_LIOINTC
+	bool "Loongson Local I/O Interrupt Controller"
+	depends on MACH_LOONGSON64
+	default y
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+	help
+	  Support for the Loongson Local I/O Interrupt Controller.
+
+config LOONGSON_HTPIC
+	bool "Loongson3 HyperTransport PIC Controller"
+	depends on MACH_LOONGSON64
+	default y
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+	help
+	  Support for the Loongson-3 HyperTransport PIC Controller.
+
+config LOONGSON_HTVEC
+	bool "Loongson3 HyperTransport Interrupt Vector Controller"
+	depends on MACH_LOONGSON64
+	default MACH_LOONGSON64
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Support for the Loongson3 HyperTransport Interrupt Vector Controller.
+
+config LOONGSON_PCH_PIC
+	bool "Loongson PCH PIC Controller"
+	depends on MACH_LOONGSON64 || COMPILE_TEST
+	default MACH_LOONGSON64
+	select IRQ_DOMAIN_HIERARCHY
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
+	help
+	  Support for the Loongson PCH PIC Controller.
+
+config LOONGSON_PCH_MSI
+	bool "Loongson PCH MSI Controller"
+	depends on MACH_LOONGSON64 || COMPILE_TEST
+	depends on PCI
+	default MACH_LOONGSON64
+	select IRQ_DOMAIN_HIERARCHY
+	select PCI_MSI
+	help
+	  Support for the Loongson PCH MSI Controller.
+
+config MST_IRQ
+	bool "MStar Interrupt Controller"
+	depends on ARCH_MEDIATEK || ARCH_MSTARV7 || COMPILE_TEST
+	default ARCH_MEDIATEK
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Support MStar Interrupt Controller.
+
+endmenu

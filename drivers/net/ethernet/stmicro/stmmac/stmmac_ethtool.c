@@ -34,7 +34,7 @@ struct stmmac_stats {
 };
 
 #define STMMAC_STAT(m)	\
-	{ #m, FIELD_SIZEOF(struct stmmac_extra_stats, m),	\
+	{ #m, sizeof_field(struct stmmac_extra_stats, m),	\
 	offsetof(struct stmmac_priv, xstats.m)}
 
 static const struct stmmac_stats stmmac_gstrings_stats[] = {
@@ -163,7 +163,7 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 
 /* HW MAC Management counters (if supported) */
 #define STMMAC_MMC_STAT(m)	\
-	{ #m, FIELD_SIZEOF(struct stmmac_counters, m),	\
+	{ #m, sizeof_field(struct stmmac_counters, m),	\
 	offsetof(struct stmmac_priv, mmc.m)}
 
 static const struct stmmac_stats stmmac_mmc[] = {
@@ -440,6 +440,33 @@ static int stmmac_nway_reset(struct net_device *dev)
 	return phylink_ethtool_nway_reset(priv->phylink);
 }
 
+static void stmmac_get_ringparam(struct net_device *netdev,
+				 struct ethtool_ringparam *ring)
+{
+	struct stmmac_priv *priv = netdev_priv(netdev);
+
+	ring->rx_max_pending = DMA_MAX_RX_SIZE;
+	ring->tx_max_pending = DMA_MAX_TX_SIZE;
+	ring->rx_pending = priv->dma_rx_size;
+	ring->tx_pending = priv->dma_tx_size;
+}
+
+static int stmmac_set_ringparam(struct net_device *netdev,
+				struct ethtool_ringparam *ring)
+{
+	if (ring->rx_mini_pending || ring->rx_jumbo_pending ||
+	    ring->rx_pending < DMA_MIN_RX_SIZE ||
+	    ring->rx_pending > DMA_MAX_RX_SIZE ||
+	    !is_power_of_2(ring->rx_pending) ||
+	    ring->tx_pending < DMA_MIN_TX_SIZE ||
+	    ring->tx_pending > DMA_MAX_TX_SIZE ||
+	    !is_power_of_2(ring->tx_pending))
+		return -EINVAL;
+
+	return stmmac_reinit_ringparam(netdev, ring->rx_pending,
+				       ring->tx_pending);
+}
+
 static void
 stmmac_get_pauseparam(struct net_device *netdev,
 		      struct ethtool_pauseparam *pause)
@@ -600,9 +627,14 @@ static void stmmac_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
+	if (!priv->plat->pmt)
+		return phylink_ethtool_get_wol(priv->phylink, wol);
+
 	mutex_lock(&priv->lock);
 	if (device_can_wakeup(priv->device)) {
 		wol->supported = WAKE_MAGIC | WAKE_UCAST;
+		if (priv->hw_cap_support && !priv->dma_cap.pmt_magic_frame)
+			wol->supported &= ~WAKE_MAGIC;
 		wol->wolopts = priv->wolopts;
 	}
 	mutex_unlock(&priv->lock);
@@ -613,14 +645,22 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 support = WAKE_MAGIC | WAKE_UCAST;
 
+	if (!device_can_wakeup(priv->device))
+		return -EOPNOTSUPP;
+
+	if (!priv->plat->pmt) {
+		int ret = phylink_ethtool_set_wol(priv->phylink, wol);
+
+		if (!ret)
+			device_set_wakeup_enable(priv->device, !!wol->wolopts);
+		return ret;
+	}
+
 	/* By default almost all GMAC devices support the WoL via
 	 * magic frame but we can disable it if the HW capability
 	 * register shows no support for pmt_magic_frame. */
 	if ((priv->hw_cap_support) && (!priv->dma_cap.pmt_magic_frame))
 		wol->wolopts &= ~WAKE_MAGIC;
-
-	if (!device_can_wakeup(priv->device))
-		return -EINVAL;
 
 	if (wol->wolopts & ~support)
 		return -EINVAL;
@@ -652,6 +692,7 @@ static int stmmac_ethtool_op_get_eee(struct net_device *dev,
 	edata->eee_enabled = priv->eee_enabled;
 	edata->eee_active = priv->eee_active;
 	edata->tx_lpi_timer = priv->tx_lpi_timer;
+	edata->tx_lpi_enabled = priv->tx_lpi_enabled;
 
 	return phylink_ethtool_get_eee(priv->phylink, edata);
 }
@@ -662,24 +703,26 @@ static int stmmac_ethtool_op_set_eee(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int ret;
 
-	if (!edata->eee_enabled) {
+	if (!priv->dma_cap.eee)
+		return -EOPNOTSUPP;
+
+	if (priv->tx_lpi_enabled != edata->tx_lpi_enabled)
+		netdev_warn(priv->dev,
+			    "Setting EEE tx-lpi is not supported\n");
+
+	if (!edata->eee_enabled)
 		stmmac_disable_eee_mode(priv);
-	} else {
-		/* We are asking for enabling the EEE but it is safe
-		 * to verify all by invoking the eee_init function.
-		 * In case of failure it will return an error.
-		 */
-		edata->eee_enabled = stmmac_eee_init(priv);
-		if (!edata->eee_enabled)
-			return -EOPNOTSUPP;
-	}
 
 	ret = phylink_ethtool_set_eee(priv->phylink, edata);
 	if (ret)
 		return ret;
 
-	priv->eee_enabled = edata->eee_enabled;
-	priv->tx_lpi_timer = edata->tx_lpi_timer;
+	if (edata->eee_enabled &&
+	    priv->tx_lpi_timer != edata->tx_lpi_timer) {
+		priv->tx_lpi_timer = edata->tx_lpi_timer;
+		stmmac_eee_init(priv);
+	}
+
 	return 0;
 }
 
@@ -731,20 +774,6 @@ static int stmmac_set_coalesce(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 rx_cnt = priv->plat->rx_queues_to_use;
 	unsigned int rx_riwt;
-
-	/* Check not supported parameters  */
-	if ((ec->rx_coalesce_usecs_irq) ||
-	    (ec->rx_max_coalesced_frames_irq) || (ec->tx_coalesce_usecs_irq) ||
-	    (ec->use_adaptive_rx_coalesce) || (ec->use_adaptive_tx_coalesce) ||
-	    (ec->pkt_rate_low) || (ec->rx_coalesce_usecs_low) ||
-	    (ec->rx_max_coalesced_frames_low) || (ec->tx_coalesce_usecs_high) ||
-	    (ec->tx_max_coalesced_frames_low) || (ec->pkt_rate_high) ||
-	    (ec->tx_coalesce_usecs_low) || (ec->rx_coalesce_usecs_high) ||
-	    (ec->rx_max_coalesced_frames_high) ||
-	    (ec->tx_max_coalesced_frames_irq) ||
-	    (ec->stats_block_coalesce_usecs) ||
-	    (ec->tx_max_coalesced_frames_high) || (ec->rate_sample_interval))
-		return -EOPNOTSUPP;
 
 	if (priv->use_riwt && (ec->rx_coalesce_usecs > 0)) {
 		rx_riwt = stmmac_usec2riwt(ec->rx_coalesce_usecs, priv);
@@ -841,6 +870,30 @@ static int stmmac_set_rxfh(struct net_device *dev, const u32 *indir,
 				    priv->plat->rx_queues_to_use);
 }
 
+static void stmmac_get_channels(struct net_device *dev,
+				struct ethtool_channels *chan)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	chan->rx_count = priv->plat->rx_queues_to_use;
+	chan->tx_count = priv->plat->tx_queues_to_use;
+	chan->max_rx = priv->dma_cap.number_rx_queues;
+	chan->max_tx = priv->dma_cap.number_tx_queues;
+}
+
+static int stmmac_set_channels(struct net_device *dev,
+			       struct ethtool_channels *chan)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	if (chan->rx_count > priv->dma_cap.number_rx_queues ||
+	    chan->tx_count > priv->dma_cap.number_tx_queues ||
+	    !chan->rx_count || !chan->tx_count)
+		return -EINVAL;
+
+	return stmmac_reinit_queues(dev, chan->rx_count, chan->tx_count);
+}
+
 static int stmmac_get_ts_info(struct net_device *dev,
 			      struct ethtool_ts_info *info)
 {
@@ -914,6 +967,8 @@ static int stmmac_set_tunable(struct net_device *dev,
 }
 
 static const struct ethtool_ops stmmac_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.begin = stmmac_check_if_running,
 	.get_drvinfo = stmmac_ethtool_getdrvinfo,
 	.get_msglevel = stmmac_ethtool_getmsglevel,
@@ -922,6 +977,8 @@ static const struct ethtool_ops stmmac_ethtool_ops = {
 	.get_regs_len = stmmac_ethtool_get_regs_len,
 	.get_link = ethtool_op_get_link,
 	.nway_reset = stmmac_nway_reset,
+	.get_ringparam = stmmac_get_ringparam,
+	.set_ringparam = stmmac_set_ringparam,
 	.get_pauseparam = stmmac_get_pauseparam,
 	.set_pauseparam = stmmac_set_pauseparam,
 	.self_test = stmmac_selftest_run,
@@ -940,6 +997,8 @@ static const struct ethtool_ops stmmac_ethtool_ops = {
 	.get_ts_info = stmmac_get_ts_info,
 	.get_coalesce = stmmac_get_coalesce,
 	.set_coalesce = stmmac_set_coalesce,
+	.get_channels = stmmac_get_channels,
+	.set_channels = stmmac_set_channels,
 	.get_tunable = stmmac_get_tunable,
 	.set_tunable = stmmac_set_tunable,
 	.get_link_ksettings = stmmac_ethtool_get_link_ksettings,

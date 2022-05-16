@@ -173,6 +173,7 @@ s32 igc_check_downshift(struct igc_hw *hw)
 s32 igc_phy_hw_reset(struct igc_hw *hw)
 {
 	struct igc_phy_info *phy = &hw->phy;
+	u32 phpm = 0, timeout = 10000;
 	s32  ret_val;
 	u32 ctrl;
 
@@ -186,6 +187,8 @@ s32 igc_phy_hw_reset(struct igc_hw *hw)
 	if (ret_val)
 		goto out;
 
+	phpm = rd32(IGC_I225_PHPM);
+
 	ctrl = rd32(IGC_CTRL);
 	wr32(IGC_CTRL, ctrl | IGC_CTRL_PHY_RST);
 	wrfl();
@@ -195,7 +198,18 @@ s32 igc_phy_hw_reset(struct igc_hw *hw)
 	wr32(IGC_CTRL, ctrl);
 	wrfl();
 
-	usleep_range(1500, 2000);
+	/* SW should guarantee 100us for the completion of the PHY reset */
+	usleep_range(100, 150);
+	do {
+		phpm = rd32(IGC_I225_PHPM);
+		timeout--;
+		udelay(1);
+	} while (!(phpm & IGC_PHY_RST_COMP) && timeout);
+
+	if (!timeout)
+		hw_dbg("Timeout is expired after a phy reset\n");
+
+	usleep_range(100, 150);
 
 	phy->ops.release(hw);
 

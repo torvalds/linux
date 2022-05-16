@@ -1,4 +1,4 @@
-. SPDX-License-Identifier: GPL-2.0
+.. SPDX-License-Identifier: GPL-2.0
 
 ===============
 I2C Bus Drivers
@@ -20,7 +20,6 @@ I2C Bus Drivers
    i2c-nforce2
    i2c-nvidia-gpu
    i2c-ocores
-   i2c-parport-light
    i2c-parport
    i2c-pca-isa
    i2c-piix4

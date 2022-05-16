@@ -79,7 +79,6 @@ EXPORT_SYMBOL(tty_register_ldisc);
 /**
  *	tty_unregister_ldisc	-	unload a line discipline
  *	@disc: ldisc number
- *	@new_ldisc: pointer to the ldisc object
  *
  *	Remove a line discipline from the kernel providing it is not
  *	currently in use.
@@ -156,12 +155,7 @@ static void put_ldops(struct tty_ldisc_ops *ldops)
  *		takes tty_ldiscs_lock to guard against ldisc races
  */
 
-#if defined(CONFIG_LDISC_AUTOLOAD)
-	#define INITIAL_AUTOLOAD_STATE	1
-#else
-	#define INITIAL_AUTOLOAD_STATE	0
-#endif
-static int tty_ldisc_autoload = INITIAL_AUTOLOAD_STATE;
+static int tty_ldisc_autoload = IS_BUILTIN(CONFIG_LDISC_AUTOLOAD);
 
 static struct tty_ldisc *tty_ldisc_get(struct tty_struct *tty, int disc)
 {
@@ -547,7 +541,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 /**
  *	tty_set_ldisc		-	set line discipline
  *	@tty: the terminal to set
- *	@ldisc: the line discipline
+ *	@disc: the line discipline number
  *
  *	Set the discipline of a tty line. Must be called from a process
  *	context. The ldisc change logic has to protect itself against any

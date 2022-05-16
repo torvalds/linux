@@ -358,7 +358,7 @@ v3d_job_free(struct kref *ref)
 
 	for (i = 0; i < job->bo_count; i++) {
 		if (job->bo[i])
-			drm_gem_object_put_unlocked(job->bo[i]);
+			drm_gem_object_put(job->bo[i]);
 	}
 	kvfree(job->bo);
 
@@ -370,8 +370,8 @@ v3d_job_free(struct kref *ref)
 	dma_fence_put(job->irq_fence);
 	dma_fence_put(job->done_fence);
 
-	pm_runtime_mark_last_busy(job->v3d->dev);
-	pm_runtime_put_autosuspend(job->v3d->dev);
+	pm_runtime_mark_last_busy(job->v3d->drm.dev);
+	pm_runtime_put_autosuspend(job->v3d->drm.dev);
 
 	kfree(job);
 }
@@ -384,7 +384,7 @@ v3d_render_job_free(struct kref *ref)
 	struct v3d_bo *bo, *save;
 
 	list_for_each_entry_safe(bo, save, &job->unref_list, unref_head) {
-		drm_gem_object_put_unlocked(&bo->base.base);
+		drm_gem_object_put(&bo->base.base);
 	}
 
 	v3d_job_free(ref);
@@ -439,7 +439,7 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	job->v3d = v3d;
 	job->free = free;
 
-	ret = pm_runtime_get_sync(v3d->dev);
+	ret = pm_runtime_get_sync(v3d->drm.dev);
 	if (ret < 0)
 		return ret;
 
@@ -458,7 +458,7 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	return 0;
 fail:
 	xa_destroy(&job->deps);
-	pm_runtime_put_autosuspend(v3d->dev);
+	pm_runtime_put_autosuspend(v3d->drm.dev);
 	return ret;
 }
 
@@ -530,13 +530,16 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct drm_v3d_submit_cl *args = data;
 	struct v3d_bin_job *bin = NULL;
 	struct v3d_render_job *render;
+	struct v3d_job *clean_job = NULL;
+	struct v3d_job *last_job;
 	struct ww_acquire_ctx acquire_ctx;
 	int ret = 0;
 
 	trace_v3d_submit_cl_ioctl(&v3d->drm, args->rcl_start, args->rcl_end);
 
-	if (args->pad != 0) {
-		DRM_INFO("pad must be zero: %d\n", args->pad);
+	if (args->flags != 0 &&
+	    args->flags != DRM_V3D_SUBMIT_CL_FLUSH_CACHE) {
+		DRM_INFO("invalid flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -578,12 +581,31 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 		bin->render = render;
 	}
 
-	ret = v3d_lookup_bos(dev, file_priv, &render->base,
+	if (args->flags & DRM_V3D_SUBMIT_CL_FLUSH_CACHE) {
+		clean_job = kcalloc(1, sizeof(*clean_job), GFP_KERNEL);
+		if (!clean_job) {
+			ret = -ENOMEM;
+			goto fail;
+		}
+
+		ret = v3d_job_init(v3d, file_priv, clean_job, v3d_job_free, 0);
+		if (ret) {
+			kfree(clean_job);
+			clean_job = NULL;
+			goto fail;
+		}
+
+		last_job = clean_job;
+	} else {
+		last_job = &render->base;
+	}
+
+	ret = v3d_lookup_bos(dev, file_priv, last_job,
 			     args->bo_handles, args->bo_handle_count);
 	if (ret)
 		goto fail;
 
-	ret = v3d_lock_bo_reservations(&render->base, &acquire_ctx);
+	ret = v3d_lock_bo_reservations(last_job, &acquire_ctx);
 	if (ret)
 		goto fail;
 
@@ -602,28 +624,44 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	ret = v3d_push_job(v3d_priv, &render->base, V3D_RENDER);
 	if (ret)
 		goto fail_unreserve;
+
+	if (clean_job) {
+		struct dma_fence *render_fence =
+			dma_fence_get(render->base.done_fence);
+		ret = drm_gem_fence_array_add(&clean_job->deps, render_fence);
+		if (ret)
+			goto fail_unreserve;
+		ret = v3d_push_job(v3d_priv, clean_job, V3D_CACHE_CLEAN);
+		if (ret)
+			goto fail_unreserve;
+	}
+
 	mutex_unlock(&v3d->sched_lock);
 
 	v3d_attach_fences_and_unlock_reservation(file_priv,
-						 &render->base,
+						 last_job,
 						 &acquire_ctx,
 						 args->out_sync,
-						 render->base.done_fence);
+						 last_job->done_fence);
 
 	if (bin)
 		v3d_job_put(&bin->base);
 	v3d_job_put(&render->base);
+	if (clean_job)
+		v3d_job_put(clean_job);
 
 	return 0;
 
 fail_unreserve:
 	mutex_unlock(&v3d->sched_lock);
-	drm_gem_unlock_reservations(render->base.bo,
-				    render->base.bo_count, &acquire_ctx);
+	drm_gem_unlock_reservations(last_job->bo,
+				    last_job->bo_count, &acquire_ctx);
 fail:
 	if (bin)
 		v3d_job_put(&bin->base);
 	v3d_job_put(&render->base);
+	if (clean_job)
+		v3d_job_put(clean_job);
 
 	return ret;
 }
@@ -847,12 +885,12 @@ v3d_gem_init(struct drm_device *dev)
 	 */
 	drm_mm_init(&v3d->mm, 1, pt_size / sizeof(u32) - 1);
 
-	v3d->pt = dma_alloc_wc(v3d->dev, pt_size,
+	v3d->pt = dma_alloc_wc(v3d->drm.dev, pt_size,
 			       &v3d->pt_paddr,
 			       GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 	if (!v3d->pt) {
 		drm_mm_takedown(&v3d->mm);
-		dev_err(v3d->dev,
+		dev_err(v3d->drm.dev,
 			"Failed to allocate page tables. "
 			"Please ensure you have CMA enabled.\n");
 		return -ENOMEM;
@@ -864,7 +902,7 @@ v3d_gem_init(struct drm_device *dev)
 	ret = v3d_sched_init(v3d);
 	if (ret) {
 		drm_mm_takedown(&v3d->mm);
-		dma_free_coherent(v3d->dev, 4096 * 1024, (void *)v3d->pt,
+		dma_free_coherent(v3d->drm.dev, 4096 * 1024, (void *)v3d->pt,
 				  v3d->pt_paddr);
 	}
 
@@ -886,5 +924,6 @@ v3d_gem_destroy(struct drm_device *dev)
 
 	drm_mm_takedown(&v3d->mm);
 
-	dma_free_coherent(v3d->dev, 4096 * 1024, (void *)v3d->pt, v3d->pt_paddr);
+	dma_free_coherent(v3d->drm.dev, 4096 * 1024, (void *)v3d->pt,
+			  v3d->pt_paddr);
 }

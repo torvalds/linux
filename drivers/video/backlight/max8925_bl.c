@@ -64,18 +64,7 @@ out:
 
 static int max8925_backlight_update_status(struct backlight_device *bl)
 {
-	int brightness = bl->props.brightness;
-
-	if (bl->props.power != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	if (bl->props.state & BL_CORE_SUSPENDED)
-		brightness = 0;
-
-	return max8925_backlight_set(bl, brightness);
+	return max8925_backlight_set(bl, backlight_get_brightness(bl));
 }
 
 static int max8925_backlight_get_brightness(struct backlight_device *bl)

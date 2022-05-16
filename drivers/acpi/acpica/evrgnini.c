@@ -3,7 +3,7 @@
  *
  * Module Name: evrgnini- ACPI address_space (op_region) init
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -38,6 +38,7 @@ acpi_ev_system_memory_region_setup(acpi_handle handle,
 	union acpi_operand_object *region_desc =
 	    (union acpi_operand_object *)handle;
 	struct acpi_mem_space_context *local_region_context;
+	struct acpi_mem_mapping *mm;
 
 	ACPI_FUNCTION_TRACE(ev_system_memory_region_setup);
 
@@ -46,13 +47,14 @@ acpi_ev_system_memory_region_setup(acpi_handle handle,
 			local_region_context =
 			    (struct acpi_mem_space_context *)*region_context;
 
-			/* Delete a cached mapping if present */
+			/* Delete memory mappings if present */
 
-			if (local_region_context->mapped_length) {
-				acpi_os_unmap_memory(local_region_context->
-						     mapped_logical_address,
-						     local_region_context->
-						     mapped_length);
+			while (local_region_context->first_mm) {
+				mm = local_region_context->first_mm;
+				local_region_context->first_mm = mm->next_mm;
+				acpi_os_unmap_memory(mm->logical_address,
+						     mm->length);
+				ACPI_FREE(mm);
 			}
 			ACPI_FREE(local_region_context);
 			*region_context = NULL;
@@ -198,7 +200,6 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 						 * root bridge. Still need to return a context object
 						 * for the new PCI_Config operation region, however.
 						 */
-						status = AE_OK;
 					} else {
 						ACPI_EXCEPTION((AE_INFO, status,
 								"Could not install PciConfig handler "

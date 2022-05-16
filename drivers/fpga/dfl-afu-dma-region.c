@@ -16,15 +16,6 @@
 
 #include "dfl-afu.h"
 
-static void put_all_pages(struct page **pages, int npages)
-{
-	int i;
-
-	for (i = 0; i < npages; i++)
-		if (pages[i])
-			put_page(pages[i]);
-}
-
 void afu_dma_region_init(struct dfl_feature_platform_data *pdata)
 {
 	struct dfl_afu *afu = dfl_fpga_pdata_get_private(pdata);
@@ -57,22 +48,22 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
 		goto unlock_vm;
 	}
 
-	pinned = get_user_pages_fast(region->user_addr, npages, FOLL_WRITE,
+	pinned = pin_user_pages_fast(region->user_addr, npages, FOLL_WRITE,
 				     region->pages);
 	if (pinned < 0) {
 		ret = pinned;
-		goto put_pages;
+		goto free_pages;
 	} else if (pinned != npages) {
 		ret = -EFAULT;
-		goto free_pages;
+		goto unpin_pages;
 	}
 
 	dev_dbg(dev, "%d pages pinned\n", pinned);
 
 	return 0;
 
-put_pages:
-	put_all_pages(region->pages, pinned);
+unpin_pages:
+	unpin_user_pages(region->pages, pinned);
 free_pages:
 	kfree(region->pages);
 unlock_vm:
@@ -94,7 +85,7 @@ static void afu_dma_unpin_pages(struct dfl_feature_platform_data *pdata,
 	long npages = region->length >> PAGE_SHIFT;
 	struct device *dev = &pdata->dev->dev;
 
-	put_all_pages(region->pages, npages);
+	unpin_user_pages(region->pages, npages);
 	kfree(region->pages);
 	account_locked_vm(current->mm, npages, false);
 
@@ -322,10 +313,6 @@ int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
 
 	/* Check overflow */
 	if (user_addr + length < user_addr)
-		return -EINVAL;
-
-	if (!access_ok((void __user *)(unsigned long)user_addr,
-		       length))
 		return -EINVAL;
 
 	region = kzalloc(sizeof(*region), GFP_KERNEL);

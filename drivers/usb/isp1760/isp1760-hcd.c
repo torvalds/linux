@@ -22,6 +22,7 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <asm/unaligned.h>
@@ -380,18 +381,15 @@ static int handshake(struct usb_hcd *hcd, u32 reg,
 		      u32 mask, u32 done, int usec)
 {
 	u32 result;
+	int ret;
 
-	do {
-		result = reg_read32(hcd->regs, reg);
-		if (result == ~0)
-			return -ENODEV;
-		result &= mask;
-		if (result == done)
-			return 0;
-		udelay(1);
-		usec--;
-	} while (usec > 0);
-	return -ETIMEDOUT;
+	ret = readl_poll_timeout_atomic(hcd->regs + reg, result,
+					((result & mask) == done ||
+					 result == U32_MAX), 1, usec);
+	if (result == U32_MAX)
+		return -ENODEV;
+
+	return ret;
 }
 
 /* reset a non-running (STS_HALT == 1) controller */
@@ -788,11 +786,11 @@ static void collect_qtds(struct usb_hcd *hcd, struct isp1760_qh *qh,
 					mem_reads8(hcd->regs, qtd->payload_addr,
 							qtd->data_buffer,
 							qtd->actual_length);
-					/* Fall through */
+					fallthrough;
 				case OUT_PID:
 					qtd->urb->actual_length +=
 							qtd->actual_length;
-					/* Fall through */
+					fallthrough;
 				case SETUP_PID:
 					break;
 				}
@@ -1032,8 +1030,6 @@ static int check_atl_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 			urb->status = -EOVERFLOW;
 		else if (FROM_DW3_CERR(ptd->dw3))
 			urb->status = -EPIPE;  /* Stall */
-		else if (ptd->dw3 & DW3_ERROR_BIT)
-			urb->status = -EPROTO; /* XactErr */
 		else
 			urb->status = -EPROTO; /* Unknown */
 /*

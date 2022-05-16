@@ -77,14 +77,8 @@
 
 #define MMC_SPI_BLOCKSIZE	512
 
-
-/* These fixed timeouts come from the latest SD specs, which say to ignore
- * the CSD values.  The R1B value is for card erase (e.g. the "I forgot the
- * card's password" scenario); it's mostly applied to STOP_TRANSMISSION after
- * reads which takes nowhere near that long.  Older cards may be able to use
- * shorter timeouts ... but why bother?
- */
-#define r1b_timeout		(HZ * 3)
+#define MMC_SPI_R1B_TIMEOUT_MS	3000
+#define MMC_SPI_INIT_TIMEOUT_MS	3000
 
 /* One of the critical speed parameters is the amount of data which may
  * be transferred in one command. If this value is too low, the SD card
@@ -248,6 +242,7 @@ static char *maptype(struct mmc_command *cmd)
 static int mmc_spi_response_get(struct mmc_spi_host *host,
 		struct mmc_command *cmd, int cs_on)
 {
+	unsigned long timeout_ms;
 	u8	*cp = host->data->status;
 	u8	*end = cp + host->t.len;
 	int	value = 0;
@@ -346,8 +341,11 @@ checkstatus:
 		/* maybe we read all the busy tokens already */
 		while (cp < end && *cp == 0)
 			cp++;
-		if (cp == end)
-			mmc_spi_wait_unbusy(host, r1b_timeout);
+		if (cp == end) {
+			timeout_ms = cmd->busy_timeout ? cmd->busy_timeout :
+				MMC_SPI_R1B_TIMEOUT_MS;
+			mmc_spi_wait_unbusy(host, msecs_to_jiffies(timeout_ms));
+		}
 		break;
 
 	/* SPI R2 == R1 + second status byte; SEND_STATUS
@@ -884,9 +882,9 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 	else
 		clock_rate = spi->max_speed_hz;
 
-	timeout = data->timeout_ns +
+	timeout = data->timeout_ns / 1000 +
 		  data->timeout_clks * 1000000 / clock_rate;
-	timeout = usecs_to_jiffies((unsigned int)(timeout / 1000)) + 1;
+	timeout = usecs_to_jiffies((unsigned int)timeout) + 1;
 
 	/* Handle scatterlist segments one at a time, with synch for
 	 * each 512-byte block
@@ -1118,7 +1116,7 @@ static void mmc_spi_initsequence(struct mmc_spi_host *host)
 	/* Try to be very sure any previous command has completed;
 	 * wait till not-busy, skip debris from any old commands.
 	 */
-	mmc_spi_wait_unbusy(host, r1b_timeout);
+	mmc_spi_wait_unbusy(host, msecs_to_jiffies(MMC_SPI_INIT_TIMEOUT_MS));
 	mmc_spi_readbytes(host, 10);
 
 	/*
@@ -1134,17 +1132,22 @@ static void mmc_spi_initsequence(struct mmc_spi_host *host)
 	 * SPI protocol.  Another is that when chipselect is released while
 	 * the card returns BUSY status, the clock must issue several cycles
 	 * with chipselect high before the card will stop driving its output.
+	 *
+	 * SPI_CS_HIGH means "asserted" here. In some cases like when using
+	 * GPIOs for chip select, SPI_CS_HIGH is set but this will be logically
+	 * inverted by gpiolib, so if we want to ascertain to drive it high
+	 * we should toggle the default with an XOR as we do here.
 	 */
-	host->spi->mode |= SPI_CS_HIGH;
+	host->spi->mode ^= SPI_CS_HIGH;
 	if (spi_setup(host->spi) != 0) {
 		/* Just warn; most cards work without it. */
 		dev_warn(&host->spi->dev,
 				"can't change chip-select polarity\n");
-		host->spi->mode &= ~SPI_CS_HIGH;
+		host->spi->mode ^= SPI_CS_HIGH;
 	} else {
 		mmc_spi_readbytes(host, 18);
 
-		host->spi->mode &= ~SPI_CS_HIGH;
+		host->spi->mode ^= SPI_CS_HIGH;
 		if (spi_setup(host->spi) != 0) {
 			/* Wot, we can't get the same setup we had before? */
 			dev_err(&host->spi->dev,
@@ -1275,6 +1278,52 @@ mmc_spi_detect_irq(int irq, void *mmc)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_HAS_DMA
+static int mmc_spi_dma_alloc(struct mmc_spi_host *host)
+{
+	struct spi_device *spi = host->spi;
+	struct device *dev;
+
+	if (!spi->master->dev.parent->dma_mask)
+		return 0;
+
+	dev = spi->master->dev.parent;
+
+	host->ones_dma = dma_map_single(dev, host->ones, MMC_SPI_BLOCKSIZE,
+					DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, host->ones_dma))
+		return -ENOMEM;
+
+	host->data_dma = dma_map_single(dev, host->data, sizeof(*host->data),
+					DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(dev, host->data_dma)) {
+		dma_unmap_single(dev, host->ones_dma, MMC_SPI_BLOCKSIZE,
+				 DMA_TO_DEVICE);
+		return -ENOMEM;
+	}
+
+	dma_sync_single_for_cpu(dev, host->data_dma, sizeof(*host->data),
+				DMA_BIDIRECTIONAL);
+
+	host->dma_dev = dev;
+	return 0;
+}
+
+static void mmc_spi_dma_free(struct mmc_spi_host *host)
+{
+	if (!host->dma_dev)
+		return;
+
+	dma_unmap_single(host->dma_dev, host->ones_dma, MMC_SPI_BLOCKSIZE,
+			 DMA_TO_DEVICE);
+	dma_unmap_single(host->dma_dev, host->data_dma,	sizeof(*host->data),
+			 DMA_BIDIRECTIONAL);
+}
+#else
+static inline int mmc_spi_dma_alloc(struct mmc_spi_host *host) { return 0; }
+static inline void mmc_spi_dma_free(struct mmc_spi_host *host) {}
+#endif
+
 static int mmc_spi_probe(struct spi_device *spi)
 {
 	void			*ones;
@@ -1371,23 +1420,9 @@ static int mmc_spi_probe(struct spi_device *spi)
 	if (!host->data)
 		goto fail_nobuf1;
 
-	if (spi->master->dev.parent->dma_mask) {
-		struct device	*dev = spi->master->dev.parent;
-
-		host->dma_dev = dev;
-		host->ones_dma = dma_map_single(dev, ones,
-				MMC_SPI_BLOCKSIZE, DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, host->ones_dma))
-			goto fail_ones_dma;
-		host->data_dma = dma_map_single(dev, host->data,
-				sizeof(*host->data), DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(dev, host->data_dma))
-			goto fail_data_dma;
-
-		dma_sync_single_for_cpu(host->dma_dev,
-				host->data_dma, sizeof(*host->data),
-				DMA_BIDIRECTIONAL);
-	}
+	status = mmc_spi_dma_alloc(host);
+	if (status)
+		goto fail_dma;
 
 	/* setup message for status/busy readback */
 	spi_message_init(&host->readback);
@@ -1421,7 +1456,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	 * Index 0 is card detect
 	 * Old boardfiles were specifying 1 ms as debounce
 	 */
-	status = mmc_gpiod_request_cd(mmc, NULL, 0, false, 1, NULL);
+	status = mmc_gpiod_request_cd(mmc, NULL, 0, false, 1000);
 	if (status == -EPROBE_DEFER)
 		goto fail_add_host;
 	if (!status) {
@@ -1436,7 +1471,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	mmc_detect_change(mmc, 0);
 
 	/* Index 1 is write protect/read only */
-	status = mmc_gpiod_request_ro(mmc, NULL, 1, 0, NULL);
+	status = mmc_gpiod_request_ro(mmc, NULL, 1, 0);
 	if (status == -EPROBE_DEFER)
 		goto fail_add_host;
 	if (!status)
@@ -1455,20 +1490,12 @@ static int mmc_spi_probe(struct spi_device *spi)
 fail_add_host:
 	mmc_remove_host(mmc);
 fail_glue_init:
-	if (host->dma_dev)
-		dma_unmap_single(host->dma_dev, host->data_dma,
-				sizeof(*host->data), DMA_BIDIRECTIONAL);
-fail_data_dma:
-	if (host->dma_dev)
-		dma_unmap_single(host->dma_dev, host->ones_dma,
-				MMC_SPI_BLOCKSIZE, DMA_TO_DEVICE);
-fail_ones_dma:
+	mmc_spi_dma_free(host);
+fail_dma:
 	kfree(host->data);
-
 fail_nobuf1:
 	mmc_free_host(mmc);
 	mmc_spi_put_pdata(spi);
-
 nomem:
 	kfree(ones);
 	return status;
@@ -1486,13 +1513,7 @@ static int mmc_spi_remove(struct spi_device *spi)
 
 	mmc_remove_host(mmc);
 
-	if (host->dma_dev) {
-		dma_unmap_single(host->dma_dev, host->ones_dma,
-			MMC_SPI_BLOCKSIZE, DMA_TO_DEVICE);
-		dma_unmap_single(host->dma_dev, host->data_dma,
-			sizeof(*host->data), DMA_BIDIRECTIONAL);
-	}
-
+	mmc_spi_dma_free(host);
 	kfree(host->data);
 	kfree(host->ones);
 

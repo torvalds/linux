@@ -194,6 +194,8 @@ static int mb862xxfb_check_var(struct fb_var_screeninfo *var,
 	return 0;
 }
 
+static struct fb_ops mb862xxfb_ops;
+
 /*
  * set display parameters
  */
@@ -204,7 +206,7 @@ static int mb862xxfb_set_par(struct fb_info *fbi)
 
 	dev_dbg(par->dev, "%s\n", __func__);
 	if (par->type == BT_CORALP)
-		mb862xxfb_init_accel(fbi, fbi->var.xres);
+		mb862xxfb_init_accel(fbi, &mb862xxfb_ops, fbi->var.xres);
 
 	if (par->pre_init)
 		return 0;

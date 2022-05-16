@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -61,7 +61,7 @@ void rds_ib_recv_init_ring(struct rds_ib_connection *ic)
 		recv->r_wr.num_sge = RDS_IB_RECV_SGE;
 
 		sge = &recv->r_sge[0];
-		sge->addr = ic->i_recv_hdrs_dma + (i * sizeof(struct rds_header));
+		sge->addr = ic->i_recv_hdrs_dma[i];
 		sge->length = sizeof(struct rds_header);
 		sge->lkey = ic->i_pd->local_dma_lkey;
 
@@ -310,8 +310,8 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct ib_sge *sge;
 	int ret = -ENOMEM;
-	gfp_t slab_mask = GFP_NOWAIT;
-	gfp_t page_mask = GFP_NOWAIT;
+	gfp_t slab_mask = gfp;
+	gfp_t page_mask = gfp;
 
 	if (gfp & __GFP_DIRECT_RECLAIM) {
 		slab_mask = GFP_KERNEL;
@@ -343,7 +343,7 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	WARN_ON(ret != 1);
 
 	sge = &recv->r_sge[0];
-	sge->addr = ic->i_recv_hdrs_dma + (recv - ic->i_recvs) * sizeof(struct rds_header);
+	sge->addr = ic->i_recv_hdrs_dma[recv - ic->i_recvs];
 	sge->length = sizeof(struct rds_header);
 
 	sge = &recv->r_sge[1];
@@ -861,7 +861,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 	}
 	data_len -= sizeof(struct rds_header);
 
-	ihdr = &ic->i_recv_hdrs[recv - ic->i_recvs];
+	ihdr = ic->i_recv_hdrs[recv - ic->i_recvs];
 
 	/* Validate the checksum. */
 	if (!rds_message_verify_checksum(ihdr)) {
@@ -993,10 +993,11 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 	} else {
 		/* We expect errors as the qp is drained during shutdown */
 		if (rds_conn_up(conn) || rds_conn_connecting(conn))
-			rds_ib_conn_error(conn, "recv completion on <%pI6c,%pI6c, %d> had status %u (%s), disconnecting and reconnecting\n",
+			rds_ib_conn_error(conn, "recv completion on <%pI6c,%pI6c, %d> had status %u (%s), vendor err 0x%x, disconnecting and reconnecting\n",
 					  &conn->c_laddr, &conn->c_faddr,
 					  conn->c_tos, wc->status,
-					  ib_wc_status_msg(wc->status));
+					  ib_wc_status_msg(wc->status),
+					  wc->vendor_err);
 	}
 
 	/* rds_ib_process_recv() doesn't always consume the frag, and
@@ -1019,7 +1020,7 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 		rds_ib_stats_inc(s_ib_rx_ring_empty);
 
 	if (rds_ib_ring_low(&ic->i_recv_ring)) {
-		rds_ib_recv_refill(conn, 0, GFP_NOWAIT);
+		rds_ib_recv_refill(conn, 0, GFP_NOWAIT | __GFP_NOWARN);
 		rds_ib_stats_inc(s_ib_rx_refill_from_cq);
 	}
 }

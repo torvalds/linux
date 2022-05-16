@@ -1,8 +1,0 @@
-AU Optronics Corporation 31.5" FHD (1920x1080) TFT LCD panel
-
-Required properties:
-- compatible: should be "auo,p320hvn03"
-- power-supply: as specified in the base binding
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

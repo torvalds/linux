@@ -33,7 +33,6 @@
 #include "sun4i-emac.h"
 
 #define DRV_NAME		"sun4i-emac"
-#define DRV_VERSION		"1.02"
 
 #define EMAC_MAX_FRAME_LEN	0x0600
 
@@ -207,25 +206,11 @@ static void emac_inblk_32bit(void __iomem *reg, void *data, int count)
 	readsl(reg, data, round_up(count, 4) / 4);
 }
 
-static int emac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_mii_ioctl(phydev, rq, cmd);
-}
-
 /* ethtool ops */
 static void emac_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, dev_name(&dev->dev), sizeof(info->bus_info));
 }
 
@@ -407,7 +392,7 @@ static void emac_init_device(struct net_device *dev)
 }
 
 /* Our watchdog timed out. Called by the networking layer */
-static void emac_timeout(struct net_device *dev)
+static void emac_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct emac_board_info *db = netdev_priv(dev);
 	unsigned long flags;
@@ -432,7 +417,7 @@ static void emac_timeout(struct net_device *dev)
 /* Hardware start transmission.
  * Send a packet to media from the upper layer.
  */
-static int emac_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t emac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct emac_board_info *db = netdev_priv(dev);
 	unsigned long channel;
@@ -440,7 +425,7 @@ static int emac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	channel = db->tx_fifo_stat & 3;
 	if (channel == 3)
-		return 1;
+		return NETDEV_TX_BUSY;
 
 	channel = (channel == 1 ? 1 : 0);
 
@@ -655,13 +640,11 @@ static irqreturn_t emac_interrupt(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	struct emac_board_info *db = netdev_priv(dev);
 	int int_status;
-	unsigned long flags;
 	unsigned int reg_val;
 
 	/* A real interrupt coming */
 
-	/* holders of db->lock must always block IRQs */
-	spin_lock_irqsave(&db->lock, flags);
+	spin_lock(&db->lock);
 
 	/* Disable all interrupts */
 	writel(0, db->membase + EMAC_INT_CTL_REG);
@@ -695,7 +678,7 @@ static irqreturn_t emac_interrupt(int irq, void *dev_id)
 		reg_val |= (0xf << 0) | (0x01 << 8);
 		writel(reg_val, db->membase + EMAC_INT_CTL_REG);
 	}
-	spin_unlock_irqrestore(&db->lock, flags);
+	spin_unlock(&db->lock);
 
 	return IRQ_HANDLED;
 }
@@ -791,7 +774,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_start_xmit		= emac_start_xmit,
 	.ndo_tx_timeout		= emac_timeout,
 	.ndo_set_rx_mode	= emac_set_rx_mode,
-	.ndo_do_ioctl		= emac_ioctl,
+	.ndo_do_ioctl		= phy_do_ioctl_running,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= emac_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER

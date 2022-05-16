@@ -110,7 +110,6 @@ static int men_z188_probe(struct mcb_device *dev,
 
 	adc = iio_priv(indio_dev);
 	indio_dev->name = "z188-adc";
-	indio_dev->dev.parent = &dev->dev;
 	indio_dev->info = &z188_adc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = z188_adc_iio_channels;
@@ -167,3 +166,4 @@ MODULE_AUTHOR("Johannes Thumshirn <johannes.thumshirn@men.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("IIO ADC driver for MEN 16z188 ADC Core");
 MODULE_ALIAS("mcb:16z188");
+MODULE_IMPORT_NS(MCB);

@@ -62,8 +62,7 @@ struct ocxl_context;
 // Device detection & initialisation
 
 /**
- * Open an OpenCAPI function on an OpenCAPI device
- *
+ * ocxl_function_open() - Open an OpenCAPI function on an OpenCAPI device
  * @dev: The PCI device that contains the function
  *
  * Returns an opaque pointer to the function, or an error pointer (check with IS_ERR)
@@ -71,8 +70,7 @@ struct ocxl_context;
 struct ocxl_fn *ocxl_function_open(struct pci_dev *dev);
 
 /**
- * Get the list of AFUs associated with a PCI function device
- *
+ * ocxl_function_afu_list() - Get the list of AFUs associated with a PCI function device
  * Returns a list of struct ocxl_afu *
  *
  * @fn: The OpenCAPI function containing the AFUs
@@ -80,8 +78,7 @@ struct ocxl_fn *ocxl_function_open(struct pci_dev *dev);
 struct list_head *ocxl_function_afu_list(struct ocxl_fn *fn);
 
 /**
- * Fetch an AFU instance from an OpenCAPI function
- *
+ * ocxl_function_fetch_afu() - Fetch an AFU instance from an OpenCAPI function
  * @fn: The OpenCAPI function to get the AFU from
  * @afu_idx: The index of the AFU to get
  *
@@ -92,23 +89,20 @@ struct list_head *ocxl_function_afu_list(struct ocxl_fn *fn);
 struct ocxl_afu *ocxl_function_fetch_afu(struct ocxl_fn *fn, u8 afu_idx);
 
 /**
- * Take a reference to an AFU
- *
+ * ocxl_afu_get() - Take a reference to an AFU
  * @afu: The AFU to increment the reference count on
  */
 void ocxl_afu_get(struct ocxl_afu *afu);
 
 /**
- * Release a reference to an AFU
- *
+ * ocxl_afu_put() - Release a reference to an AFU
  * @afu: The AFU to decrement the reference count on
  */
 void ocxl_afu_put(struct ocxl_afu *afu);
 
 
 /**
- * Get the configuration information for an OpenCAPI function
- *
+ * ocxl_function_config() - Get the configuration information for an OpenCAPI function
  * @fn: The OpenCAPI function to get the config for
  *
  * Returns the function config, or NULL on error
@@ -116,8 +110,7 @@ void ocxl_afu_put(struct ocxl_afu *afu);
 const struct ocxl_fn_config *ocxl_function_config(struct ocxl_fn *fn);
 
 /**
- * Close an OpenCAPI function
- *
+ * ocxl_function_close() - Close an OpenCAPI function
  * This will free any AFUs previously retrieved from the function, and
  * detach and associated contexts. The contexts must by freed by the caller.
  *
@@ -129,8 +122,7 @@ void ocxl_function_close(struct ocxl_fn *fn);
 // Context allocation
 
 /**
- * Allocate an OpenCAPI context
- *
+ * ocxl_context_alloc() - Allocate an OpenCAPI context
  * @context: The OpenCAPI context to allocate, must be freed with ocxl_context_free
  * @afu: The AFU the context belongs to
  * @mapping: The mapping to unmap when the context is closed (may be NULL)
@@ -139,14 +131,13 @@ int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
 			struct address_space *mapping);
 
 /**
- * Free an OpenCAPI context
- *
+ * ocxl_context_free() - Free an OpenCAPI context
  * @ctx: The OpenCAPI context to free
  */
 void ocxl_context_free(struct ocxl_context *ctx);
 
 /**
- * Grant access to an MM to an OpenCAPI context
+ * ocxl_context_attach() - Grant access to an MM to an OpenCAPI context
  * @ctx: The OpenCAPI context to attach
  * @amr: The value of the AMR register to restrict access
  * @mm: The mm to attach to the context
@@ -157,7 +148,7 @@ int ocxl_context_attach(struct ocxl_context *ctx, u64 amr,
 				struct mm_struct *mm);
 
 /**
- * Detach an MM from an OpenCAPI context
+ * ocxl_context_detach() - Detach an MM from an OpenCAPI context
  * @ctx: The OpenCAPI context to attach
  *
  * Returns 0 on success, negative on failure
@@ -167,25 +158,25 @@ int ocxl_context_detach(struct ocxl_context *ctx);
 // AFU IRQs
 
 /**
- * Allocate an IRQ associated with an AFU context
+ * ocxl_afu_irq_alloc() - Allocate an IRQ associated with an AFU context
  * @ctx: the AFU context
  * @irq_id: out, the IRQ ID
  *
  * Returns 0 on success, negative on failure
  */
-extern int ocxl_afu_irq_alloc(struct ocxl_context *ctx, int *irq_id);
+int ocxl_afu_irq_alloc(struct ocxl_context *ctx, int *irq_id);
 
 /**
- * Frees an IRQ associated with an AFU context
+ * ocxl_afu_irq_free() - Frees an IRQ associated with an AFU context
  * @ctx: the AFU context
  * @irq_id: the IRQ ID
  *
  * Returns 0 on success, negative on failure
  */
-extern int ocxl_afu_irq_free(struct ocxl_context *ctx, int irq_id);
+int ocxl_afu_irq_free(struct ocxl_context *ctx, int irq_id);
 
 /**
- * Gets the address of the trigger page for an IRQ
+ * ocxl_afu_irq_get_addr() - Gets the address of the trigger page for an IRQ
  * This can then be provided to an AFU which will write to that
  * page to trigger the IRQ.
  * @ctx: The AFU context that the IRQ is associated with
@@ -193,10 +184,10 @@ extern int ocxl_afu_irq_free(struct ocxl_context *ctx, int irq_id);
  *
  * returns the trigger page address, or 0 if the IRQ is not valid
  */
-extern u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, int irq_id);
+u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, int irq_id);
 
 /**
- * Provide a callback to be called when an IRQ is triggered
+ * ocxl_irq_set_handler() - Provide a callback to be called when an IRQ is triggered
  * @ctx: The AFU context that the IRQ is associated with
  * @irq_id: The IRQ ID
  * @handler: the callback to be called when the IRQ is triggered
@@ -213,8 +204,7 @@ int ocxl_irq_set_handler(struct ocxl_context *ctx, int irq_id,
 // AFU Metadata
 
 /**
- * Get a pointer to the config for an AFU
- *
+ * ocxl_afu_config() - Get a pointer to the config for an AFU
  * @afu: a pointer to the AFU to get the config for
  *
  * Returns a pointer to the AFU config
@@ -222,27 +212,24 @@ int ocxl_irq_set_handler(struct ocxl_context *ctx, int irq_id,
 struct ocxl_afu_config *ocxl_afu_config(struct ocxl_afu *afu);
 
 /**
- * Assign opaque hardware specific information to an OpenCAPI AFU.
- *
- * @dev: The PCI device associated with the OpenCAPI device
+ * ocxl_afu_set_private() - Assign opaque hardware specific information to an OpenCAPI AFU.
+ * @afu: The OpenCAPI AFU
  * @private: the opaque hardware specific information to assign to the driver
  */
 void ocxl_afu_set_private(struct ocxl_afu *afu, void *private);
 
 /**
- * Fetch the hardware specific information associated with an external OpenCAPI
- * AFU. This may be consumed by an external OpenCAPI driver.
- *
- * @afu: The AFU
+ * ocxl_afu_get_private() - Fetch the hardware specific information associated with
+ * an external OpenCAPI AFU. This may be consumed by an external OpenCAPI driver.
+ * @afu: The OpenCAPI AFU
  *
  * Returns the opaque pointer associated with the device, or NULL if not set
  */
-void *ocxl_afu_get_private(struct ocxl_afu *dev);
+void *ocxl_afu_get_private(struct ocxl_afu *afu);
 
 // Global MMIO
 /**
- * Read a 32 bit value from global MMIO
- *
+ * ocxl_global_mmio_read32() - Read a 32 bit value from global MMIO
  * @afu: The AFU
  * @offset: The Offset from the start of MMIO
  * @endian: the endianness that the MMIO data is in
@@ -251,11 +238,10 @@ void *ocxl_afu_get_private(struct ocxl_afu *dev);
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_read32(struct ocxl_afu *afu, size_t offset,
-				enum ocxl_endian endian, u32 *val);
+			    enum ocxl_endian endian, u32 *val);
 
 /**
- * Read a 64 bit value from global MMIO
- *
+ * ocxl_global_mmio_read64() - Read a 64 bit value from global MMIO
  * @afu: The AFU
  * @offset: The Offset from the start of MMIO
  * @endian: the endianness that the MMIO data is in
@@ -264,11 +250,10 @@ int ocxl_global_mmio_read32(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_read64(struct ocxl_afu *afu, size_t offset,
-				enum ocxl_endian endian, u64 *val);
+			    enum ocxl_endian endian, u64 *val);
 
 /**
- * Write a 32 bit value to global MMIO
- *
+ * ocxl_global_mmio_write32() - Write a 32 bit value to global MMIO
  * @afu: The AFU
  * @offset: The Offset from the start of MMIO
  * @endian: the endianness that the MMIO data is in
@@ -277,11 +262,10 @@ int ocxl_global_mmio_read64(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_write32(struct ocxl_afu *afu, size_t offset,
-				enum ocxl_endian endian, u32 val);
+			     enum ocxl_endian endian, u32 val);
 
 /**
- * Write a 64 bit value to global MMIO
- *
+ * ocxl_global_mmio_write64() - Write a 64 bit value to global MMIO
  * @afu: The AFU
  * @offset: The Offset from the start of MMIO
  * @endian: the endianness that the MMIO data is in
@@ -290,11 +274,10 @@ int ocxl_global_mmio_write32(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_write64(struct ocxl_afu *afu, size_t offset,
-				enum ocxl_endian endian, u64 val);
+			     enum ocxl_endian endian, u64 val);
 
 /**
- * Set bits in a 32 bit global MMIO register
- *
+ * ocxl_global_mmio_set32() - Set bits in a 32 bit global MMIO register
  * @afu: The AFU
  * @offset: The Offset from the start of MMIO
  * @endian: the endianness that the MMIO data is in
@@ -303,11 +286,10 @@ int ocxl_global_mmio_write64(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_set32(struct ocxl_afu *afu, size_t offset,
-				enum ocxl_endian endian, u32 mask);
+			   enum ocxl_endian endian, u32 mask);
 
 /**
- * Set bits in a 64 bit global MMIO register
- *
+ * ocxl_global_mmio_set64() - Set bits in a 64 bit global MMIO register
  * @afu: The AFU
  * @offset: The Offset from the start of MMIO
  * @endian: the endianness that the MMIO data is in
@@ -316,11 +298,10 @@ int ocxl_global_mmio_set32(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_set64(struct ocxl_afu *afu, size_t offset,
-				enum ocxl_endian endian, u64 mask);
+			   enum ocxl_endian endian, u64 mask);
 
 /**
- * Set bits in a 32 bit global MMIO register
- *
+ * ocxl_global_mmio_clear32() - Set bits in a 32 bit global MMIO register
  * @afu: The AFU
  * @offset: The Offset from the start of MMIO
  * @endian: the endianness that the MMIO data is in
@@ -329,11 +310,10 @@ int ocxl_global_mmio_set64(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_clear32(struct ocxl_afu *afu, size_t offset,
-				enum ocxl_endian endian, u32 mask);
+			     enum ocxl_endian endian, u32 mask);
 
 /**
- * Set bits in a 64 bit global MMIO register
- *
+ * ocxl_global_mmio_clear64() - Set bits in a 64 bit global MMIO register
  * @afu: The AFU
  * @offset: The Offset from the start of MMIO
  * @endian: the endianness that the MMIO data is in
@@ -342,7 +322,7 @@ int ocxl_global_mmio_clear32(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_clear64(struct ocxl_afu *afu, size_t offset,
-				enum ocxl_endian endian, u64 mask);
+			     enum ocxl_endian endian, u64 mask);
 
 // Functions left here are for compatibility with the cxlflash driver
 
@@ -480,14 +460,8 @@ int ocxl_link_remove_pe(void *link_handle, int pasid);
  * Allocate an AFU interrupt associated to the link.
  *
  * 'hw_irq' is the hardware interrupt number
- * 'obj_handle' is the 64-bit object handle to be passed to the AFU to
- * trigger the interrupt.
- * On P9, 'obj_handle' is an address, which, if written, triggers the
- * interrupt. It is an MMIO address which needs to be remapped (one
- * page).
  */
-int ocxl_link_irq_alloc(void *link_handle, int *hw_irq,
-			u64 *obj_handle);
+int ocxl_link_irq_alloc(void *link_handle, int *hw_irq);
 
 /*
  * Free a previously allocated AFU interrupt

@@ -59,14 +59,14 @@
 		interrupt-parent = <&avic>;
 		ranges;
 
-		L2: l2-cache@30000000 {
+		L2: cache-controller@30000000 {
 			compatible = "arm,l210-cache";
 			reg = <0x30000000 0x1000>;
 			cache-unified;
 			cache-level = <2>;
 		};
 
-		aips1: aips@43f00000 {
+		aips1: bus@43f00000 {
 			compatible = "fsl,aips", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -199,7 +199,7 @@
 			};
 		};
 
-		aips2: aips@53f00000 {
+		aips2: bus@53f00000 {
 			compatible = "fsl,aips", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -231,7 +231,7 @@
 				#interrupt-cells = <2>;
 			};
 
-			esdhc1: esdhc@53fb4000 {
+			esdhc1: mmc@53fb4000 {
 				compatible = "fsl,imx35-esdhc";
 				reg = <0x53fb4000 0x4000>;
 				interrupts = <7>;
@@ -240,7 +240,7 @@
 				status = "disabled";
 			};
 
-			esdhc2: esdhc@53fb8000 {
+			esdhc2: mmc@53fb8000 {
 				compatible = "fsl,imx35-esdhc";
 				reg = <0x53fb8000 0x4000>;
 				interrupts = <8>;
@@ -249,7 +249,7 @@
 				status = "disabled";
 			};
 
-			esdhc3: esdhc@53fbc000 {
+			esdhc3: mmc@53fbc000 {
 				compatible = "fsl,imx35-esdhc";
 				reg = <0x53fbc000 0x4000>;
 				interrupts = <9>;
@@ -320,7 +320,7 @@
 				status = "disabled";
 			};
 
-			iim@53ff0000 {
+			efuse@53ff0000 {
 				compatible = "fsl,imx35-iim";
 				reg = <0x53ff0000 0x4000>;
 				interrupts = <19>;

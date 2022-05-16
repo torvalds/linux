@@ -12,7 +12,7 @@
 #ifndef __ATMEL_AUTHENC_H__
 #define __ATMEL_AUTHENC_H__
 
-#ifdef CONFIG_CRYPTO_DEV_ATMEL_AUTHENC
+#if IS_ENABLED(CONFIG_CRYPTO_DEV_ATMEL_AUTHENC)
 
 #include <crypto/authenc.h>
 #include <crypto/hash.h>
@@ -30,8 +30,7 @@ unsigned int atmel_sha_authenc_get_reqsize(void);
 struct atmel_sha_authenc_ctx *atmel_sha_authenc_spawn(unsigned long mode);
 void atmel_sha_authenc_free(struct atmel_sha_authenc_ctx *auth);
 int atmel_sha_authenc_setkey(struct atmel_sha_authenc_ctx *auth,
-			     const u8 *key, unsigned int keylen,
-			     u32 *flags);
+			     const u8 *key, unsigned int keylen, u32 flags);
 
 int atmel_sha_authenc_schedule(struct ahash_request *req,
 			       struct atmel_sha_authenc_ctx *auth,

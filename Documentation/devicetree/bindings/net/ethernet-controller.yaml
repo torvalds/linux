@@ -14,25 +14,23 @@ properties:
     pattern: "^ethernet(@.*)?$"
 
   local-mac-address:
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/uint8-array
-      - items:
-          - minItems: 6
-            maxItems: 6
     description:
       Specifies the MAC address that was assigned to the network device.
+    $ref: /schemas/types.yaml#definitions/uint8-array
+    items:
+      - minItems: 6
+        maxItems: 6
 
   mac-address:
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/uint8-array
-      - items:
-          - minItems: 6
-            maxItems: 6
     description:
       Specifies the MAC address that was last used by the boot
       program; should be used in cases where the MAC address assigned
       to the device by the boot program is different from the
       local-mac-address property.
+    $ref: /schemas/types.yaml#definitions/uint8-array
+    items:
+      - minItems: 6
+        maxItems: 6
 
   max-frame-size:
     $ref: /schemas/types.yaml#definitions/uint32
@@ -56,7 +54,8 @@ properties:
 
   phy-connection-type:
     description:
-      Operation mode of the PHY interface
+      Specifies interface type between the Ethernet device and a physical
+      layer (PHY) device.
     enum:
       # There is not a standard bus between the MAC and the PHY,
       # something proprietary is being used to embed the PHY in the
@@ -121,22 +120,40 @@ properties:
       and is useful for determining certain configuration settings
       such as flow control thresholds.
 
+  rx-internal-delay-ps:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      RGMII Receive Clock Delay defined in pico seconds.
+      This is used for controllers that have configurable RX internal delays.
+      If this property is present then the MAC applies the RX delay.
+
+  sfp:
+    $ref: /schemas/types.yaml#definitions/phandle
+    description:
+      Specifies a reference to a node representing a SFP cage.
+
   tx-fifo-depth:
     $ref: /schemas/types.yaml#definitions/uint32
     description:
       The size of the controller\'s transmit fifo in bytes. This
       is used for components that can have configurable fifo sizes.
 
+  tx-internal-delay-ps:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      RGMII Transmit Clock Delay defined in pico seconds.
+      This is used for controllers that have configurable TX internal delays.
+      If this property is present then the MAC applies the TX delay.
+
   managed:
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
-      - default: auto
-        enum:
-          - auto
-          - in-band-status
     description:
       Specifies the PHY management type. If auto is set and fixed-link
       is not specified, it uses MDIO for management.
+    $ref: /schemas/types.yaml#definitions/string
+    default: auto
+    enum:
+      - auto
+      - in-band-status
 
   fixed-link:
     allOf:
@@ -178,11 +195,10 @@ properties:
         then:
           properties:
             speed:
-              allOf:
-                - $ref: /schemas/types.yaml#definitions/uint32
-                - enum: [10, 100, 1000]
               description:
                 Link speed.
+              $ref: /schemas/types.yaml#definitions/uint32
+              enum: [10, 100, 1000]
 
             full-duplex:
               $ref: /schemas/types.yaml#definitions/flag
@@ -202,5 +218,7 @@ properties:
 
           required:
             - speed
+
+additionalProperties: true
 
 ...

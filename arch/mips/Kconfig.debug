@@ -32,7 +32,6 @@ config USE_GENERIC_EARLY_PRINTK_8250
 
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"
-	default n
 	help
 	  For most systems, it is firmware or second stage bootloader that
 	  by default specifies the kernel command line options.  However,
@@ -53,7 +52,6 @@ config CMDLINE_BOOL
 config CMDLINE
 	string "Default kernel command string"
 	depends on CMDLINE_BOOL
-	default ""
 	help
 	  On some platforms, there is currently no way for the boot loader to
 	  pass arguments to the kernel.  For these platforms, and for the cases
@@ -68,7 +66,6 @@ config CMDLINE
 
 config CMDLINE_OVERRIDE
 	bool "Built-in command line overrides firmware arguments"
-	default n
 	depends on CMDLINE_BOOL
 	help
 	  By setting this option to 'Y' you will have your kernel ignore
@@ -150,5 +147,15 @@ config MIPS_CPS_NS16550_SHIFT
 	  The number of bits to shift ns16550 register indices by in order to
 	  form their addresses. That is, log base 2 of the span between
 	  adjacent ns16550 registers in the system.
+
+config MIPS_CPS_NS16550_WIDTH
+	int "UART Register Width"
+	default 1
+	help
+	  ns16550 registers width. UART registers IO access methods will be
+	  selected in accordance with this parameter. By setting it to 1, 2 or
+	  4 UART registers will be accessed by means of lb/sb, lh/sh or lw/sw
+	  instructions respectively. Any value not from that set activates
+	  lb/sb instructions.
 
 endif # MIPS_CPS_NS16550_BOOL

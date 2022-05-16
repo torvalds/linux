@@ -151,8 +151,7 @@ int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	case SNI_BRD_PCI_MTOWER:
 		if (is_rm300_revd())
 			return irq_tab_rm300d[slot][pin];
-		/* fall through */
-
+		fallthrough;
 	case SNI_BRD_PCI_DESKTOP:
 		return irq_tab_rm200[slot][pin];
 

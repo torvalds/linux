@@ -44,7 +44,7 @@ void rtw_sec_write_cam(struct rtw_dev *rtwdev,
 
 	write_cmd = RTW_SEC_CMD_WRITE_ENABLE | RTW_SEC_CMD_POLLING;
 	addr = hw_key_idx << RTW_SEC_CAM_ENTRY_SHIFT;
-	for (i = 5; i >= 0; i--) {
+	for (i = 7; i >= 0; i--) {
 		switch (i) {
 		case 0:
 			content = ((key->keyidx & 0x3))		|
@@ -59,6 +59,10 @@ void rtw_sec_write_cam(struct rtw_dev *rtwdev,
 				  (cam->addr[3]		<< 8)	|
 				  (cam->addr[4]		<< 16)	|
 				  (cam->addr[5]		<< 24);
+			break;
+		case 6:
+		case 7:
+			content = 0;
 			break;
 		default:
 			j = (i - 2) << 2;
@@ -94,6 +98,27 @@ void rtw_sec_clear_cam(struct rtw_dev *rtwdev,
 	command = write_cmd | addr;
 	rtw_write32(rtwdev, RTW_SEC_WRITE_REG, 0);
 	rtw_write32(rtwdev, RTW_SEC_CMD_REG, command);
+}
+
+u8 rtw_sec_cam_pg_backup(struct rtw_dev *rtwdev, u8 *used_cam)
+{
+	struct rtw_sec_desc *sec = &rtwdev->sec;
+	u8 offset = 0;
+	u8 count, n;
+
+	if (!used_cam)
+		return 0;
+
+	for (count = 0; count < MAX_PG_CAM_BACKUP_NUM; count++) {
+		n = find_next_bit(sec->cam_map, RTW_MAX_SEC_CAM_NUM, offset);
+		if (n == RTW_MAX_SEC_CAM_NUM)
+			break;
+
+		used_cam[count] = n;
+		offset = n + 1;
+	}
+
+	return count;
 }
 
 void rtw_sec_enable_sec_engine(struct rtw_dev *rtwdev)

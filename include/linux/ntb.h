@@ -478,7 +478,7 @@ void ntb_unregister_client(struct ntb_client *client);
 int ntb_register_device(struct ntb_dev *ntb);
 
 /**
- * ntb_register_device() - unregister a ntb device
+ * ntb_unregister_device() - unregister a ntb device
  * @ntb:	NTB device context.
  *
  * The device will be removed from the list of ntb devices.  If the ntb device
@@ -1351,7 +1351,7 @@ static inline int ntb_spad_write(struct ntb_dev *ntb, int sidx, u32 val)
  * @sidx:	Scratchpad index.
  * @spad_addr:	OUT - The address of the peer scratchpad register.
  *
- * Return the address of the peer doorbell register.  This may be used, for
+ * Return the address of the peer scratchpad register.  This may be used, for
  * example, by drivers that offload memory copy operations to a dma engine.
  *
  * Return: Zero on success, otherwise an error number.
@@ -1373,7 +1373,7 @@ static inline int ntb_peer_spad_addr(struct ntb_dev *ntb, int pidx, int sidx,
  *
  * Read the peer scratchpad register, and return the value.
  *
- * Return: The value of the local scratchpad register.
+ * Return: The value of the peer scratchpad register.
  */
 static inline u32 ntb_peer_spad_read(struct ntb_dev *ntb, int pidx, int sidx)
 {

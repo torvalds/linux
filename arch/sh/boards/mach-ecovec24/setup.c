@@ -36,6 +36,7 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/videodev2.h>
+#include <linux/dma-map-ops.h>
 
 #include <media/drv-intf/renesas-ceu.h>
 #include <media/i2c/mt9t112.h>
@@ -371,19 +372,31 @@ static struct platform_device lcdc_device = {
 	},
 };
 
-static struct gpio_backlight_platform_data gpio_backlight_data = {
-	.fbdev = &lcdc_device.dev,
-	.gpio = GPIO_PTR1,
-	.def_value = 1,
-	.name = "backlight",
-};
-
-static struct platform_device gpio_backlight_device = {
-	.name = "gpio-backlight",
-	.dev = {
-		.platform_data = &gpio_backlight_data,
+static struct gpiod_lookup_table gpio_backlight_lookup = {
+	.dev_id		= "gpio-backlight.0",
+	.table = {
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTR1, NULL, GPIO_ACTIVE_HIGH),
+		{ }
 	},
 };
+
+static struct property_entry gpio_backlight_props[] = {
+	PROPERTY_ENTRY_BOOL("default-on"),
+	{ }
+};
+
+static struct gpio_backlight_platform_data gpio_backlight_data = {
+	.fbdev = &lcdc_device.dev,
+};
+
+static const struct platform_device_info gpio_backlight_device_info = {
+	.name = "gpio-backlight",
+	.data = &gpio_backlight_data,
+	.size_data = sizeof(gpio_backlight_data),
+	.properties = gpio_backlight_props,
+};
+
+static struct platform_device *gpio_backlight_device;
 
 /* CEU0 */
 static struct ceu_platform_data ceu0_pdata = {
@@ -1006,7 +1019,6 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&usb1_common_device,
 	&usbhs_device,
 	&lcdc_device,
-	&gpio_backlight_device,
 	&keysc_device,
 	&cn12_power,
 #if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
@@ -1461,6 +1473,12 @@ static int __init arch_setup(void)
 	gpiod_add_lookup_table(&sdhi1_gpio_table);
 #endif
 #endif
+
+	gpiod_add_lookup_table(&gpio_backlight_lookup);
+	gpio_backlight_device = platform_device_register_full(
+					&gpio_backlight_device_info);
+	if (IS_ERR(gpio_backlight_device))
+		return PTR_ERR(gpio_backlight_device);
 
 	return platform_add_devices(ecovec_devices,
 				    ARRAY_SIZE(ecovec_devices));

@@ -15,7 +15,6 @@
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -24,7 +23,6 @@
 #include <linux/iio/events.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/sysfs.h>
-#include <linux/of_gpio.h>
 
 #define APDS9960_REGMAP_NAME	"apds9960_regmap"
 #define APDS9960_DRV_NAME	"apds9960"
@@ -1003,7 +1001,6 @@ static int apds9960_probe(struct i2c_client *client,
 
 	iio_device_attach_buffer(indio_dev, buffer);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &apds9960_info;
 	indio_dev->name = APDS9960_DRV_NAME;
 	indio_dev->channels = apds9960_channels;

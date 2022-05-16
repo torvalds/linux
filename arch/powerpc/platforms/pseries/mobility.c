@@ -6,6 +6,9 @@
  * Copyright (C) 2010 IBM Corporation
  */
 
+
+#define pr_fmt(fmt) "mobility: " fmt
+
 #include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
@@ -63,6 +66,8 @@ static int delete_dt_node(__be32 phandle)
 	dn = of_find_node_by_phandle(be32_to_cpu(phandle));
 	if (!dn)
 		return -ENOENT;
+
+	pr_debug("removing node %pOFfp\n", dn);
 
 	dlpar_detach_node(dn);
 	of_node_put(dn);
@@ -122,6 +127,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 	}
 
 	if (!more) {
+		pr_debug("updating node %pOF property %s\n", dn, name);
 		of_update_property(dn, new_prop);
 		*prop = NULL;
 	}
@@ -240,31 +246,10 @@ static int add_dt_node(__be32 parent_phandle, __be32 drc_index)
 	if (rc)
 		dlpar_free_cc_nodes(dn);
 
+	pr_debug("added node %pOFfp\n", dn);
+
 	of_node_put(parent_dn);
 	return rc;
-}
-
-static void prrn_update_node(__be32 phandle)
-{
-	struct pseries_hp_errorlog hp_elog;
-	struct device_node *dn;
-
-	/*
-	 * If a node is found from a the given phandle, the phandle does not
-	 * represent the drc index of an LMB and we can ignore.
-	 */
-	dn = of_find_node_by_phandle(be32_to_cpu(phandle));
-	if (dn) {
-		of_node_put(dn);
-		return;
-	}
-
-	hp_elog.resource = PSERIES_HP_ELOG_RESOURCE_MEM;
-	hp_elog.action = PSERIES_HP_ELOG_ACTION_READD;
-	hp_elog.id_type = PSERIES_HP_ELOG_ID_DRC_INDEX;
-	hp_elog._drc_u.drc_index = phandle;
-
-	handle_dlpar_errorlog(&hp_elog);
 }
 
 int pseries_devicetree_update(s32 scope)
@@ -305,10 +290,6 @@ int pseries_devicetree_update(s32 scope)
 					break;
 				case UPDATE_DT_NODE:
 					update_dt_node(phandle, scope);
-
-					if (scope == PRRN_SCOPE)
-						prrn_update_node(phandle);
-
 					break;
 				case ADD_DT_NODE:
 					drc_index = *data++;
@@ -368,8 +349,11 @@ void post_mobility_fixup(void)
 
 	cpus_read_unlock();
 
-	/* Possibly switch to a new RFI flush type */
-	pseries_setup_rfi_flush();
+	/* Possibly switch to a new L1 flush type */
+	pseries_setup_security_mitigations();
+
+	/* Reinitialise system information for hv-24x7 */
+	read_24x7_sys_info();
 
 	return;
 }
@@ -385,8 +369,6 @@ static ssize_t migration_store(struct class *class,
 	if (rc)
 		return rc;
 
-	stop_topology_update();
-
 	do {
 		rc = rtas_ibm_suspend_me(streamid);
 		if (rc == -EAGAIN)
@@ -397,8 +379,6 @@ static ssize_t migration_store(struct class *class,
 		return rc;
 
 	post_mobility_fixup();
-
-	start_topology_update();
 
 	return count;
 }
@@ -424,11 +404,11 @@ static int __init mobility_sysfs_init(void)
 
 	rc = sysfs_create_file(mobility_kobj, &class_attr_migration.attr);
 	if (rc)
-		pr_err("mobility: unable to create migration sysfs file (%d)\n", rc);
+		pr_err("unable to create migration sysfs file (%d)\n", rc);
 
 	rc = sysfs_create_file(mobility_kobj, &class_attr_api_version.attr.attr);
 	if (rc)
-		pr_err("mobility: unable to create api_version sysfs file (%d)\n", rc);
+		pr_err("unable to create api_version sysfs file (%d)\n", rc);
 
 	return 0;
 }

@@ -2398,6 +2398,20 @@ const struct em28xx_board em28xx_boards[] = {
 		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
 	},
 	/*
+	 * 2013:0259 PCTV DVB-S2 Stick (461e_v2)
+	 * Empia EM28178, Montage M88DS3103b, Montage M88TS2022, Allegro A8293
+	 */
+	[EM28178_BOARD_PCTV_461E_V2] = {
+		.def_i2c_bus   = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_400_KHZ,
+		.name          = "PCTV DVB-S2 Stick (461e v2)",
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = pctv_461e,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
+	},
+	/*
 	 * 2013:025f PCTV tripleStick (292e).
 	 * Empia EM28178, Silicon Labs Si2168, Silicon Labs Si2157
 	 */
@@ -2486,6 +2500,44 @@ const struct em28xx_board em28xx_boards[] = {
 		.has_dual_ts   = 1,
 		.ir_codes      = RC_MAP_HAUPPAUGE,
 		.leds          = hauppauge_dualhd_leds,
+	},
+	/*
+	 * 1b80:e349 Magix USB Videowandler-2
+	 * (same chips as Honestech VIDBOX NW03)
+	 * Empia EM2860, Philips SAA7113, Empia EMP202, No Tuner
+	 */
+	[EM2861_BOARD_MAGIX_VIDEOWANDLER2] = {
+		.name                = "Magix USB Videowandler-2",
+		.tuner_type          = TUNER_ABSENT,
+		.decoder             = EM28XX_SAA711X,
+		.input               = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
+	/*
+	 * 1f4d:1abe MyGica iGrabber
+	 * (same as several other EM2860 devices)
+	 * Empia EM2860, Philips SAA7113, Empia EMP202, No Tuner
+	 */
+	[EM2860_BOARD_MYGICA_IGRABBER] = {
+		.name         = "MyGica iGrabber",
+		.vchannels    = 2,
+		.tuner_type   = TUNER_ABSENT,
+		.decoder      = EM28XX_SAA711X,
+		.input           = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
 	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
@@ -2666,6 +2718,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2860_BOARD_EASYCAP },
 	{ USB_DEVICE(0x1b80, 0xe425),
 			.driver_info = EM2874_BOARD_MAXMEDIA_UB425_TC },
+	{ USB_DEVICE(0x1f4d, 0x1abe),
+			.driver_info = EM2860_BOARD_MYGICA_IGRABBER },
 	{ USB_DEVICE(0x2304, 0x0242),
 			.driver_info = EM2884_BOARD_PCTV_510E },
 	{ USB_DEVICE(0x2013, 0x0251),
@@ -2678,6 +2732,10 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2765_BOARD_SPEEDLINK_VAD_LAPLACE },
 	{ USB_DEVICE(0x2013, 0x0258),
 			.driver_info = EM28178_BOARD_PCTV_461E },
+	{ USB_DEVICE(0x2013, 0x0461),
+			.driver_info = EM28178_BOARD_PCTV_461E_V2 },
+	{ USB_DEVICE(0x2013, 0x0259),
+			.driver_info = EM28178_BOARD_PCTV_461E_V2 },
 	{ USB_DEVICE(0x2013, 0x025f),
 			.driver_info = EM28178_BOARD_PCTV_292E },
 	{ USB_DEVICE(0x2013, 0x0264), /* Hauppauge WinTV-soloHD 292e SE */
@@ -2696,6 +2754,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28178_BOARD_PLEX_PX_BCUD },
 	{ USB_DEVICE(0xeb1a, 0x5051), /* Ion Video 2 PC MKII / Startech svid2usb23 / Raygo R12-41373 */
 			.driver_info = EM2860_BOARD_TVP5150_REFERENCE_DESIGN },
+	{ USB_DEVICE(0x1b80, 0xe349), /* Magix USB Videowandler-2 */
+		.driver_info = EM2861_BOARD_MAGIX_VIDEOWANDLER2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);

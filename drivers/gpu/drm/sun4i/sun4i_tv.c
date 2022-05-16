@@ -19,6 +19,7 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "sun4i_crtc.h"
 #include "sun4i_drv.h"
@@ -467,19 +468,10 @@ static void sun4i_tv_mode_set(struct drm_encoder *encoder,
 	regmap_write(tv->regs, SUN4I_TVE_SLAVE_REG, 0);
 }
 
-static struct drm_encoder_helper_funcs sun4i_tv_helper_funcs = {
+static const struct drm_encoder_helper_funcs sun4i_tv_helper_funcs = {
 	.disable	= sun4i_tv_disable,
 	.enable		= sun4i_tv_enable,
 	.mode_set	= sun4i_tv_mode_set,
-};
-
-static void sun4i_tv_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-
-static struct drm_encoder_funcs sun4i_tv_funcs = {
-	.destroy	= sun4i_tv_destroy,
 };
 
 static int sun4i_tv_comp_get_modes(struct drm_connector *connector)
@@ -512,7 +504,7 @@ static int sun4i_tv_comp_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static struct drm_connector_helper_funcs sun4i_tv_comp_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs sun4i_tv_comp_connector_helper_funcs = {
 	.get_modes	= sun4i_tv_comp_get_modes,
 	.mode_valid	= sun4i_tv_comp_mode_valid,
 };
@@ -531,7 +523,7 @@ static const struct drm_connector_funcs sun4i_tv_comp_connector_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
 };
 
-static struct regmap_config sun4i_tv_regmap_config = {
+static const struct regmap_config sun4i_tv_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
@@ -592,11 +584,8 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
 
 	drm_encoder_helper_add(&tv->encoder,
 			       &sun4i_tv_helper_funcs);
-	ret = drm_encoder_init(drm,
-			       &tv->encoder,
-			       &sun4i_tv_funcs,
-			       DRM_MODE_ENCODER_TVDAC,
-			       NULL);
+	ret = drm_simple_encoder_init(drm, &tv->encoder,
+				      DRM_MODE_ENCODER_TVDAC);
 	if (ret) {
 		dev_err(dev, "Couldn't initialise the TV encoder\n");
 		goto err_disable_clk;

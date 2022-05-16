@@ -1103,7 +1103,7 @@ vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
 		hwwrite(vortex->mmio,
 			VORTEX_ADBDMA_BUFBASE + (adbdma << 4) + 0xc,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize * 3));
-		/* fall through */
+		fallthrough;
 		/* 3 pages */
 	case 3:
 		dma->cfg0 |= 0x12000000;
@@ -1111,14 +1111,14 @@ vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
 		hwwrite(vortex->mmio,
 			VORTEX_ADBDMA_BUFBASE + (adbdma << 4) + 0x8,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize * 2));
-		/* fall through */
+		fallthrough;
 		/* 2 pages */
 	case 2:
 		dma->cfg0 |= 0x88000000 | 0x44000000 | 0x10000000 | (psize - 1);
 		hwwrite(vortex->mmio,
 			VORTEX_ADBDMA_BUFBASE + (adbdma << 4) + 0x4,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize));
-		/* fall through */
+		fallthrough;
 		/* 1 page */
 	case 1:
 		dma->cfg0 |= 0x80000000 | 0x40000000 | ((psize - 1) << 0xc);
@@ -1381,20 +1381,20 @@ vortex_wtdma_setbuffers(vortex_t * vortex, int wtdma,
 		dma->cfg1 |= 0x88000000 | 0x44000000 | 0x30000000 | (psize-1);
 		hwwrite(vortex->mmio, VORTEX_WTDMA_BUFBASE + (wtdma << 4) + 0xc,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize * 3));
-		/* fall through */
+		fallthrough;
 		/* 3 pages */
 	case 3:
 		dma->cfg0 |= 0x12000000;
 		dma->cfg1 |= 0x80000000 | 0x40000000 | ((psize-1) << 0xc);
 		hwwrite(vortex->mmio, VORTEX_WTDMA_BUFBASE + (wtdma << 4)  + 0x8,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize * 2));
-		/* fall through */
+		fallthrough;
 		/* 2 pages */
 	case 2:
 		dma->cfg0 |= 0x88000000 | 0x44000000 | 0x10000000 | (psize-1);
 		hwwrite(vortex->mmio, VORTEX_WTDMA_BUFBASE + (wtdma << 4) + 0x4,
 			snd_pcm_sgbuf_get_addr(dma->substream, psize));
-		/* fall through */
+		fallthrough;
 		/* 1 page */
 	case 1:
 		dma->cfg0 |= 0x80000000 | 0x40000000 | ((psize-1) << 0xc);
@@ -1989,7 +1989,7 @@ vortex_connect_codecrec(vortex_t * vortex, int en, unsigned char mixin0,
 // Higher level ADB audio path (de)allocator.
 
 /* Resource manager */
-static int resnum[VORTEX_RESOURCE_LAST] =
+static const int resnum[VORTEX_RESOURCE_LAST] =
     { NR_ADB, NR_SRC, NR_MIXIN, NR_MIXOUT, NR_A3D };
 /*
  Checkout/Checkin resource of given type. 

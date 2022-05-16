@@ -7,6 +7,7 @@ config USB_CHIPIDEA
 	select RESET_CONTROLLER
 	select USB_ULPI_BUS
 	select USB_ROLE_SWITCH
+	select USB_TEGRA_PHY if ARCH_TEGRA
 	help
 	  Say Y here if your system has a dual role high speed USB
 	  controller based on ChipIdea silicon IP. It supports:
@@ -16,17 +17,6 @@ config USB_CHIPIDEA
 	  When compiled dynamically, the module will be called ci_hdrc.ko.
 
 if USB_CHIPIDEA
-
-config USB_CHIPIDEA_OF
-	tristate
-	depends on OF
-	default USB_CHIPIDEA
-
-config USB_CHIPIDEA_PCI
-	tristate
-	depends on USB_PCI
-	depends on NOP_USB_XCEIV
-	default USB_CHIPIDEA
 
 config USB_CHIPIDEA_UDC
 	bool "ChipIdea device controller"
@@ -42,4 +32,30 @@ config USB_CHIPIDEA_HOST
 	help
 	  Say Y here to enable host controller functionality of the
 	  ChipIdea driver.
+
+config USB_CHIPIDEA_PCI
+	tristate "Enable PCI glue driver" if EMBEDDED
+	depends on USB_PCI
+	depends on NOP_USB_XCEIV
+	default USB_CHIPIDEA
+
+config USB_CHIPIDEA_MSM
+	tristate "Enable MSM hsusb glue driver" if EMBEDDED
+	default USB_CHIPIDEA
+
+config USB_CHIPIDEA_IMX
+	tristate "Enable i.MX USB glue driver" if EMBEDDED
+	depends on OF
+	default USB_CHIPIDEA
+
+config USB_CHIPIDEA_GENERIC
+	tristate "Enable generic USB2 glue driver" if EMBEDDED
+	default USB_CHIPIDEA
+
+config USB_CHIPIDEA_TEGRA
+	tristate "Enable Tegra UDC glue driver" if EMBEDDED
+	depends on OF
+	depends on USB_CHIPIDEA_UDC
+	default USB_CHIPIDEA
+
 endif

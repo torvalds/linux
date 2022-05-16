@@ -7,6 +7,11 @@ config SOLUTION_ENGINE
 config SH_ALPHA_BOARD
 	bool
 
+config SH_CUSTOM_CLK
+	def_bool y
+	depends on !SH_DEVICE_TREE
+	select HAVE_LEGACY_CLK
+
 config SH_DEVICE_TREE
 	bool
 	select OF
@@ -334,12 +339,6 @@ config SH_MAGIC_PANEL_R2
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	help
 	  Select Magic Panel R2 if configuring for Magic Panel R2.
-
-config SH_CAYMAN
-	bool "Hitachi Cayman"
-	depends on CPU_SUBTYPE_SH5_101 || CPU_SUBTYPE_SH5_103
-	select HAVE_PCI
-	select ARCH_MIGHT_HAVE_PC_SERIO
 
 config SH_POLARIS
 	bool "SMSC Polaris"

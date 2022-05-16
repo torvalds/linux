@@ -14,7 +14,7 @@
 #include <asm/mach-types.h>
 #include <mach/simpad.h>
 #include "sa1100_generic.h"
- 
+
 static int simpad_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 
@@ -66,7 +66,7 @@ simpad_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 		simpad_clear_cs3_bit(VCC_3V_EN|VCC_5V_EN|EN0|EN1);
 		break;
 
-	case 33:  
+	case 33:
 		simpad_clear_cs3_bit(VCC_3V_EN|EN1);
 		simpad_set_cs3_bit(VCC_5V_EN|EN0);
 		break;
@@ -95,7 +95,7 @@ static void simpad_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
 	simpad_set_cs3_bit(PCMCIA_RESET);
 }
 
-static struct pcmcia_low_level simpad_pcmcia_ops = { 
+static struct pcmcia_low_level simpad_pcmcia_ops = {
 	.owner			= THIS_MODULE,
 	.hw_init		= simpad_pcmcia_hw_init,
 	.hw_shutdown		= simpad_pcmcia_hw_shutdown,

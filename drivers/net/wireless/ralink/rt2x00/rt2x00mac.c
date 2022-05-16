@@ -165,6 +165,15 @@ int rt2x00mac_start(struct ieee80211_hw *hw)
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
+	if (test_bit(DEVICE_STATE_STARTED, &rt2x00dev->flags)) {
+		/*
+		 * This is special case for ieee80211_restart_hw(), otherwise
+		 * mac80211 never call start() two times in row without stop();
+		 */
+		set_bit(DEVICE_STATE_RESET, &rt2x00dev->flags);
+		rt2x00dev->ops->lib->pre_reset_hw(rt2x00dev);
+		rt2x00lib_stop(rt2x00dev);
+	}
 	return rt2x00lib_start(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_start);
@@ -179,6 +188,17 @@ void rt2x00mac_stop(struct ieee80211_hw *hw)
 	rt2x00lib_stop(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_stop);
+
+void
+rt2x00mac_reconfig_complete(struct ieee80211_hw *hw,
+			    enum ieee80211_reconfig_type reconfig_type)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+
+	if (reconfig_type == IEEE80211_RECONFIG_TYPE_RESTART)
+		clear_bit(DEVICE_STATE_RESET, &rt2x00dev->flags);
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_reconfig_complete);
 
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif)
@@ -448,7 +468,8 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
-	if (!rt2x00_has_cap_hw_crypto(rt2x00dev))
+	/* The hardware can't do MFP */
+	if (!rt2x00_has_cap_hw_crypto(rt2x00dev) || (sta && sta->mfp))
 		return -EOPNOTSUPP;
 
 	/*

@@ -21,10 +21,6 @@ config KEYS
 
 	  If you are unsure as to whether this is required, answer N.
 
-config KEYS_COMPAT
-	def_bool y
-	depends on COMPAT && KEYS
-
 config KEYS_REQUEST_CACHE
 	bool "Enable temporary caching of the last request_key() result"
 	depends on KEYS
@@ -64,9 +60,7 @@ config BIG_KEYS
 	bool "Large payload keys"
 	depends on KEYS
 	depends on TMPFS
-	select CRYPTO
-	select CRYPTO_AES
-	select CRYPTO_GCM
+	depends on CRYPTO_LIB_CHACHA20POLY1305 = y
 	help
 	  This option provides support for holding large keys within the kernel
 	  (for example Kerberos ticket caches).  The data may be stored out to
@@ -120,3 +114,12 @@ config KEY_DH_OPERATIONS
 	 in the kernel.
 
 	 If you are unsure as to whether this is required, answer N.
+
+config KEY_NOTIFICATIONS
+	bool "Provide key/keyring change notifications"
+	depends on KEYS && WATCH_QUEUE
+	help
+	  This option provides support for getting change notifications on keys
+	  and keyrings on which the caller has View permission.  This makes use
+	  of the /dev/watch_queue misc device to handle the notification
+	  buffer and provides KEYCTL_WATCH_KEY to enable/disable watches.

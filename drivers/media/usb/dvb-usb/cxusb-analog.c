@@ -1223,7 +1223,7 @@ static int cxusb_medion_g_tuner(struct file *file, void *fh,
 	if (tuner->index != 0)
 		return -EINVAL;
 
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (vdev->vfl_type == VFL_TYPE_VIDEO)
 		tuner->type = V4L2_TUNER_ANALOG_TV;
 	else
 		tuner->type = V4L2_TUNER_RADIO;
@@ -1259,7 +1259,7 @@ static int cxusb_medion_g_tuner(struct file *file, void *fh,
 	if (ret != 0)
 		return ret;
 
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (vdev->vfl_type == VFL_TYPE_VIDEO)
 		strscpy(tuner->name, "TV tuner", sizeof(tuner->name));
 	else
 		strscpy(tuner->name, "Radio tuner", sizeof(tuner->name));
@@ -1292,7 +1292,7 @@ static int cxusb_medion_s_tuner(struct file *file, void *fh,
 	 * make sure that cx25840 is in a correct TV / radio mode,
 	 * since calls above may have changed it for tuner / IF demod
 	 */
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (vdev->vfl_type == VFL_TYPE_VIDEO)
 		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->norm);
 	else
 		v4l2_subdev_call(cxdev->cx25840, tuner, s_radio);
@@ -1335,7 +1335,7 @@ static int cxusb_medion_s_frequency(struct file *file, void *fh,
 	 * make sure that cx25840 is in a correct TV / radio mode,
 	 * since calls above may have changed it for tuner / IF demod
 	 */
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (vdev->vfl_type == VFL_TYPE_VIDEO)
 		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->norm);
 	else
 		v4l2_subdev_call(cxdev->cx25840, tuner, s_radio);
@@ -1564,7 +1564,7 @@ static int cxusb_videoradio_release(struct file *f)
 
 	cxusb_vprintk(dvbdev, OPS, "got release\n");
 
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (vdev->vfl_type == VFL_TYPE_VIDEO)
 		ret = vb2_fop_release(f);
 	else
 		ret = v4l2_fh_release(f);
@@ -1615,8 +1615,6 @@ static void cxusb_medion_videodev_release(struct video_device *vdev)
 
 	cxusb_vprintk(dvbdev, OPS, "video device release\n");
 
-	vb2_queue_release(vdev->queue);
-
 	video_device_release(vdev);
 }
 
@@ -1647,8 +1645,7 @@ static int cxusb_medion_register_analog_video(struct dvb_usb_device *dvbdev)
 	cxdev->videodev = video_device_alloc();
 	if (!cxdev->videodev) {
 		dev_err(&dvbdev->udev->dev, "video device alloc failed\n");
-		ret = -ENOMEM;
-		goto ret_qrelease;
+		return -ENOMEM;
 	}
 
 	cxdev->videodev->device_caps = videocaps;
@@ -1663,7 +1660,7 @@ static int cxusb_medion_register_analog_video(struct dvb_usb_device *dvbdev)
 	cxdev->videodev->lock = &cxdev->dev_lock;
 	video_set_drvdata(cxdev->videodev, dvbdev);
 
-	ret = video_register_device(cxdev->videodev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(cxdev->videodev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(&dvbdev->udev->dev,
 			"video device register failed, ret = %d\n", ret);
@@ -1674,10 +1671,6 @@ static int cxusb_medion_register_analog_video(struct dvb_usb_device *dvbdev)
 
 ret_vrelease:
 	video_device_release(cxdev->videodev);
-
-ret_qrelease:
-	vb2_queue_release(&cxdev->videoqueue);
-
 	return ret;
 }
 
@@ -1820,7 +1813,7 @@ int cxusb_medion_register_analog(struct dvb_usb_device *dvbdev)
 	return 0;
 
 ret_vunreg:
-	video_unregister_device(cxdev->videodev);
+	vb2_video_unregister_device(cxdev->videodev);
 
 ret_unregister:
 	v4l2_device_put(&cxdev->v4l2dev);
@@ -1836,7 +1829,7 @@ void cxusb_medion_unregister_analog(struct dvb_usb_device *dvbdev)
 	cxusb_vprintk(dvbdev, OPS, "unregistering analog\n");
 
 	video_unregister_device(cxdev->radiodev);
-	video_unregister_device(cxdev->videodev);
+	vb2_video_unregister_device(cxdev->videodev);
 
 	v4l2_device_put(&cxdev->v4l2dev);
 	wait_for_completion(&cxdev->v4l2_release);

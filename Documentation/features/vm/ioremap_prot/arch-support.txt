@@ -24,11 +24,10 @@
     |      parisc: | TODO |
     |     powerpc: |  ok  |
     |       riscv: | TODO |
-    |        s390: | TODO |
+    |        s390: |  ok  |
     |          sh: |  ok  |
     |       sparc: | TODO |
     |          um: | TODO |
-    |   unicore32: | TODO |
     |         x86: |  ok  |
     |      xtensa: | TODO |
     -----------------------

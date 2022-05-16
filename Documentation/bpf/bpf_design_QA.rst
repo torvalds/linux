@@ -246,17 +246,6 @@ program is loaded the kernel will print warning message, so
 this helper is only useful for experiments and prototypes.
 Tracing BPF programs are root only.
 
-Q: bpf_trace_printk() helper warning
-------------------------------------
-Q: When bpf_trace_printk() helper is used the kernel prints nasty
-warning message. Why is that?
-
-A: This is done to nudge program authors into better interfaces when
-programs need to pass data to user space. Like bpf_perf_event_output()
-can be used to efficiently stream data via perf ring buffer.
-BPF maps can be used for asynchronous data sharing between kernel
-and user space. bpf_trace_printk() should only be used for debugging.
-
 Q: New functionality via kernel modules?
 ----------------------------------------
 Q: Can BPF functionality such as new program or map types, new

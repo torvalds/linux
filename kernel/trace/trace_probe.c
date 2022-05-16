@@ -639,8 +639,8 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 			ret = -EINVAL;
 			goto fail;
 		}
-		if ((code->op == FETCH_OP_IMM || code->op == FETCH_OP_COMM) ||
-		     parg->count) {
+		if ((code->op == FETCH_OP_IMM || code->op == FETCH_OP_COMM ||
+		     code->op == FETCH_OP_DATA) || parg->count) {
 			/*
 			 * IMM, DATA and COMM is pointing actual address, those
 			 * must be kept, and if parg->count != 0, this is an
@@ -876,7 +876,8 @@ static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
 	for (i = 0; i < tp->nr_args; i++) {
 		parg = tp->args + i;
 		if (parg->count) {
-			if (strcmp(parg->type->name, "string") == 0)
+			if ((strcmp(parg->type->name, "string") == 0) ||
+			    (strcmp(parg->type->name, "ustring") == 0))
 				fmt = ", __get_str(%s[%d])";
 			else
 				fmt = ", REC->%s[%d]";
@@ -884,7 +885,8 @@ static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
 				pos += snprintf(buf + pos, LEN_OR_ZERO,
 						fmt, parg->name, j);
 		} else {
-			if (strcmp(parg->type->name, "string") == 0)
+			if ((strcmp(parg->type->name, "string") == 0) ||
+			    (strcmp(parg->type->name, "ustring") == 0))
 				fmt = ", __get_str(%s)";
 			else
 				fmt = ", REC->%s";
@@ -984,15 +986,19 @@ void trace_probe_cleanup(struct trace_probe *tp)
 }
 
 int trace_probe_init(struct trace_probe *tp, const char *event,
-		     const char *group)
+		     const char *group, bool alloc_filter)
 {
 	struct trace_event_call *call;
+	size_t size = sizeof(struct trace_probe_event);
 	int ret = 0;
 
 	if (!event || !group)
 		return -EINVAL;
 
-	tp->event = kzalloc(sizeof(struct trace_probe_event), GFP_KERNEL);
+	if (alloc_filter)
+		size += sizeof(struct trace_uprobe_filter);
+
+	tp->event = kzalloc(size, GFP_KERNEL);
 	if (!tp->event)
 		return -ENOMEM;
 
@@ -1000,7 +1006,7 @@ int trace_probe_init(struct trace_probe *tp, const char *event,
 	INIT_LIST_HEAD(&tp->event->class.fields);
 	INIT_LIST_HEAD(&tp->event->probes);
 	INIT_LIST_HEAD(&tp->list);
-	list_add(&tp->event->probes, &tp->list);
+	list_add(&tp->list, &tp->event->probes);
 
 	call = trace_probe_event_call(tp);
 	call->class = &tp->event->class;

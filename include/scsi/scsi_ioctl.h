@@ -27,7 +27,7 @@ struct scsi_device;
 typedef struct scsi_ioctl_command {
 	unsigned int inlen;
 	unsigned int outlen;
-	unsigned char data[0];
+	unsigned char data[];
 } Scsi_Ioctl_Command;
 
 typedef struct scsi_idlun {
@@ -44,6 +44,7 @@ typedef struct scsi_fctargaddress {
 int scsi_ioctl_block_when_processing_errors(struct scsi_device *sdev,
 		int cmd, bool ndelay);
 extern int scsi_ioctl(struct scsi_device *, int, void __user *);
+extern int scsi_compat_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
 
 #endif /* __KERNEL__ */
 #endif /* _SCSI_IOCTL_H */

@@ -402,7 +402,7 @@ il valore convertito. Tutte le varianti supportano anche il processo inverso:
 :c:func:`be32_to_cpu()`, eccetera.
 
 Queste funzioni hanno principalmente due varianti: la variante per
-puntatori, come :c:func:`cpu_to_be32p(), che prende un puntatore
+puntatori, come :c:func:`cpu_to_be32p()`, che prende un puntatore
 ad un tipo, e ritorna il valore convertito. L'altra variante per
 la famiglia di conversioni "in-situ", come :c:func:`cpu_to_be32s()`,
 che convertono il valore puntato da un puntatore, e ritornano void.
@@ -626,6 +626,24 @@ funzione esportata è considerata interna, e non una vera e propria interfaccia.
 Alcuni manutentori e sviluppatori potrebbero comunque richiedere
 :c:func:`EXPORT_SYMBOL_GPL()` quando si aggiungono nuove funzionalità o
 interfacce.
+
+:c:func:`EXPORT_SYMBOL_NS()`
+----------------------------
+
+Definita in ``include/linux/export.h``
+
+Questa è una variate di `EXPORT_SYMBOL()` che permette di specificare uno
+spazio dei nomi. Lo spazio dei nomi è documentato in
+:doc:`../core-api/symbol-namespaces`
+
+:c:func:`EXPORT_SYMBOL_NS_GPL()`
+--------------------------------
+
+Definita in ``include/linux/export.h``
+
+Questa è una variate di `EXPORT_SYMBOL_GPL()` che permette di specificare uno
+spazio dei nomi. Lo spazio dei nomi è documentato in
+:doc:`../core-api/symbol-namespaces`
 
 Procedure e convenzioni
 =======================

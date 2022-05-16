@@ -1,125 +1,125 @@
 [
-  {,
+  {
     "EventCode": "0x3006E",
     "EventName": "PM_NEST_REF_CLK",
     "BriefDescription": "Multiply by 4 to obtain the number of PB cycles"
   },
-  {,
+  {
     "EventCode": "0x20010",
     "EventName": "PM_PMC1_OVERFLOW",
     "BriefDescription": "Overflow from counter 1"
   },
-  {,
+  {
     "EventCode": "0x2005A",
     "EventName": "PM_DARQ1_7_9_ENTRIES",
     "BriefDescription": "Cycles in which 7 to 9 DARQ1 entries (out of 12) are in use"
   },
-  {,
+  {
     "EventCode": "0x3C048",
     "EventName": "PM_DATA_FROM_DL2L3_SHR",
     "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a demand load"
   },
-  {,
+  {
     "EventCode": "0x10008",
     "EventName": "PM_RUN_SPURR",
     "BriefDescription": "Run SPURR"
   },
-  {,
+  {
     "EventCode": "0x200F6",
     "EventName": "PM_LSU_DERAT_MISS",
     "BriefDescription": "DERAT Reloaded due to a DERAT miss"
   },
-  {,
+  {
     "EventCode": "0x4C048",
     "EventName": "PM_DATA_FROM_DL2L3_MOD",
     "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a demand load"
   },
-  {,
+  {
     "EventCode": "0x1D15E",
     "EventName": "PM_MRK_RUN_CYC",
     "BriefDescription": "Run cycles in which a marked instruction is in the pipeline"
   },
-  {,
+  {
     "EventCode": "0x4003E",
     "EventName": "PM_LD_CMPL",
     "BriefDescription": "count of Loads completed"
   },
-  {,
+  {
     "EventCode": "0x4C042",
     "EventName": "PM_DATA_FROM_L3",
     "BriefDescription": "The processor's data cache was reloaded from local core's L3 due to a demand load"
   },
-  {,
+  {
     "EventCode": "0x4D02C",
     "EventName": "PM_PMC1_REWIND",
     "BriefDescription": "PMC1 rewind event"
   },
-  {,
+  {
     "EventCode": "0x15158",
     "EventName": "PM_SYNC_MRK_L2HIT",
     "BriefDescription": "Marked L2 Hits that can throw a synchronous interrupt"
   },
-  {,
+  {
     "EventCode": "0x3404A",
     "EventName": "PM_INST_FROM_RMEM",
     "BriefDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to an instruction fetch (not prefetch)"
   },
-  {,
+  {
     "EventCode": "0x301E2",
     "EventName": "PM_MRK_ST_CMPL",
     "BriefDescription": "Marked store completed and sent to nest"
   },
-  {,
+  {
     "EventCode": "0x1C050",
     "EventName": "PM_DATA_CHIP_PUMP_CPRED",
     "BriefDescription": "Initial and Final Pump Scope was chip pump (prediction=correct) for a demand load"
   },
-  {,
+  {
     "EventCode": "0x4C040",
     "EventName": "PM_DATA_FROM_L2_DISP_CONFLICT_OTHER",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 with dispatch conflict due to a demand load"
   },
-  {,
+  {
     "EventCode": "0x2E05C",
     "EventName": "PM_LSU_REJECT_ERAT_MISS",
     "BriefDescription": "LSU Reject due to ERAT (up to 4 per cycles)"
   },
-  {,
+  {
     "EventCode": "0x1000A",
     "EventName": "PM_PMC3_REWIND",
     "BriefDescription": "PMC3 rewind event. A rewind happens when a speculative event (such as latency or CPI stack) is selected on PMC3 and the stall reason or reload source did not match the one programmed in PMC3. When this occurs, the count in PMC3 will not change."
   },
-  {,
+  {
     "EventCode": "0x3C058",
     "EventName": "PM_LARX_FIN",
     "BriefDescription": "Larx finished"
   },
-  {,
+  {
     "EventCode": "0x1C040",
     "EventName": "PM_DATA_FROM_L2_NO_CONFLICT",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 without conflict due to a demand load"
   },
-  {,
+  {
     "EventCode": "0x2C040",
     "EventName": "PM_DATA_FROM_L2_MEPF",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 hit without dispatch conflicts on Mepf state due to a demand load"
   },
-  {,
+  {
     "EventCode": "0x2E05A",
     "EventName": "PM_LRQ_REJECT",
     "BriefDescription": "Internal LSU reject from LRQ. Rejects cause the load to go back to LRQ, but it stays contained within the LSU once it gets issued. This event counts the number of times the LRQ attempts to relaunch an instruction after a reject. Any load can suffer multiple rejects"
   },
-  {,
+  {
     "EventCode": "0x2C05C",
     "EventName": "PM_INST_GRP_PUMP_CPRED",
     "BriefDescription": "Initial and Final Pump Scope was group pump (prediction=correct) for an instruction fetch (demand only)"
   },
-  {,
+  {
     "EventCode": "0x4D056",
     "EventName": "PM_NON_FMA_FLOP_CMPL",
     "BriefDescription": "Non FMA instruction completed"
   },
-  {,
+  {
     "EventCode": "0x3E050",
     "EventName": "PM_DARQ1_4_6_ENTRIES",
     "BriefDescription": "Cycles in which 4, 5, or 6 DARQ1 entries (out of 12) are in use"

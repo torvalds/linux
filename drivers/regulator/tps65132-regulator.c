@@ -136,9 +136,10 @@ static int tps65132_of_parse_cb(struct device_node *np,
 	struct tps65132_reg_pdata *rpdata = &tps->reg_pdata[desc->id];
 	int ret;
 
-	rpdata->en_gpiod = devm_fwnode_get_index_gpiod_from_child(tps->dev,
-					"enable", 0, &np->fwnode, 0, "enable");
-	if (IS_ERR_OR_NULL(rpdata->en_gpiod)) {
+	rpdata->en_gpiod = devm_fwnode_gpiod_get(tps->dev, of_fwnode_handle(np),
+						 "enable", GPIOD_ASIS,
+						 "enable");
+	if (IS_ERR(rpdata->en_gpiod)) {
 		ret = PTR_ERR(rpdata->en_gpiod);
 
 		/* Ignore the error other than probe defer */
@@ -147,10 +148,12 @@ static int tps65132_of_parse_cb(struct device_node *np,
 		return 0;
 	}
 
-	rpdata->act_dis_gpiod = devm_fwnode_get_index_gpiod_from_child(
-					tps->dev, "active-discharge", 0,
-					&np->fwnode, 0, "active-discharge");
-	if (IS_ERR_OR_NULL(rpdata->act_dis_gpiod)) {
+	rpdata->act_dis_gpiod = devm_fwnode_gpiod_get(tps->dev,
+						      of_fwnode_handle(np),
+						      "active-discharge",
+						      GPIOD_ASIS,
+						      "active-discharge");
+	if (IS_ERR(rpdata->act_dis_gpiod)) {
 		ret = PTR_ERR(rpdata->act_dis_gpiod);
 
 		/* Ignore the error other than probe defer */
@@ -217,8 +220,7 @@ static const struct regmap_config tps65132_regmap_config = {
 	.wr_table	= &tps65132_no_reg_table,
 };
 
-static int tps65132_probe(struct i2c_client *client,
-			  const struct i2c_device_id *client_id)
+static int tps65132_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct tps65132_regulator *tps;
@@ -269,7 +271,7 @@ static struct i2c_driver tps65132_i2c_driver = {
 	.driver = {
 		.name = "tps65132",
 	},
-	.probe = tps65132_probe,
+	.probe_new = tps65132_probe,
 	.id_table = tps65132_id,
 };
 

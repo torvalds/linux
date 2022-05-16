@@ -18,18 +18,6 @@
 #include <drm/drm_framebuffer.h>
 
 struct drm_device;
-struct drm_gem_object;
-
-struct hibmc_framebuffer {
-	struct drm_framebuffer fb;
-	struct drm_gem_object *obj;
-};
-
-struct hibmc_fbdev {
-	struct drm_fb_helper helper; /* must be first */
-	struct hibmc_framebuffer *fb;
-	int size;
-};
 
 struct hibmc_drm_private {
 	/* hw */
@@ -37,17 +25,15 @@ struct hibmc_drm_private {
 	void __iomem   *fb_map;
 	unsigned long  fb_base;
 	unsigned long  fb_size;
-	bool msi_enabled;
 
 	/* drm */
 	struct drm_device  *dev;
+	struct drm_plane primary_plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+	struct drm_connector connector;
 	bool mode_config_initialized;
-
-	/* fbdev */
-	struct hibmc_fbdev *fbdev;
 };
-
-#define to_hibmc_framebuffer(x) container_of(x, struct hibmc_framebuffer, fb)
 
 void hibmc_set_power_mode(struct hibmc_drm_private *priv,
 			  unsigned int power_mode);
@@ -56,15 +42,6 @@ void hibmc_set_current_gate(struct hibmc_drm_private *priv,
 
 int hibmc_de_init(struct hibmc_drm_private *priv);
 int hibmc_vdac_init(struct hibmc_drm_private *priv);
-int hibmc_fbdev_init(struct hibmc_drm_private *priv);
-void hibmc_fbdev_fini(struct hibmc_drm_private *priv);
-
-int hibmc_gem_create(struct drm_device *dev, u32 size, bool iskernel,
-		     struct drm_gem_object **obj);
-struct hibmc_framebuffer *
-hibmc_framebuffer_init(struct drm_device *dev,
-		       const struct drm_mode_fb_cmd2 *mode_cmd,
-		       struct drm_gem_object *obj);
 
 int hibmc_mm_init(struct hibmc_drm_private *hibmc);
 void hibmc_mm_fini(struct hibmc_drm_private *hibmc);

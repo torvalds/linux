@@ -54,7 +54,7 @@ class SubPlugin(TdcPlugin):
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            env=ENVIR)
+            env=os.environ.copy())
         (rawout, serr) = proc.communicate()
 
         if proc.returncode != 0 and len(serr) > 0:

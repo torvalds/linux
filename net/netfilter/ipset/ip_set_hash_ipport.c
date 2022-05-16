@@ -47,7 +47,7 @@ struct hash_ipport4_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_ipport4_data_equal(const struct hash_ipport4_elem *ip1,
 			const struct hash_ipport4_elem *ip2,
 			u32 *multi)
@@ -71,7 +71,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_ipport4_data_next(struct hash_ipport4_elem *next,
 		       const struct hash_ipport4_elem *d)
 {
@@ -202,7 +202,7 @@ struct hash_ipport6_elem {
 
 /* Common functions */
 
-static inline bool
+static bool
 hash_ipport6_data_equal(const struct hash_ipport6_elem *ip1,
 			const struct hash_ipport6_elem *ip2,
 			u32 *multi)
@@ -226,7 +226,7 @@ nla_put_failure:
 	return true;
 }
 
-static inline void
+static void
 hash_ipport6_data_next(struct hash_ipport6_elem *next,
 		       const struct hash_ipport6_elem *d)
 {

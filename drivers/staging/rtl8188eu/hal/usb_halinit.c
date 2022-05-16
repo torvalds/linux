@@ -78,8 +78,8 @@ void rtw_hal_chip_configure(struct adapter *adapt)
 	haldata->UsbRxAggPageCount	= 48; /* uint :128 b 0x0A;	10 = MAX_RX_DMA_BUFFER_SIZE/2/haldata->UsbBulkOutSize */
 	haldata->UsbRxAggPageTimeout	= 0x4; /* 6, absolute time = 34ms/(2^6) */
 
-	HalUsbSetQueuePipeMapping8188EUsb(adapt,
-				pdvobjpriv->RtNumInPipes, pdvobjpriv->RtNumOutPipes);
+	HalUsbSetQueuePipeMapping8188EUsb(adapt, pdvobjpriv->RtNumInPipes,
+					  pdvobjpriv->RtNumOutPipes);
 }
 
 u32 rtw_hal_power_on(struct adapter *adapt)
@@ -876,7 +876,7 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 {
 	u8 val8;
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("CardDisableRTL8188EU\n"));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("%s\n", __func__));
 
 	/* Stop Tx Report Timer. 0x4EC[Bit1]=b'0 */
 	val8 = usb_read8(Adapter, REG_TX_RPT_CTRL);
@@ -1038,8 +1038,7 @@ static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool
 		memcpy(eeprom->mac_addr, &hwinfo[EEPROM_MAC_ADDR_88EU], ETH_ALEN);
 	}
 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-		 ("Hal_EfuseParseMACAddr_8188EU: Permanent Address = %pM\n",
-		 eeprom->mac_addr));
+		 ("%s: Permanent Address = %pM\n", __func__, eeprom->mac_addr));
 }
 
 static void readAdapterInfo_8188EU(struct adapter *adapt)
@@ -1728,7 +1727,7 @@ void rtw_hal_get_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 	switch (variable) {
 	case HW_VAR_BASIC_RATE:
 		*((u16 *)(val)) = Adapter->HalData->BasicRateSet;
-		/* fall through */
+		fallthrough;
 	case HW_VAR_TXPAUSE:
 		val[0] = usb_read8(Adapter, REG_TXPAUSE);
 		break;
@@ -1894,7 +1893,7 @@ void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 	switch (mac_id) {
 	case 0:/*  for infra mode */
 		supportRateNum = rtw_get_rateset_len(cur_network->SupportedRates);
-		networkType = judge_network_type(adapt, cur_network->SupportedRates, supportRateNum) & 0xf;
+		networkType = judge_network_type(adapt, cur_network->SupportedRates) & 0xf;
 		raid = networktype_to_raid(networkType);
 		mask = update_supported_rate(cur_network->SupportedRates, supportRateNum);
 		mask |= (pmlmeinfo->HT_enable) ? update_MSC_rate(&pmlmeinfo->HT_caps) : 0;
@@ -1912,7 +1911,7 @@ void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 		break;
 	default: /* for each sta in IBSS */
 		supportRateNum = rtw_get_rateset_len(pmlmeinfo->FW_sta_info[mac_id].SupportedRates);
-		networkType = judge_network_type(adapt, pmlmeinfo->FW_sta_info[mac_id].SupportedRates, supportRateNum) & 0xf;
+		networkType = judge_network_type(adapt, pmlmeinfo->FW_sta_info[mac_id].SupportedRates) & 0xf;
 		raid = networktype_to_raid(networkType);
 		mask = update_supported_rate(cur_network->SupportedRates, supportRateNum);
 

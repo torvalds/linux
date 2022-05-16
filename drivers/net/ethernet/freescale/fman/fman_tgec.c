@@ -273,10 +273,6 @@ static int check_init_parameters(struct fman_mac *tgec)
 		pr_err("10G MAC driver only support 10G speed\n");
 		return -EINVAL;
 	}
-	if (tgec->addr == 0) {
-		pr_err("Ethernet 10G MAC Must have valid MAC Address\n");
-		return -EINVAL;
-	}
 	if (!tgec->exception_cb) {
 		pr_err("uninitialized exception_cb\n");
 		return -EINVAL;
@@ -630,7 +626,7 @@ int tgec_del_hash_mac_address(struct fman_mac *tgec, enet_addr_t *eth_addr)
 
 	list_for_each(pos, &tgec->multicast_addr_hash->lsts[hash]) {
 		hash_entry = ETH_HASH_ENTRY_OBJ(pos);
-		if (hash_entry->addr == addr) {
+		if (hash_entry && hash_entry->addr == addr) {
 			list_del_init(&hash_entry->node);
 			kfree(hash_entry);
 			break;
@@ -706,8 +702,10 @@ int tgec_init(struct fman_mac *tgec)
 
 	cfg = tgec->cfg;
 
-	MAKE_ENET_ADDR_FROM_UINT64(tgec->addr, eth_addr);
-	set_mac_address(tgec->regs, (u8 *)eth_addr);
+	if (tgec->addr) {
+		MAKE_ENET_ADDR_FROM_UINT64(tgec->addr, eth_addr);
+		set_mac_address(tgec->regs, (u8 *)eth_addr);
+	}
 
 	/* interrupts */
 	/* FM_10G_REM_N_LCL_FLT_EX_10GMAC_ERRATA_SW005 Errata workaround */

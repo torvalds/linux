@@ -46,7 +46,7 @@ static inline struct acomp_req *__acomp_request_alloc(struct crypto_acomp *tfm)
 
 static inline void __acomp_request_free(struct acomp_req *req)
 {
-	kzfree(req);
+	kfree_sensitive(req);
 }
 
 /**
@@ -68,10 +68,8 @@ int crypto_register_acomp(struct acomp_alg *alg);
  * compression algorithm
  *
  * @alg:	algorithm definition
- *
- * Return:	zero on success; error code in case of error
  */
-int crypto_unregister_acomp(struct acomp_alg *alg);
+void crypto_unregister_acomp(struct acomp_alg *alg);
 
 int crypto_register_acomps(struct acomp_alg *algs, int count);
 void crypto_unregister_acomps(struct acomp_alg *algs, int count);

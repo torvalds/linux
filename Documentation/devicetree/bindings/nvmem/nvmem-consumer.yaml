@@ -36,6 +36,8 @@ dependencies:
   nvmem-names: [ nvmem ]
   nvmem-cell-names: [ nvmem-cells ]
 
+additionalProperties: true
+
 examples:
   - |
     tsens {

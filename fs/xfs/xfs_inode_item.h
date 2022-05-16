@@ -13,28 +13,37 @@ struct xfs_bmbt_rec;
 struct xfs_inode;
 struct xfs_mount;
 
-typedef struct xfs_inode_log_item {
+struct xfs_inode_log_item {
 	struct xfs_log_item	ili_item;	   /* common portion */
 	struct xfs_inode	*ili_inode;	   /* inode ptr */
-	xfs_lsn_t		ili_flush_lsn;	   /* lsn at last flush */
-	xfs_lsn_t		ili_last_lsn;	   /* lsn at last transaction */
-	unsigned short		ili_lock_flags;	   /* lock flags */
-	unsigned short		ili_logged;	   /* flushed logged data */
+	unsigned short		ili_lock_flags;	   /* inode lock flags */
+	/*
+	 * The ili_lock protects the interactions between the dirty state and
+	 * the flush state of the inode log item. This allows us to do atomic
+	 * modifications of multiple state fields without having to hold a
+	 * specific inode lock to serialise them.
+	 *
+	 * We need atomic changes between inode dirtying, inode flushing and
+	 * inode completion, but these all hold different combinations of
+	 * ILOCK and IFLUSHING and hence we need some other method of
+	 * serialising updates to the flush state.
+	 */
+	spinlock_t		ili_lock;	   /* flush state lock */
 	unsigned int		ili_last_fields;   /* fields when flushed */
 	unsigned int		ili_fields;	   /* fields to be logged */
 	unsigned int		ili_fsync_fields;  /* logged since last fsync */
-} xfs_inode_log_item_t;
+	xfs_lsn_t		ili_flush_lsn;	   /* lsn at last flush */
+	xfs_lsn_t		ili_last_lsn;	   /* lsn at last transaction */
+};
 
-static inline int xfs_inode_clean(xfs_inode_t *ip)
+static inline int xfs_inode_clean(struct xfs_inode *ip)
 {
 	return !ip->i_itemp || !(ip->i_itemp->ili_fields & XFS_ILOG_ALL);
 }
 
 extern void xfs_inode_item_init(struct xfs_inode *, struct xfs_mount *);
 extern void xfs_inode_item_destroy(struct xfs_inode *);
-extern void xfs_iflush_done(struct xfs_buf *, struct xfs_log_item *);
-extern void xfs_istale_done(struct xfs_buf *, struct xfs_log_item *);
-extern void xfs_iflush_abort(struct xfs_inode *, bool);
+extern void xfs_iflush_abort(struct xfs_inode *);
 extern int xfs_inode_item_format_convert(xfs_log_iovec_t *,
 					 struct xfs_inode_log_format *);
 

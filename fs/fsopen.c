@@ -25,7 +25,7 @@ static ssize_t fscontext_read(struct file *file,
 			      char __user *_buf, size_t len, loff_t *pos)
 {
 	struct fs_context *fc = file->private_data;
-	struct fc_log *log = fc->log;
+	struct fc_log *log = fc->log.log;
 	unsigned int logsize = ARRAY_SIZE(log->buffer);
 	ssize_t ret;
 	char *p;
@@ -97,11 +97,11 @@ static int fscontext_create_fd(struct fs_context *fc, unsigned int o_flags)
 
 static int fscontext_alloc_log(struct fs_context *fc)
 {
-	fc->log = kzalloc(sizeof(*fc->log), GFP_KERNEL);
-	if (!fc->log)
+	fc->log.log = kzalloc(sizeof(*fc->log.log), GFP_KERNEL);
+	if (!fc->log.log)
 		return -ENOMEM;
-	refcount_set(&fc->log->usage, 1);
-	fc->log->owner = fc->fs_type->owner;
+	refcount_set(&fc->log.log->usage, 1);
+	fc->log.log->owner = fc->fs_type->owner;
 	return 0;
 }
 
@@ -321,6 +321,7 @@ SYSCALL_DEFINE5(fsconfig,
 	struct fs_context *fc;
 	struct fd f;
 	int ret;
+	int lookup_flags = 0;
 
 	struct fs_parameter param = {
 		.type	= fs_value_is_undefined,
@@ -409,19 +410,12 @@ SYSCALL_DEFINE5(fsconfig,
 			goto out_key;
 		}
 		break;
+	case FSCONFIG_SET_PATH_EMPTY:
+		lookup_flags = LOOKUP_EMPTY;
+		fallthrough;
 	case FSCONFIG_SET_PATH:
 		param.type = fs_value_is_filename;
-		param.name = getname_flags(_value, 0, NULL);
-		if (IS_ERR(param.name)) {
-			ret = PTR_ERR(param.name);
-			goto out_key;
-		}
-		param.dirfd = aux;
-		param.size = strlen(param.name->name);
-		break;
-	case FSCONFIG_SET_PATH_EMPTY:
-		param.type = fs_value_is_filename_empty;
-		param.name = getname_flags(_value, LOOKUP_EMPTY, NULL);
+		param.name = getname_flags(_value, lookup_flags, NULL);
 		if (IS_ERR(param.name)) {
 			ret = PTR_ERR(param.name);
 			goto out_key;

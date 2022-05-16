@@ -217,3 +217,4 @@ module_exit(nft_ng_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Laura Garcia <nevola@gmail.com>");
 MODULE_ALIAS_NFT_EXPR("numgen");
+MODULE_DESCRIPTION("nftables number generator module");

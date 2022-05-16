@@ -74,7 +74,7 @@ void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt);
  */
 int ttm_page_alloc_debugfs(struct seq_file *m, void *data);
 
-#if defined(CONFIG_SWIOTLB) || defined(CONFIG_INTEL_IOMMU)
+#if defined(CONFIG_DRM_TTM_DMA_PAGE_POOL)
 /**
  * Initialize pool allocator.
  */

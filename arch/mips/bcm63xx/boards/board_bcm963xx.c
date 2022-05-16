@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Copyright (C) 2008 Maxime Bizon <mbizon@freebox.fr>
  * Copyright (C) 2008 Florian Fainelli <florian@openwrt.org>
  */
@@ -32,7 +29,6 @@
 
 #include <uapi/linux/bcm933xx_hcs.h>
 
-
 #define HCS_OFFSET_128K			0x20000
 
 static struct board_info board;
@@ -42,619 +38,608 @@ static struct board_info board;
  */
 #ifdef CONFIG_BCM63XX_CPU_3368
 static struct board_info __initdata board_cvg834g = {
-	.name				= "CVG834G_E15R3921",
-	.expected_cpu_id		= 0x3368,
+	.name = "CVG834G_E15R3921",
+	.expected_cpu_id = 0x3368,
 
-	.has_uart0			= 1,
-	.has_uart1			= 1,
+	.ephy_reset_gpio = 36,
+	.ephy_reset_gpio_flags = GPIOF_INIT_HIGH,
+	.has_pci = 1,
+	.has_uart0 = 1,
+	.has_uart1 = 1,
 
-	.has_enet0			= 1,
-	.has_pci			= 1,
-
+	.has_enet0 = 1,
 	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
+		.has_phy = 1,
+		.use_internal_phy = 1,
 	},
 
 	.leds = {
 		{
-			.name		= "CVG834G:green:power",
-			.gpio		= 37,
+			.name = "CVG834G:green:power",
+			.gpio = 37,
 			.default_trigger= "default-on",
 		},
 	},
-
-	.ephy_reset_gpio		= 36,
-	.ephy_reset_gpio_flags		= GPIOF_INIT_HIGH,
 };
-#endif
+#endif /* CONFIG_BCM63XX_CPU_3368 */
 
 /*
  * known 6328 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6328
 static struct board_info __initdata board_96328avng = {
-	.name				= "96328avng",
-	.expected_cpu_id		= 0x6328,
+	.name = "96328avng",
+	.expected_cpu_id = 0x6328,
 
-	.has_uart0			= 1,
-	.has_pci			= 1,
-	.has_usbd			= 0,
+	.has_pci = 1,
+	.has_uart0 = 1,
 
+	.has_usbd = 0,
 	.usbd = {
-		.use_fullspeed		= 0,
-		.port_no		= 0,
+		.use_fullspeed = 0,
+		.port_no = 0,
 	},
 
 	.leds = {
 		{
-			.name		= "96328avng::ppp-fail",
-			.gpio		= 2,
-			.active_low	= 1,
+			.name = "96328avng::ppp-fail",
+			.gpio = 2,
+			.active_low = 1,
 		},
 		{
-			.name		= "96328avng::power",
-			.gpio		= 4,
-			.active_low	= 1,
+			.name = "96328avng::power",
+			.gpio = 4,
+			.active_low = 1,
 			.default_trigger = "default-on",
 		},
 		{
-			.name		= "96328avng::power-fail",
-			.gpio		= 8,
-			.active_low	= 1,
+			.name = "96328avng::power-fail",
+			.gpio = 8,
+			.active_low = 1,
 		},
 		{
-			.name		= "96328avng::wps",
-			.gpio		= 9,
-			.active_low	= 1,
+			.name = "96328avng::wps",
+			.gpio = 9,
+			.active_low = 1,
 		},
 		{
-			.name		= "96328avng::ppp",
-			.gpio		= 11,
-			.active_low	= 1,
+			.name = "96328avng::ppp",
+			.gpio = 11,
+			.active_low = 1,
 		},
 	},
 };
-#endif
+#endif /* CONFIG_BCM63XX_CPU_6328 */
 
 /*
  * known 6338 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6338
 static struct board_info __initdata board_96338gw = {
-	.name				= "96338GW",
-	.expected_cpu_id		= 0x6338,
+	.name = "96338GW",
+	.expected_cpu_id = 0x6338,
 
-	.has_uart0			= 1,
-	.has_enet0			= 1,
+	.has_ohci0 = 1,
+	.has_uart0 = 1,
+
+	.has_enet0 = 1,
 	.enet0 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
 	},
-
-	.has_ohci0			= 1,
 
 	.leds = {
 		{
-			.name		= "adsl",
-			.gpio		= 3,
-			.active_low	= 1,
+			.name = "adsl",
+			.gpio = 3,
+			.active_low = 1,
 		},
 		{
-			.name		= "ses",
-			.gpio		= 5,
-			.active_low	= 1,
+			.name = "ses",
+			.gpio = 5,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp-fail",
-			.gpio		= 4,
-			.active_low	= 1,
+			.name = "ppp-fail",
+			.gpio = 4,
+			.active_low = 1,
 		},
 		{
-			.name		= "power",
-			.gpio		= 0,
-			.active_low	= 1,
+			.name = "power",
+			.gpio = 0,
+			.active_low = 1,
 			.default_trigger = "default-on",
 		},
 		{
-			.name		= "stop",
-			.gpio		= 1,
-			.active_low	= 1,
+			.name = "stop",
+			.gpio = 1,
+			.active_low = 1,
 		}
 	},
 };
 
 static struct board_info __initdata board_96338w = {
-	.name				= "96338W",
-	.expected_cpu_id		= 0x6338,
+	.name = "96338W",
+	.expected_cpu_id = 0x6338,
 
-	.has_uart0			= 1,
-	.has_enet0			= 1,
+	.has_uart0 = 1,
+
+	.has_enet0 = 1,
 	.enet0 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
 	},
 
 	.leds = {
 		{
-			.name		= "adsl",
-			.gpio		= 3,
-			.active_low	= 1,
+			.name = "adsl",
+			.gpio = 3,
+			.active_low = 1,
 		},
 		{
-			.name		= "ses",
-			.gpio		= 5,
-			.active_low	= 1,
+			.name = "ses",
+			.gpio = 5,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp-fail",
-			.gpio		= 4,
-			.active_low	= 1,
+			.name = "ppp-fail",
+			.gpio = 4,
+			.active_low = 1,
 		},
 		{
-			.name		= "power",
-			.gpio		= 0,
-			.active_low	= 1,
+			.name = "power",
+			.gpio = 0,
+			.active_low = 1,
 			.default_trigger = "default-on",
 		},
 		{
-			.name		= "stop",
-			.gpio		= 1,
-			.active_low	= 1,
+			.name = "stop",
+			.gpio = 1,
+			.active_low = 1,
 		},
 	},
 };
-#endif
+#endif /* CONFIG_BCM63XX_CPU_6338 */
 
 /*
  * known 6345 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6345
 static struct board_info __initdata board_96345gw2 = {
-	.name				= "96345GW2",
-	.expected_cpu_id		= 0x6345,
+	.name = "96345GW2",
+	.expected_cpu_id = 0x6345,
 
-	.has_uart0			= 1,
+	.has_uart0 = 1,
 };
-#endif
+#endif /* CONFIG_BCM63XX_CPU_6345 */
 
 /*
  * known 6348 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6348
 static struct board_info __initdata board_96348r = {
-	.name				= "96348R",
-	.expected_cpu_id		= 0x6348,
+	.name = "96348R",
+	.expected_cpu_id = 0x6348,
 
-	.has_uart0			= 1,
-	.has_enet0			= 1,
-	.has_pci			= 1,
+	.has_pci = 1,
+	.has_uart0 = 1,
 
+	.has_enet0 = 1,
 	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
+		.has_phy = 1,
+		.use_internal_phy = 1,
 	},
 
 	.leds = {
 		{
-			.name		= "adsl-fail",
-			.gpio		= 2,
-			.active_low	= 1,
+			.name = "adsl-fail",
+			.gpio = 2,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp",
-			.gpio		= 3,
-			.active_low	= 1,
+			.name = "ppp",
+			.gpio = 3,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp-fail",
-			.gpio		= 4,
-			.active_low	= 1,
+			.name = "ppp-fail",
+			.gpio = 4,
+			.active_low = 1,
 		},
 		{
-			.name		= "power",
-			.gpio		= 0,
-			.active_low	= 1,
+			.name = "power",
+			.gpio = 0,
+			.active_low = 1,
 			.default_trigger = "default-on",
 
 		},
 		{
-			.name		= "stop",
-			.gpio		= 1,
-			.active_low	= 1,
+			.name = "stop",
+			.gpio = 1,
+			.active_low = 1,
 		},
 	},
 };
 
 static struct board_info __initdata board_96348gw_10 = {
-	.name				= "96348GW-10",
-	.expected_cpu_id		= 0x6348,
+	.name = "96348GW-10",
+	.expected_cpu_id = 0x6348,
 
-	.has_uart0			= 1,
-	.has_enet0			= 1,
-	.has_enet1			= 1,
-	.has_pci			= 1,
+	.has_ohci0 = 1,
+	.has_pccard = 1,
+	.has_pci = 1,
+	.has_uart0 = 1,
 
+	.has_enet0 = 1,
 	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
-	},
-	.enet1 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
+		.has_phy = 1,
+		.use_internal_phy = 1,
 	},
 
-	.has_ohci0			= 1,
-	.has_pccard			= 1,
-	.has_ehci0			= 1,
+	.has_enet1 = 1,
+	.enet1 = {
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
+	},
 
 	.leds = {
 		{
-			.name		= "adsl-fail",
-			.gpio		= 2,
-			.active_low	= 1,
+			.name = "adsl-fail",
+			.gpio = 2,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp",
-			.gpio		= 3,
-			.active_low	= 1,
+			.name = "ppp",
+			.gpio = 3,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp-fail",
-			.gpio		= 4,
-			.active_low	= 1,
+			.name = "ppp-fail",
+			.gpio = 4,
+			.active_low = 1,
 		},
 		{
-			.name		= "power",
-			.gpio		= 0,
-			.active_low	= 1,
+			.name = "power",
+			.gpio = 0,
+			.active_low = 1,
 			.default_trigger = "default-on",
 		},
 		{
-			.name		= "stop",
-			.gpio		= 1,
-			.active_low	= 1,
+			.name = "stop",
+			.gpio = 1,
+			.active_low = 1,
 		},
 	},
 };
 
 static struct board_info __initdata board_96348gw_11 = {
-	.name				= "96348GW-11",
-	.expected_cpu_id		= 0x6348,
-
-	.has_uart0			= 1,
-	.has_enet0			= 1,
-	.has_enet1			= 1,
-	.has_pci			= 1,
-
-	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
-	},
-
-	.enet1 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
-	},
-
+	.name = "96348GW-11",
+	.expected_cpu_id = 0x6348,
 
 	.has_ohci0 = 1,
 	.has_pccard = 1,
-	.has_ehci0 = 1,
+	.has_pci = 1,
+	.has_uart0 = 1,
+
+	.has_enet0 = 1,
+	.enet0 = {
+		.has_phy = 1,
+		.use_internal_phy = 1,
+	},
+
+	.has_enet1 = 1,
+	.enet1 = {
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
+	},
 
 	.leds = {
 		{
-			.name		= "adsl-fail",
-			.gpio		= 2,
-			.active_low	= 1,
+			.name = "adsl-fail",
+			.gpio = 2,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp",
-			.gpio		= 3,
-			.active_low	= 1,
+			.name = "ppp",
+			.gpio = 3,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp-fail",
-			.gpio		= 4,
-			.active_low	= 1,
+			.name = "ppp-fail",
+			.gpio = 4,
+			.active_low = 1,
 		},
 		{
-			.name		= "power",
-			.gpio		= 0,
-			.active_low	= 1,
+			.name = "power",
+			.gpio = 0,
+			.active_low = 1,
 			.default_trigger = "default-on",
 		},
 		{
-			.name		= "stop",
-			.gpio		= 1,
-			.active_low	= 1,
+			.name = "stop",
+			.gpio = 1,
+			.active_low = 1,
 		},
 	},
 };
 
 static struct board_info __initdata board_96348gw = {
-	.name				= "96348GW",
-	.expected_cpu_id		= 0x6348,
-
-	.has_uart0			= 1,
-	.has_enet0			= 1,
-	.has_enet1			= 1,
-	.has_pci			= 1,
-
-	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
-	},
-	.enet1 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
-	},
+	.name = "96348GW",
+	.expected_cpu_id = 0x6348,
 
 	.has_ohci0 = 1,
+	.has_pci = 1,
+	.has_uart0 = 1,
+
+	.has_enet0 = 1,
+	.enet0 = {
+		.has_phy = 1,
+		.use_internal_phy = 1,
+	},
+
+	.has_enet1 = 1,
+	.enet1 = {
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
+	},
 
 	.leds = {
 		{
-			.name		= "adsl-fail",
-			.gpio		= 2,
-			.active_low	= 1,
+			.name = "adsl-fail",
+			.gpio = 2,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp",
-			.gpio		= 3,
-			.active_low	= 1,
+			.name = "ppp",
+			.gpio = 3,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp-fail",
-			.gpio		= 4,
-			.active_low	= 1,
+			.name = "ppp-fail",
+			.gpio = 4,
+			.active_low = 1,
 		},
 		{
-			.name		= "power",
-			.gpio		= 0,
-			.active_low	= 1,
+			.name = "power",
+			.gpio = 0,
+			.active_low = 1,
 			.default_trigger = "default-on",
 		},
 		{
-			.name		= "stop",
-			.gpio		= 1,
-			.active_low	= 1,
+			.name = "stop",
+			.gpio = 1,
+			.active_low = 1,
 		},
 	},
 };
 
 static struct board_info __initdata board_FAST2404 = {
-	.name				= "F@ST2404",
-	.expected_cpu_id		= 0x6348,
+	.name = "F@ST2404",
+	.expected_cpu_id = 0x6348,
 
-	.has_uart0			= 1,
-	.has_enet0			= 1,
-	.has_enet1			= 1,
-	.has_pci			= 1,
+	.has_ohci0 = 1,
+	.has_pccard = 1,
+	.has_pci = 1,
+	.has_uart0 = 1,
 
+	.has_enet0 = 1,
 	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
+		.has_phy = 1,
+		.use_internal_phy = 1,
 	},
 
+	.has_enet1 = 1,
 	.enet1 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
 	},
-
-	.has_ohci0			= 1,
-	.has_pccard			= 1,
-	.has_ehci0			= 1,
 };
 
 static struct board_info __initdata board_rta1025w_16 = {
-	.name				= "RTA1025W_16",
-	.expected_cpu_id		= 0x6348,
+	.name = "RTA1025W_16",
+	.expected_cpu_id = 0x6348,
 
-	.has_enet0			= 1,
-	.has_enet1			= 1,
-	.has_pci			= 1,
+	.has_pci = 1,
 
+	.has_enet0 = 1,
 	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
+		.has_phy = 1,
+		.use_internal_phy = 1,
 	},
+
+	.has_enet1 = 1,
 	.enet1 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
 	},
 };
 
-
 static struct board_info __initdata board_DV201AMR = {
-	.name				= "DV201AMR",
-	.expected_cpu_id		= 0x6348,
+	.name = "DV201AMR",
+	.expected_cpu_id = 0x6348,
 
-	.has_uart0			= 1,
-	.has_pci			= 1,
-	.has_ohci0			= 1,
+	.has_ohci0 = 1,
+	.has_pci = 1,
+	.has_uart0 = 1,
 
-	.has_enet0			= 1,
-	.has_enet1			= 1,
+	.has_enet0 = 1,
 	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
+		.has_phy = 1,
+		.use_internal_phy = 1,
 	},
+
+	.has_enet1 = 1,
 	.enet1 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
 	},
 };
 
 static struct board_info __initdata board_96348gw_a = {
-	.name				= "96348GW-A",
-	.expected_cpu_id		= 0x6348,
-
-	.has_uart0			= 1,
-	.has_enet0			= 1,
-	.has_enet1			= 1,
-	.has_pci			= 1,
-
-	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
-	},
-	.enet1 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
-	},
+	.name = "96348GW-A",
+	.expected_cpu_id = 0x6348,
 
 	.has_ohci0 = 1,
+	.has_pci = 1,
+	.has_uart0 = 1,
+
+	.has_enet0 = 1,
+	.enet0 = {
+		.has_phy = 1,
+		.use_internal_phy = 1,
+	},
+
+	.has_enet1 = 1,
+	.enet1 = {
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
+	},
 };
-#endif
+#endif /* CONFIG_BCM63XX_CPU_6348 */
 
 /*
  * known 6358 boards
  */
 #ifdef CONFIG_BCM63XX_CPU_6358
 static struct board_info __initdata board_96358vw = {
-	.name				= "96358VW",
-	.expected_cpu_id		= 0x6358,
+	.name = "96358VW",
+	.expected_cpu_id = 0x6358,
 
-	.has_uart0			= 1,
-	.has_enet0			= 1,
-	.has_enet1			= 1,
-	.has_pci			= 1,
-
-	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
-	},
-
-	.enet1 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
-	},
-
-
+	.has_ehci0 = 1,
 	.has_ohci0 = 1,
 	.has_pccard = 1,
-	.has_ehci0 = 1,
+	.has_pci = 1,
+	.has_uart0 = 1,
+
+	.has_enet0 = 1,
+	.enet0 = {
+		.has_phy = 1,
+		.use_internal_phy = 1,
+	},
+
+	.has_enet1 = 1,
+	.enet1 = {
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
+	},
 
 	.leds = {
 		{
-			.name		= "adsl-fail",
-			.gpio		= 15,
-			.active_low	= 1,
+			.name = "adsl-fail",
+			.gpio = 15,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp",
-			.gpio		= 22,
-			.active_low	= 1,
+			.name = "ppp",
+			.gpio = 22,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp-fail",
-			.gpio		= 23,
-			.active_low	= 1,
+			.name = "ppp-fail",
+			.gpio = 23,
+			.active_low = 1,
 		},
 		{
-			.name		= "power",
-			.gpio		= 4,
+			.name = "power",
+			.gpio = 4,
 			.default_trigger = "default-on",
 		},
 		{
-			.name		= "stop",
-			.gpio		= 5,
+			.name = "stop",
+			.gpio = 5,
 		},
 	},
 };
 
 static struct board_info __initdata board_96358vw2 = {
-	.name				= "96358VW2",
-	.expected_cpu_id		= 0x6358,
+	.name = "96358VW2",
+	.expected_cpu_id = 0x6358,
 
-	.has_uart0			= 1,
-	.has_enet0			= 1,
-	.has_enet1			= 1,
-	.has_pci			= 1,
-
-	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
-	},
-
-	.enet1 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
-	},
-
-
+	.has_ehci0 = 1,
 	.has_ohci0 = 1,
 	.has_pccard = 1,
-	.has_ehci0 = 1,
+	.has_pci = 1,
+	.has_uart0 = 1,
+
+	.has_enet0 = 1,
+	.enet0 = {
+		.has_phy = 1,
+		.use_internal_phy = 1,
+	},
+
+	.has_enet1 = 1,
+	.enet1 = {
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
+	},
 
 	.leds = {
 		{
-			.name		= "adsl",
-			.gpio		= 22,
-			.active_low	= 1,
+			.name = "adsl",
+			.gpio = 22,
+			.active_low = 1,
 		},
 		{
-			.name		= "ppp-fail",
-			.gpio		= 23,
+			.name = "ppp-fail",
+			.gpio = 23,
 		},
 		{
-			.name		= "power",
-			.gpio		= 5,
-			.active_low	= 1,
+			.name = "power",
+			.gpio = 5,
+			.active_low = 1,
 			.default_trigger = "default-on",
 		},
 		{
-			.name		= "stop",
-			.gpio		= 4,
-			.active_low	= 1,
+			.name = "stop",
+			.gpio = 4,
+			.active_low = 1,
 		},
 	},
 };
 
 static struct board_info __initdata board_AGPFS0 = {
-	.name				= "AGPF-S0",
-	.expected_cpu_id		= 0x6358,
+	.name = "AGPF-S0",
+	.expected_cpu_id = 0x6358,
 
-	.has_uart0			= 1,
-	.has_enet0			= 1,
-	.has_enet1			= 1,
-	.has_pci			= 1,
-
-	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
-	},
-
-	.enet1 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
-	},
-
-	.has_ohci0 = 1,
 	.has_ehci0 = 1,
+	.has_ohci0 = 1,
+	.has_pci = 1,
+	.has_uart0 = 1,
+
+	.has_enet0 = 1,
+	.enet0 = {
+		.has_phy = 1,
+		.use_internal_phy = 1,
+	},
+
+	.has_enet1 = 1,
+	.enet1 = {
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
+	},
 };
 
 static struct board_info __initdata board_DWVS0 = {
-	.name				= "DWV-S0",
-	.expected_cpu_id		= 0x6358,
+	.name = "DWV-S0",
+	.expected_cpu_id = 0x6358,
 
-	.has_enet0			= 1,
-	.has_enet1			= 1,
-	.has_pci			= 1,
+	.has_ehci0 = 1,
+	.has_ohci0 = 1,
+	.has_pci = 1,
 
+	.has_enet0 = 1,
 	.enet0 = {
-		.has_phy		= 1,
-		.use_internal_phy	= 1,
+		.has_phy = 1,
+		.use_internal_phy = 1,
 	},
 
+	.has_enet1 = 1,
 	.enet1 = {
-		.force_speed_100	= 1,
-		.force_duplex_full	= 1,
+		.force_speed_100 = 1,
+		.force_duplex_full = 1,
 	},
-
-	.has_ohci0			= 1,
 };
-#endif
+#endif /* CONFIG_BCM63XX_CPU_6358 */
 
 /*
  * all boards
@@ -662,17 +647,17 @@ static struct board_info __initdata board_DWVS0 = {
 static const struct board_info __initconst *bcm963xx_boards[] = {
 #ifdef CONFIG_BCM63XX_CPU_3368
 	&board_cvg834g,
-#endif
+#endif /* CONFIG_BCM63XX_CPU_3368 */
 #ifdef CONFIG_BCM63XX_CPU_6328
 	&board_96328avng,
-#endif
+#endif /* CONFIG_BCM63XX_CPU_6328 */
 #ifdef CONFIG_BCM63XX_CPU_6338
 	&board_96338gw,
 	&board_96338w,
-#endif
+#endif /* CONFIG_BCM63XX_CPU_6338 */
 #ifdef CONFIG_BCM63XX_CPU_6345
 	&board_96345gw2,
-#endif
+#endif /* CONFIG_BCM63XX_CPU_6345 */
 #ifdef CONFIG_BCM63XX_CPU_6348
 	&board_96348r,
 	&board_96348gw,
@@ -682,14 +667,13 @@ static const struct board_info __initconst *bcm963xx_boards[] = {
 	&board_DV201AMR,
 	&board_96348gw_a,
 	&board_rta1025w_16,
-#endif
-
+#endif /* CONFIG_BCM63XX_CPU_6348 */
 #ifdef CONFIG_BCM63XX_CPU_6358
 	&board_96358vw,
 	&board_96358vw2,
 	&board_AGPFS0,
 	&board_DWVS0,
-#endif
+#endif /* CONFIG_BCM63XX_CPU_6358 */
 };
 
 /*
@@ -728,7 +712,7 @@ int bcm63xx_get_fallback_sprom(struct ssb_bus *bus, struct ssb_sprom *out)
 		return -EINVAL;
 	}
 }
-#endif
+#endif /* CONFIG_SSB_PCIHOST */
 
 /*
  * return board name for /proc/cpuinfo
@@ -763,11 +747,25 @@ void __init board_prom_init(void)
 
 	/* dump cfe version */
 	cfe = boot_addr + BCM963XX_CFE_VERSION_OFFSET;
-	if (!memcmp(cfe, "cfe-v", 5))
-		snprintf(cfe_version, sizeof(cfe_version), "%u.%u.%u-%u.%u",
-			 cfe[5], cfe[6], cfe[7], cfe[8], cfe[9]);
-	else
+	if (strstarts(cfe, "cfe-")) {
+		if(cfe[4] == 'v') {
+			if(cfe[5] == 'd')
+				snprintf(cfe_version, 11, "%s",
+					 (char *) &cfe[5]);
+			else if (cfe[10] > 0)
+				snprintf(cfe_version, sizeof(cfe_version),
+					 "%u.%u.%u-%u.%u-%u", cfe[5], cfe[6],
+					 cfe[7], cfe[8], cfe[9], cfe[10]);
+			else
+				snprintf(cfe_version, sizeof(cfe_version),
+					 "%u.%u.%u-%u.%u", cfe[5], cfe[6],
+					 cfe[7], cfe[8], cfe[9]);
+		} else {
+			snprintf(cfe_version, 12, "%s", (char *) &cfe[4]);
+		}
+	} else {
 		strcpy(cfe_version, "unknown");
+	}
 	pr_info("CFE version: %s\n", cfe_version);
 
 	bcm63xx_nvram_init(boot_addr + BCM963XX_NVRAM_OFFSET);
@@ -807,7 +805,7 @@ void __init board_prom_init(void)
 		if (BCMCPU_IS_6348())
 			val |= GPIO_MODE_6348_G2_PCI;
 	}
-#endif
+#endif /* CONFIG_PCI */
 
 	if (board.has_pccard) {
 		if (BCMCPU_IS_6348())
@@ -892,7 +890,7 @@ int __init board_register_devices(void)
 				&bcm63xx_get_fallback_sprom) < 0)
 			pr_err("failed to register fallback SPROM\n");
 	}
-#endif
+#endif /* CONFIG_SSB_PCIHOST */
 
 	bcm63xx_spi_register();
 

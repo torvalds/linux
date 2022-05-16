@@ -25,15 +25,15 @@
 	status = "okay";
 };
 
-&i2c3 {
-	status = "okay";
-};
-
 &leds {
 	status = "okay";
 };
 
-&oled {
+&oled_1305 {
+	status = "okay";
+};
+
+&oled_1309 {
 	status = "okay";
 };
 
@@ -42,6 +42,10 @@
 };
 
 &reg_pcie {
+	status = "okay";
+};
+
+&touchkeys {
 	status = "okay";
 };
 

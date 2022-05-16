@@ -3,6 +3,7 @@
  * Copyright (C) 2013 Freescale Semiconductor, Inc.
  */
 
+#include <linux/bits.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -42,7 +43,7 @@ static int clk_fixup_mux_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_fixup_mux *fixup_mux = to_clk_fixup_mux(hw);
 	struct clk_mux *mux = to_clk_mux(hw);
-	unsigned long flags = 0;
+	unsigned long flags;
 	u32 val;
 
 	spin_lock_irqsave(mux->lock, flags);

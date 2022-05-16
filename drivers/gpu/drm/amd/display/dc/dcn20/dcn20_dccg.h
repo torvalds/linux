@@ -76,18 +76,40 @@
 	type REFCLK_CLOCK_EN;\
 	type REFCLK_SRC_SEL;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#define DCCG3_REG_FIELD_LIST(type) \
+	type PHYASYMCLK_FORCE_EN;\
+	type PHYASYMCLK_FORCE_SRC_SEL;\
+	type PHYBSYMCLK_FORCE_EN;\
+	type PHYBSYMCLK_FORCE_SRC_SEL;\
+	type PHYCSYMCLK_FORCE_EN;\
+	type PHYCSYMCLK_FORCE_SRC_SEL;
+#endif
+
 struct dccg_shift {
 	DCCG_REG_FIELD_LIST(uint8_t)
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	DCCG3_REG_FIELD_LIST(uint8_t)
+#endif
 };
 
 struct dccg_mask {
 	DCCG_REG_FIELD_LIST(uint32_t)
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	DCCG3_REG_FIELD_LIST(uint32_t)
+#endif
 };
 
 struct dccg_registers {
 	uint32_t DPPCLK_DTO_CTRL;
 	uint32_t DPPCLK_DTO_PARAM[6];
 	uint32_t REFCLK_CNTL;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	uint32_t HDMICHARCLK_CLOCK_CNTL[6];
+	uint32_t PHYASYMCLK_CLOCK_CNTL;
+	uint32_t PHYBSYMCLK_CLOCK_CNTL;
+	uint32_t PHYCSYMCLK_CLOCK_CNTL;
+#endif
 };
 
 struct dcn_dccg {
@@ -97,7 +119,7 @@ struct dcn_dccg {
 	const struct dccg_mask *dccg_mask;
 };
 
-void dccg2_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk, bool raise_divider_only);
+void dccg2_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk);
 
 void dccg2_get_dccg_ref_freq(struct dccg *dccg,
 		unsigned int xtalin_freq_inKhz,

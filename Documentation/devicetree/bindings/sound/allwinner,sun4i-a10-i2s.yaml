@@ -8,7 +8,7 @@ title: Allwinner A10 I2S Controller Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   "#sound-dai-cells":

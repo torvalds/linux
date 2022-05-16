@@ -40,7 +40,7 @@ struct cis_cache_entry {
 	unsigned int		addr;
 	unsigned int		len;
 	unsigned int		attr;
-	unsigned char		cache[0];
+	unsigned char		cache[];
 };
 
 struct pccard_resource_ops {
@@ -163,12 +163,6 @@ int pcmcia_replace_cis(struct pcmcia_socket *s,
 		       const u8 *data, const size_t len);
 int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *count);
 int verify_cis_cache(struct pcmcia_socket *s);
-
-int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
-		      cisdata_t code, cisparse_t *parse, void *priv_data,
-		      int (*loop_tuple) (tuple_t *tuple,
-					 cisparse_t *parse,
-					 void *priv_data));
 
 int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function,
 			tuple_t *tuple);

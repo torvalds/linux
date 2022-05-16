@@ -677,7 +677,7 @@ tape_generic_remove(struct ccw_device *cdev)
 	switch (device->tape_state) {
 		case TS_INIT:
 			tape_state_set(device, TS_NOT_OPER);
-			/* fallthrough */
+			fallthrough;
 		case TS_NOT_OPER:
 			/*
 			 * Nothing to do.
@@ -950,7 +950,7 @@ __tape_start_request(struct tape_device *device, struct tape_request *request)
 				break;
 			if (device->tape_state == TS_UNUSED)
 				break;
-			/* fallthrough */
+			fallthrough;
 		default:
 			if (device->tape_state == TS_BLKUSE)
 				break;
@@ -1118,7 +1118,7 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			case -ETIMEDOUT:
 				DBF_LH(1, "(%08x): Request timed out\n",
 				       device->cdev_id);
-				/* fallthrough */
+				fallthrough;
 			case -EIO:
 				__tape_end_request(device, request, -EIO);
 				break;

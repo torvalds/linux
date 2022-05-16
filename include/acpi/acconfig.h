@@ -3,7 +3,7 @@
  *
  * Name: acconfig.h - Global configuration constants
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -121,7 +121,7 @@
  *
  *****************************************************************************/
 
-/* Method info (in WALK_STATE), containing local variables and argumetns */
+/* Method info (in WALK_STATE), containing local variables and arguments */
 
 #define ACPI_METHOD_NUM_LOCALS          8
 #define ACPI_METHOD_MAX_LOCAL           7

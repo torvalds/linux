@@ -5,12 +5,16 @@ config BTRFS_FS
 	select CRYPTO
 	select CRYPTO_CRC32C
 	select LIBCRC32C
+	select CRYPTO_XXHASH
+	select CRYPTO_SHA256
+	select CRYPTO_BLAKE2B
 	select ZLIB_INFLATE
 	select ZLIB_DEFLATE
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
 	select ZSTD_COMPRESS
 	select ZSTD_DECOMPRESS
+	select FS_IOMAP
 	select RAID6_PQ
 	select XOR_BLOCKS
 	select SRCU

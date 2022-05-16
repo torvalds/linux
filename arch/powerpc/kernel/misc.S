@@ -36,6 +36,8 @@ _GLOBAL(add_reloc_offset)
 	add	r3,r3,r5
 	mtlr	r0
 	blr
+_ASM_NOKPROBE_SYMBOL(reloc_offset)
+_ASM_NOKPROBE_SYMBOL(add_reloc_offset)
 
 	.align	3
 2:	PPC_LONG 1b
@@ -110,7 +112,7 @@ _GLOBAL(longjmp)
 	li	r3, 1
 	blr
 
-_GLOBAL(current_stack_pointer)
+_GLOBAL(current_stack_frame)
 	PPC_LL	r3,0(r1)
 	blr
-EXPORT_SYMBOL(current_stack_pointer)
+EXPORT_SYMBOL(current_stack_frame)

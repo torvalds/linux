@@ -21,8 +21,6 @@
 #include <linux/swap.h>
 
 #include <asm/meminit.h>
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <asm/mca.h>
 
@@ -210,6 +208,6 @@ paging_init (void)
 		printk("Virtual mem_map starts at 0x%p\n", mem_map);
 	}
 #endif /* !CONFIG_VIRTUAL_MEM_MAP */
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init(max_zone_pfns);
 	zero_page_memmap_ptr = virt_to_page(ia64_imva(empty_zero_page));
 }

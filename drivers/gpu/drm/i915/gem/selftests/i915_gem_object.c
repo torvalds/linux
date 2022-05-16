@@ -14,7 +14,7 @@ static int igt_gem_object(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj;
-	int err = -ENOMEM;
+	int err;
 
 	/* Basic test to ensure we can create an object */
 
@@ -85,7 +85,7 @@ int i915_gem_object_mock_selftests(void)
 
 	err = i915_subtests(tests, i915);
 
-	drm_dev_put(&i915->drm);
+	mock_destroy_device(i915);
 	return err;
 }
 

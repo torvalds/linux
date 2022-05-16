@@ -348,7 +348,7 @@ static int s3fwrn5_fw_get_base_addr(
 }
 
 static inline bool
-s3fwrn5_fw_is_custom(struct s3fwrn5_fw_cmd_get_bootinfo_rsp *bootinfo)
+s3fwrn5_fw_is_custom(const struct s3fwrn5_fw_cmd_get_bootinfo_rsp *bootinfo)
 {
 	return !!bootinfo->hw_version[2];
 }
@@ -399,7 +399,7 @@ err:
 	return ret;
 }
 
-bool s3fwrn5_fw_check_version(struct s3fwrn5_fw_info *fw_info, u32 version)
+bool s3fwrn5_fw_check_version(const struct s3fwrn5_fw_info *fw_info, u32 version)
 {
 	struct s3fwrn5_fw_version *new = (void *) &fw_info->fw.version;
 	struct s3fwrn5_fw_version *old = (void *) &version;
@@ -434,15 +434,7 @@ int s3fwrn5_fw_download(struct s3fwrn5_fw_info *fw_info)
 		goto out;
 	}
 
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
-
-		desc->tfm = tfm;
-
-		ret = crypto_shash_digest(desc, fw->image, image_size,
-					  hash_data);
-		shash_desc_zero(desc);
-	}
+	ret = crypto_shash_tfm_digest(tfm, fw->image, image_size, hash_data);
 
 	crypto_free_shash(tfm);
 	if (ret) {
@@ -507,7 +499,10 @@ int s3fwrn5_fw_recv_frame(struct nci_dev *ndev, struct sk_buff *skb)
 	struct s3fwrn5_info *info = nci_get_drvdata(ndev);
 	struct s3fwrn5_fw_info *fw_info = &info->fw_info;
 
-	BUG_ON(fw_info->rsp);
+	if (WARN_ON(fw_info->rsp)) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
 
 	fw_info->rsp = skb;
 

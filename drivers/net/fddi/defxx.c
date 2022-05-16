@@ -614,7 +614,7 @@ static int dfx_register(struct device *bdev)
 
 	/* Set up I/O base address. */
 	if (dfx_use_mmio) {
-		bp->base.mem = ioremap_nocache(bar_start[0], bar_len[0]);
+		bp->base.mem = ioremap(bar_start[0], bar_len[0]);
 		if (!bp->base.mem) {
 			printk(KERN_ERR "%s: Cannot map MMIO\n", print_name);
 			err = -ENOMEM;

@@ -5,7 +5,7 @@
 #include <linux/elf.h>
 #include <linux/vmalloc.h>
 #include <linux/moduleloader.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 void *module_alloc(unsigned long size)
 {

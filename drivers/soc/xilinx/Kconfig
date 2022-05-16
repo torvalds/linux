@@ -19,19 +19,23 @@ config XILINX_VCU
 
 config ZYNQMP_POWER
 	bool "Enable Xilinx Zynq MPSoC Power Management driver"
-	depends on PM && ARCH_ZYNQMP
+	depends on PM && ZYNQMP_FIRMWARE
 	default y
+	select MAILBOX
+	select ZYNQMP_IPI_MBOX
 	help
 	  Say yes to enable power management support for ZyqnMP SoC.
 	  This driver uses firmware driver as an interface for power
 	  management request to firmware. It registers isr to handle
-	  power management callbacks from firmware.
+	  power management callbacks from firmware. It registers mailbox client
+	  to handle power management callbacks from firmware.
+
 	  If in doubt, say N.
 
 config ZYNQMP_PM_DOMAINS
 	bool "Enable Zynq MPSoC generic PM domains"
 	default y
-	depends on PM && ARCH_ZYNQMP && ZYNQMP_FIRMWARE
+	depends on PM && ZYNQMP_FIRMWARE
 	select PM_GENERIC_DOMAINS
 	help
 	  Say yes to enable device power management through PM domains

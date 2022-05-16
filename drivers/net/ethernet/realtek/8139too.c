@@ -642,7 +642,7 @@ static int mdio_read (struct net_device *dev, int phy_id, int location);
 static void mdio_write (struct net_device *dev, int phy_id, int location,
 			int val);
 static void rtl8139_start_thread(struct rtl8139_private *tp);
-static void rtl8139_tx_timeout (struct net_device *dev);
+static void rtl8139_tx_timeout (struct net_device *dev, unsigned int txqueue);
 static void rtl8139_init_ring (struct net_device *dev);
 static netdev_tx_t rtl8139_start_xmit (struct sk_buff *skb,
 				       struct net_device *dev);
@@ -978,7 +978,7 @@ static int rtl8139_init_one(struct pci_dev *pdev,
 	    pdev->subsystem_vendor == PCI_VENDOR_ID_ATHEROS &&
 	    pdev->subsystem_device == PCI_DEVICE_ID_REALTEK_8139) {
 		pr_info("OQO Model 2 detected. Forcing PIO\n");
-		use_io = 1;
+		use_io = true;
 	}
 
 	dev = rtl8139_init_board (pdev);
@@ -1700,7 +1700,7 @@ static void rtl8139_tx_timeout_task (struct work_struct *work)
 	spin_unlock_bh(&tp->rx_lock);
 }
 
-static void rtl8139_tx_timeout (struct net_device *dev)
+static void rtl8139_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct rtl8139_private *tp = netdev_priv(dev);
 
@@ -2603,16 +2603,12 @@ static void rtl8139_set_rx_mode (struct net_device *dev)
 	spin_unlock_irqrestore (&tp->lock, flags);
 }
 
-#ifdef CONFIG_PM
-
-static int rtl8139_suspend (struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused rtl8139_suspend(struct device *device)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct rtl8139_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 	unsigned long flags;
-
-	pci_save_state (pdev);
 
 	if (!netif_running (dev))
 		return 0;
@@ -2631,38 +2627,30 @@ static int rtl8139_suspend (struct pci_dev *pdev, pm_message_t state)
 
 	spin_unlock_irqrestore (&tp->lock, flags);
 
-	pci_set_power_state (pdev, PCI_D3hot);
-
 	return 0;
 }
 
-
-static int rtl8139_resume (struct pci_dev *pdev)
+static int __maybe_unused rtl8139_resume(struct device *device)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 
-	pci_restore_state (pdev);
 	if (!netif_running (dev))
 		return 0;
-	pci_set_power_state (pdev, PCI_D0);
+
 	rtl8139_init_ring (dev);
 	rtl8139_hw_start (dev);
 	netif_device_attach (dev);
 	return 0;
 }
 
-#endif /* CONFIG_PM */
-
+static SIMPLE_DEV_PM_OPS(rtl8139_pm_ops, rtl8139_suspend, rtl8139_resume);
 
 static struct pci_driver rtl8139_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= rtl8139_pci_tbl,
 	.probe		= rtl8139_init_one,
 	.remove		= rtl8139_remove_one,
-#ifdef CONFIG_PM
-	.suspend	= rtl8139_suspend,
-	.resume		= rtl8139_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= &rtl8139_pm_ops,
 };
 
 

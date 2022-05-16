@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "util/mmap.h"
 #include <errno.h>
+#include <perf/mmap.h>
 
 #ifndef O_DIRECTORY
 #define O_DIRECTORY    00200000
@@ -45,9 +46,9 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 		goto out;
 	}
 
-	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
+	evsel = evsel__newtp("syscalls", "sys_enter_openat");
 	if (IS_ERR(evsel)) {
-		pr_debug("%s: perf_evsel__newtp\n", __func__);
+		pr_debug("%s: evsel__newtp\n", __func__);
 		goto out_delete_evlist;
 	}
 
@@ -59,7 +60,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 		goto out_delete_evlist;
 	}
 
-	perf_evsel__config(evsel, &opts, NULL);
+	evsel__config(evsel, &opts, NULL);
 
 	perf_thread_map__set_pid(evlist->core.threads, 0, getpid());
 
@@ -92,10 +93,10 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 			struct mmap *md;
 
 			md = &evlist->mmap[i];
-			if (perf_mmap__read_init(md) < 0)
+			if (perf_mmap__read_init(&md->core) < 0)
 				continue;
 
-			while ((event = perf_mmap__read_event(md)) != NULL) {
+			while ((event = perf_mmap__read_event(&md->core)) != NULL) {
 				const u32 type = event->header.type;
 				int tp_flags;
 				struct perf_sample sample;
@@ -103,17 +104,17 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 				++nr_events;
 
 				if (type != PERF_RECORD_SAMPLE) {
-					perf_mmap__consume(md);
+					perf_mmap__consume(&md->core);
 					continue;
 				}
 
-				err = perf_evsel__parse_sample(evsel, event, &sample);
+				err = evsel__parse_sample(evsel, event, &sample);
 				if (err) {
 					pr_debug("Can't parse sample, err = %d\n", err);
 					goto out_delete_evlist;
 				}
 
-				tp_flags = perf_evsel__intval(evsel, &sample, "flags");
+				tp_flags = evsel__intval(evsel, &sample, "flags");
 
 				if (flags != tp_flags) {
 					pr_debug("%s: Expected flags=%#x, got %#x\n",
@@ -123,7 +124,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 
 				goto out_ok;
 			}
-			perf_mmap__read_done(md);
+			perf_mmap__read_done(&md->core);
 		}
 
 		if (nr_events == before)

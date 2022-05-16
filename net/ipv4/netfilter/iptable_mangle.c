@@ -62,7 +62,7 @@ ipt_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 		    iph->daddr != daddr ||
 		    skb->mark != mark ||
 		    iph->tos != tos) {
-			err = ip_route_me_harder(state->net, skb, RTN_UNSPEC);
+			err = ip_route_me_harder(state->net, state->sk, skb, RTN_UNSPEC);
 			if (err < 0)
 				ret = NF_DROP_ERR(err);
 		}
@@ -100,15 +100,23 @@ static int __net_init iptable_mangle_table_init(struct net *net)
 	return ret;
 }
 
+static void __net_exit iptable_mangle_net_pre_exit(struct net *net)
+{
+	if (net->ipv4.iptable_mangle)
+		ipt_unregister_table_pre_exit(net, net->ipv4.iptable_mangle,
+					      mangle_ops);
+}
+
 static void __net_exit iptable_mangle_net_exit(struct net *net)
 {
 	if (!net->ipv4.iptable_mangle)
 		return;
-	ipt_unregister_table(net, net->ipv4.iptable_mangle, mangle_ops);
+	ipt_unregister_table_exit(net, net->ipv4.iptable_mangle);
 	net->ipv4.iptable_mangle = NULL;
 }
 
 static struct pernet_operations iptable_mangle_net_ops = {
+	.pre_exit = iptable_mangle_net_pre_exit,
 	.exit = iptable_mangle_net_exit,
 };
 

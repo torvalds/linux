@@ -4,9 +4,15 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/pwm/pwm.h>
 
 / {
+	aliases: aliases {
+		ethernet1 = &eth1;
+		ethernet2 = &eth2;
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 500000 PWM_POLARITY_INVERTED>;
@@ -134,13 +140,13 @@
 					};
 				};
 
-				port@2 {
+				eth2: port@2 {
 					reg = <2>;
 					label = "eth2";
 					phy-handle = <&phy_port2>;
 				};
 
-				port@3 {
+				eth1: port@3 {
 					reg = <3>;
 					label = "eth1";
 					phy-handle = <&phy_port3>;
@@ -257,29 +263,35 @@
 		reg = <0x30>;
 		clock-mode = /bits/ 8 <1>;
 		status = "disabled";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		chan0 {
+		chan@0 {
 			chan-name = "R";
 			led-cur = /bits/ 8 <0x20>;
 			max-cur = /bits/ 8 <0x60>;
+			reg = <0>;
 		};
 
-		chan1 {
+		chan@1 {
 			chan-name = "G";
 			led-cur = /bits/ 8 <0x20>;
 			max-cur = /bits/ 8 <0x60>;
+			reg = <1>;
 		};
 
-		chan2 {
+		chan@2 {
 			chan-name = "B";
 			led-cur = /bits/ 8 <0x20>;
 			max-cur = /bits/ 8 <0x60>;
+			reg = <2>;
 		};
 
-		chan3 {
+		chan@3 {
 			chan-name = "W";
 			led-cur = /bits/ 8 <0x0>;
 			max-cur = /bits/ 8 <0x0>;
+			reg = <3>;
 		};
 	};
 
@@ -308,9 +320,22 @@
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
-	status = "disabled";
+	status = "okay";
 
-	oled: oled@3d {
+	oled_1309: oled@3c {
+		compatible = "solomon,ssd1309fb-i2c";
+		reg = <0x3c>;
+		solomon,height = <64>;
+		solomon,width = <128>;
+		solomon,page-offset = <0>;
+		solomon,segment-no-remap;
+		solomon,prechargep2 = <15>;
+		reset-gpios = <&gpio_oled 1 GPIO_ACTIVE_LOW>;
+		vbat-supply = <&sw2_reg>;
+		status = "disabled";
+	};
+
+	oled_1305: oled@3d {
 		compatible = "solomon,ssd1305fb-i2c";
 		reg = <0x3d>;
 		solomon,height = <64>;
@@ -328,6 +353,18 @@
 		#gpio-cells = <2>;
 		reg = <0x41>;
 		vcc-supply = <&sw2_reg>;
+		status = "disabled";
+	};
+
+	touchkeys: keys@5a {
+		compatible = "fsl,mpr121-touchkey";
+		reg = <0x5a>;
+		vdd-supply = <&sw2_reg>;
+		autorepeat;
+		linux,keycodes = <KEY_1>, <KEY_2>, <KEY_3>, <KEY_4>, <KEY_5>,
+				<KEY_6>, <KEY_7>, <KEY_8>, <KEY_9>,
+				<KEY_BACKSPACE>, <KEY_0>, <KEY_ENTER>;
+		poll-interval = <50>;
 		status = "disabled";
 	};
 };
@@ -447,6 +484,13 @@
 		>;
 	};
 
+	pinctrl_uart2: uart2grp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_7__UART2_TX_DATA	0x1b098
+			MX6QDL_PAD_GPIO_8__UART2_RX_DATA	0x1b098
+		>;
+	};
+
 	pinctrl_usbh1: usbh1grp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D30__USB_H1_OC	0x1b098
@@ -520,7 +564,6 @@
 };
 
 &pwm1 {
-	#pwm-cells = <3>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "disabled";
@@ -532,10 +575,17 @@
 	status = "okay";
 };
 
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
 &usbh1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbh1>;
 	vbus-supply = <&reg_usb_h1_vbus>;
+	over-current-active-low;
 	status = "disabled";
 };
 
@@ -543,6 +593,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg>;
 	vbus-supply = <&reg_usb_otg_vbus>;
+	over-current-active-low;
 	srp-disable;
 	hnp-disable;
 	adp-disable;

@@ -18,7 +18,7 @@ as an alternative to these. This new data structure provided a number
 of advantages, including simpler interfaces, and at that time smaller
 code (see Disadvantages).
 
-[1] http://lwn.net/Articles/164802/
+[1] https://lwn.net/Articles/164802/
 
 Implementation
 --------------
@@ -28,7 +28,7 @@ and implemented in kernel/locking/mutex.c. These locks use an atomic variable
 (->owner) to keep track of the lock state during its lifetime.  Field owner
 actually contains `struct task_struct *` to the current lock owner and it is
 therefore NULL if not currently owned. Since task_struct pointers are aligned
-at at least L1_CACHE_BYTES, low bits (3) are used to store extra state (e.g.,
+to at least L1_CACHE_BYTES, low bits (3) are used to store extra state (e.g.,
 if waiter list is non-empty).  In its most basic form it also includes a
 wait-queue and a spinlock that serializes access to it. Furthermore,
 CONFIG_MUTEX_SPIN_ON_OWNER=y systems use a spinner MCS lock (->osq), described

@@ -138,7 +138,7 @@
 
 		memc: memc@5000 {
 			compatible = "mtk,mt7621-memc";
-			reg = <0x300 0x100>;
+			reg = <0x5000 0x1000>;
 		};
 
 		cpc: cpc@1fbf0000 {
@@ -286,7 +286,7 @@
 		pcie_pins: pcie0 {
 			pcie0 {
 				groups = "pcie";
-				function = "pcie rst";
+				function = "gpio";
 			};
 		};
 
@@ -512,7 +512,6 @@
 		#address-cells = <3>;
 		#size-cells = <2>;
 
-		perst-gpio = <&gpio 19 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie_pins>;
 
@@ -524,20 +523,21 @@
 			0x01000000 0 0x00000000 0x1e160000 0 0x00010000 /* io space */
 		>;
 
-		#interrupt-cells = <1>;
-		interrupt-map-mask = <0xF0000 0 0 1>;
-		interrupt-map = <0x10000 0 0 1 &gic GIC_SHARED 4 IRQ_TYPE_LEVEL_HIGH>,
-				<0x20000 0 0 1 &gic GIC_SHARED 24 IRQ_TYPE_LEVEL_HIGH>,
-				<0x30000 0 0 1 &gic GIC_SHARED 25 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 4 IRQ_TYPE_LEVEL_HIGH
+				GIC_SHARED 24 IRQ_TYPE_LEVEL_HIGH
+				GIC_SHARED 25 IRQ_TYPE_LEVEL_HIGH>;
 
 		status = "disabled";
 
-		resets = <&rstctrl 23 &rstctrl 24 &rstctrl 25 &rstctrl 26>;
-		reset-names = "pcie", "pcie0", "pcie1", "pcie2";
+		resets = <&rstctrl 24 &rstctrl 25 &rstctrl 26>;
+		reset-names = "pcie0", "pcie1", "pcie2";
 		clocks = <&clkctrl 24 &clkctrl 25 &clkctrl 26>;
 		clock-names = "pcie0", "pcie1", "pcie2";
-		phys = <&pcie0_phy 0>, <&pcie0_phy 1>, <&pcie1_phy 0>;
-		phy-names = "pcie-phy0", "pcie-phy1", "pcie-phy2";
+		phys = <&pcie0_phy 1>, <&pcie2_phy 0>;
+		phy-names = "pcie-phy0", "pcie-phy2";
+
+		reset-gpios = <&gpio 19 GPIO_ACTIVE_LOW>;
 
 		pcie@0,0 {
 			reg = <0x0000 0 0 0 0>;
@@ -570,7 +570,7 @@
 		#phy-cells = <1>;
 	};
 
-	pcie1_phy: pcie-phy@1e14a000 {
+	pcie2_phy: pcie-phy@1e14a000 {
 		compatible = "mediatek,mt7621-pci-phy";
 		reg = <0x1e14a000 0x0700>;
 		#phy-cells = <1>;

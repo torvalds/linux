@@ -68,7 +68,7 @@ static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (WARN_ON(clock > host->max_clk))
 		clock = host->max_clk;
 
-	for (div = 1; div < 256; div *= 2) {
+	for (div = 2; div < 256; div *= 2) {
 		if ((parent / div) <= clock)
 			break;
 	}
@@ -111,7 +111,19 @@ static void aspeed_sdhci_set_bus_width(struct sdhci_host *host, int width)
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 }
 
+static u32 aspeed_sdhci_readl(struct sdhci_host *host, int reg)
+{
+	u32 val = readl(host->ioaddr + reg);
+
+	if (unlikely(reg == SDHCI_PRESENT_STATE) &&
+	    (host->mmc->caps2 & MMC_CAP2_CD_ACTIVE_HIGH))
+		val ^= SDHCI_CARD_PRESENT;
+
+	return val;
+}
+
 static const struct sdhci_ops aspeed_sdhci_ops = {
+	.read_l = aspeed_sdhci_readl,
 	.set_clock = aspeed_sdhci_set_clock,
 	.get_max_clock = aspeed_sdhci_get_max_clock,
 	.set_bus_width = aspeed_sdhci_set_bus_width,
@@ -228,6 +240,7 @@ static const struct of_device_id aspeed_sdhci_of_match[] = {
 static struct platform_driver aspeed_sdhci_driver = {
 	.driver		= {
 		.name	= "sdhci-aspeed",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = aspeed_sdhci_of_match,
 	},
 	.probe		= aspeed_sdhci_probe,
@@ -306,6 +319,7 @@ MODULE_DEVICE_TABLE(of, aspeed_sdc_of_match);
 static struct platform_driver aspeed_sdc_driver = {
 	.driver		= {
 		.name	= "sd-controller-aspeed",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= &sdhci_pltfm_pmops,
 		.of_match_table = aspeed_sdc_of_match,
 	},

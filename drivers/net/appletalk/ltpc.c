@@ -229,6 +229,8 @@ static int dma;
 #include <linux/bitops.h>
 #include <linux/gfp.h>
 
+#include <net/Space.h>
+
 #include <asm/dma.h>
 #include <asm/io.h>
 

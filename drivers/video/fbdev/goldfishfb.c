@@ -160,7 +160,7 @@ static int goldfish_fb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops goldfish_fb_ops = {
+static const struct fb_ops goldfish_fb_ops = {
 	.owner          = THIS_MODULE,
 	.fb_check_var   = goldfish_fb_check_var,
 	.fb_set_par     = goldfish_fb_set_par,

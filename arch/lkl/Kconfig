@@ -13,7 +13,7 @@ config LKL
        select NO_PREEMPT
        select ARCH_WANT_FRAME_POINTERS
        select HAS_DMA
-       select DMA_DIRECT_OPS
+       select DMA_OPS
        select NET
        select MULTIUSER
        select INET
@@ -37,6 +37,7 @@ config LKL
        select HAVE_MEMBLOCK
        select NO_BOOTMEM
        select BLK_DEV_NVME
+       select UACCESS_MEMCPY
 
 config OUTPUT_FORMAT
        string "Output format"

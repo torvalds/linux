@@ -40,11 +40,6 @@
 void *empty_zero_page;
 EXPORT_SYMBOL(empty_zero_page);
 
-#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
-extern void init_pointer_table(unsigned long ptable);
-extern pmd_t *zero_pgtable;
-#endif
-
 #ifdef CONFIG_MMU
 
 pg_data_t pg_data_map[MAX_NUMNODES];
@@ -89,7 +84,7 @@ void __init paging_init(void)
 	 * page_alloc get different views of the world.
 	 */
 	unsigned long end_mem = memory_end & PAGE_MASK;
-	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
+	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
 
 	high_memory = (void *) end_mem;
 
@@ -103,8 +98,8 @@ void __init paging_init(void)
 	 */
 	set_fs (USER_DS);
 
-	zones_size[ZONE_DMA] = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT;
-	free_area_init(zones_size);
+	max_zone_pfn[ZONE_DMA] = end_mem >> PAGE_SHIFT;
+	free_area_init(max_zone_pfn);
 }
 
 #endif /* CONFIG_MMU */
@@ -125,18 +120,31 @@ void free_initmem(void)
 static inline void init_pointer_tables(void)
 {
 #if defined(CONFIG_MMU) && !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
-	int i;
+	int i, j;
 
 	/* insert pointer tables allocated so far into the tablelist */
-	init_pointer_table((unsigned long)kernel_pg_dir);
+	init_pointer_table(kernel_pg_dir, TABLE_PGD);
 	for (i = 0; i < PTRS_PER_PGD; i++) {
-		if (pgd_present(kernel_pg_dir[i]))
-			init_pointer_table(__pgd_page(kernel_pg_dir[i]));
-	}
+		pud_t *pud = (pud_t *)&kernel_pg_dir[i];
+		pmd_t *pmd_dir;
 
-	/* insert also pointer table that we used to unmap the zero page */
-	if (zero_pgtable)
-		init_pointer_table((unsigned long)zero_pgtable);
+		if (!pud_present(*pud))
+			continue;
+
+		pmd_dir = (pmd_t *)pgd_page_vaddr(kernel_pg_dir[i]);
+		init_pointer_table(pmd_dir, TABLE_PMD);
+
+		for (j = 0; j < PTRS_PER_PMD; j++) {
+			pmd_t *pmd = &pmd_dir[j];
+			pte_t *pte_dir;
+
+			if (!pmd_present(*pmd))
+				continue;
+
+			pte_dir = (pte_t *)pmd_page_vaddr(*pmd);
+			init_pointer_table(pte_dir, TABLE_PTE);
+		}
+	}
 #endif
 }
 

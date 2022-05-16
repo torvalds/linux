@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config AS_VFP_VMRS_FPINST
+	def_bool $(as-instr,.fpu vfpv2\nvmrs r0$(comma)FPINST)
+	help
+	  Supported by binutils >= 2.24 and LLVM integrated assembler.

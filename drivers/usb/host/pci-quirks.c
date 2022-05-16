@@ -16,6 +16,9 @@
 #include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/of.h>
+#include <linux/iopoll.h>
+
 #include "pci-quirks.h"
 #include "xhci-ext-caps.h"
 
@@ -205,7 +208,7 @@ static void usb_amd_find_chipset_info(void)
 {
 	unsigned long flags;
 	struct amd_chipset_info info;
-	info.need_pll_quirk = 0;
+	info.need_pll_quirk = false;
 
 	spin_lock_irqsave(&amd_lock, flags);
 
@@ -229,10 +232,10 @@ static void usb_amd_find_chipset_info(void)
 	case AMD_CHIPSET_SB800:
 	case AMD_CHIPSET_HUDSON2:
 	case AMD_CHIPSET_BOLTON:
-		info.need_pll_quirk = 1;
+		info.need_pll_quirk = true;
 		break;
 	default:
-		info.need_pll_quirk = 0;
+		info.need_pll_quirk = false;
 		break;
 	}
 
@@ -529,7 +532,7 @@ void usb_amd_dev_put(void)
 	amd_chipset.nb_type = 0;
 	memset(&amd_chipset.sb_type, 0, sizeof(amd_chipset.sb_type));
 	amd_chipset.isoc_reqs = 0;
-	amd_chipset.need_pll_quirk = 0;
+	amd_chipset.need_pll_quirk = false;
 
 	spin_unlock_irqrestore(&amd_lock, flags);
 
@@ -728,7 +731,7 @@ static void quirk_usb_handoff_uhci(struct pci_dev *pdev)
 	if (!pio_enabled(pdev))
 		return;
 
-	for (i = 0; i < PCI_ROM_RESOURCE; i++)
+	for (i = 0; i < PCI_STD_NUM_BARS; i++)
 		if ((pci_resource_flags(pdev, i) & IORESOURCE_IO)) {
 			base = pci_resource_start(pdev, i);
 			break;
@@ -954,7 +957,8 @@ static void quirk_usb_disable_ehci(struct pci_dev *pdev)
 			ehci_bios_handoff(pdev, op_reg_base, cap, offset);
 			break;
 		case 0: /* Illegal reserved cap, set cap=0 so we exit */
-			cap = 0; /* fall through */
+			cap = 0;
+			fallthrough;
 		default:
 			dev_warn(&pdev->dev,
 				 "EHCI: unrecognized capability %02x\n",
@@ -1009,15 +1013,9 @@ static int handshake(void __iomem *ptr, u32 mask, u32 done,
 {
 	u32	result;
 
-	do {
-		result = readl(ptr);
-		result &= mask;
-		if (result == done)
-			return 0;
-		udelay(delay_usec);
-		wait_usec -= delay_usec;
-	} while (wait_usec > 0);
-	return -ETIMEDOUT;
+	return readl_poll_timeout_atomic(ptr, result,
+					 ((result & mask) == done),
+					 delay_usec, wait_usec);
 }
 
 /*
@@ -1130,7 +1128,7 @@ void usb_disable_xhci_ports(struct pci_dev *xhci_pdev)
 }
 EXPORT_SYMBOL_GPL(usb_disable_xhci_ports);
 
-/**
+/*
  * PCI Quirks for xHCI.
  *
  * Takes care of the handoff between the Pre-OS (i.e. BIOS) and the OS.
@@ -1150,7 +1148,7 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 	if (!mmio_resource_enabled(pdev, 0))
 		return;
 
-	base = ioremap_nocache(pci_resource_start(pdev, 0), len);
+	base = ioremap(pci_resource_start(pdev, 0), len);
 	if (base == NULL)
 		return;
 
@@ -1243,11 +1241,27 @@ iounmap:
 
 static void quirk_usb_early_handoff(struct pci_dev *pdev)
 {
+	struct device_node *parent;
+	bool is_rpi;
+
 	/* Skip Netlogic mips SoC's internal PCI USB controller.
 	 * This device does not need/support EHCI/OHCI handoff
 	 */
 	if (pdev->vendor == 0x184e)	/* vendor Netlogic */
 		return;
+
+	/*
+	 * Bypass the Raspberry Pi 4 controller xHCI controller, things are
+	 * taken care of by the board's co-processor.
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_VIA && pdev->device == 0x3483) {
+		parent = of_get_parent(pdev->bus->dev.of_node);
+		is_rpi = of_device_is_compatible(parent, "brcm,bcm2711-pcie");
+		of_node_put(parent);
+		if (is_rpi)
+			return;
+	}
+
 	if (pdev->class != PCI_CLASS_SERIAL_USB_UHCI &&
 			pdev->class != PCI_CLASS_SERIAL_USB_OHCI &&
 			pdev->class != PCI_CLASS_SERIAL_USB_EHCI &&

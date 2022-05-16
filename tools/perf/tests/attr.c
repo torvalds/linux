@@ -30,9 +30,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "../perf-sys.h"
 #include <subcmd/exec-cmd.h>
 #include "event.h"
+#include "util.h"
 #include "tests.h"
 
 #define ENV "PERF_TEST_ATTR"

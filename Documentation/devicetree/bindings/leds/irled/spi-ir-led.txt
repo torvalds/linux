@@ -8,7 +8,7 @@ Required properties:
 	- compatible: should be "ir-spi-led".
 
 Optional properties:
-	- duty-cycle: 8 bit balue that represents the percentage of one period
+	- duty-cycle: 8 bit value that represents the percentage of one period
 	  in which the signal is active.  It can be 50, 60, 70, 75, 80 or 90.
 	- led-active-low: boolean value that specifies whether the output is
 	  negated with a NOT gate.

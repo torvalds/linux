@@ -10,10 +10,6 @@
  * Copyright (C) 2000 Deep Blue Solutions Ltd.
  */
 
-#if defined(CONFIG_SERIAL_PNX8XXX_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -220,9 +216,7 @@ static void pnx8xxx_rx_chars(struct pnx8xxx_port *sport)
 			else if (status & FIFO_TO_SM(PNX8XXX_UART_FIFO_RXFE))
 				flg = TTY_FRAME;
 
-#ifdef SUPPORT_SYSRQ
 			sport->port.sysrq = 0;
-#endif
 		}
 
 		if (uart_handle_sysrq_char(&sport->port, ch))
@@ -800,6 +794,7 @@ static int pnx8xxx_serial_probe(struct platform_device *pdev)
 			if (pnx8xxx_ports[i].port.mapbase != res->start)
 				continue;
 
+			pnx8xxx_ports[i].port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_PNX8XXX_CONSOLE);
 			pnx8xxx_ports[i].port.dev = &pdev->dev;
 			uart_add_one_port(&pnx8xxx_reg, &pnx8xxx_ports[i].port);
 			platform_set_drvdata(pdev, &pnx8xxx_ports[i]);

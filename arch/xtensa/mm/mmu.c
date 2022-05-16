@@ -21,8 +21,7 @@
 #if defined(CONFIG_HIGHMEM)
 static void * __init init_pmd(unsigned long vaddr, unsigned long n_pages)
 {
-	pgd_t *pgd = pgd_offset_k(vaddr);
-	pmd_t *pmd = pmd_offset(pgd, vaddr);
+	pmd_t *pmd = pmd_off_k(vaddr);
 	pte_t *pte;
 	unsigned long i;
 

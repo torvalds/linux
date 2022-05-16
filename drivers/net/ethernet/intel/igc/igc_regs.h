@@ -12,6 +12,7 @@
 #define IGC_MDIC		0x00020  /* MDI Control - RW */
 #define IGC_MDICNFG		0x00E04  /* MDC/MDIO Configuration - RW */
 #define IGC_CONNSW		0x00034  /* Copper/Fiber switch control - RW */
+#define IGC_I225_PHPM		0x00E14  /* I225 PHY Power Management */
 
 /* Internal Packet Buffer Size Registers */
 #define IGC_RXPBS		0x02404  /* Rx Packet Buffer Size - RW */
@@ -29,10 +30,6 @@
 #define IGC_FCRTL		0x02160  /* FC Receive Threshold Low - RW */
 #define IGC_FCRTH		0x02168  /* FC Receive Threshold High - RW */
 #define IGC_FCRTV		0x02460  /* FC Refresh Timer Value - RW */
-#define IGC_FCSTS		0x02464  /* FC Status - RO */
-
-/* PCIe Register Description */
-#define IGC_GCR			0x05B00  /* PCIe control- RW */
 
 /* Semaphore registers */
 #define IGC_SW_FW_SYNC		0x05B5C  /* SW-FW Synchronization - RW */
@@ -43,6 +40,7 @@
 #define IGC_FACTPS		0x05B30
 
 /* Interrupt Register Description */
+#define IGC_EICR		0x01580  /* Ext. Interrupt Cause read - W0 */
 #define IGC_EICS		0x01520  /* Ext. Interrupt Cause Set - W0 */
 #define IGC_EIMS		0x01524  /* Ext. Interrupt Mask Set/Read - RW */
 #define IGC_EIMC		0x01528  /* Ext. Interrupt Mask Clear - WO */
@@ -59,23 +57,6 @@
 #define IGC_IVAR0		0x01700
 #define IGC_IVAR_MISC		0x01740  /* IVAR for "other" causes - RW */
 #define IGC_GPIE		0x01514  /* General Purpose Intr Enable - RW */
-
-/* Interrupt Cause */
-#define IGC_ICRXPTC		0x04104  /* Rx Packet Timer Expire Count */
-#define IGC_ICRXATC		0x04108  /* Rx Absolute Timer Expire Count */
-#define IGC_ICTXPTC		0x0410C  /* Tx Packet Timer Expire Count */
-#define IGC_ICTXATC		0x04110  /* Tx Absolute Timer Expire Count */
-#define IGC_ICTXQEC		0x04118  /* Tx Queue Empty Count */
-#define IGC_ICTXQMTC		0x0411C  /* Tx Queue Min Threshold Count */
-#define IGC_ICRXDMTC		0x04120  /* Rx Descriptor Min Threshold Count */
-#define IGC_ICRXOC		0x04124  /* Receiver Overrun Count */
-
-#define IGC_CBTMPC		0x0402C  /* Circuit Breaker TX Packet Count */
-#define IGC_HTDPMC		0x0403C  /* Host Transmit Discarded Packets */
-#define IGC_CBRMPC		0x040FC  /* Circuit Breaker RX Packet Count */
-#define IGC_RPTHC		0x04104  /* Rx Packets To Host */
-#define IGC_HGPTC		0x04118  /* Host Good Packets TX Count */
-#define IGC_HTCBDPC		0x04124  /* Host TX Circ.Breaker Drop Count */
 
 /* MSI-X Table Register Descriptions */
 #define IGC_PBACL		0x05B68  /* MSIx PBA Clear - R/W 1 to clear */
@@ -113,10 +94,11 @@
 #define IGC_RLPML		0x05004  /* Rx Long Packet Max Length */
 #define IGC_RFCTL		0x05008  /* Receive Filter Control*/
 #define IGC_MTA			0x05200  /* Multicast Table Array - RW Array */
+#define IGC_RA			0x05400  /* Receive Address - RW Array */
 #define IGC_UTA			0x0A000  /* Unicast Table Array - RW */
 #define IGC_RAL(_n)		(0x05400 + ((_n) * 0x08))
 #define IGC_RAH(_n)		(0x05404 + ((_n) * 0x08))
-#define IGC_VLAPQF		0x055B0  /* VLAN Priority Queue Filter VLAPQF */
+#define IGC_VLANPQF		0x055B0  /* VLAN Priority Queue Filter - RW */
 
 /* Transmit Register Descriptions */
 #define IGC_TCTL		0x00400  /* Tx Control - RW */
@@ -132,13 +114,9 @@
 #define IGC_MMDAC		13 /* MMD Access Control */
 #define IGC_MMDAAD		14 /* MMD Access Address/Data */
 
-/* Good transmitted packets counter registers */
-#define IGC_PQGPTC(_n)		(0x010014 + (0x100 * (_n)))
-
 /* Statistics Register Descriptions */
 #define IGC_CRCERRS	0x04000  /* CRC Error Count - R/clr */
 #define IGC_ALGNERRC	0x04004  /* Alignment Error Count - R/clr */
-#define IGC_SYMERRS	0x04008  /* Symbol Error Count - R/clr */
 #define IGC_RXERRC	0x0400C  /* Receive Error Count - R/clr */
 #define IGC_MPC		0x04010  /* Missed Packet Count - R/clr */
 #define IGC_SCC		0x04014  /* Single Collision Count - R/clr */
@@ -146,10 +124,10 @@
 #define IGC_MCC		0x0401C  /* Multiple Collision Count - R/clr */
 #define IGC_LATECOL	0x04020  /* Late Collision Count - R/clr */
 #define IGC_COLC	0x04028  /* Collision Count - R/clr */
+#define IGC_RERC	0x0402C  /* Receive Error Count - R/clr */
 #define IGC_DC		0x04030  /* Defer Count - R/clr */
 #define IGC_TNCRS	0x04034  /* Tx-No CRS - R/clr */
-#define IGC_SEC		0x04038  /* Sequence Error Count - R/clr */
-#define IGC_CEXTERR	0x0403C  /* Carrier Extension Error Count - R/clr */
+#define IGC_HTDPMC	0x0403C  /* Host Transmit Discarded by MAC - R/clr */
 #define IGC_RLEC	0x04040  /* Receive Length Error Count - R/clr */
 #define IGC_XONRXC	0x04048  /* XON Rx Count - R/clr */
 #define IGC_XONTXC	0x0404C  /* XON Tx Count - R/clr */
@@ -193,13 +171,10 @@
 #define IGC_MPTC	0x040F0  /* Multicast Packets Tx Count - R/clr */
 #define IGC_BPTC	0x040F4  /* Broadcast Packets Tx Count - R/clr */
 #define IGC_TSCTC	0x040F8  /* TCP Segmentation Context Tx - R/clr */
-#define IGC_TSCTFC	0x040FC  /* TCP Segmentation Context Tx Fail - R/clr */
 #define IGC_IAC		0x04100  /* Interrupt Assertion Count */
-#define IGC_ICTXPTC	0x0410C  /* Interrupt Cause Tx Pkt Timer Expire Count */
-#define IGC_ICTXATC	0x04110  /* Interrupt Cause Tx Abs Timer Expire Count */
-#define IGC_ICTXQEC	0x04118  /* Interrupt Cause Tx Queue Empty Count */
-#define IGC_ICTXQMTC	0x0411C  /* Interrupt Cause Tx Queue Min Thresh Count */
 #define IGC_RPTHC	0x04104  /* Rx Packets To Host */
+#define IGC_TLPIC	0x04148  /* EEE Tx LPI Count */
+#define IGC_RLPIC	0x0414C  /* EEE Rx LPI Count */
 #define IGC_HGPTC	0x04118  /* Host Good Packets Tx Count */
 #define IGC_RXDMTC	0x04120  /* Rx Descriptor Minimum Threshold Count */
 #define IGC_HGORCL	0x04128  /* Host Good Octets Received Count Low */
@@ -207,13 +182,67 @@
 #define IGC_HGOTCL	0x04130  /* Host Good Octets Transmit Count Low */
 #define IGC_HGOTCH	0x04134  /* Host Good Octets Transmit Count High */
 #define IGC_LENERRS	0x04138  /* Length Errors Count */
-#define IGC_HRMPC	0x0A018  /* Header Redirection Missed Packet Count */
+
+/* Time sync registers */
+#define IGC_TSICR	0x0B66C  /* Time Sync Interrupt Cause */
+#define IGC_TSIM	0x0B674  /* Time Sync Interrupt Mask Register */
+#define IGC_TSAUXC	0x0B640  /* Timesync Auxiliary Control register */
+#define IGC_TSYNCRXCTL	0x0B620  /* Rx Time Sync Control register - RW */
+#define IGC_TSYNCTXCTL	0x0B614  /* Tx Time Sync Control register - RW */
+#define IGC_TSYNCRXCFG	0x05F50  /* Time Sync Rx Configuration - RW */
+#define IGC_TSSDP	0x0003C  /* Time Sync SDP Configuration Register - RW */
+
+#define IGC_IMIR(_i)	(0x05A80 + ((_i) * 4))  /* Immediate Interrupt */
+#define IGC_IMIREXT(_i)	(0x05AA0 + ((_i) * 4))  /* Immediate INTR Ext*/
+
+#define IGC_FTQF(_n)	(0x059E0 + (4 * (_n)))  /* 5-tuple Queue Fltr */
+
+/* Transmit Scheduling Registers */
+#define IGC_TQAVCTRL		0x3570
+#define IGC_TXQCTL(_n)		(0x3344 + 0x4 * (_n))
+#define IGC_BASET_L		0x3314
+#define IGC_BASET_H		0x3318
+#define IGC_QBVCYCLET		0x331C
+#define IGC_QBVCYCLET_S		0x3320
+
+#define IGC_STQT(_n)		(0x3324 + 0x4 * (_n))
+#define IGC_ENDQT(_n)		(0x3334 + 0x4 * (_n))
+#define IGC_DTXMXPKTSZ		0x355C
+
+/* System Time Registers */
+#define IGC_SYSTIML	0x0B600  /* System time register Low - RO */
+#define IGC_SYSTIMH	0x0B604  /* System time register High - RO */
+#define IGC_SYSTIMR	0x0B6F8  /* System time register Residue */
+#define IGC_TIMINCA	0x0B608  /* Increment attributes register - RW */
+
+#define IGC_TXSTMPL	0x0B618  /* Tx timestamp value Low - RO */
+#define IGC_TXSTMPH	0x0B61C  /* Tx timestamp value High - RO */
 
 /* Management registers */
 #define IGC_MANC	0x05820  /* Management Control - RW */
 
 /* Shadow Ram Write Register - RW */
 #define IGC_SRWR	0x12018
+
+/* Wake Up registers */
+#define IGC_WUC		0x05800  /* Wakeup Control - RW */
+#define IGC_WUFC	0x05808  /* Wakeup Filter Control - RW */
+#define IGC_WUS		0x05810  /* Wakeup Status - R/W1C */
+#define IGC_WUPL	0x05900  /* Wakeup Packet Length - RW */
+
+/* Wake Up packet memory */
+#define IGC_WUPM_REG(_i)	(0x05A00 + ((_i) * 4))
+
+/* Energy Efficient Ethernet "EEE" registers */
+#define IGC_EEER	0x0E30 /* Energy Efficient Ethernet "EEE"*/
+#define IGC_IPCNFG	0x0E38 /* Internal PHY Configuration */
+#define IGC_EEE_SU	0x0E34 /* EEE Setup */
+
+/* LTR registers */
+#define IGC_LTRC	0x01A0 /* Latency Tolerance Reporting Control */
+#define IGC_DMACR	0x02508 /* DMA Coalescing Control Register */
+#define IGC_LTRMINV	0x5BB0 /* LTR Minimum Value */
+#define IGC_LTRMAXV	0x5BB4 /* LTR Maximum Value */
 
 /* forward declaration */
 struct igc_hw;
@@ -223,8 +252,7 @@ u32 igc_rd32(struct igc_hw *hw, u32 reg);
 #define wr32(reg, val) \
 do { \
 	u8 __iomem *hw_addr = READ_ONCE((hw)->hw_addr); \
-	if (!IGC_REMOVED(hw_addr)) \
-		writel((val), &hw_addr[(reg)]); \
+	writel((val), &hw_addr[(reg)]); \
 } while (0)
 
 #define rd32(reg) (igc_rd32(hw, reg))

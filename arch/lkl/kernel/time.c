@@ -31,9 +31,9 @@ void calibrate_delay(void)
 {
 }
 
-void read_persistent_clock(struct timespec *ts)
+void read_persistent_clock64(struct timespec64 *ts)
 {
-	*ts = ns_to_timespec(lkl_ops->time());
+	*ts = ns_to_timespec64(lkl_ops->time());
 }
 
 /*
@@ -112,16 +112,10 @@ static struct clock_event_device clockevent = {
 	.set_state_shutdown	= clockevent_set_state_shutdown,
 };
 
-static struct irqaction irq0  = {
-	.handler = timer_irq_handler,
-	.flags = IRQF_NOBALANCING | IRQF_TIMER,
-	.dev_id = &clockevent,
-	.name = "timer"
-};
-
 void __init time_init(void)
 {
 	int ret;
+	unsigned long timer_irq_flags = IRQF_NOBALANCING | IRQF_TIMER;
 
 	if (!lkl_ops->timer_alloc || !lkl_ops->timer_free ||
 	    !lkl_ops->timer_set_oneshot || !lkl_ops->time) {
@@ -130,7 +124,10 @@ void __init time_init(void)
 	}
 
 	timer_irq = lkl_get_free_irq("timer");
-	setup_irq(timer_irq, &irq0);
+	ret = request_irq(timer_irq, timer_irq_handler, timer_irq_flags,
+			  "timer", &clockevent);
+	if (ret)
+		pr_err("lkl: failed to request timer irq %u\n", timer_irq);
 
 	ret = clocksource_register_khz(&clocksource, 1000000);
 	if (ret)

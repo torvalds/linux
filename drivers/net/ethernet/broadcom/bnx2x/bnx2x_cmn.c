@@ -504,6 +504,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
  * @len_on_bd:		total length of the first packet for the
  *			aggregation.
  * @pkt_len:		length of all segments
+ * @num_of_coalesced_segs: count of segments
  *
  * Approximate value of the MSS for this aggregation calculated using
  * the first packet of it.
@@ -1934,7 +1935,8 @@ u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb,
 	}
 
 	/* select a non-FCoE queue */
-	return netdev_pick_tx(dev, skb, NULL) % (BNX2X_NUM_ETH_QUEUES(bp));
+	return netdev_pick_tx(dev, skb, NULL) %
+			(BNX2X_NUM_ETH_QUEUES(bp) * bp->max_cos);
 }
 
 void bnx2x_set_num_queues(struct bnx2x *bp)
@@ -1957,6 +1959,7 @@ void bnx2x_set_num_queues(struct bnx2x *bp)
  * bnx2x_set_real_num_queues - configure netdev->real_num_[tx,rx]_queues
  *
  * @bp:		Driver handle
+ * @include_cnic: handle cnic case
  *
  * We currently support for at most 16 Tx queues for each CoS thus we will
  * allocate a multiple of 16 for ETH L2 rings according to the value of the
@@ -4228,8 +4231,8 @@ void bnx2x_get_c2s_mapping(struct bnx2x *bp, u8 *c2s_map, u8 *c2s_default)
 /**
  * bnx2x_setup_tc - routine to configure net_device for multi tc
  *
- * @netdev: net device to configure
- * @tc: number of traffic classes to enable
+ * @dev: net device to configure
+ * @num_tc: number of traffic classes to enable
  *
  * callback connected to the ndo_setup_tc function pointer
  */
@@ -4969,7 +4972,7 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features)
 	return 0;
 }
 
-void bnx2x_tx_timeout(struct net_device *dev)
+void bnx2x_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -4987,8 +4990,9 @@ void bnx2x_tx_timeout(struct net_device *dev)
 	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_TX_TIMEOUT, 0);
 }
 
-int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused bnx2x_suspend(struct device *dev_d)
 {
+	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2x *bp;
 
@@ -5000,8 +5004,6 @@ int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	rtnl_lock();
 
-	pci_save_state(pdev);
-
 	if (!netif_running(dev)) {
 		rtnl_unlock();
 		return 0;
@@ -5011,15 +5013,14 @@ int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	bnx2x_nic_unload(bp, UNLOAD_CLOSE, false);
 
-	bnx2x_set_power_state(bp, pci_choose_state(pdev, state));
-
 	rtnl_unlock();
 
 	return 0;
 }
 
-int bnx2x_resume(struct pci_dev *pdev)
+static int __maybe_unused bnx2x_resume(struct device *dev_d)
 {
+	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2x *bp;
 	int rc;
@@ -5037,14 +5038,11 @@ int bnx2x_resume(struct pci_dev *pdev)
 
 	rtnl_lock();
 
-	pci_restore_state(pdev);
-
 	if (!netif_running(dev)) {
 		rtnl_unlock();
 		return 0;
 	}
 
-	bnx2x_set_power_state(bp, PCI_D0);
 	netif_device_attach(dev);
 
 	rc = bnx2x_nic_load(bp, LOAD_OPEN);
@@ -5053,6 +5051,8 @@ int bnx2x_resume(struct pci_dev *pdev)
 
 	return rc;
 }
+
+SIMPLE_DEV_PM_OPS(bnx2x_pm_ops, bnx2x_suspend, bnx2x_resume);
 
 void bnx2x_set_ctx_validation(struct bnx2x *bp, struct eth_context *cxt,
 			      u32 cid)

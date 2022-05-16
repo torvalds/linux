@@ -214,9 +214,13 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	ASSERT(next->block_start != EXTENT_MAP_DELALLOC &&
 	       prev->block_start != EXTENT_MAP_DELALLOC);
 
+	if (prev->map_lookup || next->map_lookup)
+		ASSERT(test_bit(EXTENT_FLAG_FS_MAPPING, &prev->flags) &&
+		       test_bit(EXTENT_FLAG_FS_MAPPING, &next->flags));
+
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
-	    prev->bdev == next->bdev &&
+	    prev->map_lookup == next->map_lookup &&
 	    ((next->block_start == EXTENT_MAP_HOLE &&
 	      prev->block_start == EXTENT_MAP_HOLE) ||
 	     (next->block_start == EXTENT_MAP_INLINE &&
@@ -232,6 +236,17 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 {
 	struct extent_map *merge = NULL;
 	struct rb_node *rb;
+
+	/*
+	 * We can't modify an extent map that is in the tree and that is being
+	 * used by another task, as it can cause that other task to see it in
+	 * inconsistent state during the merging. We always have 1 reference for
+	 * the tree and 1 for this task (which is unpinning the extent map or
+	 * clearing the logging flag), so anything > 2 means it's being used by
+	 * other tasks too.
+	 */
+	if (refcount_read(&em->refs) > 2)
+		return;
 
 	if (em->start != 0) {
 		rb = rb_prev(&em->rb_node);

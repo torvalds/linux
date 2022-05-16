@@ -41,6 +41,7 @@
 #include <asm/time.h>
 #include <asm/mmu.h>
 #include <asm/topology.h>
+#include <asm/paca.h>
 
 /* This is here deliberately so it's only used in this file */
 void enter_rtas(unsigned long);
@@ -842,96 +843,6 @@ static void rtas_percpu_suspend_me(void *info)
 	__rtas_suspend_cpu((struct rtas_suspend_me_data *)info, 1);
 }
 
-enum rtas_cpu_state {
-	DOWN,
-	UP,
-};
-
-#ifndef CONFIG_SMP
-static int rtas_cpu_state_change_mask(enum rtas_cpu_state state,
-				cpumask_var_t cpus)
-{
-	if (!cpumask_empty(cpus)) {
-		cpumask_clear(cpus);
-		return -EINVAL;
-	} else
-		return 0;
-}
-#else
-/* On return cpumask will be altered to indicate CPUs changed.
- * CPUs with states changed will be set in the mask,
- * CPUs with status unchanged will be unset in the mask. */
-static int rtas_cpu_state_change_mask(enum rtas_cpu_state state,
-				cpumask_var_t cpus)
-{
-	int cpu;
-	int cpuret = 0;
-	int ret = 0;
-
-	if (cpumask_empty(cpus))
-		return 0;
-
-	for_each_cpu(cpu, cpus) {
-		struct device *dev = get_cpu_device(cpu);
-
-		switch (state) {
-		case DOWN:
-			cpuret = device_offline(dev);
-			break;
-		case UP:
-			cpuret = device_online(dev);
-			break;
-		}
-		if (cpuret < 0) {
-			pr_debug("%s: cpu_%s for cpu#%d returned %d.\n",
-					__func__,
-					((state == UP) ? "up" : "down"),
-					cpu, cpuret);
-			if (!ret)
-				ret = cpuret;
-			if (state == UP) {
-				/* clear bits for unchanged cpus, return */
-				cpumask_shift_right(cpus, cpus, cpu);
-				cpumask_shift_left(cpus, cpus, cpu);
-				break;
-			} else {
-				/* clear bit for unchanged cpu, continue */
-				cpumask_clear_cpu(cpu, cpus);
-			}
-		}
-		cond_resched();
-	}
-
-	return ret;
-}
-#endif
-
-int rtas_online_cpus_mask(cpumask_var_t cpus)
-{
-	int ret;
-
-	ret = rtas_cpu_state_change_mask(UP, cpus);
-
-	if (ret) {
-		cpumask_var_t tmp_mask;
-
-		if (!alloc_cpumask_var(&tmp_mask, GFP_KERNEL))
-			return ret;
-
-		/* Use tmp_mask to preserve cpus mask from first failure */
-		cpumask_copy(tmp_mask, cpus);
-		rtas_offline_cpus_mask(tmp_mask);
-		free_cpumask_var(tmp_mask);
-	}
-
-	return ret;
-}
-
-int rtas_offline_cpus_mask(cpumask_var_t cpus)
-{
-	return rtas_cpu_state_change_mask(DOWN, cpus);
-}
-
 int rtas_ibm_suspend_me(u64 handle)
 {
 	long state;
@@ -939,8 +850,6 @@ int rtas_ibm_suspend_me(u64 handle)
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	struct rtas_suspend_me_data data;
 	DECLARE_COMPLETION_ONSTACK(done);
-	cpumask_var_t offline_mask;
-	int cpuret;
 
 	if (!rtas_service_present("ibm,suspend-me"))
 		return -ENOSYS;
@@ -961,9 +870,6 @@ int rtas_ibm_suspend_me(u64 handle)
 		return -EIO;
 	}
 
-	if (!alloc_cpumask_var(&offline_mask, GFP_KERNEL))
-		return -ENOMEM;
-
 	atomic_set(&data.working, 0);
 	atomic_set(&data.done, 0);
 	atomic_set(&data.error, 0);
@@ -972,23 +878,7 @@ int rtas_ibm_suspend_me(u64 handle)
 
 	lock_device_hotplug();
 
-	/* All present CPUs must be online */
-	cpumask_andnot(offline_mask, cpu_present_mask, cpu_online_mask);
-	cpuret = rtas_online_cpus_mask(offline_mask);
-	if (cpuret) {
-		pr_err("%s: Could not bring present CPUs online.\n", __func__);
-		atomic_set(&data.error, cpuret);
-		goto out;
-	}
-
 	cpu_hotplug_disable();
-
-	/* Check if we raced with a CPU-Offline Operation */
-	if (!cpumask_equal(cpu_present_mask, cpu_online_mask)) {
-		pr_info("%s: Raced against a concurrent CPU-Offline\n", __func__);
-		atomic_set(&data.error, -EAGAIN);
-		goto out_hotplug_enable;
-	}
 
 	/* Call function on all CPUs.  One of us will make the
 	 * rtas call
@@ -1000,20 +890,64 @@ int rtas_ibm_suspend_me(u64 handle)
 	if (atomic_read(&data.error) != 0)
 		printk(KERN_ERR "Error doing global join\n");
 
-out_hotplug_enable:
+
 	cpu_hotplug_enable();
 
-	/* Take down CPUs not online prior to suspend */
-	cpuret = rtas_offline_cpus_mask(offline_mask);
-	if (cpuret)
-		pr_warn("%s: Could not restore CPUs to offline state.\n",
-				__func__);
-
-out:
 	unlock_device_hotplug();
-	free_cpumask_var(offline_mask);
+
 	return atomic_read(&data.error);
 }
+
+/**
+ * rtas_call_reentrant() - Used for reentrant rtas calls
+ * @token:	Token for desired reentrant RTAS call
+ * @nargs:	Number of Input Parameters
+ * @nret:	Number of Output Parameters
+ * @outputs:	Array of outputs
+ * @...:	Inputs for desired RTAS call
+ *
+ * According to LoPAR documentation, only "ibm,int-on", "ibm,int-off",
+ * "ibm,get-xive" and "ibm,set-xive" are currently reentrant.
+ * Reentrant calls need their own rtas_args buffer, so not using rtas.args, but
+ * PACA one instead.
+ *
+ * Return:	-1 on error,
+ *		First output value of RTAS call if (nret > 0),
+ *		0 otherwise,
+ */
+int rtas_call_reentrant(int token, int nargs, int nret, int *outputs, ...)
+{
+	va_list list;
+	struct rtas_args *args;
+	unsigned long flags;
+	int i, ret = 0;
+
+	if (!rtas.entry || token == RTAS_UNKNOWN_SERVICE)
+		return -1;
+
+	local_irq_save(flags);
+	preempt_disable();
+
+	/* We use the per-cpu (PACA) rtas args buffer */
+	args = local_paca->rtas_args_reentrant;
+
+	va_start(list, outputs);
+	va_rtas_call_unlocked(args, token, nargs, nret, list);
+	va_end(list);
+
+	if (nret > 1 && outputs)
+		for (i = 0; i < nret - 1; ++i)
+			outputs[i] = be32_to_cpu(args->rets[i + 1]);
+
+	if (nret > 0)
+		ret = be32_to_cpu(args->rets[0]);
+
+	local_irq_restore(flags);
+	preempt_enable();
+
+	return ret;
+}
+
 #else /* CONFIG_PPC_PSERIES */
 int rtas_ibm_suspend_me(u64 handle)
 {
@@ -1058,6 +992,147 @@ struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
 	return NULL;
 }
 
+#ifdef CONFIG_PPC_RTAS_FILTER
+
+/*
+ * The sys_rtas syscall, as originally designed, allows root to pass
+ * arbitrary physical addresses to RTAS calls. A number of RTAS calls
+ * can be abused to write to arbitrary memory and do other things that
+ * are potentially harmful to system integrity, and thus should only
+ * be used inside the kernel and not exposed to userspace.
+ *
+ * All known legitimate users of the sys_rtas syscall will only ever
+ * pass addresses that fall within the RMO buffer, and use a known
+ * subset of RTAS calls.
+ *
+ * Accordingly, we filter RTAS requests to check that the call is
+ * permitted, and that provided pointers fall within the RMO buffer.
+ * The rtas_filters list contains an entry for each permitted call,
+ * with the indexes of the parameters which are expected to contain
+ * addresses and sizes of buffers allocated inside the RMO buffer.
+ */
+struct rtas_filter {
+	const char *name;
+	int token;
+	/* Indexes into the args buffer, -1 if not used */
+	int buf_idx1;
+	int size_idx1;
+	int buf_idx2;
+	int size_idx2;
+
+	int fixed_size;
+};
+
+static struct rtas_filter rtas_filters[] __ro_after_init = {
+	{ "ibm,activate-firmware", -1, -1, -1, -1, -1 },
+	{ "ibm,configure-connector", -1, 0, -1, 1, -1, 4096 },	/* Special cased */
+	{ "display-character", -1, -1, -1, -1, -1 },
+	{ "ibm,display-message", -1, 0, -1, -1, -1 },
+	{ "ibm,errinjct", -1, 2, -1, -1, -1, 1024 },
+	{ "ibm,close-errinjct", -1, -1, -1, -1, -1 },
+	{ "ibm,open-errinct", -1, -1, -1, -1, -1 },
+	{ "ibm,get-config-addr-info2", -1, -1, -1, -1, -1 },
+	{ "ibm,get-dynamic-sensor-state", -1, 1, -1, -1, -1 },
+	{ "ibm,get-indices", -1, 2, 3, -1, -1 },
+	{ "get-power-level", -1, -1, -1, -1, -1 },
+	{ "get-sensor-state", -1, -1, -1, -1, -1 },
+	{ "ibm,get-system-parameter", -1, 1, 2, -1, -1 },
+	{ "get-time-of-day", -1, -1, -1, -1, -1 },
+	{ "ibm,get-vpd", -1, 0, -1, 1, 2 },
+	{ "ibm,lpar-perftools", -1, 2, 3, -1, -1 },
+	{ "ibm,platform-dump", -1, 4, 5, -1, -1 },
+	{ "ibm,read-slot-reset-state", -1, -1, -1, -1, -1 },
+	{ "ibm,scan-log-dump", -1, 0, 1, -1, -1 },
+	{ "ibm,set-dynamic-indicator", -1, 2, -1, -1, -1 },
+	{ "ibm,set-eeh-option", -1, -1, -1, -1, -1 },
+	{ "set-indicator", -1, -1, -1, -1, -1 },
+	{ "set-power-level", -1, -1, -1, -1, -1 },
+	{ "set-time-for-power-on", -1, -1, -1, -1, -1 },
+	{ "ibm,set-system-parameter", -1, 1, -1, -1, -1 },
+	{ "set-time-of-day", -1, -1, -1, -1, -1 },
+	{ "ibm,suspend-me", -1, -1, -1, -1, -1 },
+	{ "ibm,update-nodes", -1, 0, -1, -1, -1, 4096 },
+	{ "ibm,update-properties", -1, 0, -1, -1, -1, 4096 },
+	{ "ibm,physical-attestation", -1, 0, 1, -1, -1 },
+};
+
+static bool in_rmo_buf(u32 base, u32 end)
+{
+	return base >= rtas_rmo_buf &&
+		base < (rtas_rmo_buf + RTAS_RMOBUF_MAX) &&
+		base <= end &&
+		end >= rtas_rmo_buf &&
+		end < (rtas_rmo_buf + RTAS_RMOBUF_MAX);
+}
+
+static bool block_rtas_call(int token, int nargs,
+			    struct rtas_args *args)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(rtas_filters); i++) {
+		struct rtas_filter *f = &rtas_filters[i];
+		u32 base, size, end;
+
+		if (token != f->token)
+			continue;
+
+		if (f->buf_idx1 != -1) {
+			base = be32_to_cpu(args->args[f->buf_idx1]);
+			if (f->size_idx1 != -1)
+				size = be32_to_cpu(args->args[f->size_idx1]);
+			else if (f->fixed_size)
+				size = f->fixed_size;
+			else
+				size = 1;
+
+			end = base + size - 1;
+			if (!in_rmo_buf(base, end))
+				goto err;
+		}
+
+		if (f->buf_idx2 != -1) {
+			base = be32_to_cpu(args->args[f->buf_idx2]);
+			if (f->size_idx2 != -1)
+				size = be32_to_cpu(args->args[f->size_idx2]);
+			else if (f->fixed_size)
+				size = f->fixed_size;
+			else
+				size = 1;
+			end = base + size - 1;
+
+			/*
+			 * Special case for ibm,configure-connector where the
+			 * address can be 0
+			 */
+			if (!strcmp(f->name, "ibm,configure-connector") &&
+			    base == 0)
+				return false;
+
+			if (!in_rmo_buf(base, end))
+				goto err;
+		}
+
+		return false;
+	}
+
+err:
+	pr_err_ratelimited("sys_rtas: RTAS call blocked - exploit attempt?\n");
+	pr_err_ratelimited("sys_rtas: token=0x%x, nargs=%d (called by %s)\n",
+			   token, nargs, current->comm);
+	return true;
+}
+
+#else
+
+static bool block_rtas_call(int token, int nargs,
+			    struct rtas_args *args)
+{
+	return false;
+}
+
+#endif /* CONFIG_PPC_RTAS_FILTER */
+
 /* We assume to be passed big endian arguments */
 SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 {
@@ -1094,6 +1169,9 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 
 	args.rets = &args.args[nargs];
 	memset(args.rets, 0, nret * sizeof(rtas_arg_t));
+
+	if (block_rtas_call(token, nargs, &args))
+		return -EINVAL;
 
 	/* Need to handle ibm,suspend_me call specially */
 	if (token == ibm_suspend_me_token) {
@@ -1156,6 +1234,9 @@ void __init rtas_initialize(void)
 	unsigned long rtas_region = RTAS_INSTANTIATE_MAX;
 	u32 base, size, entry;
 	int no_base, no_size, no_entry;
+#ifdef CONFIG_PPC_RTAS_FILTER
+	int i;
+#endif
 
 	/* Get RTAS dev node and fill up our "rtas" structure with infos
 	 * about it.
@@ -1194,6 +1275,12 @@ void __init rtas_initialize(void)
 
 #ifdef CONFIG_RTAS_ERROR_LOGGING
 	rtas_last_error_token = rtas_token("rtas-last-error");
+#endif
+
+#ifdef CONFIG_PPC_RTAS_FILTER
+	for (i = 0; i < ARRAY_SIZE(rtas_filters); i++) {
+		rtas_filters[i].token = rtas_token(rtas_filters[i].name);
+	}
 #endif
 }
 

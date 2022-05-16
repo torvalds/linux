@@ -264,12 +264,11 @@ static int ptrace_check_attach(struct task_struct *child, bool ignore_state)
 	return ret;
 }
 
-static int ptrace_has_cap(struct user_namespace *ns, unsigned int mode)
+static bool ptrace_has_cap(struct user_namespace *ns, unsigned int mode)
 {
 	if (mode & PTRACE_MODE_NOAUDIT)
-		return has_ns_capability_noaudit(current, ns, CAP_SYS_PTRACE);
-	else
-		return has_ns_capability(current, ns, CAP_SYS_PTRACE);
+		return ns_capable_noaudit(ns, CAP_SYS_PTRACE);
+	return ns_capable(ns, CAP_SYS_PTRACE);
 }
 
 /* Returns 0 on success, -errno on denial. */

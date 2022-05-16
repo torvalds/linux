@@ -44,10 +44,6 @@
 #include <asm/mpc52xx.h>
 #include <asm/mpc52xx_psc.h>
 
-#if defined(CONFIG_SERIAL_MPC52xx_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/serial_core.h>
 
 
@@ -1382,12 +1378,8 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 		ch = psc_ops->read_char(port);
 
 		/* Handle sysreq char */
-#ifdef SUPPORT_SYSRQ
-		if (uart_handle_sysrq_char(port, ch)) {
-			port->sysrq = 0;
+		if (uart_handle_sysrq_char(port, ch))
 			continue;
-		}
-#endif
 
 		/* Store it */
 
@@ -1770,6 +1762,7 @@ static int mpc52xx_uart_of_probe(struct platform_device *op)
 	spin_lock_init(&port->lock);
 	port->uartclk = uartclk;
 	port->fifosize	= 512;
+	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_MPC52xx_CONSOLE);
 	port->iotype	= UPIO_MEM;
 	port->flags	= UPF_BOOT_AUTOCONF |
 			  (uart_console(port) ? 0 : UPF_IOREMAP);

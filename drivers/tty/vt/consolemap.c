@@ -12,7 +12,7 @@
  * Fix bug in inverse translation. Stanislav Voronyi <stas@cnti.uanet.kharkov.ua>, Dec 1998
  *
  * In order to prevent the following circular lock dependency:
- *   &mm->mmap_sem --> cpu_hotplug.lock --> console_lock --> &mm->mmap_sem
+ *   &mm->mmap_lock --> cpu_hotplug.lock --> console_lock --> &mm->mmap_lock
  *
  * We cannot allow page fault to happen while holding the console_lock.
  * Therefore, all the userspace copy operations have to be done outside
@@ -268,7 +268,7 @@ unsigned short *set_translate(int m, struct vc_data *vc)
  *    was active.
  * Still, it is now possible to a certain extent to cut and paste non-ASCII.
  */
-u16 inverse_translate(struct vc_data *conp, int glyph, int use_unicode)
+u16 inverse_translate(const struct vc_data *conp, int glyph, int use_unicode)
 {
 	struct uni_pagedir *p;
 	int m;
@@ -542,7 +542,7 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 	if (!ct)
 		return 0;
 
-	unilist = vmemdup_user(list, ct * sizeof(struct unipair));
+	unilist = vmemdup_user(list, array_size(sizeof(struct unipair), ct));
 	if (IS_ERR(unilist))
 		return PTR_ERR(unilist);
 
@@ -708,7 +708,7 @@ EXPORT_SYMBOL(con_set_default_unimap);
 /**
  *	con_copy_unimap		-	copy unimap between two vts
  *	@dst_vc: target
- *	@src_vt: source
+ *	@src_vc: source
  *
  *	The caller must hold the console lock when invoking this method
  */

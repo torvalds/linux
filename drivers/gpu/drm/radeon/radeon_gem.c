@@ -26,10 +26,11 @@
  *          Jerome Glisse
  */
 
+#include <linux/pci.h>
+
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
-#include <drm/drm_pci.h>
 #include <drm/radeon_drm.h>
 
 #include "radeon.h"
@@ -223,9 +224,9 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_gem_info *args = data;
-	struct ttm_mem_type_manager *man;
+	struct ttm_resource_manager *man;
 
-	man = &rdev->mman.bdev.man[TTM_PL_VRAM];
+	man = ttm_manager_type(&rdev->mman.bdev, TTM_PL_VRAM);
 
 	args->vram_size = (u64)man->size << PAGE_SHIFT;
 	args->vram_visible = rdev->mc.visible_vram_size;
@@ -274,7 +275,7 @@ int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 	}
 	r = drm_gem_handle_create(filp, gobj, &handle);
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	if (r) {
 		up_read(&rdev->exclusive_lock);
 		r = radeon_gem_handle_lockup(rdev, r);
@@ -330,7 +331,7 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		goto handle_lockup;
 
 	bo = gem_to_radeon_bo(gobj);
-	r = radeon_ttm_tt_set_userptr(bo->tbo.ttm, args->addr, args->flags);
+	r = radeon_ttm_tt_set_userptr(rdev, bo->tbo.ttm, args->addr, args->flags);
 	if (r)
 		goto release_object;
 
@@ -341,24 +342,24 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & RADEON_GEM_USERPTR_VALIDATE) {
-		down_read(&current->mm->mmap_sem);
+		mmap_read_lock(current->mm);
 		r = radeon_bo_reserve(bo, true);
 		if (r) {
-			up_read(&current->mm->mmap_sem);
+			mmap_read_unlock(current->mm);
 			goto release_object;
 		}
 
 		radeon_ttm_placement_from_domain(bo, RADEON_GEM_DOMAIN_GTT);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		radeon_bo_unreserve(bo);
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock(current->mm);
 		if (r)
 			goto release_object;
 	}
 
 	r = drm_gem_handle_create(filp, gobj, &handle);
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	if (r)
 		goto handle_lockup;
 
@@ -367,7 +368,7 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	return 0;
 
 release_object:
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 
 handle_lockup:
 	up_read(&rdev->exclusive_lock);
@@ -401,7 +402,7 @@ int radeon_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 
 	r = radeon_gem_set_domain(gobj, args->read_domains, args->write_domain);
 
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	up_read(&rdev->exclusive_lock);
 	r = radeon_gem_handle_lockup(robj->rdev, r);
 	return r;
@@ -419,12 +420,12 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
 		return -ENOENT;
 	}
 	robj = gem_to_radeon_bo(gobj);
-	if (radeon_ttm_tt_has_userptr(robj->tbo.ttm)) {
-		drm_gem_object_put_unlocked(gobj);
+	if (radeon_ttm_tt_has_userptr(robj->rdev, robj->tbo.ttm)) {
+		drm_gem_object_put(gobj);
 		return -EPERM;
 	}
 	*offset_p = radeon_bo_mmap_offset(robj);
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	return 0;
 }
 
@@ -459,7 +460,7 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 
 	cur_placement = READ_ONCE(robj->tbo.mem.mem_type);
 	args->domain = radeon_mem_type_to_domain(cur_placement);
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	return r;
 }
 
@@ -491,7 +492,7 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	if (rdev->asic->mmio_hdp_flush &&
 	    radeon_mem_type_to_domain(cur_placement) == RADEON_GEM_DOMAIN_VRAM)
 		robj->rdev->asic->mmio_hdp_flush(rdev);
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	r = radeon_gem_handle_lockup(rdev, r);
 	return r;
 }
@@ -510,7 +511,7 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	robj = gem_to_radeon_bo(gobj);
 	r = radeon_bo_set_tiling_flags(robj, args->tiling_flags, args->pitch);
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	return r;
 }
 
@@ -533,7 +534,7 @@ int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 	radeon_bo_get_tiling_flags(rbo, &args->tiling_flags, &args->pitch);
 	radeon_bo_unreserve(rbo);
 out:
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	return r;
 }
 
@@ -566,7 +567,7 @@ static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 	if (!vm_bos)
 		return;
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL, true);
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL);
 	if (r)
 		goto error_free;
 
@@ -667,14 +668,14 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 	r = radeon_bo_reserve(rbo, false);
 	if (r) {
 		args->operation = RADEON_VA_RESULT_ERROR;
-		drm_gem_object_put_unlocked(gobj);
+		drm_gem_object_put(gobj);
 		return r;
 	}
 	bo_va = radeon_vm_bo_find(&fpriv->vm, rbo);
 	if (!bo_va) {
 		args->operation = RADEON_VA_RESULT_ERROR;
 		radeon_bo_unreserve(rbo);
-		drm_gem_object_put_unlocked(gobj);
+		drm_gem_object_put(gobj);
 		return -ENOENT;
 	}
 
@@ -701,7 +702,7 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 		args->operation = RADEON_VA_RESULT_ERROR;
 	}
 out:
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	return r;
 }
 
@@ -720,7 +721,7 @@ int radeon_gem_op_ioctl(struct drm_device *dev, void *data,
 	robj = gem_to_radeon_bo(gobj);
 
 	r = -EPERM;
-	if (radeon_ttm_tt_has_userptr(robj->tbo.ttm))
+	if (radeon_ttm_tt_has_userptr(robj->rdev, robj->tbo.ttm))
 		goto out;
 
 	r = radeon_bo_reserve(robj, false);
@@ -742,7 +743,7 @@ int radeon_gem_op_ioctl(struct drm_device *dev, void *data,
 
 	radeon_bo_unreserve(robj);
 out:
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	return r;
 }
 
@@ -768,7 +769,7 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 
 	r = drm_gem_handle_create(file_priv, gobj, &handle);
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	if (r) {
 		return r;
 	}

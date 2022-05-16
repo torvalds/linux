@@ -25,9 +25,9 @@ worry about UP vs SMP issues: the spinlocks work correctly under both.
 
      Documentation/memory-barriers.txt
 
-       (5) LOCK operations.
+       (5) ACQUIRE operations.
 
-       (6) UNLOCK operations.
+       (6) RELEASE operations.
 
 The above is usually pretty simple (you usually need and want only one
 spinlock for most things - using more than one spinlock can make things a

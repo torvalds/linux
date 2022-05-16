@@ -44,9 +44,19 @@ const struct trace_print_flags vmaflag_names[] = {
 
 void __dump_page(struct page *page, const char *reason)
 {
+	struct page *head = compound_head(page);
 	struct address_space *mapping;
 	bool page_poisoned = PagePoisoned(page);
+	bool compound = PageCompound(page);
+	/*
+	 * Accessing the pageblock without the zone lock. It could change to
+	 * "isolate" again in the meantime, but since we are just dumping the
+	 * state for debugging, it should be fine to accept a bit of
+	 * inaccuracy here due to racing.
+	 */
+	bool page_cma = is_migrate_cma_page(page);
 	int mapcount;
+	char *type = "";
 
 	/*
 	 * If struct page is poisoned don't access Page*() functions as that
@@ -58,43 +68,114 @@ void __dump_page(struct page *page, const char *reason)
 		goto hex_only;
 	}
 
-	mapping = page_mapping(page);
+	if (page < head || (page >= head + MAX_ORDER_NR_PAGES)) {
+		/*
+		 * Corrupt page, so we cannot call page_mapping. Instead, do a
+		 * safe subset of the steps that page_mapping() does. Caution:
+		 * this will be misleading for tail pages, PageSwapCache pages,
+		 * and potentially other situations. (See the page_mapping()
+		 * implementation for what's missing here.)
+		 */
+		unsigned long tmp = (unsigned long)page->mapping;
+
+		if (tmp & PAGE_MAPPING_ANON)
+			mapping = NULL;
+		else
+			mapping = (void *)(tmp & ~PAGE_MAPPING_FLAGS);
+		head = page;
+		compound = false;
+	} else {
+		mapping = page_mapping(page);
+	}
 
 	/*
 	 * Avoid VM_BUG_ON() in page_mapcount().
 	 * page->_mapcount space in struct page is used by sl[aou]b pages to
 	 * encode own info.
 	 */
-	mapcount = PageSlab(page) ? 0 : page_mapcount(page);
+	mapcount = PageSlab(head) ? 0 : page_mapcount(page);
 
-	if (PageCompound(page))
-		pr_warn("page:%px refcount:%d mapcount:%d mapping:%px "
-			"index:%#lx compound_mapcount: %d\n",
-			page, page_ref_count(page), mapcount,
-			page->mapping, page_to_pgoff(page),
-			compound_mapcount(page));
-	else
-		pr_warn("page:%px refcount:%d mapcount:%d mapping:%px index:%#lx\n",
-			page, page_ref_count(page), mapcount,
-			page->mapping, page_to_pgoff(page));
-	if (PageKsm(page))
-		pr_warn("ksm flags: %#lx(%pGp)\n", page->flags, &page->flags);
-	else if (PageAnon(page))
-		pr_warn("anon flags: %#lx(%pGp)\n", page->flags, &page->flags);
-	else if (mapping) {
-		if (mapping->host && mapping->host->i_dentry.first) {
-			struct dentry *dentry;
-			dentry = container_of(mapping->host->i_dentry.first, struct dentry, d_u.d_alias);
-			pr_warn("%ps name:\"%pd\"\n", mapping->a_ops, dentry);
-		} else
-			pr_warn("%ps\n", mapping->a_ops);
-		pr_warn("flags: %#lx(%pGp)\n", page->flags, &page->flags);
+	pr_warn("page:%p refcount:%d mapcount:%d mapping:%p index:%#lx pfn:%#lx\n",
+			page, page_ref_count(head), mapcount, mapping,
+			page_to_pgoff(page), page_to_pfn(page));
+	if (compound) {
+		if (hpage_pincount_available(page)) {
+			pr_warn("head:%p order:%u compound_mapcount:%d compound_pincount:%d\n",
+					head, compound_order(head),
+					head_compound_mapcount(head),
+					head_compound_pincount(head));
+		} else {
+			pr_warn("head:%p order:%u compound_mapcount:%d\n",
+					head, compound_order(head),
+					head_compound_mapcount(head));
+		}
 	}
+	if (PageKsm(page))
+		type = "ksm ";
+	else if (PageAnon(page))
+		type = "anon ";
+	else if (mapping) {
+		struct inode *host;
+		const struct address_space_operations *a_ops;
+		struct hlist_node *dentry_first;
+		struct dentry *dentry_ptr;
+		struct dentry dentry;
+		unsigned long ino;
+
+		/*
+		 * mapping can be invalid pointer and we don't want to crash
+		 * accessing it, so probe everything depending on it carefully
+		 */
+		if (get_kernel_nofault(host, &mapping->host) ||
+		    get_kernel_nofault(a_ops, &mapping->a_ops)) {
+			pr_warn("failed to read mapping contents, not a valid kernel address?\n");
+			goto out_mapping;
+		}
+
+		if (!host) {
+			pr_warn("aops:%ps\n", a_ops);
+			goto out_mapping;
+		}
+
+		if (get_kernel_nofault(dentry_first, &host->i_dentry.first) ||
+		    get_kernel_nofault(ino, &host->i_ino)) {
+			pr_warn("aops:%ps with invalid host inode %px\n",
+					a_ops, host);
+			goto out_mapping;
+		}
+
+		if (!dentry_first) {
+			pr_warn("aops:%ps ino:%lx\n", a_ops, ino);
+			goto out_mapping;
+		}
+
+		dentry_ptr = container_of(dentry_first, struct dentry, d_u.d_alias);
+		if (get_kernel_nofault(dentry, dentry_ptr)) {
+			pr_warn("aops:%ps ino:%lx with invalid dentry %px\n",
+					a_ops, ino, dentry_ptr);
+		} else {
+			/*
+			 * if dentry is corrupted, the %pd handler may still
+			 * crash, but it's unlikely that we reach here with a
+			 * corrupted struct page
+			 */
+			pr_warn("aops:%ps ino:%lx dentry name:\"%pd\"\n",
+					a_ops, ino, &dentry);
+		}
+	}
+out_mapping:
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
+
+	pr_warn("%sflags: %#lx(%pGp)%s\n", type, head->flags, &head->flags,
+		page_cma ? " CMA" : "");
 
 hex_only:
 	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
 			sizeof(unsigned long), page,
+			sizeof(struct page), false);
+	if (head != page)
+		print_hex_dump(KERN_WARNING, "head: ", DUMP_PREFIX_NONE, 32,
+			sizeof(unsigned long), head,
 			sizeof(struct page), false);
 
 	if (reason)
@@ -153,7 +234,7 @@ void dump_mm(const struct mm_struct *mm)
 #endif
 		"exe_file %px\n"
 #ifdef CONFIG_MMU_NOTIFIER
-		"mmu_notifier_mm %px\n"
+		"notifier_subscriptions %px\n"
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 		"numa_next_scan %lu numa_scan_offset %lu numa_scan_seq %d\n"
@@ -185,7 +266,7 @@ void dump_mm(const struct mm_struct *mm)
 #endif
 		mm->exe_file,
 #ifdef CONFIG_MMU_NOTIFIER
-		mm->mmu_notifier_mm,
+		mm->notifier_subscriptions,
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 		mm->numa_next_scan, mm->numa_scan_offset, mm->numa_scan_seq,

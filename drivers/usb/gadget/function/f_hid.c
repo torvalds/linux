@@ -252,9 +252,6 @@ static ssize_t f_hidg_read(struct file *file, char __user *buffer,
 	if (!count)
 		return 0;
 
-	if (!access_ok(buffer, count))
-		return -EFAULT;
-
 	spin_lock_irqsave(&hidg->read_spinlock, flags);
 
 #define READ_COND (!list_empty(&hidg->completed_out_req))
@@ -338,9 +335,6 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
 	struct usb_request *req;
 	unsigned long flags;
 	ssize_t status = -ENOMEM;
-
-	if (!access_ok(buffer, count))
-		return -EFAULT;
 
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
 
@@ -483,7 +477,7 @@ static void hidg_set_report_complete(struct usb_ep *ep, struct usb_request *req)
 		break;
 	default:
 		ERROR(cdev, "Set report failed %d\n", req->status);
-		/* FALLTHROUGH */
+		fallthrough;
 	case -ECONNABORTED:		/* hardware forced ep reset */
 	case -ECONNRESET:		/* request dequeued */
 	case -ESHUTDOWN:		/* disconnect from host */

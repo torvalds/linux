@@ -17,7 +17,6 @@
 #include <linux/random.h>
 #include <linux/compat.h>
 #include <linux/security.h>
-#include <asm/pgalloc.h>
 #include <asm/elf.h>
 
 static unsigned long stack_maxrandom_size(void)
@@ -72,14 +71,13 @@ static inline unsigned long mmap_base(unsigned long rnd,
 	return PAGE_ALIGN(STACK_TOP - gap - rnd);
 }
 
-unsigned long
-arch_get_unmapped_area(struct file *filp, unsigned long addr,
-		unsigned long len, unsigned long pgoff, unsigned long flags)
+unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
+				     unsigned long len, unsigned long pgoff,
+				     unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	struct vm_unmapped_area_info info;
-	int rc;
 
 	if (len > TASK_SIZE - mmap_min_addr)
 		return -ENOMEM;
@@ -105,30 +103,20 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		info.align_mask = 0;
 	info.align_offset = pgoff << PAGE_SHIFT;
 	addr = vm_unmapped_area(&info);
-	if (addr & ~PAGE_MASK)
+	if (offset_in_page(addr))
 		return addr;
 
 check_asce_limit:
-	if (addr + len > current->mm->context.asce_limit &&
-	    addr + len <= TASK_SIZE) {
-		rc = crst_table_upgrade(mm, addr + len);
-		if (rc)
-			return (unsigned long) rc;
-	}
-
-	return addr;
+	return check_asce_limit(mm, addr, len);
 }
 
-unsigned long
-arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
-			  const unsigned long len, const unsigned long pgoff,
-			  const unsigned long flags)
+unsigned long arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
+					     unsigned long len, unsigned long pgoff,
+					     unsigned long flags)
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
-	unsigned long addr = addr0;
 	struct vm_unmapped_area_info info;
-	int rc;
 
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE - mmap_min_addr)
@@ -163,25 +151,18 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	 * can happen with large stack limits and large mmap()
 	 * allocations.
 	 */
-	if (addr & ~PAGE_MASK) {
+	if (offset_in_page(addr)) {
 		VM_BUG_ON(addr != -ENOMEM);
 		info.flags = 0;
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = TASK_SIZE;
 		addr = vm_unmapped_area(&info);
-		if (addr & ~PAGE_MASK)
+		if (offset_in_page(addr))
 			return addr;
 	}
 
 check_asce_limit:
-	if (addr + len > current->mm->context.asce_limit &&
-	    addr + len <= TASK_SIZE) {
-		rc = crst_table_upgrade(mm, addr + len);
-		if (rc)
-			return (unsigned long) rc;
-	}
-
-	return addr;
+	return check_asce_limit(mm, addr, len);
 }
 
 /*

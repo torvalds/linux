@@ -20,7 +20,7 @@ properties:
     pattern: "^spi(@.*|-[0-9a-f])*$"
 
   "#address-cells":
-    const: 1
+    enum: [0, 1]
 
   "#size-cells":
     const: 0
@@ -51,6 +51,20 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       The SPI controller acts as a slave, instead of a master.
+
+allOf:
+  - if:
+      not:
+        required:
+          - spi-slave
+    then:
+      properties:
+        "#address-cells":
+          const: 1
+    else:
+      properties:
+        "#address-cells":
+          const: 0
 
 patternProperties:
   "^slave$":
@@ -109,24 +123,22 @@ patternProperties:
           Maximum SPI clocking speed of the device in Hz.
 
       spi-rx-bus-width:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [ 1, 2, 4 ]
-          - default: 1
         description:
-          Bus width to the SPI bus used for MISO.
+          Bus width to the SPI bus used for read transfers.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [1, 2, 4, 8]
+        default: 1
 
       spi-rx-delay-us:
         description:
           Delay, in microseconds, after a read transfer.
 
       spi-tx-bus-width:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [ 1, 2, 4 ]
-          - default: 1
         description:
-          Bus width to the SPI bus used for MOSI.
+          Bus width to the SPI bus used for write transfers.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [1, 2, 4, 8]
+        default: 1
 
       spi-tx-delay-us:
         description:
@@ -135,6 +147,8 @@ patternProperties:
     required:
       - compatible
       - reg
+
+additionalProperties: true
 
 examples:
   - |

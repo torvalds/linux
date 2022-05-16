@@ -1507,7 +1507,7 @@ clean_up:
 static struct platform_driver fusb300_driver = {
 	.remove =	fusb300_remove,
 	.driver		= {
-		.name =	(char *) udc_name,
+		.name =	udc_name,
 	},
 };
 

@@ -169,7 +169,7 @@ struct dt_params {
 
 /**
  * struct atlas7_pad_conf - Atlas7 Pad Configuration
- * @id			The ID of this Pad.
+ * @id:			The ID of this Pad.
  * @type:		The type of this Pad.
  * @mux_reg:		The mux register offset.
  *			This register contains the mux.
@@ -210,7 +210,7 @@ struct atlas7_pad_config {
 		.ad_ctrl_bit = adb,				\
 	}
 
-/**
+/*
  * struct atlas7_pad_status - Atlas7 Pad status
  */
 struct atlas7_pad_status {
@@ -352,13 +352,9 @@ struct atlas7_gpio_chip {
 	int nbank;
 	raw_spinlock_t lock;
 	struct gpio_chip chip;
-	struct atlas7_gpio_bank banks[0];
+	struct atlas7_gpio_bank banks[];
 };
 
-/**
- * @dev: a pointer back to containing device
- * @virtbase: the offset to the controller in virtual memory
- */
 struct atlas7_pmx {
 	struct device *dev;
 	struct pinctrl_dev *pctl;
@@ -376,7 +372,7 @@ struct atlas7_pmx {
  * refer to A7DA IO Summary - CS-314158-DD-4E.xls
  */
 
-/*Pads in IOC RTC & TOP */
+/* Pads in IOC RTC & TOP */
 static const struct pinctrl_pin_desc atlas7_ioc_pads[] = {
 	/* RTC PADs */
 	PINCTRL_PIN(0, "rtc_gpio_0"),
@@ -4781,10 +4777,10 @@ struct map_data {
 
 /**
  * struct atlas7_pull_info - Atlas7 Pad pull info
- * @type:The type of this Pad.
- * @mask:The mas value of this pin's pull bits.
- * @v2s: The map of pull register value to pull status.
- * @s2v: The map of pull status to pull register value.
+ * @pad_type:	The type of this Pad.
+ * @mask:	The mas value of this pin's pull bits.
+ * @v2s:	The map of pull register value to pull status.
+ * @s2v:	The map of pull status to pull register value.
  */
 struct atlas7_pull_info {
 	u8 pad_type;
@@ -4908,6 +4904,7 @@ static const struct atlas7_ds_ma_info atlas7_ma2ds_map[] = {
  * @type:		The type of this Pad.
  * @mask:		The mask value of this pin's pull bits.
  * @imval:		The immediate value of drives trength register.
+ * @reserved:		Reserved space
  */
 struct atlas7_ds_info {
 	u8 type;
@@ -5609,7 +5606,7 @@ static int __init atlas7_pinmux_init(void)
 arch_initcall(atlas7_pinmux_init);
 
 
-/**
+/*
  * The Following is GPIO Code
  */
 static inline struct
@@ -5996,6 +5993,7 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *chip;
 	u32 nbank;
 	int ret, idx;
+	struct gpio_irq_chip *girq;
 
 	ret = of_property_read_u32(np, "gpio-banks", &nbank);
 	if (ret) {
@@ -6048,24 +6046,15 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 	chip->of_gpio_n_cells = 2;
 	chip->parent = &pdev->dev;
 
-	/* Add gpio chip to system */
-	ret = gpiochip_add_data(chip, a7gc);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"%pOF: error in probe function with status %d\n",
-			np, ret);
-		goto failed;
-	}
-
-	/* Add gpio chip to irq subsystem */
-	ret =  gpiochip_irqchip_add(chip, &atlas7_gpio_irq_chip,
-			0, handle_level_irq, IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"could not connect irqchip to gpiochip\n");
-		goto failed;
-	}
-
+	girq = &chip->irq;
+	girq->chip = &atlas7_gpio_irq_chip;
+	girq->parent_handler = atlas7_gpio_handle_irq;
+	girq->num_parents = nbank;
+	girq->parents = devm_kcalloc(&pdev->dev, nbank,
+				     sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
 	for (idx = 0; idx < nbank; idx++) {
 		struct atlas7_gpio_bank *bank;
 
@@ -6084,9 +6073,18 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 			goto failed;
 		}
 		bank->irq = ret;
+		girq->parents[idx] = ret;
+	}
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
 
-		gpiochip_set_chained_irqchip(chip, &atlas7_gpio_irq_chip,
-					bank->irq, atlas7_gpio_handle_irq);
+	/* Add gpio chip to system */
+	ret = gpiochip_add_data(chip, a7gc);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"%pOF: error in probe function with status %d\n",
+			np, ret);
+		goto failed;
 	}
 
 	platform_set_drvdata(pdev, a7gc);

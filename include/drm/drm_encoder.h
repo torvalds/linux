@@ -140,9 +140,9 @@ struct drm_encoder {
 	 * @possible_crtcs: Bitmask of potential CRTC bindings, using
 	 * drm_crtc_index() as the index into the bitfield. The driver must set
 	 * the bits for all &drm_crtc objects this encoder can be connected to
-	 * before calling drm_encoder_init().
+	 * before calling drm_dev_register().
 	 *
-	 * In reality almost every driver gets this wrong.
+	 * You will get a WARN if you get this wrong in the driver.
 	 *
 	 * Note that since CRTC objects can't be hotplugged the assigned indices
 	 * are stable and hence known before registering all objects.
@@ -154,12 +154,16 @@ struct drm_encoder {
 	 * using drm_encoder_index() as the index into the bitfield. The driver
 	 * must set the bits for all &drm_encoder objects which can clone a
 	 * &drm_crtc together with this encoder before calling
-	 * drm_encoder_init(). Drivers should set the bit representing the
+	 * drm_dev_register(). Drivers should set the bit representing the
 	 * encoder itself, too. Cloning bits should be set such that when two
 	 * encoders can be used in a cloned configuration, they both should have
 	 * each another bits set.
 	 *
-	 * In reality almost every driver gets this wrong.
+	 * As an exception to the above rule if the driver doesn't implement
+	 * any cloning it can leave @possible_clones set to 0. The core will
+	 * automagically fix this up by setting the bit for the encoder itself.
+	 *
+	 * You will get a WARN if you get this wrong in the driver.
 	 *
 	 * Note that since encoder objects can't be hotplugged the assigned indices
 	 * are stable and hence known before registering all objects.
@@ -172,7 +176,13 @@ struct drm_encoder {
 	 * &drm_connector_state.crtc.
 	 */
 	struct drm_crtc *crtc;
-	struct drm_bridge *bridge;
+
+	/**
+	 * @bridge_chain: Bridges attached to this encoder. Drivers shall not
+	 * access this field directly.
+	 */
+	struct list_head bridge_chain;
+
 	const struct drm_encoder_funcs *funcs;
 	const struct drm_encoder_helper_funcs *helper_private;
 };
@@ -198,7 +208,7 @@ static inline unsigned int drm_encoder_index(const struct drm_encoder *encoder)
 }
 
 /**
- * drm_encoder_mask - find the mask of a registered ENCODER
+ * drm_encoder_mask - find the mask of a registered encoder
  * @encoder: encoder to find mask for
  *
  * Given a registered encoder, return the mask bit of that encoder for an

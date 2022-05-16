@@ -16,17 +16,27 @@
 
 #define MAX_SPEED 3
 
-static int temp_limits[3] = { 55000, 60000, 65000 };
+#define TEMP_LIMIT0_DEFAULT	55000
+#define TEMP_LIMIT1_DEFAULT	60000
+#define TEMP_LIMIT2_DEFAULT	65000
+
+#define HYSTERESIS_DEFAULT	3000
+
+#define SPEED_ON_AC_DEFAULT	2
+
+static int temp_limits[3] = {
+	TEMP_LIMIT0_DEFAULT, TEMP_LIMIT1_DEFAULT, TEMP_LIMIT2_DEFAULT,
+};
 module_param_array(temp_limits, int, NULL, 0444);
 MODULE_PARM_DESC(temp_limits,
 		 "Millicelsius values above which the fan speed increases");
 
-static int hysteresis = 3000;
+static int hysteresis = HYSTERESIS_DEFAULT;
 module_param(hysteresis, int, 0444);
 MODULE_PARM_DESC(hysteresis,
 		 "Hysteresis in millicelsius before lowering the fan speed");
 
-static int speed_on_ac = 2;
+static int speed_on_ac = SPEED_ON_AC_DEFAULT;
 module_param(speed_on_ac, int, 0444);
 MODULE_PARM_DESC(speed_on_ac,
 		 "minimum fan speed to allow when system is powered by AC");
@@ -117,21 +127,24 @@ static int gpd_pocket_fan_probe(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(temp_limits); i++) {
-		if (temp_limits[i] < 40000 || temp_limits[i] > 70000) {
-			dev_err(&pdev->dev, "Invalid temp-limit %d (must be between 40000 and 70000)\n",
+		if (temp_limits[i] < 20000 || temp_limits[i] > 90000) {
+			dev_err(&pdev->dev, "Invalid temp-limit %d (must be between 20000 and 90000)\n",
 				temp_limits[i]);
-			return -EINVAL;
+			temp_limits[0] = TEMP_LIMIT0_DEFAULT;
+			temp_limits[1] = TEMP_LIMIT1_DEFAULT;
+			temp_limits[2] = TEMP_LIMIT2_DEFAULT;
+			break;
 		}
 	}
 	if (hysteresis < 1000 || hysteresis > 10000) {
 		dev_err(&pdev->dev, "Invalid hysteresis %d (must be between 1000 and 10000)\n",
 			hysteresis);
-		return -EINVAL;
+		hysteresis = HYSTERESIS_DEFAULT;
 	}
 	if (speed_on_ac < 0 || speed_on_ac > MAX_SPEED) {
 		dev_err(&pdev->dev, "Invalid speed_on_ac %d (must be between 0 and 3)\n",
 			speed_on_ac);
-		return -EINVAL;
+		speed_on_ac = SPEED_ON_AC_DEFAULT;
 	}
 
 	fan = devm_kzalloc(&pdev->dev, sizeof(*fan), GFP_KERNEL);

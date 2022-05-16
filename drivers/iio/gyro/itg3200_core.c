@@ -15,7 +15,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/module.h>
@@ -154,7 +153,7 @@ static int itg3200_write_raw(struct iio_dev *indio_dev,
 					  t);
 
 		mutex_unlock(&indio_dev->mlock);
-	return ret;
+		return ret;
 
 	default:
 		return -EINVAL;
@@ -317,7 +316,6 @@ static int itg3200_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	st->i2c = client;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = client->dev.driver->name;
 	indio_dev->channels = itg3200_channels;
 	indio_dev->num_channels = ARRAY_SIZE(itg3200_channels);

@@ -27,7 +27,7 @@
 struct user_key_payload {
 	struct rcu_head	rcu;		/* RCU destructor */
 	unsigned short	datalen;	/* length of this data */
-	char		data[0] __aligned(__alignof__(u64)); /* actual data */
+	char		data[] __aligned(__alignof__(u64)); /* actual data */
 };
 
 extern struct key_type key_type_user;
@@ -41,8 +41,7 @@ extern int user_update(struct key *key, struct key_preparsed_payload *prep);
 extern void user_revoke(struct key *key);
 extern void user_destroy(struct key *key);
 extern void user_describe(const struct key *user, struct seq_file *m);
-extern long user_read(const struct key *key,
-		      char __user *buffer, size_t buflen);
+extern long user_read(const struct key *key, char *buffer, size_t buflen);
 
 static inline const struct user_key_payload *user_key_payload_rcu(const struct key *key)
 {

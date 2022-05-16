@@ -26,7 +26,6 @@
 /*
  * Pre-requisites: headers required by header of this unit
  */
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #include "hw_translate_dcn21.h"
 
 #include "dm_services.h"
@@ -382,4 +381,3 @@ void dal_hw_translate_dcn21_init(struct hw_translate *tr)
 	tr->funcs = &funcs;
 }
 
-#endif

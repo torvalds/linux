@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: MIT
+include $(src)/nvkm/subdev/acr/Kbuild
 include $(src)/nvkm/subdev/bar/Kbuild
 include $(src)/nvkm/subdev/bios/Kbuild
 include $(src)/nvkm/subdev/bus/Kbuild
@@ -19,7 +20,6 @@ include $(src)/nvkm/subdev/mmu/Kbuild
 include $(src)/nvkm/subdev/mxm/Kbuild
 include $(src)/nvkm/subdev/pci/Kbuild
 include $(src)/nvkm/subdev/pmu/Kbuild
-include $(src)/nvkm/subdev/secboot/Kbuild
 include $(src)/nvkm/subdev/therm/Kbuild
 include $(src)/nvkm/subdev/timer/Kbuild
 include $(src)/nvkm/subdev/top/Kbuild

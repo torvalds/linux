@@ -230,12 +230,12 @@ CXACRU__ATTR_INIT(_name)
 
 static ssize_t cxacru_sysfs_showattr_u32(u32 value, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%u\n", value);
+	return sprintf(buf, "%u\n", value);
 }
 
 static ssize_t cxacru_sysfs_showattr_s8(s8 value, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+	return sprintf(buf, "%d\n", value);
 }
 
 static ssize_t cxacru_sysfs_showattr_dB(s16 value, char *buf)
@@ -255,8 +255,8 @@ static ssize_t cxacru_sysfs_showattr_bool(u32 value, char *buf)
 	static char *str[] = { "no", "yes" };
 
 	if (unlikely(value >= ARRAY_SIZE(str)))
-		return snprintf(buf, PAGE_SIZE, "%u\n", value);
-	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
+		return sprintf(buf, "%u\n", value);
+	return sprintf(buf, "%s\n", str[value]);
 }
 
 static ssize_t cxacru_sysfs_showattr_LINK(u32 value, char *buf)
@@ -264,8 +264,8 @@ static ssize_t cxacru_sysfs_showattr_LINK(u32 value, char *buf)
 	static char *str[] = { NULL, "not connected", "connected", "lost" };
 
 	if (unlikely(value >= ARRAY_SIZE(str) || str[value] == NULL))
-		return snprintf(buf, PAGE_SIZE, "%u\n", value);
-	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
+		return sprintf(buf, "%u\n", value);
+	return sprintf(buf, "%s\n", str[value]);
 }
 
 static ssize_t cxacru_sysfs_showattr_LINE(u32 value, char *buf)
@@ -275,8 +275,8 @@ static ssize_t cxacru_sysfs_showattr_LINE(u32 value, char *buf)
 		"waiting", "initialising"
 	};
 	if (unlikely(value >= ARRAY_SIZE(str)))
-		return snprintf(buf, PAGE_SIZE, "%u\n", value);
-	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
+		return sprintf(buf, "%u\n", value);
+	return sprintf(buf, "%s\n", str[value]);
 }
 
 static ssize_t cxacru_sysfs_showattr_MODU(u32 value, char *buf)
@@ -288,8 +288,8 @@ static ssize_t cxacru_sysfs_showattr_MODU(u32 value, char *buf)
 			"ITU-T G.992.2 (G.LITE)"
 	};
 	if (unlikely(value >= ARRAY_SIZE(str)))
-		return snprintf(buf, PAGE_SIZE, "%u\n", value);
-	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
+		return sprintf(buf, "%u\n", value);
+	return sprintf(buf, "%s\n", str[value]);
 }
 
 /*
@@ -309,8 +309,7 @@ static ssize_t mac_address_show(struct device *dev,
 	if (instance == NULL || instance->usbatm->atm_dev == NULL)
 		return -ENODEV;
 
-	return snprintf(buf, PAGE_SIZE, "%pM\n",
-		instance->usbatm->atm_dev->esi);
+	return sprintf(buf, "%pM\n", instance->usbatm->atm_dev->esi);
 }
 
 static ssize_t adsl_state_show(struct device *dev,
@@ -326,8 +325,8 @@ static ssize_t adsl_state_show(struct device *dev,
 
 	value = instance->card_info[CXINF_LINE_STARTABLE];
 	if (unlikely(value >= ARRAY_SIZE(str)))
-		return snprintf(buf, PAGE_SIZE, "%u\n", value);
-	return snprintf(buf, PAGE_SIZE, "%s\n", str[value]);
+		return sprintf(buf, "%u\n", value);
+	return sprintf(buf, "%s\n", str[value]);
 }
 
 static ssize_t adsl_state_store(struct device *dev,
@@ -408,7 +407,7 @@ static ssize_t adsl_state_store(struct device *dev,
 		case CXPOLL_STOPPING:
 			/* abort stop request */
 			instance->poll_state = CXPOLL_POLLING;
-			/* fall through */
+			fallthrough;
 		case CXPOLL_POLLING:
 		case CXPOLL_SHUTDOWN:
 			/* don't start polling */
@@ -802,7 +801,7 @@ static int cxacru_atm_start(struct usbatm_data *usbatm_instance,
 	case CXPOLL_STOPPING:
 		/* abort stop request */
 		instance->poll_state = CXPOLL_POLLING;
-		/* fall through */
+		fallthrough;
 	case CXPOLL_POLLING:
 	case CXPOLL_SHUTDOWN:
 		/* don't start polling */

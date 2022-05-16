@@ -1,7 +1,7 @@
 #ifndef _ASM_UAPI_LKL_SYSCALLS_H
 #define _ASM_UAPI_LKL_SYSCALLS_H
 
-#include <autoconf.h>
+#include <asm/config.h>
 #include <linux/types.h>
 
 typedef __kernel_uid32_t 	qid_t;
@@ -21,10 +21,6 @@ typedef __kernel_gid32_t	gid_t;
 typedef __kernel_uid16_t        uid16_t;
 typedef __kernel_gid16_t        gid16_t;
 typedef unsigned long		uintptr_t;
-#ifdef CONFIG_UID16
-typedef __kernel_old_uid_t	old_uid_t;
-typedef __kernel_old_gid_t	old_gid_t;
-#endif
 typedef __kernel_loff_t		loff_t;
 typedef __kernel_size_t		size_t;
 typedef __kernel_ssize_t	ssize_t;
@@ -83,7 +79,7 @@ typedef __s64			s64;
 #undef __NR_umount
 #define __NR_umount __NR_umount2
 
-#ifdef CONFIG_64BIT
+#if LKL_CONFIG_64BIT
 #define __NR_newfstat __NR3264_fstat
 #define __NR_newfstatat __NR3264_fstatat
 #endif

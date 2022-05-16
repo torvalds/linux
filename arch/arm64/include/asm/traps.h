@@ -24,7 +24,7 @@ struct undef_hook {
 
 void register_undef_hook(struct undef_hook *hook);
 void unregister_undef_hook(struct undef_hook *hook);
-void force_signal_inject(int signal, int code, unsigned long address);
+void force_signal_inject(int signal, int code, unsigned long address, unsigned int err);
 void arm64_notify_segfault(unsigned long addr);
 void arm64_force_sig_fault(int signo, int code, void __user *addr, const char *str);
 void arm64_force_sig_mceerr(int code, void __user *addr, short lsb, const char *str);
@@ -40,16 +40,6 @@ static inline int __in_irqentry_text(unsigned long ptr)
 {
 	return ptr >= (unsigned long)&__irqentry_text_start &&
 	       ptr < (unsigned long)&__irqentry_text_end;
-}
-
-static inline int in_exception_text(unsigned long ptr)
-{
-	int in;
-
-	in = ptr >= (unsigned long)&__exception_text_start &&
-	     ptr < (unsigned long)&__exception_text_end;
-
-	return in ? : __in_irqentry_text(ptr);
 }
 
 static inline int in_entry_text(unsigned long ptr)

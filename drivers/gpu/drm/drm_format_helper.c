@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0 or MIT
 /*
  * Copyright (C) 2016 Noralf Trønnes
  *
@@ -79,39 +79,60 @@ void drm_fb_memcpy_dstclip(void __iomem *dst, void *vaddr,
 EXPORT_SYMBOL(drm_fb_memcpy_dstclip);
 
 /**
- * drm_fb_swab16 - Swap bytes into clip buffer
- * @dst: RGB565 destination buffer
- * @vaddr: RGB565 source buffer
+ * drm_fb_swab - Swap bytes into clip buffer
+ * @dst: Destination buffer
+ * @src: Source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
+ * @cached: Source buffer is mapped cached (eg. not write-combined)
+ *
+ * If @cached is false a temporary buffer is used to cache one pixel line at a
+ * time to speed up slow uncached reads.
+ *
+ * This function does not apply clipping on dst, i.e. the destination
+ * is a small buffer containing the clip rect only.
  */
-void drm_fb_swab16(u16 *dst, void *vaddr, struct drm_framebuffer *fb,
-		   struct drm_rect *clip)
+void drm_fb_swab(void *dst, void *src, struct drm_framebuffer *fb,
+		 struct drm_rect *clip, bool cached)
 {
-	size_t len = (clip->x2 - clip->x1) * sizeof(u16);
+	u8 cpp = fb->format->cpp[0];
+	size_t len = drm_rect_width(clip) * cpp;
+	u16 *src16, *dst16 = dst;
+	u32 *src32, *dst32 = dst;
 	unsigned int x, y;
-	u16 *src, *buf;
+	void *buf = NULL;
 
-	/*
-	 * The cma memory is write-combined so reads are uncached.
-	 * Speed up by fetching one line at a time.
-	 */
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf)
+	if (WARN_ON_ONCE(cpp != 2 && cpp != 4))
 		return;
 
+	if (!cached)
+		buf = kmalloc(len, GFP_KERNEL);
+
+	src += clip_offset(clip, fb->pitches[0], cpp);
+
 	for (y = clip->y1; y < clip->y2; y++) {
-		src = vaddr + (y * fb->pitches[0]);
-		src += clip->x1;
-		memcpy(buf, src, len);
-		src = buf;
-		for (x = clip->x1; x < clip->x2; x++)
-			*dst++ = swab16(*src++);
+		if (buf) {
+			memcpy(buf, src, len);
+			src16 = buf;
+			src32 = buf;
+		} else {
+			src16 = src;
+			src32 = src;
+		}
+
+		for (x = clip->x1; x < clip->x2; x++) {
+			if (cpp == 4)
+				*dst32++ = swab32(*src32++);
+			else
+				*dst16++ = swab16(*src16++);
+		}
+
+		src += fb->pitches[0];
 	}
 
 	kfree(buf);
 }
-EXPORT_SYMBOL(drm_fb_swab16);
+EXPORT_SYMBOL(drm_fb_swab);
 
 static void drm_fb_xrgb8888_to_rgb565_line(u16 *dbuf, u32 *sbuf,
 					   unsigned int pixels,

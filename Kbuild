@@ -7,7 +7,7 @@
 
 bounds-file := include/generated/bounds.h
 
-always  := $(bounds-file)
+always-y := $(bounds-file)
 targets := kernel/bounds.s
 
 $(bounds-file): kernel/bounds.s FORCE
@@ -28,7 +28,7 @@ $(timeconst-file): kernel/time/timeconst.bc FORCE
 
 offsets-file := include/generated/asm-offsets.h
 
-always  += $(offsets-file)
+always-y += $(offsets-file)
 targets += arch/$(SRCARCH)/kernel/asm-offsets.s
 
 arch/$(SRCARCH)/kernel/asm-offsets.s: $(timeconst-file) $(bounds-file)
@@ -39,7 +39,7 @@ $(offsets-file): arch/$(SRCARCH)/kernel/asm-offsets.s FORCE
 #####
 # Check for missing system calls
 
-always += missing-syscalls
+always-y += missing-syscalls
 
 quiet_cmd_syscalls = CALL    $<
       cmd_syscalls = $(CONFIG_SHELL) $< $(CC) $(c_flags) $(missing_syscalls_flags)
@@ -50,7 +50,7 @@ missing-syscalls: scripts/checksyscalls.sh $(offsets-file) FORCE
 #####
 # Check atomic headers are up-to-date
 
-always += old-atomics
+always-y += old-atomics
 
 quiet_cmd_atomics = CALL    $<
       cmd_atomics = $(CONFIG_SHELL) $<

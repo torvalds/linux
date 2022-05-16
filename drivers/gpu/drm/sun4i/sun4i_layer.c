@@ -250,11 +250,11 @@ struct drm_plane **sun4i_layers_init(struct drm_device *drm,
 			dev_err(drm->dev, "Couldn't initialize %s plane\n",
 				i ? "overlay" : "primary");
 			return ERR_CAST(layer);
-		};
+		}
 
 		layer->id = i;
 		planes[i] = &layer->plane;
-	};
+	}
 
 	return planes;
 }

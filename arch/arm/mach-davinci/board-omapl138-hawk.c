@@ -3,7 +3,7 @@
  *
  * Initial code: Syed Mohammed Khasim
  *
- * Copyright (C) 2009 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2009 Texas Instruments Incorporated - https://www.ti.com
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of
@@ -206,7 +206,7 @@ static struct davinci_nand_pdata omapl138_hawk_nandflash_data = {
 	.core_chipsel	= 1,
 	.parts		= omapl138_hawk_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(omapl138_hawk_nandflash_partition),
-	.ecc_mode	= NAND_ECC_HW,
+	.engine_type	= NAND_ECC_ENGINE_TYPE_ON_HOST,
 	.ecc_bits	= 4,
 	.bbt_options	= NAND_BBT_USE_FLASH,
 	.options	= NAND_BUSWIDTH_16,

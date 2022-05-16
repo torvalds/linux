@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig SND_SOC_SAMSUNG
 	tristate "ASoC support for Samsung"
-	depends on PLAT_SAMSUNG || ARCH_EXYNOS || COMPILE_TEST
+	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	depends on COMMON_CLK
 	select SND_SOC_GENERIC_DMAENGINE_PCM
-	---help---
+	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the Samsung SoCs' Audio interfaces. You will also need to
 	  select the audio interfaces to support below.
@@ -77,7 +77,7 @@ config SND_SOC_SAMSUNG_S3C24XX_UDA134X
 config SND_SOC_SAMSUNG_SIMTEC
 	tristate
 	help
-	  Internal node for common S3C24XX/Simtec suppor
+	  Internal node for common S3C24XX/Simtec support.
 
 config SND_SOC_SAMSUNG_SIMTEC_TLV320AIC23
 	tristate "SoC I2S Audio support for TLV320AIC23 on Simtec boards"
@@ -151,7 +151,7 @@ config SND_SOC_TOBERMORY
 
 config SND_SOC_BELLS
 	tristate "Audio support for Wolfson Bells"
-	depends on MFD_ARIZONA && I2C && SPI_MASTER
+	depends on MFD_ARIZONA && MFD_WM5102 && MFD_WM5110 && I2C && SPI_MASTER
 	depends on MACH_WLF_CRAGG_6410 || COMPILE_TEST
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM5102
@@ -194,20 +194,43 @@ config SND_SOC_ODROID
 	help
 	  Say Y here to enable audio support for the Odroid XU3/XU4.
 
-config SND_SOC_ARNDALE_RT5631_ALC5631
-        tristate "Audio support for RT5631(ALC5631) on Arndale Board"
-        depends on I2C
-        select SND_SAMSUNG_I2S
-        select SND_SOC_RT5631
+config SND_SOC_ARNDALE
+	tristate "Audio support for Arndale Board"
+	depends on I2C
+	select SND_SAMSUNG_I2S
+	select SND_SOC_RT5631
+	select MFD_WM8994
+	select SND_SOC_WM8994
 
 config SND_SOC_SAMSUNG_TM2_WM5110
 	tristate "SoC I2S Audio support for WM5110 on TM2 board"
-	depends on SND_SOC_SAMSUNG && MFD_ARIZONA && I2C && SPI_MASTER
+	depends on SND_SOC_SAMSUNG && MFD_ARIZONA && MFD_WM5110 && I2C && SPI_MASTER
 	depends on GPIOLIB || COMPILE_TEST
 	select SND_SOC_MAX98504
 	select SND_SOC_WM5110
 	select SND_SAMSUNG_I2S
 	help
 	  Say Y if you want to add support for SoC audio on the TM2 board.
+
+config SND_SOC_SAMSUNG_ARIES_WM8994
+	tristate "SoC I2S Audio support for WM8994 on Aries"
+	depends on SND_SOC_SAMSUNG && MFD_WM8994 && IIO && EXTCON
+	select SND_SOC_BT_SCO
+	select SND_SOC_WM8994
+	select SND_SAMSUNG_I2S
+	help
+	  Say Y if you want to add support for SoC audio on Aries boards,
+	  which has a WM8994 codec connected to a BT codec, a cellular
+	  modem, and the Samsung I2S controller.  Jack detection is done
+	  via ADC, GPIOs, and an extcon device.  Switching between the Mic
+	  and TV-Out path is also handled.
+
+config SND_SOC_SAMSUNG_MIDAS_WM1811
+	tristate "SoC I2S Audio support for Midas boards"
+	depends on SND_SOC_SAMSUNG
+	select SND_SAMSUNG_I2S
+	select SND_SOC_WM8994
+	help
+	  Say Y if you want to add support for SoC audio on the Midas boards.
 
 endif #SND_SOC_SAMSUNG

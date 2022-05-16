@@ -120,7 +120,7 @@ int bcm47xx_nvram_init_from_mem(u32 base, u32 lim)
 	void __iomem *iobase;
 	int err;
 
-	iobase = ioremap_nocache(base, lim);
+	iobase = ioremap(base, lim);
 	if (!iobase)
 		return -ENOMEM;
 

@@ -61,7 +61,6 @@
 #include <asm/io.h>
 
 #include <scsi/scsi.h>
-#include <scsi/scsicam.h>	/* needed for scsicam_bios_param */
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
@@ -903,7 +902,7 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 	nseg = scsi_dma_map(cmd);
 	BUG_ON(nseg < 0);
 
-	if (dir == PCI_DMA_NONE || !nseg) {
+	if (dir == DMA_NONE || !nseg) {
 		dprintkdbg(DBG_0,
 			"build_srb: [0] len=%d buf=%p use_sg=%d !MAP=%08x\n",
 			   cmd->bufflen, scsi_sglist(cmd), scsi_sg_count(cmd),
@@ -1052,38 +1051,6 @@ complete:
 }
 
 static DEF_SCSI_QCMD(dc395x_queue_command)
-
-/*
- * Return the disk geometry for the given SCSI device.
- */
-static int dc395x_bios_param(struct scsi_device *sdev,
-		struct block_device *bdev, sector_t capacity, int *info)
-{
-#ifdef CONFIG_SCSI_DC395x_TRMS1040_TRADMAP
-	int heads, sectors, cylinders;
-	struct AdapterCtlBlk *acb;
-	int size = capacity;
-
-	dprintkdbg(DBG_0, "dc395x_bios_param..............\n");
-	acb = (struct AdapterCtlBlk *)sdev->host->hostdata;
-	heads = 64;
-	sectors = 32;
-	cylinders = size / (heads * sectors);
-
-	if ((acb->gmode2 & NAC_GREATER_1G) && (cylinders > 1024)) {
-		heads = 255;
-		sectors = 63;
-		cylinders = size / (heads * sectors);
-	}
-	geom[0] = heads;
-	geom[1] = sectors;
-	geom[2] = cylinders;
-	return 0;
-#else
-	return scsicam_bios_param(bdev, capacity, info);
-#endif
-}
-
 
 static void dump_register_info(struct AdapterCtlBlk *acb,
 		struct DeviceCtlBlk *dcb, struct ScsiReqBlk *srb)
@@ -3168,7 +3135,7 @@ static void pci_unmap_srb(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 	struct scsi_cmnd *cmd = srb->cmd;
 	enum dma_data_direction dir = cmd->sc_data_direction;
 
-	if (scsi_sg_count(cmd) && dir != PCI_DMA_NONE) {
+	if (scsi_sg_count(cmd) && dir != DMA_NONE) {
 		/* unmap DC395x SG list */
 		dprintkdbg(DBG_SG, "pci_unmap_srb: list=%08x(%05x)\n",
 			srb->sg_bus_addr, SEGMENTX_LEN);
@@ -3366,7 +3333,7 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 
 		if (!ckc_only && (cmd->result & RES_DID) == 0
 		    && cmd->cmnd[2] == 0 && scsi_bufflen(cmd) >= 8
-		    && dir != PCI_DMA_NONE && ptr && (ptr->Vers & 0x07) >= 2)
+		    && dir != DMA_NONE && ptr && (ptr->Vers & 0x07) >= 2)
 			dcb->inquiry7 = ptr->Flags;
 
 	/*if( srb->cmd->cmnd[0] == INQUIRY && */
@@ -4159,7 +4126,7 @@ static int adapter_sg_tables_alloc(struct AdapterCtlBlk *acb)
 	const unsigned srbs_per_page = PAGE_SIZE/SEGMENTX_LEN;
 	int srb_idx = 0;
 	unsigned i = 0;
-	struct SGentry *uninitialized_var(ptr);
+	struct SGentry *ptr;
 
 	for (i = 0; i < DC395x_MAX_SRB_CNT; i++)
 		acb->srb_array[i].segment_x = NULL;
@@ -4537,14 +4504,8 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 	/*seq_printf(m, "\n"); */
 
 	seq_printf(m, "Nr of DCBs: %i\n", list_size(&acb->dcb_list));
-	seq_printf(m, "Map of attached LUNs: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-	     acb->dcb_map[0], acb->dcb_map[1], acb->dcb_map[2],
-	     acb->dcb_map[3], acb->dcb_map[4], acb->dcb_map[5],
-	     acb->dcb_map[6], acb->dcb_map[7]);
-	seq_printf(m, "                      %02x %02x %02x %02x %02x %02x %02x %02x\n",
-	     acb->dcb_map[8], acb->dcb_map[9], acb->dcb_map[10],
-	     acb->dcb_map[11], acb->dcb_map[12], acb->dcb_map[13],
-	     acb->dcb_map[14], acb->dcb_map[15]);
+	seq_printf(m, "Map of attached LUNs: %8ph\n", &acb->dcb_map[0]);
+	seq_printf(m, "                      %8ph\n", &acb->dcb_map[8]);
 
 	seq_puts(m,
 		 "Un ID LUN Prty Sync Wide DsCn SndS TagQ nego_period SyncFreq SyncOffs MaxCmd\n");
@@ -4622,7 +4583,6 @@ static struct scsi_host_template dc395x_driver_template = {
 	.show_info              = dc395x_show_info,
 	.name                   = DC395X_BANNER " " DC395X_VERSION,
 	.queuecommand           = dc395x_queue_command,
-	.bios_param             = dc395x_bios_param,
 	.slave_alloc            = dc395x_slave_alloc,
 	.slave_destroy          = dc395x_slave_destroy,
 	.can_queue              = DC395x_MAX_CAN_QUEUE,
@@ -4761,30 +4721,7 @@ static struct pci_driver dc395x_driver = {
 	.probe          = dc395x_init_one,
 	.remove         = dc395x_remove_one,
 };
-
-
-/**
- * dc395x_module_init - Module initialization function
- *
- * Used by both module and built-in driver to initialise this driver.
- **/
-static int __init dc395x_module_init(void)
-{
-	return pci_register_driver(&dc395x_driver);
-}
-
-
-/**
- * dc395x_module_exit - Module cleanup function.
- **/
-static void __exit dc395x_module_exit(void)
-{
-	pci_unregister_driver(&dc395x_driver);
-}
-
-
-module_init(dc395x_module_init);
-module_exit(dc395x_module_exit);
+module_pci_driver(dc395x_driver);
 
 MODULE_AUTHOR("C.L. Huang / Erich Chen / Kurt Garloff");
 MODULE_DESCRIPTION("SCSI host adapter driver for Tekram TRM-S1040 based adapters: Tekram DC395 and DC315 series");

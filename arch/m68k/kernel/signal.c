@@ -47,7 +47,6 @@
 
 #include <asm/setup.h>
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/traps.h>
 #include <asm/ucontext.h>
 #include <asm/cacheflush.h>
@@ -62,25 +61,25 @@
 #define	FMT4SIZE	0
 #else
 #define	FORMAT		0
-#define	FMT4SIZE	sizeof(((struct frame *)0)->un.fmt4)
+#define	FMT4SIZE	sizeof_field(struct frame, un.fmt4)
 #endif
 
 static const int frame_size_change[16] = {
-  [1]	= -1, /* sizeof(((struct frame *)0)->un.fmt1), */
-  [2]	= sizeof(((struct frame *)0)->un.fmt2),
-  [3]	= sizeof(((struct frame *)0)->un.fmt3),
+  [1]	= -1, /* sizeof_field(struct frame, un.fmt1), */
+  [2]	= sizeof_field(struct frame, un.fmt2),
+  [3]	= sizeof_field(struct frame, un.fmt3),
   [4]	= FMT4SIZE,
-  [5]	= -1, /* sizeof(((struct frame *)0)->un.fmt5), */
-  [6]	= -1, /* sizeof(((struct frame *)0)->un.fmt6), */
-  [7]	= sizeof(((struct frame *)0)->un.fmt7),
-  [8]	= -1, /* sizeof(((struct frame *)0)->un.fmt8), */
-  [9]	= sizeof(((struct frame *)0)->un.fmt9),
-  [10]	= sizeof(((struct frame *)0)->un.fmta),
-  [11]	= sizeof(((struct frame *)0)->un.fmtb),
-  [12]	= -1, /* sizeof(((struct frame *)0)->un.fmtc), */
-  [13]	= -1, /* sizeof(((struct frame *)0)->un.fmtd), */
-  [14]	= -1, /* sizeof(((struct frame *)0)->un.fmte), */
-  [15]	= -1, /* sizeof(((struct frame *)0)->un.fmtf), */
+  [5]	= -1, /* sizeof_field(struct frame, un.fmt5), */
+  [6]	= -1, /* sizeof_field(struct frame, un.fmt6), */
+  [7]	= sizeof_field(struct frame, un.fmt7),
+  [8]	= -1, /* sizeof_field(struct frame, un.fmt8), */
+  [9]	= sizeof_field(struct frame, un.fmt9),
+  [10]	= sizeof_field(struct frame, un.fmta),
+  [11]	= sizeof_field(struct frame, un.fmtb),
+  [12]	= -1, /* sizeof_field(struct frame, un.fmtc), */
+  [13]	= -1, /* sizeof_field(struct frame, un.fmtd), */
+  [14]	= -1, /* sizeof_field(struct frame, un.fmte), */
+  [15]	= -1, /* sizeof_field(struct frame, un.fmtf), */
 };
 
 static inline int frame_extra_sizes(int f)
@@ -652,7 +651,7 @@ static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 	} else {
 		struct switch_stack *sw = (struct switch_stack *)regs - 1;
 		/* yes, twice as much as max(sizeof(frame.un.fmt<x>)) */
-		unsigned long buf[sizeof(((struct frame *)0)->un) / 2];
+		unsigned long buf[sizeof_field(struct frame, un) / 2];
 
 		/* that'll make sure that expansion won't crap over data */
 		if (copy_from_user(buf + fsize / 4, fp, fsize))
@@ -921,7 +920,8 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	err |= __put_user(0x70004e40 + (__NR_sigreturn << 16),
 			  (long __user *)(frame->retcode));
 #else
-	err |= __put_user((void *) ret_from_user_signal, &frame->pretcode);
+	err |= __put_user((long) ret_from_user_signal,
+			  (long __user *) &frame->pretcode);
 #endif
 
 	if (err)
@@ -1005,7 +1005,8 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	err |= __put_user(0x4e40, (short __user *)(frame->retcode + 4));
 #endif
 #else
-	err |= __put_user((void *) ret_from_user_rt_signal, &frame->pretcode);
+	err |= __put_user((long) ret_from_user_rt_signal,
+			  (long __user *) &frame->pretcode);
 #endif /* CONFIG_MMU */
 
 	if (err)
@@ -1068,7 +1069,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 			regs->d0 = -EINTR;
 			break;
 		}
-	/* fallthrough */
+		fallthrough;
 	case -ERESTARTNOINTR:
 	do_restart:
 		regs->d0 = regs->orig_d0;
@@ -1135,6 +1136,6 @@ void do_notify_resume(struct pt_regs *regs)
 	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal(regs);
 
-	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
+	if (test_thread_flag(TIF_NOTIFY_RESUME))
 		tracehook_notify_resume(regs);
 }

@@ -3,15 +3,13 @@
 #define _ASM_X86_DMA_MAPPING_H
 
 /*
- * IOMMU interface. See Documentation/DMA-API-HOWTO.txt and
- * Documentation/DMA-API.txt for documentation.
+ * IOMMU interface. See Documentation/core-api/dma-api-howto.rst and
+ * Documentation/core-api/dma-api.rst for documentation.
  */
 
 #include <linux/scatterlist.h>
-#include <linux/dma-debug.h>
 #include <asm/io.h>
 #include <asm/swiotlb.h>
-#include <linux/dma-contiguous.h>
 
 extern int iommu_merge;
 extern int panic_on_overflow;

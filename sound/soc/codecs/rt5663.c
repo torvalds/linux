@@ -1482,7 +1482,7 @@ static int rt5663_v2_jack_detect(struct snd_soc_component *component, int jack_i
 
 		while (i < 5) {
 			msleep(sleep_time[i]);
-			val = snd_soc_component_read32(component, RT5663_CBJ_TYPE_2) & 0x0003;
+			val = snd_soc_component_read(component, RT5663_CBJ_TYPE_2) & 0x0003;
 			if (val == 0x1 || val == 0x2 || val == 0x3)
 				break;
 			dev_dbg(component->dev, "%s: MX-0011 val=%x sleep %d\n",
@@ -1595,7 +1595,7 @@ static int rt5663_jack_detect(struct snd_soc_component *component, int jack_inse
 			i++;
 		}
 
-		val = snd_soc_component_read32(component, RT5663_EM_JACK_TYPE_2) & 0x0003;
+		val = snd_soc_component_read(component, RT5663_EM_JACK_TYPE_2) & 0x0003;
 		dev_dbg(component->dev, "%s val = %d\n", __func__, val);
 
 		snd_soc_component_update_bits(component, RT5663_HP_CHARGE_PUMP_1,
@@ -1698,12 +1698,12 @@ static int rt5663_impedance_sensing(struct snd_soc_component *component)
 			rt5663->imp_table[i].dc_offset_r_manual & 0xffff);
 	}
 
-	reg84 = snd_soc_component_read32(component, RT5663_ASRC_2);
-	reg26 = snd_soc_component_read32(component, RT5663_STO1_ADC_MIXER);
-	reg2fa = snd_soc_component_read32(component, RT5663_DUMMY_1);
-	reg91 = snd_soc_component_read32(component, RT5663_HP_CHARGE_PUMP_1);
-	reg10 = snd_soc_component_read32(component, RT5663_RECMIX);
-	reg80 = snd_soc_component_read32(component, RT5663_GLB_CLK);
+	reg84 = snd_soc_component_read(component, RT5663_ASRC_2);
+	reg26 = snd_soc_component_read(component, RT5663_STO1_ADC_MIXER);
+	reg2fa = snd_soc_component_read(component, RT5663_DUMMY_1);
+	reg91 = snd_soc_component_read(component, RT5663_HP_CHARGE_PUMP_1);
+	reg10 = snd_soc_component_read(component, RT5663_RECMIX);
+	reg80 = snd_soc_component_read(component, RT5663_GLB_CLK);
 
 	snd_soc_component_update_bits(component, RT5663_STO_DRE_1, 0x8000, 0);
 	snd_soc_component_write(component, RT5663_ASRC_2, 0);
@@ -1768,11 +1768,11 @@ static int rt5663_impedance_sensing(struct snd_soc_component *component)
 
 	for (i = 0; i < 100; i++) {
 		msleep(20);
-		if (snd_soc_component_read32(component, RT5663_INT_ST_1) & 0x2)
+		if (snd_soc_component_read(component, RT5663_INT_ST_1) & 0x2)
 			break;
 	}
 
-	value = snd_soc_component_read32(component, RT5663_HP_IMP_SEN_4);
+	value = snd_soc_component_read(component, RT5663_HP_IMP_SEN_4);
 
 	snd_soc_component_update_bits(component, RT5663_DEPOP_1, 0x3000, 0);
 	snd_soc_component_write(component, RT5663_INT_ST_1, 0);
@@ -1843,7 +1843,7 @@ static int rt5663_button_detect(struct snd_soc_component *component)
 {
 	int btn_type, val;
 
-	val = snd_soc_component_read32(component, RT5663_IL_CMD_5);
+	val = snd_soc_component_read(component, RT5663_IL_CMD_5);
 	dev_dbg(component->dev, "%s: val=0x%x\n", __func__, val);
 	btn_type = val & 0xfff0;
 	snd_soc_component_write(component, RT5663_IL_CMD_5, val);
@@ -1879,7 +1879,7 @@ static int rt5663_set_jack_detect(struct snd_soc_component *component,
 static bool rt5663_check_jd_status(struct snd_soc_component *component)
 {
 	struct rt5663_priv *rt5663 = snd_soc_component_get_drvdata(component);
-	int val = snd_soc_component_read32(component, RT5663_INT_ST_1);
+	int val = snd_soc_component_read(component, RT5663_INT_ST_1);
 
 	dev_dbg(component->dev, "%s val=%x\n", __func__, val);
 
@@ -2072,7 +2072,7 @@ static int rt5663_is_sys_clk_from_pll(struct snd_soc_dapm_widget *w,
 	unsigned int val;
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
-	val = snd_soc_component_read32(component, RT5663_GLB_CLK);
+	val = snd_soc_component_read(component, RT5663_GLB_CLK);
 	val &= RT5663_SCLK_SRC_MASK;
 	if (val == RT5663_SCLK_SRC_PLL1)
 		return 1;
@@ -2115,7 +2115,7 @@ static int rt5663_is_using_asrc(struct snd_soc_dapm_widget *w,
 		}
 	}
 
-	val = (snd_soc_component_read32(component, reg) >> shift) & 0x7;
+	val = (snd_soc_component_read(component, reg) >> shift) & 0x7;
 
 	if (val)
 		return 1;
@@ -2130,15 +2130,15 @@ static int rt5663_i2s_use_asrc(struct snd_soc_dapm_widget *source,
 	struct rt5663_priv *rt5663 = snd_soc_component_get_drvdata(component);
 	int da_asrc_en, ad_asrc_en;
 
-	da_asrc_en = (snd_soc_component_read32(component, RT5663_ASRC_2) &
+	da_asrc_en = (snd_soc_component_read(component, RT5663_ASRC_2) &
 		RT5663_DA_STO1_TRACK_MASK) ? 1 : 0;
 	switch (rt5663->codec_ver) {
 	case CODEC_VER_1:
-		ad_asrc_en = (snd_soc_component_read32(component, RT5663_ASRC_3) &
+		ad_asrc_en = (snd_soc_component_read(component, RT5663_ASRC_3) &
 			RT5663_V2_AD_STO1_TRACK_MASK) ? 1 : 0;
 		break;
 	case CODEC_VER_0:
-		ad_asrc_en = (snd_soc_component_read32(component, RT5663_ASRC_2) &
+		ad_asrc_en = (snd_soc_component_read(component, RT5663_ASRC_2) &
 			RT5663_AD_STO1_TRACK_MASK) ? 1 : 0;
 		break;
 	default:
@@ -3644,7 +3644,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5663->regmap, RT5663_PWR_ANLG_1,
 			RT5663_LDO1_DVO_MASK | RT5663_AMP_HP_MASK,
 			RT5663_LDO1_DVO_0_9V | RT5663_AMP_HP_3X);
-			break;
+		break;
 	case CODEC_VER_0:
 		regmap_update_bits(rt5663->regmap, RT5663_DIG_MISC,
 			RT5663_DIG_GATE_CTRL_MASK, RT5663_DIG_GATE_CTRL_EN);
@@ -3663,7 +3663,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5663->regmap, RT5663_TDM_2,
 			RT5663_DATA_SWAP_ADCDAT1_MASK,
 			RT5663_DATA_SWAP_ADCDAT1_LL);
-			break;
+		break;
 	default:
 		dev_err(&i2c->dev, "%s:Unknown codec type\n", __func__);
 	}

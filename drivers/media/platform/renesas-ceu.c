@@ -405,7 +405,7 @@ static int ceu_hw_config(struct ceu_device *ceudev)
 	/* Non-swapped planar image capture mode. */
 	case V4L2_PIX_FMT_NV16:
 		cdocr	|= CEU_CDOCR_NO_DOWSAMPLE;
-		/* fall-through */
+		fallthrough;
 	case V4L2_PIX_FMT_NV12:
 		if (mbus_fmt->swapped)
 			camcr = mbus_fmt->fmt_order_swap;
@@ -419,7 +419,7 @@ static int ceu_hw_config(struct ceu_device *ceudev)
 	/* Swapped planar image capture mode. */
 	case V4L2_PIX_FMT_NV61:
 		cdocr	|= CEU_CDOCR_NO_DOWSAMPLE;
-		/* fall-through */
+		fallthrough;
 	case V4L2_PIX_FMT_NV21:
 		if (mbus_fmt->swapped)
 			camcr = mbus_fmt->fmt_order;
@@ -1450,7 +1450,7 @@ static int ceu_notify_complete(struct v4l2_async_notifier *notifier)
 				  V4L2_CAP_STREAMING;
 	video_set_drvdata(vdev, ceudev);
 
-	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
 		v4l2_err(vdev->v4l2_dev,
 			 "video_register_device failed: %d\n", ret);

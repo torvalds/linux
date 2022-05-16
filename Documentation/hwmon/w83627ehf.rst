@@ -96,7 +96,7 @@ sensors. The configured source for each of the temperature sensors is provided
 in tempX_label.
 
 Temperatures are measured in degrees Celsius and measurement resolution is 1
-degC for temp1 and and 0.5 degC for temp2 and temp3. For temp4 and higher,
+degC for temp1 and 0.5 degC for temp2 and temp3. For temp4 and higher,
 resolution is 1 degC for W83667HG-B and 0.0 degC for NCT6775F and NCT6776F.
 An alarm is triggered when the temperature gets higher than high limit;
 it stays on until the temperature falls below the hysteresis value.

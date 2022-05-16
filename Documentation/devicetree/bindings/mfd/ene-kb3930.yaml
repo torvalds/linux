@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/ene-kb3930.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ENE KB3930 Embedded Controller bindings
+
+description: |
+  This binding describes the ENE KB3930 Embedded Controller attached to an
+  I2C bus.
+
+maintainers:
+  - Lubomir Rintel <lkundrak@v3.sk>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - dell,wyse-ariel-ec  # Dell Wyse Ariel board (3020)
+      - const: ene,kb3930
+  reg:
+    maxItems: 1
+
+  off-gpios:
+    description: GPIO used with the shutdown protocol on Ariel
+    maxItems: 2
+
+  system-power-controller: true
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      embedded-controller@58 {
+        compatible = "dell,wyse-ariel-ec", "ene,kb3930";
+        reg = <0x58>;
+        system-power-controller;
+
+        off-gpios = <&gpio 126 GPIO_ACTIVE_HIGH>,
+                    <&gpio 127 GPIO_ACTIVE_HIGH>;
+      };
+    };
+
+...

@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic iSCSI HBA Driver
  * Copyright (c)  2003-2013 QLogic Corporation
- *
- * See LICENSE.qla4xxx for copyright and licensing details.
  */
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -974,10 +973,10 @@ qla4_82xx_rom_fast_read(struct scsi_qla_host *ha, int addr, int *valp)
 	return ret;
 }
 
-/**
+/*
  * This routine does CRB initialize sequence
  * to put the ISP into operational state
- **/
+ */
 static int
 qla4_82xx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
 {
@@ -2645,7 +2644,7 @@ static uint32_t qla4_84xx_minidump_process_rddfe(struct scsi_qla_host *ha,
 	uint32_t addr1, addr2, value, data, temp, wrval;
 	uint8_t stride, stride2;
 	uint16_t count;
-	uint32_t poll, mask, data_size, modify_mask;
+	uint32_t poll, mask, modify_mask;
 	uint32_t wait_count = 0;
 	uint32_t *data_ptr = *d_ptr;
 	struct qla8044_minidump_entry_rddfe *rddfe;
@@ -2661,7 +2660,6 @@ static uint32_t qla4_84xx_minidump_process_rddfe(struct scsi_qla_host *ha,
 	poll = le32_to_cpu(rddfe->poll);
 	mask = le32_to_cpu(rddfe->mask);
 	modify_mask = le32_to_cpu(rddfe->modify_mask);
-	data_size = le32_to_cpu(rddfe->data_size);
 
 	addr2 = addr1 + stride;
 
@@ -2742,7 +2740,7 @@ static uint32_t qla4_84xx_minidump_process_rdmdio(struct scsi_qla_host *ha,
 	uint8_t stride1, stride2;
 	uint32_t addr3, addr4, addr5, addr6, addr7;
 	uint16_t count, loop_cnt;
-	uint32_t poll, mask;
+	uint32_t mask;
 	uint32_t *data_ptr = *d_ptr;
 	struct qla8044_minidump_entry_rdmdio *rdmdio;
 
@@ -2754,7 +2752,6 @@ static uint32_t qla4_84xx_minidump_process_rdmdio(struct scsi_qla_host *ha,
 	stride2 = le32_to_cpu(rdmdio->stride_2);
 	count = le32_to_cpu(rdmdio->count);
 
-	poll = le32_to_cpu(rdmdio->poll);
 	mask = le32_to_cpu(rdmdio->mask);
 	value2 = le32_to_cpu(rdmdio->value_2);
 
@@ -2813,7 +2810,7 @@ static uint32_t qla4_84xx_minidump_process_pollwr(struct scsi_qla_host *ha,
 				struct qla8xxx_minidump_entry_hdr *entry_hdr,
 				uint32_t **d_ptr)
 {
-	uint32_t addr1, addr2, value1, value2, poll, mask, r_value;
+	uint32_t addr1, addr2, value1, value2, poll, r_value;
 	struct qla8044_minidump_entry_pollwr *pollwr_hdr;
 	uint32_t wait_count = 0;
 	uint32_t rval = QLA_SUCCESS;
@@ -2825,7 +2822,6 @@ static uint32_t qla4_84xx_minidump_process_pollwr(struct scsi_qla_host *ha,
 	value2 = le32_to_cpu(pollwr_hdr->value_2);
 
 	poll = le32_to_cpu(pollwr_hdr->poll);
-	mask = le32_to_cpu(pollwr_hdr->mask);
 
 	while (wait_count < poll) {
 		ha->isp_ops->rd_reg_indirect(ha, addr1, &r_value);
@@ -3220,6 +3216,7 @@ md_failed:
 /**
  * qla4_8xxx_uevent_emit - Send uevent when the firmware dump is ready.
  * @ha: pointer to adapter structure
+ * @code: uevent code to act upon
  **/
 static void qla4_8xxx_uevent_emit(struct scsi_qla_host *ha, u32 code)
 {
@@ -3228,7 +3225,7 @@ static void qla4_8xxx_uevent_emit(struct scsi_qla_host *ha, u32 code)
 
 	switch (code) {
 	case QL4_UEVENT_CODE_FW_DUMP:
-		snprintf(event_string, sizeof(event_string), "FW_DUMP=%ld",
+		snprintf(event_string, sizeof(event_string), "FW_DUMP=%lu",
 			 ha->host_no);
 		break;
 	default:
@@ -3688,9 +3685,9 @@ done_read:
 	return dwptr;
 }
 
-/**
+/*
  * Address and length are byte address
- **/
+ */
 static uint8_t *
 qla4_82xx_read_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 		uint32_t offset, uint32_t length)

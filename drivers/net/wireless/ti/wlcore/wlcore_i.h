@@ -212,6 +212,7 @@ struct wl1271_ap_key {
 	u8 hlid;
 	u32 tx_seq_32;
 	u16 tx_seq_16;
+	bool is_pairwise;
 };
 
 enum wl12xx_flags {

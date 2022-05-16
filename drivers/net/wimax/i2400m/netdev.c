@@ -380,7 +380,7 @@ drop:
 
 
 static
-void i2400m_tx_timeout(struct net_device *net_dev)
+void i2400m_tx_timeout(struct net_device *net_dev, unsigned int txqueue)
 {
 	/*
 	 * We might want to kick the device

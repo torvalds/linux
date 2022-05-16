@@ -241,6 +241,20 @@ Voltages
 		Affects the way the driver calculates the CPU core reference
 		voltage from the vid pins.
 
+`in[0-*]_rated_min`
+		Minimum rated voltage.
+
+		Unit: millivolt
+
+		RO
+
+`in[0-*]_rated_max`
+		Maximum rated voltage.
+
+		Unit: millivolt
+
+		RO
+
 Also see the Alarms section for status flags associated with voltages.
 
 
@@ -574,6 +588,20 @@ Temperatures
 
 		RW
 
+`temp[1-*]_rated_min`
+		Minimum rated temperature.
+
+		Unit: millidegree Celsius
+
+		RO
+
+`temp[1-*]_rated_max`
+		Maximum rated temperature.
+
+		Unit: millidegree Celsius
+
+		RO
+
 Some chips measure temperature using external thermistors and an ADC, and
 report the temperature measurement as a voltage. Converting this voltage
 back to a temperature (or the other way around for limits) requires
@@ -663,6 +691,20 @@ Currents
 		- 0: Disable
 
 		RW
+
+`curr[1-*]_rated_min`
+		Minimum rated current.
+
+		Unit: milliampere
+
+		RO
+
+`curr[1-*]_rated_max`
+		Maximum rated current.
+
+		Unit: milliampere
+
+		RO
 
 Also see the Alarms section for status flags associated with currents.
 
@@ -830,6 +872,20 @@ Power
 
 				RW
 
+`power[1-*]_rated_min`
+				Minimum rated power.
+
+				Unit: microWatt
+
+				RO
+
+`power[1-*]_rated_max`
+				Maximum rated power.
+
+				Unit: microWatt
+
+				RO
+
 Also see the Alarms section for status flags associated with power readings.
 
 ******
@@ -876,6 +932,20 @@ Humidity
 				- 0: Disable
 
 				RW
+
+`humidity[1-*]_rated_min`
+				Minimum rated humidity.
+
+				Unit: milli-percent (per cent mille, pcm)
+
+				RO
+
+`humidity[1-*]_rated_max`
+				Maximum rated humidity.
+
+				Unit: milli-percent (per cent mille, pcm)
+
+				RO
 
 ******
 Alarms

@@ -9,7 +9,9 @@
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+
 #include <dt-bindings/clock/jz4725b-cgu.h>
+
 #include "cgu.h"
 #include "pm.h"
 
@@ -54,6 +56,7 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 		.parents = { JZ4725B_CLK_EXT, -1, -1, -1 },
 		.pll = {
 			.reg = CGU_REG_CPPCR,
+			.rate_multiplier = 1,
 			.m_shift = 23,
 			.m_bits = 9,
 			.m_offset = 2,
@@ -65,6 +68,7 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 			.od_max = 4,
 			.od_encoding = pll_od_encoding,
 			.stable_bit = 10,
+			.bypass_reg = CGU_REG_CPPCR,
 			.bypass_bit = 9,
 			.enable_bit = 8,
 		},

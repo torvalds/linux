@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+ipsec
 msg_zerocopy
 socket
 psock_fanout
@@ -22,3 +24,9 @@ ipv6_flowlabel_mgr
 so_txtime
 tcp_fastopen_backup_key
 nettest
+fin_ack_lat
+reuseaddr_ports_exhausted
+hwtstamp_config
+rxtimestamp
+timestamping
+txtimestamp

@@ -103,7 +103,7 @@ static int add_del_if(struct net_bridge *br, int ifindex, int isadd)
 
 /*
  * Legacy ioctl's through SIOCDEVPRIVATE
- * This interface is deprecated because it was too difficult to
+ * This interface is deprecated because it was too difficult
  * to do the translation for 32/64bit ioctl compatibility.
  */
 static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -242,8 +242,7 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (!ns_capable(dev_net(dev)->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
 
-		br_stp_set_enabled(br, args[1]);
-		ret = 0;
+		ret = br_stp_set_enabled(br, args[1], NULL);
 		break;
 
 	case BRCTL_SET_BRIDGE_PRIORITY:

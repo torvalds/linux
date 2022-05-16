@@ -2,7 +2,7 @@
 /*
  * amd5536udc_pci.c -- AMD 5536 UDC high/full speed USB device controller
  *
- * Copyright (C) 2005-2007 AMD (http://www.amd.com)
+ * Copyright (C) 2005-2007 AMD (https://www.amd.com)
  * Author: Thomas Dahlmann
  */
 
@@ -49,7 +49,6 @@
 static struct udc *udc;
 
 /* description */
-static const char mod_desc[] = UDC_MOD_DESCRIPTION;
 static const char name[] = "amd5536udc-pci";
 
 /* Reset all pci context */
@@ -116,7 +115,7 @@ static int udc_pci_probe(
 		goto err_memreg;
 	}
 
-	dev->virt_addr = ioremap_nocache(resource, len);
+	dev->virt_addr = ioremap(resource, len);
 	if (!dev->virt_addr) {
 		dev_dbg(&pdev->dev, "start address cannot be mapped\n");
 		retval = -EFAULT;
@@ -202,7 +201,7 @@ MODULE_DEVICE_TABLE(pci, pci_id);
 
 /* PCI functions */
 static struct pci_driver udc_pci_driver = {
-	.name =		(char *) name,
+	.name =		name,
 	.id_table =	pci_id,
 	.probe =	udc_pci_probe,
 	.remove =	udc_pci_remove,

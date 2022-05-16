@@ -1,54 +1,54 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/module.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
-#include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
-#include <linux/delay.h>
-#include <linux/workqueue.h>
-#include <linux/gpio/consumer.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/sizes.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
-#define ILI210X_TOUCHES		2
-#define ILI251X_TOUCHES		10
-#define DEFAULT_POLL_PERIOD	20
+#define ILI2XXX_POLL_PERIOD	20
+
+#define ILI210X_DATA_SIZE	64
+#define ILI211X_DATA_SIZE	43
+#define ILI251X_DATA_SIZE1	31
+#define ILI251X_DATA_SIZE2	20
 
 /* Touchscreen commands */
 #define REG_TOUCHDATA		0x10
 #define REG_PANEL_INFO		0x20
-#define REG_FIRMWARE_VERSION	0x40
 #define REG_CALIBRATE		0xcc
 
-struct firmware_version {
-	u8 id;
-	u8 major;
-	u8 minor;
-} __packed;
-
-enum ili2xxx_model {
-	MODEL_ILI210X,
-	MODEL_ILI251X,
+struct ili2xxx_chip {
+	int (*read_reg)(struct i2c_client *client, u8 reg,
+			void *buf, size_t len);
+	int (*get_touch_data)(struct i2c_client *client, u8 *data);
+	bool (*parse_touch_data)(const u8 *data, unsigned int finger,
+				 unsigned int *x, unsigned int *y);
+	bool (*continue_polling)(const u8 *data, bool touch);
+	unsigned int max_touches;
+	unsigned int resolution;
+	bool has_calibrate_reg;
 };
 
 struct ili210x {
 	struct i2c_client *client;
 	struct input_dev *input;
-	unsigned int poll_period;
-	struct delayed_work dwork;
 	struct gpio_desc *reset_gpio;
 	struct touchscreen_properties prop;
-	enum ili2xxx_model model;
-	unsigned int max_touches;
+	const struct ili2xxx_chip *chip;
+	bool stop;
 };
 
-static int ili210x_read_reg(struct i2c_client *client, u8 reg, void *buf,
-			    size_t len)
+static int ili210x_read_reg(struct i2c_client *client,
+			    u8 reg, void *buf, size_t len)
 {
-	struct ili210x *priv = i2c_get_clientdata(client);
-	struct i2c_msg msg[2] = {
+	struct i2c_msg msg[] = {
 		{
 			.addr	= client->addr,
 			.flags	= 0,
@@ -62,53 +62,28 @@ static int ili210x_read_reg(struct i2c_client *client, u8 reg, void *buf,
 			.buf	= buf,
 		}
 	};
+	int error, ret;
 
-	if (priv->model == MODEL_ILI251X) {
-		if (i2c_transfer(client->adapter, msg, 1) != 1) {
-			dev_err(&client->dev, "i2c transfer failed\n");
-			return -EIO;
-		}
-
-		usleep_range(5000, 5500);
-
-		if (i2c_transfer(client->adapter, msg + 1, 1) != 1) {
-			dev_err(&client->dev, "i2c transfer failed\n");
-			return -EIO;
-		}
-	} else {
-		if (i2c_transfer(client->adapter, msg, 2) != 2) {
-			dev_err(&client->dev, "i2c transfer failed\n");
-			return -EIO;
-		}
+	ret = i2c_transfer(client->adapter, msg, ARRAY_SIZE(msg));
+	if (ret != ARRAY_SIZE(msg)) {
+		error = ret < 0 ? ret : -EIO;
+		dev_err(&client->dev, "%s failed: %d\n", __func__, error);
+		return error;
 	}
 
 	return 0;
 }
 
-static int ili210x_read(struct i2c_client *client, void *buf, size_t len)
+static int ili210x_read_touch_data(struct i2c_client *client, u8 *data)
 {
-	struct i2c_msg msg = {
-		.addr	= client->addr,
-		.flags	= I2C_M_RD,
-		.len	= len,
-		.buf	= buf,
-	};
-
-	if (i2c_transfer(client->adapter, &msg, 1) != 1) {
-		dev_err(&client->dev, "i2c transfer failed\n");
-		return -EIO;
-	}
-
-	return 0;
+	return ili210x_read_reg(client, REG_TOUCHDATA,
+				data, ILI210X_DATA_SIZE);
 }
 
-static bool ili210x_touchdata_to_coords(struct ili210x *priv, u8 *touchdata,
+static bool ili210x_touchdata_to_coords(const u8 *touchdata,
 					unsigned int finger,
 					unsigned int *x, unsigned int *y)
 {
-	if (finger >= ILI210X_TOUCHES)
-		return false;
-
 	if (touchdata[0] & BIT(finger))
 		return false;
 
@@ -118,95 +93,222 @@ static bool ili210x_touchdata_to_coords(struct ili210x *priv, u8 *touchdata,
 	return true;
 }
 
-static bool ili251x_touchdata_to_coords(struct ili210x *priv, u8 *touchdata,
+static bool ili210x_check_continue_polling(const u8 *data, bool touch)
+{
+	return data[0] & 0xf3;
+}
+
+static const struct ili2xxx_chip ili210x_chip = {
+	.read_reg		= ili210x_read_reg,
+	.get_touch_data		= ili210x_read_touch_data,
+	.parse_touch_data	= ili210x_touchdata_to_coords,
+	.continue_polling	= ili210x_check_continue_polling,
+	.max_touches		= 2,
+	.has_calibrate_reg	= true,
+};
+
+static int ili211x_read_touch_data(struct i2c_client *client, u8 *data)
+{
+	s16 sum = 0;
+	int error;
+	int ret;
+	int i;
+
+	ret = i2c_master_recv(client, data, ILI211X_DATA_SIZE);
+	if (ret != ILI211X_DATA_SIZE) {
+		error = ret < 0 ? ret : -EIO;
+		dev_err(&client->dev, "%s failed: %d\n", __func__, error);
+		return error;
+	}
+
+	/* This chip uses custom checksum at the end of data */
+	for (i = 0; i < ILI211X_DATA_SIZE - 1; i++)
+		sum = (sum + data[i]) & 0xff;
+
+	if ((-sum & 0xff) != data[ILI211X_DATA_SIZE - 1]) {
+		dev_err(&client->dev,
+			"CRC error (crc=0x%02x expected=0x%02x)\n",
+			sum, data[ILI211X_DATA_SIZE - 1]);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static bool ili211x_touchdata_to_coords(const u8 *touchdata,
 					unsigned int finger,
 					unsigned int *x, unsigned int *y)
 {
-	if (finger >= ILI251X_TOUCHES)
+	u32 data;
+
+	data = get_unaligned_be32(touchdata + 1 + (finger * 4) + 0);
+	if (data == 0xffffffff)	/* Finger up */
 		return false;
 
-	*x = get_unaligned_be16(touchdata + 1 + (finger * 5) + 0);
-	if (!(*x & BIT(15)))	/* Touch indication */
+	*x = ((touchdata[1 + (finger * 4) + 0] & 0xf0) << 4) |
+	     touchdata[1 + (finger * 4) + 1];
+	*y = ((touchdata[1 + (finger * 4) + 0] & 0x0f) << 8) |
+	     touchdata[1 + (finger * 4) + 2];
+
+	return true;
+}
+
+static bool ili211x_decline_polling(const u8 *data, bool touch)
+{
+	return false;
+}
+
+static const struct ili2xxx_chip ili211x_chip = {
+	.read_reg		= ili210x_read_reg,
+	.get_touch_data		= ili211x_read_touch_data,
+	.parse_touch_data	= ili211x_touchdata_to_coords,
+	.continue_polling	= ili211x_decline_polling,
+	.max_touches		= 10,
+	.resolution		= 2048,
+};
+
+static bool ili212x_touchdata_to_coords(const u8 *touchdata,
+					unsigned int finger,
+					unsigned int *x, unsigned int *y)
+{
+	u16 val;
+
+	val = get_unaligned_be16(touchdata + 3 + (finger * 5) + 0);
+	if (!(val & BIT(15)))	/* Touch indication */
 		return false;
 
-	*x &= 0x3fff;
+	*x = val & 0x3fff;
+	*y = get_unaligned_be16(touchdata + 3 + (finger * 5) + 2);
+
+	return true;
+}
+
+static bool ili212x_check_continue_polling(const u8 *data, bool touch)
+{
+	return touch;
+}
+
+static const struct ili2xxx_chip ili212x_chip = {
+	.read_reg		= ili210x_read_reg,
+	.get_touch_data		= ili210x_read_touch_data,
+	.parse_touch_data	= ili212x_touchdata_to_coords,
+	.continue_polling	= ili212x_check_continue_polling,
+	.max_touches		= 10,
+	.has_calibrate_reg	= true,
+};
+
+static int ili251x_read_reg(struct i2c_client *client,
+			    u8 reg, void *buf, size_t len)
+{
+	int error;
+	int ret;
+
+	ret = i2c_master_send(client, &reg, 1);
+	if (ret == 1) {
+		usleep_range(5000, 5500);
+
+		ret = i2c_master_recv(client, buf, len);
+		if (ret == len)
+			return 0;
+	}
+
+	error = ret < 0 ? ret : -EIO;
+	dev_err(&client->dev, "%s failed: %d\n", __func__, error);
+	return ret;
+}
+
+static int ili251x_read_touch_data(struct i2c_client *client, u8 *data)
+{
+	int error;
+
+	error = ili251x_read_reg(client, REG_TOUCHDATA,
+				 data, ILI251X_DATA_SIZE1);
+	if (!error && data[0] == 2) {
+		error = i2c_master_recv(client, data + ILI251X_DATA_SIZE1,
+					ILI251X_DATA_SIZE2);
+		if (error >= 0 && error != ILI251X_DATA_SIZE2)
+			error = -EIO;
+	}
+
+	return error;
+}
+
+static bool ili251x_touchdata_to_coords(const u8 *touchdata,
+					unsigned int finger,
+					unsigned int *x, unsigned int *y)
+{
+	u16 val;
+
+	val = get_unaligned_be16(touchdata + 1 + (finger * 5) + 0);
+	if (!(val & BIT(15)))	/* Touch indication */
+		return false;
+
+	*x = val & 0x3fff;
 	*y = get_unaligned_be16(touchdata + 1 + (finger * 5) + 2);
 
 	return true;
 }
 
+static bool ili251x_check_continue_polling(const u8 *data, bool touch)
+{
+	return touch;
+}
+
+static const struct ili2xxx_chip ili251x_chip = {
+	.read_reg		= ili251x_read_reg,
+	.get_touch_data		= ili251x_read_touch_data,
+	.parse_touch_data	= ili251x_touchdata_to_coords,
+	.continue_polling	= ili251x_check_continue_polling,
+	.max_touches		= 10,
+	.has_calibrate_reg	= true,
+};
+
 static bool ili210x_report_events(struct ili210x *priv, u8 *touchdata)
 {
 	struct input_dev *input = priv->input;
 	int i;
-	bool contact = false, touch = false;
+	bool contact = false, touch;
 	unsigned int x = 0, y = 0;
 
-	for (i = 0; i < priv->max_touches; i++) {
-		if (priv->model == MODEL_ILI210X) {
-			touch = ili210x_touchdata_to_coords(priv, touchdata,
-							    i, &x, &y);
-		} else if (priv->model == MODEL_ILI251X) {
-			touch = ili251x_touchdata_to_coords(priv, touchdata,
-							    i, &x, &y);
-			if (touch)
-				contact = true;
-		}
+	for (i = 0; i < priv->chip->max_touches; i++) {
+		touch = priv->chip->parse_touch_data(touchdata, i, &x, &y);
 
 		input_mt_slot(input, i);
-		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
-		if (!touch)
-			continue;
-		touchscreen_report_pos(input, &priv->prop, x, y,
-				       true);
+		if (input_mt_report_slot_state(input, MT_TOOL_FINGER, touch)) {
+			touchscreen_report_pos(input, &priv->prop, x, y, true);
+			contact = true;
+		}
 	}
 
 	input_mt_report_pointer_emulation(input, false);
 	input_sync(input);
 
-	if (priv->model == MODEL_ILI210X)
-		contact = touchdata[0] & 0xf3;
-
 	return contact;
-}
-
-static void ili210x_work(struct work_struct *work)
-{
-	struct ili210x *priv = container_of(work, struct ili210x,
-					    dwork.work);
-	struct i2c_client *client = priv->client;
-	u8 touchdata[64] = { 0 };
-	bool touch;
-	int error = -EINVAL;
-
-	if (priv->model == MODEL_ILI210X) {
-		error = ili210x_read_reg(client, REG_TOUCHDATA,
-					 touchdata, sizeof(touchdata));
-	} else if (priv->model == MODEL_ILI251X) {
-		error = ili210x_read_reg(client, REG_TOUCHDATA,
-					 touchdata, 31);
-		if (!error && touchdata[0] == 2)
-			error = ili210x_read(client, &touchdata[31], 20);
-	}
-
-	if (error) {
-		dev_err(&client->dev,
-			"Unable to get touchdata, err = %d\n", error);
-		return;
-	}
-
-	touch = ili210x_report_events(priv, touchdata);
-
-	if (touch)
-		schedule_delayed_work(&priv->dwork,
-				      msecs_to_jiffies(priv->poll_period));
 }
 
 static irqreturn_t ili210x_irq(int irq, void *irq_data)
 {
 	struct ili210x *priv = irq_data;
+	struct i2c_client *client = priv->client;
+	const struct ili2xxx_chip *chip = priv->chip;
+	u8 touchdata[ILI210X_DATA_SIZE] = { 0 };
+	bool keep_polling;
+	bool touch;
+	int error;
 
-	schedule_delayed_work(&priv->dwork, 0);
+	do {
+		error = chip->get_touch_data(client, touchdata);
+		if (error) {
+			dev_err(&client->dev,
+				"Unable to get touch data: %d\n", error);
+			break;
+		}
+
+		touch = ili210x_report_events(priv, touchdata);
+		keep_polling = chip->continue_polling(touchdata, touch);
+		if (keep_polling)
+			msleep(ILI2XXX_POLL_PERIOD);
+	} while (!priv->stop && keep_polling);
 
 	return IRQ_HANDLED;
 }
@@ -242,8 +344,19 @@ static struct attribute *ili210x_attributes[] = {
 	NULL,
 };
 
+static umode_t ili210x_calibrate_visible(struct kobject *kobj,
+					  struct attribute *attr, int index)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ili210x *priv = i2c_get_clientdata(client);
+
+	return priv->chip->has_calibrate_reg ? attr->mode : 0;
+}
+
 static const struct attribute_group ili210x_attr_group = {
 	.attrs = ili210x_attributes,
+	.is_visible = ili210x_calibrate_visible,
 };
 
 static void ili210x_power_down(void *data)
@@ -253,27 +366,34 @@ static void ili210x_power_down(void *data)
 	gpiod_set_value_cansleep(reset_gpio, 1);
 }
 
-static void ili210x_cancel_work(void *data)
+static void ili210x_stop(void *data)
 {
 	struct ili210x *priv = data;
 
-	cancel_delayed_work_sync(&priv->dwork);
+	/* Tell ISR to quit even if there is a contact. */
+	priv->stop = true;
 }
 
 static int ili210x_i2c_probe(struct i2c_client *client,
-				       const struct i2c_device_id *id)
+			     const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
+	const struct ili2xxx_chip *chip;
 	struct ili210x *priv;
 	struct gpio_desc *reset_gpio;
 	struct input_dev *input;
-	struct firmware_version firmware;
-	enum ili2xxx_model model;
 	int error;
-
-	model = (enum ili2xxx_model)id->driver_data;
+	unsigned int max_xy;
 
 	dev_dbg(dev, "Probing for ILI210X I2C Touschreen driver");
+
+	chip = device_get_match_data(dev);
+	if (!chip && id)
+		chip = (const struct ili2xxx_chip *)id->driver_data;
+	if (!chip) {
+		dev_err(&client->dev, "unknown device model\n");
+		return -ENODEV;
+	}
 
 	if (client->irq <= 0) {
 		dev_err(dev, "No IRQ!\n");
@@ -305,48 +425,38 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 
 	priv->client = client;
 	priv->input = input;
-	priv->poll_period = DEFAULT_POLL_PERIOD;
-	INIT_DELAYED_WORK(&priv->dwork, ili210x_work);
 	priv->reset_gpio = reset_gpio;
-	priv->model = model;
-	if (model == MODEL_ILI210X)
-		priv->max_touches = ILI210X_TOUCHES;
-	if (model == MODEL_ILI251X)
-		priv->max_touches = ILI251X_TOUCHES;
-
+	priv->chip = chip;
 	i2c_set_clientdata(client, priv);
-
-	/* Get firmware version */
-	error = ili210x_read_reg(client, REG_FIRMWARE_VERSION,
-				 &firmware, sizeof(firmware));
-	if (error) {
-		dev_err(dev, "Failed to get firmware version, err: %d\n",
-			error);
-		return error;
-	}
 
 	/* Setup input device */
 	input->name = "ILI210x Touchscreen";
 	input->id.bustype = BUS_I2C;
-	input->dev.parent = dev;
 
 	/* Multi touch */
-	input_set_abs_params(input, ABS_MT_POSITION_X, 0, 0xffff, 0, 0);
-	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, 0xffff, 0, 0);
+	max_xy = (chip->resolution ?: SZ_64K) - 1;
+	input_set_abs_params(input, ABS_MT_POSITION_X, 0, max_xy, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, max_xy, 0, 0);
 	touchscreen_parse_properties(input, true, &priv->prop);
-	input_mt_init_slots(input, priv->max_touches, INPUT_MT_DIRECT);
 
-	error = devm_add_action(dev, ili210x_cancel_work, priv);
-	if (error)
+	error = input_mt_init_slots(input, priv->chip->max_touches,
+				    INPUT_MT_DIRECT);
+	if (error) {
+		dev_err(dev, "Unable to set up slots, err: %d\n", error);
 		return error;
+	}
 
-	error = devm_request_irq(dev, client->irq, ili210x_irq, 0,
-				 client->name, priv);
+	error = devm_request_threaded_irq(dev, client->irq, NULL, ili210x_irq,
+					  IRQF_ONESHOT, client->name, priv);
 	if (error) {
 		dev_err(dev, "Unable to request touchscreen IRQ, err: %d\n",
 			error);
 		return error;
 	}
+
+	error = devm_add_action_or_reset(dev, ili210x_stop, priv);
+	if (error)
+		return error;
 
 	error = devm_device_add_group(dev, &ili210x_attr_group);
 	if (error) {
@@ -361,56 +471,30 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	device_init_wakeup(dev, 1);
-
-	dev_dbg(dev,
-		"ILI210x initialized (IRQ: %d), firmware version %d.%d.%d",
-		client->irq, firmware.id, firmware.major, firmware.minor);
-
 	return 0;
 }
-
-static int __maybe_unused ili210x_i2c_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-
-	if (device_may_wakeup(&client->dev))
-		enable_irq_wake(client->irq);
-
-	return 0;
-}
-
-static int __maybe_unused ili210x_i2c_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-
-	if (device_may_wakeup(&client->dev))
-		disable_irq_wake(client->irq);
-
-	return 0;
-}
-
-static SIMPLE_DEV_PM_OPS(ili210x_i2c_pm,
-			 ili210x_i2c_suspend, ili210x_i2c_resume);
 
 static const struct i2c_device_id ili210x_i2c_id[] = {
-	{ "ili210x", MODEL_ILI210X },
-	{ "ili251x", MODEL_ILI251X },
+	{ "ili210x", (long)&ili210x_chip },
+	{ "ili2117", (long)&ili211x_chip },
+	{ "ili2120", (long)&ili212x_chip },
+	{ "ili251x", (long)&ili251x_chip },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ili210x_i2c_id);
 
 static const struct of_device_id ili210x_dt_ids[] = {
-	{ .compatible = "ilitek,ili210x", .data = (void *)MODEL_ILI210X },
-	{ .compatible = "ilitek,ili251x", .data = (void *)MODEL_ILI251X },
-	{ },
+	{ .compatible = "ilitek,ili210x", .data = &ili210x_chip },
+	{ .compatible = "ilitek,ili2117", .data = &ili211x_chip },
+	{ .compatible = "ilitek,ili2120", .data = &ili212x_chip },
+	{ .compatible = "ilitek,ili251x", .data = &ili251x_chip },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ili210x_dt_ids);
 
 static struct i2c_driver ili210x_ts_driver = {
 	.driver = {
 		.name = "ili210x_i2c",
-		.pm = &ili210x_i2c_pm,
 		.of_match_table = ili210x_dt_ids,
 	},
 	.id_table = ili210x_i2c_id,

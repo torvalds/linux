@@ -42,6 +42,9 @@ struct phylink_link_state;
 #define DSA_TAG_PROTO_8021Q_VALUE		12
 #define DSA_TAG_PROTO_SJA1105_VALUE		13
 #define DSA_TAG_PROTO_KSZ8795_VALUE		14
+#define DSA_TAG_PROTO_OCELOT_VALUE		15
+#define DSA_TAG_PROTO_AR9331_VALUE		16
+#define DSA_TAG_PROTO_RTL4_A_VALUE		17
 
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE		= DSA_TAG_PROTO_NONE_VALUE,
@@ -59,6 +62,9 @@ enum dsa_tag_protocol {
 	DSA_TAG_PROTO_8021Q		= DSA_TAG_PROTO_8021Q_VALUE,
 	DSA_TAG_PROTO_SJA1105		= DSA_TAG_PROTO_SJA1105_VALUE,
 	DSA_TAG_PROTO_KSZ8795		= DSA_TAG_PROTO_KSZ8795_VALUE,
+	DSA_TAG_PROTO_OCELOT		= DSA_TAG_PROTO_OCELOT_VALUE,
+	DSA_TAG_PROTO_AR9331		= DSA_TAG_PROTO_AR9331_VALUE,
+	DSA_TAG_PROTO_RTL4_A		= DSA_TAG_PROTO_RTL4_A_VALUE,
 };
 
 struct packet_type;
@@ -68,8 +74,8 @@ struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
 			       struct packet_type *pt);
-	int (*flow_dissect)(const struct sk_buff *skb, __be16 *proto,
-			    int *offset);
+	void (*flow_dissect)(const struct sk_buff *skb, __be16 *proto,
+			     int *offset);
 	/* Used to determine which traffic should match the DSA filter in
 	 * eth_type_trans, and which, if any, should bypass it and be processed
 	 * as regular on the master net device.
@@ -78,6 +84,23 @@ struct dsa_device_ops {
 	unsigned int overhead;
 	const char *name;
 	enum dsa_tag_protocol proto;
+	/* Some tagging protocols either mangle or shift the destination MAC
+	 * address, in which case the DSA master would drop packets on ingress
+	 * if what it understands out of the destination MAC address is not in
+	 * its RX filter.
+	 */
+	bool promisc_on_master;
+	bool tail_tag;
+};
+
+/* This structure defines the control interfaces that are overlayed by the
+ * DSA layer on top of the DSA CPU/management net_device instance. This is
+ * used by the core net_device layer while calling various net_device_ops
+ * function pointers.
+ */
+struct dsa_netdevice_ops {
+	int (*ndo_do_ioctl)(struct net_device *dev, struct ifreq *ifr,
+			    int cmd);
 };
 
 #define DSA_TAG_DRIVER_ALIAS "dsa_tag-"
@@ -86,15 +109,12 @@ struct dsa_device_ops {
 
 struct dsa_skb_cb {
 	struct sk_buff *clone;
-	bool deferred_xmit;
 };
 
 struct __dsa_skb_cb {
 	struct dsa_skb_cb cb;
 	u8 priv[48 - sizeof(struct dsa_skb_cb)];
 };
-
-#define __DSA_SKB_CB(skb) ((struct __dsa_skb_cb *)((skb)->cb))
 
 #define DSA_SKB_CB(skb) ((struct dsa_skb_cb *)((skb)->cb))
 
@@ -122,26 +142,29 @@ struct dsa_switch_tree {
 	 */
 	struct dsa_platform_data	*pd;
 
-	/*
-	 * The switch port to which the CPU is attached.
-	 */
-	struct dsa_port		*cpu_dp;
+	/* List of switch ports */
+	struct list_head ports;
 
-	/*
-	 * Data for the individual switch chips.
-	 */
-	struct dsa_switch	*ds[DSA_MAX_SWITCHES];
+	/* List of DSA links composing the routing table */
+	struct list_head rtable;
 };
 
-/* TC matchall action types, only mirroring for now */
+/* TC matchall action types */
 enum dsa_port_mall_action_type {
 	DSA_PORT_MALL_MIRROR,
+	DSA_PORT_MALL_POLICER,
 };
 
 /* TC mirroring entry */
 struct dsa_mall_mirror_tc_entry {
 	u8 to_local_port;
 	bool ingress;
+};
+
+/* TC port policer entry */
+struct dsa_mall_policer_tc_entry {
+	u32 burst;
+	u64 rate_bytes_per_sec;
 };
 
 /* TC matchall entry */
@@ -151,6 +174,7 @@ struct dsa_mall_tc_entry {
 	enum dsa_port_mall_action_type type;
 	union {
 		struct dsa_mall_mirror_tc_entry mirror;
+		struct dsa_mall_policer_tc_entry policer;
 	};
 };
 
@@ -191,11 +215,11 @@ struct dsa_port {
 	u8			stp_state;
 	struct net_device	*bridge_dev;
 	struct devlink_port	devlink_port;
+	bool			devlink_port_setup;
 	struct phylink		*pl;
 	struct phylink_config	pl_config;
 
-	struct work_struct	xmit_work;
-	struct sk_buff_head	xmit_queue;
+	struct list_head list;
 
 	/*
 	 * Give the switch driver somewhere to hang its per-port private data
@@ -211,10 +235,25 @@ struct dsa_port {
 	/*
 	 * Original copy of the master netdev net_device_ops
 	 */
-	const struct net_device_ops *orig_ndo_ops;
+	const struct dsa_netdevice_ops *netdev_ops;
+
+	bool setup;
+};
+
+/* TODO: ideally DSA ports would have a single dp->link_dp member,
+ * and no dst->rtable nor this struct dsa_link would be needed,
+ * but this would require some more complex tree walking,
+ * so keep it stupid at the moment and list them all.
+ */
+struct dsa_link {
+	struct dsa_port *dp;
+	struct dsa_port *link_dp;
+	struct list_head list;
 };
 
 struct dsa_switch {
+	bool setup;
+
 	struct device *dev;
 
 	/*
@@ -243,13 +282,6 @@ struct dsa_switch {
 	const struct dsa_switch_ops	*ops;
 
 	/*
-	 * An array of which element [a] indicates which port on this
-	 * switch should be used to send packets to that are destined
-	 * for switch a. Can be NULL if there is only one switch chip.
-	 */
-	s8		rtable[DSA_MAX_SWITCHES];
-
-	/*
 	 * Slave mii_bus and devices for the individual ports.
 	 */
 	u32			phys_mii_mask;
@@ -270,19 +302,50 @@ struct dsa_switch {
 	 */
 	bool			vlan_filtering_is_global;
 
+	/* Pass .port_vlan_add and .port_vlan_del to drivers even for bridges
+	 * that have vlan_filtering=0. All drivers should ideally set this (and
+	 * then the option would get removed), but it is unknown whether this
+	 * would break things or not.
+	 */
+	bool			configure_vlan_while_not_filtering;
+
+	/* If the switch driver always programs the CPU port as egress tagged
+	 * despite the VLAN configuration indicating otherwise, then setting
+	 * @untag_bridge_pvid will force the DSA receive path to pop the bridge's
+	 * default_pvid VLAN tagged frames to offer a consistent behavior
+	 * between a vlan_filtering=0 and vlan_filtering=1 bridge device.
+	 */
+	bool			untag_bridge_pvid;
+
 	/* In case vlan_filtering_is_global is set, the VLAN awareness state
 	 * should be retrieved from here and not from the per-port settings.
 	 */
 	bool			vlan_filtering;
 
-	/* Dynamically allocated ports, keep last */
+	/* MAC PCS does not provide link state change interrupt, and requires
+	 * polling. Flag passed on to PHYLINK.
+	 */
+	bool			pcs_poll;
+
+	/* For switches that only have the MRU configurable. To ensure the
+	 * configured MTU is not exceeded, normalization of MRU on all bridged
+	 * interfaces is needed.
+	 */
+	bool			mtu_enforcement_ingress;
+
 	size_t num_ports;
-	struct dsa_port ports[];
 };
 
-static inline const struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
+static inline struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
 {
-	return &ds->ports[p];
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_port *dp;
+
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dp->ds == ds && dp->index == p)
+			return dp;
+
+	return NULL;
 }
 
 static inline bool dsa_is_unused_port(struct dsa_switch *ds, int p)
@@ -317,6 +380,19 @@ static inline u32 dsa_user_ports(struct dsa_switch *ds)
 	return mask;
 }
 
+/* Return the local port used to reach an arbitrary switch device */
+static inline unsigned int dsa_routing_port(struct dsa_switch *ds, int device)
+{
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_link *dl;
+
+	list_for_each_entry(dl, &dst->rtable, list)
+		if (dl->dp->ds == ds && dl->link_dp->ds->index == device)
+			return dl->dp->index;
+
+	return ds->num_ports;
+}
+
 /* Return the local port used to reach an arbitrary switch port */
 static inline unsigned int dsa_towards_port(struct dsa_switch *ds, int device,
 					    int port)
@@ -324,7 +400,7 @@ static inline unsigned int dsa_towards_port(struct dsa_switch *ds, int device,
 	if (device == ds->index)
 		return port;
 	else
-		return ds->rtable[device];
+		return dsa_routing_port(ds, device);
 }
 
 /* Return the local port used to reach the dedicated CPU port */
@@ -353,7 +429,8 @@ typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
 			      bool is_static, void *data);
 struct dsa_switch_ops {
 	enum dsa_tag_protocol (*get_tag_protocol)(struct dsa_switch *ds,
-						  int port);
+						  int port,
+						  enum dsa_tag_protocol mprot);
 
 	int	(*setup)(struct dsa_switch *ds);
 	void	(*teardown)(struct dsa_switch *ds);
@@ -392,7 +469,9 @@ struct dsa_switch_ops {
 	void	(*phylink_mac_link_up)(struct dsa_switch *ds, int port,
 				       unsigned int mode,
 				       phy_interface_t interface,
-				       struct phy_device *phydev);
+				       struct phy_device *phydev,
+				       int speed, int duplex,
+				       bool tx_pause, bool rx_pause);
 	void	(*phylink_fixed_state)(struct dsa_switch *ds, int port,
 				       struct phylink_link_state *state);
 	/*
@@ -473,7 +552,8 @@ struct dsa_switch_ops {
 	 * VLAN support
 	 */
 	int	(*port_vlan_filtering)(struct dsa_switch *ds, int port,
-				       bool vlan_filtering);
+				       bool vlan_filtering,
+				       struct switchdev_trans *trans);
 	int (*port_vlan_prepare)(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_vlan *vlan);
 	void (*port_vlan_add)(struct dsa_switch *ds, int port,
@@ -510,21 +590,32 @@ struct dsa_switch_ops {
 	/*
 	 * TC integration
 	 */
+	int	(*cls_flower_add)(struct dsa_switch *ds, int port,
+				  struct flow_cls_offload *cls, bool ingress);
+	int	(*cls_flower_del)(struct dsa_switch *ds, int port,
+				  struct flow_cls_offload *cls, bool ingress);
+	int	(*cls_flower_stats)(struct dsa_switch *ds, int port,
+				    struct flow_cls_offload *cls, bool ingress);
 	int	(*port_mirror_add)(struct dsa_switch *ds, int port,
 				   struct dsa_mall_mirror_tc_entry *mirror,
 				   bool ingress);
 	void	(*port_mirror_del)(struct dsa_switch *ds, int port,
 				   struct dsa_mall_mirror_tc_entry *mirror);
+	int	(*port_policer_add)(struct dsa_switch *ds, int port,
+				    struct dsa_mall_policer_tc_entry *policer);
+	void	(*port_policer_del)(struct dsa_switch *ds, int port);
 	int	(*port_setup_tc)(struct dsa_switch *ds, int port,
 				 enum tc_setup_type type, void *type_data);
 
 	/*
 	 * Cross-chip operations
 	 */
-	int	(*crosschip_bridge_join)(struct dsa_switch *ds, int sw_index,
-					 int port, struct net_device *br);
-	void	(*crosschip_bridge_leave)(struct dsa_switch *ds, int sw_index,
-					  int port, struct net_device *br);
+	int	(*crosschip_bridge_join)(struct dsa_switch *ds, int tree_index,
+					 int sw_index, int port,
+					 struct net_device *br);
+	void	(*crosschip_bridge_leave)(struct dsa_switch *ds, int tree_index,
+					  int sw_index, int port,
+					  struct net_device *br);
 
 	/*
 	 * PTP functionality
@@ -538,12 +629,92 @@ struct dsa_switch_ops {
 	bool	(*port_rxtstamp)(struct dsa_switch *ds, int port,
 				 struct sk_buff *skb, unsigned int type);
 
+	/* Devlink parameters, etc */
+	int	(*devlink_param_get)(struct dsa_switch *ds, u32 id,
+				     struct devlink_param_gset_ctx *ctx);
+	int	(*devlink_param_set)(struct dsa_switch *ds, u32 id,
+				     struct devlink_param_gset_ctx *ctx);
+	int	(*devlink_info_get)(struct dsa_switch *ds,
+				    struct devlink_info_req *req,
+				    struct netlink_ext_ack *extack);
+
 	/*
-	 * Deferred frame Tx
+	 * MTU change functionality. Switches can also adjust their MRU through
+	 * this method. By MTU, one understands the SDU (L2 payload) length.
+	 * If the switch needs to account for the DSA tag on the CPU port, this
+	 * method needs to do so privately.
 	 */
-	netdev_tx_t (*port_deferred_xmit)(struct dsa_switch *ds, int port,
-					  struct sk_buff *skb);
+	int	(*port_change_mtu)(struct dsa_switch *ds, int port,
+				   int new_mtu);
+	int	(*port_max_mtu)(struct dsa_switch *ds, int port);
 };
+
+#define DSA_DEVLINK_PARAM_DRIVER(_id, _name, _type, _cmodes)		\
+	DEVLINK_PARAM_DRIVER(_id, _name, _type, _cmodes,		\
+			     dsa_devlink_param_get, dsa_devlink_param_set, NULL)
+
+int dsa_devlink_param_get(struct devlink *dl, u32 id,
+			  struct devlink_param_gset_ctx *ctx);
+int dsa_devlink_param_set(struct devlink *dl, u32 id,
+			  struct devlink_param_gset_ctx *ctx);
+int dsa_devlink_params_register(struct dsa_switch *ds,
+				const struct devlink_param *params,
+				size_t params_count);
+void dsa_devlink_params_unregister(struct dsa_switch *ds,
+				   const struct devlink_param *params,
+				   size_t params_count);
+int dsa_devlink_resource_register(struct dsa_switch *ds,
+				  const char *resource_name,
+				  u64 resource_size,
+				  u64 resource_id,
+				  u64 parent_resource_id,
+				  const struct devlink_resource_size_params *size_params);
+
+void dsa_devlink_resources_unregister(struct dsa_switch *ds);
+
+void dsa_devlink_resource_occ_get_register(struct dsa_switch *ds,
+					   u64 resource_id,
+					   devlink_resource_occ_get_t *occ_get,
+					   void *occ_get_priv);
+void dsa_devlink_resource_occ_get_unregister(struct dsa_switch *ds,
+					     u64 resource_id);
+struct devlink_region *
+dsa_devlink_region_create(struct dsa_switch *ds,
+			  const struct devlink_region_ops *ops,
+			  u32 region_max_snapshots, u64 region_size);
+struct devlink_region *
+dsa_devlink_port_region_create(struct dsa_switch *ds,
+			       int port,
+			       const struct devlink_port_region_ops *ops,
+			       u32 region_max_snapshots, u64 region_size);
+void dsa_devlink_region_destroy(struct devlink_region *region);
+
+struct dsa_port *dsa_port_from_netdev(struct net_device *netdev);
+
+struct dsa_devlink_priv {
+	struct dsa_switch *ds;
+};
+
+static inline struct dsa_switch *dsa_devlink_to_ds(struct devlink *dl)
+{
+	struct dsa_devlink_priv *dl_priv = devlink_priv(dl);
+
+	return dl_priv->ds;
+}
+
+static inline
+struct dsa_switch *dsa_devlink_port_to_ds(struct devlink_port *port)
+{
+	struct devlink *dl = port->devlink;
+	struct dsa_devlink_priv *dl_priv = devlink_priv(dl);
+
+	return dl_priv->ds;
+}
+
+static inline int dsa_devlink_port_to_port(struct devlink_port *port)
+{
+	return port->index;
+}
 
 struct dsa_switch_driver {
 	struct list_head	list;
@@ -553,7 +724,7 @@ struct dsa_switch_driver {
 struct net_device *dsa_dev_to_net_device(struct device *dev);
 
 /* Keep inline for faster access in hot path */
-static inline bool netdev_uses_dsa(struct net_device *dev)
+static inline bool netdev_uses_dsa(const struct net_device *dev)
 {
 #if IS_ENABLED(CONFIG_NET_DSA)
 	return dev->dsa_ptr && dev->dsa_ptr->rcv;
@@ -570,9 +741,71 @@ static inline bool dsa_can_decode(const struct sk_buff *skb,
 	return false;
 }
 
-struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n);
+/* All DSA tags that push the EtherType to the right (basically all except tail
+ * tags, which don't break dissection) can be treated the same from the
+ * perspective of the flow dissector.
+ *
+ * We need to return:
+ *  - offset: the (B - A) difference between:
+ *    A. the position of the real EtherType and
+ *    B. the current skb->data (aka ETH_HLEN bytes into the frame, aka 2 bytes
+ *       after the normal EtherType was supposed to be)
+ *    The offset in bytes is exactly equal to the tagger overhead (and half of
+ *    that, in __be16 shorts).
+ *
+ *  - proto: the value of the real EtherType.
+ */
+static inline void dsa_tag_generic_flow_dissect(const struct sk_buff *skb,
+						__be16 *proto, int *offset)
+{
+#if IS_ENABLED(CONFIG_NET_DSA)
+	const struct dsa_device_ops *ops = skb->dev->dsa_ptr->tag_ops;
+	int tag_len = ops->overhead;
+
+	*offset = tag_len;
+	*proto = ((__be16 *)skb->data)[(tag_len / 2) - 1];
+#endif
+}
+
+#if IS_ENABLED(CONFIG_NET_DSA)
+static inline int __dsa_netdevice_ops_check(struct net_device *dev)
+{
+	int err = -EOPNOTSUPP;
+
+	if (!dev->dsa_ptr)
+		return err;
+
+	if (!dev->dsa_ptr->netdev_ops)
+		return err;
+
+	return 0;
+}
+
+static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
+				   int cmd)
+{
+	const struct dsa_netdevice_ops *ops;
+	int err;
+
+	err = __dsa_netdevice_ops_check(dev);
+	if (err)
+		return err;
+
+	ops = dev->dsa_ptr->netdev_ops;
+
+	return ops->ndo_do_ioctl(dev, ifr, cmd);
+}
+#else
+static inline int dsa_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr,
+				   int cmd)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
 void dsa_unregister_switch(struct dsa_switch *ds);
 int dsa_register_switch(struct dsa_switch *ds);
+struct dsa_switch *dsa_switch_find(int tree_index, int sw_index);
 #ifdef CONFIG_PM_SLEEP
 int dsa_switch_suspend(struct dsa_switch *ds);
 int dsa_switch_resume(struct dsa_switch *ds);

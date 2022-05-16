@@ -51,7 +51,7 @@ static BLOCKING_NOTIFIER_HEAD(rpc_pipefs_notifier_list);
 
 int rpc_pipefs_notifier_register(struct notifier_block *nb)
 {
-	return blocking_notifier_chain_cond_register(&rpc_pipefs_notifier_list, nb);
+	return blocking_notifier_chain_register(&rpc_pipefs_notifier_list, nb);
 }
 EXPORT_SYMBOL_GPL(rpc_pipefs_notifier_register);
 
@@ -1317,6 +1317,7 @@ rpc_gssd_dummy_populate(struct dentry *root, struct rpc_pipe *pipe_data)
 	q.len = strlen(gssd_dummy_clnt_dir[0].name);
 	clnt_dentry = d_hash_and_lookup(gssd_dentry, &q);
 	if (!clnt_dentry) {
+		__rpc_depopulate(gssd_dentry, gssd_dummy_clnt_dir, 0, 1);
 		pipe_dentry = ERR_PTR(-ENOENT);
 		goto out;
 	}
@@ -1509,6 +1510,6 @@ err_notifier:
 void unregister_rpc_pipefs(void)
 {
 	rpc_clients_notifier_unregister();
-	kmem_cache_destroy(rpc_inode_cachep);
 	unregister_filesystem(&rpc_pipe_fs_type);
+	kmem_cache_destroy(rpc_inode_cachep);
 }

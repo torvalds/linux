@@ -110,7 +110,7 @@ void __init ams_delta_init_fiq(struct gpio_chip *chip,
 
 		/*
 		 * FIQ handler takes full control over serio data and clk GPIO
-		 * pins.  Initiaize them and keep requested so nobody can
+		 * pins.  Initialize them and keep requested so nobody can
 		 * interfere.  Fail if any of those two couldn't be requested.
 		 */
 		switch (i) {

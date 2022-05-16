@@ -41,36 +41,85 @@
 #define RC_PROTO_BIT_RCMM32		BIT_ULL(RC_PROTO_RCMM32)
 #define RC_PROTO_BIT_XBOX_DVD		BIT_ULL(RC_PROTO_XBOX_DVD)
 
-/* All rc protocols for which we have decoders */
+#if IS_ENABLED(CONFIG_IR_RC5_DECODER)
+#define __RC_PROTO_RC5_CODEC \
+	(RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC5X_20 |  RC_PROTO_BIT_RC5_SZ)
+#else
+#define __RC_PROTO_RC5_CODEC 0
+#endif
+
+#if IS_ENABLED(CONFIG_IR_JVC_DECODER)
+#define __RC_PROTO_JVC_CODEC RC_PROTO_BIT_JVC
+#else
+#define __RC_PROTO_JVC_CODEC 0
+#endif
+#if IS_ENABLED(CONFIG_IR_SONY_DECODER)
+#define __RC_PROTO_SONY_CODEC \
+	(RC_PROTO_BIT_SONY12 | RC_PROTO_BIT_SONY15 |  RC_PROTO_BIT_SONY20)
+#else
+#define __RC_PROTO_SONY_CODEC 0
+#endif
+#if IS_ENABLED(CONFIG_IR_NEC_DECODER)
+#define __RC_PROTO_NEC_CODEC \
+	(RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32)
+#else
+#define __RC_PROTO_NEC_CODEC 0
+#endif
+#if IS_ENABLED(CONFIG_IR_SANYO_DECODER)
+#define __RC_PROTO_SANYO_CODEC RC_PROTO_BIT_SANYO
+#else
+#define __RC_PROTO_SANYO_CODEC 0
+#endif
+#if IS_ENABLED(CONFIG_IR_MCE_KBD_DECODER)
+#define __RC_PROTO_MCE_KBD_CODEC \
+	(RC_PROTO_BIT_MCIR2_KBD |  RC_PROTO_BIT_MCIR2_MSE)
+#else
+#define __RC_PROTO_MCE_KBD_CODEC 0
+#endif
+#if IS_ENABLED(CONFIG_IR_RC6_DECODER)
+#define __RC_PROTO_RC6_CODEC \
+	(RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 | \
+	 RC_PROTO_BIT_RC6_6A_24 |  RC_PROTO_BIT_RC6_6A_32 | \
+	 RC_PROTO_BIT_RC6_MCE)
+#else
+#define __RC_PROTO_RC6_CODEC 0
+#endif
+#if IS_ENABLED(CONFIG_IR_SHARP_DECODER)
+#define __RC_PROTO_SHARP_CODEC RC_PROTO_BIT_SHARP
+#else
+#define __RC_PROTO_SHARP_CODEC 0
+#endif
+#if IS_ENABLED(CONFIG_IR_XMP_DECODER)
+#define __RC_PROTO_XMP_CODEC RC_PROTO_BIT_XMP
+#else
+#define __RC_PROTO_XMP_CODEC 0
+#endif
+#if IS_ENABLED(CONFIG_IR_IMON_DECODER)
+#define __RC_PROTO_IMON_CODEC RC_PROTO_BIT_IMON
+#else
+#define __RC_PROTO_IMON_CODEC 0
+#endif
+#if IS_ENABLED(CONFIG_IR_RCMM_DECODER)
+#define __RC_PROTO_RCMM_CODEC \
+	(RC_PROTO_BIT_RCMM12 | RC_PROTO_BIT_RCMM24 | RC_PROTO_BIT_RCMM32)
+#else
+#define __RC_PROTO_RCMM_CODEC 0
+#endif
+
+/* All kernel-based codecs have encoders and decoders */
 #define RC_PROTO_BIT_ALL_IR_DECODER \
-			(RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC5X_20 | \
-			 RC_PROTO_BIT_RC5_SZ | RC_PROTO_BIT_JVC | \
-			 RC_PROTO_BIT_SONY12 | RC_PROTO_BIT_SONY15 | \
-			 RC_PROTO_BIT_SONY20 | RC_PROTO_BIT_NEC | \
-			 RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32 | \
-			 RC_PROTO_BIT_SANYO | RC_PROTO_BIT_MCIR2_KBD | \
-			 RC_PROTO_BIT_MCIR2_MSE | \
-			 RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 | \
-			 RC_PROTO_BIT_RC6_6A_24 |  RC_PROTO_BIT_RC6_6A_32 | \
-			 RC_PROTO_BIT_RC6_MCE | RC_PROTO_BIT_SHARP | \
-			 RC_PROTO_BIT_XMP | RC_PROTO_BIT_IMON | \
-			 RC_PROTO_BIT_RCMM12 | RC_PROTO_BIT_RCMM24 | \
-			 RC_PROTO_BIT_RCMM32)
+	(__RC_PROTO_RC5_CODEC | __RC_PROTO_JVC_CODEC | __RC_PROTO_SONY_CODEC | \
+	 __RC_PROTO_NEC_CODEC | __RC_PROTO_SANYO_CODEC | \
+	 __RC_PROTO_MCE_KBD_CODEC | __RC_PROTO_RC6_CODEC | \
+	 __RC_PROTO_SHARP_CODEC | __RC_PROTO_XMP_CODEC | \
+	 __RC_PROTO_IMON_CODEC | __RC_PROTO_RCMM_CODEC)
 
 #define RC_PROTO_BIT_ALL_IR_ENCODER \
-			(RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC5X_20 | \
-			 RC_PROTO_BIT_RC5_SZ | RC_PROTO_BIT_JVC | \
-			 RC_PROTO_BIT_SONY12 | RC_PROTO_BIT_SONY15 | \
-			 RC_PROTO_BIT_SONY20 |  RC_PROTO_BIT_NEC | \
-			 RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32 | \
-			 RC_PROTO_BIT_SANYO | RC_PROTO_BIT_MCIR2_KBD | \
-			 RC_PROTO_BIT_MCIR2_MSE | \
-			 RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 | \
-			 RC_PROTO_BIT_RC6_6A_24 | \
-			 RC_PROTO_BIT_RC6_6A_32 | RC_PROTO_BIT_RC6_MCE | \
-			 RC_PROTO_BIT_SHARP | RC_PROTO_BIT_IMON | \
-			 RC_PROTO_BIT_RCMM12 | RC_PROTO_BIT_RCMM24 | \
-			 RC_PROTO_BIT_RCMM32)
+	(__RC_PROTO_RC5_CODEC | __RC_PROTO_JVC_CODEC | __RC_PROTO_SONY_CODEC | \
+	 __RC_PROTO_NEC_CODEC | __RC_PROTO_SANYO_CODEC | \
+	 __RC_PROTO_MCE_KBD_CODEC | __RC_PROTO_RC6_CODEC | \
+	 __RC_PROTO_SHARP_CODEC | __RC_PROTO_XMP_CODEC | \
+	 __RC_PROTO_IMON_CODEC | __RC_PROTO_RCMM_CODEC)
 
 #define RC_SCANCODE_UNKNOWN(x)			(x)
 #define RC_SCANCODE_OTHER(x)			(x)
@@ -85,11 +134,11 @@
 /**
  * struct rc_map_table - represents a scancode/keycode pair
  *
- * @scancode: scan code (u32)
+ * @scancode: scan code (u64)
  * @keycode: Linux input keycode
  */
 struct rc_map_table {
-	u32	scancode;
+	u64	scancode;
 	u32	keycode;
 };
 
@@ -159,21 +208,22 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_ASUS_PS3_100              "rc-asus-ps3-100"
 #define RC_MAP_ATI_TV_WONDER_HD_600      "rc-ati-tv-wonder-hd-600"
 #define RC_MAP_ATI_X10                   "rc-ati-x10"
+#define RC_MAP_AVERMEDIA                 "rc-avermedia"
 #define RC_MAP_AVERMEDIA_A16D            "rc-avermedia-a16d"
 #define RC_MAP_AVERMEDIA_CARDBUS         "rc-avermedia-cardbus"
 #define RC_MAP_AVERMEDIA_DVBT            "rc-avermedia-dvbt"
 #define RC_MAP_AVERMEDIA_M135A           "rc-avermedia-m135a"
 #define RC_MAP_AVERMEDIA_M733A_RM_K6     "rc-avermedia-m733a-rm-k6"
 #define RC_MAP_AVERMEDIA_RM_KS           "rc-avermedia-rm-ks"
-#define RC_MAP_AVERMEDIA                 "rc-avermedia"
 #define RC_MAP_AVERTV_303                "rc-avertv-303"
 #define RC_MAP_AZUREWAVE_AD_TU700        "rc-azurewave-ad-tu700"
-#define RC_MAP_BEHOLD_COLUMBUS           "rc-behold-columbus"
+#define RC_MAP_BEELINK_GS1               "rc-beelink-gs1"
 #define RC_MAP_BEHOLD                    "rc-behold"
+#define RC_MAP_BEHOLD_COLUMBUS           "rc-behold-columbus"
 #define RC_MAP_BUDGET_CI_OLD             "rc-budget-ci-old"
 #define RC_MAP_CEC                       "rc-cec"
-#define RC_MAP_CINERGY_1400              "rc-cinergy-1400"
 #define RC_MAP_CINERGY                   "rc-cinergy"
+#define RC_MAP_CINERGY_1400              "rc-cinergy-1400"
 #define RC_MAP_D680_DMB                  "rc-d680-dmb"
 #define RC_MAP_DELOCK_61959              "rc-delock-61959"
 #define RC_MAP_DIB0700_NEC_TABLE         "rc-dib0700-nec"
@@ -181,17 +231,17 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_DIGITALNOW_TINYTWIN       "rc-digitalnow-tinytwin"
 #define RC_MAP_DIGITTRADE                "rc-digittrade"
 #define RC_MAP_DM1105_NEC                "rc-dm1105-nec"
-#define RC_MAP_DNTV_LIVE_DVBT_PRO        "rc-dntv-live-dvbt-pro"
 #define RC_MAP_DNTV_LIVE_DVB_T           "rc-dntv-live-dvb-t"
+#define RC_MAP_DNTV_LIVE_DVBT_PRO        "rc-dntv-live-dvbt-pro"
 #define RC_MAP_DTT200U                   "rc-dtt200u"
 #define RC_MAP_DVBSKY                    "rc-dvbsky"
 #define RC_MAP_DVICO_MCE		 "rc-dvico-mce"
 #define RC_MAP_DVICO_PORTABLE		 "rc-dvico-portable"
 #define RC_MAP_EMPTY                     "rc-empty"
 #define RC_MAP_EM_TERRATEC               "rc-em-terratec"
+#define RC_MAP_ENCORE_ENLTV              "rc-encore-enltv"
 #define RC_MAP_ENCORE_ENLTV2             "rc-encore-enltv2"
 #define RC_MAP_ENCORE_ENLTV_FM53         "rc-encore-enltv-fm53"
-#define RC_MAP_ENCORE_ENLTV              "rc-encore-enltv"
 #define RC_MAP_EVGA_INDTUBE              "rc-evga-indtube"
 #define RC_MAP_EZTV                      "rc-eztv"
 #define RC_MAP_FLYDVB                    "rc-flydvb"
@@ -201,6 +251,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_GEEKBOX                   "rc-geekbox"
 #define RC_MAP_GENIUS_TVGO_A11MCE        "rc-genius-tvgo-a11mce"
 #define RC_MAP_GOTVIEW7135               "rc-gotview7135"
+#define RC_MAP_HAUPPAUGE                 "rc-hauppauge"
 #define RC_MAP_HAUPPAUGE_NEW             "rc-hauppauge"
 #define RC_MAP_HISI_POPLAR               "rc-hisi-poplar"
 #define RC_MAP_HISI_TV_DEMO              "rc-hisi-tv-demo"
@@ -223,8 +274,8 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_MEDION_X10_OR2X           "rc-medion-x10-or2x"
 #define RC_MAP_MSI_DIGIVOX_II            "rc-msi-digivox-ii"
 #define RC_MAP_MSI_DIGIVOX_III           "rc-msi-digivox-iii"
-#define RC_MAP_MSI_TVANYWHERE_PLUS       "rc-msi-tvanywhere-plus"
 #define RC_MAP_MSI_TVANYWHERE            "rc-msi-tvanywhere"
+#define RC_MAP_MSI_TVANYWHERE_PLUS       "rc-msi-tvanywhere-plus"
 #define RC_MAP_NEBULA                    "rc-nebula"
 #define RC_MAP_NEC_TERRATEC_CINERGY_XS   "rc-nec-terratec-cinergy-xs"
 #define RC_MAP_NORWOOD                   "rc-norwood"
@@ -234,21 +285,21 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_PINNACLE_COLOR            "rc-pinnacle-color"
 #define RC_MAP_PINNACLE_GREY             "rc-pinnacle-grey"
 #define RC_MAP_PINNACLE_PCTV_HD          "rc-pinnacle-pctv-hd"
-#define RC_MAP_PIXELVIEW_NEW             "rc-pixelview-new"
 #define RC_MAP_PIXELVIEW                 "rc-pixelview"
-#define RC_MAP_PIXELVIEW_002T		 "rc-pixelview-002t"
+#define RC_MAP_PIXELVIEW_002T            "rc-pixelview-002t"
 #define RC_MAP_PIXELVIEW_MK12            "rc-pixelview-mk12"
+#define RC_MAP_PIXELVIEW_NEW             "rc-pixelview-new"
 #define RC_MAP_POWERCOLOR_REAL_ANGEL     "rc-powercolor-real-angel"
 #define RC_MAP_PROTEUS_2309              "rc-proteus-2309"
 #define RC_MAP_PURPLETV                  "rc-purpletv"
 #define RC_MAP_PV951                     "rc-pv951"
-#define RC_MAP_HAUPPAUGE                 "rc-hauppauge"
 #define RC_MAP_RC5_TV                    "rc-rc5-tv"
 #define RC_MAP_RC6_MCE                   "rc-rc6-mce"
 #define RC_MAP_REAL_AUDIO_220_32_KEYS    "rc-real-audio-220-32-keys"
 #define RC_MAP_REDDO                     "rc-reddo"
 #define RC_MAP_SNAPSTREAM_FIREFLY        "rc-snapstream-firefly"
 #define RC_MAP_STREAMZAP                 "rc-streamzap"
+#define RC_MAP_SU3000                    "rc-su3000"
 #define RC_MAP_TANGO                     "rc-tango"
 #define RC_MAP_TANIX_TX3MINI             "rc-tanix-tx3mini"
 #define RC_MAP_TANIX_TX5MAX              "rc-tanix-tx5max"
@@ -268,16 +319,17 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_TT_1500                   "rc-tt-1500"
 #define RC_MAP_TWINHAN_DTV_CAB_CI        "rc-twinhan-dtv-cab-ci"
 #define RC_MAP_TWINHAN_VP1027_DVBS       "rc-twinhan1027"
+#define RC_MAP_VEGA_S9X                  "rc-vega-s9x"
 #define RC_MAP_VIDEOMATE_K100            "rc-videomate-k100"
 #define RC_MAP_VIDEOMATE_S350            "rc-videomate-s350"
 #define RC_MAP_VIDEOMATE_TV_PVR          "rc-videomate-tv-pvr"
+#define RC_MAP_KII_PRO                   "rc-videostrong-kii-pro"
 #define RC_MAP_WETEK_HUB                 "rc-wetek-hub"
 #define RC_MAP_WETEK_PLAY2               "rc-wetek-play2"
 #define RC_MAP_WINFAST                   "rc-winfast"
 #define RC_MAP_WINFAST_USBII_DELUXE      "rc-winfast-usbii-deluxe"
-#define RC_MAP_SU3000                    "rc-su3000"
-#define RC_MAP_XBOX_DVD                  "rc-xbox-dvd"
 #define RC_MAP_X96MAX                    "rc-x96max"
+#define RC_MAP_XBOX_DVD                  "rc-xbox-dvd"
 #define RC_MAP_ZX_IRDEC                  "rc-zx-irdec"
 
 /*

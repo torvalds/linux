@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include "path.h"
 #include "symbol_conf.h"
+#include "spark.h"
 
 #ifdef HAVE_LIBELF_SUPPORT
 #include <libelf.h>
@@ -20,14 +21,15 @@
 
 struct dso;
 struct map;
-struct map_groups;
+struct maps;
 struct option;
+struct build_id;
 
 /*
  * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
  * for newer versions we can use mmap to reduce memory usage:
  */
-#ifdef HAVE_LIBELF_MMAP_SUPPORT
+#ifdef ELF_C_READ_MMAP
 # define PERF_ELF_C_READ_MMAP ELF_C_READ_MMAP
 #else
 # define PERF_ELF_C_READ_MMAP ELF_C_READ
@@ -54,7 +56,7 @@ struct symbol {
 	u8		inlined:1;
 	u8		arch_sym;
 	bool		annotate2;
-	char		name[0];
+	char		name[];
 };
 
 void symbol__delete(struct symbol *sym);
@@ -105,20 +107,9 @@ struct ref_reloc_sym {
 	u64		unrelocated_addr;
 };
 
-struct block_info {
-	struct symbol		*sym;
-	u64			start;
-	u64			end;
-	u64			cycles;
-	u64			cycles_aggr;
-	int			num;
-	int			num_aggr;
-	refcount_t		refcnt;
-};
-
 struct addr_location {
-	struct machine *machine;
 	struct thread *thread;
+	struct maps   *maps;
 	struct map    *map;
 	struct symbol *sym;
 	const char    *srcline;
@@ -140,6 +131,8 @@ int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map);
 
 void dso__insert_symbol(struct dso *dso,
 			struct symbol *sym);
+void dso__delete_symbol(struct dso *dso,
+			struct symbol *sym);
 
 struct symbol *dso__find_symbol(struct dso *dso, u64 addr);
 struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name);
@@ -152,8 +145,8 @@ struct symbol *dso__next_symbol(struct symbol *sym);
 
 enum dso_type dso__type_fd(int fd);
 
-int filename__read_build_id(const char *filename, void *bf, size_t size);
-int sysfs__read_build_id(const char *filename, void *bf, size_t size);
+int filename__read_build_id(const char *filename, struct build_id *id);
+int sysfs__read_build_id(const char *filename, struct build_id *bid);
 int modules__parse(const char *filename, void *arg,
 		   int (*process_module)(void *arg, const char *name,
 					 u64 start, u64 size));
@@ -185,6 +178,10 @@ int symbol__config_symfs(const struct option *opt __maybe_unused,
 
 struct symsrc;
 
+#ifdef HAVE_LIBBFD_SUPPORT
+int dso__load_bfd_symbols(struct dso *dso, const char *debugfile);
+#endif
+
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, int kmodule);
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss);
@@ -196,7 +193,7 @@ void __symbols__insert(struct rb_root_cached *symbols, struct symbol *sym,
 void symbols__insert(struct rb_root_cached *symbols, struct symbol *sym);
 void symbols__fixup_duplicate(struct rb_root_cached *symbols);
 void symbols__fixup_end(struct rb_root_cached *symbols);
-void map_groups__fixup_end(struct map_groups *mg);
+void maps__fixup_end(struct maps *maps);
 
 typedef int (*mapfn_t)(u64 start, u64 len, u64 pgoff, void *data);
 int file__read_maps(int fd, bool exe, mapfn_t mapfn, void *data,
@@ -288,17 +285,5 @@ static inline void __mem_info__zput(struct mem_info **mi)
 }
 
 #define mem_info__zput(mi) __mem_info__zput(&mi)
-
-struct block_info *block_info__new(void);
-struct block_info *block_info__get(struct block_info *bi);
-void   block_info__put(struct block_info *bi);
-
-static inline void __block_info__zput(struct block_info **bi)
-{
-	block_info__put(*bi);
-	*bi = NULL;
-}
-
-#define block_info__zput(bi) __block_info__zput(&bi)
 
 #endif /* __PERF_SYMBOL */

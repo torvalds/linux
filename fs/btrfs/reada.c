@@ -227,7 +227,7 @@ static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
 	struct btrfs_fs_info *fs_info = dev->fs_info;
 	int ret;
 	struct reada_zone *zone;
-	struct btrfs_block_group_cache *cache = NULL;
+	struct btrfs_block_group *cache = NULL;
 	u64 start;
 	u64 end;
 	int i;
@@ -248,8 +248,8 @@ static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
 	if (!cache)
 		return NULL;
 
-	start = cache->key.objectid;
-	end = start + cache->key.offset - 1;
+	start = cache->start;
+	end = start + cache->length - 1;
 	btrfs_put_block_group(cache);
 
 	zone = kzalloc(sizeof(*zone), GFP_KERNEL);
@@ -421,6 +421,9 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		if (!dev->bdev)
 			continue;
 
+		if (test_bit(BTRFS_DEV_STATE_NO_READA, &dev->dev_state))
+			continue;
+
 		if (dev_replace_is_ongoing &&
 		    dev == fs_info->dev_replace.tgtdev) {
 			/*
@@ -445,6 +448,8 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		}
 		have_zone = 1;
 	}
+	if (!have_zone)
+		radix_tree_delete(&fs_info->reada_tree, index);
 	spin_unlock(&fs_info->reada_lock);
 	up_read(&fs_info->dev_replace.rwsem);
 
@@ -752,48 +757,54 @@ static int reada_start_machine_dev(struct btrfs_device *dev)
 static void reada_start_machine_worker(struct btrfs_work *work)
 {
 	struct reada_machine_work *rmw;
-	struct btrfs_fs_info *fs_info;
 	int old_ioprio;
 
 	rmw = container_of(work, struct reada_machine_work, work);
-	fs_info = rmw->fs_info;
-
-	kfree(rmw);
 
 	old_ioprio = IOPRIO_PRIO_VALUE(task_nice_ioclass(current),
 				       task_nice_ioprio(current));
 	set_task_ioprio(current, BTRFS_IOPRIO_READA);
-	__reada_start_machine(fs_info);
+	__reada_start_machine(rmw->fs_info);
 	set_task_ioprio(current, old_ioprio);
 
-	atomic_dec(&fs_info->reada_works_cnt);
+	atomic_dec(&rmw->fs_info->reada_works_cnt);
+
+	kfree(rmw);
 }
 
-static void __reada_start_machine(struct btrfs_fs_info *fs_info)
+/* Try to start up to 10k READA requests for a group of devices */
+static int reada_start_for_fsdevs(struct btrfs_fs_devices *fs_devices)
 {
-	struct btrfs_device *device;
-	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	u64 enqueued;
 	u64 total = 0;
-	int i;
+	struct btrfs_device *device;
 
-again:
 	do {
 		enqueued = 0;
-		mutex_lock(&fs_devices->device_list_mutex);
 		list_for_each_entry(device, &fs_devices->devices, dev_list) {
 			if (atomic_read(&device->reada_in_flight) <
 			    MAX_IN_FLIGHT)
 				enqueued += reada_start_machine_dev(device);
 		}
-		mutex_unlock(&fs_devices->device_list_mutex);
 		total += enqueued;
 	} while (enqueued && total < 10000);
-	if (fs_devices->seed) {
-		fs_devices = fs_devices->seed;
-		goto again;
-	}
 
+	return total;
+}
+
+static void __reada_start_machine(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices, *seed_devs;
+	int i;
+	u64 enqueued = 0;
+
+	mutex_lock(&fs_devices->device_list_mutex);
+
+	enqueued += reada_start_for_fsdevs(fs_devices);
+	list_for_each_entry(seed_devs, &fs_devices->seed_list, seed_list)
+		enqueued += reada_start_for_fsdevs(seed_devs);
+
+	mutex_unlock(&fs_devices->device_list_mutex);
 	if (enqueued == 0)
 		return;
 
@@ -821,8 +832,7 @@ static void reada_start_machine(struct btrfs_fs_info *fs_info)
 		/* FIXME we cannot handle this properly right now */
 		BUG();
 	}
-	btrfs_init_work(&rmw->work, btrfs_readahead_helper,
-			reada_start_machine_worker, NULL, NULL);
+	btrfs_init_work(&rmw->work, reada_start_machine_worker, NULL, NULL);
 	rmw->fs_info = fs_info;
 
 	btrfs_queue_work(fs_info->readahead_workers, &rmw->work);
@@ -1014,4 +1024,46 @@ void btrfs_reada_detach(void *handle)
 	struct reada_control *rc = handle;
 
 	kref_put(&rc->refcnt, reada_control_release);
+}
+
+/*
+ * Before removing a device (device replace or device remove ioctls), call this
+ * function to wait for all existing readahead requests on the device and to
+ * make sure no one queues more readahead requests for the device.
+ *
+ * Must be called without holding neither the device list mutex nor the device
+ * replace semaphore, otherwise it will deadlock.
+ */
+void btrfs_reada_remove_dev(struct btrfs_device *dev)
+{
+	struct btrfs_fs_info *fs_info = dev->fs_info;
+
+	/* Serialize with readahead extent creation at reada_find_extent(). */
+	spin_lock(&fs_info->reada_lock);
+	set_bit(BTRFS_DEV_STATE_NO_READA, &dev->dev_state);
+	spin_unlock(&fs_info->reada_lock);
+
+	/*
+	 * There might be readahead requests added to the radix trees which
+	 * were not yet added to the readahead work queue. We need to start
+	 * them and wait for their completion, otherwise we can end up with
+	 * use-after-free problems when dropping the last reference on the
+	 * readahead extents and their zones, as they need to access the
+	 * device structure.
+	 */
+	reada_start_machine(fs_info);
+	btrfs_flush_workqueue(fs_info->readahead_workers);
+}
+
+/*
+ * If when removing a device (device replace or device remove ioctls) an error
+ * happens after calling btrfs_reada_remove_dev(), call this to undo what that
+ * function did. This is safe to call even if btrfs_reada_remove_dev() was not
+ * called before.
+ */
+void btrfs_reada_undo_remove_dev(struct btrfs_device *dev)
+{
+	spin_lock(&dev->fs_info->reada_lock);
+	clear_bit(BTRFS_DEV_STATE_NO_READA, &dev->dev_state);
+	spin_unlock(&dev->fs_info->reada_lock);
 }

@@ -6,6 +6,7 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
+#include "xfs_bit.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
@@ -27,6 +28,7 @@
 #include "xfs_log_recover.h"
 #include "xfs_filestream.h"
 #include "xfs_fsmap.h"
+#include "xfs_btree_staging.h"
 
 /*
  * We include this last to have the helpers above available for the trace

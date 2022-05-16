@@ -8,7 +8,7 @@
 #include "imx8mq-zii-ultra.dtsi"
 
 / {
-	model = "ZII i.MX8MQ Ultra Zest Board";
+	model = "ZII Ultra Zest Board";
 	compatible = "zii,imx8mq-ultra-zest", "zii,imx8mq-ultra", "fsl,imx8mq";
 };
 

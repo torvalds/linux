@@ -23,12 +23,13 @@ struct sun6i_dsi {
 	struct clk		*bus_clk;
 	struct clk		*mod_clk;
 	struct regmap		*regs;
+	struct regulator	*regulator;
 	struct reset_control	*reset;
 	struct phy		*dphy;
 
 	struct device		*dev;
-	struct sun4i_drv	*drv;
 	struct mipi_dsi_device	*device;
+	struct drm_device	*drm;
 	struct drm_panel	*panel;
 };
 

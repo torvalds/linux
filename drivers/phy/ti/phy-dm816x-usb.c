@@ -82,17 +82,16 @@ static int dm816x_usb_phy_init(struct phy *x)
 {
 	struct dm816x_usb_phy *phy = phy_get_drvdata(x);
 	unsigned int val;
-	int error;
 
 	if (clk_get_rate(phy->refclk) != 24000000)
 		dev_warn(phy->dev, "nonstandard phy refclk\n");
 
 	/* Set PLL ref clock and put phys to sleep */
-	error = regmap_update_bits(phy->syscon, phy->usb_ctrl,
-				   DM816X_USB_CTRL_PHYCLKSRC |
-				   DM816X_USB_CTRL_PHYSLEEP1 |
-				   DM816X_USB_CTRL_PHYSLEEP0,
-				   0);
+	regmap_update_bits(phy->syscon, phy->usb_ctrl,
+			   DM816X_USB_CTRL_PHYCLKSRC |
+			   DM816X_USB_CTRL_PHYSLEEP1 |
+			   DM816X_USB_CTRL_PHYSLEEP0,
+			   0);
 	regmap_read(phy->syscon, phy->usb_ctrl, &val);
 	if ((val & 3) != 0)
 		dev_info(phy->dev,
@@ -189,7 +188,6 @@ static int dm816x_usb_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct usb_otg *otg;
 	const struct of_device_id *of_id;
-	const struct usb_phy_data *phy_data;
 	int error;
 
 	of_id = of_match_device(of_match_ptr(dm816x_usb_phy_id_table),
@@ -219,8 +217,6 @@ static int dm816x_usb_phy_probe(struct platform_device *pdev)
 	phy->usbphy_ctrl = (res->start & 0xff) + 4;
 	if (phy->usbphy_ctrl == 0x2c)
 		phy->instance = 1;
-
-	phy_data = of_id->data;
 
 	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
 	if (!otg)

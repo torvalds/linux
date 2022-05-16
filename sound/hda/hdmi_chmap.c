@@ -59,7 +59,7 @@ static const char * const cea_speaker_allocation_names[] = {
 /*
  * ELD SA bits in the CEA Speaker Allocation data block
  */
-static int eld_speaker_allocation_bits[] = {
+static const int eld_speaker_allocation_bits[] = {
 	[0] = FL | FR,
 	[1] = LFE,
 	[2] = FC,
@@ -250,7 +250,7 @@ void snd_hdac_print_channel_allocation(int spk_alloc, char *buf, int buflen)
 
 	for (i = 0, j = 0; i < ARRAY_SIZE(cea_speaker_allocation_names); i++) {
 		if (spk_alloc & (1 << i))
-			j += snprintf(buf + j, buflen - j,  " %s",
+			j += scnprintf(buf + j, buflen - j,  " %s",
 					cea_speaker_allocation_names[i]);
 	}
 	buf[j] = '\0';	/* necessary when j == 0 */

@@ -7,7 +7,7 @@
  *	Based on i8xx_tco.c:
  *	(c) Copyright 2000 kernel concepts <nils@kernelconcepts.de>, All Rights
  *	Reserved.
- *				http://www.kernelconcepts.de
+ *				https://www.kernelconcepts.de
  *
  *	See AMD Publication 43009 "AMD SB700/710/750 Register Reference Guide",
  *	    AMD Publication 45482 "AMD SB800-Series Southbridges Register
@@ -17,6 +17,12 @@
  *	    AMD Publication 51192 "AMD Bolton FCH Register Reference Guide"
  *	    AMD Publication 52740 "BIOS and Kernel Developer’s Guide (BKDG)
  *				for AMD Family 16h Models 30h-3Fh Processors"
+ *	    AMD Publication 55570-B1-PUB "Processor Programming Reference (PPR)
+ *				for AMD Family 17h Model 18h, Revision B1
+ *				Processors (PUB)
+ *	    AMD Publication 55772-A1-PUB "Processor Programming Reference (PPR)
+ *				for AMD Family 17h Model 20h, Revision A1
+ *				Processors (PUB)
  */
 
 /*
@@ -241,6 +247,18 @@ static int sp5100_tco_setupdevice(struct device *dev,
 		break;
 	case efch:
 		dev_name = SB800_DEVNAME;
+		/*
+		 * On Family 17h devices, the EFCH_PM_DECODEEN_WDT_TMREN bit of
+		 * EFCH_PM_DECODEEN not only enables the EFCH_PM_WDT_ADDR memory
+		 * region, it also enables the watchdog itself.
+		 */
+		if (boot_cpu_data.x86 == 0x17) {
+			val = sp5100_tco_read_pm_reg8(EFCH_PM_DECODEEN);
+			if (!(val & EFCH_PM_DECODEEN_WDT_TMREN)) {
+				sp5100_tco_update_pm_reg8(EFCH_PM_DECODEEN, 0xff,
+							  EFCH_PM_DECODEEN_WDT_TMREN);
+			}
+		}
 		val = sp5100_tco_read_pm_reg8(EFCH_PM_DECODEEN);
 		if (val & EFCH_PM_DECODEEN_WDT_TMREN)
 			mmio_addr = EFCH_PM_WDT_ADDR;

@@ -6,7 +6,6 @@
  */
 
 #include <linux/input.h>
-#include <linux/input-polldev.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
@@ -30,10 +29,10 @@ struct clps711x_keypad_data {
 	struct clps711x_gpio_data	*gpio_data;
 };
 
-static void clps711x_keypad_poll(struct input_polled_dev *dev)
+static void clps711x_keypad_poll(struct input_dev *input)
 {
-	const unsigned short *keycodes = dev->input->keycode;
-	struct clps711x_keypad_data *priv = dev->private;
+	const unsigned short *keycodes = input->keycode;
+	struct clps711x_keypad_data *priv = input_get_drvdata(input);
 	bool sync = false;
 	int col, row;
 
@@ -61,14 +60,14 @@ static void clps711x_keypad_poll(struct input_polled_dev *dev)
 
 				if (state) {
 					set_bit(col, data->last_state);
-					input_event(dev->input, EV_MSC,
-						    MSC_SCAN, code);
+					input_event(input,
+						    EV_MSC, MSC_SCAN, code);
 				} else {
 					clear_bit(col, data->last_state);
 				}
 
 				if (keycodes[code])
-					input_report_key(dev->input,
+					input_report_key(input,
 							 keycodes[code], state);
 				sync = true;
 			}
@@ -80,7 +79,7 @@ static void clps711x_keypad_poll(struct input_polled_dev *dev)
 	}
 
 	if (sync)
-		input_sync(dev->input);
+		input_sync(input);
 }
 
 static int clps711x_keypad_probe(struct platform_device *pdev)
@@ -88,7 +87,7 @@ static int clps711x_keypad_probe(struct platform_device *pdev)
 	struct clps711x_keypad_data *priv;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct input_polled_dev *poll_dev;
+	struct input_dev *input;
 	u32 poll_interval;
 	int i, err;
 
@@ -125,53 +124,43 @@ static int clps711x_keypad_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	poll_dev = input_allocate_polled_device();
-	if (!poll_dev)
+	input = devm_input_allocate_device(dev);
+	if (!input)
 		return -ENOMEM;
 
-	poll_dev->private		= priv;
-	poll_dev->poll			= clps711x_keypad_poll;
-	poll_dev->poll_interval		= poll_interval;
-	poll_dev->input->name		= pdev->name;
-	poll_dev->input->dev.parent	= dev;
-	poll_dev->input->id.bustype	= BUS_HOST;
-	poll_dev->input->id.vendor	= 0x0001;
-	poll_dev->input->id.product	= 0x0001;
-	poll_dev->input->id.version	= 0x0100;
+	input_set_drvdata(input, priv);
+
+	input->name		= pdev->name;
+	input->dev.parent	= dev;
+	input->id.bustype	= BUS_HOST;
+	input->id.vendor	= 0x0001;
+	input->id.product	= 0x0001;
+	input->id.version	= 0x0100;
 
 	err = matrix_keypad_build_keymap(NULL, NULL, priv->row_count,
 					 CLPS711X_KEYPAD_COL_COUNT,
-					 NULL, poll_dev->input);
+					 NULL, input);
 	if (err)
-		goto out_err;
+		return err;
 
-	input_set_capability(poll_dev->input, EV_MSC, MSC_SCAN);
+	input_set_capability(input, EV_MSC, MSC_SCAN);
 	if (of_property_read_bool(np, "autorepeat"))
-		__set_bit(EV_REP, poll_dev->input->evbit);
-
-	platform_set_drvdata(pdev, poll_dev);
+		__set_bit(EV_REP, input->evbit);
 
 	/* Set all columns to low */
 	regmap_update_bits(priv->syscon, SYSCON_OFFSET, SYSCON1_KBDSCAN_MASK,
 			   SYSCON1_KBDSCAN(1));
 
-	err = input_register_polled_device(poll_dev);
+
+	err = input_setup_polling(input, clps711x_keypad_poll);
 	if (err)
-		goto out_err;
+		return err;
 
-	return 0;
+	input_set_poll_interval(input, poll_interval);
 
-out_err:
-	input_free_polled_device(poll_dev);
-	return err;
-}
-
-static int clps711x_keypad_remove(struct platform_device *pdev)
-{
-	struct input_polled_dev *poll_dev = platform_get_drvdata(pdev);
-
-	input_unregister_polled_device(poll_dev);
-	input_free_polled_device(poll_dev);
+	err = input_register_device(input);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -188,7 +177,6 @@ static struct platform_driver clps711x_keypad_driver = {
 		.of_match_table	= clps711x_keypad_of_match,
 	},
 	.probe	= clps711x_keypad_probe,
-	.remove	= clps711x_keypad_remove,
 };
 module_platform_driver(clps711x_keypad_driver);
 

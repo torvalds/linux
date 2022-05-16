@@ -18,9 +18,6 @@
 #include <linux/cec-funcs.h>
 #include <media/rc-core.h>
 
-/* CEC_ADAP_G_CONNECTOR_INFO is available */
-#define CEC_CAP_CONNECTOR_INFO	(1 << 8)
-
 #define CEC_CAP_DEFAULTS (CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT | \
 			  CEC_CAP_PASSTHROUGH | CEC_CAP_RC)
 
@@ -148,33 +145,59 @@ struct cec_adap_ops {
 #define CEC_MAX_MSG_TX_QUEUE_SZ		(18 * 1)
 
 /**
- * struct cec_drm_connector_info - tells which drm connector is
- * associated with the CEC adapter.
- * @card_no: drm card number
- * @connector_id: drm connector ID
+ * struct cec_adapter - cec adapter structure
+ * @owner:		module owner
+ * @name:		name of the CEC adapter
+ * @devnode:		device node for the /dev/cecX device
+ * @lock:		mutex controlling access to this structure
+ * @rc:			remote control device
+ * @transmit_queue:	queue of pending transmits
+ * @transmit_queue_sz:	number of pending transmits
+ * @wait_queue:		queue of transmits waiting for a reply
+ * @transmitting:	CEC messages currently being transmitted
+ * @transmit_in_progress: true if a transmit is in progress
+ * @kthread_config:	kthread used to configure a CEC adapter
+ * @config_completion:	used to signal completion of the config kthread
+ * @kthread:		main CEC processing thread
+ * @kthread_waitq:	main CEC processing wait_queue
+ * @ops:		cec adapter ops
+ * @priv:		cec driver's private data
+ * @capabilities:	cec adapter capabilities
+ * @available_log_addrs: maximum number of available logical addresses
+ * @phys_addr:		the current physical address
+ * @needs_hpd:		if true, then the HDMI HotPlug Detect pin must be high
+ *	in order to transmit or receive CEC messages. This is usually a HW
+ *	limitation.
+ * @is_configuring:	the CEC adapter is configuring (i.e. claiming LAs)
+ * @is_configured:	the CEC adapter is configured (i.e. has claimed LAs)
+ * @cec_pin_is_high:	if true then the CEC pin is high. Only used with the
+ *	CEC pin framework.
+ * @adap_controls_phys_addr: if true, then the CEC adapter controls the
+ *	physical address, i.e. the CEC hardware can detect HPD changes and
+ *	read the EDID and is not dependent on an external HDMI driver.
+ *	Drivers that need this can set this field to true after the
+ *	cec_allocate_adapter() call.
+ * @last_initiator:	the initiator of the last transmitted message.
+ * @monitor_all_cnt:	number of filehandles monitoring all msgs
+ * @monitor_pin_cnt:	number of filehandles monitoring pin changes
+ * @follower_cnt:	number of filehandles in follower mode
+ * @cec_follower:	filehandle of the exclusive follower
+ * @cec_initiator:	filehandle of the exclusive initiator
+ * @passthrough:	if true, then the exclusive follower is in
+ *	passthrough mode.
+ * @log_addrs:		current logical addresses
+ * @conn_info:		current connector info
+ * @tx_timeouts:	number of transmit timeouts
+ * @notifier:		CEC notifier
+ * @pin:		CEC pin status struct
+ * @cec_dir:		debugfs cec directory
+ * @status_file:	debugfs cec status file
+ * @error_inj_file:	debugfs cec error injection file
+ * @sequence:		transmit sequence counter
+ * @input_phys:		remote control input_phys name
+ *
+ * This structure represents a cec adapter.
  */
-struct cec_drm_connector_info {
-	__u32 card_no;
-	__u32 connector_id;
-};
-
-#define CEC_CONNECTOR_TYPE_NO_CONNECTOR	0
-#define CEC_CONNECTOR_TYPE_DRM		1
-
-/**
- * struct cec_connector_info - tells if and which connector is
- * associated with the CEC adapter.
- * @type: connector type (if any)
- * @drm: drm connector info
- */
-struct cec_connector_info {
-	__u32 type;
-	union {
-		struct cec_drm_connector_info drm;
-		__u32 raw[16];
-	};
-};
-
 struct cec_adapter {
 	struct module *owner;
 	char name[32];
@@ -193,7 +216,6 @@ struct cec_adapter {
 
 	struct task_struct *kthread;
 	wait_queue_head_t kthread_waitq;
-	wait_queue_head_t waitq;
 
 	const struct cec_adap_ops *ops;
 	void *priv;
@@ -205,6 +227,7 @@ struct cec_adapter {
 	bool is_configuring;
 	bool is_configured;
 	bool cec_pin_is_high;
+	bool adap_controls_phys_addr;
 	u8 last_initiator;
 	u32 monitor_all_cnt;
 	u32 monitor_pin_cnt;
@@ -225,10 +248,7 @@ struct cec_adapter {
 #endif
 
 	struct dentry *cec_dir;
-	struct dentry *status_file;
-	struct dentry *error_inj_file;
 
-	u16 phys_addrs[15];
 	u32 sequence;
 
 	char input_phys[32];
@@ -413,52 +433,6 @@ cec_fill_conn_info_from_drm(struct cec_connector_info *conn_info,
 			    const struct drm_connector *connector)
 {
 	memset(conn_info, 0, sizeof(*conn_info));
-}
-
-#endif
-
-#if IS_REACHABLE(CONFIG_CEC_CORE) && IS_ENABLED(CONFIG_CEC_NOTIFIER)
-
-/**
- * cec_notifier_register - register a callback with the notifier
- * @n: the CEC notifier
- * @adap: the CEC adapter, passed as argument to the callback function
- * @callback: the callback function
- */
-void cec_notifier_register(struct cec_notifier *n,
-			   struct cec_adapter *adap,
-			   void (*callback)(struct cec_adapter *adap, u16 pa));
-
-/**
- * cec_notifier_unregister - unregister the callback from the notifier.
- * @n: the CEC notifier
- */
-void cec_notifier_unregister(struct cec_notifier *n);
-
-/**
- * cec_register_cec_notifier - register the notifier with the cec adapter.
- * @adap: the CEC adapter
- * @notifier: the CEC notifier
- */
-void cec_register_cec_notifier(struct cec_adapter *adap,
-			       struct cec_notifier *notifier);
-
-#else
-
-static inline void
-cec_notifier_register(struct cec_notifier *n,
-		      struct cec_adapter *adap,
-		      void (*callback)(struct cec_adapter *adap, u16 pa))
-{
-}
-
-static inline void cec_notifier_unregister(struct cec_notifier *n)
-{
-}
-
-static inline void cec_register_cec_notifier(struct cec_adapter *adap,
-					     struct cec_notifier *notifier)
-{
 }
 
 #endif

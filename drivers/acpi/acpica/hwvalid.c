@@ -3,7 +3,7 @@
  *
  * Module Name: hwvalid - I/O request validation
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -291,4 +291,34 @@ acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width)
 	}
 
 	return (AE_OK);
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_hw_validate_io_block
+ *
+ * PARAMETERS:  Address             Address of I/O port/register blobk
+ *              bit_width           Number of bits (8,16,32) in each register
+ *              count               Number of registers in the block
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Validates a block of I/O ports/registers.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_hw_validate_io_block(u64 address, u32 bit_width, u32 count)
+{
+	acpi_status status;
+
+	while (count--) {
+		status = acpi_hw_validate_io_request((acpi_io_address)address,
+						     bit_width);
+		if (ACPI_FAILURE(status))
+			return_ACPI_STATUS(status);
+
+		address += ACPI_DIV_8(bit_width);
+	}
+
+	return_ACPI_STATUS(AE_OK);
 }

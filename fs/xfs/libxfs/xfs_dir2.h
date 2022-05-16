@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
@@ -18,6 +18,8 @@ struct xfs_dir2_sf_entry;
 struct xfs_dir2_data_hdr;
 struct xfs_dir2_data_entry;
 struct xfs_dir2_data_unused;
+struct xfs_dir3_icfree_hdr;
+struct xfs_dir3_icleaf_hdr;
 
 extern struct xfs_name	xfs_name_dotdot;
 
@@ -25,85 +27,6 @@ extern struct xfs_name	xfs_name_dotdot;
  * Convert inode mode to directory entry filetype
  */
 extern unsigned char xfs_mode_to_ftype(int mode);
-
-/*
- * directory operations vector for encode/decode routines
- */
-struct xfs_dir_ops {
-	int	(*sf_entsize)(struct xfs_dir2_sf_hdr *hdr, int len);
-	struct xfs_dir2_sf_entry *
-		(*sf_nextentry)(struct xfs_dir2_sf_hdr *hdr,
-				struct xfs_dir2_sf_entry *sfep);
-	uint8_t (*sf_get_ftype)(struct xfs_dir2_sf_entry *sfep);
-	void	(*sf_put_ftype)(struct xfs_dir2_sf_entry *sfep,
-				uint8_t ftype);
-	xfs_ino_t (*sf_get_ino)(struct xfs_dir2_sf_hdr *hdr,
-				struct xfs_dir2_sf_entry *sfep);
-	void	(*sf_put_ino)(struct xfs_dir2_sf_hdr *hdr,
-			      struct xfs_dir2_sf_entry *sfep,
-			      xfs_ino_t ino);
-	xfs_ino_t (*sf_get_parent_ino)(struct xfs_dir2_sf_hdr *hdr);
-	void	(*sf_put_parent_ino)(struct xfs_dir2_sf_hdr *hdr,
-				     xfs_ino_t ino);
-
-	int	(*data_entsize)(int len);
-	uint8_t (*data_get_ftype)(struct xfs_dir2_data_entry *dep);
-	void	(*data_put_ftype)(struct xfs_dir2_data_entry *dep,
-				uint8_t ftype);
-	__be16 * (*data_entry_tag_p)(struct xfs_dir2_data_entry *dep);
-	struct xfs_dir2_data_free *
-		(*data_bestfree_p)(struct xfs_dir2_data_hdr *hdr);
-
-	xfs_dir2_data_aoff_t data_dot_offset;
-	xfs_dir2_data_aoff_t data_dotdot_offset;
-	xfs_dir2_data_aoff_t data_first_offset;
-	size_t	data_entry_offset;
-
-	struct xfs_dir2_data_entry *
-		(*data_dot_entry_p)(struct xfs_dir2_data_hdr *hdr);
-	struct xfs_dir2_data_entry *
-		(*data_dotdot_entry_p)(struct xfs_dir2_data_hdr *hdr);
-	struct xfs_dir2_data_entry *
-		(*data_first_entry_p)(struct xfs_dir2_data_hdr *hdr);
-	struct xfs_dir2_data_entry *
-		(*data_entry_p)(struct xfs_dir2_data_hdr *hdr);
-	struct xfs_dir2_data_unused *
-		(*data_unused_p)(struct xfs_dir2_data_hdr *hdr);
-
-	int	leaf_hdr_size;
-	void	(*leaf_hdr_to_disk)(struct xfs_dir2_leaf *to,
-				    struct xfs_dir3_icleaf_hdr *from);
-	void	(*leaf_hdr_from_disk)(struct xfs_dir3_icleaf_hdr *to,
-				      struct xfs_dir2_leaf *from);
-	int	(*leaf_max_ents)(struct xfs_da_geometry *geo);
-	struct xfs_dir2_leaf_entry *
-		(*leaf_ents_p)(struct xfs_dir2_leaf *lp);
-
-	int	node_hdr_size;
-	void	(*node_hdr_to_disk)(struct xfs_da_intnode *to,
-				    struct xfs_da3_icnode_hdr *from);
-	void	(*node_hdr_from_disk)(struct xfs_da3_icnode_hdr *to,
-				      struct xfs_da_intnode *from);
-	struct xfs_da_node_entry *
-		(*node_tree_p)(struct xfs_da_intnode *dap);
-
-	int	free_hdr_size;
-	void	(*free_hdr_to_disk)(struct xfs_dir2_free *to,
-				    struct xfs_dir3_icfree_hdr *from);
-	void	(*free_hdr_from_disk)(struct xfs_dir3_icfree_hdr *to,
-				      struct xfs_dir2_free *from);
-	int	(*free_max_bests)(struct xfs_da_geometry *geo);
-	__be16 * (*free_bests_p)(struct xfs_dir2_free *free);
-	xfs_dir2_db_t (*db_to_fdb)(struct xfs_da_geometry *geo,
-				   xfs_dir2_db_t db);
-	int	(*db_to_fdindex)(struct xfs_da_geometry *geo,
-				 xfs_dir2_db_t db);
-};
-
-extern const struct xfs_dir_ops *
-	xfs_dir_get_ops(struct xfs_mount *mp, struct xfs_inode *dp);
-extern const struct xfs_dir_ops *
-	xfs_nondir_get_ops(struct xfs_mount *mp, struct xfs_inode *dp);
 
 /*
  * Generic directory interface routines
@@ -124,6 +47,8 @@ extern int xfs_dir_lookup(struct xfs_trans *tp, struct xfs_inode *dp,
 extern int xfs_dir_removename(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_name *name, xfs_ino_t ino,
 				xfs_extlen_t tot);
+extern bool xfs_dir2_sf_replace_needblock(struct xfs_inode *dp,
+				xfs_ino_t inum);
 extern int xfs_dir_replace(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_name *name, xfs_ino_t inum,
 				xfs_extlen_t tot);
@@ -143,10 +68,7 @@ extern int xfs_dir2_isleaf(struct xfs_da_args *args, int *r);
 extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
 				struct xfs_buf *bp);
 
-extern void xfs_dir2_data_freescan_int(struct xfs_da_geometry *geo,
-		const struct xfs_dir_ops *ops,
-		struct xfs_dir2_data_hdr *hdr, int *loghead);
-extern void xfs_dir2_data_freescan(struct xfs_inode *dp,
+extern void xfs_dir2_data_freescan(struct xfs_mount *mp,
 		struct xfs_dir2_data_hdr *hdr, int *loghead);
 extern void xfs_dir2_data_log_entry(struct xfs_da_args *args,
 		struct xfs_buf *bp, struct xfs_dir2_data_entry *dep);
@@ -324,7 +246,7 @@ xfs_dir2_leaf_tail_p(struct xfs_da_geometry *geo, struct xfs_dir2_leaf *lp)
 #define XFS_READDIR_BUFSIZE	(32768)
 
 unsigned char xfs_dir3_get_dtype(struct xfs_mount *mp, uint8_t filetype);
-void *xfs_dir3_data_endp(struct xfs_da_geometry *geo,
+unsigned int xfs_dir3_data_end_offset(struct xfs_da_geometry *geo,
 		struct xfs_dir2_data_hdr *hdr);
 bool xfs_dir2_namecheck(const void *name, size_t length);
 

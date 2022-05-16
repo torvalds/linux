@@ -11,19 +11,16 @@
 #include <linux/media-bus-format.h>
 #include <linux/of_graph.h>
 
+#include <drm/drm_bridge.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_of.h>
-#include <drm/drm_bridge.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "atmel_hlcdc_dc.h"
 
 struct atmel_hlcdc_rgb_output {
 	struct drm_encoder encoder;
 	int bus_fmt;
-};
-
-static const struct drm_encoder_funcs atmel_hlcdc_panel_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
 };
 
 static struct atmel_hlcdc_rgb_output *
@@ -98,22 +95,22 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 		return -EINVAL;
 	}
 
-	ret = drm_encoder_init(dev, &output->encoder,
-			       &atmel_hlcdc_panel_encoder_funcs,
-			       DRM_MODE_ENCODER_NONE, NULL);
+	ret = drm_simple_encoder_init(dev, &output->encoder,
+				      DRM_MODE_ENCODER_NONE);
 	if (ret)
 		return ret;
 
 	output->encoder.possible_crtcs = 0x1;
 
 	if (panel) {
-		bridge = drm_panel_bridge_add(panel, DRM_MODE_CONNECTOR_Unknown);
+		bridge = drm_panel_bridge_add_typed(panel,
+						    DRM_MODE_CONNECTOR_Unknown);
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
 	}
 
 	if (bridge) {
-		ret = drm_bridge_attach(&output->encoder, bridge, NULL);
+		ret = drm_bridge_attach(&output->encoder, bridge, NULL, 0);
 		if (!ret)
 			return 0;
 

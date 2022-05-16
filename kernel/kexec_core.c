@@ -36,7 +36,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/compiler.h>
 #include <linux/hugetlb.h>
-#include <linux/frame.h>
+#include <linux/objtool.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
@@ -109,7 +109,7 @@ EXPORT_SYMBOL_GPL(kexec_crash_loaded);
  * defined more restrictively in <asm/kexec.h>.
  *
  * The code for the transition from the current kernel to the
- * the new kernel is placed in the control_code_buffer, whose size
+ * new kernel is placed in the control_code_buffer, whose size
  * is given by KEXEC_CONTROL_PAGE_SIZE.  In the best case only a single
  * page of memory is necessary, but some architectures require more.
  * Because this memory must be identity mapped in the transition from
@@ -589,6 +589,12 @@ static void kimage_free_extra_pages(struct kimage *image)
 	kimage_free_page_list(&image->unusable_pages);
 
 }
+
+int __weak machine_kexec_post_load(struct kimage *image)
+{
+	return 0;
+}
+
 void kimage_terminate(struct kimage *image)
 {
 	if (*image->entry != 0)
@@ -1171,7 +1177,7 @@ int kernel_kexec(void)
 		 * CPU hotplug again; so re-enable it here.
 		 */
 		cpu_hotplug_enable();
-		pr_emerg("Starting new kernel\n");
+		pr_notice("Starting new kernel\n");
 		machine_shutdown();
 	}
 

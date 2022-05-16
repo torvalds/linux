@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Copyright 2020 Toradex
+ */
+
+/dts-v1/;
+
+#include "imx6dl-colibri-eval-v3.dts"
+#include "imx6qdl-colibri-v1_1-uhs.dtsi"
+
+/ {
+	model = "Toradex Colibri iMX6DL/S V1.1 on Colibri Evaluation Board V3";
+	compatible = "toradex,colibri_imx6dl-v1_1-eval-v3",
+		     "toradex,colibri_imx6dl-v1_1",
+		     "toradex,colibri_imx6dl-eval-v3",
+		     "toradex,colibri_imx6dl",
+		     "fsl,imx6dl";
+};
+
+/* Colibri MMC */
+&usdhc1 {
+	status = "okay";
+	/*
+	 * Please make sure your carrier board does not pull-up any of
+	 * the MMC/SD signals to 3.3 volt before attempting to activate
+	 * UHS-I support.
+	 * To let signaling voltage be changed to 1.8V, please
+	 * delete no-1-8-v property (example below):
+	 * /delete-property/no-1-8-v;
+	 */
+};

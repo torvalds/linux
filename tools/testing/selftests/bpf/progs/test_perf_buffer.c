@@ -3,7 +3,8 @@
 
 #include <linux/ptrace.h>
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
@@ -11,8 +12,8 @@ struct {
 	__uint(value_size, sizeof(int));
 } perf_buf_map SEC(".maps");
 
-SEC("kprobe/sys_nanosleep")
-int handle_sys_nanosleep_entry(struct pt_regs *ctx)
+SEC("tp/raw_syscalls/sys_enter")
+int handle_sys_enter(void *ctx)
 {
 	int cpu = bpf_get_smp_processor_id();
 
@@ -22,4 +23,3 @@ int handle_sys_nanosleep_entry(struct pt_regs *ctx)
 }
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1;

@@ -45,7 +45,6 @@ void closure_sub(struct closure *cl, int v)
 {
 	closure_put_after_sub(cl, atomic_sub_return(v, &cl->remaining));
 }
-EXPORT_SYMBOL(closure_sub);
 
 /*
  * closure_put - decrement a closure's refcount
@@ -54,7 +53,6 @@ void closure_put(struct closure *cl)
 {
 	closure_put_after_sub(cl, atomic_dec_return(&cl->remaining));
 }
-EXPORT_SYMBOL(closure_put);
 
 /*
  * closure_wake_up - wake up all closures on a wait list, without memory barrier
@@ -76,7 +74,6 @@ void __closure_wake_up(struct closure_waitlist *wait_list)
 		closure_sub(cl, CLOSURE_WAITING + 1);
 	}
 }
-EXPORT_SYMBOL(__closure_wake_up);
 
 /**
  * closure_wait - add a closure to a waitlist
@@ -96,7 +93,6 @@ bool closure_wait(struct closure_waitlist *waitlist, struct closure *cl)
 
 	return true;
 }
-EXPORT_SYMBOL(closure_wait);
 
 struct closure_syncer {
 	struct task_struct	*task;
@@ -131,7 +127,6 @@ void __sched __closure_sync(struct closure *cl)
 
 	__set_current_state(TASK_RUNNING);
 }
-EXPORT_SYMBOL(__closure_sync);
 
 #ifdef CONFIG_BCACHE_CLOSURES_DEBUG
 
@@ -149,7 +144,6 @@ void closure_debug_create(struct closure *cl)
 	list_add(&cl->all, &closure_list);
 	spin_unlock_irqrestore(&closure_list_lock, flags);
 }
-EXPORT_SYMBOL(closure_debug_create);
 
 void closure_debug_destroy(struct closure *cl)
 {
@@ -162,11 +156,10 @@ void closure_debug_destroy(struct closure *cl)
 	list_del(&cl->all);
 	spin_unlock_irqrestore(&closure_list_lock, flags);
 }
-EXPORT_SYMBOL(closure_debug_destroy);
 
 static struct dentry *closure_debug;
 
-static int debug_seq_show(struct seq_file *f, void *data)
+static int debug_show(struct seq_file *f, void *data)
 {
 	struct closure *cl;
 
@@ -195,17 +188,7 @@ static int debug_seq_show(struct seq_file *f, void *data)
 	return 0;
 }
 
-static int debug_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debug_seq_show, NULL);
-}
-
-static const struct file_operations debug_ops = {
-	.owner		= THIS_MODULE,
-	.open		= debug_seq_open,
-	.read		= seq_read,
-	.release	= single_release
-};
+DEFINE_SHOW_ATTRIBUTE(debug);
 
 void  __init closure_debug_init(void)
 {
@@ -216,7 +199,7 @@ void  __init closure_debug_init(void)
 		 * about this.
 		 */
 		closure_debug = debugfs_create_file(
-			"closures", 0400, bcache_debug, NULL, &debug_ops);
+			"closures", 0400, bcache_debug, NULL, &debug_fops);
 }
 #endif
 

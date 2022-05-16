@@ -279,6 +279,21 @@ static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
 
 /* Validate the processor object's proc_id */
 bool acpi_duplicate_processor_id(int proc_id);
+/* Processor _CTS control */
+struct acpi_processor_power;
+
+#ifdef CONFIG_ACPI_PROCESSOR_CSTATE
+bool acpi_processor_claim_cst_control(void);
+int acpi_processor_evaluate_cst(acpi_handle handle, u32 cpu,
+				struct acpi_processor_power *info);
+#else
+static inline bool acpi_processor_claim_cst_control(void) { return false; }
+static inline int acpi_processor_evaluate_cst(acpi_handle handle, u32 cpu,
+					      struct acpi_processor_power *info)
+{
+	return -ENODEV;
+}
+#endif
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */
@@ -401,11 +416,31 @@ extern void acpi_osi_setup(char *str);
 extern bool acpi_osi_is_win8(void);
 
 #ifdef CONFIG_ACPI_NUMA
-int acpi_map_pxm_to_online_node(int pxm);
 int acpi_map_pxm_to_node(int pxm);
 int acpi_get_node(acpi_handle handle);
+
+/**
+ * pxm_to_online_node - Map proximity ID to online node
+ * @pxm: ACPI proximity ID
+ *
+ * This is similar to pxm_to_node(), but always returns an online
+ * node.  When the mapped node from a given proximity ID is offline, it
+ * looks up the node distance table and returns the nearest online node.
+ *
+ * ACPI device drivers, which are called after the NUMA initialization has
+ * completed in the kernel, can call this interface to obtain their device
+ * NUMA topology from ACPI tables.  Such drivers do not have to deal with
+ * offline nodes.  A node may be offline when SRAT memory entry does not exist,
+ * or NUMA is disabled, ex. "numa=off" on x86.
+ */
+static inline int pxm_to_online_node(int pxm)
+{
+	int node = pxm_to_node(pxm);
+
+	return numa_map_to_online_node(node);
+}
 #else
-static inline int acpi_map_pxm_to_online_node(int pxm)
+static inline int pxm_to_online_node(int pxm)
 {
 	return 0;
 }
@@ -473,6 +508,11 @@ void __init acpi_nvs_nosave_s3(void);
 void __init acpi_sleep_no_blacklist(void);
 #endif /* CONFIG_PM_SLEEP */
 
+int acpi_register_wakeup_handler(
+	int wake_irq, bool (*wakeup)(void *context), void *context);
+void acpi_unregister_wakeup_handler(
+	bool (*wakeup)(void *context), void *context);
+
 struct acpi_osc_context {
 	char *uuid_str;			/* UUID string */
 	int rev;
@@ -505,6 +545,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 #define OSC_SB_PCLPI_SUPPORT			0x00000080
 #define OSC_SB_OSLPI_SUPPORT			0x00000100
 #define OSC_SB_CPC_DIVERSE_HIGH_SUPPORT		0x00001000
+#define OSC_SB_GENERIC_INITIATOR_SUPPORT	0x00002000
 
 extern bool osc_sb_apei_support_acked;
 extern bool osc_pc_lpi_support_confirmed;
@@ -515,8 +556,9 @@ extern bool osc_pc_lpi_support_confirmed;
 #define OSC_PCI_CLOCK_PM_SUPPORT		0x00000004
 #define OSC_PCI_SEGMENT_GROUPS_SUPPORT		0x00000008
 #define OSC_PCI_MSI_SUPPORT			0x00000010
+#define OSC_PCI_EDR_SUPPORT			0x00000080
 #define OSC_PCI_HPX_TYPE_3_SUPPORT		0x00000100
-#define OSC_PCI_SUPPORT_MASKS			0x0000011f
+#define OSC_PCI_SUPPORT_MASKS			0x0000019f
 
 /* PCI Host Bridge _OSC: Capabilities DWORD 3: Control Field */
 #define OSC_PCI_EXPRESS_NATIVE_HP_CONTROL	0x00000001
@@ -525,7 +567,8 @@ extern bool osc_pc_lpi_support_confirmed;
 #define OSC_PCI_EXPRESS_AER_CONTROL		0x00000008
 #define OSC_PCI_EXPRESS_CAPABILITY_CONTROL	0x00000010
 #define OSC_PCI_EXPRESS_LTR_CONTROL		0x00000020
-#define OSC_PCI_CONTROL_MASKS			0x0000003f
+#define OSC_PCI_EXPRESS_DPC_CONTROL		0x00000080
+#define OSC_PCI_CONTROL_MASKS			0x000000bf
 
 #define ACPI_GSB_ACCESS_ATTRIB_QUICK		0x00000002
 #define ACPI_GSB_ACCESS_ATTRIB_SEND_RCV         0x00000004
@@ -666,6 +709,8 @@ static inline u64 acpi_arch_get_root_pointer(void)
 #define ACPI_HANDLE_FWNODE(fwnode)	(NULL)
 #define ACPI_DEVICE_CLASS(_cls, _msk)	.cls = (0), .cls_msk = (0),
 
+#include <acpi/acpi_numa.h>
+
 struct fwnode_handle;
 
 static inline bool acpi_dev_found(const char *hid)
@@ -674,6 +719,14 @@ static inline bool acpi_dev_found(const char *hid)
 }
 
 static inline bool acpi_dev_present(const char *hid, const char *uid, s64 hrv)
+{
+	return false;
+}
+
+struct acpi_device;
+
+static inline bool
+acpi_dev_hid_uid_match(struct acpi_device *adev, const char *hid2, const char *uid2)
 {
 	return false;
 }
@@ -814,7 +867,7 @@ static inline bool acpi_driver_match_device(struct device *dev,
 
 static inline union acpi_object *acpi_evaluate_dsm(acpi_handle handle,
 						   const guid_t *guid,
-						   int rev, int func,
+						   u64 rev, u64 func,
 						   union acpi_object *argv4)
 {
 	return NULL;
@@ -850,6 +903,13 @@ static inline int acpi_dma_get_range(struct device *dev, u64 *dma_addr,
 
 static inline int acpi_dma_configure(struct device *dev,
 				     enum dev_dma_attr attr)
+{
+	return 0;
+}
+
+static inline int acpi_dma_configure_id(struct device *dev,
+					enum dev_dma_attr attr,
+					const u32 *input_id)
 {
 	return 0;
 }
@@ -900,7 +960,7 @@ void acpi_os_set_prepare_extended_sleep(int (*func)(u8 sleep_state,
 acpi_status acpi_os_prepare_extended_sleep(u8 sleep_state,
 					   u32 val_a, u32 val_b);
 
-#ifdef CONFIG_X86
+#ifndef CONFIG_IA64
 void arch_reserve_mem_area(acpi_physical_address addr, size_t size);
 #else
 static inline void arch_reserve_mem_area(acpi_physical_address addr,
@@ -919,8 +979,6 @@ int acpi_subsys_runtime_suspend(struct device *dev);
 int acpi_subsys_runtime_resume(struct device *dev);
 int acpi_dev_pm_attach(struct device *dev, bool power_on);
 #else
-static inline int acpi_dev_runtime_suspend(struct device *dev) { return 0; }
-static inline int acpi_dev_runtime_resume(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_resume(struct device *dev) { return 0; }
 static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
@@ -1092,16 +1150,27 @@ struct acpi_probe_entry {
 	kernel_ulong_t driver_data;
 };
 
-#define ACPI_DECLARE_PROBE_ENTRY(table, name, table_id, subtable, valid, data, fn)	\
+#define ACPI_DECLARE_PROBE_ENTRY(table, name, table_id, subtable,	\
+				 valid, data, fn)			\
 	static const struct acpi_probe_entry __acpi_probe_##name	\
-		__used __section(__##table##_acpi_probe_table)		\
-		 = {							\
+		__used __section("__" #table "_acpi_probe_table") = {	\
 			.id = table_id,					\
 			.type = subtable,				\
 			.subtable_valid = valid,			\
-			.probe_table = (acpi_tbl_table_handler)fn,	\
-			.driver_data = data, 				\
-		   }
+			.probe_table = fn,				\
+			.driver_data = data,				\
+		}
+
+#define ACPI_DECLARE_SUBTABLE_PROBE_ENTRY(table, name, table_id,	\
+					  subtable, valid, data, fn)	\
+	static const struct acpi_probe_entry __acpi_probe_##name	\
+		__used __section("__" #table "_acpi_probe_table") = {	\
+			.id = table_id,					\
+			.type = subtable,				\
+			.subtable_valid = valid,			\
+			.probe_subtbl = fn,				\
+			.driver_data = data,				\
+		}
 
 #define ACPI_PROBE_TABLE(name)		__##name##_acpi_probe_table
 #define ACPI_PROBE_TABLE_END(name)	__##name##_acpi_probe_table_end
@@ -1143,13 +1212,6 @@ acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 static inline int acpi_node_prop_get(const struct fwnode_handle *fwnode,
 				     const char *propname,
 				     void **valptr)
-{
-	return -ENXIO;
-}
-
-static inline int acpi_dev_prop_get(const struct acpi_device *adev,
-				    const char *propname,
-				    void **valptr)
 {
 	return -ENXIO;
 }

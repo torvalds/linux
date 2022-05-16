@@ -5,8 +5,9 @@
 /*
  * UV BIOS layer definitions.
  *
- *  Copyright (c) 2008-2009 Silicon Graphics, Inc.  All Rights Reserved.
- *  Copyright (c) Russ Anderson <rja@sgi.com>
+ * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
+ * Copyright (C) 2007-2017 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (c) Russ Anderson <rja@sgi.com>
  */
 
 #include <linux/rtc.h>
@@ -71,18 +72,27 @@ struct uv_gam_range_entry {
 	u32	limit;		/* PA bits 56:26 (UV_GAM_RANGE_SHFT) */
 };
 
+#define	UV_AT_SIZE	8	/* 7 character arch type + NULL char */
+struct uv_arch_type_entry {
+	char	archtype[UV_AT_SIZE];
+};
+
 #define	UV_SYSTAB_SIG			"UVST"
-#define	UV_SYSTAB_VERSION_1		1	/* UV1/2/3 BIOS version */
+#define	UV_SYSTAB_VERSION_1		1	/* UV2/3 BIOS version */
 #define	UV_SYSTAB_VERSION_UV4		0x400	/* UV4 BIOS base version */
 #define	UV_SYSTAB_VERSION_UV4_1		0x401	/* + gpa_shift */
 #define	UV_SYSTAB_VERSION_UV4_2		0x402	/* + TYPE_NVRAM/WINDOW/MBOX */
 #define	UV_SYSTAB_VERSION_UV4_3		0x403	/* - GAM Range PXM Value */
 #define	UV_SYSTAB_VERSION_UV4_LATEST	UV_SYSTAB_VERSION_UV4_3
 
+#define	UV_SYSTAB_VERSION_UV5		0x500	/* UV5 GAM base version */
+#define	UV_SYSTAB_VERSION_UV5_LATEST	UV_SYSTAB_VERSION_UV5
+
 #define	UV_SYSTAB_TYPE_UNUSED		0	/* End of table (offset == 0) */
 #define	UV_SYSTAB_TYPE_GAM_PARAMS	1	/* GAM PARAM conversions */
 #define	UV_SYSTAB_TYPE_GAM_RNG_TBL	2	/* GAM entry table */
-#define	UV_SYSTAB_TYPE_MAX		3
+#define	UV_SYSTAB_TYPE_ARCH_TYPE	3	/* UV arch type */
+#define	UV_SYSTAB_TYPE_MAX		4
 
 /*
  * The UV system table describes specific firmware
@@ -123,12 +133,6 @@ enum uv_memprotect {
 	UV_MEMPROT_ALLOW_RW
 };
 
-/*
- * bios calls have 6 parameters
- */
-extern s64 uv_bios_call(enum uv_bios_cmd, u64, u64, u64, u64, u64);
-extern s64 uv_bios_call_irqsave(enum uv_bios_cmd, u64, u64, u64, u64, u64);
-
 extern s64 uv_bios_get_sn_info(int, int *, long *, long *, long *, long *);
 extern s64 uv_bios_freq_base(u64, u64 *);
 extern int uv_bios_mq_watchlist_alloc(unsigned long, unsigned int,
@@ -138,7 +142,8 @@ extern s64 uv_bios_change_memprotect(u64, u64, enum uv_memprotect);
 extern s64 uv_bios_reserved_page_pa(u64, u64 *, u64 *, u64 *);
 extern int uv_bios_set_legacy_vga_target(bool decode, int domain, int bus);
 
-extern void uv_bios_init(void);
+extern int uv_bios_init(void);
+extern unsigned long get_uv_systab_phys(bool msg);
 
 extern unsigned long sn_rtc_cycles_per_second;
 extern int uv_type;
@@ -146,7 +151,6 @@ extern long sn_partition_id;
 extern long sn_coherency_id;
 extern long sn_region_size;
 extern long system_serial_number;
-#define uv_partition_coherence_id()	(sn_coherency_id)
 
 extern struct kobject *sgi_uv_kobj;	/* /sys/firmware/sgi_uv */
 

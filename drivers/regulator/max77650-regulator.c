@@ -49,7 +49,7 @@ static const unsigned int max77651_sbb1_volt_range_sel[] = {
 	0x0, 0x1, 0x2, 0x3
 };
 
-static const struct regulator_linear_range max77651_sbb1_volt_ranges[] = {
+static const struct linear_range max77651_sbb1_volt_ranges[] = {
 	/* range index 0 */
 	REGULATOR_LINEAR_RANGE(2400000, 0x00, 0x0f, 50000),
 	/* range index 1 */
@@ -386,9 +386,16 @@ static int max77650_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id max77650_regulator_of_match[] = {
+	{ .compatible = "maxim,max77650-regulator" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, max77650_regulator_of_match);
+
 static struct platform_driver max77650_regulator_driver = {
 	.driver = {
 		.name = "max77650-regulator",
+		.of_match_table = max77650_regulator_of_match,
 	},
 	.probe = max77650_regulator_probe,
 };

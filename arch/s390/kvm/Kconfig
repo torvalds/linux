@@ -7,7 +7,7 @@ source "virt/kvm/Kconfig"
 menuconfig VIRTUALIZATION
 	def_bool y
 	prompt "KVM"
-	---help---
+	help
 	  Say Y here to get to see options for using your Linux host to run other
 	  operating systems inside virtual machines (guests).
 	  This option alone does not add any kernel code.
@@ -33,7 +33,7 @@ config KVM
 	select HAVE_KVM_NO_POLL
 	select SRCU
 	select KVM_VFIO
-	---help---
+	help
 	  Support hosting paravirtualized guest machines using the SIE
 	  virtualization capability on the mainframe. This should work
 	  on any 64bit machine.
@@ -49,14 +49,10 @@ config KVM
 config KVM_S390_UCONTROL
 	bool "Userspace controlled virtual machines"
 	depends on KVM
-	---help---
+	help
 	  Allow CAP_SYS_ADMIN users to create KVM virtual machines that are
 	  controlled by userspace.
 
 	  If unsure, say N.
-
-# OK, it's a little counter-intuitive to do this, but it puts it neatly under
-# the virtualization menu.
-source "drivers/vhost/Kconfig"
 
 endif # VIRTUALIZATION

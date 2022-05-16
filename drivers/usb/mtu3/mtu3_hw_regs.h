@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * mtu3_hw_regs.h - MediaTek USB3 DRD register and field definitions
  *
@@ -134,7 +134,7 @@
 #define TX_W1C_BITS		(~(TX_SENTSTALL))
 
 /* U3D_TX1CSR1 */
-#define TX_MAX_PKT_G2(x)	(((x) & 0x7f) << 24)
+#define TX_MAX_PKT_G2(x)	(((x) & 0xff) << 24)
 #define TX_MULT_G2(x)		(((x) & 0x7) << 21)
 #define TX_MULT_OG(x)		(((x) & 0x3) << 22)
 #define TX_MAX_PKT_OG(x)	(((x) & 0x3f) << 16)
@@ -173,7 +173,7 @@
 #define RX_W1C_BITS		(~(RX_SENTSTALL | RX_RXPKTRDY))
 
 /* U3D_RX1CSR1 */
-#define RX_MAX_PKT_G2(x)	(((x) & 0x7f) << 24)
+#define RX_MAX_PKT_G2(x)	(((x) & 0xff) << 24)
 #define RX_MULT_G2(x)		(((x) & 0x7) << 21)
 #define RX_MULT_OG(x)		(((x) & 0x3) << 22)
 #define RX_MAX_PKT_OG(x)	(((x) & 0x3f) << 16)

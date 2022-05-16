@@ -34,6 +34,13 @@
 
 #define HNAE3_MIN_VECTOR_NUM	2 /* first one for misc, another for IO */
 
+/* Device version */
+#define HNAE3_DEVICE_VERSION_V1   0x00020
+#define HNAE3_DEVICE_VERSION_V2   0x00021
+#define HNAE3_DEVICE_VERSION_V3   0x00030
+
+#define HNAE3_PCI_REVISION_BIT_SIZE		8
+
 /* Device IDs */
 #define HNAE3_DEV_ID_GE				0xA220
 #define HNAE3_DEV_ID_25GE			0xA221
@@ -42,8 +49,9 @@
 #define HNAE3_DEV_ID_50GE_RDMA			0xA224
 #define HNAE3_DEV_ID_50GE_RDMA_MACSEC		0xA225
 #define HNAE3_DEV_ID_100G_RDMA_MACSEC		0xA226
-#define HNAE3_DEV_ID_100G_VF			0xA22E
-#define HNAE3_DEV_ID_100G_RDMA_DCB_PFC_VF	0xA22F
+#define HNAE3_DEV_ID_200G_RDMA			0xA228
+#define HNAE3_DEV_ID_VF				0xA22E
+#define HNAE3_DEV_ID_RDMA_DCB_PFC_VF		0xA22F
 
 #define HNAE3_CLASS_NAME_SIZE 16
 
@@ -53,8 +61,6 @@
 #define HNAE3_KNIC_CLIENT_INITED_B		0x3
 #define HNAE3_UNIC_CLIENT_INITED_B		0x4
 #define HNAE3_ROCE_CLIENT_INITED_B		0x5
-#define HNAE3_DEV_SUPPORT_FD_B			0x6
-#define HNAE3_DEV_SUPPORT_GRO_B			0x7
 
 #define HNAE3_DEV_SUPPORT_ROCE_DCB_BITS (BIT(HNAE3_DEV_SUPPORT_DCB_B) |\
 		BIT(HNAE3_DEV_SUPPORT_ROCE_B))
@@ -65,11 +71,67 @@
 #define hnae3_dev_dcb_supported(hdev) \
 	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_DCB_B)
 
+enum HNAE3_DEV_CAP_BITS {
+	HNAE3_DEV_SUPPORT_FD_B,
+	HNAE3_DEV_SUPPORT_GRO_B,
+	HNAE3_DEV_SUPPORT_FEC_B,
+	HNAE3_DEV_SUPPORT_UDP_GSO_B,
+	HNAE3_DEV_SUPPORT_QB_B,
+	HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B,
+	HNAE3_DEV_SUPPORT_PTP_B,
+	HNAE3_DEV_SUPPORT_INT_QL_B,
+	HNAE3_DEV_SUPPORT_SIMPLE_BD_B,
+	HNAE3_DEV_SUPPORT_TX_PUSH_B,
+	HNAE3_DEV_SUPPORT_PHY_IMP_B,
+	HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B,
+	HNAE3_DEV_SUPPORT_HW_PAD_B,
+	HNAE3_DEV_SUPPORT_STASH_B,
+};
+
 #define hnae3_dev_fd_supported(hdev) \
-	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B)
+	test_bit(HNAE3_DEV_SUPPORT_FD_B, (hdev)->ae_dev->caps)
 
 #define hnae3_dev_gro_supported(hdev) \
-	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_GRO_B)
+	test_bit(HNAE3_DEV_SUPPORT_GRO_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_fec_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_FEC_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_udp_gso_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_qb_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_QB_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_fd_forward_tc_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_ptp_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_PTP_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_int_ql_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_INT_QL_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_simple_bd_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_SIMPLE_BD_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_tx_push_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_TX_PUSH_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_phy_imp_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_tqp_txrx_indep_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_hw_pad_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_HW_PAD_B, (hdev)->ae_dev->caps)
+
+#define hnae3_dev_stash_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_STASH_B, (hdev)->ae_dev->caps)
+
+#define hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev) \
+	test_bit(HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B, (ae_dev)->caps)
 
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
@@ -77,7 +139,9 @@
 	((ring)->p = ((ring)->p - 1 + (ring)->desc_num) % (ring)->desc_num)
 
 enum hns_desc_type {
+	DESC_TYPE_UNKNOWN,
 	DESC_TYPE_SKB,
+	DESC_TYPE_FRAGLIST_SKB,
 	DESC_TYPE_PAGE,
 };
 
@@ -130,7 +194,6 @@ enum hnae3_module_type {
 	HNAE3_MODULE_TYPE_CR		= 0x04,
 	HNAE3_MODULE_TYPE_KR		= 0x05,
 	HNAE3_MODULE_TYPE_TP		= 0x06,
-
 };
 
 enum hnae3_fec_mode {
@@ -145,13 +208,13 @@ enum hnae3_reset_notify_type {
 	HNAE3_DOWN_CLIENT,
 	HNAE3_INIT_CLIENT,
 	HNAE3_UNINIT_CLIENT,
-	HNAE3_RESTORE_CLIENT,
 };
 
 enum hnae3_hw_error_type {
 	HNAE3_PPU_POISON_ERROR,
 	HNAE3_CMDQ_ECC_ERROR,
 	HNAE3_IMP_RD_POISON_ERROR,
+	HNAE3_ROCEE_AXI_RESP_ERROR,
 };
 
 enum hnae3_reset_type {
@@ -165,11 +228,7 @@ enum hnae3_reset_type {
 	HNAE3_IMP_RESET,
 	HNAE3_UNKNOWN_RESET,
 	HNAE3_NONE_RESET,
-};
-
-enum hnae3_flr_state {
-	HNAE3_FLR_DOWN,
-	HNAE3_FLR_DONE,
+	HNAE3_MAX_RESET,
 };
 
 enum hnae3_port_base_vlan_state {
@@ -211,6 +270,17 @@ struct hnae3_ring_chain_node {
 #define HNAE3_IS_TX_RING(node) \
 	(((node)->flag & (1 << HNAE3_RING_TYPE_B)) == HNAE3_RING_TYPE_TX)
 
+/* device specification info from firmware */
+struct hnae3_dev_specs {
+	u32 mac_entry_num; /* number of mac-vlan table entry */
+	u32 mng_entry_num; /* number of manager table entry */
+	u32 max_tm_rate;
+	u16 rss_ind_tbl_size;
+	u16 rss_key_size;
+	u16 int_ql_max; /* max value of interrupt coalesce based on INT_QL */
+	u8 max_non_tso_bd_num; /* max BD number of one non-TSO packet */
+};
+
 struct hnae3_client_ops {
 	int (*init_instance)(struct hnae3_handle *handle);
 	void (*uninit_instance)(struct hnae3_handle *handle, bool reset);
@@ -231,13 +301,16 @@ struct hnae3_client {
 	struct list_head node;
 };
 
+#define HNAE3_DEV_CAPS_MAX_NUM	96
 struct hnae3_ae_dev {
 	struct pci_dev *pdev;
 	const struct hnae3_ae_ops *ops;
 	struct list_head node;
 	u32 flag;
 	unsigned long hw_err_reset_req;
-	enum hnae3_reset_type reset_type;
+	struct hnae3_dev_specs dev_specs;
+	u32 dev_version;
+	unsigned long caps[BITS_TO_LONGS(HNAE3_DEV_CAPS_MAX_NUM)];
 	void *priv;
 };
 
@@ -274,6 +347,8 @@ struct hnae3_ae_dev {
  *   Set loopback
  * set_promisc_mode
  *   Set promisc mode
+ * request_update_promisc_mode
+ *   request to hclge(vf) to update promisc mode
  * set_mtu()
  *   set mtu
  * get_pauseparam()
@@ -358,14 +433,27 @@ struct hnae3_ae_dev {
  *   Set vlan filter config of Ports
  * set_vf_vlan_filter()
  *   Set vlan filter config of vf
- * restore_vlan_table()
- *   Restore vlan filter entries after reset
  * enable_hw_strip_rxvtag()
  *   Enable/disable hardware strip vlan tag of packets received
  * set_gro_en
  *   Enable/disable HW GRO
  * add_arfs_entry
  *   Check the 5-tuples of flow, and create flow director rule
+ * get_vf_config
+ *   Get the VF configuration setting by the host
+ * set_vf_link_state
+ *   Set VF link status
+ * set_vf_spoofchk
+ *   Enable/disable spoof check for specified vf
+ * set_vf_trust
+ *   Enable/disable trust for specified vf, if the vf being trusted, then
+ *   it can enable promisc mode
+ * set_vf_rate
+ *   Set the max tx rate of specified vf.
+ * set_vf_mac
+ *   Configure the default MAC for specified VF
+ * get_module_eeprom
+ *   Get the optical module eeprom info.
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -399,6 +487,7 @@ struct hnae3_ae_ops {
 
 	int (*set_promisc_mode)(struct hnae3_handle *handle, bool en_uc_pmc,
 				bool en_mc_pmc);
+	void (*request_update_promisc_mode)(struct hnae3_handle *handle);
 	int (*set_mtu)(struct hnae3_handle *handle, int new_mtu);
 
 	void (*get_pauseparam)(struct hnae3_handle *handle,
@@ -516,7 +605,6 @@ struct hnae3_ae_ops {
 				struct ethtool_rxnfc *cmd);
 	int (*get_fd_all_rules)(struct hnae3_handle *handle,
 				struct ethtool_rxnfc *cmd, u32 *rule_locs);
-	int (*restore_fd_rules)(struct hnae3_handle *handle);
 	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
 	int (*add_arfs_entry)(struct hnae3_handle *handle, u16 queue_id,
 			      u16 flow_id, struct flow_keys *fkeys);
@@ -530,7 +618,19 @@ struct hnae3_ae_ops {
 	void (*set_timer_task)(struct hnae3_handle *handle, bool enable);
 	int (*mac_connect_phy)(struct hnae3_handle *handle);
 	void (*mac_disconnect_phy)(struct hnae3_handle *handle);
-	void (*restore_vlan_table)(struct hnae3_handle *handle);
+	int (*get_vf_config)(struct hnae3_handle *handle, int vf,
+			     struct ifla_vf_info *ivf);
+	int (*set_vf_link_state)(struct hnae3_handle *handle, int vf,
+				 int link_state);
+	int (*set_vf_spoofchk)(struct hnae3_handle *handle, int vf,
+			       bool enable);
+	int (*set_vf_trust)(struct hnae3_handle *handle, int vf, bool enable);
+	int (*set_vf_rate)(struct hnae3_handle *handle, int vf,
+			   int min_tx_rate, int max_tx_rate, bool force);
+	int (*set_vf_mac)(struct hnae3_handle *handle, int vf, u8 *p);
+	int (*get_module_eeprom)(struct hnae3_handle *handle, u32 offset,
+				 u32 len, u8 *data);
+	bool (*get_cmdq_stat)(struct hnae3_handle *handle);
 };
 
 struct hnae3_dcb_ops {
@@ -553,7 +653,7 @@ struct hnae3_ae_algo {
 	const struct pci_device_id *pdev_id_table;
 };
 
-#define HNAE3_INT_NAME_LEN        (IFNAMSIZ + 16)
+#define HNAE3_INT_NAME_LEN        32
 #define HNAE3_ITR_COUNTDOWN_START 100
 
 struct hnae3_tc_info {
@@ -600,16 +700,6 @@ struct hnae3_roce_private_info {
 	unsigned long state;
 };
 
-struct hnae3_unic_private_info {
-	struct net_device *netdev;
-	u16 rx_buf_len;
-	u16 num_tx_desc;
-	u16 num_rx_desc;
-
-	u16 num_tqps;	/* total number of tqps in this handle */
-	struct hnae3_queue **tqp;  /* array base of all TQPs of this instance */
-};
-
 #define HNAE3_SUPPORT_APP_LOOPBACK    BIT(0)
 #define HNAE3_SUPPORT_PHY_LOOPBACK    BIT(1)
 #define HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK	BIT(2)
@@ -635,7 +725,6 @@ struct hnae3_handle {
 	union {
 		struct net_device *netdev; /* first member */
 		struct hnae3_knic_private_info kinfo;
-		struct hnae3_unic_private_info uinfo;
 		struct hnae3_roce_private_info rinfo;
 	};
 

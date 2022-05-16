@@ -15,7 +15,13 @@
 #include <drm/drm_encoder.h>
 #include <linux/workqueue.h>
 
+/**
+ * struct drm_writeback_connector - DRM writeback connector
+ */
 struct drm_writeback_connector {
+	/**
+	 * @base: base drm_connector object
+	 */
 	struct drm_connector base;
 
 	/**
@@ -78,6 +84,9 @@ struct drm_writeback_connector {
 	char timeline_name[32];
 };
 
+/**
+ * struct drm_writeback_job - DRM writeback job
+ */
 struct drm_writeback_job {
 	/**
 	 * @connector:

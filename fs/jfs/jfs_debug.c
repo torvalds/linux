@@ -43,12 +43,12 @@ static ssize_t jfs_loglevel_proc_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations jfs_loglevel_proc_fops = {
-	.open		= jfs_loglevel_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= jfs_loglevel_proc_write,
+static const struct proc_ops jfs_loglevel_proc_ops = {
+	.proc_open	= jfs_loglevel_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= jfs_loglevel_proc_write,
 };
 #endif
 
@@ -68,7 +68,7 @@ void jfs_proc_init(void)
 #endif
 #ifdef CONFIG_JFS_DEBUG
 	proc_create_single("TxAnchor", 0, base, jfs_txanchor_proc_show);
-	proc_create("loglevel", 0, base, &jfs_loglevel_proc_fops);
+	proc_create("loglevel", 0, base, &jfs_loglevel_proc_ops);
 #endif
 }
 

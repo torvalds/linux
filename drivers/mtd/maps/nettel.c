@@ -176,7 +176,7 @@ static int __init nettel_init(void)
 #endif
 	int rc = 0;
 
-	nettel_mmcrp = (void *) ioremap_nocache(0xfffef000, 4096);
+	nettel_mmcrp = (void *) ioremap(0xfffef000, 4096);
 	if (nettel_mmcrp == NULL) {
 		printk("SNAPGEAR: failed to disable MMCR cache??\n");
 		return(-EIO);
@@ -217,7 +217,7 @@ static int __init nettel_init(void)
 	__asm__ ("wbinvd");
 
 	nettel_amd_map.phys = amdaddr;
-	nettel_amd_map.virt = ioremap_nocache(amdaddr, maxsize);
+	nettel_amd_map.virt = ioremap(amdaddr, maxsize);
 	if (!nettel_amd_map.virt) {
 		printk("SNAPGEAR: failed to ioremap() BOOTCS\n");
 		iounmap(nettel_mmcrp);
@@ -303,7 +303,7 @@ static int __init nettel_init(void)
 	/* Probe for the size of the first Intel flash */
 	nettel_intel_map.size = maxsize;
 	nettel_intel_map.phys = intel0addr;
-	nettel_intel_map.virt = ioremap_nocache(intel0addr, maxsize);
+	nettel_intel_map.virt = ioremap(intel0addr, maxsize);
 	if (!nettel_intel_map.virt) {
 		printk("SNAPGEAR: failed to ioremap() ROMCS1\n");
 		rc = -EIO;
@@ -337,7 +337,7 @@ static int __init nettel_init(void)
 	iounmap(nettel_intel_map.virt);
 
 	nettel_intel_map.size = maxsize;
-	nettel_intel_map.virt = ioremap_nocache(intel0addr, maxsize);
+	nettel_intel_map.virt = ioremap(intel0addr, maxsize);
 	if (!nettel_intel_map.virt) {
 		printk("SNAPGEAR: failed to ioremap() ROMCS1/2\n");
 		rc = -EIO;

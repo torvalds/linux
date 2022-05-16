@@ -12,6 +12,8 @@ on the Qualcomm Hexagon core.
 		    "qcom,msm8916-mss-pil",
 		    "qcom,msm8974-mss-pil"
 		    "qcom,msm8996-mss-pil"
+		    "qcom,msm8998-mss-pil"
+		    "qcom,sc7180-mss-pil"
 		    "qcom,sdm845-mss-pil"
 
 - reg:
@@ -41,6 +43,8 @@ on the Qualcomm Hexagon core.
 	qcom,msm8974-mss-pil:
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack"
 	qcom,msm8996-mss-pil:
+	qcom,msm8998-mss-pil:
+	qcom,sc7180-mss-pil:
 	qcom,sdm845-mss-pil:
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack",
 		    "shutdown-ack"
@@ -70,6 +74,12 @@ on the Qualcomm Hexagon core.
 	qcom,msm8996-mss-pil:
 		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
 		    "snoc_axi", "mnoc_axi", "pnoc", "qdss"
+	qcom,msm8998-mss-pil:
+		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
+		    "snoc_axi", "mnoc_axi", "qdss"
+	qcom,sc7180-mss-pil:
+		    must be "iface", "bus", "xo", "snoc_axi", "mnoc_axi",
+		    "nav"
 	qcom,sdm845-mss-pil:
 		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
 		    "snoc_axi", "mnoc_axi", "prng"
@@ -81,7 +91,7 @@ on the Qualcomm Hexagon core.
 		    reference to the list of 3 reset-controllers for the
 		    wcss sub-system
 		    reference to the list of 2 reset-controllers for the modem
-		    sub-system on SDM845 SoCs
+		    sub-system on SC7180, SDM845 SoCs
 
 - reset-names:
 	Usage: required
@@ -90,7 +100,15 @@ on the Qualcomm Hexagon core.
 		    must be "wcss_aon_reset", "wcss_reset", "wcss_q6_reset"
 		    for the wcss sub-system
 		    must be "mss_restart", "pdc_reset" for the modem
-		    sub-system on SDM845 SoCs
+		    sub-system on SC7180, SDM845 SoCs
+
+For devices where the mba and mpss sub-nodes are not specified, mba/mpss region
+should be referenced as follows:
+- memory-region:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the reserved-memory for the mba region followed
+		    by the mpss region
 
 For the compatible strings below the following supplies are required:
   "qcom,q6v5-pil"
@@ -137,7 +155,9 @@ For the compatible string below the following supplies are required:
 	qcom,msm8974-mss-pil:
 		    no power-domain names required
 	qcom,msm8996-mss-pil:
+	qcom,msm8998-mss-pil:
 		    must be "cx", "mx"
+	qcom,sc7180-mss-pil:
 	qcom,sdm845-mss-pil:
 		    must be "cx", "mx", "mss", "load_state"
 
@@ -158,6 +178,18 @@ For the compatible string below the following supplies are required:
 	Definition: a phandle reference to a syscon representing TCSR followed
 		    by the three offsets within syscon for q6, modem and nc
 		    halt registers.
+
+For the compatible strings below the following phandle references are required:
+  "qcom,sc7180-mss-pil"
+- qcom,spare-regs:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: a phandle reference to a syscon representing TCSR followed
+		    by the offset within syscon for conn_box_spare0 register
+		    used by the modem sub-system running on SC7180 SoC.
+
+The Hexagon node must contain iommus property as described in ../iommu/iommu.txt
+on platforms which do not have TrustZone.
 
 = SUBNODES:
 The Hexagon node must contain two subnodes, named "mba" and "mpss" representing

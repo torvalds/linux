@@ -1,1 +1,0 @@
-../../../../../arch/powerpc/lib/memcpy_mcsafe_64.S

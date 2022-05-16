@@ -361,9 +361,9 @@ enum RT_CHANNEL_IDS {
 enum { SB_CMD = 0, MODEM_CMD, I2S_CMD0, I2S_CMD1, FM_CMD, MAX_CMD };
 
 struct lbuspath {
-	unsigned char *noconv;
-	unsigned char *stereo;
-	unsigned char *mono;
+	const unsigned char *noconv;
+	const unsigned char *stereo;
+	const unsigned char *mono;
 };
 
 struct cmdport {
@@ -445,7 +445,6 @@ struct snd_riptide {
 	union firmware_version firmware;
 
 	spinlock_t lock;
-	struct tasklet_struct riptide_tq;
 	struct snd_info_entry *proc_entry;
 
 	unsigned long received_irqs;
@@ -464,7 +463,7 @@ struct sgd {			/* scatter gather desriptor */
 
 struct pcmhw {			/* pcm descriptor */
 	struct lbuspath paths;
-	unsigned char *lbuspath;
+	const unsigned char *lbuspath;
 	unsigned char source;
 	unsigned char intdec[2];
 	unsigned char mixer;
@@ -517,7 +516,7 @@ MODULE_DEVICE_TABLE(pci, snd_riptide_ids);
 /*
  */
 
-static unsigned char lbusin2out[E2SINK_MAX + 1][2] = {
+static const unsigned char lbusin2out[E2SINK_MAX + 1][2] = {
 	{NO_OUT, LS_NONE1}, {NO_OUT, LS_NONE2}, {NO_OUT, LS_NONE1}, {NO_OUT,
 								     LS_NONE2},
 	{NO_OUT, LS_NONE1}, {NO_OUT, LS_NONE2}, {NO_OUT, LS_NONE1}, {NO_OUT,
@@ -557,63 +556,63 @@ static unsigned char lbusin2out[E2SINK_MAX + 1][2] = {
 								     LS_NONE2},
 };
 
-static unsigned char lbus_play_opl3[] = {
+static const unsigned char lbus_play_opl3[] = {
 	DIGITAL_MIXER_IN0 + FM_MIXER, 0xff
 };
-static unsigned char lbus_play_modem[] = {
+static const unsigned char lbus_play_modem[] = {
 	DIGITAL_MIXER_IN0 + MODEM_MIXER, 0xff
 };
-static unsigned char lbus_play_i2s[] = {
+static const unsigned char lbus_play_i2s[] = {
 	INTER0_IN + I2S_INTDEC, DIGITAL_MIXER_IN0 + I2S_MIXER, 0xff
 };
-static unsigned char lbus_play_out[] = {
+static const unsigned char lbus_play_out[] = {
 	PDAC2ACLNK, 0xff
 };
-static unsigned char lbus_play_outhp[] = {
+static const unsigned char lbus_play_outhp[] = {
 	HNDSPK2ACLNK, 0xff
 };
-static unsigned char lbus_play_noconv1[] = {
+static const unsigned char lbus_play_noconv1[] = {
 	DIGITAL_MIXER_IN0, 0xff
 };
-static unsigned char lbus_play_stereo1[] = {
+static const unsigned char lbus_play_stereo1[] = {
 	INTER0_IN, DIGITAL_MIXER_IN0, 0xff
 };
-static unsigned char lbus_play_mono1[] = {
+static const unsigned char lbus_play_mono1[] = {
 	INTERM0_IN, DIGITAL_MIXER_IN0, 0xff
 };
-static unsigned char lbus_play_noconv2[] = {
+static const unsigned char lbus_play_noconv2[] = {
 	DIGITAL_MIXER_IN1, 0xff
 };
-static unsigned char lbus_play_stereo2[] = {
+static const unsigned char lbus_play_stereo2[] = {
 	INTER1_IN, DIGITAL_MIXER_IN1, 0xff
 };
-static unsigned char lbus_play_mono2[] = {
+static const unsigned char lbus_play_mono2[] = {
 	INTERM1_IN, DIGITAL_MIXER_IN1, 0xff
 };
-static unsigned char lbus_play_noconv3[] = {
+static const unsigned char lbus_play_noconv3[] = {
 	DIGITAL_MIXER_IN2, 0xff
 };
-static unsigned char lbus_play_stereo3[] = {
+static const unsigned char lbus_play_stereo3[] = {
 	INTER2_IN, DIGITAL_MIXER_IN2, 0xff
 };
-static unsigned char lbus_play_mono3[] = {
+static const unsigned char lbus_play_mono3[] = {
 	INTERM2_IN, DIGITAL_MIXER_IN2, 0xff
 };
-static unsigned char lbus_rec_noconv1[] = {
+static const unsigned char lbus_rec_noconv1[] = {
 	LBUS2ARM_FIFO5, 0xff
 };
-static unsigned char lbus_rec_stereo1[] = {
+static const unsigned char lbus_rec_stereo1[] = {
 	DECIM0_IN, LBUS2ARM_FIFO5, 0xff
 };
-static unsigned char lbus_rec_mono1[] = {
+static const unsigned char lbus_rec_mono1[] = {
 	DECIMM3_IN, LBUS2ARM_FIFO5, 0xff
 };
 
-static unsigned char play_ids[] = { 4, 1, 2, };
-static unsigned char play_sources[] = {
+static const unsigned char play_ids[] = { 4, 1, 2, };
+static const unsigned char play_sources[] = {
 	ARM2LBUS_FIFO4, ARM2LBUS_FIFO1, ARM2LBUS_FIFO2,
 };
-static struct lbuspath lbus_play_paths[] = {
+static const struct lbuspath lbus_play_paths[] = {
 	{
 	 .noconv = lbus_play_noconv1,
 	 .stereo = lbus_play_stereo1,
@@ -737,7 +736,7 @@ static int loadfirmware(struct cmdif *cif, const unsigned char *img,
 
 static void
 alloclbuspath(struct cmdif *cif, unsigned char source,
-	      unsigned char *path, unsigned char *mixer, unsigned char *s)
+	      const unsigned char *path, unsigned char *mixer, unsigned char *s)
 {
 	while (*path != 0xff) {
 		unsigned char sink, type;
@@ -765,7 +764,7 @@ alloclbuspath(struct cmdif *cif, unsigned char source,
 			}
 		}
 		if (*path++ & SPLIT_PATH) {
-			unsigned char *npath = path;
+			const unsigned char *npath = path;
 
 			while (*npath != 0xff)
 				npath++;
@@ -775,7 +774,7 @@ alloclbuspath(struct cmdif *cif, unsigned char source,
 }
 
 static void
-freelbuspath(struct cmdif *cif, unsigned char source, unsigned char *path)
+freelbuspath(struct cmdif *cif, unsigned char source, const unsigned char *path)
 {
 	while (*path != 0xff) {
 		unsigned char sink;
@@ -787,7 +786,7 @@ freelbuspath(struct cmdif *cif, unsigned char source, unsigned char *path)
 			source = lbusin2out[sink][0];
 		}
 		if (*path++ & SPLIT_PATH) {
-			unsigned char *npath = path;
+			const unsigned char *npath = path;
 
 			while (*npath != 0xff)
 				npath++;
@@ -1070,9 +1069,9 @@ getmixer(struct cmdif *cif, short num, unsigned short *rval,
 	return 0;
 }
 
-static void riptide_handleirq(unsigned long dev_id)
+static irqreturn_t riptide_handleirq(int irq, void *dev_id)
 {
-	struct snd_riptide *chip = (void *)dev_id;
+	struct snd_riptide *chip = dev_id;
 	struct cmdif *cif = chip->cif;
 	struct snd_pcm_substream *substream[PLAYBACK_SUBSTREAMS + 1];
 	struct snd_pcm_runtime *runtime;
@@ -1083,7 +1082,7 @@ static void riptide_handleirq(unsigned long dev_id)
 	unsigned int flag;
 
 	if (!cif)
-		return;
+		return IRQ_HANDLED;
 
 	for (i = 0; i < PLAYBACK_SUBSTREAMS; i++)
 		substream[i] = chip->playback_substream[i];
@@ -1134,6 +1133,8 @@ static void riptide_handleirq(unsigned long dev_id)
 			}
 		}
 	}
+
+	return IRQ_HANDLED;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1441,7 +1442,7 @@ static int snd_riptide_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct pcmhw *data = get_pcmhwdev(substream);
 	struct cmdif *cif = chip->cif;
-	unsigned char *lbuspath = NULL;
+	const unsigned char *lbuspath = NULL;
 	unsigned int rate, channels;
 	int err = 0;
 	snd_pcm_format_t format;
@@ -1550,7 +1551,7 @@ snd_riptide_hw_params(struct snd_pcm_substream *substream,
 	if (sgdlist->area)
 		snd_dma_free_pages(sgdlist);
 	if ((err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-				       snd_dma_pci_data(chip->pci),
+				       &chip->pci->dev,
 				       sizeof(struct sgd) * (DESC_MAX_MASK + 1),
 				       sgdlist)) < 0) {
 		snd_printk(KERN_ERR "Riptide: failed to alloc %d dma bytes\n",
@@ -1558,8 +1559,7 @@ snd_riptide_hw_params(struct snd_pcm_substream *substream,
 		return err;
 	}
 	data->sgdbuf = (struct sgd *)sgdlist->area;
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
+	return 0;
 }
 
 static int snd_riptide_hw_free(struct snd_pcm_substream *substream)
@@ -1581,7 +1581,7 @@ static int snd_riptide_hw_free(struct snd_pcm_substream *substream)
 			data->sgdlist.area = NULL;
 		}
 	}
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 static int snd_riptide_playback_open(struct snd_pcm_substream *substream)
@@ -1657,22 +1657,18 @@ static int snd_riptide_capture_close(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_riptide_playback_ops = {
 	.open = snd_riptide_playback_open,
 	.close = snd_riptide_playback_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_riptide_hw_params,
 	.hw_free = snd_riptide_hw_free,
 	.prepare = snd_riptide_prepare,
-	.page = snd_pcm_sgbuf_ops_page,
 	.trigger = snd_riptide_trigger,
 	.pointer = snd_riptide_pointer,
 };
 static const struct snd_pcm_ops snd_riptide_capture_ops = {
 	.open = snd_riptide_capture_open,
 	.close = snd_riptide_capture_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_riptide_hw_params,
 	.hw_free = snd_riptide_hw_free,
 	.prepare = snd_riptide_prepare,
-	.page = snd_pcm_sgbuf_ops_page,
 	.trigger = snd_riptide_trigger,
 	.pointer = snd_riptide_pointer,
 };
@@ -1694,9 +1690,8 @@ static int snd_riptide_pcm(struct snd_riptide *chip, int device)
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "RIPTIDE");
 	chip->pcm = pcm;
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-					      snd_dma_pci_data(chip->pci),
-					      64 * 1024, 128 * 1024);
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+				       &chip->pci->dev, 64 * 1024, 128 * 1024);
 	return 0;
 }
 
@@ -1705,13 +1700,14 @@ snd_riptide_interrupt(int irq, void *dev_id)
 {
 	struct snd_riptide *chip = dev_id;
 	struct cmdif *cif = chip->cif;
+	irqreturn_t ret = IRQ_HANDLED;
 
 	if (cif) {
 		chip->received_irqs++;
 		if (IS_EOBIRQ(cif->hwport) || IS_EOSIRQ(cif->hwport) ||
 		    IS_EOCIRQ(cif->hwport)) {
 			chip->handled_irqs++;
-			tasklet_schedule(&chip->riptide_tq);
+			ret = IRQ_WAKE_THREAD;
 		}
 		if (chip->rmidi && IS_MPUIRQ(cif->hwport)) {
 			chip->handled_irqs++;
@@ -1720,7 +1716,7 @@ snd_riptide_interrupt(int irq, void *dev_id)
 		}
 		SET_AIACK(cif->hwport);
 	}
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static void
@@ -1830,7 +1826,7 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 	struct snd_riptide *chip;
 	struct riptideport *hwport;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_riptide_dev_free,
 	};
 
@@ -1849,7 +1845,6 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 	chip->received_irqs = 0;
 	chip->handled_irqs = 0;
 	chip->cif = NULL;
-	tasklet_init(&chip->riptide_tq, riptide_handleirq, (unsigned long)chip);
 
 	if ((chip->res_port =
 	     request_region(chip->port, 64, "RIPTIDE")) == NULL) {
@@ -1862,14 +1857,16 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 	hwport = (struct riptideport *)chip->port;
 	UNSET_AIE(hwport);
 
-	if (request_irq(pci->irq, snd_riptide_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, chip)) {
+	if (request_threaded_irq(pci->irq, snd_riptide_interrupt,
+				 riptide_handleirq, IRQF_SHARED,
+				 KBUILD_MODNAME, chip)) {
 		snd_printk(KERN_ERR "Riptide: unable to grab IRQ %d\n",
 			   pci->irq);
 		snd_riptide_free(chip);
 		return -EBUSY;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	chip->device_id = pci->device;
 	pci_set_master(pci);
 	if ((err = snd_riptide_initialize(chip)) < 0) {
@@ -1968,7 +1965,7 @@ static int snd_riptide_mixer(struct snd_riptide *chip)
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
 	int err = 0;
-	static struct snd_ac97_bus_ops ops = {
+	static const struct snd_ac97_bus_ops ops = {
 		.write = snd_riptide_codec_write,
 		.read = snd_riptide_codec_read,
 	};

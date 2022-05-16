@@ -59,7 +59,7 @@ struct l2t_data {
 	rwlock_t lock;
 	atomic_t nfree;             /* number of free entries */
 	struct l2t_entry *rover;    /* starting point for next allocation */
-	struct l2t_entry l2tab[0];  /* MUST BE LAST */
+	struct l2t_entry l2tab[];  /* MUST BE LAST */
 };
 
 static inline unsigned int vlan_prio(const struct l2t_entry *e)
@@ -231,7 +231,7 @@ again:
 		if (e->state == L2T_STATE_STALE)
 			e->state = L2T_STATE_VALID;
 		spin_unlock_bh(&e->lock);
-		/* fall through */
+		fallthrough;
 	case L2T_STATE_VALID:     /* fast-path, send the packet on */
 		return t4_ofld_send(adap, skb);
 	case L2T_STATE_RESOLVING:
@@ -351,15 +351,13 @@ exists:
 static void _t4_l2e_free(struct l2t_entry *e)
 {
 	struct l2t_data *d;
-	struct sk_buff *skb;
 
 	if (atomic_read(&e->refcnt) == 0) {  /* hasn't been recycled */
 		if (e->neigh) {
 			neigh_release(e->neigh);
 			e->neigh = NULL;
 		}
-		while ((skb = __skb_dequeue(&e->arpq)) != NULL)
-			kfree_skb(skb);
+		__skb_queue_purge(&e->arpq);
 	}
 
 	d = container_of(e, struct l2t_data, l2tab[e->idx]);
@@ -370,7 +368,6 @@ static void _t4_l2e_free(struct l2t_entry *e)
 static void t4_l2e_free(struct l2t_entry *e)
 {
 	struct l2t_data *d;
-	struct sk_buff *skb;
 
 	spin_lock_bh(&e->lock);
 	if (atomic_read(&e->refcnt) == 0) {  /* hasn't been recycled */
@@ -378,8 +375,7 @@ static void t4_l2e_free(struct l2t_entry *e)
 			neigh_release(e->neigh);
 			e->neigh = NULL;
 		}
-		while ((skb = __skb_dequeue(&e->arpq)) != NULL)
-			kfree_skb(skb);
+		__skb_queue_purge(&e->arpq);
 	}
 	spin_unlock_bh(&e->lock);
 
@@ -507,40 +503,19 @@ u64 cxgb4_select_ntuple(struct net_device *dev,
 EXPORT_SYMBOL(cxgb4_select_ntuple);
 
 /*
- * Called when address resolution fails for an L2T entry to handle packets
- * on the arpq head.  If a packet specifies a failure handler it is invoked,
- * otherwise the packet is sent to the device.
- */
-static void handle_failed_resolution(struct adapter *adap, struct l2t_entry *e)
-{
-	struct sk_buff *skb;
-
-	while ((skb = __skb_dequeue(&e->arpq)) != NULL) {
-		const struct l2t_skb_cb *cb = L2T_SKB_CB(skb);
-
-		spin_unlock(&e->lock);
-		if (cb->arp_err_handler)
-			cb->arp_err_handler(cb->handle, skb);
-		else
-			t4_ofld_send(adap, skb);
-		spin_lock(&e->lock);
-	}
-}
-
-/*
  * Called when the host's neighbor layer makes a change to some entry that is
  * loaded into the HW L2 table.
  */
 void t4_l2t_update(struct adapter *adap, struct neighbour *neigh)
 {
-	struct l2t_entry *e;
-	struct sk_buff_head *arpq = NULL;
-	struct l2t_data *d = adap->l2t;
 	unsigned int addr_len = neigh->tbl->key_len;
 	u32 *addr = (u32 *) neigh->primary_key;
-	int ifidx = neigh->dev->ifindex;
-	int hash = addr_hash(d, addr, addr_len, ifidx);
+	int hash, ifidx = neigh->dev->ifindex;
+	struct sk_buff_head *arpq = NULL;
+	struct l2t_data *d = adap->l2t;
+	struct l2t_entry *e;
 
+	hash = addr_hash(d, addr, addr_len, ifidx);
 	read_lock_bh(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next)
 		if (!addreq(e, addr) && e->ifindex == ifidx) {
@@ -573,8 +548,25 @@ void t4_l2t_update(struct adapter *adap, struct neighbour *neigh)
 			write_l2e(adap, e, 0);
 	}
 
-	if (arpq)
-		handle_failed_resolution(adap, e);
+	if (arpq) {
+		struct sk_buff *skb;
+
+		/* Called when address resolution fails for an L2T
+		 * entry to handle packets on the arpq head. If a
+		 * packet specifies a failure handler it is invoked,
+		 * otherwise the packet is sent to the device.
+		 */
+		while ((skb = __skb_dequeue(&e->arpq)) != NULL) {
+			const struct l2t_skb_cb *cb = L2T_SKB_CB(skb);
+
+			spin_unlock(&e->lock);
+			if (cb->arp_err_handler)
+				cb->arp_err_handler(cb->handle, skb);
+			else
+				t4_ofld_send(adap, skb);
+			spin_lock(&e->lock);
+		}
+	}
 	spin_unlock_bh(&e->lock);
 }
 
@@ -617,6 +609,7 @@ struct l2t_entry *t4_l2t_alloc_switching(struct adapter *adap, u16 vlan,
 }
 
 /**
+ * cxgb4_l2t_alloc_switching - Allocates an L2T entry for switch filters
  * @dev: net_device pointer
  * @vlan: VLAN Id
  * @port: Associated port
@@ -682,8 +675,7 @@ static void *l2t_seq_start(struct seq_file *seq, loff_t *pos)
 static void *l2t_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	v = l2t_get_idx(seq, *pos);
-	if (v)
-		++*pos;
+	++(*pos);
 	return v;
 }
 
@@ -704,6 +696,17 @@ static char l2e_state(const struct l2t_entry *e)
 		return 'U';
 	}
 }
+
+bool cxgb4_check_l2t_valid(struct l2t_entry *e)
+{
+	bool valid;
+
+	spin_lock(&e->lock);
+	valid = (e->state == L2T_STATE_VALID);
+	spin_unlock(&e->lock);
+	return valid;
+}
+EXPORT_SYMBOL(cxgb4_check_l2t_valid);
 
 static int l2t_seq_show(struct seq_file *seq, void *v)
 {

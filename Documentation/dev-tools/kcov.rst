@@ -34,6 +34,7 @@ Profiling data will only become accessible once debugfs has been mounted::
 
 Coverage collection
 -------------------
+
 The following program demonstrates coverage collection from within a test
 program using kcov:
 
@@ -128,6 +129,7 @@ only need to enable coverage (disable happens automatically on thread end).
 
 Comparison operands collection
 ------------------------------
+
 Comparison operands collection is similar to coverage collection:
 
 .. code-block:: c
@@ -202,3 +204,131 @@ Comparison operands collection is similar to coverage collection:
 
 Note that the kcov modes (coverage collection or comparison operands) are
 mutually exclusive.
+
+Remote coverage collection
+--------------------------
+
+With KCOV_ENABLE coverage is collected only for syscalls that are issued
+from the current process. With KCOV_REMOTE_ENABLE it's possible to collect
+coverage for arbitrary parts of the kernel code, provided that those parts
+are annotated with kcov_remote_start()/kcov_remote_stop().
+
+This allows to collect coverage from two types of kernel background
+threads: the global ones, that are spawned during kernel boot in a limited
+number of instances (e.g. one USB hub_event() worker thread is spawned per
+USB HCD); and the local ones, that are spawned when a user interacts with
+some kernel interface (e.g. vhost workers); as well as from soft
+interrupts.
+
+To enable collecting coverage from a global background thread or from a
+softirq, a unique global handle must be assigned and passed to the
+corresponding kcov_remote_start() call. Then a userspace process can pass
+a list of such handles to the KCOV_REMOTE_ENABLE ioctl in the handles
+array field of the kcov_remote_arg struct. This will attach the used kcov
+device to the code sections, that are referenced by those handles.
+
+Since there might be many local background threads spawned from different
+userspace processes, we can't use a single global handle per annotation.
+Instead, the userspace process passes a non-zero handle through the
+common_handle field of the kcov_remote_arg struct. This common handle gets
+saved to the kcov_handle field in the current task_struct and needs to be
+passed to the newly spawned threads via custom annotations. Those threads
+should in turn be annotated with kcov_remote_start()/kcov_remote_stop().
+
+Internally kcov stores handles as u64 integers. The top byte of a handle
+is used to denote the id of a subsystem that this handle belongs to, and
+the lower 4 bytes are used to denote the id of a thread instance within
+that subsystem. A reserved value 0 is used as a subsystem id for common
+handles as they don't belong to a particular subsystem. The bytes 4-7 are
+currently reserved and must be zero. In the future the number of bytes
+used for the subsystem or handle ids might be increased.
+
+When a particular userspace proccess collects coverage via a common
+handle, kcov will collect coverage for each code section that is annotated
+to use the common handle obtained as kcov_handle from the current
+task_struct. However non common handles allow to collect coverage
+selectively from different subsystems.
+
+.. code-block:: c
+
+    struct kcov_remote_arg {
+	__u32		trace_mode;
+	__u32		area_size;
+	__u32		num_handles;
+	__aligned_u64	common_handle;
+	__aligned_u64	handles[0];
+    };
+
+    #define KCOV_INIT_TRACE			_IOR('c', 1, unsigned long)
+    #define KCOV_DISABLE			_IO('c', 101)
+    #define KCOV_REMOTE_ENABLE		_IOW('c', 102, struct kcov_remote_arg)
+
+    #define COVER_SIZE	(64 << 10)
+
+    #define KCOV_TRACE_PC	0
+
+    #define KCOV_SUBSYSTEM_COMMON	(0x00ull << 56)
+    #define KCOV_SUBSYSTEM_USB	(0x01ull << 56)
+
+    #define KCOV_SUBSYSTEM_MASK	(0xffull << 56)
+    #define KCOV_INSTANCE_MASK	(0xffffffffull)
+
+    static inline __u64 kcov_remote_handle(__u64 subsys, __u64 inst)
+    {
+	if (subsys & ~KCOV_SUBSYSTEM_MASK || inst & ~KCOV_INSTANCE_MASK)
+		return 0;
+	return subsys | inst;
+    }
+
+    #define KCOV_COMMON_ID	0x42
+    #define KCOV_USB_BUS_NUM	1
+
+    int main(int argc, char **argv)
+    {
+	int fd;
+	unsigned long *cover, n, i;
+	struct kcov_remote_arg *arg;
+
+	fd = open("/sys/kernel/debug/kcov", O_RDWR);
+	if (fd == -1)
+		perror("open"), exit(1);
+	if (ioctl(fd, KCOV_INIT_TRACE, COVER_SIZE))
+		perror("ioctl"), exit(1);
+	cover = (unsigned long*)mmap(NULL, COVER_SIZE * sizeof(unsigned long),
+				     PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if ((void*)cover == MAP_FAILED)
+		perror("mmap"), exit(1);
+
+	/* Enable coverage collection via common handle and from USB bus #1. */
+	arg = calloc(1, sizeof(*arg) + sizeof(uint64_t));
+	if (!arg)
+		perror("calloc"), exit(1);
+	arg->trace_mode = KCOV_TRACE_PC;
+	arg->area_size = COVER_SIZE;
+	arg->num_handles = 1;
+	arg->common_handle = kcov_remote_handle(KCOV_SUBSYSTEM_COMMON,
+							KCOV_COMMON_ID);
+	arg->handles[0] = kcov_remote_handle(KCOV_SUBSYSTEM_USB,
+						KCOV_USB_BUS_NUM);
+	if (ioctl(fd, KCOV_REMOTE_ENABLE, arg))
+		perror("ioctl"), free(arg), exit(1);
+	free(arg);
+
+	/*
+	 * Here the user needs to trigger execution of a kernel code section
+	 * that is either annotated with the common handle, or to trigger some
+	 * activity on USB bus #1.
+	 */
+	sleep(2);
+
+	n = __atomic_load_n(&cover[0], __ATOMIC_RELAXED);
+	for (i = 0; i < n; i++)
+		printf("0x%lx\n", cover[i + 1]);
+	if (ioctl(fd, KCOV_DISABLE, 0))
+		perror("ioctl"), exit(1);
+	if (munmap(cover, COVER_SIZE * sizeof(unsigned long)))
+		perror("munmap"), exit(1);
+	if (close(fd))
+		perror("close"), exit(1);
+	return 0;
+    }

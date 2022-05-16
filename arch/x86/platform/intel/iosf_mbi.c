@@ -265,7 +265,7 @@ static void iosf_mbi_reset_semaphore(void)
 			    iosf_mbi_sem_address, 0, PUNIT_SEMAPHORE_BIT))
 		dev_err(&mbi_pdev->dev, "Error P-Unit semaphore reset failed\n");
 
-	pm_qos_update_request(&iosf_mbi_pm_qos, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&iosf_mbi_pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	blocking_notifier_call_chain(&iosf_mbi_pmic_bus_access_notifier,
 				     MBI_PMIC_BUS_ACCESS_END, NULL);
@@ -301,8 +301,8 @@ static void iosf_mbi_reset_semaphore(void)
  * 4) When CPU cores enter C6 or C7 the P-Unit needs to talk to the PMIC
  *    if this happens while the kernel itself is accessing the PMIC I2C bus
  *    the SoC hangs.
- *    As the third step we call pm_qos_update_request() to disallow the CPU
- *    to enter C6 or C7.
+ *    As the third step we call cpu_latency_qos_update_request() to disallow the
+ *    CPU to enter C6 or C7.
  *
  * 5) The P-Unit has a PMIC bus semaphore which we can request to stop
  *    autonomous P-Unit tasks from accessing the PMIC I2C bus while we hold it.
@@ -338,7 +338,7 @@ int iosf_mbi_block_punit_i2c_access(void)
 	 * requires the P-Unit to talk to the PMIC and if this happens while
 	 * we're holding the semaphore, the SoC hangs.
 	 */
-	pm_qos_update_request(&iosf_mbi_pm_qos, 0);
+	cpu_latency_qos_update_request(&iosf_mbi_pm_qos, 0);
 
 	/* host driver writes to side band semaphore register */
 	ret = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE,
@@ -547,8 +547,7 @@ static int __init iosf_mbi_init(void)
 {
 	iosf_debugfs_init();
 
-	pm_qos_add_request(&iosf_mbi_pm_qos, PM_QOS_CPU_DMA_LATENCY,
-			   PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_add_request(&iosf_mbi_pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	return pci_register_driver(&iosf_mbi_pci_driver);
 }
@@ -561,7 +560,7 @@ static void __exit iosf_mbi_exit(void)
 	pci_dev_put(mbi_pdev);
 	mbi_pdev = NULL;
 
-	pm_qos_remove_request(&iosf_mbi_pm_qos);
+	cpu_latency_qos_remove_request(&iosf_mbi_pm_qos);
 }
 
 module_init(iosf_mbi_init);

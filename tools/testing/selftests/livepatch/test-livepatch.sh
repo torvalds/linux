@@ -7,16 +7,14 @@
 MOD_LIVEPATCH=test_klp_livepatch
 MOD_REPLACE=test_klp_atomic_replace
 
-set_dynamic_debug
+setup_config
 
 
-# TEST: basic function patching
 # - load a livepatch that modifies the output from /proc/cmdline and
 #   verify correct behavior
 # - unload the livepatch and make sure the patch was removed
 
-echo -n "TEST: basic function patching ... "
-dmesg -C
+start_test "basic function patching"
 
 load_lp $MOD_LIVEPATCH
 
@@ -47,15 +45,13 @@ livepatch: '$MOD_LIVEPATCH': unpatching complete
 % rmmod $MOD_LIVEPATCH"
 
 
-# TEST: multiple livepatches
 # - load a livepatch that modifies the output from /proc/cmdline and
 #   verify correct behavior
 # - load another livepatch and verify that both livepatches are active
 # - unload the second livepatch and verify that the first is still active
 # - unload the first livepatch and verify none are active
 
-echo -n "TEST: multiple livepatches ... "
-dmesg -C
+start_test "multiple livepatches"
 
 load_lp $MOD_LIVEPATCH
 
@@ -109,7 +105,6 @@ livepatch: '$MOD_LIVEPATCH': unpatching complete
 % rmmod $MOD_LIVEPATCH"
 
 
-# TEST: atomic replace livepatch
 # - load a livepatch that modifies the output from /proc/cmdline and
 #   verify correct behavior
 # - load an atomic replace livepatch and verify that only the second is active
@@ -117,8 +112,7 @@ livepatch: '$MOD_LIVEPATCH': unpatching complete
 #   is still active
 # - remove the atomic replace livepatch and verify that none are active
 
-echo -n "TEST: atomic replace livepatch ... "
-dmesg -C
+start_test "atomic replace livepatch"
 
 load_lp $MOD_LIVEPATCH
 

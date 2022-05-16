@@ -10,6 +10,7 @@ else
 tune		= $(call cc-option,-mcpu=$(1),$(2))
 endif
 
+cflags-$(CONFIG_M486SX)		+= -march=i486
 cflags-$(CONFIG_M486)		+= -march=i486
 cflags-$(CONFIG_M586)		+= -march=i586
 cflags-$(CONFIG_M586TSC)	+= -march=i586

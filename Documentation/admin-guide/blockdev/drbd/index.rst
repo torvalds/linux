@@ -10,7 +10,7 @@ Description
   clusters and in this context, is a "drop-in" replacement for shared
   storage. Simplistically, you could see it as a network RAID 1.
 
-  Please visit http://www.drbd.org to find out more.
+  Please visit https://www.drbd.org to find out more.
 
 .. toctree::
    :maxdepth: 1

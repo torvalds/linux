@@ -41,7 +41,7 @@
  *
  * If successful, 0 is returned.
  */
-int enable_all_controllers(char *cgroup_path)
+static int enable_all_controllers(char *cgroup_path)
 {
 	char path[PATH_MAX + 1];
 	char buf[PATH_MAX];
@@ -98,7 +98,7 @@ int enable_all_controllers(char *cgroup_path)
  */
 int setup_cgroup_environment(void)
 {
-	char cgroup_workdir[PATH_MAX + 1];
+	char cgroup_workdir[PATH_MAX - 24];
 
 	format_cgroup_path(cgroup_workdir, "");
 
@@ -289,4 +289,27 @@ unsigned long long get_cgroup_id(const char *path)
 free_mem:
 	free(fhp);
 	return ret;
+}
+
+int cgroup_setup_and_join(const char *path) {
+	int cg_fd;
+
+	if (setup_cgroup_environment()) {
+		fprintf(stderr, "Failed to setup cgroup environment\n");
+		return -EINVAL;
+	}
+
+	cg_fd = create_and_get_cgroup(path);
+	if (cg_fd < 0) {
+		fprintf(stderr, "Failed to create test cgroup\n");
+		cleanup_cgroup_environment();
+		return cg_fd;
+	}
+
+	if (join_cgroup(path)) {
+		fprintf(stderr, "Failed to join cgroup\n");
+		cleanup_cgroup_environment();
+		return -EINVAL;
+	}
+	return cg_fd;
 }

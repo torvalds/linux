@@ -15,7 +15,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_48b = { 3 },
-	.errstr = "R0 max value is outside of the array range",
+	.errstr = "R0 max value is outside of the allowed memory range",
 	.result = REJECT,
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
@@ -44,7 +44,23 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_48b = { 3 },
-	.errstr = "R0 max value is outside of the array range",
+	.errstr = "R0 max value is outside of the allowed memory range",
 	.result = REJECT,
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
+},
+{
+	"check known subreg with unknown reg",
+	.insns = {
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_prandom_u32),
+	BPF_ALU64_IMM(BPF_LSH, BPF_REG_0, 32),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+	BPF_ALU64_IMM(BPF_AND, BPF_REG_0, 0xFFFF1234),
+	/* Upper bits are unknown but AND above masks out 1 zero'ing lower bits */
+	BPF_JMP32_IMM(BPF_JLT, BPF_REG_0, 1, 1),
+	BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_1, 512),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.retval = 0
 },

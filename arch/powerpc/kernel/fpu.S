@@ -12,7 +12,6 @@
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
-#include <asm/pgtable.h>
 #include <asm/cputable.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
@@ -88,12 +87,14 @@ BEGIN_FTR_SECTION
 	oris	r5,r5,MSR_VSX@h
 END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
-	SYNC
 	MTMSRD(r5)			/* enable use of fpu now */
 	isync
 	/* enable use of FP after return */
 #ifdef CONFIG_PPC32
 	mfspr	r5,SPRN_SPRG_THREAD	/* current task's THREAD (phys) */
+#ifdef CONFIG_VMAP_STACK
+	tovirt(r5, r5)
+#endif
 	lwz	r4,THREAD_FPEXC_MODE(r5)
 	ori	r9,r9,MSR_FP		/* enable FP for current */
 	or	r9,r9,r4
@@ -105,9 +106,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	or	r12,r12,r4
 	std	r12,_MSR(r1)
 #endif
-	/* Don't care if r4 overflows, this is desired behaviour */
-	lbz	r4,THREAD_LOAD_FP(r5)
-	addi	r4,r4,1
+	li	r4,1
 	stb	r4,THREAD_LOAD_FP(r5)
 	addi	r10,r5,THREAD_FPSTATE
 	lfd	fr0,FPSTATE_FPSCR(r10)
@@ -116,6 +115,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	/* restore registers and return */
 	/* we haven't used ctr or xer or lr */
 	blr
+_ASM_NOKPROBE_SYMBOL(load_up_fpu)
 
 /*
  * save_fpu(tsk)
@@ -132,19 +132,4 @@ _GLOBAL(save_fpu)
 2:	SAVE_32FPVSRS(0, R4, R6)
 	mffs	fr0
 	stfd	fr0,FPSTATE_FPSCR(r6)
-	blr
-
-/*
- * These are used in the alignment trap handler when emulating
- * single-precision loads and stores.
- */
-
-_GLOBAL(cvt_fd)
-	lfs	0,0(r3)
-	stfd	0,0(r4)
-	blr
-
-_GLOBAL(cvt_df)
-	lfd	0,0(r3)
-	stfs	0,0(r4)
 	blr

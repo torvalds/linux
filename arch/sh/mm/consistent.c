@@ -43,8 +43,7 @@ int __init platform_resource_setup_memory(struct platform_device *pdev,
 
 	r = pdev->resource + pdev->num_resources - 1;
 	if (r->flags) {
-		pr_warning("%s: unable to find empty space for resource\n",
-			name);
+		pr_warn("%s: unable to find empty space for resource\n", name);
 		return -EINVAL;
 	}
 
@@ -54,11 +53,9 @@ int __init platform_resource_setup_memory(struct platform_device *pdev,
 
 	buf = dma_alloc_coherent(&pdev->dev, memsize, &dma_handle, GFP_KERNEL);
 	if (!buf) {
-		pr_warning("%s: unable to allocate memory\n", name);
+		pr_warn("%s: unable to allocate memory\n", name);
 		return -ENOMEM;
 	}
-
-	memset(buf, 0, memsize);
 
 	r->flags = IORESOURCE_MEM;
 	r->start = dma_handle;

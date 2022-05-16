@@ -713,7 +713,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 					      max14577_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
-		return -ENOMEM;
+		return PTR_ERR(info->edev);
 	}
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
@@ -782,9 +782,19 @@ static const struct platform_device_id max14577_muic_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, max14577_muic_id);
 
+static const struct of_device_id of_max14577_muic_dt_match[] = {
+	{ .compatible = "maxim,max14577-muic",
+	  .data = (void *)MAXIM_DEVICE_TYPE_MAX14577, },
+	{ .compatible = "maxim,max77836-muic",
+	  .data = (void *)MAXIM_DEVICE_TYPE_MAX77836, },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_max14577_muic_dt_match);
+
 static struct platform_driver max14577_muic_driver = {
 	.driver		= {
 		.name	= "max14577-muic",
+		.of_match_table = of_max14577_muic_dt_match,
 	},
 	.probe		= max14577_muic_probe,
 	.remove		= max14577_muic_remove,

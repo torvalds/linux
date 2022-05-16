@@ -19,7 +19,7 @@ struct snd_jack_kctl {
 };
 
 #ifdef CONFIG_SND_JACK_INPUT_DEV
-static int jack_switch_types[SND_JACK_SWITCH_TYPES] = {
+static const int jack_switch_types[SND_JACK_SWITCH_TYPES] = {
 	SW_HEADPHONE_INSERT,
 	SW_MICROPHONE_INSERT,
 	SW_LINEOUT_INSERT,
@@ -201,7 +201,7 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 	struct snd_jack *jack;
 	struct snd_jack_kctl *jack_kctl = NULL;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_jack_dev_free,
 #ifdef CONFIG_SND_JACK_INPUT_DEV
 		.dev_register = snd_jack_dev_register,

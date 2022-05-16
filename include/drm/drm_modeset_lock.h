@@ -114,6 +114,15 @@ static inline bool drm_modeset_is_locked(struct drm_modeset_lock *lock)
 	return ww_mutex_is_locked(&lock->mutex);
 }
 
+/**
+ * drm_modeset_lock_assert_held - equivalent to lockdep_assert_held()
+ * @lock: lock to check
+ */
+static inline void drm_modeset_lock_assert_held(struct drm_modeset_lock *lock)
+{
+	lockdep_assert_held(&lock->mutex.base);
+}
+
 int drm_modeset_lock(struct drm_modeset_lock *lock,
 		struct drm_modeset_acquire_ctx *ctx);
 int __must_check drm_modeset_lock_single_interruptible(struct drm_modeset_lock *lock);
@@ -155,6 +164,8 @@ int drm_modeset_lock_all_ctx(struct drm_device *dev,
  * is 0, so no error checking is necessary
  */
 #define DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, flags, ret)		\
+	if (!drm_drv_uses_atomic_modeset(dev))				\
+		mutex_lock(&dev->mode_config.mutex);			\
 	drm_modeset_acquire_init(&ctx, flags);				\
 modeset_lock_retry:							\
 	ret = drm_modeset_lock_all_ctx(dev, &ctx);			\
@@ -163,6 +174,7 @@ modeset_lock_retry:							\
 
 /**
  * DRM_MODESET_LOCK_ALL_END - Helper to release and cleanup modeset locks
+ * @dev: drm device
  * @ctx: local modeset acquire context, will be dereferenced
  * @ret: local ret/err/etc variable to track error status
  *
@@ -179,7 +191,7 @@ modeset_lock_retry:							\
  * to that failure. In both of these cases the code between BEGIN/END will not
  * be run, so the failure will reflect the inability to grab the locks.
  */
-#define DRM_MODESET_LOCK_ALL_END(ctx, ret)				\
+#define DRM_MODESET_LOCK_ALL_END(dev, ctx, ret)				\
 modeset_lock_fail:							\
 	if (ret == -EDEADLK) {						\
 		ret = drm_modeset_backoff(&ctx);			\
@@ -187,6 +199,8 @@ modeset_lock_fail:							\
 			goto modeset_lock_retry;			\
 	}								\
 	drm_modeset_drop_locks(&ctx);					\
-	drm_modeset_acquire_fini(&ctx);
+	drm_modeset_acquire_fini(&ctx);					\
+	if (!drm_drv_uses_atomic_modeset(dev))				\
+		mutex_unlock(&dev->mode_config.mutex);
 
 #endif /* DRM_MODESET_LOCK_H_ */

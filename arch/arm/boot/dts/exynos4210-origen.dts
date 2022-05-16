@@ -100,6 +100,13 @@
 			compatible = "samsung,clock-xusbxti";
 			clock-frequency = <24000000>;
 		};
+
+		pmic_ap_clk: pmic-ap-clk {
+			/* Workaround for missing clock on max8997 PMIC */
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
 	};
 
 	display-timings {
@@ -120,6 +127,19 @@
 
 &cpu0 {
 	cpu0-supply = <&buck1_reg>;
+};
+
+&cpu_thermal {
+	cooling-maps {
+		map0 {
+			/* Corresponds to 800MHz */
+			cooling-device = <&cpu0 2 2>;
+		};
+		map1 {
+			/* Corresponds to 200MHz */
+			cooling-device = <&cpu0 4 4>;
+		};
+	};
 };
 
 &exynos_usbphy {
@@ -251,12 +271,7 @@
 			};
 
 			buck1_reg: BUCK1 {
-				/*
-				* HACK: The real name is VDD_ARM_1.2V,
-				* but exynos-cpufreq does not support
-				* DT-based regulator lookup yet.
-				*/
-				regulator-name = "vdd_arm";
+				regulator-name = "VDD_ARM_1.2V";
 				regulator-min-microvolt = <950000>;
 				regulator-max-microvolt	= <1350000>;
 				regulator-always-on;
@@ -289,6 +304,11 @@
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			EN32KHZ_AP {
+				regulator-name = "EN32KHZ_AP";
 				regulator-always-on;
 			};
 		};
@@ -336,6 +356,8 @@
 
 &rtc {
 	status = "okay";
+	clocks = <&clock CLK_RTC>, <&pmic_ap_clk>;
+	clock-names = "rtc", "rtc_src";
 };
 
 &tmu {

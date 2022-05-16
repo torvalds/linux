@@ -36,7 +36,6 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/eq.h>
-#include <linux/mlx5/cmd.h>
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
 #endif
@@ -102,12 +101,11 @@ struct mlx5_eq_table {
 
 static int mlx5_cmd_destroy_eq(struct mlx5_core_dev *dev, u8 eqn)
 {
-	u32 out[MLX5_ST_SZ_DW(destroy_eq_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(destroy_eq_in)]   = {0};
+	u32 in[MLX5_ST_SZ_DW(destroy_eq_in)] = {};
 
 	MLX5_SET(destroy_eq_in, in, opcode, MLX5_CMD_OP_DESTROY_EQ);
 	MLX5_SET(destroy_eq_in, in, eq_number, eqn);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, destroy_eq, in);
 }
 
 /* caller must eventually call mlx5_cq_put on the returned cq */
@@ -156,7 +154,8 @@ static int mlx5_eq_comp_int(struct notifier_block *nb,
 			cq->comp(cq, eqe);
 			mlx5_cq_put(cq);
 		} else {
-			mlx5_core_warn(eq->dev, "Completion event for bogus CQ 0x%x\n", cqn);
+			dev_dbg_ratelimited(eq->dev->device,
+					    "Completion event for bogus CQ 0x%x\n", cqn);
 		}
 
 		++eq->cons_index;
@@ -190,6 +189,29 @@ u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq_comp *eq)
 	return count_eqe;
 }
 
+static void mlx5_eq_async_int_lock(struct mlx5_eq_async *eq, unsigned long *flags)
+	__acquires(&eq->lock)
+{
+	if (in_irq())
+		spin_lock(&eq->lock);
+	else
+		spin_lock_irqsave(&eq->lock, *flags);
+}
+
+static void mlx5_eq_async_int_unlock(struct mlx5_eq_async *eq, unsigned long *flags)
+	__releases(&eq->lock)
+{
+	if (in_irq())
+		spin_unlock(&eq->lock);
+	else
+		spin_unlock_irqrestore(&eq->lock, *flags);
+}
+
+enum async_eq_nb_action {
+	ASYNC_EQ_IRQ_HANDLER = 0,
+	ASYNC_EQ_RECOVER = 1,
+};
+
 static int mlx5_eq_async_int(struct notifier_block *nb,
 			     unsigned long action, void *data)
 {
@@ -199,10 +221,13 @@ static int mlx5_eq_async_int(struct notifier_block *nb,
 	struct mlx5_eq_table *eqt;
 	struct mlx5_core_dev *dev;
 	struct mlx5_eqe *eqe;
+	unsigned long flags;
 	int num_eqes = 0;
 
 	dev = eq->dev;
 	eqt = dev->priv.eq_table;
+
+	mlx5_eq_async_int_lock(eq_async, &flags);
 
 	eqe = next_eqe_sw(eq);
 	if (!eqe)
@@ -224,8 +249,19 @@ static int mlx5_eq_async_int(struct notifier_block *nb,
 
 out:
 	eq_update_ci(eq, 1);
+	mlx5_eq_async_int_unlock(eq_async, &flags);
 
-	return 0;
+	return unlikely(action == ASYNC_EQ_RECOVER) ? num_eqes : 0;
+}
+
+void mlx5_cmd_eq_recover(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq_async *eq = &dev->priv.eq_table->cmd_eq;
+	int eqes;
+
+	eqes = mlx5_eq_async_int(&eq->irq_nb, ASYNC_EQ_RECOVER, NULL);
+	if (eqes)
+		mlx5_core_warn(dev, "Recovered %d EQEs on cmd_eq\n", eqes);
 }
 
 static void init_eq_buf(struct mlx5_eq *eq)
@@ -563,6 +599,40 @@ static void gather_async_events_mask(struct mlx5_core_dev *dev, u64 mask[4])
 		gather_user_async_events(dev, mask);
 }
 
+static int
+setup_async_eq(struct mlx5_core_dev *dev, struct mlx5_eq_async *eq,
+	       struct mlx5_eq_param *param, const char *name)
+{
+	int err;
+
+	eq->irq_nb.notifier_call = mlx5_eq_async_int;
+	spin_lock_init(&eq->lock);
+
+	err = create_async_eq(dev, &eq->core, param);
+	if (err) {
+		mlx5_core_warn(dev, "failed to create %s EQ %d\n", name, err);
+		return err;
+	}
+	err = mlx5_eq_enable(dev, &eq->core, &eq->irq_nb);
+	if (err) {
+		mlx5_core_warn(dev, "failed to enable %s EQ %d\n", name, err);
+		destroy_async_eq(dev, &eq->core);
+	}
+	return err;
+}
+
+static void cleanup_async_eq(struct mlx5_core_dev *dev,
+			     struct mlx5_eq_async *eq, const char *name)
+{
+	int err;
+
+	mlx5_eq_disable(dev, &eq->core, &eq->irq_nb);
+	err = destroy_async_eq(dev, &eq->core);
+	if (err)
+		mlx5_core_err(dev, "failed to destroy %s eq, err(%d)\n",
+			      name, err);
+}
+
 static int create_async_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
@@ -572,77 +642,48 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	MLX5_NB_INIT(&table->cq_err_nb, cq_err_event_notifier, CQ_ERROR);
 	mlx5_eq_notifier_register(dev, &table->cq_err_nb);
 
-	table->cmd_eq.irq_nb.notifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
 		.nent = MLX5_NUM_CMD_EQE,
+		.mask[0] = 1ull << MLX5_EVENT_TYPE_CMD,
 	};
-
-	param.mask[0] = 1ull << MLX5_EVENT_TYPE_CMD;
-	err = create_async_eq(dev, &table->cmd_eq.core, &param);
-	if (err) {
-		mlx5_core_warn(dev, "failed to create cmd EQ %d\n", err);
-		goto err0;
-	}
-	err = mlx5_eq_enable(dev, &table->cmd_eq.core, &table->cmd_eq.irq_nb);
-	if (err) {
-		mlx5_core_warn(dev, "failed to enable cmd EQ %d\n", err);
+	mlx5_cmd_allowed_opcode(dev, MLX5_CMD_OP_CREATE_EQ);
+	err = setup_async_eq(dev, &table->cmd_eq, &param, "cmd");
+	if (err)
 		goto err1;
-	}
-	mlx5_cmd_use_events(dev);
 
-	table->async_eq.irq_nb.notifier_call = mlx5_eq_async_int;
+	mlx5_cmd_use_events(dev);
+	mlx5_cmd_allowed_opcode(dev, CMD_ALLOWED_OPCODE_ALL);
+
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
 		.nent = MLX5_NUM_ASYNC_EQE,
 	};
 
 	gather_async_events_mask(dev, param.mask);
-	err = create_async_eq(dev, &table->async_eq.core, &param);
-	if (err) {
-		mlx5_core_warn(dev, "failed to create async EQ %d\n", err);
+	err = setup_async_eq(dev, &table->async_eq, &param, "async");
+	if (err)
 		goto err2;
-	}
-	err = mlx5_eq_enable(dev, &table->async_eq.core,
-			     &table->async_eq.irq_nb);
-	if (err) {
-		mlx5_core_warn(dev, "failed to enable async EQ %d\n", err);
-		goto err3;
-	}
 
-	table->pages_eq.irq_nb.notifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
 		.nent = /* TODO: sriov max_vf + */ 1,
+		.mask[0] = 1ull << MLX5_EVENT_TYPE_PAGE_REQUEST,
 	};
 
-	param.mask[0] = 1ull << MLX5_EVENT_TYPE_PAGE_REQUEST;
-	err = create_async_eq(dev, &table->pages_eq.core, &param);
-	if (err) {
-		mlx5_core_warn(dev, "failed to create pages EQ %d\n", err);
-		goto err4;
-	}
-	err = mlx5_eq_enable(dev, &table->pages_eq.core,
-			     &table->pages_eq.irq_nb);
-	if (err) {
-		mlx5_core_warn(dev, "failed to enable pages EQ %d\n", err);
-		goto err5;
-	}
+	err = setup_async_eq(dev, &table->pages_eq, &param, "pages");
+	if (err)
+		goto err3;
 
-	return err;
+	return 0;
 
-err5:
-	destroy_async_eq(dev, &table->pages_eq.core);
-err4:
-	mlx5_eq_disable(dev, &table->async_eq.core, &table->async_eq.irq_nb);
 err3:
-	destroy_async_eq(dev, &table->async_eq.core);
+	cleanup_async_eq(dev, &table->async_eq, "async");
 err2:
 	mlx5_cmd_use_polling(dev);
-	mlx5_eq_disable(dev, &table->cmd_eq.core, &table->cmd_eq.irq_nb);
+	cleanup_async_eq(dev, &table->cmd_eq, "cmd");
 err1:
-	destroy_async_eq(dev, &table->cmd_eq.core);
-err0:
+	mlx5_cmd_allowed_opcode(dev, CMD_ALLOWED_OPCODE_ALL);
 	mlx5_eq_notifier_unregister(dev, &table->cq_err_nb);
 	return err;
 }
@@ -650,28 +691,13 @@ err0:
 static void destroy_async_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
-	int err;
 
-	mlx5_eq_disable(dev, &table->pages_eq.core, &table->pages_eq.irq_nb);
-	err = destroy_async_eq(dev, &table->pages_eq.core);
-	if (err)
-		mlx5_core_err(dev, "failed to destroy pages eq, err(%d)\n",
-			      err);
-
-	mlx5_eq_disable(dev, &table->async_eq.core, &table->async_eq.irq_nb);
-	err = destroy_async_eq(dev, &table->async_eq.core);
-	if (err)
-		mlx5_core_err(dev, "failed to destroy async eq, err(%d)\n",
-			      err);
-
+	cleanup_async_eq(dev, &table->pages_eq, "pages");
+	cleanup_async_eq(dev, &table->async_eq, "async");
+	mlx5_cmd_allowed_opcode(dev, MLX5_CMD_OP_DESTROY_EQ);
 	mlx5_cmd_use_polling(dev);
-
-	mlx5_eq_disable(dev, &table->cmd_eq.core, &table->cmd_eq.irq_nb);
-	err = destroy_async_eq(dev, &table->cmd_eq.core);
-	if (err)
-		mlx5_core_err(dev, "failed to destroy command eq, err(%d)\n",
-			      err);
-
+	cleanup_async_eq(dev, &table->cmd_eq, "cmd");
+	mlx5_cmd_allowed_opcode(dev, CMD_ALLOWED_OPCODE_ALL);
 	mlx5_eq_notifier_unregister(dev, &table->cq_err_nb);
 }
 
@@ -802,8 +828,7 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 		INIT_LIST_HEAD(&eq->tasklet_ctx.list);
 		INIT_LIST_HEAD(&eq->tasklet_ctx.process_list);
 		spin_lock_init(&eq->tasklet_ctx.lock);
-		tasklet_init(&eq->tasklet_ctx.task, mlx5_cq_tasklet_cb,
-			     (unsigned long)&eq->tasklet_ctx);
+		tasklet_setup(&eq->tasklet_ctx.task, mlx5_cq_tasklet_cb);
 
 		eq->irq_nb.notifier_call = mlx5_eq_comp_int;
 		param = (struct mlx5_eq_param) {

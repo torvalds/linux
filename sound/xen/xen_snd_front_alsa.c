@@ -692,7 +692,6 @@ static int alsa_pb_fill_silence(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops snd_drv_alsa_playback_ops = {
 	.open		= alsa_open,
 	.close		= alsa_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= alsa_hw_params,
 	.hw_free	= alsa_hw_free,
 	.prepare	= alsa_prepare,
@@ -706,7 +705,6 @@ static const struct snd_pcm_ops snd_drv_alsa_playback_ops = {
 static const struct snd_pcm_ops snd_drv_alsa_capture_ops = {
 	.open		= alsa_open,
 	.close		= alsa_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= alsa_hw_params,
 	.hw_free	= alsa_hw_free,
 	.prepare	= alsa_prepare,

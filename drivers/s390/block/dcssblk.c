@@ -31,8 +31,7 @@
 
 static int dcssblk_open(struct block_device *bdev, fmode_t mode);
 static void dcssblk_release(struct gendisk *disk, fmode_t mode);
-static blk_qc_t dcssblk_make_request(struct request_queue *q,
-						struct bio *bio);
+static blk_qc_t dcssblk_submit_bio(struct bio *bio);
 static long dcssblk_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 		long nr_pages, void **kaddr, pfn_t *pfn);
 
@@ -41,6 +40,7 @@ static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
 static int dcssblk_major;
 static const struct block_device_operations dcssblk_devops = {
 	.owner   	= THIS_MODULE,
+	.submit_bio	= dcssblk_submit_bio,
 	.open    	= dcssblk_open,
 	.release 	= dcssblk_release,
 };
@@ -57,11 +57,26 @@ static size_t dcssblk_dax_copy_to_iter(struct dax_device *dax_dev,
 	return copy_to_iter(addr, bytes, i);
 }
 
+static int dcssblk_dax_zero_page_range(struct dax_device *dax_dev,
+				       pgoff_t pgoff, size_t nr_pages)
+{
+	long rc;
+	void *kaddr;
+
+	rc = dax_direct_access(dax_dev, pgoff, nr_pages, &kaddr, NULL);
+	if (rc < 0)
+		return rc;
+	memset(kaddr, 0, nr_pages << PAGE_SHIFT);
+	dax_flush(dax_dev, kaddr, nr_pages << PAGE_SHIFT);
+	return 0;
+}
+
 static const struct dax_operations dcssblk_dax_ops = {
 	.direct_access = dcssblk_dax_direct_access,
 	.dax_supported = generic_fsdax_supported,
 	.copy_from_iter = dcssblk_dax_copy_from_iter,
 	.copy_to_iter = dcssblk_dax_copy_to_iter,
+	.zero_page_range = dcssblk_dax_zero_page_range,
 };
 
 struct dcssblk_dev_info {
@@ -636,10 +651,9 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	}
 	dev_info->gd->major = dcssblk_major;
 	dev_info->gd->fops = &dcssblk_devops;
-	dev_info->dcssblk_queue = blk_alloc_queue(GFP_KERNEL);
+	dev_info->dcssblk_queue = blk_alloc_queue(NUMA_NO_NODE);
 	dev_info->gd->queue = dev_info->dcssblk_queue;
 	dev_info->gd->private_data = dev_info;
-	blk_queue_make_request(dev_info->dcssblk_queue, dcssblk_make_request);
 	blk_queue_logical_block_size(dev_info->dcssblk_queue, 4096);
 	blk_queue_flag_set(QUEUE_FLAG_DAX, dev_info->dcssblk_queue);
 
@@ -680,8 +694,9 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 
 	dev_info->dax_dev = alloc_dax(dev_info, dev_info->gd->disk_name,
 			&dcssblk_dax_ops, DAXDEV_F_SYNC);
-	if (!dev_info->dax_dev) {
-		rc = -ENOMEM;
+	if (IS_ERR(dev_info->dax_dev)) {
+		rc = PTR_ERR(dev_info->dax_dev);
+		dev_info->dax_dev = NULL;
 		goto put_dev;
 	}
 
@@ -817,7 +832,6 @@ dcssblk_open(struct block_device *bdev, fmode_t mode)
 		goto out;
 	}
 	atomic_inc(&dev_info->use_count);
-	bdev->bd_block_size = 4096;
 	rc = 0;
 out:
 	return rc;
@@ -852,7 +866,7 @@ dcssblk_release(struct gendisk *disk, fmode_t mode)
 }
 
 static blk_qc_t
-dcssblk_make_request(struct request_queue *q, struct bio *bio)
+dcssblk_submit_bio(struct bio *bio)
 {
 	struct dcssblk_dev_info *dev_info;
 	struct bio_vec bvec;
@@ -862,7 +876,7 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 	unsigned long source_addr;
 	unsigned long bytes_done;
 
-	blk_queue_split(q, &bio);
+	blk_queue_split(&bio);
 
 	bytes_done = 0;
 	dev_info = bio->bi_disk->private_data;

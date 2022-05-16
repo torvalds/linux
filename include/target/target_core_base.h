@@ -74,8 +74,6 @@
 #define DA_EMULATE_MODEL_ALIAS			0
 /* Emulation for WriteCache and SYNCHRONIZE_CACHE */
 #define DA_EMULATE_WRITE_CACHE			0
-/* Emulation for UNIT ATTENTION Interlock Control */
-#define DA_EMULATE_UA_INTLLCK_CTRL		0
 /* Emulation for TASK_ABORTED status (TAS) by default */
 #define DA_EMULATE_TAS				1
 /* Emulation for Thin Provisioning UNMAP using block/blk-lib.c:blkdev_issue_discard() */
@@ -209,6 +207,7 @@ enum tcm_tmreq_table {
 	TMR_LUN_RESET		= 5,
 	TMR_TARGET_WARM_RESET	= 6,
 	TMR_TARGET_COLD_RESET	= 7,
+	TMR_LUN_RESET_PRO	= 0x80,
 	TMR_UNKNOWN		= 0xff,
 };
 
@@ -431,6 +430,13 @@ enum target_prot_type {
 	TARGET_DIF_TYPE1_PROT,
 	TARGET_DIF_TYPE2_PROT,
 	TARGET_DIF_TYPE3_PROT,
+};
+
+/* Emulation for UNIT ATTENTION Interlock Control */
+enum target_ua_intlck_ctrl {
+	TARGET_UA_INTLCK_CTRL_CLEAR = 0,
+	TARGET_UA_INTLCK_CTRL_NO_CLEAR = 1,
+	TARGET_UA_INTLCK_CTRL_ESTABLISH_UA = 2,
 };
 
 enum target_core_dif_check {
@@ -663,26 +669,26 @@ struct se_dev_entry {
 };
 
 struct se_dev_attrib {
-	int		emulate_model_alias;
-	int		emulate_dpo;
-	int		emulate_fua_write;
-	int		emulate_fua_read;
-	int		emulate_write_cache;
-	int		emulate_ua_intlck_ctrl;
-	int		emulate_tas;
-	int		emulate_tpu;
-	int		emulate_tpws;
-	int		emulate_caw;
-	int		emulate_3pc;
-	int		emulate_pr;
+	bool		emulate_model_alias;
+	bool		emulate_dpo;		/* deprecated */
+	bool		emulate_fua_write;
+	bool		emulate_fua_read;	/* deprecated */
+	bool		emulate_write_cache;
+	enum target_ua_intlck_ctrl emulate_ua_intlck_ctrl;
+	bool		emulate_tas;
+	bool		emulate_tpu;
+	bool		emulate_tpws;
+	bool		emulate_caw;
+	bool		emulate_3pc;
+	bool		emulate_pr;
 	enum target_prot_type pi_prot_type;
 	enum target_prot_type hw_pi_prot_type;
-	int		pi_prot_verify;
-	int		enforce_pr_isids;
-	int		force_pr_aptpl;
-	int		is_nonrot;
-	int		emulate_rest_reord;
-	int		unmap_zeroes_data;
+	bool		pi_prot_verify;
+	bool		enforce_pr_isids;
+	bool		force_pr_aptpl;
+	bool		is_nonrot;
+	bool		emulate_rest_reord;
+	bool		unmap_zeroes_data;
 	u32		hw_block_size;
 	u32		block_size;
 	u32		hw_max_sectors;
@@ -767,6 +773,7 @@ struct se_device {
 #define DF_USING_UDEV_PATH			0x00000008
 #define DF_USING_ALIAS				0x00000010
 #define DF_READ_ONLY				0x00000020
+	u8			transport_flags;
 	/* Physical device queue depth */
 	u32			queue_depth;
 	/* Used for SPC-2 reservations enforce of ISIDs */
@@ -876,7 +883,6 @@ struct se_portal_group {
 	/* Spinlock for adding/removing sessions */
 	spinlock_t		session_lock;
 	struct mutex		tpg_lun_mutex;
-	struct list_head	se_tpg_node;
 	/* linked list for initiator ACL list */
 	struct list_head	acl_node_list;
 	struct hlist_head	tpg_lun_hlist;

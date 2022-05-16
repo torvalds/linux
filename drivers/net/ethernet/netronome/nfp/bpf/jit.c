@@ -2652,17 +2652,17 @@ static int mem_ldx_skb(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	switch (meta->insn.off) {
 	case offsetof(struct __sk_buff, len):
-		if (size != FIELD_SIZEOF(struct __sk_buff, len))
+		if (size != sizeof_field(struct __sk_buff, len))
 			return -EOPNOTSUPP;
 		wrp_mov(nfp_prog, dst, plen_reg(nfp_prog));
 		break;
 	case offsetof(struct __sk_buff, data):
-		if (size != FIELD_SIZEOF(struct __sk_buff, data))
+		if (size != sizeof_field(struct __sk_buff, data))
 			return -EOPNOTSUPP;
 		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
 		break;
 	case offsetof(struct __sk_buff, data_end):
-		if (size != FIELD_SIZEOF(struct __sk_buff, data_end))
+		if (size != sizeof_field(struct __sk_buff, data_end))
 			return -EOPNOTSUPP;
 		emit_alu(nfp_prog, dst,
 			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
@@ -2683,12 +2683,12 @@ static int mem_ldx_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	switch (meta->insn.off) {
 	case offsetof(struct xdp_md, data):
-		if (size != FIELD_SIZEOF(struct xdp_md, data))
+		if (size != sizeof_field(struct xdp_md, data))
 			return -EOPNOTSUPP;
 		wrp_mov(nfp_prog, dst, pptr_reg(nfp_prog));
 		break;
 	case offsetof(struct xdp_md, data_end):
-		if (size != FIELD_SIZEOF(struct xdp_md, data_end))
+		if (size != sizeof_field(struct xdp_md, data_end))
 			return -EOPNOTSUPP;
 		emit_alu(nfp_prog, dst,
 			 plen_reg(nfp_prog), ALU_OP_ADD, pptr_reg(nfp_prog));
@@ -3952,7 +3952,7 @@ static void nfp_bpf_opt_neg_add_sub(struct nfp_prog *nfp_prog)
 static void nfp_bpf_opt_ld_mask(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta1, *meta2;
-	const s32 exp_mask[] = {
+	static const s32 exp_mask[] = {
 		[BPF_B] = 0x000000ffU,
 		[BPF_H] = 0x0000ffffU,
 		[BPF_W] = 0xffffffffU,

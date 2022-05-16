@@ -14,9 +14,15 @@ Required properties:
   - #gpio-cells : Must be 2. The first cell is the pin number and the
     second cell is used to specify optional parameters (currently unused).
 
-  - AVDD2-supply, DBVDD1-supply, DBVDD2-supply, DBVDD3-supply, CPVDD-supply,
-    SPKVDD1-supply, SPKVDD2-supply : power supplies for the device, as covered
-    in Documentation/devicetree/bindings/regulator/regulator.txt
+  - power supplies for the device, as covered in
+    Documentation/devicetree/bindings/regulator/regulator.txt, depending
+    on compatible:
+    - for wlf,wm1811 and wlf,wm8958:
+      AVDD1-supply, AVDD2-supply, DBVDD1-supply, DBVDD2-supply, DBVDD3-supply,
+      DCVDD-supply, CPVDD-supply, SPKVDD1-supply, SPKVDD2-supply
+    - for wlf,wm8994:
+      AVDD1-supply, AVDD2-supply, DBVDD-supply, DCVDD-supply, CPVDD-supply,
+      SPKVDD1-supply, SPKVDD2-supply
 
 Optional properties:
 
@@ -62,6 +68,29 @@ Optional properties:
   - wlf,csnaddr-pd : If present enable the internal pull-down resistor on
     the CS/ADDR pin.
 
+Pins on the device (for linking into audio routes):
+
+  * IN1LN
+  * IN1LP
+  * IN2LN
+  * IN2LP:VXRN
+  * IN1RN
+  * IN1RP
+  * IN2RN
+  * IN2RP:VXRP
+  * SPKOUTLP
+  * SPKOUTLN
+  * SPKOUTRP
+  * SPKOUTRN
+  * HPOUT1L
+  * HPOUT1R
+  * HPOUT2P
+  * HPOUT2N
+  * LINEOUT1P
+  * LINEOUT1N
+  * LINEOUT2P
+  * LINEOUT2N
+
 Example:
 
 wm8994: codec@1a {
@@ -73,11 +102,11 @@ wm8994: codec@1a {
 
 	lineout1-se;
 
+	AVDD1-supply = <&regulator>;
 	AVDD2-supply = <&regulator>;
 	CPVDD-supply = <&regulator>;
-	DBVDD1-supply = <&regulator>;
-	DBVDD2-supply = <&regulator>;
-	DBVDD3-supply = <&regulator>;
+	DBVDD-supply = <&regulator>;
+	DCVDD-supply = <&regulator>;
 	SPKVDD1-supply = <&regulator>;
 	SPKVDD2-supply = <&regulator>;
 };

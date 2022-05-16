@@ -27,6 +27,9 @@
 
 #include "virtgpu_drv.h"
 
+#define to_virtio_fence(x) \
+	container_of(x, struct virtio_gpu_fence, f)
+
 static const char *virtio_get_driver_name(struct dma_fence *f)
 {
 	return "virtio_gpu";
@@ -37,10 +40,14 @@ static const char *virtio_get_timeline_name(struct dma_fence *f)
 	return "controlq";
 }
 
-bool virtio_fence_signaled(struct dma_fence *f)
+static bool virtio_fence_signaled(struct dma_fence *f)
 {
 	struct virtio_gpu_fence *fence = to_virtio_fence(f);
 
+	if (WARN_ON_ONCE(fence->f.seqno == 0))
+		/* leaked fence outside driver before completing
+		 * initialization with virtio_gpu_fence_emit */
+		return false;
 	if (atomic64_read(&fence->drv->last_seq) >= fence->f.seqno)
 		return true;
 	return false;

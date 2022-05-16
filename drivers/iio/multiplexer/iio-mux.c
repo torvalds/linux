@@ -354,11 +354,9 @@ static int mux_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	parent = devm_iio_channel_get(dev, "parent");
-	if (IS_ERR(parent)) {
-		if (PTR_ERR(parent) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get parent channel\n");
-		return PTR_ERR(parent);
-	}
+	if (IS_ERR(parent))
+		return dev_err_probe(dev, PTR_ERR(parent),
+				     "failed to get parent channel\n");
 
 	sizeof_ext_info = iio_get_channel_ext_info_count(parent);
 	if (sizeof_ext_info) {
@@ -395,7 +393,6 @@ static int mux_probe(struct platform_device *pdev)
 	mux->cached_state = -1;
 
 	indio_dev->name = dev_name(dev);
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &mux_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = mux->chan;

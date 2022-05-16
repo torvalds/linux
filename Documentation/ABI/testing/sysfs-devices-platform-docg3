@@ -9,8 +9,10 @@ Description:
 		The protection has information embedded whether it blocks reads,
 		writes or both.
 		The result is:
-		0 -> the DPS is not keylocked
-		1 -> the DPS is keylocked
+
+		- 0 -> the DPS is not keylocked
+		- 1 -> the DPS is keylocked
+
 Users:		None identified so far.
 
 What:		/sys/devices/platform/docg3/f[0-3]_dps[01]_protection_key
@@ -27,8 +29,12 @@ Description:
 		Entering the correct value toggle the lock, and can be observed
 		through f[0-3]_dps[01]_is_keylocked.
 		Possible values are:
+
 			- 8 bytes
+
 		Typical values are:
+
 			- "00000000"
 			- "12345678"
+
 Users:		None identified so far.

@@ -209,7 +209,7 @@ static void dr_rule_rehash_copy_ste_ctrl(struct mlx5dr_matcher *matcher,
 	/* We need to copy the refcount since this ste
 	 * may have been traversed several times
 	 */
-	refcount_set(&new_ste->refcount, refcount_read(&cur_ste->refcount));
+	new_ste->refcount = cur_ste->refcount;
 
 	/* Link old STEs rule_mem list to the new ste */
 	mlx5dr_rule_update_rule_member(cur_ste, new_ste);
@@ -242,7 +242,7 @@ dr_rule_rehash_copy_ste(struct mlx5dr_matcher *matcher,
 	new_idx = mlx5dr_ste_calc_hash_index(hw_ste, new_htbl);
 	new_ste = &new_htbl->ste_arr[new_idx];
 
-	if (mlx5dr_ste_not_used_ste(new_ste)) {
+	if (mlx5dr_ste_is_not_used(new_ste)) {
 		mlx5dr_htbl_get(new_htbl);
 		list_add_tail(&new_ste->miss_list_node,
 			      mlx5dr_ste_get_miss_list(new_ste));
@@ -335,7 +335,7 @@ static int dr_rule_rehash_copy_htbl(struct mlx5dr_matcher *matcher,
 
 	for (i = 0; i < cur_entries; i++) {
 		cur_ste = &cur_htbl->ste_arr[i];
-		if (mlx5dr_ste_not_used_ste(cur_ste)) /* Empty, nothing to copy */
+		if (mlx5dr_ste_is_not_used(cur_ste)) /* Empty, nothing to copy */
 			continue;
 
 		err = dr_rule_rehash_copy_miss_list(matcher,
@@ -574,9 +574,8 @@ void mlx5dr_rule_update_rule_member(struct mlx5dr_ste *ste,
 {
 	struct mlx5dr_rule_member *rule_mem;
 
-	if (!list_empty(&ste->rule_list))
-		list_for_each_entry(rule_mem, &ste->rule_list, use_ste_list)
-			rule_mem->ste = new_ste;
+	list_for_each_entry(rule_mem, &ste->rule_list, use_ste_list)
+		rule_mem->ste = new_ste;
 }
 
 static void dr_rule_clean_rule_members(struct mlx5dr_rule *rule,
@@ -637,6 +636,9 @@ static int dr_rule_add_member(struct mlx5dr_rule_rx_tx *nic_rule,
 	rule_mem = kvzalloc(sizeof(*rule_mem), GFP_KERNEL);
 	if (!rule_mem)
 		return -ENOMEM;
+
+	INIT_LIST_HEAD(&rule_mem->list);
+	INIT_LIST_HEAD(&rule_mem->use_ste_list);
 
 	rule_mem->ste = ste;
 	list_add_tail(&rule_mem->list, &nic_rule->rule_members_list);
@@ -789,7 +791,7 @@ again:
 	miss_list = &cur_htbl->chunk->miss_list[index];
 	ste = &cur_htbl->ste_arr[index];
 
-	if (mlx5dr_ste_not_used_ste(ste)) {
+	if (mlx5dr_ste_is_not_used(ste)) {
 		if (dr_rule_handle_empty_entry(matcher, nic_matcher, cur_htbl,
 					       ste, ste_location,
 					       hw_ste, miss_list,
@@ -823,8 +825,8 @@ again:
 						  ste_location, send_ste_list);
 			if (!new_htbl) {
 				mlx5dr_htbl_put(cur_htbl);
-				mlx5dr_info(dmn, "failed creating rehash table, htbl-log_size: %d\n",
-					    cur_htbl->chunk_size);
+				mlx5dr_err(dmn, "Failed creating rehash table, htbl-log_size: %d\n",
+					   cur_htbl->chunk_size);
 			} else {
 				cur_htbl = new_htbl;
 			}
@@ -874,7 +876,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 	if (!value_size ||
 	    (value_size > sizeof(struct mlx5dr_match_param) ||
 	     (value_size % sizeof(u32)))) {
-		mlx5dr_dbg(matcher->tbl->dmn, "Rule parameters length is incorrect\n");
+		mlx5dr_err(matcher->tbl->dmn, "Rule parameters length is incorrect\n");
 		return false;
 	}
 
@@ -885,7 +887,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->outer), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule outer parameters contains a value not specified by mask\n");
+			mlx5dr_err(matcher->tbl->dmn, "Rule outer parameters contains a value not specified by mask\n");
 			return false;
 		}
 	}
@@ -895,7 +897,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->misc), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc parameters contains a value not specified by mask\n");
+			mlx5dr_err(matcher->tbl->dmn, "Rule misc parameters contains a value not specified by mask\n");
 			return false;
 		}
 	}
@@ -905,7 +907,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->inner), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule inner parameters contains a value not specified by mask\n");
+			mlx5dr_err(matcher->tbl->dmn, "Rule inner parameters contains a value not specified by mask\n");
 			return false;
 		}
 	}
@@ -915,7 +917,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->misc2), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc2 parameters contains a value not specified by mask\n");
+			mlx5dr_err(matcher->tbl->dmn, "Rule misc2 parameters contains a value not specified by mask\n");
 			return false;
 		}
 	}
@@ -925,7 +927,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->misc3), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc3 parameters contains a value not specified by mask\n");
+			mlx5dr_err(matcher->tbl->dmn, "Rule misc3 parameters contains a value not specified by mask\n");
 			return false;
 		}
 	}
@@ -935,7 +937,10 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 static int dr_rule_destroy_rule_nic(struct mlx5dr_rule *rule,
 				    struct mlx5dr_rule_rx_tx *nic_rule)
 {
+	mlx5dr_domain_nic_lock(nic_rule->nic_matcher->nic_tbl->nic_dmn);
 	dr_rule_clean_rule_members(rule, nic_rule);
+	mlx5dr_domain_nic_unlock(nic_rule->nic_matcher->nic_tbl->nic_dmn);
+
 	return 0;
 }
 
@@ -969,42 +974,39 @@ static int dr_rule_destroy_rule(struct mlx5dr_rule *rule)
 	return 0;
 }
 
-static bool dr_rule_is_ipv6(struct mlx5dr_match_param *param)
+static enum mlx5dr_ipv dr_rule_get_ipv(struct mlx5dr_match_spec *spec)
 {
-	return (param->outer.ip_version == 6 ||
-		param->inner.ip_version == 6 ||
-		param->outer.ethertype == ETH_P_IPV6 ||
-		param->inner.ethertype == ETH_P_IPV6);
+	if (spec->ip_version == 6 || spec->ethertype == ETH_P_IPV6)
+		return DR_RULE_IPV6;
+
+	return DR_RULE_IPV4;
 }
 
 static bool dr_rule_skip(enum mlx5dr_domain_type domain,
 			 enum mlx5dr_ste_entry_type ste_type,
 			 struct mlx5dr_match_param *mask,
-			 struct mlx5dr_match_param *value)
+			 struct mlx5dr_match_param *value,
+			 u32 flow_source)
 {
+	bool rx = ste_type == MLX5DR_STE_TYPE_RX;
+
 	if (domain != MLX5DR_DOMAIN_TYPE_FDB)
 		return false;
 
 	if (mask->misc.source_port) {
-		if (ste_type == MLX5DR_STE_TYPE_RX)
-			if (value->misc.source_port != WIRE_PORT)
-				return true;
+		if (rx && value->misc.source_port != WIRE_PORT)
+			return true;
 
-		if (ste_type == MLX5DR_STE_TYPE_TX)
-			if (value->misc.source_port == WIRE_PORT)
-				return true;
+		if (!rx && value->misc.source_port == WIRE_PORT)
+			return true;
 	}
 
-	/* Metadata C can be used to describe the source vport */
-	if (mask->misc2.metadata_reg_c_0) {
-		if (ste_type == MLX5DR_STE_TYPE_RX)
-			if ((value->misc2.metadata_reg_c_0 & WIRE_PORT) != WIRE_PORT)
-				return true;
+	if (rx && flow_source == MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT)
+		return true;
 
-		if (ste_type == MLX5DR_STE_TYPE_TX)
-			if ((value->misc2.metadata_reg_c_0 & WIRE_PORT) == WIRE_PORT)
-				return true;
-	}
+	if (!rx && flow_source == MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK)
+		return true;
+
 	return false;
 }
 
@@ -1033,20 +1035,22 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 
 	INIT_LIST_HEAD(&nic_rule->rule_members_list);
 
-	if (dr_rule_skip(dmn->type, nic_dmn->ste_type, &matcher->mask, param))
+	if (dr_rule_skip(dmn->type, nic_dmn->ste_type, &matcher->mask, param,
+			 rule->flow_source))
 		return 0;
+
+	hw_ste_arr = kzalloc(DR_RULE_MAX_STE_CHAIN * DR_STE_SIZE, GFP_KERNEL);
+	if (!hw_ste_arr)
+		return -ENOMEM;
+
+	mlx5dr_domain_nic_lock(nic_dmn);
 
 	ret = mlx5dr_matcher_select_builders(matcher,
 					     nic_matcher,
-					     dr_rule_is_ipv6(param));
+					     dr_rule_get_ipv(&param->outer),
+					     dr_rule_get_ipv(&param->inner));
 	if (ret)
-		goto out_err;
-
-	hw_ste_arr = kzalloc(DR_RULE_MAX_STE_CHAIN * DR_STE_SIZE, GFP_KERNEL);
-	if (!hw_ste_arr) {
-		ret = -ENOMEM;
-		goto out_err;
-	}
+		goto free_hw_ste;
 
 	/* Set the tag values inside the ste array */
 	ret = mlx5dr_ste_build_ste_arr(matcher, nic_matcher, param, hw_ste_arr);
@@ -1111,6 +1115,8 @@ dr_rule_create_rule_nic(struct mlx5dr_rule *rule,
 	if (htbl)
 		mlx5dr_htbl_put(htbl);
 
+	mlx5dr_domain_nic_unlock(nic_dmn);
+
 	kfree(hw_ste_arr);
 
 	return 0;
@@ -1125,8 +1131,8 @@ free_rule:
 		kfree(ste_info);
 	}
 free_hw_ste:
+	mlx5dr_domain_nic_unlock(nic_dmn);
 	kfree(hw_ste_arr);
-out_err:
 	return ret;
 }
 
@@ -1165,7 +1171,8 @@ static struct mlx5dr_rule *
 dr_rule_create_rule(struct mlx5dr_matcher *matcher,
 		    struct mlx5dr_match_parameters *value,
 		    size_t num_actions,
-		    struct mlx5dr_action *actions[])
+		    struct mlx5dr_action *actions[],
+		    u32 flow_source)
 {
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
 	struct mlx5dr_match_param param = {};
@@ -1180,6 +1187,7 @@ dr_rule_create_rule(struct mlx5dr_matcher *matcher,
 		return NULL;
 
 	rule->matcher = matcher;
+	rule->flow_source = flow_source;
 	INIT_LIST_HEAD(&rule->rule_actions_list);
 
 	ret = dr_rule_add_action_members(rule, num_actions, actions);
@@ -1217,25 +1225,23 @@ remove_action_members:
 	dr_rule_remove_action_members(rule);
 free_rule:
 	kfree(rule);
-	mlx5dr_info(dmn, "Failed creating rule\n");
+	mlx5dr_err(dmn, "Failed creating rule\n");
 	return NULL;
 }
 
 struct mlx5dr_rule *mlx5dr_rule_create(struct mlx5dr_matcher *matcher,
 				       struct mlx5dr_match_parameters *value,
 				       size_t num_actions,
-				       struct mlx5dr_action *actions[])
+				       struct mlx5dr_action *actions[],
+				       u32 flow_source)
 {
 	struct mlx5dr_rule *rule;
 
-	mutex_lock(&matcher->tbl->dmn->mutex);
 	refcount_inc(&matcher->refcount);
 
-	rule = dr_rule_create_rule(matcher, value, num_actions, actions);
+	rule = dr_rule_create_rule(matcher, value, num_actions, actions, flow_source);
 	if (!rule)
 		refcount_dec(&matcher->refcount);
-
-	mutex_unlock(&matcher->tbl->dmn->mutex);
 
 	return rule;
 }
@@ -1243,16 +1249,11 @@ struct mlx5dr_rule *mlx5dr_rule_create(struct mlx5dr_matcher *matcher,
 int mlx5dr_rule_destroy(struct mlx5dr_rule *rule)
 {
 	struct mlx5dr_matcher *matcher = rule->matcher;
-	struct mlx5dr_table *tbl = rule->matcher->tbl;
 	int ret;
 
-	mutex_lock(&tbl->dmn->mutex);
-
 	ret = dr_rule_destroy_rule(rule);
-
-	mutex_unlock(&tbl->dmn->mutex);
-
 	if (!ret)
 		refcount_dec(&matcher->refcount);
+
 	return ret;
 }

@@ -24,57 +24,45 @@ $(obj)/%.tab.c $(obj)/%.tab.h: $(src)/%.y FORCE
 # Both C and C++ are supported, but preferred language is C for such utilities.
 #
 # Sample syntax (see Documentation/kbuild/makefiles.rst for reference)
-# hostprogs-y := bin2hex
+# hostprogs := bin2hex
 # Will compile bin2hex.c and create an executable named bin2hex
 #
-# hostprogs-y    := lxdialog
+# hostprogs     := lxdialog
 # lxdialog-objs := checklist.o lxdialog.o
 # Will compile lxdialog.c and checklist.c, and then link the executable
 # lxdialog, based on checklist.o and lxdialog.o
 #
-# hostprogs-y      := qconf
+# hostprogs       := qconf
 # qconf-cxxobjs   := qconf.o
 # qconf-objs      := menu.o
 # Will compile qconf as a C++ program, and menu as a C program.
 # They are linked as C++ code to the executable qconf
 
-__hostprogs := $(sort $(hostprogs-y) $(hostprogs-m))
-host-cshlib := $(sort $(hostlibs-y) $(hostlibs-m))
-host-cxxshlib := $(sort $(hostcxxlibs-y) $(hostcxxlibs-m))
-
 # C code
 # Executables compiled from a single .c file
-host-csingle	:= $(foreach m,$(__hostprogs), \
+host-csingle	:= $(foreach m,$(hostprogs), \
 			$(if $($(m)-objs)$($(m)-cxxobjs),,$(m)))
 
 # C executables linked based on several .o files
-host-cmulti	:= $(foreach m,$(__hostprogs),\
+host-cmulti	:= $(foreach m,$(hostprogs),\
 		   $(if $($(m)-cxxobjs),,$(if $($(m)-objs),$(m))))
 
 # Object (.o) files compiled from .c files
-host-cobjs	:= $(sort $(foreach m,$(__hostprogs),$($(m)-objs)))
+host-cobjs	:= $(sort $(foreach m,$(hostprogs),$($(m)-objs)))
 
 # C++ code
 # C++ executables compiled from at least one .cc file
 # and zero or more .c files
-host-cxxmulti	:= $(foreach m,$(__hostprogs),$(if $($(m)-cxxobjs),$(m)))
+host-cxxmulti	:= $(foreach m,$(hostprogs),$(if $($(m)-cxxobjs),$(m)))
 
 # C++ Object (.o) files compiled from .cc files
 host-cxxobjs	:= $(sort $(foreach m,$(host-cxxmulti),$($(m)-cxxobjs)))
-
-# Object (.o) files used by the shared libaries
-host-cshobjs	:= $(sort $(foreach m,$(host-cshlib),$($(m:.so=-objs))))
-host-cxxshobjs	:= $(sort $(foreach m,$(host-cxxshlib),$($(m:.so=-objs))))
 
 host-csingle	:= $(addprefix $(obj)/,$(host-csingle))
 host-cmulti	:= $(addprefix $(obj)/,$(host-cmulti))
 host-cobjs	:= $(addprefix $(obj)/,$(host-cobjs))
 host-cxxmulti	:= $(addprefix $(obj)/,$(host-cxxmulti))
 host-cxxobjs	:= $(addprefix $(obj)/,$(host-cxxobjs))
-host-cshlib	:= $(addprefix $(obj)/,$(host-cshlib))
-host-cxxshlib	:= $(addprefix $(obj)/,$(host-cxxshlib))
-host-cshobjs	:= $(addprefix $(obj)/,$(host-cshobjs))
-host-cxxshobjs	:= $(addprefix $(obj)/,$(host-cxxshobjs))
 
 #####
 # Handle options to gcc. Support building with separate output directory
@@ -92,8 +80,8 @@ _hostcxx_flags += -I $(objtree)/$(obj)
 endif
 endif
 
-hostc_flags    = -Wp,-MD,$(depfile) $(_hostc_flags)
-hostcxx_flags  = -Wp,-MD,$(depfile) $(_hostcxx_flags)
+hostc_flags    = -Wp,-MMD,$(depfile) $(_hostc_flags)
+hostcxx_flags  = -Wp,-MMD,$(depfile) $(_hostcxx_flags)
 
 #####
 # Compile programs on the host
@@ -140,42 +128,5 @@ quiet_cmd_host-cxxobjs	= HOSTCXX $@
 $(host-cxxobjs): $(obj)/%.o: $(src)/%.cc FORCE
 	$(call if_changed_dep,host-cxxobjs)
 
-# Compile .c file, create position independent .o file
-# host-cshobjs -> .o
-quiet_cmd_host-cshobjs	= HOSTCC  -fPIC $@
-      cmd_host-cshobjs	= $(HOSTCC) $(hostc_flags) -fPIC -c -o $@ $<
-$(host-cshobjs): $(obj)/%.o: $(src)/%.c FORCE
-	$(call if_changed_dep,host-cshobjs)
-
-# Compile .c file, create position independent .o file
-# Note that plugin capable gcc versions can be either C or C++ based
-# therefore plugin source files have to be compilable in both C and C++ mode.
-# This is why a C++ compiler is invoked on a .c file.
-# host-cxxshobjs -> .o
-quiet_cmd_host-cxxshobjs	= HOSTCXX -fPIC $@
-      cmd_host-cxxshobjs	= $(HOSTCXX) $(hostcxx_flags) -fPIC -c -o $@ $<
-$(host-cxxshobjs): $(obj)/%.o: $(src)/%.c FORCE
-	$(call if_changed_dep,host-cxxshobjs)
-
-# Link a shared library, based on position independent .o files
-# *.o -> .so shared library (host-cshlib)
-quiet_cmd_host-cshlib	= HOSTLLD -shared $@
-      cmd_host-cshlib	= $(HOSTCC) $(KBUILD_HOSTLDFLAGS) -shared -o $@ \
-			  $(addprefix $(obj)/, $($(target-stem)-objs)) \
-			  $(KBUILD_HOSTLDLIBS) $(HOSTLDLIBS_$(target-stem).so)
-$(host-cshlib): FORCE
-	$(call if_changed,host-cshlib)
-$(call multi_depend, $(host-cshlib), .so, -objs)
-
-# Link a shared library, based on position independent .o files
-# *.o -> .so shared library (host-cxxshlib)
-quiet_cmd_host-cxxshlib	= HOSTLLD -shared $@
-      cmd_host-cxxshlib	= $(HOSTCXX) $(KBUILD_HOSTLDFLAGS) -shared -o $@ \
-			  $(addprefix $(obj)/, $($(target-stem)-objs)) \
-			  $(KBUILD_HOSTLDLIBS) $(HOSTLDLIBS_$(target-stem).so)
-$(host-cxxshlib): FORCE
-	$(call if_changed,host-cxxshlib)
-$(call multi_depend, $(host-cxxshlib), .so, -objs)
-
-targets += $(host-csingle)  $(host-cmulti) $(host-cobjs)\
-	   $(host-cxxmulti) $(host-cxxobjs) $(host-cshlib) $(host-cshobjs) $(host-cxxshlib) $(host-cxxshobjs)
+targets += $(host-csingle) $(host-cmulti) $(host-cobjs) \
+	   $(host-cxxmulti) $(host-cxxobjs)

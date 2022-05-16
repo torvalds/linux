@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015 Texas Instruments Incorporated - https://www.ti.com/
  *
  * Author: Andrew F. Davis <afd@ti.com>
  *
@@ -71,23 +71,23 @@ struct tps65086_regulator {
 	unsigned int decay_mask;
 };
 
-static const struct regulator_linear_range tps65086_10mv_ranges[] = {
+static const struct linear_range tps65086_10mv_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(410000, 0x1, 0x7F, 10000),
 };
 
-static const struct regulator_linear_range tps65086_buck126_25mv_ranges[] = {
+static const struct linear_range tps65086_buck126_25mv_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(1000000, 0x1, 0x18, 0),
 	REGULATOR_LINEAR_RANGE(1025000, 0x19, 0x7F, 25000),
 };
 
-static const struct regulator_linear_range tps65086_buck345_25mv_ranges[] = {
+static const struct linear_range tps65086_buck345_25mv_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(425000, 0x1, 0x7F, 25000),
 };
 
-static const struct regulator_linear_range tps65086_ldoa1_ranges[] = {
+static const struct linear_range tps65086_ldoa1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1350000, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(1500000, 0x1, 0x7, 100000),
 	REGULATOR_LINEAR_RANGE(2300000, 0x8, 0xB, 100000),
@@ -95,13 +95,13 @@ static const struct regulator_linear_range tps65086_ldoa1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(3300000, 0xE, 0xE, 0),
 };
 
-static const struct regulator_linear_range tps65086_ldoa23_ranges[] = {
+static const struct linear_range tps65086_ldoa23_ranges[] = {
 	REGULATOR_LINEAR_RANGE(700000, 0x0, 0xD, 50000),
 	REGULATOR_LINEAR_RANGE(1400000, 0xE, 0xF, 100000),
 };
 
 /* Operations permitted on regulators */
-static struct regulator_ops reg_ops = {
+static const struct regulator_ops reg_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -112,7 +112,7 @@ static struct regulator_ops reg_ops = {
 };
 
 /* Operations permitted on load switches */
-static struct regulator_ops switch_ops = {
+static const struct regulator_ops switch_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,

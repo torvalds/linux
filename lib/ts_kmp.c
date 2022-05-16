@@ -36,7 +36,7 @@ struct ts_kmp
 {
 	u8 *		pattern;
 	unsigned int	pattern_len;
-	unsigned int 	prefix_tbl[0];
+	unsigned int	prefix_tbl[];
 };
 
 static unsigned int kmp_find(struct ts_config *conf, struct ts_state *state)

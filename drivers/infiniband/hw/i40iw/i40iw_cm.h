@@ -85,7 +85,7 @@ struct ietf_mpa_v1 {
 	u8 flags;
 	u8 rev;
 	__be16 priv_data_len;
-	u8 priv_data[0];
+	u8 priv_data[];
 };
 
 #define ietf_mpa_req_resp_frame ietf_mpa_frame
@@ -101,7 +101,7 @@ struct ietf_mpa_v2 {
 	u8 rev;
 	__be16 priv_data_len;
 	struct ietf_rtr_msg rtr_msg;
-	u8 priv_data[0];
+	u8 priv_data[];
 };
 
 struct i40iw_cm_node;

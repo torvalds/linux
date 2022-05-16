@@ -204,7 +204,7 @@
 			resets = <&cpg 907>;
 		};
 
-		pfc: pin-controller@e6060000 {
+		pfc: pinctrl@e6060000 {
 			compatible = "renesas,pfc-r8a77970";
 			reg = <0 0xe6060000 0 0x504>;
 		};
@@ -302,8 +302,8 @@
 
 		thermal: thermal@e6190000 {
 			compatible = "renesas,thermal-r8a77970";
-			reg =  <0 0xe6190000 0 0x10
-				0 0xe6190100 0 0x120>;
+			reg = <0 0xe6190000 0 0x10>,
+			      <0 0xe6190100 0 0x120>;
 			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
@@ -318,12 +318,12 @@
 			#interrupt-cells = <2>;
 			interrupt-controller;
 			reg = <0 0xe61c0000 0 0x200>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 407>;
 			power-domains = <&sysc R8A77970_PD_ALWAYS_ON>;
 			resets = <&cpg 407>;
@@ -652,7 +652,7 @@
 		};
 
 		pwm3: pwm@e6e33000 {
-			compatible = "renesas,pwm-r8a7790", "renesas,pwm-rcar";
+			compatible = "renesas,pwm-r8a77970", "renesas,pwm-rcar";
 			reg = <0 0xe6e33000 0 8>;
 			#pwm-cells = <2>;
 			clocks = <&cpg CPG_MOD 523>;
@@ -933,15 +933,15 @@
 			compatible = "renesas,dmac-r8a77970",
 				     "renesas,rcar-dmac";
 			reg = <0 0xe7300000 0 0x10000>;
-			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "error",
 					  "ch0", "ch1", "ch2", "ch3",
 					  "ch4", "ch5", "ch6", "ch7";
@@ -961,15 +961,15 @@
 			compatible = "renesas,dmac-r8a77970",
 				     "renesas,rcar-dmac";
 			reg = <0 0xe7310000 0 0x10000>;
-			interrupts = <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 319 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 319 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "error",
 					  "ch0", "ch1", "ch2", "ch3",
 					  "ch4", "ch5", "ch6", "ch7";
@@ -985,7 +985,7 @@
 			       <&ipmmu_ds1 22>, <&ipmmu_ds1 23>;
 		};
 
-		ipmmu_ds1: mmu@e7740000 {
+		ipmmu_ds1: iommu@e7740000 {
 			compatible = "renesas,ipmmu-r8a77970";
 			reg = <0 0xe7740000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 0>;
@@ -993,7 +993,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_ir: mmu@ff8b0000 {
+		ipmmu_ir: iommu@ff8b0000 {
 			compatible = "renesas,ipmmu-r8a77970";
 			reg = <0 0xff8b0000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 3>;
@@ -1001,7 +1001,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_mm: mmu@e67b0000 {
+		ipmmu_mm: iommu@e67b0000 {
 			compatible = "renesas,ipmmu-r8a77970";
 			reg = <0 0xe67b0000 0 0x1000>;
 			interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
@@ -1010,7 +1010,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_rt: mmu@ffc80000 {
+		ipmmu_rt: iommu@ffc80000 {
 			compatible = "renesas,ipmmu-r8a77970";
 			reg = <0 0xffc80000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 7>;
@@ -1018,7 +1018,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_vi0: mmu@febd0000 {
+		ipmmu_vi0: iommu@febd0000 {
 			compatible = "renesas,ipmmu-r8a77970";
 			reg = <0 0xfebd0000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 9>;
@@ -1035,6 +1035,24 @@
 			power-domains = <&sysc R8A77970_PD_ALWAYS_ON>;
 			resets = <&cpg 314>;
 			max-frequency = <200000000>;
+			iommus = <&ipmmu_ds1 32>;
+			status = "disabled";
+		};
+
+		rpc: spi@ee200000 {
+			compatible = "renesas,r8a77970-rpc-if",
+				     "renesas,rcar-gen3-rpc-if";
+			reg = <0 0xee200000 0 0x200>,
+			      <0 0x08000000 0 0x4000000>,
+			      <0 0xee208000 0 0x100>;
+			reg-names = "regs", "dirmap", "wbuf";
+			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 917>;
+			clock-names = "rpc";
+			power-domains = <&sysc R8A77970_PD_ALWAYS_ON>;
+			resets = <&cpg 917>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -1120,7 +1138,9 @@
 			clock-names = "du.0";
 			power-domains = <&sysc R8A77970_PD_ALWAYS_ON>;
 			resets = <&cpg 724>;
-			vsps = <&vspd0>;
+			reset-names = "du.0";
+			renesas,vsps = <&vspd0 0>;
+
 			status = "disabled";
 
 			ports {

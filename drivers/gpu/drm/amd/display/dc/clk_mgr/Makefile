@@ -30,6 +30,17 @@ AMD_DAL_CLK_MGR = $(addprefix $(AMDDALPATH)/dc/clk_mgr/,$(CLK_MGR))
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR)
 
 
+ifdef CONFIG_DRM_AMD_DC_SI
+###############################################################################
+# DCE 60
+###############################################################################
+CLK_MGR_DCE60 = dce60_clk_mgr.o
+
+AMD_DAL_CLK_MGR_DCE60 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dce60/,$(CLK_MGR_DCE60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCE60)
+endif
+
 ###############################################################################
 # DCE 100 and DCE8x
 ###############################################################################
@@ -63,7 +74,7 @@ CLK_MGR_DCE120 = dce120_clk_mgr.o
 AMD_DAL_CLK_MGR_DCE120 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dce120/,$(CLK_MGR_DCE120))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCE120)
-ifdef CONFIG_DRM_AMD_DC_DCN1_0
+ifdef CONFIG_DRM_AMD_DC_DCN
 ###############################################################################
 # DCN10
 ###############################################################################
@@ -72,9 +83,7 @@ CLK_MGR_DCN10 = rv1_clk_mgr.o rv1_clk_mgr_vbios_smu.o rv2_clk_mgr.o
 AMD_DAL_CLK_MGR_DCN10 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn10/,$(CLK_MGR_DCN10))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN10)
-endif
 
-ifdef CONFIG_DRM_AMD_DC_DCN2_0
 ###############################################################################
 # DCN20
 ###############################################################################
@@ -83,15 +92,36 @@ CLK_MGR_DCN20 = dcn20_clk_mgr.o
 AMD_DAL_CLK_MGR_DCN20 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn20/,$(CLK_MGR_DCN20))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN20)
-endif
 
-ifdef CONFIG_DRM_AMD_DC_DCN2_1
 ###############################################################################
 # DCN21
 ###############################################################################
 CLK_MGR_DCN21 = rn_clk_mgr.o rn_clk_mgr_vbios_smu.o
 
+# prevent build errors regarding soft-float vs hard-float FP ABI tags
+# this code is currently unused on ppc64, as it applies to Renoir APUs only
+ifdef CONFIG_PPC64
+CFLAGS_$(AMDDALPATH)/dc/clk_mgr/dcn21/rn_clk_mgr.o := $(call cc-option,-mno-gnu-attribute)
+endif
+
+# prevent build errors:
+# ...: '-mgeneral-regs-only' is incompatible with the use of floating-point types
+# this file is unused on arm64, just like on ppc64
+ifdef CONFIG_ARM64
+CFLAGS_REMOVE_$(AMDDALPATH)/dc/clk_mgr/dcn21/rn_clk_mgr.o := -mgeneral-regs-only
+endif
+
 AMD_DAL_CLK_MGR_DCN21 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn21/,$(CLK_MGR_DCN21))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN21)
+endif
+ifdef CONFIG_DRM_AMD_DC_DCN3_0
+###############################################################################
+# DCN30
+###############################################################################
+CLK_MGR_DCN30 = dcn30_clk_mgr.o dcn30_clk_mgr_smu_msg.o
+
+AMD_DAL_CLK_MGR_DCN30 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn30/,$(CLK_MGR_DCN30))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN30)
 endif

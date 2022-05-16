@@ -53,6 +53,8 @@ static struct kernfs_iattrs *__kernfs_iattrs(struct kernfs_node *kn, int alloc)
 	kn->iattr->ia_ctime = kn->iattr->ia_atime;
 
 	simple_xattrs_init(&kn->iattr->xattrs);
+	atomic_set(&kn->iattr->nr_user_xattrs, 0);
+	atomic_set(&kn->iattr->user_xattr_size, 0);
 out_unlock:
 	ret = kn->iattr;
 	mutex_unlock(&iattr_mutex);
@@ -160,9 +162,9 @@ static inline void set_inode_attr(struct inode *inode,
 {
 	inode->i_uid = attrs->ia_uid;
 	inode->i_gid = attrs->ia_gid;
-	inode->i_atime = timestamp_truncate(attrs->ia_atime, inode);
-	inode->i_mtime = timestamp_truncate(attrs->ia_mtime, inode);
-	inode->i_ctime = timestamp_truncate(attrs->ia_ctime, inode);
+	inode->i_atime = attrs->ia_atime;
+	inode->i_mtime = attrs->ia_mtime;
+	inode->i_ctime = attrs->ia_ctime;
 }
 
 static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
@@ -201,7 +203,7 @@ static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 	inode->i_private = kn;
 	inode->i_mapping->a_ops = &kernfs_aops;
 	inode->i_op = &kernfs_iops;
-	inode->i_generation = kn->id.generation;
+	inode->i_generation = kernfs_gen(kn);
 
 	set_default_inode_attr(inode, kn->mode);
 	kernfs_refresh_inode(kn, inode);
@@ -247,7 +249,7 @@ struct inode *kernfs_get_inode(struct super_block *sb, struct kernfs_node *kn)
 {
 	struct inode *inode;
 
-	inode = iget_locked(sb, kn->id.ino);
+	inode = iget_locked(sb, kernfs_ino(kn));
 	if (inode && (inode->i_state & I_NEW))
 		kernfs_init_inode(kn, inode);
 
@@ -303,7 +305,7 @@ int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
 	if (!attrs)
 		return -ENOMEM;
 
-	return simple_xattr_set(&attrs->xattrs, name, value, size, flags);
+	return simple_xattr_set(&attrs->xattrs, name, value, size, flags, NULL);
 }
 
 static int kernfs_vfs_xattr_get(const struct xattr_handler *handler,
@@ -327,6 +329,86 @@ static int kernfs_vfs_xattr_set(const struct xattr_handler *handler,
 	return kernfs_xattr_set(kn, name, value, size, flags);
 }
 
+static int kernfs_vfs_user_xattr_add(struct kernfs_node *kn,
+				     const char *full_name,
+				     struct simple_xattrs *xattrs,
+				     const void *value, size_t size, int flags)
+{
+	atomic_t *sz = &kn->iattr->user_xattr_size;
+	atomic_t *nr = &kn->iattr->nr_user_xattrs;
+	ssize_t removed_size;
+	int ret;
+
+	if (atomic_inc_return(nr) > KERNFS_MAX_USER_XATTRS) {
+		ret = -ENOSPC;
+		goto dec_count_out;
+	}
+
+	if (atomic_add_return(size, sz) > KERNFS_USER_XATTR_SIZE_LIMIT) {
+		ret = -ENOSPC;
+		goto dec_size_out;
+	}
+
+	ret = simple_xattr_set(xattrs, full_name, value, size, flags,
+			       &removed_size);
+
+	if (!ret && removed_size >= 0)
+		size = removed_size;
+	else if (!ret)
+		return 0;
+dec_size_out:
+	atomic_sub(size, sz);
+dec_count_out:
+	atomic_dec(nr);
+	return ret;
+}
+
+static int kernfs_vfs_user_xattr_rm(struct kernfs_node *kn,
+				    const char *full_name,
+				    struct simple_xattrs *xattrs,
+				    const void *value, size_t size, int flags)
+{
+	atomic_t *sz = &kn->iattr->user_xattr_size;
+	atomic_t *nr = &kn->iattr->nr_user_xattrs;
+	ssize_t removed_size;
+	int ret;
+
+	ret = simple_xattr_set(xattrs, full_name, value, size, flags,
+			       &removed_size);
+
+	if (removed_size >= 0) {
+		atomic_sub(removed_size, sz);
+		atomic_dec(nr);
+	}
+
+	return ret;
+}
+
+static int kernfs_vfs_user_xattr_set(const struct xattr_handler *handler,
+				     struct dentry *unused, struct inode *inode,
+				     const char *suffix, const void *value,
+				     size_t size, int flags)
+{
+	const char *full_name = xattr_full_name(handler, suffix);
+	struct kernfs_node *kn = inode->i_private;
+	struct kernfs_iattrs *attrs;
+
+	if (!(kernfs_root(kn)->flags & KERNFS_ROOT_SUPPORT_USER_XATTR))
+		return -EOPNOTSUPP;
+
+	attrs = kernfs_iattrs(kn);
+	if (!attrs)
+		return -ENOMEM;
+
+	if (value)
+		return kernfs_vfs_user_xattr_add(kn, full_name, &attrs->xattrs,
+						 value, size, flags);
+	else
+		return kernfs_vfs_user_xattr_rm(kn, full_name, &attrs->xattrs,
+						value, size, flags);
+
+}
+
 static const struct xattr_handler kernfs_trusted_xattr_handler = {
 	.prefix = XATTR_TRUSTED_PREFIX,
 	.get = kernfs_vfs_xattr_get,
@@ -339,8 +421,15 @@ static const struct xattr_handler kernfs_security_xattr_handler = {
 	.set = kernfs_vfs_xattr_set,
 };
 
+static const struct xattr_handler kernfs_user_xattr_handler = {
+	.prefix = XATTR_USER_PREFIX,
+	.get = kernfs_vfs_xattr_get,
+	.set = kernfs_vfs_user_xattr_set,
+};
+
 const struct xattr_handler *kernfs_xattr_handlers[] = {
 	&kernfs_trusted_xattr_handler,
 	&kernfs_security_xattr_handler,
+	&kernfs_user_xattr_handler,
 	NULL
 };

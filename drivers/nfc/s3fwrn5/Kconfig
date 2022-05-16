@@ -2,7 +2,8 @@
 config NFC_S3FWRN5
 	tristate
 	select CRYPTO
-	---help---
+	select CRYPTO_HASH
+	help
 	  Core driver for Samsung S3FWRN5 NFC chip. Contains core utilities
 	  of chip. It's intended to be used by PHYs to avoid duplicating lots
 	  of common code.
@@ -12,7 +13,7 @@ config NFC_S3FWRN5_I2C
 	depends on NFC_NCI && I2C
 	select NFC_S3FWRN5
 	default n
-	---help---
+	help
 	  This module adds support for an I2C interface to the S3FWRN5 chip.
 	  Select this if your platform is using the I2C bus.
 

@@ -5,6 +5,7 @@
  */
 
 #include <linux/mfd/ingenic-tcu.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -17,19 +18,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/of.h>
-
-#include <asm/mach-jz4740/timer.h>
-
-#define JZ_WDT_CLOCK_PCLK 0x1
-#define JZ_WDT_CLOCK_RTC  0x2
-#define JZ_WDT_CLOCK_EXT  0x4
-
-#define JZ_WDT_CLOCK_DIV_1    (0 << TCU_TCSR_PRESCALE_LSB)
-#define JZ_WDT_CLOCK_DIV_4    (1 << TCU_TCSR_PRESCALE_LSB)
-#define JZ_WDT_CLOCK_DIV_16   (2 << TCU_TCSR_PRESCALE_LSB)
-#define JZ_WDT_CLOCK_DIV_64   (3 << TCU_TCSR_PRESCALE_LSB)
-#define JZ_WDT_CLOCK_DIV_256  (4 << TCU_TCSR_PRESCALE_LSB)
-#define JZ_WDT_CLOCK_DIV_1024 (5 << TCU_TCSR_PRESCALE_LSB)
+#include <linux/regmap.h>
 
 #define DEFAULT_HEARTBEAT 5
 #define MAX_HEARTBEAT     2048
@@ -49,15 +38,17 @@ MODULE_PARM_DESC(heartbeat,
 
 struct jz4740_wdt_drvdata {
 	struct watchdog_device wdt;
-	void __iomem *base;
-	struct clk *rtc_clk;
+	struct regmap *map;
+	struct clk *clk;
+	unsigned long clk_rate;
 };
 
 static int jz4740_wdt_ping(struct watchdog_device *wdt_dev)
 {
 	struct jz4740_wdt_drvdata *drvdata = watchdog_get_drvdata(wdt_dev);
 
-	writew(0x0, drvdata->base + TCU_REG_WDT_TCNT);
+	regmap_write(drvdata->map, TCU_REG_WDT_TCNT, 0);
+
 	return 0;
 }
 
@@ -65,35 +56,17 @@ static int jz4740_wdt_set_timeout(struct watchdog_device *wdt_dev,
 				    unsigned int new_timeout)
 {
 	struct jz4740_wdt_drvdata *drvdata = watchdog_get_drvdata(wdt_dev);
-	unsigned int rtc_clk_rate;
-	unsigned int timeout_value;
-	unsigned short clock_div = JZ_WDT_CLOCK_DIV_1;
-	u8 tcer;
+	u16 timeout_value = (u16)(drvdata->clk_rate * new_timeout);
+	unsigned int tcer;
 
-	rtc_clk_rate = clk_get_rate(drvdata->rtc_clk);
+	regmap_read(drvdata->map, TCU_REG_WDT_TCER, &tcer);
+	regmap_write(drvdata->map, TCU_REG_WDT_TCER, 0);
 
-	timeout_value = rtc_clk_rate * new_timeout;
-	while (timeout_value > 0xffff) {
-		if (clock_div == JZ_WDT_CLOCK_DIV_1024) {
-			/* Requested timeout too high;
-			* use highest possible value. */
-			timeout_value = 0xffff;
-			break;
-		}
-		timeout_value >>= 2;
-		clock_div += (1 << TCU_TCSR_PRESCALE_LSB);
-	}
-
-	tcer = readb(drvdata->base + TCU_REG_WDT_TCER);
-	writeb(0x0, drvdata->base + TCU_REG_WDT_TCER);
-	writew(clock_div, drvdata->base + TCU_REG_WDT_TCSR);
-
-	writew((u16)timeout_value, drvdata->base + TCU_REG_WDT_TDR);
-	writew(0x0, drvdata->base + TCU_REG_WDT_TCNT);
-	writew(clock_div | JZ_WDT_CLOCK_RTC, drvdata->base + TCU_REG_WDT_TCSR);
+	regmap_write(drvdata->map, TCU_REG_WDT_TDR, timeout_value);
+	regmap_write(drvdata->map, TCU_REG_WDT_TCNT, 0);
 
 	if (tcer & TCU_WDT_TCER_TCEN)
-		writeb(TCU_WDT_TCER_TCEN, drvdata->base + TCU_REG_WDT_TCER);
+		regmap_write(drvdata->map, TCU_REG_WDT_TCER, TCU_WDT_TCER_TCEN);
 
 	wdt_dev->timeout = new_timeout;
 	return 0;
@@ -102,16 +75,20 @@ static int jz4740_wdt_set_timeout(struct watchdog_device *wdt_dev,
 static int jz4740_wdt_start(struct watchdog_device *wdt_dev)
 {
 	struct jz4740_wdt_drvdata *drvdata = watchdog_get_drvdata(wdt_dev);
-	u8 tcer;
+	unsigned int tcer;
+	int ret;
 
-	tcer = readb(drvdata->base + TCU_REG_WDT_TCER);
+	ret = clk_prepare_enable(drvdata->clk);
+	if (ret)
+		return ret;
 
-	jz4740_timer_enable_watchdog();
+	regmap_read(drvdata->map, TCU_REG_WDT_TCER, &tcer);
+
 	jz4740_wdt_set_timeout(wdt_dev, wdt_dev->timeout);
 
 	/* Start watchdog if it wasn't started already */
 	if (!(tcer & TCU_WDT_TCER_TCEN))
-		writeb(TCU_WDT_TCER_TCEN, drvdata->base + TCU_REG_WDT_TCER);
+		regmap_write(drvdata->map, TCU_REG_WDT_TCER, TCU_WDT_TCER_TCEN);
 
 	return 0;
 }
@@ -120,8 +97,8 @@ static int jz4740_wdt_stop(struct watchdog_device *wdt_dev)
 {
 	struct jz4740_wdt_drvdata *drvdata = watchdog_get_drvdata(wdt_dev);
 
-	writeb(0x0, drvdata->base + TCU_REG_WDT_TCER);
-	jz4740_timer_disable_watchdog();
+	regmap_write(drvdata->map, TCU_REG_WDT_TCER, 0);
+	clk_disable_unprepare(drvdata->clk);
 
 	return 0;
 }
@@ -162,33 +139,46 @@ static int jz4740_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct jz4740_wdt_drvdata *drvdata;
 	struct watchdog_device *jz4740_wdt;
+	long rate;
+	int ret;
 
 	drvdata = devm_kzalloc(dev, sizeof(struct jz4740_wdt_drvdata),
 			       GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
 
-	if (heartbeat < 1 || heartbeat > MAX_HEARTBEAT)
-		heartbeat = DEFAULT_HEARTBEAT;
+	drvdata->clk = devm_clk_get(&pdev->dev, "wdt");
+	if (IS_ERR(drvdata->clk)) {
+		dev_err(&pdev->dev, "cannot find WDT clock\n");
+		return PTR_ERR(drvdata->clk);
+	}
 
+	/* Set smallest clock possible */
+	rate = clk_round_rate(drvdata->clk, 1);
+	if (rate < 0)
+		return rate;
+
+	ret = clk_set_rate(drvdata->clk, rate);
+	if (ret)
+		return ret;
+
+	drvdata->clk_rate = rate;
 	jz4740_wdt = &drvdata->wdt;
 	jz4740_wdt->info = &jz4740_wdt_info;
 	jz4740_wdt->ops = &jz4740_wdt_ops;
-	jz4740_wdt->timeout = heartbeat;
 	jz4740_wdt->min_timeout = 1;
-	jz4740_wdt->max_timeout = MAX_HEARTBEAT;
+	jz4740_wdt->max_timeout = 0xffff / rate;
+	jz4740_wdt->timeout = clamp(heartbeat,
+				    jz4740_wdt->min_timeout,
+				    jz4740_wdt->max_timeout);
 	jz4740_wdt->parent = dev;
 	watchdog_set_nowayout(jz4740_wdt, nowayout);
 	watchdog_set_drvdata(jz4740_wdt, drvdata);
 
-	drvdata->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(drvdata->base))
-		return PTR_ERR(drvdata->base);
-
-	drvdata->rtc_clk = devm_clk_get(dev, "rtc");
-	if (IS_ERR(drvdata->rtc_clk)) {
-		dev_err(dev, "cannot find RTC clock\n");
-		return PTR_ERR(drvdata->rtc_clk);
+	drvdata->map = device_node_to_regmap(dev->parent->of_node);
+	if (!drvdata->map) {
+		dev_err(dev, "regmap not found\n");
+		return -EINVAL;
 	}
 
 	return devm_watchdog_register_device(dev, &drvdata->wdt);

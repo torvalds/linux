@@ -1,11 +1,35 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/clock/jz4780-cgu.h>
+#include <dt-bindings/clock/ingenic,tcu.h>
 #include <dt-bindings/dma/jz4780-dma.h>
 
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
 	compatible = "ingenic,jz4780";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "ingenic,xburst-fpu1.0-mxu1.1";
+			reg = <0>;
+
+			clocks = <&cgu JZ4780_CLK_CPU>;
+			clock-names = "cpu";
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "ingenic,xburst-fpu1.0-mxu1.1";
+			reg = <1>;
+
+			clocks = <&cgu JZ4780_CLK_CORE1>;
+			clock-names = "cpu";
+		};
+	};
 
 	cpuintc: interrupt-controller {
 		#address-cells = <0>;
@@ -57,9 +81,9 @@
 
 		#clock-cells = <1>;
 
-		clocks = <&cgu JZ4780_CLK_RTCLK
-			  &cgu JZ4780_CLK_EXCLK
-			  &cgu JZ4780_CLK_PCLK>;
+		clocks = <&cgu JZ4780_CLK_RTCLK>,
+			 <&cgu JZ4780_CLK_EXCLK>,
+			 <&cgu JZ4780_CLK_PCLK>;
 		clock-names = "rtc", "ext", "pclk";
 
 		interrupt-controller;
@@ -67,6 +91,38 @@
 
 		interrupt-parent = <&intc>;
 		interrupts = <27 26 25>;
+
+		watchdog: watchdog@0 {
+			compatible = "ingenic,jz4780-watchdog";
+			reg = <0x0 0xc>;
+
+			clocks = <&tcu TCU_CLK_WDT>;
+			clock-names = "wdt";
+		};
+
+		pwm: pwm@40 {
+			compatible = "ingenic,jz4780-pwm", "ingenic,jz4740-pwm";
+			reg = <0x40 0x80>;
+
+			#pwm-cells = <3>;
+
+			clocks = <&tcu TCU_CLK_TIMER0>, <&tcu TCU_CLK_TIMER1>,
+				 <&tcu TCU_CLK_TIMER2>, <&tcu TCU_CLK_TIMER3>,
+				 <&tcu TCU_CLK_TIMER4>, <&tcu TCU_CLK_TIMER5>,
+				 <&tcu TCU_CLK_TIMER6>, <&tcu TCU_CLK_TIMER7>;
+			clock-names = "timer0", "timer1", "timer2", "timer3",
+				      "timer4", "timer5", "timer6", "timer7";
+		};
+
+		ost: timer@e0 {
+			compatible = "ingenic,jz4780-ost", "ingenic,jz4770-ost";
+			reg = <0xe0 0x20>;
+
+			clocks = <&tcu TCU_CLK_OST>;
+			clock-names = "ost";
+
+			interrupts = <15>;
+		};
 	};
 
 	rtc_dev: rtc@10003000 {
@@ -187,8 +243,7 @@
 		gpio-miso = <&gpe 14 0>;
 		gpio-sck = <&gpe 15 0>;
 		gpio-mosi = <&gpe 17 0>;
-		cs-gpios = <&gpe 16 0
-			    &gpe 18 0>;
+		cs-gpios = <&gpe 16 0>, <&gpe 18 0>;
 
 		spidev@0 {
 			compatible = "spidev";
@@ -262,35 +317,127 @@
 		status = "disabled";
 	};
 
-	watchdog: watchdog@10002000 {
-		compatible = "ingenic,jz4780-watchdog";
-		reg = <0x10002000 0x10>;
+	i2c0: i2c@10050000 {
+		compatible = "ingenic,jz4780-i2c";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		clocks = <&cgu JZ4780_CLK_RTCLK>;
-		clock-names = "rtc";
-	};
+		reg = <0x10050000 0x1000>;
 
-	nemc: nemc@13410000 {
-		compatible = "ingenic,jz4780-nemc";
-		reg = <0x13410000 0x10000>;
-		#address-cells = <2>;
-		#size-cells = <1>;
-		ranges = <1 0 0x1b000000 0x1000000
-			  2 0 0x1a000000 0x1000000
-			  3 0 0x19000000 0x1000000
-			  4 0 0x18000000 0x1000000
-			  5 0 0x17000000 0x1000000
-			  6 0 0x16000000 0x1000000>;
+		interrupt-parent = <&intc>;
+		interrupts = <60>;
 
-		clocks = <&cgu JZ4780_CLK_NEMC>;
+		clocks = <&cgu JZ4780_CLK_SMB0>;
+		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_i2c0_data>;
 
 		status = "disabled";
 	};
 
+	i2c1: i2c@10051000 {
+		compatible = "ingenic,jz4780-i2c";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x10051000 0x1000>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <59>;
+
+		clocks = <&cgu JZ4780_CLK_SMB1>;
+		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_i2c1_data>;
+
+		status = "disabled";
+	};
+
+	i2c2: i2c@10052000 {
+		compatible = "ingenic,jz4780-i2c";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x10052000 0x1000>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <58>;
+
+		clocks = <&cgu JZ4780_CLK_SMB2>;
+		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_i2c2_data>;
+
+		status = "disabled";
+	};
+
+	i2c3: i2c@10053000 {
+		compatible = "ingenic,jz4780-i2c";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x10053000 0x1000>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <57>;
+
+		clocks = <&cgu JZ4780_CLK_SMB3>;
+		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_i2c3_data>;
+
+		status = "disabled";
+	};
+
+	i2c4: i2c@10054000 {
+		compatible = "ingenic,jz4780-i2c";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x10054000 0x1000>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <56>;
+
+		clocks = <&cgu JZ4780_CLK_SMB4>;
+		clock-frequency = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_i2c4_data>;
+
+		status = "disabled";
+	};
+
+	nemc: nemc@13410000 {
+		compatible = "ingenic,jz4780-nemc", "simple-mfd";
+		reg = <0x13410000 0x10000>;
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0 0x13410000 0x10000>,
+			 <1 0 0x1b000000 0x1000000>,
+			 <2 0 0x1a000000 0x1000000>,
+			 <3 0 0x19000000 0x1000000>,
+			 <4 0 0x18000000 0x1000000>,
+			 <5 0 0x17000000 0x1000000>,
+			 <6 0 0x16000000 0x1000000>;
+
+		clocks = <&cgu JZ4780_CLK_NEMC>;
+
+		status = "disabled";
+
+		efuse: efuse@d0 {
+			reg = <0 0xd0 0x30>;
+			compatible = "ingenic,jz4780-efuse";
+
+			clocks = <&cgu JZ4780_CLK_AHB2>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			eth0_addr: eth-mac-addr@0x22 {
+				reg = <0x22 0x6>;
+			};
+		};
+	};
+
 	dma: dma@13420000 {
 		compatible = "ingenic,jz4780-dma";
-		reg = <0x13420000 0x400
-		       0x13421000 0x40>;
+		reg = <0x13420000 0x400>, <0x13421000 0x40>;
 		#dma-cells = <2>;
 
 		interrupt-parent = <&intc>;

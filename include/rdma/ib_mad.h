@@ -1,40 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
  * Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
  * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004-2006 Voltaire Corporation.  All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
-#if !defined(IB_MAD_H)
+#ifndef IB_MAD_H
 #define IB_MAD_H
 
 #include <linux/list.h>
@@ -559,20 +532,6 @@ typedef void (*ib_mad_send_handler)(struct ib_mad_agent *mad_agent,
 				    struct ib_mad_send_wc *mad_send_wc);
 
 /**
- * ib_mad_snoop_handler - Callback handler for snooping sent MADs.
- * @mad_agent: MAD agent that snooped the MAD.
- * @send_buf: send MAD data buffer.
- * @mad_send_wc: Work completion information on the sent MAD.  Valid
- *   only for snooping that occurs on a send completion.
- *
- * Clients snooping MADs should not modify data referenced by the @send_buf
- * or @mad_send_wc.
- */
-typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
-				     struct ib_mad_send_buf *send_buf,
-				     struct ib_mad_send_wc *mad_send_wc);
-
-/**
  * ib_mad_recv_handler - callback handler for a received MAD.
  * @mad_agent: MAD agent requesting the received MAD.
  * @send_buf: Send buffer if found, else NULL
@@ -581,8 +540,7 @@ typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
  * MADs received in response to a send request operation will be handed to
  * the user before the send operation completes.  All data buffers given
  * to registered agents through this routine are owned by the receiving
- * client, except for snooping agents.  Clients snooping MADs should not
- * modify the data referenced by @mad_recv_wc.
+ * client.
  */
 typedef void (*ib_mad_recv_handler)(struct ib_mad_agent *mad_agent,
 				    struct ib_mad_send_buf *send_buf,
@@ -595,7 +553,6 @@ typedef void (*ib_mad_recv_handler)(struct ib_mad_agent *mad_agent,
  * @mr: Memory region for system memory usable for DMA.
  * @recv_handler: Callback handler for a received MAD.
  * @send_handler: Callback handler for a sent MAD.
- * @snoop_handler: Callback handler for snooped sent MADs.
  * @context: User-specified context associated with this registration.
  * @hi_tid: Access layer assigned transaction ID for this client.
  *   Unsolicited MADs sent by this client will have the upper 32-bits
@@ -612,7 +569,6 @@ struct ib_mad_agent {
 	struct ib_qp		*qp;
 	ib_mad_recv_handler	recv_handler;
 	ib_mad_send_handler	send_handler;
-	ib_mad_snoop_handler	snoop_handler;
 	void			*context;
 	u32			hi_tid;
 	u32			flags;
@@ -720,36 +676,6 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 					   ib_mad_recv_handler recv_handler,
 					   void *context,
 					   u32 registration_flags);
-
-enum ib_mad_snoop_flags {
-	/*IB_MAD_SNOOP_POSTED_SENDS	   = 1,*/
-	/*IB_MAD_SNOOP_RMPP_SENDS	   = (1<<1),*/
-	IB_MAD_SNOOP_SEND_COMPLETIONS	   = (1<<2),
-	/*IB_MAD_SNOOP_RMPP_SEND_COMPLETIONS = (1<<3),*/
-	IB_MAD_SNOOP_RECVS		   = (1<<4)
-	/*IB_MAD_SNOOP_RMPP_RECVS	   = (1<<5),*/
-	/*IB_MAD_SNOOP_REDIRECTED_QPS	   = (1<<6)*/
-};
-
-/**
- * ib_register_mad_snoop - Register to snoop sent and received MADs.
- * @device: The device to register with.
- * @port_num: The port on the specified device to use.
- * @qp_type: Specifies which QP traffic to snoop.  Must be either
- *   IB_QPT_SMI or IB_QPT_GSI.
- * @mad_snoop_flags: Specifies information where snooping occurs.
- * @send_handler: The callback routine invoked for a snooped send.
- * @recv_handler: The callback routine invoked for a snooped receive.
- * @context: User specified context associated with the registration.
- */
-struct ib_mad_agent *ib_register_mad_snoop(struct ib_device *device,
-					   u8 port_num,
-					   enum ib_qp_type qp_type,
-					   int mad_snoop_flags,
-					   ib_mad_snoop_handler snoop_handler,
-					   ib_mad_recv_handler recv_handler,
-					   void *context);
-
 /**
  * ib_unregister_mad_agent - Unregisters a client from using MAD services.
  * @mad_agent: Corresponding MAD registration request to deregister.
@@ -813,46 +739,6 @@ void ib_cancel_mad(struct ib_mad_agent *mad_agent,
  */
 int ib_modify_mad(struct ib_mad_agent *mad_agent,
 		  struct ib_mad_send_buf *send_buf, u32 timeout_ms);
-
-/**
- * ib_redirect_mad_qp - Registers a QP for MAD services.
- * @qp: Reference to a QP that requires MAD services.
- * @rmpp_version: If set, indicates that the client will send
- *   and receive MADs that contain the RMPP header for the given version.
- *   If set to 0, indicates that RMPP is not used by this client.
- * @send_handler: The completion callback routine invoked after a send
- *   request has completed.
- * @recv_handler: The completion callback routine invoked for a received
- *   MAD.
- * @context: User specified context associated with the registration.
- *
- * Use of this call allows clients to use MAD services, such as RMPP,
- * on user-owned QPs.  After calling this routine, users may send
- * MADs on the specified QP by calling ib_mad_post_send.
- */
-struct ib_mad_agent *ib_redirect_mad_qp(struct ib_qp *qp,
-					u8 rmpp_version,
-					ib_mad_send_handler send_handler,
-					ib_mad_recv_handler recv_handler,
-					void *context);
-
-/**
- * ib_process_mad_wc - Processes a work completion associated with a
- *   MAD sent or received on a redirected QP.
- * @mad_agent: Specifies the registered MAD service using the redirected QP.
- * @wc: References a work completion associated with a sent or received
- *   MAD segment.
- *
- * This routine is used to complete or continue processing on a MAD request.
- * If the work completion is associated with a send operation, calling
- * this routine is required to continue an RMPP transfer or to wait for a
- * corresponding response, if it is a request.  If the work completion is
- * associated with a receive operation, calling this routine is required to
- * process an inbound or outbound RMPP transfer, or to match a response MAD
- * with its corresponding request.
- */
-int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
-		      struct ib_wc *wc);
 
 /**
  * ib_create_send_mad - Allocate and initialize a data buffer and work request

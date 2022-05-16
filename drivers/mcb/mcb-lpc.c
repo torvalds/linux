@@ -168,3 +168,4 @@ module_exit(mcb_lpc_exit);
 MODULE_AUTHOR("Andreas Werner <andreas.werner@men.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MCB over LPC support");
+MODULE_IMPORT_NS(MCB);

@@ -2,7 +2,7 @@
 #include <linux/bpf.h>
 #include <linux/version.h>
 
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include "netcnt_common.h"
 
 #define MAX_BPS	(3 * 1024 * 1024)

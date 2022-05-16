@@ -17,6 +17,8 @@ properties:
   compatible:
     enum:
       - fsl,imx8qxp-dsp
+      - fsl,imx8qm-dsp
+      - fsl,imx8mp-dsp
 
   reg:
     description: Should contain register location and length
@@ -54,8 +56,8 @@ properties:
 
   memory-region:
     description:
-       phandle to a node describing reserved memory (System RAM memory)
-       used by DSP (see bindings/reserved-memory/reserved-memory.txt)
+      phandle to a node describing reserved memory (System RAM memory)
+      used by DSP (see bindings/reserved-memory/reserved-memory.txt)
     maxItems: 1
 
 required:
@@ -67,6 +69,8 @@ required:
   - mboxes
   - mbox-names
   - memory-region
+
+additionalProperties: false
 
 examples:
   - |

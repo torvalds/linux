@@ -91,7 +91,7 @@ static struct davinci_nand_pdata davinci_nand_data = {
 	.mask_ale 		= 0x40000,
 	.parts			= davinci_nand_partitions,
 	.nr_parts		= ARRAY_SIZE(davinci_nand_partitions),
-	.ecc_mode		= NAND_ECC_HW,
+	.engine_type		= NAND_ECC_ENGINE_TYPE_ON_HOST,
 	.ecc_bits		= 1,
 	.options		= 0,
 };
@@ -160,8 +160,7 @@ static struct platform_device davinci_aemif_device = {
 #define DM646X_EVM_ATA_PWD		BIT(1)
 
 /* CPLD Register 0 Client: used for I/O Control */
-static int cpld_reg0_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int cpld_reg0_probe(struct i2c_client *client)
 {
 	if (HAS_ATA) {
 		u8 data;
@@ -197,7 +196,7 @@ static const struct i2c_device_id cpld_reg_ids[] = {
 static struct i2c_driver dm6467evm_cpld_driver = {
 	.driver.name	= "cpld_reg0",
 	.id_table	= cpld_reg_ids,
-	.probe		= cpld_reg0_probe,
+	.probe_new	= cpld_reg0_probe,
 };
 
 /* LEDS */
@@ -267,20 +266,15 @@ static int evm_sw_setup(struct i2c_client *client, int gpio,
 		evm_sw_gpio[i] = gpio++;
 
 		status = gpio_direction_input(evm_sw_gpio[i]);
-		if (status) {
-			gpio_free(evm_sw_gpio[i]);
-			evm_sw_gpio[i] = -EINVAL;
+		if (status)
 			goto out_free;
-		}
 
 		status = gpio_export(evm_sw_gpio[i], 0);
-		if (status) {
-			gpio_free(evm_sw_gpio[i]);
-			evm_sw_gpio[i] = -EINVAL;
+		if (status)
 			goto out_free;
-		}
 	}
-	return status;
+	return 0;
+
 out_free:
 	for (i = 0; i < 4; ++i) {
 		if (evm_sw_gpio[i] != -EINVAL) {
@@ -402,8 +396,7 @@ static struct snd_platform_data dm646x_evm_snd_data[] = {
 #ifdef CONFIG_I2C
 static struct i2c_client *cpld_client;
 
-static int cpld_video_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int cpld_video_probe(struct i2c_client *client)
 {
 	cpld_client = client;
 	return 0;
@@ -424,7 +417,7 @@ static struct i2c_driver cpld_video_driver = {
 	.driver = {
 		.name	= "cpld_video",
 	},
-	.probe		= cpld_video_probe,
+	.probe_new	= cpld_video_probe,
 	.remove		= cpld_video_remove,
 	.id_table	= cpld_video_id,
 };

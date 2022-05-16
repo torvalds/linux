@@ -1,5 +1,7 @@
+#ifndef DEFUTIL_H
+#define DEFUTIL_H
 
-
+#include <linux/zutil.h>
 
 #define Assert(err, str) 
 #define Trace(dummy) 
@@ -238,17 +240,13 @@ typedef struct deflate_state {
 
 } deflate_state;
 
-typedef struct deflate_workspace {
-    /* State memory for the deflator */
-    deflate_state deflate_memory;
-    Byte *window_memory;
-    Pos *prev_memory;
-    Pos *head_memory;
-    char *overlay_memory;
-} deflate_workspace;
-
+#ifdef CONFIG_ZLIB_DFLTCC
+#define zlib_deflate_window_memsize(windowBits) \
+	(2 * (1 << (windowBits)) * sizeof(Byte) + PAGE_SIZE)
+#else
 #define zlib_deflate_window_memsize(windowBits) \
 	(2 * (1 << (windowBits)) * sizeof(Byte))
+#endif
 #define zlib_deflate_prev_memsize(windowBits) \
 	((1 << (windowBits)) * sizeof(Pos))
 #define zlib_deflate_head_memsize(memLevel) \
@@ -293,6 +291,24 @@ void zlib_tr_stored_type_only (deflate_state *);
 }
 
 /* ===========================================================================
+ * Reverse the first len bits of a code, using straightforward code (a faster
+ * method would use a table)
+ * IN assertion: 1 <= len <= 15
+ */
+static inline unsigned  bi_reverse(
+    unsigned code, /* the value to invert */
+    int len        /* its bit length */
+)
+{
+    register unsigned res = 0;
+    do {
+        res |= code & 1;
+        code >>= 1, res <<= 1;
+    } while (--len > 0);
+    return res >> 1;
+}
+
+/* ===========================================================================
  * Flush the bit buffer, keeping at most 7 bits in it.
  */
 static inline void bi_flush(deflate_state *s)
@@ -325,3 +341,101 @@ static inline void bi_windup(deflate_state *s)
 #endif
 }
 
+typedef enum {
+    need_more,      /* block not completed, need more input or more output */
+    block_done,     /* block flush performed */
+    finish_started, /* finish started, need only more output at next deflate */
+    finish_done     /* finish done, accept no more input or output */
+} block_state;
+
+#define Buf_size (8 * 2*sizeof(char))
+/* Number of bits used within bi_buf. (bi_buf might be implemented on
+ * more than 16 bits on some systems.)
+ */
+
+/* ===========================================================================
+ * Send a value on a given number of bits.
+ * IN assertion: length <= 16 and value fits in length bits.
+ */
+#ifdef DEBUG_ZLIB
+static void send_bits      (deflate_state *s, int value, int length);
+
+static void send_bits(
+    deflate_state *s,
+    int value,  /* value to send */
+    int length  /* number of bits */
+)
+{
+    Tracevv((stderr," l %2d v %4x ", length, value));
+    Assert(length > 0 && length <= 15, "invalid length");
+    s->bits_sent += (ulg)length;
+
+    /* If not enough room in bi_buf, use (valid) bits from bi_buf and
+     * (16 - bi_valid) bits from value, leaving (width - (16-bi_valid))
+     * unused bits in value.
+     */
+    if (s->bi_valid > (int)Buf_size - length) {
+        s->bi_buf |= (value << s->bi_valid);
+        put_short(s, s->bi_buf);
+        s->bi_buf = (ush)value >> (Buf_size - s->bi_valid);
+        s->bi_valid += length - Buf_size;
+    } else {
+        s->bi_buf |= value << s->bi_valid;
+        s->bi_valid += length;
+    }
+}
+#else /* !DEBUG_ZLIB */
+
+#define send_bits(s, value, length) \
+{ int len = length;\
+  if (s->bi_valid > (int)Buf_size - len) {\
+    int val = value;\
+    s->bi_buf |= (val << s->bi_valid);\
+    put_short(s, s->bi_buf);\
+    s->bi_buf = (ush)val >> (Buf_size - s->bi_valid);\
+    s->bi_valid += len - Buf_size;\
+  } else {\
+    s->bi_buf |= (value) << s->bi_valid;\
+    s->bi_valid += len;\
+  }\
+}
+#endif /* DEBUG_ZLIB */
+
+static inline void zlib_tr_send_bits(
+    deflate_state *s,
+    int value,
+    int length
+)
+{
+    send_bits(s, value, length);
+}
+
+/* =========================================================================
+ * Flush as much pending output as possible. All deflate() output goes
+ * through this function so some applications may wish to modify it
+ * to avoid allocating a large strm->next_out buffer and copying into it.
+ * (See also read_buf()).
+ */
+static inline void flush_pending(
+	z_streamp strm
+)
+{
+    deflate_state *s = (deflate_state *) strm->state;
+    unsigned len = s->pending;
+
+    if (len > strm->avail_out) len = strm->avail_out;
+    if (len == 0) return;
+
+    if (strm->next_out != NULL) {
+	memcpy(strm->next_out, s->pending_out, len);
+	strm->next_out += len;
+    }
+    s->pending_out += len;
+    strm->total_out += len;
+    strm->avail_out  -= len;
+    s->pending -= len;
+    if (s->pending == 0) {
+        s->pending_out = s->pending_buf;
+    }
+}
+#endif /* DEFUTIL_H */

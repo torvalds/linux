@@ -8,14 +8,18 @@ title: Allwinner A33 Codec Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   "#sound-dai-cells":
     const: 0
 
   compatible:
-    const: allwinner,sun8i-a33-codec
+    oneOf:
+      - items:
+          - const: allwinner,sun50i-a64-codec
+          - const: allwinner,sun8i-a33-codec
+      - const: allwinner,sun8i-a33-codec
 
   reg:
     maxItems: 1

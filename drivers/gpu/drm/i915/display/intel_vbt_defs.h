@@ -111,9 +111,11 @@ enum bdb_block_id {
 	BDB_LVDS_LFP_DATA_PTRS		= 41,
 	BDB_LVDS_LFP_DATA		= 42,
 	BDB_LVDS_BACKLIGHT		= 43,
-	BDB_LVDS_POWER			= 44,
+	BDB_LFP_POWER			= 44,
 	BDB_MIPI_CONFIG			= 52,
 	BDB_MIPI_SEQUENCE		= 53,
+	BDB_COMPRESSION_PARAMETERS	= 56,
+	BDB_GENERIC_DTD			= 58,
 	BDB_SKIP			= 254, /* VBIOS private block, ignore */
 };
 
@@ -291,6 +293,12 @@ struct bdb_general_features {
 #define DVO_PORT_HDMIE		12				/* 193 */
 #define DVO_PORT_DPF		13				/* N/A */
 #define DVO_PORT_HDMIF		14				/* N/A */
+#define DVO_PORT_DPG		15				/* 217 */
+#define DVO_PORT_HDMIG		16				/* 217 */
+#define DVO_PORT_DPH		17				/* 217 */
+#define DVO_PORT_HDMIH		18				/* 217 */
+#define DVO_PORT_DPI		19				/* 217 */
+#define DVO_PORT_HDMII		20				/* 217 */
 #define DVO_PORT_MIPIA		21				/* 171 */
 #define DVO_PORT_MIPIB		22				/* 171 */
 #define DVO_PORT_MIPIC		23				/* 171 */
@@ -325,6 +333,9 @@ enum vbt_gmbus_ddi {
 #define DP_AUX_D 0x30
 #define DP_AUX_E 0x50
 #define DP_AUX_F 0x60
+#define DP_AUX_G 0x70
+#define DP_AUX_H 0x80
+#define DP_AUX_I 0x90
 
 #define VBT_DP_MAX_LINK_RATE_HBR3	0
 #define VBT_DP_MAX_LINK_RATE_HBR2	1
@@ -364,7 +375,7 @@ struct child_device_config {
 			u16 dtd_buf_ptr;			/* 161 */
 			u8 edidless_efp:1;			/* 161 */
 			u8 compression_enable:1;		/* 198 */
-			u8 compression_method:1;		/* 198 */
+			u8 compression_method_cps:1;		/* 198 */
 			u8 ganged_edp:1;			/* 202 */
 			u8 reserved0:4;
 			u8 compression_structure_index:4;	/* 198 */
@@ -457,7 +468,7 @@ struct bdb_general_definitions {
 	 * number = (block_size - sizeof(bdb_general_definitions))/
 	 *	     defs->child_dev_size;
 	 */
-	u8 devices[0];
+	u8 devices[];
 } __packed;
 
 /*
@@ -789,6 +800,36 @@ struct bdb_lfp_backlight_data {
 } __packed;
 
 /*
+ * Block 44 - LFP Power Conservation Features Block
+ */
+
+struct als_data_entry {
+	u16 backlight_adjust;
+	u16 lux;
+} __packed;
+
+struct agressiveness_profile_entry {
+	u8 dpst_agressiveness : 4;
+	u8 lace_agressiveness : 4;
+} __packed;
+
+struct bdb_lfp_power {
+	u8 lfp_feature_bits;
+	struct als_data_entry als[5];
+	u8 lace_aggressiveness_profile;
+	u16 dpst;
+	u16 psr;
+	u16 drrs;
+	u16 lace_support;
+	u16 adt;
+	u16 dmrrs;
+	u16 adb;
+	u16 lace_enabled_status;
+	struct agressiveness_profile_entry aggressivenes[16];
+	u16 hobl; /* 232+ */
+} __packed;
+
+/*
  * Block 52 - MIPI Configuration Block
  */
 
@@ -805,7 +846,88 @@ struct bdb_mipi_config {
 
 struct bdb_mipi_sequence {
 	u8 version;
-	u8 data[0]; /* up to 6 variable length blocks */
+	u8 data[]; /* up to 6 variable length blocks */
+} __packed;
+
+/*
+ * Block 56 - Compression Parameters
+ */
+
+#define VBT_RC_BUFFER_BLOCK_SIZE_1KB	0
+#define VBT_RC_BUFFER_BLOCK_SIZE_4KB	1
+#define VBT_RC_BUFFER_BLOCK_SIZE_16KB	2
+#define VBT_RC_BUFFER_BLOCK_SIZE_64KB	3
+
+#define VBT_DSC_LINE_BUFFER_DEPTH(vbt_value)	((vbt_value) + 8) /* bits */
+#define VBT_DSC_MAX_BPP(vbt_value)		(6 + (vbt_value) * 2)
+
+struct dsc_compression_parameters_entry {
+	u8 version_major:4;
+	u8 version_minor:4;
+
+	u8 rc_buffer_block_size:2;
+	u8 reserved1:6;
+
+	/*
+	 * Buffer size in bytes:
+	 *
+	 * 4 ^ rc_buffer_block_size * 1024 * (rc_buffer_size + 1) bytes
+	 */
+	u8 rc_buffer_size;
+	u32 slices_per_line;
+
+	u8 line_buffer_depth:4;
+	u8 reserved2:4;
+
+	/* Flag Bits 1 */
+	u8 block_prediction_enable:1;
+	u8 reserved3:7;
+
+	u8 max_bpp; /* mapping */
+
+	/* Color depth capabilities */
+	u8 reserved4:1;
+	u8 support_8bpc:1;
+	u8 support_10bpc:1;
+	u8 support_12bpc:1;
+	u8 reserved5:4;
+
+	u16 slice_height;
+} __packed;
+
+struct bdb_compression_parameters {
+	u16 entry_size;
+	struct dsc_compression_parameters_entry data[16];
+} __packed;
+
+/*
+ * Block 58 - Generic DTD Block
+ */
+
+struct generic_dtd_entry {
+	u32 pixel_clock;
+	u16 hactive;
+	u16 hblank;
+	u16 hfront_porch;
+	u16 hsync;
+	u16 vactive;
+	u16 vblank;
+	u16 vfront_porch;
+	u16 vsync;
+	u16 width_mm;
+	u16 height_mm;
+
+	/* Flags */
+	u8 rsvd_flags:6;
+	u8 vsync_positive_polarity:1;
+	u8 hsync_positive_polarity:1;
+
+	u8 rsvd[3];
+} __packed;
+
+struct bdb_generic_dtd {
+	u16 gdtd_size;
+	struct generic_dtd_entry dtd[];	/* up to 24 DTD's */
 } __packed;
 
 #endif /* _INTEL_VBT_DEFS_H_ */

@@ -80,7 +80,9 @@ struct dcn20_hubbub {
 	const struct dcn_hubbub_mask *masks;
 	unsigned int debug_test_index_pstate;
 	struct dcn_watermark_set watermarks;
+	int num_vmid;
 	struct dcn20_vmid vmid[16];
+	unsigned int detile_buf_size;
 };
 
 void hubbub2_construct(struct dcn20_hubbub *hubbub,

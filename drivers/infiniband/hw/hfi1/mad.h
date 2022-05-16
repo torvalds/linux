@@ -165,7 +165,7 @@ struct opa_mad_notice_attr {
 		} __packed ntc_2048;
 
 	};
-	u8	class_data[0];
+	u8	class_data[];
 };
 
 #define IB_VLARB_LOWPRI_0_31    1

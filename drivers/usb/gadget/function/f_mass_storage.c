@@ -216,6 +216,7 @@
 #include <linux/freezer.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <asm/unaligned.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -2038,7 +2039,6 @@ static int do_scsi_command(struct fsg_common *common)
 	case RELEASE:
 	case RESERVE:
 	case SEND_DIAGNOSTIC:
-		/* Fall through */
 
 	default:
 unknown_cmnd:

@@ -3,6 +3,8 @@
 #define _LINUX_VIRTIO_NET_H
 
 #include <linux/if_vlan.h>
+#include <uapi/linux/tcp.h>
+#include <uapi/linux/udp.h>
 #include <uapi/linux/virtio_net.h>
 
 static inline int virtio_net_hdr_set_proto(struct sk_buff *skb,
@@ -28,17 +30,26 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 					bool little_endian)
 {
 	unsigned int gso_type = 0;
+	unsigned int thlen = 0;
+	unsigned int p_off = 0;
+	unsigned int ip_proto;
 
 	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
 		switch (hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
 		case VIRTIO_NET_HDR_GSO_TCPV4:
 			gso_type = SKB_GSO_TCPV4;
+			ip_proto = IPPROTO_TCP;
+			thlen = sizeof(struct tcphdr);
 			break;
 		case VIRTIO_NET_HDR_GSO_TCPV6:
 			gso_type = SKB_GSO_TCPV6;
+			ip_proto = IPPROTO_TCP;
+			thlen = sizeof(struct tcphdr);
 			break;
 		case VIRTIO_NET_HDR_GSO_UDP:
 			gso_type = SKB_GSO_UDP;
+			ip_proto = IPPROTO_UDP;
+			thlen = sizeof(struct udphdr);
 			break;
 		default:
 			return -EINVAL;
@@ -57,16 +68,23 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 
 		if (!skb_partial_csum_set(skb, start, off))
 			return -EINVAL;
+
+		p_off = skb_transport_offset(skb) + thlen;
+		if (p_off > skb_headlen(skb))
+			return -EINVAL;
 	} else {
 		/* gso packets without NEEDS_CSUM do not set transport_offset.
 		 * probe and drop if does not match one of the above types.
 		 */
 		if (gso_type && skb->network_header) {
+			struct flow_keys_basic keys;
+
 			if (!skb->protocol)
 				virtio_net_hdr_set_proto(skb, hdr);
 retry:
-			skb_probe_transport_header(skb);
-			if (!skb_transport_header_was_set(skb)) {
+			if (!skb_flow_dissect_flow_keys_basic(NULL, skb, &keys,
+							      NULL, 0, 0, 0,
+							      0)) {
 				/* UFO does not specify ipv4 or 6: try both */
 				if (gso_type & SKB_GSO_UDP &&
 				    skb->protocol == htons(ETH_P_IP)) {
@@ -75,18 +93,33 @@ retry:
 				}
 				return -EINVAL;
 			}
+
+			p_off = keys.control.thoff + thlen;
+			if (p_off > skb_headlen(skb) ||
+			    keys.basic.ip_proto != ip_proto)
+				return -EINVAL;
+
+			skb_set_transport_header(skb, keys.control.thoff);
+		} else if (gso_type) {
+			p_off = thlen;
+			if (p_off > skb_headlen(skb))
+				return -EINVAL;
 		}
 	}
 
 	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
 		u16 gso_size = __virtio16_to_cpu(little_endian, hdr->gso_size);
+		struct skb_shared_info *shinfo = skb_shinfo(skb);
 
-		skb_shinfo(skb)->gso_size = gso_size;
-		skb_shinfo(skb)->gso_type = gso_type;
+		/* Too small packets are not really GSO ones. */
+		if (skb->len - p_off > gso_size) {
+			shinfo->gso_size = gso_size;
+			shinfo->gso_type = gso_type;
 
-		/* Header must be checked, and gso_segs computed. */
-		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
-		skb_shinfo(skb)->gso_segs = 0;
+			/* Header must be checked, and gso_segs computed. */
+			shinfo->gso_type |= SKB_GSO_DODGY;
+			shinfo->gso_segs = 0;
+		}
 	}
 
 	return 0;

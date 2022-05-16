@@ -233,7 +233,6 @@ static cycles_t check_tsc_warp(unsigned int timeout)
 	 * The measurement runs for 'timeout' msecs:
 	 */
 	end = start + (cycles_t) tsc_khz * timeout;
-	now = start;
 
 	for (i = 0; ; i++) {
 		/*
@@ -296,7 +295,7 @@ static cycles_t check_tsc_warp(unsigned int timeout)
  * But as the TSC is per-logical CPU and can potentially be modified wrongly
  * by the bios, TSC sync test for smaller duration should be able
  * to catch such errors. Also this will catch the condition where all the
- * cores in the socket doesn't get reset at the same time.
+ * cores in the socket don't get reset at the same time.
  */
 static inline unsigned int loop_timeout(int cpu)
 {
@@ -364,12 +363,12 @@ retry:
 		/* Force it to 0 if random warps brought us here */
 		atomic_set(&test_runs, 0);
 
-		pr_warning("TSC synchronization [CPU#%d -> CPU#%d]:\n",
+		pr_warn("TSC synchronization [CPU#%d -> CPU#%d]:\n",
 			smp_processor_id(), cpu);
-		pr_warning("Measured %Ld cycles TSC warp between CPUs, "
-			   "turning off TSC clock.\n", max_warp);
+		pr_warn("Measured %Ld cycles TSC warp between CPUs, "
+			"turning off TSC clock.\n", max_warp);
 		if (random_warps)
-			pr_warning("TSC warped randomly between CPUs\n");
+			pr_warn("TSC warped randomly between CPUs\n");
 		mark_tsc_unstable("check_tsc_sync_source failed");
 	}
 

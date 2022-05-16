@@ -142,7 +142,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 {
 	vortex_t *chip;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_vortex_dev_free,
 	};
 
@@ -202,6 +202,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 		goto irq_out;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 
 	pci_set_master(pci);
 	// End of PCI setup.

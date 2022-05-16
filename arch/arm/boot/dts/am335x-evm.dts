@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  */
 /dts-v1/;
 
@@ -113,7 +113,7 @@
 		};
 	};
 
-	backlight {
+	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&ecap0 0 50000 0>;
 		brightness-levels = <0 51 53 56 62 75 101 152 255>;
@@ -121,35 +121,15 @@
 	};
 
 	panel {
-		compatible = "ti,tilcdc,panel";
-		status = "okay";
+		compatible = "tfc,s9700rtwv43tr-01b";
+
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_pins_s0>;
-		panel-info {
-			ac-bias           = <255>;
-			ac-bias-intrpt    = <0>;
-			dma-burst-sz      = <16>;
-			bpp               = <32>;
-			fdd               = <0x80>;
-			sync-edge         = <0>;
-			sync-ctrl         = <1>;
-			raster-order      = <0>;
-			fifo-th           = <0>;
-		};
+		backlight = <&backlight>;
 
-		display-timings {
-			800x480p62 {
-				clock-frequency = <30000000>;
-				hactive = <800>;
-				vactive = <480>;
-				hfront-porch = <39>;
-				hback-porch = <39>;
-				hsync-len = <47>;
-				vback-porch = <29>;
-				vfront-porch = <13>;
-				vsync-len = <2>;
-				hsync-active = <1>;
-				vsync-active = <1>;
+		port {
+			panel_0: endpoint@0 {
+				remote-endpoint = <&lcdc_0>;
 			};
 		};
 	};
@@ -433,33 +413,8 @@
 	};
 };
 
-&usb {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
-};
-
-&usb1_phy {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
 &usb1 {
-	status = "okay";
 	dr_mode = "host";
-};
-
-&cppi41dma  {
-	status = "okay";
 };
 
 &i2c1 {
@@ -525,6 +480,12 @@
 	status = "okay";
 
 	blue-and-red-wiring = "crossed";
+
+	port {
+		lcdc_0: endpoint@0 {
+			remote-endpoint = <&panel_0>;
+		};
+	};
 };
 
 &elm {
@@ -782,8 +743,7 @@
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc3_pins &wlan_pins>;
-	ti,non-removable;
-	ti,needs-special-hs-handling;
+	non-removable;
 	cap-power-off-card;
 	keep-power-in-suspend;
 

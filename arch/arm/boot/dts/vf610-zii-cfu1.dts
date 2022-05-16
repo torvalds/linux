@@ -71,6 +71,14 @@
 		los-gpio = <&gpio4 4 GPIO_ACTIVE_HIGH>;
 		tx-disable-gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 	};
+
+	supply-voltage-monitor {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 8>, /* 28VDC_IN */
+			      <&adc0 9>, /* +3.3V    */
+			      <&adc1 8>, /* VCC_1V5  */
+			      <&adc1 9>; /* VCC_1V2  */
+	};
 };
 
 &adc0 {
@@ -150,6 +158,8 @@
 	mdio1: mdio {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clock-frequency = <12500000>;
+		suppress-preamble;
 		status = "okay";
 
 		switch0: switch0@0 {
@@ -162,7 +172,6 @@
 			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			reset-gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
 
 			ports {
 				#address-cells = <1>;
@@ -216,6 +225,7 @@
 		compatible = "nxp,pca9554";
 		reg = <0x22>;
 		gpio-controller;
+		#gpio-cells = <2>;
 	};
 
 	lm75@48 {
@@ -346,7 +356,6 @@
 	pinctrl_switch: switch-grp {
 		fsl,pins = <
 			VF610_PAD_PTB28__GPIO_98		0x3061
-			VF610_PAD_PTE2__GPIO_107		0x1042
 		>;
 	};
 

@@ -165,7 +165,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	}
 	sas_port_add_phy(port->port, phy->phy);
 
-	pr_debug("%s added to %s, phy_mask:0x%x (%16llx)\n",
+	pr_debug("%s added to %s, phy_mask:0x%x (%016llx)\n",
 		 dev_name(&phy->phy->dev), dev_name(&port->port->dev),
 		 port->phy_mask,
 		 SAS_ADDR(port->attached_sas_addr));

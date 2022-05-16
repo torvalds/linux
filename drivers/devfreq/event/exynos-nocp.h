@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * exynos-nocp.h - EXYNOS NoC (Network on Chip) Probe header file
+ * exynos-nocp.h - Exynos NoC (Network on Chip) Probe header file
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  * Author : Chanwoo Choi <cw00.choi@samsung.com>

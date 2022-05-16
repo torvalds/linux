@@ -31,7 +31,7 @@
  *	does memory allocation too using vmalloc_32().
  *
  * videobuf_dma_*()
- *	see Documentation/DMA-API-HOWTO.txt, these functions to
+ *	see Documentation/core-api/dma-api-howto.rst, these functions to
  *	basically the same.  The map function does also build a
  *	scatterlist for the buffer (and unmap frees it ...)
  *
@@ -60,7 +60,7 @@ struct videobuf_dmabuf {
 	/* common */
 	struct scatterlist  *sglist;
 	int                 sglen;
-	int                 nr_pages;
+	unsigned long       nr_pages;
 	int                 direction;
 };
 

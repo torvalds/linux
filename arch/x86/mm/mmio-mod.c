@@ -17,8 +17,8 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <asm/pgtable.h>
 #include <linux/mmiotrace.h>
+#include <linux/pgtable.h>
 #include <asm/e820/api.h> /* for ISA_START_ADDRESS */
 #include <linux/atomic.h>
 #include <linux/percpu.h>
@@ -372,7 +372,7 @@ static void enter_uniprocessor(void)
 	int cpu;
 	int err;
 
-	if (downed_cpus == NULL &&
+	if (!cpumask_available(downed_cpus) &&
 	    !alloc_cpumask_var(&downed_cpus, GFP_KERNEL)) {
 		pr_notice("Failed to allocate mask\n");
 		goto out;
@@ -386,7 +386,7 @@ static void enter_uniprocessor(void)
 	put_online_cpus();
 
 	for_each_cpu(cpu, downed_cpus) {
-		err = cpu_down(cpu);
+		err = remove_cpu(cpu);
 		if (!err)
 			pr_info("CPU%d is down.\n", cpu);
 		else
@@ -394,7 +394,7 @@ static void enter_uniprocessor(void)
 	}
 out:
 	if (num_online_cpus() > 1)
-		pr_warning("multiple CPUs still online, may miss events.\n");
+		pr_warn("multiple CPUs still online, may miss events.\n");
 }
 
 static void leave_uniprocessor(void)
@@ -402,11 +402,11 @@ static void leave_uniprocessor(void)
 	int cpu;
 	int err;
 
-	if (downed_cpus == NULL || cpumask_weight(downed_cpus) == 0)
+	if (!cpumask_available(downed_cpus) || cpumask_weight(downed_cpus) == 0)
 		return;
 	pr_notice("Re-enabling CPUs...\n");
 	for_each_cpu(cpu, downed_cpus) {
-		err = cpu_up(cpu);
+		err = add_cpu(cpu);
 		if (!err)
 			pr_info("enabled CPU%d.\n", cpu);
 		else
@@ -418,8 +418,8 @@ static void leave_uniprocessor(void)
 static void enter_uniprocessor(void)
 {
 	if (num_online_cpus() > 1)
-		pr_warning("multiple CPUs are online, may miss events. "
-			   "Suggest booting with maxcpus=1 kernel argument.\n");
+		pr_warn("multiple CPUs are online, may miss events. "
+			"Suggest booting with maxcpus=1 kernel argument.\n");
 }
 
 static void leave_uniprocessor(void)

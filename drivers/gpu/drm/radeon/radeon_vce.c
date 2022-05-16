@@ -388,9 +388,9 @@ int radeon_vce_get_create_msg(struct radeon_device *rdev, int ring,
 		ib.ptr[i] = cpu_to_le32(0x0);
 
 	r = radeon_ib_schedule(rdev, &ib, NULL, false);
-	if (r) {
+	if (r)
 		DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
-	}
+
 
 	if (fence)
 		*fence = radeon_fence_ref(ib.fence);

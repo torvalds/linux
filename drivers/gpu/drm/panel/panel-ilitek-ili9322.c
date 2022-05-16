@@ -33,7 +33,6 @@
 
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #define ILI9322_CHIP_ID			0x00
 #define ILI9322_CHIP_ID_MAGIC		0x96
@@ -379,7 +378,7 @@ static int ili9322_init(struct drm_panel *panel, struct ili9322 *ili)
 				"can't set up VCOM amplitude (%d)\n", ret);
 			return ret;
 		}
-	};
+	}
 
 	if (ili->vcom_high != U8_MAX) {
 		ret = regmap_write(ili->regmap, ILI9322_VCOM_HIGH,
@@ -388,7 +387,7 @@ static int ili9322_init(struct drm_panel *panel, struct ili9322 *ili)
 			dev_err(ili->dev, "can't set up VCOM high (%d)\n", ret);
 			return ret;
 		}
-	};
+	}
 
 	/* Set up gamma correction */
 	for (i = 0; i < ARRAY_SIZE(ili->gamma); i++) {
@@ -540,7 +539,7 @@ static int ili9322_enable(struct drm_panel *panel)
 
 /* Serial RGB modes */
 static const struct drm_display_mode srgb_320x240_mode = {
-	.clock = 2453500,
+	.clock = 24535,
 	.hdisplay = 320,
 	.hsync_start = 320 + 359,
 	.hsync_end = 320 + 359 + 1,
@@ -549,12 +548,11 @@ static const struct drm_display_mode srgb_320x240_mode = {
 	.vsync_start = 240 + 4,
 	.vsync_end = 240 + 4 + 1,
 	.vtotal = 262,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 static const struct drm_display_mode srgb_360x240_mode = {
-	.clock = 2700000,
+	.clock = 27000,
 	.hdisplay = 360,
 	.hsync_start = 360 + 35,
 	.hsync_end = 360 + 35 + 1,
@@ -563,13 +561,12 @@ static const struct drm_display_mode srgb_360x240_mode = {
 	.vsync_start = 240 + 21,
 	.vsync_end = 240 + 21 + 1,
 	.vtotal = 262,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 /* This is the only mode listed for parallel RGB in the datasheet */
 static const struct drm_display_mode prgb_320x240_mode = {
-	.clock = 6400000,
+	.clock = 64000,
 	.hdisplay = 320,
 	.hsync_start = 320 + 38,
 	.hsync_end = 320 + 38 + 1,
@@ -578,13 +575,12 @@ static const struct drm_display_mode prgb_320x240_mode = {
 	.vsync_start = 240 + 4,
 	.vsync_end = 240 + 4 + 1,
 	.vtotal = 262,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 /* YUV modes */
 static const struct drm_display_mode yuv_640x320_mode = {
-	.clock = 2454000,
+	.clock = 24540,
 	.hdisplay = 640,
 	.hsync_start = 640 + 252,
 	.hsync_end = 640 + 252 + 1,
@@ -593,12 +589,11 @@ static const struct drm_display_mode yuv_640x320_mode = {
 	.vsync_start = 320 + 4,
 	.vsync_end = 320 + 4 + 1,
 	.vtotal = 320 + 4 + 1 + 18,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 static const struct drm_display_mode yuv_720x360_mode = {
-	.clock = 2700000,
+	.clock = 27000,
 	.hdisplay = 720,
 	.hsync_start = 720 + 252,
 	.hsync_end = 720 + 252 + 1,
@@ -607,13 +602,12 @@ static const struct drm_display_mode yuv_720x360_mode = {
 	.vsync_start = 360 + 4,
 	.vsync_end = 360 + 4 + 1,
 	.vtotal = 360 + 4 + 1 + 18,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 /* BT.656 VGA mode, 640x480 */
 static const struct drm_display_mode itu_r_bt_656_640_mode = {
-	.clock = 2454000,
+	.clock = 24540,
 	.hdisplay = 640,
 	.hsync_start = 640 + 3,
 	.hsync_end = 640 + 3 + 1,
@@ -622,13 +616,12 @@ static const struct drm_display_mode itu_r_bt_656_640_mode = {
 	.vsync_start = 480 + 4,
 	.vsync_end = 480 + 4 + 1,
 	.vtotal = 500,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
 /* BT.656 D1 mode 720x480 */
 static const struct drm_display_mode itu_r_bt_656_720_mode = {
-	.clock = 2700000,
+	.clock = 27000,
 	.hdisplay = 720,
 	.hsync_start = 720 + 3,
 	.hsync_end = 720 + 3 + 1,
@@ -637,14 +630,14 @@ static const struct drm_display_mode itu_r_bt_656_720_mode = {
 	.vsync_start = 480 + 4,
 	.vsync_end = 480 + 4 + 1,
 	.vtotal = 500,
-	.vrefresh = 60,
 	.flags = 0,
 };
 
-static int ili9322_get_modes(struct drm_panel *panel)
+static int ili9322_get_modes(struct drm_panel *panel,
+			     struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct ili9322 *ili = panel_to_ili9322(panel);
+	struct drm_device *drm = connector->dev;
 	struct drm_display_mode *mode;
 	struct drm_display_info *info;
 
@@ -663,33 +656,33 @@ static int ili9322_get_modes(struct drm_panel *panel)
 
 	switch (ili->input) {
 	case ILI9322_INPUT_SRGB_DUMMY_320X240:
-		mode = drm_mode_duplicate(panel->drm, &srgb_320x240_mode);
+		mode = drm_mode_duplicate(drm, &srgb_320x240_mode);
 		break;
 	case ILI9322_INPUT_SRGB_DUMMY_360X240:
-		mode = drm_mode_duplicate(panel->drm, &srgb_360x240_mode);
+		mode = drm_mode_duplicate(drm, &srgb_360x240_mode);
 		break;
 	case ILI9322_INPUT_PRGB_THROUGH:
 	case ILI9322_INPUT_PRGB_ALIGNED:
-		mode = drm_mode_duplicate(panel->drm, &prgb_320x240_mode);
+		mode = drm_mode_duplicate(drm, &prgb_320x240_mode);
 		break;
 	case ILI9322_INPUT_YUV_640X320_YCBCR:
-		mode = drm_mode_duplicate(panel->drm, &yuv_640x320_mode);
+		mode = drm_mode_duplicate(drm, &yuv_640x320_mode);
 		break;
 	case ILI9322_INPUT_YUV_720X360_YCBCR:
-		mode = drm_mode_duplicate(panel->drm, &yuv_720x360_mode);
+		mode = drm_mode_duplicate(drm, &yuv_720x360_mode);
 		break;
 	case ILI9322_INPUT_ITU_R_BT656_720X360_YCBCR:
-		mode = drm_mode_duplicate(panel->drm, &itu_r_bt_656_720_mode);
+		mode = drm_mode_duplicate(drm, &itu_r_bt_656_720_mode);
 		break;
 	case ILI9322_INPUT_ITU_R_BT656_640X320_YCBCR:
-		mode = drm_mode_duplicate(panel->drm, &itu_r_bt_656_640_mode);
+		mode = drm_mode_duplicate(drm, &itu_r_bt_656_640_mode);
 		break;
 	default:
 		mode = NULL;
 		break;
 	}
 	if (!mode) {
-		DRM_ERROR("bad mode or failed to add mode\n");
+		dev_err(panel->dev, "bad mode or failed to add mode\n");
 		return -EINVAL;
 	}
 	drm_mode_set_name(mode);
@@ -895,11 +888,12 @@ static int ili9322_probe(struct spi_device *spi)
 		ili->input = ili->conf->input;
 	}
 
-	drm_panel_init(&ili->panel);
-	ili->panel.dev = dev;
-	ili->panel.funcs = &ili9322_drm_funcs;
+	drm_panel_init(&ili->panel, dev, &ili9322_drm_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
-	return drm_panel_add(&ili->panel);
+	drm_panel_add(&ili->panel);
+
+	return 0;
 }
 
 static int ili9322_remove(struct spi_device *spi)

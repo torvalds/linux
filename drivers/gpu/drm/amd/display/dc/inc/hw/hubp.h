@@ -38,9 +38,7 @@ enum cursor_pitch {
 };
 
 enum cursor_lines_per_chunk {
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	CURSOR_LINE_PER_CHUNK_1 = 0, /* new for DCN2 */
-#endif
 	CURSOR_LINE_PER_CHUNK_2 = 1,
 	CURSOR_LINE_PER_CHUNK_4,
 	CURSOR_LINE_PER_CHUNK_8,
@@ -50,6 +48,10 @@ enum cursor_lines_per_chunk {
 enum hubp_ind_block_size {
 	hubp_ind_block_unconstrained = 0,
 	hubp_ind_block_64b,
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	hubp_ind_block_128b,
+	hubp_ind_block_64b_no_128bcl,
+#endif
 };
 
 struct hubp {
@@ -63,6 +65,26 @@ struct hubp {
 	int mpcc_id;
 	struct dc_cursor_attributes curs_attr;
 	bool power_gated;
+};
+
+struct surface_flip_registers {
+	uint32_t DCSURF_SURFACE_CONTROL;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C;
+	uint32_t DCSURF_PRIMARY_META_SURFACE_ADDRESS_C;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C;
+	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_C;
+	uint32_t DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_SECONDARY_META_SURFACE_ADDRESS;
+	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH;
+	uint32_t DCSURF_SECONDARY_SURFACE_ADDRESS;
+	bool tmz_surface;
+	bool immediate;
+	uint8_t vmid;
+	bool grph_stereo;
 };
 
 struct hubp_funcs {
@@ -139,7 +161,6 @@ struct hubp_funcs {
 	unsigned int (*hubp_get_underflow_status)(struct hubp *hubp);
 	void (*hubp_init)(struct hubp *hubp);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	void (*dmdata_set_attributes)(
 			struct hubp *hubp,
 			const struct dc_dmdata_attributes *attr);
@@ -159,7 +180,13 @@ struct hubp_funcs {
 	void (*hubp_set_flip_control_surface_gsl)(
 		struct hubp *hubp,
 		bool enable);
-#endif
+
+	void (*validate_dml_output)(
+			struct hubp *hubp,
+			struct dc_context *ctx,
+			struct _vcs_dpi_display_rq_regs_st *dml_rq_regs,
+			struct _vcs_dpi_display_dlg_regs_st *dml_dlg_attr,
+			struct _vcs_dpi_display_ttu_regs_st *dml_ttu_attr);
 
 };
 

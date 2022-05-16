@@ -239,6 +239,7 @@ static struct {
 	{"LSI", "Universal Xport", "*", BLIST_NO_ULD_ATTACH},
 	{"ENGENIO", "Universal Xport", "*", BLIST_NO_ULD_ATTACH},
 	{"LENOVO", "Universal Xport", "*", BLIST_NO_ULD_ATTACH},
+	{"FUJITSU", "Universal Xport", "*", BLIST_NO_ULD_ATTACH},
 	{"SanDisk", "Cruzer Blade", NULL, BLIST_TRY_VPD_PAGES |
 		BLIST_INQUIRY_36},
 	{"SMSC", "USB 2 HS-CF", NULL, BLIST_SPARSELUN | BLIST_INQUIRY_36},
@@ -736,13 +737,12 @@ out:
 	return err;
 }
 
-static const struct file_operations scsi_devinfo_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_scsi_devinfo_open,
-	.read		= seq_read,
-	.write		= proc_scsi_devinfo_write,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
+static const struct proc_ops scsi_devinfo_proc_ops = {
+	.proc_open	= proc_scsi_devinfo_open,
+	.proc_read	= seq_read,
+	.proc_write	= proc_scsi_devinfo_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= seq_release,
 };
 #endif /* CONFIG_SCSI_PROC_FS */
 
@@ -867,7 +867,7 @@ int __init scsi_init_devinfo(void)
 	}
 
 #ifdef CONFIG_SCSI_PROC_FS
-	p = proc_create("scsi/device_info", 0, NULL, &scsi_devinfo_proc_fops);
+	p = proc_create("scsi/device_info", 0, NULL, &scsi_devinfo_proc_ops);
 	if (!p) {
 		error = -ENOMEM;
 		goto out;

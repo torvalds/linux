@@ -4,9 +4,11 @@
 #include <linux/smp.h>
 
 #include "../hyperv.h"
+#include "../cpuid.h"
 #include "evmcs.h"
 #include "vmcs.h"
 #include "vmx.h"
+#include "trace.h"
 
 DEFINE_STATIC_KEY_FALSE(enable_evmcs);
 
@@ -159,14 +161,6 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL),
 	EVMCS1_FIELD(VM_ENTRY_MSR_LOAD_ADDR, vm_entry_msr_load_addr,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL),
-	EVMCS1_FIELD(CR3_TARGET_VALUE0, cr3_target_value0,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL),
-	EVMCS1_FIELD(CR3_TARGET_VALUE1, cr3_target_value1,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL),
-	EVMCS1_FIELD(CR3_TARGET_VALUE2, cr3_target_value2,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL),
-	EVMCS1_FIELD(CR3_TARGET_VALUE3, cr3_target_value3,
-		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL),
 
 	/* 32 bit rw */
 	EVMCS1_FIELD(TPR_THRESHOLD, tpr_threshold,
@@ -303,14 +297,13 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 };
 const unsigned int nr_evmcs_1_fields = ARRAY_SIZE(vmcs_field_to_evmcs_1);
 
-void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
+__init void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
 {
 	vmcs_conf->pin_based_exec_ctrl &= ~EVMCS1_UNSUPPORTED_PINCTRL;
 	vmcs_conf->cpu_based_2nd_exec_ctrl &= ~EVMCS1_UNSUPPORTED_2NDEXEC;
 
 	vmcs_conf->vmexit_ctrl &= ~EVMCS1_UNSUPPORTED_VMEXIT_CTRL;
 	vmcs_conf->vmentry_ctrl &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
-
 }
 #endif
 
@@ -333,39 +326,107 @@ bool nested_enlightened_vmentry(struct kvm_vcpu *vcpu, u64 *evmcs_gpa)
 
 uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
 {
-       struct vcpu_vmx *vmx = to_vmx(vcpu);
-       /*
-        * vmcs_version represents the range of supported Enlightened VMCS
-        * versions: lower 8 bits is the minimal version, higher 8 bits is the
-        * maximum supported version. KVM supports versions from 1 to
-        * KVM_EVMCS_VERSION.
-        */
-       if (vmx->nested.enlightened_vmcs_enabled)
-               return (KVM_EVMCS_VERSION << 8) | 1;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	/*
+	 * vmcs_version represents the range of supported Enlightened VMCS
+	 * versions: lower 8 bits is the minimal version, higher 8 bits is the
+	 * maximum supported version. KVM supports versions from 1 to
+	 * KVM_EVMCS_VERSION.
+	 */
+	if (kvm_cpu_cap_get(X86_FEATURE_VMX) &&
+	    vmx->nested.enlightened_vmcs_enabled)
+		return (KVM_EVMCS_VERSION << 8) | 1;
 
-       return 0;
+	return 0;
+}
+
+void nested_evmcs_filter_control_msr(u32 msr_index, u64 *pdata)
+{
+	u32 ctl_low = (u32)*pdata;
+	u32 ctl_high = (u32)(*pdata >> 32);
+
+	/*
+	 * Hyper-V 2016 and 2019 try using these features even when eVMCS
+	 * is enabled but there are no corresponding fields.
+	 */
+	switch (msr_index) {
+	case MSR_IA32_VMX_EXIT_CTLS:
+	case MSR_IA32_VMX_TRUE_EXIT_CTLS:
+		ctl_high &= ~VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
+		break;
+	case MSR_IA32_VMX_ENTRY_CTLS:
+	case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
+		ctl_high &= ~VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
+		break;
+	case MSR_IA32_VMX_PROCBASED_CTLS2:
+		ctl_high &= ~SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+		break;
+	}
+
+	*pdata = ctl_low | ((u64)ctl_high << 32);
+}
+
+int nested_evmcs_check_controls(struct vmcs12 *vmcs12)
+{
+	int ret = 0;
+	u32 unsupp_ctl;
+
+	unsupp_ctl = vmcs12->pin_based_vm_exec_control &
+		EVMCS1_UNSUPPORTED_PINCTRL;
+	if (unsupp_ctl) {
+		trace_kvm_nested_vmenter_failed(
+			"eVMCS: unsupported pin-based VM-execution controls",
+			unsupp_ctl);
+		ret = -EINVAL;
+	}
+
+	unsupp_ctl = vmcs12->secondary_vm_exec_control &
+		EVMCS1_UNSUPPORTED_2NDEXEC;
+	if (unsupp_ctl) {
+		trace_kvm_nested_vmenter_failed(
+			"eVMCS: unsupported secondary VM-execution controls",
+			unsupp_ctl);
+		ret = -EINVAL;
+	}
+
+	unsupp_ctl = vmcs12->vm_exit_controls &
+		EVMCS1_UNSUPPORTED_VMEXIT_CTRL;
+	if (unsupp_ctl) {
+		trace_kvm_nested_vmenter_failed(
+			"eVMCS: unsupported VM-exit controls",
+			unsupp_ctl);
+		ret = -EINVAL;
+	}
+
+	unsupp_ctl = vmcs12->vm_entry_controls &
+		EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
+	if (unsupp_ctl) {
+		trace_kvm_nested_vmenter_failed(
+			"eVMCS: unsupported VM-entry controls",
+			unsupp_ctl);
+		ret = -EINVAL;
+	}
+
+	unsupp_ctl = vmcs12->vm_function_control & EVMCS1_UNSUPPORTED_VMFUNC;
+	if (unsupp_ctl) {
+		trace_kvm_nested_vmenter_failed(
+			"eVMCS: unsupported VM-function controls",
+			unsupp_ctl);
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 			uint16_t *vmcs_version)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	bool evmcs_already_enabled = vmx->nested.enlightened_vmcs_enabled;
 
 	vmx->nested.enlightened_vmcs_enabled = true;
 
 	if (vmcs_version)
 		*vmcs_version = nested_get_evmcs_version(vcpu);
-
-	/* We don't support disabling the feature for simplicity. */
-	if (evmcs_already_enabled)
-		return 0;
-
-	vmx->nested.msrs.pinbased_ctls_high &= ~EVMCS1_UNSUPPORTED_PINCTRL;
-	vmx->nested.msrs.entry_ctls_high &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
-	vmx->nested.msrs.exit_ctls_high &= ~EVMCS1_UNSUPPORTED_VMEXIT_CTRL;
-	vmx->nested.msrs.secondary_ctls_high &= ~EVMCS1_UNSUPPORTED_2NDEXEC;
-	vmx->nested.msrs.vmfunc_controls &= ~EVMCS1_UNSUPPORTED_VMFUNC;
 
 	return 0;
 }

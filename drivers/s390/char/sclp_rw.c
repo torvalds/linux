@@ -337,24 +337,6 @@ sclp_chars_in_buffer(struct sclp_buffer *buffer)
 }
 
 /*
- * sets or provides some values that influence the drivers behaviour
- */
-void
-sclp_set_columns(struct sclp_buffer *buffer, unsigned short columns)
-{
-	buffer->columns = columns;
-	if (buffer->current_line != NULL &&
-	    buffer->current_length > buffer->columns)
-		sclp_finalize_mto(buffer);
-}
-
-void
-sclp_set_htab(struct sclp_buffer *buffer, unsigned short htab)
-{
-	buffer->htab = htab;
-}
-
-/*
  * called by sclp_console_init and/or sclp_tty_init
  */
 int

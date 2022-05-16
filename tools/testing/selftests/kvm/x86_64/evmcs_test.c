@@ -21,9 +21,9 @@
 
 void l2_guest_code(void)
 {
-	GUEST_SYNC(6);
-
 	GUEST_SYNC(7);
+
+	GUEST_SYNC(8);
 
 	/* Done, exit to L1 and never come back.  */
 	vmcall();
@@ -50,12 +50,17 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 
 	GUEST_SYNC(5);
 	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
+	current_evmcs->revision_id = -1u;
+	GUEST_ASSERT(vmlaunch());
+	current_evmcs->revision_id = EVMCS_VERSION;
+	GUEST_SYNC(6);
+
 	GUEST_ASSERT(!vmlaunch());
 	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
-	GUEST_SYNC(8);
+	GUEST_SYNC(9);
 	GUEST_ASSERT(!vmresume());
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
-	GUEST_SYNC(9);
+	GUEST_SYNC(10);
 }
 
 void guest_code(struct vmx_pages *vmx_pages)
@@ -67,6 +72,10 @@ void guest_code(struct vmx_pages *vmx_pages)
 		l1_guest_code(vmx_pages);
 
 	GUEST_DONE();
+
+	/* Try enlightened vmptrld with an incorrect GPA */
+	evmcs_vmptrld(0xdeadbeef, vmx_pages->enlightened_vmcs);
+	GUEST_ASSERT(vmlaunch());
 }
 
 int main(int argc, char *argv[])
@@ -85,9 +94,10 @@ int main(int argc, char *argv[])
 
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 
-	if (!kvm_check_cap(KVM_CAP_NESTED_STATE) ||
+	if (!nested_vmx_supported() ||
+	    !kvm_check_cap(KVM_CAP_NESTED_STATE) ||
 	    !kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
-		printf("capabilities not available, skipping test\n");
+		print_skip("Enlightened VMCS is unsupported");
 		exit(KSFT_SKIP);
 	}
 
@@ -109,20 +119,20 @@ int main(int argc, char *argv[])
 
 		switch (get_ucall(vm, VCPU_ID, &uc)) {
 		case UCALL_ABORT:
-			TEST_ASSERT(false, "%s at %s:%d", (const char *)uc.args[0],
-				    __FILE__, uc.args[1]);
+			TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0],
+		      		  __FILE__, uc.args[1]);
 			/* NOT REACHED */
 		case UCALL_SYNC:
 			break;
 		case UCALL_DONE:
-			goto done;
+			goto part1_done;
 		default:
-			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
+			TEST_FAIL("Unknown ucall %lu", uc.cmd);
 		}
 
 		/* UCALL_SYNC is handled here.  */
 		TEST_ASSERT(!strcmp((const char *)uc.args[0], "hello") &&
-			    uc.args[1] == stage, "Unexpected register values vmexit #%lx, got %lx",
+			    uc.args[1] == stage, "Stage %d: Unexpected register values vmexit, got %lx",
 			    stage, (ulong)uc.args[1]);
 
 		state = vcpu_save_state(vm, VCPU_ID);
@@ -147,6 +157,10 @@ int main(int argc, char *argv[])
 			    (ulong) regs2.rdi, (ulong) regs2.rsi);
 	}
 
-done:
+part1_done:
+	_vcpu_run(vm, VCPU_ID);
+	TEST_ASSERT(run->exit_reason == KVM_EXIT_SHUTDOWN,
+		    "Unexpected successful VMEnter with invalid eVMCS pointer!");
+
 	kvm_vm_free(vm);
 }

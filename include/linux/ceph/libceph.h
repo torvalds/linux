@@ -52,6 +52,7 @@ struct ceph_options {
 	unsigned long osd_idle_ttl;		/* jiffies */
 	unsigned long osd_keepalive_timeout;	/* jiffies */
 	unsigned long osd_request_timeout;	/* jiffies */
+	u32 read_from_replica;  /* CEPH_OSD_FLAG_BALANCE/LOCALIZE_READS */
 
 	/*
 	 * any type that can't be simply compared or doesn't need
@@ -64,6 +65,7 @@ struct ceph_options {
 	int num_mon;
 	char *name;
 	struct ceph_crypto_key *key;
+	struct rb_root crush_locs;
 };
 
 /*
@@ -73,6 +75,7 @@ struct ceph_options {
 #define CEPH_OSD_KEEPALIVE_DEFAULT	msecs_to_jiffies(5 * 1000)
 #define CEPH_OSD_IDLE_TTL_DEFAULT	msecs_to_jiffies(60 * 1000)
 #define CEPH_OSD_REQUEST_TIMEOUT_DEFAULT 0  /* no timeout */
+#define CEPH_READ_FROM_REPLICA_DEFAULT	0  /* read from primary */
 
 #define CEPH_MONC_HUNT_INTERVAL		msecs_to_jiffies(3 * 1000)
 #define CEPH_MONC_PING_INTERVAL		msecs_to_jiffies(10 * 1000)
@@ -188,7 +191,7 @@ static inline int calc_pages_for(u64 off, u64 len)
 #define RB_CMP3WAY(a, b) ((a) < (b) ? -1 : (a) > (b))
 
 #define DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, nodefld) \
-static void insert_##name(struct rb_root *root, type *t)		\
+static bool __insert_##name(struct rb_root *root, type *t)		\
 {									\
 	struct rb_node **n = &root->rb_node;				\
 	struct rb_node *parent = NULL;					\
@@ -206,11 +209,17 @@ static void insert_##name(struct rb_root *root, type *t)		\
 		else if (cmp > 0)					\
 			n = &(*n)->rb_right;				\
 		else							\
-			BUG();						\
+			return false;					\
 	}								\
 									\
 	rb_link_node(&t->nodefld, parent, n);				\
 	rb_insert_color(&t->nodefld, root);				\
+	return true;							\
+}									\
+static void __maybe_unused insert_##name(struct rb_root *root, type *t)	\
+{									\
+	if (!__insert_##name(root, t))					\
+		BUG();							\
 }									\
 static void erase_##name(struct rb_root *root, type *t)			\
 {									\
@@ -272,6 +281,8 @@ extern struct kmem_cache *ceph_cap_flush_cachep;
 extern struct kmem_cache *ceph_dentry_cachep;
 extern struct kmem_cache *ceph_file_cachep;
 extern struct kmem_cache *ceph_dir_file_cachep;
+extern struct kmem_cache *ceph_mds_request_cachep;
+extern mempool_t *ceph_wb_pagevec_pool;
 
 /* ceph_common.c */
 extern bool libceph_compatible(void *data);
@@ -280,10 +291,13 @@ extern const char *ceph_msg_type_name(int type);
 extern int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid);
 extern void *ceph_kvmalloc(size_t size, gfp_t flags);
 
-extern struct ceph_options *ceph_parse_options(char *options,
-			      const char *dev_name, const char *dev_name_end,
-			      int (*parse_extra_token)(char *c, void *private),
-			      void *private);
+struct fs_parameter;
+struct fc_log;
+struct ceph_options *ceph_alloc_options(void);
+int ceph_parse_mon_ips(const char *buf, size_t len, struct ceph_options *opt,
+		       struct fc_log *l);
+int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
+		     struct fc_log *l);
 int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 			      bool show_all);
 extern void ceph_destroy_options(struct ceph_options *opt);

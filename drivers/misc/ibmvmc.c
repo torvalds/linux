@@ -286,7 +286,7 @@ static void *alloc_dma_buffer(struct vio_dev *vdev, size_t size,
 
 	if (dma_mapping_error(&vdev->dev, *dma_handle)) {
 		*dma_handle = 0;
-		kzfree(buffer);
+		kfree_sensitive(buffer);
 		return NULL;
 	}
 
@@ -310,7 +310,7 @@ static void free_dma_buffer(struct vio_dev *vdev, size_t size, void *vaddr,
 	dma_unmap_single(&vdev->dev, dma_handle, size, DMA_BIDIRECTIONAL);
 
 	/* deallocate memory */
-	kzfree(vaddr);
+	kfree_sensitive(vaddr);
 }
 
 /**
@@ -760,7 +760,7 @@ static int ibmvmc_send_rem_buffer_resp(struct crq_server_adapter *adapter,
  * @adapter:	crq_server_adapter struct
  * @buffer:	ibmvmc_buffer struct
  * @hmc:	ibmvmc_hmc struct
- * @msg_length:	message length field
+ * @msg_len:	message length field
  *
  * This command is sent between the management partition and the hypervisor
  * in order to signal the arrival of an HMC protocol message. The command
@@ -883,7 +883,7 @@ static int ibmvmc_close(struct inode *inode, struct file *file)
 		spin_unlock_irqrestore(&hmc->lock, flags);
 	}
 
-	kzfree(session);
+	kfree_sensitive(session);
 
 	return rc;
 }
@@ -1028,7 +1028,7 @@ static unsigned int ibmvmc_poll(struct file *file, poll_table *wait)
  * ibmvmc_write - Write
  *
  * @file:	file struct
- * @buf:	Character buffer
+ * @buffer:	Character buffer
  * @count:	Count field
  * @ppos:	Offset
  *
@@ -1347,7 +1347,7 @@ static long ibmvmc_ioctl_requestvmc(struct ibmvmc_file_session *session,
 /**
  * ibmvmc_ioctl - IOCTL
  *
- * @session:	ibmvmc_file_session struct
+ * @file:	file information
  * @cmd:	cmd field
  * @arg:	Argument field
  *

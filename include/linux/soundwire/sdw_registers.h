@@ -5,14 +5,7 @@
 #define __SDW_REGISTERS_H
 
 /*
- * typically we define register and shifts but if one observes carefully,
- * the shift can be generated from MASKS using few bit primitaives like ffs
- * etc, so we use that and avoid defining shifts
- */
-#define SDW_REG_SHIFT(n)			(ffs(n) - 1)
-
-/*
- * SDW registers as defined by MIPI 1.1 Spec
+ * SDW registers as defined by MIPI 1.2 Spec
  */
 #define SDW_REGADDR				GENMASK(14, 0)
 #define SDW_SCP_ADDRPAGE2_MASK			GENMASK(22, 15)
@@ -43,6 +36,8 @@
 #define SDW_DP0_INT_TEST_FAIL			BIT(0)
 #define SDW_DP0_INT_PORT_READY			BIT(1)
 #define SDW_DP0_INT_BRA_FAILURE			BIT(2)
+#define SDW_DP0_SDCA_CASCADE			BIT(3)
+/* BIT(4) not allocated in SoundWire specification 1.2 */
 #define SDW_DP0_INT_IMPDEF1			BIT(5)
 #define SDW_DP0_INT_IMPDEF2			BIT(6)
 #define SDW_DP0_INT_IMPDEF3			BIT(7)
@@ -106,6 +101,20 @@
 #define SDW_SCP_ADDRPAGE2			0x49
 #define SDW_SCP_KEEPEREN			0x4A
 #define SDW_SCP_BANKDELAY			0x4B
+#define SDW_SCP_COMMIT				0x4C
+
+#define SDW_SCP_BUS_CLOCK_BASE			0x4D
+#define SDW_SCP_BASE_CLOCK_FREQ			GENMASK(2, 0)
+#define SDW_SCP_BASE_CLOCK_UNKNOWN		0x0
+#define SDW_SCP_BASE_CLOCK_19200000_HZ		0x1
+#define SDW_SCP_BASE_CLOCK_24000000_HZ		0x2
+#define SDW_SCP_BASE_CLOCK_24576000_HZ		0x3
+#define SDW_SCP_BASE_CLOCK_22579200_HZ		0x4
+#define SDW_SCP_BASE_CLOCK_32000000_HZ		0x5
+#define SDW_SCP_BASE_CLOCK_RESERVED		0x6
+#define SDW_SCP_BASE_CLOCK_IMP_DEF		0x7
+
+/* 0x4E is not allocated in SoundWire specification 1.2 */
 #define SDW_SCP_TESTMODE			0x4F
 #define SDW_SCP_DEVID_0				0x50
 #define SDW_SCP_DEVID_1				0x51
@@ -114,11 +123,110 @@
 #define SDW_SCP_DEVID_4				0x54
 #define SDW_SCP_DEVID_5				0x55
 
+/* Both INT and STATUS register are same */
+#define SDW_SCP_SDCA_INT1			0x58
+#define SDW_SCP_SDCA_INT_SDCA_0			BIT(0)
+#define SDW_SCP_SDCA_INT_SDCA_1			BIT(1)
+#define SDW_SCP_SDCA_INT_SDCA_2			BIT(2)
+#define SDW_SCP_SDCA_INT_SDCA_3			BIT(3)
+#define SDW_SCP_SDCA_INT_SDCA_4			BIT(4)
+#define SDW_SCP_SDCA_INT_SDCA_5			BIT(5)
+#define SDW_SCP_SDCA_INT_SDCA_6			BIT(6)
+#define SDW_SCP_SDCA_INT_SDCA_7			BIT(7)
+
+#define SDW_SCP_SDCA_INT2			0x59
+#define SDW_SCP_SDCA_INT_SDCA_8			BIT(0)
+#define SDW_SCP_SDCA_INT_SDCA_9			BIT(1)
+#define SDW_SCP_SDCA_INT_SDCA_10		BIT(2)
+#define SDW_SCP_SDCA_INT_SDCA_11		BIT(3)
+#define SDW_SCP_SDCA_INT_SDCA_12		BIT(4)
+#define SDW_SCP_SDCA_INT_SDCA_13		BIT(5)
+#define SDW_SCP_SDCA_INT_SDCA_14		BIT(6)
+#define SDW_SCP_SDCA_INT_SDCA_15		BIT(7)
+
+#define SDW_SCP_SDCA_INT3			0x5A
+#define SDW_SCP_SDCA_INT_SDCA_16		BIT(0)
+#define SDW_SCP_SDCA_INT_SDCA_17		BIT(1)
+#define SDW_SCP_SDCA_INT_SDCA_18		BIT(2)
+#define SDW_SCP_SDCA_INT_SDCA_19		BIT(3)
+#define SDW_SCP_SDCA_INT_SDCA_20		BIT(4)
+#define SDW_SCP_SDCA_INT_SDCA_21		BIT(5)
+#define SDW_SCP_SDCA_INT_SDCA_22		BIT(6)
+#define SDW_SCP_SDCA_INT_SDCA_23		BIT(7)
+
+#define SDW_SCP_SDCA_INT4			0x5B
+#define SDW_SCP_SDCA_INT_SDCA_24		BIT(0)
+#define SDW_SCP_SDCA_INT_SDCA_25		BIT(1)
+#define SDW_SCP_SDCA_INT_SDCA_26		BIT(2)
+#define SDW_SCP_SDCA_INT_SDCA_27		BIT(3)
+#define SDW_SCP_SDCA_INT_SDCA_28		BIT(4)
+#define SDW_SCP_SDCA_INT_SDCA_29		BIT(5)
+#define SDW_SCP_SDCA_INT_SDCA_30		BIT(6)
+/* BIT(7) not allocated in SoundWire 1.2 specification */
+
+#define SDW_SCP_SDCA_INTMASK1			0x5C
+#define SDW_SCP_SDCA_INTMASK_SDCA_0		BIT(0)
+#define SDW_SCP_SDCA_INTMASK_SDCA_1		BIT(1)
+#define SDW_SCP_SDCA_INTMASK_SDCA_2		BIT(2)
+#define SDW_SCP_SDCA_INTMASK_SDCA_3		BIT(3)
+#define SDW_SCP_SDCA_INTMASK_SDCA_4		BIT(4)
+#define SDW_SCP_SDCA_INTMASK_SDCA_5		BIT(5)
+#define SDW_SCP_SDCA_INTMASK_SDCA_6		BIT(6)
+#define SDW_SCP_SDCA_INTMASK_SDCA_7		BIT(7)
+
+#define SDW_SCP_SDCA_INTMASK2			0x5D
+#define SDW_SCP_SDCA_INTMASK_SDCA_8		BIT(0)
+#define SDW_SCP_SDCA_INTMASK_SDCA_9		BIT(1)
+#define SDW_SCP_SDCA_INTMASK_SDCA_10		BIT(2)
+#define SDW_SCP_SDCA_INTMASK_SDCA_11		BIT(3)
+#define SDW_SCP_SDCA_INTMASK_SDCA_12		BIT(4)
+#define SDW_SCP_SDCA_INTMASK_SDCA_13		BIT(5)
+#define SDW_SCP_SDCA_INTMASK_SDCA_14		BIT(6)
+#define SDW_SCP_SDCA_INTMASK_SDCA_15		BIT(7)
+
+#define SDW_SCP_SDCA_INTMASK3			0x5E
+#define SDW_SCP_SDCA_INTMASK_SDCA_16		BIT(0)
+#define SDW_SCP_SDCA_INTMASK_SDCA_17		BIT(1)
+#define SDW_SCP_SDCA_INTMASK_SDCA_18		BIT(2)
+#define SDW_SCP_SDCA_INTMASK_SDCA_19		BIT(3)
+#define SDW_SCP_SDCA_INTMASK_SDCA_20		BIT(4)
+#define SDW_SCP_SDCA_INTMASK_SDCA_21		BIT(5)
+#define SDW_SCP_SDCA_INTMASK_SDCA_22		BIT(6)
+#define SDW_SCP_SDCA_INTMASK_SDCA_23		BIT(7)
+
+#define SDW_SCP_SDCA_INTMASK4			0x5F
+#define SDW_SCP_SDCA_INTMASK_SDCA_24		BIT(0)
+#define SDW_SCP_SDCA_INTMASK_SDCA_25		BIT(1)
+#define SDW_SCP_SDCA_INTMASK_SDCA_26		BIT(2)
+#define SDW_SCP_SDCA_INTMASK_SDCA_27		BIT(3)
+#define SDW_SCP_SDCA_INTMASK_SDCA_28		BIT(4)
+#define SDW_SCP_SDCA_INTMASK_SDCA_29		BIT(5)
+#define SDW_SCP_SDCA_INTMASK_SDCA_30		BIT(6)
+/* BIT(7) not allocated in SoundWire 1.2 specification */
+
 /* Banked Registers */
 #define SDW_SCP_FRAMECTRL_B0			0x60
 #define SDW_SCP_FRAMECTRL_B1			(0x60 + SDW_BANK1_OFFSET)
 #define SDW_SCP_NEXTFRAME_B0			0x61
 #define SDW_SCP_NEXTFRAME_B1			(0x61 + SDW_BANK1_OFFSET)
+
+#define SDW_SCP_BUSCLOCK_SCALE_B0		0x62
+#define SDW_SCP_BUSCLOCK_SCALE_B1		(0x62 + SDW_BANK1_OFFSET)
+#define SDW_SCP_CLOCK_SCALE			GENMASK(3, 0)
+
+/* PHY registers - CTRL and STAT are the same address */
+#define SDW_SCP_PHY_OUT_CTRL_0			0x80
+#define SDW_SCP_PHY_OUT_CTRL_1			0x81
+#define SDW_SCP_PHY_OUT_CTRL_2			0x82
+#define SDW_SCP_PHY_OUT_CTRL_3			0x83
+#define SDW_SCP_PHY_OUT_CTRL_4			0x84
+#define SDW_SCP_PHY_OUT_CTRL_5			0x85
+#define SDW_SCP_PHY_OUT_CTRL_6			0x86
+#define SDW_SCP_PHY_OUT_CTRL_7			0x87
+
+#define SDW_SCP_CAP_LOAD_CTRL			GENMASK(2, 0)
+#define SDW_SCP_DRIVE_STRENGTH_CTRL		GENMASK(5, 3)
+#define SDW_SCP_SLEW_TIME_CTRL			GENMASK(7, 6)
 
 /* Both INT and STATUS register is same */
 #define SDW_DPN_INT(n)				(0x0 + SDW_DPN_SIZE * (n))

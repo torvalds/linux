@@ -1,11 +1,12 @@
 * Device tree bindings for Aspeed Video Engine
 
-The Video Engine (VE) embedded in the Aspeed AST2400 and AST2500 SOCs can
+The Video Engine (VE) embedded in the Aspeed AST2400/2500/2600 SOCs can
 capture and compress video data from digital or analog sources.
 
 Required properties:
  - compatible:		"aspeed,ast2400-video-engine" or
-			"aspeed,ast2500-video-engine"
+			"aspeed,ast2500-video-engine" or
+			"aspeed,ast2600-video-engine"
  - reg:			contains the offset and length of the VE memory region
  - clocks:		clock specifiers for the syscon clocks associated with
 			the VE (ordering must match the clock-names property)

@@ -54,7 +54,7 @@ Date:		October 2002
 Contact:	Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		Provides information about the node's distribution and memory
-		utilization. Similar to /proc/meminfo, see Documentation/filesystems/proc.txt
+		utilization. Similar to /proc/meminfo, see Documentation/filesystems/proc.rst
 
 What:		/sys/devices/system/node/nodeX/numastat
 Date:		October 2002

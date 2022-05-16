@@ -5,7 +5,7 @@
  * Header for amplc_dio200.c, amplc_dio200_common.c and
  * amplc_dio200_pci.c.
  *
- * Copyright (C) 2005-2013 MEV Ltd. <http://www.mev.co.uk/>
+ * Copyright (C) 2005-2013 MEV Ltd. <https://www.mev.co.uk/>
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998,2000 David A. Schleef <ds@schleef.org>

@@ -71,8 +71,12 @@ b) Example for device tree::
             ipmb@10 {
                     compatible = "ipmb-dev";
                     reg = <0x10>;
+                    i2c-protocol;
             };
      };
+
+If xmit of data to be done using raw i2c block vs smbus
+then "i2c-protocol" needs to be defined as above.
 
 2) Manually from Linux::
 

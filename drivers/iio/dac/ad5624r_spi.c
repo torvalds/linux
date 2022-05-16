@@ -18,6 +18,8 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
+#include <asm/unaligned.h>
+
 #include "ad5624r.h"
 
 static int ad5624r_spi_write(struct spi_device *spi,
@@ -35,11 +37,9 @@ static int ad5624r_spi_write(struct spi_device *spi,
 	 * for the AD5664R, AD5644R, and AD5624R, respectively.
 	 */
 	data = (0 << 22) | (cmd << 19) | (addr << 16) | (val << shift);
-	msg[0] = data >> 16;
-	msg[1] = data >> 8;
-	msg[2] = data;
+	put_unaligned_be24(data, &msg[0]);
 
-	return spi_write(spi, msg, 3);
+	return spi_write(spi, msg, sizeof(msg));
 }
 
 static int ad5624r_read_raw(struct iio_dev *indio_dev,
@@ -253,7 +253,6 @@ static int ad5624r_probe(struct spi_device *spi)
 
 	st->us = spi;
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad5624r_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

@@ -74,7 +74,7 @@ static ssize_t create_store(struct kobject *kobj, struct device *dev,
 	return count;
 }
 
-MDEV_TYPE_ATTR_WO(create);
+static MDEV_TYPE_ATTR_WO(create);
 
 static void mdev_type_release(struct kobject *kobj)
 {
@@ -110,7 +110,7 @@ static struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
 				   "%s-%s", dev_driver_string(parent->dev),
 				   group->name);
 	if (ret) {
-		kfree(type);
+		kobject_put(&type->kobj);
 		return ERR_PTR(ret);
 	}
 

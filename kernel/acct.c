@@ -25,7 +25,7 @@
  *  Now we silently close acct_file on attempt to reopen. Cleaned sys_acct().
  *  XTerms and EMACS are manifestations of pure evil. 21/10/98, AV.
  *
- *  Fixed a nasty interaction with with sys_umount(). If the accointing
+ *  Fixed a nasty interaction with sys_umount(). If the accounting
  *  was suspeneded we failed to stop it on umount(). Messy.
  *  Another one: remount to readonly didn't stop accounting.
  *	Question: what should we do if we have CAP_SYS_ADMIN but not
@@ -40,7 +40,7 @@
  *  is one more bug... 10/11/98, AV.
  *
  *	Oh, fsck... Oopsable SMP race in do_process_acct() - we must hold
- * ->mmap_sem to walk the vma list of current->mm. Nasty, since it leaks
+ * ->mmap_lock to walk the vma list of current->mm. Nasty, since it leaks
  * a struct file opened for write. Fixed. 2/6/2000, AV.
  */
 
@@ -263,12 +263,12 @@ static DEFINE_MUTEX(acct_on_mutex);
  * sys_acct - enable/disable process accounting
  * @name: file name for accounting records or NULL to shutdown accounting
  *
- * Returns 0 for success or negative errno values for failure.
- *
  * sys_acct() is the only system call needed to implement process
  * accounting. It takes the name of the file where accounting records
  * should be written. If the filename is NULL, accounting will be
  * shutdown.
+ *
+ * Returns: 0 for success or negative errno values for failure.
  */
 SYSCALL_DEFINE1(acct, const char __user *, name)
 {
@@ -416,6 +416,7 @@ static void fill_ac(acct_t *ac)
 {
 	struct pacct_struct *pacct = &current->signal->pacct;
 	u64 elapsed, run_time;
+	time64_t btime;
 	struct tty_struct *tty;
 
 	/*
@@ -448,7 +449,8 @@ static void fill_ac(acct_t *ac)
 	}
 #endif
 	do_div(elapsed, AHZ);
-	ac->ac_btime = get_seconds() - elapsed;
+	btime = ktime_get_real_seconds() - elapsed;
+	ac->ac_btime = clamp_t(time64_t, btime, 0, U32_MAX);
 #if ACCT_VERSION==2
 	ac->ac_ahz = AHZ;
 #endif
@@ -539,13 +541,13 @@ void acct_collect(long exitcode, int group_dead)
 	if (group_dead && current->mm) {
 		struct vm_area_struct *vma;
 
-		down_read(&current->mm->mmap_sem);
+		mmap_read_lock(current->mm);
 		vma = current->mm->mmap;
 		while (vma) {
 			vsize += vma->vm_end - vma->vm_start;
 			vma = vma->vm_next;
 		}
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock(current->mm);
 	}
 
 	spin_lock_irq(&current->sighand->siglock);
@@ -584,9 +586,7 @@ static void slow_acct_process(struct pid_namespace *ns)
 }
 
 /**
- * acct_process
- *
- * handles process accounting for an exiting task
+ * acct_process - handles process accounting for an exiting task
  */
 void acct_process(void)
 {

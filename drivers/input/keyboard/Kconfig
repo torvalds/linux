@@ -16,7 +16,6 @@ if INPUT_KEYBOARD
 config KEYBOARD_ADC
 	tristate "ADC Ladder Buttons"
 	depends on IIO
-	select INPUT_POLLDEV
 	help
 	  This driver implements support for buttons connected
 	  to an ADC using a resistor ladder.
@@ -168,14 +167,14 @@ config KEYBOARD_QT1050
 	  the module will be called qt1050
 
 config KEYBOARD_QT1070
-       tristate "Atmel AT42QT1070 Touch Sensor Chip"
-       depends on I2C
-       help
-         Say Y here if you want to use Atmel AT42QT1070 QTouch
-         Sensor chip as input device.
+	tristate "Atmel AT42QT1070 Touch Sensor Chip"
+	depends on I2C
+	help
+	  Say Y here if you want to use Atmel AT42QT1070 QTouch
+	  Sensor chip as input device.
 
-         To compile this driver as a module, choose M here:
-         the module will be called qt1070
+	  To compile this driver as a module, choose M here:
+	  the module will be called qt1070
 
 config KEYBOARD_QT2160
 	tristate "Atmel AT42QT2160 Touch Sensor Chip"
@@ -191,7 +190,6 @@ config KEYBOARD_CLPS711X
 	tristate "CLPS711X Keypad support"
 	depends on OF_GPIO && (ARCH_CLPS711X || COMPILE_TEST)
 	select INPUT_MATRIXKMAP
-	select INPUT_POLLDEV
 	help
 	  Say Y here to enable the matrix keypad on the Cirrus Logic
 	  CLPS711X CPUs.
@@ -250,7 +248,6 @@ config KEYBOARD_GPIO
 config KEYBOARD_GPIO_POLLED
 	tristate "Polled GPIO buttons"
 	depends on GPIOLIB
-	select INPUT_POLLDEV
 	help
 	  This driver implements support for buttons connected
 	  to GPIO pins that are not capable of generating interrupts.
@@ -342,7 +339,6 @@ config KEYBOARD_HIL
 config KEYBOARD_HP6XX
 	tristate "HP Jornada 6xx keyboard"
 	depends on SH_HP6XX
-	select INPUT_POLLDEV
 	help
 	  Say Y here if you have a HP Jornada 620/660/680/690 and want to
 	  support the built-in keyboard.
@@ -454,7 +450,7 @@ config KEYBOARD_SNVS_PWRKEY
 	depends on OF
 	help
 	  This is the snvs powerkey driver for the Freescale i.MX application
-	  processors that are newer than i.MX6 SX.
+	  processors.
 
 	  To compile this driver as a module, choose M here; the
 	  module will be called snvs_pwrkey.
@@ -468,6 +464,16 @@ config KEYBOARD_IMX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx_keypad.
+
+config KEYBOARD_IMX_SC_KEY
+	tristate "IMX SCU Key Driver"
+	depends on IMX_SCU
+	help
+	  This is the system controller key driver for NXP i.MX SoCs with
+	  system controller inside.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx_sc_key.
 
 config KEYBOARD_NEWTON
 	tristate "Newton keyboard"
@@ -657,6 +663,16 @@ config KEYBOARD_IPAQ_MICRO
 	  To compile this driver as a module, choose M here: the
 	  module will be called ipaq-micro-keys.
 
+config KEYBOARD_IQS62X
+	tristate "Azoteq IQS620A/621/622/624/625 keys and switches"
+	depends on MFD_IQS62X
+	help
+	  Say Y here to enable key and switch support for the Azoteq IQS620A,
+	  IQS621, IQS622, IQS624 and IQS625 multi-function sensors.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called iqs62x-keys.
+
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"
 	depends on ARCH_OMAP1
@@ -685,7 +701,7 @@ config KEYBOARD_SPEAR
 	  Say Y here if you want to use the SPEAR keyboard.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called spear-keboard.
+	  module will be called spear-keyboard.
 
 config KEYBOARD_TC3589X
 	tristate "TC3589X Keypad support"

@@ -10,8 +10,8 @@
 	model = "NVIDIA Jetson AGX Xavier Developer Kit";
 	compatible = "nvidia,p2972-0000", "nvidia,tegra194";
 
-	cbb {
-		aconnect {
+	bus@0 {
+		aconnect@2900000 {
 			status = "okay";
 
 			dma-controller@2930000 {
@@ -23,18 +23,95 @@
 			};
 		};
 
+		i2c@3160000 {
+			eeprom@56 {
+				compatible = "atmel,24c02";
+				reg = <0x56>;
+
+				label = "system";
+				vcc-supply = <&vdd_1v8ls>;
+				address-width = <8>;
+				pagesize = <8>;
+				size = <256>;
+				read-only;
+			};
+		};
+
 		ddc: i2c@31c0000 {
 			status = "okay";
 		};
 
 		/* SDMMC1 (SD/MMC) */
-		sdhci@3400000 {
+		mmc@3400000 {
 			status = "okay";
 		};
 
 		hda@3510000 {
 			nvidia,model = "jetson-xavier-hda";
 			status = "okay";
+		};
+
+		padctl@3520000 {
+			status = "okay";
+
+			pads {
+				usb2 {
+					lanes {
+						usb2-1 {
+							status = "okay";
+						};
+
+						usb2-3 {
+							status = "okay";
+						};
+					};
+				};
+
+				usb3 {
+					lanes {
+						usb3-0 {
+							status = "okay";
+						};
+
+						usb3-3 {
+							status = "okay";
+						};
+					};
+				};
+			};
+
+			ports {
+				usb2-1 {
+					mode = "host";
+					status = "okay";
+				};
+
+				usb2-3 {
+					mode = "host";
+					status = "okay";
+				};
+
+				usb3-0 {
+					nvidia,usb2-companion = <1>;
+					status = "okay";
+				};
+
+				usb3-3 {
+					nvidia,usb2-companion = <3>;
+					maximum-speed = "super-speed";
+					status = "okay";
+				};
+			};
+		};
+
+		usb@3610000 {
+			status = "okay";
+
+			phys =	<&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-1}>,
+				<&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-3}>,
+				<&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-0}>,
+				<&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-3}>;
+			phy-names = "usb2-1", "usb2-3", "usb3-0", "usb3-3";
 		};
 
 		pwm@c340000 {
@@ -46,15 +123,44 @@
 				status = "okay";
 			};
 
+			dpaux@155c0000 {
+				status = "okay";
+			};
+
+			dpaux@155d0000 {
+				status = "okay";
+			};
+
 			dpaux@155e0000 {
 				status = "okay";
 			};
 
+			/* DP0 */
+			sor@15b00000 {
+				status = "okay";
+
+				avdd-io-hdmi-dp-supply = <&vdd_1v0>;
+				vdd-hdmi-dp-pll-supply = <&vdd_1v8hs>;
+
+				nvidia,dpaux = <&dpaux0>;
+			};
+
+			/* DP1 */
+			sor@15b40000 {
+				status = "okay";
+
+				avdd-io-hdmi-dp-supply = <&vdd_1v0>;
+				vdd-hdmi-dp-pll-supply = <&vdd_1v8hs>;
+
+				nvidia,dpaux = <&dpaux1>;
+			};
+
+			/* HDMI */
 			sor@15b80000 {
 				status = "okay";
 
-				avdd-io-supply = <&vdd_1v0>;
-				vdd-pll-supply = <&vdd_1v8hs>;
+				avdd-io-hdmi-dp-supply = <&vdd_1v0>;
+				vdd-hdmi-dp-pll-supply = <&vdd_1v8hs>;
 				hdmi-supply = <&vdd_hdmi>;
 
 				nvidia,ddc-i2c-bus = <&ddc>;
@@ -107,6 +213,24 @@
 			    "p2u-5", "p2u-6", "p2u-7";
 	};
 
+	pcie_ep@141a0000 {
+		status = "disabled";
+
+		vddio-pex-ctl-supply = <&vdd_1v8ao>;
+
+		reset-gpios = <&gpio TEGRA194_MAIN_GPIO(GG, 1) GPIO_ACTIVE_LOW>;
+
+		nvidia,refclk-select-gpios = <&gpio_aon TEGRA194_AON_GPIO(AA, 5)
+					      GPIO_ACTIVE_HIGH>;
+
+		phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
+		       <&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
+		       <&p2u_nvhs_6>, <&p2u_nvhs_7>;
+
+		phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
+			    "p2u-5", "p2u-6", "p2u-7";
+	};
+
 	fan: fan {
 		compatible = "pwm-fan";
 		pwms = <&pwm4 0 45334>;
@@ -123,7 +247,7 @@
 			gpios = <&gpio TEGRA194_MAIN_GPIO(G, 0)
 				       GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
-			linux,code = <BTN_1>;
+			linux,code = <KEY_SLEEP>;
 			debounce-interval = <10>;
 		};
 

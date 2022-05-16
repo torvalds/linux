@@ -39,7 +39,6 @@
 #include <asm/processor.h>
 #include <asm/oplib.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/idprom.h>
 #include <asm/head.h>
 #include <asm/starfire.h>
@@ -653,10 +652,6 @@ void __init setup_arch(char **cmdline_p)
 	else
 		pr_info("ARCH: SUN4U\n");
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
-
 	idprom_init();
 
 	if (!root_flags)
@@ -664,8 +659,6 @@ void __init setup_arch(char **cmdline_p)
 	ROOT_DEV = old_decode_dev(root_dev);
 #ifdef CONFIG_BLK_DEV_RAM
 	rd_image_start = ram_flags & RAMDISK_IMAGE_START_MASK;
-	rd_prompt = ((ram_flags & RAMDISK_PROMPT_FLAG) != 0);
-	rd_doload = ((ram_flags & RAMDISK_LOAD_FLAG) != 0);
 #endif
 
 	task_thread_info(&init_task)->kregs = &fake_swapper_regs;

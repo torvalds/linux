@@ -269,7 +269,7 @@ void ubifs_add_to_cat(struct ubifs_info *c, struct ubifs_lprops *lprops,
 			break;
 		/* No more room on heap so make it un-categorized */
 		cat = LPROPS_UNCAT;
-		/* Fall through */
+		fallthrough;
 	case LPROPS_UNCAT:
 		list_add(&lprops->list, &c->uncat_list);
 		break;
@@ -313,7 +313,7 @@ static void ubifs_remove_from_cat(struct ubifs_info *c,
 	case LPROPS_FREEABLE:
 		c->freeable_cnt -= 1;
 		ubifs_assert(c, c->freeable_cnt >= 0);
-		/* Fall through */
+		fallthrough;
 	case LPROPS_UNCAT:
 	case LPROPS_EMPTY:
 	case LPROPS_FRDI_IDX:
@@ -1095,7 +1095,7 @@ static int scan_check_cb(struct ubifs_info *c,
 		return LPT_SCAN_CONTINUE;
 	}
 
-	buf = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
+	buf = __vmalloc(c->leb_size, GFP_NOFS);
 	if (!buf)
 		return -ENOMEM;
 

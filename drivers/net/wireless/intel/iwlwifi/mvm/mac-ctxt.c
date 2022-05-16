@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -665,7 +663,7 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 		 * allow multicast data frames only as long as the station is
 		 * authorized, i.e., GTK keys are already installed (if needed)
 		 */
-		if (ap_sta_id < IWL_MVM_STATION_COUNT) {
+		if (ap_sta_id < mvm->fw->ucode_capa.num_stations) {
 			struct ieee80211_sta *sta;
 
 			rcu_read_lock();
@@ -704,8 +702,12 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 
 	if (vif->bss_conf.he_support && !iwlwifi_mod_params.disable_11ax) {
 		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_11AX);
-		if (vif->bss_conf.twt_requester && IWL_MVM_USE_TWT)
+		if (vif->bss_conf.twt_requester && IWL_MVM_USE_TWT) {
 			ctxt_sta->data_policy |= cpu_to_le32(TWT_SUPPORTED);
+			if (vif->bss_conf.twt_protected)
+				ctxt_sta->data_policy |=
+					cpu_to_le32(PROTECTED_TWT_SUPPORTED);
+		}
 	}
 
 
@@ -855,11 +857,10 @@ u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct ieee80211_tx_info *info,
 				    struct ieee80211_vif *vif)
 {
 	u8 rate;
-
-	if (info->band == NL80211_BAND_5GHZ || vif->p2p)
-		rate = IWL_FIRST_OFDM_RATE;
-	else
+	if (info->band == NL80211_BAND_2GHZ && !vif->p2p)
 		rate = IWL_FIRST_CCK_RATE;
+	else
+		rate = IWL_FIRST_OFDM_RATE;
 
 	return rate;
 }
@@ -1301,8 +1302,8 @@ static void iwl_mvm_csa_count_down(struct iwl_mvm *mvm,
 
 	mvmvif->csa_countdown = true;
 
-	if (!ieee80211_csa_is_complete(csa_vif)) {
-		int c = ieee80211_csa_update_counter(csa_vif);
+	if (!ieee80211_beacon_cntdwn_is_complete(csa_vif)) {
+		int c = ieee80211_beacon_update_cntdwn(csa_vif);
 
 		iwl_mvm_mac_ctxt_beacon_changed(mvm, csa_vif);
 		if (csa_vif->p2p &&
@@ -1404,6 +1405,7 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 	u32 rx_missed_bcon, rx_missed_bcon_since_rx;
 	struct ieee80211_vif *vif;
 	u32 id = le32_to_cpu(mb->mac_id);
+	union iwl_dbg_tlv_tp_data tp_data = { .fw_pkt = pkt };
 
 	IWL_DEBUG_INFO(mvm,
 		       "missed bcn mac_id=%u, consecutive=%u (%u, %u, %u)\n",
@@ -1432,7 +1434,7 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 		ieee80211_beacon_loss(vif);
 
 	iwl_dbg_tlv_time_point(&mvm->fwrt,
-			       IWL_FW_INI_TIME_POINT_MISSED_BEACONS, NULL);
+			       IWL_FW_INI_TIME_POINT_MISSED_BEACONS, &tp_data);
 
 	trigger = iwl_fw_dbg_trigger_on(&mvm->fwrt, ieee80211_vif_to_wdev(vif),
 					FW_DBG_TRIGGER_MISSED_BEACONS);
@@ -1543,7 +1545,7 @@ void iwl_mvm_probe_resp_data_notif(struct iwl_mvm *mvm,
 
 	if (notif->csa_counter != IWL_PROBE_RESP_DATA_NO_CSA &&
 	    notif->csa_counter >= 1)
-		ieee80211_csa_set_counter(vif, notif->csa_counter);
+		ieee80211_beacon_set_cntdwn(vif, notif->csa_counter);
 }
 
 void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
@@ -1595,9 +1597,7 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 		RCU_INIT_POINTER(mvm->csa_vif, NULL);
 		return;
 	case NL80211_IFTYPE_STATION:
-		if (!fw_has_capa(&mvm->fw->ucode_capa,
-				 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD))
-			iwl_mvm_csa_client_absent(mvm, vif);
+		iwl_mvm_csa_client_absent(mvm, vif);
 		cancel_delayed_work(&mvmvif->csa_work);
 		ieee80211_chswitch_done(vif, true);
 		break;
@@ -1607,5 +1607,28 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 		break;
 	}
 out_unlock:
+	rcu_read_unlock();
+}
+
+void iwl_mvm_rx_missed_vap_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_missed_vap_notif *mb = (void *)pkt->data;
+	struct ieee80211_vif *vif;
+	u32 id = le32_to_cpu(mb->mac_id);
+
+	IWL_DEBUG_INFO(mvm,
+		       "missed_vap notify mac_id=%u, num_beacon_intervals_elapsed=%u, profile_periodicity=%u\n",
+		       le32_to_cpu(mb->mac_id),
+		       mb->num_beacon_intervals_elapsed,
+		       mb->profile_periodicity);
+
+	rcu_read_lock();
+
+	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
+	if (vif)
+		iwl_mvm_connection_loss(mvm, vif, "missed vap beacon");
+
 	rcu_read_unlock();
 }

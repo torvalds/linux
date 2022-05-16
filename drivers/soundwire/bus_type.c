@@ -7,6 +7,7 @@
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
 #include "bus.h"
+#include "sysfs_local.h"
 
 /**
  * sdw_get_device_id - find the matching SoundWire device id
@@ -19,35 +20,45 @@
 static const struct sdw_device_id *
 sdw_get_device_id(struct sdw_slave *slave, struct sdw_driver *drv)
 {
-	const struct sdw_device_id *id = drv->id_table;
+	const struct sdw_device_id *id;
 
-	while (id && id->mfg_id) {
+	for (id = drv->id_table; id && id->mfg_id; id++)
 		if (slave->id.mfg_id == id->mfg_id &&
-		    slave->id.part_id == id->part_id)
+		    slave->id.part_id == id->part_id  &&
+		    (!id->sdw_version ||
+		     slave->id.sdw_version == id->sdw_version) &&
+		    (!id->class_id ||
+		     slave->id.class_id == id->class_id))
 			return id;
-		id++;
-	}
 
 	return NULL;
 }
 
 static int sdw_bus_match(struct device *dev, struct device_driver *ddrv)
 {
-	struct sdw_slave *slave = dev_to_sdw_dev(dev);
-	struct sdw_driver *drv = drv_to_sdw_driver(ddrv);
+	struct sdw_slave *slave;
+	struct sdw_driver *drv;
+	int ret = 0;
 
-	return !!sdw_get_device_id(slave, drv);
+	if (is_sdw_slave(dev)) {
+		slave = dev_to_sdw_dev(dev);
+		drv = drv_to_sdw_driver(ddrv);
+
+		ret = !!sdw_get_device_id(slave, drv);
+	}
+	return ret;
 }
 
 int sdw_slave_modalias(const struct sdw_slave *slave, char *buf, size_t size)
 {
-	/* modalias is sdw:m<mfg_id>p<part_id> */
+	/* modalias is sdw:m<mfg_id>p<part_id>v<version>c<class_id> */
 
-	return snprintf(buf, size, "sdw:m%04Xp%04X\n",
-			slave->id.mfg_id, slave->id.part_id);
+	return snprintf(buf, size, "sdw:m%04Xp%04Xv%02Xc%02X\n",
+			slave->id.mfg_id, slave->id.part_id,
+			slave->id.sdw_version, slave->id.class_id);
 }
 
-static int sdw_uevent(struct device *dev, struct kobj_uevent_env *env)
+int sdw_slave_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	char modalias[32];
@@ -63,7 +74,6 @@ static int sdw_uevent(struct device *dev, struct kobj_uevent_env *env)
 struct bus_type sdw_bus_type = {
 	.name = "soundwire",
 	.match = sdw_bus_match,
-	.uevent = sdw_uevent,
 };
 EXPORT_SYMBOL_GPL(sdw_bus_type);
 
@@ -73,6 +83,15 @@ static int sdw_drv_probe(struct device *dev)
 	struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
 	const struct sdw_device_id *id;
 	int ret;
+
+	/*
+	 * fw description is mandatory to bind
+	 */
+	if (!dev->fwnode)
+		return -ENODEV;
+
+	if (!IS_ENABLED(CONFIG_ACPI) && !dev->of_node)
+		return -ENODEV;
 
 	id = sdw_get_device_id(slave, drv);
 	if (!id)
@@ -98,6 +117,11 @@ static int sdw_drv_probe(struct device *dev)
 	if (slave->ops && slave->ops->read_prop)
 		slave->ops->read_prop(slave);
 
+	/* init the sysfs as we have properties now */
+	ret = sdw_slave_sysfs_init(slave);
+	if (ret < 0)
+		dev_warn(dev, "Slave sysfs init failed:%d\n", ret);
+
 	/*
 	 * Check for valid clk_stop_timeout, use DisCo worst case value of
 	 * 300ms
@@ -109,6 +133,11 @@ static int sdw_drv_probe(struct device *dev)
 
 	slave->bus->clk_stop_timeout = max_t(u32, slave->bus->clk_stop_timeout,
 					     slave->prop.clk_stop_timeout);
+
+	slave->probed = true;
+	complete(&slave->probe_complete);
+
+	dev_dbg(dev, "probe complete\n");
 
 	return 0;
 }

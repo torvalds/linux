@@ -14,7 +14,7 @@ struct mock_dmabuf {
 	struct page *pages[];
 };
 
-static struct mock_dmabuf *to_mock(struct dma_buf *buf)
+static inline struct mock_dmabuf *to_mock(struct dma_buf *buf)
 {
 	return buf->priv;
 }

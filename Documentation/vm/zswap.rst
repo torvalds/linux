@@ -35,9 +35,11 @@ Zswap evicts pages from compressed cache on an LRU basis to the backing swap
 device when the compressed pool reaches its size limit.  This requirement had
 been identified in prior community discussions.
 
-Zswap is disabled by default but can be enabled at boot time by setting
-the ``enabled`` attribute to 1 at boot time. ie: ``zswap.enabled=1``.  Zswap
-can also be enabled and disabled at runtime using the sysfs interface.
+Whether Zswap is enabled at the boot time depends on whether
+the ``CONFIG_ZSWAP_DEFAULT_ON`` Kconfig option is enabled or not.
+This setting can then be overridden by providing the kernel command line
+``zswap.enabled=`` option, for example ``zswap.enabled=0``.
+Zswap can also be enabled and disabled at runtime using the sysfs interface.
 An example command to enable zswap at runtime, assuming sysfs is mounted
 at ``/sys``, is::
 
@@ -64,9 +66,10 @@ allocation in zpool is not directly accessible by address.  Rather, a handle is
 returned by the allocation routine and that handle must be mapped before being
 accessed.  The compressed memory pool grows on demand and shrinks as compressed
 pages are freed.  The pool is not preallocated.  By default, a zpool
-of type zbud is created, but it can be selected at boot time by
-setting the ``zpool`` attribute, e.g. ``zswap.zpool=zbud``. It can
-also be changed at runtime using the sysfs ``zpool`` attribute, e.g.::
+of type selected in ``CONFIG_ZSWAP_ZPOOL_DEFAULT`` Kconfig option is created,
+but it can be overridden at boot time by setting the ``zpool`` attribute,
+e.g. ``zswap.zpool=zbud``. It can also be changed at runtime using the sysfs
+``zpool`` attribute, e.g.::
 
 	echo zbud > /sys/module/zswap/parameters/zpool
 
@@ -97,8 +100,9 @@ controlled policy:
 * max_pool_percent - The maximum percentage of memory that the compressed
   pool can occupy.
 
-The default compressor is lzo, but it can be selected at boot time by
-setting the ``compressor`` attribute, e.g. ``zswap.compressor=lzo``.
+The default compressor is selected in ``CONFIG_ZSWAP_COMPRESSOR_DEFAULT``
+Kconfig option, but it can be overridden at boot time by setting the
+``compressor`` attribute, e.g. ``zswap.compressor=lzo``.
 It can also be changed at runtime using the sysfs "compressor"
 attribute, e.g.::
 
@@ -129,6 +133,19 @@ When zswap same-filled page identification is disabled at runtime, it will stop
 checking for the same-value filled pages during store operation. However, the
 existing pages which are marked as same-value filled pages remain stored
 unchanged in zswap until they are either loaded or invalidated.
+
+To prevent zswap from shrinking pool when zswap is full and there's a high
+pressure on swap (this will result in flipping pages in and out zswap pool
+without any real benefit but with a performance drop for the system), a
+special parameter has been introduced to implement a sort of hysteresis to
+refuse taking pages into zswap pool until it has sufficient space if the limit
+has been hit. To set the threshold at which zswap would start accepting pages
+again after it became full, use the sysfs ``accept_threshold_percent``
+attribute, e. g.::
+
+	echo 80 > /sys/module/zswap/parameters/accept_threshold_percent
+
+Setting this parameter to 100 will disable the hysteresis.
 
 A debugfs interface is provided for various statistic about pool size, number
 of pages stored, same-value filled pages and various counters for the reasons

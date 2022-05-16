@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * XArray implementation
- * Copyright (c) 2017 Microsoft Corporation
+ * Copyright (c) 2017-2018 Microsoft Corporation
+ * Copyright (c) 2018-2020 Oracle
  * Author: Matthew Wilcox <willy@infradead.org>
  */
 
@@ -265,13 +266,14 @@ static void xa_node_free(struct xa_node *node)
  */
 static void xas_destroy(struct xa_state *xas)
 {
-	struct xa_node *node = xas->xa_alloc;
+	struct xa_node *next, *node = xas->xa_alloc;
 
-	if (!node)
-		return;
-	XA_NODE_BUG_ON(node, !list_empty(&node->private_list));
-	kmem_cache_free(radix_tree_node_cachep, node);
-	xas->xa_alloc = NULL;
+	while (node) {
+		XA_NODE_BUG_ON(node, !list_empty(&node->private_list));
+		next = rcu_dereference_raw(node->parent);
+		radix_tree_node_rcu_free(&node->rcu_head);
+		xas->xa_alloc = node = next;
+	}
 }
 
 /**
@@ -303,6 +305,7 @@ bool xas_nomem(struct xa_state *xas, gfp_t gfp)
 	xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
 	if (!xas->xa_alloc)
 		return false;
+	xas->xa_alloc->parent = NULL;
 	XA_NODE_BUG_ON(xas->xa_alloc, !list_empty(&xas->xa_alloc->private_list));
 	xas->xa_node = XAS_RESTART;
 	return true;
@@ -338,6 +341,7 @@ static bool __xas_nomem(struct xa_state *xas, gfp_t gfp)
 	}
 	if (!xas->xa_alloc)
 		return false;
+	xas->xa_alloc->parent = NULL;
 	XA_NODE_BUG_ON(xas->xa_alloc, !list_empty(&xas->xa_alloc->private_list));
 	xas->xa_node = XAS_RESTART;
 	return true;
@@ -402,7 +406,7 @@ static unsigned long xas_size(const struct xa_state *xas)
 /*
  * Use this to calculate the maximum index that will need to be created
  * in order to add the entry described by @xas.  Because we cannot store a
- * multiple-index entry at index 0, the calculation is a little more complex
+ * multi-index entry at index 0, the calculation is a little more complex
  * than you might expect.
  */
 static unsigned long xas_max(struct xa_state *xas)
@@ -702,7 +706,7 @@ void xas_create_range(struct xa_state *xas)
 	unsigned char shift = xas->xa_shift;
 	unsigned char sibs = xas->xa_sibs;
 
-	xas->xa_index |= ((sibs + 1) << shift) - 1;
+	xas->xa_index |= ((sibs + 1UL) << shift) - 1;
 	if (xas_is_node(xas) && xas->xa_node->shift == xas->xa_shift)
 		xas->xa_offset |= sibs;
 	xas->xa_shift = 0;
@@ -945,6 +949,153 @@ void xas_init_marks(const struct xa_state *xas)
 }
 EXPORT_SYMBOL_GPL(xas_init_marks);
 
+#ifdef CONFIG_XARRAY_MULTI
+static unsigned int node_get_marks(struct xa_node *node, unsigned int offset)
+{
+	unsigned int marks = 0;
+	xa_mark_t mark = XA_MARK_0;
+
+	for (;;) {
+		if (node_get_mark(node, offset, mark))
+			marks |= 1 << (__force unsigned int)mark;
+		if (mark == XA_MARK_MAX)
+			break;
+		mark_inc(mark);
+	}
+
+	return marks;
+}
+
+static void node_set_marks(struct xa_node *node, unsigned int offset,
+			struct xa_node *child, unsigned int marks)
+{
+	xa_mark_t mark = XA_MARK_0;
+
+	for (;;) {
+		if (marks & (1 << (__force unsigned int)mark)) {
+			node_set_mark(node, offset, mark);
+			if (child)
+				node_mark_all(child, mark);
+		}
+		if (mark == XA_MARK_MAX)
+			break;
+		mark_inc(mark);
+	}
+}
+
+/**
+ * xas_split_alloc() - Allocate memory for splitting an entry.
+ * @xas: XArray operation state.
+ * @entry: New entry which will be stored in the array.
+ * @order: New entry order.
+ * @gfp: Memory allocation flags.
+ *
+ * This function should be called before calling xas_split().
+ * If necessary, it will allocate new nodes (and fill them with @entry)
+ * to prepare for the upcoming split of an entry of @order size into
+ * entries of the order stored in the @xas.
+ *
+ * Context: May sleep if @gfp flags permit.
+ */
+void xas_split_alloc(struct xa_state *xas, void *entry, unsigned int order,
+		gfp_t gfp)
+{
+	unsigned int sibs = (1 << (order % XA_CHUNK_SHIFT)) - 1;
+	unsigned int mask = xas->xa_sibs;
+
+	/* XXX: no support for splitting really large entries yet */
+	if (WARN_ON(xas->xa_shift + 2 * XA_CHUNK_SHIFT < order))
+		goto nomem;
+	if (xas->xa_shift + XA_CHUNK_SHIFT > order)
+		return;
+
+	do {
+		unsigned int i;
+		void *sibling;
+		struct xa_node *node;
+
+		node = kmem_cache_alloc(radix_tree_node_cachep, gfp);
+		if (!node)
+			goto nomem;
+		node->array = xas->xa;
+		for (i = 0; i < XA_CHUNK_SIZE; i++) {
+			if ((i & mask) == 0) {
+				RCU_INIT_POINTER(node->slots[i], entry);
+				sibling = xa_mk_sibling(0);
+			} else {
+				RCU_INIT_POINTER(node->slots[i], sibling);
+			}
+		}
+		RCU_INIT_POINTER(node->parent, xas->xa_alloc);
+		xas->xa_alloc = node;
+	} while (sibs-- > 0);
+
+	return;
+nomem:
+	xas_destroy(xas);
+	xas_set_err(xas, -ENOMEM);
+}
+EXPORT_SYMBOL_GPL(xas_split_alloc);
+
+/**
+ * xas_split() - Split a multi-index entry into smaller entries.
+ * @xas: XArray operation state.
+ * @entry: New entry to store in the array.
+ * @order: New entry order.
+ *
+ * The value in the entry is copied to all the replacement entries.
+ *
+ * Context: Any context.  The caller should hold the xa_lock.
+ */
+void xas_split(struct xa_state *xas, void *entry, unsigned int order)
+{
+	unsigned int sibs = (1 << (order % XA_CHUNK_SHIFT)) - 1;
+	unsigned int offset, marks;
+	struct xa_node *node;
+	void *curr = xas_load(xas);
+	int values = 0;
+
+	node = xas->xa_node;
+	if (xas_top(node))
+		return;
+
+	marks = node_get_marks(node, xas->xa_offset);
+
+	offset = xas->xa_offset + sibs;
+	do {
+		if (xas->xa_shift < node->shift) {
+			struct xa_node *child = xas->xa_alloc;
+
+			xas->xa_alloc = rcu_dereference_raw(child->parent);
+			child->shift = node->shift - XA_CHUNK_SHIFT;
+			child->offset = offset;
+			child->count = XA_CHUNK_SIZE;
+			child->nr_values = xa_is_value(entry) ?
+					XA_CHUNK_SIZE : 0;
+			RCU_INIT_POINTER(child->parent, node);
+			node_set_marks(node, offset, child, marks);
+			rcu_assign_pointer(node->slots[offset],
+					xa_mk_node(child));
+			if (xa_is_value(curr))
+				values--;
+		} else {
+			unsigned int canon = offset - xas->xa_sibs;
+
+			node_set_marks(node, canon, NULL, marks);
+			rcu_assign_pointer(node->slots[canon], entry);
+			while (offset > canon)
+				rcu_assign_pointer(node->slots[offset--],
+						xa_mk_sibling(canon));
+			values += (xa_is_value(entry) - xa_is_value(curr)) *
+					(xas->xa_sibs + 1);
+		}
+	} while (offset-- > xas->xa_offset);
+
+	node->nr_values += values;
+}
+EXPORT_SYMBOL_GPL(xas_split);
+#endif
+
 /**
  * xas_pause() - Pause a walk to drop a lock.
  * @xas: XArray operation state.
@@ -967,17 +1118,19 @@ void xas_pause(struct xa_state *xas)
 	if (xas_invalid(xas))
 		return;
 
+	xas->xa_node = XAS_RESTART;
 	if (node) {
-		unsigned int offset = xas->xa_offset;
+		unsigned long offset = xas->xa_offset;
 		while (++offset < XA_CHUNK_SIZE) {
 			if (!xa_is_sibling(xa_entry(xas->xa, node, offset)))
 				break;
 		}
 		xas->xa_index += (offset - xas->xa_offset) << node->shift;
+		if (xas->xa_index == 0)
+			xas->xa_node = XAS_BOUNDS;
 	} else {
 		xas->xa_index++;
 	}
-	xas->xa_node = XAS_RESTART;
 }
 EXPORT_SYMBOL_GPL(xas_pause);
 
@@ -1079,13 +1232,15 @@ void *xas_find(struct xa_state *xas, unsigned long max)
 {
 	void *entry;
 
-	if (xas_error(xas))
+	if (xas_error(xas) || xas->xa_node == XAS_BOUNDS)
 		return NULL;
+	if (xas->xa_index > max)
+		return set_bounds(xas);
 
 	if (!xas->xa_node) {
 		xas->xa_index = 1;
 		return set_bounds(xas);
-	} else if (xas_top(xas->xa_node)) {
+	} else if (xas->xa_node == XAS_RESTART) {
 		entry = xas_load(xas);
 		if (entry || xas_not_node(xas->xa_node))
 			return entry;
@@ -1150,6 +1305,8 @@ void *xas_find_marked(struct xa_state *xas, unsigned long max, xa_mark_t mark)
 
 	if (xas_error(xas))
 		return NULL;
+	if (xas->xa_index > max)
+		goto max;
 
 	if (!xas->xa_node) {
 		xas->xa_index = 1;
@@ -1201,6 +1358,8 @@ void *xas_find_marked(struct xa_state *xas, unsigned long max, xa_mark_t mark)
 		}
 
 		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
+		if (!entry && !(xa_track_free(xas->xa) && mark == XA_FREE_MARK))
+			continue;
 		if (!xa_is_node(entry))
 			return entry;
 		xas->xa_node = xa_to_node(entry);
@@ -1398,7 +1557,7 @@ EXPORT_SYMBOL(__xa_store);
  * @gfp: Memory allocation flags.
  *
  * After this function returns, loads from this index will return @entry.
- * Storing into an existing multislot entry updates the entry of every index.
+ * Storing into an existing multi-index entry updates the entry of every index.
  * The marks associated with @index are unaffected unless @entry is %NULL.
  *
  * Context: Any context.  Takes and releases the xa_lock.
@@ -1540,7 +1699,7 @@ static void xas_set_range(struct xa_state *xas, unsigned long first,
  *
  * After this function returns, loads from any index between @first and @last,
  * inclusive will return @entry.
- * Storing into an existing multislot entry updates the entry of every index.
+ * Storing into an existing multi-index entry updates the entry of every index.
  * The marks associated with @index are unaffected unless @entry is %NULL.
  *
  * Context: Process context.  Takes and releases the xa_lock.  May sleep
@@ -1583,6 +1742,46 @@ unlock:
 	return xas_result(&xas, NULL);
 }
 EXPORT_SYMBOL(xa_store_range);
+
+/**
+ * xa_get_order() - Get the order of an entry.
+ * @xa: XArray.
+ * @index: Index of the entry.
+ *
+ * Return: A number between 0 and 63 indicating the order of the entry.
+ */
+int xa_get_order(struct xarray *xa, unsigned long index)
+{
+	XA_STATE(xas, xa, index);
+	void *entry;
+	int order = 0;
+
+	rcu_read_lock();
+	entry = xas_load(&xas);
+
+	if (!entry)
+		goto unlock;
+
+	if (!xas.xa_node)
+		goto unlock;
+
+	for (;;) {
+		unsigned int slot = xas.xa_offset + (1 << order);
+
+		if (slot >= XA_CHUNK_SIZE)
+			break;
+		if (!xa_is_sibling(xas.xa_node->slots[slot]))
+			break;
+		order++;
+	}
+
+	order += xas.xa_node->shift;
+unlock:
+	rcu_read_unlock();
+
+	return order;
+}
+EXPORT_SYMBOL(xa_get_order);
 #endif /* CONFIG_XARRAY_MULTI */
 
 /**
@@ -1824,6 +2023,18 @@ void *xa_find(struct xarray *xa, unsigned long *indexp,
 }
 EXPORT_SYMBOL(xa_find);
 
+static bool xas_sibling(struct xa_state *xas)
+{
+	struct xa_node *node = xas->xa_node;
+	unsigned long mask;
+
+	if (!IS_ENABLED(CONFIG_XARRAY_MULTI) || !node)
+		return false;
+	mask = (XA_CHUNK_SIZE << node->shift) - 1;
+	return (xas->xa_index & mask) >
+		((unsigned long)xas->xa_offset << node->shift);
+}
+
 /**
  * xa_find_after() - Search the XArray for a present entry.
  * @xa: XArray.
@@ -1847,21 +2058,20 @@ void *xa_find_after(struct xarray *xa, unsigned long *indexp,
 	XA_STATE(xas, xa, *indexp + 1);
 	void *entry;
 
+	if (xas.xa_index == 0)
+		return NULL;
+
 	rcu_read_lock();
 	for (;;) {
 		if ((__force unsigned int)filter < XA_MAX_MARKS)
 			entry = xas_find_marked(&xas, max, filter);
 		else
 			entry = xas_find(&xas, max);
-		if (xas.xa_node == XAS_BOUNDS)
+
+		if (xas_invalid(&xas))
 			break;
-		if (xas.xa_shift) {
-			if (xas.xa_index & ((1UL << xas.xa_shift) - 1))
-				continue;
-		} else {
-			if (xas.xa_offset < (xas.xa_index & XA_CHUNK_MASK))
-				continue;
-		}
+		if (xas_sibling(&xas))
+			continue;
 		if (!xas_retry(&xas, entry))
 			break;
 	}
@@ -1952,6 +2162,29 @@ unsigned int xa_extract(struct xarray *xa, void **dst, unsigned long start,
 	return xas_extract_present(&xas, dst, max, n);
 }
 EXPORT_SYMBOL(xa_extract);
+
+/**
+ * xa_delete_node() - Private interface for workingset code.
+ * @node: Node to be removed from the tree.
+ * @update: Function to call to update ancestor nodes.
+ *
+ * Context: xa_lock must be held on entry and will not be released.
+ */
+void xa_delete_node(struct xa_node *node, xa_update_node_t update)
+{
+	struct xa_state xas = {
+		.xa = node->array,
+		.xa_index = (unsigned long)node->offset <<
+				(node->shift + XA_CHUNK_SHIFT),
+		.xa_shift = node->shift + XA_CHUNK_SHIFT,
+		.xa_offset = node->offset,
+		.xa_node = xa_parent_locked(node->array, node),
+		.xa_update = update,
+	};
+
+	xas_store(&xas, NULL);
+}
+EXPORT_SYMBOL_GPL(xa_delete_node);	/* For the benefit of the test suite */
 
 /**
  * xa_destroy() - Free all internal data structures.

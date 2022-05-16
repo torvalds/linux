@@ -20,6 +20,7 @@
 #include <asm/io.h>
 #include <linux/byteorder/generic.h>
 
+#include <asm/rtas.h>
 #include "hv-24x7.h"
 #include "hv-24x7-catalog.h"
 #include "hv-common.h"
@@ -29,6 +30,8 @@ static int interface_version;
 
 /* Whether we have to aggregate result data for some domains. */
 static bool aggregate_result_elements;
+
+static cpumask_t hv_24x7_cpumask;
 
 static bool domain_is_valid(unsigned domain)
 {
@@ -55,6 +58,65 @@ static bool is_physical_domain(unsigned domain)
 	default:
 		return false;
 	}
+}
+
+/*
+ * The Processor Module Information system parameter allows transferring
+ * of certain processor module information from the platform to the OS.
+ * Refer PAPR+ document to get parameter token value as '43'.
+ */
+
+#define PROCESSOR_MODULE_INFO   43
+
+static u32 phys_sockets;	/* Physical sockets */
+static u32 phys_chipspersocket;	/* Physical chips per socket*/
+static u32 phys_coresperchip; /* Physical cores per chip */
+
+/*
+ * read_24x7_sys_info()
+ * Retrieve the number of sockets and chips per socket and cores per
+ * chip details through the get-system-parameter rtas call.
+ */
+void read_24x7_sys_info(void)
+{
+	int call_status, len, ntypes;
+
+	spin_lock(&rtas_data_buf_lock);
+
+	/*
+	 * Making system parameter: chips and sockets and cores per chip
+	 * default to 1.
+	 */
+	phys_sockets = 1;
+	phys_chipspersocket = 1;
+	phys_coresperchip = 1;
+
+	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
+				NULL,
+				PROCESSOR_MODULE_INFO,
+				__pa(rtas_data_buf),
+				RTAS_DATA_BUF_SIZE);
+
+	if (call_status != 0) {
+		pr_err("Error calling get-system-parameter %d\n",
+		       call_status);
+	} else {
+		len = be16_to_cpup((__be16 *)&rtas_data_buf[0]);
+		if (len < 8)
+			goto out;
+
+		ntypes = be16_to_cpup((__be16 *)&rtas_data_buf[2]);
+
+		if (!ntypes)
+			goto out;
+
+		phys_sockets = be16_to_cpup((__be16 *)&rtas_data_buf[4]);
+		phys_chipspersocket = be16_to_cpup((__be16 *)&rtas_data_buf[6]);
+		phys_coresperchip = be16_to_cpup((__be16 *)&rtas_data_buf[8]);
+	}
+
+out:
+	spin_unlock(&rtas_data_buf_lock);
 }
 
 /* Domains for which more than one result element are returned for each event. */
@@ -384,6 +446,30 @@ static ssize_t device_show_string(struct device *dev,
 	d = container_of(attr, struct dev_ext_attribute, attr);
 
 	return sprintf(buf, "%s\n", (char *)d->var);
+}
+
+static ssize_t cpumask_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	return cpumap_print_to_pagebuf(true, buf, &hv_24x7_cpumask);
+}
+
+static ssize_t sockets_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", phys_sockets);
+}
+
+static ssize_t chipspersocket_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", phys_chipspersocket);
+}
+
+static ssize_t coresperchip_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", phys_coresperchip);
 }
 
 static struct attribute *device_str_attr_create_(char *name, char *str)
@@ -1032,16 +1118,32 @@ PAGE_0_ATTR(catalog_len, "%lld\n",
 		(unsigned long long)be32_to_cpu(page_0->length) * 4096);
 static BIN_ATTR_RO(catalog, 0/* real length varies */);
 static DEVICE_ATTR_RO(domains);
+static DEVICE_ATTR_RO(sockets);
+static DEVICE_ATTR_RO(chipspersocket);
+static DEVICE_ATTR_RO(coresperchip);
+static DEVICE_ATTR_RO(cpumask);
 
 static struct bin_attribute *if_bin_attrs[] = {
 	&bin_attr_catalog,
 	NULL,
 };
 
+static struct attribute *cpumask_attrs[] = {
+	&dev_attr_cpumask.attr,
+	NULL,
+};
+
+static struct attribute_group cpumask_attr_group = {
+	.attrs = cpumask_attrs,
+};
+
 static struct attribute *if_attrs[] = {
 	&dev_attr_catalog_len.attr,
 	&dev_attr_catalog_version.attr,
 	&dev_attr_domains.attr,
+	&dev_attr_sockets.attr,
+	&dev_attr_chipspersocket.attr,
+	&dev_attr_coresperchip.attr,
 	NULL,
 };
 
@@ -1057,6 +1159,7 @@ static const struct attribute_group *attr_groups[] = {
 	&event_desc_group,
 	&event_long_desc_group,
 	&if_group,
+	&cpumask_attr_group,
 	NULL,
 };
 
@@ -1400,16 +1503,6 @@ static void h_24x7_event_read(struct perf_event *event)
 			h24x7hw = &get_cpu_var(hv_24x7_hw);
 			h24x7hw->events[i] = event;
 			put_cpu_var(h24x7hw);
-			/*
-			 * Clear the event count so we can compute the _change_
-			 * in the 24x7 raw counter value at the end of the txn.
-			 *
-			 * Note that we could alternatively read the 24x7 value
-			 * now and save its value in event->hw.prev_count. But
-			 * that would require issuing a hcall, which would then
-			 * defeat the purpose of using the txn interface.
-			 */
-			local64_set(&event->count, 0);
 		}
 
 		put_cpu_var(hv_24x7_reqb);
@@ -1567,6 +1660,45 @@ static struct pmu h_24x7_pmu = {
 	.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
 };
 
+static int ppc_hv_24x7_cpu_online(unsigned int cpu)
+{
+	if (cpumask_empty(&hv_24x7_cpumask))
+		cpumask_set_cpu(cpu, &hv_24x7_cpumask);
+
+	return 0;
+}
+
+static int ppc_hv_24x7_cpu_offline(unsigned int cpu)
+{
+	int target;
+
+	/* Check if exiting cpu is used for collecting 24x7 events */
+	if (!cpumask_test_and_clear_cpu(cpu, &hv_24x7_cpumask))
+		return 0;
+
+	/* Find a new cpu to collect 24x7 events */
+	target = cpumask_last(cpu_active_mask);
+
+	if (target < 0 || target >= nr_cpu_ids) {
+		pr_err("hv_24x7: CPU hotplug init failed\n");
+		return -1;
+	}
+
+	/* Migrate 24x7 events to the new target */
+	cpumask_set_cpu(target, &hv_24x7_cpumask);
+	perf_pmu_migrate_context(&h_24x7_pmu, cpu, target);
+
+	return 0;
+}
+
+static int hv_24x7_cpu_hotplug_init(void)
+{
+	return cpuhp_setup_state(CPUHP_AP_PERF_POWERPC_HV_24x7_ONLINE,
+			  "perf/powerpc/hv_24x7:online",
+			  ppc_hv_24x7_cpu_online,
+			  ppc_hv_24x7_cpu_offline);
+}
+
 static int hv_24x7_init(void)
 {
 	int r;
@@ -1611,9 +1743,16 @@ static int hv_24x7_init(void)
 	if (r)
 		return r;
 
+	/* init cpuhotplug */
+	r = hv_24x7_cpu_hotplug_init();
+	if (r)
+		return r;
+
 	r = perf_pmu_register(&h_24x7_pmu, h_24x7_pmu.name, -1);
 	if (r)
 		return r;
+
+	read_24x7_sys_info();
 
 	return 0;
 }

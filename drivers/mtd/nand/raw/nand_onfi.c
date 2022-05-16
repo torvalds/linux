@@ -16,6 +16,8 @@
 
 #include "internals.h"
 
+#define ONFI_PARAM_PAGES 3
+
 u16 onfi_crc16(u16 crc, u8 const *p, size_t len)
 {
 	int i;
@@ -32,6 +34,8 @@ u16 onfi_crc16(u16 crc, u8 const *p, size_t len)
 static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 					    struct nand_onfi_params *p)
 {
+	struct nand_device *base = &chip->base;
+	struct nand_ecc_props requirements;
 	struct onfi_ext_param_page *ep;
 	struct onfi_ext_section *s;
 	struct onfi_ext_ecc_info *ecc;
@@ -45,12 +49,10 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 	if (!ep)
 		return -ENOMEM;
 
-	/* Send our own NAND_CMD_PARAM. */
-	ret = nand_read_param_page_op(chip, 0, NULL, 0);
-	if (ret)
-		goto ext_out;
-
-	/* Use the Change Read Column command to skip the ONFI param pages. */
+	/*
+	 * Use the Change Read Column command to skip the ONFI param pages and
+	 * ensure we read at the right location.
+	 */
 	ret = nand_change_read_column_op(chip,
 					 sizeof(*p) * p->num_of_param_pages,
 					 ep, len, true);
@@ -94,8 +96,10 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 		goto ext_out;
 	}
 
-	chip->base.eccreq.strength = ecc->ecc_bits;
-	chip->base.eccreq.step_size = 1 << ecc->codeword_size;
+	requirements.strength = ecc->ecc_bits;
+	requirements.step_size = 1 << ecc->codeword_size;
+	nanddev_set_ecc_requirements(base, &requirements);
+
 	ret = 0;
 
 ext_out:
@@ -139,13 +143,16 @@ static void nand_bit_wise_majority(const void **srcbufs,
  */
 int nand_onfi_detect(struct nand_chip *chip)
 {
+	struct nand_device *base = &chip->base;
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_memory_organization *memorg;
-	struct nand_onfi_params *p;
+	struct nand_onfi_params *p = NULL, *pbuf;
 	struct onfi_params *onfi;
+	bool use_datain = false;
 	int onfi_version = 0;
 	char id[4];
 	int i, ret, val;
+	u16 crc;
 
 	memorg = nanddev_get_memorg(&chip->base);
 
@@ -155,43 +162,54 @@ int nand_onfi_detect(struct nand_chip *chip)
 		return 0;
 
 	/* ONFI chip: allocate a buffer to hold its parameter page */
-	p = kzalloc((sizeof(*p) * 3), GFP_KERNEL);
-	if (!p)
+	pbuf = kzalloc((sizeof(*pbuf) * ONFI_PARAM_PAGES), GFP_KERNEL);
+	if (!pbuf)
 		return -ENOMEM;
 
-	ret = nand_read_param_page_op(chip, 0, NULL, 0);
-	if (ret) {
-		ret = 0;
-		goto free_onfi_param_page;
-	}
+	if (!nand_has_exec_op(chip) ||
+	    !nand_read_data_op(chip, &pbuf[0], sizeof(*pbuf), true, true))
+		use_datain = true;
 
-	for (i = 0; i < 3; i++) {
-		ret = nand_read_data_op(chip, &p[i], sizeof(*p), true);
+	for (i = 0; i < ONFI_PARAM_PAGES; i++) {
+		if (!i)
+			ret = nand_read_param_page_op(chip, 0, &pbuf[i],
+						      sizeof(*pbuf));
+		else if (use_datain)
+			ret = nand_read_data_op(chip, &pbuf[i], sizeof(*pbuf),
+						true, false);
+		else
+			ret = nand_change_read_column_op(chip, sizeof(*pbuf) * i,
+							 &pbuf[i], sizeof(*pbuf),
+							 true);
 		if (ret) {
 			ret = 0;
 			goto free_onfi_param_page;
 		}
 
-		if (onfi_crc16(ONFI_CRC_BASE, (u8 *)&p[i], 254) ==
-				le16_to_cpu(p->crc)) {
-			if (i)
-				memcpy(p, &p[i], sizeof(*p));
+		crc = onfi_crc16(ONFI_CRC_BASE, (u8 *)&pbuf[i], 254);
+		if (crc == le16_to_cpu(pbuf[i].crc)) {
+			p = &pbuf[i];
 			break;
 		}
 	}
 
-	if (i == 3) {
-		const void *srcbufs[3] = {p, p + 1, p + 2};
+	if (i == ONFI_PARAM_PAGES) {
+		const void *srcbufs[ONFI_PARAM_PAGES];
+		unsigned int j;
+
+		for (j = 0; j < ONFI_PARAM_PAGES; j++)
+			srcbufs[j] = pbuf + j;
 
 		pr_warn("Could not find a valid ONFI parameter page, trying bit-wise majority to recover it\n");
-		nand_bit_wise_majority(srcbufs, ARRAY_SIZE(srcbufs), p,
-				       sizeof(*p));
+		nand_bit_wise_majority(srcbufs, ONFI_PARAM_PAGES, pbuf,
+				       sizeof(*pbuf));
 
-		if (onfi_crc16(ONFI_CRC_BASE, (u8 *)p, 254) !=
-				le16_to_cpu(p->crc)) {
+		crc = onfi_crc16(ONFI_CRC_BASE, (u8 *)pbuf, 254);
+		if (crc != le16_to_cpu(pbuf->crc)) {
 			pr_err("ONFI parameter recovery failed, aborting\n");
 			goto free_onfi_param_page;
 		}
+		p = pbuf;
 	}
 
 	if (chip->manufacturer.desc && chip->manufacturer.desc->ops &&
@@ -252,8 +270,12 @@ int nand_onfi_detect(struct nand_chip *chip)
 		chip->options |= NAND_BUSWIDTH_16;
 
 	if (p->ecc_bits != 0xff) {
-		chip->base.eccreq.strength = p->ecc_bits;
-		chip->base.eccreq.step_size = 512;
+		struct nand_ecc_props requirements = {
+			.strength = p->ecc_bits,
+			.step_size = 512,
+		};
+
+		nanddev_set_ecc_requirements(base, &requirements);
 	} else if (onfi_version >= 21 &&
 		(le16_to_cpu(p->features) & ONFI_FEATURE_EXT_PARAM_PAGE)) {
 
@@ -299,14 +321,14 @@ int nand_onfi_detect(struct nand_chip *chip)
 	chip->parameters.onfi = onfi;
 
 	/* Identification done, free the full ONFI parameter page and exit */
-	kfree(p);
+	kfree(pbuf);
 
 	return 1;
 
 free_model:
 	kfree(chip->parameters.model);
 free_onfi_param_page:
-	kfree(p);
+	kfree(pbuf);
 
 	return ret;
 }

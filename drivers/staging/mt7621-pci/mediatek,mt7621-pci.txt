@@ -6,7 +6,6 @@ Required properties:
 - reg: Base addresses and lengths of the PCIe subsys and root ports.
 - bus-range: Range of bus numbers associated with this controller.
 - #address-cells: Address representation for root ports (must be 3)
-- perst-gpio: PCIe reset signal line.
 - pinctrl-names : The pin control state names.
 - pinctrl-0: The "default" pinctrl state.
 - #size-cells: Size representation for root ports (must be 2)
@@ -24,6 +23,7 @@ Required properties:
   See ../clocks/clock-bindings.txt for details.
 - clock-names: Must be "pcie0", "pcie1", "pcieN"... based on the number of
   root ports.
+- reset-gpios: GPIO specs for the reset pins.
 
 In addition, the device tree node must have sub-nodes describing each PCIe port
 interface, having the following mandatory properties:
@@ -49,7 +49,6 @@ Example for MT7621:
 		#address-cells = <3>;
 		#size-cells = <2>;
 
-		perst-gpio = <&gpio 19 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie_pins>;
 
@@ -73,6 +72,10 @@ Example for MT7621:
 		reset-names = "pcie0", "pcie1", "pcie2";
 		clocks = <&clkctrl 24 &clkctrl 25 &clkctrl 26>;
 		clock-names = "pcie0", "pcie1", "pcie2";
+
+		reset-gpios = <&gpio 19 GPIO_ACTIVE_LOW>,
+				<&gpio 8 GPIO_ACTIVE_LOW>,
+				<&gpio 7 GPIO_ACTIVE_LOW>;
 
 		pcie@0,0 {
 			reg = <0x0000 0 0 0 0>;

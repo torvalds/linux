@@ -32,10 +32,6 @@ static struct efivars *__efivars;
  */
 static DEFINE_SEMAPHORE(efivars_lock);
 
-static bool efivar_wq_enabled = true;
-DECLARE_WORK(efivar_work, NULL);
-EXPORT_SYMBOL_GPL(efivar_work);
-
 static bool
 validate_device_path(efi_char16_t *var_name, int match, u8 *buffer,
 		     unsigned long len)
@@ -391,13 +387,6 @@ static void dup_variable_bug(efi_char16_t *str16, efi_guid_t *vendor_guid,
 	size_t i, len8 = len16 / sizeof(efi_char16_t);
 	char *str8;
 
-	/*
-	 * Disable the workqueue since the algorithm it uses for
-	 * detecting new variables won't work with this buggy
-	 * implementation of GetNextVariableName().
-	 */
-	efivar_wq_enabled = false;
-
 	str8 = kzalloc(len8, GFP_KERNEL);
 	if (!str8)
 		return;
@@ -414,7 +403,6 @@ static void dup_variable_bug(efi_char16_t *str16, efi_guid_t *vendor_guid,
  * efivar_init - build the initial list of EFI variables
  * @func: callback function to invoke for every variable
  * @data: function-specific data to pass to @func
- * @atomic: do we need to execute the @func-loop atomically?
  * @duplicates: error if we encounter duplicates on @head?
  * @head: initialised head of variable list
  *
@@ -1071,7 +1059,7 @@ EXPORT_SYMBOL_GPL(efivar_entry_iter_end);
  * entry on the list. It is safe for @func to remove entries in the
  * list via efivar_entry_delete().
  *
- * You MUST call efivar_enter_iter_begin() before this function, and
+ * You MUST call efivar_entry_iter_begin() before this function, and
  * efivar_entry_iter_end() afterwards.
  *
  * It is possible to begin iteration from an arbitrary entry within
@@ -1158,16 +1146,6 @@ struct kobject *efivars_kobject(void)
 EXPORT_SYMBOL_GPL(efivars_kobject);
 
 /**
- * efivar_run_worker - schedule the efivar worker thread
- */
-void efivar_run_worker(void)
-{
-	if (efivar_wq_enabled)
-		schedule_work(&efivar_work);
-}
-EXPORT_SYMBOL_GPL(efivar_run_worker);
-
-/**
  * efivars_register - register an efivars
  * @efivars: efivars to register
  * @ops: efivars operations
@@ -1229,3 +1207,9 @@ out:
 	return rv;
 }
 EXPORT_SYMBOL_GPL(efivars_unregister);
+
+int efivar_supports_writes(void)
+{
+	return __efivars && __efivars->ops->set_variable;
+}
+EXPORT_SYMBOL_GPL(efivar_supports_writes);

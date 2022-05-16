@@ -323,11 +323,6 @@ static inline void vf610_nfc_ecc_mode(struct vf610_nfc *nfc, int ecc_mode)
 			    CONFIG_ECC_MODE_SHIFT, ecc_mode);
 }
 
-static inline void vf610_nfc_transfer_size(struct vf610_nfc *nfc, int size)
-{
-	vf610_nfc_write(nfc, NFC_SECTOR_SIZE, size);
-}
-
 static inline void vf610_nfc_run(struct vf610_nfc *nfc, u32 col, u32 row,
 				 u32 cmd1, u32 cmd2, u32 trfr_sz)
 {
@@ -502,7 +497,9 @@ static int vf610_nfc_exec_op(struct nand_chip *chip,
 			     const struct nand_operation *op,
 			     bool check_only)
 {
-	vf610_nfc_select_target(chip, op->cs);
+	if (!check_only)
+		vf610_nfc_select_target(chip, op->cs);
+
 	return nand_op_parser_exec_op(chip, &vf610_nfc_op_parser, op,
 				      check_only);
 }
@@ -730,7 +727,7 @@ static void vf610_nfc_init_controller(struct vf610_nfc *nfc)
 	else
 		vf610_nfc_clear(nfc, NFC_FLASH_CONFIG, CONFIG_16BIT);
 
-	if (nfc->chip.ecc.mode == NAND_ECC_HW) {
+	if (nfc->chip.ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST) {
 		/* Set ECC status offset in SRAM */
 		vf610_nfc_set_field(nfc, NFC_FLASH_CONFIG,
 				    CONFIG_ECC_SRAM_ADDR_MASK,
@@ -759,7 +756,7 @@ static int vf610_nfc_attach_chip(struct nand_chip *chip)
 		return -ENXIO;
 	}
 
-	if (chip->ecc.mode != NAND_ECC_HW)
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
 		return 0;
 
 	if (mtd->writesize != PAGE_2K && mtd->oobsize < 64) {
@@ -777,7 +774,7 @@ static int vf610_nfc_attach_chip(struct nand_chip *chip)
 		mtd->oobsize = 64;
 
 	/* Use default large page ECC layout defined in NAND core */
-	mtd_set_ooblayout(mtd, &nand_ooblayout_lp_ops);
+	mtd_set_ooblayout(mtd, nand_get_large_page_ooblayout());
 	if (chip->ecc.strength == 32) {
 		nfc->ecc_mode = ECC_60_BYTE;
 		chip->ecc.bytes = 60;
@@ -850,8 +847,10 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	}
 
 	of_id = of_match_device(vf610_nfc_dt_ids, &pdev->dev);
-	if (!of_id)
-		return -ENODEV;
+	if (!of_id) {
+		err = -ENODEV;
+		goto err_disable_clk;
+	}
 
 	nfc->variant = (enum vf610_nfc_variant)of_id->data;
 
@@ -915,8 +914,12 @@ err_disable_clk:
 static int vf610_nfc_remove(struct platform_device *pdev)
 {
 	struct vf610_nfc *nfc = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &nfc->chip;
+	int ret;
 
-	nand_release(&nfc->chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 	clk_disable_unprepare(nfc->clk);
 	return 0;
 }

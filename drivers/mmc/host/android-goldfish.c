@@ -27,7 +27,6 @@
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
 #include <linux/mmc/mmc.h>
-#include <linux/mmc/sdio.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 
@@ -404,14 +403,6 @@ static void goldfish_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
 	host->mrq = req;
 	goldfish_mmc_prepare_data(host, req);
 	goldfish_mmc_start_command(host, req->cmd);
-
-	/*
-	 * This is to avoid accidentally being detected as an SDIO card
-	 * in mmc_attach_sdio().
-	 */
-	if (req->cmd->opcode == SD_IO_SEND_OP_COND &&
-	    req->cmd->flags == (MMC_RSP_SPI_R4 | MMC_RSP_R4 | MMC_CMD_BCR))
-		req->cmd->error = -EINVAL;
 }
 
 static void goldfish_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
@@ -482,6 +473,7 @@ static int goldfish_mmc_probe(struct platform_device *pdev)
 	mmc->f_max = 24000000;
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 	mmc->caps = MMC_CAP_4_BIT_DATA;
+	mmc->caps2 = MMC_CAP2_NO_SDIO;
 
 	/* Use scatterlist DMA to reduce per-transfer costs.
 	 * NOTE max_seg_size assumption that small blocks aren't
@@ -545,6 +537,7 @@ static struct platform_driver goldfish_mmc_driver = {
 	.remove		= goldfish_mmc_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

@@ -84,7 +84,7 @@
 #ifdef N_TTY_TRACE
 # define n_tty_trace(f, args...)	trace_printk(f, ##args)
 #else
-# define n_tty_trace(f, args...)
+# define n_tty_trace(f, args...)	no_printk(f, ##args)
 #endif
 
 struct n_tty_data {
@@ -322,7 +322,7 @@ static inline void put_tty_queue(unsigned char c, struct n_tty_data *ldata)
 
 /**
  *	reset_buffer_flags	-	reset buffer state
- *	@tty: terminal to reset
+ *	@ldata: line disc data to reset
  *
  *	Reset the read buffer counters and clear the flags.
  *	Called from n_tty_open() and n_tty_flush_buffer().
@@ -654,9 +654,9 @@ static size_t __process_echoes(struct tty_struct *tty)
 			op = echo_buf(ldata, tail + 1);
 
 			switch (op) {
+			case ECHO_OP_ERASE_TAB: {
 				unsigned int num_chars, num_bs;
 
-			case ECHO_OP_ERASE_TAB:
 				if (MASK(ldata->echo_commit) == MASK(tail + 2))
 					goto not_yet_stored;
 				num_chars = echo_buf(ldata, tail + 2);
@@ -687,7 +687,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 				}
 				tail += 3;
 				break;
-
+			}
 			case ECHO_OP_SET_CANON_COL:
 				ldata->canon_column = ldata->column;
 				tail += 2;
@@ -906,7 +906,7 @@ static void echo_erase_tab(unsigned int num_chars, int after_tab,
 /**
  *	echo_char_raw	-	echo a character raw
  *	@c: unicode byte to echo
- *	@tty: terminal device
+ *	@ldata: line disc data
  *
  *	Echo user input back onto the screen. This must be called only when
  *	L_ECHO(tty) is true. Called from the driver receive_buf path.

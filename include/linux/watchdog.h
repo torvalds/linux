@@ -37,15 +37,15 @@ struct watchdog_governor;
  *
  * The watchdog_ops structure contains a list of low-level operations
  * that control a watchdog device. It also contains the module that owns
- * these operations. The start and stop function are mandatory, all other
+ * these operations. The start function is mandatory, all other
  * functions are optional.
  */
 struct watchdog_ops {
 	struct module *owner;
 	/* mandatory operations */
 	int (*start)(struct watchdog_device *);
-	int (*stop)(struct watchdog_device *);
 	/* optional operations */
+	int (*stop)(struct watchdog_device *);
 	int (*ping)(struct watchdog_device *);
 	unsigned int (*status)(struct watchdog_device *);
 	int (*set_timeout)(struct watchdog_device *, unsigned int);
@@ -209,6 +209,8 @@ extern int watchdog_init_timeout(struct watchdog_device *wdd,
 				  unsigned int timeout_parm, struct device *dev);
 extern int watchdog_register_device(struct watchdog_device *);
 extern void watchdog_unregister_device(struct watchdog_device *);
+
+int watchdog_set_last_hw_keepalive(struct watchdog_device *, unsigned int);
 
 /* devres register variant */
 int devm_watchdog_register_device(struct device *dev, struct watchdog_device *);

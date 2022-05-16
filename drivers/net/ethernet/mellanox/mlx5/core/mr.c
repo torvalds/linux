@@ -33,101 +33,50 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mlx5/driver.h>
-#include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
-
-void mlx5_init_mkey_table(struct mlx5_core_dev *dev)
-{
-	xa_init_flags(&dev->priv.mkey_table, XA_FLAGS_LOCK_IRQ);
-}
-
-void mlx5_cleanup_mkey_table(struct mlx5_core_dev *dev)
-{
-	WARN_ON(!xa_empty(&dev->priv.mkey_table));
-}
-
-int mlx5_core_create_mkey_cb(struct mlx5_core_dev *dev,
-			     struct mlx5_core_mkey *mkey,
-			     struct mlx5_async_ctx *async_ctx, u32 *in,
-			     int inlen, u32 *out, int outlen,
-			     mlx5_async_cbk_t callback,
-			     struct mlx5_async_work *context)
-{
-	u32 lout[MLX5_ST_SZ_DW(create_mkey_out)] = {0};
-	struct xarray *mkeys = &dev->priv.mkey_table;
-	u32 mkey_index;
-	void *mkc;
-	int err;
-	u8 key;
-
-	spin_lock_irq(&dev->priv.mkey_lock);
-	key = dev->priv.mkey_key++;
-	spin_unlock_irq(&dev->priv.mkey_lock);
-	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
-
-	MLX5_SET(create_mkey_in, in, opcode, MLX5_CMD_OP_CREATE_MKEY);
-	MLX5_SET(mkc, mkc, mkey_7_0, key);
-
-	if (callback)
-		return mlx5_cmd_exec_cb(async_ctx, in, inlen, out, outlen,
-					callback, context);
-
-	err = mlx5_cmd_exec(dev, in, inlen, lout, sizeof(lout));
-	if (err)
-		return err;
-
-	mkey_index = MLX5_GET(create_mkey_out, lout, mkey_index);
-	mkey->iova = MLX5_GET64(mkc, mkc, start_addr);
-	mkey->size = MLX5_GET64(mkc, mkc, len);
-	mkey->key = mlx5_idx_to_mkey(mkey_index) | key;
-	mkey->pd = MLX5_GET(mkc, mkc, pd);
-
-	mlx5_core_dbg(dev, "out 0x%x, key 0x%x, mkey 0x%x\n",
-		      mkey_index, key, mkey->key);
-
-	err = xa_err(xa_store_irq(mkeys, mlx5_base_mkey(mkey->key), mkey,
-				  GFP_KERNEL));
-	if (err) {
-		mlx5_core_warn(dev, "failed xarray insert of mkey 0x%x, %d\n",
-			       mlx5_base_mkey(mkey->key), err);
-		mlx5_core_destroy_mkey(dev, mkey);
-	}
-
-	return err;
-}
-EXPORT_SYMBOL(mlx5_core_create_mkey_cb);
 
 int mlx5_core_create_mkey(struct mlx5_core_dev *dev,
 			  struct mlx5_core_mkey *mkey,
 			  u32 *in, int inlen)
 {
-	return mlx5_core_create_mkey_cb(dev, mkey, NULL, in, inlen,
-					NULL, 0, NULL, NULL);
+	u32 lout[MLX5_ST_SZ_DW(create_mkey_out)] = {};
+	u32 mkey_index;
+	void *mkc;
+	int err;
+
+	MLX5_SET(create_mkey_in, in, opcode, MLX5_CMD_OP_CREATE_MKEY);
+
+	err = mlx5_cmd_exec(dev, in, inlen, lout, sizeof(lout));
+	if (err)
+		return err;
+
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
+	mkey_index = MLX5_GET(create_mkey_out, lout, mkey_index);
+	mkey->iova = MLX5_GET64(mkc, mkc, start_addr);
+	mkey->size = MLX5_GET64(mkc, mkc, len);
+	mkey->key |= mlx5_idx_to_mkey(mkey_index);
+	mkey->pd = MLX5_GET(mkc, mkc, pd);
+
+	mlx5_core_dbg(dev, "out 0x%x, mkey 0x%x\n", mkey_index, mkey->key);
+	return 0;
 }
 EXPORT_SYMBOL(mlx5_core_create_mkey);
 
 int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev,
 			   struct mlx5_core_mkey *mkey)
 {
-	u32 out[MLX5_ST_SZ_DW(destroy_mkey_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(destroy_mkey_in)]   = {0};
-	struct xarray *mkeys = &dev->priv.mkey_table;
-	unsigned long flags;
-
-	xa_lock_irqsave(mkeys, flags);
-	__xa_erase(mkeys, mlx5_base_mkey(mkey->key));
-	xa_unlock_irqrestore(mkeys, flags);
+	u32 in[MLX5_ST_SZ_DW(destroy_mkey_in)] = {};
 
 	MLX5_SET(destroy_mkey_in, in, opcode, MLX5_CMD_OP_DESTROY_MKEY);
 	MLX5_SET(destroy_mkey_in, in, mkey_index, mlx5_mkey_to_idx(mkey->key));
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, destroy_mkey, in);
 }
 EXPORT_SYMBOL(mlx5_core_destroy_mkey);
 
 int mlx5_core_query_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mkey *mkey,
 			 u32 *out, int outlen)
 {
-	u32 in[MLX5_ST_SZ_DW(query_mkey_in)] = {0};
+	u32 in[MLX5_ST_SZ_DW(query_mkey_in)] = {};
 
 	memset(out, 0, outlen);
 	MLX5_SET(query_mkey_in, in, opcode, MLX5_CMD_OP_QUERY_MKEY);
@@ -149,8 +98,8 @@ static inline u32 mlx5_get_psv(u32 *out, int psv_index)
 int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 			 int npsvs, u32 *sig_index)
 {
-	u32 out[MLX5_ST_SZ_DW(create_psv_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(create_psv_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(create_psv_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(create_psv_in)] = {};
 	int i, err;
 
 	if (npsvs > MLX5_MAX_PSVS)
@@ -160,7 +109,7 @@ int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 	MLX5_SET(create_psv_in, in, pd, pdn);
 	MLX5_SET(create_psv_in, in, num_psv, npsvs);
 
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	err = mlx5_cmd_exec_inout(dev, create_psv, in, out);
 	if (err)
 		return err;
 
@@ -173,11 +122,10 @@ EXPORT_SYMBOL(mlx5_core_create_psv);
 
 int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num)
 {
-	u32 out[MLX5_ST_SZ_DW(destroy_psv_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(destroy_psv_in)]   = {0};
+	u32 in[MLX5_ST_SZ_DW(destroy_psv_in)] = {};
 
 	MLX5_SET(destroy_psv_in, in, opcode, MLX5_CMD_OP_DESTROY_PSV);
 	MLX5_SET(destroy_psv_in, in, psvn, psv_num);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, destroy_psv, in);
 }
 EXPORT_SYMBOL(mlx5_core_destroy_psv);

@@ -58,13 +58,16 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	/*
 	 * Put whatever is in the decrementer into the
 	 * hypervisor decrementer.
+	 * Because of a hardware deviation in P8 and P9,
+	 * we need to set LPCR[HDICE] before writing HDEC.
 	 */
-BEGIN_FTR_SECTION
 	ld	r5, HSTATE_KVM_VCORE(r13)
 	ld	r6, VCORE_KVM(r5)
 	ld	r9, KVM_HOST_LPCR(r6)
-	andis.	r9, r9, LPCR_LD@h
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+	ori	r8, r9, LPCR_HDICE
+	mtspr	SPRN_LPCR, r8
+	isync
+	andis.	r0, r9, LPCR_LD@h
 	mfspr	r8,SPRN_DEC
 	mftb	r7
 BEGIN_FTR_SECTION
@@ -140,6 +143,14 @@ BEGIN_FTR_SECTION
 	std	r8, HSTATE_MMCR2(r13)
 	std	r9, HSTATE_SIER(r13)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+BEGIN_FTR_SECTION
+	mfspr	r5, SPRN_MMCR3
+	mfspr	r6, SPRN_SIER2
+	mfspr	r7, SPRN_SIER3
+	std	r5, HSTATE_MMCR3(r13)
+	std	r6, HSTATE_SIER2(r13)
+	std	r7, HSTATE_SIER3(r13)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_31)
 	mfspr	r3, SPRN_PMC1
 	mfspr	r5, SPRN_PMC2
 	mfspr	r6, SPRN_PMC3

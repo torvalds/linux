@@ -14,10 +14,9 @@
 
 /* Quad/Dual SoMs have 3 chip-select signals */
 &ecspi4 {
-	fsl,spi-num-chipselects = <3>;
-	cs-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>,
-		   <&gpio3 29 GPIO_ACTIVE_HIGH>,
-		   <&gpio3 25 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio3 24 GPIO_ACTIVE_LOW>,
+		   <&gpio3 29 GPIO_ACTIVE_LOW>,
+		   <&gpio3 25 GPIO_ACTIVE_LOW>;
 };
 
 &pinctrl_ecspi4 {

@@ -58,11 +58,90 @@ static struct ch_tc_pedit_fields pedits[] = {
 	PEDIT_FIELDS(IP6_, DST_63_32, 4, nat_lip, 4),
 	PEDIT_FIELDS(IP6_, DST_95_64, 4, nat_lip, 8),
 	PEDIT_FIELDS(IP6_, DST_127_96, 4, nat_lip, 12),
-	PEDIT_FIELDS(TCP_, SPORT, 2, nat_fport, 0),
-	PEDIT_FIELDS(TCP_, DPORT, 2, nat_lport, 0),
-	PEDIT_FIELDS(UDP_, SPORT, 2, nat_fport, 0),
-	PEDIT_FIELDS(UDP_, DPORT, 2, nat_lport, 0),
 };
+
+static const struct cxgb4_natmode_config cxgb4_natmode_config_array[] = {
+	/* Default supported NAT modes */
+	{
+		.chip = CHELSIO_T5,
+		.flags = CXGB4_ACTION_NATMODE_NONE,
+		.natmode = NAT_MODE_NONE,
+	},
+	{
+		.chip = CHELSIO_T5,
+		.flags = CXGB4_ACTION_NATMODE_DIP,
+		.natmode = NAT_MODE_DIP,
+	},
+	{
+		.chip = CHELSIO_T5,
+		.flags = CXGB4_ACTION_NATMODE_DIP | CXGB4_ACTION_NATMODE_DPORT,
+		.natmode = NAT_MODE_DIP_DP,
+	},
+	{
+		.chip = CHELSIO_T5,
+		.flags = CXGB4_ACTION_NATMODE_DIP | CXGB4_ACTION_NATMODE_DPORT |
+			 CXGB4_ACTION_NATMODE_SIP,
+		.natmode = NAT_MODE_DIP_DP_SIP,
+	},
+	{
+		.chip = CHELSIO_T5,
+		.flags = CXGB4_ACTION_NATMODE_DIP | CXGB4_ACTION_NATMODE_DPORT |
+			 CXGB4_ACTION_NATMODE_SPORT,
+		.natmode = NAT_MODE_DIP_DP_SP,
+	},
+	{
+		.chip = CHELSIO_T5,
+		.flags = CXGB4_ACTION_NATMODE_SIP | CXGB4_ACTION_NATMODE_SPORT,
+		.natmode = NAT_MODE_SIP_SP,
+	},
+	{
+		.chip = CHELSIO_T5,
+		.flags = CXGB4_ACTION_NATMODE_DIP | CXGB4_ACTION_NATMODE_SIP |
+			 CXGB4_ACTION_NATMODE_SPORT,
+		.natmode = NAT_MODE_DIP_SIP_SP,
+	},
+	{
+		.chip = CHELSIO_T5,
+		.flags = CXGB4_ACTION_NATMODE_DIP | CXGB4_ACTION_NATMODE_SIP |
+			 CXGB4_ACTION_NATMODE_DPORT |
+			 CXGB4_ACTION_NATMODE_SPORT,
+		.natmode = NAT_MODE_ALL,
+	},
+	/* T6+ can ignore L4 ports when they're disabled. */
+	{
+		.chip = CHELSIO_T6,
+		.flags = CXGB4_ACTION_NATMODE_SIP,
+		.natmode = NAT_MODE_SIP_SP,
+	},
+	{
+		.chip = CHELSIO_T6,
+		.flags = CXGB4_ACTION_NATMODE_DIP | CXGB4_ACTION_NATMODE_SPORT,
+		.natmode = NAT_MODE_DIP_DP_SP,
+	},
+	{
+		.chip = CHELSIO_T6,
+		.flags = CXGB4_ACTION_NATMODE_DIP | CXGB4_ACTION_NATMODE_SIP,
+		.natmode = NAT_MODE_ALL,
+	},
+};
+
+static void cxgb4_action_natmode_tweak(struct ch_filter_specification *fs,
+				       u8 natmode_flags)
+{
+	u8 i = 0;
+
+	/* Translate the enabled NAT 4-tuple fields to one of the
+	 * hardware supported NAT mode configurations. This ensures
+	 * that we pick a valid combination, where the disabled fields
+	 * do not get overwritten to 0.
+	 */
+	for (i = 0; i < ARRAY_SIZE(cxgb4_natmode_config_array); i++) {
+		if (cxgb4_natmode_config_array[i].flags == natmode_flags) {
+			fs->nat_mode = cxgb4_natmode_config_array[i].natmode;
+			return;
+		}
+	}
+}
 
 static struct ch_tc_flower_entry *allocate_flower_entry(void)
 {
@@ -81,10 +160,9 @@ static struct ch_tc_flower_entry *ch_flower_lookup(struct adapter *adap,
 }
 
 static void cxgb4_process_flow_match(struct net_device *dev,
-				     struct flow_cls_offload *cls,
+				     struct flow_rule *rule,
 				     struct ch_filter_specification *fs)
 {
-	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	u16 addr_type = 0;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
@@ -92,6 +170,10 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 
 		flow_rule_match_control(rule, &match);
 		addr_type = match.key->addr_type;
+	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+		addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+		addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -156,14 +238,14 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		struct flow_match_ports match;
 
 		flow_rule_match_ports(rule, &match);
-		fs->val.lport = cpu_to_be16(match.key->dst);
-		fs->mask.lport = cpu_to_be16(match.mask->dst);
-		fs->val.fport = cpu_to_be16(match.key->src);
-		fs->mask.fport = cpu_to_be16(match.mask->src);
+		fs->val.lport = be16_to_cpu(match.key->dst);
+		fs->mask.lport = be16_to_cpu(match.mask->dst);
+		fs->val.fport = be16_to_cpu(match.key->src);
+		fs->mask.fport = be16_to_cpu(match.mask->src);
 
 		/* also initialize nat_lport/fport to same values */
-		fs->nat_lport = cpu_to_be16(match.key->dst);
-		fs->nat_fport = cpu_to_be16(match.key->src);
+		fs->nat_lport = fs->val.lport;
+		fs->nat_fport = fs->val.fport;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP)) {
@@ -224,9 +306,8 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 }
 
 static int cxgb4_validate_flow_match(struct net_device *dev,
-				     struct flow_cls_offload *cls)
+				     struct flow_rule *rule)
 {
-	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
 	struct flow_dissector *dissector = rule->match.dissector;
 	u16 ethtype_mask = 0;
 	u16 ethtype_key = 0;
@@ -291,7 +372,8 @@ static void offload_pedit(struct ch_filter_specification *fs, u32 val, u32 mask,
 }
 
 static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
-				u32 mask, u32 offset, u8 htype)
+				u32 mask, u32 offset, u8 htype,
+				u8 *natmode_flags)
 {
 	switch (htype) {
 	case FLOW_ACT_MANGLE_HDR_TYPE_ETH:
@@ -316,77 +398,105 @@ static void process_pedit_field(struct ch_filter_specification *fs, u32 val,
 		switch (offset) {
 		case PEDIT_IP4_SRC:
 			offload_pedit(fs, val, mask, IP4_SRC);
+			*natmode_flags |= CXGB4_ACTION_NATMODE_SIP;
 			break;
 		case PEDIT_IP4_DST:
 			offload_pedit(fs, val, mask, IP4_DST);
+			*natmode_flags |= CXGB4_ACTION_NATMODE_DIP;
 		}
-		fs->nat_mode = NAT_MODE_ALL;
 		break;
 	case FLOW_ACT_MANGLE_HDR_TYPE_IP6:
 		switch (offset) {
 		case PEDIT_IP6_SRC_31_0:
 			offload_pedit(fs, val, mask, IP6_SRC_31_0);
+			*natmode_flags |= CXGB4_ACTION_NATMODE_SIP;
 			break;
 		case PEDIT_IP6_SRC_63_32:
 			offload_pedit(fs, val, mask, IP6_SRC_63_32);
+			*natmode_flags |=  CXGB4_ACTION_NATMODE_SIP;
 			break;
 		case PEDIT_IP6_SRC_95_64:
 			offload_pedit(fs, val, mask, IP6_SRC_95_64);
+			*natmode_flags |= CXGB4_ACTION_NATMODE_SIP;
 			break;
 		case PEDIT_IP6_SRC_127_96:
 			offload_pedit(fs, val, mask, IP6_SRC_127_96);
+			*natmode_flags |= CXGB4_ACTION_NATMODE_SIP;
 			break;
 		case PEDIT_IP6_DST_31_0:
 			offload_pedit(fs, val, mask, IP6_DST_31_0);
+			*natmode_flags |= CXGB4_ACTION_NATMODE_DIP;
 			break;
 		case PEDIT_IP6_DST_63_32:
 			offload_pedit(fs, val, mask, IP6_DST_63_32);
+			*natmode_flags |= CXGB4_ACTION_NATMODE_DIP;
 			break;
 		case PEDIT_IP6_DST_95_64:
 			offload_pedit(fs, val, mask, IP6_DST_95_64);
+			*natmode_flags |= CXGB4_ACTION_NATMODE_DIP;
 			break;
 		case PEDIT_IP6_DST_127_96:
 			offload_pedit(fs, val, mask, IP6_DST_127_96);
+			*natmode_flags |= CXGB4_ACTION_NATMODE_DIP;
 		}
-		fs->nat_mode = NAT_MODE_ALL;
 		break;
 	case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
 		switch (offset) {
 		case PEDIT_TCP_SPORT_DPORT:
-			if (~mask & PEDIT_TCP_UDP_SPORT_MASK)
-				offload_pedit(fs, cpu_to_be32(val) >> 16,
-					      cpu_to_be32(mask) >> 16,
-					      TCP_SPORT);
-			else
-				offload_pedit(fs, cpu_to_be32(val),
-					      cpu_to_be32(mask), TCP_DPORT);
+			if (~mask & PEDIT_TCP_UDP_SPORT_MASK) {
+				fs->nat_fport = val;
+				*natmode_flags |= CXGB4_ACTION_NATMODE_SPORT;
+			} else {
+				fs->nat_lport = val >> 16;
+				*natmode_flags |= CXGB4_ACTION_NATMODE_DPORT;
+			}
 		}
-		fs->nat_mode = NAT_MODE_ALL;
 		break;
 	case FLOW_ACT_MANGLE_HDR_TYPE_UDP:
 		switch (offset) {
 		case PEDIT_UDP_SPORT_DPORT:
-			if (~mask & PEDIT_TCP_UDP_SPORT_MASK)
-				offload_pedit(fs, cpu_to_be32(val) >> 16,
-					      cpu_to_be32(mask) >> 16,
-					      UDP_SPORT);
-			else
-				offload_pedit(fs, cpu_to_be32(val),
-					      cpu_to_be32(mask), UDP_DPORT);
+			if (~mask & PEDIT_TCP_UDP_SPORT_MASK) {
+				fs->nat_fport = val;
+				*natmode_flags |= CXGB4_ACTION_NATMODE_SPORT;
+			} else {
+				fs->nat_lport = val >> 16;
+				*natmode_flags |= CXGB4_ACTION_NATMODE_DPORT;
+			}
 		}
-		fs->nat_mode = NAT_MODE_ALL;
+		break;
 	}
 }
 
-static void cxgb4_process_flow_actions(struct net_device *in,
-				       struct flow_cls_offload *cls,
-				       struct ch_filter_specification *fs)
+static int cxgb4_action_natmode_validate(struct adapter *adap, u8 natmode_flags,
+					 struct netlink_ext_ack *extack)
 {
-	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	u8 i = 0;
+
+	/* Extract the NAT mode to enable based on what 4-tuple fields
+	 * are enabled to be overwritten. This ensures that the
+	 * disabled fields don't get overwritten to 0.
+	 */
+	for (i = 0; i < ARRAY_SIZE(cxgb4_natmode_config_array); i++) {
+		const struct cxgb4_natmode_config *c;
+
+		c = &cxgb4_natmode_config_array[i];
+		if (CHELSIO_CHIP_VERSION(adap->params.chip) >= c->chip &&
+		    natmode_flags == c->flags)
+			return 0;
+	}
+	NL_SET_ERR_MSG_MOD(extack, "Unsupported NAT mode 4-tuple combination");
+	return -EOPNOTSUPP;
+}
+
+void cxgb4_process_flow_actions(struct net_device *in,
+				struct flow_action *actions,
+				struct ch_filter_specification *fs)
+{
 	struct flow_action_entry *act;
+	u8 natmode_flags = 0;
 	int i;
 
-	flow_action_for_each(i, act, &rule->action) {
+	flow_action_for_each(i, act, actions) {
 		switch (act->id) {
 		case FLOW_ACTION_ACCEPT:
 			fs->action = FILTER_PASS;
@@ -394,6 +504,7 @@ static void cxgb4_process_flow_actions(struct net_device *in,
 		case FLOW_ACTION_DROP:
 			fs->action = FILTER_DROP;
 			break;
+		case FLOW_ACTION_MIRRED:
 		case FLOW_ACTION_REDIRECT: {
 			struct net_device *out = act->dev;
 			struct port_info *pi = netdev_priv(out);
@@ -434,13 +545,22 @@ static void cxgb4_process_flow_actions(struct net_device *in,
 			val = act->mangle.val;
 			offset = act->mangle.offset;
 
-			process_pedit_field(fs, val, mask, offset, htype);
+			process_pedit_field(fs, val, mask, offset, htype,
+					    &natmode_flags);
 			}
+			break;
+		case FLOW_ACTION_QUEUE:
+			fs->action = FILTER_PASS;
+			fs->dirsteer = 1;
+			fs->iq = act->queue.index;
 			break;
 		default:
 			break;
 		}
 	}
+	if (natmode_flags)
+		cxgb4_action_natmode_tweak(fs, natmode_flags);
+
 }
 
 static bool valid_l4_mask(u32 mask)
@@ -457,7 +577,8 @@ static bool valid_l4_mask(u32 mask)
 }
 
 static bool valid_pedit_action(struct net_device *dev,
-			       const struct flow_action_entry *act)
+			       const struct flow_action_entry *act,
+			       u8 *natmode_flags)
 {
 	u32 mask, offset;
 	u8 htype;
@@ -482,7 +603,10 @@ static bool valid_pedit_action(struct net_device *dev,
 	case FLOW_ACT_MANGLE_HDR_TYPE_IP4:
 		switch (offset) {
 		case PEDIT_IP4_SRC:
+			*natmode_flags |= CXGB4_ACTION_NATMODE_SIP;
+			break;
 		case PEDIT_IP4_DST:
+			*natmode_flags |= CXGB4_ACTION_NATMODE_DIP;
 			break;
 		default:
 			netdev_err(dev, "%s: Unsupported pedit field\n",
@@ -496,10 +620,13 @@ static bool valid_pedit_action(struct net_device *dev,
 		case PEDIT_IP6_SRC_63_32:
 		case PEDIT_IP6_SRC_95_64:
 		case PEDIT_IP6_SRC_127_96:
+			*natmode_flags |= CXGB4_ACTION_NATMODE_SIP;
+			break;
 		case PEDIT_IP6_DST_31_0:
 		case PEDIT_IP6_DST_63_32:
 		case PEDIT_IP6_DST_95_64:
 		case PEDIT_IP6_DST_127_96:
+			*natmode_flags |= CXGB4_ACTION_NATMODE_DIP;
 			break;
 		default:
 			netdev_err(dev, "%s: Unsupported pedit field\n",
@@ -515,6 +642,10 @@ static bool valid_pedit_action(struct net_device *dev,
 					   __func__);
 				return false;
 			}
+			if (~mask & PEDIT_TCP_UDP_SPORT_MASK)
+				*natmode_flags |= CXGB4_ACTION_NATMODE_SPORT;
+			else
+				*natmode_flags |= CXGB4_ACTION_NATMODE_DPORT;
 			break;
 		default:
 			netdev_err(dev, "%s: Unsupported pedit field\n",
@@ -530,6 +661,10 @@ static bool valid_pedit_action(struct net_device *dev,
 					   __func__);
 				return false;
 			}
+			if (~mask & PEDIT_TCP_UDP_SPORT_MASK)
+				*natmode_flags |= CXGB4_ACTION_NATMODE_SPORT;
+			else
+				*natmode_flags |= CXGB4_ACTION_NATMODE_DPORT;
 			break;
 		default:
 			netdev_err(dev, "%s: Unsupported pedit field\n",
@@ -544,27 +679,40 @@ static bool valid_pedit_action(struct net_device *dev,
 	return true;
 }
 
-static int cxgb4_validate_flow_actions(struct net_device *dev,
-				       struct flow_cls_offload *cls)
+int cxgb4_validate_flow_actions(struct net_device *dev,
+				struct flow_action *actions,
+				struct netlink_ext_ack *extack,
+				u8 matchall_filter)
 {
-	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct adapter *adap = netdev2adap(dev);
 	struct flow_action_entry *act;
 	bool act_redir = false;
 	bool act_pedit = false;
 	bool act_vlan = false;
+	u8 natmode_flags = 0;
 	int i;
 
-	flow_action_for_each(i, act, &rule->action) {
+	if (!flow_action_basic_hw_stats_check(actions, extack))
+		return -EOPNOTSUPP;
+
+	flow_action_for_each(i, act, actions) {
 		switch (act->id) {
 		case FLOW_ACTION_ACCEPT:
 		case FLOW_ACTION_DROP:
 			/* Do nothing */
 			break;
+		case FLOW_ACTION_MIRRED:
 		case FLOW_ACTION_REDIRECT: {
-			struct adapter *adap = netdev2adap(dev);
 			struct net_device *n_dev, *target_dev;
-			unsigned int i;
 			bool found = false;
+			unsigned int i;
+
+			if (act->id == FLOW_ACTION_MIRRED &&
+			    !matchall_filter) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Egress mirror action is only supported for tc-matchall");
+				return -EOPNOTSUPP;
+			}
 
 			target_dev = act->dev;
 			for_each_port(adap, i) {
@@ -611,12 +759,16 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 			}
 			break;
 		case FLOW_ACTION_MANGLE: {
-			bool pedit_valid = valid_pedit_action(dev, act);
+			bool pedit_valid = valid_pedit_action(dev, act,
+							      &natmode_flags);
 
 			if (!pedit_valid)
 				return -EOPNOTSUPP;
 			act_pedit = true;
 			}
+			break;
+		case FLOW_ACTION_QUEUE:
+			/* Do nothing. cxgb4_set_filter will validate */
 			break;
 		default:
 			netdev_err(dev, "%s: Unsupported action\n", __func__);
@@ -630,24 +782,156 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 		return -EINVAL;
 	}
 
+	if (act_pedit) {
+		int ret;
+
+		ret = cxgb4_action_natmode_validate(adap, natmode_flags,
+						    extack);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void cxgb4_tc_flower_hash_prio_add(struct adapter *adap, u32 tc_prio)
+{
+	spin_lock_bh(&adap->tids.ftid_lock);
+	if (adap->tids.tc_hash_tids_max_prio < tc_prio)
+		adap->tids.tc_hash_tids_max_prio = tc_prio;
+	spin_unlock_bh(&adap->tids.ftid_lock);
+}
+
+static void cxgb4_tc_flower_hash_prio_del(struct adapter *adap, u32 tc_prio)
+{
+	struct tid_info *t = &adap->tids;
+	struct ch_tc_flower_entry *fe;
+	struct rhashtable_iter iter;
+	u32 found = 0;
+
+	spin_lock_bh(&t->ftid_lock);
+	/* Bail if the current rule is not the one with the max
+	 * prio.
+	 */
+	if (t->tc_hash_tids_max_prio != tc_prio)
+		goto out_unlock;
+
+	/* Search for the next rule having the same or next lower
+	 * max prio.
+	 */
+	rhashtable_walk_enter(&adap->flower_tbl, &iter);
+	do {
+		rhashtable_walk_start(&iter);
+
+		fe = rhashtable_walk_next(&iter);
+		while (!IS_ERR_OR_NULL(fe)) {
+			if (fe->fs.hash &&
+			    fe->fs.tc_prio <= t->tc_hash_tids_max_prio) {
+				t->tc_hash_tids_max_prio = fe->fs.tc_prio;
+				found++;
+
+				/* Bail if we found another rule
+				 * having the same prio as the
+				 * current max one.
+				 */
+				if (fe->fs.tc_prio == tc_prio)
+					break;
+			}
+
+			fe = rhashtable_walk_next(&iter);
+		}
+
+		rhashtable_walk_stop(&iter);
+	} while (fe == ERR_PTR(-EAGAIN));
+	rhashtable_walk_exit(&iter);
+
+	if (!found)
+		t->tc_hash_tids_max_prio = 0;
+
+out_unlock:
+	spin_unlock_bh(&t->ftid_lock);
+}
+
+int cxgb4_flow_rule_replace(struct net_device *dev, struct flow_rule *rule,
+			    u32 tc_prio, struct netlink_ext_ack *extack,
+			    struct ch_filter_specification *fs, u32 *tid)
+{
+	struct adapter *adap = netdev2adap(dev);
+	struct filter_ctx ctx;
+	u8 inet_family;
+	int fidx, ret;
+
+	if (cxgb4_validate_flow_actions(dev, &rule->action, extack, 0))
+		return -EOPNOTSUPP;
+
+	if (cxgb4_validate_flow_match(dev, rule))
+		return -EOPNOTSUPP;
+
+	cxgb4_process_flow_match(dev, rule, fs);
+	cxgb4_process_flow_actions(dev, &rule->action, fs);
+
+	fs->hash = is_filter_exact_match(adap, fs);
+	inet_family = fs->type ? PF_INET6 : PF_INET;
+
+	/* Get a free filter entry TID, where we can insert this new
+	 * rule. Only insert rule if its prio doesn't conflict with
+	 * existing rules.
+	 */
+	fidx = cxgb4_get_free_ftid(dev, inet_family, fs->hash,
+				   tc_prio);
+	if (fidx < 0) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "No free LETCAM index available");
+		return -ENOMEM;
+	}
+
+	if (fidx < adap->tids.nhpftids) {
+		fs->prio = 1;
+		fs->hash = 0;
+	}
+
+	/* If the rule can be inserted into HASH region, then ignore
+	 * the index to normal FILTER region.
+	 */
+	if (fs->hash)
+		fidx = 0;
+
+	fs->tc_prio = tc_prio;
+
+	init_completion(&ctx.completion);
+	ret = __cxgb4_set_filter(dev, fidx, fs, &ctx);
+	if (ret) {
+		netdev_err(dev, "%s: filter creation err %d\n",
+			   __func__, ret);
+		return ret;
+	}
+
+	/* Wait for reply */
+	ret = wait_for_completion_timeout(&ctx.completion, 10 * HZ);
+	if (!ret)
+		return -ETIMEDOUT;
+
+	/* Check if hw returned error for filter creation */
+	if (ctx.result)
+		return ctx.result;
+
+	*tid = ctx.tid;
+
+	if (fs->hash)
+		cxgb4_tc_flower_hash_prio_add(adap, tc_prio);
+
 	return 0;
 }
 
 int cxgb4_tc_flower_replace(struct net_device *dev,
 			    struct flow_cls_offload *cls)
 {
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls);
+	struct netlink_ext_ack *extack = cls->common.extack;
 	struct adapter *adap = netdev2adap(dev);
 	struct ch_tc_flower_entry *ch_flower;
 	struct ch_filter_specification *fs;
-	struct filter_ctx ctx;
-	int fidx;
 	int ret;
-
-	if (cxgb4_validate_flow_actions(dev, cls))
-		return -EOPNOTSUPP;
-
-	if (cxgb4_validate_flow_match(dev, cls))
-		return -EOPNOTSUPP;
 
 	ch_flower = allocate_flower_entry();
 	if (!ch_flower) {
@@ -657,43 +941,14 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 
 	fs = &ch_flower->fs;
 	fs->hitcnts = 1;
-	cxgb4_process_flow_match(dev, cls, fs);
-	cxgb4_process_flow_actions(dev, cls, fs);
+	fs->tc_cookie = cls->cookie;
 
-	fs->hash = is_filter_exact_match(adap, fs);
-	if (fs->hash) {
-		fidx = 0;
-	} else {
-		fidx = cxgb4_get_free_ftid(dev, fs->type ? PF_INET6 : PF_INET);
-		if (fidx < 0) {
-			netdev_err(dev, "%s: No fidx for offload.\n", __func__);
-			ret = -ENOMEM;
-			goto free_entry;
-		}
-	}
-
-	init_completion(&ctx.completion);
-	ret = __cxgb4_set_filter(dev, fidx, fs, &ctx);
-	if (ret) {
-		netdev_err(dev, "%s: filter creation err %d\n",
-			   __func__, ret);
-		goto free_entry;
-	}
-
-	/* Wait for reply */
-	ret = wait_for_completion_timeout(&ctx.completion, 10 * HZ);
-	if (!ret) {
-		ret = -ETIMEDOUT;
-		goto free_entry;
-	}
-
-	ret = ctx.result;
-	/* Check if hw returned error for filter creation */
+	ret = cxgb4_flow_rule_replace(dev, rule, cls->common.prio, extack, fs,
+				      &ch_flower->filter_id);
 	if (ret)
 		goto free_entry;
 
 	ch_flower->tc_flower_cookie = cls->cookie;
-	ch_flower->filter_id = ctx.tid;
 	ret = rhashtable_insert_fast(&adap->flower_tbl, &ch_flower->node,
 				     adap->flower_ht_params);
 	if (ret)
@@ -702,10 +957,32 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 	return 0;
 
 del_filter:
+	if (fs->hash)
+		cxgb4_tc_flower_hash_prio_del(adap, cls->common.prio);
+
 	cxgb4_del_filter(dev, ch_flower->filter_id, &ch_flower->fs);
 
 free_entry:
 	kfree(ch_flower);
+	return ret;
+}
+
+int cxgb4_flow_rule_destroy(struct net_device *dev, u32 tc_prio,
+			    struct ch_filter_specification *fs, int tid)
+{
+	struct adapter *adap = netdev2adap(dev);
+	u8 hash;
+	int ret;
+
+	hash = fs->hash;
+
+	ret = cxgb4_del_filter(dev, tid, fs);
+	if (ret)
+		return ret;
+
+	if (hash)
+		cxgb4_tc_flower_hash_prio_del(adap, tc_prio);
+
 	return ret;
 }
 
@@ -720,7 +997,8 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 	if (!ch_flower)
 		return -ENOENT;
 
-	ret = cxgb4_del_filter(dev, ch_flower->filter_id, &ch_flower->fs);
+	ret = cxgb4_flow_rule_destroy(dev, ch_flower->fs.tc_prio,
+				      &ch_flower->fs, ch_flower->filter_id);
 	if (ret)
 		goto err;
 
@@ -811,8 +1089,9 @@ int cxgb4_tc_flower_stats(struct net_device *dev,
 		if (ofld_stats->prev_packet_count != packets)
 			ofld_stats->last_used = jiffies;
 		flow_stats_update(&cls->stats, bytes - ofld_stats->byte_count,
-				  packets - ofld_stats->packet_count,
-				  ofld_stats->last_used);
+				  packets - ofld_stats->packet_count, 0,
+				  ofld_stats->last_used,
+				  FLOW_ACTION_HW_STATS_IMMEDIATE);
 
 		ofld_stats->packet_count = packets;
 		ofld_stats->byte_count = bytes;

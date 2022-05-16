@@ -148,11 +148,33 @@ static const struct nfp_et_stat nfp_mac_et_stats[] = {
 	{ "tx_pause_frames_class7",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS7, },
 };
 
+static const char nfp_tlv_stat_names[][ETH_GSTRING_LEN] = {
+	[1]	= "dev_rx_discards",
+	[2]	= "dev_rx_errors",
+	[3]	= "dev_rx_bytes",
+	[4]	= "dev_rx_uc_bytes",
+	[5]	= "dev_rx_mc_bytes",
+	[6]	= "dev_rx_bc_bytes",
+	[7]	= "dev_rx_pkts",
+	[8]	= "dev_rx_mc_pkts",
+	[9]	= "dev_rx_bc_pkts",
+
+	[10]	= "dev_tx_discards",
+	[11]	= "dev_tx_errors",
+	[12]	= "dev_tx_bytes",
+	[13]	= "dev_tx_uc_bytes",
+	[14]	= "dev_tx_mc_bytes",
+	[15]	= "dev_tx_bc_bytes",
+	[16]	= "dev_tx_pkts",
+	[17]	= "dev_tx_mc_pkts",
+	[18]	= "dev_tx_bc_pkts",
+};
+
 #define NN_ET_GLOBAL_STATS_LEN ARRAY_SIZE(nfp_net_et_stats)
 #define NN_ET_SWITCH_STATS_LEN 9
 #define NN_RVEC_GATHER_STATS	13
 #define NN_RVEC_PER_Q_STATS	3
-#define NN_CTRL_PATH_STATS	1
+#define NN_CTRL_PATH_STATS	4
 
 #define SFP_SFF_REV_COMPLIANCE	1
 
@@ -181,8 +203,6 @@ nfp_get_drvinfo(struct nfp_app *app, struct pci_dev *pdev,
 	char nsp_version[ETHTOOL_FWVERS_LEN] = {};
 
 	strlcpy(drvinfo->driver, pdev->driver->name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, nfp_driver_version, sizeof(drvinfo->version));
-
 	nfp_net_get_nspinfo(app, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%s %s %s %s", vnic_version, nsp_version,
@@ -454,6 +474,9 @@ static u8 *nfp_vnic_get_sw_stats_strings(struct net_device *netdev, u8 *data)
 	data = nfp_pr_et(data, "tx_tls_drop_no_sync_data");
 
 	data = nfp_pr_et(data, "hw_tls_no_space");
+	data = nfp_pr_et(data, "rx_tls_resync_req_ok");
+	data = nfp_pr_et(data, "rx_tls_resync_req_ign");
+	data = nfp_pr_et(data, "rx_tls_resync_sent");
 
 	return data;
 }
@@ -502,6 +525,9 @@ static u64 *nfp_vnic_get_sw_stats(struct net_device *netdev, u64 *data)
 		*data++ = gathered_stats[j];
 
 	*data++ = atomic_read(&nn->ktls_no_space);
+	*data++ = atomic_read(&nn->ktls_rx_resync_req);
+	*data++ = atomic_read(&nn->ktls_rx_resync_ign);
+	*data++ = atomic_read(&nn->ktls_rx_resync_sent);
 
 	return data;
 }
@@ -560,6 +586,65 @@ nfp_vnic_get_hw_stats(u64 *data, u8 __iomem *mem, unsigned int num_vecs)
 	return data;
 }
 
+static unsigned int nfp_vnic_get_tlv_stats_count(struct nfp_net *nn)
+{
+	return nn->tlv_caps.vnic_stats_cnt + nn->max_r_vecs * 4;
+}
+
+static u8 *nfp_vnic_get_tlv_stats_strings(struct nfp_net *nn, u8 *data)
+{
+	unsigned int i, id;
+	u8 __iomem *mem;
+	u64 id_word = 0;
+
+	mem = nn->dp.ctrl_bar + nn->tlv_caps.vnic_stats_off;
+	for (i = 0; i < nn->tlv_caps.vnic_stats_cnt; i++) {
+		if (!(i % 4))
+			id_word = readq(mem + i * 2);
+
+		id = (u16)id_word;
+		id_word >>= 16;
+
+		if (id < ARRAY_SIZE(nfp_tlv_stat_names) &&
+		    nfp_tlv_stat_names[id][0]) {
+			memcpy(data, nfp_tlv_stat_names[id], ETH_GSTRING_LEN);
+			data += ETH_GSTRING_LEN;
+		} else {
+			data = nfp_pr_et(data, "dev_unknown_stat%u", id);
+		}
+	}
+
+	for (i = 0; i < nn->max_r_vecs; i++) {
+		data = nfp_pr_et(data, "rxq_%u_pkts", i);
+		data = nfp_pr_et(data, "rxq_%u_bytes", i);
+		data = nfp_pr_et(data, "txq_%u_pkts", i);
+		data = nfp_pr_et(data, "txq_%u_bytes", i);
+	}
+
+	return data;
+}
+
+static u64 *nfp_vnic_get_tlv_stats(struct nfp_net *nn, u64 *data)
+{
+	u8 __iomem *mem;
+	unsigned int i;
+
+	mem = nn->dp.ctrl_bar + nn->tlv_caps.vnic_stats_off;
+	mem += roundup(2 * nn->tlv_caps.vnic_stats_cnt, 8);
+	for (i = 0; i < nn->tlv_caps.vnic_stats_cnt; i++)
+		*data++ = readq(mem + i * 8);
+
+	mem = nn->dp.ctrl_bar;
+	for (i = 0; i < nn->max_r_vecs; i++) {
+		*data++ = readq(mem + NFP_NET_CFG_RXR_STATS(i));
+		*data++ = readq(mem + NFP_NET_CFG_RXR_STATS(i) + 8);
+		*data++ = readq(mem + NFP_NET_CFG_TXR_STATS(i));
+		*data++ = readq(mem + NFP_NET_CFG_TXR_STATS(i) + 8);
+	}
+
+	return data;
+}
+
 static unsigned int nfp_mac_get_stats_count(struct net_device *netdev)
 {
 	struct nfp_port *port;
@@ -609,8 +694,12 @@ static void nfp_net_get_strings(struct net_device *netdev,
 	switch (stringset) {
 	case ETH_SS_STATS:
 		data = nfp_vnic_get_sw_stats_strings(netdev, data);
-		data = nfp_vnic_get_hw_stats_strings(data, nn->max_r_vecs,
-						     false);
+		if (!nn->tlv_caps.vnic_stats_off)
+			data = nfp_vnic_get_hw_stats_strings(data,
+							     nn->max_r_vecs,
+							     false);
+		else
+			data = nfp_vnic_get_tlv_stats_strings(nn, data);
 		data = nfp_mac_get_stats_strings(netdev, data);
 		data = nfp_app_port_get_stats_strings(nn->port, data);
 		break;
@@ -624,7 +713,11 @@ nfp_net_get_stats(struct net_device *netdev, struct ethtool_stats *stats,
 	struct nfp_net *nn = netdev_priv(netdev);
 
 	data = nfp_vnic_get_sw_stats(netdev, data);
-	data = nfp_vnic_get_hw_stats(data, nn->dp.ctrl_bar, nn->max_r_vecs);
+	if (!nn->tlv_caps.vnic_stats_off)
+		data = nfp_vnic_get_hw_stats(data, nn->dp.ctrl_bar,
+					     nn->max_r_vecs);
+	else
+		data = nfp_vnic_get_tlv_stats(nn, data);
 	data = nfp_mac_get_stats(netdev, data);
 	data = nfp_app_port_get_stats(nn->port, data);
 }
@@ -632,13 +725,18 @@ nfp_net_get_stats(struct net_device *netdev, struct ethtool_stats *stats,
 static int nfp_net_get_sset_count(struct net_device *netdev, int sset)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
+	unsigned int cnt;
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		return nfp_vnic_get_sw_stats_count(netdev) +
-		       nfp_vnic_get_hw_stats_count(nn->max_r_vecs) +
-		       nfp_mac_get_stats_count(netdev) +
-		       nfp_app_port_get_stats_count(nn->port);
+		cnt = nfp_vnic_get_sw_stats_count(netdev);
+		if (!nn->tlv_caps.vnic_stats_off)
+			cnt += nfp_vnic_get_hw_stats_count(nn->max_r_vecs);
+		else
+			cnt += nfp_vnic_get_tlv_stats_count(nn);
+		cnt += nfp_mac_get_stats_count(netdev);
+		cnt += nfp_app_port_get_stats_count(nn->port);
+		return cnt;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -731,8 +829,8 @@ nfp_port_get_fecparam(struct net_device *netdev,
 	struct nfp_eth_table_port *eth_port;
 	struct nfp_port *port;
 
-	param->active_fec = ETHTOOL_FEC_NONE_BIT;
-	param->fec = ETHTOOL_FEC_NONE_BIT;
+	param->active_fec = ETHTOOL_FEC_NONE;
+	param->fec = ETHTOOL_FEC_NONE;
 
 	port = nfp_port_from_netdev(netdev);
 	eth_port = nfp_port_get_eth_port(port);
@@ -1243,26 +1341,6 @@ static int nfp_net_set_coalesce(struct net_device *netdev,
 	struct nfp_net *nn = netdev_priv(netdev);
 	unsigned int factor;
 
-	if (ec->rx_coalesce_usecs_irq ||
-	    ec->rx_max_coalesced_frames_irq ||
-	    ec->tx_coalesce_usecs_irq ||
-	    ec->tx_max_coalesced_frames_irq ||
-	    ec->stats_block_coalesce_usecs ||
-	    ec->use_adaptive_rx_coalesce ||
-	    ec->use_adaptive_tx_coalesce ||
-	    ec->pkt_rate_low ||
-	    ec->rx_coalesce_usecs_low ||
-	    ec->rx_max_coalesced_frames_low ||
-	    ec->tx_coalesce_usecs_low ||
-	    ec->tx_max_coalesced_frames_low ||
-	    ec->pkt_rate_high ||
-	    ec->rx_coalesce_usecs_high ||
-	    ec->rx_max_coalesced_frames_high ||
-	    ec->tx_coalesce_usecs_high ||
-	    ec->tx_max_coalesced_frames_high ||
-	    ec->rate_sample_interval)
-		return -EOPNOTSUPP;
-
 	/* Compute factor used to convert coalesce '_usecs' parameters to
 	 * ME timestamp ticks.  There are 16 ME clock cycles for each timestamp
 	 * count.
@@ -1360,8 +1438,7 @@ static int nfp_net_set_channels(struct net_device *netdev,
 	unsigned int total_rx, total_tx;
 
 	/* Reject unsupported */
-	if (!channel->combined_count ||
-	    channel->other_count != NFP_NET_NON_Q_VECTORS ||
+	if (channel->other_count != NFP_NET_NON_Q_VECTORS ||
 	    (channel->rx_count && channel->tx_count))
 		return -EINVAL;
 
@@ -1376,6 +1453,8 @@ static int nfp_net_set_channels(struct net_device *netdev,
 }
 
 static const struct ethtool_ops nfp_net_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo		= nfp_net_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_ringparam		= nfp_net_get_ringparam,

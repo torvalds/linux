@@ -265,6 +265,8 @@ static int detect_kbuild_dir(char **kbuild_dir)
 			return -ENOMEM;
 		return 0;
 	}
+	pr_debug("%s: Couldn't find \"%s\", missing kernel-devel package?.\n",
+		 __func__, autoconf_path);
 	free(autoconf_path);
 	return -ENOENT;
 }
@@ -288,6 +290,7 @@ static const char *kinc_fetch_script =
 "obj-y := dummy.o\n"
 "\\$(obj)/%.o: \\$(src)/%.c\n"
 "\t@echo -n \"\\$(NOSTDINC_FLAGS) \\$(LINUXINCLUDE) \\$(EXTRA_CFLAGS)\"\n"
+"\t\\$(CC) -c -o \\$@ \\$<\n"
 "EOF\n"
 "touch $TMPDIR/dummy.c\n"
 "make -s -C $KBUILD_DIR M=$TMPDIR $KBUILD_OPTS dummy.o 2>/dev/null\n"
@@ -418,10 +421,9 @@ void llvm__dump_obj(const char *path, void *obj_buf, size_t size)
 		goto out;
 	}
 
-	pr_info("LLVM: dumping %s\n", obj_path);
+	pr_debug("LLVM: dumping %s\n", obj_path);
 	if (fwrite(obj_buf, size, 1, fp) != 1)
-		pr_warning("WARNING: failed to write to file '%s': %s, skip object dumping\n",
-			   obj_path, strerror(errno));
+		pr_debug("WARNING: failed to write to file '%s': %s, skip object dumping\n", obj_path, strerror(errno));
 	fclose(fp);
 out:
 	free(obj_path);

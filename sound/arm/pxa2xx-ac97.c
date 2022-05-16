@@ -52,7 +52,7 @@ static void pxa2xx_ac97_legacy_write(struct snd_ac97 *ac97,
 	ret = pxa2xx_ac97_write(ac97->num, reg, val);
 }
 
-static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
+static const struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
 	.read	= pxa2xx_ac97_legacy_read,
 	.write	= pxa2xx_ac97_legacy_write,
 	.reset	= pxa2xx_ac97_legacy_reset,
@@ -173,7 +173,6 @@ static SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops, pxa2xx_ac97_suspend, pxa2xx_ac97_re
 static const struct snd_pcm_ops pxa2xx_ac97_pcm_ops = {
 	.open		= pxa2xx_ac97_pcm_open,
 	.close		= pxa2xx_ac97_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= pxa2xx_pcm_hw_params,
 	.hw_free	= pxa2xx_pcm_hw_free,
 	.prepare	= pxa2xx_ac97_pcm_prepare,

@@ -364,8 +364,7 @@ static int gb_gpio_request_handler(struct gb_operation *op)
 	struct gb_message *request;
 	struct gb_gpio_irq_event_request *event;
 	u8 type = op->type;
-	int irq;
-	struct irq_desc *desc;
+	int irq, ret;
 
 	if (type != GB_GPIO_TYPE_IRQ_EVENT) {
 		dev_err(dev, "unsupported unsolicited request: %u\n", type);
@@ -391,17 +390,15 @@ static int gb_gpio_request_handler(struct gb_operation *op)
 		dev_err(dev, "failed to find IRQ\n");
 		return -EINVAL;
 	}
-	desc = irq_to_desc(irq);
-	if (!desc) {
-		dev_err(dev, "failed to look up irq\n");
-		return -EINVAL;
-	}
 
 	local_irq_disable();
-	generic_handle_irq_desc(desc);
+	ret = generic_handle_irq(irq);
 	local_irq_enable();
 
-	return 0;
+	if (ret)
+		dev_err(dev, "failed to invoke irq handler\n");
+
+	return ret;
 }
 
 static int gb_gpio_request(struct gpio_chip *chip, unsigned int offset)
@@ -507,6 +504,7 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 	struct gb_connection *connection;
 	struct gb_gpio_controller *ggc;
 	struct gpio_chip *gpio;
+	struct gpio_irq_chip *girq;
 	struct irq_chip *irqc;
 	int ret;
 
@@ -564,6 +562,15 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 	gpio->ngpio = ggc->line_max + 1;
 	gpio->can_sleep = true;
 
+	girq = &gpio->irq;
+	girq->chip = irqc;
+	/* The event comes from the outside so no parent handler */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
+
 	ret = gb_connection_enable(connection);
 	if (ret)
 		goto exit_line_free;
@@ -574,18 +581,9 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 		goto exit_line_free;
 	}
 
-	ret = gpiochip_irqchip_add(gpio, irqc, 0, handle_level_irq,
-				   IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(&gbphy_dev->dev, "failed to add irq chip: %d\n", ret);
-		goto exit_gpiochip_remove;
-	}
-
 	gbphy_runtime_put_autosuspend(gbphy_dev);
 	return 0;
 
-exit_gpiochip_remove:
-	gpiochip_remove(gpio);
 exit_line_free:
 	kfree(ggc->lines);
 exit_connection_disable:

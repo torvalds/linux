@@ -43,7 +43,7 @@ struct snd_pcsp pcsp_chip;
 
 static int snd_pcsp_create(struct snd_card *card)
 {
-	static struct snd_device_ops ops = { };
+	static const struct snd_device_ops ops = { };
 	unsigned int resolution = hrtimer_resolution;
 	int err, div, min_div, order;
 

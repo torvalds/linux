@@ -40,17 +40,29 @@ static int pending_userspace_extint(struct kvm_vcpu *v)
  * check if there is pending interrupt from
  * non-APIC source without intack.
  */
-static int kvm_cpu_has_extint(struct kvm_vcpu *v)
+int kvm_cpu_has_extint(struct kvm_vcpu *v)
 {
-	u8 accept = kvm_apic_accept_pic_intr(v);
+	/*
+	 * FIXME: interrupt.injected represents an interrupt whose
+	 * side-effects have already been applied (e.g. bit from IRR
+	 * already moved to ISR). Therefore, it is incorrect to rely
+	 * on interrupt.injected to know if there is a pending
+	 * interrupt in the user-mode LAPIC.
+	 * This leads to nVMX/nSVM not be able to distinguish
+	 * if it should exit from L2 to L1 on EXTERNAL_INTERRUPT on
+	 * pending interrupt or should re-inject an injected
+	 * interrupt.
+	 */
+	if (!lapic_in_kernel(v))
+		return v->arch.interrupt.injected;
 
-	if (accept) {
-		if (irqchip_split(v->kvm))
-			return pending_userspace_extint(v);
-		else
-			return v->kvm->arch.vpic->output;
-	} else
+	if (!kvm_apic_accept_pic_intr(v))
 		return 0;
+
+	if (irqchip_split(v->kvm))
+		return pending_userspace_extint(v);
+	else
+		return v->kvm->arch.vpic->output;
 }
 
 /*
@@ -61,20 +73,6 @@ static int kvm_cpu_has_extint(struct kvm_vcpu *v)
  */
 int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
 {
-	/*
-	 * FIXME: interrupt.injected represents an interrupt that it's
-	 * side-effects have already been applied (e.g. bit from IRR
-	 * already moved to ISR). Therefore, it is incorrect to rely
-	 * on interrupt.injected to know if there is a pending
-	 * interrupt in the user-mode LAPIC.
-	 * This leads to nVMX/nSVM not be able to distinguish
-	 * if it should exit from L2 to L1 on EXTERNAL_INTERRUPT on
-	 * pending interrupt or should re-inject an injected
-	 * interrupt.
-	 */
-	if (!lapic_in_kernel(v))
-		return v->arch.interrupt.injected;
-
 	if (kvm_cpu_has_extint(v))
 		return 1;
 
@@ -83,6 +81,7 @@ int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
 
 	return kvm_apic_has_interrupt(v) != -1; /* LAPIC */
 }
+EXPORT_SYMBOL_GPL(kvm_cpu_has_injectable_intr);
 
 /*
  * check if there is pending interrupt without
@@ -90,20 +89,6 @@ int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v)
  */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 {
-	/*
-	 * FIXME: interrupt.injected represents an interrupt that it's
-	 * side-effects have already been applied (e.g. bit from IRR
-	 * already moved to ISR). Therefore, it is incorrect to rely
-	 * on interrupt.injected to know if there is a pending
-	 * interrupt in the user-mode LAPIC.
-	 * This leads to nVMX/nSVM not be able to distinguish
-	 * if it should exit from L2 to L1 on EXTERNAL_INTERRUPT on
-	 * pending interrupt or should re-inject an injected
-	 * interrupt.
-	 */
-	if (!lapic_in_kernel(v))
-		return v->arch.interrupt.injected;
-
 	if (kvm_cpu_has_extint(v))
 		return 1;
 
@@ -117,16 +102,21 @@ EXPORT_SYMBOL_GPL(kvm_cpu_has_interrupt);
  */
 static int kvm_cpu_get_extint(struct kvm_vcpu *v)
 {
-	if (kvm_cpu_has_extint(v)) {
-		if (irqchip_split(v->kvm)) {
-			int vector = v->arch.pending_external_vector;
-
-			v->arch.pending_external_vector = -1;
-			return vector;
-		} else
-			return kvm_pic_read_irq(v->kvm); /* PIC */
-	} else
+	if (!kvm_cpu_has_extint(v)) {
+		WARN_ON(!lapic_in_kernel(v));
 		return -1;
+	}
+
+	if (!lapic_in_kernel(v))
+		return v->arch.interrupt.nr;
+
+	if (irqchip_split(v->kvm)) {
+		int vector = v->arch.pending_external_vector;
+
+		v->arch.pending_external_vector = -1;
+		return vector;
+	} else
+		return kvm_pic_read_irq(v->kvm); /* PIC */
 }
 
 /*
@@ -134,13 +124,7 @@ static int kvm_cpu_get_extint(struct kvm_vcpu *v)
  */
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 {
-	int vector;
-
-	if (!lapic_in_kernel(v))
-		return v->arch.interrupt.nr;
-
-	vector = kvm_cpu_get_extint(v);
-
+	int vector = kvm_cpu_get_extint(v);
 	if (vector != -1)
 		return vector;			/* PIC */
 
@@ -159,6 +143,8 @@ void __kvm_migrate_timers(struct kvm_vcpu *vcpu)
 {
 	__kvm_migrate_apic_timer(vcpu);
 	__kvm_migrate_pit_timer(vcpu);
+	if (kvm_x86_ops.migrate_timers)
+		kvm_x86_ops.migrate_timers(vcpu);
 }
 
 bool kvm_arch_irqfd_allowed(struct kvm *kvm, struct kvm_irqfd *args)

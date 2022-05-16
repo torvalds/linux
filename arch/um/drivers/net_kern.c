@@ -247,7 +247,7 @@ static void uml_net_set_multicast_list(struct net_device *dev)
 	return;
 }
 
-static void uml_net_tx_timeout(struct net_device *dev)
+static void uml_net_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	netif_trans_update(dev);
 	netif_wake_queue(dev);
@@ -266,7 +266,6 @@ static void uml_net_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
-	strlcpy(info->version, "42", sizeof(info->version));
 }
 
 static const struct ethtool_ops uml_net_ethtool_ops = {
@@ -274,17 +273,6 @@ static const struct ethtool_ops uml_net_ethtool_ops = {
 	.get_link	= ethtool_op_get_link,
 	.get_ts_info	= ethtool_op_get_ts_info,
 };
-
-static void uml_net_user_timer_expire(struct timer_list *t)
-{
-#ifdef undef
-	struct uml_net_private *lp = from_timer(lp, t, tl);
-	struct connection *conn = &lp->user;
-
-	dprintk(KERN_INFO "uml_net_user_timer_expire [%p]\n", conn);
-	do_connect(conn);
-#endif
-}
 
 void uml_net_setup_etheraddr(struct net_device *dev, char *str)
 {
@@ -456,7 +444,6 @@ static void eth_configure(int n, void *init, char *mac,
 		  .add_address 		= transport->user->add_address,
 		  .delete_address  	= transport->user->delete_address });
 
-	timer_setup(&lp->tl, uml_net_user_timer_expire, 0);
 	spin_lock_init(&lp->lock);
 	memcpy(lp->mac, dev->dev_addr, sizeof(lp->mac));
 

@@ -19,7 +19,11 @@
  * but it is not widely used and to prevent kernel crash rather AES is disabled.
  * There is also no runtime detection code if AES is disabled in L3 firewall...
  */
-&aes {
+&aes1_target {
+	status = "disabled";
+};
+
+&aes2_target {
 	status = "disabled";
 };
 
@@ -105,6 +109,14 @@
 			linux,code = <SW_FRONT_PROXIMITY>;
 			linux,can-disable;
 		};
+
+		machine_cover {
+			label = "Machine Cover";
+			gpios = <&gpio6 0 GPIO_ACTIVE_LOW>; /* 160 */
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_MACHINE_COVER>;
+			linux,can-disable;
+		};
 	};
 
 	isp1707: isp1707 {
@@ -153,6 +165,12 @@
 	ir: n900-ir {
 		compatible = "nokia,n900-ir";
 		pwms = <&pwm9 0 26316 0>; /* 38000 Hz */
+	};
+
+	rom_rng: rng {
+		compatible = "nokia,n900-rom-rng";
+		clocks = <&rng_ick>;
+		clock-names = "ick";
 	};
 
 	/* controlled (enabled/disabled) directly by bcm2048 and wl1251 */
@@ -474,6 +492,11 @@
 	regulator-name = "VINTDIG";
 	/* fixed to 1500000 */
 	regulator-always-on;
+};
+
+/* First two dma channels are reserved on secure omap3 */
+&sdma {
+	dma-channel-mask = <0xfffffffc>;
 };
 
 &twl {
@@ -808,10 +831,6 @@
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
-	/* For debugging, it is often good idea to remove this GPIO.
-	   It means you can remove back cover (to reboot by removing
-	   battery) and still use the MMC card. */
-	cd-gpios = <&gpio6 0 GPIO_ACTIVE_LOW>; /* 160 */
 };
 
 /* most boards use vaux3, only some old versions use vmmc2 instead */
@@ -843,34 +862,46 @@
 		compatible = "ti,omap2-onenand";
 		reg = <0 0 0x20000>;	/* CS0, offset 0, IO size 128K */
 
+		/*
+		 * These timings are based on CONFIG_OMAP_GPMC_DEBUG=y reported
+		 * bootloader set values when booted with v5.1
+		 * (OneNAND Manufacturer: Samsung):
+		 *
+		 *   cs0 GPMC_CS_CONFIG1: 0xfb001202
+		 *   cs0 GPMC_CS_CONFIG2: 0x00111100
+		 *   cs0 GPMC_CS_CONFIG3: 0x00020200
+		 *   cs0 GPMC_CS_CONFIG4: 0x11001102
+		 *   cs0 GPMC_CS_CONFIG5: 0x03101616
+		 *   cs0 GPMC_CS_CONFIG6: 0x90060000
+		 */
 		gpmc,sync-read;
 		gpmc,sync-write;
 		gpmc,burst-length = <16>;
 		gpmc,burst-read;
 		gpmc,burst-wrap;
 		gpmc,burst-write;
-		gpmc,device-width = <2>; /* GPMC_DEVWIDTH_16BIT */
-		gpmc,mux-add-data = <2>; /* GPMC_MUX_AD */
+		gpmc,device-width = <2>;
+		gpmc,mux-add-data = <2>;
 		gpmc,cs-on-ns = <0>;
-		gpmc,cs-rd-off-ns = <87>;
-		gpmc,cs-wr-off-ns = <87>;
+		gpmc,cs-rd-off-ns = <102>;
+		gpmc,cs-wr-off-ns = <102>;
 		gpmc,adv-on-ns = <0>;
-		gpmc,adv-rd-off-ns = <10>;
-		gpmc,adv-wr-off-ns = <10>;
-		gpmc,oe-on-ns = <15>;
-		gpmc,oe-off-ns = <87>;
+		gpmc,adv-rd-off-ns = <12>;
+		gpmc,adv-wr-off-ns = <12>;
+		gpmc,oe-on-ns = <12>;
+		gpmc,oe-off-ns = <102>;
 		gpmc,we-on-ns = <0>;
-		gpmc,we-off-ns = <87>;
-		gpmc,rd-cycle-ns = <112>;
-		gpmc,wr-cycle-ns = <112>;
-		gpmc,access-ns = <81>;
-		gpmc,page-burst-access-ns = <15>;
+		gpmc,we-off-ns = <102>;
+		gpmc,rd-cycle-ns = <132>;
+		gpmc,wr-cycle-ns = <132>;
+		gpmc,access-ns = <96>;
+		gpmc,page-burst-access-ns = <18>;
 		gpmc,bus-turnaround-ns = <0>;
 		gpmc,cycle2cycle-delay-ns = <0>;
 		gpmc,wait-monitoring-ns = <0>;
-		gpmc,clk-activation-ns = <5>;
-		gpmc,wr-data-mux-bus-ns = <30>;
-		gpmc,wr-access-ns = <81>;
+		gpmc,clk-activation-ns = <6>;
+		gpmc,wr-data-mux-bus-ns = <36>;
+		gpmc,wr-access-ns = <96>;
 		gpmc,sync-clk-ps = <15000>;
 
 		/*
@@ -1013,6 +1044,11 @@
 	};
 };
 
+/* RNG not directly accessible on n900, see omap3-rom-rng instead */
+&rng_target {
+	status = "disabled";
+};
+
 &usb_otg_hs {
 	interface-type = <0>;
 	usb-phy = <&usb2_phy>;
@@ -1047,7 +1083,7 @@
 };
 
 &dss {
-	status = "ok";
+	status = "okay";
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&dss_sdi_pins>;
@@ -1070,7 +1106,7 @@
 };
 
 &venc {
-	status = "ok";
+	status = "okay";
 
 	vdda-supply = <&vdac>;
 
@@ -1083,7 +1119,7 @@
 };
 
 &mcbsp2 {
-	status = "ok";
+	status = "okay";
 };
 
 &ssi_port1 {

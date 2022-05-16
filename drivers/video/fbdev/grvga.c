@@ -5,7 +5,7 @@
  * 2011 (c) Aeroflex Gaisler AB
  *
  * Full documentation of the core can be found here:
- * http://www.gaisler.com/products/grlib/grip.pdf
+ * https://www.gaisler.com/products/grlib/grip.pdf
  *
  * Contributors: Kristoffer Glembo <kristoffer@gaisler.com>
  */
@@ -251,7 +251,7 @@ static int grvga_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static struct fb_ops grvga_ops = {
+static const struct fb_ops grvga_ops = {
 	.owner          = THIS_MODULE,
 	.fb_check_var   = grvga_check_var,
 	.fb_set_par	= grvga_set_par,

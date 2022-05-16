@@ -12,90 +12,93 @@
 #include <uapi/linux/udp.h>
 
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include "hash_func01.h"
 
-#define MAX_CPUS 64 /* WARNING - sync with _user.c */
+#define MAX_CPUS NR_CPUS
 
 /* Special map type that can XDP_REDIRECT frames to another CPU */
-struct bpf_map_def SEC("maps") cpu_map = {
-	.type		= BPF_MAP_TYPE_CPUMAP,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(u32),
-	.max_entries	= MAX_CPUS,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_CPUMAP);
+	__uint(key_size, sizeof(u32));
+	__uint(value_size, sizeof(struct bpf_cpumap_val));
+	__uint(max_entries, MAX_CPUS);
+} cpu_map SEC(".maps");
 
 /* Common stats data record to keep userspace more simple */
 struct datarec {
 	__u64 processed;
 	__u64 dropped;
 	__u64 issue;
+	__u64 xdp_pass;
+	__u64 xdp_drop;
+	__u64 xdp_redirect;
 };
 
 /* Count RX packets, as XDP bpf_prog doesn't get direct TX-success
  * feedback.  Redirect TX errors can be caught via a tracepoint.
  */
-struct bpf_map_def SEC("maps") rx_cnt = {
-	.type		= BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(struct datarec),
-	.max_entries	= 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, u32);
+	__type(value, struct datarec);
+	__uint(max_entries, 1);
+} rx_cnt SEC(".maps");
 
 /* Used by trace point */
-struct bpf_map_def SEC("maps") redirect_err_cnt = {
-	.type		= BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(struct datarec),
-	.max_entries	= 2,
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, u32);
+	__type(value, struct datarec);
+	__uint(max_entries, 2);
 	/* TODO: have entries for all possible errno's */
-};
+} redirect_err_cnt SEC(".maps");
 
 /* Used by trace point */
-struct bpf_map_def SEC("maps") cpumap_enqueue_cnt = {
-	.type		= BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(struct datarec),
-	.max_entries	= MAX_CPUS,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, u32);
+	__type(value, struct datarec);
+	__uint(max_entries, MAX_CPUS);
+} cpumap_enqueue_cnt SEC(".maps");
 
 /* Used by trace point */
-struct bpf_map_def SEC("maps") cpumap_kthread_cnt = {
-	.type		= BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(struct datarec),
-	.max_entries	= 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, u32);
+	__type(value, struct datarec);
+	__uint(max_entries, 1);
+} cpumap_kthread_cnt SEC(".maps");
 
 /* Set of maps controlling available CPU, and for iterating through
  * selectable redirect CPUs.
  */
-struct bpf_map_def SEC("maps") cpus_available = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(u32),
-	.max_entries	= MAX_CPUS,
-};
-struct bpf_map_def SEC("maps") cpus_count = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(u32),
-	.max_entries	= 1,
-};
-struct bpf_map_def SEC("maps") cpus_iterator = {
-	.type		= BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(u32),
-	.max_entries	= 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32);
+	__type(value, u32);
+	__uint(max_entries, MAX_CPUS);
+} cpus_available SEC(".maps");
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32);
+	__type(value, u32);
+	__uint(max_entries, 1);
+} cpus_count SEC(".maps");
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, u32);
+	__type(value, u32);
+	__uint(max_entries, 1);
+} cpus_iterator SEC(".maps");
 
 /* Used by trace point */
-struct bpf_map_def SEC("maps") exception_cnt = {
-	.type		= BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size	= sizeof(u32),
-	.value_size	= sizeof(struct datarec),
-	.max_entries	= 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, u32);
+	__type(value, struct datarec);
+	__uint(max_entries, 1);
+} exception_cnt SEC(".maps");
 
 /* Helper parse functions */
 
@@ -692,13 +695,16 @@ int trace_xdp_cpumap_enqueue(struct cpumap_enqueue_ctx *ctx)
  * Code in:         kernel/include/trace/events/xdp.h
  */
 struct cpumap_kthread_ctx {
-	u64 __pad;		// First 8 bytes are not accessible by bpf code
-	int map_id;		//	offset:8;  size:4; signed:1;
-	u32 act;		//	offset:12; size:4; signed:0;
-	int cpu;		//	offset:16; size:4; signed:1;
-	unsigned int drops;	//	offset:20; size:4; signed:0;
-	unsigned int processed;	//	offset:24; size:4; signed:0;
-	int sched;		//	offset:28; size:4; signed:1;
+	u64 __pad;			// First 8 bytes are not accessible
+	int map_id;			//	offset:8;  size:4; signed:1;
+	u32 act;			//	offset:12; size:4; signed:0;
+	int cpu;			//	offset:16; size:4; signed:1;
+	unsigned int drops;		//	offset:20; size:4; signed:0;
+	unsigned int processed;		//	offset:24; size:4; signed:0;
+	int sched;			//	offset:28; size:4; signed:1;
+	unsigned int xdp_pass;		//	offset:32; size:4; signed:0;
+	unsigned int xdp_drop;		//	offset:36; size:4; signed:0;
+	unsigned int xdp_redirect;	//	offset:40; size:4; signed:0;
 };
 
 SEC("tracepoint/xdp/xdp_cpumap_kthread")
@@ -712,6 +718,9 @@ int trace_xdp_cpumap_kthread(struct cpumap_kthread_ctx *ctx)
 		return 0;
 	rec->processed += ctx->processed;
 	rec->dropped   += ctx->drops;
+	rec->xdp_pass  += ctx->xdp_pass;
+	rec->xdp_drop  += ctx->xdp_drop;
+	rec->xdp_redirect  += ctx->xdp_redirect;
 
 	/* Count times kthread yielded CPU via schedule call */
 	if (ctx->sched)

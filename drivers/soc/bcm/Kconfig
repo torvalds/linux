@@ -22,6 +22,15 @@ config RASPBERRYPI_POWER
 	  This enables support for the RPi power domains which can be enabled
 	  or disabled via the RPi firmware.
 
+config SOC_BCM63XX
+	bool "Broadcom 63xx SoC drivers"
+	depends on BMIPS_GENERIC || COMPILE_TEST
+	help
+	  Enables drivers for the Broadcom 63xx series of chips.
+	  Drivers can be enabled individually within this menu.
+
+	  If unsure, say N.
+
 config SOC_BRCMSTB
 	bool "Broadcom STB SoC drivers"
 	depends on ARM || ARM64 || BMIPS_GENERIC || COMPILE_TEST
@@ -33,6 +42,7 @@ config SOC_BRCMSTB
 
 	  If unsure, say N.
 
+source "drivers/soc/bcm/bcm63xx/Kconfig"
 source "drivers/soc/bcm/brcmstb/Kconfig"
 
 endmenu

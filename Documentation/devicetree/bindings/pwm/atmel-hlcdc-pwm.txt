@@ -10,7 +10,7 @@ Required properties:
  - pinctrl-0: should contain the pinctrl states described by pinctrl
    default.
  - #pwm-cells: should be set to 3. This PWM chip use the default 3 cells
-   bindings defined in pwm.txt in this directory.
+   bindings defined in pwm.yaml in this directory.
 
 Example:
 

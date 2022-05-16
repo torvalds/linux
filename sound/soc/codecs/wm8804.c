@@ -172,7 +172,7 @@ static int txsrc_put(struct snd_kcontrol *kcontrol,
 
 	if (snd_soc_component_test_bits(component, e->reg, mask, val)) {
 		/* save the current power state of the transmitter */
-		txpwr = snd_soc_component_read32(component, WM8804_PWRDN) & 0x4;
+		txpwr = snd_soc_component_read(component, WM8804_PWRDN) & 0x4;
 
 		/* power down the transmitter */
 		snd_soc_component_update_bits(component, WM8804_PWRDN, 0x4, 0x4);

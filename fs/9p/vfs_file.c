@@ -213,7 +213,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 		break;
 	default:
 		WARN_ONCE(1, "unknown lock status code: %d\n", status);
-		/* fall through */
+		fallthrough;
 	case P9_LOCK_ERROR:
 	case P9_LOCK_GRACE:
 		res = -ENOLCK;
@@ -388,7 +388,10 @@ v9fs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	p9_debug(P9_DEBUG_VFS, "count %zu offset %lld\n",
 		 iov_iter_count(to), iocb->ki_pos);
 
-	ret = p9_client_read(fid, iocb->ki_pos, to, &err);
+	if (iocb->ki_filp->f_flags & O_NONBLOCK)
+		ret = p9_client_read_once(fid, iocb->ki_pos, to, &err);
+	else
+		ret = p9_client_read(fid, iocb->ki_pos, to, &err);
 	if (!ret)
 		return err;
 
@@ -609,9 +612,9 @@ static void v9fs_mmap_vm_close(struct vm_area_struct *vma)
 	struct writeback_control wbc = {
 		.nr_to_write = LONG_MAX,
 		.sync_mode = WB_SYNC_ALL,
-		.range_start = vma->vm_pgoff * PAGE_SIZE,
+		.range_start = (loff_t)vma->vm_pgoff * PAGE_SIZE,
 		 /* absolute end, byte at end included */
-		.range_end = vma->vm_pgoff * PAGE_SIZE +
+		.range_end = (loff_t)vma->vm_pgoff * PAGE_SIZE +
 			(vma->vm_end - vma->vm_start - 1),
 	};
 
@@ -622,7 +625,7 @@ static void v9fs_mmap_vm_close(struct vm_area_struct *vma)
 
 	inode = file_inode(vma->vm_file);
 
-	if (!mapping_cap_writeback_dirty(inode->i_mapping))
+	if (!mapping_can_writeback(inode->i_mapping))
 		wbc.nr_to_write = 0;
 
 	might_sleep();
@@ -652,6 +655,8 @@ const struct file_operations v9fs_cached_file_operations = {
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
 	.mmap = v9fs_file_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync,
 };
 
@@ -664,6 +669,8 @@ const struct file_operations v9fs_cached_file_operations_dotl = {
 	.lock = v9fs_file_lock_dotl,
 	.flock = v9fs_file_flock_dotl,
 	.mmap = v9fs_file_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync_dotl,
 };
 
@@ -675,6 +682,8 @@ const struct file_operations v9fs_file_operations = {
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
 	.mmap = generic_file_readonly_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync,
 };
 
@@ -687,6 +696,8 @@ const struct file_operations v9fs_file_operations_dotl = {
 	.lock = v9fs_file_lock_dotl,
 	.flock = v9fs_file_flock_dotl,
 	.mmap = generic_file_readonly_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync_dotl,
 };
 
@@ -698,6 +709,8 @@ const struct file_operations v9fs_mmap_file_operations = {
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
 	.mmap = v9fs_mmap_file_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync,
 };
 
@@ -710,5 +723,7 @@ const struct file_operations v9fs_mmap_file_operations_dotl = {
 	.lock = v9fs_file_lock_dotl,
 	.flock = v9fs_file_flock_dotl,
 	.mmap = v9fs_mmap_file_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync_dotl,
 };

@@ -20,15 +20,18 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 	int ret;
 	u8 seq;
 
-	skb = mt76x02_mcu_msg_alloc(data, len);
+	if (dev->mcu_timeout)
+		return -EIO;
+
+	skb = mt76_mcu_msg_alloc(mdev, data, len);
 	if (!skb)
 		return -ENOMEM;
 
-	mutex_lock(&mdev->mmio.mcu.mutex);
+	mutex_lock(&mdev->mcu.mutex);
 
-	seq = ++mdev->mmio.mcu.msg_seq & 0xf;
+	seq = ++mdev->mcu.msg_seq & 0xf;
 	if (!seq)
-		seq = ++mdev->mmio.mcu.msg_seq & 0xf;
+		seq = ++mdev->mcu.msg_seq & 0xf;
 
 	tx_info = MT_MCU_MSG_TYPE_CMD |
 		  FIELD_PREP(MT_MCU_MSG_CMD_TYPE, cmd) |
@@ -65,7 +68,7 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 	}
 
 out:
-	mutex_unlock(&mdev->mmio.mcu.mutex);
+	mutex_unlock(&mdev->mcu.mutex);
 
 	return ret;
 }
@@ -114,7 +117,7 @@ int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type, u32 param)
 		.id = cpu_to_le32(type),
 		.value = cpu_to_le32(param),
 	};
-	bool is_mt76x2e = mt76_is_mmio(dev) && is_mt76x2(dev);
+	bool is_mt76x2e = mt76_is_mmio(&dev->mt76) && is_mt76x2(dev);
 	int ret;
 
 	if (is_mt76x2e)
@@ -141,7 +144,7 @@ int mt76x02_mcu_cleanup(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_MCU_INT_LEVEL, 1);
 	usleep_range(20000, 30000);
 
-	while ((skb = skb_dequeue(&dev->mt76.mmio.mcu.res_q)) != NULL)
+	while ((skb = skb_dequeue(&dev->mt76.mcu.res_q)) != NULL)
 		dev_kfree_skb(skb);
 
 	return 0;

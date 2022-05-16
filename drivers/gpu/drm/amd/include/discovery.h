@@ -25,7 +25,6 @@
 #define _DISCOVERY_H_
 
 #define PSP_HEADER_SIZE                 256
-#define BINARY_MAX_SIZE                 (64 << 10)
 #define BINARY_SIGNATURE                0x28211407
 #define DISCOVERY_TABLE_SIGNATURE       0x53445049
 

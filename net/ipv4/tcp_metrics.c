@@ -385,7 +385,8 @@ void tcp_update_metrics(struct sock *sk)
 
 	if (tcp_in_initial_slowstart(tp)) {
 		/* Slow start still did not finish. */
-		if (!tcp_metric_locked(tm, TCP_METRIC_SSTHRESH)) {
+		if (!net->ipv4.sysctl_tcp_no_ssthresh_metrics_save &&
+		    !tcp_metric_locked(tm, TCP_METRIC_SSTHRESH)) {
 			val = tcp_metric_get(tm, TCP_METRIC_SSTHRESH);
 			if (val && (tp->snd_cwnd >> 1) > val)
 				tcp_metric_set(tm, TCP_METRIC_SSTHRESH,
@@ -400,7 +401,8 @@ void tcp_update_metrics(struct sock *sk)
 	} else if (!tcp_in_slow_start(tp) &&
 		   icsk->icsk_ca_state == TCP_CA_Open) {
 		/* Cong. avoidance phase, cwnd is reliable. */
-		if (!tcp_metric_locked(tm, TCP_METRIC_SSTHRESH))
+		if (!net->ipv4.sysctl_tcp_no_ssthresh_metrics_save &&
+		    !tcp_metric_locked(tm, TCP_METRIC_SSTHRESH))
 			tcp_metric_set(tm, TCP_METRIC_SSTHRESH,
 				       max(tp->snd_cwnd >> 1, tp->snd_ssthresh));
 		if (!tcp_metric_locked(tm, TCP_METRIC_CWND)) {
@@ -416,7 +418,8 @@ void tcp_update_metrics(struct sock *sk)
 			tcp_metric_set(tm, TCP_METRIC_CWND,
 				       (val + tp->snd_ssthresh) >> 1);
 		}
-		if (!tcp_metric_locked(tm, TCP_METRIC_SSTHRESH)) {
+		if (!net->ipv4.sysctl_tcp_no_ssthresh_metrics_save &&
+		    !tcp_metric_locked(tm, TCP_METRIC_SSTHRESH)) {
 			val = tcp_metric_get(tm, TCP_METRIC_SSTHRESH);
 			if (val && tp->snd_ssthresh > val)
 				tcp_metric_set(tm, TCP_METRIC_SSTHRESH,
@@ -441,6 +444,7 @@ void tcp_init_metrics(struct sock *sk)
 {
 	struct dst_entry *dst = __sk_dst_get(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct net *net = sock_net(sk);
 	struct tcp_metrics_block *tm;
 	u32 val, crtt = 0; /* cached RTT scaled by 8 */
 
@@ -458,7 +462,8 @@ void tcp_init_metrics(struct sock *sk)
 	if (tcp_metric_locked(tm, TCP_METRIC_CWND))
 		tp->snd_cwnd_clamp = tcp_metric_get(tm, TCP_METRIC_CWND);
 
-	val = tcp_metric_get(tm, TCP_METRIC_SSTHRESH);
+	val = net->ipv4.sysctl_tcp_no_ssthresh_metrics_save ?
+	      0 : tcp_metric_get(tm, TCP_METRIC_SSTHRESH);
 	if (val) {
 		tp->snd_ssthresh = val;
 		if (tp->snd_ssthresh > tp->snd_cwnd_clamp)
@@ -938,7 +943,7 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-static const struct genl_ops tcp_metrics_nl_ops[] = {
+static const struct genl_small_ops tcp_metrics_nl_ops[] = {
 	{
 		.cmd = TCP_METRICS_CMD_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -961,8 +966,8 @@ static struct genl_family tcp_metrics_nl_family __ro_after_init = {
 	.policy = tcp_metrics_nl_policy,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
-	.ops		= tcp_metrics_nl_ops,
-	.n_ops		= ARRAY_SIZE(tcp_metrics_nl_ops),
+	.small_ops	= tcp_metrics_nl_ops,
+	.n_small_ops	= ARRAY_SIZE(tcp_metrics_nl_ops),
 };
 
 static unsigned int tcpmhash_entries;

@@ -14,6 +14,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "zx_drm_drv.h"
 #include "zx_vga_regs.h"
@@ -70,10 +71,6 @@ static void zx_vga_encoder_disable(struct drm_encoder *encoder)
 static const struct drm_encoder_helper_funcs zx_vga_encoder_helper_funcs = {
 	.enable	= zx_vga_encoder_enable,
 	.disable = zx_vga_encoder_disable,
-};
-
-static const struct drm_encoder_funcs zx_vga_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
 };
 
 static int zx_vga_connector_get_modes(struct drm_connector *connector)
@@ -154,23 +151,24 @@ static int zx_vga_register(struct drm_device *drm, struct zx_vga *vga)
 
 	encoder->possible_crtcs = VOU_CRTC_MASK;
 
-	ret = drm_encoder_init(drm, encoder, &zx_vga_encoder_funcs,
-			       DRM_MODE_ENCODER_DAC, NULL);
+	ret = drm_simple_encoder_init(drm, encoder, DRM_MODE_ENCODER_DAC);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to init encoder: %d\n", ret);
 		return ret;
-	};
+	}
 
 	drm_encoder_helper_add(encoder, &zx_vga_encoder_helper_funcs);
 
 	vga->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
-	ret = drm_connector_init(drm, connector, &zx_vga_connector_funcs,
-				 DRM_MODE_CONNECTOR_VGA);
+	ret = drm_connector_init_with_ddc(drm, connector,
+					  &zx_vga_connector_funcs,
+					  DRM_MODE_CONNECTOR_VGA,
+					  &vga->ddc->adap);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to init connector: %d\n", ret);
 		goto clean_encoder;
-	};
+	}
 
 	drm_connector_helper_add(connector, &zx_vga_connector_helper_funcs);
 
@@ -178,7 +176,7 @@ static int zx_vga_register(struct drm_device *drm, struct zx_vga *vga)
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to attach encoder: %d\n", ret);
 		goto clean_connector;
-	};
+	}
 
 	return 0;
 

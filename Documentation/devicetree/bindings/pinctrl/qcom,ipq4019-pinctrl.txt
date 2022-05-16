@@ -26,7 +26,7 @@ Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
 phrase "pin configuration node".
 
-The pin configuration nodes act as a container for an abitrary number of
+The pin configuration nodes act as a container for an arbitrary number of
 subnodes. Each of these subnodes represents some desired configuration for a
 pin, a group, or a list of pins or groups. This configuration can include the
 mux function to select on those pin(s)/group(s), and various pin configuration
@@ -44,7 +44,8 @@ information about e.g. the mux function.
 
 The following generic properties as defined in pinctrl-bindings.txt are valid
 to specify in a pin configuration subnode:
- pins, function, bias-disable, bias-pull-down, bias-pull-up, drive-strength.
+ pins, function, bias-disable, bias-pull-down, bias-pull-up, drive-open-drain,
+ drive-strength.
 
 Non-empty subnodes must specify the 'pins' property.
 Note that not all properties are valid for all pins.

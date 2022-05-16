@@ -47,7 +47,6 @@
 #include <asm/rtas.h>
 #include <asm/io.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <linux/uaccess.h>
 #include <asm/smp.h>
@@ -63,38 +62,48 @@
 
 #include <mm/mmu_decl.h>
 
-phys_addr_t memstart_addr = ~0;
-EXPORT_SYMBOL_GPL(memstart_addr);
-phys_addr_t kernstart_addr;
-EXPORT_SYMBOL_GPL(kernstart_addr);
-
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /*
- * Given an address within the vmemmap, determine the pfn of the page that
- * represents the start of the section it is within.  Note that we have to
+ * Given an address within the vmemmap, determine the page that
+ * represents the start of the subsection it is within.  Note that we have to
  * do this by hand as the proffered address may not be correctly aligned.
  * Subtraction of non-aligned pointers produces undefined results.
  */
-static unsigned long __meminit vmemmap_section_start(unsigned long page)
+static struct page * __meminit vmemmap_subsection_start(unsigned long vmemmap_addr)
 {
-	unsigned long offset = page - ((unsigned long)(vmemmap));
+	unsigned long start_pfn;
+	unsigned long offset = vmemmap_addr - ((unsigned long)(vmemmap));
 
 	/* Return the pfn of the start of the section. */
-	return (offset / sizeof(struct page)) & PAGE_SECTION_MASK;
+	start_pfn = (offset / sizeof(struct page)) & PAGE_SUBSECTION_MASK;
+	return pfn_to_page(start_pfn);
 }
 
 /*
- * Check if this vmemmap page is already initialised.  If any section
- * which overlaps this vmemmap page is initialised then this page is
- * initialised already.
+ * Since memory is added in sub-section chunks, before creating a new vmemmap
+ * mapping, the kernel should check whether there is an existing memmap mapping
+ * covering the new subsection added. This is needed because kernel can map
+ * vmemmap area using 16MB pages which will cover a memory range of 16G. Such
+ * a range covers multiple subsections (2M)
+ *
+ * If any subsection in the 16G range mapped by vmemmap is valid we consider the
+ * vmemmap populated (There is a page table entry already present). We can't do
+ * a page table lookup here because with the hash translation we don't keep
+ * vmemmap details in linux page table.
  */
-static int __meminit vmemmap_populated(unsigned long start, int page_size)
+static int __meminit vmemmap_populated(unsigned long vmemmap_addr, int vmemmap_map_size)
 {
-	unsigned long end = start + page_size;
-	start = (unsigned long)(pfn_to_page(vmemmap_section_start(start)));
+	struct page *start;
+	unsigned long vmemmap_end = vmemmap_addr + vmemmap_map_size;
+	start = vmemmap_subsection_start(vmemmap_addr);
 
-	for (; start < end; start += (PAGES_PER_SECTION * sizeof(struct page)))
-		if (pfn_valid(page_to_pfn((struct page *)start)))
+	for (; (unsigned long)start < vmemmap_end; start += PAGES_PER_SUBSECTION)
+		/*
+		 * pfn valid check here is intended to really check
+		 * whether we have any subsection already initialized
+		 * in this range.
+		 */
+		if (pfn_valid(page_to_pfn(start)))
 			return 1;
 
 	return 0;
@@ -153,16 +162,16 @@ static __meminit struct vmemmap_backing * vmemmap_list_alloc(int node)
 	return next++;
 }
 
-static __meminit void vmemmap_list_populate(unsigned long phys,
-					    unsigned long start,
-					    int node)
+static __meminit int vmemmap_list_populate(unsigned long phys,
+					   unsigned long start,
+					   int node)
 {
 	struct vmemmap_backing *vmem_back;
 
 	vmem_back = vmemmap_list_alloc(node);
 	if (unlikely(!vmem_back)) {
-		WARN_ON(1);
-		return;
+		pr_debug("vmemap list allocation failed\n");
+		return -ENOMEM;
 	}
 
 	vmem_back->phys = phys;
@@ -170,6 +179,7 @@ static __meminit void vmemmap_list_populate(unsigned long phys,
 	vmem_back->list = vmemmap_list;
 
 	vmemmap_list = vmem_back;
+	return 0;
 }
 
 static bool altmap_cross_boundary(struct vmem_altmap *altmap, unsigned long start,
@@ -190,10 +200,11 @@ static bool altmap_cross_boundary(struct vmem_altmap *altmap, unsigned long star
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		struct vmem_altmap *altmap)
 {
+	bool altmap_alloc;
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
 
 	/* Align to the page size of the linear mapping. */
-	start = _ALIGN_DOWN(start, page_size);
+	start = ALIGN_DOWN(start, page_size);
 
 	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
 
@@ -201,6 +212,12 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		void *p = NULL;
 		int rc;
 
+		/*
+		 * This vmemmap range is backing different subsections. If any
+		 * of that subsection is marked valid, that means we already
+		 * have initialized a page table covering this range and hence
+		 * the vmemmap range is populated.
+		 */
 		if (vmemmap_populated(start, page_size))
 			continue;
 
@@ -210,16 +227,35 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		 * fall back to system memory if the altmap allocation fail.
 		 */
 		if (altmap && !altmap_cross_boundary(altmap, start, page_size)) {
-			p = altmap_alloc_block_buf(page_size, altmap);
+			p = vmemmap_alloc_block_buf(page_size, node, altmap);
 			if (!p)
 				pr_debug("altmap block allocation failed, falling back to system memory");
+			else
+				altmap_alloc = true;
 		}
-		if (!p)
-			p = vmemmap_alloc_block_buf(page_size, node);
+		if (!p) {
+			p = vmemmap_alloc_block_buf(page_size, node, NULL);
+			altmap_alloc = false;
+		}
 		if (!p)
 			return -ENOMEM;
 
-		vmemmap_list_populate(__pa(p), start, node);
+		if (vmemmap_list_populate(__pa(p), start, node)) {
+			/*
+			 * If we don't populate vmemap list, we don't have
+			 * the ability to free the allocated vmemmap
+			 * pages in section_deactivate. Hence free them
+			 * here.
+			 */
+			int nr_pfns = page_size >> PAGE_SHIFT;
+			unsigned long page_order = get_order(page_size);
+
+			if (altmap_alloc)
+				vmem_altmap_free(altmap, nr_pfns);
+			else
+				free_pages((unsigned long)p, page_order);
+			return -ENOMEM;
+		}
 
 		pr_debug("      * %016lx..%016lx allocated at %p\n",
 			 start, start + page_size, p);
@@ -249,10 +285,8 @@ static unsigned long vmemmap_list_free(unsigned long start)
 		vmem_back_prev = vmem_back;
 	}
 
-	if (unlikely(!vmem_back)) {
-		WARN_ON(1);
+	if (unlikely(!vmem_back))
 		return 0;
-	}
 
 	/* remove it from vmemmap_list */
 	if (vmem_back == vmemmap_list) /* remove head */
@@ -276,7 +310,7 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
 	unsigned long alt_start = ~0, alt_end = ~0;
 	unsigned long base_pfn;
 
-	start = _ALIGN_DOWN(start, page_size);
+	start = ALIGN_DOWN(start, page_size);
 	if (altmap) {
 		alt_start = altmap->base_pfn;
 		alt_end = altmap->base_pfn + altmap->reserve +
@@ -290,9 +324,10 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
 		struct page *page;
 
 		/*
-		 * the section has already be marked as invalid, so
-		 * vmemmap_populated() true means some other sections still
-		 * in this page, so skip it.
+		 * We have already marked the subsection we are trying to remove
+		 * invalid. So if we want to remove the vmemmap range, we
+		 * need to make sure there is no subsection marked valid
+		 * in this range.
 		 */
 		if (vmemmap_populated(start, page_size))
 			continue;
@@ -390,13 +425,15 @@ static void __init early_check_vec5(void)
 		}
 		if (!(vec5[OV5_INDX(OV5_RADIX_GTSE)] &
 						OV5_FEAT(OV5_RADIX_GTSE))) {
-			pr_warn("WARNING: Hypervisor doesn't support RADIX with GTSE\n");
-		}
+			cur_cpu_spec->mmu_features &= ~MMU_FTR_GTSE;
+		} else
+			cur_cpu_spec->mmu_features |= MMU_FTR_GTSE;
 		/* Do radix anyway - the hypervisor said we had to */
 		cur_cpu_spec->mmu_features |= MMU_FTR_TYPE_RADIX;
 	} else if (mmu_supported == OV5_FEAT(OV5_MMU_HASH)) {
 		/* Hypervisor only supports hash - disable radix */
 		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+		cur_cpu_spec->mmu_features &= ~MMU_FTR_GTSE;
 	}
 }
 
@@ -415,9 +452,16 @@ void __init mmu_early_init_devtree(void)
 	if (!(mfmsr() & MSR_HV))
 		early_check_vec5();
 
-	if (early_radix_enabled())
+	if (early_radix_enabled()) {
 		radix__early_init_devtree();
-	else
+		/*
+		 * We have finalized the translation we are going to use by now.
+		 * Radix mode is not limited by RMA / VRMA addressing.
+		 * Hence don't limit memblock allocations.
+		 */
+		ppc64_rma_size = ULONG_MAX;
+		memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
+	} else
 		hash__early_init_devtree();
 }
 #endif /* CONFIG_PPC_BOOK3S_64 */

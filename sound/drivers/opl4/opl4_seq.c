@@ -100,7 +100,7 @@ static int snd_opl4_seq_unuse(void *private_data, struct snd_seq_port_subscribe 
 	return 0;
 }
 
-static struct snd_midi_op opl4_ops = {
+static const struct snd_midi_op opl4_ops = {
 	.note_on =		snd_opl4_note_on,
 	.note_off =		snd_opl4_note_off,
 	.note_terminate =	snd_opl4_terminate_note,

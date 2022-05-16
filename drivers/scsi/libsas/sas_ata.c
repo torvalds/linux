@@ -137,7 +137,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	} else {
 		ac = sas_to_ata_err(stat);
 		if (ac) {
-			pr_warn("%s: SAS error %x\n", __func__, stat->stat);
+			pr_warn("%s: SAS error 0x%x\n", __func__, stat->stat);
 			/* We saw a SAS error. Send a vague error. */
 			if (!link->sactive) {
 				qc->err_mask = ac;
@@ -160,6 +160,7 @@ qc_already_gone:
 }
 
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
+	__must_hold(ap->lock)
 {
 	struct sas_task *task;
 	struct scatterlist *sg;
@@ -208,7 +209,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		task->num_scatter = si;
 	}
 
-	task->data_dir = qc->dma_dir;
+	if (qc->tf.protocol == ATA_PROT_NODATA)
+		task->data_dir = DMA_NONE;
+	else
+		task->data_dir = qc->dma_dir;
 	task->scatter = qc->sg;
 	task->ata_task.retry_count = 1;
 	task->task_state_flags = SAS_TASK_STATE_PENDING;
@@ -323,7 +327,7 @@ static int smp_ata_check_ready(struct ata_link *link)
 	case SAS_END_DEVICE:
 		if (ex_phy->attached_sata_dev)
 			return sas_ata_clear_pending(dev, ex_phy);
-		/* fall through */
+		fallthrough;
 	default:
 		return -ENODEV;
 	}
@@ -506,10 +510,23 @@ void sas_ata_end_eh(struct ata_port *ap)
 	spin_unlock_irqrestore(&ha->lock, flags);
 }
 
+static int sas_ata_prereset(struct ata_link *link, unsigned long deadline)
+{
+	struct ata_port *ap = link->ap;
+	struct domain_device *dev = ap->private_data;
+	struct sas_phy *local_phy = sas_get_local_phy(dev);
+	int res = 0;
+
+	if (!local_phy->enabled || test_bit(SAS_DEV_GONE, &dev->state))
+		res = -ENOENT;
+	sas_put_local_phy(local_phy);
+
+	return res;
+}
+
 static struct ata_port_operations sas_sata_ops = {
-	.prereset		= ata_std_prereset,
+	.prereset		= sas_ata_prereset,
 	.hardreset		= sas_ata_hard_reset,
-	.postreset		= ata_std_postreset,
 	.error_handler		= ata_std_error_handler,
 	.post_internal_cmd	= sas_ata_post_internal,
 	.qc_defer               = ata_std_qc_defer,
@@ -709,19 +726,13 @@ void sas_resume_sata(struct asd_sas_port *port)
  */
 int sas_discover_sata(struct domain_device *dev)
 {
-	int res;
-
 	if (dev->dev_type == SAS_SATA_PM)
 		return -ENODEV;
 
 	dev->sata_dev.class = sas_get_ata_command_set(dev);
 	sas_fill_in_rphy(dev, dev->rphy);
 
-	res = sas_notify_lldd_dev_found(dev);
-	if (res)
-		return res;
-
-	return 0;
+	return sas_notify_lldd_dev_found(dev);
 }
 
 static void async_sas_ata_eh(void *data, async_cookie_t cookie)

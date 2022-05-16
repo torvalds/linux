@@ -75,10 +75,12 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 {
 	int oldval = 0, ret;
 
+	if (!access_ok(uaddr, sizeof(u32)))
+		return -EFAULT;
+
 #ifndef CONFIG_ARC_HAS_LLSC
 	preempt_disable();	/* to guarantee atomic r-m-w of futex op */
 #endif
-	pagefault_disable();
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -101,7 +103,6 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 		ret = -ENOSYS;
 	}
 
-	pagefault_enable();
 #ifndef CONFIG_ARC_HAS_LLSC
 	preempt_enable();
 #endif

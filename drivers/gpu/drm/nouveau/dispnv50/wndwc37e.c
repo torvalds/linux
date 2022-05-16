@@ -27,190 +27,267 @@
 #include <nouveau_bo.h>
 
 #include <nvif/clc37e.h>
+#include <nvif/pushc37b.h>
 
-static void
+#include <nvhw/class/clc37e.h>
+
+static int
 wndwc37e_csc_clr(struct nv50_wndw *wndw)
 {
+	return 0;
 }
 
-static void
+static int
 wndwc37e_csc_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push, i;
-	if ((push = evo_wait(&wndw->wndw, 13))) {
-		 evo_mthd(push, 0x02bc, 12);
-		 for (i = 0; i < 12; i++)
-			  evo_data(push, asyw->csc.matrix[i]);
-		 evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 13)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37E, SET_CSC_RED2RED, asyw->csc.matrix, 12);
+	return 0;
 }
 
-static void
+static int
 wndwc37e_ilut_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x02b8, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_INPUT_LUT, 0x00000000);
+	return 0;
 }
 
-static void
+static int
 wndwc37e_ilut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 4))) {
-		evo_mthd(push, 0x02b0, 3);
-		evo_data(push, asyw->xlut.i.output_mode << 8 |
-			       asyw->xlut.i.range << 4 |
-			       asyw->xlut.i.size);
-		evo_data(push, asyw->xlut.i.offset >> 8);
-		evo_data(push, asyw->xlut.handle);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37E, SET_CONTROL_INPUT_LUT,
+		  NVVAL(NVC37E, SET_CONTROL_INPUT_LUT, OUTPUT_MODE, asyw->xlut.i.output_mode) |
+		  NVVAL(NVC37E, SET_CONTROL_INPUT_LUT, RANGE, asyw->xlut.i.range) |
+		  NVVAL(NVC37E, SET_CONTROL_INPUT_LUT, SIZE, asyw->xlut.i.size),
+
+				SET_OFFSET_INPUT_LUT, asyw->xlut.i.offset >> 8,
+				SET_CONTEXT_DMA_INPUT_LUT, asyw->xlut.handle);
+	return 0;
 }
 
-static void
-wndwc37e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+static bool
+wndwc37e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 {
-	asyw->xlut.i.mode = 2;
-	asyw->xlut.i.size = 0;
-	asyw->xlut.i.range = 0;
-	asyw->xlut.i.output_mode = 1;
+	if (size != 256 && size != 1024)
+		return false;
+
+	asyw->xlut.i.size = size == 1024 ? NVC37E_SET_CONTROL_INPUT_LUT_SIZE_SIZE_1025 :
+					   NVC37E_SET_CONTROL_INPUT_LUT_SIZE_SIZE_257;
+	asyw->xlut.i.range = NVC37E_SET_CONTROL_INPUT_LUT_RANGE_UNITY;
+	asyw->xlut.i.output_mode = NVC37E_SET_CONTROL_INPUT_LUT_OUTPUT_MODE_INTERPOLATE;
 	asyw->xlut.i.load = head907d_olut_load;
+	return true;
 }
 
-void
+int
 wndwc37e_blend_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 8))) {
-		evo_mthd(push, 0x02ec, 7);
-		evo_data(push, asyw->blend.depth << 4);
-		evo_data(push, asyw->blend.k1);
-		evo_data(push, asyw->blend.dst_color << 12 |
-			       asyw->blend.dst_color << 8 |
-			       asyw->blend.src_color << 4 |
-			       asyw->blend.src_color);
-		evo_data(push, 0xffff0000);
-		evo_data(push, 0xffff0000);
-		evo_data(push, 0xffff0000);
-		evo_data(push, 0xffff0000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 8)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37E, SET_COMPOSITION_CONTROL,
+		  NVDEF(NVC37E, SET_COMPOSITION_CONTROL, COLOR_KEY_SELECT, DISABLE) |
+		  NVVAL(NVC37E, SET_COMPOSITION_CONTROL, DEPTH, asyw->blend.depth),
+
+				SET_COMPOSITION_CONSTANT_ALPHA,
+		  NVVAL(NVC37E, SET_COMPOSITION_CONSTANT_ALPHA, K1, asyw->blend.k1) |
+		  NVVAL(NVC37E, SET_COMPOSITION_CONSTANT_ALPHA, K2, 0),
+
+				SET_COMPOSITION_FACTOR_SELECT,
+		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, SRC_COLOR_FACTOR_MATCH_SELECT,
+							       asyw->blend.src_color) |
+		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, SRC_COLOR_FACTOR_NO_MATCH_SELECT,
+							       asyw->blend.src_color) |
+		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, DST_COLOR_FACTOR_MATCH_SELECT,
+							       asyw->blend.dst_color) |
+		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, DST_COLOR_FACTOR_NO_MATCH_SELECT,
+							       asyw->blend.dst_color),
+
+				SET_KEY_ALPHA,
+		  NVVAL(NVC37E, SET_KEY_ALPHA, MIN, 0x0000) |
+		  NVVAL(NVC37E, SET_KEY_ALPHA, MAX, 0xffff),
+
+				SET_KEY_RED_CR,
+		  NVVAL(NVC37E, SET_KEY_RED_CR, MIN, 0x0000) |
+		  NVVAL(NVC37E, SET_KEY_RED_CR, MAX, 0xffff),
+
+				SET_KEY_GREEN_Y,
+		  NVVAL(NVC37E, SET_KEY_GREEN_Y, MIN, 0x0000) |
+		  NVVAL(NVC37E, SET_KEY_GREEN_Y, MAX, 0xffff),
+
+				SET_KEY_BLUE_CB,
+		  NVVAL(NVC37E, SET_KEY_BLUE_CB, MIN, 0x0000) |
+		  NVVAL(NVC37E, SET_KEY_BLUE_CB, MAX, 0xffff));
+	return 0;
 }
 
-void
+int
 wndwc37e_image_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 4))) {
-		evo_mthd(push, 0x0308, 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x0240, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37E, SET_PRESENT_CONTROL,
+		  NVVAL(NVC37E, SET_PRESENT_CONTROL, MIN_PRESENT_INTERVAL, 0) |
+		  NVDEF(NVC37E, SET_PRESENT_CONTROL, BEGIN_MODE, NON_TEARING));
+
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_ISO(0), 0x00000000);
+	return 0;
 }
 
-static void
+static int
 wndwc37e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
 
-	if (!(push = evo_wait(&wndw->wndw, 17)))
-		return;
+	if ((ret = PUSH_WAIT(push, 17)))
+		return ret;
 
-	evo_mthd(push, 0x0308, 1);
-	evo_data(push, asyw->image.mode << 4 | asyw->image.interval);
-	evo_mthd(push, 0x0224, 4);
-	evo_data(push, asyw->image.h << 16 | asyw->image.w);
-	evo_data(push, asyw->image.layout << 4 | asyw->image.blockh);
-	evo_data(push, asyw->csc.valid << 17 |
-		       asyw->image.colorspace << 8 |
-		       asyw->image.format);
-	evo_data(push, asyw->image.blocks[0] | (asyw->image.pitch[0] >> 6));
-	evo_mthd(push, 0x0240, 1);
-	evo_data(push, asyw->image.handle[0]);
-	evo_mthd(push, 0x0260, 1);
-	evo_data(push, asyw->image.offset[0] >> 8);
-	evo_mthd(push, 0x0290, 1);
-	evo_data(push, (asyw->state.src_y >> 16) << 16 |
-		       (asyw->state.src_x >> 16));
-	evo_mthd(push, 0x0298, 1);
-	evo_data(push, (asyw->state.src_h >> 16) << 16 |
-		       (asyw->state.src_w >> 16));
-	evo_mthd(push, 0x02a4, 1);
-	evo_data(push, asyw->state.crtc_h << 16 |
-		       asyw->state.crtc_w);
-	evo_kick(push, &wndw->wndw);
+	PUSH_MTHD(push, NVC37E, SET_PRESENT_CONTROL,
+		  NVVAL(NVC37E, SET_PRESENT_CONTROL, MIN_PRESENT_INTERVAL, asyw->image.interval) |
+		  NVVAL(NVC37E, SET_PRESENT_CONTROL, BEGIN_MODE, asyw->image.mode) |
+		  NVDEF(NVC37E, SET_PRESENT_CONTROL, TIMESTAMP_MODE, DISABLE));
+
+	PUSH_MTHD(push, NVC37E, SET_SIZE,
+		  NVVAL(NVC37E, SET_SIZE, WIDTH, asyw->image.w) |
+		  NVVAL(NVC37E, SET_SIZE, HEIGHT, asyw->image.h),
+
+				SET_STORAGE,
+		  NVVAL(NVC37E, SET_STORAGE, BLOCK_HEIGHT, asyw->image.blockh) |
+		  NVVAL(NVC37E, SET_STORAGE, MEMORY_LAYOUT, asyw->image.layout),
+
+				SET_PARAMS,
+		  NVVAL(NVC37E, SET_PARAMS, FORMAT, asyw->image.format) |
+		  NVVAL(NVC37E, SET_PARAMS, COLOR_SPACE, asyw->image.colorspace) |
+		  NVDEF(NVC37E, SET_PARAMS, INPUT_RANGE, BYPASS) |
+		  NVDEF(NVC37E, SET_PARAMS, UNDERREPLICATE, DISABLE) |
+		  NVDEF(NVC37E, SET_PARAMS, DE_GAMMA, NONE) |
+		  NVVAL(NVC37E, SET_PARAMS, CSC, asyw->csc.valid) |
+		  NVDEF(NVC37E, SET_PARAMS, CLAMP_BEFORE_BLEND, DISABLE) |
+		  NVDEF(NVC37E, SET_PARAMS, SWAP_UV, DISABLE),
+
+				SET_PLANAR_STORAGE(0),
+		  NVVAL(NVC37E, SET_PLANAR_STORAGE, PITCH, asyw->image.blocks[0]) |
+		  NVVAL(NVC37E, SET_PLANAR_STORAGE, PITCH, asyw->image.pitch[0] >> 6));
+
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_ISO(0), asyw->image.handle, 1);
+	PUSH_MTHD(push, NVC37E, SET_OFFSET(0), asyw->image.offset[0] >> 8);
+
+	PUSH_MTHD(push, NVC37E, SET_POINT_IN(0),
+		  NVVAL(NVC37E, SET_POINT_IN, X, asyw->state.src_x >> 16) |
+		  NVVAL(NVC37E, SET_POINT_IN, Y, asyw->state.src_y >> 16));
+
+	PUSH_MTHD(push, NVC37E, SET_SIZE_IN,
+		  NVVAL(NVC37E, SET_SIZE_IN, WIDTH, asyw->state.src_w >> 16) |
+		  NVVAL(NVC37E, SET_SIZE_IN, HEIGHT, asyw->state.src_h >> 16));
+
+	PUSH_MTHD(push, NVC37E, SET_SIZE_OUT,
+		  NVVAL(NVC37E, SET_SIZE_OUT, WIDTH, asyw->state.crtc_w) |
+		  NVVAL(NVC37E, SET_SIZE_OUT, HEIGHT, asyw->state.crtc_h));
+	return 0;
 }
 
-void
+int
 wndwc37e_ntfy_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x021c, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_NOTIFIER, 0x00000000);
+	return 0;
 }
 
-void
+int
 wndwc37e_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 3))) {
-		evo_mthd(push, 0x021c, 2);
-		evo_data(push, asyw->ntfy.handle);
-		evo_data(push, asyw->ntfy.offset | asyw->ntfy.awaken);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 3)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_NOTIFIER, asyw->ntfy.handle,
+
+				SET_NOTIFIER_CONTROL,
+		  NVVAL(NVC37E, SET_NOTIFIER_CONTROL, MODE, asyw->ntfy.awaken) |
+		  NVVAL(NVC37E, SET_NOTIFIER_CONTROL, OFFSET, asyw->ntfy.offset >> 4));
+	return 0;
 }
 
-void
+int
 wndwc37e_sema_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x0218, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_SEMAPHORE, 0x00000000);
+	return 0;
 }
 
-void
+int
 wndwc37e_sema_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 5))) {
-		evo_mthd(push, 0x020c, 4);
-		evo_data(push, asyw->sema.offset);
-		evo_data(push, asyw->sema.acquire);
-		evo_data(push, asyw->sema.release);
-		evo_data(push, asyw->sema.handle);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37E, SET_SEMAPHORE_CONTROL, asyw->sema.offset,
+				SET_SEMAPHORE_ACQUIRE, asyw->sema.acquire,
+				SET_SEMAPHORE_RELEASE, asyw->sema.release,
+				SET_CONTEXT_DMA_SEMAPHORE, asyw->sema.handle);
+	return 0;
 }
 
-void
+int
 wndwc37e_update(struct nv50_wndw *wndw, u32 *interlock)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 5))) {
-		evo_mthd(push, 0x0370, 2);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_CURS] << 1 |
-			       interlock[NV50_DISP_INTERLOCK_CORE]);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_WNDW]);
-		evo_mthd(push, 0x0200, 1);
-		if (interlock[NV50_DISP_INTERLOCK_WIMM] & wndw->interlock.data)
-			evo_data(push, 0x00001001);
-		else
-			evo_data(push, 0x00000001);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	PUSH_MTHD(push, NVC37E, SET_INTERLOCK_FLAGS, interlock[NV50_DISP_INTERLOCK_CURS] << 1 |
+						     interlock[NV50_DISP_INTERLOCK_CORE],
+				SET_WINDOW_INTERLOCK_FLAGS, interlock[NV50_DISP_INTERLOCK_WNDW]);
+
+	PUSH_MTHD(push, NVC37E, UPDATE, 0x00000001 |
+		  NVVAL(NVC37E, UPDATE, INTERLOCK_WITH_WIN_IMM,
+			  !!(interlock[NV50_DISP_INTERLOCK_WIMM] & wndw->interlock.data)));
+
+	return PUSH_KICK(push);
 }
 
 void
@@ -261,6 +338,7 @@ wndwc37e = {
 	.ntfy_reset = corec37d_ntfy_init,
 	.ntfy_wait_begun = base507c_ntfy_wait_begun,
 	.ilut = wndwc37e_ilut,
+	.ilut_size = 1024,
 	.xlut_set = wndwc37e_ilut_set,
 	.xlut_clr = wndwc37e_ilut_clr,
 	.csc = base907c_csc,
@@ -293,7 +371,7 @@ wndwc37e_new_(const struct nv50_wndw_func *func, struct nouveau_drm *drm,
 
 	ret = nv50_dmac_create(&drm->client.device, &disp->disp->object,
 			       &oclass, 0, &args, sizeof(args),
-			       disp->sync->bo.offset, &wndw->wndw);
+			       disp->sync->offset, &wndw->wndw);
 	if (ret) {
 		NV_ERROR(drm, "qndw%04x allocation failed: %d\n", oclass, ret);
 		return ret;

@@ -5,7 +5,7 @@
  * (for nl80211's connect() and wext)
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2009   Intel Corporation. All rights reserved.
+ * Copyright (C) 2009, 2020 Intel Corporation. All rights reserved.
  * Copyright 2017	Intel Deutschland GmbH
  */
 
@@ -24,7 +24,7 @@
 
 /*
  * Software SME in cfg80211, using auth/assoc/deauth calls to the
- * driver. This is is for implementing nl80211's connect/disconnect
+ * driver. This is for implementing nl80211's connect/disconnect
  * and wireless extensions (if configured.)
  */
 
@@ -205,7 +205,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 		return err;
 	case CFG80211_CONN_ASSOC_FAILED_TIMEOUT:
 		*treason = NL80211_TIMEOUT_ASSOC;
-		/* fall through */
+		fallthrough;
 	case CFG80211_CONN_ASSOC_FAILED:
 		cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 				     NULL, 0,
@@ -215,7 +215,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 		cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 				     NULL, 0,
 				     WLAN_REASON_DEAUTH_LEAVING, false);
-		/* fall through */
+		fallthrough;
 	case CFG80211_CONN_ABANDON:
 		/* free directly, disconnected event already sent */
 		cfg80211_sme_free(wdev);
@@ -694,6 +694,7 @@ void __cfg80211_connect_result(struct net_device *dev,
 		return;
 	}
 
+	wdev->unprot_beacon_reported = 0;
 	nl80211_send_connect_result(wiphy_to_rdev(wdev->wiphy), dev, cr,
 				    GFP_KERNEL);
 
@@ -741,7 +742,7 @@ void __cfg80211_connect_result(struct net_device *dev,
 	}
 
 	if (cr->status != WLAN_STATUS_SUCCESS) {
-		kzfree(wdev->connect_keys);
+		kfree_sensitive(wdev->connect_keys);
 		wdev->connect_keys = NULL;
 		wdev->ssid_len = 0;
 		wdev->conn_owner_nlportid = 0;
@@ -921,6 +922,7 @@ void __cfg80211_roamed(struct wireless_dev *wdev,
 	cfg80211_hold_bss(bss_from_pub(info->bss));
 	wdev->current_bss = bss_from_pub(info->bss);
 
+	wdev->unprot_beacon_reported = 0;
 	nl80211_send_roamed(wiphy_to_rdev(wdev->wiphy),
 			    wdev->netdev, info, GFP_KERNEL);
 
@@ -1096,7 +1098,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 	wdev->current_bss = NULL;
 	wdev->ssid_len = 0;
 	wdev->conn_owner_nlportid = 0;
-	kzfree(wdev->connect_keys);
+	kfree_sensitive(wdev->connect_keys);
 	wdev->connect_keys = NULL;
 
 	nl80211_send_disconnected(rdev, dev, reason, ie, ie_len, from_ap);
@@ -1111,9 +1113,19 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 	 * Delete all the keys ... pairwise keys can't really
 	 * exist any more anyway, but default keys might.
 	 */
-	if (rdev->ops->del_key)
-		for (i = 0; i < 6; i++)
+	if (rdev->ops->del_key) {
+		int max_key_idx = 5;
+
+		if (wiphy_ext_feature_isset(
+			    wdev->wiphy,
+			    NL80211_EXT_FEATURE_BEACON_PROTECTION) ||
+		    wiphy_ext_feature_isset(
+			    wdev->wiphy,
+			    NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT))
+			max_key_idx = 7;
+		for (i = 0; i <= max_key_idx; i++)
 			rdev_del_key(rdev, dev, i, false, NULL);
+	}
 
 	rdev_set_qos_map(rdev, dev, NULL);
 
@@ -1269,7 +1281,7 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	kzfree(wdev->connect_keys);
+	kfree_sensitive(wdev->connect_keys);
 	wdev->connect_keys = NULL;
 
 	wdev->conn_owner_nlportid = 0;
@@ -1307,14 +1319,14 @@ void cfg80211_autodisconnect_wk(struct work_struct *work)
 	if (wdev->conn_owner_nlportid) {
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_ADHOC:
-			cfg80211_leave_ibss(rdev, wdev->netdev, false);
+			__cfg80211_leave_ibss(rdev, wdev->netdev, false);
 			break;
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_P2P_GO:
-			cfg80211_stop_ap(rdev, wdev->netdev, false);
+			__cfg80211_stop_ap(rdev, wdev->netdev, false);
 			break;
 		case NL80211_IFTYPE_MESH_POINT:
-			cfg80211_leave_mesh(rdev, wdev->netdev);
+			__cfg80211_leave_mesh(rdev, wdev->netdev);
 			break;
 		case NL80211_IFTYPE_STATION:
 		case NL80211_IFTYPE_P2P_CLIENT:

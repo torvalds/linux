@@ -163,7 +163,7 @@ static void __deflate_exit(void *ctx)
 static void deflate_free_ctx(struct crypto_scomp *tfm, void *ctx)
 {
 	__deflate_exit(ctx);
-	kzfree(ctx);
+	kfree_sensitive(ctx);
 }
 
 static void deflate_exit(struct crypto_tfm *tfm)

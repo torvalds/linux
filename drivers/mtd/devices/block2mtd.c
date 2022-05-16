@@ -44,7 +44,7 @@ struct block2mtd_dev {
 static LIST_HEAD(blkmtd_device_list);
 
 
-static struct page *page_read(struct address_space *mapping, int index)
+static struct page *page_read(struct address_space *mapping, pgoff_t index)
 {
 	return read_mapping_page(mapping, index, NULL);
 }
@@ -54,7 +54,7 @@ static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)
 {
 	struct address_space *mapping = dev->blkdev->bd_inode->i_mapping;
 	struct page *page;
-	int index = to >> PAGE_SHIFT;	// page index
+	pgoff_t index = to >> PAGE_SHIFT;	// page index
 	int pages = len >> PAGE_SHIFT;
 	u_long *p;
 	u_long *max;
@@ -103,7 +103,7 @@ static int block2mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	struct block2mtd_dev *dev = mtd->priv;
 	struct page *page;
-	int index = from >> PAGE_SHIFT;
+	pgoff_t index = from >> PAGE_SHIFT;
 	int offset = from & (PAGE_SIZE-1);
 	int cpylen;
 
@@ -137,7 +137,7 @@ static int _block2mtd_write(struct block2mtd_dev *dev, const u_char *buf,
 {
 	struct page *page;
 	struct address_space *mapping = dev->blkdev->bd_inode->i_mapping;
-	int index = to >> PAGE_SHIFT;	// page index
+	pgoff_t index = to >> PAGE_SHIFT;	// page index
 	int offset = to & ~PAGE_MASK;	// page offset
 	int cpylen;
 
@@ -329,10 +329,10 @@ static int ustrtoul(const char *cp, char **endp, unsigned int base)
 	switch (**endp) {
 	case 'G' :
 		result *= 1024;
-		/* fall through */
+		fallthrough;
 	case 'M':
 		result *= 1024;
-		/* fall through */
+		fallthrough;
 	case 'K':
 	case 'k':
 		result *= 1024;

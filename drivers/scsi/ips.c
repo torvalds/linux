@@ -498,7 +498,7 @@ ips_setup(char *ips_str)
 	int i;
 	char *key;
 	char *value;
-	IPS_OPTION options[] = {
+	static const IPS_OPTION options[] = {
 		{"noi2o", &ips_force_i2o, 0},
 		{"nommap", &ips_force_memio, 0},
 		{"ioctlsize", &ips_ioctlsize, IPS_IOCTL_SIZE},
@@ -2239,7 +2239,7 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 	major = 0;
 	minor = 0;
 
-	strncpy(ha->bios_version, "       ?", 8);
+	memcpy(ha->bios_version, "       ?", 8);
 
 	if (ha->pcidev->device == IPS_DEVICEID_COPPERHEAD) {
 		if (IPS_USE_MEMIO(ha)) {
@@ -3515,11 +3515,11 @@ ips_send_cmd(ips_ha_t * ha, ips_scb_t * scb)
 					inquiry.Flags[1] =
 					    IPS_SCSI_INQ_WBus16 |
 					    IPS_SCSI_INQ_Sync;
-					strncpy(inquiry.VendorId, "IBM     ",
+					memcpy(inquiry.VendorId, "IBM     ",
 						8);
-					strncpy(inquiry.ProductId,
+					memcpy(inquiry.ProductId,
 						"SERVERAID       ", 16);
-					strncpy(inquiry.ProductRevisionLevel,
+					memcpy(inquiry.ProductRevisionLevel,
 						"1.00", 4);
 
 					ips_scmd_buf_write(scb->scsi_cmd,
@@ -4036,9 +4036,9 @@ ips_inquiry(ips_ha_t * ha, ips_scb_t * scb)
 	inquiry.Flags[0] = IPS_SCSI_INQ_Address16;
 	inquiry.Flags[1] =
 	    IPS_SCSI_INQ_WBus16 | IPS_SCSI_INQ_Sync | IPS_SCSI_INQ_CmdQue;
-	strncpy(inquiry.VendorId, "IBM     ", 8);
-	strncpy(inquiry.ProductId, "SERVERAID       ", 16);
-	strncpy(inquiry.ProductRevisionLevel, "1.00", 4);
+	memcpy(inquiry.VendorId, "IBM     ", 8);
+	memcpy(inquiry.ProductId, "SERVERAID       ", 16);
+	memcpy(inquiry.ProductRevisionLevel, "1.00", 4);
 
 	ips_scmd_buf_write(scb->scsi_cmd, &inquiry, sizeof (inquiry));
 
@@ -4697,7 +4697,6 @@ ips_init_copperhead(ips_ha_t * ha)
 	uint8_t Isr;
 	uint8_t Cbsp;
 	uint8_t PostByte[IPS_MAX_POST_BYTES];
-	uint8_t ConfigByte[IPS_MAX_CONFIG_BYTES];
 	int i, j;
 
 	METHOD_TRACE("ips_init_copperhead", 1);
@@ -4742,7 +4741,7 @@ ips_init_copperhead(ips_ha_t * ha)
 			/* error occurred */
 			return (0);
 
-		ConfigByte[i] = inb(ha->io_addr + IPS_REG_ISPR);
+		inb(ha->io_addr + IPS_REG_ISPR);
 		outb(Isr, ha->io_addr + IPS_REG_HISR);
 	}
 
@@ -4791,7 +4790,6 @@ ips_init_copperhead_memio(ips_ha_t * ha)
 	uint8_t Isr = 0;
 	uint8_t Cbsp;
 	uint8_t PostByte[IPS_MAX_POST_BYTES];
-	uint8_t ConfigByte[IPS_MAX_CONFIG_BYTES];
 	int i, j;
 
 	METHOD_TRACE("ips_init_copperhead_memio", 1);
@@ -4836,7 +4834,7 @@ ips_init_copperhead_memio(ips_ha_t * ha)
 			/* error occurred */
 			return (0);
 
-		ConfigByte[i] = readb(ha->mem_ptr + IPS_REG_ISPR);
+		readb(ha->mem_ptr + IPS_REG_ISPR);
 		writeb(Isr, ha->mem_ptr + IPS_REG_HISR);
 	}
 
@@ -5622,10 +5620,10 @@ ips_write_driver_status(ips_ha_t * ha, int intr)
 	/* change values (as needed) */
 	ha->nvram->operating_system = IPS_OS_LINUX;
 	ha->nvram->adapter_type = ha->ad_type;
-	strncpy((char *) ha->nvram->driver_high, IPS_VERSION_HIGH, 4);
-	strncpy((char *) ha->nvram->driver_low, IPS_VERSION_LOW, 4);
-	strncpy((char *) ha->nvram->bios_high, ha->bios_version, 4);
-	strncpy((char *) ha->nvram->bios_low, ha->bios_version + 4, 4);
+	memcpy((char *) ha->nvram->driver_high, IPS_VERSION_HIGH, 4);
+	memcpy((char *) ha->nvram->driver_low, IPS_VERSION_LOW, 4);
+	memcpy((char *) ha->nvram->bios_high, ha->bios_version, 4);
+	memcpy((char *) ha->nvram->bios_low, ha->bios_version + 4, 4);
 
 	ha->nvram->versioning = 0;	/* Indicate the Driver Does Not Support Versioning */
 
@@ -6835,8 +6833,6 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	uint32_t mem_addr;
 	uint32_t io_len;
 	uint32_t mem_len;
-	uint8_t bus;
-	uint8_t func;
 	int j;
 	int index;
 	dma_addr_t dma_address;
@@ -6855,10 +6851,6 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 
 	if (index >= IPS_MAX_ADAPTERS)
 		return -1;
-
-	/* stuff that we get in dev */
-	bus = pci_dev->bus->number;
-	func = pci_dev->devfn;
 
 	/* Init MEM/IO addresses to 0 */
 	mem_addr = 0;

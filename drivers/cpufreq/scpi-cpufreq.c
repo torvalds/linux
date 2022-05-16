@@ -1,8 +1,6 @@
 /*
  * System Control and Power Interface (SCPI) based CPUFreq Interface driver
  *
- * It provides necessary ops to arm_big_little cpufreq driver.
- *
  * Copyright (C) 2015 ARM Ltd.
  * Sudeep Holla <sudeep.holla@arm.com>
  *
@@ -49,9 +47,8 @@ static unsigned int scpi_cpufreq_get_rate(unsigned int cpu)
 static int
 scpi_cpufreq_set_target(struct cpufreq_policy *policy, unsigned int index)
 {
-	unsigned long freq = policy->freq_table[index].frequency;
+	u64 rate = policy->freq_table[index].frequency * 1000;
 	struct scpi_data *priv = policy->driver_data;
-	u64 rate = freq * 1000;
 	int ret;
 
 	ret = clk_set_rate(priv->clk, rate);
@@ -61,9 +58,6 @@ scpi_cpufreq_set_target(struct cpufreq_policy *policy, unsigned int index)
 
 	if (clk_get_rate(priv->clk) != rate)
 		return -EIO;
-
-	arch_set_freq_scale(policy->related_cpus, freq,
-			    policy->cpuinfo.max_freq);
 
 	return 0;
 }
@@ -169,7 +163,7 @@ static int scpi_cpufreq_init(struct cpufreq_policy *policy)
 
 	policy->fast_switch_possible = false;
 
-	dev_pm_opp_of_register_em(policy->cpus);
+	dev_pm_opp_of_register_em(cpu_dev, policy->cpus);
 
 	return 0;
 

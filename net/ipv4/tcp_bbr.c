@@ -306,7 +306,8 @@ static u32 bbr_tso_segs_goal(struct sock *sk)
 	/* Sort of tcp_tso_autosize() but ignoring
 	 * driver provided sk_gso_max_size.
 	 */
-	bytes = min_t(unsigned long, sk->sk_pacing_rate >> sk->sk_pacing_shift,
+	bytes = min_t(unsigned long,
+		      sk->sk_pacing_rate >> READ_ONCE(sk->sk_pacing_shift),
 		      GSO_MAX_SIZE - 1 - MAX_TCP_HEADER);
 	segs = max_t(u32, bytes / tp->mss_cache, bbr_min_tso_segs(sk));
 
@@ -778,8 +779,7 @@ static void bbr_update_bw(struct sock *sk, const struct rate_sample *rs)
 	 * bandwidth sample. Delivered is in packets and interval_us in uS and
 	 * ratio will be <<1 for most connections. So delivered is first scaled.
 	 */
-	bw = (u64)rs->delivered * BW_UNIT;
-	do_div(bw, rs->interval_us);
+	bw = div64_long((u64)rs->delivered * BW_UNIT, rs->interval_us);
 
 	/* If this sample is application-limited, it is likely to have a very
 	 * low delivered count that represents application behavior rather than
@@ -945,7 +945,7 @@ static void bbr_update_min_rtt(struct sock *sk, const struct rate_sample *rs)
 	filter_expired = after(tcp_jiffies32,
 			       bbr->min_rtt_stamp + bbr_min_rtt_win_sec * HZ);
 	if (rs->rtt_us >= 0 &&
-	    (rs->rtt_us <= bbr->min_rtt_us ||
+	    (rs->rtt_us < bbr->min_rtt_us ||
 	     (filter_expired && !rs->is_ack_delayed))) {
 		bbr->min_rtt_us = rs->rtt_us;
 		bbr->min_rtt_stamp = tcp_jiffies32;

@@ -5,7 +5,8 @@
  * Copyright (c) 2007 Freescale Semiconductor, Inc.
  * Copyright (c) 2009 MontaVista Software, Inc.
  * Copyright (c) 2010 Pengutronix e.K.
- *   Author: Wolfram Sang <w.sang@pengutronix.de>
+ * Copyright 2020 NXP
+ *   Author: Wolfram Sang <kernel@pengutronix.de>
  */
 
 #ifndef _DRIVERS_MMC_SDHCI_ESDHC_H
@@ -31,6 +32,7 @@
 
 /* Present State Register */
 #define ESDHC_PRSSTAT			0x24
+#define ESDHC_CLOCK_GATE_OFF		0x00000080
 #define ESDHC_CLOCK_STABLE		0x00000008
 
 /* Protocol Control Register */
@@ -51,6 +53,11 @@
 #define ESDHC_CLOCK_HCKEN		0x00000002
 #define ESDHC_CLOCK_IPGEN		0x00000001
 
+/* System Control 2 Register */
+#define ESDHC_SYSTEM_CONTROL_2		0x3c
+#define ESDHC_SMPCLKSEL			0x00800000
+#define ESDHC_EXTN			0x00400000
+
 /* Host Controller Capabilities Register 2 */
 #define ESDHC_CAPABILITIES_1		0x114
 
@@ -59,7 +66,16 @@
 #define ESDHC_HS400_WNDW_ADJUST		0x00000040
 #define ESDHC_HS400_MODE		0x00000010
 #define ESDHC_TB_EN			0x00000004
+#define ESDHC_TB_MODE_MASK		0x00000003
+#define ESDHC_TB_MODE_SW		0x00000003
+#define ESDHC_TB_MODE_3			0x00000002
+
+#define ESDHC_TBSTAT			0x124
+
 #define ESDHC_TBPTR			0x128
+#define ESDHC_WNDW_STRT_PTR_SHIFT	8
+#define ESDHC_WNDW_STRT_PTR_MASK	(0x7f << 8)
+#define ESDHC_WNDW_END_PTR_MASK		0x7f
 
 /* SD Clock Control Register */
 #define ESDHC_SDCLKCTL			0x144
@@ -73,6 +89,7 @@
 /* DLL Config 0 Register */
 #define ESDHC_DLLCFG0			0x160
 #define ESDHC_DLL_ENABLE		0x80000000
+#define ESDHC_DLL_RESET			0x40000000
 #define ESDHC_DLL_FREQ_SEL		0x08000000
 
 /* DLL Config 1 Register */

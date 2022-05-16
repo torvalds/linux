@@ -515,7 +515,6 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 	init_completion(&info->completion);
 
 	indio_dev->name = dev_name(dev);
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &imx7d_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = imx7d_adc_iio_channels;

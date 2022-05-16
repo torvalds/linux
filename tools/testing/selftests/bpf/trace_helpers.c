@@ -4,11 +4,14 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
 #include <linux/perf_event.h>
 #include <sys/mman.h>
 #include "trace_helpers.h"
+
+#define DEBUGFS "/sys/kernel/debug/tracing/"
 
 #define MAX_SYMS 300000
 static struct ksym syms[MAX_SYMS];
@@ -85,4 +88,51 @@ long ksym_get_addr(const char *name)
 	}
 
 	return 0;
+}
+
+/* open kallsyms and read symbol addresses on the fly. Without caching all symbols,
+ * this is faster than load + find.
+ */
+int kallsyms_find(const char *sym, unsigned long long *addr)
+{
+	char type, name[500];
+	unsigned long long value;
+	int err = 0;
+	FILE *f;
+
+	f = fopen("/proc/kallsyms", "r");
+	if (!f)
+		return -EINVAL;
+
+	while (fscanf(f, "%llx %c %499s%*[^\n]\n", &value, &type, name) > 0) {
+		if (strcmp(name, sym) == 0) {
+			*addr = value;
+			goto out;
+		}
+	}
+	err = -ENOENT;
+
+out:
+	fclose(f);
+	return err;
+}
+
+void read_trace_pipe(void)
+{
+	int trace_fd;
+
+	trace_fd = open(DEBUGFS "trace_pipe", O_RDONLY, 0);
+	if (trace_fd < 0)
+		return;
+
+	while (1) {
+		static char buf[4096];
+		ssize_t sz;
+
+		sz = read(trace_fd, buf, sizeof(buf) - 1);
+		if (sz > 0) {
+			buf[sz] = 0;
+			puts(buf);
+		}
+	}
 }

@@ -20,7 +20,7 @@ properties:
   compatible:
     items:
       - enum:
-        - arm,armv7-timer-mem
+          - arm,armv7-timer-mem
 
   reg:
     maxItems: 1
@@ -31,6 +31,8 @@ properties:
 
   '#size-cells':
     const: 1
+
+  ranges: true
 
   clock-frequency:
     description: The frequency of the main counter, in Hz. Should be present
@@ -63,10 +65,9 @@ patternProperties:
     description: A timer node has up to 8 frame sub-nodes, each with the following properties.
     properties:
       frame-number:
-        allOf:
-          - $ref: "/schemas/types.yaml#/definitions/uint32"
-          - minimum: 0
-            maximum: 7
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+        minimum: 0
+        maximum: 7
 
       interrupts:
         minItems: 1
@@ -75,7 +76,7 @@ patternProperties:
           - description: physical timer irq
           - description: virtual timer irq
 
-      reg :
+      reg:
         minItems: 1
         maxItems: 2
         items:
@@ -93,28 +94,30 @@ required:
   - '#address-cells'
   - '#size-cells'
 
+additionalProperties: false
+
 examples:
   - |
     timer@f0000000 {
       compatible = "arm,armv7-timer-mem";
       #address-cells = <1>;
       #size-cells = <1>;
-      ranges;
+      ranges = <0 0xf0001000 0x1000>;
       reg = <0xf0000000 0x1000>;
       clock-frequency = <50000000>;
 
-      frame@f0001000 {
+      frame@0 {
         frame-number = <0>;
         interrupts = <0 13 0x8>,
                <0 14 0x8>;
-        reg = <0xf0001000 0x1000>,
-              <0xf0002000 0x1000>;
+        reg = <0x0000 0x1000>,
+              <0x1000 0x1000>;
       };
 
-      frame@f0003000 {
+      frame@2000 {
         frame-number = <1>;
         interrupts = <0 15 0x8>;
-        reg = <0xf0003000 0x1000>;
+        reg = <0x2000 0x1000>;
       };
     };
 

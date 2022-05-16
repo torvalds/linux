@@ -46,14 +46,31 @@
  * ebp  user stack
  * 0(%ebp) arg6
  */
-ENTRY(entry_SYSENTER_compat)
+SYM_CODE_START(entry_SYSENTER_compat)
+	UNWIND_HINT_EMPTY
 	/* Interrupts are off on entry. */
 	SWAPGS
 
-	/* We are about to clobber %rsp anyway, clobbering here is OK */
-	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
+	pushq	%rax
+	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
+	popq	%rax
 
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+
+	/* Construct struct pt_regs on stack */
+	pushq	$__USER32_DS		/* pt_regs->ss */
+	pushq	$0			/* pt_regs->sp = 0 (placeholder) */
+
+	/*
+	 * Push flags.  This is nasty.  First, interrupts are currently
+	 * off, but we need pt_regs->flags to have IF set.  Second, if TS
+	 * was set in usermode, it's still set, and we're singlestepping
+	 * through this code.  do_SYSENTER_32() will fix up IF.
+	 */
+	pushfq				/* pt_regs->flags (except IF = 0) */
+	pushq	$__USER32_CS		/* pt_regs->cs */
+	pushq	$0			/* pt_regs->ip = 0 (placeholder) */
+SYM_INNER_LABEL(entry_SYSENTER_compat_after_hwframe, SYM_L_GLOBAL)
 
 	/*
 	 * User tracing code (ptrace or signal handlers) might assume that
@@ -64,20 +81,6 @@ ENTRY(entry_SYSENTER_compat)
 	 */
 	movl	%eax, %eax
 
-	/* Construct struct pt_regs on stack */
-	pushq	$__USER32_DS		/* pt_regs->ss */
-	pushq	%rbp			/* pt_regs->sp (stashed in bp) */
-
-	/*
-	 * Push flags.  This is nasty.  First, interrupts are currently
-	 * off, but we need pt_regs->flags to have IF set.  Second, even
-	 * if TF was set when SYSENTER started, it's clear by now.  We fix
-	 * that later using TIF_SINGLESTEP.
-	 */
-	pushfq				/* pt_regs->flags (except IF = 0) */
-	orl	$X86_EFLAGS_IF, (%rsp)	/* Fix saved flags */
-	pushq	$__USER32_CS		/* pt_regs->cs */
-	pushq	$0			/* pt_regs->ip = 0 (placeholder) */
 	pushq	%rax			/* pt_regs->orig_ax */
 	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
@@ -104,6 +107,9 @@ ENTRY(entry_SYSENTER_compat)
 	xorl	%r14d, %r14d		/* nospec   r14 */
 	pushq   $0			/* pt_regs->r15 = 0 */
 	xorl	%r15d, %r15d		/* nospec   r15 */
+
+	UNWIND_HINT_REGS
+
 	cld
 
 	/*
@@ -129,25 +135,19 @@ ENTRY(entry_SYSENTER_compat)
 	jnz	.Lsysenter_fix_flags
 .Lsysenter_flags_fixed:
 
-	/*
-	 * User mode is traced as though IRQs are on, and SYSENTER
-	 * turned them off.
-	 */
-	TRACE_IRQS_OFF
-
 	movq	%rsp, %rdi
-	call	do_fast_syscall_32
+	call	do_SYSENTER_32
 	/* XEN PV guests always use IRET path */
-	ALTERNATIVE "testl %eax, %eax; jz .Lsyscall_32_done", \
-		    "jmp .Lsyscall_32_done", X86_FEATURE_XENPV
+	ALTERNATIVE "testl %eax, %eax; jz swapgs_restore_regs_and_return_to_usermode", \
+		    "jmp swapgs_restore_regs_and_return_to_usermode", X86_FEATURE_XENPV
 	jmp	sysret32_from_system_call
 
 .Lsysenter_fix_flags:
 	pushq	$X86_EFLAGS_FIXED
 	popfq
 	jmp	.Lsysenter_flags_fixed
-GLOBAL(__end_entry_SYSENTER_compat)
-ENDPROC(entry_SYSENTER_compat)
+SYM_INNER_LABEL(__end_entry_SYSENTER_compat, SYM_L_GLOBAL)
+SYM_CODE_END(entry_SYSENTER_compat)
 
 /*
  * 32-bit SYSCALL entry.
@@ -196,7 +196,8 @@ ENDPROC(entry_SYSENTER_compat)
  * esp  user stack
  * 0(%esp) arg6
  */
-ENTRY(entry_SYSCALL_compat)
+SYM_CODE_START(entry_SYSCALL_compat)
+	UNWIND_HINT_EMPTY
 	/* Interrupts are off on entry. */
 	swapgs
 
@@ -215,7 +216,7 @@ ENTRY(entry_SYSCALL_compat)
 	pushq	%r11			/* pt_regs->flags */
 	pushq	$__USER32_CS		/* pt_regs->cs */
 	pushq	%rcx			/* pt_regs->ip */
-GLOBAL(entry_SYSCALL_compat_after_hwframe)
+SYM_INNER_LABEL(entry_SYSCALL_compat_after_hwframe, SYM_L_GLOBAL)
 	movl	%eax, %eax		/* discard orig_ax high bits */
 	pushq	%rax			/* pt_regs->orig_ax */
 	pushq	%rdi			/* pt_regs->di */
@@ -247,17 +248,13 @@ GLOBAL(entry_SYSCALL_compat_after_hwframe)
 	pushq   $0			/* pt_regs->r15 = 0 */
 	xorl	%r15d, %r15d		/* nospec   r15 */
 
-	/*
-	 * User mode is traced as though IRQs are on, and SYSENTER
-	 * turned them off.
-	 */
-	TRACE_IRQS_OFF
+	UNWIND_HINT_REGS
 
 	movq	%rsp, %rdi
 	call	do_fast_syscall_32
 	/* XEN PV guests always use IRET path */
-	ALTERNATIVE "testl %eax, %eax; jz .Lsyscall_32_done", \
-		    "jmp .Lsyscall_32_done", X86_FEATURE_XENPV
+	ALTERNATIVE "testl %eax, %eax; jz swapgs_restore_regs_and_return_to_usermode", \
+		    "jmp swapgs_restore_regs_and_return_to_usermode", X86_FEATURE_XENPV
 
 	/* Opportunistic SYSRET */
 sysret32_from_system_call:
@@ -266,7 +263,7 @@ sysret32_from_system_call:
 	 * stack. So let's erase the thread stack right now.
 	 */
 	STACKLEAK_ERASE
-	TRACE_IRQS_ON			/* User mode traces as IRQs on. */
+
 	movq	RBX(%rsp), %rbx		/* pt_regs->rbx */
 	movq	RBP(%rsp), %rbp		/* pt_regs->rbp */
 	movq	EFLAGS(%rsp), %r11	/* pt_regs->flags (in r11) */
@@ -311,7 +308,7 @@ sysret32_from_system_call:
 	xorl	%r10d, %r10d
 	swapgs
 	sysretl
-END(entry_SYSCALL_compat)
+SYM_CODE_END(entry_SYSCALL_compat)
 
 /*
  * 32-bit legacy system call entry.
@@ -339,7 +336,8 @@ END(entry_SYSCALL_compat)
  * edi  arg5
  * ebp  arg6
  */
-ENTRY(entry_INT80_compat)
+SYM_CODE_START(entry_INT80_compat)
+	UNWIND_HINT_EMPTY
 	/*
 	 * Interrupts are off on entry.
 	 */
@@ -361,8 +359,11 @@ ENTRY(entry_INT80_compat)
 
 	/* Need to switch before accessing the thread stack. */
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi
+
 	/* In the Xen PV case we already run on the thread stack. */
-	ALTERNATIVE "movq %rsp, %rdi", "jmp .Lint80_keep_stack", X86_FEATURE_XENPV
+	ALTERNATIVE "", "jmp .Lint80_keep_stack", X86_FEATURE_XENPV
+
+	movq	%rsp, %rdi
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	pushq	6*8(%rdi)		/* regs->ss */
@@ -401,19 +402,12 @@ ENTRY(entry_INT80_compat)
 	xorl	%r14d, %r14d		/* nospec   r14 */
 	pushq   %r15                    /* pt_regs->r15 */
 	xorl	%r15d, %r15d		/* nospec   r15 */
-	cld
 
-	/*
-	 * User mode is traced as though IRQs are on, and the interrupt
-	 * gate turned them off.
-	 */
-	TRACE_IRQS_OFF
+	UNWIND_HINT_REGS
+
+	cld
 
 	movq	%rsp, %rdi
 	call	do_int80_syscall_32
-.Lsyscall_32_done:
-
-	/* Go back to user mode. */
-	TRACE_IRQS_ON
 	jmp	swapgs_restore_regs_and_return_to_usermode
-END(entry_INT80_compat)
+SYM_CODE_END(entry_INT80_compat)

@@ -111,8 +111,8 @@ int rvt_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *srq_init_attr,
 		u32 s = sizeof(struct rvt_rwq) + srq->rq.size * sz;
 
 		srq->ip = rvt_create_mmap_info(dev, s, udata, srq->rq.wq);
-		if (!srq->ip) {
-			ret = -ENOMEM;
+		if (IS_ERR(srq->ip)) {
+			ret = PTR_ERR(srq->ip);
 			goto bail_wq;
 		}
 
@@ -332,7 +332,7 @@ int rvt_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
  * @ibsrq: srq object to destroy
  *
  */
-void rvt_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
+int rvt_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 	struct rvt_dev_info *dev = ib_to_rvt(ibsrq->device);
@@ -343,4 +343,5 @@ void rvt_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 	if (srq->ip)
 		kref_put(&srq->ip->ref, rvt_release_mmap_info);
 	kvfree(srq->rq.kwq);
+	return 0;
 }

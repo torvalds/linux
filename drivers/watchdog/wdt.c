@@ -389,7 +389,7 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (wdt_set_heartbeat(new_heartbeat))
 			return -EINVAL;
 		wdt_ping();
-		/* Fall through */
+		fallthrough;
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
 	default:
@@ -523,6 +523,7 @@ static const struct file_operations wdt_fops = {
 	.llseek		= no_llseek,
 	.write		= wdt_write,
 	.unlocked_ioctl	= wdt_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= wdt_open,
 	.release	= wdt_release,
 };

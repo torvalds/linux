@@ -193,7 +193,7 @@ int snd_seq_device_new(struct snd_card *card, int device, const char *id,
 {
 	struct snd_seq_device *dev;
 	int err;
-	static struct snd_device_ops dops = {
+	static const struct snd_device_ops dops = {
 		.dev_free = snd_seq_device_dev_free,
 		.dev_register = snd_seq_device_dev_register,
 		.dev_disconnect = snd_seq_device_dev_disconnect,

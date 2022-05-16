@@ -17,7 +17,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x8000000>;
 	};
 
@@ -59,7 +59,7 @@
 				wm8904: codec@1a {
 					compatible = "wlf,wm8904";
 					reg = <0x1a>;
-					clocks = <&pck0>;
+					clocks = <&pmc PMC_TYPE_SYSTEM 8>;
 					clock-names = "mclk";
 				};
 
@@ -238,7 +238,7 @@
 	};
 
 	panel: panel {
-		compatible = "qiaodian,qd43003c0-40", "simple-panel";
+		compatible = "qiaodian,qd43003c0-40";
 		backlight = <&backlight>;
 		power-supply = <&panel_reg>;
 		#address-cells = <1>;

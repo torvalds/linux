@@ -18,6 +18,7 @@
 pmc	.req	r0
 tmp1	.req	r4
 tmp2	.req	r5
+tmp3	.req	r6
 
 /*
  * Wait until master clock is ready (after switching master clock source)
@@ -93,13 +94,17 @@ ENTRY(at91_pm_suspend_in_sram)
 	str	tmp1, .memtype
 	ldr	tmp1, [r0, #PM_DATA_MODE]
 	str	tmp1, .pm_mode
+	ldr	tmp1, [r0, #PM_DATA_PMC_MCKR_OFFSET]
+	str	tmp1, .mckr_offset
+	ldr	tmp1, [r0, #PM_DATA_PMC_VERSION]
+	str	tmp1, .pmc_version
 	/* Both ldrne below are here to preload their address in the TLB */
 	ldr	tmp1, [r0, #PM_DATA_SHDWC]
 	str	tmp1, .shdwc
 	cmp	tmp1, #0
 	ldrne	tmp2, [tmp1, #0]
 	ldr	tmp1, [r0, #PM_DATA_SFRBU]
-	str	tmp1, .sfr
+	str	tmp1, .sfrbu
 	cmp	tmp1, #0
 	ldrne	tmp2, [tmp1, #0x10]
 
@@ -138,14 +143,15 @@ ENDPROC(at91_pm_suspend_in_sram)
 ENTRY(at91_backup_mode)
 	/* Switch the master clock source to slow clock. */
 	ldr	pmc, .pmc_base
-	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp2, .mckr_offset
+	ldr	tmp1, [pmc, tmp2]
 	bic	tmp1, tmp1, #AT91_PMC_CSS
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	str	tmp1, [pmc, tmp2]
 
 	wait_mckrdy
 
 	/*BUMEN*/
-	ldr	r0, .sfr
+	ldr	r0, .sfrbu
 	mov	tmp1, #0x1
 	str	tmp1, [r0, #0x10]
 
@@ -158,7 +164,22 @@ ENDPROC(at91_backup_mode)
 
 .macro at91_pm_ulp0_mode
 	ldr	pmc, .pmc_base
+	ldr	tmp2, .pm_mode
+	ldr	tmp3, .mckr_offset
 
+	/* Check if ULP0 fast variant has been requested. */
+	cmp	tmp2, #AT91_PM_ULP0_FAST
+	bne	0f
+
+	/* Set highest prescaler for power saving */
+	ldr	tmp1, [pmc, tmp3]
+	bic	tmp1, tmp1, #AT91_PMC_PRES
+	orr	tmp1, tmp1, #AT91_PMC_PRES_64
+	str	tmp1, [pmc, tmp3]
+	wait_mckrdy
+	b	1f
+
+0:
 	/* Turn off the crystal oscillator */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
 	bic	tmp1, tmp1, #AT91_PMC_MOSCEN
@@ -186,7 +207,18 @@ ENDPROC(at91_backup_mode)
 	/* Wait for interrupt */
 1:	at91_cpu_idle
 
-	/* Restore RC oscillator state */
+	/* Check if ULP0 fast variant has been requested. */
+	cmp	tmp2, #AT91_PM_ULP0_FAST
+	bne	5f
+
+	/* Set lowest prescaler for fast resume. */
+	ldr	tmp1, [pmc, tmp3]
+	bic	tmp1, tmp1, #AT91_PMC_PRES
+	str	tmp1, [pmc, tmp3]
+	wait_mckrdy
+	b	6f
+
+5:	/* Restore RC oscillator state */
 	ldr	tmp1, .saved_osc_status
 	tst	tmp1, #AT91_PMC_MOSCRCS
 	beq	4f
@@ -210,6 +242,7 @@ ENDPROC(at91_backup_mode)
 	str	tmp1, [pmc, #AT91_CKGR_MOR]
 
 	wait_moscrdy
+6:
 .endm
 
 /**
@@ -218,6 +251,7 @@ ENDPROC(at91_backup_mode)
  */
 .macro at91_pm_ulp1_mode
 	ldr	pmc, .pmc_base
+	ldr	tmp2, .mckr_offset
 
 	/* Save RC oscillator state and check if it is enabled. */
 	ldr	tmp1, [pmc, #AT91_PMC_SR]
@@ -254,10 +288,10 @@ ENDPROC(at91_backup_mode)
 	str	tmp1, [pmc, #AT91_CKGR_MOR]
 
 	/* Switch the master clock source to main clock */
-	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp1, [pmc, tmp2]
 	bic	tmp1, tmp1, #AT91_PMC_CSS
 	orr	tmp1, tmp1, #AT91_PMC_CSS_MAIN
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	str	tmp1, [pmc, tmp2]
 
 	wait_mckrdy
 
@@ -267,6 +301,10 @@ ENDPROC(at91_backup_mode)
 	bic	tmp1, tmp1, #AT91_PMC_KEY_MASK
 	orr	tmp1, tmp1, #AT91_PMC_KEY
 	str	tmp1, [pmc, #AT91_CKGR_MOR]
+
+	/* Quirk for SAM9X60's PMC */
+	nop
+	nop
 
 	wait_mckrdy
 
@@ -280,9 +318,9 @@ ENDPROC(at91_backup_mode)
 	wait_moscrdy
 
 	/* Switch the master clock source to slow clock */
-	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp1, [pmc, tmp2]
 	bic	tmp1, tmp1, #AT91_PMC_CSS
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	str	tmp1, [pmc, tmp2]
 
 	wait_mckrdy
 
@@ -296,10 +334,10 @@ ENDPROC(at91_backup_mode)
 	wait_moscsels
 
 	/* Switch the master clock source to main clock */
-	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp1, [pmc, tmp2]
 	bic	tmp1, tmp1, #AT91_PMC_CSS
 	orr	tmp1, tmp1, #AT91_PMC_CSS_MAIN
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	str	tmp1, [pmc, tmp2]
 
 	wait_mckrdy
 
@@ -323,23 +361,168 @@ ENDPROC(at91_backup_mode)
 3:
 .endm
 
+.macro at91_plla_disable
+	/* Save PLLA setting and disable it */
+	ldr	tmp1, .pmc_version
+	cmp	tmp1, #AT91_PMC_V1
+	beq	1f
+
+#ifdef CONFIG_SOC_SAM9X60
+	/* Save PLLA settings. */
+	ldr	tmp2, [pmc, #AT91_PMC_PLL_UPDT]
+	bic	tmp2, tmp2, #AT91_PMC_PLL_UPDT_ID
+	str	tmp2, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* save div. */
+	mov	tmp1, #0
+	ldr	tmp2, [pmc, #AT91_PMC_PLL_CTRL0]
+	bic	tmp2, tmp2, #0xffffff00
+	orr	tmp1, tmp1, tmp2
+
+	/* save mul. */
+	ldr	tmp2, [pmc, #AT91_PMC_PLL_CTRL1]
+	bic	tmp2, tmp2, #0xffffff
+	orr	tmp1, tmp1, tmp2
+	str	tmp1, .saved_pllar
+
+	/* step 2. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* step 3. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+	bic	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENPLLCK
+	orr	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENPLL
+	str	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+
+	/* step 4. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	orr	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* step 5. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+	bic	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENPLL
+	str	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+
+	/* step 7. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	orr	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	b	2f
+#endif
+
+1:	/* Save PLLA setting and disable it */
+	ldr	tmp1, [pmc, #AT91_CKGR_PLLAR]
+	str	tmp1, .saved_pllar
+
+	/* Disable PLLA. */
+	mov	tmp1, #AT91_PMC_PLLCOUNT
+	orr	tmp1, tmp1, #(1 << 29)		/* bit 29 always set */
+	str	tmp1, [pmc, #AT91_CKGR_PLLAR]
+2:
+.endm
+
+.macro at91_plla_enable
+	ldr	tmp2, .saved_pllar
+	ldr	tmp3, .pmc_version
+	cmp	tmp3, #AT91_PMC_V1
+	beq	4f
+
+#ifdef CONFIG_SOC_SAM9X60
+	/* step 1. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* step 2. */
+	ldr	tmp1, =#AT91_PMC_PLL_ACR_DEFAULT_PLLA
+	str	tmp1, [pmc, #AT91_PMC_PLL_ACR]
+
+	/* step 3. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_CTRL1]
+	mov	tmp3, tmp2
+	bic	tmp3, tmp3, #0xffffff
+	orr	tmp1, tmp1, tmp3
+	str	tmp1, [pmc, #AT91_PMC_PLL_CTRL1]
+
+	/* step 8. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	orr	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* step 9. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+	orr	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENLOCK
+	orr	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENPLL
+	orr	tmp1, tmp1, #AT91_PMC_PLL_CTRL0_ENPLLCK
+	bic	tmp1, tmp1, #0xff
+	mov	tmp3, tmp2
+	bic	tmp3, tmp3, #0xffffff00
+	orr	tmp1, tmp1, tmp3
+	str	tmp1, [pmc, #AT91_PMC_PLL_CTRL0]
+
+	/* step 10. */
+	ldr	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+	orr	tmp1, tmp1, #AT91_PMC_PLL_UPDT_UPDATE
+	bic	tmp1, tmp1, #AT91_PMC_PLL_UPDT_ID
+	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
+
+	/* step 11. */
+3:	ldr	tmp1, [pmc, #AT91_PMC_PLL_ISR0]
+	tst	tmp1, #0x1
+	beq	3b
+	b	2f
+#endif
+
+	/* Restore PLLA setting */
+4:	str	tmp2, [pmc, #AT91_CKGR_PLLAR]
+
+	/* Enable PLLA. */
+	tst	tmp2, #(AT91_PMC_MUL &  0xff0000)
+	bne	1f
+	tst	tmp2, #(AT91_PMC_MUL & ~0xff0000)
+	beq	2f
+
+1:	ldr	tmp1, [pmc, #AT91_PMC_SR]
+	tst	tmp1, #AT91_PMC_LOCKA
+	beq	1b
+2:
+.endm
+
 ENTRY(at91_ulp_mode)
 	ldr	pmc, .pmc_base
+	ldr	tmp2, .mckr_offset
+	ldr	tmp3, .pm_mode
 
 	/* Save Master clock setting */
-	ldr	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp1, [pmc, tmp2]
 	str	tmp1, .saved_mckr
 
 	/*
-	 * Set the Master clock source to slow clock
+	 * Set master clock source to:
+	 * - MAINCK if using ULP0 fast variant
+	 * - slow clock, otherwise
 	 */
 	bic	tmp1, tmp1, #AT91_PMC_CSS
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	cmp	tmp3, #AT91_PM_ULP0_FAST
+	bne	save_mck
+	orr	tmp1, tmp1, #AT91_PMC_CSS_MAIN
+save_mck:
+	str	tmp1, [pmc, tmp2]
 
 	wait_mckrdy
 
-	ldr	r0, .pm_mode
-	cmp	r0, #AT91_PM_ULP1
+	at91_plla_disable
+
+	cmp	tmp3, #AT91_PM_ULP1
 	beq	ulp1_mode
 
 	at91_pm_ulp0_mode
@@ -352,11 +535,14 @@ ulp1_mode:
 ulp_exit:
 	ldr	pmc, .pmc_base
 
+	at91_plla_enable
+
 	/*
 	 * Restore master clock setting
 	 */
-	ldr	tmp1, .saved_mckr
-	str	tmp1, [pmc, #AT91_PMC_MCKR]
+	ldr	tmp1, .mckr_offset
+	ldr	tmp2, .saved_mckr
+	str	tmp2, [pmc, tmp1]
 
 	wait_mckrdy
 
@@ -496,13 +682,19 @@ ENDPROC(at91_sramc_self_refresh)
 	.word 0
 .shdwc:
 	.word 0
-.sfr:
+.sfrbu:
 	.word 0
 .memtype:
 	.word 0
 .pm_mode:
 	.word 0
+.mckr_offset:
+	.word 0
+.pmc_version:
+	.word 0
 .saved_mckr:
+	.word 0
+.saved_pllar:
 	.word 0
 .saved_sam9_lpr:
 	.word 0

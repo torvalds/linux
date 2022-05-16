@@ -24,8 +24,7 @@ struct aspeed_pin_config {
 	enum pin_config_param param;
 	unsigned int pins[2];
 	unsigned int reg;
-	u8 bit;
-	u8 value;
+	u32 mask;
 };
 
 #define ASPEED_PINCTRL_PIN(name_) \
@@ -34,6 +33,38 @@ struct aspeed_pin_config {
 		.name = #name_, \
 		.drv_data = (void *) &(PIN_SYM(name_)) \
 	}
+
+#define ASPEED_SB_PINCONF(param_, pin0_, pin1_, reg_, bit_) { \
+	.param = param_, \
+	.pins = {pin0_, pin1_}, \
+	.reg = reg_, \
+	.mask = BIT_MASK(bit_) \
+}
+
+#define ASPEED_PULL_DOWN_PINCONF(pin_, reg_, bit_) \
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_DOWN, pin_, pin_, reg_, bit_), \
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE,   pin_, pin_, reg_, bit_)
+
+#define ASPEED_PULL_UP_PINCONF(pin_, reg_, bit_) \
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_PULL_UP, pin_, pin_, reg_, bit_), \
+	ASPEED_SB_PINCONF(PIN_CONFIG_BIAS_DISABLE, pin_, pin_, reg_, bit_)
+/*
+ * Aspeed pin configuration description.
+ *
+ * @param: pinconf configuration parameter
+ * @arg: The supported argument for @param, or -1 if any value is supported
+ * @val: The register value to write to configure @arg for @param
+ * @mask: The bitfield mask for @val
+ *
+ * The map is to be used in conjunction with the configuration array supplied
+ * by the driver implementation.
+ */
+struct aspeed_pin_config_map {
+	enum pin_config_param param;
+	s32 arg;
+	u32 val;
+	u32 mask;
+};
 
 struct aspeed_pinctrl_data {
 	struct regmap *scu;
@@ -45,6 +76,9 @@ struct aspeed_pinctrl_data {
 	const unsigned int nconfigs;
 
 	struct aspeed_pinmux_data pinmux;
+
+	const struct aspeed_pin_config_map *confmaps;
+	const unsigned int nconfmaps;
 };
 
 /* Aspeed pinctrl helpers */

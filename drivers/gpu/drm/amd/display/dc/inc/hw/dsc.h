@@ -22,13 +22,16 @@
  * Authors: AMD
  *
  */
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #ifndef __DAL_DSC_H__
 #define __DAL_DSC_H__
 
 #include "dc_dsc.h"
 #include "dc_hw_types.h"
-#include "dc_dp_types.h"
+#include "dc_types.h"
+/* do not include any other headers
+ * or else it might break Edid Utility functionality.
+ */
+
 
 /* Input parameters for configuring DSC from the outside of DSC */
 struct dsc_config {
@@ -36,6 +39,7 @@ struct dsc_config {
 	uint32_t pic_height;
 	enum dc_pixel_encoding pixel_encoding;
 	enum dc_color_depth color_depth;  /* Bits per component */
+	bool is_odm;
 	struct dc_dsc_config dc_dsc_cfg;
 };
 
@@ -51,7 +55,12 @@ struct dsc_optc_config {
 struct dcn_dsc_state {
 	uint32_t dsc_clock_en;
 	uint32_t dsc_slice_width;
-	uint32_t dsc_bytes_per_pixel;
+	uint32_t dsc_bits_per_pixel;
+	uint32_t dsc_slice_height;
+	uint32_t dsc_pic_width;
+	uint32_t dsc_pic_height;
+	uint32_t dsc_slice_bpg_offset;
+	uint32_t dsc_chunk_size;
 };
 
 
@@ -81,12 +90,6 @@ struct dsc_enc_caps {
 	uint32_t bpp_increment_div; /* bpp increment divisor, e.g. if 16, it's 1/16th of a bit */
 };
 
-struct display_stream_compressor {
-	const struct dsc_funcs *funcs;
-	struct dc_context *ctx;
-	int inst;
-};
-
 struct dsc_funcs {
 	void (*dsc_get_enc_caps)(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
 	void (*dsc_read_state)(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
@@ -99,5 +102,4 @@ struct dsc_funcs {
 	void (*dsc_disable)(struct display_stream_compressor *dsc);
 };
 
-#endif
 #endif

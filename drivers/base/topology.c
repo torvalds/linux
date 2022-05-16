@@ -14,11 +14,11 @@
 #include <linux/hardirq.h>
 #include <linux/topology.h>
 
-#define define_id_show_func(name)				\
-static ssize_t name##_show(struct device *dev,			\
-		struct device_attribute *attr, char *buf)	\
-{								\
-	return sprintf(buf, "%d\n", topology_##name(dev->id));	\
+#define define_id_show_func(name)					\
+static ssize_t name##_show(struct device *dev,				\
+			   struct device_attribute *attr, char *buf)	\
+{									\
+	return sysfs_emit(buf, "%d\n", topology_##name(dev->id));	\
 }
 
 #define define_siblings_show_map(name, mask)				\
@@ -133,7 +133,7 @@ static int topology_remove_dev(unsigned int cpu)
 	return 0;
 }
 
-static int topology_sysfs_init(void)
+static int __init topology_sysfs_init(void)
 {
 	return cpuhp_setup_state(CPUHP_TOPOLOGY_PREPARE,
 				 "base/topology:prepare", topology_add_dev,

@@ -191,7 +191,7 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 
 /* XXX Should probably auto-generate instruction decoding for a particular core
  * from opcode tables in the future. */
-int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
+int kvmppc_emulate_instruction(struct kvm_vcpu *vcpu)
 {
 	u32 inst;
 	int rs, rt, sprn;
@@ -270,9 +270,9 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		 * these are illegal instructions.
 		 */
 		if (inst == KVMPPC_INST_SW_BREAKPOINT) {
-			run->exit_reason = KVM_EXIT_DEBUG;
-			run->debug.arch.status = 0;
-			run->debug.arch.address = kvmppc_get_pc(vcpu);
+			vcpu->run->exit_reason = KVM_EXIT_DEBUG;
+			vcpu->run->debug.arch.status = 0;
+			vcpu->run->debug.arch.address = kvmppc_get_pc(vcpu);
 			emulated = EMULATE_EXIT_USER;
 			advance = 0;
 		} else
@@ -285,7 +285,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	}
 
 	if (emulated == EMULATE_FAIL) {
-		emulated = vcpu->kvm->arch.kvm_ops->emulate_op(run, vcpu, inst,
+		emulated = vcpu->kvm->arch.kvm_ops->emulate_op(vcpu, inst,
 							       &advance);
 		if (emulated == EMULATE_AGAIN) {
 			advance = 0;

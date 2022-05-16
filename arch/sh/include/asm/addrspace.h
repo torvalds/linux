@@ -7,8 +7,6 @@
 #ifndef __ASM_SH_ADDRSPACE_H
 #define __ASM_SH_ADDRSPACE_H
 
-#ifdef __KERNEL__
-
 #include <cpu/addrspace.h>
 
 /* If this CPU supports segmentation, hook up the helpers */
@@ -62,5 +60,4 @@
 #define P3_ADDR_MAX		P4SEG
 #endif
 
-#endif /* __KERNEL__ */
 #endif /* __ASM_SH_ADDRSPACE_H */

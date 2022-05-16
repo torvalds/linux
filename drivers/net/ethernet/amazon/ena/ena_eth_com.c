@@ -1,33 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2015 Amazon.com, Inc. or its affiliates.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "ena_eth_com.h"
@@ -45,8 +18,9 @@ static struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
 	cdesc = (struct ena_eth_io_rx_cdesc_base *)(io_cq->cdesc_addr.virt_addr
 			+ (head_masked * io_cq->cdesc_entry_size_in_bytes));
 
-	desc_phase = (READ_ONCE(cdesc->status) & ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK) >>
-			ENA_ETH_IO_RX_CDESC_BASE_PHASE_SHIFT;
+	desc_phase = (READ_ONCE(cdesc->status) &
+		      ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK) >>
+		     ENA_ETH_IO_RX_CDESC_BASE_PHASE_SHIFT;
 
 	if (desc_phase != expected_phase)
 		return NULL;
@@ -89,7 +63,7 @@ static int ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq,
 		}
 
 		io_sq->entries_in_tx_burst_left--;
-		pr_debug("decreasing entries_in_tx_burst_left of queue %d to %d\n",
+		pr_debug("Decreasing entries_in_tx_burst_left of queue %d to %d\n",
 			 io_sq->qid, io_sq->entries_in_tx_burst_left);
 	}
 
@@ -128,12 +102,12 @@ static int ena_com_write_header_to_bounce(struct ena_com_io_sq *io_sq,
 
 	if (unlikely((header_offset + header_len) >
 		     llq_info->desc_list_entry_size)) {
-		pr_err("trying to write header larger than llq entry can accommodate\n");
+		pr_err("Trying to write header larger than llq entry can accommodate\n");
 		return -EFAULT;
 	}
 
 	if (unlikely(!bounce_buffer)) {
-		pr_err("bounce buffer is NULL\n");
+		pr_err("Bounce buffer is NULL\n");
 		return -EFAULT;
 	}
 
@@ -151,7 +125,7 @@ static void *get_sq_desc_llq(struct ena_com_io_sq *io_sq)
 	bounce_buffer = pkt_ctrl->curr_bounce_buf;
 
 	if (unlikely(!bounce_buffer)) {
-		pr_err("bounce buffer is NULL\n");
+		pr_err("Bounce buffer is NULL\n");
 		return NULL;
 	}
 
@@ -262,8 +236,9 @@ static u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 
 		ena_com_cq_inc_head(io_cq);
 		count++;
-		last = (READ_ONCE(cdesc->status) & ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK) >>
-			ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT;
+		last = (READ_ONCE(cdesc->status) &
+			ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK) >>
+		       ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT;
 	} while (!last);
 
 	if (last) {
@@ -275,7 +250,7 @@ static u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 		io_cq->cur_rx_pkt_cdesc_count = 0;
 		io_cq->cur_rx_pkt_cdesc_start_idx = head_masked;
 
-		pr_debug("ena q_id: %d packets were completed. first desc idx %u descs# %d\n",
+		pr_debug("ENA q_id: %d packets were completed. first desc idx %u descs# %d\n",
 			 io_cq->qid, *first_cdesc_idx, count);
 	} else {
 		io_cq->cur_rx_pkt_cdesc_count += count;
@@ -285,13 +260,15 @@ static u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 	return count;
 }
 
-static int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
-							struct ena_com_tx_ctx *ena_tx_ctx)
+static int ena_com_create_meta(struct ena_com_io_sq *io_sq,
+			       struct ena_com_tx_meta *ena_meta)
 {
 	struct ena_eth_io_tx_meta_desc *meta_desc = NULL;
-	struct ena_com_tx_meta *ena_meta = &ena_tx_ctx->ena_meta;
 
 	meta_desc = get_sq_desc(io_sq);
+	if (unlikely(!meta_desc))
+		return -EFAULT;
+
 	memset(meta_desc, 0x0, sizeof(struct ena_eth_io_tx_meta_desc));
 
 	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_META_DESC_MASK;
@@ -299,7 +276,7 @@ static int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
 	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_EXT_VALID_MASK;
 
 	/* bits 0-9 of the mss */
-	meta_desc->word2 |= (ena_meta->mss <<
+	meta_desc->word2 |= ((u32)ena_meta->mss <<
 		ENA_ETH_IO_TX_META_DESC_MSS_LO_SHIFT) &
 		ENA_ETH_IO_TX_META_DESC_MSS_LO_MASK;
 	/* bits 10-13 of the mss */
@@ -309,33 +286,57 @@ static int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
 
 	/* Extended meta desc */
 	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_ETH_META_TYPE_MASK;
-	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_META_STORE_MASK;
-	meta_desc->len_ctrl |= (io_sq->phase <<
+	meta_desc->len_ctrl |= ((u32)io_sq->phase <<
 		ENA_ETH_IO_TX_META_DESC_PHASE_SHIFT) &
 		ENA_ETH_IO_TX_META_DESC_PHASE_MASK;
 
 	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_FIRST_MASK;
+	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_META_STORE_MASK;
+
 	meta_desc->word2 |= ena_meta->l3_hdr_len &
 		ENA_ETH_IO_TX_META_DESC_L3_HDR_LEN_MASK;
 	meta_desc->word2 |= (ena_meta->l3_hdr_offset <<
 		ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_SHIFT) &
 		ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_MASK;
 
-	meta_desc->word2 |= (ena_meta->l4_hdr_len <<
+	meta_desc->word2 |= ((u32)ena_meta->l4_hdr_len <<
 		ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_SHIFT) &
 		ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_MASK;
-
-	meta_desc->len_ctrl |= ENA_ETH_IO_TX_META_DESC_META_STORE_MASK;
-
-	/* Cached the meta desc */
-	memcpy(&io_sq->cached_tx_meta, ena_meta,
-	       sizeof(struct ena_com_tx_meta));
 
 	return ena_com_sq_update_tail(io_sq);
 }
 
+static int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
+						 struct ena_com_tx_ctx *ena_tx_ctx,
+						 bool *have_meta)
+{
+	struct ena_com_tx_meta *ena_meta = &ena_tx_ctx->ena_meta;
+
+	/* When disable meta caching is set, don't bother to save the meta and
+	 * compare it to the stored version, just create the meta
+	 */
+	if (io_sq->disable_meta_caching) {
+		if (unlikely(!ena_tx_ctx->meta_valid))
+			return -EINVAL;
+
+		*have_meta = true;
+		return ena_com_create_meta(io_sq, ena_meta);
+	}
+
+	if (ena_com_meta_desc_changed(io_sq, ena_tx_ctx)) {
+		*have_meta = true;
+		/* Cache the meta desc */
+		memcpy(&io_sq->cached_tx_meta, ena_meta,
+		       sizeof(struct ena_com_tx_meta));
+		return ena_com_create_meta(io_sq, ena_meta);
+	}
+
+	*have_meta = false;
+	return 0;
+}
+
 static void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
-					struct ena_eth_io_rx_cdesc_base *cdesc)
+				 struct ena_eth_io_rx_cdesc_base *cdesc)
 {
 	ena_rx_ctx->l3_proto = cdesc->status &
 		ENA_ETH_IO_RX_CDESC_BASE_L3_PROTO_IDX_MASK;
@@ -356,7 +357,7 @@ static void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK) >>
 		ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_SHIFT;
 
-	pr_debug("ena_rx_ctx->l3_proto %d ena_rx_ctx->l4_proto %d\nena_rx_ctx->l3_csum_err %d ena_rx_ctx->l4_csum_err %d\nhash frag %d frag: %d cdesc_status: %x\n",
+	pr_debug("l3_proto %d l4_proto %d l3_csum_err %d l4_csum_err %d hash %d frag %d cdesc_status %x\n",
 		 ena_rx_ctx->l3_proto, ena_rx_ctx->l4_proto,
 		 ena_rx_ctx->l3_csum_err, ena_rx_ctx->l4_csum_err,
 		 ena_rx_ctx->hash, ena_rx_ctx->frag, cdesc->status);
@@ -389,7 +390,7 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	}
 
 	if (unlikely(header_len > io_sq->tx_max_header_size)) {
-		pr_err("header size is too large %d max header: %d\n",
+		pr_err("Header size is too large %d max header: %d\n",
 		       header_len, io_sq->tx_max_header_size);
 		return -EINVAL;
 	}
@@ -402,12 +403,10 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	if (unlikely(rc))
 		return rc;
 
-	have_meta = ena_tx_ctx->meta_valid && ena_com_meta_desc_changed(io_sq,
-			ena_tx_ctx);
-	if (have_meta) {
-		rc = ena_com_create_and_store_tx_meta_desc(io_sq, ena_tx_ctx);
-		if (unlikely(rc))
-			return rc;
+	rc = ena_com_create_and_store_tx_meta_desc(io_sq, ena_tx_ctx, &have_meta);
+	if (unlikely(rc)) {
+		pr_err("Failed to create and store tx meta desc\n");
+		return rc;
 	}
 
 	/* If the caller doesn't want to send packets */
@@ -426,16 +425,16 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	if (!have_meta)
 		desc->len_ctrl |= ENA_ETH_IO_TX_DESC_FIRST_MASK;
 
-	desc->buff_addr_hi_hdr_sz |= (header_len <<
+	desc->buff_addr_hi_hdr_sz |= ((u32)header_len <<
 		ENA_ETH_IO_TX_DESC_HEADER_LENGTH_SHIFT) &
 		ENA_ETH_IO_TX_DESC_HEADER_LENGTH_MASK;
-	desc->len_ctrl |= (io_sq->phase << ENA_ETH_IO_TX_DESC_PHASE_SHIFT) &
+	desc->len_ctrl |= ((u32)io_sq->phase << ENA_ETH_IO_TX_DESC_PHASE_SHIFT) &
 		ENA_ETH_IO_TX_DESC_PHASE_MASK;
 
 	desc->len_ctrl |= ENA_ETH_IO_TX_DESC_COMP_REQ_MASK;
 
 	/* Bits 0-9 */
-	desc->meta_ctrl |= (ena_tx_ctx->req_id <<
+	desc->meta_ctrl |= ((u32)ena_tx_ctx->req_id <<
 		ENA_ETH_IO_TX_DESC_REQ_ID_LO_SHIFT) &
 		ENA_ETH_IO_TX_DESC_REQ_ID_LO_MASK;
 
@@ -481,7 +480,7 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 
 			memset(desc, 0x0, sizeof(struct ena_eth_io_tx_desc));
 
-			desc->len_ctrl |= (io_sq->phase <<
+			desc->len_ctrl |= ((u32)io_sq->phase <<
 				ENA_ETH_IO_TX_DESC_PHASE_SHIFT) &
 				ENA_ETH_IO_TX_DESC_PHASE_MASK;
 		}
@@ -517,9 +516,10 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 {
 	struct ena_com_rx_buf_info *ena_buf = &ena_rx_ctx->ena_bufs[0];
 	struct ena_eth_io_rx_cdesc_base *cdesc = NULL;
+	u16 q_depth = io_cq->q_depth;
 	u16 cdesc_idx = 0;
 	u16 nb_hw_desc;
-	u16 i;
+	u16 i = 0;
 
 	WARN(io_cq->direction != ENA_COM_IO_QUEUE_DIRECTION_RX, "wrong Q type");
 
@@ -529,7 +529,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 		return 0;
 	}
 
-	pr_debug("fetch rx packet: queue %d completed desc: %d\n", io_cq->qid,
+	pr_debug("Fetch rx packet: queue %d completed desc: %d\n", io_cq->qid,
 		 nb_hw_desc);
 
 	if (unlikely(nb_hw_desc > ena_rx_ctx->max_bufs)) {
@@ -538,13 +538,21 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 		return -ENOSPC;
 	}
 
-	for (i = 0; i < nb_hw_desc; i++) {
+	cdesc = ena_com_rx_cdesc_idx_to_ptr(io_cq, cdesc_idx);
+	ena_rx_ctx->pkt_offset = cdesc->offset;
+
+	do {
+		ena_buf[i].len = cdesc->length;
+		ena_buf[i].req_id = cdesc->req_id;
+		if (unlikely(ena_buf[i].req_id >= q_depth))
+			return -EIO;
+
+		if (++i >= nb_hw_desc)
+			break;
+
 		cdesc = ena_com_rx_cdesc_idx_to_ptr(io_cq, cdesc_idx + i);
 
-		ena_buf->len = cdesc->length;
-		ena_buf->req_id = cdesc->req_id;
-		ena_buf++;
-	}
+	} while (1);
 
 	/* Update SQ head ptr */
 	io_sq->next_to_comp += nb_hw_desc;
@@ -578,10 +586,10 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 
 	desc->length = ena_buf->len;
 
-	desc->ctrl = ENA_ETH_IO_RX_DESC_FIRST_MASK;
-	desc->ctrl |= ENA_ETH_IO_RX_DESC_LAST_MASK;
-	desc->ctrl |= io_sq->phase & ENA_ETH_IO_RX_DESC_PHASE_MASK;
-	desc->ctrl |= ENA_ETH_IO_RX_DESC_COMP_REQ_MASK;
+	desc->ctrl = ENA_ETH_IO_RX_DESC_FIRST_MASK |
+		     ENA_ETH_IO_RX_DESC_LAST_MASK |
+		     (io_sq->phase & ENA_ETH_IO_RX_DESC_PHASE_MASK) |
+		     ENA_ETH_IO_RX_DESC_COMP_REQ_MASK;
 
 	desc->req_id = req_id;
 

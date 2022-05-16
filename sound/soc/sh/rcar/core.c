@@ -302,7 +302,7 @@ int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
 
 int rsnd_channel_normalization(int chan)
 {
-	if ((chan > 8) || (chan < 0))
+	if (WARN_ON((chan > 8) || (chan < 0)))
 		return 0;
 
 	/* TDM Extend Mode needs 8ch */
@@ -376,9 +376,15 @@ u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
  */
 u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 {
+	static const u32 dalign_values[8] = {
+		0x76543210, 0x00000032, 0x00007654, 0x00000076,
+		0xfedcba98, 0x000000ba, 0x0000fedc, 0x000000fe,
+	};
+	int id = 0;
 	struct rsnd_mod *ssiu = rsnd_io_to_mod_ssiu(io);
 	struct rsnd_mod *target;
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	u32 dalign;
 
 	/*
 	 * *Hardware* L/R and *Software* L/R are inverted for 16bit data.
@@ -411,13 +417,18 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 		target = cmd ? cmd : ssiu;
 	}
 
-	/* Non target mod or non 16bit needs normal DALIGN */
-	if ((snd_pcm_format_width(runtime->format) != 16) ||
-	    (mod != target))
-		return 0x76543210;
-	/* Target mod needs inverted DALIGN when 16bit */
-	else
-		return 0x67452301;
+	if (mod == ssiu)
+		id = rsnd_mod_id_sub(mod);
+
+	dalign = dalign_values[id];
+
+	if (mod == target && snd_pcm_format_width(runtime->format) == 16) {
+		/* Target mod needs inverted DALIGN when 16bit */
+		dalign = (dalign & 0xf0f0f0f0) >> 4 |
+			 (dalign & 0x0f0f0f0f) << 4;
+	}
+
+	return dalign;
 }
 
 u32 rsnd_get_busif_shift(struct rsnd_dai_stream *io, struct rsnd_mod *mod)
@@ -683,9 +694,9 @@ static void rsnd_dai_stream_quit(struct rsnd_dai_stream *io)
 static
 struct snd_soc_dai *rsnd_substream_to_dai(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 
-	return  rtd->cpu_dai;
+	return  asoc_rtd_to_cpu(rtd, 0);
 }
 
 static
@@ -748,13 +759,13 @@ static int rsnd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 
-	/* set master/slave audio interface */
+	/* set clock master for audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
 		rdai->clk_master = 0;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		rdai->clk_master = 1; /* codec is slave, cpu is master */
+		rdai->clk_master = 1; /* cpu is master */
 		break;
 	default:
 		return -EINVAL;
@@ -1076,7 +1087,10 @@ static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 			j++;
 		}
 
+		of_node_put(node);
 	}
+
+	of_node_put(ssiu_np);
 }
 
 static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
@@ -1094,10 +1108,12 @@ static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 				     struct device_node *endpoint)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *remote_node = of_graph_get_remote_port_parent(endpoint);
+	struct device_node *remote_node;
 
 	if (!rsnd_io_to_mod_ssi(io))
 		return;
+
+	remote_node = of_graph_get_remote_port_parent(endpoint);
 
 	/* HDMI0 */
 	if (strstr(remote_node->full_name, "hdmi@fead0000")) {
@@ -1112,6 +1128,8 @@ static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 	}
 
 	rsnd_parse_tdm_split_mode(priv, io, endpoint);
+
+	of_node_put(remote_node);
 }
 
 void rsnd_parse_connect_common(struct rsnd_dai *rdai,
@@ -1200,10 +1218,10 @@ static int rsnd_preallocate_pages(struct snd_soc_pcm_runtime *rtd,
 	for (substream = rtd->pcm->streams[stream].substream;
 	     substream;
 	     substream = substream->next) {
-		snd_pcm_lib_preallocate_pages(substream,
-					      SNDRV_DMA_TYPE_DEV,
-					      dev,
-					      PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
+		snd_pcm_set_managed_buffer(substream,
+					   SNDRV_DMA_TYPE_DEV,
+					   dev,
+					   PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
 	}
 
 	return 0;
@@ -1374,14 +1392,14 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 /*
  *		pcm ops
  */
-static int rsnd_hw_params(struct snd_pcm_substream *substream,
-			 struct snd_pcm_hw_params *hw_params)
+static int rsnd_hw_params(struct snd_soc_component *component,
+			  struct snd_pcm_substream *substream,
+			  struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
-	struct snd_soc_pcm_runtime *fe = substream->private_data;
-	int ret;
+	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
 
 	/*
 	 * rsnd assumes that it might be used under DPCM if user want to use
@@ -1414,29 +1432,21 @@ static int rsnd_hw_params(struct snd_pcm_substream *substream,
 			dev_dbg(dev, "convert rate     = %d\n", io->converted_rate);
 	}
 
-	ret = rsnd_dai_call(hw_params, io, substream, hw_params);
-	if (ret)
-		return ret;
-
-	return snd_pcm_lib_malloc_pages(substream,
-					params_buffer_bytes(hw_params));
+	return rsnd_dai_call(hw_params, io, substream, hw_params);
 }
 
-static int rsnd_hw_free(struct snd_pcm_substream *substream)
+static int rsnd_hw_free(struct snd_soc_component *component,
+			struct snd_pcm_substream *substream)
 {
 	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
-	int ret;
 
-	ret = rsnd_dai_call(hw_free, io, substream);
-	if (ret)
-		return ret;
-
-	return snd_pcm_lib_free_pages(substream);
+	return rsnd_dai_call(hw_free, io, substream);
 }
 
-static snd_pcm_uframes_t rsnd_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t rsnd_pointer(struct snd_soc_component *component,
+				      struct snd_pcm_substream *substream)
 {
 	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
@@ -1447,13 +1457,6 @@ static snd_pcm_uframes_t rsnd_pointer(struct snd_pcm_substream *substream)
 
 	return pointer;
 }
-
-static const struct snd_pcm_ops rsnd_pcm_ops = {
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= rsnd_hw_params,
-	.hw_free	= rsnd_hw_free,
-	.pointer	= rsnd_pointer,
-};
 
 /*
  *		snd_kcontrol
@@ -1648,8 +1651,10 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
  *		snd_soc_component
  */
 static const struct snd_soc_component_driver rsnd_soc_component = {
-	.ops		= &rsnd_pcm_ops,
 	.name		= "rsnd",
+	.hw_params	= rsnd_hw_params,
+	.hw_free	= rsnd_hw_free,
+	.pointer	= rsnd_pointer,
 };
 
 static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
@@ -1801,8 +1806,6 @@ static int rsnd_remove(struct platform_device *pdev)
 		rsnd_adg_remove,
 	};
 	int ret = 0, i;
-
-	snd_soc_disconnect_sync(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
 

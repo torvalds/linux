@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2014 Redpine Signals Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -731,7 +731,7 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 /**
  * rsi_get_connected_channel() - This function is used to get the current
  *				 connected channel number.
- * @adapter: Pointer to the adapter structure.
+ * @vif: Pointer to the ieee80211_vif structure.
  *
  * Return: Current connected AP's channel number is returned.
  */
@@ -832,7 +832,7 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 		common->cqm_info.last_cqm_event_rssi = 0;
 		common->cqm_info.rssi_thold = bss_conf->cqm_rssi_thold;
 		common->cqm_info.rssi_hyst = bss_conf->cqm_rssi_hyst;
-		rsi_dbg(INFO_ZONE, "RSSI throld & hysteresis are: %d %d\n",
+		rsi_dbg(INFO_ZONE, "RSSI threshold & hysteresis are: %d %d\n",
 			common->cqm_info.rssi_thold,
 			common->cqm_info.rssi_hyst);
 	}
@@ -855,7 +855,7 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 /**
  * rsi_mac80211_conf_filter() - This function configure the device's RX filter.
  * @hw: Pointer to the ieee80211_hw structure.
- * @changed: Changed flags set.
+ * @changed_flags: Changed flags set.
  * @total_flags: Total initial flags set.
  * @multicast: Multicast.
  *
@@ -936,6 +936,7 @@ static int rsi_mac80211_conf_tx(struct ieee80211_hw *hw,
  * @hw: Pointer to the ieee80211_hw structure.
  * @vif: Pointer to the ieee80211_vif structure.
  * @key: Pointer to the ieee80211_key_conf structure.
+ * @sta: Pointer to the ieee80211_sta structure.
  *
  * Return: status: 0 on success, negative error codes on failure.
  */
@@ -1140,8 +1141,7 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 		else if ((vif->type == NL80211_IFTYPE_AP) ||
 			 (vif->type == NL80211_IFTYPE_P2P_GO))
 			rsta->seq_start[tid] = seq_no;
-		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-		status = 0;
+		status = IEEE80211_AMPDU_TX_START_IMMEDIATE;
 		break;
 
 	case IEEE80211_AMPDU_TX_STOP_CONT:
@@ -1238,6 +1238,7 @@ static int rsi_mac80211_set_rate_mask(struct ieee80211_hw *hw,
  * @common: Pointer to the driver private structure.
  * @bssid: pointer to the bssid.
  * @rssi: RSSI value.
+ * @vif: Pointer to the ieee80211_vif structure.
  */
 static void rsi_perform_cqm(struct rsi_common *common,
 			    u8 *bssid,

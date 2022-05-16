@@ -55,7 +55,7 @@ static int bcm87xx_of_reg_init(struct phy_device *phydev)
 		u16 mask	= be32_to_cpup(paddr++);
 		u16 val_bits	= be32_to_cpup(paddr++);
 		int val;
-		u32 regnum = MII_ADDR_C45 | (devid << 16) | reg;
+		u32 regnum = mdiobus_c45_addr(devid, reg);
 		val = 0;
 		if (mask) {
 			val = phy_read(phydev, regnum);

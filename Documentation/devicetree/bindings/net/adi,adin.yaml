@@ -36,6 +36,8 @@ properties:
     enum: [ 4, 8, 12, 16, 20, 24 ]
     default: 8
 
+unevaluatedProperties: false
+
 examples:
   - |
     ethernet {

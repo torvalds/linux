@@ -2,7 +2,7 @@
 config CAN_RCAR
 	tristate "Renesas R-Car CAN controller"
 	depends on ARCH_RENESAS || ARM
-	---help---
+	help
 	  Say Y here if you want to use CAN controller found on Renesas R-Car
 	  SoCs.
 
@@ -12,7 +12,7 @@ config CAN_RCAR
 config CAN_RCAR_CANFD
 	tristate "Renesas R-Car CAN FD controller"
 	depends on ARCH_RENESAS || ARM
-	---help---
+	help
 	  Say Y here if you want to use CAN FD controller found on
 	  Renesas R-Car SoCs. The driver puts the controller in CAN FD only
 	  mode, which can interoperate with CAN2.0 nodes but does not support

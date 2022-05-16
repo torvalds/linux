@@ -1,7 +1,0 @@
-LG 12.0" (1920x1280 pixels) TFT LCD panel
-
-Required properties:
-- compatible: should be "lg,lp120up1"
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

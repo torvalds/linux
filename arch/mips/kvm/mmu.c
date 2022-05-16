@@ -25,41 +25,9 @@
 #define KVM_MMU_CACHE_MIN_PAGES 2
 #endif
 
-static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
-				  int min, int max)
-{
-	void *page;
-
-	BUG_ON(max > KVM_NR_MEM_OBJS);
-	if (cache->nobjs >= min)
-		return 0;
-	while (cache->nobjs < max) {
-		page = (void *)__get_free_page(GFP_KERNEL);
-		if (!page)
-			return -ENOMEM;
-		cache->objects[cache->nobjs++] = page;
-	}
-	return 0;
-}
-
-static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
-{
-	while (mc->nobjs)
-		free_page((unsigned long)mc->objects[--mc->nobjs]);
-}
-
-static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc)
-{
-	void *p;
-
-	BUG_ON(!mc || !mc->nobjs);
-	p = mc->objects[--mc->nobjs];
-	return p;
-}
-
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu)
 {
-	mmu_free_memory_cache(&vcpu->arch.mmu_page_cache);
+	kvm_mmu_free_memory_cache(&vcpu->arch.mmu_page_cache);
 }
 
 /**
@@ -136,6 +104,7 @@ pgd_t *kvm_pgd_alloc(void)
 static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 				unsigned long addr)
 {
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 
@@ -145,13 +114,14 @@ static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 		BUG();
 		return NULL;
 	}
-	pud = pud_offset(pgd, addr);
+	p4d = p4d_offset(pgd, addr);
+	pud = pud_offset(p4d, addr);
 	if (pud_none(*pud)) {
 		pmd_t *new_pmd;
 
 		if (!cache)
 			return NULL;
-		new_pmd = mmu_memory_cache_alloc(cache);
+		new_pmd = kvm_mmu_memory_cache_alloc(cache);
 		pmd_init((unsigned long)new_pmd,
 			 (unsigned long)invalid_pte_table);
 		pud_populate(NULL, pud, new_pmd);
@@ -162,11 +132,11 @@ static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 
 		if (!cache)
 			return NULL;
-		new_pte = mmu_memory_cache_alloc(cache);
+		new_pte = kvm_mmu_memory_cache_alloc(cache);
 		clear_page(new_pte);
 		pmd_populate_kernel(NULL, pmd, new_pte);
 	}
-	return pte_offset(pmd, addr);
+	return pte_offset_kernel(pmd, addr);
 }
 
 /* Caller must hold kvm->mm_lock */
@@ -185,8 +155,8 @@ static pte_t *kvm_mips_pte_for_gpa(struct kvm *kvm,
 static bool kvm_mips_flush_gpa_pte(pte_t *pte, unsigned long start_gpa,
 				   unsigned long end_gpa)
 {
-	int i_min = __pte_offset(start_gpa);
-	int i_max = __pte_offset(end_gpa);
+	int i_min = pte_index(start_gpa);
+	int i_max = pte_index(end_gpa);
 	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PTE - 1);
 	int i;
 
@@ -204,8 +174,8 @@ static bool kvm_mips_flush_gpa_pmd(pmd_t *pmd, unsigned long start_gpa,
 {
 	pte_t *pte;
 	unsigned long end = ~0ul;
-	int i_min = __pmd_offset(start_gpa);
-	int i_max = __pmd_offset(end_gpa);
+	int i_min = pmd_index(start_gpa);
+	int i_max = pmd_index(end_gpa);
 	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PMD - 1);
 	int i;
 
@@ -213,7 +183,7 @@ static bool kvm_mips_flush_gpa_pmd(pmd_t *pmd, unsigned long start_gpa,
 		if (!pmd_present(pmd[i]))
 			continue;
 
-		pte = pte_offset(pmd + i, 0);
+		pte = pte_offset_kernel(pmd + i, 0);
 		if (i == i_max)
 			end = end_gpa;
 
@@ -232,8 +202,8 @@ static bool kvm_mips_flush_gpa_pud(pud_t *pud, unsigned long start_gpa,
 {
 	pmd_t *pmd;
 	unsigned long end = ~0ul;
-	int i_min = __pud_offset(start_gpa);
-	int i_max = __pud_offset(end_gpa);
+	int i_min = pud_index(start_gpa);
+	int i_max = pud_index(end_gpa);
 	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PUD - 1);
 	int i;
 
@@ -258,6 +228,7 @@ static bool kvm_mips_flush_gpa_pud(pud_t *pud, unsigned long start_gpa,
 static bool kvm_mips_flush_gpa_pgd(pgd_t *pgd, unsigned long start_gpa,
 				   unsigned long end_gpa)
 {
+	p4d_t *p4d;
 	pud_t *pud;
 	unsigned long end = ~0ul;
 	int i_min = pgd_index(start_gpa);
@@ -269,7 +240,8 @@ static bool kvm_mips_flush_gpa_pgd(pgd_t *pgd, unsigned long start_gpa,
 		if (!pgd_present(pgd[i]))
 			continue;
 
-		pud = pud_offset(pgd + i, 0);
+		p4d = p4d_offset(pgd, 0);
+		pud = pud_offset(p4d + i, 0);
 		if (i == i_max)
 			end = end_gpa;
 
@@ -308,8 +280,8 @@ static int kvm_mips_##name##_pte(pte_t *pte, unsigned long start,	\
 				 unsigned long end)			\
 {									\
 	int ret = 0;							\
-	int i_min = __pte_offset(start);				\
-	int i_max = __pte_offset(end);					\
+	int i_min = pte_index(start);				\
+	int i_max = pte_index(end);					\
 	int i;								\
 	pte_t old, new;							\
 									\
@@ -334,15 +306,15 @@ static int kvm_mips_##name##_pmd(pmd_t *pmd, unsigned long start,	\
 	int ret = 0;							\
 	pte_t *pte;							\
 	unsigned long cur_end = ~0ul;					\
-	int i_min = __pmd_offset(start);				\
-	int i_max = __pmd_offset(end);					\
+	int i_min = pmd_index(start);				\
+	int i_max = pmd_index(end);					\
 	int i;								\
 									\
 	for (i = i_min; i <= i_max; ++i, start = 0) {			\
 		if (!pmd_present(pmd[i]))				\
 			continue;					\
 									\
-		pte = pte_offset(pmd + i, 0);				\
+		pte = pte_offset_kernel(pmd + i, 0);				\
 		if (i == i_max)						\
 			cur_end = end;					\
 									\
@@ -357,8 +329,8 @@ static int kvm_mips_##name##_pud(pud_t *pud, unsigned long start,	\
 	int ret = 0;							\
 	pmd_t *pmd;							\
 	unsigned long cur_end = ~0ul;					\
-	int i_min = __pud_offset(start);				\
-	int i_max = __pud_offset(end);					\
+	int i_min = pud_index(start);				\
+	int i_max = pud_index(end);					\
 	int i;								\
 									\
 	for (i = i_min; i <= i_max; ++i, start = 0) {			\
@@ -378,6 +350,7 @@ static int kvm_mips_##name##_pgd(pgd_t *pgd, unsigned long start,	\
 				 unsigned long end)			\
 {									\
 	int ret = 0;							\
+	p4d_t *p4d;							\
 	pud_t *pud;							\
 	unsigned long cur_end = ~0ul;					\
 	int i_min = pgd_index(start);					\
@@ -388,7 +361,8 @@ static int kvm_mips_##name##_pgd(pgd_t *pgd, unsigned long start,	\
 		if (!pgd_present(pgd[i]))				\
 			continue;					\
 									\
-		pud = pud_offset(pgd + i, 0);				\
+		p4d = p4d_offset(pgd, 0);				\
+		pud = pud_offset(p4d + i, 0);				\
 		if (i == i_max)						\
 			cur_end = end;					\
 									\
@@ -512,7 +486,8 @@ static int kvm_unmap_hva_handler(struct kvm *kvm, gfn_t gfn, gfn_t gfn_end,
 	return 1;
 }
 
-int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
+int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end,
+			unsigned flags)
 {
 	handle_hva_to_gpa(kvm, start, end, &kvm_unmap_hva_handler, NULL);
 
@@ -705,8 +680,7 @@ static int kvm_mips_map_page(struct kvm_vcpu *vcpu, unsigned long gpa,
 		goto out;
 
 	/* We need a minimum of cached pages ready for page table creation */
-	err = mmu_topup_memory_cache(memcache, KVM_MMU_CACHE_MIN_PAGES,
-				     KVM_NR_MEM_OBJS);
+	err = kvm_mmu_topup_memory_cache(memcache, KVM_MMU_CACHE_MIN_PAGES);
 	if (err)
 		goto out;
 
@@ -790,8 +764,7 @@ static pte_t *kvm_trap_emul_pte_for_gva(struct kvm_vcpu *vcpu,
 	int ret;
 
 	/* We need a minimum of cached pages ready for page table creation */
-	ret = mmu_topup_memory_cache(memcache, KVM_MMU_CACHE_MIN_PAGES,
-				     KVM_NR_MEM_OBJS);
+	ret = kvm_mmu_topup_memory_cache(memcache, KVM_MMU_CACHE_MIN_PAGES);
 	if (ret)
 		return NULL;
 
@@ -836,8 +809,8 @@ void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
 static bool kvm_mips_flush_gva_pte(pte_t *pte, unsigned long start_gva,
 				   unsigned long end_gva)
 {
-	int i_min = __pte_offset(start_gva);
-	int i_max = __pte_offset(end_gva);
+	int i_min = pte_index(start_gva);
+	int i_max = pte_index(end_gva);
 	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PTE - 1);
 	int i;
 
@@ -862,8 +835,8 @@ static bool kvm_mips_flush_gva_pmd(pmd_t *pmd, unsigned long start_gva,
 {
 	pte_t *pte;
 	unsigned long end = ~0ul;
-	int i_min = __pmd_offset(start_gva);
-	int i_max = __pmd_offset(end_gva);
+	int i_min = pmd_index(start_gva);
+	int i_max = pmd_index(end_gva);
 	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PMD - 1);
 	int i;
 
@@ -871,7 +844,7 @@ static bool kvm_mips_flush_gva_pmd(pmd_t *pmd, unsigned long start_gva,
 		if (!pmd_present(pmd[i]))
 			continue;
 
-		pte = pte_offset(pmd + i, 0);
+		pte = pte_offset_kernel(pmd + i, 0);
 		if (i == i_max)
 			end = end_gva;
 
@@ -890,8 +863,8 @@ static bool kvm_mips_flush_gva_pud(pud_t *pud, unsigned long start_gva,
 {
 	pmd_t *pmd;
 	unsigned long end = ~0ul;
-	int i_min = __pud_offset(start_gva);
-	int i_max = __pud_offset(end_gva);
+	int i_min = pud_index(start_gva);
+	int i_max = pud_index(end_gva);
 	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PUD - 1);
 	int i;
 
@@ -916,6 +889,7 @@ static bool kvm_mips_flush_gva_pud(pud_t *pud, unsigned long start_gva,
 static bool kvm_mips_flush_gva_pgd(pgd_t *pgd, unsigned long start_gva,
 				   unsigned long end_gva)
 {
+	p4d_t *p4d;
 	pud_t *pud;
 	unsigned long end = ~0ul;
 	int i_min = pgd_index(start_gva);
@@ -927,7 +901,8 @@ static bool kvm_mips_flush_gva_pgd(pgd_t *pgd, unsigned long start_gva,
 		if (!pgd_present(pgd[i]))
 			continue;
 
-		pud = pud_offset(pgd + i, 0);
+		p4d = p4d_offset(pgd, 0);
+		pud = pud_offset(p4d + i, 0);
 		if (i == i_max)
 			end = end_gva;
 

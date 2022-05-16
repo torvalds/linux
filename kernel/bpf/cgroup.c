@@ -28,6 +28,78 @@ void cgroup_bpf_offline(struct cgroup *cgrp)
 	percpu_ref_kill(&cgrp->bpf.refcnt);
 }
 
+static void bpf_cgroup_storages_free(struct bpf_cgroup_storage *storages[])
+{
+	enum bpf_cgroup_storage_type stype;
+
+	for_each_cgroup_storage_type(stype)
+		bpf_cgroup_storage_free(storages[stype]);
+}
+
+static int bpf_cgroup_storages_alloc(struct bpf_cgroup_storage *storages[],
+				     struct bpf_cgroup_storage *new_storages[],
+				     enum bpf_attach_type type,
+				     struct bpf_prog *prog,
+				     struct cgroup *cgrp)
+{
+	enum bpf_cgroup_storage_type stype;
+	struct bpf_cgroup_storage_key key;
+	struct bpf_map *map;
+
+	key.cgroup_inode_id = cgroup_id(cgrp);
+	key.attach_type = type;
+
+	for_each_cgroup_storage_type(stype) {
+		map = prog->aux->cgroup_storage[stype];
+		if (!map)
+			continue;
+
+		storages[stype] = cgroup_storage_lookup((void *)map, &key, false);
+		if (storages[stype])
+			continue;
+
+		storages[stype] = bpf_cgroup_storage_alloc(prog, stype);
+		if (IS_ERR(storages[stype])) {
+			bpf_cgroup_storages_free(new_storages);
+			return -ENOMEM;
+		}
+
+		new_storages[stype] = storages[stype];
+	}
+
+	return 0;
+}
+
+static void bpf_cgroup_storages_assign(struct bpf_cgroup_storage *dst[],
+				       struct bpf_cgroup_storage *src[])
+{
+	enum bpf_cgroup_storage_type stype;
+
+	for_each_cgroup_storage_type(stype)
+		dst[stype] = src[stype];
+}
+
+static void bpf_cgroup_storages_link(struct bpf_cgroup_storage *storages[],
+				     struct cgroup *cgrp,
+				     enum bpf_attach_type attach_type)
+{
+	enum bpf_cgroup_storage_type stype;
+
+	for_each_cgroup_storage_type(stype)
+		bpf_cgroup_storage_link(storages[stype], cgrp, attach_type);
+}
+
+/* Called when bpf_cgroup_link is auto-detached from dying cgroup.
+ * It drops cgroup and bpf_prog refcounts, and marks bpf_link as defunct. It
+ * doesn't free link memory, which will eventually be done by bpf_link's
+ * release() callback, when its last FD is closed.
+ */
+static void bpf_cgroup_link_auto_detach(struct bpf_cgroup_link *link)
+{
+	cgroup_put(link->cgroup);
+	link->cgroup = NULL;
+}
+
 /**
  * cgroup_bpf_release() - put references of all bpf programs and
  *                        release all cgroup bpf data
@@ -35,25 +107,26 @@ void cgroup_bpf_offline(struct cgroup *cgrp)
  */
 static void cgroup_bpf_release(struct work_struct *work)
 {
-	struct cgroup *cgrp = container_of(work, struct cgroup,
-					   bpf.release_work);
-	enum bpf_cgroup_storage_type stype;
+	struct cgroup *p, *cgrp = container_of(work, struct cgroup,
+					       bpf.release_work);
 	struct bpf_prog_array *old_array;
+	struct list_head *storages = &cgrp->bpf.storages;
+	struct bpf_cgroup_storage *storage, *stmp;
+
 	unsigned int type;
 
 	mutex_lock(&cgroup_mutex);
 
 	for (type = 0; type < ARRAY_SIZE(cgrp->bpf.progs); type++) {
 		struct list_head *progs = &cgrp->bpf.progs[type];
-		struct bpf_prog_list *pl, *tmp;
+		struct bpf_prog_list *pl, *pltmp;
 
-		list_for_each_entry_safe(pl, tmp, progs, node) {
+		list_for_each_entry_safe(pl, pltmp, progs, node) {
 			list_del(&pl->node);
-			bpf_prog_put(pl->prog);
-			for_each_cgroup_storage_type(stype) {
-				bpf_cgroup_storage_unlink(pl->storage[stype]);
-				bpf_cgroup_storage_free(pl->storage[stype]);
-			}
+			if (pl->prog)
+				bpf_prog_put(pl->prog);
+			if (pl->link)
+				bpf_cgroup_link_auto_detach(pl->link);
 			kfree(pl);
 			static_branch_dec(&cgroup_bpf_enabled_key);
 		}
@@ -63,7 +136,15 @@ static void cgroup_bpf_release(struct work_struct *work)
 		bpf_prog_array_free(old_array);
 	}
 
+	list_for_each_entry_safe(storage, stmp, storages, list_cg) {
+		bpf_cgroup_storage_unlink(storage);
+		bpf_cgroup_storage_free(storage);
+	}
+
 	mutex_unlock(&cgroup_mutex);
+
+	for (p = cgroup_parent(cgrp); p; p = cgroup_parent(p))
+		cgroup_bpf_put(p);
 
 	percpu_ref_exit(&cgrp->bpf.refcnt);
 	cgroup_put(cgrp);
@@ -82,6 +163,18 @@ static void cgroup_bpf_release_fn(struct percpu_ref *ref)
 	queue_work(system_wq, &cgrp->bpf.release_work);
 }
 
+/* Get underlying bpf_prog of bpf_prog_list entry, regardless if it's through
+ * link or direct prog.
+ */
+static struct bpf_prog *prog_list_prog(struct bpf_prog_list *pl)
+{
+	if (pl->prog)
+		return pl->prog;
+	if (pl->link)
+		return pl->link->link.prog;
+	return NULL;
+}
+
 /* count number of elements in the list.
  * it's slow but the list cannot be long
  */
@@ -91,7 +184,7 @@ static u32 prog_list_length(struct list_head *head)
 	u32 cnt = 0;
 
 	list_for_each_entry(pl, head, node) {
-		if (!pl->prog)
+		if (!prog_list_prog(pl))
 			continue;
 		cnt++;
 	}
@@ -103,8 +196,7 @@ static u32 prog_list_length(struct list_head *head)
  * if parent has overridable or multi-prog, allow attaching
  */
 static bool hierarchy_allows_attach(struct cgroup *cgrp,
-				    enum bpf_attach_type type,
-				    u32 new_flags)
+				    enum bpf_attach_type type)
 {
 	struct cgroup *p;
 
@@ -136,7 +228,7 @@ static int compute_effective_progs(struct cgroup *cgrp,
 				   enum bpf_attach_type type,
 				   struct bpf_prog_array **array)
 {
-	enum bpf_cgroup_storage_type stype;
+	struct bpf_prog_array_item *item;
 	struct bpf_prog_array *progs;
 	struct bpf_prog_list *pl;
 	struct cgroup *p = cgrp;
@@ -161,13 +253,13 @@ static int compute_effective_progs(struct cgroup *cgrp,
 			continue;
 
 		list_for_each_entry(pl, &p->bpf.progs[type], node) {
-			if (!pl->prog)
+			if (!prog_list_prog(pl))
 				continue;
 
-			progs->items[cnt].prog = pl->prog;
-			for_each_cgroup_storage_type(stype)
-				progs->items[cnt].cgroup_storage[stype] =
-					pl->storage[stype];
+			item = &progs->items[cnt];
+			item->prog = prog_list_prog(pl);
+			bpf_cgroup_storages_assign(item->cgroup_storage,
+						   pl->storage);
 			cnt++;
 		}
 	} while ((p = cgroup_parent(p)));
@@ -180,8 +272,8 @@ static void activate_effective_progs(struct cgroup *cgrp,
 				     enum bpf_attach_type type,
 				     struct bpf_prog_array *old_array)
 {
-	rcu_swap_protected(cgrp->bpf.effective[type], old_array,
-			   lockdep_is_held(&cgroup_mutex));
+	old_array = rcu_replace_pointer(cgrp->bpf.effective[type], old_array,
+					lockdep_is_held(&cgroup_mutex));
 	/* free prog array after grace period, since __cgroup_bpf_run_*()
 	 * might be still walking the array
 	 */
@@ -199,6 +291,7 @@ int cgroup_bpf_inherit(struct cgroup *cgrp)
  */
 #define	NR ARRAY_SIZE(cgrp->bpf.effective)
 	struct bpf_prog_array *arrays[NR] = {};
+	struct cgroup *p;
 	int ret, i;
 
 	ret = percpu_ref_init(&cgrp->bpf.refcnt, cgroup_bpf_release_fn, 0,
@@ -206,8 +299,13 @@ int cgroup_bpf_inherit(struct cgroup *cgrp)
 	if (ret)
 		return ret;
 
+	for (p = cgroup_parent(cgrp); p; p = cgroup_parent(p))
+		cgroup_bpf_get(p);
+
 	for (i = 0; i < NR; i++)
 		INIT_LIST_HEAD(&cgrp->bpf.progs[i]);
+
+	INIT_LIST_HEAD(&cgrp->bpf.storages);
 
 	for (i = 0; i < NR; i++)
 		if (compute_effective_progs(cgrp, i, &arrays[i]))
@@ -220,6 +318,9 @@ int cgroup_bpf_inherit(struct cgroup *cgrp)
 cleanup:
 	for (i = 0; i < NR; i++)
 		bpf_prog_array_free(arrays[i]);
+
+	for (p = cgroup_parent(cgrp); p; p = cgroup_parent(p))
+		cgroup_bpf_put(p);
 
 	percpu_ref_exit(&cgrp->bpf.refcnt);
 
@@ -278,36 +379,85 @@ cleanup:
 
 #define BPF_CGROUP_MAX_PROGS 64
 
+static struct bpf_prog_list *find_attach_entry(struct list_head *progs,
+					       struct bpf_prog *prog,
+					       struct bpf_cgroup_link *link,
+					       struct bpf_prog *replace_prog,
+					       bool allow_multi)
+{
+	struct bpf_prog_list *pl;
+
+	/* single-attach case */
+	if (!allow_multi) {
+		if (list_empty(progs))
+			return NULL;
+		return list_first_entry(progs, typeof(*pl), node);
+	}
+
+	list_for_each_entry(pl, progs, node) {
+		if (prog && pl->prog == prog && prog != replace_prog)
+			/* disallow attaching the same prog twice */
+			return ERR_PTR(-EINVAL);
+		if (link && pl->link == link)
+			/* disallow attaching the same link twice */
+			return ERR_PTR(-EINVAL);
+	}
+
+	/* direct prog multi-attach w/ replacement case */
+	if (replace_prog) {
+		list_for_each_entry(pl, progs, node) {
+			if (pl->prog == replace_prog)
+				/* a match found */
+				return pl;
+		}
+		/* prog to replace not found for cgroup */
+		return ERR_PTR(-ENOENT);
+	}
+
+	return NULL;
+}
+
 /**
- * __cgroup_bpf_attach() - Attach the program to a cgroup, and
+ * __cgroup_bpf_attach() - Attach the program or the link to a cgroup, and
  *                         propagate the change to descendants
  * @cgrp: The cgroup which descendants to traverse
  * @prog: A program to attach
+ * @link: A link to attach
+ * @replace_prog: Previously attached program to replace if BPF_F_REPLACE is set
  * @type: Type of attach operation
  * @flags: Option flags
  *
+ * Exactly one of @prog or @link can be non-null.
  * Must be called with cgroup_mutex held.
  */
-int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
+int __cgroup_bpf_attach(struct cgroup *cgrp,
+			struct bpf_prog *prog, struct bpf_prog *replace_prog,
+			struct bpf_cgroup_link *link,
 			enum bpf_attach_type type, u32 flags)
 {
+	u32 saved_flags = (flags & (BPF_F_ALLOW_OVERRIDE | BPF_F_ALLOW_MULTI));
 	struct list_head *progs = &cgrp->bpf.progs[type];
 	struct bpf_prog *old_prog = NULL;
-	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE],
-		*old_storage[MAX_BPF_CGROUP_STORAGE_TYPE] = {NULL};
-	enum bpf_cgroup_storage_type stype;
+	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE] = {};
+	struct bpf_cgroup_storage *new_storage[MAX_BPF_CGROUP_STORAGE_TYPE] = {};
 	struct bpf_prog_list *pl;
-	bool pl_was_allocated;
 	int err;
 
-	if ((flags & BPF_F_ALLOW_OVERRIDE) && (flags & BPF_F_ALLOW_MULTI))
+	if (((flags & BPF_F_ALLOW_OVERRIDE) && (flags & BPF_F_ALLOW_MULTI)) ||
+	    ((flags & BPF_F_REPLACE) && !(flags & BPF_F_ALLOW_MULTI)))
 		/* invalid combination */
 		return -EINVAL;
+	if (link && (prog || replace_prog))
+		/* only either link or prog/replace_prog can be specified */
+		return -EINVAL;
+	if (!!replace_prog != !!(flags & BPF_F_REPLACE))
+		/* replace_prog implies BPF_F_REPLACE, and vice versa */
+		return -EINVAL;
 
-	if (!hierarchy_allows_attach(cgrp, type, flags))
+	if (!hierarchy_allows_attach(cgrp, type))
 		return -EPERM;
 
-	if (!list_empty(progs) && cgrp->bpf.flags[type] != flags)
+	if (!list_empty(progs) && cgrp->bpf.flags[type] != saved_flags)
 		/* Disallow attaching non-overridable on top
 		 * of existing overridable in this cgroup.
 		 * Disallow attaching multi-prog if overridable or none
@@ -317,150 +467,224 @@ int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 	if (prog_list_length(progs) >= BPF_CGROUP_MAX_PROGS)
 		return -E2BIG;
 
-	for_each_cgroup_storage_type(stype) {
-		storage[stype] = bpf_cgroup_storage_alloc(prog, stype);
-		if (IS_ERR(storage[stype])) {
-			storage[stype] = NULL;
-			for_each_cgroup_storage_type(stype)
-				bpf_cgroup_storage_free(storage[stype]);
-			return -ENOMEM;
-		}
-	}
+	pl = find_attach_entry(progs, prog, link, replace_prog,
+			       flags & BPF_F_ALLOW_MULTI);
+	if (IS_ERR(pl))
+		return PTR_ERR(pl);
 
-	if (flags & BPF_F_ALLOW_MULTI) {
-		list_for_each_entry(pl, progs, node) {
-			if (pl->prog == prog) {
-				/* disallow attaching the same prog twice */
-				for_each_cgroup_storage_type(stype)
-					bpf_cgroup_storage_free(storage[stype]);
-				return -EINVAL;
-			}
-		}
+	if (bpf_cgroup_storages_alloc(storage, new_storage, type,
+				      prog ? : link->link.prog, cgrp))
+		return -ENOMEM;
 
+	if (pl) {
+		old_prog = pl->prog;
+	} else {
 		pl = kmalloc(sizeof(*pl), GFP_KERNEL);
 		if (!pl) {
-			for_each_cgroup_storage_type(stype)
-				bpf_cgroup_storage_free(storage[stype]);
+			bpf_cgroup_storages_free(new_storage);
 			return -ENOMEM;
 		}
-
-		pl_was_allocated = true;
-		pl->prog = prog;
-		for_each_cgroup_storage_type(stype)
-			pl->storage[stype] = storage[stype];
 		list_add_tail(&pl->node, progs);
-	} else {
-		if (list_empty(progs)) {
-			pl = kmalloc(sizeof(*pl), GFP_KERNEL);
-			if (!pl) {
-				for_each_cgroup_storage_type(stype)
-					bpf_cgroup_storage_free(storage[stype]);
-				return -ENOMEM;
-			}
-			pl_was_allocated = true;
-			list_add_tail(&pl->node, progs);
-		} else {
-			pl = list_first_entry(progs, typeof(*pl), node);
-			old_prog = pl->prog;
-			for_each_cgroup_storage_type(stype) {
-				old_storage[stype] = pl->storage[stype];
-				bpf_cgroup_storage_unlink(old_storage[stype]);
-			}
-			pl_was_allocated = false;
-		}
-		pl->prog = prog;
-		for_each_cgroup_storage_type(stype)
-			pl->storage[stype] = storage[stype];
 	}
 
-	cgrp->bpf.flags[type] = flags;
+	pl->prog = prog;
+	pl->link = link;
+	bpf_cgroup_storages_assign(pl->storage, storage);
+	cgrp->bpf.flags[type] = saved_flags;
 
 	err = update_effective_progs(cgrp, type);
 	if (err)
 		goto cleanup;
 
-	static_branch_inc(&cgroup_bpf_enabled_key);
-	for_each_cgroup_storage_type(stype) {
-		if (!old_storage[stype])
-			continue;
-		bpf_cgroup_storage_free(old_storage[stype]);
-	}
-	if (old_prog) {
+	if (old_prog)
 		bpf_prog_put(old_prog);
-		static_branch_dec(&cgroup_bpf_enabled_key);
-	}
-	for_each_cgroup_storage_type(stype)
-		bpf_cgroup_storage_link(storage[stype], cgrp, type);
+	else
+		static_branch_inc(&cgroup_bpf_enabled_key);
+	bpf_cgroup_storages_link(new_storage, cgrp, type);
 	return 0;
 
 cleanup:
-	/* and cleanup the prog list */
-	pl->prog = old_prog;
-	for_each_cgroup_storage_type(stype) {
-		bpf_cgroup_storage_free(pl->storage[stype]);
-		pl->storage[stype] = old_storage[stype];
-		bpf_cgroup_storage_link(old_storage[stype], cgrp, type);
+	if (old_prog) {
+		pl->prog = old_prog;
+		pl->link = NULL;
 	}
-	if (pl_was_allocated) {
+	bpf_cgroup_storages_free(new_storage);
+	if (!old_prog) {
 		list_del(&pl->node);
 		kfree(pl);
 	}
 	return err;
 }
 
+/* Swap updated BPF program for given link in effective program arrays across
+ * all descendant cgroups. This function is guaranteed to succeed.
+ */
+static void replace_effective_prog(struct cgroup *cgrp,
+				   enum bpf_attach_type type,
+				   struct bpf_cgroup_link *link)
+{
+	struct bpf_prog_array_item *item;
+	struct cgroup_subsys_state *css;
+	struct bpf_prog_array *progs;
+	struct bpf_prog_list *pl;
+	struct list_head *head;
+	struct cgroup *cg;
+	int pos;
+
+	css_for_each_descendant_pre(css, &cgrp->self) {
+		struct cgroup *desc = container_of(css, struct cgroup, self);
+
+		if (percpu_ref_is_zero(&desc->bpf.refcnt))
+			continue;
+
+		/* find position of link in effective progs array */
+		for (pos = 0, cg = desc; cg; cg = cgroup_parent(cg)) {
+			if (pos && !(cg->bpf.flags[type] & BPF_F_ALLOW_MULTI))
+				continue;
+
+			head = &cg->bpf.progs[type];
+			list_for_each_entry(pl, head, node) {
+				if (!prog_list_prog(pl))
+					continue;
+				if (pl->link == link)
+					goto found;
+				pos++;
+			}
+		}
+found:
+		BUG_ON(!cg);
+		progs = rcu_dereference_protected(
+				desc->bpf.effective[type],
+				lockdep_is_held(&cgroup_mutex));
+		item = &progs->items[pos];
+		WRITE_ONCE(item->prog, link->link.prog);
+	}
+}
+
 /**
- * __cgroup_bpf_detach() - Detach the program from a cgroup, and
- *                         propagate the change to descendants
+ * __cgroup_bpf_replace() - Replace link's program and propagate the change
+ *                          to descendants
  * @cgrp: The cgroup which descendants to traverse
- * @prog: A program to detach or NULL
- * @type: Type of detach operation
+ * @link: A link for which to replace BPF program
+ * @type: Type of attach operation
  *
  * Must be called with cgroup_mutex held.
  */
-int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
-			enum bpf_attach_type type)
+static int __cgroup_bpf_replace(struct cgroup *cgrp,
+				struct bpf_cgroup_link *link,
+				struct bpf_prog *new_prog)
 {
-	struct list_head *progs = &cgrp->bpf.progs[type];
-	enum bpf_cgroup_storage_type stype;
-	u32 flags = cgrp->bpf.flags[type];
-	struct bpf_prog *old_prog = NULL;
+	struct list_head *progs = &cgrp->bpf.progs[link->type];
+	struct bpf_prog *old_prog;
 	struct bpf_prog_list *pl;
-	int err;
+	bool found = false;
 
-	if (flags & BPF_F_ALLOW_MULTI) {
-		if (!prog)
-			/* to detach MULTI prog the user has to specify valid FD
-			 * of the program to be detached
-			 */
-			return -EINVAL;
-	} else {
-		if (list_empty(progs))
-			/* report error when trying to detach and nothing is attached */
-			return -ENOENT;
-	}
+	if (link->link.prog->type != new_prog->type)
+		return -EINVAL;
 
-	if (flags & BPF_F_ALLOW_MULTI) {
-		/* find the prog and detach it */
-		list_for_each_entry(pl, progs, node) {
-			if (pl->prog != prog)
-				continue;
-			old_prog = prog;
-			/* mark it deleted, so it's ignored while
-			 * recomputing effective
-			 */
-			pl->prog = NULL;
+	list_for_each_entry(pl, progs, node) {
+		if (pl->link == link) {
+			found = true;
 			break;
 		}
-		if (!old_prog)
-			return -ENOENT;
-	} else {
-		/* to maintain backward compatibility NONE and OVERRIDE cgroups
-		 * allow detaching with invalid FD (prog==NULL)
-		 */
-		pl = list_first_entry(progs, typeof(*pl), node);
-		old_prog = pl->prog;
-		pl->prog = NULL;
 	}
+	if (!found)
+		return -ENOENT;
+
+	old_prog = xchg(&link->link.prog, new_prog);
+	replace_effective_prog(cgrp, link->type, link);
+	bpf_prog_put(old_prog);
+	return 0;
+}
+
+static int cgroup_bpf_replace(struct bpf_link *link, struct bpf_prog *new_prog,
+			      struct bpf_prog *old_prog)
+{
+	struct bpf_cgroup_link *cg_link;
+	int ret;
+
+	cg_link = container_of(link, struct bpf_cgroup_link, link);
+
+	mutex_lock(&cgroup_mutex);
+	/* link might have been auto-released by dying cgroup, so fail */
+	if (!cg_link->cgroup) {
+		ret = -ENOLINK;
+		goto out_unlock;
+	}
+	if (old_prog && link->prog != old_prog) {
+		ret = -EPERM;
+		goto out_unlock;
+	}
+	ret = __cgroup_bpf_replace(cg_link->cgroup, cg_link, new_prog);
+out_unlock:
+	mutex_unlock(&cgroup_mutex);
+	return ret;
+}
+
+static struct bpf_prog_list *find_detach_entry(struct list_head *progs,
+					       struct bpf_prog *prog,
+					       struct bpf_cgroup_link *link,
+					       bool allow_multi)
+{
+	struct bpf_prog_list *pl;
+
+	if (!allow_multi) {
+		if (list_empty(progs))
+			/* report error when trying to detach and nothing is attached */
+			return ERR_PTR(-ENOENT);
+
+		/* to maintain backward compatibility NONE and OVERRIDE cgroups
+		 * allow detaching with invalid FD (prog==NULL) in legacy mode
+		 */
+		return list_first_entry(progs, typeof(*pl), node);
+	}
+
+	if (!prog && !link)
+		/* to detach MULTI prog the user has to specify valid FD
+		 * of the program or link to be detached
+		 */
+		return ERR_PTR(-EINVAL);
+
+	/* find the prog or link and detach it */
+	list_for_each_entry(pl, progs, node) {
+		if (pl->prog == prog && pl->link == link)
+			return pl;
+	}
+	return ERR_PTR(-ENOENT);
+}
+
+/**
+ * __cgroup_bpf_detach() - Detach the program or link from a cgroup, and
+ *                         propagate the change to descendants
+ * @cgrp: The cgroup which descendants to traverse
+ * @prog: A program to detach or NULL
+ * @prog: A link to detach or NULL
+ * @type: Type of detach operation
+ *
+ * At most one of @prog or @link can be non-NULL.
+ * Must be called with cgroup_mutex held.
+ */
+int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+			struct bpf_cgroup_link *link, enum bpf_attach_type type)
+{
+	struct list_head *progs = &cgrp->bpf.progs[type];
+	u32 flags = cgrp->bpf.flags[type];
+	struct bpf_prog_list *pl;
+	struct bpf_prog *old_prog;
+	int err;
+
+	if (prog && link)
+		/* only one of prog or link can be specified */
+		return -EINVAL;
+
+	pl = find_detach_entry(progs, prog, link, flags & BPF_F_ALLOW_MULTI);
+	if (IS_ERR(pl))
+		return PTR_ERR(pl);
+
+	/* mark it deleted, so it's ignored while recomputing effective */
+	old_prog = pl->prog;
+	pl->prog = NULL;
+	pl->link = NULL;
 
 	err = update_effective_progs(cgrp, type);
 	if (err)
@@ -468,22 +692,19 @@ int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 
 	/* now can actually delete it from this cgroup list */
 	list_del(&pl->node);
-	for_each_cgroup_storage_type(stype) {
-		bpf_cgroup_storage_unlink(pl->storage[stype]);
-		bpf_cgroup_storage_free(pl->storage[stype]);
-	}
 	kfree(pl);
 	if (list_empty(progs))
 		/* last program was detached, reset flags to zero */
 		cgrp->bpf.flags[type] = 0;
-
-	bpf_prog_put(old_prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
 	static_branch_dec(&cgroup_bpf_enabled_key);
 	return 0;
 
 cleanup:
-	/* and restore back old_prog */
+	/* restore back prog or link */
 	pl->prog = old_prog;
+	pl->link = link;
 	return err;
 }
 
@@ -496,6 +717,7 @@ int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 	struct list_head *progs = &cgrp->bpf.progs[type];
 	u32 flags = cgrp->bpf.flags[type];
 	struct bpf_prog_array *effective;
+	struct bpf_prog *prog;
 	int cnt, ret = 0, i;
 
 	effective = rcu_dereference_protected(cgrp->bpf.effective[type],
@@ -526,7 +748,8 @@ int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 
 		i = 0;
 		list_for_each_entry(pl, progs, node) {
-			id = pl->prog->aux->id;
+			prog = prog_list_prog(pl);
+			id = prog->aux->id;
 			if (copy_to_user(prog_ids + i, &id, sizeof(id)))
 				return -EFAULT;
 			if (++i == cnt)
@@ -539,6 +762,7 @@ int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 int cgroup_bpf_prog_attach(const union bpf_attr *attr,
 			   enum bpf_prog_type ptype, struct bpf_prog *prog)
 {
+	struct bpf_prog *replace_prog = NULL;
 	struct cgroup *cgrp;
 	int ret;
 
@@ -546,8 +770,20 @@ int cgroup_bpf_prog_attach(const union bpf_attr *attr,
 	if (IS_ERR(cgrp))
 		return PTR_ERR(cgrp);
 
-	ret = cgroup_bpf_attach(cgrp, prog, attr->attach_type,
-				attr->attach_flags);
+	if ((attr->attach_flags & BPF_F_ALLOW_MULTI) &&
+	    (attr->attach_flags & BPF_F_REPLACE)) {
+		replace_prog = bpf_prog_get_type(attr->replace_bpf_fd, ptype);
+		if (IS_ERR(replace_prog)) {
+			cgroup_put(cgrp);
+			return PTR_ERR(replace_prog);
+		}
+	}
+
+	ret = cgroup_bpf_attach(cgrp, prog, replace_prog, NULL,
+				attr->attach_type, attr->attach_flags);
+
+	if (replace_prog)
+		bpf_prog_put(replace_prog);
 	cgroup_put(cgrp);
 	return ret;
 }
@@ -566,12 +802,147 @@ int cgroup_bpf_prog_detach(const union bpf_attr *attr, enum bpf_prog_type ptype)
 	if (IS_ERR(prog))
 		prog = NULL;
 
-	ret = cgroup_bpf_detach(cgrp, prog, attr->attach_type, 0);
+	ret = cgroup_bpf_detach(cgrp, prog, attr->attach_type);
 	if (prog)
 		bpf_prog_put(prog);
 
 	cgroup_put(cgrp);
 	return ret;
+}
+
+static void bpf_cgroup_link_release(struct bpf_link *link)
+{
+	struct bpf_cgroup_link *cg_link =
+		container_of(link, struct bpf_cgroup_link, link);
+	struct cgroup *cg;
+
+	/* link might have been auto-detached by dying cgroup already,
+	 * in that case our work is done here
+	 */
+	if (!cg_link->cgroup)
+		return;
+
+	mutex_lock(&cgroup_mutex);
+
+	/* re-check cgroup under lock again */
+	if (!cg_link->cgroup) {
+		mutex_unlock(&cgroup_mutex);
+		return;
+	}
+
+	WARN_ON(__cgroup_bpf_detach(cg_link->cgroup, NULL, cg_link,
+				    cg_link->type));
+
+	cg = cg_link->cgroup;
+	cg_link->cgroup = NULL;
+
+	mutex_unlock(&cgroup_mutex);
+
+	cgroup_put(cg);
+}
+
+static void bpf_cgroup_link_dealloc(struct bpf_link *link)
+{
+	struct bpf_cgroup_link *cg_link =
+		container_of(link, struct bpf_cgroup_link, link);
+
+	kfree(cg_link);
+}
+
+static int bpf_cgroup_link_detach(struct bpf_link *link)
+{
+	bpf_cgroup_link_release(link);
+
+	return 0;
+}
+
+static void bpf_cgroup_link_show_fdinfo(const struct bpf_link *link,
+					struct seq_file *seq)
+{
+	struct bpf_cgroup_link *cg_link =
+		container_of(link, struct bpf_cgroup_link, link);
+	u64 cg_id = 0;
+
+	mutex_lock(&cgroup_mutex);
+	if (cg_link->cgroup)
+		cg_id = cgroup_id(cg_link->cgroup);
+	mutex_unlock(&cgroup_mutex);
+
+	seq_printf(seq,
+		   "cgroup_id:\t%llu\n"
+		   "attach_type:\t%d\n",
+		   cg_id,
+		   cg_link->type);
+}
+
+static int bpf_cgroup_link_fill_link_info(const struct bpf_link *link,
+					  struct bpf_link_info *info)
+{
+	struct bpf_cgroup_link *cg_link =
+		container_of(link, struct bpf_cgroup_link, link);
+	u64 cg_id = 0;
+
+	mutex_lock(&cgroup_mutex);
+	if (cg_link->cgroup)
+		cg_id = cgroup_id(cg_link->cgroup);
+	mutex_unlock(&cgroup_mutex);
+
+	info->cgroup.cgroup_id = cg_id;
+	info->cgroup.attach_type = cg_link->type;
+	return 0;
+}
+
+static const struct bpf_link_ops bpf_cgroup_link_lops = {
+	.release = bpf_cgroup_link_release,
+	.dealloc = bpf_cgroup_link_dealloc,
+	.detach = bpf_cgroup_link_detach,
+	.update_prog = cgroup_bpf_replace,
+	.show_fdinfo = bpf_cgroup_link_show_fdinfo,
+	.fill_link_info = bpf_cgroup_link_fill_link_info,
+};
+
+int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
+{
+	struct bpf_link_primer link_primer;
+	struct bpf_cgroup_link *link;
+	struct cgroup *cgrp;
+	int err;
+
+	if (attr->link_create.flags)
+		return -EINVAL;
+
+	cgrp = cgroup_get_from_fd(attr->link_create.target_fd);
+	if (IS_ERR(cgrp))
+		return PTR_ERR(cgrp);
+
+	link = kzalloc(sizeof(*link), GFP_USER);
+	if (!link) {
+		err = -ENOMEM;
+		goto out_put_cgroup;
+	}
+	bpf_link_init(&link->link, BPF_LINK_TYPE_CGROUP, &bpf_cgroup_link_lops,
+		      prog);
+	link->cgroup = cgrp;
+	link->type = attr->link_create.attach_type;
+
+	err  = bpf_link_prime(&link->link, &link_primer);
+	if (err) {
+		kfree(link);
+		goto out_put_cgroup;
+	}
+
+	err = cgroup_bpf_attach(cgrp, NULL, NULL, link, link->type,
+				BPF_F_ALLOW_MULTI);
+	if (err) {
+		bpf_link_cleanup(&link_primer);
+		goto out_put_cgroup;
+	}
+
+	return bpf_link_settle(&link_primer);
+
+out_put_cgroup:
+	cgroup_put(cgrp);
+	return err;
 }
 
 int cgroup_bpf_prog_query(const union bpf_attr *attr,
@@ -770,36 +1141,21 @@ int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
 
 	return !allow;
 }
-EXPORT_SYMBOL(__cgroup_bpf_check_dev_permission);
 
 static const struct bpf_func_proto *
 cgroup_base_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
-	case BPF_FUNC_map_lookup_elem:
-		return &bpf_map_lookup_elem_proto;
-	case BPF_FUNC_map_update_elem:
-		return &bpf_map_update_elem_proto;
-	case BPF_FUNC_map_delete_elem:
-		return &bpf_map_delete_elem_proto;
-	case BPF_FUNC_map_push_elem:
-		return &bpf_map_push_elem_proto;
-	case BPF_FUNC_map_pop_elem:
-		return &bpf_map_pop_elem_proto;
-	case BPF_FUNC_map_peek_elem:
-		return &bpf_map_peek_elem_proto;
 	case BPF_FUNC_get_current_uid_gid:
 		return &bpf_get_current_uid_gid_proto;
 	case BPF_FUNC_get_local_storage:
 		return &bpf_get_local_storage_proto;
 	case BPF_FUNC_get_current_cgroup_id:
 		return &bpf_get_current_cgroup_id_proto;
-	case BPF_FUNC_trace_printk:
-		if (capable(CAP_SYS_ADMIN))
-			return bpf_get_trace_printk_proto();
-		/* fall through */
+	case BPF_FUNC_perf_event_output:
+		return &bpf_event_output_data_proto;
 	default:
-		return NULL;
+		return bpf_base_func_proto(func_id);
 	}
 }
 
@@ -853,16 +1209,13 @@ const struct bpf_verifier_ops cg_dev_verifier_ops = {
  * @head: sysctl table header
  * @table: sysctl table
  * @write: sysctl is being read (= 0) or written (= 1)
- * @buf: pointer to buffer passed by user space
+ * @buf: pointer to buffer (in and out)
  * @pcount: value-result argument: value is size of buffer pointed to by @buf,
  *	result is size of @new_buf if program set new value, initial value
  *	otherwise
  * @ppos: value-result argument: value is position at which read from or write
  *	to sysctl is happening, result is new position if program overrode it,
  *	initial value otherwise
- * @new_buf: pointer to pointer to new buffer that will be allocated if program
- *	overrides new value provided by user space on sysctl write
- *	NOTE: it's caller responsibility to free *new_buf if it was set
  * @type: type of program to be executed
  *
  * Program is run when sysctl is being accessed, either read or written, and
@@ -873,8 +1226,7 @@ const struct bpf_verifier_ops cg_dev_verifier_ops = {
  */
 int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 				   struct ctl_table *table, int write,
-				   void __user *buf, size_t *pcount,
-				   loff_t *ppos, void **new_buf,
+				   char **buf, size_t *pcount, loff_t *ppos,
 				   enum bpf_attach_type type)
 {
 	struct bpf_sysctl_kern ctx = {
@@ -889,36 +1241,28 @@ int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 		.new_updated = 0,
 	};
 	struct cgroup *cgrp;
+	loff_t pos = 0;
 	int ret;
 
 	ctx.cur_val = kmalloc_track_caller(ctx.cur_len, GFP_KERNEL);
-	if (ctx.cur_val) {
-		mm_segment_t old_fs;
-		loff_t pos = 0;
-
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		if (table->proc_handler(table, 0, (void __user *)ctx.cur_val,
-					&ctx.cur_len, &pos)) {
-			/* Let BPF program decide how to proceed. */
-			ctx.cur_len = 0;
-		}
-		set_fs(old_fs);
-	} else {
+	if (!ctx.cur_val ||
+	    table->proc_handler(table, 0, ctx.cur_val, &ctx.cur_len, &pos)) {
 		/* Let BPF program decide how to proceed. */
 		ctx.cur_len = 0;
 	}
 
-	if (write && buf && *pcount) {
+	if (write && *buf && *pcount) {
 		/* BPF program should be able to override new value with a
 		 * buffer bigger than provided by user.
 		 */
 		ctx.new_val = kmalloc_track_caller(PAGE_SIZE, GFP_KERNEL);
 		ctx.new_len = min_t(size_t, PAGE_SIZE, *pcount);
-		if (!ctx.new_val ||
-		    copy_from_user(ctx.new_val, buf, ctx.new_len))
+		if (ctx.new_val) {
+			memcpy(ctx.new_val, *buf, ctx.new_len);
+		} else {
 			/* Let BPF program decide how to proceed. */
 			ctx.new_len = 0;
+		}
 	}
 
 	rcu_read_lock();
@@ -929,7 +1273,8 @@ int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 	kfree(ctx.cur_val);
 
 	if (ret == 1 && ctx.new_updated) {
-		*new_buf = ctx.new_val;
+		kfree(*buf);
+		*buf = ctx.new_val;
 		*pcount = ctx.new_len;
 	} else {
 		kfree(ctx.new_val);
@@ -937,7 +1282,6 @@ int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 
 	return ret == 1 ? 0 : -EPERM;
 }
-EXPORT_SYMBOL(__cgroup_bpf_run_filter_sysctl);
 
 #ifdef CONFIG_NET
 static bool __cgroup_bpf_prog_array_is_empty(struct cgroup *cgrp,
@@ -956,8 +1300,15 @@ static bool __cgroup_bpf_prog_array_is_empty(struct cgroup *cgrp,
 
 static int sockopt_alloc_buf(struct bpf_sockopt_kern *ctx, int max_optlen)
 {
-	if (unlikely(max_optlen > PAGE_SIZE) || max_optlen < 0)
+	if (unlikely(max_optlen < 0))
 		return -EINVAL;
+
+	if (unlikely(max_optlen > PAGE_SIZE)) {
+		/* We don't expose optvals that are greater than PAGE_SIZE
+		 * to the BPF program.
+		 */
+		max_optlen = PAGE_SIZE;
+	}
 
 	ctx->optval = kzalloc(max_optlen, GFP_USER);
 	if (!ctx->optval)
@@ -965,7 +1316,7 @@ static int sockopt_alloc_buf(struct bpf_sockopt_kern *ctx, int max_optlen)
 
 	ctx->optval_end = ctx->optval + max_optlen;
 
-	return 0;
+	return max_optlen;
 }
 
 static void sockopt_free_buf(struct bpf_sockopt_kern *ctx)
@@ -999,13 +1350,13 @@ int __cgroup_bpf_run_filter_setsockopt(struct sock *sk, int *level,
 	 */
 	max_optlen = max_t(int, 16, *optlen);
 
-	ret = sockopt_alloc_buf(&ctx, max_optlen);
-	if (ret)
-		return ret;
+	max_optlen = sockopt_alloc_buf(&ctx, max_optlen);
+	if (max_optlen < 0)
+		return max_optlen;
 
 	ctx.optlen = *optlen;
 
-	if (copy_from_user(ctx.optval, optval, *optlen) != 0) {
+	if (copy_from_user(ctx.optval, optval, min(*optlen, max_optlen)) != 0) {
 		ret = -EFAULT;
 		goto out;
 	}
@@ -1033,8 +1384,14 @@ int __cgroup_bpf_run_filter_setsockopt(struct sock *sk, int *level,
 		/* export any potential modifications */
 		*level = ctx.level;
 		*optname = ctx.optname;
-		*optlen = ctx.optlen;
-		*kernel_optval = ctx.optval;
+
+		/* optlen == 0 from BPF indicates that we should
+		 * use original userspace data.
+		 */
+		if (ctx.optlen != 0) {
+			*optlen = ctx.optlen;
+			*kernel_optval = ctx.optval;
+		}
 	}
 
 out:
@@ -1042,7 +1399,6 @@ out:
 		sockopt_free_buf(&ctx);
 	return ret;
 }
-EXPORT_SYMBOL(__cgroup_bpf_run_filter_setsockopt);
 
 int __cgroup_bpf_run_filter_getsockopt(struct sock *sk, int level,
 				       int optname, char __user *optval,
@@ -1066,11 +1422,11 @@ int __cgroup_bpf_run_filter_getsockopt(struct sock *sk, int level,
 	    __cgroup_bpf_prog_array_is_empty(cgrp, BPF_CGROUP_GETSOCKOPT))
 		return retval;
 
-	ret = sockopt_alloc_buf(&ctx, max_optlen);
-	if (ret)
-		return ret;
-
 	ctx.optlen = max_optlen;
+
+	max_optlen = sockopt_alloc_buf(&ctx, max_optlen);
+	if (max_optlen < 0)
+		return max_optlen;
 
 	if (!retval) {
 		/* If kernel getsockopt finished successfully,
@@ -1085,10 +1441,8 @@ int __cgroup_bpf_run_filter_getsockopt(struct sock *sk, int level,
 			goto out;
 		}
 
-		if (ctx.optlen > max_optlen)
-			ctx.optlen = max_optlen;
-
-		if (copy_from_user(ctx.optval, optval, ctx.optlen) != 0) {
+		if (copy_from_user(ctx.optval, optval,
+				   min(ctx.optlen, max_optlen)) != 0) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -1117,10 +1471,12 @@ int __cgroup_bpf_run_filter_getsockopt(struct sock *sk, int level,
 		goto out;
 	}
 
-	if (copy_to_user(optval, ctx.optval, ctx.optlen) ||
-	    put_user(ctx.optlen, optlen)) {
-		ret = -EFAULT;
-		goto out;
+	if (ctx.optlen != 0) {
+		if (copy_to_user(optval, ctx.optval, ctx.optlen) ||
+		    put_user(ctx.optlen, optlen)) {
+			ret = -EFAULT;
+			goto out;
+		}
 	}
 
 	ret = ctx.retval;
@@ -1129,7 +1485,6 @@ out:
 	sockopt_free_buf(&ctx);
 	return ret;
 }
-EXPORT_SYMBOL(__cgroup_bpf_run_filter_getsockopt);
 #endif
 
 static ssize_t sysctl_cpy_dir(const struct ctl_dir *dir, char **bufp,
@@ -1341,7 +1696,7 @@ static u32 sysctl_convert_ctx_access(enum bpf_access_type type,
 		*insn++ = BPF_LDX_MEM(
 			BPF_SIZE(si->code), si->dst_reg, si->src_reg,
 			bpf_target_off(struct bpf_sysctl_kern, write,
-				       FIELD_SIZEOF(struct bpf_sysctl_kern,
+				       sizeof_field(struct bpf_sysctl_kern,
 						    write),
 				       target_size));
 		break;
@@ -1439,7 +1794,7 @@ static bool cg_sockopt_is_valid_access(int off, int size,
 			return prog->expected_attach_type ==
 				BPF_CGROUP_GETSOCKOPT;
 		case offsetof(struct bpf_sockopt, optname):
-			/* fallthrough */
+			fallthrough;
 		case offsetof(struct bpf_sockopt, level):
 			if (size != size_default)
 				return false;

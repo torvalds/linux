@@ -541,9 +541,7 @@ int bnx2x_change_mac_addr(struct net_device *dev, void *p);
 /* NAPI poll Tx part */
 int bnx2x_tx_int(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata);
 
-/* suspend/resume callbacks */
-int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state);
-int bnx2x_resume(struct pci_dev *pdev);
+extern const struct dev_pm_ops bnx2x_pm_ops;
 
 /* Release IRQ vectors */
 void bnx2x_free_irq(struct bnx2x *bp);
@@ -617,7 +615,7 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features);
  *
  * @dev:	net device
  */
-void bnx2x_tx_timeout(struct net_device *dev);
+void bnx2x_tx_timeout(struct net_device *dev, unsigned int txqueue);
 
 /** bnx2x_get_c2s_mapping - read inner-to-outer vlan configuration
  * c2s_map should have BNX2X_MAX_PRIORITY entries.
@@ -827,9 +825,9 @@ static inline void bnx2x_del_all_napi_cnic(struct bnx2x *bp)
 	int i;
 
 	for_each_rx_queue_cnic(bp, i) {
-		napi_hash_del(&bnx2x_fp(bp, i, napi));
-		netif_napi_del(&bnx2x_fp(bp, i, napi));
+		__netif_napi_del(&bnx2x_fp(bp, i, napi));
 	}
+	synchronize_net();
 }
 
 static inline void bnx2x_del_all_napi(struct bnx2x *bp)
@@ -837,9 +835,9 @@ static inline void bnx2x_del_all_napi(struct bnx2x *bp)
 	int i;
 
 	for_each_eth_queue(bp, i) {
-		napi_hash_del(&bnx2x_fp(bp, i, napi));
-		netif_napi_del(&bnx2x_fp(bp, i, napi));
+		__netif_napi_del(&bnx2x_fp(bp, i, napi));
 	}
+	synchronize_net();
 }
 
 int bnx2x_set_int_mode(struct bnx2x *bp);
@@ -962,12 +960,12 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 		start_params->network_cos_mode = STATIC_COS;
 	else /* CHIP_IS_E1X */
 		start_params->network_cos_mode = FW_WRR;
-	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN].count) {
-		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN].dst_port;
+	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN]) {
+		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN];
 		start_params->vxlan_dst_port = port;
 	}
-	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE].count) {
-		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE].dst_port;
+	if (bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE]) {
+		port = bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE];
 		start_params->geneve_dst_port = port;
 	}
 
@@ -1109,7 +1107,7 @@ static inline u8 bnx2x_get_path_func_num(struct bnx2x *bp)
 		for (i = 0; i < E1H_FUNC_MAX / 2; i++) {
 			u32 func_config =
 				MF_CFG_RD(bp,
-					  func_mf_config[BP_PORT(bp) + 2 * i].
+					  func_mf_config[BP_PATH(bp) + 2 * i].
 					  config);
 			func_num +=
 				((func_config & FUNC_MF_CFG_FUNC_HIDE) ? 0 : 1);

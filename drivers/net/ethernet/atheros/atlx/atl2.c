@@ -36,18 +36,12 @@
 
 #include "atl2.h"
 
-#define ATL2_DRV_VERSION "2.2.3"
-
 static const char atl2_driver_name[] = "atl2";
-static const char atl2_driver_string[] = "Atheros(R) L2 Ethernet Driver";
-static const char atl2_copyright[] = "Copyright (c) 2007 Atheros Corporation.";
-static const char atl2_driver_version[] = ATL2_DRV_VERSION;
 static const struct ethtool_ops atl2_ethtool_ops;
 
 MODULE_AUTHOR("Atheros Corporation <xiong.huang@atheros.com>, Chris Snook <csnook@redhat.com>");
 MODULE_DESCRIPTION("Atheros Fast Ethernet Network Driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(ATL2_DRV_VERSION);
 
 /*
  * atl2_pci_tbl - PCI Device ID Table
@@ -287,8 +281,8 @@ static s32 atl2_setup_ring_resources(struct atl2_adapter *adapter)
 		adapter->txs_ring_size * 4 + 7 +	/* dword align */
 		adapter->rxd_ring_size * 1536 + 127;	/* 128bytes align */
 
-	adapter->ring_vir_addr = pci_alloc_consistent(pdev, size,
-		&adapter->ring_dma);
+	adapter->ring_vir_addr = dma_alloc_coherent(&pdev->dev, size,
+						    &adapter->ring_dma, GFP_KERNEL);
 	if (!adapter->ring_vir_addr)
 		return -ENOMEM;
 
@@ -669,8 +663,8 @@ static int atl2_request_irq(struct atl2_adapter *adapter)
 static void atl2_free_ring_resources(struct atl2_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
-	pci_free_consistent(pdev, adapter->ring_size, adapter->ring_vir_addr,
-		adapter->ring_dma);
+	dma_free_coherent(&pdev->dev, adapter->ring_size,
+			  adapter->ring_vir_addr, adapter->ring_dma);
 }
 
 /**
@@ -1000,8 +994,9 @@ static int atl2_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 /**
  * atl2_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
+ * @txqueue: index of the hanging transmit queue
  */
-static void atl2_tx_timeout(struct net_device *netdev)
+static void atl2_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 
@@ -1011,7 +1006,7 @@ static void atl2_tx_timeout(struct net_device *netdev)
 
 /**
  * atl2_watchdog - Timer Call-back
- * @data: pointer to netdev cast into an unsigned long
+ * @t: timer list containing a pointer to netdev cast into an unsigned long
  */
 static void atl2_watchdog(struct timer_list *t)
 {
@@ -1036,7 +1031,7 @@ static void atl2_watchdog(struct timer_list *t)
 
 /**
  * atl2_phy_config - Timer Call-back
- * @data: pointer to netdev cast into an unsigned long
+ * @t: timer list containing a pointer to netdev cast into an unsigned long
  */
 static void atl2_phy_config(struct timer_list *t)
 {
@@ -1091,7 +1086,6 @@ err_up:
 
 static void atl2_reinit_locked(struct atl2_adapter *adapter)
 {
-	WARN_ON(in_interrupt());
 	while (test_and_set_bit(__ATL2_RESETTING, &adapter->flags))
 		msleep(1);
 	atl2_down(adapter);
@@ -1241,6 +1235,7 @@ static int atl2_check_link(struct atl2_adapter *adapter)
 
 /**
  * atl2_link_chg_task - deal with link change event Out of interrupt context
+ * @work: pointer to work struct with private info
  */
 static void atl2_link_chg_task(struct work_struct *work)
 {
@@ -1334,8 +1329,8 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * until the kernel has the proper infrastructure to support 64-bit DMA
 	 * on these devices.
 	 */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) &&
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)) &&
+	    dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR "atl2: No usable DMA configuration, aborting\n");
 		err = -EIO;
 		goto err_dma;
@@ -1688,9 +1683,6 @@ static struct pci_driver atl2_driver = {
  */
 static int __init atl2_init_module(void)
 {
-	printk(KERN_INFO "%s - version %s\n", atl2_driver_string,
-		atl2_driver_version);
-	printk(KERN_INFO "%s\n", atl2_copyright);
 	return pci_register_driver(&atl2_driver);
 }
 module_init(atl2_init_module);
@@ -2011,8 +2003,6 @@ static void atl2_get_drvinfo(struct net_device *netdev,
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver,  atl2_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, atl2_driver_version,
-		sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, "L2", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));

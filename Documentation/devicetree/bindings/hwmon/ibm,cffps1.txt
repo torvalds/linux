@@ -5,6 +5,9 @@ Required properties:
  - compatible				: Must be one of the following:
 						"ibm,cffps1"
 						"ibm,cffps2"
+						or "ibm,cffps" if the system
+						must support any version of the
+						power supply
  - reg = < I2C bus address >;		: Address of the power supply on the
 					  I2C bus.
 

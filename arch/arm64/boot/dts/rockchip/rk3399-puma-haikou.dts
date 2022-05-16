@@ -15,9 +15,9 @@
 	};
 
 	leds {
-		pinctrl-0 = <&led_pin_module>, <&led_sd_haikou>;
+		pinctrl-0 = <&module_led_pin>, <&sd_card_led_pin>;
 
-		sd-card-led {
+		sd_card_led: led-1 {
 			label = "sd_card_led";
 			gpios = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
@@ -179,7 +179,7 @@
 	};
 
 	leds {
-		led_sd_haikou: led-sd-gpio {
+		sd_card_led_pin: sd-card-led-pin {
 			rockchip,pins =
 			  <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};

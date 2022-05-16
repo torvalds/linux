@@ -14,11 +14,6 @@
 #define ICE_VSI_INVAL_ID 0xffff
 #define ICE_INVAL_Q_HANDLE 0xFFFF
 
-/* VSI queue context structure */
-struct ice_q_ctx {
-	u16  q_handle;
-};
-
 /* VSI context structure for add/get/update/free operations */
 struct ice_vsi_ctx {
 	u16 vsi_num;
@@ -212,6 +207,13 @@ struct ice_vsi_ctx *ice_get_vsi_ctx(struct ice_hw *hw, u16 vsi_handle);
 void ice_clear_all_vsi_ctx(struct ice_hw *hw);
 /* Switch config */
 enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw);
+
+enum ice_status
+ice_alloc_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
+		   u16 *counter_id);
+enum ice_status
+ice_free_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
+		  u16 counter_id);
 
 /* Switch/bridge related commands */
 enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw);

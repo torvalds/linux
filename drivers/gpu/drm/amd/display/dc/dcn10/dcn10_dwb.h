@@ -24,7 +24,7 @@
 #ifndef __DC_DWBC_DCN10_H__
 #define __DC_DWBC_DCN10_H__
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 
 /* DCN */
 #define BASE_INNER(seg) \

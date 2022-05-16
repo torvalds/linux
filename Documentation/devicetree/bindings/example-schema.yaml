@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 # Copyright 2018 Linaro Ltd.
 %YAML 1.2
 ---
@@ -7,9 +7,9 @@
 
 # $id is a unique identifier based on the filename. There may or may not be a
 # file present at the URL.
-$id: "http://devicetree.org/schemas/example-schema.yaml#"
+$id: http://devicetree.org/schemas/example-schema.yaml#
 # $schema is the meta-schema this schema should be validated with.
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: An example schema annotated with jsonschema details
 
@@ -71,7 +71,7 @@ properties:
     # minItems/maxItems equal to 2 is implied
 
   reg-names:
-    # The core schema enforces this is a string array
+    # The core schema enforces this (*-names) is a string array
     items:
       - const: core
       - const: aux
@@ -79,7 +79,10 @@ properties:
   clocks:
     # Cases that have only a single entry just need to express that with maxItems
     maxItems: 1
-    description: bus clock
+    description: bus clock. A description is only needed for a single item if
+      there's something unique to add.
+      The items should have a fixed order, so pattern matching names are
+      discouraged.
 
   clock-names:
     items:
@@ -96,6 +99,8 @@ properties:
       A variable number of interrupts warrants a description of what conditions
       affect the number of interrupts. Otherwise, descriptions on standard
       properties are not necessary.
+      The items should have a fixed order, so pattern matching names are
+      discouraged.
 
   interrupt-names:
     # minItems must be specified here because the default would be 2
@@ -127,29 +132,59 @@ properties:
     maxItems: 1
     description: A connection of the 'foo' gpio line.
 
+  # *-supply is always a single phandle, so nothing more to define.
+  foo-supply: true
+
+  # Vendor specific properties
+  #
+  # Vendor specific properties have slightly different schema requirements than
+  # common properties. They must have at least a type definition and
+  # 'description'.
   vendor,int-property:
     description: Vendor specific properties must have a description
-    # 'allOf' is the json-schema way of subclassing a schema. Here the base
-    # type schema is referenced and then additional constraints on the values
-    # are added.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [2, 4, 6, 8, 10]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [2, 4, 6, 8, 10]
 
   vendor,bool-property:
-    description: Vendor specific properties must have a description
-    # boolean properties is one case where the json-schema 'type' keyword
-    # can be used directly
+    description: Vendor specific properties must have a description. Boolean
+      properties are one case where the json-schema 'type' keyword can be used
+      directly.
     type: boolean
 
   vendor,string-array-property:
     description: Vendor specific properties should reference a type in the
       core schema.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string-array
-      - items:
-          - enum: [ foo, bar ]
-          - enum: [ baz, boo ]
+    $ref: /schemas/types.yaml#/definitions/string-array
+    items:
+      - enum: [foo, bar]
+      - enum: [baz, boo]
+
+  vendor,property-in-standard-units-microvolt:
+    description: Vendor specific properties having a standard unit suffix
+      don't need a type.
+    enum: [ 100, 200, 300 ]
+
+  child-node:
+    description: Child nodes are just another property from a json-schema
+      perspective.
+    type: object  # DT nodes are json objects
+    properties:
+      vendor,a-child-node-property:
+        description: Child node properties have all the same schema
+          requirements.
+        type: boolean
+
+    required:
+      - vendor,a-child-node-property
+
+# Describe the relationship between different properties
+dependencies:
+  # 'vendor,bool-property' is only allowed when 'vendor,string-array-property'
+  # is present
+  vendor,bool-property: [ 'vendor,string-array-property' ]
+  # Expressing 2 properties in both orders means all of the set of properties
+  # must be present or none of them.
+  vendor,string-array-property: [ 'vendor,bool-property' ]
 
 required:
   - compatible
@@ -157,8 +192,52 @@ required:
   - interrupts
   - interrupt-controller
 
+# if/then schema can be used to handle conditions on a property affecting
+# another property. A typical case is a specific 'compatible' value changes the
+# constraints on other properties.
+#
+# For multiple 'if' schema, group them under an 'allOf'.
+#
+# If the conditionals become too unweldy, then it may be better to just split
+# the binding into separate schema documents.
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: vendor,soc2-ip
+    then:
+      required:
+        - foo-supply
+  # Altering schema depending on presence of properties is usually done by
+  # dependencies (see above), however some adjustments might require if:
+  - if:
+      required:
+        - vendor,bool-property
+    then:
+      properties:
+        vendor,int-property:
+          enum: [2, 4, 6]
+
+# Ideally, the schema should have this line otherwise any other properties
+# present are allowed. There's a few common properties such as 'status' and
+# 'pinctrl-*' which are added automatically by the tooling.
+#
+# This can't be used in cases where another schema is referenced
+# (i.e. allOf: [{$ref: ...}]).
+# If and only if another schema is referenced and arbitrary children nodes can
+# appear, "unevaluatedProperties: false" could be used.  A typical example is
+# an I2C controller where no name pattern matching for children can be added.
+additionalProperties: false
+
 examples:
-  # Examples are now compiled with dtc
+  # Examples are now compiled with dtc and validated against the schemas
+  #
+  # Examples have a default #address-cells and #size-cells value of 1. This can
+  # be overridden or an appropriate parent bus node should be shown (such as on
+  # i2c buses).
+  #
+  # Any includes used have to be explicitly included.
   - |
     node@1000 {
           compatible = "vendor,soc4-ip", "vendor,soc1-ip";

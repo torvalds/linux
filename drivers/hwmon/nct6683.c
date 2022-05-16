@@ -674,7 +674,7 @@ show_in_reg(struct device *dev, struct device_attribute *attr, char *buf)
 static umode_t nct6683_in_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6683_data *data = dev_get_drvdata(dev);
 	int nr = index % 4;	/* attribute */
 
@@ -739,7 +739,7 @@ show_fan_pulses(struct device *dev, struct device_attribute *attr, char *buf)
 static umode_t nct6683_fan_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6683_data *data = dev_get_drvdata(dev);
 	int fan = index / 3;	/* fan index */
 	int nr = index % 3;	/* attribute index */
@@ -857,7 +857,7 @@ show_temp_type(struct device *dev, struct device_attribute *attr, char *buf)
 static umode_t nct6683_temp_is_visible(struct kobject *kobj,
 				       struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6683_data *data = dev_get_drvdata(dev);
 	int temp = index / 7;	/* temp index */
 	int nr = index % 7;	/* attribute index */
@@ -944,7 +944,7 @@ SENSOR_TEMPLATE(pwm, "pwm%d", S_IRUGO, show_pwm, store_pwm, 0);
 static umode_t nct6683_pwm_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6683_data *data = dev_get_drvdata(dev);
 	int pwm = index;	/* pwm index */
 

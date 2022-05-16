@@ -38,12 +38,18 @@ static const struct alcor_dev_cfg au6621_cfg = {
 	.dma = 1,
 };
 
+static const struct alcor_dev_cfg au6625_cfg = {
+	.dma = 0,
+};
+
 static const struct pci_device_id pci_ids[] = {
 	{ PCI_DEVICE(PCI_ID_ALCOR_MICRO, PCI_ID_AU6601),
 		.driver_data = (kernel_ulong_t)&alcor_cfg },
 	{ PCI_DEVICE(PCI_ID_ALCOR_MICRO, PCI_ID_AU6621),
 		.driver_data = (kernel_ulong_t)&au6621_cfg },
-	{ },
+	{ PCI_DEVICE(PCI_ID_ALCOR_MICRO, PCI_ID_AU6625),
+		.driver_data = (kernel_ulong_t)&au6625_cfg },
+	{},
 };
 MODULE_DEVICE_TABLE(pci, pci_ids);
 

@@ -53,6 +53,7 @@
 
 /**
  * struct mlxsw_i2c - device private data:
+ * @cmd: command attributes;
  * @cmd.mb_size_in: input mailbox size;
  * @cmd.mb_off_in: input mailbox offset in register space;
  * @cmd.mb_size_out: output mailbox size;
@@ -640,7 +641,7 @@ static int mlxsw_i2c_probe(struct i2c_client *client,
 
 	err = mlxsw_core_bus_device_register(&mlxsw_i2c->bus_info,
 					     &mlxsw_i2c_bus, mlxsw_i2c, false,
-					     NULL);
+					     NULL, NULL);
 	if (err) {
 		dev_err(&client->dev, "Fail to register core bus\n");
 		return err;

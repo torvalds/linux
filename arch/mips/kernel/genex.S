@@ -18,6 +18,7 @@
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
+#include <asm/sync.h>
 #include <asm/war.h>
 #include <asm/thread_info.h>
 
@@ -353,8 +354,9 @@ NESTED(ejtag_debug_handler, PT_SIZE, sp)
 
 #ifdef CONFIG_SMP
 1:	PTR_LA	k0, ejtag_debug_buffer_spinlock
-	ll	k0, 0(k0)
-	bnez	k0, 1b
+	__SYNC(full, loongson3_war)
+2:	ll	k0, 0(k0)
+	bnez	k0, 2b
 	PTR_LA	k0, ejtag_debug_buffer_spinlock
 	sc	k0, 0(k0)
 	beqz	k0, 1b
@@ -474,20 +476,20 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.endm
 
 	.macro	__build_clear_fpe
+	CLI
+	TRACE_IRQS_OFF
 	.set	push
 	/* gas fails to assemble cfc1 for some archs (octeon).*/ \
 	.set	mips1
 	SET_HARDFLOAT
 	cfc1	a1, fcr31
 	.set	pop
-	CLI
-	TRACE_IRQS_OFF
 	.endm
 
 	.macro	__build_clear_msa_fpe
-	_cfcmsa	a1, MSA_CSR
 	CLI
 	TRACE_IRQS_OFF
+	_cfcmsa	a1, MSA_CSR
 	.endm
 
 	.macro	__build_clear_ade
@@ -496,20 +498,33 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	KMODE
 	.endm
 
+	.macro __build_clear_gsexc
+	.set	push
+	/*
+	 * We need to specify a selector to access the CP0.Diag1 (GSCause)
+	 * register. All GSExc-equipped processors have MIPS32.
+	 */
+	.set	mips32
+	mfc0	a1, CP0_DIAGNOSTIC1
+	.set	pop
+	TRACE_IRQS_ON
+	STI
+	.endm
+
 	.macro	__BUILD_silent exception
 	.endm
 
-	/* Gas tries to parse the PRINT argument as a string containing
+	/* Gas tries to parse the ASM_PRINT argument as a string containing
 	   string escapes and emits bogus warnings if it believes to
 	   recognize an unknown escape code.  So make the arguments
 	   start with an n and gas will believe \n is ok ...  */
 	.macro	__BUILD_verbose nexception
 	LONG_L	a1, PT_EPC(sp)
 #ifdef CONFIG_32BIT
-	PRINT("Got \nexception at %08lx\012")
+	ASM_PRINT("Got \nexception at %08lx\012")
 #endif
 #ifdef CONFIG_64BIT
-	PRINT("Got \nexception at %016lx\012")
+	ASM_PRINT("Got \nexception at %016lx\012")
 #endif
 	.endm
 
@@ -554,6 +569,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER fpe fpe fpe silent		/* #15 */
 #endif
 	BUILD_HANDLER ftlb ftlb none silent		/* #16 */
+	BUILD_HANDLER gsexc gsexc gsexc silent		/* #16 */
 	BUILD_HANDLER msa msa sti silent		/* #21 */
 	BUILD_HANDLER mdmx mdmx sti silent		/* #22 */
 #ifdef	CONFIG_HARDWARE_WATCHPOINTS
@@ -657,7 +673,7 @@ isrdhwr:
 	.set	pop
 	END(handle_ri_rdhwr)
 
-#ifdef CONFIG_64BIT
+#ifdef CONFIG_CPU_R4X00_BUGS64
 /* A temporary overflow handler used by check_daddi(). */
 
 	__INIT

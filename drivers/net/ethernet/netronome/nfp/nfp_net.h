@@ -575,8 +575,6 @@ struct nfp_net_dp {
  * @rx_coalesce_max_frames: RX interrupt moderation frame count parameter
  * @tx_coalesce_usecs:      TX interrupt moderation usecs delay parameter
  * @tx_coalesce_max_frames: TX interrupt moderation frame count parameter
- * @vxlan_ports:	VXLAN ports for RX inner csum offload communicated to HW
- * @vxlan_usecnt:	IPv4/IPv6 VXLAN port use counts
  * @qcp_cfg:            Pointer to QCP queue used for configuration notification
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
@@ -586,6 +584,9 @@ struct nfp_net_dp {
  * @ktls_conn_id_gen:	Trivial generator for kTLS connection ids (for TX)
  * @ktls_no_space:	Counter of firmware rejecting kTLS connection due to
  *			lack of space
+ * @ktls_rx_resync_req:	Counter of TLS RX resync requested
+ * @ktls_rx_resync_ign:	Counter of TLS RX resync requests ignored
+ * @ktls_rx_resync_sent:    Counter of TLS RX resync completed
  * @mbox_cmsg:		Common Control Message via vNIC mailbox state
  * @mbox_cmsg.queue:	CCM mbox queue of pending messages
  * @mbox_cmsg.wq:	CCM mbox wait queue of waiting processes
@@ -658,9 +659,6 @@ struct nfp_net {
 	u32 tx_coalesce_usecs;
 	u32 tx_coalesce_max_frames;
 
-	__be16 vxlan_ports[NFP_NET_N_VXLAN_PORTS];
-	u8 vxlan_usecnt[NFP_NET_N_VXLAN_PORTS];
-
 	u8 __iomem *qcp_cfg;
 
 	u8 __iomem *tx_bar;
@@ -674,6 +672,9 @@ struct nfp_net {
 	atomic64_t ktls_conn_id_gen;
 
 	atomic_t ktls_no_space;
+	atomic_t ktls_rx_resync_req;
+	atomic_t ktls_rx_resync_ign;
+	atomic_t ktls_rx_resync_sent;
 
 	struct {
 		struct sk_buff_head queue;

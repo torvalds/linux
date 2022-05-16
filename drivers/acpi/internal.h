@@ -134,7 +134,7 @@ int acpi_add_power_resource(acpi_handle handle);
 void acpi_power_add_remove_device(struct acpi_device *adev, bool add);
 int acpi_power_wakeup_list_init(struct list_head *list, int *system_level);
 int acpi_device_sleep_wake(struct acpi_device *dev,
-                           int enable, int sleep_state, int dev_state);
+			   int enable, int sleep_state, int dev_state);
 int acpi_power_get_inferred_state(struct acpi_device *device, int *state);
 int acpi_power_on_resources(struct acpi_device *device, int state);
 int acpi_power_transition(struct acpi_device *device, int state);
@@ -165,7 +165,8 @@ static inline void acpi_early_processor_osc(void) {}
    -------------------------------------------------------------------------- */
 struct acpi_ec {
 	acpi_handle handle;
-	u32 gpe;
+	int gpe;
+	int irq;
 	unsigned long command_addr;
 	unsigned long data_addr;
 	bool global_lock;
@@ -189,7 +190,7 @@ extern struct acpi_ec *first_ec;
 /* External interfaces use first EC only, so remember */
 typedef int (*acpi_ec_query_func) (void *data);
 
-int acpi_ec_init(void);
+void acpi_ec_init(void);
 void acpi_ec_ecdt_probe(void);
 void acpi_ec_dsdt_probe(void);
 void acpi_ec_block_transactions(void);

@@ -83,6 +83,7 @@ enum {
 
 enum {
 	SILERGY_SYR82X = 8,
+	SILERGY_SYR83X = 9,
 };
 
 struct fan53555_device_info {
@@ -302,6 +303,7 @@ static int fan53555_voltages_setup_silergy(struct fan53555_device_info *di)
 	/* Init voltage range and step */
 	switch (di->chip_id) {
 	case SILERGY_SYR82X:
+	case SILERGY_SYR83X:
 		di->vsel_min = 712500;
 		di->vsel_step = 12500;
 		break;
@@ -434,7 +436,7 @@ static struct fan53555_platform_data *fan53555_parse_dt(struct device *dev,
 	return pdata;
 }
 
-static const struct of_device_id fan53555_dt_ids[] = {
+static const struct of_device_id __maybe_unused fan53555_dt_ids[] = {
 	{
 		.compatible = "fcs,fan53526",
 		.data = (void *)FAN53526_VENDOR_FAIRCHILD,

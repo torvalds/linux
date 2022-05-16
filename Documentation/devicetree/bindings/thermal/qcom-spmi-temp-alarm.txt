@@ -8,7 +8,7 @@ Required properties:
 - compatible:      Should contain "qcom,spmi-temp-alarm".
 - reg:             Specifies the SPMI address.
 - interrupts:      PMIC temperature alarm interrupt.
-- #thermal-sensor-cells: Should be 0. See thermal.txt for a description.
+- #thermal-sensor-cells: Should be 0. See Documentation/devicetree/bindings/thermal/thermal-sensor.yaml for a description.
 
 Optional properties:
 - io-channels:     Should contain IIO channel specifier for the ADC channel,

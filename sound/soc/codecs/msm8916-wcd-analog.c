@@ -19,8 +19,8 @@
 
 #define CDC_D_REVISION1			(0xf000)
 #define CDC_D_PERPH_SUBTYPE		(0xf005)
-#define CDC_D_INT_EN_SET		(0x015)
-#define CDC_D_INT_EN_CLR		(0x016)
+#define CDC_D_INT_EN_SET		(0xf015)
+#define CDC_D_INT_EN_CLR		(0xf016)
 #define MBHC_SWITCH_INT			BIT(7)
 #define MBHC_MIC_ELECTRICAL_INS_REM_DET	BIT(6)
 #define MBHC_BUTTON_PRESS_DET		BIT(5)
@@ -228,6 +228,10 @@
 #define CDC_A_RX_EAR_CTL			(0xf19E)
 #define RX_EAR_CTL_SPK_VBAT_LDO_EN_MASK		BIT(0)
 #define RX_EAR_CTL_SPK_VBAT_LDO_EN_ENABLE	BIT(0)
+#define RX_EAR_CTL_PA_EAR_PA_EN_MASK		BIT(6)
+#define RX_EAR_CTL_PA_EAR_PA_EN_ENABLE		BIT(6)
+#define RX_EAR_CTL_PA_SEL_MASK			BIT(7)
+#define RX_EAR_CTL_PA_SEL			BIT(7)
 
 #define CDC_A_SPKR_DAC_CTL		(0xf1B0)
 #define SPKR_DAC_CTL_DAC_RESET_MASK	BIT(4)
@@ -312,6 +316,7 @@ static const char *const hph_text[] = { "ZERO", "Switch", };
 static const struct soc_enum hph_enum = SOC_ENUM_SINGLE_VIRT(
 					ARRAY_SIZE(hph_text), hph_text);
 
+static const struct snd_kcontrol_new ear_mux = SOC_DAPM_ENUM("EAR_S", hph_enum);
 static const struct snd_kcontrol_new hphl_mux = SOC_DAPM_ENUM("HPHL", hph_enum);
 static const struct snd_kcontrol_new hphr_mux = SOC_DAPM_ENUM("HPHR", hph_enum);
 
@@ -369,9 +374,8 @@ static void pm8916_wcd_analog_micbias_enable(struct snd_soc_component *component
 
 }
 
-static int pm8916_wcd_analog_enable_micbias_ext(struct snd_soc_component
-						 *component, int event,
-						 int reg, unsigned int cap_mode)
+static int pm8916_wcd_analog_enable_micbias(struct snd_soc_component *component,
+					    int event, unsigned int cap_mode)
 {
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -384,67 +388,44 @@ static int pm8916_wcd_analog_enable_micbias_ext(struct snd_soc_component
 	return 0;
 }
 
-static int pm8916_wcd_analog_enable_micbias_int(struct snd_soc_component
-						 *component, int event,
-						 int reg, u32 cap_mode)
+static int pm8916_wcd_analog_enable_micbias_int(struct snd_soc_dapm_widget *w,
+						struct snd_kcontrol *kcontrol,
+						int event)
 {
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		snd_soc_component_update_bits(component, CDC_A_MICB_1_INT_RBIAS,
-				    MICB_1_INT_TX2_INT_RBIAS_EN_MASK,
-				    MICB_1_INT_TX2_INT_RBIAS_EN_ENABLE);
-		snd_soc_component_update_bits(component, reg, MICB_1_EN_PULL_DOWN_EN_MASK, 0);
 		snd_soc_component_update_bits(component, CDC_A_MICB_1_EN,
 				    MICB_1_EN_OPA_STG2_TAIL_CURR_MASK,
 				    MICB_1_EN_OPA_STG2_TAIL_CURR_1_60UA);
-
-		break;
-	case SND_SOC_DAPM_POST_PMU:
-		pm8916_wcd_analog_micbias_enable(component);
-		snd_soc_component_update_bits(component, CDC_A_MICB_1_EN,
-				    MICB_1_EN_BYP_CAP_MASK, cap_mode);
 		break;
 	}
 
 	return 0;
 }
 
-static int pm8916_wcd_analog_enable_micbias_ext1(struct
-						  snd_soc_dapm_widget
-						  *w, struct snd_kcontrol
-						  *kcontrol, int event)
+static int pm8916_wcd_analog_enable_micbias1(struct snd_soc_dapm_widget *w,
+					     struct snd_kcontrol *kcontrol,
+					     int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct pm8916_wcd_analog_priv *wcd = snd_soc_component_get_drvdata(component);
 
-	return pm8916_wcd_analog_enable_micbias_ext(component, event, w->reg,
-						     wcd->micbias1_cap_mode);
+	return pm8916_wcd_analog_enable_micbias(component, event,
+						wcd->micbias1_cap_mode);
 }
 
-static int pm8916_wcd_analog_enable_micbias_ext2(struct
-						  snd_soc_dapm_widget
-						  *w, struct snd_kcontrol
-						  *kcontrol, int event)
+static int pm8916_wcd_analog_enable_micbias2(struct snd_soc_dapm_widget *w,
+					     struct snd_kcontrol *kcontrol,
+					     int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct pm8916_wcd_analog_priv *wcd = snd_soc_component_get_drvdata(component);
 
-	return pm8916_wcd_analog_enable_micbias_ext(component, event, w->reg,
-						     wcd->micbias2_cap_mode);
+	return pm8916_wcd_analog_enable_micbias(component, event,
+						wcd->micbias2_cap_mode);
 
-}
-
-static int pm8916_wcd_analog_enable_micbias_int1(struct
-						  snd_soc_dapm_widget
-						  *w, struct snd_kcontrol
-						  *kcontrol, int event)
-{
-	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	struct pm8916_wcd_analog_priv *wcd = snd_soc_component_get_drvdata(component);
-
-	return pm8916_wcd_analog_enable_micbias_int(component, event, w->reg,
-						     wcd->micbias1_cap_mode);
 }
 
 static int pm8916_mbhc_configure_bias(struct pm8916_wcd_analog_priv *priv,
@@ -529,7 +510,7 @@ static void pm8916_wcd_setup_mbhc(struct pm8916_wcd_analog_priv *wcd)
 			    DIG_CLK_CTL_D_MBHC_CLK_EN_MASK,
 			    DIG_CLK_CTL_D_MBHC_CLK_EN);
 
-	if (snd_soc_component_read32(component, CDC_A_MICB_2_EN) & CDC_A_MICB_2_EN_ENABLE)
+	if (snd_soc_component_read(component, CDC_A_MICB_2_EN) & CDC_A_MICB_2_EN_ENABLE)
 		micbias_enabled = true;
 
 	pm8916_mbhc_configure_bias(wcd, micbias_enabled);
@@ -553,6 +534,10 @@ static int pm8916_wcd_analog_enable_micbias_int2(struct
 	struct pm8916_wcd_analog_priv *wcd = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		snd_soc_component_update_bits(component, CDC_A_MICB_2_EN,
+					      CDC_A_MICB_2_PULL_DOWN_EN_MASK, 0);
+		break;
 	case SND_SOC_DAPM_POST_PMU:
 		pm8916_mbhc_configure_bias(wcd, true);
 		break;
@@ -561,8 +546,7 @@ static int pm8916_wcd_analog_enable_micbias_int2(struct
 		break;
 	}
 
-	return pm8916_wcd_analog_enable_micbias_int(component, event, w->reg,
-						     wcd->micbias2_cap_mode);
+	return pm8916_wcd_analog_enable_micbias_int(w, kcontrol, event);
 }
 
 static int pm8916_wcd_analog_enable_adc(struct snd_soc_dapm_widget *w,
@@ -624,7 +608,7 @@ static int pm8916_wcd_analog_enable_adc(struct snd_soc_dapm_widget *w,
 		case CDC_A_TX_2_EN:
 			snd_soc_component_update_bits(component, CDC_A_MICB_1_CTL,
 					    MICB_1_CTL_CFILT_REF_SEL_MASK, 0);
-			/* fall through */
+			fallthrough;
 		case CDC_A_TX_3_EN:
 			snd_soc_component_update_bits(component, CDC_D_CDC_CONN_TX2_CTL,
 					    CONN_TX2_SERIAL_TX2_MUX,
@@ -685,6 +669,34 @@ static int pm8916_wcd_analog_enable_spk_pa(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int pm8916_wcd_analog_enable_ear_pa(struct snd_soc_dapm_widget *w,
+					    struct snd_kcontrol *kcontrol,
+					    int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		snd_soc_component_update_bits(component, CDC_A_RX_EAR_CTL,
+				    RX_EAR_CTL_PA_SEL_MASK, RX_EAR_CTL_PA_SEL);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_component_update_bits(component, CDC_A_RX_EAR_CTL,
+				    RX_EAR_CTL_PA_EAR_PA_EN_MASK,
+				    RX_EAR_CTL_PA_EAR_PA_EN_ENABLE);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_component_update_bits(component, CDC_A_RX_EAR_CTL,
+				    RX_EAR_CTL_PA_EAR_PA_EN_MASK, 0);
+		/* Delay to reduce ear turn off pop */
+		usleep_range(7000, 7100);
+		snd_soc_component_update_bits(component, CDC_A_RX_EAR_CTL,
+				    RX_EAR_CTL_PA_SEL_MASK, 0);
+		break;
+	}
+	return 0;
+}
+
 static const struct reg_default wcd_reg_defaults_2_0[] = {
 	{CDC_A_RX_COM_OCP_CTL, 0xD1},
 	{CDC_A_RX_COM_OCP_COUNT, 0xFF},
@@ -718,8 +730,8 @@ static int pm8916_wcd_analog_probe(struct snd_soc_component *component)
 	snd_soc_component_init_regmap(component,
 				  dev_get_regmap(component->dev->parent, NULL));
 	snd_soc_component_set_drvdata(component, priv);
-	priv->pmic_rev = snd_soc_component_read32(component, CDC_D_REVISION1);
-	priv->codec_version = snd_soc_component_read32(component, CDC_D_PERPH_SUBTYPE);
+	priv->pmic_rev = snd_soc_component_read(component, CDC_D_REVISION1);
+	priv->codec_version = snd_soc_component_read(component, CDC_D_PERPH_SUBTYPE);
 
 	dev_info(component->dev, "PMIC REV: %d\t CODEC Version: %d\n",
 		 priv->pmic_rev, priv->codec_version);
@@ -801,12 +813,20 @@ static const struct snd_soc_dapm_route pm8916_wcd_analog_audio_map[] = {
 	{"PDM_TX", NULL, "A_MCLK2"},
 	{"A_MCLK2", NULL, "A_MCLK"},
 
+	/* Earpiece (RX MIX1) */
+	{"EAR", NULL, "EAR_S"},
+	{"EAR_S", "Switch", "EAR PA"},
+	{"EAR PA", NULL, "RX_BIAS"},
+	{"EAR PA", NULL, "HPHL DAC"},
+	{"EAR PA", NULL, "HPHR DAC"},
+	{"EAR PA", NULL, "EAR CP"},
+
 	/* Headset (RX MIX1 and RX MIX2) */
 	{"HEADPHONE", NULL, "HPHL PA"},
 	{"HEADPHONE", NULL, "HPHR PA"},
 
-	{"HPHL PA", NULL, "EAR_HPHL_CLK"},
-	{"HPHR PA", NULL, "EAR_HPHR_CLK"},
+	{"HPHL DAC", NULL, "EAR_HPHL_CLK"},
+	{"HPHR DAC", NULL, "EAR_HPHR_CLK"},
 
 	{"CP", NULL, "NCP_CLK"},
 
@@ -827,14 +847,16 @@ static const struct snd_soc_dapm_route pm8916_wcd_analog_audio_map[] = {
 	{"SPK PA", NULL, "SPK DAC"},
 	{"SPK DAC", "Switch", "PDM_RX3"},
 
-	{"MIC BIAS Internal1", NULL, "INT_LDO_H"},
-	{"MIC BIAS Internal2", NULL, "INT_LDO_H"},
-	{"MIC BIAS External1", NULL, "INT_LDO_H"},
-	{"MIC BIAS External2", NULL, "INT_LDO_H"},
-	{"MIC BIAS Internal1", NULL, "vdd-micbias"},
-	{"MIC BIAS Internal2", NULL, "vdd-micbias"},
-	{"MIC BIAS External1", NULL, "vdd-micbias"},
-	{"MIC BIAS External2", NULL, "vdd-micbias"},
+	{"MIC_BIAS1", NULL, "INT_LDO_H"},
+	{"MIC_BIAS2", NULL, "INT_LDO_H"},
+	{"MIC_BIAS1", NULL, "vdd-micbias"},
+	{"MIC_BIAS2", NULL, "vdd-micbias"},
+
+	{"MIC BIAS External1", NULL, "MIC_BIAS1"},
+	{"MIC BIAS Internal1", NULL, "MIC_BIAS1"},
+	{"MIC BIAS External2", NULL, "MIC_BIAS2"},
+	{"MIC BIAS Internal2", NULL, "MIC_BIAS2"},
+	{"MIC BIAS Internal3", NULL, "MIC_BIAS1"},
 };
 
 static const struct snd_soc_dapm_widget pm8916_wcd_analog_dapm_widgets[] = {
@@ -847,10 +869,19 @@ static const struct snd_soc_dapm_widget pm8916_wcd_analog_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("AMIC1"),
 	SND_SOC_DAPM_INPUT("AMIC3"),
 	SND_SOC_DAPM_INPUT("AMIC2"),
+	SND_SOC_DAPM_OUTPUT("EAR"),
 	SND_SOC_DAPM_OUTPUT("HEADPHONE"),
 
 	/* RX stuff */
 	SND_SOC_DAPM_SUPPLY("INT_LDO_H", SND_SOC_NOPM, 1, 0, NULL, 0),
+
+	SND_SOC_DAPM_PGA_E("EAR PA", SND_SOC_NOPM,
+			   0, 0, NULL, 0,
+			   pm8916_wcd_analog_enable_ear_pa,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MUX("EAR_S", SND_SOC_NOPM, 0, 0, &ear_mux),
+	SND_SOC_DAPM_SUPPLY("EAR CP", CDC_A_NCP_EN, 4, 0, NULL, 0),
 
 	SND_SOC_DAPM_PGA("HPHL PA", CDC_A_RX_HPH_CNP_EN, 5, 0, NULL, 0),
 	SND_SOC_DAPM_MUX("HPHL", SND_SOC_NOPM, 0, 0, &hphl_mux),
@@ -877,21 +908,26 @@ static const struct snd_soc_dapm_widget pm8916_wcd_analog_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("RX_BIAS", CDC_A_RX_COM_BIAS_DAC, 7, 0, NULL, 0),
 
 	/* TX */
-	SND_SOC_DAPM_SUPPLY("MIC BIAS Internal1", CDC_A_MICB_1_EN, 7, 0,
-			    pm8916_wcd_analog_enable_micbias_int1,
-			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
-			    SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("MIC BIAS Internal2", CDC_A_MICB_2_EN, 7, 0,
+	SND_SOC_DAPM_SUPPLY("MIC_BIAS1", CDC_A_MICB_1_EN, 7, 0,
+			    pm8916_wcd_analog_enable_micbias1,
+			    SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_SUPPLY("MIC_BIAS2", CDC_A_MICB_2_EN, 7, 0,
+			    pm8916_wcd_analog_enable_micbias2,
+			    SND_SOC_DAPM_POST_PMU),
+
+	SND_SOC_DAPM_SUPPLY("MIC BIAS External1", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("MIC BIAS External2", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+	SND_SOC_DAPM_SUPPLY("MIC BIAS Internal1", CDC_A_MICB_1_INT_RBIAS, 7, 0,
+			    pm8916_wcd_analog_enable_micbias_int,
+			    SND_SOC_DAPM_PRE_PMU),
+	SND_SOC_DAPM_SUPPLY("MIC BIAS Internal2", CDC_A_MICB_1_INT_RBIAS, 4, 0,
 			    pm8916_wcd_analog_enable_micbias_int2,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			    SND_SOC_DAPM_POST_PMD),
-
-	SND_SOC_DAPM_SUPPLY("MIC BIAS External1", CDC_A_MICB_1_EN, 7, 0,
-			    pm8916_wcd_analog_enable_micbias_ext1,
-			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("MIC BIAS External2", CDC_A_MICB_2_EN, 7, 0,
-			    pm8916_wcd_analog_enable_micbias_ext2,
-			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY("MIC BIAS Internal3", CDC_A_MICB_1_INT_RBIAS, 1, 0,
+			    pm8916_wcd_analog_enable_micbias_int,
+			    SND_SOC_DAPM_PRE_PMU),
 
 	SND_SOC_DAPM_ADC_E("ADC1", NULL, CDC_A_TX_1_EN, 7, 0,
 			   pm8916_wcd_analog_enable_adc,
@@ -954,7 +990,7 @@ static irqreturn_t mbhc_btn_release_irq_handler(int irq, void *arg)
 
 	if (priv->detect_accessory_type) {
 		struct snd_soc_component *component = priv->component;
-		u32 val = snd_soc_component_read32(component, CDC_A_MBHC_RESULT_1);
+		u32 val = snd_soc_component_read(component, CDC_A_MBHC_RESULT_1);
 
 		/* check if its BTN0 thats released */
 		if ((val != -1) && !(val & CDC_A_MBHC_RESULT_1_BTN_RESULT_MASK))
@@ -973,7 +1009,7 @@ static irqreturn_t mbhc_btn_press_irq_handler(int irq, void *arg)
 	struct snd_soc_component *component = priv->component;
 	u32 btn_result;
 
-	btn_result = snd_soc_component_read32(component, CDC_A_MBHC_RESULT_1) &
+	btn_result = snd_soc_component_read(component, CDC_A_MBHC_RESULT_1) &
 				  CDC_A_MBHC_RESULT_1_BTN_RESULT_MASK;
 
 	switch (btn_result) {
@@ -1010,7 +1046,7 @@ static irqreturn_t pm8916_mbhc_switch_irq_handler(int irq, void *arg)
 	struct snd_soc_component *component = priv->component;
 	bool ins = false;
 
-	if (snd_soc_component_read32(component, CDC_A_MBHC_DET_CTL_1) &
+	if (snd_soc_component_read(component, CDC_A_MBHC_DET_CTL_1) &
 				CDC_A_MBHC_DET_CTL_MECH_DET_TYPE_MASK)
 		ins = true;
 
@@ -1023,7 +1059,7 @@ static irqreturn_t pm8916_mbhc_switch_irq_handler(int irq, void *arg)
 	if (ins) { /* hs insertion */
 		bool micbias_enabled = false;
 
-		if (snd_soc_component_read32(component, CDC_A_MICB_2_EN) &
+		if (snd_soc_component_read(component, CDC_A_MICB_2_EN) &
 				CDC_A_MICB_2_EN_ENABLE)
 			micbias_enabled = true;
 

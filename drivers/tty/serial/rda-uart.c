@@ -259,7 +259,7 @@ static void rda_uart_set_termios(struct uart_port *port,
 	case CS5:
 	case CS6:
 		dev_warn(port->dev, "bit size not supported, using 7 bits\n");
-		/* Fall through */
+		fallthrough;
 	case CS7:
 		ctrl &= ~RDA_UART_DBITS_8;
 		break;
@@ -498,7 +498,7 @@ static int rda_uart_request_port(struct uart_port *port)
 		return -EBUSY;
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(port->dev, port->mapbase,
+		port->membase = devm_ioremap(port->dev, port->mapbase,
 						     resource_size(res));
 		if (!port->membase)
 			return -EBUSY;

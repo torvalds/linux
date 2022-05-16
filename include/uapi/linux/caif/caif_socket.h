@@ -169,7 +169,7 @@ struct sockaddr_caif {
  * @CAIFSO_LINK_SELECT:		Selector used if multiple CAIF Link layers are
  *				available. Either a high bandwidth
  *				link can be selected (CAIF_LINK_HIGH_BANDW) or
- *				or a low latency link (CAIF_LINK_LOW_LATENCY).
+ *				a low latency link (CAIF_LINK_LOW_LATENCY).
  *                              This option is of type __u32.
  *				Alternatively SO_BINDTODEVICE can be used.
  *

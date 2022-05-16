@@ -59,7 +59,7 @@
 #define IPHETH_USBINTF_SUBCLASS 253
 #define IPHETH_USBINTF_PROTO    1
 
-#define IPHETH_BUF_SIZE         1516
+#define IPHETH_BUF_SIZE         1514
 #define IPHETH_IP_ALIGN		2	/* padding at front of URB */
 #define IPHETH_TX_TIMEOUT       (5 * HZ)
 
@@ -358,7 +358,7 @@ static int ipheth_close(struct net_device *net)
 	return 0;
 }
 
-static int ipheth_tx(struct sk_buff *skb, struct net_device *net)
+static netdev_tx_t ipheth_tx(struct sk_buff *skb, struct net_device *net)
 {
 	struct ipheth_device *dev = netdev_priv(net);
 	struct usb_device *udev = dev->udev;
@@ -400,7 +400,7 @@ static int ipheth_tx(struct sk_buff *skb, struct net_device *net)
 	return NETDEV_TX_OK;
 }
 
-static void ipheth_tx_timeout(struct net_device *net)
+static void ipheth_tx_timeout(struct net_device *net, unsigned int txqueue)
 {
 	struct ipheth_device *dev = netdev_priv(net);
 

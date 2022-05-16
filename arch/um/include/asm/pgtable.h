@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* 
+/*
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Copyright 2003 PathScale, Inc.
  * Derived from include/asm-i386/pgtable.h
@@ -106,6 +106,9 @@ extern unsigned long end_iomem;
 #define pud_newpage(x)  (pud_val(x) & _PAGE_NEWPAGE)
 #define pud_mkuptodate(x) (pud_val(x) &= ~_PAGE_NEWPAGE)
 
+#define p4d_newpage(x)  (p4d_val(x) & _PAGE_NEWPAGE)
+#define p4d_mkuptodate(x) (p4d_val(x) &= ~_PAGE_NEWPAGE)
+
 #define pmd_page(pmd) phys_to_page(pmd_val(pmd) & PAGE_MASK)
 
 #define pte_page(x) pfn_to_page(pte_pfn(x))
@@ -128,7 +131,7 @@ static inline int pte_none(pte_t pte)
  * Undefined behaviour if not..
  */
 static inline int pte_read(pte_t pte)
-{ 
+{
 	return((pte_get_bits(pte, _PAGE_USER)) &&
 	       !(pte_get_bits(pte, _PAGE_PROTNONE)));
 }
@@ -160,13 +163,8 @@ static inline int pte_newpage(pte_t pte)
 }
 
 static inline int pte_newprot(pte_t pte)
-{ 
-	return(pte_present(pte) && (pte_get_bits(pte, _PAGE_NEWPROT)));
-}
-
-static inline int pte_special(pte_t pte)
 {
-	return 0;
+	return(pte_present(pte) && (pte_get_bits(pte, _PAGE_NEWPROT)));
 }
 
 /*
@@ -187,31 +185,31 @@ static inline pte_t pte_mkclean(pte_t pte)
 	return(pte);
 }
 
-static inline pte_t pte_mkold(pte_t pte)	
-{ 
+static inline pte_t pte_mkold(pte_t pte)
+{
 	pte_clear_bits(pte, _PAGE_ACCESSED);
 	return(pte);
 }
 
 static inline pte_t pte_wrprotect(pte_t pte)
-{ 
+{
 	if (likely(pte_get_bits(pte, _PAGE_RW)))
 		pte_clear_bits(pte, _PAGE_RW);
 	else
 		return pte;
-	return(pte_mknewprot(pte)); 
+	return(pte_mknewprot(pte));
 }
 
 static inline pte_t pte_mkread(pte_t pte)
-{ 
+{
 	if (unlikely(pte_get_bits(pte, _PAGE_USER)))
 		return pte;
 	pte_set_bits(pte, _PAGE_USER);
-	return(pte_mknewprot(pte)); 
+	return(pte_mknewprot(pte));
 }
 
 static inline pte_t pte_mkdirty(pte_t pte)
-{ 
+{
 	pte_set_bits(pte, _PAGE_DIRTY);
 	return(pte);
 }
@@ -222,30 +220,25 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return(pte);
 }
 
-static inline pte_t pte_mkwrite(pte_t pte)	
+static inline pte_t pte_mkwrite(pte_t pte)
 {
 	if (unlikely(pte_get_bits(pte,  _PAGE_RW)))
 		return pte;
 	pte_set_bits(pte, _PAGE_RW);
-	return(pte_mknewprot(pte)); 
+	return(pte_mknewprot(pte));
 }
 
-static inline pte_t pte_mkuptodate(pte_t pte)	
+static inline pte_t pte_mkuptodate(pte_t pte)
 {
 	pte_clear_bits(pte, _PAGE_NEWPAGE);
 	if(pte_present(pte))
 		pte_clear_bits(pte, _PAGE_NEWPROT);
-	return(pte); 
+	return(pte);
 }
 
 static inline pte_t pte_mknewpage(pte_t pte)
 {
 	pte_set_bits(pte, _PAGE_NEWPAGE);
-	return(pte);
-}
-
-static inline pte_t pte_mkspecial(pte_t pte)
-{
 	return(pte);
 }
 
@@ -295,28 +288,8 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	pte_set_val(pte, (pte_val(pte) & _PAGE_CHG_MASK), newprot);
-	return pte; 
+	return pte;
 }
-
-/*
- * the pgd page can be thought of an array like this: pgd_t[PTRS_PER_PGD]
- *
- * this macro returns the index of the entry in the pgd page which would
- * control the given virtual address
- */
-#define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
-
-/*
- * pgd_offset() returns a (pgd_t *)
- * pgd_index() is used get the offset into the pgd page's array of pgd_t's;
- */
-#define pgd_offset(mm, address) ((mm)->pgd+pgd_index(address))
-
-/*
- * a shortcut which implies the use of the kernel's pgd, instead
- * of a process's
- */
-#define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
 /*
  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
@@ -325,23 +298,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  * control the given virtual address
  */
 #define pmd_page_vaddr(pmd) ((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
-#define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
-
-#define pmd_page_vaddr(pmd) \
-	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
-
-/*
- * the pte page can be thought of an array like this: pte_t[PTRS_PER_PTE]
- *
- * this macro returns the index of the entry in the pte page which would
- * control the given virtual address
- */
-#define pte_index(address) (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-#define pte_offset_kernel(dir, address) \
-	((pte_t *) pmd_page_vaddr(*(dir)) +  pte_index(address))
-#define pte_offset_map(dir, address) \
-	((pte_t *)page_address(pmd_page(*(dir))) + pte_index(address))
-#define pte_unmap(pte) do { } while (0)
 
 struct mm_struct;
 extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
@@ -359,8 +315,6 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
 #define kern_addr_valid(addr) (1)
-
-#include <asm-generic/pgtable.h>
 
 /* Clear a kernel PTE and flush it from the TLB */
 #define kpte_clear_flush(ptep, vaddr)		\

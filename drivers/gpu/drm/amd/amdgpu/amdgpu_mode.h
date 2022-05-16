@@ -46,6 +46,7 @@
 
 #include <drm/drm_dp_mst_helper.h>
 #include "modules/inc/mod_freesync.h"
+#include "amdgpu_dm_irq_params.h"
 
 struct amdgpu_bo;
 struct amdgpu_device;
@@ -404,7 +405,8 @@ struct amdgpu_crtc {
 	struct amdgpu_flip_work *pflip_works;
 	enum amdgpu_flip_status pflip_status;
 	int deferred_flip_completion;
-	u32 last_flip_vblank;
+	/* parameters access from DM IRQ handler */
+	struct dm_irq_params dm_irq_params;
 	/* pll sharing */
 	struct amdgpu_atom_ss ss;
 	bool ss_enabled;
@@ -469,6 +471,7 @@ struct amdgpu_encoder {
 struct amdgpu_connector_atom_dig {
 	/* displayport */
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
+	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	u8 dp_sink_type;
 	int dp_clock;
 	int dp_lane_count;
@@ -611,6 +614,11 @@ bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 void amdgpu_panel_mode_fixup(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode);
 int amdgpu_display_crtc_idx_to_irq_type(struct amdgpu_device *adev, int crtc);
+
+bool amdgpu_crtc_get_scanout_position(struct drm_crtc *crtc,
+			bool in_vblank_irq, int *vpos,
+			int *hpos, ktime_t *stime, ktime_t *etime,
+			const struct drm_display_mode *mode);
 
 /* fbdev layer */
 int amdgpu_fbdev_init(struct amdgpu_device *adev);

@@ -29,7 +29,7 @@
 18	common	stat			sys_newstat			compat_sys_newstat
 19	common	lseek			sys_lseek			compat_sys_lseek
 20	common	getpid			sys_getpid
-21	common	mount			sys_mount			compat_sys_mount
+21	common	mount			sys_mount
 22	common	bind			sys_bind
 23	common	setuid			sys_setuid
 24	common	getuid			sys_getuid
@@ -159,11 +159,11 @@
 142	common	_newselect		sys_select			compat_sys_select
 143	common	flock			sys_flock
 144	common	msync			sys_msync
-145	common	readv			sys_readv			compat_sys_readv
-146	common	writev			sys_writev			compat_sys_writev
+145	common	readv			sys_readv
+146	common	writev			sys_writev
 147	common	getsid			sys_getsid
 148	common	fdatasync		sys_fdatasync
-149	common	_sysctl			sys_sysctl			compat_sys_sysctl
+149	common	_sysctl			sys_ni_syscall
 150	common	mlock			sys_mlock
 151	common	munlock			sys_munlock
 152	common	mlockall		sys_mlockall
@@ -198,8 +198,8 @@
 178	common	rt_sigqueueinfo		sys_rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
 179	common	rt_sigsuspend		sys_rt_sigsuspend		compat_sys_rt_sigsuspend
 180	common	chown			sys_chown
-181	common	setsockopt		sys_setsockopt			compat_sys_setsockopt
-182	common	getsockopt		sys_getsockopt			compat_sys_getsockopt
+181	common	setsockopt		sys_setsockopt			sys_setsockopt
+182	common	getsockopt		sys_getsockopt			sys_getsockopt
 183	common	sendmsg			sys_sendmsg			compat_sys_sendmsg
 184	common	recvmsg			sys_recvmsg			compat_sys_recvmsg
 185	common	semop			sys_semop
@@ -330,7 +330,7 @@
 292	32	sync_file_range		parisc_sync_file_range
 292	64	sync_file_range		sys_sync_file_range
 293	common	tee			sys_tee
-294	common	vmsplice		sys_vmsplice			compat_sys_vmsplice
+294	common	vmsplice		sys_vmsplice
 295	common	move_pages		sys_move_pages			compat_sys_move_pages
 296	common	getcpu			sys_getcpu
 297	common	epoll_pwait		sys_epoll_pwait			compat_sys_epoll_pwait
@@ -344,17 +344,17 @@
 304	common	eventfd			sys_eventfd
 305	32	fallocate		parisc_fallocate
 305	64	fallocate		sys_fallocate
-306	common	timerfd_create		sys_timerfd_create
+306	common	timerfd_create		parisc_timerfd_create
 307	32	timerfd_settime		sys_timerfd_settime32
 307	64	timerfd_settime		sys_timerfd_settime
 308	32	timerfd_gettime		sys_timerfd_gettime32
 308	64	timerfd_gettime		sys_timerfd_gettime
-309	common	signalfd4		sys_signalfd4			compat_sys_signalfd4
-310	common	eventfd2		sys_eventfd2
+309	common	signalfd4		parisc_signalfd4		parisc_compat_signalfd4
+310	common	eventfd2		parisc_eventfd2
 311	common	epoll_create1		sys_epoll_create1
 312	common	dup3			sys_dup3
-313	common	pipe2			sys_pipe2
-314	common	inotify_init1		sys_inotify_init1
+313	common	pipe2			parisc_pipe2
+314	common	inotify_init1		parisc_inotify_init1
 315	common	preadv	sys_preadv	compat_sys_preadv
 316	common	pwritev	sys_pwritev	compat_sys_pwritev
 317	common	rt_tgsigqueueinfo	sys_rt_tgsigqueueinfo		compat_sys_rt_tgsigqueueinfo
@@ -372,8 +372,8 @@
 327	common	syncfs			sys_syncfs
 328	common	setns			sys_setns
 329	common	sendmmsg		sys_sendmmsg			compat_sys_sendmmsg
-330	common	process_vm_readv	sys_process_vm_readv		compat_sys_process_vm_readv
-331	common	process_vm_writev	sys_process_vm_writev		compat_sys_process_vm_writev
+330	common	process_vm_readv	sys_process_vm_readv
+331	common	process_vm_writev	sys_process_vm_writev
 332	common	kcmp			sys_kcmp
 333	common	finit_module		sys_finit_module
 334	common	sched_setattr		sys_sched_setattr
@@ -387,7 +387,7 @@
 341	common	bpf			sys_bpf
 342	common	execveat		sys_execveat			compat_sys_execveat
 343	common	membarrier		sys_membarrier
-344	common	userfaultfd		sys_userfaultfd
+344	common	userfaultfd		parisc_userfaultfd
 345	common	mlock2			sys_mlock2
 346	common	copy_file_range		sys_copy_file_range
 347	common	preadv2			sys_preadv2			compat_sys_preadv2
@@ -433,3 +433,8 @@
 433	common	fspick				sys_fspick
 434	common	pidfd_open			sys_pidfd_open
 435	common	clone3				sys_clone3_wrapper
+436	common	close_range			sys_close_range
+437	common	openat2				sys_openat2
+438	common	pidfd_getfd			sys_pidfd_getfd
+439	common	faccessat2			sys_faccessat2
+440	common	process_madvise			sys_process_madvise

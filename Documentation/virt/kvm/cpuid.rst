@@ -38,58 +38,68 @@ returns::
 
 where ``flag`` is defined as below:
 
-================================= =========== ================================
-flag                              value       meaning
-================================= =========== ================================
-KVM_FEATURE_CLOCKSOURCE           0           kvmclock available at msrs
-                                              0x11 and 0x12
+================================== =========== ================================
+flag                               value       meaning
+================================== =========== ================================
+KVM_FEATURE_CLOCKSOURCE            0           kvmclock available at msrs
+                                               0x11 and 0x12
 
-KVM_FEATURE_NOP_IO_DELAY          1           not necessary to perform delays
-                                              on PIO operations
+KVM_FEATURE_NOP_IO_DELAY           1           not necessary to perform delays
+                                               on PIO operations
 
-KVM_FEATURE_MMU_OP                2           deprecated
+KVM_FEATURE_MMU_OP                 2           deprecated
 
-KVM_FEATURE_CLOCKSOURCE2          3           kvmclock available at msrs
+KVM_FEATURE_CLOCKSOURCE2           3           kvmclock available at msrs
+                                               0x4b564d00 and 0x4b564d01
 
-                                              0x4b564d00 and 0x4b564d01
-KVM_FEATURE_ASYNC_PF              4           async pf can be enabled by
-                                              writing to msr 0x4b564d02
+KVM_FEATURE_ASYNC_PF               4           async pf can be enabled by
+                                               writing to msr 0x4b564d02
 
-KVM_FEATURE_STEAL_TIME            5           steal time can be enabled by
-                                              writing to msr 0x4b564d03
+KVM_FEATURE_STEAL_TIME             5           steal time can be enabled by
+                                               writing to msr 0x4b564d03
 
-KVM_FEATURE_PV_EOI                6           paravirtualized end of interrupt
-                                              handler can be enabled by
-                                              writing to msr 0x4b564d04
+KVM_FEATURE_PV_EOI                 6           paravirtualized end of interrupt
+                                               handler can be enabled by
+                                               writing to msr 0x4b564d04
 
-KVM_FEATURE_PV_UNHAULT            7           guest checks this feature bit
-                                              before enabling paravirtualized
-                                              spinlock support
+KVM_FEATURE_PV_UNHALT              7           guest checks this feature bit
+                                               before enabling paravirtualized
+                                               spinlock support
 
-KVM_FEATURE_PV_TLB_FLUSH          9           guest checks this feature bit
-                                              before enabling paravirtualized
-                                              tlb flush
+KVM_FEATURE_PV_TLB_FLUSH           9           guest checks this feature bit
+                                               before enabling paravirtualized
+                                               tlb flush
 
-KVM_FEATURE_ASYNC_PF_VMEXIT       10          paravirtualized async PF VM EXIT
-                                              can be enabled by setting bit 2
-                                              when writing to msr 0x4b564d02
+KVM_FEATURE_ASYNC_PF_VMEXIT        10          paravirtualized async PF VM EXIT
+                                               can be enabled by setting bit 2
+                                               when writing to msr 0x4b564d02
 
-KVM_FEATURE_PV_SEND_IPI           11          guest checks this feature bit
-                                              before enabling paravirtualized
-                                              sebd IPIs
+KVM_FEATURE_PV_SEND_IPI            11          guest checks this feature bit
+                                               before enabling paravirtualized
+                                               send IPIs
 
-KVM_FEATURE_PV_POLL_CONTROL       12          host-side polling on HLT can
-                                              be disabled by writing
-                                              to msr 0x4b564d05.
+KVM_FEATURE_POLL_CONTROL           12          host-side polling on HLT can
+                                               be disabled by writing
+                                               to msr 0x4b564d05.
 
-KVM_FEATURE_PV_SCHED_YIELD        13          guest checks this feature bit
-                                              before using paravirtualized
-                                              sched yield.
+KVM_FEATURE_PV_SCHED_YIELD         13          guest checks this feature bit
+                                               before using paravirtualized
+                                               sched yield.
 
-KVM_FEATURE_CLOCSOURCE_STABLE_BIT 24          host will warn if no guest-side
-                                              per-cpu warps are expeced in
-                                              kvmclock
-================================= =========== ================================
+KVM_FEATURE_ASYNC_PF_INT           14          guest checks this feature bit
+                                               before using the second async
+                                               pf control msr 0x4b564d06 and
+                                               async pf acknowledgment msr
+                                               0x4b564d07.
+
+KVM_FEATURE_MSI_EXT_DEST_ID        15          guest checks this feature bit
+                                               before using extended destination
+                                               ID bits in MSI address bits 11-5.
+
+KVM_FEATURE_CLOCKSOURCE_STABLE_BIT 24          host will warn if no guest-side
+                                               per-cpu warps are expected in
+                                               kvmclock
+================================== =========== ================================
 
 ::
 

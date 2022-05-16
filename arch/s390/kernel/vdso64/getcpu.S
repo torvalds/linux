@@ -16,10 +16,8 @@
 	.type  __kernel_getcpu,@function
 __kernel_getcpu:
 	CFI_STARTPROC
-	la	%r4,0
 	sacf	256
-	l	%r5,__VDSO_CPU_NR(%r4)
-	l	%r4,__VDSO_NODE_ID(%r4)
+	lm	%r4,%r5,__VDSO_GETCPU_VAL(%r0)
 	sacf	0
 	ltgr	%r2,%r2
 	jz	2f

@@ -1,8 +1,6 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
-/*
- * Copyright (C) 2018 Amarula Solutions
- * Author: Jagan Teki <jagan@amarulasolutions.com>
- */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2018 Amarula Solutions
+// Author: Jagan Teki <jagan@amarulasolutions.com>
 
 /dts-v1/;
 
@@ -20,6 +18,25 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	connector {
+		compatible = "hdmi-connector";
+		type = "a";
+		ddc-en-gpios = <&pio 7 2 GPIO_ACTIVE_HIGH>; /* PH2 */
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
+	ext_osc32k: ext_osc32k_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "ext_osc32k";
 	};
 
 	leds {
@@ -47,12 +64,31 @@
 	};
 };
 
+&de {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
 
 &ehci3 {
 	status = "okay";
+};
+
+&gpu {
+	mali-supply = <&reg_dcdcc>;
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
 };
 
 &mmc0 {
@@ -68,6 +104,12 @@
 
 &ohci3 {
 	status = "okay";
+};
+
+&pio {
+	vcc-pc-supply = <&reg_bldo2>;
+	vcc-pd-supply = <&reg_cldo1>;
+	vcc-pg-supply = <&reg_aldo1>;
 };
 
 &r_i2c {
@@ -163,6 +205,7 @@
 			};
 
 			reg_dcdcc: dcdcc {
+				regulator-enable-ramp-delay = <32000>;
 				regulator-min-microvolt = <810000>;
 				regulator-max-microvolt = <1080000>;
 				regulator-name = "vdd-gpu";
@@ -193,6 +236,14 @@
 	status = "okay";
 };
 
+&r_pio {
+	vcc-pm-supply = <&reg_bldo3>;
+};
+
+&rtc {
+	clocks = <&ext_osc32k>;
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_ph_pins>;
@@ -200,7 +251,12 @@
 };
 
 &usb2otg {
-	dr_mode = "otg";
+	/*
+	 * OrangePi Lite 2 and One Plus, where this DT is used, don't
+	 * have a controllable VBUS even though they do have an ID pin.
+	 * Using it as anything but a USB host is unsafe.
+	 */
+	dr_mode = "host";
 	status = "okay";
 };
 

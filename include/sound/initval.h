@@ -37,7 +37,7 @@
 #define SNDRV_DEFAULT_PTR	SNDRV_DEFAULT_STR
 
 #ifdef SNDRV_LEGACY_FIND_FREE_IOPORT
-static long snd_legacy_find_free_ioport(long *port_table, long size)
+static long snd_legacy_find_free_ioport(const long *port_table, long size)
 {
 	while (*port_table != -1) {
 		if (request_region(*port_table, size, "ALSA test")) {
@@ -58,7 +58,7 @@ static irqreturn_t snd_legacy_empty_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int snd_legacy_find_free_irq(int *irq_table)
+static int snd_legacy_find_free_irq(const int *irq_table)
 {
 	while (*irq_table != -1) {
 		if (!request_irq(*irq_table, snd_legacy_empty_irq_handler,
@@ -74,7 +74,7 @@ static int snd_legacy_find_free_irq(int *irq_table)
 #endif
 
 #ifdef SNDRV_LEGACY_FIND_FREE_DMA
-static int snd_legacy_find_free_dma(int *dma_table)
+static int snd_legacy_find_free_dma(const int *dma_table)
 {
 	while (*dma_table != -1) {
 		if (!request_dma(*dma_table, "ALSA Test DMA")) {

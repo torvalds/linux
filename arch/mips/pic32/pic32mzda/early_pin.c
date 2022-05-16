@@ -122,7 +122,7 @@ static const struct
 
 void pic32_pps_input(int function, int pin)
 {
-	void __iomem *pps_base = ioremap_nocache(PPS_BASE, 0xF4);
+	void __iomem *pps_base = ioremap(PPS_BASE, 0xF4);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(input_pin_reg); i++) {
@@ -252,7 +252,7 @@ static const struct
 
 void pic32_pps_output(int function, int pin)
 {
-	void __iomem *pps_base = ioremap_nocache(PPS_BASE, 0x170);
+	void __iomem *pps_base = ioremap(PPS_BASE, 0x170);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(output_pin_reg); i++) {

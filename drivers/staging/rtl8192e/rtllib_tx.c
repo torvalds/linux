@@ -241,7 +241,7 @@ static int rtllib_classify(struct sk_buff *skb, u8 bIsAmsdu)
 		return 0;
 
 #ifdef VERBOSE_DEBUG
-	print_hex_dump_bytes("rtllib_classify(): ", DUMP_PREFIX_NONE, skb->data,
+	print_hex_dump_bytes("%s: ", __func__, DUMP_PREFIX_NONE, skb->data,
 			     skb->len);
 #endif
 	ip = ip_hdr(skb);
@@ -859,7 +859,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			if (ieee->seq_ctrl[0] == 0xFFF)
 				ieee->seq_ctrl[0] = 0;
 			else
-					ieee->seq_ctrl[0]++;
+				ieee->seq_ctrl[0]++;
 		}
 	} else {
 		if (unlikely(skb->len < sizeof(struct rtllib_hdr_3addr))) {

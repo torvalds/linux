@@ -717,7 +717,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 			}
 			cmd->SCp.phase++;
 		}
-		/* fall through */
+		fallthrough;
 
 	case 2:		/* Phase 2 - We are now talking to the scsi bus */
 		if (!ppa_select(dev, scmd_id(cmd))) {
@@ -725,7 +725,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 			return 0;
 		}
 		cmd->SCp.phase++;
-		/* fall through */
+		fallthrough;
 
 	case 3:		/* Phase 3 - Ready to accept a command */
 		w_ctr(ppb, 0x0c);
@@ -735,7 +735,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		if (!ppa_send_command(cmd))
 			return 0;
 		cmd->SCp.phase++;
-		/* fall through */
+		fallthrough;
 
 	case 4:		/* Phase 4 - Setup scatter/gather buffers */
 		if (scsi_bufflen(cmd)) {
@@ -749,7 +749,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		}
 		cmd->SCp.buffers_residual = scsi_sg_count(cmd) - 1;
 		cmd->SCp.phase++;
-		/* fall through */
+		fallthrough;
 
 	case 5:		/* Phase 5 - Data transfer stage */
 		w_ctr(ppb, 0x0c);
@@ -762,7 +762,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		if (retv == 0)
 			return 1;
 		cmd->SCp.phase++;
-		/* fall through */
+		fallthrough;
 
 	case 6:		/* Phase 6 - Read status/message */
 		cmd->result = DID_OK << 16;
@@ -779,7 +779,6 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 			    (DID_OK << 16) + (h << 8) + (l & STATUS_MASK);
 		}
 		return 0;	/* Finished */
-		break;
 
 	default:
 		printk(KERN_ERR "ppa: Invalid scsi phase\n");
@@ -847,10 +846,8 @@ static int ppa_abort(struct scsi_cmnd *cmd)
 	case 1:		/* Have not connected to interface */
 		dev->cur_cmd = NULL;	/* Forget the problem */
 		return SUCCESS;
-		break;
 	default:		/* SCSI command sent, can not abort */
 		return FAILED;
-		break;
 	}
 }
 

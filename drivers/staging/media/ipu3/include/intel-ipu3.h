@@ -120,13 +120,13 @@ struct ipu3_uapi_awb_config {
 #define IPU3_UAPI_AE_WEIGHTS				96
 
 /**
- + * struct ipu3_uapi_ae_raw_buffer - AE global weighted histogram
- + *
- + * @vals: Sum of IPU3_UAPI_AE_COLORS in cell
- + *
- + * Each histogram contains IPU3_UAPI_AE_BINS bins. Each bin has 24 bit unsigned
- + * for counting the number of the pixel.
- + */
+ * struct ipu3_uapi_ae_raw_buffer - AE global weighted histogram
+ *
+ * @vals: Sum of IPU3_UAPI_AE_COLORS in cell
+ *
+ * Each histogram contains IPU3_UAPI_AE_BINS bins. Each bin has 24 bit unsigned
+ * for counting the number of the pixel.
+ */
 struct ipu3_uapi_ae_raw_buffer {
 	__u32 vals[IPU3_UAPI_AE_BINS * IPU3_UAPI_AE_COLORS];
 } __packed;
@@ -449,8 +449,8 @@ struct ipu3_uapi_awb_fr_config_s {
 	__u16 reserved1;
 	__u32 bayer_sign;
 	__u8 bayer_nf;
-	__u8 reserved2[3];
-} __attribute__((aligned(32))) __packed;
+	__u8 reserved2[7];
+} __packed;
 
 /**
  * struct ipu3_uapi_4a_config - 4A config
@@ -466,7 +466,8 @@ struct ipu3_uapi_4a_config {
 	struct ipu3_uapi_ae_grid_config ae_grd_config;
 	__u8 padding[20];
 	struct ipu3_uapi_af_config_s af_config;
-	struct ipu3_uapi_awb_fr_config_s awb_fr_config;
+	struct ipu3_uapi_awb_fr_config_s awb_fr_config
+		__attribute__((aligned(32)));
 } __packed;
 
 /**
@@ -1217,6 +1218,11 @@ struct ipu3_uapi_shd_config {
  *
  * All CU inputs are unsigned, they will be converted to signed when written
  * to register, i.e. a01 will be written to 9 bit register in s4.4 format.
+ * The data precision s4.4 means 4 bits for integer parts and 4 bits for the
+ * fractional part, the first bit indicates positive or negative value.
+ * For userspace software (commonly the imaging library), the computation for
+ * the CU slope values should be based on the slope resolution 1/16 (binary
+ * 0.0001 - the minimal interval value), the slope value range is [-256, +255].
  * This applies to &ipu3_uapi_iefd_cux6_ed, &ipu3_uapi_iefd_cux2_1,
  * &ipu3_uapi_iefd_cux2_1, &ipu3_uapi_iefd_cux4 and &ipu3_uapi_iefd_cux6_rad.
  */
@@ -2472,7 +2478,7 @@ struct ipu3_uapi_acc_param {
 	struct ipu3_uapi_yuvp1_yds_config yds2 __attribute__((aligned(32)));
 	struct ipu3_uapi_yuvp2_tcc_static_config tcc __attribute__((aligned(32)));
 	struct ipu3_uapi_anr_config anr;
-	struct ipu3_uapi_awb_fr_config_s awb_fr __attribute__((aligned(32)));
+	struct ipu3_uapi_awb_fr_config_s awb_fr;
 	struct ipu3_uapi_ae_config ae;
 	struct ipu3_uapi_af_config_s af;
 	struct ipu3_uapi_awb_config awb;

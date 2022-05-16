@@ -130,8 +130,8 @@ a full power-on reset sequence and the power-on defaults are restored to the
 device by hardware just as at initial power up.
 
 PCI devices supporting the PCI PM Spec can be programmed to generate PMEs
-while in a low-power state (D1-D3), but they are not required to be capable
-of generating PMEs from all supported low-power states.  In particular, the
+while in any power state (D0-D3), but they are not required to be capable
+of generating PMEs from all supported power states.  In particular, the
 capability of generating PMEs from D3cold is optional and depends on the
 presence of additional voltage (3.3Vaux) allowing the device to remain
 sufficiently active to generate a wakeup signal.
@@ -320,7 +320,7 @@ that these callbacks operate on::
 	unsigned int	d2_support:1;	/* Low power state D2 is supported */
 	unsigned int	no_d1d2:1;	/* D1 and D2 are forbidden */
 	unsigned int	wakeup_prepared:1;  /* Device prepared for wake up */
-	unsigned int	d3_delay;	/* D3->D0 transition time in ms */
+	unsigned int	d3hot_delay;	/* D3hot->D0 transition time in ms */
 	...
   };
 
@@ -426,12 +426,12 @@ pm->runtime_idle() callback.
 2.4. System-Wide Power Transitions
 ----------------------------------
 There are a few different types of system-wide power transitions, described in
-Documentation/driver-api/pm/devices.rst.  Each of them requires devices to be handled
-in a specific way and the PM core executes subsystem-level power management
-callbacks for this purpose.  They are executed in phases such that each phase
-involves executing the same subsystem-level callback for every device belonging
-to the given subsystem before the next phase begins.  These phases always run
-after tasks have been frozen.
+Documentation/driver-api/pm/devices.rst.  Each of them requires devices to be
+handled in a specific way and the PM core executes subsystem-level power
+management callbacks for this purpose.  They are executed in phases such that
+each phase involves executing the same subsystem-level callback for every device
+belonging to the given subsystem before the next phase begins.  These phases
+always run after tasks have been frozen.
 
 2.4.1. System Suspend
 ^^^^^^^^^^^^^^^^^^^^^
@@ -600,17 +600,17 @@ using the following PCI bus type's callbacks::
 
 respectively.
 
-The first of them, pci_pm_thaw_noirq(), is analogous to pci_pm_resume_noirq(),
-but it doesn't put the device into the full power state and doesn't attempt to
-restore its standard configuration registers.  It also executes the device
-driver's pm->thaw_noirq() callback, if defined, instead of pm->resume_noirq().
+The first of them, pci_pm_thaw_noirq(), is analogous to pci_pm_resume_noirq().
+It puts the device into the full power state and restores its standard
+configuration registers.  It also executes the device driver's pm->thaw_noirq()
+callback, if defined, instead of pm->resume_noirq().
 
 The pci_pm_thaw() routine is similar to pci_pm_resume(), but it runs the device
 driver's pm->thaw() callback instead of pm->resume().  It is executed
 asynchronously for different PCI devices that don't depend on each other in a
 known way.
 
-The complete phase it the same as for system resume.
+The complete phase is the same as for system resume.
 
 After saving the image, devices need to be powered down before the system can
 enter the target sleep state (ACPI S4 for ACPI-based systems).  This is done in
@@ -636,12 +636,12 @@ System restore requires a hibernation image to be loaded into memory and the
 pre-hibernation memory contents to be restored before the pre-hibernation system
 activity can be resumed.
 
-As described in Documentation/driver-api/pm/devices.rst, the hibernation image is loaded
-into memory by a fresh instance of the kernel, called the boot kernel, which in
-turn is loaded and run by a boot loader in the usual way.  After the boot kernel
-has loaded the image, it needs to replace its own code and data with the code
-and data of the "hibernated" kernel stored within the image, called the image
-kernel.  For this purpose all devices are frozen just like before creating
+As described in Documentation/driver-api/pm/devices.rst, the hibernation image
+is loaded into memory by a fresh instance of the kernel, called the boot kernel,
+which in turn is loaded and run by a boot loader in the usual way.  After the
+boot kernel has loaded the image, it needs to replace its own code and data with
+the code and data of the "hibernated" kernel stored within the image, called the
+image kernel.  For this purpose all devices are frozen just like before creating
 the image during hibernation, in the
 
 	prepare, freeze, freeze_noirq
@@ -691,12 +691,12 @@ controlling the runtime power management of their devices.
 
 At the time of this writing there are two ways to define power management
 callbacks for a PCI device driver, the recommended one, based on using a
-dev_pm_ops structure described in Documentation/driver-api/pm/devices.rst, and the
-"legacy" one, in which the .suspend(), .suspend_late(), .resume_early(), and
-.resume() callbacks from struct pci_driver are used.  The legacy approach,
-however, doesn't allow one to define runtime power management callbacks and is
-not really suitable for any new drivers.  Therefore it is not covered by this
-document (refer to the source code to learn more about it).
+dev_pm_ops structure described in Documentation/driver-api/pm/devices.rst, and
+the "legacy" one, in which the .suspend() and .resume() callbacks from struct
+pci_driver are used.  The legacy approach, however, doesn't allow one to define
+runtime power management callbacks and is not really suitable for any new
+drivers.  Therefore it is not covered by this document (refer to the source code
+to learn more about it).
 
 It is recommended that all PCI device drivers define a struct dev_pm_ops object
 containing pointers to power management (PM) callbacks that will be executed by
@@ -1004,41 +1004,39 @@ including the PCI bus type.  The flags should be set once at the driver probe
 time with the help of the dev_pm_set_driver_flags() function and they should not
 be updated directly afterwards.
 
-The DPM_FLAG_NEVER_SKIP flag prevents the PM core from using the direct-complete
-mechanism allowing device suspend/resume callbacks to be skipped if the device
-is in runtime suspend when the system suspend starts.  That also affects all of
-the ancestors of the device, so this flag should only be used if absolutely
-necessary.
+The DPM_FLAG_NO_DIRECT_COMPLETE flag prevents the PM core from using the
+direct-complete mechanism allowing device suspend/resume callbacks to be skipped
+if the device is in runtime suspend when the system suspend starts.  That also
+affects all of the ancestors of the device, so this flag should only be used if
+absolutely necessary.
 
-The DPM_FLAG_SMART_PREPARE flag instructs the PCI bus type to only return a
-positive value from pci_pm_prepare() if the ->prepare callback provided by the
+The DPM_FLAG_SMART_PREPARE flag causes the PCI bus type to return a positive
+value from pci_pm_prepare() only if the ->prepare callback provided by the
 driver of the device returns a positive value.  That allows the driver to opt
-out from using the direct-complete mechanism dynamically.
+out from using the direct-complete mechanism dynamically (whereas setting
+DPM_FLAG_NO_DIRECT_COMPLETE means permanent opt-out).
 
 The DPM_FLAG_SMART_SUSPEND flag tells the PCI bus type that from the driver's
 perspective the device can be safely left in runtime suspend during system
 suspend.  That causes pci_pm_suspend(), pci_pm_freeze() and pci_pm_poweroff()
-to skip resuming the device from runtime suspend unless there are PCI-specific
-reasons for doing that.  Also, it causes pci_pm_suspend_late/noirq(),
-pci_pm_freeze_late/noirq() and pci_pm_poweroff_late/noirq() to return early
-if the device remains in runtime suspend in the beginning of the "late" phase
-of the system-wide transition under way.  Moreover, if the device is in
-runtime suspend in pci_pm_resume_noirq() or pci_pm_restore_noirq(), its runtime
-power management status will be changed to "active" (as it is going to be put
-into D0 going forward), but if it is in runtime suspend in pci_pm_thaw_noirq(),
-the function will set the power.direct_complete flag for it (to make the PM core
-skip the subsequent "thaw" callbacks for it) and return.
+to avoid resuming the device from runtime suspend unless there are PCI-specific
+reasons for doing that.  Also, it causes pci_pm_suspend_late/noirq() and
+pci_pm_poweroff_late/noirq() to return early if the device remains in runtime
+suspend during the "late" phase of the system-wide transition under way.
+Moreover, if the device is in runtime suspend in pci_pm_resume_noirq() or
+pci_pm_restore_noirq(), its runtime PM status will be changed to "active" (as it
+is going to be put into D0 going forward).
 
-Setting the DPM_FLAG_LEAVE_SUSPENDED flag means that the driver prefers the
-device to be left in suspend after system-wide transitions to the working state.
-This flag is checked by the PM core, but the PCI bus type informs the PM core
-which devices may be left in suspend from its perspective (that happens during
-the "noirq" phase of system-wide suspend and analogous transitions) and next it
-uses the dev_pm_may_skip_resume() helper to decide whether or not to return from
-pci_pm_resume_noirq() early, as the PM core will skip the remaining resume
-callbacks for the device during the transition under way and will set its
-runtime PM status to "suspended" if dev_pm_may_skip_resume() returns "true" for
-it.
+Setting the DPM_FLAG_MAY_SKIP_RESUME flag means that the driver allows its
+"noirq" and "early" resume callbacks to be skipped if the device can be left
+in suspend after a system-wide transition into the working state.  This flag is
+taken into consideration by the PM core along with the power.may_skip_resume
+status bit of the device which is set by pci_pm_suspend_noirq() in certain
+situations.  If the PM core determines that the driver's "noirq" and "early"
+resume callbacks should be skipped, the dev_pm_skip_resume() helper function
+will return "true" and that will cause pci_pm_resume_noirq() and
+pci_pm_resume_early() to return upfront without touching the device and
+executing the driver callbacks.
 
 3.2. Device Runtime Power Management
 ------------------------------------

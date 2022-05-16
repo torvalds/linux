@@ -876,6 +876,7 @@ static int skge_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom
 }
 
 static const struct ethtool_ops skge_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_drvinfo	= skge_get_drvinfo,
 	.get_regs_len	= skge_get_regs_len,
 	.get_regs	= skge_get_regs,
@@ -938,10 +939,10 @@ static int skge_rx_setup(struct skge_port *skge, struct skge_element *e,
 	struct skge_rx_desc *rd = e->desc;
 	dma_addr_t map;
 
-	map = pci_map_single(skge->hw->pdev, skb->data, bufsize,
-			     PCI_DMA_FROMDEVICE);
+	map = dma_map_single(&skge->hw->pdev->dev, skb->data, bufsize,
+			     DMA_FROM_DEVICE);
 
-	if (pci_dma_mapping_error(skge->hw->pdev, map))
+	if (dma_mapping_error(&skge->hw->pdev->dev, map))
 		return -1;
 
 	rd->dma_lo = lower_32_bits(map);
@@ -989,10 +990,10 @@ static void skge_rx_clean(struct skge_port *skge)
 		struct skge_rx_desc *rd = e->desc;
 		rd->control = 0;
 		if (e->skb) {
-			pci_unmap_single(hw->pdev,
+			dma_unmap_single(&hw->pdev->dev,
 					 dma_unmap_addr(e, mapaddr),
 					 dma_unmap_len(e, maplen),
-					 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 			dev_kfree_skb(e->skb);
 			e->skb = NULL;
 		}
@@ -2447,7 +2448,7 @@ static int skge_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIPHY:
 		data->phy_id = hw->phy_addr;
 
-		/* fallthru */
+		fallthrough;
 	case SIOCGMIIREG: {
 		u16 val = 0;
 		spin_lock_bh(&hw->phy_lock);
@@ -2546,14 +2547,15 @@ static int skge_up(struct net_device *dev)
 	rx_size = skge->rx_ring.count * sizeof(struct skge_rx_desc);
 	tx_size = skge->tx_ring.count * sizeof(struct skge_tx_desc);
 	skge->mem_size = tx_size + rx_size;
-	skge->mem = pci_alloc_consistent(hw->pdev, skge->mem_size, &skge->dma);
+	skge->mem = dma_alloc_coherent(&hw->pdev->dev, skge->mem_size,
+				       &skge->dma, GFP_KERNEL);
 	if (!skge->mem)
 		return -ENOMEM;
 
 	BUG_ON(skge->dma & 7);
 
 	if (upper_32_bits(skge->dma) != upper_32_bits(skge->dma + skge->mem_size)) {
-		dev_err(&hw->pdev->dev, "pci_alloc_consistent region crosses 4G boundary\n");
+		dev_err(&hw->pdev->dev, "dma_alloc_coherent region crosses 4G boundary\n");
 		err = -EINVAL;
 		goto free_pci_mem;
 	}
@@ -2624,7 +2626,8 @@ static int skge_up(struct net_device *dev)
 	skge_rx_clean(skge);
 	kfree(skge->rx_ring.start);
  free_pci_mem:
-	pci_free_consistent(hw->pdev, skge->mem_size, skge->mem, skge->dma);
+	dma_free_coherent(&hw->pdev->dev, skge->mem_size, skge->mem,
+			  skge->dma);
 	skge->mem = NULL;
 
 	return err;
@@ -2714,7 +2717,8 @@ static int skge_down(struct net_device *dev)
 
 	kfree(skge->rx_ring.start);
 	kfree(skge->tx_ring.start);
-	pci_free_consistent(hw->pdev, skge->mem_size, skge->mem, skge->dma);
+	dma_free_coherent(&hw->pdev->dev, skge->mem_size, skge->mem,
+			  skge->dma);
 	skge->mem = NULL;
 	return 0;
 }
@@ -2748,8 +2752,8 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 	BUG_ON(td->control & BMU_OWN);
 	e->skb = skb;
 	len = skb_headlen(skb);
-	map = pci_map_single(hw->pdev, skb->data, len, PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(hw->pdev, map))
+	map = dma_map_single(&hw->pdev->dev, skb->data, len, DMA_TO_DEVICE);
+	if (dma_mapping_error(&hw->pdev->dev, map))
 		goto mapping_error;
 
 	dma_unmap_addr_set(e, mapaddr, map);
@@ -2829,16 +2833,12 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 
 mapping_unwind:
 	e = skge->tx_ring.to_use;
-	pci_unmap_single(hw->pdev,
-			 dma_unmap_addr(e, mapaddr),
-			 dma_unmap_len(e, maplen),
-			 PCI_DMA_TODEVICE);
+	dma_unmap_single(&hw->pdev->dev, dma_unmap_addr(e, mapaddr),
+			 dma_unmap_len(e, maplen), DMA_TO_DEVICE);
 	while (i-- > 0) {
 		e = e->next;
-		pci_unmap_page(hw->pdev,
-			       dma_unmap_addr(e, mapaddr),
-			       dma_unmap_len(e, maplen),
-			       PCI_DMA_TODEVICE);
+		dma_unmap_page(&hw->pdev->dev, dma_unmap_addr(e, mapaddr),
+			       dma_unmap_len(e, maplen), DMA_TO_DEVICE);
 	}
 
 mapping_error:
@@ -2855,13 +2855,11 @@ static inline void skge_tx_unmap(struct pci_dev *pdev, struct skge_element *e,
 {
 	/* skb header vs. fragment */
 	if (control & BMU_STF)
-		pci_unmap_single(pdev, dma_unmap_addr(e, mapaddr),
-				 dma_unmap_len(e, maplen),
-				 PCI_DMA_TODEVICE);
+		dma_unmap_single(&pdev->dev, dma_unmap_addr(e, mapaddr),
+				 dma_unmap_len(e, maplen), DMA_TO_DEVICE);
 	else
-		pci_unmap_page(pdev, dma_unmap_addr(e, mapaddr),
-			       dma_unmap_len(e, maplen),
-			       PCI_DMA_TODEVICE);
+		dma_unmap_page(&pdev->dev, dma_unmap_addr(e, mapaddr),
+			       dma_unmap_len(e, maplen), DMA_TO_DEVICE);
 }
 
 /* Free all buffers in transmit ring */
@@ -2884,7 +2882,7 @@ static void skge_tx_clean(struct net_device *dev)
 	skge->tx_ring.to_clean = e;
 }
 
-static void skge_tx_timeout(struct net_device *dev)
+static void skge_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct skge_port *skge = netdev_priv(dev);
 
@@ -3071,15 +3069,15 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 		if (!skb)
 			goto resubmit;
 
-		pci_dma_sync_single_for_cpu(skge->hw->pdev,
-					    dma_unmap_addr(e, mapaddr),
-					    dma_unmap_len(e, maplen),
-					    PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_cpu(&skge->hw->pdev->dev,
+					dma_unmap_addr(e, mapaddr),
+					dma_unmap_len(e, maplen),
+					DMA_FROM_DEVICE);
 		skb_copy_from_linear_data(e->skb, skb->data, len);
-		pci_dma_sync_single_for_device(skge->hw->pdev,
-					       dma_unmap_addr(e, mapaddr),
-					       dma_unmap_len(e, maplen),
-					       PCI_DMA_FROMDEVICE);
+		dma_sync_single_for_device(&skge->hw->pdev->dev,
+					   dma_unmap_addr(e, mapaddr),
+					   dma_unmap_len(e, maplen),
+					   DMA_FROM_DEVICE);
 		skge_rx_reuse(e, skge->rx_buf_size);
 	} else {
 		struct skge_element ee;
@@ -3099,10 +3097,9 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 			goto resubmit;
 		}
 
-		pci_unmap_single(skge->hw->pdev,
+		dma_unmap_single(&skge->hw->pdev->dev,
 				 dma_unmap_addr(&ee, mapaddr),
-				 dma_unmap_len(&ee, maplen),
-				 PCI_DMA_FROMDEVICE);
+				 dma_unmap_len(&ee, maplen), DMA_FROM_DEVICE);
 	}
 
 	skb_put(skb, len);
@@ -3341,9 +3338,9 @@ static void skge_error_irq(struct skge_hw *hw)
  * because accessing phy registers requires spin wait which might
  * cause excess interrupt latency.
  */
-static void skge_extirq(unsigned long arg)
+static void skge_extirq(struct tasklet_struct *t)
 {
-	struct skge_hw *hw = (struct skge_hw *) arg;
+	struct skge_hw *hw = from_tasklet(hw, t, phy_task);
 	int port;
 
 	for (port = 0; port < hw->ports; port++) {
@@ -3894,12 +3891,12 @@ static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	if (!only_32bit_dma && !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+	if (!only_32bit_dma && !dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
 		using_dac = 1;
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	} else if (!(err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))) {
+		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
+	} else if (!(err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)))) {
 		using_dac = 0;
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	}
 
 	if (err) {
@@ -3930,9 +3927,9 @@ static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->pdev = pdev;
 	spin_lock_init(&hw->hw_lock);
 	spin_lock_init(&hw->phy_lock);
-	tasklet_init(&hw->phy_task, skge_extirq, (unsigned long) hw);
+	tasklet_setup(&hw->phy_task, skge_extirq);
 
-	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
+	hw->regs = ioremap(pci_resource_start(pdev, 0), 0x4000);
 	if (!hw->regs) {
 		dev_err(&pdev->dev, "cannot map device registers\n");
 		goto err_out_free_hw;

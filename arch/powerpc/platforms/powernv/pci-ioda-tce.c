@@ -17,6 +17,34 @@
 #include <asm/tce.h>
 #include "pci.h"
 
+unsigned long pnv_ioda_parse_tce_sizes(struct pnv_phb *phb)
+{
+	struct pci_controller *hose = phb->hose;
+	struct device_node *dn = hose->dn;
+	unsigned long mask = 0;
+	int i, rc, count;
+	u32 val;
+
+	count = of_property_count_u32_elems(dn, "ibm,supported-tce-sizes");
+	if (count <= 0) {
+		mask = SZ_4K | SZ_64K;
+		/* Add 16M for POWER8 by default */
+		if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
+				!cpu_has_feature(CPU_FTR_ARCH_300))
+			mask |= SZ_16M | SZ_256M;
+		return mask;
+	}
+
+	for (i = 0; i < count; i++) {
+		rc = of_property_read_u32_index(dn, "ibm,supported-tce-sizes",
+						i, &val);
+		if (rc == 0)
+			mask |= 1ULL << val;
+	}
+
+	return mask;
+}
+
 void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 		void *tce_mem, u64 tce_size,
 		u64 dma_offset, unsigned int page_shift)
@@ -138,7 +166,7 @@ int pnv_tce_xchg(struct iommu_table *tbl, long index,
 	if (!ptce) {
 		ptce = pnv_tce(tbl, false, idx, alloc);
 		if (!ptce)
-			return alloc ? H_HARDWARE : H_TOO_HARD;
+			return -ENOMEM;
 	}
 
 	if (newtce & TCE_PCI_WRITE)
@@ -340,14 +368,6 @@ free_tces_exit:
 	return -ENOMEM;
 }
 
-static void pnv_iommu_table_group_link_free(struct rcu_head *head)
-{
-	struct iommu_table_group_link *tgl = container_of(head,
-			struct iommu_table_group_link, rcu);
-
-	kfree(tgl);
-}
-
 void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,
 		struct iommu_table_group *table_group)
 {
@@ -363,7 +383,7 @@ void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,
 	list_for_each_entry_rcu(tgl, &tbl->it_group_list, next) {
 		if (tgl->table_group == table_group) {
 			list_del_rcu(&tgl->next);
-			call_rcu(&tgl->rcu, pnv_iommu_table_group_link_free);
+			kfree_rcu(tgl, rcu);
 			found = true;
 			break;
 		}

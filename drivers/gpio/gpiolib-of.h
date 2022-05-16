@@ -35,4 +35,6 @@ static inline bool of_gpio_need_valid_mask(const struct gpio_chip *gc)
 }
 #endif /* CONFIG_OF_GPIO */
 
+extern struct notifier_block gpio_of_notifier;
+
 #endif /* GPIOLIB_OF_H */

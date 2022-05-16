@@ -80,3 +80,26 @@ Description:	Display the ME device state.
 		DISABLED
 		POWER_DOWN
 		POWER_UP
+
+What:		/sys/class/mei/meiN/trc
+Date:		Nov 2019
+KernelVersion:	5.5
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Display trc status register content
+
+		The ME FW writes Glitch Detection HW (TRC)
+		status information into trc status register
+		for BIOS and OS to monitor fw health.
+
+What:		/sys/class/mei/meiN/kind
+Date:		Jul 2020
+KernelVersion:	5.8
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Display kind of the device
+
+		Generic devices are marked as "mei"
+		while special purpose have their own
+		names.
+		Available options:
+		- mei:  generic mei device.
+		- itouch:  itouch (ipts) mei device.

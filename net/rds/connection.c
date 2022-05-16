@@ -905,6 +905,17 @@ void rds_conn_path_connect_if_down(struct rds_conn_path *cp)
 }
 EXPORT_SYMBOL_GPL(rds_conn_path_connect_if_down);
 
+/* Check connectivity of all paths
+ */
+void rds_check_all_paths(struct rds_connection *conn)
+{
+	int i = 0;
+
+	do {
+		rds_conn_path_connect_if_down(&conn->c_path[i]);
+	} while (++i < conn->c_npaths);
+}
+
 void rds_conn_connect_if_down(struct rds_connection *conn)
 {
 	WARN_ON(conn->c_trans->t_mp_capable);

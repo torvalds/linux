@@ -23,5 +23,6 @@ struct gve_registers {
 enum gve_device_status_flags {
 	GVE_DEVICE_STATUS_RESET_MASK		= BIT(1),
 	GVE_DEVICE_STATUS_LINK_STATUS_MASK	= BIT(2),
+	GVE_DEVICE_STATUS_REPORT_STATS_MASK	= BIT(3),
 };
 #endif /* _GVE_REGISTER_H_ */

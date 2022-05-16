@@ -47,9 +47,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DRV_NAME	"winbond-840"
-#define DRV_VERSION	"1.01-e"
-#define DRV_RELDATE	"Sep-11-2006"
-
 
 /* Automatically extracted configuration info:
 probe-func: winbond840_probe
@@ -139,16 +136,9 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #undef PKT_BUF_SZ			/* tulip.h also defines this */
 #define PKT_BUF_SZ		1536	/* Size of each temporary Rx buffer.*/
 
-/* These identify the driver base version and may not be removed. */
-static const char version[] __initconst =
-	"v" DRV_VERSION " (2.4 port) "
-	DRV_RELDATE "  Donald Becker <becker@scyld.com>\n"
-	"  http://www.scyld.com/network/drivers.html\n";
-
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Winbond W89c840 Ethernet driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 
 module_param(max_interrupt_work, int, 0);
 module_param(debug, int, 0);
@@ -331,7 +321,7 @@ static void netdev_timer(struct timer_list *t);
 static void init_rxtx_rings(struct net_device *dev);
 static void free_rxtx_rings(struct netdev_private *np);
 static void init_registers(struct net_device *dev);
-static void tx_timeout(struct net_device *dev);
+static void tx_timeout(struct net_device *dev, unsigned int txqueue);
 static int alloc_ringdesc(struct net_device *dev);
 static void free_ringdesc(struct netdev_private *np);
 static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev);
@@ -374,7 +364,7 @@ static int w840_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	irq = pdev->irq;
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		pr_warn("Device %s disabled due to DMA limitations\n",
 			pci_name(pdev));
 		return -EIO;
@@ -640,9 +630,10 @@ static int netdev_open(struct net_device *dev)
 		goto out_err;
 
 	if (debug > 1)
-		netdev_dbg(dev, "w89c840_open() irq %d\n", irq);
+		netdev_dbg(dev, "%s() irq %d\n", __func__, irq);
 
-	if((i=alloc_ringdesc(dev)))
+	i = alloc_ringdesc(dev);
+	if (i)
 		goto out_err;
 
 	spin_lock_irq(&np->lock);
@@ -652,7 +643,7 @@ static int netdev_open(struct net_device *dev)
 
 	netif_start_queue(dev);
 	if (debug > 2)
-		netdev_dbg(dev, "Done netdev_open()\n");
+		netdev_dbg(dev, "Done %s()\n", __func__);
 
 	/* Set the timer to check for link beat. */
 	timer_setup(&np->timer, netdev_timer, 0);
@@ -812,8 +803,9 @@ static void init_rxtx_rings(struct net_device *dev)
 		np->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
-		np->rx_addr[i] = pci_map_single(np->pci_dev,skb->data,
-					np->rx_buf_sz,PCI_DMA_FROMDEVICE);
+		np->rx_addr[i] = dma_map_single(&np->pci_dev->dev, skb->data,
+						np->rx_buf_sz,
+						DMA_FROM_DEVICE);
 
 		np->rx_ring[i].buffer1 = np->rx_addr[i];
 		np->rx_ring[i].status = DescOwned;
@@ -843,20 +835,17 @@ static void free_rxtx_rings(struct netdev_private* np)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		np->rx_ring[i].status = 0;
 		if (np->rx_skbuff[i]) {
-			pci_unmap_single(np->pci_dev,
-						np->rx_addr[i],
-						np->rx_skbuff[i]->len,
-						PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&np->pci_dev->dev, np->rx_addr[i],
+					 np->rx_skbuff[i]->len,
+					 DMA_FROM_DEVICE);
 			dev_kfree_skb(np->rx_skbuff[i]);
 		}
 		np->rx_skbuff[i] = NULL;
 	}
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		if (np->tx_skbuff[i]) {
-			pci_unmap_single(np->pci_dev,
-						np->tx_addr[i],
-						np->tx_skbuff[i]->len,
-						PCI_DMA_TODEVICE);
+			dma_unmap_single(&np->pci_dev->dev, np->tx_addr[i],
+					 np->tx_skbuff[i]->len, DMA_TO_DEVICE);
 			dev_kfree_skb(np->tx_skbuff[i]);
 		}
 		np->tx_skbuff[i] = NULL;
@@ -921,7 +910,7 @@ static void init_registers(struct net_device *dev)
 	iowrite32(0, ioaddr + RxStartDemand);
 }
 
-static void tx_timeout(struct net_device *dev)
+static void tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base_addr;
@@ -974,10 +963,10 @@ static int alloc_ringdesc(struct net_device *dev)
 
 	np->rx_buf_sz = (dev->mtu <= 1500 ? PKT_BUF_SZ : dev->mtu + 32);
 
-	np->rx_ring = pci_alloc_consistent(np->pci_dev,
-			sizeof(struct w840_rx_desc)*RX_RING_SIZE +
-			sizeof(struct w840_tx_desc)*TX_RING_SIZE,
-			&np->ring_dma_addr);
+	np->rx_ring = dma_alloc_coherent(&np->pci_dev->dev,
+					 sizeof(struct w840_rx_desc) * RX_RING_SIZE +
+					 sizeof(struct w840_tx_desc) * TX_RING_SIZE,
+					 &np->ring_dma_addr, GFP_KERNEL);
 	if(!np->rx_ring)
 		return -ENOMEM;
 	init_rxtx_rings(dev);
@@ -986,10 +975,10 @@ static int alloc_ringdesc(struct net_device *dev)
 
 static void free_ringdesc(struct netdev_private *np)
 {
-	pci_free_consistent(np->pci_dev,
-			sizeof(struct w840_rx_desc)*RX_RING_SIZE +
-			sizeof(struct w840_tx_desc)*TX_RING_SIZE,
-			np->rx_ring, np->ring_dma_addr);
+	dma_free_coherent(&np->pci_dev->dev,
+			  sizeof(struct w840_rx_desc) * RX_RING_SIZE +
+			  sizeof(struct w840_tx_desc) * TX_RING_SIZE,
+			  np->rx_ring, np->ring_dma_addr);
 
 }
 
@@ -1004,8 +993,8 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 	/* Calculate the next Tx descriptor entry. */
 	entry = np->cur_tx % TX_RING_SIZE;
 
-	np->tx_addr[entry] = pci_map_single(np->pci_dev,
-				skb->data,skb->len, PCI_DMA_TODEVICE);
+	np->tx_addr[entry] = dma_map_single(&np->pci_dev->dev, skb->data,
+					    skb->len, DMA_TO_DEVICE);
 	np->tx_skbuff[entry] = skb;
 
 	np->tx_ring[entry].buffer1 = np->tx_addr[entry];
@@ -1088,9 +1077,8 @@ static void netdev_tx_done(struct net_device *dev)
 			np->stats.tx_packets++;
 		}
 		/* Free the original skb. */
-		pci_unmap_single(np->pci_dev,np->tx_addr[entry],
-					np->tx_skbuff[entry]->len,
-					PCI_DMA_TODEVICE);
+		dma_unmap_single(&np->pci_dev->dev, np->tx_addr[entry],
+				 np->tx_skbuff[entry]->len, DMA_TO_DEVICE);
 		np->tx_q_bytes -= np->tx_skbuff[entry]->len;
 		dev_kfree_skb_irq(np->tx_skbuff[entry]);
 		np->tx_skbuff[entry] = NULL;
@@ -1227,18 +1215,21 @@ static int netdev_rx(struct net_device *dev)
 			if (pkt_len < rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
-				pci_dma_sync_single_for_cpu(np->pci_dev,np->rx_addr[entry],
-							    np->rx_skbuff[entry]->len,
-							    PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_cpu(&np->pci_dev->dev,
+							np->rx_addr[entry],
+							np->rx_skbuff[entry]->len,
+							DMA_FROM_DEVICE);
 				skb_copy_to_linear_data(skb, np->rx_skbuff[entry]->data, pkt_len);
 				skb_put(skb, pkt_len);
-				pci_dma_sync_single_for_device(np->pci_dev,np->rx_addr[entry],
-							       np->rx_skbuff[entry]->len,
-							       PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_device(&np->pci_dev->dev,
+							   np->rx_addr[entry],
+							   np->rx_skbuff[entry]->len,
+							   DMA_FROM_DEVICE);
 			} else {
-				pci_unmap_single(np->pci_dev,np->rx_addr[entry],
-							np->rx_skbuff[entry]->len,
-							PCI_DMA_FROMDEVICE);
+				dma_unmap_single(&np->pci_dev->dev,
+						 np->rx_addr[entry],
+						 np->rx_skbuff[entry]->len,
+						 DMA_FROM_DEVICE);
 				skb_put(skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
 			}
@@ -1268,9 +1259,10 @@ static int netdev_rx(struct net_device *dev)
 			np->rx_skbuff[entry] = skb;
 			if (skb == NULL)
 				break;			/* Better luck next round. */
-			np->rx_addr[entry] = pci_map_single(np->pci_dev,
-							skb->data,
-							np->rx_buf_sz, PCI_DMA_FROMDEVICE);
+			np->rx_addr[entry] = dma_map_single(&np->pci_dev->dev,
+							    skb->data,
+							    np->rx_buf_sz,
+							    DMA_FROM_DEVICE);
 			np->rx_ring[entry].buffer1 = np->rx_addr[entry];
 		}
 		wmb();
@@ -1385,7 +1377,6 @@ static void netdev_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *
 	struct netdev_private *np = netdev_priv(dev);
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
@@ -1454,7 +1445,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	switch(cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
 		data->phy_id = ((struct netdev_private *)netdev_priv(dev))->phys[0] & 0x1f;
-		/* Fall Through */
+		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
 		spin_lock_irq(&np->lock);
@@ -1541,8 +1532,6 @@ static void w840_remove1(struct pci_dev *pdev)
 	}
 }
 
-#ifdef CONFIG_PM
-
 /*
  * suspend/resume synchronization:
  * - open, close, do_ioctl:
@@ -1566,9 +1555,9 @@ static void w840_remove1(struct pci_dev *pdev)
  * Detach must occur under spin_unlock_irq(), interrupts from a detached
  * device would cause an irq storm.
  */
-static int w840_suspend (struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused w840_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base_addr;
 
@@ -1601,21 +1590,15 @@ static int w840_suspend (struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int w840_resume (struct pci_dev *pdev)
+static int __maybe_unused w840_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct netdev_private *np = netdev_priv(dev);
-	int retval = 0;
 
 	rtnl_lock();
 	if (netif_device_present(dev))
 		goto out; /* device not suspended */
 	if (netif_running(dev)) {
-		if ((retval = pci_enable_device(pdev))) {
-			dev_err(&dev->dev,
-				"pci_enable_device failed in resume\n");
-			goto out;
-		}
 		spin_lock_irq(&np->lock);
 		iowrite32(1, np->base_addr+PCIBusCfg);
 		ioread32(np->base_addr+PCIBusCfg);
@@ -1633,24 +1616,21 @@ static int w840_resume (struct pci_dev *pdev)
 	}
 out:
 	rtnl_unlock();
-	return retval;
+	return 0;
 }
-#endif
+
+static SIMPLE_DEV_PM_OPS(w840_pm_ops, w840_suspend, w840_resume);
 
 static struct pci_driver w840_driver = {
 	.name		= DRV_NAME,
 	.id_table	= w840_pci_tbl,
 	.probe		= w840_probe1,
 	.remove		= w840_remove1,
-#ifdef CONFIG_PM
-	.suspend	= w840_suspend,
-	.resume		= w840_resume,
-#endif
+	.driver.pm	= &w840_pm_ops,
 };
 
 static int __init w840_init(void)
 {
-	printk(version);
 	return pci_register_driver(&w840_driver);
 }
 

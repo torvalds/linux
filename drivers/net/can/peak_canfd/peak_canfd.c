@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (C) 2007, 2011 Wolfgang Grandegger <wg@grandegger.com>
+/* Copyright (C) 2007, 2011 Wolfgang Grandegger <wg@grandegger.com>
  * Copyright (C) 2012 Stephane Grosjean <s.grosjean@peak-system.com>
  *
  * Copyright (C) 2016  PEAK System-Technik GmbH
@@ -122,7 +121,8 @@ static int pucan_set_timing_slow(struct peak_canfd_priv *priv,
 	cmd = pucan_add_cmd(pucan_init_cmd(priv), PUCAN_CMD_TIMING_SLOW);
 
 	cmd->sjw_t = PUCAN_TSLOW_SJW_T(pbt->sjw - 1,
-				priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES);
+				       priv->can.ctrlmode &
+				       CAN_CTRLMODE_3_SAMPLES);
 	cmd->tseg1 = PUCAN_TSLOW_TSEG1(pbt->prop_seg + pbt->phase_seg1 - 1);
 	cmd->tseg2 = PUCAN_TSLOW_TSEG2(pbt->phase_seg2 - 1);
 	cmd->brp = cpu_to_le16(PUCAN_TSLOW_BRP(pbt->brp - 1));
@@ -232,6 +232,20 @@ static int pucan_setup_rx_barrier(struct peak_canfd_priv *priv)
 	return pucan_write_cmd(priv);
 }
 
+static int pucan_netif_rx(struct sk_buff *skb, __le32 ts_low, __le32 ts_high)
+{
+	struct skb_shared_hwtstamps *hwts = skb_hwtstamps(skb);
+	u64 ts_us;
+
+	ts_us = (u64)le32_to_cpu(ts_high) << 32;
+	ts_us |= le32_to_cpu(ts_low);
+
+	/* IP core timestamps are µs. */
+	hwts->hwtstamp = ns_to_ktime(ts_us * NSEC_PER_USEC);
+
+	return netif_rx(skb);
+}
+
 /* handle the reception of one CAN frame */
 static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 			       struct pucan_rx_msg *msg)
@@ -248,8 +262,7 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 		cf_len = get_can_dlc(pucan_msg_get_dlc(msg));
 
 	/* if this frame is an echo, */
-	if ((rx_msg_flags & PUCAN_MSG_LOOPED_BACK) &&
-	    !(rx_msg_flags & PUCAN_MSG_SELF_RECEIVE)) {
+	if (rx_msg_flags & PUCAN_MSG_LOOPED_BACK) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&priv->echo_lock, flags);
@@ -263,7 +276,13 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 		netif_wake_queue(priv->ndev);
 
 		spin_unlock_irqrestore(&priv->echo_lock, flags);
-		return 0;
+
+		/* if this frame is only an echo, stop here. Otherwise,
+		 * continue to push this application self-received frame into
+		 * its own rx queue.
+		 */
+		if (!(rx_msg_flags & PUCAN_MSG_SELF_RECEIVE))
+			return 0;
 	}
 
 	/* otherwise, it should be pushed into rx fifo */
@@ -299,7 +318,7 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 	stats->rx_bytes += cf->len;
 	stats->rx_packets++;
 
-	netif_rx(skb);
+	pucan_netif_rx(skb, msg->ts_low, msg->ts_high);
 
 	return 0;
 }
@@ -325,7 +344,6 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 
 	/* this STATUS is the CNF of the RX_BARRIER: Tx path can be setup */
 	if (pucan_status_is_rx_barrier(msg)) {
-
 		if (priv->enable_tx_path) {
 			int err = priv->enable_tx_path(priv);
 
@@ -393,7 +411,7 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
-	netif_rx(skb);
+	pucan_netif_rx(skb, msg->ts_low, msg->ts_high);
 
 	return 0;
 }

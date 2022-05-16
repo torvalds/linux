@@ -52,7 +52,7 @@ struct alchemy_pci_context {
 static struct alchemy_pci_context *__alchemy_pci_ctx;
 
 
-/* IO/MEM resources for PCI. Keep the memres in sync with __fixup_bigphys_addr
+/* IO/MEM resources for PCI. Keep the memres in sync with fixup_bigphys_addr
  * in arch/mips/alchemy/common/setup.c
  */
 static struct resource alchemy_pci_def_memres = {
@@ -409,7 +409,7 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 		goto out6;
 	}
 
-	ctx->regs = ioremap_nocache(r->start, resource_size(r));
+	ctx->regs = ioremap(r->start, resource_size(r));
 	if (!ctx->regs) {
 		dev_err(&pdev->dev, "cannot map pci regs\n");
 		ret = -ENODEV;

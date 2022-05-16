@@ -21,7 +21,7 @@ static const a3d_Hrtf_t A3dHrirZeros = {
 	0, 0, 0
 };
 
-static const a3d_Hrtf_t A3dHrirImpulse = {
+static __maybe_unused const a3d_Hrtf_t A3dHrirImpulse = {
 	0x7fff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0,
 	0, 0, 0, 0,
@@ -30,7 +30,7 @@ static const a3d_Hrtf_t A3dHrirImpulse = {
 	0, 0, 0
 };
 
-static const a3d_Hrtf_t A3dHrirOnes = {
+static __maybe_unused const a3d_Hrtf_t A3dHrirOnes = {
 	0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff,
 	0x7fff,
 	0x7fff,
@@ -47,7 +47,7 @@ static const a3d_Hrtf_t A3dHrirOnes = {
 	0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff
 };
 
-static const a3d_Hrtf_t A3dHrirSatTest = {
+static __maybe_unused const a3d_Hrtf_t A3dHrirSatTest = {
 	0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff, 0x7fff,
 	0x7fff,
 	0x7fff,
@@ -59,7 +59,7 @@ static const a3d_Hrtf_t A3dHrirSatTest = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static const a3d_Hrtf_t A3dHrirDImpulse = {
+static __maybe_unused const a3d_Hrtf_t A3dHrirDImpulse = {
 	0, 0x7fff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0,
 	0, 0, 0, 0,

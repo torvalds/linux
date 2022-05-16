@@ -23,12 +23,12 @@ BUILD_BUG_ON(1)
  *
  * When adding or removing fields here, note that shadowed
  * fields must always be synced by prepare_vmcs02, not just
- * prepare_vmcs02_full.
+ * prepare_vmcs02_rare.
  */
 
 /*
  * Keeping the fields ordered by size is an attempt at improving
- * branch prediction in vmcs_read_any and vmcs_write_any.
+ * branch prediction in vmcs12_read_any and vmcs12_write_any.
  */
 
 /* 16-bits */

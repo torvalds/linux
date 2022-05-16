@@ -302,8 +302,8 @@ static struct pci_driver megaraid_pci_driver = {
 // definitions for the device attributes for exporting logical drive number
 // for a scsi address (Host, Channel, Id, Lun)
 
-DEVICE_ATTR(megaraid_mbox_app_hndl, S_IRUSR, megaraid_sysfs_show_app_hndl,
-		NULL);
+static DEVICE_ATTR(megaraid_mbox_app_hndl, S_IRUSR, megaraid_sysfs_show_app_hndl,
+		   NULL);
 
 // Host template initializer for megaraid mbox sysfs device attributes
 static struct device_attribute *megaraid_shost_attrs[] = {
@@ -312,7 +312,7 @@ static struct device_attribute *megaraid_shost_attrs[] = {
 };
 
 
-DEVICE_ATTR(megaraid_mbox_ld, S_IRUSR, megaraid_sysfs_show_ldnum, NULL);
+static DEVICE_ATTR(megaraid_mbox_ld, S_IRUSR, megaraid_sysfs_show_ldnum, NULL);
 
 // Host template initializer for megaraid mbox sysfs device attributes
 static struct device_attribute *megaraid_sdev_attrs[] = {
@@ -731,7 +731,7 @@ megaraid_init_mbox(adapter_t *adapter)
 		goto out_free_raid_dev;
 	}
 
-	raid_dev->baseaddr = ioremap_nocache(raid_dev->baseport, 128);
+	raid_dev->baseaddr = ioremap(raid_dev->baseport, 128);
 
 	if (!raid_dev->baseaddr) {
 
@@ -1581,7 +1581,7 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 				return NULL;
 			}
 
-			/* Fall through */
+			fallthrough;
 
 		case READ_CAPACITY:
 			/*
@@ -3304,7 +3304,6 @@ blocked_mailbox:
  * megaraid_mbox_display_scb - display SCB information, mostly debug purposes
  * @adapter		: controller's soft state
  * @scb			: SCB to be displayed
- * @level		: debug level for console print
  *
  * Diplay information about the given SCB iff the current debug level is
  * verbose.
@@ -3972,7 +3971,8 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 
 /**
  * megaraid_sysfs_show_app_hndl - display application handle for this adapter
- * @cdev	: class device object representation for the host
+ * @dev		: class device object representation for the host
+ * @attr	: device attribute (unused)
  * @buf		: buffer to send data to
  *
  * Display the handle used by the applications while executing management

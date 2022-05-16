@@ -78,7 +78,7 @@ void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
  */
 void amdgpu_driver_unload_kms(struct drm_device *dev)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 
 	if (adev == NULL)
 		return;
@@ -86,23 +86,15 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 	amdgpu_unregister_gpu_instance(adev);
 
 	if (adev->rmmio == NULL)
-		goto done_free;
+		return;
 
-	if (amdgpu_sriov_vf(adev))
-		amdgpu_virt_request_full_gpu(adev, false);
-
-	if (amdgpu_device_is_px(dev)) {
+	if (adev->runpm) {
 		pm_runtime_get_sync(dev->dev);
 		pm_runtime_forbid(dev->dev);
 	}
 
 	amdgpu_acpi_fini(adev);
-
 	amdgpu_device_fini(adev);
-
-done_free:
-	kfree(adev);
-	dev->dev_private = NULL;
 }
 
 void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
@@ -133,25 +125,20 @@ void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
 /**
  * amdgpu_driver_load_kms - Main load function for KMS.
  *
- * @dev: drm dev pointer
+ * @adev: pointer to struct amdgpu_device
  * @flags: device flags
  *
  * This is the main load function for KMS (all asics).
  * Returns 0 on success, error on failure.
  */
-int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
+int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 {
-	struct amdgpu_device *adev;
+	struct drm_device *dev;
 	int r, acpi_status;
 
-	adev = kzalloc(sizeof(struct amdgpu_device), GFP_KERNEL);
-	if (adev == NULL) {
-		return -ENOMEM;
-	}
-	dev->dev_private = (void *)adev;
+	dev = adev_to_drm(adev);
 
-	if ((amdgpu_runtime_pm != 0) &&
-	    amdgpu_has_atpx() &&
+	if (amdgpu_has_atpx() &&
 	    (amdgpu_is_atpx_hybrid() ||
 	     amdgpu_has_atpx_dgpu_power_cntl()) &&
 	    ((flags & AMD_IS_APU) == 0) &&
@@ -164,27 +151,57 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	 * properly initialize the GPU MC controller and permit
 	 * VRAM allocation
 	 */
-	r = amdgpu_device_init(adev, dev, dev->pdev, flags);
+	r = amdgpu_device_init(adev, flags);
 	if (r) {
 		dev_err(&dev->pdev->dev, "Fatal error during GPU init\n");
 		goto out;
 	}
 
+	if (amdgpu_device_supports_boco(dev) &&
+	    (amdgpu_runtime_pm != 0)) { /* enable runpm by default for boco */
+		adev->runpm = true;
+	} else if (amdgpu_device_supports_baco(dev) &&
+		   (amdgpu_runtime_pm != 0)) {
+		switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_CIK
+		case CHIP_BONAIRE:
+		case CHIP_HAWAII:
+#endif
+		case CHIP_VEGA20:
+		case CHIP_ARCTURUS:
+		case CHIP_SIENNA_CICHLID:
+		case CHIP_NAVY_FLOUNDER:
+			/* enable runpm if runpm=1 */
+			if (amdgpu_runtime_pm > 0)
+				adev->runpm = true;
+			break;
+		case CHIP_VEGA10:
+			/* turn runpm on if noretry=0 */
+			if (!adev->gmc.noretry)
+				adev->runpm = true;
+			break;
+		default:
+			/* enable runpm on VI+ */
+			adev->runpm = true;
+			break;
+		}
+	}
+
 	/* Call ACPI methods: require modeset init
 	 * but failure is not fatal
 	 */
-	if (!r) {
-		acpi_status = amdgpu_acpi_init(adev);
-		if (acpi_status)
-			dev_dbg(&dev->pdev->dev,
-				"Error during ACPI methods call\n");
-	}
 
-	if (amdgpu_device_is_px(dev)) {
-		dev_pm_set_driver_flags(dev->dev, DPM_FLAG_NEVER_SKIP);
+	acpi_status = amdgpu_acpi_init(adev);
+	if (acpi_status)
+		dev_dbg(&dev->pdev->dev, "Error during ACPI methods call\n");
+
+	if (adev->runpm) {
+		/* only need to skip on ATPX */
+		if (amdgpu_device_supports_boco(dev) &&
+		    !amdgpu_is_atpx_hybrid())
+			dev_pm_set_driver_flags(dev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
 		pm_runtime_use_autosuspend(dev->dev);
 		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
-		pm_runtime_set_active(dev->dev);
 		pm_runtime_allow(dev->dev);
 		pm_runtime_mark_last_busy(dev->dev);
 		pm_runtime_put_autosuspend(dev->dev);
@@ -193,7 +210,7 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 out:
 	if (r) {
 		/* balance pm_runtime_get_sync in amdgpu_driver_unload_kms */
-		if (adev->rmmio && amdgpu_device_is_px(dev))
+		if (adev->rmmio && adev->runpm)
 			pm_runtime_put_noidle(dev->dev);
 		amdgpu_driver_unload_kms(dev);
 	}
@@ -265,14 +282,25 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->feature = 0;
 		break;
 	case AMDGPU_INFO_FW_TA:
-		if (query_fw->index > 1)
-			return -EINVAL;
-		if (query_fw->index == 0) {
+		switch (query_fw->index) {
+		case 0:
 			fw_info->ver = adev->psp.ta_fw_version;
 			fw_info->feature = adev->psp.ta_xgmi_ucode_version;
-		} else {
+			break;
+		case 1:
 			fw_info->ver = adev->psp.ta_fw_version;
 			fw_info->feature = adev->psp.ta_ras_ucode_version;
+			break;
+		case 2:
+			fw_info->ver = adev->psp.ta_fw_version;
+			fw_info->feature = adev->psp.ta_hdcp_ucode_version;
+			break;
+		case 3:
+			fw_info->ver = adev->psp.ta_fw_version;
+			fw_info->feature = adev->psp.ta_dtm_ucode_version;
+			break;
+		default:
+			return -EINVAL;
 		}
 		break;
 	case AMDGPU_INFO_FW_SDMA:
@@ -291,6 +319,10 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		break;
 	case AMDGPU_INFO_FW_DMCU:
 		fw_info->ver = adev->dm.dmcu_fw_version;
+		fw_info->feature = 0;
+		break;
+	case AMDGPU_INFO_FW_DMCUB:
+		fw_info->ver = adev->dm.dmcub_fw_version;
 		fw_info->feature = 0;
 		break;
 	default:
@@ -396,12 +428,14 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 		ib_size_alignment = 1;
 		break;
 	case AMDGPU_HW_IP_VCN_JPEG:
-		type = AMD_IP_BLOCK_TYPE_VCN;
-		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-			if (adev->uvd.harvest_config & (1 << i))
+		type = (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_JPEG)) ?
+			AMD_IP_BLOCK_TYPE_JPEG : AMD_IP_BLOCK_TYPE_VCN;
+
+		for (i = 0; i < adev->jpeg.num_jpeg_inst; i++) {
+			if (adev->jpeg.harvest_config & (1 << i))
 				continue;
 
-			if (adev->vcn.inst[i].ring_jpeg.sched.ready)
+			if (adev->jpeg.inst[i].ring_dec.sched.ready)
 				++num_rings;
 		}
 		ib_start_alignment = 16;
@@ -448,7 +482,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
  */
 static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct drm_amdgpu_info *info = data;
 	struct amdgpu_mode_info *minfo = &adev->mode_info;
 	void __user *out = (void __user *)(uintptr_t)info->return_pointer;
@@ -517,8 +551,11 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_VCN_DEC:
 		case AMDGPU_HW_IP_VCN_ENC:
-		case AMDGPU_HW_IP_VCN_JPEG:
 			type = AMD_IP_BLOCK_TYPE_VCN;
+			break;
+		case AMDGPU_HW_IP_VCN_JPEG:
+			type = (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_JPEG)) ?
+				AMD_IP_BLOCK_TYPE_JPEG : AMD_IP_BLOCK_TYPE_VCN;
 			break;
 		default:
 			return -EINVAL;
@@ -560,13 +597,13 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		ui64 = atomic64_read(&adev->num_vram_cpu_page_faults);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_VRAM_USAGE:
-		ui64 = amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
+		ui64 = amdgpu_vram_mgr_usage(ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM));
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_VIS_VRAM_USAGE:
-		ui64 = amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
+		ui64 = amdgpu_vram_mgr_vis_usage(ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM));
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_GTT_USAGE:
-		ui64 = amdgpu_gtt_mgr_usage(&adev->mman.bdev.man[TTM_PL_TT]);
+		ui64 = amdgpu_gtt_mgr_usage(ttm_manager_type(&adev->mman.bdev, TTM_PL_TT));
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_GDS_CONFIG: {
 		struct drm_amdgpu_info_gds gds_info;
@@ -583,10 +620,13 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_info_vram_gtt vram_gtt;
 
 		vram_gtt.vram_size = adev->gmc.real_vram_size -
-			atomic64_read(&adev->vram_pin_size);
-		vram_gtt.vram_cpu_accessible_size = adev->gmc.visible_vram_size -
-			atomic64_read(&adev->visible_pin_size);
-		vram_gtt.gtt_size = adev->mman.bdev.man[TTM_PL_TT].size;
+			atomic64_read(&adev->vram_pin_size) -
+			AMDGPU_VM_RESERVED_VRAM;
+		vram_gtt.vram_cpu_accessible_size =
+			min(adev->gmc.visible_vram_size -
+			    atomic64_read(&adev->visible_pin_size),
+			    vram_gtt.vram_size);
+		vram_gtt.gtt_size = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT)->size;
 		vram_gtt.gtt_size *= PAGE_SIZE;
 		vram_gtt.gtt_size -= atomic64_read(&adev->gart_pin_size);
 		return copy_to_user(out, &vram_gtt,
@@ -594,30 +634,36 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	}
 	case AMDGPU_INFO_MEMORY: {
 		struct drm_amdgpu_memory_info mem;
-
+		struct ttm_resource_manager *vram_man =
+			ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
+		struct ttm_resource_manager *gtt_man =
+			ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
 		memset(&mem, 0, sizeof(mem));
 		mem.vram.total_heap_size = adev->gmc.real_vram_size;
 		mem.vram.usable_heap_size = adev->gmc.real_vram_size -
-			atomic64_read(&adev->vram_pin_size);
+			atomic64_read(&adev->vram_pin_size) -
+			AMDGPU_VM_RESERVED_VRAM;
 		mem.vram.heap_usage =
-			amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
+			amdgpu_vram_mgr_usage(vram_man);
 		mem.vram.max_allocation = mem.vram.usable_heap_size * 3 / 4;
 
 		mem.cpu_accessible_vram.total_heap_size =
 			adev->gmc.visible_vram_size;
-		mem.cpu_accessible_vram.usable_heap_size = adev->gmc.visible_vram_size -
-			atomic64_read(&adev->visible_pin_size);
+		mem.cpu_accessible_vram.usable_heap_size =
+			min(adev->gmc.visible_vram_size -
+			    atomic64_read(&adev->visible_pin_size),
+			    mem.vram.usable_heap_size);
 		mem.cpu_accessible_vram.heap_usage =
-			amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
+			amdgpu_vram_mgr_vis_usage(vram_man);
 		mem.cpu_accessible_vram.max_allocation =
 			mem.cpu_accessible_vram.usable_heap_size * 3 / 4;
 
-		mem.gtt.total_heap_size = adev->mman.bdev.man[TTM_PL_TT].size;
+		mem.gtt.total_heap_size = gtt_man->size;
 		mem.gtt.total_heap_size *= PAGE_SIZE;
 		mem.gtt.usable_heap_size = mem.gtt.total_heap_size -
 			atomic64_read(&adev->gart_pin_size);
 		mem.gtt.heap_usage =
-			amdgpu_gtt_mgr_usage(&adev->mman.bdev.man[TTM_PL_TT]);
+			amdgpu_gtt_mgr_usage(gtt_man);
 		mem.gtt.max_allocation = mem.gtt.usable_heap_size * 3 / 4;
 
 		return copy_to_user(out, &mem,
@@ -638,8 +684,12 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		 * in the bitfields */
 		if (se_num == AMDGPU_INFO_MMR_SE_INDEX_MASK)
 			se_num = 0xffffffff;
+		else if (se_num >= AMDGPU_GFX_MAX_SE)
+			return -EINVAL;
 		if (sh_num == AMDGPU_INFO_MMR_SH_INDEX_MASK)
 			sh_num = 0xffffffff;
+		else if (sh_num >= AMDGPU_GFX_MAX_SH_PER_SE)
+			return -EINVAL;
 
 		if (info->read_mmr_reg.count > 128)
 			return -EINVAL;
@@ -667,9 +717,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		return n ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_DEV_INFO: {
-		struct drm_amdgpu_info_device dev_info = {};
+		struct drm_amdgpu_info_device dev_info;
 		uint64_t vm_size;
 
+		memset(&dev_info, 0, sizeof(dev_info));
 		dev_info.device_id = dev->pdev->device;
 		dev_info.chip_rev = adev->rev_id;
 		dev_info.external_rev = adev->external_rev_id;
@@ -682,10 +733,6 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		if (adev->pm.dpm_enabled) {
 			dev_info.max_engine_clock = amdgpu_dpm_get_sclk(adev, false) * 10;
 			dev_info.max_memory_clock = amdgpu_dpm_get_mclk(adev, false) * 10;
-		} else if (amdgpu_sriov_vf(adev) && amdgim_is_hwperf(adev) &&
-			   adev->virt.ops->get_pp_clk) {
-			dev_info.max_engine_clock = amdgpu_virt_get_sclk(adev, false) * 10;
-			dev_info.max_memory_clock = amdgpu_virt_get_mclk(adev, false) * 10;
 		} else {
 			dev_info.max_engine_clock = adev->clock.default_sclk * 10;
 			dev_info.max_memory_clock = adev->clock.default_mclk * 10;
@@ -700,6 +747,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
 		if (amdgpu_mcbp || amdgpu_sriov_vf(adev))
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
+		if (amdgpu_is_tmz(adev))
+			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_TMZ;
 
 		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 		vm_size -= AMDGPU_VA_RESERVED_SIZE;
@@ -732,17 +781,6 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.vce_harvest_config = adev->vce.harvest_config;
 		dev_info.gc_double_offchip_lds_buf =
 			adev->gfx.config.double_offchip_lds_buf;
-
-		if (amdgpu_ngg) {
-			dev_info.prim_buf_gpu_addr = adev->gfx.ngg.buf[NGG_PRIM].gpu_addr;
-			dev_info.prim_buf_size = adev->gfx.ngg.buf[NGG_PRIM].size;
-			dev_info.pos_buf_gpu_addr = adev->gfx.ngg.buf[NGG_POS].gpu_addr;
-			dev_info.pos_buf_size = adev->gfx.ngg.buf[NGG_POS].size;
-			dev_info.cntl_sb_buf_gpu_addr = adev->gfx.ngg.buf[NGG_CNTL].gpu_addr;
-			dev_info.cntl_sb_buf_size = adev->gfx.ngg.buf[NGG_CNTL].size;
-			dev_info.param_buf_gpu_addr = adev->gfx.ngg.buf[NGG_PARAM].gpu_addr;
-			dev_info.param_buf_size = adev->gfx.ngg.buf[NGG_PARAM].size;
-		}
 		dev_info.wave_front_size = adev->gfx.cu_info.wave_front_size;
 		dev_info.num_shader_visible_vgprs = adev->gfx.config.max_gprs;
 		dev_info.num_cu_per_sh = adev->gfx.config.max_cu_per_sh;
@@ -964,18 +1002,24 @@ void amdgpu_driver_lastclose_kms(struct drm_device *dev)
  */
 int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_fpriv *fpriv;
 	int r, pasid;
 
 	/* Ensure IB tests are run on ring */
 	flush_delayed_work(&adev->delayed_init_work);
 
+
+	if (amdgpu_ras_intr_triggered()) {
+		DRM_ERROR("RAS Intr triggered, device disabled!!");
+		return -EHWPOISON;
+	}
+
 	file_priv->driver_priv = NULL;
 
 	r = pm_runtime_get_sync(dev->dev);
 	if (r < 0)
-		return r;
+		goto pm_put;
 
 	fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
 	if (unlikely(!fpriv)) {
@@ -1026,6 +1070,7 @@ error_pasid:
 
 out_suspend:
 	pm_runtime_mark_last_busy(dev->dev);
+pm_put:
 	pm_runtime_put_autosuspend(dev->dev);
 
 	return r;
@@ -1042,11 +1087,11 @@ out_suspend:
 void amdgpu_driver_postclose_kms(struct drm_device *dev,
 				 struct drm_file *file_priv)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
 	struct amdgpu_bo_list *list;
 	struct amdgpu_bo *pd;
-	unsigned int pasid;
+	u32 pasid;
 	int handle;
 
 	if (!fpriv)
@@ -1098,15 +1143,16 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 /**
  * amdgpu_get_vblank_counter_kms - get frame count
  *
- * @dev: drm dev pointer
- * @pipe: crtc to get the frame count from
+ * @crtc: crtc to get the frame count from
  *
  * Gets the frame count on the requested crtc (all asics).
  * Returns frame count on success, -EINVAL on failure.
  */
-u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
+u32 amdgpu_get_vblank_counter_kms(struct drm_crtc *crtc)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	unsigned int pipe = crtc->index;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int vpos, hpos, stat;
 	u32 count;
 
@@ -1165,15 +1211,16 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 /**
  * amdgpu_enable_vblank_kms - enable vblank interrupt
  *
- * @dev: drm dev pointer
- * @pipe: crtc to enable vblank interrupt for
+ * @crtc: crtc to enable vblank interrupt for
  *
  * Enable the interrupt on the requested crtc (all asics).
  * Returns 0 on success, -EINVAL on failure.
  */
-int amdgpu_enable_vblank_kms(struct drm_device *dev, unsigned int pipe)
+int amdgpu_enable_vblank_kms(struct drm_crtc *crtc)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	unsigned int pipe = crtc->index;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int idx = amdgpu_display_crtc_idx_to_irq_type(adev, pipe);
 
 	return amdgpu_irq_get(adev, &adev->crtc_irq, idx);
@@ -1182,14 +1229,15 @@ int amdgpu_enable_vblank_kms(struct drm_device *dev, unsigned int pipe)
 /**
  * amdgpu_disable_vblank_kms - disable vblank interrupt
  *
- * @dev: drm dev pointer
- * @pipe: crtc to disable vblank interrupt for
+ * @crtc: crtc to disable vblank interrupt for
  *
  * Disable the interrupt on the requested crtc (all asics).
  */
-void amdgpu_disable_vblank_kms(struct drm_device *dev, unsigned int pipe)
+void amdgpu_disable_vblank_kms(struct drm_crtc *crtc)
 {
-	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	unsigned int pipe = crtc->index;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	int idx = amdgpu_display_crtc_idx_to_irq_type(adev, pipe);
 
 	amdgpu_irq_put(adev, &adev->crtc_irq, idx);
@@ -1225,7 +1273,7 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct drm_amdgpu_info_firmware fw_info;
 	struct drm_amdgpu_query_fw query_fw;
 	struct atom_context *ctx = adev->mode_info.atom_context;
@@ -1321,8 +1369,7 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 		   fw_info.feature, fw_info.ver);
 
 	/* MEC2 */
-	if (adev->asic_type == CHIP_KAVERI ||
-	    (adev->asic_type > CHIP_TOPAZ && adev->asic_type != CHIP_STONEY)) {
+	if (adev->gfx.mec2_fw) {
 		query_fw.index = 1;
 		ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
 		if (ret)
@@ -1349,13 +1396,31 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 		   fw_info.feature, fw_info.ver);
 
 	query_fw.fw_type = AMDGPU_INFO_FW_TA;
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < 4; i++) {
 		query_fw.index = i;
 		ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
 		if (ret)
 			continue;
-		seq_printf(m, "TA %s feature version: %u, firmware version: 0x%08x\n",
-				i ? "RAS" : "XGMI", fw_info.feature, fw_info.ver);
+		switch (query_fw.index) {
+		case 0:
+			seq_printf(m, "TA %s feature version: 0x%08x, firmware version: 0x%08x\n",
+					"RAS", fw_info.feature, fw_info.ver);
+			break;
+		case 1:
+			seq_printf(m, "TA %s feature version: 0x%08x, firmware version: 0x%08x\n",
+					"XGMI", fw_info.feature, fw_info.ver);
+			break;
+		case 2:
+			seq_printf(m, "TA %s feature version: 0x%08x, firmware version: 0x%08x\n",
+					"HDCP", fw_info.feature, fw_info.ver);
+			break;
+		case 3:
+			seq_printf(m, "TA %s feature version: 0x%08x, firmware version: 0x%08x\n",
+					"DTM", fw_info.feature, fw_info.ver);
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	/* SMC */
@@ -1391,6 +1456,14 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 	seq_printf(m, "DMCU feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
+
+	/* DMCUB */
+	query_fw.fw_type = AMDGPU_INFO_FW_DMCUB;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "DMCUB feature version: %u, firmware version: 0x%08x\n",
 		   fw_info.feature, fw_info.ver);
 
 

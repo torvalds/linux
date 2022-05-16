@@ -304,37 +304,25 @@ void lkdtm_USERCOPY_KERNEL(void)
 		return;
 	}
 
-	pr_info("attempting good copy_to_user from kernel rodata\n");
+	pr_info("attempting good copy_to_user from kernel rodata: %px\n",
+		test_text);
 	if (copy_to_user((void __user *)user_addr, test_text,
 			 unconst + sizeof(test_text))) {
 		pr_warn("copy_to_user failed unexpectedly?!\n");
 		goto free_user;
 	}
 
-	pr_info("attempting bad copy_to_user from kernel text\n");
+	pr_info("attempting bad copy_to_user from kernel text: %px\n",
+		vm_mmap);
 	if (copy_to_user((void __user *)user_addr, vm_mmap,
 			 unconst + PAGE_SIZE)) {
 		pr_warn("copy_to_user failed, but lacked Oops\n");
 		goto free_user;
 	}
+	pr_err("FAIL: survived bad copy_to_user()\n");
 
 free_user:
 	vm_munmap(user_addr, PAGE_SIZE);
-}
-
-void lkdtm_USERCOPY_KERNEL_DS(void)
-{
-	char __user *user_ptr =
-		(char __user *)(0xFUL << (sizeof(unsigned long) * 8 - 4));
-	mm_segment_t old_fs = get_fs();
-	char buf[10] = {0};
-
-	pr_info("attempting copy_to_user() to noncanonical address: %px\n",
-		user_ptr);
-	set_fs(KERNEL_DS);
-	if (copy_to_user(user_ptr, buf, sizeof(buf)) == 0)
-		pr_err("copy_to_user() to noncanonical address succeeded!?\n");
-	set_fs(old_fs);
 }
 
 void __init lkdtm_usercopy_init(void)

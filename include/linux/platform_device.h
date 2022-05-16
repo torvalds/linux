@@ -24,7 +24,8 @@ struct platform_device {
 	int		id;
 	bool		id_auto;
 	struct device	dev;
-	u64		dma_mask;
+	u64		platform_dma_mask;
+	struct device_dma_parameters dma_parms;
 	u32		num_resources;
 	struct resource	*resource;
 
@@ -55,8 +56,17 @@ extern struct device *
 platform_find_device_by_driver(struct device *start,
 			       const struct device_driver *drv);
 extern void __iomem *
+devm_platform_get_and_ioremap_resource(struct platform_device *pdev,
+				unsigned int index, struct resource **res);
+extern void __iomem *
 devm_platform_ioremap_resource(struct platform_device *pdev,
 			       unsigned int index);
+extern void __iomem *
+devm_platform_ioremap_resource_wc(struct platform_device *pdev,
+				  unsigned int index);
+extern void __iomem *
+devm_platform_ioremap_resource_byname(struct platform_device *pdev,
+				      const char *name);
 extern int platform_get_irq(struct platform_device *, unsigned int);
 extern int platform_get_irq_optional(struct platform_device *, unsigned int);
 extern int platform_irq_count(struct platform_device *);
@@ -83,7 +93,7 @@ struct platform_device_info {
 		size_t size_data;
 		u64 dma_mask;
 
-		struct property_entry *properties;
+		const struct property_entry *properties;
 };
 extern struct platform_device *platform_device_register_full(
 		const struct platform_device_info *pdevinfo);
@@ -294,58 +304,6 @@ void platform_unregister_drivers(struct platform_driver * const *drivers,
 #define platform_register_drivers(drivers, count) \
 	__platform_register_drivers(drivers, count, THIS_MODULE)
 
-/* early platform driver interface */
-struct early_platform_driver {
-	const char *class_str;
-	struct platform_driver *pdrv;
-	struct list_head list;
-	int requested_id;
-	char *buffer;
-	int bufsize;
-};
-
-#define EARLY_PLATFORM_ID_UNSET -2
-#define EARLY_PLATFORM_ID_ERROR -3
-
-extern int early_platform_driver_register(struct early_platform_driver *epdrv,
-					  char *buf);
-extern void early_platform_add_devices(struct platform_device **devs, int num);
-
-static inline int is_early_platform_device(struct platform_device *pdev)
-{
-	return !pdev->dev.driver;
-}
-
-extern void early_platform_driver_register_all(char *class_str);
-extern int early_platform_driver_probe(char *class_str,
-				       int nr_probe, int user_only);
-extern void early_platform_cleanup(void);
-
-#define early_platform_init(class_string, platdrv)		\
-	early_platform_init_buffer(class_string, platdrv, NULL, 0)
-
-#ifndef MODULE
-#define early_platform_init_buffer(class_string, platdrv, buf, bufsiz)	\
-static __initdata struct early_platform_driver early_driver = {		\
-	.class_str = class_string,					\
-	.buffer = buf,							\
-	.bufsize = bufsiz,						\
-	.pdrv = platdrv,						\
-	.requested_id = EARLY_PLATFORM_ID_UNSET,			\
-};									\
-static int __init early_platform_driver_setup_func(char *buffer)	\
-{									\
-	return early_platform_driver_register(&early_driver, buffer);	\
-}									\
-early_param(class_string, early_platform_driver_setup_func)
-#else /* MODULE */
-#define early_platform_init_buffer(class_string, platdrv, buf, bufsiz)	\
-static inline char *early_platform_driver_setup_func(void)		\
-{									\
-	return bufsiz ? buf : NULL;					\
-}
-#endif /* MODULE */
-
 #ifdef CONFIG_SUSPEND
 extern int platform_pm_suspend(struct device *dev);
 extern int platform_pm_resume(struct device *dev);
@@ -379,5 +337,17 @@ extern int platform_dma_configure(struct device *dev);
 #else
 #define USE_PLATFORM_PM_SLEEP_OPS
 #endif
+
+#ifndef CONFIG_SUPERH
+/*
+ * REVISIT: This stub is needed for all non-SuperH users of early platform
+ * drivers. It should go away once we introduce the new platform_device-based
+ * early driver framework.
+ */
+static inline int is_sh_early_platform_device(struct platform_device *pdev)
+{
+	return 0;
+}
+#endif /* CONFIG_SUPERH */
 
 #endif /* _PLATFORM_DEVICE_H_ */

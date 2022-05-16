@@ -14,13 +14,21 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/hw_random.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #define TRNG_CR		0x00
+#define TRNG_MR		0x04
 #define TRNG_ISR	0x1c
 #define TRNG_ODATA	0x50
 
 #define TRNG_KEY	0x524e4700 /* RNG */
+
+#define TRNG_HALFR	BIT(0) /* generate RN every 168 cycles */
+
+struct atmel_trng_data {
+	bool has_half_rate;
+};
 
 struct atmel_trng {
 	struct clk *clk;
@@ -62,21 +70,31 @@ static void atmel_trng_disable(struct atmel_trng *trng)
 static int atmel_trng_probe(struct platform_device *pdev)
 {
 	struct atmel_trng *trng;
-	struct resource *res;
+	const struct atmel_trng_data *data;
 	int ret;
 
 	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
 	if (!trng)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	trng->base = devm_ioremap_resource(&pdev->dev, res);
+	trng->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(trng->base))
 		return PTR_ERR(trng->base);
 
 	trng->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(trng->clk))
 		return PTR_ERR(trng->clk);
+	data = of_device_get_match_data(&pdev->dev);
+	if (!data)
+		return -ENODEV;
+
+	if (data->has_half_rate) {
+		unsigned long rate = clk_get_rate(trng->clk);
+
+		/* if peripheral clk is above 100MHz, set HALFR */
+		if (rate > 100000000)
+			writel(TRNG_HALFR, trng->base + TRNG_MR);
+	}
 
 	ret = clk_prepare_enable(trng->clk);
 	if (ret)
@@ -141,9 +159,24 @@ static const struct dev_pm_ops atmel_trng_pm_ops = {
 };
 #endif /* CONFIG_PM */
 
+static const struct atmel_trng_data at91sam9g45_config = {
+	.has_half_rate = false,
+};
+
+static const struct atmel_trng_data sam9x60_config = {
+	.has_half_rate = true,
+};
+
 static const struct of_device_id atmel_trng_dt_ids[] = {
-	{ .compatible = "atmel,at91sam9g45-trng" },
-	{ /* sentinel */ }
+	{
+		.compatible = "atmel,at91sam9g45-trng",
+		.data = &at91sam9g45_config,
+	}, {
+		.compatible = "microchip,sam9x60-trng",
+		.data = &sam9x60_config,
+	}, {
+		/* sentinel */
+	}
 };
 MODULE_DEVICE_TABLE(of, atmel_trng_dt_ids);
 

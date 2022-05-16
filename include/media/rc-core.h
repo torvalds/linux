@@ -128,8 +128,8 @@ struct lirc_fh {
  * @timeout: optional time after which device stops sending data
  * @min_timeout: minimum timeout supported by device
  * @max_timeout: maximum timeout supported by device
- * @rx_resolution : resolution (in ns) of input sampler
- * @tx_resolution: resolution (in ns) of output sampler
+ * @rx_resolution : resolution (in us) of input sampler
+ * @tx_resolution: resolution (in us) of output sampler
  * @lirc_dev: lirc device
  * @lirc_cdev: lirc char cdev
  * @gap_start: time when gap starts
@@ -157,7 +157,7 @@ struct lirc_fh {
  * @s_wakeup_filter: set the wakeup scancode filter. If the mask is zero
  *	then wakeup should be disabled. wakeup_protocol will be set to
  *	a valid protocol if mask is nonzero.
- * @s_timeout: set hardware timeout in ns
+ * @s_timeout: set hardware timeout in us
  */
 struct rc_dev {
 	struct device			dev;
@@ -192,7 +192,7 @@ struct rc_dev {
 	struct timer_list		timer_repeat;
 	u32				last_keycode;
 	enum rc_proto			last_protocol;
-	u32				last_scancode;
+	u64				last_scancode;
 	u8				last_toggle;
 	u32				timeout;
 	u32				min_timeout;
@@ -284,12 +284,12 @@ int devm_rc_register_device(struct device *parent, struct rc_dev *dev);
 void rc_unregister_device(struct rc_dev *dev);
 
 void rc_repeat(struct rc_dev *dev);
-void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u32 scancode,
+void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u64 scancode,
 		u8 toggle);
 void rc_keydown_notimeout(struct rc_dev *dev, enum rc_proto protocol,
-			  u32 scancode, u8 toggle);
+			  u64 scancode, u8 toggle);
 void rc_keyup(struct rc_dev *dev);
-u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode);
+u32 rc_g_keycode_from_table(struct rc_dev *dev, u64 scancode);
 
 /*
  * From rc-raw.c
@@ -309,11 +309,10 @@ struct ir_raw_event {
 	unsigned                carrier_report:1;
 };
 
-#define IR_DEFAULT_TIMEOUT	MS_TO_NS(125)
-#define IR_MAX_DURATION         500000000	/* 500 ms */
 #define US_TO_NS(usec)		((usec) * 1000)
 #define MS_TO_US(msec)		((msec) * 1000)
-#define MS_TO_NS(msec)		((msec) * 1000 * 1000)
+#define IR_MAX_DURATION		MS_TO_US(500)
+#define IR_DEFAULT_TIMEOUT	MS_TO_US(125)
 
 void ir_raw_event_handle(struct rc_dev *dev);
 int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev);

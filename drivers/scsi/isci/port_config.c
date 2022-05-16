@@ -147,7 +147,7 @@ static struct isci_port *sci_port_configuration_agent_find_port(
 /**
  *
  * @controller: This is the controller object that contains the port agent
- * @port_agent: This is the port configruation agent for the controller.
+ * @port_agent: This is the port configuration agent for the controller.
  *
  * This routine will validate the port configuration is correct for the SCU
  * hardware.  The SCU hardware allows for port configurations as follows. LP0

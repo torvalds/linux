@@ -10,7 +10,10 @@
 
 #include <asm/cache.h>
 
-#include <asm-generic/pgalloc.h>	/* for pte_{alloc,free}_one */
+#define __HAVE_ARCH_PMD_ALLOC_ONE
+#define __HAVE_ARCH_PMD_FREE
+#define __HAVE_ARCH_PGD_FREE
+#include <asm-generic/pgalloc.h>
 
 /* Allocate the top level pgd (page directory)
  *
@@ -34,13 +37,13 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 		/* Populate first pmd with allocated memory.  We mark it
 		 * with PxD_FLAG_ATTACHED as a signal to the system that this
 		 * pmd entry may not be cleared. */
-		__pgd_val_set(*actual_pgd, (PxD_FLAG_PRESENT | 
-				        PxD_FLAG_VALID | 
-					PxD_FLAG_ATTACHED) 
-			+ (__u32)(__pa((unsigned long)pgd) >> PxD_VALUE_SHIFT));
+		set_pgd(actual_pgd, __pgd((PxD_FLAG_PRESENT |
+				        PxD_FLAG_VALID |
+					PxD_FLAG_ATTACHED)
+			+ (__u32)(__pa((unsigned long)pgd) >> PxD_VALUE_SHIFT)));
 		/* The first pmd entry also is marked with PxD_FLAG_ATTACHED as
 		 * a signal that this pmd may not be freed */
-		__pgd_val_set(*pgd, PxD_FLAG_ATTACHED);
+		set_pgd(pgd, __pgd(PxD_FLAG_ATTACHED));
 #endif
 	}
 	spin_lock_init(pgd_spinlock(actual_pgd));
@@ -59,18 +62,15 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 
 /* Three Level Page Table Support for pmd's */
 
-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmd)
+static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
-	__pgd_val_set(*pgd, (PxD_FLAG_PRESENT | PxD_FLAG_VALID) +
-		        (__u32)(__pa((unsigned long)pmd) >> PxD_VALUE_SHIFT));
+	set_pud(pud, __pud((PxD_FLAG_PRESENT | PxD_FLAG_VALID) +
+			(__u32)(__pa((unsigned long)pmd) >> PxD_VALUE_SHIFT)));
 }
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 {
-	pmd_t *pmd = (pmd_t *)__get_free_pages(GFP_KERNEL, PMD_ORDER);
-	if (pmd)
-		memset(pmd, 0, PAGE_SIZE<<PMD_ORDER);
-	return pmd;
+	return (pmd_t *)__get_free_pages(GFP_PGTABLE_KERNEL, PMD_ORDER);
 }
 
 static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
@@ -88,19 +88,6 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 	free_pages((unsigned long)pmd, PMD_ORDER);
 }
 
-#else
-
-/* Two Level Page Table Support for pmd's */
-
-/*
- * allocating and freeing a pmd is trivial: the 1-entry pmd is
- * inside the pgd, so has no extra memory associated with it.
- */
-
-#define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
-#define pmd_free(mm, x)			do { } while (0)
-#define pgd_populate(mm, pmd, pte)	BUG()
-
 #endif
 
 static inline void
@@ -110,14 +97,14 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 	/* preserve the gateway marker if this is the beginning of
 	 * the permanent pmd */
 	if(pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
-		__pmd_val_set(*pmd, (PxD_FLAG_PRESENT |
-				 PxD_FLAG_VALID |
-				 PxD_FLAG_ATTACHED) 
-			+ (__u32)(__pa((unsigned long)pte) >> PxD_VALUE_SHIFT));
+		set_pmd(pmd, __pmd((PxD_FLAG_PRESENT |
+				PxD_FLAG_VALID |
+				PxD_FLAG_ATTACHED)
+			+ (__u32)(__pa((unsigned long)pte) >> PxD_VALUE_SHIFT)));
 	else
 #endif
-		__pmd_val_set(*pmd, (PxD_FLAG_PRESENT | PxD_FLAG_VALID) 
-			+ (__u32)(__pa((unsigned long)pte) >> PxD_VALUE_SHIFT));
+		set_pmd(pmd, __pmd((PxD_FLAG_PRESENT | PxD_FLAG_VALID)
+			+ (__u32)(__pa((unsigned long)pte) >> PxD_VALUE_SHIFT)));
 }
 
 #define pmd_populate(mm, pmd, pte_page) \

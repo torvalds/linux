@@ -24,15 +24,28 @@ OPTIONS
 
 -t::
 --tracer=::
-	Tracer to use: function_graph or function.
+	Tracer to use when neither -G nor -F option is not
+	specified: function_graph or function.
 
 -v::
 --verbose=::
         Verbosity level.
 
+-F::
+--funcs::
+        List available functions to trace. It accepts a pattern to
+        only list interested functions.
+
 -p::
 --pid=::
 	Trace on existing process id (comma separated list).
+
+--tid=::
+	Trace on existing thread id (comma separated list).
+
+-D::
+--delay::
+	Time (ms) to wait before starting tracing after program start.
 
 -a::
 --all-cpus::
@@ -48,39 +61,58 @@ OPTIONS
 	Ranges of CPUs are specified with -: 0-2.
 	Default is to trace on all online CPUs.
 
+-m::
+--buffer-size::
+	Set the size of per-cpu tracing buffer, <size> is expected to
+	be a number with appended unit character - B/K/M/G.
+
+--inherit::
+	Trace children processes spawned by our target.
+
 -T::
 --trace-funcs=::
-	Only trace functions given by the argument.  Multiple functions
-	can be given by using this option more than once.  The function
-	argument also can be a glob pattern.  It will be passed to
-	'set_ftrace_filter' in tracefs.
+	Select function tracer and set function filter on the given
+	function (or a glob pattern). Multiple functions can be given
+	by using this option more than once. The function argument also
+	can be a glob pattern. It will be passed to 'set_ftrace_filter'
+	in tracefs.
 
 -N::
 --notrace-funcs=::
-	Do not trace functions given by the argument.  Like -T option,
-	this can be used more than once to specify multiple functions
-	(or glob patterns).  It will be passed to 'set_ftrace_notrace'
-	in tracefs.
+	Select function tracer and do not trace functions given by the
+	argument.  Like -T option, this can be used more than once to
+	specify multiple functions (or glob patterns).  It will be
+	passed to 'set_ftrace_notrace' in tracefs.
+
+--func-opts::
+	List of options allowed to set:
+	  call-graph - Display kernel stack trace for function tracer.
+	  irq-info   - Display irq context info for function tracer.
 
 -G::
 --graph-funcs=::
-	Set graph filter on the given function (or a glob pattern).
-	This is useful for the function_graph tracer only and enables
-	tracing for functions executed from the given function.
-	This can be used more than once to specify multiple functions.
-	It will be passed to 'set_graph_function' in tracefs.
+	Select function_graph tracer and set graph filter on the given
+	function (or a glob pattern). This is useful to trace for
+	functions executed from the given function. This can be used more
+	than once to specify multiple functions. It will be passed to
+	'set_graph_function' in tracefs.
 
 -g::
 --nograph-funcs=::
-	Set graph notrace filter on the given function (or a glob pattern).
-	Like -G option, this is useful for the function_graph tracer only
-	and disables tracing for function executed from the given function.
-	This can be used more than once to specify multiple functions.
-	It will be passed to 'set_graph_notrace' in tracefs.
+	Select function_graph tracer and set graph notrace filter on the
+	given function (or a glob pattern). Like -G option, this is useful
+	for the function_graph tracer only and disables tracing for function
+	executed from the given function. This can be used more than once to
+	specify multiple functions. It will be passed to 'set_graph_notrace'
+	in tracefs.
 
--D::
---graph-depth=::
-	Set max depth for function graph tracer to follow
+--graph-opts::
+	List of options allowed to set:
+	  nosleep-time - Measure on-CPU time only for function_graph tracer.
+	  noirqs       - Ignore functions that happen inside interrupt.
+	  verbose      - Show process names, PIDs, timestamps, etc.
+	  thresh=<n>   - Setup trace duration threshold in microseconds.
+	  depth=<n>    - Set max depth for function graph tracer to follow.
 
 SEE ALSO
 --------

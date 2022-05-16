@@ -26,6 +26,7 @@
 					 sched.link)
 
 void i915_sched_node_init(struct i915_sched_node *node);
+void i915_sched_node_reinit(struct i915_sched_node *node);
 
 bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 				      struct i915_sched_node *signal,
@@ -33,7 +34,8 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 				      unsigned long flags);
 
 int i915_sched_node_add_dependency(struct i915_sched_node *node,
-				   struct i915_sched_node *signal);
+				   struct i915_sched_node *signal,
+				   unsigned long flags);
 
 void i915_sched_node_fini(struct i915_sched_node *node);
 
@@ -50,24 +52,6 @@ static inline void i915_priolist_free(struct i915_priolist *p)
 {
 	if (p->priority != I915_PRIORITY_NORMAL)
 		__i915_priolist_free(p);
-}
-
-static inline bool i915_scheduler_need_preempt(int prio, int active)
-{
-	/*
-	 * Allow preemption of low -> normal -> high, but we do
-	 * not allow low priority tasks to preempt other low priority
-	 * tasks under the impression that latency for low priority
-	 * tasks does not matter (as much as background throughput),
-	 * so kiss.
-	 *
-	 * More naturally we would write
-	 *	prio >= max(0, last);
-	 * except that we wish to prevent triggering preemption at the same
-	 * priority level: the task that is running should remain running
-	 * to preserve FIFO ordering of dependencies.
-	 */
-	return prio > max(I915_PRIORITY_NORMAL - 1, active);
 }
 
 #endif /* _I915_SCHEDULER_H_ */

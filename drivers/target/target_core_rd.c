@@ -131,7 +131,7 @@ static int rd_allocate_sgl_table(struct rd_dev *rd_dev, struct rd_dev_sg_table *
 		if (sg_per_table < total_sg_needed)
 			chain_entry = 1;
 
-		sg = kcalloc(sg_per_table + chain_entry, sizeof(*sg),
+		sg = kmalloc_array(sg_per_table + chain_entry, sizeof(*sg),
 				GFP_KERNEL);
 		if (!sg)
 			return -ENOMEM;

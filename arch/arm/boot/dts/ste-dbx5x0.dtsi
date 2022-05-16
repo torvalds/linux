@@ -14,6 +14,22 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	/* This stablilizes the device enumeration */
+	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &spi2;
+		spi3 = &spi3;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		serial2 = &serial2;
+	};
+
 	chosen {
 	};
 
@@ -36,11 +52,6 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0x300>;
-			/* cpufreq controls */
-			operating-points = <998400 0
-					    800000 0
-					    400000 0
-					    200000 0>;
 			clocks = <&prcmu_clk PRCMU_ARMSS>;
 			clock-names = "cpu";
 			clock-latency = <20000>;
@@ -93,7 +104,7 @@
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "stericsson,db8500";
+		compatible = "stericsson,db8500", "simple-bus";
 		interrupt-parent = <&intc>;
 		ranges;
 
@@ -249,7 +260,7 @@
 			reg = <0x80150000 0x2000>;
 		};
 
-		L2: l2-cache {
+		L2: cache-controller {
 			compatible = "arm,pl310-cache";
 			reg = <0xa0412000 0x1000>;
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
@@ -324,7 +335,7 @@
 		};
 
 		rtc@80154000 {
-			compatible = "arm,rtc-pl031", "arm,primecell";
+			compatible = "arm,pl031", "arm,primecell";
 			reg = <0x80154000 0x1000>;
 			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -638,7 +649,7 @@
 			};
 		};
 
-		i2c@80004000 {
+		i2c0: i2c@80004000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80004000 0x1000>;
 			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
@@ -651,9 +662,11 @@
 			clocks = <&prcc_kclk 3 3>, <&prcc_pclk 3 3>;
 			clock-names = "i2cclk", "apb_pclk";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
-		i2c@80122000 {
+		i2c1: i2c@80122000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80122000 0x1000>;
 			interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
@@ -667,9 +680,11 @@
 			clocks = <&prcc_kclk 1 2>, <&prcc_pclk 1 2>;
 			clock-names = "i2cclk", "apb_pclk";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
-		i2c@80128000 {
+		i2c2: i2c@80128000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80128000 0x1000>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
@@ -683,9 +698,11 @@
 			clocks = <&prcc_kclk 1 6>, <&prcc_pclk 1 6>;
 			clock-names = "i2cclk", "apb_pclk";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
-		i2c@80110000 {
+		i2c3: i2c@80110000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80110000 0x1000>;
 			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
@@ -699,9 +716,11 @@
 			clocks = <&prcc_kclk 2 0>, <&prcc_pclk 2 0>;
 			clock-names = "i2cclk", "apb_pclk";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
-		i2c@8012a000 {
+		i2c4: i2c@8012a000 {
 			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x8012a000 0x1000>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
@@ -715,9 +734,11 @@
 			clocks = <&prcc_kclk 1 9>, <&prcc_pclk 1 10>;
 			clock-names = "i2cclk", "apb_pclk";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
-		spi@80002000 {
+		ssp0: spi@80002000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80002000 0x1000>;
 			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
@@ -729,9 +750,11 @@
 			       <&dma 8 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
-		spi@80003000 {
+		ssp1: spi@80003000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80003000 0x1000>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
@@ -743,9 +766,11 @@
 			       <&dma 9 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
-		spi@8011a000 {
+		spi0: spi@8011a000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x8011a000 0x1000>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
@@ -758,9 +783,11 @@
 			       <&dma 0 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
-		spi@80112000 {
+		spi1: spi@80112000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80112000 0x1000>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
@@ -773,9 +800,11 @@
 			       <&dma 35 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
-		spi@80111000 {
+		spi2: spi@80111000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80111000 0x1000>;
 			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
@@ -788,9 +817,11 @@
 			       <&dma 33 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
-		spi@80129000 {
+		spi3: spi@80129000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80129000 0x1000>;
 			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
@@ -803,9 +834,11 @@
 			       <&dma 40 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
 			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
 		};
 
-		ux500_serial0: uart@80120000 {
+		serial0: uart@80120000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80120000 0x1000>;
 			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
@@ -820,7 +853,7 @@
 			status = "disabled";
 		};
 
-		ux500_serial1: uart@80121000 {
+		serial1: uart@80121000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80121000 0x1000>;
 			interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
@@ -835,7 +868,7 @@
 			status = "disabled";
 		};
 
-		ux500_serial2: uart@80007000 {
+		serial2: uart@80007000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x80007000 0x1000>;
 			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
@@ -1064,7 +1097,7 @@
 			ranges;
 			status = "disabled";
 
-			dsi0: dsi@a0351000 {
+			dsi0: dsi-controller@a0351000 {
 				compatible = "ste,mcde-dsi";
 				reg = <0xa0351000 0x1000>;
 				clocks = <&prcmu_clk PRCMU_DSI0CLK>, <&prcmu_clk PRCMU_DSI0ESCCLK>;
@@ -1072,7 +1105,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
-			dsi1: dsi@a0352000 {
+			dsi1: dsi-controller@a0352000 {
 				compatible = "ste,mcde-dsi";
 				reg = <0xa0352000 0x1000>;
 				clocks = <&prcmu_clk PRCMU_DSI1CLK>, <&prcmu_clk PRCMU_DSI1ESCCLK>;
@@ -1080,7 +1113,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
-			dsi2: dsi@a0353000 {
+			dsi2: dsi-controller@a0353000 {
 				compatible = "ste,mcde-dsi";
 				reg = <0xa0353000 0x1000>;
 				/* This DSI port only has the Low Power / Energy Save clock */

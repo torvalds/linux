@@ -2,7 +2,7 @@
  * vpif-display - VPIF display driver
  * Display driver for TI DaVinci VPIF
  *
- * Copyright (C) 2009 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2009 Texas Instruments Incorporated - https://www.ti.com/
  * Copyright (C) 2014 Lad, Prabhakar <prabhakar.csengg@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -1214,7 +1214,7 @@ static int vpif_probe_complete(void)
 		vdev->lock = &common->lock;
 		vdev->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
 		video_set_drvdata(&ch->video_dev, ch);
-		err = video_register_device(vdev, VFL_TYPE_GRABBER,
+		err = video_register_device(vdev, VFL_TYPE_VIDEO,
 					    (j ? 3 : 2));
 		if (err < 0)
 			goto probe_out;
@@ -1225,7 +1225,6 @@ static int vpif_probe_complete(void)
 probe_out:
 	for (k = 0; k < j; k++) {
 		ch = vpif_obj.dev[k];
-		common = &ch->common[k];
 		video_unregister_device(&ch->video_dev);
 	}
 	return err;

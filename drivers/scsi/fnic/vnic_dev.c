@@ -254,12 +254,12 @@ void vnic_dev_free_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring)
 	}
 }
 
-int vnic_dev_cmd1(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd, int wait)
+static int vnic_dev_cmd1(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd, int wait)
 {
 	struct vnic_devcmd __iomem *devcmd = vdev->devcmd;
 	int delay;
 	u32 status;
-	int dev_cmd_err[] = {
+	static const int dev_cmd_err[] = {
 		/* convert from fw's version of error.h to host's version */
 		0,	/* ERR_SUCCESS */
 		EINVAL,	/* ERR_EINVAL */
@@ -316,7 +316,7 @@ int vnic_dev_cmd1(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd, int wait)
 	return -ETIMEDOUT;
 }
 
-int vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+static int vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		int wait)
 {
 	struct devcmd2_controller *dc2c = vdev->devcmd2;
@@ -411,7 +411,7 @@ int vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 }
 
 
-int vnic_dev_init_devcmd1(struct vnic_dev *vdev)
+static int vnic_dev_init_devcmd1(struct vnic_dev *vdev)
 {
 	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);
 	if (!vdev->devcmd)
@@ -422,7 +422,7 @@ int vnic_dev_init_devcmd1(struct vnic_dev *vdev)
 }
 
 
-int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
+static int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
 {
 	int err;
 	unsigned int fetch_index;
@@ -492,7 +492,7 @@ err_free_devcmd2:
 }
 
 
-void vnic_dev_deinit_devcmd2(struct vnic_dev *vdev)
+static void vnic_dev_deinit_devcmd2(struct vnic_dev *vdev)
 {
 	vnic_dev_free_desc_ring(vdev, &vdev->devcmd2->results_ring);
 	vnic_wq_disable(&vdev->devcmd2->wq);
@@ -503,7 +503,7 @@ void vnic_dev_deinit_devcmd2(struct vnic_dev *vdev)
 }
 
 
-int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
+static int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
 	enum vnic_devcmd_cmd cmd, u64 *a0, u64 *a1, int wait)
 {
 	int err;
@@ -688,26 +688,26 @@ int vnic_dev_soft_reset_done(struct vnic_dev *vdev, int *done)
 
 int vnic_dev_hang_notify(struct vnic_dev *vdev)
 {
-	u64 a0, a1;
+	u64 a0 = 0, a1 = 0;
 	int wait = 1000;
 	return vnic_dev_cmd(vdev, CMD_HANG_NOTIFY, &a0, &a1, wait);
 }
 
 int vnic_dev_mac_addr(struct vnic_dev *vdev, u8 *mac_addr)
 {
-	u64 a0, a1;
+	u64 a[2] = {};
 	int wait = 1000;
 	int err, i;
 
 	for (i = 0; i < ETH_ALEN; i++)
 		mac_addr[i] = 0;
 
-	err = vnic_dev_cmd(vdev, CMD_MAC_ADDR, &a0, &a1, wait);
+	err = vnic_dev_cmd(vdev, CMD_MAC_ADDR, &a[0], &a[1], wait);
 	if (err)
 		return err;
 
 	for (i = 0; i < ETH_ALEN; i++)
-		mac_addr[i] = ((u8 *)&a0)[i];
+		mac_addr[i] = ((u8 *)&a)[i];
 
 	return 0;
 }
@@ -732,30 +732,30 @@ void vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 
 void vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr)
 {
-	u64 a0 = 0, a1 = 0;
+	u64 a[2] = {};
 	int wait = 1000;
 	int err;
 	int i;
 
 	for (i = 0; i < ETH_ALEN; i++)
-		((u8 *)&a0)[i] = addr[i];
+		((u8 *)&a)[i] = addr[i];
 
-	err = vnic_dev_cmd(vdev, CMD_ADDR_ADD, &a0, &a1, wait);
+	err = vnic_dev_cmd(vdev, CMD_ADDR_ADD, &a[0], &a[1], wait);
 	if (err)
 		pr_err("Can't add addr [%pM], %d\n", addr, err);
 }
 
 void vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
 {
-	u64 a0 = 0, a1 = 0;
+	u64 a[2] = {};
 	int wait = 1000;
 	int err;
 	int i;
 
 	for (i = 0; i < ETH_ALEN; i++)
-		((u8 *)&a0)[i] = addr[i];
+		((u8 *)&a)[i] = addr[i];
 
-	err = vnic_dev_cmd(vdev, CMD_ADDR_DEL, &a0, &a1, wait);
+	err = vnic_dev_cmd(vdev, CMD_ADDR_DEL, &a[0], &a[1], wait);
 	if (err)
 		pr_err("Can't del addr [%pM], %d\n", addr, err);
 }

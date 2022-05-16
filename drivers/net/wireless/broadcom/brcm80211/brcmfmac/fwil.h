@@ -49,6 +49,8 @@
 #define BRCMF_C_GET_PM				85
 #define BRCMF_C_SET_PM				86
 #define BRCMF_C_GET_REVINFO			98
+#define BRCMF_C_GET_MONITOR			107
+#define BRCMF_C_SET_MONITOR			108
 #define BRCMF_C_GET_CURR_RATESET		114
 #define BRCMF_C_GET_AP				117
 #define BRCMF_C_SET_AP				118

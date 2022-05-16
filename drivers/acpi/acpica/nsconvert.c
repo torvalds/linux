@@ -4,7 +4,7 @@
  * Module Name: nsconvert - Object conversions for objects returned by
  *                          predefined methods
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -486,5 +486,5 @@ acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
 error_exit:
 	ACPI_FREE(name);
 	*return_object = new_object;
-	return (AE_OK);
+	return (status);
 }

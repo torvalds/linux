@@ -79,7 +79,7 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 		 * PIIX4 models.
 		 */
 		errata.piix4.throttle = 1;
-		/* fall through*/
+		fallthrough;
 
 	case 2:		/* PIIX4E */
 	case 3:		/* PIIX4M */
@@ -264,7 +264,6 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	} else {
 		/*
 		 * Declared with "Device" statement; match _UID.
-		 * Note that we don't handle string _UIDs yet.
 		 */
 		status = acpi_evaluate_integer(pr->handle, METHOD_NAME__UID,
 						NULL, &value);
@@ -705,3 +704,207 @@ void __init acpi_processor_init(void)
 	acpi_scan_add_handler_with_hotplug(&processor_handler, "processor");
 	acpi_scan_add_handler(&processor_container_handler);
 }
+
+#ifdef CONFIG_ACPI_PROCESSOR_CSTATE
+/**
+ * acpi_processor_claim_cst_control - Request _CST control from the platform.
+ */
+bool acpi_processor_claim_cst_control(void)
+{
+	static bool cst_control_claimed;
+	acpi_status status;
+
+	if (!acpi_gbl_FADT.cst_control || cst_control_claimed)
+		return true;
+
+	status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
+				    acpi_gbl_FADT.cst_control, 8);
+	if (ACPI_FAILURE(status)) {
+		pr_warn("ACPI: Failed to claim processor _CST control\n");
+		return false;
+	}
+
+	cst_control_claimed = true;
+	return true;
+}
+EXPORT_SYMBOL_GPL(acpi_processor_claim_cst_control);
+
+/**
+ * acpi_processor_evaluate_cst - Evaluate the processor _CST control method.
+ * @handle: ACPI handle of the processor object containing the _CST.
+ * @cpu: The numeric ID of the target CPU.
+ * @info: Object write the C-states information into.
+ *
+ * Extract the C-state information for the given CPU from the output of the _CST
+ * control method under the corresponding ACPI processor object (or processor
+ * device object) and populate @info with it.
+ *
+ * If any ACPI_ADR_SPACE_FIXED_HARDWARE C-states are found, invoke
+ * acpi_processor_ffh_cstate_probe() to verify them and update the
+ * cpu_cstate_entry data for @cpu.
+ */
+int acpi_processor_evaluate_cst(acpi_handle handle, u32 cpu,
+				struct acpi_processor_power *info)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *cst;
+	acpi_status status;
+	u64 count;
+	int last_index = 0;
+	int i, ret = 0;
+
+	status = acpi_evaluate_object(handle, "_CST", NULL, &buffer);
+	if (ACPI_FAILURE(status)) {
+		acpi_handle_debug(handle, "No _CST\n");
+		return -ENODEV;
+	}
+
+	cst = buffer.pointer;
+
+	/* There must be at least 2 elements. */
+	if (!cst || cst->type != ACPI_TYPE_PACKAGE || cst->package.count < 2) {
+		acpi_handle_warn(handle, "Invalid _CST output\n");
+		ret = -EFAULT;
+		goto end;
+	}
+
+	count = cst->package.elements[0].integer.value;
+
+	/* Validate the number of C-states. */
+	if (count < 1 || count != cst->package.count - 1) {
+		acpi_handle_warn(handle, "Inconsistent _CST data\n");
+		ret = -EFAULT;
+		goto end;
+	}
+
+	for (i = 1; i <= count; i++) {
+		union acpi_object *element;
+		union acpi_object *obj;
+		struct acpi_power_register *reg;
+		struct acpi_processor_cx cx;
+
+		/*
+		 * If there is not enough space for all C-states, skip the
+		 * excess ones and log a warning.
+		 */
+		if (last_index >= ACPI_PROCESSOR_MAX_POWER - 1) {
+			acpi_handle_warn(handle,
+					 "No room for more idle states (limit: %d)\n",
+					 ACPI_PROCESSOR_MAX_POWER - 1);
+			break;
+		}
+
+		memset(&cx, 0, sizeof(cx));
+
+		element = &cst->package.elements[i];
+		if (element->type != ACPI_TYPE_PACKAGE) {
+			acpi_handle_info(handle, "_CST C%d type(%x) is not package, skip...\n",
+					 i, element->type);
+			continue;
+		}
+
+		if (element->package.count != 4) {
+			acpi_handle_info(handle, "_CST C%d package count(%d) is not 4, skip...\n",
+					 i, element->package.count);
+			continue;
+		}
+
+		obj = &element->package.elements[0];
+
+		if (obj->type != ACPI_TYPE_BUFFER) {
+			acpi_handle_info(handle, "_CST C%d package element[0] type(%x) is not buffer, skip...\n",
+					 i, obj->type);
+			continue;
+		}
+
+		reg = (struct acpi_power_register *)obj->buffer.pointer;
+
+		obj = &element->package.elements[1];
+		if (obj->type != ACPI_TYPE_INTEGER) {
+			acpi_handle_info(handle, "_CST C[%d] package element[1] type(%x) is not integer, skip...\n",
+					 i, obj->type);
+			continue;
+		}
+
+		cx.type = obj->integer.value;
+		/*
+		 * There are known cases in which the _CST output does not
+		 * contain C1, so if the type of the first state found is not
+		 * C1, leave an empty slot for C1 to be filled in later.
+		 */
+		if (i == 1 && cx.type != ACPI_STATE_C1)
+			last_index = 1;
+
+		cx.address = reg->address;
+		cx.index = last_index + 1;
+
+		if (reg->space_id == ACPI_ADR_SPACE_FIXED_HARDWARE) {
+			if (!acpi_processor_ffh_cstate_probe(cpu, &cx, reg)) {
+				/*
+				 * In the majority of cases _CST describes C1 as
+				 * a FIXED_HARDWARE C-state, but if the command
+				 * line forbids using MWAIT, use CSTATE_HALT for
+				 * C1 regardless.
+				 */
+				if (cx.type == ACPI_STATE_C1 &&
+				    boot_option_idle_override == IDLE_NOMWAIT) {
+					cx.entry_method = ACPI_CSTATE_HALT;
+					snprintf(cx.desc, ACPI_CX_DESC_LEN, "ACPI HLT");
+				} else {
+					cx.entry_method = ACPI_CSTATE_FFH;
+				}
+			} else if (cx.type == ACPI_STATE_C1) {
+				/*
+				 * In the special case of C1, FIXED_HARDWARE can
+				 * be handled by executing the HLT instruction.
+				 */
+				cx.entry_method = ACPI_CSTATE_HALT;
+				snprintf(cx.desc, ACPI_CX_DESC_LEN, "ACPI HLT");
+			} else {
+				acpi_handle_info(handle, "_CST C%d declares FIXED_HARDWARE C-state but not supported in hardware, skip...\n",
+						 i);
+				continue;
+			}
+		} else if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+			cx.entry_method = ACPI_CSTATE_SYSTEMIO;
+			snprintf(cx.desc, ACPI_CX_DESC_LEN, "ACPI IOPORT 0x%x",
+				 cx.address);
+		} else {
+			acpi_handle_info(handle, "_CST C%d space_id(%x) neither FIXED_HARDWARE nor SYSTEM_IO, skip...\n",
+					 i, reg->space_id);
+			continue;
+		}
+
+		if (cx.type == ACPI_STATE_C1)
+			cx.valid = 1;
+
+		obj = &element->package.elements[2];
+		if (obj->type != ACPI_TYPE_INTEGER) {
+			acpi_handle_info(handle, "_CST C%d package element[2] type(%x) not integer, skip...\n",
+					 i, obj->type);
+			continue;
+		}
+
+		cx.latency = obj->integer.value;
+
+		obj = &element->package.elements[3];
+		if (obj->type != ACPI_TYPE_INTEGER) {
+			acpi_handle_info(handle, "_CST C%d package element[3] type(%x) not integer, skip...\n",
+					 i, obj->type);
+			continue;
+		}
+
+		memcpy(&info->states[++last_index], &cx, sizeof(cx));
+	}
+
+	acpi_handle_info(handle, "Found %d idle states\n", last_index);
+
+	info->count = last_index;
+
+      end:
+	kfree(buffer.pointer);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(acpi_processor_evaluate_cst);
+#endif /* CONFIG_ACPI_PROCESSOR_CSTATE */

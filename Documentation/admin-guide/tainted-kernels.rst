@@ -38,7 +38,7 @@ either letters or blanks. In above example it looks like this::
 
 	Tainted: P        W  O
 
-The meaning of those characters is explained in the table below. In tis case
+The meaning of those characters is explained in the table below. In this case
 the kernel got tainted earlier because a proprietary Module (``P``) was loaded,
 a warning occurred (``W``), and an externally-built module was loaded (``O``).
 To decode other letters use the table below.
@@ -61,7 +61,7 @@ this on the machine that had the statements in the logs that were quoted earlier
 	 * Proprietary module was loaded (#0)
 	 * Kernel issued warning (#9)
 	 * Externally-built ('out-of-tree') module was loaded  (#12)
-	See Documentation/admin-guide/tainted-kernels.rst in the the Linux kernel or
+	See Documentation/admin-guide/tainted-kernels.rst in the Linux kernel or
 	 https://www.kernel.org/doc/html/latest/admin-guide/tainted-kernels.html for
 	 a more details explanation of the various taint flags.
 	Raw taint value as int/string: 4609/'P        W  O     '
@@ -130,7 +130,7 @@ More detailed explanation for tainting
  5)  ``B`` If a page-release function has found a bad page reference or some
      unexpected page flags. This indicates a hardware problem or a kernel bug;
      there should be other information in the log indicating why this tainting
-     occured.
+     occurred.
 
  6)  ``U`` if a user or user application specifically requested that the
      Tainted flag be set, ``' '`` otherwise.

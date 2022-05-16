@@ -19,7 +19,6 @@
 #include <linux/module.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/xen/hypervisor.h>
 #include <xen/xenbus.h>
 #include <xen/events.h>
@@ -126,6 +125,28 @@ static int xenbus_frontend_dev_probe(struct device *dev)
 	return xenbus_dev_probe(dev);
 }
 
+static void xenbus_frontend_dev_shutdown(struct device *_dev)
+{
+	struct xenbus_device *dev = to_xenbus_device(_dev);
+	unsigned long timeout = 5*HZ;
+
+	DPRINTK("%s", dev->nodename);
+
+	get_device(&dev->dev);
+	if (dev->state != XenbusStateConnected) {
+		pr_info("%s: %s: %s != Connected, skipping\n",
+			__func__, dev->nodename, xenbus_strstate(dev->state));
+		goto out;
+	}
+	xenbus_switch_state(dev, XenbusStateClosing);
+	timeout = wait_for_completion_timeout(&dev->down, timeout);
+	if (!timeout)
+		pr_info("%s: %s timeout closing device\n",
+			__func__, dev->nodename);
+ out:
+	put_device(&dev->dev);
+}
+
 static const struct dev_pm_ops xenbus_pm_ops = {
 	.suspend	= xenbus_dev_suspend,
 	.resume		= xenbus_frontend_dev_resume,
@@ -146,7 +167,7 @@ static struct xen_bus_type xenbus_frontend = {
 		.uevent		= xenbus_uevent_frontend,
 		.probe		= xenbus_frontend_dev_probe,
 		.remove		= xenbus_dev_remove,
-		.shutdown	= xenbus_dev_shutdown,
+		.shutdown	= xenbus_frontend_dev_shutdown,
 		.dev_groups	= xenbus_dev_groups,
 
 		.pm		= &xenbus_pm_ops,
@@ -380,12 +401,12 @@ static void xenbus_reset_frontend(char *fe, char *be, int be_state)
 	case XenbusStateConnected:
 		xenbus_printf(XBT_NIL, fe, "state", "%d", XenbusStateClosing);
 		xenbus_reset_wait_for_backend(be, XenbusStateClosing);
-		/* fall through */
+		fallthrough;
 
 	case XenbusStateClosing:
 		xenbus_printf(XBT_NIL, fe, "state", "%d", XenbusStateClosed);
 		xenbus_reset_wait_for_backend(be, XenbusStateClosed);
-		/* fall through */
+		fallthrough;
 
 	case XenbusStateClosed:
 		xenbus_printf(XBT_NIL, fe, "state", "%d", XenbusStateInitialising);

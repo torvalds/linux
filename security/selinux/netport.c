@@ -130,7 +130,7 @@ static void sel_netport_insert(struct sel_netport *port)
  * @sid: port SID
  *
  * Description:
- * This function determines the SID of a network port by quering the security
+ * This function determines the SID of a network port by querying the security
  * policy.  The result is added to the network port table to speedup future
  * queries.  Returns zero on success, negative values on failure.
  *
@@ -225,7 +225,7 @@ static __init int sel_netport_init(void)
 {
 	int iter;
 
-	if (!selinux_enabled)
+	if (!selinux_enabled_boot)
 		return 0;
 
 	for (iter = 0; iter < SEL_NETPORT_HASH_SIZE; iter++) {

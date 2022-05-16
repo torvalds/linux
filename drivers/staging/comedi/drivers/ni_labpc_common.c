@@ -560,14 +560,13 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 	/* make sure scan timing is not too fast */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		if (cmd->convert_src == TRIG_TIMER) {
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    cmd->convert_arg *
-							    cmd->chanlist_len);
+			err |= comedi_check_trigger_arg_min(
+					&cmd->scan_begin_arg,
+					cmd->convert_arg * cmd->chanlist_len);
 		}
-		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
-						    board->ai_speed *
-						    cmd->chanlist_len);
+		err |= comedi_check_trigger_arg_min(
+					&cmd->scan_begin_arg,
+					board->ai_speed * cmd->chanlist_len);
 	}
 
 	switch (cmd->stop_src) {
@@ -1359,6 +1358,6 @@ static void __exit labpc_common_exit(void)
 }
 module_exit(labpc_common_exit);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi helper for ni_labpc, ni_labpc_pci, ni_labpc_cs");
 MODULE_LICENSE("GPL");

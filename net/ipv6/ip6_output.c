@@ -54,6 +54,7 @@
 #include <linux/mroute6.h>
 #include <net/l3mdev.h>
 #include <net/lwtunnel.h>
+#include <net/ip_tunnels.h>
 
 static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
@@ -160,7 +161,7 @@ static int ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 
 int ip6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct net_device *dev = skb_dst(skb)->dev;
+	struct net_device *dev = skb_dst(skb)->dev, *indev = skb->dev;
 	struct inet6_dev *idev = ip6_dst_idev(skb_dst(skb));
 
 	skb->protocol = htons(ETH_P_IPV6);
@@ -173,7 +174,7 @@ int ip6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	}
 
 	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING,
-			    net, sk, skb, NULL, dev,
+			    net, sk, skb, indev, dev,
 			    ip6_finish_output,
 			    !(IP6CB(skb)->flags & IP6SKB_REROUTED));
 }
@@ -467,8 +468,6 @@ int ip6_forward(struct sk_buff *skb)
 	 *	check and decrement ttl
 	 */
 	if (hdr->hop_limit <= 1) {
-		/* Force OUTPUT device used as source address */
-		skb->dev = dst->dev;
 		icmpv6_send(skb, ICMPV6_TIME_EXCEED, ICMPV6_EXC_HOPLIMIT, 0);
 		__IP6_INC_STATS(net, idev, IPSTATS_MIB_INHDRERRORS);
 
@@ -1117,6 +1116,7 @@ out_err_release:
 
 /**
  *	ip6_dst_lookup - perform route lookup on flow
+ *	@net: Network namespace to perform lookup in
  *	@sk: socket which provides route info
  *	@dst: pointer to dst_entry * for result
  *	@fl6: flow to lookup
@@ -1135,6 +1135,7 @@ EXPORT_SYMBOL_GPL(ip6_dst_lookup);
 
 /**
  *	ip6_dst_lookup_flow - perform route lookup on flow with ipsec
+ *	@net: Network namespace to perform lookup in
  *	@sk: socket which provides route info
  *	@fl6: flow to lookup
  *	@final_dst: final destination address for ipsec lookup
@@ -1144,19 +1145,19 @@ EXPORT_SYMBOL_GPL(ip6_dst_lookup);
  *	It returns a valid dst pointer on success, or a pointer encoded
  *	error code.
  */
-struct dst_entry *ip6_dst_lookup_flow(const struct sock *sk, struct flowi6 *fl6,
+struct dst_entry *ip6_dst_lookup_flow(struct net *net, const struct sock *sk, struct flowi6 *fl6,
 				      const struct in6_addr *final_dst)
 {
 	struct dst_entry *dst = NULL;
 	int err;
 
-	err = ip6_dst_lookup_tail(sock_net(sk), sk, &dst, fl6);
+	err = ip6_dst_lookup_tail(net, sk, &dst, fl6);
 	if (err)
 		return ERR_PTR(err);
 	if (final_dst)
 		fl6->daddr = *final_dst;
 
-	return xfrm_lookup_route(sock_net(sk), dst, flowi6_to_flowi(fl6), sk, 0);
+	return xfrm_lookup_route(net, dst, flowi6_to_flowi(fl6), sk, 0);
 }
 EXPORT_SYMBOL_GPL(ip6_dst_lookup_flow);
 
@@ -1188,13 +1189,82 @@ struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi6 *fl6,
 	if (dst)
 		return dst;
 
-	dst = ip6_dst_lookup_flow(sk, fl6, final_dst);
+	dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_dst);
 	if (connected && !IS_ERR(dst))
 		ip6_sk_dst_store_flow(sk, dst_clone(dst), fl6);
 
 	return dst;
 }
 EXPORT_SYMBOL_GPL(ip6_sk_dst_lookup_flow);
+
+/**
+ *      ip6_dst_lookup_tunnel - perform route lookup on tunnel
+ *      @skb: Packet for which lookup is done
+ *      @dev: Tunnel device
+ *      @net: Network namespace of tunnel device
+ *      @sock: Socket which provides route info
+ *      @saddr: Memory to store the src ip address
+ *      @info: Tunnel information
+ *      @protocol: IP protocol
+ *      @use_cache: Flag to enable cache usage
+ *      This function performs a route lookup on a tunnel
+ *
+ *      It returns a valid dst pointer and stores src address to be used in
+ *      tunnel in param saddr on success, else a pointer encoded error code.
+ */
+
+struct dst_entry *ip6_dst_lookup_tunnel(struct sk_buff *skb,
+					struct net_device *dev,
+					struct net *net,
+					struct socket *sock,
+					struct in6_addr *saddr,
+					const struct ip_tunnel_info *info,
+					u8 protocol,
+					bool use_cache)
+{
+	struct dst_entry *dst = NULL;
+#ifdef CONFIG_DST_CACHE
+	struct dst_cache *dst_cache;
+#endif
+	struct flowi6 fl6;
+	__u8 prio;
+
+#ifdef CONFIG_DST_CACHE
+	dst_cache = (struct dst_cache *)&info->dst_cache;
+	if (use_cache) {
+		dst = dst_cache_get_ip6(dst_cache, saddr);
+		if (dst)
+			return dst;
+	}
+#endif
+	memset(&fl6, 0, sizeof(fl6));
+	fl6.flowi6_mark = skb->mark;
+	fl6.flowi6_proto = protocol;
+	fl6.daddr = info->key.u.ipv6.dst;
+	fl6.saddr = info->key.u.ipv6.src;
+	prio = info->key.tos;
+	fl6.flowlabel = ip6_make_flowinfo(RT_TOS(prio),
+					  info->key.label);
+
+	dst = ipv6_stub->ipv6_dst_lookup_flow(net, sock->sk, &fl6,
+					      NULL);
+	if (IS_ERR(dst)) {
+		netdev_dbg(dev, "no route to %pI6\n", &fl6.daddr);
+		return ERR_PTR(-ENETUNREACH);
+	}
+	if (dst->dev == dev) { /* is this necessary? */
+		netdev_dbg(dev, "circular route to %pI6\n", &fl6.daddr);
+		dst_release(dst);
+		return ERR_PTR(-ELOOP);
+	}
+#ifdef CONFIG_DST_CACHE
+	if (use_cache)
+		dst_cache_set_ip6(dst_cache, dst, &fl6.saddr);
+#endif
+	*saddr = fl6.saddr;
+	return dst;
+}
+EXPORT_SYMBOL_GPL(ip6_dst_lookup_tunnel);
 
 static inline struct ipv6_opt_hdr *ip6_opt_dup(struct ipv6_opt_hdr *src,
 					       gfp_t gfp)
@@ -1420,7 +1490,7 @@ emsgsize:
 	 * Otherwise, we need to reserve fragment header and
 	 * fragment alignment (= 8-15 octects, in total).
 	 *
-	 * Note that we may need to "move" the data from the tail of
+	 * Note that we may need to "move" the data from the tail
 	 * of the buffer to the new fragment when we split
 	 * the message.
 	 *
@@ -1543,7 +1613,7 @@ alloc_new_skb:
 			if (fraggap) {
 				skb->csum = skb_copy_and_csum_bits(
 					skb_prev, maxfraglen,
-					data + transhdrlen, fraggap, 0);
+					data + transhdrlen, fraggap);
 				skb_prev->csum = csum_sub(skb_prev->csum,
 							  skb->csum);
 				data += fraggap;

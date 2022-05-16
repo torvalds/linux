@@ -189,7 +189,7 @@ void lspcon_ycbcr420_config(struct drm_connector *connector,
 {
 	const struct drm_display_info *info = &connector->display_info;
 	const struct drm_display_mode *adjusted_mode =
-					&crtc_state->base.adjusted_mode;
+					&crtc_state->hw.adjusted_mode;
 
 	if (drm_mode_is_420_only(info, adjusted_mode) &&
 	    connector->ycbcr_420_allowed) {
@@ -434,8 +434,8 @@ void lspcon_write_infoframe(struct intel_encoder *encoder,
 			    const void *frame, ssize_t len)
 {
 	bool ret;
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	struct intel_lspcon *lspcon = enc_to_intel_lspcon(&encoder->base);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_lspcon *lspcon = enc_to_intel_lspcon(encoder);
 
 	/* LSPCON only needs AVI IF */
 	if (type != HDMI_INFOFRAME_TYPE_AVI)
@@ -472,10 +472,10 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 	ssize_t ret;
 	union hdmi_infoframe frame;
 	u8 buf[VIDEO_DIP_DATA_SIZE];
-	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct intel_lspcon *lspcon = &dig_port->lspcon;
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 
 	if (!lspcon->active) {
 		DRM_ERROR("Writing infoframes while LSPCON disabled ?\n");
@@ -522,7 +522,7 @@ u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
 {
 	/* FIXME actually read this from the hw */
-	return enc_to_intel_lspcon(&encoder->base)->active;
+	return 0;
 }
 
 void lspcon_resume(struct intel_lspcon *lspcon)
@@ -550,11 +550,11 @@ void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon)
 	lspcon_wait_mode(lspcon, DRM_LSPCON_MODE_PCON);
 }
 
-bool lspcon_init(struct intel_digital_port *intel_dig_port)
+bool lspcon_init(struct intel_digital_port *dig_port)
 {
-	struct intel_dp *dp = &intel_dig_port->dp;
-	struct intel_lspcon *lspcon = &intel_dig_port->lspcon;
-	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct intel_dp *dp = &dig_port->dp;
+	struct intel_lspcon *lspcon = &dig_port->lspcon;
+	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_connector *connector = &dp->attached_connector->base;
 
@@ -571,7 +571,7 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 		return false;
 	}
 
-	if (!intel_dp_read_dpcd(dp)) {
+	if (drm_dp_read_dpcd_caps(&dp->aux, dp->dpcd) != 0) {
 		DRM_ERROR("LSPCON DPCD read failed\n");
 		return false;
 	}

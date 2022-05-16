@@ -18,8 +18,19 @@ config AD8366
 	    AD8366 Dual-Digital Variable Gain Amplifier (VGA)
 	    ADA4961 BiCMOS RF Digital Gain Amplifier (DGA)
 	    ADL5240 Digitally controlled variable gain amplifier (VGA)
+	    HMC1119 0.25 dB LSB, 7-Bit, Silicon Digital Attenuator
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad8366.
+
+config HMC425
+	tristate "Analog Devices HMC425A and similar GPIO Gain Amplifiers"
+	depends on GPIOLIB
+	help
+	  Say yes here to build support for Analog Devices HMC425A and similar
+	  gain amplifiers or step attenuators.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hmc425a.
 
 endmenu

@@ -24,17 +24,14 @@
 
 /* Define unique ID for each pins */
 enum pin_id {
-	TEGRA_PIN_PEX_L5_CLKREQ_N_PGG0 = 256,
-	TEGRA_PIN_PEX_L5_RST_N_PGG1 = 257,
-	TEGRA_PIN_NUM_GPIOS = 258,
+	TEGRA_PIN_PEX_L5_CLKREQ_N_PGG0,
+	TEGRA_PIN_PEX_L5_RST_N_PGG1,
 };
 
 /* Table for pin descriptor */
 static const struct pinctrl_pin_desc tegra194_pins[] = {
-	PINCTRL_PIN(TEGRA_PIN_PEX_L5_CLKREQ_N_PGG0,
-		    "TEGRA_PIN_PEX_L5_CLKREQ_N_PGG0"),
-	PINCTRL_PIN(TEGRA_PIN_PEX_L5_RST_N_PGG1,
-		    "TEGRA_PIN_PEX_L5_RST_N_PGG1"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L5_CLKREQ_N_PGG0, "PEX_L5_CLKREQ_N_PGG0"),
+	PINCTRL_PIN(TEGRA_PIN_PEX_L5_RST_N_PGG1, "PEX_L5_RST_N_PGG1"),
 };
 
 static const unsigned int pex_l5_clkreq_n_pgg0_pins[] = {
@@ -59,6 +56,7 @@ enum tegra_mux_dt {
 	{					\
 		.name = #lid,			\
 	}
+
 static struct tegra_function tegra194_functions[] = {
 	TEGRA_PIN_FUNCTION(rsvd0),
 	TEGRA_PIN_FUNCTION(rsvd1),
@@ -70,7 +68,7 @@ static struct tegra_function tegra194_functions[] = {
 #define DRV_PINGROUP_ENTRY_Y(r, drvdn_b, drvdn_w, drvup_b,	\
 			     drvup_w, slwr_b, slwr_w, slwf_b,	\
 			     slwf_w, bank)			\
-		.drv_reg = ((r)),			\
+		.drv_reg = ((r)),				\
 		.drv_bank = bank,				\
 		.drvdn_bit = drvdn_b,				\
 		.drvdn_width = drvdn_w,				\
@@ -89,7 +87,7 @@ static struct tegra_function tegra194_functions[] = {
 		.hsm_bit = -1,					\
 		.mux_bank = bank,				\
 		.mux_bit = 0,					\
-		.pupd_reg = ((r)),		\
+		.pupd_reg = ((r)),				\
 		.pupd_bank = bank,				\
 		.pupd_bit = 2,					\
 		.tri_reg = ((r)),				\
@@ -97,9 +95,9 @@ static struct tegra_function tegra194_functions[] = {
 		.tri_bit = 4,					\
 		.einput_bit = e_input,				\
 		.odrain_bit = e_od,				\
+		.sfsel_bit = 10,				\
 		.schmitt_bit = schmitt_b,			\
 		.drvtype_bit = 13,				\
-		.drv_reg = -1,					\
 		.parked_bitmask = 0
 
 #define drive_pex_l5_clkreq_n_pgg0				\
@@ -109,20 +107,20 @@ static struct tegra_function tegra194_functions[] = {
 
 #define PINGROUP(pg_name, f0, f1, f2, f3, r, bank, pupd, e_lpbk,	\
 		 e_input, e_lpdr, e_od, schmitt_b, drvtype, io_rail)	\
-	{							\
-		.name = #pg_name,				\
-		.pins = pg_name##_pins,				\
-		.npins = ARRAY_SIZE(pg_name##_pins),		\
-			.funcs = {				\
-				TEGRA_MUX_##f0,			\
-				TEGRA_MUX_##f1,			\
-				TEGRA_MUX_##f2,			\
-				TEGRA_MUX_##f3,			\
-			},					\
-		PIN_PINGROUP_ENTRY_Y(r, bank, pupd, e_lpbk,	\
-				     e_input, e_od,		\
-				     schmitt_b, drvtype),	\
-		drive_##pg_name,				\
+	{								\
+		.name = #pg_name,					\
+		.pins = pg_name##_pins,					\
+		.npins = ARRAY_SIZE(pg_name##_pins),			\
+			.funcs = {					\
+				TEGRA_MUX_##f0,				\
+				TEGRA_MUX_##f1,				\
+				TEGRA_MUX_##f2,				\
+				TEGRA_MUX_##f3,				\
+			},						\
+		PIN_PINGROUP_ENTRY_Y(r, bank, pupd, e_lpbk,		\
+				     e_input, e_od,			\
+				     schmitt_b, drvtype),		\
+		drive_##pg_name,					\
 	}
 
 static const struct tegra_pingroup tegra194_groups[] = {
@@ -133,7 +131,6 @@ static const struct tegra_pingroup tegra194_groups[] = {
 };
 
 static const struct tegra_pinctrl_soc_data tegra194_pinctrl = {
-	.ngpios = TEGRA_PIN_NUM_GPIOS,
 	.pins = tegra194_pins,
 	.npins = ARRAY_SIZE(tegra194_pins),
 	.functions = tegra194_functions,
@@ -143,6 +140,7 @@ static const struct tegra_pinctrl_soc_data tegra194_pinctrl = {
 	.hsm_in_mux = true,
 	.schmitt_in_mux = true,
 	.drvtype_in_mux = true,
+	.sfsel_in_mux = true,
 };
 
 static int tegra194_pinctrl_probe(struct platform_device *pdev)

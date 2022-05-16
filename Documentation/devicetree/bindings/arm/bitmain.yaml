@@ -10,9 +10,14 @@ maintainers:
   - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     items:
       - enum:
-        - bitmain,sophon-edge
+          - bitmain,sophon-edge
       - const: bitmain,bm1880
+
+additionalProperties: true
+
 ...

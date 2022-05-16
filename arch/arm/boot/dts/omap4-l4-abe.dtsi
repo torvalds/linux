@@ -1,14 +1,16 @@
 &l4_abe {						/* 0x40100000 */
-	compatible = "ti,omap4-l4-abe", "simple-bus";
+	compatible = "ti,omap4-l4-abe", "simple-pm-bus";
 	reg = <0x40100000 0x400>,
 	      <0x40100400 0x400>;
 	reg-names = "la", "ap";
+	power-domains = <&prm_abe>;
+	/* OMAP4_L4_ABE_CLKCTRL is read-only */
 	#address-cells = <1>;
 	#size-cells = <1>;
 	ranges = <0x00000000 0x40100000 0x100000>,	/* segment 0 */
 		 <0x49000000 0x49000000 0x100000>;
 	segment@0 {					/* 0x40100000 */
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges =
@@ -86,7 +88,6 @@
 
 		target-module@22000 {			/* 0x40122000, ap 2 02.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mcbsp1";
 			reg = <0x2208c 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
@@ -120,7 +121,6 @@
 
 		target-module@24000 {			/* 0x40124000, ap 4 04.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mcbsp2";
 			reg = <0x2408c 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
@@ -154,7 +154,6 @@
 
 		target-module@26000 {			/* 0x40126000, ap 6 06.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mcbsp3";
 			reg = <0x2608c 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
@@ -188,7 +187,6 @@
 
 		target-module@28000 {			/* 0x40128000, ap 8 08.0 */
 			compatible = "ti,sysc-mcasp", "ti,sysc";
-			ti,hwmods = "mcasp";
 			reg = <0x28000 0x4>,
 			      <0x28004 0x4>;
 			reg-names = "rev", "sysc";
@@ -223,7 +221,6 @@
 
 		target-module@2e000 {			/* 0x4012e000, ap 12 0c.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "dmic";
 			reg = <0x2e000 0x4>,
 			      <0x2e010 0x4>;
 			reg-names = "rev", "sysc";
@@ -283,7 +280,6 @@
 
 		mcpdm_module: target-module@32000 {	/* 0x40132000, ap 16 10.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mcpdm";
 			reg = <0x32000 0x4>,
 			      <0x32010 0x4>;
 			reg-names = "rev", "sysc";
@@ -318,7 +314,6 @@
 
 		target-module@38000 {			/* 0x40138000, ap 18 12.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer5";
 			reg = <0x38000 0x4>,
 			      <0x38010 0x4>;
 			reg-names = "rev", "sysc";
@@ -340,8 +335,9 @@
 				compatible = "ti,omap4430-timer";
 				reg = <0x00000000 0x80>,
 				      <0x49038000 0x80>;
-				clocks = <&abe_clkctrl OMAP4_TIMER5_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&abe_clkctrl OMAP4_TIMER5_CLKCTRL 24>,
+					 <&syc_clk_div_ck>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-dsp;
 			};
@@ -349,7 +345,6 @@
 
 		target-module@3a000 {			/* 0x4013a000, ap 20 14.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer6";
 			reg = <0x3a000 0x4>,
 			      <0x3a010 0x4>;
 			reg-names = "rev", "sysc";
@@ -371,8 +366,9 @@
 				compatible = "ti,omap4430-timer";
 				reg = <0x00000000 0x80>,
 				      <0x4903a000 0x80>;
-				clocks = <&abe_clkctrl OMAP4_TIMER6_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&abe_clkctrl OMAP4_TIMER6_CLKCTRL 24>,
+					 <&syc_clk_div_ck>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-dsp;
 			};
@@ -380,7 +376,6 @@
 
 		target-module@3c000 {			/* 0x4013c000, ap 22 16.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer7";
 			reg = <0x3c000 0x4>,
 			      <0x3c010 0x4>;
 			reg-names = "rev", "sysc";
@@ -402,8 +397,9 @@
 				compatible = "ti,omap4430-timer";
 				reg = <0x00000000 0x80>,
 				      <0x4903c000 0x80>;
-				clocks = <&abe_clkctrl OMAP4_TIMER7_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&abe_clkctrl OMAP4_TIMER7_CLKCTRL 24>,
+					 <&syc_clk_div_ck>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-dsp;
 			};
@@ -411,7 +407,6 @@
 
 		target-module@3e000 {			/* 0x4013e000, ap 24 18.0 */
 			compatible = "ti,sysc-omap4-timer", "ti,sysc";
-			ti,hwmods = "timer8";
 			reg = <0x3e000 0x4>,
 			      <0x3e010 0x4>;
 			reg-names = "rev", "sysc";
@@ -433,8 +428,9 @@
 				compatible = "ti,omap4430-timer";
 				reg = <0x00000000 0x80>,
 				      <0x4903e000 0x80>;
-				clocks = <&abe_clkctrl OMAP4_TIMER8_CLKCTRL 24>;
-				clock-names = "fck";
+				clocks = <&abe_clkctrl OMAP4_TIMER8_CLKCTRL 24>,
+					 <&syc_clk_div_ck>;
+				clock-names = "fck", "timer_sys_ck";
 				interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 				ti,timer-pwm;
 				ti,timer-dsp;
@@ -470,7 +466,6 @@
 
 		target-module@f1000 {			/* 0x401f1000, ap 32 20.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "aess";
 			reg = <0xf1000 0x4>,
 			      <0xf1010 0x4>;
 			reg-names = "rev", "sysc";

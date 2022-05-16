@@ -152,6 +152,7 @@ static const struct file_operations indydog_fops = {
 	.llseek		= no_llseek,
 	.write		= indydog_write,
 	.unlocked_ioctl	= indydog_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= indydog_open,
 	.release	= indydog_release,
 };

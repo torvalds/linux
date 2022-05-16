@@ -143,6 +143,7 @@
 };
 
 &ir {
+	linux,rc-map-name = "rc-tanix-tx3mini";
 	pinctrl-names = "default";
 	pinctrl-0 = <&r_ir_rx_pin>;
 	status = "okay";

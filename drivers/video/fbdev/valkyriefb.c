@@ -113,7 +113,7 @@ static int valkyrie_init_info(struct fb_info *info, struct fb_info_valkyrie *p);
 static void valkyrie_par_to_fix(struct fb_par_valkyrie *par, struct fb_fix_screeninfo *fix);
 static void valkyrie_init_fix(struct fb_fix_screeninfo *fix, struct fb_info_valkyrie *p);
 
-static struct fb_ops valkyriefb_ops = {
+static const struct fb_ops valkyriefb_ops = {
 	.owner =	THIS_MODULE,
 	.fb_check_var =	valkyriefb_check_var,
 	.fb_set_par =	valkyriefb_set_par,
@@ -331,7 +331,7 @@ int __init valkyriefb_init(void)
 		struct resource r;
 
 		dp = of_find_node_by_name(NULL, "valkyrie");
-		if (dp == 0)
+		if (!dp)
 			return 0;
 
 		if (of_address_to_resource(dp, 0, &r)) {
@@ -345,7 +345,7 @@ int __init valkyriefb_init(void)
 #endif /* ppc (!CONFIG_MAC) */
 
 	p = kzalloc(sizeof(*p), GFP_ATOMIC);
-	if (p == 0)
+	if (!p)
 		return -ENOMEM;
 
 	/* Map in frame buffer and registers */
@@ -356,7 +356,7 @@ int __init valkyriefb_init(void)
 	p->total_vram = 0x100000;
 	p->frame_buffer_phys = frame_buffer_phys;
 #ifdef CONFIG_MAC
-	p->frame_buffer = ioremap_nocache(frame_buffer_phys, p->total_vram);
+	p->frame_buffer = ioremap(frame_buffer_phys, p->total_vram);
 #else
 	p->frame_buffer = ioremap_wt(frame_buffer_phys, p->total_vram);
 #endif

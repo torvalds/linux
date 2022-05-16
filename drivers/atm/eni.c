@@ -31,12 +31,6 @@
 #include "suni.h"
 #include "eni.h"
 
-#if !defined(__i386__) && !defined(__x86_64__)
-#ifndef ioremap_nocache
-#define ioremap_nocache(X,Y) ioremap(X,Y)
-#endif 
-#endif
-
 /*
  * TODO:
  *
@@ -374,7 +368,7 @@ static int do_rx_dma(struct atm_vcc *vcc,struct sk_buff *skb,
 		here = (eni_vcc->descr+skip) & (eni_vcc->words-1);
 		dma[j++] = (here << MID_DMA_COUNT_SHIFT) | (vcc->vci
 		    << MID_DMA_VCI_SHIFT) | MID_DT_JK;
-		j++;
+		dma[j++] = 0;
 	}
 	here = (eni_vcc->descr+size+skip) & (eni_vcc->words-1);
 	if (!eff) size += skip;
@@ -447,7 +441,7 @@ static int do_rx_dma(struct atm_vcc *vcc,struct sk_buff *skb,
 	if (size != eff) {
 		dma[j++] = (here << MID_DMA_COUNT_SHIFT) |
 		    (vcc->vci << MID_DMA_VCI_SHIFT) | MID_DT_JK;
-		j++;
+		dma[j++] = 0;
 	}
 	if (!j || j > 2*RX_DMA_BUF) {
 		printk(KERN_CRIT DEV_LABEL "!j or j too big!!!\n");
@@ -1040,6 +1034,7 @@ static enum enq_res do_tx(struct sk_buff *skb)
 	u32 dma_rd,dma_wr;
 	u32 size; /* in words */
 	int aal5,dma_size,i,j;
+	unsigned char skb_data3;
 
 	DPRINTK(">do_tx\n");
 	NULLCHECK(skb);
@@ -1114,6 +1109,7 @@ DPRINTK("iovcnt = %d\n",skb_shinfo(skb)->nr_frags);
 		    vcc->dev->number);
 		return enq_jam;
 	}
+	skb_data3 = skb->data[3];
 	paddr = dma_map_single(&eni_dev->pci_dev->dev,skb->data,skb->len,
 			       DMA_TO_DEVICE);
 	ENI_PRV_PADDR(skb) = paddr;
@@ -1156,7 +1152,7 @@ DPRINTK("doing direct send\n"); /* @@@ well, this doesn't work anyway */
 	    (size/(ATM_CELL_PAYLOAD/4)),tx->send+tx->tx_pos*4);
 /*printk("dsc = 0x%08lx\n",(unsigned long) readl(tx->send+tx->tx_pos*4));*/
 	writel((vcc->vci << MID_SEG_VCI_SHIFT) |
-            (aal5 ? 0 : (skb->data[3] & 0xf)) |
+            (aal5 ? 0 : (skb_data3 & 0xf)) |
 	    (ATM_SKB(skb)->atm_options & ATM_ATMOPT_CLP ? MID_SEG_CLP : 0),
 	    tx->send+((tx->tx_pos+1) & (tx->words-1))*4);
 	DPRINTK("size: %d, len:%d\n",size,skb->len);
@@ -1725,7 +1721,7 @@ static int eni_do_init(struct atm_dev *dev)
 	}
 	printk(KERN_NOTICE DEV_LABEL "(itf %d): rev.%d,base=0x%lx,irq=%d,",
 	    dev->number,pci_dev->revision,real_base,eni_dev->irq);
-	if (!(base = ioremap_nocache(real_base,MAP_MAX_SIZE))) {
+	if (!(base = ioremap(real_base,MAP_MAX_SIZE))) {
 		printk("\n");
 		printk(KERN_ERR DEV_LABEL "(itf %d): can't set up page "
 		    "mapping\n",dev->number);
@@ -2033,21 +2029,6 @@ static int eni_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 	return dev->phy->ioctl(dev,cmd,arg);
 }
 
-
-static int eni_getsockopt(struct atm_vcc *vcc,int level,int optname,
-    void __user *optval,int optlen)
-{
-	return -EINVAL;
-}
-
-
-static int eni_setsockopt(struct atm_vcc *vcc,int level,int optname,
-    void __user *optval,unsigned int optlen)
-{
-	return -EINVAL;
-}
-
-
 static int eni_send(struct atm_vcc *vcc,struct sk_buff *skb)
 {
 	enum enq_res res;
@@ -2221,8 +2202,6 @@ static const struct atmdev_ops ops = {
 	.open		= eni_open,
 	.close		= eni_close,
 	.ioctl		= eni_ioctl,
-	.getsockopt	= eni_getsockopt,
-	.setsockopt	= eni_setsockopt,
 	.send		= eni_send,
 	.phy_put	= eni_phy_put,
 	.phy_get	= eni_phy_get,
@@ -2245,7 +2224,7 @@ static int eni_init_one(struct pci_dev *pci_dev,
 
 	rc = dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(32));
 	if (rc < 0)
-		goto out;
+		goto err_disable;
 
 	rc = -ENOMEM;
 	eni_dev = kmalloc(sizeof(struct eni_dev), GFP_KERNEL);

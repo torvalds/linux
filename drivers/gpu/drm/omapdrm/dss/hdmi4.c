@@ -20,13 +20,15 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/component.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <sound/omap-hdmi-audio.h>
 #include <media/cec.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_state_helper.h>
 
 #include "omapdss.h"
 #include "hdmi4_core.h"
@@ -237,20 +239,6 @@ static void hdmi_power_off_full(struct omap_hdmi *hdmi)
 	hdmi_power_off_core(hdmi);
 }
 
-static void hdmi_display_set_timings(struct omap_dss_device *dssdev,
-				     const struct drm_display_mode *mode)
-{
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-
-	mutex_lock(&hdmi->lock);
-
-	drm_display_mode_to_videomode(mode, &hdmi->cfg.vm);
-
-	dispc_set_tv_pclk(hdmi->dss->dispc, mode->clock * 1000);
-
-	mutex_unlock(&hdmi->lock);
-}
-
 static int hdmi_dump_regs(struct seq_file *s, void *p)
 {
 	struct omap_hdmi *hdmi = s->private;
@@ -272,23 +260,6 @@ static int hdmi_dump_regs(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int read_edid(struct omap_hdmi *hdmi, u8 *buf, int len)
-{
-	int r;
-
-	mutex_lock(&hdmi->lock);
-
-	r = hdmi_runtime_get(hdmi);
-	BUG_ON(r);
-
-	r = hdmi4_read_edid(&hdmi->core,  buf, len);
-
-	hdmi_runtime_put(hdmi);
-	mutex_unlock(&hdmi->lock);
-
-	return r;
-}
-
 static void hdmi_start_audio_stream(struct omap_hdmi *hd)
 {
 	hdmi_wp_audio_enable(&hd->wp, true);
@@ -299,62 +270,6 @@ static void hdmi_stop_audio_stream(struct omap_hdmi *hd)
 {
 	hdmi4_audio_stop(&hd->core, &hd->wp);
 	hdmi_wp_audio_enable(&hd->wp, false);
-}
-
-static void hdmi_display_enable(struct omap_dss_device *dssdev)
-{
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-	unsigned long flags;
-	int r;
-
-	DSSDBG("ENTER hdmi_display_enable\n");
-
-	mutex_lock(&hdmi->lock);
-
-	r = hdmi_power_on_full(hdmi);
-	if (r) {
-		DSSERR("failed to power on device\n");
-		goto done;
-	}
-
-	if (hdmi->audio_configured) {
-		r = hdmi4_audio_config(&hdmi->core, &hdmi->wp,
-				       &hdmi->audio_config,
-				       hdmi->cfg.vm.pixelclock);
-		if (r) {
-			DSSERR("Error restoring audio configuration: %d", r);
-			hdmi->audio_abort_cb(&hdmi->pdev->dev);
-			hdmi->audio_configured = false;
-		}
-	}
-
-	spin_lock_irqsave(&hdmi->audio_playing_lock, flags);
-	if (hdmi->audio_configured && hdmi->audio_playing)
-		hdmi_start_audio_stream(hdmi);
-	hdmi->display_enabled = true;
-	spin_unlock_irqrestore(&hdmi->audio_playing_lock, flags);
-
-done:
-	mutex_unlock(&hdmi->lock);
-}
-
-static void hdmi_display_disable(struct omap_dss_device *dssdev)
-{
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-	unsigned long flags;
-
-	DSSDBG("Enter hdmi_display_disable\n");
-
-	mutex_lock(&hdmi->lock);
-
-	spin_lock_irqsave(&hdmi->audio_playing_lock, flags);
-	hdmi_stop_audio_stream(hdmi);
-	hdmi->display_enabled = false;
-	spin_unlock_irqrestore(&hdmi->audio_playing_lock, flags);
-
-	hdmi_power_off_full(hdmi);
-
-	mutex_unlock(&hdmi->lock);
 }
 
 int hdmi4_core_enable(struct hdmi_core_data *core)
@@ -393,22 +308,139 @@ void hdmi4_core_disable(struct hdmi_core_data *core)
 	mutex_unlock(&hdmi->lock);
 }
 
-static int hdmi_connect(struct omap_dss_device *src,
-			struct omap_dss_device *dst)
+/* -----------------------------------------------------------------------------
+ * DRM Bridge Operations
+ */
+
+static int hdmi4_bridge_attach(struct drm_bridge *bridge,
+			       enum drm_bridge_attach_flags flags)
 {
-	return omapdss_device_connect(dst->dss, dst, dst->next);
+	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
+
+	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+		return -EINVAL;
+
+	return drm_bridge_attach(bridge->encoder, hdmi->output.next_bridge,
+				 bridge, flags);
 }
 
-static void hdmi_disconnect(struct omap_dss_device *src,
-			    struct omap_dss_device *dst)
+static void hdmi4_bridge_mode_set(struct drm_bridge *bridge,
+				  const struct drm_display_mode *mode,
+				  const struct drm_display_mode *adjusted_mode)
 {
-	omapdss_device_disconnect(dst, dst->next);
+	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
+
+	mutex_lock(&hdmi->lock);
+
+	drm_display_mode_to_videomode(adjusted_mode, &hdmi->cfg.vm);
+
+	dispc_set_tv_pclk(hdmi->dss->dispc, adjusted_mode->clock * 1000);
+
+	mutex_unlock(&hdmi->lock);
 }
 
-static int hdmi_read_edid(struct omap_dss_device *dssdev,
-		u8 *edid, int len)
+static void hdmi4_bridge_enable(struct drm_bridge *bridge,
+				struct drm_bridge_state *bridge_state)
 {
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
+	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
+	struct drm_atomic_state *state = bridge_state->base.state;
+	struct drm_connector_state *conn_state;
+	struct drm_connector *connector;
+	struct drm_crtc_state *crtc_state;
+	unsigned long flags;
+	int ret;
+
+	/*
+	 * None of these should fail, as the bridge can't be enabled without a
+	 * valid CRTC to connector path with fully populated new states.
+	 */
+	connector = drm_atomic_get_new_connector_for_encoder(state,
+							     bridge->encoder);
+	if (WARN_ON(!connector))
+		return;
+	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (WARN_ON(!conn_state))
+		return;
+	crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
+	if (WARN_ON(!crtc_state))
+		return;
+
+	hdmi->cfg.hdmi_dvi_mode = connector->display_info.is_hdmi
+				? HDMI_HDMI : HDMI_DVI;
+
+	if (connector->display_info.is_hdmi) {
+		const struct drm_display_mode *mode;
+		struct hdmi_avi_infoframe avi;
+
+		mode = &crtc_state->adjusted_mode;
+		ret = drm_hdmi_avi_infoframe_from_display_mode(&avi, connector,
+							       mode);
+		if (ret == 0)
+			hdmi->cfg.infoframe = avi;
+	}
+
+	mutex_lock(&hdmi->lock);
+
+	ret = hdmi_power_on_full(hdmi);
+	if (ret) {
+		DSSERR("failed to power on device\n");
+		goto done;
+	}
+
+	if (hdmi->audio_configured) {
+		ret = hdmi4_audio_config(&hdmi->core, &hdmi->wp,
+					 &hdmi->audio_config,
+					 hdmi->cfg.vm.pixelclock);
+		if (ret) {
+			DSSERR("Error restoring audio configuration: %d", ret);
+			hdmi->audio_abort_cb(&hdmi->pdev->dev);
+			hdmi->audio_configured = false;
+		}
+	}
+
+	spin_lock_irqsave(&hdmi->audio_playing_lock, flags);
+	if (hdmi->audio_configured && hdmi->audio_playing)
+		hdmi_start_audio_stream(hdmi);
+	hdmi->display_enabled = true;
+	spin_unlock_irqrestore(&hdmi->audio_playing_lock, flags);
+
+done:
+	mutex_unlock(&hdmi->lock);
+}
+
+static void hdmi4_bridge_disable(struct drm_bridge *bridge,
+				 struct drm_bridge_state *bridge_state)
+{
+	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
+	unsigned long flags;
+
+	mutex_lock(&hdmi->lock);
+
+	spin_lock_irqsave(&hdmi->audio_playing_lock, flags);
+	hdmi_stop_audio_stream(hdmi);
+	hdmi->display_enabled = false;
+	spin_unlock_irqrestore(&hdmi->audio_playing_lock, flags);
+
+	hdmi_power_off_full(hdmi);
+
+	mutex_unlock(&hdmi->lock);
+}
+
+static void hdmi4_bridge_hpd_notify(struct drm_bridge *bridge,
+				    enum drm_connector_status status)
+{
+	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
+
+	if (status == connector_status_disconnected)
+		hdmi4_cec_set_phys_addr(&hdmi->core, CEC_PHYS_ADDR_INVALID);
+}
+
+static struct edid *hdmi4_bridge_get_edid(struct drm_bridge *bridge,
+					  struct drm_connector *connector)
+{
+	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
+	struct edid *edid = NULL;
+	unsigned int cec_addr;
 	bool need_enable;
 	int r;
 
@@ -417,63 +449,65 @@ static int hdmi_read_edid(struct omap_dss_device *dssdev,
 	if (need_enable) {
 		r = hdmi4_core_enable(&hdmi->core);
 		if (r)
-			return r;
+			return NULL;
 	}
 
-	r = read_edid(hdmi, edid, len);
-	if (r >= 256)
-		hdmi4_cec_set_phys_addr(&hdmi->core,
-					cec_get_edid_phys_addr(edid, r, NULL));
-	else
-		hdmi4_cec_set_phys_addr(&hdmi->core, CEC_PHYS_ADDR_INVALID);
+	mutex_lock(&hdmi->lock);
+	r = hdmi_runtime_get(hdmi);
+	BUG_ON(r);
+
+	r = hdmi4_core_ddc_init(&hdmi->core);
+	if (r)
+		goto done;
+
+	edid = drm_do_get_edid(connector, hdmi4_core_ddc_read, &hdmi->core);
+
+done:
+	hdmi_runtime_put(hdmi);
+	mutex_unlock(&hdmi->lock);
+
+	if (edid && edid->extensions) {
+		unsigned int len = (edid->extensions + 1) * EDID_LENGTH;
+
+		cec_addr = cec_get_edid_phys_addr((u8 *)edid, len, NULL);
+	} else {
+		cec_addr = CEC_PHYS_ADDR_INVALID;
+	}
+
+	hdmi4_cec_set_phys_addr(&hdmi->core, cec_addr);
+
 	if (need_enable)
 		hdmi4_core_disable(&hdmi->core);
 
-	return r;
+	return edid;
 }
 
-static void hdmi_lost_hotplug(struct omap_dss_device *dssdev)
-{
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-
-	hdmi4_cec_set_phys_addr(&hdmi->core, CEC_PHYS_ADDR_INVALID);
-}
-
-static int hdmi_set_infoframe(struct omap_dss_device *dssdev,
-		const struct hdmi_avi_infoframe *avi)
-{
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-
-	hdmi->cfg.infoframe = *avi;
-	return 0;
-}
-
-static int hdmi_set_hdmi_mode(struct omap_dss_device *dssdev,
-		bool hdmi_mode)
-{
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-
-	hdmi->cfg.hdmi_dvi_mode = hdmi_mode ? HDMI_HDMI : HDMI_DVI;
-	return 0;
-}
-
-static const struct omap_dss_device_ops hdmi_ops = {
-	.connect		= hdmi_connect,
-	.disconnect		= hdmi_disconnect,
-
-	.enable			= hdmi_display_enable,
-	.disable		= hdmi_display_disable,
-
-	.set_timings		= hdmi_display_set_timings,
-
-	.read_edid		= hdmi_read_edid,
-
-	.hdmi = {
-		.lost_hotplug		= hdmi_lost_hotplug,
-		.set_infoframe		= hdmi_set_infoframe,
-		.set_hdmi_mode		= hdmi_set_hdmi_mode,
-	},
+static const struct drm_bridge_funcs hdmi4_bridge_funcs = {
+	.attach = hdmi4_bridge_attach,
+	.mode_set = hdmi4_bridge_mode_set,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_enable = hdmi4_bridge_enable,
+	.atomic_disable = hdmi4_bridge_disable,
+	.hpd_notify = hdmi4_bridge_hpd_notify,
+	.get_edid = hdmi4_bridge_get_edid,
 };
+
+static void hdmi4_bridge_init(struct omap_hdmi *hdmi)
+{
+	hdmi->bridge.funcs = &hdmi4_bridge_funcs;
+	hdmi->bridge.of_node = hdmi->pdev->dev.of_node;
+	hdmi->bridge.ops = DRM_BRIDGE_OP_EDID;
+	hdmi->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
+
+	drm_bridge_add(&hdmi->bridge);
+}
+
+static void hdmi4_bridge_cleanup(struct omap_hdmi *hdmi)
+{
+	drm_bridge_remove(&hdmi->bridge);
+}
 
 /* -----------------------------------------------------------------------------
  * Audio Callbacks
@@ -666,19 +700,21 @@ static int hdmi4_init_output(struct omap_hdmi *hdmi)
 	struct omap_dss_device *out = &hdmi->output;
 	int r;
 
+	hdmi4_bridge_init(hdmi);
+
 	out->dev = &hdmi->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_HDMI;
 	out->type = OMAP_DISPLAY_TYPE_HDMI;
 	out->name = "hdmi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
-	out->ops = &hdmi_ops;
 	out->owner = THIS_MODULE;
-	out->of_ports = BIT(0);
-	out->ops_flags = OMAP_DSS_DEVICE_OP_EDID;
+	out->of_port = 0;
 
-	r = omapdss_device_init_output(out);
-	if (r < 0)
+	r = omapdss_device_init_output(out, &hdmi->bridge);
+	if (r < 0) {
+		hdmi4_bridge_cleanup(hdmi);
 		return r;
+	}
 
 	omapdss_device_register(out);
 
@@ -691,6 +727,8 @@ static void hdmi4_uninit_output(struct omap_hdmi *hdmi)
 
 	omapdss_device_unregister(out);
 	omapdss_device_cleanup_output(out);
+
+	hdmi4_bridge_cleanup(hdmi);
 }
 
 static int hdmi4_probe_of(struct omap_hdmi *hdmi)

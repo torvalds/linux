@@ -50,7 +50,7 @@ struct	__queue	{
 
 static inline struct list_head *get_list_head(struct __queue *queue)
 {
-	return &(queue->queue);
+	return &queue->queue;
 }
 
 static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
@@ -69,10 +69,14 @@ void _rtw_init_queue(struct __queue *pqueue);
 struct rtw_netdev_priv_indicator {
 	void *priv;
 };
+
 struct net_device *rtw_alloc_etherdev_with_old_priv(void *old_priv);
 
-#define rtw_netdev_priv(netdev)					\
-	(((struct rtw_netdev_priv_indicator *)netdev_priv(netdev))->priv)
+static inline struct adapter *rtw_netdev_priv(struct net_device *netdev)
+{
+	return ((struct rtw_netdev_priv_indicator *)netdev_priv(netdev))->priv;
+}
+
 void rtw_free_netdev(struct net_device *netdev);
 
 #define FUNC_NDEV_FMT "%s(%s)"
@@ -82,7 +86,7 @@ void rtw_free_netdev(struct net_device *netdev);
 
 /* Macros for handling unaligned memory accesses */
 
-#define RTW_GET_BE24(a) ((((u32)(a)[0]) << 16) | (((u32) (a)[1]) << 8) | \
+#define RTW_GET_BE24(a) ((((u32)(a)[0]) << 16) | (((u32)(a)[1]) << 8) | \
 			 ((u32)(a)[2]))
 
 void rtw_buf_free(u8 **buf, u32 *buf_len);

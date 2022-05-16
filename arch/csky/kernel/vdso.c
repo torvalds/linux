@@ -50,7 +50,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	unsigned long addr;
 	struct mm_struct *mm = current->mm;
 
-	down_write(&mm->mmap_sem);
+	mmap_write_lock(mm);
 
 	addr = get_unmapped_area(NULL, STACK_TOP, PAGE_SIZE, 0, 0);
 	if (IS_ERR_VALUE(addr)) {
@@ -70,7 +70,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	mm->context.vdso = (void *)addr;
 
 up_fail:
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return ret;
 }
 

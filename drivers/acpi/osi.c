@@ -473,9 +473,9 @@ static const struct dmi_system_id acpi_osi_dmi_table[] __initconst = {
 	 */
 
 	/*
-	 * Without this this EEEpc exports a non working WMI interface, with
-	 * this it exports a working "good old" eeepc_laptop interface, fixing
-	 * both brightness control, and rfkill not working.
+	 * Without this EEEpc exports a non working WMI interface, with
+	 * this it exports a working "good old" eeepc_laptop interface,
+	 * fixing both brightness control, and rfkill not working.
 	 */
 	{
 	.callback = dmi_enable_osi_linux,

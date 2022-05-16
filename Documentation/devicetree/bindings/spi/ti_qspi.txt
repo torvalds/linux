@@ -29,7 +29,7 @@ modification to bootloader.
 Example:
 
 For am4372:
-qspi: qspi@4b300000 {
+qspi: qspi@47900000 {
 	compatible = "ti,am4372-qspi";
 	reg = <0x47900000 0x100>, <0x30000000 0x4000000>;
 	reg-names = "qspi_base", "qspi_mmap";

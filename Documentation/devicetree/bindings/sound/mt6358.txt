@@ -10,9 +10,15 @@ Required properties:
 - compatible : "mediatek,mt6358-sound".
 - Avdd-supply : power source of AVDD
 
+Optional properties:
+- mediatek,dmic-mode : Indicates how many data pins are used to transmit two
+	channels of PDM signal. 0 means two wires, 1 means one wire. Default
+	value is 0.
+
 Example:
 
 mt6358_snd {
 	compatible = "mediatek,mt6358-sound";
 	Avdd-supply = <&mt6358_vaud28_reg>;
+	mediatek,dmic-mode = <0>;
 };

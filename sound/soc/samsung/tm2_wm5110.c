@@ -92,8 +92,8 @@ static int tm2_stop_sysclk(struct snd_soc_card *card)
 static int tm2_aif1_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 	struct tm2_machine_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 
 	switch (params_rate(params)) {
@@ -133,8 +133,8 @@ static struct snd_soc_ops tm2_aif1_ops = {
 static int tm2_aif2_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 	unsigned int asyncclk_rate;
 	int ret;
 
@@ -187,8 +187,8 @@ static int tm2_aif2_hw_params(struct snd_pcm_substream *substream,
 
 static int tm2_aif2_hw_free(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 	int ret;
 
 	/* disable FLL2 */
@@ -208,8 +208,8 @@ static struct snd_soc_ops tm2_aif2_ops = {
 static int tm2_hdmi_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	unsigned int bfs;
 	int bitwidth, ret;
 
@@ -282,9 +282,9 @@ static int tm2_set_bias_level(struct snd_soc_card *card,
 {
 	struct snd_soc_pcm_runtime *rtd;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 
-	if (dapm->dev != rtd->codec_dai->dev)
+	if (dapm->dev != asoc_rtd_to_codec(rtd, 0)->dev)
 		return 0;
 
 	switch (level) {
@@ -314,9 +314,9 @@ static int tm2_late_probe(struct snd_soc_card *card)
 	struct snd_soc_dai *aif2_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[TM2_DAI_AIF1].name);
-	aif1_dai = rtd->codec_dai;
-	priv->component = rtd->codec_dai->component;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[TM2_DAI_AIF1]);
+	aif1_dai = asoc_rtd_to_codec(rtd, 0);
+	priv->component = asoc_rtd_to_codec(rtd, 0)->component;
 
 	ret = snd_soc_dai_set_sysclk(aif1_dai, ARIZONA_CLK_SYSCLK, 0, 0);
 	if (ret < 0) {
@@ -324,8 +324,8 @@ static int tm2_late_probe(struct snd_soc_card *card)
 		return ret;
 	}
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[TM2_DAI_AIF2].name);
-	aif2_dai = rtd->codec_dai;
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[TM2_DAI_AIF2]);
+	aif2_dai = asoc_rtd_to_codec(rtd, 0);
 
 	ret = snd_soc_dai_set_sysclk(aif2_dai, ARIZONA_CLK_ASYNCCLK, 0, 0);
 	if (ret < 0) {
@@ -611,7 +611,8 @@ static int tm2_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret < 0) {
-		dev_err(dev, "Failed to register card: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "Failed to register card: %d\n", ret);
 		goto dai_node_put;
 	}
 

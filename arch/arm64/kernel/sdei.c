@@ -2,6 +2,7 @@
 // Copyright (C) 2017 Arm Ltd.
 #define pr_fmt(fmt) "sdei: " fmt
 
+#include <linux/arm-smccc.h>
 #include <linux/arm_sdei.h>
 #include <linux/hardirq.h>
 #include <linux/irqflags.h>
@@ -9,6 +10,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/alternative.h>
+#include <asm/exception.h>
 #include <asm/kprobes.h>
 #include <asm/mmu.h>
 #include <asm/ptrace.h>
@@ -94,19 +96,7 @@ static bool on_sdei_normal_stack(unsigned long sp, struct stack_info *info)
 	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_normal_ptr);
 	unsigned long high = low + SDEI_STACK_SIZE;
 
-	if (!low)
-		return false;
-
-	if (sp < low || sp >= high)
-		return false;
-
-	if (info) {
-		info->low = low;
-		info->high = high;
-		info->type = STACK_TYPE_SDEI_NORMAL;
-	}
-
-	return true;
+	return on_stack(sp, low, high, STACK_TYPE_SDEI_NORMAL, info);
 }
 
 static bool on_sdei_critical_stack(unsigned long sp, struct stack_info *info)
@@ -114,19 +104,7 @@ static bool on_sdei_critical_stack(unsigned long sp, struct stack_info *info)
 	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_critical_ptr);
 	unsigned long high = low + SDEI_STACK_SIZE;
 
-	if (!low)
-		return false;
-
-	if (sp < low || sp >= high)
-		return false;
-
-	if (info) {
-		info->low = low;
-		info->high = high;
-		info->type = STACK_TYPE_SDEI_CRITICAL;
-	}
-
-	return true;
+	return on_stack(sp, low, high, STACK_TYPE_SDEI_CRITICAL, info);
 }
 
 bool _on_sdei_stack(unsigned long sp, struct stack_info *info)
@@ -161,7 +139,7 @@ unsigned long sdei_arch_get_entry_point(int conduit)
 			return 0;
 	}
 
-	sdei_exit_mode = (conduit == CONDUIT_HVC) ? SDEI_EXIT_HVC : SDEI_EXIT_SMC;
+	sdei_exit_mode = (conduit == SMCCC_CONDUIT_HVC) ? SDEI_EXIT_HVC : SDEI_EXIT_SMC;
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	if (arm64_kernel_unmapped_at_el0()) {
@@ -203,7 +181,7 @@ static __kprobes unsigned long _sdei_handler(struct pt_regs *regs,
 
 	/*
 	 * We didn't take an exception to get here, set PAN. UAO will be cleared
-	 * by sdei_event_handler()s set_fs(USER_DS) call.
+	 * by sdei_event_handler()s force_uaccess_begin() call.
 	 */
 	__uaccess_enable_hw_pan();
 
@@ -246,26 +224,16 @@ static __kprobes unsigned long _sdei_handler(struct pt_regs *regs,
 }
 
 
-asmlinkage __kprobes notrace unsigned long
+asmlinkage noinstr unsigned long
 __sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
 {
 	unsigned long ret;
-	bool do_nmi_exit = false;
 
-	/*
-	 * nmi_enter() deals with printk() re-entrance and use of RCU when
-	 * RCU believed this CPU was idle. Because critical events can
-	 * interrupt normal events, we may already be in_nmi().
-	 */
-	if (!in_nmi()) {
-		nmi_enter();
-		do_nmi_exit = true;
-	}
+	arm64_enter_nmi(regs);
 
 	ret = _sdei_handler(regs, arg);
 
-	if (do_nmi_exit)
-		nmi_exit();
+	arm64_exit_nmi(regs);
 
 	return ret;
 }

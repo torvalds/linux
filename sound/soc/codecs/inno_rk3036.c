@@ -48,11 +48,9 @@ static int rk3036_codec_antipop_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	int val, ret, regval;
+	int val, regval;
 
-	ret = snd_soc_component_read(component, INNO_R09, &regval);
-	if (ret)
-		return ret;
+	regval = snd_soc_component_read(component, INNO_R09);
 	val = ((regval >> INNO_R09_HPL_ANITPOP_SHIFT) &
 	       INNO_R09_HP_ANTIPOP_MSK) == INNO_R09_HP_ANTIPOP_ON;
 	ucontrol->value.integer.value[0] = val;

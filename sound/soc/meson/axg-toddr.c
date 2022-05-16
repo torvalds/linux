@@ -18,6 +18,7 @@
 #define CTRL0_TODDR_SEL_RESAMPLE	BIT(30)
 #define CTRL0_TODDR_EXT_SIGNED		BIT(29)
 #define CTRL0_TODDR_PP_MODE		BIT(28)
+#define CTRL0_TODDR_SYNC_CH		BIT(27)
 #define CTRL0_TODDR_TYPE_MASK		GENMASK(15, 13)
 #define CTRL0_TODDR_TYPE(x)		((x) << 13)
 #define CTRL0_TODDR_MSB_POS_MASK	GENMASK(12, 8)
@@ -89,7 +90,6 @@ static int axg_toddr_dai_startup(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct axg_fifo *fifo = snd_soc_dai_get_drvdata(dai);
-	unsigned int fifo_threshold;
 	int ret;
 
 	/* Enable pclk to access registers and clock the fifo ip */
@@ -106,11 +106,6 @@ static int axg_toddr_dai_startup(struct snd_pcm_substream *substream,
 
 	/* Apply single buffer mode to the interface */
 	regmap_update_bits(fifo->map, FIFO_CTRL0, CTRL0_TODDR_PP_MODE, 0);
-
-	/* TODDR does not have a configurable fifo depth */
-	fifo_threshold = AXG_FIFO_MIN_CNT - 1;
-	regmap_update_bits(fifo->map, FIFO_CTRL1, CTRL1_THRESHOLD_MASK,
-			   CTRL1_THRESHOLD(fifo_threshold));
 
 	return 0;
 }
@@ -181,18 +176,45 @@ static const struct snd_soc_component_driver axg_toddr_component_drv = {
 	.num_dapm_widgets	= ARRAY_SIZE(axg_toddr_dapm_widgets),
 	.dapm_routes		= axg_toddr_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(axg_toddr_dapm_routes),
-	.ops			= &axg_fifo_pcm_ops
+	.open			= axg_fifo_pcm_open,
+	.close			= axg_fifo_pcm_close,
+	.hw_params		= axg_fifo_pcm_hw_params,
+	.hw_free		= axg_fifo_pcm_hw_free,
+	.pointer		= axg_fifo_pcm_pointer,
+	.trigger		= axg_fifo_pcm_trigger,
 };
 
 static const struct axg_fifo_match_data axg_toddr_match_data = {
-	.component_drv	= &axg_toddr_component_drv,
-	.dai_drv	= &axg_toddr_dai_drv
+	.field_threshold	= REG_FIELD(FIFO_CTRL1, 16, 23),
+	.component_drv		= &axg_toddr_component_drv,
+	.dai_drv		= &axg_toddr_dai_drv
 };
+
+static int g12a_toddr_dai_startup(struct snd_pcm_substream *substream,
+				 struct snd_soc_dai *dai)
+{
+	struct axg_fifo *fifo = snd_soc_dai_get_drvdata(dai);
+	int ret;
+
+	ret = axg_toddr_dai_startup(substream, dai);
+	if (ret)
+		return ret;
+
+	/*
+	 * Make sure the first channel ends up in the at beginning of the output
+	 * As weird as it looks, without this the first channel may be misplaced
+	 * in memory, with a random shift of 2 channels.
+	 */
+	regmap_update_bits(fifo->map, FIFO_CTRL0, CTRL0_TODDR_SYNC_CH,
+			   CTRL0_TODDR_SYNC_CH);
+
+	return 0;
+}
 
 static const struct snd_soc_dai_ops g12a_toddr_ops = {
 	.prepare	= g12a_toddr_dai_prepare,
 	.hw_params	= axg_toddr_dai_hw_params,
-	.startup	= axg_toddr_dai_startup,
+	.startup	= g12a_toddr_dai_startup,
 	.shutdown	= axg_toddr_dai_shutdown,
 };
 
@@ -214,12 +236,18 @@ static const struct snd_soc_component_driver g12a_toddr_component_drv = {
 	.num_dapm_widgets	= ARRAY_SIZE(axg_toddr_dapm_widgets),
 	.dapm_routes		= axg_toddr_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(axg_toddr_dapm_routes),
-	.ops			= &g12a_fifo_pcm_ops
+	.open			= axg_fifo_pcm_open,
+	.close			= axg_fifo_pcm_close,
+	.hw_params		= g12a_fifo_pcm_hw_params,
+	.hw_free		= axg_fifo_pcm_hw_free,
+	.pointer		= axg_fifo_pcm_pointer,
+	.trigger		= axg_fifo_pcm_trigger,
 };
 
 static const struct axg_fifo_match_data g12a_toddr_match_data = {
-	.component_drv	= &g12a_toddr_component_drv,
-	.dai_drv	= &g12a_toddr_dai_drv
+	.field_threshold	= REG_FIELD(FIFO_CTRL1, 16, 23),
+	.component_drv		= &g12a_toddr_component_drv,
+	.dai_drv		= &g12a_toddr_dai_drv
 };
 
 static const char * const sm1_toddr_sel_texts[] = {
@@ -278,12 +306,18 @@ static const struct snd_soc_component_driver sm1_toddr_component_drv = {
 	.num_dapm_widgets	= ARRAY_SIZE(sm1_toddr_dapm_widgets),
 	.dapm_routes		= sm1_toddr_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(sm1_toddr_dapm_routes),
-	.ops			= &g12a_fifo_pcm_ops
+	.open			= axg_fifo_pcm_open,
+	.close			= axg_fifo_pcm_close,
+	.hw_params		= g12a_fifo_pcm_hw_params,
+	.hw_free		= axg_fifo_pcm_hw_free,
+	.pointer		= axg_fifo_pcm_pointer,
+	.trigger		= axg_fifo_pcm_trigger,
 };
 
 static const struct axg_fifo_match_data sm1_toddr_match_data = {
-	.component_drv	= &sm1_toddr_component_drv,
-	.dai_drv	= &g12a_toddr_dai_drv
+	.field_threshold	= REG_FIELD(FIFO_CTRL1, 12, 23),
+	.component_drv		= &sm1_toddr_component_drv,
+	.dai_drv		= &g12a_toddr_dai_drv
 };
 
 static const struct of_device_id axg_toddr_of_match[] = {

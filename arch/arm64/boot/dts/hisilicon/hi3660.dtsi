@@ -974,7 +974,7 @@
 			clocks = <&crg_ctrl HI3660_CLK_GATE_SPI2>;
 			clock-names = "apb_pclk";
 			pinctrl-names = "default";
-			pinctrl-0 = <&spi2_pmx_func>;
+			pinctrl-0 = <&spi2_pmx_func &spi2_cfg_func>;
 			num-cs = <1>;
 			cs-gpios = <&gpio27 2 0>;
 			status = "disabled";
@@ -989,7 +989,7 @@
 			clocks = <&crg_ctrl HI3660_CLK_GATE_SPI3>;
 			clock-names = "apb_pclk";
 			pinctrl-names = "default";
-			pinctrl-0 = <&spi3_pmx_func>;
+			pinctrl-0 = <&spi3_pmx_func &spi3_cfg_func>;
 			num-cs = <1>;
 			cs-gpios = <&gpio18 5 0>;
 			status = "disabled";
@@ -1089,16 +1089,18 @@
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xe8a06000 0x0 0x1000>;
 			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&crg_ctrl HI3660_OSC32K>;
-			clock-names = "apb_pclk";
+			clocks = <&crg_ctrl HI3660_OSC32K>,
+				 <&crg_ctrl HI3660_OSC32K>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		watchdog1: watchdog@e8a07000 {
 			compatible = "arm,sp805-wdt", "arm,primecell";
 			reg = <0x0 0xe8a07000 0x0 0x1000>;
 			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&crg_ctrl HI3660_OSC32K>;
-			clock-names = "apb_pclk";
+			clocks = <&crg_ctrl HI3660_OSC32K>,
+				 <&crg_ctrl HI3660_OSC32K>;
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		tsensor: tsensor@fff30000 {
@@ -1151,6 +1153,40 @@
 					};
 				};
 			};
+		};
+
+		usb3_otg_bc: usb3_otg_bc@ff200000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x0 0xff200000 0x0 0x1000>;
+
+			usb_phy: usb-phy {
+				compatible = "hisilicon,hi3660-usb-phy";
+				#phy-cells = <0>;
+				hisilicon,pericrg-syscon = <&crg_ctrl>;
+				hisilicon,pctrl-syscon = <&pctrl>;
+				hisilicon,eye-diagram-param = <0x22466e4>;
+			};
+		};
+
+		dwc3: dwc3@ff100000 {
+			compatible = "snps,dwc3";
+			reg = <0x0 0xff100000 0x0 0x100000>;
+
+			clocks = <&crg_ctrl HI3660_CLK_ABB_USB>,
+				 <&crg_ctrl HI3660_ACLK_GATE_USB3OTG>;
+			clock-names = "ref", "bus_early";
+
+			assigned-clocks = <&crg_ctrl HI3660_ACLK_GATE_USB3OTG>;
+			assigned-clock-rates = <229000000>;
+
+			resets = <&crg_rst 0x90 8>,
+				 <&crg_rst 0x90 7>,
+				 <&crg_rst 0x90 6>,
+				 <&crg_rst 0x90 5>;
+
+			interrupts = <0 159 4>, <0 161 4>;
+			phys = <&usb_phy>;
+			phy-names = "usb3-phy";
 		};
 	};
 };

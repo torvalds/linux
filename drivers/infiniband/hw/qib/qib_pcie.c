@@ -145,7 +145,7 @@ int qib_pcie_ddinit(struct qib_devdata *dd, struct pci_dev *pdev,
 	addr = pci_resource_start(pdev, 0);
 	len = pci_resource_len(pdev, 0);
 
-	dd->kregbase = ioremap_nocache(addr, len);
+	dd->kregbase = ioremap(addr, len);
 	if (!dd->kregbase)
 		return -ENOMEM;
 

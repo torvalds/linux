@@ -8,6 +8,7 @@
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
@@ -100,6 +101,8 @@
 #define AT91_SAMA5D2_IER_YRDY   BIT(21)
 /* Interrupt Enable Register - TS pressure measurement ready */
 #define AT91_SAMA5D2_IER_PRDY   BIT(22)
+/* Interrupt Enable Register - Data ready */
+#define AT91_SAMA5D2_IER_DRDY   BIT(24)
 /* Interrupt Enable Register - general overrun error */
 #define AT91_SAMA5D2_IER_GOVRE BIT(25)
 /* Interrupt Enable Register - Pen detect */
@@ -344,7 +347,7 @@ struct at91_adc_trigger {
 };
 
 /**
- * at91_adc_dma - at91-sama5d2 dma information struct
+ * struct at91_adc_dma - at91-sama5d2 dma information struct
  * @dma_chan:		the dma channel acquired
  * @rx_buf:		dma coherent allocated area
  * @rx_dma_buf:		dma handler for the buffer
@@ -366,7 +369,7 @@ struct at91_adc_dma {
 };
 
 /**
- * at91_adc_touch - at91-sama5d2 touchscreen information struct
+ * struct at91_adc_touch - at91-sama5d2 touchscreen information struct
  * @sample_period_val:		the value for periodic trigger interval
  * @touching:			is the pen touching the screen or not
  * @x_pos:			temporary placeholder for pressure computation
@@ -399,6 +402,7 @@ struct at91_adc_state {
 	wait_queue_head_t		wq_data_available;
 	struct at91_adc_dma		dma_st;
 	struct at91_adc_touch		touch_st;
+	struct iio_dev			*indio_dev;
 	u16				buffer[AT91_BUFFER_MAX_HWORDS];
 	/*
 	 * lock to prevent concurrent 'single conversion' requests through
@@ -484,6 +488,21 @@ static inline int at91_adc_of_xlate(struct iio_dev *indio_dev,
 				    const struct of_phandle_args *iiospec)
 {
 	return at91_adc_chan_xlate(indio_dev, iiospec->args[0]);
+}
+
+static unsigned int at91_adc_active_scan_mask_to_reg(struct iio_dev *indio_dev)
+{
+	u32 mask = 0;
+	u8 bit;
+
+	for_each_set_bit(bit, indio_dev->active_scan_mask,
+			 indio_dev->num_channels) {
+		struct iio_chan_spec const *chan =
+			 at91_adc_chan_get(indio_dev, bit);
+		mask |= BIT(chan->channel);
+	}
+
+	return mask & GENMASK(11, 0);
 }
 
 static void at91_adc_config_emr(struct at91_adc_state *st)
@@ -624,13 +643,13 @@ static u16 at91_adc_touch_pos(struct at91_adc_state *st, int reg)
 	/* first half of register is the x or y, second half is the scale */
 	val = at91_adc_readl(st, reg);
 	if (!val)
-		dev_dbg(&iio_priv_to_dev(st)->dev, "pos is 0\n");
+		dev_dbg(&st->indio_dev->dev, "pos is 0\n");
 
 	pos = val & AT91_SAMA5D2_XYZ_MASK;
 	result = (pos << AT91_SAMA5D2_MAX_POS_BITS) - pos;
 	scale = (val >> 16) & AT91_SAMA5D2_XYZ_MASK;
 	if (scale == 0) {
-		dev_err(&iio_priv_to_dev(st)->dev, "scale is 0\n");
+		dev_err(&st->indio_dev->dev, "scale is 0\n");
 		return 0;
 	}
 	result /= scale;
@@ -710,7 +729,6 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 	struct iio_dev *indio = iio_trigger_get_drvdata(trig);
 	struct at91_adc_state *st = iio_priv(indio);
 	u32 status = at91_adc_readl(st, AT91_SAMA5D2_TRGR);
-	u8 bit;
 
 	/* clear TRGMOD */
 	status &= ~AT91_SAMA5D2_TRGR_TRGMOD_MASK;
@@ -720,35 +738,6 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 
 	/* set/unset hw trigger */
 	at91_adc_writel(st, AT91_SAMA5D2_TRGR, status);
-
-	for_each_set_bit(bit, indio->active_scan_mask, indio->num_channels) {
-		struct iio_chan_spec const *chan = at91_adc_chan_get(indio, bit);
-
-		if (!chan)
-			continue;
-		/* these channel types cannot be handled by this trigger */
-		if (chan->type == IIO_POSITIONRELATIVE ||
-		    chan->type == IIO_PRESSURE)
-			continue;
-
-		if (state) {
-			at91_adc_writel(st, AT91_SAMA5D2_CHER,
-					BIT(chan->channel));
-			/* enable irq only if not using DMA */
-			if (!st->dma_st.dma_chan) {
-				at91_adc_writel(st, AT91_SAMA5D2_IER,
-						BIT(chan->channel));
-			}
-		} else {
-			/* disable irq only if not using DMA */
-			if (!st->dma_st.dma_chan) {
-				at91_adc_writel(st, AT91_SAMA5D2_IDR,
-						BIT(chan->channel));
-			}
-			at91_adc_writel(st, AT91_SAMA5D2_CHDR,
-					BIT(chan->channel));
-		}
-	}
 
 	return 0;
 }
@@ -766,6 +755,7 @@ static int at91_adc_reenable_trigger(struct iio_trigger *trig)
 
 	/* Needed to ACK the DRDY interruption */
 	at91_adc_readl(st, AT91_SAMA5D2_LCDR);
+
 	return 0;
 }
 
@@ -873,18 +863,37 @@ static int at91_adc_dma_start(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int at91_adc_buffer_postenable(struct iio_dev *indio_dev)
+static bool at91_adc_buffer_check_use_irq(struct iio_dev *indio,
+					  struct at91_adc_state *st)
+{
+	/* if using DMA, we do not use our own IRQ (we use DMA-controller) */
+	if (st->dma_st.dma_chan)
+		return false;
+	/* if the trigger is not ours, then it has its own IRQ */
+	if (iio_trigger_validate_own_device(indio->trig, indio))
+		return false;
+	return true;
+}
+
+static bool at91_adc_current_chan_is_touch(struct iio_dev *indio_dev)
+{
+	struct at91_adc_state *st = iio_priv(indio_dev);
+
+	return !!bitmap_subset(indio_dev->active_scan_mask,
+			       &st->touch_st.channels_bitmask,
+			       AT91_SAMA5D2_MAX_CHAN_IDX + 1);
+}
+
+static int at91_adc_buffer_prepare(struct iio_dev *indio_dev)
 {
 	int ret;
+	u8 bit;
 	struct at91_adc_state *st = iio_priv(indio_dev);
 
 	/* check if we are enabling triggered buffer or the touchscreen */
-	if (bitmap_subset(indio_dev->active_scan_mask,
-			  &st->touch_st.channels_bitmask,
-			  AT91_SAMA5D2_MAX_CHAN_IDX + 1)) {
-		/* touchscreen enabling */
+	if (at91_adc_current_chan_is_touch(indio_dev))
 		return at91_adc_configure_touch(st, true);
-	}
+
 	/* if we are not in triggered mode, we cannot enable the buffer. */
 	if (!(indio_dev->currentmode & INDIO_ALL_TRIGGERED_MODES))
 		return -EINVAL;
@@ -892,45 +901,61 @@ static int at91_adc_buffer_postenable(struct iio_dev *indio_dev)
 	/* we continue with the triggered buffer */
 	ret = at91_adc_dma_start(indio_dev);
 	if (ret) {
-		dev_err(&indio_dev->dev, "buffer postenable failed\n");
+		dev_err(&indio_dev->dev, "buffer prepare failed\n");
 		return ret;
 	}
 
-	return iio_triggered_buffer_postenable(indio_dev);
+	for_each_set_bit(bit, indio_dev->active_scan_mask,
+			 indio_dev->num_channels) {
+		struct iio_chan_spec const *chan =
+					at91_adc_chan_get(indio_dev, bit);
+		u32 cor;
+
+		if (!chan)
+			continue;
+		/* these channel types cannot be handled by this trigger */
+		if (chan->type == IIO_POSITIONRELATIVE ||
+		    chan->type == IIO_PRESSURE)
+			continue;
+
+		cor = at91_adc_readl(st, AT91_SAMA5D2_COR);
+
+		if (chan->differential)
+			cor |= (BIT(chan->channel) | BIT(chan->channel2)) <<
+				AT91_SAMA5D2_COR_DIFF_OFFSET;
+		else
+			cor &= ~(BIT(chan->channel) <<
+			       AT91_SAMA5D2_COR_DIFF_OFFSET);
+
+		at91_adc_writel(st, AT91_SAMA5D2_COR, cor);
+
+		at91_adc_writel(st, AT91_SAMA5D2_CHER, BIT(chan->channel));
+	}
+
+	if (at91_adc_buffer_check_use_irq(indio_dev, st))
+		at91_adc_writel(st, AT91_SAMA5D2_IER, AT91_SAMA5D2_IER_DRDY);
+
+	return 0;
 }
 
-static int at91_adc_buffer_predisable(struct iio_dev *indio_dev)
+static int at91_adc_buffer_postdisable(struct iio_dev *indio_dev)
 {
 	struct at91_adc_state *st = iio_priv(indio_dev);
-	int ret;
 	u8 bit;
 
 	/* check if we are disabling triggered buffer or the touchscreen */
-	if (bitmap_subset(indio_dev->active_scan_mask,
-			  &st->touch_st.channels_bitmask,
-			  AT91_SAMA5D2_MAX_CHAN_IDX + 1)) {
-		/* touchscreen disable */
+	if (at91_adc_current_chan_is_touch(indio_dev))
 		return at91_adc_configure_touch(st, false);
-	}
+
 	/* if we are not in triggered mode, nothing to do here */
 	if (!(indio_dev->currentmode & INDIO_ALL_TRIGGERED_MODES))
 		return -EINVAL;
 
-	/* continue with the triggered buffer */
-	ret = iio_triggered_buffer_predisable(indio_dev);
-	if (ret < 0)
-		dev_err(&indio_dev->dev, "buffer predisable failed\n");
-
-	if (!st->dma_st.dma_chan)
-		return ret;
-
-	/* if we are using DMA we must clear registers and end DMA */
-	dmaengine_terminate_sync(st->dma_st.dma_chan);
-
 	/*
-	 * For each enabled channel we must read the last converted value
+	 * For each enable channel we must disable it in hardware.
+	 * In the case of DMA, we must read the last converted value
 	 * to clear EOC status and not get a possible interrupt later.
-	 * This value is being read by DMA from LCDR anyway
+	 * This value is being read by DMA from LCDR anyway, so it's not lost.
 	 */
 	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->num_channels) {
@@ -943,18 +968,28 @@ static int at91_adc_buffer_predisable(struct iio_dev *indio_dev)
 		if (chan->type == IIO_POSITIONRELATIVE ||
 		    chan->type == IIO_PRESSURE)
 			continue;
+
+		at91_adc_writel(st, AT91_SAMA5D2_CHDR, BIT(chan->channel));
+
 		if (st->dma_st.dma_chan)
 			at91_adc_readl(st, chan->address);
 	}
 
+	if (at91_adc_buffer_check_use_irq(indio_dev, st))
+		at91_adc_writel(st, AT91_SAMA5D2_IDR, AT91_SAMA5D2_IER_DRDY);
+
 	/* read overflow register to clear possible overflow status */
 	at91_adc_readl(st, AT91_SAMA5D2_OVER);
-	return ret;
+
+	/* if we are using DMA we must clear registers and end DMA */
+	if (st->dma_st.dma_chan)
+		dmaengine_terminate_sync(st->dma_st.dma_chan);
+
+	return 0;
 }
 
 static const struct iio_buffer_setup_ops at91_buffer_setup_ops = {
-	.postenable = &at91_adc_buffer_postenable,
-	.predisable = &at91_adc_buffer_predisable,
+	.postdisable = &at91_adc_buffer_postdisable,
 };
 
 static struct iio_trigger *at91_adc_allocate_trigger(struct iio_dev *indio,
@@ -1000,6 +1035,22 @@ static void at91_adc_trigger_handler_nodma(struct iio_dev *indio_dev,
 	int i = 0;
 	int val;
 	u8 bit;
+	u32 mask = at91_adc_active_scan_mask_to_reg(indio_dev);
+	unsigned int timeout = 50;
+
+	/*
+	 * Check if the conversion is ready. If not, wait a little bit, and
+	 * in case of timeout exit with an error.
+	 */
+	while ((at91_adc_readl(st, AT91_SAMA5D2_ISR) & mask) != mask &&
+	       timeout) {
+		usleep_range(50, 100);
+		timeout--;
+	}
+
+	/* Cannot read data, not ready. Continue without reporting data */
+	if (!timeout)
+		return;
 
 	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->num_channels) {
@@ -1087,6 +1138,13 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct at91_adc_state *st = iio_priv(indio_dev);
 
+	/*
+	 * If it's not our trigger, start a conversion now, as we are
+	 * actually polling the trigger now.
+	 */
+	if (iio_trigger_validate_own_device(indio_dev->trig, indio_dev))
+		at91_adc_writel(st, AT91_SAMA5D2_CR, AT91_SAMA5D2_CR_START);
+
 	if (st->dma_st.dma_chan)
 		at91_adc_trigger_handler_dma(indio_dev);
 	else
@@ -1099,20 +1157,9 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 
 static int at91_adc_buffer_init(struct iio_dev *indio)
 {
-	struct at91_adc_state *st = iio_priv(indio);
-
-	if (st->selected_trig->hw_trig) {
-		return devm_iio_triggered_buffer_setup(&indio->dev, indio,
-			&iio_pollfunc_store_time,
-			&at91_adc_trigger_handler, &at91_buffer_setup_ops);
-	}
-	/*
-	 * we need to prepare the buffer ops in case we will get
-	 * another buffer attached (like a callback buffer for the touchscreen)
-	 */
-	indio->setup_ops = &at91_buffer_setup_ops;
-
-	return 0;
+	return devm_iio_triggered_buffer_setup(&indio->dev, indio,
+		&iio_pollfunc_store_time,
+		&at91_adc_trigger_handler, &at91_buffer_setup_ops);
 }
 
 static unsigned at91_adc_startup_time(unsigned startup_time_min,
@@ -1139,9 +1186,9 @@ static unsigned at91_adc_startup_time(unsigned startup_time_min,
 	return i;
 }
 
-static void at91_adc_setup_samp_freq(struct at91_adc_state *st, unsigned freq)
+static void at91_adc_setup_samp_freq(struct iio_dev *indio_dev, unsigned freq)
 {
-	struct iio_dev *indio_dev = iio_priv_to_dev(st);
+	struct at91_adc_state *st = iio_priv(indio_dev);
 	unsigned f_per, prescal, startup, mr;
 
 	f_per = clk_get_rate(st->per_clk);
@@ -1210,9 +1257,9 @@ static void at91_adc_pen_detect_interrupt(struct at91_adc_state *st)
 	st->touch_st.touching = true;
 }
 
-static void at91_adc_no_pen_detect_interrupt(struct at91_adc_state *st)
+static void at91_adc_no_pen_detect_interrupt(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = iio_priv_to_dev(st);
+	struct at91_adc_state *st = iio_priv(indio_dev);
 
 	at91_adc_writel(st, AT91_SAMA5D2_TRGR,
 			AT91_SAMA5D2_TRGR_TRGMOD_NO_TRIGGER);
@@ -1232,7 +1279,7 @@ static void at91_adc_workq_handler(struct work_struct *workq)
 					struct at91_adc_touch, workq);
 	struct at91_adc_state *st = container_of(touch_st,
 					struct at91_adc_state, touch_st);
-	struct iio_dev *indio_dev = iio_priv_to_dev(st);
+	struct iio_dev *indio_dev = st->indio_dev;
 
 	iio_push_to_buffers(indio_dev, st->buffer);
 }
@@ -1253,7 +1300,7 @@ static irqreturn_t at91_adc_interrupt(int irq, void *private)
 		at91_adc_pen_detect_interrupt(st);
 	} else if ((status & AT91_SAMA5D2_IER_NOPEN)) {
 		/* nopen detected IRQ */
-		at91_adc_no_pen_detect_interrupt(st);
+		at91_adc_no_pen_detect_interrupt(indio);
 	} else if ((status & AT91_SAMA5D2_ISR_PENS) &&
 		   ((status & rdy_mask) == rdy_mask)) {
 		/* periodic trigger IRQ - during pen sense */
@@ -1266,7 +1313,8 @@ static irqreturn_t at91_adc_interrupt(int irq, void *private)
 		status = at91_adc_readl(st, AT91_SAMA5D2_XPOSR);
 		status = at91_adc_readl(st, AT91_SAMA5D2_YPOSR);
 		status = at91_adc_readl(st, AT91_SAMA5D2_PRESSR);
-	} else if (iio_buffer_enabled(indio) && !st->dma_st.dma_chan) {
+	} else if (iio_buffer_enabled(indio) &&
+		   (status & AT91_SAMA5D2_IER_DRDY)) {
 		/* triggered buffer without DMA */
 		disable_irq_nosync(irq);
 		iio_trigger_poll(indio->trig);
@@ -1420,7 +1468,7 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 		    val > st->soc_info.max_sample_rate)
 			return -EINVAL;
 
-		at91_adc_setup_samp_freq(st, val);
+		at91_adc_setup_samp_freq(indio_dev, val);
 		return 0;
 	default:
 		return -EINVAL;
@@ -1444,10 +1492,10 @@ static void at91_adc_dma_init(struct platform_device *pdev)
 	if (st->dma_st.dma_chan)
 		return;
 
-	st->dma_st.dma_chan = dma_request_slave_channel(&pdev->dev, "rx");
-
-	if (!st->dma_st.dma_chan)  {
+	st->dma_st.dma_chan = dma_request_chan(&pdev->dev, "rx");
+	if (IS_ERR(st->dma_st.dma_chan))  {
 		dev_info(&pdev->dev, "can't get DMA channel\n");
+		st->dma_st.dma_chan = NULL;
 		goto dma_exit;
 	}
 
@@ -1483,7 +1531,7 @@ dma_free_area:
 			  st->dma_st.rx_buf, st->dma_st.rx_dma_buf);
 dma_chan_disable:
 	dma_release_channel(st->dma_st.dma_chan);
-	st->dma_st.dma_chan = 0;
+	st->dma_st.dma_chan = NULL;
 dma_exit:
 	dev_info(&pdev->dev, "continuing without DMA support\n");
 }
@@ -1506,7 +1554,7 @@ static void at91_adc_dma_disable(struct platform_device *pdev)
 	dma_free_coherent(st->dma_st.dma_chan->device->dev, pages * PAGE_SIZE,
 			  st->dma_st.rx_buf, st->dma_st.rx_dma_buf);
 	dma_release_channel(st->dma_st.dma_chan);
-	st->dma_st.dma_chan = 0;
+	st->dma_st.dma_chan = NULL;
 
 	dev_info(&pdev->dev, "continuing without DMA support\n");
 }
@@ -1514,6 +1562,7 @@ static void at91_adc_dma_disable(struct platform_device *pdev)
 static int at91_adc_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 {
 	struct at91_adc_state *st = iio_priv(indio_dev);
+	int ret;
 
 	if (val > AT91_HWFIFO_MAX_SIZE)
 		return -EINVAL;
@@ -1537,7 +1586,15 @@ static int at91_adc_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 	else if (val > 1)
 		at91_adc_dma_init(to_platform_device(&indio_dev->dev));
 
-	return 0;
+	/*
+	 * We can start the DMA only after setting the watermark and
+	 * having the DMA initialization completed
+	 */
+	ret = at91_adc_buffer_prepare(indio_dev);
+	if (ret)
+		at91_adc_dma_disable(to_platform_device(&indio_dev->dev));
+
+	return ret;
 }
 
 static int at91_adc_update_scan_mode(struct iio_dev *indio_dev,
@@ -1558,8 +1615,10 @@ static int at91_adc_update_scan_mode(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static void at91_adc_hw_init(struct at91_adc_state *st)
+static void at91_adc_hw_init(struct iio_dev *indio_dev)
 {
+	struct at91_adc_state *st = iio_priv(indio_dev);
+
 	at91_adc_writel(st, AT91_SAMA5D2_CR, AT91_SAMA5D2_CR_SWRST);
 	at91_adc_writel(st, AT91_SAMA5D2_IDR, 0xffffffff);
 	/*
@@ -1569,7 +1628,7 @@ static void at91_adc_hw_init(struct at91_adc_state *st)
 	at91_adc_writel(st, AT91_SAMA5D2_MR,
 			AT91_SAMA5D2_MR_TRANSFER(2) | AT91_SAMA5D2_MR_ANACH);
 
-	at91_adc_setup_samp_freq(st, st->soc_info.min_sample_rate);
+	at91_adc_setup_samp_freq(indio_dev, st->soc_info.min_sample_rate);
 
 	/* configure extended mode register */
 	at91_adc_config_emr(st);
@@ -1644,7 +1703,6 @@ static int at91_adc_probe(struct platform_device *pdev)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_SOFTWARE;
 	indio_dev->info = &at91_adc_info;
@@ -1652,6 +1710,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	indio_dev->num_channels = ARRAY_SIZE(at91_adc_channels);
 
 	st = iio_priv(indio_dev);
+	st->indio_dev = indio_dev;
 
 	bitmap_set(&st->touch_st.channels_bitmask,
 		   AT91_SAMA5D2_TOUCH_X_CHAN_IDX, 1);
@@ -1713,16 +1772,12 @@ static int at91_adc_probe(struct platform_device *pdev)
 	mutex_init(&st->lock);
 	INIT_WORK(&st->touch_st.workq, at91_adc_workq_handler);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
+	st->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(st->base))
+		return PTR_ERR(st->base);
 
 	/* if we plan to use DMA, we need the physical address of the regs */
 	st->dma_st.phys_addr = res->start;
-
-	st->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(st->base))
-		return PTR_ERR(st->base);
 
 	st->irq = platform_get_irq(pdev, 0);
 	if (st->irq <= 0) {
@@ -1763,7 +1818,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 		goto vref_disable;
 	}
 
-	at91_adc_hw_init(st);
+	at91_adc_hw_init(indio_dev);
 
 	ret = clk_prepare_enable(st->per_clk);
 	if (ret)
@@ -1879,21 +1934,17 @@ static __maybe_unused int at91_adc_resume(struct device *dev)
 	if (ret)
 		goto vref_disable_resume;
 
-	at91_adc_hw_init(st);
+	at91_adc_hw_init(indio_dev);
 
 	/* reconfiguring trigger hardware state */
 	if (!iio_buffer_enabled(indio_dev))
 		return 0;
 
 	/* check if we are enabling triggered buffer or the touchscreen */
-	if (bitmap_subset(indio_dev->active_scan_mask,
-			  &st->touch_st.channels_bitmask,
-			  AT91_SAMA5D2_MAX_CHAN_IDX + 1)) {
-		/* touchscreen enabling */
+	if (at91_adc_current_chan_is_touch(indio_dev))
 		return at91_adc_configure_touch(st, true);
-	} else {
+	else
 		return at91_adc_configure_trigger(st->trig, true);
-	}
 
 	/* not needed but more explicit */
 	return 0;

@@ -8,7 +8,7 @@ config NET_VENDOR_BROADCOM
 	default y
 	depends on (SSB_POSSIBLE && HAS_DMA) || PCI || BCM63XX || \
 		   SIBYTE_SB1xxx_SOC
-	---help---
+	help
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
 
@@ -25,7 +25,7 @@ config B44
 	select SSB
 	select MII
 	select PHYLIB
-	---help---
+	help
 	  If you have a network (Ethernet) controller of this type, say Y
 	  or M here.
 
@@ -69,6 +69,7 @@ config BCMGENET
 	select BCM7XXX_PHY
 	select MDIO_BCM_UNIMAC
 	select DIMLIB
+	select BROADCOM_PHY if ARCH_BCM2835
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset.
@@ -78,7 +79,7 @@ config BNX2
 	depends on PCI
 	select CRC32
 	select FW_LOADER
-	---help---
+	help
 	  This driver supports QLogic bnx2 gigabit Ethernet cards.
 
 	  To compile this driver as a module, choose M here: the module
@@ -87,9 +88,10 @@ config BNX2
 config CNIC
 	tristate "QLogic CNIC support"
 	depends on PCI && (IPV6 || IPV6=n)
+	depends on MMU
 	select BNX2
 	select UIO
-	---help---
+	help
 	  This driver supports offload features of QLogic bnx2 gigabit
 	  Ethernet cards.
 
@@ -100,7 +102,7 @@ config SB1250_MAC
 	tristate "SB1250 Gigabit Ethernet support"
 	depends on SIBYTE_SB1xxx_SOC
 	select PHYLIB
-	---help---
+	help
 	  This driver supports Gigabit Ethernet interfaces based on the
 	  Broadcom SiByte family of System-On-a-Chip parts.  They include
 	  the BCM1120, BCM1125, BCM1125H, BCM1250, BCM1255, BCM1280, BCM1455
@@ -114,7 +116,7 @@ config TIGON3
 	depends on PCI
 	select PHYLIB
 	imply PTP_1588_CLOCK
-	---help---
+	help
 	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
 
 	  To compile this driver as a module, choose M here: the module
@@ -124,7 +126,7 @@ config TIGON3_HWMON
 	bool "Broadcom Tigon3 HWMON support"
 	default y
 	depends on TIGON3 && HWMON && !(TIGON3=y && HWMON=m)
-	---help---
+	help
 	  Say Y if you want to expose the thermal sensor on Tigon3 devices.
 
 config BNX2X
@@ -135,7 +137,7 @@ config BNX2X
 	select ZLIB_INFLATE
 	select LIBCRC32C
 	select MDIO
-	---help---
+	help
 	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2x.  This is recommended.
@@ -144,7 +146,7 @@ config BNX2X_SRIOV
 	bool "Broadcom 578xx and 57712 SR-IOV support"
 	depends on BNX2X && PCI_IOV
 	default y
-	---help---
+	help
 	  This configuration parameter enables Single Root Input Output
 	  Virtualization support in the 578xx and 57712 products. This
 	  allows for virtual function acceleration in virtual environments.
@@ -163,7 +165,7 @@ config BGMAC_BCMA
 	select BGMAC
 	select PHYLIB
 	select FIXED_PHY
-	---help---
+	help
 	  This driver supports GBit MAC and BCM4706 GBit MAC cores on BCMA bus.
 	  They can be found on BCM47xx SoCs and provide gigabit ethernet.
 	  In case of using this driver on BCM4706 it's also requires to enable
@@ -177,7 +179,7 @@ config BGMAC_PLATFORM
 	select PHYLIB
 	select FIXED_PHY
 	default ARCH_BCM_IPROC
-	---help---
+	help
 	  Say Y here if you want to use the Broadcom iProc Gigabit Ethernet
 	  controller through the generic platform interface
 
@@ -202,7 +204,7 @@ config BNXT
 	select NET_DEVLINK
 	select PAGE_POOL
 	select DIMLIB
-	---help---
+	help
 	  This driver supports Broadcom NetXtreme-C/E 10/25/40/50 gigabit
 	  Ethernet cards.  To compile this driver as a module, choose M here:
 	  the module will be called bnxt_en.  This is recommended.
@@ -211,7 +213,7 @@ config BNXT_SRIOV
 	bool "Broadcom NetXtreme-C/E SR-IOV support"
 	depends on BNXT && PCI_IOV
 	default y
-	---help---
+	help
 	  This configuration parameter enables Single Root Input Output
 	  Virtualization support in the NetXtreme-C/E products. This
 	  allows for virtual function acceleration in virtual environments.
@@ -220,7 +222,7 @@ config BNXT_FLOWER_OFFLOAD
 	bool "TC Flower offload support for NetXtreme-C/E"
 	depends on BNXT
 	default y
-	---help---
+	help
 	  This configuration parameter enables TC Flower packet classifier
 	  offload for eswitch.  This option enables SR-IOV switchdev eswitch
 	  offload.
@@ -229,7 +231,7 @@ config BNXT_DCB
 	bool "Data Center Bridging (DCB) Support"
 	default n
 	depends on BNXT && DCB
-	---help---
+	help
 	  Say Y here if you want to use Data Center Bridging (DCB) in the
 	  driver.
 
@@ -239,7 +241,7 @@ config BNXT_HWMON
 	bool "Broadcom NetXtreme-C/E HWMON support"
 	default y
 	depends on BNXT && HWMON && !(BNXT=y && HWMON=m)
-	---help---
+	help
 	  Say Y if you want to expose the thermal sensor data on NetXtreme-C/E
 	  devices, via the hwmon sysfs interface.
 

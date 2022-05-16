@@ -37,8 +37,17 @@
 #define XIVE_ESB_SET_PQ_10	0xe00 /* Load */
 #define XIVE_ESB_SET_PQ_11	0xf00 /* Load */
 
+/*
+ * Load-after-store ordering
+ *
+ * Adding this offset to the load address will enforce
+ * load-after-store ordering. This is required to use StoreEOI.
+ */
+#define XIVE_ESB_LD_ST_MO	0x40 /* Load-after-store ordering */
+
 #define XIVE_ESB_VAL_P		0x2
 #define XIVE_ESB_VAL_Q		0x1
+#define XIVE_ESB_INVALID	0xFF
 
 /*
  * Thread Management (aka "TM") registers

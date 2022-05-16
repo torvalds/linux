@@ -824,6 +824,10 @@ out:
 	return IRQ_HANDLED;
 }
 
+/* Note: No need to fix checkpatch warning that reads:
+ *	CHECK: spaces preferred around that '-' (ctx:VxV)
+ * The function argument is stringified and doesn't need a fix
+ */
 static IIO_DEVICE_ATTR_NAMED(in_thresh_low_value,
 			     in_voltage-voltage_thresh_low_value,
 			     0644,
@@ -974,7 +978,6 @@ static int ad7280_probe(struct spi_device *spi)
 	st->readback_delay_us += 5; /* Add tWAIT */
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = ad7280_channel_init(st);

@@ -4,22 +4,26 @@
 #ifndef DIM_H
 #define DIM_H
 
+#include <linux/bits.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
 
-/**
+/*
  * Number of events between DIM iterations.
  * Causes a moderation of the algorithm run.
  */
 #define DIM_NEVENTS 64
 
-/**
+/*
  * Is a difference between values justifies taking an action.
  * We consider 10% difference as significant.
  */
 #define IS_SIGNIFICANT_DIFF(val, ref) \
 	(((100UL * abs((val) - (ref))) / (ref)) > 10)
 
-/**
+/*
  * Calculate the gap between two values.
  * Take wrap-around and variable size into consideration.
  */
@@ -27,12 +31,13 @@
 		& (BIT_ULL(bits) - 1))
 
 /**
- * Structure for CQ moderation values.
+ * struct dim_cq_moder - Structure for CQ moderation values.
  * Used for communications between DIM and its consumer.
  *
  * @usec: CQ timer suggestion (by DIM)
  * @pkts: CQ packet counter suggestion (by DIM)
- * @cq_period_mode: CQ priod count mode (from CQE/EQE)
+ * @comps: Completion counter
+ * @cq_period_mode: CQ period count mode (from CQE/EQE)
  */
 struct dim_cq_moder {
 	u16 usec;
@@ -42,13 +47,14 @@ struct dim_cq_moder {
 };
 
 /**
- * Structure for DIM sample data.
+ * struct dim_sample - Structure for DIM sample data.
  * Used for communications between DIM and its consumer.
  *
  * @time: Sample timestamp
  * @pkt_ctr: Number of packets
  * @byte_ctr: Number of bytes
  * @event_ctr: Number of events
+ * @comp_ctr: Current completion counter
  */
 struct dim_sample {
 	ktime_t time;
@@ -59,12 +65,14 @@ struct dim_sample {
 };
 
 /**
- * Structure for DIM stats.
+ * struct dim_stats - Structure for DIM stats.
  * Used for holding current measured rates.
  *
  * @ppms: Packets per msec
  * @bpms: Bytes per msec
  * @epms: Events per msec
+ * @cpms: Completions per msec
+ * @cpe_ratio: Ratio of completions to events
  */
 struct dim_stats {
 	int ppms; /* packets per msec */
@@ -75,12 +83,13 @@ struct dim_stats {
 };
 
 /**
- * Main structure for dynamic interrupt moderation (DIM).
+ * struct dim - Main structure for dynamic interrupt moderation (DIM).
  * Used for holding all information about a specific DIM instance.
  *
  * @state: Algorithm state (see below)
  * @prev_stats: Measured rates from previous iteration (for comparison)
  * @start_sample: Sampled data at start of current iteration
+ * @measuring_sample: A &dim_sample that is used to update the current events
  * @work: Work to perform on action required
  * @priv: A pointer to the struct that points to dim
  * @profile_ix: Current moderation profile
@@ -106,24 +115,21 @@ struct dim {
 };
 
 /**
- * enum dim_cq_period_mode
- *
- * These are the modes for CQ period count.
+ * enum dim_cq_period_mode - Modes for CQ period count
  *
  * @DIM_CQ_PERIOD_MODE_START_FROM_EQE: Start counting from EQE
  * @DIM_CQ_PERIOD_MODE_START_FROM_CQE: Start counting from CQE (implies timer reset)
  * @DIM_CQ_PERIOD_NUM_MODES: Number of modes
  */
-enum {
+enum dim_cq_period_mode {
 	DIM_CQ_PERIOD_MODE_START_FROM_EQE = 0x0,
 	DIM_CQ_PERIOD_MODE_START_FROM_CQE = 0x1,
 	DIM_CQ_PERIOD_NUM_MODES
 };
 
 /**
- * enum dim_state
+ * enum dim_state - DIM algorithm states
  *
- * These are the DIM algorithm states.
  * These will determine if the algorithm is in a valid state to start an iteration.
  *
  * @DIM_START_MEASURE: This is the first iteration (also after applying a new profile)
@@ -131,16 +137,15 @@ enum {
  * need to perform an action
  * @DIM_APPLY_NEW_PROFILE: DIM consumer is currently applying a profile - no need to measure
  */
-enum {
+enum dim_state {
 	DIM_START_MEASURE,
 	DIM_MEASURE_IN_PROGRESS,
 	DIM_APPLY_NEW_PROFILE,
 };
 
 /**
- * enum dim_tune_state
+ * enum dim_tune_state - DIM algorithm tune states
  *
- * These are the DIM algorithm tune states.
  * These will determine which action the algorithm should perform.
  *
  * @DIM_PARKING_ON_TOP: Algorithm found a local top point - exit on significant difference
@@ -148,7 +153,7 @@ enum {
  * @DIM_GOING_RIGHT: Algorithm is currently trying higher moderation levels
  * @DIM_GOING_LEFT: Algorithm is currently trying lower moderation levels
  */
-enum {
+enum dim_tune_state {
 	DIM_PARKING_ON_TOP,
 	DIM_PARKING_TIRED,
 	DIM_GOING_RIGHT,
@@ -156,25 +161,23 @@ enum {
 };
 
 /**
- * enum dim_stats_state
+ * enum dim_stats_state - DIM algorithm statistics states
  *
- * These are the DIM algorithm statistics states.
  * These will determine the verdict of current iteration.
  *
  * @DIM_STATS_WORSE: Current iteration shows worse performance than before
- * @DIM_STATS_WORSE: Current iteration shows same performance than before
- * @DIM_STATS_WORSE: Current iteration shows better performance than before
+ * @DIM_STATS_SAME:  Current iteration shows same performance than before
+ * @DIM_STATS_BETTER: Current iteration shows better performance than before
  */
-enum {
+enum dim_stats_state {
 	DIM_STATS_WORSE,
 	DIM_STATS_SAME,
 	DIM_STATS_BETTER,
 };
 
 /**
- * enum dim_step_result
+ * enum dim_step_result - DIM algorithm step results
  *
- * These are the DIM algorithm step results.
  * These describe the result of a step.
  *
  * @DIM_STEPPED: Performed a regular step
@@ -182,7 +185,7 @@ enum {
  * tired parking
  * @DIM_ON_EDGE: Stepped to the most left/right profile
  */
-enum {
+enum dim_step_result {
 	DIM_STEPPED,
 	DIM_TOO_TIRED,
 	DIM_ON_EDGE,
@@ -199,7 +202,7 @@ enum {
 bool dim_on_top(struct dim *dim);
 
 /**
- *	dim_turn - change profile alterning direction
+ *	dim_turn - change profile altering direction
  *	@dim: DIM context
  *
  * Go left if we were going right and vice-versa.
@@ -238,7 +241,7 @@ void dim_calc_stats(struct dim_sample *start, struct dim_sample *end,
 		    struct dim_stats *curr_stats);
 
 /**
- *	dim_update_sample - set a sample's fields with give values
+ *	dim_update_sample - set a sample's fields with given values
  *	@event_ctr: number of events to set
  *	@packets: number of packets to set
  *	@bytes: number of bytes to set
@@ -304,8 +307,8 @@ struct dim_cq_moder net_dim_get_def_tx_moderation(u8 cq_period_mode);
  *	@end_sample: Current data measurement
  *
  * Called by the consumer.
- * This is the main logic of the algorithm, where data is processed in order to decide on next
- * required action.
+ * This is the main logic of the algorithm, where data is processed in order
+ * to decide on next required action.
  */
 void net_dim(struct dim *dim, struct dim_sample end_sample);
 

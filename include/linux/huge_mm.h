@@ -38,17 +38,51 @@ extern int zap_huge_pmd(struct mmu_gather *tlb,
 extern int zap_huge_pud(struct mmu_gather *tlb,
 			struct vm_area_struct *vma,
 			pud_t *pud, unsigned long addr);
-extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-			unsigned long addr, unsigned long end,
-			unsigned char *vec);
 extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
-			 unsigned long new_addr, unsigned long old_end,
+			 unsigned long new_addr,
 			 pmd_t *old_pmd, pmd_t *new_pmd);
 extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 			unsigned long addr, pgprot_t newprot,
-			int prot_numa);
-vm_fault_t vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn, bool write);
-vm_fault_t vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn, bool write);
+			unsigned long cp_flags);
+vm_fault_t vmf_insert_pfn_pmd_prot(struct vm_fault *vmf, pfn_t pfn,
+				   pgprot_t pgprot, bool write);
+
+/**
+ * vmf_insert_pfn_pmd - insert a pmd size pfn
+ * @vmf: Structure describing the fault
+ * @pfn: pfn to insert
+ * @pgprot: page protection to use
+ * @write: whether it's a write fault
+ *
+ * Insert a pmd size pfn. See vmf_insert_pfn() for additional info.
+ *
+ * Return: vm_fault_t value.
+ */
+static inline vm_fault_t vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn,
+					    bool write)
+{
+	return vmf_insert_pfn_pmd_prot(vmf, pfn, vmf->vma->vm_page_prot, write);
+}
+vm_fault_t vmf_insert_pfn_pud_prot(struct vm_fault *vmf, pfn_t pfn,
+				   pgprot_t pgprot, bool write);
+
+/**
+ * vmf_insert_pfn_pud - insert a pud size pfn
+ * @vmf: Structure describing the fault
+ * @pfn: pfn to insert
+ * @pgprot: page protection to use
+ * @write: whether it's a write fault
+ *
+ * Insert a pud size pfn. See vmf_insert_pfn() for additional info.
+ *
+ * Return: vm_fault_t value.
+ */
+static inline vm_fault_t vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn,
+					    bool write)
+{
+	return vmf_insert_pfn_pud_prot(vmf, pfn, vmf->vma->vm_page_prot, write);
+}
+
 enum transparent_hugepage_flag {
 	TRANSPARENT_HUGEPAGE_FLAG,
 	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
@@ -87,8 +121,6 @@ extern struct kobj_attribute shmem_enabled_attr;
 #define HPAGE_PUD_SIZE	((1UL) << HPAGE_PUD_SHIFT)
 #define HPAGE_PUD_MASK	(~(HPAGE_PUD_SIZE - 1))
 
-extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
-
 extern unsigned long transparent_hugepage_flags;
 
 /*
@@ -100,7 +132,7 @@ static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)
 	if (vma->vm_flags & VM_NOHUGEPAGE)
 		return false;
 
-	if (is_vma_temporary_stack(vma))
+	if (vma_is_temporary_stack(vma))
 		return false;
 
 	if (test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
@@ -146,13 +178,6 @@ static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
 #define transparent_hugepage_use_zero_page()				\
 	(transparent_hugepage_flags &					\
 	 (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
-#ifdef CONFIG_DEBUG_VM
-#define transparent_hugepage_debug_cow()				\
-	(transparent_hugepage_flags &					\
-	 (1<<TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG))
-#else /* CONFIG_DEBUG_VM */
-#define transparent_hugepage_debug_cow() 0
-#endif /* CONFIG_DEBUG_VM */
 
 extern unsigned long thp_get_unmapped_area(struct file *filp,
 		unsigned long addr, unsigned long len, unsigned long pgoff,
@@ -160,6 +185,7 @@ extern unsigned long thp_get_unmapped_area(struct file *filp,
 
 extern void prep_transhuge_page(struct page *page);
 extern void free_transhuge_page(struct page *page);
+bool is_transparent_hugepage(struct page *page);
 
 bool can_split_huge_page(struct page *page, int *pextra_pins);
 int split_huge_page_to_list(struct page *page, struct list_head *list);
@@ -212,11 +238,10 @@ static inline int is_swap_pmd(pmd_t pmd)
 	return !pmd_none(pmd) && !pmd_present(pmd);
 }
 
-/* mmap_sem must be held on entry */
+/* mmap_lock must be held on entry */
 static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
 		struct vm_area_struct *vma)
 {
-	VM_BUG_ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
 	if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
 		return __pmd_trans_huge_lock(pmd, vma);
 	else
@@ -225,15 +250,41 @@ static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
 static inline spinlock_t *pud_trans_huge_lock(pud_t *pud,
 		struct vm_area_struct *vma)
 {
-	VM_BUG_ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
 	if (pud_trans_huge(*pud) || pud_devmap(*pud))
 		return __pud_trans_huge_lock(pud, vma);
 	else
 		return NULL;
 }
-static inline int hpage_nr_pages(struct page *page)
+
+/**
+ * thp_head - Head page of a transparent huge page.
+ * @page: Any page (tail, head or regular) found in the page cache.
+ */
+static inline struct page *thp_head(struct page *page)
 {
-	if (unlikely(PageTransHuge(page)))
+	return compound_head(page);
+}
+
+/**
+ * thp_order - Order of a transparent huge page.
+ * @page: Head page of a transparent huge page.
+ */
+static inline unsigned int thp_order(struct page *page)
+{
+	VM_BUG_ON_PGFLAGS(PageTail(page), page);
+	if (PageHead(page))
+		return HPAGE_PMD_ORDER;
+	return 0;
+}
+
+/**
+ * thp_nr_pages - The number of regular pages in this huge page.
+ * @page: The head page of a huge page.
+ */
+static inline int thp_nr_pages(struct page *page)
+{
+	VM_BUG_ON_PGFLAGS(PageTail(page), page);
+	if (PageHead(page))
 		return HPAGE_PMD_NR;
 	return 1;
 }
@@ -290,7 +341,23 @@ static inline struct list_head *page_deferred_list(struct page *page)
 #define HPAGE_PUD_MASK ({ BUILD_BUG(); 0; })
 #define HPAGE_PUD_SIZE ({ BUILD_BUG(); 0; })
 
-#define hpage_nr_pages(x) 1
+static inline struct page *thp_head(struct page *page)
+{
+	VM_BUG_ON_PGFLAGS(PageTail(page), page);
+	return page;
+}
+
+static inline unsigned int thp_order(struct page *page)
+{
+	VM_BUG_ON_PGFLAGS(PageTail(page), page);
+	return 0;
+}
+
+static inline int thp_nr_pages(struct page *page)
+{
+	VM_BUG_ON_PGFLAGS(PageTail(page), page);
+	return 1;
+}
 
 static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)
 {
@@ -309,6 +376,11 @@ static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
 }
 
 static inline void prep_transhuge_page(struct page *page) {}
+
+static inline bool is_transparent_hugepage(struct page *page)
+{
+	return false;
+}
 
 #define transparent_hugepage_flags 0UL
 
@@ -406,5 +478,16 @@ static inline bool thp_migration_supported(void)
 	return false;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+/**
+ * thp_size - Size of a transparent huge page.
+ * @page: Head page of a transparent huge page.
+ *
+ * Return: Number of bytes in this page.
+ */
+static inline unsigned long thp_size(struct page *page)
+{
+	return PAGE_SIZE << thp_order(page);
+}
 
 #endif /* _LINUX_HUGE_MM_H */

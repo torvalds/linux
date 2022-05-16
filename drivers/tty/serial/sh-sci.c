@@ -15,10 +15,6 @@
  *   Modified to support SH7300 SCIF. Takashi Kusuda (Jun 2003).
  *   Removed SH7300 support (Jul 2007).
  */
-#if defined(CONFIG_SERIAL_SH_SCI_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #undef DEBUG
 
 #include <linux/clk.h>
@@ -54,6 +50,7 @@
 
 #ifdef CONFIG_SUPERH
 #include <asm/sh_bios.h>
+#include <asm/platform_early.h>
 #endif
 
 #include "serial_mctrl_gpio.h"
@@ -873,9 +870,16 @@ static void sci_receive_chars(struct uart_port *port)
 				tty_insert_flip_char(tport, c, TTY_NORMAL);
 		} else {
 			for (i = 0; i < count; i++) {
-				char c = serial_port_in(port, SCxRDR);
+				char c;
 
-				status = serial_port_in(port, SCxSR);
+				if (port->type == PORT_SCIF ||
+				    port->type == PORT_HSCIF) {
+					status = serial_port_in(port, SCxSR);
+					c = serial_port_in(port, SCxRDR);
+				} else {
+					c = serial_port_in(port, SCxRDR);
+					status = serial_port_in(port, SCxSR);
+				}
 				if (uart_handle_sysrq_char(port, c)) {
 					count--; i--;
 					continue;
@@ -2679,7 +2683,7 @@ static int sci_remap_port(struct uart_port *port)
 		return 0;
 
 	if (port->dev->of_node || (port->flags & UPF_IOREMAP)) {
-		port->membase = ioremap_nocache(port->mapbase, sport->reg_size);
+		port->membase = ioremap(port->mapbase, sport->reg_size);
 		if (unlikely(!port->membase)) {
 			dev_err(port->dev, "can't remap port#%d\n", port->line);
 			return -ENXIO;
@@ -2886,6 +2890,7 @@ static int sci_init_single(struct platform_device *dev,
 	port->ops	= &sci_uart_ops;
 	port->iotype	= UPIO_MEM;
 	port->line	= index;
+	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_SH_SCI_CONSOLE);
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (res == NULL)
@@ -3014,12 +3019,9 @@ static void serial_console_write(struct console *co, const char *s,
 	unsigned long flags;
 	int locked = 1;
 
-#if defined(SUPPORT_SYSRQ)
 	if (port->sysrq)
 		locked = 0;
-	else
-#endif
-	if (oops_in_progress)
+	else if (oops_in_progress)
 		locked = spin_trylock_irqsave(&port->lock, flags);
 	else
 		spin_lock_irqsave(&port->lock, flags);
@@ -3090,6 +3092,7 @@ static struct console serial_console = {
 	.data		= &sci_uart_driver,
 };
 
+#ifdef CONFIG_SUPERH
 static struct console early_serial_console = {
 	.name           = "early_ttySC",
 	.write          = serial_console_write,
@@ -3118,6 +3121,7 @@ static int sci_probe_earlyprintk(struct platform_device *pdev)
 	register_console(&early_serial_console);
 	return 0;
 }
+#endif
 
 #define SCI_CONSOLE	(&serial_console)
 
@@ -3318,8 +3322,10 @@ static int sci_probe(struct platform_device *dev)
 	 * the special early probe. We don't have sufficient device state
 	 * to make it beyond this yet.
 	 */
-	if (is_early_platform_device(dev))
+#ifdef CONFIG_SUPERH
+	if (is_sh_early_platform_device(dev))
 		return sci_probe_earlyprintk(dev);
+#endif
 
 	if (dev->dev.of_node) {
 		p = sci_parse_dt(dev, &dev_id);
@@ -3414,8 +3420,8 @@ static void __exit sci_exit(void)
 		uart_unregister_driver(&sci_uart_driver);
 }
 
-#ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
-early_platform_init_buffer("earlyprintk", &sci_driver,
+#if defined(CONFIG_SUPERH) && defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
+sh_early_platform_init_buffer("earlyprintk", &sci_driver,
 			   early_serial_buf, ARRAY_SIZE(early_serial_buf));
 #endif
 #ifdef CONFIG_SERIAL_SH_SCI_EARLYCON

@@ -20,6 +20,8 @@
  * included with this package.                                     *
  *******************************************************************/
 
+#include <uapi/scsi/fc/fc_els.h>
+
 /* Macros to deal with bit fields. Each bit field must have 3 #defines
  * associated with it (_SHIFT, _MASK, and _WORD).
  * EG. For a bit field that is in the 7th bit of the "field4" field of a
@@ -210,7 +212,6 @@ struct lpfc_sli_intf {
 #define LPFC_MAX_IMAX          5000000
 #define LPFC_DEF_IMAX          0
 
-#define LPFC_IMAX_THRESHOLD    1000
 #define LPFC_MAX_AUTO_EQ_DELAY 120
 #define LPFC_EQ_DELAY_STEP     15
 #define LPFC_EQD_ISR_TRIGGER   20000
@@ -649,6 +650,9 @@ struct lpfc_register {
 #define lpfc_sliport_status_oti_SHIFT	29
 #define lpfc_sliport_status_oti_MASK	0x1
 #define lpfc_sliport_status_oti_WORD	word0
+#define lpfc_sliport_status_dip_SHIFT	25
+#define lpfc_sliport_status_dip_MASK	0x1
+#define lpfc_sliport_status_dip_WORD	word0
 #define lpfc_sliport_status_rn_SHIFT	24
 #define lpfc_sliport_status_rn_MASK	0x1
 #define lpfc_sliport_status_rn_WORD	word0
@@ -2320,6 +2324,7 @@ struct lpfc_mbx_redisc_fcf_tbl {
 #define ADD_STATUS_OPERATION_ALREADY_ACTIVE		0x67
 #define ADD_STATUS_FW_NOT_SUPPORTED			0xEB
 #define ADD_STATUS_INVALID_REQUEST			0x4B
+#define ADD_STATUS_FW_DOWNLOAD_HW_DISABLED              0x58
 
 struct lpfc_mbx_sli4_config {
 	struct mbox_header header;
@@ -2809,6 +2814,15 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_trunk_SHIFT		12
 #define lpfc_mbx_rd_conf_trunk_MASK		0x0000000F
 #define lpfc_mbx_rd_conf_trunk_WORD		word2
+#define lpfc_mbx_rd_conf_pt_SHIFT		20
+#define lpfc_mbx_rd_conf_pt_MASK		0x00000003
+#define lpfc_mbx_rd_conf_pt_WORD		word2
+#define lpfc_mbx_rd_conf_tf_SHIFT		22
+#define lpfc_mbx_rd_conf_tf_MASK		0x00000001
+#define lpfc_mbx_rd_conf_tf_WORD		word2
+#define lpfc_mbx_rd_conf_ptv_SHIFT		23
+#define lpfc_mbx_rd_conf_ptv_MASK		0x00000001
+#define lpfc_mbx_rd_conf_ptv_WORD		word2
 #define lpfc_mbx_rd_conf_topology_SHIFT		24
 #define lpfc_mbx_rd_conf_topology_MASK		0x000000FF
 #define lpfc_mbx_rd_conf_topology_WORD		word2
@@ -3479,6 +3493,9 @@ struct lpfc_sli4_parameters {
 #define cfg_bv1s_SHIFT                          10
 #define cfg_bv1s_MASK                           0x00000001
 #define cfg_bv1s_WORD                           word19
+#define cfg_pvl_SHIFT				13
+#define cfg_pvl_MASK				0x00000001
+#define cfg_pvl_WORD				word19
 
 #define cfg_nsler_SHIFT                         12
 #define cfg_nsler_MASK                          0x00000001
@@ -3517,7 +3534,8 @@ struct lpfc_sli4_parameters {
 };
 
 #define LPFC_SET_UE_RECOVERY		0x10
-#define LPFC_SET_MDS_DIAGS		0x11
+#define LPFC_SET_MDS_DIAGS		0x12
+#define LPFC_SET_DUAL_DUMP		0x1e
 struct lpfc_mbx_set_feature {
 	struct mbox_header header;
 	uint32_t feature;
@@ -3526,12 +3544,21 @@ struct lpfc_mbx_set_feature {
 #define lpfc_mbx_set_feature_UER_SHIFT  0
 #define lpfc_mbx_set_feature_UER_MASK   0x00000001
 #define lpfc_mbx_set_feature_UER_WORD   word6
-#define lpfc_mbx_set_feature_mds_SHIFT  0
+#define lpfc_mbx_set_feature_mds_SHIFT  2
 #define lpfc_mbx_set_feature_mds_MASK   0x00000001
 #define lpfc_mbx_set_feature_mds_WORD   word6
 #define lpfc_mbx_set_feature_mds_deep_loopbk_SHIFT  1
 #define lpfc_mbx_set_feature_mds_deep_loopbk_MASK   0x00000001
 #define lpfc_mbx_set_feature_mds_deep_loopbk_WORD   word6
+#define lpfc_mbx_set_feature_dd_SHIFT		0
+#define lpfc_mbx_set_feature_dd_MASK		0x00000001
+#define lpfc_mbx_set_feature_dd_WORD		word6
+#define lpfc_mbx_set_feature_ddquery_SHIFT	1
+#define lpfc_mbx_set_feature_ddquery_MASK	0x00000001
+#define lpfc_mbx_set_feature_ddquery_WORD	word6
+#define LPFC_DISABLE_DUAL_DUMP		0
+#define LPFC_ENABLE_DUAL_DUMP		1
+#define LPFC_QUERY_OP_DUAL_DUMP		2
 	uint32_t word7;
 #define lpfc_mbx_set_feature_UERP_SHIFT 0
 #define lpfc_mbx_set_feature_UERP_MASK  0x0000ffff
@@ -3903,6 +3930,9 @@ struct lpfc_mbx_wr_object {
 #define LPFC_CHANGE_STATUS_FW_RESET		0x02
 #define LPFC_CHANGE_STATUS_PORT_MIGRATION	0x04
 #define LPFC_CHANGE_STATUS_PCI_RESET		0x05
+#define lpfc_wr_object_csf_SHIFT		8
+#define lpfc_wr_object_csf_MASK			0x00000001
+#define lpfc_wr_object_csf_WORD			word5
 		} response;
 	} u;
 };
@@ -4261,6 +4291,8 @@ struct lpfc_acqe_sli {
 #define LPFC_SLI_EVENT_TYPE_DIAG_DUMP		0x5
 #define LPFC_SLI_EVENT_TYPE_MISCONFIGURED	0x9
 #define LPFC_SLI_EVENT_TYPE_REMOTE_DPORT	0xA
+#define LPFC_SLI_EVENT_TYPE_MISCONF_FAWWN	0xF
+#define LPFC_SLI_EVENT_TYPE_EEPROM_FAILURE	0x10
 };
 
 /*
@@ -4659,6 +4691,7 @@ struct create_xri_wqe {
 	uint32_t rsvd_12_15[4];         /* word 12-15 */
 };
 
+#define INHIBIT_ABORT 1
 #define T_REQUEST_TAG 3
 #define T_XRI_TAG 1
 
@@ -4767,6 +4800,23 @@ struct send_frame_wqe {
 	uint32_t fc_hdr_wd5;           /* word 15 */
 };
 
+#define ELS_RDF_REG_TAG_CNT		4
+struct lpfc_els_rdf_reg_desc {
+	struct fc_df_desc_fpin_reg	reg_desc;	/* descriptor header */
+	__be32				desc_tags[ELS_RDF_REG_TAG_CNT];
+							/* tags in reg_desc */
+};
+
+struct lpfc_els_rdf_req {
+	struct fc_els_rdf		rdf;	   /* hdr up to descriptors */
+	struct lpfc_els_rdf_reg_desc	reg_d1;	/* 1st descriptor */
+};
+
+struct lpfc_els_rdf_rsp {
+	struct fc_els_rdf_resp		rdf_resp;  /* hdr up to descriptors */
+	struct lpfc_els_rdf_reg_desc	reg_d1;	/* 1st descriptor */
+};
+
 union lpfc_wqe {
 	uint32_t words[16];
 	struct lpfc_wqe_generic generic;
@@ -4807,8 +4857,8 @@ union lpfc_wqe128 {
 	struct send_frame_wqe send_frame;
 };
 
-#define MAGIC_NUMER_G6 0xFEAA0003
-#define MAGIC_NUMER_G7 0xFEAA0005
+#define MAGIC_NUMBER_G6 0xFEAA0003
+#define MAGIC_NUMBER_G7 0xFEAA0005
 
 struct lpfc_grp_hdr {
 	uint32_t size;

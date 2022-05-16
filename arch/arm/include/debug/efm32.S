@@ -29,7 +29,10 @@
 		strb	\rd, [\rx, #UARTn_TXDATA]
 		.endm
 
-		.macro	waituart,rd,rx
+		.macro	waituartcts,rd,rx
+		.endm
+
+		.macro	waituarttxrdy,rd,rx
 1001:		ldr	\rd, [\rx, #UARTn_STATUS]
 		tst	\rd, #UARTn_STATUS_TXBL
 		beq	1001b

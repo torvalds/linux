@@ -49,15 +49,44 @@ EXPORT_SYMBOL(__ocelot_rmw_ix);
 
 u32 ocelot_port_readl(struct ocelot_port *port, u32 reg)
 {
-	return readl(port->regs + reg);
+	struct ocelot *ocelot = port->ocelot;
+	u16 target = reg >> TARGET_OFFSET;
+	u32 val;
+
+	WARN_ON(!target);
+
+	regmap_read(port->target, ocelot->map[target][reg & REG_MASK], &val);
+	return val;
 }
 EXPORT_SYMBOL(ocelot_port_readl);
 
 void ocelot_port_writel(struct ocelot_port *port, u32 val, u32 reg)
 {
-	writel(val, port->regs + reg);
+	struct ocelot *ocelot = port->ocelot;
+	u16 target = reg >> TARGET_OFFSET;
+
+	WARN_ON(!target);
+
+	regmap_write(port->target, ocelot->map[target][reg & REG_MASK], val);
 }
 EXPORT_SYMBOL(ocelot_port_writel);
+
+u32 __ocelot_target_read_ix(struct ocelot *ocelot, enum ocelot_target target,
+			    u32 reg, u32 offset)
+{
+	u32 val;
+
+	regmap_read(ocelot->targets[target],
+		    ocelot->map[target][reg] + offset, &val);
+	return val;
+}
+
+void __ocelot_target_write_ix(struct ocelot *ocelot, enum ocelot_target target,
+			      u32 val, u32 reg, u32 offset)
+{
+	regmap_write(ocelot->targets[target],
+		     ocelot->map[target][reg] + offset, val);
+}
 
 int ocelot_regfields_init(struct ocelot *ocelot,
 			  const struct reg_field *const regfields)
@@ -77,6 +106,8 @@ int ocelot_regfields_init(struct ocelot *ocelot,
 		regfield.reg = ocelot->map[target][reg & REG_MASK];
 		regfield.lsb = regfields[i].lsb;
 		regfield.msb = regfields[i].msb;
+		regfield.id_size = regfields[i].id_size;
+		regfield.id_offset = regfields[i].id_offset;
 
 		ocelot->regfields[i] =
 		devm_regmap_field_alloc(ocelot->dev,
@@ -97,20 +128,16 @@ static struct regmap_config ocelot_regmap_config = {
 	.reg_stride	= 4,
 };
 
-struct regmap *ocelot_io_platform_init(struct ocelot *ocelot,
-				       struct platform_device *pdev,
-				       const char *name)
+struct regmap *ocelot_regmap_init(struct ocelot *ocelot, struct resource *res)
 {
-	struct resource *res;
 	void __iomem *regs;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
 	regs = devm_ioremap_resource(ocelot->dev, res);
 	if (IS_ERR(regs))
 		return ERR_CAST(regs);
 
-	ocelot_regmap_config.name = name;
-	return devm_regmap_init_mmio(ocelot->dev, regs,
-				     &ocelot_regmap_config);
+	ocelot_regmap_config.name = res->name;
+
+	return devm_regmap_init_mmio(ocelot->dev, regs, &ocelot_regmap_config);
 }
-EXPORT_SYMBOL(ocelot_io_platform_init);
+EXPORT_SYMBOL(ocelot_regmap_init);

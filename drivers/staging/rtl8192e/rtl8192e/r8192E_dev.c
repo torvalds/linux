@@ -304,7 +304,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 	u16 i, usValue, IC_Version;
 	u16 EEPROMId;
 
-	RT_TRACE(COMP_INIT, "====> _rtl92e_read_eeprom_info\n");
+	RT_TRACE(COMP_INIT, "====> %s\n", __func__);
 
 	EEPROMId = rtl92e_eeprom_read(dev, 0);
 	if (EEPROMId != RTL8190_EEPROM_ID) {
@@ -1215,9 +1215,9 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 
 	memset((u8 *)pdesc, 0, 12);
 
-	mapping = pci_map_single(priv->pdev, skb->data, skb->len,
-				 PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(priv->pdev, mapping)) {
+	mapping = dma_map_single(&priv->pdev->dev, skb->data, skb->len,
+				 DMA_TO_DEVICE);
+	if (dma_mapping_error(&priv->pdev->dev, mapping)) {
 		netdev_err(dev, "%s(): DMA Mapping error\n", __func__);
 		return;
 	}
@@ -1282,10 +1282,10 @@ void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
 			      struct cb_desc *cb_desc, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len,
-			 PCI_DMA_TODEVICE);
+	dma_addr_t mapping = dma_map_single(&priv->pdev->dev, skb->data,
+					    skb->len, DMA_TO_DEVICE);
 
-	if (pci_dma_mapping_error(priv->pdev, mapping))
+	if (dma_mapping_error(&priv->pdev->dev, mapping))
 		netdev_err(dev, "%s(): DMA Mapping error\n", __func__);
 	memset(entry, 0, 12);
 	entry->LINIP = cb_desc->bLastIniPkt;
@@ -1354,8 +1354,8 @@ static u8 _rtl92e_rate_hw_to_mgn(bool bIsHT, u8 rate)
 
 		default:
 			RT_TRACE(COMP_RECV,
-				 "_rtl92e_rate_hw_to_mgn(): Non supportedRate [%x], bIsHT = %d!!!\n",
-				 rate, bIsHT);
+				 "%s: Non supportedRate [%x], bIsHT = %d!!!\n",
+				 __func__, rate, bIsHT);
 			break;
 		}
 
@@ -1415,8 +1415,8 @@ static u8 _rtl92e_rate_hw_to_mgn(bool bIsHT, u8 rate)
 
 		default:
 			RT_TRACE(COMP_RECV,
-				 "_rtl92e_rate_hw_to_mgn(): Non supported Rate [%x], bIsHT = %d!!!\n",
-				 rate, bIsHT);
+				 "%s: Non supported Rate [%x], bIsHT = %d!!!\n",
+				 __func__, rate, bIsHT);
 			break;
 		}
 	}
@@ -1686,11 +1686,10 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	static u32 last_beacon_adc_pwdb;
 	struct rtllib_hdr_3addr *hdr;
 	u16 sc;
-	unsigned int frag, seq;
+	unsigned int seq;
 
 	hdr = (struct rtllib_hdr_3addr *)buffer;
 	sc = le16_to_cpu(hdr->seq_ctl);
-	frag = WLAN_GET_SEQ_FRAG(sc);
 	seq = WLAN_GET_SEQ_SEQ(sc);
 	curr_st->Seq_Num = seq;
 	if (!prev_st->bIsAMPDU)

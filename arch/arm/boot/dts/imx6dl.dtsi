@@ -44,6 +44,8 @@
 			arm-supply = <&reg_arm>;
 			pu-supply = <&reg_pu>;
 			soc-supply = <&reg_soc>;
+			nvmem-cells = <&cpu_speed_grade>;
+			nvmem-cell-names = "speed_grade";
 		};
 
 		cpu@1 {
@@ -64,6 +66,7 @@
 				396000	1175000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
+			#cooling-cells = <2>;
 			clocks = <&clks IMX6QDL_CLK_ARM>,
 				 <&clks IMX6QDL_CLK_PLL2_PFD2_396M>,
 				 <&clks IMX6QDL_CLK_STEP>,
@@ -84,11 +87,7 @@
 			clocks = <&clks IMX6QDL_CLK_OCRAM>;
 		};
 
-		aips1: aips-bus@2000000 {
-			iomuxc: iomuxc@20e0000 {
-				compatible = "fsl,imx6dl-iomuxc";
-			};
-
+		aips1: bus@2000000 {
 			pxp: pxp@20f0000 {
 				reg = <0x020f0000 0x4000>;
 				interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
@@ -100,7 +99,7 @@
 			};
 		};
 
-		aips2: aips-bus@2100000 {
+		aips2: bus@2100000 {
 			i2c4: i2c@21f8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -293,6 +292,10 @@
 
 &hdmi {
 	compatible = "fsl,imx6dl-hdmi";
+};
+
+&iomuxc {
+	compatible = "fsl,imx6dl-iomuxc";
 };
 
 &ipu1_csi1 {

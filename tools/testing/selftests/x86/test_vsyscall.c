@@ -20,6 +20,8 @@
 #include <setjmp.h>
 #include <sys/uio.h>
 
+#include "helpers.h"
+
 #ifdef __x86_64__
 # define VSYS(x) (x)
 #else
@@ -460,6 +462,17 @@ static int test_vsys_x(void)
 	return 0;
 }
 
+/*
+ * Debuggers expect ptrace() to be able to peek at the vsyscall page.
+ * Use process_vm_readv() as a proxy for ptrace() to test this.  We
+ * want it to work in the vsyscall=emulate case and to fail in the
+ * vsyscall=xonly case.
+ *
+ * It's worth noting that this ABI is a bit nutty.  write(2) can't
+ * read from the vsyscall page on any kernel version or mode.  The
+ * fact that ptrace() ever worked was a nice courtesy of old kernels,
+ * but the code to support it is fairly gross.
+ */
 static int test_process_vm_readv(void)
 {
 #ifdef __x86_64__
@@ -475,8 +488,12 @@ static int test_process_vm_readv(void)
 	remote.iov_len = 4096;
 	ret = process_vm_readv(getpid(), &local, 1, &remote, 1, 0);
 	if (ret != 4096) {
-		printf("[OK]\tprocess_vm_readv() failed (ret = %d, errno = %d)\n", ret, errno);
-		return 0;
+		/*
+		 * We expect process_vm_readv() to work if and only if the
+		 * vsyscall page is readable.
+		 */
+		printf("[%s]\tprocess_vm_readv() failed (ret = %d, errno = %d)\n", vsyscall_map_r ? "FAIL" : "OK", ret, errno);
+		return vsyscall_map_r ? 1 : 0;
 	}
 
 	if (vsyscall_map_r) {
@@ -486,6 +503,9 @@ static int test_process_vm_readv(void)
 			printf("[FAIL]\tIt worked but returned incorrect data\n");
 			return 1;
 		}
+	} else {
+		printf("[FAIL]\tprocess_rm_readv() succeeded, but it should have failed in this configuration\n");
+		return 1;
 	}
 #endif
 
@@ -493,20 +513,7 @@ static int test_process_vm_readv(void)
 }
 
 #ifdef __x86_64__
-#define X86_EFLAGS_TF (1UL << 8)
 static volatile sig_atomic_t num_vsyscall_traps;
-
-static unsigned long get_eflags(void)
-{
-	unsigned long eflags;
-	asm volatile ("pushfq\n\tpopq %0" : "=rm" (eflags));
-	return eflags;
-}
-
-static void set_eflags(unsigned long eflags)
-{
-	asm volatile ("pushq %0\n\tpopfq" : : "rm" (eflags) : "flags");
-}
 
 static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
 {

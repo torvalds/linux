@@ -106,7 +106,6 @@ static int lpc18xx_dac_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
 	struct lpc18xx_dac *dac;
-	struct resource *res;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*dac));
@@ -117,8 +116,7 @@ static int lpc18xx_dac_probe(struct platform_device *pdev)
 	dac = iio_priv(indio_dev);
 	mutex_init(&dac->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dac->base = devm_ioremap_resource(&pdev->dev, res);
+	dac->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dac->base))
 		return PTR_ERR(dac->base);
 
@@ -135,7 +133,6 @@ static int lpc18xx_dac_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->name = dev_name(&pdev->dev);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &lpc18xx_dac_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = lpc18xx_dac_iio_channels;

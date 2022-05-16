@@ -30,14 +30,14 @@
  *  -Changes related to MMU v2 (Rel 4.8)
  *
  * Vineetg: Aug 29th 2008
- *  -In TLB Flush operations (Metal Fix MMU) there is a explict command to
+ *  -In TLB Flush operations (Metal Fix MMU) there is a explicit command to
  *    flush Micro-TLBS. If TLB Index Reg is invalid prior to TLBIVUTLB cmd,
  *    it fails. Thus need to load it with ANY valid value before invoking
  *    TLBIVUTLB cmd
  *
  * Vineetg: Aug 21th 2008:
  *  -Reduced the duration of IRQ lockouts in TLB Flush routines
- *  -Multiple copies of TLB erase code seperated into a "single" function
+ *  -Multiple copies of TLB erase code separated into a "single" function
  *  -In TLB Flush routines, interrupt disabling moved UP to retrieve ASID
  *       in interrupt-safe region.
  *
@@ -66,7 +66,7 @@
  *
  * Although J-TLB is 2 way set assoc, ARC700 caches J-TLB into uTLBS which has
  * much higher associativity. u-D-TLB is 8 ways, u-I-TLB is 4 ways.
- * Given this, the thrasing problem should never happen because once the 3
+ * Given this, the thrashing problem should never happen because once the 3
  * J-TLB entries are created (even though 3rd will knock out one of the prev
  * two), the u-D-TLB and u-I-TLB will have what is required to accomplish memcpy
  *
@@ -118,6 +118,33 @@ static inline void __tlb_entry_erase(void)
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
 }
 
+static void utlb_invalidate(void)
+{
+#if (CONFIG_ARC_MMU_VER >= 2)
+
+#if (CONFIG_ARC_MMU_VER == 2)
+	/* MMU v2 introduced the uTLB Flush command.
+	 * There was however an obscure hardware bug, where uTLB flush would
+	 * fail when a prior probe for J-TLB (both totally unrelated) would
+	 * return lkup err - because the entry didn't exist in MMU.
+	 * The Workaround was to set Index reg with some valid value, prior to
+	 * flush. This was fixed in MMU v3
+	 */
+	unsigned int idx;
+
+	/* make sure INDEX Reg is valid */
+	idx = read_aux_reg(ARC_REG_TLBINDEX);
+
+	/* If not write some dummy val */
+	if (unlikely(idx & TLB_LKUP_ERR))
+		write_aux_reg(ARC_REG_TLBINDEX, 0xa);
+#endif
+
+	write_aux_reg(ARC_REG_TLBCOMMAND, TLBIVUTLB);
+#endif
+
+}
+
 #if (CONFIG_ARC_MMU_VER < 4)
 
 static inline unsigned int tlb_entry_lkup(unsigned long vaddr_n_asid)
@@ -147,44 +174,6 @@ static void tlb_entry_erase(unsigned int vaddr_n_asid)
 		WARN(idx == TLB_DUP_ERR, "Probe returned Dup PD for %x\n",
 					   vaddr_n_asid);
 	}
-}
-
-/****************************************************************************
- * ARC700 MMU caches recently used J-TLB entries (RAM) as uTLBs (FLOPs)
- *
- * New IVUTLB cmd in MMU v2 explictly invalidates the uTLB
- *
- * utlb_invalidate ( )
- *  -For v2 MMU calls Flush uTLB Cmd
- *  -For v1 MMU does nothing (except for Metal Fix v1 MMU)
- *      This is because in v1 TLBWrite itself invalidate uTLBs
- ***************************************************************************/
-
-static void utlb_invalidate(void)
-{
-#if (CONFIG_ARC_MMU_VER >= 2)
-
-#if (CONFIG_ARC_MMU_VER == 2)
-	/* MMU v2 introduced the uTLB Flush command.
-	 * There was however an obscure hardware bug, where uTLB flush would
-	 * fail when a prior probe for J-TLB (both totally unrelated) would
-	 * return lkup err - because the entry didn't exist in MMU.
-	 * The Workround was to set Index reg with some valid value, prior to
-	 * flush. This was fixed in MMU v3 hence not needed any more
-	 */
-	unsigned int idx;
-
-	/* make sure INDEX Reg is valid */
-	idx = read_aux_reg(ARC_REG_TLBINDEX);
-
-	/* If not write some dummy val */
-	if (unlikely(idx & TLB_LKUP_ERR))
-		write_aux_reg(ARC_REG_TLBINDEX, 0xa);
-#endif
-
-	write_aux_reg(ARC_REG_TLBCOMMAND, TLBIVUTLB);
-#endif
-
 }
 
 static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
@@ -218,11 +207,6 @@ static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
 }
 
 #else	/* CONFIG_ARC_MMU_VER >= 4) */
-
-static void utlb_invalidate(void)
-{
-	/* No need since uTLB is always in sync with JTLB */
-}
 
 static void tlb_entry_erase(unsigned int vaddr_n_asid)
 {
@@ -267,7 +251,7 @@ noinline void local_flush_tlb_all(void)
 	for (entry = 0; entry < num_tlb; entry++) {
 		/* write this entry to the TLB */
 		write_aux_reg(ARC_REG_TLBINDEX, entry);
-		write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+		write_aux_reg(ARC_REG_TLBCOMMAND, TLBWriteNI);
 	}
 
 	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
@@ -278,7 +262,7 @@ noinline void local_flush_tlb_all(void)
 
 		for (entry = stlb_idx; entry < stlb_idx + 16; entry++) {
 			write_aux_reg(ARC_REG_TLBINDEX, entry);
-			write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
+			write_aux_reg(ARC_REG_TLBCOMMAND, TLBWriteNI);
 		}
 	}
 
@@ -288,7 +272,7 @@ noinline void local_flush_tlb_all(void)
 }
 
 /*
- * Flush the entrie MM for userland. The fastest way is to move to Next ASID
+ * Flush the entire MM for userland. The fastest way is to move to Next ASID
  */
 noinline void local_flush_tlb_mm(struct mm_struct *mm)
 {
@@ -319,7 +303,7 @@ noinline void local_flush_tlb_mm(struct mm_struct *mm)
  * Difference between this and Kernel Range Flush is
  *  -Here the fastest way (if range is too large) is to move to next ASID
  *      without doing any explicit Shootdown
- *  -In case of kernel Flush, entry has to be shot down explictly
+ *  -In case of kernel Flush, entry has to be shot down explicitly
  */
 void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			   unsigned long end)
@@ -355,8 +339,6 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		}
 	}
 
-	utlb_invalidate();
-
 	local_irq_restore(flags);
 }
 
@@ -385,8 +367,6 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		start += PAGE_SIZE;
 	}
 
-	utlb_invalidate();
-
 	local_irq_restore(flags);
 }
 
@@ -407,7 +387,6 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 
 	if (asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID) {
 		tlb_entry_erase((page & PAGE_MASK) | hw_pid(vma->vm_mm, cpu));
-		utlb_invalidate();
 	}
 
 	local_irq_restore(flags);
@@ -641,7 +620,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
  * Super Page size is configurable in hardware (4K to 16M), but fixed once
  * RTL builds.
  *
- * The exact THP size a Linx configuration will support is a function of:
+ * The exact THP size a Linux configuration will support is a function of:
  *  - MMU page size (typical 8K, RTL fixed)
  *  - software page walker address split between PGD:PTE:PFN (typical
  *    11:8:13, but can be changed with 1 line)
@@ -719,7 +698,7 @@ void local_flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 #endif
 
-/* Read the Cache Build Confuration Registers, Decode them and save into
+/* Read the Cache Build Configuration Registers, Decode them and save into
  * the cpuinfo structure for later use.
  * No Validation is done here, simply read/convert the BCRs
  */
@@ -824,13 +803,13 @@ void arc_mmu_init(void)
 	pr_info("%s", arc_mmu_mumbojumbo(0, str, sizeof(str)));
 
 	/*
-	 * Can't be done in processor.h due to header include depenedencies
+	 * Can't be done in processor.h due to header include dependencies
 	 */
 	BUILD_BUG_ON(!IS_ALIGNED((CONFIG_ARC_KVADDR_SIZE << 20), PMD_SIZE));
 
 	/*
 	 * stack top size sanity check,
-	 * Can't be done in processor.h due to header include depenedencies
+	 * Can't be done in processor.h due to header include dependencies
 	 */
 	BUILD_BUG_ON(!IS_ALIGNED(STACK_TOP, PMD_SIZE));
 
@@ -868,7 +847,7 @@ void arc_mmu_init(void)
 	write_aux_reg(ARC_REG_PID, MMU_ENABLE);
 
 	/* In smp we use this reg for interrupt 1 scratch */
-#ifndef CONFIG_SMP
+#ifdef ARC_USE_SCRATCH_REG
 	/* swapper_pg_dir is the pgd for the kernel, used by vmalloc */
 	write_aux_reg(ARC_REG_SCRATCH_DATA0, swapper_pg_dir);
 #endif
@@ -902,7 +881,7 @@ void arc_mmu_init(void)
  *      the duplicate one.
  * -Knob to be verbose abt it.(TODO: hook them up to debugfs)
  */
-volatile int dup_pd_silent; /* Be slient abt it or complain (default) */
+volatile int dup_pd_silent; /* Be silent abt it or complain (default) */
 
 void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			  struct pt_regs *regs)
@@ -969,7 +948,7 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 
 /***********************************************************************
  * Diagnostic Routines
- *  -Called from Low Level TLB Hanlders if things don;t look good
+ *  -Called from Low Level TLB Handlers if things don;t look good
  **********************************************************************/
 
 #ifdef CONFIG_ARC_DBG_TLB_PARANOIA

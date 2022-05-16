@@ -173,7 +173,10 @@ Before jumping into the kernel, the following conditions must be met:
 - Caches, MMUs
 
   The MMU must be off.
-  Instruction cache may be on or off.
+
+  The instruction cache may be on or off, and must not hold any stale
+  entries corresponding to the loaded kernel image.
+
   The address range corresponding to the loaded kernel image must be
   cleaned to the PoC. In the presence of a system cache or other
   coherent masters with caches enabled, this will typically require
@@ -213,6 +216,9 @@ Before jumping into the kernel, the following conditions must be met:
 
       - ICC_SRE_EL3.Enable (bit 3) must be initialiased to 0b1.
       - ICC_SRE_EL3.SRE (bit 0) must be initialised to 0b1.
+      - ICC_CTLR_EL3.PMHE (bit 6) must be set to the same value across
+        all CPUs the kernel is executing on, and must stay constant
+        for the lifetime of the kernel.
 
   - If the kernel is entered at EL1:
 
@@ -235,6 +241,7 @@ Before jumping into the kernel, the following conditions must be met:
   - The DT or ACPI tables must describe a GICv2 interrupt controller.
 
   For CPUs with pointer authentication functionality:
+
   - If EL3 is present:
 
     - SCR_EL3.APK (bit 16) must be initialised to 0b1
@@ -244,6 +251,24 @@ Before jumping into the kernel, the following conditions must be met:
 
     - HCR_EL2.APK (bit 40) must be initialised to 0b1
     - HCR_EL2.API (bit 41) must be initialised to 0b1
+
+  For CPUs with Activity Monitors Unit v1 (AMUv1) extension present:
+
+  - If EL3 is present:
+
+    - CPTR_EL3.TAM (bit 30) must be initialised to 0b0
+    - CPTR_EL2.TAM (bit 30) must be initialised to 0b0
+    - AMCNTENSET0_EL0 must be initialised to 0b1111
+    - AMCNTENSET1_EL0 must be initialised to a platform specific value
+      having 0b1 set for the corresponding bit for each of the auxiliary
+      counters present.
+
+  - If the kernel is entered at EL1:
+
+    - AMCNTENSET0_EL0 must be initialised to 0b1111
+    - AMCNTENSET1_EL0 must be initialised to a platform specific value
+      having 0b1 set for the corresponding bit for each of the auxiliary
+      counters present.
 
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must
@@ -287,7 +312,8 @@ following manner:
   Documentation/devicetree/bindings/arm/psci.yaml.
 
 - Secondary CPU general-purpose register settings
-  x0 = 0 (reserved for future use)
-  x1 = 0 (reserved for future use)
-  x2 = 0 (reserved for future use)
-  x3 = 0 (reserved for future use)
+
+  - x0 = 0 (reserved for future use)
+  - x1 = 0 (reserved for future use)
+  - x2 = 0 (reserved for future use)
+  - x3 = 0 (reserved for future use)

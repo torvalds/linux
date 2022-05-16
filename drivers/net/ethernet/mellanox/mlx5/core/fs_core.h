@@ -39,6 +39,16 @@
 #include <linux/llist.h>
 #include <steering/fs_dr.h>
 
+#define FDB_TC_MAX_CHAIN 3
+#define FDB_FT_CHAIN (FDB_TC_MAX_CHAIN + 1)
+#define FDB_TC_SLOW_PATH_CHAIN (FDB_FT_CHAIN + 1)
+
+/* The index of the last real chain (FT) + 1 as chain zero is valid as well */
+#define FDB_NUM_CHAINS (FDB_FT_CHAIN + 1)
+
+#define FDB_TC_MAX_PRIO 16
+#define FDB_TC_LEVELS_PER_PRIO 2
+
 struct mlx5_modify_hdr {
 	enum mlx5_flow_namespace_type ns_type;
 	union {
@@ -86,7 +96,8 @@ enum fs_flow_table_type {
 	FS_FT_SNIFFER_RX	= 0X5,
 	FS_FT_SNIFFER_TX	= 0X6,
 	FS_FT_RDMA_RX		= 0X7,
-	FS_FT_MAX_TYPE = FS_FT_RDMA_RX,
+	FS_FT_RDMA_TX		= 0X8,
+	FS_FT_MAX_TYPE = FS_FT_RDMA_TX,
 };
 
 enum fs_flow_table_op_mod {
@@ -116,6 +127,7 @@ struct mlx5_flow_steering {
 	struct mlx5_flow_root_namespace	*sniffer_tx_root_ns;
 	struct mlx5_flow_root_namespace	*sniffer_rx_root_ns;
 	struct mlx5_flow_root_namespace	*rdma_rx_root_ns;
+	struct mlx5_flow_root_namespace	*rdma_tx_root_ns;
 	struct mlx5_flow_root_namespace	*egress_root_ns;
 };
 
@@ -136,6 +148,7 @@ struct fs_node {
 
 struct mlx5_flow_rule {
 	struct fs_node				node;
+	struct mlx5_flow_table			*ft;
 	struct mlx5_flow_destination		dest_attr;
 	/* next_ft should be accessed under chain_lock and only of
 	 * destination type is FWD_NEXT_fT.
@@ -164,6 +177,7 @@ struct mlx5_flow_table {
 		unsigned int		required_groups;
 		unsigned int		group_size;
 		unsigned int		num_groups;
+		unsigned int		max_fte;
 	} autogroup;
 	/* Protect fwd_rules */
 	struct mutex			lock;
@@ -172,6 +186,7 @@ struct mlx5_flow_table {
 	u32				flags;
 	struct rhltable			fgs_hash;
 	enum mlx5_flow_table_miss_action def_miss_action;
+	struct mlx5_flow_namespace	*ns;
 };
 
 struct mlx5_ft_underlay_qp {
@@ -315,7 +330,8 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 	(type == FS_FT_SNIFFER_RX) ? MLX5_CAP_FLOWTABLE_SNIFFER_RX(mdev, cap) :		\
 	(type == FS_FT_SNIFFER_TX) ? MLX5_CAP_FLOWTABLE_SNIFFER_TX(mdev, cap) :		\
 	(type == FS_FT_RDMA_RX) ? MLX5_CAP_FLOWTABLE_RDMA_RX(mdev, cap) :		\
-	(BUILD_BUG_ON_ZERO(FS_FT_RDMA_RX != FS_FT_MAX_TYPE))\
+	(type == FS_FT_RDMA_TX) ? MLX5_CAP_FLOWTABLE_RDMA_TX(mdev, cap) :      \
+	(BUILD_BUG_ON_ZERO(FS_FT_RDMA_TX != FS_FT_MAX_TYPE))\
 	)
 
 #endif

@@ -58,6 +58,10 @@
 
 /* XHCI support needed to be complete */
 
+&dma {
+	status = "okay";
+};
+
 &amac0 {
 	status = "okay";
 };
@@ -192,7 +196,7 @@
 };
 
 &sdio {
-	status = "ok";
+	status = "okay";
 };
 
 &uart0 {

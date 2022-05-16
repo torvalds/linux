@@ -127,6 +127,18 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 	le32_get_bits(*((__le32 *)(phy_stat) + 0x01), GENMASK(11, 8))
 #define GET_PHY_STAT_P1_HT_RXSC(phy_stat)                                      \
 	le32_get_bits(*((__le32 *)(phy_stat) + 0x01), GENMASK(15, 12))
+#define GET_PHY_STAT_P1_RXEVM_A(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x04), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_RXEVM_B(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x04), GENMASK(15, 8))
+#define GET_PHY_STAT_P1_CFO_TAIL_A(phy_stat)                                 \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x05), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_CFO_TAIL_B(phy_stat)                                 \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x05), GENMASK(15, 8))
+#define GET_PHY_STAT_P1_RXSNR_A(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x06), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_RXSNR_B(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x06), GENMASK(15, 8))
 
 #define REG_HTSTFWT	0x800
 #define REG_RXPSEL	0x808

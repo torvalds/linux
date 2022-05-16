@@ -32,15 +32,15 @@ config DEBUG_PINCTRL
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
 config PINCTRL_ARTPEC6
-        bool "Axis ARTPEC-6 pin controller driver"
-        depends on MACH_ARTPEC6
-        select PINMUX
-        select GENERIC_PINCONF
-        help
-          This is the driver for the Axis ARTPEC-6 pin controller. This driver
-          supports pin function multiplexing as well as pin bias and drive
-          strength configuration. Device tree integration instructions can be
-          found in Documentation/devicetree/bindings/pinctrl/axis,artpec6-pinctrl.txt
+	bool "Axis ARTPEC-6 pin controller driver"
+	depends on MACH_ARTPEC6
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  This is the driver for the Axis ARTPEC-6 pin controller. This driver
+	  supports pin function multiplexing as well as pin bias and drive
+	  strength configuration. Device tree integration instructions can be
+	  found in Documentation/devicetree/bindings/pinctrl/axis,artpec6-pinctrl.txt
 
 config PINCTRL_AS3722
 	tristate "Pinctrl and GPIO driver for ams AS3722 PMIC"
@@ -82,7 +82,7 @@ config PINCTRL_AT91
 config PINCTRL_AT91PIO4
 	bool "AT91 PIO4 pinctrl driver"
 	depends on OF
-	depends on ARCH_AT91
+	depends on ARCH_AT91 || COMPILE_TEST
 	select PINMUX
 	select GENERIC_PINCONF
 	select GPIOLIB
@@ -95,6 +95,7 @@ config PINCTRL_AT91PIO4
 config PINCTRL_AMD
 	tristate "AMD GPIO pin control"
 	depends on HAS_IOMEM
+	depends on ACPI || COMPILE_TEST
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select PINMUX
@@ -125,6 +126,18 @@ config PINCTRL_DA850_PUPD
 	help
 	  Driver for TI DA850/OMAP-L138/AM18XX pinconf. Used to control
 	  pullup/pulldown pin groups.
+
+config PINCTRL_DA9062
+	tristate "Dialog Semiconductor DA9062 PMIC pinctrl and GPIO Support"
+	depends on MFD_DA9062
+	select GPIOLIB
+	help
+	  The Dialog DA9062 PMIC provides multiple GPIOs that can be muxed for
+	  different functions. This driver bundles a pinctrl driver to select the
+	  function muxing and a GPIO driver to handle the GPIO when the GPIO
+	  function is selected.
+
+	  Say yes to enable pinctrl and GPIO support for the DA9062 PMIC.
 
 config PINCTRL_DIGICOLOR
 	bool
@@ -160,15 +173,22 @@ config PINCTRL_GEMINI
 	select GENERIC_PINCONF
 	select MFD_SYSCON
 
+config PINCTRL_MCP23S08_I2C
+	tristate
+	select REGMAP_I2C
+
+config PINCTRL_MCP23S08_SPI
+	tristate
+	select REGMAP_SPI
+
 config PINCTRL_MCP23S08
 	tristate "Microchip MCP23xxx I/O expander"
 	depends on SPI_MASTER || I2C
-	depends on I2C || I2C=n
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
-	select REGMAP_I2C if I2C
-	select REGMAP_SPI if SPI_MASTER
 	select GENERIC_PINCONF
+	select PINCTRL_MCP23S08_I2C if I2C
+	select PINCTRL_MCP23S08_SPI if SPI_MASTER
 	help
 	  SPI/I2C driver for Microchip MCP23S08 / MCP23S17 / MCP23S18 /
 	  MCP23008 / MCP23017 / MCP23018 I/O expanders.
@@ -188,42 +208,12 @@ config PINCTRL_OXNAS
 
 config PINCTRL_ROCKCHIP
 	bool
+	depends on OF
 	select PINMUX
 	select GENERIC_PINCONF
 	select GENERIC_IRQ_CHIP
 	select MFD_SYSCON
-
-config PINCTRL_RZA1
-	bool "Renesas RZ/A1 gpio and pinctrl driver"
-	depends on OF
-	depends on ARCH_R7S72100 || COMPILE_TEST
-	select GPIOLIB
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GENERIC_PINCONF
-	help
-	  This selects pinctrl driver for Renesas RZ/A1 platforms.
-
-config PINCTRL_RZA2
-	bool "Renesas RZ/A2 gpio and pinctrl driver"
-	depends on OF
-	depends on ARCH_R7S9210 || COMPILE_TEST
-	select GPIOLIB
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GENERIC_PINCONF
-	help
-	  This selects GPIO and pinctrl driver for Renesas RZ/A2 platforms.
-
-config PINCTRL_RZN1
-	bool "Renesas RZ/N1 pinctrl driver"
-	depends on OF
-	depends on ARCH_RZN1 || COMPILE_TEST
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GENERIC_PINCONF
-	help
-	  This selects pinctrl driver for Renesas RZ/N1 devices.
+	select OF_GPIO
 
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
@@ -395,8 +385,8 @@ source "drivers/pinctrl/nomadik/Kconfig"
 source "drivers/pinctrl/nuvoton/Kconfig"
 source "drivers/pinctrl/pxa/Kconfig"
 source "drivers/pinctrl/qcom/Kconfig"
+source "drivers/pinctrl/renesas/Kconfig"
 source "drivers/pinctrl/samsung/Kconfig"
-source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/sprd/Kconfig"
 source "drivers/pinctrl/stm32/Kconfig"
@@ -409,6 +399,7 @@ source "drivers/pinctrl/mediatek/Kconfig"
 source "drivers/pinctrl/zte/Kconfig"
 source "drivers/pinctrl/meson/Kconfig"
 source "drivers/pinctrl/cirrus/Kconfig"
+source "drivers/pinctrl/visconti/Kconfig"
 
 config PINCTRL_XWAY
 	bool
@@ -419,5 +410,25 @@ config PINCTRL_TB10X
 	bool
 	depends on OF && ARC_PLAT_TB10X
 	select GPIOLIB
+
+config PINCTRL_EQUILIBRIUM
+	tristate "Generic pinctrl and GPIO driver for Intel Lightning Mountain SoC"
+	depends on OF && HAS_IOMEM
+	depends on X86 || COMPILE_TEST
+	select PINMUX
+	select PINCONF
+	select GPIOLIB
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+
+	help
+	  Equilibrium pinctrl driver is a pinctrl & GPIO driver for Intel Lightning
+	  Mountain network processor SoC that supports both the linux GPIO and pin
+	  control frameworks. It provides interfaces to setup pinmux, assign desired
+	  pin functions, configure GPIO attributes for LGM SoC pins. Pinmux and
+	  pinconf settings are retrieved from device tree.
 
 endif

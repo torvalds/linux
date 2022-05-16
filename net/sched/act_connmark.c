@@ -43,17 +43,20 @@ static int tcf_connmark_act(struct sk_buff *skb, const struct tc_action *a,
 	tcf_lastuse_update(&ca->tcf_tm);
 	bstats_update(&ca->tcf_bstats, skb);
 
-	if (skb->protocol == htons(ETH_P_IP)) {
+	switch (skb_protocol(skb, true)) {
+	case htons(ETH_P_IP):
 		if (skb->len < sizeof(struct iphdr))
 			goto out;
 
 		proto = NFPROTO_IPV4;
-	} else if (skb->protocol == htons(ETH_P_IPV6)) {
+		break;
+	case htons(ETH_P_IPV6):
 		if (skb->len < sizeof(struct ipv6hdr))
 			goto out;
 
 		proto = NFPROTO_IPV6;
-	} else {
+		break;
+	default:
 		goto out;
 	}
 
@@ -94,7 +97,7 @@ static const struct nla_policy connmark_policy[TCA_CONNMARK_MAX + 1] = {
 static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 			     struct nlattr *est, struct tc_action **a,
 			     int ovr, int bind, bool rtnl_held,
-			     struct tcf_proto *tp,
+			     struct tcf_proto *tp, u32 flags,
 			     struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, connmark_net_id);
@@ -121,7 +124,7 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 	ret = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!ret) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_connmark_ops, bind, false);
+				     &act_connmark_ops, bind, false, 0);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
@@ -136,7 +139,6 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 		ci->net = net;
 		ci->zone = parm->zone;
 
-		tcf_idr_insert(tn, *a);
 		ret = ACT_P_CREATED;
 	} else if (ret > 0) {
 		ci = to_connmark(*a);

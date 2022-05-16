@@ -733,7 +733,7 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (ret < 0) {
 		dev_err(dcmi->dev, "%s: Failed to start streaming, cannot get sync (%d)\n",
 			__func__, ret);
-		goto err_release_buffers;
+		goto err_pm_put;
 	}
 
 	ret = media_pipeline_start(&dcmi->vdev->entity, &dcmi->pipeline);
@@ -837,8 +837,6 @@ err_media_pipeline_stop:
 
 err_pm_put:
 	pm_runtime_put(dcmi->dev);
-
-err_release_buffers:
 	spin_lock_irq(&dcmi->irqlock);
 	/*
 	 * Return all buffers to vb2 in QUEUED state.
@@ -1910,10 +1908,13 @@ static int dcmi_probe(struct platform_device *pdev)
 		return PTR_ERR(mclk);
 	}
 
-	chan = dma_request_slave_channel(&pdev->dev, "tx");
-	if (!chan) {
-		dev_info(&pdev->dev, "Unable to request DMA channel, defer probing\n");
-		return -EPROBE_DEFER;
+	chan = dma_request_chan(&pdev->dev, "tx");
+	if (IS_ERR(chan)) {
+		ret = PTR_ERR(chan);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"Failed to request DMA channel: %d\n", ret);
+		return ret;
 	}
 
 	spin_lock_init(&dcmi->irqlock);
@@ -1971,7 +1972,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	}
 	dcmi->vdev->entity.flags |= MEDIA_ENT_FL_DEFAULT;
 
-	ret = video_register_device(dcmi->vdev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(dcmi->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		dev_err(dcmi->dev, "Failed to register video device\n");
 		goto err_media_entity_cleanup;

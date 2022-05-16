@@ -109,8 +109,10 @@ static void mroute_clean_tables(struct mr_table *mrt, int flags);
 static void ipmr_expire_process(struct timer_list *t);
 
 #ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
-#define ipmr_for_each_table(mrt, net) \
-	list_for_each_entry_rcu(mrt, &net->ipv4.mr_tables, list)
+#define ipmr_for_each_table(mrt, net)					\
+	list_for_each_entry_rcu(mrt, &net->ipv4.mr_tables, list,	\
+				lockdep_rtnl_is_held() ||		\
+				list_empty(&net->ipv4.mr_tables))
 
 static struct mr_table *ipmr_mr_table_iter(struct net *net,
 					   struct mr_table *mrt)
@@ -278,9 +280,10 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 	rtnl_unlock();
 }
 
-static int ipmr_rules_dump(struct net *net, struct notifier_block *nb)
+static int ipmr_rules_dump(struct net *net, struct notifier_block *nb,
+			   struct netlink_ext_ack *extack)
 {
-	return fib_rules_dump(net, nb, RTNL_FAMILY_IPMR);
+	return fib_rules_dump(net, nb, RTNL_FAMILY_IPMR, extack);
 }
 
 static unsigned int ipmr_rules_seq_read(struct net *net)
@@ -336,7 +339,8 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 	rtnl_unlock();
 }
 
-static int ipmr_rules_dump(struct net *net, struct notifier_block *nb)
+static int ipmr_rules_dump(struct net *net, struct notifier_block *nb,
+			   struct netlink_ext_ack *extack)
 {
 	return 0;
 }
@@ -417,37 +421,6 @@ static void ipmr_free_table(struct mr_table *mrt)
 
 /* Service routines creating virtual interfaces: DVMRP tunnels and PIMREG */
 
-static void ipmr_del_tunnel(struct net_device *dev, struct vifctl *v)
-{
-	struct net *net = dev_net(dev);
-
-	dev_close(dev);
-
-	dev = __dev_get_by_name(net, "tunl0");
-	if (dev) {
-		const struct net_device_ops *ops = dev->netdev_ops;
-		struct ifreq ifr;
-		struct ip_tunnel_parm p;
-
-		memset(&p, 0, sizeof(p));
-		p.iph.daddr = v->vifc_rmt_addr.s_addr;
-		p.iph.saddr = v->vifc_lcl_addr.s_addr;
-		p.iph.version = 4;
-		p.iph.ihl = 5;
-		p.iph.protocol = IPPROTO_IPIP;
-		sprintf(p.name, "dvmrp%d", v->vifc_vifi);
-		ifr.ifr_ifru.ifru_data = (__force void __user *)&p;
-
-		if (ops->ndo_do_ioctl) {
-			mm_segment_t oldfs = get_fs();
-
-			set_fs(KERNEL_DS);
-			ops->ndo_do_ioctl(dev, &ifr, SIOCDELTUNNEL);
-			set_fs(oldfs);
-		}
-	}
-}
-
 /* Initialize ipmr pimreg/tunnel in_device */
 static bool ipmr_init_vif_indev(const struct net_device *dev)
 {
@@ -467,51 +440,52 @@ static bool ipmr_init_vif_indev(const struct net_device *dev)
 
 static struct net_device *ipmr_new_tunnel(struct net *net, struct vifctl *v)
 {
-	struct net_device  *dev;
+	struct net_device *tunnel_dev, *new_dev;
+	struct ip_tunnel_parm p = { };
+	int err;
 
-	dev = __dev_get_by_name(net, "tunl0");
+	tunnel_dev = __dev_get_by_name(net, "tunl0");
+	if (!tunnel_dev)
+		goto out;
 
-	if (dev) {
-		const struct net_device_ops *ops = dev->netdev_ops;
-		int err;
-		struct ifreq ifr;
-		struct ip_tunnel_parm p;
+	p.iph.daddr = v->vifc_rmt_addr.s_addr;
+	p.iph.saddr = v->vifc_lcl_addr.s_addr;
+	p.iph.version = 4;
+	p.iph.ihl = 5;
+	p.iph.protocol = IPPROTO_IPIP;
+	sprintf(p.name, "dvmrp%d", v->vifc_vifi);
 
-		memset(&p, 0, sizeof(p));
-		p.iph.daddr = v->vifc_rmt_addr.s_addr;
-		p.iph.saddr = v->vifc_lcl_addr.s_addr;
-		p.iph.version = 4;
-		p.iph.ihl = 5;
-		p.iph.protocol = IPPROTO_IPIP;
-		sprintf(p.name, "dvmrp%d", v->vifc_vifi);
-		ifr.ifr_ifru.ifru_data = (__force void __user *)&p;
+	if (!tunnel_dev->netdev_ops->ndo_tunnel_ctl)
+		goto out;
+	err = tunnel_dev->netdev_ops->ndo_tunnel_ctl(tunnel_dev, &p,
+			SIOCADDTUNNEL);
+	if (err)
+		goto out;
 
-		if (ops->ndo_do_ioctl) {
-			mm_segment_t oldfs = get_fs();
+	new_dev = __dev_get_by_name(net, p.name);
+	if (!new_dev)
+		goto out;
 
-			set_fs(KERNEL_DS);
-			err = ops->ndo_do_ioctl(dev, &ifr, SIOCADDTUNNEL);
-			set_fs(oldfs);
-		} else {
-			err = -EOPNOTSUPP;
-		}
-		dev = NULL;
-
-		if (err == 0 &&
-		    (dev = __dev_get_by_name(net, p.name)) != NULL) {
-			dev->flags |= IFF_MULTICAST;
-			if (!ipmr_init_vif_indev(dev))
-				goto failure;
-			if (dev_open(dev, NULL))
-				goto failure;
-			dev_hold(dev);
-		}
+	new_dev->flags |= IFF_MULTICAST;
+	if (!ipmr_init_vif_indev(new_dev))
+		goto out_unregister;
+	if (dev_open(new_dev, NULL))
+		goto out_unregister;
+	dev_hold(new_dev);
+	err = dev_set_allmulti(new_dev, 1);
+	if (err) {
+		dev_close(new_dev);
+		tunnel_dev->netdev_ops->ndo_tunnel_ctl(tunnel_dev, &p,
+				SIOCDELTUNNEL);
+		dev_put(new_dev);
+		new_dev = ERR_PTR(err);
 	}
-	return dev;
+	return new_dev;
 
-failure:
-	unregister_netdevice(dev);
-	return NULL;
+out_unregister:
+	unregister_netdevice(new_dev);
+out:
+	return ERR_PTR(-ENOBUFS);
 }
 
 #if defined(CONFIG_IP_PIMSM_V1) || defined(CONFIG_IP_PIMSM_V2)
@@ -662,7 +636,10 @@ static int call_ipmr_mfc_entry_notifiers(struct net *net,
 
 /**
  *	vif_delete - Delete a VIF entry
+ *	@mrt: Table to delete from
+ *	@vifi: VIF identifier to delete
  *	@notify: Set to 1, if the caller is a notifier_call
+ *	@head: if unregistering the VIF, place it on this queue
  */
 static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 		      struct list_head *head)
@@ -863,14 +840,8 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 		break;
 	case VIFF_TUNNEL:
 		dev = ipmr_new_tunnel(net, vifc);
-		if (!dev)
-			return -ENOBUFS;
-		err = dev_set_allmulti(dev, 1);
-		if (err) {
-			ipmr_del_tunnel(dev, vifc);
-			dev_put(dev);
-			return err;
-		}
+		if (IS_ERR(dev))
+			return PTR_ERR(dev);
 		break;
 	case VIFF_USE_IFINDEX:
 	case 0:
@@ -1067,10 +1038,13 @@ static int ipmr_cache_report(struct mr_table *mrt,
 		memcpy(msg, skb_network_header(pkt), sizeof(struct iphdr));
 		msg->im_msgtype = assert;
 		msg->im_mbz = 0;
-		if (assert == IGMPMSG_WRVIFWHOLE)
+		if (assert == IGMPMSG_WRVIFWHOLE) {
 			msg->im_vif = vifi;
-		else
+			msg->im_vif_hi = vifi >> 8;
+		} else {
 			msg->im_vif = mrt->mroute_reg_vif_num;
+			msg->im_vif_hi = mrt->mroute_reg_vif_num >> 8;
+		}
 		ip_hdr(skb)->ihl = sizeof(struct iphdr) >> 2;
 		ip_hdr(skb)->tot_len = htons(ntohs(ip_hdr(pkt)->tot_len) +
 					     sizeof(struct iphdr));
@@ -1083,6 +1057,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 		ip_hdr(skb)->protocol = 0;
 		msg = (struct igmpmsg *)skb_network_header(skb);
 		msg->im_vif = vifi;
+		msg->im_vif_hi = vifi >> 8;
 		skb_dst_set(skb, dst_clone(skb_dst(pkt)));
 		/* Add our header */
 		igmp = skb_put(skb, sizeof(struct igmphdr));
@@ -1370,7 +1345,7 @@ static void mrtsock_destruct(struct sock *sk)
  * MOSPF/PIM router set up we can clean this up.
  */
 
-int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
+int ip_mroute_setsockopt(struct sock *sk, int optname, sockptr_t optval,
 			 unsigned int optlen)
 {
 	struct net *net = sock_net(sk);
@@ -1442,7 +1417,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (copy_from_user(&vif, optval, sizeof(vif))) {
+		if (copy_from_sockptr(&vif, optval, sizeof(vif))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1463,14 +1438,14 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 	case MRT_ADD_MFC:
 	case MRT_DEL_MFC:
 		parent = -1;
-		/* fall through */
+		fallthrough;
 	case MRT_ADD_MFC_PROXY:
 	case MRT_DEL_MFC_PROXY:
 		if (optlen != sizeof(mfc)) {
 			ret = -EINVAL;
 			break;
 		}
-		if (copy_from_user(&mfc, optval, sizeof(mfc))) {
+		if (copy_from_sockptr(&mfc, optval, sizeof(mfc))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1488,7 +1463,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (get_user(val, (int __user *)optval)) {
+		if (copy_from_sockptr(&val, optval, sizeof(val))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1500,7 +1475,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (get_user(val, (int __user *)optval)) {
+		if (copy_from_sockptr(&val, optval, sizeof(val))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1515,7 +1490,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (get_user(val, (int __user *)optval)) {
+		if (copy_from_sockptr(&val, optval, sizeof(val))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1537,7 +1512,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (get_user(uval, (u32 __user *)optval)) {
+		if (copy_from_sockptr(&uval, optval, sizeof(uval))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -2425,6 +2400,7 @@ static size_t igmpmsg_netlink_msgsize(size_t payloadlen)
 		+ nla_total_size(4)	/* IPMRA_CREPORT_VIF_ID */
 		+ nla_total_size(4)	/* IPMRA_CREPORT_SRC_ADDR */
 		+ nla_total_size(4)	/* IPMRA_CREPORT_DST_ADDR */
+		+ nla_total_size(4)	/* IPMRA_CREPORT_TABLE */
 					/* IPMRA_CREPORT_PKT */
 		+ nla_total_size(payloadlen)
 		;
@@ -2456,11 +2432,12 @@ static void igmpmsg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt)
 	rtgenm = nlmsg_data(nlh);
 	rtgenm->rtgen_family = RTNL_FAMILY_IPMR;
 	if (nla_put_u8(skb, IPMRA_CREPORT_MSGTYPE, msg->im_msgtype) ||
-	    nla_put_u32(skb, IPMRA_CREPORT_VIF_ID, msg->im_vif) ||
+	    nla_put_u32(skb, IPMRA_CREPORT_VIF_ID, msg->im_vif | (msg->im_vif_hi << 8)) ||
 	    nla_put_in_addr(skb, IPMRA_CREPORT_SRC_ADDR,
 			    msg->im_src.s_addr) ||
 	    nla_put_in_addr(skb, IPMRA_CREPORT_DST_ADDR,
-			    msg->im_dst.s_addr))
+			    msg->im_dst.s_addr) ||
+	    nla_put_u32(skb, IPMRA_CREPORT_TABLE, mrt->id))
 		goto nla_put_failure;
 
 	nla = nla_reserve(skb, IPMRA_CREPORT_PKT, payloadlen);
@@ -2609,7 +2586,7 @@ static int ipmr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 
 		mrt = ipmr_get_table(sock_net(skb->sk), filter.table_id);
 		if (!mrt) {
-			if (filter.dump_all_families)
+			if (rtnl_msg_family(cb->nlh) != RTNL_FAMILY_IPMR)
 				return skb->len;
 
 			NL_SET_ERR_MSG(cb->extack, "ipv4: MR table does not exist");
@@ -3041,10 +3018,11 @@ static unsigned int ipmr_seq_read(struct net *net)
 	return net->ipv4.ipmr_seq + ipmr_rules_seq_read(net);
 }
 
-static int ipmr_dump(struct net *net, struct notifier_block *nb)
+static int ipmr_dump(struct net *net, struct notifier_block *nb,
+		     struct netlink_ext_ack *extack)
 {
 	return mr_dump(net, nb, RTNL_FAMILY_IPMR, ipmr_rules_dump,
-		       ipmr_mr_table_iter, &mrt_lock);
+		       ipmr_mr_table_iter, &mrt_lock, extack);
 }
 
 static const struct fib_notifier_ops ipmr_notifier_ops_template = {

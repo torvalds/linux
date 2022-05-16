@@ -9,7 +9,7 @@ menuconfig BT
 	depends on RFKILL || !RFKILL
 	select CRC16
 	select CRYPTO
-	select CRYPTO_BLKCIPHER
+	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_AES
 	imply CRYPTO_AES
 	select CRYPTO_CMAC
@@ -21,7 +21,7 @@ menuconfig BT
 	  It was designed as a replacement for cables and other short-range
 	  technologies like IrDA.  Bluetooth operates in personal area range
 	  that typically extends up to 10 meters.  More information about
-	  Bluetooth can be found at <http://www.bluetooth.com/>.
+	  Bluetooth can be found at <https://www.bluetooth.com/>.
 
 	  Linux Bluetooth subsystem consist of several layers:
 	     Bluetooth Core
@@ -64,7 +64,6 @@ source "net/bluetooth/hidp/Kconfig"
 config BT_HS
 	bool "Bluetooth High Speed (HS) features"
 	depends on BT_BREDR
-	default y
 	help
 	  Bluetooth High Speed includes support for off-loading
 	  Bluetooth connections via 802.11 (wifi) physical layer
@@ -93,6 +92,21 @@ config BT_LEDS
 	  This option selects a few LED triggers for different
 	  Bluetooth events.
 
+config BT_MSFTEXT
+	bool "Enable Microsoft extensions"
+	depends on BT
+	help
+	  This options enables support for the Microsoft defined HCI
+	  vendor extensions.
+
+config BT_DEBUGFS
+	bool "Export Bluetooth internals in debugfs"
+	depends on BT && DEBUG_FS
+	default y
+	help
+	  Provide extensive information about internal Bluetooth states
+	  in debugfs.
+
 config BT_SELFTEST
 	bool "Bluetooth self testing support"
 	depends on BT && DEBUG_KERNEL
@@ -120,12 +134,11 @@ config BT_SELFTEST_SMP
 	  Run test cases for SMP cryptographic functionality, including both
 	  legacy SMP as well as the Secure Connections features.
 
-config BT_DEBUGFS
-	bool "Export Bluetooth internals in debugfs"
-	depends on BT && DEBUG_FS
-	default y
+config BT_FEATURE_DEBUG
+	bool "Enable runtime option for debugging statements"
+	depends on BT && !DYNAMIC_DEBUG
 	help
-	  Provide extensive information about internal Bluetooth states
-	  in debugfs.
+	  This provides an option to enable/disable debugging statements
+	  at runtime via the experimental features interface.
 
 source "drivers/bluetooth/Kconfig"

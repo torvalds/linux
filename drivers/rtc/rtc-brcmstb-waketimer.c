@@ -200,7 +200,6 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct brcmstb_waketmr *timer;
-	struct resource *res;
 	int ret;
 
 	timer = devm_kzalloc(dev, sizeof(*timer), GFP_KERNEL);
@@ -210,8 +209,7 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, timer);
 	timer->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	timer->base = devm_ioremap_resource(dev, res);
+	timer->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(timer->base))
 		return PTR_ERR(timer->base);
 
@@ -277,6 +275,7 @@ static int brcmstb_waketmr_remove(struct platform_device *pdev)
 	struct brcmstb_waketmr *timer = dev_get_drvdata(&pdev->dev);
 
 	unregister_reboot_notifier(&timer->reboot_notifier);
+	clk_disable_unprepare(timer->clk);
 
 	return 0;
 }

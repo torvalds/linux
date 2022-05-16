@@ -23,6 +23,7 @@
 
 /* gain to pulse and scale conversion */
 #define HX711_GAIN_MAX		3
+#define HX711_RESET_GAIN	128
 
 struct hx711_gain_to_scale {
 	int			gain;
@@ -185,8 +186,7 @@ static int hx711_wait_for_ready(struct hx711_data *hx711_data)
 
 static int hx711_reset(struct hx711_data *hx711_data)
 {
-	int ret;
-	int val = gpiod_get_value(hx711_data->gpiod_dout);
+	int val = hx711_wait_for_ready(hx711_data);
 
 	if (val) {
 		/*
@@ -202,22 +202,10 @@ static int hx711_reset(struct hx711_data *hx711_data)
 		msleep(10);
 		gpiod_set_value(hx711_data->gpiod_pd_sck, 0);
 
-		ret = hx711_wait_for_ready(hx711_data);
-		if (ret)
-			return ret;
-		/*
-		 * after a reset the gain is 128 so we do a dummy read
-		 * to set the gain for the next read
-		 */
-		ret = hx711_read(hx711_data);
-		if (ret < 0)
-			return ret;
-
-		/*
-		 * after a dummy read we need to wait vor readiness
-		 * for not mixing gain pulses with the clock
-		 */
 		val = hx711_wait_for_ready(hx711_data);
+
+		/* after a reset the gain is 128 */
+		hx711_data->gain_set = HX711_RESET_GAIN;
 	}
 
 	return val;
@@ -563,7 +551,6 @@ static int hx711_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	indio_dev->name = "hx711";
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &hx711_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = hx711_chan_spec;

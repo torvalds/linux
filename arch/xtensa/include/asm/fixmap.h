@@ -13,9 +13,9 @@
 #ifndef _ASM_FIXMAP_H
 #define _ASM_FIXMAP_H
 
-#include <asm/pgtable.h>
 #ifdef CONFIG_HIGHMEM
 #include <linux/threads.h>
+#include <linux/pgtable.h>
 #include <asm/kmap_types.h>
 #endif
 
@@ -75,11 +75,5 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
 }
 
 #endif
-
-#define kmap_get_fixmap_pte(vaddr) \
-	pte_offset_kernel( \
-		pmd_offset(pud_offset(pgd_offset_k(vaddr), (vaddr)), (vaddr)), \
-		(vaddr) \
-	)
 
 #endif

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -12,7 +12,7 @@
 #define __SOF_INTEL_SHIM_H
 
 /*
- * SHIM registers for BYT, BSW, CHT, HSW, BDW
+ * SHIM registers for BYT, BSW, CHT, BDW
  */
 
 #define SHIM_CSR		(SHIM_OFFSET + 0x00)
@@ -38,7 +38,7 @@
 #define SHIM_PWMCTRL		0x1000
 
 /*
- * SST SHIM register bits for BYT, BSW, CHT HSW, BDW
+ * SST SHIM register bits for BYT, BSW, CHT, BDW
  * Register bit naming and functionaility can differ between devices.
  */
 
@@ -154,7 +154,7 @@
 /* DSP hardware descriptor */
 struct sof_intel_dsp_desc {
 	int cores_num;
-	int cores_mask;
+	int host_managed_cores_mask;
 	int init_core_mask; /* cores available after fw boot */
 	int ipc_req;
 	int ipc_req_mask;
@@ -169,13 +169,11 @@ struct sof_intel_dsp_desc {
 extern const struct snd_sof_dsp_ops sof_tng_ops;
 extern const struct snd_sof_dsp_ops sof_byt_ops;
 extern const struct snd_sof_dsp_ops sof_cht_ops;
-extern const struct snd_sof_dsp_ops sof_hsw_ops;
 extern const struct snd_sof_dsp_ops sof_bdw_ops;
 
 extern const struct sof_intel_dsp_desc byt_chip_info;
 extern const struct sof_intel_dsp_desc cht_chip_info;
 extern const struct sof_intel_dsp_desc bdw_chip_info;
-extern const struct sof_intel_dsp_desc hsw_chip_info;
 extern const struct sof_intel_dsp_desc tng_chip_info;
 
 struct sof_intel_stream {

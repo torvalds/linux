@@ -18,8 +18,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
-static void seqiv_free(struct crypto_instance *inst);
-
 static void seqiv_aead_encrypt_complete2(struct aead_request *req, int err)
 {
 	struct aead_request *subreq = aead_request_ctx(req);
@@ -35,7 +33,7 @@ static void seqiv_aead_encrypt_complete2(struct aead_request *req, int err)
 	memcpy(req->iv, subreq->iv, crypto_aead_ivsize(geniv));
 
 out:
-	kzfree(subreq->iv);
+	kfree_sensitive(subreq->iv);
 }
 
 static void seqiv_aead_encrypt_complete(struct crypto_async_request *base,
@@ -140,7 +138,7 @@ static int seqiv_aead_create(struct crypto_template *tmpl, struct rtattr **tb)
 	struct aead_instance *inst;
 	int err;
 
-	inst = aead_geniv_alloc(tmpl, tb, 0, 0);
+	inst = aead_geniv_alloc(tmpl, tb);
 
 	if (IS_ERR(inst))
 		return PTR_ERR(inst);
@@ -159,40 +157,16 @@ static int seqiv_aead_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.base.cra_ctxsize += inst->alg.ivsize;
 
 	err = aead_register_instance(tmpl, inst);
-	if (err)
-		goto free_inst;
-
-out:
-	return err;
-
+	if (err) {
 free_inst:
-	aead_geniv_free(inst);
-	goto out;
-}
-
-static int seqiv_create(struct crypto_template *tmpl, struct rtattr **tb)
-{
-	struct crypto_attr_type *algt;
-
-	algt = crypto_get_attr_type(tb);
-	if (IS_ERR(algt))
-		return PTR_ERR(algt);
-
-	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & CRYPTO_ALG_TYPE_MASK)
-		return -EINVAL;
-
-	return seqiv_aead_create(tmpl, tb);
-}
-
-static void seqiv_free(struct crypto_instance *inst)
-{
-	aead_geniv_free(aead_instance(inst));
+		inst->free(inst);
+	}
+	return err;
 }
 
 static struct crypto_template seqiv_tmpl = {
 	.name = "seqiv",
-	.create = seqiv_create,
-	.free = seqiv_free,
+	.create = seqiv_aead_create,
 	.module = THIS_MODULE,
 };
 

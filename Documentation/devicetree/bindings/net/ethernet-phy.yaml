@@ -45,6 +45,9 @@ properties:
           bits of a vendor specific ID.
       - items:
           - pattern: "^ethernet-phy-id[a-f0-9]{4}\\.[a-f0-9]{4}$"
+          - const: ethernet-phy-ieee802.3-c22
+      - items:
+          - pattern: "^ethernet-phy-id[a-f0-9]{4}\\.[a-f0-9]{4}$"
           - const: ethernet-phy-ieee802.3-c45
 
   reg:
@@ -78,7 +81,8 @@ properties:
     $ref: /schemas/types.yaml#definitions/flag
     description:
       If set, indicates the PHY device does not correctly release
-      the turn around line low at the end of a MDIO transaction.
+      the turn around line low at end of the control phase of the
+      MDIO transaction.
 
   enet-phy-lane-swap:
     $ref: /schemas/types.yaml#definitions/flag
@@ -153,8 +157,27 @@ properties:
       Delay after the reset was deasserted in microseconds. If
       this property is missing the delay will be skipped.
 
+  sfp:
+    $ref: /schemas/types.yaml#definitions/phandle
+    description:
+      Specifies a reference to a node representing a SFP cage.
+
+  rx-internal-delay-ps:
+    description: |
+      RGMII Receive PHY Clock Delay defined in pico seconds.  This is used for
+      PHY's that have configurable RX internal delays.  If this property is
+      present then the PHY applies the RX delay.
+
+  tx-internal-delay-ps:
+    description: |
+      RGMII Transmit PHY Clock Delay defined in pico seconds.  This is used for
+      PHY's that have configurable TX internal delays. If this property is
+      present then the PHY applies the TX delay.
+
 required:
   - reg
+
+additionalProperties: true
 
 examples:
   - |

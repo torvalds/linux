@@ -8,7 +8,7 @@ title: Allwinner A64 DMA Controller Device Tree Bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 allOf:
   - $ref: "dma-controller.yaml#"
@@ -19,9 +19,12 @@ properties:
     description: The cell is the request line number.
 
   compatible:
-    enum:
-      - allwinner,sun50i-a64-dma
-      - allwinner,sun50i-h6-dma
+    oneOf:
+      - const: allwinner,sun50i-a64-dma
+      - const: allwinner,sun50i-h6-dma
+      - items:
+          - const: allwinner,sun8i-r40-dma
+          - const: allwinner,sun50i-a64-dma
 
   reg:
     maxItems: 1
@@ -68,9 +71,7 @@ else:
     clocks:
       maxItems: 1
 
-# FIXME: We should set it, but it would report all the generic
-# properties as additional properties.
-# additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

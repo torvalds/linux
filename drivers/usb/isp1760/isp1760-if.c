@@ -50,7 +50,7 @@ static int isp1761_pci_init(struct pci_dev *dev)
 	}
 
 	/* map available memory */
-	iobase = ioremap_nocache(mem_start, mem_length);
+	iobase = ioremap(mem_start, mem_length);
 	if (!iobase) {
 		printk(KERN_ERR "Error ioremap failed\n");
 		release_mem_region(mem_start, mem_length);
@@ -101,7 +101,7 @@ static int isp1761_pci_init(struct pci_dev *dev)
 		return -EBUSY;
 	}
 
-	iobase = ioremap_nocache(mem_start, mem_length);
+	iobase = ioremap(mem_start, mem_length);
 	if (!iobase) {
 		printk(KERN_ERR "ioremap #1\n");
 		release_mem_region(mem_start, mem_length);

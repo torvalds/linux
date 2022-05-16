@@ -89,18 +89,6 @@ int __init ftrace_dyn_arch_init(void)
 	return 0;
 }
 
-int ftrace_arch_code_modify_prepare(void)
-{
-	set_all_modules_text_rw();
-	return 0;
-}
-
-int ftrace_arch_code_modify_post_process(void)
-{
-	set_all_modules_text_ro();
-	return 0;
-}
-
 static unsigned long gen_sethi_insn(unsigned long addr)
 {
 	unsigned long opcode = 0x46000000;
@@ -143,13 +131,14 @@ static int __ftrace_modify_code(unsigned long pc, unsigned long *old_insn,
 	unsigned long orig_insn[3];
 
 	if (validate) {
-		if (probe_kernel_read(orig_insn, (void *)pc, MCOUNT_INSN_SIZE))
+		if (copy_from_kernel_nofault(orig_insn, (void *)pc,
+				MCOUNT_INSN_SIZE))
 			return -EFAULT;
 		if (memcmp(orig_insn, old_insn, MCOUNT_INSN_SIZE))
 			return -EINVAL;
 	}
 
-	if (probe_kernel_write((void *)pc, new_insn, MCOUNT_INSN_SIZE))
+	if (copy_to_kernel_nofault((void *)pc, new_insn, MCOUNT_INSN_SIZE))
 		return -EPERM;
 
 	return 0;

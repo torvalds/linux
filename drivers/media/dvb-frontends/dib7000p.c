@@ -276,7 +276,7 @@ static int dib7000p_set_power_mode(struct dib7000p_state *state, enum dib7000p_p
 		if (state->version != SOC7090)
 			reg_1280 &= ~((1 << 11));
 		reg_1280 &= ~(1 << 6);
-		/* fall-through */
+		fallthrough;
 	case DIB7000P_POWER_INTERFACE_ONLY:
 		/* just leave power on the control-interfaces: GPIO and (I2C or SDIO) */
 		/* TODO power up either SDIO or I2C */
@@ -915,7 +915,7 @@ static int dib7000p_agc_startup(struct dvb_frontend *demod)
 
 		dib7000p_restart_agc(state);
 
-		dprintk("SPLIT %p: %hd\n", demod, agc_split);
+		dprintk("SPLIT %p: %u\n", demod, agc_split);
 
 		(*agc_state)++;
 		ret = 5;

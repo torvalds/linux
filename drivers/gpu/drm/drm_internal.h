@@ -21,7 +21,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/kthread.h>
+
 #include <drm/drm_ioctl.h>
+#include <drm/drm_vblank.h>
 
 #define DRM_IF_MAJOR 1
 #define DRM_IF_MINOR 4
@@ -38,18 +41,42 @@ struct drm_master;
 struct drm_minor;
 struct drm_prime_file_private;
 struct drm_printer;
+struct drm_vblank_crtc;
 
 /* drm_file.c */
 extern struct mutex drm_global_mutex;
+bool drm_dev_needs_global_mutex(struct drm_device *dev);
 struct drm_file *drm_file_alloc(struct drm_minor *minor);
 void drm_file_free(struct drm_file *file);
 void drm_lastclose(struct drm_device *dev);
+
+#ifdef CONFIG_PCI
 
 /* drm_pci.c */
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
 void drm_pci_agp_destroy(struct drm_device *dev);
 int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master);
+
+#else
+
+static inline int drm_irq_by_busid(struct drm_device *dev, void *data,
+				   struct drm_file *file_priv)
+{
+	return -EINVAL;
+}
+
+static inline void drm_pci_agp_destroy(struct drm_device *dev)
+{
+}
+
+static inline int drm_pci_set_busid(struct drm_device *dev,
+				    struct drm_master *master)
+{
+	return -EINVAL;
+}
+
+#endif
 
 /* drm_prime.c */
 int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
@@ -66,9 +93,35 @@ void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpr
 struct drm_minor *drm_minor_acquire(unsigned int minor_id);
 void drm_minor_release(struct drm_minor *minor);
 
+/* drm_managed.c */
+void drm_managed_release(struct drm_device *dev);
+void drmm_add_final_kfree(struct drm_device *dev, void *container);
+
 /* drm_vblank.c */
+static inline bool drm_vblank_passed(u64 seq, u64 ref)
+{
+	return (seq - ref) <= (1 << 23);
+}
+
 void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
-void drm_vblank_cleanup(struct drm_device *dev);
+int drm_vblank_get(struct drm_device *dev, unsigned int pipe);
+void drm_vblank_put(struct drm_device *dev, unsigned int pipe);
+u64 drm_vblank_count(struct drm_device *dev, unsigned int pipe);
+
+/* drm_vblank_work.c */
+static inline void drm_vblank_flush_worker(struct drm_vblank_crtc *vblank)
+{
+	kthread_flush_worker(vblank->worker);
+}
+
+static inline void drm_vblank_destroy_worker(struct drm_vblank_crtc *vblank)
+{
+	kthread_destroy_worker(vblank->worker);
+}
+
+int drm_vblank_worker_init(struct drm_vblank_crtc *vblank);
+void drm_vblank_cancel_pending_works(struct drm_vblank_crtc *vblank);
+void drm_handle_vblank_works(struct drm_vblank_crtc *vblank);
 
 /* IOCTLS */
 int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
@@ -118,7 +171,6 @@ void drm_sysfs_lease_event(struct drm_device *dev);
 /* drm_gem.c */
 struct drm_gem_object;
 int drm_gem_init(struct drm_device *dev);
-void drm_gem_destroy(struct drm_device *dev);
 int drm_gem_handle_create_tail(struct drm_file *file_priv,
 			       struct drm_gem_object *obj,
 			       u32 *handlep);
@@ -212,8 +264,4 @@ int drm_syncobj_query_ioctl(struct drm_device *dev, void *data,
 /* drm_framebuffer.c */
 void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 				const struct drm_framebuffer *fb);
-int drm_framebuffer_debugfs_init(struct drm_minor *minor);
-
-/* drm_hdcp.c */
-int drm_setup_hdcp_srm(struct class *drm_class);
-void drm_teardown_hdcp_srm(struct class *drm_class);
+void drm_framebuffer_debugfs_init(struct drm_minor *minor);

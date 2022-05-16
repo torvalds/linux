@@ -5,8 +5,6 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/atomic.h>
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm-generic/mm_hooks.h>
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)

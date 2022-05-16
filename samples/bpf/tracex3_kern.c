@@ -8,14 +8,15 @@
 #include <linux/netdevice.h>
 #include <linux/version.h>
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 
-struct bpf_map_def SEC("maps") my_map = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(long),
-	.value_size = sizeof(u64),
-	.max_entries = 4096,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, long);
+	__type(value, u64);
+	__uint(max_entries, 4096);
+} my_map SEC(".maps");
 
 /* kprobe is NOT a stable ABI. If kernel internals change this bpf+kprobe
  * example will no longer be meaningful
@@ -41,14 +42,14 @@ static unsigned int log2l(unsigned long long n)
 
 #define SLOTS 100
 
-struct bpf_map_def SEC("maps") lat_map = {
-	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size = sizeof(u32),
-	.value_size = sizeof(u64),
-	.max_entries = SLOTS,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(key_size, sizeof(u32));
+	__uint(value_size, sizeof(u64));
+	__uint(max_entries, SLOTS);
+} lat_map SEC(".maps");
 
-SEC("kprobe/blk_account_io_completion")
+SEC("kprobe/blk_account_io_done")
 int bpf_prog2(struct pt_regs *ctx)
 {
 	long rq = PT_REGS_PARM1(ctx);

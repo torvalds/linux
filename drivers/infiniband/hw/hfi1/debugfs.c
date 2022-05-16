@@ -379,7 +379,7 @@ static void *_rcds_seq_next(struct seq_file *s, void *v, loff_t *pos)
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
 
 	++*pos;
-	if (!dd->rcd || *pos >= dd->n_krcv_queues)
+	if (!dd->rcd || *pos >= dd->num_rcv_contexts)
 		return NULL;
 	return pos;
 }
@@ -985,15 +985,10 @@ static ssize_t qsfp2_debugfs_read(struct file *file, char __user *buf,
 static int __i2c_debugfs_open(struct inode *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
-	int ret;
 
 	ppd = private2ppd(fp);
 
-	ret = acquire_chip_resource(ppd->dd, i2c_target(target), 0);
-	if (ret) /* failed - release the module */
-		module_put(THIS_MODULE);
-
-	return ret;
+	return acquire_chip_resource(ppd->dd, i2c_target(target), 0);
 }
 
 static int i2c1_debugfs_open(struct inode *in, struct file *fp)
@@ -1013,7 +1008,6 @@ static int __i2c_debugfs_release(struct inode *in, struct file *fp, u32 target)
 	ppd = private2ppd(fp);
 
 	release_chip_resource(ppd->dd, i2c_target(target));
-	module_put(THIS_MODULE);
 
 	return 0;
 }
@@ -1031,18 +1025,10 @@ static int i2c2_debugfs_release(struct inode *in, struct file *fp)
 static int __qsfp_debugfs_open(struct inode *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
-	int ret;
-
-	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
 
 	ppd = private2ppd(fp);
 
-	ret = acquire_chip_resource(ppd->dd, i2c_target(target), 0);
-	if (ret) /* failed - release the module */
-		module_put(THIS_MODULE);
-
-	return ret;
+	return acquire_chip_resource(ppd->dd, i2c_target(target), 0);
 }
 
 static int qsfp1_debugfs_open(struct inode *in, struct file *fp)
@@ -1062,7 +1048,6 @@ static int __qsfp_debugfs_release(struct inode *in, struct file *fp, u32 target)
 	ppd = private2ppd(fp);
 
 	release_chip_resource(ppd->dd, i2c_target(target));
-	module_put(THIS_MODULE);
 
 	return 0;
 }

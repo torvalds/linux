@@ -8,15 +8,6 @@
 #ifndef __ASM_SN_INTR_H
 #define __ASM_SN_INTR_H
 
-/* Number of interrupt levels associated with each interrupt register. */
-#define N_INTPEND_BITS		64
-
-#define INT_PEND0_BASELVL	0
-#define INT_PEND1_BASELVL	64
-
-#define N_INTPENDJUNK_BITS	8
-#define INTPENDJUNK_CLRBIT	0x80
-
 /*
  * Macros to manipulate the interrupt register on the calling hub chip.
  */
@@ -84,14 +75,6 @@ do {								\
 #define CPU_RESCHED_B_IRQ	 8
 #define CPU_CALL_A_IRQ		 9
 #define CPU_CALL_B_IRQ		10
-#define MSC_MESG_INTR		11
-#define BASE_PCI_IRQ		12
-
-/*
- * INT_PEND0 again, bits determined by hardware / hardcoded:
- */
-#define SDISK_INTR		63	/* SABLE name */
-#define IP_PEND0_6_63		63	/* What is this bit? */
 
 /*
  * INT_PEND1 hard-coded bits:

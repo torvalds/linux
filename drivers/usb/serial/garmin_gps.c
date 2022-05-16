@@ -104,7 +104,7 @@ struct garmin_packet {
 	int               seq;
 	/* the real size of the data array, always > 0 */
 	int               size;
-	__u8              data[1];
+	__u8              data[];
 };
 
 /* structure used to keep the current state of the driver */
@@ -179,19 +179,22 @@ static unsigned char const GARMIN_START_SESSION_REPLY[]
 	= { 0, 0, 0, 0,  6, 0, 0, 0, 4, 0, 0, 0 };
 static unsigned char const GARMIN_BULK_IN_AVAIL_REPLY[]
 	= { 0, 0, 0, 0,  2, 0, 0, 0, 0, 0, 0, 0 };
+static unsigned char const GARMIN_STOP_TRANSFER_REQ[]
+	= { 20, 0, 0, 0,  10, 0, 0, 0, 2, 0, 0, 0, 0, 0 };
+static unsigned char const GARMIN_STOP_TRANSFER_REQ_V2[]
+	= { 20, 0, 0, 0,  10, 0, 0, 0, 1, 0, 0, 0, 0 };
+
+/* packets currently unused, left as documentation */
+#if 0
 static unsigned char const GARMIN_APP_LAYER_REPLY[]
 	= { 0x14, 0, 0, 0 };
 static unsigned char const GARMIN_START_PVT_REQ[]
 	= { 20, 0, 0, 0,  10, 0, 0, 0, 2, 0, 0, 0, 49, 0 };
 static unsigned char const GARMIN_STOP_PVT_REQ[]
 	= { 20, 0, 0, 0,  10, 0, 0, 0, 2, 0, 0, 0, 50, 0 };
-static unsigned char const GARMIN_STOP_TRANSFER_REQ[]
-	= { 20, 0, 0, 0,  10, 0, 0, 0, 2, 0, 0, 0, 0, 0 };
-static unsigned char const GARMIN_STOP_TRANSFER_REQ_V2[]
-	= { 20, 0, 0, 0,  10, 0, 0, 0, 1, 0, 0, 0, 0 };
 static unsigned char const PRIVATE_REQ[]
 	=    { 0x4B, 0x6E, 0x10, 0x01,  0xFF, 0, 0, 0, 0xFF, 0, 0, 0 };
-
+#endif
 
 
 static const struct usb_device_id id_table[] = {
@@ -1138,8 +1141,8 @@ static void garmin_read_process(struct garmin_data *garmin_data_p,
 		   send it directly to the tty port */
 		if (garmin_data_p->flags & FLAGS_QUEUING) {
 			pkt_add(garmin_data_p, data, data_length);
-		} else if (bulk_data ||
-			   getLayerId(data) == GARMIN_LAYERID_APPL) {
+		} else if (bulk_data || (data_length >= sizeof(u32) &&
+				getLayerId(data) == GARMIN_LAYERID_APPL)) {
 
 			spin_lock_irqsave(&garmin_data_p->lock, flags);
 			garmin_data_p->flags |= APP_RESP_SEEN;

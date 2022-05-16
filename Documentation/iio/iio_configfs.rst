@@ -9,7 +9,7 @@ Configfs is a filesystem-based manager of kernel objects. IIO uses some
 objects that could be easily configured using configfs (e.g.: devices,
 triggers).
 
-See Documentation/filesystems/configfs/configfs.txt for more information
+See Documentation/filesystems/configfs.rst for more information
 about how configfs works.
 
 2. Usage
@@ -53,7 +53,7 @@ kernel module following the interface in include/linux/iio/sw_trigger.h::
 	 */
   }
 
-  static int iio_trig_hrtimer_remove(struct iio_sw_trigger *swt)
+  static int iio_trig_sample_remove(struct iio_sw_trigger *swt)
   {
 	/*
 	 * This undoes the actions in iio_trig_sample_probe

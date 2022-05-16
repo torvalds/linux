@@ -414,7 +414,7 @@ void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
 
 		rcu_read_lock();
 		ca = tcp_ca_find_key(ca_key);
-		if (likely(ca && try_module_get(ca->owner))) {
+		if (likely(ca && bpf_try_module_get(ca, ca->owner))) {
 			icsk->icsk_ca_dst_locked = tcp_ca_dst_locked(dst);
 			icsk->icsk_ca_ops = ca;
 			ca_got_dst = true;
@@ -425,7 +425,7 @@ void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
 	/* If no valid choice made yet, assign current system default ca. */
 	if (!ca_got_dst &&
 	    (!icsk->icsk_ca_setsockopt ||
-	     !try_module_get(icsk->icsk_ca_ops->owner)))
+	     !bpf_try_module_get(icsk->icsk_ca_ops, icsk->icsk_ca_ops->owner)))
 		tcp_assign_congestion_control(sk);
 
 	tcp_set_ca_state(sk, TCP_CA_Open);
@@ -547,6 +547,8 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	tcp_ecn_openreq_child(newtp, req);
 	newtp->fastopen_req = NULL;
 	RCU_INIT_POINTER(newtp->fastopen_rsk, NULL);
+
+	tcp_bpf_clone(sk, newsk);
 
 	__TCP_INC_STATS(sock_net(sk), TCP_MIB_PASSIVEOPENS);
 
@@ -772,6 +774,12 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (!child)
 		goto listen_overflow;
 
+	if (own_req && rsk_drop_req(req)) {
+		reqsk_queue_removed(&inet_csk(sk)->icsk_accept_queue, req);
+		inet_csk_reqsk_queue_drop_and_put(sk, req);
+		return child;
+	}
+
 	sock_rps_save_rxhash(child, skb);
 	tcp_synack_rtt_meas(child, req);
 	*req_stolen = !own_req;
@@ -817,6 +825,7 @@ EXPORT_SYMBOL(tcp_check_req);
 
 int tcp_child_process(struct sock *parent, struct sock *child,
 		      struct sk_buff *skb)
+	__releases(&((child)->sk_lock.slock))
 {
 	int ret = 0;
 	int state = child->sk_state;

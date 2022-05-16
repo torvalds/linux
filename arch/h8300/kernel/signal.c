@@ -43,7 +43,6 @@
 
 #include <asm/setup.h>
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/traps.h>
 #include <asm/ucontext.h>
 
@@ -228,7 +227,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka)
 			regs->er0 = -EINTR;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case -ERESTARTNOINTR:
 do_restart:
 		regs->er0 = regs->orig_er0;
@@ -283,8 +282,6 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags)
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs);
 
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
+	if (thread_info_flags & _TIF_NOTIFY_RESUME)
 		tracehook_notify_resume(regs);
-	}
 }

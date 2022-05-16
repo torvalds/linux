@@ -38,7 +38,10 @@ int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
 /* Low-level suspend routine. */
 extern int acpi_suspend_lowlevel(void);
 
-extern unsigned long acpi_wakeup_address;
+static inline unsigned long acpi_get_wakeup_address(void)
+{
+	return 0;
+}
 
 /*
  * Record the cpei override flag and current logical cpu. This is
@@ -70,8 +73,6 @@ static inline void arch_acpi_set_pdc_bits(u32 *buf)
 {
 	buf[2] |= ACPI_PDC_EST_CAPABILITY_SMP;
 }
-
-#define acpi_unlazy_tlb(x)
 
 #ifdef CONFIG_ACPI_NUMA
 extern cpumask_t early_cpu_possible_map;

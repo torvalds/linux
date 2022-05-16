@@ -244,13 +244,13 @@ struct dest_spec_params {
 struct core_conn_create_dest_spec_params {
 	__u8    type;
 	__u8    length;
-	__u8    value[0];
+	__u8    value[];
 } __packed;
 
 struct nci_core_conn_create_cmd {
 	__u8    destination_type;
 	__u8    number_destination_params;
-	struct core_conn_create_dest_spec_params params[0];
+	struct core_conn_create_dest_spec_params params[];
 } __packed;
 
 #define NCI_OP_CORE_CONN_CLOSE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x05)
@@ -321,7 +321,7 @@ struct nci_core_init_rsp_1 {
 	__u8	status;
 	__le32	nfcc_features;
 	__u8	num_supported_rf_interfaces;
-	__u8	supported_rf_interfaces[0];	/* variable size array */
+	__u8	supported_rf_interfaces[];	/* variable size array */
 	/* continuted in nci_core_init_rsp_2 */
 } __packed;
 
@@ -338,7 +338,7 @@ struct nci_core_init_rsp_2 {
 struct nci_core_set_config_rsp {
 	__u8	status;
 	__u8	num_params;
-	__u8	params_id[0];	/* variable size array */
+	__u8	params_id[];	/* variable size array */
 } __packed;
 
 #define NCI_OP_CORE_CONN_CREATE_RSP	nci_opcode_pack(NCI_GID_CORE, 0x04)
@@ -501,18 +501,18 @@ struct nci_rf_nfcee_action_ntf {
 	__u8 nfcee_id;
 	__u8 trigger;
 	__u8 supported_data_length;
-	__u8 supported_data[0];
+	__u8 supported_data[];
 } __packed;
 
 #define NCI_OP_NFCEE_DISCOVER_NTF nci_opcode_pack(NCI_GID_NFCEE_MGMT, 0x00)
 struct nci_nfcee_supported_protocol {
 	__u8	num_protocol;
-	__u8	supported_protocol[0];
+	__u8	supported_protocol[];
 } __packed;
 
 struct nci_nfcee_information_tlv {
 	__u8	num_tlv;
-	__u8	information_tlv[0];
+	__u8	information_tlv[];
 } __packed;
 
 struct nci_nfcee_discover_ntf {

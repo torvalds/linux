@@ -165,14 +165,14 @@ static const int rk808_buck_config_regs[] = {
 	RK808_BUCK4_CONFIG_REG,
 };
 
-static const struct regulator_linear_range rk808_ldo3_voltage_ranges[] = {
+static const struct linear_range rk808_ldo3_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0, 13, 100000),
 	REGULATOR_LINEAR_RANGE(2500000, 15, 15, 0),
 };
 
 #define RK809_BUCK5_SEL_CNT		(8)
 
-static const struct regulator_linear_range rk809_buck5_voltage_ranges[] = {
+static const struct linear_range rk809_buck5_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1500000, 0, 0, 0),
 	REGULATOR_LINEAR_RANGE(1800000, 1, 3, 200000),
 	REGULATOR_LINEAR_RANGE(2800000, 4, 5, 200000),
@@ -201,14 +201,14 @@ static const struct regulator_linear_range rk809_buck5_voltage_ranges[] = {
 #define RK817_BUCK1_SEL_CNT (RK817_BUCK1_SEL0 + RK817_BUCK1_SEL1 + 1)
 #define RK817_BUCK3_SEL_CNT (RK817_BUCK1_SEL0 + RK817_BUCK3_SEL1 + 1)
 
-static const struct regulator_linear_range rk817_buck1_voltage_ranges[] = {
+static const struct linear_range rk817_buck1_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(RK817_BUCK1_MIN0, 0,
 			       RK817_BUCK1_SEL0, RK817_BUCK1_STP0),
 	REGULATOR_LINEAR_RANGE(RK817_BUCK1_MIN1, RK817_BUCK1_SEL0 + 1,
 			       RK817_BUCK1_SEL_CNT, RK817_BUCK1_STP1),
 };
 
-static const struct regulator_linear_range rk817_buck3_voltage_ranges[] = {
+static const struct linear_range rk817_buck3_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(RK817_BUCK1_MIN0, 0,
 			       RK817_BUCK1_SEL0, RK817_BUCK1_STP0),
 	REGULATOR_LINEAR_RANGE(RK817_BUCK1_MIN1, RK817_BUCK1_SEL0 + 1,
@@ -388,7 +388,7 @@ static int rk817_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 		break;
 	default:
 		dev_warn(&rdev->dev,
-			 "%s ramp_delay: %d not supported, setting 10000\n",
+			 "%s ramp_delay: %d not supported, setting 25000\n",
 			 rdev->desc->name, ramp_delay);
 	}
 
@@ -401,21 +401,6 @@ static int rk808_set_suspend_voltage(struct regulator_dev *rdev, int uv)
 	unsigned int reg;
 	int sel = regulator_map_voltage_linear(rdev, uv, uv);
 
-	if (sel < 0)
-		return -EINVAL;
-
-	reg = rdev->desc->vsel_reg + RK808_SLP_REG_OFFSET;
-
-	return regmap_update_bits(rdev->regmap, reg,
-				  rdev->desc->vsel_mask,
-				  sel);
-}
-
-static int rk817_set_suspend_voltage(struct regulator_dev *rdev, int uv)
-{
-	unsigned int reg;
-	int sel = regulator_map_voltage_linear(rdev, uv, uv);
-	/* only ldo1~ldo9 */
 	if (sel < 0)
 		return -EINVAL;
 
@@ -680,13 +665,13 @@ static const struct regulator_ops rk808_switch_ops = {
 	.set_suspend_disable	= rk808_set_suspend_disable,
 };
 
-static const struct regulator_linear_range rk805_buck_1_2_voltage_ranges[] = {
+static const struct linear_range rk805_buck_1_2_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(712500, 0, 59, 12500),
 	REGULATOR_LINEAR_RANGE(1800000, 60, 62, 200000),
 	REGULATOR_LINEAR_RANGE(2300000, 63, 63, 0),
 };
 
-static struct regulator_ops rk809_buck5_ops_range = {
+static const struct regulator_ops rk809_buck5_ops_range = {
 	.list_voltage		= regulator_list_voltage_linear_range,
 	.map_voltage		= regulator_map_voltage_linear_range,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -700,7 +685,7 @@ static struct regulator_ops rk809_buck5_ops_range = {
 	.set_suspend_disable	= rk817_set_suspend_disable,
 };
 
-static struct regulator_ops rk817_reg_ops = {
+static const struct regulator_ops rk817_reg_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -708,12 +693,12 @@ static struct regulator_ops rk817_reg_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= rk8xx_is_enabled_wmsk_regmap,
-	.set_suspend_voltage	= rk817_set_suspend_voltage,
+	.set_suspend_voltage	= rk808_set_suspend_voltage,
 	.set_suspend_enable	= rk817_set_suspend_enable,
 	.set_suspend_disable	= rk817_set_suspend_disable,
 };
 
-static struct regulator_ops rk817_boost_ops = {
+static const struct regulator_ops rk817_boost_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -725,7 +710,7 @@ static struct regulator_ops rk817_boost_ops = {
 	.set_suspend_disable	= rk817_set_suspend_disable,
 };
 
-static struct regulator_ops rk817_buck_ops_range = {
+static const struct regulator_ops rk817_buck_ops_range = {
 	.list_voltage		= regulator_list_voltage_linear_range,
 	.map_voltage		= regulator_map_voltage_linear_range,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
@@ -743,7 +728,7 @@ static struct regulator_ops rk817_buck_ops_range = {
 	.set_suspend_disable	= rk817_set_suspend_disable,
 };
 
-static struct regulator_ops rk817_switch_ops = {
+static const struct regulator_ops rk817_switch_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= rk8xx_is_enabled_wmsk_regmap,
@@ -1297,7 +1282,7 @@ static int rk808_regulator_dt_parse_pdata(struct device *dev,
 		}
 
 		if (!pdata->dvs_gpio[i]) {
-			dev_warn(dev, "there is no dvs%d gpio\n", i);
+			dev_info(dev, "there is no dvs%d gpio\n", i);
 			continue;
 		}
 

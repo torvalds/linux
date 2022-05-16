@@ -400,7 +400,7 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 		case -ENODEV:
 		case -ESHUTDOWN:
 			adapt->bSurpriseRemoved = true;
-			/* fall through */
+			fallthrough;
 		case -ENOENT:
 			adapt->bDriverStopped = true;
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
@@ -773,10 +773,10 @@ void usb_write_port_cancel(struct adapter *padapter)
 	}
 }
 
-void rtl8188eu_recv_tasklet(void *priv)
+void rtl8188eu_recv_tasklet(struct tasklet_struct *t)
 {
 	struct sk_buff *pskb;
-	struct adapter *adapt = priv;
+	struct adapter *adapt = from_tasklet(adapt, t, recvpriv.recv_tasklet);
 	struct recv_priv *precvpriv = &adapt->recvpriv;
 
 	while (NULL != (pskb = skb_dequeue(&precvpriv->rx_skb_queue))) {
@@ -792,9 +792,9 @@ void rtl8188eu_recv_tasklet(void *priv)
 	}
 }
 
-void rtl8188eu_xmit_tasklet(void *priv)
+void rtl8188eu_xmit_tasklet(struct tasklet_struct *t)
 {
-	struct adapter *adapt = priv;
+	struct adapter *adapt = from_tasklet(adapt, t, xmitpriv.xmit_tasklet);
 	struct xmit_priv *pxmitpriv = &adapt->xmitpriv;
 
 	if (check_fwstate(&adapt->mlmepriv, _FW_UNDER_SURVEY))

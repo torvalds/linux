@@ -7,8 +7,8 @@
 
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/scatterlist.h>
@@ -19,6 +19,7 @@
 #include <linux/acpi.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 
 #include "spi-dw.h"
 
@@ -29,6 +30,7 @@ struct dw_spi_mmio {
 	struct clk     *clk;
 	struct clk     *pclk;
 	void           *priv;
+	struct reset_control *rstc;
 };
 
 #define MSCC_CPU_SYSTEM_CTRL_GENERAL_CTRL	0x24
@@ -43,9 +45,12 @@ struct dw_spi_mmio {
 #define MSCC_SPI_MST_SW_MODE_SW_PIN_CTRL_MODE	BIT(13)
 #define MSCC_SPI_MST_SW_MODE_SW_SPI_CS(x)	(x << 5)
 
+#define SPARX5_FORCE_ENA			0xa4
+#define SPARX5_FORCE_VAL			0xa8
+
 struct dw_spi_mscc {
 	struct regmap       *syscon;
-	void __iomem        *spi_mst;
+	void __iomem        *spi_mst; /* Not sparx5 */
 };
 
 /*
@@ -122,10 +127,97 @@ static int dw_spi_mscc_jaguar2_init(struct platform_device *pdev,
 				JAGUAR2_IF_SI_OWNER_OFFSET);
 }
 
+/*
+ * The Designware SPI controller (referred to as master in the
+ * documentation) automatically deasserts chip select when the tx fifo
+ * is empty. The chip selects then needs to be driven by a CS override
+ * register. enable is an active low signal.
+ */
+static void dw_spi_sparx5_set_cs(struct spi_device *spi, bool enable)
+{
+	struct dw_spi *dws = spi_master_get_devdata(spi->master);
+	struct dw_spi_mmio *dwsmmio = container_of(dws, struct dw_spi_mmio, dws);
+	struct dw_spi_mscc *dwsmscc = dwsmmio->priv;
+	u8 cs = spi->chip_select;
+
+	if (!enable) {
+		/* CS override drive enable */
+		regmap_write(dwsmscc->syscon, SPARX5_FORCE_ENA, 1);
+		/* Now set CSx enabled */
+		regmap_write(dwsmscc->syscon, SPARX5_FORCE_VAL, ~BIT(cs));
+		/* Allow settle */
+		usleep_range(1, 5);
+	} else {
+		/* CS value */
+		regmap_write(dwsmscc->syscon, SPARX5_FORCE_VAL, ~0);
+		/* Allow settle */
+		usleep_range(1, 5);
+		/* CS override drive disable */
+		regmap_write(dwsmscc->syscon, SPARX5_FORCE_ENA, 0);
+	}
+
+	dw_spi_set_cs(spi, enable);
+}
+
+static int dw_spi_mscc_sparx5_init(struct platform_device *pdev,
+				   struct dw_spi_mmio *dwsmmio)
+{
+	const char *syscon_name = "microchip,sparx5-cpu-syscon";
+	struct device *dev = &pdev->dev;
+	struct dw_spi_mscc *dwsmscc;
+
+	if (!IS_ENABLED(CONFIG_SPI_MUX)) {
+		dev_err(dev, "This driver needs CONFIG_SPI_MUX\n");
+		return -EOPNOTSUPP;
+	}
+
+	dwsmscc = devm_kzalloc(dev, sizeof(*dwsmscc), GFP_KERNEL);
+	if (!dwsmscc)
+		return -ENOMEM;
+
+	dwsmscc->syscon =
+		syscon_regmap_lookup_by_compatible(syscon_name);
+	if (IS_ERR(dwsmscc->syscon)) {
+		dev_err(dev, "No syscon map %s\n", syscon_name);
+		return PTR_ERR(dwsmscc->syscon);
+	}
+
+	dwsmmio->dws.set_cs = dw_spi_sparx5_set_cs;
+	dwsmmio->priv = dwsmscc;
+
+	return 0;
+}
+
 static int dw_spi_alpine_init(struct platform_device *pdev,
 			      struct dw_spi_mmio *dwsmmio)
 {
-	dwsmmio->dws.cs_override = 1;
+	dwsmmio->dws.caps = DW_SPI_CAP_CS_OVERRIDE;
+
+	return 0;
+}
+
+static int dw_spi_dw_apb_init(struct platform_device *pdev,
+			      struct dw_spi_mmio *dwsmmio)
+{
+	dw_spi_dma_setup_generic(&dwsmmio->dws);
+
+	return 0;
+}
+
+static int dw_spi_dwc_ssi_init(struct platform_device *pdev,
+			       struct dw_spi_mmio *dwsmmio)
+{
+	dwsmmio->dws.caps = DW_SPI_CAP_DWC_SSI;
+
+	dw_spi_dma_setup_generic(&dwsmmio->dws);
+
+	return 0;
+}
+
+static int dw_spi_keembay_init(struct platform_device *pdev,
+			       struct dw_spi_mmio *dwsmmio)
+{
+	dwsmmio->dws.caps = DW_SPI_CAP_KEEMBAY_MST | DW_SPI_CAP_DWC_SSI;
 
 	return 0;
 }
@@ -135,6 +227,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	int (*init_func)(struct platform_device *pdev,
 			 struct dw_spi_mmio *dwsmmio);
 	struct dw_spi_mmio *dwsmmio;
+	struct resource *mem;
 	struct dw_spi *dws;
 	int ret;
 	int num_cs;
@@ -147,11 +240,11 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	dws = &dwsmmio->dws;
 
 	/* Get basic io resource and map it */
-	dws->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(dws->regs)) {
-		dev_err(&pdev->dev, "SPI region map failed\n");
+	dws->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
+	if (IS_ERR(dws->regs))
 		return PTR_ERR(dws->regs);
-	}
+
+	dws->paddr = mem->start;
 
 	dws->irq = platform_get_irq(pdev, 0);
 	if (dws->irq < 0)
@@ -174,6 +267,14 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_clk;
 
+	/* find an optional reset controller */
+	dwsmmio->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, "spi");
+	if (IS_ERR(dwsmmio->rstc)) {
+		ret = PTR_ERR(dwsmmio->rstc);
+		goto out_clk;
+	}
+	reset_control_deassert(dwsmmio->rstc);
+
 	dws->bus_num = pdev->id;
 
 	dws->max_freq = clk_get_rate(dwsmmio->clk);
@@ -193,6 +294,8 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 			goto out;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+
 	ret = dw_spi_add_host(&pdev->dev, dws);
 	if (ret)
 		goto out;
@@ -201,9 +304,12 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	return 0;
 
 out:
+	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(dwsmmio->pclk);
 out_clk:
 	clk_disable_unprepare(dwsmmio->clk);
+	reset_control_assert(dwsmmio->rstc);
+
 	return ret;
 }
 
@@ -212,26 +318,34 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 	struct dw_spi_mmio *dwsmmio = platform_get_drvdata(pdev);
 
 	dw_spi_remove_host(&dwsmmio->dws);
+	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(dwsmmio->pclk);
 	clk_disable_unprepare(dwsmmio->clk);
+	reset_control_assert(dwsmmio->rstc);
 
 	return 0;
 }
 
 static const struct of_device_id dw_spi_mmio_of_match[] = {
-	{ .compatible = "snps,dw-apb-ssi", },
+	{ .compatible = "snps,dw-apb-ssi", .data = dw_spi_dw_apb_init},
 	{ .compatible = "mscc,ocelot-spi", .data = dw_spi_mscc_ocelot_init},
 	{ .compatible = "mscc,jaguar2-spi", .data = dw_spi_mscc_jaguar2_init},
 	{ .compatible = "amazon,alpine-dw-apb-ssi", .data = dw_spi_alpine_init},
+	{ .compatible = "renesas,rzn1-spi", .data = dw_spi_dw_apb_init},
+	{ .compatible = "snps,dwc-ssi-1.01a", .data = dw_spi_dwc_ssi_init},
+	{ .compatible = "intel,keembay-ssi", .data = dw_spi_keembay_init},
+	{ .compatible = "microchip,sparx5-spi", dw_spi_mscc_sparx5_init},
 	{ /* end of table */}
 };
 MODULE_DEVICE_TABLE(of, dw_spi_mmio_of_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id dw_spi_mmio_acpi_match[] = {
-	{"HISI0173", 0},
+	{"HISI0173", (kernel_ulong_t)dw_spi_dw_apb_init},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, dw_spi_mmio_acpi_match);
+#endif
 
 static struct platform_driver dw_spi_mmio_driver = {
 	.probe		= dw_spi_mmio_probe,

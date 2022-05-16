@@ -18,26 +18,26 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 	uint cnt = 0;
 	char buf[128];
 
-	cnt += sprintf((buf+cnt), "Chip Version Info: CHIP_8188E_");
-	cnt += sprintf((buf+cnt), "%s_", chip_vers.ChipType == NORMAL_CHIP ?
+	cnt += sprintf((buf + cnt), "Chip Version Info: CHIP_8188E_");
+	cnt += sprintf((buf + cnt), "%s_", chip_vers.ChipType == NORMAL_CHIP ?
 		       "Normal_Chip" : "Test_Chip");
-	cnt += sprintf((buf+cnt), "%s_", chip_vers.VendorType == CHIP_VENDOR_TSMC ?
+	cnt += sprintf((buf + cnt), "%s_", chip_vers.VendorType == CHIP_VENDOR_TSMC ?
 		       "TSMC" : "UMC");
 	if (chip_vers.CUTVersion == A_CUT_VERSION)
-		cnt += sprintf((buf+cnt), "A_CUT_");
+		cnt += sprintf((buf + cnt), "A_CUT_");
 	else if (chip_vers.CUTVersion == B_CUT_VERSION)
-		cnt += sprintf((buf+cnt), "B_CUT_");
+		cnt += sprintf((buf + cnt), "B_CUT_");
 	else if (chip_vers.CUTVersion == C_CUT_VERSION)
-		cnt += sprintf((buf+cnt), "C_CUT_");
+		cnt += sprintf((buf + cnt), "C_CUT_");
 	else if (chip_vers.CUTVersion == D_CUT_VERSION)
-		cnt += sprintf((buf+cnt), "D_CUT_");
+		cnt += sprintf((buf + cnt), "D_CUT_");
 	else if (chip_vers.CUTVersion == E_CUT_VERSION)
-		cnt += sprintf((buf+cnt), "E_CUT_");
+		cnt += sprintf((buf + cnt), "E_CUT_");
 	else
-		cnt += sprintf((buf+cnt), "UNKNOWN_CUT(%d)_",
+		cnt += sprintf((buf + cnt), "UNKNOWN_CUT(%d)_",
 			       chip_vers.CUTVersion);
-	cnt += sprintf((buf+cnt), "1T1R_");
-	cnt += sprintf((buf+cnt), "RomVer(0)\n");
+	cnt += sprintf((buf + cnt), "1T1R_");
+	cnt += sprintf((buf + cnt), "RomVer(0)\n");
 
 	pr_info("%s", buf);
 }

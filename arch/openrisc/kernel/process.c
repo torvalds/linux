@@ -36,7 +36,6 @@
 #include <linux/fs.h>
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/spr_defs.h>
@@ -80,7 +79,7 @@ void machine_power_off(void)
  */
 void arch_cpu_idle(void)
 {
-	local_irq_enable();
+	raw_local_irq_enable();
 	if (mfspr(SPR_UPR) & SPR_UPR_PMP)
 		mtspr(SPR_PMR, mfspr(SPR_PMR) | SPR_PMR_DME);
 }
@@ -122,7 +121,7 @@ extern asmlinkage void ret_from_fork(void);
  * @usp: user stack pointer or fn for kernel thread
  * @arg: arg to fn for kernel thread; always NULL for userspace thread
  * @p: the newly created task
- * @regs: CPU context to copy for userspace thread; always NULL for kthread
+ * @tls: the Thread Local Storage pointer for the new process
  *
  * At the top of a newly initialized kernel stack are two stacked pt_reg
  * structures.  The first (topmost) is the userspace context of the thread.
@@ -148,8 +147,8 @@ extern asmlinkage void ret_from_fork(void);
  */
 
 int
-copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long arg, struct task_struct *p)
+copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
+	    struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *userregs;
 	struct pt_regs *kregs;
@@ -179,16 +178,10 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 			userregs->sp = usp;
 
 		/*
-		 * For CLONE_SETTLS set "tp" (r10) to the TLS pointer passed to sys_clone.
-		 *
-		 * The kernel entry is:
-		 *	int clone (long flags, void *child_stack, int *parent_tid,
-		 *		int *child_tid, struct void *tls)
-		 *
-		 * This makes the source r7 in the kernel registers.
+		 * For CLONE_SETTLS set "tp" (r10) to the TLS pointer.
 		 */
 		if (clone_flags & CLONE_SETTLS)
-			userregs->gpr[10] = userregs->gpr[7];
+			userregs->gpr[10] = tls;
 
 		userregs->gpr[11] = 0;	/* Result from fork() */
 
@@ -219,13 +212,6 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
 	regs->pc = pc;
 	regs->sr = sr;
 	regs->sp = sp;
-}
-
-/* Fill in the fpu structure for a core dump.  */
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpu)
-{
-	/* TODO */
-	return 0;
 }
 
 extern struct thread_info *_switch(struct thread_info *old_ti,

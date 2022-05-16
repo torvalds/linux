@@ -1,33 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #ifndef REG_ADDR_H
@@ -178,6 +152,8 @@
 	0x008c80UL
 #define  MCP_REG_SCRATCH	\
 	0xe20000UL
+#define MCP_REG_SCRATCH_SIZE \
+	57344
 #define  CNIG_REG_NW_PORT_MODE_BB \
 	0x218200UL
 #define  MISCS_REG_CHIP_NUM \
@@ -212,6 +188,8 @@
 	0x580900UL
 #define  DBG_REG_CLIENT_ENABLE \
 	0x010004UL
+#define DBG_REG_TIMESTAMP_VALID_EN \
+	0x010b58UL
 #define  DMAE_REG_INIT \
 	0x00c000UL
 #define  DORQ_REG_IFEN \
@@ -350,6 +328,10 @@
 	0x24000cUL
 #define PSWRQ2_REG_ILT_MEMORY \
 	0x260000UL
+#define PSWRQ2_REG_ILT_MEMORY_SIZE_BB \
+	15200
+#define PSWRQ2_REG_ILT_MEMORY_SIZE_K2 \
+	22000
 #define  PSWHST_REG_DISCARD_INTERNAL_WRITES \
 	0x2a0040UL
 #define  PSWHST2_REG_DBGSYN_ALMOST_FULL_THR \
@@ -1453,6 +1435,8 @@
 	0x1401404UL
 #define XSEM_REG_DBG_FRAME_MODE_BB_K2	\
 	0x1401408UL
+#define XSEM_REG_DBG_GPRE_VECT \
+	0x1401410UL
 #define XSEM_REG_DBG_MODE1_CFG_BB_K2 \
 	0x1401420UL
 #define XSEM_REG_FAST_MEMORY \
@@ -1465,6 +1449,8 @@
 	0x1501404UL
 #define YSEM_REG_DBG_FRAME_MODE_BB_K2	\
 	0x1501408UL
+#define YSEM_REG_DBG_GPRE_VECT \
+	0x1501410UL
 #define YSEM_REG_DBG_MODE1_CFG_BB_K2 \
 	0x1501420UL
 #define YSEM_REG_FAST_MEMORY \
@@ -1479,6 +1465,8 @@
 	0x1601404UL
 #define PSEM_REG_DBG_FRAME_MODE_BB_K2	\
 	0x1601408UL
+#define PSEM_REG_DBG_GPRE_VECT \
+	0x1601410UL
 #define PSEM_REG_DBG_MODE1_CFG_BB_K2 \
 	0x1601420UL
 #define PSEM_REG_FAST_MEMORY \
@@ -1493,6 +1481,8 @@
 	0x1701404UL
 #define TSEM_REG_DBG_FRAME_MODE_BB_K2	\
 	0x1701408UL
+#define TSEM_REG_DBG_GPRE_VECT \
+	0x1701410UL
 #define TSEM_REG_DBG_MODE1_CFG_BB_K2 \
 	0x1701420UL
 #define TSEM_REG_FAST_MEMORY \
@@ -1507,12 +1497,16 @@
 	0x1801404UL
 #define MSEM_REG_DBG_FRAME_MODE_BB_K2	\
 	0x1801408UL
+#define MSEM_REG_DBG_GPRE_VECT \
+	0x1801410UL
 #define MSEM_REG_DBG_MODE1_CFG_BB_K2 \
 	0x1801420UL
 #define MSEM_REG_FAST_MEMORY \
 	0x1840000UL
 #define USEM_REG_SLOW_DBG_EMPTY_BB_K2	\
 	0x1901140UL
+#define SEM_FAST_REG_INT_RAM_SIZE \
+	20480
 #define USEM_REG_SYNC_DBG_EMPTY	\
 	0x1901160UL
 #define USEM_REG_SLOW_DBG_ACTIVE_BB_K2 \
@@ -1521,14 +1515,26 @@
 	0x1901404UL
 #define USEM_REG_DBG_FRAME_MODE_BB_K2	\
 	0x1901408UL
+#define USEM_REG_DBG_GPRE_VECT \
+	0x1901410UL
 #define USEM_REG_DBG_MODE1_CFG_BB_K2 \
 	0x1901420UL
 #define USEM_REG_FAST_MEMORY \
 	0x1940000UL
+#define SEM_FAST_REG_DBG_MODE23_SRC_DISABLE \
+	0x000748UL
+#define SEM_FAST_REG_DBG_MODE4_SRC_DISABLE \
+	0x00074cUL
+#define SEM_FAST_REG_DBG_MODE6_SRC_DISABLE \
+	0x000750UL
+#define SEM_FAST_REG_DEBUG_ACTIVE \
+	0x000740UL
 #define SEM_FAST_REG_INT_RAM \
 	0x020000UL
 #define SEM_FAST_REG_INT_RAM_SIZE_BB_K2 \
 	20480
+#define SEM_FAST_REG_RECORD_FILTER_ENABLE \
+	0x000768UL
 #define GRC_REG_TRACE_FIFO_VALID_DATA \
 	0x050064UL
 #define GRC_REG_NUMBER_VALID_OVERRIDE_WINDOW \
@@ -1583,14 +1589,20 @@
 	0x181530UL
 #define DBG_REG_DBG_BLOCK_ON \
 	0x010454UL
+#define DBG_REG_FILTER_ENABLE \
+	0x0109d0UL
 #define DBG_REG_FRAMING_MODE \
 	0x010058UL
+#define DBG_REG_TRIGGER_ENABLE \
+	0x01054cUL
 #define SEM_FAST_REG_VFC_DATA_WR \
 	0x000b40UL
 #define SEM_FAST_REG_VFC_ADDR \
 	0x000b44UL
 #define SEM_FAST_REG_VFC_DATA_RD \
 	0x000b48UL
+#define SEM_FAST_REG_VFC_STATUS	\
+	0x000b4cUL
 #define RSS_REG_RSS_RAM_DATA \
 	0x238c20UL
 #define RSS_REG_RSS_RAM_DATA_SIZE \

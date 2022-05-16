@@ -74,7 +74,7 @@ struct bam_async_desc {
 	struct list_head desc_node;
 	enum dma_transfer_direction dir;
 	size_t length;
-	struct bam_desc_hw desc[0];
+	struct bam_desc_hw desc[];
 };
 
 enum bam_reg {
@@ -381,7 +381,6 @@ struct bam_device {
 	void __iomem *regs;
 	struct device *dev;
 	struct dma_device common;
-	struct device_dma_parameters dma_parms;
 	struct bam_chan *channels;
 	u32 num_channels;
 	u32 num_ees;
@@ -1071,13 +1070,13 @@ static void bam_start_dma(struct bam_chan *bchan)
 
 /**
  * dma_tasklet - DMA IRQ tasklet
- * @data: tasklet argument (bam controller structure)
+ * @t: tasklet argument (bam controller structure)
  *
  * Sets up next DMA operation and then processes all completed transactions
  */
-static void dma_tasklet(unsigned long data)
+static void dma_tasklet(struct tasklet_struct *t)
 {
-	struct bam_device *bdev = (struct bam_device *)data;
+	struct bam_device *bdev = from_tasklet(bdev, t, task);
 	struct bam_chan *bchan;
 	unsigned long flags;
 	unsigned int i;
@@ -1293,7 +1292,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_disable_clk;
 
-	tasklet_init(&bdev->task, dma_tasklet, (unsigned long)bdev);
+	tasklet_setup(&bdev->task, dma_tasklet);
 
 	bdev->channels = devm_kcalloc(bdev->dev, bdev->num_channels,
 				sizeof(*bdev->channels), GFP_KERNEL);
@@ -1316,7 +1315,6 @@ static int bam_dma_probe(struct platform_device *pdev)
 
 	/* set max dma segment size */
 	bdev->common.dev = bdev->dev;
-	bdev->common.dev->dma_parms = &bdev->dma_parms;
 	ret = dma_set_max_seg_size(bdev->common.dev, BAM_FIFO_SIZE);
 	if (ret) {
 		dev_err(bdev->dev, "cannot set maximum segment size\n");

@@ -37,8 +37,6 @@
 #define DRIVER_NAME	"envctrl"
 #define PFX		DRIVER_NAME ": "
 
-#define ENVCTRL_MINOR	162
-
 #define PCF8584_ADDRESS	0x55
 
 #define CONTROL_PIN	0x80
@@ -715,9 +713,7 @@ static const struct file_operations envctrl_fops = {
 	.owner =		THIS_MODULE,
 	.read =			envctrl_read,
 	.unlocked_ioctl =	envctrl_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl =		envctrl_ioctl,
-#endif
+	.compat_ioctl =		compat_ptr_ioctl,
 	.open =			envctrl_open,
 	.release =		envctrl_release,
 	.llseek =		noop_llseek,

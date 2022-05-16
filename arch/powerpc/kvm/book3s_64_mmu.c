@@ -24,20 +24,6 @@
 #define dprintk(X...) do { } while(0)
 #endif
 
-static void kvmppc_mmu_book3s_64_reset_msr(struct kvm_vcpu *vcpu)
-{
-	unsigned long msr = vcpu->arch.intr_msr;
-	unsigned long cur_msr = kvmppc_get_msr(vcpu);
-
-	/* If transactional, change to suspend mode on IRQ delivery */
-	if (MSR_TM_TRANSACTIONAL(cur_msr))
-		msr |= MSR_TS_S;
-	else
-		msr |= cur_msr & MSR_TS_MASK;
-
-	kvmppc_set_msr(vcpu, msr);
-}
-
 static struct kvmppc_slb *kvmppc_mmu_book3s_64_find_slbe(
 				struct kvm_vcpu *vcpu,
 				gva_t eaddr)
@@ -325,7 +311,7 @@ do_second:
 	case 2:
 	case 6:
 		gpte->may_write = true;
-		/* fall through */
+		fallthrough;
 	case 3:
 	case 5:
 	case 7:
@@ -676,7 +662,6 @@ void kvmppc_mmu_book3s_64_init(struct kvm_vcpu *vcpu)
 	mmu->slbie = kvmppc_mmu_book3s_64_slbie;
 	mmu->slbia = kvmppc_mmu_book3s_64_slbia;
 	mmu->xlate = kvmppc_mmu_book3s_64_xlate;
-	mmu->reset_msr = kvmppc_mmu_book3s_64_reset_msr;
 	mmu->tlbie = kvmppc_mmu_book3s_64_tlbie;
 	mmu->esid_to_vsid = kvmppc_mmu_book3s_64_esid_to_vsid;
 	mmu->ea_to_vp = kvmppc_mmu_book3s_64_ea_to_vp;

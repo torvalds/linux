@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2020  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  */
@@ -230,7 +230,7 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 			break;
 		}
 
-		/* fall through */
+		fallthrough;
 	case ETH_P_BATMAN:
 		goto dropped;
 	}
@@ -364,9 +364,8 @@ send:
 				goto dropped;
 			ret = batadv_send_skb_via_gw(bat_priv, skb, vid);
 		} else if (mcast_single_orig) {
-			ret = batadv_send_skb_unicast(bat_priv, skb,
-						      BATADV_UNICAST, 0,
-						      mcast_single_orig, vid);
+			ret = batadv_mcast_forw_send_orig(bat_priv, skb, vid,
+							  mcast_single_orig);
 		} else if (forw_mode == BATADV_FORW_SOME) {
 			ret = batadv_mcast_forw_send(bat_priv, skb, vid);
 		} else {
@@ -406,7 +405,7 @@ end:
  * @hdr_size: size of already parsed batman-adv header
  * @orig_node: originator from which the batman-adv packet was sent
  *
- * Sends a ethernet frame to the receive path of the local @soft_iface.
+ * Sends an ethernet frame to the receive path of the local @soft_iface.
  * skb->data has still point to the batman-adv header with the size @hdr_size.
  * The caller has to have parsed this header already and made sure that at least
  * @hdr_size bytes are still available for pull in @skb.
@@ -425,10 +424,10 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	struct vlan_ethhdr *vhdr;
 	struct ethhdr *ethhdr;
 	unsigned short vid;
-	bool is_bcast;
+	int packet_type;
 
 	batadv_bcast_packet = (struct batadv_bcast_packet *)skb->data;
-	is_bcast = (batadv_bcast_packet->packet_type == BATADV_BCAST);
+	packet_type = batadv_bcast_packet->packet_type;
 
 	skb_pull_rcsum(skb, hdr_size);
 	skb_reset_mac_header(skb);
@@ -455,7 +454,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 		if (vhdr->h_vlan_encapsulated_proto != htons(ETH_P_BATMAN))
 			break;
 
-		/* fall through */
+		fallthrough;
 	case ETH_P_BATMAN:
 		goto dropped;
 	}
@@ -471,7 +470,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	/* Let the bridge loop avoidance check the packet. If will
 	 * not handle it, we can safely push it up.
 	 */
-	if (batadv_bla_rx(bat_priv, skb, vid, is_bcast))
+	if (batadv_bla_rx(bat_priv, skb, vid, packet_type))
 		goto out;
 
 	if (orig_node)
@@ -649,7 +648,7 @@ static void batadv_softif_destroy_vlan(struct batadv_priv *bat_priv,
 /**
  * batadv_interface_add_vid() - ndo_add_vid API implementation
  * @dev: the netdev of the mesh interface
- * @proto: protocol of the the vlan id
+ * @proto: protocol of the vlan id
  * @vid: identifier of the new vlan
  *
  * Set up all the internal structures for handling the new vlan on top of the
@@ -707,7 +706,7 @@ static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
 /**
  * batadv_interface_kill_vid() - ndo_kill_vid API implementation
  * @dev: the netdev of the mesh interface
- * @proto: protocol of the the vlan id
+ * @proto: protocol of the vlan id
  * @vid: identifier of the deleted vlan
  *
  * Destroy all the internal structures used to handle the vlan identified by vid
@@ -740,6 +739,36 @@ static int batadv_interface_kill_vid(struct net_device *dev, __be16 proto,
 	return 0;
 }
 
+/* batman-adv network devices have devices nesting below it and are a special
+ * "super class" of normal network devices; split their locks off into a
+ * separate class since they always nest.
+ */
+static struct lock_class_key batadv_netdev_xmit_lock_key;
+static struct lock_class_key batadv_netdev_addr_lock_key;
+
+/**
+ * batadv_set_lockdep_class_one() - Set lockdep class for a single tx queue
+ * @dev: device which owns the tx queue
+ * @txq: tx queue to modify
+ * @_unused: always NULL
+ */
+static void batadv_set_lockdep_class_one(struct net_device *dev,
+					 struct netdev_queue *txq,
+					 void *_unused)
+{
+	lockdep_set_class(&txq->_xmit_lock, &batadv_netdev_xmit_lock_key);
+}
+
+/**
+ * batadv_set_lockdep_class() - Set txq and addr_list lockdep class
+ * @dev: network device to modify
+ */
+static void batadv_set_lockdep_class(struct net_device *dev)
+{
+	lockdep_set_class(&dev->addr_list_lock, &batadv_netdev_addr_lock_key);
+	netdev_for_each_tx_queue(dev, batadv_set_lockdep_class_one, NULL);
+}
+
 /**
  * batadv_softif_init_late() - late stage initialization of soft interface
  * @dev: registered network device to modify
@@ -752,6 +781,8 @@ static int batadv_softif_init_late(struct net_device *dev)
 	u32 random_seqno;
 	int ret;
 	size_t cnt_len = sizeof(u64) * BATADV_CNT_NUM;
+
+	batadv_set_lockdep_class(dev);
 
 	bat_priv = netdev_priv(dev);
 	bat_priv->soft_iface = dev;

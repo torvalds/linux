@@ -16,7 +16,7 @@
 #include <linux/percpu.h>
 
 #define __ARCH_WANT_KPROBES_INSN_SLOT
-#define MAX_INSN_SIZE			1
+#define MAX_INSN_SIZE			2
 
 #define flush_insn_slot(p)		do { } while (0)
 #define kretprobe_blacklist_size	0

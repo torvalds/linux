@@ -50,16 +50,53 @@ source "drivers/usb/typec/tcpm/Kconfig"
 
 source "drivers/usb/typec/ucsi/Kconfig"
 
+config TYPEC_HD3SS3220
+	tristate "TI HD3SS3220 Type-C DRP Port controller driver"
+	depends on I2C
+	depends on USB_ROLE_SWITCH
+	help
+	  Say Y or M here if your system has TI HD3SS3220 Type-C DRP Port
+	  controller driver.
+
+	  If you choose to build this driver as a dynamically linked module, the
+	  module will be called hd3ss3220.ko.
+
 config TYPEC_TPS6598X
 	tristate "TI TPS6598x USB Power Delivery controller driver"
 	depends on I2C
-	select REGMAP_I2C
+	depends on REGMAP_I2C
+	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
 	help
 	  Say Y or M here if your system has TI TPS65982 or TPS65983 USB Power
 	  Delivery controller.
 
 	  If you choose to build this driver as a dynamically linked module, the
 	  module will be called tps6598x.ko.
+
+config TYPEC_STUSB160X
+	tristate "STMicroelectronics STUSB160x Type-C controller driver"
+	depends on I2C
+	depends on REGMAP_I2C
+	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
+	help
+	  Say Y or M here if your system has STMicroelectronics STUSB160x
+	  Type-C port controller.
+
+	  If you choose to build this driver as a dynamically linked module, the
+	  module will be called stusb160x.ko.
+
+config TYPEC_QCOM_PMIC
+	tristate "Qualcomm PMIC USB Type-C driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
+	help
+	  Driver for supporting role switch over the Qualcomm PMIC.  This will
+	  handle the USB Type-C role and orientation detection reported by the
+	  QCOM PMIC if the PMIC has the capability to handle USB Type-C
+	  detection.
+
+	  It will also enable the VBUS output to connected devices when a
+	  DFP connection is made.
 
 source "drivers/usb/typec/mux/Kconfig"
 

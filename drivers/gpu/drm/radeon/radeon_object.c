@@ -112,58 +112,58 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 		    rbo->rdev->mc.visible_vram_size < rbo->rdev->mc.real_vram_size) {
 			rbo->placements[c].fpfn =
 				rbo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
+			rbo->placements[c].mem_type = TTM_PL_VRAM;
 			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
-						     TTM_PL_FLAG_UNCACHED |
-						     TTM_PL_FLAG_VRAM;
+						     TTM_PL_FLAG_UNCACHED;
 		}
 
 		rbo->placements[c].fpfn = 0;
+		rbo->placements[c].mem_type = TTM_PL_VRAM;
 		rbo->placements[c++].flags = TTM_PL_FLAG_WC |
-					     TTM_PL_FLAG_UNCACHED |
-					     TTM_PL_FLAG_VRAM;
+					     TTM_PL_FLAG_UNCACHED;
 	}
 
 	if (domain & RADEON_GEM_DOMAIN_GTT) {
 		if (rbo->flags & RADEON_GEM_GTT_UC) {
 			rbo->placements[c].fpfn = 0;
-			rbo->placements[c++].flags = TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_TT;
+			rbo->placements[c].mem_type = TTM_PL_TT;
+			rbo->placements[c++].flags = TTM_PL_FLAG_UNCACHED;
 
 		} else if ((rbo->flags & RADEON_GEM_GTT_WC) ||
 			   (rbo->rdev->flags & RADEON_IS_AGP)) {
 			rbo->placements[c].fpfn = 0;
+			rbo->placements[c].mem_type = TTM_PL_TT;
 			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
-				TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_TT;
+				TTM_PL_FLAG_UNCACHED;
 		} else {
 			rbo->placements[c].fpfn = 0;
-			rbo->placements[c++].flags = TTM_PL_FLAG_CACHED |
-						     TTM_PL_FLAG_TT;
+			rbo->placements[c].mem_type = TTM_PL_TT;
+			rbo->placements[c++].flags = TTM_PL_FLAG_CACHED;
 		}
 	}
 
 	if (domain & RADEON_GEM_DOMAIN_CPU) {
 		if (rbo->flags & RADEON_GEM_GTT_UC) {
 			rbo->placements[c].fpfn = 0;
-			rbo->placements[c++].flags = TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_SYSTEM;
+			rbo->placements[c].mem_type = TTM_PL_SYSTEM;
+			rbo->placements[c++].flags = TTM_PL_FLAG_UNCACHED;
 
 		} else if ((rbo->flags & RADEON_GEM_GTT_WC) ||
 		    rbo->rdev->flags & RADEON_IS_AGP) {
 			rbo->placements[c].fpfn = 0;
+			rbo->placements[c].mem_type = TTM_PL_SYSTEM;
 			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
-				TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_SYSTEM;
+				TTM_PL_FLAG_UNCACHED;
 		} else {
 			rbo->placements[c].fpfn = 0;
-			rbo->placements[c++].flags = TTM_PL_FLAG_CACHED |
-						     TTM_PL_FLAG_SYSTEM;
+			rbo->placements[c].mem_type = TTM_PL_SYSTEM;
+			rbo->placements[c++].flags = TTM_PL_FLAG_CACHED;
 		}
 	}
 	if (!c) {
 		rbo->placements[c].fpfn = 0;
-		rbo->placements[c++].flags = TTM_PL_MASK_CACHING |
-					     TTM_PL_FLAG_SYSTEM;
+		rbo->placements[c].mem_type = TTM_PL_SYSTEM;
+		rbo->placements[c++].flags = TTM_PL_MASK_CACHING;
 	}
 
 	rbo->placement.num_placement = c;
@@ -171,7 +171,7 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 
 	for (i = 0; i < c; ++i) {
 		if ((rbo->flags & RADEON_GEM_CPU_ACCESS) &&
-		    (rbo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
+		    (rbo->placements[i].mem_type == TTM_PL_VRAM) &&
 		    !rbo->placements[i].fpfn)
 			rbo->placements[i].lpfn =
 				rbo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
@@ -331,7 +331,7 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 	struct ttm_operation_ctx ctx = { false, false };
 	int r, i;
 
-	if (radeon_ttm_tt_has_userptr(bo->tbo.ttm))
+	if (radeon_ttm_tt_has_userptr(bo->rdev, bo->tbo.ttm))
 		return -EPERM;
 
 	if (bo->pin_count) {
@@ -360,7 +360,7 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 	radeon_ttm_placement_from_domain(bo, domain);
 	for (i = 0; i < bo->placement.num_placement; i++) {
 		/* force to pin into visible video ram */
-		if ((bo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
+		if ((bo->placements[i].mem_type == TTM_PL_VRAM) &&
 		    !(bo->flags & RADEON_GEM_NO_CPU_ACCESS) &&
 		    (!max_offset || max_offset > bo->rdev->mc.visible_vram_size))
 			bo->placements[i].lpfn =
@@ -448,7 +448,7 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 		list_del_init(&bo->list);
 		mutex_unlock(&bo->rdev->gem.mutex);
 		/* this should unref the ttm bo */
-		drm_gem_object_put_unlocked(&bo->tbo.base);
+		drm_gem_object_put(&bo->tbo.base);
 	}
 }
 
@@ -542,7 +542,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 	u64 bytes_moved_threshold = radeon_bo_get_threshold_for_moves(rdev);
 
 	INIT_LIST_HEAD(&duplicates);
-	r = ttm_eu_reserve_buffers(ticket, head, true, &duplicates, true);
+	r = ttm_eu_reserve_buffers(ticket, head, true, &duplicates);
 	if (unlikely(r != 0)) {
 		return r;
 	}
@@ -775,7 +775,7 @@ int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 
 void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 			   bool evict,
-			   struct ttm_mem_reg *new_mem)
+			   struct ttm_resource *new_mem)
 {
 	struct radeon_bo *rbo;
 
@@ -824,7 +824,7 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	lpfn =	rdev->mc.visible_vram_size >> PAGE_SHIFT;
 	for (i = 0; i < rbo->placement.num_placement; i++) {
 		/* Force into visible VRAM */
-		if ((rbo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
+		if ((rbo->placements[i].mem_type == TTM_PL_VRAM) &&
 		    (!rbo->placements[i].lpfn || rbo->placements[i].lpfn > lpfn))
 			rbo->placements[i].lpfn = lpfn;
 	}

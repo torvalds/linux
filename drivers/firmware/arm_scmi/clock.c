@@ -5,6 +5,8 @@
  * Copyright (C) 2018 ARM Ltd.
  */
 
+#include <linux/sort.h>
+
 #include "common.h"
 
 enum scmi_clock_protocol_cmd {
@@ -65,6 +67,7 @@ struct scmi_clock_set_rate {
 };
 
 struct clock_info {
+	u32 version;
 	int num_clocks;
 	int max_async_req;
 	atomic_t cur_async_req;
@@ -120,11 +123,23 @@ static int scmi_clock_attributes_get(const struct scmi_handle *handle,
 	return ret;
 }
 
+static int rate_cmp_func(const void *_r1, const void *_r2)
+{
+	const u64 *r1 = _r1, *r2 = _r2;
+
+	if (*r1 < *r2)
+		return -1;
+	else if (*r1 == *r2)
+		return 0;
+	else
+		return 1;
+}
+
 static int
 scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 			      struct scmi_clock_info *clk)
 {
-	u64 *rate;
+	u64 *rate = NULL;
 	int ret, cnt;
 	bool rate_discrete = false;
 	u32 tot_rate_cnt = 0, rates_flag;
@@ -177,14 +192,18 @@ scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 		}
 
 		tot_rate_cnt += num_returned;
+
+		scmi_reset_rx_to_maxsz(handle, t);
 		/*
 		 * check for both returned and remaining to avoid infinite
 		 * loop due to buggy firmware
 		 */
 	} while (num_returned && num_remaining);
 
-	if (rate_discrete)
+	if (rate_discrete && rate) {
 		clk->list.num_rates = tot_rate_cnt;
+		sort(rate, tot_rate_cnt, sizeof(*rate), rate_cmp_func, NULL);
+	}
 
 	clk->rate_discrete = rate_discrete;
 
@@ -301,7 +320,7 @@ scmi_clock_info_get(const struct scmi_handle *handle, u32 clk_id)
 	return clk;
 }
 
-static struct scmi_clk_ops clk_ops = {
+static const struct scmi_clk_ops clk_ops = {
 	.count_get = scmi_clock_count_get,
 	.info_get = scmi_clock_info_get,
 	.rate_get = scmi_clock_rate_get,
@@ -340,15 +359,11 @@ static int scmi_clock_protocol_init(struct scmi_handle *handle)
 			scmi_clock_describe_rates_get(handle, clkid, clk);
 	}
 
+	cinfo->version = version;
 	handle->clk_ops = &clk_ops;
 	handle->clk_priv = cinfo;
 
 	return 0;
 }
 
-static int __init scmi_clock_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_CLOCK,
-				      &scmi_clock_protocol_init);
-}
-subsys_initcall(scmi_clock_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_CLOCK, clock)

@@ -1,33 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #ifndef _QED_SP_H
@@ -120,9 +94,7 @@ union ramrod_data {
 	struct fcoe_conn_terminate_ramrod_params fcoe_conn_terminate;
 	struct fcoe_stat_ramrod_params fcoe_stat;
 
-	struct iscsi_slow_path_hdr iscsi_empty;
 	struct iscsi_init_ramrod_params iscsi_init;
-	struct iscsi_spe_func_dstry iscsi_destroy;
 	struct iscsi_spe_conn_offload iscsi_conn_offload;
 	struct iscsi_conn_update_ramrod_params iscsi_conn_update;
 	struct iscsi_spe_conn_mac_update iscsi_conn_mac_update;
@@ -182,12 +154,9 @@ struct qed_consq {
 	struct qed_chain chain;
 };
 
-typedef int
-(*qed_spq_async_comp_cb)(struct qed_hwfn *p_hwfn,
-			 u8 opcode,
-			 u16 echo,
-			 union event_ring_data *data,
-			 u8 fw_return_code);
+typedef int (*qed_spq_async_comp_cb)(struct qed_hwfn *p_hwfn, u8 opcode,
+				     __le16 echo, union event_ring_data *data,
+				     u8 fw_return_code);
 
 int
 qed_spq_register_async_cb(struct qed_hwfn *p_hwfn,

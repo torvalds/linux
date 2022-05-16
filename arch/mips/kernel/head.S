@@ -35,7 +35,7 @@
 	.macro	setup_c0_status set clr
 	.set	push
 	mfc0	t0, CP0_STATUS
-	or	t0, ST0_CU0|\set|0x1f|\clr
+	or	t0, ST0_KERNEL_CUMASK|\set|0x1f|\clr
 	xor	t0, 0x1f|\clr
 	mtc0	t0, CP0_STATUS
 	.set	noreorder
@@ -111,6 +111,12 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 	move		t2, a1
 	beq		a0, t1, dtb_found
 
+#ifdef CONFIG_BUILTIN_DTB
+	PTR_LA	t2, __dtb_start
+	PTR_LA	t1, __dtb_end
+	bne		t1, t2, dtb_found
+#endif /* CONFIG_BUILTIN_DTB */
+
 	li		t2, 0
 dtb_found:
 #endif /* CONFIG_USE_OF */
@@ -132,6 +138,9 @@ dtb_found:
 #endif
 
 	MTC0		zero, CP0_CONTEXT	# clear context register
+#ifdef CONFIG_64BIT
+	MTC0		zero, CP0_XCONTEXT
+#endif
 	PTR_LA		$28, init_thread_union
 	/* Set the SP after an empty pt_regs.  */
 	PTR_LI		sp, _THREAD_SIZE - 32 - PT_SIZE

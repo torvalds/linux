@@ -75,12 +75,10 @@ enum port_type {
 };
 
 /* driver compile-time configuration */
-#define	PM8001_MAX_CCB		 512	/* max ccbs supported */
+#define	PM8001_MAX_CCB		 1024	/* max ccbs supported */
 #define PM8001_MPI_QUEUE         1024   /* maximum mpi queue entries */
-#define	PM8001_MAX_INB_NUM	 1
-#define	PM8001_MAX_OUTB_NUM	 1
-#define	PM8001_MAX_SPCV_INB_NUM		1
-#define	PM8001_MAX_SPCV_OUTB_NUM	4
+#define	PM8001_MAX_INB_NUM	 64
+#define	PM8001_MAX_OUTB_NUM	 64
 #define	PM8001_CAN_QUEUE	 508	/* SCSI Queue depth */
 
 /* Inbound/Outbound queue size */
@@ -92,25 +90,27 @@ enum port_type {
 #define	PM8001_MAX_PORTS	 16	/* max. possible ports */
 #define	PM8001_MAX_DEVICES	 2048	/* max supported device */
 #define	PM8001_MAX_MSIX_VEC	 64	/* max msi-x int for spcv/ve */
+#define	PM8001_RESERVE_SLOT	 8
 
-#define USI_MAX_MEMCNT_BASE	5
-#define IB			(USI_MAX_MEMCNT_BASE + 1)
-#define CI			(IB + PM8001_MAX_SPCV_INB_NUM)
-#define OB			(CI + PM8001_MAX_SPCV_INB_NUM)
-#define PI			(OB + PM8001_MAX_SPCV_OUTB_NUM)
-#define USI_MAX_MEMCNT		(PI + PM8001_MAX_SPCV_OUTB_NUM)
-#define PM8001_MAX_DMA_SG	SG_ALL
+#define	CONFIG_SCSI_PM8001_MAX_DMA_SG	528
+#define PM8001_MAX_DMA_SG	CONFIG_SCSI_PM8001_MAX_DMA_SG
+
 enum memory_region_num {
 	AAP1 = 0x0, /* application acceleration processor */
 	IOP,	    /* IO processor */
 	NVMD,	    /* NVM device */
-	DEV_MEM,    /* memory for devices */
-	CCB_MEM,    /* memory for command control block */
 	FW_FLASH,    /* memory for fw flash update */
-	FORENSIC_MEM  /* memory for fw forensic data */
+	FORENSIC_MEM,  /* memory for fw forensic data */
+	USI_MAX_MEMCNT_BASE
 };
 #define	PM8001_EVENT_LOG_SIZE	 (128 * 1024)
 
+/**
+ * maximum DMA memory regions(number of IBQ + number of IBQ CI
+ * + number of  OBQ + number of OBQ PI)
+ */
+#define USI_MAX_MEMCNT	(USI_MAX_MEMCNT_BASE + ((2 * PM8001_MAX_INB_NUM) \
+			+ (2 * PM8001_MAX_OUTB_NUM)))
 /*error code*/
 enum mpi_err {
 	MPI_IO_STATUS_SUCCESS = 0x0,

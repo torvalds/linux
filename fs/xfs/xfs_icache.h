@@ -17,14 +17,11 @@ struct xfs_eofblocks {
 	__u64		eof_min_file_size;
 };
 
-#define SYNC_WAIT		0x0001	/* wait for i/o to complete */
-#define SYNC_TRYLOCK		0x0002  /* only try to lock inodes */
-
 /*
  * tags for inode radix tree
  */
 #define XFS_ICI_NO_TAG		(-1)	/* special flag for an untagged lookup
-					   in xfs_inode_ag_iterator */
+					   in xfs_inode_walk */
 #define XFS_ICI_RECLAIM_TAG	0	/* inode is to be reclaimed */
 #define XFS_ICI_EOFBLOCKS_TAG	1	/* inode has blocks beyond EOF */
 #define XFS_ICI_COWBLOCKS_TAG	2	/* inode can have cow blocks to gc */
@@ -40,7 +37,7 @@ struct xfs_eofblocks {
 /*
  * flags for AG inode iterator
  */
-#define XFS_AGITER_INEW_WAIT	0x1	/* wait on new inodes */
+#define XFS_INODE_WALK_INEW_WAIT	0x1	/* wait on new inodes */
 
 int xfs_iget(struct xfs_mount *mp, struct xfs_trans *tp, xfs_ino_t ino,
 	     uint flags, uint lock_flags, xfs_inode_t **ipp);
@@ -51,7 +48,7 @@ void xfs_inode_free(struct xfs_inode *ip);
 
 void xfs_reclaim_worker(struct work_struct *work);
 
-int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
+void xfs_reclaim_inodes(struct xfs_mount *mp);
 int xfs_reclaim_inodes_count(struct xfs_mount *mp);
 long xfs_reclaim_inodes_nr(struct xfs_mount *mp, int nr_to_scan);
 
@@ -71,50 +68,9 @@ int xfs_inode_free_quota_cowblocks(struct xfs_inode *ip);
 void xfs_cowblocks_worker(struct work_struct *);
 void xfs_queue_cowblocks(struct xfs_mount *);
 
-int xfs_inode_ag_iterator(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, int flags, void *args),
-	int flags, void *args);
-int xfs_inode_ag_iterator_flags(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, int flags, void *args),
-	int flags, void *args, int iter_flags);
-int xfs_inode_ag_iterator_tag(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, int flags, void *args),
-	int flags, void *args, int tag);
-
-static inline int
-xfs_fs_eofblocks_from_user(
-	struct xfs_fs_eofblocks		*src,
-	struct xfs_eofblocks		*dst)
-{
-	if (src->eof_version != XFS_EOFBLOCKS_VERSION)
-		return -EINVAL;
-
-	if (src->eof_flags & ~XFS_EOF_FLAGS_VALID)
-		return -EINVAL;
-
-	if (memchr_inv(&src->pad32, 0, sizeof(src->pad32)) ||
-	    memchr_inv(src->pad64, 0, sizeof(src->pad64)))
-		return -EINVAL;
-
-	dst->eof_flags = src->eof_flags;
-	dst->eof_prid = src->eof_prid;
-	dst->eof_min_file_size = src->eof_min_file_size;
-
-	dst->eof_uid = INVALID_UID;
-	if (src->eof_flags & XFS_EOF_FLAGS_UID) {
-		dst->eof_uid = make_kuid(current_user_ns(), src->eof_uid);
-		if (!uid_valid(dst->eof_uid))
-			return -EINVAL;
-	}
-
-	dst->eof_gid = INVALID_GID;
-	if (src->eof_flags & XFS_EOF_FLAGS_GID) {
-		dst->eof_gid = make_kgid(current_user_ns(), src->eof_gid);
-		if (!gid_valid(dst->eof_gid))
-			return -EINVAL;
-	}
-	return 0;
-}
+int xfs_inode_walk(struct xfs_mount *mp, int iter_flags,
+	int (*execute)(struct xfs_inode *ip, void *args),
+	void *args, int tag);
 
 int xfs_icache_inode_is_allocated(struct xfs_mount *mp, struct xfs_trans *tp,
 				  xfs_ino_t ino, bool *inuse);

@@ -1759,7 +1759,7 @@ int init_chip_wc_pat(struct qib_devdata *dd, u32 vl15buflen)
 		qib_userlen = dd->ureg_align * dd->cfgctxts;
 
 	/* Sanity checks passed, now create the new mappings */
-	qib_kregbase = ioremap_nocache(qib_physaddr, qib_kreglen);
+	qib_kregbase = ioremap(qib_physaddr, qib_kreglen);
 	if (!qib_kregbase)
 		goto bail;
 
@@ -1768,7 +1768,7 @@ int init_chip_wc_pat(struct qib_devdata *dd, u32 vl15buflen)
 		goto bail_kregbase;
 
 	if (qib_userlen) {
-		qib_userbase = ioremap_nocache(qib_physaddr + dd->uregbase,
+		qib_userbase = ioremap(qib_physaddr + dd->uregbase,
 					       qib_userlen);
 		if (!qib_userbase)
 			goto bail_piobase;

@@ -727,6 +727,9 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 
 			copy -= recv;
 			ret += recv;
+
+			if (!copy)
+				break;
 		}
 
 		if (ret != size)
@@ -752,13 +755,7 @@ EXPORT_SYMBOL_GPL(usbip_recv_xbuff);
 
 static int __init usbip_core_init(void)
 {
-	int ret;
-
-	ret = usbip_init_eh();
-	if (ret)
-		return ret;
-
-	return 0;
+	return usbip_init_eh();
 }
 
 static void __exit usbip_core_exit(void)

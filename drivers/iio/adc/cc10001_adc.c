@@ -310,7 +310,6 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct cc10001_adc_device *adc_dev;
 	unsigned long adc_clk_rate;
-	struct resource *res;
 	struct iio_dev *indio_dev;
 	unsigned long channel_map;
 	int ret;
@@ -335,13 +334,11 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->info = &cc10001_adc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	adc_dev->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	adc_dev->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(adc_dev->reg_base)) {
 		ret = PTR_ERR(adc_dev->reg_base);
 		goto err_disable_reg;

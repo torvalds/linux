@@ -29,7 +29,7 @@ static int cma_debugfs_get(void *data, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "%llu\n");
 
 static int cma_used_get(void *data, u64 *val)
 {
@@ -44,7 +44,7 @@ static int cma_used_get(void *data, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(cma_used_fops, cma_used_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(cma_used_fops, cma_used_get, NULL, "%llu\n");
 
 static int cma_maxchunk_get(void *data, u64 *val)
 {
@@ -66,7 +66,7 @@ static int cma_maxchunk_get(void *data, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(cma_maxchunk_fops, cma_maxchunk_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(cma_maxchunk_fops, cma_maxchunk_get, NULL, "%llu\n");
 
 static void cma_add_to_cma_mem_list(struct cma *cma, struct cma_mem *mem)
 {
@@ -126,7 +126,7 @@ static int cma_free_write(void *data, u64 val)
 
 	return cma_free_mem(cma, pages);
 }
-DEFINE_SIMPLE_ATTRIBUTE(cma_free_fops, NULL, cma_free_write, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(cma_free_fops, NULL, cma_free_write, "%llu\n");
 
 static int cma_alloc_mem(struct cma *cma, int count)
 {
@@ -158,13 +158,12 @@ static int cma_alloc_write(void *data, u64 val)
 
 	return cma_alloc_mem(cma, pages);
 }
-DEFINE_SIMPLE_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
 
 static void cma_debugfs_add_one(struct cma *cma, struct dentry *root_dentry)
 {
 	struct dentry *tmp;
 	char name[16];
-	int u32s;
 
 	scnprintf(name, sizeof(name), "cma-%s", cma->name);
 
@@ -180,8 +179,10 @@ static void cma_debugfs_add_one(struct cma *cma, struct dentry *root_dentry)
 	debugfs_create_file("used", 0444, tmp, cma, &cma_used_fops);
 	debugfs_create_file("maxchunk", 0444, tmp, cma, &cma_maxchunk_fops);
 
-	u32s = DIV_ROUND_UP(cma_bitmap_maxno(cma), BITS_PER_BYTE * sizeof(u32));
-	debugfs_create_u32_array("bitmap", 0444, tmp, (u32 *)cma->bitmap, u32s);
+	cma->dfs_bitmap.array = (u32 *)cma->bitmap;
+	cma->dfs_bitmap.n_elements = DIV_ROUND_UP(cma_bitmap_maxno(cma),
+						  BITS_PER_BYTE * sizeof(u32));
+	debugfs_create_u32_array("bitmap", 0444, tmp, &cma->dfs_bitmap);
 }
 
 static int __init cma_debugfs_init(void)

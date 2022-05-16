@@ -666,11 +666,6 @@ static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
 	return 0;
 }
 
-static inline __be16 sum16_as_be(__sum16 sum)
-{
-	return (__force __be16)sum;
-}
-
 static int skb_tx_csum(struct mv643xx_eth_private *mp, struct sk_buff *skb,
 		       u16 *l4i_chk, u32 *command, int length)
 {
@@ -821,10 +816,9 @@ static int txq_submit_tso(struct tx_queue *txq, struct sk_buff *skb,
 			  struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = txq_to_mp(txq);
-	int total_len, data_left, ret;
+	int hdr_len, total_len, data_left, ret;
 	int desc_count = 0;
 	struct tso_t tso;
-	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 	struct tx_desc *first_tx_desc;
 	u32 first_cmd_sts = 0;
 
@@ -837,7 +831,7 @@ static int txq_submit_tso(struct tx_queue *txq, struct sk_buff *skb,
 	first_tx_desc = &txq->tx_desc_area[txq->tx_curr_desc];
 
 	/* Initialize the TSO handler, and prepare the first payload */
-	tso_start(skb, &tso);
+	hdr_len = tso_start(skb, &tso);
 
 	total_len = skb->len - hdr_len;
 	while (total_len > 0) {
@@ -1432,11 +1426,11 @@ struct mv643xx_eth_stats {
 };
 
 #define SSTAT(m)						\
-	{ #m, FIELD_SIZEOF(struct net_device_stats, m),		\
+	{ #m, sizeof_field(struct net_device_stats, m),		\
 	  offsetof(struct net_device, stats.m), -1 }
 
 #define MIBSTAT(m)						\
-	{ #m, FIELD_SIZEOF(struct mib_counters, m),		\
+	{ #m, sizeof_field(struct mib_counters, m),		\
 	  -1, offsetof(struct mv643xx_eth_private, mib_counters.m) }
 
 static const struct mv643xx_eth_stats mv643xx_eth_stats[] = {
@@ -1737,6 +1731,7 @@ static int mv643xx_eth_get_sset_count(struct net_device *dev, int sset)
 }
 
 static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
 	.get_drvinfo		= mv643xx_eth_get_drvinfo,
 	.nway_reset		= phy_ethtool_nway_reset,
 	.get_link		= ethtool_op_get_link,
@@ -2590,7 +2585,7 @@ static void tx_timeout_task(struct work_struct *ugly)
 	}
 }
 
-static void mv643xx_eth_tx_timeout(struct net_device *dev)
+static void mv643xx_eth_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
@@ -2959,15 +2954,16 @@ static void set_params(struct mv643xx_eth_private *mp,
 static int get_phy_mode(struct mv643xx_eth_private *mp)
 {
 	struct device *dev = mp->dev->dev.parent;
-	int iface = -1;
+	phy_interface_t iface;
+	int err;
 
 	if (dev->of_node)
-		iface = of_get_phy_mode(dev->of_node);
+		err = of_get_phy_mode(dev->of_node, &iface);
 
 	/* Historical default if unspecified. We could also read/write
 	 * the interface state in the PSC1
 	 */
-	if (iface < 0)
+	if (!dev->of_node || err)
 		iface = PHY_INTERFACE_MODE_GMII;
 	return iface;
 }

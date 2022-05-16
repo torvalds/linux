@@ -299,8 +299,8 @@ irq_source_info_dcn20[DAL_IRQ_SOURCES_NUMBER] = {
 	pflip_int_entry(1),
 	pflip_int_entry(2),
 	pflip_int_entry(3),
-	[DC_IRQ_SOURCE_PFLIP5] = dummy_irq_entry(),
-	[DC_IRQ_SOURCE_PFLIP6] = dummy_irq_entry(),
+	pflip_int_entry(4),
+	pflip_int_entry(5),
 	[DC_IRQ_SOURCE_PFLIP_UNDERLAY0] = dummy_irq_entry(),
 	gpio_pad_int_entry(0),
 	gpio_pad_int_entry(1),
@@ -359,7 +359,7 @@ static const struct irq_service_funcs irq_service_funcs_dcn20 = {
 		.to_dal_irq_source = to_dal_irq_source_dcn20
 };
 
-static void construct(
+static void dcn20_irq_construct(
 	struct irq_service *irq_service,
 	struct irq_service_init_data *init_data)
 {
@@ -378,6 +378,6 @@ struct irq_service *dal_irq_service_dcn20_create(
 	if (!irq_service)
 		return NULL;
 
-	construct(irq_service, init_data);
+	dcn20_irq_construct(irq_service, init_data);
 	return irq_service;
 }

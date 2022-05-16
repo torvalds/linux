@@ -29,11 +29,11 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/ecard.h>
-#include <asm/pgtable.h>
 
 #include "../scsi.h"
 #include <scsi/scsi_host.h>
@@ -165,12 +165,13 @@ eesoxscsi_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 
 		bufs = copy_SCp_to_sg(&info->sg[0], SCp, NR_SG);
 
-		if (direction == DMA_OUT)
-			map_dir = DMA_TO_DEVICE,
+		if (direction == DMA_OUT) {
+			map_dir = DMA_TO_DEVICE;
 			dma_dir = DMA_MODE_WRITE;
-		else
-			map_dir = DMA_FROM_DEVICE,
+		} else {
+			map_dir = DMA_FROM_DEVICE;
 			dma_dir = DMA_MODE_READ;
+		}
 
 		dma_map_sg(dev, info->sg, bufs, map_dir);
 
@@ -571,7 +572,7 @@ static int eesoxscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	if (info->info.scsi.dma != NO_DMA)
 		free_dma(info->info.scsi.dma);
-	free_irq(ec->irq, host);
+	free_irq(ec->irq, info);
 
  out_remove:
 	fas216_remove(host);

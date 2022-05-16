@@ -26,94 +26,6 @@
 
 #include <linux/uaccess.h>
 
-static int __compat_get_timeval(struct timeval *tv, const struct old_timeval32 __user *ctv)
-{
-	return (!access_ok(ctv, sizeof(*ctv)) ||
-			__get_user(tv->tv_sec, &ctv->tv_sec) ||
-			__get_user(tv->tv_usec, &ctv->tv_usec)) ? -EFAULT : 0;
-}
-
-static int __compat_put_timeval(const struct timeval *tv, struct old_timeval32 __user *ctv)
-{
-	return (!access_ok(ctv, sizeof(*ctv)) ||
-			__put_user(tv->tv_sec, &ctv->tv_sec) ||
-			__put_user(tv->tv_usec, &ctv->tv_usec)) ? -EFAULT : 0;
-}
-
-static int __compat_get_timespec(struct timespec *ts, const struct old_timespec32 __user *cts)
-{
-	return (!access_ok(cts, sizeof(*cts)) ||
-			__get_user(ts->tv_sec, &cts->tv_sec) ||
-			__get_user(ts->tv_nsec, &cts->tv_nsec)) ? -EFAULT : 0;
-}
-
-static int __compat_put_timespec(const struct timespec *ts, struct old_timespec32 __user *cts)
-{
-	return (!access_ok(cts, sizeof(*cts)) ||
-			__put_user(ts->tv_sec, &cts->tv_sec) ||
-			__put_user(ts->tv_nsec, &cts->tv_nsec)) ? -EFAULT : 0;
-}
-
-int compat_get_timeval(struct timeval *tv, const void __user *utv)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_from_user(tv, utv, sizeof(*tv)) ? -EFAULT : 0;
-	else
-		return __compat_get_timeval(tv, utv);
-}
-EXPORT_SYMBOL_GPL(compat_get_timeval);
-
-int compat_put_timeval(const struct timeval *tv, void __user *utv)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_to_user(utv, tv, sizeof(*tv)) ? -EFAULT : 0;
-	else
-		return __compat_put_timeval(tv, utv);
-}
-EXPORT_SYMBOL_GPL(compat_put_timeval);
-
-int compat_get_timespec(struct timespec *ts, const void __user *uts)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_from_user(ts, uts, sizeof(*ts)) ? -EFAULT : 0;
-	else
-		return __compat_get_timespec(ts, uts);
-}
-EXPORT_SYMBOL_GPL(compat_get_timespec);
-
-int compat_put_timespec(const struct timespec *ts, void __user *uts)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_to_user(uts, ts, sizeof(*ts)) ? -EFAULT : 0;
-	else
-		return __compat_put_timespec(ts, uts);
-}
-EXPORT_SYMBOL_GPL(compat_put_timespec);
-
-int get_compat_itimerval(struct itimerval *o, const struct compat_itimerval __user *i)
-{
-	struct compat_itimerval v32;
-
-	if (copy_from_user(&v32, i, sizeof(struct compat_itimerval)))
-		return -EFAULT;
-	o->it_interval.tv_sec = v32.it_interval.tv_sec;
-	o->it_interval.tv_usec = v32.it_interval.tv_usec;
-	o->it_value.tv_sec = v32.it_value.tv_sec;
-	o->it_value.tv_usec = v32.it_value.tv_usec;
-	return 0;
-}
-
-int put_compat_itimerval(struct compat_itimerval __user *o, const struct itimerval *i)
-{
-	struct compat_itimerval v32;
-
-	v32.it_interval.tv_sec = i->it_interval.tv_sec;
-	v32.it_interval.tv_usec = i->it_interval.tv_usec;
-	v32.it_value.tv_sec = i->it_value.tv_sec;
-	v32.it_value.tv_usec = i->it_value.tv_usec;
-	return copy_to_user(o, &v32, sizeof(struct compat_itimerval)) ? -EFAULT : 0;
-}
-
 #ifdef __ARCH_WANT_SYS_SIGPROCMASK
 
 /*
@@ -287,7 +199,7 @@ long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 	bitmap_size = ALIGN(bitmap_size, BITS_PER_COMPAT_LONG);
 	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
 
-	if (!user_access_begin(umask, bitmap_size / 8))
+	if (!user_read_access_begin(umask, bitmap_size / 8))
 		return -EFAULT;
 
 	while (nr_compat_longs > 1) {
@@ -299,11 +211,11 @@ long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 	}
 	if (nr_compat_longs)
 		unsafe_get_user(*mask, umask++, Efault);
-	user_access_end();
+	user_read_access_end();
 	return 0;
 
 Efault:
-	user_access_end();
+	user_read_access_end();
 	return -EFAULT;
 }
 
@@ -316,7 +228,7 @@ long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 	bitmap_size = ALIGN(bitmap_size, BITS_PER_COMPAT_LONG);
 	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
 
-	if (!user_access_begin(umask, bitmap_size / 8))
+	if (!user_write_access_begin(umask, bitmap_size / 8))
 		return -EFAULT;
 
 	while (nr_compat_longs > 1) {
@@ -327,10 +239,10 @@ long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 	}
 	if (nr_compat_longs)
 		unsafe_put_user((compat_ulong_t)*mask, umask++, Efault);
-	user_access_end();
+	user_write_access_end();
 	return 0;
 Efault:
-	user_access_end();
+	user_write_access_end();
 	return -EFAULT;
 }
 
@@ -343,11 +255,11 @@ get_compat_sigset(sigset_t *set, const compat_sigset_t __user *compat)
 		return -EFAULT;
 	switch (_NSIG_WORDS) {
 	case 4: set->sig[3] = v.sig[6] | (((long)v.sig[7]) << 32 );
-		/* fall through */
+		fallthrough;
 	case 3: set->sig[2] = v.sig[4] | (((long)v.sig[5]) << 32 );
-		/* fall through */
+		fallthrough;
 	case 2: set->sig[1] = v.sig[2] | (((long)v.sig[3]) << 32 );
-		/* fall through */
+		fallthrough;
 	case 1: set->sig[0] = v.sig[0] | (((long)v.sig[1]) << 32 );
 	}
 #else

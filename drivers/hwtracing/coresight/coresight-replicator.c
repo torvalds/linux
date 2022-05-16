@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/coresight.h>
@@ -31,11 +32,15 @@ DEFINE_CORESIGHT_DEVLIST(replicator_devs, "replicator");
  *		whether this one is programmable or not.
  * @atclk:	optional clock for the core parts of the replicator.
  * @csdev:	component vitals needed by the framework
+ * @spinlock:	serialize enable/disable operations.
+ * @check_idfilter_val: check if the context is lost upon clock removal.
  */
 struct replicator_drvdata {
 	void __iomem		*base;
 	struct clk		*atclk;
 	struct coresight_device	*csdev;
+	spinlock_t		spinlock;
+	bool			check_idfilter_val;
 };
 
 static void dynamic_replicator_reset(struct replicator_drvdata *drvdata)
@@ -64,29 +69,43 @@ static int dynamic_replicator_enable(struct replicator_drvdata *drvdata,
 				     int inport, int outport)
 {
 	int rc = 0;
-	u32 reg;
-
-	switch (outport) {
-	case 0:
-		reg = REPLICATOR_IDFILTER0;
-		break;
-	case 1:
-		reg = REPLICATOR_IDFILTER1;
-		break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
+	u32 id0val, id1val;
 
 	CS_UNLOCK(drvdata->base);
 
-	if ((readl_relaxed(drvdata->base + REPLICATOR_IDFILTER0) == 0xff) &&
-	    (readl_relaxed(drvdata->base + REPLICATOR_IDFILTER1) == 0xff))
+	id0val = readl_relaxed(drvdata->base + REPLICATOR_IDFILTER0);
+	id1val = readl_relaxed(drvdata->base + REPLICATOR_IDFILTER1);
+
+	/*
+	 * Some replicator designs lose context when AMBA clocks are removed,
+	 * so have a check for this.
+	 */
+	if (drvdata->check_idfilter_val && id0val == 0x0 && id1val == 0x0)
+		id0val = id1val = 0xff;
+
+	if (id0val == 0xff && id1val == 0xff)
 		rc = coresight_claim_device_unlocked(drvdata->base);
 
+	if (!rc) {
+		switch (outport) {
+		case 0:
+			id0val = 0x0;
+			break;
+		case 1:
+			id1val = 0x0;
+			break;
+		default:
+			WARN_ON(1);
+			rc = -EINVAL;
+		}
+	}
+
 	/* Ensure that the outport is enabled. */
-	if (!rc)
-		writel_relaxed(0x00, drvdata->base + reg);
+	if (!rc) {
+		writel_relaxed(id0val, drvdata->base + REPLICATOR_IDFILTER0);
+		writel_relaxed(id1val, drvdata->base + REPLICATOR_IDFILTER1);
+	}
+
 	CS_LOCK(drvdata->base);
 
 	return rc;
@@ -97,10 +116,22 @@ static int replicator_enable(struct coresight_device *csdev, int inport,
 {
 	int rc = 0;
 	struct replicator_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+	unsigned long flags;
+	bool first_enable = false;
 
-	if (drvdata->base)
-		rc = dynamic_replicator_enable(drvdata, inport, outport);
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+	if (atomic_read(&csdev->refcnt[outport]) == 0) {
+		if (drvdata->base)
+			rc = dynamic_replicator_enable(drvdata, inport,
+						       outport);
+		if (!rc)
+			first_enable = true;
+	}
 	if (!rc)
+		atomic_inc(&csdev->refcnt[outport]);
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+
+	if (first_enable)
 		dev_dbg(&csdev->dev, "REPLICATOR enabled\n");
 	return rc;
 }
@@ -137,10 +168,19 @@ static void replicator_disable(struct coresight_device *csdev, int inport,
 			       int outport)
 {
 	struct replicator_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+	unsigned long flags;
+	bool last_disable = false;
 
-	if (drvdata->base)
-		dynamic_replicator_disable(drvdata, inport, outport);
-	dev_dbg(&csdev->dev, "REPLICATOR disabled\n");
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+	if (atomic_dec_return(&csdev->refcnt[outport]) == 0) {
+		if (drvdata->base)
+			dynamic_replicator_disable(drvdata, inport, outport);
+		last_disable = true;
+	}
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+
+	if (last_disable)
+		dev_dbg(&csdev->dev, "REPLICATOR disabled\n");
 }
 
 static const struct coresight_ops_link replicator_link_ops = {
@@ -216,6 +256,10 @@ static int replicator_probe(struct device *dev, struct resource *res)
 		desc.groups = replicator_groups;
 	}
 
+	if (fwnode_property_present(dev_fwnode(dev),
+				    "qcom,replicator-loses-context"))
+		drvdata->check_idfilter_val = true;
+
 	dev_set_drvdata(dev, drvdata);
 
 	pdata = coresight_get_platform_data(dev);
@@ -225,6 +269,7 @@ static int replicator_probe(struct device *dev, struct resource *res)
 	}
 	dev->platform_data = pdata;
 
+	spin_lock_init(&drvdata->spinlock);
 	desc.type = CORESIGHT_DEV_TYPE_LINK;
 	desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_SPLIT;
 	desc.ops = &replicator_cs_ops;
@@ -246,6 +291,14 @@ out_disable_clk:
 	return ret;
 }
 
+static int __exit replicator_remove(struct device *dev)
+{
+	struct replicator_drvdata *drvdata = dev_get_drvdata(dev);
+
+	coresight_unregister(drvdata->csdev);
+	return 0;
+}
+
 static int static_replicator_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -263,6 +316,13 @@ static int static_replicator_probe(struct platform_device *pdev)
 	}
 
 	return ret;
+}
+
+static int __exit static_replicator_remove(struct platform_device *pdev)
+{
+	replicator_remove(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -298,24 +358,29 @@ static const struct of_device_id static_replicator_match[] = {
 	{}
 };
 
+MODULE_DEVICE_TABLE(of, static_replicator_match);
+
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id static_replicator_acpi_ids[] = {
 	{"ARMHC985", 0}, /* ARM CoreSight Static Replicator */
 	{}
 };
+
+MODULE_DEVICE_TABLE(acpi, static_replicator_acpi_ids);
 #endif
 
 static struct platform_driver static_replicator_driver = {
 	.probe          = static_replicator_probe,
+	.remove         = static_replicator_remove,
 	.driver         = {
 		.name   = "coresight-static-replicator",
+		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(static_replicator_match),
 		.acpi_match_table = ACPI_PTR(static_replicator_acpi_ids),
 		.pm	= &replicator_dev_pm_ops,
 		.suppress_bind_attrs = true,
 	},
 };
-builtin_platform_driver(static_replicator_driver);
 
 static int dynamic_replicator_probe(struct amba_device *adev,
 				    const struct amba_id *id)
@@ -323,26 +388,60 @@ static int dynamic_replicator_probe(struct amba_device *adev,
 	return replicator_probe(&adev->dev, &adev->res);
 }
 
+static int __exit dynamic_replicator_remove(struct amba_device *adev)
+{
+	return replicator_remove(&adev->dev);
+}
+
 static const struct amba_id dynamic_replicator_ids[] = {
-	{
-		.id     = 0x000bb909,
-		.mask   = 0x000fffff,
-	},
-	{
-		/* Coresight SoC-600 */
-		.id     = 0x000bb9ec,
-		.mask   = 0x000fffff,
-	},
-	{ 0, 0 },
+	CS_AMBA_ID(0x000bb909),
+	CS_AMBA_ID(0x000bb9ec),		/* Coresight SoC-600 */
+	{},
 };
+
+MODULE_DEVICE_TABLE(amba, dynamic_replicator_ids);
 
 static struct amba_driver dynamic_replicator_driver = {
 	.drv = {
 		.name	= "coresight-dynamic-replicator",
 		.pm	= &replicator_dev_pm_ops,
+		.owner	= THIS_MODULE,
 		.suppress_bind_attrs = true,
 	},
 	.probe		= dynamic_replicator_probe,
+	.remove         = dynamic_replicator_remove,
 	.id_table	= dynamic_replicator_ids,
 };
-builtin_amba_driver(dynamic_replicator_driver);
+
+static int __init replicator_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&static_replicator_driver);
+	if (ret) {
+		pr_info("Error registering platform driver\n");
+		return ret;
+	}
+
+	ret = amba_driver_register(&dynamic_replicator_driver);
+	if (ret) {
+		pr_info("Error registering amba driver\n");
+		platform_driver_unregister(&static_replicator_driver);
+	}
+
+	return ret;
+}
+
+static void __exit replicator_exit(void)
+{
+	platform_driver_unregister(&static_replicator_driver);
+	amba_driver_unregister(&dynamic_replicator_driver);
+}
+
+module_init(replicator_init);
+module_exit(replicator_exit);
+
+MODULE_AUTHOR("Pratik Patel <pratikp@codeaurora.org>");
+MODULE_AUTHOR("Mathieu Poirier <mathieu.poirier@linaro.org>");
+MODULE_DESCRIPTION("Arm CoreSight Replicator Driver");
+MODULE_LICENSE("GPL v2");

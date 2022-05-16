@@ -817,7 +817,7 @@ static int dm644x_ccdc_probe(struct platform_device *pdev)
 		goto fail_nores;
 	}
 
-	ccdc_cfg.base_addr = ioremap_nocache(res->start, resource_size(res));
+	ccdc_cfg.base_addr = ioremap(res->start, resource_size(res));
 	if (!ccdc_cfg.base_addr) {
 		status = -ENOMEM;
 		goto fail_nomem;

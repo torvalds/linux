@@ -56,9 +56,7 @@
 MODULE_AUTHOR("YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>");
 MODULE_DESCRIPTION("WorkBit NinjaSCSI-3 / NinjaSCSI-32Bi(16bit) PCMCIA SCSI host adapter module");
 MODULE_SUPPORTED_DEVICE("sd,sr,sg,st");
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
 
 #include "nsp_io.h"
 
@@ -136,6 +134,7 @@ static inline void nsp_inc_resid(struct scsi_cmnd *SCpnt, int residInc)
 	scsi_set_resid(SCpnt, scsi_get_resid(SCpnt) + residInc);
 }
 
+__printf(4, 5)
 static void nsp_cs_message(const char *func, int line, char *type, char *fmt, ...)
 {
 	va_list args;
@@ -691,14 +690,14 @@ static int nsp_fifo_count(struct scsi_cmnd *SCpnt)
 {
 	unsigned int base = SCpnt->device->host->io_port;
 	unsigned int count;
-	unsigned int l, m, h, dummy;
+	unsigned int l, m, h;
 
 	nsp_index_write(base, POINTERCLR, POINTER_CLEAR | ACK_COUNTER);
 
 	l     = nsp_index_read(base, TRANSFERCOUNT);
 	m     = nsp_index_read(base, TRANSFERCOUNT);
 	h     = nsp_index_read(base, TRANSFERCOUNT);
-	dummy = nsp_index_read(base, TRANSFERCOUNT); /* required this! */
+	nsp_index_read(base, TRANSFERCOUNT); /* required this! */
 
 	count = (h << 16) | (m << 8) | (l << 0);
 
@@ -1114,7 +1113,7 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 			nsp_scsi_done(tmpSC);
 			return IRQ_HANDLED;
 		}
-		/* fall thru */
+		fallthrough;
 	default:
 		if ((irq_status & (IRQSTATUS_SCSI | IRQSTATUS_FIFO)) == 0) {
 			return IRQ_HANDLED;
@@ -1562,7 +1561,7 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev, void *priv_data)
 			goto next_entry;
 
 		data->MmioAddress = (unsigned long)
-			ioremap_nocache(p_dev->resource[2]->start,
+			ioremap(p_dev->resource[2]->start,
 					resource_size(p_dev->resource[2]));
 		data->MmioLength  = resource_size(p_dev->resource[2]);
 	}

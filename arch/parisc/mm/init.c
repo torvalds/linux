@@ -26,7 +26,6 @@
 #include <linux/compat.h>
 
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/tlb.h>
 #include <asm/pdc_chassis.h>
 #include <asm/mmzone.h>
@@ -43,11 +42,11 @@ extern void parisc_kernel_start(void);	/* Kernel entry point in head.S */
  * guarantee that global objects will be laid out in memory in the same order
  * as the order of declaration, so put these in different sections and use
  * the linker script to order them. */
-pmd_t pmd0[PTRS_PER_PMD] __attribute__ ((__section__ (".data..vm0.pmd"), aligned(PAGE_SIZE)));
+pmd_t pmd0[PTRS_PER_PMD] __section(".data..vm0.pmd") __attribute__ ((aligned(PAGE_SIZE)));
 #endif
 
-pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__ ((__section__ (".data..vm0.pgd"), aligned(PAGE_SIZE)));
-pte_t pg0[PT_INITIAL * PTRS_PER_PTE] __attribute__ ((__section__ (".data..vm0.pte"), aligned(PAGE_SIZE)));
+pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(".data..vm0.pgd") __attribute__ ((aligned(PAGE_SIZE)));
+pte_t pg0[PT_INITIAL * PTRS_PER_PTE] __section(".data..vm0.pte") __attribute__ ((aligned(PAGE_SIZE)));
 
 static struct resource data_resource = {
 	.name	= "Kernel data",
@@ -351,7 +350,6 @@ static void __init map_pages(unsigned long start_vaddr,
 			     unsigned long start_paddr, unsigned long size,
 			     pgprot_t pgprot, int force)
 {
-	pgd_t *pg_dir;
 	pmd_t *pmd;
 	pte_t *pg_table;
 	unsigned long end_paddr;
@@ -372,62 +370,37 @@ static void __init map_pages(unsigned long start_vaddr,
 
 	end_paddr = start_paddr + size;
 
-	pg_dir = pgd_offset_k(start_vaddr);
-
-#if PTRS_PER_PMD == 1
-	start_pmd = 0;
-#else
+	/* for 2-level configuration PTRS_PER_PMD is 0 so start_pmd will be 0 */
 	start_pmd = ((start_vaddr >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
-#endif
 	start_pte = ((start_vaddr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
 
 	address = start_paddr;
 	vaddr = start_vaddr;
 	while (address < end_paddr) {
-#if PTRS_PER_PMD == 1
-		pmd = (pmd_t *)__pa(pg_dir);
-#else
-		pmd = (pmd_t *)pgd_address(*pg_dir);
+		pgd_t *pgd = pgd_offset_k(vaddr);
+		p4d_t *p4d = p4d_offset(pgd, vaddr);
+		pud_t *pud = pud_offset(p4d, vaddr);
 
-		/*
-		 * pmd is physical at this point
-		 */
-
-		if (!pmd) {
+#if CONFIG_PGTABLE_LEVELS == 3
+		if (pud_none(*pud)) {
 			pmd = memblock_alloc(PAGE_SIZE << PMD_ORDER,
 					     PAGE_SIZE << PMD_ORDER);
 			if (!pmd)
 				panic("pmd allocation failed.\n");
-			pmd = (pmd_t *) __pa(pmd);
+			pud_populate(NULL, pud, pmd);
 		}
-
-		pgd_populate(NULL, pg_dir, __va(pmd));
 #endif
-		pg_dir++;
 
-		/* now change pmd to kernel virtual addresses */
-
-		pmd = (pmd_t *)__va(pmd) + start_pmd;
+		pmd = pmd_offset(pud, vaddr);
 		for (tmp1 = start_pmd; tmp1 < PTRS_PER_PMD; tmp1++, pmd++) {
-
-			/*
-			 * pg_table is physical at this point
-			 */
-
-			pg_table = (pte_t *)pmd_address(*pmd);
-			if (!pg_table) {
-				pg_table = memblock_alloc(PAGE_SIZE,
-							  PAGE_SIZE);
+			if (pmd_none(*pmd)) {
+				pg_table = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 				if (!pg_table)
 					panic("page table allocation failed\n");
-				pg_table = (pte_t *) __pa(pg_table);
+				pmd_populate_kernel(NULL, pmd, pg_table);
 			}
 
-			pmd_populate_kernel(NULL, pmd, __va(pg_table));
-
-			/* now change pg_table to kernel virtual addresses */
-
-			pg_table = (pte_t *) __va(pg_table) + start_pte;
+			pg_table = pte_offset_kernel(pmd, vaddr);
 			for (tmp2 = start_pte; tmp2 < PTRS_PER_PTE; tmp2++, pg_table++) {
 				pte_t pte;
 				pgprot_t prot;
@@ -588,7 +561,7 @@ void __init mem_init(void)
 			> BITS_PER_LONG);
 
 	high_memory = __va((max_pfn << PAGE_SHIFT));
-	set_max_mapnr(page_to_pfn(virt_to_page(high_memory - 1)) + 1);
+	set_max_mapnr(max_low_pfn);
 	memblock_free_all();
 
 #ifdef CONFIG_PA11
@@ -701,27 +674,11 @@ static void __init gateway_init(void)
 
 static void __init parisc_bootmem_free(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
-	unsigned long holes_size[MAX_NR_ZONES] = { 0, };
-	unsigned long mem_start_pfn = ~0UL, mem_end_pfn = 0, mem_size_pfn = 0;
-	int i;
+	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
 
-	for (i = 0; i < npmem_ranges; i++) {
-		unsigned long start = pmem_ranges[i].start_pfn;
-		unsigned long size = pmem_ranges[i].pages;
-		unsigned long end = start + size;
+	max_zone_pfn[0] = memblock_end_of_DRAM();
 
-		if (mem_start_pfn > start)
-			mem_start_pfn = start;
-		if (mem_end_pfn < end)
-			mem_end_pfn = end;
-		mem_size_pfn += size;
-	}
-
-	zones_size[0] = mem_end_pfn - mem_start_pfn;
-	holes_size[0] = zones_size[0] - mem_size_pfn;
-
-	free_area_init_node(0, zones_size, mem_start_pfn, holes_size);
+	free_area_init(max_zone_pfn);
 }
 
 void __init paging_init(void)
@@ -732,11 +689,6 @@ void __init paging_init(void)
 	flush_cache_all_local(); /* start with known state */
 	flush_tlb_all_local(NULL);
 
-	/*
-	 * Mark all memblocks as present for sparsemem using
-	 * memory_present() and then initialize sparsemem.
-	 */
-	memblocks_present();
 	sparse_init();
 	parisc_bootmem_free();
 }
@@ -793,7 +745,7 @@ unsigned long alloc_sid(void)
 	free_space_ids--;
 
 	index = find_next_zero_bit(space_id, NR_SPACE_IDS, space_id_index);
-	space_id[index >> SHIFT_PER_LONG] |= (1L << (index & (BITS_PER_LONG - 1)));
+	space_id[BIT_WORD(index)] |= BIT_MASK(index);
 	space_id_index = index;
 
 	spin_unlock(&sid_lock);
@@ -804,16 +756,16 @@ unsigned long alloc_sid(void)
 void free_sid(unsigned long spaceid)
 {
 	unsigned long index = spaceid >> SPACEID_SHIFT;
-	unsigned long *dirty_space_offset;
+	unsigned long *dirty_space_offset, mask;
 
-	dirty_space_offset = dirty_space_id + (index >> SHIFT_PER_LONG);
-	index &= (BITS_PER_LONG - 1);
+	dirty_space_offset = &dirty_space_id[BIT_WORD(index)];
+	mask = BIT_MASK(index);
 
 	spin_lock(&sid_lock);
 
-	BUG_ON(*dirty_space_offset & (1L << index)); /* attempt to free space id twice */
+	BUG_ON(*dirty_space_offset & mask); /* attempt to free space id twice */
 
-	*dirty_space_offset |= (1L << index);
+	*dirty_space_offset |= mask;
 	dirty_space_ids++;
 
 	spin_unlock(&sid_lock);

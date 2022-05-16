@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (C) 2014-2017 aQuantia Corporation. */
+/* Copyright (C) 2014-2019 aQuantia Corporation. */
 
 /* File aq_filters.c: RX filters related functions. */
 
@@ -89,12 +89,14 @@ static int aq_check_approve_fl3l4(struct aq_nic_s *aq_nic,
 				  struct aq_hw_rx_fltrs_s *rx_fltrs,
 				  struct ethtool_rx_flow_spec *fsp)
 {
+	u32 last_location = AQ_RX_LAST_LOC_FL3L4 -
+			    aq_nic->aq_hw_rx_fltrs.fl3l4.reserved_count;
+
 	if (fsp->location < AQ_RX_FIRST_LOC_FL3L4 ||
-	    fsp->location > AQ_RX_LAST_LOC_FL3L4) {
+	    fsp->location > last_location) {
 		netdev_err(aq_nic->ndev,
 			   "ethtool: location must be in range [%d, %d]",
-			   AQ_RX_FIRST_LOC_FL3L4,
-			   AQ_RX_LAST_LOC_FL3L4);
+			   AQ_RX_FIRST_LOC_FL3L4, last_location);
 		return -EINVAL;
 	}
 	if (rx_fltrs->fl3l4.is_ipv6 && rx_fltrs->fl3l4.active_ipv4) {
@@ -124,12 +126,15 @@ aq_check_approve_fl2(struct aq_nic_s *aq_nic,
 		     struct aq_hw_rx_fltrs_s *rx_fltrs,
 		     struct ethtool_rx_flow_spec *fsp)
 {
+	u32 last_location = AQ_RX_LAST_LOC_FETHERT -
+			    aq_nic->aq_hw_rx_fltrs.fet_reserved_count;
+
 	if (fsp->location < AQ_RX_FIRST_LOC_FETHERT ||
-	    fsp->location > AQ_RX_LAST_LOC_FETHERT) {
+	    fsp->location > last_location) {
 		netdev_err(aq_nic->ndev,
 			   "ethtool: location must be in range [%d, %d]",
 			   AQ_RX_FIRST_LOC_FETHERT,
-			   AQ_RX_LAST_LOC_FETHERT);
+			   last_location);
 		return -EINVAL;
 	}
 
@@ -148,6 +153,8 @@ aq_check_approve_fvlan(struct aq_nic_s *aq_nic,
 		       struct aq_hw_rx_fltrs_s *rx_fltrs,
 		       struct ethtool_rx_flow_spec *fsp)
 {
+	struct aq_nic_cfg_s *cfg = &aq_nic->aq_nic_cfg;
+
 	if (fsp->location < AQ_RX_FIRST_LOC_FVLANID ||
 	    fsp->location > AQ_RX_LAST_LOC_FVLANID) {
 		netdev_err(aq_nic->ndev,
@@ -158,17 +165,17 @@ aq_check_approve_fvlan(struct aq_nic_s *aq_nic,
 	}
 
 	if ((aq_nic->ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER) &&
-	    (!test_bit(be16_to_cpu(fsp->h_ext.vlan_tci),
+	    (!test_bit(be16_to_cpu(fsp->h_ext.vlan_tci) & VLAN_VID_MASK,
 		       aq_nic->active_vlans))) {
 		netdev_err(aq_nic->ndev,
 			   "ethtool: unknown vlan-id specified");
 		return -EINVAL;
 	}
 
-	if (fsp->ring_cookie > aq_nic->aq_nic_cfg.num_rss_queues) {
+	if (fsp->ring_cookie > cfg->num_rss_queues * cfg->tcs) {
 		netdev_err(aq_nic->ndev,
 			   "ethtool: queue number must be in range [0, %d]",
-			   aq_nic->aq_nic_cfg.num_rss_queues - 1);
+			   cfg->num_rss_queues * cfg->tcs - 1);
 		return -EINVAL;
 	}
 	return 0;
@@ -257,6 +264,7 @@ static bool __must_check
 aq_rule_is_not_correct(struct aq_nic_s *aq_nic,
 		       struct ethtool_rx_flow_spec *fsp)
 {
+	struct aq_nic_cfg_s *cfg = &aq_nic->aq_nic_cfg;
 	bool rule_is_not_correct = false;
 
 	if (!aq_nic) {
@@ -269,11 +277,11 @@ aq_rule_is_not_correct(struct aq_nic_s *aq_nic,
 	} else if (aq_check_filter(aq_nic, fsp)) {
 		rule_is_not_correct = true;
 	} else if (fsp->ring_cookie != RX_CLS_FLOW_DISC) {
-		if (fsp->ring_cookie >= aq_nic->aq_nic_cfg.num_rss_queues) {
+		if (fsp->ring_cookie >= cfg->num_rss_queues * cfg->tcs) {
 			netdev_err(aq_nic->ndev,
 				   "ethtool: The specified action is invalid.\n"
 				   "Maximum allowable value action is %u.\n",
-				   aq_nic->aq_nic_cfg.num_rss_queues - 1);
+				   cfg->num_rss_queues * cfg->tcs - 1);
 			rule_is_not_correct = true;
 		}
 	}

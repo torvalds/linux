@@ -14,6 +14,7 @@
 #ifndef V4L2_COMMON_H_
 #define V4L2_COMMON_H_
 
+#include <linux/time.h>
 #include <media/v4l2-dev.h>
 
 /* Common printk constructs for v4l-i2c drivers. These macros create a unique
@@ -457,8 +458,24 @@ int v4l2_s_parm_cap(struct video_device *vdev,
 /* Pixel format and FourCC helpers */
 
 /**
+ * enum v4l2_pixel_encoding - specifies the pixel encoding value
+ *
+ * @V4L2_PIXEL_ENC_UNKNOWN:	Pixel encoding is unknown/un-initialized
+ * @V4L2_PIXEL_ENC_YUV:		Pixel encoding is YUV
+ * @V4L2_PIXEL_ENC_RGB:		Pixel encoding is RGB
+ * @V4L2_PIXEL_ENC_BAYER:	Pixel encoding is Bayer
+ */
+enum v4l2_pixel_encoding {
+	V4L2_PIXEL_ENC_UNKNOWN = 0,
+	V4L2_PIXEL_ENC_YUV = 1,
+	V4L2_PIXEL_ENC_RGB = 2,
+	V4L2_PIXEL_ENC_BAYER = 3,
+};
+
+/**
  * struct v4l2_format_info - information about a V4L2 format
  * @format: 4CC format identifier (V4L2_PIX_FMT_*)
+ * @pixel_enc: Pixel encoding (see enum v4l2_pixel_encoding above)
  * @mem_planes: Number of memory planes, which includes the alpha plane (1 to 4).
  * @comp_planes: Number of component planes, which includes the alpha plane (1 to 4).
  * @bpp: Array of per-plane bytes per pixel
@@ -469,6 +486,7 @@ int v4l2_s_parm_cap(struct video_device *vdev,
  */
 struct v4l2_format_info {
 	u32 format;
+	u8 pixel_enc;
 	u8 mem_planes;
 	u8 comp_planes;
 	u8 bpp[4];
@@ -478,13 +496,76 @@ struct v4l2_format_info {
 	u8 block_h[4];
 };
 
-const struct v4l2_format_info *v4l2_format_info(u32 format);
+static inline bool v4l2_is_format_rgb(const struct v4l2_format_info *f)
+{
+	return f && f->pixel_enc == V4L2_PIXEL_ENC_RGB;
+}
 
+static inline bool v4l2_is_format_yuv(const struct v4l2_format_info *f)
+{
+	return f && f->pixel_enc == V4L2_PIXEL_ENC_YUV;
+}
+
+static inline bool v4l2_is_format_bayer(const struct v4l2_format_info *f)
+{
+	return f && f->pixel_enc == V4L2_PIXEL_ENC_BAYER;
+}
+
+const struct v4l2_format_info *v4l2_format_info(u32 format);
 void v4l2_apply_frmsize_constraints(u32 *width, u32 *height,
 				    const struct v4l2_frmsize_stepwise *frmsize);
 int v4l2_fill_pixfmt(struct v4l2_pix_format *pixfmt, u32 pixelformat,
 		     u32 width, u32 height);
 int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, u32 pixelformat,
 			u32 width, u32 height);
+
+static inline u64 v4l2_buffer_get_timestamp(const struct v4l2_buffer *buf)
+{
+	/*
+	 * When the timestamp comes from 32-bit user space, there may be
+	 * uninitialized data in tv_usec, so cast it to u32.
+	 * Otherwise allow invalid input for backwards compatibility.
+	 */
+	return buf->timestamp.tv_sec * NSEC_PER_SEC +
+		(u32)buf->timestamp.tv_usec * NSEC_PER_USEC;
+}
+
+static inline void v4l2_buffer_set_timestamp(struct v4l2_buffer *buf,
+					     u64 timestamp)
+{
+	struct timespec64 ts = ns_to_timespec64(timestamp);
+
+	buf->timestamp.tv_sec  = ts.tv_sec;
+	buf->timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+}
+
+static inline bool v4l2_is_colorspace_valid(__u32 colorspace)
+{
+	return colorspace > V4L2_COLORSPACE_DEFAULT &&
+	       colorspace <= V4L2_COLORSPACE_DCI_P3;
+}
+
+static inline bool v4l2_is_xfer_func_valid(__u32 xfer_func)
+{
+	return xfer_func > V4L2_XFER_FUNC_DEFAULT &&
+	       xfer_func <= V4L2_XFER_FUNC_SMPTE2084;
+}
+
+static inline bool v4l2_is_ycbcr_enc_valid(__u8 ycbcr_enc)
+{
+	return ycbcr_enc > V4L2_YCBCR_ENC_DEFAULT &&
+	       ycbcr_enc <= V4L2_YCBCR_ENC_SMPTE240M;
+}
+
+static inline bool v4l2_is_hsv_enc_valid(__u8 hsv_enc)
+{
+	return hsv_enc == V4L2_HSV_ENC_180 || hsv_enc == V4L2_HSV_ENC_256;
+}
+
+static inline bool v4l2_is_quant_valid(__u8 quantization)
+{
+	return quantization == V4L2_QUANTIZATION_FULL_RANGE ||
+	       quantization == V4L2_QUANTIZATION_LIM_RANGE;
+}
 
 #endif /* V4L2_COMMON_H_ */

@@ -15,9 +15,9 @@
 struct can_rx_offload {
 	struct net_device *dev;
 
-	unsigned int (*mailbox_read)(struct can_rx_offload *offload,
-				     struct can_frame *cf,
-				     u32 *timestamp, unsigned int mb);
+	struct sk_buff *(*mailbox_read)(struct can_rx_offload *offload,
+					unsigned int mb, u32 *timestamp,
+					bool drop);
 
 	struct sk_buff_head skb_queue;
 	u32 skb_queue_len_max;
@@ -35,6 +35,9 @@ int can_rx_offload_add_timestamp(struct net_device *dev,
 int can_rx_offload_add_fifo(struct net_device *dev,
 			    struct can_rx_offload *offload,
 			    unsigned int weight);
+int can_rx_offload_add_manual(struct net_device *dev,
+			      struct can_rx_offload *offload,
+			      unsigned int weight);
 int can_rx_offload_irq_offload_timestamp(struct can_rx_offload *offload,
 					 u64 reg);
 int can_rx_offload_irq_offload_fifo(struct can_rx_offload *offload);
@@ -44,7 +47,6 @@ unsigned int can_rx_offload_get_echo_skb(struct can_rx_offload *offload,
 					 unsigned int idx, u32 timestamp);
 int can_rx_offload_queue_tail(struct can_rx_offload *offload,
 			      struct sk_buff *skb);
-void can_rx_offload_reset(struct can_rx_offload *offload);
 void can_rx_offload_del(struct can_rx_offload *offload);
 void can_rx_offload_enable(struct can_rx_offload *offload);
 

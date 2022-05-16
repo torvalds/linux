@@ -11,13 +11,6 @@
 	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
-	L2: l2-cache-controller@c4200000 {
-		compatible = "arm,pl310-cache";
-		reg = <0xc4200000 0x1000>;
-		cache-unified;
-		cache-level = <2>;
-	};
-
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -140,6 +133,13 @@
 				status = "disabled";
 			};
 
+			sdhc: mmc@8e00 {
+				compatible = "amlogic,meson-mx-sdhc";
+				reg = <0x8e00 0x42>;
+				interrupts = <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+			};
+
 			gpio_intc: interrupt-controller@9880 {
 				compatible = "amlogic,meson-gpio-intc";
 				reg = <0x9880 0x10>;
@@ -163,6 +163,13 @@
 					     <GIC_SPI 6 IRQ_TYPE_EDGE_RISING>,
 					     <GIC_SPI 29 IRQ_TYPE_EDGE_RISING>;
 			};
+		};
+
+		L2: cache-controller@c4200000 {
+			compatible = "arm,pl310-cache";
+			reg = <0xc4200000 0x1000>;
+			cache-unified;
+			cache-level = <2>;
 		};
 
 		periph: bus@c4300000 {
@@ -229,6 +236,9 @@
 			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usb0_phy>;
 			phy-names = "usb2-phy";
+			g-rx-fifo-size = <512>;
+			g-np-tx-fifo-size = <500>;
+			g-tx-fifo-size = <256 192 128 128 128>;
 			dr_mode = "host";
 			status = "disabled";
 		};
@@ -281,5 +291,12 @@
 				#size-cells = <1>;
 			};
 		};
+	};
+
+	xtal: xtal-clk {
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		clock-output-names = "xtal";
+		#clock-cells = <0>;
 	};
 }; /* end of / */

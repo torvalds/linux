@@ -2171,7 +2171,6 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
 		chip->int_mask |= ADT7516_AIN_INT_MASK;
 
-	indio_dev->dev.parent = dev;
 	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
 		indio_dev->info = &adt7516_info;
 	else

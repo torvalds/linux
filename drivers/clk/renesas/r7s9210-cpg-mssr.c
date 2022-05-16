@@ -93,6 +93,7 @@ static const struct mssr_mod_clk r7s9210_mod_clks[] __initconst = {
 	DEF_MOD_STB("ether1",	 64,	R7S9210_CLK_B),
 	DEF_MOD_STB("ether0",	 65,	R7S9210_CLK_B),
 
+	DEF_MOD_STB("spibsc",	 83,	R7S9210_CLK_P1),
 	DEF_MOD_STB("i2c3",	 84,	R7S9210_CLK_P1),
 	DEF_MOD_STB("i2c2",	 85,	R7S9210_CLK_P1),
 	DEF_MOD_STB("i2c1",	 86,	R7S9210_CLK_P1),
@@ -213,7 +214,7 @@ const struct cpg_mssr_info r7s9210_cpg_mssr_info __initconst = {
 	.cpg_clk_register = rza2_cpg_clk_register,
 
 	/* RZ/A2 has Standby Control Registers */
-	.stbyctrl = true,
+	.reg_layout = CLK_REG_LAYOUT_RZ_A,
 };
 
 static void __init r7s9210_cpg_mssr_early_init(struct device_node *np)

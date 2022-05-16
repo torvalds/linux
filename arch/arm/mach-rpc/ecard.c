@@ -63,7 +63,7 @@ struct ecard_request {
 	struct completion *complete;
 };
 
-struct expcard_blacklist {
+struct expcard_quirklist {
 	unsigned short	 manufacturer;
 	unsigned short	 product;
 	const char	*type;
@@ -79,7 +79,7 @@ static void atomwide_3p_quirk(ecard_t *ec);
 /* List of descriptions of cards which don't have an extended
  * identification, or chunk directories containing a description.
  */
-static struct expcard_blacklist __initdata blacklist[] = {
+static struct expcard_quirklist quirklist[] __initdata = {
 	{ MANU_ACORN, PROD_ACORN_ETHER1, "Acorn Ether1" },
 	{ MANU_ATOMWIDE, PROD_ATOMWIDE_3PSERIAL, NULL, atomwide_3p_quirk },
 };
@@ -935,13 +935,13 @@ static int __init ecard_probe(int slot, unsigned irq, card_type_t type)
 		ec->fiqmask = 4;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(blacklist); i++)
-		if (blacklist[i].manufacturer == ec->cid.manufacturer &&
-		    blacklist[i].product == ec->cid.product) {
-		    	if (blacklist[i].type)
-				ec->card_desc = blacklist[i].type;
-			if (blacklist[i].init)
-				blacklist[i].init(ec);
+	for (i = 0; i < ARRAY_SIZE(quirklist); i++)
+		if (quirklist[i].manufacturer == ec->cid.manufacturer &&
+		    quirklist[i].product == ec->cid.product) {
+			if (quirklist[i].type)
+				ec->card_desc = quirklist[i].type;
+			if (quirklist[i].init)
+				quirklist[i].init(ec);
 			break;
 		}
 

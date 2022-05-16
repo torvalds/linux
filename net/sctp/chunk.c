@@ -75,37 +75,35 @@ static void sctp_datamsg_destroy(struct sctp_datamsg *msg)
 	struct list_head *pos, *temp;
 	struct sctp_chunk *chunk;
 	struct sctp_ulpevent *ev;
-	int error = 0, notify;
-
-	/* If we failed, we may need to notify. */
-	notify = msg->send_failed ? -1 : 0;
+	int error, sent;
 
 	/* Release all references. */
 	list_for_each_safe(pos, temp, &msg->chunks) {
 		list_del_init(pos);
 		chunk = list_entry(pos, struct sctp_chunk, frag_list);
-		/* Check whether we _really_ need to notify. */
-		if (notify < 0) {
-			asoc = chunk->asoc;
-			if (msg->send_error)
-				error = msg->send_error;
-			else
-				error = asoc->outqueue.error;
 
-			notify = sctp_ulpevent_type_enabled(asoc->subscribe,
-							    SCTP_SEND_FAILED);
+		if (!msg->send_failed) {
+			sctp_chunk_put(chunk);
+			continue;
 		}
 
-		/* Generate a SEND FAILED event only if enabled. */
-		if (notify > 0) {
-			int sent;
-			if (chunk->has_tsn)
-				sent = SCTP_DATA_SENT;
-			else
-				sent = SCTP_DATA_UNSENT;
+		asoc = chunk->asoc;
+		error = msg->send_error ?: asoc->outqueue.error;
+		sent = chunk->has_tsn ? SCTP_DATA_SENT : SCTP_DATA_UNSENT;
 
+		if (sctp_ulpevent_type_enabled(asoc->subscribe,
+					       SCTP_SEND_FAILED)) {
 			ev = sctp_ulpevent_make_send_failed(asoc, chunk, sent,
 							    error, GFP_ATOMIC);
+			if (ev)
+				asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
+		}
+
+		if (sctp_ulpevent_type_enabled(asoc->subscribe,
+					       SCTP_SEND_FAILED_EVENT)) {
+			ev = sctp_ulpevent_make_send_failed_event(asoc, chunk,
+								  sent, error,
+								  GFP_ATOMIC);
 			if (ev)
 				asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
 		}
@@ -181,7 +179,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 				    __func__, asoc, max_data);
 	}
 
-	/* If the the peer requested that we authenticate DATA chunks
+	/* If the peer requested that we authenticate DATA chunks
 	 * we need to account for bundling of the AUTH chunks along with
 	 * DATA.
 	 */
@@ -227,7 +225,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	if (msg_len >= first_len) {
 		msg->can_delay = 0;
 		if (msg_len > first_len)
-			SCTP_INC_STATS(sock_net(asoc->base.sk),
+			SCTP_INC_STATS(asoc->base.net,
 				       SCTP_MIB_FRAGUSRMSGS);
 	} else {
 		/* Which may be the only one... */

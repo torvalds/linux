@@ -95,7 +95,7 @@ Ethernet switch connected via MDIO to the host, CPU port wired to eth0:
 
 		fixed-link {
 			speed = <1000>;
-			duplex-full;
+			full-duplex;
 		};
 	};
 
@@ -104,12 +104,16 @@ Ethernet switch connected via MDIO to the host, CPU port wired to eth0:
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		switch0: ethernet-switch@30 {
+		switch0: ethernet-switch@1e {
 			compatible = "brcm,bcm53125";
+			reg = <30>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				port0@0 {
 					reg = <0>;
 					label = "lan1";
@@ -125,7 +129,7 @@ Ethernet switch connected via MDIO to the host, CPU port wired to eth0:
 					label = "cable-modem";
 					fixed-link {
 						speed = <1000>;
-						duplex-full;
+						full-duplex;
 					};
 					phy-mode = "rgmii-txid";
 				};
@@ -135,7 +139,7 @@ Ethernet switch connected via MDIO to the host, CPU port wired to eth0:
 					label = "cpu";
 					fixed-link {
 						speed = <1000>;
-						duplex-full;
+						full-duplex;
 					};
 					phy-mode = "rgmii-txid";
 					ethernet = <&eth0>;

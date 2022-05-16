@@ -13,7 +13,7 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#include "bpf_endian.h"
+#include <bpf/bpf_endian.h>
 #include "bpf_rlimit.h"
 #include "bpf_util.h"
 #include "cgroup_helpers.h"
@@ -112,6 +112,29 @@ static struct sysctl_test tests[] = {
 
 			/* else return ALLOW; */
 			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "kernel/domainname",
+		.open_flags = O_WRONLY,
+		.newval = "(none)", /* same as default, should fail anyway */
+		.result = OP_EPERM,
+	},
+	{
+		.descr = "ctx:write sysctl:write read ok narrow",
+		.insns = {
+			/* u64 w = (u16)write & 1; */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_1,
+				    offsetof(struct bpf_sysctl, write)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_1,
+				    offsetof(struct bpf_sysctl, write) + 2),
+#endif
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_7, 1),
+			/* return 1 - w; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_ALU64_REG(BPF_SUB, BPF_REG_0, BPF_REG_7),
 			BPF_EXIT_INSN(),
 		},
 		.attach_type = BPF_CGROUP_SYSCTL,
@@ -1596,14 +1619,8 @@ int main(int argc, char **argv)
 	int cgfd = -1;
 	int err = 0;
 
-	if (setup_cgroup_environment())
-		goto err;
-
-	cgfd = create_and_get_cgroup(CG_PATH);
+	cgfd = cgroup_setup_and_join(CG_PATH);
 	if (cgfd < 0)
-		goto err;
-
-	if (join_cgroup(CG_PATH))
 		goto err;
 
 	if (run_tests(cgfd))

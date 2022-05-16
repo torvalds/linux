@@ -243,8 +243,6 @@ static void esp_set_all_config3(struct esp *esp, u8 val)
 /* Reset the ESP chip, _not_ the SCSI bus. */
 static void esp_reset_esp(struct esp *esp)
 {
-	u8 family_code, version;
-
 	/* Now reset the ESP chip */
 	scsi_esp_cmd(esp, ESP_CMD_RC);
 	scsi_esp_cmd(esp, ESP_CMD_NULL | ESP_CMD_DMA);
@@ -257,14 +255,19 @@ static void esp_reset_esp(struct esp *esp)
 	 */
 	esp->max_period = ((35 * esp->ccycle) / 1000);
 	if (esp->rev == FAST) {
-		version = esp_read8(ESP_UID);
-		family_code = (version & 0xf8) >> 3;
-		if (family_code == 0x02)
+		u8 family_code = ESP_FAMILY(esp_read8(ESP_UID));
+
+		if (family_code == ESP_UID_F236) {
 			esp->rev = FAS236;
-		else if (family_code == 0x0a)
+		} else if (family_code == ESP_UID_HME) {
 			esp->rev = FASHME; /* Version is usually '5'. */
-		else
+		} else if (family_code == ESP_UID_FSC) {
+			esp->rev = FSC;
+			/* Enable Active Negation */
+			esp_write8(ESP_CONFIG4_RADE, ESP_CFG4);
+		} else {
 			esp->rev = FAS100A;
+		}
 		esp->min_period = ((4 * esp->ccycle) / 1000);
 	} else {
 		esp->min_period = ((5 * esp->ccycle) / 1000);
@@ -304,11 +307,11 @@ static void esp_reset_esp(struct esp *esp)
 
 	case FASHME:
 		esp->config2 |= (ESP_CONFIG2_HME32 | ESP_CONFIG2_HMEFENAB);
-		/* fallthrough... */
+		fallthrough;
 
 	case FAS236:
 	case PCSCSI:
-		/* Fast 236, AM53c974 or HME */
+	case FSC:
 		esp_write8(esp->config2, ESP_CFG2);
 		if (esp->rev == FASHME) {
 			u8 cfg3 = esp->target[0].esp_config3;
@@ -1738,7 +1741,7 @@ again:
 
 	case ESP_EVENT_DATA_IN:
 		write = 1;
-		/* fallthru */
+		fallthrough;
 
 	case ESP_EVENT_DATA_OUT: {
 		struct esp_cmd_entry *ent = esp->active_cmd;
@@ -2373,10 +2376,11 @@ static const char *esp_chip_names[] = {
 	"ESP100A",
 	"ESP236",
 	"FAS236",
+	"AM53C974",
+	"53CF9x-2",
 	"FAS100A",
 	"FAST",
 	"FASHME",
-	"AM53C974",
 };
 
 static struct scsi_transport_template *esp_transport_template;

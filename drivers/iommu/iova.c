@@ -233,7 +233,7 @@ static DEFINE_MUTEX(iova_cache_mutex);
 
 struct iova *alloc_iova_mem(void)
 {
-	return kmem_cache_alloc(iova_cache, GFP_ATOMIC);
+	return kmem_cache_zalloc(iova_cache, GFP_ATOMIC | __GFP_NOWARN);
 }
 EXPORT_SYMBOL(alloc_iova_mem);
 
@@ -253,7 +253,7 @@ int iova_cache_get(void)
 			SLAB_HWCACHE_ALIGN, NULL);
 		if (!iova_cache) {
 			mutex_unlock(&iova_cache_mutex);
-			printk(KERN_ERR "Couldn't create iova cache\n");
+			pr_err("Couldn't create iova cache\n");
 			return -ENOMEM;
 		}
 	}
@@ -579,7 +579,7 @@ void queue_iova(struct iova_domain *iovad,
 
 	/* Avoid false sharing as much as possible. */
 	if (!atomic_read(&iovad->fq_timer_on) &&
-	    !atomic_cmpxchg(&iovad->fq_timer_on, 0, 1))
+	    !atomic_xchg(&iovad->fq_timer_on, 1))
 		mod_timer(&iovad->fq_timer,
 			  jiffies + msecs_to_jiffies(IOVA_FQ_TIMEOUT));
 }
@@ -718,8 +718,8 @@ copy_reserved_iova(struct iova_domain *from, struct iova_domain *to)
 
 		new_iova = reserve_iova(to, iova->pfn_lo, iova->pfn_hi);
 		if (!new_iova)
-			printk(KERN_ERR "Reserve iova range %lx@%lx failed\n",
-				iova->pfn_lo, iova->pfn_lo);
+			pr_err("Reserve iova range %lx@%lx failed\n",
+			       iova->pfn_lo, iova->pfn_lo);
 	}
 	spin_unlock_irqrestore(&from->iova_rbtree_lock, flags);
 }
@@ -811,7 +811,9 @@ iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 	for (i = 0 ; i < mag->size; ++i) {
 		struct iova *iova = private_find_iova(iovad, mag->pfns[i]);
 
-		BUG_ON(!iova);
+		if (WARN_ON(!iova))
+			continue;
+
 		private_free_iova(iovad, iova);
 	}
 

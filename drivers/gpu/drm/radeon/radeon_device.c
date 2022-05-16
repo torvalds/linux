@@ -28,6 +28,7 @@
 
 #include <linux/console.h>
 #include <linux/efi.h>
+#include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/vga_switcheroo.h>
@@ -38,7 +39,6 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/radeon_drm.h>
 
@@ -1263,7 +1263,7 @@ static bool radeon_switcheroo_can_switch(struct pci_dev *pdev)
 	 * locking inversion with the driver load path. And the access here is
 	 * completely racy anyway. So don't bother with locking for now.
 	 */
-	return dev->open_count == 0;
+	return atomic_read(&dev->open_count) == 0;
 }
 
 static const struct vga_switcheroo_client_ops radeon_switcheroo_ops = {

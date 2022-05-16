@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/maxim,max98390.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim Integrated MAX98390 Speaker Amplifier with Integrated Dynamic Speaker Management
+
+maintainers:
+  - Steve Lee <steves.lee@maximintegrated.com>
+
+properties:
+  compatible:
+    const: maxim,max98390
+
+  reg:
+    maxItems: 1
+    description: I2C address of the device.
+
+  maxim,temperature_calib:
+    description: The calculated temperature data was measured while doing the calibration.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 65535
+
+  maxim,r0_calib:
+    description: This is r0 calibration data which was measured in factory mode.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 8388607
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      max98390: amplifier@38 {
+        compatible = "maxim,max98390";
+        reg = <0x38>;
+        maxim,temperature_calib = <1024>;
+        maxim,r0_calib = <100232>;
+      };
+    };

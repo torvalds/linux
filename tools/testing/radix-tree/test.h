@@ -34,6 +34,7 @@ void xarray_tests(void);
 void tag_check(void);
 void multiorder_checks(void);
 void iteration_test(unsigned order, unsigned duration);
+void iteration_test2(unsigned duration);
 void benchmark(void);
 void idr_checks(void);
 void ida_tests(void);
@@ -55,8 +56,4 @@ int root_tag_get(struct radix_tree_root *root, unsigned int tag);
 unsigned long node_maxindex(struct radix_tree_node *);
 unsigned long shift_maxindex(unsigned int shift);
 int radix_tree_cpu_dead(unsigned int cpu);
-struct radix_tree_preload {
-	unsigned nr;
-	struct radix_tree_node *nodes;
-};
 extern struct radix_tree_preload radix_tree_preloads;

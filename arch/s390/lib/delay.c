@@ -46,6 +46,7 @@ static void __udelay_disabled(unsigned long long usecs)
 	set_clock_comparator(end);
 	set_cpu_flag(CIF_IGNORE_IRQ);
 	psw_idle(&idle, psw_mask);
+	trace_hardirqs_off();
 	clear_cpu_flag(CIF_IGNORE_IRQ);
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	__ctl_load(cr0, 0, 0);

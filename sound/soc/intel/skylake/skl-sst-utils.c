@@ -237,7 +237,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 	struct uuid_module *module;
 	struct firmware stripped_fw;
 	unsigned int safe_file;
-	int ret = 0;
+	int ret;
 
 	/* Get the FW pointer to derive ADSP header */
 	stripped_fw.data = fw->data;
@@ -290,7 +290,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 			goto free_uuid_list;
 		}
 
-		guid_copy(&module->uuid, (guid_t *)&mod_entry->uuid);
+		import_guid(&module->uuid, mod_entry->uuid);
 
 		module->id = (i | (index << 12));
 		module->is_loadable = mod_entry->type.load_type;

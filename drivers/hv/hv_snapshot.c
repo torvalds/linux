@@ -12,6 +12,7 @@
 #include <linux/connector.h>
 #include <linux/workqueue.h>
 #include <linux/hyperv.h>
+#include <asm/hyperv-tlfs.h>
 
 #include "hyperv_vmbus.h"
 #include "hv_utils_transport.h"
@@ -79,7 +80,7 @@ static void vss_poll_wrapper(void *channel)
 {
 	/* Transaction is finished, reset the state here to avoid races. */
 	vss_transaction.state = HVUTIL_READY;
-	hv_vss_onchannelcallback(channel);
+	tasklet_schedule(&((struct vmbus_channel *)channel)->callback_event);
 }
 
 /*
@@ -297,7 +298,7 @@ void hv_vss_onchannelcallback(void *context)
 	if (vss_transaction.state > HVUTIL_READY)
 		return;
 
-	vmbus_recvpacket(channel, recv_buffer, PAGE_SIZE * 2, &recvlen,
+	vmbus_recvpacket(channel, recv_buffer, HV_HYP_PAGE_SIZE * 2, &recvlen,
 			 &requestid);
 
 	if (recvlen > 0) {
@@ -378,10 +379,61 @@ hv_vss_init(struct hv_util_service *srv)
 	return 0;
 }
 
+static void hv_vss_cancel_work(void)
+{
+	cancel_delayed_work_sync(&vss_timeout_work);
+	cancel_work_sync(&vss_handle_request_work);
+}
+
+int hv_vss_pre_suspend(void)
+{
+	struct vmbus_channel *channel = vss_transaction.recv_channel;
+	struct hv_vss_msg *vss_msg;
+
+	/*
+	 * Fake a THAW message for the user space daemon in case the daemon
+	 * has frozen the file systems. It doesn't matter if there is already
+	 * a message pending to be delivered to the user space since we force
+	 * vss_transaction.state to be HVUTIL_READY, so the user space daemon's
+	 * write() will fail with EINVAL (see vss_on_msg()), and the daemon
+	 * will reset the device by closing and re-opening it.
+	 */
+	vss_msg = kzalloc(sizeof(*vss_msg), GFP_KERNEL);
+	if (!vss_msg)
+		return -ENOMEM;
+
+	tasklet_disable(&channel->callback_event);
+
+	vss_msg->vss_hdr.operation = VSS_OP_THAW;
+
+	/* Cancel any possible pending work. */
+	hv_vss_cancel_work();
+
+	/* We don't care about the return value. */
+	hvutil_transport_send(hvt, vss_msg, sizeof(*vss_msg), NULL);
+
+	kfree(vss_msg);
+
+	vss_transaction.state = HVUTIL_READY;
+
+	/* tasklet_enable() will be called in hv_vss_pre_resume(). */
+	return 0;
+}
+
+int hv_vss_pre_resume(void)
+{
+	struct vmbus_channel *channel = vss_transaction.recv_channel;
+
+	tasklet_enable(&channel->callback_event);
+
+	return 0;
+}
+
 void hv_vss_deinit(void)
 {
 	vss_transaction.state = HVUTIL_DEVICE_DYING;
-	cancel_delayed_work_sync(&vss_timeout_work);
-	cancel_work_sync(&vss_handle_request_work);
+
+	hv_vss_cancel_work();
+
 	hvutil_transport_destroy(hvt);
 }

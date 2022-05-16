@@ -122,7 +122,7 @@ static int func_prolog_dec(struct trace_array *tr,
 	if (!irqs_disabled_flags(*flags) && !preempt_count())
 		return 0;
 
-	*data = per_cpu_ptr(tr->trace_buffer.data, cpu);
+	*data = per_cpu_ptr(tr->array_buffer.data, cpu);
 	disabled = atomic_inc_return(&(*data)->disabled);
 
 	if (likely(disabled == 1))
@@ -167,7 +167,7 @@ static int irqsoff_display_graph(struct trace_array *tr, int set)
 		per_cpu(tracing_cpu, cpu) = 0;
 
 	tr->max_latency = 0;
-	tracing_reset_online_cpus(&irqsoff_trace->trace_buffer);
+	tracing_reset_online_cpus(&irqsoff_trace->array_buffer);
 
 	return start_irqsoff_tracer(irqsoff_trace, set);
 }
@@ -382,7 +382,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
 	if (per_cpu(tracing_cpu, cpu))
 		return;
 
-	data = per_cpu_ptr(tr->trace_buffer.data, cpu);
+	data = per_cpu_ptr(tr->array_buffer.data, cpu);
 
 	if (unlikely(!data) || atomic_read(&data->disabled))
 		return;
@@ -420,7 +420,7 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
 	if (!tracer_enabled || !tracing_is_enabled())
 		return;
 
-	data = per_cpu_ptr(tr->trace_buffer.data, cpu);
+	data = per_cpu_ptr(tr->array_buffer.data, cpu);
 
 	if (unlikely(!data) ||
 	    !data->critical_start || atomic_read(&data->disabled))

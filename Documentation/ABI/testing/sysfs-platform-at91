@@ -18,8 +18,10 @@ Description:
 		In order to use an extended can_id add the
 		CAN_EFF_FLAG (0x80000000U) to the can_id. Example:
 
-		- standard id 0x7ff:
-		echo 0x7ff      > /sys/class/net/can0/mb0_id
+		- standard id 0x7ff::
 
-		- extended id 0x1fffffff:
-		echo 0x9fffffff > /sys/class/net/can0/mb0_id
+		    echo 0x7ff      > /sys/class/net/can0/mb0_id
+
+		- extended id 0x1fffffff::
+
+		    echo 0x9fffffff > /sys/class/net/can0/mb0_id

@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 
 #include <linux/vmalloc.h>
@@ -660,7 +659,7 @@ static int
 qla8044_poll_reg(struct scsi_qla_host *vha, uint32_t addr,
 	int duration, uint32_t test_mask, uint32_t test_result)
 {
-	uint32_t value;
+	uint32_t value = 0;
 	int timeout_error;
 	uint8_t retries;
 	int ret_val = QLA_SUCCESS;
@@ -1441,7 +1440,7 @@ qla8044_device_bootstrap(struct scsi_qla_host *vha)
 	if (idc_ctrl & GRACEFUL_RESET_BIT1) {
 		qla8044_wr_reg(ha, QLA8044_IDC_DRV_CTRL,
 		    (idc_ctrl & ~GRACEFUL_RESET_BIT1));
-		ha->fw_dumped = 0;
+		ha->fw_dumped = false;
 	}
 
 dev_ready:
@@ -2965,7 +2964,7 @@ qla8044_minidump_pex_dma_read(struct scsi_qla_host *vha,
 
 		/* Prepare: Write pex-dma descriptor to MS memory. */
 		rval = qla8044_ms_mem_write_128b(vha,
-		    m_hdr->desc_card_addr, (void *)&dma_desc,
+		    m_hdr->desc_card_addr, (uint32_t *)&dma_desc,
 		    (sizeof(struct qla8044_pex_dma_descriptor)/16));
 		if (rval) {
 			ql_log(ql_log_warn, vha, 0xb14a,
@@ -2987,7 +2986,7 @@ qla8044_minidump_pex_dma_read(struct scsi_qla_host *vha,
 		read_size += chunk_size;
 	}
 
-	*d_ptr = (void *)data_ptr;
+	*d_ptr = (uint32_t *)data_ptr;
 
 error_exit:
 	if (rdmem_buffer)
@@ -3249,7 +3248,7 @@ qla8044_collect_md_data(struct scsi_qla_host *vha)
 		goto md_failed;
 	}
 
-	ha->fw_dumped = 0;
+	ha->fw_dumped = false;
 
 	if (!ha->md_tmplt_hdr || !ha->md_dump) {
 		ql_log(ql_log_warn, vha, 0xb10e,
@@ -3470,7 +3469,7 @@ skip_nxt_entry:
 	ql_log(ql_log_info, vha, 0xb110,
 	    "Firmware dump saved to temp buffer (%ld/%p %ld/%p).\n",
 	    vha->host_no, ha->md_tmplt_hdr, vha->host_no, ha->md_dump);
-	ha->fw_dumped = 1;
+	ha->fw_dumped = true;
 	qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 
 
@@ -3487,7 +3486,7 @@ qla8044_get_minidump(struct scsi_qla_host *vha)
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!qla8044_collect_md_data(vha)) {
-		ha->fw_dumped = 1;
+		ha->fw_dumped = true;
 		ha->prev_minidump_failed = 0;
 	} else {
 		ql_log(ql_log_fatal, vha, 0xb0db,
@@ -3946,8 +3945,8 @@ qla8044_intr_handler(int irq, void *dev_id)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (iter = 1; iter--; ) {
 
-		if (RD_REG_DWORD(&reg->host_int)) {
-			stat = RD_REG_DWORD(&reg->host_status);
+		if (rd_reg_dword(&reg->host_int)) {
+			stat = rd_reg_dword(&reg->host_status);
 			if ((stat & HSRX_RISC_INT) == 0)
 				break;
 
@@ -3961,9 +3960,9 @@ qla8044_intr_handler(int irq, void *dev_id)
 				break;
 			case 0x12:
 				mb[0] = MSW(stat);
-				mb[1] = RD_REG_WORD(&reg->mailbox_out[1]);
-				mb[2] = RD_REG_WORD(&reg->mailbox_out[2]);
-				mb[3] = RD_REG_WORD(&reg->mailbox_out[3]);
+				mb[1] = rd_reg_word(&reg->mailbox_out[1]);
+				mb[2] = rd_reg_word(&reg->mailbox_out[2]);
+				mb[3] = rd_reg_word(&reg->mailbox_out[3]);
 				qla2x00_async_event(vha, rsp, mb);
 				break;
 			case 0x13:
@@ -3976,7 +3975,7 @@ qla8044_intr_handler(int irq, void *dev_id)
 				break;
 			}
 		}
-		WRT_REG_DWORD(&reg->host_int, 0);
+		wrt_reg_dword(&reg->host_int, 0);
 	}
 
 	qla2x00_handle_mbx_completion(ha, status);
@@ -4070,7 +4069,7 @@ exit_isp_reset:
 }
 
 void
-qla8044_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+qla8044_fw_dump(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 

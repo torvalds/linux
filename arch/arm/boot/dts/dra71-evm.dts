@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include "dra71x.dtsi"
@@ -15,6 +15,33 @@
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>; /* 2GB */
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ipu2_memory_region: ipu2-memory@95800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x95800000 0x0 0x3800000>;
+			reusable;
+			status = "okay";
+		};
+
+		dsp1_memory_region: dsp1-memory@99000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x99000000 0x0 0x4000000>;
+			reusable;
+			status = "okay";
+		};
+
+		ipu1_memory_region: ipu1-memory@9d000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x9d000000 0x0 0x2000000>;
+			reusable;
+			status = "okay";
+		};
 	};
 
 	vpo_sd_1v8_3v3: gpio-regulator-TPS74801 {
@@ -192,26 +219,26 @@
 	vqmmc-supply = <&evm_1v8_sw>;
 };
 
-&mac {
+&mac_sw {
 	mode-gpios = <&pcf_gpio_21 4 GPIO_ACTIVE_LOW>,
 		     <&pcf_hdmi 9 GPIO_ACTIVE_LOW>,	/* P11 */
 		     <&pcf_hdmi 10 GPIO_ACTIVE_LOW>;	/* P12 */
-	dual_emac;
+	status = "okay";
 };
 
-&cpsw_emac0 {
+&cpsw_port1 {
 	phy-handle = <&dp83867_0>;
 	phy-mode = "rgmii-id";
-	dual_emac_res_vlan = <1>;
+	ti,dual-emac-pvid = <1>;
 };
 
-&cpsw_emac1 {
+&cpsw_port2 {
 	phy-handle = <&dp83867_1>;
 	phy-mode = "rgmii-id";
-	dual_emac_res_vlan = <2>;
+	ti,dual-emac-pvid = <2>;
 };
 
-&davinci_mdio {
+&davinci_mdio_sw {
 	dp83867_0: ethernet-phy@2 {
 		reg = <2>;
 		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
@@ -269,4 +296,19 @@
 
 &extcon_usb2 {
 	vbus-gpio = <&pcf_lcd 15 GPIO_ACTIVE_HIGH>;
+};
+
+&ipu2 {
+	status = "okay";
+	memory-region = <&ipu2_memory_region>;
+};
+
+&ipu1 {
+	status = "okay";
+	memory-region = <&ipu1_memory_region>;
+};
+
+&dsp1 {
+	status = "okay";
+	memory-region = <&dsp1_memory_region>;
 };

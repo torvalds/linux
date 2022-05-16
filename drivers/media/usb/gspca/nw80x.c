@@ -2019,7 +2019,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
 		gspca_dev->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_GAIN, 0, 253, 1, 128);
-		/* fall through */
+		fallthrough;
 	case Cvideopro:
 	case DvcV6:
 	case Kritter:

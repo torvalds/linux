@@ -153,7 +153,7 @@ static int clps711x_fb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops clps711x_fb_ops = {
+static const struct fb_ops clps711x_fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= clps711x_fb_setcolreg,
 	.fb_check_var	= clps711x_fb_check_var,

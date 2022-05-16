@@ -68,8 +68,6 @@
 #define I2C_ARBITRATE_INTR	BIT(1)
 #define I2C_OVER_INTR		BIT(0)
 
-#define HIX5I2C_MAX_FREQ	400000		/* 400k */
-
 enum hix5hd2_i2c_state {
 	HIX5I2C_STAT_RW_ERR = -1,
 	HIX5I2C_STAT_INIT,
@@ -390,7 +388,6 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct hix5hd2_i2c_priv *priv;
-	struct resource *mem;
 	unsigned int freq;
 	int irq, ret;
 
@@ -400,19 +397,18 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 
 	if (of_property_read_u32(np, "clock-frequency", &freq)) {
 		/* use 100k as default value */
-		priv->freq = 100000;
+		priv->freq = I2C_MAX_STANDARD_MODE_FREQ;
 	} else {
-		if (freq > HIX5I2C_MAX_FREQ) {
-			priv->freq = HIX5I2C_MAX_FREQ;
+		if (freq > I2C_MAX_FAST_MODE_FREQ) {
+			priv->freq = I2C_MAX_FAST_MODE_FREQ;
 			dev_warn(priv->dev, "use max freq %d instead\n",
-				 HIX5I2C_MAX_FREQ);
+				 I2C_MAX_FAST_MODE_FREQ);
 		} else {
 			priv->freq = freq;
 		}
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->regs = devm_ioremap_resource(&pdev->dev, mem);
+	priv->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
 
@@ -477,6 +473,7 @@ static int hix5hd2_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&priv->adap);
 	pm_runtime_disable(priv->dev);
 	pm_runtime_set_suspended(priv->dev);
+	clk_disable_unprepare(priv->clk);
 
 	return 0;
 }

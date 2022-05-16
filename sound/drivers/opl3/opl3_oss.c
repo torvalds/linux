@@ -16,7 +16,7 @@ static int snd_opl3_reset_seq_oss(struct snd_seq_oss_arg *arg);
 
 /* operators */
 
-static struct snd_seq_oss_callback oss_callback = {
+static const struct snd_seq_oss_callback oss_callback = {
 	.owner = 	THIS_MODULE,
 	.open =		snd_opl3_open_seq_oss,
 	.close =	snd_opl3_close_seq_oss,

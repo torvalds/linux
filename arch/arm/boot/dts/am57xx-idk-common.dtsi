@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015-2016 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include "am57xx-industrial-grade.dtsi"
@@ -9,6 +9,7 @@
 	aliases {
 		rtc0 = &tps659038_rtc;
 		rtc1 = &rtc;
+		display0 = &hdmi0;
 	};
 
 	chosen {
@@ -30,6 +31,16 @@
 		vin-supply = <&smps9_reg>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	v1_2d: fixedregulator-v1_2d {
+		compatible = "regulator-fixed";
+		regulator-name = "V1_2D";
+		vin-supply = <&vmain>;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
 		regulator-always-on;
 		regulator-boot-on;
 	};
@@ -95,6 +106,54 @@
 			gpios = <&tpic2810 7 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
+	};
+
+	hdmi0: connector@0 {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tpd12s015_out>;
+			};
+		};
+	};
+
+	tpd12s015: encoder@0 {
+		compatible = "ti,tpd12s016", "ti,tpd12s015";
+
+		gpios = <0>, /* optional CT_CP_HPD */
+			<0>, /* optional LS_OE */
+			<&gpio7 12 GPIO_ACTIVE_HIGH>;	/* HPD */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tpd12s015_in: endpoint@0 {
+					remote-endpoint = <&hdmi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tpd12s015_out: endpoint@0 {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
+	};
+
+	src_clk_x1: src_clk_x1 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <20000000>;
 	};
 };
 
@@ -335,6 +394,32 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
+
+	dsi_bridge: tc358778@e {
+		compatible = "toshiba,tc358778", "toshiba,tc358768";
+		reg = <0xe>;
+		status = "disabled";
+
+		clocks = <&src_clk_x1>;
+		clock-names = "refclk";
+
+		vddc-supply = <&v1_2d>;
+		vddmipi-supply = <&v1_2d>;
+		vddio-supply = <&v3_3d>;
+
+		dsi_bridge_ports: ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				rgb_in: endpoint {
+					remote-endpoint = <&dpi_out>;
+					data-lines = <24>;
+				};
+			};
+		};
+	};
 };
 
 &mcspi3 {
@@ -363,24 +448,23 @@
 	ext-clk-src;
 };
 
-&mac {
+&mac_sw {
 	status = "okay";
-	dual_emac;
 };
 
-&cpsw_emac0 {
+&cpsw_port1 {
 	phy-handle = <&ethphy0>;
-	phy-mode = "rgmii";
-	dual_emac_res_vlan = <1>;
+	phy-mode = "rgmii-rxid";
+	ti,dual-emac-pvid = <1>;
 };
 
-&cpsw_emac1 {
+&cpsw_port2 {
 	phy-handle = <&ethphy1>;
-	phy-mode = "rgmii";
-	dual_emac_res_vlan = <2>;
+	phy-mode = "rgmii-rxid";
+	ti,dual-emac-pvid = <2>;
 };
 
-&davinci_mdio {
+&davinci_mdio_sw {
 	ethphy0: ethernet-phy@0 {
 		reg = <0>;
 	};
@@ -489,4 +573,36 @@
 
 &cpu0 {
 	vdd-supply = <&smps12_reg>;
+};
+
+&hdmi {
+	status = "okay";
+
+	vdda-supply = <&ldo4_reg>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&tpd12s015_in>;
+		};
+	};
+};
+
+&dss {
+	status = "okay";
+
+	vdda_video-supply = <&ldoln_reg>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			dpi_out: endpoint {
+				remote-endpoint = <&rgb_in>;
+				data-lines = <24>;
+			};
+		};
+	};
 };

@@ -24,11 +24,13 @@ struct nfp_app;
 #define NFP_FL_STAT_ID_MU_NUM		GENMASK(31, 22)
 #define NFP_FL_STAT_ID_STAT		GENMASK(21, 0)
 
-#define NFP_FL_STATS_ELEM_RS		FIELD_SIZEOF(struct nfp_fl_stats_id, \
+#define NFP_FL_STATS_ELEM_RS		sizeof_field(struct nfp_fl_stats_id, \
 						     init_unalloc)
 #define NFP_FLOWER_MASK_ENTRY_RS	256
 #define NFP_FLOWER_MASK_ELEMENT_RS	1
 #define NFP_FLOWER_MASK_HASH_BITS	10
+
+#define NFP_FLOWER_KEY_MAX_LW		32
 
 #define NFP_FL_META_FLAG_MANAGE_MASK	BIT(7)
 
@@ -43,8 +45,23 @@ struct nfp_app;
 #define NFP_FL_FEATS_VF_RLIM		BIT(4)
 #define NFP_FL_FEATS_FLOW_MOD		BIT(5)
 #define NFP_FL_FEATS_PRE_TUN_RULES	BIT(6)
-#define NFP_FL_FEATS_FLOW_MERGE		BIT(30)
-#define NFP_FL_FEATS_LAG		BIT(31)
+#define NFP_FL_FEATS_IPV6_TUN		BIT(7)
+#define NFP_FL_FEATS_VLAN_QINQ		BIT(8)
+#define NFP_FL_FEATS_HOST_ACK		BIT(31)
+
+#define NFP_FL_ENABLE_FLOW_MERGE	BIT(0)
+#define NFP_FL_ENABLE_LAG		BIT(1)
+
+#define NFP_FL_FEATS_HOST \
+	(NFP_FL_FEATS_GENEVE | \
+	NFP_FL_NBI_MTU_SETTING | \
+	NFP_FL_FEATS_GENEVE_OPT | \
+	NFP_FL_FEATS_VLAN_PCP | \
+	NFP_FL_FEATS_VF_RLIM | \
+	NFP_FL_FEATS_FLOW_MOD | \
+	NFP_FL_FEATS_PRE_TUN_RULES | \
+	NFP_FL_FEATS_IPV6_TUN | \
+	NFP_FL_FEATS_VLAN_QINQ)
 
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
@@ -62,18 +79,26 @@ struct nfp_fl_stats_id {
  * struct nfp_fl_tunnel_offloads - priv data for tunnel offloads
  * @offloaded_macs:	Hashtable of the offloaded MAC addresses
  * @ipv4_off_list:	List of IPv4 addresses to offload
- * @neigh_off_list:	List of neighbour offloads
+ * @ipv6_off_list:	List of IPv6 addresses to offload
+ * @neigh_off_list_v4:	List of IPv4 neighbour offloads
+ * @neigh_off_list_v6:	List of IPv6 neighbour offloads
  * @ipv4_off_lock:	Lock for the IPv4 address list
- * @neigh_off_lock:	Lock for the neighbour address list
+ * @ipv6_off_lock:	Lock for the IPv6 address list
+ * @neigh_off_lock_v4:	Lock for the IPv4 neighbour address list
+ * @neigh_off_lock_v6:	Lock for the IPv6 neighbour address list
  * @mac_off_ids:	IDA to manage id assignment for offloaded MACs
  * @neigh_nb:		Notifier to monitor neighbour state
  */
 struct nfp_fl_tunnel_offloads {
 	struct rhashtable offloaded_macs;
 	struct list_head ipv4_off_list;
-	struct list_head neigh_off_list;
+	struct list_head ipv6_off_list;
+	struct list_head neigh_off_list_v4;
+	struct list_head neigh_off_list_v6;
 	struct mutex ipv4_off_lock;
-	spinlock_t neigh_off_lock;
+	struct mutex ipv6_off_lock;
+	spinlock_t neigh_off_lock_v4;
+	spinlock_t neigh_off_lock_v6;
 	struct ida mac_off_ids;
 	struct notifier_block neigh_nb;
 };
@@ -136,6 +161,7 @@ struct nfp_fl_internal_ports {
  * @mask_id_seed:	Seed used for mask hash table
  * @flower_version:	HW version of flower
  * @flower_ext_feats:	Bitmap of extra features the HW supports
+ * @flower_en_feats:	Bitmap of features enabled by HW
  * @stats_ids:		List of free stats ids
  * @mask_ids:		List of free mask ids
  * @mask_table:		Hash table used to store masks
@@ -171,6 +197,7 @@ struct nfp_flower_priv {
 	u32 mask_id_seed;
 	u64 flower_version;
 	u64 flower_ext_feats;
+	u8 flower_en_feats;
 	struct nfp_fl_stats_id stats_ids;
 	struct nfp_fl_mask_id mask_ids;
 	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
@@ -273,12 +300,25 @@ struct nfp_fl_stats {
 	u64 used;
 };
 
+/**
+ * struct nfp_ipv6_addr_entry - cached IPv6 addresses
+ * @ipv6_addr:	IP address
+ * @ref_count:	number of rules currently using this IP
+ * @list:	list pointer
+ */
+struct nfp_ipv6_addr_entry {
+	struct in6_addr ipv6_addr;
+	int ref_count;
+	struct list_head list;
+};
+
 struct nfp_fl_payload {
 	struct nfp_fl_rule_metadata meta;
 	unsigned long tc_flower_cookie;
 	struct rhash_head fl_node;
 	struct rcu_head rcu;
 	__be32 nfp_tun_ipv4_addr;
+	struct nfp_ipv6_addr_entry *nfp_tun_ipv6;
 	struct net_device *ingress_dev;
 	char *unmasked_data;
 	char *mask_data;
@@ -324,7 +364,7 @@ nfp_flower_internal_port_can_offload(struct nfp_app *app,
 {
 	struct nfp_flower_priv *app_priv = app->priv;
 
-	if (!(app_priv->flower_ext_feats & NFP_FL_FEATS_FLOW_MERGE))
+	if (!(app_priv->flower_en_feats & NFP_FL_ENABLE_FLOW_MERGE))
 		return false;
 	if (!netdev->rtnl_link_ops)
 		return false;
@@ -396,8 +436,14 @@ int nfp_tunnel_mac_event_handler(struct nfp_app *app,
 				 unsigned long event, void *ptr);
 void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4);
-void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb);
+void
+nfp_tunnel_put_ipv6_off(struct nfp_app *app, struct nfp_ipv6_addr_entry *entry);
+struct nfp_ipv6_addr_entry *
+nfp_tunnel_add_ipv6_off(struct nfp_app *app, struct in6_addr *ipv6);
+void nfp_tunnel_request_route_v4(struct nfp_app *app, struct sk_buff *skb);
+void nfp_tunnel_request_route_v6(struct nfp_app *app, struct sk_buff *skb);
 void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb);
+void nfp_tunnel_keep_alive_v6(struct nfp_app *app, struct sk_buff *skb);
 void nfp_flower_lag_init(struct nfp_fl_lag *lag);
 void nfp_flower_lag_cleanup(struct nfp_fl_lag *lag);
 int nfp_flower_lag_reset(struct nfp_fl_lag *lag);
@@ -416,9 +462,11 @@ void nfp_flower_qos_cleanup(struct nfp_app *app);
 int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 				 struct tc_cls_matchall_offload *flow);
 void nfp_flower_stats_rlim_reply(struct nfp_app *app, struct sk_buff *skb);
-int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
-				       struct net_device *netdev,
-				       unsigned long event);
+int nfp_flower_indr_setup_tc_cb(struct net_device *netdev, struct Qdisc *sch, void *cb_priv,
+				enum tc_setup_type type, void *type_data,
+				void *data,
+				void (*cleanup)(struct flow_block_cb *block_cb));
+void nfp_flower_setup_indr_tc_release(void *cb_priv);
 
 void
 __nfp_flower_non_repr_priv_get(struct nfp_flower_non_repr_priv *non_repr_priv);

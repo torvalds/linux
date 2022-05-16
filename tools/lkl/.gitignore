@@ -8,8 +8,10 @@ tests/valgrind*.xml
 *.dll
 tests/net-test
 tests/disk
-tests/vfio-pci
+tests/disk-vfio-pci
 Makefile.conf
 include/lkl_autoconf.h
+include/kernel_config.h
 tests/autoconf.sh
 *.pyc
+bin/stat

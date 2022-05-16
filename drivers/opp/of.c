@@ -332,12 +332,111 @@ free_required_opps:
 	return ret;
 }
 
+static int _bandwidth_supported(struct device *dev, struct opp_table *opp_table)
+{
+	struct device_node *np, *opp_np;
+	struct property *prop;
+
+	if (!opp_table) {
+		np = of_node_get(dev->of_node);
+		if (!np)
+			return -ENODEV;
+
+		opp_np = _opp_of_get_opp_desc_node(np, 0);
+		of_node_put(np);
+	} else {
+		opp_np = of_node_get(opp_table->np);
+	}
+
+	/* Lets not fail in case we are parsing opp-v1 bindings */
+	if (!opp_np)
+		return 0;
+
+	/* Checking only first OPP is sufficient */
+	np = of_get_next_available_child(opp_np, NULL);
+	if (!np) {
+		dev_err(dev, "OPP table empty\n");
+		return -EINVAL;
+	}
+	of_node_put(opp_np);
+
+	prop = of_find_property(np, "opp-peak-kBps", NULL);
+	of_node_put(np);
+
+	if (!prop || !prop->length)
+		return 0;
+
+	return 1;
+}
+
+int dev_pm_opp_of_find_icc_paths(struct device *dev,
+				 struct opp_table *opp_table)
+{
+	struct device_node *np;
+	int ret, i, count, num_paths;
+	struct icc_path **paths;
+
+	ret = _bandwidth_supported(dev, opp_table);
+	if (ret <= 0)
+		return ret;
+
+	ret = 0;
+
+	np = of_node_get(dev->of_node);
+	if (!np)
+		return 0;
+
+	count = of_count_phandle_with_args(np, "interconnects",
+					   "#interconnect-cells");
+	of_node_put(np);
+	if (count < 0)
+		return 0;
+
+	/* two phandles when #interconnect-cells = <1> */
+	if (count % 2) {
+		dev_err(dev, "%s: Invalid interconnects values\n", __func__);
+		return -EINVAL;
+	}
+
+	num_paths = count / 2;
+	paths = kcalloc(num_paths, sizeof(*paths), GFP_KERNEL);
+	if (!paths)
+		return -ENOMEM;
+
+	for (i = 0; i < num_paths; i++) {
+		paths[i] = of_icc_get_by_index(dev, i);
+		if (IS_ERR(paths[i])) {
+			ret = PTR_ERR(paths[i]);
+			if (ret != -EPROBE_DEFER) {
+				dev_err(dev, "%s: Unable to get path%d: %d\n",
+					__func__, i, ret);
+			}
+			goto err;
+		}
+	}
+
+	if (opp_table) {
+		opp_table->paths = paths;
+		opp_table->path_count = num_paths;
+		return 0;
+	}
+
+err:
+	while (i--)
+		icc_put(paths[i]);
+
+	kfree(paths);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_of_find_icc_paths);
+
 static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 			      struct device_node *np)
 {
-	unsigned int count = opp_table->supported_hw_count;
-	u32 version;
-	int ret;
+	unsigned int levels = opp_table->supported_hw_count;
+	int count, versions, ret, i, j;
+	u32 val;
 
 	if (!opp_table->supported_hw) {
 		/*
@@ -352,21 +451,40 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 			return true;
 	}
 
-	while (count--) {
-		ret = of_property_read_u32_index(np, "opp-supported-hw", count,
-						 &version);
-		if (ret) {
-			dev_warn(dev, "%s: failed to read opp-supported-hw property at index %d: %d\n",
-				 __func__, count, ret);
-			return false;
-		}
-
-		/* Both of these are bitwise masks of the versions */
-		if (!(version & opp_table->supported_hw[count]))
-			return false;
+	count = of_property_count_u32_elems(np, "opp-supported-hw");
+	if (count <= 0 || count % levels) {
+		dev_err(dev, "%s: Invalid opp-supported-hw property (%d)\n",
+			__func__, count);
+		return false;
 	}
 
-	return true;
+	versions = count / levels;
+
+	/* All levels in at least one of the versions should match */
+	for (i = 0; i < versions; i++) {
+		bool supported = true;
+
+		for (j = 0; j < levels; j++) {
+			ret = of_property_read_u32_index(np, "opp-supported-hw",
+							 i * levels + j, &val);
+			if (ret) {
+				dev_warn(dev, "%s: failed to read opp-supported-hw property at index %d: %d\n",
+					 __func__, i * levels + j, ret);
+				return false;
+			}
+
+			/* Check if the level is supported */
+			if (!(val & opp_table->supported_hw[j])) {
+				supported = false;
+				break;
+			}
+		}
+
+		if (supported)
+			return true;
+	}
+
+	return false;
 }
 
 static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
@@ -517,9 +635,93 @@ free_microvolt:
  */
 void dev_pm_opp_of_remove_table(struct device *dev)
 {
-	_dev_pm_opp_find_and_remove_table(dev);
+	dev_pm_opp_remove_table(dev);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
+
+static int _read_bw(struct dev_pm_opp *new_opp, struct opp_table *table,
+		    struct device_node *np, bool peak)
+{
+	const char *name = peak ? "opp-peak-kBps" : "opp-avg-kBps";
+	struct property *prop;
+	int i, count, ret;
+	u32 *bw;
+
+	prop = of_find_property(np, name, NULL);
+	if (!prop)
+		return -ENODEV;
+
+	count = prop->length / sizeof(u32);
+	if (table->path_count != count) {
+		pr_err("%s: Mismatch between %s and paths (%d %d)\n",
+				__func__, name, count, table->path_count);
+		return -EINVAL;
+	}
+
+	bw = kmalloc_array(count, sizeof(*bw), GFP_KERNEL);
+	if (!bw)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(np, name, bw, count);
+	if (ret) {
+		pr_err("%s: Error parsing %s: %d\n", __func__, name, ret);
+		goto out;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (peak)
+			new_opp->bandwidth[i].peak = kBps_to_icc(bw[i]);
+		else
+			new_opp->bandwidth[i].avg = kBps_to_icc(bw[i]);
+	}
+
+out:
+	kfree(bw);
+	return ret;
+}
+
+static int _read_opp_key(struct dev_pm_opp *new_opp, struct opp_table *table,
+			 struct device_node *np, bool *rate_not_available)
+{
+	bool found = false;
+	u64 rate;
+	int ret;
+
+	ret = of_property_read_u64(np, "opp-hz", &rate);
+	if (!ret) {
+		/*
+		 * Rate is defined as an unsigned long in clk API, and so
+		 * casting explicitly to its type. Must be fixed once rate is 64
+		 * bit guaranteed in clk API.
+		 */
+		new_opp->rate = (unsigned long)rate;
+		found = true;
+	}
+	*rate_not_available = !!ret;
+
+	/*
+	 * Bandwidth consists of peak and average (optional) values:
+	 * opp-peak-kBps = <path1_value path2_value>;
+	 * opp-avg-kBps = <path1_value path2_value>;
+	 */
+	ret = _read_bw(new_opp, table, np, true);
+	if (!ret) {
+		found = true;
+		ret = _read_bw(new_opp, table, np, false);
+	}
+
+	/* The properties were found but we failed to parse them */
+	if (ret && ret != -ENODEV)
+		return ret;
+
+	if (!of_property_read_u32(np, "opp-level", &new_opp->level))
+		found = true;
+
+	if (found)
+		return 0;
+
+	return ret;
+}
 
 /**
  * _opp_add_static_v2() - Allocate static OPPs (As per 'v2' DT bindings)
@@ -558,25 +760,11 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	if (!new_opp)
 		return ERR_PTR(-ENOMEM);
 
-	ret = of_property_read_u64(np, "opp-hz", &rate);
-	if (ret < 0) {
-		/* "opp-hz" is optional for devices like power domains. */
-		if (!opp_table->is_genpd) {
-			dev_err(dev, "%s: opp-hz not found\n", __func__);
-			goto free_opp;
-		}
-
-		rate_not_available = true;
-	} else {
-		/*
-		 * Rate is defined as an unsigned long in clk API, and so
-		 * casting explicitly to its type. Must be fixed once rate is 64
-		 * bit guaranteed in clk API.
-		 */
-		new_opp->rate = (unsigned long)rate;
+	ret = _read_opp_key(new_opp, opp_table, np, &rate_not_available);
+	if (ret < 0 && !opp_table->is_genpd) {
+		dev_err(dev, "%s: opp key field not found\n", __func__);
+		goto free_opp;
 	}
-
-	of_property_read_u32(np, "opp-level", &new_opp->level);
 
 	/* Check if the OPP supports hardware's hierarchy of versions or not */
 	if (!_opp_is_supported(dev, opp_table, np)) {
@@ -654,21 +842,19 @@ free_opp:
 static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 {
 	struct device_node *np;
-	int ret, count = 0, pstate_count = 0;
+	int ret, count = 0;
 	struct dev_pm_opp *opp;
 
 	/* OPP table is already initialized for the device */
+	mutex_lock(&opp_table->lock);
 	if (opp_table->parsed_static_opps) {
-		kref_get(&opp_table->list_kref);
+		opp_table->parsed_static_opps++;
+		mutex_unlock(&opp_table->lock);
 		return 0;
 	}
 
-	/*
-	 * Re-initialize list_kref every time we add static OPPs to the OPP
-	 * table as the reference count may be 0 after the last tie static OPPs
-	 * were removed.
-	 */
-	kref_init(&opp_table->list_kref);
+	opp_table->parsed_static_opps = 1;
+	mutex_unlock(&opp_table->lock);
 
 	/* We have opp-table node now, iterate over it and add OPPs */
 	for_each_available_child_of_node(opp_table->np, np) {
@@ -678,32 +864,32 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 			dev_err(dev, "%s: Failed to add OPP, %d\n", __func__,
 				ret);
 			of_node_put(np);
-			return ret;
+			goto remove_static_opp;
 		} else if (opp) {
 			count++;
 		}
 	}
 
 	/* There should be one of more OPP defined */
-	if (WARN_ON(!count))
-		return -ENOENT;
-
-	list_for_each_entry(opp, &opp_table->opp_list, node)
-		pstate_count += !!opp->pstate;
-
-	/* Either all or none of the nodes shall have performance state set */
-	if (pstate_count && pstate_count != count) {
-		dev_err(dev, "Not all nodes have performance state set (%d: %d)\n",
-			count, pstate_count);
-		return -ENOENT;
+	if (WARN_ON(!count)) {
+		ret = -ENOENT;
+		goto remove_static_opp;
 	}
 
-	if (pstate_count)
-		opp_table->genpd_performance_state = true;
-
-	opp_table->parsed_static_opps = true;
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		/* Any non-zero performance state would enable the feature */
+		if (opp->pstate) {
+			opp_table->genpd_performance_state = true;
+			break;
+		}
+	}
 
 	return 0;
+
+remove_static_opp:
+	_opp_remove_all_static(opp_table);
+
+	return ret;
 }
 
 /* Initializes OPP tables based on old-deprecated bindings */
@@ -713,11 +899,25 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 	const __be32 *val;
 	int nr, ret = 0;
 
+	mutex_lock(&opp_table->lock);
+	if (opp_table->parsed_static_opps) {
+		opp_table->parsed_static_opps++;
+		mutex_unlock(&opp_table->lock);
+		return 0;
+	}
+
+	opp_table->parsed_static_opps = 1;
+	mutex_unlock(&opp_table->lock);
+
 	prop = of_find_property(dev->of_node, "operating-points", NULL);
-	if (!prop)
-		return -ENODEV;
-	if (!prop->value)
-		return -ENODATA;
+	if (!prop) {
+		ret = -ENODEV;
+		goto remove_static_opp;
+	}
+	if (!prop->value) {
+		ret = -ENODATA;
+		goto remove_static_opp;
+	}
 
 	/*
 	 * Each OPP is a set of tuples consisting of frequency and
@@ -726,7 +926,8 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 	nr = prop->length / sizeof(u32);
 	if (nr % 2) {
 		dev_err(dev, "%s: Invalid OPP table\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto remove_static_opp;
 	}
 
 	val = prop->value;
@@ -738,10 +939,15 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 		if (ret) {
 			dev_err(dev, "%s: Failed to add OPP %ld (%d)\n",
 				__func__, freq, ret);
-			return ret;
+			goto remove_static_opp;
 		}
 		nr -= 2;
 	}
+
+	return 0;
+
+remove_static_opp:
+	_opp_remove_all_static(opp_table);
 
 	return ret;
 }
@@ -769,8 +975,8 @@ int dev_pm_opp_of_add_table(struct device *dev)
 	int ret;
 
 	opp_table = dev_pm_opp_get_opp_table_indexed(dev, 0);
-	if (!opp_table)
-		return -ENOMEM;
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
 
 	/*
 	 * OPPs have two version of bindings now. Also try the old (v1)
@@ -824,8 +1030,8 @@ int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 	}
 
 	opp_table = dev_pm_opp_get_opp_table_indexed(dev, index);
-	if (!opp_table)
-		return -ENOMEM;
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
 
 	ret = _of_add_opp_table_v2(dev, opp_table);
 	if (ret)
@@ -1031,20 +1237,19 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);
 
 /*
  * Callback function provided to the Energy Model framework upon registration.
- * This computes the power estimated by @CPU at @kHz if it is the frequency
+ * This computes the power estimated by @dev at @kHz if it is the frequency
  * of an existing OPP, or at the frequency of the first OPP above @kHz otherwise
  * (see dev_pm_opp_find_freq_ceil()). This function updates @kHz to the ceiled
  * frequency and @mW to the associated power. The power is estimated as
- * P = C * V^2 * f with C being the CPU's capacitance and V and f respectively
- * the voltage and frequency of the OPP.
+ * P = C * V^2 * f with C being the device's capacitance and V and f
+ * respectively the voltage and frequency of the OPP.
  *
- * Returns -ENODEV if the CPU device cannot be found, -EINVAL if the power
- * calculation failed because of missing parameters, 0 otherwise.
+ * Returns -EINVAL if the power calculation failed because of missing
+ * parameters, 0 otherwise.
  */
-static int __maybe_unused _get_cpu_power(unsigned long *mW, unsigned long *kHz,
-					 int cpu)
+static int __maybe_unused _get_power(unsigned long *mW, unsigned long *kHz,
+				     struct device *dev)
 {
-	struct device *cpu_dev;
 	struct dev_pm_opp *opp;
 	struct device_node *np;
 	unsigned long mV, Hz;
@@ -1052,11 +1257,7 @@ static int __maybe_unused _get_cpu_power(unsigned long *mW, unsigned long *kHz,
 	u64 tmp;
 	int ret;
 
-	cpu_dev = get_cpu_device(cpu);
-	if (!cpu_dev)
-		return -ENODEV;
-
-	np = of_node_get(cpu_dev->of_node);
+	np = of_node_get(dev->of_node);
 	if (!np)
 		return -EINVAL;
 
@@ -1066,7 +1267,7 @@ static int __maybe_unused _get_cpu_power(unsigned long *mW, unsigned long *kHz,
 		return -EINVAL;
 
 	Hz = *kHz * 1000;
-	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &Hz);
+	opp = dev_pm_opp_find_freq_ceil(dev, &Hz);
 	if (IS_ERR(opp))
 		return -EINVAL;
 
@@ -1086,30 +1287,38 @@ static int __maybe_unused _get_cpu_power(unsigned long *mW, unsigned long *kHz,
 
 /**
  * dev_pm_opp_of_register_em() - Attempt to register an Energy Model
- * @cpus	: CPUs for which an Energy Model has to be registered
+ * @dev		: Device for which an Energy Model has to be registered
+ * @cpus	: CPUs for which an Energy Model has to be registered. For
+ *		other type of devices it should be set to NULL.
  *
  * This checks whether the "dynamic-power-coefficient" devicetree property has
  * been specified, and tries to register an Energy Model with it if it has.
+ * Having this property means the voltages are known for OPPs and the EM
+ * might be calculated.
  */
-void dev_pm_opp_of_register_em(struct cpumask *cpus)
+int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus)
 {
-	struct em_data_callback em_cb = EM_DATA_CB(_get_cpu_power);
-	int ret, nr_opp, cpu = cpumask_first(cpus);
-	struct device *cpu_dev;
+	struct em_data_callback em_cb = EM_DATA_CB(_get_power);
 	struct device_node *np;
+	int ret, nr_opp;
 	u32 cap;
 
-	cpu_dev = get_cpu_device(cpu);
-	if (!cpu_dev)
-		return;
+	if (IS_ERR_OR_NULL(dev)) {
+		ret = -EINVAL;
+		goto failed;
+	}
 
-	nr_opp = dev_pm_opp_get_opp_count(cpu_dev);
-	if (nr_opp <= 0)
-		return;
+	nr_opp = dev_pm_opp_get_opp_count(dev);
+	if (nr_opp <= 0) {
+		ret = -EINVAL;
+		goto failed;
+	}
 
-	np = of_node_get(cpu_dev->of_node);
-	if (!np)
-		return;
+	np = of_node_get(dev->of_node);
+	if (!np) {
+		ret = -EINVAL;
+		goto failed;
+	}
 
 	/*
 	 * Register an EM only if the 'dynamic-power-coefficient' property is
@@ -1120,9 +1329,20 @@ void dev_pm_opp_of_register_em(struct cpumask *cpus)
 	 */
 	ret = of_property_read_u32(np, "dynamic-power-coefficient", &cap);
 	of_node_put(np);
-	if (ret || !cap)
-		return;
+	if (ret || !cap) {
+		dev_dbg(dev, "Couldn't find proper 'dynamic-power-coefficient' in DT\n");
+		ret = -EINVAL;
+		goto failed;
+	}
 
-	em_register_perf_domain(cpus, nr_opp, &em_cb);
+	ret = em_dev_register_perf_domain(dev, nr_opp, &em_cb, cpus);
+	if (ret)
+		goto failed;
+
+	return 0;
+
+failed:
+	dev_dbg(dev, "Couldn't register Energy Model %d\n", ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_register_em);

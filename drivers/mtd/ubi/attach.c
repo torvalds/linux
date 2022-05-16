@@ -1059,7 +1059,7 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			 * be a result of power cut during erasure.
 			 */
 			ai->maybe_bad_peb_count += 1;
-		/* fall through */
+		fallthrough;
 	case UBI_IO_BAD_HDR:
 			/*
 			 * If we're facing a bad VID header we have to drop *all*
@@ -1640,7 +1640,7 @@ int ubi_attach(struct ubi_device *ubi, int force_scan)
 out_wl:
 	ubi_wl_close(ubi);
 out_vtbl:
-	ubi_free_internal_volumes(ubi);
+	ubi_free_all_volumes(ubi);
 	vfree(ubi->vtbl);
 out_ai:
 	destroy_ai(ai);

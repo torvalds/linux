@@ -28,7 +28,7 @@ TRACE_EVENT(fjes_hw_issue_request_command,
 		__field(u8, cs_busy)
 		__field(u8, cs_complete)
 		__field(int, timeout)
-		__field(int, ret);
+		__field(int, ret)
 	),
 	TP_fast_assign(
 		__entry->cr_req = cr->bits.req_code;

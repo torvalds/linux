@@ -4,6 +4,7 @@
  */
 #include <linux/libnvdimm.h>
 #include <linux/badblocks.h>
+#include <linux/suspend.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
@@ -385,10 +386,162 @@ static struct attribute *nvdimm_bus_attributes[] = {
 	NULL,
 };
 
-struct attribute_group nvdimm_bus_attribute_group = {
+static const struct attribute_group nvdimm_bus_attribute_group = {
 	.attrs = nvdimm_bus_attributes,
 };
-EXPORT_SYMBOL_GPL(nvdimm_bus_attribute_group);
+
+static ssize_t capability_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
+	struct nvdimm_bus_descriptor *nd_desc = nvdimm_bus->nd_desc;
+	enum nvdimm_fwa_capability cap;
+
+	if (!nd_desc->fw_ops)
+		return -EOPNOTSUPP;
+
+	nvdimm_bus_lock(dev);
+	cap = nd_desc->fw_ops->capability(nd_desc);
+	nvdimm_bus_unlock(dev);
+
+	switch (cap) {
+	case NVDIMM_FWA_CAP_QUIESCE:
+		return sprintf(buf, "quiesce\n");
+	case NVDIMM_FWA_CAP_LIVE:
+		return sprintf(buf, "live\n");
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static DEVICE_ATTR_RO(capability);
+
+static ssize_t activate_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
+	struct nvdimm_bus_descriptor *nd_desc = nvdimm_bus->nd_desc;
+	enum nvdimm_fwa_capability cap;
+	enum nvdimm_fwa_state state;
+
+	if (!nd_desc->fw_ops)
+		return -EOPNOTSUPP;
+
+	nvdimm_bus_lock(dev);
+	cap = nd_desc->fw_ops->capability(nd_desc);
+	state = nd_desc->fw_ops->activate_state(nd_desc);
+	nvdimm_bus_unlock(dev);
+
+	if (cap < NVDIMM_FWA_CAP_QUIESCE)
+		return -EOPNOTSUPP;
+
+	switch (state) {
+	case NVDIMM_FWA_IDLE:
+		return sprintf(buf, "idle\n");
+	case NVDIMM_FWA_BUSY:
+		return sprintf(buf, "busy\n");
+	case NVDIMM_FWA_ARMED:
+		return sprintf(buf, "armed\n");
+	case NVDIMM_FWA_ARM_OVERFLOW:
+		return sprintf(buf, "overflow\n");
+	default:
+		return -ENXIO;
+	}
+}
+
+static int exec_firmware_activate(void *data)
+{
+	struct nvdimm_bus_descriptor *nd_desc = data;
+
+	return nd_desc->fw_ops->activate(nd_desc);
+}
+
+static ssize_t activate_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
+	struct nvdimm_bus_descriptor *nd_desc = nvdimm_bus->nd_desc;
+	enum nvdimm_fwa_state state;
+	bool quiesce;
+	ssize_t rc;
+
+	if (!nd_desc->fw_ops)
+		return -EOPNOTSUPP;
+
+	if (sysfs_streq(buf, "live"))
+		quiesce = false;
+	else if (sysfs_streq(buf, "quiesce"))
+		quiesce = true;
+	else
+		return -EINVAL;
+
+	nvdimm_bus_lock(dev);
+	state = nd_desc->fw_ops->activate_state(nd_desc);
+
+	switch (state) {
+	case NVDIMM_FWA_BUSY:
+		rc = -EBUSY;
+		break;
+	case NVDIMM_FWA_ARMED:
+	case NVDIMM_FWA_ARM_OVERFLOW:
+		if (quiesce)
+			rc = hibernate_quiet_exec(exec_firmware_activate, nd_desc);
+		else
+			rc = nd_desc->fw_ops->activate(nd_desc);
+		break;
+	case NVDIMM_FWA_IDLE:
+	default:
+		rc = -ENXIO;
+	}
+	nvdimm_bus_unlock(dev);
+
+	if (rc == 0)
+		rc = len;
+	return rc;
+}
+
+static DEVICE_ATTR_ADMIN_RW(activate);
+
+static umode_t nvdimm_bus_firmware_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, typeof(*dev), kobj);
+	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
+	struct nvdimm_bus_descriptor *nd_desc = nvdimm_bus->nd_desc;
+	enum nvdimm_fwa_capability cap;
+
+	/*
+	 * Both 'activate' and 'capability' disappear when no ops
+	 * detected, or a negative capability is indicated.
+	 */
+	if (!nd_desc->fw_ops)
+		return 0;
+
+	nvdimm_bus_lock(dev);
+	cap = nd_desc->fw_ops->capability(nd_desc);
+	nvdimm_bus_unlock(dev);
+
+	if (cap < NVDIMM_FWA_CAP_QUIESCE)
+		return 0;
+
+	return a->mode;
+}
+static struct attribute *nvdimm_bus_firmware_attributes[] = {
+	&dev_attr_activate.attr,
+	&dev_attr_capability.attr,
+	NULL,
+};
+
+static const struct attribute_group nvdimm_bus_firmware_attribute_group = {
+	.name = "firmware",
+	.attrs = nvdimm_bus_firmware_attributes,
+	.is_visible = nvdimm_bus_firmware_visible,
+};
+
+const struct attribute_group *nvdimm_bus_attribute_groups[] = {
+	&nvdimm_bus_attribute_group,
+	&nvdimm_bus_firmware_attribute_group,
+	NULL,
+};
 
 int nvdimm_bus_add_badrange(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 {
@@ -455,7 +608,6 @@ static __exit void libnvdimm_exit(void)
 	nd_region_exit();
 	nvdimm_exit();
 	nvdimm_bus_exit();
-	nd_region_devs_exit();
 	nvdimm_devs_exit();
 }
 

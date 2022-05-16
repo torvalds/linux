@@ -1342,7 +1342,7 @@ static int xgene_phy_hw_initialize(struct xgene_phy_ctx *ctx,
 static void xgene_phy_force_lat_summer_cal(struct xgene_phy_ctx *ctx, int lane)
 {
 	int i;
-	struct {
+	static const struct {
 		u32 reg;
 		u32 val;
 	} serdes_reg[] = {
@@ -1615,7 +1615,7 @@ static struct phy *xgene_phy_xlate(struct device *dev,
 
 	if (args->args_count <= 0)
 		return ERR_PTR(-EINVAL);
-	if (args->args[0] < MODE_SATA || args->args[0] >= MODE_MAX)
+	if (args->args[0] >= MODE_MAX)
 		return ERR_PTR(-EINVAL);
 
 	ctx->mode = args->args[0];

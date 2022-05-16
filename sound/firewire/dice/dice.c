@@ -355,6 +355,14 @@ static const struct ieee1394_device_id dice_id_table[] = {
 		.model_id	= MODEL_ALESIS_IO_BOTH,
 		.driver_data = (kernel_ulong_t)snd_dice_detect_alesis_formats,
 	},
+	// Alesis MasterControl.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_ALESIS,
+		.model_id	= 0x000002,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_alesis_mastercontrol_formats,
+	},
 	/* Mytek Stereo 192 DSD-DAC. */
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |

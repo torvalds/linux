@@ -18,6 +18,7 @@
 #include <linux/can/error.h>
 #include <linux/can/led.h>
 #include <linux/can/netlink.h>
+#include <linux/can/skb.h>
 #include <linux/netdevice.h>
 
 /*
@@ -81,15 +82,60 @@ struct can_priv {
 #endif
 };
 
+#define CAN_SYNC_SEG 1
+
+/*
+ * can_bit_time() - Duration of one bit
+ *
+ * Please refer to ISO 11898-1:2015, section 11.3.1.1 "Bit time" for
+ * additional information.
+ *
+ * Return: the number of time quanta in one bit.
+ */
+static inline unsigned int can_bit_time(const struct can_bittiming *bt)
+{
+	return CAN_SYNC_SEG + bt->prop_seg + bt->phase_seg1 + bt->phase_seg2;
+}
+
 /*
  * get_can_dlc(value) - helper macro to cast a given data length code (dlc)
- * to __u8 and ensure the dlc value to be max. 8 bytes.
+ * to u8 and ensure the dlc value to be max. 8 bytes.
  *
  * To be used in the CAN netdriver receive path to ensure conformance with
  * ISO 11898-1 Chapter 8.4.2.3 (DLC field)
  */
-#define get_can_dlc(i)		(min_t(__u8, (i), CAN_MAX_DLC))
-#define get_canfd_dlc(i)	(min_t(__u8, (i), CANFD_MAX_DLC))
+#define get_can_dlc(i)		(min_t(u8, (i), CAN_MAX_DLC))
+#define get_canfd_dlc(i)	(min_t(u8, (i), CANFD_MAX_DLC))
+
+/* Check for outgoing skbs that have not been created by the CAN subsystem */
+static inline bool can_skb_headroom_valid(struct net_device *dev,
+					  struct sk_buff *skb)
+{
+	/* af_packet creates a headroom of HH_DATA_MOD bytes which is fine */
+	if (WARN_ON_ONCE(skb_headroom(skb) < sizeof(struct can_skb_priv)))
+		return false;
+
+	/* af_packet does not apply CAN skb specific settings */
+	if (skb->ip_summed == CHECKSUM_NONE) {
+		/* init headroom */
+		can_skb_prv(skb)->ifindex = dev->ifindex;
+		can_skb_prv(skb)->skbcnt = 0;
+
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+		/* perform proper loopback on capable devices */
+		if (dev->flags & IFF_ECHO)
+			skb->pkt_type = PACKET_LOOPBACK;
+		else
+			skb->pkt_type = PACKET_HOST;
+
+		skb_reset_mac_header(skb);
+		skb_reset_network_header(skb);
+		skb_reset_transport_header(skb);
+	}
+
+	return true;
+}
 
 /* Drop a given socketbuffer if it does not contain a valid CAN frame. */
 static inline bool can_dropped_invalid_skb(struct net_device *dev,
@@ -106,6 +152,9 @@ static inline bool can_dropped_invalid_skb(struct net_device *dev,
 			     cfd->len > CANFD_MAX_DLEN))
 			goto inval_skb;
 	} else
+		goto inval_skb;
+
+	if (!can_skb_headroom_valid(dev, skb))
 		goto inval_skb;
 
 	return false;
@@ -167,8 +216,8 @@ void can_bus_off(struct net_device *dev);
 void can_change_state(struct net_device *dev, struct can_frame *cf,
 		      enum can_state tx_state, enum can_state rx_state);
 
-void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
-		      unsigned int idx);
+int can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
+		     unsigned int idx);
 struct sk_buff *__can_get_echo_skb(struct net_device *dev, unsigned int idx,
 				   u8 *len_ptr);
 unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx);

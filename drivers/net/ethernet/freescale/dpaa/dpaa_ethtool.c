@@ -47,6 +47,8 @@ static const char dpaa_stats_percpu[][ETH_GSTRING_LEN] = {
 	"tx S/G",
 	"tx error",
 	"rx error",
+	"rx dropped",
+	"tx dropped",
 };
 
 static char dpaa_stats_global[][ETH_GSTRING_LEN] = {
@@ -78,10 +80,8 @@ static char dpaa_stats_global[][ETH_GSTRING_LEN] = {
 static int dpaa_get_link_ksettings(struct net_device *net_dev,
 				   struct ethtool_link_ksettings *cmd)
 {
-	if (!net_dev->phydev) {
-		netdev_dbg(net_dev, "phy device not initialized\n");
+	if (!net_dev->phydev)
 		return 0;
-	}
 
 	phy_ethtool_ksettings_get(net_dev->phydev, cmd);
 
@@ -93,10 +93,8 @@ static int dpaa_set_link_ksettings(struct net_device *net_dev,
 {
 	int err;
 
-	if (!net_dev->phydev) {
-		netdev_err(net_dev, "phy device not initialized\n");
+	if (!net_dev->phydev)
 		return -ENODEV;
-	}
 
 	err = phy_ethtool_ksettings_set(net_dev->phydev, cmd);
 	if (err < 0)
@@ -108,19 +106,8 @@ static int dpaa_set_link_ksettings(struct net_device *net_dev,
 static void dpaa_get_drvinfo(struct net_device *net_dev,
 			     struct ethtool_drvinfo *drvinfo)
 {
-	int len;
-
 	strlcpy(drvinfo->driver, KBUILD_MODNAME,
 		sizeof(drvinfo->driver));
-	len = snprintf(drvinfo->version, sizeof(drvinfo->version),
-		       "%X", 0);
-	len = snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		       "%X", 0);
-
-	if (len >= sizeof(drvinfo->fw_version)) {
-		/* Truncated output */
-		netdev_notice(net_dev, "snprintf() = %d\n", len);
-	}
 	strlcpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
 }
@@ -140,10 +127,8 @@ static int dpaa_nway_reset(struct net_device *net_dev)
 {
 	int err;
 
-	if (!net_dev->phydev) {
-		netdev_err(net_dev, "phy device not initialized\n");
+	if (!net_dev->phydev)
 		return -ENODEV;
-	}
 
 	err = 0;
 	if (net_dev->phydev->autoneg) {
@@ -165,10 +150,8 @@ static void dpaa_get_pauseparam(struct net_device *net_dev,
 	priv = netdev_priv(net_dev);
 	mac_dev = priv->mac_dev;
 
-	if (!net_dev->phydev) {
-		netdev_err(net_dev, "phy device not initialized\n");
+	if (!net_dev->phydev)
 		return;
-	}
 
 	epause->autoneg = mac_dev->autoneg_pause;
 	epause->rx_pause = mac_dev->rx_pause_active;
@@ -223,7 +206,7 @@ static int dpaa_get_sset_count(struct net_device *net_dev, int type)
 	unsigned int total_stats, num_stats;
 
 	num_stats   = num_online_cpus() + 1;
-	total_stats = num_stats * (DPAA_STATS_PERCPU_LEN + DPAA_BPS_NUM) +
+	total_stats = num_stats * (DPAA_STATS_PERCPU_LEN + 1) +
 			DPAA_STATS_GLOBAL_LEN;
 
 	switch (type) {
@@ -235,10 +218,10 @@ static int dpaa_get_sset_count(struct net_device *net_dev, int type)
 }
 
 static void copy_stats(struct dpaa_percpu_priv *percpu_priv, int num_cpus,
-		       int crr_cpu, u64 *bp_count, u64 *data)
+		       int crr_cpu, u64 bp_count, u64 *data)
 {
 	int num_values = num_cpus + 1;
-	int crr = 0, j;
+	int crr = 0;
 
 	/* update current CPU's stats and also add them to the total values */
 	data[crr * num_values + crr_cpu] = percpu_priv->in_interrupt;
@@ -262,23 +245,27 @@ static void copy_stats(struct dpaa_percpu_priv *percpu_priv, int num_cpus,
 	data[crr * num_values + crr_cpu] = percpu_priv->stats.rx_errors;
 	data[crr++ * num_values + num_cpus] += percpu_priv->stats.rx_errors;
 
-	for (j = 0; j < DPAA_BPS_NUM; j++) {
-		data[crr * num_values + crr_cpu] = bp_count[j];
-		data[crr++ * num_values + num_cpus] += bp_count[j];
-	}
+	data[crr * num_values + crr_cpu] = percpu_priv->stats.rx_dropped;
+	data[crr++ * num_values + num_cpus] += percpu_priv->stats.rx_dropped;
+
+	data[crr * num_values + crr_cpu] = percpu_priv->stats.tx_dropped;
+	data[crr++ * num_values + num_cpus] += percpu_priv->stats.tx_dropped;
+
+	data[crr * num_values + crr_cpu] = bp_count;
+	data[crr++ * num_values + num_cpus] += bp_count;
 }
 
 static void dpaa_get_ethtool_stats(struct net_device *net_dev,
 				   struct ethtool_stats *stats, u64 *data)
 {
-	u64 bp_count[DPAA_BPS_NUM], cg_time, cg_num;
 	struct dpaa_percpu_priv *percpu_priv;
 	struct dpaa_rx_errors rx_errors;
 	unsigned int num_cpus, offset;
+	u64 bp_count, cg_time, cg_num;
 	struct dpaa_ern_cnt ern_cnt;
 	struct dpaa_bp *dpaa_bp;
 	struct dpaa_priv *priv;
-	int total_stats, i, j;
+	int total_stats, i;
 	bool cg_status;
 
 	total_stats = dpaa_get_sset_count(net_dev, ETH_SS_STATS);
@@ -292,12 +279,10 @@ static void dpaa_get_ethtool_stats(struct net_device *net_dev,
 
 	for_each_online_cpu(i) {
 		percpu_priv = per_cpu_ptr(priv->percpu_priv, i);
-		for (j = 0; j < DPAA_BPS_NUM; j++) {
-			dpaa_bp = priv->dpaa_bps[j];
-			if (!dpaa_bp->percpu_count)
-				continue;
-			bp_count[j] = *(per_cpu_ptr(dpaa_bp->percpu_count, i));
-		}
+		dpaa_bp = priv->dpaa_bp;
+		if (!dpaa_bp->percpu_count)
+			continue;
+		bp_count = *(per_cpu_ptr(dpaa_bp->percpu_count, i));
 		rx_errors.dme += percpu_priv->rx_errors.dme;
 		rx_errors.fpe += percpu_priv->rx_errors.fpe;
 		rx_errors.fse += percpu_priv->rx_errors.fse;
@@ -315,7 +300,7 @@ static void dpaa_get_ethtool_stats(struct net_device *net_dev,
 		copy_stats(percpu_priv, num_cpus, i, bp_count, data);
 	}
 
-	offset = (num_cpus + 1) * (DPAA_STATS_PERCPU_LEN + DPAA_BPS_NUM);
+	offset = (num_cpus + 1) * (DPAA_STATS_PERCPU_LEN + 1);
 	memcpy(data + offset, &rx_errors, sizeof(struct dpaa_rx_errors));
 
 	offset += sizeof(struct dpaa_rx_errors) / sizeof(u64);
@@ -363,18 +348,16 @@ static void dpaa_get_strings(struct net_device *net_dev, u32 stringset,
 		memcpy(strings, string_cpu, ETH_GSTRING_LEN);
 		strings += ETH_GSTRING_LEN;
 	}
-	for (i = 0; i < DPAA_BPS_NUM; i++) {
-		for (j = 0; j < num_cpus; j++) {
-			snprintf(string_cpu, ETH_GSTRING_LEN,
-				 "bpool %c [CPU %d]", 'a' + i, j);
-			memcpy(strings, string_cpu, ETH_GSTRING_LEN);
-			strings += ETH_GSTRING_LEN;
-		}
-		snprintf(string_cpu, ETH_GSTRING_LEN, "bpool %c [TOTAL]",
-			 'a' + i);
+	for (j = 0; j < num_cpus; j++) {
+		snprintf(string_cpu, ETH_GSTRING_LEN,
+			 "bpool [CPU %d]", j);
 		memcpy(strings, string_cpu, ETH_GSTRING_LEN);
 		strings += ETH_GSTRING_LEN;
 	}
+	snprintf(string_cpu, ETH_GSTRING_LEN, "bpool [TOTAL]");
+	memcpy(strings, string_cpu, ETH_GSTRING_LEN);
+	strings += ETH_GSTRING_LEN;
+
 	memcpy(strings, dpaa_stats_global, size);
 }
 
@@ -392,7 +375,7 @@ static int dpaa_get_hash_opts(struct net_device *dev,
 	case UDP_V6_FLOW:
 		if (priv->keygen_in_use)
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* Fall through */
+		fallthrough;
 	case IPV4_FLOW:
 	case IPV6_FLOW:
 	case SCTP_V4_FLOW:
@@ -542,7 +525,6 @@ static int dpaa_get_coalesce(struct net_device *dev,
 
 	c->rx_coalesce_usecs = period;
 	c->rx_max_coalesced_frames = thresh;
-	c->use_adaptive_rx_coalesce = false;
 
 	return 0;
 }
@@ -556,9 +538,6 @@ static int dpaa_set_coalesce(struct net_device *dev,
 	u32 period, prev_period;
 	u8 thresh, prev_thresh;
 	int cpu, res;
-
-	if (c->use_adaptive_rx_coalesce)
-		return -EINVAL;
 
 	period = c->rx_coalesce_usecs;
 	thresh = c->rx_max_coalesced_frames;
@@ -599,6 +578,8 @@ revert_values:
 }
 
 const struct ethtool_ops dpaa_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_RX_MAX_FRAMES,
 	.get_drvinfo = dpaa_get_drvinfo,
 	.get_msglevel = dpaa_get_msglevel,
 	.set_msglevel = dpaa_set_msglevel,

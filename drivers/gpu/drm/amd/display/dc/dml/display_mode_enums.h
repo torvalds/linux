@@ -85,7 +85,7 @@ enum dm_swizzle_mode {
 	dm_sw_var_s_x = 29,
 	dm_sw_var_d_x = 30,
 	dm_sw_64kb_r_x,
-	dm_sw_gfx7_2d_thin_lvp,
+	dm_sw_gfx7_2d_thin_l_vp,
 	dm_sw_gfx7_2d_thin_gl,
 };
 enum lb_depth {
@@ -119,6 +119,10 @@ enum mpc_combine_affinity {
 	dm_mpc_never
 };
 
+enum RequestType {
+	REQ_256Bytes, REQ_128BytesNonContiguous, REQ_128BytesContiguous, REQ_NA
+};
+
 enum self_refresh_affinity {
 	dm_try_to_allow_self_refresh_and_mclk_switch,
 	dm_allow_self_refresh_and_mclk_switch,
@@ -135,9 +139,7 @@ enum dm_validation_status {
 	DML_FAIL_DIO_SUPPORT,
 	DML_FAIL_NOT_ENOUGH_DSC,
 	DML_FAIL_DSC_CLK_REQUIRED,
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	DML_FAIL_DSC_VALIDATION_FAILURE,
-#endif
 	DML_FAIL_URGENT_LATENCY,
 	DML_FAIL_REORDERING_BUFFER,
 	DML_FAIL_DISPCLK_DPPCLK,
@@ -165,6 +167,24 @@ enum odm_combine_mode {
 	dm_odm_combine_mode_disabled,
 	dm_odm_combine_mode_2to1,
 	dm_odm_combine_mode_4to1,
+};
+
+enum odm_combine_policy {
+	dm_odm_combine_policy_dal,
+	dm_odm_combine_policy_none,
+	dm_odm_combine_policy_2to1,
+	dm_odm_combine_policy_4to1,
+};
+
+enum immediate_flip_requirement {
+	dm_immediate_flip_not_required,
+	dm_immediate_flip_required,
+};
+
+enum unbounded_requesting_policy {
+	dm_unbounded_requesting,
+	dm_unbounded_requesting_edp_only,
+	dm_unbounded_requesting_disable
 };
 
 #endif

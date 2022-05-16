@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 / {
@@ -191,36 +191,14 @@
 	status = "okay";
 };
 
-&usb {
-	status = "okay";
-};
-
-&usb_ctrl_mod {
-	status = "okay";
-};
-
-&usb0_phy {
-	status = "okay";
-};
-
-&usb1_phy {
-	status = "okay";
-};
-
 &usb0 {
-	status = "okay";
 	dr_mode = "peripheral";
 	interrupts-extended = <&intc 18 &tps 0>;
 	interrupt-names = "mc", "vbus";
 };
 
 &usb1 {
-	status = "okay";
 	dr_mode = "host";
-};
-
-&cppi41dma  {
-	status = "okay";
 };
 
 &i2c0 {

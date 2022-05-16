@@ -18,10 +18,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include <mach/gpio-samsung.h>
-#include <plat/gpio-cfg.h>
 #include "regs-iis.h"
-
 #include "dma.h"
 #include "s3c24xx-i2s.h"
 
@@ -348,10 +345,6 @@ static int s3c24xx_i2s_probe(struct snd_soc_dai *dai)
 	if (ret)
 		return ret;
 
-	/* Configure the I2S pins (GPE0...GPE4) in correct mode */
-	s3c_gpio_cfgall_range(S3C2410_GPE(0), 5, S3C_GPIO_SFN(2),
-			      S3C_GPIO_PULL_NONE);
-
 	writel(S3C2410_IISCON_IISEN, s3c24xx_i2s.regs + S3C2410_IISCON);
 
 	s3c24xx_snd_txctrl(0);
@@ -361,7 +354,7 @@ static int s3c24xx_i2s_probe(struct snd_soc_dai *dai)
 }
 
 #ifdef CONFIG_PM
-static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
+static int s3c24xx_i2s_suspend(struct snd_soc_component *component)
 {
 	s3c24xx_i2s.iiscon = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 	s3c24xx_i2s.iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
@@ -373,7 +366,7 @@ static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
-static int s3c24xx_i2s_resume(struct snd_soc_dai *cpu_dai)
+static int s3c24xx_i2s_resume(struct snd_soc_component *component)
 {
 	int ret;
 
@@ -408,8 +401,6 @@ static const struct snd_soc_dai_ops s3c24xx_i2s_dai_ops = {
 
 static struct snd_soc_dai_driver s3c24xx_i2s_dai = {
 	.probe = s3c24xx_i2s_probe,
-	.suspend = s3c24xx_i2s_suspend,
-	.resume = s3c24xx_i2s_resume,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -425,6 +416,8 @@ static struct snd_soc_dai_driver s3c24xx_i2s_dai = {
 
 static const struct snd_soc_component_driver s3c24xx_i2s_component = {
 	.name		= "s3c24xx-i2s",
+	.suspend	= s3c24xx_i2s_suspend,
+	.resume		= s3c24xx_i2s_resume,
 };
 
 static int s3c24xx_iis_dev_probe(struct platform_device *pdev)

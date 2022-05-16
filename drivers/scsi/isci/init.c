@@ -142,7 +142,7 @@ static ssize_t isci_show_id(struct device *dev, struct device_attribute *attr, c
 
 static DEVICE_ATTR(isci_id, S_IRUGO, isci_show_id, NULL);
 
-struct device_attribute *isci_host_attrs[] = {
+static struct device_attribute *isci_host_attrs[] = {
 	&dev_attr_isci_id,
 	NULL
 };
@@ -153,6 +153,7 @@ static struct scsi_host_template isci_sht = {
 	.name				= DRV_NAME,
 	.proc_name			= DRV_NAME,
 	.queuecommand			= sas_queuecommand,
+	.dma_need_drain			= ata_scsi_dma_need_drain,
 	.target_alloc			= sas_target_alloc,
 	.slave_configure		= sas_slave_configure,
 	.scan_finished			= isci_host_scan_finished,
@@ -168,6 +169,9 @@ static struct scsi_host_template isci_sht = {
 	.eh_target_reset_handler        = sas_eh_target_reset_handler,
 	.target_destroy			= sas_target_destroy,
 	.ioctl				= sas_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl			= sas_ioctl,
+#endif
 	.shost_attrs			= isci_host_attrs,
 	.track_queue_depth		= 1,
 };
@@ -618,7 +622,7 @@ static int isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 	pci_set_drvdata(pdev, pci_info);
 
-	if (efi_enabled(EFI_RUNTIME_SERVICES))
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
 		orom = isci_get_efi_var(pdev);
 
 	if (!orom)

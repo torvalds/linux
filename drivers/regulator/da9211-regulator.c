@@ -17,16 +17,13 @@
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/da9211.h>
+#include <dt-bindings/regulator/dlg,da9211-regulator.h>
 #include "da9211-regulator.h"
 
 /* DEVICE IDs */
 #define DA9211_DEVICE_ID	0x22
 #define DA9213_DEVICE_ID	0x23
 #define DA9215_DEVICE_ID	0x24
-
-#define DA9211_BUCK_MODE_SLEEP	1
-#define DA9211_BUCK_MODE_SYNC	2
-#define DA9211_BUCK_MODE_AUTO	3
 
 /* DA9211 REGULATOR IDs */
 #define DA9211_ID_BUCKA	0
@@ -54,10 +51,24 @@ static const struct regmap_range_cfg da9211_regmap_range[] = {
 	},
 };
 
+static bool da9211_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case DA9211_REG_STATUS_A:
+	case DA9211_REG_STATUS_B:
+	case DA9211_REG_EVENT_A:
+	case DA9211_REG_EVENT_B:
+		return true;
+	}
+	return false;
+}
+
 static const struct regmap_config da9211_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 5 * 128,
+	.volatile_reg = da9211_volatile_reg,
+	.cache_type = REGCACHE_RBTREE,
 	.ranges = da9211_regmap_range,
 	.num_ranges = ARRAY_SIZE(da9211_regmap_range),
 };
@@ -88,6 +99,20 @@ static const int da9215_current_limits[] = {
 	4000000, 4200000, 4400000, 4600000, 4800000, 5000000, 5200000, 5400000,
 	5600000, 5800000, 6000000, 6200000, 6400000, 6600000, 6800000, 7000000
 };
+
+static unsigned int da9211_map_buck_mode(unsigned int mode)
+{
+	switch (mode) {
+	case DA9211_BUCK_MODE_SLEEP:
+		return REGULATOR_MODE_STANDBY;
+	case DA9211_BUCK_MODE_SYNC:
+		return REGULATOR_MODE_FAST;
+	case DA9211_BUCK_MODE_AUTO:
+		return REGULATOR_MODE_NORMAL;
+	default:
+		return REGULATOR_MODE_INVALID;
+	}
+}
 
 static unsigned int da9211_buck_get_mode(struct regulator_dev *rdev)
 {
@@ -236,6 +261,7 @@ static const struct regulator_ops da9211_buck_ops = {
 	.vsel_reg = DA9211_REG_VBUCKA_A + DA9211_ID_##_id * 2,\
 	.vsel_mask = DA9211_VBUCK_MASK,\
 	.owner = THIS_MODULE,\
+	.of_map_mode = da9211_map_buck_mode,\
 }
 
 static struct regulator_desc da9211_regulators[] = {
@@ -245,8 +271,14 @@ static struct regulator_desc da9211_regulators[] = {
 
 #ifdef CONFIG_OF
 static struct of_regulator_match da9211_matches[] = {
-	[DA9211_ID_BUCKA] = { .name = "BUCKA" },
-	[DA9211_ID_BUCKB] = { .name = "BUCKB" },
+	[DA9211_ID_BUCKA] = {
+		.name = "BUCKA",
+		.desc = &da9211_regulators[DA9211_ID_BUCKA],
+	},
+	[DA9211_ID_BUCKB] = {
+		.name = "BUCKB",
+		.desc = &da9211_regulators[DA9211_ID_BUCKB],
+	},
 	};
 
 static struct da9211_pdata *da9211_parse_regulators_dt(
@@ -283,12 +315,12 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 
 		pdata->init_data[n] = da9211_matches[i].init_data;
 		pdata->reg_node[n] = da9211_matches[i].of_node;
-		pdata->gpiod_ren[n] = devm_gpiod_get_from_of_node(dev,
-				  da9211_matches[i].of_node,
-				  "enable-gpios",
-				  0,
-				  GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
-				  "da9211-enable");
+		pdata->gpiod_ren[n] = devm_fwnode_gpiod_get(dev,
+					of_fwnode_handle(pdata->reg_node[n]),
+					"enable",
+					GPIOD_OUT_HIGH |
+						GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+					"da9211-enable");
 		if (IS_ERR(pdata->gpiod_ren[n]))
 			pdata->gpiod_ren[n] = NULL;
 		n++;
@@ -314,10 +346,8 @@ static irqreturn_t da9211_irq_handler(int irq, void *data)
 		goto error_i2c;
 
 	if (reg_val & DA9211_E_OV_CURR_A) {
-	        regulator_lock(chip->rdev[0]);
 		regulator_notifier_call_chain(chip->rdev[0],
 			REGULATOR_EVENT_OVER_CURRENT, NULL);
-	        regulator_unlock(chip->rdev[0]);
 
 		err = regmap_write(chip->regmap, DA9211_REG_EVENT_B,
 			DA9211_E_OV_CURR_A);
@@ -328,10 +358,8 @@ static irqreturn_t da9211_irq_handler(int irq, void *data)
 	}
 
 	if (reg_val & DA9211_E_OV_CURR_B) {
-	        regulator_lock(chip->rdev[1]);
 		regulator_notifier_call_chain(chip->rdev[1],
 			REGULATOR_EVENT_OVER_CURRENT, NULL);
-	        regulator_unlock(chip->rdev[1]);
 
 		err = regmap_write(chip->regmap, DA9211_REG_EVENT_B,
 			DA9211_E_OV_CURR_B);
@@ -416,8 +444,7 @@ static int da9211_regulator_init(struct da9211 *chip)
 /*
  * I2C driver interface functions
  */
-static int da9211_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int da9211_i2c_probe(struct i2c_client *i2c)
 {
 	struct da9211 *chip;
 	int error, ret;
@@ -526,7 +553,7 @@ static struct i2c_driver da9211_regulator_driver = {
 		.name = "da9211",
 		.of_match_table = of_match_ptr(da9211_dt_ids),
 	},
-	.probe = da9211_i2c_probe,
+	.probe_new = da9211_i2c_probe,
 	.id_table = da9211_i2c_id,
 };
 

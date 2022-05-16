@@ -45,13 +45,14 @@
  * The pins of a pinmux groups are composed of one or two groups of contiguous
  * pins.
  * @name:	Name of the pin group, used to lookup the group.
- * @start_pins:	Index of the first pin of the main range of pins belonging to
+ * @start_pin:	Index of the first pin of the main range of pins belonging to
  *		the group
  * @npins:	Number of pins included in the first range
  * @reg_mask:	Bit mask matching the group in the selection register
- * @extra_pins:	Index of the first pin of the optional second range of pins
+ * @val:	Value to write to the registers for a given function
+ * @extra_pin:	Index of the first pin of the optional second range of pins
  *		belonging to the group
- * @npins:	Number of pins included in the second optional range
+ * @extra_npins:Number of pins included in the second optional range
  * @funcs:	A list of pinmux functions that can be selected for this group.
  * @pins:	List of the pins included in the group
  */
@@ -196,7 +197,7 @@ static struct armada_37xx_pin_group armada_37xx_sb_groups[] = {
 	PIN_GRP_GPIO("sdio_sb", 24, 6, BIT(2), "sdio"),
 	PIN_GRP_GPIO("rgmii", 6, 12, BIT(3), "mii"),
 	PIN_GRP_GPIO("smi", 18, 2, BIT(4), "smi"),
-	PIN_GRP_GPIO("pcie1", 3, 1, BIT(5), "pcie"),
+	PIN_GRP_GPIO("pcie1", 3, 1, BIT(5), "pcie"), /* this actually controls "pcie1_reset" */
 	PIN_GRP_GPIO("pcie1_clkreq", 4, 1, BIT(9), "pcie"),
 	PIN_GRP_GPIO("pcie1_wakeup", 5, 1, BIT(10), "pcie"),
 	PIN_GRP_GPIO("ptp", 20, 3, BIT(11) | BIT(12) | BIT(13), "ptp"),
@@ -403,7 +404,10 @@ static int armada_37xx_gpio_get_direction(struct gpio_chip *chip,
 	mask = BIT(offset);
 	regmap_read(info->regmap, reg, &val);
 
-	return !(val & mask);
+	if (val & mask)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int armada_37xx_gpio_direction_output(struct gpio_chip *chip,
@@ -595,10 +599,10 @@ static int armada_37xx_irq_set_type(struct irq_data *d, unsigned int type)
 		regmap_read(info->regmap, in_reg, &in_val);
 
 		/* Set initial polarity based on current input level. */
-		if (in_val & d->mask)
-			val |= d->mask;		/* falling */
+		if (in_val & BIT(d->hwirq % GPIO_PER_REG))
+			val |= BIT(d->hwirq % GPIO_PER_REG);	/* falling */
 		else
-			val &= ~d->mask;	/* rising */
+			val &= ~(BIT(d->hwirq % GPIO_PER_REG));	/* rising */
 		break;
 	}
 	default:
@@ -722,6 +726,8 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 	struct device_node *np = info->dev->of_node;
 	struct gpio_chip *gc = &info->gpio_chip;
 	struct irq_chip *irqchip = &info->irq_chip;
+	struct gpio_irq_chip *girq = &gc->irq;
+	struct device *dev = &pdev->dev;
 	struct resource res;
 	int ret = -ENODEV, i, nr_irq_parent;
 
@@ -731,20 +737,22 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 			ret = 0;
 			break;
 		}
-	};
-	if (ret)
+	}
+	if (ret) {
+		dev_err(dev, "no gpio-controller child node\n");
 		return ret;
+	}
 
 	nr_irq_parent = of_irq_count(np);
 	spin_lock_init(&info->irq_lock);
 
 	if (!nr_irq_parent) {
-		dev_err(&pdev->dev, "Invalid or no IRQ\n");
+		dev_err(dev, "invalid or no IRQ\n");
 		return 0;
 	}
 
 	if (of_address_to_resource(info->dev->of_node, 1, &res)) {
-		dev_err(info->dev, "cannot find IO resource\n");
+		dev_err(dev, "cannot find IO resource\n");
 		return -ENOENT;
 	}
 
@@ -759,27 +767,27 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 	irqchip->irq_set_type = armada_37xx_irq_set_type;
 	irqchip->irq_startup = armada_37xx_irq_startup;
 	irqchip->name = info->data->name;
-	ret = gpiochip_irqchip_add(gc, irqchip, 0,
-				   handle_edge_irq, IRQ_TYPE_NONE);
-	if (ret) {
-		dev_info(&pdev->dev, "could not add irqchip\n");
-		return ret;
-	}
-
+	girq->chip = irqchip;
+	girq->parent_handler = armada_37xx_irq_handler;
 	/*
 	 * Many interrupts are connected to the parent interrupt
 	 * controller. But we do not take advantage of this and use
 	 * the chained irq with all of them.
 	 */
+	girq->num_parents = nr_irq_parent;
+	girq->parents = devm_kcalloc(&pdev->dev, nr_irq_parent,
+				     sizeof(*girq->parents), GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
 	for (i = 0; i < nr_irq_parent; i++) {
 		int irq = irq_of_parse_and_map(np, i);
 
 		if (irq < 0)
 			continue;
-
-		gpiochip_set_chained_irqchip(gc, irqchip, irq,
-					     armada_37xx_irq_handler);
+		girq->parents[i] = irq;
 	}
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
 
 	return 0;
 }
@@ -796,7 +804,7 @@ static int armada_37xx_gpiochip_register(struct platform_device *pdev,
 			ret = 0;
 			break;
 		}
-	};
+	}
 	if (ret)
 		return ret;
 
@@ -809,10 +817,10 @@ static int armada_37xx_gpiochip_register(struct platform_device *pdev,
 	gc->of_node = np;
 	gc->label = info->data->name;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, gc, info);
+	ret = armada_37xx_irqchip_register(pdev, info);
 	if (ret)
 		return ret;
-	ret = armada_37xx_irqchip_register(pdev, info);
+	ret = devm_gpiochip_add_data(&pdev->dev, gc, info);
 	if (ret)
 		return ret;
 

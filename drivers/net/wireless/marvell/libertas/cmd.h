@@ -76,7 +76,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv,
 
 /* Events */
 
-int lbs_process_event(struct lbs_private *priv, u32 event);
+void lbs_process_event(struct lbs_private *priv, u32 event);
 
 
 /* Actual commands */

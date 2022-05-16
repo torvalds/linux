@@ -45,6 +45,13 @@ static irqreturn_t fsl_edma_tx_handler(int irq, void *dev_id)
 			fsl_chan = &fsl_edma->chans[ch];
 
 			spin_lock(&fsl_chan->vchan.lock);
+
+			if (!fsl_chan->edesc) {
+				/* terminate_all called before */
+				spin_unlock(&fsl_chan->vchan.lock);
+				continue;
+			}
+
 			if (!fsl_chan->edesc->iscyclic) {
 				list_del(&fsl_chan->edesc->vdesc.node);
 				vchan_cookie_complete(&fsl_chan->edesc->vdesc);
@@ -233,6 +240,13 @@ static struct fsl_edma_drvdata vf610_data = {
 	.setup_irq = fsl_edma_irq_init,
 };
 
+static struct fsl_edma_drvdata ls1028a_data = {
+	.version = v1,
+	.dmamuxs = DMAMUX_NR,
+	.mux_swap = true,
+	.setup_irq = fsl_edma_irq_init,
+};
+
 static struct fsl_edma_drvdata imx7ulp_data = {
 	.version = v3,
 	.dmamuxs = 1,
@@ -242,6 +256,7 @@ static struct fsl_edma_drvdata imx7ulp_data = {
 
 static const struct of_device_id fsl_edma_dt_ids[] = {
 	{ .compatible = "fsl,vf610-edma", .data = &vf610_data},
+	{ .compatible = "fsl,ls1028a-edma", .data = &ls1028a_data},
 	{ .compatible = "fsl,imx7ulp-edma", .data = &imx7ulp_data},
 	{ /* sentinel */ }
 };

@@ -27,14 +27,27 @@
  *
  * Some code sections either automatically switch back to PSR.I or explicitly
  * require to not use priority masking. If bit GIC_PRIO_PSR_I_SET is included
- * in the  the priority mask, it indicates that PSR.I should be set and
+ * in the priority mask, it indicates that PSR.I should be set and
  * interrupt disabling temporarily does not rely on IRQ priorities.
  */
 #define GIC_PRIO_IRQON			0xe0
-#define GIC_PRIO_IRQOFF			(GIC_PRIO_IRQON & ~0x80)
+#define __GIC_PRIO_IRQOFF		(GIC_PRIO_IRQON & ~0x80)
+#define __GIC_PRIO_IRQOFF_NS		0xa0
 #define GIC_PRIO_PSR_I_SET		(1 << 4)
 
+#define GIC_PRIO_IRQOFF							\
+	({								\
+		extern struct static_key_false gic_nonsecure_priorities;\
+		u8 __prio = __GIC_PRIO_IRQOFF;				\
+									\
+		if (static_branch_unlikely(&gic_nonsecure_priorities))	\
+			__prio = __GIC_PRIO_IRQOFF_NS;			\
+									\
+		__prio;							\
+	})
+
 /* Additional SPSR bits not exposed in the UABI */
+#define PSR_MODE_THREAD_BIT	(1 << 0)
 #define PSR_IL_BIT		(1 << 20)
 
 /* AArch32-specific ptrace requests */
@@ -62,6 +75,7 @@
 #define PSR_AA32_I_BIT		0x00000080
 #define PSR_AA32_A_BIT		0x00000100
 #define PSR_AA32_E_BIT		0x00000200
+#define PSR_AA32_PAN_BIT	0x00400000
 #define PSR_AA32_SSBS_BIT	0x00800000
 #define PSR_AA32_DIT_BIT	0x01000000
 #define PSR_AA32_Q_BIT		0x08000000
@@ -179,6 +193,10 @@ struct pt_regs {
 	/* Only valid when ARM64_HAS_IRQ_PRIO_MASKING is enabled. */
 	u64 pmr_save;
 	u64 stackframe[2];
+
+	/* Only valid for some EL1 exceptions. */
+	u64 lockdep_hardirqs;
+	u64 exit_rcu;
 };
 
 static inline bool in_syscall(struct pt_regs const *regs)

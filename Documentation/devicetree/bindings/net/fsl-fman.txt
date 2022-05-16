@@ -110,6 +110,13 @@ PROPERTIES
 		Usage: required
 		Definition: See soc/fsl/qman.txt and soc/fsl/bman.txt
 
+- fsl,erratum-a050385
+		Usage: optional
+		Value type: boolean
+		Definition: A boolean property. Indicates the presence of the
+		erratum A050385 which indicates that DMA transactions that are
+		split can result in a FMan lock.
+
 =============================================================================
 FMan MURAM Node
 
@@ -402,6 +409,19 @@ PROPERTIES
 		Coding Sublayer) PHYs and external MDIO for external PHYs.
 		The settings and programming routines for internal/external
 		MDIO are different. Must be included for internal MDIO.
+
+- fsl,erratum-a011043
+		Usage: optional
+		Value type: <boolean>
+		Definition: Indicates the presence of the A011043 erratum
+		describing that the MDIO_CFG[MDIO_RD_ER] bit may be falsely
+		set when reading internal PCS registers. MDIO reads to
+		internal PCS registers may result in having the
+		MDIO_CFG[MDIO_RD_ER] bit set, even when there is no error and
+		read data (MDIO_DATA[MDIO_DATA]) is correct.
+		Software may get false read error when reading internal
+		PCS registers through MDIO. As a workaround, all internal
+		MDIO accesses should ignore the MDIO_CFG[MDIO_RD_ER] bit.
 
 For internal PHY device on internal mdio bus, a PHY node should be created.
 See the definition of the PHY node in booting-without-of.txt for an

@@ -22,7 +22,7 @@
  *
  * LME2510C + M88RS2000
  *
- * For firmware see Documentation/media/dvb-drivers/lmedm04.rst
+ * For firmware see Documentation/admin-guide/media/lmedm04.rst
  *
  * I2C addresses:
  * 0xd0 - STV0288	- Demodulator
@@ -39,7 +39,7 @@
  * Copyright (C) 2010 Malcolm Priestley (tvboxspy@gmail.com)
  * LME2510(C)(C) Leaguerme (Shenzhen) MicroElectronics Co., Ltd.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  *
  * Known Issues :
  *	LME2510: Non Intel USB chipsets fail to maintain High Speed on
@@ -486,12 +486,9 @@ static int lme2510_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	static u8 obuf[64], ibuf[64];
 	int i, read, read_o;
 	u16 len;
-	u8 gate = st->i2c_gate;
+	u8 gate;
 
 	mutex_lock(&d->i2c_mutex);
-
-	if (gate == 0)
-		gate = 5;
 
 	for (i = 0; i < num; i++) {
 		read_o = msg[i].flags & I2C_M_RD;
@@ -690,7 +687,7 @@ static const char *lme_firmware_switch(struct dvb_usb_device *d, int cold)
 				cold = 0;
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case TUNER_LG:
 			fw_lme = fw_lg;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
@@ -713,7 +710,7 @@ static const char *lme_firmware_switch(struct dvb_usb_device *d, int cold)
 				cold = 0;
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case TUNER_LG:
 			fw_lme = fw_c_lg;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
@@ -721,7 +718,7 @@ static const char *lme_firmware_switch(struct dvb_usb_device *d, int cold)
 				st->dvb_usb_lme2510_firmware = TUNER_LG;
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case TUNER_S0194:
 			fw_lme = fw_c_s0194;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
@@ -1021,7 +1018,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 			}
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case 0x22f0:
 		st->i2c_gate = 5;
 		adap->fe[0] = dvb_attach(m88rs2000_attach,

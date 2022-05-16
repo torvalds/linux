@@ -38,11 +38,11 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/pgtable.h>
 
 #include <trace/events/xen.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/smap.h>
 #include <asm/nospec-branch.h>
 
@@ -82,7 +82,7 @@ struct xen_dm_op_buf;
  *     - clobber the rest
  *
  * The result certainly isn't pretty, and it really shows up cpp's
- * weakness as as macro language.  Sorry.  (But let's just give thanks
+ * weakness as a macro language.  Sorry.  (But let's just give thanks
  * there aren't more than 5 arguments...)
  */
 

@@ -850,3 +850,18 @@ business doing so.
 d_alloc_pseudo() is internal-only; uses outside of alloc_file_pseudo() are
 very suspect (and won't work in modules).  Such uses are very likely to
 be misspelled d_alloc_anon().
+
+---
+
+**mandatory**
+
+[should've been added in 2016] stale comment in finish_open() nonwithstanding,
+failure exits in ->atomic_open() instances should *NOT* fput() the file,
+no matter what.  Everything is handled by the caller.
+
+---
+
+**mandatory**
+
+clone_private_mount() returns a longterm mount now, so the proper destructor of
+its result is kern_unmount() or kern_unmount_array().

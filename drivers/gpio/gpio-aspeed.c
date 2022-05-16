@@ -487,10 +487,10 @@ static int aspeed_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	u32 val;
 
 	if (!have_input(gpio, offset))
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 
 	if (!have_output(gpio, offset))
-		return 1;
+		return GPIO_LINE_DIRECTION_IN;
 
 	spin_lock_irqsave(&gpio->lock, flags);
 
@@ -498,8 +498,7 @@ static int aspeed_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 
 	spin_unlock_irqrestore(&gpio->lock, flags);
 
-	return !val;
-
+	return val ? GPIO_LINE_DIRECTION_OUT : GPIO_LINE_DIRECTION_IN;
 }
 
 static inline int irqd_to_aspeed_gpio_data(struct irq_data *d,
@@ -612,16 +611,16 @@ static int aspeed_gpio_set_type(struct irq_data *d, unsigned int type)
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_BOTH:
 		type2 |= bit;
-		/* fall through */
+		fallthrough;
 	case IRQ_TYPE_EDGE_RISING:
 		type0 |= bit;
-		/* fall through */
+		fallthrough;
 	case IRQ_TYPE_EDGE_FALLING:
 		handler = handle_edge_irq;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		type0 |= bit;
-		/* fall through */
+		fallthrough;
 	case IRQ_TYPE_LEVEL_LOW:
 		type1 |= bit;
 		handler = handle_level_irq;
@@ -979,7 +978,7 @@ static int aspeed_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 }
 
 /**
- * aspeed_gpio_copro_set_ops - Sets the callbacks used for handhsaking with
+ * aspeed_gpio_copro_set_ops - Sets the callbacks used for handshaking with
  *                             the coprocessor for shared GPIO banks
  * @ops: The callbacks
  * @data: Pointer passed back to the callbacks
@@ -1115,8 +1114,9 @@ static const struct aspeed_gpio_config ast2500_config =
 
 static const struct aspeed_bank_props ast2600_bank_props[] = {
 	/*     input	  output   */
-	{5, 0xffffffff,  0x0000ffff}, /* U/V/W/X */
-	{6, 0xffff0000,  0x0fff0000}, /* Y/Z */
+	{4, 0xffffffff,  0x00ffffff}, /* Q/R/S/T */
+	{5, 0xffffffff,  0xffffff00}, /* U/V/W/X */
+	{6, 0x0000ffff,  0x0000ffff}, /* Y/Z */
 	{ },
 };
 

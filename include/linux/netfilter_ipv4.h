@@ -16,7 +16,7 @@ struct ip_rt_info {
 	u_int32_t mark;
 };
 
-int ip_route_me_harder(struct net *net, struct sk_buff *skb, unsigned addr_type);
+int ip_route_me_harder(struct net *net, struct sock *sk, struct sk_buff *skb, unsigned addr_type);
 
 struct nf_queue_entry;
 

@@ -241,7 +241,7 @@ int udf_truncate_extents(struct inode *inode)
 
 	while ((etype = udf_current_aext(inode, &epos, &eloc,
 					 &elen, 0)) != -1) {
-		if (etype == (EXT_NEXT_EXTENT_ALLOCDECS >> 30)) {
+		if (etype == (EXT_NEXT_EXTENT_ALLOCDESCS >> 30)) {
 			udf_write_aext(inode, &epos, &neloc, nelen, 0);
 			if (indirect_ext_len) {
 				/* We managed to free all extents in the

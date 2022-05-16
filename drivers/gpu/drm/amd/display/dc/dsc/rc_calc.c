@@ -1,4 +1,3 @@
-#if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
 
 /*
  * Copyright 2017 Advanced Micro Devices, Inc.
@@ -24,6 +23,7 @@
  * Authors: AMD
  *
  */
+#include <drm/drm_dsc.h>
 
 #include "os_types.h"
 #include "rc_calc.h"
@@ -41,7 +41,8 @@
 	break
 
 
-void get_qp_set(qp_set qps, enum colour_mode cm, enum bits_per_comp bpc, enum max_min max_min, float bpp)
+static void get_qp_set(qp_set qps, enum colour_mode cm, enum bits_per_comp bpc,
+		       enum max_min max_min, float bpp)
 {
 	int mode = MODE_SELECT(444, 422, 420);
 	int sel = table_hash(mode, bpc, max_min);
@@ -86,7 +87,7 @@ void get_qp_set(qp_set qps, enum colour_mode cm, enum bits_per_comp bpc, enum ma
 	memcpy(qps, table[index].qps, sizeof(qp_set));
 }
 
-double dsc_roundf(double num)
+static double dsc_roundf(double num)
 {
 	if (num < 0.0)
 		num = num - 0.5;
@@ -96,7 +97,7 @@ double dsc_roundf(double num)
 	return (int)(num);
 }
 
-double dsc_ceil(double num)
+static double dsc_ceil(double num)
 {
 	double retval = (int)num;
 
@@ -106,7 +107,7 @@ double dsc_ceil(double num)
 	return (int)retval;
 }
 
-void get_ofs_set(qp_set ofs, enum colour_mode mode, float bpp)
+static void get_ofs_set(qp_set ofs, enum colour_mode mode, float bpp)
 {
 	int   *p = ofs;
 
@@ -161,7 +162,7 @@ void get_ofs_set(qp_set ofs, enum colour_mode mode, float bpp)
 	}
 }
 
-int median3(int a, int b, int c)
+static int median3(int a, int b, int c)
 {
 	if (a > b)
 		swap(a, b);
@@ -173,13 +174,24 @@ int median3(int a, int b, int c)
 	return b;
 }
 
-void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_comp bpc, float bpp, int slice_width, int slice_height, int minor_version)
+static void _do_calc_rc_params(struct rc_params *rc, enum colour_mode cm,
+			       enum bits_per_comp bpc, u16 drm_bpp,
+			       bool is_navite_422_or_420,
+			       int slice_width, int slice_height,
+			       int minor_version)
 {
+	float bpp;
 	float bpp_group;
 	float initial_xmit_delay_factor;
-	int source_bpp;
 	int padding_pixels;
 	int i;
+
+	bpp = ((float)drm_bpp / 16.0);
+	/* in native_422 or native_420 modes, the bits_per_pixel is double the
+	 * target bpp (the latter is what calc_rc_params expects)
+	 */
+	if (is_navite_422_or_420)
+		bpp /= 2.0;
 
 	rc->rc_quant_incr_limit0 = ((bpc == BPC_8) ? 11 : (bpc == BPC_10 ? 15 : 19)) - ((minor_version == 1 && cm == CM_444) ? 1 : 0);
 	rc->rc_quant_incr_limit1 = ((bpc == BPC_8) ? 11 : (bpc == BPC_10 ? 15 : 19)) - ((minor_version == 1 && cm == CM_444) ? 1 : 0);
@@ -217,8 +229,6 @@ void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_com
 			rc->initial_xmit_delay++;
 	}
 
-	source_bpp = MODE_SELECT(bpc * 3, bpc * 2, bpc * 1.5);
-
 	rc->flatness_min_qp     = ((bpc == BPC_8) ?  (3) : ((bpc == BPC_10) ? (7)  : (11))) - ((minor_version == 1 && cm == CM_444) ? 1 : 0);
 	rc->flatness_max_qp     = ((bpc == BPC_8) ? (12) : ((bpc == BPC_10) ? (16) : (20))) - ((minor_version == 1 && cm == CM_444) ? 1 : 0);
 	rc->flatness_det_thresh = 2 << (bpc - 8);
@@ -255,4 +265,128 @@ void calc_rc_params(struct rc_params *rc, enum colour_mode cm, enum bits_per_com
 	rc->rc_buf_thresh[13] = 8064;
 }
 
-#endif
+static u32 _do_bytes_per_pixel_calc(int slice_width, u16 drm_bpp,
+				    bool is_navite_422_or_420)
+{
+	float bpp;
+	u32 bytes_per_pixel;
+	double d_bytes_per_pixel;
+
+	bpp = ((float)drm_bpp / 16.0);
+	d_bytes_per_pixel = dsc_ceil(bpp * slice_width / 8.0) / slice_width;
+	// TODO: Make sure the formula for calculating this is precise (ceiling
+	// vs. floor, and at what point they should be applied)
+	if (is_navite_422_or_420)
+		d_bytes_per_pixel /= 2;
+
+	bytes_per_pixel = (u32)dsc_ceil(d_bytes_per_pixel * 0x10000000);
+
+	return bytes_per_pixel;
+}
+
+static u32 _do_calc_dsc_bpp_x16(u32 stream_bandwidth_kbps, u32 pix_clk_100hz,
+				u32 bpp_increment_div)
+{
+	u32 dsc_target_bpp_x16;
+	float f_dsc_target_bpp;
+	float f_stream_bandwidth_100bps;
+	// bpp_increment_div is actually precision
+	u32 precision = bpp_increment_div;
+
+	f_stream_bandwidth_100bps = stream_bandwidth_kbps * 10.0f;
+	f_dsc_target_bpp = f_stream_bandwidth_100bps / pix_clk_100hz;
+
+	// Round down to the nearest precision stop to bring it into DSC spec
+	// range
+	dsc_target_bpp_x16 = (u32)(f_dsc_target_bpp * precision);
+	dsc_target_bpp_x16 = (dsc_target_bpp_x16 * 16) / precision;
+
+	return dsc_target_bpp_x16;
+}
+
+/**
+ * calc_rc_params - reads the user's cmdline mode
+ * @rc: DC internal DSC parameters
+ * @pps: DRM struct with all required DSC values
+ *
+ * This function expects a drm_dsc_config data struct with all the required DSC
+ * values previously filled out by our driver and based on this information it
+ * computes some of the DSC values.
+ *
+ * @note This calculation requires float point operation, most of it executes
+ * under kernel_fpu_{begin,end}.
+ */
+void calc_rc_params(struct rc_params *rc, const struct drm_dsc_config *pps)
+{
+	enum colour_mode mode;
+	enum bits_per_comp bpc;
+	bool is_navite_422_or_420;
+	u16 drm_bpp = pps->bits_per_pixel;
+	int slice_width  = pps->slice_width;
+	int slice_height = pps->slice_height;
+
+	mode = pps->convert_rgb ? CM_RGB : (pps->simple_422  ? CM_444 :
+					   (pps->native_422  ? CM_422 :
+					    pps->native_420  ? CM_420 : CM_444));
+	bpc = (pps->bits_per_component == 8) ? BPC_8 : (pps->bits_per_component == 10)
+					     ? BPC_10 : BPC_12;
+
+	is_navite_422_or_420 = pps->native_422 || pps->native_420;
+
+	DC_FP_START();
+	_do_calc_rc_params(rc, mode, bpc, drm_bpp, is_navite_422_or_420,
+			   slice_width, slice_height,
+			   pps->dsc_version_minor);
+	DC_FP_END();
+}
+
+/**
+ * calc_dsc_bytes_per_pixel - calculate bytes per pixel
+ * @pps: DRM struct with all required DSC values
+ *
+ * Based on the information inside drm_dsc_config, this function calculates the
+ * total of bytes per pixel.
+ *
+ * @note This calculation requires float point operation, most of it executes
+ * under kernel_fpu_{begin,end}.
+ *
+ * Return:
+ * Return the number of bytes per pixel
+ */
+u32 calc_dsc_bytes_per_pixel(const struct drm_dsc_config *pps)
+
+{
+	u32 ret;
+	u16 drm_bpp = pps->bits_per_pixel;
+	int slice_width  = pps->slice_width;
+	bool is_navite_422_or_420 = pps->native_422 || pps->native_420;
+
+	DC_FP_START();
+	ret = _do_bytes_per_pixel_calc(slice_width, drm_bpp,
+				       is_navite_422_or_420);
+	DC_FP_END();
+	return ret;
+}
+
+/**
+ * calc_dsc_bpp_x16 - retrieve the dsc bits per pixel
+ * @stream_bandwidth_kbps:
+ * @pix_clk_100hz:
+ * @bpp_increment_div:
+ *
+ * Calculate the total of bits per pixel for DSC configuration.
+ *
+ * @note This calculation requires float point operation, most of it executes
+ * under kernel_fpu_{begin,end}.
+ */
+u32 calc_dsc_bpp_x16(u32 stream_bandwidth_kbps, u32 pix_clk_100hz,
+		     u32 bpp_increment_div)
+{
+	u32 dsc_bpp;
+
+	DC_FP_START();
+	dsc_bpp =  _do_calc_dsc_bpp_x16(stream_bandwidth_kbps, pix_clk_100hz,
+					bpp_increment_div);
+	DC_FP_END();
+	return dsc_bpp;
+}

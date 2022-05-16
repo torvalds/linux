@@ -102,7 +102,7 @@
 
 #define MCE_OVERFLOW 0		/* bit 0 in flags means overflow */
 
-#define MCE_LOG_LEN 32
+#define MCE_LOG_MIN_LEN 32U
 #define MCE_LOG_SIGNATURE	"MACHINECHECK"
 
 /* AMD Scalable MCA */
@@ -127,6 +127,32 @@
 #define MSR_AMD64_SMCA_MCx_DEADDR(x)	(MSR_AMD64_SMCA_MC0_DEADDR + 0x10*(x))
 #define MSR_AMD64_SMCA_MCx_MISCy(x, y)	((MSR_AMD64_SMCA_MC0_MISC1 + y) + (0x10*(x)))
 
+#define XEC(x, mask)			(((x) >> 16) & mask)
+
+/* mce.kflags flag bits for logging etc. */
+#define	MCE_HANDLED_CEC		BIT_ULL(0)
+#define	MCE_HANDLED_UC		BIT_ULL(1)
+#define	MCE_HANDLED_EXTLOG	BIT_ULL(2)
+#define	MCE_HANDLED_NFIT	BIT_ULL(3)
+#define	MCE_HANDLED_EDAC	BIT_ULL(4)
+#define	MCE_HANDLED_MCELOG	BIT_ULL(5)
+
+/*
+ * Indicates an MCE which has happened in kernel space but from
+ * which the kernel can recover simply by executing fixup_exception()
+ * so that an error is returned to the caller of the function that
+ * hit the machine check.
+ */
+#define MCE_IN_KERNEL_RECOV	BIT_ULL(6)
+
+/*
+ * Indicates an MCE that happened in kernel space while copying data
+ * from user. In this case fixup_exception() gets the kernel to the
+ * error exit for the copy function. Machine check handler can then
+ * treat it like a fault taken in user mode.
+ */
+#define MCE_IN_KERNEL_COPYIN	BIT_ULL(7)
+
 /*
  * This structure contains all data related to the MCE log.  Also
  * carries a signature to make it easier to find from external
@@ -135,21 +161,23 @@
  */
 struct mce_log_buffer {
 	char signature[12]; /* "MACHINECHECK" */
-	unsigned len;	    /* = MCE_LOG_LEN */
+	unsigned len;	    /* = elements in .mce_entry[] */
 	unsigned next;
 	unsigned flags;
 	unsigned recordlen;	/* length of struct mce */
-	struct mce entry[MCE_LOG_LEN];
+	struct mce entry[];
 };
 
+/* Highest last */
 enum mce_notifier_prios {
-	MCE_PRIO_FIRST		= INT_MAX,
-	MCE_PRIO_SRAO		= INT_MAX - 1,
-	MCE_PRIO_EXTLOG		= INT_MAX - 2,
-	MCE_PRIO_NFIT		= INT_MAX - 3,
-	MCE_PRIO_EDAC		= INT_MAX - 4,
-	MCE_PRIO_MCELOG		= 1,
-	MCE_PRIO_LOWEST		= 0,
+	MCE_PRIO_LOWEST,
+	MCE_PRIO_MCELOG,
+	MCE_PRIO_EDAC,
+	MCE_PRIO_NFIT,
+	MCE_PRIO_EXTLOG,
+	MCE_PRIO_UC,
+	MCE_PRIO_EARLY,
+	MCE_PRIO_CEC
 };
 
 struct notifier_block;
@@ -160,6 +188,15 @@ extern void mce_unregister_decode_chain(struct notifier_block *nb);
 #include <linux/atomic.h>
 
 extern int mce_p5_enabled;
+
+#ifdef CONFIG_ARCH_HAS_COPY_MC
+extern void enable_copy_mc_fragile(void);
+unsigned long __must_check copy_mc_fragile(void *dst, const void *src, unsigned cnt);
+#else
+static inline void enable_copy_mc_fragile(void)
+{
+}
+#endif
 
 #ifdef CONFIG_X86_MCE
 int mcheck_init(void);
@@ -187,12 +224,8 @@ void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
 DECLARE_PER_CPU(struct device *, mce_device);
 
-/*
- * Maximum banks number.
- * This is the limit of the current register layout on
- * Intel CPUs.
- */
-#define MAX_NR_BANKS 32
+/* Maximum number of MCA banks per CPU. */
+#define MAX_NR_BANKS 64
 
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
@@ -238,10 +271,7 @@ extern void mce_disable_bank(int bank);
 /*
  * Exception handler
  */
-
-/* Call the installed machine check handler for this CPU setup. */
-extern void (*machine_check_vector)(struct pt_regs *, long error_code);
-void do_machine_check(struct pt_regs *, long);
+void do_machine_check(struct pt_regs *pt_regs);
 
 /*
  * Threshold handler
@@ -290,6 +320,7 @@ extern void apei_mce_report_mem_error(int corrected,
 /* These may be used by multiple smca_hwid_mcatypes */
 enum smca_bank_types {
 	SMCA_LS = 0,	/* Load Store */
+	SMCA_LS_V2,	/* Load Store */
 	SMCA_IF,	/* Instruction Fetch */
 	SMCA_L2_CACHE,	/* L2 Cache */
 	SMCA_DE,	/* Decoder Unit */
@@ -317,7 +348,6 @@ enum smca_bank_types {
 struct smca_hwid {
 	unsigned int bank_type;	/* Use with smca_bank_types for easy indexing. */
 	u32 hwid_mcatype;	/* (hwid,mcatype) tuple */
-	u32 xec_bitmap;		/* Bitmap of valid ExtErrorCodes; current max is 21. */
 	u8 count;		/* Number of instances. */
 };
 
@@ -349,5 +379,4 @@ umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)	{ return 
 #endif
 
 static inline void mce_hygon_feature_init(struct cpuinfo_x86 *c)	{ return mce_amd_feature_init(c); }
-
 #endif /* _ASM_X86_MCE_H */

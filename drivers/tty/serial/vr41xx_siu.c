@@ -7,10 +7,6 @@
  *  Based on drivers/serial/8250.c, by Russell King.
  */
 
-#if defined(CONFIG_SERIAL_VR41XX_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/console.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -869,6 +865,7 @@ static int siu_probe(struct platform_device *dev)
 		port = &siu_uart_ports[i];
 		port->ops = &siu_uart_ops;
 		port->dev = &dev->dev;
+		port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_VR41XX_CONSOLE);
 
 		retval = uart_add_one_port(&siu_uart_driver, port);
 		if (retval < 0) {

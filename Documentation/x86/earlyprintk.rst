@@ -8,7 +8,7 @@ Mini-HOWTO for using the earlyprintk=dbgp boot option with a
 USB2 Debug port key and a debug cable, on x86 systems.
 
 You need two computers, the 'USB debug key' special gadget and
-and two USB cables, connected like this::
+two USB cables, connected like this::
 
   [host/target] <-------> [USB debug key] <-------> [client/console]
 

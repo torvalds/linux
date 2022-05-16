@@ -3249,22 +3249,19 @@ static int ath6kl_get_antenna(struct wiphy *wiphy,
 	return 0;
 }
 
-static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,
-				       struct wireless_dev *wdev,
-				       u16 frame_type, bool reg)
+static void ath6kl_update_mgmt_frame_registrations(struct wiphy *wiphy,
+						   struct wireless_dev *wdev,
+						   struct mgmt_frame_regs *upd)
 {
 	struct ath6kl_vif *vif = ath6kl_vif_from_wdev(wdev);
 
-	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: frame_type=0x%x reg=%d\n",
-		   __func__, frame_type, reg);
-	if (frame_type == IEEE80211_STYPE_PROBE_REQ) {
-		/*
-		 * Note: This notification callback is not allowed to sleep, so
-		 * we cannot send WMI_PROBE_REQ_REPORT_CMD here. Instead, we
-		 * hardcode target to report Probe Request frames all the time.
-		 */
-		vif->probe_req_report = reg;
-	}
+	/*
+	 * FIXME: send WMI_PROBE_REQ_REPORT_CMD here instead of hardcoding
+	 *	  the reporting in the target all the time, this callback
+	 *	  *is* allowed to sleep after all.
+	 */
+	vif->probe_req_report =
+		upd->interface_stypes & BIT(IEEE80211_STYPE_PROBE_REQ >> 4);
 }
 
 static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
@@ -3464,7 +3461,8 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.remain_on_channel = ath6kl_remain_on_channel,
 	.cancel_remain_on_channel = ath6kl_cancel_remain_on_channel,
 	.mgmt_tx = ath6kl_mgmt_tx,
-	.mgmt_frame_register = ath6kl_mgmt_frame_register,
+	.update_mgmt_frame_registrations =
+		ath6kl_update_mgmt_frame_registrations,
 	.get_antenna = ath6kl_get_antenna,
 	.sched_scan_start = ath6kl_cfg80211_sscan_start,
 	.sched_scan_stop = ath6kl_cfg80211_sscan_stop,
@@ -3899,19 +3897,19 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 	switch (ar->hw.cap) {
 	case WMI_11AN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11A_CAP:
 		band_5gig = true;
 		break;
 	case WMI_11GN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11G_CAP:
 		band_2gig = true;
 		break;
 	case WMI_11AGN_CAP:
 		ht = true;
-		/* fall through */
+		fallthrough;
 	case WMI_11AG_CAP:
 		band_2gig = true;
 		band_5gig = true;

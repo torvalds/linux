@@ -16,16 +16,6 @@ config DRM_PANEL_BRIDGE
 menu "Display Interface Bridges"
 	depends on DRM && DRM_BRIDGE
 
-config DRM_ANALOGIX_ANX78XX
-	tristate "Analogix ANX78XX bridge"
-	select DRM_KMS_HELPER
-	select REGMAP_I2C
-	---help---
-	  ANX78XX is an ultra-low power Full-HD SlimPort transmitter
-	  designed for portable devices. The ANX78XX transforms
-	  the HDMI output of an application processor to MyDP
-	  or DisplayPort.
-
 config DRM_CDNS_DSI
 	tristate "Cadence DPI/DSI bridge"
 	select DRM_KMS_HELPER
@@ -37,40 +27,82 @@ config DRM_CDNS_DSI
 	  Support Cadence DPI to DSI bridge. This is an internal
 	  bridge and is meant to be directly embedded in a SoC.
 
-config DRM_DUMB_VGA_DAC
-	tristate "Dumb VGA DAC Bridge support"
+config DRM_CHRONTEL_CH7033
+	tristate "Chrontel CH7033 Video Encoder"
 	depends on OF
 	select DRM_KMS_HELPER
 	help
-	  Support for non-programmable RGB to VGA DAC bridges, such as ADI
-	  ADV7123, TI THS8134 and THS8135 or passive resistor ladder DACs.
+	  Enable support for the Chrontel CH7033 VGA/DVI/HDMI Encoder, as
+	  found in the Dell Wyse 3020 thin client.
 
-config DRM_LVDS_ENCODER
-	tristate "Transparent parallel to LVDS encoder support"
+	  If in doubt, say "N".
+
+config DRM_DISPLAY_CONNECTOR
+	tristate "Display connector support"
+	depends on OF
+	help
+	  Driver for display connectors with support for DDC and hot-plug
+	  detection. Most display controller handle display connectors
+	  internally and don't need this driver, but the DRM subsystem is
+	  moving towards separating connector handling from display controllers
+	  on ARM-based platforms. Saying Y here when this driver is not needed
+	  will not cause any issue.
+
+config DRM_LONTIUM_LT9611
+	tristate "Lontium LT9611 DSI/HDMI bridge"
+	select SND_SOC_HDMI_CODEC if SND_SOC
+	depends on OF
+	select DRM_PANEL_BRIDGE
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	help
+	  Driver for Lontium LT9611 DSI to HDMI bridge
+	  chip driver that converts dual DSI and I2S to
+	  HDMI signals
+	  Please say Y if you have such hardware.
+
+config DRM_LVDS_CODEC
+	tristate "Transparent LVDS encoders and decoders support"
 	depends on OF
 	select DRM_KMS_HELPER
 	select DRM_PANEL_BRIDGE
 	help
-	  Support for transparent parallel to LVDS encoders that don't require
-	  any configuration.
+	  Support for transparent LVDS encoders and decoders that don't
+	  require any configuration.
 
 config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
 	tristate "MegaChips stdp4028-ge-b850v3-fw and stdp2690-ge-b850v3-fw"
 	depends on OF
 	select DRM_KMS_HELPER
 	select DRM_PANEL
-	---help---
-          This is a driver for the display bridges of
-          GE B850v3 that convert dual channel LVDS
-          to DP++. This is used with the i.MX6 imx-ldb
-          driver. You are likely to say N here.
+	help
+	  This is a driver for the display bridges of
+	  GE B850v3 that convert dual channel LVDS
+	  to DP++. This is used with the i.MX6 imx-ldb
+	  driver. You are likely to say N here.
+
+config DRM_NWL_MIPI_DSI
+	tristate "Northwest Logic MIPI DSI Host controller"
+	depends on DRM
+	depends on COMMON_CLK
+	depends on OF && HAS_IOMEM
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL_BRIDGE
+	select GENERIC_PHY_MIPI_DPHY
+	select MFD_SYSCON
+	select MULTIPLEXER
+	select REGMAP_MMIO
+	help
+	  This enables the Northwest Logic MIPI DSI Host controller as
+	  for example found on NXP's i.MX8 Processors.
 
 config DRM_NXP_PTN3460
 	tristate "NXP PTN3460 DP/LVDS bridge"
 	depends on OF
 	select DRM_KMS_HELPER
 	select DRM_PANEL
-	---help---
+	help
 	  NXP PTN3460 eDP-LVDS bridge chip driver.
 
 config DRM_PARADE_PS8622
@@ -79,16 +111,26 @@ config DRM_PARADE_PS8622
 	select DRM_PANEL
 	select DRM_KMS_HELPER
 	select BACKLIGHT_CLASS_DEVICE
-	---help---
+	help
 	  Parade eDP-LVDS bridge chip driver.
+
+config DRM_PARADE_PS8640
+	tristate "Parade PS8640 MIPI DSI to eDP Converter"
+	depends on OF
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL
+	help
+	  Choose this option if you have PS8640 for display
+	  The PS8640 is a high-performance and low-power
+	  MIPI DSI to eDP converter
 
 config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
 	depends on OF
 	select DRM_KMS_HELPER
 	imply EXTCON
-	select INPUT
-	select RC_CORE
+	depends on RC_CORE || !RC_CORE
 	help
 	  Silicon Image SII8620 HDMI/MHL bridge chip driver.
 
@@ -98,22 +140,39 @@ config DRM_SII902X
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select I2C_MUX
-	---help---
+	select SND_SOC_HDMI_CODEC if SND_SOC
+	help
 	  Silicon Image sii902x bridge chip driver.
 
 config DRM_SII9234
 	tristate "Silicon Image SII9234 HDMI/MHL bridge"
 	depends on OF
-	---help---
+	help
 	  Say Y here if you want support for the MHL interface.
 	  It is an I2C driver, that detects connection of MHL bridge
 	  and starts encapsulation of HDMI signal.
 
+config DRM_SIMPLE_BRIDGE
+	tristate "Simple DRM bridge support"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Support for non-programmable DRM bridges, such as ADI ADV7123, TI
+	  THS8134 and THS8135 or passive resistor ladder DACs.
+
 config DRM_THINE_THC63LVD1024
 	tristate "Thine THC63LVD1024 LVDS decoder bridge"
 	depends on OF
-	---help---
+	help
 	  Thine THC63LVD1024 LVDS/parallel converter driver.
+
+config DRM_TOSHIBA_TC358762
+	tristate "TC358762 DSI/DPI bridge"
+	depends on OF
+	select DRM_MIPI_DSI
+	select DRM_PANEL_BRIDGE
+	help
+	  Toshiba TC358762 DSI/DPI bridge driver.
 
 config DRM_TOSHIBA_TC358764
 	tristate "TC358764 DSI/LVDS bridge"
@@ -130,14 +189,34 @@ config DRM_TOSHIBA_TC358767
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select DRM_PANEL
-	---help---
+	help
 	  Toshiba TC358767 eDP bridge chip driver.
+
+config DRM_TOSHIBA_TC358768
+	tristate "Toshiba TC358768 MIPI DSI bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_PANEL
+	select DRM_MIPI_DSI
+	help
+	  Toshiba TC358768AXBG/TC358778XBG DSI bridge chip driver.
+
+config DRM_TOSHIBA_TC358775
+	tristate "Toshiba TC358775 DSI/LVDS bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_PANEL
+	select DRM_MIPI_DSI
+	help
+	  Toshiba TC358775 DSI/LVDS bridge chip driver.
 
 config DRM_TI_TFP410
 	tristate "TI TFP410 DVI/HDMI bridge"
 	depends on OF
 	select DRM_KMS_HELPER
-	---help---
+	help
 	  Texas Instruments TFP410 DVI/HDMI Transmitter driver
 
 config DRM_TI_SN65DSI86
@@ -150,9 +229,19 @@ config DRM_TI_SN65DSI86
 	help
 	  Texas Instruments SN65DSI86 DSI to eDP Bridge driver
 
+config DRM_TI_TPD12S015
+	tristate "TI TPD12S015 HDMI level shifter and ESD protection"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Texas Instruments TPD12S015 HDMI level shifter and ESD protection
+	  driver.
+
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 source "drivers/gpu/drm/bridge/adv7511/Kconfig"
+
+source "drivers/gpu/drm/bridge/cadence/Kconfig"
 
 source "drivers/gpu/drm/bridge/synopsys/Kconfig"
 

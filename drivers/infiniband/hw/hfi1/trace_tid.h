@@ -138,10 +138,10 @@ TRACE_EVENT(/* put_tid */
 	TP_ARGS(dd, index, type, pa, order),
 	TP_STRUCT__entry(/* entry */
 		DD_DEV_ENTRY(dd)
-		__field(unsigned long, pa);
-		__field(u32, index);
-		__field(u32, type);
-		__field(u16, order);
+		__field(unsigned long, pa)
+		__field(u32, index)
+		__field(u32, type)
+		__field(u16, order)
 	),
 	TP_fast_assign(/* assign */
 		DD_DEV_ASSIGN(dd);

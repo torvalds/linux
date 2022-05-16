@@ -80,6 +80,8 @@ setup_vga_console(struct pcdp_device *dev)
 #endif
 }
 
+extern unsigned long hcdp_phys;
+
 int __init
 efi_setup_pcdp_console(char *cmdline)
 {
@@ -89,11 +91,11 @@ efi_setup_pcdp_console(char *cmdline)
 	int i, serial = 0;
 	int rc = -ENODEV;
 
-	if (efi.hcdp == EFI_INVALID_TABLE_ADDR)
+	if (hcdp_phys == EFI_INVALID_TABLE_ADDR)
 		return -ENODEV;
 
-	pcdp = early_memremap(efi.hcdp, 4096);
-	printk(KERN_INFO "PCDP: v%d at 0x%lx\n", pcdp->rev, efi.hcdp);
+	pcdp = early_memremap(hcdp_phys, 4096);
+	printk(KERN_INFO "PCDP: v%d at 0x%lx\n", pcdp->rev, hcdp_phys);
 
 	if (strstr(cmdline, "console=hcdp")) {
 		if (pcdp->rev < 3)

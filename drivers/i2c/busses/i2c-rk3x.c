@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/iopoll.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -415,7 +416,7 @@ static void rk3x_i2c_handle_read(struct rk3x_i2c *i2c, unsigned int ipd)
 {
 	unsigned int i;
 	unsigned int len = i2c->msg->len - i2c->processed;
-	u32 uninitialized_var(val);
+	u32 val;
 	u8 byte;
 
 	/* we only care for MBRF here. */
@@ -539,9 +540,9 @@ out:
  */
 static const struct i2c_spec_values *rk3x_i2c_get_spec(unsigned int speed)
 {
-	if (speed <= 100000)
+	if (speed <= I2C_MAX_STANDARD_MODE_FREQ)
 		return &standard_mode_spec;
-	else if (speed <= 400000)
+	else if (speed <= I2C_MAX_FAST_MODE_FREQ)
 		return &fast_mode_spec;
 	else
 		return &fast_mode_plus_spec;
@@ -578,8 +579,8 @@ static int rk3x_i2c_v0_calc_timings(unsigned long clk_rate,
 	int ret = 0;
 
 	/* Only support standard-mode and fast-mode */
-	if (WARN_ON(t->bus_freq_hz > 400000))
-		t->bus_freq_hz = 400000;
+	if (WARN_ON(t->bus_freq_hz > I2C_MAX_FAST_MODE_FREQ))
+		t->bus_freq_hz = I2C_MAX_FAST_MODE_FREQ;
 
 	/* prevent scl_rate_khz from becoming 0 */
 	if (WARN_ON(t->bus_freq_hz < 1000))
@@ -758,8 +759,8 @@ static int rk3x_i2c_v1_calc_timings(unsigned long clk_rate,
 	int ret = 0;
 
 	/* Support standard-mode, fast-mode and fast-mode plus */
-	if (WARN_ON(t->bus_freq_hz > 1000000))
-		t->bus_freq_hz = 1000000;
+	if (WARN_ON(t->bus_freq_hz > I2C_MAX_FAST_MODE_PLUS_FREQ))
+		t->bus_freq_hz = I2C_MAX_FAST_MODE_PLUS_FREQ;
 
 	/* prevent scl_rate_khz from becoming 0 */
 	if (WARN_ON(t->bus_freq_hz < 1000))
@@ -1040,8 +1041,21 @@ static int rk3x_i2c_setup(struct rk3x_i2c *i2c, struct i2c_msg *msgs, int num)
 	return ret;
 }
 
-static int rk3x_i2c_xfer(struct i2c_adapter *adap,
-			 struct i2c_msg *msgs, int num)
+static int rk3x_i2c_wait_xfer_poll(struct rk3x_i2c *i2c)
+{
+	ktime_t timeout = ktime_add_ms(ktime_get(), WAIT_TIMEOUT);
+
+	while (READ_ONCE(i2c->busy) &&
+	       ktime_compare(ktime_get(), timeout) < 0) {
+		udelay(5);
+		rk3x_i2c_irq(0, i2c);
+	}
+
+	return !i2c->busy;
+}
+
+static int rk3x_i2c_xfer_common(struct i2c_adapter *adap,
+				struct i2c_msg *msgs, int num, bool polling)
 {
 	struct rk3x_i2c *i2c = (struct rk3x_i2c *)adap->algo_data;
 	unsigned long timeout, flags;
@@ -1075,8 +1089,12 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 
 		rk3x_i2c_start(i2c);
 
-		timeout = wait_event_timeout(i2c->wait, !i2c->busy,
-					     msecs_to_jiffies(WAIT_TIMEOUT));
+		if (!polling) {
+			timeout = wait_event_timeout(i2c->wait, !i2c->busy,
+						     msecs_to_jiffies(WAIT_TIMEOUT));
+		} else {
+			timeout = rk3x_i2c_wait_xfer_poll(i2c);
+		}
 
 		spin_lock_irqsave(&i2c->lock, flags);
 
@@ -1110,6 +1128,18 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 	return ret < 0 ? ret : num;
 }
 
+static int rk3x_i2c_xfer(struct i2c_adapter *adap,
+			 struct i2c_msg *msgs, int num)
+{
+	return rk3x_i2c_xfer_common(adap, msgs, num, false);
+}
+
+static int rk3x_i2c_xfer_polling(struct i2c_adapter *adap,
+				 struct i2c_msg *msgs, int num)
+{
+	return rk3x_i2c_xfer_common(adap, msgs, num, true);
+}
+
 static __maybe_unused int rk3x_i2c_resume(struct device *dev)
 {
 	struct rk3x_i2c *i2c = dev_get_drvdata(dev);
@@ -1126,6 +1156,7 @@ static u32 rk3x_i2c_func(struct i2c_adapter *adap)
 
 static const struct i2c_algorithm rk3x_i2c_algorithm = {
 	.master_xfer		= rk3x_i2c_xfer,
+	.master_xfer_atomic	= rk3x_i2c_xfer_polling,
 	.functionality		= rk3x_i2c_func,
 };
 
@@ -1193,7 +1224,6 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	struct rk3x_i2c *i2c;
-	struct resource *mem;
 	int ret = 0;
 	int bus_nr;
 	u32 value;
@@ -1223,8 +1253,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c->regs = devm_ioremap_resource(&pdev->dev, mem);
+	i2c->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(i2c->regs))
 		return PTR_ERR(i2c->regs);
 
@@ -1262,10 +1291,8 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 
 	/* IRQ setup */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "cannot find rk3x IRQ\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, irq, rk3x_i2c_irq,
 			       0, dev_name(&pdev->dev), i2c);
@@ -1285,18 +1312,13 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 		i2c->pclk = devm_clk_get(&pdev->dev, "pclk");
 	}
 
-	if (IS_ERR(i2c->clk)) {
-		ret = PTR_ERR(i2c->clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Can't get bus clk: %d\n", ret);
-		return ret;
-	}
-	if (IS_ERR(i2c->pclk)) {
-		ret = PTR_ERR(i2c->pclk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Can't get periph clk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(i2c->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2c->clk),
+				     "Can't get bus clk\n");
+
+	if (IS_ERR(i2c->pclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2c->pclk),
+				     "Can't get periph clk\n");
 
 	ret = clk_prepare(i2c->clk);
 	if (ret < 0) {

@@ -40,9 +40,9 @@
  * code doesn't get too cluttered:
  */
 #define efi_call_virt(f, args...)   \
-	efi_call_virt_pointer(efi.systab->runtime, f, args)
+	efi_call_virt_pointer(efi.runtime, f, args)
 #define __efi_call_virt(f, args...) \
-	__efi_call_virt_pointer(efi.systab->runtime, f, args)
+	__efi_call_virt_pointer(efi.runtime, f, args)
 
 struct efi_runtime_work efi_rts_work;
 

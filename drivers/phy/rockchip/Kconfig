@@ -9,6 +9,18 @@ config PHY_ROCKCHIP_DP
 	help
 	  Enable this to support the Rockchip Display Port PHY.
 
+config PHY_ROCKCHIP_DPHY_RX0
+	tristate "Rockchip MIPI Synopsys DPHY RX0 driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select GENERIC_PHY_MIPI_DPHY
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip MIPI Synopsys DPHY RX0
+	  associated to the Rockchip ISP module present in RK3399 SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called phy-rockchip-dphy-rx0.
+
 config PHY_ROCKCHIP_EMMC
 	tristate "Rockchip EMMC PHY Driver"
 	depends on ARCH_ROCKCHIP && OF
@@ -34,6 +46,15 @@ config PHY_ROCKCHIP_INNO_USB2
 	select USB_COMMON
 	help
 	  Support for Rockchip USB2.0 PHY with Innosilicon IP block.
+
+config PHY_ROCKCHIP_INNO_DSIDPHY
+	tristate "Rockchip Innosilicon MIPI/LVDS/TTL PHY driver"
+	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  Enable this to support the Rockchip MIPI/LVDS/TTL PHY with
+	  Innosilicon IP block.
 
 config PHY_ROCKCHIP_PCIE
 	tristate "Rockchip PCIe PHY Driver"

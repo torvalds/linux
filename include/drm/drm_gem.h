@@ -143,12 +143,25 @@ struct drm_gem_object_funcs {
 	/**
 	 * @vunmap:
 	 *
-	 * Releases the the address previously returned by @vmap. Used by the
+	 * Releases the address previously returned by @vmap. Used by the
 	 * drm_gem_dmabuf_vunmap() helper.
 	 *
 	 * This callback is optional.
 	 */
 	void (*vunmap)(struct drm_gem_object *obj, void *vaddr);
+
+	/**
+	 * @mmap:
+	 *
+	 * Handle mmap() of the gem object, setup vma accordingly.
+	 *
+	 * This callback is optional.
+	 *
+	 * The callback is used by both drm_gem_mmap_obj() and
+	 * drm_gem_prime_mmap().  When @mmap is present @vm_ops is not
+	 * used, the @mmap callback must set vma->vm_ops instead.
+	 */
+	int (*mmap)(struct drm_gem_object *obj, struct vm_area_struct *vma);
 
 	/**
 	 * @vm_ops:
@@ -174,8 +187,8 @@ struct drm_gem_object {
 	 *
 	 * Reference count of this object
 	 *
-	 * Please use drm_gem_object_get() to acquire and drm_gem_object_put()
-	 * or drm_gem_object_put_unlocked() to release a reference to a GEM
+	 * Please use drm_gem_object_get() to acquire and drm_gem_object_put_locked()
+	 * or drm_gem_object_put() to release a reference to a GEM
 	 * buffer object.
 	 */
 	struct kref refcount;
@@ -259,8 +272,9 @@ struct drm_gem_object {
 	 * attachment point for the device. This is invariant over the lifetime
 	 * of a gem object.
 	 *
-	 * The &drm_driver.gem_free_object callback is responsible for cleaning
-	 * up the dma_buf attachment and references acquired at import time.
+	 * The &drm_driver.gem_free_object_unlocked callback is responsible for
+	 * cleaning up the dma_buf attachment and references acquired at import
+	 * time.
 	 *
 	 * Note that the drm gem/prime core does not depend upon drivers setting
 	 * this field any more. So for drivers where this doesn't make sense
@@ -349,29 +363,27 @@ static inline void drm_gem_object_get(struct drm_gem_object *obj)
 	kref_get(&obj->refcount);
 }
 
-/**
- * __drm_gem_object_put - raw function to release a GEM buffer object reference
- * @obj: GEM buffer object
- *
- * This function is meant to be used by drivers which are not encumbered with
- * &drm_device.struct_mutex legacy locking and which are using the
- * gem_free_object_unlocked callback. It avoids all the locking checks and
- * locking overhead of drm_gem_object_put() and drm_gem_object_put_unlocked().
- *
- * Drivers should never call this directly in their code. Instead they should
- * wrap it up into a ``driver_gem_object_put(struct driver_gem_object *obj)``
- * wrapper function, and use that. Shared code should never call this, to
- * avoid breaking drivers by accident which still depend upon
- * &drm_device.struct_mutex locking.
- */
+__attribute__((nonnull))
 static inline void
 __drm_gem_object_put(struct drm_gem_object *obj)
 {
 	kref_put(&obj->refcount, drm_gem_object_free);
 }
 
-void drm_gem_object_put_unlocked(struct drm_gem_object *obj);
-void drm_gem_object_put(struct drm_gem_object *obj);
+/**
+ * drm_gem_object_put - drop a GEM buffer object reference
+ * @obj: GEM buffer object
+ *
+ * This releases a reference to @obj.
+ */
+static inline void
+drm_gem_object_put(struct drm_gem_object *obj)
+{
+	if (obj)
+		__drm_gem_object_put(obj);
+}
+
+void drm_gem_object_put_locked(struct drm_gem_object *obj);
 
 int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,

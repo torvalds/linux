@@ -90,7 +90,7 @@ static void vfio_ap_wait_for_irqclear(int apqn)
 		case AP_RESPONSE_RESET_IN_PROGRESS:
 			if (!status.irq_enabled)
 				return;
-			/* Fall through */
+			fallthrough;
 		case AP_RESPONSE_BUSY:
 			msleep(20);
 			break;

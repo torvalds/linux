@@ -9,14 +9,8 @@ config SND_PXA2XX_SOC
 	  to select the audio interfaces to support below.
 
 config SND_MMP_SOC
-	bool "Soc Audio for Marvell MMP chips"
-	depends on ARCH_MMP
+	bool
 	select MMP_SRAM
-	select SND_SOC_GENERIC_DMAENGINE_PCM
-	select SND_ARM
-	help
-	  Say Y if you want to add support for codecs attached to
-	  the MMP SSPA interface.
 
 config SND_PXA2XX_AC97
 	tristate
@@ -39,7 +33,13 @@ config SND_PXA_SOC_SSP
 	select SND_PXA2XX_LIB
 
 config SND_MMP_SOC_SSPA
-	tristate
+	tristate "SoC Audio via MMP SSPA ports"
+	depends on ARCH_MMP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select SND_ARM
+	help
+	  Say Y if you want to add support for codecs attached to
+	  the MMP SSPA interface.
 
 config SND_PXA2XX_SOC_CORGI
 	tristate "SoC Audio support for Sharp Zaurus SL-C7x0"
@@ -81,6 +81,9 @@ config SND_PXA2XX_SOC_TOSA
 	depends on SND_PXA2XX_SOC && MACH_TOSA
 	depends on MFD_TC6393XB
 	depends on AC97_BUS=n
+	select REGMAP
+	select AC97_BUS_NEW
+	select AC97_BUS_COMPAT
 	select SND_PXA2XX_SOC_AC97
 	select SND_SOC_WM9712
 	help
@@ -91,6 +94,9 @@ config SND_PXA2XX_SOC_E740
 	tristate "SoC AC97 Audio support for e740"
 	depends on SND_PXA2XX_SOC && MACH_E740
 	depends on AC97_BUS=n
+	select REGMAP
+	select AC97_BUS_NEW
+	select AC97_BUS_COMPAT
 	select SND_SOC_WM9705
 	select SND_PXA2XX_SOC_AC97
 	help
@@ -101,6 +107,7 @@ config SND_PXA2XX_SOC_E750
 	tristate "SoC AC97 Audio support for e750"
 	depends on SND_PXA2XX_SOC && MACH_E750
 	depends on AC97_BUS=n
+	select REGMAP
 	select SND_SOC_WM9705
 	select SND_PXA2XX_SOC_AC97
 	help
@@ -111,17 +118,22 @@ config SND_PXA2XX_SOC_E800
 	tristate "SoC AC97 Audio support for e800"
 	depends on SND_PXA2XX_SOC && MACH_E800
 	depends on AC97_BUS=n
+	select REGMAP
 	select SND_SOC_WM9712
+	select AC97_BUS_NEW
+	select AC97_BUS_COMPAT
 	select SND_PXA2XX_SOC_AC97
 	help
 	  Say Y if you want to add support for SoC audio on the
 	  Toshiba e800 PDA
 
 config SND_PXA2XX_SOC_EM_X270
-	tristate "SoC Audio support for CompuLab EM-x270, eXeda and CM-X300"
-	depends on SND_PXA2XX_SOC && (MACH_EM_X270 || MACH_EXEDA || \
-			MACH_CM_X300)
+	tristate "SoC Audio support for CompuLab CM-X300"
+	depends on SND_PXA2XX_SOC && MACH_CM_X300
 	depends on AC97_BUS=n
+	select REGMAP
+	select AC97_BUS_NEW
+	select AC97_BUS_COMPAT
 	select SND_PXA2XX_SOC_AC97
 	select SND_SOC_WM9712
 	help
@@ -133,6 +145,9 @@ config SND_PXA2XX_SOC_PALM27X
 	depends on SND_PXA2XX_SOC && (MACH_PALMLD || MACH_PALMTX || \
 			MACH_PALMT5 || MACH_PALMTE2)
 	depends on AC97_BUS=n
+	select REGMAP
+	select AC97_BUS_NEW
+	select AC97_BUS_COMPAT
 	select SND_PXA2XX_SOC_AC97
 	select SND_SOC_WM9712
 	help
@@ -163,7 +178,10 @@ config SND_SOC_ZYLONITE
 	tristate "SoC Audio support for Marvell Zylonite"
 	depends on SND_PXA2XX_SOC && MACH_ZYLONITE
 	depends on AC97_BUS=n
+	select AC97_BUS_NEW
+	select AC97_BUS_COMPAT
 	select SND_PXA2XX_SOC_AC97
+	select REGMAP
 	select SND_PXA_SOC_SSP
 	select SND_SOC_WM9713
 	help
@@ -190,14 +208,17 @@ config SND_PXA2XX_SOC_MAGICIAN
 	  HTC Magician.
 
 config SND_PXA2XX_SOC_MIOA701
-        tristate "SoC Audio support for MIO A701"
-        depends on SND_PXA2XX_SOC && MACH_MIOA701
+	tristate "SoC Audio support for MIO A701"
+	depends on SND_PXA2XX_SOC && MACH_MIOA701
 	depends on AC97_BUS=n
-        select SND_PXA2XX_SOC_AC97
-        select SND_SOC_WM9713
-        help
-          Say Y if you want to add support for SoC audio on the
-          MIO A701.
+	select REGMAP
+	select AC97_BUS_NEW
+	select AC97_BUS_COMPAT
+	select SND_PXA2XX_SOC_AC97
+	select SND_SOC_WM9713
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  MIO A701.
 
 config SND_PXA2XX_SOC_IMOTE2
        tristate "SoC Audio support for IMote 2"
@@ -205,13 +226,13 @@ config SND_PXA2XX_SOC_IMOTE2
        select SND_PXA2XX_SOC_I2S
        select SND_SOC_WM8940
        help
-         Say Y if you want to add support for SoC audio on the
+	 Say Y if you want to add support for SoC audio on the
 	 IMote 2.
 
 config SND_MMP_SOC_BROWNSTONE
 	tristate "SoC Audio support for Marvell Brownstone"
-	depends on SND_MMP_SOC && MACH_BROWNSTONE && I2C
-	select SND_MMP_SOC_SSPA
+	depends on SND_MMP_SOC_SSPA && MACH_BROWNSTONE && I2C
+	select SND_MMP_SOC
 	select MFD_WM8994
 	select SND_SOC_WM8994
 	help

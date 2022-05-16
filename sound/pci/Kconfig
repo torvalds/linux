@@ -217,7 +217,7 @@ config SND_CMIPCI
 	  will be called snd-cmipci.
 
 config SND_OXYGEN_LIB
-        tristate
+	tristate
 
 config SND_OXYGEN
 	tristate "C-Media 8786, 8787, 8788 (Oxygen)"

@@ -17,7 +17,7 @@ if NEW_LEDS
 config LEDS_CLASS
 	tristate "LED Class Support"
 	help
-	  This option enables the led sysfs class in /sys/class/leds.  You'll
+	  This option enables the LED sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
 
 config LEDS_CLASS_FLASH
@@ -30,12 +30,22 @@ config LEDS_CLASS_FLASH
 	  for the flash related features of a LED device. It can be built
 	  as a module.
 
+config LEDS_CLASS_MULTICOLOR
+	tristate "LED Multicolor Class Support"
+	depends on LEDS_CLASS
+	help
+	  This option enables the multicolor LED sysfs class in /sys/class/leds.
+	  It wraps LED class and adds multicolor LED specific sysfs attributes
+	  and kernel internal API to it. You'll need this to provide support
+	  for multicolor LEDs that are grouped together. This class is not
+	  intended for single color LEDs. It can be built as a module.
+
 config LEDS_BRIGHTNESS_HW_CHANGED
 	bool "LED Class brightness_hw_changed attribute support"
 	depends on LEDS_CLASS
 	help
 	  This option enables support for the brightness_hw_changed attribute
-	  for led sysfs class devices under /sys/class/leds.
+	  for LED sysfs class devices under /sys/class/leds.
 
 	  See Documentation/ABI/testing/sysfs-class-led for details.
 
@@ -83,6 +93,17 @@ config LEDS_APU
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-apu.
 
+config LEDS_ARIEL
+	tristate "Dell Wyse 3020 status LED support"
+	depends on LEDS_CLASS
+	depends on (MACH_MMP3_DT && MFD_ENE_KB3930) || COMPILE_TEST
+	help
+	  This driver adds support for controlling the front panel status
+	  LEDs on Dell Wyse 3020 (Ariel) board via the KB3930 Embedded
+	  Controller.
+
+	  Say Y to if your machine is a Dell Wyse 3020 thin client.
+
 config LEDS_AS3645A
 	tristate "AS3645A and LM3555 LED flash controllers support"
 	depends on I2C && LEDS_CLASS_FLASH
@@ -91,6 +112,16 @@ config LEDS_AS3645A
 	  Enable LED flash class support for AS3645A LED flash
 	  controller. V4L2 flash API is provided as well if
 	  CONFIG_V4L2_FLASH_API is enabled.
+
+config LEDS_AW2013
+	tristate "LED support for Awinic AW2013"
+	depends on LEDS_CLASS && I2C && OF
+	help
+	  This option enables support for the AW2013 3-channel
+	  LED driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-aw2013.
 
 config LEDS_BCM6328
 	tristate "LED Support for Broadcom BCM6328"
@@ -131,6 +162,30 @@ config LEDS_CR0014114
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-cr0014114.
+
+config LEDS_EL15203000
+	tristate "LED Support for Crane EL15203000"
+	depends on LEDS_CLASS
+	depends on SPI
+	depends on OF
+	help
+	  This option enables support for EL15203000 LED Board
+	  (aka RED LED board) which is widely used in coffee vending
+	  machines produced by Crane Merchandising Systems.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-el15203000.
+
+config LEDS_TURRIS_OMNIA
+	tristate "LED support for CZ.NIC's Turris Omnia"
+	depends on LEDS_CLASS_MULTICOLOR
+	depends on I2C
+	depends on MACH_ARMADA_38X || COMPILE_TEST
+	depends on OF
+	help
+	  This option enables basic support for the LEDs found on the front
+	  side of CZ.NIC's Turris Omnia router. There are 12 RGB LEDs on the
+	  front panel.
 
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
@@ -219,7 +274,7 @@ config LEDS_MT6323
 config LEDS_S3C24XX
 	tristate "LED Support for Samsung S3C24XX GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on ARCH_S3C24XX
+	depends on ARCH_S3C24XX || COMPILE_TEST
 	help
 	  This option enables support for LEDs connected to GPIO lines
 	  on Samsung S3C24XX series CPUs, such as the S3C2410 and S3C2440.
@@ -249,13 +304,13 @@ config LEDS_WRAP
 config LEDS_COBALT_QUBE
 	tristate "LED Support for the Cobalt Qube series front LED"
 	depends on LEDS_CLASS
-	depends on MIPS_COBALT
+	depends on MIPS_COBALT || COMPILE_TEST
 	help
 	  This option enables support for the front LED on Cobalt Qube series
 
 config LEDS_COBALT_RAQ
 	bool "LED Support for the Cobalt Raq series"
-	depends on LEDS_CLASS=y && MIPS_COBALT
+	depends on LEDS_CLASS=y && (MIPS_COBALT || COMPILE_TEST)
 	select LEDS_TRIGGERS
 	help
 	  This option enables support for the Cobalt Raq series LEDs.
@@ -340,9 +395,23 @@ config LEDS_LP3952
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-lp3952.
 
+config LEDS_LP50XX
+	tristate "LED Support for TI LP5036/30/24/18/12/9 LED driver chip"
+	depends on LEDS_CLASS && REGMAP_I2C
+	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  LP5036, LP5030, LP5024, LP5018, LP5012 and LP5009 LED driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-lp50xx.
+
 config LEDS_LP55XX_COMMON
 	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
-	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562 || LEDS_LP8501
+	depends on LEDS_CLASS
+	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
+	depends on OF
+	depends on I2C
 	select FW_LOADER
 	select FW_LOADER_USER_HELPER
 	help
@@ -352,7 +421,7 @@ config LEDS_LP55XX_COMMON
 config LEDS_LP5521
 	tristate "LED Support for N.S. LP5521 LED driver chip"
 	depends on LEDS_CLASS && I2C
-	select LEDS_LP55XX_COMMON
+	depends on LEDS_LP55XX_COMMON
 	help
 	  If you say yes here you get support for the National Semiconductor
 	  LP5521 LED driver. It is 3 channel chip with programmable engines.
@@ -362,7 +431,7 @@ config LEDS_LP5521
 config LEDS_LP5523
 	tristate "LED Support for TI/National LP5523/55231 LED driver chip"
 	depends on LEDS_CLASS && I2C
-	select LEDS_LP55XX_COMMON
+	depends on LEDS_LP55XX_COMMON
 	help
 	  If you say yes here you get support for TI/National Semiconductor
 	  LP5523/55231 LED driver.
@@ -373,7 +442,7 @@ config LEDS_LP5523
 config LEDS_LP5562
 	tristate "LED Support for TI LP5562 LED driver chip"
 	depends on LEDS_CLASS && I2C
-	select LEDS_LP55XX_COMMON
+	depends on LEDS_LP55XX_COMMON
 	help
 	  If you say yes here you get support for TI LP5562 LED driver.
 	  It is 4 channels chip with programmable engines.
@@ -383,7 +452,7 @@ config LEDS_LP5562
 config LEDS_LP8501
 	tristate "LED Support for TI LP8501 LED driver chip"
 	depends on LEDS_CLASS && I2C
-	select LEDS_LP55XX_COMMON
+	depends on LEDS_LP55XX_COMMON
 	help
 	  If you say yes here you get support for TI LP8501 LED driver.
 	  It is 9 channel chip with programmable engines.
@@ -575,7 +644,7 @@ config LEDS_MC13783
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on MACH_KIRKWOOD || MACH_ARMADA_370
+	depends on MACH_KIRKWOOD || MACH_ARMADA_370 || COMPILE_TEST
 	default y
 	help
 	  This option enables support for the dual-GPIO LEDs found on the
@@ -589,7 +658,7 @@ config LEDS_NS2
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
 	depends on LEDS_CLASS
-	depends on MACH_KIRKWOOD
+	depends on MACH_KIRKWOOD || COMPILE_TEST
 	depends on OF_GPIO
 	default y
 	help
@@ -822,6 +891,42 @@ config LEDS_LM36274
 	help
 	  Say Y to enable the LM36274 LED driver for TI LMU devices.
 	  This supports the LED device LM36274.
+
+config LEDS_TPS6105X
+	tristate "LED support for TI TPS6105X"
+	depends on LEDS_CLASS
+	depends on TPS6105X
+	default y if TPS6105X
+	help
+	  This driver supports TPS61050/TPS61052 LED chips.
+	  It is a single boost converter primarily for white LEDs and
+	  audio amplifiers.
+
+config LEDS_IP30
+	tristate "LED support for SGI Octane machines"
+	depends on LEDS_CLASS
+	depends on SGI_MFD_IOC3 || COMPILE_TEST
+	help
+	  This option enables support for the Red and White LEDs of
+	  SGI Octane machines.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-ip30.
+
+config LEDS_SGM3140
+	tristate "LED support for the SGM3140"
+	depends on LEDS_CLASS_FLASH
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	help
+	  This option enables support for the SGM3140 500mA Buck/Boost Charge
+	  Pump LED Driver.
+
+config LEDS_ACER_A500
+	tristate "Power button LED support for Acer Iconia Tab A500"
+	depends on LEDS_CLASS && MFD_ACER_A500_EC
+	help
+	  This option enables support for the Power Button LED of
+	  Acer Iconia Tab A500.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

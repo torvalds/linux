@@ -1189,6 +1189,9 @@ int rmi_f34v7_do_reflash(struct f34_data *f34, const struct firmware *fw)
 {
 	int ret;
 
+	f34->fn->rmi_dev->driver->set_irq_bits(f34->fn->rmi_dev,
+					       f34->fn->irq_mask);
+
 	rmi_f34v7_read_queries_bl_version(f34);
 
 	f34->v7.image = fw->data;
@@ -1361,9 +1364,14 @@ int rmi_f34v7_probe(struct f34_data *f34)
 		f34->bl_version = 6;
 	} else if (f34->bootloader_id[1] == 7) {
 		f34->bl_version = 7;
+	} else if (f34->bootloader_id[1] == 8) {
+		f34->bl_version = 8;
 	} else {
-		dev_err(&f34->fn->dev, "%s: Unrecognized bootloader version\n",
-				__func__);
+		dev_err(&f34->fn->dev,
+			"%s: Unrecognized bootloader version: %d (%c) %d (%c)\n",
+			__func__,
+			f34->bootloader_id[0], f34->bootloader_id[0],
+			f34->bootloader_id[1], f34->bootloader_id[1]);
 		return -EINVAL;
 	}
 

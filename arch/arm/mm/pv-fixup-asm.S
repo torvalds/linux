@@ -6,10 +6,10 @@
  * for Keystone 2
  */
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 #include <asm/asm-offsets.h>
 #include <asm/cp15.h>
 #include <asm/memory.h>
-#include <asm/pgtable.h>
 
 	.section ".idmap.text", "ax"
 

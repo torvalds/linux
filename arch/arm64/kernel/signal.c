@@ -244,7 +244,8 @@ static int preserve_sve_context(struct sve_context __user *ctx)
 	if (vq) {
 		/*
 		 * This assumes that the SVE state has already been saved to
-		 * the task struct by calling preserve_fpsimd_context().
+		 * the task struct by calling the function
+		 * fpsimd_signal_preserve_current_state().
 		 */
 		err |= __copy_to_user((char __user *)ctx + SVE_SIG_REGS_OFFSET,
 				      current->thread.sve_state,
@@ -371,6 +372,8 @@ static int parse_user_sigframe(struct user_ctxs *user,
 			goto done;
 
 		case FPSIMD_MAGIC:
+			if (!system_supports_fpsimd())
+				goto invalid;
 			if (user->fpsimd)
 				goto invalid;
 
@@ -506,7 +509,7 @@ static int restore_sigframe(struct pt_regs *regs,
 	if (err == 0)
 		err = parse_user_sigframe(&user, sf);
 
-	if (err == 0) {
+	if (err == 0 && system_supports_fpsimd()) {
 		if (!user.fpsimd)
 			return -EINVAL;
 
@@ -623,7 +626,7 @@ static int setup_sigframe(struct rt_sigframe_user_layout *user,
 
 	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(*set));
 
-	if (err == 0) {
+	if (err == 0 && system_supports_fpsimd()) {
 		struct fpsimd_context __user *fpsimd_ctx =
 			apply_user_offset(user, user->fpsimd_offset);
 		err |= preserve_fpsimd_context(fpsimd_ctx);
@@ -730,6 +733,25 @@ static void setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 	regs->regs[29] = (unsigned long)&user->next_frame->fp;
 	regs->pc = (unsigned long)ka->sa.sa_handler;
 
+	/*
+	 * Signal delivery is a (wacky) indirect function call in
+	 * userspace, so simulate the same setting of BTYPE as a BLR
+	 * <register containing the signal handler entry point>.
+	 * Signal delivery to a location in a PROT_BTI guarded page
+	 * that is not a function entry point will now trigger a
+	 * SIGILL in userspace.
+	 *
+	 * If the signal handler entry point is not in a PROT_BTI
+	 * guarded page, this is harmless.
+	 */
+	if (system_supports_bti()) {
+		regs->pstate &= ~PSR_BTYPE_MASK;
+		regs->pstate |= PSR_BTYPE_C;
+	}
+
+	/* TCO (Tag Check Override) always cleared for signal handlers */
+	regs->pstate &= ~PSR_TCO_BIT;
+
 	if (ka->sa.sa_flags & SA_RESTORER)
 		sigtramp = ka->sa.sa_restorer;
 	else
@@ -782,7 +804,6 @@ static void setup_restart_syscall(struct pt_regs *regs)
  */
 static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
 	sigset_t *oldset = sigmask_to_save();
 	int usig = ksig->sig;
 	int ret;
@@ -806,14 +827,8 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	 */
 	ret |= !valid_user_regs(&regs->user_regs, current);
 
-	/*
-	 * Fast forward the stepping logic so we step into the signal
-	 * handler.
-	 */
-	if (!ret)
-		user_fastforward_single_step(tsk);
-
-	signal_setup_done(ret, ksig, 0);
+	/* Step into the signal handler if we are stepping */
+	signal_setup_done(ret, ksig, test_thread_flag(TIF_SINGLESTEP));
 }
 
 /*
@@ -921,11 +936,16 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 			if (thread_flags & _TIF_UPROBE)
 				uprobe_notify_resume(regs);
 
+			if (thread_flags & _TIF_MTE_ASYNC_FAULT) {
+				clear_thread_flag(TIF_MTE_ASYNC_FAULT);
+				send_sig_fault(SIGSEGV, SEGV_MTEAERR,
+					       (void __user *)NULL, current);
+			}
+
 			if (thread_flags & _TIF_SIGPENDING)
 				do_signal(regs);
 
 			if (thread_flags & _TIF_NOTIFY_RESUME) {
-				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);
 				rseq_handle_notify_resume(NULL, regs);
 			}

@@ -22,7 +22,7 @@ struct kvm_ptp_clock {
 	struct ptp_clock_info caps;
 };
 
-DEFINE_SPINLOCK(kvm_ptp_lock);
+static DEFINE_SPINLOCK(kvm_ptp_lock);
 
 static struct pvclock_vsyscall_time_info *hv_clock;
 

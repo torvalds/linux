@@ -1168,7 +1168,7 @@ EXPORT_SYMBOL(configfs_depend_item);
 
 /*
  * Release the dependent linkage.  This is much simpler than
- * configfs_depend_item() because we know that that the client driver is
+ * configfs_depend_item() because we know that the client driver is
  * pinned, thus the subsystem is pinned, and therefore configfs is pinned.
  */
 void configfs_undepend_item(struct config_item *target)
@@ -1519,6 +1519,7 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 		spin_lock(&configfs_dirent_lock);
 		configfs_detach_rollback(dentry);
 		spin_unlock(&configfs_dirent_lock);
+		config_item_put(parent_item);
 		return -EINTR;
 	}
 	frag->frag_dead = true;
@@ -1687,11 +1688,11 @@ static loff_t configfs_dir_lseek(struct file *file, loff_t offset, int whence)
 	switch (whence) {
 		case 1:
 			offset += file->f_pos;
-			/* fall through */
+			fallthrough;
 		case 0:
 			if (offset >= 0)
 				break;
-			/* fall through */
+			fallthrough;
 		default:
 			return -EINVAL;
 	}

@@ -9,7 +9,7 @@ config I2C
 	tristate "I2C support"
 	select RT_MUTEXES
 	select IRQ_DOMAIN
-	---help---
+	help
 	  I2C (pronounce: I-squared-C) is a slow serial bus protocol used in
 	  many micro controller applications and developed by Philips.  SMBus,
 	  or System Management Bus is a subset of the I2C protocol.  More
@@ -101,7 +101,6 @@ source "drivers/i2c/busses/Kconfig"
 config I2C_STUB
 	tristate "I2C/SMBus Test Stub"
 	depends on m
-	default 'n'
 	help
 	  This module may be useful to developers of SMBus client drivers,
 	  especially for certain kinds of sensor chips.
@@ -113,11 +112,26 @@ config I2C_STUB
 
 config I2C_SLAVE
 	bool "I2C slave support"
+	help
+	  This enables Linux to act as an I2C slave device. Note that your I2C
+	  bus master driver also needs to support this functionality. Please
+	  read Documentation/i2c/slave-interface.rst for further details.
 
 if I2C_SLAVE
 
 config I2C_SLAVE_EEPROM
 	tristate "I2C eeprom slave driver"
+	help
+	  This backend makes Linux behave like an I2C EEPROM. Please read
+	  Documentation/i2c/slave-eeprom-backend.rst for further details.
+
+config I2C_SLAVE_TESTUNIT
+	tristate "I2C eeprom testunit driver"
+	help
+	  This backend can be used to trigger test cases for I2C bus masters
+	  which require a remote device with certain capabilities, e.g.
+	  multi-master, SMBus Host Notify, etc. Please read
+	  Documentation/i2c/slave-testunit-backend.rst for further details.
 
 endif
 

@@ -154,11 +154,6 @@ KCONFIG_AUTOCONFIG
 This environment variable can be set to specify the path & name of the
 "auto.conf" file.  Its default value is "include/config/auto.conf".
 
-KCONFIG_TRISTATE
-----------------
-This environment variable can be set to specify the path & name of the
-"tristate.conf" file.  Its default value is "include/config/tristate.conf".
-
 KCONFIG_AUTOHEADER
 ------------------
 This environment variable can be set to specify the path & name of the

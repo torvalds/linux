@@ -458,16 +458,16 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 
 	ar_ahb->mem_len = resource_size(res);
 
-	ar_ahb->gcc_mem = ioremap_nocache(ATH10K_GCC_REG_BASE,
-					  ATH10K_GCC_REG_SIZE);
+	ar_ahb->gcc_mem = ioremap(ATH10K_GCC_REG_BASE,
+				  ATH10K_GCC_REG_SIZE);
 	if (!ar_ahb->gcc_mem) {
 		ath10k_err(ar, "gcc mem ioremap error\n");
 		ret = -ENOMEM;
 		goto err_mem_unmap;
 	}
 
-	ar_ahb->tcsr_mem = ioremap_nocache(ATH10K_TCSR_REG_BASE,
-					   ATH10K_TCSR_REG_SIZE);
+	ar_ahb->tcsr_mem = ioremap(ATH10K_TCSR_REG_BASE,
+				   ATH10K_TCSR_REG_SIZE);
 	if (!ar_ahb->tcsr_mem) {
 		ath10k_err(ar, "tcsr mem ioremap error\n");
 		ret = -ENOMEM;
@@ -820,7 +820,7 @@ err_free_irq:
 	ath10k_ahb_release_irq_legacy(ar);
 
 err_free_pipes:
-	ath10k_pci_free_pipes(ar);
+	ath10k_pci_release_resource(ar);
 
 err_resource_deinit:
 	ath10k_ahb_resource_deinit(ar);

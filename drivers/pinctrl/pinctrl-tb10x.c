@@ -747,7 +747,6 @@ static struct pinctrl_desc tb10x_pindesc = {
 static int tb10x_pinctrl_probe(struct platform_device *pdev)
 {
 	int ret = -EINVAL;
-	struct resource *mem;
 	struct device *dev = &pdev->dev;
 	struct device_node *of_node = dev->of_node;
 	struct device_node *child;
@@ -768,8 +767,7 @@ static int tb10x_pinctrl_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, state);
 	mutex_init(&state->mutex);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	state->base = devm_ioremap_resource(dev, mem);
+	state->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(state->base)) {
 		ret = PTR_ERR(state->base);
 		goto fail;

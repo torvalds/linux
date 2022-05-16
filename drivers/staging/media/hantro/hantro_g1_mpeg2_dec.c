@@ -105,17 +105,14 @@ hantro_g1_mpeg2_dec_set_buffers(struct hantro_dev *vpu, struct hantro_ctx *ctx,
 {
 	dma_addr_t forward_addr = 0, backward_addr = 0;
 	dma_addr_t current_addr, addr;
-	struct vb2_queue *vq;
-
-	vq = v4l2_m2m_get_dst_vq(ctx->fh.m2m_ctx);
 
 	switch (picture->picture_coding_type) {
 	case V4L2_MPEG2_PICTURE_CODING_TYPE_B:
-		backward_addr = hantro_get_ref(vq,
+		backward_addr = hantro_get_ref(ctx,
 					       slice_params->backward_ref_ts);
-		/* fall-through */
+		fallthrough;
 	case V4L2_MPEG2_PICTURE_CODING_TYPE_P:
-		forward_addr = hantro_get_ref(vq,
+		forward_addr = hantro_get_ref(ctx,
 					      slice_params->forward_ref_ts);
 	}
 
@@ -124,7 +121,7 @@ hantro_g1_mpeg2_dec_set_buffers(struct hantro_dev *vpu, struct hantro_ctx *ctx,
 	vdpu_write_relaxed(vpu, addr, G1_REG_RLC_VLC_BASE);
 
 	/* Destination frame buffer */
-	addr = vb2_dma_contig_plane_dma_addr(dst_buf, 0);
+	addr = hantro_get_dec_buf_addr(ctx, dst_buf);
 	current_addr = addr;
 
 	if (picture->picture_structure == PICT_BOTTOM_FIELD)
@@ -171,7 +168,7 @@ void hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
 	dst_buf = hantro_get_dst_buf(ctx);
 
 	/* Apply request controls if any */
-	hantro_prepare_run(ctx);
+	hantro_start_prepare_run(ctx);
 
 	slice_params = hantro_get_ctrl(ctx,
 				       V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS);
@@ -207,8 +204,8 @@ void hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
 	      G1_REG_DEC_AXI_WR_ID(0);
 	vdpu_write_relaxed(vpu, reg, G1_SWREG(3));
 
-	reg = G1_REG_PIC_MB_WIDTH(MPEG2_MB_WIDTH(ctx->dst_fmt.width)) |
-	      G1_REG_PIC_MB_HEIGHT_P(MPEG2_MB_HEIGHT(ctx->dst_fmt.height)) |
+	reg = G1_REG_PIC_MB_WIDTH(MB_WIDTH(ctx->dst_fmt.width)) |
+	      G1_REG_PIC_MB_HEIGHT_P(MB_HEIGHT(ctx->dst_fmt.height)) |
 	      G1_REG_ALT_SCAN_E(picture->alternate_scan) |
 	      G1_REG_TOPFIELDFIRST_E(picture->top_field_first);
 	vdpu_write_relaxed(vpu, reg, G1_SWREG(4));
@@ -247,7 +244,7 @@ void hantro_g1_mpeg2_dec_run(struct hantro_ctx *ctx)
 					&dst_buf->vb2_buf,
 					sequence, picture, slice_params);
 
-	hantro_finish_run(ctx);
+	hantro_end_prepare_run(ctx);
 
 	reg = G1_REG_DEC_E(1);
 	vdpu_write(vpu, reg, G1_SWREG(1));

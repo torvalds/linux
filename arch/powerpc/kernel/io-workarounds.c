@@ -10,10 +10,10 @@
 
 #include <linux/kernel.h>
 #include <linux/sched/mm.h>	/* for init_mm */
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/pgtable.h>
 #include <asm/ppc-pci.h>
 #include <asm/io-workarounds.h>
 #include <asm/pte-walk.h>

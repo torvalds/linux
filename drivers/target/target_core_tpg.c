@@ -32,9 +32,6 @@
 
 extern struct se_device *g_lun0_dev;
 
-static DEFINE_SPINLOCK(tpg_lock);
-static LIST_HEAD(tpg_list);
-
 /*	__core_tpg_get_initiator_node_acl():
  *
  *	mutex_lock(&tpg->acl_node_mutex); must be held when calling
@@ -475,7 +472,6 @@ int core_tpg_register(
 	se_tpg->se_tpg_wwn = se_wwn;
 	atomic_set(&se_tpg->tpg_pr_ref_count, 0);
 	INIT_LIST_HEAD(&se_tpg->acl_node_list);
-	INIT_LIST_HEAD(&se_tpg->se_tpg_node);
 	INIT_LIST_HEAD(&se_tpg->tpg_sess_list);
 	spin_lock_init(&se_tpg->session_lock);
 	mutex_init(&se_tpg->tpg_lun_mutex);
@@ -493,10 +489,6 @@ int core_tpg_register(
 			return ret;
 		}
 	}
-
-	spin_lock_bh(&tpg_lock);
-	list_add_tail(&se_tpg->se_tpg_node, &tpg_list);
-	spin_unlock_bh(&tpg_lock);
 
 	pr_debug("TARGET_CORE[%s]: Allocated portal_group for endpoint: %s, "
 		 "Proto: %d, Portal Tag: %u\n", se_tpg->se_tpg_tfo->fabric_name,
@@ -518,10 +510,6 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 		 "Proto: %d, Portal Tag: %u\n", tfo->fabric_name,
 		tfo->tpg_get_wwn(se_tpg) ? tfo->tpg_get_wwn(se_tpg) : NULL,
 		se_tpg->proto_id, tfo->tpg_get_tag(se_tpg));
-
-	spin_lock_bh(&tpg_lock);
-	list_del(&se_tpg->se_tpg_node);
-	spin_unlock_bh(&tpg_lock);
 
 	while (atomic_read(&se_tpg->tpg_pr_ref_count) != 0)
 		cpu_relax();
@@ -594,8 +582,7 @@ int core_tpg_add_lun(
 	if (ret)
 		goto out_kill_ref;
 
-	if (!(dev->transport->transport_flags &
-	     TRANSPORT_FLAG_PASSTHROUGH_ALUA) &&
+	if (!(dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA) &&
 	    !(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		target_attach_tg_pt_gp(lun, dev->t10_alua.default_tg_pt_gp);
 

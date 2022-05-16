@@ -1008,8 +1008,7 @@ int saa7134_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 */
 	if ((dmaq == &dev->video_q && !vb2_is_streaming(&dev->vbi_vbq)) ||
 	    (dmaq == &dev->vbi_q && !vb2_is_streaming(&dev->video_vbq)))
-		pm_qos_add_request(&dev->qos_request,
-			PM_QOS_CPU_DMA_LATENCY, 20);
+		cpu_latency_qos_add_request(&dev->qos_request, 20);
 	dmaq->seq_nr = 0;
 
 	return 0;
@@ -1024,7 +1023,7 @@ void saa7134_vb2_stop_streaming(struct vb2_queue *vq)
 
 	if ((dmaq == &dev->video_q && !vb2_is_streaming(&dev->vbi_vbq)) ||
 	    (dmaq == &dev->vbi_q && !vb2_is_streaming(&dev->video_vbq)))
-		pm_qos_remove_request(&dev->qos_request);
+		cpu_latency_qos_remove_request(&dev->qos_request);
 }
 
 static const struct vb2_ops vb2_qops = {
@@ -2155,9 +2154,7 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 void saa7134_video_fini(struct saa7134_dev *dev)
 {
 	/* free stuff */
-	vb2_queue_release(&dev->video_vbq);
 	saa7134_pgtable_free(dev->pci, &dev->video_q.pt);
-	vb2_queue_release(&dev->vbi_vbq);
 	saa7134_pgtable_free(dev->pci, &dev->vbi_q.pt);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	if (card_has_radio(dev))

@@ -10,6 +10,8 @@
 
 static void samsung_nand_decode_id(struct nand_chip *chip)
 {
+	struct nand_device *base = &chip->base;
+	struct nand_ecc_props requirements = {};
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_memory_organization *memorg;
 
@@ -71,23 +73,23 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 		/* Extract ECC requirements from 5th id byte*/
 		extid = (chip->id.data[4] >> 4) & 0x07;
 		if (extid < 5) {
-			chip->base.eccreq.step_size = 512;
-			chip->base.eccreq.strength = 1 << extid;
+			requirements.step_size = 512;
+			requirements.strength = 1 << extid;
 		} else {
-			chip->base.eccreq.step_size = 1024;
+			requirements.step_size = 1024;
 			switch (extid) {
 			case 5:
-				chip->base.eccreq.strength = 24;
+				requirements.strength = 24;
 				break;
 			case 6:
-				chip->base.eccreq.strength = 40;
+				requirements.strength = 40;
 				break;
 			case 7:
-				chip->base.eccreq.strength = 60;
+				requirements.strength = 60;
 				break;
 			default:
 				WARN(1, "Could not decode ECC info");
-				chip->base.eccreq.step_size = 0;
+				requirements.step_size = 0;
 			}
 		}
 	} else {
@@ -97,8 +99,8 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 			switch (chip->id.data[1]) {
 			/* K9F4G08U0D-S[I|C]B0(T00) */
 			case 0xDC:
-				chip->base.eccreq.step_size = 512;
-				chip->base.eccreq.strength = 1;
+				requirements.step_size = 512;
+				requirements.strength = 1;
 				break;
 
 			/* K9F1G08U0E 21nm chips do not support subpage write */
@@ -112,6 +114,8 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 			}
 		}
 	}
+
+	nanddev_set_ecc_requirements(base, &requirements);
 }
 
 static int samsung_nand_init(struct nand_chip *chip)

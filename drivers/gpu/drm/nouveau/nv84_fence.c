@@ -21,7 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
@@ -29,20 +28,29 @@
 
 #include "nv50_display.h"
 
+#include <nvif/push206e.h>
+
+#include <nvhw/class/cl826f.h>
+
 static int
 nv84_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
-	int ret = RING_SPACE(chan, 8);
+	struct nvif_push *push = chan->chan.push;
+	int ret = PUSH_WAIT(push, 8);
 	if (ret == 0) {
-		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
-		OUT_RING  (chan, chan->vram.handle);
-		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 5);
-		OUT_RING  (chan, upper_32_bits(virtual));
-		OUT_RING  (chan, lower_32_bits(virtual));
-		OUT_RING  (chan, sequence);
-		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG);
-		OUT_RING  (chan, 0x00000000);
-		FIRE_RING (chan);
+		PUSH_MTHD(push, NV826F, SET_CONTEXT_DMA_SEMAPHORE, chan->vram.handle);
+
+		PUSH_MTHD(push, NV826F, SEMAPHOREA,
+			  NVVAL(NV826F, SEMAPHOREA, OFFSET_UPPER, upper_32_bits(virtual)),
+
+					SEMAPHOREB, lower_32_bits(virtual),
+					SEMAPHOREC, sequence,
+
+					SEMAPHORED,
+			  NVDEF(NV826F, SEMAPHORED, OPERATION, RELEASE),
+
+					NON_STALLED_INTERRUPT, 0);
+		PUSH_KICK(push);
 	}
 	return ret;
 }
@@ -50,16 +58,20 @@ nv84_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 static int
 nv84_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
-	int ret = RING_SPACE(chan, 7);
+	struct nvif_push *push = chan->chan.push;
+	int ret = PUSH_WAIT(push, 7);
 	if (ret == 0) {
-		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
-		OUT_RING  (chan, chan->vram.handle);
-		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
-		OUT_RING  (chan, upper_32_bits(virtual));
-		OUT_RING  (chan, lower_32_bits(virtual));
-		OUT_RING  (chan, sequence);
-		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL);
-		FIRE_RING (chan);
+		PUSH_MTHD(push, NV826F, SET_CONTEXT_DMA_SEMAPHORE, chan->vram.handle);
+
+		PUSH_MTHD(push, NV826F, SEMAPHOREA,
+			  NVVAL(NV826F, SEMAPHOREA, OFFSET_UPPER, upper_32_bits(virtual)),
+
+					SEMAPHOREB, lower_32_bits(virtual),
+					SEMAPHOREC, sequence,
+
+					SEMAPHORED,
+			  NVDEF(NV826F, SEMAPHORED, OPERATION, ACQ_GEQ));
+		PUSH_KICK(push);
 	}
 	return ret;
 }
@@ -197,12 +209,13 @@ nv84_fence_create(struct nouveau_drm *drm)
 	mutex_init(&priv->mutex);
 
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
-	domain = drm->client.device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :
-			 /*
-			  * fences created in sysmem must be non-cached or we
-			  * will lose CPU/GPU coherency!
-			  */
-			 TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
+	domain = drm->client.device.info.ram_size != 0 ?
+		NOUVEAU_GEM_DOMAIN_VRAM :
+		 /*
+		  * fences created in sysmem must be non-cached or we
+		  * will lose CPU/GPU coherency!
+		  */
+		NOUVEAU_GEM_DOMAIN_GART | NOUVEAU_GEM_DOMAIN_COHERENT;
 	ret = nouveau_bo_new(&drm->client, 16 * drm->chan.nr, 0,
 			     domain, 0, 0, NULL, NULL, &priv->bo);
 	if (ret == 0) {

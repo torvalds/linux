@@ -847,8 +847,17 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	 * for a BUSY, TASK SET FULL, or RESERVATION CONFLICT status regardless
 	 * to the number of commands completed with one of those status codes.
 	 */
-	p[4] = (dev->dev_attrib.emulate_ua_intlck_ctrl == 2) ? 0x30 :
-	       (dev->dev_attrib.emulate_ua_intlck_ctrl == 1) ? 0x20 : 0x00;
+	switch (dev->dev_attrib.emulate_ua_intlck_ctrl) {
+	case TARGET_UA_INTLCK_CTRL_ESTABLISH_UA:
+		p[4] = 0x30;
+		break;
+	case TARGET_UA_INTLCK_CTRL_NO_CLEAR:
+		p[4] = 0x20;
+		break;
+	default:	/* TARGET_UA_INTLCK_CTRL_CLEAR */
+		p[4] = 0x00;
+		break;
+	}
 	/*
 	 * From spc4r17, section 7.4.6 Control mode Page
 	 *

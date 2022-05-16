@@ -78,11 +78,12 @@
 			<0xfe780010 4>,
 			<0xfe780024 4>,
 			<0xfe780044 4>,
-			<0xfe780064 4>;
-		interrupts =   <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH
-				GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH
-				GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH
-				GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			<0xfe780064 4>,
+			<0xfe780000 4>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		sense-bitfield-width = <2>;
 	};
 
@@ -141,7 +142,7 @@
 		interrupt-controller;
 	};
 
-	pfc: pin-controller@fffc0000 {
+	pfc: pinctrl@fffc0000 {
 		compatible = "renesas,pfc-r8a7778";
 		reg = <0xfffc0000 0x118>;
 	};
@@ -400,7 +401,7 @@
 		status = "disabled";
 	};
 
-	sdhi0: sd@ffe4c000 {
+	sdhi0: mmc@ffe4c000 {
 		compatible = "renesas,sdhi-r8a7778",
 			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4c000 0x100>;
@@ -410,7 +411,7 @@
 		status = "disabled";
 	};
 
-	sdhi1: sd@ffe4d000 {
+	sdhi1: mmc@ffe4d000 {
 		compatible = "renesas,sdhi-r8a7778",
 			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4d000 0x100>;
@@ -420,7 +421,7 @@
 		status = "disabled";
 	};
 
-	sdhi2: sd@ffe4f000 {
+	sdhi2: mmc@ffe4f000 {
 		compatible = "renesas,sdhi-r8a7778",
 			     "renesas,rcar-gen1-sdhi";
 		reg = <0xffe4f000 0x100>;
@@ -498,14 +499,17 @@
 		audio_clk_a: audio_clk_a {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
+			clock-frequency = <0>;
 		};
 		audio_clk_b: audio_clk_b {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
+			clock-frequency = <0>;
 		};
 		audio_clk_c: audio_clk_c {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
+			clock-frequency = <0>;
 		};
 
 		/* Fixed ratio clocks */

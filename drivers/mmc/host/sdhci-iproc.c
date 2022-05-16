@@ -261,13 +261,29 @@ static const struct sdhci_iproc_data bcm2835_data = {
 	.mmc_caps = 0x00000000,
 };
 
+static const struct sdhci_ops sdhci_iproc_bcm2711_ops = {
+	.read_l = sdhci_iproc_readl,
+	.read_w = sdhci_iproc_readw,
+	.read_b = sdhci_iproc_readb,
+	.write_l = sdhci_iproc_writel,
+	.write_w = sdhci_iproc_writew,
+	.write_b = sdhci_iproc_writeb,
+	.set_clock = sdhci_set_clock,
+	.set_power = sdhci_set_power_and_bus_voltage,
+	.get_max_clock = sdhci_iproc_get_max_clock,
+	.set_bus_width = sdhci_set_bus_width,
+	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
+};
+
 static const struct sdhci_pltfm_data sdhci_bcm2711_pltfm_data = {
 	.quirks = SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
-	.ops = &sdhci_iproc_32only_ops,
+	.ops = &sdhci_iproc_bcm2711_ops,
 };
 
 static const struct sdhci_iproc_data bcm2711_data = {
 	.pdata = &sdhci_bcm2711_pltfm_data,
+	.mmc_caps = MMC_CAP_3_3V_DDR,
 };
 
 static const struct of_device_id sdhci_iproc_of_match[] = {
@@ -279,12 +295,14 @@ static const struct of_device_id sdhci_iproc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sdhci_iproc_of_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id sdhci_iproc_acpi_ids[] = {
 	{ .id = "BRCM5871", .driver_data = (kernel_ulong_t)&iproc_cygnus_data },
 	{ .id = "BRCM5872", .driver_data = (kernel_ulong_t)&iproc_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(acpi, sdhci_iproc_acpi_ids);
+#endif
 
 static int sdhci_iproc_probe(struct platform_device *pdev)
 {
@@ -351,6 +369,7 @@ err:
 static struct platform_driver sdhci_iproc_driver = {
 	.driver = {
 		.name = "sdhci-iproc",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_iproc_of_match,
 		.acpi_match_table = ACPI_PTR(sdhci_iproc_acpi_ids),
 		.pm = &sdhci_pltfm_pmops,

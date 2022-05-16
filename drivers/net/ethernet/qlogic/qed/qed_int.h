@@ -1,33 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause) */
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #ifndef _QED_INT_H
@@ -37,14 +11,14 @@
 #include <linux/slab.h>
 #include "qed.h"
 
-/* Fields of IGU PF CONFIGRATION REGISTER */
+/* Fields of IGU PF CONFIGURATION REGISTER */
 #define IGU_PF_CONF_FUNC_EN       (0x1 << 0)    /* function enable        */
 #define IGU_PF_CONF_MSI_MSIX_EN   (0x1 << 1)    /* MSI/MSIX enable        */
 #define IGU_PF_CONF_INT_LINE_EN   (0x1 << 2)    /* INT enable             */
 #define IGU_PF_CONF_ATTN_BIT_EN   (0x1 << 3)    /* attention enable       */
 #define IGU_PF_CONF_SINGLE_ISR_EN (0x1 << 4)    /* single ISR mode enable */
 #define IGU_PF_CONF_SIMD_MODE     (0x1 << 5)    /* simd all ones mode     */
-/* Fields of IGU VF CONFIGRATION REGISTER */
+/* Fields of IGU VF CONFIGURATION REGISTER */
 #define IGU_VF_CONF_FUNC_EN        (0x1 << 0)	/* function enable        */
 #define IGU_VF_CONF_MSI_MSIX_EN    (0x1 << 1)	/* MSI/MSIX enable        */
 #define IGU_VF_CONF_SINGLE_ISR_EN  (0x1 << 4)	/* single ISR mode enable */
@@ -166,7 +140,7 @@ int qed_int_sb_release(struct qed_hwfn *p_hwfn,
  * @param p_hwfn - pointer to hwfn
  *
  */
-void qed_int_sp_dpc(unsigned long hwfn_cookie);
+void qed_int_sp_dpc(struct tasklet_struct *t);
 
 /**
  * @brief qed_int_get_num_sbs - get the number of status
@@ -189,6 +163,17 @@ void qed_int_get_num_sbs(struct qed_hwfn	*p_hwfn,
  *
  */
 void qed_int_disable_post_isr_release(struct qed_dev *cdev);
+
+/**
+ * @brief qed_int_attn_clr_enable - sets whether the general behavior is
+ *        preventing attentions from being reasserted, or following the
+ *        attributes of the specific attention.
+ *
+ * @param cdev
+ * @param clr_enable
+ *
+ */
+void qed_int_attn_clr_enable(struct qed_dev *cdev, bool clr_enable);
 
 /**
  * @brief - Doorbell Recovery handler.
@@ -431,7 +416,7 @@ int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 #define QED_MAPPING_MEMORY_SIZE(dev)	(NUM_OF_SBS(dev))
 
-int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn,
-				struct qed_ptt *p_ptt);
+int qed_pglueb_rbc_attn_handler(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+				bool hw_init);
 
 #endif

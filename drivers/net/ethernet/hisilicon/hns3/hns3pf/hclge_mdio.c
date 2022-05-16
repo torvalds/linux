@@ -134,7 +134,7 @@ int hclge_mac_mdio_config(struct hclge_dev *hdev)
 			 "no phy device is connected to mdio bus\n");
 		return 0;
 	} else if (hdev->hw.mac.phy_addr >= PHY_MAX_ADDR) {
-		dev_err(&hdev->pdev->dev, "phy_addr(%d) is too large.\n",
+		dev_err(&hdev->pdev->dev, "phy_addr(%u) is too large.\n",
 			hdev->hw.mac.phy_addr);
 		return -EINVAL;
 	}
@@ -155,7 +155,7 @@ int hclge_mac_mdio_config(struct hclge_dev *hdev)
 	ret = mdiobus_register(mdio_bus);
 	if (ret) {
 		dev_err(mdio_bus->parent,
-			"Failed to register MDIO bus ret = %#x\n", ret);
+			"failed to register MDIO bus, ret = %d\n", ret);
 		return ret;
 	}
 

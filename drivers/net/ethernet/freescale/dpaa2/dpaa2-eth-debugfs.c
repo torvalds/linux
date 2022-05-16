@@ -21,7 +21,7 @@ static int dpaa2_dbg_cpu_show(struct seq_file *file, void *offset)
 	seq_printf(file, "Per-CPU stats for %s\n", priv->net_dev->name);
 	seq_printf(file, "%s%16s%16s%16s%16s%16s%16s%16s%16s%16s\n",
 		   "CPU", "Rx", "Rx Err", "Rx SG", "Tx", "Tx Err", "Tx conf",
-		   "Tx SG", "Tx realloc", "Enq busy");
+		   "Tx SG", "Tx converted to SG", "Enq busy");
 
 	for_each_online_cpu(i) {
 		stats = per_cpu_ptr(priv->percpu_stats, i);
@@ -35,31 +35,14 @@ static int dpaa2_dbg_cpu_show(struct seq_file *file, void *offset)
 			   stats->tx_errors,
 			   extras->tx_conf_frames,
 			   extras->tx_sg_frames,
-			   extras->tx_reallocs,
+			   extras->tx_converted_sg_frames,
 			   extras->tx_portal_busy);
 	}
 
 	return 0;
 }
 
-static int dpaa2_dbg_cpu_open(struct inode *inode, struct file *file)
-{
-	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
-
-	err = single_open(file, dpaa2_dbg_cpu_show, priv);
-	if (err < 0)
-		netdev_err(priv->net_dev, "single_open() failed\n");
-
-	return err;
-}
-
-static const struct file_operations dpaa2_dbg_cpu_ops = {
-	.open = dpaa2_dbg_cpu_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_cpu);
 
 static char *fq_type_to_str(struct dpaa2_eth_fq *fq)
 {
@@ -81,8 +64,8 @@ static int dpaa2_dbg_fqs_show(struct seq_file *file, void *offset)
 	int i, err;
 
 	seq_printf(file, "FQ stats for %s:\n", priv->net_dev->name);
-	seq_printf(file, "%s%16s%16s%16s%16s\n",
-		   "VFQID", "CPU", "Type", "Frames", "Pending frames");
+	seq_printf(file, "%s%16s%16s%16s%16s%16s\n",
+		   "VFQID", "CPU", "TC", "Type", "Frames", "Pending frames");
 
 	for (i = 0; i <  priv->num_fqs; i++) {
 		fq = &priv->fq[i];
@@ -90,9 +73,14 @@ static int dpaa2_dbg_fqs_show(struct seq_file *file, void *offset)
 		if (err)
 			fcnt = 0;
 
-		seq_printf(file, "%5d%16d%16s%16llu%16u\n",
+		/* Skip FQs with no traffic */
+		if (!fq->stats.frames && !fcnt)
+			continue;
+
+		seq_printf(file, "%5d%16d%16d%16s%16llu%16u\n",
 			   fq->fqid,
 			   fq->target_cpu,
+			   fq->tc,
 			   fq_type_to_str(fq),
 			   fq->stats.frames,
 			   fcnt);
@@ -101,24 +89,7 @@ static int dpaa2_dbg_fqs_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int dpaa2_dbg_fqs_open(struct inode *inode, struct file *file)
-{
-	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
-
-	err = single_open(file, dpaa2_dbg_fqs_show, priv);
-	if (err < 0)
-		netdev_err(priv->net_dev, "single_open() failed\n");
-
-	return err;
-}
-
-static const struct file_operations dpaa2_dbg_fq_ops = {
-	.open = dpaa2_dbg_fqs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_fqs);
 
 static int dpaa2_dbg_ch_show(struct seq_file *file, void *offset)
 {
@@ -127,40 +98,26 @@ static int dpaa2_dbg_ch_show(struct seq_file *file, void *offset)
 	int i;
 
 	seq_printf(file, "Channel stats for %s:\n", priv->net_dev->name);
-	seq_printf(file, "%s%16s%16s%16s%16s\n",
-		   "CHID", "CPU", "Deq busy", "CDANs", "Buf count");
+	seq_printf(file, "%s%16s%16s%16s%16s%16s%16s\n",
+		   "CHID", "CPU", "Deq busy", "Frames", "CDANs",
+		   "Avg Frm/CDAN", "Buf count");
 
 	for (i = 0; i < priv->num_channels; i++) {
 		ch = priv->channel[i];
-		seq_printf(file, "%4d%16d%16llu%16llu%16d\n",
+		seq_printf(file, "%4d%16d%16llu%16llu%16llu%16llu%16d\n",
 			   ch->ch_id,
 			   ch->nctx.desired_cpu,
 			   ch->stats.dequeue_portal_busy,
+			   ch->stats.frames,
 			   ch->stats.cdan,
+			   div64_u64(ch->stats.frames, ch->stats.cdan),
 			   ch->buf_count);
 	}
 
 	return 0;
 }
 
-static int dpaa2_dbg_ch_open(struct inode *inode, struct file *file)
-{
-	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
-
-	err = single_open(file, dpaa2_dbg_ch_show, priv);
-	if (err < 0)
-		netdev_err(priv->net_dev, "single_open() failed\n");
-
-	return err;
-}
-
-static const struct file_operations dpaa2_dbg_ch_ops = {
-	.open = dpaa2_dbg_ch_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dpaa2_dbg_ch);
 
 void dpaa2_dbg_add(struct dpaa2_eth_priv *priv)
 {
@@ -171,13 +128,13 @@ void dpaa2_dbg_add(struct dpaa2_eth_priv *priv)
 	priv->dbg.dir = dir;
 
 	/* per-cpu stats file */
-	debugfs_create_file("cpu_stats", 0444, dir, priv, &dpaa2_dbg_cpu_ops);
+	debugfs_create_file("cpu_stats", 0444, dir, priv, &dpaa2_dbg_cpu_fops);
 
 	/* per-fq stats file */
-	debugfs_create_file("fq_stats", 0444, dir, priv, &dpaa2_dbg_fq_ops);
+	debugfs_create_file("fq_stats", 0444, dir, priv, &dpaa2_dbg_fqs_fops);
 
 	/* per-fq stats file */
-	debugfs_create_file("ch_stats", 0444, dir, priv, &dpaa2_dbg_ch_ops);
+	debugfs_create_file("ch_stats", 0444, dir, priv, &dpaa2_dbg_ch_fops);
 }
 
 void dpaa2_dbg_remove(struct dpaa2_eth_priv *priv)

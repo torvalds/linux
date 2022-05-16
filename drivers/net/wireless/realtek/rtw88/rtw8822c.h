@@ -149,6 +149,18 @@ const struct rtw_table name ## _tbl = {			\
 	le32_get_bits(*((__le32 *)(phy_stat) + 0x01), GENMASK(11, 8))
 #define GET_PHY_STAT_P1_HT_RXSC(phy_stat)                                      \
 	le32_get_bits(*((__le32 *)(phy_stat) + 0x01), GENMASK(15, 12))
+#define GET_PHY_STAT_P1_RXEVM_A(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x04), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_RXEVM_B(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x04), GENMASK(15, 8))
+#define GET_PHY_STAT_P1_CFO_TAIL_A(phy_stat)                                 \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x05), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_CFO_TAIL_B(phy_stat)                                 \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x05), GENMASK(15, 8))
+#define GET_PHY_STAT_P1_RXSNR_A(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x06), GENMASK(7, 0))
+#define GET_PHY_STAT_P1_RXSNR_B(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x06), GENMASK(15, 8))
 
 #define REG_ANAPARLDO_POW_MAC	0x0029
 #define BIT_LDOE25_PON		BIT(0)
@@ -178,6 +190,8 @@ const struct rtw_table name ## _tbl = {			\
 #define BIT_3WIRE_TX_EN		BIT(0)
 #define BIT_3WIRE_RX_EN		BIT(1)
 #define BIT_3WIRE_PI_ON		BIT(28)
+#define REG_ANAPAR_A	0x1830
+#define BIT_ANAPAR_UPDATE	BIT(29)
 #define REG_RXAGCCTL0	0x18ac
 #define BITS_RXAGC_CCK		GENMASK(15, 12)
 #define BITS_RXAGC_OFDM		GENMASK(8, 4)
@@ -211,6 +225,8 @@ const struct rtw_table name ## _tbl = {			\
 #define BIT_CCK_BLK_EN		BIT(1)
 #define BIT_CCK_OFDM_BLK_EN	(BIT(0) | BIT(1))
 #define REG_CCAMSK	0x1c80
+#define REG_RSTB	0x1c90
+#define BIT_RSTB_3WIRE		BIT(8)
 #define REG_RX_BREAK	0x1d2c
 #define BIT_COM_RX_GCK_EN	BIT(31)
 #define REG_RXFNCTL	0x1d30
@@ -231,6 +247,7 @@ const struct rtw_table name ## _tbl = {			\
 #define REG_OFDM_TXCNT	0x2de0
 #define REG_ORITXCODE2	0x4100
 #define REG_3WIRE2	0x410c
+#define REG_ANAPAR_B	0x4130
 #define REG_RXAGCCTL	0x41ac
 #define REG_DCKB_I_0	0x41bc
 #define REG_DCKB_I_1	0x41c0
@@ -292,4 +309,32 @@ const struct rtw_table name ## _tbl = {			\
 #define BIT_GS_PWSF		GENMASK(27, 0)
 #define BIT_RPT_DGAIN		GENMASK(27, 16)
 #define BIT_TX_CFIR		GENMASK(31, 30)
+
+#define PPG_THERMAL_A 0x1ef
+#define PPG_THERMAL_B 0x1b0
+#define RF_THEMAL_MASK GENMASK(19, 16)
+#define PPG_2GL_TXAB 0x1d4
+#define PPG_2GM_TXAB 0x1ee
+#define PPG_2GH_TXAB 0x1d2
+#define PPG_2G_A_MASK GENMASK(3, 0)
+#define PPG_2G_B_MASK GENMASK(7, 4)
+#define PPG_5GL1_TXA 0x1ec
+#define PPG_5GL2_TXA 0x1e8
+#define PPG_5GM1_TXA 0x1e4
+#define PPG_5GM2_TXA 0x1e0
+#define PPG_5GH1_TXA 0x1dc
+#define PPG_5GL1_TXB 0x1eb
+#define PPG_5GL2_TXB 0x1e7
+#define PPG_5GM1_TXB 0x1e3
+#define PPG_5GM2_TXB 0x1df
+#define PPG_5GH1_TXB 0x1db
+#define PPG_5G_MASK GENMASK(4, 0)
+#define PPG_PABIAS_2GA 0x1d6
+#define PPG_PABIAS_2GB 0x1d5
+#define PPG_PABIAS_5GA 0x1d8
+#define PPG_PABIAS_5GB 0x1d7
+#define PPG_PABIAS_MASK GENMASK(3, 0)
+#define RF_PABIAS_2G_MASK GENMASK(15, 12)
+#define RF_PABIAS_5G_MASK GENMASK(19, 16)
+
 #endif

@@ -333,7 +333,7 @@ void cik_sdma_enable(struct radeon_device *rdev, bool enable)
 	u32 me_cntl, reg_offset;
 	int i;
 
-	if (enable == false) {
+	if (!enable) {
 		cik_sdma_gfx_stop(rdev);
 		cik_sdma_rlc_stop(rdev);
 	}

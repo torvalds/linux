@@ -72,8 +72,8 @@ i915_gem_object_lock_fence(struct drm_i915_gem_object *obj)
 		       0, 0);
 
 	if (i915_sw_fence_await_reservation(&stub->chain,
-					    obj->base.resv, NULL,
-					    true, I915_FENCE_TIMEOUT,
+					    obj->base.resv, NULL, true,
+					    i915_fence_timeout(to_i915(obj->base.dev)),
 					    I915_FENCE_GFP) < 0)
 		goto err;
 

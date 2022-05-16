@@ -16,7 +16,7 @@
 #include "armada_fb.h"
 #include "armada_gem.h"
 
-static /*const*/ struct fb_ops armada_fb_ops = {
+static const struct fb_ops armada_fb_ops = {
 	.owner		= THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_fillrect	= drm_fb_helper_cfb_fillrect,
@@ -51,13 +51,13 @@ static int armada_fbdev_create(struct drm_fb_helper *fbh,
 
 	ret = armada_gem_linear_back(dev, obj);
 	if (ret) {
-		drm_gem_object_put_unlocked(&obj->obj);
+		drm_gem_object_put(&obj->obj);
 		return ret;
 	}
 
 	ptr = armada_gem_map_object(dev, obj);
 	if (!ptr) {
-		drm_gem_object_put_unlocked(&obj->obj);
+		drm_gem_object_put(&obj->obj);
 		return -ENOMEM;
 	}
 
@@ -67,7 +67,7 @@ static int armada_fbdev_create(struct drm_fb_helper *fbh,
 	 * A reference is now held by the framebuffer object if
 	 * successful, otherwise this drops the ref for the error path.
 	 */
-	drm_gem_object_put_unlocked(&obj->obj);
+	drm_gem_object_put(&obj->obj);
 
 	if (IS_ERR(dfb))
 		return PTR_ERR(dfb);
@@ -117,7 +117,7 @@ static const struct drm_fb_helper_funcs armada_fb_helper_funcs = {
 
 int armada_fbdev_init(struct drm_device *dev)
 {
-	struct armada_private *priv = dev->dev_private;
+	struct armada_private *priv = drm_to_armada_dev(dev);
 	struct drm_fb_helper *fbh;
 	int ret;
 
@@ -129,16 +129,10 @@ int armada_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, fbh, &armada_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, fbh, 1);
+	ret = drm_fb_helper_init(dev, fbh);
 	if (ret) {
 		DRM_ERROR("failed to initialize drm fb helper\n");
 		goto err_fb_helper;
-	}
-
-	ret = drm_fb_helper_single_add_all_connectors(fbh);
-	if (ret) {
-		DRM_ERROR("failed to add fb connectors\n");
-		goto err_fb_setup;
 	}
 
 	ret = drm_fb_helper_initial_config(fbh, 32);
@@ -157,7 +151,7 @@ int armada_fbdev_init(struct drm_device *dev)
 
 void armada_fbdev_fini(struct drm_device *dev)
 {
-	struct armada_private *priv = dev->dev_private;
+	struct armada_private *priv = drm_to_armada_dev(dev);
 	struct drm_fb_helper *fbh = priv->fbdev;
 
 	if (fbh) {

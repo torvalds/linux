@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/dma-map-ops.h>
 #include <linux/dma-direct.h>
-#include <linux/dma-debug.h>
 #include <linux/iommu.h>
 #include <linux/dmar.h>
 #include <linux/export.h>
@@ -12,7 +12,6 @@
 #include <asm/dma.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
-#include <asm/calgary.h>
 #include <asm/x86_init.h>
 #include <asm/iommu_table.h>
 
@@ -112,11 +111,6 @@ static __init int iommu_setup(char *p)
 
 		gart_parse_options(p);
 
-#ifdef CONFIG_CALGARY_IOMMU
-		if (!strncmp(p, "calgary", 7))
-			use_calgary = 1;
-#endif /* CONFIG_CALGARY_IOMMU */
-
 		p += strcspn(p, ",");
 		if (*p == ',')
 			++p;
@@ -146,7 +140,7 @@ rootfs_initcall(pci_iommu_init);
 
 static int via_no_dac_cb(struct pci_dev *pdev, void *data)
 {
-	pdev->dev.bus_dma_mask = DMA_BIT_MASK(32);
+	pdev->dev.bus_dma_limit = DMA_BIT_MASK(32);
 	return 0;
 }
 

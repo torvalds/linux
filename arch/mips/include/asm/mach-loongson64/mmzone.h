@@ -6,43 +6,17 @@
  *          Huacai Chen, chenhc@lemote.com
  *          Xiaofu Meng, Shuangshuang Zhang
  */
-#ifndef _ASM_MACH_MMZONE_H
-#define _ASM_MACH_MMZONE_H
+#ifndef _ASM_MACH_LOONGSON64_MMZONE_H
+#define _ASM_MACH_LOONGSON64_MMZONE_H
 
-#include <boot_param.h>
 #define NODE_ADDRSPACE_SHIFT 44
-#define NODE0_ADDRSPACE_OFFSET 0x000000000000UL
-#define NODE1_ADDRSPACE_OFFSET 0x100000000000UL
-#define NODE2_ADDRSPACE_OFFSET 0x200000000000UL
-#define NODE3_ADDRSPACE_OFFSET 0x300000000000UL
 
 #define pa_to_nid(addr)  (((addr) & 0xf00000000000) >> NODE_ADDRSPACE_SHIFT)
-#define nid_to_addrbase(nid) ((nid) << NODE_ADDRSPACE_SHIFT)
+#define nid_to_addrbase(nid) ((unsigned long)(nid) << NODE_ADDRSPACE_SHIFT)
 
-#define LEVELS_PER_SLICE 128
+extern struct pglist_data *__node_data[];
 
-struct slice_data {
-	unsigned long irq_enable_mask[2];
-	int level_to_irq[LEVELS_PER_SLICE];
-};
-
-struct hub_data {
-	cpumask_t	h_cpus;
-	unsigned long slice_map;
-	unsigned long irq_alloc_mask[2];
-	struct slice_data slice[2];
-};
-
-struct node_data {
-	struct pglist_data pglist;
-	struct hub_data hub;
-	cpumask_t cpumask;
-};
-
-extern struct node_data *__node_data[];
-
-#define NODE_DATA(n)		(&__node_data[(n)]->pglist)
-#define hub_data(n)		(&__node_data[(n)]->hub)
+#define NODE_DATA(n)		(__node_data[n])
 
 extern void setup_zero_pages(void);
 extern void __init prom_init_numa_memory(void);

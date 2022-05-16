@@ -3,7 +3,7 @@
  *
  * Module Name: nsdump - table dumping routines for debug
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -291,7 +291,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 					for (i = 0;
 					     (i < obj_desc->buffer.length
 					      && i < 12); i++) {
-						acpi_os_printf(" %.2hX",
+						acpi_os_printf(" %2.2X",
 							       obj_desc->buffer.
 							       pointer[i]);
 					}
@@ -404,7 +404,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		case ACPI_TYPE_LOCAL_BANK_FIELD:
 		case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
-			acpi_os_printf(" Off %.3X Len %.2X Acc %.2hd\n",
+			acpi_os_printf(" Off %.3X Len %.2X Acc %.2X\n",
 				       (obj_desc->common_field.
 					base_byte_offset * 8)
 				       +
@@ -589,8 +589,6 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 			goto cleanup;
 		}
-
-		obj_type = ACPI_TYPE_INVALID;	/* Terminate loop after next pass */
 	}
 
 cleanup:

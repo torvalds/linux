@@ -76,7 +76,7 @@ static ssize_t snd_opl4_mem_proc_write(struct snd_info_entry *entry,
 	return count;
 }
 
-static struct snd_info_entry_ops snd_opl4_mem_proc_ops = {
+static const struct snd_info_entry_ops snd_opl4_mem_proc_ops = {
 	.open = snd_opl4_mem_proc_open,
 	.release = snd_opl4_mem_proc_release,
 	.read = snd_opl4_mem_proc_read,

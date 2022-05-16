@@ -23,6 +23,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/mfd/tps6586x.h>
 #include <linux/module.h>
@@ -267,6 +268,8 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	rtc->rtc->start_secs = mktime64(2009, 1, 1, 0, 0, 0);
 	rtc->rtc->set_start_time = true;
 
+	irq_set_status_flags(rtc->irq, IRQ_NOAUTOEN);
+
 	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
 				tps6586x_rtc_irq,
 				IRQF_ONESHOT,
@@ -276,7 +279,6 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 				rtc->irq, ret);
 		goto fail_rtc_register;
 	}
-	disable_irq(rtc->irq);
 
 	ret = rtc_register_device(rtc->rtc);
 	if (ret)

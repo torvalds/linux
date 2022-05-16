@@ -18,6 +18,7 @@
 #include "psoc_mme_pll_regs.h"
 #include "psoc_pci_pll_regs.h"
 #include "psoc_emmc_pll_regs.h"
+#include "psoc_timestamp_regs.h"
 #include "cpu_if_regs.h"
 #include "cpu_ca53_cfg_regs.h"
 #include "cpu_pll_regs.h"
@@ -84,6 +85,7 @@
 #include "tpc6_rtr_regs.h"
 #include "tpc7_nrtr_regs.h"
 #include "tpc0_eml_cfg_regs.h"
+#include "psoc_etr_regs.h"
 
 #include "psoc_global_conf_masks.h"
 #include "dma_macro_masks.h"

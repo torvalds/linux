@@ -32,7 +32,6 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 
-
 #include "qlge.h"
 
 struct ql_stats {
@@ -41,7 +40,7 @@ struct ql_stats {
 	int stat_offset;
 };
 
-#define QL_SIZEOF(m) FIELD_SIZEOF(struct ql_adapter, m)
+#define QL_SIZEOF(m) sizeof_field(struct ql_adapter, m)
 #define QL_OFF(m) offsetof(struct ql_adapter, m)
 
 static const struct ql_stats ql_gstrings_stats[] = {
@@ -197,8 +196,7 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 	 */
 	cqicb = (struct cqicb *)&qdev->rx_ring[qdev->rss_ring_count];
 	if (le16_to_cpu(cqicb->irq_delay) != qdev->tx_coalesce_usecs ||
-		le16_to_cpu(cqicb->pkt_delay) !=
-				qdev->tx_max_coalesced_frames) {
+	    le16_to_cpu(cqicb->pkt_delay) != qdev->tx_max_coalesced_frames) {
 		for (i = qdev->rss_ring_count; i < qdev->rx_ring_count; i++) {
 			rx_ring = &qdev->rx_ring[i];
 			cqicb = (struct cqicb *)rx_ring;
@@ -207,7 +205,7 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 			    cpu_to_le16(qdev->tx_max_coalesced_frames);
 			cqicb->flags = FLAGS_LI;
 			status = ql_write_cfg(qdev, cqicb, sizeof(*cqicb),
-						CFG_LCQ, rx_ring->cq_id);
+					      CFG_LCQ, rx_ring->cq_id);
 			if (status) {
 				netif_err(qdev, ifup, qdev->ndev,
 					  "Failed to load CQICB.\n");
@@ -219,8 +217,7 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 	/* Update the inbound (RSS) handler queues if they changed. */
 	cqicb = (struct cqicb *)&qdev->rx_ring[0];
 	if (le16_to_cpu(cqicb->irq_delay) != qdev->rx_coalesce_usecs ||
-		le16_to_cpu(cqicb->pkt_delay) !=
-					qdev->rx_max_coalesced_frames) {
+	    le16_to_cpu(cqicb->pkt_delay) != qdev->rx_max_coalesced_frames) {
 		for (i = 0; i < qdev->rss_ring_count; i++, rx_ring++) {
 			rx_ring = &qdev->rx_ring[i];
 			cqicb = (struct cqicb *)rx_ring;
@@ -229,7 +226,7 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 			    cpu_to_le16(qdev->rx_max_coalesced_frames);
 			cqicb->flags = FLAGS_LI;
 			status = ql_write_cfg(qdev, cqicb, sizeof(*cqicb),
-						CFG_LCQ, rx_ring->cq_id);
+					      CFG_LCQ, rx_ring->cq_id);
 			if (status) {
 				netif_err(qdev, ifup, qdev->ndev,
 					  "Failed to load CQICB.\n");
@@ -262,8 +259,9 @@ static void ql_update_stats(struct ql_adapter *qdev)
 				  "Error reading status register 0x%.04x.\n",
 				  i);
 			goto end;
-		} else
+		} else {
 			*iter = data;
+		}
 		iter++;
 	}
 
@@ -276,8 +274,9 @@ static void ql_update_stats(struct ql_adapter *qdev)
 				  "Error reading status register 0x%.04x.\n",
 				  i);
 			goto end;
-		} else
+		} else {
 			*iter = data;
+		}
 		iter++;
 	}
 
@@ -293,8 +292,9 @@ static void ql_update_stats(struct ql_adapter *qdev)
 				  "Error reading status register 0x%.04x.\n",
 				  i);
 			goto end;
-		} else
+		} else {
 			*iter = data;
+		}
 		iter++;
 	}
 
@@ -307,8 +307,9 @@ static void ql_update_stats(struct ql_adapter *qdev)
 				  "Error reading status register 0x%.04x.\n",
 				  i);
 			goto end;
-		} else
+		} else {
 			*iter = data;
+		}
 		iter++;
 	}
 
@@ -319,8 +320,9 @@ static void ql_update_stats(struct ql_adapter *qdev)
 		netif_err(qdev, drv, qdev->ndev,
 			  "Error reading status register 0x%.04x.\n", i);
 		goto end;
-	} else
+	} else {
 		*iter = data;
+	}
 end:
 	ql_sem_unlock(qdev, qdev->xg_sem_mask);
 quit:
@@ -332,6 +334,7 @@ quit:
 static void ql_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	int index;
+
 	switch (stringset) {
 	case ETH_SS_TEST:
 		memcpy(buf, *ql_gstrings_test, QLGE_TEST_LEN * ETH_GSTRING_LEN);
@@ -339,8 +342,8 @@ static void ql_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 	case ETH_SS_STATS:
 		for (index = 0; index < QLGE_STATS_LEN; index++) {
 			memcpy(buf + index * ETH_GSTRING_LEN,
-				ql_gstrings_stats[index].stat_string,
-				ETH_GSTRING_LEN);
+			       ql_gstrings_stats[index].stat_string,
+			       ETH_GSTRING_LEN);
 		}
 		break;
 	}
@@ -412,6 +415,7 @@ static void ql_get_drvinfo(struct net_device *ndev,
 			   struct ethtool_drvinfo *drvinfo)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
+
 	strlcpy(drvinfo->driver, qlge_driver_name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, qlge_driver_version,
 		sizeof(drvinfo->version));
@@ -431,7 +435,7 @@ static void ql_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 
 	/* WOL is only supported for mezz card. */
 	if (ssys_dev == QLGE_MEZZ_SSYS_ID_068 ||
-			ssys_dev == QLGE_MEZZ_SSYS_ID_180) {
+	    ssys_dev == QLGE_MEZZ_SSYS_ID_180) {
 		wol->supported = WAKE_MAGIC;
 		wol->wolopts = qdev->wol;
 	}
@@ -444,9 +448,9 @@ static int ql_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 
 	/* WOL is only supported for mezz card. */
 	if (ssys_dev != QLGE_MEZZ_SSYS_ID_068 &&
-			ssys_dev != QLGE_MEZZ_SSYS_ID_180) {
+	    ssys_dev != QLGE_MEZZ_SSYS_ID_180) {
 		netif_info(qdev, drv, qdev->ndev,
-				"WOL is only supported for mezz card\n");
+			   "WOL is only supported for mezz card\n");
 		return -EOPNOTSUPP;
 	}
 	if (wol->wolopts & ~WAKE_MAGIC)
@@ -489,8 +493,9 @@ static int ql_start_loopback(struct ql_adapter *qdev)
 	if (netif_carrier_ok(qdev->ndev)) {
 		set_bit(QL_LB_LINK_UP, &qdev->flags);
 		netif_carrier_off(qdev->ndev);
-	} else
+	} else {
 		clear_bit(QL_LB_LINK_UP, &qdev->flags);
+	}
 	qdev->link_config |= CFG_LOOPBACK_PCS;
 	return ql_mb_set_port_cfg(qdev);
 }
@@ -506,25 +511,25 @@ static void ql_stop_loopback(struct ql_adapter *qdev)
 }
 
 static void ql_create_lb_frame(struct sk_buff *skb,
-					unsigned int frame_size)
+			       unsigned int frame_size)
 {
 	memset(skb->data, 0xFF, frame_size);
 	frame_size &= ~1;
 	memset(&skb->data[frame_size / 2], 0xAA, frame_size / 2 - 1);
-	memset(&skb->data[frame_size / 2 + 10], 0xBE, 1);
-	memset(&skb->data[frame_size / 2 + 12], 0xAF, 1);
+	skb->data[frame_size / 2 + 10] = (unsigned char)0xBE;
+	skb->data[frame_size / 2 + 12] = (unsigned char)0xAF;
 }
 
 void ql_check_lb_frame(struct ql_adapter *qdev,
-					struct sk_buff *skb)
+		       struct sk_buff *skb)
 {
 	unsigned int frame_size = skb->len;
 
 	if ((*(skb->data + 3) == 0xFF) &&
-		(*(skb->data + frame_size / 2 + 10) == 0xBE) &&
-		(*(skb->data + frame_size / 2 + 12) == 0xAF)) {
-			atomic_dec(&qdev->lb_count);
-			return;
+	    (*(skb->data + frame_size / 2 + 10) == 0xBE) &&
+	    (*(skb->data + frame_size / 2 + 12) == 0xAF)) {
+		atomic_dec(&qdev->lb_count);
+		return;
 	}
 }
 
@@ -566,7 +571,7 @@ out:
 }
 
 static void ql_self_test(struct net_device *ndev,
-				struct ethtool_test *eth_test, u64 *data)
+			 struct ethtool_test *eth_test, u64 *data)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
@@ -672,7 +677,7 @@ static int ql_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *c)
 }
 
 static void ql_get_pauseparam(struct net_device *netdev,
-			struct ethtool_pauseparam *pause)
+			      struct ethtool_pauseparam *pause)
 {
 	struct ql_adapter *qdev = netdev_priv(netdev);
 
@@ -684,10 +689,9 @@ static void ql_get_pauseparam(struct net_device *netdev,
 }
 
 static int ql_set_pauseparam(struct net_device *netdev,
-			struct ethtool_pauseparam *pause)
+			     struct ethtool_pauseparam *pause)
 {
 	struct ql_adapter *qdev = netdev_priv(netdev);
-	int status = 0;
 
 	if ((pause->rx_pause) && (pause->tx_pause))
 		qdev->link_config |= CFG_PAUSE_STD;
@@ -696,23 +700,26 @@ static int ql_set_pauseparam(struct net_device *netdev,
 	else
 		return -EINVAL;
 
-	status = ql_mb_set_port_cfg(qdev);
-	return status;
+	return ql_mb_set_port_cfg(qdev);
 }
 
 static u32 ql_get_msglevel(struct net_device *ndev)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
+
 	return qdev->msg_enable;
 }
 
 static void ql_set_msglevel(struct net_device *ndev, u32 value)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
+
 	qdev->msg_enable = value;
 }
 
 const struct ethtool_ops qlge_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo = ql_get_drvinfo,
 	.get_wol = ql_get_wol,
 	.set_wol = ql_set_wol,

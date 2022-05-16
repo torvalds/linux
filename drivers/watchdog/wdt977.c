@@ -398,7 +398,7 @@ static long wdt977_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 
 		wdt977_keepalive();
-		/* Fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, uarg.i);
@@ -422,6 +422,7 @@ static const struct file_operations wdt977_fops = {
 	.llseek		= no_llseek,
 	.write		= wdt977_write,
 	.unlocked_ioctl	= wdt977_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= wdt977_open,
 	.release	= wdt977_release,
 };

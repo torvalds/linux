@@ -121,7 +121,7 @@ struct sti_vtg_sync_params {
 	u32 vsync_off_bot;
 };
 
-/**
+/*
  * STI VTG structure
  *
  * @regs: register mapping
@@ -393,7 +393,7 @@ static int vtg_probe(struct platform_device *pdev)
 		DRM_ERROR("Get memory resource failed\n");
 		return -ENOMEM;
 	}
-	vtg->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	vtg->regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!vtg->regs) {
 		DRM_ERROR("failed to remap I/O memory\n");
 		return -ENOMEM;

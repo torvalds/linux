@@ -563,7 +563,7 @@ show_sas_phy_enable(struct device *dev, struct device_attribute *attr,
 {
 	struct sas_phy *phy = transport_class_to_phy(dev);
 
-	return snprintf(buf, 20, "%d", phy->enabled);
+	return snprintf(buf, 20, "%d\n", phy->enabled);
 }
 
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, show_sas_phy_enable,
@@ -1391,9 +1391,6 @@ static void sas_expander_release(struct device *dev)
 	struct sas_rphy *rphy = dev_to_rphy(dev);
 	struct sas_expander_device *edev = rphy_to_expander_device(rphy);
 
-	if (rphy->q)
-		blk_cleanup_queue(rphy->q);
-
 	put_device(dev->parent);
 	kfree(edev);
 }
@@ -1402,9 +1399,6 @@ static void sas_end_device_release(struct device *dev)
 {
 	struct sas_rphy *rphy = dev_to_rphy(dev);
 	struct sas_end_device *edev = rphy_to_end_device(rphy);
-
-	if (rphy->q)
-		blk_cleanup_queue(rphy->q);
 
 	put_device(dev->parent);
 	kfree(edev);
@@ -1532,7 +1526,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 	list_add_tail(&rphy->list, &sas_host->rphy_list);
 	if (identify->device_type == SAS_END_DEVICE &&
 	    (identify->target_port_protocols &
-	     (SAS_PROTOCOL_SSP|SAS_PROTOCOL_STP|SAS_PROTOCOL_SATA)))
+	     (SAS_PROTOCOL_SSP | SAS_PROTOCOL_STP | SAS_PROTOCOL_SATA)))
 		rphy->scsi_target_id = sas_host->next_target_id++;
 	else if (identify->device_type == SAS_END_DEVICE)
 		rphy->scsi_target_id = -1;
@@ -1634,8 +1628,7 @@ sas_rphy_remove(struct sas_rphy *rphy)
 	}
 
 	sas_rphy_unlink(rphy);
-	if (rphy->q)
-		bsg_unregister_queue(rphy->q);
+	bsg_remove_queue(rphy->q);
 	transport_remove_device(dev);
 	device_del(dev);
 }

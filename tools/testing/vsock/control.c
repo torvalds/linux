@@ -205,11 +205,22 @@ void control_expectln(const char *str)
 	char *line;
 
 	line = control_readln();
-	if (strcmp(str, line) != 0) {
+
+	control_cmpln(line, str, true);
+
+	free(line);
+}
+
+bool control_cmpln(char *line, const char *str, bool fail)
+{
+	if (strcmp(str, line) == 0)
+		return true;
+
+	if (fail) {
 		fprintf(stderr, "expected \"%s\" on control socket, got \"%s\"\n",
 			str, line);
 		exit(EXIT_FAILURE);
 	}
 
-	free(line);
+	return false;
 }

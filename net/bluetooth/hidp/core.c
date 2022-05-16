@@ -1279,7 +1279,7 @@ static int hidp_session_thread(void *arg)
 	add_wait_queue(sk_sleep(session->intr_sock->sk), &intr_wait);
 	/* This memory barrier is paired with wq_has_sleeper(). See
 	 * sock_poll_wait() for more information why this is needed. */
-	smp_mb();
+	smp_mb__before_atomic();
 
 	/* notify synchronous startup that we're ready */
 	atomic_inc(&session->state);

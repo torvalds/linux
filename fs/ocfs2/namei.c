@@ -406,7 +406,7 @@ static int ocfs2_mknod(struct inode *dir,
 
 	if (status < 0) {
 		mlog_errno(status);
-		goto leave;
+		goto roll_back;
 	}
 
 	if (si.enable) {
@@ -414,7 +414,7 @@ static int ocfs2_mknod(struct inode *dir,
 						 meta_ac, data_ac);
 		if (status < 0) {
 			mlog_errno(status);
-			goto leave;
+			goto roll_back;
 		}
 	}
 
@@ -427,7 +427,7 @@ static int ocfs2_mknod(struct inode *dir,
 					  OCFS2_I(dir)->ip_blkno);
 	if (status) {
 		mlog_errno(status);
-		goto leave;
+		goto roll_back;
 	}
 
 	dl = dentry->d_fsdata;
@@ -437,12 +437,19 @@ static int ocfs2_mknod(struct inode *dir,
 				 &lookup);
 	if (status < 0) {
 		mlog_errno(status);
-		goto leave;
+		goto roll_back;
 	}
 
 	insert_inode_hash(inode);
 	d_instantiate(dentry, inode);
 	status = 0;
+
+roll_back:
+	if (status < 0 && S_ISDIR(mode)) {
+		ocfs2_add_links_count(dirfe, -1);
+		drop_nlink(dir);
+	}
+
 leave:
 	if (status < 0 && did_quota_inode)
 		dquot_free_inode(inode);
@@ -586,8 +593,7 @@ static int __ocfs2_mknod_locked(struct inode *dir,
 			mlog_errno(status);
 	}
 
-	oi->i_sync_tid = handle->h_transaction->t_tid;
-	oi->i_datasync_tid = handle->h_transaction->t_tid;
+	ocfs2_update_inode_fsync_trans(handle, inode, 1);
 
 leave:
 	if (status < 0) {
@@ -2492,7 +2498,7 @@ int ocfs2_create_inode_in_orphan(struct inode *dir,
 	struct buffer_head *new_di_bh = NULL;
 	struct ocfs2_alloc_context *inode_ac = NULL;
 	struct ocfs2_dir_lookup_result orphan_insert = { NULL, };
-	u64 uninitialized_var(di_blkno), suballoc_loc;
+	u64 di_blkno, suballoc_loc;
 	u16 suballoc_bit;
 
 	status = ocfs2_inode_lock(dir, &parent_di_bh, 1);

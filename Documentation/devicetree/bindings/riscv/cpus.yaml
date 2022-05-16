@@ -40,24 +40,18 @@ properties:
       and identifies the type of the hart.
 
   mmu-type:
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/string"
-      - enum:
-          - riscv,sv32
-          - riscv,sv39
-          - riscv,sv48
     description:
       Identifies the MMU address translation mode used on this
       hart.  These values originate from the RISC-V Privileged
       Specification document, available from
       https://riscv.org/specifications/
+    $ref: "/schemas/types.yaml#/definitions/string"
+    enum:
+      - riscv,sv32
+      - riscv,sv39
+      - riscv,sv48
 
   riscv,isa:
-    allOf:
-      - $ref: "/schemas/types.yaml#/definitions/string"
-      - enum:
-          - rv64imac
-          - rv64imafdc
     description:
       Identifies the specific RISC-V instruction set architecture
       supported by the hart.  These are documented in the RISC-V
@@ -67,6 +61,10 @@ properties:
       While the isa strings in ISA specification are case
       insensitive, letters in the riscv,isa string must be all
       lowercase to simplify parsing.
+    $ref: "/schemas/types.yaml#/definitions/string"
+    enum:
+      - rv64imac
+      - rv64imafdc
 
   # RISC-V requires 'timebase-frequency' in /cpus, so disallow it here
   timebase-frequency: false
@@ -92,6 +90,8 @@ properties:
 required:
   - riscv,isa
   - interrupt-controller
+
+additionalProperties: true
 
 examples:
   - |

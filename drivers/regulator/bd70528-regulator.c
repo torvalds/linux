@@ -20,22 +20,22 @@
 #define BUCK_RAMPRATE_125MV 1
 #define BUCK_RAMP_MAX 250
 
-static const struct regulator_linear_range bd70528_buck1_volts[] = {
+static const struct linear_range bd70528_buck1_volts[] = {
 	REGULATOR_LINEAR_RANGE(1200000, 0x00, 0x1, 600000),
 	REGULATOR_LINEAR_RANGE(2750000, 0x2, 0xf, 50000),
 };
-static const struct regulator_linear_range bd70528_buck2_volts[] = {
+static const struct linear_range bd70528_buck2_volts[] = {
 	REGULATOR_LINEAR_RANGE(1200000, 0x00, 0x1, 300000),
 	REGULATOR_LINEAR_RANGE(1550000, 0x2, 0xd, 50000),
 	REGULATOR_LINEAR_RANGE(3000000, 0xe, 0xf, 300000),
 };
-static const struct regulator_linear_range bd70528_buck3_volts[] = {
+static const struct linear_range bd70528_buck3_volts[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0x00, 0xd, 50000),
 	REGULATOR_LINEAR_RANGE(1800000, 0xe, 0xf, 0),
 };
 
 /* All LDOs have same voltage ranges */
-static const struct regulator_linear_range bd70528_ldo_volts[] = {
+static const struct linear_range bd70528_ldo_volts[] = {
 	REGULATOR_LINEAR_RANGE(1650000, 0x0, 0x07, 50000),
 	REGULATOR_LINEAR_RANGE(2100000, 0x8, 0x0f, 100000),
 	REGULATOR_LINEAR_RANGE(2850000, 0x10, 0x19, 50000),
@@ -101,7 +101,6 @@ static const struct regulator_ops bd70528_ldo_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
-	.set_ramp_delay = bd70528_set_ramp_delay,
 };
 
 static const struct regulator_ops bd70528_led_ops = {
@@ -286,3 +285,4 @@ module_platform_driver(bd70528_regulator);
 MODULE_AUTHOR("Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>");
 MODULE_DESCRIPTION("BD70528 voltage regulator driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:bd70528-pmic");

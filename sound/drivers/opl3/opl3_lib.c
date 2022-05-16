@@ -214,7 +214,7 @@ static int snd_opl3_timer2_stop(struct snd_timer * timer)
 
  */
 
-static struct snd_timer_hardware snd_opl3_timer1 =
+static const struct snd_timer_hardware snd_opl3_timer1 =
 {
 	.flags =	SNDRV_TIMER_HW_STOP,
 	.resolution =	80000,
@@ -223,7 +223,7 @@ static struct snd_timer_hardware snd_opl3_timer1 =
 	.stop =		snd_opl3_timer1_stop,
 };
 
-static struct snd_timer_hardware snd_opl3_timer2 =
+static const struct snd_timer_hardware snd_opl3_timer2 =
 {
 	.flags =	SNDRV_TIMER_HW_STOP,
 	.resolution =	320000,
@@ -332,7 +332,7 @@ int snd_opl3_new(struct snd_card *card,
 		 unsigned short hardware,
 		 struct snd_opl3 **ropl3)
 {
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_opl3_dev_free,
 	};
 	struct snd_opl3 *opl3;

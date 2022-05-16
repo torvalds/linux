@@ -31,7 +31,7 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 				     unsigned int log_blocksize,
 				     const u8 *salt, size_t salt_size)
 {
-	const struct fsverity_hash_alg *hash_alg;
+	struct fsverity_hash_alg *hash_alg;
 	int err;
 	u64 blocks;
 	u64 offset;
@@ -102,6 +102,7 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 		/* temporarily using level_start[] to store blocks in level */
 		params->level_start[params->num_levels++] = blocks;
 	}
+	params->level0_blocks = params->level_start[0];
 
 	/* Compute the starting block of each level */
 	offset = 0;
@@ -126,7 +127,7 @@ out_err:
  * Compute the file measurement by hashing the fsverity_descriptor excluding the
  * signature and with the sig_size field set to 0.
  */
-static int compute_file_measurement(const struct fsverity_hash_alg *hash_alg,
+static int compute_file_measurement(struct fsverity_hash_alg *hash_alg,
 				    struct fsverity_descriptor *desc,
 				    u8 *measurement)
 {
@@ -220,11 +221,20 @@ out:
 void fsverity_set_info(struct inode *inode, struct fsverity_info *vi)
 {
 	/*
-	 * Multiple processes may race to set ->i_verity_info, so use cmpxchg.
-	 * This pairs with the READ_ONCE() in fsverity_get_info().
+	 * Multiple tasks may race to set ->i_verity_info, so use
+	 * cmpxchg_release().  This pairs with the smp_load_acquire() in
+	 * fsverity_get_info().  I.e., here we publish ->i_verity_info with a
+	 * RELEASE barrier so that other tasks can ACQUIRE it.
 	 */
-	if (cmpxchg(&inode->i_verity_info, NULL, vi) != NULL)
+	if (cmpxchg_release(&inode->i_verity_info, NULL, vi) != NULL) {
+		/* Lost the race, so free the fsverity_info we allocated. */
 		fsverity_free_info(vi);
+		/*
+		 * Afterwards, the caller may access ->i_verity_info directly,
+		 * so make sure to ACQUIRE the winning fsverity_info.
+		 */
+		(void)fsverity_get_info(inode);
+	}
 }
 
 void fsverity_free_info(struct fsverity_info *vi)
@@ -329,6 +339,7 @@ EXPORT_SYMBOL_GPL(fsverity_prepare_setattr);
 
 /**
  * fsverity_cleanup_inode() - free the inode's verity info, if present
+ * @inode: an inode being evicted
  *
  * Filesystems must call this on inode eviction to free ->i_verity_info.
  */

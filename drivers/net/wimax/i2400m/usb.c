@@ -195,7 +195,7 @@ retry:
 			msleep(10);	/* give the device some time */
 			goto retry;
 		}
-		/* fall through */
+		fallthrough;
 	case -EINVAL:			/* while removing driver */
 	case -ENODEV:			/* dev disconnect ... */
 	case -ENOENT:			/* just ignore it */
@@ -511,7 +511,7 @@ error_alloc_netdev:
 
 
 /*
- * Disconect a i2400m from the system.
+ * Disconnect a i2400m from the system.
  *
  * i2400m_stop() has been called before, so al the rx and tx contexts
  * have been taken down already. Make sure the queue is stopped,

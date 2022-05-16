@@ -209,9 +209,9 @@ static int decode_fhandle(struct xdr_stream *xdr, struct nfs_fh *fh)
  *		unsigned int useconds;
  *	};
  */
-static __be32 *xdr_encode_time(__be32 *p, const struct timespec *timep)
+static __be32 *xdr_encode_time(__be32 *p, const struct timespec64 *timep)
 {
-	*p++ = cpu_to_be32(timep->tv_sec);
+	*p++ = cpu_to_be32((u32)timep->tv_sec);
 	if (timep->tv_nsec != 0)
 		*p++ = cpu_to_be32(timep->tv_nsec / NSEC_PER_USEC);
 	else
@@ -227,14 +227,14 @@ static __be32 *xdr_encode_time(__be32 *p, const struct timespec *timep)
  * Illustrated" by Brent Callaghan, Addison-Wesley, ISBN 0-201-32750-5.
  */
 static __be32 *xdr_encode_current_server_time(__be32 *p,
-					      const struct timespec *timep)
+					      const struct timespec64 *timep)
 {
 	*p++ = cpu_to_be32(timep->tv_sec);
 	*p++ = cpu_to_be32(1000000);
 	return p;
 }
 
-static __be32 *xdr_decode_time(__be32 *p, struct timespec *timep)
+static __be32 *xdr_decode_time(__be32 *p, struct timespec64 *timep)
 {
 	timep->tv_sec = be32_to_cpup(p++);
 	timep->tv_nsec = be32_to_cpup(p++) * NSEC_PER_USEC;
@@ -339,7 +339,6 @@ static __be32 *xdr_time_not_set(__be32 *p)
 static void encode_sattr(struct xdr_stream *xdr, const struct iattr *attr,
 		struct user_namespace *userns)
 {
-	struct timespec ts;
 	__be32 *p;
 
 	p = xdr_reserve_space(xdr, NFS_sattr_sz << 2);
@@ -361,21 +360,17 @@ static void encode_sattr(struct xdr_stream *xdr, const struct iattr *attr,
 	else
 		*p++ = cpu_to_be32(NFS2_SATTR_NOT_SET);
 
-	if (attr->ia_valid & ATTR_ATIME_SET) {
-		ts = timespec64_to_timespec(attr->ia_atime);
-		p = xdr_encode_time(p, &ts);
-	} else if (attr->ia_valid & ATTR_ATIME) {
-		ts = timespec64_to_timespec(attr->ia_atime);
-		p = xdr_encode_current_server_time(p, &ts);
-	} else
+	if (attr->ia_valid & ATTR_ATIME_SET)
+		p = xdr_encode_time(p, &attr->ia_atime);
+	else if (attr->ia_valid & ATTR_ATIME)
+		p = xdr_encode_current_server_time(p, &attr->ia_atime);
+	else
 		p = xdr_time_not_set(p);
-	if (attr->ia_valid & ATTR_MTIME_SET) {
-		ts = timespec64_to_timespec(attr->ia_atime);
-		xdr_encode_time(p, &ts);
-	} else if (attr->ia_valid & ATTR_MTIME) {
-		ts = timespec64_to_timespec(attr->ia_mtime);
-		xdr_encode_current_server_time(p, &ts);
-	} else
+	if (attr->ia_valid & ATTR_MTIME_SET)
+		xdr_encode_time(p, &attr->ia_mtime);
+	else if (attr->ia_valid & ATTR_MTIME)
+		xdr_encode_current_server_time(p, &attr->ia_mtime);
+	else
 		xdr_time_not_set(p);
 }
 

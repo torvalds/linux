@@ -1,27 +1,27 @@
-====================
-I2C Device Interface
-====================
+============================================
+Implementing I2C device drivers in userspace
+============================================
 
-Usually, i2c devices are controlled by a kernel driver. But it is also
+Usually, I2C devices are controlled by a kernel driver. But it is also
 possible to access all devices on an adapter from userspace, through
 the /dev interface. You need to load module i2c-dev for this.
 
-Each registered i2c adapter gets a number, counting from 0. You can
+Each registered I2C adapter gets a number, counting from 0. You can
 examine /sys/class/i2c-dev/ to see what number corresponds to which adapter.
 Alternatively, you can run "i2cdetect -l" to obtain a formatted list of all
-i2c adapters present on your system at a given time. i2cdetect is part of
+I2C adapters present on your system at a given time. i2cdetect is part of
 the i2c-tools package.
 
 I2C device files are character device files with major device number 89
 and a minor device number corresponding to the number assigned as
 explained above. They should be called "i2c-%d" (i2c-0, i2c-1, ...,
-i2c-10, ...). All 256 minor device numbers are reserved for i2c.
+i2c-10, ...). All 256 minor device numbers are reserved for I2C.
 
 
 C example
 =========
 
-So let's say you want to access an i2c adapter from a C program.
+So let's say you want to access an I2C adapter from a C program.
 First, you need to include these two headers::
 
   #include <linux/i2c-dev.h>
@@ -66,7 +66,7 @@ the device supports them. Both are illustrated below::
   /* Using SMBus commands */
   res = i2c_smbus_read_word_data(file, reg);
   if (res < 0) {
-    /* ERROR HANDLING: i2c transaction failed */
+    /* ERROR HANDLING: I2C transaction failed */
   } else {
     /* res contains the read word */
   }
@@ -79,12 +79,12 @@ the device supports them. Both are illustrated below::
   buf[1] = 0x43;
   buf[2] = 0x65;
   if (write(file, buf, 3) != 3) {
-    /* ERROR HANDLING: i2c transaction failed */
+    /* ERROR HANDLING: I2C transaction failed */
   }
 
   /* Using I2C Read, equivalent of i2c_smbus_read_byte(file) */
   if (read(file, buf, 1) != 1) {
-    /* ERROR HANDLING: i2c transaction failed */
+    /* ERROR HANDLING: I2C transaction failed */
   } else {
     /* buf[0] contains the read byte */
   }
@@ -144,7 +144,7 @@ The following IOCTLs are defined:
   If possible, use the provided ``i2c_smbus_*`` methods described below instead
   of issuing direct ioctls.
 
-You can do plain i2c transactions by using read(2) and write(2) calls.
+You can do plain I2C transactions by using read(2) and write(2) calls.
 You do not need to pass the address byte; instead, set it through
 ioctl I2C_SLAVE before you try to access the device.
 
@@ -159,6 +159,8 @@ for details) through the following functions::
   __s32 i2c_smbus_read_word_data(int file, __u8 command);
   __s32 i2c_smbus_write_word_data(int file, __u8 command, __u16 value);
   __s32 i2c_smbus_process_call(int file, __u8 command, __u16 value);
+  __s32 i2c_smbus_block_process_call(int file, __u8 command, __u8 length,
+                                     __u8 *values);
   __s32 i2c_smbus_read_block_data(int file, __u8 command, __u8 *values);
   __s32 i2c_smbus_write_block_data(int file, __u8 command, __u8 length,
                                    __u8 *values);

@@ -10,6 +10,7 @@ void syscall_init(void);
 
 #ifdef CONFIG_X86_64
 void entry_SYSCALL_64(void);
+void entry_SYSCALL_64_safe_stack(void);
 long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2);
 #endif
 
@@ -25,7 +26,7 @@ void entry_SYSENTER_compat(void);
 void __end_entry_SYSENTER_compat(void);
 void entry_SYSCALL_compat(void);
 void entry_INT80_compat(void);
-#if defined(CONFIG_X86_64) && defined(CONFIG_XEN_PV)
+#ifdef CONFIG_XEN_PV
 void xen_entry_INT80_compat(void);
 #endif
 #endif

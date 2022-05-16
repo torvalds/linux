@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 /*
- * Copyright(c) 2018 Intel Corporation.
+ * Copyright(c) 2018 - 2020 Intel Corporation.
  *
  */
 
@@ -194,7 +194,7 @@ void tid_rdma_opfn_init(struct rvt_qp *qp, struct tid_rdma_params *p)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	p->qp = (kdeth_qp << 16) | priv->rcd->ctxt;
+	p->qp = (RVT_KDETH_QP_PREFIX << 16) | priv->rcd->ctxt;
 	p->max_len = TID_RDMA_MAX_SEGMENT_SIZE;
 	p->jkey = priv->rcd->jkey;
 	p->max_read = TID_RDMA_MAX_READ_SEGS_PER_REQ;
@@ -3215,6 +3215,7 @@ bool hfi1_tid_rdma_wqe_interlock(struct rvt_qp *qp, struct rvt_swqe *wqe)
 	case IB_WR_ATOMIC_CMP_AND_SWP:
 	case IB_WR_ATOMIC_FETCH_AND_ADD:
 	case IB_WR_RDMA_WRITE:
+	case IB_WR_RDMA_WRITE_WITH_IMM:
 		switch (prev->wr.opcode) {
 		case IB_WR_TID_RDMA_WRITE:
 			req = wqe_to_tid_req(prev);
@@ -3227,7 +3228,7 @@ bool hfi1_tid_rdma_wqe_interlock(struct rvt_qp *qp, struct rvt_swqe *wqe)
 	case IB_WR_RDMA_READ:
 		if (prev->wr.opcode != IB_WR_TID_RDMA_WRITE)
 			break;
-		/* fall through */
+		fallthrough;
 	case IB_WR_TID_RDMA_READ:
 		switch (prev->wr.opcode) {
 		case IB_WR_RDMA_READ:
@@ -4633,6 +4634,15 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 			 */
 			fpsn = full_flow_psn(flow, flow->flow_state.spsn);
 			req->r_ack_psn = psn;
+			/*
+			 * If resync_psn points to the last flow PSN for a
+			 * segment and the new segment (likely from a new
+			 * request) starts with a new generation number, we
+			 * need to adjust resync_psn accordingly.
+			 */
+			if (flow->flow_state.generation !=
+			    (resync_psn >> HFI1_KDETH_BTH_SEQ_SHIFT))
+				resync_psn = mask_psn(fpsn - 1);
 			flow->resync_npkts +=
 				delta_psn(mask_psn(resync_psn + 1), fpsn);
 			/*
@@ -5058,7 +5068,7 @@ int hfi1_make_tid_rdma_pkt(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		if (priv->s_state == TID_OP(WRITE_REQ))
 			hfi1_tid_rdma_restart_req(qp, wqe, &bth2);
 		priv->s_state = TID_OP(WRITE_DATA);
-		/* fall through */
+		fallthrough;
 
 	case TID_OP(WRITE_DATA):
 		/*
@@ -5397,7 +5407,10 @@ static bool _hfi1_schedule_tid_send(struct rvt_qp *qp)
 	struct hfi1_ibport *ibp =
 		to_iport(qp->ibqp.device, qp->port_num);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
+	struct hfi1_devdata *dd = ppd->dd;
+
+	if ((dd->flags & HFI1_SHUTDOWN))
+		return true;
 
 	return iowait_tid_schedule(&priv->s_iowait, ppd->hfi1_wq,
 				   priv->s_sde ?

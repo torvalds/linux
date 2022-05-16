@@ -11,6 +11,7 @@
 #include <linux/ctype.h>
 
 #include "gpiolib.h"
+#include "gpiolib-sysfs.h"
 
 #define GPIO_IRQF_TRIGGER_FALLING	BIT(0)
 #define GPIO_IRQF_TRIGGER_RISING	BIT(1)
@@ -365,7 +366,7 @@ static DEVICE_ATTR_RW(active_low);
 static umode_t gpio_is_visible(struct kobject *kobj, struct attribute *attr,
 			       int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
 	umode_t mode = attr->mode;
@@ -762,10 +763,9 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 		parent = &gdev->dev;
 
 	/* use chip->base for the ID; it's already known to be unique */
-	dev = device_create_with_groups(&gpio_class, parent,
-					MKDEV(0, 0),
-					chip, gpiochip_groups,
-					"gpiochip%d", chip->base);
+	dev = device_create_with_groups(&gpio_class, parent, MKDEV(0, 0), chip,
+					gpiochip_groups, GPIOCHIP_NAME "%d",
+					chip->base);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 

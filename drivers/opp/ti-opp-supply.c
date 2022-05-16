@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2017 Texas Instruments Incorporated - https://www.ti.com/
  *	Nishanth Menon <nm@ti.com>
  *	Dave Gerlach <d-gerlach@ti.com>
  *
@@ -90,7 +90,7 @@ static int _store_optimized_voltages(struct device *dev,
 		goto out_map;
 	}
 
-	base = ioremap_nocache(res->start, resource_size(res));
+	base = ioremap(res->start, resource_size(res));
 	if (!base) {
 		dev_err(dev, "Unable to map Efuse registers\n");
 		ret = -ENOMEM;

@@ -4,13 +4,14 @@
  * Queue Interface backend functionality
  *
  * Copyright 2013-2016 Freescale Semiconductor, Inc.
- * Copyright 2016-2017, 2019 NXP
+ * Copyright 2016-2017, 2019-2020 NXP
  */
 
 #include <linux/cpumask.h>
 #include <linux/kthread.h>
 #include <soc/fsl/qman.h>
 
+#include "debugfs.h"
 #include "regs.h"
 #include "qi.h"
 #include "desc.h"
@@ -73,15 +74,6 @@ static struct caam_qi_priv qipriv ____cacheline_aligned;
 bool caam_congested __read_mostly;
 EXPORT_SYMBOL(caam_congested);
 
-#ifdef CONFIG_DEBUG_FS
-/*
- * This is a counter for the number of times the congestion group (where all
- * the request and response queueus are) reached congestion. Incremented
- * each time the congestion callback is called with congested == true.
- */
-static u64 times_congested;
-#endif
-
 /*
  * This is a a cache of buffers, from which the users of CAAM QI driver
  * can allocate short (CAAM_QI_MEMCACHE_SIZE) buffers. It's faster than
@@ -124,8 +116,10 @@ int caam_qi_enqueue(struct device *qidev, struct caam_drv_req *req)
 
 	do {
 		ret = qman_enqueue(req->drv_ctx->req_fq, &fd);
-		if (likely(!ret))
+		if (likely(!ret)) {
+			refcount_inc(&req->drv_ctx->refcnt);
 			return 0;
+		}
 
 		if (ret != -EBUSY)
 			break;
@@ -148,15 +142,17 @@ static void caam_fq_ern_cb(struct qman_portal *qm, struct qman_fq *fq,
 
 	fd = &msg->ern.fd;
 
-	if (qm_fd_get_format(fd) != qm_fd_compound) {
-		dev_err(qidev, "Non-compound FD from CAAM\n");
-		return;
-	}
-
 	drv_req = caam_iova_to_virt(priv->domain, qm_fd_addr_get64(fd));
 	if (!drv_req) {
 		dev_err(qidev,
 			"Can't find original request for CAAM response\n");
+		return;
+	}
+
+	refcount_dec(&drv_req->drv_ctx->refcnt);
+
+	if (qm_fd_get_format(fd) != qm_fd_compound) {
+		dev_err(qidev, "Non-compound FD from CAAM\n");
 		return;
 	}
 
@@ -287,9 +283,10 @@ empty_fq:
 	return ret;
 }
 
-static int empty_caam_fq(struct qman_fq *fq)
+static int empty_caam_fq(struct qman_fq *fq, struct caam_drv_ctx *drv_ctx)
 {
 	int ret;
+	int retries = 10;
 	struct qm_mcr_queryfq_np np;
 
 	/* Wait till the older CAAM FQ get empty */
@@ -304,11 +301,18 @@ static int empty_caam_fq(struct qman_fq *fq)
 		msleep(20);
 	} while (1);
 
-	/*
-	 * Give extra time for pending jobs from this FQ in holding tanks
-	 * to get processed
-	 */
-	msleep(20);
+	/* Wait until pending jobs from this FQ are processed by CAAM */
+	do {
+		if (refcount_read(&drv_ctx->refcnt) == 1)
+			break;
+
+		msleep(20);
+	} while (--retries);
+
+	if (!retries)
+		dev_warn_once(drv_ctx->qidev, "%d frames from FQID %u still pending in CAAM\n",
+			      refcount_read(&drv_ctx->refcnt), fq->fqid);
+
 	return 0;
 }
 
@@ -340,7 +344,7 @@ int caam_drv_ctx_update(struct caam_drv_ctx *drv_ctx, u32 *sh_desc)
 	drv_ctx->req_fq = new_fq;
 
 	/* Empty and remove the older FQ */
-	ret = empty_caam_fq(old_fq);
+	ret = empty_caam_fq(old_fq, drv_ctx);
 	if (ret) {
 		dev_err(qidev, "Old CAAM FQ empty failed: %d\n", ret);
 
@@ -453,6 +457,9 @@ struct caam_drv_ctx *caam_drv_ctx_init(struct device *qidev,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	/* init reference counter used to track references to request FQ */
+	refcount_set(&drv_ctx->refcnt, 1);
+
 	drv_ctx->qidev = qidev;
 	return drv_ctx;
 }
@@ -500,9 +507,10 @@ void caam_drv_ctx_rel(struct caam_drv_ctx *drv_ctx)
 }
 EXPORT_SYMBOL(caam_drv_ctx_rel);
 
-void caam_qi_shutdown(struct device *qidev)
+static void caam_qi_shutdown(void *data)
 {
 	int i;
+	struct device *qidev = data;
 	struct caam_qi_priv *priv = &qipriv;
 	const cpumask_t *cpus = qman_affine_cpus();
 
@@ -528,9 +536,8 @@ static void cgr_cb(struct qman_portal *qm, struct qman_cgr *cgr, int congested)
 	caam_congested = congested;
 
 	if (congested) {
-#ifdef CONFIG_DEBUG_FS
-		times_congested++;
-#endif
+		caam_debugfs_qi_congested();
+
 		pr_debug_ratelimited("CAAM entered congestion\n");
 
 	} else {
@@ -570,6 +577,16 @@ static enum qman_cb_dqrr_result caam_rsp_fq_dqrr_cb(struct qman_portal *p,
 		return qman_cb_dqrr_stop;
 
 	fd = &dqrr->fd;
+
+	drv_req = caam_iova_to_virt(priv->domain, qm_fd_addr_get64(fd));
+	if (unlikely(!drv_req)) {
+		dev_err(qidev,
+			"Can't find original request for caam response\n");
+		return qman_cb_dqrr_consume;
+	}
+
+	refcount_dec(&drv_req->drv_ctx->refcnt);
+
 	status = be32_to_cpu(fd->status);
 	if (unlikely(status)) {
 		u32 ssrc = status & JRSTA_SSRC_MASK;
@@ -584,13 +601,6 @@ static enum qman_cb_dqrr_result caam_rsp_fq_dqrr_cb(struct qman_portal *p,
 
 	if (unlikely(qm_fd_get_format(fd) != qm_fd_compound)) {
 		dev_err(qidev, "Non-compound FD from CAAM\n");
-		return qman_cb_dqrr_consume;
-	}
-
-	drv_req = caam_iova_to_virt(priv->domain, qm_fd_addr_get64(fd));
-	if (unlikely(!drv_req)) {
-		dev_err(qidev,
-			"Can't find original request for caam response\n");
 		return qman_cb_dqrr_consume;
 	}
 
@@ -756,12 +766,12 @@ int caam_qi_init(struct platform_device *caam_pdev)
 		return -ENOMEM;
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	debugfs_create_file("qi_congested", 0444, ctrlpriv->ctl,
-			    &times_congested, &caam_fops_u64_ro);
-#endif
+	caam_debugfs_qi_init(ctrlpriv);
 
-	ctrlpriv->qi_init = 1;
+	err = devm_add_action_or_reset(qidev, caam_qi_shutdown, ctrlpriv);
+	if (err)
+		return err;
+
 	dev_info(qidev, "Linux CAAM Queue I/F driver initialised\n");
 	return 0;
 }

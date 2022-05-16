@@ -69,7 +69,7 @@ amdgpufb_release(struct fb_info *info, int user)
 	return 0;
 }
 
-static struct fb_ops amdgpufb_ops = {
+static const struct fb_ops amdgpufb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_open = amdgpufb_open,
@@ -114,7 +114,7 @@ static void amdgpufb_destroy_pinned_object(struct drm_gem_object *gobj)
 		amdgpu_bo_unpin(abo);
 		amdgpu_bo_unreserve(abo);
 	}
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 }
 
 static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
@@ -133,10 +133,9 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	u32 cpp;
 	u64 flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 			       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS     |
-			       AMDGPU_GEM_CREATE_VRAM_CLEARED 	     |
-			       AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+			       AMDGPU_GEM_CREATE_VRAM_CLEARED;
 
-	info = drm_get_format_info(adev->ddev, mode_cmd);
+	info = drm_get_format_info(adev_to_drm(adev), mode_cmd);
 	cpp = info->cpp[0];
 
 	/* need to align pitch with crtc limits */
@@ -232,7 +231,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 		goto out;
 	}
 
-	ret = amdgpu_display_framebuffer_init(adev->ddev, &rfbdev->rfb,
+	ret = amdgpu_display_framebuffer_init(adev_to_drm(adev), &rfbdev->rfb,
 					      &mode_cmd, gobj);
 	if (ret) {
 		DRM_ERROR("failed to initialize framebuffer %d\n", ret);
@@ -255,7 +254,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	drm_fb_helper_fill_info(info, &rfbdev->helper, sizes);
 
 	/* setup aperture base/size for vesafb takeover */
-	info->apertures->ranges[0].base = adev->ddev->mode_config.fb_base;
+	info->apertures->ranges[0].base = adev_to_drm(adev)->mode_config.fb_base;
 	info->apertures->ranges[0].size = adev->gmc.aper_size;
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
@@ -271,7 +270,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	DRM_INFO("fb depth is %d\n", fb->format->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
-	vga_switcheroo_client_fb_set(adev->ddev->pdev, info);
+	vga_switcheroo_client_fb_set(adev_to_drm(adev)->pdev, info);
 	return 0;
 
 out:
@@ -279,7 +278,7 @@ out:
 
 	}
 	if (fb && ret) {
-		drm_gem_object_put_unlocked(gobj);
+		drm_gem_object_put(gobj);
 		drm_framebuffer_unregister_private(fb);
 		drm_framebuffer_cleanup(fb);
 		kfree(fb);
@@ -319,7 +318,7 @@ int amdgpu_fbdev_init(struct amdgpu_device *adev)
 		return 0;
 
 	/* don't init fbdev if there are no connectors */
-	if (list_empty(&adev->ddev->mode_config.connector_list))
+	if (list_empty(&adev_to_drm(adev)->mode_config.connector_list))
 		return 0;
 
 	/* select 8 bpp console on low vram cards */
@@ -333,21 +332,18 @@ int amdgpu_fbdev_init(struct amdgpu_device *adev)
 	rfbdev->adev = adev;
 	adev->mode_info.rfbdev = rfbdev;
 
-	drm_fb_helper_prepare(adev->ddev, &rfbdev->helper,
-			&amdgpu_fb_helper_funcs);
+	drm_fb_helper_prepare(adev_to_drm(adev), &rfbdev->helper,
+			      &amdgpu_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(adev->ddev, &rfbdev->helper,
-				 AMDGPUFB_CONN_LIMIT);
+	ret = drm_fb_helper_init(adev_to_drm(adev), &rfbdev->helper);
 	if (ret) {
 		kfree(rfbdev);
 		return ret;
 	}
 
-	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
-
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	if (!amdgpu_device_has_dc_support(adev))
-		drm_helper_disable_unused_functions(adev->ddev);
+		drm_helper_disable_unused_functions(adev_to_drm(adev));
 
 	drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
 	return 0;
@@ -358,7 +354,7 @@ void amdgpu_fbdev_fini(struct amdgpu_device *adev)
 	if (!adev->mode_info.rfbdev)
 		return;
 
-	amdgpu_fbdev_destroy(adev->ddev, adev->mode_info.rfbdev);
+	amdgpu_fbdev_destroy(adev_to_drm(adev), adev->mode_info.rfbdev);
 	kfree(adev->mode_info.rfbdev);
 	adev->mode_info.rfbdev = NULL;
 }

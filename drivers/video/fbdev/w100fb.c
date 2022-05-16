@@ -61,9 +61,9 @@ struct w100_pll_info *w100_get_xtal_table(unsigned int freq);
 #define BITS_PER_PIXEL    16
 
 /* Remapped addresses for base cfg, memmapped regs and the frame buffer itself */
-static void *remapped_base;
-static void *remapped_regs;
-static void *remapped_fbuf;
+static void __iomem *remapped_base;
+static void __iomem *remapped_regs;
+static void __iomem *remapped_fbuf;
 
 #define REMAPPED_FB_LEN   0x15ffff
 
@@ -549,7 +549,7 @@ static int w100fb_set_par(struct fb_info *info)
 /*
  *  Frame buffer operations
  */
-static struct fb_ops w100fb_ops = {
+static const struct fb_ops w100fb_ops = {
 	.owner        = THIS_MODULE,
 	.fb_check_var = w100fb_check_var,
 	.fb_set_par   = w100fb_set_par,
@@ -588,6 +588,7 @@ static void w100fb_restore_vidmem(struct w100fb_par *par)
 		memsize=par->mach->mem->size;
 		memcpy_toio(remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), par->saved_extmem, memsize);
 		vfree(par->saved_extmem);
+		par->saved_extmem = NULL;
 	}
 	if (par->saved_intmem) {
 		memsize=MEM_INT_SIZE;
@@ -596,6 +597,7 @@ static void w100fb_restore_vidmem(struct w100fb_par *par)
 		else
 			memcpy_toio(remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE), par->saved_intmem, memsize);
 		vfree(par->saved_intmem);
+		par->saved_intmem = NULL;
 	}
 }
 
@@ -635,7 +637,7 @@ static int w100fb_resume(struct platform_device *dev)
 #endif
 
 
-int w100fb_probe(struct platform_device *pdev)
+static int w100fb_probe(struct platform_device *pdev)
 {
 	int err = -EIO;
 	struct w100fb_mach_info *inf;
@@ -648,12 +650,12 @@ int w100fb_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	/* Remap the chip base address */
-	remapped_base = ioremap_nocache(mem->start+W100_CFG_BASE, W100_CFG_LEN);
+	remapped_base = ioremap(mem->start+W100_CFG_BASE, W100_CFG_LEN);
 	if (remapped_base == NULL)
 		goto out;
 
 	/* Map the register space */
-	remapped_regs = ioremap_nocache(mem->start+W100_REG_BASE, W100_REG_LEN);
+	remapped_regs = ioremap(mem->start+W100_REG_BASE, W100_REG_LEN);
 	if (remapped_regs == NULL)
 		goto out;
 
@@ -672,7 +674,7 @@ int w100fb_probe(struct platform_device *pdev)
 	printk(" at 0x%08lx.\n", (unsigned long) mem->start+W100_CFG_BASE);
 
 	/* Remap the framebuffer */
-	remapped_fbuf = ioremap_nocache(mem->start+MEM_WINDOW_BASE, MEM_WINDOW_SIZE);
+	remapped_fbuf = ioremap(mem->start+MEM_WINDOW_BASE, MEM_WINDOW_SIZE);
 	if (remapped_fbuf == NULL)
 		goto out;
 
@@ -807,10 +809,11 @@ static int w100fb_remove(struct platform_device *pdev)
 
 static void w100_soft_reset(void)
 {
-	u16 val = readw((u16 *) remapped_base + cfgSTATUS);
-	writew(val | 0x08, (u16 *) remapped_base + cfgSTATUS);
+	u16 val = readw((u16 __iomem *)remapped_base + cfgSTATUS);
+
+	writew(val | 0x08, (u16 __iomem *)remapped_base + cfgSTATUS);
 	udelay(100);
-	writew(0x00, (u16 *) remapped_base + cfgSTATUS);
+	writew(0x00, (u16 __iomem *)remapped_base + cfgSTATUS);
 	udelay(100);
 }
 
@@ -1022,7 +1025,8 @@ struct w100_pll_info *w100_get_xtal_table(unsigned int freq)
 			return pll_entry->pll_table;
 		pll_entry++;
 	} while (pll_entry->xtal_freq);
-	return 0;
+
+	return NULL;
 }
 
 

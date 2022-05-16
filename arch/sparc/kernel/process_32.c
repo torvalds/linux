@@ -34,8 +34,6 @@
 #include <asm/oplib.h>
 #include <linux/uaccess.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/delay.h>
 #include <asm/processor.h>
 #include <asm/psr.h>
@@ -76,7 +74,7 @@ void arch_cpu_idle(void)
 {
 	if (sparc_idle)
 		(*sparc_idle)();
-	local_irq_enable();
+	raw_local_irq_enable();
 }
 
 /* XXX cli/sti -> local_irq_xxx here, check this works once SMP is fixed. */
@@ -145,10 +143,10 @@ void show_regs(struct pt_regs *r)
 }
 
 /*
- * The show_stack is an external API which we do not use ourselves.
+ * The show_stack() is external API which we do not use ourselves.
  * The oops is printed in die_if_kernel.
  */
-void show_stack(struct task_struct *tsk, unsigned long *_ksp)
+void show_stack(struct task_struct *tsk, unsigned long *_ksp, const char *loglvl)
 {
 	unsigned long pc, fp;
 	unsigned long task_base;
@@ -170,11 +168,11 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 			break;
 		rw = (struct reg_window32 *) fp;
 		pc = rw->ins[7];
-		printk("[%08lx : ", pc);
-		printk("%pS ] ", (void *) pc);
+		printk("%s[%08lx : ", loglvl, pc);
+		printk("%s%pS ] ", loglvl, (void *) pc);
 		fp = rw->ins[6];
 	} while (++count < 16);
-	printk("\n");
+	printk("%s\n", loglvl);
 }
 
 /*
@@ -258,33 +256,6 @@ clone_stackframe(struct sparc_stackf __user *dst,
 	return sp;
 }
 
-asmlinkage int sparc_do_fork(unsigned long clone_flags,
-                             unsigned long stack_start,
-                             struct pt_regs *regs,
-                             unsigned long stack_size)
-{
-	unsigned long parent_tid_ptr, child_tid_ptr;
-	unsigned long orig_i1 = regs->u_regs[UREG_I1];
-	long ret;
-
-	parent_tid_ptr = regs->u_regs[UREG_I2];
-	child_tid_ptr = regs->u_regs[UREG_I4];
-
-	ret = do_fork(clone_flags, stack_start, stack_size,
-		      (int __user *) parent_tid_ptr,
-		      (int __user *) child_tid_ptr);
-
-	/* If we get an error and potentially restart the system
-	 * call, we're screwed because copy_thread() clobbered
-	 * the parent's %o1.  So detect that case and restore it
-	 * here.
-	 */
-	if ((unsigned long)ret >= -ERESTART_RESTARTBLOCK)
-		regs->u_regs[UREG_I1] = orig_i1;
-
-	return ret;
-}
-
 /* Copy a Sparc thread.  The fork() return value conventions
  * under SunOS are nothing short of bletcherous:
  * Parent -->  %o0 == childs  pid, %o1 == 0
@@ -301,8 +272,8 @@ asmlinkage int sparc_do_fork(unsigned long clone_flags,
 extern void ret_from_fork(void);
 extern void ret_from_kernel_thread(void);
 
-int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long arg, struct task_struct *p)
+int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
+		struct task_struct *p, unsigned long tls)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs, *regs = current_pt_regs();
@@ -404,58 +375,9 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	regs->u_regs[UREG_I1] = 0;
 
 	if (clone_flags & CLONE_SETTLS)
-		childregs->u_regs[UREG_G7] = regs->u_regs[UREG_I3];
+		childregs->u_regs[UREG_G7] = tls;
 
 	return 0;
-}
-
-/*
- * fill in the fpu structure for a core dump.
- */
-int dump_fpu (struct pt_regs * regs, elf_fpregset_t * fpregs)
-{
-	if (used_math()) {
-		memset(fpregs, 0, sizeof(*fpregs));
-		fpregs->pr_q_entrysize = 8;
-		return 1;
-	}
-#ifdef CONFIG_SMP
-	if (test_thread_flag(TIF_USEDFPU)) {
-		put_psr(get_psr() | PSR_EF);
-		fpsave(&current->thread.float_regs[0], &current->thread.fsr,
-		       &current->thread.fpqueue[0], &current->thread.fpqdepth);
-		if (regs != NULL) {
-			regs->psr &= ~(PSR_EF);
-			clear_thread_flag(TIF_USEDFPU);
-		}
-	}
-#else
-	if (current == last_task_used_math) {
-		put_psr(get_psr() | PSR_EF);
-		fpsave(&current->thread.float_regs[0], &current->thread.fsr,
-		       &current->thread.fpqueue[0], &current->thread.fpqdepth);
-		if (regs != NULL) {
-			regs->psr &= ~(PSR_EF);
-			last_task_used_math = NULL;
-		}
-	}
-#endif
-	memcpy(&fpregs->pr_fr.pr_regs[0],
-	       &current->thread.float_regs[0],
-	       (sizeof(unsigned long) * 32));
-	fpregs->pr_fsr = current->thread.fsr;
-	fpregs->pr_qcnt = current->thread.fpqdepth;
-	fpregs->pr_q_entrysize = 8;
-	fpregs->pr_en = 1;
-	if(fpregs->pr_qcnt != 0) {
-		memcpy(&fpregs->pr_q[0],
-		       &current->thread.fpqueue[0],
-		       sizeof(struct fpq) * fpregs->pr_qcnt);
-	}
-	/* Zero out the rest. */
-	memset(&fpregs->pr_q[fpregs->pr_qcnt], 0,
-	       sizeof(struct fpq) * (32 - fpregs->pr_qcnt));
-	return 1;
 }
 
 unsigned long get_wchan(struct task_struct *task)

@@ -290,7 +290,7 @@ static void mmp_pdma_free_phy(struct mmp_pdma_chan *pchan)
 	spin_unlock_irqrestore(&pdev->phy_lock, flags);
 }
 
-/**
+/*
  * start_pending_queue - transfer any pending transactions
  * pending list ==> running list
  */
@@ -381,7 +381,7 @@ mmp_pdma_alloc_descriptor(struct mmp_pdma_chan *chan)
 	return desc;
 }
 
-/**
+/*
  * mmp_pdma_alloc_chan_resources - Allocate resources for DMA channel.
  *
  * This function will create a dma pool for descriptor allocation.
@@ -854,7 +854,7 @@ static enum dma_status mmp_pdma_tx_status(struct dma_chan *dchan,
 	return ret;
 }
 
-/**
+/*
  * mmp_pdma_issue_pending - Issue the DMA start command
  * pending list ==> running list
  */
@@ -873,9 +873,9 @@ static void mmp_pdma_issue_pending(struct dma_chan *dchan)
  * Do call back
  * Start pending list
  */
-static void dma_do_tasklet(unsigned long data)
+static void dma_do_tasklet(struct tasklet_struct *t)
 {
-	struct mmp_pdma_chan *chan = (struct mmp_pdma_chan *)data;
+	struct mmp_pdma_chan *chan = from_tasklet(chan, t, tasklet);
 	struct mmp_pdma_desc_sw *desc, *_desc;
 	LIST_HEAD(chain_cleanup);
 	unsigned long flags;
@@ -945,6 +945,8 @@ static int mmp_pdma_remove(struct platform_device *op)
 	struct mmp_pdma_phy *phy;
 	int i, irq = 0, irq_num = 0;
 
+	if (op->dev.of_node)
+		of_dma_controller_free(op->dev.of_node);
 
 	for (i = 0; i < pdev->dma_channels; i++) {
 		if (platform_get_irq(op, i) > 0)
@@ -991,7 +993,7 @@ static int mmp_pdma_chan_init(struct mmp_pdma_device *pdev, int idx, int irq)
 	spin_lock_init(&chan->desc_lock);
 	chan->dev = pdev->dev;
 	chan->chan.device = &pdev->device;
-	tasklet_init(&chan->tasklet, dma_do_tasklet, (unsigned long)chan);
+	tasklet_setup(&chan->tasklet, dma_do_tasklet);
 	INIT_LIST_HEAD(&chan->chain_pending);
 	INIT_LIST_HEAD(&chan->chain_running);
 
@@ -1058,7 +1060,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 	pdev->dma_channels = dma_channels;
 
 	for (i = 0; i < dma_channels; i++) {
-		if (platform_get_irq(op, i) > 0)
+		if (platform_get_irq_optional(op, i) > 0)
 			irq_num++;
 	}
 

@@ -1122,7 +1122,7 @@ static int __init erst_init(void)
 	rc = erst_check_table(erst_tab);
 	if (rc) {
 		pr_err(FW_BUG "ERST table is invalid.\n");
-		goto err;
+		goto err_put_erst_tab;
 	}
 
 	apei_resources_init(&erst_resources);
@@ -1196,6 +1196,8 @@ err_release:
 	apei_resources_release(&erst_resources);
 err_fini:
 	apei_resources_fini(&erst_resources);
+err_put_erst_tab:
+	acpi_put_table((struct acpi_table_header *)erst_tab);
 err:
 	erst_disable = 1;
 	return rc;

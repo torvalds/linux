@@ -313,7 +313,7 @@ static ssize_t show_value(struct device *dev, struct device_attribute *attr,
 
 			while (i < ret) {
 				if (i + attribute->size > ret) {
-					len += snprintf(&buf[len],
+					len += scnprintf(&buf[len],
 							PAGE_SIZE - len,
 							"%d ", values[i]);
 					break;
@@ -336,10 +336,10 @@ static ssize_t show_value(struct device *dev, struct device_attribute *attr,
 					++i;
 					break;
 				}
-				len += snprintf(&buf[len], PAGE_SIZE - len,
+				len += scnprintf(&buf[len], PAGE_SIZE - len,
 						"%lld ", value);
 			}
-			len += snprintf(&buf[len], PAGE_SIZE - len, "\n");
+			len += scnprintf(&buf[len], PAGE_SIZE - len, "\n");
 
 			return len;
 		} else if (input)

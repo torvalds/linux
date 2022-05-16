@@ -181,14 +181,9 @@ enum ramfs_param {
 	Opt_mode,
 };
 
-static const struct fs_parameter_spec ramfs_param_specs[] = {
+const struct fs_parameter_spec ramfs_fs_parameters[] = {
 	fsparam_u32oct("mode",	Opt_mode),
 	{}
-};
-
-const struct fs_parameter_description ramfs_fs_parameters = {
-	.name		= "ramfs",
-	.specs		= ramfs_param_specs,
 };
 
 static int ramfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
@@ -197,7 +192,7 @@ static int ramfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct ramfs_fs_info *fsi = fc->s_fs_info;
 	int opt;
 
-	opt = fs_parse(fc, &ramfs_fs_parameters, param, &result);
+	opt = fs_parse(fc, ramfs_fs_parameters, param, &result);
 	if (opt < 0) {
 		/*
 		 * We might like to report bad mount options here;
@@ -278,7 +273,7 @@ static void ramfs_kill_sb(struct super_block *sb)
 static struct file_system_type ramfs_fs_type = {
 	.name		= "ramfs",
 	.init_fs_context = ramfs_init_fs_context,
-	.parameters	= &ramfs_fs_parameters,
+	.parameters	= ramfs_fs_parameters,
 	.kill_sb	= ramfs_kill_sb,
 	.fs_flags	= FS_USERNS_MOUNT,
 };

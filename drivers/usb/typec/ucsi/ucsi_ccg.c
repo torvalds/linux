@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/usb/typec_dp.h>
 
 #include <asm/unaligned.h>
 #include "ucsi.h"
@@ -124,6 +125,10 @@ struct version_format {
 #define CCG_FW_BUILD_NVIDIA	(('n' << 8) | 'v')
 #define CCG_OLD_FW_VERSION	(CCG_VERSION(0x31) | CCG_VERSION_PATCH(10))
 
+/* Altmode offset for NVIDIA Function Test Board (FTB) */
+#define NVIDIA_FTB_DP_OFFSET	(2)
+#define NVIDIA_FTB_DBG_OFFSET	(3)
+
 struct version_info {
 	struct version_format base;
 	struct version_format app;
@@ -173,11 +178,20 @@ struct ccg_resp {
 	u8 length;
 };
 
+struct ucsi_ccg_altmode {
+	u16 svid;
+	u32 mid;
+	u8 linked_idx;
+	u8 active_idx;
+#define UCSI_MULTI_DP_INDEX	(0xff)
+	bool checked;
+} __packed;
+
 struct ucsi_ccg {
 	struct device *dev;
 	struct ucsi *ucsi;
-	struct ucsi_ppm ppm;
 	struct i2c_client *client;
+
 	struct ccg_dev_info info;
 	/* version info for boot, primary and secondary */
 	struct version_info version[FW2 + 1];
@@ -196,6 +210,13 @@ struct ucsi_ccg {
 	/* fw build with vendor information */
 	u16 fw_build;
 	struct work_struct pm_work;
+
+	struct completion complete;
+
+	u64 last_cmd_sent;
+	bool has_multiple_dp;
+	struct ucsi_ccg_altmode orig[UCSI_MAX_ALTMODES];
+	struct ucsi_ccg_altmode updated[UCSI_MAX_ALTMODES];
 };
 
 static int ccg_read(struct ucsi_ccg *uc, u16 rab, u8 *data, u32 len)
@@ -243,7 +264,7 @@ static int ccg_read(struct ucsi_ccg *uc, u16 rab, u8 *data, u32 len)
 	return 0;
 }
 
-static int ccg_write(struct ucsi_ccg *uc, u16 rab, u8 *data, u32 len)
+static int ccg_write(struct ucsi_ccg *uc, u16 rab, const u8 *data, u32 len)
 {
 	struct i2c_client *client = uc->client;
 	unsigned char *buf;
@@ -317,88 +338,298 @@ static int ucsi_ccg_init(struct ucsi_ccg *uc)
 	return -ETIMEDOUT;
 }
 
-static int ucsi_ccg_send_data(struct ucsi_ccg *uc)
+static void ucsi_ccg_update_get_current_cam_cmd(struct ucsi_ccg *uc, u8 *data)
 {
-	u8 *ppm = (u8 *)uc->ppm.data;
-	int status;
-	u16 rab;
+	u8 cam, new_cam;
 
-	rab = CCGX_RAB_UCSI_DATA_BLOCK(offsetof(struct ucsi_data, message_out));
-	status = ccg_write(uc, rab, ppm +
-			   offsetof(struct ucsi_data, message_out),
-			   sizeof(uc->ppm.data->message_out));
-	if (status < 0)
-		return status;
-
-	rab = CCGX_RAB_UCSI_DATA_BLOCK(offsetof(struct ucsi_data, ctrl));
-	return ccg_write(uc, rab, ppm + offsetof(struct ucsi_data, ctrl),
-			 sizeof(uc->ppm.data->ctrl));
+	cam = data[0];
+	new_cam = uc->orig[cam].linked_idx;
+	uc->updated[new_cam].active_idx = cam;
+	data[0] = new_cam;
 }
 
-static int ucsi_ccg_recv_data(struct ucsi_ccg *uc)
+static bool ucsi_ccg_update_altmodes(struct ucsi *ucsi,
+				     struct ucsi_altmode *orig,
+				     struct ucsi_altmode *updated)
 {
-	u8 *ppm = (u8 *)uc->ppm.data;
-	int status;
-	u16 rab;
+	struct ucsi_ccg *uc = ucsi_get_drvdata(ucsi);
+	struct ucsi_ccg_altmode *alt, *new_alt;
+	int i, j, k = 0;
+	bool found = false;
 
-	rab = CCGX_RAB_UCSI_DATA_BLOCK(offsetof(struct ucsi_data, cci));
-	status = ccg_read(uc, rab, ppm + offsetof(struct ucsi_data, cci),
-			  sizeof(uc->ppm.data->cci));
-	if (status < 0)
-		return status;
+	alt = uc->orig;
+	new_alt = uc->updated;
+	memset(uc->updated, 0, sizeof(uc->updated));
 
-	rab = CCGX_RAB_UCSI_DATA_BLOCK(offsetof(struct ucsi_data, message_in));
-	return ccg_read(uc, rab, ppm + offsetof(struct ucsi_data, message_in),
-			sizeof(uc->ppm.data->message_in));
+	/*
+	 * Copy original connector altmodes to new structure.
+	 * We need this before second loop since second loop
+	 * checks for duplicate altmodes.
+	 */
+	for (i = 0; i < UCSI_MAX_ALTMODES; i++) {
+		alt[i].svid = orig[i].svid;
+		alt[i].mid = orig[i].mid;
+		if (!alt[i].svid)
+			break;
+	}
+
+	for (i = 0; i < UCSI_MAX_ALTMODES; i++) {
+		if (!alt[i].svid)
+			break;
+
+		/* already checked and considered */
+		if (alt[i].checked)
+			continue;
+
+		if (!DP_CONF_GET_PIN_ASSIGN(alt[i].mid)) {
+			/* Found Non DP altmode */
+			new_alt[k].svid = alt[i].svid;
+			new_alt[k].mid |= alt[i].mid;
+			new_alt[k].linked_idx = i;
+			alt[i].linked_idx = k;
+			updated[k].svid = new_alt[k].svid;
+			updated[k].mid = new_alt[k].mid;
+			k++;
+			continue;
+		}
+
+		for (j = i + 1; j < UCSI_MAX_ALTMODES; j++) {
+			if (alt[i].svid != alt[j].svid ||
+			    !DP_CONF_GET_PIN_ASSIGN(alt[j].mid)) {
+				continue;
+			} else {
+				/* Found duplicate DP mode */
+				new_alt[k].svid = alt[i].svid;
+				new_alt[k].mid |= alt[i].mid | alt[j].mid;
+				new_alt[k].linked_idx = UCSI_MULTI_DP_INDEX;
+				alt[i].linked_idx = k;
+				alt[j].linked_idx = k;
+				alt[j].checked = true;
+				found = true;
+			}
+		}
+		if (found) {
+			uc->has_multiple_dp = true;
+		} else {
+			/* Didn't find any duplicate DP altmode */
+			new_alt[k].svid = alt[i].svid;
+			new_alt[k].mid |= alt[i].mid;
+			new_alt[k].linked_idx = i;
+			alt[i].linked_idx = k;
+		}
+		updated[k].svid = new_alt[k].svid;
+		updated[k].mid = new_alt[k].mid;
+		k++;
+	}
+	return found;
 }
 
-static int ucsi_ccg_ack_interrupt(struct ucsi_ccg *uc)
+static void ucsi_ccg_update_set_new_cam_cmd(struct ucsi_ccg *uc,
+					    struct ucsi_connector *con,
+					    u64 *cmd)
 {
-	int status;
-	unsigned char data;
+	struct ucsi_ccg_altmode *new_port, *port;
+	struct typec_altmode *alt = NULL;
+	u8 new_cam, cam, pin;
+	bool enter_new_mode;
+	int i, j, k = 0xff;
 
-	status = ccg_read(uc, CCGX_RAB_INTR_REG, &data, sizeof(data));
-	if (status < 0)
-		return status;
+	port = uc->orig;
+	new_cam = UCSI_SET_NEW_CAM_GET_AM(*cmd);
+	new_port = &uc->updated[new_cam];
+	cam = new_port->linked_idx;
+	enter_new_mode = UCSI_SET_NEW_CAM_ENTER(*cmd);
 
-	return ccg_write(uc, CCGX_RAB_INTR_REG, &data, sizeof(data));
+	/*
+	 * If CAM is UCSI_MULTI_DP_INDEX then this is DP altmode
+	 * with multiple DP mode. Find out CAM for best pin assignment
+	 * among all DP mode. Priorite pin E->D->C after making sure
+	 * the partner supports that pin.
+	 */
+	if (cam == UCSI_MULTI_DP_INDEX) {
+		if (enter_new_mode) {
+			for (i = 0; con->partner_altmode[i]; i++) {
+				alt = con->partner_altmode[i];
+				if (alt->svid == new_port->svid)
+					break;
+			}
+			/*
+			 * alt will always be non NULL since this is
+			 * UCSI_SET_NEW_CAM command and so there will be
+			 * at least one con->partner_altmode[i] with svid
+			 * matching with new_port->svid.
+			 */
+			for (j = 0; port[j].svid; j++) {
+				pin = DP_CONF_GET_PIN_ASSIGN(port[j].mid);
+				if (alt && port[j].svid == alt->svid &&
+				    (pin & DP_CONF_GET_PIN_ASSIGN(alt->vdo))) {
+					/* prioritize pin E->D->C */
+					if (k == 0xff || (k != 0xff && pin >
+					    DP_CONF_GET_PIN_ASSIGN(port[k].mid))
+					    ) {
+						k = j;
+					}
+				}
+			}
+			cam = k;
+			new_port->active_idx = cam;
+		} else {
+			cam = new_port->active_idx;
+		}
+	}
+	*cmd &= ~UCSI_SET_NEW_CAM_AM_MASK;
+	*cmd |= UCSI_SET_NEW_CAM_SET_AM(cam);
 }
 
-static int ucsi_ccg_sync(struct ucsi_ppm *ppm)
+/*
+ * Change the order of vdo values of NVIDIA test device FTB
+ * (Function Test Board) which reports altmode list with vdo=0x3
+ * first and then vdo=0x. Current logic to assign mode value is
+ * based on order in altmode list and it causes a mismatch of CON
+ * and SOP altmodes since NVIDIA GPU connector has order of vdo=0x1
+ * first and then vdo=0x3
+ */
+static void ucsi_ccg_nvidia_altmode(struct ucsi_ccg *uc,
+				    struct ucsi_altmode *alt)
 {
-	struct ucsi_ccg *uc = container_of(ppm, struct ucsi_ccg, ppm);
-	int status;
-
-	status = ucsi_ccg_recv_data(uc);
-	if (status < 0)
-		return status;
-
-	/* ack interrupt to allow next command to run */
-	return ucsi_ccg_ack_interrupt(uc);
+	switch (UCSI_ALTMODE_OFFSET(uc->last_cmd_sent)) {
+	case NVIDIA_FTB_DP_OFFSET:
+		if (alt[0].mid == USB_TYPEC_NVIDIA_VLINK_DBG_VDO)
+			alt[0].mid = USB_TYPEC_NVIDIA_VLINK_DP_VDO |
+				DP_CAP_DP_SIGNALING | DP_CAP_USB |
+				DP_CONF_SET_PIN_ASSIGN(BIT(DP_PIN_ASSIGN_E));
+		break;
+	case NVIDIA_FTB_DBG_OFFSET:
+		if (alt[0].mid == USB_TYPEC_NVIDIA_VLINK_DP_VDO)
+			alt[0].mid = USB_TYPEC_NVIDIA_VLINK_DBG_VDO;
+		break;
+	default:
+		break;
+	}
 }
 
-static int ucsi_ccg_cmd(struct ucsi_ppm *ppm, struct ucsi_control *ctrl)
+static int ucsi_ccg_read(struct ucsi *ucsi, unsigned int offset,
+			 void *val, size_t val_len)
 {
-	struct ucsi_ccg *uc = container_of(ppm, struct ucsi_ccg, ppm);
+	struct ucsi_ccg *uc = ucsi_get_drvdata(ucsi);
+	u16 reg = CCGX_RAB_UCSI_DATA_BLOCK(offset);
+	struct ucsi_altmode *alt;
+	int ret;
 
-	ppm->data->ctrl.raw_cmd = ctrl->raw_cmd;
-	return ucsi_ccg_send_data(uc);
+	ret = ccg_read(uc, reg, val, val_len);
+	if (ret)
+		return ret;
+
+	if (offset != UCSI_MESSAGE_IN)
+		return ret;
+
+	switch (UCSI_COMMAND(uc->last_cmd_sent)) {
+	case UCSI_GET_CURRENT_CAM:
+		if (uc->has_multiple_dp)
+			ucsi_ccg_update_get_current_cam_cmd(uc, (u8 *)val);
+		break;
+	case UCSI_GET_ALTERNATE_MODES:
+		if (UCSI_ALTMODE_RECIPIENT(uc->last_cmd_sent) ==
+		    UCSI_RECIPIENT_SOP) {
+			alt = val;
+			if (alt[0].svid == USB_TYPEC_NVIDIA_VLINK_SID)
+				ucsi_ccg_nvidia_altmode(uc, alt);
+		}
+		break;
+	default:
+		break;
+	}
+	uc->last_cmd_sent = 0;
+
+	return ret;
 }
+
+static int ucsi_ccg_async_write(struct ucsi *ucsi, unsigned int offset,
+				const void *val, size_t val_len)
+{
+	u16 reg = CCGX_RAB_UCSI_DATA_BLOCK(offset);
+
+	return ccg_write(ucsi_get_drvdata(ucsi), reg, val, val_len);
+}
+
+static int ucsi_ccg_sync_write(struct ucsi *ucsi, unsigned int offset,
+			       const void *val, size_t val_len)
+{
+	struct ucsi_ccg *uc = ucsi_get_drvdata(ucsi);
+	struct ucsi_connector *con;
+	int con_index;
+	int ret;
+
+	mutex_lock(&uc->lock);
+	pm_runtime_get_sync(uc->dev);
+	set_bit(DEV_CMD_PENDING, &uc->flags);
+
+	if (offset == UCSI_CONTROL && val_len == sizeof(uc->last_cmd_sent)) {
+		uc->last_cmd_sent = *(u64 *)val;
+
+		if (UCSI_COMMAND(uc->last_cmd_sent) == UCSI_SET_NEW_CAM &&
+		    uc->has_multiple_dp) {
+			con_index = (uc->last_cmd_sent >> 16) &
+				    UCSI_CMD_CONNECTOR_MASK;
+			con = &uc->ucsi->connector[con_index - 1];
+			ucsi_ccg_update_set_new_cam_cmd(uc, con, (u64 *)val);
+		}
+	}
+
+	ret = ucsi_ccg_async_write(ucsi, offset, val, val_len);
+	if (ret)
+		goto err_clear_bit;
+
+	if (!wait_for_completion_timeout(&uc->complete, msecs_to_jiffies(5000)))
+		ret = -ETIMEDOUT;
+
+err_clear_bit:
+	clear_bit(DEV_CMD_PENDING, &uc->flags);
+	pm_runtime_put_sync(uc->dev);
+	mutex_unlock(&uc->lock);
+
+	return ret;
+}
+
+static const struct ucsi_operations ucsi_ccg_ops = {
+	.read = ucsi_ccg_read,
+	.sync_write = ucsi_ccg_sync_write,
+	.async_write = ucsi_ccg_async_write,
+	.update_altmodes = ucsi_ccg_update_altmodes
+};
 
 static irqreturn_t ccg_irq_handler(int irq, void *data)
 {
+	u16 reg = CCGX_RAB_UCSI_DATA_BLOCK(UCSI_CCI);
 	struct ucsi_ccg *uc = data;
+	u8 intr_reg;
+	u32 cci;
+	int ret;
 
-	ucsi_notify(uc->ucsi);
+	ret = ccg_read(uc, CCGX_RAB_INTR_REG, &intr_reg, sizeof(intr_reg));
+	if (ret)
+		return ret;
+
+	ret = ccg_read(uc, reg, (void *)&cci, sizeof(cci));
+	if (ret)
+		goto err_clear_irq;
+
+	if (UCSI_CCI_CONNECTOR(cci))
+		ucsi_connector_change(uc->ucsi, UCSI_CCI_CONNECTOR(cci));
+
+	if (test_bit(DEV_CMD_PENDING, &uc->flags) &&
+	    cci & (UCSI_CCI_ACK_COMPLETE | UCSI_CCI_COMMAND_COMPLETE))
+		complete(&uc->complete);
+
+err_clear_irq:
+	ccg_write(uc, CCGX_RAB_INTR_REG, &intr_reg, sizeof(intr_reg));
 
 	return IRQ_HANDLED;
 }
 
 static void ccg_pm_workaround_work(struct work_struct *pm_work)
 {
-	struct ucsi_ccg *uc = container_of(pm_work, struct ucsi_ccg, pm_work);
-
-	ucsi_notify(uc->ucsi);
+	ccg_irq_handler(0, container_of(pm_work, struct ucsi_ccg, pm_work));
 }
 
 static int get_fw_info(struct ucsi_ccg *uc)
@@ -1027,12 +1258,13 @@ static int ccg_restart(struct ucsi_ccg *uc)
 		return status;
 	}
 
-	uc->ucsi = ucsi_register_ppm(dev, &uc->ppm);
-	if (IS_ERR(uc->ucsi)) {
-		dev_err(uc->dev, "ucsi_register_ppm failed\n");
-		return PTR_ERR(uc->ucsi);
+	status = ucsi_register(uc->ucsi);
+	if (status) {
+		dev_err(uc->dev, "failed to register the interface\n");
+		return status;
 	}
 
+	pm_runtime_enable(uc->dev);
 	return 0;
 }
 
@@ -1047,7 +1279,8 @@ static void ccg_update_firmware(struct work_struct *work)
 		return;
 
 	if (flash_mode != FLASH_NOT_NEEDED) {
-		ucsi_unregister_ppm(uc->ucsi);
+		ucsi_unregister(uc->ucsi);
+		pm_runtime_disable(uc->dev);
 		free_irq(uc->irq, uc);
 
 		ccg_fw_update(uc, flash_mode);
@@ -1091,21 +1324,15 @@ static int ucsi_ccg_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct ucsi_ccg *uc;
 	int status;
-	u16 rab;
 
 	uc = devm_kzalloc(dev, sizeof(*uc), GFP_KERNEL);
 	if (!uc)
 		return -ENOMEM;
 
-	uc->ppm.data = devm_kzalloc(dev, sizeof(struct ucsi_data), GFP_KERNEL);
-	if (!uc->ppm.data)
-		return -ENOMEM;
-
-	uc->ppm.cmd = ucsi_ccg_cmd;
-	uc->ppm.sync = ucsi_ccg_sync;
 	uc->dev = dev;
 	uc->client = client;
 	mutex_init(&uc->lock);
+	init_completion(&uc->complete);
 	INIT_WORK(&uc->work, ccg_update_firmware);
 	INIT_WORK(&uc->pm_work, ccg_pm_workaround_work);
 
@@ -1133,30 +1360,25 @@ static int ucsi_ccg_probe(struct i2c_client *client,
 	if (uc->info.mode & CCG_DEVINFO_PDPORTS_MASK)
 		uc->port_num++;
 
+	uc->ucsi = ucsi_create(dev, &ucsi_ccg_ops);
+	if (IS_ERR(uc->ucsi))
+		return PTR_ERR(uc->ucsi);
+
+	ucsi_set_drvdata(uc->ucsi, uc);
+
 	status = request_threaded_irq(client->irq, NULL, ccg_irq_handler,
 				      IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
 				      dev_name(dev), uc);
 	if (status < 0) {
 		dev_err(uc->dev, "request_threaded_irq failed - %d\n", status);
-		return status;
+		goto out_ucsi_destroy;
 	}
 
 	uc->irq = client->irq;
 
-	uc->ucsi = ucsi_register_ppm(dev, &uc->ppm);
-	if (IS_ERR(uc->ucsi)) {
-		dev_err(uc->dev, "ucsi_register_ppm failed\n");
-		return PTR_ERR(uc->ucsi);
-	}
-
-	rab = CCGX_RAB_UCSI_DATA_BLOCK(offsetof(struct ucsi_data, version));
-	status = ccg_read(uc, rab, (u8 *)(uc->ppm.data) +
-			  offsetof(struct ucsi_data, version),
-			  sizeof(uc->ppm.data->version));
-	if (status < 0) {
-		ucsi_unregister_ppm(uc->ucsi);
-		return status;
-	}
+	status = ucsi_register(uc->ucsi);
+	if (status)
+		goto out_free_irq;
 
 	i2c_set_clientdata(client, uc);
 
@@ -1167,6 +1389,13 @@ static int ucsi_ccg_probe(struct i2c_client *client,
 	pm_runtime_idle(uc->dev);
 
 	return 0;
+
+out_free_irq:
+	free_irq(uc->irq, uc);
+out_ucsi_destroy:
+	ucsi_destroy(uc->ucsi);
+
+	return status;
 }
 
 static int ucsi_ccg_remove(struct i2c_client *client)
@@ -1175,8 +1404,9 @@ static int ucsi_ccg_remove(struct i2c_client *client)
 
 	cancel_work_sync(&uc->pm_work);
 	cancel_work_sync(&uc->work);
-	ucsi_unregister_ppm(uc->ucsi);
 	pm_runtime_disable(uc->dev);
+	ucsi_unregister(uc->ucsi);
+	ucsi_destroy(uc->ucsi);
 	free_irq(uc->irq, uc);
 
 	return 0;

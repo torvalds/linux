@@ -9,7 +9,6 @@
 #include "phy.h"
 #include "dm.h"
 #include "hw.h"
-#include "sw.h"
 #include "fw.h"
 #include "trx.h"
 #include "led.h"
@@ -65,7 +64,7 @@ static void rtl92ee_init_aspm_vars(struct ieee80211_hw *hw)
 	rtlpci->const_support_pciaspm = rtlpriv->cfg->mod_params->aspm_support;
 }
 
-int rtl92ee_init_sw_vars(struct ieee80211_hw *hw)
+static int rtl92ee_init_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
@@ -76,9 +75,9 @@ int rtl92ee_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpci->msi_support = rtlpriv->cfg->mod_params->msi_support;
 	rtlpriv->btcoexist.btc_ops = rtl_btc_get_ops_pointer();
 
-	rtlpriv->dm.dm_initialgain_enable = 1;
+	rtlpriv->dm.dm_initialgain_enable = true;
 	rtlpriv->dm.dm_flag = 0;
-	rtlpriv->dm.disable_framebursting = 0;
+	rtlpriv->dm.disable_framebursting = false;
 	rtlpci->transmit_config = CFENDFORM | BIT(15);
 
 	/*just 2.4G band*/
@@ -164,7 +163,7 @@ int rtl92ee_init_sw_vars(struct ieee80211_hw *hw)
 	return 0;
 }
 
-void rtl92ee_deinit_sw_vars(struct ieee80211_hw *hw)
+static void rtl92ee_deinit_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -175,7 +174,7 @@ void rtl92ee_deinit_sw_vars(struct ieee80211_hw *hw)
 }
 
 /* get bt coexist status */
-bool rtl92ee_get_btc_status(void)
+static bool rtl92ee_get_btc_status(void)
 {
 	return true;
 }

@@ -42,9 +42,9 @@ static const struct constant_table common_set_sb_flag[] = {
 	{ "dirsync",	SB_DIRSYNC },
 	{ "lazytime",	SB_LAZYTIME },
 	{ "mand",	SB_MANDLOCK },
-	{ "posixacl",	SB_POSIXACL },
 	{ "ro",		SB_RDONLY },
 	{ "sync",	SB_SYNCHRONOUS },
+	{ },
 };
 
 static const struct constant_table common_clear_sb_flag[] = {
@@ -52,30 +52,7 @@ static const struct constant_table common_clear_sb_flag[] = {
 	{ "nolazytime",	SB_LAZYTIME },
 	{ "nomand",	SB_MANDLOCK },
 	{ "rw",		SB_RDONLY },
-	{ "silent",	SB_SILENT },
-};
-
-static const char *const forbidden_sb_flag[] = {
-	"bind",
-	"dev",
-	"exec",
-	"move",
-	"noatime",
-	"nodev",
-	"nodiratime",
-	"noexec",
-	"norelatime",
-	"nostrictatime",
-	"nosuid",
-	"private",
-	"rec",
-	"relatime",
-	"remount",
-	"shared",
-	"slave",
-	"strictatime",
-	"suid",
-	"unbindable",
+	{ },
 };
 
 /*
@@ -84,11 +61,6 @@ static const char *const forbidden_sb_flag[] = {
 static int vfs_parse_sb_flag(struct fs_context *fc, const char *key)
 {
 	unsigned int token;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(forbidden_sb_flag); i++)
-		if (strcmp(key, forbidden_sb_flag[i]) == 0)
-			return -EINVAL;
 
 	token = lookup_constant(common_set_sb_flag, key, 0);
 	if (token) {
@@ -175,14 +147,15 @@ int vfs_parse_fs_string(struct fs_context *fc, const char *key,
 
 	struct fs_parameter param = {
 		.key	= key,
-		.type	= fs_value_is_string,
+		.type	= fs_value_is_flag,
 		.size	= v_size,
 	};
 
-	if (v_size > 0) {
+	if (value) {
 		param.string = kmemdup_nul(value, v_size, GFP_KERNEL);
 		if (!param.string)
 			return -ENOMEM;
+		param.type = fs_value_is_string;
 	}
 
 	ret = vfs_parse_fs_param(fc, &param);
@@ -268,6 +241,7 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 	fc->fs_type	= get_filesystem(fs_type);
 	fc->cred	= get_current_cred();
 	fc->net_ns	= get_net(current->nsproxy->net_ns);
+	fc->log.prefix	= fs_type->name;
 
 	mutex_init(&fc->uapi_mutex);
 
@@ -361,8 +335,8 @@ struct fs_context *vfs_dup_fs_context(struct fs_context *src_fc)
 	get_net(fc->net_ns);
 	get_user_ns(fc->user_ns);
 	get_cred(fc->cred);
-	if (fc->log)
-		refcount_inc(&fc->log->usage);
+	if (fc->log.log)
+		refcount_inc(&fc->log.log->usage);
 
 	/* Can't call put until we've called ->dup */
 	ret = fc->ops->dup(fc, src_fc);
@@ -385,64 +359,33 @@ EXPORT_SYMBOL(vfs_dup_fs_context);
  * @fc: The filesystem context to log to.
  * @fmt: The format of the buffer.
  */
-void logfc(struct fs_context *fc, const char *fmt, ...)
+void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, ...)
 {
-	static const char store_failure[] = "OOM: Can't store error string";
-	struct fc_log *log = fc ? fc->log : NULL;
-	const char *p;
 	va_list va;
-	char *q;
-	u8 freeable;
+	struct va_format vaf = {.fmt = fmt, .va = &va};
 
 	va_start(va, fmt);
-	if (!strchr(fmt, '%')) {
-		p = fmt;
-		goto unformatted_string;
-	}
-	if (strcmp(fmt, "%s") == 0) {
-		p = va_arg(va, const char *);
-		goto unformatted_string;
-	}
-
-	q = kvasprintf(GFP_KERNEL, fmt, va);
-copied_string:
-	if (!q)
-		goto store_failure;
-	freeable = 1;
-	goto store_string;
-
-unformatted_string:
-	if ((unsigned long)p >= (unsigned long)__start_rodata &&
-	    (unsigned long)p <  (unsigned long)__end_rodata)
-		goto const_string;
-	if (log && within_module_core((unsigned long)p, log->owner))
-		goto const_string;
-	q = kstrdup(p, GFP_KERNEL);
-	goto copied_string;
-
-store_failure:
-	p = store_failure;
-const_string:
-	q = (char *)p;
-	freeable = 0;
-store_string:
 	if (!log) {
-		switch (fmt[0]) {
+		switch (level) {
 		case 'w':
-			printk(KERN_WARNING "%s\n", q + 2);
+			printk(KERN_WARNING "%s%s%pV\n", prefix ? prefix : "",
+						prefix ? ": " : "", &vaf);
 			break;
 		case 'e':
-			printk(KERN_ERR "%s\n", q + 2);
+			printk(KERN_ERR "%s%s%pV\n", prefix ? prefix : "",
+						prefix ? ": " : "", &vaf);
 			break;
 		default:
-			printk(KERN_NOTICE "%s\n", q + 2);
+			printk(KERN_NOTICE "%s%s%pV\n", prefix ? prefix : "",
+						prefix ? ": " : "", &vaf);
 			break;
 		}
-		if (freeable)
-			kfree(q);
 	} else {
 		unsigned int logsize = ARRAY_SIZE(log->buffer);
 		u8 index;
+		char *q = kasprintf(GFP_KERNEL, "%c %s%s%pV\n", level,
+						prefix ? prefix : "",
+						prefix ? ": " : "", &vaf);
 
 		index = log->head & (logsize - 1);
 		BUILD_BUG_ON(sizeof(log->head) != sizeof(u8) ||
@@ -454,9 +397,11 @@ store_string:
 			log->tail++;
 		}
 
-		log->buffer[index] = q;
-		log->need_free &= ~(1 << index);
-		log->need_free |= freeable << index;
+		log->buffer[index] = q ? q : "OOM: Can't store error string";
+		if (q)
+			log->need_free |= 1 << index;
+		else
+			log->need_free &= ~(1 << index);
 		log->head++;
 	}
 	va_end(va);
@@ -468,12 +413,12 @@ EXPORT_SYMBOL(logfc);
  */
 static void put_fc_log(struct fs_context *fc)
 {
-	struct fc_log *log = fc->log;
+	struct fc_log *log = fc->log.log;
 	int i;
 
 	if (log) {
 		if (refcount_dec_and_test(&log->usage)) {
-			fc->log = NULL;
+			fc->log.log = NULL;
 			for (i = 0; i <= 7; i++)
 				if (log->need_free & (1 << i))
 					kfree(log->buffer[i]);
@@ -576,7 +521,7 @@ static int legacy_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	switch (param->type) {
 	case fs_value_is_string:
 		len = 1 + param->size;
-		/* Fall through */
+		fallthrough;
 	case fs_value_is_flag:
 		len += strlen(param->key);
 		break;

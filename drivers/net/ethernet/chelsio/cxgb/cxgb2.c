@@ -429,7 +429,6 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	struct adapter *adapter = dev->ml_priv;
 
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 }
@@ -794,6 +793,9 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 }
 
 static const struct ethtool_ops t1_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX |
+				     ETHTOOL_COALESCE_RATE_SAMPLE_INTERVAL,
 	.get_drvinfo       = get_drvinfo,
 	.get_msglevel      = get_msglevel,
 	.set_msglevel      = set_msglevel,
@@ -984,8 +986,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct adapter *adapter = NULL;
 	struct port_info *pi;
 
-	pr_info_once("%s - version %s\n", DRV_DESCRIPTION, DRV_VERSION);
-
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
@@ -997,17 +997,17 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_disable_pdev;
 	}
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
 		pci_using_dac = 1;
 
-		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
-			pr_err("%s: unable to obtain 64-bit DMA for "
-			       "consistent allocations\n", pci_name(pdev));
+		if (dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
+			pr_err("%s: unable to obtain 64-bit DMA for coherent allocations\n",
+			       pci_name(pdev));
 			err = -ENODEV;
 			goto out_disable_pdev;
 		}
 
-	} else if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) != 0) {
+	} else if ((err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) != 0) {
 		pr_err("%s: no usable DMA configuration\n", pci_name(pdev));
 		goto out_disable_pdev;
 	}

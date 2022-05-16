@@ -328,12 +328,6 @@ config_bpf_program(struct bpf_program *prog)
 	probe_conf.no_inlines = false;
 	probe_conf.force_add = false;
 
-	config_str = bpf_program__title(prog, false);
-	if (IS_ERR(config_str)) {
-		pr_debug("bpf: unable to get title for program\n");
-		return PTR_ERR(config_str);
-	}
-
 	priv = calloc(sizeof(*priv), 1);
 	if (!priv) {
 		pr_debug("bpf: failed to alloc priv\n");
@@ -341,6 +335,7 @@ config_bpf_program(struct bpf_program *prog)
 	}
 	pev = &priv->pev;
 
+	config_str = bpf_program__section_name(prog);
 	pr_debug("bpf: config program '%s'\n", config_str);
 	err = parse_prog_config(config_str, &main_str, &is_tp, pev);
 	if (err)
@@ -454,10 +449,7 @@ preproc_gen_prologue(struct bpf_program *prog, int n,
 	if (err) {
 		const char *title;
 
-		title = bpf_program__title(prog, false);
-		if (!title)
-			title = "[unknown]";
-
+		title = bpf_program__section_name(prog);
 		pr_debug("Failed to generate prologue for program %s\n",
 			 title);
 		return err;
@@ -1225,7 +1217,7 @@ bpf__obj_config_map(struct bpf_object *obj,
 out:
 	free(map_name);
 	if (!err)
-		key_scan_pos += strlen(map_opt);
+		*key_scan_pos += strlen(map_opt);
 	return err;
 }
 
@@ -1430,7 +1422,7 @@ apply_config_evsel_for_key(const char *name, int map_fd, void *pkey,
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_EVTINH;
 	}
 
-	if (perf_evsel__is_bpf_output(evsel))
+	if (evsel__is_bpf_output(evsel))
 		check_pass = true;
 	if (attr->type == PERF_TYPE_RAW)
 		check_pass = true;

@@ -9,7 +9,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/errno.h>
-#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -54,7 +53,7 @@ static const char * const ep_name[] = {
  *
  * If use_dma is disabled, pio will be used instead.
  */
-static bool use_dma = 0;
+static bool use_dma = false;
 module_param(use_dma, bool, 0644);
 
 /*
@@ -1688,7 +1687,7 @@ net2272_set_test_mode(struct net2272 *dev, int mode)
 	net2272_write(dev, USBTEST, mode);
 
 	/* load test packet */
-	if (mode == TEST_PACKET) {
+	if (mode == USB_TEST_PACKET) {
 		/* switch to 8 bit mode */
 		net2272_write(dev, LOCCTL, net2272_read(dev, LOCCTL) &
 				~(1 << DATA_WIDTH));
@@ -2196,7 +2195,8 @@ static int net2272_present(struct net2272 *dev)
 static void
 net2272_gadget_release(struct device *_dev)
 {
-	struct net2272 *dev = dev_get_drvdata(_dev);
+	struct net2272 *dev = container_of(_dev, struct net2272, gadget.dev);
+
 	kfree(dev);
 }
 
@@ -2205,7 +2205,8 @@ net2272_gadget_release(struct device *_dev)
 static void
 net2272_remove(struct net2272 *dev)
 {
-	usb_del_gadget_udc(&dev->gadget);
+	if (dev->added)
+		usb_del_gadget(&dev->gadget);
 	free_irq(dev->irq, dev);
 	iounmap(dev->base_addr);
 	device_remove_file(dev->dev, &dev_attr_registers);
@@ -2235,6 +2236,7 @@ static struct net2272 *net2272_probe_init(struct device *dev, unsigned int irq)
 
 	/* the "gadget" abstracts/virtualizes the controller */
 	ret->gadget.name = driver_name;
+	usb_initialize_gadget(dev, &ret->gadget, net2272_gadget_release);
 
 	return ret;
 }
@@ -2273,10 +2275,10 @@ net2272_probe_fin(struct net2272 *dev, unsigned int irqflags)
 	if (ret)
 		goto err_irq;
 
-	ret = usb_add_gadget_udc_release(dev->dev, &dev->gadget,
-			net2272_gadget_release);
+	ret = usb_add_gadget(&dev->gadget);
 	if (ret)
 		goto err_add_udc;
+	dev->added = 1;
 
 	return 0;
 
@@ -2323,7 +2325,7 @@ net2272_rdk1_probe(struct pci_dev *pdev, struct net2272 *dev)
 			goto err;
 		}
 
-		mem_mapped_addr[i] = ioremap_nocache(resource, len);
+		mem_mapped_addr[i] = ioremap(resource, len);
 		if (mem_mapped_addr[i] == NULL) {
 			release_mem_region(resource, len);
 			dev_dbg(dev->dev, "can't map memory\n");
@@ -2370,6 +2372,8 @@ net2272_rdk1_probe(struct pci_dev *pdev, struct net2272 *dev)
 
  err:
 	while (--i >= 0) {
+		if (i == 1)
+			continue;	/* BAR1 unused */
 		iounmap(mem_mapped_addr[i]);
 		release_mem_region(pci_resource_start(pdev, i),
 			pci_resource_len(pdev, i));
@@ -2401,7 +2405,7 @@ net2272_rdk2_probe(struct pci_dev *pdev, struct net2272 *dev)
 			goto err;
 		}
 
-		mem_mapped_addr[i] = ioremap_nocache(resource, len);
+		mem_mapped_addr[i] = ioremap(resource, len);
 		if (mem_mapped_addr[i] == NULL) {
 			release_mem_region(resource, len);
 			dev_dbg(dev->dev, "can't map memory\n");
@@ -2449,7 +2453,7 @@ net2272_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (pci_enable_device(pdev) < 0) {
 		ret = -ENODEV;
-		goto err_free;
+		goto err_put;
 	}
 
 	pci_set_master(pdev);
@@ -2472,8 +2476,8 @@ net2272_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
  err_pci:
 	pci_disable_device(pdev);
- err_free:
-	kfree(dev);
+ err_put:
+	usb_put_gadget(&dev->gadget);
 
 	return ret;
 }
@@ -2534,7 +2538,7 @@ net2272_pci_remove(struct pci_dev *pdev)
 
 	pci_disable_device(pdev);
 
-	kfree(dev);
+	usb_put_gadget(&dev->gadget);
 }
 
 /* Table of matching PCI IDs */
@@ -2625,7 +2629,7 @@ net2272_plat_probe(struct platform_device *pdev)
 		ret = -EBUSY;
 		goto err;
 	}
-	dev->base_addr = ioremap_nocache(base, len);
+	dev->base_addr = ioremap(base, len);
 	if (!dev->base_addr) {
 		dev_dbg(dev->dev, "can't map memory\n");
 		ret = -EFAULT;
@@ -2647,6 +2651,8 @@ net2272_plat_probe(struct platform_device *pdev)
  err_req:
 	release_mem_region(base, len);
  err:
+	usb_put_gadget(&dev->gadget);
+
 	return ret;
 }
 
@@ -2660,7 +2666,7 @@ net2272_plat_remove(struct platform_device *pdev)
 	release_mem_region(pdev->resource[0].start,
 		resource_size(&pdev->resource[0]));
 
-	kfree(dev);
+	usb_put_gadget(&dev->gadget);
 
 	return 0;
 }

@@ -1101,7 +1101,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		break;
 	case CODA_960:
 		coda_write(dev, 0, CODA9_GDI_WPROT_RGN_EN);
-		/* fallthrough */
+		fallthrough;
 	case CODA_HX4:
 	case CODA_7541:
 		coda_write(dev, CODA7_STREAM_BUF_DYNALLOC_EN |
@@ -1141,7 +1141,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 				 CODA7_PICHEIGHT_MASK) << CODA_PICHEIGHT_OFFSET;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case CODA_960:
 		value = (q_data_src->rect.width & CODA7_PICWIDTH_MASK)
 			<< CODA7_PICWIDTH_OFFSET;
@@ -1215,7 +1215,8 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		coda_write(dev, value, CODA_CMD_ENC_SEQ_GOP_SIZE);
 	}
 
-	if (ctx->params.bitrate) {
+	if (ctx->params.bitrate && (ctx->params.frame_rc_enable ||
+				    ctx->params.mb_rc_enable)) {
 		ctx->params.bitrate_changed = false;
 		ctx->params.h264_intra_qp_changed = false;
 
@@ -1276,7 +1277,11 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	}
 	coda_write(dev, value, CODA_CMD_ENC_SEQ_OPTION);
 
-	coda_write(dev, 0, CODA_CMD_ENC_SEQ_RC_INTERVAL_MODE);
+	if (ctx->params.frame_rc_enable && !ctx->params.mb_rc_enable)
+		value = 1;
+	else
+		value = 0;
+	coda_write(dev, value, CODA_CMD_ENC_SEQ_RC_INTERVAL_MODE);
 
 	coda_setup_iram(ctx);
 
@@ -1628,6 +1633,9 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	struct coda_dev *dev = ctx->dev;
 	u32 wr_ptr, start_ptr;
+
+	if (ctx->aborting)
+		return;
 
 	/*
 	 * Lock to make sure that an encoder stop command running in parallel
@@ -2165,16 +2173,21 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	} else {
 		if (dev->devtype->product == CODA_960) {
 			/*
-			 * The CODA960 seems to have an internal list of
-			 * buffers with 64 entries that includes the
-			 * registered frame buffers as well as the rotator
-			 * buffer output.
-			 *
-			 * ROT_INDEX needs to be < 0x40, but >
-			 * ctx->num_internal_frames.
+			 * It was previously assumed that the CODA960 has an
+			 * internal list of 64 buffer entries that contains
+			 * both the registered internal frame buffers as well
+			 * as the rotator buffer output, and that the ROT_INDEX
+			 * register must be set to a value between the last
+			 * internal frame buffers' index and 64.
+			 * At least on firmware version 3.1.1 it turns out that
+			 * setting ROT_INDEX to any value >= 32 causes CODA
+			 * hangups that it can not recover from with the SRC VPU
+			 * reset.
+			 * It does appear to work however, to just set it to a
+			 * fixed value in the [ctx->num_internal_frames, 31]
+			 * range, for example CODA_MAX_FRAMEBUFFERS.
 			 */
-			coda_write(dev,
-				   CODA_MAX_FRAMEBUFFERS + dst_buf->vb2_buf.index,
+			coda_write(dev, CODA_MAX_FRAMEBUFFERS,
 				   CODA9_CMD_DEC_PIC_ROT_INDEX);
 
 			reg_addr = CODA9_CMD_DEC_PIC_ROT_ADDR_Y;
@@ -2265,6 +2278,9 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	u32 err_mb;
 	int err_vdoa = 0;
 	u32 val;
+
+	if (ctx->aborting)
+		return;
 
 	/* Update kfifo out pointer from coda bitstream read pointer */
 	coda_kfifo_sync_from_device(ctx);

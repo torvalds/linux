@@ -27,6 +27,7 @@ void ima_free_template_entry(struct ima_template_entry *entry)
 	for (i = 0; i < entry->template_desc->num_fields; i++)
 		kfree(entry->template_data[i].data);
 
+	kfree(entry->digests);
 	kfree(entry);
 }
 
@@ -38,6 +39,7 @@ int ima_alloc_init_template(struct ima_event_data *event_data,
 			    struct ima_template_desc *desc)
 {
 	struct ima_template_desc *template_desc;
+	struct tpm_digest *digests;
 	int i, result = 0;
 
 	if (desc)
@@ -50,6 +52,15 @@ int ima_alloc_init_template(struct ima_event_data *event_data,
 	if (!*entry)
 		return -ENOMEM;
 
+	digests = kcalloc(NR_BANKS(ima_tpm_chip) + ima_extra_slots,
+			  sizeof(*digests), GFP_NOFS);
+	if (!digests) {
+		kfree(*entry);
+		*entry = NULL;
+		return -ENOMEM;
+	}
+
+	(*entry)->digests = digests;
 	(*entry)->template_desc = template_desc;
 	for (i = 0; i < template_desc->num_fields; i++) {
 		const struct ima_template_field *field =
@@ -96,26 +107,16 @@ int ima_store_template(struct ima_template_entry *entry,
 	static const char audit_cause[] = "hashing_error";
 	char *template_name = entry->template_desc->name;
 	int result;
-	struct {
-		struct ima_digest_data hdr;
-		char digest[TPM_DIGEST_SIZE];
-	} hash;
 
 	if (!violation) {
-		int num_fields = entry->template_desc->num_fields;
-
-		/* this function uses default algo */
-		hash.hdr.algo = HASH_ALGO_SHA1;
 		result = ima_calc_field_array_hash(&entry->template_data[0],
-						   entry->template_desc,
-						   num_fields, &hash.hdr);
+						   entry);
 		if (result < 0) {
 			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
 					    template_name, op,
 					    audit_cause, result, 0);
 			return result;
 		}
-		memcpy(entry->digest, hash.hdr.digest, hash.hdr.length);
 	}
 	entry->pcr = pcr;
 	result = ima_add_template_entry(entry, violation, op, inode, filename);
@@ -161,7 +162,7 @@ err_out:
 
 /**
  * ima_get_action - appraise & measure decision based on policy.
- * @inode: pointer to inode to measure
+ * @inode: pointer to the inode associated with the object being validated
  * @cred: pointer to credentials structure to validate
  * @secid: secid of the task being validated
  * @mask: contains the permission mask (MAY_READ, MAY_WRITE, MAY_EXEC,
@@ -169,12 +170,13 @@ err_out:
  * @func: caller identifier
  * @pcr: pointer filled in if matched measure policy sets pcr=
  * @template_desc: pointer filled in if matched measure policy sets template=
+ * @keyring: keyring name used to determine the action
  *
  * The policy is defined in terms of keypairs:
  *		subj=, obj=, type=, func=, mask=, fsmagic=
  *	subj,obj, and type: are LSM specific.
  *	func: FILE_CHECK | BPRM_CHECK | CREDS_CHECK | MMAP_CHECK | MODULE_CHECK
- *	| KEXEC_CMDLINE
+ *	| KEXEC_CMDLINE | KEY_CHECK
  *	mask: contains the permission mask
  *	fsmagic: hex value
  *
@@ -183,14 +185,15 @@ err_out:
  */
 int ima_get_action(struct inode *inode, const struct cred *cred, u32 secid,
 		   int mask, enum ima_hooks func, int *pcr,
-		   struct ima_template_desc **template_desc)
+		   struct ima_template_desc **template_desc,
+		   const char *keyring)
 {
 	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE | IMA_HASH;
 
 	flags &= ima_policy_flag;
 
 	return ima_match_policy(inode, cred, secid, func, mask, flags, pcr,
-				template_desc);
+				template_desc, keyring);
 }
 
 /*

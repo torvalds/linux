@@ -73,31 +73,6 @@ static void release_engine_dce_sw(
 	dce_i2c_sw->ddc = NULL;
 }
 
-static bool get_hw_supported_ddc_line(
-	struct ddc *ddc,
-	enum gpio_ddc_line *line)
-{
-	enum gpio_ddc_line line_found;
-
-	*line = GPIO_DDC_LINE_UNKNOWN;
-
-	if (!ddc) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	if (!ddc->hw_info.hw_supported)
-		return false;
-
-	line_found = dal_ddc_get_line(ddc);
-
-	if (line_found >= GPIO_DDC_LINE_COUNT)
-		return false;
-
-	*line = line_found;
-
-	return true;
-}
 static bool wait_for_scl_high_sw(
 	struct dc_context *ctx,
 	struct ddc *ddc,
@@ -523,22 +498,4 @@ bool dce_i2c_submit_command_sw(
 	release_engine_dce_sw(pool, dce_i2c_sw);
 
 	return result;
-}
-struct dce_i2c_sw *dce_i2c_acquire_i2c_sw_engine(
-	struct resource_pool *pool,
-	struct ddc *ddc)
-{
-	enum gpio_ddc_line line;
-	struct dce_i2c_sw *engine = NULL;
-
-	if (get_hw_supported_ddc_line(ddc, &line))
-		engine = pool->sw_i2cs[line];
-
-	if (!engine)
-		return NULL;
-
-	if (!dce_i2c_engine_acquire_sw(engine, ddc))
-		return NULL;
-
-	return engine;
 }

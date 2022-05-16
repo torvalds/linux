@@ -440,7 +440,7 @@ static void run_fsm(void)
 				pd_claimed = 1;
 				if (!pi_schedule_claimed(pi_current, run_fsm))
 					return;
-				/* fall through */
+				fallthrough;
 			case 1:
 				pd_claimed = 2;
 				pi_current->proto->connect(pi_current);
@@ -465,7 +465,7 @@ static void run_fsm(void)
 				if (stop)
 					return;
 				}
-				/* fall through */
+				fallthrough;
 			case Hold:
 				schedule_fsm();
 				return;
@@ -874,6 +874,7 @@ static const struct block_device_operations pd_fops = {
 	.open		= pd_open,
 	.release	= pd_release,
 	.ioctl		= pd_ioctl,
+	.compat_ioctl	= pd_ioctl,
 	.getgeo		= pd_getgeo,
 	.check_events	= pd_check_events,
 	.revalidate_disk= pd_revalidate

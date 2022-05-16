@@ -5,7 +5,7 @@
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  */
 
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 #include <linux/memblock.h>
 #include <linux/genalloc.h>
 #include <linux/module.h>
@@ -55,8 +55,8 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 	gen_pool_free(coherent_pool, (unsigned long) vaddr, size);
 }
 
-void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
-		size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
+		enum dma_data_direction dir)
 {
 	void *addr = phys_to_virt(paddr);
 

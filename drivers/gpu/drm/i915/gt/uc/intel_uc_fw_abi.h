@@ -39,9 +39,6 @@
  * 3. Length info of each component can be found in header, in dwords.
  * 4. Modulus and exponent key are not required by driver. They may not appear
  *    in fw. So driver will load a truncated firmware in this case.
- *
- * The only difference between GuC and HuC firmwares is how the version
- * information is saved.
  */
 
 struct uc_css_header {
@@ -69,11 +66,9 @@ struct uc_css_header {
 	char username[8];
 	char buildnumber[12];
 	u32 sw_version;
-#define CSS_SW_VERSION_GUC_MAJOR	(0xFF << 16)
-#define CSS_SW_VERSION_GUC_MINOR	(0xFF << 8)
-#define CSS_SW_VERSION_GUC_PATCH	(0xFF << 0)
-#define CSS_SW_VERSION_HUC_MAJOR	(0xFFFF << 16)
-#define CSS_SW_VERSION_HUC_MINOR	(0xFFFF << 0)
+#define CSS_SW_VERSION_UC_MAJOR		(0xFF << 16)
+#define CSS_SW_VERSION_UC_MINOR		(0xFF << 8)
+#define CSS_SW_VERSION_UC_PATCH		(0xFF << 0)
 	u32 reserved[14];
 	u32 header_info;
 } __packed;

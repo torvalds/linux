@@ -60,6 +60,7 @@ struct gpio_bank {
 	struct clk *dbck;
 	struct notifier_block nb;
 	unsigned int is_suspended:1;
+	unsigned int needs_resume:1;
 	u32 mod_usage;
 	u32 irq_usage;
 	u32 dbck_enable_mask;
@@ -805,8 +806,10 @@ static int omap_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	struct gpio_bank *bank = gpiochip_get_data(chip);
 
-	return !!(readl_relaxed(bank->base + bank->regs->direction) &
-		  BIT(offset));
+	if (readl_relaxed(bank->base + bank->regs->direction) & BIT(offset))
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int omap_gpio_input(struct gpio_chip *chip, unsigned offset)
@@ -894,12 +897,23 @@ static int omap_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 				unsigned long config)
 {
 	u32 debounce;
+	int ret = -ENOTSUPP;
 
-	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
-		return -ENOTSUPP;
+	switch (pinconf_to_config_param(config)) {
+	case PIN_CONFIG_BIAS_DISABLE:
+	case PIN_CONFIG_BIAS_PULL_UP:
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		ret = gpiochip_generic_config(chip, offset, config);
+		break;
+	case PIN_CONFIG_INPUT_DEBOUNCE:
+		debounce = pinconf_to_config_argument(config);
+		ret = omap_gpio_debounce(chip, offset, debounce);
+		break;
+	default:
+		break;
+	}
 
-	debounce = pinconf_to_config_argument(config);
-	return omap_gpio_debounce(chip, offset, debounce);
+	return ret;
 }
 
 static void omap_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -1235,26 +1249,35 @@ static int gpio_omap_cpu_notifier(struct notifier_block *nb,
 {
 	struct gpio_bank *bank;
 	unsigned long flags;
+	int ret = NOTIFY_OK;
+	u32 isr, mask;
 
 	bank = container_of(nb, struct gpio_bank, nb);
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
+	if (bank->is_suspended)
+		goto out_unlock;
+
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
-		if (bank->is_suspended)
+		mask = omap_get_gpio_irqbank_mask(bank);
+		isr = readl_relaxed(bank->base + bank->regs->irqstatus) & mask;
+		if (isr) {
+			ret = NOTIFY_BAD;
 			break;
+		}
 		omap_gpio_idle(bank, true);
 		break;
 	case CPU_CLUSTER_PM_ENTER_FAILED:
 	case CPU_CLUSTER_PM_EXIT:
-		if (bank->is_suspended)
-			break;
 		omap_gpio_unidle(bank);
 		break;
 	}
+
+out_unlock:
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
 
-	return NOTIFY_OK;
+	return ret;
 }
 
 static const struct omap_gpio_reg_offs omap2_gpio_regs = {
@@ -1381,10 +1404,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	if (bank->irq <= 0) {
 		if (!bank->irq)
 			bank->irq = -ENXIO;
-		if (bank->irq != -EPROBE_DEFER)
-			dev_err(dev,
-				"can't get irq resource ret=%d\n", bank->irq);
-		return bank->irq;
+		return dev_err_probe(dev, bank->irq, "can't get irq resource\n");
 	}
 
 	bank->chip.parent = dev;
@@ -1503,9 +1523,34 @@ static int __maybe_unused omap_gpio_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int __maybe_unused omap_gpio_suspend(struct device *dev)
+{
+	struct gpio_bank *bank = dev_get_drvdata(dev);
+
+	if (bank->is_suspended)
+		return 0;
+
+	bank->needs_resume = 1;
+
+	return omap_gpio_runtime_suspend(dev);
+}
+
+static int __maybe_unused omap_gpio_resume(struct device *dev)
+{
+	struct gpio_bank *bank = dev_get_drvdata(dev);
+
+	if (!bank->needs_resume)
+		return 0;
+
+	bank->needs_resume = 0;
+
+	return omap_gpio_runtime_resume(dev);
+}
+
 static const struct dev_pm_ops gpio_pm_ops = {
 	SET_RUNTIME_PM_OPS(omap_gpio_runtime_suspend, omap_gpio_runtime_resume,
 									NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(omap_gpio_suspend, omap_gpio_resume)
 };
 
 static struct platform_driver omap_gpio_driver = {

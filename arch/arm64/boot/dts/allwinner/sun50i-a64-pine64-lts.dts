@@ -1,8 +1,5 @@
-/*
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
- *
- * Copyright (c) 2018 ARM Ltd.
- */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (c) 2018 ARM Ltd.
 
 #include "sun50i-a64-sopine-baseboard.dts"
 

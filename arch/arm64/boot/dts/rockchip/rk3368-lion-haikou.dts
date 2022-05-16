@@ -25,9 +25,9 @@
 	};
 
 	leds {
-		pinctrl-0 = <&led_pins_module>, <&led_sd_haikou>;
+		pinctrl-0 = <&module_led_pins>, <&sd_card_led_pin>;
 
-		sd-card-led {
+		sd_card_led: led-3 {
 			label = "sd_card_led";
 			gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
@@ -83,12 +83,6 @@
 	status = "okay";
 };
 
-&uart0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
-	status = "okay";
-};
-
 &usb_otg {
 	dr_mode = "otg";
 	status = "okay";
@@ -124,14 +118,14 @@
 	};
 
 	leds {
-		led_sd_haikou: led-sd-gpio {
+		sd_card_led_pin: sd-card-led-pin {
 			rockchip,pins =
 				<0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	sdmmc {
-		sdmmc_cd_gpio: sdmmc-cd-gpio {
+		sdmmc_cd_pin: sdmmc-cd-pin {
 			rockchip,pins =
 				<2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};

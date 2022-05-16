@@ -5,6 +5,7 @@
 #ifndef _LINUX_PROC_FS_H
 #define _LINUX_PROC_FS_H
 
+#include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/fs.h>
 
@@ -12,12 +13,70 @@ struct proc_dir_entry;
 struct seq_file;
 struct seq_operations;
 
+enum {
+	/*
+	 * All /proc entries using this ->proc_ops instance are never removed.
+	 *
+	 * If in doubt, ignore this flag.
+	 */
+#ifdef MODULE
+	PROC_ENTRY_PERMANENT = 0U,
+#else
+	PROC_ENTRY_PERMANENT = 1U << 0,
+#endif
+};
+
+struct proc_ops {
+	unsigned int proc_flags;
+	int	(*proc_open)(struct inode *, struct file *);
+	ssize_t	(*proc_read)(struct file *, char __user *, size_t, loff_t *);
+	ssize_t (*proc_read_iter)(struct kiocb *, struct iov_iter *);
+	ssize_t	(*proc_write)(struct file *, const char __user *, size_t, loff_t *);
+	loff_t	(*proc_lseek)(struct file *, loff_t, int);
+	int	(*proc_release)(struct inode *, struct file *);
+	__poll_t (*proc_poll)(struct file *, struct poll_table_struct *);
+	long	(*proc_ioctl)(struct file *, unsigned int, unsigned long);
+#ifdef CONFIG_COMPAT
+	long	(*proc_compat_ioctl)(struct file *, unsigned int, unsigned long);
+#endif
+	int	(*proc_mmap)(struct file *, struct vm_area_struct *);
+	unsigned long (*proc_get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
+} __randomize_layout;
+
+/* definitions for hide_pid field */
+enum proc_hidepid {
+	HIDEPID_OFF	  = 0,
+	HIDEPID_NO_ACCESS = 1,
+	HIDEPID_INVISIBLE = 2,
+	HIDEPID_NOT_PTRACEABLE = 4, /* Limit pids to only ptraceable pids */
+};
+
+/* definitions for proc mount option pidonly */
+enum proc_pidonly {
+	PROC_PIDONLY_OFF = 0,
+	PROC_PIDONLY_ON  = 1,
+};
+
+struct proc_fs_info {
+	struct pid_namespace *pid_ns;
+	struct dentry *proc_self;        /* For /proc/self */
+	struct dentry *proc_thread_self; /* For /proc/thread-self */
+	kgid_t pid_gid;
+	enum proc_hidepid hide_pid;
+	enum proc_pidonly pidonly;
+};
+
+static inline struct proc_fs_info *proc_sb_info(struct super_block *sb)
+{
+	return sb->s_fs_info;
+}
+
 #ifdef CONFIG_PROC_FS
 
 typedef int (*proc_write_t)(struct file *, char *, size_t);
 
 extern void proc_root_init(void);
-extern void proc_flush_task(struct task_struct *);
+extern void proc_flush_pid(struct pid *);
 
 extern struct proc_dir_entry *proc_symlink(const char *,
 		struct proc_dir_entry *, const char *);
@@ -43,10 +102,10 @@ struct proc_dir_entry *proc_create_single_data(const char *name, umode_t mode,
  
 extern struct proc_dir_entry *proc_create_data(const char *, umode_t,
 					       struct proc_dir_entry *,
-					       const struct file_operations *,
+					       const struct proc_ops *,
 					       void *);
 
-struct proc_dir_entry *proc_create(const char *name, umode_t mode, struct proc_dir_entry *parent, const struct file_operations *proc_fops);
+struct proc_dir_entry *proc_create(const char *name, umode_t mode, struct proc_dir_entry *parent, const struct proc_ops *proc_ops);
 extern void proc_set_size(struct proc_dir_entry *, loff_t);
 extern void proc_set_user(struct proc_dir_entry *, kuid_t, kgid_t);
 extern void *PDE_DATA(const struct inode *);
@@ -58,8 +117,8 @@ extern int remove_proc_subtree(const char *, struct proc_dir_entry *);
 struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
 		struct proc_dir_entry *parent, const struct seq_operations *ops,
 		unsigned int state_size, void *data);
-#define proc_create_net(name, mode, parent, state_size, ops) \
-	proc_create_net_data(name, mode, parent, state_size, ops, NULL)
+#define proc_create_net(name, mode, parent, ops, state_size) \
+	proc_create_net_data(name, mode, parent, ops, state_size, NULL)
 struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
 		struct proc_dir_entry *parent,
 		int (*show)(struct seq_file *, void *), void *data);
@@ -74,6 +133,10 @@ struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mo
 						    proc_write_t write,
 						    void *data);
 extern struct pid *tgid_pidfd_to_pid(const struct file *file);
+
+struct bpf_iter_aux_info;
+extern int bpf_iter_init_seq_net(void *priv_data, struct bpf_iter_aux_info *aux);
+extern void bpf_iter_fini_seq_net(void *priv_data);
 
 #ifdef CONFIG_PROC_PID_ARCH_STATUS
 /*
@@ -90,7 +153,7 @@ static inline void proc_root_init(void)
 {
 }
 
-static inline void proc_flush_task(struct task_struct *task)
+static inline void proc_flush_pid(struct pid *pid)
 {
 }
 
@@ -108,8 +171,8 @@ static inline struct proc_dir_entry *proc_mkdir_mode(const char *name,
 #define proc_create_seq(name, mode, parent, ops) ({NULL;})
 #define proc_create_single(name, mode, parent, show) ({NULL;})
 #define proc_create_single_data(name, mode, parent, show, data) ({NULL;})
-#define proc_create(name, mode, parent, proc_fops) ({NULL;})
-#define proc_create_data(name, mode, parent, proc_fops, data) ({NULL;})
+#define proc_create(name, mode, parent, proc_ops) ({NULL;})
+#define proc_create_data(name, mode, parent, proc_ops, data) ({NULL;})
 
 static inline void proc_set_size(struct proc_dir_entry *de, loff_t size) {}
 static inline void proc_set_user(struct proc_dir_entry *de, kuid_t uid, kgid_t gid) {}
@@ -144,9 +207,11 @@ int open_related_ns(struct ns_common *ns,
 		   struct ns_common *(*get_ns)(struct ns_common *ns));
 
 /* get the associated pid namespace for a file in procfs */
-static inline struct pid_namespace *proc_pid_ns(const struct inode *inode)
+static inline struct pid_namespace *proc_pid_ns(struct super_block *sb)
 {
-	return inode->i_sb->s_fs_info;
+	return proc_sb_info(sb)->pid_ns;
 }
+
+bool proc_ns_file(const struct file *file);
 
 #endif /* _LINUX_PROC_FS_H */

@@ -84,8 +84,6 @@ static struct sk_buff *ksz_common_rcv(struct sk_buff *skb,
  *	  (eg, 0x00=port1, 0x02=port3, 0x06=port7)
  */
 
-#define KSZ8795_INGRESS_TAG_LEN		1
-
 #define KSZ8795_TAIL_TAG_OVERRIDE	BIT(6)
 #define KSZ8795_TAIL_TAG_LOOKUP		BIT(7)
 
@@ -96,12 +94,12 @@ static struct sk_buff *ksz8795_xmit(struct sk_buff *skb, struct net_device *dev)
 	u8 *tag;
 	u8 *addr;
 
-	nskb = ksz_common_xmit(skb, dev, KSZ8795_INGRESS_TAG_LEN);
+	nskb = ksz_common_xmit(skb, dev, KSZ_INGRESS_TAG_LEN);
 	if (!nskb)
 		return NULL;
 
 	/* Tag encoding */
-	tag = skb_put(nskb, KSZ8795_INGRESS_TAG_LEN);
+	tag = skb_put(nskb, KSZ_INGRESS_TAG_LEN);
 	addr = skb_mac_header(nskb);
 
 	*tag = 1 << dp->index;
@@ -124,7 +122,8 @@ static const struct dsa_device_ops ksz8795_netdev_ops = {
 	.proto	= DSA_TAG_PROTO_KSZ8795,
 	.xmit	= ksz8795_xmit,
 	.rcv	= ksz8795_rcv,
-	.overhead = KSZ8795_INGRESS_TAG_LEN,
+	.overhead = KSZ_INGRESS_TAG_LEN,
+	.tail_tag = true,
 };
 
 DSA_TAG_DRIVER(ksz8795_netdev_ops);
@@ -158,8 +157,9 @@ static struct sk_buff *ksz9477_xmit(struct sk_buff *skb,
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct sk_buff *nskb;
-	u16 *tag;
+	__be16 *tag;
 	u8 *addr;
+	u16 val;
 
 	nskb = ksz_common_xmit(skb, dev, KSZ9477_INGRESS_TAG_LEN);
 	if (!nskb)
@@ -169,12 +169,12 @@ static struct sk_buff *ksz9477_xmit(struct sk_buff *skb,
 	tag = skb_put(nskb, KSZ9477_INGRESS_TAG_LEN);
 	addr = skb_mac_header(nskb);
 
-	*tag = BIT(dp->index);
+	val = BIT(dp->index);
 
 	if (is_link_local_ether_addr(addr))
-		*tag |= KSZ9477_TAIL_TAG_OVERRIDE;
+		val |= KSZ9477_TAIL_TAG_OVERRIDE;
 
-	*tag = cpu_to_be16(*tag);
+	*tag = cpu_to_be16(val);
 
 	return nskb;
 }
@@ -200,6 +200,7 @@ static const struct dsa_device_ops ksz9477_netdev_ops = {
 	.xmit	= ksz9477_xmit,
 	.rcv	= ksz9477_rcv,
 	.overhead = KSZ9477_INGRESS_TAG_LEN,
+	.tail_tag = true,
 };
 
 DSA_TAG_DRIVER(ksz9477_netdev_ops);
@@ -238,6 +239,7 @@ static const struct dsa_device_ops ksz9893_netdev_ops = {
 	.xmit	= ksz9893_xmit,
 	.rcv	= ksz9477_rcv,
 	.overhead = KSZ_INGRESS_TAG_LEN,
+	.tail_tag = true,
 };
 
 DSA_TAG_DRIVER(ksz9893_netdev_ops);

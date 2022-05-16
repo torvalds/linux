@@ -509,7 +509,7 @@ static int sdc_init_panel(struct mx3fb_data *mx3fb, enum ipu_panel panel,
 			  uint16_t h_start_width, uint16_t h_sync_width,
 			  uint16_t h_end_width, uint16_t v_start_width,
 			  uint16_t v_sync_width, uint16_t v_end_width,
-			  struct ipu_di_signal_cfg sig)
+			  const struct ipu_di_signal_cfg *sig)
 {
 	unsigned long lock_flags;
 	uint32_t reg;
@@ -591,17 +591,17 @@ static int sdc_init_panel(struct mx3fb_data *mx3fb, enum ipu_panel panel,
 
 	/* DI settings */
 	old_conf = mx3fb_read_reg(mx3fb, DI_DISP_IF_CONF) & 0x78FFFFFF;
-	old_conf |= sig.datamask_en << DI_D3_DATAMSK_SHIFT |
-		sig.clksel_en << DI_D3_CLK_SEL_SHIFT |
-		sig.clkidle_en << DI_D3_CLK_IDLE_SHIFT;
+	old_conf |= sig->datamask_en << DI_D3_DATAMSK_SHIFT |
+		sig->clksel_en << DI_D3_CLK_SEL_SHIFT |
+		sig->clkidle_en << DI_D3_CLK_IDLE_SHIFT;
 	mx3fb_write_reg(mx3fb, old_conf, DI_DISP_IF_CONF);
 
 	old_conf = mx3fb_read_reg(mx3fb, DI_DISP_SIG_POL) & 0xE0FFFFFF;
-	old_conf |= sig.data_pol << DI_D3_DATA_POL_SHIFT |
-		sig.clk_pol << DI_D3_CLK_POL_SHIFT |
-		sig.enable_pol << DI_D3_DRDY_SHARP_POL_SHIFT |
-		sig.Hsync_pol << DI_D3_HSYNC_POL_SHIFT |
-		sig.Vsync_pol << DI_D3_VSYNC_POL_SHIFT;
+	old_conf |= sig->data_pol << DI_D3_DATA_POL_SHIFT |
+		sig->clk_pol << DI_D3_CLK_POL_SHIFT |
+		sig->enable_pol << DI_D3_DRDY_SHARP_POL_SHIFT |
+		sig->Hsync_pol << DI_D3_HSYNC_POL_SHIFT |
+		sig->Vsync_pol << DI_D3_VSYNC_POL_SHIFT;
 	mx3fb_write_reg(mx3fb, old_conf, DI_DISP_SIG_POL);
 
 	map = &di_mappings[mx3fb->disp_data_fmt];
@@ -855,7 +855,7 @@ static int __set_par(struct fb_info *fbi, bool lock)
 				   fbi->var.upper_margin,
 				   fbi->var.vsync_len,
 				   fbi->var.lower_margin +
-				   fbi->var.vsync_len, sig_cfg) != 0) {
+				   fbi->var.vsync_len, &sig_cfg) != 0) {
 			dev_err(fbi->device,
 				"mx3fb: Error initializing panel.\n");
 			return -EINVAL;
@@ -1249,7 +1249,7 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
  * invoked by the core framebuffer driver to perform operations like
  * blitting, rectangle filling, copy regions and cursor definition.
  */
-static struct fb_ops mx3fb_ops = {
+static const struct fb_ops mx3fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_set_par = mx3fb_set_par,
 	.fb_check_var = mx3fb_check_var,
@@ -1389,7 +1389,8 @@ static int mx3fb_unmap_video_memory(struct fb_info *fbi)
  * mx3fb_init_fbinfo() - initialize framebuffer information object.
  * @return:	initialized framebuffer structure.
  */
-static struct fb_info *mx3fb_init_fbinfo(struct device *dev, struct fb_ops *ops)
+static struct fb_info *mx3fb_init_fbinfo(struct device *dev,
+					 const struct fb_ops *ops)
 {
 	struct fb_info *fbi;
 	struct mx3fb_info *mx3fbi;

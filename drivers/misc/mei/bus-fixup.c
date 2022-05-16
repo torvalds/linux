@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2013-2019, Intel Corporation. All rights reserved.
+ * Copyright (c) 2013-2020, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  */
 
@@ -46,8 +46,6 @@ static const uuid_le mei_nfc_info_guid = MEI_UUID_NFC_INFO;
  */
 static void number_of_connections(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	if (cldev->me_cl->props.max_number_of_connections > 1)
 		cldev->do_match = 0;
 }
@@ -59,8 +57,6 @@ static void number_of_connections(struct mei_cl_device *cldev)
  */
 static void blacklist(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	cldev->do_match = 0;
 }
 
@@ -71,8 +67,6 @@ static void blacklist(struct mei_cl_device *cldev)
  */
 static void whitelist(struct mei_cl_device *cldev)
 {
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
-
 	cldev->do_match = 1;
 }
 
@@ -97,7 +91,7 @@ struct mkhi_rule_id {
 struct mkhi_fwcaps {
 	struct mkhi_rule_id id;
 	u8 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct mkhi_fw_ver_block {
@@ -125,7 +119,7 @@ struct mkhi_msg_hdr {
 
 struct mkhi_msg {
 	struct mkhi_msg_hdr hdr;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define MKHI_OSVER_BUF_LEN (sizeof(struct mkhi_msg_hdr) + \
@@ -165,17 +159,17 @@ static int mei_osver(struct mei_cl_device *cldev)
 static int mei_fwver(struct mei_cl_device *cldev)
 {
 	char buf[MKHI_FWVER_BUF_LEN];
-	struct mkhi_msg *req;
+	struct mkhi_msg req;
+	struct mkhi_msg *rsp;
 	struct mkhi_fw_ver *fwver;
 	int bytes_recv, ret, i;
 
 	memset(buf, 0, sizeof(buf));
 
-	req = (struct mkhi_msg *)buf;
-	req->hdr.group_id = MKHI_GEN_GROUP_ID;
-	req->hdr.command = MKHI_GEN_GET_FW_VERSION_CMD;
+	req.hdr.group_id = MKHI_GEN_GROUP_ID;
+	req.hdr.command = MKHI_GEN_GET_FW_VERSION_CMD;
 
-	ret = __mei_cl_send(cldev->cl, buf, sizeof(struct mkhi_msg_hdr),
+	ret = __mei_cl_send(cldev->cl, (u8 *)&req, sizeof(req),
 			    MEI_CL_IO_TX_BLOCKING);
 	if (ret < 0) {
 		dev_err(&cldev->dev, "Could not send ReqFWVersion cmd\n");
@@ -194,7 +188,8 @@ static int mei_fwver(struct mei_cl_device *cldev)
 		return -EIO;
 	}
 
-	fwver = (struct mkhi_fw_ver *)req->data;
+	rsp = (struct mkhi_msg *)buf;
+	fwver = (struct mkhi_fw_ver *)rsp->data;
 	memset(cldev->bus->fw_ver, 0, sizeof(cldev->bus->fw_ver));
 	for (i = 0; i < MEI_MAX_FW_VER_BLOCKS; i++) {
 		if ((size_t)bytes_recv < MKHI_FWVER_LEN(i + 1))
@@ -256,7 +251,6 @@ static void mei_wd(struct mei_cl_device *cldev)
 {
 	struct pci_dev *pdev = to_pci_dev(cldev->dev.parent);
 
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 	if (pdev->device == MEI_DEV_ID_WPT_LP ||
 	    pdev->device == MEI_DEV_ID_SPT ||
 	    pdev->device == MEI_DEV_ID_SPT_H)
@@ -336,16 +330,14 @@ static int mei_nfc_if_version(struct mei_cl *cl,
 
 	WARN_ON(mutex_is_locked(&bus->device_lock));
 
-	ret = __mei_cl_send(cl, (u8 *)&cmd, sizeof(struct mei_nfc_cmd),
-			    MEI_CL_IO_TX_BLOCKING);
+	ret = __mei_cl_send(cl, (u8 *)&cmd, sizeof(cmd), MEI_CL_IO_TX_BLOCKING);
 	if (ret < 0) {
 		dev_err(bus->dev, "Could not send IF version cmd\n");
 		return ret;
 	}
 
 	/* to be sure on the stack we alloc memory */
-	if_version_length = sizeof(struct mei_nfc_reply) +
-		sizeof(struct mei_nfc_if_version);
+	if_version_length = sizeof(*reply) + sizeof(*ver);
 
 	reply = kzalloc(if_version_length, GFP_KERNEL);
 	if (!reply)
@@ -359,7 +351,7 @@ static int mei_nfc_if_version(struct mei_cl *cl,
 		goto err;
 	}
 
-	memcpy(ver, reply->data, sizeof(struct mei_nfc_if_version));
+	memcpy(ver, reply->data, sizeof(*ver));
 
 	dev_info(bus->dev, "NFC MEI VERSION: IVN 0x%x Vendor ID 0x%x Type 0x%x\n",
 		ver->fw_ivn, ver->vendor_id, ver->radio_type);
@@ -409,8 +401,6 @@ static void mei_nfc(struct mei_cl_device *cldev)
 	int ret;
 
 	bus = cldev->bus;
-
-	dev_dbg(&cldev->dev, "running hook %s\n", __func__);
 
 	mutex_lock(&bus->device_lock);
 	/* we need to connect to INFO GUID */
@@ -473,6 +463,17 @@ out:
 	dev_dbg(bus->dev, "end of fixup match = %d\n", cldev->do_match);
 }
 
+/**
+ * vt_support - enable on bus clients with vtag support
+ *
+ * @cldev: me clients device
+ */
+static void vt_support(struct mei_cl_device *cldev)
+{
+	if (cldev->me_cl->props.vt_supported == 1)
+		cldev->do_match = 1;
+}
+
 #define MEI_FIXUP(_uuid, _hook) { _uuid, _hook }
 
 static struct mei_fixup {
@@ -486,6 +487,7 @@ static struct mei_fixup {
 	MEI_FIXUP(MEI_UUID_WD, mei_wd),
 	MEI_FIXUP(MEI_UUID_MKHIF_FIX, mei_mkhi_fix),
 	MEI_FIXUP(MEI_UUID_HDCP, whitelist),
+	MEI_FIXUP(MEI_UUID_ANY, vt_support),
 };
 
 /**

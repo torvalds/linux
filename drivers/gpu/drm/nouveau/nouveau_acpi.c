@@ -49,7 +49,6 @@ static struct nouveau_dsm_priv {
 	bool optimus_flags_detected;
 	bool optimus_skip_dsm;
 	acpi_handle dhandle;
-	acpi_handle rom_handle;
 } nouveau_dsm_priv;
 
 bool nouveau_is_optimus(void) {
@@ -212,37 +211,6 @@ static const struct vga_switcheroo_handler nouveau_dsm_handler = {
 	.get_client_id = nouveau_dsm_get_client_id,
 };
 
-/*
- * Firmware supporting Windows 8 or later do not use _DSM to put the device into
- * D3cold, they instead rely on disabling power resources on the parent.
- */
-static bool nouveau_pr3_present(struct pci_dev *pdev)
-{
-	struct pci_dev *parent_pdev = pci_upstream_bridge(pdev);
-	struct acpi_device *parent_adev;
-
-	if (!parent_pdev)
-		return false;
-
-	if (!parent_pdev->bridge_d3) {
-		/*
-		 * Parent PCI bridge is currently not power managed.
-		 * Since userspace can change these afterwards to be on
-		 * the safe side we stick with _DSM and prevent usage of
-		 * _PR3 from the bridge.
-		 */
-		pci_d3cold_disable(pdev);
-		return false;
-	}
-
-	parent_adev = ACPI_COMPANION(&parent_pdev->dev);
-	if (!parent_adev)
-		return false;
-
-	return parent_adev->power.flags.power_resources &&
-		acpi_has_method(parent_adev->handle, "_PR3");
-}
-
 static void nouveau_dsm_pci_probe(struct pci_dev *pdev, acpi_handle *dhandle_out,
 				  bool *has_mux, bool *has_opt,
 				  bool *has_opt_flags, bool *has_pr3)
@@ -250,6 +218,16 @@ static void nouveau_dsm_pci_probe(struct pci_dev *pdev, acpi_handle *dhandle_out
 	acpi_handle dhandle;
 	bool supports_mux;
 	int optimus_funcs;
+	struct pci_dev *parent_pdev;
+
+	*has_pr3 = false;
+	parent_pdev = pci_upstream_bridge(pdev);
+	if (parent_pdev) {
+		if (parent_pdev->bridge_d3)
+			*has_pr3 = pci_pr3_present(parent_pdev);
+		else
+			pci_d3cold_disable(pdev);
+	}
 
 	dhandle = ACPI_HANDLE(&pdev->dev);
 	if (!dhandle)
@@ -270,7 +248,6 @@ static void nouveau_dsm_pci_probe(struct pci_dev *pdev, acpi_handle *dhandle_out
 	*has_mux = supports_mux;
 	*has_opt = !!optimus_funcs;
 	*has_opt_flags = optimus_funcs & (1 << NOUVEAU_DSM_OPTIMUS_FLAGS);
-	*has_pr3 = false;
 
 	if (optimus_funcs) {
 		uint32_t result;
@@ -280,8 +257,6 @@ static void nouveau_dsm_pci_probe(struct pci_dev *pdev, acpi_handle *dhandle_out
 			 (result & OPTIMUS_ENABLED) ? "enabled" : "disabled",
 			 (result & OPTIMUS_DYNAMIC_PWR_CAP) ? "dynamic power, " : "",
 			 (result & OPTIMUS_HDA_CODEC_MASK) ? "hda bios codec supported" : "");
-
-		*has_pr3 = nouveau_pr3_present(pdev);
 	}
 }
 
@@ -384,59 +359,6 @@ void nouveau_register_dsm_handler(void) {}
 void nouveau_unregister_dsm_handler(void) {}
 void nouveau_switcheroo_optimus_dsm(void) {}
 #endif
-
-/* retrieve the ROM in 4k blocks */
-static int nouveau_rom_call(acpi_handle rom_handle, uint8_t *bios,
-			    int offset, int len)
-{
-	acpi_status status;
-	union acpi_object rom_arg_elements[2], *obj;
-	struct acpi_object_list rom_arg;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL};
-
-	rom_arg.count = 2;
-	rom_arg.pointer = &rom_arg_elements[0];
-
-	rom_arg_elements[0].type = ACPI_TYPE_INTEGER;
-	rom_arg_elements[0].integer.value = offset;
-
-	rom_arg_elements[1].type = ACPI_TYPE_INTEGER;
-	rom_arg_elements[1].integer.value = len;
-
-	status = acpi_evaluate_object(rom_handle, NULL, &rom_arg, &buffer);
-	if (ACPI_FAILURE(status)) {
-		pr_info("failed to evaluate ROM got %s\n",
-			acpi_format_exception(status));
-		return -ENODEV;
-	}
-	obj = (union acpi_object *)buffer.pointer;
-	len = min(len, (int)obj->buffer.length);
-	memcpy(bios+offset, obj->buffer.pointer, len);
-	kfree(buffer.pointer);
-	return len;
-}
-
-bool nouveau_acpi_rom_supported(struct device *dev)
-{
-	acpi_status status;
-	acpi_handle dhandle, rom_handle;
-
-	dhandle = ACPI_HANDLE(dev);
-	if (!dhandle)
-		return false;
-
-	status = acpi_get_handle(dhandle, "_ROM", &rom_handle);
-	if (ACPI_FAILURE(status))
-		return false;
-
-	nouveau_dsm_priv.rom_handle = rom_handle;
-	return true;
-}
-
-int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len)
-{
-	return nouveau_rom_call(nouveau_dsm_priv.rom_handle, bios, offset, len);
-}
 
 void *
 nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)

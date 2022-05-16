@@ -15,6 +15,10 @@ struct rtw_dev;
 			IEEE80211_IFACE_ITER_NORMAL, iterator, data)
 #define rtw_iterate_stas_atomic(rtwdev, iterator, data)                        \
 	ieee80211_iterate_stations_atomic(rtwdev->hw, iterator, data)
+#define rtw_iterate_keys(rtwdev, vif, iterator, data)			       \
+	ieee80211_iter_keys(rtwdev->hw, vif, iterator, data)
+#define rtw_iterate_keys_rcu(rtwdev, vif, iterator, data)		       \
+	ieee80211_iter_keys_rcu((rtwdev)->hw, vif, iterator, data)
 
 static inline u8 *get_hdr_bssid(struct ieee80211_hdr *hdr)
 {

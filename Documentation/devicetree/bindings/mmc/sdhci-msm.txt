@@ -17,15 +17,23 @@ Required properties:
 		"qcom,msm8916-sdhci", "qcom,sdhci-msm-v4"
 		"qcom,msm8992-sdhci", "qcom,sdhci-msm-v4"
 		"qcom,msm8996-sdhci", "qcom,sdhci-msm-v4"
+		"qcom,sm8250-sdhci", "qcom,sdhci-msm-v5"
 		"qcom,sdm845-sdhci", "qcom,sdhci-msm-v5"
 		"qcom,qcs404-sdhci", "qcom,sdhci-msm-v5"
+		"qcom,sc7180-sdhci", "qcom,sdhci-msm-v5";
 	NOTE that some old device tree files may be floating around that only
 	have the string "qcom,sdhci-msm-v4" without the SoC compatible string
 	but doing that should be considered a deprecated practice.
 
 - reg: Base address and length of the register in the following order:
 	- Host controller register map (required)
-	- SD Core register map (required for msm-v4 and below)
+	- SD Core register map (required for controllers earlier than msm-v5)
+	- CQE register map (Optional, CQE support is present on SDHC instance meant
+	                    for eMMC and version v4.2 and above)
+- reg-names: When CQE register map is supplied, below reg-names are required
+	- "hc" for Host controller register map
+	- "core" for SD core register map
+	- "cqhci" for CQE register map
 - interrupts: Should contain an interrupt-specifiers for the interrupts:
 	- Host controller interrupt (required)
 - pinctrl-names: Should contain only one value - "default".
@@ -38,6 +46,28 @@ Required properties:
 	"xo"	- TCXO clock (optional)
 	"cal"	- reference clock for RCLK delay calibration (optional)
 	"sleep"	- sleep clock for RCLK delay calibration (optional)
+
+- qcom,ddr-config: Certain chipsets and platforms require particular settings
+	for the DDR_CONFIG register. Use this field to specify the register
+	value as per the Hardware Programming Guide.
+
+- qcom,dll-config: Chipset and Platform specific value. Use this field to
+	specify the DLL_CONFIG register value as per Hardware Programming Guide.
+
+Optional Properties:
+* Following bus parameters are required for interconnect bandwidth scaling:
+- interconnects: Pairs of phandles and interconnect provider specifier
+		 to denote the edge source and destination ports of
+		 the interconnect path.
+
+- interconnect-names: For sdhc, we have two main paths.
+		1. Data path : sdhc to ddr
+		2. Config path : cpu to sdhc
+		For Data interconnect path the name supposed to be
+		is "sdhc-ddr" and for config interconnect path it is
+		"cpu-sdhc".
+		Please refer to Documentation/devicetree/bindings/
+		interconnect/ for more details.
 
 Example:
 
@@ -56,6 +86,12 @@ Example:
 
 		clocks = <&gcc GCC_SDCC1_APPS_CLK>, <&gcc GCC_SDCC1_AHB_CLK>;
 		clock-names = "core", "iface";
+		interconnects = <&qnoc MASTER_SDCC_ID &qnoc SLAVE_DDR_ID>,
+				<&qnoc MASTER_CPU_ID &qnoc SLAVE_SDCC_ID>;
+		interconnect-names = "sdhc-ddr","cpu-sdhc";
+
+		qcom,dll-config = <0x000f642c>;
+		qcom,ddr-config = <0x80040868>;
 	};
 
 	sdhc_2: sdhci@f98a4900 {
@@ -73,4 +109,7 @@ Example:
 
 		clocks = <&gcc GCC_SDCC2_APPS_CLK>, <&gcc GCC_SDCC2_AHB_CLK>;
 		clock-names = "core", "iface";
+
+		qcom,dll-config = <0x0007642c>;
+		qcom,ddr-config = <0x80040868>;
 	};

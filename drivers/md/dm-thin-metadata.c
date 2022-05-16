@@ -28,7 +28,7 @@
  *
  * - A hierarchical btree, with 2 levels which effectively maps (thin
  *   dev id, virtual block) -> block_time.  Block time is a 64-bit
- *   field holding the time in the low 24 bits, and block in the top 48
+ *   field holding the time in the low 24 bits, and block in the top 40
  *   bits.
  *
  * BTrees consist solely of btree_nodes, that fill a block.  Some are
@@ -187,6 +187,15 @@ struct dm_pool_metadata {
 	uint64_t trans_id;
 	unsigned long flags;
 	sector_t data_block_size;
+
+	/*
+	 * Pre-commit callback.
+	 *
+	 * This allows the thin provisioning target to run a callback before
+	 * the metadata are committed.
+	 */
+	dm_pool_pre_commit_fn pre_commit_fn;
+	void *pre_commit_context;
 
 	/*
 	 * We reserve a section of the metadata for commit overhead.
@@ -378,16 +387,15 @@ static int subtree_equal(void *context, const void *value1_le, const void *value
  * Variant that is used for in-core only changes or code that
  * shouldn't put the pool in service on its own (e.g. commit).
  */
-static inline void __pmd_write_lock(struct dm_pool_metadata *pmd)
+static inline void pmd_write_lock_in_core(struct dm_pool_metadata *pmd)
 	__acquires(pmd->root_lock)
 {
 	down_write(&pmd->root_lock);
 }
-#define pmd_write_lock_in_core(pmd) __pmd_write_lock((pmd))
 
 static inline void pmd_write_lock(struct dm_pool_metadata *pmd)
 {
-	__pmd_write_lock(pmd);
+	pmd_write_lock_in_core(pmd);
 	if (unlikely(!pmd->in_service))
 		pmd->in_service = true;
 }
@@ -731,12 +739,16 @@ static int __create_persistent_data_objects(struct dm_pool_metadata *pmd, bool f
 					  THIN_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(pmd->bm)) {
 		DMERR("could not create block manager");
-		return PTR_ERR(pmd->bm);
+		r = PTR_ERR(pmd->bm);
+		pmd->bm = NULL;
+		return r;
 	}
 
 	r = __open_or_format_metadata(pmd, format_device);
-	if (r)
+	if (r) {
 		dm_block_manager_destroy(pmd->bm);
+		pmd->bm = NULL;
+	}
 
 	return r;
 }
@@ -802,7 +814,7 @@ static int __write_changed_details(struct dm_pool_metadata *pmd)
 			return r;
 
 		if (td->open_count)
-			td->changed = 0;
+			td->changed = false;
 		else {
 			list_del(&td->list);
 			kfree(td);
@@ -822,9 +834,18 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 	 * We need to know if the thin_disk_superblock exceeds a 512-byte sector.
 	 */
 	BUILD_BUG_ON(sizeof(struct thin_disk_superblock) > 512);
+	BUG_ON(!rwsem_is_locked(&pmd->root_lock));
 
 	if (unlikely(!pmd->in_service))
 		return 0;
+
+	if (pmd->pre_commit_fn) {
+		r = pmd->pre_commit_fn(pmd->pre_commit_context);
+		if (r < 0) {
+			DMERR("pre-commit callback failed");
+			return r;
+		}
+	}
 
 	r = __write_changed_details(pmd);
 	if (r < 0)
@@ -892,6 +913,8 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 	pmd->in_service = false;
 	pmd->bdev = bdev;
 	pmd->data_block_size = data_block_size;
+	pmd->pre_commit_fn = NULL;
+	pmd->pre_commit_context = NULL;
 
 	r = __create_persistent_data_objects(pmd, format_device);
 	if (r) {
@@ -934,12 +957,14 @@ int dm_pool_metadata_close(struct dm_pool_metadata *pmd)
 		return -EBUSY;
 	}
 
-	if (!dm_bm_is_read_only(pmd->bm) && !pmd->fail_io) {
+	pmd_write_lock_in_core(pmd);
+	if (!pmd->fail_io && !dm_bm_is_read_only(pmd->bm)) {
 		r = __commit_transaction(pmd);
 		if (r < 0)
 			DMWARN("%s: __commit_transaction() failed, error = %d",
 			       __func__, r);
 	}
+	pmd_write_unlock(pmd);
 	if (!pmd->fail_io)
 		__destroy_persistent_data_objects(pmd);
 
@@ -1026,12 +1051,11 @@ static int __create_thin(struct dm_pool_metadata *pmd,
 	int r;
 	dm_block_t dev_root;
 	uint64_t key = dev;
-	struct disk_device_details details_le;
 	struct dm_thin_device *td;
 	__le64 value;
 
 	r = dm_btree_lookup(&pmd->details_info, pmd->details_root,
-			    &key, &details_le);
+			    &key, NULL);
 	if (!r)
 		return -EEXIST;
 
@@ -1087,7 +1111,7 @@ static int __set_snapshot_details(struct dm_pool_metadata *pmd,
 	if (r)
 		return r;
 
-	td->changed = 1;
+	td->changed = true;
 	td->snapshotted_time = time;
 
 	snap->mapped_blocks = td->mapped_blocks;
@@ -1104,12 +1128,11 @@ static int __create_snap(struct dm_pool_metadata *pmd,
 	dm_block_t origin_root;
 	uint64_t key = origin, dev_key = dev;
 	struct dm_thin_device *td;
-	struct disk_device_details details_le;
 	__le64 value;
 
 	/* check this device is unused */
 	r = dm_btree_lookup(&pmd->details_info, pmd->details_root,
-			    &dev_key, &details_le);
+			    &dev_key, NULL);
 	if (!r)
 		return -EEXIST;
 
@@ -1599,7 +1622,7 @@ static int __insert(struct dm_thin_device *td, dm_block_t block,
 	if (r)
 		return r;
 
-	td->changed = 1;
+	td->changed = true;
 	if (inserted)
 		td->mapped_blocks++;
 
@@ -1630,7 +1653,7 @@ static int __remove(struct dm_thin_device *td, dm_block_t block)
 		return r;
 
 	td->mapped_blocks--;
-	td->changed = 1;
+	td->changed = true;
 
 	return 0;
 }
@@ -1684,7 +1707,7 @@ static int __remove_range(struct dm_thin_device *td, dm_block_t begin, dm_block_
 	}
 
 	td->mapped_blocks -= total_count;
-	td->changed = 1;
+	td->changed = true;
 
 	/*
 	 * Reinsert the mapping tree.
@@ -1822,7 +1845,7 @@ int dm_pool_commit_metadata(struct dm_pool_metadata *pmd)
 	 * Care is taken to not have commit be what
 	 * triggers putting the thin-pool in-service.
 	 */
-	__pmd_write_lock(pmd);
+	pmd_write_lock_in_core(pmd);
 	if (pmd->fail_io)
 		goto out;
 
@@ -2042,6 +2065,16 @@ int dm_pool_register_metadata_threshold(struct dm_pool_metadata *pmd,
 	pmd_write_unlock(pmd);
 
 	return r;
+}
+
+void dm_pool_register_pre_commit_callback(struct dm_pool_metadata *pmd,
+					  dm_pool_pre_commit_fn fn,
+					  void *context)
+{
+	pmd_write_lock_in_core(pmd);
+	pmd->pre_commit_fn = fn;
+	pmd->pre_commit_context = context;
+	pmd_write_unlock(pmd);
 }
 
 int dm_pool_metadata_set_needs_check(struct dm_pool_metadata *pmd)

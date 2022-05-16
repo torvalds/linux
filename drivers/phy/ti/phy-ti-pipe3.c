@@ -337,7 +337,6 @@ static int ti_pipe3_power_on(struct phy *x)
 {
 	u32 val;
 	u32 mask;
-	int ret;
 	unsigned long rate;
 	struct ti_pipe3 *phy = phy_get_drvdata(x);
 	bool rx_pending = false;
@@ -355,8 +354,8 @@ static int ti_pipe3_power_on(struct phy *x)
 	rate = rate / 1000000;
 	mask = OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_FREQ_MASK;
 	val = rate << OMAP_CTRL_PIPE3_PHY_PWRCTL_CLK_FREQ_SHIFT;
-	ret = regmap_update_bits(phy->phy_power_syscon, phy->power_reg,
-				 mask, val);
+	regmap_update_bits(phy->phy_power_syscon, phy->power_reg,
+			   mask, val);
 	/*
 	 * For PCIe, TX and RX must be powered on simultaneously.
 	 * For USB and SATA, TX must be powered on before RX
@@ -850,6 +849,12 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 
 static int ti_pipe3_remove(struct platform_device *pdev)
 {
+	struct ti_pipe3 *phy = platform_get_drvdata(pdev);
+
+	if (phy->mode == PIPE3_MODE_SATA) {
+		clk_disable_unprepare(phy->refclk);
+		phy->sata_refclk_enabled = false;
+	}
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
@@ -900,18 +905,8 @@ static void ti_pipe3_disable_clocks(struct ti_pipe3 *phy)
 {
 	if (!IS_ERR(phy->wkupclk))
 		clk_disable_unprepare(phy->wkupclk);
-	if (!IS_ERR(phy->refclk)) {
+	if (!IS_ERR(phy->refclk))
 		clk_disable_unprepare(phy->refclk);
-		/*
-		 * SATA refclk needs an additional disable as we left it
-		 * on in probe to avoid Errata i783
-		 */
-		if (phy->sata_refclk_enabled) {
-			clk_disable_unprepare(phy->refclk);
-			phy->sata_refclk_enabled = false;
-		}
-	}
-
 	if (!IS_ERR(phy->div_clk))
 		clk_disable_unprepare(phy->div_clk);
 }

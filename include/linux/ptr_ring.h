@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <asm/errno.h>
 #endif
 
@@ -106,7 +107,7 @@ static inline int __ptr_ring_produce(struct ptr_ring *r, void *ptr)
 		return -ENOSPC;
 
 	/* Make sure the pointer we are storing points to a valid data. */
-	/* Pairs with smp_read_barrier_depends in __ptr_ring_consume. */
+	/* Pairs with the dependency ordering in __ptr_ring_consume. */
 	smp_wmb();
 
 	WRITE_ONCE(r->queue[r->producer++], ptr);

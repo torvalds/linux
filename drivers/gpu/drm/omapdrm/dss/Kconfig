@@ -6,12 +6,12 @@ config OMAP_DSS_BASE
 	tristate
 
 menuconfig OMAP2_DSS
-        tristate "OMAP2+ Display Subsystem support"
+	tristate "OMAP2+ Display Subsystem support"
 	select OMAP_DSS_BASE
 	select VIDEOMODE_HELPERS
 	select OMAP2_DSS_INIT
 	select HDMI
-        help
+	help
 	  OMAP2+ Display Subsystem support.
 
 if OMAP2_DSS
@@ -52,7 +52,7 @@ config OMAP2_DSS_DPI
 
 config OMAP2_DSS_VENC
 	bool "VENC support"
-        default y
+	default y
 	help
 	  OMAP Video Encoder support for S-Video and composite TV-out.
 
@@ -61,7 +61,7 @@ config OMAP2_DSS_HDMI_COMMON
 
 config OMAP4_DSS_HDMI
 	bool "HDMI support for OMAP4"
-        default y
+	default y
 	select OMAP2_DSS_HDMI_COMMON
 	help
 	  HDMI support for OMAP4 based SoCs.
@@ -71,7 +71,7 @@ config OMAP4_DSS_HDMI_CEC
 	depends on OMAP4_DSS_HDMI
 	select CEC_CORE
 	default y
-	---help---
+	help
 	  When selected the HDMI transmitter will support the CEC feature.
 
 config OMAP5_DSS_HDMI
@@ -85,7 +85,7 @@ config OMAP5_DSS_HDMI
 
 config OMAP2_DSS_SDI
 	bool "SDI support"
-        default n
+	default n
 	help
 	  SDI (Serial Display Interface) support.
 
@@ -94,7 +94,7 @@ config OMAP2_DSS_SDI
 
 config OMAP2_DSS_DSI
 	bool "DSI support"
-        default n
+	default n
 	help
 	  MIPI DSI (Display Serial Interface) support.
 

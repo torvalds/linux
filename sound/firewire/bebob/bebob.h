@@ -217,7 +217,9 @@ int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
 				   enum snd_bebob_clock_type *src);
 int snd_bebob_stream_discover(struct snd_bebob *bebob);
 int snd_bebob_stream_init_duplex(struct snd_bebob *bebob);
-int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate);
+int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate,
+				    unsigned int frames_per_period,
+				    unsigned int frames_per_buffer);
 int snd_bebob_stream_start_duplex(struct snd_bebob *bebob);
 void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob);
 void snd_bebob_stream_destroy_duplex(struct snd_bebob *bebob);

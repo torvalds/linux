@@ -124,8 +124,8 @@ static int wf_lm87_probe(struct i2c_client *client,
 		}
 	}
 	if (!name) {
-		pr_warning("wf_lm87: Unsupported sensor %pOF\n",
-			   client->dev.of_node);
+		pr_warn("wf_lm87: Unsupported sensor %pOF\n",
+			client->dev.of_node);
 		return -ENODEV;
 	}
 
@@ -149,8 +149,6 @@ static int wf_lm87_remove(struct i2c_client *client)
 {
 	struct wf_lm87_sensor *lm = i2c_get_clientdata(client);
 
-	DBG("wf_lm87: i2c detatch called for %s\n", lm->sens.name);
-
 	/* Mark client detached */
 	lm->i2c = NULL;
 
@@ -166,9 +164,16 @@ static const struct i2c_device_id wf_lm87_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wf_lm87_id);
 
+static const struct of_device_id wf_lm87_of_id[] = {
+	{ .compatible = "lm87cimt", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wf_lm87_of_id);
+
 static struct i2c_driver wf_lm87_driver = {
 	.driver = {
 		.name	= "wf_lm87",
+		.of_match_table = wf_lm87_of_id,
 	},
 	.probe		= wf_lm87_probe,
 	.remove		= wf_lm87_remove,

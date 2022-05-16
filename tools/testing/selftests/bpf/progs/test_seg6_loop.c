@@ -3,8 +3,8 @@
 #include <errno.h>
 #include <linux/seg6_local.h>
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 /* Packet parsing state machine helpers. */
 #define cursor_advance(_cursor, _len) \
@@ -132,8 +132,10 @@ static __always_inline int is_valid_tlv_boundary(struct __sk_buff *skb,
 	*pad_off = 0;
 
 	// we can only go as far as ~10 TLVs due to the BPF max stack size
+	// workaround: define induction variable "i" as "long" instead
+	// of "int" to prevent alu32 sub-register spilling.
 	#pragma clang loop unroll(disable)
-	for (int i = 0; i < 100; i++) {
+	for (long i = 0; i < 100; i++) {
 		struct sr6_tlv_t tlv;
 
 		if (cur_off == *tlv_off)

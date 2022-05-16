@@ -255,6 +255,21 @@ static inline void intel_gvt_hypervisor_dma_unmap_guest_page(
 }
 
 /**
+ * intel_gvt_hypervisor_dma_pin_guest_page - pin guest dma buf
+ * @vgpu: a vGPU
+ * @dma_addr: guest dma addr
+ *
+ * Returns:
+ * 0 on success, negative error code if failed.
+ */
+static inline int
+intel_gvt_hypervisor_dma_pin_guest_page(struct intel_vgpu *vgpu,
+					dma_addr_t dma_addr)
+{
+	return intel_gvt_host.mpt->dma_pin_guest_page(vgpu->handle, dma_addr);
+}
+
+/**
  * intel_gvt_hypervisor_map_gfn_to_mfn - map a GFN region to MFN
  * @vgpu: a vGPU
  * @gfn: guest PFN

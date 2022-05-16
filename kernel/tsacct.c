@@ -24,6 +24,7 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 	const struct cred *tcred;
 	u64 utime, stime, utimescaled, stimescaled;
 	u64 delta;
+	time64_t btime;
 
 	BUILD_BUG_ON(TS_COMM_LEN < TASK_COMM_LEN);
 
@@ -32,9 +33,11 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 	/* Convert to micro seconds */
 	do_div(delta, NSEC_PER_USEC);
 	stats->ac_etime = delta;
-	/* Convert to seconds for btime */
-	do_div(delta, USEC_PER_SEC);
-	stats->ac_btime = get_seconds() - delta;
+	/* Convert to seconds for btime (note y2106 limit) */
+	btime = ktime_get_real_seconds() - div_u64(delta, USEC_PER_SEC);
+	stats->ac_btime = clamp_t(time64_t, btime, 0, U32_MAX);
+	stats->ac_btime64 = btime;
+
 	if (thread_group_leader(tsk)) {
 		stats->ac_exitcode = tsk->exit_code;
 		if (tsk->flags & PF_FORKNOEXEC)

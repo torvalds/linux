@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -148,7 +146,8 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 				    "FLUSHING all tids queues on sta_id = %d\n",
 				    flush_arg);
 		mutex_lock(&mvm->mutex);
-		ret = iwl_mvm_flush_sta_tids(mvm, flush_arg, 0xFF, 0) ? : count;
+		ret = iwl_mvm_flush_sta_tids(mvm, flush_arg, 0xFFFF, 0)
+			? : count;
 		mutex_unlock(&mvm->mutex);
 		return ret;
 	}
@@ -175,7 +174,7 @@ static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 
 	if (sscanf(buf, "%d %d", &sta_id, &drain) != 2)
 		return -EINVAL;
-	if (sta_id < 0 || sta_id >= IWL_MVM_STATION_COUNT)
+	if (sta_id < 0 || sta_id >= mvm->fw->ucode_capa.num_stations)
 		return -EINVAL;
 	if (drain < 0 || drain > 1)
 		return -EINVAL;
@@ -377,7 +376,7 @@ static ssize_t iwl_dbgfs_sar_geo_profile_read(struct file *file,
 		pos = scnprintf(buf, bufsz,
 				"SAR geographic profile disabled\n");
 	} else {
-		value = &mvm->geo_profiles[tbl_idx - 1].values[0];
+		value = &mvm->fwrt.geo_profiles[tbl_idx - 1].values[0];
 
 		pos += scnprintf(buf + pos, bufsz - pos,
 				 "Use geographic profile %d\n", tbl_idx);
@@ -404,7 +403,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 
 	mutex_lock(&mvm->mutex);
 
-	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		pos += scnprintf(buf + pos, bufsz - pos, "%.2d: ", i);
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
 						lockdep_is_held(&mvm->mutex));
@@ -460,6 +459,8 @@ static ssize_t iwl_dbgfs_rs_data_read(struct file *file, char __user *user_buf,
 
 	desc += rs_pretty_print_rate(buff + desc, bufsz - desc,
 				     lq_sta->last_rate_n_flags);
+	if (desc < bufsz - 1)
+		buff[desc++] = '\n';
 	mutex_unlock(&mvm->mutex);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
@@ -477,6 +478,11 @@ static ssize_t iwl_dbgfs_amsdu_len_write(struct ieee80211_sta *sta,
 
 	if (kstrtou16(buf, 0, &amsdu_len))
 		return -EINVAL;
+
+	/* only change from debug set <-> debug unset */
+	if ((amsdu_len && mvmsta->orig_amsdu_len) ||
+	    (!!amsdu_len && mvmsta->orig_amsdu_len))
+		return -EBUSY;
 
 	if (amsdu_len) {
 		mvmsta->orig_amsdu_len = sta->max_amsdu_len;
@@ -751,7 +757,7 @@ static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
 	pos += scnprintf(pos, endpos - pos, "FW: %s\n",
 			 mvm->fwrt.fw->human_readable);
 	pos += scnprintf(pos, endpos - pos, "Device: %s\n",
-			 mvm->fwrt.trans->cfg->name);
+			 mvm->fwrt.trans->name);
 	pos += scnprintf(pos, endpos - pos, "Bus: %s\n",
 			 mvm->fwrt.dev->bus->name);
 
@@ -1012,6 +1018,8 @@ static ssize_t iwl_dbgfs_frame_stats_read(struct iwl_mvm *mvm,
 				 (int)(ARRAY_SIZE(stats->last_rates) - i));
 		pos += rs_pretty_print_rate(pos, endpos - pos,
 					    stats->last_rates[idx]);
+		if (pos < endpos - 1)
+			*pos++ = '\n';
 	}
 	spin_unlock_bh(&mvm->drv_stats_lock);
 
@@ -1174,7 +1182,7 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 	int bin_len = count / 2;
 	int ret = -EINVAL;
 	size_t mpdu_cmd_hdr_size = (mvm->trans->trans_cfg->device_family >=
-				    IWL_DEVICE_FAMILY_22560) ?
+				    IWL_DEVICE_FAMILY_AX210) ?
 		sizeof(struct iwl_rx_mpdu_desc) :
 		IWL_RX_DESC_SIZE_V1;
 
@@ -1374,6 +1382,9 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 {
 	if (count == 0)
 		return 0;
+
+	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_USER_TRIGGER,
+			       NULL);
 
 	iwl_fw_dbg_collect(&mvm->fwrt, FW_DBG_TRIGGER_USER, buf,
 			   (count - 1), NULL);

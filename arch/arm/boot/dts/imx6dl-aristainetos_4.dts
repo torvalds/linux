@@ -61,7 +61,7 @@
 };
 
 &ecspi2 {
-	cs-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio3 24 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	status = "okay";
@@ -79,5 +79,6 @@
 };
 
 &pwm1 {
+	#pwm-cells = <2>;
 	status = "okay";
 };

@@ -7,6 +7,7 @@
 #include <linux/t10-pi.h>
 #include <linux/blkdev.h>
 #include <linux/crc-t10dif.h>
+#include <linux/module.h>
 #include <net/checksum.h>
 
 typedef __be16 (csum_fn) (void *, unsigned int);
@@ -235,16 +236,12 @@ static blk_status_t t10_pi_type3_verify_ip(struct blk_integrity_iter *iter)
 	return t10_pi_verify(iter, t10_pi_ip_fn, T10_PI_TYPE3_PROTECTION);
 }
 
-/**
- * Type 3 does not have a reference tag so no remapping is required.
- */
+/* Type 3 does not have a reference tag so no remapping is required. */
 static void t10_pi_type3_prepare(struct request *rq)
 {
 }
 
-/**
- * Type 3 does not have a reference tag so no remapping is required.
- */
+/* Type 3 does not have a reference tag so no remapping is required. */
 static void t10_pi_type3_complete(struct request *rq, unsigned int nr_bytes)
 {
 }
@@ -284,3 +281,5 @@ const struct blk_integrity_profile t10_pi_type3_ip = {
 	.complete_fn		= t10_pi_type3_complete,
 };
 EXPORT_SYMBOL(t10_pi_type3_ip);
+
+MODULE_LICENSE("GPL");

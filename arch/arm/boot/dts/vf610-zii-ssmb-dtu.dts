@@ -46,6 +46,14 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+	supply-voltage-monitor {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 8>, /* 12V_MAIN */
+			      <&adc0 9>, /* +3.3V    */
+			      <&adc1 8>, /* VCC_1V5  */
+			      <&adc1 9>; /* VCC_1V2  */
+	};
 };
 
 &adc0 {
@@ -73,6 +81,8 @@
 	non-removable;
 	no-1-8-v;
 	keep-power-in-suspend;
+	no-sdio;
+	no-sd;
 	status = "okay";
 };
 
@@ -80,6 +90,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
+	no-sdio;
 	status = "okay";
 };
 
@@ -97,6 +108,8 @@
 	mdio1: mdio {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		clock-frequency = <12500000>;
+		suppress-preamble;
 		status = "okay";
 
 		switch0: switch0@0 {
@@ -105,7 +118,6 @@
 			pinctrl-names = "default";
 			reg = <0>;
 			eeprom-length = <65536>;
-			reset-gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
 			interrupt-parent = <&gpio3>;
 			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 			interrupt-controller;
@@ -280,7 +292,6 @@
 
 	pinctrl_gpio_switch0: pinctrl-gpio-switch0 {
 		fsl,pins = <
-			VF610_PAD_PTE2__GPIO_107		0x31c2
 			VF610_PAD_PTB28__GPIO_98		0x219d
 		>;
 	};

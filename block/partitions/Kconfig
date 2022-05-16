@@ -156,7 +156,7 @@ config SOLARIS_X86_PARTITION
 config UNIXWARE_DISKLABEL
 	bool "Unixware slices support"
 	depends on PARTITION_ADVANCED && MSDOS_PARTITION
-	---help---
+	help
 	  Like some systems, UnixWare uses its own slice table inside a
 	  partition (VTOC - Virtual Table of Contents). Its format is
 	  incompatible with all other OSes. Saying Y here allows you to read
@@ -176,7 +176,7 @@ config UNIXWARE_DISKLABEL
 config LDM_PARTITION
 	bool "Windows Logical Disk Manager (Dynamic Disk) support"
 	depends on PARTITION_ADVANCED
-	---help---
+	help
 	  Say Y here if you would like to use hard disks under Linux which
 	  were partitioned using Windows 2000's/XP's or Vista's Logical Disk
 	  Manager.  They are also known as "Dynamic Disks".
@@ -226,7 +226,7 @@ config ULTRIX_PARTITION
 config SUN_PARTITION
 	bool "Sun partition tables support" if PARTITION_ADVANCED
 	default y if (SPARC || SUN3 || SUN3X)
-	---help---
+	help
 	  Like most systems, SunOS uses its own hard disk partition table
 	  format, incompatible with all others. Saying Y here allows you to
 	  read these partition tables and further mount SunOS partitions from

@@ -182,7 +182,7 @@ err_fence:
 		dma_fence_put(fence);
 	}
 err:
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 	return ret;
 }
 

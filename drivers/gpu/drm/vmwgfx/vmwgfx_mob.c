@@ -238,10 +238,6 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 	unsigned long offset;
 	unsigned long bo_size;
 	struct vmw_otable *otables = batch->otables;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
 	SVGAOTableType i;
 	int ret;
 
@@ -255,24 +251,9 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 		bo_size += otables[i].size;
 	}
 
-	ret = ttm_bo_create(&dev_priv->bdev, bo_size,
-			    ttm_bo_type_device,
-			    &vmw_sys_ne_placement,
-			    0, false, &batch->otable_bo);
-
+	ret = vmw_bo_create_and_populate(dev_priv, bo_size, &batch->otable_bo);
 	if (unlikely(ret != 0))
-		goto out_no_bo;
-
-	ret = ttm_bo_reserve(batch->otable_bo, false, true, NULL);
-	BUG_ON(ret != 0);
-	ret = vmw_bo_driver.ttm_tt_populate(batch->otable_bo->ttm, &ctx);
-	if (unlikely(ret != 0))
-		goto out_unreserve;
-	ret = vmw_bo_map_dma(batch->otable_bo);
-	if (unlikely(ret != 0))
-		goto out_unreserve;
-
-	ttm_bo_unreserve(batch->otable_bo);
+		return ret;
 
 	offset = 0;
 	for (i = 0; i < batch->num_otables; ++i) {
@@ -289,8 +270,6 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 
 	return 0;
 
-out_unreserve:
-	ttm_bo_unreserve(batch->otable_bo);
 out_no_setup:
 	for (i = 0; i < batch->num_otables; ++i) {
 		if (batch->otables[i].enabled)
@@ -300,7 +279,6 @@ out_no_setup:
 
 	ttm_bo_put(batch->otable_bo);
 	batch->otable_bo = NULL;
-out_no_bo:
 	return ret;
 }
 
@@ -320,7 +298,7 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 	struct vmw_otable **otables = &dev_priv->otable_batch.otables;
 	int ret;
 
-	if (dev_priv->has_dx) {
+	if (has_sm4_context(dev_priv)) {
 		*otables = kmemdup(dx_tables, sizeof(dx_tables), GFP_KERNEL);
 		if (!(*otables))
 			return -ENOMEM;
@@ -432,41 +410,9 @@ struct vmw_mob *vmw_mob_create(unsigned long data_pages)
 static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 			       struct vmw_mob *mob)
 {
-	int ret;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
-
 	BUG_ON(mob->pt_bo != NULL);
 
-	ret = ttm_bo_create(&dev_priv->bdev, mob->num_pages * PAGE_SIZE,
-			    ttm_bo_type_device,
-			    &vmw_sys_ne_placement,
-			    0, false, &mob->pt_bo);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = ttm_bo_reserve(mob->pt_bo, false, true, NULL);
-
-	BUG_ON(ret != 0);
-	ret = vmw_bo_driver.ttm_tt_populate(mob->pt_bo->ttm, &ctx);
-	if (unlikely(ret != 0))
-		goto out_unreserve;
-	ret = vmw_bo_map_dma(mob->pt_bo);
-	if (unlikely(ret != 0))
-		goto out_unreserve;
-
-	ttm_bo_unreserve(mob->pt_bo);
-
-	return 0;
-
-out_unreserve:
-	ttm_bo_unreserve(mob->pt_bo);
-	ttm_bo_put(mob->pt_bo);
-	mob->pt_bo = NULL;
-
-	return ret;
+	return vmw_bo_create_and_populate(dev_priv, mob->num_pages * PAGE_SIZE, &mob->pt_bo);
 }
 
 /**

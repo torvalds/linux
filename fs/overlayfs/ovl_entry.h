@@ -17,11 +17,16 @@ struct ovl_config {
 	bool nfs_export;
 	int xino;
 	bool metacopy;
+	bool ovl_volatile;
 };
 
 struct ovl_sb {
 	struct super_block *sb;
 	dev_t pseudo_dev;
+	/* Unusable (conflicting) uuid */
+	bool bad_uuid;
+	/* Used as a lower layer (but maybe also as upper) */
+	bool is_lower;
 };
 
 struct ovl_layer {
@@ -36,18 +41,17 @@ struct ovl_layer {
 };
 
 struct ovl_path {
-	struct ovl_layer *layer;
+	const struct ovl_layer *layer;
 	struct dentry *dentry;
 };
 
 /* private information held for overlayfs's superblock */
 struct ovl_fs {
-	struct vfsmount *upper_mnt;
-	unsigned int numlower;
-	/* Number of unique lower sb that differ from upper sb */
-	unsigned int numlowerfs;
-	struct ovl_layer *lower_layers;
-	struct ovl_sb *lower_fs;
+	unsigned int numlayer;
+	/* Number of unique fs among layers including upper fs */
+	unsigned int numfs;
+	const struct ovl_layer *layers;
+	struct ovl_sb *fs;
 	/* workbasedir is the path at workdir= mount option */
 	struct dentry *workbasedir;
 	/* workdir is the 'work' directory under workbasedir */
@@ -64,14 +68,33 @@ struct ovl_fs {
 	/* Did we take the inuse lock? */
 	bool upperdir_locked;
 	bool workdir_locked;
+	bool share_whiteout;
 	/* Traps in ovl inode cache */
-	struct inode *upperdir_trap;
 	struct inode *workbasedir_trap;
 	struct inode *workdir_trap;
 	struct inode *indexdir_trap;
-	/* Inode numbers in all layers do not use the high xino_bits */
-	unsigned int xino_bits;
+	/* -1: disabled, 0: same fs, 1..32: number of unused ino bits */
+	int xino_mode;
+	/* For allocation of non-persistent inode numbers */
+	atomic_long_t last_ino;
+	/* Whiteout dentry cache */
+	struct dentry *whiteout;
 };
+
+static inline struct vfsmount *ovl_upper_mnt(struct ovl_fs *ofs)
+{
+	return ofs->layers[0].mnt;
+}
+
+static inline struct ovl_fs *OVL_FS(struct super_block *sb)
+{
+	return (struct ovl_fs *)sb->s_fs_info;
+}
+
+static inline bool ovl_should_sync(struct ovl_fs *ofs)
+{
+	return !ofs->config.ovl_volatile;
+}
 
 /* private information held for every overlayfs dentry */
 struct ovl_entry {

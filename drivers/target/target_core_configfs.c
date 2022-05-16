@@ -684,7 +684,9 @@ static ssize_t emulate_ua_intlck_ctrl_store(struct config_item *item,
 	if (ret < 0)
 		return ret;
 
-	if (val != 0 && val != 1 && val != 2) {
+	if (val != TARGET_UA_INTLCK_CTRL_CLEAR
+	 && val != TARGET_UA_INTLCK_CTRL_NO_CLEAR
+	 && val != TARGET_UA_INTLCK_CTRL_ESTABLISH_UA) {
 		pr_err("Illegal value %d\n", val);
 		return -EINVAL;
 	}
@@ -1097,19 +1099,71 @@ static ssize_t block_size_store(struct config_item *item,
 static ssize_t alua_support_show(struct config_item *item, char *page)
 {
 	struct se_dev_attrib *da = to_attrib(item);
-	u8 flags = da->da_dev->transport->transport_flags;
+	u8 flags = da->da_dev->transport_flags;
 
 	return snprintf(page, PAGE_SIZE, "%d\n",
 			flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA ? 0 : 1);
 }
 
+static ssize_t alua_support_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
+	bool flag;
+	int ret;
+
+	if (!(dev->transport->transport_flags_changeable &
+	      TRANSPORT_FLAG_PASSTHROUGH_ALUA)) {
+		pr_err("dev[%p]: Unable to change SE Device alua_support:"
+			" alua_support has fixed value\n", dev);
+		return -EINVAL;
+	}
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (flag)
+		dev->transport_flags &= ~TRANSPORT_FLAG_PASSTHROUGH_ALUA;
+	else
+		dev->transport_flags |= TRANSPORT_FLAG_PASSTHROUGH_ALUA;
+	return count;
+}
+
 static ssize_t pgr_support_show(struct config_item *item, char *page)
 {
 	struct se_dev_attrib *da = to_attrib(item);
-	u8 flags = da->da_dev->transport->transport_flags;
+	u8 flags = da->da_dev->transport_flags;
 
 	return snprintf(page, PAGE_SIZE, "%d\n",
 			flags & TRANSPORT_FLAG_PASSTHROUGH_PGR ? 0 : 1);
+}
+
+static ssize_t pgr_support_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	struct se_device *dev = da->da_dev;
+	bool flag;
+	int ret;
+
+	if (!(dev->transport->transport_flags_changeable &
+	      TRANSPORT_FLAG_PASSTHROUGH_PGR)) {
+		pr_err("dev[%p]: Unable to change SE Device pgr_support:"
+			" pgr_support has fixed value\n", dev);
+		return -EINVAL;
+	}
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (flag)
+		dev->transport_flags &= ~TRANSPORT_FLAG_PASSTHROUGH_PGR;
+	else
+		dev->transport_flags |= TRANSPORT_FLAG_PASSTHROUGH_PGR;
+	return count;
 }
 
 CONFIGFS_ATTR(, emulate_model_alias);
@@ -1144,8 +1198,8 @@ CONFIGFS_ATTR(, unmap_granularity);
 CONFIGFS_ATTR(, unmap_granularity_alignment);
 CONFIGFS_ATTR(, unmap_zeroes_data);
 CONFIGFS_ATTR(, max_write_same_len);
-CONFIGFS_ATTR_RO(, alua_support);
-CONFIGFS_ATTR_RO(, pgr_support);
+CONFIGFS_ATTR(, alua_support);
+CONFIGFS_ATTR(, pgr_support);
 
 /*
  * dev_attrib attributes for devices using the target core SBC/SPC
@@ -1201,11 +1255,23 @@ struct configfs_attribute *passthrough_attrib_attrs[] = {
 	&attr_hw_block_size,
 	&attr_hw_max_sectors,
 	&attr_hw_queue_depth,
+	&attr_emulate_pr,
 	&attr_alua_support,
 	&attr_pgr_support,
 	NULL,
 };
 EXPORT_SYMBOL(passthrough_attrib_attrs);
+
+/*
+ * pr related dev_attrib attributes for devices passing through CDBs,
+ * but allowing in core pr emulation.
+ */
+struct configfs_attribute *passthrough_pr_attrib_attrs[] = {
+	&attr_enforce_pr_isids,
+	&attr_force_pr_aptpl,
+	NULL,
+};
+EXPORT_SYMBOL(passthrough_pr_attrib_attrs);
 
 TB_CIT_SETUP_DRV(dev_attrib, NULL, NULL);
 TB_CIT_SETUP_DRV(dev_action, NULL, NULL);
@@ -1640,7 +1706,7 @@ static ssize_t target_pr_res_holder_show(struct config_item *item, char *page)
 	if (!dev->dev_attrib.emulate_pr)
 		return sprintf(page, "SPC_RESERVATIONS_DISABLED\n");
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
+	if (dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return sprintf(page, "Passthrough\n");
 
 	spin_lock(&dev->dev_reservation_lock);
@@ -1782,7 +1848,7 @@ static ssize_t target_pr_res_type_show(struct config_item *item, char *page)
 
 	if (!dev->dev_attrib.emulate_pr)
 		return sprintf(page, "SPC_RESERVATIONS_DISABLED\n");
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
+	if (dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return sprintf(page, "SPC_PASSTHROUGH\n");
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return sprintf(page, "SPC2_RESERVATIONS\n");
@@ -1796,7 +1862,7 @@ static ssize_t target_pr_res_aptpl_active_show(struct config_item *item,
 	struct se_device *dev = pr_to_dev(item);
 
 	if (!dev->dev_attrib.emulate_pr ||
-	    (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
+	    (dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
 		return 0;
 
 	return sprintf(page, "APTPL Bit Status: %s\n",
@@ -1809,7 +1875,7 @@ static ssize_t target_pr_res_aptpl_metadata_show(struct config_item *item,
 	struct se_device *dev = pr_to_dev(item);
 
 	if (!dev->dev_attrib.emulate_pr ||
-	    (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
+	    (dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
 		return 0;
 
 	return sprintf(page, "Ready to process PR APTPL metadata..\n");
@@ -1856,7 +1922,7 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 	u8 type = 0;
 
 	if (!dev->dev_attrib.emulate_pr ||
-	    (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
+	    (dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
 		return count;
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return count;

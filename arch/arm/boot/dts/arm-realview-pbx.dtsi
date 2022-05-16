@@ -210,7 +210,7 @@
 		};
 	};
 
-	soc: soc@0 {
+	soc: soc {
 		compatible = "arm,realview-pbx-soc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -381,7 +381,7 @@
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x1000f000 0x1000>;
 			clocks = <&wdogclk>, <&pclk>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 			status = "disabled";
 		};
 
@@ -389,7 +389,7 @@
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x10010000 0x1000>;
 			clocks = <&wdogclk>, <&pclk>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 			status = "disabled";
 		};
 

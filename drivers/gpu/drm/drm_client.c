@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 or MIT
 /*
  * Copyright 2018 Noralf Trønnes
  */
@@ -150,7 +150,7 @@ void drm_client_release(struct drm_client_dev *client)
 {
 	struct drm_device *dev = client->dev;
 
-	DRM_DEV_DEBUG_KMS(dev->dev, "%s\n", client->name);
+	drm_dbg_kms(dev, "%s\n", client->name);
 
 	drm_client_modeset_free(client);
 	drm_client_close(client);
@@ -203,7 +203,7 @@ void drm_client_dev_hotplug(struct drm_device *dev)
 			continue;
 
 		ret = client->funcs->hotplug(client);
-		DRM_DEV_DEBUG_KMS(dev->dev, "%s: ret=%d\n", client->name, ret);
+		drm_dbg_kms(dev, "%s: ret=%d\n", client->name, ret);
 	}
 	mutex_unlock(&dev->clientlist_mutex);
 }
@@ -223,7 +223,7 @@ void drm_client_dev_restore(struct drm_device *dev)
 			continue;
 
 		ret = client->funcs->restore(client);
-		DRM_DEV_DEBUG_KMS(dev->dev, "%s: ret=%d\n", client->name, ret);
+		drm_dbg_kms(dev, "%s: ret=%d\n", client->name, ret);
 		if (!ret) /* The first one to return zero gets the privilege to restore */
 			break;
 	}
@@ -237,7 +237,7 @@ static void drm_client_buffer_delete(struct drm_client_buffer *buffer)
 	drm_gem_vunmap(buffer->gem, buffer->vaddr);
 
 	if (buffer->gem)
-		drm_gem_object_put_unlocked(buffer->gem);
+		drm_gem_object_put(buffer->gem);
 
 	if (buffer->handle)
 		drm_mode_destroy_dumb(dev, buffer->handle, buffer->client->file);
@@ -351,8 +351,8 @@ static void drm_client_buffer_rmfb(struct drm_client_buffer *buffer)
 
 	ret = drm_mode_rmfb(buffer->client->dev, buffer->fb->base.id, buffer->client->file);
 	if (ret)
-		DRM_DEV_ERROR(buffer->client->dev->dev,
-			      "Error removing FB:%u (%d)\n", buffer->fb->base.id, ret);
+		drm_err(buffer->client->dev,
+			"Error removing FB:%u (%d)\n", buffer->fb->base.id, ret);
 
 	buffer->fb = NULL;
 }
@@ -437,6 +437,39 @@ void drm_client_framebuffer_delete(struct drm_client_buffer *buffer)
 }
 EXPORT_SYMBOL(drm_client_framebuffer_delete);
 
+/**
+ * drm_client_framebuffer_flush - Manually flush client framebuffer
+ * @buffer: DRM client buffer (can be NULL)
+ * @rect: Damage rectangle (if NULL flushes all)
+ *
+ * This calls &drm_framebuffer_funcs->dirty (if present) to flush buffer changes
+ * for drivers that need it.
+ *
+ * Returns:
+ * Zero on success or negative error code on failure.
+ */
+int drm_client_framebuffer_flush(struct drm_client_buffer *buffer, struct drm_rect *rect)
+{
+	if (!buffer || !buffer->fb || !buffer->fb->funcs->dirty)
+		return 0;
+
+	if (rect) {
+		struct drm_clip_rect clip = {
+			.x1 = rect->x1,
+			.y1 = rect->y1,
+			.x2 = rect->x2,
+			.y2 = rect->y2,
+		};
+
+		return buffer->fb->funcs->dirty(buffer->fb, buffer->client->file,
+						0, 0, &clip, 1);
+	}
+
+	return buffer->fb->funcs->dirty(buffer->fb, buffer->client->file,
+					0, 0, NULL, 0);
+}
+EXPORT_SYMBOL(drm_client_framebuffer_flush);
+
 #ifdef CONFIG_DEBUG_FS
 static int drm_client_debugfs_internal_clients(struct seq_file *m, void *data)
 {
@@ -457,10 +490,10 @@ static const struct drm_info_list drm_client_debugfs_list[] = {
 	{ "internal_clients", drm_client_debugfs_internal_clients, 0 },
 };
 
-int drm_client_debugfs_init(struct drm_minor *minor)
+void drm_client_debugfs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(drm_client_debugfs_list,
-					ARRAY_SIZE(drm_client_debugfs_list),
-					minor->debugfs_root, minor);
+	drm_debugfs_create_files(drm_client_debugfs_list,
+				 ARRAY_SIZE(drm_client_debugfs_list),
+				 minor->debugfs_root, minor);
 }
 #endif

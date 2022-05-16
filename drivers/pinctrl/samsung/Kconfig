@@ -4,30 +4,34 @@
 #
 config PINCTRL_SAMSUNG
 	bool
+	depends on OF_GPIO
 	select PINMUX
 	select PINCONF
 
 config PINCTRL_EXYNOS
-	bool "Pinctrl driver data for Samsung EXYNOS SoCs"
-	depends on OF && GPIOLIB && (ARCH_EXYNOS || ARCH_S5PV210)
+	bool "Pinctrl common driver part for Samsung Exynos SoCs"
+	depends on OF_GPIO
+	depends on ARCH_EXYNOS || ARCH_S5PV210 || COMPILE_TEST
 	select PINCTRL_SAMSUNG
 	select PINCTRL_EXYNOS_ARM if ARM && (ARCH_EXYNOS || ARCH_S5PV210)
 	select PINCTRL_EXYNOS_ARM64 if ARM64 && ARCH_EXYNOS
 
 config PINCTRL_EXYNOS_ARM
-	bool "ARMv7-specific pinctrl driver data for Exynos" if COMPILE_TEST
+	bool "ARMv7-specific pinctrl driver for Samsung Exynos SoCs" if COMPILE_TEST
 	depends on PINCTRL_EXYNOS
 
 config PINCTRL_EXYNOS_ARM64
-	bool "ARMv8-specific pinctrl driver data for Exynos" if COMPILE_TEST
+	bool "ARMv8-specific pinctrl driver for Samsung Exynos SoCs" if COMPILE_TEST
 	depends on PINCTRL_EXYNOS
 
 config PINCTRL_S3C24XX
 	bool "Samsung S3C24XX SoC pinctrl driver"
-	depends on ARCH_S3C24XX && OF
+	depends on OF_GPIO
+	depends on ARCH_S3C24XX || COMPILE_TEST
 	select PINCTRL_SAMSUNG
 
 config PINCTRL_S3C64XX
 	bool "Samsung S3C64XX SoC pinctrl driver"
-	depends on ARCH_S3C64XX
+	depends on OF_GPIO
+	depends on ARCH_S3C64XX || COMPILE_TEST
 	select PINCTRL_SAMSUNG

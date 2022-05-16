@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <linux/amba/clcd-regs.h>
+/*
+ * Versatile family (ARM reference designs) handling for the PL11x.
+ * This is based on code and know-how in the previous frame buffer
+ * driver in drivers/video/fbdev/amba-clcd.c:
+ * Copyright (C) 2001 ARM Limited, by David A Rusling
+ * Updated to 2.5 by Deep Blue Solutions Ltd.
+ * Major contributions and discoveries by Russell King.
+ */
+
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/mfd/syscon.h>
@@ -8,9 +16,9 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
+#include <linux/vexpress.h>
 
 #include "pl111_versatile.h"
-#include "pl111_vexpress.h"
 #include "pl111_drm.h"
 
 static struct regmap *versatile_syscon_map;
@@ -19,6 +27,7 @@ static struct regmap *versatile_syscon_map;
  * We detect the different syscon types from the compatible strings.
  */
 enum versatile_clcd {
+	INTEGRATOR_IMPD1,
 	INTEGRATOR_CLCD_CM,
 	VERSATILE_CLCD,
 	REALVIEW_CLCD_EB,
@@ -61,6 +70,14 @@ static const struct of_device_id versatile_clcd_of_match[] = {
 	{
 		.compatible = "arm,vexpress-muxfpga",
 		.data = (void *)VEXPRESS_CLCD_V2M,
+	},
+	{},
+};
+
+static const struct of_device_id impd1_clcd_of_match[] = {
+	{
+		.compatible = "arm,im-pd1-syscon",
+		.data = (void *)INTEGRATOR_IMPD1,
 	},
 	{},
 };
@@ -123,6 +140,36 @@ static void pl111_integrator_enable(struct drm_device *drm, u32 format)
 			   INTEGRATOR_HDR_CTRL_OFFSET,
 			   INTEGRATOR_CLCD_MASK,
 			   val);
+}
+
+#define IMPD1_CTRL_OFFSET	0x18
+#define IMPD1_CTRL_DISP_LCD	(0 << 0)
+#define IMPD1_CTRL_DISP_VGA	(1 << 0)
+#define IMPD1_CTRL_DISP_LCD1	(2 << 0)
+#define IMPD1_CTRL_DISP_ENABLE	(1 << 2)
+#define IMPD1_CTRL_DISP_MASK	(7 << 0)
+
+static void pl111_impd1_enable(struct drm_device *drm, u32 format)
+{
+	u32 val;
+
+	dev_info(drm->dev, "enable IM-PD1 CLCD connectors\n");
+	val = IMPD1_CTRL_DISP_VGA | IMPD1_CTRL_DISP_ENABLE;
+
+	regmap_update_bits(versatile_syscon_map,
+			   IMPD1_CTRL_OFFSET,
+			   IMPD1_CTRL_DISP_MASK,
+			   val);
+}
+
+static void pl111_impd1_disable(struct drm_device *drm)
+{
+	dev_info(drm->dev, "disable IM-PD1 CLCD connectors\n");
+
+	regmap_update_bits(versatile_syscon_map,
+			   IMPD1_CTRL_OFFSET,
+			   IMPD1_CTRL_DISP_MASK,
+			   0);
 }
 
 /*
@@ -271,6 +318,20 @@ static const struct pl111_variant_data pl110_integrator = {
 };
 
 /*
+ * The IM-PD1 variant is a PL110 with a bunch of broken, or not
+ * yet implemented features
+ */
+static const struct pl111_variant_data pl110_impd1 = {
+	.name = "PL110 IM-PD1",
+	.is_pl110 = true,
+	.broken_clockdivider = true,
+	.broken_vblank = true,
+	.formats = pl110_integrator_pixel_formats,
+	.nformats = ARRAY_SIZE(pl110_integrator_pixel_formats),
+	.fb_bpp = 16,
+};
+
+/*
  * This is the in-between PL110 variant found in the ARM Versatile,
  * supporting RGB565/BGR565
  */
@@ -308,13 +369,110 @@ static const struct pl111_variant_data pl111_vexpress = {
 	.broken_clockdivider = true,
 };
 
+#define VEXPRESS_FPGAMUX_MOTHERBOARD		0x00
+#define VEXPRESS_FPGAMUX_DAUGHTERBOARD_1	0x01
+#define VEXPRESS_FPGAMUX_DAUGHTERBOARD_2	0x02
+
+static int pl111_vexpress_clcd_init(struct device *dev, struct device_node *np,
+				    struct pl111_drm_dev_private *priv)
+{
+	struct platform_device *pdev;
+	struct device_node *root;
+	struct device_node *child;
+	struct device_node *ct_clcd = NULL;
+	struct regmap *map;
+	bool has_coretile_clcd = false;
+	bool has_coretile_hdlcd = false;
+	bool mux_motherboard = true;
+	u32 val;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_VEXPRESS_CONFIG))
+		return -ENODEV;
+
+	/*
+	 * Check if we have a CLCD or HDLCD on the core tile by checking if a
+	 * CLCD or HDLCD is available in the root of the device tree.
+	 */
+	root = of_find_node_by_path("/");
+	if (!root)
+		return -EINVAL;
+
+	for_each_available_child_of_node(root, child) {
+		if (of_device_is_compatible(child, "arm,pl111")) {
+			has_coretile_clcd = true;
+			ct_clcd = child;
+			break;
+		}
+		if (of_device_is_compatible(child, "arm,hdlcd")) {
+			has_coretile_hdlcd = true;
+			of_node_put(child);
+			break;
+		}
+	}
+
+	of_node_put(root);
+
+	/*
+	 * If there is a coretile HDLCD and it has a driver,
+	 * do not mux the CLCD on the motherboard to the DVI.
+	 */
+	if (has_coretile_hdlcd && IS_ENABLED(CONFIG_DRM_HDLCD))
+		mux_motherboard = false;
+
+	/*
+	 * On the Vexpress CA9 we let the CLCD on the coretile
+	 * take precedence, so also in this case do not mux the
+	 * motherboard to the DVI.
+	 */
+	if (has_coretile_clcd)
+		mux_motherboard = false;
+
+	if (mux_motherboard) {
+		dev_info(dev, "DVI muxed to motherboard CLCD\n");
+		val = VEXPRESS_FPGAMUX_MOTHERBOARD;
+	} else if (ct_clcd == dev->of_node) {
+		dev_info(dev,
+			 "DVI muxed to daughterboard 1 (core tile) CLCD\n");
+		val = VEXPRESS_FPGAMUX_DAUGHTERBOARD_1;
+	} else {
+		dev_info(dev, "core tile graphics present\n");
+		dev_info(dev, "this device will be deactivated\n");
+		return -ENODEV;
+	}
+
+	/* Call into deep Vexpress configuration API */
+	pdev = of_find_device_by_node(np);
+	if (!pdev) {
+		dev_err(dev, "can't find the sysreg device, deferring\n");
+		return -EPROBE_DEFER;
+	}
+
+	map = devm_regmap_init_vexpress_config(&pdev->dev);
+	if (IS_ERR(map)) {
+		platform_device_put(pdev);
+		return PTR_ERR(map);
+	}
+
+	ret = regmap_write(map, 0, val);
+	platform_device_put(pdev);
+	if (ret) {
+		dev_err(dev, "error setting DVI muxmode\n");
+		return -ENODEV;
+	}
+
+	priv->variant = &pl111_vexpress;
+	dev_info(dev, "initializing Versatile Express PL111\n");
+
+	return 0;
+}
+
 int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 {
 	const struct of_device_id *clcd_id;
 	enum versatile_clcd versatile_clcd_type;
 	struct device_node *np;
 	struct regmap *map;
-	int ret;
 
 	np = of_find_matching_node_and_match(NULL, versatile_clcd_of_match,
 					     &clcd_id);
@@ -322,39 +480,32 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 		/* Non-ARM reference designs, just bail out */
 		return 0;
 	}
+
 	versatile_clcd_type = (enum versatile_clcd)clcd_id->data;
 
 	/* Versatile Express special handling */
 	if (versatile_clcd_type == VEXPRESS_CLCD_V2M) {
-		struct platform_device *pdev;
-
-		/* Registers a driver for the muxfpga */
-		ret = vexpress_muxfpga_init();
-		if (ret) {
-			dev_err(dev, "unable to initialize muxfpga driver\n");
-			of_node_put(np);
-			return ret;
-		}
-
-		/* Call into deep Vexpress configuration API */
-		pdev = of_find_device_by_node(np);
-		if (!pdev) {
-			dev_err(dev, "can't find the sysreg device, deferring\n");
-			of_node_put(np);
-			return -EPROBE_DEFER;
-		}
-		map = dev_get_drvdata(&pdev->dev);
-		if (!map) {
-			dev_err(dev, "sysreg has not yet probed\n");
-			platform_device_put(pdev);
-			of_node_put(np);
-			return -EPROBE_DEFER;
-		}
-	} else {
-		map = syscon_node_to_regmap(np);
+		int ret = pl111_vexpress_clcd_init(dev, np, priv);
+		of_node_put(np);
+		if (ret)
+			dev_err(dev, "Versatile Express init failed - %d", ret);
+		return ret;
 	}
-	of_node_put(np);
 
+	/*
+	 * On the Integrator, check if we should use the IM-PD1 instead,
+	 * if we find it, it will take precedence. This is on the Integrator/AP
+	 * which only has this option for PL110 graphics.
+	 */
+	 if (versatile_clcd_type == INTEGRATOR_CLCD_CM) {
+		np = of_find_matching_node_and_match(NULL, impd1_clcd_of_match,
+						     &clcd_id);
+		if (np)
+			versatile_clcd_type = (enum versatile_clcd)clcd_id->data;
+	}
+
+	map = syscon_node_to_regmap(np);
+	of_node_put(np);
 	if (IS_ERR(map)) {
 		dev_err(dev, "no Versatile syscon regmap\n");
 		return PTR_ERR(map);
@@ -366,6 +517,13 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 		priv->variant = &pl110_integrator;
 		priv->variant_display_enable = pl111_integrator_enable;
 		dev_info(dev, "set up callbacks for Integrator PL110\n");
+		break;
+	case INTEGRATOR_IMPD1:
+		versatile_syscon_map = map;
+		priv->variant = &pl110_impd1;
+		priv->variant_display_enable = pl111_impd1_enable;
+		priv->variant_display_disable = pl111_impd1_disable;
+		dev_info(dev, "set up callbacks for IM-PD1 PL110\n");
 		break;
 	case VERSATILE_CLCD:
 		versatile_syscon_map = map;
@@ -392,13 +550,6 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 		priv->variant_display_enable = pl111_realview_clcd_enable;
 		priv->variant_display_disable = pl111_realview_clcd_disable;
 		dev_info(dev, "set up callbacks for RealView PL111\n");
-		break;
-	case VEXPRESS_CLCD_V2M:
-		priv->variant = &pl111_vexpress;
-		dev_info(dev, "initializing Versatile Express PL111\n");
-		ret = pl111_vexpress_clcd_init(dev, priv, map);
-		if (ret)
-			return ret;
 		break;
 	default:
 		dev_info(dev, "unknown Versatile system controller\n");

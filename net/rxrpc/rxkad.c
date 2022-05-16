@@ -648,9 +648,9 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 	u32 serial;
 	int ret;
 
-	_enter("{%d,%x}", conn->debug_id, key_serial(conn->params.key));
+	_enter("{%d,%x}", conn->debug_id, key_serial(conn->server_key));
 
-	ret = key_validate(conn->params.key);
+	ret = key_validate(conn->server_key);
 	if (ret < 0)
 		return ret;
 
@@ -1137,7 +1137,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	ret = -ENOMEM;
 	ticket = kmalloc(ticket_len, GFP_NOFS);
 	if (!ticket)
-		goto temporary_error;
+		goto temporary_error_free_resp;
 
 	eproto = tracepoint_string("rxkad_tkt_short");
 	abort_code = RXKADPACKETSHORT;
@@ -1148,7 +1148,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	ret = rxkad_decrypt_ticket(conn, skb, ticket, ticket_len, &session_key,
 				   &expiry, _abort_code);
 	if (ret < 0)
-		goto temporary_error_free_resp;
+		goto temporary_error_free_ticket;
 
 	/* use the session key from inside the ticket to decrypt the
 	 * response */
@@ -1169,7 +1169,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	if (response->encrypted.checksum != csum)
 		goto protocol_error_free;
 
-	spin_lock(&conn->channel_lock);
+	spin_lock(&conn->bundle->channel_lock);
 	for (i = 0; i < RXRPC_MAXCALLS; i++) {
 		struct rxrpc_call *call;
 		u32 call_id = ntohl(response->encrypted.call_id[i]);
@@ -1186,13 +1186,13 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 		if (call_id > conn->channels[i].call_counter) {
 			call = rcu_dereference_protected(
 				conn->channels[i].call,
-				lockdep_is_held(&conn->channel_lock));
+				lockdep_is_held(&conn->bundle->channel_lock));
 			if (call && call->state < RXRPC_CALL_COMPLETE)
 				goto protocol_error_unlock;
 			conn->channels[i].call_counter = call_id;
 		}
 	}
-	spin_unlock(&conn->channel_lock);
+	spin_unlock(&conn->bundle->channel_lock);
 
 	eproto = tracepoint_string("rxkad_rsp_seq");
 	abort_code = RXKADOUTOFSEQUENCE;
@@ -1219,7 +1219,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	return 0;
 
 protocol_error_unlock:
-	spin_unlock(&conn->channel_lock);
+	spin_unlock(&conn->bundle->channel_lock);
 protocol_error_free:
 	kfree(ticket);
 protocol_error:
@@ -1293,6 +1293,7 @@ static void rxkad_exit(void)
 const struct rxrpc_security rxkad = {
 	.name				= "rxkad",
 	.security_index			= RXRPC_SECURITY_RXKAD,
+	.no_key_abort			= RXKADUNKNOWNKEY,
 	.init				= rxkad_init,
 	.exit				= rxkad_exit,
 	.init_connection_security	= rxkad_init_connection_security,

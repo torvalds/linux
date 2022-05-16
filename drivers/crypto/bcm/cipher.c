@@ -110,8 +110,8 @@ static u8 select_channel(void)
 }
 
 /**
- * spu_ablkcipher_rx_sg_create() - Build up the scatterlist of buffers used to
- * receive a SPU response message for an ablkcipher request. Includes buffers to
+ * spu_skcipher_rx_sg_create() - Build up the scatterlist of buffers used to
+ * receive a SPU response message for an skcipher request. Includes buffers to
  * catch SPU message headers and the response data.
  * @mssg:	mailbox message containing the receive sg
  * @rctx:	crypto request context
@@ -130,7 +130,7 @@ static u8 select_channel(void)
  *   < 0 if an error
  */
 static int
-spu_ablkcipher_rx_sg_create(struct brcm_message *mssg,
+spu_skcipher_rx_sg_create(struct brcm_message *mssg,
 			    struct iproc_reqctx_s *rctx,
 			    u8 rx_frag_num,
 			    unsigned int chunksize, u32 stat_pad_len)
@@ -165,10 +165,6 @@ spu_ablkcipher_rx_sg_create(struct brcm_message *mssg,
 		return -EFAULT;
 	}
 
-	if (ctx->cipher.alg == CIPHER_ALG_RC4)
-		/* Add buffer to catch 260-byte SUPDT field for RC4 */
-		sg_set_buf(sg++, rctx->msg_buf.c.supdt_tweak, SPU_SUPDT_LEN);
-
 	if (stat_pad_len)
 		sg_set_buf(sg++, rctx->msg_buf.rx_stat_pad, stat_pad_len);
 
@@ -179,8 +175,8 @@ spu_ablkcipher_rx_sg_create(struct brcm_message *mssg,
 }
 
 /**
- * spu_ablkcipher_tx_sg_create() - Build up the scatterlist of buffers used to
- * send a SPU request message for an ablkcipher request. Includes SPU message
+ * spu_skcipher_tx_sg_create() - Build up the scatterlist of buffers used to
+ * send a SPU request message for an skcipher request. Includes SPU message
  * headers and the request data.
  * @mssg:	mailbox message containing the transmit sg
  * @rctx:	crypto request context
@@ -198,7 +194,7 @@ spu_ablkcipher_rx_sg_create(struct brcm_message *mssg,
  *   < 0 if an error
  */
 static int
-spu_ablkcipher_tx_sg_create(struct brcm_message *mssg,
+spu_skcipher_tx_sg_create(struct brcm_message *mssg,
 			    struct iproc_reqctx_s *rctx,
 			    u8 tx_frag_num, unsigned int chunksize, u32 pad_len)
 {
@@ -283,7 +279,7 @@ static int mailbox_send_message(struct brcm_message *mssg, u32 flags,
 }
 
 /**
- * handle_ablkcipher_req() - Submit as much of a block cipher request as fits in
+ * handle_skcipher_req() - Submit as much of a block cipher request as fits in
  * a single SPU request message, starting at the current position in the request
  * data.
  * @rctx:	Crypto request context
@@ -300,24 +296,23 @@ static int mailbox_send_message(struct brcm_message *mssg, u32 flags,
  *			 asynchronously
  *         Any other value indicates an error
  */
-static int handle_ablkcipher_req(struct iproc_reqctx_s *rctx)
+static int handle_skcipher_req(struct iproc_reqctx_s *rctx)
 {
 	struct spu_hw *spu = &iproc_priv.spu;
 	struct crypto_async_request *areq = rctx->parent;
-	struct ablkcipher_request *req =
-	    container_of(areq, struct ablkcipher_request, base);
+	struct skcipher_request *req =
+	    container_of(areq, struct skcipher_request, base);
 	struct iproc_ctx_s *ctx = rctx->ctx;
 	struct spu_cipher_parms cipher_parms;
-	int err = 0;
-	unsigned int chunksize = 0;	/* Num bytes of request to submit */
-	int remaining = 0;	/* Bytes of request still to process */
+	int err;
+	unsigned int chunksize;	/* Num bytes of request to submit */
+	int remaining;	/* Bytes of request still to process */
 	int chunk_start;	/* Beginning of data for current SPU msg */
 
 	/* IV or ctr value to use in this SPU msg */
 	u8 local_iv_ctr[MAX_IV_SIZE];
 	u32 stat_pad_len;	/* num bytes to align status field */
 	u32 pad_len;		/* total length of all padding */
-	bool update_key = false;
 	struct brcm_message *mssg;	/* mailbox message */
 
 	/* number of entries in src and dst sg in mailbox message. */
@@ -391,28 +386,6 @@ static int handle_ablkcipher_req(struct iproc_reqctx_s *rctx)
 		}
 	}
 
-	if (ctx->cipher.alg == CIPHER_ALG_RC4) {
-		rx_frag_num++;
-		if (chunk_start) {
-			/*
-			 * for non-first RC4 chunks, use SUPDT from previous
-			 * response as key for this chunk.
-			 */
-			cipher_parms.key_buf = rctx->msg_buf.c.supdt_tweak;
-			update_key = true;
-			cipher_parms.type = CIPHER_TYPE_UPDT;
-		} else if (!rctx->is_encrypt) {
-			/*
-			 * First RC4 chunk. For decrypt, key in pre-built msg
-			 * header may have been changed if encrypt required
-			 * multiple chunks. So revert the key to the
-			 * ctx->enckey value.
-			 */
-			update_key = true;
-			cipher_parms.type = CIPHER_TYPE_INIT;
-		}
-	}
-
 	if (ctx->max_payload == SPU_MAX_PAYLOAD_INF)
 		flow_log("max_payload infinite\n");
 	else
@@ -425,14 +398,9 @@ static int handle_ablkcipher_req(struct iproc_reqctx_s *rctx)
 	memcpy(rctx->msg_buf.bcm_spu_req_hdr, ctx->bcm_spu_req_hdr,
 	       sizeof(rctx->msg_buf.bcm_spu_req_hdr));
 
-	/*
-	 * Pass SUPDT field as key. Key field in finish() call is only used
-	 * when update_key has been set above for RC4. Will be ignored in
-	 * all other cases.
-	 */
 	spu->spu_cipher_req_finish(rctx->msg_buf.bcm_spu_req_hdr + BCM_HDR_LEN,
 				   ctx->spu_req_hdr_len, !(rctx->is_encrypt),
-				   &cipher_parms, update_key, chunksize);
+				   &cipher_parms, chunksize);
 
 	atomic64_add(chunksize, &iproc_priv.bytes_out);
 
@@ -468,7 +436,7 @@ static int handle_ablkcipher_req(struct iproc_reqctx_s *rctx)
 	    spu->spu_xts_tweak_in_payload())
 		rx_frag_num++;	/* extra sg to insert tweak */
 
-	err = spu_ablkcipher_rx_sg_create(mssg, rctx, rx_frag_num, chunksize,
+	err = spu_skcipher_rx_sg_create(mssg, rctx, rx_frag_num, chunksize,
 					  stat_pad_len);
 	if (err)
 		return err;
@@ -482,7 +450,7 @@ static int handle_ablkcipher_req(struct iproc_reqctx_s *rctx)
 	    spu->spu_xts_tweak_in_payload())
 		tx_frag_num++;	/* extra sg to insert tweak */
 
-	err = spu_ablkcipher_tx_sg_create(mssg, rctx, tx_frag_num, chunksize,
+	err = spu_skcipher_tx_sg_create(mssg, rctx, tx_frag_num, chunksize,
 					  pad_len);
 	if (err)
 		return err;
@@ -495,16 +463,16 @@ static int handle_ablkcipher_req(struct iproc_reqctx_s *rctx)
 }
 
 /**
- * handle_ablkcipher_resp() - Process a block cipher SPU response. Updates the
+ * handle_skcipher_resp() - Process a block cipher SPU response. Updates the
  * total received count for the request and updates global stats.
  * @rctx:	Crypto request context
  */
-static void handle_ablkcipher_resp(struct iproc_reqctx_s *rctx)
+static void handle_skcipher_resp(struct iproc_reqctx_s *rctx)
 {
 	struct spu_hw *spu = &iproc_priv.spu;
 #ifdef DEBUG
 	struct crypto_async_request *areq = rctx->parent;
-	struct ablkcipher_request *req = ablkcipher_request_cast(areq);
+	struct skcipher_request *req = skcipher_request_cast(areq);
 #endif
 	struct iproc_ctx_s *ctx = rctx->ctx;
 	u32 payload_len;
@@ -527,9 +495,6 @@ static void handle_ablkcipher_resp(struct iproc_reqctx_s *rctx)
 		 __func__, rctx->total_received, payload_len);
 
 	dump_sg(req->dst, rctx->total_received, payload_len);
-	if (ctx->cipher.alg == CIPHER_ALG_RC4)
-		packet_dump("  supdt ", rctx->msg_buf.c.supdt_tweak,
-			    SPU_SUPDT_LEN);
 
 	rctx->total_received += payload_len;
 	if (rctx->total_received == rctx->total_todo) {
@@ -698,7 +663,7 @@ static int handle_ahash_req(struct iproc_reqctx_s *rctx)
 
 	/* number of bytes still to be hashed in this req */
 	unsigned int nbytes_to_hash = 0;
-	int err = 0;
+	int err;
 	unsigned int chunksize = 0;	/* length of hash carry + new data */
 	/*
 	 * length of new data, not from hash carry, to be submitted in
@@ -1664,7 +1629,7 @@ static void spu_rx_callback(struct mbox_client *cl, void *msg)
 	struct spu_hw *spu = &iproc_priv.spu;
 	struct brcm_message *mssg = msg;
 	struct iproc_reqctx_s *rctx;
-	int err = 0;
+	int err;
 
 	rctx = mssg->ctx;
 	if (unlikely(!rctx)) {
@@ -1685,8 +1650,8 @@ static void spu_rx_callback(struct mbox_client *cl, void *msg)
 
 	/* Process the SPU response message */
 	switch (rctx->ctx->alg->type) {
-	case CRYPTO_ALG_TYPE_ABLKCIPHER:
-		handle_ablkcipher_resp(rctx);
+	case CRYPTO_ALG_TYPE_SKCIPHER:
+		handle_skcipher_resp(rctx);
 		break;
 	case CRYPTO_ALG_TYPE_AHASH:
 		handle_ahash_resp(rctx);
@@ -1708,8 +1673,8 @@ static void spu_rx_callback(struct mbox_client *cl, void *msg)
 		spu_chunk_cleanup(rctx);
 
 		switch (rctx->ctx->alg->type) {
-		case CRYPTO_ALG_TYPE_ABLKCIPHER:
-			err = handle_ablkcipher_req(rctx);
+		case CRYPTO_ALG_TYPE_SKCIPHER:
+			err = handle_skcipher_req(rctx);
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:
 			err = handle_ahash_req(rctx);
@@ -1739,7 +1704,7 @@ cb_finish:
 /* ==================== Kernel Cryptographic API ==================== */
 
 /**
- * ablkcipher_enqueue() - Handle ablkcipher encrypt or decrypt request.
+ * skcipher_enqueue() - Handle skcipher encrypt or decrypt request.
  * @req:	Crypto API request
  * @encrypt:	true if encrypting; false if decrypting
  *
@@ -1747,11 +1712,11 @@ cb_finish:
  *			asynchronously
  *	   < 0 if an error
  */
-static int ablkcipher_enqueue(struct ablkcipher_request *req, bool encrypt)
+static int skcipher_enqueue(struct skcipher_request *req, bool encrypt)
 {
-	struct iproc_reqctx_s *rctx = ablkcipher_request_ctx(req);
+	struct iproc_reqctx_s *rctx = skcipher_request_ctx(req);
 	struct iproc_ctx_s *ctx =
-	    crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
+	    crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
 	int err;
 
 	flow_log("%s() enc:%u\n", __func__, encrypt);
@@ -1761,7 +1726,7 @@ static int ablkcipher_enqueue(struct ablkcipher_request *req, bool encrypt)
 	rctx->parent = &req->base;
 	rctx->is_encrypt = encrypt;
 	rctx->bd_suppress = false;
-	rctx->total_todo = req->nbytes;
+	rctx->total_todo = req->cryptlen;
 	rctx->src_sent = 0;
 	rctx->total_sent = 0;
 	rctx->total_received = 0;
@@ -1782,15 +1747,15 @@ static int ablkcipher_enqueue(struct ablkcipher_request *req, bool encrypt)
 	    ctx->cipher.mode == CIPHER_MODE_GCM ||
 	    ctx->cipher.mode == CIPHER_MODE_CCM) {
 		rctx->iv_ctr_len =
-		    crypto_ablkcipher_ivsize(crypto_ablkcipher_reqtfm(req));
-		memcpy(rctx->msg_buf.iv_ctr, req->info, rctx->iv_ctr_len);
+		    crypto_skcipher_ivsize(crypto_skcipher_reqtfm(req));
+		memcpy(rctx->msg_buf.iv_ctr, req->iv, rctx->iv_ctr_len);
 	} else {
 		rctx->iv_ctr_len = 0;
 	}
 
 	/* Choose a SPU to process this request */
 	rctx->chan_idx = select_channel();
-	err = handle_ablkcipher_req(rctx);
+	err = handle_skcipher_req(rctx);
 	if (err != -EINPROGRESS)
 		/* synchronous result */
 		spu_chunk_cleanup(rctx);
@@ -1798,13 +1763,13 @@ static int ablkcipher_enqueue(struct ablkcipher_request *req, bool encrypt)
 	return err;
 }
 
-static int des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
+static int des_setkey(struct crypto_skcipher *cipher, const u8 *key,
 		      unsigned int keylen)
 {
-	struct iproc_ctx_s *ctx = crypto_ablkcipher_ctx(cipher);
+	struct iproc_ctx_s *ctx = crypto_skcipher_ctx(cipher);
 	int err;
 
-	err = verify_ablkcipher_des_key(cipher, key);
+	err = verify_skcipher_des_key(cipher, key);
 	if (err)
 		return err;
 
@@ -1812,13 +1777,13 @@ static int des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	return 0;
 }
 
-static int threedes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
+static int threedes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 			   unsigned int keylen)
 {
-	struct iproc_ctx_s *ctx = crypto_ablkcipher_ctx(cipher);
+	struct iproc_ctx_s *ctx = crypto_skcipher_ctx(cipher);
 	int err;
 
-	err = verify_ablkcipher_des3_key(cipher, key);
+	err = verify_skcipher_des3_key(cipher, key);
 	if (err)
 		return err;
 
@@ -1826,10 +1791,10 @@ static int threedes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	return 0;
 }
 
-static int aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
+static int aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 		      unsigned int keylen)
 {
-	struct iproc_ctx_s *ctx = crypto_ablkcipher_ctx(cipher);
+	struct iproc_ctx_s *ctx = crypto_skcipher_ctx(cipher);
 
 	if (ctx->cipher.mode == CIPHER_MODE_XTS)
 		/* XTS includes two keys of equal length */
@@ -1846,7 +1811,6 @@ static int aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 		ctx->cipher_type = CIPHER_TYPE_AES256;
 		break;
 	default:
-		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 	WARN_ON((ctx->max_payload != SPU_MAX_PAYLOAD_INF) &&
@@ -1854,36 +1818,16 @@ static int aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	return 0;
 }
 
-static int rc4_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
-		      unsigned int keylen)
-{
-	struct iproc_ctx_s *ctx = crypto_ablkcipher_ctx(cipher);
-	int i;
-
-	ctx->enckeylen = ARC4_MAX_KEY_SIZE + ARC4_STATE_SIZE;
-
-	ctx->enckey[0] = 0x00;	/* 0x00 */
-	ctx->enckey[1] = 0x00;	/* i    */
-	ctx->enckey[2] = 0x00;	/* 0x00 */
-	ctx->enckey[3] = 0x00;	/* j    */
-	for (i = 0; i < ARC4_MAX_KEY_SIZE; i++)
-		ctx->enckey[i + ARC4_STATE_SIZE] = key[i % keylen];
-
-	ctx->cipher_type = CIPHER_TYPE_INIT;
-
-	return 0;
-}
-
-static int ablkcipher_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
+static int skcipher_setkey(struct crypto_skcipher *cipher, const u8 *key,
 			     unsigned int keylen)
 {
 	struct spu_hw *spu = &iproc_priv.spu;
-	struct iproc_ctx_s *ctx = crypto_ablkcipher_ctx(cipher);
+	struct iproc_ctx_s *ctx = crypto_skcipher_ctx(cipher);
 	struct spu_cipher_parms cipher_parms;
 	u32 alloc_len = 0;
 	int err;
 
-	flow_log("ablkcipher_setkey() keylen: %d\n", keylen);
+	flow_log("skcipher_setkey() keylen: %d\n", keylen);
 	flow_dump("  key: ", key, keylen);
 
 	switch (ctx->cipher.alg) {
@@ -1896,9 +1840,6 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	case CIPHER_ALG_AES:
 		err = aes_setkey(cipher, key, keylen);
 		break;
-	case CIPHER_ALG_RC4:
-		err = rc4_setkey(cipher, key, keylen);
-		break;
 	default:
 		pr_err("%s() Error: unknown cipher alg\n", __func__);
 		err = -EINVAL;
@@ -1906,11 +1847,9 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	if (err)
 		return err;
 
-	/* RC4 already populated ctx->enkey */
-	if (ctx->cipher.alg != CIPHER_ALG_RC4) {
-		memcpy(ctx->enckey, key, keylen);
-		ctx->enckeylen = keylen;
-	}
+	memcpy(ctx->enckey, key, keylen);
+	ctx->enckeylen = keylen;
+
 	/* SPU needs XTS keys in the reverse order the crypto API presents */
 	if ((ctx->cipher.alg == CIPHER_ALG_AES) &&
 	    (ctx->cipher.mode == CIPHER_MODE_XTS)) {
@@ -1926,7 +1865,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 		alloc_len = BCM_HDR_LEN + SPU2_HEADER_ALLOC_LEN;
 	memset(ctx->bcm_spu_req_hdr, 0, alloc_len);
 	cipher_parms.iv_buf = NULL;
-	cipher_parms.iv_len = crypto_ablkcipher_ivsize(cipher);
+	cipher_parms.iv_len = crypto_skcipher_ivsize(cipher);
 	flow_log("%s: iv_len %u\n", __func__, cipher_parms.iv_len);
 
 	cipher_parms.alg = ctx->cipher.alg;
@@ -1950,17 +1889,17 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	return 0;
 }
 
-static int ablkcipher_encrypt(struct ablkcipher_request *req)
+static int skcipher_encrypt(struct skcipher_request *req)
 {
-	flow_log("ablkcipher_encrypt() nbytes:%u\n", req->nbytes);
+	flow_log("skcipher_encrypt() nbytes:%u\n", req->cryptlen);
 
-	return ablkcipher_enqueue(req, true);
+	return skcipher_enqueue(req, true);
 }
 
-static int ablkcipher_decrypt(struct ablkcipher_request *req)
+static int skcipher_decrypt(struct skcipher_request *req)
 {
-	flow_log("ablkcipher_decrypt() nbytes:%u\n", req->nbytes);
-	return ablkcipher_enqueue(req, false);
+	flow_log("skcipher_decrypt() nbytes:%u\n", req->cryptlen);
+	return skcipher_enqueue(req, false);
 }
 
 static int ahash_enqueue(struct ahash_request *req)
@@ -1968,7 +1907,7 @@ static int ahash_enqueue(struct ahash_request *req)
 	struct iproc_reqctx_s *rctx = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct iproc_ctx_s *ctx = crypto_ahash_ctx(tfm);
-	int err = 0;
+	int err;
 	const char *alg_name;
 
 	flow_log("ahash_enqueue() nbytes:%u\n", req->nbytes);
@@ -2300,7 +2239,7 @@ ahash_finup_exit:
 
 static int ahash_digest(struct ahash_request *req)
 {
-	int err = 0;
+	int err;
 
 	flow_log("ahash_digest() nbytes:%u\n", req->nbytes);
 
@@ -2873,9 +2812,6 @@ static int aead_authenc_setkey(struct crypto_aead *cipher,
 			goto badkey;
 		}
 		break;
-	case CIPHER_ALG_RC4:
-		ctx->cipher_type = CIPHER_TYPE_INIT;
-		break;
 	default:
 		pr_err("%s() Error: Unknown cipher alg\n", __func__);
 		return -EINVAL;
@@ -2894,13 +2830,8 @@ static int aead_authenc_setkey(struct crypto_aead *cipher,
 		ctx->fallback_cipher->base.crt_flags |=
 		    tfm->crt_flags & CRYPTO_TFM_REQ_MASK;
 		ret = crypto_aead_setkey(ctx->fallback_cipher, key, keylen);
-		if (ret) {
+		if (ret)
 			flow_log("  fallback setkey() returned:%d\n", ret);
-			tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
-			tfm->crt_flags |=
-			    (ctx->fallback_cipher->base.crt_flags &
-			     CRYPTO_TFM_RES_MASK);
-		}
 	}
 
 	ctx->spu_resp_hdr_len = spu->spu_response_hdr_len(ctx->authkeylen,
@@ -2916,7 +2847,6 @@ badkey:
 	ctx->authkeylen = 0;
 	ctx->digestsize = 0;
 
-	crypto_aead_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
 }
 
@@ -2937,7 +2867,6 @@ static int aead_gcm_ccm_setkey(struct crypto_aead *cipher,
 
 	ctx->enckeylen = keylen;
 	ctx->authkeylen = 0;
-	memcpy(ctx->enckey, key, ctx->enckeylen);
 
 	switch (ctx->enckeylen) {
 	case AES_KEYSIZE_128:
@@ -2953,6 +2882,8 @@ static int aead_gcm_ccm_setkey(struct crypto_aead *cipher,
 		goto badkey;
 	}
 
+	memcpy(ctx->enckey, key, ctx->enckeylen);
+
 	flow_log("  enckeylen:%u authkeylen:%u\n", ctx->enckeylen,
 		 ctx->authkeylen);
 	flow_dump("  enc: ", ctx->enckey, ctx->enckeylen);
@@ -2967,13 +2898,8 @@ static int aead_gcm_ccm_setkey(struct crypto_aead *cipher,
 		    tfm->crt_flags & CRYPTO_TFM_REQ_MASK;
 		ret = crypto_aead_setkey(ctx->fallback_cipher, key,
 					 keylen + ctx->salt_len);
-		if (ret) {
+		if (ret)
 			flow_log("  fallback setkey() returned:%d\n", ret);
-			tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
-			tfm->crt_flags |=
-			    (ctx->fallback_cipher->base.crt_flags &
-			     CRYPTO_TFM_RES_MASK);
-		}
 	}
 
 	ctx->spu_resp_hdr_len = spu->spu_response_hdr_len(ctx->authkeylen,
@@ -2992,7 +2918,6 @@ badkey:
 	ctx->authkeylen = 0;
 	ctx->digestsize = 0;
 
-	crypto_aead_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 	return -EINVAL;
 }
 
@@ -3013,6 +2938,10 @@ static int aead_gcm_esp_setkey(struct crypto_aead *cipher,
 	struct iproc_ctx_s *ctx = crypto_aead_ctx(cipher);
 
 	flow_log("%s\n", __func__);
+
+	if (keylen < GCM_ESP_SALT_SIZE)
+		return -EINVAL;
+
 	ctx->salt_len = GCM_ESP_SALT_SIZE;
 	ctx->salt_offset = GCM_ESP_SALT_OFFSET;
 	memcpy(ctx->salt, key + keylen - GCM_ESP_SALT_SIZE, GCM_ESP_SALT_SIZE);
@@ -3041,6 +2970,10 @@ static int rfc4543_gcm_esp_setkey(struct crypto_aead *cipher,
 	struct iproc_ctx_s *ctx = crypto_aead_ctx(cipher);
 
 	flow_log("%s\n", __func__);
+
+	if (keylen < GCM_ESP_SALT_SIZE)
+		return -EINVAL;
+
 	ctx->salt_len = GCM_ESP_SALT_SIZE;
 	ctx->salt_offset = GCM_ESP_SALT_OFFSET;
 	memcpy(ctx->salt, key + keylen - GCM_ESP_SALT_SIZE, GCM_ESP_SALT_SIZE);
@@ -3070,6 +3003,10 @@ static int aead_ccm_esp_setkey(struct crypto_aead *cipher,
 	struct iproc_ctx_s *ctx = crypto_aead_ctx(cipher);
 
 	flow_log("%s\n", __func__);
+
+	if (keylen < CCM_ESP_SALT_SIZE)
+		return -EINVAL;
+
 	ctx->salt_len = CCM_ESP_SALT_SIZE;
 	ctx->salt_offset = CCM_ESP_SALT_OFFSET;
 	memcpy(ctx->salt, key + keylen - CCM_ESP_SALT_SIZE, CCM_ESP_SALT_SIZE);
@@ -3246,7 +3183,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(md5),cbc(aes))",
 			.cra_driver_name = "authenc-hmac-md5-cbc-aes-iproc",
 			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		.ivsize = AES_BLOCK_SIZE,
@@ -3269,7 +3208,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha1),cbc(aes))",
 			.cra_driver_name = "authenc-hmac-sha1-cbc-aes-iproc",
 			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = AES_BLOCK_SIZE,
@@ -3292,7 +3233,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha256),cbc(aes))",
 			.cra_driver_name = "authenc-hmac-sha256-cbc-aes-iproc",
 			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = AES_BLOCK_SIZE,
@@ -3315,7 +3258,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(md5),cbc(des))",
 			.cra_driver_name = "authenc-hmac-md5-cbc-des-iproc",
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES_BLOCK_SIZE,
@@ -3338,7 +3283,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha1),cbc(des))",
 			.cra_driver_name = "authenc-hmac-sha1-cbc-des-iproc",
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES_BLOCK_SIZE,
@@ -3361,7 +3308,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha224),cbc(des))",
 			.cra_driver_name = "authenc-hmac-sha224-cbc-des-iproc",
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES_BLOCK_SIZE,
@@ -3384,7 +3333,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha256),cbc(des))",
 			.cra_driver_name = "authenc-hmac-sha256-cbc-des-iproc",
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES_BLOCK_SIZE,
@@ -3407,7 +3358,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha384),cbc(des))",
 			.cra_driver_name = "authenc-hmac-sha384-cbc-des-iproc",
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES_BLOCK_SIZE,
@@ -3430,7 +3383,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha512),cbc(des))",
 			.cra_driver_name = "authenc-hmac-sha512-cbc-des-iproc",
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES_BLOCK_SIZE,
@@ -3453,7 +3408,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(md5),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-md5-cbc-des3-iproc",
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES3_EDE_BLOCK_SIZE,
@@ -3476,7 +3433,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha1),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-sha1-cbc-des3-iproc",
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES3_EDE_BLOCK_SIZE,
@@ -3499,7 +3458,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha224),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-sha224-cbc-des3-iproc",
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES3_EDE_BLOCK_SIZE,
@@ -3522,7 +3483,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha256),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-sha256-cbc-des3-iproc",
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES3_EDE_BLOCK_SIZE,
@@ -3545,7 +3508,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha384),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-sha384-cbc-des3-iproc",
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES3_EDE_BLOCK_SIZE,
@@ -3568,7 +3533,9 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_name = "authenc(hmac(sha512),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-sha512-cbc-des3-iproc",
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_flags = CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC
+			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
+				     CRYPTO_ALG_ASYNC |
+				     CRYPTO_ALG_ALLOCATES_MEMORY
 		 },
 		 .setkey = aead_authenc_setkey,
 		 .ivsize = DES3_EDE_BLOCK_SIZE,
@@ -3585,39 +3552,16 @@ static struct iproc_alg_s driver_algs[] = {
 	 .auth_first = 0,
 	 },
 
-/* ABLKCIPHER algorithms. */
+/* SKCIPHER algorithms. */
 	{
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "ecb(arc4)",
-			.cra_driver_name = "ecb-arc4-iproc",
-			.cra_blocksize = ARC4_BLOCK_SIZE,
-			.cra_ablkcipher = {
-					   .min_keysize = ARC4_MIN_KEY_SIZE,
-					   .max_keysize = ARC4_MAX_KEY_SIZE,
-					   .ivsize = 0,
-					}
-			},
-	 .cipher_info = {
-			 .alg = CIPHER_ALG_RC4,
-			 .mode = CIPHER_MODE_NONE,
-			 },
-	 .auth_info = {
-		       .alg = HASH_ALG_NONE,
-		       .mode = HASH_MODE_NONE,
-		       },
-	 },
-	{
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "ofb(des)",
-			.cra_driver_name = "ofb-des-iproc",
-			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_ablkcipher = {
-					   .min_keysize = DES_KEY_SIZE,
-					   .max_keysize = DES_KEY_SIZE,
-					   .ivsize = DES_BLOCK_SIZE,
-					}
+	 .type = CRYPTO_ALG_TYPE_SKCIPHER,
+	 .alg.skcipher = {
+			.base.cra_name = "ofb(des)",
+			.base.cra_driver_name = "ofb-des-iproc",
+			.base.cra_blocksize = DES_BLOCK_SIZE,
+			.min_keysize = DES_KEY_SIZE,
+			.max_keysize = DES_KEY_SIZE,
+			.ivsize = DES_BLOCK_SIZE,
 			},
 	 .cipher_info = {
 			 .alg = CIPHER_ALG_DES,
@@ -3629,16 +3573,14 @@ static struct iproc_alg_s driver_algs[] = {
 		       },
 	 },
 	{
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "cbc(des)",
-			.cra_driver_name = "cbc-des-iproc",
-			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_ablkcipher = {
-					   .min_keysize = DES_KEY_SIZE,
-					   .max_keysize = DES_KEY_SIZE,
-					   .ivsize = DES_BLOCK_SIZE,
-					}
+	 .type = CRYPTO_ALG_TYPE_SKCIPHER,
+	 .alg.skcipher = {
+			.base.cra_name = "cbc(des)",
+			.base.cra_driver_name = "cbc-des-iproc",
+			.base.cra_blocksize = DES_BLOCK_SIZE,
+			.min_keysize = DES_KEY_SIZE,
+			.max_keysize = DES_KEY_SIZE,
+			.ivsize = DES_BLOCK_SIZE,
 			},
 	 .cipher_info = {
 			 .alg = CIPHER_ALG_DES,
@@ -3650,16 +3592,14 @@ static struct iproc_alg_s driver_algs[] = {
 		       },
 	 },
 	{
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "ecb(des)",
-			.cra_driver_name = "ecb-des-iproc",
-			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_ablkcipher = {
-					   .min_keysize = DES_KEY_SIZE,
-					   .max_keysize = DES_KEY_SIZE,
-					   .ivsize = 0,
-					}
+	 .type = CRYPTO_ALG_TYPE_SKCIPHER,
+	 .alg.skcipher = {
+			.base.cra_name = "ecb(des)",
+			.base.cra_driver_name = "ecb-des-iproc",
+			.base.cra_blocksize = DES_BLOCK_SIZE,
+			.min_keysize = DES_KEY_SIZE,
+			.max_keysize = DES_KEY_SIZE,
+			.ivsize = 0,
 			},
 	 .cipher_info = {
 			 .alg = CIPHER_ALG_DES,
@@ -3671,16 +3611,14 @@ static struct iproc_alg_s driver_algs[] = {
 		       },
 	 },
 	{
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "ofb(des3_ede)",
-			.cra_driver_name = "ofb-des3-iproc",
-			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_ablkcipher = {
-					   .min_keysize = DES3_EDE_KEY_SIZE,
-					   .max_keysize = DES3_EDE_KEY_SIZE,
-					   .ivsize = DES3_EDE_BLOCK_SIZE,
-					}
+	 .type = CRYPTO_ALG_TYPE_SKCIPHER,
+	 .alg.skcipher = {
+			.base.cra_name = "ofb(des3_ede)",
+			.base.cra_driver_name = "ofb-des3-iproc",
+			.base.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+			.min_keysize = DES3_EDE_KEY_SIZE,
+			.max_keysize = DES3_EDE_KEY_SIZE,
+			.ivsize = DES3_EDE_BLOCK_SIZE,
 			},
 	 .cipher_info = {
 			 .alg = CIPHER_ALG_3DES,
@@ -3692,16 +3630,14 @@ static struct iproc_alg_s driver_algs[] = {
 		       },
 	 },
 	{
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "cbc(des3_ede)",
-			.cra_driver_name = "cbc-des3-iproc",
-			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_ablkcipher = {
-					   .min_keysize = DES3_EDE_KEY_SIZE,
-					   .max_keysize = DES3_EDE_KEY_SIZE,
-					   .ivsize = DES3_EDE_BLOCK_SIZE,
-					}
+	 .type = CRYPTO_ALG_TYPE_SKCIPHER,
+	 .alg.skcipher = {
+			.base.cra_name = "cbc(des3_ede)",
+			.base.cra_driver_name = "cbc-des3-iproc",
+			.base.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+			.min_keysize = DES3_EDE_KEY_SIZE,
+			.max_keysize = DES3_EDE_KEY_SIZE,
+			.ivsize = DES3_EDE_BLOCK_SIZE,
 			},
 	 .cipher_info = {
 			 .alg = CIPHER_ALG_3DES,
@@ -3713,16 +3649,14 @@ static struct iproc_alg_s driver_algs[] = {
 		       },
 	 },
 	{
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "ecb(des3_ede)",
-			.cra_driver_name = "ecb-des3-iproc",
-			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_ablkcipher = {
-					   .min_keysize = DES3_EDE_KEY_SIZE,
-					   .max_keysize = DES3_EDE_KEY_SIZE,
-					   .ivsize = 0,
-					}
+	 .type = CRYPTO_ALG_TYPE_SKCIPHER,
+	 .alg.skcipher = {
+			.base.cra_name = "ecb(des3_ede)",
+			.base.cra_driver_name = "ecb-des3-iproc",
+			.base.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+			.min_keysize = DES3_EDE_KEY_SIZE,
+			.max_keysize = DES3_EDE_KEY_SIZE,
+			.ivsize = 0,
 			},
 	 .cipher_info = {
 			 .alg = CIPHER_ALG_3DES,
@@ -3734,16 +3668,14 @@ static struct iproc_alg_s driver_algs[] = {
 		       },
 	 },
 	{
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "ofb(aes)",
-			.cra_driver_name = "ofb-aes-iproc",
-			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_ablkcipher = {
-					   .min_keysize = AES_MIN_KEY_SIZE,
-					   .max_keysize = AES_MAX_KEY_SIZE,
-					   .ivsize = AES_BLOCK_SIZE,
-					}
+	 .type = CRYPTO_ALG_TYPE_SKCIPHER,
+	 .alg.skcipher = {
+			.base.cra_name = "ofb(aes)",
+			.base.cra_driver_name = "ofb-aes-iproc",
+			.base.cra_blocksize = AES_BLOCK_SIZE,
+			.min_keysize = AES_MIN_KEY_SIZE,
+			.max_keysize = AES_MAX_KEY_SIZE,
+			.ivsize = AES_BLOCK_SIZE,
 			},
 	 .cipher_info = {
 			 .alg = CIPHER_ALG_AES,
@@ -3755,16 +3687,14 @@ static struct iproc_alg_s driver_algs[] = {
 		       },
 	 },
 	{
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "cbc(aes)",
-			.cra_driver_name = "cbc-aes-iproc",
-			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_ablkcipher = {
-					   .min_keysize = AES_MIN_KEY_SIZE,
-					   .max_keysize = AES_MAX_KEY_SIZE,
-					   .ivsize = AES_BLOCK_SIZE,
-					}
+	 .type = CRYPTO_ALG_TYPE_SKCIPHER,
+	 .alg.skcipher = {
+			.base.cra_name = "cbc(aes)",
+			.base.cra_driver_name = "cbc-aes-iproc",
+			.base.cra_blocksize = AES_BLOCK_SIZE,
+			.min_keysize = AES_MIN_KEY_SIZE,
+			.max_keysize = AES_MAX_KEY_SIZE,
+			.ivsize = AES_BLOCK_SIZE,
 			},
 	 .cipher_info = {
 			 .alg = CIPHER_ALG_AES,
@@ -3776,16 +3706,14 @@ static struct iproc_alg_s driver_algs[] = {
 		       },
 	 },
 	{
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "ecb(aes)",
-			.cra_driver_name = "ecb-aes-iproc",
-			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_ablkcipher = {
-					   .min_keysize = AES_MIN_KEY_SIZE,
-					   .max_keysize = AES_MAX_KEY_SIZE,
-					   .ivsize = 0,
-					}
+	 .type = CRYPTO_ALG_TYPE_SKCIPHER,
+	 .alg.skcipher = {
+			.base.cra_name = "ecb(aes)",
+			.base.cra_driver_name = "ecb-aes-iproc",
+			.base.cra_blocksize = AES_BLOCK_SIZE,
+			.min_keysize = AES_MIN_KEY_SIZE,
+			.max_keysize = AES_MAX_KEY_SIZE,
+			.ivsize = 0,
 			},
 	 .cipher_info = {
 			 .alg = CIPHER_ALG_AES,
@@ -3797,16 +3725,14 @@ static struct iproc_alg_s driver_algs[] = {
 		       },
 	 },
 	{
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "ctr(aes)",
-			.cra_driver_name = "ctr-aes-iproc",
-			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_ablkcipher = {
-					   .min_keysize = AES_MIN_KEY_SIZE,
-					   .max_keysize = AES_MAX_KEY_SIZE,
-					   .ivsize = AES_BLOCK_SIZE,
-					}
+	 .type = CRYPTO_ALG_TYPE_SKCIPHER,
+	 .alg.skcipher = {
+			.base.cra_name = "ctr(aes)",
+			.base.cra_driver_name = "ctr-aes-iproc",
+			.base.cra_blocksize = AES_BLOCK_SIZE,
+			.min_keysize = AES_MIN_KEY_SIZE,
+			.max_keysize = AES_MAX_KEY_SIZE,
+			.ivsize = AES_BLOCK_SIZE,
 			},
 	 .cipher_info = {
 			 .alg = CIPHER_ALG_AES,
@@ -3818,16 +3744,14 @@ static struct iproc_alg_s driver_algs[] = {
 		       },
 	 },
 {
-	 .type = CRYPTO_ALG_TYPE_ABLKCIPHER,
-	 .alg.crypto = {
-			.cra_name = "xts(aes)",
-			.cra_driver_name = "xts-aes-iproc",
-			.cra_blocksize = AES_BLOCK_SIZE,
-			.cra_ablkcipher = {
-				.min_keysize = 2 * AES_MIN_KEY_SIZE,
-				.max_keysize = 2 * AES_MAX_KEY_SIZE,
-				.ivsize = AES_BLOCK_SIZE,
-				}
+	 .type = CRYPTO_ALG_TYPE_SKCIPHER,
+	 .alg.skcipher = {
+			.base.cra_name = "xts(aes)",
+			.base.cra_driver_name = "xts-aes-iproc",
+			.base.cra_blocksize = AES_BLOCK_SIZE,
+			.min_keysize = 2 * AES_MIN_KEY_SIZE,
+			.max_keysize = 2 * AES_MAX_KEY_SIZE,
+			.ivsize = AES_BLOCK_SIZE,
 			},
 	 .cipher_info = {
 			 .alg = CIPHER_ALG_AES,
@@ -3848,7 +3772,8 @@ static struct iproc_alg_s driver_algs[] = {
 				    .cra_name = "md5",
 				    .cra_driver_name = "md5-iproc",
 				    .cra_blocksize = MD5_BLOCK_WORDS * 4,
-				    .cra_flags = CRYPTO_ALG_ASYNC,
+				    .cra_flags = CRYPTO_ALG_ASYNC |
+						 CRYPTO_ALG_ALLOCATES_MEMORY,
 				}
 		      },
 	 .cipher_info = {
@@ -4282,16 +4207,17 @@ static int generic_cra_init(struct crypto_tfm *tfm,
 	return 0;
 }
 
-static int ablkcipher_cra_init(struct crypto_tfm *tfm)
+static int skcipher_init_tfm(struct crypto_skcipher *skcipher)
 {
-	struct crypto_alg *alg = tfm->__crt_alg;
+	struct crypto_tfm *tfm = crypto_skcipher_tfm(skcipher);
+	struct skcipher_alg *alg = crypto_skcipher_alg(skcipher);
 	struct iproc_alg_s *cipher_alg;
 
 	flow_log("%s()\n", __func__);
 
-	tfm->crt_ablkcipher.reqsize = sizeof(struct iproc_reqctx_s);
+	crypto_skcipher_set_reqsize(skcipher, sizeof(struct iproc_reqctx_s));
 
-	cipher_alg = container_of(alg, struct iproc_alg_s, alg.crypto);
+	cipher_alg = container_of(alg, struct iproc_alg_s, alg.skcipher);
 	return generic_cra_init(tfm, cipher_alg);
 }
 
@@ -4361,6 +4287,11 @@ static int aead_cra_init(struct crypto_aead *aead)
 static void generic_cra_exit(struct crypto_tfm *tfm)
 {
 	atomic_dec(&iproc_priv.session_count);
+}
+
+static void skcipher_exit_tfm(struct crypto_skcipher *tfm)
+{
+	generic_cra_exit(crypto_skcipher_tfm(tfm));
 }
 
 static void aead_cra_exit(struct crypto_aead *aead)
@@ -4467,7 +4398,7 @@ static int spu_mb_init(struct device *dev)
 	for (i = 0; i < iproc_priv.spu.num_chan; i++) {
 		iproc_priv.mbox[i] = mbox_request_channel(mcl, i);
 		if (IS_ERR(iproc_priv.mbox[i])) {
-			err = (int)PTR_ERR(iproc_priv.mbox[i]);
+			err = PTR_ERR(iproc_priv.mbox[i]);
 			dev_err(dev,
 				"Mbox channel %d request failed with err %d",
 				i, err);
@@ -4524,37 +4455,30 @@ static void spu_counters_init(void)
 	atomic_set(&iproc_priv.bad_icv, 0);
 }
 
-static int spu_register_ablkcipher(struct iproc_alg_s *driver_alg)
+static int spu_register_skcipher(struct iproc_alg_s *driver_alg)
 {
-	struct spu_hw *spu = &iproc_priv.spu;
-	struct crypto_alg *crypto = &driver_alg->alg.crypto;
+	struct skcipher_alg *crypto = &driver_alg->alg.skcipher;
 	int err;
 
-	/* SPU2 does not support RC4 */
-	if ((driver_alg->cipher_info.alg == CIPHER_ALG_RC4) &&
-	    (spu->spu_type == SPU_TYPE_SPU2))
-		return 0;
+	crypto->base.cra_module = THIS_MODULE;
+	crypto->base.cra_priority = cipher_pri;
+	crypto->base.cra_alignmask = 0;
+	crypto->base.cra_ctxsize = sizeof(struct iproc_ctx_s);
+	crypto->base.cra_flags = CRYPTO_ALG_ASYNC |
+				 CRYPTO_ALG_ALLOCATES_MEMORY |
+				 CRYPTO_ALG_KERN_DRIVER_ONLY;
 
-	crypto->cra_module = THIS_MODULE;
-	crypto->cra_priority = cipher_pri;
-	crypto->cra_alignmask = 0;
-	crypto->cra_ctxsize = sizeof(struct iproc_ctx_s);
+	crypto->init = skcipher_init_tfm;
+	crypto->exit = skcipher_exit_tfm;
+	crypto->setkey = skcipher_setkey;
+	crypto->encrypt = skcipher_encrypt;
+	crypto->decrypt = skcipher_decrypt;
 
-	crypto->cra_init = ablkcipher_cra_init;
-	crypto->cra_exit = generic_cra_exit;
-	crypto->cra_type = &crypto_ablkcipher_type;
-	crypto->cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC |
-				CRYPTO_ALG_KERN_DRIVER_ONLY;
-
-	crypto->cra_ablkcipher.setkey = ablkcipher_setkey;
-	crypto->cra_ablkcipher.encrypt = ablkcipher_encrypt;
-	crypto->cra_ablkcipher.decrypt = ablkcipher_decrypt;
-
-	err = crypto_register_alg(crypto);
+	err = crypto_register_skcipher(crypto);
 	/* Mark alg as having been registered, if successful */
 	if (err == 0)
 		driver_alg->registered = true;
-	pr_debug("  registered ablkcipher %s\n", crypto->cra_driver_name);
+	pr_debug("  registered skcipher %s\n", crypto->base.cra_driver_name);
 	return err;
 }
 
@@ -4581,7 +4505,8 @@ static int spu_register_ahash(struct iproc_alg_s *driver_alg)
 	hash->halg.base.cra_ctxsize = sizeof(struct iproc_ctx_s);
 	hash->halg.base.cra_init = ahash_cra_init;
 	hash->halg.base.cra_exit = generic_cra_exit;
-	hash->halg.base.cra_flags = CRYPTO_ALG_ASYNC;
+	hash->halg.base.cra_flags = CRYPTO_ALG_ASYNC |
+				    CRYPTO_ALG_ALLOCATES_MEMORY;
 	hash->halg.statesize = sizeof(struct spu_hash_export_s);
 
 	if (driver_alg->auth_info.mode != HASH_MODE_HMAC) {
@@ -4625,7 +4550,7 @@ static int spu_register_aead(struct iproc_alg_s *driver_alg)
 	aead->base.cra_alignmask = 0;
 	aead->base.cra_ctxsize = sizeof(struct iproc_ctx_s);
 
-	aead->base.cra_flags |= CRYPTO_ALG_ASYNC;
+	aead->base.cra_flags |= CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY;
 	/* setkey set in alg initialization */
 	aead->setauthsize = aead_setauthsize;
 	aead->encrypt = aead_encrypt;
@@ -4649,8 +4574,8 @@ static int spu_algs_register(struct device *dev)
 
 	for (i = 0; i < ARRAY_SIZE(driver_algs); i++) {
 		switch (driver_algs[i].type) {
-		case CRYPTO_ALG_TYPE_ABLKCIPHER:
-			err = spu_register_ablkcipher(&driver_algs[i]);
+		case CRYPTO_ALG_TYPE_SKCIPHER:
+			err = spu_register_skcipher(&driver_algs[i]);
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:
 			err = spu_register_ahash(&driver_algs[i]);
@@ -4680,8 +4605,8 @@ err_algs:
 		if (!driver_algs[j].registered)
 			continue;
 		switch (driver_algs[j].type) {
-		case CRYPTO_ALG_TYPE_ABLKCIPHER:
-			crypto_unregister_alg(&driver_algs[j].alg.crypto);
+		case CRYPTO_ALG_TYPE_SKCIPHER:
+			crypto_unregister_skcipher(&driver_algs[j].alg.skcipher);
 			driver_algs[j].registered = false;
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:
@@ -4751,21 +4676,20 @@ static int spu_dt_read(struct platform_device *pdev)
 
 	matched_spu_type = of_device_get_match_data(dev);
 	if (!matched_spu_type) {
-		dev_err(&pdev->dev, "Failed to match device\n");
+		dev_err(dev, "Failed to match device\n");
 		return -ENODEV;
 	}
 
 	spu->spu_type = matched_spu_type->type;
 	spu->spu_subtype = matched_spu_type->subtype;
 
-	i = 0;
 	for (i = 0; (i < MAX_SPUS) && ((spu_ctrl_regs =
 		platform_get_resource(pdev, IORESOURCE_MEM, i)) != NULL); i++) {
 
 		spu->reg_vbase[i] = devm_ioremap_resource(dev, spu_ctrl_regs);
 		if (IS_ERR(spu->reg_vbase[i])) {
 			err = PTR_ERR(spu->reg_vbase[i]);
-			dev_err(&pdev->dev, "Failed to map registers: %d\n",
+			dev_err(dev, "Failed to map registers: %d\n",
 				err);
 			spu->reg_vbase[i] = NULL;
 			return err;
@@ -4781,7 +4705,7 @@ static int bcm_spu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct spu_hw *spu = &iproc_priv.spu;
-	int err = 0;
+	int err;
 
 	iproc_priv.pdev  = pdev;
 	platform_set_drvdata(iproc_priv.pdev,
@@ -4791,7 +4715,7 @@ static int bcm_spu_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto failure;
 
-	err = spu_mb_init(&pdev->dev);
+	err = spu_mb_init(dev);
 	if (err < 0)
 		goto failure;
 
@@ -4800,7 +4724,7 @@ static int bcm_spu_probe(struct platform_device *pdev)
 	else if (spu->spu_type == SPU_TYPE_SPU2)
 		iproc_priv.bcm_hdr_len = 0;
 
-	spu_functions_register(&pdev->dev, spu->spu_type, spu->spu_subtype);
+	spu_functions_register(dev, spu->spu_type, spu->spu_subtype);
 
 	spu_counters_init();
 
@@ -4837,10 +4761,10 @@ static int bcm_spu_remove(struct platform_device *pdev)
 			continue;
 
 		switch (driver_algs[i].type) {
-		case CRYPTO_ALG_TYPE_ABLKCIPHER:
-			crypto_unregister_alg(&driver_algs[i].alg.crypto);
+		case CRYPTO_ALG_TYPE_SKCIPHER:
+			crypto_unregister_skcipher(&driver_algs[i].alg.skcipher);
 			dev_dbg(dev, "  unregistered cipher %s\n",
-				driver_algs[i].alg.crypto.cra_driver_name);
+				driver_algs[i].alg.skcipher.base.cra_driver_name);
 			driver_algs[i].registered = false;
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:

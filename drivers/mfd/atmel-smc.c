@@ -237,7 +237,7 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_set_cycle);
  * atmel_smc_cs_conf_apply - apply an SMC CS conf
  * @regmap: the SMC regmap
  * @cs: the CS id
- * @conf the SMC CS conf to apply
+ * @conf: the SMC CS conf to apply
  *
  * Applies an SMC CS configuration.
  * Only valid on at91sam9/avr32 SoCs.
@@ -257,7 +257,7 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_apply);
  * @regmap: the HSMC regmap
  * @cs: the CS id
  * @layout: the layout of registers
- * @conf the SMC CS conf to apply
+ * @conf: the SMC CS conf to apply
  *
  * Applies an SMC CS configuration.
  * Only valid on post-sama5 SoCs.

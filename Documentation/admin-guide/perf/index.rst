@@ -8,9 +8,11 @@ Performance monitor support
    :maxdepth: 1
 
    hisi-pmu
+   imx-ddr
    qcom_l2_pmu
    qcom_l3_pmu
    arm-ccn
+   arm-cmn
    xgene-pmu
    arm_dsu_pmu
    thunderx2-pmu

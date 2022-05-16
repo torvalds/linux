@@ -790,7 +790,7 @@ static void w5100_restart_work(struct work_struct *work)
 	w5100_restart(priv->ndev);
 }
 
-static void w5100_tx_timeout(struct net_device *ndev)
+static void w5100_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
 	struct w5100_priv *priv = netdev_priv(ndev);
 

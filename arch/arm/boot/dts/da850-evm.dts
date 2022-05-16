@@ -2,7 +2,7 @@
 /*
  * Device Tree for DA850 EVM board
  *
- * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com/
  */
 /dts-v1/;
 #include "da850.dtsi"

@@ -63,17 +63,16 @@ struct stackframe {
 
 extern int unwind_frame(struct task_struct *tsk, struct stackframe *frame);
 extern void walk_stackframe(struct task_struct *tsk, struct stackframe *frame,
-			    int (*fn)(struct stackframe *, void *), void *data);
-extern void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk);
+			    bool (*fn)(void *, unsigned long), void *data);
+extern void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+			   const char *loglvl);
 
 DECLARE_PER_CPU(unsigned long *, irq_stack_ptr);
 
-static inline bool on_irq_stack(unsigned long sp,
+static inline bool on_stack(unsigned long sp, unsigned long low,
+				unsigned long high, enum stack_type type,
 				struct stack_info *info)
 {
-	unsigned long low = (unsigned long)raw_cpu_read(irq_stack_ptr);
-	unsigned long high = low + IRQ_STACK_SIZE;
-
 	if (!low)
 		return false;
 
@@ -83,10 +82,18 @@ static inline bool on_irq_stack(unsigned long sp,
 	if (info) {
 		info->low = low;
 		info->high = high;
-		info->type = STACK_TYPE_IRQ;
+		info->type = type;
 	}
-
 	return true;
+}
+
+static inline bool on_irq_stack(unsigned long sp,
+				struct stack_info *info)
+{
+	unsigned long low = (unsigned long)raw_cpu_read(irq_stack_ptr);
+	unsigned long high = low + IRQ_STACK_SIZE;
+
+	return on_stack(sp, low, high, STACK_TYPE_IRQ, info);
 }
 
 static inline bool on_task_stack(const struct task_struct *tsk,
@@ -96,16 +103,7 @@ static inline bool on_task_stack(const struct task_struct *tsk,
 	unsigned long low = (unsigned long)task_stack_page(tsk);
 	unsigned long high = low + THREAD_SIZE;
 
-	if (sp < low || sp >= high)
-		return false;
-
-	if (info) {
-		info->low = low;
-		info->high = high;
-		info->type = STACK_TYPE_TASK;
-	}
-
-	return true;
+	return on_stack(sp, low, high, STACK_TYPE_TASK, info);
 }
 
 #ifdef CONFIG_VMAP_STACK
@@ -117,16 +115,7 @@ static inline bool on_overflow_stack(unsigned long sp,
 	unsigned long low = (unsigned long)raw_cpu_ptr(overflow_stack);
 	unsigned long high = low + OVERFLOW_STACK_SIZE;
 
-	if (sp < low || sp >= high)
-		return false;
-
-	if (info) {
-		info->low = low;
-		info->high = high;
-		info->type = STACK_TYPE_OVERFLOW;
-	}
-
-	return true;
+	return on_stack(sp, low, high, STACK_TYPE_OVERFLOW, info);
 }
 #else
 static inline bool on_overflow_stack(unsigned long sp,

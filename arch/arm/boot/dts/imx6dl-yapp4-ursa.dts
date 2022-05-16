@@ -17,6 +17,10 @@
 	};
 };
 
+&aliases {
+	/delete-property/ ethernet1;
+};
+
 &backlight {
 	status = "okay";
 };
@@ -38,7 +42,7 @@
 };
 
 &switch_ports {
-	/delete-node/ port@2;
+	/delete-node/ port@3;
 };
 
 &touchscreen {

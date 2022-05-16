@@ -464,7 +464,6 @@ void acpi_db_decode_arguments(struct acpi_walk_state *walk_state)
 	u8 display_args = FALSE;
 
 	node = walk_state->method_node;
-	obj_desc = walk_state->method_desc;
 
 	/* There are no arguments for the module-level code case */
 

@@ -297,7 +297,7 @@ static inline int ovl_dir_read(struct path *realpath,
 	struct file *realfile;
 	int err;
 
-	realfile = ovl_path_open(realpath, O_RDONLY | O_DIRECTORY);
+	realfile = ovl_path_open(realpath, O_RDONLY | O_LARGEFILE);
 	if (IS_ERR(realfile))
 		return PTR_ERR(realfile);
 
@@ -438,15 +438,23 @@ static struct ovl_dir_cache *ovl_cache_get(struct dentry *dentry)
 
 /* Map inode number to lower fs unique range */
 static u64 ovl_remap_lower_ino(u64 ino, int xinobits, int fsid,
-			       const char *name, int namelen)
+			       const char *name, int namelen, bool warn)
 {
-	if (ino >> (64 - xinobits)) {
-		pr_warn_ratelimited("overlayfs: d_ino too big (%.*s, ino=%llu, xinobits=%d)\n",
-				    namelen, name, ino, xinobits);
+	unsigned int xinoshift = 64 - xinobits;
+
+	if (unlikely(ino >> xinoshift)) {
+		if (warn) {
+			pr_warn_ratelimited("d_ino too big (%.*s, ino=%llu, xinobits=%d)\n",
+					    namelen, name, ino, xinobits);
+		}
 		return ino;
 	}
 
-	return ino | ((u64)fsid) << (64 - xinobits);
+	/*
+	 * The lowest xinobit is reserved for mapping the non-peresistent inode
+	 * numbers range, but this range is only exposed via st_ino, not here.
+	 */
+	return ino | ((u64)fsid) << (xinoshift + 1);
 }
 
 /*
@@ -469,7 +477,7 @@ static int ovl_cache_update_ino(struct path *path, struct ovl_cache_entry *p)
 	int xinobits = ovl_xino_bits(dir->d_sb);
 	int err = 0;
 
-	if (!ovl_same_sb(dir->d_sb) && !xinobits)
+	if (!ovl_same_dev(dir->d_sb))
 		goto out;
 
 	if (p->name[0] == '.') {
@@ -504,12 +512,19 @@ get:
 		if (err)
 			goto fail;
 
-		WARN_ON_ONCE(dir->d_sb->s_dev != stat.dev);
+		/*
+		 * Directory inode is always on overlay st_dev.
+		 * Non-dir with ovl_same_dev() could be on pseudo st_dev in case
+		 * of xino bits overflow.
+		 */
+		WARN_ON_ONCE(S_ISDIR(stat.mode) &&
+			     dir->d_sb->s_dev != stat.dev);
 		ino = stat.ino;
 	} else if (xinobits && !OVL_TYPE_UPPER(type)) {
 		ino = ovl_remap_lower_ino(ino, xinobits,
 					  ovl_layer_lower(this)->fsid,
-					  p->name, p->len);
+					  p->name, p->len,
+					  ovl_xino_warn(dir->d_sb));
 	}
 
 out:
@@ -518,7 +533,7 @@ out:
 	return err;
 
 fail:
-	pr_warn_ratelimited("overlayfs: failed to look up (%s) for ino (%i)\n",
+	pr_warn_ratelimited("failed to look up (%s) for ino (%i)\n",
 			    p->name, err);
 	goto out;
 }
@@ -591,6 +606,7 @@ static struct ovl_dir_cache *ovl_cache_get_impure(struct path *path)
 {
 	int res;
 	struct dentry *dentry = path->dentry;
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct ovl_dir_cache *cache;
 
 	cache = ovl_dir_cache(d_inode(dentry));
@@ -617,7 +633,7 @@ static struct ovl_dir_cache *ovl_cache_get_impure(struct path *path)
 		 * Removing the "impure" xattr is best effort.
 		 */
 		if (!ovl_want_write(dentry)) {
-			ovl_do_removexattr(ovl_dentry_upper(dentry),
+			ovl_do_removexattr(ofs, ovl_dentry_upper(dentry),
 					   OVL_XATTR_IMPURE);
 			ovl_drop_write(dentry);
 		}
@@ -639,6 +655,7 @@ struct ovl_readdir_translate {
 	u64 parent_ino;
 	int fsid;
 	int xinobits;
+	bool xinowarn;
 };
 
 static int ovl_fill_real(struct dir_context *ctx, const char *name,
@@ -659,7 +676,7 @@ static int ovl_fill_real(struct dir_context *ctx, const char *name,
 			ino = p->ino;
 	} else if (rdt->xinobits) {
 		ino = ovl_remap_lower_ino(ino, rdt->xinobits, rdt->fsid,
-					  name, namelen);
+					  name, namelen, rdt->xinowarn);
 	}
 
 	return orig_ctx->actor(orig_ctx, name, namelen, offset, ino, d_type);
@@ -685,11 +702,12 @@ static int ovl_iterate_real(struct file *file, struct dir_context *ctx)
 	int err;
 	struct ovl_dir_file *od = file->private_data;
 	struct dentry *dir = file->f_path.dentry;
-	struct ovl_layer *lower_layer = ovl_layer_lower(dir);
+	const struct ovl_layer *lower_layer = ovl_layer_lower(dir);
 	struct ovl_readdir_translate rdt = {
 		.ctx.actor = ovl_fill_real,
 		.orig_ctx = ctx,
 		.xinobits = ovl_xino_bits(dir->d_sb),
+		.xinowarn = ovl_xino_warn(dir->d_sb),
 	};
 
 	if (rdt.xinobits && lower_layer)
@@ -726,8 +744,10 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 	struct ovl_dir_file *od = file->private_data;
 	struct dentry *dentry = file->f_path.dentry;
 	struct ovl_cache_entry *p;
+	const struct cred *old_cred;
 	int err;
 
+	old_cred = ovl_override_creds(dentry->d_sb);
 	if (!ctx->pos)
 		ovl_dir_reset(file);
 
@@ -738,20 +758,23 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 		 * entries.
 		 */
 		if (ovl_xino_bits(dentry->d_sb) ||
-		    (ovl_same_sb(dentry->d_sb) &&
+		    (ovl_same_fs(dentry->d_sb) &&
 		     (ovl_is_impure_dir(file) ||
 		      OVL_TYPE_MERGE(ovl_path_type(dentry->d_parent))))) {
-			return ovl_iterate_real(file, ctx);
+			err = ovl_iterate_real(file, ctx);
+		} else {
+			err = iterate_dir(od->realfile, ctx);
 		}
-		return iterate_dir(od->realfile, ctx);
+		goto out;
 	}
 
 	if (!od->cache) {
 		struct ovl_dir_cache *cache;
 
 		cache = ovl_cache_get(dentry);
+		err = PTR_ERR(cache);
 		if (IS_ERR(cache))
-			return PTR_ERR(cache);
+			goto out;
 
 		od->cache = cache;
 		ovl_seek_cursor(od, ctx->pos);
@@ -763,7 +786,7 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 			if (!p->ino) {
 				err = ovl_cache_update_ino(&file->f_path, p);
 				if (err)
-					return err;
+					goto out;
 			}
 			if (!dir_emit(ctx, p->name, p->len, p->ino, p->type))
 				break;
@@ -771,7 +794,10 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 		od->cursor = p->l_node.next;
 		ctx->pos++;
 	}
-	return 0;
+	err = 0;
+out:
+	revert_creds(old_cred);
+	return err;
 }
 
 static loff_t ovl_dir_llseek(struct file *file, loff_t offset, int origin)
@@ -814,16 +840,35 @@ out_unlock:
 	return res;
 }
 
-static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
-			 int datasync)
+static struct file *ovl_dir_open_realfile(const struct file *file,
+					  struct path *realpath)
 {
+	struct file *res;
+	const struct cred *old_cred;
+
+	old_cred = ovl_override_creds(file_inode(file)->i_sb);
+	res = ovl_path_open(realpath, O_RDONLY | (file->f_flags & O_LARGEFILE));
+	revert_creds(old_cred);
+
+	return res;
+}
+
+/*
+ * Like ovl_real_fdget(), returns upperfile if dir was copied up since open.
+ * Unlike ovl_real_fdget(), this caches upperfile in file->private_data.
+ *
+ * TODO: use same abstract type for file->private_data of dir and file so
+ * upperfile could also be cached for files as well.
+ */
+struct file *ovl_dir_real_file(const struct file *file, bool want_upper)
+{
+
 	struct ovl_dir_file *od = file->private_data;
 	struct dentry *dentry = file->f_path.dentry;
 	struct file *realfile = od->realfile;
 
-	/* Nothing to sync for lower */
 	if (!OVL_TYPE_UPPER(ovl_path_type(dentry)))
-		return 0;
+		return want_upper ? NULL : realfile;
 
 	/*
 	 * Need to check if we started out being a lower dir, but got copied up
@@ -836,13 +881,13 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 			struct path upperpath;
 
 			ovl_path_upper(dentry, &upperpath);
-			realfile = ovl_path_open(&upperpath, O_RDONLY);
+			realfile = ovl_dir_open_realfile(file, &upperpath);
 
 			inode_lock(inode);
 			if (!od->upperfile) {
 				if (IS_ERR(realfile)) {
 					inode_unlock(inode);
-					return PTR_ERR(realfile);
+					return realfile;
 				}
 				smp_store_release(&od->upperfile, realfile);
 			} else {
@@ -854,6 +899,25 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 			inode_unlock(inode);
 		}
 	}
+
+	return realfile;
+}
+
+static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
+			 int datasync)
+{
+	struct file *realfile;
+	int err;
+
+	if (!ovl_should_sync(OVL_FS(file->f_path.dentry->d_sb)))
+		return 0;
+
+	realfile = ovl_dir_real_file(file, true);
+	err = PTR_ERR_OR_ZERO(realfile);
+
+	/* Nothing to sync for lower */
+	if (!realfile || err)
+		return err;
 
 	return vfs_fsync_range(realfile, start, end, datasync);
 }
@@ -887,7 +951,7 @@ static int ovl_dir_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	type = ovl_path_real(file->f_path.dentry, &realpath);
-	realfile = ovl_path_open(&realpath, file->f_flags);
+	realfile = ovl_dir_open_realfile(file, &realpath);
 	if (IS_ERR(realfile)) {
 		kfree(od);
 		return PTR_ERR(realfile);
@@ -907,6 +971,10 @@ const struct file_operations ovl_dir_operations = {
 	.llseek		= ovl_dir_llseek,
 	.fsync		= ovl_dir_fsync,
 	.release	= ovl_dir_release,
+	.unlocked_ioctl	= ovl_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ovl_compat_ioctl,
+#endif
 };
 
 int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list)
@@ -965,7 +1033,7 @@ void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list)
 
 		dentry = lookup_one_len(p->name, upper, p->len);
 		if (IS_ERR(dentry)) {
-			pr_err("overlayfs: lookup '%s/%.*s' failed (%i)\n",
+			pr_err("lookup '%s/%.*s' failed (%i)\n",
 			       upper->d_name.name, p->len, p->name,
 			       (int) PTR_ERR(dentry));
 			continue;
@@ -1013,7 +1081,9 @@ int ovl_check_d_type_supported(struct path *realpath)
 	return rdd.d_type_supported;
 }
 
-static void ovl_workdir_cleanup_recurse(struct path *path, int level)
+#define OVL_INCOMPATDIR_NAME "incompat"
+
+static int ovl_workdir_cleanup_recurse(struct path *path, int level)
 {
 	int err;
 	struct inode *dir = path->dentry->d_inode;
@@ -1027,6 +1097,19 @@ static void ovl_workdir_cleanup_recurse(struct path *path, int level)
 		.root = &root,
 		.is_lowest = false,
 	};
+	bool incompat = false;
+
+	/*
+	 * The "work/incompat" directory is treated specially - if it is not
+	 * empty, instead of printing a generic error and mounting read-only,
+	 * we will error about incompat features and fail the mount.
+	 *
+	 * When called from ovl_indexdir_cleanup(), path->dentry->d_name.name
+	 * starts with '#'.
+	 */
+	if (level == 2 &&
+	    !strcmp(path->dentry->d_name.name, OVL_INCOMPATDIR_NAME))
+		incompat = true;
 
 	err = ovl_dir_read(path, &rdd);
 	if (err)
@@ -1041,27 +1124,34 @@ static void ovl_workdir_cleanup_recurse(struct path *path, int level)
 				continue;
 			if (p->len == 2 && p->name[1] == '.')
 				continue;
+		} else if (incompat) {
+			pr_err("overlay with incompat feature '%s' cannot be mounted\n",
+				p->name);
+			err = -EINVAL;
+			break;
 		}
 		dentry = lookup_one_len(p->name, path->dentry, p->len);
 		if (IS_ERR(dentry))
 			continue;
 		if (dentry->d_inode)
-			ovl_workdir_cleanup(dir, path->mnt, dentry, level);
+			err = ovl_workdir_cleanup(dir, path->mnt, dentry, level);
 		dput(dentry);
+		if (err)
+			break;
 	}
 	inode_unlock(dir);
 out:
 	ovl_cache_free(&list);
+	return err;
 }
 
-void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
+int ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 			 struct dentry *dentry, int level)
 {
 	int err;
 
 	if (!d_is_dir(dentry) || level > 1) {
-		ovl_cleanup(dir, dentry);
-		return;
+		return ovl_cleanup(dir, dentry);
 	}
 
 	err = ovl_do_rmdir(dir, dentry);
@@ -1069,10 +1159,13 @@ void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 		struct path path = { .mnt = mnt, .dentry = dentry };
 
 		inode_unlock(dir);
-		ovl_workdir_cleanup_recurse(&path, level + 1);
+		err = ovl_workdir_cleanup_recurse(&path, level + 1);
 		inode_lock_nested(dir, I_MUTEX_PARENT);
-		ovl_cleanup(dir, dentry);
+		if (!err)
+			err = ovl_cleanup(dir, dentry);
 	}
+
+	return err;
 }
 
 int ovl_indexdir_cleanup(struct ovl_fs *ofs)
@@ -1081,7 +1174,7 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 	struct dentry *indexdir = ofs->indexdir;
 	struct dentry *index = NULL;
 	struct inode *dir = indexdir->d_inode;
-	struct path path = { .mnt = ofs->upper_mnt, .dentry = indexdir };
+	struct path path = { .mnt = ovl_upper_mnt(ofs), .dentry = indexdir };
 	LIST_HEAD(list);
 	struct rb_root root = RB_ROOT;
 	struct ovl_cache_entry *p;
@@ -1111,6 +1204,13 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 			index = NULL;
 			break;
 		}
+		/* Cleanup leftover from index create/cleanup attempt */
+		if (index->d_name.name[0] == '#') {
+			err = ovl_workdir_cleanup(dir, path.mnt, index, 1);
+			if (err)
+				break;
+			goto next;
+		}
 		err = ovl_verify_index(ofs, index);
 		if (!err) {
 			goto next;
@@ -1129,7 +1229,7 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 			 * Whiteout orphan index to block future open by
 			 * handle after overlay nlink dropped to zero.
 			 */
-			err = ovl_cleanup_and_whiteout(indexdir, dir, index);
+			err = ovl_cleanup_and_whiteout(ofs, dir, index);
 		} else {
 			/* Cleanup orphan index entries */
 			err = ovl_cleanup(dir, index);
@@ -1147,6 +1247,6 @@ next:
 out:
 	ovl_cache_free(&list);
 	if (err)
-		pr_err("overlayfs: failed index dir cleanup (%i)\n", err);
+		pr_err("failed index dir cleanup (%i)\n", err);
 	return err;
 }

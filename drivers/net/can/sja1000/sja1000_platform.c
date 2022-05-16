@@ -150,7 +150,7 @@ static void sp_populate_of(struct sja1000_priv *priv, struct device_node *of)
 		priv->read_reg = sp_read_reg16;
 		priv->write_reg = sp_write_reg16;
 		break;
-	case 1:	/* fallthrough */
+	case 1:
 	default:
 		priv->read_reg = sp_read_reg8;
 		priv->write_reg = sp_write_reg8;
@@ -229,7 +229,7 @@ static int sp_probe(struct platform_device *pdev)
 				     resource_size(res_mem), DRV_NAME))
 		return -EBUSY;
 
-	addr = devm_ioremap_nocache(&pdev->dev, res_mem->start,
+	addr = devm_ioremap(&pdev->dev, res_mem->start,
 				    resource_size(res_mem));
 	if (!addr)
 		return -ENOMEM;

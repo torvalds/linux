@@ -184,7 +184,7 @@ int snd_opl4_create(struct snd_card *card,
 	struct snd_opl4 *opl4;
 	struct snd_opl3 *opl3;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_opl4_dev_free
 	};
 

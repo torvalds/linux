@@ -5,7 +5,7 @@
  *	based on ipt_time by Fabrice MARIE <fabrice@netfilter.org>
  *	This is a module which is used for time matching
  *	It is using some modified code from dietlibc (localtime() function)
- *	that you can find at http://www.fefe.de/dietlibc/
+ *	that you can find at https://www.fefe.de/dietlibc/
  *	This file is distributed under the terms of the GNU General Public
  *	License (GPL). Copies of the GPL can be obtained from gnu.org/gpl.
  */
@@ -77,12 +77,12 @@ static inline bool is_leap(unsigned int y)
  * This is done in three separate functions so that the most expensive
  * calculations are done last, in case a "simple match" can be found earlier.
  */
-static inline unsigned int localtime_1(struct xtm *r, time_t time)
+static inline unsigned int localtime_1(struct xtm *r, time64_t time)
 {
 	unsigned int v, w;
 
 	/* Each day has 86400s, so finding the hour/minute is actually easy. */
-	v         = time % SECONDS_PER_DAY;
+	div_u64_rem(time, SECONDS_PER_DAY, &v);
 	r->second = v % 60;
 	w         = v / 60;
 	r->minute = w % 60;
@@ -90,13 +90,13 @@ static inline unsigned int localtime_1(struct xtm *r, time_t time)
 	return v;
 }
 
-static inline void localtime_2(struct xtm *r, time_t time)
+static inline void localtime_2(struct xtm *r, time64_t time)
 {
 	/*
 	 * Here comes the rest (weekday, monthday). First, divide the SSTE
 	 * by seconds-per-day to get the number of _days_ since the epoch.
 	 */
-	r->dse = time / 86400;
+	r->dse = div_u64(time, SECONDS_PER_DAY);
 
 	/*
 	 * 1970-01-01 (w=0) was a Thursday (4).
@@ -105,7 +105,7 @@ static inline void localtime_2(struct xtm *r, time_t time)
 	r->weekday = (4 + r->dse - 1) % 7 + 1;
 }
 
-static void localtime_3(struct xtm *r, time_t time)
+static void localtime_3(struct xtm *r, time64_t time)
 {
 	unsigned int year, i, w = r->dse;
 
@@ -160,7 +160,7 @@ time_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	const struct xt_time_info *info = par->matchinfo;
 	unsigned int packet_time;
 	struct xtm current_time;
-	s64 stamp;
+	time64_t stamp;
 
 	/*
 	 * We need real time here, but we can neither use skb->tstamp
@@ -173,14 +173,14 @@ time_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	 *	1. match before 13:00
 	 *	2. match after 13:00
 	 *
-	 * If you match against processing time (get_seconds) it
+	 * If you match against processing time (ktime_get_real_seconds) it
 	 * may happen that the same packet matches both rules if
 	 * it arrived at the right moment before 13:00, so it would be
 	 * better to check skb->tstamp and set it via __net_timestamp()
 	 * if needed.  This however breaks outgoing packets tx timestamp,
 	 * and causes them to get delayed forever by fq packet scheduler.
 	 */
-	stamp = get_seconds();
+	stamp = ktime_get_real_seconds();
 
 	if (info->flags & XT_TIME_LOCAL_TZ)
 		/* Adjust for local timezone */
@@ -193,6 +193,9 @@ time_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	 *   - 'now' is in the weekday mask
 	 *   - 'now' is in the daytime range time_start..time_end
 	 * (and by default, libxt_time will set these so as to match)
+	 *
+	 * note: info->date_start/stop are unsigned 32-bit values that
+	 *	 can hold values beyond y2038, but not after y2106.
 	 */
 
 	if (stamp < info->date_start || stamp > info->date_stop)

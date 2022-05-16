@@ -30,6 +30,8 @@
 #include <linux/spi/eeprom.h>
 #include <linux/v4l2-dv-timings.h>
 #include <linux/platform_data/ti-aemif.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -144,7 +146,7 @@ static struct davinci_nand_pdata davinci_nand_data = {
 	.mask_chipsel		= BIT(14),
 	.parts			= davinci_nand_partitions,
 	.nr_parts		= ARRAY_SIZE(davinci_nand_partitions),
-	.ecc_mode		= NAND_ECC_HW,
+	.engine_type		= NAND_ECC_ENGINE_TYPE_ON_HOST,
 	.bbt_options		= NAND_BBT_USE_FLASH,
 	.ecc_bits		= 4,
 };
@@ -243,6 +245,19 @@ static struct i2c_board_info i2c_info[] = {
 static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_freq	= 400	/* kHz */,
 	.bus_delay	= 0	/* usec */,
+};
+
+/* Fixed regulator support */
+static struct regulator_consumer_supply fixed_supplies_3_3v[] = {
+	/* Baseboard 3.3V: 5V -> TPS767D301 -> 3.3V */
+	REGULATOR_SUPPLY("AVDD", "1-0018"),
+	REGULATOR_SUPPLY("DRVDD", "1-0018"),
+	REGULATOR_SUPPLY("IOVDD", "1-0018"),
+};
+
+static struct regulator_consumer_supply fixed_supplies_1_8v[] = {
+	/* Baseboard 1.8V: 5V -> TPS767D301 -> 1.8V */
+	REGULATOR_SUPPLY("DVDD", "1-0018"),
 };
 
 static int dm365evm_keyscan_enable(struct device *dev)
@@ -799,6 +814,11 @@ static __init void dm365_evm_init(void)
 	ret = dm365_gpio_register();
 	if (ret)
 		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
+
+	regulator_register_always_on(0, "fixed-dummy", fixed_supplies_1_8v,
+				     ARRAY_SIZE(fixed_supplies_1_8v), 1800000);
+	regulator_register_always_on(1, "fixed-dummy", fixed_supplies_3_3v,
+				     ARRAY_SIZE(fixed_supplies_3_3v), 3300000);
 
 	nvmem_add_cell_table(&davinci_nvmem_cell_table);
 	nvmem_add_cell_lookups(&davinci_nvmem_cell_lookup, 1);

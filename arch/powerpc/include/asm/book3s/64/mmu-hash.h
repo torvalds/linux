@@ -86,8 +86,8 @@
 #define HPTE_R_PP0		ASM_CONST(0x8000000000000000)
 #define HPTE_R_TS		ASM_CONST(0x4000000000000000)
 #define HPTE_R_KEY_HI		ASM_CONST(0x3000000000000000)
-#define HPTE_R_KEY_BIT0		ASM_CONST(0x2000000000000000)
-#define HPTE_R_KEY_BIT1		ASM_CONST(0x1000000000000000)
+#define HPTE_R_KEY_BIT4		ASM_CONST(0x2000000000000000)
+#define HPTE_R_KEY_BIT3		ASM_CONST(0x1000000000000000)
 #define HPTE_R_RPN_SHIFT	12
 #define HPTE_R_RPN		ASM_CONST(0x0ffffffffffff000)
 #define HPTE_R_RPN_3_0		ASM_CONST(0x01fffffffffff000)
@@ -103,8 +103,8 @@
 #define HPTE_R_R		ASM_CONST(0x0000000000000100)
 #define HPTE_R_KEY_LO		ASM_CONST(0x0000000000000e00)
 #define HPTE_R_KEY_BIT2		ASM_CONST(0x0000000000000800)
-#define HPTE_R_KEY_BIT3		ASM_CONST(0x0000000000000400)
-#define HPTE_R_KEY_BIT4		ASM_CONST(0x0000000000000200)
+#define HPTE_R_KEY_BIT1		ASM_CONST(0x0000000000000400)
+#define HPTE_R_KEY_BIT0		ASM_CONST(0x0000000000000200)
 #define HPTE_R_KEY		(HPTE_R_KEY_LO | HPTE_R_KEY_HI)
 
 #define HPTE_V_1TB_SEG		ASM_CONST(0x4000000000000000)
@@ -577,8 +577,8 @@ extern void slb_set_size(u16 size);
  * For vmalloc and memmap, we use just one context with 512TB. With 64 byte
  * struct page size, we need ony 32 TB in memmap for 2PB (51 bits (MAX_PHYSMEM_BITS)).
  */
-#if (MAX_PHYSMEM_BITS > MAX_EA_BITS_PER_CONTEXT)
-#define MAX_KERNEL_CTX_CNT	(1UL << (MAX_PHYSMEM_BITS - MAX_EA_BITS_PER_CONTEXT))
+#if (H_MAX_PHYSMEM_BITS > MAX_EA_BITS_PER_CONTEXT)
+#define MAX_KERNEL_CTX_CNT	(1UL << (H_MAX_PHYSMEM_BITS - MAX_EA_BITS_PER_CONTEXT))
 #else
 #define MAX_KERNEL_CTX_CNT	1
 #endif
@@ -600,8 +600,11 @@ extern void slb_set_size(u16 size);
  *
  */
 #define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 2)
+
+// The + 2 accounts for INVALID_REGION and 1 more to avoid overlap with kernel
 #define MIN_USER_CONTEXT	(MAX_KERNEL_CTX_CNT + MAX_VMALLOC_CTX_CNT + \
-				 MAX_IO_CTX_CNT + MAX_VMEMMAP_CTX_CNT)
+				 MAX_IO_CTX_CNT + MAX_VMEMMAP_CTX_CNT + 2)
+
 /*
  * For platforms that support on 65bit VA we limit the context bits
  */
@@ -790,7 +793,7 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 }
 
 /*
- * For kernel space, we use context ids as below
+ * For kernel space, we use context ids as
  * below. Range is 512TB per context.
  *
  * 0x00001 -  [ 0xc000000000000000 - 0xc001ffffffffffff]

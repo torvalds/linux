@@ -157,7 +157,7 @@ static int atp867x_get_active_clocks_shifted(struct ata_port *ap,
 	default:
 		printk(KERN_WARNING "ATP867X: active %dclk is invalid. "
 			"Using 12clk.\n", clk);
-		/* fall through */
+		fallthrough;
 	case 9 ... 12:
 		clocks = 7;	/* 12 clk */
 		break;
@@ -190,7 +190,7 @@ static int atp867x_get_recover_clocks_shifted(unsigned int clk)
 	default:
 		printk(KERN_WARNING "ATP867X: recover %dclk is invalid. "
 			"Using default 12clk.\n", clk);
-		/* fall through */
+		fallthrough;
 	case 12:	/* default 12 clk */
 		clocks = 0;
 		break;
@@ -422,7 +422,7 @@ static int atp867x_ata_pci_sff_init_host(struct ata_host *host)
 #ifdef	ATP867X_DEBUG
 	atp867x_check_res(pdev);
 
-	for (i = 0; i < PCI_ROM_RESOURCE; i++)
+	for (i = 0; i < PCI_STD_NUM_BARS; i++)
 		printk(KERN_DEBUG "ATP867X: iomap[%d]=0x%llx\n", i,
 			(unsigned long long)(host->iomap[i]));
 #endif

@@ -67,7 +67,7 @@ struct __guc_ads_blob {
 
 static void __guc_ads_init(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
+	struct intel_gt *gt = guc_to_gt(guc);
 	struct __guc_ads_blob *blob = guc->ads_blob;
 	const u32 skipped_size = LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE;
 	u32 base;
@@ -93,18 +93,19 @@ static void __guc_ads_init(struct intel_guc *guc)
 		 */
 		blob->ads.golden_context_lrca[engine_class] = 0;
 		blob->ads.eng_state_size[engine_class] =
-			intel_engine_context_size(dev_priv, engine_class) -
+			intel_engine_context_size(guc_to_gt(guc),
+						  engine_class) -
 			skipped_size;
 	}
 
 	/* System info */
-	blob->system_info.slice_enabled = hweight8(RUNTIME_INFO(dev_priv)->sseu.slice_mask);
+	blob->system_info.slice_enabled = hweight8(gt->info.sseu.slice_mask);
 	blob->system_info.rcs_enabled = 1;
 	blob->system_info.bcs_enabled = 1;
 
-	blob->system_info.vdbox_enable_mask = VDBOX_MASK(dev_priv);
-	blob->system_info.vebox_enable_mask = VEBOX_MASK(dev_priv);
-	blob->system_info.vdbox_sfc_support_mask = RUNTIME_INFO(dev_priv)->vdbox_sfc_access;
+	blob->system_info.vdbox_enable_mask = VDBOX_MASK(gt);
+	blob->system_info.vebox_enable_mask = VEBOX_MASK(gt);
+	blob->system_info.vdbox_sfc_support_mask = gt->info.vdbox_sfc_access;
 
 	base = intel_guc_ggtt_offset(guc, guc->ads_vma);
 
@@ -135,32 +136,19 @@ static void __guc_ads_init(struct intel_guc *guc)
 int intel_guc_ads_create(struct intel_guc *guc)
 {
 	const u32 size = PAGE_ALIGN(sizeof(struct __guc_ads_blob));
-	struct i915_vma *vma;
-	void *blob;
 	int ret;
 
 	GEM_BUG_ON(guc->ads_vma);
 
-	vma = intel_guc_allocate_vma(guc, size);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
+	ret = intel_guc_allocate_and_map_vma(guc, size, &guc->ads_vma,
+					     (void **)&guc->ads_blob);
 
-	blob = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
-	if (IS_ERR(blob)) {
-		ret = PTR_ERR(blob);
-		goto err_vma;
-	}
-
-	guc->ads_vma = vma;
-	guc->ads_blob = blob;
+	if (ret)
+		return ret;
 
 	__guc_ads_init(guc);
 
 	return 0;
-
-err_vma:
-	i915_vma_unpin_and_release(&guc->ads_vma, 0);
-	return ret;
 }
 
 void intel_guc_ads_destroy(struct intel_guc *guc)

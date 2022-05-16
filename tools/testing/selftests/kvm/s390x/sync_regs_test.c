@@ -25,12 +25,15 @@
 
 static void guest_code(void)
 {
-	register u64 stage asm("11") = 0;
-
-	for (;;) {
-		GUEST_SYNC(0);
-		asm volatile ("ahi %0,1" : : "r"(stage));
-	}
+	/*
+	 * We embed diag 501 here instead of doing a ucall to avoid that
+	 * the compiler has messed with r11 at the time of the ucall.
+	 */
+	asm volatile (
+		"0:	diag 0,0,0x501\n"
+		"	ahi 11,1\n"
+		"	j 0b\n"
+	);
 }
 
 #define REG_COMPARE(reg) \
@@ -38,6 +41,13 @@ static void guest_code(void)
 		    "Register " #reg \
 		    " values did not match: 0x%llx, 0x%llx\n", \
 		    left->reg, right->reg)
+
+#define REG_COMPARE32(reg) \
+	TEST_ASSERT(left->reg == right->reg, \
+		    "Register " #reg \
+		    " values did not match: 0x%x, 0x%x\n", \
+		    left->reg, right->reg)
+
 
 static void compare_regs(struct kvm_regs *left, struct kvm_sync_regs *right)
 {
@@ -52,7 +62,7 @@ static void compare_sregs(struct kvm_sregs *left, struct kvm_sync_regs *right)
 	int i;
 
 	for (i = 0; i < 16; i++)
-		REG_COMPARE(acrs[i]);
+		REG_COMPARE32(acrs[i]);
 
 	for (i = 0; i < 16; i++)
 		REG_COMPARE(crs[i]);
@@ -76,7 +86,7 @@ int main(int argc, char *argv[])
 
 	cap = kvm_check_cap(KVM_CAP_SYNC_REGS);
 	if (!cap) {
-		fprintf(stderr, "CAP_SYNC_REGS not supported, skipping test\n");
+		print_skip("CAP_SYNC_REGS not supported");
 		exit(KSFT_SKIP);
 	}
 
@@ -152,7 +162,7 @@ int main(int argc, char *argv[])
 		    "r11 sync regs value incorrect 0x%llx.",
 		    run->s.regs.gprs[11]);
 	TEST_ASSERT(run->s.regs.acrs[0]  == 1 << 11,
-		    "acr0 sync regs value incorrect 0x%llx.",
+		    "acr0 sync regs value incorrect 0x%x.",
 		    run->s.regs.acrs[0]);
 
 	vcpu_regs_get(vm, VCPU_ID, &regs);

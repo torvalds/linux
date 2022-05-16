@@ -4,13 +4,16 @@ KernelVersion:	2.6.20
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
 Description:
 		This file allows display switching. The value
-		is composed by 4 bits and defined as follow:
-		4321
-		|||`- LCD
-		||`-- CRT
-		|`--- TV
-		`---- DVI
-		Ex: - 0 (0000b) means no display
+		is composed by 4 bits and defined as follow::
+
+		  4321
+		  |||`- LCD
+		  ||`-- CRT
+		  |`--- TV
+		  `---- DVI
+
+		Ex:
+		    - 0 (0000b) means no display
 		    - 3 (0011b) CRT+LCD.
 
 What:		/sys/devices/platform/asus_laptop/gps
@@ -28,8 +31,10 @@ Contact:	"Corentin Chary" <corentincj@iksaif.net>
 Description:
 		Some models like the W1N have a LED display that can be
 		used to display several items of information.
-		To control the LED display, use the following :
+		To control the LED display, use the following::
+
 		    echo 0x0T000DDD > /sys/devices/platform/asus_laptop/
+
 		where T control the 3 letters display, and DDD the 3 digits display.
 		The DDD table can be found in Documentation/admin-guide/laptops/asus-laptop.rst
 

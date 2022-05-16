@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(C) 2018 - 2019 Intel Corporation
+ * Copyright(C) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(C) 2018 - 2019 Intel Corporation
+ * Copyright(C) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,11 +75,26 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	NVM_ACCESS_COMPLETE = 0x0,
 
 	/**
+	 * @LARI_CONFIG_CHANGE: &struct iwl_lari_config_change_cmd
+	 */
+	LARI_CONFIG_CHANGE = 0x1,
+
+	/**
 	 * @NVM_GET_INFO:
 	 * Command is &struct iwl_nvm_get_info,
 	 * response is &struct iwl_nvm_get_info_rsp
 	 */
 	NVM_GET_INFO = 0x2,
+
+	/**
+	 * @TAS_CONFIG: &struct iwl_tas_config_cmd
+	 */
+	TAS_CONFIG = 0x3,
+
+	/**
+	 * @PNVM_INIT_COMPLETE_NTFY: &struct iwl_pnvm_init_complete_ntfy
+	 */
+	PNVM_INIT_COMPLETE_NTFY = 0xFE,
 };
 
 /**
@@ -351,7 +366,7 @@ struct iwl_mcc_update_resp_v3 {
 	__le16 time;
 	__le16 geo_info;
 	__le32 n_channels;
-	__le32 channels[0];
+	__le32 channels[];
 } __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_3 */
 
 /**
@@ -380,7 +395,7 @@ struct iwl_mcc_update_resp {
 	u8 source_id;
 	u8 reserved[3];
 	__le32 n_channels;
-	__le32 channels[0];
+	__le32 channels[];
 } __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_4 */
 
 /**
@@ -430,5 +445,48 @@ enum iwl_mcc_source {
 	MCC_SOURCE_GET_CURRENT = 0x10,
 	MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
+
+#define IWL_TAS_BLACK_LIST_MAX 16
+/**
+ * struct iwl_tas_config_cmd - configures the TAS
+ * @black_list_size: size of relevant field in black_list_array
+ * @black_list_array: black list countries (without TAS)
+ */
+struct iwl_tas_config_cmd {
+	__le32 black_list_size;
+	__le32 black_list_array[IWL_TAS_BLACK_LIST_MAX];
+} __packed; /* TAS_CONFIG_CMD_API_S_VER_2 */
+
+/**
+ * enum iwl_lari_configs - bit masks for the various LARI config operations
+ * @LARI_CONFIG_DISABLE_11AC_UKRAINE_MSK: disable 11ac in ukraine
+ * @LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK: ETSI 5.8GHz SRD passive scan
+ * @LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK: ETSI 5.8GHz SRD disabled
+ * @LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK: enable 5.15/5.35GHz bands in
+ * 	Indonesia
+ */
+enum iwl_lari_config_masks {
+	LARI_CONFIG_DISABLE_11AC_UKRAINE_MSK		= BIT(0),
+	LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK		= BIT(1),
+	LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK		= BIT(2),
+	LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK		= BIT(3),
+};
+
+/**
+ * struct iwl_lari_config_change_cmd - change LARI configuration
+ * @config_bitmap: bit map of the config commands. each bit will trigger a
+ * different predefined FW config operation
+ */
+struct iwl_lari_config_change_cmd {
+	__le32 config_bitmap;
+} __packed; /* LARI_CHANGE_CONF_CMD_S_VER_1 */
+
+/**
+ * struct iwl_pnvm_init_complete_ntfy - PNVM initialization complete
+ * @status: PNVM image loading status
+ */
+struct iwl_pnvm_init_complete_ntfy {
+	__le32 status;
+} __packed; /* PNVM_INIT_COMPLETE_NTFY_S_VER_1 */
 
 #endif /* __iwl_fw_api_nvm_reg_h__ */

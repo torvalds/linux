@@ -107,7 +107,7 @@ static int usb_hcd_msp_map_regs(struct mspusb_device *dev)
 	if (!request_mem_region(res->start, res_len, "mab regs"))
 		return -EBUSY;
 
-	dev->mab_regs = ioremap_nocache(res->start, res_len);
+	dev->mab_regs = ioremap(res->start, res_len);
 	if (dev->mab_regs == NULL) {
 		retval = -ENOMEM;
 		goto err1;
@@ -124,7 +124,7 @@ static int usb_hcd_msp_map_regs(struct mspusb_device *dev)
 		retval = -EBUSY;
 		goto err2;
 	}
-	dev->usbid_regs = ioremap_nocache(res->start, res_len);
+	dev->usbid_regs = ioremap(res->start, res_len);
 	if (dev->usbid_regs == NULL) {
 		retval = -ENOMEM;
 		goto err3;
@@ -178,7 +178,7 @@ int usb_hcd_msp_probe(const struct hc_driver *driver,
 		retval = -EBUSY;
 		goto err1;
 	}
-	hcd->regs = ioremap_nocache(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
 	if (!hcd->regs) {
 		pr_debug("ioremap failed");
 		retval = -ENOMEM;

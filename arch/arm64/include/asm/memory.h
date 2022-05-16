@@ -10,11 +10,8 @@
 #ifndef __ASM_MEMORY_H
 #define __ASM_MEMORY_H
 
-#include <linux/compiler.h>
 #include <linux/const.h>
 #include <linux/sizes.h>
-#include <linux/types.h>
-#include <asm/bug.h>
 #include <asm/page-def.h>
 
 /*
@@ -54,6 +51,7 @@
 #define MODULES_VADDR		(BPF_JIT_REGION_END)
 #define MODULES_VSIZE		(SZ_128M)
 #define VMEMMAP_START		(-VMEMMAP_SIZE - SZ_2M)
+#define VMEMMAP_END		(VMEMMAP_START + VMEMMAP_SIZE)
 #define PCI_IO_END		(VMEMMAP_START - SZ_2M)
 #define PCI_IO_START		(PCI_IO_END - PCI_IO_SIZE)
 #define FIXADDR_TOP		(PCI_IO_START - SZ_2M)
@@ -68,12 +66,6 @@
 
 #define KERNEL_START		_text
 #define KERNEL_END		_end
-
-#ifdef CONFIG_ARM64_VA_BITS_52
-#define MAX_USER_VA_BITS	52
-#else
-#define MAX_USER_VA_BITS	VA_BITS
-#endif
 
 /*
  * Generic and tag-based KASAN require 1/8th and 1/16th of the kernel virtual
@@ -125,32 +117,27 @@
 
 /*
  * Alignment of kernel segments (e.g. .text, .data).
- */
-#if defined(CONFIG_DEBUG_ALIGN_RODATA)
-/*
- *  4 KB granule:   1 level 2 entry
- * 16 KB granule: 128 level 3 entries, with contiguous bit
- * 64 KB granule:  32 level 3 entries, with contiguous bit
- */
-#define SEGMENT_ALIGN		SZ_2M
-#else
-/*
+ *
  *  4 KB granule:  16 level 3 entries, with contiguous bit
  * 16 KB granule:   4 level 3 entries, without contiguous bit
  * 64 KB granule:   1 level 3 entry
  */
 #define SEGMENT_ALIGN		SZ_64K
-#endif
 
 /*
  * Memory types available.
+ *
+ * IMPORTANT: MT_NORMAL must be index 0 since vm_get_page_prot() may 'or' in
+ *	      the MT_NORMAL_TAGGED memory type for PROT_MTE mappings. Note
+ *	      that protection_map[] only contains MT_NORMAL attributes.
  */
-#define MT_DEVICE_nGnRnE	0
-#define MT_DEVICE_nGnRE		1
-#define MT_DEVICE_GRE		2
-#define MT_NORMAL_NC		3
-#define MT_NORMAL		4
-#define MT_NORMAL_WT		5
+#define MT_NORMAL		0
+#define MT_NORMAL_TAGGED	1
+#define MT_NORMAL_NC		2
+#define MT_NORMAL_WT		3
+#define MT_DEVICE_nGnRnE	4
+#define MT_DEVICE_nGnRE		5
+#define MT_DEVICE_GRE		6
 
 /*
  * Memory types for Stage-2 translation
@@ -172,18 +159,21 @@
 #endif
 
 #ifndef __ASSEMBLY__
+
+#include <linux/bitops.h>
+#include <linux/compiler.h>
+#include <linux/mmdebug.h>
+#include <linux/types.h>
+#include <asm/bug.h>
+
 extern u64			vabits_actual;
 #define PAGE_END		(_PAGE_END(vabits_actual))
 
-#include <linux/bitops.h>
-#include <linux/mmdebug.h>
-
-extern s64			physvirt_offset;
 extern s64			memstart_addr;
 /* PHYS_OFFSET - the physical address of the start of memory. */
 #define PHYS_OFFSET		({ VM_BUG_ON(memstart_addr & 1); memstart_addr; })
 
-/* the virtual base of the kernel image (minus TEXT_OFFSET) */
+/* the virtual base of the kernel image */
 extern u64			kimage_vaddr;
 
 /* the offset between the kernel virtual and physical mappings */
@@ -219,7 +209,7 @@ static inline unsigned long kaslr_offset(void)
 	((__force __typeof__(addr))sign_extend64((__force u64)(addr), 55))
 
 #define untagged_addr(addr)	({					\
-	u64 __addr = (__force u64)addr;					\
+	u64 __addr = (__force u64)(addr);					\
 	__addr &= __untagged_addr(__addr);				\
 	(__force __typeof__(addr))__addr;				\
 })
@@ -254,7 +244,7 @@ static inline const void *__tag_set(const void *addr, u8 tag)
  */
 #define __is_lm_address(addr)	(!(((u64)addr) & BIT(vabits_actual - 1)))
 
-#define __lm_to_phys(addr)	(((addr) + physvirt_offset))
+#define __lm_to_phys(addr)	(((addr) & ~PAGE_OFFSET) + PHYS_OFFSET)
 #define __kimg_to_phys(addr)	((addr) - kimage_voffset)
 
 #define __virt_to_phys_nodebug(x) ({					\
@@ -272,7 +262,7 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
 #endif /* CONFIG_DEBUG_VIRTUAL */
 
-#define __phys_to_virt(x)	((unsigned long)((x) - physvirt_offset))
+#define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET) | PAGE_OFFSET)
 #define __phys_to_kimg(x)	((unsigned long)((x) + kimage_voffset))
 
 /*
@@ -337,6 +327,7 @@ static inline void *phys_to_virt(phys_addr_t x)
 	__is_lm_address(__addr) && pfn_valid(virt_to_pfn(__addr));	\
 })
 
+void dump_mem_limit(void);
 #endif /* !ASSEMBLY */
 
 /*

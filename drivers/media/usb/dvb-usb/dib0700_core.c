@@ -372,8 +372,10 @@ struct i2c_algorithm dib0700_i2c_algo = {
 	.functionality = dib0700_i2c_func,
 };
 
-int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
-			struct dvb_usb_device_description **desc, int *cold)
+int dib0700_identify_state(struct usb_device *udev,
+			   const struct dvb_usb_device_properties *props,
+			   const struct dvb_usb_device_description **desc,
+			   int *cold)
 {
 	s16 ret;
 	u8 *b;
@@ -818,7 +820,7 @@ int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf)
 
 	/* Starting in firmware 1.20, the RC info is provided on a bulk pipe */
 
-	if (intf->altsetting[0].desc.bNumEndpoints < rc_ep + 1)
+	if (intf->cur_altsetting->desc.bNumEndpoints < rc_ep + 1)
 		return -ENODEV;
 
 	purb = usb_alloc_urb(0, GFP_KERNEL);
@@ -838,7 +840,7 @@ int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf)
 	 * Some devices like the Hauppauge NovaTD model 52009 use an interrupt
 	 * endpoint, while others use a bulk one.
 	 */
-	e = &intf->altsetting[0].endpoint[rc_ep].desc;
+	e = &intf->cur_altsetting->endpoint[rc_ep].desc;
 	if (usb_endpoint_dir_in(e)) {
 		if (usb_endpoint_xfer_bulk(e)) {
 			pipe = usb_rcvbulkpipe(d->udev, rc_ep);

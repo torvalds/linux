@@ -35,6 +35,8 @@
 	le32p_replace_bits((__le32 *)(txdesc) + 0x09, value, GENMASK(23, 12))
 #define SET_TX_DESC_MAX_AGG_NUM(txdesc, value)                                 \
 	le32p_replace_bits((__le32 *)(txdesc) + 0x03, value, GENMASK(21, 17))
+#define SET_TX_DESC_USE_RTS(tx_desc, value)                                    \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x03, value, BIT(12))
 #define SET_TX_DESC_AMPDU_DENSITY(txdesc, value)                               \
 	le32p_replace_bits((__le32 *)(txdesc) + 0x02, value, GENMASK(22, 20))
 #define SET_TX_DESC_DATA_STBC(txdesc, value)                                   \
@@ -51,6 +53,16 @@
 	le32p_replace_bits((__le32 *)(txdesc) + 0x02, value, BIT(19))
 #define SET_TX_DESC_SW_DEFINE(tx_desc, value)                                  \
 	le32p_replace_bits((__le32 *)(txdesc) + 0x06, value, GENMASK(11, 0))
+#define SET_TX_DESC_DISQSELSEQ(txdesc, value)                                 \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x00, value, BIT(31))
+#define SET_TX_DESC_EN_HWSEQ(txdesc, value)                                   \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x08, value, BIT(15))
+#define SET_TX_DESC_HW_SSN_SEL(txdesc, value)                                 \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x03, value, GENMASK(7, 6))
+#define SET_TX_DESC_NAVUSEHDR(txdesc, value)				       \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x03, value, BIT(15))
+#define SET_TX_DESC_BT_NULL(txdesc, value)				       \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x02, value, BIT(23))
 
 enum rtw_tx_desc_queue_select {
 	TX_DESC_QSEL_TID0	= 0,
@@ -75,15 +87,32 @@ enum rtw_tx_desc_queue_select {
 	TX_DESC_QSEL_H2C	= 19,
 };
 
+enum rtw_rsvd_packet_type;
+
+void rtw_tx(struct rtw_dev *rtwdev,
+	    struct ieee80211_tx_control *control,
+	    struct sk_buff *skb);
+void rtw_txq_init(struct rtw_dev *rtwdev, struct ieee80211_txq *txq);
+void rtw_txq_cleanup(struct rtw_dev *rtwdev, struct ieee80211_txq *txq);
+void rtw_tx_tasklet(struct tasklet_struct *t);
 void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 			    struct rtw_tx_pkt_info *pkt_info,
-			    struct ieee80211_tx_control *control,
+			    struct ieee80211_sta *sta,
 			    struct sk_buff *skb);
 void rtw_tx_fill_tx_desc(struct rtw_tx_pkt_info *pkt_info, struct sk_buff *skb);
 void rtw_tx_report_enqueue(struct rtw_dev *rtwdev, struct sk_buff *skb, u8 sn);
-void rtw_tx_report_handle(struct rtw_dev *rtwdev, struct sk_buff *skb);
-void rtw_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
-				   struct rtw_tx_pkt_info *pkt_info,
-				   struct sk_buff *skb);
+void rtw_tx_report_handle(struct rtw_dev *rtwdev, struct sk_buff *skb, int src);
+void rtw_tx_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
+				      struct rtw_tx_pkt_info *pkt_info,
+				      struct sk_buff *skb,
+				      enum rtw_rsvd_packet_type type);
+struct sk_buff *
+rtw_tx_write_data_rsvd_page_get(struct rtw_dev *rtwdev,
+				struct rtw_tx_pkt_info *pkt_info,
+				u8 *buf, u32 size);
+struct sk_buff *
+rtw_tx_write_data_h2c_get(struct rtw_dev *rtwdev,
+			  struct rtw_tx_pkt_info *pkt_info,
+			  u8 *buf, u32 size);
 
 #endif

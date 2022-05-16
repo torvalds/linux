@@ -5,17 +5,13 @@ config HOSTAP
 	select WEXT_SPY
 	select WEXT_PRIV
 	select CRYPTO
-	select CRYPTO_ARC4
-	select CRYPTO_ECB
-	select CRYPTO_AES
 	select CRYPTO_MICHAEL_MIC
-	select CRYPTO_ECB
 	select CRC32
 	select LIB80211
 	select LIB80211_CRYPT_WEP
 	select LIB80211_CRYPT_TKIP
 	select LIB80211_CRYPT_CCMP
-	---help---
+	help
 	Shared driver code for IEEE 802.11b wireless cards based on
 	Intersil Prism2/2.5/3 chipset. This driver supports so called
 	Host AP mode that allows the card to act as an IEEE 802.11
@@ -36,7 +32,7 @@ config HOSTAP
 config HOSTAP_FIRMWARE
 	bool "Support downloading firmware images with Host AP driver"
 	depends on HOSTAP
-	---help---
+	help
 	Configure Host AP driver to include support for firmware image
 	download. This option by itself only enables downloading to the
 	volatile memory, i.e. the card RAM. This option is required to
@@ -49,7 +45,7 @@ config HOSTAP_FIRMWARE
 config HOSTAP_FIRMWARE_NVRAM
 	bool "Support for non-volatile firmware download"
 	depends on HOSTAP_FIRMWARE
-	---help---
+	help
 	Allow Host AP driver to write firmware images to the non-volatile
 	card memory, i.e. flash memory that survives power cycling.
 	Enable this option if you want to be able to change card firmware
@@ -61,7 +57,7 @@ config HOSTAP_FIRMWARE_NVRAM
 config HOSTAP_PLX
 	tristate "Host AP driver for Prism2/2.5/3 in PLX9052 PCI adaptors"
 	depends on PCI && HOSTAP
-	---help---
+	help
 	Host AP driver's version for Prism2/2.5/3 PC Cards in PLX9052 based
 	PCI adaptors.
 
@@ -75,7 +71,7 @@ config HOSTAP_PLX
 config HOSTAP_PCI
 	tristate "Host AP driver for Prism2.5 PCI adaptors"
 	depends on PCI && HOSTAP
-	---help---
+	help
 	Host AP driver's version for Prism2.5 PCI adaptors.
 
 	"Host AP support for Prism2/2.5/3 IEEE 802.11b" is required for this
@@ -88,7 +84,7 @@ config HOSTAP_PCI
 config HOSTAP_CS
 	tristate "Host AP driver for Prism2/2.5/3 PC Cards"
 	depends on PCMCIA && HOSTAP
-	---help---
+	help
 	Host AP driver's version for Prism2/2.5/3 PC Cards.
 
 	"Host AP support for Prism2/2.5/3 IEEE 802.11b" is required for this

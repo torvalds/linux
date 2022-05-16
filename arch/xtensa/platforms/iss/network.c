@@ -455,7 +455,7 @@ static void iss_net_set_multicast_list(struct net_device *dev)
 {
 }
 
-static void iss_net_tx_timeout(struct net_device *dev)
+static void iss_net_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 }
 

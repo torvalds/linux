@@ -122,8 +122,8 @@
 		reg = <0x100e4000 0x1000>;
 		interrupts = <0 48 4>,
 			     <0 49 4>;
-		clocks = <&oscclk2>, <&oscclk2>;
-		clock-names = "timclk", "apb_pclk";
+		clocks = <&oscclk2>, <&oscclk2>, <&oscclk2>;
+		clock-names = "timer0clk", "timer1clk", "apb_pclk";
 		status = "disabled";
 	};
 
@@ -132,7 +132,7 @@
 		reg = <0x100e5000 0x1000>;
 		interrupts = <0 51 4>;
 		clocks = <&oscclk2>, <&oscclk2>;
-		clock-names = "wdogclk", "apb_pclk";
+		clock-names = "wdog_clk", "apb_pclk";
 	};
 
 	scu@1e000000 {
@@ -295,7 +295,7 @@
 		};
 	};
 
-	smb: smb@4000000 {
+	smb: bus@4000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;

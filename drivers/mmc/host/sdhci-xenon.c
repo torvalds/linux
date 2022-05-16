@@ -235,6 +235,16 @@ static void xenon_voltage_switch(struct sdhci_host *host)
 {
 	/* Wait for 5ms after set 1.8V signal enable bit */
 	usleep_range(5000, 5500);
+
+	/*
+	 * For some reason the controller's Host Control2 register reports
+	 * the bit representing 1.8V signaling as 0 when read after it was
+	 * written as 1. Subsequent read reports 1.
+	 *
+	 * Since this may cause some issues, do an empty read of the Host
+	 * Control2 register here to circumvent this.
+	 */
+	sdhci_readw(host, SDHCI_HOST_CONTROL2);
 }
 
 static const struct sdhci_ops sdhci_xenon_ops = {
@@ -667,6 +677,7 @@ MODULE_DEVICE_TABLE(of, sdhci_xenon_dt_ids);
 static struct platform_driver sdhci_xenon_driver = {
 	.driver	= {
 		.name	= "xenon-sdhci",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_xenon_dt_ids,
 		.pm = &sdhci_xenon_dev_pm_ops,
 	},

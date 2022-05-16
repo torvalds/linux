@@ -726,7 +726,7 @@ static int adv7180_set_pad_format(struct v4l2_subdev *sd,
 	case V4L2_FIELD_NONE:
 		if (state->chip_info->flags & ADV7180_FLAG_I2P)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		format->format.field = V4L2_FIELD_ALTERNATE;
 		break;
@@ -749,8 +749,20 @@ static int adv7180_set_pad_format(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int adv7180_g_mbus_config(struct v4l2_subdev *sd,
-				 struct v4l2_mbus_config *cfg)
+static int adv7180_init_cfg(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg)
+{
+	struct v4l2_subdev_format fmt = {
+		.which = cfg ? V4L2_SUBDEV_FORMAT_TRY
+			: V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+
+	return adv7180_set_pad_format(sd, cfg, &fmt);
+}
+
+static int adv7180_get_mbus_config(struct v4l2_subdev *sd,
+				   unsigned int pad,
+				   struct v4l2_mbus_config *cfg)
 {
 	struct adv7180_state *state = to_state(sd);
 
@@ -841,7 +853,6 @@ static const struct v4l2_subdev_video_ops adv7180_video_ops = {
 	.querystd = adv7180_querystd,
 	.g_input_status = adv7180_g_input_status,
 	.s_routing = adv7180_s_routing,
-	.g_mbus_config = adv7180_g_mbus_config,
 	.g_pixelaspect = adv7180_g_pixelaspect,
 	.g_tvnorms = adv7180_g_tvnorms,
 	.s_stream = adv7180_s_stream,
@@ -854,9 +865,11 @@ static const struct v4l2_subdev_core_ops adv7180_core_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops adv7180_pad_ops = {
+	.init_cfg = adv7180_init_cfg,
 	.enum_mbus_code = adv7180_enum_mbus_code,
 	.set_fmt = adv7180_set_pad_format,
 	.get_fmt = adv7180_get_pad_format,
+	.get_mbus_config = adv7180_get_mbus_config,
 };
 
 static const struct v4l2_subdev_sensor_ops adv7180_sensor_ops = {
@@ -1309,9 +1322,6 @@ static int adv7180_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_info(client, "chip found @ 0x%02x (%s)\n",
-		 client->addr, client->adapter->name);
-
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
@@ -1381,6 +1391,9 @@ static int adv7180_probe(struct i2c_client *client,
 	ret = v4l2_async_register_subdev(sd);
 	if (ret)
 		goto err_free_irq;
+
+	v4l_info(client, "chip found @ 0x%02x (%s)\n",
+		 client->addr, client->adapter->name);
 
 	return 0;
 

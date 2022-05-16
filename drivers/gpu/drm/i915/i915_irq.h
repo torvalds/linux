@@ -17,13 +17,7 @@ struct drm_device;
 struct drm_display_mode;
 struct drm_i915_private;
 struct intel_crtc;
-struct intel_crtc;
-struct intel_gt;
-struct intel_guc;
 struct intel_uncore;
-
-void gen11_rps_irq_handler(struct intel_gt *gt, u32 pm_iir);
-void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
 
 void intel_irq_init(struct drm_i915_private *dev_priv);
 void intel_irq_fini(struct drm_i915_private *dev_priv);
@@ -106,28 +100,20 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask);
 void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask);
-void gen9_reset_guc_interrupts(struct intel_guc *guc);
-void gen9_enable_guc_interrupts(struct intel_guc *guc);
-void gen9_disable_guc_interrupts(struct intel_guc *guc);
-void gen11_reset_guc_interrupts(struct intel_guc *guc);
-void gen11_enable_guc_interrupts(struct intel_guc *guc);
-void gen11_disable_guc_interrupts(struct intel_guc *guc);
 
-bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
-			      bool in_vblank_irq, int *vpos, int *hpos,
-			      ktime_t *stime, ktime_t *etime,
-			      const struct drm_display_mode *mode);
+bool intel_crtc_get_vblank_timestamp(struct drm_crtc *crtc, int *max_error,
+				     ktime_t *vblank_time, bool in_vblank_irq);
 
 u32 i915_get_vblank_counter(struct drm_crtc *crtc);
 u32 g4x_get_vblank_counter(struct drm_crtc *crtc);
 
 int i8xx_enable_vblank(struct drm_crtc *crtc);
-int i945gm_enable_vblank(struct drm_crtc *crtc);
+int i915gm_enable_vblank(struct drm_crtc *crtc);
 int i965_enable_vblank(struct drm_crtc *crtc);
 int ilk_enable_vblank(struct drm_crtc *crtc);
 int bdw_enable_vblank(struct drm_crtc *crtc);
 void i8xx_disable_vblank(struct drm_crtc *crtc);
-void i945gm_disable_vblank(struct drm_crtc *crtc);
+void i915gm_disable_vblank(struct drm_crtc *crtc);
 void i965_disable_vblank(struct drm_crtc *crtc);
 void ilk_disable_vblank(struct drm_crtc *crtc);
 void bdw_disable_vblank(struct drm_crtc *crtc);

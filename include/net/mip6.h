@@ -25,7 +25,7 @@ struct ip6_mh {
 	__u8	ip6mh_reserved;
 	__u16	ip6mh_cksum;
 	/* Followed by type specific messages */
-	__u8	data[0];
+	__u8	data[];
 } __packed;
 
 #define IP6_MH_TYPE_BRR		0   /* Binding Refresh Request */

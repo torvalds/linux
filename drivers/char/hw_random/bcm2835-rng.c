@@ -139,10 +139,8 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 {
 	const struct bcm2835_rng_of_data *of_data;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	const struct of_device_id *rng_id;
 	struct bcm2835_rng_priv *priv;
-	struct resource *r;
 	int err;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -151,16 +149,14 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
 	/* map peripheral */
-	priv->base = devm_ioremap_resource(dev, r);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
 	/* Clock is optional on most platforms */
 	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk) && PTR_ERR(priv->clk) == -EPROBE_DEFER)
+	if (PTR_ERR(priv->clk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	priv->rng.name = pdev->name;
@@ -169,7 +165,7 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 	priv->rng.cleanup = bcm2835_rng_cleanup;
 
 	if (dev_of_node(dev)) {
-		rng_id = of_match_node(bcm2835_rng_of_match, np);
+		rng_id = of_match_node(bcm2835_rng_of_match, dev->of_node);
 		if (!rng_id)
 			return -EINVAL;
 
@@ -191,7 +187,7 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 
 MODULE_DEVICE_TABLE(of, bcm2835_rng_of_match);
 
-static struct platform_device_id bcm2835_rng_devtype[] = {
+static const struct platform_device_id bcm2835_rng_devtype[] = {
 	{ .name = "bcm2835-rng" },
 	{ .name = "bcm63xx-rng" },
 	{ /* sentinel */ }

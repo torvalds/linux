@@ -55,7 +55,8 @@ static int mt76x02u_mcu_wait_resp(struct mt76_dev *dev, u8 seq)
 	u32 rxfce;
 
 	for (i = 0; i < 5; i++) {
-		ret = mt76u_bulk_msg(dev, data, MCU_RESP_URB_SIZE, &len, 300);
+		ret = mt76u_bulk_msg(dev, data, MCU_RESP_URB_SIZE, &len,
+				     300, MT_EP_IN_CMD_RESP);
 		if (ret == -ETIMEDOUT)
 			continue;
 		if (ret)
@@ -82,18 +83,19 @@ static int
 __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 			int cmd, bool wait_resp)
 {
-	struct mt76_usb *usb = &dev->usb;
-	int ret;
 	u8 seq = 0;
 	u32 info;
+	int ret;
 
-	if (test_bit(MT76_REMOVED, &dev->state))
-		return 0;
+	if (test_bit(MT76_REMOVED, &dev->phy.state)) {
+		ret = 0;
+		goto out;
+	}
 
 	if (wait_resp) {
-		seq = ++usb->mcu.msg_seq & 0xf;
+		seq = ++dev->mcu.msg_seq & 0xf;
 		if (!seq)
-			seq = ++usb->mcu.msg_seq & 0xf;
+			seq = ++dev->mcu.msg_seq & 0xf;
 	}
 
 	info = FIELD_PREP(MT_MCU_MSG_CMD_SEQ, seq) |
@@ -103,13 +105,15 @@ __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	if (ret)
 		return ret;
 
-	ret = mt76u_bulk_msg(dev, skb->data, skb->len, NULL, 500);
+	ret = mt76u_bulk_msg(dev, skb->data, skb->len, NULL, 500,
+			     MT_EP_OUT_INBAND_CMD);
 	if (ret)
 		return ret;
 
 	if (wait_resp)
 		ret = mt76x02u_mcu_wait_resp(dev, seq);
 
+out:
 	consume_skb(skb);
 
 	return ret;
@@ -119,17 +123,16 @@ static int
 mt76x02u_mcu_send_msg(struct mt76_dev *dev, int cmd, const void *data,
 		      int len, bool wait_resp)
 {
-	struct mt76_usb *usb = &dev->usb;
 	struct sk_buff *skb;
 	int err;
 
-	skb = mt76_mcu_msg_alloc(data, MT_CMD_HDR_LEN, len, 8);
+	skb = mt76_mcu_msg_alloc(dev, data, len);
 	if (!skb)
 		return -ENOMEM;
 
-	mutex_lock(&usb->mcu.mutex);
+	mutex_lock(&dev->mcu.mutex);
 	err = __mt76x02u_mcu_send_msg(dev, skb, cmd, wait_resp);
-	mutex_unlock(&usb->mcu.mutex);
+	mutex_unlock(&dev->mcu.mutex);
 
 	return err;
 }
@@ -143,9 +146,8 @@ static int
 mt76x02u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
 		   const struct mt76_reg_pair *data, int n)
 {
-	const int CMD_RANDOM_WRITE = 12;
 	const int max_vals_per_cmd = MT_INBAND_PACKET_MAX_LEN / 8;
-	struct mt76_usb *usb = &dev->usb;
+	const int CMD_RANDOM_WRITE = 12;
 	struct sk_buff *skb;
 	int cnt, i, ret;
 
@@ -164,9 +166,9 @@ mt76x02u_mcu_wr_rp(struct mt76_dev *dev, u32 base,
 		skb_put_le32(skb, data[i].value);
 	}
 
-	mutex_lock(&usb->mcu.mutex);
+	mutex_lock(&dev->mcu.mutex);
 	ret = __mt76x02u_mcu_send_msg(dev, skb, CMD_RANDOM_WRITE, cnt == n);
-	mutex_unlock(&usb->mcu.mutex);
+	mutex_unlock(&dev->mcu.mutex);
 	if (ret)
 		return ret;
 
@@ -200,7 +202,7 @@ mt76x02u_mcu_rd_rp(struct mt76_dev *dev, u32 base,
 		skb_put_le32(skb, data[i].value);
 	}
 
-	mutex_lock(&usb->mcu.mutex);
+	mutex_lock(&dev->mcu.mutex);
 
 	usb->mcu.rp = data;
 	usb->mcu.rp_len = n;
@@ -211,7 +213,7 @@ mt76x02u_mcu_rd_rp(struct mt76_dev *dev, u32 base,
 
 	usb->mcu.rp = NULL;
 
-	mutex_unlock(&usb->mcu.mutex);
+	mutex_unlock(&dev->mcu.mutex);
 
 	return ret;
 }
@@ -248,7 +250,8 @@ __mt76x02u_mcu_fw_send_data(struct mt76x02_dev *dev, u8 *data,
 
 	data_len = MT_CMD_HDR_LEN + len + sizeof(info);
 
-	err = mt76u_bulk_msg(&dev->mt76, data, data_len, NULL, 1000);
+	err = mt76u_bulk_msg(&dev->mt76, data, data_len, NULL, 1000,
+			     MT_EP_OUT_INBAND_CMD);
 	if (err) {
 		dev_err(dev->mt76.dev, "firmware upload failed: %d\n", err);
 		return err;
@@ -291,6 +294,8 @@ EXPORT_SYMBOL_GPL(mt76x02u_mcu_fw_send_data);
 void mt76x02u_init_mcu(struct mt76_dev *dev)
 {
 	static const struct mt76_mcu_ops mt76x02u_mcu_ops = {
+		.headroom = MT_CMD_HDR_LEN,
+		.tailroom = 8,
 		.mcu_send_msg = mt76x02u_mcu_send_msg,
 		.mcu_wr_rp = mt76x02u_mcu_wr_rp,
 		.mcu_rd_rp = mt76x02u_mcu_rd_rp,

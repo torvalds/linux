@@ -29,6 +29,8 @@
 #include <linux/v4l2-dv-timings.h>
 #include <linux/export.h>
 #include <linux/leds.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 
 #include <media/i2c/tvp514x.h>
 
@@ -160,7 +162,7 @@ static struct davinci_nand_pdata davinci_evm_nandflash_data = {
 	.core_chipsel	= 0,
 	.parts		= davinci_evm_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_evm_nandflash_partition),
-	.ecc_mode	= NAND_ECC_HW,
+	.engine_type	= NAND_ECC_ENGINE_TYPE_ON_HOST,
 	.ecc_bits	= 1,
 	.bbt_options	= NAND_BBT_USE_FLASH,
 	.timing		= &davinci_evm_nandflash_timing,
@@ -546,8 +548,7 @@ static const struct property_entry eeprom_properties[] = {
  */
 static struct i2c_client *dm6446evm_msp;
 
-static int dm6446evm_msp_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int dm6446evm_msp_probe(struct i2c_client *client)
 {
 	dm6446evm_msp = client;
 	return 0;
@@ -567,7 +568,7 @@ static const struct i2c_device_id dm6446evm_msp_ids[] = {
 static struct i2c_driver dm6446evm_msp_driver = {
 	.driver.name	= "dm6446evm_msp",
 	.id_table	= dm6446evm_msp_ids,
-	.probe		= dm6446evm_msp_probe,
+	.probe_new	= dm6446evm_msp_probe,
 	.remove		= dm6446evm_msp_remove,
 };
 
@@ -684,6 +685,19 @@ static void __init evm_init_i2c(void)
 	i2c_register_board_info(1, i2c_info, ARRAY_SIZE(i2c_info));
 }
 #endif
+
+/* Fixed regulator support */
+static struct regulator_consumer_supply fixed_supplies_3_3v[] = {
+	/* Baseboard 3.3V: 5V -> TPS54310PWP -> 3.3V */
+	REGULATOR_SUPPLY("AVDD", "1-001b"),
+	REGULATOR_SUPPLY("DRVDD", "1-001b"),
+};
+
+static struct regulator_consumer_supply fixed_supplies_1_8v[] = {
+	/* Baseboard 1.8V: 5V -> TPS54310PWP -> 1.8V */
+	REGULATOR_SUPPLY("IOVDD", "1-001b"),
+	REGULATOR_SUPPLY("DVDD", "1-001b"),
+};
 
 #define VENC_STD_ALL	(V4L2_STD_NTSC | V4L2_STD_PAL)
 
@@ -823,6 +837,17 @@ static int davinci_phy_fixup(struct phy_device *phydev)
 
 #define HAS_NAND	IS_ENABLED(CONFIG_MTD_NAND_DAVINCI)
 
+#define GPIO_nVBUS_DRV		160
+
+static struct gpiod_lookup_table dm644evm_usb_gpio_table = {
+	.dev_id = "musb-davinci",
+	.table = {
+		GPIO_LOOKUP("davinci_gpio", GPIO_nVBUS_DRV, NULL,
+			    GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
 static __init void davinci_evm_init(void)
 {
 	int ret;
@@ -830,6 +855,11 @@ static __init void davinci_evm_init(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	dm644x_register_clocks();
+
+	regulator_register_always_on(0, "fixed-dummy", fixed_supplies_1_8v,
+				     ARRAY_SIZE(fixed_supplies_1_8v), 1800000);
+	regulator_register_always_on(1, "fixed-dummy", fixed_supplies_3_3v,
+				     ARRAY_SIZE(fixed_supplies_3_3v), 3300000);
 
 	dm644x_init_devices();
 
@@ -875,6 +905,7 @@ static __init void davinci_evm_init(void)
 	dm644x_init_asp();
 
 	/* irlml6401 switches over 1A, in under 8 msec */
+	gpiod_add_lookup_table(&dm644evm_usb_gpio_table);
 	davinci_setup_usb(1000, 8);
 
 	if (IS_BUILTIN(CONFIG_PHYLIB)) {

@@ -30,11 +30,10 @@
 #include <linux/firmware.h>
 #include <acpi/video.h>
 
-#include <drm/i915_drm.h>
-
 #include "display/intel_panel.h"
 
 #include "i915_drv.h"
+#include "intel_acpi.h"
 #include "intel_display_types.h"
 #include "intel_opregion.h"
 
@@ -242,29 +241,6 @@ struct opregion_asle_ext {
 #define SWSCI_SBCB_POST_VBE_PM		SWSCI_FUNCTION_CODE(SWSCI_SBCB, 19)
 #define SWSCI_SBCB_ENABLE_DISABLE_AUDIO	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 21)
 
-/*
- * ACPI Specification, Revision 5.0, Appendix B.3.2 _DOD (Enumerate All Devices
- * Attached to the Display Adapter).
- */
-#define ACPI_DISPLAY_INDEX_SHIFT		0
-#define ACPI_DISPLAY_INDEX_MASK			(0xf << 0)
-#define ACPI_DISPLAY_PORT_ATTACHMENT_SHIFT	4
-#define ACPI_DISPLAY_PORT_ATTACHMENT_MASK	(0xf << 4)
-#define ACPI_DISPLAY_TYPE_SHIFT			8
-#define ACPI_DISPLAY_TYPE_MASK			(0xf << 8)
-#define ACPI_DISPLAY_TYPE_OTHER			(0 << 8)
-#define ACPI_DISPLAY_TYPE_VGA			(1 << 8)
-#define ACPI_DISPLAY_TYPE_TV			(2 << 8)
-#define ACPI_DISPLAY_TYPE_EXTERNAL_DIGITAL	(3 << 8)
-#define ACPI_DISPLAY_TYPE_INTERNAL_DIGITAL	(4 << 8)
-#define ACPI_VENDOR_SPECIFIC_SHIFT		12
-#define ACPI_VENDOR_SPECIFIC_MASK		(0xf << 12)
-#define ACPI_BIOS_CAN_DETECT			(1 << 16)
-#define ACPI_DEPENDS_ON_VGA			(1 << 17)
-#define ACPI_PIPE_ID_SHIFT			18
-#define ACPI_PIPE_ID_MASK			(7 << 18)
-#define ACPI_DEVICE_ID_SCHEME			(1 << 31)
-
 #define MAX_DSLP	1500
 
 static int swsci(struct drm_i915_private *dev_priv,
@@ -311,7 +287,7 @@ static int swsci(struct drm_i915_private *dev_priv,
 	/* The spec tells us to do this, but we are the only user... */
 	scic = swsci->scic;
 	if (scic & SWSCI_SCIC_INDICATOR) {
-		DRM_DEBUG_DRIVER("SWSCI request already in progress\n");
+		drm_dbg(&dev_priv->drm, "SWSCI request already in progress\n");
 		return -EBUSY;
 	}
 
@@ -335,7 +311,7 @@ static int swsci(struct drm_i915_private *dev_priv,
 	/* Poll for the result. */
 #define C (((scic = swsci->scic) & SWSCI_SCIC_INDICATOR) == 0)
 	if (wait_for(C, dslp)) {
-		DRM_DEBUG_DRIVER("SWSCI request timed out\n");
+		drm_dbg(&dev_priv->drm, "SWSCI request timed out\n");
 		return -ETIMEDOUT;
 	}
 
@@ -344,7 +320,7 @@ static int swsci(struct drm_i915_private *dev_priv,
 
 	/* Note: scic == 0 is an error! */
 	if (scic != SWSCI_SCIC_EXIT_STATUS_SUCCESS) {
-		DRM_DEBUG_DRIVER("SWSCI request error %u\n", scic);
+		drm_dbg(&dev_priv->drm, "SWSCI request error %u\n", scic);
 		return -EIO;
 	}
 
@@ -403,8 +379,9 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 		type = DISPLAY_TYPE_INTERNAL_FLAT_PANEL;
 		break;
 	default:
-		WARN_ONCE(1, "unsupported intel_encoder type %d\n",
-			  intel_encoder->type);
+		drm_WARN_ONCE(&dev_priv->drm, 1,
+			      "unsupported intel_encoder type %d\n",
+			      intel_encoder->type);
 		return -EINVAL;
 	}
 
@@ -448,10 +425,11 @@ static u32 asle_set_backlight(struct drm_i915_private *dev_priv, u32 bclp)
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 	struct drm_device *dev = &dev_priv->drm;
 
-	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
+	drm_dbg(&dev_priv->drm, "bclp = 0x%08x\n", bclp);
 
 	if (acpi_video_get_backlight_type() == acpi_backlight_native) {
-		DRM_DEBUG_KMS("opregion backlight request ignored\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "opregion backlight request ignored\n");
 		return 0;
 	}
 
@@ -468,7 +446,8 @@ static u32 asle_set_backlight(struct drm_i915_private *dev_priv, u32 bclp)
 	 * Update backlight on all connectors that support backlight (usually
 	 * only one).
 	 */
-	DRM_DEBUG_KMS("updating opregion backlight %d/255\n", bclp);
+	drm_dbg_kms(&dev_priv->drm, "updating opregion backlight %d/255\n",
+		    bclp);
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter)
 		intel_panel_set_backlight_acpi(connector->base.state, bclp, 255);
@@ -485,13 +464,13 @@ static u32 asle_set_als_illum(struct drm_i915_private *dev_priv, u32 alsi)
 {
 	/* alsi is the current ALS reading in lux. 0 indicates below sensor
 	   range, 0xffff indicates above sensor range. 1-0xfffe are valid */
-	DRM_DEBUG_DRIVER("Illum is not supported\n");
+	drm_dbg(&dev_priv->drm, "Illum is not supported\n");
 	return ASLC_ALS_ILLUM_FAILED;
 }
 
 static u32 asle_set_pwm_freq(struct drm_i915_private *dev_priv, u32 pfmb)
 {
-	DRM_DEBUG_DRIVER("PWM freq is not supported\n");
+	drm_dbg(&dev_priv->drm, "PWM freq is not supported\n");
 	return ASLC_PWM_FREQ_FAILED;
 }
 
@@ -499,30 +478,36 @@ static u32 asle_set_pfit(struct drm_i915_private *dev_priv, u32 pfit)
 {
 	/* Panel fitting is currently controlled by the X code, so this is a
 	   noop until modesetting support works fully */
-	DRM_DEBUG_DRIVER("Pfit is not supported\n");
+	drm_dbg(&dev_priv->drm, "Pfit is not supported\n");
 	return ASLC_PFIT_FAILED;
 }
 
 static u32 asle_set_supported_rotation_angles(struct drm_i915_private *dev_priv, u32 srot)
 {
-	DRM_DEBUG_DRIVER("SROT is not supported\n");
+	drm_dbg(&dev_priv->drm, "SROT is not supported\n");
 	return ASLC_ROTATION_ANGLES_FAILED;
 }
 
 static u32 asle_set_button_array(struct drm_i915_private *dev_priv, u32 iuer)
 {
 	if (!iuer)
-		DRM_DEBUG_DRIVER("Button array event is not supported (nothing)\n");
+		drm_dbg(&dev_priv->drm,
+			"Button array event is not supported (nothing)\n");
 	if (iuer & ASLE_IUER_ROTATION_LOCK_BTN)
-		DRM_DEBUG_DRIVER("Button array event is not supported (rotation lock)\n");
+		drm_dbg(&dev_priv->drm,
+			"Button array event is not supported (rotation lock)\n");
 	if (iuer & ASLE_IUER_VOLUME_DOWN_BTN)
-		DRM_DEBUG_DRIVER("Button array event is not supported (volume down)\n");
+		drm_dbg(&dev_priv->drm,
+			"Button array event is not supported (volume down)\n");
 	if (iuer & ASLE_IUER_VOLUME_UP_BTN)
-		DRM_DEBUG_DRIVER("Button array event is not supported (volume up)\n");
+		drm_dbg(&dev_priv->drm,
+			"Button array event is not supported (volume up)\n");
 	if (iuer & ASLE_IUER_WINDOWS_BTN)
-		DRM_DEBUG_DRIVER("Button array event is not supported (windows)\n");
+		drm_dbg(&dev_priv->drm,
+			"Button array event is not supported (windows)\n");
 	if (iuer & ASLE_IUER_POWER_BTN)
-		DRM_DEBUG_DRIVER("Button array event is not supported (power)\n");
+		drm_dbg(&dev_priv->drm,
+			"Button array event is not supported (power)\n");
 
 	return ASLC_BUTTON_ARRAY_FAILED;
 }
@@ -530,9 +515,11 @@ static u32 asle_set_button_array(struct drm_i915_private *dev_priv, u32 iuer)
 static u32 asle_set_convertible(struct drm_i915_private *dev_priv, u32 iuer)
 {
 	if (iuer & ASLE_IUER_CONVERTIBLE)
-		DRM_DEBUG_DRIVER("Convertible is not supported (clamshell)\n");
+		drm_dbg(&dev_priv->drm,
+			"Convertible is not supported (clamshell)\n");
 	else
-		DRM_DEBUG_DRIVER("Convertible is not supported (slate)\n");
+		drm_dbg(&dev_priv->drm,
+			"Convertible is not supported (slate)\n");
 
 	return ASLC_CONVERTIBLE_FAILED;
 }
@@ -540,16 +527,17 @@ static u32 asle_set_convertible(struct drm_i915_private *dev_priv, u32 iuer)
 static u32 asle_set_docking(struct drm_i915_private *dev_priv, u32 iuer)
 {
 	if (iuer & ASLE_IUER_DOCKING)
-		DRM_DEBUG_DRIVER("Docking is not supported (docked)\n");
+		drm_dbg(&dev_priv->drm, "Docking is not supported (docked)\n");
 	else
-		DRM_DEBUG_DRIVER("Docking is not supported (undocked)\n");
+		drm_dbg(&dev_priv->drm,
+			"Docking is not supported (undocked)\n");
 
 	return ASLC_DOCKING_FAILED;
 }
 
 static u32 asle_isct_state(struct drm_i915_private *dev_priv)
 {
-	DRM_DEBUG_DRIVER("ISCT is not supported\n");
+	drm_dbg(&dev_priv->drm, "ISCT is not supported\n");
 	return ASLC_ISCT_STATE_FAILED;
 }
 
@@ -569,8 +557,8 @@ static void asle_work(struct work_struct *work)
 	aslc_req = asle->aslc;
 
 	if (!(aslc_req & ASLC_REQ_MSK)) {
-		DRM_DEBUG_DRIVER("No request on ASLC interrupt 0x%08x\n",
-				 aslc_req);
+		drm_dbg(&dev_priv->drm,
+			"No request on ASLC interrupt 0x%08x\n", aslc_req);
 		return;
 	}
 
@@ -662,54 +650,12 @@ static void set_did(struct intel_opregion *opregion, int i, u32 val)
 	}
 }
 
-static u32 acpi_display_type(struct intel_connector *connector)
-{
-	u32 display_type;
-
-	switch (connector->base.connector_type) {
-	case DRM_MODE_CONNECTOR_VGA:
-	case DRM_MODE_CONNECTOR_DVIA:
-		display_type = ACPI_DISPLAY_TYPE_VGA;
-		break;
-	case DRM_MODE_CONNECTOR_Composite:
-	case DRM_MODE_CONNECTOR_SVIDEO:
-	case DRM_MODE_CONNECTOR_Component:
-	case DRM_MODE_CONNECTOR_9PinDIN:
-	case DRM_MODE_CONNECTOR_TV:
-		display_type = ACPI_DISPLAY_TYPE_TV;
-		break;
-	case DRM_MODE_CONNECTOR_DVII:
-	case DRM_MODE_CONNECTOR_DVID:
-	case DRM_MODE_CONNECTOR_DisplayPort:
-	case DRM_MODE_CONNECTOR_HDMIA:
-	case DRM_MODE_CONNECTOR_HDMIB:
-		display_type = ACPI_DISPLAY_TYPE_EXTERNAL_DIGITAL;
-		break;
-	case DRM_MODE_CONNECTOR_LVDS:
-	case DRM_MODE_CONNECTOR_eDP:
-	case DRM_MODE_CONNECTOR_DSI:
-		display_type = ACPI_DISPLAY_TYPE_INTERNAL_DIGITAL;
-		break;
-	case DRM_MODE_CONNECTOR_Unknown:
-	case DRM_MODE_CONNECTOR_VIRTUAL:
-		display_type = ACPI_DISPLAY_TYPE_OTHER;
-		break;
-	default:
-		MISSING_CASE(connector->base.connector_type);
-		display_type = ACPI_DISPLAY_TYPE_OTHER;
-		break;
-	}
-
-	return display_type;
-}
-
 static void intel_didl_outputs(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	int i = 0, max_outputs;
-	int display_index[16] = {};
 
 	/*
 	 * In theory, did2, the extended didl, gets added at opregion version
@@ -721,29 +667,22 @@ static void intel_didl_outputs(struct drm_i915_private *dev_priv)
 	max_outputs = ARRAY_SIZE(opregion->acpi->didl) +
 		ARRAY_SIZE(opregion->acpi->did2);
 
+	intel_acpi_device_id_update(dev_priv);
+
 	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
-		u32 device_id, type;
-
-		device_id = acpi_display_type(connector);
-
-		/* Use display type specific display index. */
-		type = (device_id & ACPI_DISPLAY_TYPE_MASK)
-			>> ACPI_DISPLAY_TYPE_SHIFT;
-		device_id |= display_index[type]++ << ACPI_DISPLAY_INDEX_SHIFT;
-
-		connector->acpi_device_id = device_id;
 		if (i < max_outputs)
-			set_did(opregion, i, device_id);
+			set_did(opregion, i, connector->acpi_device_id);
 		i++;
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
-	DRM_DEBUG_KMS("%d outputs detected\n", i);
+	drm_dbg_kms(&dev_priv->drm, "%d outputs detected\n", i);
 
 	if (i > max_outputs)
-		DRM_ERROR("More than %d outputs in connector list\n",
-			  max_outputs);
+		drm_err(&dev_priv->drm,
+			"More than %d outputs in connector list\n",
+			max_outputs);
 
 	/* If fewer than max outputs, the list must be null terminated */
 	if (i < max_outputs)
@@ -823,7 +762,9 @@ static void swsci_setup(struct drm_i915_private *dev_priv)
 		if (requested_callbacks) {
 			u32 req = opregion->swsci_sbcb_sub_functions;
 			if ((req & tmp) != req)
-				DRM_DEBUG_DRIVER("SWSCI BIOS requested (%08x) SBCB callbacks that are not supported (%08x)\n", req, tmp);
+				drm_dbg(&dev_priv->drm,
+					"SWSCI BIOS requested (%08x) SBCB callbacks that are not supported (%08x)\n",
+					req, tmp);
 			/* XXX: for now, trust the requested callbacks */
 			/* opregion->swsci_sbcb_sub_functions &= tmp; */
 		} else {
@@ -831,9 +772,10 @@ static void swsci_setup(struct drm_i915_private *dev_priv)
 		}
 	}
 
-	DRM_DEBUG_DRIVER("SWSCI GBDA callbacks %08x, SBCB callbacks %08x\n",
-			 opregion->swsci_gbda_sub_functions,
-			 opregion->swsci_sbcb_sub_functions);
+	drm_dbg(&dev_priv->drm,
+		"SWSCI GBDA callbacks %08x, SBCB callbacks %08x\n",
+		opregion->swsci_gbda_sub_functions,
+		opregion->swsci_sbcb_sub_functions);
 }
 
 static int intel_no_opregion_vbt_callback(const struct dmi_system_id *id)
@@ -859,7 +801,7 @@ static int intel_load_vbt_firmware(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
 	const struct firmware *fw = NULL;
-	const char *name = i915_modparams.vbt_firmware;
+	const char *name = dev_priv->params.vbt_firmware;
 	int ret;
 
 	if (!name || !*name)
@@ -867,15 +809,17 @@ static int intel_load_vbt_firmware(struct drm_i915_private *dev_priv)
 
 	ret = request_firmware(&fw, name, &dev_priv->drm.pdev->dev);
 	if (ret) {
-		DRM_ERROR("Requesting VBT firmware \"%s\" failed (%d)\n",
-			  name, ret);
+		drm_err(&dev_priv->drm,
+			"Requesting VBT firmware \"%s\" failed (%d)\n",
+			name, ret);
 		return ret;
 	}
 
 	if (intel_bios_is_valid_vbt(fw->data, fw->size)) {
 		opregion->vbt_firmware = kmemdup(fw->data, fw->size, GFP_KERNEL);
 		if (opregion->vbt_firmware) {
-			DRM_DEBUG_KMS("Found valid VBT firmware \"%s\"\n", name);
+			drm_dbg_kms(&dev_priv->drm,
+				    "Found valid VBT firmware \"%s\"\n", name);
 			opregion->vbt = opregion->vbt_firmware;
 			opregion->vbt_size = fw->size;
 			ret = 0;
@@ -883,7 +827,8 @@ static int intel_load_vbt_firmware(struct drm_i915_private *dev_priv)
 			ret = -ENOMEM;
 		}
 	} else {
-		DRM_DEBUG_KMS("Invalid VBT firmware \"%s\"\n", name);
+		drm_dbg_kms(&dev_priv->drm, "Invalid VBT firmware \"%s\"\n",
+			    name);
 		ret = -EINVAL;
 	}
 
@@ -910,9 +855,10 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	BUILD_BUG_ON(sizeof(struct opregion_asle_ext) != 0x400);
 
 	pci_read_config_dword(pdev, ASLS, &asls);
-	DRM_DEBUG_DRIVER("graphic opregion physical addr: 0x%x\n", asls);
+	drm_dbg(&dev_priv->drm, "graphic opregion physical addr: 0x%x\n",
+		asls);
 	if (asls == 0) {
-		DRM_DEBUG_DRIVER("ACPI OpRegion not supported!\n");
+		drm_dbg(&dev_priv->drm, "ACPI OpRegion not supported!\n");
 		return -ENOTSUPP;
 	}
 
@@ -925,39 +871,46 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 	memcpy(buf, base, sizeof(buf));
 
 	if (memcmp(buf, OPREGION_SIGNATURE, 16)) {
-		DRM_DEBUG_DRIVER("opregion signature mismatch\n");
+		drm_dbg(&dev_priv->drm, "opregion signature mismatch\n");
 		err = -EINVAL;
 		goto err_out;
 	}
 	opregion->header = base;
 	opregion->lid_state = base + ACPI_CLID;
 
-	DRM_DEBUG_DRIVER("ACPI OpRegion version %u.%u.%u\n",
-			 opregion->header->over.major,
-			 opregion->header->over.minor,
-			 opregion->header->over.revision);
+	drm_dbg(&dev_priv->drm, "ACPI OpRegion version %u.%u.%u\n",
+		opregion->header->over.major,
+		opregion->header->over.minor,
+		opregion->header->over.revision);
 
 	mboxes = opregion->header->mboxes;
 	if (mboxes & MBOX_ACPI) {
-		DRM_DEBUG_DRIVER("Public ACPI methods supported\n");
+		drm_dbg(&dev_priv->drm, "Public ACPI methods supported\n");
 		opregion->acpi = base + OPREGION_ACPI_OFFSET;
+		/*
+		 * Indicate we handle monitor hotplug events ourselves so we do
+		 * not need ACPI notifications for them. Disabling these avoids
+		 * triggering the AML code doing the notifation, which may be
+		 * broken as Windows also seems to disable these.
+		 */
+		opregion->acpi->chpd = 1;
 	}
 
 	if (mboxes & MBOX_SWSCI) {
-		DRM_DEBUG_DRIVER("SWSCI supported\n");
+		drm_dbg(&dev_priv->drm, "SWSCI supported\n");
 		opregion->swsci = base + OPREGION_SWSCI_OFFSET;
 		swsci_setup(dev_priv);
 	}
 
 	if (mboxes & MBOX_ASLE) {
-		DRM_DEBUG_DRIVER("ASLE supported\n");
+		drm_dbg(&dev_priv->drm, "ASLE supported\n");
 		opregion->asle = base + OPREGION_ASLE_OFFSET;
 
 		opregion->asle->ardy = ASLE_ARDY_NOT_READY;
 	}
 
 	if (mboxes & MBOX_ASLE_EXT)
-		DRM_DEBUG_DRIVER("ASLE extension supported\n");
+		drm_dbg(&dev_priv->drm, "ASLE extension supported\n");
 
 	if (intel_load_vbt_firmware(dev_priv) == 0)
 		goto out;
@@ -977,7 +930,7 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 		 */
 		if (opregion->header->over.major > 2 ||
 		    opregion->header->over.minor >= 1) {
-			WARN_ON(rvda < OPREGION_SIZE);
+			drm_WARN_ON(&dev_priv->drm, rvda < OPREGION_SIZE);
 
 			rvda += asls;
 		}
@@ -988,12 +941,14 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 		vbt = opregion->rvda;
 		vbt_size = opregion->asle->rvds;
 		if (intel_bios_is_valid_vbt(vbt, vbt_size)) {
-			DRM_DEBUG_KMS("Found valid VBT in ACPI OpRegion (RVDA)\n");
+			drm_dbg_kms(&dev_priv->drm,
+				    "Found valid VBT in ACPI OpRegion (RVDA)\n");
 			opregion->vbt = vbt;
 			opregion->vbt_size = vbt_size;
 			goto out;
 		} else {
-			DRM_DEBUG_KMS("Invalid VBT in ACPI OpRegion (RVDA)\n");
+			drm_dbg_kms(&dev_priv->drm,
+				    "Invalid VBT in ACPI OpRegion (RVDA)\n");
 			memunmap(opregion->rvda);
 			opregion->rvda = NULL;
 		}
@@ -1011,11 +966,13 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 		OPREGION_ASLE_EXT_OFFSET : OPREGION_SIZE;
 	vbt_size -= OPREGION_VBT_OFFSET;
 	if (intel_bios_is_valid_vbt(vbt, vbt_size)) {
-		DRM_DEBUG_KMS("Found valid VBT in ACPI OpRegion (Mailbox #4)\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "Found valid VBT in ACPI OpRegion (Mailbox #4)\n");
 		opregion->vbt = vbt;
 		opregion->vbt_size = vbt_size;
 	} else {
-		DRM_DEBUG_KMS("Invalid VBT in ACPI OpRegion (Mailbox #4)\n");
+		drm_dbg_kms(&dev_priv->drm,
+			    "Invalid VBT in ACPI OpRegion (Mailbox #4)\n");
 	}
 
 out:
@@ -1051,20 +1008,22 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
 
 	ret = swsci(dev_priv, SWSCI_GBDA_PANEL_DETAILS, 0x0, &panel_details);
 	if (ret) {
-		DRM_DEBUG_KMS("Failed to get panel details from OpRegion (%d)\n",
-			      ret);
+		drm_dbg_kms(&dev_priv->drm,
+			    "Failed to get panel details from OpRegion (%d)\n",
+			    ret);
 		return ret;
 	}
 
 	ret = (panel_details >> 8) & 0xff;
 	if (ret > 0x10) {
-		DRM_DEBUG_KMS("Invalid OpRegion panel type 0x%x\n", ret);
+		drm_dbg_kms(&dev_priv->drm,
+			    "Invalid OpRegion panel type 0x%x\n", ret);
 		return -EINVAL;
 	}
 
 	/* fall back to VBT panel type? */
 	if (ret == 0x0) {
-		DRM_DEBUG_KMS("No panel type in OpRegion\n");
+		drm_dbg_kms(&dev_priv->drm, "No panel type in OpRegion\n");
 		return -ENODEV;
 	}
 
@@ -1074,7 +1033,8 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
 	 * via a quirk list :(
 	 */
 	if (!dmi_check_system(intel_use_opregion_panel_type)) {
-		DRM_DEBUG_KMS("Ignoring OpRegion panel type (%d)\n", ret - 1);
+		drm_dbg_kms(&dev_priv->drm,
+			    "Ignoring OpRegion panel type (%d)\n", ret - 1);
 		return -ENODEV;
 	}
 

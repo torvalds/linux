@@ -30,9 +30,9 @@ static int apq8096_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 static int msm_snd_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	u32 rx_ch[SLIM_MAX_RX_PORTS], tx_ch[SLIM_MAX_TX_PORTS];
 	u32 rx_ch_cnt = 0, tx_ch_cnt = 0;
 	int ret = 0;
@@ -66,7 +66,7 @@ static struct snd_soc_ops apq8096_ops = {
 
 static int apq8096_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 
 	/*
 	 * Codec SLIMBUS configuration
@@ -109,41 +109,19 @@ static int apq8096_platform_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	card = kzalloc(sizeof(*card), GFP_KERNEL);
+	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
 		return -ENOMEM;
 
 	card->dev = dev;
+	card->owner = THIS_MODULE;
 	dev_set_drvdata(dev, card);
 	ret = qcom_snd_parse_of(card);
-	if (ret) {
-		dev_err(dev, "Error parsing OF data\n");
-		goto err;
-	}
+	if (ret)
+		return ret;
 
 	apq8096_add_be_ops(card);
-	ret = snd_soc_register_card(card);
-	if (ret)
-		goto err_card_register;
-
-	return 0;
-
-err_card_register:
-	kfree(card->dai_link);
-err:
-	kfree(card);
-	return ret;
-}
-
-static int apq8096_platform_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = dev_get_drvdata(&pdev->dev);
-
-	snd_soc_unregister_card(card);
-	kfree(card->dai_link);
-	kfree(card);
-
-	return 0;
+	return devm_snd_soc_register_card(dev, card);
 }
 
 static const struct of_device_id msm_snd_apq8096_dt_match[] = {
@@ -155,7 +133,6 @@ MODULE_DEVICE_TABLE(of, msm_snd_apq8096_dt_match);
 
 static struct platform_driver msm_snd_apq8096_driver = {
 	.probe  = apq8096_platform_probe,
-	.remove = apq8096_platform_remove,
 	.driver = {
 		.name = "msm-snd-apq8096",
 		.of_match_table = msm_snd_apq8096_dt_match,

@@ -149,12 +149,6 @@ asmlinkage void plat_irq_dispatch(void)
 
 }
 
-static struct irqaction cascade_irqaction = {
-	.handler = no_action,
-	.name = "cascade",
-	.flags = IRQF_NO_THREAD,
-};
-
 static void __init ls1x_irq_init(int base)
 {
 	int n;
@@ -176,12 +170,17 @@ static void __init ls1x_irq_init(int base)
 					 handle_level_irq);
 	}
 
-	setup_irq(INT0_IRQ, &cascade_irqaction);
-	setup_irq(INT1_IRQ, &cascade_irqaction);
-	setup_irq(INT2_IRQ, &cascade_irqaction);
-	setup_irq(INT3_IRQ, &cascade_irqaction);
+	if (request_irq(INT0_IRQ, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", INT0_IRQ);
+	if (request_irq(INT1_IRQ, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", INT1_IRQ);
+	if (request_irq(INT2_IRQ, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", INT2_IRQ);
+	if (request_irq(INT3_IRQ, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", INT3_IRQ);
 #if defined(CONFIG_LOONGSON1_LS1C)
-	setup_irq(INT4_IRQ, &cascade_irqaction);
+	if (request_irq(INT4_IRQ, no_action, IRQF_NO_THREAD, "cascade", NULL))
+		pr_err("Failed to request irq %d (cascade)\n", INT4_IRQ);
 #endif
 }
 

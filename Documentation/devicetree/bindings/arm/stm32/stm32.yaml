@@ -10,22 +10,55 @@ maintainers:
   - Alexandre Torgue <alexandre.torgue@st.com>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     oneOf:
       - items:
+          - enum:
+              - st,stm32f429i-disco
+              - st,stm32429i-eval
           - const: st,stm32f429
-
       - items:
+          - enum:
+              - st,stm32f469i-disco
           - const: st,stm32f469
-
       - items:
+          - enum:
+              - st,stm32f746-disco
+              - st,stm32746g-eval
           - const: st,stm32f746
-
       - items:
+          - enum:
+              - st,stm32f769-disco
+          - const: st,stm32f769
+      - items:
+          - enum:
+              - st,stm32h743i-disco
+              - st,stm32h743i-eval
           - const: st,stm32h743
-
       - items:
           - enum:
               - arrow,stm32mp157a-avenger96 # Avenger96
+              - lxa,stm32mp157c-mc1
+              - shiratech,stm32mp157a-iot-box # IoT Box
+              - shiratech,stm32mp157a-stinger96 # Stinger96
+              - st,stm32mp157c-ed1
+              - st,stm32mp157a-dk1
+              - st,stm32mp157c-dk2
+
           - const: st,stm32mp157
+      - items:
+          - const: st,stm32mp157c-ev1
+          - const: st,stm32mp157c-ed1
+          - const: st,stm32mp157
+      - description: Odyssey STM32MP1 SoM based Boards
+        items:
+          - enum:
+              - seeed,stm32mp157c-odyssey
+          - const: seeed,stm32mp157c-odyssey-som
+          - const: st,stm32mp157
+
+additionalProperties: true
+
 ...

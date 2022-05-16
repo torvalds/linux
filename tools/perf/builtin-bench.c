@@ -11,6 +11,7 @@
  * Available benchmark collection list:
  *
  *  sched ... scheduler and IPC performance
+ *  syscall ... System call performance
  *  mem   ... memory access performance
  *  numa  ... NUMA scheduling and MM performance
  *  futex ... Futex performance
@@ -49,9 +50,16 @@ static struct bench sched_benchmarks[] = {
 	{ NULL,		NULL,						NULL			}
 };
 
+static struct bench syscall_benchmarks[] = {
+	{ "basic",	"Benchmark for basic getppid(2) calls",		bench_syscall_basic	},
+	{ "all",	"Run all syscall benchmarks",			NULL			},
+	{ NULL,		NULL,						NULL			},
+};
+
 static struct bench mem_benchmarks[] = {
 	{ "memcpy",	"Benchmark for memcpy() functions",		bench_mem_memcpy	},
 	{ "memset",	"Benchmark for memset() functions",		bench_mem_memset	},
+	{ "find_bit",	"Benchmark for find_bit() functions",		bench_mem_find_bit	},
 	{ "all",	"Run all memory access benchmarks",		NULL			},
 	{ NULL,		NULL,						NULL			}
 };
@@ -67,14 +75,21 @@ static struct bench futex_benchmarks[] = {
 	{ NULL,		NULL,						NULL			}
 };
 
-#ifdef HAVE_EVENTFD
+#ifdef HAVE_EVENTFD_SUPPORT
 static struct bench epoll_benchmarks[] = {
 	{ "wait",	"Benchmark epoll concurrent epoll_waits",       bench_epoll_wait	},
 	{ "ctl",	"Benchmark epoll concurrent epoll_ctls",        bench_epoll_ctl		},
 	{ "all",	"Run all futex benchmarks",			NULL			},
 	{ NULL,		NULL,						NULL			}
 };
-#endif // HAVE_EVENTFD
+#endif // HAVE_EVENTFD_SUPPORT
+
+static struct bench internals_benchmarks[] = {
+	{ "synthesize", "Benchmark perf event synthesis",	bench_synthesize	},
+	{ "kallsyms-parse", "Benchmark kallsyms parsing",	bench_kallsyms_parse	},
+	{ "inject-build-id", "Benchmark build-id injection",	bench_inject_build_id	},
+	{ NULL,		NULL,					NULL			}
+};
 
 struct collection {
 	const char	*name;
@@ -84,14 +99,16 @@ struct collection {
 
 static struct collection collections[] = {
 	{ "sched",	"Scheduler and IPC benchmarks",			sched_benchmarks	},
+	{ "syscall",	"System call benchmarks",			syscall_benchmarks	},
 	{ "mem",	"Memory access benchmarks",			mem_benchmarks		},
 #ifdef HAVE_LIBNUMA_SUPPORT
 	{ "numa",	"NUMA scheduling and MM benchmarks",		numa_benchmarks		},
 #endif
 	{"futex",       "Futex stressing benchmarks",                   futex_benchmarks        },
-#ifdef HAVE_EVENTFD
+#ifdef HAVE_EVENTFD_SUPPORT
 	{"epoll",       "Epoll stressing benchmarks",                   epoll_benchmarks        },
 #endif
+	{ "internals",	"Perf-internals benchmarks",			internals_benchmarks	},
 	{ "all",	"All benchmarks",				NULL			},
 	{ NULL,		NULL,						NULL			}
 };

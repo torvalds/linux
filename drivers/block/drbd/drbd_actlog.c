@@ -865,7 +865,7 @@ int __drbd_change_sync(struct drbd_device *device, sector_t sector, int size,
 	if (!get_ldev(device))
 		return 0; /* no disk, no metadata, no bitmap to manipulate bits in */
 
-	nr_sectors = drbd_get_capacity(device->this_bdev);
+	nr_sectors = get_capacity(device->vdisk);
 	esector = sector + (size >> 9) - 1;
 
 	if (!expect(sector < nr_sectors))

@@ -55,7 +55,6 @@
 
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/debug.h>
-#include <linux/sunrpc/rpc_rdma.h>
 #include <linux/sunrpc/svc_xprt.h>
 #include <linux/sunrpc/svc_rdma.h>
 
@@ -71,7 +70,6 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 					struct sockaddr *sa, int salen,
 					int flags);
 static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt);
-static void svc_rdma_release_rqst(struct svc_rqst *);
 static void svc_rdma_detach(struct svc_xprt *xprt);
 static void svc_rdma_free(struct svc_xprt *xprt);
 static int svc_rdma_has_wspace(struct svc_xprt *xprt);
@@ -82,6 +80,7 @@ static const struct svc_xprt_ops svc_rdma_ops = {
 	.xpo_create = svc_rdma_create,
 	.xpo_recvfrom = svc_rdma_recvfrom,
 	.xpo_sendto = svc_rdma_sendto,
+	.xpo_read_payload = svc_rdma_read_payload,
 	.xpo_release_rqst = svc_rdma_release_rqst,
 	.xpo_detach = svc_rdma_detach,
 	.xpo_free = svc_rdma_free,
@@ -211,7 +210,12 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id,
 	newxprt->sc_ord = param->initiator_depth;
 
 	sa = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.dst_addr;
-	svc_xprt_set_remote(&newxprt->sc_xprt, sa, svc_addr_len(sa));
+	newxprt->sc_xprt.xpt_remotelen = svc_addr_len(sa);
+	memcpy(&newxprt->sc_xprt.xpt_remote, sa,
+	       newxprt->sc_xprt.xpt_remotelen);
+	snprintf(newxprt->sc_xprt.xpt_remotebuf,
+		 sizeof(newxprt->sc_xprt.xpt_remotebuf) - 1, "%pISc", sa);
+
 	/* The remote port is arbitrary and not under the control of the
 	 * client ULP. Set it to a fixed value so that the DRC continues
 	 * to be effective after a reconnect.
@@ -233,72 +237,56 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id,
 	svc_xprt_enqueue(&listen_xprt->sc_xprt);
 }
 
-/*
- * Handles events generated on the listening endpoint. These events will be
- * either be incoming connect requests or adapter removal  events.
+/**
+ * svc_rdma_listen_handler - Handle CM events generated on a listening endpoint
+ * @cma_id: the server's listener rdma_cm_id
+ * @event: details of the event
+ *
+ * Return values:
+ *     %0: Do not destroy @cma_id
+ *     %1: Destroy @cma_id (never returned here)
+ *
+ * NB: There is never a DEVICE_REMOVAL event for INADDR_ANY listeners.
  */
-static int rdma_listen_handler(struct rdma_cm_id *cma_id,
-			       struct rdma_cm_event *event)
+static int svc_rdma_listen_handler(struct rdma_cm_id *cma_id,
+				   struct rdma_cm_event *event)
 {
-	struct sockaddr *sap = (struct sockaddr *)&cma_id->route.addr.src_addr;
-
-	trace_svcrdma_cm_event(event, sap);
-
 	switch (event->event) {
 	case RDMA_CM_EVENT_CONNECT_REQUEST:
-		dprintk("svcrdma: Connect request on cma_id=%p, xprt = %p, "
-			"event = %s (%d)\n", cma_id, cma_id->context,
-			rdma_event_msg(event->event), event->event);
 		handle_connect_req(cma_id, &event->param.conn);
 		break;
 	default:
-		/* NB: No device removal upcall for INADDR_ANY listeners */
-		dprintk("svcrdma: Unexpected event on listening endpoint %p, "
-			"event = %s (%d)\n", cma_id,
-			rdma_event_msg(event->event), event->event);
 		break;
 	}
-
 	return 0;
 }
 
-static int rdma_cma_handler(struct rdma_cm_id *cma_id,
-			    struct rdma_cm_event *event)
+/**
+ * svc_rdma_cma_handler - Handle CM events on client connections
+ * @cma_id: the server's listener rdma_cm_id
+ * @event: details of the event
+ *
+ * Return values:
+ *     %0: Do not destroy @cma_id
+ *     %1: Destroy @cma_id (never returned here)
+ */
+static int svc_rdma_cma_handler(struct rdma_cm_id *cma_id,
+				struct rdma_cm_event *event)
 {
-	struct sockaddr *sap = (struct sockaddr *)&cma_id->route.addr.dst_addr;
 	struct svcxprt_rdma *rdma = cma_id->context;
 	struct svc_xprt *xprt = &rdma->sc_xprt;
 
-	trace_svcrdma_cm_event(event, sap);
-
 	switch (event->event) {
 	case RDMA_CM_EVENT_ESTABLISHED:
-		/* Accept complete */
-		svc_xprt_get(xprt);
-		dprintk("svcrdma: Connection completed on DTO xprt=%p, "
-			"cm_id=%p\n", xprt, cma_id);
 		clear_bit(RDMAXPRT_CONN_PENDING, &rdma->sc_flags);
 		svc_xprt_enqueue(xprt);
 		break;
 	case RDMA_CM_EVENT_DISCONNECTED:
-		dprintk("svcrdma: Disconnect on DTO xprt=%p, cm_id=%p\n",
-			xprt, cma_id);
-		set_bit(XPT_CLOSE, &xprt->xpt_flags);
-		svc_xprt_enqueue(xprt);
-		svc_xprt_put(xprt);
-		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
-		dprintk("svcrdma: Device removal cma_id=%p, xprt = %p, "
-			"event = %s (%d)\n", cma_id, xprt,
-			rdma_event_msg(event->event), event->event);
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		svc_xprt_enqueue(xprt);
-		svc_xprt_put(xprt);
 		break;
 	default:
-		dprintk("svcrdma: Unexpected event on DTO endpoint %p, "
-			"event = %s (%d)\n", cma_id,
-			rdma_event_msg(event->event), event->event);
 		break;
 	}
 	return 0;
@@ -316,22 +304,18 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	struct svcxprt_rdma *cma_xprt;
 	int ret;
 
-	dprintk("svcrdma: Creating RDMA listener\n");
-	if ((sa->sa_family != AF_INET) && (sa->sa_family != AF_INET6)) {
-		dprintk("svcrdma: Address family %d is not supported.\n", sa->sa_family);
+	if (sa->sa_family != AF_INET && sa->sa_family != AF_INET6)
 		return ERR_PTR(-EAFNOSUPPORT);
-	}
 	cma_xprt = svc_rdma_create_xprt(serv, net);
 	if (!cma_xprt)
 		return ERR_PTR(-ENOMEM);
 	set_bit(XPT_LISTENER, &cma_xprt->sc_xprt.xpt_flags);
 	strcpy(cma_xprt->sc_xprt.xpt_remotebuf, "listener");
 
-	listen_id = rdma_create_id(net, rdma_listen_handler, cma_xprt,
+	listen_id = rdma_create_id(net, svc_rdma_listen_handler, cma_xprt,
 				   RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(listen_id)) {
 		ret = PTR_ERR(listen_id);
-		dprintk("svcrdma: rdma_create_id failed = %d\n", ret);
 		goto err0;
 	}
 
@@ -340,23 +324,17 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	 */
 #if IS_ENABLED(CONFIG_IPV6)
 	ret = rdma_set_afonly(listen_id, 1);
-	if (ret) {
-		dprintk("svcrdma: rdma_set_afonly failed = %d\n", ret);
+	if (ret)
 		goto err1;
-	}
 #endif
 	ret = rdma_bind_addr(listen_id, sa);
-	if (ret) {
-		dprintk("svcrdma: rdma_bind_addr failed = %d\n", ret);
+	if (ret)
 		goto err1;
-	}
 	cma_xprt->sc_cm_id = listen_id;
 
 	ret = rdma_listen(listen_id, RPCRDMA_LISTEN_BACKLOG);
-	if (ret) {
-		dprintk("svcrdma: rdma_listen failed = %d\n", ret);
+	if (ret)
 		goto err1;
-	}
 
 	/*
 	 * We need to use the address from the cm_id in case the
@@ -412,9 +390,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	if (!newxprt)
 		return NULL;
 
-	dprintk("svcrdma: newxprt from accept queue = %p, cm_id=%p\n",
-		newxprt, newxprt->sc_cm_id);
-
 	dev = newxprt->sc_cm_id->device;
 	newxprt->sc_port_num = newxprt->sc_cm_id->port_num;
 
@@ -450,21 +425,17 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	newxprt->sc_pd = ib_alloc_pd(dev, 0);
 	if (IS_ERR(newxprt->sc_pd)) {
-		dprintk("svcrdma: error creating PD for connect request\n");
+		trace_svcrdma_pd_err(newxprt, PTR_ERR(newxprt->sc_pd));
 		goto errout;
 	}
 	newxprt->sc_sq_cq = ib_alloc_cq_any(dev, newxprt, newxprt->sc_sq_depth,
 					    IB_POLL_WORKQUEUE);
-	if (IS_ERR(newxprt->sc_sq_cq)) {
-		dprintk("svcrdma: error creating SQ CQ for connect request\n");
+	if (IS_ERR(newxprt->sc_sq_cq))
 		goto errout;
-	}
 	newxprt->sc_rq_cq =
 		ib_alloc_cq_any(dev, newxprt, rq_depth, IB_POLL_WORKQUEUE);
-	if (IS_ERR(newxprt->sc_rq_cq)) {
-		dprintk("svcrdma: error creating RQ CQ for connect request\n");
+	if (IS_ERR(newxprt->sc_rq_cq))
 		goto errout;
-	}
 
 	memset(&qp_attr, 0, sizeof qp_attr);
 	qp_attr.event_handler = qp_event_handler;
@@ -488,7 +459,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	ret = rdma_create_qp(newxprt->sc_cm_id, newxprt->sc_pd, &qp_attr);
 	if (ret) {
-		dprintk("svcrdma: failed to create QP, ret=%d\n", ret);
+		trace_svcrdma_qp_err(newxprt, ret);
 		goto errout;
 	}
 	newxprt->sc_qp = newxprt->sc_cm_id->qp;
@@ -496,14 +467,16 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	if (!(dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
 		newxprt->sc_snd_w_inv = false;
 	if (!rdma_protocol_iwarp(dev, newxprt->sc_port_num) &&
-	    !rdma_ib_or_roce(dev, newxprt->sc_port_num))
+	    !rdma_ib_or_roce(dev, newxprt->sc_port_num)) {
+		trace_svcrdma_fabric_err(newxprt, -EINVAL);
 		goto errout;
+	}
 
 	if (!svc_rdma_post_recvs(newxprt))
 		goto errout;
 
 	/* Swap out the handler */
-	newxprt->sc_cm_id->event_handler = rdma_cma_handler;
+	newxprt->sc_cm_id->event_handler = svc_rdma_cma_handler;
 
 	/* Construct RDMA-CM private message */
 	pmsg.cp_magic = rpcrdma_cmp_magic;
@@ -519,15 +492,17 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	conn_param.initiator_depth = min_t(int, newxprt->sc_ord,
 					   dev->attrs.max_qp_init_rd_atom);
 	if (!conn_param.initiator_depth) {
-		dprintk("svcrdma: invalid ORD setting\n");
 		ret = -EINVAL;
+		trace_svcrdma_initdepth_err(newxprt, ret);
 		goto errout;
 	}
 	conn_param.private_data = &pmsg;
 	conn_param.private_data_len = sizeof(pmsg);
 	ret = rdma_accept(newxprt->sc_cm_id, &conn_param);
-	if (ret)
+	if (ret) {
+		trace_svcrdma_accept_err(newxprt, ret);
 		goto errout;
+	}
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	dprintk("svcrdma: new connection %p accepted:\n", newxprt);
@@ -542,12 +517,9 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	dprintk("    ord             : %d\n", conn_param.initiator_depth);
 #endif
 
-	trace_svcrdma_xprt_accept(&newxprt->sc_xprt);
 	return &newxprt->sc_xprt;
 
  errout:
-	dprintk("svcrdma: failure accepting new connection rc=%d.\n", ret);
-	trace_svcrdma_xprt_fail(&newxprt->sc_xprt);
 	/* Take a reference in case the DTO handler runs */
 	svc_xprt_get(&newxprt->sc_xprt);
 	if (newxprt->sc_qp && !IS_ERR(newxprt->sc_qp))
@@ -558,28 +530,11 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	return NULL;
 }
 
-static void svc_rdma_release_rqst(struct svc_rqst *rqstp)
-{
-}
-
-/*
- * When connected, an svc_xprt has at least two references:
- *
- * - A reference held by the cm_id between the ESTABLISHED and
- *   DISCONNECTED events. If the remote peer disconnected first, this
- *   reference could be gone.
- *
- * - A reference held by the svc_recv code that called this function
- *   as part of close processing.
- *
- * At a minimum one references should still be held.
- */
 static void svc_rdma_detach(struct svc_xprt *xprt)
 {
 	struct svcxprt_rdma *rdma =
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
 
-	/* Disconnect and flush posted WQE */
 	rdma_disconnect(rdma->sc_cm_id);
 }
 
@@ -589,8 +544,7 @@ static void __svc_rdma_free(struct work_struct *work)
 		container_of(work, struct svcxprt_rdma, sc_work);
 	struct svc_xprt *xprt = &rdma->sc_xprt;
 
-	trace_svcrdma_xprt_free(xprt);
-
+	/* This blocks until the Completion Queues are empty */
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
 		ib_drain_qp(rdma->sc_qp);
 

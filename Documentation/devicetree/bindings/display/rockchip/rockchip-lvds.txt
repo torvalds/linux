@@ -4,6 +4,7 @@ Rockchip RK3288 LVDS interface
 Required properties:
 - compatible: matching the soc type, one of
 	- "rockchip,rk3288-lvds";
+	- "rockchip,px30-lvds";
 
 - reg: physical base address of the controller and length
 	of memory mapped region.
@@ -17,6 +18,9 @@ Required properties:
 
 - rockchip,grf: phandle to the general register files syscon
 - rockchip,output: "rgb", "lvds" or "duallvds", This describes the output interface
+
+- phys: LVDS/DSI DPHY (px30 only)
+- phy-names: name of the PHY, must be "dphy" (px30 only)
 
 Optional properties:
 - pinctrl-names: must contain a "lcdc" entry.

@@ -80,31 +80,16 @@ static struct drm_info_list omap_dmm_debugfs_list[] = {
 	{"tiler_map", tiler_map_show, 0},
 };
 
-int omap_debugfs_init(struct drm_minor *minor)
+void omap_debugfs_init(struct drm_minor *minor)
 {
-	struct drm_device *dev = minor->dev;
-	int ret;
-
-	ret = drm_debugfs_create_files(omap_debugfs_list,
-			ARRAY_SIZE(omap_debugfs_list),
-			minor->debugfs_root, minor);
-
-	if (ret) {
-		dev_err(dev->dev, "could not install omap_debugfs_list\n");
-		return ret;
-	}
+	drm_debugfs_create_files(omap_debugfs_list,
+				 ARRAY_SIZE(omap_debugfs_list),
+				 minor->debugfs_root, minor);
 
 	if (dmm_is_available())
-		ret = drm_debugfs_create_files(omap_dmm_debugfs_list,
-				ARRAY_SIZE(omap_dmm_debugfs_list),
-				minor->debugfs_root, minor);
-
-	if (ret) {
-		dev_err(dev->dev, "could not install omap_dmm_debugfs_list\n");
-		return ret;
-	}
-
-	return ret;
+		drm_debugfs_create_files(omap_dmm_debugfs_list,
+					 ARRAY_SIZE(omap_dmm_debugfs_list),
+					 minor->debugfs_root, minor);
 }
 
 #endif

@@ -6,8 +6,6 @@
  * Dmitry Kasatkin <dmitry.kasatkin@intel.com>
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/err.h>
 #include <linux/ratelimit.h>
 #include <linux/key-type.h>
@@ -57,8 +55,14 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 	}
 
 	if (IS_ERR(key)) {
-		pr_err_ratelimited("Request for unknown key '%s' err %ld\n",
-				   name, PTR_ERR(key));
+		if (keyring)
+			pr_err_ratelimited("Request for unknown key '%s' in '%s' keyring. err %ld\n",
+					   name, keyring->description,
+					   PTR_ERR(key));
+		else
+			pr_err_ratelimited("Request for unknown key '%s' err %ld\n",
+					   name, PTR_ERR(key));
+
 		switch (PTR_ERR(key)) {
 			/* Hide some search errors */
 		case -EACCES:
@@ -81,7 +85,7 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 	struct public_key_signature pks;
 	struct signature_v2_hdr *hdr = (struct signature_v2_hdr *)sig;
 	struct key *key;
-	int ret = -ENOMEM;
+	int ret;
 
 	if (siglen <= sizeof(*hdr))
 		return -EBADMSG;
@@ -101,14 +105,22 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 	memset(&pks, 0, sizeof(pks));
 
 	pks.hash_algo = hash_algo_name[hdr->hash_algo];
-	if (hdr->hash_algo == HASH_ALGO_STREEBOG_256 ||
-	    hdr->hash_algo == HASH_ALGO_STREEBOG_512) {
+	switch (hdr->hash_algo) {
+	case HASH_ALGO_STREEBOG_256:
+	case HASH_ALGO_STREEBOG_512:
 		/* EC-RDSA and Streebog should go together. */
 		pks.pkey_algo = "ecrdsa";
 		pks.encoding = "raw";
-	} else {
+		break;
+	case HASH_ALGO_SM3_256:
+		/* SM2 and SM3 should go together. */
+		pks.pkey_algo = "sm2";
+		pks.encoding = "raw";
+		break;
+	default:
 		pks.pkey_algo = "rsa";
 		pks.encoding = "pkcs1";
+		break;
 	}
 	pks.digest = (u8 *)data;
 	pks.digest_size = datalen;

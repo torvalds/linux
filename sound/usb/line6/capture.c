@@ -247,7 +247,6 @@ static int snd_line6_capture_close(struct snd_pcm_substream *substream)
 const struct snd_pcm_ops snd_line6_capture_ops = {
 	.open = snd_line6_capture_open,
 	.close = snd_line6_capture_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_line6_hw_params,
 	.hw_free = snd_line6_hw_free,
 	.prepare = snd_line6_prepare,
@@ -287,6 +286,8 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 		urb->interval = LINE6_ISO_INTERVAL;
 		urb->error_count = 0;
 		urb->complete = audio_in_callback;
+		if (usb_urb_ep_type_check(urb))
+			return -EINVAL;
 	}
 
 	return 0;

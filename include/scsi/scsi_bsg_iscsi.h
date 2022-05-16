@@ -52,7 +52,7 @@ struct iscsi_bsg_host_vendor {
 	uint64_t vendor_id;
 
 	/* start of vendor command area */
-	uint32_t vendor_cmd[0];
+	uint32_t vendor_cmd[];
 };
 
 /* Response:

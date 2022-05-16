@@ -5,6 +5,7 @@
  *   AD8366 Dual-Digital Variable Gain Amplifier (VGA)
  *   ADA4961 BiCMOS RF Digital Gain Amplifier (DGA)
  *   ADL5240 Digitally controlled variable gain amplifier (VGA)
+ *   HMC1119 0.25 dB LSB, 7-Bit, Silicon Digital Attenuator
  *
  * Copyright 2012-2019 Analog Devices Inc.
  */
@@ -27,6 +28,7 @@ enum ad8366_type {
 	ID_AD8366,
 	ID_ADA4961,
 	ID_ADL5240,
+	ID_HMC1119,
 };
 
 struct ad8366_info {
@@ -62,6 +64,10 @@ static struct ad8366_info ad8366_infos[] = {
 		.gain_min = -11500,
 		.gain_max = 20000,
 	},
+	[ID_HMC1119] = {
+		.gain_min = -31750,
+		.gain_max = 0,
+	},
 };
 
 static int ad8366_write(struct iio_dev *indio_dev,
@@ -83,6 +89,9 @@ static int ad8366_write(struct iio_dev *indio_dev,
 		break;
 	case ID_ADL5240:
 		st->data[0] = (ch_a & 0x3F);
+		break;
+	case ID_HMC1119:
+		st->data[0] = ch_a;
 		break;
 	}
 
@@ -117,6 +126,9 @@ static int ad8366_read_raw(struct iio_dev *indio_dev,
 			break;
 		case ID_ADL5240:
 			gain = 20000 - 31500 + code * 500;
+			break;
+		case ID_HMC1119:
+			gain = -1 * code * 250;
 			break;
 		}
 
@@ -164,6 +176,9 @@ static int ad8366_write_raw(struct iio_dev *indio_dev,
 	case ID_ADL5240:
 		code = ((gain - 500 - 20000) / 500) & 0x3F;
 		break;
+	case ID_HMC1119:
+		code = (abs(gain) / 250) & 0x7F;
+		break;
 	}
 
 	mutex_lock(&st->lock);
@@ -180,9 +195,22 @@ static int ad8366_write_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
+static int ad8366_write_raw_get_fmt(struct iio_dev *indio_dev,
+				    struct iio_chan_spec const *chan,
+				    long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		return IIO_VAL_INT_PLUS_MICRO_DB;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct iio_info ad8366_info = {
 	.read_raw = &ad8366_read_raw,
 	.write_raw = &ad8366_write_raw,
+	.write_raw_get_fmt = &ad8366_write_raw_get_fmt,
 };
 
 #define AD8366_CHAN(_channel) {				\
@@ -233,8 +261,12 @@ static int ad8366_probe(struct spi_device *spi)
 		break;
 	case ID_ADA4961:
 	case ID_ADL5240:
-		st->reset_gpio = devm_gpiod_get(&spi->dev, "reset",
-			GPIOD_OUT_HIGH);
+	case ID_HMC1119:
+		st->reset_gpio = devm_gpiod_get_optional(&spi->dev, "reset", GPIOD_OUT_HIGH);
+		if (IS_ERR(st->reset_gpio)) {
+			ret = PTR_ERR(st->reset_gpio);
+			goto error_disable_reg;
+		}
 		indio_dev->channels = ada4961_channels;
 		indio_dev->num_channels = ARRAY_SIZE(ada4961_channels);
 		break;
@@ -245,7 +277,6 @@ static int ad8366_probe(struct spi_device *spi)
 	}
 
 	st->info = &ad8366_infos[st->type];
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad8366_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -285,6 +316,7 @@ static const struct spi_device_id ad8366_id[] = {
 	{"ad8366",  ID_AD8366},
 	{"ada4961", ID_ADA4961},
 	{"adl5240", ID_ADL5240},
+	{"hmc1119", ID_HMC1119},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad8366_id);

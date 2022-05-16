@@ -22,8 +22,9 @@
 #define NFP_FL_TUNNEL_CSUM			cpu_to_be16(0x01)
 #define NFP_FL_TUNNEL_KEY			cpu_to_be16(0x04)
 #define NFP_FL_TUNNEL_GENEVE_OPT		cpu_to_be16(0x0800)
-#define NFP_FL_SUPPORTED_TUNNEL_INFO_FLAGS	IP_TUNNEL_INFO_TX
-#define NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS	(NFP_FL_TUNNEL_CSUM | \
+#define NFP_FL_SUPPORTED_TUNNEL_INFO_FLAGS	(IP_TUNNEL_INFO_TX | \
+						 IP_TUNNEL_INFO_IPV6)
+#define NFP_FL_SUPPORTED_UDP_TUN_FLAGS		(NFP_FL_TUNNEL_CSUM | \
 						 NFP_FL_TUNNEL_KEY | \
 						 NFP_FL_TUNNEL_GENEVE_OPT)
 
@@ -208,7 +209,7 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 					    NFP_FL_OUT_FLAGS_USE_TUN);
 		output->port = cpu_to_be32(NFP_FL_PORT_TYPE_TUN | tun_type);
 	} else if (netif_is_lag_master(out_dev) &&
-		   priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+		   priv->flower_en_feats & NFP_FL_ENABLE_LAG) {
 		int gid;
 
 		output->flags = cpu_to_be16(tmp_flags);
@@ -296,7 +297,7 @@ nfp_fl_get_tun_from_act(struct nfp_app *app,
 	case htons(GENEVE_UDP_PORT):
 		if (priv->flower_ext_feats & NFP_FL_FEATS_GENEVE)
 			return NFP_FL_TUNNEL_GENEVE;
-		/* FALLTHROUGH */
+		fallthrough;
 	default:
 		return NFP_FL_TUNNEL_NONE;
 	}
@@ -394,18 +395,25 @@ nfp_fl_push_geneve_options(struct nfp_fl_payload *nfp_fl, int *list_len,
 }
 
 static int
-nfp_fl_set_ipv4_tun(struct nfp_app *app, struct nfp_fl_set_ipv4_tun *set_tun,
-		    const struct flow_action_entry *act,
-		    struct nfp_fl_pre_tunnel *pre_tun,
-		    enum nfp_flower_tun_type tun_type,
-		    struct net_device *netdev, struct netlink_ext_ack *extack)
+nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
+	       const struct flow_action_entry *act,
+	       struct nfp_fl_pre_tunnel *pre_tun,
+	       enum nfp_flower_tun_type tun_type,
+	       struct net_device *netdev, struct netlink_ext_ack *extack)
 {
-	size_t act_size = sizeof(struct nfp_fl_set_ipv4_tun);
 	const struct ip_tunnel_info *ip_tun = act->tunnel;
+	bool ipv6 = ip_tunnel_info_af(ip_tun) == AF_INET6;
+	size_t act_size = sizeof(struct nfp_fl_set_tun);
 	struct nfp_flower_priv *priv = app->priv;
 	u32 tmp_set_ip_tun_type_index = 0;
 	/* Currently support one pre-tunnel so index is always 0. */
 	int pretun_idx = 0;
+
+	if (!IS_ENABLED(CONFIG_IPV6) && ipv6)
+		return -EOPNOTSUPP;
+
+	if (ipv6 && !(priv->flower_ext_feats & NFP_FL_FEATS_IPV6_TUN))
+		return -EOPNOTSUPP;
 
 	BUILD_BUG_ON(NFP_FL_TUNNEL_CSUM != TUNNEL_CSUM ||
 		     NFP_FL_TUNNEL_KEY	!= TUNNEL_KEY ||
@@ -417,19 +425,35 @@ nfp_fl_set_ipv4_tun(struct nfp_app *app, struct nfp_fl_set_ipv4_tun *set_tun,
 		return -EOPNOTSUPP;
 	}
 
-	set_tun->head.jump_id = NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL;
+	set_tun->head.jump_id = NFP_FL_ACTION_OPCODE_SET_TUNNEL;
 	set_tun->head.len_lw = act_size >> NFP_FL_LW_SIZ;
 
 	/* Set tunnel type and pre-tunnel index. */
 	tmp_set_ip_tun_type_index |=
-		FIELD_PREP(NFP_FL_IPV4_TUNNEL_TYPE, tun_type) |
-		FIELD_PREP(NFP_FL_IPV4_PRE_TUN_INDEX, pretun_idx);
+		FIELD_PREP(NFP_FL_TUNNEL_TYPE, tun_type) |
+		FIELD_PREP(NFP_FL_PRE_TUN_INDEX, pretun_idx);
 
 	set_tun->tun_type_index = cpu_to_be32(tmp_set_ip_tun_type_index);
 	set_tun->tun_id = ip_tun->key.tun_id;
 
 	if (ip_tun->key.ttl) {
 		set_tun->ttl = ip_tun->key.ttl;
+#ifdef CONFIG_IPV6
+	} else if (ipv6) {
+		struct net *net = dev_net(netdev);
+		struct flowi6 flow = {};
+		struct dst_entry *dst;
+
+		flow.daddr = ip_tun->key.u.ipv6.dst;
+		flow.flowi4_proto = IPPROTO_UDP;
+		dst = ipv6_stub->ipv6_dst_lookup_flow(net, NULL, &flow, NULL);
+		if (!IS_ERR(dst)) {
+			set_tun->ttl = ip6_dst_hoplimit(dst);
+			dst_release(dst);
+		} else {
+			set_tun->ttl = net->ipv6.devconf_all->hop_limit;
+		}
+#endif
 	} else {
 		struct net *net = dev_net(netdev);
 		struct flowi4 flow = {};
@@ -455,7 +479,7 @@ nfp_fl_set_ipv4_tun(struct nfp_app *app, struct nfp_fl_set_ipv4_tun *set_tun,
 	set_tun->tos = ip_tun->key.tos;
 
 	if (!(ip_tun->key.tun_flags & NFP_FL_TUNNEL_KEY) ||
-	    ip_tun->key.tun_flags & ~NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS) {
+	    ip_tun->key.tun_flags & ~NFP_FL_SUPPORTED_UDP_TUN_FLAGS) {
 		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support tunnel flag offload");
 		return -EOPNOTSUPP;
 	}
@@ -467,7 +491,12 @@ nfp_fl_set_ipv4_tun(struct nfp_app *app, struct nfp_fl_set_ipv4_tun *set_tun,
 	}
 
 	/* Complete pre_tunnel action. */
-	pre_tun->ipv4_dst = ip_tun->key.u.ipv4.dst;
+	if (ipv6) {
+		pre_tun->flags |= cpu_to_be16(NFP_FL_PRE_TUN_IPV6);
+		pre_tun->ipv6_dst = ip_tun->key.u.ipv6.dst;
+	} else {
+		pre_tun->ipv4_dst = ip_tun->key.u.ipv4.dst;
+	}
 
 	return 0;
 }
@@ -927,7 +956,7 @@ nfp_flower_output_action(struct nfp_app *app,
 
 	*a_len += sizeof(struct nfp_fl_output);
 
-	if (priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+	if (priv->flower_en_feats & NFP_FL_ENABLE_LAG) {
 		/* nfp_fl_pre_lag returns -err or size of prelag action added.
 		 * This will be 0 if it is not egressing to a lag dev.
 		 */
@@ -956,8 +985,8 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		       struct nfp_flower_pedit_acts *set_act, bool *pkt_host,
 		       struct netlink_ext_ack *extack, int act_idx)
 {
-	struct nfp_fl_set_ipv4_tun *set_tun;
 	struct nfp_fl_pre_tunnel *pre_tun;
+	struct nfp_fl_set_tun *set_tun;
 	struct nfp_fl_push_vlan *psh_v;
 	struct nfp_fl_push_mpls *psh_m;
 	struct nfp_fl_pop_vlan *pop_v;
@@ -1032,7 +1061,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		 * If none, the packet falls back before applying other actions.
 		 */
 		if (*a_len + sizeof(struct nfp_fl_pre_tunnel) +
-		    sizeof(struct nfp_fl_set_ipv4_tun) > NFP_FL_MAX_A_SIZ) {
+		    sizeof(struct nfp_fl_set_tun) > NFP_FL_MAX_A_SIZ) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at tunnel encap");
 			return -EOPNOTSUPP;
 		}
@@ -1046,11 +1075,11 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 			return err;
 
 		set_tun = (void *)&nfp_fl->action_data[*a_len];
-		err = nfp_fl_set_ipv4_tun(app, set_tun, act, pre_tun,
-					  *tun_type, netdev, extack);
+		err = nfp_fl_set_tun(app, set_tun, act, pre_tun, *tun_type,
+				     netdev, extack);
 		if (err)
 			return err;
-		*a_len += sizeof(struct nfp_fl_set_ipv4_tun);
+		*a_len += sizeof(struct nfp_fl_set_tun);
 		}
 		break;
 	case FLOW_ACTION_TUNNEL_DECAP:
@@ -1177,6 +1206,10 @@ int nfp_flower_compile_action(struct nfp_app *app,
 	struct flow_action_entry *act;
 	bool pkt_host = false;
 	u32 csum_updated = 0;
+
+	if (!flow_action_hw_stats_check(&flow->rule->action, extack,
+					FLOW_ACTION_HW_STATS_DELAYED_BIT))
+		return -EOPNOTSUPP;
 
 	memset(nfp_flow->action_data, 0, NFP_FL_MAX_A_SIZ);
 	nfp_flow->meta.act_len = 0;

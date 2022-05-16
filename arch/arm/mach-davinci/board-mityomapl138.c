@@ -1,7 +1,7 @@
 /*
  * Critical Link MityOMAP-L138 SoM
  *
- * Copyright (C) 2010 Critical Link LLC - http://www.criticallink.com
+ * Copyright (C) 2010 Critical Link LLC - https://www.criticallink.com
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of
@@ -432,7 +432,7 @@ static struct davinci_nand_pdata mityomapl138_nandflash_data = {
 	.core_chipsel	= 1,
 	.parts		= mityomapl138_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(mityomapl138_nandflash_partition),
-	.ecc_mode	= NAND_ECC_HW,
+	.engine_type	= NAND_ECC_ENGINE_TYPE_ON_HOST,
 	.bbt_options	= NAND_BBT_USE_FLASH,
 	.options	= NAND_BUSWIDTH_16,
 	.ecc_bits	= 1, /* 4 bit mode is not supported with 16 bit NAND */

@@ -5,7 +5,12 @@
  * Copyright (C) 2018 ARM Ltd.
  */
 
+#define pr_fmt(fmt) "SCMI Notifications POWER - " fmt
+
+#include <linux/scmi_protocol.h>
+
 #include "common.h"
+#include "notify.h"
 
 enum scmi_power_protocol_cmd {
 	POWER_DOMAIN_ATTRIBUTES = 0x3,
@@ -42,6 +47,12 @@ struct scmi_power_state_notify {
 	__le32 notify_enable;
 };
 
+struct scmi_power_state_notify_payld {
+	__le32 agent_id;
+	__le32 domain_id;
+	__le32 power_state;
+};
+
 struct power_dom_info {
 	bool state_set_sync;
 	bool state_set_async;
@@ -50,6 +61,7 @@ struct power_dom_info {
 };
 
 struct scmi_power_info {
+	u32 version;
 	int num_domains;
 	u64 stats_addr;
 	u32 stats_size;
@@ -172,11 +184,80 @@ static char *scmi_power_name_get(const struct scmi_handle *handle, u32 domain)
 	return dom->name;
 }
 
-static struct scmi_power_ops power_ops = {
+static const struct scmi_power_ops power_ops = {
 	.num_domains_get = scmi_power_num_domains_get,
 	.name_get = scmi_power_name_get,
 	.state_set = scmi_power_state_set,
 	.state_get = scmi_power_state_get,
+};
+
+static int scmi_power_request_notify(const struct scmi_handle *handle,
+				     u32 domain, bool enable)
+{
+	int ret;
+	struct scmi_xfer *t;
+	struct scmi_power_state_notify *notify;
+
+	ret = scmi_xfer_get_init(handle, POWER_STATE_NOTIFY,
+				 SCMI_PROTOCOL_POWER, sizeof(*notify), 0, &t);
+	if (ret)
+		return ret;
+
+	notify = t->tx.buf;
+	notify->domain = cpu_to_le32(domain);
+	notify->notify_enable = enable ? cpu_to_le32(BIT(0)) : 0;
+
+	ret = scmi_do_xfer(handle, t);
+
+	scmi_xfer_put(handle, t);
+	return ret;
+}
+
+static int scmi_power_set_notify_enabled(const struct scmi_handle *handle,
+					 u8 evt_id, u32 src_id, bool enable)
+{
+	int ret;
+
+	ret = scmi_power_request_notify(handle, src_id, enable);
+	if (ret)
+		pr_debug("FAIL_ENABLE - evt[%X] dom[%d] - ret:%d\n",
+			 evt_id, src_id, ret);
+
+	return ret;
+}
+
+static void *scmi_power_fill_custom_report(const struct scmi_handle *handle,
+					   u8 evt_id, ktime_t timestamp,
+					   const void *payld, size_t payld_sz,
+					   void *report, u32 *src_id)
+{
+	const struct scmi_power_state_notify_payld *p = payld;
+	struct scmi_power_state_changed_report *r = report;
+
+	if (evt_id != SCMI_EVENT_POWER_STATE_CHANGED || sizeof(*p) != payld_sz)
+		return NULL;
+
+	r->timestamp = timestamp;
+	r->agent_id = le32_to_cpu(p->agent_id);
+	r->domain_id = le32_to_cpu(p->domain_id);
+	r->power_state = le32_to_cpu(p->power_state);
+	*src_id = r->domain_id;
+
+	return r;
+}
+
+static const struct scmi_event power_events[] = {
+	{
+		.id = SCMI_EVENT_POWER_STATE_CHANGED,
+		.max_payld_sz = sizeof(struct scmi_power_state_notify_payld),
+		.max_report_sz =
+			sizeof(struct scmi_power_state_changed_report),
+	},
+};
+
+static const struct scmi_event_ops power_event_ops = {
+	.set_notify_enabled = scmi_power_set_notify_enabled,
+	.fill_custom_report = scmi_power_fill_custom_report,
 };
 
 static int scmi_power_protocol_init(struct scmi_handle *handle)
@@ -207,15 +288,17 @@ static int scmi_power_protocol_init(struct scmi_handle *handle)
 		scmi_power_domain_attributes_get(handle, domain, dom);
 	}
 
+	scmi_register_protocol_events(handle,
+				      SCMI_PROTOCOL_POWER, SCMI_PROTO_QUEUE_SZ,
+				      &power_event_ops, power_events,
+				      ARRAY_SIZE(power_events),
+				      pinfo->num_domains);
+
+	pinfo->version = version;
 	handle->power_ops = &power_ops;
 	handle->power_priv = pinfo;
 
 	return 0;
 }
 
-static int __init scmi_power_init(void)
-{
-	return scmi_protocol_register(SCMI_PROTOCOL_POWER,
-				      &scmi_power_protocol_init);
-}
-subsys_initcall(scmi_power_init);
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_POWER, power)

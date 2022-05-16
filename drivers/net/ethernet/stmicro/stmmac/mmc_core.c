@@ -119,6 +119,13 @@
 #define MMC_RX_ICMP_GD_OCTETS		0x180
 #define MMC_RX_ICMP_ERR_OCTETS		0x184
 
+#define MMC_TX_FPE_FRAG			0x1a8
+#define MMC_TX_HOLD_REQ			0x1ac
+#define MMC_RX_PKT_ASSEMBLY_ERR		0x1c8
+#define MMC_RX_PKT_SMD_ERR		0x1cc
+#define MMC_RX_PKT_ASSEMBLY_OK		0x1d0
+#define MMC_RX_FPE_FRAG			0x1d4
+
 /* XGMAC MMC Registers */
 #define MMC_XGMAC_TX_OCTET_GB		0x14
 #define MMC_XGMAC_TX_PKT_GB		0x1c
@@ -315,6 +322,15 @@ static void dwmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 	mmc->mmc_rx_tcp_err_octets += readl(mmcaddr + MMC_RX_TCP_ERR_OCTETS);
 	mmc->mmc_rx_icmp_gd_octets += readl(mmcaddr + MMC_RX_ICMP_GD_OCTETS);
 	mmc->mmc_rx_icmp_err_octets += readl(mmcaddr + MMC_RX_ICMP_ERR_OCTETS);
+
+	mmc->mmc_tx_fpe_fragment_cntr += readl(mmcaddr + MMC_TX_FPE_FRAG);
+	mmc->mmc_tx_hold_req_cntr += readl(mmcaddr + MMC_TX_HOLD_REQ);
+	mmc->mmc_rx_packet_assembly_err_cntr +=
+		readl(mmcaddr + MMC_RX_PKT_ASSEMBLY_ERR);
+	mmc->mmc_rx_packet_smd_err_cntr += readl(mmcaddr + MMC_RX_PKT_SMD_ERR);
+	mmc->mmc_rx_packet_assembly_ok_cntr +=
+		readl(mmcaddr + MMC_RX_PKT_ASSEMBLY_OK);
+	mmc->mmc_rx_fpe_fragment_cntr += readl(mmcaddr + MMC_RX_FPE_FRAG);
 }
 
 const struct stmmac_mmc_ops dwmac_mmc_ops = {

@@ -34,7 +34,7 @@ static int __cmd_evlist(const char *file_name, struct perf_attr_details *details
 		return PTR_ERR(session);
 
 	evlist__for_each_entry(session->evlist, pos) {
-		perf_evsel__fprintf(pos, details, stdout);
+		evsel__fprintf(pos, details, stdout);
 
 		if (pos->core.attr.type == PERF_TYPE_TRACEPOINT)
 			has_tracepoint = true;

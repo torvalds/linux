@@ -381,7 +381,8 @@ static int gmc_v7_0_mc_init(struct amdgpu_device *adev)
 	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
 
 #ifdef CONFIG_X86_64
-	if (adev->flags & AMD_IS_APU) {
+	if (adev->flags & AMD_IS_APU &&
+	    adev->gmc.real_vram_size > adev->gmc.aper_size) {
 		adev->gmc.aper_base = ((u64)RREG32(mmMC_VM_FB_OFFSET)) << 22;
 		adev->gmc.aper_size = adev->gmc.real_vram_size;
 	}
@@ -414,6 +415,38 @@ static int gmc_v7_0_mc_init(struct amdgpu_device *adev)
 	}
 
 	gmc_v7_0_vram_gtt_location(adev, &adev->gmc);
+
+	return 0;
+}
+
+/**
+ * gmc_v7_0_flush_gpu_tlb_pasid - tlb flush via pasid
+ *
+ * @adev: amdgpu_device pointer
+ * @pasid: pasid to be flush
+ *
+ * Flush the TLB for the requested pasid.
+ */
+static int gmc_v7_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
+					uint16_t pasid, uint32_t flush_type,
+					bool all_hub)
+{
+	int vmid;
+	unsigned int tmp;
+
+	if (amdgpu_in_reset(adev))
+		return -EIO;
+
+	for (vmid = 1; vmid < 16; vmid++) {
+
+		tmp = RREG32(mmATC_VMID0_PASID_MAPPING + vmid);
+		if ((tmp & ATC_VMID0_PASID_MAPPING__VALID_MASK) &&
+			(tmp & ATC_VMID0_PASID_MAPPING__PASID_MASK) == pasid) {
+			WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
+			RREG32(mmVM_INVALIDATE_RESPONSE);
+			break;
+		}
+	}
 
 	return 0;
 }
@@ -463,25 +496,18 @@ static void gmc_v7_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
 	amdgpu_ring_emit_wreg(ring, mmIH_VMID_0_LUT + vmid, pasid);
 }
 
-static uint64_t gmc_v7_0_get_vm_pte_flags(struct amdgpu_device *adev,
-					  uint32_t flags)
-{
-	uint64_t pte_flag = 0;
-
-	if (flags & AMDGPU_VM_PAGE_READABLE)
-		pte_flag |= AMDGPU_PTE_READABLE;
-	if (flags & AMDGPU_VM_PAGE_WRITEABLE)
-		pte_flag |= AMDGPU_PTE_WRITEABLE;
-	if (flags & AMDGPU_VM_PAGE_PRT)
-		pte_flag |= AMDGPU_PTE_PRT;
-
-	return pte_flag;
-}
-
 static void gmc_v7_0_get_vm_pde(struct amdgpu_device *adev, int level,
 				uint64_t *addr, uint64_t *flags)
 {
 	BUG_ON(*addr & 0xFFFFFF0000000FFFULL);
+}
+
+static void gmc_v7_0_get_vm_pte(struct amdgpu_device *adev,
+				struct amdgpu_bo_va_mapping *mapping,
+				uint64_t *flags)
+{
+	*flags &= ~AMDGPU_PTE_EXECUTABLE;
+	*flags &= ~AMDGPU_PTE_PRT;
 }
 
 /**
@@ -736,6 +762,7 @@ static void gmc_v7_0_gart_disable(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  * @status: VM_CONTEXT1_PROTECTION_FAULT_STATUS register value
  * @addr: VM_CONTEXT1_PROTECTION_FAULT_ADDR register value
+ * @mc_client: VM_CONTEXT1_PROTECTION_FAULT_MCCLIENT register value
  *
  * Print human readable fault information (CIK).
  */
@@ -943,16 +970,14 @@ static unsigned gmc_v7_0_get_vbios_fb_size(struct amdgpu_device *adev)
 	unsigned size;
 
 	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
-		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
+		size = AMDGPU_VBIOS_VGA_ALLOCATION;
 	} else {
 		u32 viewport = RREG32(mmVIEWPORT_SIZE);
 		size = (REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_HEIGHT) *
 			REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_WIDTH) *
 			4);
 	}
-	/* return 0 if the pre-OS buffer uses up most of vram */
-	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
-		return 0;
+
 	return size;
 }
 
@@ -993,7 +1018,7 @@ static int gmc_v7_0_sw_init(void *handle)
 
 	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(40));
 	if (r) {
-		pr_warn("amdgpu: No suitable DMA available\n");
+		pr_warn("No suitable DMA available\n");
 		return r;
 	}
 	adev->need_swiotlb = drm_need_swiotlb(40);
@@ -1008,7 +1033,7 @@ static int gmc_v7_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	adev->gmc.stolen_size = gmc_v7_0_get_vbios_fb_size(adev);
+	amdgpu_gmc_get_vbios_allocations(adev);
 
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);
@@ -1025,7 +1050,7 @@ static int gmc_v7_0_sw_init(void *handle)
 	 * amdgpu graphics/compute will use VMIDs 1-7
 	 * amdkfd will use VMIDs 8-15
 	 */
-	adev->vm_manager.id_mgr[0].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.first_kfd_vmid = 8;
 	amdgpu_vm_manager_init(adev);
 
 	/* base offset of vram pages */
@@ -1340,11 +1365,13 @@ static const struct amd_ip_funcs gmc_v7_0_ip_funcs = {
 
 static const struct amdgpu_gmc_funcs gmc_v7_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v7_0_flush_gpu_tlb,
+	.flush_gpu_tlb_pasid = gmc_v7_0_flush_gpu_tlb_pasid,
 	.emit_flush_gpu_tlb = gmc_v7_0_emit_flush_gpu_tlb,
 	.emit_pasid_mapping = gmc_v7_0_emit_pasid_mapping,
 	.set_prt = gmc_v7_0_set_prt,
-	.get_vm_pte_flags = gmc_v7_0_get_vm_pte_flags,
-	.get_vm_pde = gmc_v7_0_get_vm_pde
+	.get_vm_pde = gmc_v7_0_get_vm_pde,
+	.get_vm_pte = gmc_v7_0_get_vm_pte,
+	.get_vbios_fb_size = gmc_v7_0_get_vbios_fb_size,
 };
 
 static const struct amdgpu_irq_src_funcs gmc_v7_0_irq_funcs = {

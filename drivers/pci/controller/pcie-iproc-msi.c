@@ -209,15 +209,20 @@ static int iproc_msi_irq_set_affinity(struct irq_data *data,
 	struct iproc_msi *msi = irq_data_get_irq_chip_data(data);
 	int target_cpu = cpumask_first(mask);
 	int curr_cpu;
+	int ret;
 
 	curr_cpu = hwirq_to_cpu(msi, data->hwirq);
 	if (curr_cpu == target_cpu)
-		return IRQ_SET_MASK_OK_DONE;
+		ret = IRQ_SET_MASK_OK_DONE;
+	else {
+		/* steer MSI to the target CPU */
+		data->hwirq = hwirq_to_canonical_hwirq(msi, data->hwirq) + target_cpu;
+		ret = IRQ_SET_MASK_OK;
+	}
 
-	/* steer MSI to the target CPU */
-	data->hwirq = hwirq_to_canonical_hwirq(msi, data->hwirq) + target_cpu;
+	irq_data_update_effective_affinity(data, cpumask_of(target_cpu));
 
-	return IRQ_SET_MASK_OK;
+	return ret;
 }
 
 static void iproc_msi_irq_compose_msi_msg(struct irq_data *data,
@@ -293,11 +298,12 @@ static const struct irq_domain_ops msi_domain_ops = {
 
 static inline u32 decode_msi_hwirq(struct iproc_msi *msi, u32 eq, u32 head)
 {
-	u32 *msg, hwirq;
+	u32 __iomem *msg;
+	u32 hwirq;
 	unsigned int offs;
 
 	offs = iproc_msi_eq_offset(msi, eq) + head * sizeof(u32);
-	msg = (u32 *)(msi->eq_cpu + offs);
+	msg = (u32 __iomem *)(msi->eq_cpu + offs);
 	hwirq = readl(msg);
 	hwirq = (hwirq >> 5) + (hwirq & 0x1f);
 

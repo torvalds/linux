@@ -2193,12 +2193,15 @@ static int octeon_irq_cib_map(struct irq_domain *d,
 	struct octeon_irq_cib_chip_data *cd;
 
 	if (hw >= host_data->max_bits) {
-		pr_err("ERROR: %s mapping %u is to big!\n",
+		pr_err("ERROR: %s mapping %u is too big!\n",
 		       irq_domain_get_of_node(d)->name, (unsigned)hw);
 		return -EINVAL;
 	}
 
 	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
+	if (!cd)
+		return -ENOMEM;
+
 	cd->host_data = host_data;
 	cd->bit = hw;
 

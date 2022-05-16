@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -260,6 +258,11 @@ enum iwl_rx_mpdu_amsdu_info {
 	IWL_RX_MPDU_AMSDU_LAST_SUBFRAME		= 0x80,
 };
 
+#define RX_MPDU_BAND_POS 6
+#define RX_MPDU_BAND_MASK 0xC0
+#define BAND_IN_RX_STATUS(_val) \
+	(((_val) & RX_MPDU_BAND_MASK) >> RX_MPDU_BAND_POS)
+
 enum iwl_rx_l3_proto_values {
 	IWL_RX_L3_TYPE_NONE,
 	IWL_RX_L3_TYPE_IPV4,
@@ -305,17 +308,11 @@ enum iwl_rx_mpdu_status {
 	IWL_RX_MPDU_STATUS_EXT_IV_MATCH		= BIT(13),
 	IWL_RX_MPDU_STATUS_KEY_ID_MATCH		= BIT(14),
 	IWL_RX_MPDU_STATUS_ROBUST_MNG_FRAME	= BIT(15),
-};
 
-enum iwl_rx_mpdu_hash_filter {
-	IWL_RX_MPDU_HF_A1_HASH_MASK		= 0x3f,
-	IWL_RX_MPDU_HF_FILTER_STATUS_MASK	= 0xc0,
-};
+	IWL_RX_MPDU_STATUS_KEY			= 0x3f0000,
+	IWL_RX_MPDU_STATUS_DUPLICATE		= BIT(22),
 
-enum iwl_rx_mpdu_sta_id_flags {
-	IWL_RX_MPDU_SIF_STA_ID_MASK		= 0x1f,
-	IWL_RX_MPDU_SIF_RRF_ABORT		= 0x20,
-	IWL_RX_MPDU_SIF_FILTER_STATUS_MASK	= 0xc0,
+	IWL_RX_MPDU_STATUS_STA_ID		= 0x1f000000,
 };
 
 #define IWL_RX_REORDER_DATA_INVALID_BAID 0x7f
@@ -530,9 +527,9 @@ struct iwl_rx_mpdu_desc_v3 {
 		__le32 filter_match;
 
 		/**
-		 * @phy_data2: depends on info type (see @phy_data1)
+		 * @phy_data3: depends on info type (see @phy_data1)
 		 */
-		__le32 phy_data2;
+		__le32 phy_data3;
 	};
 
 	/* DW8 - carries rss_hash only when rpa_en == 1 */
@@ -543,9 +540,9 @@ struct iwl_rx_mpdu_desc_v3 {
 		__le32 rss_hash;
 
 		/**
-		 * @phy_data3: depends on info type (see @phy_data1)
+		 * @phy_data2: depends on info type (see @phy_data1)
 		 */
-		__le32 phy_data3;
+		__le32 phy_data2;
 	};
 	/* DW9 */
 	/**
@@ -557,7 +554,11 @@ struct iwl_rx_mpdu_desc_v3 {
 	/**
 	 * @raw_xsum: raw xsum value
 	 */
-	__le32 raw_xsum;
+	__be16 raw_xsum;
+	/**
+	 * @reserved_xsum: reserved high bits in the raw checksum
+	 */
+	__le16 reserved_xsum;
 	/* DW11 */
 	/**
 	 * @rate_n_flags: RX rate/flags encoding
@@ -665,15 +666,8 @@ struct iwl_rx_mpdu_desc {
 	/**
 	 * @status: &enum iwl_rx_mpdu_status
 	 */
-	__le16 status;
-	/**
-	 * @hash_filter: hash filter value
-	 */
-	u8 hash_filter;
-	/**
-	 * @sta_id_flags: &enum iwl_rx_mpdu_sta_id_flags
-	 */
-	u8 sta_id_flags;
+	__le32 status;
+
 	/* DW6 */
 	/**
 	 * @reorder_data: &enum iwl_rx_mpdu_reorder_data

@@ -355,7 +355,7 @@ static void xlr_stats(struct net_device *ndev, struct rtnl_link_stats64 *stats)
 			    stats->rx_missed_errors);
 
 	stats->tx_aborted_errors = xlr_nae_rdreg(priv->base_addr,
-			TX_EXCESSIVE_COLLISION_PACKET_COUNTER);
+						 TX_EXCESSIVE_COLLISION_PACKET_COUNTER);
 	stats->tx_carrier_errors = xlr_nae_rdreg(priv->base_addr,
 						 TX_DROP_FRAME_COUNTER);
 	stats->tx_fifo_errors = xlr_nae_rdreg(priv->base_addr,
@@ -976,8 +976,7 @@ static int xlr_net_probe(struct platform_device *pdev)
 		priv->ndev = ndev;
 		priv->port_id = (pdev->id * 4) + port;
 		priv->nd = (struct xlr_net_data *)pdev->dev.platform_data;
-		res = platform_get_resource(pdev, IORESOURCE_MEM, port);
-		priv->base_addr = devm_ioremap_resource(&pdev->dev, res);
+		priv->base_addr = devm_platform_ioremap_resource(pdev, port);
 		if (IS_ERR(priv->base_addr)) {
 			err = PTR_ERR(priv->base_addr);
 			goto err_gmac;

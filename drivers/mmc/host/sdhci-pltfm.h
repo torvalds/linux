@@ -25,7 +25,7 @@ struct sdhci_pltfm_host {
 	unsigned int clock;
 	u16 xfer_mode_shadow;
 
-	unsigned long private[0] ____cacheline_aligned;
+	unsigned long private[] ____cacheline_aligned;
 };
 
 #ifdef CONFIG_MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER

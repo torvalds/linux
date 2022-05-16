@@ -3,7 +3,7 @@
  *
  * Module Name: nsarguments - Validation of args for ACPI predefined methods
  *
- * Copyright (C) 2000 - 2019, Intel Corp.
+ * Copyright (C) 2000 - 2020, Intel Corp.
  *
  *****************************************************************************/
 
@@ -55,7 +55,9 @@ void acpi_ns_check_argument_types(struct acpi_evaluate_info *info)
 		arg_type = METHOD_GET_NEXT_TYPE(arg_type_list);
 		user_arg_type = info->parameters[i]->common.type;
 
-		if (user_arg_type != arg_type) {
+		/* No typechecking for ACPI_TYPE_ANY */
+
+		if ((user_arg_type != arg_type) && (arg_type != ACPI_TYPE_ANY)) {
 			ACPI_WARN_PREDEFINED((AE_INFO, info->full_pathname,
 					      ACPI_WARN_ALWAYS,
 					      "Argument #%u type mismatch - "

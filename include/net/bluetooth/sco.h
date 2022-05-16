@@ -46,4 +46,6 @@ struct sco_conninfo {
 	__u8  dev_class[3];
 };
 
+#define SCO_CMSG_PKT_STATUS	0x01
+
 #endif /* __SCO_H */

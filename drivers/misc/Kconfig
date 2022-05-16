@@ -8,7 +8,6 @@ menu "Misc devices"
 config SENSORS_LIS3LV02D
 	tristate
 	depends on INPUT
-	select INPUT_POLLDEV
 
 config AD525X_DPOT
 	tristate "Analog Devices Digital Potentiometers"
@@ -25,7 +24,7 @@ config AD525X_DPOT
 	  AD5271, AD5272, AD5274
 	  digital potentiometer chips.
 
-	  See Documentation/misc-devices/ad525x_dpot.txt for the
+	  See Documentation/misc-devices/ad525x_dpot.rst for the
 	  userspace interface.
 
 	  This driver can also be built as a module.  If so, the module
@@ -61,7 +60,7 @@ config ATMEL_TCLIB
 
 config DUMMY_IRQ
 	tristate "Dummy IRQ handler"
-	---help---
+	help
 	  This module accepts a single 'irq' parameter, which it should register for.
 	  The sole purpose of this module is to help with debugging of systems on
 	  which spurious IRQs would happen on disabled IRQ vector.
@@ -70,7 +69,7 @@ config IBM_ASM
 	tristate "Device driver for IBM RSA service processor"
 	depends on X86 && PCI && INPUT
 	depends on SERIAL_8250 || SERIAL_8250=n
-	---help---
+	help
 	  This option enables device driver support for in-band access to the
 	  IBM RSA (Condor) service processor in eServer xSeries systems.
 	  The ibmasm device driver allows user space application to access
@@ -84,7 +83,7 @@ config IBM_ASM
 
 	  WARNING: This software may not be supported or function
 	  correctly on your IBM server. Please consult the IBM ServerProven
-	  website <http://www-03.ibm.com/systems/info/x86servers/serverproven/compat/us/>
+	  website <https://www-03.ibm.com/systems/info/x86servers/serverproven/compat/us/>
 	  for information on the specific driver level and support statement
 	  for your IBM server.
 
@@ -168,7 +167,7 @@ config ICS932S401
 config ATMEL_SSC
 	tristate "Device driver for Atmel SSC peripheral"
 	depends on HAS_IOMEM && (ARCH_AT91 || COMPILE_TEST)
-	---help---
+	help
 	  This option enables device driver support for Atmel Synchronized
 	  Serial Communication peripheral (SSC).
 
@@ -191,7 +190,7 @@ config SGI_XP
 	depends on (IA64_SGI_UV || X86_UV) && SMP
 	depends on X86_64 || BROKEN
 	select SGI_GRU if X86_64 && SMP
-	---help---
+	help
 	  An SGI machine can be divided into multiple Single System
 	  Images which act independently of each other and have
 	  hardware based memory protection from the others.  Enabling
@@ -268,7 +267,7 @@ config SGI_GRU
 	tristate "SGI GRU driver"
 	depends on X86_UV && SMP
 	select MMU_NOTIFIER
-	---help---
+	help
 	The GRU is a hardware resource located in the system chipset. The GRU
 	contains memory that can be mmapped into the user address space. This memory is
 	used to communicate with the GRU to perform functions such as load/store,
@@ -281,7 +280,7 @@ config SGI_GRU
 config SGI_GRU_DEBUG
 	bool  "SGI GRU driver debug"
 	depends on SGI_GRU
-	---help---
+	help
 	This option enables additional debugging code for the SGI GRU driver.
 	If you are unsure, say N.
 
@@ -326,19 +325,19 @@ config SENSORS_TSL2550
 	  will be called tsl2550.
 
 config SENSORS_BH1770
-         tristate "BH1770GLC / SFH7770 combined ALS - Proximity sensor"
-         depends on I2C
-         ---help---
-           Say Y here if you want to build a driver for BH1770GLC (ROHM) or
+	 tristate "BH1770GLC / SFH7770 combined ALS - Proximity sensor"
+	 depends on I2C
+	help
+	   Say Y here if you want to build a driver for BH1770GLC (ROHM) or
 	   SFH7770 (Osram) combined ambient light and proximity sensor chip.
 
-           To compile this driver as a module, choose M here: the
-           module will be called bh1770glc. If unsure, say N here.
+	   To compile this driver as a module, choose M here: the
+	   module will be called bh1770glc. If unsure, say N here.
 
 config SENSORS_APDS990X
 	 tristate "APDS990X combined als and proximity sensors"
 	 depends on I2C
-	 ---help---
+	help
 	   Say Y here if you want to build a driver for Avago APDS990x
 	   combined ambient light and proximity sensor chip.
 
@@ -424,22 +423,13 @@ config SRAM
 config SRAM_EXEC
 	bool
 
-config VEXPRESS_SYSCFG
-	bool "Versatile Express System Configuration driver"
-	depends on VEXPRESS_CONFIG
-	default y
-	help
-	  ARM Ltd. Versatile Express uses specialised platform configuration
-	  bus. System Configuration interface is one of the possible means
-	  of generating transactions on this bus.
-
 config PCI_ENDPOINT_TEST
 	depends on PCI
 	select CRC32
 	tristate "PCI Endpoint Test driver"
-	---help---
-           Enable this configuration option to enable the host side test driver
-           for PCI Endpoint.
+	help
+	   Enable this configuration option to enable the host side test driver
+	   for PCI Endpoint.
 
 config XILINX_SDFEC
 	tristate "Xilinx SDFEC 16"
@@ -466,6 +456,16 @@ config PVPANIC
 	  a paravirtualized device provided by QEMU; it lets a virtual machine
 	  (guest) communicate panic events to the host.
 
+config HISI_HIKEY_USB
+	tristate "USB GPIO Hub on HiSilicon Hikey 960/970 Platform"
+	depends on (OF && GPIOLIB) || COMPILE_TEST
+	depends on USB_ROLE_SWITCH
+	help
+	  If you say yes here this adds support for the on-board USB GPIO hub
+	  found on HiKey 960/970 boards, which is necessary to support
+	  switching between the dual-role USB-C port and the USB-A host ports
+	  using only one USB controller.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -474,11 +474,11 @@ source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/altera-stapl/Kconfig"
 source "drivers/misc/mei/Kconfig"
 source "drivers/misc/vmw_vmci/Kconfig"
-source "drivers/misc/mic/Kconfig"
 source "drivers/misc/genwqe/Kconfig"
 source "drivers/misc/echo/Kconfig"
 source "drivers/misc/cxl/Kconfig"
 source "drivers/misc/ocxl/Kconfig"
 source "drivers/misc/cardreader/Kconfig"
 source "drivers/misc/habanalabs/Kconfig"
+source "drivers/misc/uacce/Kconfig"
 endmenu

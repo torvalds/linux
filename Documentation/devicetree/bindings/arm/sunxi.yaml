@@ -8,13 +8,18 @@ title: Allwinner platforms device tree bindings
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
-  - Maxime Ripard <maxime.ripard@bootlin.com>
+  - Maxime Ripard <mripard@kernel.org>
 
 properties:
   $nodename:
     const: '/'
   compatible:
     oneOf:
+
+      - description: Allwinner A100 Perf1 Board
+        items:
+          - const: allwinner,a100-perf1
+          - const: allwinner,sun50i-a100
 
       - description: Allwinner A23 Evaluation Board
         items:
@@ -211,6 +216,11 @@ properties:
           - const: friendlyarm,nanopi-a64
           - const: allwinner,sun50i-a64
 
+      - description: FriendlyARM NanoPi Duo2
+        items:
+          - const: friendlyarm,nanopi-duo2
+          - const: allwinner,sun8i-h3
+
       - description: FriendlyARM NanoPi M1
         items:
           - const: friendlyarm,nanopi-m1
@@ -337,6 +347,16 @@ properties:
           - const: libretech,all-h3-cc-h5
           - const: allwinner,sun50i-h5
 
+      - description: Libre Computer Board ALL-H3-IT H5
+        items:
+          - const: libretech,all-h3-it-h5
+          - const: allwinner,sun50i-h5
+
+      - description: Libre Computer Board ALL-H5-CC H5
+        items:
+          - const: libretech,all-h5-cc-h5
+          - const: allwinner,sun50i-h5
+
       - description: Lichee Pi One
         items:
           - const: licheepi,licheepi-one
@@ -377,6 +397,12 @@ properties:
       - description: Linksprite PCDuino3 Nano
         items:
           - const: linksprite,pcduino3-nano
+          - const: allwinner,sun7i-a20
+
+      - description: Linutronix Testbox v2
+        items:
+          - const: linutronix,testbox-v2
+          - const: lamobo,lamobo-r1
           - const: allwinner,sun7i-a20
 
       - description: HAOYU Electronics Marsboard A10
@@ -465,6 +491,12 @@ properties:
           - const: emlid,neutis-n5
           - const: allwinner,sun50i-h5
 
+      - description: Emlid Neutis N5H3 Developper Board
+        items:
+          - const: emlid,neutis-n5h3-devboard
+          - const: emlid,neutis-n5h3
+          - const: allwinner,sun8i-h3
+
       - description: NextThing Co. CHIP
         items:
           - const: nextthing,chip
@@ -534,6 +566,11 @@ properties:
           - const: olimex,a20-olinuxino-lime
           - const: allwinner,sun7i-a20
 
+      - description: Olimex A20-OlinuXino LIME (with eMMC)
+        items:
+          - const: olimex,a20-olinuxino-lime-emmc
+          - const: allwinner,sun7i-a20
+
       - description: Olimex A20-OlinuXino LIME2
         items:
           - const: olimex,a20-olinuxino-lime2
@@ -594,9 +631,19 @@ properties:
           - const: pine64,pine64-plus
           - const: allwinner,sun50i-a64
 
-      - description: Pine64 PineH64
+      - description: Pine64 PineCube
+        items:
+          - const: pine64,pinecube
+          - const: allwinner,sun8i-s3
+
+      - description: Pine64 PineH64 model A
         items:
           - const: pine64,pine-h64
+          - const: allwinner,sun50i-h6
+
+      - description: Pine64 PineH64 model B
+        items:
+          - const: pine64,pine-h64-model-b
           - const: allwinner,sun50i-h6
 
       - description: Pine64 LTS
@@ -610,6 +657,26 @@ properties:
           - const: pine64,pinebook
           - const: allwinner,sun50i-a64
 
+      - description: Pine64 PinePhone Developer Batch (1.0)
+        items:
+          - const: pine64,pinephone-1.0
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64 PinePhone Braveheart (1.1)
+        items:
+          - const: pine64,pinephone-1.1
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64 PinePhone (1.2)
+        items:
+          - const: pine64,pinephone-1.2
+          - const: allwinner,sun50i-a64
+
+      - description: Pine64 PineTab
+        items:
+          - const: pine64,pinetab
+          - const: allwinner,sun50i-a64
+
       - description: Pine64 SoPine Baseboard
         items:
           - const: pine64,sopine-baseboard
@@ -620,6 +687,11 @@ properties:
         items:
           - const: pineriver,mini-xplus
           - const: allwinner,sun4i-a10
+
+      - description: PocketBook Touch Lux 3
+        items:
+          - const: pocketbook,touch-lux-3
+          - const: allwinner,sun5i-a13
 
       - description: Point of View Protab2-IPS9
         items:
@@ -821,3 +893,5 @@ properties:
         items:
           - const: xunlong,orangepi-zero-plus2-h3
           - const: allwinner,sun8i-h3
+
+additionalProperties: true

@@ -170,8 +170,6 @@ static void igbvf_get_drvinfo(struct net_device *netdev,
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 
 	strlcpy(drvinfo->driver,  igbvf_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, igbvf_driver_version,
-		sizeof(drvinfo->version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 }
@@ -424,6 +422,7 @@ static void igbvf_get_strings(struct net_device *netdev, u32 stringset,
 }
 
 static const struct ethtool_ops igbvf_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS,
 	.get_drvinfo		= igbvf_get_drvinfo,
 	.get_regs_len		= igbvf_get_regs_len,
 	.get_regs		= igbvf_get_regs,

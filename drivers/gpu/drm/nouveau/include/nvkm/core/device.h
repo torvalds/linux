@@ -23,13 +23,13 @@ enum nvkm_devidx {
 	NVKM_SUBDEV_MMU,
 	NVKM_SUBDEV_BAR,
 	NVKM_SUBDEV_FAULT,
+	NVKM_SUBDEV_ACR,
 	NVKM_SUBDEV_PMU,
 	NVKM_SUBDEV_VOLT,
 	NVKM_SUBDEV_ICCSENSE,
 	NVKM_SUBDEV_THERM,
 	NVKM_SUBDEV_CLK,
 	NVKM_SUBDEV_GSP,
-	NVKM_SUBDEV_SECBOOT,
 
 	NVKM_ENGINE_BSP,
 
@@ -129,6 +129,7 @@ struct nvkm_device {
 		struct notifier_block nb;
 	} acpi;
 
+	struct nvkm_acr *acr;
 	struct nvkm_bar *bar;
 	struct nvkm_bios *bios;
 	struct nvkm_bus *bus;
@@ -149,7 +150,6 @@ struct nvkm_device {
 	struct nvkm_subdev *mxm;
 	struct nvkm_pci *pci;
 	struct nvkm_pmu *pmu;
-	struct nvkm_secboot *secboot;
 	struct nvkm_therm *therm;
 	struct nvkm_timer *timer;
 	struct nvkm_top *top;
@@ -169,7 +169,7 @@ struct nvkm_device {
 	struct nvkm_engine *mspdec;
 	struct nvkm_engine *msppp;
 	struct nvkm_engine *msvld;
-	struct nvkm_engine *nvenc[3];
+	struct nvkm_nvenc *nvenc[3];
 	struct nvkm_nvdec *nvdec[3];
 	struct nvkm_pm *pm;
 	struct nvkm_engine *sec;
@@ -202,6 +202,7 @@ struct nvkm_device_quirk {
 struct nvkm_device_chip {
 	const char *name;
 
+	int (*acr     )(struct nvkm_device *, int idx, struct nvkm_acr **);
 	int (*bar     )(struct nvkm_device *, int idx, struct nvkm_bar **);
 	int (*bios    )(struct nvkm_device *, int idx, struct nvkm_bios **);
 	int (*bus     )(struct nvkm_device *, int idx, struct nvkm_bus **);
@@ -222,7 +223,6 @@ struct nvkm_device_chip {
 	int (*mxm     )(struct nvkm_device *, int idx, struct nvkm_subdev **);
 	int (*pci     )(struct nvkm_device *, int idx, struct nvkm_pci **);
 	int (*pmu     )(struct nvkm_device *, int idx, struct nvkm_pmu **);
-	int (*secboot )(struct nvkm_device *, int idx, struct nvkm_secboot **);
 	int (*therm   )(struct nvkm_device *, int idx, struct nvkm_therm **);
 	int (*timer   )(struct nvkm_device *, int idx, struct nvkm_timer **);
 	int (*top     )(struct nvkm_device *, int idx, struct nvkm_top **);
@@ -242,7 +242,7 @@ struct nvkm_device_chip {
 	int (*mspdec  )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*msppp   )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*msvld   )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*nvenc[3])(struct nvkm_device *, int idx, struct nvkm_engine **);
+	int (*nvenc[3])(struct nvkm_device *, int idx, struct nvkm_nvenc **);
 	int (*nvdec[3])(struct nvkm_device *, int idx, struct nvkm_nvdec **);
 	int (*pm      )(struct nvkm_device *, int idx, struct nvkm_pm **);
 	int (*sec     )(struct nvkm_device *, int idx, struct nvkm_engine **);

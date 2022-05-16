@@ -90,8 +90,6 @@ static int var_to_pixfmt(struct fb_var_screeninfo *var)
 			else
 				return PIXFMT_BGR888UNPACK;
 		}
-
-		/* fall through */
 	}
 
 	return -EINVAL;
@@ -454,7 +452,7 @@ static int mmpfb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops mmpfb_ops = {
+static const struct fb_ops mmpfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_blank	= mmpfb_blank,
 	.fb_check_var	= mmpfb_check_var,
@@ -522,7 +520,7 @@ static int fb_info_setup(struct fb_info *info,
 		info->var.bits_per_pixel / 8;
 	info->fbops = &mmpfb_ops;
 	info->pseudo_palette = fbi->pseudo_palette;
-	info->screen_base = fbi->fb_start;
+	info->screen_buffer = fbi->fb_start;
 	info->screen_size = fbi->fb_size;
 
 	/* For FB framework: Allocate color map and Register framebuffer*/

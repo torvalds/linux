@@ -1,33 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright 2015 Amazon.com, Inc. or its affiliates.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright 2015-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef ENA_COM
@@ -44,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <linux/netdevice.h>
 
 #include "ena_common_defs.h"
 #include "ena_admin_defs.h"
@@ -53,9 +27,9 @@
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define ENA_MAX_NUM_IO_QUEUES		128U
+#define ENA_MAX_NUM_IO_QUEUES 128U
 /* We need to queues for each IO (on for Tx and one for Rx) */
-#define ENA_TOTAL_NUM_QUEUES		(2 * (ENA_MAX_NUM_IO_QUEUES))
+#define ENA_TOTAL_NUM_QUEUES (2 * (ENA_MAX_NUM_IO_QUEUES))
 
 #define ENA_MAX_HANDLERS 256
 
@@ -72,13 +46,15 @@
 /*****************************************************************************/
 /* ENA adaptive interrupt moderation settings */
 
-#define ENA_INTR_INITIAL_TX_INTERVAL_USECS		196
-#define ENA_INTR_INITIAL_RX_INTERVAL_USECS		0
-#define ENA_DEFAULT_INTR_DELAY_RESOLUTION		1
+#define ENA_INTR_INITIAL_TX_INTERVAL_USECS 64
+#define ENA_INTR_INITIAL_RX_INTERVAL_USECS 0
+#define ENA_DEFAULT_INTR_DELAY_RESOLUTION 1
 
-#define ENA_HW_HINTS_NO_TIMEOUT				0xFFFF
+#define ENA_HASH_KEY_SIZE 40
 
-#define ENA_FEATURE_MAX_QUEUE_EXT_VER	1
+#define ENA_HW_HINTS_NO_TIMEOUT	0xFFFF
+
+#define ENA_FEATURE_MAX_QUEUE_EXT_VER 1
 
 struct ena_llq_configurations {
 	enum ena_admin_llq_header_location llq_header_location;
@@ -124,6 +100,7 @@ struct ena_com_llq_info {
 	u16 descs_num_before_header;
 	u16 descs_per_entry;
 	u16 max_entries_in_tx_burst;
+	bool disable_meta_caching;
 };
 
 struct ena_com_io_cq {
@@ -186,6 +163,8 @@ struct ena_com_io_sq {
 	enum queue_direction direction;
 	enum ena_admin_placement_policy_type mem_queue_type;
 
+	bool disable_meta_caching;
+
 	u32 msix_vector;
 	struct ena_com_tx_meta cached_tx_meta;
 	struct ena_com_llq_info llq_info;
@@ -227,15 +206,16 @@ struct ena_com_admin_sq {
 };
 
 struct ena_com_stats_admin {
-	u32 aborted_cmd;
-	u32 submitted_cmd;
-	u32 completed_cmd;
-	u32 out_of_space;
-	u32 no_completion;
+	u64 aborted_cmd;
+	u64 submitted_cmd;
+	u64 completed_cmd;
+	u64 out_of_space;
+	u64 no_completion;
 };
 
 struct ena_com_admin_queue {
 	void *q_dmadev;
+	struct ena_com_dev *ena_dev;
 	spinlock_t q_lock; /* spinlock for the admin queue */
 
 	struct ena_comp_ctx *comp_ctx;
@@ -348,6 +328,8 @@ struct ena_com_dev {
 	struct ena_intr_moder_entry *intr_moder_tbl;
 
 	struct ena_com_llq_info llq_info;
+
+	u32 ena_min_poll_delay_us;
 };
 
 struct ena_com_dev_get_features_ctx {
@@ -392,7 +374,7 @@ struct ena_aenq_handlers {
  */
 int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev);
 
-/* ena_com_set_mmio_read_mode - Enable/disable the mmio reg read mechanism
+/* ena_com_set_mmio_read_mode - Enable/disable the indirect mmio reg read mechanism
  * @ena_dev: ENA communication layer struct
  * @readless_supported: readless mode (enable/disable)
  */
@@ -500,18 +482,6 @@ bool ena_com_get_admin_running_state(struct ena_com_dev *ena_dev);
  */
 void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling);
 
-/* ena_com_set_admin_polling_mode - Get the admin completion queue polling mode
- * @ena_dev: ENA communication layer struct
- *
- * Get the admin completion mode.
- * If polling mode is on, ena_com_execute_admin_command will perform a
- * polling on the admin completion queue for the commands completion,
- * otherwise it will wait on wait event.
- *
- * @return state
- */
-bool ena_com_get_ena_admin_polling_mode(struct ena_com_dev *ena_dev);
-
 /* ena_com_set_admin_auto_polling_mode - Enable autoswitch to polling mode
  * @ena_dev: ENA communication layer struct
  * @polling: Enable/Disable polling mode
@@ -526,7 +496,7 @@ void ena_com_set_admin_auto_polling_mode(struct ena_com_dev *ena_dev,
 /* ena_com_admin_q_comp_intr_handler - admin queue interrupt handler
  * @ena_dev: ENA communication layer struct
  *
- * This method go over the admin completion queue and wake up all the pending
+ * This method goes over the admin completion queue and wakes up all the pending
  * threads that wait on the commands wait event.
  *
  * @note: Should be called after MSI-X interrupt.
@@ -536,10 +506,10 @@ void ena_com_admin_q_comp_intr_handler(struct ena_com_dev *ena_dev);
 /* ena_com_aenq_intr_handler - AENQ interrupt handler
  * @ena_dev: ENA communication layer struct
  *
- * This method go over the async event notification queue and call the proper
+ * This method goes over the async event notification queue and calls the proper
  * aenq handler.
  */
-void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data);
+void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data);
 
 /* ena_com_abort_admin_commands - Abort all the outstanding admin commands.
  * @ena_dev: ENA communication layer struct
@@ -553,14 +523,14 @@ void ena_com_abort_admin_commands(struct ena_com_dev *ena_dev);
 /* ena_com_wait_for_abort_completion - Wait for admin commands abort.
  * @ena_dev: ENA communication layer struct
  *
- * This method wait until all the outstanding admin commands will be completed.
+ * This method waits until all the outstanding admin commands are completed.
  */
 void ena_com_wait_for_abort_completion(struct ena_com_dev *ena_dev);
 
 /* ena_com_validate_version - Validate the device parameters
  * @ena_dev: ENA communication layer struct
  *
- * This method validate the device parameters are the same as the saved
+ * This method verifies the device parameters are the same as the saved
  * parameters in ena_dev.
  * This method is useful after device reset, to validate the device mac address
  * and the device offloads are the same as before the reset.
@@ -619,6 +589,15 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
 				struct ena_admin_basic_stats *stats);
 
+/* ena_com_get_eni_stats - Get extended network interface statistics
+ * @ena_dev: ENA communication layer struct
+ * @stats: stats return value
+ *
+ * @return: 0 on Success and negative value otherwise.
+ */
+int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
+			  struct ena_admin_eni_stats *stats);
+
 /* ena_com_set_dev_mtu - Configure the device mtu.
  * @ena_dev: ENA communication layer struct
  * @mtu: mtu value
@@ -655,6 +634,14 @@ int ena_com_rss_init(struct ena_com_dev *ena_dev, u16 log_size);
  */
 void ena_com_rss_destroy(struct ena_com_dev *ena_dev);
 
+/* ena_com_get_current_hash_function - Get RSS hash function
+ * @ena_dev: ENA communication layer struct
+ *
+ * Return the current hash function.
+ * @return: 0 or one of the ena_admin_hash_functions values.
+ */
+int ena_com_get_current_hash_function(struct ena_com_dev *ena_dev);
+
 /* ena_com_fill_hash_function - Fill RSS hash function
  * @ena_dev: ENA communication layer struct
  * @func: The hash function (Toeplitz or crc)
@@ -686,23 +673,32 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
  */
 int ena_com_set_hash_function(struct ena_com_dev *ena_dev);
 
-/* ena_com_get_hash_function - Retrieve the hash function and the hash key
- * from the device.
+/* ena_com_get_hash_function - Retrieve the hash function from the device.
  * @ena_dev: ENA communication layer struct
  * @func: hash function
- * @key: hash key
  *
- * Retrieve the hash function and the hash key from the device.
+ * Retrieve the hash function from the device.
  *
- * @note: If the caller called ena_com_fill_hash_function but didn't flash
+ * @note: If the caller called ena_com_fill_hash_function but didn't flush
  * it to the device, the new configuration will be lost.
  *
  * @return: 0 on Success and negative value otherwise.
  */
 int ena_com_get_hash_function(struct ena_com_dev *ena_dev,
-			      enum ena_admin_hash_functions *func,
-			      u8 *key);
+			      enum ena_admin_hash_functions *func);
 
+/* ena_com_get_hash_key - Retrieve the hash key
+ * @ena_dev: ENA communication layer struct
+ * @key: hash key
+ *
+ * Retrieve the hash key.
+ *
+ * @note: If the caller called ena_com_fill_hash_key but didn't flush
+ * it to the device, the new configuration will be lost.
+ *
+ * @return: 0 on Success and negative value otherwise.
+ */
+int ena_com_get_hash_key(struct ena_com_dev *ena_dev, u8 *key);
 /* ena_com_fill_hash_ctrl - Fill RSS hash control
  * @ena_dev: ENA communication layer struct.
  * @proto: The protocol to configure.
@@ -737,7 +733,7 @@ int ena_com_set_hash_ctrl(struct ena_com_dev *ena_dev);
  *
  * Retrieve the hash control from the device.
  *
- * @note, If the caller called ena_com_fill_hash_ctrl but didn't flash
+ * @note: If the caller called ena_com_fill_hash_ctrl but didn't flush
  * it to the device, the new configuration will be lost.
  *
  * @return: 0 on Success and negative value otherwise.
@@ -789,7 +785,7 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev);
  *
  * Retrieve the RSS indirection table from the device.
  *
- * @note: If the caller called ena_com_indirect_table_fill_entry but didn't flash
+ * @note: If the caller called ena_com_indirect_table_fill_entry but didn't flush
  * it to the device, the new configuration will be lost.
  *
  * @return: 0 on Success and negative value otherwise.
@@ -815,14 +811,14 @@ int ena_com_allocate_debug_area(struct ena_com_dev *ena_dev,
 /* ena_com_delete_debug_area - Free the debug area resources.
  * @ena_dev: ENA communication layer struct
  *
- * Free the allocate debug area.
+ * Free the allocated debug area.
  */
 void ena_com_delete_debug_area(struct ena_com_dev *ena_dev);
 
 /* ena_com_delete_host_info - Free the host info resources.
  * @ena_dev: ENA communication layer struct
  *
- * Free the allocate host info.
+ * Free the allocated host info.
  */
 void ena_com_delete_host_info(struct ena_com_dev *ena_dev);
 
@@ -863,9 +859,9 @@ int ena_com_destroy_io_cq(struct ena_com_dev *ena_dev,
  * @cmd_completion: command completion return value.
  * @cmd_comp_size: command completion size.
 
- * Submit an admin command and then wait until the device will return a
+ * Submit an admin command and then wait until the device returns a
  * completion.
- * The completion will be copyed into cmd_comp.
+ * The completion will be copied into cmd_comp.
  *
  * @return - 0 on success, negative value on failure.
  */
@@ -928,7 +924,7 @@ unsigned int ena_com_get_nonadaptive_moderation_interval_rx(struct ena_com_dev *
 /* ena_com_config_dev_mode - Configure the placement policy of the device.
  * @ena_dev: ENA communication layer struct
  * @llq_features: LLQ feature descriptor, retrieve via
- *                ena_com_get_dev_attr_feat.
+ *		   ena_com_get_dev_attr_feat.
  * @ena_llq_config: The default driver LLQ parameters configurations
  */
 int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
@@ -954,7 +950,7 @@ static inline void ena_com_disable_adaptive_moderation(struct ena_com_dev *ena_d
  * @intr_reg: interrupt register to update.
  * @rx_delay_interval: Rx interval in usecs
  * @tx_delay_interval: Tx interval in usecs
- * @unmask: unask enable/disable
+ * @unmask: unmask enable/disable
  *
  * Prepare interrupt update register with the supplied parameters.
  */

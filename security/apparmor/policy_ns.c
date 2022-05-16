@@ -121,9 +121,9 @@ static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 	return ns;
 
 fail_unconfined:
-	kzfree(ns->base.hname);
+	kfree_sensitive(ns->base.hname);
 fail_ns:
-	kzfree(ns);
+	kfree_sensitive(ns);
 	return NULL;
 }
 
@@ -145,7 +145,7 @@ void aa_free_ns(struct aa_ns *ns)
 
 	ns->unconfined->ns = NULL;
 	aa_free_profile(ns->unconfined);
-	kzfree(ns);
+	kfree_sensitive(ns);
 }
 
 /**

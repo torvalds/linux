@@ -3,7 +3,7 @@
  *
  * Driver for Amplicon PCI215, PCI272, PCIe215, PCIe236, PCIe296.
  *
- * Copyright (C) 2005-2013 MEV Ltd. <http://www.mev.co.uk/>
+ * Copyright (C) 2005-2013 MEV Ltd. <https://www.mev.co.uk/>
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998,2000 David A. Schleef <ds@schleef.org>
@@ -410,6 +410,6 @@ static struct pci_driver dio200_pci_pci_driver = {
 };
 module_comedi_pci_driver(dio200_pci_comedi_driver, dio200_pci_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for Amplicon 200 Series PCI(e) DIO boards");
 MODULE_LICENSE("GPL");

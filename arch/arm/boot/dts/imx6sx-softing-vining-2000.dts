@@ -93,7 +93,7 @@
 &ecspi4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi4>;
-	cs-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -352,6 +352,12 @@
 		>;
 	};
 
+	pinctrl_pcie: pciegrp {
+		fsl,pins = <
+			MX6SX_PAD_NAND_DATA02__GPIO4_IO_6	0x10b0
+		>;
+	};
+
 	pinctrl_pwm1: pwm1grp-1 {
 		fsl,pins = <
 			/* blue LED */
@@ -384,15 +390,15 @@
 
 	pinctrl_uart1: uart1grp {
 		fsl,pins = <
-			MX6SX_PAD_GPIO1_IO04__UART1_TX		0x1b0b1
-			MX6SX_PAD_GPIO1_IO05__UART1_RX		0x1b0b1
+			MX6SX_PAD_GPIO1_IO04__UART1_DCE_TX	0x1b0b1
+			MX6SX_PAD_GPIO1_IO05__UART1_DCE_RX	0x1b0b1
 		>;
 	};
 
 	pinctrl_uart2: uart2grp {
 		fsl,pins = <
-			MX6SX_PAD_GPIO1_IO06__UART2_TX		0x1b0b1
-			MX6SX_PAD_GPIO1_IO07__UART2_RX		0x1b0b1
+			MX6SX_PAD_GPIO1_IO06__UART2_DCE_TX	0x1b0b1
+			MX6SX_PAD_GPIO1_IO07__UART2_DCE_RX	0x1b0b1
 		>;
 	};
 
@@ -490,19 +496,30 @@
 	};
 };
 
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio4 6 GPIO_ACTIVE_HIGH>;
+	reset-gpio-active-high;
+	status = "okay";
+};
+
 &pwm1 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
 };
 
 &pwm2 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm2>;
 	status = "okay";
 };
 
 &pwm6 {
+	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm6>;
 	status = "okay";

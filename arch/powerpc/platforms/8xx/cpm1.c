@@ -34,7 +34,6 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/8xx_immap.h>
 #include <asm/cpm1.h>
 #include <asm/io.h>
@@ -51,7 +50,7 @@
 #define CPM_MAP_SIZE    (0x4000)
 
 cpm8xx_t __iomem *cpmp;  /* Pointer to comm processor space */
-immap_t __iomem *mpc8xx_immr;
+immap_t __iomem *mpc8xx_immr = (void __iomem *)VIRT_IMMR_BASE;
 static cpic8xx_t __iomem *cpic_reg;
 
 static struct irq_domain *cpm_pic_host;
@@ -120,17 +119,11 @@ static irqreturn_t cpm_error_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction cpm_error_irqaction = {
-	.handler = cpm_error_interrupt,
-	.flags = IRQF_NO_THREAD,
-	.name = "error",
-};
-
 static const struct irq_domain_ops cpm_pic_host_ops = {
 	.map = cpm_pic_host_map,
 };
 
-unsigned int cpm_pic_init(void)
+unsigned int __init cpm_pic_init(void)
 {
 	struct device_node *np = NULL;
 	struct resource res;
@@ -187,7 +180,8 @@ unsigned int cpm_pic_init(void)
 	if (!eirq)
 		goto end;
 
-	if (setup_irq(eirq, &cpm_error_irqaction))
+	if (request_irq(eirq, cpm_error_interrupt, IRQF_NO_THREAD, "error",
+			NULL))
 		printk(KERN_ERR "Could not allocate CPM error IRQ!");
 
 	setbits32(&cpic_reg->cpic_cicr, CICR_IEN);
@@ -200,12 +194,6 @@ end:
 void __init cpm_reset(void)
 {
 	sysconf8xx_t __iomem *siu_conf;
-
-	mpc8xx_immr = ioremap(get_immrbase(), 0x4000);
-	if (!mpc8xx_immr) {
-		printk(KERN_CRIT "Could not map IMMR\n");
-		return;
-	}
 
 	cpmp = &mpc8xx_immr->im_cpm;
 
@@ -306,7 +294,7 @@ struct cpm_ioport32e {
 	__be32 dir, par, sor, odr, dat;
 };
 
-static void cpm1_set_pin32(int port, int pin, int flags)
+static void __init cpm1_set_pin32(int port, int pin, int flags)
 {
 	struct cpm_ioport32e __iomem *iop;
 	pin = 1 << (31 - pin);
@@ -348,7 +336,7 @@ static void cpm1_set_pin32(int port, int pin, int flags)
 	}
 }
 
-static void cpm1_set_pin16(int port, int pin, int flags)
+static void __init cpm1_set_pin16(int port, int pin, int flags)
 {
 	struct cpm_ioport16 __iomem *iop =
 		(struct cpm_ioport16 __iomem *)&mpc8xx_immr->im_ioport;
@@ -386,7 +374,7 @@ static void cpm1_set_pin16(int port, int pin, int flags)
 	}
 }
 
-void cpm1_set_pin(enum cpm_port port, int pin, int flags)
+void __init cpm1_set_pin(enum cpm_port port, int pin, int flags)
 {
 	if (port == CPM_PORTB || port == CPM_PORTE)
 		cpm1_set_pin32(port, pin, flags);
@@ -394,7 +382,7 @@ void cpm1_set_pin(enum cpm_port port, int pin, int flags)
 		cpm1_set_pin16(port, pin, flags);
 }
 
-int cpm1_clk_setup(enum cpm_clk_target target, int clock, int mode)
+int __init cpm1_clk_setup(enum cpm_clk_target target, int clock, int mode)
 {
 	int shift;
 	int i, bits = 0;

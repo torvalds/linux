@@ -26,9 +26,12 @@ struct perf_config_set {
 extern const char *config_exclusive_filename;
 
 typedef int (*config_fn_t)(const char *, const char *, void *);
+
+int perf_config_from_file(config_fn_t fn, const char *filename, void *data);
 int perf_default_config(const char *, const char *, void *);
 int perf_config(config_fn_t fn, void *);
 int perf_config_int(int *dest, const char *, const char *);
+int perf_config_u8(u8 *dest, const char *name, const char *value);
 int perf_config_u64(u64 *dest, const char *, const char *);
 int perf_config_bool(const char *, const char *);
 int config_error_nonbool(const char *);

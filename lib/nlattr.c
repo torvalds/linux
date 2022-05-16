@@ -44,8 +44,22 @@ static const u8 nla_attr_minlen[NLA_TYPE_MAX+1] = {
 	[NLA_S64]	= sizeof(s64),
 };
 
+/*
+ * Nested policies might refer back to the original
+ * policy in some cases, and userspace could try to
+ * abuse that and recurse by nesting in the right
+ * ways. Limit recursion to avoid this problem.
+ */
+#define MAX_POLICY_RECURSION_DEPTH	10
+
+static int __nla_validate_parse(const struct nlattr *head, int len, int maxtype,
+				const struct nla_policy *policy,
+				unsigned int validate,
+				struct netlink_ext_ack *extack,
+				struct nlattr **tb, unsigned int depth);
+
 static int validate_nla_bitfield32(const struct nlattr *nla,
-				   const u32 *valid_flags_mask)
+				   const u32 valid_flags_mask)
 {
 	const struct nla_bitfield32 *bf = nla_data(nla);
 
@@ -53,11 +67,11 @@ static int validate_nla_bitfield32(const struct nlattr *nla,
 		return -EINVAL;
 
 	/*disallow invalid bit selector */
-	if (bf->selector & ~*valid_flags_mask)
+	if (bf->selector & ~valid_flags_mask)
 		return -EINVAL;
 
 	/*disallow invalid bit values */
-	if (bf->value & ~*valid_flags_mask)
+	if (bf->value & ~valid_flags_mask)
 		return -EINVAL;
 
 	/*disallow valid bit values that are not selected*/
@@ -70,7 +84,7 @@ static int validate_nla_bitfield32(const struct nlattr *nla,
 static int nla_validate_array(const struct nlattr *head, int len, int maxtype,
 			      const struct nla_policy *policy,
 			      struct netlink_ext_ack *extack,
-			      unsigned int validate)
+			      unsigned int validate, unsigned int depth)
 {
 	const struct nlattr *entry;
 	int rem;
@@ -82,13 +96,14 @@ static int nla_validate_array(const struct nlattr *head, int len, int maxtype,
 			continue;
 
 		if (nla_len(entry) < NLA_HDRLEN) {
-			NL_SET_ERR_MSG_ATTR(extack, entry,
-					    "Array element too short");
+			NL_SET_ERR_MSG_ATTR_POL(extack, entry, policy,
+						"Array element too short");
 			return -ERANGE;
 		}
 
-		ret = __nla_validate(nla_data(entry), nla_len(entry),
-				     maxtype, policy, validate, extack);
+		ret = __nla_validate_parse(nla_data(entry), nla_len(entry),
+					   maxtype, policy, validate, extack,
+					   NULL, depth + 1);
 		if (ret < 0)
 			return ret;
 	}
@@ -96,17 +111,61 @@ static int nla_validate_array(const struct nlattr *head, int len, int maxtype,
 	return 0;
 }
 
-static int nla_validate_int_range(const struct nla_policy *pt,
-				  const struct nlattr *nla,
-				  struct netlink_ext_ack *extack)
+void nla_get_range_unsigned(const struct nla_policy *pt,
+			    struct netlink_range_validation *range)
 {
-	bool validate_min, validate_max;
-	s64 value;
+	WARN_ON_ONCE(pt->validation_type != NLA_VALIDATE_RANGE_PTR &&
+		     (pt->min < 0 || pt->max < 0));
 
-	validate_min = pt->validation_type == NLA_VALIDATE_RANGE ||
-		       pt->validation_type == NLA_VALIDATE_MIN;
-	validate_max = pt->validation_type == NLA_VALIDATE_RANGE ||
-		       pt->validation_type == NLA_VALIDATE_MAX;
+	range->min = 0;
+
+	switch (pt->type) {
+	case NLA_U8:
+		range->max = U8_MAX;
+		break;
+	case NLA_U16:
+	case NLA_BINARY:
+		range->max = U16_MAX;
+		break;
+	case NLA_U32:
+		range->max = U32_MAX;
+		break;
+	case NLA_U64:
+	case NLA_MSECS:
+		range->max = U64_MAX;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	switch (pt->validation_type) {
+	case NLA_VALIDATE_RANGE:
+	case NLA_VALIDATE_RANGE_WARN_TOO_LONG:
+		range->min = pt->min;
+		range->max = pt->max;
+		break;
+	case NLA_VALIDATE_RANGE_PTR:
+		*range = *pt->range;
+		break;
+	case NLA_VALIDATE_MIN:
+		range->min = pt->min;
+		break;
+	case NLA_VALIDATE_MAX:
+		range->max = pt->max;
+		break;
+	default:
+		break;
+	}
+}
+
+static int nla_validate_range_unsigned(const struct nla_policy *pt,
+				       const struct nlattr *nla,
+				       struct netlink_ext_ack *extack,
+				       unsigned int validate)
+{
+	struct netlink_range_validation range;
+	u64 value;
 
 	switch (pt->type) {
 	case NLA_U8:
@@ -118,6 +177,101 @@ static int nla_validate_int_range(const struct nla_policy *pt,
 	case NLA_U32:
 		value = nla_get_u32(nla);
 		break;
+	case NLA_U64:
+	case NLA_MSECS:
+		value = nla_get_u64(nla);
+		break;
+	case NLA_BINARY:
+		value = nla_len(nla);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	nla_get_range_unsigned(pt, &range);
+
+	if (pt->validation_type == NLA_VALIDATE_RANGE_WARN_TOO_LONG &&
+	    pt->type == NLA_BINARY && value > range.max) {
+		pr_warn_ratelimited("netlink: '%s': attribute type %d has an invalid length.\n",
+				    current->comm, pt->type);
+		if (validate & NL_VALIDATE_STRICT_ATTRS) {
+			NL_SET_ERR_MSG_ATTR_POL(extack, nla, pt,
+						"invalid attribute length");
+			return -EINVAL;
+		}
+
+		/* this assumes min <= max (don't validate against min) */
+		return 0;
+	}
+
+	if (value < range.min || value > range.max) {
+		bool binary = pt->type == NLA_BINARY;
+
+		if (binary)
+			NL_SET_ERR_MSG_ATTR_POL(extack, nla, pt,
+						"binary attribute size out of range");
+		else
+			NL_SET_ERR_MSG_ATTR_POL(extack, nla, pt,
+						"integer out of range");
+
+		return -ERANGE;
+	}
+
+	return 0;
+}
+
+void nla_get_range_signed(const struct nla_policy *pt,
+			  struct netlink_range_validation_signed *range)
+{
+	switch (pt->type) {
+	case NLA_S8:
+		range->min = S8_MIN;
+		range->max = S8_MAX;
+		break;
+	case NLA_S16:
+		range->min = S16_MIN;
+		range->max = S16_MAX;
+		break;
+	case NLA_S32:
+		range->min = S32_MIN;
+		range->max = S32_MAX;
+		break;
+	case NLA_S64:
+		range->min = S64_MIN;
+		range->max = S64_MAX;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	switch (pt->validation_type) {
+	case NLA_VALIDATE_RANGE:
+		range->min = pt->min;
+		range->max = pt->max;
+		break;
+	case NLA_VALIDATE_RANGE_PTR:
+		*range = *pt->range_signed;
+		break;
+	case NLA_VALIDATE_MIN:
+		range->min = pt->min;
+		break;
+	case NLA_VALIDATE_MAX:
+		range->max = pt->max;
+		break;
+	default:
+		break;
+	}
+}
+
+static int nla_validate_int_range_signed(const struct nla_policy *pt,
+					 const struct nlattr *nla,
+					 struct netlink_ext_ack *extack)
+{
+	struct netlink_range_validation_signed range;
+	s64 value;
+
+	switch (pt->type) {
 	case NLA_S8:
 		value = nla_get_s8(nla);
 		break;
@@ -130,25 +284,71 @@ static int nla_validate_int_range(const struct nla_policy *pt,
 	case NLA_S64:
 		value = nla_get_s64(nla);
 		break;
+	default:
+		return -EINVAL;
+	}
+
+	nla_get_range_signed(pt, &range);
+
+	if (value < range.min || value > range.max) {
+		NL_SET_ERR_MSG_ATTR_POL(extack, nla, pt,
+					"integer out of range");
+		return -ERANGE;
+	}
+
+	return 0;
+}
+
+static int nla_validate_int_range(const struct nla_policy *pt,
+				  const struct nlattr *nla,
+				  struct netlink_ext_ack *extack,
+				  unsigned int validate)
+{
+	switch (pt->type) {
+	case NLA_U8:
+	case NLA_U16:
+	case NLA_U32:
 	case NLA_U64:
-		/* treat this one specially, since it may not fit into s64 */
-		if ((validate_min && nla_get_u64(nla) < pt->min) ||
-		    (validate_max && nla_get_u64(nla) > pt->max)) {
-			NL_SET_ERR_MSG_ATTR(extack, nla,
-					    "integer out of range");
-			return -ERANGE;
-		}
-		return 0;
+	case NLA_MSECS:
+	case NLA_BINARY:
+		return nla_validate_range_unsigned(pt, nla, extack, validate);
+	case NLA_S8:
+	case NLA_S16:
+	case NLA_S32:
+	case NLA_S64:
+		return nla_validate_int_range_signed(pt, nla, extack);
 	default:
 		WARN_ON(1);
 		return -EINVAL;
 	}
+}
 
-	if ((validate_min && value < pt->min) ||
-	    (validate_max && value > pt->max)) {
-		NL_SET_ERR_MSG_ATTR(extack, nla,
-				    "integer out of range");
-		return -ERANGE;
+static int nla_validate_mask(const struct nla_policy *pt,
+			     const struct nlattr *nla,
+			     struct netlink_ext_ack *extack)
+{
+	u64 value;
+
+	switch (pt->type) {
+	case NLA_U8:
+		value = nla_get_u8(nla);
+		break;
+	case NLA_U16:
+		value = nla_get_u16(nla);
+		break;
+	case NLA_U32:
+		value = nla_get_u32(nla);
+		break;
+	case NLA_U64:
+		value = nla_get_u64(nla);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (value & ~(u64)pt->mask) {
+		NL_SET_ERR_MSG_ATTR(extack, nla, "reserved bit set");
+		return -EINVAL;
 	}
 
 	return 0;
@@ -156,7 +356,7 @@ static int nla_validate_int_range(const struct nla_policy *pt,
 
 static int validate_nla(const struct nlattr *nla, int maxtype,
 			const struct nla_policy *policy, unsigned int validate,
-			struct netlink_ext_ack *extack)
+			struct netlink_ext_ack *extack, unsigned int depth)
 {
 	u16 strict_start_type = policy[0].strict_start_type;
 	const struct nla_policy *pt;
@@ -173,13 +373,12 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 
 	BUG_ON(pt->type > NLA_TYPE_MAX);
 
-	if ((nla_attr_len[pt->type] && attrlen != nla_attr_len[pt->type]) ||
-	    (pt->type == NLA_EXACT_LEN_WARN && attrlen != pt->len)) {
+	if (nla_attr_len[pt->type] && attrlen != nla_attr_len[pt->type]) {
 		pr_warn_ratelimited("netlink: '%s': attribute type %d has an invalid length.\n",
 				    current->comm, type);
 		if (validate & NL_VALIDATE_STRICT_ATTRS) {
-			NL_SET_ERR_MSG_ATTR(extack, nla,
-					    "invalid attribute length");
+			NL_SET_ERR_MSG_ATTR_POL(extack, nla, pt,
+						"invalid attribute length");
 			return -EINVAL;
 		}
 	}
@@ -187,28 +386,23 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 	if (validate & NL_VALIDATE_NESTED) {
 		if ((pt->type == NLA_NESTED || pt->type == NLA_NESTED_ARRAY) &&
 		    !(nla->nla_type & NLA_F_NESTED)) {
-			NL_SET_ERR_MSG_ATTR(extack, nla,
-					    "NLA_F_NESTED is missing");
+			NL_SET_ERR_MSG_ATTR_POL(extack, nla, pt,
+						"NLA_F_NESTED is missing");
 			return -EINVAL;
 		}
 		if (pt->type != NLA_NESTED && pt->type != NLA_NESTED_ARRAY &&
 		    pt->type != NLA_UNSPEC && (nla->nla_type & NLA_F_NESTED)) {
-			NL_SET_ERR_MSG_ATTR(extack, nla,
-					    "NLA_F_NESTED not expected");
+			NL_SET_ERR_MSG_ATTR_POL(extack, nla, pt,
+						"NLA_F_NESTED not expected");
 			return -EINVAL;
 		}
 	}
 
 	switch (pt->type) {
-	case NLA_EXACT_LEN:
-		if (attrlen != pt->len)
-			goto out_err;
-		break;
-
 	case NLA_REJECT:
-		if (extack && pt->validation_data) {
+		if (extack && pt->reject_message) {
 			NL_SET_BAD_ATTR(extack, nla);
-			extack->_msg = pt->validation_data;
+			extack->_msg = pt->reject_message;
 			return -EINVAL;
 		}
 		err = -EINVAL;
@@ -223,7 +417,7 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		if (attrlen != sizeof(struct nla_bitfield32))
 			goto out_err;
 
-		err = validate_nla_bitfield32(nla, pt->validation_data);
+		err = validate_nla_bitfield32(nla, pt->bitfield32_valid);
 		if (err)
 			goto out_err;
 		break;
@@ -268,10 +462,11 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 			break;
 		if (attrlen < NLA_HDRLEN)
 			goto out_err;
-		if (pt->validation_data) {
-			err = __nla_validate(nla_data(nla), nla_len(nla), pt->len,
-					     pt->validation_data, validate,
-					     extack);
+		if (pt->nested_policy) {
+			err = __nla_validate_parse(nla_data(nla), nla_len(nla),
+						   pt->len, pt->nested_policy,
+						   validate, extack, NULL,
+						   depth + 1);
 			if (err < 0) {
 				/*
 				 * return directly to preserve the inner
@@ -289,12 +484,12 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 			break;
 		if (attrlen < NLA_HDRLEN)
 			goto out_err;
-		if (pt->validation_data) {
+		if (pt->nested_policy) {
 			int err;
 
 			err = nla_validate_array(nla_data(nla), nla_len(nla),
-						 pt->len, pt->validation_data,
-						 extack, validate);
+						 pt->len, pt->nested_policy,
+						 extack, validate, depth);
 			if (err < 0) {
 				/*
 				 * return directly to preserve the inner
@@ -311,8 +506,6 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 					    "Unsupported attribute");
 			return -EINVAL;
 		}
-		/* fall through */
-	case NLA_MIN_LEN:
 		if (attrlen < pt->len)
 			goto out_err;
 		break;
@@ -332,10 +525,17 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 	case NLA_VALIDATE_NONE:
 		/* nothing to do */
 		break;
+	case NLA_VALIDATE_RANGE_PTR:
 	case NLA_VALIDATE_RANGE:
+	case NLA_VALIDATE_RANGE_WARN_TOO_LONG:
 	case NLA_VALIDATE_MIN:
 	case NLA_VALIDATE_MAX:
-		err = nla_validate_int_range(pt, nla, extack);
+		err = nla_validate_int_range(pt, nla, extack, validate);
+		if (err)
+			return err;
+		break;
+	case NLA_VALIDATE_MASK:
+		err = nla_validate_mask(pt, nla, extack);
 		if (err)
 			return err;
 		break;
@@ -350,7 +550,8 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 
 	return 0;
 out_err:
-	NL_SET_ERR_MSG_ATTR(extack, nla, "Attribute failed policy validation");
+	NL_SET_ERR_MSG_ATTR_POL(extack, nla, pt,
+				"Attribute failed policy validation");
 	return err;
 }
 
@@ -358,10 +559,16 @@ static int __nla_validate_parse(const struct nlattr *head, int len, int maxtype,
 				const struct nla_policy *policy,
 				unsigned int validate,
 				struct netlink_ext_ack *extack,
-				struct nlattr **tb)
+				struct nlattr **tb, unsigned int depth)
 {
 	const struct nlattr *nla;
 	int rem;
+
+	if (depth >= MAX_POLICY_RECURSION_DEPTH) {
+		NL_SET_ERR_MSG(extack,
+			       "allowed policy recursion depth exceeded");
+		return -EINVAL;
+	}
 
 	if (tb)
 		memset(tb, 0, sizeof(struct nlattr *) * (maxtype + 1));
@@ -379,7 +586,7 @@ static int __nla_validate_parse(const struct nlattr *head, int len, int maxtype,
 		}
 		if (policy) {
 			int err = validate_nla(nla, maxtype, policy,
-					       validate, extack);
+					       validate, extack, depth);
 
 			if (err < 0)
 				return err;
@@ -421,7 +628,7 @@ int __nla_validate(const struct nlattr *head, int len, int maxtype,
 		   struct netlink_ext_ack *extack)
 {
 	return __nla_validate_parse(head, len, maxtype, policy, validate,
-				    extack, NULL);
+				    extack, NULL, 0);
 }
 EXPORT_SYMBOL(__nla_validate);
 
@@ -476,7 +683,7 @@ int __nla_parse(struct nlattr **tb, int maxtype,
 		struct netlink_ext_ack *extack)
 {
 	return __nla_validate_parse(head, len, maxtype, policy, validate,
-				    extack, tb);
+				    extack, tb, 0);
 }
 EXPORT_SYMBOL(__nla_parse);
 
@@ -664,8 +871,7 @@ EXPORT_SYMBOL(__nla_reserve);
 struct nlattr *__nla_reserve_64bit(struct sk_buff *skb, int attrtype,
 				   int attrlen, int padattr)
 {
-	if (nla_need_padding_for_64bit(skb))
-		nla_align_64bit(skb, padattr);
+	nla_align_64bit(skb, padattr);
 
 	return __nla_reserve(skb, attrtype, attrlen);
 }

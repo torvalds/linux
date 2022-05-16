@@ -53,8 +53,8 @@ struct cx25821_audio_buffer {
 	struct cx25821_riscmem risc;
 	void			*vaddr;
 	struct scatterlist	*sglist;
-	int                     sglen;
-	int                     nr_pages;
+	int			sglen;
+	unsigned long		nr_pages;
 };
 
 struct cx25821_audio_dev {
@@ -131,7 +131,8 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 #define PCI_MSK_AUD_EXT   (1 <<  4)
 #define PCI_MSK_AUD_INT   (1 <<  3)
 
-static int cx25821_alsa_dma_init(struct cx25821_audio_dev *chip, int nr_pages)
+static int cx25821_alsa_dma_init(struct cx25821_audio_dev *chip,
+				 unsigned long nr_pages)
 {
 	struct cx25821_audio_buffer *buf = chip->buf;
 	struct page *pg;
@@ -139,11 +140,11 @@ static int cx25821_alsa_dma_init(struct cx25821_audio_dev *chip, int nr_pages)
 
 	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (NULL == buf->vaddr) {
-		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
+		dprintk(1, "vmalloc_32(%lu pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
 
-	dprintk(1, "vmalloc is at addr 0x%p, size=%d\n",
+	dprintk(1, "vmalloc is at addr 0x%p, size=%lu\n",
 				buf->vaddr,
 				nr_pages << PAGE_SHIFT);
 
@@ -177,7 +178,7 @@ static int cx25821_alsa_dma_map(struct cx25821_audio_dev *dev)
 	struct cx25821_audio_buffer *buf = dev->buf;
 
 	buf->sglen = dma_map_sg(&dev->pci->dev, buf->sglist,
-			buf->nr_pages, PCI_DMA_FROMDEVICE);
+			buf->nr_pages, DMA_FROM_DEVICE);
 
 	if (0 == buf->sglen) {
 		pr_warn("%s: cx25821_alsa_map_sg failed\n", __func__);
@@ -193,7 +194,7 @@ static int cx25821_alsa_dma_unmap(struct cx25821_audio_dev *dev)
 	if (!buf->sglen)
 		return 0;
 
-	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->sglen, PCI_DMA_FROMDEVICE);
+	dma_unmap_sg(&dev->pci->dev, buf->sglist, buf->nr_pages, DMA_FROM_DEVICE);
 	buf->sglen = 0;
 	return 0;
 }
@@ -639,7 +640,6 @@ static struct page *snd_cx25821_page(struct snd_pcm_substream *substream,
 static const struct snd_pcm_ops snd_cx25821_pcm_ops = {
 	.open = snd_cx25821_pcm_open,
 	.close = snd_cx25821_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_cx25821_hw_params,
 	.hw_free = snd_cx25821_hw_free,
 	.prepare = snd_cx25821_prepare,

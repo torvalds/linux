@@ -75,6 +75,17 @@ config MTD_PHYSMAP_OF
 	  physically into the CPU's memory. The mapping description here is
 	  taken from OF device tree.
 
+config MTD_PHYSMAP_BT1_ROM
+	bool "Baikal-T1 Boot ROMs OF-based physical memory map handling"
+	depends on MTD_PHYSMAP_OF
+	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	select MTD_COMPLEX_MAPPINGS
+	select MULTIPLEXER
+	select MUX_MMIO
+	help
+	  This provides some extra DT physmap parsing for the Baikal-T1
+	  platforms, some detection and setting up ROMs-specific accessors.
+
 config MTD_PHYSMAP_VERSATILE
 	bool "ARM Versatile OF-based physical memory map handling"
 	depends on MTD_PHYSMAP_OF
@@ -95,6 +106,17 @@ config MTD_PHYSMAP_GEMINI
 	  This provides some extra DT physmap parsing for the Gemini
 	  platforms, some detection and setting up parallel mode on the
 	  external interface.
+
+config MTD_PHYSMAP_IXP4XX
+	bool "Intel IXP4xx OF-based physical memory map handling"
+	depends on MTD_PHYSMAP_OF
+	depends on ARM
+	select MTD_COMPLEX_MAPPINGS
+	select MTD_CFI_BE_BYTE_SWAP if CPU_BIG_ENDIAN
+	default ARCH_IXP4XX
+	help
+	  This provides some extra DT physmap parsing for the Intel IXP4xx
+	  platforms, some elaborate endianness handling in particular.
 
 config MTD_PHYSMAP_GPIO_ADDR
 	bool "GPIO-assisted Flash Chip Support"
@@ -299,7 +321,7 @@ config MTD_DC21285
 	help
 	  This provides a driver for the flash accessed using Intel's
 	  21285 bridge used with Intel's StrongARM processors. More info at
-	  <http://www.intel.com/design/bridge/docs/21285_documentation.htm>.
+	  <https://www.intel.com/design/bridge/docs/21285_documentation.htm>.
 
 config MTD_IXP4XX
 	tristate "CFI Flash device mapped on Intel IXP4xx based systems"

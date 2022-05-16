@@ -314,11 +314,9 @@ static int mlxsw_sp_ptp_parse(struct sk_buff *skb,
 			      u8 *p_message_type,
 			      u16 *p_sequence_id)
 {
-	unsigned int offset = 0;
 	unsigned int ptp_class;
-	u8 *data;
+	struct ptp_header *hdr;
 
-	data = skb_mac_header(skb);
 	ptp_class = ptp_classify_raw(skb);
 
 	switch (ptp_class & PTP_CLASS_VMASK) {
@@ -329,30 +327,14 @@ static int mlxsw_sp_ptp_parse(struct sk_buff *skb,
 		return -ERANGE;
 	}
 
-	if (ptp_class & PTP_CLASS_VLAN)
-		offset += VLAN_HLEN;
-
-	switch (ptp_class & PTP_CLASS_PMASK) {
-	case PTP_CLASS_IPV4:
-		offset += ETH_HLEN + IPV4_HLEN(data + offset) + UDP_HLEN;
-		break;
-	case PTP_CLASS_IPV6:
-		offset += ETH_HLEN + IP6_HLEN + UDP_HLEN;
-		break;
-	case PTP_CLASS_L2:
-		offset += ETH_HLEN;
-		break;
-	default:
-		return -ERANGE;
-	}
-
-	/* PTP header is 34 bytes. */
-	if (skb->len < offset + 34)
+	hdr = ptp_parse_header(skb, ptp_class);
+	if (!hdr)
 		return -EINVAL;
 
-	*p_message_type = data[offset] & 0x0f;
-	*p_domain_number = data[offset + 4];
-	*p_sequence_id = (u16)(data[offset + 30]) << 8 | data[offset + 31];
+	*p_message_type	 = ptp_get_msgtype(hdr, ptp_class);
+	*p_domain_number = hdr->domain_number;
+	*p_sequence_id	 = be16_to_cpu(hdr->sequence_id);
+
 	return 0;
 }
 
@@ -920,7 +902,10 @@ static int mlxsw_sp_ptp_get_message_types(const struct hwtstamp_config *config,
 		egr_types = 0xff;
 		break;
 	case HWTSTAMP_TX_ONESTEP_SYNC:
+	case HWTSTAMP_TX_ONESTEP_P2P:
 		return -ERANGE;
+	default:
+		return -EINVAL;
 	}
 
 	switch (rx_filter) {
@@ -951,6 +936,8 @@ static int mlxsw_sp_ptp_get_message_types(const struct hwtstamp_config *config,
 	case HWTSTAMP_FILTER_SOME:
 	case HWTSTAMP_FILTER_NTP_ALL:
 		return -ERANGE;
+	default:
+		return -EINVAL;
 	}
 
 	*p_ing_types = ing_types;
@@ -1015,27 +1002,17 @@ mlxsw_sp1_ptp_port_shaper_set(struct mlxsw_sp_port *mlxsw_sp_port, bool enable)
 
 static int mlxsw_sp1_ptp_port_shaper_check(struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	char ptys_pl[MLXSW_REG_PTYS_LEN];
-	u32 eth_proto_oper, speed;
 	bool ptps = false;
 	int err, i;
+	u32 speed;
 
 	if (!mlxsw_sp1_ptp_hwtstamp_enabled(mlxsw_sp_port))
 		return mlxsw_sp1_ptp_port_shaper_set(mlxsw_sp_port, false);
 
-	port_type_speed_ops = mlxsw_sp->port_type_speed_ops;
-	port_type_speed_ops->reg_ptys_eth_pack(mlxsw_sp, ptys_pl,
-					       mlxsw_sp_port->local_port, 0,
-					       false);
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
+	err = mlxsw_sp_port_speed_get(mlxsw_sp_port, &speed);
 	if (err)
 		return err;
-	port_type_speed_ops->reg_ptys_eth_unpack(mlxsw_sp, ptys_pl, NULL, NULL,
-						 &eth_proto_oper);
 
-	speed = port_type_speed_ops->from_ptys_speed(mlxsw_sp, eth_proto_oper);
 	for (i = 0; i < MLXSW_SP1_PTP_SHAPER_PARAMS_LEN; i++) {
 		if (mlxsw_sp1_ptp_shaper_params[i].ethtool_speed == speed) {
 			ptps = true;

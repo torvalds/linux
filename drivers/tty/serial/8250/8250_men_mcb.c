@@ -51,7 +51,7 @@ static u32 men_lookup_uartclk(struct mcb_device *mdev)
 	return clkval;
 }
 
-static unsigned int get_num_ports(struct mcb_device *mdev,
+static int get_num_ports(struct mcb_device *mdev,
 				  void __iomem *membase)
 {
 	switch (mdev->id) {
@@ -140,7 +140,7 @@ static void serial_8250_men_mcb_remove(struct mcb_device *mdev)
 		return;
 
 	num_ports = get_num_ports(mdev, data[0].uart.port.membase);
-	if (num_ports < 0 || num_ports > 4) {
+	if (num_ports <= 0 || num_ports > 4) {
 		dev_err(&mdev->dev, "error retrieving number of ports!\n");
 		return;
 	}
@@ -174,3 +174,4 @@ MODULE_AUTHOR("Michael Moese <michael.moese@men.de");
 MODULE_ALIAS("mcb:16z125");
 MODULE_ALIAS("mcb:16z025");
 MODULE_ALIAS("mcb:16z057");
+MODULE_IMPORT_NS(MCB);

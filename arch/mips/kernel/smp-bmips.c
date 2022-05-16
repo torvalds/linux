@@ -28,10 +28,8 @@
 #include <linux/kexec.h>
 
 #include <asm/time.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/bootinfo.h>
-#include <asm/pmon.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/mipsregs.h>
@@ -241,6 +239,8 @@ static int bmips_boot_secondary(int cpu, struct task_struct *idle)
  */
 static void bmips_init_secondary(void)
 {
+	bmips_cpu_setup();
+
 	switch (current_cpu_type()) {
 	case CPU_BMIPS4350:
 	case CPU_BMIPS4380:

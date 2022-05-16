@@ -93,19 +93,18 @@ static const struct drm_display_mode ls037v7dw01_mode = {
 	.vsync_start = 640 + 1,
 	.vsync_end = 640 + 1 + 1,
 	.vtotal = 640 + 1 + 1 + 1,
-	.vrefresh = 58,
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	.width_mm = 56,
 	.height_mm = 75,
 };
 
-static int ls037v7dw01_get_modes(struct drm_panel *panel)
+static int ls037v7dw01_get_modes(struct drm_panel *panel,
+				 struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &ls037v7dw01_mode);
+	mode = drm_mode_duplicate(connector->dev, &ls037v7dw01_mode);
 	if (!mode)
 		return -ENOMEM;
 
@@ -185,11 +184,12 @@ static int ls037v7dw01_probe(struct platform_device *pdev)
 		return PTR_ERR(lcd->ud_gpio);
 	}
 
-	drm_panel_init(&lcd->panel);
-	lcd->panel.dev = &pdev->dev;
-	lcd->panel.funcs = &ls037v7dw01_funcs;
+	drm_panel_init(&lcd->panel, &pdev->dev, &ls037v7dw01_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
-	return drm_panel_add(&lcd->panel);
+	drm_panel_add(&lcd->panel);
+
+	return 0;
 }
 
 static int ls037v7dw01_remove(struct platform_device *pdev)

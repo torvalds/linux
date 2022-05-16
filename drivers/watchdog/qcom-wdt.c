@@ -40,6 +40,11 @@ static const u32 reg_offset_data_kpss[] = {
 	[WDT_BITE_TIME] = 0x14,
 };
 
+struct qcom_wdt_match_data {
+	const u32 *offset;
+	bool pretimeout;
+};
+
 struct qcom_wdt {
 	struct watchdog_device	wdd;
 	unsigned long		rate;
@@ -179,19 +184,29 @@ static void qcom_clk_disable_unprepare(void *data)
 	clk_disable_unprepare(data);
 }
 
+static const struct qcom_wdt_match_data match_data_apcs_tmr = {
+	.offset = reg_offset_data_apcs_tmr,
+	.pretimeout = false,
+};
+
+static const struct qcom_wdt_match_data match_data_kpss = {
+	.offset = reg_offset_data_kpss,
+	.pretimeout = true,
+};
+
 static int qcom_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct qcom_wdt *wdt;
 	struct resource *res;
 	struct device_node *np = dev->of_node;
-	const u32 *regs;
+	const struct qcom_wdt_match_data *data;
 	u32 percpu_offset;
 	int irq, ret;
 	struct clk *clk;
 
-	regs = of_device_get_match_data(dev);
-	if (!regs) {
+	data = of_device_get_match_data(dev);
+	if (!data) {
 		dev_err(dev, "Unsupported QCOM WDT module\n");
 		return -ENODEV;
 	}
@@ -246,10 +261,9 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	}
 
 	/* check if there is pretimeout support */
-	irq = platform_get_irq(pdev, 0);
-	if (irq > 0) {
-		ret = devm_request_irq(dev, irq, qcom_wdt_isr,
-				       IRQF_TRIGGER_RISING,
+	irq = platform_get_irq_optional(pdev, 0);
+	if (data->pretimeout && irq > 0) {
+		ret = devm_request_irq(dev, irq, qcom_wdt_isr, 0,
 				       "wdt_bark", &wdt->wdd);
 		if (ret)
 			return ret;
@@ -267,7 +281,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.min_timeout = 1;
 	wdt->wdd.max_timeout = 0x10000000U / wdt->rate;
 	wdt->wdd.parent = dev;
-	wdt->layout = regs;
+	wdt->layout = data->offset;
 
 	if (readl(wdt_addr(wdt, WDT_STS)) & 1)
 		wdt->wdd.bootstatus = WDIOF_CARDRESET;
@@ -311,9 +325,9 @@ static int __maybe_unused qcom_wdt_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(qcom_wdt_pm_ops, qcom_wdt_suspend, qcom_wdt_resume);
 
 static const struct of_device_id qcom_wdt_of_table[] = {
-	{ .compatible = "qcom,kpss-timer", .data = reg_offset_data_apcs_tmr },
-	{ .compatible = "qcom,scss-timer", .data = reg_offset_data_apcs_tmr },
-	{ .compatible = "qcom,kpss-wdt", .data = reg_offset_data_kpss },
+	{ .compatible = "qcom,kpss-timer", .data = &match_data_apcs_tmr },
+	{ .compatible = "qcom,scss-timer", .data = &match_data_apcs_tmr },
+	{ .compatible = "qcom,kpss-wdt", .data = &match_data_kpss },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, qcom_wdt_of_table);

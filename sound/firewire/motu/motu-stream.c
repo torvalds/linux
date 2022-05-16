@@ -88,7 +88,7 @@ static void finish_session(struct snd_motu *motu)
 	u32 data;
 	int err;
 
-	err = motu->spec->protocol->switch_fetching_mode(motu, false);
+	err = snd_motu_protocol_switch_fetching_mode(motu, false);
 	if (err < 0)
 		return;
 
@@ -110,7 +110,7 @@ int snd_motu_stream_cache_packet_formats(struct snd_motu *motu)
 {
 	int err;
 
-	err = motu->spec->protocol->cache_packet_formats(motu);
+	err = snd_motu_protocol_cache_packet_formats(motu);
 	if (err < 0)
 		return err;
 
@@ -133,12 +133,14 @@ int snd_motu_stream_cache_packet_formats(struct snd_motu *motu)
 	return 0;
 }
 
-int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate)
+int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate,
+				   unsigned int frames_per_period,
+				   unsigned int frames_per_buffer)
 {
 	unsigned int curr_rate;
 	int err;
 
-	err = motu->spec->protocol->get_clock_rate(motu, &curr_rate);
+	err = snd_motu_protocol_get_clock_rate(motu, &curr_rate);
 	if (err < 0)
 		return err;
 	if (rate == 0)
@@ -151,7 +153,7 @@ int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate)
 		fw_iso_resources_free(&motu->tx_resources);
 		fw_iso_resources_free(&motu->rx_resources);
 
-		err = motu->spec->protocol->set_clock_rate(motu, rate);
+		err = snd_motu_protocol_set_clock_rate(motu, rate);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
 				"fail to set sampling rate: %d\n", err);
@@ -169,6 +171,14 @@ int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate)
 		err = keep_resources(motu, rate, &motu->rx_stream);
 		if (err < 0) {
 			fw_iso_resources_free(&motu->tx_resources);
+			return err;
+		}
+
+		err = amdtp_domain_set_events_per_period(&motu->domain,
+					frames_per_period, frames_per_buffer);
+		if (err < 0) {
+			fw_iso_resources_free(&motu->tx_resources);
+			fw_iso_resources_free(&motu->rx_resources);
 			return err;
 		}
 	}
@@ -191,9 +201,9 @@ static int ensure_packet_formats(struct snd_motu *motu)
 	data &= ~(TX_PACKET_EXCLUDE_DIFFERED_DATA_CHUNKS |
 		  RX_PACKET_EXCLUDE_DIFFERED_DATA_CHUNKS|
 		  TX_PACKET_TRANSMISSION_SPEED_MASK);
-	if (motu->tx_packet_formats.differed_part_pcm_chunks[0] == 0)
+	if (motu->spec->tx_fixed_pcm_chunks[0] == motu->tx_packet_formats.pcm_chunks[0])
 		data |= TX_PACKET_EXCLUDE_DIFFERED_DATA_CHUNKS;
-	if (motu->rx_packet_formats.differed_part_pcm_chunks[0] == 0)
+	if (motu->spec->rx_fixed_pcm_chunks[0] == motu->rx_packet_formats.pcm_chunks[0])
 		data |= RX_PACKET_EXCLUDE_DIFFERED_DATA_CHUNKS;
 	data |= fw_parent_device(motu->unit)->max_speed;
 
@@ -250,7 +260,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu)
 		if (err < 0)
 			goto stop_streams;
 
-		err = amdtp_domain_start(&motu->domain);
+		err = amdtp_domain_start(&motu->domain, 0);
 		if (err < 0)
 			goto stop_streams;
 
@@ -262,7 +272,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu)
 			goto stop_streams;
 		}
 
-		err = motu->spec->protocol->switch_fetching_mode(motu, true);
+		err = snd_motu_protocol_switch_fetching_mode(motu, true);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
 				"fail to enable frame fetching: %d\n", err);
@@ -307,7 +317,7 @@ static int init_stream(struct snd_motu *motu, struct amdtp_stream *s)
 	if (err < 0)
 		return err;
 
-	err = amdtp_motu_init(s, motu->unit, dir, motu->spec->protocol);
+	err = amdtp_motu_init(s, motu->unit, dir, motu->spec);
 	if (err < 0)
 		fw_iso_resources_destroy(resources);
 

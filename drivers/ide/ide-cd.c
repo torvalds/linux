@@ -25,6 +25,7 @@
 
 #define IDECD_VERSION "5.00"
 
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -349,7 +350,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 		 */
 		if (scsi_req(rq)->cmd[0] == GPCMD_START_STOP_UNIT)
 			break;
-		/* fall-through */
+		fallthrough;
 	case DATA_PROTECT:
 		/*
 		 * No point in retrying after an illegal request or data
@@ -749,7 +750,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	case REQ_OP_DRV_IN:
 	case REQ_OP_DRV_OUT:
 		expiry = ide_cd_expiry;
-		/*FALLTHRU*/
+		fallthrough;
 	default:
 		timeout = ATAPI_WAIT_PC;
 		break;
@@ -1033,8 +1034,8 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 	return 0;
 }
 
-static int cdrom_read_tocentry(ide_drive_t *drive, int trackno, int msf_flag,
-				int format, char *buf, int buflen)
+static int ide_cdrom_read_tocentry(ide_drive_t *drive, int trackno,
+		int msf_flag, int format, char *buf, int buflen)
 {
 	unsigned char cmd[BLK_MAX_CDB];
 
@@ -1103,7 +1104,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 				     sectors_per_frame << SECTOR_SHIFT);
 
 	/* first read just the header, so we know how long the TOC is */
-	stat = cdrom_read_tocentry(drive, 0, 1, 0, (char *) &toc->hdr,
+	stat = ide_cdrom_read_tocentry(drive, 0, 1, 0, (char *) &toc->hdr,
 				    sizeof(struct atapi_toc_header));
 	if (stat)
 		return stat;
@@ -1120,7 +1121,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 		ntracks = MAX_TRACKS;
 
 	/* now read the whole schmeer */
-	stat = cdrom_read_tocentry(drive, toc->hdr.first_track, 1, 0,
+	stat = ide_cdrom_read_tocentry(drive, toc->hdr.first_track, 1, 0,
 				  (char *)&toc->hdr,
 				   sizeof(struct atapi_toc_header) +
 				   (ntracks + 1) *
@@ -1140,7 +1141,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 		 * Heiko Eißfeldt.
 		 */
 		ntracks = 0;
-		stat = cdrom_read_tocentry(drive, CDROM_LEADOUT, 1, 0,
+		stat = ide_cdrom_read_tocentry(drive, CDROM_LEADOUT, 1, 0,
 					   (char *)&toc->hdr,
 					   sizeof(struct atapi_toc_header) +
 					   (ntracks + 1) *
@@ -1180,7 +1181,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 
 	if (toc->hdr.first_track != CDROM_LEADOUT) {
 		/* read the multisession information */
-		stat = cdrom_read_tocentry(drive, 0, 0, 1, (char *)&ms_tmp,
+		stat = ide_cdrom_read_tocentry(drive, 0, 0, 1, (char *)&ms_tmp,
 					   sizeof(ms_tmp));
 		if (stat)
 			return stat;
@@ -1194,7 +1195,7 @@ int ide_cd_read_toc(ide_drive_t *drive)
 
 	if (drive->atapi_flags & IDE_AFLAG_TOCADDR_AS_BCD) {
 		/* re-read multisession information using MSF format */
-		stat = cdrom_read_tocentry(drive, 0, 1, 1, (char *)&ms_tmp,
+		stat = ide_cdrom_read_tocentry(drive, 0, 1, 1, (char *)&ms_tmp,
 					   sizeof(ms_tmp));
 		if (stat)
 			return stat;
@@ -1304,8 +1305,7 @@ static int ide_cdrom_register(ide_drive_t *drive, int nslots)
 	if (drive->atapi_flags & IDE_AFLAG_NO_SPEED_SELECT)
 		devinfo->mask |= CDC_SELECT_SPEED;
 
-	devinfo->disk = info->disk;
-	return register_cdrom(devinfo);
+	return register_cdrom(info->disk, devinfo);
 }
 
 static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
@@ -1611,7 +1611,11 @@ static int idecd_open(struct block_device *bdev, fmode_t mode)
 	struct cdrom_info *info;
 	int rc = -ENXIO;
 
-	check_disk_change(bdev);
+	if (bdev_check_media_change(bdev)) {
+		info = ide_drv_g(bdev->bd_disk, cdrom_info);
+
+		ide_cd_read_toc(info->drive);
+	}
 
 	mutex_lock(&ide_cd_mutex);
 	info = ide_cd_get(bdev->bd_disk);
@@ -1710,6 +1714,41 @@ static int idecd_ioctl(struct block_device *bdev, fmode_t mode,
 	return ret;
 }
 
+static int idecd_locked_compat_ioctl(struct block_device *bdev, fmode_t mode,
+			unsigned int cmd, unsigned long arg)
+{
+	struct cdrom_info *info = ide_drv_g(bdev->bd_disk, cdrom_info);
+	void __user *argp = compat_ptr(arg);
+	int err;
+
+	switch (cmd) {
+	case CDROMSETSPINDOWN:
+		return idecd_set_spindown(&info->devinfo, (unsigned long)argp);
+	case CDROMGETSPINDOWN:
+		return idecd_get_spindown(&info->devinfo, (unsigned long)argp);
+	default:
+		break;
+	}
+
+	err = generic_ide_ioctl(info->drive, bdev, cmd, arg);
+	if (err == -EINVAL)
+		err = cdrom_ioctl(&info->devinfo, bdev, mode, cmd,
+				  (unsigned long)argp);
+
+	return err;
+}
+
+static int idecd_compat_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	mutex_lock(&ide_cd_mutex);
+	ret = idecd_locked_compat_ioctl(bdev, mode, cmd, arg);
+	mutex_unlock(&ide_cd_mutex);
+
+	return ret;
+}
 
 static unsigned int idecd_check_events(struct gendisk *disk,
 				       unsigned int clearing)
@@ -1718,22 +1757,14 @@ static unsigned int idecd_check_events(struct gendisk *disk,
 	return cdrom_check_events(&info->devinfo, clearing);
 }
 
-static int idecd_revalidate_disk(struct gendisk *disk)
-{
-	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
-
-	ide_cd_read_toc(info->drive);
-
-	return  0;
-}
-
 static const struct block_device_operations idecd_ops = {
 	.owner			= THIS_MODULE,
 	.open			= idecd_open,
 	.release		= idecd_release,
 	.ioctl			= idecd_ioctl,
+	.compat_ioctl		= IS_ENABLED(CONFIG_COMPAT) ?
+				  idecd_compat_ioctl : NULL,
 	.check_events		= idecd_check_events,
-	.revalidate_disk	= idecd_revalidate_disk
 };
 
 /* module options */

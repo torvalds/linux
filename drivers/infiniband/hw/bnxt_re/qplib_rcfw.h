@@ -87,12 +87,6 @@ static inline u32 bnxt_qplib_cmdqe_page_size(u32 depth)
 	return (bnxt_qplib_cmdqe_npages(depth) * PAGE_SIZE);
 }
 
-static inline u32 bnxt_qplib_cmdqe_cnt_per_pg(u32 depth)
-{
-	return (bnxt_qplib_cmdqe_page_size(depth) /
-		 BNXT_QPLIB_CMDQE_UNITS);
-}
-
 /* Set the cmd_size to a factor of CMDQE unit */
 static inline void bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
 {
@@ -100,29 +94,11 @@ static inline void bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
 			 BNXT_QPLIB_CMDQE_UNITS;
 }
 
-#define MAX_CMDQ_IDX(depth)		((depth) - 1)
-
-static inline u32 bnxt_qplib_max_cmdq_idx_per_pg(u32 depth)
-{
-	return (bnxt_qplib_cmdqe_cnt_per_pg(depth) - 1);
-}
-
 #define RCFW_MAX_COOKIE_VALUE		0x7FFF
 #define RCFW_CMD_IS_BLOCKING		0x8000
 #define RCFW_BLOCKED_CMD_WAIT_COUNT	0x4E20
 
 #define HWRM_VERSION_RCFW_CMDQ_DEPTH_CHECK 0x1000900020011ULL
-
-static inline u32 get_cmdq_pg(u32 val, u32 depth)
-{
-	return (val & ~(bnxt_qplib_max_cmdq_idx_per_pg(depth))) /
-		(bnxt_qplib_cmdqe_cnt_per_pg(depth));
-}
-
-static inline u32 get_cmdq_idx(u32 val, u32 depth)
-{
-	return val & (bnxt_qplib_max_cmdq_idx_per_pg(depth));
-}
 
 /* Crsq buf is 1024-Byte */
 struct bnxt_qplib_crsbe {
@@ -133,81 +109,15 @@ struct bnxt_qplib_crsbe {
 /* Allocate 1 per QP for async error notification for now */
 #define BNXT_QPLIB_CREQE_MAX_CNT	(64 * 1024)
 #define BNXT_QPLIB_CREQE_UNITS		16	/* 16-Bytes per prod unit */
-#define BNXT_QPLIB_CREQE_CNT_PER_PG	(PAGE_SIZE / BNXT_QPLIB_CREQE_UNITS)
-
-#define MAX_CREQ_IDX			(BNXT_QPLIB_CREQE_MAX_CNT - 1)
-#define MAX_CREQ_IDX_PER_PG		(BNXT_QPLIB_CREQE_CNT_PER_PG - 1)
-
-static inline u32 get_creq_pg(u32 val)
-{
-	return (val & ~MAX_CREQ_IDX_PER_PG) / BNXT_QPLIB_CREQE_CNT_PER_PG;
-}
-
-static inline u32 get_creq_idx(u32 val)
-{
-	return val & MAX_CREQ_IDX_PER_PG;
-}
-
-#define BNXT_QPLIB_CREQE_PER_PG	(PAGE_SIZE / sizeof(struct creq_base))
-
 #define CREQ_CMP_VALID(hdr, raw_cons, cp_bit)			\
 	(!!((hdr)->v & CREQ_BASE_V) ==				\
 	   !((raw_cons) & (cp_bit)))
-
-#define CREQ_DB_KEY_CP			(0x2 << CMPL_DOORBELL_KEY_SFT)
-#define CREQ_DB_IDX_VALID		CMPL_DOORBELL_IDX_VALID
-#define CREQ_DB_IRQ_DIS			CMPL_DOORBELL_MASK
-#define CREQ_DB_CP_FLAGS_REARM		(CREQ_DB_KEY_CP |	\
-					 CREQ_DB_IDX_VALID)
-#define CREQ_DB_CP_FLAGS		(CREQ_DB_KEY_CP |	\
-					 CREQ_DB_IDX_VALID |	\
-					 CREQ_DB_IRQ_DIS)
-
-static inline void bnxt_qplib_ring_creq_db64(void __iomem *db, u32 index,
-					     u32 xid, bool arm)
-{
-	u64 val = 0;
-
-	val = xid & DBC_DBC_XID_MASK;
-	val |= DBC_DBC_PATH_ROCE;
-	val |= arm ? DBC_DBC_TYPE_NQ_ARM : DBC_DBC_TYPE_NQ;
-	val <<= 32;
-	val |= index & DBC_DBC_INDEX_MASK;
-
-	writeq(val, db);
-}
-
-static inline void bnxt_qplib_ring_creq_db_rearm(void __iomem *db, u32 raw_cons,
-						 u32 max_elements, u32 xid,
-						 bool gen_p5)
-{
-	u32 index = raw_cons & (max_elements - 1);
-
-	if (gen_p5)
-		bnxt_qplib_ring_creq_db64(db, index, xid, true);
-	else
-		writel(CREQ_DB_CP_FLAGS_REARM | (index & DBC_DBC32_XID_MASK),
-		       db);
-}
-
-static inline void bnxt_qplib_ring_creq_db(void __iomem *db, u32 raw_cons,
-					   u32 max_elements, u32 xid,
-					   bool gen_p5)
-{
-	u32 index = raw_cons & (max_elements - 1);
-
-	if (gen_p5)
-		bnxt_qplib_ring_creq_db64(db, index, xid, true);
-	else
-		writel(CREQ_DB_CP_FLAGS | (index & DBC_DBC32_XID_MASK),
-		       db);
-}
-
 #define CREQ_ENTRY_POLL_BUDGET		0x100
 
 /* HWQ */
+typedef int (*aeq_handler_t)(struct bnxt_qplib_rcfw *, void *, void *);
 
-struct bnxt_qplib_crsq {
+struct bnxt_qplib_crsqe {
 	struct creq_qp_event	*resp;
 	u32			req_size;
 };
@@ -225,41 +135,53 @@ struct bnxt_qplib_qp_node {
 
 #define BNXT_QPLIB_OOS_COUNT_MASK 0xFFFFFFFF
 
+#define FIRMWARE_INITIALIZED_FLAG	(0)
+#define FIRMWARE_FIRST_FLAG		(31)
+#define FIRMWARE_TIMED_OUT		(3)
+struct bnxt_qplib_cmdq_mbox {
+	struct bnxt_qplib_reg_desc	reg;
+	void __iomem			*prod;
+	void __iomem			*db;
+};
+
+struct bnxt_qplib_cmdq_ctx {
+	struct bnxt_qplib_hwq		hwq;
+	struct bnxt_qplib_cmdq_mbox	cmdq_mbox;
+	wait_queue_head_t		waitq;
+	unsigned long			flags;
+	unsigned long			*cmdq_bitmap;
+	u32				bmap_size;
+	u32				seq_num;
+};
+
+struct bnxt_qplib_creq_db {
+	struct bnxt_qplib_reg_desc	reg;
+	struct bnxt_qplib_db_info	dbinfo;
+};
+
+struct bnxt_qplib_creq_stat {
+	u64	creq_qp_event_processed;
+	u64	creq_func_event_processed;
+};
+
+struct bnxt_qplib_creq_ctx {
+	struct bnxt_qplib_hwq		hwq;
+	struct bnxt_qplib_creq_db	creq_db;
+	struct bnxt_qplib_creq_stat	stats;
+	struct tasklet_struct		creq_tasklet;
+	aeq_handler_t			aeq_handler;
+	u16				ring_id;
+	int				msix_vec;
+	bool				requested; /*irq handler installed */
+};
+
 /* RCFW Communication Channels */
 struct bnxt_qplib_rcfw {
 	struct pci_dev		*pdev;
 	struct bnxt_qplib_res	*res;
-	int			vector;
-	struct tasklet_struct	worker;
-	bool			requested;
-	unsigned long		*cmdq_bitmap;
-	u32			bmap_size;
-	unsigned long		flags;
-#define FIRMWARE_INITIALIZED_FLAG	0
-#define FIRMWARE_FIRST_FLAG		31
-#define FIRMWARE_TIMED_OUT		3
-	wait_queue_head_t	waitq;
-	int			(*aeq_handler)(struct bnxt_qplib_rcfw *,
-					       void *, void *);
-	u32			seq_num;
-
-	/* Bar region info */
-	void __iomem		*cmdq_bar_reg_iomem;
-	u16			cmdq_bar_reg;
-	u16			cmdq_bar_reg_prod_off;
-	u16			cmdq_bar_reg_trig_off;
-	u16			creq_ring_id;
-	u16			creq_bar_reg;
-	void __iomem		*creq_bar_reg_iomem;
-
-	/* Cmd-Resp and Async Event notification queue */
-	struct bnxt_qplib_hwq	creq;
-	u64			creq_qp_event_processed;
-	u64			creq_func_event_processed;
-
-	/* Actual Cmd and Resp Queues */
-	struct bnxt_qplib_hwq	cmdq;
-	struct bnxt_qplib_crsq	*crsqe_tbl;
+	struct bnxt_qplib_cmdq_ctx	cmdq;
+	struct bnxt_qplib_creq_ctx	creq;
+	struct bnxt_qplib_crsqe		*crsqe_tbl;
 	int qp_tbl_size;
 	struct bnxt_qplib_qp_node *qp_tbl;
 	u64 oos_prev;
@@ -268,7 +190,7 @@ struct bnxt_qplib_rcfw {
 };
 
 void bnxt_qplib_free_rcfw_channel(struct bnxt_qplib_rcfw *rcfw);
-int bnxt_qplib_alloc_rcfw_channel(struct pci_dev *pdev,
+int bnxt_qplib_alloc_rcfw_channel(struct bnxt_qplib_res *res,
 				  struct bnxt_qplib_rcfw *rcfw,
 				  struct bnxt_qplib_ctx *ctx,
 				  int qp_tbl_sz);
@@ -276,12 +198,10 @@ void bnxt_qplib_rcfw_stop_irq(struct bnxt_qplib_rcfw *rcfw, bool kill);
 void bnxt_qplib_disable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw);
 int bnxt_qplib_rcfw_start_irq(struct bnxt_qplib_rcfw *rcfw, int msix_vector,
 			      bool need_init);
-int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
-				   struct bnxt_qplib_rcfw *rcfw,
+int bnxt_qplib_enable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw,
 				   int msix_vector,
 				   int cp_bar_reg_off, int virt_fn,
-				   int (*aeq_handler)(struct bnxt_qplib_rcfw *,
-						      void *aeqe, void *obj));
+				   aeq_handler_t aeq_handler);
 
 struct bnxt_qplib_rcfw_sbuf *bnxt_qplib_rcfw_alloc_sbuf(
 				struct bnxt_qplib_rcfw *rcfw,
@@ -296,4 +216,9 @@ int bnxt_qplib_deinit_rcfw(struct bnxt_qplib_rcfw *rcfw);
 int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 			 struct bnxt_qplib_ctx *ctx, int is_virtfn);
 void bnxt_qplib_mark_qp_error(void *qp_handle);
+static inline u32 map_qp_id_to_tbl_indx(u32 qid, struct bnxt_qplib_rcfw *rcfw)
+{
+	/* Last index of the qp_tbl is for QP1 ie. qp_tbl_size - 1*/
+	return (qid == 1) ? rcfw->qp_tbl_size - 1 : qid % rcfw->qp_tbl_size - 2;
+}
 #endif /* __BNXT_QPLIB_RCFW_H__ */

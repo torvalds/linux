@@ -144,12 +144,11 @@ static int mlx4_ib_get_cq_umem(struct mlx4_ib_dev *dev, struct ib_udata *udata,
 	int shift;
 	int n;
 
-	*umem = ib_umem_get(udata, buf_addr, cqe * cqe_size,
-			    IB_ACCESS_LOCAL_WRITE, 1);
+	*umem = ib_umem_get(&dev->ib_dev, buf_addr, cqe * cqe_size,
+			    IB_ACCESS_LOCAL_WRITE);
 	if (IS_ERR(*umem))
 		return PTR_ERR(*umem);
 
-	n = ib_umem_page_count(*umem);
 	shift = mlx4_ib_umem_calc_optimal_mtt_size(*umem, 0, &n);
 	err = mlx4_mtt_init(dev->dev, n, shift, &buf->mtt);
 
@@ -475,7 +474,7 @@ out:
 	return err;
 }
 
-void mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
+int mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(cq->device);
 	struct mlx4_ib_cq *mcq = to_mcq(cq);
@@ -495,6 +494,7 @@ void mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 		mlx4_db_free(dev->dev, &mcq->db);
 	}
 	ib_umem_release(mcq->umem);
+	return 0;
 }
 
 static void dump_cqe(void *cqe)
@@ -568,18 +568,13 @@ static void mlx4_ib_handle_error_cqe(struct mlx4_err_cqe *cqe,
 	wc->vendor_err = cqe->vendor_err_syndrome;
 }
 
-static int mlx4_ib_ipoib_csum_ok(__be16 status, __be16 checksum)
+static int mlx4_ib_ipoib_csum_ok(__be16 status, u8 badfcs_enc, __be16 checksum)
 {
-	return ((status & cpu_to_be16(MLX4_CQE_STATUS_IPV4      |
-				      MLX4_CQE_STATUS_IPV4F     |
-				      MLX4_CQE_STATUS_IPV4OPT   |
-				      MLX4_CQE_STATUS_IPV6      |
-				      MLX4_CQE_STATUS_IPOK)) ==
-		cpu_to_be16(MLX4_CQE_STATUS_IPV4        |
-			    MLX4_CQE_STATUS_IPOK))              &&
-		(status & cpu_to_be16(MLX4_CQE_STATUS_UDP       |
-				      MLX4_CQE_STATUS_TCP))     &&
-		checksum == cpu_to_be16(0xffff);
+	return ((badfcs_enc & MLX4_CQE_STATUS_L4_CSUM) ||
+		((status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
+		 (status & cpu_to_be16(MLX4_CQE_STATUS_TCP |
+				       MLX4_CQE_STATUS_UDP)) &&
+		 (checksum == cpu_to_be16(0xffff))));
 }
 
 static void use_tunnel_data(struct mlx4_ib_qp *qp, struct mlx4_ib_cq *cq, struct ib_wc *wc,
@@ -770,13 +765,13 @@ repoll:
 		switch (cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) {
 		case MLX4_OPCODE_RDMA_WRITE_IMM:
 			wc->wc_flags |= IB_WC_WITH_IMM;
-			/* fall through */
+			fallthrough;
 		case MLX4_OPCODE_RDMA_WRITE:
 			wc->opcode    = IB_WC_RDMA_WRITE;
 			break;
 		case MLX4_OPCODE_SEND_IMM:
 			wc->wc_flags |= IB_WC_WITH_IMM;
-			/* fall through */
+			fallthrough;
 		case MLX4_OPCODE_SEND:
 		case MLX4_OPCODE_SEND_INVAL:
 			wc->opcode    = IB_WC_SEND;
@@ -855,6 +850,7 @@ repoll:
 		wc->wc_flags	  |= g_mlpath_rqpn & 0x80000000 ? IB_WC_GRH : 0;
 		wc->pkey_index     = be32_to_cpu(cqe->immed_rss_invalid) & 0x7f;
 		wc->wc_flags	  |= mlx4_ib_ipoib_csum_ok(cqe->status,
+					cqe->badfcs_enc,
 					cqe->checksum) ? IB_WC_IP_CSUM_OK : 0;
 		if (is_eth) {
 			wc->slid = 0;

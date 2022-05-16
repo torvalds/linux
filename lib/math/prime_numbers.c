@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#define pr_fmt(fmt) "prime numbers: " fmt "\n"
+#define pr_fmt(fmt) "prime numbers: " fmt
 
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -253,7 +253,7 @@ static void dump_primes(void)
 
 	if (buf)
 		bitmap_print_to_pagebuf(true, buf, p->primes, p->sz);
-	pr_info("primes.{last=%lu, .sz=%lu, .primes[]=...x%lx} = %s",
+	pr_info("primes.{last=%lu, .sz=%lu, .primes[]=...x%lx} = %s\n",
 		p->last, p->sz, p->primes[BITS_TO_LONGS(p->sz) - 1], buf);
 
 	rcu_read_unlock();
@@ -273,7 +273,7 @@ static int selftest(unsigned long max)
 		bool fast = is_prime_number(x);
 
 		if (slow != fast) {
-			pr_err("inconsistent result for is-prime(%lu): slow=%s, fast=%s!",
+			pr_err("inconsistent result for is-prime(%lu): slow=%s, fast=%s!\n",
 			       x, slow ? "yes" : "no", fast ? "yes" : "no");
 			goto err;
 		}
@@ -282,14 +282,14 @@ static int selftest(unsigned long max)
 			continue;
 
 		if (next_prime_number(last) != x) {
-			pr_err("incorrect result for next-prime(%lu): expected %lu, got %lu",
+			pr_err("incorrect result for next-prime(%lu): expected %lu, got %lu\n",
 			       last, x, next_prime_number(last));
 			goto err;
 		}
 		last = x;
 	}
 
-	pr_info("selftest(%lu) passed, last prime was %lu", x, last);
+	pr_info("%s(%lu) passed, last prime was %lu\n", __func__, x, last);
 	return 0;
 
 err:

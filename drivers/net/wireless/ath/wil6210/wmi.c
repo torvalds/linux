@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/moduleparam.h>
@@ -43,7 +32,7 @@ MODULE_PARM_DESC(led_id,
 #define WIL_WMI_PCP_STOP_TO_MS 5000
 
 /**
- * WMI event receiving - theory of operations
+ * DOC: WMI event receiving - theory of operations
  *
  * When firmware about to report WMI event, it fills memory area
  * in the mailbox and raises misc. IRQ. Thread interrupt handler invoked for
@@ -60,7 +49,7 @@ MODULE_PARM_DESC(led_id,
  */
 
 /**
- * Addressing - theory of operations
+ * DOC: Addressing - theory of operations
  *
  * There are several buses present on the WIL6210 card.
  * Same memory areas are visible at different address on
@@ -77,8 +66,7 @@ MODULE_PARM_DESC(led_id,
  * AHB address must be used.
  */
 
-/**
- * @sparrow_fw_mapping provides memory remapping table for sparrow
+/* sparrow_fw_mapping provides memory remapping table for sparrow
  *
  * array size should be in sync with the declaration in the wil6210.h
  *
@@ -114,16 +102,14 @@ const struct fw_map sparrow_fw_mapping[] = {
 	{0x800000, 0x804000, 0x940000, "uc_data", false, false},
 };
 
-/**
- * @sparrow_d0_mac_rgf_ext - mac_rgf_ext section for Sparrow D0
+/* sparrow_d0_mac_rgf_ext - mac_rgf_ext section for Sparrow D0
  * it is a bit larger to support extra features
  */
 const struct fw_map sparrow_d0_mac_rgf_ext = {
 	0x88c000, 0x88c500, 0x88c000, "mac_rgf_ext", true, true
 };
 
-/**
- * @talyn_fw_mapping provides memory remapping table for Talyn
+/* talyn_fw_mapping provides memory remapping table for Talyn
  *
  * array size should be in sync with the declaration in the wil6210.h
  *
@@ -165,8 +151,7 @@ const struct fw_map talyn_fw_mapping[] = {
 	{0x800000, 0x808000, 0xa78000, "uc_data", false, false},
 };
 
-/**
- * @talyn_mb_fw_mapping provides memory remapping table for Talyn-MB
+/* talyn_mb_fw_mapping provides memory remapping table for Talyn-MB
  *
  * array size should be in sync with the declaration in the wil6210.h
  *
@@ -207,8 +192,8 @@ const struct fw_map talyn_mb_fw_mapping[] = {
 	{0x8c0000, 0x8c0210, 0x8c0000, "dum_user_rgf", true, true},
 	/* DMA OFU 296b */
 	{0x8c2000, 0x8c2128, 0x8c2000, "dma_ofu", true, true},
-	/* ucode debug 4k */
-	{0x8c3000, 0x8c4000, 0x8c3000, "ucode_debug", true, true},
+	/* ucode debug 256b */
+	{0x8c3000, 0x8c3100, 0x8c3000, "ucode_debug", true, true},
 	/* upper area 1536k */
 	{0x900000, 0xa80000, 0x900000, "upper", true, true},
 	/* UCODE areas - accessible by debugfs blobs but not by
@@ -233,14 +218,14 @@ struct auth_no_hdr {
 	__le16 auth_transaction;
 	__le16 status_code;
 	/* possibly followed by Challenge text */
-	u8 variable[0];
+	u8 variable[];
 } __packed;
 
 u8 led_polarity = LED_POLARITY_LOW_ACTIVE;
 
 /**
  * return AHB address for given firmware internal (linker) address
- * @x - internal address
+ * @x: internal address
  * If address have no valid AHB mapping, return 0
  */
 static u32 wmi_addr_remap(u32 x)
@@ -258,7 +243,7 @@ static u32 wmi_addr_remap(u32 x)
 
 /**
  * find fw_mapping entry by section name
- * @section - section name
+ * @section: section name
  *
  * Return pointer to section or NULL if not found
  */
@@ -276,8 +261,9 @@ struct fw_map *wil_find_fw_mapping(const char *section)
 
 /**
  * Check address validity for WMI buffer; remap if needed
- * @ptr - internal (linker) fw/ucode address
- * @size - if non zero, validate the block does not
+ * @wil: driver data
+ * @ptr: internal (linker) fw/ucode address
+ * @size: if non zero, validate the block does not
  *  exceed the device memory (bar)
  *
  * Valid buffer should be DWORD aligned
@@ -311,9 +297,7 @@ void __iomem *wmi_buffer(struct wil6210_priv *wil, __le32 ptr_)
 	return wmi_buffer_block(wil, ptr_, 0);
 }
 
-/**
- * Check address validity
- */
+/* Check address validity */
 void __iomem *wmi_addr(struct wil6210_priv *wil, u32 ptr)
 {
 	u32 off;
@@ -487,6 +471,8 @@ static const char *cmdid2name(u16 cmdid)
 		return "WMI_RBUFCAP_CFG_CMD";
 	case WMI_TEMP_SENSE_ALL_CMDID:
 		return "WMI_TEMP_SENSE_ALL_CMDID";
+	case WMI_SET_LINK_MONITOR_CMDID:
+		return "WMI_SET_LINK_MONITOR_CMD";
 	default:
 		return "Untracked CMD";
 	}
@@ -635,6 +621,10 @@ static const char *eventid2name(u16 eventid)
 		return "WMI_RBUFCAP_CFG_EVENT";
 	case WMI_TEMP_SENSE_ALL_DONE_EVENTID:
 		return "WMI_TEMP_SENSE_ALL_DONE_EVENTID";
+	case WMI_SET_LINK_MONITOR_EVENTID:
+		return "WMI_SET_LINK_MONITOR_EVENT";
+	case WMI_LINK_MONITOR_EVENTID:
+		return "WMI_LINK_MONITOR_EVENT";
 	default:
 		return "Untracked EVENT";
 	}
@@ -1518,14 +1508,14 @@ static void wmi_link_stats_parse(struct wil6210_vif *vif, u64 tsf,
 			if (vif->fw_stats_ready) {
 				/* clean old statistics */
 				vif->fw_stats_tsf = 0;
-				vif->fw_stats_ready = 0;
+				vif->fw_stats_ready = false;
 			}
 
 			wil_link_stats_store_basic(vif, payload + hdr_size);
 
 			if (!has_next) {
 				vif->fw_stats_tsf = tsf;
-				vif->fw_stats_ready = 1;
+				vif->fw_stats_ready = true;
 			}
 
 			break;
@@ -1540,14 +1530,14 @@ static void wmi_link_stats_parse(struct wil6210_vif *vif, u64 tsf,
 			if (wil->fw_stats_global.ready) {
 				/* clean old statistics */
 				wil->fw_stats_global.tsf = 0;
-				wil->fw_stats_global.ready = 0;
+				wil->fw_stats_global.ready = false;
 			}
 
 			wil_link_stats_store_global(vif, payload + hdr_size);
 
 			if (!has_next) {
 				wil->fw_stats_global.tsf = tsf;
-				wil->fw_stats_global.ready = 1;
+				wil->fw_stats_global.ready = true;
 			}
 
 			break;
@@ -1582,8 +1572,7 @@ wmi_evt_link_stats(struct wil6210_vif *vif, int id, void *d, int len)
 			     evt->payload, payload_size);
 }
 
-/**
- * find cid and ringid for the station vif
+/* find cid and ringid for the station vif
  *
  * return error, if other interfaces are used or ring was not found
  */
@@ -1847,8 +1836,33 @@ fail:
 	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID);
 }
 
-/**
- * Some events are ignored for purpose; and need not be interpreted as
+static void
+wmi_evt_link_monitor(struct wil6210_vif *vif, int id, void *d, int len)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct net_device *ndev = vif_to_ndev(vif);
+	struct wmi_link_monitor_event *evt = d;
+	enum nl80211_cqm_rssi_threshold_event event_type;
+
+	if (len < sizeof(*evt)) {
+		wil_err(wil, "link monitor event too short %d\n", len);
+		return;
+	}
+
+	wil_dbg_wmi(wil, "link monitor event, type %d rssi %d (stored %d)\n",
+		    evt->type, evt->rssi_level, wil->cqm_rssi_thold);
+
+	if (evt->type != WMI_LINK_MONITOR_NOTIF_RSSI_THRESHOLD_EVT)
+		/* ignore */
+		return;
+
+	event_type = (evt->rssi_level > wil->cqm_rssi_thold ?
+		      NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH :
+		      NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW);
+	cfg80211_cqm_rssi_notify(ndev, event_type, evt->rssi_level, GFP_KERNEL);
+}
+
+/* Some events are ignored for purpose; and need not be interpreted as
  * "unhandled events"
  */
 static void wmi_evt_ignore(struct wil6210_vif *vif, int id, void *d, int len)
@@ -1880,6 +1894,7 @@ static const struct {
 	{WMI_LINK_STATS_EVENTID,		wmi_evt_link_stats},
 	{WMI_FT_AUTH_STATUS_EVENTID,		wmi_evt_auth_status},
 	{WMI_FT_REASSOC_STATUS_EVENTID,		wmi_evt_reassoc_status},
+	{WMI_LINK_MONITOR_EVENTID,		wmi_evt_link_monitor},
 };
 
 /*
@@ -2505,7 +2520,8 @@ int wmi_set_ie(struct wil6210_vif *vif, u8 type, u16 ie_len, const void *ie)
 	cmd->mgmt_frm_type = type;
 	/* BUG: FW API define ieLen as u8. Will fix FW */
 	cmd->ie_len = cpu_to_le16(ie_len);
-	memcpy(cmd->ie_info, ie, ie_len);
+	if (ie_len)
+		memcpy(cmd->ie_info, ie, ie_len);
 	rc = wmi_send(wil, WMI_SET_APPIE_CMDID, vif->mid, cmd, len);
 	kfree(cmd);
 out:
@@ -2541,7 +2557,8 @@ int wmi_update_ft_ies(struct wil6210_vif *vif, u16 ie_len, const void *ie)
 	}
 
 	cmd->ie_len = cpu_to_le16(ie_len);
-	memcpy(cmd->ie_info, ie, ie_len);
+	if (ie_len)
+		memcpy(cmd->ie_info, ie, ie_len);
 	rc = wmi_send(wil, WMI_UPDATE_FT_IES_CMDID, vif->mid, cmd, len);
 	kfree(cmd);
 
@@ -2554,6 +2571,7 @@ out:
 
 /**
  * wmi_rxon - turn radio on/off
+ * @wil:	driver data
  * @on:		turn on if true, off otherwise
  *
  * Only switch radio. Channel should be set separately.
@@ -2715,7 +2733,7 @@ int wmi_get_all_temperatures(struct wil6210_priv *wil,
 		return rc;
 
 	if (reply.evt.status == WMI_FW_STATUS_FAILURE) {
-		wil_err(wil, "Failed geting TEMP_SENSE_ALL\n");
+		wil_err(wil, "Failed getting TEMP_SENSE_ALL\n");
 		return -EINVAL;
 	}
 
@@ -3984,6 +4002,49 @@ int wmi_link_stats_cfg(struct wil6210_vif *vif, u32 type, u8 cid, u32 interval)
 
 	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
 		wil_err(wil, "Link statistics config failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int wmi_set_cqm_rssi_config(struct wil6210_priv *wil,
+			    s32 rssi_thold, u32 rssi_hyst)
+{
+	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
+	int rc;
+	struct {
+		struct wmi_set_link_monitor_cmd cmd;
+		s8 rssi_thold;
+	} __packed cmd = {
+		.cmd = {
+			.rssi_hyst = rssi_hyst,
+			.rssi_thresholds_list_size = 1,
+		},
+		.rssi_thold = rssi_thold,
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_set_link_monitor_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	if (rssi_thold > S8_MAX || rssi_thold < S8_MIN || rssi_hyst > U8_MAX)
+		return -EINVAL;
+
+	rc = wmi_call(wil, WMI_SET_LINK_MONITOR_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_SET_LINK_MONITOR_EVENTID,
+		      &reply, sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "WMI_SET_LINK_MONITOR_CMDID failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "WMI_SET_LINK_MONITOR_CMDID failed, status %d\n",
 			reply.evt.status);
 		return -EINVAL;
 	}

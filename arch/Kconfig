@@ -24,8 +24,14 @@ config KEXEC_ELF
 config HAVE_IMA_KEXEC
 	bool
 
+config SET_FS
+	bool
+
 config HOTPLUG_SMT
 	bool
+
+config GENERIC_ENTRY
+       bool
 
 config OPROFILE
 	tristate "OProfile system profiling"
@@ -72,11 +78,11 @@ config KPROBES
 	  If in doubt, say "N".
 
 config JUMP_LABEL
-       bool "Optimize very unlikely/likely branches"
-       depends on HAVE_ARCH_JUMP_LABEL
-       depends on CC_HAS_ASM_GOTO
-       help
-         This option enables a transparent branch optimization that
+	bool "Optimize very unlikely/likely branches"
+	depends on HAVE_ARCH_JUMP_LABEL
+	depends on CC_HAS_ASM_GOTO
+	help
+	 This option enables a transparent branch optimization that
 	 makes certain almost-always-true or almost-always-false branch
 	 conditions even cheaper to execute within the kernel.
 
@@ -84,7 +90,7 @@ config JUMP_LABEL
 	 scheduler functionality, networking code and KVM have such
 	 branches and include support for this optimization technique.
 
-         If it is detected that the compiler has support for "asm goto",
+	 If it is detected that the compiler has support for "asm goto",
 	 the kernel will compile such branches with just a nop
 	 instruction. When the condition flag is toggled to true, the
 	 nop will be converted to a jump instruction to execute the
@@ -102,6 +108,12 @@ config STATIC_KEYS_SELFTEST
 	depends on JUMP_LABEL
 	help
 	  Boot time self-test of the branch patching code.
+
+config STATIC_CALL_SELFTEST
+	bool "Static call selftest"
+	depends on HAVE_STATIC_CALL
+	help
+	  Boot time self-test of the call patching code.
 
 config OPTPROBES
 	def_bool y
@@ -147,12 +159,12 @@ config HAVE_EFFICIENT_UNALIGNED_ACCESS
 	  problems with received packets if doing so would not help
 	  much.
 
-	  See Documentation/unaligned-memory-access.txt for more
+	  See Documentation/core-api/unaligned-memory-access.rst for more
 	  information on the topic of unaligned memory accesses.
 
 config ARCH_USE_BUILTIN_BSWAP
-       bool
-       help
+	bool
+	help
 	 Modern versions of GCC (since 4.4) have builtin functions
 	 for handling byte-swapping. Using these, instead of the old
 	 inline assembler that the architecture code provides in the
@@ -221,10 +233,10 @@ config HAVE_DMA_CONTIGUOUS
 	bool
 
 config GENERIC_SMP_IDLE_THREAD
-       bool
+	bool
 
 config GENERIC_IDLE_POLL_SETUP
-       bool
+	bool
 
 config ARCH_HAS_FORTIFY_SOURCE
 	bool
@@ -248,16 +260,23 @@ config ARCH_HAS_SET_DIRECT_MAP
 	bool
 
 #
-# Select if arch has an uncached kernel segment and provides the
-# uncached_kernel_address / cached_kernel_address symbols to use it
+# Select if the architecture provides the arch_dma_set_uncached symbol to
+# either provide an uncached segement alias for a DMA allocation, or
+# to remap the page tables in place.
 #
-config ARCH_HAS_UNCACHED_SEGMENT
-	select ARCH_HAS_DMA_PREP_COHERENT
+config ARCH_HAS_DMA_SET_UNCACHED
+	bool
+
+#
+# Select if the architectures provides the arch_dma_clear_uncached symbol
+# to undo an in-place page table remap for uncached access.
+#
+config ARCH_HAS_DMA_CLEAR_UNCACHED
 	bool
 
 # Select if arch init_task must go in the __init_task_data section
 config ARCH_TASK_STRUCT_ON_STACK
-       bool
+	bool
 
 # Select if arch has its private alloc_task_struct() function
 config ARCH_TASK_STRUCT_ALLOCATOR
@@ -320,12 +339,6 @@ config HAVE_FUNCTION_ARG_ACCESS_API
 	  This symbol should be selected by an architecure if it supports
 	  the API needed to access function arguments from pt_regs,
 	  declared in asm/ptrace.h
-
-config HAVE_CLK
-	bool
-	help
-	  The <linux/clk.h> calls support software clock gating and
-	  thus are a key power management tool on many systems.
 
 config HAVE_HW_BREAKPOINT
 	bool
@@ -393,17 +406,29 @@ config HAVE_ARCH_JUMP_LABEL
 config HAVE_ARCH_JUMP_LABEL_RELATIVE
 	bool
 
-config HAVE_RCU_TABLE_FREE
+config MMU_GATHER_TABLE_FREE
 	bool
 
-config HAVE_RCU_TABLE_NO_INVALIDATE
+config MMU_GATHER_RCU_TABLE_FREE
+	bool
+	select MMU_GATHER_TABLE_FREE
+
+config MMU_GATHER_PAGE_SIZE
 	bool
 
-config HAVE_MMU_GATHER_PAGE_SIZE
+config MMU_GATHER_NO_RANGE
 	bool
 
-config HAVE_MMU_GATHER_NO_GATHER
+config MMU_GATHER_NO_GATHER
 	bool
+	depends on MMU_GATHER_TABLE_FREE
+
+config ARCH_WANT_IRQS_OFF_ACTIVATE_MM
+	bool
+	help
+	  Temporary select until all architectures can be converted to have
+	  irqs disabled over activate_mm. Architectures that do IPI based TLB
+	  shootdowns should enable this.
 
 config ARCH_HAVE_NMI_SAFE_CMPXCHG
 	bool
@@ -435,10 +460,23 @@ config ARCH_WANT_OLD_COMPAT_IPC
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
 	bool
 
-config HAVE_ARCH_SECCOMP_FILTER
+config HAVE_ARCH_SECCOMP
 	bool
 	help
+	  An arch should select this symbol to support seccomp mode 1 (the fixed
+	  syscall policy), and must provide an overrides for __NR_seccomp_sigreturn,
+	  and compat syscalls if the asm-generic/seccomp.h defaults need adjustment:
+	  - __NR_seccomp_read_32
+	  - __NR_seccomp_write_32
+	  - __NR_seccomp_exit_32
+	  - __NR_seccomp_sigreturn_32
+
+config HAVE_ARCH_SECCOMP_FILTER
+	bool
+	select HAVE_ARCH_SECCOMP
+	help
 	  An arch should select this symbol if it provides all of these things:
+	  - all the requirements for HAVE_ARCH_SECCOMP
 	  - syscall_get_arch()
 	  - syscall_get_arguments()
 	  - syscall_rollback()
@@ -448,6 +486,23 @@ config HAVE_ARCH_SECCOMP_FILTER
 	  - secure_computing return value is checked and a return value of -1
 	    results in the system call being skipped immediately.
 	  - seccomp syscall wired up
+
+config SECCOMP
+	prompt "Enable seccomp to safely execute untrusted bytecode"
+	def_bool y
+	depends on HAVE_ARCH_SECCOMP
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to handle untrusted bytecode during their
+	  execution. By using pipes or other transports made available
+	  to the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in their
+	  own address space using seccomp. Once seccomp is enabled via
+	  prctl(PR_SET_SECCOMP) or the seccomp() syscall, it cannot be
+	  disabled and the task is only allowed to execute a few safe
+	  syscalls defined by each seccomp mode.
+
+	  If unsure, say Y.
 
 config SECCOMP_FILTER
 	def_bool y
@@ -471,9 +526,6 @@ config HAVE_STACKPROTECTOR
 	help
 	  An arch should select this symbol if:
 	  - it has implemented a stack canary (e.g. __stack_chk_guard)
-
-config CC_HAS_STACKPROTECTOR_NONE
-	def_bool $(cc-option,-fno-stack-protector)
 
 config STACKPROTECTOR
 	bool "Stack Protector buffer overflow detection"
@@ -521,6 +573,31 @@ config STACKPROTECTOR_STRONG
 	  about 20% of all kernel functions, which increases the kernel code
 	  size by about 2%.
 
+config ARCH_SUPPORTS_SHADOW_CALL_STACK
+	bool
+	help
+	  An architecture should select this if it supports Clang's Shadow
+	  Call Stack and implements runtime support for shadow stack
+	  switching.
+
+config SHADOW_CALL_STACK
+	bool "Clang Shadow Call Stack"
+	depends on CC_IS_CLANG && ARCH_SUPPORTS_SHADOW_CALL_STACK
+	depends on DYNAMIC_FTRACE_WITH_REGS || !FUNCTION_GRAPH_TRACER
+	help
+	  This option enables Clang's Shadow Call Stack, which uses a
+	  shadow stack to protect function return addresses from being
+	  overwritten by an attacker. More information can be found in
+	  Clang's documentation:
+
+	    https://clang.llvm.org/docs/ShadowCallStack.html
+
+	  Note that security guarantees in the kernel differ from the
+	  ones documented for user space. The kernel must store addresses
+	  of shadow stacks in memory, which means an attacker capable of
+	  reading and writing arbitrary memory may be able to locate them
+	  and hijack control flow by modifying the stacks.
+
 config HAVE_ARCH_WITHIN_STACK_FRAMES
 	bool
 	help
@@ -535,11 +612,17 @@ config HAVE_CONTEXT_TRACKING
 	help
 	  Provide kernel/user boundaries probes necessary for subsystems
 	  that need it, such as userspace RCU extended quiescent state.
-	  Syscalls need to be wrapped inside user_exit()-user_enter() through
-	  the slow path using TIF_NOHZ flag. Exceptions handlers must be
-	  wrapped as well. Irqs are already protected inside
-	  rcu_irq_enter/rcu_irq_exit() but preemption or signal handling on
-	  irq exit still need to be protected.
+	  Syscalls need to be wrapped inside user_exit()-user_enter(), either
+	  optimized behind static key or through the slow path using TIF_NOHZ
+	  flag. Exceptions handlers must be wrapped as well. Irqs are already
+	  protected inside rcu_irq_enter/rcu_irq_exit() but preemption or signal
+	  handling on irq exit still need to be protected.
+
+config HAVE_TIF_NOHZ
+	bool
+	help
+	  Arch relies on TIF_NOHZ and syscall slow path to implement context
+	  tracking calls to user_enter()/user_exit().
 
 config HAVE_VIRT_CPU_ACCOUNTING
 	bool
@@ -723,13 +806,6 @@ config ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	depends on MMU
 	select ARCH_HAS_ELF_RANDOMIZE
 
-config HAVE_COPY_THREAD_TLS
-	bool
-	help
-	  Architecture provides copy_thread_tls to accept tls argument via
-	  normal C parameter passing, rather than extracting the syscall
-	  argument from pt_regs.
-
 config HAVE_STACK_VALIDATION
 	bool
 	help
@@ -739,8 +815,9 @@ config HAVE_STACK_VALIDATION
 config HAVE_RELIABLE_STACKTRACE
 	bool
 	help
-	  Architecture has a save_stack_trace_tsk_reliable() function which
-	  only returns a stack trace if it can guarantee the trace is reliable.
+	  Architecture has either save_stack_trace_tsk_reliable() or
+	  arch_stack_walk_reliable() function which only returns a stack trace
+	  if it can guarantee the trace is reliable.
 
 config HAVE_ARCH_HASH
 	bool
@@ -802,16 +879,9 @@ config OLD_SIGACTION
 config COMPAT_OLD_SIGACTION
 	bool
 
-config 64BIT_TIME
-	def_bool y
-	help
-	  This should be selected by all architectures that need to support
-	  new system calls with a 64-bit time_t. This is relevant on all 32-bit
-	  architectures, and 64-bit architectures as part of compat syscall
-	  handling.
-
 config COMPAT_32BIT_TIME
-	def_bool !64BIT || COMPAT
+	bool "Provide system calls for 32-bit time_t"
+	default !64BIT || COMPAT
 	help
 	  This enables 32 bit time_t support in addition to 64 bit time_t support.
 	  This is relevant on all 32-bit architectures, and 64-bit architectures
@@ -849,16 +919,17 @@ config HAVE_ARCH_VMAP_STACK
 config VMAP_STACK
 	default y
 	bool "Use a virtually-mapped stack"
-	depends on HAVE_ARCH_VMAP_STACK && !KASAN
-	---help---
+	depends on HAVE_ARCH_VMAP_STACK
+	depends on !KASAN || KASAN_VMALLOC
+	help
 	  Enable this if you want the use virtually-mapped kernel stacks
 	  with guard pages.  This causes kernel stack overflows to be
 	  caught immediately rather than causing difficult-to-diagnose
 	  corruption.
 
-	  This is presently incompatible with KASAN because KASAN expects
-	  the stack to map directly to the KASAN shadow map using a formula
-	  that is incorrect if the stack is in vmalloc space.
+	  To use this with KASAN, the architecture must support backing
+	  virtual mappings with real shadow memory, and KASAN_VMALLOC must
+	  be enabled.
 
 config ARCH_OPTIONAL_KERNEL_RWX
 	def_bool n
@@ -898,27 +969,6 @@ config STRICT_MODULE_RWX
 config ARCH_HAS_PHYS_TO_DMA
 	bool
 
-config ARCH_HAS_REFCOUNT
-	bool
-	help
-	  An architecture selects this when it has implemented refcount_t
-	  using open coded assembly primitives that provide an optimized
-	  refcount_t implementation, possibly at the expense of some full
-	  refcount state checks of CONFIG_REFCOUNT_FULL=y.
-
-	  The refcount overflow check behavior, however, must be retained.
-	  Catching overflows is the primary security concern for protecting
-	  against bugs in reference counts.
-
-config REFCOUNT_FULL
-	bool "Perform full reference count validation at the expense of speed"
-	help
-	  Enabling this switches the refcounting infrastructure from a fast
-	  unchecked atomic_t implementation to a fully state checked
-	  implementation, which can be (slightly) slower but provides protections
-	  against various use-after-free conditions that can be used in
-	  security flaw exploits.
-
 config HAVE_ARCH_COMPILER_H
 	bool
 	help
@@ -943,7 +993,7 @@ config ARCH_USE_MEMREMAP_PROT
 config LOCK_EVENT_COUNTS
 	bool "Locking event counts collection"
 	depends on DEBUG_FS
-	---help---
+	help
 	  Enable light-weight counting of various locking related events
 	  in the system with minimal performance impact. This reduces
 	  the chance of application behavior change because of timing
@@ -965,6 +1015,33 @@ config RELR
 
 config ARCH_HAS_MEM_ENCRYPT
 	bool
+
+config HAVE_SPARSE_SYSCALL_NR
+       bool
+       help
+          An architecture should select this if its syscall numbering is sparse
+	  to save space. For example, MIPS architecture has a syscall array with
+	  entries at 4000, 5000 and 6000 locations. This option turns on syscall
+	  related optimizations for a given architecture.
+
+config ARCH_HAS_VDSO_DATA
+	bool
+
+config HAVE_STATIC_CALL
+	bool
+
+config HAVE_STATIC_CALL_INLINE
+	bool
+	depends on HAVE_STATIC_CALL
+
+config ARCH_WANT_LD_ORPHAN_WARN
+	bool
+	help
+	  An arch should select this symbol once all linker sections are explicitly
+	  included, size-asserted, or discarded in the linker scripts. This is
+	  important because we never want expected sections to be placed heuristically
+	  by the linker, since the locations of such sections can change between linker
+	  versions.
 
 source "kernel/gcov/Kconfig"
 

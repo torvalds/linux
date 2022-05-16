@@ -91,12 +91,6 @@ static int brcmstb_reset_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!IS_ALIGNED(res->start, SW_INIT_BANK_SIZE) ||
-	    !IS_ALIGNED(resource_size(res), SW_INIT_BANK_SIZE)) {
-		dev_err(kdev, "incorrect register range\n");
-		return -EINVAL;
-	}
-
 	priv->base = devm_ioremap_resource(kdev, res);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);

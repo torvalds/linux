@@ -267,7 +267,7 @@ static void *synproxy_cpu_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		*pos = cpu + 1;
 		return per_cpu_ptr(snet->stats, cpu);
 	}
-
+	(*pos)++;
 	return NULL;
 }
 
@@ -446,7 +446,7 @@ synproxy_send_tcp(struct net *net,
 
 	skb_dst_set_noref(nskb, skb_dst(skb));
 	nskb->protocol = htons(ETH_P_IP);
-	if (ip_route_me_harder(net, nskb, RTN_UNSPEC))
+	if (ip_route_me_harder(net, nskb->sk, nskb, RTN_UNSPEC))
 		goto free_nskb;
 
 	if (nfct) {
@@ -704,8 +704,7 @@ ipv4_synproxy_hook(void *priv, struct sk_buff *skb,
 		nf_ct_seqadj_init(ct, ctinfo, 0);
 		synproxy->tsoff = 0;
 		this_cpu_inc(snet->stats->conn_reopened);
-
-		/* fall through */
+		fallthrough;
 	case TCP_CONNTRACK_SYN_SENT:
 		if (!synproxy_parse_options(skb, thoff, th, &opts))
 			return NF_DROP;
@@ -1128,8 +1127,7 @@ ipv6_synproxy_hook(void *priv, struct sk_buff *skb,
 		nf_ct_seqadj_init(ct, ctinfo, 0);
 		synproxy->tsoff = 0;
 		this_cpu_inc(snet->stats->conn_reopened);
-
-		/* fall through */
+		fallthrough;
 	case TCP_CONNTRACK_SYN_SENT:
 		if (!synproxy_parse_options(skb, thoff, th, &opts))
 			return NF_DROP;
@@ -1237,3 +1235,4 @@ EXPORT_SYMBOL_GPL(nf_synproxy_ipv6_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
+MODULE_DESCRIPTION("nftables SYNPROXY expression support");

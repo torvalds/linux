@@ -12,11 +12,12 @@
 #include <linux/module.h>
 #include "rc-core-priv.h"
 
-#define XMP_UNIT		  136000 /* ns */
-#define XMP_LEADER		  210000 /* ns */
-#define XMP_NIBBLE_PREFIX	  760000 /* ns */
-#define	XMP_HALFFRAME_SPACE	13800000 /* ns */
-#define	XMP_TRAILER_SPACE	20000000 /* should be 80ms but not all dureation supliers can go that high */
+#define XMP_UNIT		  136 /* us */
+#define XMP_LEADER		  210 /* us */
+#define XMP_NIBBLE_PREFIX	  760 /* us */
+#define	XMP_HALFFRAME_SPACE	13800 /* us */
+/* should be 80ms but not all duration supliers can go that high */
+#define	XMP_TRAILER_SPACE	20000
 
 enum xmp_state {
 	STATE_INACTIVE,
@@ -42,7 +43,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	}
 
 	dev_dbg(&dev->dev, "XMP decode started at state %d %d (%uus %s)\n",
-		data->state, data->count, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, data->count, ev.duration, TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -166,7 +167,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		} else if (geq_margin(ev.duration, XMP_NIBBLE_PREFIX, XMP_UNIT)) {
 			/* store nibble raw data, decode after trailer */
 			if (data->count == 16) {
-				dev_dbg(&dev->dev, "to many pulses (%d) ignoring: %u\n",
+				dev_dbg(&dev->dev, "too many pulses (%d) ignoring: %u\n",
 					data->count, ev.duration);
 				data->state = STATE_INACTIVE;
 				return -EINVAL;
@@ -183,7 +184,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	}
 
 	dev_dbg(&dev->dev, "XMP decode failed at count %d state %d (%uus %s)\n",
-		data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->count, data->state, ev.duration, TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

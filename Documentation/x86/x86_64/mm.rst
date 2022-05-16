@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-================
-Memory Managment
-================
+=================
+Memory Management
+=================
 
 Complete virtual memory map with 4-level page tables
 ====================================================
@@ -19,7 +19,7 @@ Complete virtual memory map with 4-level page tables
    Note that as we get closer to the top of the address space, the notation changes
    from TB to GB and then MB/KB.
 
- - "16M TB" might look weird at first sight, but it's an easier to visualize size
+ - "16M TB" might look weird at first sight, but it's an easier way to visualize size
    notation than "16 EB", which few will recognize at first sight as 16 exabytes.
    It also shows it nicely how incredibly large 64-bit address space is.
 

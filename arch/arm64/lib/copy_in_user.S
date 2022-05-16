@@ -21,46 +21,46 @@
  * Returns:
  *	x0 - bytes not copied
  */
-	.macro ldrb1 ptr, regB, val
-	uao_user_alternative 9998f, ldrb, ldtrb, \ptr, \regB, \val
+	.macro ldrb1 reg, ptr, val
+	uao_user_alternative 9998f, ldrb, ldtrb, \reg, \ptr, \val
 	.endm
 
-	.macro strb1 ptr, regB, val
-	uao_user_alternative 9998f, strb, sttrb, \ptr, \regB, \val
+	.macro strb1 reg, ptr, val
+	uao_user_alternative 9998f, strb, sttrb, \reg, \ptr, \val
 	.endm
 
-	.macro ldrh1 ptr, regB, val
-	uao_user_alternative 9998f, ldrh, ldtrh, \ptr, \regB, \val
+	.macro ldrh1 reg, ptr, val
+	uao_user_alternative 9998f, ldrh, ldtrh, \reg, \ptr, \val
 	.endm
 
-	.macro strh1 ptr, regB, val
-	uao_user_alternative 9998f, strh, sttrh, \ptr, \regB, \val
+	.macro strh1 reg, ptr, val
+	uao_user_alternative 9998f, strh, sttrh, \reg, \ptr, \val
 	.endm
 
-	.macro ldr1 ptr, regB, val
-	uao_user_alternative 9998f, ldr, ldtr, \ptr, \regB, \val
+	.macro ldr1 reg, ptr, val
+	uao_user_alternative 9998f, ldr, ldtr, \reg, \ptr, \val
 	.endm
 
-	.macro str1 ptr, regB, val
-	uao_user_alternative 9998f, str, sttr, \ptr, \regB, \val
+	.macro str1 reg, ptr, val
+	uao_user_alternative 9998f, str, sttr, \reg, \ptr, \val
 	.endm
 
-	.macro ldp1 ptr, regB, regC, val
-	uao_ldp 9998f, \ptr, \regB, \regC, \val
+	.macro ldp1 reg1, reg2, ptr, val
+	uao_ldp 9998f, \reg1, \reg2, \ptr, \val
 	.endm
 
-	.macro stp1 ptr, regB, regC, val
-	uao_stp 9998f, \ptr, \regB, \regC, \val
+	.macro stp1 reg1, reg2, ptr, val
+	uao_stp 9998f, \reg1, \reg2, \ptr, \val
 	.endm
 
 end	.req	x5
 
-ENTRY(__arch_copy_in_user)
+SYM_FUNC_START(__arch_copy_in_user)
 	add	end, x0, x2
 #include "copy_template.S"
 	mov	x0, #0
 	ret
-ENDPROC(__arch_copy_in_user)
+SYM_FUNC_END(__arch_copy_in_user)
 EXPORT_SYMBOL(__arch_copy_in_user)
 
 	.section .fixup,"ax"

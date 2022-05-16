@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <asm/mach-types.h>
 
-#include "cputype.h"
+#include <linux/soc/mmp/cputype.h>
 #include "addr-map.h"
 #include "pm-mmp2.h"
 #include "regs-icu.h"
@@ -123,19 +123,19 @@ void mmp2_pm_enter_lowpower_mode(int state)
 	case POWER_MODE_SYS_SLEEP:
 		apcr |= MPMU_PCR_PJ_SLPEN;		/* set the SLPEN bit */
 		apcr |= MPMU_PCR_PJ_VCTCXOSD;		/* set VCTCXOSD */
-		/* fall through */
+		fallthrough;
 	case POWER_MODE_CHIP_SLEEP:
 		apcr |= MPMU_PCR_PJ_SLPEN;
-		/* fall through */
+		fallthrough;
 	case POWER_MODE_APPS_SLEEP:
 		apcr |= MPMU_PCR_PJ_APBSD;		/* set APBSD */
-		/* fall through */
+		fallthrough;
 	case POWER_MODE_APPS_IDLE:
 		apcr |= MPMU_PCR_PJ_AXISD;		/* set AXISDD bit */
 		apcr |= MPMU_PCR_PJ_DDRCORSD;		/* set DDRCORSD bit */
 		idle_cfg |= APMU_PJ_IDLE_CFG_PJ_PWRDWN;	/* PJ power down */
 		apcr |= MPMU_PCR_PJ_SPSD;
-		/* fall through */
+		fallthrough;
 	case POWER_MODE_CORE_EXTIDLE:
 		idle_cfg |= APMU_PJ_IDLE_CFG_PJ_IDLE;	/* set the IDLE bit */
 		idle_cfg &= ~APMU_PJ_IDLE_CFG_ISO_MODE_CNTRL_MASK;
