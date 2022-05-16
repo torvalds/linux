@@ -310,6 +310,9 @@ int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned l
 			      unsigned long *tdms);
 int avs_hda_platform_register(struct avs_dev *adev, const char *name);
 
+int avs_register_all_boards(struct avs_dev *adev);
+void avs_unregister_all_boards(struct avs_dev *adev);
+
 /* Firmware tracing helpers */
 
 unsigned int __kfifo_fromio_locked(struct kfifo *fifo, const void __iomem *src, unsigned int len,
