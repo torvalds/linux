@@ -663,7 +663,8 @@
 };
 
 &usbdrd_dwc3_0 {
-	dr_mode = "otg";
+	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
 	extcon = <&u2phy0>;
 	status = "okay";
 };
