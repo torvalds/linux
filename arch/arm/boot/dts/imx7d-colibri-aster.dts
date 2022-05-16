@@ -14,6 +14,26 @@
 		     "fsl,imx7d";
 };
 
+&ad7879_ts {
+	status = "okay";
+};
+
+&atmel_mxt_ts {
+	status = "okay";
+};
+
+&backlight {
+	status = "okay";
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&panel_dpi {
+	status = "okay";
+};
+
 &usbotg2 {
 	vbus-supply = <&reg_usbh_vbus>;
 	status = "okay";

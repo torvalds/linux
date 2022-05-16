@@ -13,3 +13,23 @@
 	compatible = "toradex,colibri-imx7s-aster", "toradex,colibri-imx7s",
 		     "fsl,imx7s";
 };
+
+&ad7879_ts {
+	status = "okay";
+};
+
+&atmel_mxt_ts {
+	status = "okay";
+};
+
+&backlight {
+	status = "okay";
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&panel_dpi {
+	status = "okay";
+};

@@ -3,13 +3,32 @@
  * Copyright 2016-2020 Toradex
  */
 
+#include <dt-bindings/pwm/pwm.h>
+
 / {
-	bl: backlight {
+	backlight: backlight {
+		brightness-levels = <0 45 63 88 119 158 203 255>;
 		compatible = "pwm-backlight";
+		default-brightness-level = <4>;
+		enable-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_bl_on>;
-		pwms = <&pwm1 0 5000000 0>;
-		enable-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_module_3v3>;
+		pwms = <&pwm1 0 6666667 PWM_POLARITY_INVERTED>;
+		status = "disabled";
+	};
+
+	panel_dpi: panel-dpi {
+		backlight = <&backlight>;
+		compatible = "edt,et057090dhu";
+		power-supply = <&reg_3v3>;
+		status = "disabled";
+
+		port {
+			lcd_panel_in: endpoint {
+				remote-endpoint = <&lcdif_out>;
+			};
+		};
 	};
 
 	reg_module_3v3: regulator-module-3v3 {
@@ -301,18 +320,19 @@
 		VDDD-supply = <&reg_DCDC3>;
 	};
 
-	ad7879@2c {
-		compatible = "adi,ad7879-1";
-		reg = <0x2c>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
-		touchscreen-max-pressure = <4096>;
-		adi,resistance-plate-x = <120>;
-		adi,first-conversion-delay = /bits/ 8 <3>;
+	ad7879_ts: touchscreen@2c {
 		adi,acquisition-time = /bits/ 8 <1>;
-		adi,median-filter-size = /bits/ 8 <2>;
 		adi,averaging = /bits/ 8 <1>;
 		adi,conversion-interval = /bits/ 8 <255>;
+		adi,first-conversion-delay = /bits/ 8 <3>;
+		adi,median-filter-size = /bits/ 8 <2>;
+		adi,resistance-plate-x = <120>;
+		compatible = "adi,ad7879-1";
+		interrupt-parent = <&gpio1>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		reg = <0x2c>;
+		touchscreen-max-pressure = <4096>;
+		status = "disabled";
 	};
 
 	pmic@33 {
@@ -392,12 +412,32 @@
 	pinctrl-1 = <&pinctrl_i2c4_recovery>;
 	scl-gpios = <&gpio7 8 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	sda-gpios = <&gpio7 9 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	status = "disabled";
+
+	/* Atmel maxtouch controller */
+	atmel_mxt_ts: touchscreen@4a {
+		compatible = "atmel,maxtouch";
+		interrupt-parent = <&gpio2>;
+		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;        /* SODIMM 107 / INT */
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_atmel_connector>;
+		reg = <0x4a>;
+		reset-gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;      /* SODIMM 106 / RST */
+		status = "disabled";
+	};
 };
 
 &lcdif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lcdif_dat
 		     &pinctrl_lcdif_ctrl>;
+	status = "disabled";
+
+	port {
+		lcdif_out: endpoint {
+			remote-endpoint = <&lcd_panel_in>;
+		};
+	};
 };
 
 &pwm1 {
@@ -486,7 +526,27 @@
 &iomuxc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpio1 &pinctrl_gpio2 &pinctrl_gpio3 &pinctrl_gpio4
-		     &pinctrl_gpio7 &pinctrl_usbc_det>;
+		     &pinctrl_usbc_det>;
+
+	/*
+	 * Atmel MXT touchsceen + Capacitive Touch Adapter
+	 * NOTE: This pin group conflicts with pin groups pinctrl_pwm2/pinctrl_pwm3.
+	 * Don't use them simultaneously.
+	 */
+	pinctrl_atmel_adapter: atmelconnectorgrp {
+		fsl,pins = <
+			MX7D_PAD_GPIO1_IO09__GPIO1_IO9		0x74 /* SODIMM 28 / INT */
+			MX7D_PAD_GPIO1_IO10__GPIO1_IO10		0x14 /* SODIMM 30 / RST */
+		>;
+	};
+
+	/* Atmel MXT touchsceen + boards with built-in Capacitive Touch Connector */
+	pinctrl_atmel_connector: atmeladaptergrp {
+		fsl,pins = <
+			MX7D_PAD_EPDC_BDR0__GPIO2_IO28		0x14 /* SODIMM 106 / RST */
+			MX7D_PAD_EPDC_DATA15__GPIO2_IO15	0x74 /* SODIMM 107 / INT */
+		>;
+	};
 
 	pinctrl_gpio1: gpio1-grp {
 		fsl,pins = <
@@ -494,8 +554,6 @@
 			MX7D_PAD_EPDC_DATA09__GPIO2_IO9		0x14 /* SODIMM 89 */
 			MX7D_PAD_EPDC_DATA08__GPIO2_IO8		0x74 /* SODIMM 91 */
 			MX7D_PAD_LCD_RESET__GPIO3_IO4		0x14 /* SODIMM 93 */
-			MX7D_PAD_EPDC_DATA13__GPIO2_IO13	0x14 /* SODIMM 95 */
-			MX7D_PAD_ENET1_RGMII_TXC__GPIO7_IO11	0x14 /* SODIMM 99 */
 			MX7D_PAD_EPDC_DATA10__GPIO2_IO10	0x74 /* SODIMM 105 */
 			MX7D_PAD_EPDC_DATA00__GPIO2_IO0		0x14 /* SODIMM 111 */
 			MX7D_PAD_EPDC_DATA01__GPIO2_IO1		0x14 /* SODIMM 113 */
@@ -726,6 +784,15 @@
 			MX7D_PAD_LCD_ENABLE__LCD_ENABLE		0x79
 			MX7D_PAD_LCD_VSYNC__LCD_VSYNC		0x79
 			MX7D_PAD_LCD_HSYNC__LCD_HSYNC		0x79
+		>;
+	};
+
+	pinctrl_lvds_transceiver: lvdstx {
+		fsl,pins = <
+			MX7D_PAD_ENET1_RGMII_RD2__GPIO7_IO2     0x14 /* SODIMM 63 */
+			MX7D_PAD_ENET1_RGMII_RD3__GPIO7_IO3     0x74 /* SODIMM 55 */
+			MX7D_PAD_ENET1_RGMII_TXC__GPIO7_IO11    0x14 /* SODIMM 99 */
+			MX7D_PAD_EPDC_DATA13__GPIO2_IO13        0x14 /* SODIMM 95 */
 		>;
 	};
 

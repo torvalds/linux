@@ -4,10 +4,6 @@
  *
  */
 
-
-#include <dt-bindings/input/input.h>
-#include <dt-bindings/pwm/pwm.h>
-
 / {
 	chosen {
 		stdout-path = "serial0:115200n8";
@@ -24,18 +20,6 @@
 			linux,code = <KEY_WAKEUP>;
 			debounce-interval = <10>;
 			wakeup-source;
-		};
-	};
-
-	panel: panel {
-		compatible = "edt,et057090dhu";
-		backlight = <&bl>;
-		power-supply = <&reg_3v3>;
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&lcdif_out>;
-			};
 		};
 	};
 
@@ -77,13 +61,6 @@
 	status = "disabled";
 };
 
-&bl {
-	brightness-levels = <0 4 8 16 32 64 128 255>;
-	default-brightness-level = <6>;
-	power-supply = <&reg_3v3>;
-	status = "okay";
-};
-
 &fec1 {
 	status = "okay";
 };
@@ -91,40 +68,10 @@
 &i2c4 {
 	status = "okay";
 
-	/* Microchip/Atmel maxtouch controller */
-	touchscreen@4a {
-		compatible = "atmel,maxtouch";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpiotouch>;
-		reg = <0x4a>;
-		interrupt-parent = <&gpio2>;
-		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;	/* SODIMM 107 */
-		reset-gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;	/* SODIMM 106 */
-	};
-
 	/* M41T0M6 real time clock on carrier board */
 	rtc: rtc@68 {
 		compatible = "st,m41t0";
 		reg = <0x68>;
-	};
-};
-
-&iomuxc {
-	pinctrl_gpiotouch: touchgpios {
-		fsl,pins = <
-			MX7D_PAD_EPDC_DATA15__GPIO2_IO15        0x74
-			MX7D_PAD_EPDC_BDR0__GPIO2_IO28          0x14
-		>;
-	};
-};
-
-&lcdif {
-	status = "okay";
-
-	port {
-		lcdif_out: endpoint {
-			remote-endpoint = <&panel_in>;
-		};
 	};
 };
 

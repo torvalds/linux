@@ -12,3 +12,35 @@
 	compatible = "toradex,colibri-imx7s-eval-v3", "toradex,colibri-imx7s",
 		     "fsl,imx7s";
 };
+
+&ad7879_ts {
+	status = "okay";
+};
+
+/*
+ * The Atmel maxtouch controller uses SODIMM 28/30, also used for PWM<B>, PWM<C>, aka pwm2, pwm3.
+ * So if you enable following capacitive touch controller, disable pwm2/pwm3 first.
+ */
+&atmel_mxt_ts {
+	status = "disabled";
+};
+
+&backlight {
+	status = "okay";
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&panel_dpi {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "okay";
+};
