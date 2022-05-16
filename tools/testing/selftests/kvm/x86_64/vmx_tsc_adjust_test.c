@@ -32,7 +32,6 @@
 #define MSR_IA32_TSC_ADJUST 0x3b
 #endif
 
-#define PAGE_SIZE	4096
 #define VCPU_ID		5
 
 #define TSC_ADJUST_VALUE (1ll << 32)

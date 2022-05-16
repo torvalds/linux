@@ -228,10 +228,10 @@ Core dump support
 -----------------
 
 The allocation tags for user memory mapped with ``PROT_MTE`` are dumped
-in the core file as additional ``PT_ARM_MEMTAG_MTE`` segments. The
+in the core file as additional ``PT_AARCH64_MEMTAG_MTE`` segments. The
 program header for such segment is defined as:
 
-:``p_type``: ``PT_ARM_MEMTAG_MTE``
+:``p_type``: ``PT_AARCH64_MEMTAG_MTE``
 :``p_flags``: 0
 :``p_offset``: segment file offset
 :``p_vaddr``: segment virtual address, same as the corresponding

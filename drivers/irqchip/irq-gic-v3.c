@@ -1287,7 +1287,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	reg = gic_dist_base(d) + offset + (index * 8);
 	val = gic_mpidr_to_affinity(cpu_logical_map(cpu));
 
-	trace_android_vh_gic_v3_set_affinity(d, mask_val, &val);
+	trace_android_vh_gic_v3_set_affinity(d, mask_val, &val, force, gic_dist_base(d));
 	gic_write_irouter(val, reg);
 
 	/*

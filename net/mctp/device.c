@@ -313,6 +313,7 @@ void mctp_dev_hold(struct mctp_dev *mdev)
 void mctp_dev_put(struct mctp_dev *mdev)
 {
 	if (mdev && refcount_dec_and_test(&mdev->refs)) {
+		kfree(mdev->addrs);
 		dev_put(mdev->dev);
 		kfree_rcu(mdev, rcu);
 	}
@@ -441,7 +442,6 @@ static void mctp_unregister(struct net_device *dev)
 
 	mctp_route_remove_dev(mdev);
 	mctp_neigh_remove_dev(mdev);
-	kfree(mdev->addrs);
 
 	mctp_dev_put(mdev);
 }

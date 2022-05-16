@@ -345,6 +345,7 @@
   __devm_regmap_init_mmio_clk
   devm_regulator_bulk_get
   devm_regulator_get
+  devm_regulator_get_exclusive
   devm_regulator_get_optional
   devm_regulator_register
   devm_regulator_register_notifier
@@ -524,6 +525,7 @@
   flush_delayed_work
   flush_work
   flush_workqueue
+  fortify_panic
   fput
   free_io_pgtable_ops
   free_irq

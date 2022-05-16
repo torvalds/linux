@@ -49,7 +49,7 @@ struct scmi_msg_resp_clock_describe_rates {
 	struct {
 		__le32 value_low;
 		__le32 value_high;
-	} rate[0];
+	} rate[];
 #define RATE_TO_U64(X)		\
 ({				\
 	typeof(X) x = (X);	\
@@ -210,7 +210,8 @@ scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id,
 
 	if (rate_discrete && rate) {
 		clk->list.num_rates = tot_rate_cnt;
-		sort(rate, tot_rate_cnt, sizeof(*rate), rate_cmp_func, NULL);
+		sort(clk->list.rates, tot_rate_cnt, sizeof(*rate),
+		     rate_cmp_func, NULL);
 	}
 
 	clk->rate_discrete = rate_discrete;

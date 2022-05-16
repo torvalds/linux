@@ -346,7 +346,7 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 
 			lan966x_mac_process_raw_entry(&raw_entries[column],
 						      mac, &vid, &dest_idx);
-			if (WARN_ON(dest_idx > lan966x->num_phys_ports))
+			if (WARN_ON(dest_idx >= lan966x->num_phys_ports))
 				continue;
 
 			/* If the entry in SW is found, then there is nothing
@@ -393,7 +393,7 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 
 		lan966x_mac_process_raw_entry(&raw_entries[column],
 					      mac, &vid, &dest_idx);
-		if (WARN_ON(dest_idx > lan966x->num_phys_ports))
+		if (WARN_ON(dest_idx >= lan966x->num_phys_ports))
 			continue;
 
 		mac_entry = lan966x_mac_alloc_entry(mac, vid, dest_idx);
