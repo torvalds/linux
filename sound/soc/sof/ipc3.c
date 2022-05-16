@@ -946,7 +946,7 @@ static void ipc3_trace_message(struct snd_sof_dev *sdev, void *msg_buf)
 
 	switch (msg_type) {
 	case SOF_IPC_TRACE_DMA_POSITION:
-		snd_sof_trace_update_pos(sdev, msg_buf);
+		ipc3_dtrace_posn_update(sdev, msg_buf);
 		break;
 	default:
 		dev_err(sdev->dev, "unhandled trace message %#x\n", msg_type);

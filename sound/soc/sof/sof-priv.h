@@ -660,27 +660,26 @@ static inline void snd_sof_ipc_process_reply(struct snd_sof_dev *sdev, u32 msg_i
 /*
  * Trace/debug
  */
-int snd_sof_init_trace(struct snd_sof_dev *sdev);
-void snd_sof_free_trace(struct snd_sof_dev *sdev);
 int snd_sof_dbg_init(struct snd_sof_dev *sdev);
 void snd_sof_free_debug(struct snd_sof_dev *sdev);
 int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 			     void *base, size_t size,
 			     const char *name, mode_t mode);
-int snd_sof_trace_update_pos(struct snd_sof_dev *sdev,
-			     struct sof_ipc_dma_trace_posn *posn);
-void snd_sof_trace_notify_for_error(struct snd_sof_dev *sdev);
 void sof_print_oops_and_stack(struct snd_sof_dev *sdev, const char *level,
 			      u32 panic_code, u32 tracep_code, void *oops,
 			      struct sof_ipc_panic_info *panic_info,
 			      void *stack, size_t stack_words);
-void snd_sof_trace_suspend(struct snd_sof_dev *sdev, pm_message_t pm_state);
-int snd_sof_trace_resume(struct snd_sof_dev *sdev);
 void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev);
 int snd_sof_dbg_memory_info_init(struct snd_sof_dev *sdev);
 int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
 		enum snd_sof_fw_blk_type blk_type, u32 offset, size_t size,
 		const char *name, enum sof_debugfs_access_type access_type);
+/* Firmware tracing */
+int sof_fw_trace_init(struct snd_sof_dev *sdev);
+void sof_fw_trace_free(struct snd_sof_dev *sdev);
+void sof_fw_trace_fw_crashed(struct snd_sof_dev *sdev);
+void sof_fw_trace_suspend(struct snd_sof_dev *sdev, pm_message_t pm_state);
+int sof_fw_trace_resume(struct snd_sof_dev *sdev);
 
 /*
  * DSP Architectures.

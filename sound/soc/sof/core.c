@@ -252,12 +252,11 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	if (sof_debug_check_flag(SOF_DBG_ENABLE_TRACE)) {
 		sdev->fw_trace_is_supported = true;
 
-		/* init DMA trace */
-		ret = snd_sof_init_trace(sdev);
+		/* init firmware tracing */
+		ret = sof_fw_trace_init(sdev);
 		if (ret < 0) {
 			/* non fatal */
-			dev_warn(sdev->dev,
-				 "warning: failed to initialize trace %d\n",
+			dev_warn(sdev->dev, "failed to initialize firmware tracing %d\n",
 				 ret);
 		}
 	} else {
@@ -308,7 +307,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 sof_machine_err:
 	snd_sof_machine_unregister(sdev, plat_data);
 fw_trace_err:
-	snd_sof_free_trace(sdev);
+	sof_fw_trace_free(sdev);
 fw_run_err:
 	snd_sof_fw_unload(sdev);
 fw_load_err:
@@ -447,7 +446,7 @@ int snd_sof_device_remove(struct device *dev)
 	snd_sof_machine_unregister(sdev, pdata);
 
 	if (sdev->fw_state > SOF_FW_BOOT_NOT_STARTED) {
-		snd_sof_free_trace(sdev);
+		sof_fw_trace_free(sdev);
 		ret = snd_sof_dsp_power_down_notify(sdev);
 		if (ret < 0)
 			dev_warn(dev, "error: %d failed to prepare DSP for device removal",

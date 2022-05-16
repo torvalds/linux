@@ -184,6 +184,12 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 		return NULL;
 	}
 
+	if (ops->fw_tracing && (!ops->fw_tracing->init || !ops->fw_tracing->suspend ||
+				!ops->fw_tracing->resume)) {
+		dev_err(sdev->dev, "Missing firmware tracing ops\n");
+		return NULL;
+	}
+
 	return ipc;
 }
 EXPORT_SYMBOL(snd_sof_ipc_init);
