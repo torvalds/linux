@@ -412,7 +412,7 @@ static int ipc3_dtrace_enable(struct snd_sof_dev *sdev)
 	sdev->host_offset = 0;
 	sdev->dtrace_draining = false;
 
-	ret = snd_sof_dma_trace_init(sdev, &params);
+	ret = sof_dtrace_host_init(sdev, &params);
 	if (ret < 0) {
 		dev_err(sdev->dev, "Host dtrace init failed: %d\n", ret);
 		return ret;
@@ -427,7 +427,7 @@ static int ipc3_dtrace_enable(struct snd_sof_dev *sdev)
 	}
 
 start:
-	ret = snd_sof_dma_trace_trigger(sdev, SNDRV_PCM_TRIGGER_START);
+	ret = sof_dtrace_host_trigger(sdev, SNDRV_PCM_TRIGGER_START);
 	if (ret < 0) {
 		dev_err(sdev->dev, "Host dtrace trigger start failed: %d\n", ret);
 		goto trace_release;
@@ -438,7 +438,7 @@ start:
 	return 0;
 
 trace_release:
-	snd_sof_dma_trace_release(sdev);
+	sof_dtrace_host_release(sdev);
 	return ret;
 }
 
@@ -541,7 +541,7 @@ static void ipc3_dtrace_release(struct snd_sof_dev *sdev, bool only_stop)
 	if (!sdev->fw_trace_is_supported || sdev->dtrace_state == SOF_DTRACE_DISABLED)
 		return;
 
-	ret = snd_sof_dma_trace_trigger(sdev, SNDRV_PCM_TRIGGER_STOP);
+	ret = sof_dtrace_host_trigger(sdev, SNDRV_PCM_TRIGGER_STOP);
 	if (ret < 0)
 		dev_err(sdev->dev, "Host dtrace trigger stop failed: %d\n", ret);
 	sdev->dtrace_state = SOF_DTRACE_STOPPED;
@@ -563,7 +563,7 @@ static void ipc3_dtrace_release(struct snd_sof_dev *sdev, bool only_stop)
 	if (only_stop)
 		goto out;
 
-	ret = snd_sof_dma_trace_release(sdev);
+	ret = sof_dtrace_host_release(sdev);
 	if (ret < 0)
 		dev_err(sdev->dev, "Host dtrace release failed %d\n", ret);
 

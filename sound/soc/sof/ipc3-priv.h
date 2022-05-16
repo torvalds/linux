@@ -29,4 +29,36 @@ int sof_ipc3_validate_fw_version(struct snd_sof_dev *sdev);
 int ipc3_dtrace_posn_update(struct snd_sof_dev *sdev,
 			    struct sof_ipc_dma_trace_posn *posn);
 
+/* dtrace platform callback wrappers */
+static inline int sof_dtrace_host_init(struct snd_sof_dev *sdev,
+				       struct sof_ipc_dma_trace_params_ext *dtrace_params)
+{
+	struct snd_sof_dsp_ops *dsp_ops = sdev->pdata->desc->ops;
+
+	if (dsp_ops->trace_init)
+		return dsp_ops->trace_init(sdev, dtrace_params);
+
+	return 0;
+}
+
+static inline int sof_dtrace_host_release(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_dsp_ops *dsp_ops = sdev->pdata->desc->ops;
+
+	if (dsp_ops->trace_release)
+		return dsp_ops->trace_release(sdev);
+
+	return 0;
+}
+
+static inline int sof_dtrace_host_trigger(struct snd_sof_dev *sdev, int cmd)
+{
+	struct snd_sof_dsp_ops *dsp_ops = sdev->pdata->desc->ops;
+
+	if (dsp_ops->trace_trigger)
+		return dsp_ops->trace_trigger(sdev, cmd);
+
+	return 0;
+}
+
 #endif

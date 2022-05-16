@@ -375,32 +375,6 @@ static inline int snd_sof_dsp_send_msg(struct snd_sof_dev *sdev,
 	return sof_ops(sdev)->send_msg(sdev, msg);
 }
 
-/* host DMA trace */
-static inline int snd_sof_dma_trace_init(struct snd_sof_dev *sdev,
-					 struct sof_ipc_dma_trace_params_ext *dtrace_params)
-{
-	if (sof_ops(sdev)->trace_init)
-		return sof_ops(sdev)->trace_init(sdev, dtrace_params);
-
-	return 0;
-}
-
-static inline int snd_sof_dma_trace_release(struct snd_sof_dev *sdev)
-{
-	if (sof_ops(sdev)->trace_release)
-		return sof_ops(sdev)->trace_release(sdev);
-
-	return 0;
-}
-
-static inline int snd_sof_dma_trace_trigger(struct snd_sof_dev *sdev, int cmd)
-{
-	if (sof_ops(sdev)->trace_trigger)
-		return sof_ops(sdev)->trace_trigger(sdev, cmd);
-
-	return 0;
-}
-
 /* host PCM ops */
 static inline int
 snd_sof_pcm_platform_open(struct snd_sof_dev *sdev,
