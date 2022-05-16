@@ -4591,8 +4591,13 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 EXPORT_SYMBOL(ceph_osdc_start_request);
 
 /*
- * Unregister a registered request.  The request is not completed:
- * ->r_result isn't set and __complete_request() isn't called.
+ * Unregister request.  If @req was registered, it isn't completed:
+ * r_result isn't set and __complete_request() isn't invoked.
+ *
+ * If @req wasn't registered, this call may have raced with
+ * handle_reply(), in which case r_result would already be set and
+ * __complete_request() would be getting invoked, possibly even
+ * concurrently with this call.
  */
 void ceph_osdc_cancel_request(struct ceph_osd_request *req)
 {
