@@ -811,13 +811,6 @@ static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static void mga_connector_destroy(struct drm_connector *connector)
-{
-	struct mga_connector *mga_connector = to_mga_connector(connector);
-	mgag200_i2c_destroy(mga_connector->i2c);
-	drm_connector_cleanup(connector);
-}
-
 static const struct drm_connector_helper_funcs mga_vga_connector_helper_funcs = {
 	.get_modes  = mgag200_vga_connector_helper_get_modes,
 	.mode_valid = mga_vga_mode_valid,
@@ -826,7 +819,7 @@ static const struct drm_connector_helper_funcs mga_vga_connector_helper_funcs = 
 static const struct drm_connector_funcs mga_vga_connector_funcs = {
 	.reset                  = drm_atomic_helper_connector_reset,
 	.fill_modes             = drm_helper_probe_single_connector_modes,
-	.destroy                = mga_connector_destroy,
+	.destroy                = drm_connector_cleanup,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state   = drm_atomic_helper_connector_destroy_state,
 };
@@ -836,12 +829,11 @@ static int mgag200_vga_connector_init(struct mga_device *mdev)
 	struct drm_device *dev = &mdev->base;
 	struct mga_connector *mconnector = &mdev->connector;
 	struct drm_connector *connector = &mconnector->base;
-	struct mga_i2c_chan *i2c;
+	struct mga_i2c_chan *i2c = &mdev->i2c;
 	int ret;
 
-	i2c = mgag200_i2c_create(dev);
-	if (IS_ERR(i2c)) {
-		ret = PTR_ERR(i2c)
+	ret = mgag200_i2c_init(mdev, i2c);
+	if (ret) {
 		drm_err(dev, "failed to add DDC bus: %d\n", ret);
 		return ret;
 	}
@@ -851,16 +843,10 @@ static int mgag200_vga_connector_init(struct mga_device *mdev)
 					  DRM_MODE_CONNECTOR_VGA,
 					  &i2c->adapter);
 	if (ret)
-		goto err_mgag200_i2c_destroy;
+		return ret;
 	drm_connector_helper_add(connector, &mga_vga_connector_helper_funcs);
 
-	mconnector->i2c = i2c;
-
 	return 0;
-
-err_mgag200_i2c_destroy:
-	mgag200_i2c_destroy(i2c);
-	return ret;
 }
 
 /*
