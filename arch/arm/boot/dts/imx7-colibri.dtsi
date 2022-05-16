@@ -94,6 +94,17 @@
 		regulator-name = "+V3.3_AVDD_AUDIO";
 	};
 
+	reg_module_3v3_eth: regulator-module-3v3-eth {
+		compatible = "regulator-fixed";
+		off-on-delay-us = <200000>;
+		regulator-name = "+V3.3_ETH";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		startup-delay-us = <200000>;
+		vin-supply = <&reg_LDO1>;
+	};
+
 	reg_usbh_vbus: regulator-usbh-vbus {
 		compatible = "regulator-fixed";
 		gpio = <&gpio4 7 GPIO_ACTIVE_LOW>; /* SODIMM 129 / USBH_PEN */
@@ -153,7 +164,7 @@
 	fsl,magic-packet;
 	phy-handle = <&ethphy0>;
 	phy-mode = "rmii";
-	phy-supply = <&reg_LDO1>;
+	phy-supply = <&reg_module_3v3_eth>;
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_enet1>;
 	pinctrl-1 = <&pinctrl_enet1_sleep>;
@@ -440,7 +451,7 @@
 			};
 
 			reg_LDO1: LDO1 { /* PWR_EN_+V3.3_ETH */
-				regulator-min-microvolt = <1800000>;
+				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-boot-on;
 			};
