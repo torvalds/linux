@@ -593,15 +593,15 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	    (key = rcu_dereference(tx->sta->ptk[tx->sta->ptk_idx])))
 		tx->key = key;
 	else if (ieee80211_is_group_privacy_action(tx->skb) &&
-		(key = rcu_dereference(tx->sdata->default_multicast_key)))
+		(key = rcu_dereference(tx->sdata->deflink.default_multicast_key)))
 		tx->key = key;
 	else if (ieee80211_is_mgmt(hdr->frame_control) &&
 		 is_multicast_ether_addr(hdr->addr1) &&
 		 ieee80211_is_robust_mgmt_frame(tx->skb) &&
-		 (key = rcu_dereference(tx->sdata->default_mgmt_key)))
+		 (key = rcu_dereference(tx->sdata->deflink.default_mgmt_key)))
 		tx->key = key;
 	else if (is_multicast_ether_addr(hdr->addr1) &&
-		 (key = rcu_dereference(tx->sdata->default_multicast_key)))
+		 (key = rcu_dereference(tx->sdata->deflink.default_multicast_key)))
 		tx->key = key;
 	else if (!is_multicast_ether_addr(hdr->addr1) &&
 		 (key = rcu_dereference(tx->sdata->default_unicast_key)))
@@ -2477,7 +2477,7 @@ int ieee80211_lookup_ra_sta(struct ieee80211_sub_if_data *sdata,
 
 		}
 
-		sta = sta_info_get(sdata, sdata->u.mgd.bssid);
+		sta = sta_info_get(sdata, sdata->deflink.u.mgd.bssid);
 		if (!sta)
 			return -ENOLINK;
 		break;
@@ -2712,14 +2712,14 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 			/* DA SA BSSID */
 			memcpy(hdr.addr1, skb->data, ETH_ALEN);
 			memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
-			memcpy(hdr.addr3, sdata->u.mgd.bssid, ETH_ALEN);
+			memcpy(hdr.addr3, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 			hdrlen = 24;
 		}  else if (sdata->u.mgd.use_4addr &&
 			    cpu_to_be16(ethertype) != sdata->control_port_protocol) {
 			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS |
 					  IEEE80211_FCTL_TODS);
 			/* RA TA DA SA */
-			memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
+			memcpy(hdr.addr1, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 			memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
 			memcpy(hdr.addr3, skb->data, ETH_ALEN);
 			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
@@ -2727,7 +2727,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		} else {
 			fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 			/* BSSID SA DA */
-			memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
+			memcpy(hdr.addr1, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 			memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
 			memcpy(hdr.addr3, skb->data, ETH_ALEN);
 			hdrlen = 24;
@@ -3004,7 +3004,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 			/* DA SA BSSID */
 			build.da_offs = offsetof(struct ieee80211_hdr, addr1);
 			build.sa_offs = offsetof(struct ieee80211_hdr, addr2);
-			memcpy(hdr->addr3, sdata->u.mgd.bssid, ETH_ALEN);
+			memcpy(hdr->addr3, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 			build.hdr_len = 24;
 			break;
 		}
@@ -3014,7 +3014,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS |
 					  IEEE80211_FCTL_TODS);
 			/* RA TA DA SA */
-			memcpy(hdr->addr1, sdata->u.mgd.bssid, ETH_ALEN);
+			memcpy(hdr->addr1, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 			memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
 			build.da_offs = offsetof(struct ieee80211_hdr, addr3);
 			build.sa_offs = offsetof(struct ieee80211_hdr, addr4);
@@ -3023,7 +3023,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 		}
 		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 		/* BSSID SA DA */
-		memcpy(hdr->addr1, sdata->u.mgd.bssid, ETH_ALEN);
+		memcpy(hdr->addr1, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 		build.da_offs = offsetof(struct ieee80211_hdr, addr3);
 		build.sa_offs = offsetof(struct ieee80211_hdr, addr2);
 		build.hdr_len = 24;
@@ -3250,7 +3250,7 @@ static bool ieee80211_amsdu_prepare_head(struct ieee80211_sub_if_data *sdata,
 	 */
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
-		bssid = sdata->u.mgd.bssid;
+		bssid = sdata->deflink.u.mgd.bssid;
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_AP_VLAN:
@@ -4804,7 +4804,7 @@ static void ieee80211_set_beacon_cntdwn(struct ieee80211_sub_if_data *sdata,
 	}
 
 	rcu_read_lock();
-	resp = rcu_dereference(sdata->u.ap.probe_resp);
+	resp = rcu_dereference(sdata->deflink.u.ap.probe_resp);
 
 	bcn_offsets = beacon->cntdwn_counter_offsets;
 	count = beacon->cntdwn_current_counter;
@@ -4848,7 +4848,7 @@ u8 ieee80211_beacon_update_cntdwn(struct ieee80211_vif *vif)
 	rcu_read_lock();
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP)
-		beacon = rcu_dereference(sdata->u.ap.beacon);
+		beacon = rcu_dereference(sdata->deflink.u.ap.beacon);
 	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		beacon = rcu_dereference(sdata->u.ibss.presp);
 	else if (ieee80211_vif_is_mesh(&sdata->vif))
@@ -4873,7 +4873,7 @@ void ieee80211_beacon_set_cntdwn(struct ieee80211_vif *vif, u8 counter)
 	rcu_read_lock();
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP)
-		beacon = rcu_dereference(sdata->u.ap.beacon);
+		beacon = rcu_dereference(sdata->deflink.u.ap.beacon);
 	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		beacon = rcu_dereference(sdata->u.ibss.presp);
 	else if (ieee80211_vif_is_mesh(&sdata->vif))
@@ -4903,9 +4903,7 @@ bool ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif)
 
 	rcu_read_lock();
 	if (vif->type == NL80211_IFTYPE_AP) {
-		struct ieee80211_if_ap *ap = &sdata->u.ap;
-
-		beacon = rcu_dereference(ap->beacon);
+		beacon = rcu_dereference(sdata->deflink.u.ap.beacon);
 		if (WARN_ON(!beacon || !beacon->tail))
 			goto out;
 		beacon_data = beacon->tail;
@@ -4958,7 +4956,7 @@ static int ieee80211_beacon_protect(struct sk_buff *skb,
 	struct sk_buff *check_skb;
 
 	memset(&tx, 0, sizeof(tx));
-	tx.key = rcu_dereference(sdata->default_beacon_key);
+	tx.key = rcu_dereference(sdata->deflink.default_beacon_key);
 	if (!tx.key)
 		return 0;
 	tx.local = local;
@@ -5128,9 +5126,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		memset(offs, 0, sizeof(*offs));
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
-		struct ieee80211_if_ap *ap = &sdata->u.ap;
-
-		beacon = rcu_dereference(ap->beacon);
+		beacon = rcu_dereference(sdata->deflink.u.ap.beacon);
 		if (!beacon)
 			goto out;
 
@@ -5268,7 +5264,6 @@ EXPORT_SYMBOL(ieee80211_beacon_get_tim);
 struct sk_buff *ieee80211_proberesp_get(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif)
 {
-	struct ieee80211_if_ap *ap = NULL;
 	struct sk_buff *skb = NULL;
 	struct probe_resp *presp = NULL;
 	struct ieee80211_hdr *hdr;
@@ -5278,9 +5273,7 @@ struct sk_buff *ieee80211_proberesp_get(struct ieee80211_hw *hw,
 		return NULL;
 
 	rcu_read_lock();
-
-	ap = &sdata->u.ap;
-	presp = rcu_dereference(ap->probe_resp);
+	presp = rcu_dereference(sdata->deflink.u.ap.probe_resp);
 	if (!presp)
 		goto out;
 
@@ -5310,7 +5303,7 @@ struct sk_buff *ieee80211_get_fils_discovery_tmpl(struct ieee80211_hw *hw,
 		return NULL;
 
 	rcu_read_lock();
-	tmpl = rcu_dereference(sdata->u.ap.fils_discovery);
+	tmpl = rcu_dereference(sdata->deflink.u.ap.fils_discovery);
 	if (!tmpl) {
 		rcu_read_unlock();
 		return NULL;
@@ -5339,7 +5332,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
 		return NULL;
 
 	rcu_read_lock();
-	tmpl = rcu_dereference(sdata->u.ap.unsol_bcast_probe_resp);
+	tmpl = rcu_dereference(sdata->deflink.u.ap.unsol_bcast_probe_resp);
 	if (!tmpl) {
 		rcu_read_unlock();
 		return NULL;
@@ -5360,7 +5353,6 @@ struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_if_managed *ifmgd;
 	struct ieee80211_pspoll *pspoll;
 	struct ieee80211_local *local;
 	struct sk_buff *skb;
@@ -5369,7 +5361,6 @@ struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
 		return NULL;
 
 	sdata = vif_to_sdata(vif);
-	ifmgd = &sdata->u.mgd;
 	local = sdata->local;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*pspoll));
@@ -5386,7 +5377,7 @@ struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
 	/* aid in PS-Poll has its two MSBs each set to 1 */
 	pspoll->aid |= cpu_to_le16(1 << 15 | 1 << 14);
 
-	memcpy(pspoll->bssid, ifmgd->bssid, ETH_ALEN);
+	memcpy(pspoll->bssid, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 	memcpy(pspoll->ta, vif->addr, ETH_ALEN);
 
 	return skb;
@@ -5399,7 +5390,6 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 {
 	struct ieee80211_hdr_3addr *nullfunc;
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_if_managed *ifmgd;
 	struct ieee80211_local *local;
 	struct sk_buff *skb;
 	bool qos = false;
@@ -5408,14 +5398,13 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 		return NULL;
 
 	sdata = vif_to_sdata(vif);
-	ifmgd = &sdata->u.mgd;
 	local = sdata->local;
 
 	if (qos_ok) {
 		struct sta_info *sta;
 
 		rcu_read_lock();
-		sta = sta_info_get(sdata, ifmgd->bssid);
+		sta = sta_info_get(sdata, sdata->deflink.u.mgd.bssid);
 		qos = sta && sta->sta.wme;
 		rcu_read_unlock();
 	}
@@ -5444,9 +5433,9 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 		skb_put_data(skb, &qoshdr, sizeof(qoshdr));
 	}
 
-	memcpy(nullfunc->addr1, ifmgd->bssid, ETH_ALEN);
+	memcpy(nullfunc->addr1, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 	memcpy(nullfunc->addr2, vif->addr, ETH_ALEN);
-	memcpy(nullfunc->addr3, ifmgd->bssid, ETH_ALEN);
+	memcpy(nullfunc->addr3, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 
 	return skb;
 }
@@ -5543,7 +5532,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		struct beacon_data *beacon =
-				rcu_dereference(sdata->u.ap.beacon);
+				rcu_dereference(sdata->deflink.u.ap.beacon);
 
 		if (!beacon || !beacon->head)
 			goto out;

@@ -218,7 +218,7 @@ static void ieee80211_tdls_add_link_ie(struct ieee80211_sub_if_data *sdata,
 	lnkid->ie_type = WLAN_EID_LINK_ID;
 	lnkid->ie_len = sizeof(struct ieee80211_tdls_lnkie) - 2;
 
-	memcpy(lnkid->bssid, sdata->u.mgd.bssid, ETH_ALEN);
+	memcpy(lnkid->bssid, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 	memcpy(lnkid->init_sta, init_addr, ETH_ALEN);
 	memcpy(lnkid->resp_sta, rsp_addr, ETH_ALEN);
 }
@@ -545,7 +545,6 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 				 size_t extra_ies_len)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	size_t offset = 0, noffset;
 	struct sta_info *sta, *ap_sta;
 	struct ieee80211_supported_band *sband;
@@ -558,7 +557,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 	mutex_lock(&local->sta_mtx);
 
 	sta = sta_info_get(sdata, peer);
-	ap_sta = sta_info_get(sdata, ifmgd->bssid);
+	ap_sta = sta_info_get(sdata, sdata->deflink.u.mgd.bssid);
 	if (WARN_ON_ONCE(!sta || !ap_sta)) {
 		mutex_unlock(&local->sta_mtx);
 		return;
@@ -833,7 +832,7 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 	mgmt = skb_put_zero(skb, 24);
 	memcpy(mgmt->da, peer, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
-	memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
+	memcpy(mgmt->bssid, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
@@ -1072,7 +1071,8 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
-	enum ieee80211_smps_mode smps_mode = sdata->u.mgd.driver_smps_mode;
+	enum ieee80211_smps_mode smps_mode =
+		sdata->deflink.u.mgd.driver_smps_mode;
 	int ret;
 
 	/* don't support setup with forced SMPS mode that's not off */
@@ -1431,7 +1431,7 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 
 	if (ret == 0)
 		ieee80211_queue_work(&sdata->local->hw,
-				     &sdata->u.mgd.request_smps_work);
+				     &sdata->deflink.u.mgd.request_smps_work);
 
 	mutex_unlock(&local->mtx);
 	sdata_unlock(sdata);

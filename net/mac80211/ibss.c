@@ -309,7 +309,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		mutex_unlock(&local->mtx);
 		return;
 	}
-	sdata->radar_required = radar_required;
+	sdata->deflink.radar_required = radar_required;
 	mutex_unlock(&local->mtx);
 
 	memcpy(ifibss->bssid, bssid, ETH_ALEN);
@@ -544,12 +544,12 @@ int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata)
 					IEEE80211_PRIVACY(ifibss->privacy));
 		/* XXX: should not really modify cfg80211 data */
 		if (cbss) {
-			cbss->channel = sdata->csa_chandef.chan;
+			cbss->channel = sdata->deflink.csa_chandef.chan;
 			cfg80211_put_bss(sdata->local->hw.wiphy, cbss);
 		}
 	}
 
-	ifibss->chandef = sdata->csa_chandef;
+	ifibss->chandef = sdata->deflink.csa_chandef;
 
 	/* generate the beacon */
 	return ieee80211_ibss_csa_beacon(sdata, NULL);
@@ -1853,8 +1853,8 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_HT | BSS_CHANGED_MCAST_RATE;
 	ieee80211_bss_info_change_notify(sdata, changed);
 
-	sdata->smps_mode = IEEE80211_SMPS_OFF;
-	sdata->needed_rx_chains = local->rx_chains;
+	sdata->deflink.smps_mode = IEEE80211_SMPS_OFF;
+	sdata->deflink.needed_rx_chains = local->rx_chains;
 	sdata->control_port_over_nl80211 = params->control_port_over_nl80211;
 
 	ieee80211_queue_work(&local->hw, &sdata->work);

@@ -2533,7 +2533,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 				   BSS_CHANGED_PS;
 
 			/* Re-send beacon info report to the driver */
-			if (sdata->u.mgd.have_beacon)
+			if (sdata->deflink.u.mgd.have_beacon)
 				changed |= BSS_CHANGED_BEACON_INFO;
 
 			if (sdata->vif.bss_conf.max_idle_period ||
@@ -2562,7 +2562,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			if (sdata->vif.type == NL80211_IFTYPE_AP) {
 				changed |= BSS_CHANGED_AP_PROBE_RESP;
 
-				if (rcu_access_pointer(sdata->u.ap.beacon))
+				if (rcu_access_pointer(sdata->deflink.u.ap.beacon))
 					drv_start_ap(local, sdata);
 			}
 			fallthrough;
@@ -3041,7 +3041,7 @@ void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
 	cap = le16_to_cpu(iftd->he_6ghz_capa.capa);
 	cap &= ~IEEE80211_HE_6GHZ_CAP_SM_PS;
 
-	switch (sdata->smps_mode) {
+	switch (sdata->deflink.smps_mode) {
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
 		WARN_ON(1);
@@ -3775,13 +3775,11 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 int ieee80211_ave_rssi(struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	if (WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION)) {
-		/* non-managed type inferfaces */
+	if (WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION))
 		return 0;
-	}
-	return -ewma_beacon_signal_read(&ifmgd->ave_beacon_signal);
+
+	return -ewma_beacon_signal_read(&sdata->deflink.u.mgd.ave_beacon_signal);
 }
 EXPORT_SYMBOL_GPL(ieee80211_ave_rssi);
 
@@ -3973,7 +3971,7 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
 		 * by the time it gets it, sdata->wdev.cac_started
 		 * will no longer be true
 		 */
-		cancel_delayed_work(&sdata->dfs_cac_timer_work);
+		cancel_delayed_work(&sdata->deflink.dfs_cac_timer_work);
 
 		if (sdata->wdev.cac_started) {
 			chandef = sdata->vif.bss_conf.chandef;
@@ -4412,8 +4410,8 @@ static u8 ieee80211_chanctx_radar_detect(struct ieee80211_local *local,
 		return 0;
 
 	list_for_each_entry(sdata, &ctx->reserved_vifs, reserved_chanctx_list)
-		if (sdata->reserved_radar_required)
-			radar_detect |= BIT(sdata->reserved_chandef.width);
+		if (sdata->deflink.reserved_radar_required)
+			radar_detect |= BIT(sdata->deflink.reserved_chandef.width);
 
 	/*
 	 * An in-place reservation context should not have any assigned vifs
@@ -4423,7 +4421,7 @@ static u8 ieee80211_chanctx_radar_detect(struct ieee80211_local *local,
 		!list_empty(&ctx->assigned_vifs));
 
 	list_for_each_entry(sdata, &ctx->assigned_vifs, assigned_chanctx_list)
-		if (sdata->radar_required)
+		if (sdata->deflink.radar_required)
 			radar_detect |= BIT(sdata->vif.bss_conf.chandef.width);
 
 	return radar_detect;

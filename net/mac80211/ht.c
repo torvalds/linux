@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright(c) 2020-2021 Intel Corporation
+ * Copyright(c) 2020-2022 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -433,7 +433,7 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 	    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
 		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
+		memcpy(mgmt->bssid, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		memcpy(mgmt->bssid, sdata->u.ibss.bssid, ETH_ALEN);
 
@@ -543,10 +543,11 @@ void ieee80211_request_smps_mgd_work(struct work_struct *work)
 {
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
-			     u.mgd.request_smps_work);
+			     deflink.u.mgd.request_smps_work);
 
 	sdata_lock(sdata);
-	__ieee80211_request_smps_mgd(sdata, sdata->u.mgd.driver_smps_mode);
+	__ieee80211_request_smps_mgd(sdata,
+				     sdata->deflink.u.mgd.driver_smps_mode);
 	sdata_unlock(sdata);
 }
 
@@ -558,12 +559,12 @@ void ieee80211_request_smps(struct ieee80211_vif *vif,
 	if (WARN_ON_ONCE(vif->type != NL80211_IFTYPE_STATION))
 		return;
 
-	if (sdata->u.mgd.driver_smps_mode == smps_mode)
+	if (sdata->deflink.u.mgd.driver_smps_mode == smps_mode)
 		return;
 
-	sdata->u.mgd.driver_smps_mode = smps_mode;
+	sdata->deflink.u.mgd.driver_smps_mode = smps_mode;
 	ieee80211_queue_work(&sdata->local->hw,
-			     &sdata->u.mgd.request_smps_work);
+			     &sdata->deflink.u.mgd.request_smps_work);
 }
 /* this might change ... don't want non-open drivers using it */
 EXPORT_SYMBOL_GPL(ieee80211_request_smps);

@@ -92,9 +92,9 @@ ieee80211_chanctx_reserved_chandef(struct ieee80211_local *local,
 	list_for_each_entry(sdata, &ctx->reserved_vifs,
 			    reserved_chanctx_list) {
 		if (!compat)
-			compat = &sdata->reserved_chandef;
+			compat = &sdata->deflink.reserved_chandef;
 
-		compat = cfg80211_chandef_compatible(&sdata->reserved_chandef,
+		compat = cfg80211_chandef_compatible(&sdata->deflink.reserved_chandef,
 						     compat);
 		if (!compat)
 			break;
@@ -114,7 +114,7 @@ ieee80211_chanctx_non_reserved_chandef(struct ieee80211_local *local,
 
 	list_for_each_entry(sdata, &ctx->assigned_vifs,
 			    assigned_chanctx_list) {
-		if (sdata->reserved_chanctx != NULL)
+		if (sdata->deflink.reserved_chanctx != NULL)
 			continue;
 
 		if (!compat)
@@ -508,7 +508,7 @@ bool ieee80211_is_radar_required(struct ieee80211_local *local)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->radar_required) {
+		if (sdata->deflink.radar_required) {
 			rcu_read_unlock();
 			return true;
 		}
@@ -535,7 +535,7 @@ ieee80211_chanctx_radar_required(struct ieee80211_local *local,
 			continue;
 		if (rcu_access_pointer(sdata->vif.bss_conf.chanctx_conf) != conf)
 			continue;
-		if (!sdata->radar_required)
+		if (!sdata->deflink.radar_required)
 			continue;
 
 		required = true;
@@ -848,18 +848,18 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 			WARN_ON_ONCE(1);
 		}
 
-		switch (sdata->smps_mode) {
+		switch (sdata->deflink.smps_mode) {
 		default:
 			WARN_ONCE(1, "Invalid SMPS mode %d\n",
-				  sdata->smps_mode);
+				  sdata->deflink.smps_mode);
 			fallthrough;
 		case IEEE80211_SMPS_OFF:
-			needed_static = sdata->needed_rx_chains;
-			needed_dynamic = sdata->needed_rx_chains;
+			needed_static = sdata->deflink.needed_rx_chains;
+			needed_dynamic = sdata->deflink.needed_rx_chains;
 			break;
 		case IEEE80211_SMPS_DYNAMIC:
 			needed_static = 1;
-			needed_dynamic = sdata->needed_rx_chains;
+			needed_dynamic = sdata->deflink.needed_rx_chains;
 			break;
 		case IEEE80211_SMPS_STATIC:
 			needed_static = 1;
@@ -942,7 +942,7 @@ void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
 
 int ieee80211_vif_unreserve_chanctx(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_chanctx *ctx = sdata->reserved_chanctx;
+	struct ieee80211_chanctx *ctx = sdata->deflink.reserved_chanctx;
 
 	lockdep_assert_held(&sdata->local->chanctx_mtx);
 
@@ -950,7 +950,7 @@ int ieee80211_vif_unreserve_chanctx(struct ieee80211_sub_if_data *sdata)
 		return -EINVAL;
 
 	list_del(&sdata->reserved_chanctx_list);
-	sdata->reserved_chanctx = NULL;
+	sdata->deflink.reserved_chanctx = NULL;
 
 	if (ieee80211_chanctx_refcount(sdata->local, ctx) == 0) {
 		if (ctx->replace_state == IEEE80211_CHANCTX_REPLACES_OTHER) {
@@ -1063,10 +1063,10 @@ int ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
 	}
 
 	list_add(&sdata->reserved_chanctx_list, &new_ctx->reserved_vifs);
-	sdata->reserved_chanctx = new_ctx;
-	sdata->reserved_chandef = *chandef;
-	sdata->reserved_radar_required = radar_required;
-	sdata->reserved_ready = false;
+	sdata->deflink.reserved_chanctx = new_ctx;
+	sdata->deflink.reserved_chandef = *chandef;
+	sdata->deflink.reserved_radar_required = radar_required;
+	sdata->deflink.reserved_ready = false;
 
 	return 0;
 }
@@ -1080,7 +1080,7 @@ ieee80211_vif_chanctx_reservation_complete(struct ieee80211_sub_if_data *sdata)
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_OCB:
 		ieee80211_queue_work(&sdata->local->hw,
-				     &sdata->csa_finalize_work);
+				     &sdata->deflink.csa_finalize_work);
 		break;
 	case NL80211_IFTYPE_STATION:
 		ieee80211_queue_work(&sdata->local->hw,
@@ -1128,10 +1128,10 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 	lockdep_assert_held(&local->mtx);
 	lockdep_assert_held(&local->chanctx_mtx);
 
-	new_ctx = sdata->reserved_chanctx;
+	new_ctx = sdata->deflink.reserved_chanctx;
 	old_ctx = ieee80211_vif_get_chanctx(sdata);
 
-	if (WARN_ON(!sdata->reserved_ready))
+	if (WARN_ON(!sdata->deflink.reserved_ready))
 		return -EBUSY;
 
 	if (WARN_ON(!new_ctx))
@@ -1145,14 +1145,14 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 		return -EINVAL;
 
 	chandef = ieee80211_chanctx_non_reserved_chandef(local, new_ctx,
-				&sdata->reserved_chandef);
+				&sdata->deflink.reserved_chandef);
 	if (WARN_ON(!chandef))
 		return -EINVAL;
 
-	if (sdata->vif.bss_conf.chandef.width != sdata->reserved_chandef.width)
+	if (sdata->vif.bss_conf.chandef.width != sdata->deflink.reserved_chandef.width)
 		changed = BSS_CHANGED_BANDWIDTH;
 
-	ieee80211_vif_update_chandef(sdata, &sdata->reserved_chandef);
+	ieee80211_vif_update_chandef(sdata, &sdata->deflink.reserved_chandef);
 
 	ieee80211_change_chanctx(local, new_ctx, old_ctx, chandef);
 
@@ -1161,7 +1161,7 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 	vif_chsw[0].new_ctx = &new_ctx->conf;
 
 	list_del(&sdata->reserved_chanctx_list);
-	sdata->reserved_chanctx = NULL;
+	sdata->deflink.reserved_chanctx = NULL;
 
 	err = drv_switch_vif_chanctx(local, vif_chsw, 1,
 				     CHANCTX_SWMODE_REASSIGN_VIF);
@@ -1204,9 +1204,9 @@ ieee80211_vif_use_reserved_assign(struct ieee80211_sub_if_data *sdata)
 	int err;
 
 	old_ctx = ieee80211_vif_get_chanctx(sdata);
-	new_ctx = sdata->reserved_chanctx;
+	new_ctx = sdata->deflink.reserved_chanctx;
 
-	if (WARN_ON(!sdata->reserved_ready))
+	if (WARN_ON(!sdata->deflink.reserved_ready))
 		return -EINVAL;
 
 	if (WARN_ON(old_ctx))
@@ -1220,14 +1220,14 @@ ieee80211_vif_use_reserved_assign(struct ieee80211_sub_if_data *sdata)
 		return -EINVAL;
 
 	chandef = ieee80211_chanctx_non_reserved_chandef(local, new_ctx,
-				&sdata->reserved_chandef);
+				&sdata->deflink.reserved_chandef);
 	if (WARN_ON(!chandef))
 		return -EINVAL;
 
 	ieee80211_change_chanctx(local, new_ctx, new_ctx, chandef);
 
 	list_del(&sdata->reserved_chanctx_list);
-	sdata->reserved_chanctx = NULL;
+	sdata->deflink.reserved_chanctx = NULL;
 
 	err = ieee80211_assign_vif_chanctx(sdata, new_ctx);
 	if (err) {
@@ -1249,7 +1249,7 @@ ieee80211_vif_has_in_place_reservation(struct ieee80211_sub_if_data *sdata)
 
 	lockdep_assert_held(&sdata->local->chanctx_mtx);
 
-	new_ctx = sdata->reserved_chanctx;
+	new_ctx = sdata->deflink.reserved_chanctx;
 	old_ctx = ieee80211_vif_get_chanctx(sdata);
 
 	if (!old_ctx)
@@ -1421,9 +1421,9 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		list_for_each_entry(sdata, &ctx->replace_ctx->assigned_vifs,
 				    assigned_chanctx_list) {
 			n_assigned++;
-			if (sdata->reserved_chanctx) {
+			if (sdata->deflink.reserved_chanctx) {
 				n_reserved++;
-				if (sdata->reserved_ready)
+				if (sdata->deflink.reserved_ready)
 					n_ready++;
 			}
 		}
@@ -1443,7 +1443,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		list_for_each_entry(sdata, &ctx->reserved_vifs,
 				    reserved_chanctx_list) {
 			if (ieee80211_vif_has_in_place_reservation(sdata) &&
-			    !sdata->reserved_ready)
+			    !sdata->deflink.reserved_ready)
 				return -EAGAIN;
 
 			old_ctx = ieee80211_vif_get_chanctx(sdata);
@@ -1457,7 +1457,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 				n_vifs_ctxless++;
 			}
 
-			if (sdata->reserved_radar_required)
+			if (sdata->deflink.reserved_radar_required)
 				ctx->conf.radar_enabled = true;
 		}
 	}
@@ -1524,13 +1524,14 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 
 			ieee80211_check_fast_xmit_iface(sdata);
 
-			sdata->radar_required = sdata->reserved_radar_required;
+			sdata->deflink.radar_required = sdata->deflink.reserved_radar_required;
 
 			if (sdata->vif.bss_conf.chandef.width !=
-			    sdata->reserved_chandef.width)
+			    sdata->deflink.reserved_chandef.width)
 				changed = BSS_CHANGED_BANDWIDTH;
 
-			ieee80211_vif_update_chandef(sdata, &sdata->reserved_chandef);
+			ieee80211_vif_update_chandef(sdata,
+						     &sdata->deflink.reserved_chandef);
 			if (changed)
 				ieee80211_bss_info_change_notify(sdata,
 								 changed);
@@ -1551,7 +1552,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			list_del(&sdata->reserved_chanctx_list);
 			list_move(&sdata->assigned_chanctx_list,
 				  &ctx->assigned_vifs);
-			sdata->reserved_chanctx = NULL;
+			sdata->deflink.reserved_chanctx = NULL;
 
 			ieee80211_vif_chanctx_reservation_complete(sdata);
 		}
@@ -1569,10 +1570,10 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 					sdata)))
 				continue;
 
-			if (WARN_ON(sdata->reserved_chanctx != ctx))
+			if (WARN_ON(sdata->deflink.reserved_chanctx != ctx))
 				continue;
 
-			if (!sdata->reserved_ready)
+			if (!sdata->deflink.reserved_ready)
 				continue;
 
 			if (ieee80211_vif_get_chanctx(sdata))
@@ -1642,11 +1643,11 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 
 	ctx = container_of(conf, struct ieee80211_chanctx, conf);
 
-	if (sdata->reserved_chanctx) {
-		if (sdata->reserved_chanctx->replace_state ==
+	if (sdata->deflink.reserved_chanctx) {
+		if (sdata->deflink.reserved_chanctx->replace_state ==
 		    IEEE80211_CHANCTX_REPLACES_OTHER &&
 		    ieee80211_chanctx_num_reserved(local,
-						   sdata->reserved_chanctx) > 1)
+						   sdata->deflink.reserved_chanctx) > 1)
 			use_reserved_switch = true;
 
 		ieee80211_vif_unreserve_chanctx(sdata);
@@ -1656,7 +1657,7 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 	if (ieee80211_chanctx_refcount(local, ctx) == 0)
 		ieee80211_free_chanctx(local, ctx);
 
-	sdata->radar_required = false;
+	sdata->deflink.radar_required = false;
 
 	/* Unreserving may ready an in-place reservation. */
 	if (use_reserved_switch)
@@ -1686,7 +1687,7 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 	if (ret > 0)
 		radar_detect_width = BIT(chandef->width);
 
-	sdata->radar_required = ret;
+	sdata->deflink.radar_required = ret;
 
 	ret = ieee80211_check_combinations(sdata, chandef, mode,
 					   radar_detect_width);
@@ -1717,7 +1718,7 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_radar_chanctx(local, ctx);
  out:
 	if (ret)
-		sdata->radar_required = false;
+		sdata->deflink.radar_required = false;
 
 	mutex_unlock(&local->chanctx_mtx);
 	return ret;
@@ -1733,7 +1734,7 @@ int ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata)
 	lockdep_assert_held(&local->mtx);
 	lockdep_assert_held(&local->chanctx_mtx);
 
-	new_ctx = sdata->reserved_chanctx;
+	new_ctx = sdata->deflink.reserved_chanctx;
 	old_ctx = ieee80211_vif_get_chanctx(sdata);
 
 	if (WARN_ON(!new_ctx))
@@ -1743,10 +1744,10 @@ int ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata)
 		    IEEE80211_CHANCTX_WILL_BE_REPLACED))
 		return -EINVAL;
 
-	if (WARN_ON(sdata->reserved_ready))
+	if (WARN_ON(sdata->deflink.reserved_ready))
 		return -EINVAL;
 
-	sdata->reserved_ready = true;
+	sdata->deflink.reserved_ready = true;
 
 	if (new_ctx->replace_state == IEEE80211_CHANCTX_REPLACE_NONE) {
 		if (old_ctx)

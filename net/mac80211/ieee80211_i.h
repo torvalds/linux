@@ -293,19 +293,13 @@ struct ps_data {
 };
 
 struct ieee80211_if_ap {
-	struct beacon_data __rcu *beacon;
-	struct probe_resp __rcu *probe_resp;
-	struct fils_discovery_data __rcu *fils_discovery;
-	struct unsol_bcast_probe_resp_data __rcu *unsol_bcast_probe_resp;
-
-	/* to be used after channel switch. */
-	struct cfg80211_beacon_data *next_beacon;
 	struct list_head vlans; /* write-protected with RTNL and local->mtx */
 
 	struct ps_data ps;
 	atomic_t num_mcast_sta; /* number of stations receiving multicast */
 
 	bool multicast_to_unicast;
+	bool active;
 };
 
 struct ieee80211_if_vlan {
@@ -456,28 +450,13 @@ struct ieee80211_if_managed {
 	   reconnect:1,
 	   associated:1;
 
-	struct cfg80211_bss *assoc_bss;
 	struct ieee80211_mgd_auth_data *auth_data;
 	struct ieee80211_mgd_assoc_data *assoc_data;
 
-	u8 bssid[ETH_ALEN] __aligned(2);
-
 	bool powersave; /* powersave requested for this iface */
 	bool broken_ap; /* AP is broken -- turn off powersave */
-	bool have_beacon;
-	u8 dtim_period;
-	enum ieee80211_smps_mode req_smps, /* requested smps mode */
-				 driver_smps_mode; /* smps mode request */
-
-	struct work_struct request_smps_work;
 
 	unsigned int flags;
-
-	bool csa_waiting_bcn;
-	bool csa_ignored_same_chan;
-
-	bool beacon_crc_valid;
-	u32 beacon_crc;
 
 	bool status_acked;
 	bool status_received;
@@ -503,31 +482,7 @@ struct ieee80211_if_managed {
 	 */
 	unsigned int uapsd_max_sp_len;
 
-	int wmm_last_param_set;
-	int mu_edca_last_param_set;
-
 	u8 use_4addr;
-
-	s16 p2p_noa_index;
-
-	struct ewma_beacon_signal ave_beacon_signal;
-
-	/*
-	 * Number of Beacon frames used in ave_beacon_signal. This can be used
-	 * to avoid generating less reliable cqm events that would be based
-	 * only on couple of received frames.
-	 */
-	unsigned int count_beacon_signal;
-
-	/* Number of times beacon loss was invoked. */
-	unsigned int beacon_loss_count;
-
-	/*
-	 * Last Beacon frame signal strength average (ave_beacon_signal / 16)
-	 * that triggered a cqm event. 0 indicates that no event has been
-	 * generated for the current association.
-	 */
-	int last_cqm_event_signal;
 
 	/*
 	 * State variables for keeping track of RSSI of the AP currently
@@ -535,7 +490,6 @@ struct ieee80211_if_managed {
 	 * below/above a certain threshold.
 	 */
 	int rssi_min_thold, rssi_max_thold;
-	int last_ave_beacon_signal;
 
 	struct ieee80211_ht_cap ht_capa; /* configured ht-cap over-rides */
 	struct ieee80211_ht_cap ht_capa_mask; /* Valid parts of ht_capa */
@@ -901,6 +855,97 @@ struct ieee80211_if_nan {
 	struct idr function_inst_ids;
 };
 
+struct ieee80211_link_data_managed {
+	u8 bssid[ETH_ALEN] __aligned(2);
+
+	u8 dtim_period;
+	enum ieee80211_smps_mode req_smps, /* requested smps mode */
+				 driver_smps_mode; /* smps mode request */
+
+	s16 p2p_noa_index;
+
+	bool have_beacon;
+
+	bool csa_waiting_bcn;
+	bool csa_ignored_same_chan;
+
+	struct work_struct request_smps_work;
+	bool beacon_crc_valid;
+	u32 beacon_crc;
+	struct ewma_beacon_signal ave_beacon_signal;
+	int last_ave_beacon_signal;
+
+	/*
+	 * Number of Beacon frames used in ave_beacon_signal. This can be used
+	 * to avoid generating less reliable cqm events that would be based
+	 * only on couple of received frames.
+	 */
+	unsigned int count_beacon_signal;
+
+	/* Number of times beacon loss was invoked. */
+	unsigned int beacon_loss_count;
+
+	/*
+	 * Last Beacon frame signal strength average (ave_beacon_signal / 16)
+	 * that triggered a cqm event. 0 indicates that no event has been
+	 * generated for the current association.
+	 */
+	int last_cqm_event_signal;
+
+	int wmm_last_param_set;
+	int mu_edca_last_param_set;
+
+	struct cfg80211_bss *bss;
+};
+
+struct ieee80211_link_data_ap {
+	struct beacon_data __rcu *beacon;
+	struct probe_resp __rcu *probe_resp;
+	struct fils_discovery_data __rcu *fils_discovery;
+	struct unsol_bcast_probe_resp_data __rcu *unsol_bcast_probe_resp;
+
+	/* to be used after channel switch. */
+	struct cfg80211_beacon_data *next_beacon;
+};
+
+struct ieee80211_link_data {
+	/* multicast keys only */
+	struct ieee80211_key __rcu *gtk[NUM_DEFAULT_KEYS +
+					NUM_DEFAULT_MGMT_KEYS +
+					NUM_DEFAULT_BEACON_KEYS];
+	struct ieee80211_key __rcu *default_multicast_key;
+	struct ieee80211_key __rcu *default_mgmt_key;
+	struct ieee80211_key __rcu *default_beacon_key;
+
+	struct airtime_info airtime[IEEE80211_NUM_ACS];
+
+	struct work_struct csa_finalize_work;
+	bool csa_block_tx; /* write-protected by sdata_lock and local->mtx */
+	struct cfg80211_chan_def csa_chandef;
+
+	struct work_struct color_change_finalize_work;
+
+	/* context reservation -- protected with chanctx_mtx */
+	struct ieee80211_chanctx *reserved_chanctx;
+	struct cfg80211_chan_def reserved_chandef;
+	bool reserved_radar_required;
+	bool reserved_ready;
+
+	u8 needed_rx_chains;
+	enum ieee80211_smps_mode smps_mode;
+
+	int user_power_level; /* in dBm */
+	int ap_power_level; /* in dBm */
+
+	bool radar_required;
+	struct delayed_work dfs_cac_timer_work;
+
+	union {
+		struct ieee80211_link_data_managed mgd;
+		struct ieee80211_link_data_ap ap;
+	} u;
+};
+
 struct ieee80211_sub_if_data {
 	struct list_head list;
 
@@ -931,13 +976,8 @@ struct ieee80211_sub_if_data {
 	/* bit field of ACM bits (BIT(802.1D tag)) */
 	u8 wmm_acm;
 
-	struct ieee80211_key __rcu *keys[NUM_DEFAULT_KEYS +
-					 NUM_DEFAULT_MGMT_KEYS +
-					 NUM_DEFAULT_BEACON_KEYS];
+	struct ieee80211_key __rcu *keys[NUM_DEFAULT_KEYS];
 	struct ieee80211_key __rcu *default_unicast_key;
-	struct ieee80211_key __rcu *default_multicast_key;
-	struct ieee80211_key __rcu *default_mgmt_key;
-	struct ieee80211_key __rcu *default_beacon_key;
 
 	u16 sequence_number;
 	__be16 control_port_protocol;
@@ -949,22 +989,8 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
 	struct mac80211_qos_map __rcu *qos_map;
 
-	struct airtime_info airtime[IEEE80211_NUM_ACS];
-
-	struct work_struct csa_finalize_work;
-	bool csa_block_tx; /* write-protected by sdata_lock and local->mtx */
-	struct cfg80211_chan_def csa_chandef;
-
-	struct work_struct color_change_finalize_work;
-
 	struct list_head assigned_chanctx_list; /* protected by chanctx_mtx */
 	struct list_head reserved_chanctx_list; /* protected by chanctx_mtx */
-
-	/* context reservation -- protected with chanctx_mtx */
-	struct ieee80211_chanctx *reserved_chanctx;
-	struct cfg80211_chan_def reserved_chandef;
-	bool reserved_radar_required;
-	bool reserved_ready;
 
 	/* used to reconfigure hardware SM PS */
 	struct work_struct recalc_smps;
@@ -972,15 +998,6 @@ struct ieee80211_sub_if_data {
 	struct work_struct work;
 	struct sk_buff_head skb_queue;
 	struct sk_buff_head status_queue;
-
-	u8 needed_rx_chains;
-	enum ieee80211_smps_mode smps_mode;
-
-	int user_power_level; /* in dBm */
-	int ap_power_level; /* in dBm */
-
-	bool radar_required;
-	struct delayed_work dfs_cac_timer_work;
 
 	/*
 	 * AP this belongs to: self in AP mode and
@@ -1012,6 +1029,8 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_mntr mntr;
 		struct ieee80211_if_nan nan;
 	} u;
+
+	struct ieee80211_link_data deflink;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
@@ -1670,7 +1689,7 @@ static inline struct airtime_info *to_airtime_info(struct ieee80211_txq *txq)
 	}
 
 	sdata = vif_to_sdata(txq->vif);
-	return &sdata->airtime[txq->ac];
+	return &sdata->deflink.airtime[txq->ac];
 }
 
 /* To avoid divisions in the fast path, we keep pre-computed reciprocals for

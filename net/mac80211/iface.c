@@ -60,11 +60,11 @@ bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
 	power = ieee80211_chandef_max_power(&chanctx_conf->def);
 	rcu_read_unlock();
 
-	if (sdata->user_power_level != IEEE80211_UNSET_POWER_LEVEL)
-		power = min(power, sdata->user_power_level);
+	if (sdata->deflink.user_power_level != IEEE80211_UNSET_POWER_LEVEL)
+		power = min(power, sdata->deflink.user_power_level);
 
-	if (sdata->ap_power_level != IEEE80211_UNSET_POWER_LEVEL)
-		power = min(power, sdata->ap_power_level);
+	if (sdata->deflink.ap_power_level != IEEE80211_UNSET_POWER_LEVEL)
+		power = min(power, sdata->deflink.ap_power_level);
 
 	if (power != sdata->vif.bss_conf.txpower) {
 		sdata->vif.bss_conf.txpower = power;
@@ -452,19 +452,19 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	mutex_lock(&local->mtx);
 	sdata->vif.bss_conf.csa_active = false;
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		sdata->u.mgd.csa_waiting_bcn = false;
-	if (sdata->csa_block_tx) {
+		sdata->deflink.u.mgd.csa_waiting_bcn = false;
+	if (sdata->deflink.csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_block_tx = false;
+		sdata->deflink.csa_block_tx = false;
 	}
 	mutex_unlock(&local->mtx);
 	sdata_unlock(sdata);
 
-	cancel_work_sync(&sdata->csa_finalize_work);
-	cancel_work_sync(&sdata->color_change_finalize_work);
+	cancel_work_sync(&sdata->deflink.csa_finalize_work);
+	cancel_work_sync(&sdata->deflink.color_change_finalize_work);
 
-	cancel_delayed_work_sync(&sdata->dfs_cac_timer_work);
+	cancel_delayed_work_sync(&sdata->deflink.dfs_cac_timer_work);
 
 	if (sdata->wdev.cac_started) {
 		chandef = sdata->vif.bss_conf.chandef;
@@ -831,7 +831,7 @@ static int ieee80211_netdev_fill_forward_path(struct net_device_path_ctx *ctx,
 			}
 		}
 
-		sta = sta_info_get(sdata, sdata->u.mgd.bssid);
+		sta = sta_info_get(sdata, sdata->deflink.u.mgd.bssid);
 		break;
 	default:
 		goto out;
@@ -1208,7 +1208,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
 		/* no need to tell driver, but set carrier and chanctx */
-		if (rtnl_dereference(sdata->bss->beacon)) {
+		if (sdata->bss->active) {
 			ieee80211_vif_vlan_copy_chanctx(sdata);
 			netif_carrier_on(dev);
 			ieee80211_set_vif_encap_ops(sdata);
@@ -1630,8 +1630,9 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	static const u8 bssid_wildcard[ETH_ALEN] = {0xff, 0xff, 0xff,
 						    0xff, 0xff, 0xff};
 
-	/* clear type-dependent union */
+	/* clear type-dependent unions */
 	memset(&sdata->u, 0, sizeof(sdata->u));
+	memset(&sdata->deflink.u, 0, sizeof(sdata->deflink.u));
 
 	/* and set some type-dependent values */
 	sdata->vif.type = type;
@@ -1657,8 +1658,10 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	skb_queue_head_init(&sdata->status_queue);
 	INIT_WORK(&sdata->work, ieee80211_iface_work);
 	INIT_WORK(&sdata->recalc_smps, ieee80211_recalc_smps_work);
-	INIT_WORK(&sdata->csa_finalize_work, ieee80211_csa_finalize_work);
-	INIT_WORK(&sdata->color_change_finalize_work, ieee80211_color_change_finalize_work);
+	INIT_WORK(&sdata->deflink.csa_finalize_work,
+		  ieee80211_csa_finalize_work);
+	INIT_WORK(&sdata->deflink.color_change_finalize_work,
+		  ieee80211_color_change_finalize_work);
 	INIT_LIST_HEAD(&sdata->assigned_chanctx_list);
 	INIT_LIST_HEAD(&sdata->reserved_chanctx_list);
 
@@ -1679,7 +1682,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.p2p = true;
 		fallthrough;
 	case NL80211_IFTYPE_STATION:
-		sdata->vif.bss_conf.bssid = sdata->u.mgd.bssid;
+		sdata->vif.bss_conf.bssid = sdata->deflink.u.mgd.bssid;
 		ieee80211_sta_setup_sdata(sdata);
 		break;
 	case NL80211_IFTYPE_OCB:
@@ -2076,7 +2079,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	INIT_LIST_HEAD(&sdata->key_list);
 
-	INIT_DELAYED_WORK(&sdata->dfs_cac_timer_work,
+	INIT_DELAYED_WORK(&sdata->deflink.dfs_cac_timer_work,
 			  ieee80211_dfs_cac_timer_work);
 	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,
 			  ieee80211_delayed_tailroom_dec);
@@ -2106,12 +2109,13 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	}
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++)
-		init_airtime_info(&sdata->airtime[i], &local->airtime[i]);
+		init_airtime_info(&sdata->deflink.airtime[i],
+				  &local->airtime[i]);
 
 	ieee80211_set_default_queues(sdata);
 
-	sdata->ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
-	sdata->user_power_level = local->user_power_level;
+	sdata->deflink.ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
+	sdata->deflink.user_power_level = local->user_power_level;
 
 	/* setup type-dependent data */
 	ieee80211_setup_sdata(sdata, type);

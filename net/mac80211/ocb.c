@@ -182,8 +182,8 @@ int ieee80211_ocb_join(struct ieee80211_sub_if_data *sdata,
 		return -EINVAL;
 
 	sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
-	sdata->smps_mode = IEEE80211_SMPS_OFF;
-	sdata->needed_rx_chains = sdata->local->rx_chains;
+	sdata->deflink.smps_mode = IEEE80211_SMPS_OFF;
+	sdata->deflink.needed_rx_chains = sdata->local->rx_chains;
 
 	mutex_lock(&sdata->local->mtx);
 	err = ieee80211_vif_use_channel(sdata, &setup->chandef,
