@@ -124,6 +124,57 @@ static int stm32_mux_set_parent(void __iomem *base,
 	return 0;
 }
 
+static void stm32_gate_endisable(void __iomem *base,
+				 struct clk_stm32_clock_data *data,
+				 u16 gate_id, int enable)
+{
+	const struct stm32_gate_cfg *gate = &data->gates[gate_id];
+	void __iomem *addr = base + gate->offset;
+
+	if (enable) {
+		if (data->gate_cpt[gate_id]++ > 0)
+			return;
+
+		if (gate->set_clr != 0)
+			writel(BIT(gate->bit_idx), addr);
+		else
+			writel(readl(addr) | BIT(gate->bit_idx), addr);
+	} else {
+		if (--data->gate_cpt[gate_id] > 0)
+			return;
+
+		if (gate->set_clr != 0)
+			writel(BIT(gate->bit_idx), addr + gate->set_clr);
+		else
+			writel(readl(addr) & ~BIT(gate->bit_idx), addr);
+	}
+}
+
+static void stm32_gate_disable_unused(void __iomem *base,
+				      struct clk_stm32_clock_data *data,
+				      u16 gate_id)
+{
+	const struct stm32_gate_cfg *gate = &data->gates[gate_id];
+	void __iomem *addr = base + gate->offset;
+
+	if (data->gate_cpt[gate_id] > 0)
+		return;
+
+	if (gate->set_clr != 0)
+		writel(BIT(gate->bit_idx), addr + gate->set_clr);
+	else
+		writel(readl(addr) & ~BIT(gate->bit_idx), addr);
+}
+
+static int stm32_gate_is_enabled(void __iomem *base,
+				 struct clk_stm32_clock_data *data,
+				 u16 gate_id)
+{
+	const struct stm32_gate_cfg *gate = &data->gates[gate_id];
+
+	return (readl(base + gate->offset) & BIT(gate->bit_idx)) != 0;
+}
+
 static u8 clk_stm32_mux_get_parent(struct clk_hw *hw)
 {
 	struct clk_stm32_mux *mux = to_clk_stm32_mux(hw);
@@ -150,6 +201,56 @@ const struct clk_ops clk_stm32_mux_ops = {
 	.set_parent	= clk_stm32_mux_set_parent,
 };
 
+static void clk_stm32_gate_endisable(struct clk_hw *hw, int enable)
+{
+	struct clk_stm32_gate *gate = to_clk_stm32_gate(hw);
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(gate->lock, flags);
+
+	stm32_gate_endisable(gate->base, gate->clock_data, gate->gate_id, enable);
+
+	spin_unlock_irqrestore(gate->lock, flags);
+}
+
+static int clk_stm32_gate_enable(struct clk_hw *hw)
+{
+	clk_stm32_gate_endisable(hw, 1);
+
+	return 0;
+}
+
+static void clk_stm32_gate_disable(struct clk_hw *hw)
+{
+	clk_stm32_gate_endisable(hw, 0);
+}
+
+static int clk_stm32_gate_is_enabled(struct clk_hw *hw)
+{
+	struct clk_stm32_gate *gate = to_clk_stm32_gate(hw);
+
+	return stm32_gate_is_enabled(gate->base, gate->clock_data, gate->gate_id);
+}
+
+static void clk_stm32_gate_disable_unused(struct clk_hw *hw)
+{
+	struct clk_stm32_gate *gate = to_clk_stm32_gate(hw);
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(gate->lock, flags);
+
+	stm32_gate_disable_unused(gate->base, gate->clock_data, gate->gate_id);
+
+	spin_unlock_irqrestore(gate->lock, flags);
+}
+
+const struct clk_ops clk_stm32_gate_ops = {
+	.enable		= clk_stm32_gate_enable,
+	.disable	= clk_stm32_gate_disable,
+	.is_enabled	= clk_stm32_gate_is_enabled,
+	.disable_unused	= clk_stm32_gate_disable_unused,
+};
+
 struct clk_hw *clk_stm32_mux_register(struct device *dev,
 				      const struct stm32_rcc_match_data *data,
 				      void __iomem *base,
@@ -163,6 +264,27 @@ struct clk_hw *clk_stm32_mux_register(struct device *dev,
 	mux->base = base;
 	mux->lock = lock;
 	mux->clock_data = data->clock_data;
+
+	err = clk_hw_register(dev, hw);
+	if (err)
+		return ERR_PTR(err);
+
+	return hw;
+}
+
+struct clk_hw *clk_stm32_gate_register(struct device *dev,
+				       const struct stm32_rcc_match_data *data,
+				       void __iomem *base,
+				       spinlock_t *lock,
+				       const struct clock_config *cfg)
+{
+	struct clk_stm32_gate *gate = cfg->clock_cfg;
+	struct clk_hw *hw = &gate->hw;
+	int err;
+
+	gate->base = base;
+	gate->lock = lock;
+	gate->clock_data = data->clock_data;
 
 	err = clk_hw_register(dev, hw);
 	if (err)

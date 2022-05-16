@@ -410,8 +410,14 @@ static struct clk_stm32_mux ck_ker_eth1 = {
 				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
 };
 
+static struct clk_stm32_gate eth1ck_k = {
+	.gate_id = GATE_ETH1CK,
+	.hw.init = CLK_HW_INIT_HW("eth1ck_k", &ck_ker_eth1.hw, &clk_stm32_gate_ops, 0),
+};
+
 static const struct clock_config stm32mp13_clock_cfg[] = {
 	STM32_MUX_CFG(NO_ID, ck_ker_eth1),
+	STM32_GATE_CFG(ETH1CK_K, eth1ck_k),
 };
 
 static u16 stm32mp13_cpt_gate[GATE_NB];

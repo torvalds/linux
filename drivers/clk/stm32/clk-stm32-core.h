@@ -94,8 +94,19 @@ struct clk_stm32_mux {
 
 #define to_clk_stm32_mux(_hw) container_of(_hw, struct clk_stm32_mux, hw)
 
+struct clk_stm32_gate {
+	u16 gate_id;
+	struct clk_hw hw;
+	void __iomem *base;
+	struct clk_stm32_clock_data *clock_data;
+	spinlock_t *lock; /* spin lock */
+};
+
+#define to_clk_stm32_gate(_hw) container_of(_hw, struct clk_stm32_gate, hw)
+
 /* Clock operators */
 extern const struct clk_ops clk_stm32_mux_ops;
+extern const struct clk_ops clk_stm32_gate_ops;
 
 /* Clock registering */
 struct clk_hw *clk_stm32_mux_register(struct device *dev,
@@ -103,6 +114,12 @@ struct clk_hw *clk_stm32_mux_register(struct device *dev,
 				      void __iomem *base,
 				      spinlock_t *lock,
 				      const struct clock_config *cfg);
+
+struct clk_hw *clk_stm32_gate_register(struct device *dev,
+				       const struct stm32_rcc_match_data *data,
+				       void __iomem *base,
+				       spinlock_t *lock,
+				       const struct clock_config *cfg);
 
 #define STM32_CLOCK_CFG(_binding, _clk, _struct, _register)\
 {\
@@ -114,3 +131,7 @@ struct clk_hw *clk_stm32_mux_register(struct device *dev,
 #define STM32_MUX_CFG(_binding, _clk)\
 	STM32_CLOCK_CFG(_binding, &(_clk), struct clk_stm32_mux *,\
 			&clk_stm32_mux_register)
+
+#define STM32_GATE_CFG(_binding, _clk)\
+	STM32_CLOCK_CFG(_binding, &(_clk), struct clk_stm32_gate *,\
+			&clk_stm32_gate_register)
