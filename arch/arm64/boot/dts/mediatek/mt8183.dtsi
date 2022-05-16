@@ -280,6 +280,14 @@
 		};
 	};
 
+	cci: cci {
+		compatible = "mediatek,mt8183-cci";
+		clocks = <&mcucfg CLK_MCU_BUS_SEL>,
+			 <&topckgen CLK_TOP_ARMPLL_DIV_PLL1>;
+		clock-names = "cci", "intermediate";
+		operating-points-v2 = <&cci_opp>;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
