@@ -824,31 +824,6 @@ static const struct drm_connector_funcs mga_vga_connector_funcs = {
 	.atomic_destroy_state   = drm_atomic_helper_connector_destroy_state,
 };
 
-static int mgag200_vga_connector_init(struct mga_device *mdev)
-{
-	struct drm_device *dev = &mdev->base;
-	struct mga_connector *mconnector = &mdev->connector;
-	struct drm_connector *connector = &mconnector->base;
-	struct mga_i2c_chan *i2c = &mdev->i2c;
-	int ret;
-
-	ret = mgag200_i2c_init(mdev, i2c);
-	if (ret) {
-		drm_err(dev, "failed to add DDC bus: %d\n", ret);
-		return ret;
-	}
-
-	ret = drm_connector_init_with_ddc(dev, connector,
-					  &mga_vga_connector_funcs,
-					  DRM_MODE_CONNECTOR_VGA,
-					  &i2c->adapter);
-	if (ret)
-		return ret;
-	drm_connector_helper_add(connector, &mga_vga_connector_helper_funcs);
-
-	return 0;
-}
-
 /*
  * Simple Display Pipe
  */
@@ -1109,7 +1084,8 @@ static unsigned int mgag200_preferred_depth(struct mga_device *mdev)
 int mgag200_modeset_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
-	struct drm_connector *connector = &mdev->connector.base;
+	struct mga_i2c_chan *i2c = &mdev->i2c;
+	struct drm_connector *connector = &mdev->connector;
 	struct drm_simple_display_pipe *pipe = &mdev->display_pipe;
 	size_t format_count = ARRAY_SIZE(mgag200_simple_display_pipe_formats);
 	int ret;
@@ -1132,13 +1108,21 @@ int mgag200_modeset_init(struct mga_device *mdev)
 
 	dev->mode_config.funcs = &mgag200_mode_config_funcs;
 
-	ret = mgag200_vga_connector_init(mdev);
+	ret = mgag200_i2c_init(mdev, i2c);
 	if (ret) {
-		drm_err(dev,
-			"mgag200_vga_connector_init() failed, error %d\n",
-			ret);
+		drm_err(dev, "failed to add DDC bus: %d\n", ret);
 		return ret;
 	}
+
+	ret = drm_connector_init_with_ddc(dev, connector,
+					  &mga_vga_connector_funcs,
+					  DRM_MODE_CONNECTOR_VGA,
+					  &i2c->adapter);
+	if (ret) {
+		drm_err(dev, "drm_connector_init_with_ddc() failed: %d\n", ret);
+		return ret;
+	}
+	drm_connector_helper_add(connector, &mga_vga_connector_helper_funcs);
 
 	ret = mgag200_pixpll_init(&mdev->pixpll, mdev);
 	if (ret)
