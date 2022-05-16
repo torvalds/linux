@@ -796,18 +796,6 @@ static enum drm_mode_status mga_vga_mode_valid(struct drm_connector *connector,
 		return MODE_BAD;
 	}
 
-	/* Validate the mode input by the user */
-	if (connector->cmdline_mode.specified) {
-		if (connector->cmdline_mode.bpp_specified)
-			bpp = connector->cmdline_mode.bpp;
-	}
-
-	if ((mode->hdisplay * mode->vdisplay * (bpp/8)) > mdev->vram_fb_available) {
-		if (connector->cmdline_mode.specified)
-			connector->cmdline_mode.specified = false;
-		return MODE_BAD;
-	}
-
 	return MODE_OK;
 }
 
@@ -1067,9 +1055,28 @@ static const uint64_t mgag200_simple_display_pipe_fmtmods[] = {
  * Mode config
  */
 
+static enum drm_mode_status mgag200_mode_config_mode_valid(struct drm_device *dev,
+							   const struct drm_display_mode *mode)
+{
+	static const unsigned int max_bpp = 4; // DRM_FORMAT_XRGB8888
+	struct mga_device *mdev = to_mga_device(dev);
+	unsigned long fbsize, fbpages, max_fbpages;
+
+	max_fbpages = mdev->vram_fb_available >> PAGE_SHIFT;
+
+	fbsize = mode->hdisplay * mode->vdisplay * max_bpp;
+	fbpages = DIV_ROUND_UP(fbsize, PAGE_SIZE);
+
+	if (fbpages > max_fbpages)
+		return MODE_MEM;
+
+	return MODE_OK;
+}
+
 static const struct drm_mode_config_funcs mgag200_mode_config_funcs = {
-	.fb_create     = drm_gem_fb_create_with_dirty,
-	.atomic_check  = drm_atomic_helper_check,
+	.fb_create = drm_gem_fb_create_with_dirty,
+	.mode_valid = mgag200_mode_config_mode_valid,
+	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
