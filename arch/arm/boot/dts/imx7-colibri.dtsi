@@ -398,7 +398,7 @@
 		compatible = "fsl,sgtl5000";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_sai1_mclk>;
-		reg = <0x0a>;
+		reg = <0xa>;
 		VDDA-supply = <&reg_module_3v3_avdd>;
 		VDDD-supply = <&reg_DCDC3>;
 		VDDIO-supply = <&reg_module_3v3>;
