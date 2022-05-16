@@ -222,7 +222,7 @@ class KUnitParserTest(unittest.TestCase):
 
 	def test_no_kunit_output(self):
 		crash_log = test_data_path('test_insufficient_memory.log')
-		print_mock = mock.patch('builtins.print').start()
+		print_mock = mock.patch('kunit_printer.Printer.print').start()
 		with open(crash_log) as file:
 			result = kunit_parser.parse_run_tests(
 				kunit_parser.extract_tap_lines(file.readlines()))
@@ -500,7 +500,7 @@ class KUnitMainTest(unittest.TestCase):
 		with open(path) as file:
 			all_passed_log = file.readlines()
 
-		self.print_mock = mock.patch('builtins.print').start()
+		self.print_mock = mock.patch('kunit_printer.Printer.print').start()
 		self.addCleanup(mock.patch.stopall)
 
 		self.mock_linux_init = mock.patch.object(kunit_kernel, 'LinuxSourceTree').start()

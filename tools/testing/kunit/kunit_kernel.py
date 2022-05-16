@@ -18,7 +18,7 @@ import threading
 from typing import Iterator, List, Optional, Tuple
 
 import kunit_config
-import kunit_parser
+from kunit_printer import stdout
 import qemu_config
 
 KCONFIG_PATH = '.config'
@@ -138,7 +138,7 @@ class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 		super().__init__(linux_arch='um', cross_compile=cross_compile)
 
 	def make_allyesconfig(self, build_dir: str, make_options) -> None:
-		kunit_parser.print_with_timestamp(
+		stdout.print_with_timestamp(
 			'Enabling all CONFIGs for UML...')
 		command = ['make', 'ARCH=um', 'O=' + build_dir, 'allyesconfig']
 		if make_options:
@@ -148,13 +148,13 @@ class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 			stdout=subprocess.DEVNULL,
 			stderr=subprocess.STDOUT)
 		process.wait()
-		kunit_parser.print_with_timestamp(
+		stdout.print_with_timestamp(
 			'Disabling broken configs to run KUnit tests...')
 
 		with open(get_kconfig_path(build_dir), 'a') as config:
 			with open(BROKEN_ALLCONFIG_PATH, 'r') as disable:
 				config.write(disable.read())
-		kunit_parser.print_with_timestamp(
+		stdout.print_with_timestamp(
 			'Starting Kernel with all configs takes a few minutes...')
 
 	def start(self, params: List[str], build_dir: str) -> subprocess.Popen:

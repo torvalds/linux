@@ -22,6 +22,7 @@ from typing import Iterable, List, Optional, Sequence, Tuple
 import kunit_json
 import kunit_kernel
 import kunit_parser
+from kunit_printer import stdout
 
 class KunitStatus(Enum):
 	SUCCESS = auto()
@@ -72,7 +73,7 @@ def get_kernel_root_path() -> str:
 
 def config_tests(linux: kunit_kernel.LinuxSourceTree,
 		 request: KunitConfigRequest) -> KunitResult:
-	kunit_parser.print_with_timestamp('Configuring KUnit Kernel ...')
+	stdout.print_with_timestamp('Configuring KUnit Kernel ...')
 
 	config_start = time.time()
 	success = linux.build_reconfig(request.build_dir, request.make_options)
@@ -85,7 +86,7 @@ def config_tests(linux: kunit_kernel.LinuxSourceTree,
 
 def build_tests(linux: kunit_kernel.LinuxSourceTree,
 		request: KunitBuildRequest) -> KunitResult:
-	kunit_parser.print_with_timestamp('Building KUnit Kernel ...')
+	stdout.print_with_timestamp('Building KUnit Kernel ...')
 
 	build_start = time.time()
 	success = linux.build_kernel(request.alltests,
@@ -158,7 +159,7 @@ def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -
 	test_counts = kunit_parser.TestCounts()
 	exec_time = 0.0
 	for i, filter_glob in enumerate(filter_globs):
-		kunit_parser.print_with_timestamp('Starting KUnit Kernel ({}/{})...'.format(i+1, len(filter_globs)))
+		stdout.print_with_timestamp('Starting KUnit Kernel ({}/{})...'.format(i+1, len(filter_globs)))
 
 		test_start = time.time()
 		run_result = linux.run_kernel(
@@ -221,7 +222,7 @@ def parse_tests(request: KunitParseRequest, metadata: kunit_json.Metadata, input
 		else:
 			with open(request.json, 'w') as f:
 				f.write(json_str)
-			kunit_parser.print_with_timestamp("Test results stored in %s" %
+			stdout.print_with_timestamp("Test results stored in %s" %
 				os.path.abspath(request.json))
 
 	if test_result.status != kunit_parser.TestStatus.SUCCESS:
@@ -245,7 +246,7 @@ def run_tests(linux: kunit_kernel.LinuxSourceTree,
 
 	run_end = time.time()
 
-	kunit_parser.print_with_timestamp((
+	stdout.print_with_timestamp((
 		'Elapsed time: %.3fs total, %.3fs configuring, %.3fs ' +
 		'building, %.3fs running\n') % (
 				run_end - run_start,
@@ -446,7 +447,7 @@ def main(argv):
 		request = KunitConfigRequest(build_dir=cli_args.build_dir,
 					     make_options=cli_args.make_options)
 		result = config_tests(linux, request)
-		kunit_parser.print_with_timestamp((
+		stdout.print_with_timestamp((
 			'Elapsed time: %.3fs\n') % (
 				result.elapsed_time))
 		if result.status != KunitStatus.SUCCESS:
@@ -458,7 +459,7 @@ def main(argv):
 					    jobs=cli_args.jobs,
 					    alltests=cli_args.alltests)
 		result = config_and_build_tests(linux, request)
-		kunit_parser.print_with_timestamp((
+		stdout.print_with_timestamp((
 			'Elapsed time: %.3fs\n') % (
 				result.elapsed_time))
 		if result.status != KunitStatus.SUCCESS:
@@ -474,7 +475,7 @@ def main(argv):
 						kernel_args=cli_args.kernel_args,
 						run_isolated=cli_args.run_isolated)
 		result = exec_tests(linux, exec_request)
-		kunit_parser.print_with_timestamp((
+		stdout.print_with_timestamp((
 			'Elapsed time: %.3fs\n') % (result.elapsed_time))
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
