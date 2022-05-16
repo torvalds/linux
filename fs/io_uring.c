@@ -1156,7 +1156,7 @@ static inline void __io_req_init_async(struct io_kiocb *req)
  */
 static inline void io_req_init_async(struct io_kiocb *req)
 {
-	struct io_uring_task *tctx = current->io_uring;
+	struct io_uring_task *tctx = req->task->io_uring;
 
 	if (req->flags & REQ_F_WORK_INITIALIZED)
 		return;
