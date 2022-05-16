@@ -357,13 +357,19 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra->csi_mode = csi_mode;
 }
 
-void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta)
+void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,
+			     u32 changed)
 {
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct rtw89_ra_info *ra = &rtwsta->ra;
 
 	rtw89_phy_ra_sta_update(rtwdev, sta, false);
-	ra->upd_mask = 1;
+
+	if (changed & IEEE80211_RC_SUPP_RATES_CHANGED)
+		ra->upd_mask = 1;
+	if (changed & (IEEE80211_RC_BW_CHANGED | IEEE80211_RC_NSS_CHANGED))
+		ra->upd_bw_nss_mask = 1;
+
 	rtw89_debug(rtwdev, RTW89_DBG_RA,
 		    "ra updat: macid = %d, bw = %d, nss = %d, gi = %d %d",
 		    ra->macid,
@@ -487,7 +493,7 @@ static void rtw89_phy_ra_updata_sta_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw89_dev *rtwdev = (struct rtw89_dev *)data;
 
-	rtw89_phy_ra_updata_sta(rtwdev, sta);
+	rtw89_phy_ra_updata_sta(rtwdev, sta, IEEE80211_RC_SUPP_RATES_CHANGED);
 }
 
 void rtw89_phy_ra_update(struct rtw89_dev *rtwdev)
