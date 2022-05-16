@@ -126,6 +126,7 @@ struct avs_dev {
 	char **lib_names;
 
 	struct completion fw_ready;
+	struct work_struct probe_work;
 
 	struct nhlt_acpi_table *nhlt;
 	struct list_head comp_list;

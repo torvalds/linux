@@ -6,7 +6,6 @@
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
 //
 
-#include <linux/module.h>
 #include <sound/hdaudio_ext.h>
 #include "avs.h"
 #include "registers.h"
@@ -322,5 +321,3 @@ int avs_dsp_delete_pipeline(struct avs_dev *adev, u8 instance_id)
 	ida_free(&adev->ppl_ida, instance_id);
 	return ret;
 }
-
-MODULE_LICENSE("GPL");

@@ -14,6 +14,7 @@
 #define AZX_PGCTL_LSRMD_MASK		BIT(4)
 #define AZX_CGCTL_MISCBDCGE_MASK	BIT(6)
 #define AZX_VS_EM2_L1SEN		BIT(13)
+#define AZX_VS_EM2_DUM			BIT(23)
 
 /* Intel HD Audio General DSP Registers */
 #define AVS_ADSP_GEN_BASE		0x0
