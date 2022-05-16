@@ -46,6 +46,7 @@ struct stm32_composite_cfg {
 
 struct clock_config {
 	unsigned long	id;
+	int		sec_id;
 	void		*clock_cfg;
 
 	struct clk_hw *(*func)(struct device *dev,
@@ -69,6 +70,8 @@ struct stm32_rcc_match_data {
 	unsigned int			maxbinding;
 	struct clk_stm32_clock_data	*clock_data;
 	u32				clear_offset;
+	int (*check_security)(void __iomem *base,
+			      const struct clock_config *cfg);
 };
 
 int stm32_rcc_reset_init(struct device *dev, const struct of_device_id *match,
@@ -157,25 +160,26 @@ struct clk_hw *clk_stm32_composite_register(struct device *dev,
 					    spinlock_t *lock,
 					    const struct clock_config *cfg);
 
-#define STM32_CLOCK_CFG(_binding, _clk, _struct, _register)\
+#define STM32_CLOCK_CFG(_binding, _clk, _sec_id, _struct, _register)\
 {\
 	.id		= (_binding),\
+	.sec_id		= (_sec_id),\
 	.clock_cfg	= (_struct) {_clk},\
 	.func		= (_register),\
 }
 
-#define STM32_MUX_CFG(_binding, _clk)\
-	STM32_CLOCK_CFG(_binding, &(_clk), struct clk_stm32_mux *,\
+#define STM32_MUX_CFG(_binding, _clk, _sec_id)\
+	STM32_CLOCK_CFG(_binding, &(_clk), _sec_id, struct clk_stm32_mux *,\
 			&clk_stm32_mux_register)
 
-#define STM32_GATE_CFG(_binding, _clk)\
-	STM32_CLOCK_CFG(_binding, &(_clk), struct clk_stm32_gate *,\
+#define STM32_GATE_CFG(_binding, _clk, _sec_id)\
+	STM32_CLOCK_CFG(_binding, &(_clk), _sec_id, struct clk_stm32_gate *,\
 			&clk_stm32_gate_register)
 
-#define STM32_DIV_CFG(_binding, _clk)\
-	STM32_CLOCK_CFG(_binding, &(_clk), struct clk_stm32_div *,\
+#define STM32_DIV_CFG(_binding, _clk, _sec_id)\
+	STM32_CLOCK_CFG(_binding, &(_clk), _sec_id, struct clk_stm32_div *,\
 			&clk_stm32_div_register)
 
-#define STM32_COMPOSITE_CFG(_binding, _clk)\
-	STM32_CLOCK_CFG(_binding, &(_clk), struct clk_stm32_composite *,\
+#define STM32_COMPOSITE_CFG(_binding, _clk, _sec_id)\
+	STM32_CLOCK_CFG(_binding, &(_clk), _sec_id, struct clk_stm32_composite *,\
 			&clk_stm32_composite_register)
