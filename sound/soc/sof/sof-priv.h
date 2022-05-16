@@ -358,6 +358,22 @@ struct snd_sof_ipc_msg {
 };
 
 /**
+ * struct sof_ipc_fw_tracing_ops - IPC-specific firmware tracing ops
+ * @init:	Function pointer for initialization of the tracing
+ * @free:	Optional function pointer for freeing of the tracing
+ * @fw_crashed:	Optional function pointer to notify the tracing of a firmware crash
+ * @suspend:	Function pointer for system/runtime suspend
+ * @resume:	Function pointer for system/runtime resume
+ */
+struct sof_ipc_fw_tracing_ops {
+	int (*init)(struct snd_sof_dev *sdev);
+	void (*free)(struct snd_sof_dev *sdev);
+	void (*fw_crashed)(struct snd_sof_dev *sdev);
+	void (*suspend)(struct snd_sof_dev *sdev, pm_message_t pm_state);
+	int (*resume)(struct snd_sof_dev *sdev);
+};
+
+/**
  * struct sof_ipc_pm_ops - IPC-specific PM ops
  * @ctx_save:		Function pointer for context save
  * @ctx_restore:	Function pointer for context restore
@@ -395,6 +411,7 @@ struct sof_ipc_pcm_ops;
  * @pm:		Pointer to PM ops
  * @pcm:	Pointer to PCM ops
  * @fw_loader:	Pointer to Firmware Loader ops
+ * @fw_tracing:	Pointer to Firmware tracing ops
  *
  * @tx_msg:	Function pointer for sending a 'short' IPC message
  * @set_get_data: Function pointer for set/get data ('large' IPC message). This
@@ -415,6 +432,7 @@ struct sof_ipc_ops {
 	const struct sof_ipc_pm_ops *pm;
 	const struct sof_ipc_pcm_ops *pcm;
 	const struct sof_ipc_fw_loader_ops *fw_loader;
+	const struct sof_ipc_fw_tracing_ops *fw_tracing;
 
 	int (*tx_msg)(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
 		      void *reply_data, size_t reply_bytes, bool no_pm);
