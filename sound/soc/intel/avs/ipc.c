@@ -14,6 +14,89 @@
 
 #define AVS_IPC_TIMEOUT_MS	300
 
+static void avs_dsp_recovery(struct avs_dev *adev)
+{
+	struct avs_soc_component *acomp;
+	unsigned int core_mask;
+	int ret;
+
+	mutex_lock(&adev->comp_list_mutex);
+	/* disconnect all running streams */
+	list_for_each_entry(acomp, &adev->comp_list, node) {
+		struct snd_soc_pcm_runtime *rtd;
+		struct snd_soc_card *card;
+
+		card = acomp->base.card;
+		if (!card)
+			continue;
+
+		for_each_card_rtds(card, rtd) {
+			struct snd_pcm *pcm;
+			int dir;
+
+			pcm = rtd->pcm;
+			if (!pcm || rtd->dai_link->no_pcm)
+				continue;
+
+			for_each_pcm_streams(dir) {
+				struct snd_pcm_substream *substream;
+
+				substream = pcm->streams[dir].substream;
+				if (!substream || !substream->runtime)
+					continue;
+
+				snd_pcm_stop(substream, SNDRV_PCM_STATE_DISCONNECTED);
+			}
+		}
+	}
+	mutex_unlock(&adev->comp_list_mutex);
+
+	/* forcibly shutdown all cores */
+	core_mask = GENMASK(adev->hw_cfg.dsp_cores - 1, 0);
+	avs_dsp_core_disable(adev, core_mask);
+
+	/* attempt dsp reboot */
+	ret = avs_dsp_boot_firmware(adev, true);
+	if (ret < 0)
+		dev_err(adev->dev, "dsp reboot failed: %d\n", ret);
+
+	pm_runtime_mark_last_busy(adev->dev);
+	pm_runtime_enable(adev->dev);
+	pm_request_autosuspend(adev->dev);
+
+	atomic_set(&adev->ipc->recovering, 0);
+}
+
+static void avs_dsp_recovery_work(struct work_struct *work)
+{
+	struct avs_ipc *ipc = container_of(work, struct avs_ipc, recovery_work);
+
+	avs_dsp_recovery(to_avs_dev(ipc->dev));
+}
+
+static void avs_dsp_exception_caught(struct avs_dev *adev, union avs_notify_msg *msg)
+{
+	struct avs_ipc *ipc = adev->ipc;
+
+	/* Account for the double-exception case. */
+	ipc->ready = false;
+
+	if (!atomic_add_unless(&ipc->recovering, 1, 1)) {
+		dev_err(adev->dev, "dsp recovery is already in progress\n");
+		return;
+	}
+
+	dev_crit(adev->dev, "communication severed, rebooting dsp..\n");
+
+	/* Re-enabled on recovery completion. */
+	pm_runtime_disable(adev->dev);
+
+	/* Process received notification. */
+	avs_dsp_op(adev, coredump, msg);
+
+	schedule_work(&ipc->recovery_work);
+}
+
 static void avs_dsp_receive_rx(struct avs_dev *adev, u64 header)
 {
 	struct avs_ipc *ipc = adev->ipc;
@@ -57,6 +140,9 @@ static void avs_dsp_process_notification(struct avs_dev *adev, u64 header)
 		data_size = sizeof(struct avs_notify_res_data);
 		break;
 
+	case AVS_NOTIFY_EXCEPTION_CAUGHT:
+		break;
+
 	case AVS_NOTIFY_MODULE_EVENT:
 		/* To know the total payload size, header needs to be read first. */
 		memcpy_fromio(&mod_data, avs_uplink_addr(adev), sizeof(mod_data));
@@ -82,6 +168,10 @@ static void avs_dsp_process_notification(struct avs_dev *adev, u64 header)
 		dev_dbg(adev->dev, "FW READY 0x%08x\n", msg.primary);
 		adev->ipc->ready = true;
 		complete(&adev->fw_ready);
+		break;
+
+	case AVS_NOTIFY_EXCEPTION_CAUGHT:
+		avs_dsp_exception_caught(adev, &msg);
 		break;
 
 	default:
@@ -278,9 +368,10 @@ static int avs_dsp_do_send_msg(struct avs_dev *adev, struct avs_ipc_msg *request
 	ret = avs_ipc_wait_busy_completion(ipc, timeout);
 	if (ret) {
 		if (ret == -ETIMEDOUT) {
-			dev_crit(adev->dev, "communication severed: %d, rebooting dsp..\n", ret);
+			union avs_notify_msg msg = AVS_NOTIFICATION(EXCEPTION_CAUGHT);
 
-			avs_ipc_block(ipc);
+			/* Same treatment as on exception, just stack_dump=0. */
+			avs_dsp_exception_caught(adev, &msg);
 		}
 		goto exit;
 	}
@@ -368,6 +459,7 @@ int avs_ipc_init(struct avs_ipc *ipc, struct device *dev)
 	ipc->dev = dev;
 	ipc->ready = false;
 	ipc->default_timeout_ms = AVS_IPC_TIMEOUT_MS;
+	INIT_WORK(&ipc->recovery_work, avs_dsp_recovery_work);
 	init_completion(&ipc->done_completion);
 	init_completion(&ipc->busy_completion);
 	spin_lock_init(&ipc->rx_lock);
@@ -379,4 +471,5 @@ int avs_ipc_init(struct avs_ipc *ipc, struct device *dev)
 void avs_ipc_block(struct avs_ipc *ipc)
 {
 	ipc->ready = false;
+	cancel_work_sync(&ipc->recovery_work);
 }

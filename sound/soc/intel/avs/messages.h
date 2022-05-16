@@ -187,6 +187,7 @@ enum avs_notify_msg_type {
 	AVS_NOTIFY_PHRASE_DETECTED = 4,
 	AVS_NOTIFY_RESOURCE_EVENT = 5,
 	AVS_NOTIFY_FW_READY = 8,
+	AVS_NOTIFY_EXCEPTION_CAUGHT = 10,
 	AVS_NOTIFY_MODULE_EVENT = 12,
 };
 
@@ -205,6 +206,10 @@ union avs_notify_msg {
 		};
 		union {
 			u32 val;
+			struct {
+				u32 core_id:2;
+				u32 stack_dump_size:16;
+			} coredump;
 		} ext;
 	};
 } __packed;
