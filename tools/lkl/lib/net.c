@@ -1,11 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
+#ifdef __MINGW32__
+#include <ws2tcpip.h>
+#endif
 #include <string.h>
 #include <stdio.h>
 #include "endian.h"
 #include <lkl_host.h>
 
 #ifdef __MINGW32__
-#include <ws2tcpip.h>
-
 int lkl_inet_pton(int af, const char *src, void *dst)
 {
 	struct addrinfo hint, *res = NULL;

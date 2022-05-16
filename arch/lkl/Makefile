@@ -9,6 +9,7 @@ KBUILD_CFLAGS += -fPIC
 else ifneq (,$(filter pe,$(exec_format)))
 ifneq ($(OUTPUT_FORMAT),pe-x86-64)
 prefix=_
+KBUILD_CFLAGS += -fno-leading-underscore
 endif
 # workaround for #include_next<stdarg.h> errors
 LINUXINCLUDE := -isystem arch/lkl/include/system $(LINUXINCLUDE)
@@ -41,7 +42,7 @@ core-y += arch/lkl/drivers/
 all: lkl.o
 
 lkl.o: vmlinux
-	$(OBJCOPY) -R .eh_frame -R .syscall_defs $(foreach sym,$(LKL_ENTRY_POINTS),-G$(prefix)$(sym)) vmlinux lkl.o
+	$(OBJCOPY) -R .eh_frame -R .syscall_defs $(foreach sym,$(LKL_ENTRY_POINTS),-G$(prefix)$(sym)) --prefix-symbols=$(prefix) vmlinux lkl.o
 
 arch/lkl/include/generated/uapi/asm/syscall_defs.h: vmlinux
 	$(OBJCOPY) -j .syscall_defs -O binary --set-section-flags .syscall_defs=alloc $< $@

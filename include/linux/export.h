@@ -11,19 +11,6 @@
  * hackers place grumpy comments in header files.
  */
 
-/* Some toolchains use a `_' prefix for all user symbols. */
-#ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
-#define __VMLINUX_SYMBOL(x) _##x
-#define __VMLINUX_SYMBOL_STR(x) "_" #x
-#else
-#define __VMLINUX_SYMBOL(x) x
-#define __VMLINUX_SYMBOL_STR(x) #x
-#endif
-
-/* Indirect, so macros are expanded before pasting. */
-#define VMLINUX_SYMBOL(x) __VMLINUX_SYMBOL(x)
-#define VMLINUX_SYMBOL_STR(x) __VMLINUX_SYMBOL_STR(x)
-
 #ifndef __ASSEMBLY__
 #ifdef MODULE
 extern struct module __this_module;
@@ -38,14 +25,14 @@ extern struct module __this_module;
 #if defined(CONFIG_MODULE_REL_CRCS)
 #define __CRC_SYMBOL(sym, sec)						\
 	asm("	.section \"___kcrctab" sec "+" #sym "\", \"a\"	\n"	\
-	    "	.weak	" VMLINUX_SYMBOL_STR(__crc_##sym) "	\n"	\
-	    "	.long	" VMLINUX_SYMBOL_STR(__crc_##sym) " - .	\n"	\
+	    "	.weak	__crc_" #sym "				\n"	\
+	    "	.long	__crc_" #sym " - .			\n"	\
 	    "	.previous					\n")
 #else
 #define __CRC_SYMBOL(sym, sec)						\
 	asm("	.section \"___kcrctab" sec "+" #sym "\", \"a\"	\n"	\
-	    "	.weak	" VMLINUX_SYMBOL_STR(__crc_##sym) "	\n"	\
-	    "	.long	" VMLINUX_SYMBOL_STR(__crc_##sym) "	\n"	\
+	    "	.weak	__crc_" #sym "				\n"	\
+	    "	.long	__crc_" #sym "				\n"	\
 	    "	.previous					\n")
 #endif
 #else
@@ -114,7 +101,7 @@ struct kernel_symbol {
 	__CRC_SYMBOL(sym, sec);							\
 	asm("	.section \"__ksymtab_strings\",\"aMS\",%progbits,1	\n"	\
 	    "__kstrtab_" #sym ":					\n"	\
-            "	.asciz 	\"" VMLINUX_SYMBOL_STR(sym) "\"			\n"     \
+	    "	.asciz 	\"" #sym "\"					\n"	\
 	    "__kstrtabns_" #sym ":					\n"	\
 	    "	.asciz 	\"" ns "\"					\n"	\
 	    "	.previous						\n");	\
