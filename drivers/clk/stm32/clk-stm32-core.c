@@ -472,6 +472,16 @@ static int clk_stm32_composite_set_parent(struct clk_hw *hw, u8 index)
 
 	spin_unlock_irqrestore(composite->lock, flags);
 
+	if (composite->clock_data->is_multi_mux) {
+		struct clk_hw *other_mux_hw = composite->clock_data->is_multi_mux(hw);
+
+		if (other_mux_hw) {
+			struct clk_hw *hwp = clk_hw_get_parent_by_index(hw, index);
+
+			clk_hw_reparent(other_mux_hw, hwp);
+		}
+	}
+
 	return 0;
 }
 

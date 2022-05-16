@@ -1469,6 +1469,35 @@ static int stm32mp13_clock_is_provided_by_secure(void __iomem *base,
 	return 0;
 }
 
+struct multi_mux {
+	struct clk_hw *hw1;
+	struct clk_hw *hw2;
+};
+
+static struct multi_mux *stm32_mp13_multi_mux[MUX_NB] = {
+	[MUX_SPI23]	= &(struct multi_mux){ &spi2_k.hw,	&spi3_k.hw },
+	[MUX_I2C12]	= &(struct multi_mux){ &i2c1_k.hw,	&i2c2_k.hw },
+	[MUX_LPTIM45]	= &(struct multi_mux){ &lptim4_k.hw,	&lptim5_k.hw },
+	[MUX_UART35]	= &(struct multi_mux){ &usart3_k.hw,	&uart5_k.hw },
+	[MUX_UART78]	= &(struct multi_mux){ &uart7_k.hw,	&uart8_k.hw },
+	[MUX_SAI1]	= &(struct multi_mux){ &sai1_k.hw,	&adfsdm_k.hw },
+};
+
+static struct clk_hw *stm32mp13_is_multi_mux(struct clk_hw *hw)
+{
+	struct clk_stm32_composite *composite = to_clk_stm32_composite(hw);
+	struct multi_mux *mmux = stm32_mp13_multi_mux[composite->mux_id];
+
+	if (mmux) {
+		if (!(mmux->hw1 == hw))
+			return mmux->hw1;
+		else
+			return mmux->hw2;
+	}
+
+	return NULL;
+}
+
 static u16 stm32mp13_cpt_gate[GATE_NB];
 
 static struct clk_stm32_clock_data stm32mp13_clock_data = {
@@ -1476,6 +1505,7 @@ static struct clk_stm32_clock_data stm32mp13_clock_data = {
 	.gates		= stm32mp13_gates,
 	.muxes		= stm32mp13_muxes,
 	.dividers	= stm32mp13_dividers,
+	.is_multi_mux	= stm32mp13_is_multi_mux,
 };
 
 static const struct stm32_rcc_match_data stm32mp13_data = {

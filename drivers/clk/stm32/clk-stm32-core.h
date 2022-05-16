@@ -61,6 +61,7 @@ struct clk_stm32_clock_data {
 	const struct stm32_gate_cfg	*gates;
 	const struct stm32_mux_cfg	*muxes;
 	const struct stm32_div_cfg	*dividers;
+	struct clk_hw *(*is_multi_mux)(struct clk_hw *hw);
 };
 
 struct stm32_rcc_match_data {
@@ -72,6 +73,7 @@ struct stm32_rcc_match_data {
 	u32				clear_offset;
 	int (*check_security)(void __iomem *base,
 			      const struct clock_config *cfg);
+	int (*multi_mux)(void __iomem *base, const struct clock_config *cfg);
 };
 
 int stm32_rcc_reset_init(struct device *dev, const struct of_device_id *match,
