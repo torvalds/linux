@@ -892,19 +892,11 @@ void submit_bio(struct bio *bio)
 	if (blkcg_punt_bio_submit(bio))
 		return;
 
-	/*
-	 * If it's a regular read/write or a barrier with data attached,
-	 * go through the normal accounting stuff before submission.
-	 */
-	if (bio_has_data(bio)) {
-		unsigned int count = bio_sectors(bio);
-
-		if (op_is_write(bio_op(bio))) {
-			count_vm_events(PGPGOUT, count);
-		} else {
-			task_io_account_read(bio->bi_iter.bi_size);
-			count_vm_events(PGPGIN, count);
-		}
+	if (bio_op(bio) == REQ_OP_READ) {
+		task_io_account_read(bio->bi_iter.bi_size);
+		count_vm_events(PGPGIN, bio_sectors(bio));
+	} else if (bio_op(bio) == REQ_OP_WRITE) {
+		count_vm_events(PGPGOUT, bio_sectors(bio));
 	}
 
 	/*
