@@ -76,6 +76,7 @@ struct vfio_group {
 	atomic_t			opened;
 	enum vfio_group_type		type;
 	unsigned int			dev_counter;
+	struct rw_semaphore		group_rwsem;
 	struct kvm			*kvm;
 	struct blocking_notifier_head	notifier;
 };
@@ -360,6 +361,7 @@ static struct vfio_group *vfio_group_alloc(struct iommu_group *iommu_group,
 	group->cdev.owner = THIS_MODULE;
 
 	refcount_set(&group->users, 1);
+	init_rwsem(&group->group_rwsem);
 	INIT_LIST_HEAD(&group->device_list);
 	mutex_init(&group->device_lock);
 	group->iommu_group = iommu_group;
@@ -1694,9 +1696,11 @@ void vfio_file_set_kvm(struct file *file, struct kvm *kvm)
 	if (file->f_op != &vfio_group_fops)
 		return;
 
+	down_write(&group->group_rwsem);
 	group->kvm = kvm;
 	blocking_notifier_call_chain(&group->notifier,
 				     VFIO_GROUP_NOTIFY_SET_KVM, kvm);
+	up_write(&group->group_rwsem);
 }
 EXPORT_SYMBOL_GPL(vfio_file_set_kvm);
 
@@ -2004,15 +2008,22 @@ static int vfio_register_group_notifier(struct vfio_group *group,
 		return -EINVAL;
 
 	ret = blocking_notifier_chain_register(&group->notifier, nb);
+	if (ret)
+		return ret;
 
 	/*
 	 * The attaching of kvm and vfio_group might already happen, so
 	 * here we replay once upon registration.
 	 */
-	if (!ret && set_kvm && group->kvm)
-		blocking_notifier_call_chain(&group->notifier,
-					VFIO_GROUP_NOTIFY_SET_KVM, group->kvm);
-	return ret;
+	if (set_kvm) {
+		down_read(&group->group_rwsem);
+		if (group->kvm)
+			blocking_notifier_call_chain(&group->notifier,
+						     VFIO_GROUP_NOTIFY_SET_KVM,
+						     group->kvm);
+		up_read(&group->group_rwsem);
+	}
+	return 0;
 }
 
 int vfio_register_notifier(struct vfio_device *device,
