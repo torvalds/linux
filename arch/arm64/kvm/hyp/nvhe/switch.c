@@ -123,6 +123,7 @@ static void __hyp_vgic_restore_state(struct kvm_vcpu *vcpu)
 /**
  * Disable host events, enable guest events
  */
+#ifdef CONFIG_HW_PERF_EVENTS
 static bool __pmu_switch_to_guest(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu_events *pmu = &vcpu->arch.pmu.events;
@@ -149,6 +150,10 @@ static void __pmu_switch_to_host(struct kvm_vcpu *vcpu)
 	if (pmu->events_host)
 		write_sysreg(pmu->events_host, pmcntenset_el0);
 }
+#else
+#define __pmu_switch_to_guest(v)	({ false; })
+#define __pmu_switch_to_host(v)		do {} while (0)
+#endif
 
 /**
  * Handler for protected VM MSR, MRS or System instruction execution in AArch64.

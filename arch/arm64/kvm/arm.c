@@ -751,19 +751,6 @@ static int noinstr kvm_arm_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-/*
- * Updates the vcpu's view of the pmu events for this cpu.
- * Must be called before every vcpu run after disabling interrupts, to ensure
- * that an interrupt cannot fire and update the structure.
- */
-static void kvm_pmu_update_vcpu_events(struct kvm_vcpu *vcpu)
-{
-	if (has_vhe() || !kvm_vcpu_has_pmu(vcpu))
-		return;
-
-	vcpu->arch.pmu.events = *kvm_get_pmu_events();
-}
-
 /**
  * kvm_arch_vcpu_ioctl_run - the main VCPU run function to execute guest code
  * @vcpu:	The VCPU pointer
