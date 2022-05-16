@@ -1794,8 +1794,7 @@ int otx2_stop(struct net_device *netdev)
 	kfree(qset->rq);
 	kfree(qset->napi);
 	/* Do not clear RQ/SQ ringsize settings */
-	memset((void *)qset + offsetof(struct otx2_qset, sqe_cnt), 0,
-	       sizeof(*qset) - offsetof(struct otx2_qset, sqe_cnt));
+	memset_startat(qset, 0, sqe_cnt);
 	return 0;
 }
 EXPORT_SYMBOL(otx2_stop);
