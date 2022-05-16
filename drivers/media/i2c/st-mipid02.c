@@ -50,6 +50,7 @@
 /* Bits definition for MIPID02_MODE_REG2 */
 #define MODE_HSYNC_ACTIVE_HIGH				BIT(1)
 #define MODE_VSYNC_ACTIVE_HIGH				BIT(2)
+#define MODE_PCLK_SAMPLE_RISING				BIT(3)
 /* Bits definition for MIPID02_DATA_SELECTION_CTRL */
 #define SELECTION_MANUAL_DATA				BIT(2)
 #define SELECTION_MANUAL_WIDTH				BIT(3)
@@ -494,6 +495,8 @@ static int mipid02_configure_from_tx(struct mipid02_dev *bridge)
 		bridge->r.mode_reg2 |= MODE_HSYNC_ACTIVE_HIGH;
 	if (ep->bus.parallel.flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH)
 		bridge->r.mode_reg2 |= MODE_VSYNC_ACTIVE_HIGH;
+	if (ep->bus.parallel.flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
+		bridge->r.mode_reg2 |= MODE_PCLK_SAMPLE_RISING;
 
 	return 0;
 }
