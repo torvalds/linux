@@ -1829,8 +1829,6 @@ static int init_subsystems(void)
 
 	kvm_register_perf_callbacks(NULL);
 
-	kvm_sys_reg_table_init();
-
 out:
 	if (err || !is_protected_kvm_enabled())
 		on_each_cpu(_kvm_arch_hardware_disable, NULL, 1);
@@ -2187,6 +2185,12 @@ int kvm_arch_init(void *opaque)
 	if (kvm_get_mode() == KVM_MODE_NONE) {
 		kvm_info("KVM disabled from command line\n");
 		return -ENODEV;
+	}
+
+	err = kvm_sys_reg_table_init();
+	if (err) {
+		kvm_info("Error initializing system register tables");
+		return err;
 	}
 
 	in_hyp_mode = is_kernel_in_hyp_mode();

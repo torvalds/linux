@@ -80,7 +80,7 @@ SYM_FUNC_START(__hyp_do_panic)
 	mov	lr, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
 		      PSR_MODE_EL1h)
 	msr	spsr_el2, lr
-	ldr	lr, =nvhe_hyp_panic_handler
+	adr_l	lr, nvhe_hyp_panic_handler
 	hyp_kimg_va lr, x6
 	msr	elr_el2, lr
 
@@ -125,13 +125,11 @@ alternative_else_nop_endif
 	add	sp, sp, #16
 	/*
 	 * Compute the idmap address of __kvm_handle_stub_hvc and
-	 * jump there. Since we use kimage_voffset, do not use the
-	 * HYP VA for __kvm_handle_stub_hvc, but the kernel VA instead
-	 * (by loading it from the constant pool).
+	 * jump there.
 	 *
 	 * Preserve x0-x4, which may contain stub parameters.
 	 */
-	ldr	x5, =__kvm_handle_stub_hvc
+	adr_l	x5, __kvm_handle_stub_hvc
 	hyp_pa	x5, x6
 	br	x5
 SYM_FUNC_END(__host_hvc)
