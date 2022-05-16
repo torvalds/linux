@@ -6,3 +6,8 @@
 # create lots of noise for no value
 LICENSES/
 license-rules.rst
+
+# Ignore config files and snippets. The majority is generated
+# by the Kconfig tools
+kernel/configs/
+arch/*/configs/
