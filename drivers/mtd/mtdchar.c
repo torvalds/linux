@@ -615,6 +615,9 @@ static int mtdchar_write_ioctl(struct mtd_info *mtd,
 	if (!usr_oob)
 		req.ooblen = 0;
 
+	req.len &= 0xffffffff;
+	req.ooblen &= 0xffffffff;
+
 	if (req.start + req.len > mtd->size)
 		return -EINVAL;
 
