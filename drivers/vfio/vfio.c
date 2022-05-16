@@ -1064,12 +1064,9 @@ static bool vfio_assert_device_open(struct vfio_device *device)
 	return !WARN_ON_ONCE(!READ_ONCE(device->open_count));
 }
 
-static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
+static int vfio_device_assign_container(struct vfio_device *device)
 {
-	struct vfio_device *device;
-	struct file *filep;
-	int fdno;
-	int ret = 0;
+	struct vfio_group *group = device->group;
 
 	if (0 == atomic_read(&group->container_users) ||
 	    !group->container->iommu_driver)
@@ -1078,13 +1075,22 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
-	device = vfio_device_get_from_name(group, buf);
-	if (IS_ERR(device))
-		return PTR_ERR(device);
+	atomic_inc(&group->container_users);
+	return 0;
+}
+
+static struct file *vfio_device_open(struct vfio_device *device)
+{
+	struct file *filep;
+	int ret;
+
+	ret = vfio_device_assign_container(device);
+	if (ret)
+		return ERR_PTR(ret);
 
 	if (!try_module_get(device->dev->driver->owner)) {
 		ret = -ENODEV;
-		goto err_device_put;
+		goto err_unassign_container;
 	}
 
 	mutex_lock(&device->dev_set->lock);
@@ -1100,15 +1106,11 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 	 * We can't use anon_inode_getfd() because we need to modify
 	 * the f_mode flags directly to allow more than just ioctls
 	 */
-	fdno = ret = get_unused_fd_flags(O_CLOEXEC);
-	if (ret < 0)
-		goto err_close_device;
-
 	filep = anon_inode_getfile("[vfio-device]", &vfio_device_fops,
 				   device, O_RDWR);
 	if (IS_ERR(filep)) {
 		ret = PTR_ERR(filep);
-		goto err_fd;
+		goto err_close_device;
 	}
 
 	/*
@@ -1118,17 +1120,15 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 	 */
 	filep->f_mode |= (FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE);
 
-	atomic_inc(&group->container_users);
-
-	fd_install(fdno, filep);
-
-	if (group->type == VFIO_NO_IOMMU)
+	if (device->group->type == VFIO_NO_IOMMU)
 		dev_warn(device->dev, "vfio-noiommu device opened by user "
 			 "(%s:%d)\n", current->comm, task_pid_nr(current));
-	return fdno;
+	/*
+	 * On success the ref of device is moved to the file and
+	 * put in vfio_device_fops_release()
+	 */
+	return filep;
 
-err_fd:
-	put_unused_fd(fdno);
 err_close_device:
 	mutex_lock(&device->dev_set->lock);
 	if (device->open_count == 1 && device->ops->close_device)
@@ -1137,7 +1137,40 @@ err_undo_count:
 	device->open_count--;
 	mutex_unlock(&device->dev_set->lock);
 	module_put(device->dev->driver->owner);
-err_device_put:
+err_unassign_container:
+	vfio_group_try_dissolve_container(device->group);
+	return ERR_PTR(ret);
+}
+
+static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
+{
+	struct vfio_device *device;
+	struct file *filep;
+	int fdno;
+	int ret;
+
+	device = vfio_device_get_from_name(group, buf);
+	if (IS_ERR(device))
+		return PTR_ERR(device);
+
+	fdno = get_unused_fd_flags(O_CLOEXEC);
+	if (fdno < 0) {
+		ret = fdno;
+		goto err_put_device;
+	}
+
+	filep = vfio_device_open(device);
+	if (IS_ERR(filep)) {
+		ret = PTR_ERR(filep);
+		goto err_put_fdno;
+	}
+
+	fd_install(fdno, filep);
+	return fdno;
+
+err_put_fdno:
+	put_unused_fd(fdno);
+err_put_device:
 	vfio_device_put(device);
 	return ret;
 }
