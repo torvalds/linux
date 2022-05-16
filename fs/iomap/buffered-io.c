@@ -1387,7 +1387,6 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 		if (wpc->ops->discard_folio)
 			wpc->ops->discard_folio(folio, pos);
 		if (!count) {
-			folio_clear_uptodate(folio);
 			folio_unlock(folio);
 			goto done;
 		}
