@@ -83,21 +83,34 @@
 };
 
 &fec1 {
+	assigned-clock-parents = <&clks IMX7D_PLL_ENET_MAIN_100M_CLK>;
+	assigned-clock-rates = <0>, <100000000>;
+	assigned-clocks = <&clks IMX7D_ENET1_TIME_ROOT_SRC>,
+			  <&clks IMX7D_ENET1_TIME_ROOT_CLK>;
+	clock-names = "ipg", "ahb", "ptp", "enet_clk_ref";
+	clocks = <&clks IMX7D_ENET_AXI_ROOT_CLK>,
+		 <&clks IMX7D_ENET_AXI_ROOT_CLK>,
+		 <&clks IMX7D_ENET1_TIME_ROOT_CLK>,
+		 <&clks IMX7D_PLL_ENET_MAIN_50M_CLK>;
+	fsl,magic-packet;
+	phy-handle = <&ethphy0>;
+	phy-mode = "rmii";
+	phy-supply = <&reg_LDO1>;
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_enet1>;
 	pinctrl-1 = <&pinctrl_enet1_sleep>;
-	clocks = <&clks IMX7D_ENET_AXI_ROOT_CLK>,
-		<&clks IMX7D_ENET_AXI_ROOT_CLK>,
-		<&clks IMX7D_ENET1_TIME_ROOT_CLK>,
-		<&clks IMX7D_PLL_ENET_MAIN_50M_CLK>;
-	clock-names = "ipg", "ahb", "ptp", "enet_clk_ref";
-	assigned-clocks = <&clks IMX7D_ENET1_TIME_ROOT_SRC>,
-			  <&clks IMX7D_ENET1_TIME_ROOT_CLK>;
-	assigned-clock-parents = <&clks IMX7D_PLL_ENET_MAIN_100M_CLK>;
-	assigned-clock-rates = <0>, <100000000>;
-	phy-mode = "rmii";
-	phy-supply = <&reg_LDO1>;
-	fsl,magic-packet;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			max-speed = <100>;
+			micrel,led-mode = <0>;
+			reg = <0>;
+		};
+	};
 };
 
 &flexcan1 {
