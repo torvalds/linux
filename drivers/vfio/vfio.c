@@ -918,6 +918,8 @@ static void __vfio_group_unset_container(struct vfio_group *group)
 	struct vfio_container *container = group->container;
 	struct vfio_iommu_driver *driver;
 
+	lockdep_assert_held_write(&group->group_rwsem);
+
 	down_write(&container->group_lock);
 
 	driver = container->iommu_driver;
@@ -953,6 +955,8 @@ static int vfio_group_unset_container(struct vfio_group *group)
 {
 	int users = atomic_cmpxchg(&group->container_users, 1, 0);
 
+	lockdep_assert_held_write(&group->group_rwsem);
+
 	if (!users)
 		return -EINVAL;
 	if (users != 1)
@@ -971,8 +975,10 @@ static int vfio_group_unset_container(struct vfio_group *group)
  */
 static void vfio_group_try_dissolve_container(struct vfio_group *group)
 {
+	down_write(&group->group_rwsem);
 	if (0 == atomic_dec_if_positive(&group->container_users))
 		__vfio_group_unset_container(group);
+	up_write(&group->group_rwsem);
 }
 
 static int vfio_group_set_container(struct vfio_group *group, int container_fd)
@@ -981,6 +987,8 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	struct vfio_container *container;
 	struct vfio_iommu_driver *driver;
 	int ret = 0;
+
+	lockdep_assert_held_write(&group->group_rwsem);
 
 	if (atomic_read(&group->container_users))
 		return -EINVAL;
@@ -1039,23 +1047,6 @@ unlock_out:
 	return ret;
 }
 
-static int vfio_group_add_container_user(struct vfio_group *group)
-{
-	if (!atomic_inc_not_zero(&group->container_users))
-		return -EINVAL;
-
-	if (group->type == VFIO_NO_IOMMU) {
-		atomic_dec(&group->container_users);
-		return -EPERM;
-	}
-	if (!group->container->iommu_driver) {
-		atomic_dec(&group->container_users);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static const struct file_operations vfio_device_fops;
 
 /* true if the vfio_device has open_device() called but not close_device() */
@@ -1067,6 +1058,8 @@ static bool vfio_assert_device_open(struct vfio_device *device)
 static int vfio_device_assign_container(struct vfio_device *device)
 {
 	struct vfio_group *group = device->group;
+
+	lockdep_assert_held_write(&group->group_rwsem);
 
 	if (0 == atomic_read(&group->container_users) ||
 	    !group->container->iommu_driver)
@@ -1084,7 +1077,9 @@ static struct file *vfio_device_open(struct vfio_device *device)
 	struct file *filep;
 	int ret;
 
+	down_write(&device->group->group_rwsem);
 	ret = vfio_device_assign_container(device);
+	up_write(&device->group->group_rwsem);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -1197,11 +1192,13 @@ static long vfio_group_fops_unl_ioctl(struct file *filep,
 
 		status.flags = 0;
 
+		down_read(&group->group_rwsem);
 		if (group->container)
 			status.flags |= VFIO_GROUP_FLAGS_CONTAINER_SET |
 					VFIO_GROUP_FLAGS_VIABLE;
 		else if (!iommu_group_dma_owner_claimed(group->iommu_group))
 			status.flags |= VFIO_GROUP_FLAGS_VIABLE;
+		up_read(&group->group_rwsem);
 
 		if (copy_to_user((void __user *)arg, &status, minsz))
 			return -EFAULT;
@@ -1219,11 +1216,15 @@ static long vfio_group_fops_unl_ioctl(struct file *filep,
 		if (fd < 0)
 			return -EINVAL;
 
+		down_write(&group->group_rwsem);
 		ret = vfio_group_set_container(group, fd);
+		up_write(&group->group_rwsem);
 		break;
 	}
 	case VFIO_GROUP_UNSET_CONTAINER:
+		down_write(&group->group_rwsem);
 		ret = vfio_group_unset_container(group);
+		up_write(&group->group_rwsem);
 		break;
 	case VFIO_GROUP_GET_DEVICE_FD:
 	{
@@ -1709,15 +1710,19 @@ bool vfio_file_enforced_coherent(struct file *file)
 	if (file->f_op != &vfio_group_fops)
 		return true;
 
-	/*
-	 * Since the coherency state is determined only once a container is
-	 * attached the user must do so before they can prove they have
-	 * permission.
-	 */
-	if (vfio_group_add_container_user(group))
-		return true;
-	ret = vfio_ioctl_check_extension(group->container, VFIO_DMA_CC_IOMMU);
-	vfio_group_try_dissolve_container(group);
+	down_read(&group->group_rwsem);
+	if (group->container) {
+		ret = vfio_ioctl_check_extension(group->container,
+						 VFIO_DMA_CC_IOMMU);
+	} else {
+		/*
+		 * Since the coherency state is determined only once a container
+		 * is attached the user must do so before they can prove they
+		 * have permission.
+		 */
+		ret = true;
+	}
+	up_read(&group->group_rwsem);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vfio_file_enforced_coherent);
@@ -1910,6 +1915,7 @@ int vfio_pin_pages(struct vfio_device *device, unsigned long *user_pfn,
 	if (group->dev_counter > 1)
 		return -EINVAL;
 
+	/* group->container cannot change while a vfio device is open */
 	container = group->container;
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->pin_pages))
@@ -1945,6 +1951,7 @@ int vfio_unpin_pages(struct vfio_device *device, unsigned long *user_pfn,
 	if (npage > VFIO_PIN_PAGES_MAX_ENTRIES)
 		return -E2BIG;
 
+	/* group->container cannot change while a vfio device is open */
 	container = device->group->container;
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->unpin_pages))
@@ -1984,6 +1991,7 @@ int vfio_dma_rw(struct vfio_device *device, dma_addr_t user_iova, void *data,
 	if (!data || len <= 0 || !vfio_assert_device_open(device))
 		return -EINVAL;
 
+	/* group->container cannot change while a vfio device is open */
 	container = device->group->container;
 	driver = container->iommu_driver;
 
@@ -2004,6 +2012,7 @@ static int vfio_register_iommu_notifier(struct vfio_group *group,
 	struct vfio_iommu_driver *driver;
 	int ret;
 
+	down_read(&group->group_rwsem);
 	container = group->container;
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->register_notifier))
@@ -2011,6 +2020,8 @@ static int vfio_register_iommu_notifier(struct vfio_group *group,
 						     events, nb);
 	else
 		ret = -ENOTTY;
+	up_read(&group->group_rwsem);
+
 	return ret;
 }
 
@@ -2021,6 +2032,7 @@ static int vfio_unregister_iommu_notifier(struct vfio_group *group,
 	struct vfio_iommu_driver *driver;
 	int ret;
 
+	down_read(&group->group_rwsem);
 	container = group->container;
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->unregister_notifier))
@@ -2028,6 +2040,8 @@ static int vfio_unregister_iommu_notifier(struct vfio_group *group,
 						       nb);
 	else
 		ret = -ENOTTY;
+	up_read(&group->group_rwsem);
+
 	return ret;
 }
 
