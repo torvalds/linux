@@ -424,66 +424,75 @@
 		reg = <0x33>;
 
 		regulators {
-			reg_DCDC1: DCDC1 {  /* V1.0_SOC */
+			reg_DCDC1: DCDC1 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-max-microvolt = <1100000>;
 				regulator-min-microvolt = <1000000>;
+				regulator-name = "+V1.0_SOC";
 			};
 
-			reg_DCDC2: DCDC2 { /* V1.1_ARM */
+			reg_DCDC2: DCDC2 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-max-microvolt = <1100000>;
 				regulator-min-microvolt = <975000>;
+				regulator-name = "+V1.1_ARM";
 			};
 
-			reg_DCDC3: DCDC3 { /* V1.8 */
+			reg_DCDC3: DCDC3 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-max-microvolt = <1800000>;
 				regulator-min-microvolt = <1800000>;
+				regulator-name = "+V1.8";
 			};
 
-			reg_DCDC4: DCDC4 { /* V1.35_DRAM */
+			reg_DCDC4: DCDC4 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-max-microvolt = <1350000>;
 				regulator-min-microvolt = <1350000>;
+				regulator-name = "+V1.35_DRAM";
 			};
 
-			reg_LDO1: LDO1 { /* PWR_EN_+V3.3_ETH */
+			reg_LDO1: LDO1 {
 				regulator-boot-on;
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <3300000>;
+				regulator-name = "PWR_EN_+V3.3_ETH";
 			};
 
-			reg_LDO2: LDO2 { /* +V1.8_SD */
+			reg_LDO2: LDO2 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <1800000>;
+				regulator-name = "+V1.8_SD";
 			};
 
-			reg_LDO3: LDO3 { /* PWR_EN_+V3.3_LPSR */
+			reg_LDO3: LDO3 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <3300000>;
+				regulator-name = "PWR_EN_+V3.3_LPSR";
 			};
 
-			reg_LDO4: LDO4 { /* V1.8_LPSR */
+			reg_LDO4: LDO4 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-max-microvolt = <1800000>;
 				regulator-min-microvolt = <1800000>;
+				regulator-name = "+V1.8_LPSR";
 			};
 
-			reg_LDO5: LDO5 { /* PWR_EN_+V3.3 */
+			reg_LDO5: LDO5 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <3300000>;
+				regulator-name = "PWR_EN_+V3.3";
 			};
 		};
 	};
