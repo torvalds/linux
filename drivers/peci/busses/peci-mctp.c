@@ -37,7 +37,7 @@ static const struct mctp_protocol_hdr mctp_hdr_template_be = {
 	.flags_seq_tag = REQUEST_FLAGS
 };
 
-static struct mctp_peci_vdm_hdr {
+struct mctp_peci_vdm_hdr {
 	u8 type;
 	u16 vendor_id;
 	u8 instance_req_d;
