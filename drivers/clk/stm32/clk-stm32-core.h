@@ -83,10 +83,34 @@ int stm32_rcc_init(struct device *dev, const struct of_device_id *match_data,
 /* DIV define */
 #define DIV_NO_RDY		0xFF
 
+/* Definition of clock structure */
+struct clk_stm32_mux {
+	u16 mux_id;
+	struct clk_hw hw;
+	void __iomem *base;
+	struct clk_stm32_clock_data *clock_data;
+	spinlock_t *lock; /* spin lock */
+};
+
+#define to_clk_stm32_mux(_hw) container_of(_hw, struct clk_stm32_mux, hw)
+
+/* Clock operators */
+extern const struct clk_ops clk_stm32_mux_ops;
+
 /* Clock registering */
+struct clk_hw *clk_stm32_mux_register(struct device *dev,
+				      const struct stm32_rcc_match_data *data,
+				      void __iomem *base,
+				      spinlock_t *lock,
+				      const struct clock_config *cfg);
+
 #define STM32_CLOCK_CFG(_binding, _clk, _struct, _register)\
 {\
 	.id		= (_binding),\
 	.clock_cfg	= (_struct) {_clk},\
 	.func		= (_register),\
 }
+
+#define STM32_MUX_CFG(_binding, _clk)\
+	STM32_CLOCK_CFG(_binding, &(_clk), struct clk_stm32_mux *,\
+			&clk_stm32_mux_register)

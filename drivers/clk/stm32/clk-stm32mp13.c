@@ -400,7 +400,18 @@ static const struct stm32_mux_cfg stm32mp13_muxes[] = {
 	CFG_MUX(MUX_SDMMC2,	RCC_SDMMC12CKSELR,	3, 3),
 };
 
+static const char * const eth12_src[] = {
+	"pll4_p", "pll3_q"
+};
+
+static struct clk_stm32_mux ck_ker_eth1 = {
+	.mux_id = MUX_ETH1,
+	.hw.init = CLK_HW_INIT_PARENTS("ck_ker_eth1", eth12_src, &clk_stm32_mux_ops,
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+};
+
 static const struct clock_config stm32mp13_clock_cfg[] = {
+	STM32_MUX_CFG(NO_ID, ck_ker_eth1),
 };
 
 static u16 stm32mp13_cpt_gate[GATE_NB];
