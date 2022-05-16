@@ -412,7 +412,7 @@ static int ipc3_dtrace_enable(struct snd_sof_dev *sdev)
 	sdev->host_offset = 0;
 	sdev->dtrace_draining = false;
 
-	ret = sof_dtrace_host_init(sdev, &params);
+	ret = sof_dtrace_host_init(sdev, &sdev->dmatb, &params);
 	if (ret < 0) {
 		dev_err(sdev->dev, "Host dtrace init failed: %d\n", ret);
 		return ret;

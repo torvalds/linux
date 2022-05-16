@@ -254,8 +254,9 @@ struct snd_sof_dsp_ops {
 				       size_t size, const char *name,
 				       enum sof_debugfs_access_type access_type); /* optional */
 
-	/* host DMA trace initialization */
+	/* host DMA trace (IPC3) */
 	int (*trace_init)(struct snd_sof_dev *sdev,
+			  struct snd_dma_buffer *dmatb,
 			  struct sof_ipc_dma_trace_params_ext *dtrace_params); /* optional */
 	int (*trace_release)(struct snd_sof_dev *sdev); /* optional */
 	int (*trace_trigger)(struct snd_sof_dev *sdev,

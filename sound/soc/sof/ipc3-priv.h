@@ -31,12 +31,13 @@ int ipc3_dtrace_posn_update(struct snd_sof_dev *sdev,
 
 /* dtrace platform callback wrappers */
 static inline int sof_dtrace_host_init(struct snd_sof_dev *sdev,
+				       struct snd_dma_buffer *dmatb,
 				       struct sof_ipc_dma_trace_params_ext *dtrace_params)
 {
 	struct snd_sof_dsp_ops *dsp_ops = sdev->pdata->desc->ops;
 
 	if (dsp_ops->trace_init)
-		return dsp_ops->trace_init(sdev, dtrace_params);
+		return dsp_ops->trace_init(sdev, dmatb, dtrace_params);
 
 	return 0;
 }
