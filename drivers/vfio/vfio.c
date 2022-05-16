@@ -73,7 +73,7 @@ struct vfio_group {
 	struct mutex			device_lock;
 	struct list_head		vfio_next;
 	struct list_head		container_next;
-	atomic_t			opened;
+	bool				opened;
 	enum vfio_group_type		type;
 	unsigned int			dev_counter;
 	struct rw_semaphore		group_rwsem;
@@ -1213,30 +1213,30 @@ static int vfio_group_fops_open(struct inode *inode, struct file *filep)
 {
 	struct vfio_group *group =
 		container_of(inode->i_cdev, struct vfio_group, cdev);
-	int opened;
+	int ret;
+
+	down_write(&group->group_rwsem);
 
 	/* users can be zero if this races with vfio_group_put() */
-	if (!refcount_inc_not_zero(&group->users))
-		return -ENODEV;
+	if (!refcount_inc_not_zero(&group->users)) {
+		ret = -ENODEV;
+		goto err_unlock;
+	}
 
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO)) {
-		vfio_group_put(group);
-		return -EPERM;
+		ret = -EPERM;
+		goto err_put;
 	}
 
-	/* Do we need multiple instances of the group open?  Seems not. */
-	opened = atomic_cmpxchg(&group->opened, 0, 1);
-	if (opened) {
-		vfio_group_put(group);
-		return -EBUSY;
+	/*
+	 * Do we need multiple instances of the group open?  Seems not.
+	 * Is something still in use from a previous open?
+	 */
+	if (group->opened || group->container) {
+		ret = -EBUSY;
+		goto err_put;
 	}
-
-	/* Is something still in use from a previous open? */
-	if (group->container) {
-		atomic_dec(&group->opened);
-		vfio_group_put(group);
-		return -EBUSY;
-	}
+	group->opened = true;
 
 	/* Warn if previous user didn't cleanup and re-init to drop them */
 	if (WARN_ON(group->notifier.head))
@@ -1244,7 +1244,13 @@ static int vfio_group_fops_open(struct inode *inode, struct file *filep)
 
 	filep->private_data = group;
 
+	up_write(&group->group_rwsem);
 	return 0;
+err_put:
+	vfio_group_put(group);
+err_unlock:
+	up_write(&group->group_rwsem);
+	return ret;
 }
 
 static int vfio_group_fops_release(struct inode *inode, struct file *filep)
@@ -1255,7 +1261,9 @@ static int vfio_group_fops_release(struct inode *inode, struct file *filep)
 
 	vfio_group_try_dissolve_container(group);
 
-	atomic_dec(&group->opened);
+	down_write(&group->group_rwsem);
+	group->opened = false;
+	up_write(&group->group_rwsem);
 
 	vfio_group_put(group);
 
