@@ -10,6 +10,8 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/rockchip/rockchip_sip.h>
 
 #define RK_CPU_STATUS_OFF		0
@@ -31,6 +33,8 @@ struct rkamp_device {
 	struct device *dev;
 	struct clk_bulk_data *clks;
 	int num_clks;
+	struct device **pd_dev;
+	int num_pds;
 };
 
 static struct {
@@ -233,6 +237,33 @@ static int rockchip_amp_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "failed to prepare enable clks: %d\n", ret);
 
+	pm_runtime_enable(&pdev->dev);
+
+	rkamp_dev->num_pds = of_count_phandle_with_args(pdev->dev.of_node, "power-domains",
+							"#power-domain-cells");
+
+	if (rkamp_dev->num_pds > 0) {
+		rkamp_dev->pd_dev = devm_kmalloc_array(&pdev->dev, rkamp_dev->num_pds,
+						       sizeof(*rkamp_dev->pd_dev), GFP_KERNEL);
+		if (!rkamp_dev->pd_dev)
+			return -ENOMEM;
+
+		if (rkamp_dev->num_pds == 1) {
+			ret = pm_runtime_resume_and_get(&pdev->dev);
+			if (ret < 0)
+				return dev_err_probe(&pdev->dev, ret,
+						     "failed to get power-domain\n");
+		} else {
+			for (i = 0; i < rkamp_dev->num_pds; i++) {
+				rkamp_dev->pd_dev[i] = dev_pm_domain_attach_by_id(&pdev->dev, i);
+				ret = pm_runtime_resume_and_get(rkamp_dev->pd_dev[i]);
+				if (ret < 0)
+					return dev_err_probe(&pdev->dev, ret,
+							     "failed to get pd_dev[%d]\n", i);
+			}
+		}
+	}
+
 	cpus_node = of_get_child_by_name(pdev->dev.of_node, "amp-cpus");
 
 	if (cpus_node) {
@@ -259,10 +290,22 @@ static int rockchip_amp_probe(struct platform_device *pdev)
 
 static int rockchip_amp_remove(struct platform_device *pdev)
 {
-	int i = 0;
+	int i;
 	struct rkamp_device *rkamp_dev = platform_get_drvdata(pdev);
 
 	clk_bulk_disable_unprepare(rkamp_dev->num_clks, rkamp_dev->clks);
+
+	if (rkamp_dev->num_pds == 1) {
+		pm_runtime_put_sync(&pdev->dev);
+	} else if (rkamp_dev->num_pds > 1) {
+		for (i = 0; i < rkamp_dev->num_pds; i++) {
+			pm_runtime_put_sync(rkamp_dev->pd_dev[i]);
+			dev_pm_domain_detach(rkamp_dev->pd_dev[i], true);
+			rkamp_dev->pd_dev[i] = NULL;
+		}
+	}
+
+	pm_runtime_disable(&pdev->dev);
 
 	for (i = 0; i < ARRAY_SIZE(rk_amp_attrs); i++)
 		sysfs_remove_file(rk_amp_kobj, &rk_amp_attrs[i].attr);
