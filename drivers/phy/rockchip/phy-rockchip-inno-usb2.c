@@ -954,7 +954,8 @@ static int rockchip_usb2phy_set_mode(struct phy *phy,
 		rockchip_set_vbus_power(rport, false);
 		extcon_set_state_sync(rphy->edev, EXTCON_USB_VBUS_EN, false);
 		/* For vbus always on, set EXTCON_USB to true. */
-		extcon_set_state(rphy->edev, EXTCON_USB, true);
+		if (rport->vbus_always_on)
+			extcon_set_state(rphy->edev, EXTCON_USB, true);
 		rport->perip_connected = true;
 		vbus_det_en = true;
 		break;
@@ -969,7 +970,8 @@ static int rockchip_usb2phy_set_mode(struct phy *phy,
 
 		extcon_set_state_sync(rphy->edev, EXTCON_USB_VBUS_EN, true);
 		/* For vbus always on, deinit EXTCON_USB to false. */
-		extcon_set_state(rphy->edev, EXTCON_USB, false);
+		if (rport->vbus_always_on)
+			extcon_set_state(rphy->edev, EXTCON_USB, false);
 		rport->perip_connected = false;
 		fallthrough;
 	case PHY_MODE_INVALID:
@@ -2092,10 +2094,6 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 			return ret;
 	}
 
-	if (rport->vbus_always_on || rport->mode == USB_DR_MODE_HOST ||
-	    rport->mode == USB_DR_MODE_UNKNOWN)
-		goto out;
-
 	/*
 	 * Set the utmi bvalid come from the usb phy or grf.
 	 * For most of Rockchip SoCs, them have VBUSDET pin
@@ -2112,6 +2110,13 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		else
 			property_enable(base, &rport->port_cfg->bvalid_grf_sel, false);
 	}
+
+	if (rport->vbus_always_on)
+		extcon_set_state(rphy->edev, EXTCON_USB, true);
+
+	if (rport->vbus_always_on || rport->mode == USB_DR_MODE_HOST ||
+	    rport->mode == USB_DR_MODE_UNKNOWN)
+		goto out;
 
 	wake_lock_init(&rport->wakelock, WAKE_LOCK_SUSPEND, "rockchip_otg");
 	INIT_DELAYED_WORK(&rport->bypass_uart_work,
