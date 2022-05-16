@@ -1142,11 +1142,6 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 					(link->dpcd_caps.dongle_type !=
 							DISPLAY_DONGLE_DP_HDMI_CONVERTER))
 				converter_disable_audio = true;
-
-			// link switch from MST to non-MST stop topology manager
-			if (pre_connection_type == dc_connection_mst_branch &&
-					link->type != dc_connection_mst_branch)
-				dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
 			break;
 		}
 
