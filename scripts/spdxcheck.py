@@ -103,8 +103,20 @@ class id_parser(object):
         self.spdx_valid = 0
         self.spdx_errors = 0
         self.spdx_dirs = {}
+        self.dirdepth = -1
+        self.basedir = '.'
         self.curline = 0
         self.deepest = 0
+
+    def set_dirinfo(self, basedir, dirdepth):
+        if dirdepth >= 0:
+            self.basedir = basedir
+            bdir = basedir.lstrip('./').rstrip('/')
+            if bdir != '':
+                parts = bdir.split('/')
+            else:
+                parts = []
+            self.dirdepth = dirdepth + len(parts)
 
     # Validate License and Exception IDs
     def validate(self, tok):
@@ -215,12 +227,29 @@ class id_parser(object):
                 sys.stdout.write('%s: %d:0 %s\n' %(fname, self.curline, pe.txt))
             self.spdx_errors += 1
 
+        if fname == '-':
+            return
+
         base = os.path.dirname(fname)
+        if self.dirdepth > 0:
+            parts = base.split('/')
+            i = 0
+            base = '.'
+            while i < self.dirdepth and i < len(parts) and len(parts[i]):
+                base += '/' + parts[i]
+                i += 1
+        elif self.dirdepth == 0:
+            base = self.basedir
+        else:
+            base = './' + base.rstrip('/')
+        base += '/'
+
         di = self.spdx_dirs.get(base, dirinfo())
         di.update(fail)
         self.spdx_dirs[base] = di
 
-def scan_git_tree(tree):
+def scan_git_tree(tree, basedir, dirdepth):
+    parser.set_dirinfo(basedir, dirdepth)
     for el in tree.traverse():
         # Exclude stuff which would make pointless noise
         # FIXME: Put this somewhere more sensible
@@ -233,15 +262,19 @@ def scan_git_tree(tree):
         with open(el.path, 'rb') as fd:
             parser.parse_lines(fd, args.maxlines, el.path)
 
-def scan_git_subtree(tree, path):
+def scan_git_subtree(tree, path, dirdepth):
     for p in path.strip('/').split('/'):
         tree = tree[p]
-    scan_git_tree(tree)
+    scan_git_tree(tree, path.strip('/'), dirdepth)
 
 if __name__ == '__main__':
 
     ap = ArgumentParser(description='SPDX expression checker')
     ap.add_argument('path', nargs='*', help='Check path or file. If not given full git tree scan. For stdin use "-"')
+    ap.add_argument('-d', '--dirs', action='store_true',
+                    help='Show [sub]directory statistics.')
+    ap.add_argument('-D', '--depth', type=int, default=-1,
+                    help='Directory depth for -d statistics. Default: unlimited')
     ap.add_argument('-m', '--maxlines', type=int, default=15,
                     help='Maximum number of lines to scan in a file. Default 15')
     ap.add_argument('-v', '--verbose', action='store_true', help='Verbose statistics output')
@@ -285,13 +318,21 @@ if __name__ == '__main__':
                     if os.path.isfile(p):
                         parser.parse_lines(open(p, 'rb'), args.maxlines, p)
                     elif os.path.isdir(p):
-                        scan_git_subtree(repo.head.reference.commit.tree, p)
+                        scan_git_subtree(repo.head.reference.commit.tree, p,
+                                         args.depth)
                     else:
                         sys.stderr.write('path %s does not exist\n' %p)
                         sys.exit(1)
             else:
                 # Full git tree scan
-                scan_git_tree(repo.head.commit.tree)
+                scan_git_tree(repo.head.commit.tree, '.', args.depth)
+
+            ndirs = len(parser.spdx_dirs)
+            dirsok = 0
+            if ndirs:
+                for di in parser.spdx_dirs.values():
+                    if not di.missing:
+                        dirsok += 1
 
             if args.verbose:
                 sys.stderr.write('\n')
@@ -306,16 +347,22 @@ if __name__ == '__main__':
                     pc = int(100 * parser.spdx_valid / parser.checked)
                     sys.stderr.write('Files with SPDX:   %12d %3d%%\n' %(parser.spdx_valid, pc))
                 sys.stderr.write('Files with errors: %12d\n' %parser.spdx_errors)
-                ndirs = len(parser.spdx_dirs)
-                dirsok = 0
                 if ndirs:
                     sys.stderr.write('\n')
                     sys.stderr.write('Directories accounted: %8d\n' %ndirs)
-                    for di in parser.spdx_dirs.values():
-                        if not di.missing:
-                            dirsok += 1
                     pc = int(100 * dirsok / ndirs)
                     sys.stderr.write('Directories complete:  %8d %3d%%\n' %(dirsok, pc))
+
+            if ndirs and ndirs != dirsok and args.dirs:
+                if args.verbose:
+                    sys.stderr.write('\n')
+                sys.stderr.write('Incomplete directories: SPDX in Files\n')
+                for f in sorted(parser.spdx_dirs.keys()):
+                    di = parser.spdx_dirs[f]
+                    if di.missing:
+                        valid = di.total - di.missing
+                        pc = int(100 * valid / di.total)
+                        sys.stderr.write('    %-80s: %5d of %5d  %3d%%\n' %(f, valid, di.total, pc))
 
             sys.exit(0)
 
