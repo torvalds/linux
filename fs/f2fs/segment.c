@@ -561,7 +561,7 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi, bool from_bg)
 		goto do_sync;
 
 	/* checkpoint is the only way to shrink partial cached entries */
-	if (f2fs_available_free_memory(sbi, NAT_ENTRIES) ||
+	if (f2fs_available_free_memory(sbi, NAT_ENTRIES) &&
 		f2fs_available_free_memory(sbi, INO_ENTRIES))
 		return;
 
@@ -4746,6 +4746,13 @@ static int sanity_check_curseg(struct f2fs_sb_info *sbi)
 			continue;
 
 		sanity_check_seg_type(sbi, curseg->seg_type);
+
+		if (curseg->alloc_type != LFS && curseg->alloc_type != SSR) {
+			f2fs_err(sbi,
+				 "Current segment has invalid alloc_type:%d",
+				 curseg->alloc_type);
+			return -EFSCORRUPTED;
+		}
 
 		if (f2fs_test_bit(blkofs, se->cur_valid_map))
 			goto out;

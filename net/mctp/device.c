@@ -24,33 +24,48 @@ struct mctp_dump_cb {
 	size_t a_idx;
 };
 
-/* unlocked: caller must hold rcu_read_lock */
+/* unlocked: caller must hold rcu_read_lock.
+ * Returned mctp_dev has its refcount incremented, or NULL if unset.
+ */
 struct mctp_dev *__mctp_dev_get(const struct net_device *dev)
 {
-	return rcu_dereference(dev->mctp_ptr);
+	struct mctp_dev *mdev = rcu_dereference(dev->mctp_ptr);
+
+	/* RCU guarantees that any mdev is still live.
+	 * Zero refcount implies a pending free, return NULL.
+	 */
+	if (mdev)
+		if (!refcount_inc_not_zero(&mdev->refs))
+			return NULL;
+	return mdev;
 }
 
+/* Returned mctp_dev does not have refcount incremented. The returned pointer
+ * remains live while rtnl_lock is held, as that prevents mctp_unregister()
+ */
 struct mctp_dev *mctp_dev_get_rtnl(const struct net_device *dev)
 {
 	return rtnl_dereference(dev->mctp_ptr);
 }
 
-static void mctp_dev_destroy(struct mctp_dev *mdev)
+static int mctp_addrinfo_size(void)
 {
-	struct net_device *dev = mdev->dev;
-
-	dev_put(dev);
-	kfree_rcu(mdev, rcu);
+	return NLMSG_ALIGN(sizeof(struct ifaddrmsg))
+		+ nla_total_size(1) // IFA_LOCAL
+		+ nla_total_size(1) // IFA_ADDRESS
+		;
 }
 
-static int mctp_fill_addrinfo(struct sk_buff *skb, struct netlink_callback *cb,
-			      struct mctp_dev *mdev, mctp_eid_t eid)
+/* flag should be NLM_F_MULTI for dump calls */
+static int mctp_fill_addrinfo(struct sk_buff *skb,
+			      struct mctp_dev *mdev, mctp_eid_t eid,
+			      int msg_type, u32 portid, u32 seq, int flag)
 {
 	struct ifaddrmsg *hdr;
 	struct nlmsghdr *nlh;
 
-	nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
-			RTM_NEWADDR, sizeof(*hdr), NLM_F_MULTI);
+	nlh = nlmsg_put(skb, portid, seq,
+			msg_type, sizeof(*hdr), flag);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -80,10 +95,14 @@ static int mctp_dump_dev_addrinfo(struct mctp_dev *mdev, struct sk_buff *skb,
 				  struct netlink_callback *cb)
 {
 	struct mctp_dump_cb *mcb = (void *)cb->ctx;
+	u32 portid, seq;
 	int rc = 0;
 
+	portid = NETLINK_CB(cb->skb).portid;
+	seq = cb->nlh->nlmsg_seq;
 	for (; mcb->a_idx < mdev->num_addrs; mcb->a_idx++) {
-		rc = mctp_fill_addrinfo(skb, cb, mdev, mdev->addrs[mcb->a_idx]);
+		rc = mctp_fill_addrinfo(skb, mdev, mdev->addrs[mcb->a_idx],
+					RTM_NEWADDR, portid, seq, NLM_F_MULTI);
 		if (rc < 0)
 			break;
 	}
@@ -100,7 +119,7 @@ static int mctp_dump_addrinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	struct ifaddrmsg *hdr;
 	struct mctp_dev *mdev;
 	int ifindex;
-	int idx, rc;
+	int idx = 0, rc;
 
 	hdr = nlmsg_data(cb->nlh);
 	// filter by ifindex if requested
@@ -117,6 +136,7 @@ static int mctp_dump_addrinfo(struct sk_buff *skb, struct netlink_callback *cb)
 				if (mdev) {
 					rc = mctp_dump_dev_addrinfo(mdev,
 								    skb, cb);
+					mctp_dev_put(mdev);
 					// Error indicates full buffer, this
 					// callback will get retried.
 					if (rc < 0)
@@ -133,6 +153,32 @@ out:
 	mcb->idx = idx;
 
 	return skb->len;
+}
+
+static void mctp_addr_notify(struct mctp_dev *mdev, mctp_eid_t eid, int msg_type,
+			     struct sk_buff *req_skb, struct nlmsghdr *req_nlh)
+{
+	u32 portid = NETLINK_CB(req_skb).portid;
+	struct net *net = dev_net(mdev->dev);
+	struct sk_buff *skb;
+	int rc = -ENOBUFS;
+
+	skb = nlmsg_new(mctp_addrinfo_size(), GFP_KERNEL);
+	if (!skb)
+		goto out;
+
+	rc = mctp_fill_addrinfo(skb, mdev, eid, msg_type,
+				portid, req_nlh->nlmsg_seq, 0);
+	if (rc < 0) {
+		WARN_ON_ONCE(rc == -EMSGSIZE);
+		goto out;
+	}
+
+	rtnl_notify(skb, net, portid, RTNLGRP_MCTP_IFADDR, req_nlh, GFP_KERNEL);
+	return;
+out:
+	kfree_skb(skb);
+	rtnl_set_sk_err(net, RTNLGRP_MCTP_IFADDR, rc);
 }
 
 static const struct nla_policy ifa_mctp_policy[IFA_MAX + 1] = {
@@ -176,7 +222,7 @@ static int mctp_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!mdev)
 		return -ENODEV;
 
-	if (!mctp_address_ok(addr->s_addr))
+	if (!mctp_address_unicast(addr->s_addr))
 		return -EINVAL;
 
 	/* Prevent duplicates. Under RTNL so don't need to lock for reading */
@@ -197,6 +243,7 @@ static int mctp_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	kfree(tmp_addrs);
 
+	mctp_addr_notify(mdev, addr->s_addr, RTM_NEWADDR, skb, nlh);
 	mctp_route_add_local(mdev, addr->s_addr);
 
 	return 0;
@@ -252,7 +299,40 @@ static int mctp_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	mdev->num_addrs--;
 	spin_unlock_irqrestore(&mdev->addrs_lock, flags);
 
+	mctp_addr_notify(mdev, addr->s_addr, RTM_DELADDR, skb, nlh);
+
 	return 0;
+}
+
+void mctp_dev_hold(struct mctp_dev *mdev)
+{
+	refcount_inc(&mdev->refs);
+}
+
+void mctp_dev_put(struct mctp_dev *mdev)
+{
+	if (mdev && refcount_dec_and_test(&mdev->refs)) {
+		dev_put(mdev->dev);
+		kfree_rcu(mdev, rcu);
+	}
+}
+
+void mctp_dev_release_key(struct mctp_dev *dev, struct mctp_sk_key *key)
+	__must_hold(&key->lock)
+{
+	if (!dev)
+		return;
+	if (dev->ops && dev->ops->release_flow)
+		dev->ops->release_flow(dev, key);
+	key->dev = NULL;
+	mctp_dev_put(dev);
+}
+
+void mctp_dev_set_key(struct mctp_dev *dev, struct mctp_sk_key *key)
+	__must_hold(&key->lock)
+{
+	mctp_dev_hold(dev);
+	key->dev = dev;
 }
 
 static struct mctp_dev *mctp_add_dev(struct net_device *dev)
@@ -270,7 +350,9 @@ static struct mctp_dev *mctp_add_dev(struct net_device *dev)
 	mdev->net = mctp_default_net(dev_net(dev));
 
 	/* associate to net_device */
+	refcount_set(&mdev->refs, 1);
 	rcu_assign_pointer(dev->mctp_ptr, mdev);
+
 	dev_hold(dev);
 	mdev->dev = dev;
 
@@ -301,6 +383,7 @@ static size_t mctp_get_link_af_size(const struct net_device *dev,
 	if (!mdev)
 		return 0;
 	ret = nla_total_size(4); /* IFLA_MCTP_NET */
+	mctp_dev_put(mdev);
 	return ret;
 }
 
@@ -330,12 +413,26 @@ static int mctp_set_link_af(struct net_device *dev, const struct nlattr *attr,
 	return 0;
 }
 
+/* Matches netdev types that should have MCTP handling */
+static bool mctp_known(struct net_device *dev)
+{
+	/* only register specific types (inc. NONE for TUN devices) */
+	return dev->type == ARPHRD_MCTP ||
+		   dev->type == ARPHRD_LOOPBACK ||
+		   dev->type == ARPHRD_NONE;
+}
+
 static void mctp_unregister(struct net_device *dev)
 {
 	struct mctp_dev *mdev;
 
 	mdev = mctp_dev_get_rtnl(dev);
-
+	if (mdev && !mctp_known(dev)) {
+		// Sanity check, should match what was set in mctp_register
+		netdev_warn(dev, "%s: BUG mctp_ptr set for unknown type %d",
+			    __func__, dev->type);
+		return;
+	}
 	if (!mdev)
 		return;
 
@@ -345,7 +442,7 @@ static void mctp_unregister(struct net_device *dev)
 	mctp_neigh_remove_dev(mdev);
 	kfree(mdev->addrs);
 
-	mctp_dev_destroy(mdev);
+	mctp_dev_put(mdev);
 }
 
 static int mctp_register(struct net_device *dev)
@@ -353,11 +450,17 @@ static int mctp_register(struct net_device *dev)
 	struct mctp_dev *mdev;
 
 	/* Already registered? */
-	if (rtnl_dereference(dev->mctp_ptr))
-		return 0;
+	mdev = rtnl_dereference(dev->mctp_ptr);
 
-	/* only register specific types; MCTP-specific and loopback for now */
-	if (dev->type != ARPHRD_MCTP && dev->type != ARPHRD_LOOPBACK)
+	if (mdev) {
+		if (!mctp_known(dev))
+			netdev_warn(dev, "%s: BUG mctp_ptr set for unknown type %d",
+				    __func__, dev->type);
+		return 0;
+	}
+
+	/* only register specific types */
+	if (!mctp_known(dev))
 		return 0;
 
 	mdev = mctp_add_dev(dev);
@@ -386,6 +489,39 @@ static int mctp_dev_notify(struct notifier_block *this, unsigned long event,
 
 	return NOTIFY_OK;
 }
+
+static int mctp_register_netdevice(struct net_device *dev,
+				   const struct mctp_netdev_ops *ops)
+{
+	struct mctp_dev *mdev;
+
+	mdev = mctp_add_dev(dev);
+	if (IS_ERR(mdev))
+		return PTR_ERR(mdev);
+
+	mdev->ops = ops;
+
+	return register_netdevice(dev);
+}
+
+int mctp_register_netdev(struct net_device *dev,
+			 const struct mctp_netdev_ops *ops)
+{
+	int rc;
+
+	rtnl_lock();
+	rc = mctp_register_netdevice(dev, ops);
+	rtnl_unlock();
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(mctp_register_netdev);
+
+void mctp_unregister_netdev(struct net_device *dev)
+{
+	unregister_netdev(dev);
+}
+EXPORT_SYMBOL_GPL(mctp_unregister_netdev);
 
 static struct rtnl_af_ops mctp_af_ops = {
 	.family = AF_MCTP,

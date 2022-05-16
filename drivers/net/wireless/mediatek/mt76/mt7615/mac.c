@@ -286,9 +286,16 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	if (rxd2 & MT_RXD2_NORMAL_AMSDU_ERR)
 		return -EINVAL;
 
+	hdr_trans = rxd1 & MT_RXD1_NORMAL_HDR_TRANS;
+	if (hdr_trans && (rxd2 & MT_RXD2_NORMAL_CM))
+		return -EINVAL;
+
+	/* ICV error or CCMP/BIP/WPI MIC error */
+	if (rxd2 & MT_RXD2_NORMAL_ICV_ERR)
+		status->flag |= RX_FLAG_ONLY_MONITOR;
+
 	unicast = (rxd1 & MT_RXD1_NORMAL_ADDR_TYPE) == MT_RXD1_NORMAL_U2M;
 	idx = FIELD_GET(MT_RXD2_NORMAL_WLAN_IDX, rxd2);
-	hdr_trans = rxd1 & MT_RXD1_NORMAL_HDR_TRANS;
 	status->wcid = mt7615_rx_get_wcid(dev, idx, unicast);
 
 	if (status->wcid) {
@@ -755,12 +762,15 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
 		txwi[3] |= cpu_to_le32(MT_TXD3_NO_ACK);
 
-	txwi[7] = FIELD_PREP(MT_TXD7_TYPE, fc_type) |
-		  FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype) |
-		  FIELD_PREP(MT_TXD7_SPE_IDX, 0x18);
-	if (!is_mmio)
-		txwi[8] = FIELD_PREP(MT_TXD8_L_TYPE, fc_type) |
-			  FIELD_PREP(MT_TXD8_L_SUB_TYPE, fc_stype);
+	val = FIELD_PREP(MT_TXD7_TYPE, fc_type) |
+	      FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype) |
+	      FIELD_PREP(MT_TXD7_SPE_IDX, 0x18);
+	txwi[7] = cpu_to_le32(val);
+	if (!is_mmio) {
+		val = FIELD_PREP(MT_TXD8_L_TYPE, fc_type) |
+		      FIELD_PREP(MT_TXD8_L_SUB_TYPE, fc_stype);
+		txwi[8] = cpu_to_le32(val);
+	}
 
 	return 0;
 }
@@ -1494,30 +1504,39 @@ out:
 }
 
 static void
+mt7615_txwi_free(struct mt7615_dev *dev, struct mt76_txwi_cache *txwi)
+{
+	struct mt76_dev *mdev = &dev->mt76;
+	__le32 *txwi_data;
+	u32 val;
+	u8 wcid;
+
+	mt7615_txp_skb_unmap(mdev, txwi);
+	if (!txwi->skb)
+		goto out;
+
+	txwi_data = (__le32 *)mt76_get_txwi_ptr(mdev, txwi);
+	val = le32_to_cpu(txwi_data[1]);
+	wcid = FIELD_GET(MT_TXD1_WLAN_IDX, val);
+	mt76_tx_complete_skb(mdev, wcid, txwi->skb);
+
+out:
+	txwi->skb = NULL;
+	mt76_put_txwi(mdev, txwi);
+}
+
+static void
 mt7615_mac_tx_free_token(struct mt7615_dev *dev, u16 token)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_txwi_cache *txwi;
-	__le32 *txwi_data;
-	u32 val;
-	u8 wcid;
 
 	trace_mac_tx_free(dev, token);
 	txwi = mt76_token_put(mdev, token);
 	if (!txwi)
 		return;
 
-	txwi_data = (__le32 *)mt76_get_txwi_ptr(mdev, txwi);
-	val = le32_to_cpu(txwi_data[1]);
-	wcid = FIELD_GET(MT_TXD1_WLAN_IDX, val);
-
-	mt7615_txp_skb_unmap(mdev, txwi);
-	if (txwi->skb) {
-		mt76_tx_complete_skb(mdev, wcid, txwi->skb);
-		txwi->skb = NULL;
-	}
-
-	mt76_put_txwi(mdev, txwi);
+	mt7615_txwi_free(dev, txwi);
 }
 
 static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
@@ -1713,7 +1732,7 @@ mt7615_mac_adjust_sensitivity(struct mt7615_phy *phy,
 	struct mt7615_dev *dev = phy->dev;
 	int false_cca = ofdm ? phy->false_cca_ofdm : phy->false_cca_cck;
 	bool ext_phy = phy != &dev->phy;
-	u16 def_th = ofdm ? -98 : -110;
+	s16 def_th = ofdm ? -98 : -110;
 	bool update = false;
 	s8 *sensitivity;
 	int signal;
@@ -1981,6 +2000,14 @@ void mt7615_pm_power_save_work(struct work_struct *work)
 	    test_bit(MT76_HW_SCHED_SCANNING, &dev->mphy.state))
 		goto out;
 
+	if (mutex_is_locked(&dev->mt76.mutex))
+		/* if mt76 mutex is held we should not put the device
+		 * to sleep since we are currently accessing device
+		 * register map. We need to wait for the next power_save
+		 * trigger.
+		 */
+		goto out;
+
 	if (time_is_after_jiffies(dev->pm.last_activity + delta)) {
 		delta = dev->pm.last_activity + delta - jiffies;
 		goto out;
@@ -2026,16 +2053,8 @@ void mt7615_tx_token_put(struct mt7615_dev *dev)
 	int id;
 
 	spin_lock_bh(&dev->mt76.token_lock);
-	idr_for_each_entry(&dev->mt76.token, txwi, id) {
-		mt7615_txp_skb_unmap(&dev->mt76, txwi);
-		if (txwi->skb) {
-			struct ieee80211_hw *hw;
-
-			hw = mt76_tx_status_get_hw(&dev->mt76, txwi->skb);
-			ieee80211_free_txskb(hw, txwi->skb);
-		}
-		mt76_put_txwi(&dev->mt76, txwi);
-	}
+	idr_for_each_entry(&dev->mt76.token, txwi, id)
+		mt7615_txwi_free(dev, txwi);
 	spin_unlock_bh(&dev->mt76.token_lock);
 	idr_destroy(&dev->mt76.token);
 }

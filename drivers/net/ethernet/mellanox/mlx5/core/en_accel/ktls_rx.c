@@ -55,6 +55,7 @@ struct mlx5e_ktls_offload_context_rx {
 	DECLARE_BITMAP(flags, MLX5E_NUM_PRIV_RX_FLAGS);
 
 	/* resync */
+	spinlock_t lock; /* protects resync fields */
 	struct mlx5e_ktls_rx_resync_ctx resync;
 	struct list_head list;
 };
@@ -97,25 +98,6 @@ mlx5e_ktls_rx_resync_create_resp_list(void)
 	spin_lock_init(&resp_list->lock);
 
 	return resp_list;
-}
-
-static int mlx5e_ktls_create_tir(struct mlx5_core_dev *mdev, struct mlx5e_tir *tir, u32 rqtn)
-{
-	struct mlx5e_tir_builder *builder;
-	int err;
-
-	builder = mlx5e_tir_builder_alloc(false);
-	if (!builder)
-		return -ENOMEM;
-
-	mlx5e_tir_builder_build_rqt(builder, mdev->mlx5e_res.hw_objs.td.tdn, rqtn, false);
-	mlx5e_tir_builder_build_direct(builder);
-	mlx5e_tir_builder_build_tls(builder);
-	err = mlx5e_tir_init(tir, builder, mdev, false);
-
-	mlx5e_tir_builder_free(builder);
-
-	return err;
 }
 
 static void accel_rule_handle_work(struct work_struct *work)
@@ -386,14 +368,18 @@ static void resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_r
 	struct mlx5e_icosq *sq;
 	bool trigger_poll;
 
-	memcpy(info->rec_seq, &priv_rx->resync.sw_rcd_sn_be, sizeof(info->rec_seq));
-
 	sq = &c->async_icosq;
 	ktls_resync = sq->ktls_resync;
+	trigger_poll = false;
 
 	spin_lock_bh(&ktls_resync->lock);
-	list_add_tail(&priv_rx->list, &ktls_resync->list);
-	trigger_poll = !test_and_set_bit(MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC, &sq->state);
+	spin_lock_bh(&priv_rx->lock);
+	memcpy(info->rec_seq, &priv_rx->resync.sw_rcd_sn_be, sizeof(info->rec_seq));
+	if (list_empty(&priv_rx->list)) {
+		list_add_tail(&priv_rx->list, &ktls_resync->list);
+		trigger_poll = !test_and_set_bit(MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC, &sq->state);
+	}
+	spin_unlock_bh(&priv_rx->lock);
 	spin_unlock_bh(&ktls_resync->lock);
 
 	if (!trigger_poll)
@@ -604,7 +590,6 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	struct mlx5_core_dev *mdev;
 	struct mlx5e_priv *priv;
 	int rxq, err;
-	u32 rqtn;
 
 	tls_ctx = tls_get_ctx(sk);
 	priv = netdev_priv(netdev);
@@ -617,6 +602,8 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	if (err)
 		goto err_create_key;
 
+	INIT_LIST_HEAD(&priv_rx->list);
+	spin_lock_init(&priv_rx->lock);
 	priv_rx->crypto_info  =
 		*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
 
@@ -628,9 +615,7 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	priv_rx->sw_stats = &priv->tls->sw_stats;
 	mlx5e_set_ktls_rx_priv_ctx(tls_ctx, priv_rx);
 
-	rqtn = mlx5e_rx_res_get_rqtn_direct(priv->rx_res, rxq);
-
-	err = mlx5e_ktls_create_tir(mdev, &priv_rx->tir, rqtn);
+	err = mlx5e_rx_res_tls_tir_create(priv->rx_res, rxq, &priv_rx->tir);
 	if (err)
 		goto err_create_tir;
 
@@ -730,10 +715,14 @@ bool mlx5e_ktls_rx_handle_resync_list(struct mlx5e_channel *c, int budget)
 		priv_rx = list_first_entry(&local_list,
 					   struct mlx5e_ktls_offload_context_rx,
 					   list);
+		spin_lock(&priv_rx->lock);
 		cseg = post_static_params(sq, priv_rx);
-		if (IS_ERR(cseg))
+		if (IS_ERR(cseg)) {
+			spin_unlock(&priv_rx->lock);
 			break;
-		list_del(&priv_rx->list);
+		}
+		list_del_init(&priv_rx->list);
+		spin_unlock(&priv_rx->lock);
 		db_cseg = cseg;
 	}
 	if (db_cseg)

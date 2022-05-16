@@ -353,34 +353,16 @@ nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan, bool e
 
 		if (ret)
 			return ret;
+
+		fobj = NULL;
+	} else {
+		fobj = dma_resv_shared_list(resv);
 	}
 
-	fobj = dma_resv_shared_list(resv);
-	fence = dma_resv_excl_fence(resv);
-
-	if (fence) {
-		struct nouveau_channel *prev = NULL;
-		bool must_wait = true;
-
-		f = nouveau_local_fence(fence, chan->drm);
-		if (f) {
-			rcu_read_lock();
-			prev = rcu_dereference(f->channel);
-			if (prev && (prev == chan || fctx->sync(f, prev, chan) == 0))
-				must_wait = false;
-			rcu_read_unlock();
-		}
-
-		if (must_wait)
-			ret = dma_fence_wait(fence, intr);
-
-		return ret;
-	}
-
-	if (!exclusive || !fobj)
-		return ret;
-
-	for (i = 0; i < fobj->shared_count && !ret; ++i) {
+	/* Waiting for the exclusive fence first causes performance regressions
+	 * under some circumstances. So manually wait for the shared ones first.
+	 */
+	for (i = 0; i < (fobj ? fobj->shared_count : 0) && !ret; ++i) {
 		struct nouveau_channel *prev = NULL;
 		bool must_wait = true;
 
@@ -398,6 +380,26 @@ nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan, bool e
 
 		if (must_wait)
 			ret = dma_fence_wait(fence, intr);
+	}
+
+	fence = dma_resv_excl_fence(resv);
+	if (fence) {
+		struct nouveau_channel *prev = NULL;
+		bool must_wait = true;
+
+		f = nouveau_local_fence(fence, chan->drm);
+		if (f) {
+			rcu_read_lock();
+			prev = rcu_dereference(f->channel);
+			if (prev && (prev == chan || fctx->sync(f, prev, chan) == 0))
+				must_wait = false;
+			rcu_read_unlock();
+		}
+
+		if (must_wait)
+			ret = dma_fence_wait(fence, intr);
+
+		return ret;
 	}
 
 	return ret;

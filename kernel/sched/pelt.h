@@ -37,9 +37,11 @@ update_irq_load_avg(struct rq *rq, u64 running)
 }
 #endif
 
+#define PELT_MIN_DIVIDER	(LOAD_AVG_MAX - 1024)
+
 static inline u32 get_pelt_divider(struct sched_avg *avg)
 {
-	return LOAD_AVG_MAX - 1024 + avg->period_contrib;
+	return PELT_MIN_DIVIDER + avg->period_contrib;
 }
 
 static inline void cfs_se_util_change(struct sched_avg *avg)

@@ -81,11 +81,7 @@ static int _virtio_gpio_req(struct virtio_gpio *vgpio, u16 type, u16 gpio,
 	virtqueue_kick(vgpio->request_vq);
 	mutex_unlock(&vgpio->lock);
 
-	if (!wait_for_completion_timeout(&line->completion, HZ)) {
-		dev_err(dev, "GPIO operation timed out\n");
-		ret = -ETIMEDOUT;
-		goto out;
-	}
+	wait_for_completion(&line->completion);
 
 	if (unlikely(res->status != VIRTIO_GPIO_STATUS_OK)) {
 		dev_err(dev, "GPIO request failed: %d\n", gpio);

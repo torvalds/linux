@@ -265,6 +265,16 @@ Supported chips:
 
 	       https://www.ti.com/litv/pdf/sbos686
 
+  * Texas Instruments TMP461
+
+    Prefix: 'tmp461'
+
+    Addresses scanned: I2C 0x48 through 0x4F
+
+    Datasheet: Publicly available at TI website
+
+	       https://www.ti.com/lit/gpn/tmp461
+
 Author: Jean Delvare <jdelvare@suse.de>
 
 

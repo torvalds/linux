@@ -116,8 +116,11 @@ static int mt76_read_rate_txpower(struct seq_file *s, void *data)
 	return 0;
 }
 
-struct dentry *mt76_register_debugfs(struct mt76_dev *dev)
+struct dentry *
+mt76_register_debugfs_fops(struct mt76_dev *dev,
+			   const struct file_operations *ops)
 {
+	const struct file_operations *fops = ops ? ops : &fops_regval;
 	struct dentry *dir;
 
 	dir = debugfs_create_dir("mt76", dev->hw->wiphy->debugfsdir);
@@ -126,8 +129,7 @@ struct dentry *mt76_register_debugfs(struct mt76_dev *dev)
 
 	debugfs_create_u8("led_pin", 0600, dir, &dev->led_pin);
 	debugfs_create_u32("regidx", 0600, dir, &dev->debugfs_reg);
-	debugfs_create_file_unsafe("regval", 0600, dir, dev,
-				   &fops_regval);
+	debugfs_create_file_unsafe("regval", 0600, dir, dev, fops);
 	debugfs_create_file_unsafe("napi_threaded", 0600, dir, dev,
 				   &fops_napi_threaded);
 	debugfs_create_blob("eeprom", 0400, dir, &dev->eeprom);
@@ -140,4 +142,4 @@ struct dentry *mt76_register_debugfs(struct mt76_dev *dev)
 
 	return dir;
 }
-EXPORT_SYMBOL_GPL(mt76_register_debugfs);
+EXPORT_SYMBOL_GPL(mt76_register_debugfs_fops);

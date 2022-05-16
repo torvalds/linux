@@ -1196,6 +1196,26 @@ static int run_osnoise(void)
 		}
 
 		/*
+		 * In some cases, notably when running on a nohz_full CPU with
+		 * a stopped tick PREEMPT_RCU has no way to account for QSs.
+		 * This will eventually cause unwarranted noise as PREEMPT_RCU
+		 * will force preemption as the means of ending the current
+		 * grace period. We avoid this problem by calling
+		 * rcu_momentary_dyntick_idle(), which performs a zero duration
+		 * EQS allowing PREEMPT_RCU to end the current grace period.
+		 * This call shouldn't be wrapped inside an RCU critical
+		 * section.
+		 *
+		 * Note that in non PREEMPT_RCU kernels QSs are handled through
+		 * cond_resched()
+		 */
+		if (IS_ENABLED(CONFIG_PREEMPT_RCU)) {
+			local_irq_disable();
+			rcu_momentary_dyntick_idle();
+			local_irq_enable();
+		}
+
+		/*
 		 * For the non-preemptive kernel config: let threads runs, if
 		 * they so wish.
 		 */
@@ -1250,6 +1270,37 @@ static struct cpumask osnoise_cpumask;
 static struct cpumask save_cpumask;
 
 /*
+ * osnoise_sleep - sleep until the next period
+ */
+static void osnoise_sleep(void)
+{
+	u64 interval;
+	ktime_t wake_time;
+
+	mutex_lock(&interface_lock);
+	interval = osnoise_data.sample_period - osnoise_data.sample_runtime;
+	mutex_unlock(&interface_lock);
+
+	/*
+	 * differently from hwlat_detector, the osnoise tracer can run
+	 * without a pause because preemption is on.
+	 */
+	if (!interval) {
+		/* Let synchronize_rcu_tasks() make progress */
+		cond_resched_tasks_rcu_qs();
+		return;
+	}
+
+	wake_time = ktime_add_us(ktime_get(), interval);
+	__set_current_state(TASK_INTERRUPTIBLE);
+
+	while (schedule_hrtimeout_range(&wake_time, 0, HRTIMER_MODE_ABS)) {
+		if (kthread_should_stop())
+			break;
+	}
+}
+
+/*
  * osnoise_main - The osnoise detection kernel thread
  *
  * Calls run_osnoise() function to measure the osnoise for the configured runtime,
@@ -1257,30 +1308,10 @@ static struct cpumask save_cpumask;
  */
 static int osnoise_main(void *data)
 {
-	u64 interval;
 
 	while (!kthread_should_stop()) {
-
 		run_osnoise();
-
-		mutex_lock(&interface_lock);
-		interval = osnoise_data.sample_period - osnoise_data.sample_runtime;
-		mutex_unlock(&interface_lock);
-
-		do_div(interval, USEC_PER_MSEC);
-
-		/*
-		 * differently from hwlat_detector, the osnoise tracer can run
-		 * without a pause because preemption is on.
-		 */
-		if (interval < 1) {
-			/* Let synchronize_rcu_tasks() make progress */
-			cond_resched_tasks_rcu_qs();
-			continue;
-		}
-
-		if (msleep_interruptible(interval))
-			break;
+		osnoise_sleep();
 	}
 
 	return 0;
@@ -1856,38 +1887,38 @@ static int init_tracefs(void)
 	if (!top_dir)
 		return 0;
 
-	tmp = tracefs_create_file("period_us", 0640, top_dir,
+	tmp = tracefs_create_file("period_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_period, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = tracefs_create_file("runtime_us", 0644, top_dir,
+	tmp = tracefs_create_file("runtime_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_runtime, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = tracefs_create_file("stop_tracing_us", 0640, top_dir,
+	tmp = tracefs_create_file("stop_tracing_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_stop_tracing_in, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = tracefs_create_file("stop_tracing_total_us", 0640, top_dir,
+	tmp = tracefs_create_file("stop_tracing_total_us", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_stop_tracing_total, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 
-	tmp = trace_create_file("cpus", 0644, top_dir, NULL, &cpus_fops);
+	tmp = trace_create_file("cpus", TRACE_MODE_WRITE, top_dir, NULL, &cpus_fops);
 	if (!tmp)
 		goto err;
 #ifdef CONFIG_TIMERLAT_TRACER
 #ifdef CONFIG_STACKTRACE
-	tmp = tracefs_create_file("print_stack", 0640, top_dir,
+	tmp = tracefs_create_file("print_stack", TRACE_MODE_WRITE, top_dir,
 				  &osnoise_print_stack, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
 #endif
 
-	tmp = tracefs_create_file("timerlat_period_us", 0640, top_dir,
+	tmp = tracefs_create_file("timerlat_period_us", TRACE_MODE_WRITE, top_dir,
 				  &timerlat_period, &trace_min_max_fops);
 	if (!tmp)
 		goto err;
@@ -1932,6 +1963,13 @@ out_unhook_irq:
 	return -EINVAL;
 }
 
+static void osnoise_unhook_events(void)
+{
+	unhook_thread_events();
+	unhook_softirq_events();
+	unhook_irq_events();
+}
+
 static int __osnoise_tracer_start(struct trace_array *tr)
 {
 	int retval;
@@ -1949,7 +1987,14 @@ static int __osnoise_tracer_start(struct trace_array *tr)
 
 	retval = start_per_cpu_kthreads(tr);
 	if (retval) {
-		unhook_irq_events();
+		trace_osnoise_callback_enabled = false;
+		/*
+		 * Make sure that ftrace_nmi_enter/exit() see
+		 * trace_osnoise_callback_enabled as false before continuing.
+		 */
+		barrier();
+
+		osnoise_unhook_events();
 		return retval;
 	}
 
@@ -1981,9 +2026,7 @@ static void osnoise_tracer_stop(struct trace_array *tr)
 
 	stop_per_cpu_kthreads();
 
-	unhook_irq_events();
-	unhook_softirq_events();
-	unhook_thread_events();
+	osnoise_unhook_events();
 
 	osnoise_busy = false;
 }

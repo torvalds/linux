@@ -366,7 +366,7 @@ static unsigned long __trbe_normal_offset(struct perf_output_handle *handle)
 
 static unsigned long trbe_normal_offset(struct perf_output_handle *handle)
 {
-	struct trbe_buf *buf = perf_get_aux(handle);
+	struct trbe_buf *buf = etm_perf_sink_config(handle);
 	u64 limit = __trbe_normal_offset(handle);
 	u64 head = PERF_IDX2OFF(handle->head, buf);
 
@@ -869,6 +869,10 @@ static void arm_trbe_register_coresight_cpu(struct trbe_drvdata *drvdata, int cp
 	if (WARN_ON(trbe_csdev))
 		return;
 
+	/* If the TRBE was not probed on the CPU, we shouldn't be here */
+	if (WARN_ON(!cpudata->drvdata))
+		return;
+
 	dev = &cpudata->drvdata->pdev->dev;
 	desc.name = devm_kasprintf(dev, GFP_KERNEL, "trbe%d", cpu);
 	if (!desc.name)
@@ -950,7 +954,9 @@ static int arm_trbe_probe_coresight(struct trbe_drvdata *drvdata)
 		return -ENOMEM;
 
 	for_each_cpu(cpu, &drvdata->supported_cpus) {
-		smp_call_function_single(cpu, arm_trbe_probe_cpu, drvdata, 1);
+		/* If we fail to probe the CPU, let us defer it to hotplug callbacks */
+		if (smp_call_function_single(cpu, arm_trbe_probe_cpu, drvdata, 1))
+			continue;
 		if (cpumask_test_cpu(cpu, &drvdata->supported_cpus))
 			arm_trbe_register_coresight_cpu(drvdata, cpu);
 		if (cpumask_test_cpu(cpu, &drvdata->supported_cpus))

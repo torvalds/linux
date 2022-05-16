@@ -732,8 +732,7 @@ int qbman_swp_enqueue_multiple_mem_back(struct qbman_swp *s,
 	int i, num_enqueued = 0;
 	unsigned long irq_flags;
 
-	spin_lock(&s->access_spinlock);
-	local_irq_save(irq_flags);
+	spin_lock_irqsave(&s->access_spinlock, irq_flags);
 
 	half_mask = (s->eqcr.pi_ci_mask>>1);
 	full_mask = s->eqcr.pi_ci_mask;
@@ -744,8 +743,7 @@ int qbman_swp_enqueue_multiple_mem_back(struct qbman_swp *s,
 		s->eqcr.available = qm_cyc_diff(s->eqcr.pi_ring_size,
 					eqcr_ci, s->eqcr.ci);
 		if (!s->eqcr.available) {
-			local_irq_restore(irq_flags);
-			spin_unlock(&s->access_spinlock);
+			spin_unlock_irqrestore(&s->access_spinlock, irq_flags);
 			return 0;
 		}
 	}
@@ -784,8 +782,7 @@ int qbman_swp_enqueue_multiple_mem_back(struct qbman_swp *s,
 	dma_wmb();
 	qbman_write_register(s, QBMAN_CINH_SWP_EQCR_PI,
 				(QB_RT_BIT)|(s->eqcr.pi)|s->eqcr.pi_vb);
-	local_irq_restore(irq_flags);
-	spin_unlock(&s->access_spinlock);
+	spin_unlock_irqrestore(&s->access_spinlock, irq_flags);
 
 	return num_enqueued;
 }

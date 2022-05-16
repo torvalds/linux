@@ -453,15 +453,15 @@ ingenic_clk_calc_div(struct clk_hw *hw,
 	}
 
 	/* Impose hardware constraints */
-	div = min_t(unsigned, div, 1 << clk_info->div.bits);
-	div = max_t(unsigned, div, 1);
+	div = clamp_t(unsigned int, div, clk_info->div.div,
+		      clk_info->div.div << clk_info->div.bits);
 
 	/*
 	 * If the divider value itself must be divided before being written to
 	 * the divider register, we must ensure we don't have any bits set that
 	 * would be lost as a result of doing so.
 	 */
-	div /= clk_info->div.div;
+	div = DIV_ROUND_UP(div, clk_info->div.div);
 	div *= clk_info->div.div;
 
 	return div;

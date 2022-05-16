@@ -234,15 +234,46 @@ static inline bool pqi_is_hba_lunid(u8 *scsi3addr)
 	return pqi_scsi3addr_equal(scsi3addr, RAID_CTLR_LUNID);
 }
 
+#define PQI_DRIVER_SCRATCH_PQI_MODE			0x1
+#define PQI_DRIVER_SCRATCH_FW_TRIAGE_SUPPORTED		0x2
+
 static inline enum pqi_ctrl_mode pqi_get_ctrl_mode(struct pqi_ctrl_info *ctrl_info)
 {
-	return sis_read_driver_scratch(ctrl_info);
+	return sis_read_driver_scratch(ctrl_info) & PQI_DRIVER_SCRATCH_PQI_MODE ? PQI_MODE : SIS_MODE;
 }
 
 static inline void pqi_save_ctrl_mode(struct pqi_ctrl_info *ctrl_info,
 	enum pqi_ctrl_mode mode)
 {
-	sis_write_driver_scratch(ctrl_info, mode);
+	u32 driver_scratch;
+
+	driver_scratch = sis_read_driver_scratch(ctrl_info);
+
+	if (mode == PQI_MODE)
+		driver_scratch |= PQI_DRIVER_SCRATCH_PQI_MODE;
+	else
+		driver_scratch &= ~PQI_DRIVER_SCRATCH_PQI_MODE;
+
+	sis_write_driver_scratch(ctrl_info, driver_scratch);
+}
+
+static inline bool pqi_is_fw_triage_supported(struct pqi_ctrl_info *ctrl_info)
+{
+	return (sis_read_driver_scratch(ctrl_info) & PQI_DRIVER_SCRATCH_FW_TRIAGE_SUPPORTED) != 0;
+}
+
+static inline void pqi_save_fw_triage_setting(struct pqi_ctrl_info *ctrl_info, bool is_supported)
+{
+	u32 driver_scratch;
+
+	driver_scratch = sis_read_driver_scratch(ctrl_info);
+
+	if (is_supported)
+		driver_scratch |= PQI_DRIVER_SCRATCH_FW_TRIAGE_SUPPORTED;
+	else
+		driver_scratch &= ~PQI_DRIVER_SCRATCH_FW_TRIAGE_SUPPORTED;
+
+	sis_write_driver_scratch(ctrl_info, driver_scratch);
 }
 
 static inline void pqi_ctrl_block_scan(struct pqi_ctrl_info *ctrl_info)
@@ -7301,6 +7332,7 @@ static void pqi_ctrl_update_feature_flags(struct pqi_ctrl_info *ctrl_info,
 		ctrl_info->unique_wwid_in_report_phys_lun_supported =
 			firmware_feature->enabled;
 		break;
+		pqi_save_fw_triage_setting(ctrl_info, firmware_feature->enabled);
 	}
 
 	pqi_firmware_feature_status(ctrl_info, firmware_feature);
@@ -7621,12 +7653,32 @@ static int pqi_force_sis_mode(struct pqi_ctrl_info *ctrl_info)
 	return pqi_revert_to_sis_mode(ctrl_info);
 }
 
+static void pqi_perform_lockup_action(void)
+{
+	switch (pqi_lockup_action) {
+	case PANIC:
+		panic("FATAL: Smart Family Controller lockup detected");
+		break;
+	case REBOOT:
+		emergency_restart();
+		break;
+	case NONE:
+	default:
+		break;
+	}
+}
+
 static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
 	u32 product_id;
 
 	if (reset_devices) {
+		if (pqi_is_fw_triage_supported(ctrl_info)) {
+			rc = sis_wait_for_fw_triage_completion(ctrl_info);
+			if (rc)
+				return rc;
+		}
 		sis_soft_reset(ctrl_info);
 		msleep(PQI_POST_RESET_DELAY_SECS * PQI_HZ);
 	} else {
@@ -7640,8 +7692,15 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	 * commands.
 	 */
 	rc = sis_wait_for_ctrl_ready(ctrl_info);
-	if (rc)
+	if (rc) {
+		if (reset_devices) {
+			dev_err(&ctrl_info->pci_dev->dev,
+				"kdump init failed with error %d\n", rc);
+			pqi_lockup_action = REBOOT;
+			pqi_perform_lockup_action();
+		}
 		return rc;
+	}
 
 	/*
 	 * Get the controller properties.  This allows us to determine
@@ -8363,21 +8422,6 @@ static int pqi_ofa_ctrl_restart(struct pqi_ctrl_info *ctrl_info, unsigned int de
 	ssleep(delay_secs);
 
 	return pqi_ctrl_init_resume(ctrl_info);
-}
-
-static void pqi_perform_lockup_action(void)
-{
-	switch (pqi_lockup_action) {
-	case PANIC:
-		panic("FATAL: Smart Family Controller lockup detected");
-		break;
-	case REBOOT:
-		emergency_restart();
-		break;
-	case NONE:
-	default:
-		break;
-	}
 }
 
 static struct pqi_raid_error_info pqi_ctrl_offline_raid_error_info = {

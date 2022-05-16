@@ -10,6 +10,10 @@
 #ifndef BNXT_COREDUMP_H
 #define BNXT_COREDUMP_H
 
+#include <linux/utsname.h>
+#include <linux/time.h>
+#include <linux/rtc.h>
+
 struct bnxt_coredump_segment_hdr {
 	__u8 signature[4];
 	__le32 component_id;
@@ -63,4 +67,51 @@ struct bnxt_coredump_record {
 	__u8 ioctl_high_version;
 	__le16 rsvd3[313];
 };
+
+#define BNXT_CRASH_DUMP_LEN	(8 << 20)
+
+#define COREDUMP_LIST_BUF_LEN		2048
+#define COREDUMP_RETRIEVE_BUF_LEN	4096
+
+struct bnxt_coredump {
+	void		*data;
+	int		data_size;
+	u16		total_segs;
+};
+
+#define BNXT_COREDUMP_BUF_LEN(len) ((len) - sizeof(struct bnxt_coredump_record))
+
+struct bnxt_hwrm_dbg_dma_info {
+	void *dest_buf;
+	int dest_buf_size;
+	u16 dma_len;
+	u16 seq_off;
+	u16 data_len_off;
+	u16 segs;
+	u32 seg_start;
+	u32 buf_len;
+};
+
+struct hwrm_dbg_cmn_input {
+	__le16 req_type;
+	__le16 cmpl_ring;
+	__le16 seq_id;
+	__le16 target_id;
+	__le64 resp_addr;
+	__le64 host_dest_addr;
+	__le32 host_buf_len;
+};
+
+struct hwrm_dbg_cmn_output {
+	__le16 error_code;
+	__le16 req_type;
+	__le16 seq_id;
+	__le16 resp_len;
+	u8 flags;
+	#define HWRM_DBG_CMN_FLAGS_MORE	1
+};
+
+int bnxt_get_coredump(struct bnxt *bp, u16 dump_type, void *buf, u32 *dump_len);
+u32 bnxt_get_coredump_length(struct bnxt *bp, u16 dump_type);
+
 #endif

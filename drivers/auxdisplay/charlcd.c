@@ -578,6 +578,9 @@ static int charlcd_init(struct charlcd *lcd)
 	 * Since charlcd_init_display() needs to write data, we have to
 	 * enable mark the LCD initialized just before.
 	 */
+	if (WARN_ON(!lcd->ops->init_display))
+		return -EINVAL;
+
 	ret = lcd->ops->init_display(lcd);
 	if (ret)
 		return ret;

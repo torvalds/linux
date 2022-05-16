@@ -142,6 +142,7 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 
 	user_access_end();
 
+exit_vm86:
 	preempt_disable();
 	tsk->thread.sp0 = vm86->saved_sp0;
 	tsk->thread.sysenter_cs = __KERNEL_CS;
@@ -161,7 +162,8 @@ Efault_end:
 	user_access_end();
 Efault:
 	pr_alert("could not access userspace vm86 info\n");
-	do_exit(SIGSEGV);
+	force_exit_sig(SIGSEGV);
+	goto exit_vm86;
 }
 
 static int do_vm86_irq_handling(int subfunction, int irqnumber);

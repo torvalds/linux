@@ -122,7 +122,12 @@
 		groups = "FWSPIABR";
 	};
 
-	pinctrl_fwqspi_default: fwqspid_default {
+	pinctrl_fwspid_default: fwspid_default {
+		function = "FWSPID";
+		groups = "FWSPID";
+	};
+
+	pinctrl_fwqspi_default: fwqspi_default {
 		function = "FWQSPI";
 		groups = "FWQSPI";
 	};

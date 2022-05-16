@@ -1054,7 +1054,6 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 			trans_rsv->reserved;
 		if (block_rsv_size < space_info->bytes_may_use)
 			delalloc_size = space_info->bytes_may_use - block_rsv_size;
-		spin_unlock(&space_info->lock);
 
 		/*
 		 * We don't want to include the global_rsv in our calculation,
@@ -1084,6 +1083,8 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 			to_reclaim = delayed_refs_rsv->reserved;
 			flush = FLUSH_DELAYED_REFS_NR;
 		}
+
+		spin_unlock(&space_info->lock);
 
 		/*
 		 * We don't want to reclaim everything, just a portion, so scale

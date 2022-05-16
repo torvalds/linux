@@ -928,10 +928,8 @@ static int __init amd_iommu_v2_init(void)
 {
 	int ret;
 
-	pr_info("AMD IOMMUv2 driver by Joerg Roedel <jroedel@suse.de>\n");
-
 	if (!amd_iommu_v2_supported()) {
-		pr_info("AMD IOMMUv2 functionality not available on this system\n");
+		pr_info("AMD IOMMUv2 functionality not available on this system - This is not a bug.\n");
 		/*
 		 * Load anyway to provide the symbols to other modules
 		 * which may use AMD IOMMUv2 optionally.
@@ -945,6 +943,8 @@ static int __init amd_iommu_v2_init(void)
 		goto out;
 
 	amd_iommu_register_ppr_notifier(&ppr_nb);
+
+	pr_info("AMD IOMMUv2 loaded and initialized\n");
 
 	return 0;
 

@@ -119,6 +119,16 @@ int dcn31_smu_send_msg_with_param(
 
 	result = dcn31_smu_wait_for_response(clk_mgr, 10, 200000);
 
+	if (result == VBIOSSMC_Result_Failed) {
+		if (msg_id == VBIOSSMC_MSG_TransferTableDram2Smu &&
+		    param == TABLE_WATERMARKS)
+			DC_LOG_WARNING("Watermarks table not configured properly by SMU");
+		else
+			ASSERT(0);
+		REG_WRITE(MP1_SMN_C2PMSG_91, VBIOSSMC_Result_OK);
+		return -1;
+	}
+
 	if (IS_SMU_TIMEOUT(result)) {
 		ASSERT(0);
 		dm_helpers_smu_timeout(CTX, msg_id, param, 10 * 200000);

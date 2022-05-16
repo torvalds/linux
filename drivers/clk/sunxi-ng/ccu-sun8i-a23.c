@@ -745,7 +745,7 @@ static void __init sun8i_a23_ccu_setup(struct device_node *node)
 	val &= ~BIT(16);
 	writel(val, reg + SUN8I_A23_PLL_MIPI_REG);
 
-	sunxi_ccu_probe(node, reg, &sun8i_a23_ccu_desc);
+	of_sunxi_ccu_probe(node, reg, &sun8i_a23_ccu_desc);
 }
 CLK_OF_DECLARE(sun8i_a23_ccu, "allwinner,sun8i-a23-ccu",
 	       sun8i_a23_ccu_setup);

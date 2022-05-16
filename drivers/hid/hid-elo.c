@@ -228,15 +228,16 @@ static int elo_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct elo_priv *priv;
 	int ret;
-	struct usb_device *udev;
+
+	if (!hid_is_usb(hdev))
+		return -EINVAL;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	INIT_DELAYED_WORK(&priv->work, elo_work);
-	udev = interface_to_usbdev(to_usb_interface(hdev->dev.parent));
-	priv->usbdev = usb_get_dev(udev);
+	priv->usbdev = interface_to_usbdev(to_usb_interface(hdev->dev.parent));
 
 	hid_set_drvdata(hdev, priv);
 
@@ -266,8 +267,6 @@ err_free:
 static void elo_remove(struct hid_device *hdev)
 {
 	struct elo_priv *priv = hid_get_drvdata(hdev);
-
-	usb_put_dev(priv->usbdev);
 
 	hid_hw_stop(hdev);
 	cancel_delayed_work_sync(&priv->work);

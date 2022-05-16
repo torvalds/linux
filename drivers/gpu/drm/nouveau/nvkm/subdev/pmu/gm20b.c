@@ -211,11 +211,12 @@ gm20b_pmu_recv(struct nvkm_pmu *pmu)
 
 static const struct nvkm_pmu_func
 gm20b_pmu = {
-	.flcn = &gt215_pmu_flcn,
+	.flcn = &gm200_pmu_flcn,
 	.enabled = gf100_pmu_enabled,
 	.intr = gt215_pmu_intr,
 	.recv = gm20b_pmu_recv,
 	.initmsg = gm20b_pmu_initmsg,
+	.reset = gf100_pmu_reset,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)

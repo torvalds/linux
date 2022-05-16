@@ -1605,7 +1605,7 @@ static void mvpp22_gop_fca_set_periodic_timer(struct mvpp2_port *port)
 	mvpp22_gop_fca_enable_periodic(port, true);
 }
 
-static int mvpp22_gop_init(struct mvpp2_port *port)
+static int mvpp22_gop_init(struct mvpp2_port *port, phy_interface_t interface)
 {
 	struct mvpp2 *priv = port->priv;
 	u32 val;
@@ -1613,7 +1613,7 @@ static int mvpp22_gop_init(struct mvpp2_port *port)
 	if (!priv->sysctrl_base)
 		return 0;
 
-	switch (port->phy_interface) {
+	switch (interface) {
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
@@ -1743,15 +1743,15 @@ static void mvpp22_gop_setup_irq(struct mvpp2_port *port)
  * lanes by the physical layer. This is why configurations like
  * "PPv2 (2500BaseX) - COMPHY (2500SGMII)" are valid.
  */
-static int mvpp22_comphy_init(struct mvpp2_port *port)
+static int mvpp22_comphy_init(struct mvpp2_port *port,
+			      phy_interface_t interface)
 {
 	int ret;
 
 	if (!port->comphy)
 		return 0;
 
-	ret = phy_set_mode_ext(port->comphy, PHY_MODE_ETHERNET,
-			       port->phy_interface);
+	ret = phy_set_mode_ext(port->comphy, PHY_MODE_ETHERNET, interface);
 	if (ret)
 		return ret;
 
@@ -2172,7 +2172,8 @@ static void mvpp22_pcs_reset_assert(struct mvpp2_port *port)
 	writel(val & ~MVPP22_XPCS_CFG0_RESET_DIS, xpcs + MVPP22_XPCS_CFG0);
 }
 
-static void mvpp22_pcs_reset_deassert(struct mvpp2_port *port)
+static void mvpp22_pcs_reset_deassert(struct mvpp2_port *port,
+				      phy_interface_t interface)
 {
 	struct mvpp2 *priv = port->priv;
 	void __iomem *mpcs, *xpcs;
@@ -2184,7 +2185,7 @@ static void mvpp22_pcs_reset_deassert(struct mvpp2_port *port)
 	mpcs = priv->iface_base + MVPP22_MPCS_BASE(port->gop_id);
 	xpcs = priv->iface_base + MVPP22_XPCS_BASE(port->gop_id);
 
-	switch (port->phy_interface) {
+	switch (interface) {
 	case PHY_INTERFACE_MODE_10GBASER:
 		val = readl(mpcs + MVPP22_MPCS_CLK_RESET);
 		val |= MAC_CLK_RESET_MAC | MAC_CLK_RESET_SD_RX |
@@ -2959,11 +2960,11 @@ static int mvpp2_rxq_init(struct mvpp2_port *port,
 	mvpp2_rxq_status_update(port, rxq->id, 0, rxq->size);
 
 	if (priv->percpu_pools) {
-		err = xdp_rxq_info_reg(&rxq->xdp_rxq_short, port->dev, rxq->id, 0);
+		err = xdp_rxq_info_reg(&rxq->xdp_rxq_short, port->dev, rxq->logic_rxq, 0);
 		if (err < 0)
 			goto err_free_dma;
 
-		err = xdp_rxq_info_reg(&rxq->xdp_rxq_long, port->dev, rxq->id, 0);
+		err = xdp_rxq_info_reg(&rxq->xdp_rxq_long, port->dev, rxq->logic_rxq, 0);
 		if (err < 0)
 			goto err_unregister_rxq_short;
 
@@ -4529,7 +4530,8 @@ static int mvpp2_poll(struct napi_struct *napi, int budget)
 	return rx_done;
 }
 
-static void mvpp22_mode_reconfigure(struct mvpp2_port *port)
+static void mvpp22_mode_reconfigure(struct mvpp2_port *port,
+				    phy_interface_t interface)
 {
 	u32 ctrl3;
 
@@ -4540,18 +4542,18 @@ static void mvpp22_mode_reconfigure(struct mvpp2_port *port)
 	mvpp22_pcs_reset_assert(port);
 
 	/* comphy reconfiguration */
-	mvpp22_comphy_init(port);
+	mvpp22_comphy_init(port, interface);
 
 	/* gop reconfiguration */
-	mvpp22_gop_init(port);
+	mvpp22_gop_init(port, interface);
 
-	mvpp22_pcs_reset_deassert(port);
+	mvpp22_pcs_reset_deassert(port, interface);
 
 	if (mvpp2_port_supports_xlg(port)) {
 		ctrl3 = readl(port->base + MVPP22_XLG_CTRL3_REG);
 		ctrl3 &= ~MVPP22_XLG_CTRL3_MACMODESELECT_MASK;
 
-		if (mvpp2_is_xlg(port->phy_interface))
+		if (mvpp2_is_xlg(interface))
 			ctrl3 |= MVPP22_XLG_CTRL3_MACMODESELECT_10G;
 		else
 			ctrl3 |= MVPP22_XLG_CTRL3_MACMODESELECT_GMAC;
@@ -4559,7 +4561,7 @@ static void mvpp22_mode_reconfigure(struct mvpp2_port *port)
 		writel(ctrl3, port->base + MVPP22_XLG_CTRL3_REG);
 	}
 
-	if (mvpp2_port_supports_xlg(port) && mvpp2_is_xlg(port->phy_interface))
+	if (mvpp2_port_supports_xlg(port) && mvpp2_is_xlg(interface))
 		mvpp2_xlg_max_rx_size_set(port);
 	else
 		mvpp2_gmac_max_rx_size_set(port);
@@ -4579,7 +4581,7 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 	mvpp2_interrupts_enable(port);
 
 	if (port->priv->hw_version >= MVPP22)
-		mvpp22_mode_reconfigure(port);
+		mvpp22_mode_reconfigure(port, port->phy_interface);
 
 	if (port->phylink) {
 		phylink_start(port->phylink);
@@ -5015,11 +5017,13 @@ static int mvpp2_change_mtu(struct net_device *dev, int mtu)
 		mtu = ALIGN(MVPP2_RX_PKT_SIZE(mtu), 8);
 	}
 
+	if (port->xdp_prog && mtu > MVPP2_MAX_RX_BUF_SIZE) {
+		netdev_err(dev, "Illegal MTU value %d (> %d) for XDP mode\n",
+			   mtu, (int)MVPP2_MAX_RX_BUF_SIZE);
+		return -EINVAL;
+	}
+
 	if (MVPP2_RX_PKT_SIZE(mtu) > MVPP2_BM_LONG_PKT_SIZE) {
-		if (port->xdp_prog) {
-			netdev_err(dev, "Jumbo frames are not supported with XDP\n");
-			return -EINVAL;
-		}
 		if (priv->percpu_pools) {
 			netdev_warn(dev, "mtu %d too high, switching to shared buffers", mtu);
 			mvpp2_bm_switch_buffers(priv, false);
@@ -5305,8 +5309,8 @@ static int mvpp2_xdp_setup(struct mvpp2_port *port, struct netdev_bpf *bpf)
 	bool running = netif_running(port->dev);
 	bool reset = !prog != !port->xdp_prog;
 
-	if (port->dev->mtu > ETH_DATA_LEN) {
-		NL_SET_ERR_MSG_MOD(bpf->extack, "XDP is not supported with jumbo frames enabled");
+	if (port->dev->mtu > MVPP2_MAX_RX_BUF_SIZE) {
+		NL_SET_ERR_MSG_MOD(bpf->extack, "MTU too large for XDP");
 		return -EOPNOTSUPP;
 	}
 
@@ -6477,6 +6481,9 @@ static int mvpp2__mac_prepare(struct phylink_config *config, unsigned int mode,
 			mvpp22_gop_mask_irq(port);
 
 			phy_power_off(port->comphy);
+
+			/* Reconfigure the serdes lanes */
+			mvpp22_mode_reconfigure(port, interface);
 		}
 	}
 
@@ -6530,9 +6537,6 @@ static int mvpp2_mac_finish(struct phylink_config *config, unsigned int mode,
 	if (port->priv->hw_version >= MVPP22 &&
 	    port->phy_interface != interface) {
 		port->phy_interface = interface;
-
-		/* Reconfigure the serdes lanes */
-		mvpp22_mode_reconfigure(port);
 
 		/* Unmask interrupts */
 		mvpp22_gop_unmask_irq(port);
@@ -6960,7 +6964,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	 * driver does this, we can remove this code.
 	 */
 	if (port->comphy) {
-		err = mvpp22_comphy_init(port);
+		err = mvpp22_comphy_init(port, port->phy_interface);
 		if (err == 0)
 			phy_power_off(port->comphy);
 	}
@@ -7453,7 +7457,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 
 	shared = num_present_cpus() - priv->nthreads;
 	if (shared > 0)
-		bitmap_fill(&priv->lock_map,
+		bitmap_set(&priv->lock_map, 0,
 			    min_t(int, shared, MVPP2_MAX_THREADS));
 
 	for (i = 0; i < MVPP2_MAX_THREADS; i++) {

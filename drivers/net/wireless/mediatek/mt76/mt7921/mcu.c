@@ -157,6 +157,7 @@ mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			  struct sk_buff *skb, int seq)
 {
 	struct mt7921_mcu_rxd *rxd;
+	int mcu_cmd = cmd & MCU_CMD_MASK;
 	int ret = 0;
 
 	if (!skb) {
@@ -194,6 +195,9 @@ mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 		skb_pull(skb, sizeof(*rxd));
 		event = (struct mt7921_mcu_uni_event *)skb->data;
 		ret = le32_to_cpu(event->status);
+		/* skip invalid event */
+		if (mcu_cmd != event->cid)
+			ret = -EAGAIN;
 		break;
 	}
 	case MCU_CMD_REG_READ: {
@@ -316,11 +320,13 @@ mt7921_mcu_tx_rate_parse(struct mt76_phy *mphy,
 			 struct rate_info *rate, u16 r)
 {
 	struct ieee80211_supported_band *sband;
-	u16 flags = 0;
+	u16 flags = 0, rate_idx;
 	u8 txmode = FIELD_GET(MT_WTBL_RATE_TX_MODE, r);
 	u8 gi = 0;
 	u8 bw = 0;
+	bool cck = false;
 
+	memset(rate, 0, sizeof(*rate));
 	rate->mcs = FIELD_GET(MT_WTBL_RATE_MCS, r);
 	rate->nss = FIELD_GET(MT_WTBL_RATE_NSS, r) + 1;
 
@@ -345,13 +351,18 @@ mt7921_mcu_tx_rate_parse(struct mt76_phy *mphy,
 
 	switch (txmode) {
 	case MT_PHY_TYPE_CCK:
+		cck = true;
+		fallthrough;
 	case MT_PHY_TYPE_OFDM:
 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
 			sband = &mphy->sband_5g.sband;
 		else
 			sband = &mphy->sband_2g.sband;
 
-		rate->legacy = sband->bitrates[rate->mcs].bitrate;
+		rate_idx = FIELD_GET(MT_TX_RATE_IDX, r);
+		rate_idx = mt76_get_rate(mphy->dev, sband, rate_idx,
+					 cck);
+		rate->legacy = sband->bitrates[rate_idx].bitrate;
 		break;
 	case MT_PHY_TYPE_HT:
 	case MT_PHY_TYPE_HT_GF:
@@ -532,7 +543,8 @@ mt7921_mcu_tx_done_event(struct mt7921_dev *dev, struct sk_buff *skb)
 		peer.g8 = !!(sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
 		peer.g16 = !!(sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_160);
 		mt7921_mcu_tx_rate_parse(mphy->mt76, &peer,
-					 &msta->stats.tx_rate, event->tx_rate);
+					 &msta->stats.tx_rate,
+					 le16_to_cpu(event->tx_rate));
 
 		spin_lock_bh(&dev->sta_poll_lock);
 		break;
@@ -619,7 +631,7 @@ mt7921_mcu_sta_key_tlv(struct mt7921_sta *msta, struct sk_buff *skb,
 		u8 cipher;
 
 		cipher = mt7921_mcu_get_cipher(key->cipher);
-		if (cipher == MT_CIPHER_NONE)
+		if (cipher == MCU_CIPHER_NONE)
 			return -EOPNOTSUPP;
 
 		sec_key = &sec->key[0];
@@ -815,7 +827,7 @@ out:
 	default:
 		ret = -EAGAIN;
 		dev_err(dev->mt76.dev, "Failed to release patch semaphore\n");
-		goto out;
+		break;
 	}
 	release_firmware(fw);
 

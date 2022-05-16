@@ -572,7 +572,6 @@ static void update_state(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 {
 	u8 opcode = wqe->wr.opcode;
-	struct rxe_mr *mr;
 	u32 rkey;
 	int ret;
 
@@ -590,14 +589,11 @@ static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 		}
 		break;
 	case IB_WR_REG_MR:
-		mr = to_rmr(wqe->wr.wr.reg.mr);
-		rxe_add_ref(mr);
-		mr->state = RXE_MR_STATE_VALID;
-		mr->access = wqe->wr.wr.reg.access;
-		mr->ibmr.lkey = wqe->wr.wr.reg.key;
-		mr->ibmr.rkey = wqe->wr.wr.reg.key;
-		mr->iova = wqe->wr.wr.reg.mr->iova;
-		rxe_drop_ref(mr);
+		ret = rxe_reg_fast_mr(qp, wqe);
+		if (unlikely(ret)) {
+			wqe->status = IB_WC_LOC_QP_OP_ERR;
+			return ret;
+		}
 		break;
 	case IB_WR_BIND_MW:
 		ret = rxe_bind_mw(qp, wqe);

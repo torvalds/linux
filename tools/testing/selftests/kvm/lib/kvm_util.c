@@ -307,7 +307,7 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 		(1ULL << (vm->va_bits - 1)) >> vm->page_shift);
 
 	/* Limit physical addresses to PA-bits. */
-	vm->max_gfn = ((1ULL << vm->pa_bits) >> vm->page_shift) - 1;
+	vm->max_gfn = vm_compute_max_gfn(vm);
 
 	/* Allocate and setup memory for guest. */
 	vm->vpages_mapped = sparsebit_alloc();
@@ -2280,6 +2280,11 @@ unsigned int vm_get_page_size(struct kvm_vm *vm)
 unsigned int vm_get_page_shift(struct kvm_vm *vm)
 {
 	return vm->page_shift;
+}
+
+unsigned long __attribute__((weak)) vm_compute_max_gfn(struct kvm_vm *vm)
+{
+	return ((1ULL << vm->pa_bits) >> vm->page_shift) - 1;
 }
 
 uint64_t vm_get_max_gfn(struct kvm_vm *vm)

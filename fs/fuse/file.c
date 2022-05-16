@@ -1417,6 +1417,7 @@ static int fuse_get_user_pages(struct fuse_args_pages *ap, struct iov_iter *ii,
 			(PAGE_SIZE - ret) & (PAGE_SIZE - 1);
 	}
 
+	ap->args.user_pages = true;
 	if (write)
 		ap->args.in_pages = true;
 	else
@@ -1847,6 +1848,17 @@ int fuse_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_file *ff;
 	int err;
+
+	/*
+	 * Inode is always written before the last reference is dropped and
+	 * hence this should not be reached from reclaim.
+	 *
+	 * Writing back the inode from reclaim can deadlock if the request
+	 * processing itself needs an allocation.  Allocations triggering
+	 * reclaim while serving a request can't be prevented, because it can
+	 * involve any number of unrelated userspace processes.
+	 */
+	WARN_ON(wbc->for_reclaim);
 
 	ff = __fuse_write_file_get(fi);
 	err = fuse_flush_times(inode, ff);
@@ -2902,7 +2914,7 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 static int fuse_writeback_range(struct inode *inode, loff_t start, loff_t end)
 {
-	int err = filemap_write_and_wait_range(inode->i_mapping, start, -1);
+	int err = filemap_write_and_wait_range(inode->i_mapping, start, LLONG_MAX);
 
 	if (!err)
 		fuse_sync_writes(inode);
@@ -3001,6 +3013,8 @@ out:
 
 	if (lock_inode)
 		inode_unlock(inode);
+
+	fuse_flush_time_update(inode);
 
 	return err;
 }
@@ -3110,6 +3124,8 @@ out:
 
 	inode_unlock(inode_out);
 	file_accessed(file_in);
+
+	fuse_flush_time_update(inode_out);
 
 	return err;
 }

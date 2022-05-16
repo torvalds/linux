@@ -755,12 +755,16 @@ static int parse_vm_time_correlation(const struct option *opt, const char *str, 
 	return inject->itrace_synth_opts.vm_tm_corr_args ? 0 : -ENOMEM;
 }
 
+static int output_fd(struct perf_inject *inject)
+{
+	return inject->in_place_update ? -1 : perf_data__fd(&inject->output);
+}
+
 static int __cmd_inject(struct perf_inject *inject)
 {
 	int ret = -EINVAL;
 	struct perf_session *session = inject->session;
-	struct perf_data *data_out = &inject->output;
-	int fd = inject->in_place_update ? -1 : perf_data__fd(data_out);
+	int fd = output_fd(inject);
 	u64 output_data_offset;
 
 	signal(SIGINT, sig_handler);
@@ -819,7 +823,7 @@ static int __cmd_inject(struct perf_inject *inject)
 		inject->tool.ordered_events = true;
 		inject->tool.ordering_requires_timestamps = true;
 		/* Allow space in the header for new attributes */
-		output_data_offset = 4096;
+		output_data_offset = roundup(8192 + session->header.data_offset, 4096);
 		if (inject->strip)
 			strip_init(inject);
 	}
@@ -1006,7 +1010,7 @@ int cmd_inject(int argc, const char **argv)
 	}
 
 	inject.session = __perf_session__new(&data, repipe,
-					     perf_data__fd(&inject.output),
+					     output_fd(&inject),
 					     &inject.tool);
 	if (IS_ERR(inject.session)) {
 		ret = PTR_ERR(inject.session);
@@ -1069,7 +1073,8 @@ out_delete:
 	zstd_fini(&(inject.session->zstd_data));
 	perf_session__delete(inject.session);
 out_close_output:
-	perf_data__close(&inject.output);
+	if (!inject.in_place_update)
+		perf_data__close(&inject.output);
 	free(inject.itrace_synth_opts.vm_tm_corr_args);
 	return ret;
 }

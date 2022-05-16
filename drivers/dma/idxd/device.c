@@ -394,14 +394,20 @@ static void idxd_wq_disable_cleanup(struct idxd_wq *wq)
 	lockdep_assert_held(&wq->wq_lock);
 	memset(wq->wqcfg, 0, idxd->wqcfg_size);
 	wq->type = IDXD_WQT_NONE;
-	wq->size = 0;
-	wq->group = NULL;
 	wq->threshold = 0;
 	wq->priority = 0;
 	wq->ats_dis = 0;
 	clear_bit(WQ_FLAG_DEDICATED, &wq->flags);
 	clear_bit(WQ_FLAG_BLOCK_ON_FAULT, &wq->flags);
 	memset(wq->name, 0, WQ_NAME_SIZE);
+}
+
+static void idxd_wq_device_reset_cleanup(struct idxd_wq *wq)
+{
+	lockdep_assert_held(&wq->wq_lock);
+
+	wq->size = 0;
+	wq->group = NULL;
 }
 
 static void idxd_wq_ref_release(struct percpu_ref *ref)
@@ -427,7 +433,6 @@ void idxd_wq_quiesce(struct idxd_wq *wq)
 {
 	percpu_ref_kill(&wq->wq_active);
 	wait_for_completion(&wq->wq_dead);
-	percpu_ref_exit(&wq->wq_active);
 }
 
 /* Device control bits */
@@ -584,6 +589,8 @@ void idxd_device_reset(struct idxd_device *idxd)
 	spin_lock(&idxd->dev_lock);
 	idxd_device_clear_state(idxd);
 	idxd->state = IDXD_DEV_DISABLED;
+	idxd_unmask_error_interrupts(idxd);
+	idxd_msix_perm_setup(idxd);
 	spin_unlock(&idxd->dev_lock);
 }
 
@@ -692,11 +699,16 @@ static void idxd_groups_clear_state(struct idxd_device *idxd)
 		memset(&group->grpcfg, 0, sizeof(group->grpcfg));
 		group->num_engines = 0;
 		group->num_wqs = 0;
-		group->use_token_limit = false;
-		group->tokens_allowed = 0;
-		group->tokens_reserved = 0;
-		group->tc_a = -1;
-		group->tc_b = -1;
+		group->use_rdbuf_limit = false;
+		group->rdbufs_allowed = 0;
+		group->rdbufs_reserved = 0;
+		if (idxd->hw.version < DEVICE_VERSION_2 && !tc_override) {
+			group->tc_a = 1;
+			group->tc_b = 1;
+		} else {
+			group->tc_a = -1;
+			group->tc_b = -1;
+		}
 	}
 }
 
@@ -712,11 +724,15 @@ static void idxd_device_wqs_clear_state(struct idxd_device *idxd)
 			idxd_wq_disable_cleanup(wq);
 			wq->state = IDXD_WQ_DISABLED;
 		}
+		idxd_wq_device_reset_cleanup(wq);
 	}
 }
 
 void idxd_device_clear_state(struct idxd_device *idxd)
 {
+	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+		return;
+
 	idxd_groups_clear_state(idxd);
 	idxd_engines_clear_state(idxd);
 	idxd_device_wqs_clear_state(idxd);
@@ -791,10 +807,10 @@ static int idxd_groups_config_write(struct idxd_device *idxd)
 	int i;
 	struct device *dev = &idxd->pdev->dev;
 
-	/* Setup bandwidth token limit */
-	if (idxd->token_limit) {
+	/* Setup bandwidth rdbuf limit */
+	if (idxd->hw.gen_cap.config_en && idxd->rdbuf_limit) {
 		reg.bits = ioread32(idxd->reg_base + IDXD_GENCFG_OFFSET);
-		reg.token_limit = idxd->token_limit;
+		reg.rdbuf_limit = idxd->rdbuf_limit;
 		iowrite32(reg.bits, idxd->reg_base + IDXD_GENCFG_OFFSET);
 	}
 
@@ -935,13 +951,12 @@ static void idxd_group_flags_setup(struct idxd_device *idxd)
 			group->tc_b = group->grpcfg.flags.tc_b = 1;
 		else
 			group->grpcfg.flags.tc_b = group->tc_b;
-		group->grpcfg.flags.use_token_limit = group->use_token_limit;
-		group->grpcfg.flags.tokens_reserved = group->tokens_reserved;
-		if (group->tokens_allowed)
-			group->grpcfg.flags.tokens_allowed =
-				group->tokens_allowed;
+		group->grpcfg.flags.use_rdbuf_limit = group->use_rdbuf_limit;
+		group->grpcfg.flags.rdbufs_reserved = group->rdbufs_reserved;
+		if (group->rdbufs_allowed)
+			group->grpcfg.flags.rdbufs_allowed = group->rdbufs_allowed;
 		else
-			group->grpcfg.flags.tokens_allowed = idxd->max_tokens;
+			group->grpcfg.flags.rdbufs_allowed = idxd->max_rdbufs;
 	}
 }
 
@@ -1136,7 +1151,7 @@ int idxd_device_load_config(struct idxd_device *idxd)
 	int i, rc;
 
 	reg.bits = ioread32(idxd->reg_base + IDXD_GENCFG_OFFSET);
-	idxd->token_limit = reg.token_limit;
+	idxd->rdbuf_limit = reg.rdbuf_limit;
 
 	for (i = 0; i < idxd->max_groups; i++) {
 		struct idxd_group *group = idxd->groups[i];

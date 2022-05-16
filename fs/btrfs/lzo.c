@@ -357,10 +357,22 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		ASSERT(cur_in / sectorsize ==
 		       (cur_in + LZO_LEN - 1) / sectorsize);
 		cur_page = cb->compressed_pages[cur_in / PAGE_SIZE];
-		kaddr = kmap(cur_page);
 		ASSERT(cur_page);
+		kaddr = kmap(cur_page);
 		seg_len = read_compress_length(kaddr + offset_in_page(cur_in));
+		kunmap(cur_page);
 		cur_in += LZO_LEN;
+
+		if (seg_len > lzo1x_worst_compress(PAGE_SIZE)) {
+			/*
+			 * seg_len shouldn't be larger than we have allocated
+			 * for workspace->cbuf
+			 */
+			btrfs_err(fs_info, "unexpectedly large lzo segment len %u",
+					seg_len);
+			ret = -EIO;
+			goto out;
+		}
 
 		/* Copy the compressed segment payload into workspace */
 		copy_compressed_segment(cb, workspace->cbuf, seg_len, &cur_in);

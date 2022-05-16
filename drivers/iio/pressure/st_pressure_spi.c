@@ -102,9 +102,9 @@ static int st_press_spi_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
-	st_sensors_power_disable(indio_dev);
-
 	st_press_common_remove(indio_dev);
+
+	st_sensors_power_disable(indio_dev);
 
 	return 0;
 }
@@ -117,6 +117,10 @@ static const struct spi_device_id st_press_id_table[] = {
 	{ LPS33HW_PRESS_DEV_NAME },
 	{ LPS35HW_PRESS_DEV_NAME },
 	{ LPS22HH_PRESS_DEV_NAME },
+	{ "lps001wp-press" },
+	{ "lps25h-press", },
+	{ "lps331ap-press" },
+	{ "lps22hb-press" },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_press_id_table);

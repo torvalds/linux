@@ -537,7 +537,7 @@ static void snd_sc6000_free(struct snd_card *card)
 		sc6000_setup_board(vport, 0);
 }
 
-static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
+static int __snd_sc6000_probe(struct device *devptr, unsigned int dev)
 {
 	static const int possible_irqs[] = { 5, 7, 9, 10, 11, -1 };
 	static const int possible_dmas[] = { 1, 3, 0, -1 };
@@ -660,6 +660,11 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 
 	dev_set_drvdata(devptr, card);
 	return 0;
+}
+
+static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
+{
+	return snd_card_free_on_error(devptr, __snd_sc6000_probe(devptr, dev));
 }
 
 static struct isa_driver snd_sc6000_driver = {

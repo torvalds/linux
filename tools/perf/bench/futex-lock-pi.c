@@ -233,6 +233,7 @@ int bench_futex_lock_pi(int argc, const char **argv)
 	print_summary();
 
 	free(worker);
+	perf_cpu_map__put(cpu);
 	return ret;
 err:
 	usage_with_options(bench_futex_lock_pi_usage, options);

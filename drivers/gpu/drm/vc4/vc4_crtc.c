@@ -32,6 +32,7 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/of_device.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -42,6 +43,7 @@
 #include <drm/drm_vblank.h>
 
 #include "vc4_drv.h"
+#include "vc4_hdmi.h"
 #include "vc4_regs.h"
 
 #define HVS_FIFO_LATENCY_PIX	6
@@ -496,8 +498,10 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 	enum vc4_encoder_type encoder_type;
 	const struct vc4_pv_data *pv_data;
 	struct drm_encoder *encoder;
+	struct vc4_hdmi *vc4_hdmi;
 	unsigned encoder_sel;
 	int channel;
+	int ret;
 
 	if (!(of_device_is_compatible(vc4_crtc->pdev->dev.of_node,
 				      "brcm,bcm2711-pixelvalve2") ||
@@ -525,7 +529,22 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 	if (WARN_ON(!encoder))
 		return 0;
 
-	return vc4_crtc_disable(crtc, encoder, NULL, channel);
+	vc4_hdmi = encoder_to_vc4_hdmi(encoder);
+	ret = pm_runtime_resume_and_get(&vc4_hdmi->pdev->dev);
+	if (ret)
+		return ret;
+
+	ret = vc4_crtc_disable(crtc, encoder, NULL, channel);
+	if (ret)
+		return ret;
+
+	/*
+	 * post_crtc_powerdown will have called pm_runtime_put, so we
+	 * don't need it here otherwise we'll get the reference counting
+	 * wrong.
+	 */
+
+	return 0;
 }
 
 static void vc4_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -691,14 +710,14 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 	struct drm_crtc *crtc = &vc4_crtc->base;
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
-	u32 chan = vc4_state->assigned_channel;
+	u32 chan = vc4_crtc->current_hvs_channel;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
+	spin_lock(&vc4_crtc->irq_lock);
 	if (vc4_crtc->event &&
-	    (vc4_state->mm.start == HVS_READ(SCALER_DISPLACTX(chan)) ||
-	     vc4_state->feed_txp)) {
+	    (vc4_crtc->current_dlist == HVS_READ(SCALER_DISPLACTX(chan)) ||
+	     vc4_crtc->feeds_txp)) {
 		drm_crtc_send_vblank_event(crtc, vc4_crtc->event);
 		vc4_crtc->event = NULL;
 		drm_crtc_vblank_put(crtc);
@@ -711,6 +730,7 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 		 */
 		vc4_hvs_unmask_underrun(dev, chan);
 	}
+	spin_unlock(&vc4_crtc->irq_lock);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
@@ -876,7 +896,6 @@ struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	old_vc4_state = to_vc4_crtc_state(crtc->state);
-	vc4_state->feed_txp = old_vc4_state->feed_txp;
 	vc4_state->margins = old_vc4_state->margins;
 	vc4_state->assigned_channel = old_vc4_state->assigned_channel;
 
@@ -937,6 +956,7 @@ static const struct drm_crtc_funcs vc4_crtc_funcs = {
 static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 	.mode_valid = vc4_crtc_mode_valid,
 	.atomic_check = vc4_crtc_atomic_check,
+	.atomic_begin = vc4_hvs_atomic_begin,
 	.atomic_flush = vc4_hvs_atomic_flush,
 	.atomic_enable = vc4_crtc_atomic_enable,
 	.atomic_disable = vc4_crtc_atomic_disable,
@@ -1111,6 +1131,7 @@ int vc4_crtc_init(struct drm_device *drm, struct vc4_crtc *vc4_crtc,
 		return PTR_ERR(primary_plane);
 	}
 
+	spin_lock_init(&vc4_crtc->irq_lock);
 	drm_crtc_init_with_planes(drm, crtc, primary_plane, NULL,
 				  crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, crtc_helper_funcs);

@@ -2993,6 +2993,12 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		}
 	}
 
+	if (!obj->efile.symbols) {
+		pr_warn("elf: couldn't find symbol table in %s, stripped object file?\n",
+			obj->path);
+		return -ENOENT;
+	}
+
 	scn = NULL;
 	while ((scn = elf_nextscn(elf, scn)) != NULL) {
 		idx++;
@@ -5132,7 +5138,7 @@ static int bpf_core_apply_relo(struct bpf_program *prog,
 	 * relocated, so it's enough to just subtract in-section offset
 	 */
 	insn_idx = insn_idx - prog->sec_insn_off;
-	if (insn_idx > prog->insns_cnt)
+	if (insn_idx >= prog->insns_cnt)
 		return -EINVAL;
 	insn = &prog->insns[insn_idx];
 
@@ -8670,7 +8676,10 @@ int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd)
 		pr_warn("error: inner_map_fd already specified\n");
 		return libbpf_err(-EINVAL);
 	}
-	zfree(&map->inner_map);
+	if (map->inner_map) {
+		bpf_map__destroy(map->inner_map);
+		zfree(&map->inner_map);
+	}
 	map->inner_map_fd = fd;
 	return 0;
 }
@@ -10800,6 +10809,9 @@ void bpf_object__detach_skeleton(struct bpf_object_skeleton *s)
 
 void bpf_object__destroy_skeleton(struct bpf_object_skeleton *s)
 {
+	if (!s)
+		return;
+
 	if (s->progs)
 		bpf_object__detach_skeleton(s);
 	if (s->obj)

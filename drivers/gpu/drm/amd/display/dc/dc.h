@@ -185,6 +185,7 @@ struct dc_caps {
 	struct dc_color_caps color;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
+	uint32_t max_otg_num;
 };
 
 struct dc_bug_wa {

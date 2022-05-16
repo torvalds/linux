@@ -1369,7 +1369,7 @@ handle_newline:
 			put_tty_queue(c, ldata);
 			smp_store_release(&ldata->canon_head, ldata->read_head);
 			kill_fasync(&tty->fasync, SIGIO, POLL_IN);
-			wake_up_interruptible_poll(&tty->read_wait, EPOLLIN);
+			wake_up_interruptible_poll(&tty->read_wait, EPOLLIN | EPOLLRDNORM);
 			return;
 		}
 	}
@@ -1589,7 +1589,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 
 	if (read_cnt(ldata)) {
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
-		wake_up_interruptible_poll(&tty->read_wait, EPOLLIN);
+		wake_up_interruptible_poll(&tty->read_wait, EPOLLIN | EPOLLRDNORM);
 	}
 }
 
@@ -1963,7 +1963,7 @@ static bool canon_copy_from_read_buf(struct tty_struct *tty,
 		return false;
 
 	canon_head = smp_load_acquire(&ldata->canon_head);
-	n = min(*nr + 1, canon_head - ldata->read_tail);
+	n = min(*nr, canon_head - ldata->read_tail);
 
 	tail = ldata->read_tail & (N_TTY_BUF_SIZE - 1);
 	size = min_t(size_t, tail + n, N_TTY_BUF_SIZE);
@@ -1985,10 +1985,8 @@ static bool canon_copy_from_read_buf(struct tty_struct *tty,
 		n += N_TTY_BUF_SIZE;
 	c = n + found;
 
-	if (!found || read_buf(ldata, eol) != __DISABLED_CHAR) {
-		c = min(*nr, c);
+	if (!found || read_buf(ldata, eol) != __DISABLED_CHAR)
 		n = c;
-	}
 
 	n_tty_trace("%s: eol:%zu found:%d n:%zu c:%zu tail:%zu more:%zu\n",
 		    __func__, eol, found, n, c, tail, more);

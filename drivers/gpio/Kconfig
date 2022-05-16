@@ -523,6 +523,7 @@ config GPIO_REG
 config GPIO_ROCKCHIP
 	tristate "Rockchip GPIO support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select GENERIC_IRQ_CHIP
 	select GPIOLIB_IRQCHIP
 	default ARCH_ROCKCHIP
 	help

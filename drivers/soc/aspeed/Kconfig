@@ -137,6 +137,13 @@ config ASPEED_OTP
 
 source "drivers/soc/aspeed/rvas/Kconfig"
 
+config ASPEED_SBC
+	bool "ASPEED Secure Boot Controller driver"
+	default MACH_ASPEED_G6
+	help
+	  Say yes to provide information about the secure boot controller in
+	  debugfs.
+
 endmenu
 
 endif

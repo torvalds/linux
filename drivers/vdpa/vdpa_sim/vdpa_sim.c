@@ -591,8 +591,11 @@ static void vdpasim_free(struct vdpa_device *vdpa)
 		vringh_kiov_cleanup(&vdpasim->vqs[i].in_iov);
 	}
 
-	put_iova_domain(&vdpasim->iova);
-	iova_cache_put();
+	if (vdpa_get_dma_dev(vdpa)) {
+		put_iova_domain(&vdpasim->iova);
+		iova_cache_put();
+	}
+
 	kvfree(vdpasim->buffer);
 	if (vdpasim->iommu)
 		vhost_iotlb_free(vdpasim->iommu);

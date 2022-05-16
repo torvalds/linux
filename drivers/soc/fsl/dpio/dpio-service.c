@@ -59,7 +59,7 @@ static inline struct dpaa2_io *service_select_by_cpu(struct dpaa2_io *d,
 	 * potentially being migrated away.
 	 */
 	if (cpu < 0)
-		cpu = smp_processor_id();
+		cpu = raw_smp_processor_id();
 
 	/* If a specific cpu was requested, pick it up immediately */
 	return dpio_by_cpu[cpu];

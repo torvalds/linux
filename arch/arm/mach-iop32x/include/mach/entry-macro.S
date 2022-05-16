@@ -20,7 +20,7 @@
 	mrc     p6, 0, \irqstat, c8, c0, 0	@ Read IINTSRC
 	cmp     \irqstat, #0
 	clzne   \irqnr, \irqstat
-	rsbne   \irqnr, \irqnr, #31
+	rsbne   \irqnr, \irqnr, #32
 	.endm
 
 	.macro arch_ret_to_user, tmp1, tmp2
