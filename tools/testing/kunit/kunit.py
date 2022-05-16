@@ -365,7 +365,18 @@ def add_parse_opts(parser) -> None:
 			    'filename is specified',
 			    type=str, const='stdout', default=None, metavar='FILE')
 
-def main(argv, linux=None):
+
+def tree_from_args(cli_args: argparse.Namespace) -> kunit_kernel.LinuxSourceTree:
+	"""Returns a LinuxSourceTree based on the user's arguments."""
+	return kunit_kernel.LinuxSourceTree(cli_args.build_dir,
+			kunitconfig_path=cli_args.kunitconfig,
+			kconfig_add=cli_args.kconfig_add,
+			arch=cli_args.arch,
+			cross_compile=cli_args.cross_compile,
+			qemu_config_path=cli_args.qemu_config)
+
+
+def main(argv):
 	parser = argparse.ArgumentParser(
 			description='Helps writing and running KUnit tests.')
 	subparser = parser.add_subparsers(dest='subcommand')
@@ -412,14 +423,7 @@ def main(argv, linux=None):
 		if not os.path.exists(cli_args.build_dir):
 			os.mkdir(cli_args.build_dir)
 
-		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
-					kunitconfig_path=cli_args.kunitconfig,
-					kconfig_add=cli_args.kconfig_add,
-					arch=cli_args.arch,
-					cross_compile=cli_args.cross_compile,
-					qemu_config_path=cli_args.qemu_config)
-
+		linux = tree_from_args(cli_args)
 		request = KunitRequest(build_dir=cli_args.build_dir,
 				       make_options=cli_args.make_options,
 				       jobs=cli_args.jobs,
@@ -438,14 +442,7 @@ def main(argv, linux=None):
 				not os.path.exists(cli_args.build_dir)):
 			os.mkdir(cli_args.build_dir)
 
-		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
-					kunitconfig_path=cli_args.kunitconfig,
-					kconfig_add=cli_args.kconfig_add,
-					arch=cli_args.arch,
-					cross_compile=cli_args.cross_compile,
-					qemu_config_path=cli_args.qemu_config)
-
+		linux = tree_from_args(cli_args)
 		request = KunitConfigRequest(build_dir=cli_args.build_dir,
 					     make_options=cli_args.make_options)
 		result = config_tests(linux, request)
@@ -455,14 +452,7 @@ def main(argv, linux=None):
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	elif cli_args.subcommand == 'build':
-		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
-					kunitconfig_path=cli_args.kunitconfig,
-					kconfig_add=cli_args.kconfig_add,
-					arch=cli_args.arch,
-					cross_compile=cli_args.cross_compile,
-					qemu_config_path=cli_args.qemu_config)
-
+		linux = tree_from_args(cli_args)
 		request = KunitBuildRequest(build_dir=cli_args.build_dir,
 					    make_options=cli_args.make_options,
 					    jobs=cli_args.jobs,
@@ -474,14 +464,7 @@ def main(argv, linux=None):
 		if result.status != KunitStatus.SUCCESS:
 			sys.exit(1)
 	elif cli_args.subcommand == 'exec':
-		if not linux:
-			linux = kunit_kernel.LinuxSourceTree(cli_args.build_dir,
-					kunitconfig_path=cli_args.kunitconfig,
-					kconfig_add=cli_args.kconfig_add,
-					arch=cli_args.arch,
-					cross_compile=cli_args.cross_compile,
-					qemu_config_path=cli_args.qemu_config)
-
+		linux = tree_from_args(cli_args)
 		exec_request = KunitExecRequest(raw_output=cli_args.raw_output,
 						build_dir=cli_args.build_dir,
 						json=cli_args.json,

@@ -503,24 +503,25 @@ class KUnitMainTest(unittest.TestCase):
 		self.print_mock = mock.patch('builtins.print').start()
 		self.addCleanup(mock.patch.stopall)
 
-		self.linux_source_mock = mock.Mock()
-		self.linux_source_mock.build_reconfig = mock.Mock(return_value=True)
-		self.linux_source_mock.build_kernel = mock.Mock(return_value=True)
-		self.linux_source_mock.run_kernel = mock.Mock(return_value=all_passed_log)
+		self.mock_linux_init = mock.patch.object(kunit_kernel, 'LinuxSourceTree').start()
+		self.linux_source_mock = self.mock_linux_init.return_value
+		self.linux_source_mock.build_reconfig.return_value = True
+		self.linux_source_mock.build_kernel.return_value = True
+		self.linux_source_mock.run_kernel.return_value = all_passed_log
 
 	def test_config_passes_args_pass(self):
-		kunit.main(['config', '--build_dir=.kunit'], self.linux_source_mock)
+		kunit.main(['config', '--build_dir=.kunit'])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.assertEqual(self.linux_source_mock.run_kernel.call_count, 0)
 
 	def test_build_passes_args_pass(self):
-		kunit.main(['build'], self.linux_source_mock)
+		kunit.main(['build'])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.linux_source_mock.build_kernel.assert_called_once_with(False, kunit.get_default_jobs(), '.kunit', None)
 		self.assertEqual(self.linux_source_mock.run_kernel.call_count, 0)
 
 	def test_exec_passes_args_pass(self):
-		kunit.main(['exec'], self.linux_source_mock)
+		kunit.main(['exec'])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 0)
 		self.assertEqual(self.linux_source_mock.run_kernel.call_count, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
@@ -528,7 +529,7 @@ class KUnitMainTest(unittest.TestCase):
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 	def test_run_passes_args_pass(self):
-		kunit.main(['run'], self.linux_source_mock)
+		kunit.main(['run'])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.assertEqual(self.linux_source_mock.run_kernel.call_count, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
@@ -538,13 +539,13 @@ class KUnitMainTest(unittest.TestCase):
 	def test_exec_passes_args_fail(self):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
 		with self.assertRaises(SystemExit) as e:
-			kunit.main(['exec'], self.linux_source_mock)
+			kunit.main(['exec'])
 		self.assertEqual(e.exception.code, 1)
 
 	def test_run_passes_args_fail(self):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
 		with self.assertRaises(SystemExit) as e:
-			kunit.main(['run'], self.linux_source_mock)
+			kunit.main(['run'])
 		self.assertEqual(e.exception.code, 1)
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.assertEqual(self.linux_source_mock.run_kernel.call_count, 1)
@@ -553,7 +554,7 @@ class KUnitMainTest(unittest.TestCase):
 	def test_exec_no_tests(self):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=['TAP version 14', '1..0'])
 		with self.assertRaises(SystemExit) as e:
-			kunit.main(['run'], self.linux_source_mock)
+			kunit.main(['run'])
 		self.assertEqual(e.exception.code, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
 			args=None, build_dir='.kunit', filter_glob='', timeout=300)
@@ -561,7 +562,7 @@ class KUnitMainTest(unittest.TestCase):
 
 	def test_exec_raw_output(self):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
-		kunit.main(['exec', '--raw_output'], self.linux_source_mock)
+		kunit.main(['exec', '--raw_output'])
 		self.assertEqual(self.linux_source_mock.run_kernel.call_count, 1)
 		for call in self.print_mock.call_args_list:
 			self.assertNotEqual(call, mock.call(StrContains('Testing complete.')))
@@ -569,7 +570,7 @@ class KUnitMainTest(unittest.TestCase):
 
 	def test_run_raw_output(self):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
-		kunit.main(['run', '--raw_output'], self.linux_source_mock)
+		kunit.main(['run', '--raw_output'])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.assertEqual(self.linux_source_mock.run_kernel.call_count, 1)
 		for call in self.print_mock.call_args_list:
@@ -578,7 +579,7 @@ class KUnitMainTest(unittest.TestCase):
 
 	def test_run_raw_output_kunit(self):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
-		kunit.main(['run', '--raw_output=kunit'], self.linux_source_mock)
+		kunit.main(['run', '--raw_output=kunit'])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.assertEqual(self.linux_source_mock.run_kernel.call_count, 1)
 		for call in self.print_mock.call_args_list:
@@ -588,27 +589,27 @@ class KUnitMainTest(unittest.TestCase):
 	def test_run_raw_output_invalid(self):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
 		with self.assertRaises(SystemExit) as e:
-			kunit.main(['run', '--raw_output=invalid'], self.linux_source_mock)
+			kunit.main(['run', '--raw_output=invalid'])
 		self.assertNotEqual(e.exception.code, 0)
 
 	def test_run_raw_output_does_not_take_positional_args(self):
 		# --raw_output is a string flag, but we don't want it to consume
 		# any positional arguments, only ones after an '='
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
-		kunit.main(['run', '--raw_output', 'filter_glob'], self.linux_source_mock)
+		kunit.main(['run', '--raw_output', 'filter_glob'])
 		self.linux_source_mock.run_kernel.assert_called_once_with(
 			args=None, build_dir='.kunit', filter_glob='filter_glob', timeout=300)
 
 	def test_exec_timeout(self):
 		timeout = 3453
-		kunit.main(['exec', '--timeout', str(timeout)], self.linux_source_mock)
+		kunit.main(['exec', '--timeout', str(timeout)])
 		self.linux_source_mock.run_kernel.assert_called_once_with(
 			args=None, build_dir='.kunit', filter_glob='', timeout=timeout)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 	def test_run_timeout(self):
 		timeout = 3453
-		kunit.main(['run', '--timeout', str(timeout)], self.linux_source_mock)
+		kunit.main(['run', '--timeout', str(timeout)])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
 			args=None, build_dir='.kunit', filter_glob='', timeout=timeout)
@@ -616,7 +617,7 @@ class KUnitMainTest(unittest.TestCase):
 
 	def test_run_builddir(self):
 		build_dir = '.kunit'
-		kunit.main(['run', '--build_dir=.kunit'], self.linux_source_mock)
+		kunit.main(['run', '--build_dir=.kunit'])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
 			args=None, build_dir=build_dir, filter_glob='', timeout=300)
@@ -624,60 +625,54 @@ class KUnitMainTest(unittest.TestCase):
 
 	def test_config_builddir(self):
 		build_dir = '.kunit'
-		kunit.main(['config', '--build_dir', build_dir], self.linux_source_mock)
+		kunit.main(['config', '--build_dir', build_dir])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 
 	def test_build_builddir(self):
 		build_dir = '.kunit'
 		jobs = kunit.get_default_jobs()
-		kunit.main(['build', '--build_dir', build_dir], self.linux_source_mock)
+		kunit.main(['build', '--build_dir', build_dir])
 		self.linux_source_mock.build_kernel.assert_called_once_with(False, jobs, build_dir, None)
 
 	def test_exec_builddir(self):
 		build_dir = '.kunit'
-		kunit.main(['exec', '--build_dir', build_dir], self.linux_source_mock)
+		kunit.main(['exec', '--build_dir', build_dir])
 		self.linux_source_mock.run_kernel.assert_called_once_with(
 			args=None, build_dir=build_dir, filter_glob='', timeout=300)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
-	@mock.patch.object(kunit_kernel, 'LinuxSourceTree')
-	def test_run_kunitconfig(self, mock_linux_init):
-		mock_linux_init.return_value = self.linux_source_mock
+	def test_run_kunitconfig(self):
 		kunit.main(['run', '--kunitconfig=mykunitconfig'])
 		# Just verify that we parsed and initialized it correctly here.
-		mock_linux_init.assert_called_once_with('.kunit',
-							kunitconfig_path='mykunitconfig',
-							kconfig_add=None,
-							arch='um',
-							cross_compile=None,
-							qemu_config_path=None)
+		self.mock_linux_init.assert_called_once_with('.kunit',
+						kunitconfig_path='mykunitconfig',
+						kconfig_add=None,
+						arch='um',
+						cross_compile=None,
+						qemu_config_path=None)
 
-	@mock.patch.object(kunit_kernel, 'LinuxSourceTree')
-	def test_config_kunitconfig(self, mock_linux_init):
-		mock_linux_init.return_value = self.linux_source_mock
+	def test_config_kunitconfig(self):
 		kunit.main(['config', '--kunitconfig=mykunitconfig'])
 		# Just verify that we parsed and initialized it correctly here.
-		mock_linux_init.assert_called_once_with('.kunit',
-							kunitconfig_path='mykunitconfig',
-							kconfig_add=None,
-							arch='um',
-							cross_compile=None,
-							qemu_config_path=None)
+		self.mock_linux_init.assert_called_once_with('.kunit',
+						kunitconfig_path='mykunitconfig',
+						kconfig_add=None,
+						arch='um',
+						cross_compile=None,
+						qemu_config_path=None)
 
-	@mock.patch.object(kunit_kernel, 'LinuxSourceTree')
-	def test_run_kconfig_add(self, mock_linux_init):
-		mock_linux_init.return_value = self.linux_source_mock
+	def test_run_kconfig_add(self):
 		kunit.main(['run', '--kconfig_add=CONFIG_KASAN=y', '--kconfig_add=CONFIG_KCSAN=y'])
 		# Just verify that we parsed and initialized it correctly here.
-		mock_linux_init.assert_called_once_with('.kunit',
-							kunitconfig_path=None,
-							kconfig_add=['CONFIG_KASAN=y', 'CONFIG_KCSAN=y'],
-							arch='um',
-							cross_compile=None,
-							qemu_config_path=None)
+		self.mock_linux_init.assert_called_once_with('.kunit',
+						kunitconfig_path=None,
+						kconfig_add=['CONFIG_KASAN=y', 'CONFIG_KCSAN=y'],
+						arch='um',
+						cross_compile=None,
+						qemu_config_path=None)
 
 	def test_run_kernel_args(self):
-		kunit.main(['run', '--kernel_args=a=1', '--kernel_args=b=2'], self.linux_source_mock)
+		kunit.main(['run', '--kernel_args=a=1', '--kernel_args=b=2'])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
 		      args=['a=1','b=2'], build_dir='.kunit', filter_glob='', timeout=300)
@@ -699,7 +694,7 @@ class KUnitMainTest(unittest.TestCase):
 	@mock.patch.object(kunit, '_list_tests')
 	def test_run_isolated_by_suite(self, mock_tests):
 		mock_tests.return_value = ['suite.test1', 'suite.test2', 'suite2.test1']
-		kunit.main(['exec', '--run_isolated=suite', 'suite*.test*'], self.linux_source_mock)
+		kunit.main(['exec', '--run_isolated=suite', 'suite*.test*'])
 
 		# Should respect the user's filter glob when listing tests.
 		mock_tests.assert_called_once_with(mock.ANY,
@@ -712,7 +707,7 @@ class KUnitMainTest(unittest.TestCase):
 	@mock.patch.object(kunit, '_list_tests')
 	def test_run_isolated_by_test(self, mock_tests):
 		mock_tests.return_value = ['suite.test1', 'suite.test2', 'suite2.test1']
-		kunit.main(['exec', '--run_isolated=test', 'suite*'], self.linux_source_mock)
+		kunit.main(['exec', '--run_isolated=test', 'suite*'])
 
 		# Should respect the user's filter glob when listing tests.
 		mock_tests.assert_called_once_with(mock.ANY,
