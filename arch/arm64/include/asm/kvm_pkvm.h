@@ -43,11 +43,13 @@ void pkvm_destroy_hyp_vm(struct kvm *kvm);
 /*
  * Allow for protected VMs:
  * - Floating-point and Advanced SIMD
+ * - GICv3(+) system register interface
  * - Data Independent Timing
  */
 #define PVM_ID_AA64PFR0_ALLOW (\
 	ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_FP) | \
 	ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_AdvSIMD) | \
+	ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_GIC) | \
 	ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_DIT) \
 	)
 
