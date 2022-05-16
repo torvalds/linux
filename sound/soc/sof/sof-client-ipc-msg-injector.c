@@ -76,12 +76,17 @@ static ssize_t sof_msg_inject_ipc4_dfs_read(struct file *file,
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_msg_inject_priv *priv = cdev->data;
 	struct sof_ipc4_msg *ipc4_msg = priv->rx_buffer;
+	size_t header_size = sizeof(ipc4_msg->header_u64);
 	size_t remaining;
 
 	if (!ipc4_msg->header_u64 || !count || *ppos)
 		return 0;
 
-	remaining = sizeof(ipc4_msg->header_u64);
+	/* we need space for the header at minimum (u64) */
+	if (count < header_size)
+		return -ENOSPC;
+
+	remaining = header_size;
 
 	/* Only get large config have payload */
 	if (SOF_IPC4_MSG_IS_MODULE_MSG(ipc4_msg->primary) &&
@@ -90,13 +95,15 @@ static ssize_t sof_msg_inject_ipc4_dfs_read(struct file *file,
 
 	if (count > remaining)
 		count = remaining;
+	else if (count < remaining)
+		remaining = count;
 
 	/* copy the header first */
-	if (copy_to_user(buffer, &ipc4_msg->header_u64, sizeof(ipc4_msg->header_u64)))
+	if (copy_to_user(buffer, &ipc4_msg->header_u64, header_size))
 		return -EFAULT;
 
-	*ppos += sizeof(ipc4_msg->header_u64);
-	remaining -= sizeof(ipc4_msg->header_u64);
+	*ppos += header_size;
+	remaining -= header_size;
 
 	if (!remaining)
 		return count;
