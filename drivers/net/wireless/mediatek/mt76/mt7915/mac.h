@@ -24,6 +24,7 @@ enum rx_pkt_type {
 	PKT_TYPE_TXRX_NOTIFY,
 	PKT_TYPE_RX_EVENT,
 	PKT_TYPE_RX_FW_MONITOR = 0x0c,
+	PKT_TYPE_TXRX_NOTIFY_V0 = 0x18,
 };
 
 /* RXD DW1 */
@@ -311,6 +312,7 @@ struct mt7915_tx_free {
 
 #define MT_TX_FREE_VER			GENMASK(18, 16)
 #define MT_TX_FREE_MSDU_CNT		GENMASK(9, 0)
+#define MT_TX_FREE_MSDU_CNT_V0	GENMASK(6, 0)
 #define MT_TX_FREE_WLAN_ID		GENMASK(23, 14)
 #define MT_TX_FREE_LATENCY		GENMASK(12, 0)
 /* 0: success, others: dropped */

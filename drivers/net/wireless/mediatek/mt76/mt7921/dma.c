@@ -9,7 +9,7 @@ static int mt7921_init_tx_queues(struct mt7921_phy *phy, int idx, int n_desc)
 {
 	int i, err;
 
-	err = mt76_init_tx_queue(phy->mt76, 0, idx, n_desc, MT_TX_RING_BASE);
+	err = mt76_init_tx_queue(phy->mt76, 0, idx, n_desc, MT_TX_RING_BASE, 0);
 	if (err < 0)
 		return err;
 
