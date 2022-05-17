@@ -1246,7 +1246,8 @@ struct net_device *alloc_c_can_dev(int msg_obj_num)
 	priv->tx.tail = 0;
 	priv->tx.obj_num = msg_obj_tx_num;
 
-	netif_napi_add(dev, &priv->napi, c_can_poll, priv->msg_obj_rx_num);
+	netif_napi_add_weight(dev, &priv->napi, c_can_poll,
+			      priv->msg_obj_rx_num);
 
 	priv->dev = dev;
 	priv->can.bittiming_const = &c_can_bittiming_const;

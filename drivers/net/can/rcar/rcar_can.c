@@ -803,8 +803,8 @@ static int rcar_can_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
-	netif_napi_add(ndev, &priv->napi, rcar_can_rx_poll,
-		       RCAR_CAN_NAPI_WEIGHT);
+	netif_napi_add_weight(ndev, &priv->napi, rcar_can_rx_poll,
+			      RCAR_CAN_NAPI_WEIGHT);
 	err = register_candev(ndev);
 	if (err) {
 		dev_err(&pdev->dev, "register_candev() failed, error %d\n",
