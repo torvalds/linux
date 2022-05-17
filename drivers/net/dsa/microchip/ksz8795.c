@@ -1494,7 +1494,6 @@ static int ksz8_switch_detect(struct ksz_device *dev)
 static int ksz8_switch_init(struct ksz_device *dev)
 {
 	struct ksz8 *ksz8 = dev->priv;
-	int i;
 
 	dev->ds->ops = &ksz8_switch_ops;
 
@@ -1512,25 +1511,6 @@ static int ksz8_switch_init(struct ksz_device *dev)
 		ksz8->masks = ksz8795_masks;
 		ksz8->shifts = ksz8795_shifts;
 	}
-
-	dev->ports = devm_kzalloc(dev->dev,
-				  dev->info->port_cnt * sizeof(struct ksz_port),
-				  GFP_KERNEL);
-	if (!dev->ports)
-		return -ENOMEM;
-	for (i = 0; i < dev->info->port_cnt; i++) {
-		mutex_init(&dev->ports[i].mib.cnt_mutex);
-		dev->ports[i].mib.counters =
-			devm_kzalloc(dev->dev,
-				     sizeof(u64) *
-				     (dev->info->mib_cnt + 1),
-				     GFP_KERNEL);
-		if (!dev->ports[i].mib.counters)
-			return -ENOMEM;
-	}
-
-	/* set the real number of ports */
-	dev->ds->num_ports = dev->info->port_cnt;
 
 	/* We rely on software untagging on the CPU port, so that we
 	 * can support both tagged and untagged VLANs

@@ -1432,31 +1432,9 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 
 static int ksz9477_switch_init(struct ksz_device *dev)
 {
-	int i;
-
 	dev->ds->ops = &ksz9477_switch_ops;
 
 	dev->port_mask = (1 << dev->info->port_cnt) - 1;
-
-	dev->ports = devm_kzalloc(dev->dev,
-				  dev->info->port_cnt * sizeof(struct ksz_port),
-				  GFP_KERNEL);
-	if (!dev->ports)
-		return -ENOMEM;
-	for (i = 0; i < dev->info->port_cnt; i++) {
-		spin_lock_init(&dev->ports[i].mib.stats64_lock);
-		mutex_init(&dev->ports[i].mib.cnt_mutex);
-		dev->ports[i].mib.counters =
-			devm_kzalloc(dev->dev,
-				     sizeof(u64) *
-				     (dev->info->mib_cnt + 1),
-				     GFP_KERNEL);
-		if (!dev->ports[i].mib.counters)
-			return -ENOMEM;
-	}
-
-	/* set the real number of ports */
-	dev->ds->num_ports = dev->info->port_cnt;
 
 	return 0;
 }

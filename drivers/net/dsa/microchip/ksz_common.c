@@ -844,6 +844,7 @@ int ksz_switch_register(struct ksz_device *dev,
 	phy_interface_t interface;
 	unsigned int port_num;
 	int ret;
+	int i;
 
 	if (dev->pdata)
 		dev->chip_id = dev->pdata->chip_id;
@@ -884,6 +885,26 @@ int ksz_switch_register(struct ksz_device *dev,
 	ret = dev->dev_ops->init(dev);
 	if (ret)
 		return ret;
+
+	dev->ports = devm_kzalloc(dev->dev,
+				  dev->info->port_cnt * sizeof(struct ksz_port),
+				  GFP_KERNEL);
+	if (!dev->ports)
+		return -ENOMEM;
+
+	for (i = 0; i < dev->info->port_cnt; i++) {
+		spin_lock_init(&dev->ports[i].mib.stats64_lock);
+		mutex_init(&dev->ports[i].mib.cnt_mutex);
+		dev->ports[i].mib.counters =
+			devm_kzalloc(dev->dev,
+				     sizeof(u64) * (dev->info->mib_cnt + 1),
+				     GFP_KERNEL);
+		if (!dev->ports[i].mib.counters)
+			return -ENOMEM;
+	}
+
+	/* set the real number of ports */
+	dev->ds->num_ports = dev->info->port_cnt;
 
 	/* Host port interface will be self detected, or specifically set in
 	 * device tree.
