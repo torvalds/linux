@@ -252,8 +252,8 @@ static int kvm_vfio_group_set_spapr_tce(struct kvm_device *dev,
 		break;
 	}
 
-	mutex_unlock(&kv->lock);
 err_fdput:
+	mutex_unlock(&kv->lock);
 	fdput(f);
 	return ret;
 }
