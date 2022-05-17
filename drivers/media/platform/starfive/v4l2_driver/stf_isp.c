@@ -1132,7 +1132,7 @@ static int isp_set_selection(struct v4l2_subdev *sd,
 		ret = isp_set_selection(sd, state, &compose);
 
 		/* Reset source pad format width and height */
-		for (i = STF_ISP_PAD_SRC_RAW; i < STF_ISP_PADS_NUM; i++) {
+		for (i = STF_ISP_PAD_SRC_RAW; i < STF_ISP_PAD_MAX; i++) {
 			struct v4l2_subdev_format fmt = { 0 };
 
 			fmt.which = sel->which;
@@ -1376,7 +1376,7 @@ int stf_isp_register(struct stf_isp_dev *isp_dev,
 
 	sd->entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 	sd->entity.ops = &isp_media_ops;
-	ret = media_entity_pads_init(&sd->entity, STF_ISP_PADS_NUM, pads);
+	ret = media_entity_pads_init(&sd->entity, STF_ISP_PAD_MAX, pads);
 	if (ret < 0) {
 		st_err(ST_ISP, "Failed to init media entity: %d\n", ret);
 		return ret;

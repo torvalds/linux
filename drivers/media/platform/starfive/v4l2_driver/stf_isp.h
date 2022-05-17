@@ -15,16 +15,6 @@
 
 //#define ISP_USE_CSI_AND_SC_DONE_INTERRUPT  1
 
-#define STF_ISP_PAD_SINK         0
-#define STF_ISP_PAD_SRC          1
-#define STF_ISP_PAD_SRC_SS0      2
-#define STF_ISP_PAD_SRC_SS1      3
-#define STF_ISP_PAD_SRC_ITIW     4
-#define STF_ISP_PAD_SRC_ITIR     5
-#define STF_ISP_PAD_SRC_RAW      6
-#define STF_ISP_PAD_SRC_SCD_Y    7
-#define STF_ISP_PADS_NUM         8
-
 #define STF_ISP0_SETFILE     "stf_isp0_fw.bin"
 #define STF_ISP1_SETFILE     "stf_isp1_fw.bin"
 
@@ -64,6 +54,32 @@
 #define ISP_REG_ITIBSR          0x00000B40
 #define ISP_REG_ITIAIR          0x00000B44
 #define ISP_REG_ITIDPSR         0x00000B48
+
+/* The output line of a isp controller */
+enum isp_line_id {
+	STF_ISP_LINE_INVALID = -1,
+	STF_ISP_LINE_SRC = 1,
+	STF_ISP_LINE_SRC_SS0 = 2,
+	STF_ISP_LINE_SRC_SS1 = 3,
+	STF_ISP_LINE_SRC_ITIW = 4,
+	STF_ISP_LINE_SRC_ITIR = 5,
+	STF_ISP_LINE_SRC_RAW = 6,
+	STF_ISP_LINE_SRC_SCD_Y = 7,
+	STF_ISP_LINE_MAX = STF_ISP_LINE_SRC_SCD_Y
+};
+
+/* pad id for media framework */
+enum isp_pad_id {
+	STF_ISP_PAD_SINK = 0,
+	STF_ISP_PAD_SRC = 1,
+	STF_ISP_PAD_SRC_SS0 = 2,
+	STF_ISP_PAD_SRC_SS1 = 3,
+	STF_ISP_PAD_SRC_ITIW = 4,
+	STF_ISP_PAD_SRC_ITIR = 5,
+	STF_ISP_PAD_SRC_RAW = 6,
+	STF_ISP_PAD_SRC_SCD_Y = 7,
+	STF_ISP_PAD_MAX = 8
+};
 
 enum {
 	EN_INT_NONE                 = 0,
@@ -181,8 +197,8 @@ struct stf_isp_dev {
 	struct stfcamss *stfcamss;
 	u8 id;
 	struct v4l2_subdev subdev;
-	struct media_pad pads[STF_ISP_PADS_NUM];
-	struct v4l2_mbus_framefmt fmt[STF_ISP_PADS_NUM];
+	struct media_pad pads[STF_ISP_PAD_MAX];
+	struct v4l2_mbus_framefmt fmt[STF_ISP_PAD_MAX];
 	struct isp_stream_format rect[ISP_RECT_MAX];
 	const struct isp_format_table *formats;
 	unsigned int nformats;

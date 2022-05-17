@@ -49,22 +49,25 @@ struct vin_output {
 	unsigned int frame_skip;
 };
 
+/* The vin output lines include all isp controller lines,
+ * and one vin_wr output line.
+ */
 enum vin_line_id {
 	VIN_LINE_NONE = -1,
 	VIN_LINE_WR = 0,
 	VIN_LINE_ISP0 = 1,
-	VIN_LINE_ISP1 = 2,
-	VIN_LINE_ISP0_SS0 = 3,
-	VIN_LINE_ISP1_SS0 = 4,
-	VIN_LINE_ISP0_SS1 = 5,
-	VIN_LINE_ISP1_SS1 = 6,
-	VIN_LINE_ISP0_ITIW = 7,
-	VIN_LINE_ISP1_ITIW = 8,
-	VIN_LINE_ISP0_ITIR = 9,
-	VIN_LINE_ISP1_ITIR = 10,
-	VIN_LINE_ISP0_RAW = 11,
-	VIN_LINE_ISP1_RAW = 12,
-	VIN_LINE_ISP0_SCD_Y = 13,
+	VIN_LINE_ISP0_SS0 = 2,
+	VIN_LINE_ISP0_SS1 = 3,
+	VIN_LINE_ISP0_ITIW = 4,
+	VIN_LINE_ISP0_ITIR = 5,
+	VIN_LINE_ISP0_RAW = 6,
+	VIN_LINE_ISP0_SCD_Y = 7,
+	VIN_LINE_ISP1 = 8,
+	VIN_LINE_ISP1_SS0 = 9,
+	VIN_LINE_ISP1_SS1 = 10,
+	VIN_LINE_ISP1_ITIW = 11,
+	VIN_LINE_ISP1_ITIR = 12,
+	VIN_LINE_ISP1_RAW = 13,
 	VIN_LINE_ISP1_SCD_Y = 14,
 	VIN_LINE_MAX = 15
 };
@@ -137,7 +140,7 @@ struct vin_hw_ops {
 	void (*isr_change_buffer)(struct vin_line *line);
 };
 
-#define ISP_DUMMY_BUFFER_NUMS  STF_ISP_PADS_NUM
+#define ISP_DUMMY_BUFFER_NUMS  STF_ISP_PAD_MAX
 #define VIN_DUMMY_BUFFER_NUMS  1
 
 enum {
@@ -182,5 +185,7 @@ extern int stf_vin_unregister(struct stf_vin2_dev *vin_dev);
 
 extern struct vin_hw_ops vin_ops;
 extern void dump_vin_reg(void *__iomem regbase);
+extern enum isp_pad_id stf_vin_map_isp_pad(enum vin_line_id line,
+		enum isp_pad_id def);
 
 #endif /* STF_VIN_H */

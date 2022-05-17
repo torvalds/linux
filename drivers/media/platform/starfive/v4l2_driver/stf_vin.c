@@ -64,21 +64,36 @@ static const struct vin2_format isp_formats_st7110_iti[] = {
 };
 
 static const struct vin2_format_table vin2_formats_table[] = {
-	{ vin2_formats_st7110, ARRAY_SIZE(vin2_formats_st7110) },         // VIN_LINE_WR
-	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP0
-	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP1
-	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP0_SS0
-	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP1_SS0
-	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP0_SS1
-	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },     // VIN_LINE_ISP1_SS1
-	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   // VIN_LINE_ISP0_ITIW
-	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   // VIN_LINE_ISP1_ITIW
-	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   // VIN_LINE_ISP0_ITIR
-	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },   // VIN_LINE_ISP1_ITIR
-	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   // VIN_LINE_ISP0_RAW
-	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   // VIN_LINE_ISP1_RAW
-	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   // VIN_LINE_ISP0_SCD_Y
-	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   // VIN_LINE_ISP1_SCD_Y
+	/* VIN_LINE_WR */
+	{ vin2_formats_st7110, ARRAY_SIZE(vin2_formats_st7110) },
+	/* VIN_LINE_ISP0 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
+	/* VIN_LINE_ISP0_SS0 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
+	/* VIN_LINE_ISP0_SS1 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
+	/* VIN_LINE_ISP0_ITIW */
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },
+	/* VIN_LINE_ISP0_ITIR */
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },
+	/* VIN_LINE_ISP0_RAW */
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
+	/* VIN_LINE_ISP0_SCD_Y */
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
+	/* VIN_LINE_ISP1 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
+	/* VIN_LINE_ISP1_SS0 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
+	/* VIN_LINE_ISP1_SS1 */
+	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
+	/* VIN_LINE_ISP1_ITIW */
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },
+	/* VIN_LINE_ISP1_ITIR */
+	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },
+	/* VIN_LINE_ISP1_RAW */
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
+	/* VIN_LINE_ISP1_SCD_Y */
+	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
 };
 
 static void vin_buffer_done(struct vin_line *line, struct vin_params *params);
@@ -103,41 +118,41 @@ static char *get_line_subdevname(int line_id)
 	case VIN_LINE_ISP0:
 		name = "isp0";
 		break;
-	case VIN_LINE_ISP1:
-		name = "isp1";
-		break;
 	case VIN_LINE_ISP0_SS0:
 		name = "isp0_ss0";
-		break;
-	case VIN_LINE_ISP1_SS0:
-		name = "isp1_ss0";
 		break;
 	case VIN_LINE_ISP0_SS1:
 		name = "isp0_ss1";
 		break;
-	case VIN_LINE_ISP1_SS1:
-		name = "isp1_ss1";
-		break;
 	case VIN_LINE_ISP0_ITIW:
 		name = "isp0_itiw";
-		break;
-	case VIN_LINE_ISP1_ITIW:
-		name = "isp1_itiw";
 		break;
 	case VIN_LINE_ISP0_ITIR:
 		name = "isp0_itir";
 		break;
-	case VIN_LINE_ISP1_ITIR:
-		name = "isp1_itir";
-		break;
 	case VIN_LINE_ISP0_RAW:
 		name = "isp0_raw";
 		break;
-	case VIN_LINE_ISP1_RAW:
-		name = "isp1_raw";
-		break;
 	case VIN_LINE_ISP0_SCD_Y:
 		name = "isp0_scd_y";
+		break;
+	case VIN_LINE_ISP1:
+		name = "isp1";
+		break;
+	case VIN_LINE_ISP1_SS0:
+		name = "isp1_ss0";
+		break;
+	case VIN_LINE_ISP1_SS1:
+		name = "isp1_ss1";
+		break;
+	case VIN_LINE_ISP1_ITIW:
+		name = "isp1_itiw";
+		break;
+	case VIN_LINE_ISP1_ITIR:
+		name = "isp1_itir";
+		break;
+	case VIN_LINE_ISP1_RAW:
+		name = "isp1_raw";
 		break;
 	case VIN_LINE_ISP1_SCD_Y:
 		name = "isp1_scd_y";
@@ -149,12 +164,40 @@ static char *get_line_subdevname(int line_id)
 	return name;
 }
 
+static enum isp_line_id stf_vin_map_isp_line(enum vin_line_id line)
+{
+	enum isp_line_id line_id;
+
+	if ((line > VIN_LINE_WR) && (line < VIN_LINE_MAX)) {
+		line_id = line % STF_ISP_LINE_SRC_SCD_Y;
+		if (line_id == 0)
+			line_id = line_id ? line_id : STF_ISP_LINE_SRC_SCD_Y;
+	} else
+		line_id = STF_ISP_LINE_INVALID;
+
+	return line_id;
+}
+
+enum isp_pad_id stf_vin_map_isp_pad(enum vin_line_id line, enum isp_pad_id def)
+{
+	enum isp_pad_id pad_id;
+
+	if (line == VIN_LINE_WR)
+		pad_id = STF_ISP_PAD_SINK;
+	else if ((line > VIN_LINE_WR) && (line < VIN_LINE_MAX))
+		pad_id = stf_vin_map_isp_line(line);
+	else
+		pad_id = def;
+
+	return pad_id;
+}
+
 int stf_vin_subdev_init(struct stfcamss *stfcamss)
 {
 	struct stf_vin_dev *vin;
 	struct device *dev = stfcamss->dev;
 	struct stf_vin2_dev *vin_dev = stfcamss->vin_dev;
-	int ret = 0, i;
+	int i, ret = 0;
 
 	vin_dev->stfcamss = stfcamss;
 	vin_dev->hw_ops = &vin_ops;
@@ -180,15 +223,6 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 		goto out;
 	}
 
-#ifdef UNUSED_CODE
-	ret = devm_request_irq(dev,
-			vin->isp1_irq, vin_dev->hw_ops->vin_isp_irq_handler,
-			0, "vin_isp1_irq", vin_dev);
-	if (ret) {
-		st_err(ST_VIN, "failed to request isp1 irq\n");
-		goto out;
-	}
-
 	st_info(ST_CAMSS, "%s, %d!\n", __func__, __LINE__);
 #ifdef ISP_USE_CSI_AND_SC_DONE_INTERRUPT
 	ret = devm_request_irq(dev,
@@ -200,18 +234,36 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 	}
 
 	ret = devm_request_irq(dev,
-			vin->isp1_csi_irq, vin_dev->hw_ops->vin_isp_csi_irq_handler,
-			0, "vin_isp1_csi_irq", vin_dev);
-	if (ret) {
-		st_err(ST_VIN, "failed to request isp1 raw irq\n");
-		goto out;
-	}
-
-	ret = devm_request_irq(dev,
 			vin->isp0_scd_irq, vin_dev->hw_ops->vin_isp_scd_irq_handler,
 			0, "vin_isp0_scd_irq", vin_dev);
 	if (ret) {
 		st_err(ST_VIN, "failed to request isp0 scd irq\n");
+		goto out;
+	}
+#endif
+
+	ret = devm_request_irq(dev,
+			vin->isp0_irq_csiline, vin_dev->hw_ops->vin_isp_irq_csiline_handler,
+			0, "vin_isp0_irq_csiline", vin_dev);
+	if (ret) {
+		st_err(ST_VIN, "failed to request isp0 irq csiline\n");
+		goto out;
+	}
+
+	ret = devm_request_irq(dev,
+			vin->isp1_irq, vin_dev->hw_ops->vin_isp_irq_handler,
+			0, "vin_isp1_irq", vin_dev);
+	if (ret) {
+		st_err(ST_VIN, "failed to request isp1 irq\n");
+		goto out;
+	}
+#ifdef ISP_USE_CSI_AND_SC_DONE_INTERRUPT
+
+	ret = devm_request_irq(dev,
+			vin->isp1_csi_irq, vin_dev->hw_ops->vin_isp_csi_irq_handler,
+			0, "vin_isp1_csi_irq", vin_dev);
+	if (ret) {
+		st_err(ST_VIN, "failed to request isp1 raw irq\n");
 		goto out;
 	}
 
@@ -224,14 +276,6 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 	}
 
 #endif
-	st_info(ST_CAMSS, "%s, %d!\n", __func__, __LINE__);
-	ret = devm_request_irq(dev,
-			vin->isp0_irq_csiline, vin_dev->hw_ops->vin_isp_irq_csiline_handler,
-			0, "vin_isp0_irq_csiline", vin_dev);
-	if (ret) {
-		st_err(ST_VIN, "failed to request isp0 irq csiline\n");
-		goto out;
-	}
 
 	st_info(ST_CAMSS, "%s, %d!\n", __func__, __LINE__);
 	ret = devm_request_irq(dev,
@@ -249,7 +293,7 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 	/*Do not configure the CLK before powering on the device,
 	 *add vin_power_on() to vin_set_power() 2021 1111
 	 */
-	ret = vin_dev->hw_ops->vin_clk_init(vin_dev);
+	ret = vin_dev->hw_ops->vin_top_clk_init(vin_dev);
 	if (ret) {
 		st_err(ST_VIN, "Failed to reset device\n");
 		goto out;
@@ -261,7 +305,7 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 	//	st_err(ST_VIN, "Failed to config device\n");
 	//	goto out;
 	// }
-#endif
+
 	mutex_init(&vin_dev->power_lock);
 	vin_dev->power_count = 0;
 
@@ -276,13 +320,14 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 		atomic_set(&dummy_buffer->frame_skip, 0);
 	}
 
-	for (i = VIN_LINE_WR; i < VIN_LINE_MAX; i++) {
+	for (i = VIN_LINE_WR;
+		i < vin_dev->stfcamss->isp_num * STF_ISP_LINE_MAX + 1; i++) {
 		struct vin_line *l = &vin_dev->line[i];
 		int is_mp;
 
 		is_mp = i == VIN_LINE_WR ? false : true;
 		is_mp = false;
-		if (i == VIN_LINE_ISP0_ITIR || i == VIN_LINE_ISP1_ITIR)
+		if (stf_vin_map_isp_line(i) == STF_ISP_LINE_SRC_ITIR)
 			l->video_out.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
 		else
 			l->video_out.type = is_mp ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE :
@@ -451,50 +496,6 @@ static u32 line_to_dummy_module(struct vin_line *line)
 	}
 
 	return dummy_module;
-}
-
-static u32 line_to_buffer_pad(struct vin_line *line)
-{
-	u32 pad = 0;
-
-	switch (line->id) {
-	case VIN_LINE_WR:
-		pad = STF_VIN_PAD_SINK;
-		break;
-	case VIN_LINE_ISP0:
-	case VIN_LINE_ISP1:
-		pad = STF_ISP_PAD_SRC;
-		break;
-	case VIN_LINE_ISP0_SS0:
-	case VIN_LINE_ISP1_SS0:
-		pad = STF_ISP_PAD_SRC_SS0;
-		break;
-	case VIN_LINE_ISP0_SS1:
-	case VIN_LINE_ISP1_SS1:
-		pad = STF_ISP_PAD_SRC_SS1;
-		break;
-	case VIN_LINE_ISP0_ITIW:
-	case VIN_LINE_ISP1_ITIW:
-		pad = STF_ISP_PAD_SRC_ITIW;
-		break;
-	case VIN_LINE_ISP0_ITIR:
-	case VIN_LINE_ISP1_ITIR:
-		pad = STF_ISP_PAD_SRC_ITIR;
-		break;
-	case VIN_LINE_ISP0_RAW:
-	case VIN_LINE_ISP1_RAW:
-		pad = STF_ISP_PAD_SRC_RAW;
-		break;
-	case VIN_LINE_ISP0_SCD_Y:
-	case VIN_LINE_ISP1_SCD_Y:
-		pad = STF_ISP_PAD_SRC_SCD_Y;
-		break;
-	default:
-		pad = STF_VIN_PAD_SINK;
-		break;
-	}
-
-	return pad;
 }
 
 static int vin_alloc_dummy_buffer(struct stf_vin2_dev *vin_dev,
@@ -712,7 +713,8 @@ static int vin_set_stream(struct v4l2_subdev *sd, int enable)
 			// set buffer addr to zero
 			vin_set_dummy_buffer(line, STF_VIN_PAD_SINK);
 		} else
-			vin_set_dummy_buffer(line, line_to_buffer_pad(line));
+			vin_set_dummy_buffer(line,
+					stf_vin_map_isp_pad(line->id, STF_ISP_PAD_SINK));
 
 		dummy_buffer->stream_count--;
 	}
@@ -941,60 +943,51 @@ static void vin_output_init_addrs(struct vin_line *line)
 	else
 		pong_addr = ping_addr;
 
-	switch (line->id) {
-	case VIN_LINE_WR:  // wr
-		vin_dev->hw_ops->vin_wr_set_ping_addr(vin_dev, ping_addr);
-#ifdef VIN_TWO_BUFFER
-		vin_dev->hw_ops->vin_wr_set_pong_addr(vin_dev, pong_addr);
-#else
-		vin_dev->hw_ops->vin_wr_set_pong_addr(vin_dev, ping_addr);
-#endif
-		break;
-	case VIN_LINE_ISP0: // isp0
-	case VIN_LINE_ISP1: // isp1
-
+	switch (stf_vin_map_isp_line(line->id)) {
+	case STF_ISP_LINE_SRC:
 		vin_dev->hw_ops->vin_isp_set_yuv_addr(vin_dev,
 			line->id - VIN_LINE_ISP0,
 			y_addr, uv_addr);
-
 		break;
-	case VIN_LINE_ISP0_SS0: // isp0_ss0
-	case VIN_LINE_ISP1_SS0: // isp1_ss0
+	case STF_ISP_LINE_SRC_SS0:
 		vin_dev->hw_ops->vin_isp_set_ss0_addr(vin_dev,
 			line->id - VIN_LINE_ISP0_SS0,
 			y_addr, uv_addr);
 		break;
-	case VIN_LINE_ISP0_SS1: // isp0_ss1
-	case VIN_LINE_ISP1_SS1: // isp1_ss1
+	case STF_ISP_LINE_SRC_SS1:
 		vin_dev->hw_ops->vin_isp_set_ss1_addr(vin_dev,
 			line->id - VIN_LINE_ISP0_SS1,
 			y_addr, uv_addr);
 		break;
-	case VIN_LINE_ISP0_ITIW: // isp0_itiw
-	case VIN_LINE_ISP1_ITIW: // isp1_itiw
+	case STF_ISP_LINE_SRC_ITIW:
 		vin_dev->hw_ops->vin_isp_set_itiw_addr(vin_dev,
 			line->id - VIN_LINE_ISP0_ITIW,
 			y_addr, uv_addr);
 		break;
-	case VIN_LINE_ISP0_ITIR: // isp0_itir
-	case VIN_LINE_ISP1_ITIR: // isp1_itir
+	case STF_ISP_LINE_SRC_ITIR:
 		vin_dev->hw_ops->vin_isp_set_itir_addr(vin_dev,
 			line->id - VIN_LINE_ISP0_ITIR,
 			y_addr, uv_addr);
 		break;
-	case VIN_LINE_ISP0_RAW: // isp0_raw
-	case VIN_LINE_ISP1_RAW: // isp1_raw
+	case STF_ISP_LINE_SRC_RAW:
 		vin_dev->hw_ops->vin_isp_set_raw_addr(vin_dev,
 			line->id - VIN_LINE_ISP0_RAW, y_addr);
 		break;
-	case VIN_LINE_ISP0_SCD_Y: // isp0_scd_y
-	case VIN_LINE_ISP1_SCD_Y: // isp1_scd_y
+	case STF_ISP_LINE_SRC_SCD_Y:
 		output->frame_skip = ISP_AWB_OECF_SKIP_FRAME;
 		vin_dev->hw_ops->vin_isp_set_scd_addr(vin_dev,
 			line->id - VIN_LINE_ISP0_SCD_Y, y_addr, uv_addr,
 			AWB_TYPE);
 		break;
 	default:
+		if (line->id == VIN_LINE_WR) {
+			vin_dev->hw_ops->vin_wr_set_ping_addr(vin_dev, ping_addr);
+#ifdef VIN_TWO_BUFFER
+			vin_dev->hw_ops->vin_wr_set_pong_addr(vin_dev, pong_addr);
+#else
+			vin_dev->hw_ops->vin_wr_set_pong_addr(vin_dev, ping_addr);
+#endif
+		}
 		break;
 	}
 }
@@ -1285,59 +1278,37 @@ static void vin_change_buffer(struct vin_line *line)
 	if (output->state == VIN_OUTPUT_STOPPING)
 		output->last_buffer = ready_buf;
 	else {
-		switch (line->id) {
-		case VIN_LINE_WR:  // wr
-#ifdef VIN_TWO_BUFFER
-		if (active_index)
-			vin_dev->hw_ops->vin_wr_set_pong_addr(vin_dev,
-					new_addr[0]);
-		else
-			vin_dev->hw_ops->vin_wr_set_ping_addr(vin_dev,
-					new_addr[0]);
-#else
-		vin_dev->hw_ops->vin_wr_set_ping_addr(vin_dev,
-				new_addr[0]);
-		vin_dev->hw_ops->vin_wr_set_pong_addr(vin_dev,
-				new_addr[0]);
-#endif
-			break;
-		case VIN_LINE_ISP0: // isp0
-		case VIN_LINE_ISP1: // isp1
+		switch (stf_vin_map_isp_line(line->id)) {
+		case STF_ISP_LINE_SRC:
 			vin_dev->hw_ops->vin_isp_set_yuv_addr(vin_dev,
 				line->id - VIN_LINE_ISP0,
 				new_addr[0], new_addr[1]);
 			break;
-		case VIN_LINE_ISP0_SS0: // isp0_ss0
-		case VIN_LINE_ISP1_SS0: // isp1_ss0
+		case STF_ISP_LINE_SRC_SS0:
 			vin_dev->hw_ops->vin_isp_set_ss0_addr(vin_dev,
 				line->id - VIN_LINE_ISP0_SS0,
 				new_addr[0], new_addr[1]);
 			break;
-		case VIN_LINE_ISP0_SS1: // isp0_ss1
-		case VIN_LINE_ISP1_SS1: // isp1_ss1
+		case STF_ISP_LINE_SRC_SS1:
 			vin_dev->hw_ops->vin_isp_set_ss1_addr(vin_dev,
 				line->id - VIN_LINE_ISP0_SS1,
 				new_addr[0], new_addr[1]);
 			break;
-		case VIN_LINE_ISP0_ITIW: // isp0_itiw
-		case VIN_LINE_ISP1_ITIW: // isp1_itiw
+		case STF_ISP_LINE_SRC_ITIW:
 			vin_dev->hw_ops->vin_isp_set_itiw_addr(vin_dev,
 				line->id - VIN_LINE_ISP0_ITIW,
 				new_addr[0], new_addr[1]);
 			break;
-		case VIN_LINE_ISP0_ITIR: // isp0_itir
-		case VIN_LINE_ISP1_ITIR: // isp1_itir
+		case STF_ISP_LINE_SRC_ITIR:
 			vin_dev->hw_ops->vin_isp_set_itir_addr(vin_dev,
 				line->id - VIN_LINE_ISP0_ITIR,
 				new_addr[0], new_addr[1]);
 			break;
-		case VIN_LINE_ISP0_RAW: // isp0_raw
-		case VIN_LINE_ISP1_RAW: // isp1_raw
+		case STF_ISP_LINE_SRC_RAW:
 			vin_dev->hw_ops->vin_isp_set_raw_addr(vin_dev,
 				line->id - VIN_LINE_ISP0_RAW, new_addr[0]);
 			break;
-		case VIN_LINE_ISP0_SCD_Y: // isp0_scd_y
-		case VIN_LINE_ISP1_SCD_Y: // isp1_scd_y
+		case STF_ISP_LINE_SRC_SCD_Y:
 			scd_type = vin_dev->hw_ops->vin_isp_get_scd_type(vin_dev,
 					line->id - VIN_LINE_ISP0_SCD_Y);
 			ready_buf->vb.flags &= ~(V4L2_BUF_FLAG_PFRAME | V4L2_BUF_FLAG_BFRAME);
@@ -1357,6 +1328,21 @@ static void vin_change_buffer(struct vin_line *line)
 				scd_type);
 			break;
 		default:
+			if (line->id == VIN_LINE_WR) {
+#ifdef VIN_TWO_BUFFER
+				if (active_index)
+					vin_dev->hw_ops->vin_wr_set_pong_addr(vin_dev,
+							new_addr[0]);
+				else
+					vin_dev->hw_ops->vin_wr_set_ping_addr(vin_dev,
+							new_addr[0]);
+#else
+				vin_dev->hw_ops->vin_wr_set_ping_addr(vin_dev,
+							new_addr[0]);
+				vin_dev->hw_ops->vin_wr_set_pong_addr(vin_dev,
+							new_addr[0]);
+#endif
+			}
 			break;
 		}
 
@@ -1468,12 +1454,12 @@ int stf_vin_register(struct stf_vin2_dev *vin_dev, struct v4l2_device *v4l2_dev)
 	int ret;
 	int i;
 
-	for (i = 0; i < VIN_LINE_MAX; i++) {
+	for (i = 0; i < vin_dev->stfcamss->isp_num * STF_ISP_LINE_MAX + 1; i++) {
 		char name[32];
 		char *sub_name = get_line_subdevname(i);
 		int is_mp;
 
-		is_mp = (i == VIN_LINE_ISP0) || (i == VIN_LINE_ISP1) ? true : false;
+		is_mp = (stf_vin_map_isp_line(i) == STF_ISP_LINE_SRC) ? true : false;
 		is_mp = false;
 		sd = &vin_dev->line[i].subdev;
 		pads = vin_dev->line[i].pads;
@@ -1565,7 +1551,8 @@ int stf_vin_unregister(struct stf_vin2_dev *vin_dev)
 	mutex_destroy(&vin_dev->power_lock);
 	for (i = 0; i < STF_DUMMY_MODULE_NUMS; i++)
 		mutex_destroy(&vin_dev->dummy_buffer[i].stream_lock);
-	for (i = 0; i < VIN_LINE_MAX; i++) {
+
+	for (i = 0; i < vin_dev->stfcamss->isp_num * STF_ISP_LINE_MAX + 1; i++) {
 		sd = &vin_dev->line[i].subdev;
 		video_out = &vin_dev->line[i].video_out;
 

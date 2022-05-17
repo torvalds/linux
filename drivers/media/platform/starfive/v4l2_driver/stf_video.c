@@ -282,9 +282,9 @@ static int video_queue_setup(struct vb2_queue *q,
 		if (!sizes[0])
 			st_err(ST_VIDEO, "%s: error size is zero!!!\n", __func__);
 	}
-	if ((video->id == VIN_LINE_ISP0_SCD_Y
-		|| video->id == VIN_LINE_ISP1_SCD_Y)
-		&& sizes[0] < ISP_SCD_Y_BUFFER_SIZE) {
+	if ((stf_vin_map_isp_pad(video->id, STF_ISP_PAD_SRC)
+		== STF_ISP_PAD_SRC_SCD_Y) &&
+		sizes[0] < ISP_SCD_Y_BUFFER_SIZE) {
 		sizes[0] = ISP_SCD_Y_BUFFER_SIZE;
 	}
 
@@ -332,8 +332,8 @@ static int video_buf_init(struct vb2_buffer *vb)
 				fmt->height;
 	}
 
-	if (video->id == VIN_LINE_ISP0_SCD_Y
-		|| video->id == VIN_LINE_ISP1_SCD_Y)
+	if (stf_vin_map_isp_pad(video->id, STF_ISP_PAD_SRC)
+		== STF_ISP_PAD_SRC_SCD_Y)
 		buffer->addr[1] = buffer->addr[0] + ISP_YHIST_BUFFER_SIZE;
 
 	return 0;
@@ -633,46 +633,7 @@ static const struct vb2_ops stf_video_vb2_q_ops = {
 
 static int getcrop_pad_id(int video_id)
 {
-	int pad = 0;
-
-	switch (video_id) {
-	case VIN_LINE_WR:
-		pad = STF_VIN_PAD_SRC;
-		break;
-	case VIN_LINE_ISP0:
-	case VIN_LINE_ISP1:
-		pad = STF_ISP_PAD_SRC;
-		break;
-	case VIN_LINE_ISP0_SS0:
-	case VIN_LINE_ISP1_SS0:
-		pad = STF_ISP_PAD_SRC_SS0;
-		break;
-	case VIN_LINE_ISP0_SS1:
-	case VIN_LINE_ISP1_SS1:
-		pad = STF_ISP_PAD_SRC_SS1;
-		break;
-	case VIN_LINE_ISP0_ITIW:
-	case VIN_LINE_ISP1_ITIW:
-		pad = STF_ISP_PAD_SRC_ITIW;
-		break;
-	case VIN_LINE_ISP0_ITIR:
-	case VIN_LINE_ISP1_ITIR:
-		pad = STF_ISP_PAD_SRC_ITIR;
-		break;
-	case VIN_LINE_ISP0_RAW:
-	case VIN_LINE_ISP1_RAW:
-		pad = STF_ISP_PAD_SRC_RAW;
-		break;
-	case VIN_LINE_ISP0_SCD_Y:
-	case VIN_LINE_ISP1_SCD_Y:
-		pad = STF_ISP_PAD_SRC_SCD_Y;
-		break;
-	default:
-		pad = STF_ISP_PAD_SRC;
-		break;
-	}
-
-	return pad;
+	return stf_vin_map_isp_pad(video_id, STF_ISP_PAD_SRC);
 }
 
 static int video_querycap(struct file *file, void *fh,
@@ -1695,6 +1656,7 @@ int stf_video_register(struct stfcamss_video *video,
 	struct vb2_queue *q;
 	struct media_pad *pad = &video->pad;
 	int ret;
+	enum isp_pad_id isp_pad;
 
 	vdev = &video->vdev;
 
@@ -1731,23 +1693,19 @@ int stf_video_register(struct stfcamss_video *video,
 
 	mutex_init(&video->lock);
 
+	isp_pad = stf_vin_map_isp_pad(video->id, STF_ISP_PAD_SRC);
 	if (video->id == VIN_LINE_WR) {
 		video->formats = formats_pix_st7110_wr;
 		video->nformats = ARRAY_SIZE(formats_pix_st7110_wr);
 		video->bpl_alignment = STFCAMSS_FRAME_WIDTH_ALIGN_8;
-	} else if (video->id == VIN_LINE_ISP0
-		|| video->id == VIN_LINE_ISP1
-		|| video->id == VIN_LINE_ISP0_SS0
-		|| video->id == VIN_LINE_ISP1_SS0
-		|| video->id == VIN_LINE_ISP0_SS1
-		|| video->id == VIN_LINE_ISP1_SS1) {  // ISP0/ISP1
+	} else if (isp_pad == STF_ISP_PAD_SRC
+		|| isp_pad == STF_ISP_PAD_SRC_SS0
+		|| isp_pad == STF_ISP_PAD_SRC_SS1) {
 		video->formats = formats_pix_st7110_isp;
 		video->nformats = ARRAY_SIZE(formats_pix_st7110_isp);
 		video->bpl_alignment = STFCAMSS_FRAME_WIDTH_ALIGN_8;
-	} else if (video->id == VIN_LINE_ISP0_ITIW
-		|| video->id == VIN_LINE_ISP0_ITIR
-		|| video->id == VIN_LINE_ISP1_ITIW
-		|| video->id == VIN_LINE_ISP1_ITIR) {  // ISP0/ISP1
+	} else if (isp_pad == STF_ISP_PAD_SRC_ITIW
+		|| isp_pad == STF_ISP_PAD_SRC_ITIR) {
 		video->formats = formats_st7110_isp_iti;
 		video->nformats = ARRAY_SIZE(formats_st7110_isp_iti);
 		video->bpl_alignment = STFCAMSS_FRAME_WIDTH_ALIGN_8;
@@ -1765,8 +1723,7 @@ int stf_video_register(struct stfcamss_video *video,
 	}
 
 	vdev->fops = &stf_vid_fops;
-	if (video->id == VIN_LINE_ISP0_ITIR
-		|| video->id == VIN_LINE_ISP1_ITIR) {
+	if (isp_pad == STF_ISP_PAD_SRC_ITIR) {
 		vdev->device_caps = V4L2_CAP_VIDEO_OUTPUT;
 		vdev->vfl_dir = VFL_DIR_TX;
 	} else {
