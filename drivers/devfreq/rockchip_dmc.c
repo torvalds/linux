@@ -397,32 +397,35 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	 * Do this before taking the policy rwsem to avoid deadlocks between the
 	 * mutex that is locked/unlocked in cpu_hotplug_disable/enable. And it
 	 * can also avoid deadlocks between the mutex that is locked/unlocked
-	 * in get/put_online_cpus (such as store_scaling_max_freq()).
+	 * in cpus_read_lock/unlock (such as store_scaling_max_freq()).
 	 */
-	get_online_cpus();
+	cpus_read_lock();
 
-	/*
-	 * Go to specified cpufreq and block other cpufreq changes since
-	 * set_rate needs to complete during vblank.
-	 */
-	cpu_cur = raw_smp_processor_id();
-	policy = cpufreq_cpu_get(cpu_cur);
-	if (!policy) {
-		dev_err(dev, "cpu%d policy NULL\n", cpu_cur);
-		goto cpufreq;
-	}
-	down_write(&policy->rwsem);
-	cpufreq_cur = cpufreq_quick_get(cpu_cur);
+	if (dmcfreq->min_cpu_freq) {
+		/*
+		 * Go to specified cpufreq and block other cpufreq changes since
+		 * set_rate needs to complete during vblank.
+		 */
+		cpu_cur = raw_smp_processor_id();
+		policy = cpufreq_cpu_acquire(cpu_cur);
+		if (!policy) {
+			dev_err(dev, "cpu%d policy NULL\n", cpu_cur);
+			goto cpufreq;
+		}
+		cpufreq_cur = cpufreq_quick_get(cpu_cur);
 
-	/* If we're thermally throttled; don't change; */
-	if (dmcfreq->min_cpu_freq && cpufreq_cur < dmcfreq->min_cpu_freq) {
-		if (policy->max >= dmcfreq->min_cpu_freq) {
-			__cpufreq_driver_target(policy, dmcfreq->min_cpu_freq,
-						CPUFREQ_RELATION_L);
-			is_cpufreq_changed = true;
-		} else {
-			dev_dbg(dev, "CPU may too slow for DMC (%d MHz)\n",
-				policy->max);
+		/* If we're thermally throttled; don't change; */
+		if (cpufreq_cur < dmcfreq->min_cpu_freq) {
+			if (policy->max >= dmcfreq->min_cpu_freq) {
+				__cpufreq_driver_target(policy,
+							dmcfreq->min_cpu_freq,
+							CPUFREQ_RELATION_L);
+				is_cpufreq_changed = true;
+			} else {
+				dev_dbg(dev,
+					"CPU may too slow for DMC (%d MHz)\n",
+					policy->max);
+			}
 		}
 	}
 
@@ -503,13 +506,14 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	dmcfreq->volt = target_volt;
 out:
-	if (is_cpufreq_changed)
-		__cpufreq_driver_target(policy, cpufreq_cur,
-					CPUFREQ_RELATION_L);
-	up_write(&policy->rwsem);
-	cpufreq_cpu_put(policy);
+	if (dmcfreq->min_cpu_freq) {
+		if (is_cpufreq_changed)
+			__cpufreq_driver_target(policy, cpufreq_cur,
+						CPUFREQ_RELATION_L);
+		cpufreq_cpu_release(policy);
+	}
 cpufreq:
-	put_online_cpus();
+	cpus_read_unlock();
 	return err;
 }
 
