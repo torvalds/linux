@@ -26,6 +26,11 @@ struct ksz_port_mib {
 	struct spinlock stats64_lock;
 };
 
+struct ksz_mib_names {
+	int index;
+	char string[ETH_GSTRING_LEN];
+};
+
 struct ksz_chip_data {
 	u32 chip_id;
 	const char *dev_name;
@@ -36,6 +41,9 @@ struct ksz_chip_data {
 	int port_cnt;
 	bool phy_errata_9477;
 	bool ksz87xx_eee_link_erratum;
+	const struct ksz_mib_names *mib_names;
+	int mib_cnt;
+	u8 reg_mib_cnt;
 };
 
 struct ksz_port {
@@ -79,9 +87,6 @@ struct ksz_device {
 	u32 chip_id;
 	int cpu_port;			/* port connected to CPU */
 	int phy_port_cnt;
-	u8 reg_mib_cnt;
-	int mib_cnt;
-	const struct mib_names *mib_names;
 	phy_interface_t compat_interface;
 	u32 regs_size;
 	bool synclko_125;
