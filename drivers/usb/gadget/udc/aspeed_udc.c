@@ -65,6 +65,10 @@
 #define USB_UPSTREAM_FS			BIT(1)
 #define USB_UPSTREAM_EN			BIT(0)
 
+/* Main config reg */
+#define UDC_CFG_SET_ADDR(x)		((x) & 0x3f)
+#define UDC_CFG_ADDR_MASK		(0x3f)
+
 /* Interrupt ctrl & status reg */
 #define UDC_IRQ_EP_POOL_NAK		BIT(17)
 #define UDC_IRQ_EP_POOL_ACK_STALL	BIT(16)
@@ -209,7 +213,7 @@ struct ast_udc_dev {
 
 	struct usb_gadget		gadget;
 	struct usb_gadget_driver	*driver;
-	struct usb_ctrlrequest		*creq;
+	void __iomem			*creq;
 	enum usb_device_state		suspended_from;
 	int				desc_mode;
 
@@ -616,7 +620,7 @@ static void ast_udc_ep0_queue(struct ast_udc_ep *ep,
 		if (!req->req.length) {
 			/* 0 len request, send tx as completion */
 			ast_udc_write(udc, EP0_TX_BUFF_RDY, AST_UDC_EP0_CTRL);
-			ep->dir_in = 0x80;
+			ep->dir_in = 0x1;
 		} else
 			ast_udc_write(udc, EP0_RX_BUFF_RDY, AST_UDC_EP0_CTRL);
 	}
@@ -654,7 +658,7 @@ static int ast_udc_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	if (rc) {
 		EP_DBG(ep, "Request mapping failure %d\n", rc);
 		dev_warn(dev, "Request mapping failure %d\n", rc);
-		return rc;
+		goto end;
 	}
 
 	EP_DBG(ep, "enqueue req @%p\n", req);
@@ -683,7 +687,7 @@ static int ast_udc_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 end:
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	return 0;
+	return rc;
 }
 
 static int ast_udc_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
@@ -787,14 +791,12 @@ static void ast_udc_ep0_out(struct ast_udc_dev *udc)
 	struct ast_udc_ep *ep = &udc->ep[0];
 	struct ast_udc_request *req;
 	u16 rx_len;
-	u8 *buf;
 
 	if (list_empty(&ep->queue))
 		return;
 
 	req = list_entry(ep->queue.next, struct ast_udc_request, queue);
 
-	buf = req->req.buf;
 	rx_len = EP0_GET_RX_LEN(ast_udc_read(udc, AST_UDC_EP0_CTRL));
 	req->req.actual += rx_len;
 
@@ -994,11 +996,14 @@ static void ast_udc_ep0_data_tx(struct ast_udc_dev *udc, u8 *tx_data, u32 len)
 
 static void ast_udc_getstatus(struct ast_udc_dev *udc)
 {
+	struct usb_ctrlrequest crq;
 	struct ast_udc_ep *ep;
 	u16 status = 0;
-	int epnum;
+	u16 epnum;
 
-	switch (udc->creq->bRequestType & USB_RECIP_MASK) {
+	memcpy_fromio(&crq, udc->creq, sizeof(crq));
+
+	switch (crq.bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
 		/* Get device status */
 		status = 1 << USB_DEVICE_SELF_POWERED;
@@ -1006,7 +1011,7 @@ static void ast_udc_getstatus(struct ast_udc_dev *udc)
 	case USB_RECIP_INTERFACE:
 		break;
 	case USB_RECIP_ENDPOINT:
-		epnum = udc->creq->wIndex & USB_ENDPOINT_NUMBER_MASK;
+		epnum = crq.wIndex & USB_ENDPOINT_NUMBER_MASK;
 		status = udc->ep[epnum].stopped;
 		break;
 	default:
@@ -1031,8 +1036,8 @@ static void ast_udc_ep0_handle_setup(struct ast_udc_dev *udc)
 	struct ast_udc_request *req;
 	struct usb_ctrlrequest crq;
 	int req_num = 0;
-	u16 ep_num = 0;
 	int rc;
+	u32 reg;
 
 	memcpy_fromio(&crq, udc->creq, sizeof(crq));
 
@@ -1063,17 +1068,18 @@ static void ast_udc_ep0_handle_setup(struct ast_udc_dev *udc)
 				udc->gadget.speed = USB_SPEED_FULL;
 
 			SETUP_DBG(udc, "set addr: 0x%x\n", crq.wValue);
-			ast_udc_write(udc, crq.wValue, AST_UDC_CONFIG);
+			reg = ast_udc_read(udc, AST_UDC_CONFIG);
+			reg &= ~UDC_CFG_ADDR_MASK;
+			reg |= UDC_CFG_SET_ADDR(crq.wValue);
+			ast_udc_write(udc, reg, AST_UDC_CONFIG);
 			goto req_complete;
 
 		case USB_REQ_CLEAR_FEATURE:
-			ep_num = crq.wIndex & USB_ENDPOINT_NUMBER_MASK;
-			SETUP_DBG(udc, "ep%d: CLEAR FEATURE\n", ep_num);
+			SETUP_DBG(udc, "ep0: CLEAR FEATURE\n");
 			goto req_driver;
 
 		case USB_REQ_SET_FEATURE:
-			ep_num = crq.wIndex & USB_ENDPOINT_NUMBER_MASK;
-			SETUP_DBG(udc, "ep%d: SET FEATURE\n", ep_num);
+			SETUP_DBG(udc, "ep0: SET FEATURE\n");
 			goto req_driver;
 
 		case USB_REQ_GET_STATUS:
@@ -1095,8 +1101,9 @@ req_driver:
 		rc = udc->driver->setup(&udc->gadget, &crq);
 		spin_lock(&udc->lock);
 
-	} else
+	} else {
 		SETUP_DBG(udc, "No gadget for request !\n");
+	}
 
 	if (rc >= 0)
 		return;
@@ -1108,7 +1115,7 @@ req_driver:
 	return;
 
 req_complete:
-	SETUP_DBG(udc, "ep%d: Sending IN status without data\n", ep_num);
+	SETUP_DBG(udc, "ep0: Sending IN status without data\n");
 	ast_udc_write(udc, EP0_TX_BUFF_RDY, AST_UDC_EP0_CTRL);
 }
 
