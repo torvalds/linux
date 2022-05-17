@@ -84,6 +84,14 @@ static int machine__set_mmap_name(struct machine *machine)
 	return machine->mmap_name ? 0 : -ENOMEM;
 }
 
+static void thread__set_guest_comm(struct thread *thread, pid_t pid)
+{
+	char comm[64];
+
+	snprintf(comm, sizeof(comm), "[guest/%d]", pid);
+	thread__set_comm(thread, comm, 0);
+}
+
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 {
 	int err = -ENOMEM;
@@ -119,13 +127,11 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	if (pid != HOST_KERNEL_ID) {
 		struct thread *thread = machine__findnew_thread(machine, -1,
 								pid);
-		char comm[64];
 
 		if (thread == NULL)
 			goto out;
 
-		snprintf(comm, sizeof(comm), "[guest/%d]", pid);
-		thread__set_comm(thread, comm, 0);
+		thread__set_guest_comm(thread, pid);
 		thread__put(thread);
 	}
 
