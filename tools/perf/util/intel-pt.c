@@ -192,6 +192,7 @@ struct intel_pt_queue {
 	pid_t next_tid;
 	struct thread *thread;
 	struct machine *guest_machine;
+	struct thread *guest_thread;
 	struct thread *unknown_guest_thread;
 	pid_t guest_machine_pid;
 	bool exclude_kernel;
@@ -690,6 +691,11 @@ static int intel_pt_get_guest(struct intel_pt_queue *ptq)
 	ptq->guest_machine = NULL;
 	thread__zput(ptq->unknown_guest_thread);
 
+	if (symbol_conf.guest_code) {
+		thread__zput(ptq->guest_thread);
+		ptq->guest_thread = machines__findnew_guest_code(machines, pid);
+	}
+
 	machine = machines__find_guest(machines, pid);
 	if (!machine)
 		return -1;
@@ -753,11 +759,16 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 	cpumode = intel_pt_nr_cpumode(ptq, *ip, nr);
 
 	if (nr) {
-		if (cpumode != PERF_RECORD_MISC_GUEST_KERNEL ||
+		if ((!symbol_conf.guest_code && cpumode != PERF_RECORD_MISC_GUEST_KERNEL) ||
 		    intel_pt_get_guest(ptq))
 			return -EINVAL;
 		machine = ptq->guest_machine;
-		thread = ptq->unknown_guest_thread;
+		thread = ptq->guest_thread;
+		if (!thread) {
+			if (cpumode != PERF_RECORD_MISC_GUEST_KERNEL)
+				return -EINVAL;
+			thread = ptq->unknown_guest_thread;
+		}
 	} else {
 		thread = ptq->thread;
 		if (!thread) {
@@ -1335,6 +1346,7 @@ static void intel_pt_free_queue(void *priv)
 	if (!ptq)
 		return;
 	thread__zput(ptq->thread);
+	thread__zput(ptq->guest_thread);
 	thread__zput(ptq->unknown_guest_thread);
 	intel_pt_decoder_free(ptq->decoder);
 	zfree(&ptq->event_buf);
@@ -2406,6 +2418,10 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 		ptq->ipc_cyc_cnt = ptq->state->tot_cyc_cnt;
 		ptq->sample_ipc = ptq->state->flags & INTEL_PT_SAMPLE_IPC;
 	}
+
+	/* Ensure guest code maps are set up */
+	if (symbol_conf.guest_code && (state->from_nr || state->to_nr))
+		intel_pt_get_guest(ptq);
 
 	/*
 	 * Do PEBS first to allow for the possibility that the PEBS timestamp
