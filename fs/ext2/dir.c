@@ -204,8 +204,7 @@ static struct page * ext2_get_page(struct inode *dir, unsigned long n,
 	if (!IS_ERR(page)) {
 		*page_addr = kmap_local_page(page);
 		if (unlikely(!PageChecked(page))) {
-			if (PageError(page) || !ext2_check_page(page, quiet,
-								*page_addr))
+			if (!ext2_check_page(page, quiet, *page_addr))
 				goto fail;
 		}
 	}
