@@ -1714,6 +1714,7 @@ static int ctnetlink_done_list(struct netlink_callback *cb)
 	return 0;
 }
 
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
 static int ctnetlink_dump_one_entry(struct sk_buff *skb,
 				    struct netlink_callback *cb,
 				    struct nf_conn *ct,
@@ -1754,6 +1755,7 @@ static int ctnetlink_dump_one_entry(struct sk_buff *skb,
 
 	return res;
 }
+#endif
 
 static int
 ctnetlink_dump_unconfirmed(struct sk_buff *skb, struct netlink_callback *cb)
