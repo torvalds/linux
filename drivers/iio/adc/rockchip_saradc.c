@@ -354,8 +354,6 @@ static const struct rockchip_saradc_data rk3588_saradc_data = {
 static const struct iio_chan_spec rockchip_rv1106_saradc_iio_channels[] = {
 	SARADC_CHANNEL(0, "adc0", 10),
 	SARADC_CHANNEL(1, "adc1", 10),
-	SARADC_CHANNEL(2, "adc2", 10),
-	SARADC_CHANNEL(3, "adc3", 10),
 };
 
 static const struct rockchip_saradc_data rv1106_saradc_data = {
