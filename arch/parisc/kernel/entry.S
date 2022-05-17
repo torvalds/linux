@@ -566,11 +566,6 @@
 	.macro		do_alias	spc,tmp,tmp1,va,pte,prot,fault,patype
 	cmpib,COND(<>),n 0,\spc,\fault
 	ldil		L%(TMPALIAS_MAP_START),\tmp
-#if defined(CONFIG_64BIT) && (TMPALIAS_MAP_START >= 0x80000000)
-	/* on LP64, ldi will sign extend into the upper 32 bits,
-	 * which is behaviour we don't want */
-	depdi		0,31,32,\tmp
-#endif
 	copy		\va,\tmp1
 	depi_safe	0,31,TMPALIAS_SIZE_BITS+1,\tmp1
 	cmpb,COND(<>),n	\tmp,\tmp1,\fault
@@ -605,13 +600,13 @@
 	 * OK, it is in the temp alias region, check whether "from" or "to".
 	 * Check "subtle" note in pacache.S re: r23/r26.
 	 */
-#ifdef CONFIG_64BIT
-	extrd,u,*=	\va,63-TMPALIAS_SIZE_BITS,1,%r0
-#else
 	extrw,u,=	\va,31-TMPALIAS_SIZE_BITS,1,%r0
-#endif
 	or,COND(tr)	%r23,%r0,\pte
 	or		%r26,%r0,\pte
+
+	/* convert phys addr in \pte (from r23 or r26) to tlb insert format */
+	SHRREG		\pte,PAGE_SHIFT+PAGE_ADD_SHIFT-5, \pte
+	depi_safe	_PAGE_SIZE_ENCODING_DEFAULT, 31,5, \pte
 	.endm 
 
 

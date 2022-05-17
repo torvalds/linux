@@ -500,18 +500,9 @@ ENDPROC_CFI(copy_page_asm)
  *       miss on the translation, the dtlb miss handler inserts the
  *       translation into the tlb using these values:
  *
- *          %r26 physical page (shifted for tlb insert) of "to" translation
- *          %r23 physical page (shifted for tlb insert) of "from" translation
+ *          %r26 physical address of "to" translation
+ *          %r23 physical address of "from" translation
  */
-
-        /* Drop prot bits and convert to page addr for iitlbt and idtlbt */
-        #define PAGE_ADD_SHIFT  (PAGE_SHIFT-12)
-        .macro          convert_phys_for_tlb_insert20  phys
-        extrd,u         \phys, 56-PAGE_ADD_SHIFT, 32-PAGE_ADD_SHIFT, \phys
-#if _PAGE_SIZE_ENCODING_DEFAULT
-        depdi           _PAGE_SIZE_ENCODING_DEFAULT, 63, (63-58), \phys
-#endif
-	.endm
 
 	/*
 	 * copy_user_page_asm() performs a page copy using mappings
@@ -541,24 +532,10 @@ ENTRY_CFI(copy_user_page_asm)
 	sub		%r25, %r1, %r23
 
 	ldil		L%(TMPALIAS_MAP_START), %r28
-#ifdef CONFIG_64BIT
-#if (TMPALIAS_MAP_START >= 0x80000000)
-	depdi		0, 31,32, %r28		/* clear any sign extension */
-#endif
-	convert_phys_for_tlb_insert20 %r26	/* convert phys addr to tlb insert format */
-	convert_phys_for_tlb_insert20 %r23	/* convert phys addr to tlb insert format */
-	depd		%r24,63,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,PAGE_SHIFT, %r28	/* Clear any offset bits */
+	dep_safe	%r24, 31,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
+	depi_safe	0, 31,PAGE_SHIFT, %r28			/* Clear any offset bits */
 	copy		%r28, %r29
-	depdi		1, 63-TMPALIAS_SIZE_BITS,1, %r29	/* Form aliased virtual address 'from' */
-#else
-	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
-	extrw,u		%r23, 24,25, %r23	/* convert phys addr to tlb insert format */
-	depw		%r24, 31,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
-	copy		%r28, %r29
-	depwi		1, 31-TMPALIAS_SIZE_BITS,1, %r29	/* Form aliased virtual address 'from' */
-#endif
+	depi_safe	1, 31-TMPALIAS_SIZE_BITS,1, %r29	/* Form aliased virtual address 'from' */
 
 	/* Purge any old translations */
 
@@ -688,18 +665,8 @@ ENTRY_CFI(clear_user_page_asm)
 	tophys_r1	%r26
 
 	ldil		L%(TMPALIAS_MAP_START), %r28
-#ifdef CONFIG_64BIT
-#if (TMPALIAS_MAP_START >= 0x80000000)
-	depdi		0, 31,32, %r28		/* clear any sign extension */
-#endif
-	convert_phys_for_tlb_insert20 %r26	/* convert phys addr to tlb insert format */
-	depd		%r25, 63,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,PAGE_SHIFT, %r28	/* Clear any offset bits */
-#else
-	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
-	depw		%r25, 31,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
-#endif
+	dep_safe	%r25, 31,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
+	depi_safe	0, 31,PAGE_SHIFT, %r28			/* Clear any offset bits */
 
 	/* Purge any old translation */
 
@@ -764,18 +731,8 @@ ENDPROC_CFI(clear_user_page_asm)
 
 ENTRY_CFI(flush_dcache_page_asm)
 	ldil		L%(TMPALIAS_MAP_START), %r28
-#ifdef CONFIG_64BIT
-#if (TMPALIAS_MAP_START >= 0x80000000)
-	depdi		0, 31,32, %r28		/* clear any sign extension */
-#endif
-	convert_phys_for_tlb_insert20 %r26	/* convert phys addr to tlb insert format */
-	depd		%r25, 63,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,PAGE_SHIFT, %r28	/* Clear any offset bits */
-#else
-	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
-	depw		%r25, 31,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
-#endif
+	dep_safe	%r25, 31,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
+	depi_safe	0, 31,PAGE_SHIFT, %r28			/* Clear any offset bits */
 
 	/* Purge any old translation */
 
@@ -823,18 +780,8 @@ ENDPROC_CFI(flush_dcache_page_asm)
 
 ENTRY_CFI(purge_dcache_page_asm)
 	ldil		L%(TMPALIAS_MAP_START), %r28
-#ifdef CONFIG_64BIT
-#if (TMPALIAS_MAP_START >= 0x80000000)
-	depdi		0, 31,32, %r28		/* clear any sign extension */
-#endif
-	convert_phys_for_tlb_insert20 %r26	/* convert phys addr to tlb insert format */
-	depd		%r25, 63,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,PAGE_SHIFT, %r28	/* Clear any offset bits */
-#else
-	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
-	depw		%r25, 31,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
-#endif
+	dep_safe	%r25, 31,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
+	depi_safe	0, 31,PAGE_SHIFT, %r28			/* Clear any offset bits */
 
 	/* Purge any old translation */
 
@@ -882,18 +829,8 @@ ENDPROC_CFI(purge_dcache_page_asm)
 
 ENTRY_CFI(flush_icache_page_asm)
 	ldil		L%(TMPALIAS_MAP_START), %r28
-#ifdef CONFIG_64BIT
-#if (TMPALIAS_MAP_START >= 0x80000000)
-	depdi		0, 31,32, %r28		/* clear any sign extension */
-#endif
-	convert_phys_for_tlb_insert20 %r26	/* convert phys addr to tlb insert format */
-	depd		%r25, 63,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,PAGE_SHIFT, %r28	/* Clear any offset bits */
-#else
-	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
-	depw		%r25, 31,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
-#endif
+	dep_safe	%r25, 31,TMPALIAS_SIZE_BITS, %r28	/* Form aliased virtual address 'to' */
+	depi_safe	0, 31,PAGE_SHIFT, %r28			/* Clear any offset bits */
 
 	/* Purge any old translation.  Note that the FIC instruction
 	 * may use either the instruction or data TLB.  Given that we
