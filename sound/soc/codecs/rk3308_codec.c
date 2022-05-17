@@ -4834,6 +4834,10 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 		return PTR_ERR(rk3308->grf);
 	}
 
+	ret = rk3308_codec_get_version(rk3308);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "Failed to get acodec version\n");
+
 	ret = rk3308_codec_sysfs_init(pdev, rk3308);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Sysfs init failed\n");
@@ -4990,13 +4994,6 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	ret = rk3308_codec_setup_en_always_adcs(rk3308, np);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to setup enabled always ADCs: %d\n",
-			ret);
-		return ret;
-	}
-
-	ret = rk3308_codec_get_version(rk3308);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to get acodec version: %d\n",
 			ret);
 		return ret;
 	}
