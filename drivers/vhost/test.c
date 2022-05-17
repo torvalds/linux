@@ -158,9 +158,6 @@ static int vhost_test_release(struct inode *inode, struct file *f)
 	vhost_test_flush(n);
 	vhost_dev_stop(&n->dev);
 	vhost_dev_cleanup(&n->dev);
-	/* We do an extra flush before freeing memory,
-	 * since jobs can re-queue themselves. */
-	vhost_test_flush(n);
 	kfree(n->dev.vqs);
 	kfree(n);
 	return 0;
