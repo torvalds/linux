@@ -43,6 +43,7 @@
 
 /dts-v1/;
 #include "sun8i-r40.dtsi"
+#include "sun8i-r40-cpu-opp.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 
