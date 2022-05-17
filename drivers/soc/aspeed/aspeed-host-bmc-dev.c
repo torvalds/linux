@@ -74,14 +74,15 @@ struct aspeed_pci_bmc_dev {
 	wait_queue_head_t rx_wait0;
 	wait_queue_head_t rx_wait1;
 
-	void *serial_priv;
+	void __iomem *sio_mbox_reg;
+	int sio_mbox_irq;
 
 	u8 IntLine;
 	int legency_irq;
 };
 
 #define HOST_BMC_QUEUE_SIZE			(16 * 4)
-
+#define PCIE_DEVICE_SIO_ADDR		(0x2E * 4)
 #define BMC_MULTI_MSI	32
 
 #define DRIVER_NAME "ASPEED BMC DEVICE"
@@ -235,12 +236,25 @@ irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void *dev_id)
 
 }
 
+irqreturn_t aspeed_pci_host_mbox_interrupt(int irq, void *dev_id)
+{
+	struct aspeed_pci_bmc_dev *pci_bmc_device = dev_id;
+	u32 isr = readl(pci_bmc_device->sio_mbox_reg + 0x94);
+
+	if (isr & BIT(7))
+		writel(BIT(7), pci_bmc_device->sio_mbox_reg + 0x94);
+
+	return IRQ_HANDLED;
+
+}
+
 #define BMC_MSI_IDX_BASE	4
 static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct uart_8250_port uart[VUART_MAX_PARMS];
 	struct aspeed_pci_bmc_dev *pci_bmc_dev;
 	struct device *dev = &pdev->dev;
+	void __iomem *pcie_sio_decode_addr;
 	u16 config_cmd_val;
 	int nr_entries;
 	int rc = 0;
@@ -371,6 +385,35 @@ static int aspeed_pci_host_bmc_device_probe(struct pci_dev *pdev, const struct p
 		pr_err("host bmc device Unable to get IRQ %d\n", rc);
 		goto out_unreg;
 	}
+
+	/* setup mbox */
+	pcie_sio_decode_addr = pci_bmc_dev->msg_bar_reg + PCIE_DEVICE_SIO_ADDR;
+	writel(0xaa, pcie_sio_decode_addr);
+	writel(0xa5, pcie_sio_decode_addr);
+	writel(0xa5, pcie_sio_decode_addr);
+	writel(0x07, pcie_sio_decode_addr);
+	writel(0x0e, pcie_sio_decode_addr + 0x04);
+	/* disable */
+	writel(0x30, pcie_sio_decode_addr);
+	writel(0x00, pcie_sio_decode_addr + 0x04);
+	/* set decode address 0x100 */
+	writel(0x60, pcie_sio_decode_addr);
+	writel(0x01, pcie_sio_decode_addr + 0x04);
+	writel(0x61, pcie_sio_decode_addr);
+	writel(0x00, pcie_sio_decode_addr + 0x04);
+	/* enable */
+	writel(0x30, pcie_sio_decode_addr);
+	writel(0x01, pcie_sio_decode_addr + 0x04);
+	pci_bmc_dev->sio_mbox_reg = pci_bmc_dev->msg_bar_reg + 0x400;
+
+	if (pci_bmc_dev->legency_irq)
+		pci_bmc_dev->sio_mbox_irq = pdev->irq;
+	else
+		pci_bmc_dev->sio_mbox_irq = pci_irq_vector(pdev, 0x10 + 9 - BMC_MSI_IDX_BASE);
+
+	rc = request_irq(pci_bmc_dev->sio_mbox_irq, aspeed_pci_host_mbox_interrupt, IRQF_SHARED, "ASPEED SIO MBOX", pci_bmc_dev);
+	if (rc)
+		pr_err("host bmc device Unable to get IRQ %d\n", rc);
 
 	/* setup VUART */
 	memset(uart, 0, sizeof(uart));
