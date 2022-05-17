@@ -448,7 +448,7 @@ static int flexcop_usb_transfer_init(struct flexcop_usb *fc_usb)
 	/* creating iso urbs */
 	for (i = 0; i < B2C2_USB_NUM_ISO_URB; i++) {
 		fc_usb->iso_urb[i] = usb_alloc_urb(B2C2_USB_FRAMES_PER_ISO,
-			GFP_ATOMIC);
+			GFP_KERNEL);
 		if (fc_usb->iso_urb[i] == NULL) {
 			ret = -ENOMEM;
 			goto urb_error;
@@ -481,7 +481,7 @@ static int flexcop_usb_transfer_init(struct flexcop_usb *fc_usb)
 			frame_offset += frame_size;
 		}
 
-		if ((ret = usb_submit_urb(fc_usb->iso_urb[i],GFP_ATOMIC))) {
+		if ((ret = usb_submit_urb(fc_usb->iso_urb[i],GFP_KERNEL))) {
 			err("submitting urb %d failed with %d.", i, ret);
 			goto urb_error;
 		}
