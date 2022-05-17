@@ -2231,7 +2231,6 @@ static int npcm_i2c_probe_bus(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	static struct regmap *gcr_regmap;
-	static struct regmap *clk_regmap;
 	struct i2c_adapter *adap;
 	struct npcm_i2c *bus;
 	struct clk *i2c_clk;
@@ -2258,10 +2257,6 @@ static int npcm_i2c_probe_bus(struct platform_device *pdev)
 	if (IS_ERR(gcr_regmap))
 		return PTR_ERR(gcr_regmap);
 	regmap_write(gcr_regmap, NPCM_I2CSEGCTL, NPCM_I2CSEGCTL_INIT_VAL);
-
-	clk_regmap = syscon_regmap_lookup_by_compatible("nuvoton,npcm750-clk");
-	if (IS_ERR(clk_regmap))
-		return PTR_ERR(clk_regmap);
 
 	bus->reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bus->reg))
