@@ -45,7 +45,7 @@ static const struct jh7110_clk_data jh7110_clk_stg_data[] __initconst = {
 	JH7110_GATE(JH7110_PCIE1_CLK_TL, "u1_plda_pcie_clk_tl",
 			GATE_FLAG_NORMAL, JH7110_STG_AXIAHB),
 	JH7110_GATE(JH7110_PCIE01_SLV_DEC_MAINCLK, "u0_pcie01_slv_dec_mainclk",
-			GATE_FLAG_NORMAL, JH7110_STG_AXIAHB),
+			CLK_IGNORE_UNUSED, JH7110_STG_AXIAHB),
 	//security
 	JH7110_GATE(JH7110_SEC_HCLK, "u0_sec_top_hclk",
 			GATE_FLAG_NORMAL, JH7110_STG_AXIAHB),
