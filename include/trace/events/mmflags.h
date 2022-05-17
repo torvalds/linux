@@ -13,49 +13,51 @@
  * Thus most bits set go first.
  */
 
-#define __def_gfpflag_names						\
-	{(__force unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
-	{(__force unsigned long)GFP_TRANSHUGE_LIGHT,	"GFP_TRANSHUGE_LIGHT"}, \
-	{(__force unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"},\
-	{(__force unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
-	{(__force unsigned long)GFP_USER,		"GFP_USER"},		\
-	{(__force unsigned long)GFP_KERNEL_ACCOUNT,	"GFP_KERNEL_ACCOUNT"},	\
-	{(__force unsigned long)GFP_KERNEL,		"GFP_KERNEL"},		\
-	{(__force unsigned long)GFP_NOFS,		"GFP_NOFS"},		\
-	{(__force unsigned long)GFP_ATOMIC,		"GFP_ATOMIC"},		\
-	{(__force unsigned long)GFP_NOIO,		"GFP_NOIO"},		\
-	{(__force unsigned long)GFP_NOWAIT,		"GFP_NOWAIT"},		\
-	{(__force unsigned long)GFP_DMA,		"GFP_DMA"},		\
-	{(__force unsigned long)__GFP_HIGHMEM,		"__GFP_HIGHMEM"},	\
-	{(__force unsigned long)GFP_DMA32,		"GFP_DMA32"},		\
-	{(__force unsigned long)__GFP_HIGH,		"__GFP_HIGH"},		\
-	{(__force unsigned long)__GFP_ATOMIC,		"__GFP_ATOMIC"},	\
-	{(__force unsigned long)__GFP_IO,		"__GFP_IO"},		\
-	{(__force unsigned long)__GFP_FS,		"__GFP_FS"},		\
-	{(__force unsigned long)__GFP_NOWARN,		"__GFP_NOWARN"},	\
-	{(__force unsigned long)__GFP_RETRY_MAYFAIL,	"__GFP_RETRY_MAYFAIL"},	\
-	{(__force unsigned long)__GFP_NOFAIL,		"__GFP_NOFAIL"},	\
-	{(__force unsigned long)__GFP_NORETRY,		"__GFP_NORETRY"},	\
-	{(__force unsigned long)__GFP_COMP,		"__GFP_COMP"},		\
-	{(__force unsigned long)__GFP_ZERO,		"__GFP_ZERO"},		\
-	{(__force unsigned long)__GFP_NOMEMALLOC,	"__GFP_NOMEMALLOC"},	\
-	{(__force unsigned long)__GFP_MEMALLOC,		"__GFP_MEMALLOC"},	\
-	{(__force unsigned long)__GFP_HARDWALL,		"__GFP_HARDWALL"},	\
-	{(__force unsigned long)__GFP_THISNODE,		"__GFP_THISNODE"},	\
-	{(__force unsigned long)__GFP_RECLAIMABLE,	"__GFP_RECLAIMABLE"},	\
-	{(__force unsigned long)__GFP_MOVABLE,		"__GFP_MOVABLE"},	\
-	{(__force unsigned long)__GFP_ACCOUNT,		"__GFP_ACCOUNT"},	\
-	{(__force unsigned long)__GFP_WRITE,		"__GFP_WRITE"},		\
-	{(__force unsigned long)__GFP_RECLAIM,		"__GFP_RECLAIM"},	\
-	{(__force unsigned long)__GFP_DIRECT_RECLAIM,	"__GFP_DIRECT_RECLAIM"},\
-	{(__force unsigned long)__GFP_KSWAPD_RECLAIM,	"__GFP_KSWAPD_RECLAIM"},\
-	{(__force unsigned long)__GFP_ZEROTAGS,		"__GFP_ZEROTAGS"}	\
+#define gfpflag_string(flag) {(__force unsigned long)flag, #flag}
+
+#define __def_gfpflag_names			\
+	gfpflag_string(GFP_TRANSHUGE),		\
+	gfpflag_string(GFP_TRANSHUGE_LIGHT),	\
+	gfpflag_string(GFP_HIGHUSER_MOVABLE),	\
+	gfpflag_string(GFP_HIGHUSER),		\
+	gfpflag_string(GFP_USER),		\
+	gfpflag_string(GFP_KERNEL_ACCOUNT),	\
+	gfpflag_string(GFP_KERNEL),		\
+	gfpflag_string(GFP_NOFS),		\
+	gfpflag_string(GFP_ATOMIC),		\
+	gfpflag_string(GFP_NOIO),		\
+	gfpflag_string(GFP_NOWAIT),		\
+	gfpflag_string(GFP_DMA),		\
+	gfpflag_string(__GFP_HIGHMEM),		\
+	gfpflag_string(GFP_DMA32),		\
+	gfpflag_string(__GFP_HIGH),		\
+	gfpflag_string(__GFP_ATOMIC),		\
+	gfpflag_string(__GFP_IO),		\
+	gfpflag_string(__GFP_FS),		\
+	gfpflag_string(__GFP_NOWARN),		\
+	gfpflag_string(__GFP_RETRY_MAYFAIL),	\
+	gfpflag_string(__GFP_NOFAIL),		\
+	gfpflag_string(__GFP_NORETRY),		\
+	gfpflag_string(__GFP_COMP),		\
+	gfpflag_string(__GFP_ZERO),		\
+	gfpflag_string(__GFP_NOMEMALLOC),	\
+	gfpflag_string(__GFP_MEMALLOC),		\
+	gfpflag_string(__GFP_HARDWALL),		\
+	gfpflag_string(__GFP_THISNODE),		\
+	gfpflag_string(__GFP_RECLAIMABLE),	\
+	gfpflag_string(__GFP_MOVABLE),		\
+	gfpflag_string(__GFP_ACCOUNT),		\
+	gfpflag_string(__GFP_WRITE),		\
+	gfpflag_string(__GFP_RECLAIM),		\
+	gfpflag_string(__GFP_DIRECT_RECLAIM),	\
+	gfpflag_string(__GFP_KSWAPD_RECLAIM),	\
+	gfpflag_string(__GFP_ZEROTAGS)
 
 #ifdef CONFIG_KASAN_HW_TAGS
-#define __def_gfpflag_names_kasan ,					       \
-	{(__force unsigned long)__GFP_SKIP_ZERO,	   "__GFP_SKIP_ZERO"},	       \
-	{(__force unsigned long)__GFP_SKIP_KASAN_POISON,   "__GFP_SKIP_KASAN_POISON"}, \
-	{(__force unsigned long)__GFP_SKIP_KASAN_UNPOISON, "__GFP_SKIP_KASAN_UNPOISON"}
+#define __def_gfpflag_names_kasan ,			\
+	gfpflag_string(__GFP_SKIP_ZERO),		\
+	gfpflag_string(__GFP_SKIP_KASAN_POISON),	\
+	gfpflag_string(__GFP_SKIP_KASAN_UNPOISON)
 #else
 #define __def_gfpflag_names_kasan
 #endif
