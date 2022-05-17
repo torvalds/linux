@@ -552,6 +552,12 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	/* Fill the common data for all mac context types */
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, bssid_override, action);
 
+	/*
+	 * We always want to hear MCAST frames, if we're not authorized yet,
+	 * we'll drop them.
+	 */
+	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_ACCEPT_GRP);
+
 	if (vif->p2p) {
 		struct ieee80211_p2p_noa_attr *noa =
 			&vif->bss_conf.p2p_noa_attr;
@@ -608,13 +614,6 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 				IWL_UCODE_TLV_CAPA_COEX_HIGH_PRIO))
 			ctxt_sta->data_policy |=
 				cpu_to_le32(COEX_HIGH_PRIORITY_ENABLE);
-
-		/*
-		 * allow multicast data frames only as long as the station is
-		 * authorized, i.e., GTK keys are already installed (if needed)
-		 */
-		if (mvmvif->authorized)
-			cmd.filter_flags |= cpu_to_le32(MAC_FILTER_ACCEPT_GRP);
 	} else {
 		ctxt_sta->is_assoc = cpu_to_le32(0);
 
