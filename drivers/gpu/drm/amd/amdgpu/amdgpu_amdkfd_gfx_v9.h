@@ -58,3 +58,8 @@ void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev, int pasid,
 		int *pasid_wave_cnt, int *max_waves_per_cu);
 void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,
 		uint32_t vmid, uint64_t tba_addr, uint64_t tma_addr);
+void kgd_gfx_v9_acquire_queue(struct amdgpu_device *adev, uint32_t pipe_id,
+				uint32_t queue_id);
+uint64_t kgd_gfx_v9_get_queue_mask(struct amdgpu_device *adev,
+				uint32_t pipe_id, uint32_t queue_id);
+void kgd_gfx_v9_release_queue(struct amdgpu_device *adev);

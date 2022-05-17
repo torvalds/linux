@@ -51,6 +51,7 @@ extern const struct kfd2kgd_calls gfx_v8_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v9_kfd2kgd;
 extern const struct kfd2kgd_calls arcturus_kfd2kgd;
 extern const struct kfd2kgd_calls aldebaran_kfd2kgd;
+extern const struct kfd2kgd_calls gc_9_4_3_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v10_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v10_3_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v11_kfd2kgd;
@@ -328,7 +329,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			break;
 		case IP_VERSION(9, 4, 3):
 			gfx_target_version = 90400;
-			f2g = &aldebaran_kfd2kgd;
+			f2g = &gc_9_4_3_kfd2kgd;
 			break;
 		/* Navi10 */
 		case IP_VERSION(10, 1, 10):
