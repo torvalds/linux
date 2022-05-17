@@ -1466,7 +1466,7 @@ static void isc_awb_work(struct work_struct *w)
 	if (isc->stop) {
 		mutex_unlock(&isc->awb_mutex);
 		return;
-	};
+	}
 
 	isc_update_profile(isc);
 
