@@ -1536,11 +1536,12 @@ static void show_stalled_task_trace(struct task_struct *t, bool *firstreport)
 			 ".I"[t->trc_ipi_to_cpu >= 0],
 			 ".i"[is_idle_tsk]);
 	else
-		pr_alert("P%d: %c%c%c nesting: %d%c%c cpu: %d%s\n",
+		pr_alert("P%d: %c%c%c%c nesting: %d%c%c cpu: %d%s\n",
 			 t->pid,
 			 ".I"[trc_rdr.ipi_to_cpu >= 0],
 			 ".i"[is_idle_tsk],
 			 ".N"[cpu >= 0 && tick_nohz_full_cpu(cpu)],
+			 ".B"[!!data_race(t->trc_reader_special.b.blocked)],
 			 trc_rdr.nesting,
 			 " !CN"[trc_rdr.needqs & 0x3],
 			 " ?"[trc_rdr.needqs > 0x3],
