@@ -42,10 +42,12 @@ struct cluster_info {
 	struct list_head list_head;
 	struct monitor_dev_info *mdev_info;
 	struct rockchip_opp_info opp_info;
+	struct freq_qos_request dsu_qos_req;
 	cpumask_t cpus;
 	unsigned int idle_threshold_freq;
 	int scale;
 	bool is_idle_disabled;
+	bool is_opp_shared_dsu;
 };
 static LIST_HEAD(cluster_info_list);
 
@@ -544,6 +546,7 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 		goto np_err;
 	}
 
+	cluster->is_opp_shared_dsu = of_property_read_bool(np, "rockchip,opp-shared-dsu");
 	if (!of_property_read_u32(np, "rockchip,idle-threshold-freq", &freq))
 		cluster->idle_threshold_freq = freq;
 	rockchip_get_opp_data(rockchip_cpufreq_of_match, opp_info);
@@ -643,48 +646,113 @@ static int rockchip_cpufreq_suspend(struct cpufreq_policy *policy)
 	return ret;
 }
 
-static int rockchip_cpufreq_notifier(struct notifier_block *nb,
-				     unsigned long event, void *data)
+static int rockchip_cpufreq_add_monitor(struct cluster_info *cluster,
+					struct cpufreq_policy *policy)
 {
-	struct device *dev;
-	struct cpufreq_policy *policy = data;
-	struct cluster_info *cluster;
+	struct device *dev = cluster->opp_info.dev;
 	struct monitor_dev_profile *mdevp = NULL;
 	struct monitor_dev_info *mdev_info = NULL;
 
-	dev = get_cpu_device(policy->cpu);
-	if (!dev)
-		return NOTIFY_BAD;
+	mdevp = kzalloc(sizeof(*mdevp), GFP_KERNEL);
+	if (!mdevp)
+		return -ENOMEM;
+
+	mdevp->type = MONITOR_TPYE_CPU;
+	mdevp->low_temp_adjust = rockchip_monitor_cpu_low_temp_adjust;
+	mdevp->high_temp_adjust = rockchip_monitor_cpu_high_temp_adjust;
+	mdevp->update_volt = rockchip_monitor_check_rate_volt;
+	mdevp->data = (void *)policy;
+	mdevp->opp_info = &cluster->opp_info;
+	cpumask_copy(&mdevp->allowed_cpus, policy->cpus);
+	mdev_info = rockchip_system_monitor_register(dev, mdevp);
+	if (IS_ERR(mdev_info)) {
+		kfree(mdevp);
+		dev_err(dev, "failed to register system monitor\n");
+		return -EINVAL;
+	}
+	mdev_info->devp = mdevp;
+	cluster->mdev_info = mdev_info;
+
+	return 0;
+}
+
+static int rockchip_cpufreq_remove_monitor(struct cluster_info *cluster)
+{
+	if (cluster->mdev_info) {
+		kfree(cluster->mdev_info->devp);
+		rockchip_system_monitor_unregister(cluster->mdev_info);
+		cluster->mdev_info = NULL;
+	}
+
+	return 0;
+}
+
+static int rockchip_cpufreq_remove_dsu_qos(struct cluster_info *cluster)
+{
+	struct cluster_info *ci;
+
+	if (!cluster->is_opp_shared_dsu)
+		return 0;
+
+	list_for_each_entry(ci, &cluster_info_list, list_head) {
+		if (ci->is_opp_shared_dsu)
+			continue;
+		if (freq_qos_request_active(&ci->dsu_qos_req))
+			freq_qos_remove_request(&ci->dsu_qos_req);
+	}
+
+	return 0;
+}
+
+static int rockchip_cpufreq_add_dsu_qos_req(struct cluster_info *cluster,
+					    struct cpufreq_policy *policy)
+{
+	struct device *dev = cluster->opp_info.dev;
+	struct cluster_info *ci;
+	int ret;
+
+	if (!cluster->is_opp_shared_dsu)
+		return 0;
+
+	list_for_each_entry(ci, &cluster_info_list, list_head) {
+		if (ci->is_opp_shared_dsu)
+			continue;
+		ret = freq_qos_add_request(&policy->constraints,
+					   &ci->dsu_qos_req,
+					   FREQ_QOS_MIN,
+					   FREQ_QOS_MIN_DEFAULT_VALUE);
+		if (ret < 0) {
+			dev_err(dev, "failed to add dsu freq constraint\n");
+			goto error;
+		}
+	}
+
+	return 0;
+
+error:
+	rockchip_cpufreq_remove_dsu_qos(cluster);
+
+	return ret;
+}
+
+static int rockchip_cpufreq_notifier(struct notifier_block *nb,
+				     unsigned long event, void *data)
+{
+	struct cpufreq_policy *policy = data;
+	struct cluster_info *cluster;
 
 	cluster = rockchip_cluster_info_lookup(policy->cpu);
 	if (!cluster)
 		return NOTIFY_BAD;
 
 	if (event == CPUFREQ_CREATE_POLICY) {
-		mdevp = kzalloc(sizeof(*mdevp), GFP_KERNEL);
-		if (!mdevp)
+		if (rockchip_cpufreq_add_monitor(cluster, policy))
 			return NOTIFY_BAD;
-		mdevp->type = MONITOR_TPYE_CPU;
-		mdevp->low_temp_adjust = rockchip_monitor_cpu_low_temp_adjust;
-		mdevp->high_temp_adjust = rockchip_monitor_cpu_high_temp_adjust;
-		mdevp->update_volt = rockchip_monitor_check_rate_volt;
-		mdevp->data = (void *)policy;
-		mdevp->opp_info = &cluster->opp_info;
-		cpumask_copy(&mdevp->allowed_cpus, policy->cpus);
-		mdev_info = rockchip_system_monitor_register(dev, mdevp);
-		if (IS_ERR(mdev_info)) {
-			kfree(mdevp);
-			dev_err(dev, "failed to register system monitor\n");
+		if (rockchip_cpufreq_add_dsu_qos_req(cluster, policy))
 			return NOTIFY_BAD;
-		}
-		mdev_info->devp = mdevp;
-		cluster->mdev_info = mdev_info;
 	} else if (event == CPUFREQ_REMOVE_POLICY) {
-		if (cluster->mdev_info) {
-			kfree(cluster->mdev_info->devp);
-			rockchip_system_monitor_unregister(cluster->mdev_info);
-			cluster->mdev_info = NULL;
-		}
+		rockchip_cpufreq_remove_monitor(cluster);
+		rockchip_cpufreq_remove_dsu_qos(cluster);
 	}
 
 	return NOTIFY_OK;
@@ -748,6 +816,23 @@ static int rockchip_cpufreq_idle_state_disable(struct cpumask *cpumask,
 }
 #endif
 
+#define cpu_to_dsu_freq(freq)  ((freq) * 4 / 5)
+
+static int rockchip_cpufreq_update_dsu_req(struct cluster_info *cluster,
+					   unsigned int freq)
+{
+	struct device *dev = cluster->opp_info.dev;
+	unsigned int dsu_freq = rounddown(cpu_to_dsu_freq(freq), 100000);
+
+	if (cluster->is_opp_shared_dsu ||
+	    !freq_qos_request_active(&cluster->dsu_qos_req))
+		return 0;
+
+	dev_dbg(dev, "cpu to dsu: %u -> %u\n", freq, dsu_freq);
+
+	return freq_qos_update_request(&cluster->dsu_qos_req, dsu_freq);
+}
+
 static int rockchip_cpufreq_transition_notifier(struct notifier_block *nb,
 						unsigned long event, void *data)
 {
@@ -775,6 +860,7 @@ static int rockchip_cpufreq_transition_notifier(struct notifier_block *nb,
 							    false);
 			cluster->is_idle_disabled = false;
 		}
+		rockchip_cpufreq_update_dsu_req(cluster, freqs->new);
 	}
 
 	return NOTIFY_OK;
