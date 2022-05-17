@@ -28,7 +28,7 @@ TRACE_EVENT(percpu_alloc_percpu,
 		__field(	int,			off		)
 		__field(	void __percpu *,	ptr		)
 		__field(	size_t,			bytes_alloc	)
-		__field(	gfp_t,			gfp_flags	)
+		__field(	unsigned long,		gfp_flags	)
 	),
 	TP_fast_assign(
 		__entry->call_site	= call_site;
@@ -40,7 +40,7 @@ TRACE_EVENT(percpu_alloc_percpu,
 		__entry->off		= off;
 		__entry->ptr		= ptr;
 		__entry->bytes_alloc	= bytes_alloc;
-		__entry->gfp_flags	= gfp_flags;
+		__entry->gfp_flags	= (__force unsigned long)gfp_flags;
 	),
 
 	TP_printk("call_site=%pS reserved=%d is_atomic=%d size=%zu align=%zu base_addr=%p off=%d ptr=%p bytes_alloc=%zu gfp_flags=%s",
