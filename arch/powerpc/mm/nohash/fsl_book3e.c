@@ -36,6 +36,7 @@
 #include <linux/delay.h>
 #include <linux/highmem.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 
 #include <asm/io.h>
 #include <asm/mmu_context.h>
