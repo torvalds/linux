@@ -299,6 +299,8 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 	rb_link_node(&machine->rb_node, parent, p);
 	rb_insert_color_cached(&machine->rb_node, &machines->guests, leftmost);
 
+	machine->machines = machines;
+
 	return machine;
 }
 

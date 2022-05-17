@@ -18,6 +18,7 @@ struct symbol;
 struct target;
 struct thread;
 union perf_event;
+struct machines;
 
 /* Native host kernel uses -1 as pid index in machine */
 #define	HOST_KERNEL_ID			(-1)
@@ -59,6 +60,7 @@ struct machine {
 		void	  *priv;
 		u64	  db_id;
 	};
+	struct machines   *machines;
 	bool		  trampolines_mapped;
 };
 
