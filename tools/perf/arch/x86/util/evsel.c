@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "util/evsel.h"
 #include "util/env.h"
+#include "util/pmu.h"
 #include "linux/string.h"
 
 void arch_evsel__set_sample_weight(struct evsel *evsel)
@@ -28,4 +29,15 @@ void arch_evsel__fixup_new_cycles(struct perf_event_attr *attr)
 		attr->exclude_guest = 0;
 
 	free(env.cpuid);
+}
+
+bool arch_evsel__must_be_in_group(const struct evsel *evsel)
+{
+	if ((evsel->pmu_name && strcmp(evsel->pmu_name, "cpu")) ||
+	    !pmu_have_event("cpu", "slots"))
+		return false;
+
+	return evsel->name &&
+		(!strcasecmp(evsel->name, "slots") ||
+		 strcasestr(evsel->name, "topdown"));
 }
