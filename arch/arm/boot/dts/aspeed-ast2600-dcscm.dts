@@ -133,17 +133,17 @@
 		m25p,fast-read;
 		label = "spi1:0";
 		spi-max-frequency = <25000000>;
-		spi-tx-bus-width = <1>;
-		spi-rx-bus-width = <1>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 
 	flash@1 {
-		status = "disabled";
+		status = "okay";
 		m25p,fast-read;
 		label = "spi1:1";
 		spi-max-frequency = <25000000>;
-		spi-tx-bus-width = <1>;
-		spi-rx-bus-width = <1>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 };
 
