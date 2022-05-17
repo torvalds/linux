@@ -132,6 +132,7 @@ static const struct mssr_mod_clk r8a779f0_mod_clks[] __initconst = {
 	DEF_MOD("sys-dmac1",	710,	R8A779F0_CLK_S0D3_PER),
 	DEF_MOD("wdt",		907,	R8A779F0_CLK_R),
 	DEF_MOD("pfc0",		915,	R8A779F0_CLK_CL16M),
+	DEF_MOD("ufs",		1514,	R8A779F0_CLK_S0D4_HSC),
 };
 
 static const unsigned int r8a779f0_crit_mod_clks[] __initconst = {
@@ -142,23 +143,23 @@ static const unsigned int r8a779f0_crit_mod_clks[] __initconst = {
  * CPG Clock Data
  */
 /*
- *   MD	 EXTAL		PLL1	PLL2	PLL3	PLL5	PLL6	OSC
+ *   MD	 EXTAL		PLL1	PLL2	PLL3	PLL4	PLL5	PLL6	OSC
  * 14 13 (MHz)
- * ----------------------------------------------------------------
- * 0  0	 16    / 1	x200	x150	x200	x200	x134	/15
- * 0  1	 20    / 1	x160	x120	x160	x160	x106	/19
+ * ------------------------------------------------------------------------
+ * 0  0	 16    / 1	x200	x150	x200	n/a	x200	x134	/15
+ * 0  1	 20    / 1	x160	x120	x160	n/a	x160	x106	/19
  * 1  0	 Prohibited setting
- * 1  1	 40    / 2	x160	x120	x160	x160	x106	/38
+ * 1  1	 40    / 2	x160	x120	x160	n/a	x160	x106	/38
  */
 #define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 13) | \
 					 (((md) & BIT(13)) >> 13))
 
 static const struct rcar_gen4_cpg_pll_config cpg_pll_configs[4] = {
-	/* EXTAL div	PLL1 mult/div	PLL2 mult/div	PLL3 mult/div	PLL5 mult/div	PLL6 mult/div	OSC prediv */
-	{ 1,		200,	1,	150,	1,	200,	1,	200,	1,	134,	1,	15,	},
-	{ 1,		160,	1,	120,	1,	160,	1,	160,	1,	106,	1,	19,	},
-	{ 0,		0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	},
-	{ 2,		160,	1,	120,	1,	160,	1,	160,	1,	106,	1,	38,	},
+	/* EXTAL div	PLL1 mult/div	PLL2 mult/div	PLL3 mult/div	PLL4 mult/div	PLL5 mult/div	PLL6 mult/div	OSC prediv */
+	{ 1,		200,	1,	150,	1,	200,	1,	0,	0,	200,	1,	134,	1,	15,	},
+	{ 1,		160,	1,	120,	1,	160,	1,	0,	0,	160,	1,	106,	1,	19,	},
+	{ 0,		0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	},
+	{ 2,		160,	1,	120,	1,	160,	1,	0,	0,	160,	1,	106,	1,	38,	},
 };
 
 static int __init r8a779f0_cpg_mssr_init(struct device *dev)

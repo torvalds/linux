@@ -244,7 +244,7 @@ static const unsigned int r8a779a0_crit_mod_clks[] __initconst = {
 /*
  *   MD	 EXTAL		PLL1	PLL20	PLL30	PLL4	PLL5	OSC
  * 14 13 (MHz)			   21	   31
- * --------------------------------------------------------
+ * ----------------------------------------------------------------
  * 0  0	 16.66 x 1	x128	x216	x128	x144	x192	/16
  * 0  1	 20    x 1	x106	x180	x106	x120	x160	/19
  * 1  0	 Prohibited setting
@@ -253,11 +253,11 @@ static const unsigned int r8a779a0_crit_mod_clks[] __initconst = {
 #define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 13) | \
 					 (((md) & BIT(13)) >> 13))
 static const struct rcar_gen4_cpg_pll_config cpg_pll_configs[4] = {
-	/* EXTAL div	PLL1 mult/div	PLL2 mult/div	PLL3 mult/div	PLL5 mult/div	PLL6 mult/div	OSC prediv */
-	{ 1,		128,	1,	0,	0,	0,	0,	192,	1,	0,	0,	16,	},
-	{ 1,		106,	1,	0,	0,	0,	0,	160,	1,	0,	0,	19,	},
-	{ 0,		0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	},
-	{ 2,		128,	1,	0,	0,	0,	0,	192,	1,	0,	0,	32,	},
+	/* EXTAL div	PLL1 mult/div	PLL2 mult/div	PLL3 mult/div	PLL4 mult/div	PLL5 mult/div	PLL6 mult/div	OSC prediv */
+	{ 1,		128,	1,	0,	0,	0,	0,	144,	1,	192,	1,	0,	0,	16,	},
+	{ 1,		106,	1,	0,	0,	0,	0,	120,	1,	160,	1,	0,	0,	19,	},
+	{ 0,		0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	},
+	{ 2,		128,	1,	0,	0,	0,	0,	144,	1,	192,	1,	0,	0,	32,	},
 };
 
 
