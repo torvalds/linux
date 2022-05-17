@@ -220,7 +220,7 @@ static int check_populated_dimms(struct peci_dimmtemp *priv)
 	int chan_rank_max = priv->gen_info->chan_rank_max;
 	int dimm_idx_max = priv->gen_info->dimm_idx_max;
 	u32 chan_rank_empty = 0;
-	u64 dimm_mask = 0;
+	u32 dimm_mask = 0;
 	int chan_rank, dimm_idx, ret;
 	u32 pcs;
 
@@ -279,9 +279,9 @@ static int check_populated_dimms(struct peci_dimmtemp *priv)
 		return -EAGAIN;
 	}
 
-	dev_dbg(priv->dev, "Scanned populated DIMMs: %#llx\n", dimm_mask);
+	dev_dbg(priv->dev, "Scanned populated DIMMs: %#x\n", dimm_mask);
 
-	bitmap_from_u64(priv->dimm_mask, dimm_mask);
+	bitmap_from_arr32(priv->dimm_mask, &dimm_mask, DIMM_NUMS_MAX);
 
 	return 0;
 }
