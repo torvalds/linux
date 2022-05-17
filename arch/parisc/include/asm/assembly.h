@@ -143,7 +143,7 @@
 	depd,z	\r, 63-(\sa), 64-(\sa), \t
 	.endm
 
-	/* Shift Right - note the r and t can NOT be the same! */
+	/* Shift Right for 32-bit. Clobbers upper 32-bit on PA2.0. */
 	.macro shr r, sa, t
 	extru \r, 31-(\sa), 32-(\sa), \t
 	.endm
