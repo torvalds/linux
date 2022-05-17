@@ -208,7 +208,7 @@ static bool sanity_check_pmu(struct kvm_vm *vm)
 	return success;
 }
 
-static struct kvm_pmu_event_filter *make_pmu_event_filter(uint32_t nevents)
+static struct kvm_pmu_event_filter *alloc_pmu_event_filter(uint32_t nevents)
 {
 	struct kvm_pmu_event_filter *f;
 	int size = sizeof(*f) + nevents * sizeof(f->events[0]);
@@ -220,17 +220,27 @@ static struct kvm_pmu_event_filter *make_pmu_event_filter(uint32_t nevents)
 	return f;
 }
 
-static struct kvm_pmu_event_filter *event_filter(uint32_t action)
+
+static struct kvm_pmu_event_filter *
+create_pmu_event_filter(const uint64_t event_list[],
+			int nevents, uint32_t action)
 {
 	struct kvm_pmu_event_filter *f;
 	int i;
 
-	f = make_pmu_event_filter(ARRAY_SIZE(event_list));
+	f = alloc_pmu_event_filter(nevents);
 	f->action = action;
-	for (i = 0; i < ARRAY_SIZE(event_list); i++)
+	for (i = 0; i < nevents; i++)
 		f->events[i] = event_list[i];
 
 	return f;
+}
+
+static struct kvm_pmu_event_filter *event_filter(uint32_t action)
+{
+	return create_pmu_event_filter(event_list,
+				       ARRAY_SIZE(event_list),
+				       action);
 }
 
 /*
