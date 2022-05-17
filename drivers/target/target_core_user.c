@@ -1661,13 +1661,14 @@ static int tcmu_check_and_free_pending_cmd(struct tcmu_cmd *cmd)
 static u32 tcmu_blocks_release(struct tcmu_dev *udev, unsigned long first,
 				unsigned long last)
 {
-	XA_STATE(xas, &udev->data_pages, first * udev->data_pages_per_blk);
 	struct page *page;
+	unsigned long dpi;
 	u32 pages_freed = 0;
 
-	xas_lock(&xas);
-	xas_for_each(&xas, page, (last + 1) * udev->data_pages_per_blk - 1) {
-		xas_store(&xas, NULL);
+	first = first * udev->data_pages_per_blk;
+	last = (last + 1) * udev->data_pages_per_blk - 1;
+	xa_for_each_range(&udev->data_pages, dpi, page, first, last) {
+		xa_erase(&udev->data_pages, dpi);
 		/*
 		 * While reaching here there may be page faults occurring on
 		 * the to-be-released pages. A race condition may occur if
@@ -1691,7 +1692,6 @@ static u32 tcmu_blocks_release(struct tcmu_dev *udev, unsigned long first,
 		__free_page(page);
 		pages_freed++;
 	}
-	xas_unlock(&xas);
 
 	atomic_sub(pages_freed, &global_page_count);
 
