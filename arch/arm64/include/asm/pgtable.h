@@ -667,22 +667,6 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 #define pud_valid(pud)		pte_valid(pud_pte(pud))
 #define pud_user(pud)		pte_user(pud_pte(pud))
 
-#ifdef CONFIG_PAGE_TABLE_CHECK
-static inline bool pte_user_accessible_page(pte_t pte)
-{
-	return pte_present(pte) && (pte_user(pte) || pte_user_exec(pte));
-}
-
-static inline bool pmd_user_accessible_page(pmd_t pmd)
-{
-	return pmd_present(pmd) && (pmd_user(pmd) || pmd_user_exec(pmd));
-}
-
-static inline bool pud_user_accessible_page(pud_t pud)
-{
-	return pud_present(pud) && pud_user(pud);
-}
-#endif
 
 static inline void set_pud(pud_t *pudp, pud_t pud)
 {
@@ -852,6 +836,23 @@ static inline int pud_devmap(pud_t pud)
 static inline int pgd_devmap(pgd_t pgd)
 {
 	return 0;
+}
+#endif
+
+#ifdef CONFIG_PAGE_TABLE_CHECK
+static inline bool pte_user_accessible_page(pte_t pte)
+{
+	return pte_present(pte) && (pte_user(pte) || pte_user_exec(pte));
+}
+
+static inline bool pmd_user_accessible_page(pmd_t pmd)
+{
+	return pmd_present(pmd) && (pmd_user(pmd) || pmd_user_exec(pmd));
+}
+
+static inline bool pud_user_accessible_page(pud_t pud)
+{
+	return pud_present(pud) && pud_user(pud);
 }
 #endif
 
