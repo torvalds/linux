@@ -13,6 +13,9 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
+#define PWRAP_POLL_DELAY_US	10
+#define PWRAP_POLL_TIMEOUT_US	10000
+
 #define PWRAP_MT8135_BRIDGE_IORD_ARB_EN		0x4
 #define PWRAP_MT8135_BRIDGE_WACS3_EN		0x10
 #define PWRAP_MT8135_BRIDGE_INIT_DONE3		0x14
@@ -1241,27 +1244,14 @@ static bool pwrap_is_fsm_idle_and_sync_idle(struct pmic_wrapper *wrp)
 		(val & PWRAP_STATE_SYNC_IDLE0);
 }
 
-static int pwrap_wait_for_state(struct pmic_wrapper *wrp,
-		bool (*fp)(struct pmic_wrapper *))
-{
-	unsigned long timeout;
-
-	timeout = jiffies + usecs_to_jiffies(10000);
-
-	do {
-		if (time_after(jiffies, timeout))
-			return fp(wrp) ? 0 : -ETIMEDOUT;
-		if (fp(wrp))
-			return 0;
-	} while (1);
-}
-
 static int pwrap_read16(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 {
+	bool tmp;
 	int ret;
 	u32 val;
 
-	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
+	ret = readx_poll_timeout(pwrap_is_fsm_idle, wrp, tmp, tmp,
+				 PWRAP_POLL_DELAY_US, PWRAP_POLL_TIMEOUT_US);
 	if (ret) {
 		pwrap_leave_fsm_vldclr(wrp);
 		return ret;
@@ -1273,7 +1263,8 @@ static int pwrap_read16(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 		val = (adr >> 1) << 16;
 	pwrap_writel(wrp, val, PWRAP_WACS2_CMD);
 
-	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_vldclr);
+	ret = readx_poll_timeout(pwrap_is_fsm_vldclr, wrp, tmp, tmp,
+				 PWRAP_POLL_DELAY_US, PWRAP_POLL_TIMEOUT_US);
 	if (ret)
 		return ret;
 
@@ -1290,11 +1281,14 @@ static int pwrap_read16(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 
 static int pwrap_read32(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 {
+	bool tmp;
 	int ret, msb;
 
 	*rdata = 0;
 	for (msb = 0; msb < 2; msb++) {
-		ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
+		ret = readx_poll_timeout(pwrap_is_fsm_idle, wrp, tmp, tmp,
+					 PWRAP_POLL_DELAY_US, PWRAP_POLL_TIMEOUT_US);
+
 		if (ret) {
 			pwrap_leave_fsm_vldclr(wrp);
 			return ret;
@@ -1303,7 +1297,8 @@ static int pwrap_read32(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 		pwrap_writel(wrp, ((msb << 30) | (adr << 16)),
 			     PWRAP_WACS2_CMD);
 
-		ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_vldclr);
+		ret = readx_poll_timeout(pwrap_is_fsm_vldclr, wrp, tmp, tmp,
+					 PWRAP_POLL_DELAY_US, PWRAP_POLL_TIMEOUT_US);
 		if (ret)
 			return ret;
 
@@ -1323,9 +1318,11 @@ static int pwrap_read(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 
 static int pwrap_write16(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
 {
+	bool tmp;
 	int ret;
 
-	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
+	ret = readx_poll_timeout(pwrap_is_fsm_idle, wrp, tmp, tmp,
+				 PWRAP_POLL_DELAY_US, PWRAP_POLL_TIMEOUT_US);
 	if (ret) {
 		pwrap_leave_fsm_vldclr(wrp);
 		return ret;
@@ -1344,10 +1341,12 @@ static int pwrap_write16(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
 
 static int pwrap_write32(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
 {
+	bool tmp;
 	int ret, msb, rdata;
 
 	for (msb = 0; msb < 2; msb++) {
-		ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
+		ret = readx_poll_timeout(pwrap_is_fsm_idle, wrp, tmp, tmp,
+					 PWRAP_POLL_DELAY_US, PWRAP_POLL_TIMEOUT_US);
 		if (ret) {
 			pwrap_leave_fsm_vldclr(wrp);
 			return ret;
@@ -1388,6 +1387,7 @@ static int pwrap_regmap_write(void *context, u32 adr, u32 wdata)
 
 static int pwrap_reset_spislave(struct pmic_wrapper *wrp)
 {
+	bool tmp;
 	int ret, i;
 
 	pwrap_writel(wrp, 0, PWRAP_HIPRIO_ARB_EN);
@@ -1407,7 +1407,8 @@ static int pwrap_reset_spislave(struct pmic_wrapper *wrp)
 		pwrap_writel(wrp, wrp->master->spi_w | PWRAP_MAN_CMD_OP_OUTS,
 				PWRAP_MAN_CMD);
 
-	ret = pwrap_wait_for_state(wrp, pwrap_is_sync_idle);
+	ret = readx_poll_timeout(pwrap_is_sync_idle, wrp, tmp, tmp,
+				 PWRAP_POLL_DELAY_US, PWRAP_POLL_TIMEOUT_US);
 	if (ret) {
 		dev_err(wrp->dev, "%s fail, ret=%d\n", __func__, ret);
 		return ret;
@@ -1458,14 +1459,15 @@ static int pwrap_init_sidly(struct pmic_wrapper *wrp)
 static int pwrap_init_dual_io(struct pmic_wrapper *wrp)
 {
 	int ret;
+	bool tmp;
 	u32 rdata;
 
 	/* Enable dual IO mode */
 	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_DIO_EN], 1);
 
 	/* Check IDLE & INIT_DONE in advance */
-	ret = pwrap_wait_for_state(wrp,
-				   pwrap_is_fsm_idle_and_sync_idle);
+	ret = readx_poll_timeout(pwrap_is_fsm_idle_and_sync_idle, wrp, tmp, tmp,
+				 PWRAP_POLL_DELAY_US, PWRAP_POLL_TIMEOUT_US);
 	if (ret) {
 		dev_err(wrp->dev, "%s fail, ret=%d\n", __func__, ret);
 		return ret;
@@ -1570,6 +1572,7 @@ static bool pwrap_is_pmic_cipher_ready(struct pmic_wrapper *wrp)
 static int pwrap_init_cipher(struct pmic_wrapper *wrp)
 {
 	int ret;
+	bool tmp;
 	u32 rdata = 0;
 
 	pwrap_writel(wrp, 0x1, PWRAP_CIPHER_SWRST);
@@ -1624,14 +1627,16 @@ static int pwrap_init_cipher(struct pmic_wrapper *wrp)
 	}
 
 	/* wait for cipher data ready@AP */
-	ret = pwrap_wait_for_state(wrp, pwrap_is_cipher_ready);
+	ret = readx_poll_timeout(pwrap_is_cipher_ready, wrp, tmp, tmp,
+				 PWRAP_POLL_DELAY_US, PWRAP_POLL_TIMEOUT_US);
 	if (ret) {
 		dev_err(wrp->dev, "cipher data ready@AP fail, ret=%d\n", ret);
 		return ret;
 	}
 
 	/* wait for cipher data ready@PMIC */
-	ret = pwrap_wait_for_state(wrp, pwrap_is_pmic_cipher_ready);
+	ret = readx_poll_timeout(pwrap_is_pmic_cipher_ready, wrp, tmp, tmp,
+				 PWRAP_POLL_DELAY_US, PWRAP_POLL_TIMEOUT_US);
 	if (ret) {
 		dev_err(wrp->dev,
 			"timeout waiting for cipher data ready@PMIC\n");
@@ -1640,7 +1645,8 @@ static int pwrap_init_cipher(struct pmic_wrapper *wrp)
 
 	/* wait for cipher mode idle */
 	pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_CIPHER_MODE], 0x1);
-	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle_and_sync_idle);
+	ret = readx_poll_timeout(pwrap_is_fsm_idle_and_sync_idle, wrp, tmp, tmp,
+				 PWRAP_POLL_DELAY_US, PWRAP_POLL_TIMEOUT_US);
 	if (ret) {
 		dev_err(wrp->dev, "cipher mode idle fail, ret=%d\n", ret);
 		return ret;
