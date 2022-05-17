@@ -267,6 +267,8 @@ non_ioq_irq_err:
 		--i;
 		free_irq(oct->msix_entries[i].vector, oct);
 	}
+	kfree(oct->non_ioq_irq_names);
+	oct->non_ioq_irq_names = NULL;
 alloc_err:
 	return -1;
 }
