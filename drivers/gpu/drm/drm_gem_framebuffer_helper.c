@@ -403,6 +403,28 @@ void drm_gem_fb_vunmap(struct drm_framebuffer *fb,
 }
 EXPORT_SYMBOL(drm_gem_fb_vunmap);
 
+static void __drm_gem_fb_end_cpu_access(struct drm_framebuffer *fb, enum dma_data_direction dir,
+					unsigned int num_planes)
+{
+	struct dma_buf_attachment *import_attach;
+	struct drm_gem_object *obj;
+	int ret;
+
+	while (num_planes) {
+		--num_planes;
+		obj = drm_gem_fb_get_obj(fb, num_planes);
+		if (!obj)
+			continue;
+		import_attach = obj->import_attach;
+		if (!import_attach)
+			continue;
+		ret = dma_buf_end_cpu_access(import_attach->dmabuf, dir);
+		if (ret)
+			drm_err(fb->dev, "dma_buf_end_cpu_access(%u, %d) failed: %d\n",
+				ret, num_planes, dir);
+	}
+}
+
 /**
  * drm_gem_fb_begin_cpu_access - prepares GEM buffer objects for CPU access
  * @fb: the framebuffer
@@ -422,7 +444,7 @@ int drm_gem_fb_begin_cpu_access(struct drm_framebuffer *fb, enum dma_data_direct
 	struct dma_buf_attachment *import_attach;
 	struct drm_gem_object *obj;
 	size_t i;
-	int ret, ret2;
+	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(fb->obj); ++i) {
 		obj = drm_gem_fb_get_obj(fb, i);
@@ -433,28 +455,13 @@ int drm_gem_fb_begin_cpu_access(struct drm_framebuffer *fb, enum dma_data_direct
 			continue;
 		ret = dma_buf_begin_cpu_access(import_attach->dmabuf, dir);
 		if (ret)
-			goto err_dma_buf_end_cpu_access;
+			goto err___drm_gem_fb_end_cpu_access;
 	}
 
 	return 0;
 
-err_dma_buf_end_cpu_access:
-	while (i) {
-		--i;
-		obj = drm_gem_fb_get_obj(fb, i);
-		if (!obj)
-			continue;
-		import_attach = obj->import_attach;
-		if (!import_attach)
-			continue;
-		ret2 = dma_buf_end_cpu_access(import_attach->dmabuf, dir);
-		if (ret2) {
-			drm_err(fb->dev,
-				"dma_buf_end_cpu_access() failed during error handling: %d\n",
-				ret2);
-		}
-	}
-
+err___drm_gem_fb_end_cpu_access:
+	__drm_gem_fb_end_cpu_access(fb, dir, i);
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_fb_begin_cpu_access);
@@ -472,23 +479,7 @@ EXPORT_SYMBOL(drm_gem_fb_begin_cpu_access);
  */
 void drm_gem_fb_end_cpu_access(struct drm_framebuffer *fb, enum dma_data_direction dir)
 {
-	size_t i = ARRAY_SIZE(fb->obj);
-	struct dma_buf_attachment *import_attach;
-	struct drm_gem_object *obj;
-	int ret;
-
-	while (i) {
-		--i;
-		obj = drm_gem_fb_get_obj(fb, i);
-		if (!obj)
-			continue;
-		import_attach = obj->import_attach;
-		if (!import_attach)
-			continue;
-		ret = dma_buf_end_cpu_access(import_attach->dmabuf, dir);
-		if (ret)
-			drm_err(fb->dev, "dma_buf_end_cpu_access() failed: %d\n", ret);
-	}
+	__drm_gem_fb_end_cpu_access(fb, dir, ARRAY_SIZE(fb->obj));
 }
 EXPORT_SYMBOL(drm_gem_fb_end_cpu_access);
 
