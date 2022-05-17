@@ -219,11 +219,6 @@ do_non_resident_extend:
 			err = PTR_ERR(page);
 			goto init_err_out;
 		}
-		if (unlikely(PageError(page))) {
-			put_page(page);
-			err = -EIO;
-			goto init_err_out;
-		}
 		/*
 		 * Update the initialized size in the ntfs inode.  This is
 		 * enough to make ntfs_writepage() work.
