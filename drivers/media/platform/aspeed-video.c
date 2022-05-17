@@ -1551,16 +1551,9 @@ static int aspeed_video_set_input(struct file *file, void *fh, unsigned int i)
 	if (i >= VIDEO_INPUT_MAX)
 		return -EINVAL;
 
-	if (i != VIDEO_INPUT_VGA) {
-		if (IS_ERR(video->scu)) {
-			v4l2_dbg(1, debug, &video->v4l2_dev, "%s: scu isn't ready for input-control\n", __func__);
-			return -EINVAL;
-		}
-
-		if (IS_ERR(video->gfx)) {
-			v4l2_dbg(1, debug, &video->v4l2_dev, "%s: gfx isn't ready for input-control\n", __func__);
-			return -EINVAL;
-		}
+	if (IS_ERR(video->scu)) {
+		v4l2_dbg(1, debug, &video->v4l2_dev, "%s: scu isn't ready for input-control\n", __func__);
+		return -EINVAL;
 	}
 
 	// prepare memory space for user to put test batch
