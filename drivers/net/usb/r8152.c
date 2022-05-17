@@ -771,7 +771,9 @@ enum rtl8152_flags {
 };
 
 #define DEVICE_ID_THINKPAD_THUNDERBOLT3_DOCK_GEN2	0x3082
+#define DEVICE_ID_THINKPAD_USB_C_DONGLE			0x720c
 #define DEVICE_ID_THINKPAD_USB_C_DOCK_GEN2		0xa387
+#define DEVICE_ID_THINKPAD_USB_C_DOCK_GEN3		0x3062
 
 struct tally_counter {
 	__le64	tx_packets;
@@ -9562,6 +9564,29 @@ u8 rtl8152_get_version(struct usb_interface *intf)
 }
 EXPORT_SYMBOL_GPL(rtl8152_get_version);
 
+static bool rtl8152_supports_lenovo_macpassthru(struct usb_device *udev)
+{
+	int parent_vendor_id = le16_to_cpu(udev->parent->descriptor.idVendor);
+	int product_id = le16_to_cpu(udev->descriptor.idProduct);
+	int vendor_id = le16_to_cpu(udev->descriptor.idVendor);
+
+	if (vendor_id == VENDOR_ID_LENOVO) {
+		switch (product_id) {
+		case DEVICE_ID_THINKPAD_THUNDERBOLT3_DOCK_GEN2:
+		case DEVICE_ID_THINKPAD_USB_C_DOCK_GEN2:
+		case DEVICE_ID_THINKPAD_USB_C_DOCK_GEN3:
+		case DEVICE_ID_THINKPAD_USB_C_DONGLE:
+			return 1;
+		}
+	} else if (vendor_id == VENDOR_ID_REALTEK && parent_vendor_id == VENDOR_ID_LENOVO) {
+		switch (product_id) {
+		case 0x8153:
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static int rtl8152_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -9642,13 +9667,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 		netdev->hw_features &= ~NETIF_F_RXCSUM;
 	}
 
-	if (le16_to_cpu(udev->descriptor.idVendor) == VENDOR_ID_LENOVO) {
-		switch (le16_to_cpu(udev->descriptor.idProduct)) {
-		case DEVICE_ID_THINKPAD_THUNDERBOLT3_DOCK_GEN2:
-		case DEVICE_ID_THINKPAD_USB_C_DOCK_GEN2:
-			tp->lenovo_macpassthru = 1;
-		}
-	}
+	tp->lenovo_macpassthru = rtl8152_supports_lenovo_macpassthru(udev);
 
 	if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x3011 && udev->serial &&
 	    (!strcmp(udev->serial, "000001000000") ||
