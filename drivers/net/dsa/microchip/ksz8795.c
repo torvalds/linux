@@ -1607,6 +1607,7 @@ static const struct ksz_chip_data ksz8_switch_chips[] = {
 		 * KSZ8794   0,1,2      4
 		 * KSZ8795   0,1,2,3    4
 		 * KSZ8765   0,1,2,3    4
+		 * port_cnt is configured as 5, even though it is 4
 		 */
 		.chip_id = 0x8794,
 		.dev_name = "KSZ8794",
@@ -1614,7 +1615,7 @@ static const struct ksz_chip_data ksz8_switch_chips[] = {
 		.num_alus = 0,
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
-		.port_cnt = 4,		/* total cpu and user ports */
+		.port_cnt = 5,		/* total cpu and user ports */
 		.ksz87xx_eee_link_erratum = true,
 	},
 	{
@@ -1653,7 +1654,7 @@ static int ksz8_switch_init(struct ksz_device *dev)
 			dev->num_vlans = chip->num_vlans;
 			dev->num_alus = chip->num_alus;
 			dev->num_statics = chip->num_statics;
-			dev->port_cnt = fls(chip->cpu_ports);
+			dev->port_cnt = chip->port_cnt;
 			dev->cpu_port = fls(chip->cpu_ports) - 1;
 			dev->phy_port_cnt = dev->port_cnt - 1;
 			dev->cpu_ports = chip->cpu_ports;
