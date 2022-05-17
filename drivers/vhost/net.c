@@ -1376,7 +1376,7 @@ static void vhost_net_stop(struct vhost_net *n, struct socket **tx_sock,
 
 static void vhost_net_flush(struct vhost_net *n)
 {
-	vhost_work_dev_flush(&n->dev);
+	vhost_dev_flush(&n->dev);
 	if (n->vqs[VHOST_NET_VQ_TX].ubufs) {
 		mutex_lock(&n->vqs[VHOST_NET_VQ_TX].vq.mutex);
 		n->tx_flush = true;
@@ -1565,7 +1565,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	}
 
 	if (oldsock) {
-		vhost_work_dev_flush(&n->dev);
+		vhost_dev_flush(&n->dev);
 		sockfd_put(oldsock);
 	}
 
