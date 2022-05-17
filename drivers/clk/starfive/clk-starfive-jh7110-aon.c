@@ -46,11 +46,11 @@ static const struct jh7110_clk_data jh7110_clk_aon_data[] __initconst = {
 	//otpc
 	JH7110_GATE(JH7110_OTPC_CLK_APB,
 			"u0_otpc_clk_apb",
-			GATE_FLAG_NORMAL, JH7110_AON_APB),
+			CLK_IGNORE_UNUSED, JH7110_AON_APB),
 	//rtc
 	JH7110_GATE(JH7110_RTC_HMS_CLK_APB,
 			"u0_rtc_hms_clk_apb",
-			GATE_FLAG_NORMAL, JH7110_AON_APB),
+			CLK_IGNORE_UNUSED, JH7110_AON_APB),
 	JH7110__DIV(JH7110_RTC_INTERNAL,
 			"rtc_internal", 1022, JH7110_OSC),
 	JH7110__MUX(JH7110_RTC_HMS_CLK_OSC32K,
