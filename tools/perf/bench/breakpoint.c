@@ -53,7 +53,7 @@ static int breakpoint_setup(void *addr)
 	attr.inherit = 1;
 	attr.exclude_kernel = 1;
 	attr.exclude_hv = 1;
-	attr.bp_addr = (uint64_t)addr;
+	attr.bp_addr = (unsigned long)addr;
 	attr.bp_type = HW_BREAKPOINT_RW;
 	attr.bp_len = HW_BREAKPOINT_LEN_1;
 	return syscall(SYS_perf_event_open, &attr, 0, -1, -1, 0);
