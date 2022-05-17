@@ -974,7 +974,7 @@ static struct qcom_icc_node slv_lpass = {
 	.slv_rpm_id = -1,
 };
 
-static struct qcom_icc_node *qcs404_bimc_nodes[] = {
+static struct qcom_icc_node * const qcs404_bimc_nodes[] = {
 	[MASTER_AMPSS_M0] = &mas_apps_proc,
 	[MASTER_OXILI] = &mas_oxili,
 	[MASTER_MDP_PORT0] = &mas_mdp,
@@ -984,12 +984,12 @@ static struct qcom_icc_node *qcs404_bimc_nodes[] = {
 	[SLAVE_BIMC_SNOC] = &slv_bimc_snoc,
 };
 
-static struct qcom_icc_desc qcs404_bimc = {
+static const struct qcom_icc_desc qcs404_bimc = {
 	.nodes = qcs404_bimc_nodes,
 	.num_nodes = ARRAY_SIZE(qcs404_bimc_nodes),
 };
 
-static struct qcom_icc_node *qcs404_pcnoc_nodes[] = {
+static struct qcom_icc_node * const qcs404_pcnoc_nodes[] = {
 	[MASTER_SPDM] = &mas_spdm,
 	[MASTER_BLSP_1] = &mas_blsp_1,
 	[MASTER_BLSP_2] = &mas_blsp_2,
@@ -1038,12 +1038,12 @@ static struct qcom_icc_node *qcs404_pcnoc_nodes[] = {
 	[SLAVE_PCNOC_SNOC] = &slv_pcnoc_snoc,
 };
 
-static struct qcom_icc_desc qcs404_pcnoc = {
+static const struct qcom_icc_desc qcs404_pcnoc = {
 	.nodes = qcs404_pcnoc_nodes,
 	.num_nodes = ARRAY_SIZE(qcs404_pcnoc_nodes),
 };
 
-static struct qcom_icc_node *qcs404_snoc_nodes[] = {
+static struct qcom_icc_node * const qcs404_snoc_nodes[] = {
 	[MASTER_QDSS_BAM] = &mas_qdss_bam,
 	[MASTER_BIMC_SNOC] = &mas_bimc_snoc,
 	[MASTER_PCNOC_SNOC] = &mas_pcnoc_snoc,
@@ -1066,7 +1066,7 @@ static struct qcom_icc_node *qcs404_snoc_nodes[] = {
 	[SLAVE_LPASS] = &slv_lpass,
 };
 
-static struct qcom_icc_desc qcs404_snoc = {
+static const struct qcom_icc_desc qcs404_snoc = {
 	.nodes = qcs404_snoc_nodes,
 	.num_nodes = ARRAY_SIZE(qcs404_snoc_nodes),
 };
