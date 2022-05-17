@@ -446,6 +446,8 @@ void hisi_sas_task_deliver(struct hisi_hba *hisi_hba,
 		return;
 	}
 
+	/* Make slot memories observable before marking as ready */
+	smp_wmb();
 	WRITE_ONCE(slot->ready, 1);
 
 	spin_lock(&dq->lock);
