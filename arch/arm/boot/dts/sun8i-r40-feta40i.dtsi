@@ -6,6 +6,10 @@
 
 #include "sun8i-r40.dtsi"
 
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
+};
+
 &i2c0 {
 	status = "okay";
 
