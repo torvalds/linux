@@ -964,7 +964,7 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 	else
 		hidden_ssid = false;
 
-	if ((NULL != p) && (false == hidden_ssid && (*(p + 1)))) {
+	if (p && (!hidden_ssid && (*(p + 1)))) {
 		memcpy(bssid->Ssid.Ssid, (p + 2), *(p + 1));
 		bssid->Ssid.SsidLength = *(p + 1);
 	} else {
