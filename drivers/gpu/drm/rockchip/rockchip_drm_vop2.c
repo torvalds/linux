@@ -3670,7 +3670,7 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 
 			hdmi1_phy_pll->vp_mask |= BIT(vp->id);
 		} else if (output_if_is_dp(vcstate->output_if)) {
-			if (adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE || vp->id == 2) {
+			if (vp->id == 2) {
 				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
 				return 0;
 			}
