@@ -667,17 +667,22 @@ int
 drm_gem_vram_plane_helper_prepare_fb(struct drm_plane *plane,
 				     struct drm_plane_state *new_state)
 {
-	size_t i;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_gem_vram_object *gbo;
+	struct drm_gem_object *obj;
+	unsigned int i;
 	int ret;
 
-	if (!new_state->fb)
+	if (!fb)
 		return 0;
 
-	for (i = 0; i < ARRAY_SIZE(new_state->fb->obj); ++i) {
-		if (!new_state->fb->obj[i])
-			continue;
-		gbo = drm_gem_vram_of_gem(new_state->fb->obj[i]);
+	for (i = 0; i < fb->format->num_planes; ++i) {
+		obj = drm_gem_fb_get_obj(fb, i);
+		if (!obj) {
+			ret = -EINVAL;
+			goto err_drm_gem_vram_unpin;
+		}
+		gbo = drm_gem_vram_of_gem(obj);
 		ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
 		if (ret)
 			goto err_drm_gem_vram_unpin;
@@ -714,7 +719,7 @@ drm_gem_vram_plane_helper_cleanup_fb(struct drm_plane *plane,
 	if (!fb)
 		return;
 
-	__drm_gem_vram_plane_helper_cleanup_fb(plane, old_state, ARRAY_SIZE(fb->obj));
+	__drm_gem_vram_plane_helper_cleanup_fb(plane, old_state, fb->format->num_planes);
 }
 EXPORT_SYMBOL(drm_gem_vram_plane_helper_cleanup_fb);
 
