@@ -819,7 +819,7 @@ static void amdgpu_debugfs_reset_work(struct work_struct *work)
 	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
 						  reset_work);
 
-	amdgpu_device_gpu_recover_imp(adev, NULL);
+	amdgpu_device_gpu_recover(adev, NULL);
 }
 
 #endif

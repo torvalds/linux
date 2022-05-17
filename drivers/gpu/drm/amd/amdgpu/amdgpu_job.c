@@ -64,7 +64,7 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 		  ti.process_name, ti.tgid, ti.task_name, ti.pid);
 
 	if (amdgpu_device_should_recover_gpu(ring->adev)) {
-		r = amdgpu_device_gpu_recover_imp(ring->adev, job);
+		r = amdgpu_device_gpu_recover(ring->adev, job);
 		if (r)
 			DRM_ERROR("GPU Recovery Failed: %d\n", r);
 	} else {

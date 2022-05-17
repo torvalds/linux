@@ -5076,7 +5076,7 @@ retry:
  * Returns 0 for success or an error on failure.
  */
 
-int amdgpu_device_gpu_recover_imp(struct amdgpu_device *adev,
+int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 			      struct amdgpu_job *job)
 {
 	struct list_head device_list, *device_list_handle =  NULL;
