@@ -420,7 +420,9 @@ struct stf_vin_dev {
 	void __iomem *mipi1_base;
 	void __iomem *sysctrl_base;
 	void __iomem *isp_isp0_base;
+#ifdef CONFIG_STF_DUAL_ISP
 	void __iomem *isp_isp1_base;
+#endif
 	void __iomem *vin_top_clkgen_base;
 	void __iomem *vin_top_rstgen_base;
 	void __iomem *vin_top_iopad_base;
@@ -429,15 +431,17 @@ struct stf_vin_dev {
 	struct vin_framesize frame;
 	struct vin_format format;
 	bool isp0;
-	bool isp1;
 	int isp0_irq;
 	int isp0_csi_irq;
 	int isp0_scd_irq;
 	int isp0_irq_csiline;
+#ifdef CONFIG_STF_DUAL_ISP
+	bool isp1;
 	int isp1_irq;
 	int isp1_csi_irq;
 	int isp1_scd_irq;
 	int isp1_irq_csiline;
+#endif
 	u32 major;
 	struct vin_buf buf;
 

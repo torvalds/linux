@@ -790,15 +790,24 @@ static int stf_isp_clk_disable(struct stf_isp_dev *isp_dev)
 	return 0;
 }
 
+static  void __iomem *stf_isp_get_ispbase(
+		unsigned int isp_id, struct stf_vin_dev *vin)
+{
+	void __iomem *base = vin->isp_isp0_base;
+
+#ifdef CONFIG_STF_DUAL_ISP
+	if (isp_id == 1)
+		base = vin->isp_isp1_base;
+#endif
+	return base;
+}
+
 static int stf_isp_reset(struct stf_isp_dev *isp_dev)
 {
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase;
 
-	if (isp_dev->id == 0)
-		ispbase = vin->isp_isp0_base;
-	else
-		ispbase = vin->isp_isp1_base;
+	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
 
 	reg_set_bit(ispbase, ISP_REG_ISP_CTRL_0, BIT(1), BIT(1));
 	reg_set_bit(ispbase, ISP_REG_ISP_CTRL_0, BIT(1), 0);
@@ -811,10 +820,7 @@ static int stf_isp_config_set(struct stf_isp_dev *isp_dev)
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase;
 
-	if (isp_dev->id == 0)
-		ispbase = vin->isp_isp0_base;
-	else
-		ispbase = vin->isp_isp1_base;
+	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
 
 	st_debug(ST_ISP, "%s, isp_id = %d\n", __func__, isp_dev->id);
 
@@ -864,11 +870,7 @@ static int stf_isp_set_format(struct stf_isp_dev *isp_dev,
 	void __iomem *ispbase;
 	u32 val, val1;
 
-	if (isp_dev->id == 0) {
-		ispbase = vin->isp_isp0_base;
-	} else {
-		ispbase = vin->isp_isp1_base;
-	}
+	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
 
 	st_debug(ST_ISP, "interface type is %d(%s)\n",
 			type, type == CSI_SENSOR ? "CSI" : "DVP");
@@ -1001,10 +1003,7 @@ static int stf_isp_stream_set(struct stf_isp_dev *isp_dev, int on)
 
 	void __iomem *ispbase;
 
-	if (isp_dev->id == 0)
-		ispbase = vin->isp_isp0_base;
-	else
-		ispbase = vin->isp_isp1_base;
+	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
 
 	if (on) {
 #if defined(USE_NEW_CONFIG_SETTING)
@@ -1034,10 +1033,7 @@ static int stf_isp_reg_read(struct stf_isp_dev *isp_dev, void *arg)
 		return -EINVAL;
 	}
 
-	if (isp_dev->id == 0)
-		ispbase = vin->isp_isp0_base;
-	else
-		ispbase = vin->isp_isp1_base;
+	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
 
 	size = 0;
 	switch (reg_param->reg_info.method) {
@@ -1205,10 +1201,7 @@ static int stf_isp_soft_rdma(struct stf_isp_dev *isp_dev, u32 rdma_addr)
 	u32 offset;
 	int ret = 0;
 
-	if (isp_dev->id == 0)
-		ispbase = vin->isp_isp0_base;
-	else
-		ispbase = vin->isp_isp1_base;
+	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
 
 	rdma_info = phys_to_virt(rdma_addr);
 	while (1) {
@@ -1263,10 +1256,7 @@ static int stf_isp_reg_write(struct stf_isp_dev *isp_dev, void *arg)
 		return -EINVAL;
 	}
 
-	if (isp_dev->id == 0)
-		ispbase = vin->isp_isp0_base;
-	else
-		ispbase = vin->isp_isp1_base;
+	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
 
 	size = 0;
 	switch (reg_param->reg_info.method) {
@@ -1455,10 +1445,7 @@ static int stf_isp_shadow_trigger(struct stf_isp_dev *isp_dev)
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase;
 
-	if (isp_dev->id == 0)
-		ispbase = vin->isp_isp0_base;
-	else
-		ispbase = vin->isp_isp1_base;
+	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
 
 	// shadow update
 	reg_set_bit(ispbase, ISP_REG_CSIINTS_ADDR, (BIT(17) | BIT(16)), 0x30000);

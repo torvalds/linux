@@ -80,6 +80,7 @@ static const struct vin2_format_table vin2_formats_table[] = {
 	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
 	/* VIN_LINE_ISP0_SCD_Y */
 	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
+#ifdef CONFIG_STF_DUAL_ISP
 	/* VIN_LINE_ISP1 */
 	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
 	/* VIN_LINE_ISP1_SS0 */
@@ -94,6 +95,7 @@ static const struct vin2_format_table vin2_formats_table[] = {
 	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
 	/* VIN_LINE_ISP1_SCD_Y */
 	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
+#endif
 };
 
 static void vin_buffer_done(struct vin_line *line, struct vin_params *params);
@@ -136,6 +138,7 @@ static char *get_line_subdevname(int line_id)
 	case VIN_LINE_ISP0_SCD_Y:
 		name = "isp0_scd_y";
 		break;
+#ifdef CONFIG_STF_DUAL_ISP
 	case VIN_LINE_ISP1:
 		name = "isp1";
 		break;
@@ -157,6 +160,7 @@ static char *get_line_subdevname(int line_id)
 	case VIN_LINE_ISP1_SCD_Y:
 		name = "isp1_scd_y";
 		break;
+#endif
 	default:
 		name = "unknow";
 		break;
@@ -249,7 +253,7 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 		st_err(ST_VIN, "failed to request isp0 irq csiline\n");
 		goto out;
 	}
-
+#ifdef CONFIG_STF_DUAL_ISP
 	ret = devm_request_irq(dev,
 			vin->isp1_irq, vin_dev->hw_ops->vin_isp_irq_handler,
 			0, "vin_isp1_irq", vin_dev);
@@ -285,6 +289,7 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 		st_err(ST_VIN, "failed to request isp1 irq csiline\n");
 		goto out;
 	}
+#endif
 
 	vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 1);
 	vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 0);
@@ -481,6 +486,7 @@ static u32 line_to_dummy_module(struct vin_line *line)
 	case VIN_LINE_ISP0_SCD_Y:
 		dummy_module = STF_DUMMY_ISP0;
 		break;
+#ifdef CONFIG_STF_DUAL_ISP
 	case VIN_LINE_ISP1:
 	case VIN_LINE_ISP1_SS0:
 	case VIN_LINE_ISP1_SS1:
@@ -490,6 +496,7 @@ static u32 line_to_dummy_module(struct vin_line *line)
 	case VIN_LINE_ISP1_SCD_Y:
 		dummy_module = STF_DUMMY_ISP1;
 		break;
+#endif
 	default:
 		dummy_module = STF_DUMMY_VIN;
 		break;

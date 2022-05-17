@@ -5,7 +5,6 @@
 #include "stfcamss.h"
 #include <linux/sort.h>
 
-#ifndef USE_CLK_TREE
 static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 {
 	struct stfcamss *stfcamss = csiphy_dev->stfcamss;
@@ -57,7 +56,6 @@ exit:
 	mutex_unlock(&count_lock);
 	return 0;
 }
-#endif
 
 static int stf_csiphy_clk_enable(struct stf_csiphy_dev *csiphy_dev)
 {

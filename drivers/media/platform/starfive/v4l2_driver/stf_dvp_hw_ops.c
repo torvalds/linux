@@ -147,9 +147,11 @@ static int stf_dvp_stream_set(struct stf_dvp_dev *dvp_dev, int on)
 			U0_VIN_CNFG_GEN_EN_AXIRD,
 			0);
 		break;
+#ifdef CONFIG_STF_DUAL_ISP
 	case SENSOR_ISP1:
 		st_err(ST_DVP, "please check dvp_dev s_type:%d\n", dvp_dev->s_type);
 		break;
+#endif
 	default:
 		break;
 	}

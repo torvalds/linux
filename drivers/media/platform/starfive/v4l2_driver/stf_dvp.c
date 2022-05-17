@@ -292,8 +292,10 @@ static int dvp_link_setup(struct media_entity *entity,
 			dvp_dev->s_type = SENSOR_VIN;
 		if (line->sdev_type == ISP0_DEV_TYPE)
 			dvp_dev->s_type = SENSOR_ISP0;
+#ifdef CONFIG_STF_DUAL_ISP
 		if (line->sdev_type == ISP1_DEV_TYPE)
 			dvp_dev->s_type = SENSOR_ISP1;
+#endif
 		st_info(ST_DVP, "DVP device sensor type: %d\n", dvp_dev->s_type);
 	}
 

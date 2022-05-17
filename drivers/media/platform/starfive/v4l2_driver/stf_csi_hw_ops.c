@@ -134,6 +134,7 @@ static int stf_csi_config_set(struct stf_csi_dev *csi_dev)
 				SYSCTRL_VIN_SRC_CHAN_SEL,
 				0xF, mipi_channel_sel);
 		break;
+#ifdef CONFIG_STF_DUAL_ISP
 	case SENSOR_ISP1:
 		reg_set_bit(vin->clkgen_base,
 				CLK_ISP1_MIPI_CTRL,
@@ -148,6 +149,7 @@ static int stf_csi_config_set(struct stf_csi_dev *csi_dev)
 		reg_set_bit(vin->sysctrl_base,
 				SYSCTRL_VIN_SRC_CHAN_SEL,
 				0xF << 4, mipi_channel_sel << 4);
+#endif
 	default:
 		break;
 	}
@@ -176,10 +178,12 @@ static int stf_csi_set_format(struct stf_csi_dev *csi_dev,
 		if (is_raw10)
 			reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 				BIT(12),
-				1<<12);
+				1 << 12);
 		break;
+#ifdef CONFIG_STF_DUAL_ISP
 	case SENSOR_ISP1:
 		st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
+#endif
 	default:
 		break;
 	}
@@ -325,9 +329,11 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 			BIT(16)|BIT(15)|BIT(14)|BIT(13),
 			0<<13);		//u0_vin_cnfg_pix_num
 		break;
+#ifdef CONFIG_STF_DUAL_ISP
 	case SENSOR_ISP1:
 		st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
 		break;
+#endif
 	default:
 		break;
 	}

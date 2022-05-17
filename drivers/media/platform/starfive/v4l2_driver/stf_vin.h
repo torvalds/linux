@@ -62,6 +62,9 @@ enum vin_line_id {
 	VIN_LINE_ISP0_ITIR = 5,
 	VIN_LINE_ISP0_RAW = 6,
 	VIN_LINE_ISP0_SCD_Y = 7,
+#ifndef CONFIG_STF_DUAL_ISP
+	VIN_LINE_MAX = 8,
+#else
 	VIN_LINE_ISP1 = 8,
 	VIN_LINE_ISP1_SS0 = 9,
 	VIN_LINE_ISP1_SS1 = 10,
@@ -69,7 +72,9 @@ enum vin_line_id {
 	VIN_LINE_ISP1_ITIR = 12,
 	VIN_LINE_ISP1_RAW = 13,
 	VIN_LINE_ISP1_SCD_Y = 14,
-	VIN_LINE_MAX = 15
+	VIN_LINE_MAX = 15,
+#endif
+
 };
 
 enum subdev_type;
@@ -146,7 +151,9 @@ struct vin_hw_ops {
 enum {
 	STF_DUMMY_VIN,
 	STF_DUMMY_ISP0,
+#ifdef CONFIG_STF_DUAL_ISP
 	STF_DUMMY_ISP1,
+#endif
 	STF_DUMMY_MODULE_NUMS,
 };
 

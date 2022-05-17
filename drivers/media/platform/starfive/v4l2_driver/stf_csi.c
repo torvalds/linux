@@ -307,8 +307,10 @@ static int csi_link_setup(struct media_entity *entity,
 			csi_dev->s_type = SENSOR_VIN;
 		if (line->sdev_type == ISP0_DEV_TYPE)
 			csi_dev->s_type = SENSOR_ISP0;
+#ifdef CONFIG_STF_DUAL_ISP
 		if (line->sdev_type == ISP1_DEV_TYPE)
 			csi_dev->s_type = SENSOR_ISP1;
+#endif
 		st_info(ST_CSI, "CSI%d device sensor type: %d\n",
 				csi_dev->id, csi_dev->s_type);
 	}
