@@ -108,7 +108,7 @@ __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	ret = mt76u_bulk_msg(dev, skb->data, skb->len, NULL, 500,
 			     MT_EP_OUT_INBAND_CMD);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (wait_resp)
 		ret = mt76x02u_mcu_wait_resp(dev, seq);
