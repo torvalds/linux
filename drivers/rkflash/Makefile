@@ -8,9 +8,20 @@ obj-$(CONFIG_RK_SFC_NOR_MTD) += sfc_nor_mtd.o
 
 obj-$(CONFIG_RK_SFTL) += rksftl.o
 
+ifdef CONFIG_CC_IS_CLANG
+ifdef CONFIG_THUMB2_KERNEL
+rksftl-$(CONFIG_THUMB2_KERNEL) += rk_sftl_arm_v7_thumb.o
+else
+rksftl-$(CONFIG_ARM64) += rk_sftl_arm_v8_clang.o
+rksftl-$(CONFIG_ARM) += rk_sftl_arm_v7.o
+endif
+
+else
+
 ifdef CONFIG_THUMB2_KERNEL
 rksftl-$(CONFIG_THUMB2_KERNEL) += rk_sftl_arm_v7_thumb.o
 else
 rksftl-$(CONFIG_ARM64) += rk_sftl_arm_v8.o
 rksftl-$(CONFIG_ARM) += rk_sftl_arm_v7.o
+endif
 endif
