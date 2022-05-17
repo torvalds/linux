@@ -281,23 +281,6 @@ static bool have_cpu_fpsimd_context(void)
 	return !preemptible() && __this_cpu_read(fpsimd_context_busy);
 }
 
-/*
- * Call __sve_free() directly only if you know task can't be scheduled
- * or preempted.
- */
-static void __sve_free(struct task_struct *task)
-{
-	kfree(task->thread.sve_state);
-	task->thread.sve_state = NULL;
-}
-
-static void sve_free(struct task_struct *task)
-{
-	WARN_ON(test_tsk_thread_flag(task, TIF_SVE));
-
-	__sve_free(task);
-}
-
 unsigned int task_get_vl(const struct task_struct *task, enum vec_type type)
 {
 	return task->thread.vl[type];
@@ -690,6 +673,22 @@ static void sve_to_fpsimd(struct task_struct *task)
 }
 
 #ifdef CONFIG_ARM64_SVE
+/*
+ * Call __sve_free() directly only if you know task can't be scheduled
+ * or preempted.
+ */
+static void __sve_free(struct task_struct *task)
+{
+	kfree(task->thread.sve_state);
+	task->thread.sve_state = NULL;
+}
+
+static void sve_free(struct task_struct *task)
+{
+	WARN_ON(test_tsk_thread_flag(task, TIF_SVE));
+
+	__sve_free(task);
+}
 
 /*
  * Return how many bytes of memory are required to store the full SVE
