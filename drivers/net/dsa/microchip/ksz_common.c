@@ -151,6 +151,10 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii = {false, false, false, false, true},
+		.supports_rmii = {false, false, false, false, true},
+		.supports_rgmii = {false, false, false, false, true},
+		.internal_phy = {true, true, true, true, false},
 	},
 
 	[KSZ8794] = {
@@ -179,6 +183,10 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii = {false, false, false, false, true},
+		.supports_rmii = {false, false, false, false, true},
+		.supports_rgmii = {false, false, false, false, true},
+		.internal_phy = {true, true, true, false, false},
 	},
 
 	[KSZ8765] = {
@@ -193,6 +201,10 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii = {false, false, false, false, true},
+		.supports_rmii = {false, false, false, false, true},
+		.supports_rgmii = {false, false, false, false, true},
+		.internal_phy = {true, true, true, true, false},
 	},
 
 	[KSZ8830] = {
@@ -206,6 +218,9 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz88xx_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz88xx_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii = {false, false, true},
+		.supports_rmii = {false, false, true},
+		.internal_phy = {true, true, false},
 	},
 
 	[KSZ9477] = {
@@ -220,6 +235,14 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii	= {false, false, false, false,
+				   false, true, false},
+		.supports_rmii	= {false, false, false, false,
+				   false, true, false},
+		.supports_rgmii = {false, false, false, false,
+				   false, true, false},
+		.internal_phy	= {true, true, true, true,
+				   true, false, false},
 	},
 
 	[KSZ9897] = {
@@ -234,6 +257,14 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii	= {false, false, false, false,
+				   false, true, true},
+		.supports_rmii	= {false, false, false, false,
+				   false, true, true},
+		.supports_rgmii = {false, false, false, false,
+				   false, true, true},
+		.internal_phy	= {true, true, true, true,
+				   true, false, false},
 	},
 
 	[KSZ9893] = {
@@ -247,6 +278,10 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii = {false, false, true},
+		.supports_rmii = {false, false, true},
+		.supports_rgmii = {false, false, true},
+		.internal_phy = {true, true, false},
 	},
 
 	[KSZ9567] = {
@@ -261,6 +296,14 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii	= {false, false, false, false,
+				   false, true, true},
+		.supports_rmii	= {false, false, false, false,
+				   false, true, true},
+		.supports_rgmii = {false, false, false, false,
+				   false, true, true},
+		.internal_phy	= {true, true, true, true,
+				   true, false, false},
 	},
 
 	[LAN9370] = {
@@ -274,6 +317,10 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii = {false, false, false, false, true},
+		.supports_rmii = {false, false, false, false, true},
+		.supports_rgmii = {false, false, false, false, true},
+		.internal_phy = {true, true, true, true, false},
 	},
 
 	[LAN9371] = {
@@ -287,6 +334,10 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii = {false, false, false, false, true, true},
+		.supports_rmii = {false, false, false, false, true, true},
+		.supports_rgmii = {false, false, false, false, true, true},
+		.internal_phy = {true, true, true, true, false, false},
 	},
 
 	[LAN9372] = {
@@ -300,6 +351,14 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii	= {false, false, false, false,
+				   true, true, false, false},
+		.supports_rmii	= {false, false, false, false,
+				   true, true, false, false},
+		.supports_rgmii = {false, false, false, false,
+				   true, true, false, false},
+		.internal_phy	= {true, true, true, true,
+				   false, false, true, true},
 	},
 
 	[LAN9373] = {
@@ -313,6 +372,14 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii	= {false, false, false, false,
+				   true, true, false, false},
+		.supports_rmii	= {false, false, false, false,
+				   true, true, false, false},
+		.supports_rgmii = {false, false, false, false,
+				   true, true, false, false},
+		.internal_phy	= {true, true, true, false,
+				   false, false, true, true},
 	},
 
 	[LAN9374] = {
@@ -326,6 +393,14 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.supports_mii	= {false, false, false, false,
+				   true, true, false, false},
+		.supports_rmii	= {false, false, false, false,
+				   true, true, false, false},
+		.supports_rgmii = {false, false, false, false,
+				   true, true, false, false},
+		.internal_phy	= {true, true, true, true,
+				   false, false, true, true},
 	},
 };
 EXPORT_SYMBOL_GPL(ksz_switch_chips);
@@ -360,6 +435,29 @@ static int ksz_check_device_id(struct ksz_device *dev)
 
 	return 0;
 }
+
+void ksz_phylink_get_caps(struct dsa_switch *ds, int port,
+			  struct phylink_config *config)
+{
+	struct ksz_device *dev = ds->priv;
+
+	config->legacy_pre_march2020 = false;
+
+	if (dev->info->supports_mii[port])
+		__set_bit(PHY_INTERFACE_MODE_MII, config->supported_interfaces);
+
+	if (dev->info->supports_rmii[port])
+		__set_bit(PHY_INTERFACE_MODE_RMII,
+			  config->supported_interfaces);
+
+	if (dev->info->supports_rgmii[port])
+		phy_interface_set_rgmii(config->supported_interfaces);
+
+	if (dev->info->internal_phy[port])
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+}
+EXPORT_SYMBOL_GPL(ksz_phylink_get_caps);
 
 void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 {

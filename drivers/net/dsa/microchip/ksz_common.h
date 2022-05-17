@@ -14,6 +14,8 @@
 #include <linux/regmap.h>
 #include <net/dsa.h>
 
+#define KSZ_MAX_NUM_PORTS 8
+
 struct vlan_table {
 	u32 table[3];
 };
@@ -44,6 +46,10 @@ struct ksz_chip_data {
 	const struct ksz_mib_names *mib_names;
 	int mib_cnt;
 	u8 reg_mib_cnt;
+	bool supports_mii[KSZ_MAX_NUM_PORTS];
+	bool supports_rmii[KSZ_MAX_NUM_PORTS];
+	bool supports_rgmii[KSZ_MAX_NUM_PORTS];
+	bool internal_phy[KSZ_MAX_NUM_PORTS];
 };
 
 struct ksz_port {
@@ -198,6 +204,8 @@ void ksz_init_mib_timer(struct ksz_device *dev);
 void ksz_r_mib_stats64(struct ksz_device *dev, int port);
 void ksz_get_stats64(struct dsa_switch *ds, int port,
 		     struct rtnl_link_stats64 *s);
+void ksz_phylink_get_caps(struct dsa_switch *ds, int port,
+			  struct phylink_config *config);
 extern const struct ksz_chip_data ksz_switch_chips[];
 
 /* Common DSA access functions */

@@ -1376,15 +1376,7 @@ static void ksz8_get_caps(struct dsa_switch *ds, int port,
 {
 	struct ksz_device *dev = ds->priv;
 
-	if (port == dev->cpu_port) {
-		__set_bit(PHY_INTERFACE_MODE_RMII,
-			  config->supported_interfaces);
-		__set_bit(PHY_INTERFACE_MODE_MII,
-			  config->supported_interfaces);
-	} else {
-		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
-			  config->supported_interfaces);
-	}
+	ksz_phylink_get_caps(ds, port, config);
 
 	config->mac_capabilities = MAC_10 | MAC_100;
 
