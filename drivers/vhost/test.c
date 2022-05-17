@@ -144,14 +144,9 @@ static void vhost_test_stop(struct vhost_test *n, void **privatep)
 	*privatep = vhost_test_stop_vq(n, n->vqs + VHOST_TEST_VQ);
 }
 
-static void vhost_test_flush_vq(struct vhost_test *n, int index)
-{
-	vhost_work_dev_flush(n->vqs[index].poll.dev);
-}
-
 static void vhost_test_flush(struct vhost_test *n)
 {
-	vhost_test_flush_vq(n, VHOST_TEST_VQ);
+	vhost_work_dev_flush(&n->dev);
 }
 
 static int vhost_test_release(struct inode *inode, struct file *f)
@@ -210,7 +205,7 @@ static long vhost_test_run(struct vhost_test *n, int test)
 			goto err;
 
 		if (oldpriv) {
-			vhost_test_flush_vq(n, index);
+			vhost_test_flush(n);
 		}
 	}
 
@@ -303,7 +298,7 @@ static long vhost_test_set_backend(struct vhost_test *n, unsigned index, int fd)
 	mutex_unlock(&vq->mutex);
 
 	if (enable) {
-		vhost_test_flush_vq(n, index);
+		vhost_test_flush(n);
 	}
 
 	mutex_unlock(&n->dev.mutex);
