@@ -1058,6 +1058,8 @@ struct amdgpu_device {
 
 	bool                            scpm_enabled;
 	uint32_t                        scpm_status;
+
+	struct work_struct		reset_work;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
