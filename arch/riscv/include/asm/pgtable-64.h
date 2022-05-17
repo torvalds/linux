@@ -86,6 +86,11 @@ static inline int pud_leaf(pud_t pud)
 	return pud_present(pud) && (pud_val(pud) & _PAGE_LEAF);
 }
 
+static inline int pud_user(pud_t pud)
+{
+	return pud_val(pud) & _PAGE_USER;
+}
+
 static inline void set_pud(pud_t *pudp, pud_t pud)
 {
 	*pudp = pud;

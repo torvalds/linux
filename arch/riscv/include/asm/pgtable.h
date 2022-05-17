@@ -634,11 +634,6 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	return __set_pte_at(mm, addr, (pte_t *)pmdp, pmd_pte(pmd));
 }
 
-static inline int pud_user(pud_t pud)
-{
-	return pte_user(pud_pte(pud));
-}
-
 static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
 				pud_t *pudp, pud_t pud)
 {
