@@ -281,6 +281,22 @@ static uint64_t test_with_filter(struct kvm_vm *vm,
 	return run_vm_to_sync(vm);
 }
 
+static void test_amd_deny_list(struct kvm_vm *vm)
+{
+	uint64_t event = EVENT(0x1C2, 0);
+	struct kvm_pmu_event_filter *f;
+	uint64_t count;
+
+	f = create_pmu_event_filter(&event, 1, KVM_PMU_EVENT_DENY);
+	count = test_with_filter(vm, f);
+
+	free(f);
+	if (count != NUM_BRANCHES)
+		pr_info("%s: Branch instructions retired = %lu (expected %u)\n",
+			__func__, count, NUM_BRANCHES);
+	TEST_ASSERT(count, "Allowed PMU event is not counting");
+}
+
 static void test_member_deny_list(struct kvm_vm *vm)
 {
 	struct kvm_pmu_event_filter *f = event_filter(KVM_PMU_EVENT_DENY);
@@ -462,6 +478,9 @@ int main(int argc, char *argv[])
 		print_skip("Guest PMU is not functional");
 		exit(KSFT_SKIP);
 	}
+
+	if (use_amd_pmu())
+		test_amd_deny_list(vm);
 
 	test_without_filter(vm);
 	test_member_deny_list(vm);
