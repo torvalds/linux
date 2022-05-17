@@ -3634,6 +3634,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->srbm_mutex);
 	mutex_init(&adev->gfx.pipe_reserve_mutex);
 	mutex_init(&adev->gfx.gfx_off_mutex);
+	mutex_init(&adev->gfx.partition_mutex);
 	mutex_init(&adev->grbm_idx_mutex);
 	mutex_init(&adev->mn_lock);
 	mutex_init(&adev->virt.vf_errors.lock);

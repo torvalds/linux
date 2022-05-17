@@ -95,6 +95,9 @@ struct amdgpu_nbio_funcs {
 	void (*apply_l1_link_width_reconfig_wa)(struct amdgpu_device *adev);
 	void (*clear_doorbell_interrupt)(struct amdgpu_device *adev);
 	u32 (*get_rom_offset)(struct amdgpu_device *adev);
+	u32 (*get_compute_partition_mode)(struct amdgpu_device *adev);
+	void (*set_compute_partition_mode)(struct amdgpu_device *adev,
+					   enum amdgpu_gfx_partition mode);
 };
 
 struct amdgpu_nbio {

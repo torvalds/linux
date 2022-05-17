@@ -259,6 +259,10 @@ struct amdgpu_gfx_funcs {
 	void (*update_perfmon_mgcg)(struct amdgpu_device *adev, bool enable);
 	int (*get_gfx_shadow_info)(struct amdgpu_device *adev,
 				   struct amdgpu_gfx_shadow_info *shadow_info);
+	enum amdgpu_gfx_partition
+			(*query_partition_mode)(struct amdgpu_device *adev);
+	int (*switch_partition_mode)(struct amdgpu_device *adev,
+				     enum amdgpu_gfx_partition mode);
 };
 
 struct sq_work {
@@ -394,6 +398,7 @@ struct amdgpu_gfx {
 	enum amdgpu_gfx_partition	partition_mode;
 	uint32_t			num_xcd;
 	uint32_t			num_xcc_per_xcp;
+	struct mutex			partition_mutex;
 };
 
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
@@ -478,4 +483,5 @@ int amdgpu_gfx_poison_consumption_handler(struct amdgpu_device *adev,
 						struct amdgpu_iv_entry *entry);
 
 bool amdgpu_gfx_is_master_xcc(struct amdgpu_device *adev, int xcc_id);
+int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev);
 #endif

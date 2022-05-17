@@ -347,6 +347,36 @@ static void nbio_v7_9_enable_doorbell_interrupt(struct amdgpu_device *adev,
 			      DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
 }
 
+static enum amdgpu_gfx_partition nbio_v7_9_get_compute_partition_mode(struct amdgpu_device *adev)
+{
+	u32 tmp;
+
+	tmp = RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_CAP);
+
+	if (REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_CAP, SPX_SUPPORT))
+		return AMDGPU_SPX_PARTITION_MODE;
+	else if (REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_CAP, DPX_SUPPORT))
+		return AMDGPU_DPX_PARTITION_MODE;
+	else if (REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_CAP, TPX_SUPPORT))
+		return AMDGPU_TPX_PARTITION_MODE;
+	else if (REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_CAP, CPX_SUPPORT))
+		return AMDGPU_CPX_PARTITION_MODE;
+	else
+		return AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+}
+
+static void nbio_v7_9_set_compute_partition_mode(struct amdgpu_device *adev,
+					enum amdgpu_gfx_partition mode)
+{
+	u32 tmp;
+
+	tmp = RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_CAP);
+	tmp &= ~0x1f;
+	tmp |= 1 << mode;
+
+	WREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_CAP, tmp);
+}
+
 const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 	.get_hdp_flush_req_offset = nbio_v7_9_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_9_get_hdp_flush_done_offset,
@@ -366,4 +396,6 @@ const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 	.get_clockgating_state = nbio_v7_9_get_clockgating_state,
 	.ih_control = nbio_v7_9_ih_control,
 	.remap_hdp_registers = nbio_v7_9_remap_hdp_registers,
+	.get_compute_partition_mode = nbio_v7_9_get_compute_partition_mode,
+	.set_compute_partition_mode = nbio_v7_9_set_compute_partition_mode,
 };

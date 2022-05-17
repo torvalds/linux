@@ -662,6 +662,67 @@ static void gfx_v9_4_3_select_me_pipe_q(struct amdgpu_device *adev,
 	soc15_grbm_select(adev, me, pipe, q, vm, 0);
 }
 
+static enum amdgpu_gfx_partition
+gfx_v9_4_3_query_compute_partition(struct amdgpu_device *adev)
+{
+	enum amdgpu_gfx_partition mode = AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+
+	if (adev->nbio.funcs->get_compute_partition_mode)
+		mode = adev->nbio.funcs->get_compute_partition_mode(adev);
+
+	return mode;
+}
+
+static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
+						enum amdgpu_gfx_partition mode)
+{
+	u32 tmp = 0;
+	int num_xcc_per_partition, i;
+
+	if (mode == adev->gfx.partition_mode)
+		return mode;
+
+	switch (mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		num_xcc_per_partition = adev->gfx.num_xcd;
+		break;
+	case AMDGPU_DPX_PARTITION_MODE:
+		num_xcc_per_partition = adev->gfx.num_xcd / 2;
+		break;
+	case AMDGPU_TPX_PARTITION_MODE:
+		num_xcc_per_partition = adev->gfx.num_xcd / 3;
+		break;
+	case AMDGPU_QPX_PARTITION_MODE:
+		num_xcc_per_partition = adev->gfx.num_xcd / 4;
+		break;
+	case AMDGPU_CPX_PARTITION_MODE:
+		num_xcc_per_partition = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* TODO:
+	 * Stop user queues and threads, and make sure GPU is empty of work.
+	 */
+
+	for (i = 0; i < adev->gfx.num_xcd; i++) {
+		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, NUM_XCC_IN_XCP,
+				    num_xcc_per_partition);
+		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, VIRTUAL_XCC_ID,
+				    i % num_xcc_per_partition);
+		WREG32_SOC15(GC, i, regCP_HYP_XCP_CTL, tmp);
+	}
+
+	if (adev->nbio.funcs->set_compute_partition_mode)
+		adev->nbio.funcs->set_compute_partition_mode(adev, mode);
+
+	adev->gfx.num_xcc_per_xcp = num_xcc_per_partition;
+	adev->gfx.partition_mode = mode;
+
+	return 0;
+}
+
 static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v9_4_3_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v9_4_3_select_se_sh,
@@ -669,6 +730,8 @@ static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
 	.read_wave_sgprs = &gfx_v9_4_3_read_wave_sgprs,
 	.read_wave_vgprs = &gfx_v9_4_3_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v9_4_3_select_me_pipe_q,
+	.query_partition_mode = &gfx_v9_4_3_query_compute_partition,
+	.switch_partition_mode = &gfx_v9_4_3_switch_compute_partition,
 };
 
 static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
@@ -855,6 +918,10 @@ static int gfx_v9_4_3_sw_init(void *handle)
 	}
 
 	r = gfx_v9_4_3_gpu_early_init(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_gfx_sysfs_init(adev);
 	if (r)
 		return r;
 

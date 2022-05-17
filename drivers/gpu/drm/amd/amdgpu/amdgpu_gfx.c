@@ -1174,3 +1174,135 @@ bool amdgpu_gfx_is_master_xcc(struct amdgpu_device *adev, int xcc_id)
 	return !(xcc_id % (adev->gfx.num_xcc_per_xcp ?
 			adev->gfx.num_xcc_per_xcp : 1));
 }
+
+static ssize_t amdgpu_gfx_get_current_compute_partition(struct device *dev,
+						struct device_attribute *addr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	enum amdgpu_gfx_partition mode;
+	char *partition_mode;
+
+	mode = adev->gfx.funcs->query_partition_mode(adev);
+
+	switch (mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		partition_mode = "SPX";
+		break;
+	case AMDGPU_DPX_PARTITION_MODE:
+		partition_mode = "DPX";
+		break;
+	case AMDGPU_TPX_PARTITION_MODE:
+		partition_mode = "TPX";
+		break;
+	case AMDGPU_QPX_PARTITION_MODE:
+		partition_mode = "QPX";
+		break;
+	case AMDGPU_CPX_PARTITION_MODE:
+		partition_mode = "CPX";
+		break;
+	default:
+		partition_mode = "UNKNOWN";
+		break;
+	}
+
+	return sysfs_emit(buf, "%s\n", partition_mode);
+}
+
+static ssize_t amdgpu_gfx_set_compute_partition(struct device *dev,
+						struct device_attribute *addr,
+						const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	enum amdgpu_gfx_partition mode;
+	int ret;
+
+	if (adev->gfx.num_xcd % 2 != 0)
+		return -EINVAL;
+
+	if (!strncasecmp("SPX", buf, strlen("SPX"))) {
+		mode = AMDGPU_SPX_PARTITION_MODE;
+	} else if (!strncasecmp("DPX", buf, strlen("DPX"))) {
+		if (adev->gfx.num_xcd != 4 || adev->gfx.num_xcd != 8)
+			return -EINVAL;
+		mode = AMDGPU_DPX_PARTITION_MODE;
+	} else if (!strncasecmp("TPX", buf, strlen("TPX"))) {
+		if (adev->gfx.num_xcd != 6)
+			return -EINVAL;
+		mode = AMDGPU_TPX_PARTITION_MODE;
+	} else if (!strncasecmp("QPX", buf, strlen("QPX"))) {
+		if (adev->gfx.num_xcd != 8)
+			return -EINVAL;
+		mode = AMDGPU_QPX_PARTITION_MODE;
+	} else if (!strncasecmp("CPX", buf, strlen("CPX"))) {
+		mode = AMDGPU_CPX_PARTITION_MODE;
+	} else {
+		return -EINVAL;
+	}
+
+	mutex_lock(&adev->gfx.partition_mutex);
+
+	ret = adev->gfx.funcs->switch_partition_mode(adev, mode);
+
+	mutex_unlock(&adev->gfx.partition_mutex);
+
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static ssize_t amdgpu_gfx_get_available_compute_partition(struct device *dev,
+						struct device_attribute *addr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	char *supported_partition;
+
+	/* TBD */
+	switch (adev->gfx.num_xcd) {
+	case 8:
+		supported_partition = "SPX, DPX, QPX, CPX";
+		break;
+	case 6:
+		supported_partition = "SPX, TPX, CPX";
+		break;
+	case 4:
+		supported_partition = "SPX, DPX, CPX";
+		break;
+	/* this seems only existing in emulation phase */
+	case 2:
+		supported_partition = "SPX, CPX";
+		break;
+	default:
+		supported_partition = "Not supported";
+		break;
+	}
+
+	return sysfs_emit(buf, "%s\n", supported_partition);
+}
+
+static DEVICE_ATTR(current_compute_partition, S_IRUGO | S_IWUSR,
+		   amdgpu_gfx_get_current_compute_partition,
+		   amdgpu_gfx_set_compute_partition);
+
+static DEVICE_ATTR(available_compute_partition, S_IRUGO,
+		   amdgpu_gfx_get_available_compute_partition, NULL);
+
+int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = device_create_file(adev->dev, &dev_attr_current_compute_partition);
+	if (r)
+		return r;
+
+	r = device_create_file(adev->dev, &dev_attr_available_compute_partition);
+	if (r)
+		return r;
+
+	return 0;
+}
