@@ -418,6 +418,22 @@ void ksz_get_stats64(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL_GPL(ksz_get_stats64);
 
+void ksz_get_strings(struct dsa_switch *ds, int port,
+		     u32 stringset, uint8_t *buf)
+{
+	struct ksz_device *dev = ds->priv;
+	int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
+
+	for (i = 0; i < dev->info->mib_cnt; i++) {
+		memcpy(buf + i * ETH_GSTRING_LEN,
+		       dev->info->mib_names[i].string, ETH_GSTRING_LEN);
+	}
+}
+EXPORT_SYMBOL_GPL(ksz_get_strings);
+
 void ksz_update_port_member(struct ksz_device *dev, int port)
 {
 	struct ksz_port *p = &dev->ports[port];
