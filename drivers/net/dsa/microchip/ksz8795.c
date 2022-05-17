@@ -1036,13 +1036,13 @@ static void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 	int first, index, cnt;
 	struct ksz_port *p;
 
-	if ((uint)port < dev->port_cnt) {
+	if ((uint)port < dev->info->port_cnt) {
 		first = port;
 		cnt = port + 1;
 	} else {
 		/* Flush all ports. */
 		first = 0;
-		cnt = dev->port_cnt;
+		cnt = dev->info->port_cnt;
 	}
 	for (index = first; index < cnt; index++) {
 		p = &dev->ports[index];
@@ -1118,7 +1118,7 @@ static int ksz8_port_vlan_add(struct dsa_switch *ds, int port,
 		 * Remove Tag flag to be changed, unless there are no
 		 * other VLANs currently configured.
 		 */
-		for (vid = 1; vid < dev->num_vlans; ++vid) {
+		for (vid = 1; vid < dev->info->num_vlans; ++vid) {
 			/* Skip the VID we are going to add or reconfigure */
 			if (vid == vlan->vid)
 				continue;
@@ -1389,7 +1389,7 @@ static int ksz8_handle_global_errata(struct dsa_switch *ds)
 	 *   KSZ879x/KSZ877x/KSZ876x and some EEE link partners may result in
 	 *   the link dropping.
 	 */
-	if (dev->ksz87xx_eee_link_erratum)
+	if (dev->info->ksz87xx_eee_link_erratum)
 		ret = ksz8_ind_write8(dev, TABLE_EEE, REG_IND_EEE_GLOB2_HI, 0);
 
 	return ret;
@@ -1402,7 +1402,7 @@ static int ksz8_setup(struct dsa_switch *ds)
 	int i, ret = 0;
 
 	dev->vlan_cache = devm_kcalloc(dev->dev, sizeof(struct vlan_table),
-				       dev->num_vlans, GFP_KERNEL);
+				       dev->info->num_vlans, GFP_KERNEL);
 	if (!dev->vlan_cache)
 		return -ENOMEM;
 
@@ -1446,7 +1446,7 @@ static int ksz8_setup(struct dsa_switch *ds)
 			   (BROADCAST_STORM_VALUE *
 			   BROADCAST_STORM_PROT_RATE) / 100);
 
-	for (i = 0; i < (dev->num_vlans / 4); i++)
+	for (i = 0; i < (dev->info->num_vlans / 4); i++)
 		ksz8_r_vlan_entries(dev, i);
 
 	/* Setup STP address for STP operation. */
@@ -1571,74 +1571,6 @@ static int ksz8_switch_detect(struct ksz_device *dev)
 	return 0;
 }
 
-struct ksz_chip_data {
-	u16 chip_id;
-	const char *dev_name;
-	int num_vlans;
-	int num_alus;
-	int num_statics;
-	int cpu_ports;
-	int port_cnt;
-	bool ksz87xx_eee_link_erratum;
-};
-
-static const struct ksz_chip_data ksz8_switch_chips[] = {
-	{
-		.chip_id = 0x8795,
-		.dev_name = "KSZ8795",
-		.num_vlans = 4096,
-		.num_alus = 0,
-		.num_statics = 8,
-		.cpu_ports = 0x10,	/* can be configured as cpu port */
-		.port_cnt = 5,		/* total cpu and user ports */
-		.ksz87xx_eee_link_erratum = true,
-	},
-	{
-		/*
-		 * WARNING
-		 * =======
-		 * KSZ8794 is similar to KSZ8795, except the port map
-		 * contains a gap between external and CPU ports, the
-		 * port map is NOT continuous. The per-port register
-		 * map is shifted accordingly too, i.e. registers at
-		 * offset 0x40 are NOT used on KSZ8794 and they ARE
-		 * used on KSZ8795 for external port 3.
-		 *           external  cpu
-		 * KSZ8794   0,1,2      4
-		 * KSZ8795   0,1,2,3    4
-		 * KSZ8765   0,1,2,3    4
-		 * port_cnt is configured as 5, even though it is 4
-		 */
-		.chip_id = 0x8794,
-		.dev_name = "KSZ8794",
-		.num_vlans = 4096,
-		.num_alus = 0,
-		.num_statics = 8,
-		.cpu_ports = 0x10,	/* can be configured as cpu port */
-		.port_cnt = 5,		/* total cpu and user ports */
-		.ksz87xx_eee_link_erratum = true,
-	},
-	{
-		.chip_id = 0x8765,
-		.dev_name = "KSZ8765",
-		.num_vlans = 4096,
-		.num_alus = 0,
-		.num_statics = 8,
-		.cpu_ports = 0x10,	/* can be configured as cpu port */
-		.port_cnt = 5,		/* total cpu and user ports */
-		.ksz87xx_eee_link_erratum = true,
-	},
-	{
-		.chip_id = 0x8830,
-		.dev_name = "KSZ8863/KSZ8873",
-		.num_vlans = 16,
-		.num_alus = 0,
-		.num_statics = 8,
-		.cpu_ports = 0x4,	/* can be configured as cpu port */
-		.port_cnt = 3,
-	},
-};
-
 static int ksz8_switch_init(struct ksz_device *dev)
 {
 	struct ksz8 *ksz8 = dev->priv;
@@ -1646,30 +1578,10 @@ static int ksz8_switch_init(struct ksz_device *dev)
 
 	dev->ds->ops = &ksz8_switch_ops;
 
-	for (i = 0; i < ARRAY_SIZE(ksz8_switch_chips); i++) {
-		const struct ksz_chip_data *chip = &ksz8_switch_chips[i];
-
-		if (dev->chip_id == chip->chip_id) {
-			dev->name = chip->dev_name;
-			dev->num_vlans = chip->num_vlans;
-			dev->num_alus = chip->num_alus;
-			dev->num_statics = chip->num_statics;
-			dev->port_cnt = chip->port_cnt;
-			dev->cpu_port = fls(chip->cpu_ports) - 1;
-			dev->phy_port_cnt = dev->port_cnt - 1;
-			dev->cpu_ports = chip->cpu_ports;
-			dev->host_mask = chip->cpu_ports;
-			dev->port_mask = (BIT(dev->phy_port_cnt) - 1) |
-					 chip->cpu_ports;
-			dev->ksz87xx_eee_link_erratum =
-				chip->ksz87xx_eee_link_erratum;
-			break;
-		}
-	}
-
-	/* no switch found */
-	if (!dev->cpu_ports)
-		return -ENODEV;
+	dev->cpu_port = fls(dev->info->cpu_ports) - 1;
+	dev->host_mask = dev->info->cpu_ports;
+	dev->phy_port_cnt = dev->info->port_cnt - 1;
+	dev->port_mask = (BIT(dev->phy_port_cnt) - 1) | dev->info->cpu_ports;
 
 	if (ksz_is_ksz88x3(dev)) {
 		ksz8->regs = ksz8863_regs;
@@ -1688,11 +1600,11 @@ static int ksz8_switch_init(struct ksz_device *dev)
 	dev->reg_mib_cnt = MIB_COUNTER_NUM;
 
 	dev->ports = devm_kzalloc(dev->dev,
-				  dev->port_cnt * sizeof(struct ksz_port),
+				  dev->info->port_cnt * sizeof(struct ksz_port),
 				  GFP_KERNEL);
 	if (!dev->ports)
 		return -ENOMEM;
-	for (i = 0; i < dev->port_cnt; i++) {
+	for (i = 0; i < dev->info->port_cnt; i++) {
 		mutex_init(&dev->ports[i].mib.cnt_mutex);
 		dev->ports[i].mib.counters =
 			devm_kzalloc(dev->dev,
@@ -1704,7 +1616,7 @@ static int ksz8_switch_init(struct ksz_device *dev)
 	}
 
 	/* set the real number of ports */
-	dev->ds->num_ports = dev->port_cnt;
+	dev->ds->num_ports = dev->info->port_cnt;
 
 	/* We rely on software untagging on the CPU port, so that we
 	 * can support both tagged and untagged VLANs

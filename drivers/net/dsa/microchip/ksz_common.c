@@ -59,6 +59,172 @@ struct ksz_stats_raw {
 	u64 tx_discards;
 };
 
+static const struct ksz_chip_data ksz_switch_chips[] = {
+	[KSZ8795] = {
+		.chip_id = KSZ8795_CHIP_ID,
+		.dev_name = "KSZ8795",
+		.num_vlans = 4096,
+		.num_alus = 0,
+		.num_statics = 8,
+		.cpu_ports = 0x10,	/* can be configured as cpu port */
+		.port_cnt = 5,		/* total cpu and user ports */
+		.ksz87xx_eee_link_erratum = true,
+	},
+
+	[KSZ8794] = {
+		/* WARNING
+		 * =======
+		 * KSZ8794 is similar to KSZ8795, except the port map
+		 * contains a gap between external and CPU ports, the
+		 * port map is NOT continuous. The per-port register
+		 * map is shifted accordingly too, i.e. registers at
+		 * offset 0x40 are NOT used on KSZ8794 and they ARE
+		 * used on KSZ8795 for external port 3.
+		 *           external  cpu
+		 * KSZ8794   0,1,2      4
+		 * KSZ8795   0,1,2,3    4
+		 * KSZ8765   0,1,2,3    4
+		 * port_cnt is configured as 5, even though it is 4
+		 */
+		.chip_id = KSZ8794_CHIP_ID,
+		.dev_name = "KSZ8794",
+		.num_vlans = 4096,
+		.num_alus = 0,
+		.num_statics = 8,
+		.cpu_ports = 0x10,	/* can be configured as cpu port */
+		.port_cnt = 5,		/* total cpu and user ports */
+		.ksz87xx_eee_link_erratum = true,
+	},
+
+	[KSZ8765] = {
+		.chip_id = KSZ8765_CHIP_ID,
+		.dev_name = "KSZ8765",
+		.num_vlans = 4096,
+		.num_alus = 0,
+		.num_statics = 8,
+		.cpu_ports = 0x10,	/* can be configured as cpu port */
+		.port_cnt = 5,		/* total cpu and user ports */
+		.ksz87xx_eee_link_erratum = true,
+	},
+
+	[KSZ8830] = {
+		.chip_id = KSZ8830_CHIP_ID,
+		.dev_name = "KSZ8863/KSZ8873",
+		.num_vlans = 16,
+		.num_alus = 0,
+		.num_statics = 8,
+		.cpu_ports = 0x4,	/* can be configured as cpu port */
+		.port_cnt = 3,
+	},
+
+	[KSZ9477] = {
+		.chip_id = KSZ9477_CHIP_ID,
+		.dev_name = "KSZ9477",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x7F,	/* can be configured as cpu port */
+		.port_cnt = 7,		/* total physical port count */
+		.phy_errata_9477 = true,
+	},
+
+	[KSZ9897] = {
+		.chip_id = KSZ9897_CHIP_ID,
+		.dev_name = "KSZ9897",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x7F,	/* can be configured as cpu port */
+		.port_cnt = 7,		/* total physical port count */
+		.phy_errata_9477 = true,
+	},
+
+	[KSZ9893] = {
+		.chip_id = KSZ9893_CHIP_ID,
+		.dev_name = "KSZ9893",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x07,	/* can be configured as cpu port */
+		.port_cnt = 3,		/* total port count */
+	},
+
+	[KSZ9567] = {
+		.chip_id = KSZ9567_CHIP_ID,
+		.dev_name = "KSZ9567",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x7F,	/* can be configured as cpu port */
+		.port_cnt = 7,		/* total physical port count */
+		.phy_errata_9477 = true,
+	},
+
+	[LAN9370] = {
+		.chip_id = LAN9370_CHIP_ID,
+		.dev_name = "LAN9370",
+		.num_vlans = 4096,
+		.num_alus = 1024,
+		.num_statics = 256,
+		.cpu_ports = 0x10,	/* can be configured as cpu port */
+		.port_cnt = 5,		/* total physical port count */
+	},
+
+	[LAN9371] = {
+		.chip_id = LAN9371_CHIP_ID,
+		.dev_name = "LAN9371",
+		.num_vlans = 4096,
+		.num_alus = 1024,
+		.num_statics = 256,
+		.cpu_ports = 0x30,	/* can be configured as cpu port */
+		.port_cnt = 6,		/* total physical port count */
+	},
+
+	[LAN9372] = {
+		.chip_id = LAN9372_CHIP_ID,
+		.dev_name = "LAN9372",
+		.num_vlans = 4096,
+		.num_alus = 1024,
+		.num_statics = 256,
+		.cpu_ports = 0x30,	/* can be configured as cpu port */
+		.port_cnt = 8,		/* total physical port count */
+	},
+
+	[LAN9373] = {
+		.chip_id = LAN9373_CHIP_ID,
+		.dev_name = "LAN9373",
+		.num_vlans = 4096,
+		.num_alus = 1024,
+		.num_statics = 256,
+		.cpu_ports = 0x38,	/* can be configured as cpu port */
+		.port_cnt = 5,		/* total physical port count */
+	},
+
+	[LAN9374] = {
+		.chip_id = LAN9374_CHIP_ID,
+		.dev_name = "LAN9374",
+		.num_vlans = 4096,
+		.num_alus = 1024,
+		.num_statics = 256,
+		.cpu_ports = 0x30,	/* can be configured as cpu port */
+		.port_cnt = 8,		/* total physical port count */
+	},
+};
+
+static const struct ksz_chip_data *ksz_lookup_info(unsigned int prod_num)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ksz_switch_chips); i++) {
+		const struct ksz_chip_data *chip = &ksz_switch_chips[i];
+
+		if (chip->chip_id == prod_num)
+			return chip;
+	}
+
+	return NULL;
+}
+
 void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 {
 	struct rtnl_link_stats64 *stats;
@@ -207,7 +373,7 @@ static void ksz_mib_read_work(struct work_struct *work)
 	struct ksz_port *p;
 	int i;
 
-	for (i = 0; i < dev->port_cnt; i++) {
+	for (i = 0; i < dev->info->port_cnt; i++) {
 		if (dsa_is_unused_port(dev->ds, i))
 			continue;
 
@@ -242,7 +408,7 @@ void ksz_init_mib_timer(struct ksz_device *dev)
 
 	INIT_DELAYED_WORK(&dev->mib_read, ksz_mib_read_work);
 
-	for (i = 0; i < dev->port_cnt; i++)
+	for (i = 0; i < dev->info->port_cnt; i++)
 		dev->dev_ops->port_init_cnt(dev, i);
 }
 EXPORT_SYMBOL_GPL(ksz_init_mib_timer);
@@ -382,7 +548,7 @@ int ksz_port_mdb_add(struct dsa_switch *ds, int port,
 	int empty = 0;
 
 	alu.port_forward = 0;
-	for (index = 0; index < dev->num_statics; index++) {
+	for (index = 0; index < dev->info->num_statics; index++) {
 		if (!dev->dev_ops->r_sta_mac_table(dev, index, &alu)) {
 			/* Found one already in static MAC table. */
 			if (!memcmp(alu.mac, mdb->addr, ETH_ALEN) &&
@@ -395,11 +561,11 @@ int ksz_port_mdb_add(struct dsa_switch *ds, int port,
 	}
 
 	/* no available entry */
-	if (index == dev->num_statics && !empty)
+	if (index == dev->info->num_statics && !empty)
 		return -ENOSPC;
 
 	/* add entry */
-	if (index == dev->num_statics) {
+	if (index == dev->info->num_statics) {
 		index = empty - 1;
 		memset(&alu, 0, sizeof(alu));
 		memcpy(alu.mac, mdb->addr, ETH_ALEN);
@@ -426,7 +592,7 @@ int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 	struct alu_struct alu;
 	int index;
 
-	for (index = 0; index < dev->num_statics; index++) {
+	for (index = 0; index < dev->info->num_statics; index++) {
 		if (!dev->dev_ops->r_sta_mac_table(dev, index, &alu)) {
 			/* Found one already in static MAC table. */
 			if (!memcmp(alu.mac, mdb->addr, ETH_ALEN) &&
@@ -436,7 +602,7 @@ int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 	}
 
 	/* no available entry */
-	if (index == dev->num_statics)
+	if (index == dev->info->num_statics)
 		goto exit;
 
 	/* clear port */
@@ -537,6 +703,7 @@ EXPORT_SYMBOL(ksz_switch_alloc);
 int ksz_switch_register(struct ksz_device *dev,
 			const struct ksz_dev_ops *ops)
 {
+	const struct ksz_chip_data *info;
 	struct device_node *port, *ports;
 	phy_interface_t interface;
 	unsigned int port_num;
@@ -567,6 +734,13 @@ int ksz_switch_register(struct ksz_device *dev,
 	if (dev->dev_ops->detect(dev))
 		return -EINVAL;
 
+	info = ksz_lookup_info(dev->chip_id);
+	if (!info)
+		return -ENODEV;
+
+	/* Update the compatible info with the probed one */
+	dev->info = info;
+
 	ret = dev->dev_ops->init(dev);
 	if (ret)
 		return ret;
@@ -574,7 +748,7 @@ int ksz_switch_register(struct ksz_device *dev,
 	/* Host port interface will be self detected, or specifically set in
 	 * device tree.
 	 */
-	for (port_num = 0; port_num < dev->port_cnt; ++port_num)
+	for (port_num = 0; port_num < dev->info->port_cnt; ++port_num)
 		dev->ports[port_num].interface = PHY_INTERFACE_MODE_NA;
 	if (dev->dev->of_node) {
 		ret = of_get_phy_mode(dev->dev->of_node, &interface);

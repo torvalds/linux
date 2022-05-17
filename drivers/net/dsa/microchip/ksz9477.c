@@ -100,7 +100,7 @@ static int ksz9477_change_mtu(struct dsa_switch *ds, int port, int mtu)
 	/* Cache the per-port MTU setting */
 	dev->ports[port].max_frame = frame_size;
 
-	for (i = 0; i < dev->port_cnt; i++)
+	for (i = 0; i < dev->info->port_cnt; i++)
 		max_frame = max(max_frame, dev->ports[i].max_frame);
 
 	return regmap_update_bits(dev->regmap[1], REG_SW_MTU__2,
@@ -434,7 +434,7 @@ static void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
 			   SW_FLUSH_OPTION_M << SW_FLUSH_OPTION_S,
 			   SW_FLUSH_OPTION_DYN_MAC << SW_FLUSH_OPTION_S);
 
-	if (port < dev->port_cnt) {
+	if (port < dev->info->port_cnt) {
 		/* flush individual port */
 		ksz_pread8(dev, port, P_STP_CTRL, &data);
 		if (!(data & PORT_LEARN_DISABLE))
@@ -756,7 +756,7 @@ static int ksz9477_port_mdb_add(struct dsa_switch *ds, int port,
 
 	mutex_lock(&dev->alu_mutex);
 
-	for (index = 0; index < dev->num_statics; index++) {
+	for (index = 0; index < dev->info->num_statics; index++) {
 		/* find empty slot first */
 		data = (index << ALU_STAT_INDEX_S) |
 			ALU_STAT_READ | ALU_STAT_START;
@@ -787,7 +787,7 @@ static int ksz9477_port_mdb_add(struct dsa_switch *ds, int port,
 	}
 
 	/* no available entry */
-	if (index == dev->num_statics) {
+	if (index == dev->info->num_statics) {
 		err = -ENOSPC;
 		goto exit;
 	}
@@ -832,7 +832,7 @@ static int ksz9477_port_mdb_del(struct dsa_switch *ds, int port,
 
 	mutex_lock(&dev->alu_mutex);
 
-	for (index = 0; index < dev->num_statics; index++) {
+	for (index = 0; index < dev->info->num_statics; index++) {
 		/* find empty slot first */
 		data = (index << ALU_STAT_INDEX_S) |
 			ALU_STAT_READ | ALU_STAT_START;
@@ -861,7 +861,7 @@ static int ksz9477_port_mdb_del(struct dsa_switch *ds, int port,
 	}
 
 	/* no available entry */
-	if (index == dev->num_statics)
+	if (index == dev->info->num_statics)
 		goto exit;
 
 	/* clear port */
@@ -903,7 +903,7 @@ static int ksz9477_port_mirror_add(struct dsa_switch *ds, int port,
 	 * Check if any of the port is already set for sniffing
 	 * If yes, instruct the user to remove the previous entry & exit
 	 */
-	for (p = 0; p < dev->port_cnt; p++) {
+	for (p = 0; p < dev->info->port_cnt; p++) {
 		/* Skip the current sniffing port */
 		if (p == mirror->to_local_port)
 			continue;
@@ -946,7 +946,7 @@ static void ksz9477_port_mirror_del(struct dsa_switch *ds, int port,
 
 
 	/* Check if any of the port is still referring to sniffer port */
-	for (p = 0; p < dev->port_cnt; p++) {
+	for (p = 0; p < dev->info->port_cnt; p++) {
 		ksz_pread8(dev, p, P_MIRROR_CTRL, &data);
 
 		if ((data & (PORT_MIRROR_RX | PORT_MIRROR_TX))) {
@@ -1194,7 +1194,7 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 			     PORT_FORCE_TX_FLOW_CTRL | PORT_FORCE_RX_FLOW_CTRL,
 			     false);
 
-		if (dev->phy_errata_9477)
+		if (dev->info->phy_errata_9477)
 			ksz9477_phy_errata_setup(dev, port);
 	} else {
 		/* force flow control */
@@ -1259,8 +1259,9 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 	struct ksz_port *p;
 	int i;
 
-	for (i = 0; i < dev->port_cnt; i++) {
-		if (dsa_is_cpu_port(ds, i) && (dev->cpu_ports & (1 << i))) {
+	for (i = 0; i < dev->info->port_cnt; i++) {
+		if (dsa_is_cpu_port(ds, i) &&
+		    (dev->info->cpu_ports & (1 << i))) {
 			phy_interface_t interface;
 			const char *prev_msg;
 			const char *prev_mode;
@@ -1304,7 +1305,7 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 		}
 	}
 
-	for (i = 0; i < dev->port_cnt; i++) {
+	for (i = 0; i < dev->info->port_cnt; i++) {
 		if (i == dev->cpu_port)
 			continue;
 		p = &dev->ports[i];
@@ -1328,7 +1329,7 @@ static int ksz9477_setup(struct dsa_switch *ds)
 	int ret = 0;
 
 	dev->vlan_cache = devm_kcalloc(dev->dev, sizeof(struct vlan_table),
-				       dev->num_vlans, GFP_KERNEL);
+				       dev->info->num_vlans, GFP_KERNEL);
 	if (!dev->vlan_cache)
 		return -ENOMEM;
 
@@ -1470,96 +1471,23 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 	return 0;
 }
 
-struct ksz_chip_data {
-	u32 chip_id;
-	const char *dev_name;
-	int num_vlans;
-	int num_alus;
-	int num_statics;
-	int cpu_ports;
-	int port_cnt;
-	bool phy_errata_9477;
-};
-
-static const struct ksz_chip_data ksz9477_switch_chips[] = {
-	{
-		.chip_id = 0x00947700,
-		.dev_name = "KSZ9477",
-		.num_vlans = 4096,
-		.num_alus = 4096,
-		.num_statics = 16,
-		.cpu_ports = 0x7F,	/* can be configured as cpu port */
-		.port_cnt = 7,		/* total physical port count */
-		.phy_errata_9477 = true,
-	},
-	{
-		.chip_id = 0x00989700,
-		.dev_name = "KSZ9897",
-		.num_vlans = 4096,
-		.num_alus = 4096,
-		.num_statics = 16,
-		.cpu_ports = 0x7F,	/* can be configured as cpu port */
-		.port_cnt = 7,		/* total physical port count */
-		.phy_errata_9477 = true,
-	},
-	{
-		.chip_id = 0x00989300,
-		.dev_name = "KSZ9893",
-		.num_vlans = 4096,
-		.num_alus = 4096,
-		.num_statics = 16,
-		.cpu_ports = 0x07,	/* can be configured as cpu port */
-		.port_cnt = 3,		/* total port count */
-	},
-	{
-		.chip_id = 0x00956700,
-		.dev_name = "KSZ9567",
-		.num_vlans = 4096,
-		.num_alus = 4096,
-		.num_statics = 16,
-		.cpu_ports = 0x7F,	/* can be configured as cpu port */
-		.port_cnt = 7,		/* total physical port count */
-		.phy_errata_9477 = true,
-	},
-};
-
 static int ksz9477_switch_init(struct ksz_device *dev)
 {
 	int i;
 
 	dev->ds->ops = &ksz9477_switch_ops;
 
-	for (i = 0; i < ARRAY_SIZE(ksz9477_switch_chips); i++) {
-		const struct ksz_chip_data *chip = &ksz9477_switch_chips[i];
-
-		if (dev->chip_id == chip->chip_id) {
-			dev->name = chip->dev_name;
-			dev->num_vlans = chip->num_vlans;
-			dev->num_alus = chip->num_alus;
-			dev->num_statics = chip->num_statics;
-			dev->port_cnt = chip->port_cnt;
-			dev->cpu_ports = chip->cpu_ports;
-			dev->phy_errata_9477 = chip->phy_errata_9477;
-
-			break;
-		}
-	}
-
-	/* no switch found */
-	if (!dev->port_cnt)
-		return -ENODEV;
-
-	dev->port_mask = (1 << dev->port_cnt) - 1;
+	dev->port_mask = (1 << dev->info->port_cnt) - 1;
 
 	dev->reg_mib_cnt = SWITCH_COUNTER_NUM;
 	dev->mib_cnt = TOTAL_SWITCH_COUNTER_NUM;
 
 	dev->ports = devm_kzalloc(dev->dev,
-				  dev->port_cnt * sizeof(struct ksz_port),
+				  dev->info->port_cnt * sizeof(struct ksz_port),
 				  GFP_KERNEL);
 	if (!dev->ports)
 		return -ENOMEM;
-	for (i = 0; i < dev->port_cnt; i++) {
+	for (i = 0; i < dev->info->port_cnt; i++) {
 		spin_lock_init(&dev->ports[i].mib.stats64_lock);
 		mutex_init(&dev->ports[i].mib.cnt_mutex);
 		dev->ports[i].mib.counters =
@@ -1572,7 +1500,7 @@ static int ksz9477_switch_init(struct ksz_device *dev)
 	}
 
 	/* set the real number of ports */
-	dev->ds->num_ports = dev->port_cnt;
+	dev->ds->num_ports = dev->info->port_cnt;
 
 	return 0;
 }
