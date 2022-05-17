@@ -246,7 +246,7 @@ ath9k_postprocess_radar_event(struct ath_softc *sc,
 		DFS_STAT_INC(sc, dc_phy_errors);
 
 		/* when both are present use stronger one */
-		rssi = (ard->rssi < ard->ext_rssi) ? ard->ext_rssi : ard->rssi;
+		rssi = max(ard->rssi, ard->ext_rssi);
 		break;
 	default:
 		/*
