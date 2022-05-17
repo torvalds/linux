@@ -146,7 +146,7 @@ static void vhost_test_stop(struct vhost_test *n, void **privatep)
 
 static void vhost_test_flush_vq(struct vhost_test *n, int index)
 {
-	vhost_poll_flush(&n->vqs[index].poll);
+	vhost_work_dev_flush(n->vqs[index].poll.dev);
 }
 
 static void vhost_test_flush(struct vhost_test *n)

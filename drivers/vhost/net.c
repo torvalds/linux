@@ -1376,8 +1376,8 @@ static void vhost_net_stop(struct vhost_net *n, struct socket **tx_sock,
 
 static void vhost_net_flush_vq(struct vhost_net *n, int index)
 {
-	vhost_poll_flush(n->poll + index);
-	vhost_poll_flush(&n->vqs[index].vq.poll);
+	vhost_work_dev_flush(n->poll[index].dev);
+	vhost_work_dev_flush(n->vqs[index].vq.poll.dev);
 }
 
 static void vhost_net_flush(struct vhost_net *n)
