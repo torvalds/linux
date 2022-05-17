@@ -613,7 +613,7 @@ void dcn31_reset_hw_ctx_wrap(
 	}
 
 	/* New dc_state in the process of being applied to hardware. */
-	dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_TRANSIENT;
+	link_enc_cfg_set_transient_mode(dc, dc->current_state, context);
 }
 
 void dcn31_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)

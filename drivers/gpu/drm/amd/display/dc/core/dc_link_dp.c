@@ -2812,8 +2812,8 @@ bool perform_link_training_with_retries(
 	j = 0;
 	while (j < attempts && fail_count < (attempts * 10)) {
 
-		DC_LOG_HW_LINK_TRAINING("%s: Beginning link training attempt %u of %d @ rate(%d) x lane(%d)\n",
-			__func__, (unsigned int)j + 1, attempts, cur_link_settings.link_rate,
+		DC_LOG_HW_LINK_TRAINING("%s: Beginning link(%d) training attempt %u of %d @ rate(%d) x lane(%d)\n",
+			__func__, link->link_index, (unsigned int)j + 1, attempts, cur_link_settings.link_rate,
 			cur_link_settings.lane_count);
 
 		dp_enable_link_phy(
@@ -2883,8 +2883,8 @@ bool perform_link_training_with_retries(
 				break;
 		}
 
-		DC_LOG_WARNING("%s: Link training attempt %u of %d failed @ rate(%d) x lane(%d)\n",
-			__func__, (unsigned int)j + 1, attempts, cur_link_settings.link_rate,
+		DC_LOG_WARNING("%s: Link(%d) training attempt %u of %d failed @ rate(%d) x lane(%d)\n",
+			__func__, link->link_index, (unsigned int)j + 1, attempts, cur_link_settings.link_rate,
 			cur_link_settings.lane_count);
 
 		dp_disable_link_phy(link, &pipe_ctx->link_res, signal);
@@ -2927,8 +2927,13 @@ bool perform_link_training_with_retries(
 			 */
 			req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing);
 			link_bw = dc_link_bandwidth_kbps(link, &cur_link_settings);
-			if (req_bw > link_bw)
-				break;
+			is_link_bw_low = (req_bw > link_bw);
+			is_link_bw_min = ((cur_link_settings.link_rate <= LINK_RATE_LOW) &&
+				(cur_link_settings.lane_count <= LANE_COUNT_ONE));
+			if (is_link_bw_low)
+				DC_LOG_WARNING(
+					"%s: Link(%d) bandwidth too low after fallback req_bw(%d) > link_bw(%d)\n",
+					__func__, link->link_index, req_bw, link_bw);
 		}
 
 		msleep(delay_between_attempts);

@@ -26,6 +26,8 @@
 #include "resource.h"
 #include "dc_link_dp.h"
 
+#define DC_LOGGER dc->ctx->logger
+
 /* Check whether stream is supported by DIG link encoders. */
 static bool is_dig_link_enc_stream(struct dc_stream_state *stream)
 {
@@ -383,6 +385,30 @@ void link_enc_cfg_link_encs_assign(
 			state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i];
 	}
 
+	/* Log encoder assignments. */
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct link_enc_assignment assignment =
+				dc->current_state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i];
+
+		if (assignment.valid)
+			DC_LOG_DEBUG("%s: CUR %s(%d) - enc_id(%d)\n",
+					__func__,
+					assignment.ep_id.ep_type == DISPLAY_ENDPOINT_PHY ? "PHY" : "DPIA",
+					assignment.ep_id.link_id.enum_id - 1,
+					assignment.eng_id);
+	}
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct link_enc_assignment assignment =
+				state->res_ctx.link_enc_cfg_ctx.link_enc_assignments[i];
+
+		if (assignment.valid)
+			DC_LOG_DEBUG("%s: NEW %s(%d) - enc_id(%d)\n",
+					__func__,
+					assignment.ep_id.ep_type == DISPLAY_ENDPOINT_PHY ? "PHY" : "DPIA",
+					assignment.ep_id.link_id.enum_id - 1,
+					assignment.eng_id);
+	}
+
 	/* Current state mode will be set to steady once this state committed. */
 	state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_STEADY;
 }
@@ -658,8 +684,25 @@ bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state)
 			((valid_uniqueness & 0x1) << 2) |
 			((valid_avail & 0x1) << 3) |
 			((valid_streams & 0x1) << 4);
-		dm_error("Invalid link encoder assignments: 0x%x\n", valid_bitmap);
+		DC_LOG_ERROR("%s: Invalid link encoder assignments - 0x%x\n", __func__, valid_bitmap);
 	}
 
 	return is_valid;
+}
+
+void link_enc_cfg_set_transient_mode(struct dc *dc, struct dc_state *current_state, struct dc_state *new_state)
+{
+	int i = 0;
+	int num_transient_assignments = 0;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (current_state->res_ctx.link_enc_cfg_ctx.transient_assignments[i].valid)
+			num_transient_assignments++;
+	}
+
+	/* Only enter transient mode if the new encoder assignments are valid. */
+	if (new_state->stream_count == num_transient_assignments) {
+		current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_TRANSIENT;
+		DC_LOG_DEBUG("%s: current_state(%p) mode(%d)\n", __func__, current_state, LINK_ENC_CFG_TRANSIENT);
+	}
 }
