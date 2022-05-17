@@ -51,6 +51,15 @@
 #define mmMP1_SMN_C2PMSG_90                                                                            0x029a
 #define mmMP1_SMN_C2PMSG_90_BASE_IDX                                                                   0
 
+#define mmMP1_SMN_C2PMSG_66_V13_0_4			0x0282
+#define mmMP1_SMN_C2PMSG_66_V13_0_4_BASE_IDX            1
+
+#define mmMP1_SMN_C2PMSG_82_V13_0_4			0x0292
+#define mmMP1_SMN_C2PMSG_82_V13_0_4_BASE_IDX            1
+
+#define mmMP1_SMN_C2PMSG_90_V13_0_4			0x029a
+#define mmMP1_SMN_C2PMSG_90_V13_0_4_BASE_IDX		1
+
 /* SMU 13.0.5 has its specific mailbox messaging registers */
 
 #define mmMP1_C2PMSG_2                                                                            (0xbee142 + 0xb00000 / 4)
@@ -92,6 +101,8 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 
 	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5))
 		*arg = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34);
+	else if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 4))
+		*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82_V13_0_4);
 	else
 		*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
 }
@@ -141,6 +152,8 @@ static u32 __smu_cmn_poll_stat(struct smu_context *smu)
 	for ( ; timeout > 0; timeout--) {
 		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5))
 			reg = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_33);
+		else if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 4))
+			reg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90_V13_0_4);
 		else
 			reg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((reg & MP1_C2PMSG_90__CONTENT_MASK) != 0)
@@ -167,6 +180,9 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5)) {
 			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_2);
 			prm     = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34);
+		} else if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 4)) {
+			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66_V13_0_4);
+			prm     = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82_V13_0_4);
 		} else {
 			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66);
 			prm     = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
@@ -268,6 +284,10 @@ static void __smu_cmn_send_msg(struct smu_context *smu,
 		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_33, 0);
 		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34, param);
 		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_2, msg);
+	} else if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 4)) {
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90_V13_0_4, 0);
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82_V13_0_4, param);
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66_V13_0_4, msg);
 	} else {
 		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
 		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
