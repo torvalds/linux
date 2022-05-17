@@ -97,6 +97,7 @@ struct amdgpu_kfd_dev {
 	struct kfd_dev *dev;
 	uint64_t vram_used;
 	bool init_complete;
+	struct work_struct reset_work;
 };
 
 enum kgd_engine_type {

@@ -5323,37 +5323,6 @@ skip_sched_resume:
 	return r;
 }
 
-struct amdgpu_recover_work_struct {
-	struct work_struct base;
-	struct amdgpu_device *adev;
-	struct amdgpu_job *job;
-	int ret;
-};
-
-static void amdgpu_device_queue_gpu_recover_work(struct work_struct *work)
-{
-	struct amdgpu_recover_work_struct *recover_work = container_of(work, struct amdgpu_recover_work_struct, base);
-
-	amdgpu_device_gpu_recover_imp(recover_work->adev, recover_work->job);
-}
-/*
- * Serialize gpu recover into reset domain single threaded wq
- */
-int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
-				    struct amdgpu_job *job)
-{
-	struct amdgpu_recover_work_struct work = {.adev = adev, .job = job};
-
-	INIT_WORK(&work.base, amdgpu_device_queue_gpu_recover_work);
-
-	if (!amdgpu_reset_domain_schedule(adev->reset_domain, &work.base))
-		return -EAGAIN;
-
-	flush_work(&work.base);
-
-	return atomic_read(&adev->reset_domain->reset_res);
-}
-
 /**
  * amdgpu_device_get_pcie_info - fence pcie info about the PCIE slot
  *
