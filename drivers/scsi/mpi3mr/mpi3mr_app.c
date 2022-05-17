@@ -1559,12 +1559,146 @@ err_device_add:
 }
 
 /**
+ * version_fw_show - SysFS callback for firmware version read
+ * @dev: class device
+ * @attr: Device attributes
+ * @buf: Buffer to copy
+ *
+ * Return: sysfs_emit() return after copying firmware version
+ */
+static ssize_t
+version_fw_show(struct device *dev, struct device_attribute *attr,
+	char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct mpi3mr_ioc *mrioc = shost_priv(shost);
+	struct mpi3mr_compimg_ver *fwver = &mrioc->facts.fw_ver;
+
+	return sysfs_emit(buf, "%d.%d.%d.%d.%05d-%05d\n",
+	    fwver->gen_major, fwver->gen_minor, fwver->ph_major,
+	    fwver->ph_minor, fwver->cust_id, fwver->build_num);
+}
+static DEVICE_ATTR_RO(version_fw);
+
+/**
+ * fw_queue_depth_show - SysFS callback for firmware max cmds
+ * @dev: class device
+ * @attr: Device attributes
+ * @buf: Buffer to copy
+ *
+ * Return: sysfs_emit() return after copying firmware max commands
+ */
+static ssize_t
+fw_queue_depth_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct mpi3mr_ioc *mrioc = shost_priv(shost);
+
+	return sysfs_emit(buf, "%d\n", mrioc->facts.max_reqs);
+}
+static DEVICE_ATTR_RO(fw_queue_depth);
+
+/**
+ * op_req_q_count_show - SysFS callback for request queue count
+ * @dev: class device
+ * @attr: Device attributes
+ * @buf: Buffer to copy
+ *
+ * Return: sysfs_emit() return after copying request queue count
+ */
+static ssize_t
+op_req_q_count_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct mpi3mr_ioc *mrioc = shost_priv(shost);
+
+	return sysfs_emit(buf, "%d\n", mrioc->num_op_req_q);
+}
+static DEVICE_ATTR_RO(op_req_q_count);
+
+/**
+ * reply_queue_count_show - SysFS callback for reply queue count
+ * @dev: class device
+ * @attr: Device attributes
+ * @buf: Buffer to copy
+ *
+ * Return: sysfs_emit() return after copying reply queue count
+ */
+static ssize_t
+reply_queue_count_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct mpi3mr_ioc *mrioc = shost_priv(shost);
+
+	return sysfs_emit(buf, "%d\n", mrioc->num_op_reply_q);
+}
+
+static DEVICE_ATTR_RO(reply_queue_count);
+
+/**
+ * logging_level_show - Show controller debug level
+ * @dev: class device
+ * @attr: Device attributes
+ * @buf: Buffer to copy
+ *
+ * A sysfs 'read/write' shost attribute, to show the current
+ * debug log level used by the driver for the specific
+ * controller.
+ *
+ * Return: sysfs_emit() return
+ */
+static ssize_t
+logging_level_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct mpi3mr_ioc *mrioc = shost_priv(shost);
+
+	return sysfs_emit(buf, "%08xh\n", mrioc->logging_level);
+}
+
+/**
+ * logging_level_store- Change controller debug level
+ * @dev: class device
+ * @attr: Device attributes
+ * @buf: Buffer to copy
+ * @count: size of the buffer
+ *
+ * A sysfs 'read/write' shost attribute, to change the current
+ * debug log level used by the driver for the specific
+ * controller.
+ *
+ * Return: strlen() return
+ */
+static ssize_t
+logging_level_store(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct mpi3mr_ioc *mrioc = shost_priv(shost);
+	int val = 0;
+
+	if (kstrtoint(buf, 0, &val) != 0)
+		return -EINVAL;
+
+	mrioc->logging_level = val;
+	ioc_info(mrioc, "logging_level=%08xh\n", mrioc->logging_level);
+	return strlen(buf);
+}
+static DEVICE_ATTR_RW(logging_level);
+
+/**
  * adapter_state_show - SysFS callback for adapter state show
  * @dev: class device
  * @attr: Device attributes
  * @buf: Buffer to copy
  *
- * Return: snprintf() return after copying adapter state
+ * Return: sysfs_emit() return after copying adapter state
  */
 static ssize_t
 adp_state_show(struct device *dev, struct device_attribute *attr,
@@ -1585,12 +1719,17 @@ adp_state_show(struct device *dev, struct device_attribute *attr,
 	else
 		adp_state = MPI3MR_BSG_ADPSTATE_OPERATIONAL;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", adp_state);
+	return sysfs_emit(buf, "%u\n", adp_state);
 }
 
 static DEVICE_ATTR_RO(adp_state);
 
 static struct attribute *mpi3mr_host_attrs[] = {
+	&dev_attr_version_fw.attr,
+	&dev_attr_fw_queue_depth.attr,
+	&dev_attr_op_req_q_count.attr,
+	&dev_attr_reply_queue_count.attr,
+	&dev_attr_logging_level.attr,
 	&dev_attr_adp_state.attr,
 	NULL,
 };
