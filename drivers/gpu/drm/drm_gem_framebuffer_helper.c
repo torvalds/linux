@@ -53,7 +53,11 @@ MODULE_IMPORT_NS(DMA_BUF);
 struct drm_gem_object *drm_gem_fb_get_obj(struct drm_framebuffer *fb,
 					  unsigned int plane)
 {
-	if (plane >= ARRAY_SIZE(fb->obj))
+	struct drm_device *dev = fb->dev;
+
+	if (drm_WARN_ON_ONCE(dev, plane >= ARRAY_SIZE(fb->obj)))
+		return NULL;
+	else if (drm_WARN_ON_ONCE(dev, !fb->obj[plane]))
 		return NULL;
 
 	return fb->obj[plane];
