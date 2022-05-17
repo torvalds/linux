@@ -14,6 +14,7 @@
 #include <linux/phy.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>
@@ -59,7 +60,7 @@ struct ksz_stats_raw {
 	u64 tx_discards;
 };
 
-static const struct ksz_chip_data ksz_switch_chips[] = {
+const struct ksz_chip_data ksz_switch_chips[] = {
 	[KSZ8795] = {
 		.chip_id = KSZ8795_CHIP_ID,
 		.dev_name = "KSZ8795",
@@ -210,6 +211,7 @@ static const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 8,		/* total physical port count */
 	},
 };
+EXPORT_SYMBOL_GPL(ksz_switch_chips);
 
 static const struct ksz_chip_data *ksz_lookup_info(unsigned int prod_num)
 {
@@ -223,6 +225,23 @@ static const struct ksz_chip_data *ksz_lookup_info(unsigned int prod_num)
 	}
 
 	return NULL;
+}
+
+static int ksz_check_device_id(struct ksz_device *dev)
+{
+	const struct ksz_chip_data *dt_chip_data;
+
+	dt_chip_data = of_device_get_match_data(dev->dev);
+
+	/* Check for Device Tree and Chip ID */
+	if (dt_chip_data->chip_id != dev->chip_id) {
+		dev_err(dev->dev,
+			"Device tree specifies chip %s but found %s, please fix it!\n",
+			dt_chip_data->dev_name, dev->info->dev_name);
+		return -ENODEV;
+	}
+
+	return 0;
 }
 
 void ksz_r_mib_stats64(struct ksz_device *dev, int port)
@@ -740,6 +759,10 @@ int ksz_switch_register(struct ksz_device *dev,
 
 	/* Update the compatible info with the probed one */
 	dev->info = info;
+
+	ret = ksz_check_device_id(dev);
+	if (ret)
+		return ret;
 
 	ret = dev->dev_ops->init(dev);
 	if (ret)
