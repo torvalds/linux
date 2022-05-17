@@ -3546,10 +3546,6 @@ err_bad_call_stack:
 err_empty_call_stack:
 err_dead_binder:
 err_invalid_target_handle:
-	if (target_thread)
-		binder_thread_dec_tmpref(target_thread);
-	if (target_proc)
-		binder_proc_dec_tmpref(target_proc);
 	if (target_node) {
 		binder_dec_node(target_node, 1, 0);
 		binder_dec_node_tmpref(target_node);
@@ -3564,6 +3560,11 @@ err_invalid_target_handle:
 		     t_debug_id, return_error, return_error_param,
 		     (u64)tr->data_size, (u64)tr->offsets_size,
 		     return_error_line);
+
+	if (target_thread)
+		binder_thread_dec_tmpref(target_thread);
+	if (target_proc)
+		binder_proc_dec_tmpref(target_proc);
 
 	{
 		struct binder_transaction_log_entry *fe;
