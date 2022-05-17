@@ -573,6 +573,7 @@
 		nvmem-cells = <&cpul_leakage>;
 		nvmem-cell-names = "leakage";
 		rockchip,supported-hw;
+		rockchip,opp-shared-dsu;
 
 		rockchip,pvtm-voltage-sel = <
 			0	1410	0
