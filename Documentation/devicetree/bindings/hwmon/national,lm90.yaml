@@ -34,6 +34,7 @@ properties:
       - nxp,sa56004
       - onnn,nct1008
       - ti,tmp451
+      - ti,tmp461
       - winbond,w83l771
 
 
