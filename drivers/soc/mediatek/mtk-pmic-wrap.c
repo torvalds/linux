@@ -1143,12 +1143,9 @@ enum pwrap_type {
 };
 
 struct pmic_wrapper;
-struct pwrap_slv_type {
-	const u32 *dew_regs;
-	enum pmic_type type;
+
+struct pwrap_slv_regops {
 	const struct regmap_config *regmap;
-	/* Flags indicating the capability for the target slave */
-	u32 caps;
 	/*
 	 * pwrap operations are highly associated with the PMIC types,
 	 * so the pointers added increases flexibility allowing determination
@@ -1156,6 +1153,14 @@ struct pwrap_slv_type {
 	 */
 	int (*pwrap_read)(struct pmic_wrapper *wrp, u32 adr, u32 *rdata);
 	int (*pwrap_write)(struct pmic_wrapper *wrp, u32 adr, u32 wdata);
+};
+
+struct pwrap_slv_type {
+	const u32 *dew_regs;
+	enum pmic_type type;
+	const struct pwrap_slv_regops *regops;
+	/* Flags indicating the capability for the target slave */
+	u32 caps;
 };
 
 struct pmic_wrapper {
@@ -1313,7 +1318,7 @@ static int pwrap_read32(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 
 static int pwrap_read(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 {
-	return wrp->slave->pwrap_read(wrp, adr, rdata);
+	return wrp->slave->regops->pwrap_read(wrp, adr, rdata);
 }
 
 static int pwrap_write16(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
@@ -1372,7 +1377,7 @@ static int pwrap_write32(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
 
 static int pwrap_write(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
 {
-	return wrp->slave->pwrap_write(wrp, adr, wdata);
+	return wrp->slave->regops->pwrap_write(wrp, adr, wdata);
 }
 
 static int pwrap_regmap_read(void *context, u32 adr, u32 *rdata)
@@ -1891,69 +1896,67 @@ static const struct regmap_config pwrap_regmap_config32 = {
 	.max_register = 0xffff,
 };
 
+static const struct pwrap_slv_regops pwrap_regops16 = {
+	.pwrap_read = pwrap_read16,
+	.pwrap_write = pwrap_write16,
+	.regmap = &pwrap_regmap_config16,
+};
+
+static const struct pwrap_slv_regops pwrap_regops32 = {
+	.pwrap_read = pwrap_read32,
+	.pwrap_write = pwrap_write32,
+	.regmap = &pwrap_regmap_config32,
+};
+
 static const struct pwrap_slv_type pmic_mt6323 = {
 	.dew_regs = mt6323_regs,
 	.type = PMIC_MT6323,
-	.regmap = &pwrap_regmap_config16,
+	.regops = &pwrap_regops16,
 	.caps = PWRAP_SLV_CAP_SPI | PWRAP_SLV_CAP_DUALIO |
 		PWRAP_SLV_CAP_SECURITY,
-	.pwrap_read = pwrap_read16,
-	.pwrap_write = pwrap_write16,
 };
 
 static const struct pwrap_slv_type pmic_mt6351 = {
 	.dew_regs = mt6351_regs,
 	.type = PMIC_MT6351,
-	.regmap = &pwrap_regmap_config16,
+	.regops = &pwrap_regops16,
 	.caps = 0,
-	.pwrap_read = pwrap_read16,
-	.pwrap_write = pwrap_write16,
 };
 
 static const struct pwrap_slv_type pmic_mt6357 = {
 	.dew_regs = mt6357_regs,
 	.type = PMIC_MT6357,
-	.regmap = &pwrap_regmap_config16,
+	.regops = &pwrap_regops16,
 	.caps = 0,
-	.pwrap_read = pwrap_read16,
-	.pwrap_write = pwrap_write16,
 };
 
 static const struct pwrap_slv_type pmic_mt6358 = {
 	.dew_regs = mt6358_regs,
 	.type = PMIC_MT6358,
-	.regmap = &pwrap_regmap_config16,
+	.regops = &pwrap_regops16,
 	.caps = PWRAP_SLV_CAP_SPI | PWRAP_SLV_CAP_DUALIO,
-	.pwrap_read = pwrap_read16,
-	.pwrap_write = pwrap_write16,
 };
 
 static const struct pwrap_slv_type pmic_mt6359 = {
 	.dew_regs = mt6359_regs,
 	.type = PMIC_MT6359,
-	.regmap = &pwrap_regmap_config16,
+	.regops = &pwrap_regops16,
 	.caps = PWRAP_SLV_CAP_DUALIO,
-	.pwrap_read = pwrap_read16,
-	.pwrap_write = pwrap_write16,
 };
 
 static const struct pwrap_slv_type pmic_mt6380 = {
 	.dew_regs = NULL,
 	.type = PMIC_MT6380,
-	.regmap = &pwrap_regmap_config32,
+	.regops = &pwrap_regops32,
 	.caps = 0,
-	.pwrap_read = pwrap_read32,
-	.pwrap_write = pwrap_write32,
 };
 
 static const struct pwrap_slv_type pmic_mt6397 = {
 	.dew_regs = mt6397_regs,
 	.type = PMIC_MT6397,
-	.regmap = &pwrap_regmap_config16,
+	.regops = &pwrap_regops16,
 	.caps = PWRAP_SLV_CAP_SPI | PWRAP_SLV_CAP_DUALIO |
 		PWRAP_SLV_CAP_SECURITY,
-	.pwrap_read = pwrap_read16,
-	.pwrap_write = pwrap_write16,
 };
 
 static const struct of_device_id of_slave_match_tbl[] = {
@@ -2328,7 +2331,7 @@ static int pwrap_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_out2;
 
-	wrp->regmap = devm_regmap_init(wrp->dev, NULL, wrp, wrp->slave->regmap);
+	wrp->regmap = devm_regmap_init(wrp->dev, NULL, wrp, wrp->slave->regops->regmap);
 	if (IS_ERR(wrp->regmap)) {
 		ret = PTR_ERR(wrp->regmap);
 		goto err_out2;
