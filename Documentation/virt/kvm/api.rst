@@ -5127,6 +5127,14 @@ into ESA mode. This reset is a superset of the initial reset.
 	__u32 reserved[3];
   };
 
+**Ultravisor return codes**
+The Ultravisor return (reason) codes are provided by the kernel if a
+Ultravisor call has been executed to achieve the results expected by
+the command. Therefore they are independent of the IOCTL return
+code. If KVM changes `rc`, its value will always be greater than 0
+hence setting it to 0 before issuing a PV command is advised to be
+able to detect a change of `rc`.
+
 **cmd values:**
 
 KVM_PV_ENABLE
