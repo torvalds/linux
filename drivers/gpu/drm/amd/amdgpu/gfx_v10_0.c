@@ -6956,20 +6956,6 @@ static int gfx_v10_0_kiq_init_register(struct amdgpu_ring *ring)
 	/* disable wptr polling */
 	WREG32_FIELD15(GC, 0, CP_PQ_WPTR_POLL_CNTL, EN, 0);
 
-	/* write the EOP addr */
-	WREG32_SOC15(GC, 0, mmCP_HQD_EOP_BASE_ADDR,
-	       mqd->cp_hqd_eop_base_addr_lo);
-	WREG32_SOC15(GC, 0, mmCP_HQD_EOP_BASE_ADDR_HI,
-	       mqd->cp_hqd_eop_base_addr_hi);
-
-	/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
-	WREG32_SOC15(GC, 0, mmCP_HQD_EOP_CONTROL,
-	       mqd->cp_hqd_eop_control);
-
-	/* enable doorbell? */
-	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_DOORBELL_CONTROL,
-	       mqd->cp_hqd_pq_doorbell_control);
-
 	/* disable the queue if it's active */
 	if (RREG32_SOC15(GC, 0, mmCP_HQD_ACTIVE) & 1) {
 		WREG32_SOC15(GC, 0, mmCP_HQD_DEQUEUE_REQUEST, 1);
@@ -6987,6 +6973,19 @@ static int gfx_v10_0_kiq_init_register(struct amdgpu_ring *ring)
 		WREG32_SOC15(GC, 0, mmCP_HQD_PQ_WPTR_HI,
 		       mqd->cp_hqd_pq_wptr_hi);
 	}
+
+	/* disable doorbells */
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_DOORBELL_CONTROL, 0);
+
+	/* write the EOP addr */
+	WREG32_SOC15(GC, 0, mmCP_HQD_EOP_BASE_ADDR,
+	       mqd->cp_hqd_eop_base_addr_lo);
+	WREG32_SOC15(GC, 0, mmCP_HQD_EOP_BASE_ADDR_HI,
+	       mqd->cp_hqd_eop_base_addr_hi);
+
+	/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
+	WREG32_SOC15(GC, 0, mmCP_HQD_EOP_CONTROL,
+	       mqd->cp_hqd_eop_control);
 
 	/* set the pointer to the MQD */
 	WREG32_SOC15(GC, 0, mmCP_MQD_BASE_ADDR,
