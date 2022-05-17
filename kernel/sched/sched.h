@@ -2177,6 +2177,8 @@ static inline void set_next_task(struct rq *rq, struct task_struct *next)
  *
  *   include/asm-generic/vmlinux.lds.h
  *
+ * *CAREFUL* they are laid out in *REVERSE* order!!!
+ *
  * Also enforce alignment on the instance, not the type, to guarantee layout.
  */
 #define DEFINE_SCHED_CLASS(name) \
@@ -2185,17 +2187,16 @@ const struct sched_class name##_sched_class \
 	__section("__" #name "_sched_class")
 
 /* Defined in include/asm-generic/vmlinux.lds.h */
-extern struct sched_class __begin_sched_classes[];
-extern struct sched_class __end_sched_classes[];
-
-#define sched_class_highest (__end_sched_classes - 1)
-#define sched_class_lowest  (__begin_sched_classes - 1)
+extern struct sched_class __sched_class_highest[];
+extern struct sched_class __sched_class_lowest[];
 
 #define for_class_range(class, _from, _to) \
-	for (class = (_from); class != (_to); class--)
+	for (class = (_from); class < (_to); class++)
 
 #define for_each_class(class) \
-	for_class_range(class, sched_class_highest, sched_class_lowest)
+	for_class_range(class, __sched_class_highest, __sched_class_lowest)
+
+#define sched_class_above(_a, _b)	((_a) < (_b))
 
 extern const struct sched_class stop_sched_class;
 extern const struct sched_class dl_sched_class;
