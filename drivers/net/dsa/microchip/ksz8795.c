@@ -1360,7 +1360,7 @@ static int ksz8_setup(struct dsa_switch *ds)
 	ether_addr_copy(alu.mac, eth_stp_addr);
 	alu.is_static = true;
 	alu.is_override = true;
-	alu.port_forward = dev->host_mask;
+	alu.port_forward = dev->info->cpu_ports;
 
 	ksz8_w_sta_mac_table(dev, 0, &alu);
 
@@ -1476,7 +1476,6 @@ static int ksz8_switch_init(struct ksz_device *dev)
 	dev->ds->ops = &ksz8_switch_ops;
 
 	dev->cpu_port = fls(dev->info->cpu_ports) - 1;
-	dev->host_mask = dev->info->cpu_ports;
 	dev->phy_port_cnt = dev->info->port_cnt - 1;
 	dev->port_mask = (BIT(dev->phy_port_cnt) - 1) | dev->info->cpu_ports;
 

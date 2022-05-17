@@ -73,7 +73,6 @@ struct ksz_port {
 struct ksz_device {
 	struct dsa_switch *ds;
 	struct ksz_platform_data *pdata;
-	const char *name;
 	const struct ksz_chip_data *info;
 
 	struct mutex dev_mutex;		/* device access */
@@ -94,7 +93,6 @@ struct ksz_device {
 	int cpu_port;			/* port connected to CPU */
 	int phy_port_cnt;
 	phy_interface_t compat_interface;
-	u32 regs_size;
 	bool synclko_125;
 	bool synclko_disable;
 
@@ -106,8 +104,6 @@ struct ksz_device {
 	u16 mirror_rx;
 	u16 mirror_tx;
 	u32 features;			/* chip specific features */
-	u32 overrides;			/* chip functions set by user */
-	u16 host_mask;
 	u16 port_mask;
 };
 
