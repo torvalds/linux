@@ -6332,7 +6332,7 @@ static void io_poll_cancel_req(struct io_kiocb *req)
 
 #define wqe_to_req(wait)	((void *)((unsigned long) (wait)->private & ~1))
 #define wqe_is_double(wait)	((unsigned long) (wait)->private & 1)
-#define IO_ASYNC_POLL_COMMON	(EPOLLONESHOT | POLLPRI)
+#define IO_ASYNC_POLL_COMMON	(EPOLLONESHOT | EPOLLPRI)
 
 static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 			void *key)
@@ -6537,14 +6537,14 @@ static int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 		mask |= EPOLLONESHOT;
 
 	if (def->pollin) {
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 		/* If reading from MSG_ERRQUEUE using recvmsg, ignore POLLIN */
 		if ((req->opcode == IORING_OP_RECVMSG) &&
 		    (req->sr_msg.msg_flags & MSG_ERRQUEUE))
-			mask &= ~POLLIN;
+			mask &= ~EPOLLIN;
 	} else {
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	}
 	if (def->poll_exclusive)
 		mask |= EPOLLEXCLUSIVE;
