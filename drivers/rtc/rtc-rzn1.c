@@ -408,7 +408,6 @@ static struct platform_driver rzn1_rtc_driver = {
 	.remove = rzn1_rtc_remove,
 	.driver = {
 		.name	= "rzn1-rtc",
-		.owner	= THIS_MODULE,
 		.of_match_table = rzn1_rtc_of_match,
 	},
 };
