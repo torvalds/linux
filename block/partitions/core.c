@@ -718,8 +718,7 @@ void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p)
 		goto out;
 
 	p->v = page;
-	return (unsigned char *)page_address(page) +
-			((n & ((1 << (PAGE_SHIFT - 9)) - 1)) << SECTOR_SHIFT);
+	return page_address(page) + offset_in_page(n * SECTOR_SIZE);
 out:
 	p->v = NULL;
 	return NULL;
