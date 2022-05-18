@@ -38,11 +38,22 @@ static int cxl_port_probe(struct device *dev)
 
 	if (is_cxl_endpoint(port)) {
 		struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport);
+		struct cxl_dev_state *cxlds = cxlmd->cxlds;
 
 		get_device(&cxlmd->dev);
 		rc = devm_add_action_or_reset(dev, schedule_detach, cxlmd);
 		if (rc)
 			return rc;
+
+		rc = cxl_hdm_decode_init(cxlds);
+		if (rc)
+			return rc;
+
+		rc = cxl_await_media_ready(cxlds);
+		if (rc) {
+			dev_err(dev, "Media not active (%d)\n", rc);
+			return rc;
+		}
 	} else {
 		rc = devm_cxl_port_enumerate_dports(port);
 		if (rc < 0)

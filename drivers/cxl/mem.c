@@ -54,7 +54,6 @@ static void enable_suspend(void *data)
 static int cxl_mem_probe(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_port *parent_port;
 	int rc;
 
@@ -93,16 +92,6 @@ unlock:
 	put_device(&parent_port->dev);
 	if (rc)
 		return rc;
-
-	rc = cxl_hdm_decode_init(cxlds);
-	if (rc)
-		return rc;
-
-	rc = cxl_await_media_ready(cxlds);
-	if (rc) {
-		dev_err(dev, "Media not active (%d)\n", rc);
-		return rc;
-	}
 
 	/*
 	 * The kernel may be operating out of CXL memory on this device,
