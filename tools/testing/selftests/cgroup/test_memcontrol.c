@@ -190,13 +190,6 @@ cleanup:
 	return ret;
 }
 
-static int alloc_pagecache_50M(const char *cgroup, void *arg)
-{
-	int fd = (long)arg;
-
-	return alloc_pagecache(fd, MB(50));
-}
-
 static int alloc_pagecache_50M_noexit(const char *cgroup, void *arg)
 {
 	int fd = (long)arg;
@@ -254,7 +247,9 @@ static int cg_test_proc_killed(const char *cgroup)
  * A/B/E   memory.min = 0,    memory.current = 50M
  * A/B/F   memory.min = 500M, memory.current = 0
  *
- * Usages are pagecache, but the test keeps a running
+ * (or memory.low if we test soft protection)
+ *
+ * Usages are pagecache and the test keeps a running
  * process in every leaf cgroup.
  * Then it creates A/G and creates a significant
  * memory pressure in A.
@@ -268,15 +263,16 @@ static int cg_test_proc_killed(const char *cgroup)
  * (for origin of the numbers, see model in memcg_protection.m.)
  *
  * After that it tries to allocate more than there is
- * unprotected memory in A available, and checks
- * checks that memory.min protects pagecache even
- * in this case.
+ * unprotected memory in A available, and checks that:
+ * a) memory.min protects pagecache even in this case,
+ * b) memory.low allows reclaiming page cache with low events.
  */
-static int test_memcg_min(const char *root)
+static int test_memcg_protection(const char *root, bool min)
 {
-	int ret = KSFT_FAIL;
+	int ret = KSFT_FAIL, rc;
 	char *parent[3] = {NULL};
 	char *children[4] = {NULL};
+	const char *attribute = min ? "memory.min" : "memory.low";
 	long c[4];
 	int i, attempts;
 	int fd;
@@ -300,8 +296,10 @@ static int test_memcg_min(const char *root)
 	if (cg_create(parent[0]))
 		goto cleanup;
 
-	if (cg_read_long(parent[0], "memory.min")) {
-		ret = KSFT_SKIP;
+	if (cg_read_long(parent[0], attribute)) {
+		/* No memory.min on older kernels is fine */
+		if (min)
+			ret = KSFT_SKIP;
 		goto cleanup;
 	}
 
@@ -338,15 +336,15 @@ static int test_memcg_min(const char *root)
 			      (void *)(long)fd);
 	}
 
-	if (cg_write(parent[1], "memory.min", "50M"))
+	if (cg_write(parent[1],   attribute, "50M"))
 		goto cleanup;
-	if (cg_write(children[0], "memory.min", "75M"))
+	if (cg_write(children[0], attribute, "75M"))
 		goto cleanup;
-	if (cg_write(children[1], "memory.min", "25M"))
+	if (cg_write(children[1], attribute, "25M"))
 		goto cleanup;
-	if (cg_write(children[2], "memory.min", "0"))
+	if (cg_write(children[2], attribute, "0"))
 		goto cleanup;
-	if (cg_write(children[3], "memory.min", "500M"))
+	if (cg_write(children[3], attribute, "500M"))
 		goto cleanup;
 
 	attempts = 0;
@@ -375,161 +373,26 @@ static int test_memcg_min(const char *root)
 	if (c[3] != 0)
 		goto cleanup;
 
-	if (!cg_run(parent[2], alloc_anon, (void *)MB(170)))
+	rc = cg_run(parent[2], alloc_anon, (void *)MB(170));
+	if (min && !rc)
 		goto cleanup;
-
-	if (!values_close(cg_read_long(parent[1], "memory.current"), MB(50), 3))
-		goto cleanup;
-
-	ret = KSFT_PASS;
-
-cleanup:
-	for (i = ARRAY_SIZE(children) - 1; i >= 0; i--) {
-		if (!children[i])
-			continue;
-
-		cg_destroy(children[i]);
-		free(children[i]);
-	}
-
-	for (i = ARRAY_SIZE(parent) - 1; i >= 0; i--) {
-		if (!parent[i])
-			continue;
-
-		cg_destroy(parent[i]);
-		free(parent[i]);
-	}
-	close(fd);
-	return ret;
-}
-
-/*
- * First, this test creates the following hierarchy:
- * A       memory.low = 0,    memory.max = 200M
- * A/B     memory.low = 50M
- * A/B/C   memory.low = 75M,  memory.current = 50M
- * A/B/D   memory.low = 25M,  memory.current = 50M
- * A/B/E   memory.low = 0,    memory.current = 50M
- * A/B/F   memory.low = 500M, memory.current = 0
- *
- * Usages are pagecache.
- * Then it creates A/G an creates a significant
- * memory pressure in it.
- *
- * Then it checks actual memory usages and expects that:
- * A/B    memory.current ~= 50M
- * A/B/C  memory.current ~= 29M
- * A/B/D  memory.current ~= 21M
- * A/B/E  memory.current ~= 0
- * A/B/F  memory.current  = 0
- * (for origin of the numbers, see model in memcg_protection.m.)
- *
- * After that it tries to allocate more than there is
- * unprotected memory in A available,
- * and checks low and oom events in memory.events.
- */
-static int test_memcg_low(const char *root)
-{
-	int ret = KSFT_FAIL;
-	char *parent[3] = {NULL};
-	char *children[4] = {NULL};
-	long low, oom;
-	long c[4];
-	int i;
-	int fd;
-
-	fd = get_temp_fd();
-	if (fd < 0)
-		goto cleanup;
-
-	parent[0] = cg_name(root, "memcg_test_0");
-	if (!parent[0])
-		goto cleanup;
-
-	parent[1] = cg_name(parent[0], "memcg_test_1");
-	if (!parent[1])
-		goto cleanup;
-
-	parent[2] = cg_name(parent[0], "memcg_test_2");
-	if (!parent[2])
-		goto cleanup;
-
-	if (cg_create(parent[0]))
-		goto cleanup;
-
-	if (cg_read_long(parent[0], "memory.low"))
-		goto cleanup;
-
-	if (cg_write(parent[0], "cgroup.subtree_control", "+memory"))
-		goto cleanup;
-
-	if (cg_write(parent[0], "memory.max", "200M"))
-		goto cleanup;
-
-	if (cg_write(parent[0], "memory.swap.max", "0"))
-		goto cleanup;
-
-	if (cg_create(parent[1]))
-		goto cleanup;
-
-	if (cg_write(parent[1], "cgroup.subtree_control", "+memory"))
-		goto cleanup;
-
-	if (cg_create(parent[2]))
-		goto cleanup;
-
-	for (i = 0; i < ARRAY_SIZE(children); i++) {
-		children[i] = cg_name_indexed(parent[1], "child_memcg", i);
-		if (!children[i])
-			goto cleanup;
-
-		if (cg_create(children[i]))
-			goto cleanup;
-
-		if (i > 2)
-			continue;
-
-		if (cg_run(children[i], alloc_pagecache_50M, (void *)(long)fd))
-			goto cleanup;
-	}
-
-	if (cg_write(parent[1], "memory.low", "50M"))
-		goto cleanup;
-	if (cg_write(children[0], "memory.low", "75M"))
-		goto cleanup;
-	if (cg_write(children[1], "memory.low", "25M"))
-		goto cleanup;
-	if (cg_write(children[2], "memory.low", "0"))
-		goto cleanup;
-	if (cg_write(children[3], "memory.low", "500M"))
-		goto cleanup;
-
-	if (cg_run(parent[2], alloc_anon, (void *)MB(148)))
-		goto cleanup;
-
-	if (!values_close(cg_read_long(parent[1], "memory.current"), MB(50), 3))
-		goto cleanup;
-
-	for (i = 0; i < ARRAY_SIZE(children); i++)
-		c[i] = cg_read_long(children[i], "memory.current");
-
-	if (!values_close(c[0], MB(29), 10))
-		goto cleanup;
-
-	if (!values_close(c[1], MB(21), 10))
-		goto cleanup;
-
-	if (c[3] != 0)
-		goto cleanup;
-
-	if (cg_run(parent[2], alloc_anon, (void *)MB(166))) {
+	else if (!min && rc) {
 		fprintf(stderr,
 			"memory.low prevents from allocating anon memory\n");
 		goto cleanup;
 	}
 
+	if (!values_close(cg_read_long(parent[1], "memory.current"), MB(50), 3))
+		goto cleanup;
+
+	if (min) {
+		ret = KSFT_PASS;
+		goto cleanup;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(children); i++) {
 		int no_low_events_index = 1;
+		long low, oom;
 
 		oom = cg_read_key_long(children[i], "memory.events", "oom ");
 		low = cg_read_key_long(children[i], "memory.events", "low ");
@@ -563,6 +426,16 @@ cleanup:
 	}
 	close(fd);
 	return ret;
+}
+
+static int test_memcg_min(const char *root)
+{
+	return test_memcg_protection(root, true);
+}
+
+static int test_memcg_low(const char *root)
+{
+	return test_memcg_protection(root, false);
 }
 
 static int alloc_pagecache_max_30M(const char *cgroup, void *arg)
