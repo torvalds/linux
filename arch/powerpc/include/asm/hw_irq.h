@@ -113,14 +113,7 @@ static inline void __hard_RI_enable(void)
 
 static inline notrace unsigned long irq_soft_mask_return(void)
 {
-	unsigned long flags;
-
-	asm volatile(
-		"lbz %0,%1(13)"
-		: "=r" (flags)
-		: "i" (offsetof(struct paca_struct, irq_soft_mask)));
-
-	return flags;
+	return READ_ONCE(local_paca->irq_soft_mask);
 }
 
 /*
@@ -148,46 +141,24 @@ static inline notrace void irq_soft_mask_set(unsigned long mask)
 	WARN_ON(mask && !(mask & IRQS_DISABLED));
 #endif
 
-	asm volatile(
-		"stb %0,%1(13)"
-		:
-		: "r" (mask),
-		  "i" (offsetof(struct paca_struct, irq_soft_mask))
-		: "memory");
+	WRITE_ONCE(local_paca->irq_soft_mask, mask);
+	barrier();
 }
 
 static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
 {
-	unsigned long flags;
+	unsigned long flags = irq_soft_mask_return();
 
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-	WARN_ON(mask && !(mask & IRQS_DISABLED));
-#endif
-
-	asm volatile(
-		"lbz %0,%1(13); stb %2,%1(13)"
-		: "=&r" (flags)
-		: "i" (offsetof(struct paca_struct, irq_soft_mask)),
-		  "r" (mask)
-		: "memory");
+	irq_soft_mask_set(mask);
 
 	return flags;
 }
 
 static inline notrace unsigned long irq_soft_mask_or_return(unsigned long mask)
 {
-	unsigned long flags, tmp;
+	unsigned long flags = irq_soft_mask_return();
 
-	asm volatile(
-		"lbz %0,%2(13); or %1,%0,%3; stb %1,%2(13)"
-		: "=&r" (flags), "=r" (tmp)
-		: "i" (offsetof(struct paca_struct, irq_soft_mask)),
-		  "r" (mask)
-		: "memory");
-
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-	WARN_ON((mask | flags) && !((mask | flags) & IRQS_DISABLED));
-#endif
+	irq_soft_mask_set(flags | mask);
 
 	return flags;
 }
