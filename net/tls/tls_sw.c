@@ -1837,15 +1837,17 @@ leave_on_list:
 			bool partially_consumed = chunk > len;
 
 			if (bpf_strp_enabled) {
+				/* BPF may try to queue the skb */
+				__skb_unlink(skb, &ctx->rx_list);
 				err = sk_psock_tls_strp_read(psock, skb);
 				if (err != __SK_PASS) {
 					rxm->offset = rxm->offset + rxm->full_len;
 					rxm->full_len = 0;
-					__skb_unlink(skb, &ctx->rx_list);
 					if (err == __SK_DROP)
 						consume_skb(skb);
 					continue;
 				}
+				__skb_queue_tail(&ctx->rx_list, skb);
 			}
 
 			if (partially_consumed)
