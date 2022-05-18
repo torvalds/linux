@@ -234,14 +234,13 @@ out:
 /**
  * cxl_hdm_decode_init() - Setup HDM decoding for the endpoint
  * @cxlds: Device state
- * @info: DVSEC Range cached enumeration
  *
  * Try to enable the endpoint's HDM Decoder Capability
  */
-int cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
-			struct cxl_endpoint_dvsec_info *info)
+int cxl_hdm_decode_init(struct cxl_dev_state *cxlds)
 {
 	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
+	struct cxl_endpoint_dvsec_info info = { 0 };
 	int hdm_count, rc, i, ranges = 0;
 	struct device *dev = &pdev->dev;
 	int d = cxlds->cxl_dvsec;
@@ -281,8 +280,8 @@ int cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
 		return rc;
 	}
 
-	info->mem_enabled = FIELD_GET(CXL_DVSEC_MEM_ENABLE, ctrl);
-	if (!info->mem_enabled)
+	info.mem_enabled = FIELD_GET(CXL_DVSEC_MEM_ENABLE, ctrl);
+	if (!info.mem_enabled)
 		return 0;
 
 	for (i = 0; i < hdm_count; i++) {
@@ -317,7 +316,7 @@ int cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
 
 		base |= temp & CXL_DVSEC_MEM_BASE_LOW_MASK;
 
-		info->dvsec_range[i] = (struct range) {
+		info.dvsec_range[i] = (struct range) {
 			.start = base,
 			.end = base + size - 1
 		};
@@ -326,13 +325,13 @@ int cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
 			ranges++;
 	}
 
-	info->ranges = ranges;
+	info.ranges = ranges;
 
 	/*
 	 * If DVSEC ranges are being used instead of HDM decoder registers there
 	 * is no use in trying to manage those.
 	 */
-	if (!__cxl_hdm_decode_init(cxlds, info)) {
+	if (!__cxl_hdm_decode_init(cxlds, &info)) {
 		dev_err(dev,
 			"Legacy range registers configuration prevents HDM operation.\n");
 		return -EBUSY;
