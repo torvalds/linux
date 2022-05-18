@@ -736,6 +736,11 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 				if (gas_t->address) {
 					void __iomem *addr;
 
+					if (!osc_cpc_flexible_adr_space_confirmed) {
+						pr_debug("Flexible address space capability not supported\n");
+						goto out_free;
+					}
+
 					addr = ioremap(gas_t->address, gas_t->bit_width/8);
 					if (!addr)
 						goto out_free;
@@ -756,6 +761,10 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 					/* SystemIO registers use 16-bit integer addresses */
 					pr_debug("Invalid IO port %llu for SystemIO register in _CPC\n",
 						 gas_t->address);
+					goto out_free;
+				}
+				if (!osc_cpc_flexible_adr_space_confirmed) {
+					pr_debug("Flexible address space capability not supported\n");
 					goto out_free;
 				}
 			} else {

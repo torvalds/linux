@@ -279,6 +279,20 @@ bool osc_pc_lpi_support_confirmed;
 EXPORT_SYMBOL_GPL(osc_pc_lpi_support_confirmed);
 
 /*
+ * ACPI 6.2 Section 6.2.11.2 'Platform-Wide OSPM Capabilities':
+ *   Starting with ACPI Specification 6.2, all _CPC registers can be in
+ *   PCC, System Memory, System IO, or Functional Fixed Hardware address
+ *   spaces. OSPM support for this more flexible register space scheme is
+ *   indicated by the “Flexible Address Space for CPPC Registers” _OSC bit.
+ *
+ * Otherwise (cf ACPI 6.1, s8.4.7.1.1.X), _CPC registers must be in:
+ * - PCC or Functional Fixed Hardware address space if defined
+ * - SystemMemory address space (NULL register) if not defined
+ */
+bool osc_cpc_flexible_adr_space_confirmed;
+EXPORT_SYMBOL_GPL(osc_cpc_flexible_adr_space_confirmed);
+
+/*
  * ACPI 6.4 Operating System Capabilities for USB.
  */
 bool osc_sb_native_usb4_support_confirmed;
@@ -320,6 +334,8 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPCV2_SUPPORT;
 	}
 #endif
+
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
 
 	if (IS_ENABLED(CONFIG_SCHED_MC_PRIO))
 		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_DIVERSE_HIGH_SUPPORT;
@@ -366,6 +382,8 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 			capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_PCLPI_SUPPORT;
 		osc_sb_native_usb4_support_confirmed =
 			capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_NATIVE_USB4_SUPPORT;
+		osc_cpc_flexible_adr_space_confirmed =
+			capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
 	}
 
 	kfree(context.ret.pointer);
