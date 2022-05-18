@@ -159,14 +159,19 @@ extern struct x86_pmu_capability kvm_pmu_cap;
 
 static inline void kvm_init_pmu_capability(void)
 {
+	bool is_intel = boot_cpu_data.x86_vendor == X86_VENDOR_INTEL;
+
 	perf_get_x86_pmu_capability(&kvm_pmu_cap);
 
-	/*
-	 * Only support guest architectural pmu on
-	 * a host with architectural pmu.
-	 */
-	if (!kvm_pmu_cap.version)
+	 /*
+	  * For Intel, only support guest architectural pmu
+	  * on a host with architectural pmu.
+	  */
+	if ((is_intel && !kvm_pmu_cap.version) || !kvm_pmu_cap.num_counters_gp) {
 		memset(&kvm_pmu_cap, 0, sizeof(kvm_pmu_cap));
+		enable_pmu = false;
+		return;
+	}
 
 	kvm_pmu_cap.version = min(kvm_pmu_cap.version, 2);
 	kvm_pmu_cap.num_counters_fixed = min(kvm_pmu_cap.num_counters_fixed,
