@@ -553,7 +553,7 @@ static enum vchiq_status service_callback(struct vchiq_instance *vchiq_instance,
 					  struct vchiq_header *header,
 					  unsigned int handle, void *bulk_ctx)
 {
-	struct vchiq_mmal_instance *instance = vchiq_get_service_userdata(handle);
+	struct vchiq_mmal_instance *instance = vchiq_get_service_userdata(vchiq_instance, handle);
 	u32 msg_len;
 	struct mmal_msg *msg;
 	struct mmal_msg_context *msg_context;

@@ -96,7 +96,8 @@ static enum vchiq_status audio_vchi_callback(struct vchiq_instance *vchiq_instan
 					     struct vchiq_header *header,
 					     unsigned int handle, void *userdata)
 {
-	struct bcm2835_audio_instance *instance = vchiq_get_service_userdata(handle);
+	struct bcm2835_audio_instance *instance = vchiq_get_service_userdata(vchiq_instance,
+									     handle);
 	struct vc_audio_msg *m;
 
 	if (reason != VCHIQ_MESSAGE_AVAILABLE)

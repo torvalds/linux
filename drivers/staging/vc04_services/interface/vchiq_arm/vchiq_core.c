@@ -411,7 +411,7 @@ vchiq_get_client_id(struct vchiq_instance *instance, unsigned int handle)
 }
 
 void *
-vchiq_get_service_userdata(unsigned int handle)
+vchiq_get_service_userdata(struct vchiq_instance *instance, unsigned int handle)
 {
 	void *userdata;
 	struct vchiq_service *service;
