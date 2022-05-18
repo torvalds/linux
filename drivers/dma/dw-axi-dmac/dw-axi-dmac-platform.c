@@ -797,6 +797,11 @@ dw_axi_dma_chan_prep_cyclic(struct dma_chan *dchan, dma_addr_t dma_addr,
 
 	num_segments = DIV_ROUND_UP(period_len, axi_block_len);
 	segment_len = DIV_ROUND_UP(period_len, num_segments);
+	if (!IS_ALIGNED(segment_len, 4))
+	{
+		segment_len = ALIGN(segment_len, 4);
+		period_len = segment_len * num_segments;
+	}
 
 	total_segments = num_periods * num_segments;
 
