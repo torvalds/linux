@@ -23,9 +23,9 @@ static DEFINE_IDA(vdpa_index_ida);
 
 void vdpa_set_status(struct vdpa_device *vdev, u8 status)
 {
-	mutex_lock(&vdev->cf_mutex);
+	down_write(&vdev->cf_lock);
 	vdev->config->set_status(vdev, status);
-	mutex_unlock(&vdev->cf_mutex);
+	up_write(&vdev->cf_lock);
 }
 EXPORT_SYMBOL(vdpa_set_status);
 
@@ -148,7 +148,6 @@ static void vdpa_release_dev(struct device *d)
 		ops->free(vdev);
 
 	ida_simple_remove(&vdpa_index_ida, vdev->index);
-	mutex_destroy(&vdev->cf_mutex);
 	kfree(vdev->driver_override);
 	kfree(vdev);
 }
@@ -211,7 +210,7 @@ struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 	if (err)
 		goto err_name;
 
-	mutex_init(&vdev->cf_mutex);
+	init_rwsem(&vdev->cf_lock);
 	device_initialize(&vdev->dev);
 
 	return vdev;
@@ -407,9 +406,9 @@ static void vdpa_get_config_unlocked(struct vdpa_device *vdev,
 void vdpa_get_config(struct vdpa_device *vdev, unsigned int offset,
 		     void *buf, unsigned int len)
 {
-	mutex_lock(&vdev->cf_mutex);
+	down_read(&vdev->cf_lock);
 	vdpa_get_config_unlocked(vdev, offset, buf, len);
-	mutex_unlock(&vdev->cf_mutex);
+	up_read(&vdev->cf_lock);
 }
 EXPORT_SYMBOL_GPL(vdpa_get_config);
 
@@ -423,9 +422,9 @@ EXPORT_SYMBOL_GPL(vdpa_get_config);
 void vdpa_set_config(struct vdpa_device *vdev, unsigned int offset,
 		     const void *buf, unsigned int length)
 {
-	mutex_lock(&vdev->cf_mutex);
+	down_write(&vdev->cf_lock);
 	vdev->config->set_config(vdev, offset, buf, length);
-	mutex_unlock(&vdev->cf_mutex);
+	up_write(&vdev->cf_lock);
 }
 EXPORT_SYMBOL_GPL(vdpa_set_config);
 
@@ -866,7 +865,7 @@ vdpa_dev_config_fill(struct vdpa_device *vdev, struct sk_buff *msg, u32 portid, 
 	u8 status;
 	int err;
 
-	mutex_lock(&vdev->cf_mutex);
+	down_read(&vdev->cf_lock);
 	status = vdev->config->get_status(vdev);
 	if (!(status & VIRTIO_CONFIG_S_FEATURES_OK)) {
 		NL_SET_ERR_MSG_MOD(extack, "Features negotiation not completed");
@@ -903,14 +902,14 @@ vdpa_dev_config_fill(struct vdpa_device *vdev, struct sk_buff *msg, u32 portid, 
 	if (err)
 		goto msg_err;
 
-	mutex_unlock(&vdev->cf_mutex);
+	up_read(&vdev->cf_lock);
 	genlmsg_end(msg, hdr);
 	return 0;
 
 msg_err:
 	genlmsg_cancel(msg, hdr);
 out:
-	mutex_unlock(&vdev->cf_mutex);
+	up_read(&vdev->cf_lock);
 	return err;
 }
 
@@ -954,7 +953,7 @@ static int vendor_stats_fill(struct vdpa_device *vdev, struct sk_buff *msg,
 {
 	int err;
 
-	mutex_lock(&vdev->cf_mutex);
+	down_read(&vdev->cf_lock);
 	if (!vdev->config->get_vendor_vq_stats) {
 		err = -EOPNOTSUPP;
 		goto out;
@@ -962,7 +961,7 @@ static int vendor_stats_fill(struct vdpa_device *vdev, struct sk_buff *msg,
 
 	err = vdpa_fill_stats_rec(vdev, msg, info, index);
 out:
-	mutex_unlock(&vdev->cf_mutex);
+	up_read(&vdev->cf_lock);
 	return err;
 }
 
