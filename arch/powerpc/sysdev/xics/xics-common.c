@@ -146,7 +146,7 @@ void __init xics_smp_probe(void)
 
 #endif /* CONFIG_SMP */
 
-void xics_teardown_cpu(void)
+noinstr void xics_teardown_cpu(void)
 {
 	struct xics_cppr *os_cppr = this_cpu_ptr(&xics_cppr);
 
@@ -159,7 +159,7 @@ void xics_teardown_cpu(void)
 	icp_ops->teardown_cpu();
 }
 
-void xics_kexec_teardown_cpu(int secondary)
+noinstr void xics_kexec_teardown_cpu(int secondary)
 {
 	xics_teardown_cpu();
 
