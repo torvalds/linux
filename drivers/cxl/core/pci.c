@@ -176,29 +176,14 @@ static int wait_for_valid(struct cxl_dev_state *cxlds)
 }
 
 static bool __cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
+				  struct cxl_hdm *cxlhdm,
 				  struct cxl_endpoint_dvsec_info *info)
 {
-	struct cxl_register_map map;
-	struct cxl_component_reg_map *cmap = &map.component_map;
-	bool global_enable, retval = false;
-	void __iomem *crb;
+	void __iomem *hdm = cxlhdm->regs.hdm_decoder;
+	bool global_enable;
 	u32 global_ctrl;
 
-	/* map hdm decoder */
-	crb = ioremap(cxlds->component_reg_phys, CXL_COMPONENT_REG_BLOCK_SIZE);
-	if (!crb) {
-		dev_dbg(cxlds->dev, "Failed to map component registers\n");
-		return false;
-	}
-
-	cxl_probe_component_regs(cxlds->dev, crb, cmap);
-	if (!cmap->hdm_decoder.valid) {
-		dev_dbg(cxlds->dev, "Invalid HDM decoder registers\n");
-		goto out;
-	}
-
-	global_ctrl = readl(crb + cmap->hdm_decoder.offset +
-			    CXL_HDM_DECODER_CTRL_OFFSET);
+	global_ctrl = readl(hdm + CXL_HDM_DECODER_CTRL_OFFSET);
 	global_enable = global_ctrl & CXL_HDM_DECODER_ENABLE;
 
 	/*
@@ -210,9 +195,7 @@ static bool __cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
 	 * match.
 	 */
 	if (!global_enable && info->mem_enabled && info->ranges)
-		goto out;
-
-	retval = true;
+		return false;
 
 	/*
 	 * Permanently (for this boot at least) opt the device into HDM
@@ -222,22 +205,20 @@ static bool __cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
 	if (!global_enable) {
 		dev_dbg(cxlds->dev, "Enabling HDM decode\n");
 		writel(global_ctrl | CXL_HDM_DECODER_ENABLE,
-		       crb + cmap->hdm_decoder.offset +
-			       CXL_HDM_DECODER_CTRL_OFFSET);
+		       hdm + CXL_HDM_DECODER_CTRL_OFFSET);
 	}
 
-out:
-	iounmap(crb);
-	return retval;
+	return true;
 }
 
 /**
  * cxl_hdm_decode_init() - Setup HDM decoding for the endpoint
  * @cxlds: Device state
+ * @cxlhdm: Mapped HDM decoder Capability
  *
  * Try to enable the endpoint's HDM Decoder Capability
  */
-int cxl_hdm_decode_init(struct cxl_dev_state *cxlds)
+int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm)
 {
 	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
 	struct cxl_endpoint_dvsec_info info = { 0 };
@@ -331,7 +312,7 @@ int cxl_hdm_decode_init(struct cxl_dev_state *cxlds)
 	 * If DVSEC ranges are being used instead of HDM decoder registers there
 	 * is no use in trying to manage those.
 	 */
-	if (!__cxl_hdm_decode_init(cxlds, &info)) {
+	if (!__cxl_hdm_decode_init(cxlds, cxlhdm, &info)) {
 		dev_err(dev,
 			"Legacy range registers configuration prevents HDM operation.\n");
 		return -EBUSY;

@@ -208,13 +208,14 @@ int __wrap_cxl_await_media_ready(struct cxl_dev_state *cxlds)
 }
 EXPORT_SYMBOL_NS_GPL(__wrap_cxl_await_media_ready, CXL);
 
-bool __wrap_cxl_hdm_decode_init(struct cxl_dev_state *cxlds)
+bool __wrap_cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
+				struct cxl_hdm *cxlhdm)
 {
 	int rc = 0, index;
 	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
 
 	if (!ops || !ops->is_mock_dev(cxlds->dev))
-		rc = cxl_hdm_decode_init(cxlds);
+		rc = cxl_hdm_decode_init(cxlds, cxlhdm);
 	put_cxl_mock_ops(index);
 
 	return rc;

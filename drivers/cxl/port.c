@@ -36,25 +36,8 @@ static int cxl_port_probe(struct device *dev)
 	struct cxl_hdm *cxlhdm;
 	int rc;
 
-	if (is_cxl_endpoint(port)) {
-		struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport);
-		struct cxl_dev_state *cxlds = cxlmd->cxlds;
 
-		get_device(&cxlmd->dev);
-		rc = devm_add_action_or_reset(dev, schedule_detach, cxlmd);
-		if (rc)
-			return rc;
-
-		rc = cxl_hdm_decode_init(cxlds);
-		if (rc)
-			return rc;
-
-		rc = cxl_await_media_ready(cxlds);
-		if (rc) {
-			dev_err(dev, "Media not active (%d)\n", rc);
-			return rc;
-		}
-	} else {
+	if (!is_cxl_endpoint(port)) {
 		rc = devm_cxl_port_enumerate_dports(port);
 		if (rc < 0)
 			return rc;
@@ -65,6 +48,26 @@ static int cxl_port_probe(struct device *dev)
 	cxlhdm = devm_cxl_setup_hdm(port);
 	if (IS_ERR(cxlhdm))
 		return PTR_ERR(cxlhdm);
+
+	if (is_cxl_endpoint(port)) {
+		struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport);
+		struct cxl_dev_state *cxlds = cxlmd->cxlds;
+
+		get_device(&cxlmd->dev);
+		rc = devm_add_action_or_reset(dev, schedule_detach, cxlmd);
+		if (rc)
+			return rc;
+
+		rc = cxl_hdm_decode_init(cxlds, cxlhdm);
+		if (rc)
+			return rc;
+
+		rc = cxl_await_media_ready(cxlds);
+		if (rc) {
+			dev_err(dev, "Media not active (%d)\n", rc);
+			return rc;
+		}
+	}
 
 	rc = devm_cxl_enumerate_decoders(cxlhdm);
 	if (rc) {
