@@ -1668,7 +1668,7 @@ void snd_usb_endpoint_free_all(struct snd_usb_audio *chip)
 		kfree(ip);
 
 	list_for_each_entry_safe(cp, cn, &chip->clock_ref_list, list)
-		kfree(ip);
+		kfree(cp);
 }
 
 /*
