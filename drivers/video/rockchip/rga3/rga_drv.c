@@ -18,6 +18,7 @@
 
 #include "rga2_mmu_info.h"
 #include "rga_debugger.h"
+#include "rga_common.h"
 
 struct rga_drvdata_t *rga_drvdata;
 
@@ -499,6 +500,7 @@ static struct rga_session *rga_session_init(void)
 	mutex_unlock(&session_manager->lock);
 
 	session->tgid = current->tgid;
+	session->pname = kstrdup_quotable_cmdline(current, GFP_KERNEL);
 
 	return session;
 }
@@ -531,6 +533,8 @@ static int rga_session_deinit(struct rga_session *session)
 	rga_mm_session_release_buffer(session);
 
 	rga_session_free_remove_idr(session);
+
+	kfree(session->pname);
 	kfree(session);
 
 	return 0;

@@ -166,10 +166,15 @@ static int rga_version_show(struct seq_file *m, void *data)
 static int rga_load_show(struct seq_file *m, void *data)
 {
 	struct rga_scheduler_t *scheduler = NULL;
+	struct rga_session_manager *session_manager = NULL;
+	struct rga_session *session = NULL;
 	unsigned long flags;
+	int id = 0;
 	int i;
 	int load;
 	u32 busy_time_total;
+
+	session_manager = rga_drvdata->session_manager;
 
 	seq_printf(m, "num of scheduler = %d\n", rga_drvdata->num_of_scheduler);
 	seq_printf(m, "================= load ==================\n");
@@ -193,6 +198,15 @@ static int rga_load_show(struct seq_file *m, void *data)
 		seq_printf(m, "\t load = %d%%\n", load);
 		seq_printf(m, "-----------------------------------\n");
 	}
+
+	mutex_lock(&session_manager->lock);
+
+	idr_for_each_entry(&session_manager->ctx_id_idr, session, id)
+		seq_printf(m, "\t process %d: pid = %d, name: %s\n", id,
+			session->tgid, session->pname);
+
+	mutex_unlock(&session_manager->lock);
+
 	return 0;
 }
 

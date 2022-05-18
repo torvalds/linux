@@ -9,6 +9,8 @@
 #ifndef __LINUX_RKRGA_COMMON_H_
 #define __LINUX_RKRGA_COMMON_H_
 
+#include "rga_drv.h"
+
 #define RGA_GET_PAGE_COUNT(size) (((size) >> PAGE_SHIFT) + (((size) & (~PAGE_MASK)) ? 1 : 0))
 
 bool rga_is_rgb_format(uint32_t format);

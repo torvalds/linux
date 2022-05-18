@@ -42,6 +42,7 @@
 #include <linux/wait.h>
 #include <linux/pm_runtime.h>
 #include <linux/sched/mm.h>
+#include <linux/string_helpers.h>
 
 #include <asm/cacheflush.h>
 
@@ -210,6 +211,8 @@ struct rga_session {
 	int id;
 
 	pid_t tgid;
+
+	char *pname;
 };
 
 struct rga_job_buffer {
