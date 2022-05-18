@@ -12,3 +12,9 @@ ufs_qcom.ko
 dwc3-msm.ko
 phy-qcom-emu.ko
 phy-generic.ko
+icc-bcm-voter.ko
+icc-rpmh.ko
+qnoc-qos.ko
+qnoc-pineapple.ko
+icc-debug.ko
+icc-test.ko
