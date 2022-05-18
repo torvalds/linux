@@ -27,11 +27,7 @@
 static int wait_for_media(struct cxl_memdev *cxlmd)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct cxl_endpoint_dvsec_info *info = &cxlds->info;
 	int rc;
-
-	if (!info->mem_enabled)
-		return -EBUSY;
 
 	rc = cxlds->wait_media_ready(cxlds);
 	if (rc)
