@@ -35,7 +35,7 @@ int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *r, u32 ana_rgc3)
 }
 
 /* For SGMII interface mode */
-int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id)
+static int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id)
 {
 	unsigned int val;
 
@@ -64,8 +64,8 @@ int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id)
 /* For 1000BASE-X and 2500BASE-X interface modes, which operate at a
  * fixed speed.
  */
-int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
-			       phy_interface_t interface)
+static int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
+				      phy_interface_t interface)
 {
 	unsigned int val;
 
@@ -95,6 +95,20 @@ int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
 	regmap_write(ss->regmap[id], SGMSYS_QPHY_PWR_STATE_CTRL, val);
 
 	return 0;
+}
+
+int mtk_sgmii_config(struct mtk_sgmii *ss, int id, unsigned int mode,
+		     phy_interface_t interface)
+{
+	int err = 0;
+
+	/* Setup SGMIISYS with the determined property */
+	if (interface != PHY_INTERFACE_MODE_SGMII)
+		err = mtk_sgmii_setup_mode_force(ss, id, interface);
+	else if (phylink_autoneg_inband(mode))
+		err = mtk_sgmii_setup_mode_an(ss, id);
+
+	return err;
 }
 
 /* For 1000BASE-X and 2500BASE-X interface modes */
