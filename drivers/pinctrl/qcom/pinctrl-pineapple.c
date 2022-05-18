@@ -2374,6 +2374,24 @@ static struct pinctrl_qup pineapple_qup_regs[] = {
 	QUP_I3C(8, QUP_2_I3C_3_MODE_OFFSET),
 };
 
+static const struct msm_gpio_wakeirq_map pineapple_pdc_map[] = {
+	{0, 94}, {3, 105}, {4, 78}, {7, 67}, {8, 64}, {11, 121}, {12, 71},
+	{15, 82}, {18, 75}, {19, 63}, {20, 114},  {23, 84}, {27, 61}, {29, 112},
+	{31, 113}, {32, 66}, {35, 52}, {36, 123}, {39, 56}, {43, 59}, {46, 79},
+	{47, 124}, {48, 125}, {51, 93}, {54, 60}, {55, 104}, {56, 72}, {57, 77},
+	{59, 51}, {63, 85}, {64, 107}, {65, 108}, {66, 109}, {67, 83}, {68, 110},
+	{69, 111}, {75, 96}, {76, 97}, {77, 98}, {80, 89}, {81, 90}, {84, 106},
+	{85, 100}, {86, 87}, {87, 88}, {88, 65}, {90, 92}, {92, 99}, {95, 118},
+	{96, 119}, {98, 101}, {99, 62}, {112, 120}, {133, 80}, {136, 69},
+	{137, 81}, {148, 57}, {150, 58}, {152, 127}, {153, 74}, {154, 126},
+	{155, 73}, {156, 128}, {159, 129}, {162, 86}, {163, 122}, {166, 139},
+	{169, 140}, {171, 141}, {172, 142}, {174, 102}, {176, 143}, {177, 55},
+	{181, 144}, {182, 145}, {185, 146}, {187, 95}, {188, 130}, {190, 131},
+	{191, 132}, {192, 133}, {193, 134}, {195, 68}, {196, 135}, {197, 136},
+	{198, 54}, {199, 103}, {200, 53}, {201, 137}, {202, 70}, {203, 138},
+	{204, 76}, {205, 91},
+};
+
 static const struct msm_pinctrl_soc_data pineapple_pinctrl = {
 	.pins = pineapple_pins,
 	.npins = ARRAY_SIZE(pineapple_pins),
@@ -2384,6 +2402,8 @@ static const struct msm_pinctrl_soc_data pineapple_pinctrl = {
 	.ngpios = 211,
 	.qup_regs = pineapple_qup_regs,
 	.nqup_regs = ARRAY_SIZE(pineapple_qup_regs),
+	.wakeirq_map = pineapple_pdc_map,
+	.nwakeirq_map = ARRAY_SIZE(pineapple_pdc_map),
 };
 
 static int pineapple_pinctrl_probe(struct platform_device *pdev)
