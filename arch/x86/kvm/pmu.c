@@ -355,18 +355,13 @@ void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 ctrl, int idx)
 }
 EXPORT_SYMBOL_GPL(reprogram_fixed_counter);
 
-void reprogram_counter(struct kvm_pmu *pmu, int pmc_idx)
+void reprogram_counter(struct kvm_pmc *pmc)
 {
-	struct kvm_pmc *pmc = static_call(kvm_x86_pmu_pmc_idx_to_pmc)(pmu, pmc_idx);
-
-	if (!pmc)
-		return;
-
 	if (pmc_is_gp(pmc))
 		reprogram_gp_counter(pmc, pmc->eventsel);
 	else {
-		int idx = pmc_idx - INTEL_PMC_IDX_FIXED;
-		u8 ctrl = fixed_ctrl_field(pmu->fixed_ctr_ctrl, idx);
+		int idx = pmc->idx - INTEL_PMC_IDX_FIXED;
+		u8 ctrl = fixed_ctrl_field(pmc_to_pmu(pmc)->fixed_ctr_ctrl, idx);
 
 		reprogram_fixed_counter(pmc, ctrl, idx);
 	}
@@ -385,8 +380,7 @@ void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 			clear_bit(bit, pmu->reprogram_pmi);
 			continue;
 		}
-
-		reprogram_counter(pmu, bit);
+		reprogram_counter(pmc);
 	}
 
 	/*
@@ -559,13 +553,12 @@ void kvm_pmu_destroy(struct kvm_vcpu *vcpu)
 
 static void kvm_pmu_incr_counter(struct kvm_pmc *pmc)
 {
-	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 	u64 prev_count;
 
 	prev_count = pmc->counter;
 	pmc->counter = (pmc->counter + 1) & pmc_bitmask(pmc);
 
-	reprogram_counter(pmu, pmc->idx);
+	reprogram_counter(pmc);
 	if (pmc->counter < prev_count)
 		__kvm_perf_overflow(pmc, false);
 }
