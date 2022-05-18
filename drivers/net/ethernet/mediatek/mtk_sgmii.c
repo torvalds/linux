@@ -34,6 +34,7 @@ int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *r, u32 ana_rgc3)
 	return 0;
 }
 
+/* For SGMII interface mode */
 int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id)
 {
 	unsigned int val;
@@ -60,6 +61,9 @@ int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id)
 	return 0;
 }
 
+/* For 1000BASE-X and 2500BASE-X interface modes, which operate at a
+ * fixed speed.
+ */
 int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
 			       const struct phylink_link_state *state)
 {
@@ -82,19 +86,7 @@ int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
 	/* SGMII force mode setting */
 	regmap_read(ss->regmap[id], SGMSYS_SGMII_MODE, &val);
 	val &= ~SGMII_IF_MODE_MASK;
-
-	switch (state->speed) {
-	case SPEED_10:
-		val |= SGMII_SPEED_10;
-		break;
-	case SPEED_100:
-		val |= SGMII_SPEED_100;
-		break;
-	case SPEED_2500:
-	case SPEED_1000:
-		val |= SGMII_SPEED_1000;
-		break;
-	}
+	val |= SGMII_SPEED_1000;
 
 	if (state->duplex == DUPLEX_FULL)
 		val |= SGMII_DUPLEX_FULL;
