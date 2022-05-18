@@ -5372,7 +5372,8 @@ static int io_close(struct io_kiocb *req, unsigned int issue_flags)
 		spin_unlock(&files->file_lock);
 		goto err;
 	}
-	file = fdt->fd[close->fd];
+	file = rcu_dereference_protected(fdt->fd[close->fd],
+			lockdep_is_held(&files->file_lock));
 	if (!file || file->f_op == &io_uring_fops) {
 		spin_unlock(&files->file_lock);
 		file = NULL;
