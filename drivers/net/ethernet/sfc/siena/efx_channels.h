@@ -8,8 +8,8 @@
  * by the Free Software Foundation, incorporated herein by reference.
  */
 
-#ifndef EFX_CHANNELS_H
-#define EFX_CHANNELS_H
+#ifndef EFX_SIENA_CHANNELS_H
+#define EFX_SIENA_CHANNELS_H
 
 extern unsigned int efx_siena_interrupt_mode;
 extern unsigned int efx_siena_rss_cpus;
