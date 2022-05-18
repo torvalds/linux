@@ -20,13 +20,11 @@ description: |
 
 properties:
   compatible:
-    anyOf:
+    oneOf:
       - description: ChromeOS EC with only buttons/switches
-      - items:
-          - const: google,cros-ec-keyb-switches
+        const: google,cros-ec-keyb-switches
       - description: ChromeOS EC with keyboard and possibly buttons/switches
-      - items:
-          - const: google,cros-ec-keyb
+        const: google,cros-ec-keyb
 
   google,needs-ghost-filter:
     description:
@@ -58,8 +56,7 @@ if:
       contains:
         const: google,cros-ec-keyb
 then:
-  allOf:
-    - $ref: "/schemas/input/matrix-keymap.yaml#"
+  $ref: "/schemas/input/matrix-keymap.yaml#"
   required:
     - keypad,num-rows
     - keypad,num-columns
