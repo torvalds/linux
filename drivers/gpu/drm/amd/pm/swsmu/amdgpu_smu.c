@@ -134,6 +134,14 @@ int smu_get_dpm_freq_range(struct smu_context *smu,
 	return ret;
 }
 
+int smu_set_gfx_power_up_by_imu(struct smu_context *smu)
+{
+	if (!smu->ppt_funcs && !smu->ppt_funcs->set_gfx_power_up_by_imu)
+		return -EOPNOTSUPP;
+
+	return smu->ppt_funcs->set_gfx_power_up_by_imu(smu);
+}
+
 static u32 smu_get_mclk(void *handle, bool low)
 {
 	struct smu_context *smu = handle;
@@ -2466,7 +2474,6 @@ static int smu_set_power_profile_mode(void *handle,
 
 	return smu_bump_power_profile_mode(smu, param, param_size);
 }
-
 
 static int smu_get_fan_control_mode(void *handle, u32 *fan_mode)
 {

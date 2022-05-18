@@ -698,6 +698,11 @@ struct pptable_funcs {
 	int (*dpm_set_jpeg_enable)(struct smu_context *smu, bool enable);
 
 	/**
+	 * @set_gfx_power_up_by_imu: Enable GFX engine with IMU
+	 */
+	int (*set_gfx_power_up_by_imu)(struct smu_context *smu);
+
+	/**
 	 * @read_sensor: Read data from a sensor.
 	 * &sensor: Sensor to read data from.
 	 * &data: Sensor reading.
@@ -1437,6 +1442,8 @@ int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 
 int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t min, uint32_t max);
+
+int smu_set_gfx_power_up_by_imu(struct smu_context *smu);
 
 int smu_set_ac_dc(struct smu_context *smu);
 

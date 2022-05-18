@@ -292,6 +292,8 @@ int smu_v13_0_baco_enter(struct smu_context *smu);
 
 int smu_v13_0_baco_exit(struct smu_context *smu);
 
+int smu_v13_0_set_gfx_power_up_by_imu(struct smu_context *smu);
+
 int smu_v13_0_od_edit_dpm_table(struct smu_context *smu,
 				enum PP_OD_DPM_TABLE_COMMAND type,
 				long input[],

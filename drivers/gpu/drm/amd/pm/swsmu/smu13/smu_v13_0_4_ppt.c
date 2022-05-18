@@ -1030,6 +1030,7 @@ static const struct pptable_funcs smu_v13_0_4_ppt_funcs = {
 	.force_clk_levels = smu_v13_0_4_force_clk_levels,
 	.set_performance_level = smu_v13_0_4_set_performance_level,
 	.set_fine_grain_gfx_freq_parameters = smu_v13_0_4_set_fine_grain_gfx_freq_parameters,
+	.set_gfx_power_up_by_imu = smu_v13_0_set_gfx_power_up_by_imu,
 };
 
 void smu_v13_0_4_set_ppt_funcs(struct smu_context *smu)

@@ -386,6 +386,8 @@ int amdgpu_dpm_mode1_reset(struct amdgpu_device *adev);
 int amdgpu_dpm_set_mp1_state(struct amdgpu_device *adev,
 			     enum pp_mp1_state mp1_state);
 
+int amdgpu_dpm_set_gfx_power_up_by_imu(struct amdgpu_device *adev);
+
 int amdgpu_dpm_baco_exit(struct amdgpu_device *adev);
 
 int amdgpu_dpm_baco_enter(struct amdgpu_device *adev);
