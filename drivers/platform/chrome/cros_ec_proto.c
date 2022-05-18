@@ -52,8 +52,8 @@ static int cros_ec_map_error(uint32_t result)
 	return ret;
 }
 
-static int prepare_packet(struct cros_ec_device *ec_dev,
-			  struct cros_ec_command *msg)
+static int prepare_tx(struct cros_ec_device *ec_dev,
+		      struct cros_ec_command *msg)
 {
 	struct ec_host_request *request;
 	u8 *out;
@@ -83,6 +83,28 @@ static int prepare_packet(struct cros_ec_device *ec_dev,
 	request->checksum = -csum;
 
 	return sizeof(*request) + msg->outsize;
+}
+
+static int prepare_tx_legacy(struct cros_ec_device *ec_dev,
+			     struct cros_ec_command *msg)
+{
+	u8 *out;
+	u8 csum;
+	int i;
+
+	if (msg->outsize > EC_PROTO2_MAX_PARAM_SIZE)
+		return -EINVAL;
+
+	out = ec_dev->dout;
+	out[0] = EC_CMD_VERSION0 + msg->version;
+	out[1] = msg->command;
+	out[2] = msg->outsize;
+	csum = out[0] + out[1] + out[2];
+	for (i = 0; i < msg->outsize; i++)
+		csum += out[EC_MSG_TX_HEADER_BYTES + i] = msg->data[i];
+	out[EC_MSG_TX_HEADER_BYTES + msg->outsize] = csum;
+
+	return EC_MSG_TX_PROTO_BYTES + msg->outsize;
 }
 
 static int send_command(struct cros_ec_device *ec_dev,
@@ -161,35 +183,18 @@ static int send_command(struct cros_ec_device *ec_dev,
  * @ec_dev: Device to register.
  * @msg: Message to write.
  *
- * This is intended to be used by all ChromeOS EC drivers, but at present
- * only SPI uses it. Once LPC uses the same protocol it can start using it.
- * I2C could use it now, with a refactor of the existing code.
+ * This is used by all ChromeOS EC drivers to prepare the outgoing message
+ * according to different protocol versions.
  *
  * Return: number of prepared bytes on success or negative error code.
  */
 int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 		       struct cros_ec_command *msg)
 {
-	u8 *out;
-	u8 csum;
-	int i;
-
 	if (ec_dev->proto_version > 2)
-		return prepare_packet(ec_dev, msg);
+		return prepare_tx(ec_dev, msg);
 
-	if (msg->outsize > EC_PROTO2_MAX_PARAM_SIZE)
-		return -EINVAL;
-
-	out = ec_dev->dout;
-	out[0] = EC_CMD_VERSION0 + msg->version;
-	out[1] = msg->command;
-	out[2] = msg->outsize;
-	csum = out[0] + out[1] + out[2];
-	for (i = 0; i < msg->outsize; i++)
-		csum += out[EC_MSG_TX_HEADER_BYTES + i] = msg->data[i];
-	out[EC_MSG_TX_HEADER_BYTES + msg->outsize] = csum;
-
-	return EC_MSG_TX_PROTO_BYTES + msg->outsize;
+	return prepare_tx_legacy(ec_dev, msg);
 }
 EXPORT_SYMBOL(cros_ec_prepare_tx);
 
