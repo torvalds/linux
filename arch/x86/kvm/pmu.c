@@ -158,9 +158,6 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 	};
 	bool pebs = test_bit(pmc->idx, (unsigned long *)&pmu->pebs_enable);
 
-	if (type == PERF_TYPE_HARDWARE && config >= PERF_COUNT_HW_MAX)
-		return;
-
 	attr.sample_period = get_sample_period(pmc, pmc->counter);
 
 	if ((attr.config & HSW_IN_TX_CHECKPOINTED) &&
@@ -257,6 +254,9 @@ static bool check_pmu_event_filter(struct kvm_pmc *pmc)
 	bool allow_event = true;
 	__u64 key;
 	int idx;
+
+	if (!static_call(kvm_x86_pmu_hw_event_available)(pmc))
+		return false;
 
 	filter = srcu_dereference(kvm->arch.pmu_event_filter, &kvm->srcu);
 	if (!filter)
