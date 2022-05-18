@@ -26,6 +26,7 @@ struct offcpu_key {
 	__u32 tgid;
 	__u32 stack_id;
 	__u32 state;
+	__u64 cgroup_id;
 };
 
 struct {
@@ -63,6 +64,13 @@ struct {
 	__uint(max_entries, 1);
 } task_filter SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(__u64));
+	__uint(value_size, sizeof(__u8));
+	__uint(max_entries, 1);
+} cgroup_filter SEC(".maps");
+
 /* old kernel task_struct definition */
 struct task_struct___old {
 	long state;
@@ -71,8 +79,11 @@ struct task_struct___old {
 int enabled = 0;
 int has_cpu = 0;
 int has_task = 0;
+int has_cgroup = 0;
 
 const volatile bool has_prev_state = false;
+const volatile bool needs_cgroup = false;
+const volatile bool uses_cgroup_v1 = false;
 
 /*
  * Old kernel used to call it task_struct->state and now it's '__state'.
@@ -90,6 +101,18 @@ static inline int get_task_state(struct task_struct *t)
 
 	/* now use old "state" name of the field */
 	return BPF_CORE_READ(t_old, state);
+}
+
+static inline __u64 get_cgroup_id(struct task_struct *t)
+{
+	struct cgroup *cgrp;
+
+	if (uses_cgroup_v1)
+		cgrp = BPF_CORE_READ(t, cgroups, subsys[perf_event_cgrp_id], cgroup);
+	else
+		cgrp = BPF_CORE_READ(t, cgroups, dfl_cgrp);
+
+	return BPF_CORE_READ(cgrp, kn, id);
 }
 
 static inline int can_record(struct task_struct *t, int state)
@@ -116,6 +139,15 @@ static inline int can_record(struct task_struct *t, int state)
 		__u32 pid = t->pid;
 
 		ok = bpf_map_lookup_elem(&task_filter, &pid);
+		if (!ok)
+			return 0;
+	}
+
+	if (has_cgroup) {
+		__u8 *ok;
+		__u64 cgrp_id = get_cgroup_id(t);
+
+		ok = bpf_map_lookup_elem(&cgroup_filter, &cgrp_id);
 		if (!ok)
 			return 0;
 	}
@@ -156,6 +188,7 @@ next:
 			.tgid = next->tgid,
 			.stack_id = pelem->stack_id,
 			.state = pelem->state,
+			.cgroup_id = needs_cgroup ? get_cgroup_id(next) : 0,
 		};
 		__u64 delta = ts - pelem->timestamp;
 		__u64 *total;

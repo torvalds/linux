@@ -5,10 +5,12 @@
 #include "util/evlist.h"
 #include "util/off_cpu.h"
 #include "util/perf-hooks.h"
+#include "util/record.h"
 #include "util/session.h"
 #include "util/target.h"
 #include "util/cpumap.h"
 #include "util/thread_map.h"
+#include "util/cgroup.h"
 #include <bpf/bpf.h>
 
 #include "bpf_skel/off_cpu.skel.h"
@@ -24,6 +26,7 @@ struct off_cpu_key {
 	u32 tgid;
 	u32 stack_id;
 	u32 state;
+	u64 cgroup_id;
 };
 
 union off_cpu_data {
@@ -116,10 +119,11 @@ static void check_sched_switch_args(void)
 	}
 }
 
-int off_cpu_prepare(struct evlist *evlist, struct target *target)
+int off_cpu_prepare(struct evlist *evlist, struct target *target,
+		    struct record_opts *opts)
 {
 	int err, fd, i;
-	int ncpus = 1, ntasks = 1;
+	int ncpus = 1, ntasks = 1, ncgrps = 1;
 
 	if (off_cpu_config(evlist) < 0) {
 		pr_err("Failed to config off-cpu BPF event\n");
@@ -141,6 +145,21 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target)
 	if (target__has_task(target)) {
 		ntasks = perf_thread_map__nr(evlist->core.threads);
 		bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
+	}
+
+	if (evlist__first(evlist)->cgrp) {
+		ncgrps = evlist->core.nr_entries - 1; /* excluding a dummy */
+		bpf_map__set_max_entries(skel->maps.cgroup_filter, ncgrps);
+
+		if (!cgroup_is_v2("perf_event"))
+			skel->rodata->uses_cgroup_v1 = true;
+	}
+
+	if (opts->record_cgroup) {
+		skel->rodata->needs_cgroup = true;
+
+		if (!cgroup_is_v2("perf_event"))
+			skel->rodata->uses_cgroup_v1 = true;
 	}
 
 	set_max_rlimit();
@@ -175,6 +194,29 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target)
 		for (i = 0; i < ntasks; i++) {
 			pid = perf_thread_map__pid(evlist->core.threads, i);
 			bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
+		}
+	}
+
+	if (evlist__first(evlist)->cgrp) {
+		struct evsel *evsel;
+		u8 val = 1;
+
+		skel->bss->has_cgroup = 1;
+		fd = bpf_map__fd(skel->maps.cgroup_filter);
+
+		evlist__for_each_entry(evlist, evsel) {
+			struct cgroup *cgrp = evsel->cgrp;
+
+			if (cgrp == NULL)
+				continue;
+
+			if (!cgrp->id && read_cgroup_id(cgrp) < 0) {
+				pr_err("Failed to read cgroup id of %s\n",
+				       cgrp->name);
+				goto out;
+			}
+
+			bpf_map_update_elem(fd, &cgrp->id, &val, BPF_ANY);
 		}
 	}
 
@@ -275,6 +317,8 @@ int off_cpu_write(struct perf_session *session)
 			/* calculate sample callchain data array length */
 			n += len + 2;
 		}
+		if (sample_type & PERF_SAMPLE_CGROUP)
+			data.array[n++] = key.cgroup_id;
 		/* TODO: handle more sample types */
 
 		size = n * sizeof(u64);

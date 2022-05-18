@@ -892,7 +892,7 @@ static int record__config_text_poke(struct evlist *evlist)
 
 static int record__config_off_cpu(struct record *rec)
 {
-	return off_cpu_prepare(rec->evlist, &rec->opts.target);
+	return off_cpu_prepare(rec->evlist, &rec->opts.target, &rec->opts);
 }
 
 static bool record__kcore_readable(struct machine *machine)
