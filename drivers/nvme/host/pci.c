@@ -1439,6 +1439,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	nvme_init_request(abort_req, &cmd);
 
 	abort_req->end_io_data = NULL;
+	abort_req->rq_flags |= RQF_QUIET;
 	blk_execute_rq_nowait(abort_req, false, abort_endio);
 
 	/*
@@ -1775,6 +1776,7 @@ static int nvme_alloc_admin_tags(struct nvme_dev *dev)
 		dev->ctrl.admin_q = blk_mq_init_queue(&dev->admin_tagset);
 		if (IS_ERR(dev->ctrl.admin_q)) {
 			blk_mq_free_tag_set(&dev->admin_tagset);
+			dev->ctrl.admin_q = NULL;
 			return -ENOMEM;
 		}
 		if (!blk_get_queue(dev->ctrl.admin_q)) {
@@ -2486,6 +2488,7 @@ static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 	req->end_io_data = nvmeq;
 
 	init_completion(&nvmeq->delete_done);
+	req->rq_flags |= RQF_QUIET;
 	blk_execute_rq_nowait(req, false, opcode == nvme_admin_delete_cq ?
 			nvme_del_cq_end : nvme_del_queue_end);
 	return 0;
@@ -2675,7 +2678,7 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	mutex_lock(&dev->shutdown_lock);
-	if (pci_is_enabled(pdev)) {
+	if (pci_device_is_present(pdev) && pci_is_enabled(pdev)) {
 		u32 csts = readl(dev->bar + NVME_REG_CSTS);
 
 		if (dev->ctrl.state == NVME_CTRL_LIVE ||
