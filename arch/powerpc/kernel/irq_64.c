@@ -68,16 +68,6 @@
 
 int distribute_irqs = 1;
 
-static inline notrace unsigned long get_irq_happened(void)
-{
-	unsigned long happened;
-
-	__asm__ __volatile__("lbz %0,%1(13)"
-	: "=r" (happened) : "i" (offsetof(struct paca_struct, irq_happened)));
-
-	return happened;
-}
-
 void replay_soft_interrupts(void)
 {
 	struct pt_regs regs;
@@ -234,7 +224,7 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	return;
 
 happened:
-	irq_happened = get_irq_happened();
+	irq_happened = READ_ONCE(local_paca->irq_happened);
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 		WARN_ON_ONCE(!irq_happened);
 
@@ -257,7 +247,7 @@ happened:
 				 * IRQ_HARD_DIS again and warn if it is still
 				 * clear.
 				 */
-				irq_happened = get_irq_happened();
+				irq_happened = READ_ONCE(local_paca->irq_happened);
 				WARN_ON_ONCE(!(irq_happened & PACA_IRQ_HARD_DIS));
 			}
 		}
