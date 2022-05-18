@@ -17,6 +17,7 @@
 #include <linux/phylink.h>
 #include <linux/rhashtable.h>
 #include <linux/dim.h>
+#include <linux/bitfield.h>
 #include "mtk_ppe.h"
 
 #define MTK_QDMA_PAGE_SIZE	2048
@@ -493,9 +494,10 @@
 #define SGMSYS_SGMII_MODE		0x20
 #define SGMII_IF_MODE_BIT0		BIT(0)
 #define SGMII_SPEED_DUPLEX_AN		BIT(1)
-#define SGMII_SPEED_10			0x0
-#define SGMII_SPEED_100			BIT(2)
-#define SGMII_SPEED_1000		BIT(3)
+#define SGMII_SPEED_MASK		GENMASK(3, 2)
+#define SGMII_SPEED_10			FIELD_PREP(SGMII_SPEED_MASK, 0)
+#define SGMII_SPEED_100			FIELD_PREP(SGMII_SPEED_MASK, 1)
+#define SGMII_SPEED_1000		FIELD_PREP(SGMII_SPEED_MASK, 2)
 #define SGMII_DUPLEX_FULL		BIT(4)
 #define SGMII_IF_MODE_BIT5		BIT(5)
 #define SGMII_REMOTE_FAULT_DIS		BIT(8)
