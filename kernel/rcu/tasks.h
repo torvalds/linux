@@ -1449,20 +1449,6 @@ static void trc_wait_for_one_reader(struct task_struct *t,
 	}
 }
 
-/* Initialize for a new RCU-tasks-trace grace period. */
-static void rcu_tasks_trace_pregp_step(void)
-{
-	int cpu;
-
-	// There shouldn't be any old IPIs, but...
-	for_each_possible_cpu(cpu)
-		WARN_ON_ONCE(per_cpu(trc_ipi_to_cpu, cpu));
-
-	// Disable CPU hotplug across the tasklist scan.
-	// This also waits for all readers in CPU-hotplug code paths.
-	cpus_read_lock();
-}
-
 /* Do first-round processing for the specified task. */
 static void rcu_tasks_trace_pertask(struct task_struct *t,
 				    struct list_head *hop)
@@ -1476,6 +1462,20 @@ static void rcu_tasks_trace_pertask(struct task_struct *t,
 	rcu_st_need_qs(t, 0);
 	t->trc_ipi_to_cpu = -1;
 	trc_wait_for_one_reader(t, hop);
+}
+
+/* Initialize for a new RCU-tasks-trace grace period. */
+static void rcu_tasks_trace_pregp_step(void)
+{
+	int cpu;
+
+	// There shouldn't be any old IPIs, but...
+	for_each_possible_cpu(cpu)
+		WARN_ON_ONCE(per_cpu(trc_ipi_to_cpu, cpu));
+
+	// Disable CPU hotplug across the tasklist scan.
+	// This also waits for all readers in CPU-hotplug code paths.
+	cpus_read_lock();
 }
 
 /*
