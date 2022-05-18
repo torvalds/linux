@@ -867,23 +867,15 @@ struct mtk_soc_data {
 /* currently no SoC has more than 2 macs */
 #define MTK_MAX_DEVS			2
 
-#define MTK_SGMII_PHYSPEED_AN          BIT(31)
-#define MTK_SGMII_PHYSPEED_MASK        GENMASK(2, 0)
-#define MTK_SGMII_PHYSPEED_1000        BIT(0)
-#define MTK_SGMII_PHYSPEED_2500        BIT(1)
-#define MTK_HAS_FLAGS(flags, _x)       (((flags) & (_x)) == (_x))
-
 /* struct mtk_sgmii -  This is the structure holding sgmii regmap and its
  *                     characteristics
  * @regmap:            The register map pointing at the range used to setup
  *                     SGMII modes
- * @flags:             The enum refers to which mode the sgmii wants to run on
  * @ana_rgc3:          The offset refers to register ANA_RGC3 related to regmap
  */
 
 struct mtk_sgmii {
 	struct regmap   *regmap[MTK_MAX_DEVS];
-	u32             flags[MTK_MAX_DEVS];
 	u32             ana_rgc3;
 };
 
