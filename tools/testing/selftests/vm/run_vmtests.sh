@@ -141,6 +141,8 @@ run_test ./mlock-random-test
 
 run_test ./mlock2-tests
 
+run_test ./mrelease_test
+
 run_test ./mremap_test
 
 run_test ./thuge-gen
