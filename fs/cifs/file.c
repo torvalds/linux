@@ -2777,8 +2777,11 @@ int cifs_flush(struct file *file, fl_owner_t id)
 		rc = filemap_write_and_wait(inode->i_mapping);
 
 	cifs_dbg(FYI, "Flush inode %p file %p rc %d\n", inode, file, rc);
-	if (rc)
+	if (rc) {
+		/* get more nuanced writeback errors */
+		rc = filemap_check_wb_err(file->f_mapping, 0);
 		trace_cifs_flush_err(inode->i_ino, rc);
+	}
 	return rc;
 }
 
