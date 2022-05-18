@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include "amdgpu.h"
 #include "amdgpu_imu.h"
+#include "amdgpu_dpm.h"
 
 #include "gc/gc_11_0_0_offset.h"
 #include "gc/gc_11_0_0_sh_mask.h"
@@ -165,10 +166,10 @@ static int imu_v11_0_start(struct amdgpu_device *adev)
 	imu_reg_val &= 0xfffffffe;
 	WREG32_SOC15(GC, 0, regGFX_IMU_CORE_CTRL, imu_reg_val);
 
-	if (adev->gfx.imu.mode == DEBUG_MODE)
-		return imu_v11_0_wait_for_reset_status(adev);
+	if (adev->flags & AMD_IS_APU)
+		amdgpu_dpm_set_gfx_power_up_by_imu(adev);
 
-	return 0;
+	return imu_v11_0_wait_for_reset_status(adev);
 }
 
 static const struct imu_rlc_ram_golden imu_rlc_ram_golden_11[] =

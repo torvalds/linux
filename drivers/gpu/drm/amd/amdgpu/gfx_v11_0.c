@@ -6292,7 +6292,11 @@ static void gfx_v11_0_set_irq_funcs(struct amdgpu_device *adev)
 
 static void gfx_v11_0_set_imu_funcs(struct amdgpu_device *adev)
 {
-	adev->gfx.imu.mode = DEBUG_MODE;
+	if (adev->flags & AMD_IS_APU)
+		adev->gfx.imu.mode = MISSION_MODE;
+	else
+		adev->gfx.imu.mode = DEBUG_MODE;
+
 	adev->gfx.imu.funcs = &gfx_v11_0_imu_funcs;
 }
 
