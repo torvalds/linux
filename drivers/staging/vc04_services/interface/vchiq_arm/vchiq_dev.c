@@ -788,7 +788,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case VCHIQ_IOC_GET_CLIENT_ID: {
 		unsigned int handle = (unsigned int)arg;
 
-		ret = vchiq_get_client_id(handle);
+		ret = vchiq_get_client_id(instance, handle);
 	} break;
 
 	case VCHIQ_IOC_GET_CONFIG: {

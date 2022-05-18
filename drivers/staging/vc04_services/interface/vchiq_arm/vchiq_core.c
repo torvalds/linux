@@ -398,7 +398,7 @@ vchiq_service_put(struct vchiq_service *service)
 }
 
 int
-vchiq_get_client_id(unsigned int handle)
+vchiq_get_client_id(struct vchiq_instance *instance, unsigned int handle)
 {
 	struct vchiq_service *service;
 	int id;
