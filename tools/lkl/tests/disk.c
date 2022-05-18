@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <lkl.h>
 #include <lkl_host.h>
-#ifndef __MINGW32__
+#if !defined(__MSYS__) && !defined(__MINGW32__)
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -37,7 +37,7 @@ static int disk_id = -1;
 
 int lkl_test_disk_add(void)
 {
-#ifdef __MINGW32__
+#if defined(__MSYS__) || defined(__MINGW32__)
 	disk.handle = CreateFile(cla.disk, GENERIC_READ | GENERIC_WRITE,
 			       0, NULL, OPEN_EXISTING, 0, NULL);
 	if (!disk.handle)
@@ -56,14 +56,14 @@ int lkl_test_disk_add(void)
 	goto out;
 
 out_close:
-#ifdef __MINGW32__
+#if defined(__MSYS__) || defined(__MINGW32__)
 	CloseHandle(disk.handle);
 #else
 	close(disk.fd);
 #endif
 
 out_unlink:
-#ifdef __MINGW32__
+#if defined(__MSYS__) || defined(__MINGW32__)
 	DeleteFile(cla.disk);
 #else
 	unlink(cla.disk);
@@ -84,7 +84,7 @@ int lkl_test_disk_remove(void)
 
 	ret = lkl_disk_remove(disk);
 
-#ifdef __MINGW32__
+#if defined(__MSYS__) || defined(__MINGW32__)
 	CloseHandle(disk.handle);
 #else
 	close(disk.fd);

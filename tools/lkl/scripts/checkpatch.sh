@@ -17,6 +17,11 @@ if [ -z "$upstream" ]; then
 fi
 
 if [ -z "$lkl" ]; then
+    git remote add lkl-upstream https://github.com/lkl/linux || true
+    lkl=`git remote -v | grep $LKL | cut -f1 | head -n1`
+fi
+
+if [ -z "$lkl" ]; then
     echo "can't find lkl remote, quiting"
     exit 1
 fi

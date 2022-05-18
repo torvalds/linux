@@ -60,6 +60,7 @@ endef
 define posix_host
   $(call set_autoconf_var,POSIX,y)
   $(call set_autoconf_var,VIRTIO_NET,y)
+  $(call set_autoconf_var,VIRTIO_NET_FD,y)
   $(if $(strip $(call find_include,linux/vfio.h)),$(call set_autoconf_var,VFIO_PCI,y))
   LDFLAGS += -pie
   CFLAGS += -fPIC -pthread
@@ -79,12 +80,14 @@ endef
 
 define nt64_host
   $(call set_autoconf_var,NEEDS_LARGP,y)
+  $(call set_autoconf_var,VIRTIO_NET,y)
+  $(call set_autoconf_var,NT64,y)
   CFLAGS += -Wl,--enable-auto-image-base -Wl,--image-base -Wl,0x10000000 \
   	 -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols \
 	 -Wl,--enable-auto-import
   LDFLAGS +=-Wl,--image-base -Wl,0x10000000 -Wl,--enable-auto-image-base \
    	   -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols \
-	   -Wl,--enable-auto-import
+	   -Wl,--enable-auto-import -s
 endef
 
 define nt_host

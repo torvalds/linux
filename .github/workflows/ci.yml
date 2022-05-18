@@ -7,16 +7,107 @@ on:
       - master
 
 jobs:
-  x86_64:
-    runs-on: ubuntu-20.04
-    name: x86_64
+  tests:
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - displayTargetName: ubuntu-20.04
+            os: unix
+            runs_on: ubuntu-20.04
+            shell: bash
+          - displayTargetName: windows-2019
+            os: windows
+            runs_on: windows-2019
+            shell: msys2 {0}
+    timeout-minutes: 100
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      USE_CCACHE: 1
+
+    defaults:
+       run:
+         shell: ${{ matrix.shell }}
+
     steps:
+      - name: Set env
+        shell: bash
+        run: |
+          echo "/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:${{ github.workspace }}/bin" >> $GITHUB_PATH
+          echo "export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:${{ github.workspace }}/bin:$PATH" >> $HOME/.bashrc
+
+      - uses: msys2/setup-msys2@v2
+        if: runner.os == 'Windows'
+        with:
+          msystem: MSYS
+          path-type: minimal
+          update: true
+          install: >-
+            base-devel
+            gcc
+            git
+            bc
+            python-pip
+            dosfstools
+            mingw-w64-x86_64-ccache
+
       - name: Checkout
+        if: runner.os == 'Linux'
         uses: actions/checkout@v2
       - name: Install pip dependencies
-        run: sudo pip install yamlish junit-xml
+        run: pip install yamlish junit-xml
+      - name: Install openvpn
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          curl -L -O https://swupdate.openvpn.org/community/releases/OpenVPN-2.5.3-I601-amd64.msi
+          cmd.exe /c "start /wait msiexec /i OpenVPN-2.5.3-I601-amd64.msi ADDLOCAL=OpenVPN,Drivers.TAPWindows6,Drivers /qn /l*v c:\\msilog.txt"
+          cat c:\\msilog.txt
+      - name: Partial Clone
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          REPO="https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
+          BRANCH="${GITHUB_REF/#refs\/heads\//}"
+
+          git init .
+          git remote add origin $REPO
+          git config core.sparseCheckout true
+          echo -e '/*\n!*aux.*' >> .git/info/sparse-checkout
+          git -c protocol.version=2 fetch --no-tags --prune --progress --depth=10 origin +${GITHUB_SHA}:refs/remotes/origin/${BRANCH}
+          git checkout --progress --force -B $BRANCH refs/remotes/origin/$BRANCH
+
+      - uses: actions/cache@v2
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-ccache-build-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-ccache-build-
+      - name: Install ccache on ubuntu-latest
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt update -y
+          sudo apt install -y ccache
+      - name: Install patched binutils for Windows
+        if: runner.os == 'Windows'
+        run: |
+          cp -f tools/lkl/bin/*.exe /usr/bin/
+      - name: Fix broken msys2 ccache
+        if: runner.os == 'Windows'
+        run: |
+          mkdir -p /usr/lib/ccache/bin
+          cd /usr/lib/ccache/bin
+          echo -e '#!/bin/bash\n\nccache /usr/bin/cc "$@"' > cc
+          echo -e '#!/bin/bash\n\nccache /usr/bin/gcc "$@"' > gcc
+          echo -e '#!/bin/bash\n\nccache /usr/bin/cpp "$@"' > cpp
+          export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
+          which gcc
+          ccache -z
+
       - name: Build
-        run: make -j$(nproc) -C tools/lkl
+        run: |
+          export PATH=/usr/lib/ccache/bin:/usr/lib/ccache:/mingw64/bin:$PATH
+          make -j4 -C tools/lkl
       - name: Tests
         run: mkdir /tmp/junit && make -C tools/lkl run-tests tests="--junit-dir /tmp/junit"
       - name: Save test results
@@ -25,6 +116,7 @@ jobs:
         with:
           name: test-results
           path: /tmp/junit/*.xml
+
   checkpatch:
     runs-on: ubuntu-20.04
     name: checkpatch

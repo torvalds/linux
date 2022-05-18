@@ -15,12 +15,16 @@ endif
 LINUXINCLUDE := -isystem arch/lkl/include/system $(LINUXINCLUDE)
 # workaround for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52991
 KBUILD_CFLAGS += -mno-ms-bitfields
+KBUILD_HOSTCFLAGS += -Wno-char-subscripts
+KBUILD_HOSTLDFLAGS += -s
 else
 $(error Unrecognized platform: $(OUTPUT_FORMAT))
 endif
 
 ifeq ($(shell uname -s), Linux)
 NPROC=$(shell nproc)
+else ifneq ($(shell uname -s | grep MSYS),)
+NPROC=${NUMBER_OF_PROCESSORS}
 else # e.g., FreeBSD
 NPROC=$(shell sysctl -n hw.ncpu)
 endif

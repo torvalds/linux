@@ -19,7 +19,7 @@ int lkl_printf(const char *fmt, ...);
 
 extern char lkl_virtio_devs[4096];
 
-#ifdef LKL_HOST_CONFIG_POSIX
+#if defined(LKL_HOST_CONFIG_POSIX) || defined(__MSYS__)
 #include <sys/uio.h>
 #else
 struct iovec {
@@ -79,6 +79,7 @@ struct lkl_netdev {
 	struct lkl_dev_net_ops *ops;
 	int id;
 	uint8_t has_vnet_hdr: 1;
+	uint8_t mac[6];
 };
 
 /**
