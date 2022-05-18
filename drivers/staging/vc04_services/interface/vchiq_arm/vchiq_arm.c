@@ -519,7 +519,7 @@ int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state *state)
 	*(char **)&g_fragments_base[i * g_fragments_size] = NULL;
 	sema_init(&g_free_fragments_sema, MAX_FRAGMENTS);
 
-	err = vchiq_init_state(state, vchiq_slot_zero);
+	err = vchiq_init_state(state, vchiq_slot_zero, dev);
 	if (err)
 		return err;
 
