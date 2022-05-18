@@ -3924,7 +3924,8 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 
 	/* only send once per connect */
 	spin_lock(&cifs_tcp_ses_lock);
-	if (server->tcpStatus != CifsNeedSessSetup) {
+	if ((server->tcpStatus != CifsNeedSessSetup) &&
+	    (ses->status == CifsGood)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
 	}
