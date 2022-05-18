@@ -175,13 +175,71 @@ static int wait_for_valid(struct cxl_dev_state *cxlds)
 	return -ETIMEDOUT;
 }
 
-/*
- * Return positive number of non-zero ranges on success and a negative
- * error code on failure. The cxl_mem driver depends on ranges == 0 to
- * init HDM operation.
+static bool __cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
+				  struct cxl_endpoint_dvsec_info *info)
+{
+	struct cxl_register_map map;
+	struct cxl_component_reg_map *cmap = &map.component_map;
+	bool global_enable, retval = false;
+	void __iomem *crb;
+	u32 global_ctrl;
+
+	/* map hdm decoder */
+	crb = ioremap(cxlds->component_reg_phys, CXL_COMPONENT_REG_BLOCK_SIZE);
+	if (!crb) {
+		dev_dbg(cxlds->dev, "Failed to map component registers\n");
+		return false;
+	}
+
+	cxl_probe_component_regs(cxlds->dev, crb, cmap);
+	if (!cmap->hdm_decoder.valid) {
+		dev_dbg(cxlds->dev, "Invalid HDM decoder registers\n");
+		goto out;
+	}
+
+	global_ctrl = readl(crb + cmap->hdm_decoder.offset +
+			    CXL_HDM_DECODER_CTRL_OFFSET);
+	global_enable = global_ctrl & CXL_HDM_DECODER_ENABLE;
+
+	/*
+	 * Per CXL 2.0 Section 8.1.3.8.3 and 8.1.3.8.4 DVSEC CXL Range 1 Base
+	 * [High,Low] when HDM operation is enabled the range register values
+	 * are ignored by the device, but the spec also recommends matching the
+	 * DVSEC Range 1,2 to HDM Decoder Range 0,1. So, non-zero info->ranges
+	 * are expected even though Linux does not require or maintain that
+	 * match.
+	 */
+	if (!global_enable && info->mem_enabled && info->ranges)
+		goto out;
+
+	retval = true;
+
+	/*
+	 * Permanently (for this boot at least) opt the device into HDM
+	 * operation. Individual HDM decoders still need to be enabled after
+	 * this point.
+	 */
+	if (!global_enable) {
+		dev_dbg(cxlds->dev, "Enabling HDM decode\n");
+		writel(global_ctrl | CXL_HDM_DECODER_ENABLE,
+		       crb + cmap->hdm_decoder.offset +
+			       CXL_HDM_DECODER_CTRL_OFFSET);
+	}
+
+out:
+	iounmap(crb);
+	return retval;
+}
+
+/**
+ * cxl_hdm_decode_init() - Setup HDM decoding for the endpoint
+ * @cxlds: Device state
+ * @info: DVSEC Range cached enumeration
+ *
+ * Try to enable the endpoint's HDM Decoder Capability
  */
-int cxl_dvsec_ranges(struct cxl_dev_state *cxlds,
-		     struct cxl_endpoint_dvsec_info *info)
+int cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
+			struct cxl_endpoint_dvsec_info *info)
 {
 	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
 	int hdm_count, rc, i, ranges = 0;
@@ -270,6 +328,16 @@ int cxl_dvsec_ranges(struct cxl_dev_state *cxlds,
 
 	info->ranges = ranges;
 
+	/*
+	 * If DVSEC ranges are being used instead of HDM decoder registers there
+	 * is no use in trying to manage those.
+	 */
+	if (!__cxl_hdm_decode_init(cxlds, info)) {
+		dev_err(dev,
+			"Legacy range registers configuration prevents HDM operation.\n");
+		return -EBUSY;
+	}
+
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_dvsec_ranges, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_hdm_decode_init, CXL);

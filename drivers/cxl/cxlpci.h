@@ -74,6 +74,6 @@ static inline resource_size_t cxl_regmap_to_base(struct pci_dev *pdev,
 int devm_cxl_port_enumerate_dports(struct cxl_port *port);
 struct cxl_dev_state;
 struct cxl_endpoint_dvsec_info;
-int cxl_dvsec_ranges(struct cxl_dev_state *cxlds,
-		     struct cxl_endpoint_dvsec_info *info);
+int cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
+			struct cxl_endpoint_dvsec_info *info);
 #endif /* __CXL_PCI_H__ */
