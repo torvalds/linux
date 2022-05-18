@@ -389,6 +389,27 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 	return ret;
 }
 
+static unsigned int cppc_cpufreq_fast_switch(struct cpufreq_policy *policy,
+					      unsigned int target_freq)
+{
+	struct cppc_cpudata *cpu_data = policy->driver_data;
+	unsigned int cpu = policy->cpu;
+	u32 desired_perf;
+	int ret;
+
+	desired_perf = cppc_cpufreq_khz_to_perf(cpu_data, target_freq);
+	cpu_data->perf_ctrls.desired_perf = desired_perf;
+	ret = cppc_set_perf(cpu, &cpu_data->perf_ctrls);
+
+	if (ret) {
+		pr_debug("Failed to set target on CPU:%d. ret:%d\n",
+			 cpu, ret);
+		return 0;
+	}
+
+	return target_freq;
+}
+
 static int cppc_verify_policy(struct cpufreq_policy_data *policy)
 {
 	cpufreq_verify_within_cpu_limits(policy);
@@ -721,6 +742,8 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto out;
 	}
 
+	policy->fast_switch_possible = cppc_allow_fast_switch();
+
 	/*
 	 * If 'highest_perf' is greater than 'nominal_perf', we assume CPU Boost
 	 * is supported.
@@ -866,6 +889,7 @@ static struct cpufreq_driver cppc_cpufreq_driver = {
 	.verify = cppc_verify_policy,
 	.target = cppc_cpufreq_set_target,
 	.get = cppc_cpufreq_get_rate,
+	.fast_switch = cppc_cpufreq_fast_switch,
 	.init = cppc_cpufreq_cpu_init,
 	.exit = cppc_cpufreq_cpu_exit,
 	.set_boost = cppc_cpufreq_set_boost,

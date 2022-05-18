@@ -434,6 +434,24 @@ bool acpi_cpc_valid(void)
 }
 EXPORT_SYMBOL_GPL(acpi_cpc_valid);
 
+bool cppc_allow_fast_switch(void)
+{
+	struct cpc_register_resource *desired_reg;
+	struct cpc_desc *cpc_ptr;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		cpc_ptr = per_cpu(cpc_desc_ptr, cpu);
+		desired_reg = &cpc_ptr->cpc_regs[DESIRED_PERF];
+		if (!CPC_IN_SYSTEM_MEMORY(desired_reg) &&
+				!CPC_IN_SYSTEM_IO(desired_reg))
+			return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(cppc_allow_fast_switch);
+
 /**
  * acpi_get_psd_map - Map the CPUs in the freq domain of a given cpu
  * @cpu: Find all CPUs that share a domain with cpu.
