@@ -649,7 +649,8 @@ class KUnitMainTest(unittest.TestCase):
 						kconfig_add=None,
 						arch='um',
 						cross_compile=None,
-						qemu_config_path=None)
+						qemu_config_path=None,
+						extra_qemu_args=[])
 
 	def test_config_kunitconfig(self):
 		kunit.main(['config', '--kunitconfig=mykunitconfig'])
@@ -659,7 +660,8 @@ class KUnitMainTest(unittest.TestCase):
 						kconfig_add=None,
 						arch='um',
 						cross_compile=None,
-						qemu_config_path=None)
+						qemu_config_path=None,
+						extra_qemu_args=[])
 
 	def test_run_kconfig_add(self):
 		kunit.main(['run', '--kconfig_add=CONFIG_KASAN=y', '--kconfig_add=CONFIG_KCSAN=y'])
@@ -669,7 +671,19 @@ class KUnitMainTest(unittest.TestCase):
 						kconfig_add=['CONFIG_KASAN=y', 'CONFIG_KCSAN=y'],
 						arch='um',
 						cross_compile=None,
-						qemu_config_path=None)
+						qemu_config_path=None,
+						extra_qemu_args=[])
+
+	def test_run_qemu_args(self):
+		kunit.main(['run', '--arch=x86_64', '--qemu_args', '-m 2048'])
+		# Just verify that we parsed and initialized it correctly here.
+		self.mock_linux_init.assert_called_once_with('.kunit',
+						kunitconfig_path=None,
+						kconfig_add=None,
+						arch='x86_64',
+						cross_compile=None,
+						qemu_config_path=None,
+						extra_qemu_args=['-m', '2048'])
 
 	def test_run_kernel_args(self):
 		kunit.main(['run', '--kernel_args=a=1', '--kernel_args=b=2'])

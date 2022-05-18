@@ -10,6 +10,7 @@
 import argparse
 import os
 import re
+import shlex
 import sys
 import time
 
@@ -324,6 +325,10 @@ def add_common_opts(parser) -> None:
 				  'a QemuArchParams object.'),
 			    type=str, metavar='FILE')
 
+	parser.add_argument('--qemu_args',
+			    help='Additional QEMU arguments, e.g. "-smp 8"',
+			    action='append', metavar='')
+
 def add_build_opts(parser) -> None:
 	parser.add_argument('--jobs',
 			    help='As in the make command, "Specifies  the number of '
@@ -369,12 +374,19 @@ def add_parse_opts(parser) -> None:
 
 def tree_from_args(cli_args: argparse.Namespace) -> kunit_kernel.LinuxSourceTree:
 	"""Returns a LinuxSourceTree based on the user's arguments."""
+	# Allow users to specify multiple arguments in one string, e.g. '-smp 8'
+	qemu_args: List[str] = []
+	if cli_args.qemu_args:
+		for arg in cli_args.qemu_args:
+			qemu_args.extend(shlex.split(arg))
+
 	return kunit_kernel.LinuxSourceTree(cli_args.build_dir,
 			kunitconfig_path=cli_args.kunitconfig,
 			kconfig_add=cli_args.kconfig_add,
 			arch=cli_args.arch,
 			cross_compile=cli_args.cross_compile,
-			qemu_config_path=cli_args.qemu_config)
+			qemu_config_path=cli_args.qemu_config,
+			extra_qemu_args=qemu_args)
 
 
 def main(argv):
