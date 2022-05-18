@@ -165,7 +165,7 @@ unlock:
 	if (rc)
 		return rc;
 
-	rc = cxlds->wait_media_ready(cxlds);
+	rc = cxl_await_media_ready(cxlds);
 	if (rc) {
 		dev_err(dev, "Media not active (%d)\n", rc);
 		return rc;

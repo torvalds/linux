@@ -48,8 +48,7 @@
  */
 static unsigned short mbox_ready_timeout = 60;
 module_param(mbox_ready_timeout, ushort, 0644);
-MODULE_PARM_DESC(mbox_ready_timeout,
-		 "seconds to wait for mailbox ready / memory active status");
+MODULE_PARM_DESC(mbox_ready_timeout, "seconds to wait for mailbox ready");
 
 static int cxl_pci_mbox_wait_for_doorbell(struct cxl_dev_state *cxlds)
 {
@@ -420,46 +419,6 @@ static int wait_for_valid(struct cxl_dev_state *cxlds)
 }
 
 /*
- * Wait up to @mbox_ready_timeout for the device to report memory
- * active.
- */
-static int cxl_await_media_ready(struct cxl_dev_state *cxlds)
-{
-	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
-	int d = cxlds->cxl_dvsec;
-	bool active = false;
-	u64 md_status;
-	int rc, i;
-
-	for (i = mbox_ready_timeout; i; i--) {
-		u32 temp;
-
-		rc = pci_read_config_dword(
-			pdev, d + CXL_DVSEC_RANGE_SIZE_LOW(0), &temp);
-		if (rc)
-			return rc;
-
-		active = FIELD_GET(CXL_DVSEC_MEM_ACTIVE, temp);
-		if (active)
-			break;
-		msleep(1000);
-	}
-
-	if (!active) {
-		dev_err(&pdev->dev,
-			"timeout awaiting memory active after %d seconds\n",
-			mbox_ready_timeout);
-		return -ETIMEDOUT;
-	}
-
-	md_status = readq(cxlds->regs.memdev + CXLMDEV_STATUS_OFFSET);
-	if (!CXLMDEV_READY(md_status))
-		return -EIO;
-
-	return 0;
-}
-
-/*
  * Return positive number of non-zero ranges on success and a negative
  * error code on failure. The cxl_mem driver depends on ranges == 0 to
  * init HDM operation.
@@ -588,8 +547,6 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!cxlds->cxl_dvsec)
 		dev_warn(&pdev->dev,
 			 "Device DVSEC not present, skip CXL.mem init\n");
-
-	cxlds->wait_media_ready = cxl_await_media_ready;
 
 	rc = cxl_setup_regs(pdev, CXL_REGLOC_RBI_MEMDEV, &map);
 	if (rc)

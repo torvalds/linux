@@ -237,12 +237,6 @@ static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *
 	return rc;
 }
 
-static int cxl_mock_wait_media_ready(struct cxl_dev_state *cxlds)
-{
-	msleep(100);
-	return 0;
-}
-
 static void label_area_release(void *lsa)
 {
 	vfree(lsa);
@@ -278,7 +272,6 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 
 	cxlds->serial = pdev->id;
 	cxlds->mbox_send = cxl_mock_mbox_send;
-	cxlds->wait_media_ready = cxl_mock_wait_media_ready;
 	cxlds->payload_size = SZ_4K;
 
 	rc = cxl_enumerate_cmds(cxlds);

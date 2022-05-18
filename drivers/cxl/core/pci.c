@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2021 Intel Corporation. All rights reserved. */
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/device.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
 #include <cxlpci.h>
+#include <cxlmem.h>
 #include <cxl.h>
 #include "core.h"
 
@@ -12,6 +15,10 @@
  * Compute Express Link protocols are layered on top of PCIe. CXL core provides
  * a set of helpers for CXL interactions which occur via PCIe.
  */
+
+static unsigned short media_ready_timeout = 60;
+module_param(media_ready_timeout, ushort, 0644);
+MODULE_PARM_DESC(media_ready_timeout, "seconds to wait for media ready");
 
 struct cxl_walk_context {
 	struct pci_bus *bus;
@@ -94,3 +101,44 @@ int devm_cxl_port_enumerate_dports(struct cxl_port *port)
 	return ctx.count;
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_port_enumerate_dports, CXL);
+
+/*
+ * Wait up to @media_ready_timeout for the device to report memory
+ * active.
+ */
+int cxl_await_media_ready(struct cxl_dev_state *cxlds)
+{
+	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
+	int d = cxlds->cxl_dvsec;
+	bool active = false;
+	u64 md_status;
+	int rc, i;
+
+	for (i = media_ready_timeout; i; i--) {
+		u32 temp;
+
+		rc = pci_read_config_dword(
+			pdev, d + CXL_DVSEC_RANGE_SIZE_LOW(0), &temp);
+		if (rc)
+			return rc;
+
+		active = FIELD_GET(CXL_DVSEC_MEM_ACTIVE, temp);
+		if (active)
+			break;
+		msleep(1000);
+	}
+
+	if (!active) {
+		dev_err(&pdev->dev,
+			"timeout awaiting memory active after %d seconds\n",
+			media_ready_timeout);
+		return -ETIMEDOUT;
+	}
+
+	md_status = readq(cxlds->regs.memdev + CXLMDEV_STATUS_OFFSET);
+	if (!CXLMDEV_READY(md_status))
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_await_media_ready, CXL);
