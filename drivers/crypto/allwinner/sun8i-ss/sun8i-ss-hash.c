@@ -586,7 +586,8 @@ retry:
 			rctx->t_dst[k + 1].len = rctx->t_dst[k].len;
 		}
 		addr_xpad = dma_map_single(ss->dev, tfmctx->ipad, bs, DMA_TO_DEVICE);
-		if (dma_mapping_error(ss->dev, addr_xpad)) {
+		err = dma_mapping_error(ss->dev, addr_xpad);
+		if (err) {
 			dev_err(ss->dev, "Fail to create DMA mapping of ipad\n");
 			goto err_dma_xpad;
 		}
@@ -612,7 +613,8 @@ retry:
 			goto err_dma_result;
 		}
 		addr_xpad = dma_map_single(ss->dev, tfmctx->opad, bs, DMA_TO_DEVICE);
-		if (dma_mapping_error(ss->dev, addr_xpad)) {
+		err = dma_mapping_error(ss->dev, addr_xpad);
+		if (err) {
 			dev_err(ss->dev, "Fail to create DMA mapping of opad\n");
 			goto err_dma_xpad;
 		}
