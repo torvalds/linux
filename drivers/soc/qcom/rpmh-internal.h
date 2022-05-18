@@ -112,6 +112,23 @@ struct drv_channel {
 };
 
 /**
+ * struct rsc_drv_top: our representation of the top RSC device
+ *
+ * @name:               Controller RSC device name.
+ * @drv_count:          No. of DRV controllers in the RSC device
+ * @drv:                Controller for each DRV
+ * @dev:                RSC top device
+ * @list:               RSC device added in rpmh_rsc_dev_list.
+ */
+struct rsc_drv_top {
+	char name[MAX_NAME_LENGTH];
+	int drv_count;
+	struct rsc_drv *drv;
+	struct device *dev;
+	struct list_head list;
+};
+
+/**
  * struct rsc_drv: the Direct Resource Voter (DRV) of the
  * Resource State Coordinator controller (RSC)
  *
@@ -182,6 +199,7 @@ int rpmh_rsc_mode_solver_set(struct rsc_drv *drv, bool enable);
 int rpmh_rsc_get_channel(struct rsc_drv *drv);
 int rpmh_rsc_switch_channel(struct rsc_drv *drv, int ch);
 int rpmh_rsc_drv_enable(struct rsc_drv *drv, bool enable);
+const struct device *rpmh_rsc_get_device(const char *name, u32 drv_id);
 
 void rpmh_tx_done(const struct tcs_request *msg);
 int rpmh_flush(struct rpmh_ctrlr *ctrlr, int ch);
