@@ -405,7 +405,7 @@ static void ucsi_qti_notify_work(struct work_struct *work)
 static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
 			    struct ucsi_connector_status *status, size_t len)
 {
-	u8 conn_partner_type, conn_partner_flag;
+	u8 conn_partner_type;
 	bool cmd_requested;
 	struct constat_info_entry *entry;
 
@@ -422,9 +422,6 @@ static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
 			return;
 
 		INIT_LIST_HEAD(&entry->node);
-		entry->constat_info.partner_usb = false;
-		entry->constat_info.partner_alternate_mode = false;
-
 		conn_partner_type = UCSI_CONSTAT_PARTNER_TYPE(status->flags);
 
 		switch (conn_partner_type) {
@@ -434,23 +431,10 @@ static void ucsi_qti_notify(struct ucsi_dev *udev, unsigned int offset,
 		case UCSI_CONSTAT_PARTNER_TYPE_DEBUG:
 			entry->constat_info.acc = TYPEC_ACCESSORY_DEBUG;
 			break;
-		case UCSI_CONSTAT_PARTNER_TYPE_UFP:
-		case UCSI_CONSTAT_PARTNER_TYPE_CABLE:
-		case UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP:
-		case UCSI_CONSTAT_PARTNER_TYPE_DFP:
-			entry->constat_info.partner_usb = true;
-			fallthrough;
 		default:
 			entry->constat_info.acc = TYPEC_ACCESSORY_NONE;
 			break;
 		}
-
-		conn_partner_flag = UCSI_CONSTAT_PARTNER_FLAGS(status->flags);
-		if (conn_partner_flag & UCSI_CONSTAT_PARTNER_FLAG_USB)
-			entry->constat_info.partner_usb = true;
-
-		if (conn_partner_flag & UCSI_CONSTAT_PARTNER_FLAG_ALT_MODE)
-			entry->constat_info.partner_alternate_mode = true;
 
 		mutex_lock(&udev->notify_lock);
 		list_add_tail(&entry->node, &udev->constat_info_list);
