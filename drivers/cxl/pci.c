@@ -431,10 +431,6 @@ static int cxl_await_media_ready(struct cxl_dev_state *cxlds)
 	u64 md_status;
 	int rc, i;
 
-	rc = wait_for_valid(cxlds);
-	if (rc)
-		return rc;
-
 	for (i = mbox_ready_timeout; i; i--) {
 		u32 temp;
 
