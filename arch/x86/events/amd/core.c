@@ -1472,6 +1472,24 @@ __init int amd_pmu_init(void)
 	return 0;
 }
 
+static inline void amd_pmu_reload_virt(void)
+{
+	if (x86_pmu.version >= 2) {
+		/*
+		 * Clear global enable bits, reprogram the PERF_CTL
+		 * registers with updated perf_ctr_virt_mask and then
+		 * set global enable bits once again
+		 */
+		amd_pmu_v2_disable_all();
+		amd_pmu_enable_all(0);
+		amd_pmu_v2_enable_all(0);
+		return;
+	}
+
+	amd_pmu_disable_all();
+	amd_pmu_enable_all(0);
+}
+
 void amd_pmu_enable_virt(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
@@ -1479,8 +1497,7 @@ void amd_pmu_enable_virt(void)
 	cpuc->perf_ctr_virt_mask = 0;
 
 	/* Reload all events */
-	amd_pmu_disable_all();
-	x86_pmu_enable_all(0);
+	amd_pmu_reload_virt();
 }
 EXPORT_SYMBOL_GPL(amd_pmu_enable_virt);
 
@@ -1497,7 +1514,6 @@ void amd_pmu_disable_virt(void)
 	cpuc->perf_ctr_virt_mask = AMD64_EVENTSEL_HOSTONLY;
 
 	/* Reload all events */
-	amd_pmu_disable_all();
-	x86_pmu_enable_all(0);
+	amd_pmu_reload_virt();
 }
 EXPORT_SYMBOL_GPL(amd_pmu_disable_virt);
