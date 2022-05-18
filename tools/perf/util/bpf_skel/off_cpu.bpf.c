@@ -72,6 +72,8 @@ int enabled = 0;
 int has_cpu = 0;
 int has_task = 0;
 
+const volatile bool has_prev_state = false;
+
 /*
  * Old kernel used to call it task_struct->state and now it's '__state'.
  * Use BPF CO-RE "ignored suffix rule" to deal with it like below:
@@ -121,21 +123,12 @@ static inline int can_record(struct task_struct *t, int state)
 	return 1;
 }
 
-SEC("tp_btf/sched_switch")
-int on_switch(u64 *ctx)
+static int off_cpu_stat(u64 *ctx, struct task_struct *prev,
+			struct task_struct *next, int state)
 {
 	__u64 ts;
-	int state;
 	__u32 stack_id;
-	struct task_struct *prev, *next;
 	struct tstamp_data *pelem;
-
-	if (!enabled)
-		return 0;
-
-	prev = (struct task_struct *)ctx[1];
-	next = (struct task_struct *)ctx[2];
-	state = get_task_state(prev);
 
 	ts = bpf_ktime_get_ns();
 
@@ -178,6 +171,26 @@ next:
 	}
 
 	return 0;
+}
+
+SEC("tp_btf/sched_switch")
+int on_switch(u64 *ctx)
+{
+	struct task_struct *prev, *next;
+	int prev_state;
+
+	if (!enabled)
+		return 0;
+
+	prev = (struct task_struct *)ctx[1];
+	next = (struct task_struct *)ctx[2];
+
+	if (has_prev_state)
+		prev_state = (int)ctx[3];
+	else
+		prev_state = get_task_state(prev);
+
+	return off_cpu_stat(ctx, prev, next, prev_state);
 }
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";

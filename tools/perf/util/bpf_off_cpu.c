@@ -89,6 +89,33 @@ static void off_cpu_finish(void *arg __maybe_unused)
 	off_cpu_bpf__destroy(skel);
 }
 
+/* v5.18 kernel added prev_state arg, so it needs to check the signature */
+static void check_sched_switch_args(void)
+{
+	const struct btf *btf = bpf_object__btf(skel->obj);
+	const struct btf_type *t1, *t2, *t3;
+	u32 type_id;
+
+	type_id = btf__find_by_name_kind(btf, "bpf_trace_sched_switch",
+					 BTF_KIND_TYPEDEF);
+	if ((s32)type_id < 0)
+		return;
+
+	t1 = btf__type_by_id(btf, type_id);
+	if (t1 == NULL)
+		return;
+
+	t2 = btf__type_by_id(btf, t1->type);
+	if (t2 == NULL || !btf_is_ptr(t2))
+		return;
+
+	t3 = btf__type_by_id(btf, t2->type);
+	if (t3 && btf_is_func_proto(t3) && btf_vlen(t3) == 4) {
+		/* new format: pass prev_state as 4th arg */
+		skel->rodata->has_prev_state = true;
+	}
+}
+
 int off_cpu_prepare(struct evlist *evlist, struct target *target)
 {
 	int err, fd, i;
@@ -117,6 +144,7 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target)
 	}
 
 	set_max_rlimit();
+	check_sched_switch_args();
 
 	err = off_cpu_bpf__load(skel);
 	if (err) {
