@@ -303,7 +303,7 @@ void mptcp_pm_mp_fail_received(struct sock *sk, u64 fail_seq)
 
 	pr_debug("fail_seq=%llu", fail_seq);
 
-	if (mptcp_has_another_subflow(sk) || !READ_ONCE(msk->allow_infinite_fallback))
+	if (!READ_ONCE(msk->allow_infinite_fallback))
 		return;
 
 	if (!READ_ONCE(subflow->mp_fail_response_expect)) {
