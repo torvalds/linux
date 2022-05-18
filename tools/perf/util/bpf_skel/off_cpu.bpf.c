@@ -1,0 +1,139 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+// Copyright (c) 2022 Google
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
+
+/* task->flags for off-cpu analysis */
+#define PF_KTHREAD   0x00200000  /* I am a kernel thread */
+
+/* task->state for off-cpu analysis */
+#define TASK_INTERRUPTIBLE	0x0001
+#define TASK_UNINTERRUPTIBLE	0x0002
+
+#define MAX_STACKS   32
+#define MAX_ENTRIES  102400
+
+struct tstamp_data {
+	__u32 stack_id;
+	__u32 state;
+	__u64 timestamp;
+};
+
+struct offcpu_key {
+	__u32 pid;
+	__u32 tgid;
+	__u32 stack_id;
+	__u32 state;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, MAX_STACKS * sizeof(__u64));
+	__uint(max_entries, MAX_ENTRIES);
+} stacks SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, struct tstamp_data);
+} tstamp SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(struct offcpu_key));
+	__uint(value_size, sizeof(__u64));
+	__uint(max_entries, MAX_ENTRIES);
+} off_cpu SEC(".maps");
+
+/* old kernel task_struct definition */
+struct task_struct___old {
+	long state;
+} __attribute__((preserve_access_index));
+
+int enabled = 0;
+
+/*
+ * Old kernel used to call it task_struct->state and now it's '__state'.
+ * Use BPF CO-RE "ignored suffix rule" to deal with it like below:
+ *
+ * https://nakryiko.com/posts/bpf-core-reference-guide/#handling-incompatible-field-and-type-changes
+ */
+static inline int get_task_state(struct task_struct *t)
+{
+	if (bpf_core_field_exists(t->__state))
+		return BPF_CORE_READ(t, __state);
+
+	/* recast pointer to capture task_struct___old type for compiler */
+	struct task_struct___old *t_old = (void *)t;
+
+	/* now use old "state" name of the field */
+	return BPF_CORE_READ(t_old, state);
+}
+
+SEC("tp_btf/sched_switch")
+int on_switch(u64 *ctx)
+{
+	__u64 ts;
+	int state;
+	__u32 stack_id;
+	struct task_struct *prev, *next;
+	struct tstamp_data *pelem;
+
+	if (!enabled)
+		return 0;
+
+	prev = (struct task_struct *)ctx[1];
+	next = (struct task_struct *)ctx[2];
+	state = get_task_state(prev);
+
+	ts = bpf_ktime_get_ns();
+
+	if (prev->flags & PF_KTHREAD)
+		goto next;
+	if (state != TASK_INTERRUPTIBLE &&
+	    state != TASK_UNINTERRUPTIBLE)
+		goto next;
+
+	stack_id = bpf_get_stackid(ctx, &stacks,
+				   BPF_F_FAST_STACK_CMP | BPF_F_USER_STACK);
+
+	pelem = bpf_task_storage_get(&tstamp, prev, NULL,
+				     BPF_LOCAL_STORAGE_GET_F_CREATE);
+	if (!pelem)
+		goto next;
+
+	pelem->timestamp = ts;
+	pelem->state = state;
+	pelem->stack_id = stack_id;
+
+next:
+	pelem = bpf_task_storage_get(&tstamp, next, NULL, 0);
+
+	if (pelem && pelem->timestamp) {
+		struct offcpu_key key = {
+			.pid = next->pid,
+			.tgid = next->tgid,
+			.stack_id = pelem->stack_id,
+			.state = pelem->state,
+		};
+		__u64 delta = ts - pelem->timestamp;
+		__u64 *total;
+
+		total = bpf_map_lookup_elem(&off_cpu, &key);
+		if (total)
+			*total += delta;
+		else
+			bpf_map_update_elem(&off_cpu, &key, &delta, BPF_ANY);
+
+		/* prevent to reuse the timestamp later */
+		pelem->timestamp = 0;
+	}
+
+	return 0;
+}
+
+char LICENSE[] SEC("license") = "Dual BSD/GPL";

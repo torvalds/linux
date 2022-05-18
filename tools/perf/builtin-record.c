@@ -49,6 +49,7 @@
 #include "util/clockid.h"
 #include "util/pmu-hybrid.h"
 #include "util/evlist-hybrid.h"
+#include "util/off_cpu.h"
 #include "asm/bug.h"
 #include "perf.h"
 #include "cputopo.h"
@@ -162,6 +163,7 @@ struct record {
 	bool			buildid_mmap;
 	bool			timestamp_filename;
 	bool			timestamp_boundary;
+	bool			off_cpu;
 	struct switch_output	switch_output;
 	unsigned long long	samples;
 	unsigned long		output_max_size;	/* = 0: unlimited */
@@ -886,6 +888,11 @@ static int record__config_text_poke(struct evlist *evlist)
 	evsel__set_sample_bit(evsel, TIME);
 
 	return 0;
+}
+
+static int record__config_off_cpu(struct record *rec)
+{
+	return off_cpu_prepare(rec->evlist);
 }
 
 static bool record__kcore_readable(struct machine *machine)
@@ -2591,6 +2598,9 @@ out_free_threads:
 	} else
 		status = err;
 
+	if (rec->off_cpu)
+		rec->bytes_written += off_cpu_write(rec->session);
+
 	record__synthesize(rec, true);
 	/* this will be recalculated during process_buildids() */
 	rec->samples = 0;
@@ -3315,6 +3325,7 @@ static struct option __record_options[] = {
 	OPT_CALLBACK_OPTARG(0, "threads", &record.opts, NULL, "spec",
 			    "write collected trace data into several data files using parallel threads",
 			    record__parse_threads),
+	OPT_BOOLEAN(0, "off-cpu", &record.off_cpu, "Enable off-cpu analysis"),
 	OPT_END()
 };
 
@@ -3736,6 +3747,12 @@ int cmd_record(int argc, const char **argv)
 # undef REASON
 #endif
 
+#ifndef HAVE_BPF_SKEL
+# define set_nobuild(s, l, m, c) set_option_nobuild(record_options, s, l, m, c)
+	set_nobuild('\0', "off-cpu", "no BUILD_BPF_SKEL=1", true);
+# undef set_nobuild
+#endif
+
 	rec->opts.affinity = PERF_AFFINITY_SYS;
 
 	rec->evlist = evlist__new();
@@ -3968,6 +3985,14 @@ int cmd_record(int argc, const char **argv)
 		err = record__config_text_poke(rec->evlist);
 		if (err) {
 			pr_err("record__config_text_poke failed, error %d\n", err);
+			goto out;
+		}
+	}
+
+	if (rec->off_cpu) {
+		err = record__config_off_cpu(rec);
+		if (err) {
+			pr_err("record__config_off_cpu failed, error %d\n", err);
 			goto out;
 		}
 	}
