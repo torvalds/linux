@@ -5955,6 +5955,7 @@ static int mlx5e_probe(struct auxiliary_device *adev,
 
 	mlx5e_dcbnl_init_app(priv);
 	mlx5_uplink_netdev_set(mdev, netdev);
+	mlx5e_params_print_info(mdev, &priv->channels.params);
 	return 0;
 
 err_resume:

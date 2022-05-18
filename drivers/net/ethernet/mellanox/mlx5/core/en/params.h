@@ -154,4 +154,18 @@ int mlx5e_build_channel_param(struct mlx5_core_dev *mdev,
 u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params);
 int mlx5e_validate_params(struct mlx5_core_dev *mdev, struct mlx5e_params *params);
 
+static inline void mlx5e_params_print_info(struct mlx5_core_dev *mdev,
+					   struct mlx5e_params *params)
+{
+	mlx5_core_info(mdev, "MLX5E: StrdRq(%d) RqSz(%ld) StrdSz(%ld) RxCqeCmprss(%d %s)\n",
+		       params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ,
+		       params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ ?
+		       BIT(mlx5e_mpwqe_get_log_rq_size(mdev, params, NULL)) :
+		       BIT(params->log_rq_mtu_frames),
+		       BIT(mlx5e_mpwqe_get_log_stride_size(mdev, params, NULL)),
+		       MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS),
+		       MLX5_CAP_GEN(mdev, enhanced_cqe_compression) ?
+				       "enhanced" : "basic");
+};
+
 #endif /* __MLX5_EN_PARAMS_H__ */
