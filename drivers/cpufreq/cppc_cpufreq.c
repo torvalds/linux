@@ -743,6 +743,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	policy->fast_switch_possible = cppc_allow_fast_switch();
+	policy->dvfs_possible_from_any_cpu = true;
 
 	/*
 	 * If 'highest_perf' is greater than 'nominal_perf', we assume CPU Boost
