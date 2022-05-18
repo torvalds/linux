@@ -58,17 +58,14 @@ static int create_endpoint(struct cxl_memdev *cxlmd,
  * decoders, or if it can not be determined if DVSEC Ranges are in use.
  * Otherwise, returns true.
  */
-__mock bool cxl_hdm_decode_init(struct cxl_dev_state *cxlds)
+__mock bool cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
+				struct cxl_endpoint_dvsec_info *info)
 {
-	struct cxl_endpoint_dvsec_info *info = &cxlds->info;
 	struct cxl_register_map map;
 	struct cxl_component_reg_map *cmap = &map.component_map;
 	bool global_enable, retval = false;
 	void __iomem *crb;
 	u32 global_ctrl;
-
-	if (info->ranges < 0)
-		return false;
 
 	/* map hdm decoder */
 	crb = ioremap(cxlds->component_reg_phys, CXL_COMPONENT_REG_BLOCK_SIZE);
@@ -125,6 +122,7 @@ static void enable_suspend(void *data)
 static int cxl_mem_probe(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_endpoint_dvsec_info info = { 0 };
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_port *parent_port;
 	int rc;
@@ -165,6 +163,10 @@ unlock:
 	if (rc)
 		return rc;
 
+	rc = cxl_dvsec_ranges(cxlds, &info);
+	if (rc)
+		return rc;
+
 	rc = cxl_await_media_ready(cxlds);
 	if (rc) {
 		dev_err(dev, "Media not active (%d)\n", rc);
@@ -175,7 +177,7 @@ unlock:
 	 * If DVSEC ranges are being used instead of HDM decoder registers there
 	 * is no use in trying to manage those.
 	 */
-	if (!cxl_hdm_decode_init(cxlds)) {
+	if (!cxl_hdm_decode_init(cxlds, &info)) {
 		dev_err(dev,
 			"Legacy range registers configuration prevents HDM operation.\n");
 		return -EBUSY;

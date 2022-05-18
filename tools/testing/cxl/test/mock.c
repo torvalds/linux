@@ -208,6 +208,22 @@ int __wrap_cxl_await_media_ready(struct cxl_dev_state *cxlds)
 }
 EXPORT_SYMBOL_NS_GPL(__wrap_cxl_await_media_ready, CXL);
 
+int __wrap_cxl_dvsec_ranges(struct cxl_dev_state *cxlds,
+			    struct cxl_endpoint_dvsec_info *info)
+{
+	int rc = 0, index;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+
+	if (ops && ops->is_mock_dev(cxlds->dev))
+		info->mem_enabled = 1;
+	else
+		rc = cxl_dvsec_ranges(cxlds, info);
+	put_cxl_mock_ops(index);
+
+	return rc;
+}
+EXPORT_SYMBOL_NS_GPL(__wrap_cxl_dvsec_ranges, CXL);
+
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(ACPI);
 MODULE_IMPORT_NS(CXL);
