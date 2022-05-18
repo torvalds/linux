@@ -238,6 +238,7 @@ struct tls_context {
 
 	u8 tx_conf:3;
 	u8 rx_conf:3;
+	u8 zerocopy_sendfile:1;
 
 	int (*push_pending_record)(struct sock *sk, int flags);
 	void (*sk_write_space)(struct sock *sk);
