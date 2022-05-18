@@ -19,6 +19,7 @@ qnoc-sm8150-objs			:= sm8150.o
 qnoc-sm8250-objs			:= sm8250.o
 qnoc-sm8350-objs			:= sm8350.o
 qnoc-sm8450-objs			:= sm8450.o
+qnoc-pineapple-objs			:= pineapple.o
 icc-smd-rpm-objs			:= smd-rpm.o icc-rpm.o
 qnoc-qos-obj				:= qnoc-qos.o
 
@@ -41,6 +42,7 @@ obj-$(CONFIG_INTERCONNECT_QCOM_SM8150) += qnoc-sm8150.o
 obj-$(CONFIG_INTERCONNECT_QCOM_SM8250) += qnoc-sm8250.o
 obj-$(CONFIG_INTERCONNECT_QCOM_SM8350) += qnoc-sm8350.o
 obj-$(CONFIG_INTERCONNECT_QCOM_SM8450) += qnoc-sm8450.o
+obj-$(CONFIG_INTERCONNECT_QCOM_PINEAPPLE) += qnoc-pineapple.o
 obj-$(CONFIG_INTERCONNECT_QCOM_SMD_RPM) += icc-smd-rpm.o
 obj-$(CONFIG_INTERCONNECT_QCOM_QOS) += qnoc-qos.o
 obj-$(CONFIG_INTERCONNECT_QCOM_DEBUG) += icc-debug.o
