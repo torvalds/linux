@@ -633,7 +633,6 @@ static inline int tdp_mmu_set_spte_atomic(struct kvm *kvm,
 					  u64 new_spte)
 {
 	u64 *sptep = rcu_dereference(iter->sptep);
-	u64 old_spte;
 
 	/*
 	 * The caller is responsible for ensuring the old SPTE is not a REMOVED
@@ -649,17 +648,8 @@ static inline int tdp_mmu_set_spte_atomic(struct kvm *kvm,
 	 * Note, fast_pf_fix_direct_spte() can also modify TDP MMU SPTEs and
 	 * does not hold the mmu_lock.
 	 */
-	old_spte = cmpxchg64(sptep, iter->old_spte, new_spte);
-	if (old_spte != iter->old_spte) {
-		/*
-		 * The page table entry was modified by a different logical
-		 * CPU. Refresh iter->old_spte with the current value so the
-		 * caller operates on fresh data, e.g. if it retries
-		 * tdp_mmu_set_spte_atomic().
-		 */
-		iter->old_spte = old_spte;
+	if (!try_cmpxchg64(sptep, &iter->old_spte, new_spte))
 		return -EBUSY;
-	}
 
 	__handle_changed_spte(kvm, iter->as_id, iter->gfn, iter->old_spte,
 			      new_spte, iter->level, true);
