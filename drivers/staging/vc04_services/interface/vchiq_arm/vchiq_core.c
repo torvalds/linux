@@ -13,6 +13,7 @@
 #include <linux/rcupdate.h>
 #include <linux/sched/signal.h>
 
+#include "vchiq_arm.h"
 #include "vchiq_core.h"
 
 #define VCHIQ_SLOT_HANDLER_STACK 8192
@@ -234,6 +235,12 @@ set_service_state(struct vchiq_service *service, int newstate)
 	service->srvstate = newstate;
 }
 
+struct vchiq_service *handle_to_service(struct vchiq_instance *instance, unsigned int handle)
+{
+	int idx = handle & (VCHIQ_MAX_SERVICES - 1);
+
+	return rcu_dereference(instance->state->services[idx]);
+}
 struct vchiq_service *
 find_service_by_handle(struct vchiq_instance *instance, unsigned int handle)
 {
