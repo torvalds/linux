@@ -204,9 +204,12 @@ EXPORT_SYMBOL(cros_ec_prepare_tx);
  * @msg: Message to check.
  *
  * This is used by ChromeOS EC drivers to check the ec_msg->result for
- * errors and to warn about them.
+ * EC_RES_IN_PROGRESS and to warn about them.
  *
- * Return: 0 on success or negative error code.
+ * The function should not check for furthermore error codes.  Otherwise,
+ * it would break the ABI.
+ *
+ * Return: -EAGAIN if ec_msg->result == EC_RES_IN_PROGRESS.  Otherwise, 0.
  */
 int cros_ec_check_result(struct cros_ec_device *ec_dev,
 			 struct cros_ec_command *msg)
