@@ -156,7 +156,7 @@ no_mmap:
 }
 
 struct vfio_pci_group_info;
-static bool vfio_pci_dev_set_try_reset(struct vfio_device_set *dev_set);
+static void vfio_pci_dev_set_try_reset(struct vfio_device_set *dev_set);
 static int vfio_pci_dev_set_hot_reset(struct vfio_device_set *dev_set,
 				      struct vfio_pci_group_info *groups);
 
@@ -259,6 +259,17 @@ int vfio_pci_set_power_state(struct vfio_pci_core_device *vdev, pci_power_t stat
 	return ret;
 }
 
+/*
+ * The dev_pm_ops needs to be provided to make pci-driver runtime PM working,
+ * so use structure without any callbacks.
+ *
+ * The pci-driver core runtime PM routines always save the device state
+ * before going into suspended state. If the device is going into low power
+ * state with only with runtime PM ops, then no explicit handling is needed
+ * for the devices which have NoSoftRst-.
+ */
+static const struct dev_pm_ops vfio_pci_core_pm_ops = { };
+
 int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
@@ -266,21 +277,23 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 	u16 cmd;
 	u8 msix_pos;
 
-	vfio_pci_set_power_state(vdev, PCI_D0);
+	if (!disable_idle_d3) {
+		ret = pm_runtime_resume_and_get(&pdev->dev);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* Don't allow our initial saved state to include busmaster */
 	pci_clear_master(pdev);
 
 	ret = pci_enable_device(pdev);
 	if (ret)
-		return ret;
+		goto out_power;
 
 	/* If reset fails because of the device lock, fail this path entirely */
 	ret = pci_try_reset_function(pdev);
-	if (ret == -EAGAIN) {
-		pci_disable_device(pdev);
-		return ret;
-	}
+	if (ret == -EAGAIN)
+		goto out_disable_device;
 
 	vdev->reset_works = !ret;
 	pci_save_state(pdev);
@@ -304,12 +317,8 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 	}
 
 	ret = vfio_config_init(vdev);
-	if (ret) {
-		kfree(vdev->pci_saved_state);
-		vdev->pci_saved_state = NULL;
-		pci_disable_device(pdev);
-		return ret;
-	}
+	if (ret)
+		goto out_free_state;
 
 	msix_pos = pdev->msix_cap;
 	if (msix_pos) {
@@ -330,6 +339,16 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 
 
 	return 0;
+
+out_free_state:
+	kfree(vdev->pci_saved_state);
+	vdev->pci_saved_state = NULL;
+out_disable_device:
+	pci_disable_device(pdev);
+out_power:
+	if (!disable_idle_d3)
+		pm_runtime_put(&pdev->dev);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_enable);
 
@@ -437,8 +456,11 @@ void vfio_pci_core_disable(struct vfio_pci_core_device *vdev)
 out:
 	pci_disable_device(pdev);
 
-	if (!vfio_pci_dev_set_try_reset(vdev->vdev.dev_set) && !disable_idle_d3)
-		vfio_pci_set_power_state(vdev, PCI_D3hot);
+	vfio_pci_dev_set_try_reset(vdev->vdev.dev_set);
+
+	/* Put the pm-runtime usage counter acquired during enable */
+	if (!disable_idle_d3)
+		pm_runtime_put(&pdev->dev);
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_disable);
 
@@ -1823,10 +1845,11 @@ EXPORT_SYMBOL_GPL(vfio_pci_core_uninit_device);
 int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
+	struct device *dev = &pdev->dev;
 	int ret;
 
 	/* Drivers must set the vfio_pci_core_device to their drvdata */
-	if (WARN_ON(vdev != dev_get_drvdata(&vdev->pdev->dev)))
+	if (WARN_ON(vdev != dev_get_drvdata(dev)))
 		return -EINVAL;
 
 	if (pdev->hdr_type != PCI_HEADER_TYPE_NORMAL)
@@ -1868,19 +1891,21 @@ int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev)
 
 	vfio_pci_probe_power_state(vdev);
 
-	if (!disable_idle_d3) {
-		/*
-		 * pci-core sets the device power state to an unknown value at
-		 * bootup and after being removed from a driver.  The only
-		 * transition it allows from this unknown state is to D0, which
-		 * typically happens when a driver calls pci_enable_device().
-		 * We're not ready to enable the device yet, but we do want to
-		 * be able to get to D3.  Therefore first do a D0 transition
-		 * before going to D3.
-		 */
-		vfio_pci_set_power_state(vdev, PCI_D0);
-		vfio_pci_set_power_state(vdev, PCI_D3hot);
-	}
+	/*
+	 * pci-core sets the device power state to an unknown value at
+	 * bootup and after being removed from a driver.  The only
+	 * transition it allows from this unknown state is to D0, which
+	 * typically happens when a driver calls pci_enable_device().
+	 * We're not ready to enable the device yet, but we do want to
+	 * be able to get to D3.  Therefore first do a D0 transition
+	 * before enabling runtime PM.
+	 */
+	vfio_pci_set_power_state(vdev, PCI_D0);
+
+	dev->driver->pm = &vfio_pci_core_pm_ops;
+	pm_runtime_allow(dev);
+	if (!disable_idle_d3)
+		pm_runtime_put(dev);
 
 	ret = vfio_register_group_dev(&vdev->vdev);
 	if (ret)
@@ -1889,7 +1914,9 @@ int vfio_pci_core_register_device(struct vfio_pci_core_device *vdev)
 
 out_power:
 	if (!disable_idle_d3)
-		vfio_pci_set_power_state(vdev, PCI_D0);
+		pm_runtime_get_noresume(dev);
+
+	pm_runtime_forbid(dev);
 out_vf:
 	vfio_pci_vf_uninit(vdev);
 	return ret;
@@ -1906,7 +1933,9 @@ void vfio_pci_core_unregister_device(struct vfio_pci_core_device *vdev)
 	vfio_pci_vga_uninit(vdev);
 
 	if (!disable_idle_d3)
-		vfio_pci_set_power_state(vdev, PCI_D0);
+		pm_runtime_get_noresume(&vdev->pdev->dev);
+
+	pm_runtime_forbid(&vdev->pdev->dev);
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_unregister_device);
 
@@ -1951,22 +1980,33 @@ int vfio_pci_core_sriov_configure(struct vfio_pci_core_device *vdev,
 
 		/*
 		 * The PF power state should always be higher than the VF power
-		 * state. If PF is in the low power state, then change the
-		 * power state to D0 first before enabling SR-IOV.
-		 * Also, this function can be called at any time, and userspace
-		 * PCI_PM_CTRL write can race against this code path,
+		 * state. The PF can be in low power state either with runtime
+		 * power management (when there is no user) or PCI_PM_CTRL
+		 * register write by the user. If PF is in the low power state,
+		 * then change the power state to D0 first before enabling
+		 * SR-IOV. Also, this function can be called at any time, and
+		 * userspace PCI_PM_CTRL write can race against this code path,
 		 * so protect the same with 'memory_lock'.
 		 */
+		ret = pm_runtime_resume_and_get(&pdev->dev);
+		if (ret)
+			goto out_del;
+
 		down_write(&vdev->memory_lock);
 		vfio_pci_set_power_state(vdev, PCI_D0);
 		ret = pci_enable_sriov(pdev, nr_virtfn);
 		up_write(&vdev->memory_lock);
-		if (ret)
+		if (ret) {
+			pm_runtime_put(&pdev->dev);
 			goto out_del;
+		}
 		return nr_virtfn;
 	}
 
-	pci_disable_sriov(pdev);
+	if (pci_num_vf(pdev)) {
+		pci_disable_sriov(pdev);
+		pm_runtime_put(&pdev->dev);
+	}
 
 out_del:
 	mutex_lock(&vfio_pci_sriov_pfs_mutex);
@@ -2039,6 +2079,27 @@ vfio_pci_dev_set_resettable(struct vfio_device_set *dev_set)
 					  !pci_probe_reset_slot(pdev->slot)))
 		return NULL;
 	return pdev;
+}
+
+static int vfio_pci_dev_set_pm_runtime_get(struct vfio_device_set *dev_set)
+{
+	struct vfio_pci_core_device *cur;
+	int ret;
+
+	list_for_each_entry(cur, &dev_set->device_list, vdev.dev_set_list) {
+		ret = pm_runtime_resume_and_get(&cur->pdev->dev);
+		if (ret)
+			goto unwind;
+	}
+
+	return 0;
+
+unwind:
+	list_for_each_entry_continue_reverse(cur, &dev_set->device_list,
+					     vdev.dev_set_list)
+		pm_runtime_put(&cur->pdev->dev);
+
+	return ret;
 }
 
 /*
@@ -2147,43 +2208,38 @@ static bool vfio_pci_dev_set_needs_reset(struct vfio_device_set *dev_set)
  *  - At least one of the affected devices is marked dirty via
  *    needs_reset (such as by lack of FLR support)
  * Then attempt to perform that bus or slot reset.
- * Returns true if the dev_set was reset.
  */
-static bool vfio_pci_dev_set_try_reset(struct vfio_device_set *dev_set)
+static void vfio_pci_dev_set_try_reset(struct vfio_device_set *dev_set)
 {
 	struct vfio_pci_core_device *cur;
 	struct pci_dev *pdev;
-	int ret;
+	bool reset_done = false;
 
 	if (!vfio_pci_dev_set_needs_reset(dev_set))
-		return false;
+		return;
 
 	pdev = vfio_pci_dev_set_resettable(dev_set);
 	if (!pdev)
-		return false;
+		return;
 
 	/*
-	 * The pci_reset_bus() will reset all the devices in the bus.
-	 * The power state can be non-D0 for some of the devices in the bus.
-	 * For these devices, the pci_reset_bus() will internally set
-	 * the power state to D0 without vfio driver involvement.
-	 * For the devices which have NoSoftRst-, the reset function can
-	 * cause the PCI config space reset without restoring the original
-	 * state (saved locally in 'vdev->pm_save').
+	 * Some of the devices in the bus can be in the runtime suspended
+	 * state. Increment the usage count for all the devices in the dev_set
+	 * before reset and decrement the same after reset.
 	 */
-	list_for_each_entry(cur, &dev_set->device_list, vdev.dev_set_list)
-		vfio_pci_set_power_state(cur, PCI_D0);
+	if (!disable_idle_d3 && vfio_pci_dev_set_pm_runtime_get(dev_set))
+		return;
 
-	ret = pci_reset_bus(pdev);
-	if (ret)
-		return false;
+	if (!pci_reset_bus(pdev))
+		reset_done = true;
 
 	list_for_each_entry(cur, &dev_set->device_list, vdev.dev_set_list) {
-		cur->needs_reset = false;
+		if (reset_done)
+			cur->needs_reset = false;
+
 		if (!disable_idle_d3)
-			vfio_pci_set_power_state(cur, PCI_D3hot);
+			pm_runtime_put(&cur->pdev->dev);
 	}
-	return true;
 }
 
 void vfio_pci_core_set_params(bool is_nointxmask, bool is_disable_vga,
