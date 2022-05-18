@@ -3512,11 +3512,8 @@ static int io_buffer_add_list(struct io_ring_ctx *ctx,
 }
 
 static void __user *io_provided_buffer_select(struct io_kiocb *req, size_t *len,
-					      struct io_buffer_list *bl,
-					      unsigned int issue_flags)
+					      struct io_buffer_list *bl)
 {
-	void __user *ret = ERR_PTR(-ENOBUFS);
-
 	if (!list_empty(&bl->buf_list)) {
 		struct io_buffer *kbuf;
 
@@ -3527,11 +3524,9 @@ static void __user *io_provided_buffer_select(struct io_kiocb *req, size_t *len,
 		req->flags |= REQ_F_BUFFER_SELECTED;
 		req->kbuf = kbuf;
 		req->buf_index = kbuf->bid;
-		ret = u64_to_user_ptr(kbuf->addr);
+		return u64_to_user_ptr(kbuf->addr);
 	}
-
-	io_ring_submit_unlock(req->ctx, issue_flags);
-	return ret;
+	return NULL;
 }
 
 static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
@@ -3544,7 +3539,7 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 
 	if (unlikely(smp_load_acquire(&br->tail) == head)) {
 		io_ring_submit_unlock(req->ctx, issue_flags);
-		return ERR_PTR(-ENOBUFS);
+		return NULL;
 	}
 
 	head &= bl->mask;
@@ -3562,22 +3557,19 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 	req->buf_list = bl;
 	req->buf_index = buf->bid;
 
-	if (!(issue_flags & IO_URING_F_UNLOCKED))
-		return u64_to_user_ptr(buf->addr);
-
-	/*
-	 * If we came in unlocked, we have no choice but to
-	 * consume the buffer here. This does mean it'll be
-	 * pinned until the IO completes. But coming in
-	 * unlocked means we're in io-wq context, hence there
-	 * should be no further retry. For the locked case, the
-	 * caller must ensure to call the commit when the
-	 * transfer completes (or if we get -EAGAIN and must
-	 * poll or retry).
-	 */
-	req->buf_list = NULL;
-	bl->head++;
-	io_ring_submit_unlock(req->ctx, issue_flags);
+	if (issue_flags & IO_URING_F_UNLOCKED) {
+		/*
+		 * If we came in unlocked, we have no choice but to consume the
+		 * buffer here. This does mean it'll be pinned until the IO
+		 * completes. But coming in unlocked means we're in io-wq
+		 * context, hence there should be no further retry. For the
+		 * locked case, the caller must ensure to call the commit when
+		 * the transfer completes (or if we get -EAGAIN and must poll
+		 * or retry).
+		 */
+		req->buf_list = NULL;
+		bl->head++;
+	}
 	return u64_to_user_ptr(buf->addr);
 }
 
@@ -3586,20 +3578,19 @@ static void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer_list *bl;
+	void __user *ret = NULL;
 
 	io_ring_submit_lock(req->ctx, issue_flags);
 
 	bl = io_buffer_get_list(ctx, req->buf_index);
-	if (unlikely(!bl)) {
-		io_ring_submit_unlock(req->ctx, issue_flags);
-		return ERR_PTR(-ENOBUFS);
+	if (likely(bl)) {
+		if (bl->buf_nr_pages)
+			ret = io_ring_buffer_select(req, len, bl, issue_flags);
+		else
+			ret = io_provided_buffer_select(req, len, bl);
 	}
-
-	/* selection helpers drop the submit lock again, if needed */
-	if (bl->buf_nr_pages)
-		return io_ring_buffer_select(req, len, bl, issue_flags);
-
-	return io_provided_buffer_select(req, len, bl, issue_flags);
+	io_ring_submit_unlock(req->ctx, issue_flags);
+	return ret;
 }
 
 #ifdef CONFIG_COMPAT
@@ -3621,8 +3612,8 @@ static ssize_t io_compat_import(struct io_kiocb *req, struct iovec *iov,
 
 	len = clen;
 	buf = io_buffer_select(req, &len, issue_flags);
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
+	if (!buf)
+		return -ENOBUFS;
 	req->rw.addr = (unsigned long) buf;
 	iov[0].iov_base = buf;
 	req->rw.len = iov[0].iov_len = (compat_size_t) len;
@@ -3644,8 +3635,8 @@ static ssize_t __io_iov_buffer_select(struct io_kiocb *req, struct iovec *iov,
 	if (len < 0)
 		return -EINVAL;
 	buf = io_buffer_select(req, &len, issue_flags);
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
+	if (!buf)
+		return -ENOBUFS;
 	req->rw.addr = (unsigned long) buf;
 	iov[0].iov_base = buf;
 	req->rw.len = iov[0].iov_len = len;
@@ -3702,8 +3693,8 @@ static struct iovec *__io_import_iovec(int rw, struct io_kiocb *req,
 	if (opcode == IORING_OP_READ || opcode == IORING_OP_WRITE) {
 		if (io_do_buffer_select(req)) {
 			buf = io_buffer_select(req, &sqe_len, issue_flags);
-			if (IS_ERR(buf))
-				return ERR_CAST(buf);
+			if (!buf)
+				return ERR_PTR(-ENOBUFS);
 			req->rw.addr = (unsigned long) buf;
 			req->rw.len = sqe_len;
 		}
@@ -4642,8 +4633,8 @@ static int io_nop(struct io_kiocb *req, unsigned int issue_flags)
 		size_t len = 1;
 
 		buf = io_buffer_select(req, &len, issue_flags);
-		if (IS_ERR(buf))
-			return PTR_ERR(buf);
+		if (!buf)
+			return -ENOBUFS;
 	}
 
 	__io_req_complete(req, issue_flags, 0, io_put_kbuf(req, issue_flags));
@@ -5779,8 +5770,8 @@ static int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 		void __user *buf;
 
 		buf = io_buffer_select(req, &sr->len, issue_flags);
-		if (IS_ERR(buf))
-			return PTR_ERR(buf);
+		if (!buf)
+			return -ENOBUFS;
 		kmsg->fast_iov[0].iov_base = buf;
 		kmsg->fast_iov[0].iov_len = sr->len;
 		iov_iter_init(&kmsg->msg.msg_iter, READ, kmsg->fast_iov, 1,
@@ -5843,8 +5834,8 @@ static int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 		void __user *buf;
 
 		buf = io_buffer_select(req, &sr->len, issue_flags);
-		if (IS_ERR(buf))
-			return PTR_ERR(buf);
+		if (!buf)
+			return -ENOBUFS;
 		sr->buf = buf;
 	}
 
