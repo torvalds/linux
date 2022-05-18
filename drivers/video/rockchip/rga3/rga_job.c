@@ -150,12 +150,9 @@ void rga_job_session_destroy(struct rga_session *session)
 
 static int rga_job_cleanup(struct rga_job *job)
 {
-	ktime_t now = ktime_get();
-
-	if (DEBUGGER_EN(TIME)) {
+	if (DEBUGGER_EN(TIME))
 		pr_err("(pid:%d) job clean use time = %lld\n", job->pid,
-			ktime_us_delta(now, job->timestamp));
-	}
+			ktime_us_delta(ktime_get(), job->timestamp));
 
 	rga_job_free(job);
 
@@ -554,7 +551,6 @@ static void rga_invalid_job_abort(struct rga_job *job)
 static inline int rga_job_wait(struct rga_job *job)
 {
 	int left_time;
-	ktime_t now;
 	int ret;
 
 	left_time = wait_event_timeout(job->scheduler->job_done_wq,
@@ -574,11 +570,9 @@ static inline int rga_job_wait(struct rga_job *job)
 		break;
 	}
 
-	now = ktime_get();
-
 	if (DEBUGGER_EN(TIME))
 		pr_info("%s use time = %lld\n", __func__,
-			ktime_us_delta(now, job->hw_running_time));
+			ktime_us_delta(ktime_get(), job->hw_running_time));
 
 	return ret;
 }
