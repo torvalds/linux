@@ -330,7 +330,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		userdata = args->userdata;
 	}
 
-	status = vchiq_bulk_transfer(args->handle, NULL, args->data, args->size,
+	status = vchiq_bulk_transfer(instance, args->handle, NULL, args->data, args->size,
 				     userdata, args->mode, dir);
 
 	if (!waiter) {

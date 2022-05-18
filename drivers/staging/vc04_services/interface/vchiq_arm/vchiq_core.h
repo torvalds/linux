@@ -488,8 +488,8 @@ extern void
 remote_event_pollall(struct vchiq_state *state);
 
 extern enum vchiq_status
-vchiq_bulk_transfer(unsigned int handle, void *offset, void __user *uoffset,
-		    int size, void *userdata, enum vchiq_bulk_mode mode,
+vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle, void *offset,
+		    void __user *uoffset, int size, void *userdata, enum vchiq_bulk_mode mode,
 		    enum vchiq_bulk_dir dir);
 
 extern int
@@ -555,10 +555,10 @@ vchiq_queue_message(unsigned int handle,
 		    void *context,
 		    size_t size);
 
-int vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset, void __user *uoffset,
-			    int size, int dir);
+int vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *bulk, void *offset,
+			    void __user *uoffset, int size, int dir);
 
-void vchiq_complete_bulk(struct vchiq_bulk *bulk);
+void vchiq_complete_bulk(struct vchiq_instance *instance, struct vchiq_bulk *bulk);
 
 void remote_event_signal(struct remote_event *event);
 

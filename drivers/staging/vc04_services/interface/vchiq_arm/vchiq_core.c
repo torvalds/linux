@@ -1441,7 +1441,7 @@ abort_outstanding_bulks(struct vchiq_service *service,
 		}
 
 		if (queue->process != queue->local_insert) {
-			vchiq_complete_bulk(bulk);
+			vchiq_complete_bulk(service->instance, bulk);
 
 			vchiq_log_info(SRVTRACE_LEVEL(service),
 				       "%s %c%c%c%c d:%d ABORTED - tx len:%d, rx len:%d",
@@ -1769,7 +1769,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 
 			DEBUG_TRACE(PARSE_LINE);
 			WARN_ON(queue->process == queue->local_insert);
-			vchiq_complete_bulk(bulk);
+			vchiq_complete_bulk(service->instance, bulk);
 			queue->process++;
 			mutex_unlock(&service->bulk_mutex);
 			DEBUG_TRACE(PARSE_LINE);
@@ -2998,9 +2998,9 @@ vchiq_remove_service(unsigned int handle)
  * When called in blocking mode, the userdata field points to a bulk_waiter
  * structure.
  */
-enum vchiq_status vchiq_bulk_transfer(unsigned int handle, void *offset, void __user *uoffset,
-				      int size, void *userdata, enum vchiq_bulk_mode mode,
-				      enum vchiq_bulk_dir dir)
+enum vchiq_status vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle,
+				      void *offset, void __user *uoffset, int size, void *userdata,
+				      enum vchiq_bulk_mode mode, enum vchiq_bulk_dir dir)
 {
 	struct vchiq_service *service = find_service_by_handle(handle);
 	struct vchiq_bulk_queue *queue;
@@ -3077,7 +3077,7 @@ enum vchiq_status vchiq_bulk_transfer(unsigned int handle, void *offset, void __
 	bulk->size = size;
 	bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
 
-	if (vchiq_prepare_bulk_data(bulk, offset, uoffset, size, dir))
+	if (vchiq_prepare_bulk_data(instance, bulk, offset, uoffset, size, dir))
 		goto unlock_error_exit;
 
 	wmb();
@@ -3141,7 +3141,7 @@ waiting:
 unlock_both_error_exit:
 	mutex_unlock(&state->slot_mutex);
 cancel_bulk_error_exit:
-	vchiq_complete_bulk(bulk);
+	vchiq_complete_bulk(service->instance, bulk);
 unlock_error_exit:
 	mutex_unlock(&service->bulk_mutex);
 

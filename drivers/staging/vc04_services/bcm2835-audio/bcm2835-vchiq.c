@@ -322,6 +322,8 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 			unsigned int size, void *src)
 {
 	struct bcm2835_audio_instance *instance = alsa_stream->instance;
+	struct bcm2835_vchi_ctx *vchi_ctx = alsa_stream->chip->vchi_ctx;
+	struct vchiq_instance *vchiq_instance = vchi_ctx->instance;
 	struct vc_audio_msg m = {
 		.type = VC_AUDIO_MSG_TYPE_WRITE,
 		.write.count = size,
@@ -343,9 +345,8 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 	count = size;
 	if (!instance->max_packet) {
 		/* Send the message to the videocore */
-		status = vchiq_bulk_transmit(instance->service_handle, src,
-					     count, NULL,
-					     VCHIQ_BULK_MODE_BLOCKING);
+		status = vchiq_bulk_transmit(vchiq_instance, instance->service_handle, src, count,
+					     NULL, VCHIQ_BULK_MODE_BLOCKING);
 	} else {
 		while (count > 0) {
 			int bytes = min(instance->max_packet, count);

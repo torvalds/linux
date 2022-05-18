@@ -293,7 +293,7 @@ static void buffer_to_host_work_cb(struct work_struct *work)
 		len = 8;
 	/* queue the bulk submission */
 	vchiq_use_service(instance->service_handle);
-	ret = vchiq_bulk_receive(instance->service_handle,
+	ret = vchiq_bulk_receive(instance->vchiq_instance, instance->service_handle,
 				 msg_context->u.bulk.buffer->buffer,
 				 /* Actual receive needs to be a multiple
 				  * of 4 bytes
