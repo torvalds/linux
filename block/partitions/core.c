@@ -709,7 +709,7 @@ void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p)
 
 	if (n >= get_capacity(state->disk)) {
 		state->access_beyond_eod = true;
-		return NULL;
+		goto out;
 	}
 
 	page = read_mapping_page(mapping,
