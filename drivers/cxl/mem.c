@@ -171,13 +171,15 @@ static int cxl_mem_probe(struct device *dev)
 		dev_err(dev, "CXL port topology %s not enabled\n",
 			dev_name(&parent_port->dev));
 		rc = -ENXIO;
-		goto out;
+		goto unlock;
 	}
 
 	rc = create_endpoint(cxlmd, parent_port);
-out:
+unlock:
 	device_unlock(&parent_port->dev);
 	put_device(&parent_port->dev);
+	if (rc)
+		return rc;
 
 	/*
 	 * The kernel may be operating out of CXL memory on this device,
