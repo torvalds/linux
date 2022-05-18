@@ -509,7 +509,7 @@ request_poll(struct vchiq_state *state, struct vchiq_service *service,
 	     int poll_type);
 
 static inline struct vchiq_service *
-handle_to_service(unsigned int handle)
+handle_to_service(struct vchiq_instance *instance, unsigned int handle)
 {
 	int idx = handle & (VCHIQ_MAX_SERVICES - 1);
 	struct vchiq_state *state = vchiq_states[(handle / VCHIQ_MAX_SERVICES) &

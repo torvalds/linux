@@ -240,7 +240,7 @@ find_service_by_handle(struct vchiq_instance *instance, unsigned int handle)
 	struct vchiq_service *service;
 
 	rcu_read_lock();
-	service = handle_to_service(handle);
+	service = handle_to_service(instance, handle);
 	if (service && service->srvstate != VCHIQ_SRVSTATE_FREE &&
 	    service->handle == handle &&
 	    kref_get_unless_zero(&service->ref_count)) {
@@ -281,7 +281,7 @@ find_service_for_instance(struct vchiq_instance *instance, unsigned int handle)
 	struct vchiq_service *service;
 
 	rcu_read_lock();
-	service = handle_to_service(handle);
+	service = handle_to_service(instance, handle);
 	if (service && service->srvstate != VCHIQ_SRVSTATE_FREE &&
 	    service->handle == handle &&
 	    service->instance == instance &&
@@ -302,7 +302,7 @@ find_closed_service_for_instance(struct vchiq_instance *instance, unsigned int h
 	struct vchiq_service *service;
 
 	rcu_read_lock();
-	service = handle_to_service(handle);
+	service = handle_to_service(instance, handle);
 	if (service &&
 	    (service->srvstate == VCHIQ_SRVSTATE_FREE ||
 	     service->srvstate == VCHIQ_SRVSTATE_CLOSED) &&
@@ -404,7 +404,7 @@ vchiq_get_client_id(struct vchiq_instance *instance, unsigned int handle)
 	int id;
 
 	rcu_read_lock();
-	service = handle_to_service(handle);
+	service = handle_to_service(instance, handle);
 	id = service ? service->client_id : 0;
 	rcu_read_unlock();
 	return id;
@@ -417,7 +417,7 @@ vchiq_get_service_userdata(struct vchiq_instance *instance, unsigned int handle)
 	struct vchiq_service *service;
 
 	rcu_read_lock();
-	service = handle_to_service(handle);
+	service = handle_to_service(instance, handle);
 	userdata = service ? service->base.userdata : NULL;
 	rcu_read_unlock();
 	return userdata;
