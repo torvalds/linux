@@ -830,10 +830,12 @@ static int imx6_pcie_start_link(struct dw_pcie *pci)
 	 * started in Gen2 mode, there is a possibility the devices on the
 	 * bus will not be detected at all.  This happens with PCIe switches.
 	 */
+	dw_pcie_dbi_ro_wr_en(pci);
 	tmp = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
 	tmp &= ~PCI_EXP_LNKCAP_SLS;
 	tmp |= PCI_EXP_LNKCAP_SLS_2_5GB;
 	dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCAP, tmp);
+	dw_pcie_dbi_ro_wr_dis(pci);
 
 	/* Start LTSSM. */
 	imx6_pcie_ltssm_enable(dev);
@@ -844,6 +846,7 @@ static int imx6_pcie_start_link(struct dw_pcie *pci)
 
 	if (pci->link_gen == 2) {
 		/* Allow Gen2 mode after the link is up. */
+		dw_pcie_dbi_ro_wr_en(pci);
 		tmp = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
 		tmp &= ~PCI_EXP_LNKCAP_SLS;
 		tmp |= PCI_EXP_LNKCAP_SLS_5_0GB;
@@ -856,6 +859,7 @@ static int imx6_pcie_start_link(struct dw_pcie *pci)
 		tmp = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
 		tmp |= PORT_LOGIC_SPEED_CHANGE;
 		dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, tmp);
+		dw_pcie_dbi_ro_wr_dis(pci);
 
 		if (imx6_pcie->drvdata->flags &
 		    IMX6_PCIE_FLAG_IMX6_SPEED_CHANGE) {
