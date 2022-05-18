@@ -202,6 +202,8 @@ enum btf_kfunc_hook {
 	BTF_KFUNC_HOOK_XDP,
 	BTF_KFUNC_HOOK_TC,
 	BTF_KFUNC_HOOK_STRUCT_OPS,
+	BTF_KFUNC_HOOK_TRACING,
+	BTF_KFUNC_HOOK_SYSCALL,
 	BTF_KFUNC_HOOK_MAX,
 };
 
@@ -7110,6 +7112,10 @@ static int bpf_prog_type_to_kfunc_hook(enum bpf_prog_type prog_type)
 		return BTF_KFUNC_HOOK_TC;
 	case BPF_PROG_TYPE_STRUCT_OPS:
 		return BTF_KFUNC_HOOK_STRUCT_OPS;
+	case BPF_PROG_TYPE_TRACING:
+		return BTF_KFUNC_HOOK_TRACING;
+	case BPF_PROG_TYPE_SYSCALL:
+		return BTF_KFUNC_HOOK_SYSCALL;
 	default:
 		return BTF_KFUNC_HOOK_MAX;
 	}
