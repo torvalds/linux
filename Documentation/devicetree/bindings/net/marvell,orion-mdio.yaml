@@ -39,7 +39,7 @@ required:
   - compatible
   - reg
 
-unevaluatedProperties: true
+unevaluatedProperties: false
 
 examples:
   - |
