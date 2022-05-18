@@ -1747,11 +1747,7 @@ struct evsel *evlist__reset_weak_group(struct evlist *evsel_list, struct evsel *
 			 * them. Some events, like Intel topdown, require being
 			 * in a group and so keep these in the group.
 			 */
-			if (!evsel__must_be_in_group(c2) && c2 != leader) {
-				evsel__set_leader(c2, c2);
-				c2->core.nr_members = 0;
-				leader->core.nr_members--;
-			}
+			evsel__remove_from_group(c2, leader);
 
 			/*
 			 * Set this for all former members of the group
