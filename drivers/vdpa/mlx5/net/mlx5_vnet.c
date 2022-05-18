@@ -155,7 +155,7 @@ struct mlx5_vdpa_net {
 	 * since memory map might change and we need to destroy and create
 	 * resources while driver in operational.
 	 */
-	struct mutex reslock;
+	struct rw_semaphore reslock;
 	struct mlx5_flow_table *rxft;
 	struct mlx5_fc *rx_counter;
 	struct mlx5_flow_handle *rx_rule_ucast;
@@ -1695,7 +1695,7 @@ static void mlx5_cvq_kick_handler(struct work_struct *work)
 	ndev = to_mlx5_vdpa_ndev(mvdev);
 	cvq = &mvdev->cvq;
 
-	mutex_lock(&ndev->reslock);
+	down_write(&ndev->reslock);
 
 	if (!(mvdev->status & VIRTIO_CONFIG_S_DRIVER_OK))
 		goto out;
@@ -1746,7 +1746,7 @@ static void mlx5_cvq_kick_handler(struct work_struct *work)
 	}
 
 out:
-	mutex_unlock(&ndev->reslock);
+	up_write(&ndev->reslock);
 }
 
 static void mlx5_vdpa_kick_vq(struct vdpa_device *vdev, u16 idx)
@@ -2244,7 +2244,7 @@ static int setup_driver(struct mlx5_vdpa_dev *mvdev)
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	int err;
 
-	WARN_ON(!mutex_is_locked(&ndev->reslock));
+	WARN_ON(!rwsem_is_locked(&ndev->reslock));
 
 	if (ndev->setup) {
 		mlx5_vdpa_warn(mvdev, "setup driver called for already setup driver\n");
@@ -2292,7 +2292,7 @@ out:
 static void teardown_driver(struct mlx5_vdpa_net *ndev)
 {
 
-	WARN_ON(!mutex_is_locked(&ndev->reslock));
+	WARN_ON(!rwsem_is_locked(&ndev->reslock));
 
 	if (!ndev->setup)
 		return;
@@ -2322,7 +2322,7 @@ static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)
 
 	print_status(mvdev, status, true);
 
-	mutex_lock(&ndev->reslock);
+	down_write(&ndev->reslock);
 
 	if ((status ^ ndev->mvdev.status) & VIRTIO_CONFIG_S_DRIVER_OK) {
 		if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
@@ -2338,14 +2338,14 @@ static void mlx5_vdpa_set_status(struct vdpa_device *vdev, u8 status)
 	}
 
 	ndev->mvdev.status = status;
-	mutex_unlock(&ndev->reslock);
+	up_write(&ndev->reslock);
 	return;
 
 err_setup:
 	mlx5_vdpa_destroy_mr(&ndev->mvdev);
 	ndev->mvdev.status |= VIRTIO_CONFIG_S_FAILED;
 err_clear:
-	mutex_unlock(&ndev->reslock);
+	up_write(&ndev->reslock);
 }
 
 static int mlx5_vdpa_reset(struct vdpa_device *vdev)
@@ -2356,7 +2356,7 @@ static int mlx5_vdpa_reset(struct vdpa_device *vdev)
 	print_status(mvdev, 0, true);
 	mlx5_vdpa_info(mvdev, "performing device reset\n");
 
-	mutex_lock(&ndev->reslock);
+	down_write(&ndev->reslock);
 	teardown_driver(ndev);
 	clear_vqs_ready(ndev);
 	mlx5_vdpa_destroy_mr(&ndev->mvdev);
@@ -2371,7 +2371,7 @@ static int mlx5_vdpa_reset(struct vdpa_device *vdev)
 		if (mlx5_vdpa_create_mr(mvdev, NULL))
 			mlx5_vdpa_warn(mvdev, "create MR failed\n");
 	}
-	mutex_unlock(&ndev->reslock);
+	up_write(&ndev->reslock);
 
 	return 0;
 }
@@ -2411,7 +2411,7 @@ static int mlx5_vdpa_set_map(struct vdpa_device *vdev, struct vhost_iotlb *iotlb
 	bool change_map;
 	int err;
 
-	mutex_lock(&ndev->reslock);
+	down_write(&ndev->reslock);
 
 	err = mlx5_vdpa_handle_set_map(mvdev, iotlb, &change_map);
 	if (err) {
@@ -2423,7 +2423,7 @@ static int mlx5_vdpa_set_map(struct vdpa_device *vdev, struct vhost_iotlb *iotlb
 		err = mlx5_vdpa_change_map(mvdev, iotlb);
 
 err:
-	mutex_unlock(&ndev->reslock);
+	up_write(&ndev->reslock);
 	return err;
 }
 
@@ -2442,7 +2442,6 @@ static void mlx5_vdpa_free(struct vdpa_device *vdev)
 		mlx5_mpfs_del_mac(pfmdev, ndev->config.mac);
 	}
 	mlx5_vdpa_free_resources(&ndev->mvdev);
-	mutex_destroy(&ndev->reslock);
 	kfree(ndev->event_cbs);
 	kfree(ndev->vqs);
 }
@@ -2527,7 +2526,7 @@ static int mlx5_vdpa_get_vendor_vq_stats(struct vdpa_device *vdev, u16 idx,
 	u64 completed_desc;
 	int err = 0;
 
-	mutex_lock(&ndev->reslock);
+	down_read(&ndev->reslock);
 	if (!is_index_valid(mvdev, idx)) {
 		NL_SET_ERR_MSG_MOD(extack, "virtqueue index is not valid");
 		err = -EINVAL;
@@ -2566,7 +2565,7 @@ out:
 
 	err = 0;
 out_err:
-	mutex_unlock(&ndev->reslock);
+	up_read(&ndev->reslock);
 	return err;
 }
 
@@ -2835,18 +2834,18 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	}
 
 	init_mvqs(ndev);
-	mutex_init(&ndev->reslock);
+	init_rwsem(&ndev->reslock);
 	config = &ndev->config;
 
 	if (add_config->mask & BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MTU)) {
 		err = config_func_mtu(mdev, add_config->net.mtu);
 		if (err)
-			goto err_mtu;
+			goto err_alloc;
 	}
 
 	err = query_mtu(mdev, &mtu);
 	if (err)
-		goto err_mtu;
+		goto err_alloc;
 
 	ndev->config.mtu = cpu_to_mlx5vdpa16(mvdev, mtu);
 
@@ -2860,14 +2859,14 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	} else {
 		err = mlx5_query_nic_vport_mac_address(mdev, 0, 0, config->mac);
 		if (err)
-			goto err_mtu;
+			goto err_alloc;
 	}
 
 	if (!is_zero_ether_addr(config->mac)) {
 		pfmdev = pci_get_drvdata(pci_physfn(mdev->pdev));
 		err = mlx5_mpfs_add_mac(pfmdev, config->mac);
 		if (err)
-			goto err_mtu;
+			goto err_alloc;
 
 		ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_NET_F_MAC);
 	}
@@ -2917,8 +2916,6 @@ err_res:
 err_mpfs:
 	if (!is_zero_ether_addr(config->mac))
 		mlx5_mpfs_del_mac(pfmdev, config->mac);
-err_mtu:
-	mutex_destroy(&ndev->reslock);
 err_alloc:
 	put_device(&mvdev->vdev.dev);
 	return err;
