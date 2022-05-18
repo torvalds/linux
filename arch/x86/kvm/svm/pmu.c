@@ -286,8 +286,10 @@ static int amd_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	pmc = get_gp_pmc_amd(pmu, msr, PMU_TYPE_EVNTSEL);
 	if (pmc) {
 		data &= ~pmu->reserved_bits;
-		if (data != pmc->eventsel)
-			reprogram_gp_counter(pmc, data);
+		if (data != pmc->eventsel) {
+			pmc->eventsel = data;
+			reprogram_gp_counter(pmc);
+		}
 		return 0;
 	}
 
