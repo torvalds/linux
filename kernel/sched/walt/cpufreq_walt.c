@@ -300,7 +300,7 @@ static unsigned long waltgov_get_util(struct waltgov_cpu *wg_cpu)
 static inline void max_and_reason(unsigned long *cur_util, unsigned long boost_util,
 		struct waltgov_cpu *wg_cpu, unsigned int reason)
 {
-	if (boost_util >= *cur_util) {
+	if (boost_util && boost_util >= *cur_util) {
 		*cur_util = boost_util;
 		wg_cpu->reasons = reason;
 		wg_cpu->wg_policy->driving_cpu = wg_cpu->cpu;
