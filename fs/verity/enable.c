@@ -281,7 +281,7 @@ static int enable_verity(struct file *filp,
 	 * from disk.  This is simpler, and it serves as an extra check that the
 	 * metadata we're writing is valid before actually enabling verity.
 	 */
-	vi = fsverity_create_info(inode, desc, desc_size);
+	vi = fsverity_create_info(inode, desc);
 	if (IS_ERR(vi)) {
 		err = PTR_ERR(vi);
 		goto rollback;

@@ -147,8 +147,7 @@ static int compute_file_digest(struct fsverity_hash_alg *hash_alg,
  * fsverity_descriptor must have already undergone basic validation.
  */
 struct fsverity_info *fsverity_create_info(const struct inode *inode,
-					   struct fsverity_descriptor *desc,
-					   size_t desc_size)
+					   struct fsverity_descriptor *desc)
 {
 	struct fsverity_info *vi;
 	int err;
@@ -264,8 +263,7 @@ static bool validate_fsverity_descriptor(struct inode *inode,
  * the filesystem, and do basic validation of it.
  */
 int fsverity_get_descriptor(struct inode *inode,
-			    struct fsverity_descriptor **desc_ret,
-			    size_t *desc_size_ret)
+			    struct fsverity_descriptor **desc_ret)
 {
 	int res;
 	struct fsverity_descriptor *desc;
@@ -297,7 +295,6 @@ int fsverity_get_descriptor(struct inode *inode,
 	}
 
 	*desc_ret = desc;
-	*desc_size_ret = res;
 	return 0;
 }
 
@@ -306,17 +303,16 @@ static int ensure_verity_info(struct inode *inode)
 {
 	struct fsverity_info *vi = fsverity_get_info(inode);
 	struct fsverity_descriptor *desc;
-	size_t desc_size;
 	int err;
 
 	if (vi)
 		return 0;
 
-	err = fsverity_get_descriptor(inode, &desc, &desc_size);
+	err = fsverity_get_descriptor(inode, &desc);
 	if (err)
 		return err;
 
-	vi = fsverity_create_info(inode, desc, desc_size);
+	vi = fsverity_create_info(inode, desc);
 	if (IS_ERR(vi)) {
 		err = PTR_ERR(vi);
 		goto out_free_desc;
