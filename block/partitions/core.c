@@ -712,8 +712,7 @@ void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p)
 		goto out;
 	}
 
-	page = read_mapping_page(mapping,
-			(pgoff_t)(n >> (PAGE_SHIFT - 9)), NULL);
+	page = read_mapping_page(mapping, n >> PAGE_SECTORS_SHIFT, NULL);
 	if (IS_ERR(page))
 		goto out;
 
