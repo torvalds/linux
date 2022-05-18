@@ -70,8 +70,6 @@ static int can_rx_offload_napi_poll(struct napi_struct *napi, int quota)
 			napi_reschedule(&offload->napi);
 	}
 
-	can_led_event(offload->dev, CAN_LED_EVENT_RX);
-
 	return work_done;
 }
 
