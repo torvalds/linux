@@ -24,6 +24,7 @@ debug-regulator.ko
 proxy-consumer.ko
 rpmh-regulator.ko
 camcc-pineapple.ko
+qcom-ipcc.ko
 stub-regulator.ko
 gdsc-regulator.ko
 debug-regulator.ko
