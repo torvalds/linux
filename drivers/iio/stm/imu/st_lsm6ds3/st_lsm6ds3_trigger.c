@@ -64,10 +64,11 @@ static irqreturn_t lsm6ds3_irq_management(int irq, void *private)
 						cdata->nofifo_decimation[ST_MASK_ID_EXT0].decimator) == 0) {
 					push = true;
 					cdata->nofifo_decimation[ST_MASK_ID_EXT0].num_samples = 0;
-				} else
+				} else {
 					push = false;
+				}
 
-					lsm6ds3_read_output_data(cdata, ST_MASK_ID_EXT0, push);
+				lsm6ds3_read_output_data(cdata, ST_MASK_ID_EXT0, push);
 			}
 #endif /* CONFIG_ST_LSM6DS3_IIO_MASTER_SUPPORT */
 
@@ -79,8 +80,9 @@ static irqreturn_t lsm6ds3_irq_management(int irq, void *private)
 						cdata->nofifo_decimation[ST_MASK_ID_ACCEL].decimator) == 0) {
 					push = true;
 					cdata->nofifo_decimation[ST_MASK_ID_ACCEL].num_samples = 0;
-				} else
+				} else {
 					push = false;
+				}
 
 				lsm6ds3_read_output_data(cdata, ST_MASK_ID_ACCEL, push);
 			} else {
