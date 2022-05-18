@@ -137,10 +137,10 @@ static bool has_subtests(const struct test_suite *t)
 
 static const char *skip_reason(const struct test_suite *t, int subtest)
 {
-	if (t->test_cases && subtest >= 0)
-		return t->test_cases[subtest].skip_reason;
+	if (!t->test_cases)
+		return NULL;
 
-	return NULL;
+	return t->test_cases[subtest >= 0 ? subtest : 0].skip_reason;
 }
 
 static const char *test_description(const struct test_suite *t, int subtest)
