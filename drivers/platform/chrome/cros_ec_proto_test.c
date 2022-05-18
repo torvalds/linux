@@ -132,6 +132,46 @@ static void cros_ec_proto_test_prepare_tx_bad_msg_outsize(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
 }
 
+static void cros_ec_proto_test_check_result(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	struct cros_ec_command *msg = priv->msg;
+	int ret, i;
+	static enum ec_status status[] = {
+		EC_RES_SUCCESS,
+		EC_RES_INVALID_COMMAND,
+		EC_RES_ERROR,
+		EC_RES_INVALID_PARAM,
+		EC_RES_ACCESS_DENIED,
+		EC_RES_INVALID_RESPONSE,
+		EC_RES_INVALID_VERSION,
+		EC_RES_INVALID_CHECKSUM,
+		EC_RES_UNAVAILABLE,
+		EC_RES_TIMEOUT,
+		EC_RES_OVERFLOW,
+		EC_RES_INVALID_HEADER,
+		EC_RES_REQUEST_TRUNCATED,
+		EC_RES_RESPONSE_TOO_BIG,
+		EC_RES_BUS_ERROR,
+		EC_RES_BUSY,
+		EC_RES_INVALID_HEADER_VERSION,
+		EC_RES_INVALID_HEADER_CRC,
+		EC_RES_INVALID_DATA_CRC,
+		EC_RES_DUP_UNAVAILABLE,
+	};
+
+	for (i = 0; i < ARRAY_SIZE(status); ++i) {
+		msg->result = status[i];
+		ret = cros_ec_check_result(ec_dev, msg);
+		KUNIT_EXPECT_EQ(test, ret, 0);
+	}
+
+	msg->result = EC_RES_IN_PROGRESS;
+	ret = cros_ec_check_result(ec_dev, msg);
+	KUNIT_EXPECT_EQ(test, ret, -EAGAIN);
+}
+
 static int cros_ec_proto_test_init(struct kunit *test)
 {
 	struct cros_ec_proto_test_priv *priv;
@@ -159,6 +199,7 @@ static struct kunit_case cros_ec_proto_test_cases[] = {
 	KUNIT_CASE(cros_ec_proto_test_prepare_tx_legacy_bad_msg_outsize),
 	KUNIT_CASE(cros_ec_proto_test_prepare_tx_normal),
 	KUNIT_CASE(cros_ec_proto_test_prepare_tx_bad_msg_outsize),
+	KUNIT_CASE(cros_ec_proto_test_check_result),
 	{}
 };
 
