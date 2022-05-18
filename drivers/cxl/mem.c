@@ -140,22 +140,6 @@ static int cxl_mem_probe(struct device *dev)
 	if (work_pending(&cxlmd->detach_work))
 		return -EBUSY;
 
-	rc = cxlds->wait_media_ready(cxlds);
-	if (rc) {
-		dev_err(dev, "Media not active (%d)\n", rc);
-		return rc;
-	}
-
-	/*
-	 * If DVSEC ranges are being used instead of HDM decoder registers there
-	 * is no use in trying to manage those.
-	 */
-	if (!cxl_hdm_decode_init(cxlds)) {
-		dev_err(dev,
-			"Legacy range registers configuration prevents HDM operation.\n");
-		return -EBUSY;
-	}
-
 	rc = devm_cxl_enumerate_ports(cxlmd);
 	if (rc)
 		return rc;
@@ -180,6 +164,22 @@ unlock:
 	put_device(&parent_port->dev);
 	if (rc)
 		return rc;
+
+	rc = cxlds->wait_media_ready(cxlds);
+	if (rc) {
+		dev_err(dev, "Media not active (%d)\n", rc);
+		return rc;
+	}
+
+	/*
+	 * If DVSEC ranges are being used instead of HDM decoder registers there
+	 * is no use in trying to manage those.
+	 */
+	if (!cxl_hdm_decode_init(cxlds)) {
+		dev_err(dev,
+			"Legacy range registers configuration prevents HDM operation.\n");
+		return -EBUSY;
+	}
 
 	/*
 	 * The kernel may be operating out of CXL memory on this device,
