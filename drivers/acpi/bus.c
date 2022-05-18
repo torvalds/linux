@@ -329,10 +329,11 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 #endif
 #ifdef CONFIG_X86
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GENERIC_INITIATOR_SUPPORT;
-	if (boot_cpu_has(X86_FEATURE_HWP)) {
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_SUPPORT;
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPCV2_SUPPORT;
-	}
+#endif
+
+#ifdef CONFIG_ACPI_CPPC_LIB
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_SUPPORT;
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPCV2_SUPPORT;
 #endif
 
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
@@ -357,10 +358,9 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 		return;
 	}
 
-#ifdef CONFIG_X86
-	if (boot_cpu_has(X86_FEATURE_HWP))
-		osc_sb_cppc_not_supported = !(capbuf_ret[OSC_SUPPORT_DWORD] &
-				(OSC_SB_CPC_SUPPORT | OSC_SB_CPCV2_SUPPORT));
+#ifdef CONFIG_ACPI_CPPC_LIB
+	osc_sb_cppc_not_supported = !(capbuf_ret[OSC_SUPPORT_DWORD] &
+			(OSC_SB_CPC_SUPPORT | OSC_SB_CPCV2_SUPPORT));
 #endif
 
 	/*
