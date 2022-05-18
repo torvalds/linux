@@ -12157,9 +12157,11 @@ static int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	}
 
 	bl = io_buffer_get_list(ctx, reg.bgid);
-	if (bl && bl->buf_nr_pages)
-		return -EEXIST;
-	if (!bl) {
+	if (bl) {
+		/* if mapped buffer ring OR classic exists, don't allow */
+		if (bl->buf_nr_pages || !list_empty(&bl->buf_list))
+			return -EEXIST;
+	} else {
 		bl = kzalloc(sizeof(*bl), GFP_KERNEL);
 		if (!bl)
 			return -ENOMEM;
