@@ -25,12 +25,14 @@ MODULE_PARM_DESC(force_bulk, "Force use of vchiq bulk for audio");
 static void bcm2835_audio_lock(struct bcm2835_audio_instance *instance)
 {
 	mutex_lock(&instance->vchi_mutex);
-	vchiq_use_service(instance->service_handle);
+	vchiq_use_service(instance->alsa_stream->chip->vchi_ctx->instance,
+			  instance->service_handle);
 }
 
 static void bcm2835_audio_unlock(struct bcm2835_audio_instance *instance)
 {
-	vchiq_release_service(instance->service_handle);
+	vchiq_release_service(instance->alsa_stream->chip->vchi_ctx->instance,
+			      instance->service_handle);
 	mutex_unlock(&instance->vchi_mutex);
 }
 
@@ -44,8 +46,8 @@ static int bcm2835_audio_send_msg_locked(struct bcm2835_audio_instance *instance
 		init_completion(&instance->msg_avail_comp);
 	}
 
-	status = vchiq_queue_kernel_message(instance->service_handle,
-					    m, sizeof(*m));
+	status = vchiq_queue_kernel_message(instance->alsa_stream->chip->vchi_ctx->instance,
+					    instance->service_handle, m, sizeof(*m));
 	if (status) {
 		dev_err(instance->dev,
 			"vchi message queue failed: %d, msg=%d\n",
@@ -115,7 +117,7 @@ static enum vchiq_status audio_vchi_callback(struct vchiq_instance *vchiq_instan
 		dev_err(instance->dev, "unexpected callback type=%d\n", m->type);
 	}
 
-	vchiq_release_message(handle, header);
+	vchiq_release_message(vchiq_instance, instance->service_handle, header);
 	return VCHIQ_SUCCESS;
 }
 
@@ -144,7 +146,8 @@ vc_vchi_audio_init(struct vchiq_instance *vchiq_instance,
 	}
 
 	/* Finished with the service for now */
-	vchiq_release_service(instance->service_handle);
+	vchiq_release_service(instance->alsa_stream->chip->vchi_ctx->instance,
+			      instance->service_handle);
 
 	return 0;
 }
@@ -154,10 +157,12 @@ static void vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 	int status;
 
 	mutex_lock(&instance->vchi_mutex);
-	vchiq_use_service(instance->service_handle);
+	vchiq_use_service(instance->alsa_stream->chip->vchi_ctx->instance,
+			  instance->service_handle);
 
 	/* Close all VCHI service connections */
-	status = vchiq_close_service(instance->service_handle);
+	status = vchiq_close_service(instance->alsa_stream->chip->vchi_ctx->instance,
+				     instance->service_handle);
 	if (status) {
 		dev_err(instance->dev,
 			"failed to close VCHI service connection (status=%d)\n",
@@ -227,7 +232,7 @@ int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 		goto deinit;
 
 	bcm2835_audio_lock(instance);
-	vchiq_get_peer_version(instance->service_handle,
+	vchiq_get_peer_version(vchi_ctx->instance, instance->service_handle,
 			       &instance->peer_version);
 	bcm2835_audio_unlock(instance);
 	if (instance->peer_version < 2 || force_bulk)
@@ -352,8 +357,8 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 		while (count > 0) {
 			int bytes = min(instance->max_packet, count);
 
-			status = vchiq_queue_kernel_message(instance->service_handle,
-							    src, bytes);
+			status = vchiq_queue_kernel_message(vchiq_instance,
+							    instance->service_handle, src, bytes);
 			src += bytes;
 			count -= bytes;
 		}

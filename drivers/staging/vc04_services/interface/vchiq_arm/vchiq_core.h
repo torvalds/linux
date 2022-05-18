@@ -521,7 +521,7 @@ handle_to_service(unsigned int handle)
 }
 
 extern struct vchiq_service *
-find_service_by_handle(unsigned int handle);
+find_service_by_handle(struct vchiq_instance *instance, unsigned int handle);
 
 extern struct vchiq_service *
 find_service_by_port(struct vchiq_state *state, unsigned int localport);
@@ -549,7 +549,7 @@ extern void
 vchiq_service_put(struct vchiq_service *service);
 
 extern enum vchiq_status
-vchiq_queue_message(unsigned int handle,
+vchiq_queue_message(struct vchiq_instance *instance, unsigned int handle,
 		    ssize_t (*copy_callback)(void *context, void *dest,
 					     size_t offset, size_t maxsize),
 		    void *context,
@@ -596,12 +596,13 @@ void vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newsta
 
 void vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem, size_t num_bytes);
 
-enum vchiq_status vchiq_remove_service(unsigned int service);
+enum vchiq_status vchiq_remove_service(struct vchiq_instance *instance, unsigned int service);
 
 int vchiq_get_client_id(unsigned int service);
 
 void vchiq_get_config(struct vchiq_config *config);
 
-int vchiq_set_service_option(unsigned int service, enum vchiq_service_option option, int value);
+int vchiq_set_service_option(struct vchiq_instance *instance, unsigned int service,
+			     enum vchiq_service_option option, int value);
 
 #endif

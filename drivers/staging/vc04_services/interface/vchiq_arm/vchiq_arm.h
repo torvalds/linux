@@ -86,10 +86,10 @@ extern struct vchiq_state *
 vchiq_get_state(void);
 
 enum vchiq_status
-vchiq_use_service(unsigned int handle);
+vchiq_use_service(struct vchiq_instance *instance, unsigned int handle);
 
 extern enum vchiq_status
-vchiq_release_service(unsigned int handle);
+vchiq_release_service(struct vchiq_instance *instance, unsigned int handle);
 
 extern enum vchiq_status
 vchiq_check_service(struct vchiq_service *service);
