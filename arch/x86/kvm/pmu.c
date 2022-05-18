@@ -283,84 +283,47 @@ out:
 	return allow_event;
 }
 
-static void reprogram_gp_counter(struct kvm_pmc *pmc)
+void reprogram_counter(struct kvm_pmc *pmc)
 {
-	u64 config;
-	u32 type = PERF_TYPE_RAW;
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 	u64 eventsel = pmc->eventsel;
+	u64 new_config = eventsel;
+	u8 fixed_ctr_ctrl;
+
+	pmc_pause_counter(pmc);
+
+	if (!pmc_speculative_in_use(pmc) || !pmc_is_enabled(pmc))
+		return;
+
+	if (!check_pmu_event_filter(pmc))
+		return;
 
 	if (eventsel & ARCH_PERFMON_EVENTSEL_PIN_CONTROL)
 		printk_once("kvm pmu: pin control bit is ignored\n");
 
-	pmc_pause_counter(pmc);
-
-	if (!(eventsel & ARCH_PERFMON_EVENTSEL_ENABLE) || !pmc_is_enabled(pmc))
-		return;
-
-	if (!check_pmu_event_filter(pmc))
-		return;
-
-	if (!(eventsel & (ARCH_PERFMON_EVENTSEL_EDGE |
-			  ARCH_PERFMON_EVENTSEL_INV |
-			  ARCH_PERFMON_EVENTSEL_CMASK |
-			  HSW_IN_TX |
-			  HSW_IN_TX_CHECKPOINTED))) {
-		config = static_call(kvm_x86_pmu_pmc_perf_hw_id)(pmc);
-		if (config != PERF_COUNT_HW_MAX)
-			type = PERF_TYPE_HARDWARE;
+	if (pmc_is_fixed(pmc)) {
+		fixed_ctr_ctrl = fixed_ctrl_field(pmu->fixed_ctr_ctrl,
+						  pmc->idx - INTEL_PMC_IDX_FIXED);
+		if (fixed_ctr_ctrl & 0x1)
+			eventsel |= ARCH_PERFMON_EVENTSEL_OS;
+		if (fixed_ctr_ctrl & 0x2)
+			eventsel |= ARCH_PERFMON_EVENTSEL_USR;
+		if (fixed_ctr_ctrl & 0x8)
+			eventsel |= ARCH_PERFMON_EVENTSEL_INT;
+		new_config = (u64)fixed_ctr_ctrl;
 	}
 
-	if (type == PERF_TYPE_RAW)
-		config = eventsel & pmu->raw_event_mask;
-
-	if (pmc->current_config == eventsel && pmc_resume_counter(pmc))
+	if (pmc->current_config == new_config && pmc_resume_counter(pmc))
 		return;
 
 	pmc_release_perf_event(pmc);
 
-	pmc->current_config = eventsel;
-	pmc_reprogram_counter(pmc, type, config,
+	pmc->current_config = new_config;
+	pmc_reprogram_counter(pmc, PERF_TYPE_RAW,
+			      (eventsel & pmu->raw_event_mask),
 			      !(eventsel & ARCH_PERFMON_EVENTSEL_USR),
 			      !(eventsel & ARCH_PERFMON_EVENTSEL_OS),
 			      eventsel & ARCH_PERFMON_EVENTSEL_INT);
-}
-
-static void reprogram_fixed_counter(struct kvm_pmc *pmc)
-{
-	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
-	int idx = pmc->idx - INTEL_PMC_IDX_FIXED;
-	u8 ctrl = fixed_ctrl_field(pmu->fixed_ctr_ctrl, idx);
-	unsigned en_field = ctrl & 0x3;
-	bool pmi = ctrl & 0x8;
-
-	pmc_pause_counter(pmc);
-
-	if (!en_field || !pmc_is_enabled(pmc))
-		return;
-
-	if (!check_pmu_event_filter(pmc))
-		return;
-
-	if (pmc->current_config == (u64)ctrl && pmc_resume_counter(pmc))
-		return;
-
-	pmc_release_perf_event(pmc);
-
-	pmc->current_config = (u64)ctrl;
-	pmc_reprogram_counter(pmc, PERF_TYPE_HARDWARE,
-			      static_call(kvm_x86_pmu_pmc_perf_hw_id)(pmc),
-			      !(en_field & 0x2), /* exclude user */
-			      !(en_field & 0x1), /* exclude kernel */
-			      pmi);
-}
-
-void reprogram_counter(struct kvm_pmc *pmc)
-{
-	if (pmc_is_gp(pmc))
-		reprogram_gp_counter(pmc);
-	else
-		reprogram_fixed_counter(pmc);
 }
 EXPORT_SYMBOL_GPL(reprogram_counter);
 
