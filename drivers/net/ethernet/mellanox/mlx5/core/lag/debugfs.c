@@ -5,12 +5,13 @@
 
 static char *get_str_mode_type(struct mlx5_lag *ldev)
 {
-	if (ldev->flags & MLX5_LAG_FLAG_ROCE)
-		return "roce";
-	if (ldev->flags & MLX5_LAG_FLAG_SRIOV)
-		return "switchdev";
-	if (ldev->flags & MLX5_LAG_FLAG_MULTIPATH)
-		return "multipath";
+	switch (ldev->mode) {
+	case MLX5_LAG_MODE_ROCE: return "roce";
+	case MLX5_LAG_MODE_SRIOV: return "switchdev";
+	case MLX5_LAG_MODE_MULTIPATH: return "multipath";
+	case MLX5_LAG_MODE_MPESW: return "multiport_eswitch";
+	default: return "invalid";
+	}
 
 	return NULL;
 }
@@ -43,11 +44,11 @@ static int port_sel_mode_show(struct seq_file *file, void *priv)
 	ldev = dev->priv.lag;
 	mutex_lock(&ldev->lock);
 	if (__mlx5_lag_is_active(ldev))
-		mode = get_str_port_sel_mode(ldev->flags);
+		mode = mlx5_get_str_port_sel_mode(ldev);
 	else
 		ret = -EINVAL;
 	mutex_unlock(&ldev->lock);
-	if (ret || !mode)
+	if (ret)
 		return ret;
 
 	seq_printf(file, "%s\n", mode);
@@ -79,7 +80,7 @@ static int flags_show(struct seq_file *file, void *priv)
 	mutex_lock(&ldev->lock);
 	lag_active = __mlx5_lag_is_active(ldev);
 	if (lag_active)
-		shared_fdb = ldev->shared_fdb;
+		shared_fdb = test_bit(MLX5_LAG_MODE_FLAG_SHARED_FDB, &ldev->mode_flags);
 
 	mutex_unlock(&ldev->lock);
 	if (!lag_active)
@@ -103,7 +104,7 @@ static int mapping_show(struct seq_file *file, void *priv)
 	mutex_lock(&ldev->lock);
 	lag_active = __mlx5_lag_is_active(ldev);
 	if (lag_active) {
-		if (ldev->flags & MLX5_LAG_FLAG_HASH_BASED) {
+		if (test_bit(MLX5_LAG_MODE_FLAG_HASH_BASED, &ldev->mode_flags)) {
 			mlx5_infer_tx_enabled(&ldev->tracker, ldev->ports, ports,
 					      &num_ports);
 			hash = true;

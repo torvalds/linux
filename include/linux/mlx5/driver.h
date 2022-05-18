@@ -272,6 +272,8 @@ struct mlx5_cmd_stats {
 	u32		last_failed_errno;
 	/* last bad status returned by FW */
 	u8		last_failed_mbox_status;
+	/* last command failed syndrome returned by FW */
+	u32		last_failed_syndrome;
 	struct dentry  *root;
 	/* protect command average calculations */
 	spinlock_t	lock;
@@ -1051,9 +1053,14 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
 			 u16 reg_num, int arg, int write);
 
-int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db);
 int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db,
 		       int node);
+
+static inline int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db)
+{
+	return mlx5_db_alloc_node(dev, db, dev->priv.numa_node);
+}
+
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
 
 const char *mlx5_command_str(int command);
