@@ -619,7 +619,6 @@ int user_dlm_destroy_lock(struct user_lock_res *lockres)
 		goto bail;
 	}
 
-	lockres->l_flags &= ~USER_LOCK_ATTACHED;
 	lockres->l_flags |= USER_LOCK_BUSY;
 	spin_unlock(&lockres->l_lock);
 
