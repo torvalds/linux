@@ -509,7 +509,6 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	imr->ibmr.lkey = imr->mmkey.key;
 	imr->ibmr.rkey = imr->mmkey.key;
 	imr->ibmr.device = &dev->ib_dev;
-	imr->umem = &umem_odp->umem;
 	imr->is_odp_implicit = true;
 	xa_init(&imr->implicit_children);
 
