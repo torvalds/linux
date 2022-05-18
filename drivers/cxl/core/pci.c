@@ -224,6 +224,8 @@ int cxl_dvsec_ranges(struct cxl_dev_state *cxlds,
 	}
 
 	info->mem_enabled = FIELD_GET(CXL_DVSEC_MEM_ENABLE, ctrl);
+	if (!info->mem_enabled)
+		return 0;
 
 	for (i = 0; i < hdm_count; i++) {
 		u64 base, size;

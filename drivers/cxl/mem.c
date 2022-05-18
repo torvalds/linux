@@ -92,7 +92,7 @@ __mock bool cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
 	 * are expected even though Linux does not require or maintain that
 	 * match.
 	 */
-	if (!global_enable && info->ranges)
+	if (!global_enable && info->mem_enabled && info->ranges)
 		goto out;
 
 	retval = true;
