@@ -464,9 +464,14 @@ static int aspeed_g6_reset_deassert(struct reset_controller_dev *rcdev,
 	struct aspeed_reset *ar = to_aspeed_reset(rcdev);
 	u32 rst = get_bit(id);
 	u32 reg = id >= 32 ? ASPEED_G6_RESET_CTRL2 : ASPEED_G6_RESET_CTRL;
+	u32 val;
+	int ret;
 
 	/* Use set to clear register */
-	return regmap_write(ar->map, reg + 0x04, rst);
+	ret = regmap_write(ar->map, reg + 0x04, rst);
+	/* Add dummy read to ensure reset clear is finished */
+	regmap_read(ar->map, reg, &val);
+	return ret;
 }
 
 static int aspeed_g6_reset_assert(struct reset_controller_dev *rcdev,
