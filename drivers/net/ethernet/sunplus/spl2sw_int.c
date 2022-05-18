@@ -29,6 +29,7 @@ int spl2sw_rx_poll(struct napi_struct *napi, int budget)
 	u32 mask;
 	int port;
 	u32 cmd;
+	u32 len;
 
 	/* Process high-priority queue and then low-priority queue. */
 	for (queue = 0; queue < RX_DESC_QUEUE_NUM; queue++) {
@@ -63,10 +64,11 @@ int spl2sw_rx_poll(struct napi_struct *napi, int budget)
 			skb_put(skb, pkg_len - 4); /* Minus FCS */
 			skb->ip_summed = CHECKSUM_NONE;
 			skb->protocol = eth_type_trans(skb, comm->ndev[port]);
+			len = skb->len;
 			netif_receive_skb(skb);
 
 			stats->rx_packets++;
-			stats->rx_bytes += skb->len;
+			stats->rx_bytes += len;
 
 			/* Allocate a new skb for receiving. */
 			new_skb = netdev_alloc_skb(NULL, comm->rx_desc_buff_size);
