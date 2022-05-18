@@ -10134,12 +10134,17 @@ static int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	}
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_bufs++) {
-		ret = io_copy_iov(ctx, &iov, arg, i);
-		if (ret)
-			break;
-		ret = io_buffer_validate(&iov);
-		if (ret)
-			break;
+		if (arg) {
+			ret = io_copy_iov(ctx, &iov, arg, i);
+			if (ret)
+				break;
+			ret = io_buffer_validate(&iov);
+			if (ret)
+				break;
+		} else {
+			memset(&iov, 0, sizeof(iov));
+		}
+
 		if (!iov.iov_base && *io_get_tag_slot(data, i)) {
 			ret = -EINVAL;
 			break;
@@ -11986,7 +11991,7 @@ static __cold int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 		return io_sqe_files_register(ctx, u64_to_user_ptr(rr.data),
 					     rr.nr, u64_to_user_ptr(rr.tags));
 	case IORING_RSRC_BUFFER:
-		if (rr.flags & IORING_RSRC_REGISTER_SPARSE)
+		if (rr.flags & IORING_RSRC_REGISTER_SPARSE && rr.data)
 			break;
 		return io_sqe_buffers_register(ctx, u64_to_user_ptr(rr.data),
 					       rr.nr, u64_to_user_ptr(rr.tags));
@@ -12224,6 +12229,9 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 
 	switch (opcode) {
 	case IORING_REGISTER_BUFFERS:
+		ret = -EFAULT;
+		if (!arg)
+			break;
 		ret = io_sqe_buffers_register(ctx, arg, nr_args, NULL);
 		break;
 	case IORING_UNREGISTER_BUFFERS:
