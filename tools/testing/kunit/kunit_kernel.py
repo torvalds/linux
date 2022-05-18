@@ -179,19 +179,16 @@ def get_old_kunitconfig_path(build_dir: str) -> str:
 def get_outfile_path(build_dir: str) -> str:
 	return os.path.join(build_dir, OUTFILE_PATH)
 
-def get_source_tree_ops(arch: str, cross_compile: Optional[str]) -> LinuxSourceTreeOperations:
+def _default_qemu_config_path(arch: str) -> str:
 	config_path = os.path.join(QEMU_CONFIGS_DIR, arch + '.py')
-	if arch == 'um':
-		return LinuxSourceTreeOperationsUml(cross_compile=cross_compile)
 	if os.path.isfile(config_path):
-		return get_source_tree_ops_from_qemu_config(config_path, cross_compile)[1]
+		return config_path
 
 	options = [f[:-3] for f in os.listdir(QEMU_CONFIGS_DIR) if f.endswith('.py')]
 	raise ConfigError(arch + ' is not a valid arch, options are ' + str(sorted(options)))
 
-def get_source_tree_ops_from_qemu_config(config_path: str,
-					 cross_compile: Optional[str]) -> Tuple[
-							 str, LinuxSourceTreeOperations]:
+def _get_qemu_ops(config_path: str,
+		  cross_compile: Optional[str]) -> Tuple[str, LinuxSourceTreeOperations]:
 	# The module name/path has very little to do with where the actual file
 	# exists (I learned this through experimentation and could not find it
 	# anywhere in the Python documentation).
@@ -227,11 +224,14 @@ class LinuxSourceTree:
 	      qemu_config_path=None) -> None:
 		signal.signal(signal.SIGINT, self.signal_handler)
 		if qemu_config_path:
-			self._arch, self._ops = get_source_tree_ops_from_qemu_config(
-					qemu_config_path, cross_compile)
+			self._arch, self._ops = _get_qemu_ops(qemu_config_path, cross_compile)
 		else:
 			self._arch = 'um' if arch is None else arch
-			self._ops = get_source_tree_ops(self._arch, cross_compile)
+			if self._arch == 'um':
+				self._ops = LinuxSourceTreeOperationsUml(cross_compile=cross_compile)
+			else:
+				qemu_config_path = _default_qemu_config_path(self._arch)
+				_, self._ops = _get_qemu_ops(qemu_config_path, cross_compile)
 
 		if kunitconfig_path:
 			if os.path.isdir(kunitconfig_path):
