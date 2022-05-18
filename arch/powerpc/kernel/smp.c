@@ -411,32 +411,32 @@ static struct cpumask nmi_ipi_pending_mask;
 static bool nmi_ipi_busy = false;
 static void (*nmi_ipi_function)(struct pt_regs *) = NULL;
 
-static void nmi_ipi_lock_start(unsigned long *flags)
+noinstr static void nmi_ipi_lock_start(unsigned long *flags)
 {
 	raw_local_irq_save(*flags);
 	hard_irq_disable();
-	while (atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1) {
+	while (arch_atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1) {
 		raw_local_irq_restore(*flags);
-		spin_until_cond(atomic_read(&__nmi_ipi_lock) == 0);
+		spin_until_cond(arch_atomic_read(&__nmi_ipi_lock) == 0);
 		raw_local_irq_save(*flags);
 		hard_irq_disable();
 	}
 }
 
-static void nmi_ipi_lock(void)
+noinstr static void nmi_ipi_lock(void)
 {
-	while (atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1)
-		spin_until_cond(atomic_read(&__nmi_ipi_lock) == 0);
+	while (arch_atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1)
+		spin_until_cond(arch_atomic_read(&__nmi_ipi_lock) == 0);
 }
 
-static void nmi_ipi_unlock(void)
+noinstr static void nmi_ipi_unlock(void)
 {
 	smp_mb();
-	WARN_ON(atomic_read(&__nmi_ipi_lock) != 1);
-	atomic_set(&__nmi_ipi_lock, 0);
+	WARN_ON(arch_atomic_read(&__nmi_ipi_lock) != 1);
+	arch_atomic_set(&__nmi_ipi_lock, 0);
 }
 
-static void nmi_ipi_unlock_end(unsigned long *flags)
+noinstr static void nmi_ipi_unlock_end(unsigned long *flags)
 {
 	nmi_ipi_unlock();
 	raw_local_irq_restore(*flags);
@@ -445,7 +445,7 @@ static void nmi_ipi_unlock_end(unsigned long *flags)
 /*
  * Platform NMI handler calls this to ack
  */
-int smp_handle_nmi_ipi(struct pt_regs *regs)
+noinstr int smp_handle_nmi_ipi(struct pt_regs *regs)
 {
 	void (*fn)(struct pt_regs *) = NULL;
 	unsigned long flags;
