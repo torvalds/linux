@@ -327,8 +327,11 @@ void reprogram_gp_counter(struct kvm_pmc *pmc)
 }
 EXPORT_SYMBOL_GPL(reprogram_gp_counter);
 
-void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 ctrl, int idx)
+void reprogram_fixed_counter(struct kvm_pmc *pmc)
 {
+	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
+	int idx = pmc->idx - INTEL_PMC_IDX_FIXED;
+	u8 ctrl = fixed_ctrl_field(pmu->fixed_ctr_ctrl, idx);
 	unsigned en_field = ctrl & 0x3;
 	bool pmi = ctrl & 0x8;
 
@@ -358,12 +361,8 @@ void reprogram_counter(struct kvm_pmc *pmc)
 {
 	if (pmc_is_gp(pmc))
 		reprogram_gp_counter(pmc);
-	else {
-		int idx = pmc->idx - INTEL_PMC_IDX_FIXED;
-		u8 ctrl = fixed_ctrl_field(pmc_to_pmu(pmc)->fixed_ctr_ctrl, idx);
-
-		reprogram_fixed_counter(pmc, ctrl, idx);
-	}
+	else
+		reprogram_fixed_counter(pmc);
 }
 EXPORT_SYMBOL_GPL(reprogram_counter);
 
