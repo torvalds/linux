@@ -6,6 +6,9 @@
 #include "util/off_cpu.h"
 #include "util/perf-hooks.h"
 #include "util/session.h"
+#include "util/target.h"
+#include "util/cpumap.h"
+#include "util/thread_map.h"
 #include <bpf/bpf.h>
 
 #include "bpf_skel/off_cpu.skel.h"
@@ -60,8 +63,23 @@ static int off_cpu_config(struct evlist *evlist)
 	return 0;
 }
 
-static void off_cpu_start(void *arg __maybe_unused)
+static void off_cpu_start(void *arg)
 {
+	struct evlist *evlist = arg;
+
+	/* update task filter for the given workload */
+	if (!skel->bss->has_cpu && !skel->bss->has_task &&
+	    perf_thread_map__pid(evlist->core.threads, 0) != -1) {
+		int fd;
+		u32 pid;
+		u8 val = 1;
+
+		skel->bss->has_task = 1;
+		fd = bpf_map__fd(skel->maps.task_filter);
+		pid = perf_thread_map__pid(evlist->core.threads, 0);
+		bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
+	}
+
 	skel->bss->enabled = 1;
 }
 
@@ -71,21 +89,65 @@ static void off_cpu_finish(void *arg __maybe_unused)
 	off_cpu_bpf__destroy(skel);
 }
 
-int off_cpu_prepare(struct evlist *evlist)
+int off_cpu_prepare(struct evlist *evlist, struct target *target)
 {
-	int err;
+	int err, fd, i;
+	int ncpus = 1, ntasks = 1;
 
 	if (off_cpu_config(evlist) < 0) {
 		pr_err("Failed to config off-cpu BPF event\n");
 		return -1;
 	}
 
-	set_max_rlimit();
-
-	skel = off_cpu_bpf__open_and_load();
+	skel = off_cpu_bpf__open();
 	if (!skel) {
 		pr_err("Failed to open off-cpu BPF skeleton\n");
 		return -1;
+	}
+
+	/* don't need to set cpu filter for system-wide mode */
+	if (target->cpu_list) {
+		ncpus = perf_cpu_map__nr(evlist->core.user_requested_cpus);
+		bpf_map__set_max_entries(skel->maps.cpu_filter, ncpus);
+	}
+
+	if (target__has_task(target)) {
+		ntasks = perf_thread_map__nr(evlist->core.threads);
+		bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
+	}
+
+	set_max_rlimit();
+
+	err = off_cpu_bpf__load(skel);
+	if (err) {
+		pr_err("Failed to load off-cpu skeleton\n");
+		goto out;
+	}
+
+	if (target->cpu_list) {
+		u32 cpu;
+		u8 val = 1;
+
+		skel->bss->has_cpu = 1;
+		fd = bpf_map__fd(skel->maps.cpu_filter);
+
+		for (i = 0; i < ncpus; i++) {
+			cpu = perf_cpu_map__cpu(evlist->core.user_requested_cpus, i).cpu;
+			bpf_map_update_elem(fd, &cpu, &val, BPF_ANY);
+		}
+	}
+
+	if (target__has_task(target)) {
+		u32 pid;
+		u8 val = 1;
+
+		skel->bss->has_task = 1;
+		fd = bpf_map__fd(skel->maps.task_filter);
+
+		for (i = 0; i < ntasks; i++) {
+			pid = perf_thread_map__pid(evlist->core.threads, i);
+			bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
+		}
 	}
 
 	err = off_cpu_bpf__attach(skel);
@@ -94,8 +156,8 @@ int off_cpu_prepare(struct evlist *evlist)
 		goto out;
 	}
 
-	if (perf_hooks__set_hook("record_start", off_cpu_start, NULL) ||
-	    perf_hooks__set_hook("record_end", off_cpu_finish, NULL)) {
+	if (perf_hooks__set_hook("record_start", off_cpu_start, evlist) ||
+	    perf_hooks__set_hook("record_end", off_cpu_finish, evlist)) {
 		pr_err("Failed to attach off-cpu skeleton\n");
 		goto out;
 	}

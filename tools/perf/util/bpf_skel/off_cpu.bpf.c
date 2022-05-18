@@ -49,12 +49,28 @@ struct {
 	__uint(max_entries, MAX_ENTRIES);
 } off_cpu SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(__u8));
+	__uint(max_entries, 1);
+} cpu_filter SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(__u8));
+	__uint(max_entries, 1);
+} task_filter SEC(".maps");
+
 /* old kernel task_struct definition */
 struct task_struct___old {
 	long state;
 } __attribute__((preserve_access_index));
 
 int enabled = 0;
+int has_cpu = 0;
+int has_task = 0;
 
 /*
  * Old kernel used to call it task_struct->state and now it's '__state'.
@@ -72,6 +88,37 @@ static inline int get_task_state(struct task_struct *t)
 
 	/* now use old "state" name of the field */
 	return BPF_CORE_READ(t_old, state);
+}
+
+static inline int can_record(struct task_struct *t, int state)
+{
+	/* kernel threads don't have user stack */
+	if (t->flags & PF_KTHREAD)
+		return 0;
+
+	if (state != TASK_INTERRUPTIBLE &&
+	    state != TASK_UNINTERRUPTIBLE)
+		return 0;
+
+	if (has_cpu) {
+		__u32 cpu = bpf_get_smp_processor_id();
+		__u8 *ok;
+
+		ok = bpf_map_lookup_elem(&cpu_filter, &cpu);
+		if (!ok)
+			return 0;
+	}
+
+	if (has_task) {
+		__u8 *ok;
+		__u32 pid = t->pid;
+
+		ok = bpf_map_lookup_elem(&task_filter, &pid);
+		if (!ok)
+			return 0;
+	}
+
+	return 1;
 }
 
 SEC("tp_btf/sched_switch")
@@ -92,10 +139,7 @@ int on_switch(u64 *ctx)
 
 	ts = bpf_ktime_get_ns();
 
-	if (prev->flags & PF_KTHREAD)
-		goto next;
-	if (state != TASK_INTERRUPTIBLE &&
-	    state != TASK_UNINTERRUPTIBLE)
+	if (!can_record(prev, state))
 		goto next;
 
 	stack_id = bpf_get_stackid(ctx, &stacks,
