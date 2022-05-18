@@ -55,7 +55,7 @@
 /x86_64/xen_shinfo_test
 /x86_64/xen_vmcall_test
 /x86_64/xss_msr_test
-/x86_64/vmx_pmu_msrs_test
+/x86_64/vmx_pmu_caps_test
 /access_tracking_perf_test
 /demand_paging_test
 /dirty_log_test
