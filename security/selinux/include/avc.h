@@ -53,7 +53,7 @@ struct selinux_audit_data {
 	u32 denied;
 	int result;
 	struct selinux_state *state;
-};
+} __randomize_layout;
 
 /*
  * AVC operations
