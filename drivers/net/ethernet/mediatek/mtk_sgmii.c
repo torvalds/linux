@@ -14,13 +14,15 @@
 
 #include "mtk_eth_soc.h"
 
+static struct mtk_pcs *pcs_to_mtk_pcs(struct phylink_pcs *pcs)
+{
+	return container_of(pcs, struct mtk_pcs, pcs);
+}
+
 /* For SGMII interface mode */
 static int mtk_pcs_setup_mode_an(struct mtk_pcs *mpcs)
 {
 	unsigned int val;
-
-	if (!mpcs->regmap)
-		return -EINVAL;
 
 	/* Setup the link timer and QPHY power up inside SGMIISYS */
 	regmap_write(mpcs->regmap, SGMSYS_PCS_LINK_TIMER,
@@ -50,9 +52,6 @@ static int mtk_pcs_setup_mode_force(struct mtk_pcs *mpcs,
 {
 	unsigned int val;
 
-	if (!mpcs->regmap)
-		return -EINVAL;
-
 	regmap_read(mpcs->regmap, mpcs->ana_rgc3, &val);
 	val &= ~RG_PHY_SPEED_MASK;
 	if (interface == PHY_INTERFACE_MODE_2500BASEX)
@@ -78,10 +77,12 @@ static int mtk_pcs_setup_mode_force(struct mtk_pcs *mpcs,
 	return 0;
 }
 
-int mtk_sgmii_config(struct mtk_sgmii *ss, int id, unsigned int mode,
-		     phy_interface_t interface)
+static int mtk_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+			  phy_interface_t interface,
+			  const unsigned long *advertising,
+			  bool permit_pause_to_mac)
 {
-	struct mtk_pcs *mpcs = &ss->pcs[id];
+	struct mtk_pcs *mpcs = pcs_to_mtk_pcs(pcs);
 	int err = 0;
 
 	/* Setup SGMIISYS with the determined property */
@@ -93,21 +94,24 @@ int mtk_sgmii_config(struct mtk_sgmii *ss, int id, unsigned int mode,
 	return err;
 }
 
-static void mtk_pcs_restart_an(struct mtk_pcs *mpcs)
+static void mtk_pcs_restart_an(struct phylink_pcs *pcs)
 {
+	struct mtk_pcs *mpcs = pcs_to_mtk_pcs(pcs);
 	unsigned int val;
-
-	if (!mpcs->regmap)
-		return;
 
 	regmap_read(mpcs->regmap, SGMSYS_PCS_CONTROL_1, &val);
 	val |= SGMII_AN_RESTART;
 	regmap_write(mpcs->regmap, SGMSYS_PCS_CONTROL_1, val);
 }
 
-static void mtk_pcs_link_up(struct mtk_pcs *mpcs, int speed, int duplex)
+static void mtk_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
+			    phy_interface_t interface, int speed, int duplex)
 {
+	struct mtk_pcs *mpcs = pcs_to_mtk_pcs(pcs);
 	unsigned int val;
+
+	if (!phy_interface_mode_is_8023z(interface))
+		return;
 
 	/* SGMII force duplex setting */
 	regmap_read(mpcs->regmap, SGMSYS_SGMII_MODE, &val);
@@ -118,11 +122,11 @@ static void mtk_pcs_link_up(struct mtk_pcs *mpcs, int speed, int duplex)
 	regmap_write(mpcs->regmap, SGMSYS_SGMII_MODE, val);
 }
 
-/* For 1000BASE-X and 2500BASE-X interface modes */
-void mtk_sgmii_link_up(struct mtk_sgmii *ss, int id, int speed, int duplex)
-{
-	mtk_pcs_link_up(&ss->pcs[id], speed, duplex);
-}
+static const struct phylink_pcs_ops mtk_pcs_ops = {
+	.pcs_config = mtk_pcs_config,
+	.pcs_an_restart = mtk_pcs_restart_an,
+	.pcs_link_up = mtk_pcs_link_up,
+};
 
 int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *r, u32 ana_rgc3)
 {
@@ -139,18 +143,17 @@ int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *r, u32 ana_rgc3)
 		of_node_put(np);
 		if (IS_ERR(ss->pcs[i].regmap))
 			return PTR_ERR(ss->pcs[i].regmap);
+
+		ss->pcs[i].pcs.ops = &mtk_pcs_ops;
 	}
 
 	return 0;
 }
 
-void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id)
+struct phylink_pcs *mtk_sgmii_select_pcs(struct mtk_sgmii *ss, int id)
 {
-	unsigned int sid;
+	if (!ss->pcs[id].regmap)
+		return NULL;
 
-	/* Decide how GMAC and SGMIISYS be mapped */
-	sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
-	       0 : mac_id;
-
-	mtk_pcs_restart_an(&eth->sgmii->pcs[sid]);
+	return &ss->pcs[id].pcs;
 }

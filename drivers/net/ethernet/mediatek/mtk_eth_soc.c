@@ -263,6 +263,25 @@ static void mtk_gmac0_rgmii_adjust(struct mtk_eth *eth,
 	mtk_w32(eth, val, TRGMII_TCK_CTRL);
 }
 
+static struct phylink_pcs *mtk_mac_select_pcs(struct phylink_config *config,
+					      phy_interface_t interface)
+{
+	struct mtk_mac *mac = container_of(config, struct mtk_mac,
+					   phylink_config);
+	struct mtk_eth *eth = mac->hw;
+	unsigned int sid;
+
+	if (interface == PHY_INTERFACE_MODE_SGMII ||
+	    phy_interface_mode_is_8023z(interface)) {
+		sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
+		       0 : mac->id;
+
+		return mtk_sgmii_select_pcs(eth->sgmii, sid);
+	}
+
+	return NULL;
+}
+
 static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 			   const struct phylink_link_state *state)
 {
@@ -270,7 +289,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 					   phylink_config);
 	struct mtk_eth *eth = mac->hw;
 	int val, ge_mode, err = 0;
-	u32 sid, i;
+	u32 i;
 
 	/* MT76x8 has no hardware settings between for the MAC */
 	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628) &&
@@ -391,15 +410,6 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 				   SYSCFG0_SGMII_MASK,
 				   ~(u32)SYSCFG0_SGMII_MASK);
 
-		/* Decide how GMAC and SGMIISYS be mapped */
-		sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
-		       0 : mac->id;
-
-		/* Setup SGMIISYS with the determined property */
-		err = mtk_sgmii_config(eth->sgmii, sid, mode, state->interface);
-		if (err)
-			goto init_err;
-
 		/* Save the syscfg0 value for mac_finish */
 		mac->syscfg0 = val;
 	} else if (phylink_autoneg_inband(mode)) {
@@ -479,14 +489,6 @@ static void mtk_mac_pcs_get_state(struct phylink_config *config,
 		state->pause |= MLO_PAUSE_TX;
 }
 
-static void mtk_mac_an_restart(struct phylink_config *config)
-{
-	struct mtk_mac *mac = container_of(config, struct mtk_mac,
-					   phylink_config);
-
-	mtk_sgmii_restart_an(mac->hw, mac->id);
-}
-
 static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 			      phy_interface_t interface)
 {
@@ -506,15 +508,6 @@ static void mtk_mac_link_up(struct phylink_config *config,
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
 	u32 mcr;
-
-	if (phy_interface_mode_is_8023z(interface)) {
-		struct mtk_eth *eth = mac->hw;
-
-		/* Decide how GMAC and SGMIISYS be mapped */
-		int sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
-			   0 : mac->id;
-		mtk_sgmii_link_up(eth->sgmii, sid, speed, duplex);
-	}
 
 	mcr = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
 	mcr &= ~(MAC_MCR_SPEED_100 | MAC_MCR_SPEED_1000 |
@@ -548,8 +541,8 @@ static void mtk_mac_link_up(struct phylink_config *config,
 
 static const struct phylink_mac_ops mtk_phylink_ops = {
 	.validate = phylink_generic_validate,
+	.mac_select_pcs = mtk_mac_select_pcs,
 	.mac_pcs_get_state = mtk_mac_pcs_get_state,
-	.mac_an_restart = mtk_mac_an_restart,
 	.mac_config = mtk_mac_config,
 	.mac_finish = mtk_mac_finish,
 	.mac_link_down = mtk_mac_link_down,
