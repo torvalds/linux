@@ -6512,18 +6512,15 @@ nodefer:	__kfree_skb(skb);
 	if (READ_ONCE(sd->defer_count) >= defer_max)
 		goto nodefer;
 
-	/* We do not send an IPI or any signal.
-	 * Remote cpu will eventually call skb_defer_free_flush()
-	 */
 	spin_lock_irqsave(&sd->defer_lock, flags);
+	/* Send an IPI every time queue reaches half capacity. */
+	kick = sd->defer_count == (defer_max >> 1);
+	/* Paired with the READ_ONCE() few lines above */
+	WRITE_ONCE(sd->defer_count, sd->defer_count + 1);
+
 	skb->next = sd->defer_list;
 	/* Paired with READ_ONCE() in skb_defer_free_flush() */
 	WRITE_ONCE(sd->defer_list, skb);
-	sd->defer_count++;
-
-	/* Send an IPI every time queue reaches half capacity. */
-	kick = sd->defer_count == (defer_max >> 1);
-
 	spin_unlock_irqrestore(&sd->defer_lock, flags);
 
 	/* Make sure to trigger NET_RX_SOFTIRQ on the remote CPU
