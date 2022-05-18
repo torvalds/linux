@@ -301,7 +301,7 @@ static bool check_div0(struct pt_regs *regs)
 
 	if (user_mode(regs)) {
 		if (copy_from_user(buf, (void __user *)regs->pc + 2, 5))
-			return 0;
+			return false;
 		p = buf;
 	} else {
 		p = (const u8 *)regs->pc + 2;
