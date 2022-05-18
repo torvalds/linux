@@ -466,7 +466,8 @@ make_service_callback(struct vchiq_service *service, enum vchiq_reason reason,
 	vchiq_log_trace(vchiq_core_log_level, "%d: callback:%d (%s, %pK, %pK)",
 			service->state->id, service->localport, reason_names[reason],
 			header, bulk_userdata);
-	status = service->base.callback(reason, header, service->handle, bulk_userdata);
+	status = service->base.callback(service->instance, reason, header, service->handle,
+					bulk_userdata);
 	if (status == VCHIQ_ERROR) {
 		vchiq_log_warning(vchiq_core_log_level,
 				  "%d: ignoring ERROR from callback to service %x",

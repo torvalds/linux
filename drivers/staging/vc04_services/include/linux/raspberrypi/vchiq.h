@@ -53,9 +53,12 @@ struct vchiq_element {
 	unsigned int size;
 };
 
+struct vchiq_instance;
+
 struct vchiq_service_base {
 	int fourcc;
-	enum vchiq_status (*callback)(enum vchiq_reason reason,
+	enum vchiq_status (*callback)(struct vchiq_instance *instance,
+				      enum vchiq_reason reason,
 				      struct vchiq_header *header,
 				      unsigned int handle,
 				      void *bulk_userdata);
@@ -71,7 +74,8 @@ struct vchiq_completion_data_kernel {
 
 struct vchiq_service_params_kernel {
 	int fourcc;
-	enum vchiq_status (*callback)(enum vchiq_reason reason,
+	enum vchiq_status (*callback)(struct vchiq_instance *instance,
+				      enum vchiq_reason reason,
 				      struct vchiq_header *header,
 				      unsigned int handle,
 				      void *bulk_userdata);

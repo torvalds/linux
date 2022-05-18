@@ -548,7 +548,8 @@ static void bulk_abort_cb(struct vchiq_mmal_instance *instance,
 }
 
 /* incoming event service callback */
-static enum vchiq_status service_callback(enum vchiq_reason reason,
+static enum vchiq_status service_callback(struct vchiq_instance *vchiq_instance,
+					  enum vchiq_reason reason,
 					  struct vchiq_header *header,
 					  unsigned int handle, void *bulk_ctx)
 {

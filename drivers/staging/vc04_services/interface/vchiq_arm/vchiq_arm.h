@@ -138,8 +138,8 @@ static inline int vchiq_register_chrdev(struct device *parent) { return 0; }
 #endif /* IS_ENABLED(CONFIG_VCHIQ_CDEV) */
 
 extern enum vchiq_status
-service_callback(enum vchiq_reason reason, struct vchiq_header *header,
-		 unsigned int handle, void *bulk_userdata);
+service_callback(struct vchiq_instance *vchiq_instance, enum vchiq_reason reason,
+		 struct vchiq_header *header, unsigned int handle, void *bulk_userdata);
 
 extern void
 free_bulk_waiter(struct vchiq_instance *instance);
