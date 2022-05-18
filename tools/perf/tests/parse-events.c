@@ -1980,11 +1980,10 @@ static struct evlist_test test__events_pmu[] = {
 
 struct terms_test {
 	const char *str;
-	__u32 type;
 	int (*check)(struct list_head *terms);
 };
 
-static struct terms_test test__terms[] = {
+static const struct terms_test test__terms[] = {
 	[0] = {
 		.str   = "config=10,config1,config2=3,umask=1,read,r0xead",
 		.check = test__checkterms_simple,
@@ -2112,7 +2111,7 @@ static int test_events(struct evlist_test *events, unsigned cnt)
 	return ret2;
 }
 
-static int test_term(struct terms_test *t)
+static int test_term(const struct terms_test *t)
 {
 	struct list_head terms;
 	int ret;
@@ -2139,13 +2138,12 @@ static int test_term(struct terms_test *t)
 	return ret;
 }
 
-static int test_terms(struct terms_test *terms, unsigned cnt)
+static int test_terms(const struct terms_test *terms, int cnt)
 {
 	int ret = 0;
-	unsigned i;
 
-	for (i = 0; i < cnt; i++) {
-		struct terms_test *t = &terms[i];
+	for (int i = 0; i < cnt; i++) {
+		const struct terms_test *t = &terms[i];
 
 		pr_debug("running test %d '%s'\n", i, t->str);
 		ret = test_term(t);
