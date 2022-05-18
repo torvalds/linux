@@ -437,7 +437,7 @@ static int ceph_parse_deleg_inos(void **p, void *end,
 	ceph_decode_32_safe(p, end, sets, bad);
 	dout("got %u sets of delegated inodes\n", sets);
 	while (sets--) {
-		u64 start, len, ino;
+		u64 start, len;
 
 		ceph_decode_64_safe(p, end, start, bad);
 		ceph_decode_64_safe(p, end, len, bad);
@@ -449,7 +449,7 @@ static int ceph_parse_deleg_inos(void **p, void *end,
 			continue;
 		}
 		while (len--) {
-			int err = xa_insert(&s->s_delegated_inos, ino = start++,
+			int err = xa_insert(&s->s_delegated_inos, start++,
 					    DELEGATED_INO_AVAILABLE,
 					    GFP_KERNEL);
 			if (!err) {
