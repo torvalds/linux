@@ -525,13 +525,8 @@ static void kvm_pmu_incr_counter(struct kvm_pmc *pmc)
 static inline bool eventsel_match_perf_hw_id(struct kvm_pmc *pmc,
 	unsigned int perf_hw_id)
 {
-	u64 old_eventsel = pmc->eventsel;
-	unsigned int config;
-
-	pmc->eventsel &= (ARCH_PERFMON_EVENTSEL_EVENT | ARCH_PERFMON_EVENTSEL_UMASK);
-	config = static_call(kvm_x86_pmu_pmc_perf_hw_id)(pmc);
-	pmc->eventsel = old_eventsel;
-	return config == perf_hw_id;
+	return !((pmc->eventsel ^ perf_get_hw_event_config(perf_hw_id)) &
+		AMD64_RAW_EVENT_MASK_NB);
 }
 
 static inline bool cpl_is_matched(struct kvm_pmc *pmc)
