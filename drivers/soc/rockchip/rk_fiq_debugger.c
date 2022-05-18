@@ -622,8 +622,6 @@ static inline int fiq_debugger_sdei_enable(struct rk_fiq_debugger *t)
 }
 #endif
 
-static struct pt_regs fiq_pt_regs;
-
 static void rk_fiq_debugger_switch_cpu(struct platform_device *pdev,
 				       unsigned int cpu)
 {
@@ -635,11 +633,9 @@ static void rk_fiq_debugger_enable_debug(struct platform_device *pdev, bool val)
 	sip_fiq_debugger_enable_debug(val);
 }
 
-static void fiq_debugger_uart_irq_tf(struct pt_regs _pt_regs, u64 cpu)
+static void fiq_debugger_uart_irq_tf(struct pt_regs *_pt_regs, u64 cpu)
 {
-	fiq_pt_regs = _pt_regs;
-
-	fiq_debugger_fiq(&fiq_pt_regs, cpu);
+	fiq_debugger_fiq(_pt_regs, cpu);
 }
 
 static int rk_fiq_debugger_uart_dev_resume(struct platform_device *pdev)

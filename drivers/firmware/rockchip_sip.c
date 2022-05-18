@@ -330,7 +330,7 @@ static int fiq_sip_enabled;
 static int fiq_target_cpu;
 static phys_addr_t ft_fiq_mem_phy;
 static void __iomem *ft_fiq_mem_base;
-static void (*sip_fiq_debugger_uart_irq_tf)(struct pt_regs _pt_regs,
+static void (*sip_fiq_debugger_uart_irq_tf)(struct pt_regs *_pt_regs,
 					    unsigned long cpu);
 static struct pt_regs fiq_pt_regs;
 
@@ -426,7 +426,7 @@ static void sip_fiq_debugger_uart_irq_tf_cb(unsigned long sp_el1,
 	if (ft_fiq_mem_base) {
 		cpu_context = (char *)ft_fiq_mem_base + offset;
 		sip_fiq_debugger_get_pt_regs(cpu_context, sp_el1);
-		sip_fiq_debugger_uart_irq_tf(fiq_pt_regs, cpu);
+		sip_fiq_debugger_uart_irq_tf(&fiq_pt_regs, cpu);
 	}
 
 	/* fiq handler done, return to EL3(then EL3 return to EL1 entry) */
