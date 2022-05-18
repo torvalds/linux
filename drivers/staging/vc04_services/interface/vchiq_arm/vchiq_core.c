@@ -162,7 +162,6 @@ int vchiq_sync_log_level = VCHIQ_LOG_DEFAULT;
 DEFINE_SPINLOCK(bulk_waiter_spinlock);
 static DEFINE_SPINLOCK(quota_spinlock);
 
-struct vchiq_state *vchiq_states[VCHIQ_MAX_STATES];
 static unsigned int handle_seq;
 
 static const char *const srvstate_names[] = {
@@ -2157,11 +2156,6 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero, s
 	char threadname[16];
 	int i, ret;
 
-	if (vchiq_states[0]) {
-		pr_err("%s: VCHIQ state already initialized\n", __func__);
-		return -EINVAL;
-	}
-
 	local = &slot_zero->slave;
 	remote = &slot_zero->master;
 
@@ -2281,8 +2275,6 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero, s
 	wake_up_process(state->slot_handler_thread);
 	wake_up_process(state->recycle_thread);
 	wake_up_process(state->sync_thread);
-
-	vchiq_states[0] = state;
 
 	/* Indicate readiness to the other side */
 	local->initialised = 1;

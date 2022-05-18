@@ -449,8 +449,6 @@ extern int vchiq_core_log_level;
 extern int vchiq_core_msg_log_level;
 extern int vchiq_sync_log_level;
 
-extern struct vchiq_state *vchiq_states[VCHIQ_MAX_STATES];
-
 extern const char *
 get_conn_state_name(enum vchiq_connstate conn_state);
 
