@@ -1426,8 +1426,9 @@ static int gswip_port_fdb_dump(struct dsa_switch *ds, int port,
 
 		err = gswip_pce_table_entry_read(priv, &mac_bridge);
 		if (err) {
-			dev_err(priv->dev, "failed to write mac bridge: %d\n",
-				err);
+			dev_err(priv->dev,
+				"failed to read mac bridge entry %d: %d\n",
+				i, err);
 			return err;
 		}
 
