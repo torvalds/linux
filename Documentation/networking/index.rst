@@ -1,5 +1,5 @@
-Linux Networking Documentation
-==============================
+Networking
+==========
 
 Refer to :ref:`netdev-FAQ` for a guide on netdev development process specifics.
 
