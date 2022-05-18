@@ -97,8 +97,10 @@ u32 spl2sw_mdio_init(struct spl2sw_common *comm)
 
 	/* Allocate and register mdio bus. */
 	mii_bus = devm_mdiobus_alloc(&comm->pdev->dev);
-	if (!mii_bus)
-		return -ENOMEM;
+	if (!mii_bus) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	mii_bus->name = "sunplus_mii_bus";
 	mii_bus->parent = &comm->pdev->dev;
@@ -110,10 +112,13 @@ u32 spl2sw_mdio_init(struct spl2sw_common *comm)
 	ret = of_mdiobus_register(mii_bus, mdio_np);
 	if (ret) {
 		dev_err(&comm->pdev->dev, "Failed to register mdiobus!\n");
-		return ret;
+		goto out;
 	}
 
 	comm->mii_bus = mii_bus;
+
+out:
+	of_node_put(mdio_np);
 	return ret;
 }
 
