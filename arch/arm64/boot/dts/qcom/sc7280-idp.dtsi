@@ -636,14 +636,3 @@
 		bias-pull-down;
 	};
 };
-
-&remoteproc_wpss {
-	status = "okay";
-};
-
-&wifi {
-	status = "okay";
-	wifi-firmware {
-		iommus = <&apps_smmu 0x1c02 0x1>;
-	};
-};

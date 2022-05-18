@@ -91,7 +91,20 @@
 	memory-region = <&mba_mem>, <&mpss_mem>;
 };
 
+&remoteproc_wpss {
+	status = "okay";
+	firmware-name = "ath11k/WCN6750/hw1.0/wpss.mdt";
+};
+
 /* Increase the size from 2.5MB to 8MB */
 &rmtfs_mem {
 	reg = <0x0 0x9c900000 0x0 0x800000>;
+};
+
+&wifi {
+	status = "okay";
+
+	wifi-firmware {
+		iommus = <&apps_smmu 0x1c02 0x1>;
+	};
 };
