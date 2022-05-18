@@ -568,7 +568,7 @@ static const struct dev_pm_ops t7xx_pci_pm_ops = {
 static int t7xx_request_irq(struct pci_dev *pdev)
 {
 	struct t7xx_pci_dev *t7xx_dev;
-	int ret, i;
+	int ret = 0, i;
 
 	t7xx_dev = pci_get_drvdata(pdev);
 

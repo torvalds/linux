@@ -350,9 +350,6 @@ static int t7xx_port_proxy_recv_skb(struct cldma_queue *queue, struct sk_buff *s
 	u16 seq_num, channel;
 	int ret;
 
-	if (!skb)
-		return -EINVAL;
-
 	channel = FIELD_GET(CCCI_H_CHN_FLD, le32_to_cpu(ccci_h->status));
 	if (t7xx_fsm_get_md_state(ctl) == MD_STATE_INVALID) {
 		dev_err_ratelimited(dev, "Packet drop on channel 0x%x, modem not ready\n", channel);

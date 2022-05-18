@@ -458,9 +458,9 @@ static void t7xx_core_hk_handler(struct t7xx_modem *md, struct t7xx_fsm_ctl *ctl
 				 enum t7xx_fsm_event_state event_id,
 				 enum t7xx_fsm_event_state err_detect)
 {
+	struct t7xx_fsm_event *event = NULL, *event_next;
 	struct t7xx_sys_info *core_info = &md->core_md;
 	struct device *dev = &md->t7xx_dev->pdev->dev;
-	struct t7xx_fsm_event *event, *event_next;
 	unsigned long flags;
 	int ret;
 
@@ -493,7 +493,7 @@ static void t7xx_core_hk_handler(struct t7xx_modem *md, struct t7xx_fsm_ctl *ctl
 			goto err_free_event;
 	}
 
-	if (ctl->exp_flg)
+	if (!event || ctl->exp_flg)
 		goto err_free_event;
 
 	ret = t7xx_parse_host_rt_data(ctl, core_info, dev, event->data, event->length);
