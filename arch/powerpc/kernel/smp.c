@@ -874,7 +874,7 @@ out_free:
  * @tg : The thread-group structure of the CPU node which @cpu belongs
  *       to.
  *
- * Returns the index to tg->thread_list that points to the the start
+ * Returns the index to tg->thread_list that points to the start
  * of the thread_group that @cpu belongs to.
  *
  * Returns -1 if cpu doesn't belong to any of the groups pointed to by

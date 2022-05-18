@@ -22,7 +22,7 @@
  * have the same requirement.
  *
  * For a SR-IOV BAR things are a little more awkward since size and alignment
- * are not coupled. The alignment is set based on the the per-VF BAR size, but
+ * are not coupled. The alignment is set based on the per-VF BAR size, but
  * the total BAR area is: number-of-vfs * per-vf-size. The number of VFs
  * isn't necessarily a power of two, so neither is the total size. To fix that
  * we need to finesse (read: hack) the Linux BAR allocator so that it will

@@ -253,7 +253,7 @@ static void __noreturn briq_restart(char *cmd)
  * Per default, input/output-device points to the keyboard/screen
  * If no card is installed, the built-in serial port is used as a fallback.
  * But unfortunately, the firmware does not connect /chosen/{stdin,stdout}
- * the the built-in serial node. Instead, a /failsafe node is created.
+ * to the built-in serial node. Instead, a /failsafe node is created.
  */
 static __init void chrp_init(void)
 {
