@@ -18,8 +18,20 @@
 #define DEC_8190_ALIGN_MASK	0x07U
 
 #define MB_DIM			16
+#define TILE_MB_DIM		4
 #define MB_WIDTH(w)		DIV_ROUND_UP(w, MB_DIM)
 #define MB_HEIGHT(h)		DIV_ROUND_UP(h, MB_DIM)
+
+#define FMT_MIN_WIDTH		48
+#define FMT_MIN_HEIGHT		48
+#define FMT_HD_WIDTH		1280
+#define FMT_HD_HEIGHT		720
+#define FMT_FHD_WIDTH		1920
+#define FMT_FHD_HEIGHT		1088
+#define FMT_UHD_WIDTH		3840
+#define FMT_UHD_HEIGHT		2160
+#define FMT_4K_WIDTH		4096
+#define FMT_4K_HEIGHT		2304
 
 #define NUM_REF_PICTURES	(V4L2_HEVC_DPB_ENTRIES_NUM_MAX + 1)
 
@@ -347,6 +359,8 @@ int hantro_hevc_dec_prepare_run(struct hantro_ctx *ctx);
 void hantro_hevc_ref_init(struct hantro_ctx *ctx);
 dma_addr_t hantro_hevc_get_ref_buf(struct hantro_ctx *ctx, int poc);
 int hantro_hevc_add_ref_buf(struct hantro_ctx *ctx, int poc, dma_addr_t addr);
+int hantro_hevc_validate_sps(struct hantro_ctx *ctx, const struct v4l2_ctrl_hevc_sps *sps);
+
 
 static inline unsigned short hantro_vp9_num_sbs(unsigned short dimension)
 {

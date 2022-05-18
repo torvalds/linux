@@ -154,6 +154,32 @@ err_free_tile_buffers:
 	return -ENOMEM;
 }
 
+int hantro_hevc_validate_sps(struct hantro_ctx *ctx, const struct v4l2_ctrl_hevc_sps *sps)
+{
+	if (sps->bit_depth_luma_minus8 != sps->bit_depth_chroma_minus8)
+		/* Luma and chroma bit depth mismatch */
+		return -EINVAL;
+	if (sps->bit_depth_luma_minus8 != 0)
+		/* Only 8-bit is supported */
+		return -EINVAL;
+
+	/*
+	 * for tile pixel format check if the width and height match
+	 * hardware constraints
+	 */
+	if (ctx->vpu_dst_fmt->fourcc == V4L2_PIX_FMT_NV12_4L4) {
+		if (ctx->dst_fmt.width !=
+		    ALIGN(sps->pic_width_in_luma_samples, ctx->vpu_dst_fmt->frmsize.step_width))
+			return -EINVAL;
+
+		if (ctx->dst_fmt.height !=
+		    ALIGN(sps->pic_height_in_luma_samples, ctx->vpu_dst_fmt->frmsize.step_height))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 int hantro_hevc_dec_prepare_run(struct hantro_ctx *ctx)
 {
 	struct hantro_hevc_dec_hw_ctx *hevc_ctx = &ctx->hevc_dec;
@@ -176,6 +202,10 @@ int hantro_hevc_dec_prepare_run(struct hantro_ctx *ctx)
 		hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_HEVC_SPS);
 	if (WARN_ON(!ctrls->sps))
 		return -EINVAL;
+
+	ret = hantro_hevc_validate_sps(ctx, ctrls->sps);
+	if (ret)
+		return ret;
 
 	ctrls->pps =
 		hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_HEVC_PPS);
