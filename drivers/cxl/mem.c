@@ -24,23 +24,6 @@
  * in higher level operations.
  */
 
-static int wait_for_media(struct cxl_memdev *cxlmd)
-{
-	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	int rc;
-
-	rc = cxlds->wait_media_ready(cxlds);
-	if (rc)
-		return rc;
-
-	/*
-	 * We know the device is active, and enabled, if any ranges are non-zero
-	 * we'll need to check later before adding the port since that owns the
-	 * HDM decoder registers.
-	 */
-	return 0;
-}
-
 static int create_endpoint(struct cxl_memdev *cxlmd,
 			   struct cxl_port *parent_port)
 {
@@ -157,7 +140,7 @@ static int cxl_mem_probe(struct device *dev)
 	if (work_pending(&cxlmd->detach_work))
 		return -EBUSY;
 
-	rc = wait_for_media(cxlmd);
+	rc = cxlds->wait_media_ready(cxlds);
 	if (rc) {
 		dev_err(dev, "Media not active (%d)\n", rc);
 		return rc;

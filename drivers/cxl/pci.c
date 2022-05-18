@@ -423,7 +423,7 @@ static int wait_for_valid(struct cxl_dev_state *cxlds)
  * Wait up to @mbox_ready_timeout for the device to report memory
  * active.
  */
-static int wait_for_media_ready(struct cxl_dev_state *cxlds)
+static int cxl_await_media_ready(struct cxl_dev_state *cxlds)
 {
 	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
 	int d = cxlds->cxl_dvsec;
@@ -593,7 +593,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_warn(&pdev->dev,
 			 "Device DVSEC not present, skip CXL.mem init\n");
 
-	cxlds->wait_media_ready = wait_for_media_ready;
+	cxlds->wait_media_ready = cxl_await_media_ready;
 
 	rc = cxl_setup_regs(pdev, CXL_REGLOC_RBI_MEMDEV, &map);
 	if (rc)
