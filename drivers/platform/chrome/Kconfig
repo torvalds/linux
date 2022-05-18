@@ -267,4 +267,13 @@ config CHROMEOS_PRIVACY_SCREEN
 
 source "drivers/platform/chrome/wilco_ec/Kconfig"
 
+# Kunit test cases
+config CROS_EC_PROTO_KUNIT_TEST
+	tristate "Kunit tests for ChromeOS EC protocol" if !KUNIT_ALL_TESTS
+	depends on KUNIT && CROS_EC
+	default KUNIT_ALL_TESTS
+	select CROS_EC_PROTO
+	help
+	  Kunit tests for the ChromeOS Embedded Controller protocol.
+
 endif # CHROMEOS_PLATFORMS
