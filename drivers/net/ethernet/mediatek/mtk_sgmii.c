@@ -83,14 +83,10 @@ int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
 	val &= ~SGMII_AN_ENABLE;
 	regmap_write(ss->regmap[id], SGMSYS_PCS_CONTROL_1, val);
 
-	/* SGMII force mode setting */
+	/* Set the speed etc but leave the duplex unchanged */
 	regmap_read(ss->regmap[id], SGMSYS_SGMII_MODE, &val);
-	val &= ~SGMII_IF_MODE_MASK;
+	val &= SGMII_DUPLEX_FULL | ~SGMII_IF_MODE_MASK;
 	val |= SGMII_SPEED_1000;
-
-	if (state->duplex == DUPLEX_FULL)
-		val |= SGMII_DUPLEX_FULL;
-
 	regmap_write(ss->regmap[id], SGMSYS_SGMII_MODE, val);
 
 	/* Release PHYA power down state */
@@ -99,6 +95,20 @@ int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
 	regmap_write(ss->regmap[id], SGMSYS_QPHY_PWR_STATE_CTRL, val);
 
 	return 0;
+}
+
+/* For 1000BASE-X and 2500BASE-X interface modes */
+void mtk_sgmii_link_up(struct mtk_sgmii *ss, int id, int speed, int duplex)
+{
+	unsigned int val;
+
+	/* SGMII force duplex setting */
+	regmap_read(ss->regmap[id], SGMSYS_SGMII_MODE, &val);
+	val &= ~SGMII_DUPLEX_FULL;
+	if (duplex == DUPLEX_FULL)
+		val |= SGMII_DUPLEX_FULL;
+
+	regmap_write(ss->regmap[id], SGMSYS_SGMII_MODE, val);
 }
 
 void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id)
