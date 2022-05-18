@@ -5163,18 +5163,15 @@ static int binder_ioctl_get_freezer_info(
 static int binder_ioctl_get_extended_error(struct binder_thread *thread,
 					   void __user *ubuf)
 {
-	struct binder_extended_error *ee = &thread->ee;
+	struct binder_extended_error ee;
 
 	binder_inner_proc_lock(thread->proc);
-	if (copy_to_user(ubuf, ee, sizeof(*ee))) {
-		binder_inner_proc_unlock(thread->proc);
-		return -EFAULT;
-	}
-
-	ee->id = 0;
-	ee->command = BR_OK;
-	ee->param = 0;
+	ee = thread->ee;
+	binder_set_extended_error(&thread->ee, 0, BR_OK, 0);
 	binder_inner_proc_unlock(thread->proc);
+
+	if (copy_to_user(ubuf, &ee, sizeof(ee)))
+		return -EFAULT;
 
 	return 0;
 }
