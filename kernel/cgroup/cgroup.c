@@ -5685,7 +5685,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	css_clear_dir(&cgrp->self);
 	kernfs_remove(cgrp->kn);
 
-	if (parent && cgroup_is_threaded(cgrp))
+	if (cgroup_is_threaded(cgrp))
 		parent->nr_threaded_children--;
 
 	spin_lock_irq(&css_set_lock);
