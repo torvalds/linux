@@ -33,30 +33,30 @@
 #define OV13850_LINK_FREQ_500MHZ         500000000LL
 
 /**
-OV13850 PLL
-
-PLL1:
-
-REF_CLK -> /PREDIVP[0] -> /PREDIV[2:0] -> *DIVP[9:8,7:0] -> /DIVM[3:0] -> /DIV_MIPI[1:0]  -> PCLK
-(6-64M)     0x030A         0x0300          0x0301,0x302      0x0303        0x0304
-                                                                      `-> MIPI_PHY_CLK
-
-
-PLL2:
-                           000: 1
-                           001: 1.5
-                           010: 2
-                           011: 2.5
-                           100: 3
-                           101: 4
-            0: /1          110: 6
-            1: /2          111: 8
-REF_CLK -> /PREDIVP[3] -> /PREDIV[2:0] -> /DIVP[9:0] -> /DIVDAC[3:0] -> DAC_CLK =
-(6~64M)    0x3611
-                                                     -> /DIVSP[3:0] -> /DIVS[2:0] -> SCLK
-
-                                                     -> /(1+DIVSRAM[3:0]) -> SRAM_CLK
-**/
+ *OV13850 PLL
+ *
+ *PLL1:
+ *
+ *REF_CLK -> /PREDIVP[0] -> /PREDIV[2:0] -> *DIVP[9:8,7:0] -> /DIVM[3:0] -> /DIV_MIPI[1:0]  -> PCLK
+ *(6-64M)     0x030A         0x0300          0x0301,0x302      0x0303        0x0304
+ *                                                                      `-> MIPI_PHY_CLK
+ *
+ *
+ *PLL2:
+ *                           000: 1
+ *                           001: 1.5
+ *                           010: 2
+ *                           011: 2.5
+ *                           100: 3
+ *                           101: 4
+ *            0: /1          110: 6
+ *            1: /2          111: 8
+ *REF_CLK -> /PREDIVP[3] -> /PREDIV[2:0] -> /DIVP[9:0] -> /DIVDAC[3:0] -> DAC_CLK =
+ *(6~64M)    0x3611
+ *                                                     -> /DIVSP[3:0] -> /DIVS[2:0] -> SCLK
+ *
+ *                                                     -> /(1+DIVSRAM[3:0]) -> SRAM_CLK
+ */
 
 // PREDIVP
 #define OV13850_REG_PLL1_PREDIVP        0x030a
@@ -140,20 +140,20 @@ REF_CLK -> /PREDIVP[3] -> /PREDIV[2:0] -> /DIVP[9:0] -> /DIVDAC[3:0] -> DAC_CLK 
 
 enum ov13850_mode_id {
 	OV13850_MODE_1080P_1920_1080 = 0,
-    OV13850_NUM_MODES,
+	OV13850_NUM_MODES,
 };
 
 enum ov13850_frame_rate {
 	OV13850_15_FPS = 0,
 	OV13850_30_FPS,
-    OV13850_60_FPS,
+	OV13850_60_FPS,
 	OV13850_NUM_FRAMERATES,
 };
 
 static const int ov13850_framerates[] = {
 	[OV13850_15_FPS] = 15,
 	[OV13850_30_FPS] = 30,
-    [OV13850_60_FPS] = 60,
+	[OV13850_60_FPS] = 60,
 };
 
 struct ov13850_pixfmt {
@@ -249,7 +249,7 @@ struct ov13850_dev {
 	int power_count;
 
 	struct v4l2_mbus_framefmt fmt;
-    bool pending_fmt_change;
+	bool pending_fmt_change;
 
 	const struct ov13850_mode_info *current_mode;
 	const struct ov13850_mode_info *last_mode;
@@ -284,257 +284,257 @@ static const struct reg_value ov13850_init_setting_30fps_1080P[] = {
 static const struct reg_value ov13850_setting_1080P_1920_1080[] = {
 //;XVCLK=24Mhz, SCLK=4x120Mhz, MIPI 640Mbps, DACCLK=240Mhz
 /*
-* using quarter size to scale down
-*/
-    {0x0103, 0x01, 0, 0}, // ; software reset
+ * using quarter size to scale down
+ */
+	{0x0103, 0x01, 0, 0}, // ; software reset
 
-    {0x0300, 0x01, 0, 0}, //; PLL
-    {0x0301, 0x00, 0, 0}, //; PLL1_DIVP_hi
-    {0x0302, 0x28, 0, 0}, //; PLL1_DIVP_lo
-    {0x0303, 0x00, 0, 0}, // ; PLL
-    {0x030a, 0x00, 0, 0}, // ; PLL
-    //{0xffff, 20, 0, 0},
-    {0x300f, 0x11, 0, 0}, // SFC modified, MIPI_SRC, [1:0] 00-8bit, 01-10bit, 10-12bit
-    {0x3010, 0x01, 0, 0}, // ; MIPI PHY
-    {0x3011, 0x76, 0, 0}, // ; MIPI PHY
-    {0x3012, 0x41, 0, 0}, // ; MIPI 4 lane
-    {0x3013, 0x12, 0, 0}, // ; MIPI control
-    {0x3014, 0x11, 0, 0}, // ; MIPI control
-    {0x301f, 0x03, 0, 0}, //
-    {0x3106, 0x00, 0, 0}, //
-    {0x3210, 0x47, 0, 0}, //
-    {0x3500, 0x00, 0, 0}, // ; exposure HH
-    {0x3501, 0x67, 0, 0}, // ; exposure H
-    {0x3502, 0x80, 0, 0}, // ; exposure L
-    {0x3506, 0x00, 0, 0}, // ; short exposure HH
-    {0x3507, 0x02, 0, 0}, // ; short exposure H
-    {0x3508, 0x00, 0, 0}, // ; shour exposure L
-    {0x3509, 0x10, 0, 0},//00},//8},
-    {0x350a, 0x00, 0, 0}, // ; gain H
-    {0x350b, 0x10, 0, 0}, // ; gain L
-    {0x350e, 0x00, 0, 0}, // ; short gain H
-    {0x350f, 0x10, 0, 0}, // ; short gain L
-    {0x3600, 0x40, 0, 0}, // ; analog control
-    {0x3601, 0xfc, 0, 0}, // ; analog control
-    {0x3602, 0x02, 0, 0}, // ; analog control
-    {0x3603, 0x48, 0, 0}, // ; analog control
-    {0x3604, 0xa5, 0, 0}, // ; analog control
-    {0x3605, 0x9f, 0, 0}, // ; analog control
-    {0x3607, 0x00, 0, 0}, // ; analog control
-    {0x360a, 0x40, 0, 0}, // ; analog control
-    {0x360b, 0x91, 0, 0}, // ; analog control
-    {0x360c, 0x49, 0, 0}, // ; analog control
-    {0x360f, 0x8a, 0, 0}, //
-    {0x3611, 0x10, 0, 0}, // ; PLL2
-    //{0x3612, 0x23, 0, 0}, // ; PLL2
-    {0x3612, 0x13, 0, 0}, // ; PLL2
-    //{0x3613, 0x33, 0, 0}, // ; PLL2
-    {0x3613, 0x22, 0, 0}, // ; PLL2
-    //{0xffff, 50, 0, 0},
-    {0x3614, 0x28, 0, 0}, //[7:0] PLL2_DIVP lo
-    {0x3615, 0x08, 0, 0}, //[7:6] Debug mode, [5:4] N_pump clock div, [3:2] P_pump clock div, [1:0] PLL2_DIVP hi
-    {0x3641, 0x02, 0, 0},
-    {0x3660, 0x82, 0, 0},
-    {0x3668, 0x54, 0, 0},
-    {0x3669, 0x40, 0, 0},
-    {0x3667, 0xa0, 0, 0},
-    {0x3702, 0x40, 0, 0},
-    {0x3703, 0x44, 0, 0},
-    {0x3704, 0x2c, 0, 0},
-    {0x3705, 0x24, 0, 0},
-    {0x3706, 0x50, 0, 0},
-    {0x3707, 0x44, 0, 0},
-    {0x3708, 0x3c, 0, 0},
-    {0x3709, 0x1f, 0, 0},
-    {0x370a, 0x26, 0, 0},
-    {0x370b, 0x3c, 0, 0},
-    {0x3720, 0x66, 0, 0},
-    {0x3722, 0x84, 0, 0},
-    {0x3728, 0x40, 0, 0},
-    {0x372a, 0x00, 0, 0},
-    {0x372f, 0x90, 0, 0},
-    {0x3710, 0x28, 0, 0},
-    {0x3716, 0x03, 0, 0},
-    {0x3718, 0x10, 0, 0},
-    {0x3719, 0x08, 0, 0},
-    {0x371c, 0xfc, 0, 0},
-    {0x3760, 0x13, 0, 0},
-    {0x3761, 0x34, 0, 0},
-    {0x3767, 0x24, 0, 0},
-    {0x3768, 0x06, 0, 0},
-    {0x3769, 0x45, 0, 0},
-    {0x376c, 0x23, 0, 0},
-    {0x3d84, 0x00, 0, 0}, // ; OTP program disable
-    {0x3d85, 0x17, 0, 0}, // ; OTP power up load data enable, power load setting enable, software load setting
-    {0x3d8c, 0x73, 0, 0}, // ; OTP start address H
-    {0x3d8d, 0xbf, 0, 0}, // ; OTP start address L
-    {0x3800, 0x00, 0, 0}, // ; H crop start H
-    {0x3801, 0x08, 0, 0}, // ; H crop start L
-    {0x3802, 0x00, 0, 0}, // ; V crop start H
-    {0x3803, 0x04, 0, 0}, // ; V crop start L
-    {0x3804, 0x10, 0, 0}, // ; H crop end H
-    {0x3805, 0x97, 0, 0}, // ; H crop end L
-    {0x3806, 0x0c, 0, 0}, // ; V crop end H
-    {0x3807, 0x4b, 0, 0}, // ; V crop end L
-    {0x3808, 0x08, 0, 0}, // ; H output size H
-    {0x3809, 0x40, 0, 0}, // ; H output size L
-    {0x380a, 0x06, 0, 0}, // ; V output size H
-    {0x380b, 0x20, 0, 0}, // ; V output size L
-    {0x380c, 0x25, 0, 0}, // ; HTS H
-    {0x380d, 0x80, 0, 0}, // ; HTS L
-    {0x380e, 0x06, 0, 0}, // ; VTS H
-    {0x380f, 0x80, 0, 0}, // ; VTS L
-    {0x3810, 0x00, 0, 0}, // ; H win off H
-    {0x3811, 0x04, 0, 0}, // ; H win off L
-    {0x3812, 0x00, 0, 0}, // ; V win off H
-    {0x3813, 0x02, 0, 0}, // ; V win off L
-    {0x3814, 0x31, 0, 0}, // ; H inc
-    {0x3815, 0x31, 0, 0}, // ; V inc
-    {0x3820, 0x02, 0, 0}, // ; V flip off, V bin on
-    {0x3821, 0x05, 0, 0}, // ; H mirror on, H bin on
-    {0x3834, 0x00, 0, 0}, //
-    {0x3835, 0x1c, 0, 0}, // ; cut_en, vts_auto, blk_col_dis
-    {0x3836, 0x08, 0, 0}, //
-    {0x3837, 0x02, 0, 0}, //
-    {0x4000, 0xf1, 0, 0},//c1}, // ; BLC offset trig en, format change trig en, gain trig en, exp trig en, median en
-    {0x4001, 0x00, 0, 0}, // ; BLC
-    {0x400b, 0x0c, 0, 0}, // ; BLC
-    {0x4011, 0x00, 0, 0}, // ; BLC
-    {0x401a, 0x00, 0, 0}, // ; BLC
-    {0x401b, 0x00, 0, 0}, // ; BLC
-    {0x401c, 0x00, 0, 0}, // ; BLC
-    {0x401d, 0x00, 0, 0}, // ; BLC
-    {0x4020, 0x00, 0, 0}, // ; BLC
-    {0x4021, 0xe4, 0, 0}, // ; BLC
-    {0x4022, 0x07, 0, 0}, // ; BLC
-    {0x4023, 0x5f, 0, 0}, // ; BLC
-    {0x4024, 0x08, 0, 0}, // ; BLC
-    {0x4025, 0x44, 0, 0}, // ; BLC
-    {0x4026, 0x08, 0, 0}, // ; BLC
-    {0x4027, 0x47, 0, 0}, // ; BLC
-    {0x4028, 0x00, 0, 0}, // ; BLC
-    {0x4029, 0x02, 0, 0}, // ; BLC
-    {0x402a, 0x04, 0, 0}, // ; BLC
-    {0x402b, 0x08, 0, 0}, // ; BLC
-    {0x402c, 0x02, 0, 0}, // ; BLC
-    {0x402d, 0x02, 0, 0}, // ; BLC
-    {0x402e, 0x0c, 0, 0}, // ; BLC
-    {0x402f, 0x08, 0, 0}, // ; BLC
-    {0x403d, 0x2c, 0, 0}, //
-    {0x403f, 0x7f, 0, 0}, //
-    {0x4500, 0x82, 0, 0}, // ; BLC
-    {0x4501, 0x38, 0, 0}, // ; BLC
-    {0x4601, 0x04, 0, 0}, //
-    {0x4602, 0x22, 0, 0}, //
-    {0x4603, 0x01, 0, 0}, //; VFIFO
-    {0x4837, 0x19, 0, 0}, //; MIPI global timing
-    {0x4d00, 0x04, 0, 0}, // ; temperature monitor
-    {0x4d01, 0x42, 0, 0}, //  ; temperature monitor
-    {0x4d02, 0xd1, 0, 0}, //  ; temperature monitor
-    {0x4d03, 0x90, 0, 0}, //  ; temperature monitor
-    {0x4d04, 0x66, 0, 0}, //  ; temperature monitor
-    {0x4d05, 0x65, 0, 0}, // ; temperature monitor
-    {0x5000, 0x0e, 0, 0}, // ; windowing enable, BPC on, WPC on, Lenc on
-    {0x5001, 0x03, 0, 0}, // ; BLC enable, MWB on
-    {0x5002, 0x07, 0, 0}, //
-    {0x5013, 0x40, 0, 0},
-    {0x501c, 0x00, 0, 0},
-    {0x501d, 0x10, 0, 0},
-    //{0x5057, 0x56, 0, 0},//add
-    {0x5056, 0x08, 0, 0},
-    {0x5058, 0x08, 0, 0},
-    {0x505a, 0x08, 0, 0},
-    {0x5242, 0x00, 0, 0},
-    {0x5243, 0xb8, 0, 0},
-    {0x5244, 0x00, 0, 0},
-    {0x5245, 0xf9, 0, 0},
-    {0x5246, 0x00, 0, 0},
-    {0x5247, 0xf6, 0, 0},
-    {0x5248, 0x00, 0, 0},
-    {0x5249, 0xa6, 0, 0},
-    {0x5300, 0xfc, 0, 0},
-    {0x5301, 0xdf, 0, 0},
-    {0x5302, 0x3f, 0, 0},
-    {0x5303, 0x08, 0, 0},
-    {0x5304, 0x0c, 0, 0},
-    {0x5305, 0x10, 0, 0},
-    {0x5306, 0x20, 0, 0},
-    {0x5307, 0x40, 0, 0},
-    {0x5308, 0x08, 0, 0},
-    {0x5309, 0x08, 0, 0},
-    {0x530a, 0x02, 0, 0},
-    {0x530b, 0x01, 0, 0},
-    {0x530c, 0x01, 0, 0},
-    {0x530d, 0x0c, 0, 0},
-    {0x530e, 0x02, 0, 0},
-    {0x530f, 0x01, 0, 0},
-    {0x5310, 0x01, 0, 0},
-    {0x5400, 0x00, 0, 0},
-    {0x5401, 0x61, 0, 0},
-    {0x5402, 0x00, 0, 0},
-    {0x5403, 0x00, 0, 0},
-    {0x5404, 0x00, 0, 0},
-    {0x5405, 0x40, 0, 0},
-    {0x540c, 0x05, 0, 0},
-    {0x5b00, 0x00, 0, 0},
-    {0x5b01, 0x00, 0, 0},
-    {0x5b02, 0x01, 0, 0},
-    {0x5b03, 0xff, 0, 0},
-    {0x5b04, 0x02, 0, 0},
-    {0x5b05, 0x6c, 0, 0},
-    {0x5b09, 0x02, 0, 0}, //
-    //{0x5e00, 0x00, 0, 0}, // ; test pattern disable
-    //{0x5e00, 0x80, 0, 0}, // ; test pattern enable
-    {0x5e10, 0x1c, 0, 0}, // ; ISP test disable
+	{0x0300, 0x01, 0, 0}, //; PLL
+	{0x0301, 0x00, 0, 0}, //; PLL1_DIVP_hi
+	{0x0302, 0x28, 0, 0}, //; PLL1_DIVP_lo
+	{0x0303, 0x00, 0, 0}, // ; PLL
+	{0x030a, 0x00, 0, 0}, // ; PLL
+	//{0xffff, 20, 0, 0},
+	{0x300f, 0x11, 0, 0}, // SFC modified, MIPI_SRC, [1:0] 00-8bit, 01-10bit, 10-12bit
+	{0x3010, 0x01, 0, 0}, // ; MIPI PHY
+	{0x3011, 0x76, 0, 0}, // ; MIPI PHY
+	{0x3012, 0x41, 0, 0}, // ; MIPI 4 lane
+	{0x3013, 0x12, 0, 0}, // ; MIPI control
+	{0x3014, 0x11, 0, 0}, // ; MIPI control
+	{0x301f, 0x03, 0, 0}, //
+	{0x3106, 0x00, 0, 0}, //
+	{0x3210, 0x47, 0, 0}, //
+	{0x3500, 0x00, 0, 0}, // ; exposure HH
+	{0x3501, 0x67, 0, 0}, // ; exposure H
+	{0x3502, 0x80, 0, 0}, // ; exposure L
+	{0x3506, 0x00, 0, 0}, // ; short exposure HH
+	{0x3507, 0x02, 0, 0}, // ; short exposure H
+	{0x3508, 0x00, 0, 0}, // ; shour exposure L
+	{0x3509, 0x10, 0, 0},//00},//8},
+	{0x350a, 0x00, 0, 0}, // ; gain H
+	{0x350b, 0x10, 0, 0}, // ; gain L
+	{0x350e, 0x00, 0, 0}, // ; short gain H
+	{0x350f, 0x10, 0, 0}, // ; short gain L
+	{0x3600, 0x40, 0, 0}, // ; analog control
+	{0x3601, 0xfc, 0, 0}, // ; analog control
+	{0x3602, 0x02, 0, 0}, // ; analog control
+	{0x3603, 0x48, 0, 0}, // ; analog control
+	{0x3604, 0xa5, 0, 0}, // ; analog control
+	{0x3605, 0x9f, 0, 0}, // ; analog control
+	{0x3607, 0x00, 0, 0}, // ; analog control
+	{0x360a, 0x40, 0, 0}, // ; analog control
+	{0x360b, 0x91, 0, 0}, // ; analog control
+	{0x360c, 0x49, 0, 0}, // ; analog control
+	{0x360f, 0x8a, 0, 0}, //
+	{0x3611, 0x10, 0, 0}, // ; PLL2
+	//{0x3612, 0x23, 0, 0}, // ; PLL2
+	{0x3612, 0x13, 0, 0}, // ; PLL2
+	//{0x3613, 0x33, 0, 0}, // ; PLL2
+	{0x3613, 0x22, 0, 0}, // ; PLL2
+	//{0xffff, 50, 0, 0},
+	{0x3614, 0x28, 0, 0}, //[7:0] PLL2_DIVP lo
+	{0x3615, 0x08, 0, 0}, //[7:6] Debug mode, [5:4] N_pump clock div, [3:2] P_pump clock div, [1:0] PLL2_DIVP hi
+	{0x3641, 0x02, 0, 0},
+	{0x3660, 0x82, 0, 0},
+	{0x3668, 0x54, 0, 0},
+	{0x3669, 0x40, 0, 0},
+	{0x3667, 0xa0, 0, 0},
+	{0x3702, 0x40, 0, 0},
+	{0x3703, 0x44, 0, 0},
+	{0x3704, 0x2c, 0, 0},
+	{0x3705, 0x24, 0, 0},
+	{0x3706, 0x50, 0, 0},
+	{0x3707, 0x44, 0, 0},
+	{0x3708, 0x3c, 0, 0},
+	{0x3709, 0x1f, 0, 0},
+	{0x370a, 0x26, 0, 0},
+	{0x370b, 0x3c, 0, 0},
+	{0x3720, 0x66, 0, 0},
+	{0x3722, 0x84, 0, 0},
+	{0x3728, 0x40, 0, 0},
+	{0x372a, 0x00, 0, 0},
+	{0x372f, 0x90, 0, 0},
+	{0x3710, 0x28, 0, 0},
+	{0x3716, 0x03, 0, 0},
+	{0x3718, 0x10, 0, 0},
+	{0x3719, 0x08, 0, 0},
+	{0x371c, 0xfc, 0, 0},
+	{0x3760, 0x13, 0, 0},
+	{0x3761, 0x34, 0, 0},
+	{0x3767, 0x24, 0, 0},
+	{0x3768, 0x06, 0, 0},
+	{0x3769, 0x45, 0, 0},
+	{0x376c, 0x23, 0, 0},
+	{0x3d84, 0x00, 0, 0}, // ; OTP program disable
+	{0x3d85, 0x17, 0, 0}, // ; OTP power up load data enable, power load setting enable, software load setting
+	{0x3d8c, 0x73, 0, 0}, // ; OTP start address H
+	{0x3d8d, 0xbf, 0, 0}, // ; OTP start address L
+	{0x3800, 0x00, 0, 0}, // ; H crop start H
+	{0x3801, 0x08, 0, 0}, // ; H crop start L
+	{0x3802, 0x00, 0, 0}, // ; V crop start H
+	{0x3803, 0x04, 0, 0}, // ; V crop start L
+	{0x3804, 0x10, 0, 0}, // ; H crop end H
+	{0x3805, 0x97, 0, 0}, // ; H crop end L
+	{0x3806, 0x0c, 0, 0}, // ; V crop end H
+	{0x3807, 0x4b, 0, 0}, // ; V crop end L
+	{0x3808, 0x08, 0, 0}, // ; H output size H
+	{0x3809, 0x40, 0, 0}, // ; H output size L
+	{0x380a, 0x06, 0, 0}, // ; V output size H
+	{0x380b, 0x20, 0, 0}, // ; V output size L
+	{0x380c, 0x25, 0, 0}, // ; HTS H
+	{0x380d, 0x80, 0, 0}, // ; HTS L
+	{0x380e, 0x06, 0, 0}, // ; VTS H
+	{0x380f, 0x80, 0, 0}, // ; VTS L
+	{0x3810, 0x00, 0, 0}, // ; H win off H
+	{0x3811, 0x04, 0, 0}, // ; H win off L
+	{0x3812, 0x00, 0, 0}, // ; V win off H
+	{0x3813, 0x02, 0, 0}, // ; V win off L
+	{0x3814, 0x31, 0, 0}, // ; H inc
+	{0x3815, 0x31, 0, 0}, // ; V inc
+	{0x3820, 0x02, 0, 0}, // ; V flip off, V bin on
+	{0x3821, 0x05, 0, 0}, // ; H mirror on, H bin on
+	{0x3834, 0x00, 0, 0}, //
+	{0x3835, 0x1c, 0, 0}, // ; cut_en, vts_auto, blk_col_dis
+	{0x3836, 0x08, 0, 0}, //
+	{0x3837, 0x02, 0, 0}, //
+	{0x4000, 0xf1, 0, 0},//c1}, // ; BLC offset trig en, format change trig en, gain trig en, exp trig en, median en
+	{0x4001, 0x00, 0, 0}, // ; BLC
+	{0x400b, 0x0c, 0, 0}, // ; BLC
+	{0x4011, 0x00, 0, 0}, // ; BLC
+	{0x401a, 0x00, 0, 0}, // ; BLC
+	{0x401b, 0x00, 0, 0}, // ; BLC
+	{0x401c, 0x00, 0, 0}, // ; BLC
+	{0x401d, 0x00, 0, 0}, // ; BLC
+	{0x4020, 0x00, 0, 0}, // ; BLC
+	{0x4021, 0xe4, 0, 0}, // ; BLC
+	{0x4022, 0x07, 0, 0}, // ; BLC
+	{0x4023, 0x5f, 0, 0}, // ; BLC
+	{0x4024, 0x08, 0, 0}, // ; BLC
+	{0x4025, 0x44, 0, 0}, // ; BLC
+	{0x4026, 0x08, 0, 0}, // ; BLC
+	{0x4027, 0x47, 0, 0}, // ; BLC
+	{0x4028, 0x00, 0, 0}, // ; BLC
+	{0x4029, 0x02, 0, 0}, // ; BLC
+	{0x402a, 0x04, 0, 0}, // ; BLC
+	{0x402b, 0x08, 0, 0}, // ; BLC
+	{0x402c, 0x02, 0, 0}, // ; BLC
+	{0x402d, 0x02, 0, 0}, // ; BLC
+	{0x402e, 0x0c, 0, 0}, // ; BLC
+	{0x402f, 0x08, 0, 0}, // ; BLC
+	{0x403d, 0x2c, 0, 0}, //
+	{0x403f, 0x7f, 0, 0}, //
+	{0x4500, 0x82, 0, 0}, // ; BLC
+	{0x4501, 0x38, 0, 0}, // ; BLC
+	{0x4601, 0x04, 0, 0}, //
+	{0x4602, 0x22, 0, 0}, //
+	{0x4603, 0x01, 0, 0}, //; VFIFO
+	{0x4837, 0x19, 0, 0}, //; MIPI global timing
+	{0x4d00, 0x04, 0, 0}, // ; temperature monitor
+	{0x4d01, 0x42, 0, 0}, //  ; temperature monitor
+	{0x4d02, 0xd1, 0, 0}, //  ; temperature monitor
+	{0x4d03, 0x90, 0, 0}, //  ; temperature monitor
+	{0x4d04, 0x66, 0, 0}, //  ; temperature monitor
+	{0x4d05, 0x65, 0, 0}, // ; temperature monitor
+	{0x5000, 0x0e, 0, 0}, // ; windowing enable, BPC on, WPC on, Lenc on
+	{0x5001, 0x03, 0, 0}, // ; BLC enable, MWB on
+	{0x5002, 0x07, 0, 0}, //
+	{0x5013, 0x40, 0, 0},
+	{0x501c, 0x00, 0, 0},
+	{0x501d, 0x10, 0, 0},
+	//{0x5057, 0x56, 0, 0},//add
+	{0x5056, 0x08, 0, 0},
+	{0x5058, 0x08, 0, 0},
+	{0x505a, 0x08, 0, 0},
+	{0x5242, 0x00, 0, 0},
+	{0x5243, 0xb8, 0, 0},
+	{0x5244, 0x00, 0, 0},
+	{0x5245, 0xf9, 0, 0},
+	{0x5246, 0x00, 0, 0},
+	{0x5247, 0xf6, 0, 0},
+	{0x5248, 0x00, 0, 0},
+	{0x5249, 0xa6, 0, 0},
+	{0x5300, 0xfc, 0, 0},
+	{0x5301, 0xdf, 0, 0},
+	{0x5302, 0x3f, 0, 0},
+	{0x5303, 0x08, 0, 0},
+	{0x5304, 0x0c, 0, 0},
+	{0x5305, 0x10, 0, 0},
+	{0x5306, 0x20, 0, 0},
+	{0x5307, 0x40, 0, 0},
+	{0x5308, 0x08, 0, 0},
+	{0x5309, 0x08, 0, 0},
+	{0x530a, 0x02, 0, 0},
+	{0x530b, 0x01, 0, 0},
+	{0x530c, 0x01, 0, 0},
+	{0x530d, 0x0c, 0, 0},
+	{0x530e, 0x02, 0, 0},
+	{0x530f, 0x01, 0, 0},
+	{0x5310, 0x01, 0, 0},
+	{0x5400, 0x00, 0, 0},
+	{0x5401, 0x61, 0, 0},
+	{0x5402, 0x00, 0, 0},
+	{0x5403, 0x00, 0, 0},
+	{0x5404, 0x00, 0, 0},
+	{0x5405, 0x40, 0, 0},
+	{0x540c, 0x05, 0, 0},
+	{0x5b00, 0x00, 0, 0},
+	{0x5b01, 0x00, 0, 0},
+	{0x5b02, 0x01, 0, 0},
+	{0x5b03, 0xff, 0, 0},
+	{0x5b04, 0x02, 0, 0},
+	{0x5b05, 0x6c, 0, 0},
+	{0x5b09, 0x02, 0, 0}, //
+	//{0x5e00, 0x00, 0, 0}, // ; test pattern disable
+	//{0x5e00, 0x80, 0, 0}, // ; test pattern enable
+	{0x5e10, 0x1c, 0, 0}, // ; ISP test disable
 
-    //{0x0300, 0x01, 0, 0},// ; PLL
-    //{0x0302, 0x28, 0, 0},// ; PLL
-    //{0xffff,  50, 0, 0},
-    {0x3501, 0x67, 0, 0},// ; Exposure H
-    {0x370a, 0x26, 0, 0},//
-    {0x372a, 0x00, 0, 0},
-    {0x372f, 0x90, 0, 0},
-    {0x3801, 0x08, 0, 0}, //; H crop start L
-    {0x3803, 0x04, 0, 0}, //; V crop start L
-    {0x3805, 0x97, 0, 0}, //; H crop end L
-    {0x3807, 0x4b, 0, 0}, //; V crop end L
-    {0x3808, 0x08, 0, 0}, //; H output size H
-    {0x3809, 0x40, 0, 0}, //; H output size L
-    {0x380a, 0x06, 0, 0}, //; V output size H
-    {0x380b, 0x20, 0, 0}, //; V output size L
-    {0x380c, 0x25, 0, 0}, //; HTS H
-    {0x380d, 0x80, 0, 0}, //; HTS L
-    {0x380e, 0x0a, 0, 0},//6}, //; VTS H
-    {0x380f, 0x80, 0, 0}, //; VTS L
-    {0x3813, 0x02, 0, 0}, //; V win off
-    {0x3814, 0x31, 0, 0}, //; H inc
-    {0x3815, 0x31, 0, 0}, //; V inc
-    {0x3820, 0x02, 0, 0}, //; V flip off, V bin on
-    {0x3821, 0x05, 0, 0}, //; H mirror on, H bin on
-    {0x3836, 0x08, 0, 0}, //
-    {0x3837, 0x02, 0, 0}, //
-    {0x4020, 0x00, 0, 0}, //
-    {0x4021, 0xe4, 0, 0}, //
-    {0x4022, 0x07, 0, 0}, //
-    {0x4023, 0x5f, 0, 0}, //
-    {0x4024, 0x08, 0, 0}, //
-    {0x4025, 0x44, 0, 0}, //
-    {0x4026, 0x08, 0, 0}, //
-    {0x4027, 0x47, 0, 0}, //
-    {0x4603, 0x01, 0, 0}, //; VFIFO
-    {0x4837, 0x19, 0, 0}, //; MIPI global timing
-    {0x4802, 0x42, 0, 0},  //default 0x00
-    {0x481a, 0x00, 0, 0},
-    {0x481b, 0x1c, 0, 0},   //default 0x3c  prepare
-    {0x4826, 0x12, 0, 0},   //default 0x32  trail
-    {0x5401, 0x61, 0, 0}, //
-    {0x5405, 0x40, 0, 0}, //
+	//{0x0300, 0x01, 0, 0},// ; PLL
+	//{0x0302, 0x28, 0, 0},// ; PLL
+	//{0xffff,  50, 0, 0},
+	{0x3501, 0x67, 0, 0},// ; Exposure H
+	{0x370a, 0x26, 0, 0},//
+	{0x372a, 0x00, 0, 0},
+	{0x372f, 0x90, 0, 0},
+	{0x3801, 0x08, 0, 0}, //; H crop start L
+	{0x3803, 0x04, 0, 0}, //; V crop start L
+	{0x3805, 0x97, 0, 0}, //; H crop end L
+	{0x3807, 0x4b, 0, 0}, //; V crop end L
+	{0x3808, 0x08, 0, 0}, //; H output size H
+	{0x3809, 0x40, 0, 0}, //; H output size L
+	{0x380a, 0x06, 0, 0}, //; V output size H
+	{0x380b, 0x20, 0, 0}, //; V output size L
+	{0x380c, 0x25, 0, 0}, //; HTS H
+	{0x380d, 0x80, 0, 0}, //; HTS L
+	{0x380e, 0x0a, 0, 0},//6}, //; VTS H
+	{0x380f, 0x80, 0, 0}, //; VTS L
+	{0x3813, 0x02, 0, 0}, //; V win off
+	{0x3814, 0x31, 0, 0}, //; H inc
+	{0x3815, 0x31, 0, 0}, //; V inc
+	{0x3820, 0x02, 0, 0}, //; V flip off, V bin on
+	{0x3821, 0x05, 0, 0}, //; H mirror on, H bin on
+	{0x3836, 0x08, 0, 0}, //
+	{0x3837, 0x02, 0, 0}, //
+	{0x4020, 0x00, 0, 0}, //
+	{0x4021, 0xe4, 0, 0}, //
+	{0x4022, 0x07, 0, 0}, //
+	{0x4023, 0x5f, 0, 0}, //
+	{0x4024, 0x08, 0, 0}, //
+	{0x4025, 0x44, 0, 0}, //
+	{0x4026, 0x08, 0, 0}, //
+	{0x4027, 0x47, 0, 0}, //
+	{0x4603, 0x01, 0, 0}, //; VFIFO
+	{0x4837, 0x19, 0, 0}, //; MIPI global timing
+	{0x4802, 0x42, 0, 0},  //default 0x00
+	{0x481a, 0x00, 0, 0},
+	{0x481b, 0x1c, 0, 0},   //default 0x3c  prepare
+	{0x4826, 0x12, 0, 0},   //default 0x32  trail
+	{0x5401, 0x61, 0, 0}, //
+	{0x5405, 0x40, 0, 0}, //
 
-    //{0xffff, 200, 0, 0},
-    //{0xffff, 200, 0, 0},
-    //{0xffff, 200, 0, 0},
+	//{0xffff, 200, 0, 0},
+	//{0xffff, 200, 0, 0},
+	//{0xffff, 200, 0, 0},
 
-    //{0x0100, 0x01, 0, 0}, //; wake up, streaming
+	//{0x0100, 0x01, 0, 0}, //; wake up, streaming
 };
 
 /* power-on sensor init reg table */
@@ -549,10 +549,10 @@ static const struct ov13850_mode_info ov13850_mode_init_data = {
 static const struct ov13850_mode_info
 ov13850_mode_data[OV13850_NUM_MODES] = {
 	{OV13850_MODE_1080P_1920_1080, SCALING,
-	 1920, 0x6e0, 1080, 0x470,
-	 ov13850_setting_1080P_1920_1080,
-	 ARRAY_SIZE(ov13850_setting_1080P_1920_1080),
-	 OV13850_30_FPS},
+	1920, 0x6e0, 1080, 0x470,
+	ov13850_setting_1080P_1920_1080,
+	ARRAY_SIZE(ov13850_setting_1080P_1920_1080),
+	OV13850_30_FPS},
 };
 
 static int ov13850_write_reg(struct ov13850_dev *sensor, u16 reg, u8 val)
@@ -661,7 +661,7 @@ static int ov13850_set_timings(struct ov13850_dev *sensor,
 {
 	int ret;
 
-    ret = ov13850_write_reg16(sensor, OV13850_REG_H_OUTPUT_SIZE, mode->hact);
+	ret = ov13850_write_reg16(sensor, OV13850_REG_H_OUTPUT_SIZE, mode->hact);
 	if (ret < 0)
 		return ret;
 
@@ -708,14 +708,11 @@ static int ov13850_load_regs(struct ov13850_dev *sensor,
 static int ov13850_get_gain(struct ov13850_dev *sensor)
 {
 	u32 gain = 0;
-	u8 val;
-
 	return gain;
 }
 
 static int ov13850_set_gain(struct ov13850_dev *sensor, int gain)
 {
-	u8 val;
 	return 0;
 }
 
@@ -1131,6 +1128,7 @@ static int ov13850_try_frame_interval(struct ov13850_dev *sensor,
 	best_fps = minfps;
 	for (i = 0; i < ARRAY_SIZE(ov13850_framerates); i++) {
 		int curr_fps = ov13850_framerates[i];
+
 		if (abs(curr_fps - fps) < abs(best_fps - fps)) {
 			best_fps = curr_fps;
 			rate = i;
@@ -1247,7 +1245,7 @@ static int ov13850_set_fmt(struct v4l2_subdev *sd,
 	else
 		fmt = &sensor->fmt;
 
-    if (mbus_fmt->code != sensor->fmt.code)
+	if (mbus_fmt->code != sensor->fmt.code)
 		sensor->pending_fmt_change = true;
 
 	*fmt = *mbus_fmt;
@@ -1256,6 +1254,7 @@ static int ov13850_set_fmt(struct v4l2_subdev *sd,
 		sensor->current_mode = new_mode;
 		sensor->pending_mode_change = true;
 	}
+
 	if (new_mode->max_fps < sensor->current_fr) {
 		sensor->current_fr = new_mode->max_fps;
 		sensor->frame_interval.numerator = 1;
@@ -1278,29 +1277,29 @@ static int ov13850_set_framefmt(struct ov13850_dev *sensor,
 	u8 fmt;
 
 	switch (format->code) {
-    /* Raw, BGBG... / GRGR... */
+	/* Raw, BGBG... / GRGR... */
 	case MEDIA_BUS_FMT_SBGGR8_1X8:
-    case MEDIA_BUS_FMT_SGBRG8_1X8:
+	case MEDIA_BUS_FMT_SGBRG8_1X8:
 	case MEDIA_BUS_FMT_SGRBG8_1X8:
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
 		fmt = 0x0;
 		break;
-    case MEDIA_BUS_FMT_SBGGR10_1X10:
-    case MEDIA_BUS_FMT_SGBRG10_1X10:
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
 	case MEDIA_BUS_FMT_SGRBG10_1X10:
 	case MEDIA_BUS_FMT_SRGGB10_1X10:
-        fmt = 0x1;
-    case MEDIA_BUS_FMT_SBGGR12_1X12:
-    case MEDIA_BUS_FMT_SGBRG12_1X12:
+		fmt = 0x1;
+	case MEDIA_BUS_FMT_SBGGR12_1X12:
+	case MEDIA_BUS_FMT_SGBRG12_1X12:
 	case MEDIA_BUS_FMT_SGRBG12_1X12:
 	case MEDIA_BUS_FMT_SRGGB12_1X12:
-        fmt = 0x2;
+		fmt = 0x2;
 	default:
 		return -EINVAL;
 	}
 
 	return ov13850_mod_reg(sensor, OV13850_REG_MIPI_SC,
-			      BIT(1) | BIT(0), fmt);
+			BIT(1) | BIT(0), fmt);
 }
 
 /*
@@ -1628,17 +1627,17 @@ out:
 
 static int ov13850_stream_start(struct ov13850_dev *sensor, int enable)
 {
-    int ret;
+	int ret;
 
-    if (enable) {       //stream on
-        mdelay(1000);
-	    ret = ov13850_write_reg(sensor, OV13850_STREAM_CTRL, enable);
-    } else {            //stream off
-        ret = ov13850_write_reg(sensor, OV13850_STREAM_CTRL, enable);
-        mdelay(100);
-    }
+	if (enable) {		//stream on
+		mdelay(1000);
+		ret = ov13850_write_reg(sensor, OV13850_STREAM_CTRL, enable);
+	} else {			//stream off
+		ret = ov13850_write_reg(sensor, OV13850_STREAM_CTRL, enable);
+		mdelay(100);
+	}
 
-    return ret;
+	return ret;
 }
 
 static int ov13850_s_stream(struct v4l2_subdev *sd, int enable)

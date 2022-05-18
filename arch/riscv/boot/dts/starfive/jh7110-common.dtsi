@@ -180,6 +180,26 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pins>;
 	status = "okay";
+
+	sc2235: sc2235@30 {
+		compatible = "sc2235";
+		reg = <0x30>;
+		clocks = <&clk_ext_camera>;
+		clock-names = "xclk";
+
+		port {
+			/* Parallel bus endpoint */
+			sc2235_to_parallel: endpoint {
+				remote-endpoint = <&parallel_from_sc2235>;
+				bus-type = <5>;      /* Parallel */
+				bus-width = <8>;
+				data-shift = <2>; /* lines 13:6 are used */
+				hsync-active = <1>;
+				vsync-active = <1>;
+				pclk-sample = <1>;
+			};
+		};
+	};
 };
 
 &i2c5 {
@@ -203,35 +223,20 @@
 	pinctrl-0 = <&i2c6_pins>;
 	status = "okay";
 
-	sc2235: sc2235@30 {
-		compatible = "sc2235";
-		reg = <0x30>;
+	ov4689: ov4689@36 {
+		compatible = "ovti,ov4689";
+		reg = <0x36>;
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";
-		powerdown-gpios = <&gpio 0 0>;
-		reset-gpios = <&gpio 0 0>;
-		sc2235-18-gpios = <&gpio 11 0>;
-		sc2235-15-gpios = <&gpio 12 0>;
-		sc2235-28-gpios = <&gpio 10 0>;
-		sc2235-reset-gpios = <&gpio 16 0>;
-		sc2235-pwdn-gpios = <&gpio 15 0>;
-		sc2235-esync-gpios = <&gpio 17 0>;
-		sc2235-oen-gpios = <&gpio 18 0>;
-		pinctrl-names = "default", "reset_low", "reset_high";
-		pinctrl-0 = <&sc2235_pins_default>;
-		pinctrl-1 = <&sc2235_reset_low>;
-		pinctrl-2 = <&sc2235_reset_high>;
+		rotation = <180>;
 
 		port {
 			/* Parallel bus endpoint */
-			sc2235_to_parallel: endpoint {
-				remote-endpoint = <&parallel_from_sc2235>;
-				bus-type = <5>;      /* Parallel */
-				bus-width = <8>;
-				data-shift = <2>; /* lines 13:6 are used */
-				hsync-active = <1>;
-				vsync-active = <1>;
-				pclk-sample = <1>;
+			ov4689_to_csi2rx0: endpoint {
+				remote-endpoint = <&csi2rx0_from_ov4689>;
+				bus-type = <4>;		/* MIPI CSI-2 D-PHY */
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
@@ -316,10 +321,23 @@
 
 		port@3 {
 			reg = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-			/* Parallel bus endpoint */
-			csi2rx0_from_ov13850: endpoint {
+			/* CSI2 bus endpoint */
+			csi2rx0_from_ov13850: endpoint@0 {
+				reg = <0>;
 				remote-endpoint = <&ov13850_to_csi2rx0>;
+				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
+				clock-lanes = <2>;
+				data-lanes = <0 1>;
+				status = "okay";
+			};
+
+			/* CSI2 bus endpoint */
+			csi2rx0_from_ov4689: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov4689_to_csi2rx0>;
 				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
 				clock-lanes = <2>;
 				data-lanes = <0 1>;

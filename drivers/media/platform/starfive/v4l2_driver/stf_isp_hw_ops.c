@@ -313,6 +313,7 @@ static int stf_isp_set_format(struct stf_isp_dev *isp_dev,
 		ispbase = vin->isp_isp0_base;
 		isp_settings = isp_sc2235_settings;
 		//isp_settings = isp_ov13850_settings;
+		//isp_settings = isp_1920_1080_settings;
 	} else {
 		ispbase = vin->isp_isp1_base;
 		isp_settings = isp_sc2235_settings;

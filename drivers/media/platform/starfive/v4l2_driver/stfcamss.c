@@ -67,6 +67,9 @@ static struct clk_bulk_data stfcamss_clocks[] = {
 	{ .id = "clk_pixel_clk_if1" },
 	{ .id = "clk_pixel_clk_if2" },
 	{ .id = "clk_pixel_clk_if3" },
+	{ .id = "clk_m31dphy_cfgclk_in" },
+	{ .id = "clk_m31dphy_refclk_in" },
+	{ .id = "clk_m31dphy_txclkesc_lan0" },
 };
 
 static struct reset_control_bulk_data stfcamss_resets[] = {

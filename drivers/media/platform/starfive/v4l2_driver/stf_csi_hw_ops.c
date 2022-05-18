@@ -47,14 +47,10 @@ static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 
 	clk_set_rate(stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk, 204800000);
-	clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
-		stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF0].clk);
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF1].clk);
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF2].clk);
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF3].clk);
-	clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
-		stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
 
 	return 0;
 }
@@ -70,7 +66,6 @@ static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rstc);
 	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rstc);
 
-	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PCLK].clk);
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF0].clk);
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF1].clk);
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF2].clk);
@@ -269,6 +264,7 @@ static void csi2rx_stop(struct stf_csi_dev *csi_dev, void *reg_base)
 
 static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 {
+	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 	void *reg_base = NULL;
 
@@ -281,9 +277,13 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 
 	switch (csi_dev->s_type) {
 	case SENSOR_VIN:
-		st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
+		clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
+			stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
 		break;
 	case SENSOR_ISP0:
+		clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
+			stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
+
 		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(7)|BIT(6),
 			0<<6);

@@ -282,7 +282,7 @@
 				 <&rstgen RSTN_U0_NOC_BUS_ISP_AXI_N>;
 			reset-names = "rst_isp_top_n", "rst_isp_top_axi",
 				      "rst_isp_noc_bus_n";
-			status = "disabled";
+			status = "okay";
 		};
 
 		qspi: spi@13010000 {
@@ -769,12 +769,16 @@
 				 <&clkisp JH7110_U0_VIN_PIXEL_CLK_IF0>,
 				 <&clkisp JH7110_U0_VIN_PIXEL_CLK_IF1>,
 				 <&clkisp JH7110_U0_VIN_PIXEL_CLK_IF2>,
-				 <&clkisp JH7110_U0_VIN_PIXEL_CLK_IF3>;
+				 <&clkisp JH7110_U0_VIN_PIXEL_CLK_IF3>,
+				 <&clkisp JH7110_U0_M31DPHY_CFGCLK_IN>,
+				 <&clkisp JH7110_U0_M31DPHY_REFCLK_IN>,
+				 <&clkisp JH7110_U0_M31DPHY_TXCLKESC_LAN0>;
 			clock-names = "clk_apb_func", "clk_pclk", "clk_sys_clk",
 				"clk_wrapper_clk_c", "clk_dvp_inv", "clk_axiwr",
 				"clk_mipi_rx0_pxl", "clk_pixel_clk_if0",
 				"clk_pixel_clk_if1", "clk_pixel_clk_if2",
-				"clk_pixel_clk_if3";
+				"clk_pixel_clk_if3", "clk_m31dphy_cfgclk_in",
+				"clk_m31dphy_refclk_in", "clk_m31dphy_txclkesc_lan0";
 			resets = <&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_P>,
 				 <&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_C>,
 				 <&rstgen RSTN_U0_VIN_N_PCLK>,

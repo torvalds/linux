@@ -19,6 +19,16 @@ static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 	}
 	mutex_lock(&count_lock);
 	if (on) {
+		clk_set_rate(stfcamss->sys_clk[STFCLK_M31DPHY_CFGCLK_IN].clk,
+			102400000);
+		clk_set_rate(stfcamss->sys_clk[STFCLK_M31DPHY_REFCLK_IN].clk,
+			51200000);
+		clk_set_rate(stfcamss->sys_clk[STFCLK_M31DPHY_TXCLKESC_LAN0].clk,
+			20480000);
+
+		reset_control_deassert(stfcamss->sys_rst[STFRST_M31DPHY_HW].rstc);
+		reset_control_deassert(stfcamss->sys_rst[STFRST_M31DPHY_B09_ALWAYS_ON].rstc);
+
 		reg_set_bit(vin->rstgen_base,
 			M31DPHY_APBCFGSAIF__SYSCFG_188,
 			BIT(6), BIT(6));
@@ -57,10 +67,12 @@ static int stf_csiphy_clk_disable(struct stf_csiphy_dev *csiphy_dev)
 	return stf_csiphy_clk_set(csiphy_dev, 0);
 }
 
+#ifndef USE_CSIDPHY_ONE_CLK_MODE
 static int cmp_func(const void *x1, const void *x2)
 {
 	return *((unsigned char *)x1) - *((unsigned char *)x2);
 }
+#endif
 
 int try_cfg(struct csi2phy_cfg2 *cfg, struct csi2phy_cfg *cfg0,
 		struct csi2phy_cfg *cfg1)
