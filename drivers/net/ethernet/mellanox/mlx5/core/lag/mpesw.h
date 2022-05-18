@@ -19,8 +19,8 @@ bool mlx5_lag_mpesw_is_activated(struct mlx5_core_dev *dev);
 void mlx5_lag_mpesw_init(struct mlx5_lag *ldev);
 void mlx5_lag_mpesw_cleanup(struct mlx5_lag *ldev);
 #else
-void mlx5_lag_mpesw_init(struct mlx5_lag *ldev) {}
-void mlx5_lag_mpesw_cleanup(struct mlx5_lag *ldev) {}
+static inline void mlx5_lag_mpesw_init(struct mlx5_lag *ldev) {}
+static inline void mlx5_lag_mpesw_cleanup(struct mlx5_lag *ldev) {}
 #endif
 
 #endif /* __MLX5_LAG_MPESW_H__ */
