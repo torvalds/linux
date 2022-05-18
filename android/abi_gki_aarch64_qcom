@@ -6,6 +6,7 @@
   add_memory
   add_taint
   add_timer
+  add_timer_on
   add_uevent_var
   add_wait_queue
   alloc_anon_inode
@@ -241,6 +242,7 @@
   debugfs_create_file
   debugfs_create_file_unsafe
   debugfs_create_u32
+  debugfs_create_u64
   debugfs_create_u8
   debugfs_create_ulong
   debugfs_create_x32
@@ -481,6 +483,7 @@
   driver_find_device
   driver_register
   driver_unregister
+  dump_stack
   __dynamic_dev_dbg
   __dynamic_pr_debug
   edac_device_add_device
@@ -504,6 +507,7 @@
   event_triggers_call
   extcon_get_edev_by_phandle
   extcon_get_edev_name
+  extcon_get_extcon_dev
   extcon_get_property
   extcon_get_state
   extcon_register_notifier
@@ -511,6 +515,7 @@
   extcon_set_property_capability
   extcon_set_state
   extcon_set_state_sync
+  extcon_unregister_notifier
   __fdget
   fd_install
   fget
@@ -1048,6 +1053,7 @@
   of_irq_get
   of_irq_get_byname
   of_irq_parse_one
+  of_machine_is_compatible
   of_match_device
   of_match_node
   of_mdiobus_register
@@ -1096,8 +1102,11 @@
   param_ops_bool
   param_ops_charp
   param_ops_int
+  param_ops_string
   param_ops_uint
+  param_ops_ullong
   param_set_bool
+  param_set_int
   pci_aer_clear_nonfatal_status
   pci_bus_type
   pci_dev_get
@@ -1207,6 +1216,7 @@
   platform_device_alloc
   platform_device_del
   platform_device_put
+  platform_device_register
   platform_device_register_full
   platform_device_unregister
   __platform_driver_register
@@ -1537,7 +1547,9 @@
   si_mem_available
   si_meminfo
   simple_attr_open
+  simple_attr_read
   simple_attr_release
+  simple_attr_write
   simple_open
   simple_read_from_buffer
   simple_write_to_buffer
@@ -1648,6 +1660,8 @@
   synchronize_rcu_tasks_trace
   synchronize_srcu
   synchronize_srcu_expedited
+  synth_event_create
+  synth_event_delete
   syscon_node_to_regmap
   syscon_regmap_lookup_by_phandle
   sysctl_sched_features
@@ -1658,6 +1672,7 @@
   sysfs_create_file_ns
   sysfs_create_files
   sysfs_create_group
+  sysfs_create_groups
   sysfs_create_link
   sysfs_emit
   sysfs_emit_at
@@ -1668,6 +1683,7 @@
   sysfs_remove_file_ns
   sysfs_remove_files
   sysfs_remove_group
+  sysfs_remove_groups
   sysfs_remove_link
   sysfs_remove_link_from_group
   sysfs_streq
@@ -1697,9 +1713,11 @@
   thermal_zone_of_sensor_unregister
   tick_nohz_get_sleep_length
   time64_to_tm
+  timer_unstable_counter_workaround
   topology_clear_scale_freq_source
   topology_update_done
   _totalram_pages
+  __trace_bprintk
   trace_clock_local
   trace_event_buffer_commit
   trace_event_buffer_reserve
@@ -1707,6 +1725,7 @@
   trace_event_printf
   trace_event_raw_init
   trace_event_reg
+  trace_get_event_file
   trace_handle_return
   __tracepoint_android_rvh_after_dequeue_task
   __tracepoint_android_rvh_after_enqueue_task
