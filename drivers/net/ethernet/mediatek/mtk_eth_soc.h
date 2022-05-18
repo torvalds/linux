@@ -869,16 +869,23 @@ struct mtk_soc_data {
 /* currently no SoC has more than 2 macs */
 #define MTK_MAX_DEVS			2
 
-/* struct mtk_sgmii -  This is the structure holding sgmii regmap and its
- *                     characteristics
+/* struct mtk_pcs -    This structure holds each sgmii regmap and associated
+ *                     data
  * @regmap:            The register map pointing at the range used to setup
  *                     SGMII modes
  * @ana_rgc3:          The offset refers to register ANA_RGC3 related to regmap
  */
-
-struct mtk_sgmii {
-	struct regmap   *regmap[MTK_MAX_DEVS];
+struct mtk_pcs {
+	struct regmap	*regmap;
 	u32             ana_rgc3;
+};
+
+/* struct mtk_sgmii -  This is the structure holding sgmii regmap and its
+ *                     characteristics
+ * @pcs                Array of individual PCS structures
+ */
+struct mtk_sgmii {
+	struct mtk_pcs	pcs[MTK_MAX_DEVS];
 };
 
 /* struct mtk_eth -	This is the main datasructure for holding the state
