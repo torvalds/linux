@@ -106,19 +106,17 @@ TRACE_EVENT(sched_update_history,
 		__entry->cpu		= rq->cpu;
 	),
 
-	TP_printk("%d (%s): runtime %u samples %d event %s demand %u (hist: %u %u %u %u %u %u %u %u) (hist_util: %u %u %u %u %u %u %u %u) coloc_demand %u pred_demand_scaled %u cpu %d nr_big %u",
+	TP_printk("%d (%s): runtime %u samples %d event %s demand %u (hist: %u %u %u %u %u) (hist_util: %u %u %u %u %u) coloc_demand %u pred_demand_scaled %u cpu %d nr_big %u",
 		__entry->pid, __entry->comm,
 		__entry->runtime, __entry->samples,
 		task_event_names[__entry->evt],
 		__entry->demand,
 		__entry->hist[0], __entry->hist[1],
 		__entry->hist[2], __entry->hist[3],
-		__entry->hist[4], __entry->hist[5],
-		__entry->hist[6], __entry->hist[7],
+		__entry->hist[4],
 		__entry->hist_util[0], __entry->hist_util[1],
 		__entry->hist_util[2], __entry->hist_util[3],
-		__entry->hist_util[4], __entry->hist_util[5],
-		__entry->hist_util[6], __entry->hist_util[7],
+		__entry->hist_util[4],
 		__entry->coloc_demand, __entry->pred_demand_scaled,
 		__entry->cpu, __entry->nr_big_tasks)
 );
