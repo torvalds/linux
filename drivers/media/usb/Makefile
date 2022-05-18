@@ -10,7 +10,6 @@ obj-y += dvb-usb/
 obj-y += dvb-usb-v2/
 obj-y += s2255/
 obj-y += siano/
-obj-y += stkwebcam/
 obj-y += ttusb-budget/
 obj-y += ttusb-dec/
 obj-y += zr364xx/
