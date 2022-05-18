@@ -1010,7 +1010,7 @@ static u64 rapl_compute_time_window_atom(struct rapl_package *rp, u64 value,
 	 * where time_unit is default to 1 sec. Never 0.
 	 */
 	if (!to_raw)
-		return (value) ? value *= rp->time_unit : rp->time_unit;
+		return (value) ? value * rp->time_unit : rp->time_unit;
 
 	value = div64_u64(value, rp->time_unit);
 
