@@ -202,7 +202,7 @@ static int enable_verity(struct file *filp,
 	const struct fsverity_operations *vops = inode->i_sb->s_vop;
 	struct merkle_tree_params params = { };
 	struct fsverity_descriptor *desc;
-	size_t desc_size = sizeof(*desc) + arg->sig_size;
+	size_t desc_size = struct_size(desc, signature, arg->sig_size);
 	struct fsverity_info *vi;
 	int err;
 
