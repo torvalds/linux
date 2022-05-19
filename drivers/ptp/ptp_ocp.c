@@ -321,6 +321,7 @@ struct ptp_ocp {
 	u64			fw_cap;
 	struct ptp_ocp_signal	signal[4];
 	struct ptp_ocp_sma_connector sma[4];
+	u8			sma_tbl;
 };
 
 #define OCP_REQ_TIMESTAMP	BIT(0)
@@ -697,6 +698,10 @@ static struct ocp_selector ptp_ocp_sma_out[] = {
 	{ .name = "GND",	.value = 0x2000 },
 	{ .name = "VCC",	.value = 0x4000 },
 	{ }
+};
+
+static struct ocp_selector *ocp_sma_tbl[][2] = {
+	{ ptp_ocp_sma_in, ptp_ocp_sma_out },
 };
 
 static const char *
@@ -2088,35 +2093,35 @@ __handle_signal_inputs(struct ptp_ocp *bp, u32 val)
  */
 
 static ssize_t
-ptp_ocp_show_output(u32 val, char *buf, int def_val)
+ptp_ocp_show_output(struct ocp_selector *tbl, u32 val, char *buf, int def_val)
 {
 	const char *name;
 	ssize_t count;
 
 	count = sysfs_emit(buf, "OUT: ");
-	name = ptp_ocp_select_name_from_val(ptp_ocp_sma_out, val);
+	name = ptp_ocp_select_name_from_val(tbl, val);
 	if (!name)
-		name = ptp_ocp_select_name_from_val(ptp_ocp_sma_out, def_val);
+		name = ptp_ocp_select_name_from_val(tbl, def_val);
 	count += sysfs_emit_at(buf, count, "%s\n", name);
 	return count;
 }
 
 static ssize_t
-ptp_ocp_show_inputs(u32 val, char *buf, int def_val)
+ptp_ocp_show_inputs(struct ocp_selector *tbl, u32 val, char *buf, int def_val)
 {
 	const char *name;
 	ssize_t count;
 	int i;
 
 	count = sysfs_emit(buf, "IN: ");
-	for (i = 0; i < ARRAY_SIZE(ptp_ocp_sma_in); i++) {
-		if (val & ptp_ocp_sma_in[i].value) {
-			name = ptp_ocp_sma_in[i].name;
+	for (i = 0; tbl[i].name; i++) {
+		if (val & tbl[i].value) {
+			name = tbl[i].name;
 			count += sysfs_emit_at(buf, count, "%s ", name);
 		}
 	}
 	if (!val && def_val >= 0) {
-		name = ptp_ocp_select_name_from_val(ptp_ocp_sma_in, def_val);
+		name = ptp_ocp_select_name_from_val(tbl, def_val);
 		count += sysfs_emit_at(buf, count, "%s ", name);
 	}
 	if (count)
@@ -2126,9 +2131,9 @@ ptp_ocp_show_inputs(u32 val, char *buf, int def_val)
 }
 
 static int
-sma_parse_inputs(const char *buf, enum ptp_ocp_sma_mode *mode)
+sma_parse_inputs(struct ocp_selector *tbl[], const char *buf,
+		 enum ptp_ocp_sma_mode *mode)
 {
-	struct ocp_selector *tbl[] = { ptp_ocp_sma_in, ptp_ocp_sma_out };
 	int idx, count, dir;
 	char **argv;
 	int ret;
@@ -2187,17 +2192,20 @@ ptp_ocp_sma_show(struct ptp_ocp *bp, int sma_nr, char *buf,
 		 int default_in_val, int default_out_val)
 {
 	struct ptp_ocp_sma_connector *sma = &bp->sma[sma_nr - 1];
+	struct ocp_selector **tbl;
 	u32 val;
+
+	tbl = ocp_sma_tbl[bp->sma_tbl];
 
 	val = ptp_ocp_sma_get(bp, sma_nr, sma->mode) & SMA_SELECT_MASK;
 
 	if (sma->mode == SMA_MODE_IN) {
 		if (sma->disabled)
 			val = SMA_DISABLE;
-		return ptp_ocp_show_inputs(val, buf, default_in_val);
+		return ptp_ocp_show_inputs(tbl[0], val, buf, default_in_val);
 	}
 
-	return ptp_ocp_show_output(val, buf, default_out_val);
+	return ptp_ocp_show_output(tbl[1], val, buf, default_out_val);
 }
 
 static ssize_t
@@ -2288,7 +2296,7 @@ ptp_ocp_sma_store(struct ptp_ocp *bp, const char *buf, int sma_nr)
 	int val;
 
 	mode = sma->mode;
-	val = sma_parse_inputs(buf, &mode);
+	val = sma_parse_inputs(ocp_sma_tbl[bp->sma_tbl], buf, &mode);
 	if (val < 0)
 		return val;
 
@@ -2377,7 +2385,9 @@ static ssize_t
 available_sma_inputs_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
-	return ptp_ocp_select_table_show(ptp_ocp_sma_in, buf);
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+
+	return ptp_ocp_select_table_show(ocp_sma_tbl[bp->sma_tbl][0], buf);
 }
 static DEVICE_ATTR_RO(available_sma_inputs);
 
@@ -2385,7 +2395,9 @@ static ssize_t
 available_sma_outputs_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
-	return ptp_ocp_select_table_show(ptp_ocp_sma_out, buf);
+	struct ptp_ocp *bp = dev_get_drvdata(dev);
+
+	return ptp_ocp_select_table_show(ocp_sma_tbl[bp->sma_tbl][1], buf);
 }
 static DEVICE_ATTR_RO(available_sma_outputs);
 
