@@ -30,6 +30,7 @@
 #undef pr_fmt
 #define pr_fmt(fmt)	"amd_uncore: " fmt
 
+static int pmu_version;
 static int num_counters_llc;
 static int num_counters_nb;
 static bool l3_mask;
@@ -629,6 +630,7 @@ static int __init amd_uncore_init(void)
 {
 	struct attribute **df_attr = amd_uncore_df_format_attr;
 	struct attribute **l3_attr = amd_uncore_l3_format_attr;
+	union cpuid_0x80000022_ebx ebx;
 	int ret = -ENODEV;
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD &&
@@ -637,6 +639,9 @@ static int __init amd_uncore_init(void)
 
 	if (!boot_cpu_has(X86_FEATURE_TOPOEXT))
 		return -ENODEV;
+
+	if (boot_cpu_has(X86_FEATURE_PERFMON_V2))
+		pmu_version = 2;
 
 	num_counters_nb	= NUM_COUNTERS_NB;
 	num_counters_llc = NUM_COUNTERS_L2;
@@ -665,6 +670,11 @@ static int __init amd_uncore_init(void)
 		ret = perf_pmu_register(&amd_nb_pmu, amd_nb_pmu.name, -1);
 		if (ret)
 			goto fail_nb;
+
+		if (pmu_version >= 2) {
+			ebx.full = cpuid_ebx(EXT_PERFMON_DEBUG_FEATURES);
+			num_counters_nb = ebx.split.num_df_pmc;
+		}
 
 		pr_info("%d %s %s counters detected\n", num_counters_nb,
 			boot_cpu_data.x86_vendor == X86_VENDOR_HYGON ?  "HYGON" : "",
