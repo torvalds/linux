@@ -269,7 +269,7 @@ static int refill_swap_slots_cache(struct swap_slots_cache *cache)
 	return cache->nr;
 }
 
-int free_swap_slot(swp_entry_t entry)
+void free_swap_slot(swp_entry_t entry)
 {
 	struct swap_slots_cache *cache;
 
@@ -297,8 +297,6 @@ int free_swap_slot(swp_entry_t entry)
 direct_free:
 		swapcache_free_entries(&entry, 1);
 	}
-
-	return 0;
 }
 
 swp_entry_t folio_alloc_swap(struct folio *folio)
