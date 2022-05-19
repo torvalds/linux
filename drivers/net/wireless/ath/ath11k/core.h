@@ -14,6 +14,7 @@
 #include <linux/dmi.h>
 #include <linux/ctype.h>
 #include <linux/rhashtable.h>
+#include <linux/average.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -464,6 +465,8 @@ struct ath11k_per_ppdu_tx_stats {
 	u32 retry_bytes;
 };
 
+DECLARE_EWMA(avg_rssi, 10, 8)
+
 struct ath11k_sta {
 	struct ath11k_vif *arvif;
 
@@ -482,6 +485,7 @@ struct ath11k_sta {
 	u64 rx_duration;
 	u64 tx_duration;
 	u8 rssi_comb;
+	struct ewma_avg_rssi avg_rssi;
 	s8 rssi_beacon;
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 	struct ath11k_htt_tx_stats *tx_stats;
