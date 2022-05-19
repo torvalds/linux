@@ -226,4 +226,8 @@ static __always_inline bool tcp_cc_eq(const char *a, const char *b)
 extern __u32 tcp_slow_start(struct tcp_sock *tp, __u32 acked) __ksym;
 extern void tcp_cong_avoid_ai(struct tcp_sock *tp, __u32 w, __u32 acked) __ksym;
 
+struct mptcp_sock {
+	struct inet_connection_sock	sk;
+} __attribute__((preserve_access_index));
+
 #endif
