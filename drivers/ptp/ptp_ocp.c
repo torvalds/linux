@@ -1403,7 +1403,7 @@ static const struct devlink_ops ptp_ocp_devlink_ops = {
 };
 
 static void __iomem *
-__ptp_ocp_get_mem(struct ptp_ocp *bp, unsigned long start, int size)
+__ptp_ocp_get_mem(struct ptp_ocp *bp, resource_size_t start, int size)
 {
 	struct resource res = DEFINE_RES_MEM_NAMED(start, size, "ptp_ocp");
 
@@ -1413,7 +1413,7 @@ __ptp_ocp_get_mem(struct ptp_ocp *bp, unsigned long start, int size)
 static void __iomem *
 ptp_ocp_get_mem(struct ptp_ocp *bp, struct ocp_resource *r)
 {
-	unsigned long start;
+	resource_size_t start;
 
 	start = pci_resource_start(bp->pdev, 0) + r->offset;
 	return __ptp_ocp_get_mem(bp, start, r->size);
@@ -1427,7 +1427,7 @@ ptp_ocp_set_irq_resource(struct resource *res, int irq)
 }
 
 static void
-ptp_ocp_set_mem_resource(struct resource *res, unsigned long start, int size)
+ptp_ocp_set_mem_resource(struct resource *res, resource_size_t start, int size)
 {
 	struct resource r = DEFINE_RES_MEM(start, size);
 	*res = r;
@@ -1440,7 +1440,7 @@ ptp_ocp_register_spi(struct ptp_ocp *bp, struct ocp_resource *r)
 	struct pci_dev *pdev = bp->pdev;
 	struct platform_device *p;
 	struct resource res[2];
-	unsigned long start;
+	resource_size_t start;
 	int id;
 
 	start = pci_resource_start(pdev, 0) + r->offset;
@@ -1467,7 +1467,7 @@ ptp_ocp_i2c_bus(struct pci_dev *pdev, struct ocp_resource *r, int id)
 {
 	struct ptp_ocp_i2c_info *info;
 	struct resource res[2];
-	unsigned long start;
+	resource_size_t start;
 
 	info = r->extra;
 	start = pci_resource_start(pdev, 0) + r->offset;
