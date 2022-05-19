@@ -189,6 +189,9 @@ struct rga_internal_buffer {
 	/* physical address */
 	uint64_t phys_addr;
 
+	/* buffer size */
+	unsigned long size;
+
 	struct rga_memory_parm memory_parm;
 
 

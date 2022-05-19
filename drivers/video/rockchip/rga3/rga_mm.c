@@ -605,6 +605,8 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 			return ret;
 		}
 
+		internal_buffer->size = internal_buffer->dma_buffer->size -
+					internal_buffer->dma_buffer->offset;
 		internal_buffer->mm_flag |= RGA_MEM_NEED_USE_IOMMU;
 		break;
 	case RGA_VIRTUAL_ADDRESS:
@@ -616,12 +618,23 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 			return ret;
 		}
 
+		internal_buffer->size = internal_buffer->virt_addr->size -
+					internal_buffer->virt_addr->offset;
 		internal_buffer->mm_flag |= RGA_MEM_NEED_USE_IOMMU;
 		break;
 	case RGA_PHYSICAL_ADDRESS:
 		internal_buffer->type = RGA_PHYSICAL_ADDRESS;
 
 		internal_buffer->phys_addr = external_buffer->memory;
+
+		if (internal_buffer->memory_parm.size)
+			internal_buffer->size = internal_buffer->memory_parm.size;
+		else
+			internal_buffer->size =
+				rga_image_size_cal(internal_buffer->memory_parm.width,
+						   internal_buffer->memory_parm.height,
+						   internal_buffer->memory_parm.format,
+						   NULL, NULL, NULL);
 		break;
 	default:
 		pr_err("Illegal external buffer!\n");

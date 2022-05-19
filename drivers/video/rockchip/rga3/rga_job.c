@@ -425,6 +425,9 @@ void rga_job_done(struct rga_scheduler_t *scheduler, int ret)
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
+	if (DEBUGGER_EN(DUMP_IMAGE))
+		rga_dump_job_image(job);
+
 	rga_job_finish_and_next(scheduler, job, ret);
 }
 

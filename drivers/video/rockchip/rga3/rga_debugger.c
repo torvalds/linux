@@ -34,6 +34,9 @@ int RGA_DEBUG_MM;
 int RGA_DEBUG_CHECK_MODE;
 int RGA_DEBUG_NONUSE;
 int RGA_DEBUG_DEBUG_MODE;
+int RGA_DEBUG_DUMP_IMAGE;
+
+static char g_dump_path[100] = "/data";
 
 static int rga_debug_show(struct seq_file *m, void *data)
 {
@@ -340,14 +343,76 @@ static int rga_request_manager_show(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int rga_dump_path_show(struct seq_file *m, void *data)
+{
+	seq_printf(m, "dump path: %s\n", g_dump_path);
 
-struct rga_debugger_list rga_debugger_root_list[] = {
+	return 0;
+}
+
+static ssize_t rga_dump_path_write(struct file *file, const char __user *ubuf,
+				    size_t len, loff_t *offp)
+{
+	char buf[100];
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len - 1] = '\0';
+
+	snprintf(g_dump_path, sizeof(buf), "%s", buf);
+	pr_info("dump path change to: %s\n", g_dump_path);
+
+	return len;
+}
+
+static int rga_dump_image_show(struct seq_file *m, void *data)
+{
+	seq_printf(m, "dump image count: %d\n", RGA_DEBUG_DUMP_IMAGE);
+
+	return 0;
+}
+
+static ssize_t rga_dump_image_write(struct file *file, const char __user *ubuf,
+				    size_t len, loff_t *offp)
+{
+	int ret;
+	int dump_count = 0;
+	char buf[14];
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len - 1] = '\0';
+
+	ret = kstrtoint(buf, 10, &dump_count);
+	if (ret) {
+		pr_err("Failed to parse str[%s]\n", buf);
+		return -EFAULT;
+	}
+
+	if (dump_count <= 0) {
+		pr_err("dump_image count is invalid [%d]!\n", dump_count);
+		return -EINVAL;
+	}
+
+	RGA_DEBUG_DUMP_IMAGE = dump_count;
+	pr_info("dump image %d\n", RGA_DEBUG_DUMP_IMAGE);
+
+	return len;
+}
+
+static struct rga_debugger_list rga_debugger_root_list[] = {
 	{"debug", rga_debug_show, rga_debug_write, NULL},
 	{"driver_version", rga_version_show, NULL, NULL},
 	{"load", rga_load_show, NULL, NULL},
 	{"scheduler_status", rga_scheduler_show, NULL, NULL},
 	{"mm_session", rga_mm_session_show, NULL, NULL},
 	{"request_manager", rga_request_manager_show, NULL, NULL},
+	{"dump_path", rga_dump_path_show, rga_dump_path_write, NULL},
+	{"dump_image", rga_dump_image_show, rga_dump_image_write, NULL},
 };
 
 static ssize_t rga_debugger_write(struct file *file, const char __user *ubuf,
@@ -708,4 +773,119 @@ void rga_dump_external_buffer(struct rga_external_buffer *buffer)
 		buffer->memory_parm.width, buffer->memory_parm.height,
 		rga_get_format_name(buffer->memory_parm.format),
 		buffer->memory_parm.size);
+}
+
+static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
+				  const char *channel_name,
+				  int plane_id,
+				  int core)
+{
+	char file_name[100];
+	struct file *file;
+	size_t size = 0;
+	loff_t pos = 0;
+	void *kvaddr = NULL;
+	void *kvaddr_origin = NULL;
+
+	switch (dump_buffer->type) {
+	case RGA_DMA_BUFFER:
+	case RGA_DMA_BUFFER_PTR:
+		if (IS_ERR_OR_NULL(dump_buffer->dma_buffer->dma_buf)) {
+			pr_err("Failed to dump dma_buf 0x%px\n",
+			       dump_buffer->dma_buffer->dma_buf);
+			return -EINVAL;
+		}
+
+		kvaddr = dma_buf_vmap(dump_buffer->dma_buffer->dma_buf);
+		if (!kvaddr) {
+			pr_err("can't vmap the dma buffer!\n");
+			return -EINVAL;
+		}
+
+		kvaddr_origin = kvaddr;
+		kvaddr += dump_buffer->dma_buffer->offset;
+		break;
+	case RGA_VIRTUAL_ADDRESS:
+		kvaddr = vmap(dump_buffer->virt_addr->pages, dump_buffer->virt_addr->page_count,
+			      VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+		if (!kvaddr) {
+			pr_err("dump_vaddr vmap error!, 0x%lx\n",
+			       (unsigned long)dump_buffer->virt_addr->addr);
+			return -EFAULT;
+		}
+
+		kvaddr_origin = kvaddr;
+		kvaddr += dump_buffer->virt_addr->offset;
+		break;
+	case RGA_PHYSICAL_ADDRESS:
+		kvaddr = phys_to_virt(dump_buffer->phys_addr);
+		break;
+	default:
+		pr_err("unsupported memory type[%x]\n", dump_buffer->type);
+		return -EINVAL;
+	}
+
+	size = dump_buffer->size;
+
+	if (kvaddr == NULL) {
+		pr_err("dump addr is NULL!\n");
+		return -EFAULT;
+	}
+
+	if (size <= 0) {
+		pr_err("dump buffer size[%lx] is invalid!\n", (unsigned long)size);
+		return -EFAULT;
+	}
+
+	snprintf(file_name, 100, "%s/%d_core%d_%s_plane%d_%s_w%d_h%d_%s.bin",
+		 g_dump_path,
+		 RGA_DEBUG_DUMP_IMAGE, core, channel_name, plane_id,
+		 rga_get_memory_type_str(dump_buffer->type),
+		 dump_buffer->memory_parm.width,
+		 dump_buffer->memory_parm.height,
+		 rga_get_format_name(dump_buffer->memory_parm.format));
+
+	file = filp_open(file_name, O_RDWR | O_CREAT | O_TRUNC, 0600);
+	if (!IS_ERR(file)) {
+		kernel_write(file, kvaddr, size, &pos);
+		pr_info("dump image to: %s\n", file_name);
+		fput(file);
+	} else {
+		pr_info("open %s failed\n", file_name);
+	}
+
+	switch (dump_buffer->type) {
+	case RGA_DMA_BUFFER:
+	case RGA_DMA_BUFFER_PTR:
+		dma_buf_vunmap(dump_buffer->dma_buffer->dma_buf, kvaddr_origin);
+		break;
+	case RGA_VIRTUAL_ADDRESS:
+		vunmap(kvaddr_origin);
+		break;
+	}
+
+	return 0;
+}
+
+static inline void rga_dump_channel_image(struct rga_job_buffer *job_buffer,
+					  const char *channel_name,
+					  int core)
+{
+	if (job_buffer->y_addr)
+		rga_dump_image_to_file(job_buffer->y_addr, channel_name, 0, core);
+	if (job_buffer->uv_addr)
+		rga_dump_image_to_file(job_buffer->uv_addr, channel_name, 1, core);
+	if (job_buffer->v_addr)
+		rga_dump_image_to_file(job_buffer->v_addr, channel_name, 2, core);
+}
+
+void rga_dump_job_image(struct rga_job *dump_job)
+{
+	rga_dump_channel_image(&dump_job->src_buffer, "src", dump_job->core);
+	rga_dump_channel_image(&dump_job->src1_buffer, "src1", dump_job->core);
+	rga_dump_channel_image(&dump_job->dst_buffer, "dst", dump_job->core);
+	rga_dump_channel_image(&dump_job->els_buffer, "els", dump_job->core);
+
+	if (RGA_DEBUG_DUMP_IMAGE > 0)
+		RGA_DEBUG_DUMP_IMAGE--;
 }
