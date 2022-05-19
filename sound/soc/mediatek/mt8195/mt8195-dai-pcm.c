@@ -282,7 +282,7 @@ static int mtk_dai_pcm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 static const struct snd_soc_dai_ops mtk_dai_pcm_ops = {
 	.prepare	= mtk_dai_pcm_prepare,
-	.set_fmt_new	= mtk_dai_pcm_set_fmt,
+	.set_fmt	= mtk_dai_pcm_set_fmt,
 };
 
 /* dai driver */
