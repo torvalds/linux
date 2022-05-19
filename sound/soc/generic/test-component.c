@@ -66,7 +66,7 @@ static int test_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int format = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 	unsigned int clock  = fmt & SND_SOC_DAIFMT_CLOCK_MASK;
 	unsigned int inv    = fmt & SND_SOC_DAIFMT_INV_MASK;
-	unsigned int master = fmt & SND_SOC_DAIFMT_MASTER_MASK;
+	unsigned int master = fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
 	char *str;
 
 	dev_info(dai->dev, "name   : %s", dai->name);
@@ -105,16 +105,16 @@ static int test_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	str = "unknown";
 	switch (master) {
-	case SND_SOC_DAIFMT_CBP_CFP:
+	case SND_SOC_DAIFMT_BP_FP:
 		str = "clk provider, frame provider";
 		break;
-	case SND_SOC_DAIFMT_CBC_CFP:
+	case SND_SOC_DAIFMT_BC_FP:
 		str = "clk consumer, frame provider";
 		break;
-	case SND_SOC_DAIFMT_CBP_CFC:
+	case SND_SOC_DAIFMT_BP_FC:
 		str = "clk provider, frame consumer";
 		break;
-	case SND_SOC_DAIFMT_CBC_CFC:
+	case SND_SOC_DAIFMT_BC_FC:
 		str = "clk consumer, frame consumer";
 		break;
 	}
@@ -192,10 +192,10 @@ static int test_dai_bespoke_trigger(struct snd_pcm_substream *substream,
 static u64 test_dai_formats =
 	/*
 	 * Select below from Sound Card, not auto
-	 *	SND_SOC_POSSIBLE_DAIFMT_CBP_CFP
-	 *	SND_SOC_POSSIBLE_DAIFMT_CBC_CFP
-	 *	SND_SOC_POSSIBLE_DAIFMT_CBP_CFC
-	 *	SND_SOC_POSSIBLE_DAIFMT_CBC_CFC
+	 *	SND_SOC_POSSIBLE_DAIFMT_BP_FP
+	 *	SND_SOC_POSSIBLE_DAIFMT_BC_FP
+	 *	SND_SOC_POSSIBLE_DAIFMT_BP_FC
+	 *	SND_SOC_POSSIBLE_DAIFMT_BC_FC
 	 */
 	SND_SOC_POSSIBLE_DAIFMT_I2S	|
 	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
@@ -210,7 +210,7 @@ static u64 test_dai_formats =
 	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
 
 static const struct snd_soc_dai_ops test_ops = {
-	.set_fmt		= test_dai_set_fmt,
+	.set_fmt_new		= test_dai_set_fmt,
 	.startup		= test_dai_startup,
 	.shutdown		= test_dai_shutdown,
 	.auto_selectable_formats	= &test_dai_formats,
@@ -221,7 +221,7 @@ static const struct snd_soc_dai_ops test_verbose_ops = {
 	.set_sysclk		= test_dai_set_sysclk,
 	.set_pll		= test_dai_set_pll,
 	.set_clkdiv		= test_dai_set_clkdiv,
-	.set_fmt		= test_dai_set_fmt,
+	.set_fmt_new		= test_dai_set_fmt,
 	.mute_stream		= test_dai_mute_stream,
 	.startup		= test_dai_startup,
 	.shutdown		= test_dai_shutdown,
