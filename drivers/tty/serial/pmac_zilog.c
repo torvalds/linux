@@ -24,7 +24,6 @@
  */
 
 #undef DEBUG
-#undef DEBUG_HARD
 #undef USE_CTRL_O_SYSRQ
 
 #include <linux/module.h>
@@ -442,9 +441,6 @@ static irqreturn_t pmz_interrupt(int irq, void *dev_id)
 	spin_lock(&uap_a->port.lock);
 	r3 = read_zsreg(uap_a, R3);
 
-#ifdef DEBUG_HARD
-	pmz_debug("irq, r3: %x\n", r3);
-#endif
 	/* Channel A */
 	push = false;
 	if (r3 & (CHAEXT | CHATxIP | CHARxIP)) {
@@ -609,8 +605,6 @@ static void pmz_start_tx(struct uart_port *port)
 	struct uart_pmac_port *uap = to_pmz(port);
 	unsigned char status;
 
-	pmz_debug("pmz: start_tx()\n");
-
 	uap->flags |= PMACZILOG_FLAG_TX_ACTIVE;
 	uap->flags &= ~PMACZILOG_FLAG_TX_STOPPED;
 
@@ -632,7 +626,7 @@ static void pmz_start_tx(struct uart_port *port)
 		struct circ_buf *xmit = &port->state->xmit;
 
 		if (uart_circ_empty(xmit))
-			goto out;
+			return;
 		write_zsdata(uap, xmit->buf[xmit->tail]);
 		zssync(uap);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
@@ -641,8 +635,6 @@ static void pmz_start_tx(struct uart_port *port)
 		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 			uart_write_wakeup(&uap->port);
 	}
- out:
-	pmz_debug("pmz: start_tx() done.\n");
 }
 
 /* 
@@ -655,13 +647,9 @@ static void pmz_stop_rx(struct uart_port *port)
 {
 	struct uart_pmac_port *uap = to_pmz(port);
 
-	pmz_debug("pmz: stop_rx()()\n");
-
 	/* Disable all RX interrupts.  */
 	uap->curregs[R1] &= ~RxINT_MASK;
 	pmz_maybe_update_regs(uap);
-
-	pmz_debug("pmz: stop_rx() done.\n");
 }
 
 /* 
@@ -906,8 +894,6 @@ static int pmz_startup(struct uart_port *port)
 	unsigned long flags;
 	int pwr_delay = 0;
 
-	pmz_debug("pmz: startup()\n");
-
 	uap->flags |= PMACZILOG_FLAG_IS_OPEN;
 
 	/* A console is never powered down. Else, power up and
@@ -943,8 +929,6 @@ static int pmz_startup(struct uart_port *port)
 	pmz_interrupt_control(uap, 1);
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	pmz_debug("pmz: startup() done.\n");
-
 	return 0;
 }
 
@@ -952,8 +936,6 @@ static void pmz_shutdown(struct uart_port *port)
 {
 	struct uart_pmac_port *uap = to_pmz(port);
 	unsigned long flags;
-
-	pmz_debug("pmz: shutdown()\n");
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -983,8 +965,6 @@ static void pmz_shutdown(struct uart_port *port)
 		pmz_set_scc_power(uap, 0);	/* Shut the chip down */
 
 	spin_unlock_irqrestore(&port->lock, flags);
-
-	pmz_debug("pmz: shutdown() done.\n");
 }
 
 /* Shared by TTY driver and serial console setup.  The port lock is held
@@ -1229,8 +1209,6 @@ static void __pmz_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct uart_pmac_port *uap = to_pmz(port);
 	unsigned long baud;
 
-	pmz_debug("pmz: set_termios()\n");
-
 	/* XXX Check which revs of machines actually allow 1 and 4Mb speeds
 	 * on the IR dongle. Note that the IRTTY driver currently doesn't know
 	 * about the FIR mode and high speed modes. So these are unused. For
@@ -1264,8 +1242,6 @@ static void __pmz_set_termios(struct uart_port *port, struct ktermios *termios,
 		pmz_maybe_update_regs(uap);
 	}
 	uart_update_timeout(port, termios->c_cflag, baud);
-
-	pmz_debug("pmz: set_termios() done.\n");
 }
 
 /* The port lock is not held.  */
