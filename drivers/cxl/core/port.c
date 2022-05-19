@@ -271,12 +271,6 @@ bool is_root_decoder(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(is_root_decoder, CXL);
 
-bool is_cxl_decoder(struct device *dev)
-{
-	return dev->type && dev->type->release == cxl_decoder_release;
-}
-EXPORT_SYMBOL_NS_GPL(is_cxl_decoder, CXL);
-
 struct cxl_decoder *to_cxl_decoder(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, dev->type->release != cxl_decoder_release,
