@@ -533,33 +533,53 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	return err;
 }
 
+static struct ieee80211_key *
+ieee80211_lookup_key(struct ieee80211_sub_if_data *sdata,
+		     u8 key_idx, bool pairwise, const u8 *mac_addr)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+
+	if (mac_addr) {
+		sta = sta_info_get_bss(sdata, mac_addr);
+		if (!sta)
+			return NULL;
+
+		if (pairwise && key_idx < NUM_DEFAULT_KEYS)
+			return rcu_dereference_check_key_mtx(local,
+							     sta->ptk[key_idx]);
+
+		if (!pairwise &&
+		    key_idx < NUM_DEFAULT_KEYS +
+			      NUM_DEFAULT_MGMT_KEYS +
+			      NUM_DEFAULT_BEACON_KEYS)
+			return rcu_dereference_check_key_mtx(local,
+							     sta->deflink.gtk[key_idx]);
+
+		return NULL;
+	}
+
+	if (key_idx < NUM_DEFAULT_KEYS +
+		      NUM_DEFAULT_MGMT_KEYS +
+		      NUM_DEFAULT_BEACON_KEYS)
+		return rcu_dereference_check_key_mtx(local,
+						     sdata->keys[key_idx]);
+
+	return NULL;
+}
+
 static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 			     u8 key_idx, bool pairwise, const u8 *mac_addr)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
-	struct ieee80211_key *key = NULL;
+	struct ieee80211_key *key;
 	int ret;
 
 	mutex_lock(&local->sta_mtx);
 	mutex_lock(&local->key_mtx);
 
-	if (mac_addr) {
-		ret = -ENOENT;
-
-		sta = sta_info_get_bss(sdata, mac_addr);
-		if (!sta)
-			goto out_unlock;
-
-		if (pairwise)
-			key = key_mtx_dereference(local, sta->ptk[key_idx]);
-		else
-			key = key_mtx_dereference(local,
-						  sta->deflink.gtk[key_idx]);
-	} else
-		key = key_mtx_dereference(local, sdata->keys[key_idx]);
-
+	key = ieee80211_lookup_key(sdata, key_idx, pairwise, mac_addr);
 	if (!key) {
 		ret = -ENOENT;
 		goto out_unlock;
@@ -582,10 +602,9 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 					      struct key_params *params))
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct sta_info *sta = NULL;
 	u8 seq[6] = {0};
 	struct key_params params;
-	struct ieee80211_key *key = NULL;
+	struct ieee80211_key *key;
 	u64 pn64;
 	u32 iv32;
 	u16 iv16;
@@ -596,20 +615,7 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 
 	rcu_read_lock();
 
-	if (mac_addr) {
-		sta = sta_info_get_bss(sdata, mac_addr);
-		if (!sta)
-			goto out;
-
-		if (pairwise && key_idx < NUM_DEFAULT_KEYS)
-			key = rcu_dereference(sta->ptk[key_idx]);
-		else if (!pairwise &&
-			 key_idx < NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS +
-			 NUM_DEFAULT_BEACON_KEYS)
-			key = rcu_dereference(sta->deflink.gtk[key_idx]);
-	} else
-		key = rcu_dereference(sdata->keys[key_idx]);
-
+	key = ieee80211_lookup_key(sdata, key_idx, pairwise, mac_addr);
 	if (!key)
 		goto out;
 

@@ -163,6 +163,8 @@ void ieee80211_reenable_keys(struct ieee80211_sub_if_data *sdata);
 
 #define key_mtx_dereference(local, ref) \
 	rcu_dereference_protected(ref, lockdep_is_held(&((local)->key_mtx)))
+#define rcu_dereference_check_key_mtx(local, ref) \
+	rcu_dereference_check(ref, lockdep_is_held(&((local)->key_mtx)))
 
 void ieee80211_delayed_tailroom_dec(struct work_struct *wk);
 
