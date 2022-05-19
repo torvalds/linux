@@ -936,6 +936,12 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 		goto err_sf_table_cleanup;
 	}
 
+	err = mlx5_fs_core_alloc(dev);
+	if (err) {
+		mlx5_core_err(dev, "Failed to alloc flow steering\n");
+		goto err_fs;
+	}
+
 	dev->dm = mlx5_dm_create(dev);
 	if (IS_ERR(dev->dm))
 		mlx5_core_warn(dev, "Failed to init device memory%d\n", err);
@@ -946,6 +952,8 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 
 	return 0;
 
+err_fs:
+	mlx5_sf_table_cleanup(dev);
 err_sf_table_cleanup:
 	mlx5_sf_hw_table_cleanup(dev);
 err_sf_hw_table_cleanup:
@@ -983,6 +991,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_hv_vhca_destroy(dev->hv_vhca);
 	mlx5_fw_tracer_destroy(dev->tracer);
 	mlx5_dm_cleanup(dev);
+	mlx5_fs_core_free(dev);
 	mlx5_sf_table_cleanup(dev);
 	mlx5_sf_hw_table_cleanup(dev);
 	mlx5_vhca_event_cleanup(dev);
@@ -1181,7 +1190,7 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 		goto err_fpga_start;
 	}
 
-	err = mlx5_init_fs(dev);
+	err = mlx5_fs_core_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init flow steering\n");
 		goto err_fs;
@@ -1226,7 +1235,7 @@ err_ec:
 err_vhca:
 	mlx5_vhca_event_stop(dev);
 err_set_hca:
-	mlx5_cleanup_fs(dev);
+	mlx5_fs_core_cleanup(dev);
 err_fs:
 	mlx5_fpga_device_stop(dev);
 err_fpga_start:
@@ -1252,7 +1261,7 @@ static void mlx5_unload(struct mlx5_core_dev *dev)
 	mlx5_ec_cleanup(dev);
 	mlx5_sf_hw_table_destroy(dev);
 	mlx5_vhca_event_stop(dev);
-	mlx5_cleanup_fs(dev);
+	mlx5_fs_core_cleanup(dev);
 	mlx5_fpga_device_stop(dev);
 	mlx5_rsc_dump_cleanup(dev);
 	mlx5_hv_vhca_cleanup(dev->hv_vhca);
@@ -1608,6 +1617,10 @@ static void remove_one(struct pci_dev *pdev)
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
 	struct devlink *devlink = priv_to_devlink(dev);
 
+	/* mlx5_drain_fw_reset() is using devlink APIs. Hence, we must drain
+	 * fw_reset before unregistering the devlink.
+	 */
+	mlx5_drain_fw_reset(dev);
 	set_bit(MLX5_BREAK_FW_WAIT, &dev->intf_state);
 	devlink_unregister(devlink);
 	mlx5_sriov_disable(pdev);

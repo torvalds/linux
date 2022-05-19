@@ -10720,10 +10720,10 @@ __lpfc_sli_prep_gen_req_s4(struct lpfc_iocbq *cmdiocbq, struct lpfc_dmabuf *bmp,
 
 	/* Words 0 - 2 */
 	bde = (struct ulp_bde64_le *)&cmdwqe->generic.bde;
-	bde->addr_low = cpu_to_le32(putPaddrLow(bmp->phys));
-	bde->addr_high = cpu_to_le32(putPaddrHigh(bmp->phys));
+	bde->addr_low = bpl->addr_low;
+	bde->addr_high = bpl->addr_high;
 	bde->type_size = cpu_to_le32(xmit_len);
-	bde->type_size |= cpu_to_le32(ULP_BDE64_TYPE_BLP_64);
+	bde->type_size |= cpu_to_le32(ULP_BDE64_TYPE_BDE_64);
 
 	/* Word 3 */
 	cmdwqe->gen_req.request_payload_len = xmit_len;
