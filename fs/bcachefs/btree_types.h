@@ -374,7 +374,7 @@ struct btree_trans_commit_hook {
 	struct btree_trans_commit_hook	*next;
 };
 
-#define BTREE_TRANS_MEM_MAX	(1U << 14)
+#define BTREE_TRANS_MEM_MAX	(1U << 16)
 
 struct btree_trans {
 	struct bch_fs		*c;
