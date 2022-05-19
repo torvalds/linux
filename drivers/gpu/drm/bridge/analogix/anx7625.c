@@ -1638,6 +1638,7 @@ static int anx7625_parse_dt(struct device *dev,
 			bus_type = 0;
 
 		mipi_lanes = of_property_count_u32_elems(ep0, "data-lanes");
+		of_node_put(ep0);
 	}
 
 	if (bus_type == V4L2_FWNODE_BUS_TYPE_DPI) /* bus type is DPI */
