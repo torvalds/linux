@@ -809,6 +809,9 @@ void svm_set_x2apic_msr_interception(struct vcpu_svm *svm, bool intercept)
 {
 	int i;
 
+	if (intercept == svm->x2avic_msrs_intercepted)
+		return;
+
 	if (avic_mode != AVIC_MODE_X2 ||
 	    !apic_x2apic_mode(svm->vcpu.arch.apic))
 		return;
@@ -822,6 +825,8 @@ void svm_set_x2apic_msr_interception(struct vcpu_svm *svm, bool intercept)
 		set_msr_interception(&svm->vcpu, svm->msrpm, index,
 				     !intercept, !intercept);
 	}
+
+	svm->x2avic_msrs_intercepted = intercept;
 }
 
 void svm_vcpu_free_msrpm(u32 *msrpm)
@@ -1392,6 +1397,8 @@ static int svm_vcpu_create(struct kvm_vcpu *vcpu)
 		err = -ENOMEM;
 		goto error_free_vmsa_page;
 	}
+
+	svm->x2avic_msrs_intercepted = true;
 
 	svm->vmcb01.ptr = page_address(vmcb01_page);
 	svm->vmcb01.pa = __sme_set(page_to_pfn(vmcb01_page) << PAGE_SHIFT);

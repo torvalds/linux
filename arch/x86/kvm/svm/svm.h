@@ -276,6 +276,8 @@ struct vcpu_svm {
 	struct vcpu_sev_es_state sev_es;
 
 	bool guest_state_loaded;
+
+	bool x2avic_msrs_intercepted;
 };
 
 struct svm_cpu_data {

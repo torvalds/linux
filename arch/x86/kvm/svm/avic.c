@@ -100,6 +100,14 @@ static void avic_deactivate_vmcb(struct vcpu_svm *svm)
 	vmcb->control.int_ctl &= ~(AVIC_ENABLE_MASK | X2APIC_MODE_MASK);
 	vmcb->control.avic_physical_id &= ~AVIC_PHYSICAL_MAX_INDEX_MASK;
 
+	/*
+	 * If running nested and the guest uses its own MSR bitmap, there
+	 * is no need to update L0's msr bitmap
+	 */
+	if (is_guest_mode(&svm->vcpu) &&
+	    vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_MSR_PROT))
+		return;
+
 	/* Enabling MSR intercept for x2APIC registers */
 	svm_set_x2apic_msr_interception(svm, true);
 }
