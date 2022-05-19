@@ -764,11 +764,11 @@ static int cmp_val(const void *a, const void *b)
 
 static struct perf_aggr_thread_value *sort_aggr_thread(
 					struct evsel *counter,
-					int nthreads, int ncpus,
 					int *ret,
 					struct target *_target)
 {
-	int cpu, thread, i = 0;
+	int nthreads = perf_thread_map__nr(counter->core.threads);
+	int i = 0;
 	double uval;
 	struct perf_aggr_thread_value *buf;
 
@@ -776,13 +776,17 @@ static struct perf_aggr_thread_value *sort_aggr_thread(
 	if (!buf)
 		return NULL;
 
-	for (thread = 0; thread < nthreads; thread++) {
+	for (int thread = 0; thread < nthreads; thread++) {
+		int idx;
 		u64 ena = 0, run = 0, val = 0;
 
-		for (cpu = 0; cpu < ncpus; cpu++) {
-			val += perf_counts(counter->counts, cpu, thread)->val;
-			ena += perf_counts(counter->counts, cpu, thread)->ena;
-			run += perf_counts(counter->counts, cpu, thread)->run;
+		perf_cpu_map__for_each_idx(idx, evsel__cpus(counter)) {
+			struct perf_counts_values *counts =
+				perf_counts(counter->counts, idx, thread);
+
+			val += counts->val;
+			ena += counts->ena;
+			run += counts->run;
 		}
 
 		uval = val * counter->scale;
@@ -817,13 +821,11 @@ static void print_aggr_thread(struct perf_stat_config *config,
 			      struct evsel *counter, char *prefix)
 {
 	FILE *output = config->output;
-	int nthreads = perf_thread_map__nr(counter->core.threads);
-	int ncpus = perf_cpu_map__nr(counter->core.cpus);
 	int thread, sorted_threads;
 	struct aggr_cpu_id id;
 	struct perf_aggr_thread_value *buf;
 
-	buf = sort_aggr_thread(counter, nthreads, ncpus, &sorted_threads, _target);
+	buf = sort_aggr_thread(counter, &sorted_threads, _target);
 	if (!buf) {
 		perror("cannot sort aggr thread");
 		return;
