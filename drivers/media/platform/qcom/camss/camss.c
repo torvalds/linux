@@ -1541,7 +1541,7 @@ static int camss_probe(struct platform_device *pdev)
 	struct camss *camss;
 	int num_subdevs, ret;
 
-	camss = kzalloc(sizeof(*camss), GFP_KERNEL);
+	camss = devm_kzalloc(dev, sizeof(*camss), GFP_KERNEL);
 	if (!camss)
 		return -ENOMEM;
 
@@ -1579,39 +1579,30 @@ static int camss_probe(struct platform_device *pdev)
 		camss->csid_num = 4;
 		camss->vfe_num = 4;
 	} else {
-		ret = -EINVAL;
-		goto err_free;
+		return -EINVAL;
 	}
 
 	camss->csiphy = devm_kcalloc(dev, camss->csiphy_num,
 				     sizeof(*camss->csiphy), GFP_KERNEL);
-	if (!camss->csiphy) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
+	if (!camss->csiphy)
+		return -ENOMEM;
 
 	camss->csid = devm_kcalloc(dev, camss->csid_num, sizeof(*camss->csid),
 				   GFP_KERNEL);
-	if (!camss->csid) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
+	if (!camss->csid)
+		return -ENOMEM;
 
 	if (camss->version == CAMSS_8x16 ||
 	    camss->version == CAMSS_8x96) {
 		camss->ispif = devm_kcalloc(dev, 1, sizeof(*camss->ispif), GFP_KERNEL);
-		if (!camss->ispif) {
-			ret = -ENOMEM;
-			goto err_free;
-		}
+		if (!camss->ispif)
+			return -ENOMEM;
 	}
 
 	camss->vfe = devm_kcalloc(dev, camss->vfe_num, sizeof(*camss->vfe),
 				  GFP_KERNEL);
-	if (!camss->vfe) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
+	if (!camss->vfe)
+		return -ENOMEM;
 
 	v4l2_async_nf_init(&camss->notifier);
 
@@ -1693,8 +1684,6 @@ err_register_entities:
 	v4l2_device_unregister(&camss->v4l2_dev);
 err_cleanup:
 	v4l2_async_nf_cleanup(&camss->notifier);
-err_free:
-	kfree(camss);
 
 	return ret;
 }
@@ -1713,8 +1702,6 @@ void camss_delete(struct camss *camss)
 		device_link_del(camss->genpd_link[i]);
 		dev_pm_domain_detach(camss->genpd[i], true);
 	}
-
-	kfree(camss);
 }
 
 /*
