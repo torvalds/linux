@@ -4,7 +4,6 @@
 #include "../include/osdep_service.h"
 #include "../include/drv_types.h"
 #include "../include/wlan_bssdef.h"
-#include "../include/rtw_debug.h"
 #include "../include/wifi.h"
 #include "../include/rtw_mlme.h"
 #include "../include/rtw_mlme_ext.h"
