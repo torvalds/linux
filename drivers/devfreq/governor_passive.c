@@ -402,7 +402,7 @@ static int devfreq_passive_event_handler(struct devfreq *devfreq,
 {
 	struct devfreq_passive_data *p_data
 			= (struct devfreq_passive_data *)devfreq->data;
-	int ret = -EINVAL;
+	int ret = 0;
 
 	if (!p_data)
 		return -EINVAL;
