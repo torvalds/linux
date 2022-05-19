@@ -21,7 +21,6 @@
 #define NUM_COUNTERS_NB		4
 #define NUM_COUNTERS_L2		4
 #define NUM_COUNTERS_L3		6
-#define MAX_COUNTERS		6
 
 #define RDPMC_BASE_NB		6
 #define RDPMC_BASE_LLC		10
@@ -46,7 +45,7 @@ struct amd_uncore {
 	u32 msr_base;
 	cpumask_t *active_mask;
 	struct pmu *pmu;
-	struct perf_event *events[MAX_COUNTERS];
+	struct perf_event **events;
 	struct hlist_node node;
 };
 
@@ -370,11 +369,19 @@ static struct amd_uncore *amd_uncore_alloc(unsigned int cpu)
 			cpu_to_node(cpu));
 }
 
+static inline struct perf_event **
+amd_uncore_events_alloc(unsigned int num, unsigned int cpu)
+{
+	return kzalloc_node(sizeof(struct perf_event *) * num, GFP_KERNEL,
+			    cpu_to_node(cpu));
+}
+
 static int amd_uncore_cpu_up_prepare(unsigned int cpu)
 {
-	struct amd_uncore *uncore_nb = NULL, *uncore_llc;
+	struct amd_uncore *uncore_nb = NULL, *uncore_llc = NULL;
 
 	if (amd_uncore_nb) {
+		*per_cpu_ptr(amd_uncore_nb, cpu) = NULL;
 		uncore_nb = amd_uncore_alloc(cpu);
 		if (!uncore_nb)
 			goto fail;
@@ -384,11 +391,15 @@ static int amd_uncore_cpu_up_prepare(unsigned int cpu)
 		uncore_nb->msr_base = MSR_F15H_NB_PERF_CTL;
 		uncore_nb->active_mask = &amd_nb_active_mask;
 		uncore_nb->pmu = &amd_nb_pmu;
+		uncore_nb->events = amd_uncore_events_alloc(num_counters_nb, cpu);
+		if (!uncore_nb->events)
+			goto fail;
 		uncore_nb->id = -1;
 		*per_cpu_ptr(amd_uncore_nb, cpu) = uncore_nb;
 	}
 
 	if (amd_uncore_llc) {
+		*per_cpu_ptr(amd_uncore_llc, cpu) = NULL;
 		uncore_llc = amd_uncore_alloc(cpu);
 		if (!uncore_llc)
 			goto fail;
@@ -398,6 +409,9 @@ static int amd_uncore_cpu_up_prepare(unsigned int cpu)
 		uncore_llc->msr_base = MSR_F16H_L2I_PERF_CTL;
 		uncore_llc->active_mask = &amd_llc_active_mask;
 		uncore_llc->pmu = &amd_llc_pmu;
+		uncore_llc->events = amd_uncore_events_alloc(num_counters_llc, cpu);
+		if (!uncore_llc->events)
+			goto fail;
 		uncore_llc->id = -1;
 		*per_cpu_ptr(amd_uncore_llc, cpu) = uncore_llc;
 	}
@@ -405,9 +419,16 @@ static int amd_uncore_cpu_up_prepare(unsigned int cpu)
 	return 0;
 
 fail:
-	if (amd_uncore_nb)
-		*per_cpu_ptr(amd_uncore_nb, cpu) = NULL;
-	kfree(uncore_nb);
+	if (uncore_nb) {
+		kfree(uncore_nb->events);
+		kfree(uncore_nb);
+	}
+
+	if (uncore_llc) {
+		kfree(uncore_llc->events);
+		kfree(uncore_llc);
+	}
+
 	return -ENOMEM;
 }
 
@@ -540,8 +561,11 @@ static void uncore_dead(unsigned int cpu, struct amd_uncore * __percpu *uncores)
 	if (cpu == uncore->cpu)
 		cpumask_clear_cpu(cpu, uncore->active_mask);
 
-	if (!--uncore->refcnt)
+	if (!--uncore->refcnt) {
+		kfree(uncore->events);
 		kfree(uncore);
+	}
+
 	*per_cpu_ptr(uncores, cpu) = NULL;
 }
 
