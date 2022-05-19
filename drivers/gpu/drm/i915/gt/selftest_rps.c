@@ -521,7 +521,7 @@ static void show_pcu_config(struct intel_rps *rps)
 	for (gpu_freq = min_gpu_freq; gpu_freq <= max_gpu_freq; gpu_freq++) {
 		int ia_freq = gpu_freq;
 
-		snb_pcode_read(i915, GEN6_PCODE_READ_MIN_FREQ_TABLE,
+		snb_pcode_read(rps_to_gt(rps)->uncore, GEN6_PCODE_READ_MIN_FREQ_TABLE,
 			       &ia_freq, NULL);
 
 		pr_info("%5d  %5d  %5d\n",

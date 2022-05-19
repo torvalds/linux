@@ -634,7 +634,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 	intel_opregion_setup(dev_priv);
 
-	ret = intel_pcode_init(dev_priv);
+	ret = intel_pcode_init(&dev_priv->uncore);
 	if (ret)
 		goto err_msi;
 
@@ -1249,7 +1249,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
-	ret = intel_pcode_init(dev_priv);
+	ret = intel_pcode_init(&dev_priv->uncore);
 	if (ret)
 		return ret;
 

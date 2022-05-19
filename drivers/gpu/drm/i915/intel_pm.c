@@ -2874,7 +2874,7 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 
 		/* read the first set of memory latencies[0:3] */
 		val = 0; /* data0 to be programmed to 0 for first set */
-		ret = snb_pcode_read(dev_priv, GEN9_PCODE_READ_MEM_LATENCY,
+		ret = snb_pcode_read(&dev_priv->uncore, GEN9_PCODE_READ_MEM_LATENCY,
 				     &val, NULL);
 
 		if (ret) {
@@ -2893,7 +2893,7 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 
 		/* read the second set of memory latencies[4:7] */
 		val = 1; /* data0 to be programmed to 1 for second set */
-		ret = snb_pcode_read(dev_priv, GEN9_PCODE_READ_MEM_LATENCY,
+		ret = snb_pcode_read(&dev_priv->uncore, GEN9_PCODE_READ_MEM_LATENCY,
 				     &val, NULL);
 		if (ret) {
 			drm_err(&dev_priv->drm,
@@ -3679,7 +3679,7 @@ intel_sagv_block_time(struct drm_i915_private *dev_priv)
 		u32 val = 0;
 		int ret;
 
-		ret = snb_pcode_read(dev_priv,
+		ret = snb_pcode_read(&dev_priv->uncore,
 				     GEN12_PCODE_READ_SAGV_BLOCK_TIME_US,
 				     &val, NULL);
 		if (ret) {
@@ -3748,7 +3748,7 @@ static void skl_sagv_enable(struct drm_i915_private *dev_priv)
 		return;
 
 	drm_dbg_kms(&dev_priv->drm, "Enabling SAGV\n");
-	ret = snb_pcode_write(dev_priv, GEN9_PCODE_SAGV_CONTROL,
+	ret = snb_pcode_write(&dev_priv->uncore, GEN9_PCODE_SAGV_CONTROL,
 			      GEN9_SAGV_ENABLE);
 
 	/* We don't need to wait for SAGV when enabling */
@@ -3781,7 +3781,7 @@ static void skl_sagv_disable(struct drm_i915_private *dev_priv)
 
 	drm_dbg_kms(&dev_priv->drm, "Disabling SAGV\n");
 	/* bspec says to keep retrying for at least 1 ms */
-	ret = skl_pcode_request(dev_priv, GEN9_PCODE_SAGV_CONTROL,
+	ret = skl_pcode_request(&dev_priv->uncore, GEN9_PCODE_SAGV_CONTROL,
 				GEN9_SAGV_DISABLE,
 				GEN9_SAGV_IS_DISABLED, GEN9_SAGV_IS_DISABLED,
 				1);
