@@ -205,7 +205,7 @@ static void mtk_clk_unregister_gate(struct clk *clk)
 
 int mtk_clk_register_gates_with_dev(struct device_node *node,
 				    const struct mtk_gate *clks, int num,
-				    struct clk_onecell_data *clk_data,
+				    struct clk_hw_onecell_data *clk_data,
 				    struct device *dev)
 {
 	int i;
@@ -224,7 +224,7 @@ int mtk_clk_register_gates_with_dev(struct device_node *node,
 	for (i = 0; i < num; i++) {
 		const struct mtk_gate *gate = &clks[i];
 
-		if (!IS_ERR_OR_NULL(clk_data->clks[gate->id])) {
+		if (!IS_ERR_OR_NULL(clk_data->hws[gate->id])) {
 			pr_warn("%pOF: Trying to register duplicate clock ID: %d\n",
 				node, gate->id);
 			continue;
@@ -243,7 +243,7 @@ int mtk_clk_register_gates_with_dev(struct device_node *node,
 			goto err;
 		}
 
-		clk_data->clks[gate->id] = clk;
+		clk_data->hws[gate->id] = __clk_get_hw(clk);
 	}
 
 	return 0;
@@ -252,11 +252,11 @@ err:
 	while (--i >= 0) {
 		const struct mtk_gate *gate = &clks[i];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[gate->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[gate->id]))
 			continue;
 
-		mtk_clk_unregister_gate(clk_data->clks[gate->id]);
-		clk_data->clks[gate->id] = ERR_PTR(-ENOENT);
+		mtk_clk_unregister_gate(clk_data->hws[gate->id]->clk);
+		clk_data->hws[gate->id] = ERR_PTR(-ENOENT);
 	}
 
 	return PTR_ERR(clk);
@@ -264,14 +264,14 @@ err:
 
 int mtk_clk_register_gates(struct device_node *node,
 			   const struct mtk_gate *clks, int num,
-			   struct clk_onecell_data *clk_data)
+			   struct clk_hw_onecell_data *clk_data)
 {
 	return mtk_clk_register_gates_with_dev(node, clks, num, clk_data, NULL);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_register_gates);
 
 void mtk_clk_unregister_gates(const struct mtk_gate *clks, int num,
-			      struct clk_onecell_data *clk_data)
+			      struct clk_hw_onecell_data *clk_data)
 {
 	int i;
 
@@ -281,11 +281,11 @@ void mtk_clk_unregister_gates(const struct mtk_gate *clks, int num,
 	for (i = num; i > 0; i--) {
 		const struct mtk_gate *gate = &clks[i - 1];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[gate->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[gate->id]))
 			continue;
 
-		mtk_clk_unregister_gate(clk_data->clks[gate->id]);
-		clk_data->clks[gate->id] = ERR_PTR(-ENOENT);
+		mtk_clk_unregister_gate(clk_data->hws[gate->id]->clk);
+		clk_data->hws[gate->id] = ERR_PTR(-ENOENT);
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_gates);

@@ -105,7 +105,7 @@ static void mtk_clk_unregister_cpumux(struct clk *clk)
 
 int mtk_clk_register_cpumuxes(struct device_node *node,
 			      const struct mtk_composite *clks, int num,
-			      struct clk_onecell_data *clk_data)
+			      struct clk_hw_onecell_data *clk_data)
 {
 	int i;
 	struct clk *clk;
@@ -120,7 +120,7 @@ int mtk_clk_register_cpumuxes(struct device_node *node,
 	for (i = 0; i < num; i++) {
 		const struct mtk_composite *mux = &clks[i];
 
-		if (!IS_ERR_OR_NULL(clk_data->clks[mux->id])) {
+		if (!IS_ERR_OR_NULL(clk_data->hws[mux->id])) {
 			pr_warn("%pOF: Trying to register duplicate clock ID: %d\n",
 				node, mux->id);
 			continue;
@@ -132,7 +132,7 @@ int mtk_clk_register_cpumuxes(struct device_node *node,
 			goto err;
 		}
 
-		clk_data->clks[mux->id] = clk;
+		clk_data->hws[mux->id] = __clk_get_hw(clk);
 	}
 
 	return 0;
@@ -141,29 +141,29 @@ err:
 	while (--i >= 0) {
 		const struct mtk_composite *mux = &clks[i];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[mux->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[mux->id]))
 			continue;
 
-		mtk_clk_unregister_cpumux(clk_data->clks[mux->id]);
-		clk_data->clks[mux->id] = ERR_PTR(-ENOENT);
+		mtk_clk_unregister_cpumux(clk_data->hws[mux->id]->clk);
+		clk_data->hws[mux->id] = ERR_PTR(-ENOENT);
 	}
 
 	return PTR_ERR(clk);
 }
 
 void mtk_clk_unregister_cpumuxes(const struct mtk_composite *clks, int num,
-				 struct clk_onecell_data *clk_data)
+				 struct clk_hw_onecell_data *clk_data)
 {
 	int i;
 
 	for (i = num; i > 0; i--) {
 		const struct mtk_composite *mux = &clks[i - 1];
 
-		if (IS_ERR_OR_NULL(clk_data->clks[mux->id]))
+		if (IS_ERR_OR_NULL(clk_data->hws[mux->id]))
 			continue;
 
-		mtk_clk_unregister_cpumux(clk_data->clks[mux->id]);
-		clk_data->clks[mux->id] = ERR_PTR(-ENOENT);
+		mtk_clk_unregister_cpumux(clk_data->hws[mux->id]->clk);
+		clk_data->hws[mux->id] = ERR_PTR(-ENOENT);
 	}
 }
 
