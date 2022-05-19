@@ -1271,6 +1271,7 @@ bad_nofile:
 out:
 	return NULL;
 put_out:
+	pr_err("%s: %s%08lx\n", __func__, Bad_offset, entry.val);
 	percpu_ref_put(&si->users);
 	return NULL;
 }
