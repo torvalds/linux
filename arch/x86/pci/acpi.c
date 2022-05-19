@@ -200,6 +200,27 @@ void __init pci_acpi_crs_quirks(void)
 	if (year >= 0 && year < 2008 && iomem_resource.end <= 0xffffffff)
 		pci_use_crs = false;
 
+	/*
+	 * Some firmware includes unusable space (host bridge registers,
+	 * hidden PCI device BARs, etc) in PCI host bridge _CRS.  This is a
+	 * firmware defect, and 4dc2287c1805 ("x86: avoid E820 regions when
+	 * allocating address space") has clipped out the unusable space in
+	 * the past.
+	 *
+	 * But other firmware supplies E820 reserved regions that cover
+	 * entire _CRS windows, so clipping throws away the entire window,
+	 * leaving none for hot-added or uninitialized devices.  These E820
+	 * entries are probably *not* a firmware defect, so disable the
+	 * clipping by default for post-2022 machines.
+	 *
+	 * We already have quirks to disable clipping for pre-2023
+	 * machines, and we'll likely need quirks to *enable* clipping for
+	 * post-2022 machines that incorrectly include unusable space in
+	 * _CRS.
+	 */
+	if (year >= 2023)
+		pci_use_e820 = false;
+
 	dmi_check_system(pci_crs_quirks);
 
 	/*
