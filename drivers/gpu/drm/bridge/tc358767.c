@@ -1899,7 +1899,7 @@ static int tc_mipi_dsi_host_attach(struct tc_data *tc)
 	of_node_put(host_node);
 	of_node_put(endpoint);
 
-	if (dsi_lanes < 0 || dsi_lanes > 4)
+	if (dsi_lanes <= 0 || dsi_lanes > 4)
 		return -EINVAL;
 
 	if (!host)
