@@ -227,9 +227,6 @@ struct intel_vgpu {
 	struct mutex cache_lock;
 
 	struct notifier_block iommu_notifier;
-	struct notifier_block group_notifier;
-	struct kvm *kvm;
-	struct work_struct release_work;
 	atomic_t released;
 
 	struct kvm_page_track_notifier_node track_node;

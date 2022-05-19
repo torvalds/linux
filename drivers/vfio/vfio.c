@@ -1088,10 +1088,21 @@ static struct file *vfio_device_open(struct vfio_device *device)
 
 	mutex_lock(&device->dev_set->lock);
 	device->open_count++;
-	if (device->open_count == 1 && device->ops->open_device) {
-		ret = device->ops->open_device(device);
-		if (ret)
-			goto err_undo_count;
+	if (device->open_count == 1) {
+		/*
+		 * Here we pass the KVM pointer with the group under the read
+		 * lock.  If the device driver will use it, it must obtain a
+		 * reference and release it during close_device.
+		 */
+		down_read(&device->group->group_rwsem);
+		device->kvm = device->group->kvm;
+
+		if (device->ops->open_device) {
+			ret = device->ops->open_device(device);
+			if (ret)
+				goto err_undo_count;
+		}
+		up_read(&device->group->group_rwsem);
 	}
 	mutex_unlock(&device->dev_set->lock);
 
@@ -1124,10 +1135,14 @@ static struct file *vfio_device_open(struct vfio_device *device)
 
 err_close_device:
 	mutex_lock(&device->dev_set->lock);
+	down_read(&device->group->group_rwsem);
 	if (device->open_count == 1 && device->ops->close_device)
 		device->ops->close_device(device);
 err_undo_count:
 	device->open_count--;
+	if (device->open_count == 0 && device->kvm)
+		device->kvm = NULL;
+	up_read(&device->group->group_rwsem);
 	mutex_unlock(&device->dev_set->lock);
 	module_put(device->dev->driver->owner);
 err_unassign_container:
@@ -1320,9 +1335,13 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 
 	mutex_lock(&device->dev_set->lock);
 	vfio_assert_device_open(device);
+	down_read(&device->group->group_rwsem);
 	if (device->open_count == 1 && device->ops->close_device)
 		device->ops->close_device(device);
+	up_read(&device->group->group_rwsem);
 	device->open_count--;
+	if (device->open_count == 0)
+		device->kvm = NULL;
 	mutex_unlock(&device->dev_set->lock);
 
 	module_put(device->dev->driver->owner);
@@ -1731,8 +1750,8 @@ EXPORT_SYMBOL_GPL(vfio_file_enforced_coherent);
  * @file: VFIO group file
  * @kvm: KVM to link
  *
- * The kvm pointer will be forwarded to all the vfio_device's attached to the
- * VFIO file via the VFIO_GROUP_NOTIFY_SET_KVM notifier.
+ * When a VFIO device is first opened the KVM will be available in
+ * device->kvm if one was associated with the group.
  */
 void vfio_file_set_kvm(struct file *file, struct kvm *kvm)
 {
@@ -1743,8 +1762,6 @@ void vfio_file_set_kvm(struct file *file, struct kvm *kvm)
 
 	down_write(&group->group_rwsem);
 	group->kvm = kvm;
-	blocking_notifier_call_chain(&group->notifier,
-				     VFIO_GROUP_NOTIFY_SET_KVM, kvm);
 	up_write(&group->group_rwsem);
 }
 EXPORT_SYMBOL_GPL(vfio_file_set_kvm);
@@ -2011,7 +2028,8 @@ static int vfio_register_iommu_notifier(struct vfio_group *group,
 	struct vfio_iommu_driver *driver;
 	int ret;
 
-	down_read(&group->group_rwsem);
+	lockdep_assert_held_read(&group->group_rwsem);
+
 	container = group->container;
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->register_notifier))
@@ -2019,7 +2037,6 @@ static int vfio_register_iommu_notifier(struct vfio_group *group,
 						     events, nb);
 	else
 		ret = -ENOTTY;
-	up_read(&group->group_rwsem);
 
 	return ret;
 }
@@ -2031,7 +2048,8 @@ static int vfio_unregister_iommu_notifier(struct vfio_group *group,
 	struct vfio_iommu_driver *driver;
 	int ret;
 
-	down_read(&group->group_rwsem);
+	lockdep_assert_held_read(&group->group_rwsem);
+
 	container = group->container;
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->unregister_notifier))
@@ -2039,45 +2057,8 @@ static int vfio_unregister_iommu_notifier(struct vfio_group *group,
 						       nb);
 	else
 		ret = -ENOTTY;
-	up_read(&group->group_rwsem);
 
 	return ret;
-}
-
-static int vfio_register_group_notifier(struct vfio_group *group,
-					unsigned long *events,
-					struct notifier_block *nb)
-{
-	int ret;
-	bool set_kvm = false;
-
-	if (*events & VFIO_GROUP_NOTIFY_SET_KVM)
-		set_kvm = true;
-
-	/* clear known events */
-	*events &= ~VFIO_GROUP_NOTIFY_SET_KVM;
-
-	/* refuse to continue if still events remaining */
-	if (*events)
-		return -EINVAL;
-
-	ret = blocking_notifier_chain_register(&group->notifier, nb);
-	if (ret)
-		return ret;
-
-	/*
-	 * The attaching of kvm and vfio_group might already happen, so
-	 * here we replay once upon registration.
-	 */
-	if (set_kvm) {
-		down_read(&group->group_rwsem);
-		if (group->kvm)
-			blocking_notifier_call_chain(&group->notifier,
-						     VFIO_GROUP_NOTIFY_SET_KVM,
-						     group->kvm);
-		up_read(&group->group_rwsem);
-	}
-	return 0;
 }
 
 int vfio_register_notifier(struct vfio_device *device,
@@ -2094,9 +2075,6 @@ int vfio_register_notifier(struct vfio_device *device,
 	switch (type) {
 	case VFIO_IOMMU_NOTIFY:
 		ret = vfio_register_iommu_notifier(group, events, nb);
-		break;
-	case VFIO_GROUP_NOTIFY:
-		ret = vfio_register_group_notifier(group, events, nb);
 		break;
 	default:
 		ret = -EINVAL;
@@ -2118,9 +2096,6 @@ int vfio_unregister_notifier(struct vfio_device *device,
 	switch (type) {
 	case VFIO_IOMMU_NOTIFY:
 		ret = vfio_unregister_iommu_notifier(group, nb);
-		break;
-	case VFIO_GROUP_NOTIFY:
-		ret = blocking_notifier_chain_unregister(&group->notifier, nb);
 		break;
 	default:
 		ret = -EINVAL;

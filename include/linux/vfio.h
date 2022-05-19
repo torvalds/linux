@@ -36,6 +36,8 @@ struct vfio_device {
 	struct vfio_device_set *dev_set;
 	struct list_head dev_set_list;
 	unsigned int migration_flags;
+	/* Driver must reference the kvm during open_device or never touch it */
+	struct kvm *kvm;
 
 	/* Members below here are private, not for driver use */
 	refcount_t refcount;
@@ -155,14 +157,10 @@ extern int vfio_dma_rw(struct vfio_device *device, dma_addr_t user_iova,
 /* each type has independent events */
 enum vfio_notify_type {
 	VFIO_IOMMU_NOTIFY = 0,
-	VFIO_GROUP_NOTIFY = 1,
 };
 
 /* events for VFIO_IOMMU_NOTIFY */
 #define VFIO_IOMMU_NOTIFY_DMA_UNMAP	BIT(0)
-
-/* events for VFIO_GROUP_NOTIFY */
-#define VFIO_GROUP_NOTIFY_SET_KVM	BIT(0)
 
 extern int vfio_register_notifier(struct vfio_device *device,
 				  enum vfio_notify_type type,
