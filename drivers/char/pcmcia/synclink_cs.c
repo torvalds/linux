@@ -1418,7 +1418,11 @@ static void mgslpc_change_params(MGSLPC_INFO *info, struct tty_struct *tty)
 		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 
 	/* byte size and parity */
-
+	if ((cflag & CSIZE) != CS8) {
+		cflag &= ~CSIZE;
+		cflag |= CS7;
+		tty->termios.c_cflag = cflag;
+	}
 	info->params.data_bits = tty_get_char_size(cflag);
 
 	if (cflag & CSTOPB)
