@@ -287,20 +287,17 @@ void __init adjust_total_lowmem(void)
 #ifdef CONFIG_STRICT_KERNEL_RWX
 void mmu_mark_rodata_ro(void)
 {
-	/* Everything is done in mmu_mark_initmem_nx() */
+	unsigned long remapped;
+
+	remapped = map_mem_in_cams(__max_low_memory, CONFIG_LOWMEM_CAM_NUM, false, false);
+
+	WARN_ON(__max_low_memory != remapped);
 }
 #endif
 
 void mmu_mark_initmem_nx(void)
 {
-	unsigned long remapped;
-
-	if (!strict_kernel_rwx_enabled())
-		return;
-
-	remapped = map_mem_in_cams(__max_low_memory, CONFIG_LOWMEM_CAM_NUM, false, false);
-
-	WARN_ON(__max_low_memory != remapped);
+	/* Everything is done in mmu_mark_rodata_ro() */
 }
 
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,
