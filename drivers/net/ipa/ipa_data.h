@@ -98,7 +98,7 @@ struct gsi_channel_data {
 /**
  * struct ipa_endpoint_data - IPA endpoint configuration data
  * @filter_support:	whether endpoint supports filtering
- * @config:		hardware configuration (see above)
+ * @config:		hardware configuration
  *
  * Not all endpoints support the IPA filtering capability.  A filter table
  * defines the filters to apply for those endpoints that support it.  The
@@ -106,12 +106,12 @@ struct gsi_channel_data {
  * for non-AP endpoints.  For this reason we define *all* endpoints used
  * in the system, and indicate whether they support filtering.
  *
- * The remaining endpoint configuration data applies only to AP endpoints.
+ * The remaining endpoint configuration data specifies default hardware
+ * configuration values that apply only to AP endpoints.
  */
 struct ipa_endpoint_data {
 	bool filter_support;
-	/* Everything else is specified only for AP endpoints */
-	struct ipa_endpoint_config_data config;
+	struct ipa_endpoint_config config;
 };
 
 /**
