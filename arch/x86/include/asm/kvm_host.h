@@ -1130,11 +1130,6 @@ enum kvm_apicv_inhibit {
 	APICV_INHIBIT_REASON_PIT_REINJ,
 
 	/*
-	 * AVIC is inhibited because the guest has x2apic in its CPUID.
-	 */
-	APICV_INHIBIT_REASON_X2APIC,
-
-	/*
 	 * AVIC is disabled because SEV doesn't support it.
 	 */
 	APICV_INHIBIT_REASON_SEV,
