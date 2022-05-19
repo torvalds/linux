@@ -9,6 +9,7 @@ MSM_ARCH=pineapple
 VARIANTS=(consolidate gki)
 [ -z "${VARIANT}" ] && VARIANT=consolidate
 
+ABL_SRC=bootable/bootloader/edk2
 BOOT_IMAGE_HEADER_VERSION=3
 BASE_ADDRESS=0x80000000
 PAGE_SIZE=4096
