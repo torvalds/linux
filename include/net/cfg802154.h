@@ -218,6 +218,7 @@ struct wpan_phy {
 	spinlock_t queue_lock;
 	atomic_t ongoing_txs;
 	atomic_t hold_txs;
+	wait_queue_head_t sync_txq;
 
 	char priv[] __aligned(NETDEV_ALIGN);
 };

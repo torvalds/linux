@@ -44,7 +44,8 @@ void ieee802154_xmit_sync_worker(struct work_struct *work)
 err_tx:
 	/* Restart the netif queue on each sub_if_data object. */
 	ieee802154_release_queue(local);
-	atomic_dec(&local->phy->ongoing_txs);
+	if (!atomic_dec_and_test(&local->phy->ongoing_txs))
+		wake_up(&local->phy->sync_txq);
 	kfree_skb(skb);
 	netdev_dbg(dev, "transmission failed\n");
 }
@@ -100,10 +101,31 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 
 err_wake_netif_queue:
 	ieee802154_release_queue(local);
-	atomic_dec(&local->phy->ongoing_txs);
+	if (!atomic_dec_and_test(&local->phy->ongoing_txs))
+		wake_up(&local->phy->sync_txq);
 err_free_skb:
 	kfree_skb(skb);
 	return NETDEV_TX_OK;
+}
+
+static int ieee802154_sync_queue(struct ieee802154_local *local)
+{
+	int ret;
+
+	ieee802154_hold_queue(local);
+	ieee802154_disable_queue(local);
+	wait_event(local->phy->sync_txq, !atomic_read(&local->phy->ongoing_txs));
+	ret = local->tx_result;
+	ieee802154_release_queue(local);
+
+	return ret;
+}
+
+int ieee802154_sync_and_hold_queue(struct ieee802154_local *local)
+{
+	ieee802154_hold_queue(local);
+
+	return ieee802154_sync_queue(local);
 }
 
 static netdev_tx_t
