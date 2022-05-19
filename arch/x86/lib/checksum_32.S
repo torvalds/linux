@@ -127,7 +127,7 @@ SYM_FUNC_START(csum_partial)
 8:
 	popl %ebx
 	popl %esi
-	ret
+	RET
 SYM_FUNC_END(csum_partial)
 
 #else
@@ -245,7 +245,7 @@ SYM_FUNC_START(csum_partial)
 90: 
 	popl %ebx
 	popl %esi
-	ret
+	RET
 SYM_FUNC_END(csum_partial)
 				
 #endif
@@ -371,7 +371,7 @@ EXC(	movb %cl, (%edi)	)
 	popl %esi
 	popl %edi
 	popl %ecx			# equivalent to addl $4,%esp
-	ret	
+	RET
 SYM_FUNC_END(csum_partial_copy_generic)
 
 #else
@@ -447,7 +447,7 @@ EXC(	movb %dl, (%edi)         )
 	popl %esi
 	popl %edi
 	popl %ebx
-	ret
+	RET
 SYM_FUNC_END(csum_partial_copy_generic)
 				
 #undef ROUND

@@ -62,7 +62,7 @@ SYM_FUNC_START(mul32_Xsig)
 
 	popl %esi
 	leave
-	ret
+	RET
 SYM_FUNC_END(mul32_Xsig)
 
 
@@ -115,7 +115,7 @@ SYM_FUNC_START(mul64_Xsig)
 
 	popl %esi
 	leave
-	ret
+	RET
 SYM_FUNC_END(mul64_Xsig)
 
 
@@ -175,5 +175,5 @@ SYM_FUNC_START(mul_Xsig_Xsig)
 
 	popl %esi
 	leave
-	ret
+	RET
 SYM_FUNC_END(mul_Xsig_Xsig)

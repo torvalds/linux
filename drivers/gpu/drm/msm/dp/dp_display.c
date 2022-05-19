@@ -551,12 +551,6 @@ static int dp_hpd_plug_handle(struct dp_display_private *dp, u32 data)
 
 	mutex_unlock(&dp->event_mutex);
 
-	/*
-	 * add fail safe mode outside event_mutex scope
-	 * to avoid potiential circular lock with drm thread
-	 */
-	dp_panel_add_fail_safe_mode(dp->dp_display.connector);
-
 	/* uevent will complete connection part */
 	return 0;
 };

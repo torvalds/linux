@@ -144,9 +144,6 @@ obj-vdso := $(c-obj-vdso) $(c-obj-vdso-gettimeofday) $(asm-obj-vdso)
 targets += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
 
-# Force dependency (vdso.s includes vdso.so through incbin)
-$(obj)/vdso.o: $(obj)/vdso.so
-
 include/generated/vdso32-offsets.h: $(obj)/vdso.so.dbg FORCE
 	$(call if_changed,vdsosym)
 
