@@ -520,7 +520,7 @@ TRACE_EVENT(io_uring_req_failed,
 		__entry->off		= sqe->off;
 		__entry->addr		= sqe->addr;
 		__entry->len		= sqe->len;
-		__entry->op_flags	= sqe->rw_flags;
+		__entry->op_flags	= sqe->poll32_events;
 		__entry->buf_index	= sqe->buf_index;
 		__entry->personality	= sqe->personality;
 		__entry->file_index	= sqe->file_index;
