@@ -641,6 +641,7 @@ static struct pci_driver mlx5vf_pci_driver = {
 	.probe = mlx5vf_pci_probe,
 	.remove = mlx5vf_pci_remove,
 	.err_handler = &mlx5vf_err_handlers,
+	.driver_managed_dma = true,
 };
 
 static void __exit mlx5vf_pci_cleanup(void)
