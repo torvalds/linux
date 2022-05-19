@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -24,6 +25,15 @@
 #define ACCUMULATED_OFFSET	0x18
 #define CLIENT_VOTES_OFFSET	0x20
 
+#define DDR_STATS_MAGIC_KEY	0xA1157A75
+#define DDR_STATS_MAX_NUM_MODES	0x14
+
+#define DDR_STATS_MAGIC_KEY_ADDR	0x0
+#define DDR_STATS_NUM_MODES_ADDR	0x4
+#define DDR_STATS_NAME_ADDR		0x0
+#define DDR_STATS_COUNT_ADDR		0x4
+#define DDR_STATS_DURATION_ADDR		0x8
+
 struct subsystem_data {
 	const char *name;
 	u32 smem_item;
@@ -44,10 +54,17 @@ static const struct subsystem_data subsystems[] = {
 
 struct stats_config {
 	size_t stats_offset;
+	size_t ddr_stats_offset;
 	size_t num_records;
 	bool appended_stats_avail;
 	bool dynamic_offset;
 	bool subsystem_stats_in_smem;
+};
+
+struct ddr_stats_entry {
+	uint32_t name;
+	uint32_t count;
+	uint64_t duration;
 };
 
 struct stats_data {
@@ -118,8 +135,89 @@ static int qcom_soc_sleep_stats_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
+static void  print_ddr_stats(struct seq_file *s, int *count,
+			     struct ddr_stats_entry *data, u64 accumulated_duration)
+{
+
+	u32 cp_idx = 0;
+	u32 name, duration;
+
+	if (accumulated_duration)
+		duration = (data->duration * 100) / accumulated_duration;
+
+	name = (data->name >> 8) & 0xFF;
+	if (name == 0x0) {
+		name = (data->name) & 0xFF;
+		*count = *count + 1;
+		seq_printf(s,
+		"LPM %d:\tName:0x%x\tcount:%u\tDuration (ticks):%ld (~%d%%)\n",
+			*count, name, data->count, data->duration, duration);
+	} else if (name == 0x1) {
+		cp_idx = data->name & 0x1F;
+		name = data->name >> 16;
+
+		if (!name || !data->count)
+			return;
+
+		seq_printf(s,
+		"Freq %dMhz:\tCP IDX:%u\tcount:%u\tDuration (ticks):%ld (~%d%%)\n",
+			name, cp_idx, data->count, data->duration, duration);
+	}
+}
+
+static int ddr_stats_show(struct seq_file *s, void *d)
+{
+	struct ddr_stats_entry data[DDR_STATS_MAX_NUM_MODES];
+	void __iomem *reg = s->private;
+	u32 entry_count;
+	u64 accumulated_duration = 0;
+	int i, lpm_count = 0;
+
+	entry_count = readl_relaxed(reg + DDR_STATS_NUM_MODES_ADDR);
+	if (entry_count > DDR_STATS_MAX_NUM_MODES) {
+		pr_err("Invalid entry count\n");
+		return 0;
+	}
+
+	reg += DDR_STATS_NUM_MODES_ADDR + 0x4;
+
+	for (i = 0; i < entry_count; i++) {
+		data[i].count = readl_relaxed(reg + DDR_STATS_COUNT_ADDR);
+
+		data[i].name = readl_relaxed(reg + DDR_STATS_NAME_ADDR);
+
+		data[i].duration = readq_relaxed(reg + DDR_STATS_DURATION_ADDR);
+
+		accumulated_duration += data[i].duration;
+		reg += sizeof(struct ddr_stats_entry);
+	}
+
+	for (i = 0; i < entry_count; i++)
+		print_ddr_stats(s, &lpm_count, &data[i], accumulated_duration);
+
+	return 0;
+}
+
 DEFINE_SHOW_ATTRIBUTE(qcom_soc_sleep_stats);
 DEFINE_SHOW_ATTRIBUTE(qcom_subsystem_sleep_stats);
+DEFINE_SHOW_ATTRIBUTE(ddr_stats);
+
+static void qcom_create_ddr_stat_files(struct dentry *root, void __iomem *reg,
+					     struct stats_data *d,
+					     const struct stats_config *config)
+{
+	size_t stats_offset;
+	u32 key;
+
+	if (!config->ddr_stats_offset)
+		return;
+
+	stats_offset = config->ddr_stats_offset;
+
+	key = readl_relaxed(reg + stats_offset + DDR_STATS_MAGIC_KEY_ADDR);
+	if (key == DDR_STATS_MAGIC_KEY)
+		debugfs_create_file("ddr_stats", 0400, root, reg + stats_offset, &ddr_stats_fops);
+}
 
 static void qcom_create_soc_sleep_stat_files(struct dentry *root, void __iomem *reg,
 					     struct stats_data *d,
@@ -214,6 +312,7 @@ static int qcom_stats_probe(struct platform_device *pdev)
 
 	qcom_create_subsystem_stat_files(root, config);
 	qcom_create_soc_sleep_stat_files(root, reg, d, config);
+	qcom_create_ddr_stat_files(root, reg, d, config);
 
 	platform_set_drvdata(pdev, root);
 
@@ -248,6 +347,7 @@ static const struct stats_config rpm_data_dba0 = {
 
 static const struct stats_config rpmh_data = {
 	.stats_offset = 0x48,
+	.ddr_stats_offset = 0xb8,
 	.num_records = 3,
 	.appended_stats_avail = false,
 	.dynamic_offset = false,
