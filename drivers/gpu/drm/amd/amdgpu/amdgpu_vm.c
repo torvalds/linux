@@ -581,7 +581,8 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	}
 	dma_fence_put(fence);
 
-	if (ring->funcs->emit_gds_switch && gds_switch_needed) {
+	if (!ring->is_mes_queue && ring->funcs->emit_gds_switch &&
+	    gds_switch_needed) {
 		id->gds_base = job->gds_base;
 		id->gds_size = job->gds_size;
 		id->gws_base = job->gws_base;
@@ -704,6 +705,9 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 	r = vm->update_funcs->commit(&params, &vm->last_update);
 	if (r)
 		goto error;
+
+	/* vm_flush_needed after updating PDEs */
+	atomic64_inc(&vm->tlb_seq);
 
 	while (!list_empty(&vm->relocated)) {
 		entry = list_first_entry(&vm->relocated,

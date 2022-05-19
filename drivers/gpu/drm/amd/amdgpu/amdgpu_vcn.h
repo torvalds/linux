@@ -65,8 +65,6 @@
 #define VCN_ENC_CMD_REG_WRITE		0x0000000b
 #define VCN_ENC_CMD_REG_WAIT		0x0000000c
 
-#define VCN_VID_SOC_ADDRESS_2_0 	0x1fa00
-#define VCN1_VID_SOC_ADDRESS_3_0 	0x48200
 #define VCN_AON_SOC_ADDRESS_2_0 	0x1f800
 #define VCN1_AON_SOC_ADDRESS_3_0 	0x48000
 #define VCN_VID_IP_ADDRESS_2_0		0x0
@@ -157,6 +155,7 @@
 		}										\
 	} while (0)
 
+#define AMDGPU_FW_SHARED_FLAG_0_UNIFIED_QUEUE (1 << 2)
 #define AMDGPU_VCN_FW_SHARED_FLAG_0_RB	(1 << 6)
 #define AMDGPU_VCN_MULTI_QUEUE_FLAG	(1 << 8)
 #define AMDGPU_VCN_SW_RING_FLAG		(1 << 9)
@@ -288,6 +287,13 @@ struct amdgpu_fw_shared_sw_ring {
 	uint8_t padding[3];
 };
 
+struct amdgpu_fw_shared_unified_queue_struct {
+	uint8_t is_enabled;
+	uint8_t queue_mode;
+	uint8_t queue_status;
+	uint8_t padding[5];
+};
+
 struct amdgpu_fw_shared_fw_logging {
 	uint8_t is_enabled;
 	uint32_t addr_lo;
@@ -309,6 +315,14 @@ struct amdgpu_fw_shared {
 	struct amdgpu_fw_shared_sw_ring sw_ring;
 	struct amdgpu_fw_shared_fw_logging fw_log;
 	struct amdgpu_fw_shared_smu_interface_info smu_interface_info;
+};
+
+struct amdgpu_vcn4_fw_shared {
+	uint32_t present_flag_0;
+	uint8_t pad[12];
+	struct amdgpu_fw_shared_unified_queue_struct sq;
+	uint8_t pad1[8];
+	struct amdgpu_fw_shared_fw_logging fw_log;
 };
 
 struct amdgpu_vcn_fwlog {
@@ -361,4 +375,9 @@ void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev);
 void amdgpu_vcn_fwlog_init(struct amdgpu_vcn_inst *vcn);
 void amdgpu_debugfs_vcn_fwlog_init(struct amdgpu_device *adev,
                                    uint8_t i, struct amdgpu_vcn_inst *vcn);
+
+int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
+			struct amdgpu_irq_src *source,
+			struct amdgpu_iv_entry *entry);
+
 #endif

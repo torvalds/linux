@@ -148,6 +148,8 @@ enum amd_powergating_state {
 #define AMD_CG_SUPPORT_ATHUB_MGCG		(1ULL << 29)
 #define AMD_CG_SUPPORT_JPEG_MGCG		(1ULL << 30)
 #define AMD_CG_SUPPORT_GFX_FGCG			(1ULL << 31)
+#define AMD_CG_SUPPORT_REPEATER_FGCG		(1ULL << 32)
+#define AMD_CG_SUPPORT_GFX_PERF_CLK		(1ULL << 33)
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
 #define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)
@@ -167,6 +169,7 @@ enum amd_powergating_state {
 #define AMD_PG_SUPPORT_VCN_DPG			(1 << 15)
 #define AMD_PG_SUPPORT_ATHUB			(1 << 16)
 #define AMD_PG_SUPPORT_JPEG			(1 << 17)
+#define AMD_PG_SUPPORT_IH_SRAM_PG		(1 << 18)
 
 /**
  * enum PP_FEATURE_MASK - Used to mask power play features.

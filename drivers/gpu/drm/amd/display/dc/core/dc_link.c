@@ -804,7 +804,6 @@ static bool wait_for_entering_dp_alt_mode(struct dc_link *link)
 
 static void apply_dpia_mst_dsc_always_on_wa(struct dc_link *link)
 {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* Apply work around for tunneled MST on certain USB4 docks. Always use DSC if dock
 	 * reports DSC support.
 	 */
@@ -815,7 +814,6 @@ static void apply_dpia_mst_dsc_always_on_wa(struct dc_link *link)
 			link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
 			!link->dc->debug.dpia_debug.bits.disable_mst_dsc_work_around)
 		link->wa_flags.dpia_mst_dsc_always_on = true;
-#endif
 }
 
 static void revert_dpia_mst_dsc_always_on_wa(struct dc_link *link)
@@ -881,9 +879,7 @@ static bool should_prepare_phy_clocks_for_link_verification(const struct dc *dc,
 
 static void prepare_phy_clocks_for_destructive_link_verification(const struct dc *dc)
 {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_z10_restore(dc);
-#endif
 	clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
 }
 
@@ -3100,10 +3096,8 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, const bool *allow_active
 	if (allow_active && link->psr_settings.psr_allow_active != *allow_active) {
 		link->psr_settings.psr_allow_active = *allow_active;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (!link->psr_settings.psr_allow_active)
 			dc_z10_restore(dc);
-#endif
 
 		if (psr != NULL && link->psr_settings.psr_feature_enabled) {
 			psr->funcs->psr_enable(psr, link->psr_settings.psr_allow_active, wait, panel_inst);
@@ -3320,10 +3314,8 @@ bool dc_link_setup_psr(struct dc_link *link,
 	if (psr) {
 		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr,
 			link, psr_context, panel_inst);
-		if (link->psr_settings.psr_feature_enabled) {
-			link->psr_settings.psr_power_opt = 0;
-			link->psr_settings.psr_allow_active = 0;
-		}
+		link->psr_settings.psr_power_opt = 0;
+		link->psr_settings.psr_allow_active = 0;
 	}
 	else
 		link->psr_settings.psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
@@ -3548,7 +3540,8 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 	}
 
 	/* slot X.Y for SST payload allocate */
-	if (allocate) {
+	if (allocate && dp_get_link_encoding_format(&link->cur_link_settings) ==
+			DP_128b_132b_ENCODING) {
 		avg_time_slots_per_mtp = calculate_sst_avg_time_slots_per_mtp(stream, link);
 
 		dc_log_vcp_x_y(link, avg_time_slots_per_mtp);

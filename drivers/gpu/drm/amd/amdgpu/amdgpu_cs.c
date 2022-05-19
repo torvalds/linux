@@ -545,7 +545,8 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 					GFP_KERNEL | __GFP_ZERO);
 		if (!e->user_pages) {
 			DRM_ERROR("kvmalloc_array failure\n");
-			return -ENOMEM;
+			r = -ENOMEM;
+			goto out_free_user_pages;
 		}
 
 		r = amdgpu_ttm_tt_get_user_pages(bo, e->user_pages);

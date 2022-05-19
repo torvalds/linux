@@ -40,7 +40,7 @@ static void si_dma_set_irq_funcs(struct amdgpu_device *adev);
 
 static uint64_t si_dma_ring_get_rptr(struct amdgpu_ring *ring)
 {
-	return ring->adev->wb.wb[ring->rptr_offs>>2];
+	return *ring->rptr_cpu_addr;
 }
 
 static uint64_t si_dma_ring_get_wptr(struct amdgpu_ring *ring)
@@ -153,7 +153,7 @@ static int si_dma_start(struct amdgpu_device *adev)
 		WREG32(DMA_RB_RPTR + sdma_offsets[i], 0);
 		WREG32(DMA_RB_WPTR + sdma_offsets[i], 0);
 
-		rptr_addr = adev->wb.gpu_addr + (ring->rptr_offs * 4);
+		rptr_addr = ring->rptr_gpu_addr;
 
 		WREG32(DMA_RB_RPTR_ADDR_LO + sdma_offsets[i], lower_32_bits(rptr_addr));
 		WREG32(DMA_RB_RPTR_ADDR_HI + sdma_offsets[i], upper_32_bits(rptr_addr) & 0xFF);

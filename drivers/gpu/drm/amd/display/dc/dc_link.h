@@ -129,6 +129,8 @@ struct dc_link {
 	bool link_state_valid;
 	bool aux_access_disabled;
 	bool sync_lt_in_progress;
+	uint8_t lttpr_dpcd_data[8];
+	enum lttpr_support lttpr_support;
 	enum lttpr_mode lttpr_mode;
 	bool is_internal_display;
 

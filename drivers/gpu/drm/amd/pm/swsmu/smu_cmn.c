@@ -497,7 +497,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 		return mapping.map_to;
 
 	case CMN2ASIC_MAPPING_WORKLOAD:
-		if (index > PP_SMC_POWER_PROFILE_CUSTOM ||
+		if (index > PP_SMC_POWER_PROFILE_WINDOW3D ||
 		    !smu->workload_map)
 			return -EINVAL;
 
@@ -580,6 +580,17 @@ bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
 		break;
 	case SMU_SOCCLK:
 		feature_id = SMU_FEATURE_DPM_SOCCLK_BIT;
+		break;
+	case SMU_VCLK:
+	case SMU_VCLK1:
+		feature_id = SMU_FEATURE_DPM_VCLK_BIT;
+		break;
+	case SMU_DCLK:
+	case SMU_DCLK1:
+		feature_id = SMU_FEATURE_DPM_DCLK_BIT;
+		break;
+	case SMU_FCLK:
+		feature_id = SMU_FEATURE_DPM_FCLK_BIT;
 		break;
 	default:
 		return true;
@@ -969,6 +980,17 @@ int smu_cmn_get_metrics_table(struct smu_context *smu,
 		memcpy(metrics_table, smu_table->metrics_table, table_size);
 
 	return 0;
+}
+
+int smu_cmn_get_combo_pptable(struct smu_context *smu)
+{
+	void *pptable = smu->smu_table.combo_pptable;
+
+	return smu_cmn_update_table(smu,
+				    SMU_TABLE_COMBO_PPTABLE,
+				    0,
+				    pptable,
+				    false);
 }
 
 void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)

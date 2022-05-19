@@ -556,6 +556,7 @@ bool amdgpu_atomfirmware_ras_rom_addr(struct amdgpu_device *adev,
 
 union smu_info {
 	struct atom_smu_info_v3_1 v31;
+	struct atom_smu_info_v4_0 v40;
 };
 
 union gfx_info {
@@ -602,7 +603,10 @@ int amdgpu_atomfirmware_get_clock_info(struct amdgpu_device *adev)
 					   data_offset);
 
 		/* system clock */
-		spll->reference_freq = le32_to_cpu(smu_info->v31.core_refclk_10khz);
+		if (frev == 3)
+			spll->reference_freq = le32_to_cpu(smu_info->v31.core_refclk_10khz);
+		else if (frev == 4)
+			spll->reference_freq = le32_to_cpu(smu_info->v40.core_refclk_10khz);
 
 		spll->reference_div = 0;
 		spll->min_post_div = 1;

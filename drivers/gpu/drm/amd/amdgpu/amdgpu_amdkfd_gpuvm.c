@@ -1483,26 +1483,26 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	} else if (flags & KFD_IOC_ALLOC_MEM_FLAGS_GTT) {
 		domain = alloc_domain = AMDGPU_GEM_DOMAIN_GTT;
 		alloc_flags = 0;
-	} else if (flags & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR) {
+	} else {
 		domain = AMDGPU_GEM_DOMAIN_GTT;
 		alloc_domain = AMDGPU_GEM_DOMAIN_CPU;
 		alloc_flags = AMDGPU_GEM_CREATE_PREEMPTIBLE;
-		if (!offset || !*offset)
+
+		if (flags & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR) {
+			if (!offset || !*offset)
+				return -EINVAL;
+			user_addr = untagged_addr(*offset);
+		} else if (flags & (KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL |
+				    KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP)) {
+			bo_type = ttm_bo_type_sg;
+			if (size > UINT_MAX)
+				return -EINVAL;
+			sg = create_doorbell_sg(*offset, size);
+			if (!sg)
+				return -ENOMEM;
+		} else {
 			return -EINVAL;
-		user_addr = untagged_addr(*offset);
-	} else if (flags & (KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL |
-			KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP)) {
-		domain = AMDGPU_GEM_DOMAIN_GTT;
-		alloc_domain = AMDGPU_GEM_DOMAIN_CPU;
-		bo_type = ttm_bo_type_sg;
-		alloc_flags = 0;
-		if (size > UINT_MAX)
-			return -EINVAL;
-		sg = create_doorbell_sg(*offset, size);
-		if (!sg)
-			return -ENOMEM;
-	} else {
-		return -EINVAL;
+		}
 	}
 
 	*mem = kzalloc(sizeof(struct kgd_mem), GFP_KERNEL);
