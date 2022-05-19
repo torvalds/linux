@@ -55,8 +55,6 @@ struct uart_pmac_port {
 	volatile u8			__iomem *data_reg;
 
 	unsigned char			irq_name[8];
-
-	struct ktermios			termios_cache;
 };
 
 #define to_pmz(p) ((struct uart_pmac_port *)(p))

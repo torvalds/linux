@@ -1231,8 +1231,6 @@ static void __pmz_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	pmz_debug("pmz: set_termios()\n");
 
-	memcpy(&uap->termios_cache, termios, sizeof(struct ktermios));
-
 	/* XXX Check which revs of machines actually allow 1 and 4Mb speeds
 	 * on the IR dongle. Note that the IRTTY driver currently doesn't know
 	 * about the FIR mode and high speed modes. So these are unused. For
