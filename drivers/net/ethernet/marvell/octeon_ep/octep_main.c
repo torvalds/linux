@@ -202,7 +202,7 @@ static int octep_request_irqs(struct octep_device *oct)
 	struct msix_entry *msix_entry;
 	char **non_ioq_msix_names;
 	int num_non_ioq_msix;
-	int ret, i;
+	int ret, i, j;
 
 	num_non_ioq_msix = CFG_GET_NON_IOQ_MSIX(oct->conf);
 	non_ioq_msix_names = CFG_GET_NON_IOQ_MSIX_NAMES(oct->conf);
@@ -233,23 +233,23 @@ static int octep_request_irqs(struct octep_device *oct)
 	}
 
 	/* Request IRQs for Tx/Rx queues */
-	for (i = 0; i < oct->num_oqs; i++) {
-		ioq_vector = oct->ioq_vector[i];
-		msix_entry = &oct->msix_entries[i + num_non_ioq_msix];
+	for (j = 0; j < oct->num_oqs; j++) {
+		ioq_vector = oct->ioq_vector[j];
+		msix_entry = &oct->msix_entries[j + num_non_ioq_msix];
 
 		snprintf(ioq_vector->name, sizeof(ioq_vector->name),
-			 "%s-q%d", netdev->name, i);
+			 "%s-q%d", netdev->name, j);
 		ret = request_irq(msix_entry->vector,
 				  octep_ioq_intr_handler, 0,
 				  ioq_vector->name, ioq_vector);
 		if (ret) {
 			netdev_err(netdev,
 				   "request_irq failed for Q-%d; err=%d",
-				   i, ret);
+				   j, ret);
 			goto ioq_irq_err;
 		}
 
-		cpumask_set_cpu(i % num_online_cpus(),
+		cpumask_set_cpu(j % num_online_cpus(),
 				&ioq_vector->affinity_mask);
 		irq_set_affinity_hint(msix_entry->vector,
 				      &ioq_vector->affinity_mask);
@@ -257,16 +257,21 @@ static int octep_request_irqs(struct octep_device *oct)
 
 	return 0;
 ioq_irq_err:
-	while (i > num_non_ioq_msix) {
-		--i;
-		irq_set_affinity_hint(oct->msix_entries[i].vector, NULL);
-		free_irq(oct->msix_entries[i].vector, oct->ioq_vector[i]);
+	while (j) {
+		--j;
+		ioq_vector = oct->ioq_vector[j];
+		msix_entry = &oct->msix_entries[j + num_non_ioq_msix];
+
+		irq_set_affinity_hint(msix_entry->vector, NULL);
+		free_irq(msix_entry->vector, ioq_vector);
 	}
 non_ioq_irq_err:
 	while (i) {
 		--i;
 		free_irq(oct->msix_entries[i].vector, oct);
 	}
+	kfree(oct->non_ioq_irq_names);
+	oct->non_ioq_irq_names = NULL;
 alloc_err:
 	return -1;
 }
