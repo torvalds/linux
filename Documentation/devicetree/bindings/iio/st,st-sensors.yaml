@@ -29,6 +29,7 @@ properties:
           - st,lis2dw12
           - st,lis2hh12
           - st,lis2dh12-accel
+          - st,lis302dl
           - st,lis331dl-accel
           - st,lis331dlh-accel
           - st,lis3de
