@@ -1004,7 +1004,7 @@ static int starfive_jh7110_sys_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl
 		n = pin_config->gpio_din_reg[i] >> 2;
 		shift = (pin_config->gpio_din_reg[i] & 3) << 3;
 		pinctrl_write_reg(pctl->padctl_base + info->din_reg_base + n * 4,
-					0x3F<<shift, (gpio+2)<<shift);
+					0x7F<<shift, (gpio+2)<<shift);
 	}
 
 	if (pin_reg->syscon_reg != -1) {

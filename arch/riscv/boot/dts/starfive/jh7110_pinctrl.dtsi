@@ -453,34 +453,238 @@
 
 	ssp0_pins: ssp0-pins {
 		ssp0-pins_tx {
-			sf,pins = <PAD_GPIO48>;
-			sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO52>;
+			sf,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_SPI0_SSPTXD>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		ssp0-pins_rx {
-			sf,pins = <PAD_GPIO49>;
-			sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO53>;
+			sf,pinmux = <PAD_GPIO53_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-doen = <OEN_HIGH>;
 			sf,pin-gpio-din =  <GPI_SPI0_SSPRXD>;
 		};
 
 		ssp0-pins_clk {
-			sf,pins = <PAD_GPIO50>;
-			sf,pinmux = <PAD_GPIO50_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO48>;
+			sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_SPI0_SSPCLKOUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		ssp0-pins_cs {
-			sf,pins = <PAD_GPIO51>;
-			sf,pinmux = <PAD_GPIO51_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO49>;
+			sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_SPI0_SSPFSSOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	ssp1_pins: ssp1-pins {
+		ssp1-pins_tx {
+			sf,pins = <PAD_GPIO52>;
+			sf,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI1_SSPTXD>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp1-pins_rx {
+			sf,pins = <PAD_GPIO53>;
+			sf,pinmux = <PAD_GPIO53_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_SPI1_SSPRXD>;
+		};
+
+		ssp1-pins_clk {
+			sf,pins = <PAD_GPIO48>;
+			sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI1_SSPCLKOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp1-pins_cs {
+			sf,pins = <PAD_GPIO49>;
+			sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI1_SSPFSSOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	ssp2_pins: ssp2-pins {
+		ssp2-pins_tx {
+			sf,pins = <PAD_GPIO52>;
+			sf,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI2_SSPTXD>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp2-pins_rx {
+			sf,pins = <PAD_GPIO53>;
+			sf,pinmux = <PAD_GPIO53_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_SPI2_SSPRXD>;
+		};
+
+		ssp2-pins_clk {
+			sf,pins = <PAD_GPIO48>;
+			sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI2_SSPCLKOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp2-pins_cs {
+			sf,pins = <PAD_GPIO49>;
+			sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI2_SSPFSSOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	ssp3_pins: ssp3-pins {
+		ssp3-pins_tx {
+			sf,pins = <PAD_GPIO52>;
+			sf,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI3_SSPTXD>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp3-pins_rx {
+			sf,pins = <PAD_GPIO53>;
+			sf,pinmux = <PAD_GPIO53_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_SPI3_SSPRXD>;
+		};
+
+		ssp3-pins_clk {
+			sf,pins = <PAD_GPIO48>;
+			sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI3_SSPCLKOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp3-pins_cs {
+			sf,pins = <PAD_GPIO49>;
+			sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI3_SSPFSSOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	ssp4_pins: ssp4-pins {
+		ssp4-pins_tx {
+			sf,pins = <PAD_GPIO52>;
+			sf,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI4_SSPTXD>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp4-pins_rx {
+			sf,pins = <PAD_GPIO53>;
+			sf,pinmux = <PAD_GPIO53_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_SPI4_SSPRXD>;
+		};
+
+		ssp4-pins_clk {
+			sf,pins = <PAD_GPIO48>;
+			sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI4_SSPCLKOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp4-pins_cs {
+			sf,pins = <PAD_GPIO49>;
+			sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI4_SSPFSSOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	ssp5_pins: ssp5-pins {
+		ssp5-pins_tx {
+			sf,pins = <PAD_GPIO52>;
+			sf,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI5_SSPTXD>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp5-pins_rx {
+			sf,pins = <PAD_GPIO53>;
+			sf,pinmux = <PAD_GPIO53_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_SPI5_SSPRXD>;
+		};
+
+		ssp5-pins_clk {
+			sf,pins = <PAD_GPIO48>;
+			sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI5_SSPCLKOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp5-pins_cs {
+			sf,pins = <PAD_GPIO49>;
+			sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI5_SSPFSSOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	ssp6_pins: ssp6-pins {
+		ssp6-pins_tx {
+			sf,pins = <PAD_GPIO52>;
+			sf,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI6_SSPTXD>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp6-pins_rx {
+			sf,pins = <PAD_GPIO53>;
+			sf,pinmux = <PAD_GPIO53_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_SPI6_SSPRXD>;
+		};
+
+		ssp6-pins_clk {
+			sf,pins = <PAD_GPIO48>;
+			sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI6_SSPCLKOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp6-pins_cs {
+			sf,pins = <PAD_GPIO49>;
+			sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI6_SSPFSSOUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};

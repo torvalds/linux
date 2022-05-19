@@ -1193,8 +1193,117 @@
 			resets = <&rstgen RSTN_U0_SSP_SPI_APB>;
 			reset-names = "rst_apb";
 			interrupts = <38>;
-			dmas = <&dma 14 1>, <&dma 15 1>;
-			dma-names = "rx","tx";
+			/* shortage of dma channel that not be used */
+			/*dmas = <&dma 14 1>, <&dma 15 1>;*/
+			/*dma-names = "rx","tx";*/
+			arm,primecell-periphid = <0x00041022>;
+			num-cs = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi1: spi@10070000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x0 0x10070000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_SPI1_CLK_APB>;
+			clock-names = "apb_pclk";
+			resets = <&rstgen RSTN_U1_SSP_SPI_APB>;
+			reset-names = "rst_apb";
+			interrupts = <39>;
+			/* shortage of dma channel that not be used */
+			/*dmas = <&dma 16 1>, <&dma 17 1>;*/
+			/*dma-names = "rx","tx";*/
+			arm,primecell-periphid = <0x00041022>;
+			num-cs = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi2: spi@10080000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x0 0x10080000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_SPI2_CLK_APB>;
+			clock-names = "apb_pclk";
+			resets = <&rstgen RSTN_U2_SSP_SPI_APB>;
+			reset-names = "rst_apb";
+			interrupts = <40>;
+			/* shortage of dma channel that not be used */
+			/*dmas = <&dma 18 1>, <&dma 19 1>;*/
+			/*dma-names = "rx","tx";*/
+			arm,primecell-periphid = <0x00041022>;
+			num-cs = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi3: spi@12070000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x0 0x12070000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_SPI3_CLK_APB>;
+			clock-names = "apb_pclk";
+			resets = <&rstgen RSTN_U3_SSP_SPI_APB>;
+			reset-names = "rst_apb";
+			interrupts = <52>;
+			/* shortage of dma channel that not be used */
+			/*dmas = <&dma 39 1>, <&dma 40 1>;*/
+			/*dma-names = "rx","tx";*/
+			arm,primecell-periphid = <0x00041022>;
+			num-cs = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi4: spi@12080000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x0 0x12080000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_SPI4_CLK_APB>;
+			clock-names = "apb_pclk";
+			resets = <&rstgen RSTN_U4_SSP_SPI_APB>;
+			reset-names = "rst_apb";
+			interrupts = <53>;
+			/* shortage of dma channel that not be used */
+			/*dmas = <&dma 41 1>, <&dma 42 1>;*/
+			/*dma-names = "rx","tx";*/
+			arm,primecell-periphid = <0x00041022>;
+			num-cs = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi5: spi@12090000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x0 0x12090000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_SPI5_CLK_APB>;
+			clock-names = "apb_pclk";
+			resets = <&rstgen RSTN_U5_SSP_SPI_APB>;
+			reset-names = "rst_apb";
+			interrupts = <54>;
+			/* shortage of dma channel that not be used */
+			/*dmas = <&dma 43 1>, <&dma 44 1>;*/
+			/*dma-names = "rx","tx";*/
+			arm,primecell-periphid = <0x00041022>;
+			num-cs = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi6: spi@120A0000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x0 0x120A0000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_SPI6_CLK_APB>;
+			clock-names = "apb_pclk";
+			resets = <&rstgen RSTN_U6_SSP_SPI_APB>;
+			reset-names = "rst_apb";
+			interrupts = <55>;
+			/* shortage of dma channel that not be used */
+			/*dmas = <&dma 45 1>, <&dma 46 1>;*/
+			/*dma-names = "rx","tx";*/
 			arm,primecell-periphid = <0x00041022>;
 			num-cs = <1>;
 			#address-cells = <1>;
