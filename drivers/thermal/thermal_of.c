@@ -35,7 +35,7 @@ struct __thermal_cooling_bind_param {
 };
 
 /**
- * struct __thermal_bind_param - a match between trip and cooling device
+ * struct __thermal_bind_params - a match between trip and cooling device
  * @tcbp: a pointer to an array of cooling devices
  * @count: number of elements in array
  * @trip_id: the trip point index
@@ -201,6 +201,14 @@ static int of_thermal_get_trend(struct thermal_zone_device *tz, int trip,
 		return -EINVAL;
 
 	return data->ops->get_trend(data->sensor_data, trip, trend);
+}
+
+static int of_thermal_change_mode(struct thermal_zone_device *tz,
+				enum thermal_device_mode mode)
+{
+	struct __thermal_zone *data = tz->devdata;
+
+	return data->ops->change_mode(data->sensor_data, mode);
 }
 
 static int of_thermal_bind(struct thermal_zone_device *thermal,
@@ -408,6 +416,9 @@ thermal_zone_of_add_sensor(struct device_node *zone,
 	if (ops->set_emul_temp)
 		tzd->ops->set_emul_temp = of_thermal_set_emul_temp;
 
+	if (ops->change_mode)
+		tzd->ops->change_mode = of_thermal_change_mode;
+
 	mutex_unlock(&tzd->lock);
 
 	return tzd;
@@ -569,6 +580,7 @@ void thermal_zone_of_sensor_unregister(struct device *dev,
 	tzd->ops->get_temp = NULL;
 	tzd->ops->get_trend = NULL;
 	tzd->ops->set_emul_temp = NULL;
+	tzd->ops->change_mode = NULL;
 
 	tz->ops = NULL;
 	tz->sensor_data = NULL;
