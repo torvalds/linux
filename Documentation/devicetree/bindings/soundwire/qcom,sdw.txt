@@ -162,6 +162,18 @@ board specific bus parameters.
 		    or applicable for the respective data port.
 		    More info in MIPI Alliance SoundWire 1.0 Specifications.
 
+- reset:
+	Usage: optional
+	Value type: <prop-encoded-array>
+	Definition: Should specify the SoundWire audio CSR reset controller interface,
+		    which is required for SoundWire version 1.6.0 and above.
+
+- reset-names:
+	Usage: optional
+	Value type: <stringlist>
+	Definition: should be "swr_audio_cgcr" for SoundWire audio CSR reset
+		    controller interface.
+
 Note:
 	More Information on detail of encoding of these fields can be
 found in MIPI Alliance SoundWire 1.0 Specifications.
@@ -180,6 +192,8 @@ soundwire: soundwire@c85 {
 	interrupts = <20 IRQ_TYPE_EDGE_RISING>;
 	clocks = <&wcc>;
 	clock-names = "iface";
+	resets = <&lpass_audiocc LPASS_AUDIO_SWR_TX_CGCR>;
+	reset-names = "swr_audio_cgcr";
 	#sound-dai-cells = <1>;
 	qcom,dports-type = <0>;
 	qcom,dout-ports	= <6>;
