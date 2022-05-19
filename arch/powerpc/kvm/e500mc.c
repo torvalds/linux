@@ -399,7 +399,6 @@ static int __init kvmppc_e500mc_init(void)
 	 * allocator.
 	 */
 	kvmppc_init_lpid(KVMPPC_NR_LPIDS/threads_per_core);
-	kvmppc_claim_lpid(0); /* host */
 
 	r = kvm_init(NULL, sizeof(struct kvmppc_vcpu_e500), 0, THIS_MODULE);
 	if (r)
