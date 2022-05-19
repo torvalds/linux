@@ -20,6 +20,7 @@ struct pci_root_info {
 #endif
 };
 
+static bool pci_use_e820 = true;
 static bool pci_use_crs = true;
 static bool pci_ignore_seg;
 
@@ -161,6 +162,17 @@ void __init pci_acpi_crs_quirks(void)
 	       "if necessary, use \"pci=%s\" and report a bug\n",
 	       pci_use_crs ? "Using" : "Ignoring",
 	       pci_use_crs ? "nocrs" : "use_crs");
+
+	/* "pci=use_e820"/"pci=no_e820" on the kernel cmdline takes precedence */
+	if (pci_probe & PCI_NO_E820)
+		pci_use_e820 = false;
+	else if (pci_probe & PCI_USE_E820)
+		pci_use_e820 = true;
+
+	printk(KERN_INFO "PCI: %s E820 reservations for host bridge windows\n",
+	       pci_use_e820 ? "Using" : "Ignoring");
+	if (pci_probe & (PCI_NO_E820 | PCI_USE_E820))
+		printk(KERN_INFO "PCI: Please notify linux-pci@vger.kernel.org so future kernels can this automatically\n");
 }
 
 #ifdef	CONFIG_PCI_MMCONFIG
@@ -301,8 +313,10 @@ static int pci_acpi_root_prepare_resources(struct acpi_pci_root_info *ci)
 
 	status = acpi_pci_probe_root_resources(ci);
 
-	resource_list_for_each_entry(entry, &ci->resources)
-		remove_e820_regions(&device->dev, entry->res);
+	if (pci_use_e820) {
+		resource_list_for_each_entry(entry, &ci->resources)
+			remove_e820_regions(&device->dev, entry->res);
+	}
 
 	if (pci_use_crs) {
 		resource_list_for_each_entry_safe(entry, tmp, &ci->resources)

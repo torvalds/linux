@@ -4066,6 +4066,15 @@
 				please report a bug.
 		nocrs		[X86] Ignore PCI host bridge windows from ACPI.
 				If you need to use this, please report a bug.
+		use_e820	[X86] Use E820 reservations to exclude parts of
+				PCI host bridge windows. This is a workaround
+				for BIOS defects in host bridge _CRS methods.
+				If you need to use this, please report a bug to
+				<linux-pci@vger.kernel.org>.
+		no_e820		[X86] Ignore E820 reservations for PCI host
+				bridge windows. This is the default on modern
+				hardware. If you need to use this, please report
+				a bug to <linux-pci@vger.kernel.org>.
 		routeirq	Do IRQ routing for all PCI devices.
 				This is normally done in pci_enable_device(),
 				so this option is a temporary workaround
