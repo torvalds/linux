@@ -858,6 +858,9 @@ static const struct pinctrl_desc intel_pinctrl_desc = {
  * When coming through gpiolib irqchip, the GPIO offset is not
  * automatically translated to pinctrl pin number. This function can be
  * used to find out the corresponding pinctrl pin.
+ *
+ * Return: a pin number and pointers to the community and pad group, which
+ * the pin belongs to, or negative error code if translation can't be done.
  */
 static int intel_gpio_to_pin(struct intel_pinctrl *pctrl, unsigned int offset,
 			     const struct intel_community **community,
@@ -899,6 +902,8 @@ static int intel_gpio_to_pin(struct intel_pinctrl *pctrl, unsigned int offset,
  * @pin: pin number
  *
  * Translate the pin number of pinctrl to GPIO offset
+ *
+ * Return: a GPIO offset, or negative error code if translation can't be done.
  */
 static __maybe_unused int intel_pin_to_gpio(struct intel_pinctrl *pctrl, int pin)
 {
