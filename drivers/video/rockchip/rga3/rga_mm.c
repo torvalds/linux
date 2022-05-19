@@ -332,7 +332,6 @@ static void rga_mm_unmap_dma_buffer(struct rga_internal_buffer *internal_buffer)
 		    internal_buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS &&
 		    internal_buffer->phys_addr > 0) {
 			internal_buffer->phys_addr = 0;
-			break;
 		}
 	}
 
@@ -405,8 +404,7 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 				 * Since RGA3 currently does not support physical addresses,
 				 * it is necessary to continue to map sgt.
 				 */
-				if (scheduler->core == RGA2_SCHEDULER_CORE0)
-					break;
+				// TODO: iommu supports phys_addr
 			}
 		}
 	}
