@@ -1979,4 +1979,9 @@ static inline bool cifs_is_referral_server(struct cifs_tcon *tcon,
 	return is_tcon_dfs(tcon) || (ref && (ref->flags & DFSREF_REFERRAL_SERVER));
 }
 
+static inline u64 cifs_flock_len(struct file_lock *fl)
+{
+	return fl->fl_end == OFFSET_MAX ? 0 : fl->fl_end - fl->fl_start + 1;
+}
+
 #endif	/* _CIFS_GLOB_H */
