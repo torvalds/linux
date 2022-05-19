@@ -228,6 +228,8 @@ extern void tcp_cong_avoid_ai(struct tcp_sock *tp, __u32 w, __u32 acked) __ksym;
 
 struct mptcp_sock {
 	struct inet_connection_sock	sk;
+
+	__u32		token;
 } __attribute__((preserve_access_index));
 
 #endif

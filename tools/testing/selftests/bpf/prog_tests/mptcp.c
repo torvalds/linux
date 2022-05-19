@@ -10,6 +10,7 @@
 struct mptcp_storage {
 	__u32 invoked;
 	__u32 is_mptcp;
+	__u32 token;
 };
 
 static int verify_tsk(int map_fd, int client_fd)
@@ -30,10 +31,13 @@ static int verify_tsk(int map_fd, int client_fd)
 	return err;
 }
 
-static int verify_msk(int map_fd, int client_fd)
+static int verify_msk(int map_fd, int client_fd, __u32 token)
 {
 	int err, cfd = client_fd;
 	struct mptcp_storage val;
+
+	if (!ASSERT_GT(token, 0, "invalid token"))
+		return -1;
 
 	err = bpf_map_lookup_elem(map_fd, &cfd, &val);
 	if (!ASSERT_OK(err, "bpf_map_lookup_elem"))
@@ -43,6 +47,9 @@ static int verify_msk(int map_fd, int client_fd)
 		err++;
 
 	if (!ASSERT_EQ(val.is_mptcp, 1, "unexpected is_mptcp"))
+		err++;
+
+	if (!ASSERT_EQ(val.token, token, "unexpected token"))
 		err++;
 
 	return err;
@@ -56,6 +63,10 @@ static int run_test(int cgroup_fd, int server_fd, bool is_mptcp)
 	sock_skel = mptcp_sock__open_and_load();
 	if (!ASSERT_OK_PTR(sock_skel, "skel_open_load"))
 		return -EIO;
+
+	err = mptcp_sock__attach(sock_skel);
+	if (!ASSERT_OK(err, "skel_attach"))
+		goto out;
 
 	prog_fd = bpf_program__fd(sock_skel->progs._sockops);
 	if (!ASSERT_GE(prog_fd, 0, "bpf_program__fd")) {
@@ -79,7 +90,7 @@ static int run_test(int cgroup_fd, int server_fd, bool is_mptcp)
 		goto out;
 	}
 
-	err += is_mptcp ? verify_msk(map_fd, client_fd) :
+	err += is_mptcp ? verify_msk(map_fd, client_fd, sock_skel->bss->token) :
 			  verify_tsk(map_fd, client_fd);
 
 	close(client_fd);
