@@ -374,7 +374,7 @@ static const unsigned long bfq_activation_stable_merging = 600;
  */
 static const unsigned long bfq_late_stable_merging = 600;
 
-#define RQ_BIC(rq)		icq_to_bic((rq)->elv.priv[0])
+#define RQ_BIC(rq)		((struct bfq_io_cq *)((rq)->elv.priv[0]))
 #define RQ_BFQQ(rq)		((rq)->elv.priv[1])
 
 struct bfq_queue *bic_to_bfqq(struct bfq_io_cq *bic, bool is_sync)
