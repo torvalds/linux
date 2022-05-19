@@ -1,6 +1,6 @@
 config INTEL_IFS
 	tristate "Intel In Field Scan"
-	depends on X86 && 64BIT && SMP
+	depends on X86 && CPU_SUP_INTEL && 64BIT && SMP
 	select INTEL_IFS_DEVICE
 	help
 	  Enable support for the In Field Scan capability in select
