@@ -503,7 +503,7 @@ static int rk_dma_heap_dump_dmabuf(const struct dma_buf *dmabuf, void *data)
 				size = buf->end - buf->start + 1;
 				seq_printf(heap->s,
 					   "\tAlloc by (%-20s)\t[%pa-%pa]\t%pa (%lu KiB)\n",
-					   buf->orig_alloc, &buf->start,
+					   dmabuf->name, &buf->start,
 					   &buf->end, &size, K(size));
 				seq_puts(heap->s, "\t\tAttached Devices:\n");
 				attach_count = 0;
