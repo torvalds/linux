@@ -3786,6 +3786,9 @@ static bool __should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
 			(gfp_mask & __GFP_DIRECT_RECLAIM))
 		return false;
 
+	if (gfp_mask & __GFP_NOWARN)
+		fail_page_alloc.attr.no_warn = true;
+
 	return should_fail(&fail_page_alloc.attr, 1 << order);
 }
 
@@ -4334,7 +4337,8 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 	 */
 
 	/* Exhausted what can be done so it's blame time */
-	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+	if (out_of_memory(&oc) ||
+	    WARN_ON_ONCE_GFP(gfp_mask & __GFP_NOFAIL, gfp_mask)) {
 		*did_some_progress = 1;
 
 		/*
@@ -5108,7 +5112,7 @@ nopage:
 		 * All existing users of the __GFP_NOFAIL are blockable, so warn
 		 * of any new users that actually require GFP_NOWAIT
 		 */
-		if (WARN_ON_ONCE(!can_direct_reclaim))
+		if (WARN_ON_ONCE_GFP(!can_direct_reclaim, gfp_mask))
 			goto fail;
 
 		/*
@@ -5116,7 +5120,7 @@ nopage:
 		 * because we cannot reclaim anything and only can loop waiting
 		 * for somebody to do a work for us
 		 */
-		WARN_ON_ONCE(current->flags & PF_MEMALLOC);
+		WARN_ON_ONCE_GFP(current->flags & PF_MEMALLOC, gfp_mask);
 
 		/*
 		 * non failing costly orders are a hard requirement which we
@@ -5124,7 +5128,7 @@ nopage:
 		 * so that we can identify them and convert them to something
 		 * else.
 		 */
-		WARN_ON_ONCE(order > PAGE_ALLOC_COSTLY_ORDER);
+		WARN_ON_ONCE_GFP(order > PAGE_ALLOC_COSTLY_ORDER, gfp_mask);
 
 		/*
 		 * Help non-failing allocations by giving them access to memory
@@ -5370,10 +5374,8 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
 	 * There are several places where we assume that the order value is sane
 	 * so bail out early if the request is out of bound.
 	 */
-	if (unlikely(order >= MAX_ORDER)) {
-		WARN_ON_ONCE(!(gfp & __GFP_NOWARN));
+	if (WARN_ON_ONCE_GFP(order >= MAX_ORDER, gfp))
 		return NULL;
-	}
 
 	gfp &= gfp_allowed_mask;
 	/*
@@ -9025,7 +9027,7 @@ int __alloc_contig_migrate_range(struct compact_control *cc,
 
 	lru_cache_enable();
 	if (ret < 0) {
-		if (ret == -EBUSY)
+		if (!(cc->gfp_mask & __GFP_NOWARN) && ret == -EBUSY)
 			alloc_contig_dump_pages(&cc->migratepages);
 		putback_movable_pages(&cc->migratepages);
 		return ret;
