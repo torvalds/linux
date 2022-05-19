@@ -372,7 +372,7 @@ static int rt9120_reg_read(void *context, unsigned int reg, unsigned int *val)
 		*val = be32_to_cpup((__be32 *)raw);
 		break;
 	case 3:
-		*val = raw[0] << 16 | raw[1] << 8 | raw[0];
+		*val = raw[0] << 16 | raw[1] << 8 | raw[2];
 		break;
 	case 2:
 		*val = be16_to_cpup((__be16 *)raw);
