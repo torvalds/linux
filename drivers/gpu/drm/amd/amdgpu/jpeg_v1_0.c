@@ -376,7 +376,7 @@ static void jpeg_v1_0_decode_ring_emit_reg_wait(struct amdgpu_ring *ring,
 static void jpeg_v1_0_decode_ring_emit_vm_flush(struct amdgpu_ring *ring,
 		unsigned vmid, uint64_t pd_addr)
 {
-	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->vm_hub];
 	uint32_t data0, data1, mask;
 
 	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
@@ -485,6 +485,7 @@ int jpeg_v1_0_sw_init(void *handle)
 		return r;
 
 	ring = &adev->jpeg.inst->ring_dec;
+	ring->vm_hub = AMDGPU_MMHUB_0;
 	sprintf(ring->name, "jpeg_dec");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->jpeg.inst->irq,
 			     0, AMDGPU_RING_PRIO_DEFAULT, NULL);
@@ -548,7 +549,6 @@ static const struct amdgpu_ring_funcs jpeg_v1_0_decode_ring_vm_funcs = {
 	.nop = PACKET0(0x81ff, 0),
 	.support_64bit_ptrs = false,
 	.no_user_fence = true,
-	.vmhub = AMDGPU_MMHUB_0,
 	.extra_dw = 64,
 	.get_rptr = jpeg_v1_0_decode_ring_get_rptr,
 	.get_wptr = jpeg_v1_0_decode_ring_get_wptr,
