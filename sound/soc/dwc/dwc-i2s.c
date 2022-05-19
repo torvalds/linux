@@ -387,7 +387,7 @@ static const struct snd_soc_dai_ops dw_i2s_dai_ops = {
 	.hw_params	= dw_i2s_hw_params,
 	.prepare	= dw_i2s_prepare,
 	.trigger	= dw_i2s_trigger,
-	.set_fmt_new	= dw_i2s_set_fmt,
+	.set_fmt	= dw_i2s_set_fmt,
 };
 
 #ifdef CONFIG_PM
