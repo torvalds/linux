@@ -3889,7 +3889,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 			 */
 			exclusive = true;
 		} else if (exclusive && PageWriteback(page) &&
-			  (swp_swap_info(entry)->flags & SWP_STABLE_WRITES)) {
+			  data_race(si->flags & SWP_STABLE_WRITES)) {
 			/*
 			 * This is tricky: not all swap backends support
 			 * concurrent page modifications while under writeback.
