@@ -309,6 +309,7 @@ struct malone_padding_scode {
 struct malone_fmt_mapping {
 	u32 pixelformat;
 	enum vpu_malone_format malone_format;
+	u32 is_disabled;
 };
 
 struct malone_scode_t {
@@ -568,11 +569,26 @@ static enum vpu_malone_format vpu_malone_format_remap(u32 pixelformat)
 	u32 i;
 
 	for (i = 0; i < ARRAY_SIZE(fmt_mappings); i++) {
+		if (fmt_mappings[i].is_disabled)
+			continue;
 		if (pixelformat == fmt_mappings[i].pixelformat)
 			return fmt_mappings[i].malone_format;
 	}
 
 	return MALONE_FMT_NULL;
+}
+
+bool vpu_malone_check_fmt(enum vpu_core_type type, u32 pixelfmt)
+{
+	if (!vpu_imx8q_check_fmt(type, pixelfmt))
+		return false;
+
+	if (pixelfmt == V4L2_PIX_FMT_NV12M_8L128 || pixelfmt == V4L2_PIX_FMT_NV12M_10BE_8L128)
+		return true;
+	if (vpu_malone_format_remap(pixelfmt) == MALONE_FMT_NULL)
+		return false;
+
+	return true;
 }
 
 static void vpu_malone_set_stream_cfg(struct vpu_shared_addr *shared,
