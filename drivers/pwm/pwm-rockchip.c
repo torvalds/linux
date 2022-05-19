@@ -409,7 +409,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	pc->data = id->data;
 	pc->chip.dev = &pdev->dev;
 	pc->chip.ops = &rockchip_pwm_ops;
-	pc->chip.base = -1;
+	pc->chip.base = of_alias_get_id(pdev->dev.of_node, "pwm");
 	pc->chip.npwm = 1;
 	pc->clk_rate = clk_get_rate(pc->clk);
 
