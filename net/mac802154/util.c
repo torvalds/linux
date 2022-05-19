@@ -83,6 +83,20 @@ void ieee802154_release_queue(struct ieee802154_local *local)
 	spin_unlock_irqrestore(&local->phy->queue_lock, flags);
 }
 
+void ieee802154_disable_queue(struct ieee802154_local *local)
+{
+	struct ieee802154_sub_if_data *sdata;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (!sdata->dev)
+			continue;
+
+		netif_tx_disable(sdata->dev);
+	}
+	rcu_read_unlock();
+}
+
 enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer)
 {
 	struct ieee802154_local *local =
