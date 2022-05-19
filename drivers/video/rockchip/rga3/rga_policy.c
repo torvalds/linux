@@ -10,6 +10,7 @@
 #include "rga_job.h"
 #include "rga_common.h"
 #include "rga_hw_config.h"
+#include "rga_debugger.h"
 
 #define GET_GCD(n1, n2) \
 	({ \

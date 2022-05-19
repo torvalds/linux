@@ -12,6 +12,7 @@
 #include "rga2_mmu_info.h"
 #include "rga_common.h"
 #include "rga_hw_config.h"
+#include "rga_debugger.h"
 
 extern struct rga2_mmu_info_t rga2_mmu_info;
 

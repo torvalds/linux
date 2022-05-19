@@ -13,6 +13,7 @@
 #include "rga_dma_buf.h"
 #include "rga_common.h"
 #include "rga2_mmu_info.h"
+#include "rga_debugger.h"
 
 static void rga_current_mm_read_lock(struct mm_struct *mm)
 {

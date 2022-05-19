@@ -62,7 +62,6 @@
 #include <linux/hrtimer.h>
 
 #include "rga.h"
-#include "rga_debugger.h"
 
 #define RGA_CORE_REG_OFFSET 0x10000
 

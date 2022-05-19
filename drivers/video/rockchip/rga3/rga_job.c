@@ -12,6 +12,7 @@
 #include "rga_dma_buf.h"
 #include "rga_mm.h"
 #include "rga2_mmu_info.h"
+#include "rga_debugger.h"
 
 struct rga_job *
 rga_scheduler_get_pending_job_list(struct rga_scheduler_t *scheduler)

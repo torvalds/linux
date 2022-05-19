@@ -9,6 +9,7 @@
 
 #include "rga3_reg_info.h"
 #include "rga_common.h"
+#include "rga_debugger.h"
 
 #define FACTOR_MAX ((int)(2 << 15))
 

@@ -11,6 +11,7 @@
 #include "rga.h"
 #include "rga_common.h"
 #include "rga_job.h"
+#include "rga_debugger.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) && \
     LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
