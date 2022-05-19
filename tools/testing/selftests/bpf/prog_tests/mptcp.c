@@ -14,7 +14,9 @@
 struct mptcp_storage {
 	__u32 invoked;
 	__u32 is_mptcp;
+	struct sock *sk;
 	__u32 token;
+	struct sock *first;
 	char ca_name[TCP_CA_NAME_MAX];
 };
 
@@ -78,6 +80,9 @@ static int verify_msk(int map_fd, int client_fd, __u32 token)
 		err++;
 
 	if (!ASSERT_EQ(val.token, token, "unexpected token"))
+		err++;
+
+	if (!ASSERT_EQ(val.first, val.sk, "unexpected first"))
 		err++;
 
 	if (!ASSERT_STRNEQ(val.ca_name, ca_name, TCP_CA_NAME_MAX, "unexpected ca_name"))
