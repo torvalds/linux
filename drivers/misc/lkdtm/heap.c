@@ -56,6 +56,7 @@ static void lkdtm_SLAB_LINEAR_OVERFLOW(void)
 		return;
 
 	pr_info("Attempting slab linear overflow ...\n");
+	OPTIMIZER_HIDE_VAR(data);
 	data[1024 / sizeof(u32)] = 0x12345678;
 	kfree(data);
 }
