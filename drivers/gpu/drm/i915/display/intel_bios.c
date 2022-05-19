@@ -122,7 +122,7 @@ find_raw_section(const void *_bdb, enum bdb_block_id section_id)
  * Offset from the start of BDB to the start of the
  * block data (just past the block header).
  */
-static u32 block_offset(const void *bdb, enum bdb_block_id section_id)
+static u32 raw_block_offset(const void *bdb, enum bdb_block_id section_id)
 {
 	const void *block;
 
@@ -134,7 +134,7 @@ static u32 block_offset(const void *bdb, enum bdb_block_id section_id)
 }
 
 /* size of the block excluding the header */
-static u32 block_size(const void *bdb, enum bdb_block_id section_id)
+static u32 raw_block_size(const void *bdb, enum bdb_block_id section_id)
 {
 	const void *block;
 
@@ -231,7 +231,7 @@ static bool validate_lfp_data_ptrs(const void *bdb,
 	int data_block_size, lfp_data_size;
 	int i;
 
-	data_block_size = block_size(bdb, BDB_LVDS_LFP_DATA);
+	data_block_size = raw_block_size(bdb, BDB_LVDS_LFP_DATA);
 	if (data_block_size == 0)
 		return false;
 
@@ -308,7 +308,7 @@ static bool fixup_lfp_data_ptrs(const void *bdb, void *ptrs_block)
 	u32 offset;
 	int i;
 
-	offset = block_offset(bdb, BDB_LVDS_LFP_DATA);
+	offset = raw_block_offset(bdb, BDB_LVDS_LFP_DATA);
 
 	for (i = 0; i < 16; i++) {
 		if (ptrs->ptr[i].fp_timing.offset < offset ||
