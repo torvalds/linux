@@ -132,6 +132,25 @@ int ieee802154_sync_and_hold_queue(struct ieee802154_local *local)
 	return ret;
 }
 
+static bool ieee802154_netif_is_down(struct ieee802154_local *local)
+{
+	struct ieee802154_sub_if_data *sdata;
+	bool is_down = true;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (!sdata->dev)
+			continue;
+
+		is_down = !netif_running(sdata->dev);
+		if (is_down)
+			break;
+	}
+	rcu_read_unlock();
+
+	return is_down;
+}
+
 int ieee802154_mlme_op_pre(struct ieee802154_local *local)
 {
 	return ieee802154_sync_and_hold_queue(local);
@@ -148,6 +167,14 @@ int ieee802154_mlme_tx(struct ieee802154_local *local, struct sk_buff *skb)
 
 	/* Ensure the device was not stopped, otherwise error out */
 	if (!local->open_count) {
+		rtnl_unlock();
+		return -ENETDOWN;
+	}
+
+	/* Warn if the ieee802154 core thinks MLME frames can be sent while the
+	 * net interface expects this cannot happen.
+	 */
+	if (WARN_ON_ONCE(ieee802154_netif_is_down(local))) {
 		rtnl_unlock();
 		return -ENETDOWN;
 	}
