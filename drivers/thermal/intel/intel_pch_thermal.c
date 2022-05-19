@@ -193,6 +193,7 @@ static int pch_wpt_get_temp(struct pch_thermal_device *ptd, int *temp)
 	return 0;
 }
 
+/* Cool the PCH when it's overheat in .suspend_noirq phase */
 static int pch_wpt_suspend(struct pch_thermal_device *ptd)
 {
 	u8 tsel;
@@ -455,7 +456,7 @@ static void intel_pch_thermal_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int intel_pch_thermal_suspend(struct device *device)
+static int intel_pch_thermal_suspend_noirq(struct device *device)
 {
 	struct pch_thermal_device *ptd = dev_get_drvdata(device);
 
@@ -495,7 +496,7 @@ static const struct pci_device_id intel_pch_thermal_id[] = {
 MODULE_DEVICE_TABLE(pci, intel_pch_thermal_id);
 
 static const struct dev_pm_ops intel_pch_pm_ops = {
-	.suspend = intel_pch_thermal_suspend,
+	.suspend_noirq = intel_pch_thermal_suspend_noirq,
 	.resume = intel_pch_thermal_resume,
 };
 
