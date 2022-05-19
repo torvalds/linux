@@ -129,6 +129,7 @@ patternProperties:
       reset-gpios: true
 
       magic-packet:
+        type: boolean
         description:
           Indicates that the hardware supports waking up via magic packet.
 

@@ -36,6 +36,7 @@ properties:
 
   cm-poll-mode:
     description: polling mode
+    $ref: /schemas/types.yaml#/definitions/uint32
     default: 0
     enum:
       - 0 # disabled
