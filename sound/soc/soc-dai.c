@@ -208,11 +208,7 @@ int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	int ret = -ENOTSUPP;
 
-	if (dai->driver->ops &&
-	    dai->driver->ops->set_fmt_new)
-		ret = dai->driver->ops->set_fmt_new(dai, fmt);
-	else if (dai->driver->ops &&
-		 dai->driver->ops->set_fmt)
+	if (dai->driver->ops && dai->driver->ops->set_fmt)
 		ret = dai->driver->ops->set_fmt(dai, fmt);
 
 	return soc_dai_ret(dai, ret);
