@@ -373,6 +373,7 @@ struct wpan_dev {
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
 
+#if IS_ENABLED(CONFIG_IEEE802154) || IS_ENABLED(CONFIG_6LOWPAN)
 static inline int
 wpan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		     const struct ieee802154_addr *daddr,
@@ -383,6 +384,7 @@ wpan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 	return wpan_dev->header_ops->create(skb, dev, daddr, saddr, len);
 }
+#endif
 
 struct wpan_phy *
 wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size);
