@@ -65,9 +65,6 @@
 
 #include "pmac_zilog.h"
 
-/* Not yet implemented */
-#undef HAS_DBDMA
-
 static char version[] __initdata = "pmac_zilog: 0.6 (Benjamin Herrenschmidt <benh@kernel.crashing.org>)";
 MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
 MODULE_DESCRIPTION("Driver for the Mac and PowerMac serial ports.");
@@ -1399,7 +1396,7 @@ static int __init pmz_init_port(struct uart_pmac_port *uap)
 		char	name[1];
 	} *slots;
 	int len;
-	struct resource r_ports, r_rxdma, r_txdma;
+	struct resource r_ports;
 
 	/*
 	 * Request & map chip registers
@@ -1411,35 +1408,6 @@ static int __init pmz_init_port(struct uart_pmac_port *uap)
 
 	uap->control_reg = uap->port.membase;
 	uap->data_reg = uap->control_reg + 0x10;
-	
-	/*
-	 * Request & map DBDMA registers
-	 */
-#ifdef HAS_DBDMA
-	if (of_address_to_resource(np, 1, &r_txdma) == 0 &&
-	    of_address_to_resource(np, 2, &r_rxdma) == 0)
-		uap->flags |= PMACZILOG_FLAG_HAS_DMA;
-#else
-	memset(&r_txdma, 0, sizeof(struct resource));
-	memset(&r_rxdma, 0, sizeof(struct resource));
-#endif	
-	if (ZS_HAS_DMA(uap)) {
-		uap->tx_dma_regs = ioremap(r_txdma.start, 0x100);
-		if (uap->tx_dma_regs == NULL) {	
-			uap->flags &= ~PMACZILOG_FLAG_HAS_DMA;
-			goto no_dma;
-		}
-		uap->rx_dma_regs = ioremap(r_rxdma.start, 0x100);
-		if (uap->rx_dma_regs == NULL) {	
-			iounmap(uap->tx_dma_regs);
-			uap->tx_dma_regs = NULL;
-			uap->flags &= ~PMACZILOG_FLAG_HAS_DMA;
-			goto no_dma;
-		}
-		uap->tx_dma_irq = irq_of_parse_and_map(np, 1);
-		uap->rx_dma_irq = irq_of_parse_and_map(np, 2);
-	}
-no_dma:
 
 	/*
 	 * Detect port type
@@ -1505,8 +1473,6 @@ no_dma:
 	    of_device_is_compatible(np->parent->parent, "gatwick")) {
 		/* IRQs on gatwick are offset by 64 */
 		uap->port.irq = irq_create_mapping(NULL, 64 + 15);
-		uap->tx_dma_irq = irq_create_mapping(NULL, 64 + 4);
-		uap->rx_dma_irq = irq_create_mapping(NULL, 64 + 5);
 	}
 
 	/* Setup some valid baud rate information in the register
@@ -1526,8 +1492,6 @@ static void pmz_dispose_port(struct uart_pmac_port *uap)
 	struct device_node *np;
 
 	np = uap->node;
-	iounmap(uap->rx_dma_regs);
-	iounmap(uap->tx_dma_regs);
 	iounmap(uap->control_reg);
 	uap->node = NULL;
 	of_node_put(np);
