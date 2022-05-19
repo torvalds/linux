@@ -435,7 +435,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
 	memcpy(&entry->data, &foe, sizeof(entry->data));
 	entry->wed_index = wed_index;
 
-	if (mtk_foe_entry_commit(eth->ppe, entry) < 0)
+	err = mtk_foe_entry_commit(eth->ppe, entry);
+	if (err < 0)
 		goto free;
 
 	err = rhashtable_insert_fast(&eth->flow_table, &entry->node,
