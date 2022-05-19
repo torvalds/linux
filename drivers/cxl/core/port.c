@@ -78,7 +78,7 @@ static ssize_t start_show(struct device *dev, struct device_attribute *attr,
 	if (is_root_decoder(dev))
 		start = cxld->platform_res.start;
 	else
-		start = cxld->decoder_range.start;
+		start = cxld->hpa_range.start;
 
 	return sysfs_emit(buf, "%#llx\n", start);
 }
@@ -93,7 +93,7 @@ static ssize_t size_show(struct device *dev, struct device_attribute *attr,
 	if (is_root_decoder(dev))
 		size = resource_size(&cxld->platform_res);
 	else
-		size = range_len(&cxld->decoder_range);
+		size = range_len(&cxld->hpa_range);
 
 	return sysfs_emit(buf, "%#llx\n", size);
 }

@@ -198,7 +198,7 @@ enum cxl_decoder_type {
  * @dev: this decoder's device
  * @id: kernel device name id
  * @platform_res: address space resources considered by root decoder
- * @decoder_range: address space resources considered by midlevel decoder
+ * @hpa_range: Host physical address range mapped by this decoder
  * @interleave_ways: number of cxl_dports in this decode
  * @interleave_granularity: data stride per dport
  * @target_type: accelerator vs expander (type2 vs type3) selector
@@ -212,7 +212,7 @@ struct cxl_decoder {
 	int id;
 	union {
 		struct resource platform_res;
-		struct range decoder_range;
+		struct range hpa_range;
 	};
 	int interleave_ways;
 	int interleave_granularity;

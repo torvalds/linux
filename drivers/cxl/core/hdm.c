@@ -172,7 +172,7 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		return -ENXIO;
 	}
 
-	cxld->decoder_range = (struct range) {
+	cxld->hpa_range = (struct range) {
 		.start = base,
 		.end = base + size - 1,
 	};

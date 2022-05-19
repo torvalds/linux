@@ -461,7 +461,7 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 			return PTR_ERR(cxld);
 		}
 
-		cxld->decoder_range = (struct range) {
+		cxld->hpa_range = (struct range) {
 			.start = 0,
 			.end = -1,
 		};
