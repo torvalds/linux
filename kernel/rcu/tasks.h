@@ -1533,16 +1533,10 @@ static void rcu_tasks_trace_pregp_step(struct list_head *hop)
 }
 
 /*
- * Do intermediate processing between task and holdout scans and
- * pick up the idle tasks.
+ * Do intermediate processing between task and holdout scans.
  */
 static void rcu_tasks_trace_postscan(struct list_head *hop)
 {
-	int cpu;
-
-	for_each_online_cpu(cpu)
-		rcu_tasks_trace_pertask(idle_task(cpu), hop);
-
 	// Re-enable CPU hotplug now that the tasklist scan has completed.
 	cpus_read_unlock();
 
