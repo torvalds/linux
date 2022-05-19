@@ -333,6 +333,10 @@
 	};
 };
 
+&sfctemp {
+	status = "okay";
+};
+
 &jpu {
 	status = "okay";
 };
