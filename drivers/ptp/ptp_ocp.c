@@ -243,6 +243,7 @@ struct ptp_ocp_sma_connector {
 	bool	fixed_fcn;
 	bool	fixed_dir;
 	bool	disabled;
+	u8	default_fcn;
 };
 
 struct ocp_attr_group {
@@ -702,10 +703,17 @@ static const struct ocp_selector ptp_ocp_sma_out[] = {
 
 struct ocp_sma_op {
 	const struct ocp_selector *tbl[2];
+	void (*init)(struct ptp_ocp *bp);
 	u32 (*get)(struct ptp_ocp *bp, int sma_nr);
 	int (*set_inputs)(struct ptp_ocp *bp, int sma_nr, u32 val);
 	int (*set_output)(struct ptp_ocp *bp, int sma_nr, u32 val);
 };
+
+static void
+ptp_ocp_sma_init(struct ptp_ocp *bp)
+{
+	return bp->sma_op->init(bp);
+}
 
 static u32
 ptp_ocp_sma_get(struct ptp_ocp *bp, int sma_nr)
@@ -2023,15 +2031,8 @@ ptp_ocp_sma_fb_set_inputs(struct ptp_ocp *bp, int sma_nr, u32 val)
 	return 0;
 }
 
-static const struct ocp_sma_op ocp_fb_sma_op = {
-	.tbl		= { ptp_ocp_sma_in, ptp_ocp_sma_out },
-	.get		= ptp_ocp_sma_fb_get,
-	.set_inputs	= ptp_ocp_sma_fb_set_inputs,
-	.set_output	= ptp_ocp_sma_fb_set_output,
-};
-
 static void
-ptp_ocp_sma_init(struct ptp_ocp *bp)
+ptp_ocp_sma_fb_init(struct ptp_ocp *bp)
 {
 	u32 reg;
 	int i;
@@ -2041,6 +2042,8 @@ ptp_ocp_sma_init(struct ptp_ocp *bp)
 	bp->sma[1].mode = SMA_MODE_IN;
 	bp->sma[2].mode = SMA_MODE_OUT;
 	bp->sma[3].mode = SMA_MODE_OUT;
+	for (i = 0; i < 4; i++)
+		bp->sma[i].default_fcn = i & 1;
 
 	/* If no SMA1 map, the pin functions and directions are fixed. */
 	if (!bp->sma_map1) {
@@ -2068,6 +2071,14 @@ ptp_ocp_sma_init(struct ptp_ocp *bp)
 		bp->sma[3].mode = reg & BIT(31) ? SMA_MODE_OUT : SMA_MODE_IN;
 	}
 }
+
+static const struct ocp_sma_op ocp_fb_sma_op = {
+	.tbl		= { ptp_ocp_sma_in, ptp_ocp_sma_out },
+	.init		= ptp_ocp_sma_fb_init,
+	.get		= ptp_ocp_sma_fb_get,
+	.set_inputs	= ptp_ocp_sma_fb_set_inputs,
+	.set_output	= ptp_ocp_sma_fb_set_output,
+};
 
 static int
 ptp_ocp_fb_set_pins(struct ptp_ocp *bp)
@@ -2330,7 +2341,7 @@ ptp_ocp_sma_store(struct ptp_ocp *bp, const char *buf, int sma_nr)
 		return -EOPNOTSUPP;
 
 	if (sma->fixed_fcn) {
-		if (val != ((sma_nr - 1) & 1))
+		if (val != sma->default_fcn)
 			return -EOPNOTSUPP;
 		return 0;
 	}
