@@ -442,10 +442,18 @@ static void update_on_slot_queues_offsets(struct kbase_device *kbdev)
 			struct kbase_queue *const queue = group->bound_queues[j];
 
 			if (queue) {
-				u64 const *const output_addr =
-					(u64 const *)(queue->user_io_addr + PAGE_SIZE);
+				if (queue->user_io_addr) {
+					u64 const *const output_addr =
+						(u64 const *)(queue->user_io_addr + PAGE_SIZE);
 
-				queue->extract_ofs = output_addr[CS_EXTRACT_LO / sizeof(u64)];
+					queue->extract_ofs =
+						output_addr[CS_EXTRACT_LO / sizeof(u64)];
+				} else {
+					dev_warn(kbdev->dev,
+						 "%s(): queue->user_io_addr is NULL, queue: %p",
+						 __func__,
+						 queue);
+				}
 			}
 		}
 	}
