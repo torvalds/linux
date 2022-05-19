@@ -220,7 +220,7 @@ enum cxl_decoder_type {
 #define CXL_DECODER_MAX_INTERLEAVE 16
 
 /**
- * struct cxl_decoder - CXL address range decode configuration
+ * struct cxl_decoder - Common CXL HDM Decoder Attributes
  * @dev: this decoder's device
  * @id: kernel device name id
  * @hpa_range: Host physical address range mapped by this decoder
@@ -228,9 +228,6 @@ enum cxl_decoder_type {
  * @interleave_granularity: data stride per dport
  * @target_type: accelerator vs expander (type2 vs type3) selector
  * @flags: memory type capabilities and locking
- * @target_lock: coordinate coherent reads of the target list
- * @nr_targets: number of elements in @target
- * @target: active ordered target list in current decoder configuration
  */
 struct cxl_decoder {
 	struct device dev;
@@ -240,6 +237,23 @@ struct cxl_decoder {
 	int interleave_granularity;
 	enum cxl_decoder_type target_type;
 	unsigned long flags;
+};
+
+/**
+ * struct cxl_switch_decoder - Switch specific CXL HDM Decoder
+ * @cxld: base cxl_decoder object
+ * @target_lock: coordinate coherent reads of the target list
+ * @nr_targets: number of elements in @target
+ * @target: active ordered target list in current decoder configuration
+ *
+ * The 'switch' decoder type represents the decoder instances of cxl_port's that
+ * route from the root of a CXL memory decode topology to the endpoints. They
+ * come in two flavors, root-level decoders, statically defined by platform
+ * firmware, and mid-level decoders, where interleave-granularity,
+ * interleave-width, and the target list are mutable.
+ */
+struct cxl_switch_decoder {
+	struct cxl_decoder cxld;
 	seqlock_t target_lock;
 	int nr_targets;
 	struct cxl_dport *target[];
@@ -371,10 +385,10 @@ struct cxl_dport *cxl_find_dport_by_dev(struct cxl_port *port,
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
 bool is_root_decoder(struct device *dev);
 bool is_endpoint_decoder(struct device *dev);
-struct cxl_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
-					   unsigned int nr_targets);
-struct cxl_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
-					     unsigned int nr_targets);
+struct cxl_switch_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
+						  unsigned int nr_targets);
+struct cxl_switch_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
+						    unsigned int nr_targets);
 int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map);
 struct cxl_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port);
 int cxl_decoder_add_locked(struct cxl_decoder *cxld, int *target_map);

@@ -120,20 +120,21 @@ static ssize_t target_type_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(target_type);
 
-static ssize_t emit_target_list(struct cxl_decoder *cxld, char *buf)
+static ssize_t emit_target_list(struct cxl_switch_decoder *cxlsd, char *buf)
 {
+	struct cxl_decoder *cxld = &cxlsd->cxld;
 	ssize_t offset = 0;
 	int i, rc = 0;
 
 	for (i = 0; i < cxld->interleave_ways; i++) {
-		struct cxl_dport *dport = cxld->target[i];
+		struct cxl_dport *dport = cxlsd->target[i];
 		struct cxl_dport *next = NULL;
 
 		if (!dport)
 			break;
 
 		if (i + 1 < cxld->interleave_ways)
-			next = cxld->target[i + 1];
+			next = cxlsd->target[i + 1];
 		rc = sysfs_emit_at(buf, offset, "%d%s", dport->port_id,
 				   next ? "," : "");
 		if (rc < 0)
@@ -144,18 +145,20 @@ static ssize_t emit_target_list(struct cxl_decoder *cxld, char *buf)
 	return offset;
 }
 
+static struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev);
+
 static ssize_t target_list_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct cxl_decoder *cxld = to_cxl_decoder(dev);
+	struct cxl_switch_decoder *cxlsd = to_cxl_switch_decoder(dev);
 	ssize_t offset;
 	unsigned int seq;
 	int rc;
 
 	do {
-		seq = read_seqbegin(&cxld->target_lock);
-		rc = emit_target_list(cxld, buf);
-	} while (read_seqretry(&cxld->target_lock, seq));
+		seq = read_seqbegin(&cxlsd->target_lock);
+		rc = emit_target_list(cxlsd, buf);
+	} while (read_seqretry(&cxlsd->target_lock, seq));
 
 	if (rc < 0)
 		return rc;
@@ -233,14 +236,28 @@ static const struct attribute_group *cxl_decoder_endpoint_attribute_groups[] = {
 	NULL,
 };
 
+static void __cxl_decoder_release(struct cxl_decoder *cxld)
+{
+	struct cxl_port *port = to_cxl_port(cxld->dev.parent);
+
+	ida_free(&port->decoder_ida, cxld->id);
+	put_device(&port->dev);
+}
+
 static void cxl_decoder_release(struct device *dev)
 {
 	struct cxl_decoder *cxld = to_cxl_decoder(dev);
-	struct cxl_port *port = to_cxl_port(dev->parent);
 
-	ida_free(&port->decoder_ida, cxld->id);
+	__cxl_decoder_release(cxld);
 	kfree(cxld);
-	put_device(&port->dev);
+}
+
+static void cxl_switch_decoder_release(struct device *dev)
+{
+	struct cxl_switch_decoder *cxlsd = to_cxl_switch_decoder(dev);
+
+	__cxl_decoder_release(&cxlsd->cxld);
+	kfree(cxlsd);
 }
 
 static const struct device_type cxl_decoder_endpoint_type = {
@@ -251,13 +268,13 @@ static const struct device_type cxl_decoder_endpoint_type = {
 
 static const struct device_type cxl_decoder_switch_type = {
 	.name = "cxl_decoder_switch",
-	.release = cxl_decoder_release,
+	.release = cxl_switch_decoder_release,
 	.groups = cxl_decoder_switch_attribute_groups,
 };
 
 static const struct device_type cxl_decoder_root_type = {
 	.name = "cxl_decoder_root",
-	.release = cxl_decoder_release,
+	.release = cxl_switch_decoder_release,
 	.groups = cxl_decoder_root_attribute_groups,
 };
 
@@ -272,14 +289,28 @@ bool is_root_decoder(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(is_root_decoder, CXL);
 
+static bool is_switch_decoder(struct device *dev)
+{
+	return is_root_decoder(dev) || dev->type == &cxl_decoder_switch_type;
+}
+
 struct cxl_decoder *to_cxl_decoder(struct device *dev)
 {
-	if (dev_WARN_ONCE(dev, dev->type->release != cxl_decoder_release,
+	if (dev_WARN_ONCE(dev,
+			  !is_switch_decoder(dev) && !is_endpoint_decoder(dev),
 			  "not a cxl_decoder device\n"))
 		return NULL;
 	return container_of(dev, struct cxl_decoder, dev);
 }
 EXPORT_SYMBOL_NS_GPL(to_cxl_decoder, CXL);
+
+static struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev)
+{
+	if (dev_WARN_ONCE(dev, !is_switch_decoder(dev),
+			  "not a cxl_switch_decoder device\n"))
+		return NULL;
+	return container_of(dev, struct cxl_switch_decoder, cxld.dev);
+}
 
 static void cxl_ep_release(struct cxl_ep *ep)
 {
@@ -1146,7 +1177,7 @@ struct cxl_dport *cxl_find_dport_by_dev(struct cxl_port *port,
 }
 EXPORT_SYMBOL_NS_GPL(cxl_find_dport_by_dev, CXL);
 
-static int decoder_populate_targets(struct cxl_decoder *cxld,
+static int decoder_populate_targets(struct cxl_switch_decoder *cxlsd,
 				    struct cxl_port *port, int *target_map)
 {
 	int i, rc = 0;
@@ -1159,17 +1190,17 @@ static int decoder_populate_targets(struct cxl_decoder *cxld,
 	if (list_empty(&port->dports))
 		return -EINVAL;
 
-	write_seqlock(&cxld->target_lock);
-	for (i = 0; i < cxld->nr_targets; i++) {
+	write_seqlock(&cxlsd->target_lock);
+	for (i = 0; i < cxlsd->nr_targets; i++) {
 		struct cxl_dport *dport = find_dport(port, target_map[i]);
 
 		if (!dport) {
 			rc = -ENXIO;
 			break;
 		}
-		cxld->target[i] = dport;
+		cxlsd->target[i] = dport;
 	}
-	write_sequnlock(&cxld->target_lock);
+	write_sequnlock(&cxlsd->target_lock);
 
 	return rc;
 }
@@ -1177,56 +1208,34 @@ static int decoder_populate_targets(struct cxl_decoder *cxld,
 static struct lock_class_key cxl_decoder_key;
 
 /**
- * cxl_decoder_alloc - Allocate a new CXL decoder
+ * cxl_decoder_init - Common decoder setup / initialization
  * @port: owning port of this decoder
- * @nr_targets: downstream targets accessible by this decoder. All upstream
- *		ports and root ports must have at least 1 target. Endpoint
- *		devices will have 0 targets. Callers wishing to register an
- *		endpoint device should specify 0.
+ * @cxld: common decoder properties to initialize
  *
- * A port should contain one or more decoders. Each of those decoders enable
- * some address space for CXL.mem utilization. A decoder is expected to be
- * configured by the caller before registering.
- *
- * Return: A new cxl decoder to be registered by cxl_decoder_add(). The decoder
- *	   is initialized to be a "passthrough" decoder.
+ * A port may contain one or more decoders. Each of those decoders
+ * enable some address space for CXL.mem utilization. A decoder is
+ * expected to be configured by the caller before registering via
+ * cxl_decoder_add()
  */
-static struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port,
-					     unsigned int nr_targets)
+static int cxl_decoder_init(struct cxl_port *port, struct cxl_decoder *cxld)
 {
-	struct cxl_decoder *cxld;
 	struct device *dev;
-	int rc = 0;
-
-	if (nr_targets > CXL_DECODER_MAX_INTERLEAVE)
-		return ERR_PTR(-EINVAL);
-
-	cxld = kzalloc(struct_size(cxld, target, nr_targets), GFP_KERNEL);
-	if (!cxld)
-		return ERR_PTR(-ENOMEM);
+	int rc;
 
 	rc = ida_alloc(&port->decoder_ida, GFP_KERNEL);
 	if (rc < 0)
-		goto err;
+		return rc;
 
 	/* need parent to stick around to release the id */
 	get_device(&port->dev);
 	cxld->id = rc;
 
-	cxld->nr_targets = nr_targets;
-	seqlock_init(&cxld->target_lock);
 	dev = &cxld->dev;
 	device_initialize(dev);
 	lockdep_set_class(&dev->mutex, &cxl_decoder_key);
 	device_set_pm_not_required(dev);
 	dev->parent = &port->dev;
 	dev->bus = &cxl_bus_type;
-	if (is_cxl_root(port))
-		cxld->dev.type = &cxl_decoder_root_type;
-	else if (is_cxl_endpoint(port))
-		cxld->dev.type = &cxl_decoder_endpoint_type;
-	else
-		cxld->dev.type = &cxl_decoder_switch_type;
 
 	/* Pre initialize an "empty" decoder */
 	cxld->interleave_ways = 1;
@@ -1237,10 +1246,19 @@ static struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port,
 		.end = -1,
 	};
 
-	return cxld;
-err:
-	kfree(cxld);
-	return ERR_PTR(rc);
+	return 0;
+}
+
+static int cxl_switch_decoder_init(struct cxl_port *port,
+				   struct cxl_switch_decoder *cxlsd,
+				   int nr_targets)
+{
+	if (nr_targets > CXL_DECODER_MAX_INTERLEAVE)
+		return -EINVAL;
+
+	cxlsd->nr_targets = nr_targets;
+	seqlock_init(&cxlsd->target_lock);
+	return cxl_decoder_init(port, &cxlsd->cxld);
 }
 
 /**
@@ -1253,13 +1271,29 @@ err:
  * firmware description of CXL resources into a CXL standard decode
  * topology.
  */
-struct cxl_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
-					   unsigned int nr_targets)
+struct cxl_switch_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
+						  unsigned int nr_targets)
 {
+	struct cxl_switch_decoder *cxlsd;
+	struct cxl_decoder *cxld;
+	int rc;
+
 	if (!is_cxl_root(port))
 		return ERR_PTR(-EINVAL);
 
-	return cxl_decoder_alloc(port, nr_targets);
+	cxlsd = kzalloc(struct_size(cxlsd, target, nr_targets), GFP_KERNEL);
+	if (!cxlsd)
+		return ERR_PTR(-ENOMEM);
+
+	rc = cxl_switch_decoder_init(port, cxlsd, nr_targets);
+	if (rc) {
+		kfree(cxlsd);
+		return ERR_PTR(rc);
+	}
+
+	cxld = &cxlsd->cxld;
+	cxld->dev.type = &cxl_decoder_root_type;
+	return cxlsd;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_root_decoder_alloc, CXL);
 
@@ -1274,13 +1308,29 @@ EXPORT_SYMBOL_NS_GPL(cxl_root_decoder_alloc, CXL);
  * that sit between Switch Upstream Ports / Switch Downstream Ports and
  * Host Bridges / Root Ports.
  */
-struct cxl_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
-					     unsigned int nr_targets)
+struct cxl_switch_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
+						    unsigned int nr_targets)
 {
+	struct cxl_switch_decoder *cxlsd;
+	struct cxl_decoder *cxld;
+	int rc;
+
 	if (is_cxl_root(port) || is_cxl_endpoint(port))
 		return ERR_PTR(-EINVAL);
 
-	return cxl_decoder_alloc(port, nr_targets);
+	cxlsd = kzalloc(struct_size(cxlsd, target, nr_targets), GFP_KERNEL);
+	if (!cxlsd)
+		return ERR_PTR(-ENOMEM);
+
+	rc = cxl_switch_decoder_init(port, cxlsd, nr_targets);
+	if (rc) {
+		kfree(cxlsd);
+		return ERR_PTR(rc);
+	}
+
+	cxld = &cxlsd->cxld;
+	cxld->dev.type = &cxl_decoder_switch_type;
+	return cxlsd;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_switch_decoder_alloc, CXL);
 
@@ -1292,16 +1342,30 @@ EXPORT_SYMBOL_NS_GPL(cxl_switch_decoder_alloc, CXL);
  */
 struct cxl_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port)
 {
+	struct cxl_decoder *cxld;
+	int rc;
+
 	if (!is_cxl_endpoint(port))
 		return ERR_PTR(-EINVAL);
 
-	return cxl_decoder_alloc(port, 0);
+	cxld = kzalloc(sizeof(*cxld), GFP_KERNEL);
+	if (!cxld)
+		return ERR_PTR(-ENOMEM);
+
+	rc = cxl_decoder_init(port, cxld);
+	if (rc)	 {
+		kfree(cxld);
+		return ERR_PTR(rc);
+	}
+
+	cxld->dev.type = &cxl_decoder_endpoint_type;
+	return cxld;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_endpoint_decoder_alloc, CXL);
 
 /**
  * cxl_decoder_add_locked - Add a decoder with targets
- * @cxld: The cxl decoder allocated by cxl_decoder_alloc()
+ * @cxld: The cxl decoder allocated by cxl_<type>_decoder_alloc()
  * @target_map: A list of downstream ports that this decoder can direct memory
  *              traffic to. These numbers should correspond with the port number
  *              in the PCIe Link Capabilities structure.
@@ -1337,7 +1401,9 @@ int cxl_decoder_add_locked(struct cxl_decoder *cxld, int *target_map)
 
 	port = to_cxl_port(cxld->dev.parent);
 	if (!is_endpoint_decoder(dev)) {
-		rc = decoder_populate_targets(cxld, port, target_map);
+		struct cxl_switch_decoder *cxlsd = to_cxl_switch_decoder(dev);
+
+		rc = decoder_populate_targets(cxlsd, port, target_map);
 		if (rc && (cxld->flags & CXL_DECODER_F_ENABLE)) {
 			dev_err(&port->dev,
 				"Failed to populate active decoder targets\n");
@@ -1355,7 +1421,7 @@ EXPORT_SYMBOL_NS_GPL(cxl_decoder_add_locked, CXL);
 
 /**
  * cxl_decoder_add - Add a decoder with targets
- * @cxld: The cxl decoder allocated by cxl_decoder_alloc()
+ * @cxld: The cxl decoder allocated by cxl_<type>_decoder_alloc()
  * @target_map: A list of downstream ports that this decoder can direct memory
  *              traffic to. These numbers should correspond with the port number
  *              in the PCIe Link Capabilities structure.

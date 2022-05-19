@@ -49,20 +49,20 @@ static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
  */
 int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 {
-	struct cxl_decoder *cxld;
+	struct cxl_switch_decoder *cxlsd;
 	struct cxl_dport *dport;
 	int single_port_map[1];
 
-	cxld = cxl_switch_decoder_alloc(port, 1);
-	if (IS_ERR(cxld))
-		return PTR_ERR(cxld);
+	cxlsd = cxl_switch_decoder_alloc(port, 1);
+	if (IS_ERR(cxlsd))
+		return PTR_ERR(cxlsd);
 
 	device_lock_assert(&port->dev);
 
 	dport = list_first_entry(&port->dports, typeof(*dport), list);
 	single_port_map[0] = dport->port_id;
 
-	return add_hdm_decoder(port, cxld, single_port_map);
+	return add_hdm_decoder(port, &cxlsd->cxld, single_port_map);
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_passthrough_decoder, CXL);
 
@@ -255,14 +255,23 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 		int rc, target_count = cxlhdm->target_count;
 		struct cxl_decoder *cxld;
 
-		if (is_cxl_endpoint(port))
+		if (is_cxl_endpoint(port)) {
 			cxld = cxl_endpoint_decoder_alloc(port);
-		else
-			cxld = cxl_switch_decoder_alloc(port, target_count);
-		if (IS_ERR(cxld)) {
-			dev_warn(&port->dev,
-				 "Failed to allocate the decoder\n");
-			return PTR_ERR(cxld);
+			if (IS_ERR(cxld)) {
+				dev_warn(&port->dev,
+					 "Failed to allocate the decoder\n");
+				return PTR_ERR(cxld);
+			}
+		} else {
+			struct cxl_switch_decoder *cxlsd;
+
+			cxlsd = cxl_switch_decoder_alloc(port, target_count);
+			if (IS_ERR(cxlsd)) {
+				dev_warn(&port->dev,
+					 "Failed to allocate the decoder\n");
+				return PTR_ERR(cxlsd);
+			}
+			cxld = &cxlsd->cxld;
 		}
 
 		rc = init_hdm_decoder(port, cxld, target_map, hdm, i);

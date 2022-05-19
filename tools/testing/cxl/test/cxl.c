@@ -451,14 +451,23 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 		struct cxl_decoder *cxld;
 		int rc;
 
-		if (target_count)
-			cxld = cxl_switch_decoder_alloc(port, target_count);
-		else
+		if (target_count) {
+			struct cxl_switch_decoder *cxlsd;
+
+			cxlsd = cxl_switch_decoder_alloc(port, target_count);
+			if (IS_ERR(cxlsd)) {
+				dev_warn(&port->dev,
+					 "Failed to allocate the decoder\n");
+				return PTR_ERR(cxlsd);
+			}
+			cxld = &cxlsd->cxld;
+		} else {
 			cxld = cxl_endpoint_decoder_alloc(port);
-		if (IS_ERR(cxld)) {
-			dev_warn(&port->dev,
-				 "Failed to allocate the decoder\n");
-			return PTR_ERR(cxld);
+			if (IS_ERR(cxld)) {
+				dev_warn(&port->dev,
+					 "Failed to allocate the decoder\n");
+				return PTR_ERR(cxld);
+			}
 		}
 
 		cxld->hpa_range = (struct range) {
