@@ -3099,10 +3099,10 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 	struct device *dev = s->private;
 	struct ptp_system_timestamp sts;
 	struct ts_reg __iomem *ts_reg;
+	char *buf, *src, *mac_src;
 	struct timespec64 ts;
 	struct ptp_ocp *bp;
 	u16 sma_val[4][2];
-	char *src, *buf;
 	u32 ctrl, val;
 	bool on, map;
 	int i;
@@ -3265,17 +3265,26 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 	if (bp->pps_select) {
 		val = ioread32(&bp->pps_select->gpio1);
 		src = &buf[80];
-		if (val & 0x01)
+		mac_src = "GNSS1";
+		if (val & 0x01) {
 			gpio_input_map(src, bp, sma_val, 0, NULL);
-		else if (val & 0x02)
+			mac_src = src;
+		} else if (val & 0x02) {
 			src = "MAC";
-		else if (val & 0x04)
+		} else if (val & 0x04) {
 			src = "GNSS1";
-		else
+		} else {
 			src = "----";
+			mac_src = src;
+		}
 	} else {
 		src = "?";
+		mac_src = src;
 	}
+	seq_printf(s, "MAC PPS1 src: %s\n", mac_src);
+
+	gpio_input_map(buf, bp, sma_val, 1, "GNSS2");
+	seq_printf(s, "MAC PPS2 src: %s\n", buf);
 
 	/* assumes automatic switchover/selection */
 	val = ioread32(&bp->reg->select);
@@ -3299,12 +3308,6 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 	val = ioread32(&bp->reg->status);
 	seq_printf(s, "%7s: %s, state: %s\n", "PHC src", buf,
 		   val & OCP_STATUS_IN_SYNC ? "sync" : "unsynced");
-
-	/* reuses PPS1 src from earlier */
-	seq_printf(s, "MAC PPS1 src: %s\n", src);
-
-	gpio_input_map(buf, bp, sma_val, 1, "GNSS2");
-	seq_printf(s, "MAC PPS2 src: %s\n", buf);
 
 	if (!ptp_ocp_gettimex(&bp->ptp_info, &ts, &sts)) {
 		struct timespec64 sys_ts;
