@@ -48,12 +48,28 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+	vdd_arm: vdd-arm {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0 0 5000 1>;
+		regulator-name = "vdd_arm";
+		regulator-min-microvolt = <724000>;
+		regulator-max-microvolt = <1078000>;
+		regulator-init-microvolt = <950000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+	};
 };
 
 &acodec {
 	#sound-dai-cells = <0>;
 	pa-ctl-gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
 };
 
 &csi2_dphy_hw {
@@ -209,6 +225,10 @@
 			};
 		};
 	};
+};
+
+&pwm0 {
+	status = "okay";
 };
 
 &rkcif {
