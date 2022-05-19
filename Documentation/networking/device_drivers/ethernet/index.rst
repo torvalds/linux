@@ -19,7 +19,6 @@ Contents:
    cirrus/cs89x0
    dlink/dl2k
    davicom/dm9000
-   dec/de4x5
    dec/dmfe
    freescale/dpaa
    freescale/dpaa2/index
