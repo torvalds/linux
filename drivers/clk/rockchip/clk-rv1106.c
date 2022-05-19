@@ -4,6 +4,7 @@
  * Author: Elaine Zhang <zhangqing@rock-chips.com>
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -14,15 +15,36 @@
 #include <dt-bindings/clock/rv1106-cru.h>
 #include "clk.h"
 
+#define CRU_PVTPLL0_CON0_L		0x11000
+#define CRU_PVTPLL0_CON0_H		0x11004
+#define CRU_PVTPLL0_CON1_L		0x11008
+#define CRU_PVTPLL0_CON1_H		0x1100c
+#define CRU_PVTPLL0_CON2_L		0x11010
+#define CRU_PVTPLL0_CON2_H		0x11014
+#define CRU_PVTPLL0_CON3_L		0x11018
+#define CRU_PVTPLL0_CON3_H		0x1101c
+#define CRU_PVTPLL0_OSC_CNT		0x11020
+#define CRU_PVTPLL0_OSC_CNT_AVG		0x11024
+
+#define CRU_PVTPLL1_CON0_L		0x11030
+#define CRU_PVTPLL1_CON0_H		0x11034
+#define CRU_PVTPLL1_CON1_L		0x11038
+#define CRU_PVTPLL1_CON1_H		0x1103c
+#define CRU_PVTPLL1_CON2_L		0x11040
+#define CRU_PVTPLL1_CON2_H		0x11044
+#define CRU_PVTPLL1_CON3_L		0x11048
+#define CRU_PVTPLL1_CON3_H		0x1104c
+#define CRU_PVTPLL1_OSC_CNT		0x11050
+#define CRU_PVTPLL1_OSC_CNT_AVG		0x11054
+
 #define RV1106_GRF_SOC_STATUS0		0x10
 #define CPU_PVTPLL_CON0_L		0x40000
 #define CPU_PVTPLL_CON0_H		0x40004
-#define CPU_PVTPLL_CON1_L		0x40008
-#define CPU_PVTPLL_CON1_H		0x4000c
-#define CPU_PVTPLL_CON2_L		0x40010
-#define CPU_PVTPLL_CON2_H		0x40014
-#define CPU_PVTPLL_CON3_L		0x40018
-#define CPU_PVTPLL_CON3_H		0x4001c
+#define CPU_PVTPLL_CON1			0x40008
+#define CPU_PVTPLL_CON2			0x4000c
+#define CPU_PVTPLL_CON3			0x40010
+#define CPU_PVTPLL_OSC_CNT		0x40018
+#define CPU_PVTPLL_OSC_CNT_AVG		0x4001c
 
 #define PVTPLL_RING_SEL_MASK		0x7
 #define PVTPLL_RING_SEL_SHIFT		8
@@ -169,7 +191,7 @@ static struct rockchip_cpuclk_rate_table rv1106_cpuclk_rates[] __initdata = {
 	RV1106_CPUCLK_RATE(1096000000, 2, 5, 1),
 	RV1106_CPUCLK_RATE(1008000000, 1, 5, 1),
 	RV1106_CPUCLK_RATE(912000000, 1, 5, 1),
-	RV1106_CPUCLK_RATE(816000000, 1, 3, 0),
+	RV1106_CPUCLK_RATE(816000000, 1, 3, 1),
 	RV1106_CPUCLK_RATE(696000000, 1, 3, 0),
 	RV1106_CPUCLK_RATE(600000000, 1, 3, 0),
 	RV1106_CPUCLK_RATE(408000000, 1, 1, 0),
@@ -952,7 +974,7 @@ static struct rockchip_clk_branch rv1106_grf_clk_branches[] __initdata = {
 };
 
 static void __iomem *rv1106_cru_base;
-static struct rockchip_clk_provider *grf_ctx;
+static struct rockchip_clk_provider *grf_ctx, *cru_ctx;
 
 void rv1106_dump_cru(void)
 {
@@ -965,7 +987,131 @@ void rv1106_dump_cru(void)
 }
 EXPORT_SYMBOL_GPL(rv1106_dump_cru);
 
-void rockchip_rv1106_pvtpll_init(struct rockchip_clk_provider *ctx)
+static void _cru_pvtpll_calibrate(int count_offset, int length_offset, int target_rate)
+{
+	unsigned int rate0, rate1, delta, length_ori, length, step, val, i = 0;
+
+	rate0 = readl_relaxed(rv1106_cru_base + count_offset);
+	if (rate0 < target_rate)
+		return;
+	/* delta < (3.125% * target_rate) */
+	if ((rate0 - target_rate) < (target_rate >> 5))
+		return;
+
+	length_ori = readl_relaxed(rv1106_cru_base + length_offset) & PVTPLL_LENGTH_SEL_MASK;
+	length = length_ori;
+	length++;
+	val = HIWORD_UPDATE(length, PVTPLL_LENGTH_SEL_MASK, PVTPLL_LENGTH_SEL_SHIFT);
+	writel_relaxed(val, rv1106_cru_base + length_offset);
+	usleep_range(2000, 2100);
+	rate1 = readl_relaxed(rv1106_cru_base + count_offset);
+	if ((rate1 < target_rate) || (rate1 >= rate0))
+		return;
+	if (abs(rate1 - target_rate) < (target_rate >> 5))
+		return;
+
+	step = rate0 - rate1;
+	delta = rate1 - target_rate;
+	length += delta / step;
+	val = HIWORD_UPDATE(length, PVTPLL_LENGTH_SEL_MASK, PVTPLL_LENGTH_SEL_SHIFT);
+	writel_relaxed(val, rv1106_cru_base + length_offset);
+	usleep_range(2000, 2100);
+	rate0 = readl_relaxed(rv1106_cru_base + count_offset);
+
+	while (abs(rate0 - target_rate) >= (target_rate >> 5)) {
+		if (i++ > 20)
+			break;
+		if (rate0 > target_rate)
+			length++;
+		else
+			length--;
+		if (length <= length_ori)
+			break;
+		val = HIWORD_UPDATE(length, PVTPLL_LENGTH_SEL_MASK, PVTPLL_LENGTH_SEL_SHIFT);
+		writel_relaxed(val, rv1106_cru_base + length_offset);
+		usleep_range(2000, 2100);
+		rate0 = readl_relaxed(rv1106_cru_base + count_offset);
+	}
+}
+
+static void _grf_pvtpll_calibrate(int count_offset, int length_offset, int target_rate)
+{
+	unsigned int rate0, rate1, delta, length_ori, length, step, val, i = 0;
+
+	regmap_read(cru_ctx->grf, count_offset, &rate0);
+	if (rate0 < target_rate)
+		return;
+	/* delta < (3.125% * target_rate) */
+	if ((rate0 - target_rate) < (target_rate >> 5))
+		return;
+
+	regmap_read(cru_ctx->grf, length_offset, &length_ori);
+	length = length_ori;
+	length_ori = length;
+	length &= PVTPLL_LENGTH_SEL_MASK;
+	length++;
+	val = HIWORD_UPDATE(length, PVTPLL_LENGTH_SEL_MASK, PVTPLL_LENGTH_SEL_SHIFT);
+	regmap_write(cru_ctx->grf, length_offset, val);
+	usleep_range(2000, 2100);
+	regmap_read(cru_ctx->grf, count_offset, &rate1);
+	if ((rate1 < target_rate) || (rate1 >= rate0))
+		return;
+	if (abs(rate1 - target_rate) < (target_rate >> 5))
+		return;
+
+	step = rate0 - rate1;
+	delta = rate1 - target_rate;
+	length += delta / step;
+	val = HIWORD_UPDATE(length, PVTPLL_LENGTH_SEL_MASK, PVTPLL_LENGTH_SEL_SHIFT);
+	regmap_write(cru_ctx->grf, length_offset, val);
+	usleep_range(2000, 2100);
+	regmap_read(cru_ctx->grf, count_offset, &rate0);
+
+	while (abs(rate0 - target_rate) >= (target_rate >> 5)) {
+		if (i++ > 20)
+			break;
+		if (rate0 > target_rate)
+			length++;
+		else
+			length--;
+		if (length <= length_ori)
+			break;
+		val = HIWORD_UPDATE(length, PVTPLL_LENGTH_SEL_MASK, PVTPLL_LENGTH_SEL_SHIFT);
+		regmap_write(cru_ctx->grf, length_offset, val);
+		usleep_range(2000, 2100);
+		regmap_read(cru_ctx->grf, count_offset, &rate0);
+	}
+}
+
+static void rockchip_rv1106_pvtpll_calibrate(struct work_struct *w)
+{
+	struct clk *clk;
+	unsigned long rate;
+
+	clk = __clk_lookup("clk_pvtpll_0");
+	if (clk) {
+		rate = clk_get_rate(clk);
+		_cru_pvtpll_calibrate(CRU_PVTPLL0_OSC_CNT_AVG,
+				      CRU_PVTPLL0_CON0_H, rate / 1000000);
+	}
+
+	clk = __clk_lookup("clk_pvtpll_1");
+	if (clk) {
+		rate = clk_get_rate(clk);
+		_cru_pvtpll_calibrate(CRU_PVTPLL1_OSC_CNT_AVG,
+				      CRU_PVTPLL1_CON0_H, rate / 1000000);
+	}
+
+	clk = __clk_lookup("cpu_pvtpll");
+	if (clk) {
+		rate = clk_get_rate(clk);
+		_grf_pvtpll_calibrate(CPU_PVTPLL_OSC_CNT_AVG,
+				      CPU_PVTPLL_CON0_H, rate / 1000000);
+	}
+}
+static DECLARE_DEFERRABLE_WORK(pvtpll_calibrate_work, rockchip_rv1106_pvtpll_calibrate);
+
+static void rockchip_rv1106_pvtpll_init(struct rockchip_clk_provider *ctx)
 {
 	/* set pvtpll ref clk mux */
 	writel_relaxed(CPU_PVTPLL_PATH_CORE, ctx->reg_base + CPU_CLK_PATH_BASE);
@@ -976,6 +1122,18 @@ void rockchip_rv1106_pvtpll_init(struct rockchip_clk_provider *ctx)
 		     PVTPLL_RING_SEL_SHIFT));
 	regmap_write(ctx->grf, CPU_PVTPLL_CON0_L, HIWORD_UPDATE(0x3, PVTPLL_EN_MASK,
 		     PVTPLL_EN_SHIFT));
+
+	writel_relaxed(0x007f0000, ctx->reg_base + CRU_PVTPLL0_CON0_H);
+	writel_relaxed(0xffff0018, ctx->reg_base + CRU_PVTPLL0_CON1_L);
+	writel_relaxed(0xffff0004, ctx->reg_base + CRU_PVTPLL0_CON2_H);
+	writel_relaxed(0x00030003, ctx->reg_base + CRU_PVTPLL0_CON0_L);
+
+	writel_relaxed(0x007f0000, ctx->reg_base + CRU_PVTPLL1_CON0_H);
+	writel_relaxed(0xffff0018, ctx->reg_base + CRU_PVTPLL1_CON1_L);
+	writel_relaxed(0xffff0004, ctx->reg_base + CRU_PVTPLL1_CON2_H);
+	writel_relaxed(0x00030003, ctx->reg_base + CRU_PVTPLL1_CON0_L);
+
+	schedule_delayed_work(&pvtpll_calibrate_work, msecs_to_jiffies(3000));
 }
 
 static int rv1106_clk_panic(struct notifier_block *this,
@@ -1009,6 +1167,7 @@ static void __init rv1106_clk_init(struct device_node *np)
 		iounmap(reg_base);
 		return;
 	}
+	cru_ctx = ctx;
 
 	rockchip_rv1106_pvtpll_init(ctx);
 
