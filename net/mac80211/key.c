@@ -433,13 +433,25 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 	int idx;
 	int ret = 0;
 	bool defunikey, defmultikey, defmgmtkey, defbeaconkey;
+	bool is_wep;
 
 	/* caller must provide at least one old/new */
 	if (WARN_ON(!new && !old))
 		return 0;
 
-	if (new)
+	if (new) {
+		idx = new->conf.keyidx;
 		list_add_tail_rcu(&new->list, &sdata->key_list);
+		is_wep = new->conf.cipher == WLAN_CIPHER_SUITE_WEP40 ||
+			 new->conf.cipher == WLAN_CIPHER_SUITE_WEP104;
+	} else {
+		idx = old->conf.keyidx;
+		is_wep = old->conf.cipher == WLAN_CIPHER_SUITE_WEP40 ||
+			 old->conf.cipher == WLAN_CIPHER_SUITE_WEP104;
+	}
+
+	if ((is_wep || pairwise) && idx >= NUM_DEFAULT_KEYS)
+		return -EINVAL;
 
 	WARN_ON(new && old && new->conf.keyidx != old->conf.keyidx);
 
@@ -451,8 +463,6 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (old) {
-		idx = old->conf.keyidx;
-
 		if (old->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
 			ieee80211_key_disable_hw_accel(old);
 
@@ -460,8 +470,6 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 				ret = ieee80211_key_enable_hw_accel(new);
 		}
 	} else {
-		/* new must be provided in case old is not */
-		idx = new->conf.keyidx;
 		if (!new->local->wowlan)
 			ret = ieee80211_key_enable_hw_accel(new);
 	}
