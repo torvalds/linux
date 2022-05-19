@@ -188,6 +188,7 @@ struct zswap_entry {
 		unsigned long handle;
 		unsigned long value;
 	};
+	struct obj_cgroup *objcg;
 };
 
 struct zswap_header {
@@ -359,6 +360,10 @@ static void zswap_rb_erase(struct rb_root *root, struct zswap_entry *entry)
  */
 static void zswap_free_entry(struct zswap_entry *entry)
 {
+	if (entry->objcg) {
+		obj_cgroup_uncharge_zswap(entry->objcg, entry->length);
+		obj_cgroup_put(entry->objcg);
+	}
 	if (!entry->length)
 		atomic_dec(&zswap_same_filled_pages);
 	else {
@@ -1096,6 +1101,8 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 	struct zswap_entry *entry, *dupentry;
 	struct scatterlist input, output;
 	struct crypto_acomp_ctx *acomp_ctx;
+	struct obj_cgroup *objcg = NULL;
+	struct zswap_pool *pool;
 	int ret;
 	unsigned int hlen, dlen = PAGE_SIZE;
 	unsigned long handle, value;
@@ -1115,17 +1122,15 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 		goto reject;
 	}
 
+	objcg = get_obj_cgroup_from_page(page);
+	if (objcg && !obj_cgroup_may_zswap(objcg))
+		goto shrink;
+
 	/* reclaim space if needed */
 	if (zswap_is_full()) {
-		struct zswap_pool *pool;
-
 		zswap_pool_limit_hit++;
 		zswap_pool_reached_full = true;
-		pool = zswap_pool_last_get();
-		if (pool)
-			queue_work(shrink_wq, &pool->shrink_work);
-		ret = -ENOMEM;
-		goto reject;
+		goto shrink;
 	}
 
 	if (zswap_pool_reached_full) {
@@ -1227,6 +1232,13 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 	entry->length = dlen;
 
 insert_entry:
+	entry->objcg = objcg;
+	if (objcg) {
+		obj_cgroup_charge_zswap(objcg, entry->length);
+		/* Account before objcg ref is moved to tree */
+		count_objcg_event(objcg, ZSWPOUT);
+	}
+
 	/* map */
 	spin_lock(&tree->lock);
 	do {
@@ -1253,7 +1265,16 @@ put_dstmem:
 freepage:
 	zswap_entry_cache_free(entry);
 reject:
+	if (objcg)
+		obj_cgroup_put(objcg);
 	return ret;
+
+shrink:
+	pool = zswap_pool_last_get();
+	if (pool)
+		queue_work(shrink_wq, &pool->shrink_work);
+	ret = -ENOMEM;
+	goto reject;
 }
 
 /*
@@ -1326,6 +1347,8 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
 	BUG_ON(ret);
 stats:
 	count_vm_event(ZSWPIN);
+	if (entry->objcg)
+		count_objcg_event(entry->objcg, ZSWPIN);
 freeentry:
 	spin_lock(&tree->lock);
 	zswap_entry_put(tree, entry);
