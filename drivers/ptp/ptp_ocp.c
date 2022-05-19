@@ -20,13 +20,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/nvmem-consumer.h>
 
-#ifndef PCI_VENDOR_ID_FACEBOOK
-#define PCI_VENDOR_ID_FACEBOOK 0x1d9b
-#endif
-
-#ifndef PCI_DEVICE_ID_FACEBOOK_TIMECARD
-#define PCI_DEVICE_ID_FACEBOOK_TIMECARD 0x0400
-#endif
+#define PCI_VENDOR_ID_FACEBOOK			0x1d9b
+#define PCI_DEVICE_ID_FACEBOOK_TIMECARD		0x0400
 
 static struct class timecard_class = {
 	.owner		= THIS_MODULE,
