@@ -2052,99 +2052,6 @@ static int rtw_wx_get_nick(struct net_device *dev,
 	return 0;
 }
 
-static int rtw_wx_read32(struct net_device *dev,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *extra)
-{
-	struct adapter *padapter;
-	struct iw_point *p;
-	u16 len;
-	u32 addr;
-	u32 data32;
-	u32 bytes;
-	u8 *ptmp;
-	int ret;
-
-	padapter = (struct adapter *)rtw_netdev_priv(dev);
-	p = &wrqu->data;
-	len = p->length;
-	ptmp = kmalloc(len, GFP_KERNEL);
-	if (!ptmp)
-		return -ENOMEM;
-
-	if (copy_from_user(ptmp, p->pointer, len)) {
-		kfree(ptmp);
-		return -EFAULT;
-	}
-
-	bytes = 0;
-	addr = 0;
-	sscanf(ptmp, "%d,%x", &bytes, &addr);
-
-	switch (bytes) {
-	case 1:
-		data32 = rtw_read8(padapter, addr);
-		sprintf(extra, "0x%02X", data32);
-		break;
-	case 2:
-		data32 = rtw_read16(padapter, addr);
-		sprintf(extra, "0x%04X", data32);
-		break;
-	case 4:
-		data32 = rtw_read32(padapter, addr);
-		sprintf(extra, "0x%08X", data32);
-		break;
-	default:
-		DBG_88E(KERN_INFO "%s: usage> read [bytes],[address(hex)]\n", __func__);
-		ret = -EINVAL;
-		goto err_free_ptmp;
-	}
-	DBG_88E(KERN_INFO "%s: addr = 0x%08X data =%s\n", __func__, addr, extra);
-
-	kfree(ptmp);
-	return 0;
-
-err_free_ptmp:
-	kfree(ptmp);
-	return ret;
-}
-
-static int rtw_wx_write32(struct net_device *dev,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *extra)
-{
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-
-	u32 addr;
-	u32 data32;
-	u32 bytes;
-
-	bytes = 0;
-	addr = 0;
-	data32 = 0;
-	sscanf(extra, "%d,%x,%x", &bytes, &addr, &data32);
-
-	switch (bytes) {
-	case 1:
-		rtw_write8(padapter, addr, (u8)data32);
-		DBG_88E(KERN_INFO "%s: addr = 0x%08X data = 0x%02X\n", __func__, addr, (u8)data32);
-		break;
-	case 2:
-		rtw_write16(padapter, addr, (u16)data32);
-		DBG_88E(KERN_INFO "%s: addr = 0x%08X data = 0x%04X\n", __func__, addr, (u16)data32);
-		break;
-	case 4:
-		rtw_write32(padapter, addr, data32);
-		DBG_88E(KERN_INFO "%s: addr = 0x%08X data = 0x%08X\n", __func__, addr, data32);
-		break;
-	default:
-		DBG_88E(KERN_INFO "%s: usage> write [bytes],[address(hex)],[data(hex)]\n", __func__);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int rtw_wx_read_rf(struct net_device *dev,
 			    struct iw_request_info *info,
 			    union iwreq_data *wrqu, char *extra)
@@ -6579,8 +6486,8 @@ static const struct iw_priv_args rtw_private_args[] = {
 };
 
 static iw_handler rtw_private_handler[] = {
-rtw_wx_write32,				/* 0x00 */
-rtw_wx_read32,				/* 0x01 */
+	NULL,				/* 0x00 */
+	NULL,				/* 0x01 */
 rtw_drvext_hdl,				/* 0x02 */
 rtw_mp_ioctl_hdl,			/* 0x03 */
 
