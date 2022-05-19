@@ -181,14 +181,7 @@ netdev_tx_t __efx_siena_enqueue_skb(struct efx_tx_queue *tx_queue,
 	if (__netdev_tx_sent_queue(tx_queue->core_txq, skb_len, xmit_more))
 		efx_tx_send_pending(tx_queue->channel);
 
-	if (segments) {
-		tx_queue->tso_bursts++;
-		tx_queue->tso_packets += segments;
-		tx_queue->tx_packets  += segments;
-	} else {
-		tx_queue->tx_packets++;
-	}
-
+	tx_queue->tx_packets++;
 	return NETDEV_TX_OK;
 
 
