@@ -152,7 +152,7 @@ const struct clk_ops mtk_clk_gate_ops_no_setclr_inv = {
 };
 EXPORT_SYMBOL_GPL(mtk_clk_gate_ops_no_setclr_inv);
 
-static struct clk *mtk_clk_register_gate(const char *name,
+static struct clk_hw *mtk_clk_register_gate(const char *name,
 					 const char *parent_name,
 					 struct regmap *regmap, int set_ofs,
 					 int clr_ofs, int sta_ofs, u8 bit,
@@ -160,7 +160,7 @@ static struct clk *mtk_clk_register_gate(const char *name,
 					 unsigned long flags, struct device *dev)
 {
 	struct mtk_clk_gate *cg;
-	struct clk *clk;
+	int ret;
 	struct clk_init_data init = {};
 
 	cg = kzalloc(sizeof(*cg), GFP_KERNEL);
@@ -181,25 +181,24 @@ static struct clk *mtk_clk_register_gate(const char *name,
 
 	cg->hw.init = &init;
 
-	clk = clk_register(dev, &cg->hw);
-	if (IS_ERR(clk))
+	ret = clk_hw_register(dev, &cg->hw);
+	if (ret) {
 		kfree(cg);
+		return ERR_PTR(ret);
+	}
 
-	return clk;
+	return &cg->hw;
 }
 
-static void mtk_clk_unregister_gate(struct clk *clk)
+static void mtk_clk_unregister_gate(struct clk_hw *hw)
 {
 	struct mtk_clk_gate *cg;
-	struct clk_hw *hw;
-
-	hw = __clk_get_hw(clk);
 	if (!hw)
 		return;
 
 	cg = to_mtk_clk_gate(hw);
 
-	clk_unregister(clk);
+	clk_hw_unregister(hw);
 	kfree(cg);
 }
 
@@ -209,7 +208,7 @@ int mtk_clk_register_gates_with_dev(struct device_node *node,
 				    struct device *dev)
 {
 	int i;
-	struct clk *clk;
+	struct clk_hw *hw;
 	struct regmap *regmap;
 
 	if (!clk_data)
@@ -230,7 +229,7 @@ int mtk_clk_register_gates_with_dev(struct device_node *node,
 			continue;
 		}
 
-		clk = mtk_clk_register_gate(gate->name, gate->parent_name,
+		hw = mtk_clk_register_gate(gate->name, gate->parent_name,
 					    regmap,
 					    gate->regs->set_ofs,
 					    gate->regs->clr_ofs,
@@ -238,12 +237,13 @@ int mtk_clk_register_gates_with_dev(struct device_node *node,
 					    gate->shift, gate->ops,
 					    gate->flags, dev);
 
-		if (IS_ERR(clk)) {
-			pr_err("Failed to register clk %s: %pe\n", gate->name, clk);
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", gate->name,
+			       hw);
 			goto err;
 		}
 
-		clk_data->hws[gate->id] = __clk_get_hw(clk);
+		clk_data->hws[gate->id] = hw;
 	}
 
 	return 0;
@@ -255,11 +255,11 @@ err:
 		if (IS_ERR_OR_NULL(clk_data->hws[gate->id]))
 			continue;
 
-		mtk_clk_unregister_gate(clk_data->hws[gate->id]->clk);
+		mtk_clk_unregister_gate(clk_data->hws[gate->id]);
 		clk_data->hws[gate->id] = ERR_PTR(-ENOENT);
 	}
 
-	return PTR_ERR(clk);
+	return PTR_ERR(hw);
 }
 
 int mtk_clk_register_gates(struct device_node *node,
@@ -284,7 +284,7 @@ void mtk_clk_unregister_gates(const struct mtk_gate *clks, int num,
 		if (IS_ERR_OR_NULL(clk_data->hws[gate->id]))
 			continue;
 
-		mtk_clk_unregister_gate(clk_data->hws[gate->id]->clk);
+		mtk_clk_unregister_gate(clk_data->hws[gate->id]);
 		clk_data->hws[gate->id] = ERR_PTR(-ENOENT);
 	}
 }

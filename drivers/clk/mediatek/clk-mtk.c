@@ -46,7 +46,7 @@ int mtk_clk_register_fixed_clks(const struct mtk_fixed_clk *clks, int num,
 				struct clk_hw_onecell_data *clk_data)
 {
 	int i;
-	struct clk *clk;
+	struct clk_hw *hw;
 
 	if (!clk_data)
 		return -ENOMEM;
@@ -59,15 +59,16 @@ int mtk_clk_register_fixed_clks(const struct mtk_fixed_clk *clks, int num,
 			continue;
 		}
 
-		clk = clk_register_fixed_rate(NULL, rc->name, rc->parent, 0,
+		hw = clk_hw_register_fixed_rate(NULL, rc->name, rc->parent, 0,
 					      rc->rate);
 
-		if (IS_ERR(clk)) {
-			pr_err("Failed to register clk %s: %pe\n", rc->name, clk);
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", rc->name,
+			       hw);
 			goto err;
 		}
 
-		clk_data->hws[rc->id] = __clk_get_hw(clk);
+		clk_data->hws[rc->id] = hw;
 	}
 
 	return 0;
@@ -83,7 +84,7 @@ err:
 		clk_data->hws[rc->id] = ERR_PTR(-ENOENT);
 	}
 
-	return PTR_ERR(clk);
+	return PTR_ERR(hw);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_register_fixed_clks);
 
@@ -111,7 +112,7 @@ int mtk_clk_register_factors(const struct mtk_fixed_factor *clks, int num,
 			     struct clk_hw_onecell_data *clk_data)
 {
 	int i;
-	struct clk *clk;
+	struct clk_hw *hw;
 
 	if (!clk_data)
 		return -ENOMEM;
@@ -124,15 +125,16 @@ int mtk_clk_register_factors(const struct mtk_fixed_factor *clks, int num,
 			continue;
 		}
 
-		clk = clk_register_fixed_factor(NULL, ff->name, ff->parent_name,
+		hw = clk_hw_register_fixed_factor(NULL, ff->name, ff->parent_name,
 				CLK_SET_RATE_PARENT, ff->mult, ff->div);
 
-		if (IS_ERR(clk)) {
-			pr_err("Failed to register clk %s: %pe\n", ff->name, clk);
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", ff->name,
+			       hw);
 			goto err;
 		}
 
-		clk_data->hws[ff->id] = __clk_get_hw(clk);
+		clk_data->hws[ff->id] = hw;
 	}
 
 	return 0;
@@ -148,7 +150,7 @@ err:
 		clk_data->hws[ff->id] = ERR_PTR(-ENOENT);
 	}
 
-	return PTR_ERR(clk);
+	return PTR_ERR(hw);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_register_factors);
 
@@ -172,10 +174,10 @@ void mtk_clk_unregister_factors(const struct mtk_fixed_factor *clks, int num,
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_factors);
 
-static struct clk *mtk_clk_register_composite(const struct mtk_composite *mc,
+static struct clk_hw *mtk_clk_register_composite(const struct mtk_composite *mc,
 		void __iomem *base, spinlock_t *lock)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 	struct clk_mux *mux = NULL;
 	struct clk_gate *gate = NULL;
 	struct clk_divider *div = NULL;
@@ -239,18 +241,18 @@ static struct clk *mtk_clk_register_composite(const struct mtk_composite *mc,
 		div_ops = &clk_divider_ops;
 	}
 
-	clk = clk_register_composite(NULL, mc->name, parent_names, num_parents,
+	hw = clk_hw_register_composite(NULL, mc->name, parent_names, num_parents,
 		mux_hw, mux_ops,
 		div_hw, div_ops,
 		gate_hw, gate_ops,
 		mc->flags);
 
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
+	if (IS_ERR(hw)) {
+		ret = PTR_ERR(hw);
 		goto err_out;
 	}
 
-	return clk;
+	return hw;
 err_out:
 	kfree(div);
 	kfree(gate);
@@ -259,15 +261,13 @@ err_out:
 	return ERR_PTR(ret);
 }
 
-static void mtk_clk_unregister_composite(struct clk *clk)
+static void mtk_clk_unregister_composite(struct clk_hw *hw)
 {
-	struct clk_hw *hw;
 	struct clk_composite *composite;
 	struct clk_mux *mux = NULL;
 	struct clk_gate *gate = NULL;
 	struct clk_divider *div = NULL;
 
-	hw = __clk_get_hw(clk);
 	if (!hw)
 		return;
 
@@ -279,7 +279,7 @@ static void mtk_clk_unregister_composite(struct clk *clk)
 	if (composite->rate_hw)
 		div = to_clk_divider(composite->rate_hw);
 
-	clk_unregister_composite(clk);
+	clk_hw_unregister_composite(hw);
 	kfree(div);
 	kfree(gate);
 	kfree(mux);
@@ -289,7 +289,7 @@ int mtk_clk_register_composites(const struct mtk_composite *mcs, int num,
 				void __iomem *base, spinlock_t *lock,
 				struct clk_hw_onecell_data *clk_data)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 	int i;
 
 	if (!clk_data)
@@ -304,14 +304,15 @@ int mtk_clk_register_composites(const struct mtk_composite *mcs, int num,
 			continue;
 		}
 
-		clk = mtk_clk_register_composite(mc, base, lock);
+		hw = mtk_clk_register_composite(mc, base, lock);
 
-		if (IS_ERR(clk)) {
-			pr_err("Failed to register clk %s: %pe\n", mc->name, clk);
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", mc->name,
+			       hw);
 			goto err;
 		}
 
-		clk_data->hws[mc->id] = __clk_get_hw(clk);
+		clk_data->hws[mc->id] = hw;
 	}
 
 	return 0;
@@ -323,11 +324,11 @@ err:
 		if (IS_ERR_OR_NULL(clk_data->hws[mcs->id]))
 			continue;
 
-		mtk_clk_unregister_composite(clk_data->hws[mc->id]->clk);
+		mtk_clk_unregister_composite(clk_data->hws[mc->id]);
 		clk_data->hws[mc->id] = ERR_PTR(-ENOENT);
 	}
 
-	return PTR_ERR(clk);
+	return PTR_ERR(hw);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_register_composites);
 
@@ -345,7 +346,7 @@ void mtk_clk_unregister_composites(const struct mtk_composite *mcs, int num,
 		if (IS_ERR_OR_NULL(clk_data->hws[mc->id]))
 			continue;
 
-		mtk_clk_unregister_composite(clk_data->hws[mc->id]->clk);
+		mtk_clk_unregister_composite(clk_data->hws[mc->id]);
 		clk_data->hws[mc->id] = ERR_PTR(-ENOENT);
 	}
 }
@@ -355,7 +356,7 @@ int mtk_clk_register_dividers(const struct mtk_clk_divider *mcds, int num,
 			      void __iomem *base, spinlock_t *lock,
 			      struct clk_hw_onecell_data *clk_data)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 	int i;
 
 	if (!clk_data)
@@ -370,16 +371,17 @@ int mtk_clk_register_dividers(const struct mtk_clk_divider *mcds, int num,
 			continue;
 		}
 
-		clk = clk_register_divider(NULL, mcd->name, mcd->parent_name,
+		hw = clk_hw_register_divider(NULL, mcd->name, mcd->parent_name,
 			mcd->flags, base +  mcd->div_reg, mcd->div_shift,
 			mcd->div_width, mcd->clk_divider_flags, lock);
 
-		if (IS_ERR(clk)) {
-			pr_err("Failed to register clk %s: %pe\n", mcd->name, clk);
+		if (IS_ERR(hw)) {
+			pr_err("Failed to register clk %s: %pe\n", mcd->name,
+			       hw);
 			goto err;
 		}
 
-		clk_data->hws[mcd->id] = __clk_get_hw(clk);
+		clk_data->hws[mcd->id] = hw;
 	}
 
 	return 0;
@@ -391,11 +393,11 @@ err:
 		if (IS_ERR_OR_NULL(clk_data->hws[mcd->id]))
 			continue;
 
-		mtk_clk_unregister_composite(clk_data->hws[mcd->id]->clk);
+		mtk_clk_unregister_composite(clk_data->hws[mcd->id]);
 		clk_data->hws[mcd->id] = ERR_PTR(-ENOENT);
 	}
 
-	return PTR_ERR(clk);
+	return PTR_ERR(hw);
 }
 
 void mtk_clk_unregister_dividers(const struct mtk_clk_divider *mcds, int num,
