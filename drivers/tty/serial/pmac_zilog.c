@@ -64,7 +64,6 @@
 
 #include "pmac_zilog.h"
 
-static char version[] __initdata = "pmac_zilog: 0.6 (Benjamin Herrenschmidt <benh@kernel.crashing.org>)";
 MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
 MODULE_DESCRIPTION("Driver for the Mac and PowerMac serial ports.");
 MODULE_LICENSE("GPL");
@@ -1812,7 +1811,6 @@ static struct platform_driver pmz_driver = {
 static int __init init_pmz(void)
 {
 	int rc, i;
-	printk(KERN_INFO "%s\n", version);
 
 	/* 
 	 * First, we need to do a direct OF-based probe pass. We
