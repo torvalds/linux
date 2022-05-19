@@ -3,10 +3,7 @@
  * TC358767/TC358867/TC9595 DSI/DPI-to-DPI/(e)DP bridge driver
  *
  * The TC358767/TC358867/TC9595 can operate in multiple modes.
- * The following modes are supported:
- *   DPI->(e)DP -- supported
- *   DSI->DPI .... supported
- *   DSI->(e)DP .. NOT supported
+ * All modes are supported -- DPI->(e)DP / DSI->DPI / DSI->(e)DP .
  *
  * Copyright (C) 2016 CogentEmbedded Inc
  * Author: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
