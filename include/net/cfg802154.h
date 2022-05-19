@@ -166,11 +166,14 @@ wpan_phy_cca_cmp(const struct wpan_phy_cca *a, const struct wpan_phy_cca *b)
  *	level setting.
  * @WPAN_PHY_FLAG_CCA_MODE: Indicates that transceiver will support cca mode
  *	setting.
+ * @WPAN_PHY_FLAG_STATE_QUEUE_STOPPED: Indicates that the transmit queue was
+ *	temporarily stopped.
  */
 enum wpan_phy_flags {
 	WPAN_PHY_FLAG_TXPOWER		= BIT(1),
 	WPAN_PHY_FLAG_CCA_ED_LEVEL	= BIT(2),
 	WPAN_PHY_FLAG_CCA_MODE		= BIT(3),
+	WPAN_PHY_FLAG_STATE_QUEUE_STOPPED = BIT(4),
 };
 
 struct wpan_phy {
@@ -182,7 +185,7 @@ struct wpan_phy {
 	 */
 	const void *privid;
 
-	u32 flags;
+	unsigned long flags;
 
 	/*
 	 * This is a PIB according to 802.15.4-2011.

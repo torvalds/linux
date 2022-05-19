@@ -123,9 +123,13 @@ static int ieee802154_sync_queue(struct ieee802154_local *local)
 
 int ieee802154_sync_and_hold_queue(struct ieee802154_local *local)
 {
-	ieee802154_hold_queue(local);
+	int ret;
 
-	return ieee802154_sync_queue(local);
+	ieee802154_hold_queue(local);
+	ret = ieee802154_sync_queue(local);
+	set_bit(WPAN_PHY_FLAG_STATE_QUEUE_STOPPED, &local->phy->flags);
+
+	return ret;
 }
 
 int ieee802154_mlme_op_pre(struct ieee802154_local *local)
@@ -172,9 +176,19 @@ int ieee802154_mlme_tx_one(struct ieee802154_local *local, struct sk_buff *skb)
 	return ret;
 }
 
+static bool ieee802154_queue_is_stopped(struct ieee802154_local *local)
+{
+	return test_bit(WPAN_PHY_FLAG_STATE_QUEUE_STOPPED, &local->phy->flags);
+}
+
 static netdev_tx_t
 ieee802154_hot_tx(struct ieee802154_local *local, struct sk_buff *skb)
 {
+	/* Warn if the net interface tries to transmit frames while the
+	 * ieee802154 core assumes the queue is stopped.
+	 */
+	WARN_ON_ONCE(ieee802154_queue_is_stopped(local));
+
 	return ieee802154_tx(local, skb);
 }
 

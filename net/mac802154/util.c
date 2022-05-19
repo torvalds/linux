@@ -29,6 +29,7 @@ static void ieee802154_wake_queue(struct ieee802154_hw *hw)
 	struct ieee802154_sub_if_data *sdata;
 
 	rcu_read_lock();
+	clear_bit(WPAN_PHY_FLAG_STATE_QUEUE_STOPPED, &local->phy->flags);
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (!sdata->dev)
 			continue;
