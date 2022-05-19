@@ -308,7 +308,9 @@ struct ptp_ocp {
 	int			gnss2_port;
 	int			mac_port;	/* miniature atomic clock */
 	int			nmea_port;
-	u32			fw_version;
+	bool			fw_loader;
+	u8			fw_tag;
+	u16			fw_version;
 	u8			board_id[OCP_BOARD_ID_LEN];
 	u8			serial[OCP_SERIAL_LEN];
 	bool			has_eeprom_data;
@@ -1359,6 +1361,7 @@ ptp_ocp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 			 struct netlink_ext_ack *extack)
 {
 	struct ptp_ocp *bp = devlink_priv(devlink);
+	const char *fw_image;
 	char buf[32];
 	int err;
 
@@ -1366,13 +1369,9 @@ ptp_ocp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	if (err)
 		return err;
 
-	if (bp->fw_version & 0xffff) {
-		sprintf(buf, "%d", bp->fw_version);
-		err = devlink_info_version_running_put(req, "fw", buf);
-	} else {
-		sprintf(buf, "%d", bp->fw_version >> 16);
-		err = devlink_info_version_running_put(req, "loader", buf);
-	}
+	fw_image = bp->fw_loader ? "loader" : "fw";
+	sprintf(buf, "%d.%d", bp->fw_tag, bp->fw_version);
+	err = devlink_info_version_running_put(req, fw_image, buf);
 	if (err)
 		return err;
 
@@ -1931,22 +1930,49 @@ ptp_ocp_fb_set_pins(struct ptp_ocp *bp)
 	return 0;
 }
 
+static void
+ptp_ocp_fb_set_version(struct ptp_ocp *bp)
+{
+	u64 cap = OCP_CAP_BASIC;
+	u32 version;
+
+	version = ioread32(&bp->image->version);
+
+	/* if lower 16 bits are empty, this is the fw loader. */
+	if ((version & 0xffff) == 0) {
+		version = version >> 16;
+		bp->fw_loader = true;
+	}
+
+	bp->fw_tag = version >> 15;
+	bp->fw_version = version & 0x7fff;
+
+	if (bp->fw_tag) {
+		/* FPGA firmware */
+		if (version >= 5)
+			cap |= OCP_CAP_SIGNAL | OCP_CAP_FREQ;
+	} else {
+		/* SOM firmware */
+		if (version >= 19)
+			cap |= OCP_CAP_SIGNAL;
+		if (version >= 20)
+			cap |= OCP_CAP_FREQ;
+	}
+
+	bp->fw_cap = cap;
+}
+
 /* FB specific board initializers; last "resource" registered. */
 static int
 ptp_ocp_fb_board_init(struct ptp_ocp *bp, struct ocp_resource *r)
 {
-	int ver, err;
+	int err;
 
 	bp->flash_start = 1024 * 4096;
 	bp->eeprom_map = fb_eeprom_map;
 	bp->fw_version = ioread32(&bp->image->version);
-	bp->fw_cap = OCP_CAP_BASIC;
 
-	ver = bp->fw_version & 0xffff;
-	if (ver >= 19)
-		bp->fw_cap |= OCP_CAP_SIGNAL;
-	if (ver >= 20)
-		bp->fw_cap |= OCP_CAP_FREQ;
+	ptp_ocp_fb_set_version(bp);
 
 	ptp_ocp_tod_init(bp);
 	ptp_ocp_nmea_out_init(bp);
@@ -3496,14 +3522,6 @@ ptp_ocp_info(struct ptp_ocp *bp)
 	u32 reg;
 
 	ptp_ocp_phc_info(bp);
-
-	dev_info(dev, "version %x\n", bp->fw_version);
-	if (bp->fw_version & 0xffff)
-		dev_info(dev, "regular image, version %d\n",
-			 bp->fw_version & 0xffff);
-	else
-		dev_info(dev, "golden image, version %d\n",
-			 bp->fw_version >> 16);
 
 	ptp_ocp_serial_info(dev, "GNSS", bp->gnss_port, 115200);
 	ptp_ocp_serial_info(dev, "GNSS2", bp->gnss2_port, 115200);
