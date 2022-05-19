@@ -139,6 +139,9 @@ int ath11k_reg_update_chan_list(struct ath11k *ar, bool wait)
 			   "reg hw scan wait left time %d\n", left);
 	}
 
+	if (ar->state == ATH11K_STATE_RESTARTING)
+		return 0;
+
 	bands = hw->wiphy->bands;
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		if (!bands[band])

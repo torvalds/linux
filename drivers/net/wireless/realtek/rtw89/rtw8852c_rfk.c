@@ -3809,6 +3809,24 @@ void rtw8852c_set_channel_rf(struct rtw89_dev *rtwdev,
 			    param->bandwidth);
 }
 
+void rtw8852c_mcc_get_ch_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+{
+	struct rtw89_mcc_info *mcc_info = &rtwdev->mcc;
+	u8 idx = mcc_info->table_idx;
+	int i;
+
+	for (i = 0; i < RTW89_IQK_CHS_NR; i++) {
+		if (mcc_info->ch[idx] == 0)
+			break;
+		if (++idx >= RTW89_IQK_CHS_NR)
+			idx = 0;
+	}
+
+	mcc_info->table_idx = idx;
+	mcc_info->ch[idx] = rtwdev->hal.current_channel;
+	mcc_info->band[idx] = rtwdev->hal.current_band_type;
+}
+
 void rtw8852c_rck(struct rtw89_dev *rtwdev)
 {
 	u8 path;

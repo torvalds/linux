@@ -682,9 +682,6 @@ EXPORT_SYMBOL(rtw89_pci_enable_intr_v1);
 void rtw89_pci_disable_intr_v1(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci)
 {
 	rtw89_write32(rtwdev, R_AX_PCIE_HIMR00_V1, 0);
-	rtw89_write32(rtwdev, R_AX_HIMR0, 0);
-	rtw89_write32(rtwdev, R_AX_HAXI_HIMR00, 0);
-	rtw89_write32(rtwdev, R_AX_HIMR1, 0);
 }
 EXPORT_SYMBOL(rtw89_pci_disable_intr_v1);
 

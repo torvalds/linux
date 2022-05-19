@@ -2068,7 +2068,7 @@ static void rtw89_release_pkt_list(struct rtw89_dev *rtwdev)
 	struct rtw89_pktofld_info *info, *tmp;
 	u8 idx;
 
-	for (idx = RTW89_BAND_2G; idx < NUM_NL80211_BANDS; idx++) {
+	for (idx = NL80211_BAND_2GHZ; idx < NUM_NL80211_BANDS; idx++) {
 		if (!(rtwdev->chip->support_bands & BIT(idx)))
 			continue;
 

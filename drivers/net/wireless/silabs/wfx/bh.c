@@ -267,7 +267,7 @@ void wfx_bh_request_rx(struct wfx_dev *wdev)
 	wfx_control_reg_read(wdev, &cur);
 	prev = atomic_xchg(&wdev->hif.ctrl_reg, cur);
 	complete(&wdev->hif.ctrl_ready);
-	queue_work(system_highpri_wq, &wdev->hif.bh);
+	queue_work(wdev->bh_wq, &wdev->hif.bh);
 
 	if (!(cur & CTRL_NEXT_LEN_MASK))
 		dev_err(wdev->dev, "unexpected control register value: length field is 0: %04x\n",
@@ -280,7 +280,7 @@ void wfx_bh_request_rx(struct wfx_dev *wdev)
 /* Driver want to send data */
 void wfx_bh_request_tx(struct wfx_dev *wdev)
 {
-	queue_work(system_highpri_wq, &wdev->hif.bh);
+	queue_work(wdev->bh_wq, &wdev->hif.bh);
 }
 
 /* If IRQ is not available, this function allow to manually poll the control register and simulate
@@ -295,7 +295,7 @@ void wfx_bh_poll_irq(struct wfx_dev *wdev)
 	u32 reg;
 
 	WARN(!wdev->poll_irq, "unexpected IRQ polling can mask IRQ");
-	flush_workqueue(system_highpri_wq);
+	flush_workqueue(wdev->bh_wq);
 	start = ktime_get();
 	for (;;) {
 		wfx_control_reg_read(wdev, &reg);

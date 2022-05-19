@@ -1970,6 +1970,21 @@ static int ath11k_qmi_alloc_target_mem_chunk(struct ath11k_base *ab)
 
 	for (i = 0; i < ab->qmi.mem_seg_count; i++) {
 		chunk = &ab->qmi.target_mem[i];
+
+		/* Firmware reloads in coldboot/firmware recovery.
+		 * in such case, no need to allocate memory for FW again.
+		 */
+		if (chunk->vaddr) {
+			if (chunk->prev_type == chunk->type ||
+			    chunk->prev_size == chunk->size)
+				continue;
+
+			/* cannot reuse the existing chunk */
+			dma_free_coherent(ab->dev, chunk->size,
+					  chunk->vaddr, chunk->paddr);
+			chunk->vaddr = NULL;
+		}
+
 		chunk->vaddr = dma_alloc_coherent(ab->dev,
 						  chunk->size,
 						  &chunk->paddr,
@@ -1990,6 +2005,8 @@ static int ath11k_qmi_alloc_target_mem_chunk(struct ath11k_base *ab)
 				   chunk->type);
 			return -EINVAL;
 		}
+		chunk->prev_type = chunk->type;
+		chunk->prev_size = chunk->size;
 	}
 
 	return 0;
@@ -2466,9 +2483,6 @@ static int ath11k_qmi_m3_load(struct ath11k_base *ab)
 	char path[100];
 	int ret;
 
-	if (m3_mem->vaddr || m3_mem->size)
-		return 0;
-
 	fw = ath11k_core_firmware_request(ab, ATH11K_M3_FILE);
 	if (IS_ERR(fw)) {
 		ret = PTR_ERR(fw);
@@ -2477,6 +2491,9 @@ static int ath11k_qmi_m3_load(struct ath11k_base *ab)
 		ath11k_err(ab, "failed to load %s: %d\n", path, ret);
 		return ret;
 	}
+
+	if (m3_mem->vaddr || m3_mem->size)
+		goto skip_m3_alloc;
 
 	m3_mem->vaddr = dma_alloc_coherent(ab->dev,
 					   fw->size, &m3_mem->paddr,
@@ -2488,6 +2505,7 @@ static int ath11k_qmi_m3_load(struct ath11k_base *ab)
 		return -ENOMEM;
 	}
 
+skip_m3_alloc:
 	memcpy(m3_mem->vaddr, fw->data, fw->size);
 	m3_mem->size = fw->size;
 	release_firmware(fw);

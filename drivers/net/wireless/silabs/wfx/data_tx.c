@@ -212,11 +212,12 @@ static u8 wfx_tx_get_link_id(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 			     struct ieee80211_hdr *hdr)
 {
 	struct wfx_sta_priv *sta_priv = sta ? (struct wfx_sta_priv *)&sta->drv_priv : NULL;
+	struct ieee80211_vif *vif = wvif_to_vif(wvif);
 	const u8 *da = ieee80211_get_DA(hdr);
 
 	if (sta_priv && sta_priv->link_id)
 		return sta_priv->link_id;
-	if (wvif->vif->type != NL80211_IFTYPE_AP)
+	if (vif->type != NL80211_IFTYPE_AP)
 		return 0;
 	if (is_multicast_ether_addr(da))
 		return 0;

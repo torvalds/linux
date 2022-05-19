@@ -1608,10 +1608,13 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 
 	if (rtwdev->scanning &&
 	    RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD, &rtwdev->fw)) {
-		rx_status->freq =
-			ieee80211_channel_to_frequency(hal->current_channel,
-						       hal->current_band_type);
-		rx_status->band = rtwdev->hal.current_band_type;
+		u8 chan = hal->current_channel;
+		u8 band = hal->current_band_type;
+		enum nl80211_band nl_band;
+
+		nl_band = rtw89_hw_to_nl80211_band(band);
+		rx_status->freq = ieee80211_channel_to_frequency(chan, nl_band);
+		rx_status->band = nl_band;
 	}
 
 	if (desc_info->icv_err || desc_info->crc32_err)

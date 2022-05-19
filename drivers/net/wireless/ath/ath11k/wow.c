@@ -640,6 +640,24 @@ static int ath11k_wow_protocol_offload(struct ath11k *ar, bool enable)
 	return 0;
 }
 
+static int ath11k_wow_set_keepalive(struct ath11k *ar,
+				    enum wmi_sta_keepalive_method method,
+				    u32 interval)
+{
+	struct ath11k_vif *arvif;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	list_for_each_entry(arvif, &ar->arvifs, list) {
+		ret = ath11k_mac_vif_set_keepalive(arvif, method, interval);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int ath11k_wow_op_suspend(struct ieee80211_hw *hw,
 			  struct cfg80211_wowlan *wowlan)
 {
@@ -688,6 +706,14 @@ int ath11k_wow_op_suspend(struct ieee80211_hw *hw,
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to set hw filter: %d\n",
 			    ret);
+		goto cleanup;
+	}
+
+	ret = ath11k_wow_set_keepalive(ar,
+				       WMI_STA_KEEPALIVE_METHOD_NULL_FRAME,
+				       WMI_STA_KEEPALIVE_INTERVAL_DEFAULT);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to enable wow keepalive: %d\n", ret);
 		goto cleanup;
 	}
 
@@ -783,6 +809,14 @@ int ath11k_wow_op_resume(struct ieee80211_hw *hw)
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to clear wow protocol offload events: %d\n",
 			    ret);
+		goto exit;
+	}
+
+	ret = ath11k_wow_set_keepalive(ar,
+				       WMI_STA_KEEPALIVE_METHOD_NULL_FRAME,
+				       WMI_STA_KEEPALIVE_INTERVAL_DISABLE);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to disable wow keepalive: %d\n", ret);
 		goto exit;
 	}
 

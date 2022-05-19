@@ -205,9 +205,10 @@ unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev, struct sk_buff *
 
 bool wfx_tx_queues_has_cab(struct wfx_vif *wvif)
 {
+	struct ieee80211_vif *vif = wvif_to_vif(wvif);
 	int i;
 
-	if (wvif->vif->type != NL80211_IFTYPE_AP)
+	if (vif->type != NL80211_IFTYPE_AP)
 		return false;
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i)
 		/* Note: since only AP can have mcast frames in queue and only one vif can be AP,

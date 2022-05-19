@@ -28,6 +28,7 @@ enum rtw89_debug_mask {
 
 enum rtw89_debug_mac_reg_sel {
 	RTW89_DBG_SEL_MAC_00,
+	RTW89_DBG_SEL_MAC_30,
 	RTW89_DBG_SEL_MAC_40,
 	RTW89_DBG_SEL_MAC_80,
 	RTW89_DBG_SEL_MAC_C0,

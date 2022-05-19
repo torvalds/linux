@@ -458,16 +458,14 @@ int wil_if_add(struct wil6210_priv *wil)
 		netif_napi_add(&wil->napi_ndev, &wil->napi_rx,
 			       wil6210_netdev_poll_rx_edma,
 			       NAPI_POLL_WEIGHT);
-		netif_tx_napi_add(&wil->napi_ndev,
-				  &wil->napi_tx, wil6210_netdev_poll_tx_edma,
-				  NAPI_POLL_WEIGHT);
+		netif_napi_add_tx(&wil->napi_ndev,
+				  &wil->napi_tx, wil6210_netdev_poll_tx_edma);
 	} else {
 		netif_napi_add(&wil->napi_ndev, &wil->napi_rx,
 			       wil6210_netdev_poll_rx,
 			       NAPI_POLL_WEIGHT);
-		netif_tx_napi_add(&wil->napi_ndev,
-				  &wil->napi_tx, wil6210_netdev_poll_tx,
-				  NAPI_POLL_WEIGHT);
+		netif_napi_add_tx(&wil->napi_ndev,
+				  &wil->napi_tx, wil6210_netdev_poll_tx);
 	}
 
 	wil_update_net_queues_bh(wil, vif, NULL, true);

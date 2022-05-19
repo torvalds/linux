@@ -345,6 +345,10 @@ int wfx_probe(struct wfx_dev *wdev)
 	wdev->pdata.gpio_wakeup = NULL;
 	wdev->poll_irq = true;
 
+	wdev->bh_wq = alloc_workqueue("wfx_bh_wq", WQ_HIGHPRI, 0);
+	if (!wdev->bh_wq)
+		return -ENOMEM;
+
 	wfx_bh_register(wdev);
 
 	err = wfx_init_device(wdev);
@@ -458,6 +462,7 @@ irq_unsubscribe:
 	wdev->hwbus_ops->irq_unsubscribe(wdev->hwbus_priv);
 bh_unregister:
 	wfx_bh_unregister(wdev);
+	destroy_workqueue(wdev->bh_wq);
 	return err;
 }
 
@@ -467,6 +472,7 @@ void wfx_release(struct wfx_dev *wdev)
 	wfx_hif_shutdown(wdev);
 	wdev->hwbus_ops->irq_unsubscribe(wdev->hwbus_priv);
 	wfx_bh_unregister(wdev);
+	destroy_workqueue(wdev->bh_wq);
 }
 
 static int __init wfx_core_init(void)

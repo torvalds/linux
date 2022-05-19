@@ -1146,8 +1146,8 @@ static int qtnf_pcie_pearl_probe(struct qtnf_bus *bus, unsigned int tx_bd_size,
 	}
 
 	tasklet_setup(&ps->base.reclaim_tq, qtnf_pearl_reclaim_tasklet_fn);
-	netif_napi_add(&bus->mux_dev, &bus->mux_napi,
-		       qtnf_pcie_pearl_rx_poll, 10);
+	netif_napi_add_weight(&bus->mux_dev, &bus->mux_napi,
+			      qtnf_pcie_pearl_rx_poll, 10);
 
 	ipc_int.fn = qtnf_pcie_pearl_ipc_gen_ep_int;
 	ipc_int.arg = ps;

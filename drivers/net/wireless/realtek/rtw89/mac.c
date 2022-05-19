@@ -29,6 +29,7 @@ const u32 rtw89_mac_mem_base_addrs[RTW89_MAC_MEM_NUM] = {
 	[RTW89_MAC_MEM_TXDATA_FIFO_0]	= TXDATA_FIFO_0_BASE_ADDR,
 	[RTW89_MAC_MEM_TXDATA_FIFO_1]	= TXDATA_FIFO_1_BASE_ADDR,
 	[RTW89_MAC_MEM_CPU_LOCAL]	= CPU_LOCAL_BASE_ADDR,
+	[RTW89_MAC_MEM_BSSID_CAM]	= BSSID_CAM_BASE_ADDR,
 };
 
 static void rtw89_mac_mem_write(struct rtw89_dev *rtwdev, u32 offset,
@@ -1050,6 +1051,7 @@ static int rtw89_mac_check_cpwm_state(struct rtw89_dev *rtwdev,
 void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter)
 {
 	enum rtw89_rpwm_req_pwr_state state;
+	unsigned long delay = enter ? 10 : 150;
 	int ret;
 
 	if (enter)
@@ -1059,7 +1061,7 @@ void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter)
 
 	rtw89_mac_send_rpwm(rtwdev, state, false);
 	ret = read_poll_timeout_atomic(rtw89_mac_check_cpwm_state, ret, !ret,
-				       1000, 15000, false, rtwdev, state);
+				       delay, 15000, false, rtwdev, state);
 	if (ret)
 		rtw89_err(rtwdev, "firmware failed to ack for %s ps mode\n",
 			  enter ? "entering" : "leaving");
@@ -1889,11 +1891,12 @@ static int cca_ctrl_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 		B_AX_CTN_CHK_BASIC_NAV | B_AX_CTN_CHK_BTCCA |
 		B_AX_CTN_CHK_EDCCA | B_AX_CTN_CHK_CCA_S80 |
 		B_AX_CTN_CHK_CCA_S40 | B_AX_CTN_CHK_CCA_S20 |
-		B_AX_CTN_CHK_CCA_P20 | B_AX_SIFS_CHK_EDCCA);
+		B_AX_CTN_CHK_CCA_P20);
 	val &= ~(B_AX_TB_CHK_TX_NAV | B_AX_TB_CHK_CCA_S80 |
 		 B_AX_TB_CHK_CCA_S40 | B_AX_TB_CHK_CCA_S20 |
 		 B_AX_SIFS_CHK_CCA_S80 | B_AX_SIFS_CHK_CCA_S40 |
-		 B_AX_SIFS_CHK_CCA_S20 | B_AX_CTN_CHK_TXNAV);
+		 B_AX_SIFS_CHK_CCA_S20 | B_AX_CTN_CHK_TXNAV |
+		 B_AX_SIFS_CHK_EDCCA);
 
 	rtw89_write32(rtwdev, reg, val);
 
@@ -2004,6 +2007,7 @@ static int rmac_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 #define TRXCFG_RMAC_DATA_TO	15
 #define RX_MAX_LEN_UNIT 512
 #define PLD_RLS_MAX_PG 127
+#define RX_SPEC_MAX_LEN (11454 + RX_MAX_LEN_UNIT)
 	int ret;
 	u32 reg, rx_max_len, rx_qta;
 	u16 val;
@@ -2034,11 +2038,10 @@ static int rmac_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 		rx_qta = rtwdev->mac.dle_info.c0_rx_qta;
 	else
 		rx_qta = rtwdev->mac.dle_info.c1_rx_qta;
-	rx_qta = rx_qta > PLD_RLS_MAX_PG ? PLD_RLS_MAX_PG : rx_qta;
-	rx_max_len = (rx_qta - 1) * rtwdev->mac.dle_info.ple_pg_size /
-		     RX_MAX_LEN_UNIT;
-	rx_max_len = rx_max_len > B_AX_RX_MPDU_MAX_LEN_SIZE ?
-		     B_AX_RX_MPDU_MAX_LEN_SIZE : rx_max_len;
+	rx_qta = min_t(u32, rx_qta, PLD_RLS_MAX_PG);
+	rx_max_len = rx_qta * rtwdev->mac.dle_info.ple_pg_size;
+	rx_max_len = min_t(u32, rx_max_len, RX_SPEC_MAX_LEN);
+	rx_max_len /= RX_MAX_LEN_UNIT;
 	rtw89_write32_mask(rtwdev, reg, B_AX_RX_MPDU_MAX_LEN_MASK, rx_max_len);
 
 	if (rtwdev->chip->chip_id == RTL8852A &&
@@ -4238,6 +4241,10 @@ static int rtw89_mac_init_bfee(struct rtw89_dev *rtwdev, u8 mac_idx)
 		      u32_encode_bits(CSI_INIT_RATE_HT, B_AX_BFMEE_HT_CSI_RATE_MASK) |
 		      u32_encode_bits(CSI_INIT_RATE_VHT, B_AX_BFMEE_VHT_CSI_RATE_MASK) |
 		      u32_encode_bits(CSI_INIT_RATE_HE, B_AX_BFMEE_HE_CSI_RATE_MASK));
+
+	reg = rtw89_mac_reg_by_idx(R_AX_CSIRPT_OPTION, mac_idx);
+	rtw89_write32_set(rtwdev, reg,
+			  B_AX_CSIPRT_VHTSU_AID_EN | B_AX_CSIPRT_HESU_AID_EN);
 
 	return 0;
 }

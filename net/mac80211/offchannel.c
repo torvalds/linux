@@ -819,7 +819,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		if (!sdata->u.mgd.associated ||
 		    (params->offchan && params->wait &&
 		     local->ops->remain_on_channel &&
-		     memcmp(sdata->u.mgd.associated->bssid,
+		     memcmp(sdata->u.mgd.bssid,
 			    mgmt->bssid, ETH_ALEN)))
 			need_offchan = true;
 		sdata_unlock(sdata);

@@ -9,6 +9,8 @@
 #include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_address.h>
+#include <linux/iommu.h>
 #include "ahb.h"
 #include "debug.h"
 #include "hif.h"
@@ -757,6 +759,172 @@ static int ath11k_ahb_setup_resources(struct ath11k_base *ab)
 	return 0;
 }
 
+static int ath11k_ahb_setup_msa_resources(struct ath11k_base *ab)
+{
+	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
+	struct device *dev = ab->dev;
+	struct device_node *node;
+	struct resource r;
+	int ret;
+
+	node = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (!node)
+		return -ENOENT;
+
+	ret = of_address_to_resource(node, 0, &r);
+	of_node_put(node);
+	if (ret) {
+		dev_err(dev, "failed to resolve msa fixed region\n");
+		return ret;
+	}
+
+	ab_ahb->fw.msa_paddr = r.start;
+	ab_ahb->fw.msa_size = resource_size(&r);
+
+	node = of_parse_phandle(dev->of_node, "memory-region", 1);
+	if (!node)
+		return -ENOENT;
+
+	ret = of_address_to_resource(node, 0, &r);
+	of_node_put(node);
+	if (ret) {
+		dev_err(dev, "failed to resolve ce fixed region\n");
+		return ret;
+	}
+
+	ab_ahb->fw.ce_paddr = r.start;
+	ab_ahb->fw.ce_size = resource_size(&r);
+
+	return 0;
+}
+
+static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
+{
+	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
+	struct device *host_dev = ab->dev;
+	struct platform_device_info info = {0};
+	struct iommu_domain *iommu_dom;
+	struct platform_device *pdev;
+	struct device_node *node;
+	int ret;
+
+	/* Chipsets not requiring MSA need not initialize
+	 * MSA resources, return success in such cases.
+	 */
+	if (!ab->hw_params.fixed_fw_mem)
+		return 0;
+
+	ret = ath11k_ahb_setup_msa_resources(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to setup msa resources\n");
+		return ret;
+	}
+
+	node = of_get_child_by_name(host_dev->of_node, "wifi-firmware");
+	if (!node) {
+		ab_ahb->fw.use_tz = true;
+		return 0;
+	}
+
+	info.fwnode = &node->fwnode;
+	info.parent = host_dev;
+	info.name = node->name;
+	info.dma_mask = DMA_BIT_MASK(32);
+
+	pdev = platform_device_register_full(&info);
+	if (IS_ERR(pdev)) {
+		of_node_put(node);
+		return PTR_ERR(pdev);
+	}
+
+	ret = of_dma_configure(&pdev->dev, node, true);
+	if (ret) {
+		ath11k_err(ab, "dma configure fail: %d\n", ret);
+		goto err_unregister;
+	}
+
+	ab_ahb->fw.dev = &pdev->dev;
+
+	iommu_dom = iommu_domain_alloc(&platform_bus_type);
+	if (!iommu_dom) {
+		ath11k_err(ab, "failed to allocate iommu domain\n");
+		ret = -ENOMEM;
+		goto err_unregister;
+	}
+
+	ret = iommu_attach_device(iommu_dom, ab_ahb->fw.dev);
+	if (ret) {
+		ath11k_err(ab, "could not attach device: %d\n", ret);
+		goto err_iommu_free;
+	}
+
+	ret = iommu_map(iommu_dom, ab_ahb->fw.msa_paddr,
+			ab_ahb->fw.msa_paddr, ab_ahb->fw.msa_size,
+			IOMMU_READ | IOMMU_WRITE);
+	if (ret) {
+		ath11k_err(ab, "failed to map firmware region: %d\n", ret);
+		goto err_iommu_detach;
+	}
+
+	ret = iommu_map(iommu_dom, ab_ahb->fw.ce_paddr,
+			ab_ahb->fw.ce_paddr, ab_ahb->fw.ce_size,
+			IOMMU_READ | IOMMU_WRITE);
+	if (ret) {
+		ath11k_err(ab, "failed to map firmware CE region: %d\n", ret);
+		goto err_iommu_unmap;
+	}
+
+	ab_ahb->fw.use_tz = false;
+	ab_ahb->fw.iommu_domain = iommu_dom;
+	of_node_put(node);
+
+	return 0;
+
+err_iommu_unmap:
+	iommu_unmap(iommu_dom, ab_ahb->fw.msa_paddr, ab_ahb->fw.msa_size);
+
+err_iommu_detach:
+	iommu_detach_device(iommu_dom, ab_ahb->fw.dev);
+
+err_iommu_free:
+	iommu_domain_free(iommu_dom);
+
+err_unregister:
+	platform_device_unregister(pdev);
+	of_node_put(node);
+
+	return ret;
+}
+
+static int ath11k_ahb_fw_resource_deinit(struct ath11k_base *ab)
+{
+	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
+	struct iommu_domain *iommu;
+	size_t unmapped_size;
+
+	if (ab_ahb->fw.use_tz)
+		return 0;
+
+	iommu = ab_ahb->fw.iommu_domain;
+
+	unmapped_size = iommu_unmap(iommu, ab_ahb->fw.msa_paddr, ab_ahb->fw.msa_size);
+	if (unmapped_size != ab_ahb->fw.msa_size)
+		ath11k_err(ab, "failed to unmap firmware: %zu\n",
+			   unmapped_size);
+
+	unmapped_size = iommu_unmap(iommu, ab_ahb->fw.ce_paddr, ab_ahb->fw.ce_size);
+	if (unmapped_size != ab_ahb->fw.ce_size)
+		ath11k_err(ab, "failed to unmap firmware CE memory: %zu\n",
+			   unmapped_size);
+
+	iommu_detach_device(iommu, ab_ahb->fw.dev);
+	iommu_domain_free(iommu);
+
+	platform_device_unregister(to_platform_device(ab_ahb->fw.dev));
+
+	return 0;
+}
+
 static int ath11k_ahb_probe(struct platform_device *pdev)
 {
 	struct ath11k_base *ab;
@@ -816,9 +984,13 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_core_free;
 
-	ret = ath11k_hal_srng_init(ab);
+	ret = ath11k_ahb_fw_resources_init(ab);
 	if (ret)
 		goto err_core_free;
+
+	ret = ath11k_hal_srng_init(ab);
+	if (ret)
+		goto err_fw_deinit;
 
 	ret = ath11k_ce_alloc_pipes(ab);
 	if (ret) {
@@ -856,6 +1028,9 @@ err_ce_free:
 err_hal_srng_deinit:
 	ath11k_hal_srng_deinit(ab);
 
+err_fw_deinit:
+	ath11k_ahb_fw_resource_deinit(ab);
+
 err_core_free:
 	ath11k_core_free(ab);
 	platform_set_drvdata(pdev, NULL);
@@ -891,6 +1066,7 @@ static int ath11k_ahb_remove(struct platform_device *pdev)
 qmi_fail:
 	ath11k_ahb_free_irq(ab);
 	ath11k_hal_srng_deinit(ab);
+	ath11k_ahb_fw_resource_deinit(ab);
 	ath11k_ce_free_pipes(ab);
 	ath11k_core_free(ab);
 	platform_set_drvdata(pdev, NULL);

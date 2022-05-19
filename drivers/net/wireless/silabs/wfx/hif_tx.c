@@ -73,7 +73,7 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct wfx_hif_msg *request,
 
 	if (no_reply) {
 		/* Chip won't reply. Ensure the wq has send the buffer before to continue. */
-		flush_workqueue(system_highpri_wq);
+		flush_workqueue(wdev->bh_wq);
 		ret = 0;
 		goto end;
 	}

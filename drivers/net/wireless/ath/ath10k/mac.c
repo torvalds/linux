@@ -2692,8 +2692,10 @@ static bool ath10k_mac_sta_has_ofdm_only(struct ieee80211_sta *sta)
 static enum wmi_phy_mode ath10k_mac_get_phymode_vht(struct ath10k *ar,
 						    struct ieee80211_sta *sta)
 {
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->deflink.vht_cap;
+
 	if (sta->deflink.bandwidth == IEEE80211_STA_RX_BW_160) {
-		switch (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) {
+		switch (vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) {
 		case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ:
 			return MODE_11AC_VHT160;
 		case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:
@@ -6926,6 +6928,9 @@ static int ath10k_mac_validate_rate_mask(struct ath10k *ar,
 					 struct ieee80211_sta *sta,
 					 u32 rate_ctrl_flag, u8 nss)
 {
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->deflink.vht_cap;
+
 	if (nss > sta->deflink.rx_nss) {
 		ath10k_warn(ar, "Invalid nss field, configured %u limit %u\n",
 			    nss, sta->deflink.rx_nss);
@@ -6933,19 +6938,19 @@ static int ath10k_mac_validate_rate_mask(struct ath10k *ar,
 	}
 
 	if (ATH10K_HW_PREAMBLE(rate_ctrl_flag) == WMI_RATE_PREAMBLE_VHT) {
-		if (!sta->deflink.vht_cap.vht_supported) {
+		if (!vht_cap->vht_supported) {
 			ath10k_warn(ar, "Invalid VHT rate for sta %pM\n",
 				    sta->addr);
 			return -EINVAL;
 		}
 	} else if (ATH10K_HW_PREAMBLE(rate_ctrl_flag) == WMI_RATE_PREAMBLE_HT) {
-		if (!sta->deflink.ht_cap.ht_supported || sta->deflink.vht_cap.vht_supported) {
+		if (!ht_cap->ht_supported || vht_cap->vht_supported) {
 			ath10k_warn(ar, "Invalid HT rate for sta %pM\n",
 				    sta->addr);
 			return -EINVAL;
 		}
 	} else {
-		if (sta->deflink.ht_cap.ht_supported || sta->deflink.vht_cap.vht_supported)
+		if (ht_cap->ht_supported || vht_cap->vht_supported)
 			return -EINVAL;
 	}
 

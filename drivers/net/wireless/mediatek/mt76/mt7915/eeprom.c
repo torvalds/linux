@@ -152,6 +152,8 @@ static void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
 			phy->mt76->cap.has_2ghz = true;
 			return;
 		}
+	} else if (val == MT_EE_BAND_SEL_DEFAULT && dev->dbdc_support) {
+		val = phy->band_idx ? MT_EE_BAND_SEL_5GHZ : MT_EE_BAND_SEL_2GHZ;
 	}
 
 	switch (val) {

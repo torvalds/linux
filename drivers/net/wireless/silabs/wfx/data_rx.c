@@ -15,6 +15,7 @@
 
 static void wfx_rx_handle_ba(struct wfx_vif *wvif, struct ieee80211_mgmt *mgmt)
 {
+	struct ieee80211_vif *vif = wvif_to_vif(wvif);
 	int params, tid;
 
 	if (wfx_api_older_than(wvif->wdev, 3, 6))
@@ -24,12 +25,12 @@ static void wfx_rx_handle_ba(struct wfx_vif *wvif, struct ieee80211_mgmt *mgmt)
 	case WLAN_ACTION_ADDBA_REQ:
 		params = le16_to_cpu(mgmt->u.action.u.addba_req.capab);
 		tid = (params & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
-		ieee80211_start_rx_ba_session_offl(wvif->vif, mgmt->sa, tid);
+		ieee80211_start_rx_ba_session_offl(vif, mgmt->sa, tid);
 		break;
 	case WLAN_ACTION_DELBA:
 		params = le16_to_cpu(mgmt->u.action.u.delba.params);
 		tid = (params &  IEEE80211_DELBA_PARAM_TID_MASK) >> 12;
-		ieee80211_stop_rx_ba_session_offl(wvif->vif, mgmt->sa, tid);
+		ieee80211_stop_rx_ba_session_offl(vif, mgmt->sa, tid);
 		break;
 	}
 }

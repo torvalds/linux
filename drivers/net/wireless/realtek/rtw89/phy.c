@@ -357,13 +357,19 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra->csi_mode = csi_mode;
 }
 
-void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta)
+void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,
+			     u32 changed)
 {
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct rtw89_ra_info *ra = &rtwsta->ra;
 
 	rtw89_phy_ra_sta_update(rtwdev, sta, false);
-	ra->upd_mask = 1;
+
+	if (changed & IEEE80211_RC_SUPP_RATES_CHANGED)
+		ra->upd_mask = 1;
+	if (changed & (IEEE80211_RC_BW_CHANGED | IEEE80211_RC_NSS_CHANGED))
+		ra->upd_bw_nss_mask = 1;
+
 	rtw89_debug(rtwdev, RTW89_DBG_RA,
 		    "ra updat: macid = %d, bw = %d, nss = %d, gi = %d %d",
 		    ra->macid,
@@ -423,27 +429,28 @@ void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 					 RTW89_HW_RATE_MCS16,
 					 RTW89_HW_RATE_MCS24};
 	u8 band = rtwdev->hal.current_band_type;
+	enum nl80211_band nl_band = rtw89_hw_to_nl80211_band(band);
 	u8 tx_nss = rtwdev->hal.tx_nss;
 	u8 i;
 
 	for (i = 0; i < tx_nss; i++)
 		if (!__check_rate_pattern(&next_pattern, hw_rate_he[i],
 					  RA_MASK_HE_RATES, RTW89_RA_MODE_HE,
-					  mask->control[band].he_mcs[i],
+					  mask->control[nl_band].he_mcs[i],
 					  0, true))
 			goto out;
 
 	for (i = 0; i < tx_nss; i++)
 		if (!__check_rate_pattern(&next_pattern, hw_rate_vht[i],
 					  RA_MASK_VHT_RATES, RTW89_RA_MODE_VHT,
-					  mask->control[band].vht_mcs[i],
+					  mask->control[nl_band].vht_mcs[i],
 					  0, true))
 			goto out;
 
 	for (i = 0; i < tx_nss; i++)
 		if (!__check_rate_pattern(&next_pattern, hw_rate_ht[i],
 					  RA_MASK_HT_RATES, RTW89_RA_MODE_HT,
-					  mask->control[band].ht_mcs[i],
+					  mask->control[nl_band].ht_mcs[i],
 					  0, true))
 			goto out;
 
@@ -451,18 +458,18 @@ void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 	 * require at least one basic rate for ieee80211_set_bitrate_mask,
 	 * so the decision just depends on if all bitrates are set or not.
 	 */
-	sband = rtwdev->hw->wiphy->bands[band];
+	sband = rtwdev->hw->wiphy->bands[nl_band];
 	if (band == RTW89_BAND_2G) {
 		if (!__check_rate_pattern(&next_pattern, RTW89_HW_RATE_CCK1,
 					  RA_MASK_CCK_RATES | RA_MASK_OFDM_RATES,
 					  RTW89_RA_MODE_CCK | RTW89_RA_MODE_OFDM,
-					  mask->control[band].legacy,
+					  mask->control[nl_band].legacy,
 					  BIT(sband->n_bitrates) - 1, false))
 			goto out;
 	} else {
 		if (!__check_rate_pattern(&next_pattern, RTW89_HW_RATE_OFDM6,
 					  RA_MASK_OFDM_RATES, RTW89_RA_MODE_OFDM,
-					  mask->control[band].legacy,
+					  mask->control[nl_band].legacy,
 					  BIT(sband->n_bitrates) - 1, false))
 			goto out;
 	}
@@ -487,7 +494,7 @@ static void rtw89_phy_ra_updata_sta_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw89_dev *rtwdev = (struct rtw89_dev *)data;
 
-	rtw89_phy_ra_updata_sta(rtwdev, sta);
+	rtw89_phy_ra_updata_sta(rtwdev, sta, IEEE80211_RC_SUPP_RATES_CHANGED);
 }
 
 void rtw89_phy_ra_update(struct rtw89_dev *rtwdev)
@@ -2455,6 +2462,11 @@ void rtw89_phy_cfo_parse(struct rtw89_dev *rtwdev, s16 cfo_val,
 {
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
 	u8 macid = phy_ppdu->mac_id;
+
+	if (macid >= CFO_TRACK_MAX_USER) {
+		rtw89_warn(rtwdev, "mac_id %d is out of range\n", macid);
+		return;
+	}
 
 	cfo->cfo_tail[macid] += cfo_val;
 	cfo->cfo_cnt[macid]++;

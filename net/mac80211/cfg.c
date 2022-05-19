@@ -1174,7 +1174,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			      IEEE80211_HE_OPERATION_RTS_THRESHOLD_MASK);
 		changed |= BSS_CHANGED_HE_OBSS_PD;
 
-		if (params->he_bss_color.enabled)
+		if (params->beacon.he_bss_color.enabled)
 			changed |= BSS_CHANGED_HE_BSS_COLOR;
 	}
 
@@ -1231,7 +1231,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->vif.bss_conf.allow_p2p_go_ps = sdata->vif.p2p;
 	sdata->vif.bss_conf.twt_responder = params->twt_responder;
 	sdata->vif.bss_conf.he_obss_pd = params->he_obss_pd;
-	sdata->vif.bss_conf.he_bss_color = params->he_bss_color;
+	sdata->vif.bss_conf.he_bss_color = params->beacon.he_bss_color;
 	sdata->vif.bss_conf.s1g = params->chandef.chan->band ==
 				  NL80211_BAND_S1GHZ;
 
@@ -1316,6 +1316,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 				   struct cfg80211_beacon_data *params)
 {
 	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_bss_conf *bss_conf;
 	struct beacon_data *old;
 	int err;
 
@@ -1335,8 +1336,26 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	err = ieee80211_assign_beacon(sdata, params, NULL, NULL);
 	if (err < 0)
 		return err;
+
+	bss_conf = &sdata->vif.bss_conf;
+	if (params->he_bss_color_valid &&
+	    params->he_bss_color.enabled != bss_conf->he_bss_color.enabled) {
+		bss_conf->he_bss_color.enabled = params->he_bss_color.enabled;
+		err |= BSS_CHANGED_HE_BSS_COLOR;
+	}
+
 	ieee80211_bss_info_change_notify(sdata, err);
 	return 0;
+}
+
+static void ieee80211_free_next_beacon(struct ieee80211_sub_if_data *sdata)
+{
+	if (!sdata->u.ap.next_beacon)
+		return;
+
+	kfree(sdata->u.ap.next_beacon->mbssid_ies);
+	kfree(sdata->u.ap.next_beacon);
+	sdata->u.ap.next_beacon = NULL;
 }
 
 static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
@@ -1373,11 +1392,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 
 	mutex_unlock(&local->mtx);
 
-	if (sdata->u.ap.next_beacon) {
-		kfree(sdata->u.ap.next_beacon->mbssid_ies);
-		kfree(sdata->u.ap.next_beacon);
-		sdata->u.ap.next_beacon = NULL;
-	}
+	ieee80211_free_next_beacon(sdata);
 
 	/* turn off carrier for this interface and dependent VLANs */
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
@@ -2928,7 +2943,7 @@ int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
 		return 0;
 
-	ap = sdata->u.mgd.associated->bssid;
+	ap = sdata->u.mgd.bssid;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
@@ -3312,9 +3327,7 @@ static int ieee80211_set_after_csa_beacon(struct ieee80211_sub_if_data *sdata,
 
 		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon,
 					      NULL, NULL);
-		kfree(sdata->u.ap.next_beacon->mbssid_ies);
-		kfree(sdata->u.ap.next_beacon);
-		sdata->u.ap.next_beacon = NULL;
+		ieee80211_free_next_beacon(sdata);
 
 		if (err < 0)
 			return err;
@@ -3470,9 +3483,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 		     IEEE80211_MAX_CNTDWN_COUNTERS_NUM) ||
 		    (params->n_counter_offsets_presp >
 		     IEEE80211_MAX_CNTDWN_COUNTERS_NUM)) {
-			kfree(sdata->u.ap.next_beacon->mbssid_ies);
-			kfree(sdata->u.ap.next_beacon);
-			sdata->u.ap.next_beacon = NULL;
+			ieee80211_free_next_beacon(sdata);
 			return -EINVAL;
 		}
 
@@ -3484,9 +3495,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 
 		err = ieee80211_assign_beacon(sdata, &params->beacon_csa, &csa, NULL);
 		if (err < 0) {
-			kfree(sdata->u.ap.next_beacon->mbssid_ies);
-			kfree(sdata->u.ap.next_beacon);
-			sdata->u.ap.next_beacon = NULL;
+			ieee80211_free_next_beacon(sdata);
 			return err;
 		}
 		*changed |= err;
@@ -3576,11 +3585,8 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_color_change_abort(struct ieee80211_sub_if_data  *sdata)
 {
 	sdata->vif.color_change_active = false;
-	if (sdata->u.ap.next_beacon) {
-		kfree(sdata->u.ap.next_beacon->mbssid_ies);
-		kfree(sdata->u.ap.next_beacon);
-		sdata->u.ap.next_beacon = NULL;
-	}
+
+	ieee80211_free_next_beacon(sdata);
 
 	cfg80211_color_change_aborted_notify(sdata->dev);
 }
@@ -4321,9 +4327,7 @@ ieee80211_set_after_color_change_beacon(struct ieee80211_sub_if_data *sdata,
 
 		ret = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon,
 					      NULL, NULL);
-		kfree(sdata->u.ap.next_beacon->mbssid_ies);
-		kfree(sdata->u.ap.next_beacon);
-		sdata->u.ap.next_beacon = NULL;
+		ieee80211_free_next_beacon(sdata);
 
 		if (ret < 0)
 			return ret;
@@ -4366,11 +4370,7 @@ ieee80211_set_color_change_beacon(struct ieee80211_sub_if_data *sdata,
 		err = ieee80211_assign_beacon(sdata, &params->beacon_color_change,
 					      NULL, &color_change);
 		if (err < 0) {
-			if (sdata->u.ap.next_beacon) {
-				kfree(sdata->u.ap.next_beacon->mbssid_ies);
-				kfree(sdata->u.ap.next_beacon);
-				sdata->u.ap.next_beacon = NULL;
-			}
+			ieee80211_free_next_beacon(sdata);
 			return err;
 		}
 		*changed |= err;
