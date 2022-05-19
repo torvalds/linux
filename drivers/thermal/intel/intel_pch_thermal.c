@@ -70,8 +70,8 @@ static unsigned int delay_timeout = 100;
 module_param(delay_timeout, int, 0644);
 MODULE_PARM_DESC(delay_timeout, "amount of time delay for each iteration.");
 
-/* Number of iterations for cooling delay, 10 counts by default for now */
-static unsigned int delay_cnt = 10;
+/* Number of iterations for cooling delay, 600 counts by default for now */
+static unsigned int delay_cnt = 600;
 module_param(delay_cnt, int, 0644);
 MODULE_PARM_DESC(delay_cnt, "total number of iterations for time delay.");
 
@@ -197,7 +197,7 @@ static int pch_wpt_get_temp(struct pch_thermal_device *ptd, int *temp)
 static int pch_wpt_suspend(struct pch_thermal_device *ptd)
 {
 	u8 tsel;
-	u8 pch_delay_cnt = 1;
+	int pch_delay_cnt = 1;
 	u16 pch_thr_temp, pch_cur_temp;
 
 	/* Shutdown the thermal sensor if it is not enabled by BIOS */
@@ -234,7 +234,10 @@ static int pch_wpt_suspend(struct pch_thermal_device *ptd)
 	 * which helps to indentify the reason why S0ix entry was rejected.
 	 */
 	while (pch_delay_cnt <= delay_cnt) {
-		if (pch_cur_temp <= pch_thr_temp)
+		if (pch_cur_temp < pch_thr_temp)
+			break;
+
+		if (pm_wakeup_pending())
 			break;
 
 		dev_warn(&ptd->pdev->dev,
@@ -246,7 +249,7 @@ static int pch_wpt_suspend(struct pch_thermal_device *ptd)
 		pch_delay_cnt++;
 	}
 
-	if (pch_cur_temp > pch_thr_temp)
+	if (pch_cur_temp >= pch_thr_temp)
 		dev_warn(&ptd->pdev->dev,
 			"CPU-PCH is hot [%dC] even after delay, continue to suspend. S0ix might fail\n",
 			pch_cur_temp);
