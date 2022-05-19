@@ -485,7 +485,6 @@ int swap_type_of(dev_t device, sector_t offset);
 int find_first_swap(dev_t *device);
 extern unsigned int count_swap_pages(int, int);
 extern sector_t swapdev_block(int, pgoff_t);
-extern int page_swapcount(struct page *);
 extern int __swap_count(swp_entry_t entry);
 extern int __swp_swapcount(swp_entry_t entry);
 extern int swp_swapcount(swp_entry_t entry);
@@ -555,12 +554,6 @@ static inline void swap_free(swp_entry_t swp)
 
 static inline void put_swap_page(struct page *page, swp_entry_t swp)
 {
-}
-
-
-static inline int page_swapcount(struct page *page)
-{
-	return 0;
 }
 
 static inline int __swap_count(swp_entry_t entry)

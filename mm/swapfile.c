@@ -1429,7 +1429,7 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
  * This does not give an exact answer when swap count is continued,
  * but does include the high COUNT_CONTINUED flag to allow for that.
  */
-int page_swapcount(struct page *page)
+static int page_swapcount(struct page *page)
 {
 	int count = 0;
 	struct swap_info_struct *p;
