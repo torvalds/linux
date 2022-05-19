@@ -342,9 +342,6 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 	list_del(&sdev->list);
 	spin_unlock(&dev_list.lock);
 
-	clk_disable_unprepare(sdev->sec_hclk);
-	clk_disable_unprepare(sdev->sec_ahb);
-
 	return ret;
 }
 
