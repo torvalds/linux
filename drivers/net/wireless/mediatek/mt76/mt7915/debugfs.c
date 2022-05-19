@@ -985,8 +985,9 @@ static int
 mt7915_rf_regval_set(void *data, u64 val)
 {
 	struct mt7915_dev *dev = data;
+	u32 val32 = val;
 
-	return mt7915_mcu_rf_regval(dev, dev->mt76.debugfs_reg, (u32 *)&val, true);
+	return mt7915_mcu_rf_regval(dev, dev->mt76.debugfs_reg, &val32, true);
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_rf_regval, mt7915_rf_regval_get,
