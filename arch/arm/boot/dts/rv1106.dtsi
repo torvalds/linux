@@ -62,6 +62,39 @@
 		spi2 = &sfc;
 	};
 
+	clocks {
+		compatible = "simple-bus";
+
+		cpu_pvtpll: cpu-pvtpll {
+			compatible = "fixed-clock";
+			clock-frequency = <1300000000>;
+			clock-output-names = "cpu_pvtpll";
+			#clock-cells = <0>;
+			status = "disabled";
+		};
+
+		rkvenc_pvtpll: pvtpll-0 {
+			compatible = "fixed-clock";
+			clock-frequency = <410000000>;
+			clock-output-names = "clk_pvtpll_0";
+			#clock-cells = <0>;
+		};
+
+		npu_pvtpll: pvtpll-1 {
+			compatible = "fixed-clock";
+			clock-frequency = <420000000>;
+			clock-output-names = "clk_pvtpll_1";
+			#clock-cells = <0>;
+		};
+
+		xin24m: oscillator {
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+			clock-output-names = "xin24m";
+			#clock-cells = <0>;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -292,13 +325,6 @@
 		compatible = "arm,armv7-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
 		clock-frequency = <24000000>;
-	};
-
-	xin24m: oscillator {
-		compatible = "fixed-clock";
-		clock-frequency = <24000000>;
-		clock-output-names = "xin24m";
-		#clock-cells = <0>;
 	};
 
 	grf: syscon@ff000000 {
