@@ -43,6 +43,14 @@ static int __init set_ignore_seg(const struct dmi_system_id *id)
 	return 0;
 }
 
+static int __init set_no_e820(const struct dmi_system_id *id)
+{
+	printk(KERN_INFO "PCI: %s detected: not clipping E820 regions from _CRS\n",
+	       id->ident);
+	pci_use_e820 = false;
+	return 0;
+}
+
 static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 	/* http://bugzilla.kernel.org/show_bug.cgi?id=14183 */
 	{
@@ -135,6 +143,51 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP xw9300 Workstation"),
+		},
+	},
+
+	/*
+	 * Many Lenovo models with "IIL" in their DMI_PRODUCT_VERSION have
+	 * an E820 reserved region that covers the entire 32-bit host
+	 * bridge memory window from _CRS.  Using the E820 region to clip
+	 * _CRS means no space is available for hot-added or uninitialized
+	 * PCI devices.  This typically breaks I2C controllers for touchpads
+	 * and hot-added Thunderbolt devices.  See the commit log for
+	 * models known to require this quirk and related bug reports.
+	 */
+	{
+		.callback = set_no_e820,
+		.ident = "Lenovo *IIL* product version",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "IIL"),
+		},
+	},
+
+	/*
+	 * The Acer Spin 5 (SP513-54N) has the same E820 reservation covering
+	 * the entire _CRS 32-bit window issue as the Lenovo *IIL* models.
+	 * See https://bugs.launchpad.net/bugs/1884232
+	 */
+	{
+		.callback = set_no_e820,
+		.ident = "Acer Spin 5 (SP513-54N)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Spin SP513-54N"),
+		},
+	},
+
+	/*
+	 * Clevo X170KM-G barebones have the same E820 reservation covering
+	 * the entire _CRS 32-bit window issue as the Lenovo *IIL* models.
+	 * See https://bugzilla.kernel.org/show_bug.cgi?id=214259
+	 */
+	{
+		.callback = set_no_e820,
+		.ident = "Clevo X170KM-G Barebone",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "X170KM-G"),
 		},
 	},
 	{}
