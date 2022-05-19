@@ -70,8 +70,6 @@ static int can_rx_offload_napi_poll(struct napi_struct *napi, int quota)
 			napi_reschedule(&offload->napi);
 	}
 
-	can_led_event(offload->dev, CAN_LED_EVENT_RX);
-
 	return work_done;
 }
 
@@ -337,7 +335,8 @@ static int can_rx_offload_init_queue(struct net_device *dev,
 	skb_queue_head_init(&offload->skb_queue);
 	__skb_queue_head_init(&offload->skb_irq_queue);
 
-	netif_napi_add(dev, &offload->napi, can_rx_offload_napi_poll, weight);
+	netif_napi_add_weight(dev, &offload->napi, can_rx_offload_napi_poll,
+			      weight);
 
 	dev_dbg(dev->dev.parent, "%s: skb_queue_len_max=%d\n",
 		__func__, offload->skb_queue_len_max);

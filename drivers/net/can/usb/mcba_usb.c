@@ -10,7 +10,6 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-#include <linux/can/led.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/signal.h>
@@ -232,8 +231,6 @@ static void mcba_usb_write_bulk_callback(struct urb *urb)
 		netdev->stats.tx_packets++;
 		netdev->stats.tx_bytes += can_get_echo_skb(netdev, ctx->ndx,
 							   NULL);
-
-		can_led_event(netdev, CAN_LED_EVENT_TX);
 	}
 
 	if (urb->status)
@@ -452,7 +449,6 @@ static void mcba_usb_process_can(struct mcba_priv *priv,
 	}
 	stats->rx_packets++;
 
-	can_led_event(priv->netdev, CAN_LED_EVENT_RX);
 	netif_rx(skb);
 }
 
@@ -700,7 +696,6 @@ static int mcba_usb_open(struct net_device *netdev)
 	priv->can_speed_check = true;
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
-	can_led_event(netdev, CAN_LED_EVENT_OPEN);
 	netif_start_queue(netdev);
 
 	return 0;
@@ -732,7 +727,6 @@ static int mcba_usb_close(struct net_device *netdev)
 	mcba_urb_unlink(priv);
 
 	close_candev(netdev);
-	can_led_event(netdev, CAN_LED_EVENT_STOP);
 
 	return 0;
 }
@@ -856,8 +850,6 @@ static int mcba_usb_probe(struct usb_interface *intf,
 
 	priv->rx_pipe = usb_rcvbulkpipe(priv->udev, in->bEndpointAddress);
 	priv->tx_pipe = usb_sndbulkpipe(priv->udev, out->bEndpointAddress);
-
-	devm_can_led_init(netdev);
 
 	/* Start USB dev only if we have successfully registered CAN device */
 	err = mcba_usb_start(priv);

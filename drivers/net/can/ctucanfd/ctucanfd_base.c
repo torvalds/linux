@@ -29,7 +29,6 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/can/error.h>
-#include <linux/can/led.h>
 #include <linux/pm_runtime.h>
 
 #include "ctucanfd.h"
@@ -957,9 +956,6 @@ static int ctucan_rx_poll(struct napi_struct *napi, int quota)
 		ctucan_write32(priv, CTUCANFD_COMMAND, REG_COMMAND_CDO);
 	}
 
-	if (work_done)
-		can_led_event(ndev, CAN_LED_EVENT_RX);
-
 	if (!framecnt && res != 0) {
 		if (napi_complete_done(napi, work_done)) {
 			/* Clear and enable RBNEI. It is level-triggered, so
@@ -1078,8 +1074,6 @@ clear:
 			ctucan_write32(priv, CTUCANFD_INT_STAT, REG_INT_STAT_TXBHCI);
 		}
 	} while (some_buffers_processed);
-
-	can_led_event(ndev, CAN_LED_EVENT_TX);
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 
@@ -1236,7 +1230,6 @@ static int ctucan_open(struct net_device *ndev)
 	}
 
 	netdev_info(ndev, "ctu_can_fd device registered\n");
-	can_led_event(ndev, CAN_LED_EVENT_OPEN);
 	napi_enable(&priv->napi);
 	netif_start_queue(ndev);
 
@@ -1269,7 +1262,6 @@ static int ctucan_close(struct net_device *ndev)
 	free_irq(ndev->irq, ndev);
 	close_candev(ndev);
 
-	can_led_event(ndev, CAN_LED_EVENT_STOP);
 	pm_runtime_put(priv->dev);
 
 	return 0;
@@ -1433,8 +1425,6 @@ int ctucan_probe_common(struct device *dev, void __iomem *addr, int irq, unsigne
 		dev_err(dev, "fail to register failed (err=%d)\n", ret);
 		goto err_deviceoff;
 	}
-
-	devm_can_led_init(ndev);
 
 	pm_runtime_put(dev);
 

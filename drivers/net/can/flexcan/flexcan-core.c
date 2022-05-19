@@ -14,7 +14,6 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-#include <linux/can/led.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/firmware/imx/sci.h>
@@ -1081,7 +1080,6 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 			can_rx_offload_get_echo_skb(&priv->offload, 0,
 						    reg_ctrl << 16, NULL);
 		stats->tx_packets++;
-		can_led_event(dev, CAN_LED_EVENT_TX);
 
 		/* after sending a RTR frame MB is in RX mode */
 		priv->write(FLEXCAN_MB_CODE_TX_INACTIVE,
@@ -1738,8 +1736,6 @@ static int flexcan_open(struct net_device *dev)
 
 	flexcan_chip_interrupts_enable(dev);
 
-	can_led_event(dev, CAN_LED_EVENT_OPEN);
-
 	netif_start_queue(dev);
 
 	return 0;
@@ -1784,8 +1780,6 @@ static int flexcan_close(struct net_device *dev)
 	close_candev(dev);
 
 	pm_runtime_put(priv->dev);
-
-	can_led_event(dev, CAN_LED_EVENT_STOP);
 
 	return 0;
 }
@@ -2189,7 +2183,6 @@ static int flexcan_probe(struct platform_device *pdev)
 	}
 
 	of_can_transceiver(dev);
-	devm_can_led_init(dev);
 
 	return 0;
 
