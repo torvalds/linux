@@ -7,10 +7,15 @@
 #include "network_helpers.h"
 #include "mptcp_sock.skel.h"
 
+#ifndef TCP_CA_NAME_MAX
+#define TCP_CA_NAME_MAX	16
+#endif
+
 struct mptcp_storage {
 	__u32 invoked;
 	__u32 is_mptcp;
 	__u32 token;
+	char ca_name[TCP_CA_NAME_MAX];
 };
 
 static int verify_tsk(int map_fd, int client_fd)
@@ -31,13 +36,36 @@ static int verify_tsk(int map_fd, int client_fd)
 	return err;
 }
 
+static void get_msk_ca_name(char ca_name[])
+{
+	size_t len;
+	int fd;
+
+	fd = open("/proc/sys/net/ipv4/tcp_congestion_control", O_RDONLY);
+	if (!ASSERT_GE(fd, 0, "failed to open tcp_congestion_control"))
+		return;
+
+	len = read(fd, ca_name, TCP_CA_NAME_MAX);
+	if (!ASSERT_GT(len, 0, "failed to read ca_name"))
+		goto err;
+
+	if (len > 0 && ca_name[len - 1] == '\n')
+		ca_name[len - 1] = '\0';
+
+err:
+	close(fd);
+}
+
 static int verify_msk(int map_fd, int client_fd, __u32 token)
 {
+	char ca_name[TCP_CA_NAME_MAX];
 	int err, cfd = client_fd;
 	struct mptcp_storage val;
 
 	if (!ASSERT_GT(token, 0, "invalid token"))
 		return -1;
+
+	get_msk_ca_name(ca_name);
 
 	err = bpf_map_lookup_elem(map_fd, &cfd, &val);
 	if (!ASSERT_OK(err, "bpf_map_lookup_elem"))
@@ -50,6 +78,9 @@ static int verify_msk(int map_fd, int client_fd, __u32 token)
 		err++;
 
 	if (!ASSERT_EQ(val.token, token, "unexpected token"))
+		err++;
+
+	if (!ASSERT_STRNEQ(val.ca_name, ca_name, TCP_CA_NAME_MAX, "unexpected ca_name"))
 		err++;
 
 	return err;
