@@ -1235,7 +1235,8 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 		unsigned int fmt = dai_fmt;
 
-		if (snd_soc_component_is_codec(cpu_dai->component))
+		if (cpu_dai->driver->ops->set_fmt_new ||
+		    snd_soc_component_is_codec(cpu_dai->component))
 			fmt = inv_dai_fmt;
 
 		ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
