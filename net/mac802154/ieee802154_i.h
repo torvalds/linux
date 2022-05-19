@@ -130,6 +130,25 @@ netdev_tx_t
 ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer);
 
+/**
+ * ieee802154_hold_queue - hold ieee802154 queue
+ * @local: main mac object
+ *
+ * Hold a queue by incrementing an atomic counter and requesting the netif
+ * queues to be stopped. The queues cannot be woken up while the counter has not
+ * been reset with as any ieee802154_release_queue() calls as needed.
+ */
+void ieee802154_hold_queue(struct ieee802154_local *local);
+
+/**
+ * ieee802154_release_queue - release ieee802154 queue
+ * @local: main mac object
+ *
+ * Release a queue which is held by decrementing an atomic counter and wake it
+ * up only if the counter reaches 0.
+ */
+void ieee802154_release_queue(struct ieee802154_local *local);
+
 /* MIB callbacks */
 void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan);
 

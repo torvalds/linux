@@ -130,6 +130,8 @@ wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size)
 
 	init_waitqueue_head(&rdev->dev_wait);
 
+	spin_lock_init(&rdev->wpan_phy.queue_lock);
+
 	return &rdev->wpan_phy;
 }
 EXPORT_SYMBOL(wpan_phy_new);

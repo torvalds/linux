@@ -46,7 +46,7 @@ static int ieee802154_suspend(struct wpan_phy *wpan_phy)
 	if (!local->open_count)
 		goto suspend;
 
-	ieee802154_stop_queue(&local->hw);
+	ieee802154_hold_queue(local);
 	synchronize_net();
 
 	/* stop hardware - this must stop RX */
@@ -72,7 +72,7 @@ static int ieee802154_resume(struct wpan_phy *wpan_phy)
 		return ret;
 
 wake_up:
-	ieee802154_wake_queue(&local->hw);
+	ieee802154_release_queue(local);
 	local->suspended = false;
 	return 0;
 }

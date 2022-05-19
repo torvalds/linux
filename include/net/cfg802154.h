@@ -11,7 +11,7 @@
 
 #include <linux/ieee802154.h>
 #include <linux/netdevice.h>
-#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/bug.h>
 
 #include <net/nl802154.h>
@@ -214,8 +214,10 @@ struct wpan_phy {
 	/* the network namespace this phy lives in currently */
 	possible_net_t _net;
 
-	/* Transmission monitoring */
+	/* Transmission monitoring and control */
+	spinlock_t queue_lock;
 	atomic_t ongoing_txs;
+	atomic_t hold_txs;
 
 	char priv[] __aligned(NETDEV_ALIGN);
 };

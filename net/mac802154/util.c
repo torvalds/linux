@@ -13,7 +13,17 @@
 /* privid for wpan_phys to determine whether they belong to us or not */
 const void *const mac802154_wpan_phy_privid = &mac802154_wpan_phy_privid;
 
-void ieee802154_wake_queue(struct ieee802154_hw *hw)
+/**
+ * ieee802154_wake_queue - wake ieee802154 queue
+ * @local: main mac object
+ *
+ * Tranceivers usually have either one transmit framebuffer or one framebuffer
+ * for both transmitting and receiving. Hence, the core currently only handles
+ * one frame at a time for each phy, which means we had to stop the queue to
+ * avoid new skb to come during the transmission. The queue then needs to be
+ * woken up after the operation.
+ */
+static void ieee802154_wake_queue(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
 	struct ieee802154_sub_if_data *sdata;
@@ -27,9 +37,18 @@ void ieee802154_wake_queue(struct ieee802154_hw *hw)
 	}
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(ieee802154_wake_queue);
 
-void ieee802154_stop_queue(struct ieee802154_hw *hw)
+/**
+ * ieee802154_stop_queue - stop ieee802154 queue
+ * @local: main mac object
+ *
+ * Tranceivers usually have either one transmit framebuffer or one framebuffer
+ * for both transmitting and receiving. Hence, the core currently only handles
+ * one frame at a time for each phy, which means we need to tell upper layers to
+ * stop giving us new skbs while we are busy with the transmitted one. The queue
+ * must then be stopped before transmitting.
+ */
+static void ieee802154_stop_queue(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
 	struct ieee802154_sub_if_data *sdata;
@@ -43,14 +62,33 @@ void ieee802154_stop_queue(struct ieee802154_hw *hw)
 	}
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(ieee802154_stop_queue);
+
+void ieee802154_hold_queue(struct ieee802154_local *local)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&local->phy->queue_lock, flags);
+	if (!atomic_fetch_inc(&local->phy->hold_txs))
+		ieee802154_stop_queue(&local->hw);
+	spin_unlock_irqrestore(&local->phy->queue_lock, flags);
+}
+
+void ieee802154_release_queue(struct ieee802154_local *local)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&local->phy->queue_lock, flags);
+	if (!atomic_dec_and_test(&local->phy->hold_txs))
+		ieee802154_wake_queue(&local->hw);
+	spin_unlock_irqrestore(&local->phy->queue_lock, flags);
+}
 
 enum hrtimer_restart ieee802154_xmit_ifs_timer(struct hrtimer *timer)
 {
 	struct ieee802154_local *local =
 		container_of(timer, struct ieee802154_local, ifs_timer);
 
-	ieee802154_wake_queue(&local->hw);
+	ieee802154_release_queue(local);
 
 	return HRTIMER_NORESTART;
 }
@@ -84,7 +122,7 @@ void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 				      hw->phy->sifs_period * NSEC_PER_USEC,
 				      HRTIMER_MODE_REL);
 	} else {
-		ieee802154_wake_queue(hw);
+		ieee802154_release_queue(local);
 	}
 
 	dev_consume_skb_any(skb);
@@ -98,7 +136,7 @@ void ieee802154_xmit_error(struct ieee802154_hw *hw, struct sk_buff *skb,
 	struct ieee802154_local *local = hw_to_local(hw);
 
 	local->tx_result = reason;
-	ieee802154_wake_queue(hw);
+	ieee802154_release_queue(local);
 	dev_kfree_skb_any(skb);
 	atomic_dec(&hw->phy->ongoing_txs);
 }
