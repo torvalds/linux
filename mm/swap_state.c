@@ -884,9 +884,7 @@ static ssize_t vma_ra_enabled_store(struct kobject *kobj,
 
 	return count;
 }
-static struct kobj_attribute vma_ra_enabled_attr =
-	__ATTR(vma_ra_enabled, 0644, vma_ra_enabled_show,
-	       vma_ra_enabled_store);
+static struct kobj_attribute vma_ra_enabled_attr = __ATTR_RW(vma_ra_enabled);
 
 static struct attribute *swap_attrs[] = {
 	&vma_ra_enabled_attr.attr,
