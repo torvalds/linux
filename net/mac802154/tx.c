@@ -128,6 +128,50 @@ int ieee802154_sync_and_hold_queue(struct ieee802154_local *local)
 	return ieee802154_sync_queue(local);
 }
 
+int ieee802154_mlme_op_pre(struct ieee802154_local *local)
+{
+	return ieee802154_sync_and_hold_queue(local);
+}
+
+int ieee802154_mlme_tx(struct ieee802154_local *local, struct sk_buff *skb)
+{
+	int ret;
+
+	/* Avoid possible calls to ->ndo_stop() when we asynchronously perform
+	 * MLME transmissions.
+	 */
+	rtnl_lock();
+
+	/* Ensure the device was not stopped, otherwise error out */
+	if (!local->open_count) {
+		rtnl_unlock();
+		return -ENETDOWN;
+	}
+
+	ieee802154_tx(local, skb);
+	ret = ieee802154_sync_queue(local);
+
+	rtnl_unlock();
+
+	return ret;
+}
+
+void ieee802154_mlme_op_post(struct ieee802154_local *local)
+{
+	ieee802154_release_queue(local);
+}
+
+int ieee802154_mlme_tx_one(struct ieee802154_local *local, struct sk_buff *skb)
+{
+	int ret;
+
+	ieee802154_mlme_op_pre(local);
+	ret = ieee802154_mlme_tx(local, skb);
+	ieee802154_mlme_op_post(local);
+
+	return ret;
+}
+
 static netdev_tx_t
 ieee802154_hot_tx(struct ieee802154_local *local, struct sk_buff *skb)
 {
