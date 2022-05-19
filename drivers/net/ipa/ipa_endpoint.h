@@ -136,7 +136,7 @@ struct ipa_endpoint {
 	u32 channel_id;
 	u32 endpoint_id;
 	bool toward_ipa;
-	const struct ipa_endpoint_config *config;
+	struct ipa_endpoint_config config;
 
 	u32 trans_tre_max;
 	u32 evt_ring_id;

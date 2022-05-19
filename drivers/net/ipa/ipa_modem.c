@@ -129,7 +129,7 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto err_drop_skb;
 
 	endpoint = ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX];
-	if (endpoint->config->qmap && skb->protocol != htons(ETH_P_MAP))
+	if (endpoint->config.qmap && skb->protocol != htons(ETH_P_MAP))
 		goto err_drop_skb;
 
 	/* The hardware must be powered for us to transmit */
