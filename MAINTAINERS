@@ -7732,7 +7732,7 @@ R:	Tom Rix <trix@redhat.com>
 L:	linux-fpga@vger.kernel.org
 S:	Maintained
 Q:	http://patchwork.kernel.org/project/linux-fpga/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mdf/linux-fpga.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/fpga/linux-fpga.git
 F:	Documentation/devicetree/bindings/fpga/
 F:	Documentation/driver-api/fpga/
 F:	Documentation/fpga/
