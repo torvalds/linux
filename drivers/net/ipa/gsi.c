@@ -1492,12 +1492,8 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	if (index == ring->index % ring->count)
 		return NULL;
 
-	/* Get the transaction for the latest completed event.  Take a
-	 * reference to keep it from completing before we give the events
-	 * for this and previous transactions back to the hardware.
-	 */
+	/* Get the transaction for the latest completed event. */
 	trans = gsi_event_trans(channel, gsi_ring_virt(ring, index - 1));
-	refcount_inc(&trans->refcount);
 
 	/* For RX channels, update each completed transaction with the number
 	 * of bytes that were actually received.  For TX channels, report
@@ -1512,9 +1508,7 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	gsi_trans_move_complete(trans);
 
 	/* Tell the hardware we've handled these events */
-	gsi_evt_ring_doorbell(channel->gsi, channel->evt_ring_id, index);
-
-	gsi_trans_free(trans);
+	gsi_evt_ring_doorbell(gsi, evt_ring_id, index);
 
 	return gsi_channel_trans_complete(channel);
 }
