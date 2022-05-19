@@ -797,10 +797,11 @@ out:
 static void cs_timedout(struct work_struct *work)
 {
 	struct hl_device *hdev;
+	u64 event_mask;
 	int rc;
 	struct hl_cs *cs = container_of(work, struct hl_cs,
 						 work_tdr.work);
-	bool skip_reset_on_timeout = cs->skip_reset_on_timeout;
+	bool skip_reset_on_timeout = cs->skip_reset_on_timeout, device_reset = false;
 
 	rc = cs_get_unless_zero(cs);
 	if (!rc)
@@ -811,9 +812,15 @@ static void cs_timedout(struct work_struct *work)
 		return;
 	}
 
-	/* Mark the CS is timed out so we won't try to cancel its TDR */
-	if (likely(!skip_reset_on_timeout))
+	if (likely(!skip_reset_on_timeout)) {
+		if (hdev->reset_on_lockup)
+			device_reset = true;
+		else
+			hdev->reset_info.needs_reset = true;
+
+		/* Mark the CS is timed out so we won't try to cancel its TDR */
 		cs->timedout = true;
+	}
 
 	hdev = cs->ctx->hdev;
 
@@ -822,6 +829,11 @@ static void cs_timedout(struct work_struct *work)
 	if (rc) {
 		hdev->last_error.cs_timeout.timestamp = ktime_get();
 		hdev->last_error.cs_timeout.seq = cs->sequence;
+
+		event_mask = device_reset ? (HL_NOTIFIER_EVENT_CS_TIMEOUT |
+				HL_NOTIFIER_EVENT_DEVICE_RESET) : HL_NOTIFIER_EVENT_CS_TIMEOUT;
+
+		hl_notifier_event_send_all(hdev, event_mask);
 	}
 
 	switch (cs->type) {
@@ -856,12 +868,8 @@ static void cs_timedout(struct work_struct *work)
 
 	cs_put(cs);
 
-	if (likely(!skip_reset_on_timeout)) {
-		if (hdev->reset_on_lockup)
-			hl_device_reset(hdev, HL_DRV_RESET_TDR);
-		else
-			hdev->reset_info.needs_reset = true;
-	}
+	if (device_reset)
+		hl_device_reset(hdev, HL_DRV_RESET_TDR);
 }
 
 static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
