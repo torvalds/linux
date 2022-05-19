@@ -65,7 +65,7 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 				consume_skb(skb);
 				skb = nskb;
 			} else {
-				goto err_tx;
+				goto err_free_skb;
 			}
 		}
 
@@ -84,10 +84,8 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 		unsigned int len = skb->len;
 
 		ret = drv_xmit_async(local, skb);
-		if (ret) {
-			ieee802154_wake_queue(&local->hw);
-			goto err_tx;
-		}
+		if (ret)
+			goto err_wake_netif_queue;
 
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += len;
@@ -98,7 +96,9 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 
 	return NETDEV_TX_OK;
 
-err_tx:
+err_wake_netif_queue:
+	ieee802154_wake_queue(&local->hw);
+err_free_skb:
 	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
