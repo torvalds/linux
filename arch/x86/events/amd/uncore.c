@@ -246,6 +246,19 @@ static int amd_uncore_event_init(struct perf_event *event)
 	return 0;
 }
 
+static umode_t
+amd_f17h_uncore_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	return boot_cpu_data.x86 >= 0x17 && boot_cpu_data.x86 < 0x19 ?
+	       attr->mode : 0;
+}
+
+static umode_t
+amd_f19h_uncore_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	return boot_cpu_data.x86 >= 0x19 ? attr->mode : 0;
+}
+
 static ssize_t amd_uncore_attr_show_cpumask(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
@@ -296,20 +309,33 @@ DEFINE_UNCORE_FORMAT_ATTR(enallslices,	enallslices,	"config:46");		   /* F19h L3
 DEFINE_UNCORE_FORMAT_ATTR(enallcores,	enallcores,	"config:47");		   /* F19h L3 */
 DEFINE_UNCORE_FORMAT_ATTR(sliceid,	sliceid,	"config:48-50");	   /* F19h L3 */
 
+/* Common DF and NB attributes */
 static struct attribute *amd_uncore_df_format_attr[] = {
-	&format_attr_event12.attr, /* event14 if F17h+ */
-	&format_attr_umask.attr,
+	&format_attr_event12.attr,	/* event */
+	&format_attr_umask.attr,	/* umask */
 	NULL,
 };
 
+/* Common L2 and L3 attributes */
 static struct attribute *amd_uncore_l3_format_attr[] = {
-	&format_attr_event12.attr, /* event8 if F17h+ */
-	&format_attr_umask.attr,
-	NULL, /* slicemask if F17h,	coreid if F19h */
-	NULL, /* threadmask8 if F17h,	enallslices if F19h */
-	NULL, /*			enallcores if F19h */
-	NULL, /*			sliceid if F19h */
-	NULL, /*			threadmask2 if F19h */
+	&format_attr_event12.attr,	/* event */
+	&format_attr_umask.attr,	/* umask */
+	NULL,				/* threadmask */
+	NULL,
+};
+
+/* F17h unique L3 attributes */
+static struct attribute *amd_f17h_uncore_l3_format_attr[] = {
+	&format_attr_slicemask.attr,	/* slicemask */
+	NULL,
+};
+
+/* F19h unique L3 attributes */
+static struct attribute *amd_f19h_uncore_l3_format_attr[] = {
+	&format_attr_coreid.attr,	/* coreid */
+	&format_attr_enallslices.attr,	/* enallslices */
+	&format_attr_enallcores.attr,	/* enallcores */
+	&format_attr_sliceid.attr,	/* sliceid */
 	NULL,
 };
 
@@ -323,6 +349,18 @@ static struct attribute_group amd_uncore_l3_format_group = {
 	.attrs = amd_uncore_l3_format_attr,
 };
 
+static struct attribute_group amd_f17h_uncore_l3_format_group = {
+	.name = "format",
+	.attrs = amd_f17h_uncore_l3_format_attr,
+	.is_visible = amd_f17h_uncore_is_visible,
+};
+
+static struct attribute_group amd_f19h_uncore_l3_format_group = {
+	.name = "format",
+	.attrs = amd_f19h_uncore_l3_format_attr,
+	.is_visible = amd_f19h_uncore_is_visible,
+};
+
 static const struct attribute_group *amd_uncore_df_attr_groups[] = {
 	&amd_uncore_attr_group,
 	&amd_uncore_df_format_group,
@@ -332,6 +370,12 @@ static const struct attribute_group *amd_uncore_df_attr_groups[] = {
 static const struct attribute_group *amd_uncore_l3_attr_groups[] = {
 	&amd_uncore_attr_group,
 	&amd_uncore_l3_format_group,
+	NULL,
+};
+
+static const struct attribute_group *amd_uncore_l3_attr_update[] = {
+	&amd_f17h_uncore_l3_format_group,
+	&amd_f19h_uncore_l3_format_group,
 	NULL,
 };
 
@@ -352,6 +396,7 @@ static struct pmu amd_nb_pmu = {
 static struct pmu amd_llc_pmu = {
 	.task_ctx_nr	= perf_invalid_context,
 	.attr_groups	= amd_uncore_l3_attr_groups,
+	.attr_update	= amd_uncore_l3_attr_update,
 	.name		= "amd_l2",
 	.event_init	= amd_uncore_event_init,
 	.add		= amd_uncore_add,
@@ -632,15 +677,10 @@ static int __init amd_uncore_init(void)
 		if (boot_cpu_data.x86 >= 0x19) {
 			*l3_attr++ = &format_attr_event8.attr;
 			*l3_attr++ = &format_attr_umask.attr;
-			*l3_attr++ = &format_attr_coreid.attr;
-			*l3_attr++ = &format_attr_enallslices.attr;
-			*l3_attr++ = &format_attr_enallcores.attr;
-			*l3_attr++ = &format_attr_sliceid.attr;
 			*l3_attr++ = &format_attr_threadmask2.attr;
 		} else if (boot_cpu_data.x86 >= 0x17) {
 			*l3_attr++ = &format_attr_event8.attr;
 			*l3_attr++ = &format_attr_umask.attr;
-			*l3_attr++ = &format_attr_slicemask.attr;
 			*l3_attr++ = &format_attr_threadmask8.attr;
 		}
 
