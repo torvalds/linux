@@ -288,7 +288,7 @@ static int starfive_pmu_probe(struct platform_device *pdev)
 		dev_err(dev, "request irq failed.\n");
 
 	spin_lock_init(&pmu->lock);
-	starfive_pmu_int_enable(PMU_INT_ALL_MASK, true);
+	starfive_pmu_int_enable(PMU_INT_ALL_MASK & ~PMU_INT_PCH_FAIL, true);
 
 	return ret;
 }

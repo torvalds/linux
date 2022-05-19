@@ -346,15 +346,18 @@
 };
 
 &gmac0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_pins>;
 	status = "okay";
 };
 
 &gmac1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1_pins>;
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
+	phy0: ethernet-phy@0 {
+		rxc-skew-ps = <1060>;
+		txc-skew-ps = <1800>;
+		reg = <0>;
+	};
 };
 
 &gpu {
