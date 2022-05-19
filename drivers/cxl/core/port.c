@@ -73,14 +73,8 @@ static ssize_t start_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct cxl_decoder *cxld = to_cxl_decoder(dev);
-	u64 start;
 
-	if (is_root_decoder(dev))
-		start = cxld->platform_res.start;
-	else
-		start = cxld->hpa_range.start;
-
-	return sysfs_emit(buf, "%#llx\n", start);
+	return sysfs_emit(buf, "%#llx\n", cxld->hpa_range.start);
 }
 static DEVICE_ATTR_ADMIN_RO(start);
 
@@ -88,14 +82,8 @@ static ssize_t size_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	struct cxl_decoder *cxld = to_cxl_decoder(dev);
-	u64 size;
 
-	if (is_root_decoder(dev))
-		size = resource_size(&cxld->platform_res);
-	else
-		size = range_len(&cxld->hpa_range);
-
-	return sysfs_emit(buf, "%#llx\n", size);
+	return sysfs_emit(buf, "%#llx\n", range_len(&cxld->hpa_range));
 }
 static DEVICE_ATTR_RO(size);
 
@@ -1233,7 +1221,10 @@ static struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port,
 	cxld->interleave_ways = 1;
 	cxld->interleave_granularity = PAGE_SIZE;
 	cxld->target_type = CXL_DECODER_EXPANDER;
-	cxld->platform_res = (struct resource)DEFINE_RES_MEM(0, 0);
+	cxld->hpa_range = (struct range) {
+		.start = 0,
+		.end = -1,
+	};
 
 	return cxld;
 err:
@@ -1346,13 +1337,6 @@ int cxl_decoder_add_locked(struct cxl_decoder *cxld, int *target_map)
 	rc = dev_set_name(dev, "decoder%d.%d", port->id, cxld->id);
 	if (rc)
 		return rc;
-
-	/*
-	 * Platform decoder resources should show up with a reasonable name. All
-	 * other resources are just sub ranges within the main decoder resource.
-	 */
-	if (is_root_decoder(dev))
-		cxld->platform_res.name = dev_name(dev);
 
 	return device_add(dev);
 }

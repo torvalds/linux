@@ -225,7 +225,6 @@ static int dvsec_range_allowed(struct device *dev, void *arg)
 {
 	struct range *dev_range = arg;
 	struct cxl_decoder *cxld;
-	struct range root_range;
 
 	if (!is_root_decoder(dev))
 		return 0;
@@ -237,12 +236,7 @@ static int dvsec_range_allowed(struct device *dev, void *arg)
 	if (!(cxld->flags & CXL_DECODER_F_RAM))
 		return 0;
 
-	root_range = (struct range) {
-		.start = cxld->platform_res.start,
-		.end = cxld->platform_res.end,
-	};
-
-	return range_contains(&root_range, dev_range);
+	return range_contains(&cxld->hpa_range, dev_range);
 }
 
 static void disable_hdm(void *_cxlhdm)
