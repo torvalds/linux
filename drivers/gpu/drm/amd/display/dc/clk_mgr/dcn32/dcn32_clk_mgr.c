@@ -335,14 +335,16 @@ static void dcn32_update_dppclk_dispclk_freq(struct clk_mgr_internal *clk_mgr, s
 	int dpp_divider = 0;
 	int disp_divider = 0;
 
-	dpp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->base.dentist_vco_freq_khz / new_clocks->dppclk_khz;
-	disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->base.dentist_vco_freq_khz / new_clocks->dispclk_khz;
-
-	// Divide back the previous result to round up to the actual clock value that will be set from divider
-	new_clocks->dppclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR * clk_mgr->base.dentist_vco_freq_khz) / dpp_divider;
-	new_clocks->dispclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR * clk_mgr->base.dentist_vco_freq_khz) / disp_divider;
+	if (new_clocks->dppclk_khz) {
+		dpp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+				* clk_mgr->base.dentist_vco_freq_khz / new_clocks->dppclk_khz;
+		new_clocks->dppclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR * clk_mgr->base.dentist_vco_freq_khz) / dpp_divider;
+	}
+	if (new_clocks->dispclk_khz > 0) {
+		disp_divider = DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+				* clk_mgr->base.dentist_vco_freq_khz / new_clocks->dispclk_khz;
+		new_clocks->dispclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR * clk_mgr->base.dentist_vco_freq_khz) / disp_divider;
+	}
 }
 
 static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
