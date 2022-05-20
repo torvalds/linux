@@ -294,6 +294,12 @@
         "BriefDescription": "Last level cache miss, read"
     },
     {
+        "PublicDescription": "Attributable memory read access to another socket in a multi-socket system",
+        "EventCode": "0x38",
+        "EventName": "REMOTE_ACCESS_RD",
+        "BriefDescription": "Attributable memory read access to another socket in a multi-socket system"
+    },
+    {
         "PublicDescription": "Level 1 data cache long-latency read miss.  The counter counts each memory read access counted by L1D_CACHE that incurs additional latency because it returns data from outside the Level 1 data or unified cache of this processing element.",
         "EventCode": "0x39",
         "EventName": "L1D_CACHE_LMISS_RD",
