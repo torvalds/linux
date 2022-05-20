@@ -328,11 +328,11 @@ config RISCV_ISA_C
 	bool "Emit compressed instructions when building Linux"
 	default y
 	help
-	   Adds "C" to the ISA subsets that the toolchain is allowed to emit
-	   when building Linux, which results in compressed instructions in the
-	   Linux binary.
+	  Adds "C" to the ISA subsets that the toolchain is allowed to emit
+	  when building Linux, which results in compressed instructions in the
+	  Linux binary.
 
-	   If you don't know what to do here, say Y.
+	  If you don't know what to do here, say Y.
 
 config FPU
 	bool "FPU support"
@@ -343,7 +343,7 @@ config FPU
 
 	  If you don't know what to do here, say Y.
 
-endmenu
+endmenu # "Platform type"
 
 menu "Kernel features"
 
@@ -394,7 +394,7 @@ config CRASH_DUMP
 
 	  For more details see Documentation/admin-guide/kdump/kdump.rst
 
-endmenu
+endmenu # "Kernel features"
 
 menu "Boot options"
 
@@ -429,7 +429,6 @@ config CMDLINE_EXTEND
 	  appended to the built-in command line. This is useful in
 	  cases where the provided arguments are insufficient and
 	  you don't want to or cannot modify them.
-
 
 config CMDLINE_FORCE
 	bool "Always use the default kernel command string"
@@ -522,7 +521,7 @@ config XIP_PHYS_ADDR
 	  be linked for and stored to.  This address is dependent on your
 	  own flash usage.
 
-endmenu
+endmenu # "Boot options"
 
 config BUILTIN_DTB
 	bool
@@ -533,12 +532,12 @@ menu "Power management options"
 
 source "kernel/power/Kconfig"
 
-endmenu
+endmenu # "Power management options"
 
 menu "CPU Power Management"
 
 source "drivers/cpuidle/Kconfig"
 
-endmenu
+endmenu # "CPU Power Management"
 
 source "arch/riscv/kvm/Kconfig"
