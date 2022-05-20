@@ -867,6 +867,7 @@ struct mtk_tx_dma_desc_info {
  *				the target SoC
  * @required_pctl		A bool value to show whether the SoC requires
  *				the extra setup for those pins used by GMAC.
+ * @txd_size			Tx DMA descriptor size.
  */
 struct mtk_soc_data {
 	u32             ana_rgc3;
@@ -875,6 +876,9 @@ struct mtk_soc_data {
 	bool		required_pctl;
 	u8		offload_version;
 	netdev_features_t hw_features;
+	struct {
+		u32	txd_size;
+	} txrx;
 };
 
 /* currently no SoC has more than 2 macs */
