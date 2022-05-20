@@ -133,6 +133,10 @@ properties:
           - const: mediatek,mt8183
       - items:
           - enum:
+              - mediatek,mt8186-evb
+          - const: mediatek,mt8186
+      - items:
+          - enum:
               - mediatek,mt8192-evb
           - const: mediatek,mt8192
       - items:
