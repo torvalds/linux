@@ -1869,7 +1869,7 @@ rcu_torture_stats_print(void)
 			batchsummary[i] += READ_ONCE(per_cpu(rcu_torture_batch, cpu)[i]);
 		}
 	}
-	for (i = RCU_TORTURE_PIPE_LEN - 1; i >= 0; i--) {
+	for (i = RCU_TORTURE_PIPE_LEN; i >= 0; i--) {
 		if (pipesummary[i] != 0)
 			break;
 	}
