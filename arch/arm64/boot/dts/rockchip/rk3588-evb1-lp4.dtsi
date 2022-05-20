@@ -254,6 +254,10 @@
 	status = "okay";
 };
 
+&dp0_sound{
+	status = "okay";
+};
+
 &dp1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp1_hpd>;
@@ -665,6 +669,10 @@
 };
 
 &sata0 {
+	status = "okay";
+};
+
+&spdif_tx2 {
 	status = "okay";
 };
 

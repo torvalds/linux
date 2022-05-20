@@ -222,6 +222,10 @@
 	status = "okay";
 };
 
+&dp0_sound{
+	status = "okay";
+};
+
 &edp0 {
 	force-hpd;
 	status = "okay";
@@ -657,6 +661,10 @@
 };
 
 &spdif_tx1_sound {
+	status = "okay";
+};
+
+&spdif_tx2 {
 	status = "okay";
 };
 
