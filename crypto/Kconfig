@@ -532,6 +532,17 @@ config CRYPTO_ADIANTUM
 
 	  If unsure, say N.
 
+config CRYPTO_HCTR2
+	tristate "HCTR2 support"
+	select CRYPTO_XCTR
+	select CRYPTO_POLYVAL
+	select CRYPTO_MANAGER
+	help
+	  HCTR2 is a length-preserving encryption mode for storage encryption that
+	  is efficient on processors with instructions to accelerate AES and
+	  carryless multiplication, e.g. x86 processors with AES-NI and CLMUL, and
+	  ARM processors with the ARMv8 crypto extensions.
+
 config CRYPTO_ESSIV
 	tristate "ESSIV support for block encryption"
 	select CRYPTO_AUTHENC
