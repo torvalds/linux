@@ -39,17 +39,11 @@
 
 static int stf_csi_power_on(struct stf_csi_dev *csi_dev, u8 on)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	void __iomem *aon_syscon;
 
 	pmic_set_domain(POWER_SW_0_REG, POWER_SW_0_VDD18_MIPIRX, on);
 	pmic_set_domain(POWER_SW_0_REG, POWER_SW_0_VDD09_MIPIRX, on);
-
-	// regmap_update_bits(stfcamss->reg_aon_syscon,
-	// 	stfcamss->aon_dphy_power,
-	// 	AON_GP_REG_MASK,
-	// 	0x80000000);
 
 	aon_syscon = ioremap(0x17010000, 0x1000);
 	reg_write(aon_syscon, 0x00, 0x80000000);
@@ -59,7 +53,6 @@ static int stf_csi_power_on(struct stf_csi_dev *csi_dev, u8 on)
 
 static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 
 	clk_set_rate(stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk, 204800000);
@@ -80,7 +73,6 @@ static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 
 static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 
 	reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
@@ -189,7 +181,6 @@ static void csi2rx_reset(void *reg_base)
 
 static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	struct csi2phy_cfg *csiphy =
 		stfcamss->csiphy_dev[csi_dev->csiphy_id].csiphy;
@@ -226,22 +217,15 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 	}
 
 	writel(reg, reg_base + CSI2RX_STATIC_CFG_REG);
-	printk("---------[%s, %d] CSI2RX_STATIC_CFG_REG= %d", __func__, __LINE__, reg);
 
 	// 0x40 DPHY_LANE_CONTROL
 	reg = 0;
-// #ifndef USE_CSIDPHY_ONE_CLK_MODE
-// 	for (i = 0; i < csiphy->num_data_lanes; i++)
-// 		reg |= 1 << (csiphy->data_lanes[i] - 1)
-// 			| 1 << (csiphy->data_lanes[i] + 11);
-// #else
-	for (i = 0; i < csiphy->num_data_lanes; i++)
-		reg |= 1 << i | 1 << (i + 12);
-// #endif
 
-	reg |= 1 << 4 | 1 << 16;
+	for (i = 0; i < csiphy->num_data_lanes; i++)
+		reg |= 1 << i | 1 << (i + 12);		//data_clane
+
+	reg |= 1 << 4 | 1 << 16;		//clk_lane
 	writel(reg, reg_base + CSI2RX_DPHY_LANE_CONTROL);
-	printk("---------[%s, %d] CSI2RX_DPHY_LANE_CONTROL= %d", __func__, __LINE__, reg);
 
 	/*
 	 * Create a static mapping between the CSI virtual channels
@@ -278,7 +262,6 @@ static void csi2rx_stop(struct stf_csi_dev *csi_dev, void *reg_base)
 
 static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 	void *reg_base = NULL;
@@ -300,13 +283,13 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 			0<<0);		//u0_vin_cnfg_axiwr0_channel_sel
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
 			BIT(14)|BIT(13),
-			1<<13);
+			1<<13);		//u0_vin_cnfg_axiwr0_pix_ct
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
 			BIT(16)|BIT(15),
-			0<<15);
+			0<<15);		//u0_vin_cnfg_axiwr0_pixel_high_bit_sel
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
 			BIT(12)|BIT(11)|BIT(10)|BIT(9)|BIT(8)|BIT(7)|BIT(6)|BIT(5)|BIT(4)|BIT(3)|BIT(2),
-			1920 / 4 - 1);
+			(1920 / 4 - 1)<<2);	//u0_vin_cnfg_axiwr0_pix_cnt_end
 		break;
 	case SENSOR_ISP0:
 		clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,

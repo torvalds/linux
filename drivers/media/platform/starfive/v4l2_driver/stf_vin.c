@@ -153,7 +153,6 @@ out:
 
 static int vin_set_power(struct v4l2_subdev *sd, int on)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct vin_line *line = v4l2_get_subdevdata(sd);
 	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
 
@@ -260,7 +259,6 @@ static int vin_disable_output(struct vin_line *line)
 
 static int vin_set_stream(struct v4l2_subdev *sd, int enable)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct vin_line *line = v4l2_get_subdevdata(sd);
 	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
 

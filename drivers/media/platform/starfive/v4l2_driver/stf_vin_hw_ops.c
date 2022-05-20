@@ -106,7 +106,6 @@ static int stf_vin_config_set(struct stf_vin2_dev *vin_dev)
 
 static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
@@ -235,5 +234,4 @@ struct vin_hw_ops vin_ops = {
 	.vin_isp_set_raw_addr  = stf_vin_isp_set_raw_addr,
 	.vin_wr_irq_handler    = stf_vin_wr_irq_handler,
 	.vin_isp_irq_handler   = stf_vin_isp_irq_handler,
-
 };

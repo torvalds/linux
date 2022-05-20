@@ -2164,7 +2164,6 @@ power_off:
 
 static int ov4689_s_power(struct v4l2_subdev *sd, int on)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct ov4689_dev *sensor = to_ov4689_dev(sd);
 	int ret = 0;
 
@@ -2752,7 +2751,6 @@ static int ov4689_stream_start(struct ov4689_dev *sensor, int enable)
 
 static int ov4689_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct ov4689_dev *sensor = to_ov4689_dev(sd);
 	int ret = 0;
 

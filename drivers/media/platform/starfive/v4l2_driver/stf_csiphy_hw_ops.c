@@ -7,7 +7,6 @@
 
 static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct stfcamss *stfcamss = csiphy_dev->stfcamss;
 	struct stf_vin_dev *vin = csiphy_dev->stfcamss->vin;
 	static int init_flag;
@@ -141,7 +140,6 @@ int try_cfg(struct csi2phy_cfg2 *cfg, struct csi2phy_cfg *cfg0,
 static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 		struct stf_csiphy_dev *csiphy_dev)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct csi2phy_cfg *cfg;
 	struct stf_csiphy_dev *csiphy0_dev =
 		&csiphy_dev->stfcamss->csiphy_dev[0];
@@ -157,24 +155,6 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 	if (id == 0) {
 		cfg = phy0cfg;
 	}
-
-	// if (try_cfg(cfg, phy0cfg, phy1cfg))
-	// 	return -EINVAL;
-
-printk("---------[%s, %d]", __func__, __LINE__);
-
-	printk("---------[%s, %d] cfg->clock_lane0 = %d\n",
-		__func__, __LINE__, cfg->clock_lane);
-	// printk("---------[%s, %d] cfg->clock_lane1 =s %d\n",
-	// 	__func__, __LINE__, cfg->clock1_lane);
-	printk("---------[%s, %d] cfg->data_lanes[0] = %d\n",
-		__func__, __LINE__, cfg->data_lanes[0]);
-	printk("---------[%s, %d] cfg->data_lanes[1] = %d\n",
-		__func__, __LINE__, cfg->data_lanes[1]);
-	printk("---------[%s, %d] cfg->data_lanes[2] = %d\n",
-		__func__, __LINE__, cfg->data_lanes[2]);
-	printk("---------[%s, %d] cfg->data_lanes[3] = %d\n",
-		__func__, __LINE__, cfg->data_lanes[3]);
 
 	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_4, 0x0);
 	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_8, 0x0);

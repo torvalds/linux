@@ -37,7 +37,6 @@ int stf_csiphy_subdev_init(struct stfcamss *stfcamss, int id)
 
 static int csiphy_set_power(struct v4l2_subdev *sd, int on)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 #ifdef CONFIG_VIDEO_CADENCE_CSI2RX
 	struct stf_csiphy_dev *csiphy_dev = v4l2_get_subdevdata(sd);
 
@@ -49,7 +48,6 @@ static int csiphy_set_power(struct v4l2_subdev *sd, int on)
 
 static int csiphy_set_stream(struct v4l2_subdev *sd, int enable)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	struct stf_csiphy_dev *csiphy_dev = v4l2_get_subdevdata(sd);
 
 	mutex_lock(&csiphy_dev->stream_lock);
@@ -260,7 +258,6 @@ static int csiphy_link_setup(struct media_entity *entity,
 			const struct media_pad *local,
 			const struct media_pad *remote, u32 flags)
 {
-	printk("---------[%s, %d]", __func__, __LINE__);
 	if ((local->flags & MEDIA_PAD_FL_SOURCE) &&
 		(flags & MEDIA_LNK_FL_ENABLED)) {
 		struct v4l2_subdev *sd;
