@@ -4,6 +4,7 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/poll.h>
 #include <linux/preempt.h>
 #include <linux/ptr_ring.h>
@@ -27,6 +28,7 @@ struct i3c_mctp {
 	struct cdev cdev;
 	struct device *dev;
 	struct delayed_work polling_work;
+	struct platform_device *i3c_peci;
 	int id;
 	/*
 	 * Restrict an access to the /dev descriptor to one
@@ -36,6 +38,7 @@ struct i3c_mctp {
 	int device_open;
 	/* Currently only one userspace client is supported */
 	struct i3c_mctp_client *default_client;
+	struct i3c_mctp_client *peci_client;
 };
 
 struct i3c_mctp_client {
@@ -105,6 +108,16 @@ out:
 static struct i3c_mctp_client *i3c_mctp_find_client(struct i3c_mctp *priv,
 						    struct i3c_mctp_packet *packet)
 {
+	u8 *msg_hdr = (u8 *)packet->data.payload;
+	u8 mctp_type = msg_hdr[MCTP_MSG_HDR_MSG_TYPE_OFFSET];
+	u16 vendor = (msg_hdr[MCTP_MSG_HDR_VENDOR_OFFSET] << 8
+		      | msg_hdr[MCTP_MSG_HDR_VENDOR_OFFSET + 1]);
+	u8 intel_msg_op_code = msg_hdr[MCTP_MSG_HDR_OPCODE_OFFSET];
+
+	if (priv->peci_client && mctp_type == MCTP_MSG_TYPE_VDM_PCI &&
+	    vendor == MCTP_VDM_PCI_INTEL_VENDOR_ID && intel_msg_op_code == MCTP_VDM_PCI_INTEL_PECI)
+		return priv->peci_client;
+
 	return priv->default_client;
 }
 
@@ -262,6 +275,41 @@ static const struct file_operations i3c_mctp_fops = {
 	.open = i3c_mctp_open,
 	.release = i3c_mctp_release,
 };
+
+/**
+ * i3c_mctp_add_peci_client() - registers PECI client
+ * @i3c: I3C device to get the PECI client for
+ *
+ * Return: pointer to PECI client, -ENOMEM - in case of client alloc fault
+ */
+struct i3c_mctp_client *i3c_mctp_add_peci_client(struct i3c_device *i3c)
+{
+	struct i3c_mctp *priv = dev_get_drvdata(i3cdev_to_dev(i3c));
+	struct i3c_mctp_client *client;
+
+	client = i3c_mctp_client_alloc(priv);
+	if (IS_ERR(client))
+		return ERR_PTR(-ENOMEM);
+
+	priv->peci_client = client;
+
+	return priv->peci_client;
+}
+EXPORT_SYMBOL_GPL(i3c_mctp_add_peci_client);
+
+/**
+ * i3c_mctp_remove_peci_client() - un-registers PECI client
+ * @client: i3c_mctp_client to be freed
+ */
+void i3c_mctp_remove_peci_client(struct i3c_mctp_client *client)
+{
+	struct i3c_mctp *priv = client->priv;
+
+	i3c_mctp_client_free(priv->peci_client);
+
+	priv->peci_client = NULL;
+}
+EXPORT_SYMBOL_GPL(i3c_mctp_remove_peci_client);
 
 static struct i3c_mctp *i3c_mctp_alloc(struct i3c_device *i3c)
 {
@@ -466,6 +514,11 @@ static int i3c_mctp_probe(struct i3c_device *i3cdev)
 
 	dev_set_drvdata(i3cdev_to_dev(i3cdev), priv);
 
+	priv->i3c_peci = platform_device_register_data(i3cdev_to_dev(i3cdev), "peci-i3c", priv->id,
+						       NULL, 0);
+	if (IS_ERR(priv->i3c_peci))
+		dev_warn(priv->dev, "failed to register peci-i3c device\n");
+
 	if (i3c_mctp_enable_ibi(i3cdev)) {
 		INIT_DELAYED_WORK(&priv->polling_work, i3c_mctp_polling_work);
 		schedule_delayed_work(&priv->polling_work, msecs_to_jiffies(POLLING_TIMEOUT_MS));
@@ -488,6 +541,7 @@ static void i3c_mctp_remove(struct i3c_device *i3cdev)
 	i3c_device_free_ibi(i3cdev);
 	i3c_mctp_client_free(priv->default_client);
 	priv->default_client = NULL;
+	platform_device_unregister(priv->i3c_peci);
 
 	device_destroy(i3c_mctp_class, MKDEV(MAJOR(i3c_mctp_devt), priv->id));
 	cdev_del(&priv->cdev);
