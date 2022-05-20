@@ -494,6 +494,10 @@ enum pg_level {
 #define PG_LEVEL_SHIFT(_level) ((_level - 1) * 9 + 12)
 #define PG_LEVEL_SIZE(_level) (1ull << PG_LEVEL_SHIFT(_level))
 
+#define PG_SIZE_4K PG_LEVEL_SIZE(PG_LEVEL_4K)
+#define PG_SIZE_2M PG_LEVEL_SIZE(PG_LEVEL_2M)
+#define PG_SIZE_1G PG_LEVEL_SIZE(PG_LEVEL_1G)
+
 void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level);
 
 /*

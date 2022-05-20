@@ -203,6 +203,11 @@ static bool ept_vpid_cap_supported(uint64_t mask)
 	return rdmsr(MSR_IA32_VMX_EPT_VPID_CAP) & mask;
 }
 
+bool ept_1g_pages_supported(void)
+{
+	return ept_vpid_cap_supported(VMX_EPT_VPID_CAP_1G_PAGES);
+}
+
 /*
  * Initialize the control fields to the most basic settings possible.
  */
@@ -439,6 +444,9 @@ void __nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
 		    "unknown or unsupported guest mode, mode: 0x%x", vm->mode);
 
+	TEST_ASSERT((nested_paddr >> 48) == 0,
+		    "Nested physical address 0x%lx requires 5-level paging",
+		    nested_paddr);
 	TEST_ASSERT((nested_paddr % page_size) == 0,
 		    "Nested physical address not on page boundary,\n"
 		    "  nested_paddr: 0x%lx page_size: 0x%lx",
@@ -545,6 +553,13 @@ void nested_map_memslot(struct vmx_pages *vmx, struct kvm_vm *vm,
 			   (uint64_t)i << vm->page_shift,
 			   1 << vm->page_shift);
 	}
+}
+
+/* Identity map a region with 1GiB Pages. */
+void nested_identity_map_1g(struct vmx_pages *vmx, struct kvm_vm *vm,
+			    uint64_t addr, uint64_t size)
+{
+	__nested_map(vmx, vm, addr, addr, size, PG_LEVEL_1G);
 }
 
 void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
