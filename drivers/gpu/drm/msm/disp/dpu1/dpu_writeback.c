@@ -8,8 +8,10 @@
 static int dpu_wb_conn_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct dpu_kms *dpu_kms = to_dpu_kms(priv->kms);
 
-	return drm_add_modes_noedid(connector, dev->mode_config.max_width,
+	return drm_add_modes_noedid(connector, dpu_kms->catalog->caps->max_linewidth,
 			dev->mode_config.max_height);
 }
 

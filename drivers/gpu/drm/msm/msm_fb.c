@@ -118,7 +118,7 @@ uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb,
 		struct msm_gem_address_space *aspace, int plane)
 {
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
-	return msm_fb->iova[plane];
+	return msm_fb->iova[plane] + fb->offsets[plane];
 }
 
 struct drm_gem_object *msm_framebuffer_bo(struct drm_framebuffer *fb, int plane)
