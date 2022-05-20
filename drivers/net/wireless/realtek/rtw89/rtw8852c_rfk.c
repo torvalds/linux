@@ -3864,6 +3864,7 @@ void rtw8852c_iqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 
 void rtw8852c_rx_dck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy, bool is_afe)
 {
+	struct rtw89_rx_dck_info *rx_dck = &rtwdev->rx_dck;
 	u8 path, kpath;
 	u32 rf_reg5;
 
@@ -3883,11 +3884,37 @@ void rtw8852c_rx_dck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy, bool is_a
 		rtw89_write_rf(rtwdev, path, RR_RSV1, RR_RSV1_RST, 0x0);
 		rtw89_write_rf(rtwdev, path, RR_MOD, RR_MOD_MASK, RR_MOD_V_RX);
 		_set_rx_dck(rtwdev, phy, path, is_afe);
+		rx_dck->thermal[path] = ewma_thermal_read(&rtwdev->phystat.avg_thermal[path]);
 		rtw89_write_rf(rtwdev, path, RR_RSV1, RFREG_MASK, rf_reg5);
 
 		if (rtwdev->is_tssi_mode[path])
 			rtw89_phy_write32_mask(rtwdev, R_P0_TSSI_TRK + (path << 13),
 					       B_P0_TSSI_TRK_EN, 0x0);
+	}
+}
+
+#define RTW8852C_RX_DCK_TH 8
+
+void rtw8852c_rx_dck_track(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_rx_dck_info *rx_dck = &rtwdev->rx_dck;
+	u8 cur_thermal;
+	int delta;
+	int path;
+
+	for (path = 0; path < RF_PATH_NUM_8852C; path++) {
+		cur_thermal =
+			ewma_thermal_read(&rtwdev->phystat.avg_thermal[path]);
+		delta = abs((int)cur_thermal - rx_dck->thermal[path]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK,
+			    "[RX_DCK] path=%d current thermal=0x%x delta=0x%x\n",
+			    path, cur_thermal, delta);
+
+		if (delta >= RTW8852C_RX_DCK_TH) {
+			rtw8852c_rx_dck(rtwdev, RTW89_PHY_0, false);
+			return;
+		}
 	}
 }
 
