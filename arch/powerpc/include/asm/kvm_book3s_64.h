@@ -16,18 +16,6 @@
 #include <asm/ppc-opcode.h>
 #include <asm/pte-walk.h>
 
-#ifdef CONFIG_PPC_PSERIES
-static inline bool kvmhv_on_pseries(void)
-{
-	return !cpu_has_feature(CPU_FTR_HVMODE);
-}
-#else
-static inline bool kvmhv_on_pseries(void)
-{
-	return false;
-}
-#endif
-
 /*
  * Structure for a nested guest, that is, for a guest that is managed by
  * one of our guests.

@@ -509,7 +509,6 @@ extern int unregister_acpi_notifier(struct notifier_block *);
  * External Functions
  */
 
-int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
 struct acpi_device *acpi_fetch_acpi_dev(acpi_handle handle);
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);

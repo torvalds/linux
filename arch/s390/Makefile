@@ -42,6 +42,7 @@ mflags-$(CONFIG_MARCH_ZEC12)  := -march=zEC12
 mflags-$(CONFIG_MARCH_Z13)    := -march=z13
 mflags-$(CONFIG_MARCH_Z14)    := -march=z14
 mflags-$(CONFIG_MARCH_Z15)    := -march=z15
+mflags-$(CONFIG_MARCH_Z16)    := -march=z16
 
 export CC_FLAGS_MARCH := $(mflags-y)
 
@@ -54,6 +55,7 @@ cflags-$(CONFIG_MARCH_ZEC12_TUNE)	+= -mtune=zEC12
 cflags-$(CONFIG_MARCH_Z13_TUNE)		+= -mtune=z13
 cflags-$(CONFIG_MARCH_Z14_TUNE)		+= -mtune=z14
 cflags-$(CONFIG_MARCH_Z15_TUNE)		+= -mtune=z15
+cflags-$(CONFIG_MARCH_Z16_TUNE)		+= -mtune=z16
 
 cflags-y += -Wa,-I$(srctree)/arch/$(ARCH)/include
 

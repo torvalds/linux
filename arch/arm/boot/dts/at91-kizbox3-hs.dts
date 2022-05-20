@@ -225,7 +225,7 @@
 		pinctrl_pio_io_reset: gpio_io_reset {
 			pinmux = <PIN_PB30__GPIO>;
 			bias-disable;
-			drive-open-drain = <1>;
+			drive-open-drain;
 			output-low;
 		};
 		pinctrl_pio_input: gpio_input {

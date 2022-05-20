@@ -99,15 +99,6 @@
 #define PTP_TIMESTAMP_EN_PDREQ_			BIT(2)
 #define PTP_TIMESTAMP_EN_PDRES_			BIT(3)
 
-#define PTP_RX_LATENCY_1000			0x0224
-#define PTP_TX_LATENCY_1000			0x0225
-
-#define PTP_RX_LATENCY_100			0x0222
-#define PTP_TX_LATENCY_100			0x0223
-
-#define PTP_RX_LATENCY_10			0x0220
-#define PTP_TX_LATENCY_10			0x0221
-
 #define PTP_TX_PARSE_L2_ADDR_EN			0x0284
 #define PTP_RX_PARSE_L2_ADDR_EN			0x0244
 
@@ -268,15 +259,6 @@ struct lan8814_ptp_rx_ts {
 	u16 seq_id;
 };
 
-struct kszphy_latencies {
-	u16 rx_10;
-	u16 tx_10;
-	u16 rx_100;
-	u16 tx_100;
-	u16 rx_1000;
-	u16 tx_1000;
-};
-
 struct kszphy_ptp_priv {
 	struct mii_timestamper mii_ts;
 	struct phy_device *phydev;
@@ -296,7 +278,6 @@ struct kszphy_ptp_priv {
 
 struct kszphy_priv {
 	struct kszphy_ptp_priv ptp_priv;
-	struct kszphy_latencies latencies;
 	const struct kszphy_type *type;
 	int led_mode;
 	bool rmii_ref_clk_sel;
@@ -304,14 +285,6 @@ struct kszphy_priv {
 	u64 stats[ARRAY_SIZE(kszphy_hw_stats)];
 };
 
-static struct kszphy_latencies lan8814_latencies = {
-	.rx_10		= 0x22AA,
-	.tx_10		= 0x2E4A,
-	.rx_100		= 0x092A,
-	.tx_100		= 0x02C1,
-	.rx_1000	= 0x01AD,
-	.tx_1000	= 0x00C9,
-};
 static const struct kszphy_type ksz8021_type = {
 	.led_mode_reg		= MII_KSZPHY_CTRL_2,
 	.has_broadcast_disable	= true,
@@ -2618,55 +2591,6 @@ static int lan8814_ptp_probe_once(struct phy_device *phydev)
 	return 0;
 }
 
-static int lan8814_read_status(struct phy_device *phydev)
-{
-	struct kszphy_priv *priv = phydev->priv;
-	struct kszphy_latencies *latencies = &priv->latencies;
-	int err;
-	int regval;
-
-	err = genphy_read_status(phydev);
-	if (err)
-		return err;
-
-	switch (phydev->speed) {
-	case SPEED_1000:
-		lanphy_write_page_reg(phydev, 5, PTP_RX_LATENCY_1000,
-				      latencies->rx_1000);
-		lanphy_write_page_reg(phydev, 5, PTP_TX_LATENCY_1000,
-				      latencies->tx_1000);
-		break;
-	case SPEED_100:
-		lanphy_write_page_reg(phydev, 5, PTP_RX_LATENCY_100,
-				      latencies->rx_100);
-		lanphy_write_page_reg(phydev, 5, PTP_TX_LATENCY_100,
-				      latencies->tx_100);
-		break;
-	case SPEED_10:
-		lanphy_write_page_reg(phydev, 5, PTP_RX_LATENCY_10,
-				      latencies->rx_10);
-		lanphy_write_page_reg(phydev, 5, PTP_TX_LATENCY_10,
-				      latencies->tx_10);
-		break;
-	default:
-		break;
-	}
-
-	/* Make sure the PHY is not broken. Read idle error count,
-	 * and reset the PHY if it is maxed out.
-	 */
-	regval = phy_read(phydev, MII_STAT1000);
-	if ((regval & 0xFF) == 0xFF) {
-		phy_init_hw(phydev);
-		phydev->link = 0;
-		if (phydev->drv->config_intr && phy_interrupt_is_valid(phydev))
-			phydev->drv->config_intr(phydev);
-		return genphy_config_aneg(phydev);
-	}
-
-	return 0;
-}
-
 static int lan8814_config_init(struct phy_device *phydev)
 {
 	int val;
@@ -2690,30 +2614,8 @@ static int lan8814_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-static void lan8814_parse_latency(struct phy_device *phydev)
-{
-	const struct device_node *np = phydev->mdio.dev.of_node;
-	struct kszphy_priv *priv = phydev->priv;
-	struct kszphy_latencies *latency = &priv->latencies;
-	u32 val;
-
-	if (!of_property_read_u32(np, "lan8814,latency_rx_10", &val))
-		latency->rx_10 = val;
-	if (!of_property_read_u32(np, "lan8814,latency_tx_10", &val))
-		latency->tx_10 = val;
-	if (!of_property_read_u32(np, "lan8814,latency_rx_100", &val))
-		latency->rx_100 = val;
-	if (!of_property_read_u32(np, "lan8814,latency_tx_100", &val))
-		latency->tx_100 = val;
-	if (!of_property_read_u32(np, "lan8814,latency_rx_1000", &val))
-		latency->rx_1000 = val;
-	if (!of_property_read_u32(np, "lan8814,latency_tx_1000", &val))
-		latency->tx_1000 = val;
-}
-
 static int lan8814_probe(struct phy_device *phydev)
 {
-	const struct device_node *np = phydev->mdio.dev.of_node;
 	struct kszphy_priv *priv;
 	u16 addr;
 	int err;
@@ -2724,13 +2626,10 @@ static int lan8814_probe(struct phy_device *phydev)
 
 	priv->led_mode = -1;
 
-	priv->latencies = lan8814_latencies;
-
 	phydev->priv = priv;
 
 	if (!IS_ENABLED(CONFIG_PTP_1588_CLOCK) ||
-	    !IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING) ||
-	    of_property_read_bool(np, "lan8814,ignore-ts"))
+	    !IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING))
 		return 0;
 
 	/* Strap-in value for PHY address, below register read gives starting
@@ -2746,7 +2645,6 @@ static int lan8814_probe(struct phy_device *phydev)
 			return err;
 	}
 
-	lan8814_parse_latency(phydev);
 	lan8814_ptp_init(phydev);
 
 	return 0;
@@ -2928,7 +2826,7 @@ static struct phy_driver ksphy_driver[] = {
 	.config_init	= lan8814_config_init,
 	.probe		= lan8814_probe,
 	.soft_reset	= genphy_soft_reset,
-	.read_status	= lan8814_read_status,
+	.read_status	= ksz9031_read_status,
 	.get_sset_count	= kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,

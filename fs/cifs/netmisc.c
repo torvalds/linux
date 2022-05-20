@@ -896,7 +896,7 @@ map_and_check_smb_error(struct mid_q_entry *mid, bool logErr)
 		if (class == ERRSRV && code == ERRbaduid) {
 			cifs_dbg(FYI, "Server returned 0x%x, reconnecting session...\n",
 				code);
-			cifs_reconnect(mid->server, false);
+			cifs_signal_cifsd_for_reconnect(mid->server, false);
 		}
 	}
 

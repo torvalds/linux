@@ -109,8 +109,8 @@ lpfc_rport_invalid(struct fc_rport *rport)
 
 	ndlp = rdata->pnode;
 	if (!rdata->pnode) {
-		pr_err("**** %s: NULL ndlp on rport x%px SID x%x\n",
-		       __func__, rport, rport->scsi_target_id);
+		pr_info("**** %s: NULL ndlp on rport x%px SID x%x\n",
+			__func__, rport, rport->scsi_target_id);
 		return -EINVAL;
 	}
 
@@ -169,9 +169,10 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
 			 "3181 dev_loss_callbk x%06x, rport x%px flg x%x "
-			 "load_flag x%x refcnt %d\n",
+			 "load_flag x%x refcnt %d state %d xpt x%x\n",
 			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag,
-			 vport->load_flag, kref_read(&ndlp->kref));
+			 vport->load_flag, kref_read(&ndlp->kref),
+			 ndlp->nlp_state, ndlp->fc4_xpt_flags);
 
 	/* Don't schedule a worker thread event if the vport is going down.
 	 * The teardown process cleans up the node via lpfc_drop_node.
@@ -181,6 +182,11 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		ndlp->rport = NULL;
 
 		ndlp->fc4_xpt_flags &= ~SCSI_XPT_REGD;
+		/* clear the NLP_XPT_REGD if the node is not registered
+		 * with nvme-fc
+		 */
+		if (ndlp->fc4_xpt_flags == NLP_XPT_REGD)
+			ndlp->fc4_xpt_flags &= ~NLP_XPT_REGD;
 
 		/* Remove the node reference from remote_port_add now.
 		 * The driver will not call remote_port_delete.
@@ -225,18 +231,36 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	ndlp->rport = NULL;
 	spin_unlock_irqrestore(&ndlp->lock, iflags);
 
-	/* We need to hold the node by incrementing the reference
-	 * count until this queued work is done
-	 */
-	evtp->evt_arg1 = lpfc_nlp_get(ndlp);
+	if (phba->worker_thread) {
+		/* We need to hold the node by incrementing the reference
+		 * count until this queued work is done
+		 */
+		evtp->evt_arg1 = lpfc_nlp_get(ndlp);
 
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	if (evtp->evt_arg1) {
-		evtp->evt = LPFC_EVT_DEV_LOSS;
-		list_add_tail(&evtp->evt_listp, &phba->work_list);
-		lpfc_worker_wake_up(phba);
+		spin_lock_irqsave(&phba->hbalock, iflags);
+		if (evtp->evt_arg1) {
+			evtp->evt = LPFC_EVT_DEV_LOSS;
+			list_add_tail(&evtp->evt_listp, &phba->work_list);
+			lpfc_worker_wake_up(phba);
+		}
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+	} else {
+		lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+				 "3188 worker thread is stopped %s x%06x, "
+				 " rport x%px flg x%x load_flag x%x refcnt "
+				 "%d\n", __func__, ndlp->nlp_DID,
+				 ndlp->rport, ndlp->nlp_flag,
+				 vport->load_flag, kref_read(&ndlp->kref));
+		if (!(ndlp->fc4_xpt_flags & NVME_XPT_REGD)) {
+			spin_lock_irqsave(&ndlp->lock, iflags);
+			/* Node is in dev loss.  No further transaction. */
+			ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
+			spin_unlock_irqrestore(&ndlp->lock, iflags);
+			lpfc_disc_state_machine(vport, ndlp, NULL,
+						NLP_EVT_DEVICE_RM);
+		}
+
 	}
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
 
 	return;
 }
@@ -503,11 +527,12 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0203 Devloss timeout on "
 				 "WWPN %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x "
-				 "NPort x%06x Data: x%x x%x x%x\n",
+				 "NPort x%06x Data: x%x x%x x%x refcnt %d\n",
 				 *name, *(name+1), *(name+2), *(name+3),
 				 *(name+4), *(name+5), *(name+6), *(name+7),
 				 ndlp->nlp_DID, ndlp->nlp_flag,
-				 ndlp->nlp_state, ndlp->nlp_rpi);
+				 ndlp->nlp_state, ndlp->nlp_rpi,
+				 kref_read(&ndlp->kref));
 	} else {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_TRACE_EVENT,
 				 "0204 Devloss timeout on "
@@ -755,18 +780,22 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 	int free_evt;
 	int fcf_inuse;
 	uint32_t nlp_did;
+	bool hba_pci_err;
 
 	spin_lock_irq(&phba->hbalock);
 	while (!list_empty(&phba->work_list)) {
 		list_remove_head((&phba->work_list), evtp, typeof(*evtp),
 				 evt_listp);
 		spin_unlock_irq(&phba->hbalock);
+		hba_pci_err = test_bit(HBA_PCI_ERR, &phba->bit_flags);
 		free_evt = 1;
 		switch (evtp->evt) {
 		case LPFC_EVT_ELS_RETRY:
 			ndlp = (struct lpfc_nodelist *) (evtp->evt_arg1);
-			lpfc_els_retry_delay_handler(ndlp);
-			free_evt = 0; /* evt is part of ndlp */
+			if (!hba_pci_err) {
+				lpfc_els_retry_delay_handler(ndlp);
+				free_evt = 0; /* evt is part of ndlp */
+			}
 			/* decrement the node reference count held
 			 * for this queued work
 			 */
@@ -788,8 +817,10 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 			break;
 		case LPFC_EVT_RECOVER_PORT:
 			ndlp = (struct lpfc_nodelist *)(evtp->evt_arg1);
-			lpfc_sli_abts_recover_port(ndlp->vport, ndlp);
-			free_evt = 0;
+			if (!hba_pci_err) {
+				lpfc_sli_abts_recover_port(ndlp->vport, ndlp);
+				free_evt = 0;
+			}
 			/* decrement the node reference count held for
 			 * this queued work
 			 */
@@ -859,14 +890,18 @@ lpfc_work_done(struct lpfc_hba *phba)
 	struct lpfc_vport **vports;
 	struct lpfc_vport *vport;
 	int i;
+	bool hba_pci_err;
 
+	hba_pci_err = test_bit(HBA_PCI_ERR, &phba->bit_flags);
 	spin_lock_irq(&phba->hbalock);
 	ha_copy = phba->work_ha;
 	phba->work_ha = 0;
 	spin_unlock_irq(&phba->hbalock);
+	if (hba_pci_err)
+		ha_copy = 0;
 
 	/* First, try to post the next mailbox command to SLI4 device */
-	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC)
+	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC && !hba_pci_err)
 		lpfc_sli4_post_async_mbox(phba);
 
 	if (ha_copy & HA_ERATT) {
@@ -886,7 +921,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 		lpfc_handle_latt(phba);
 
 	/* Handle VMID Events */
-	if (lpfc_is_vmid_enabled(phba)) {
+	if (lpfc_is_vmid_enabled(phba) && !hba_pci_err) {
 		if (phba->pport->work_port_events &
 		    WORKER_CHECK_VMID_ISSUE_QFPA) {
 			lpfc_check_vmid_qfpa_issue(phba);
@@ -936,6 +971,8 @@ lpfc_work_done(struct lpfc_hba *phba)
 			work_port_events = vport->work_port_events;
 			vport->work_port_events &= ~work_port_events;
 			spin_unlock_irq(&vport->work_port_lock);
+			if (hba_pci_err)
+				continue;
 			if (work_port_events & WORKER_DISC_TMO)
 				lpfc_disc_timeout_handler(vport);
 			if (work_port_events & WORKER_ELS_TMO)
@@ -1173,12 +1210,14 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	struct lpfc_vport **vports;
 	LPFC_MBOXQ_t          *mb;
 	int i;
+	int offline;
 
 	if (phba->link_state == LPFC_LINK_DOWN)
 		return 0;
 
 	/* Block all SCSI stack I/Os */
 	lpfc_scsi_dev_block(phba);
+	offline = pci_channel_offline(phba->pcidev);
 
 	phba->defer_flogi_acc_flag = false;
 
@@ -1219,7 +1258,7 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	lpfc_destroy_vport_work_array(phba, vports);
 
 	/* Clean up any SLI3 firmware default rpi's */
-	if (phba->sli_rev > LPFC_SLI_REV3)
+	if (phba->sli_rev > LPFC_SLI_REV3 || offline)
 		goto skip_unreg_did;
 
 	mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -4712,6 +4751,11 @@ lpfc_nlp_unreg_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	spin_lock_irqsave(&ndlp->lock, iflags);
 	if (!(ndlp->fc4_xpt_flags & NLP_XPT_REGD)) {
 		spin_unlock_irqrestore(&ndlp->lock, iflags);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
+				 "0999 %s Not regd: ndlp x%px rport x%px DID "
+				 "x%x FLG x%x XPT x%x\n",
+				  __func__, ndlp, ndlp->rport, ndlp->nlp_DID,
+				  ndlp->nlp_flag, ndlp->fc4_xpt_flags);
 		return;
 	}
 
@@ -4722,6 +4766,13 @@ lpfc_nlp_unreg_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	    ndlp->fc4_xpt_flags & SCSI_XPT_REGD) {
 		vport->phba->nport_event_cnt++;
 		lpfc_unregister_remote_port(ndlp);
+	} else if (!ndlp->rport) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
+				 "1999 %s NDLP in devloss x%px DID x%x FLG x%x"
+				 " XPT x%x refcnt %d\n",
+				 __func__, ndlp, ndlp->nlp_DID, ndlp->nlp_flag,
+				 ndlp->fc4_xpt_flags,
+				 kref_read(&ndlp->kref));
 	}
 
 	if (ndlp->fc4_xpt_flags & NVME_XPT_REGD) {
@@ -5371,6 +5422,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				ndlp->nlp_flag &= ~NLP_UNREG_INP;
 				mempool_free(mbox, phba->mbox_mem_pool);
 				acc_plogi = 1;
+				lpfc_nlp_put(ndlp);
 			}
 		} else {
 			lpfc_printf_vlog(vport, KERN_INFO,
@@ -6097,12 +6149,34 @@ lpfc_disc_flush_list(struct lpfc_vport *vport)
 	}
 }
 
+/*
+ * lpfc_notify_xport_npr - notifies xport of node disappearance
+ * @vport: Pointer to Virtual Port object.
+ *
+ * Transitions all ndlps to NPR state.  When lpfc_nlp_set_state
+ * calls lpfc_nlp_state_cleanup, the ndlp->rport is unregistered
+ * and transport notified that the node is gone.
+ * Return Code:
+ *	none
+ */
+static void
+lpfc_notify_xport_npr(struct lpfc_vport *vport)
+{
+	struct lpfc_nodelist *ndlp, *next_ndlp;
+
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes,
+				 nlp_listp) {
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+	}
+}
 void
 lpfc_cleanup_discovery_resources(struct lpfc_vport *vport)
 {
 	lpfc_els_flush_rscn(vport);
 	lpfc_els_flush_cmd(vport);
 	lpfc_disc_flush_list(vport);
+	if (pci_channel_offline(vport->phba->pcidev))
+		lpfc_notify_xport_npr(vport);
 }
 
 /*****************************************************************************/
