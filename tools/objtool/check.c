@@ -187,6 +187,7 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 		"__invalid_creds",
 		"cpu_startup_entry",
 		"__ubsan_handle_builtin_unreachable",
+		"ex_handler_msr_mce",
 	};
 
 	if (!func)
