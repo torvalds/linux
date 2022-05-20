@@ -302,6 +302,26 @@ Sysreg	SMCR_EL2	3	4	1	2	6
 Fields	SMCR_ELx
 EndSysreg
 
+Sysreg	DACR32_EL2	3	4	3	0	0
+Res0	63:32
+Field	31:30	D15
+Field	29:28	D14
+Field	27:26	D13
+Field	25:24	D12
+Field	23:22	D11
+Field	21:20	D10
+Field	19:18	D9
+Field	17:16	D8
+Field	15:14	D7
+Field	13:12	D6
+Field	11:10	D5
+Field	9:8	D4
+Field	7:6	D3
+Field	5:4	D2
+Field	3:2	D1
+Field	1:0	D0
+EndSysreg
+
 Sysreg	CONTEXTIDR_EL2	3	4	13	0	1
 Fields	CONTEXTIDR_ELx
 EndSysreg
