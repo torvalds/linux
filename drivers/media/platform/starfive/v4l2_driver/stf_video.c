@@ -870,7 +870,6 @@ static int video_entity_s_fmt(struct stfcamss_video *video,
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
 	u32 width, height, code;
 	int ret, index = 0;
-	int padid = getcrop_pad_id(video->id);
 
 	code = mf->code;
 	width = mf->width;
@@ -879,11 +878,6 @@ static int video_entity_s_fmt(struct stfcamss_video *video,
 	while (1) {
 		if (index >= entity->num_pads)
 			break;
-		if (index != 0 && !strncmp(subdev->name, "stf_isp", 7)
-			&& (index != padid) && (index != STF_ISP_PAD_SRC_RAW)) {
-			index++;
-			continue;
-		}
 		pad = &entity->pads[index];
 		pad = media_entity_remote_pad(pad);
 		if (pad && is_media_entity_v4l2_subdev(pad->entity)) {
