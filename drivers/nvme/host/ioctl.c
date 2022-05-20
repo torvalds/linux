@@ -686,6 +686,29 @@ int nvme_ns_head_chr_uring_cmd(struct io_uring_cmd *ioucmd,
 }
 #endif /* CONFIG_NVME_MULTIPATH */
 
+int nvme_dev_uring_cmd(struct io_uring_cmd *ioucmd, unsigned int issue_flags)
+{
+	struct nvme_ctrl *ctrl = ioucmd->file->private_data;
+	int ret;
+
+	ret = nvme_uring_cmd_checks(issue_flags);
+	if (ret)
+		return ret;
+
+	switch (ioucmd->cmd_op) {
+	case NVME_URING_CMD_ADMIN:
+		ret = nvme_uring_cmd_io(ctrl, NULL, ioucmd, issue_flags, false);
+		break;
+	case NVME_URING_CMD_ADMIN_VEC:
+		ret = nvme_uring_cmd_io(ctrl, NULL, ioucmd, issue_flags, true);
+		break;
+	default:
+		ret = -ENOTTY;
+	}
+
+	return ret;
+}
+
 static int nvme_dev_user_cmd(struct nvme_ctrl *ctrl, void __user *argp)
 {
 	struct nvme_ns *ns;
