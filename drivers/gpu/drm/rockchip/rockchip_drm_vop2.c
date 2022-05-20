@@ -2620,7 +2620,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 
 	dev_set_drvdata(dev, vop2);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vop");
 	if (!res) {
 		drm_err(vop2->drm, "failed to get vop2 register byname\n");
 		return -EINVAL;
@@ -2637,7 +2637,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gamma_lut");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gamma-lut");
 	if (res) {
 		vop2->lut_regs = devm_ioremap_resource(dev, res);
 		if (IS_ERR(vop2->lut_regs))
