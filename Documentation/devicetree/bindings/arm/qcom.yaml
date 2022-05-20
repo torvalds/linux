@@ -613,7 +613,11 @@ properties:
 
       - items:
           - enum:
+              - microsoft,surface-duo
+              - qcom,sm8150-hdk
               - qcom,sm8150-mtp
+              - sony,bahamut-generic
+              - sony,griffin-generic
           - const: qcom,sm8150
 
       - items:
