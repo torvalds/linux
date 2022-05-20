@@ -341,7 +341,7 @@ void sst_process_reply_mrfld(struct intel_sst_drv *sst_drv_ctx,
 	}
 
 	/* FW sent short error response for an IPC */
-	if (msg_high.part.result && drv_id && !msg_high.part.large) {
+	if (msg_high.part.result && !msg_high.part.large) {
 		/* 32-bit FW error code in msg_low */
 		dev_err(sst_drv_ctx->dev, "FW sent error response 0x%x", msg_low);
 		sst_wake_up_block(sst_drv_ctx, msg_high.part.result,
