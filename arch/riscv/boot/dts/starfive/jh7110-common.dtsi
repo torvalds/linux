@@ -74,7 +74,7 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &dma {
@@ -233,6 +233,7 @@
 		reg = <0x36>;
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";
+		reset-gpio = <&gpio 18 0>;
 		rotation = <180>;
 
 		port {
@@ -241,7 +242,7 @@
 				remote-endpoint = <&csi2rx0_from_ov4689>;
 				bus-type = <4>;		/* MIPI CSI-2 D-PHY */
 				clock-lanes = <0>;
-				data-lanes = <1 2>;
+				data-lanes = <1 2 3 4>;
 			};
 		};
 	};
@@ -251,8 +252,7 @@
 		reg = <0x10>;
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";
-		powerdown-gpio = <&gpio 15 0>;
-		reset-gpio = <&gpio 16 0>;
+		//reset-gpio = <&gpio 18 0>;
 		rotation = <0>;
 
 		port {
@@ -278,7 +278,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdcard_pins>;
 	//cd-gpios = <&gpio 23 0>;
-	status = "okay";
+	status = "disabled";
 };
 
 &sdio1 {
@@ -296,7 +296,7 @@
 	post-power-on-delay-ms = <200>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &vin_sysctl {
@@ -344,8 +344,8 @@
 				reg = <1>;
 				remote-endpoint = <&ov4689_to_csi2rx0>;
 				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
-				clock-lanes = <2>;
-				data-lanes = <0 1>;
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
 				status = "okay";
 			};
 		};
@@ -390,7 +390,7 @@
 &can0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&can0_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &can1 {
@@ -400,7 +400,7 @@
 &tdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&tdm0_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &spdif0 {
@@ -436,7 +436,7 @@
 &i2stx_4ch1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s_clk_pins &i2stx_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &ptc {

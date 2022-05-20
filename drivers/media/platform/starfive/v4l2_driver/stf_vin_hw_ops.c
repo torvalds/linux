@@ -106,6 +106,7 @@ static int stf_vin_config_set(struct stf_vin2_dev *vin_dev)
 
 static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 {
+	printk("---------[%s, %d]", __func__, __LINE__);
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
@@ -113,8 +114,6 @@ static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 	if (on) {
 		reg_set(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
 	} else {
-		reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
-		usleep_range(500, 1000);
 		reg_clear(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
 	}
 	print_reg(ST_VIN, vin->sysctrl_base, SYSCONSAIF_SYSCFG_20);
@@ -220,19 +219,6 @@ void dump_vin_reg(void *__iomem regbase)
 	print_reg(ST_VIN, regbase, 0x20);
 	print_reg(ST_VIN, regbase, 0x24);
 	print_reg(ST_VIN, regbase, 0x28);
-	print_reg(ST_VIN, regbase, 0x2c);
-	print_reg(ST_VIN, regbase, 0x30);
-	print_reg(ST_VIN, regbase, 0x34);
-	print_reg(ST_VIN, regbase, 0x38);
-	print_reg(ST_VIN, regbase, 0x3c);
-	print_reg(ST_VIN, regbase, 0x40);
-	print_reg(ST_VIN, regbase, 0x44);
-	print_reg(ST_VIN, regbase, 0x48);
-	print_reg(ST_VIN, regbase, 0x4c);
-	print_reg(ST_VIN, regbase, 0x50);
-	print_reg(ST_VIN, regbase, 0x54);
-	print_reg(ST_VIN, regbase, 0x58);
-	print_reg(ST_VIN, regbase, 0x5c);
 }
 
 struct vin_hw_ops vin_ops = {

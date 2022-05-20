@@ -7,6 +7,7 @@
 
 static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 {
+	printk("---------[%s, %d]", __func__, __LINE__);
 	struct stfcamss *stfcamss = csiphy_dev->stfcamss;
 	struct stf_vin_dev *vin = csiphy_dev->stfcamss->vin;
 	static int init_flag;
@@ -140,8 +141,8 @@ int try_cfg(struct csi2phy_cfg2 *cfg, struct csi2phy_cfg *cfg0,
 static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 		struct stf_csiphy_dev *csiphy_dev)
 {
-	struct csi2phy_cfg2 cfg2 = {0};
-	struct csi2phy_cfg2 *cfg = &cfg2;
+	printk("---------[%s, %d]", __func__, __LINE__);
+	struct csi2phy_cfg *cfg;
 	struct stf_csiphy_dev *csiphy0_dev =
 		&csiphy_dev->stfcamss->csiphy_dev[0];
 	struct stf_csiphy_dev *csiphy1_dev =
@@ -150,63 +151,128 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 	struct csi2phy_cfg *phy1cfg = csiphy1_dev->csiphy;
 	int id = csiphy_dev->id;
 
-	if (!phy0cfg && !phy1cfg)
+	if (!phy0cfg)
 		return -EINVAL;
 
-#ifdef USE_CSIDPHY_ONE_CLK_MODE
 	if (id == 0) {
-		phy0cfg = csiphy0_dev->csiphy;
-		phy1cfg = NULL;
-	} else {
-		phy0cfg = NULL;
-		phy1cfg = csiphy1_dev->csiphy;
+		cfg = phy0cfg;
 	}
-#endif
 
-	if (try_cfg(cfg, phy0cfg, phy1cfg))
-		return -EINVAL;
+	// if (try_cfg(cfg, phy0cfg, phy1cfg))
+	// 	return -EINVAL;
 
-	id = cfg->num_clks == 2 ? 1 : 0;
+printk("---------[%s, %d]", __func__, __LINE__);
 
-	reg_set_bit(vin->rstgen_base,
+	printk("---------[%s, %d] cfg->clock_lane0 = %d\n",
+		__func__, __LINE__, cfg->clock_lane);
+	// printk("---------[%s, %d] cfg->clock_lane1 =s %d\n",
+	// 	__func__, __LINE__, cfg->clock1_lane);
+	printk("---------[%s, %d] cfg->data_lanes[0] = %d\n",
+		__func__, __LINE__, cfg->data_lanes[0]);
+	printk("---------[%s, %d] cfg->data_lanes[1] = %d\n",
+		__func__, __LINE__, cfg->data_lanes[1]);
+	printk("---------[%s, %d] cfg->data_lanes[2] = %d\n",
+		__func__, __LINE__, cfg->data_lanes[2]);
+	printk("---------[%s, %d] cfg->data_lanes[3] = %d\n",
+		__func__, __LINE__, cfg->data_lanes[3]);
+
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_4, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_8, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_12, 0xff0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_16, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_20, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_24, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_28, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_32, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_36, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_40, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_44, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_48, 0x24000000);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_52, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_56, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_60, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_64, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_68, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_72, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_76, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_80, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_84, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_88, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_92, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_96, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_100, 0x02000000);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_104, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_108, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_112, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_116, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_120, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_124, 0xc);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_128, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_132, 0xcc500000);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_136, 0xcc);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_140, 0x0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_144, 0x0);
+
+	reg_set_bit(vin->rstgen_base,		//r100_ctrl0_2d1c_efuse_en
+		M31DPHY_APBCFGSAIF__SYSCFG_0,
+		BIT(6), 1<<6);
+	reg_set_bit(vin->rstgen_base,		//r100_ctrl0_2d1c_efuse_in
+		M31DPHY_APBCFGSAIF__SYSCFG_0,
+		BIT(12)|BIT(11)|BIT(10)|BIT(9)|BIT(8)|BIT(7), 0x1b<<7);
+	reg_set_bit(vin->rstgen_base,		//r100_ctrl1_2d1c_efuse_en
+		M31DPHY_APBCFGSAIF__SYSCFG_0,
+		BIT(13), 1<<13);
+	reg_set_bit(vin->rstgen_base,		//r100_ctrl1_2d1c_efuse_in
+		M31DPHY_APBCFGSAIF__SYSCFG_0,
+		BIT(19)|BIT(18)|BIT(17)|BIT(16)|BIT(15)|BIT(14), 0x1b<<14);
+
+	reg_set_bit(vin->rstgen_base,		//data_bus16_8
+		M31DPHY_APBCFGSAIF__SYSCFG_184,
+		BIT(8), 0<<8);
+
+	reg_set_bit(vin->rstgen_base,		//debug_mode_sel
+		M31DPHY_APBCFGSAIF__SYSCFG_184,
+		BIT(15)|BIT(14)|BIT(13)|BIT(12)|BIT(11)|BIT(10)|BIT(9), 0x5a<<9);
+
+	reg_set_bit(vin->rstgen_base,			//dpdn_swap_clk0
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(0), 0<<0);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//dpdn_swap_clk1
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(1), 0<<1);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//dpdn_swap_lan0
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(2), 0<<2);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//dpdn_swap_lan1
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(3), 0<<3);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//dpdn_swap_lan2
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(4), 0<<4);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//dpdn_swap_lan3
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(5), 0<<5);
 
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//endable lan0
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(8), 1<<8);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//endable lan1
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(9), 1<<9);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//endable lan2
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(10), 1<<10);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//endable lan3
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(11), 1<<11);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//gpi_en
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(17)|BIT(16)|BIT(15)|BIT(14)|BIT(13)|BIT(12),
 		0<<12);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//hs_freq_change_clk0
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(18), 0<<18);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,			//hs_freq_change_clk1
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(19), 0<<19);
 
@@ -215,7 +281,7 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 		BIT(22)|BIT(21)|BIT(20), cfg->clock_lane<<20);          //clock lane 0
 	reg_set_bit(vin->rstgen_base,
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
-		BIT(25)|BIT(24)|BIT(23), cfg->clock1_lane<<23);         //clock lane 1
+		BIT(25)|BIT(24)|BIT(23), 5<<23);         //clock lane 1
 
 	reg_set_bit(vin->rstgen_base,
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
@@ -230,15 +296,46 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 		M31DPHY_APBCFGSAIF__SYSCFG_192,
 		BIT(5)|BIT(4)|BIT(3), cfg->data_lanes[3]<<3);           //data lane 3
 
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,		//mp_test_en
 		M31DPHY_APBCFGSAIF__SYSCFG_192,
 		BIT(6), 0<<6);
-	reg_set_bit(vin->rstgen_base,
+	reg_set_bit(vin->rstgen_base,		//mp_test_mode_sel
 		M31DPHY_APBCFGSAIF__SYSCFG_192,
 		BIT(11)|BIT(10)|BIT(9)|BIT(8)|BIT(7), 0<<7);
-	reg_set_bit(vin->rstgen_base,
+
+	reg_set_bit(vin->rstgen_base,		//pll_clk_sel
+		M31DPHY_APBCFGSAIF__SYSCFG_192,
+		BIT(20)|BIT(19)|BIT(18)|BIT(17)|BIT(16)|BIT(15)|BIT(14)|BIT(13)|BIT(12),
+		0x37c<<12);
+
+	reg_set_bit(vin->rstgen_base,		//rx_1c2c_sel
 		M31DPHY_APBCFGSAIF__SYSCFG_200,
 		BIT(8), 0<<8);
+
+	reg_set_bit(vin->rstgen_base,		//precounter in clk0
+		M31DPHY_APBCFGSAIF__SYSCFG_192,
+		BIT(29)|BIT(28)|BIT(27)|BIT(26)|BIT(25)|BIT(24)|BIT(23)|BIT(22),
+		8<<22);
+	reg_set_bit(vin->rstgen_base,		//precounter in clk1
+		M31DPHY_APBCFGSAIF__SYSCFG_196,
+		BIT(7)|BIT(6)|BIT(5)|BIT(4)|BIT(3)|BIT(2)|BIT(1)|BIT(0),
+		8<<0);
+	reg_set_bit(vin->rstgen_base,		//precounter in lan0
+		M31DPHY_APBCFGSAIF__SYSCFG_196,
+		BIT(15)|BIT(14)|BIT(13)|BIT(12)|BIT(11)|BIT(10)|BIT(9)|BIT(8),
+		7<<8);
+	reg_set_bit(vin->rstgen_base,		//precounter in lan1
+		M31DPHY_APBCFGSAIF__SYSCFG_196,
+		BIT(23)|BIT(22)|BIT(21)|BIT(20)|BIT(19)|BIT(18)|BIT(17)|BIT(16),
+		7<<16);
+	reg_set_bit(vin->rstgen_base,		//precounter in lan2
+		M31DPHY_APBCFGSAIF__SYSCFG_196,
+		BIT(31)|BIT(30)|BIT(29)|BIT(28)|BIT(27)|BIT(26)|BIT(25)|BIT(24),
+		7<<24);
+	reg_set_bit(vin->rstgen_base,		//precounter in lan3
+		M31DPHY_APBCFGSAIF__SYSCFG_200,
+		BIT(7)|BIT(6)|BIT(5)|BIT(4)|BIT(3)|BIT(2)|BIT(1)|BIT(0),
+		7<<0);
 
 	return 0;
 }

@@ -62,9 +62,9 @@
 
 
 enum ov4689_mode_id {
-	OV4689_MODE_720P_1280_720 = 0,
-	OV4689_MODE_1080P_1920_1080,
-	OV4689_MODE_4M_2688_1520,
+	//OV4689_MODE_720P_1280_720 = 0,
+	OV4689_MODE_1080P_1920_1080 = 0,
+	//OV4689_MODE_4M_2688_1520,
 	OV4689_NUM_MODES,
 };
 
@@ -1533,11 +1533,7 @@ static const struct reg_value ov4689_setting_4M_2688_1520[] = {
 
 /* power-on sensor init reg table */
 static const struct ov4689_mode_info ov4689_mode_init_data = {
-	OV4689_MODE_1080P_1920_1080, SCALING,
-	1920, 0x6e0, 1080, 0x470,
-	ov4689_init_setting_30fps_1080P,
-	ARRAY_SIZE(ov4689_init_setting_30fps_1080P),
-	OV4689_60_FPS,
+
 };
 
 static const struct ov4689_mode_info
@@ -1557,6 +1553,12 @@ ov4689_mode_data[OV4689_NUM_MODES] = {
 	//  ov4689_setting_4M_2688_1520,
 	//  ARRAY_SIZE(ov4689_setting_4M_2688_1520),
 	//  OV4689_60_FPS},
+
+	{OV4689_MODE_1080P_1920_1080, SCALING,
+	 1920, 0x6e0, 1080, 0x470,
+	 ov4689_init_setting_30fps_1080P,
+	 ARRAY_SIZE(ov4689_init_setting_30fps_1080P),
+	 OV4689_60_FPS},
 };
 
 static int ov4689_write_reg(struct ov4689_dev *sensor, u16 reg, u8 val)
@@ -1663,8 +1665,6 @@ static int ov4689_mod_reg(struct ov4689_dev *sensor, u16 reg,
 static int ov4689_set_timings(struct ov4689_dev *sensor,
 			const struct ov4689_mode_info *mode)
 {
-	int ret;
-
 	return 0;
 }
 
@@ -2164,6 +2164,7 @@ power_off:
 
 static int ov4689_s_power(struct v4l2_subdev *sd, int on)
 {
+	printk("---------[%s, %d]", __func__, __LINE__);
 	struct ov4689_dev *sensor = to_ov4689_dev(sd);
 	int ret = 0;
 
@@ -2751,6 +2752,7 @@ static int ov4689_stream_start(struct ov4689_dev *sensor, int enable)
 
 static int ov4689_s_stream(struct v4l2_subdev *sd, int enable)
 {
+	printk("---------[%s, %d]", __func__, __LINE__);
 	struct ov4689_dev *sensor = to_ov4689_dev(sd);
 	int ret = 0;
 
@@ -2942,6 +2944,10 @@ static int ov4689_probe(struct i2c_client *client)
 						GPIOD_OUT_HIGH);
 	if (IS_ERR(sensor->reset_gpio))
 		return PTR_ERR(sensor->reset_gpio);
+
+	if (!sensor->reset_gpio) {
+		dev_err(dev, "--------Could not parse reset_gpio\n");
+	}
 
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov4689_subdev_ops);
 

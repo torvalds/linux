@@ -50,6 +50,10 @@ int stf_csi_subdev_init(struct stfcamss *stfcamss, int id)
 
 static int csi_set_power(struct v4l2_subdev *sd, int on)
 {
+	printk("---------[%s, %d]", __func__, __LINE__);
+	struct stf_csi_dev *csi_dev = v4l2_get_subdevdata(sd);
+
+	csi_dev->hw_ops->csi_power_on(csi_dev, (u8)on);
 	return 0;
 }
 
@@ -67,6 +71,7 @@ __csi_get_format(struct stf_csi_dev *csi_dev,
 
 static int csi_set_stream(struct v4l2_subdev *sd, int enable)
 {
+	printk("---------[%s, %d]", __func__, __LINE__);
 	struct stf_csi_dev *csi_dev = v4l2_get_subdevdata(sd);
 	struct stf_csi_dev *csi0_dev = &csi_dev->stfcamss->csi_dev[0];
 	struct v4l2_mbus_framefmt *format;
@@ -96,7 +101,7 @@ static int csi_set_stream(struct v4l2_subdev *sd, int enable)
 	mutex_lock(&csi_dev->stream_lock);
 	if (enable) {
 		if (csi_dev->stream_count == 0) {
-			csi_dev->hw_ops->csi_config_set(csi_dev);
+			//csi_dev->hw_ops->csi_config_set(csi_dev);
 			csi_dev->hw_ops->csi_clk_enable(csi_dev);
 			csi_dev->hw_ops->csi_set_format(csi_dev,
 					format->height,

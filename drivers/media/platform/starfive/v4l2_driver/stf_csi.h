@@ -22,6 +22,7 @@ struct csi_format {
 struct stf_csi_dev;
 
 struct csi_hw_ops {
+	int (*csi_power_on)(struct stf_csi_dev *csi_dev, u8 on);
 	int (*csi_clk_enable)(struct stf_csi_dev *csi_dev);
 	int (*csi_clk_disable)(struct stf_csi_dev *csi_dev);
 	int (*csi_config_set)(struct stf_csi_dev *csi_dev);
