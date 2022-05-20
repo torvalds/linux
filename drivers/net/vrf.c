@@ -1077,7 +1077,7 @@ static int vrf_rtable_create(struct net_device *dev)
 		return -ENOMEM;
 
 	/* create a dst for routing packets out through a VRF device */
-	rth = rt_dst_alloc(dev, 0, RTN_UNICAST, 1, 1);
+	rth = rt_dst_alloc(dev, 0, RTN_UNICAST, 1);
 	if (!rth)
 		return -ENOMEM;
 
