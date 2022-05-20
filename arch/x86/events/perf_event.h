@@ -780,7 +780,6 @@ struct x86_pmu {
 
 	struct event_constraint *event_constraints;
 	struct x86_pmu_quirk *quirks;
-	int		perfctr_second_write;
 	void		(*limit_period)(struct perf_event *event, s64 *l);
 
 	/* PMI handler bits */
@@ -1060,6 +1059,7 @@ static inline bool x86_pmu_has_lbr_callstack(void)
 }
 
 DECLARE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
+DECLARE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
 
 int x86_perf_event_set_period(struct perf_event *event);
 

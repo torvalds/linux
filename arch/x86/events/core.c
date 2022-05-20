@@ -1356,7 +1356,7 @@ static void x86_pmu_enable(struct pmu *pmu)
 	static_call(x86_pmu_enable_all)(added);
 }
 
-static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
+DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
 
 /*
  * Set the next IRQ period, based on the hwc->period_left value.
@@ -1415,16 +1415,6 @@ int x86_perf_event_set_period(struct perf_event *event)
 	 */
 	if (is_counter_pair(hwc))
 		wrmsrl(x86_pmu_event_addr(idx + 1), 0xffff);
-
-	/*
-	 * Due to erratum on certan cpu we need
-	 * a second write to be sure the register
-	 * is updated properly
-	 */
-	if (x86_pmu.perfctr_second_write) {
-		wrmsrl(hwc->event_base,
-			(u64)(-left) & x86_pmu.cntval_mask);
-	}
 
 	perf_event_update_userpage(event);
 
