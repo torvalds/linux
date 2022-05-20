@@ -335,7 +335,8 @@ static void do_tag_recovery(unsigned long addr, unsigned int esr,
 	 * It will be done lazily on the other CPUs when they will hit a
 	 * tag fault.
 	 */
-	sysreg_clear_set(sctlr_el1, SCTLR_ELx_TCF_MASK, SCTLR_ELx_TCF_NONE);
+	sysreg_clear_set(sctlr_el1, SCTLR_EL1_TCF_MASK,
+			 SYS_FIELD_PREP_ENUM(SCTLR_EL1, TCF, NONE));
 	isb();
 }
 

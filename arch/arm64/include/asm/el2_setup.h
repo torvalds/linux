@@ -171,7 +171,7 @@
 	msr_s	SYS_SMCR_EL2, x1		// length for EL1.
 
 	mrs_s	x1, SYS_SMIDR_EL1		// Priority mapping supported?
-	ubfx    x1, x1, #SYS_SMIDR_EL1_SMPS_SHIFT, #1
+	ubfx    x1, x1, #SMIDR_EL1_SMPS_SHIFT, #1
 	cbz     x1, .Lskip_sme_\@
 
 	msr_s	SYS_SMPRIMAP_EL2, xzr		// Make all priorities equal

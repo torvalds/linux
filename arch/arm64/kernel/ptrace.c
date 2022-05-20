@@ -867,10 +867,10 @@ static int sve_set_common(struct task_struct *target,
 
 		switch (type) {
 		case ARM64_VEC_SVE:
-			target->thread.svcr &= ~SYS_SVCR_EL0_SM_MASK;
+			target->thread.svcr &= ~SVCR_SM_MASK;
 			break;
 		case ARM64_VEC_SME:
-			target->thread.svcr |= SYS_SVCR_EL0_SM_MASK;
+			target->thread.svcr |= SVCR_SM_MASK;
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -1100,7 +1100,7 @@ static int za_set(struct task_struct *target,
 
 	/* If there is no data then disable ZA */
 	if (!count) {
-		target->thread.svcr &= ~SYS_SVCR_EL0_ZA_MASK;
+		target->thread.svcr &= ~SVCR_ZA_MASK;
 		goto out;
 	}
 
@@ -1125,7 +1125,7 @@ static int za_set(struct task_struct *target,
 
 	/* Mark ZA as active and let userspace use it */
 	set_tsk_thread_flag(target, TIF_SME);
-	target->thread.svcr |= SYS_SVCR_EL0_ZA_MASK;
+	target->thread.svcr |= SVCR_ZA_MASK;
 
 out:
 	fpsimd_flush_task_state(target);

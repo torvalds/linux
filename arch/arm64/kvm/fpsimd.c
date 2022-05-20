@@ -96,8 +96,8 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 		if (read_sysreg(cpacr_el1) & CPACR_EL1_SMEN_EL0EN)
 			vcpu->arch.flags |= KVM_ARM64_HOST_SME_ENABLED;
 
-		if (read_sysreg_s(SYS_SVCR_EL0) &
-		    (SYS_SVCR_EL0_SM_MASK | SYS_SVCR_EL0_ZA_MASK)) {
+		if (read_sysreg_s(SYS_SVCR) &
+		    (SVCR_SM_MASK | SVCR_ZA_MASK)) {
 			vcpu->arch.flags &= ~KVM_ARM64_FP_HOST;
 			fpsimd_save_and_flush_cpu_state();
 		}
