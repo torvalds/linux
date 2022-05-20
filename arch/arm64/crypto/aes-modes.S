@@ -318,79 +318,102 @@ AES_FUNC_END(aes_cbc_cts_decrypt)
 	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 	.previous
 
-
 	/*
-	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int bytes, u8 ctr[])
+	 * This macro generates the code for CTR and XCTR mode.
 	 */
-
-AES_FUNC_START(aes_ctr_encrypt)
+.macro ctr_encrypt xctr
 	stp		x29, x30, [sp, #-16]!
 	mov		x29, sp
 
 	enc_prepare	w3, x2, x12
 	ld1		{vctr.16b}, [x5]
 
-	umov		x12, vctr.d[1]		/* keep swabbed ctr in reg */
-	rev		x12, x12
+	.if \xctr
+		umov		x12, vctr.d[0]
+		lsr		w11, w6, #4
+	.else
+		umov		x12, vctr.d[1] /* keep swabbed ctr in reg */
+		rev		x12, x12
+	.endif
 
-.LctrloopNx:
+.LctrloopNx\xctr:
 	add		w7, w4, #15
 	sub		w4, w4, #MAX_STRIDE << 4
 	lsr		w7, w7, #4
 	mov		w8, #MAX_STRIDE
 	cmp		w7, w8
 	csel		w7, w7, w8, lt
-	adds		x12, x12, x7
 
+	.if \xctr
+		add		x11, x11, x7
+	.else
+		adds		x12, x12, x7
+	.endif
 	mov		v0.16b, vctr.16b
 	mov		v1.16b, vctr.16b
 	mov		v2.16b, vctr.16b
 	mov		v3.16b, vctr.16b
 ST5(	mov		v4.16b, vctr.16b		)
-	bcs		0f
+	.if \xctr
+		sub		x6, x11, #MAX_STRIDE - 1
+		sub		x7, x11, #MAX_STRIDE - 2
+		sub		x8, x11, #MAX_STRIDE - 3
+		sub		x9, x11, #MAX_STRIDE - 4
+ST5(		sub		x10, x11, #MAX_STRIDE - 5	)
+		eor		x6, x6, x12
+		eor		x7, x7, x12
+		eor		x8, x8, x12
+		eor		x9, x9, x12
+ST5(		eor		x10, x10, x12			)
+		mov		v0.d[0], x6
+		mov		v1.d[0], x7
+		mov		v2.d[0], x8
+		mov		v3.d[0], x9
+ST5(		mov		v4.d[0], x10			)
+	.else
+		bcs		0f
+		.subsection	1
+		/* apply carry to outgoing counter */
+0:		umov		x8, vctr.d[0]
+		rev		x8, x8
+		add		x8, x8, #1
+		rev		x8, x8
+		ins		vctr.d[0], x8
 
-	.subsection	1
-	/* apply carry to outgoing counter */
-0:	umov		x8, vctr.d[0]
-	rev		x8, x8
-	add		x8, x8, #1
-	rev		x8, x8
-	ins		vctr.d[0], x8
+		/* apply carry to N counter blocks for N := x12 */
+		cbz		x12, 2f
+		adr		x16, 1f
+		sub		x16, x16, x12, lsl #3
+		br		x16
+		bti		c
+		mov		v0.d[0], vctr.d[0]
+		bti		c
+		mov		v1.d[0], vctr.d[0]
+		bti		c
+		mov		v2.d[0], vctr.d[0]
+		bti		c
+		mov		v3.d[0], vctr.d[0]
+ST5(		bti		c				)
+ST5(		mov		v4.d[0], vctr.d[0]		)
+1:		b		2f
+		.previous
 
-	/* apply carry to N counter blocks for N := x12 */
-	cbz		x12, 2f
-	adr		x16, 1f
-	sub		x16, x16, x12, lsl #3
-	br		x16
-	bti		c
-	mov		v0.d[0], vctr.d[0]
-	bti		c
-	mov		v1.d[0], vctr.d[0]
-	bti		c
-	mov		v2.d[0], vctr.d[0]
-	bti		c
-	mov		v3.d[0], vctr.d[0]
-ST5(	bti		c				)
-ST5(	mov		v4.d[0], vctr.d[0]		)
-1:	b		2f
-	.previous
-
-2:	rev		x7, x12
-	ins		vctr.d[1], x7
-	sub		x7, x12, #MAX_STRIDE - 1
-	sub		x8, x12, #MAX_STRIDE - 2
-	sub		x9, x12, #MAX_STRIDE - 3
-	rev		x7, x7
-	rev		x8, x8
-	mov		v1.d[1], x7
-	rev		x9, x9
-ST5(	sub		x10, x12, #MAX_STRIDE - 4	)
-	mov		v2.d[1], x8
-ST5(	rev		x10, x10			)
-	mov		v3.d[1], x9
-ST5(	mov		v4.d[1], x10			)
-	tbnz		w4, #31, .Lctrtail
+2:		rev		x7, x12
+		ins		vctr.d[1], x7
+		sub		x7, x12, #MAX_STRIDE - 1
+		sub		x8, x12, #MAX_STRIDE - 2
+		sub		x9, x12, #MAX_STRIDE - 3
+		rev		x7, x7
+		rev		x8, x8
+		mov		v1.d[1], x7
+		rev		x9, x9
+ST5(		sub		x10, x12, #MAX_STRIDE - 4	)
+		mov		v2.d[1], x8
+ST5(		rev		x10, x10			)
+		mov		v3.d[1], x9
+ST5(		mov		v4.d[1], x10			)
+	.endif
+	tbnz		w4, #31, .Lctrtail\xctr
 	ld1		{v5.16b-v7.16b}, [x1], #48
 ST4(	bl		aes_encrypt_block4x		)
 ST5(	bl		aes_encrypt_block5x		)
@@ -403,16 +426,17 @@ ST5(	ld1		{v5.16b-v6.16b}, [x1], #32	)
 ST5(	eor		v4.16b, v6.16b, v4.16b		)
 	st1		{v0.16b-v3.16b}, [x0], #64
 ST5(	st1		{v4.16b}, [x0], #16		)
-	cbz		w4, .Lctrout
-	b		.LctrloopNx
+	cbz		w4, .Lctrout\xctr
+	b		.LctrloopNx\xctr
 
-.Lctrout:
-	st1		{vctr.16b}, [x5]	/* return next CTR value */
+.Lctrout\xctr:
+	.if !\xctr
+		st1		{vctr.16b}, [x5] /* return next CTR value */
+	.endif
 	ldp		x29, x30, [sp], #16
 	ret
 
-.Lctrtail:
-	/* XOR up to MAX_STRIDE * 16 - 1 bytes of in/output with v0 ... v3/v4 */
+.Lctrtail\xctr:
 	mov		x16, #16
 	ands		x6, x4, #0xf
 	csel		x13, x6, x16, ne
@@ -427,7 +451,7 @@ ST5(	csel		x14, x16, xzr, gt		)
 
 	adr_l		x12, .Lcts_permute_table
 	add		x12, x12, x13
-	ble		.Lctrtail1x
+	ble		.Lctrtail1x\xctr
 
 ST5(	ld1		{v5.16b}, [x1], x14		)
 	ld1		{v6.16b}, [x1], x15
@@ -459,9 +483,9 @@ ST5(	st1		{v5.16b}, [x0], x14		)
 	add		x13, x13, x0
 	st1		{v9.16b}, [x13]		// overlapping stores
 	st1		{v8.16b}, [x0]
-	b		.Lctrout
+	b		.Lctrout\xctr
 
-.Lctrtail1x:
+.Lctrtail1x\xctr:
 	sub		x7, x6, #16
 	csel		x6, x6, x7, eq
 	add		x1, x1, x6
@@ -476,8 +500,26 @@ ST5(	mov		v3.16b, v4.16b			)
 	eor		v5.16b, v5.16b, v3.16b
 	bif		v5.16b, v6.16b, v11.16b
 	st1		{v5.16b}, [x0]
-	b		.Lctrout
+	b		.Lctrout\xctr
+.endm
+
+	/*
+	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 *		   int bytes, u8 ctr[])
+	 */
+
+AES_FUNC_START(aes_ctr_encrypt)
+	ctr_encrypt 0
 AES_FUNC_END(aes_ctr_encrypt)
+
+	/*
+	 * aes_xctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
+	 *		   int bytes, u8 const iv[], int byte_ctr)
+	 */
+
+AES_FUNC_START(aes_xctr_encrypt)
+	ctr_encrypt 1
+AES_FUNC_END(aes_xctr_encrypt)
 
 
 	/*
