@@ -688,12 +688,19 @@ xlog_recover_attri_commit_pass2(
 	struct xfs_mount                *mp = log->l_mp;
 	struct xfs_attri_log_item       *attrip;
 	struct xfs_attri_log_format     *attri_formatp;
+	const void			*attr_name;
 	int				region = 0;
 
 	attri_formatp = item->ri_buf[region].i_addr;
+	attr_name = item->ri_buf[1].i_addr;
 
-	/* Validate xfs_attri_log_format */
+	/* Validate xfs_attri_log_format before the large memory allocation */
 	if (!xfs_attri_validate(mp, attri_formatp)) {
+		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
+		return -EFSCORRUPTED;
+	}
+
+	if (!xfs_attr_namecheck(attr_name, attri_formatp->alfi_name_len)) {
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
 		return -EFSCORRUPTED;
 	}
@@ -712,12 +719,6 @@ xlog_recover_attri_commit_pass2(
 	region++;
 	memcpy(attrip->attri_name, item->ri_buf[region].i_addr,
 	       attrip->attri_name_len);
-
-	if (!xfs_attr_namecheck(attrip->attri_name, attrip->attri_name_len)) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
-		error = -EFSCORRUPTED;
-		goto out;
-	}
 
 	if (attrip->attri_value_len > 0) {
 		region++;
