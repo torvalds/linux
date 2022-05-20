@@ -5549,6 +5549,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.cipher = __VECS(xchacha20_tv_template)
 		},
 	}, {
+		.alg = "xctr(aes)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(aes_xctr_tv_template)
+		}
+	}, {
 		.alg = "xts(aes)",
 		.generic_driver = "xts(ecb(aes-generic))",
 		.test = alg_test_skcipher,
