@@ -1587,6 +1587,9 @@ static u64 kvm_get_arch_capabilities(void)
 		 */
 	}
 
+	/* Guests don't need to know "Fill buffer clear control" exists */
+	data &= ~ARCH_CAP_FB_CLEAR_CTRL;
+
 	return data;
 }
 
