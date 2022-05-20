@@ -270,8 +270,7 @@ static int rzn1_rtc_read_offset(struct device *dev, long *offset)
 static int rzn1_rtc_set_offset(struct device *dev, long offset)
 {
 	struct rzn1_rtc *rtc = dev_get_drvdata(dev);
-	unsigned int steps;
-	int stepsh, stepsl;
+	int stepsh, stepsl, steps;
 	u32 subu = 0, ctl2;
 	int ret;
 
