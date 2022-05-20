@@ -230,9 +230,11 @@ static void print_test_log(char *log_buf, size_t log_cnt)
 		fprintf(env.stdout, "\n");
 }
 
+#define TEST_NUM_WIDTH 7
+
 static void print_test_name(int test_num, const char *test_name, char *result)
 {
-	fprintf(env.stdout, "#%-9d %s", test_num, test_name);
+	fprintf(env.stdout, "#%-*d %s", TEST_NUM_WIDTH, test_num, test_name);
 
 	if (result)
 		fprintf(env.stdout, ":%s", result);
@@ -244,8 +246,12 @@ static void print_subtest_name(int test_num, int subtest_num,
 			       const char *test_name, char *subtest_name,
 			       char *result)
 {
-	fprintf(env.stdout, "#%-3d/%-5d %s/%s",
-		test_num, subtest_num,
+	char test_num_str[TEST_NUM_WIDTH + 1];
+
+	snprintf(test_num_str, sizeof(test_num_str), "%d/%d", test_num, subtest_num);
+
+	fprintf(env.stdout, "#%-*s %s/%s",
+		TEST_NUM_WIDTH, test_num_str,
 		test_name, subtest_name);
 
 	if (result)
