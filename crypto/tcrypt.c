@@ -1730,6 +1730,10 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("ccm(sm4)");
 		break;
 
+	case 57:
+		ret += tcrypt_test("polyval");
+		break;
+
 	case 100:
 		ret += tcrypt_test("hmac(md5)");
 		break;
