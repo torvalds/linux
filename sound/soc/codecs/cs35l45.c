@@ -665,7 +665,7 @@ err:
 }
 EXPORT_SYMBOL_NS_GPL(cs35l45_probe, SND_SOC_CS35L45);
 
-int cs35l45_remove(struct cs35l45_private *cs35l45)
+void cs35l45_remove(struct cs35l45_private *cs35l45)
 {
 	pm_runtime_disable(cs35l45->dev);
 
@@ -673,8 +673,6 @@ int cs35l45_remove(struct cs35l45_private *cs35l45)
 	regulator_disable(cs35l45->vdd_a);
 	/* VDD_BATT must be the last to power-off */
 	regulator_disable(cs35l45->vdd_batt);
-
-	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l45_remove, SND_SOC_CS35L45);
 

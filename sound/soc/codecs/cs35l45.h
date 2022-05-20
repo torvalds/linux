@@ -212,6 +212,6 @@ extern const struct regmap_config cs35l45_spi_regmap;
 int cs35l45_apply_patch(struct cs35l45_private *cs43l45);
 unsigned int cs35l45_get_clk_freq_id(unsigned int freq);
 int cs35l45_probe(struct cs35l45_private *cs35l45);
-int cs35l45_remove(struct cs35l45_private *cs35l45);
+void cs35l45_remove(struct cs35l45_private *cs35l45);
 
 #endif /* CS35L45_H */
