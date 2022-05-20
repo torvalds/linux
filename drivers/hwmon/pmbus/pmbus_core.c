@@ -2388,6 +2388,42 @@ static int pmbus_read_status_word(struct i2c_client *client, int page)
 	return _pmbus_read_word_data(client, page, 0xff, PMBUS_STATUS_WORD);
 }
 
+/* PEC attribute support */
+
+static ssize_t pec_show(struct device *dev, struct device_attribute *dummy,
+			char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	return sysfs_emit(buf, "%d\n", !!(client->flags & I2C_CLIENT_PEC));
+}
+
+static ssize_t pec_store(struct device *dev, struct device_attribute *dummy,
+			 const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	bool enable;
+	int err;
+
+	err = kstrtobool(buf, &enable);
+	if (err < 0)
+		return err;
+
+	if (enable)
+		client->flags |= I2C_CLIENT_PEC;
+	else
+		client->flags &= ~I2C_CLIENT_PEC;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(pec);
+
+static void pmbus_remove_pec(void *dev)
+{
+	device_remove_file(dev, &dev_attr_pec);
+}
+
 static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 			     struct pmbus_driver_info *info)
 {
@@ -2471,6 +2507,20 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 
 		ret = pmbus_init_coefficients(client, info);
 		if (ret < 0)
+			return ret;
+	}
+
+	if (client->flags & I2C_CLIENT_PEC) {
+		/*
+		 * If I2C_CLIENT_PEC is set here, both the I2C adapter and the
+		 * chip support PEC. Add 'pec' attribute to client device to let
+		 * the user control it.
+		 */
+		ret = device_create_file(dev, &dev_attr_pec);
+		if (ret)
+			return ret;
+		ret = devm_add_action_or_reset(dev, pmbus_remove_pec, dev);
+		if (ret)
 			return ret;
 	}
 
@@ -2782,42 +2832,6 @@ static int pmbus_debugfs_get_status(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_ops_status, pmbus_debugfs_get_status,
 			 NULL, "0x%04llx\n");
 
-static int pmbus_debugfs_get_pec(void *data, u64 *val)
-{
-	struct i2c_client *client = data;
-
-	*val = !!(client->flags & I2C_CLIENT_PEC);
-
-	return 0;
-}
-
-static int pmbus_debugfs_set_pec(void *data, u64 val)
-{
-	int rc;
-	struct i2c_client *client = data;
-
-	if (!val) {
-		client->flags &= ~I2C_CLIENT_PEC;
-		return 0;
-	}
-
-	if (val != 1)
-		return -EINVAL;
-
-	rc = i2c_smbus_read_byte_data(client, PMBUS_CAPABILITY);
-	if (rc < 0)
-		return rc;
-
-	if (!(rc & PB_CAPABILITY_ERROR_CHECK))
-		return -EOPNOTSUPP;
-
-	client->flags |= I2C_CLIENT_PEC;
-
-	return 0;
-}
-DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_ops_pec, pmbus_debugfs_get_pec,
-			 pmbus_debugfs_set_pec, "%llu\n");
-
 static void pmbus_remove_debugfs(void *data)
 {
 	struct dentry *entry = data;
@@ -2852,9 +2866,6 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			       GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
-
-	debugfs_create_file("pec", 0664, data->debugfs, client,
-			    &pmbus_debugfs_ops_pec);
 
 	for (i = 0; i < data->info->pages; ++i) {
 		/* Check accessibility of status register if it's not page 0 */
