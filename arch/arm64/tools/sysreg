@@ -228,6 +228,10 @@ Sysreg	SMCR_EL1	3	0	1	2	6
 Fields	SMCR_ELx
 EndSysreg
 
+Sysreg	FAR_EL1	3	0	6	0	0
+Field	63:0	ADDR
+EndSysreg
+
 SysregFields	CONTEXTIDR_ELx
 Res0	63:32
 Field	31:0	PROCID
@@ -322,6 +326,10 @@ Field	3:2	D1
 Field	1:0	D0
 EndSysreg
 
+Sysreg	FAR_EL2	3	4	6	0	0
+Field	63:0	ADDR
+EndSysreg
+
 Sysreg	CONTEXTIDR_EL2	3	4	13	0	1
 Fields	CONTEXTIDR_ELx
 EndSysreg
@@ -336,6 +344,10 @@ EndSysreg
 
 Sysreg	SMCR_EL12	3	5	1	2	6
 Fields	SMCR_ELx
+EndSysreg
+
+Sysreg	FAR_EL12	3	5	6	0	0
+Field	63:0	ADDR
 EndSysreg
 
 Sysreg	CONTEXTIDR_EL12	3	5	13	0	1
