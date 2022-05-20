@@ -6807,58 +6807,79 @@ static struct clk_branch gcc_video_vcodec_throttle_clk = {
 
 static struct gdsc pcie_0_tunnel_gdsc = {
 	.gdscr = 0xa4004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(0),
 	.pd = {
 		.name = "pcie_0_tunnel_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_1_tunnel_gdsc = {
 	.gdscr = 0x8d004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(1),
 	.pd = {
 		.name = "pcie_1_tunnel_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_2a_gdsc = {
 	.gdscr = 0x9d004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(2),
 	.pd = {
 		.name = "pcie_2a_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_2b_gdsc = {
 	.gdscr = 0x9e004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(3),
 	.pd = {
 		.name = "pcie_2b_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_3a_gdsc = {
 	.gdscr = 0xa0004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(4),
 	.pd = {
 		.name = "pcie_3a_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_3b_gdsc = {
 	.gdscr = 0xa2004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(5),
 	.pd = {
 		.name = "pcie_3b_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_4_gdsc = {
 	.gdscr = 0x6b004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(6),
 	.pd = {
 		.name = "pcie_4_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc ufs_card_gdsc = {
