@@ -90,7 +90,7 @@ struct q6adm_session_map_node_v5 {
 static struct q6copp *q6adm_find_copp(struct q6adm *adm, int port_idx,
 				  int copp_idx)
 {
-	struct q6copp *c = NULL;
+	struct q6copp *c;
 	struct q6copp *ret = NULL;
 	unsigned long flags;
 
@@ -299,7 +299,7 @@ static struct q6copp *q6adm_find_matching_copp(struct q6adm *adm,
 					       int channel_mode, int bit_width,
 					       int app_type)
 {
-	struct q6copp *c = NULL;
+	struct q6copp *c;
 	struct q6copp *ret = NULL;
 	unsigned long flags;
 
