@@ -76,6 +76,46 @@ static void copy_and_reverse(u8 dst[POLYVAL_BLOCK_SIZE],
 	put_unaligned(swab64(b), (u64 *)&dst[0]);
 }
 
+/*
+ * Performs multiplication in the POLYVAL field using the GHASH field as a
+ * subroutine.  This function is used as a fallback for hardware accelerated
+ * implementations when simd registers are unavailable.
+ *
+ * Note: This function is not used for polyval-generic, instead we use the 4k
+ * lookup table implementation for finite field multiplication.
+ */
+void polyval_mul_non4k(u8 *op1, const u8 *op2)
+{
+	be128 a, b;
+
+	// Assume one argument is in Montgomery form and one is not.
+	copy_and_reverse((u8 *)&a, op1);
+	copy_and_reverse((u8 *)&b, op2);
+	gf128mul_x_lle(&a, &a);
+	gf128mul_lle(&a, &b);
+	copy_and_reverse(op1, (u8 *)&a);
+}
+EXPORT_SYMBOL_GPL(polyval_mul_non4k);
+
+/*
+ * Perform a POLYVAL update using non4k multiplication.  This function is used
+ * as a fallback for hardware accelerated implementations when simd registers
+ * are unavailable.
+ *
+ * Note: This function is not used for polyval-generic, instead we use the 4k
+ * lookup table implementation of finite field multiplication.
+ */
+void polyval_update_non4k(const u8 *key, const u8 *in,
+			  size_t nblocks, u8 *accumulator)
+{
+	while (nblocks--) {
+		crypto_xor(accumulator, in, POLYVAL_BLOCK_SIZE);
+		polyval_mul_non4k(accumulator, key);
+		in += POLYVAL_BLOCK_SIZE;
+	}
+}
+EXPORT_SYMBOL_GPL(polyval_update_non4k);
+
 static int polyval_setkey(struct crypto_shash *tfm,
 			  const u8 *key, unsigned int keylen)
 {
