@@ -2311,7 +2311,7 @@ static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
 			    size_t nr_global)
 {
 	struct sys_reg_params params;
-	u32 esr = kvm_vcpu_get_esr(vcpu);
+	u64 esr = kvm_vcpu_get_esr(vcpu);
 	int Rt = kvm_vcpu_sys_get_rt(vcpu);
 	int Rt2 = (esr >> 10) & 0x1f;
 
@@ -2361,7 +2361,7 @@ static int kvm_handle_cp_32(struct kvm_vcpu *vcpu,
 			    size_t nr_global)
 {
 	struct sys_reg_params params;
-	u32 esr = kvm_vcpu_get_esr(vcpu);
+	u64 esr = kvm_vcpu_get_esr(vcpu);
 	int Rt  = kvm_vcpu_sys_get_rt(vcpu);
 
 	params.CRm = (esr >> 1) & 0xf;

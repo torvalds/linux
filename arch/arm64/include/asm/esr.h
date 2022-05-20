@@ -138,7 +138,7 @@
 #define ESR_ELx_WFx_ISS_TI	(UL(1) << 0)
 #define ESR_ELx_WFx_ISS_WFI	(UL(0) << 0)
 #define ESR_ELx_WFx_ISS_WFE	(UL(1) << 0)
-#define ESR_ELx_xVC_IMM_MASK	((1UL << 16) - 1)
+#define ESR_ELx_xVC_IMM_MASK	((UL(1) << 16) - 1)
 
 #define DISR_EL1_IDS		(UL(1) << 24)
 /*
@@ -341,14 +341,14 @@
 #ifndef __ASSEMBLY__
 #include <asm/types.h>
 
-static inline bool esr_is_data_abort(u32 esr)
+static inline bool esr_is_data_abort(unsigned long esr)
 {
-	const u32 ec = ESR_ELx_EC(esr);
+	const unsigned long ec = ESR_ELx_EC(esr);
 
 	return ec == ESR_ELx_EC_DABT_LOW || ec == ESR_ELx_EC_DABT_CUR;
 }
 
-const char *esr_get_class_string(u32 esr);
+const char *esr_get_class_string(unsigned long esr);
 #endif /* __ASSEMBLY */
 
 #endif /* __ASM_ESR_H */
