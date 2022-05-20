@@ -307,6 +307,8 @@ static const struct regval sc4336_linear_10_2560x1440_regs[] = {
 	{0x5aed, 0x2c},
 	{0x36e9, 0x53},
 	{0x37f9, 0x23},
+	{0x320e, 0x07},
+	{0x320f, 0x08},
 	{REG_NULL, 0x00},
 };
 
@@ -316,11 +318,11 @@ static const struct sc4336_mode supported_modes[] = {
 		.height = 1440,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 300000,
+			.denominator = 250000,
 		},
 		.exp_def = 0x0080,
 		.hts_def = 0x0578 * 2,
-		.vts_def = 0x05dc,
+		.vts_def = 0x0708,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.reg_list = sc4336_linear_10_2560x1440_regs,
 		.hdr_mode = NO_HDR,
