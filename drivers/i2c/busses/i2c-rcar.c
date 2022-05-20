@@ -98,16 +98,16 @@
 #define RCAR_IRQ_STOP	(MST)
 
 #define ID_LAST_MSG		BIT(0)
+#define ID_REP_AFTER_RD		BIT(1)
 #define ID_DONE			BIT(2)
 #define ID_ARBLOST		BIT(3)
 #define ID_NACK			BIT(4)
 #define ID_EPROTO		BIT(5)
 /* persistent flags */
-#define ID_P_HOST_NOTIFY	BIT(28)
-#define ID_P_REP_AFTER_RD	BIT(29)
+#define ID_P_HOST_NOTIFY	BIT(29)
 #define ID_P_NO_RXDMA		BIT(30) /* HW forbids RXDMA sometimes */
 #define ID_P_PM_BLOCKED		BIT(31)
-#define ID_P_MASK		GENMASK(31, 28)
+#define ID_P_MASK		GENMASK(31, 29)
 
 enum rcar_i2c_type {
 	I2C_RCAR_GEN1,
@@ -341,6 +341,7 @@ scgd_find:
 static void rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 {
 	int read = !!rcar_i2c_is_recv(priv);
+	bool rep_start = !(priv->flags & ID_REP_AFTER_RD);
 
 	priv->pos = 0;
 	priv->flags &= ID_P_MASK;
@@ -352,9 +353,7 @@ static void rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 	if (!priv->atomic_xfer)
 		rcar_i2c_write(priv, ICMIER, read ? RCAR_IRQ_RECV : RCAR_IRQ_SEND);
 
-	if (priv->flags & ID_P_REP_AFTER_RD)
-		priv->flags &= ~ID_P_REP_AFTER_RD;
-	else
+	if (rep_start)
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_START);
 }
 
@@ -575,7 +574,7 @@ static void rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 			rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_STOP);
 		} else {
 			rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_START);
-			priv->flags |= ID_P_REP_AFTER_RD;
+			priv->flags |= ID_REP_AFTER_RD;
 		}
 	}
 
@@ -706,7 +705,7 @@ static irqreturn_t rcar_i2c_gen2_irq(int irq, void *ptr)
 	u32 msr;
 
 	/* Clear START or STOP immediately, except for REPSTART after read */
-	if (likely(!(priv->flags & ID_P_REP_AFTER_RD)))
+	if (likely(!(priv->flags & ID_REP_AFTER_RD)))
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_DATA);
 
 	/* Only handle interrupts that are currently enabled */
@@ -731,7 +730,7 @@ static irqreturn_t rcar_i2c_gen3_irq(int irq, void *ptr)
 	 * Clear START or STOP immediately, except for REPSTART after read or
 	 * if a spurious interrupt was detected.
 	 */
-	if (likely(!(priv->flags & ID_P_REP_AFTER_RD) && msr))
+	if (likely(!(priv->flags & ID_REP_AFTER_RD) && msr))
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_DATA);
 
 	return rcar_i2c_irq(irq, priv, msr);
