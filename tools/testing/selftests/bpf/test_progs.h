@@ -70,6 +70,7 @@ struct subtest_state {
 	char *log_buf;
 	int error_cnt;
 	bool skipped;
+	bool filtered;
 
 	FILE *stdout;
 };
@@ -156,6 +157,7 @@ struct msg {
 			char name[MAX_SUBTEST_NAME + 1];
 			int error_cnt;
 			bool skipped;
+			bool filtered;
 			bool have_log;
 		} subtest_done;
 	};
