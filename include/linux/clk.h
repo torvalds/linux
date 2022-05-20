@@ -443,15 +443,16 @@ int __must_check devm_clk_bulk_get_all(struct device *dev,
  * @dev: device for clock "consumer"
  * @id: clock consumer ID
  *
- * Returns a struct clk corresponding to the clock producer, or
+ * Context: May sleep.
+ *
+ * Return: a struct clk corresponding to the clock producer, or
  * valid IS_ERR() condition containing errno.  The implementation
  * uses @dev and @id to determine the clock consumer, and thereby
  * the clock producer.  (IOW, @id may be identical strings, but
  * clk_get may return different clock producers depending on @dev.)
  *
- * Drivers must assume that the clock source is not enabled.
- *
- * devm_clk_get should not be called from within interrupt context.
+ * Drivers must assume that the clock source is neither prepared nor
+ * enabled.
  *
  * The clock will automatically be freed when the device is unbound
  * from the bus.
@@ -464,8 +465,20 @@ struct clk *devm_clk_get(struct device *dev, const char *id);
  * @dev: device for clock "consumer"
  * @id: clock consumer ID
  *
- * Behaves the same as devm_clk_get() except where there is no clock producer.
- * In this case, instead of returning -ENOENT, the function returns NULL.
+ * Context: May sleep.
+ *
+ * Return: a struct clk corresponding to the clock producer, or
+ * valid IS_ERR() condition containing errno.  The implementation
+ * uses @dev and @id to determine the clock consumer, and thereby
+ * the clock producer.  If no such clk is found, it returns NULL
+ * which serves as a dummy clk.  That's the only difference compared
+ * to devm_clk_get().
+ *
+ * Drivers must assume that the clock source is neither prepared nor
+ * enabled.
+ *
+ * The clock will automatically be freed when the device is unbound
+ * from the bus.
  */
 struct clk *devm_clk_get_optional(struct device *dev, const char *id);
 
