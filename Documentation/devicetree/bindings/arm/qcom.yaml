@@ -219,9 +219,189 @@ properties:
               - qcom,ipq8074-hk10-c2
           - const: qcom,ipq8074
 
-      - items:
+      - description: Qualcomm Technologies, Inc. SC7180 IDP
+        items:
           - enum:
               - qcom,sc7180-idp
+          - const: qcom,sc7180
+
+      - description: HP Chromebook x2 11c (rev1 - 2)
+        items:
+          - const: google,coachz-rev1
+          - const: google,coachz-rev2
+          - const: qcom,sc7180
+
+      - description: HP Chromebook x2 11c (newest rev)
+        items:
+          - const: google,coachz
+          - const: qcom,sc7180
+
+      - description: HP Chromebook x2 11c with LTE (rev1 - 2)
+        items:
+          - const: google,coachz-rev1-sku0
+          - const: google,coachz-rev2-sku0
+          - const: qcom,sc7180
+
+      - description: HP Chromebook x2 11c with LTE (newest rev)
+        items:
+          - const: google,coachz-sku0
+          - const: qcom,sc7180
+
+      - description: Lenovo Chromebook Duet 5 13 (rev2)
+        items:
+          - const: google,homestar-rev2
+          - const: google,homestar-rev23
+          - const: qcom,sc7180
+
+      - description: Lenovo Chromebook Duet 5 13 (rev3)
+        items:
+          - const: google,homestar-rev3
+          - const: qcom,sc7180
+
+      - description: Lenovo Chromebook Duet 5 13 (newest rev)
+        items:
+          - const: google,homestar
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 (rev0)
+        items:
+          - const: google,lazor-rev0
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 (rev1 - 2)
+        items:
+          - const: google,lazor-rev1
+          - const: google,lazor-rev2
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 (rev3 - 8)
+        items:
+          - const: google,lazor-rev3
+          - const: google,lazor-rev4
+          - const: google,lazor-rev5
+          - const: google,lazor-rev6
+          - const: google,lazor-rev7
+          - const: google,lazor-rev8
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 (newest rev)
+        items:
+          - const: google,lazor
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with KB Backlight (rev1 - 2)
+        items:
+          - const: google,lazor-rev1-sku2
+          - const: google,lazor-rev2-sku2
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with KB Backlight (rev3 - 8)
+        items:
+          - const: google,lazor-rev3-sku2
+          - const: google,lazor-rev4-sku2
+          - const: google,lazor-rev5-sku2
+          - const: google,lazor-rev6-sku2
+          - const: google,lazor-rev7-sku2
+          - const: google,lazor-rev8-sku2
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with KB Backlight (newest rev)
+        items:
+          - const: google,lazor-sku2
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with LTE (rev1 - 2)
+        items:
+          - const: google,lazor-rev1-sku0
+          - const: google,lazor-rev2-sku0
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with LTE (rev3 - 8)
+        items:
+          - const: google,lazor-rev3-sku0
+          - const: google,lazor-rev4-sku0
+          - const: google,lazor-rev5-sku0
+          - const: google,lazor-rev6-sku0
+          - const: google,lazor-rev7-sku0
+          - const: google,lazor-rev8-sku0
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with LTE (newest rev)
+        items:
+          - const: google,lazor-sku0
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook 511 (rev4 - rev8)
+        items:
+          - const: google,lazor-rev4-sku4
+          - const: google,lazor-rev5-sku4
+          - const: google,lazor-rev6-sku4
+          - const: google,lazor-rev7-sku4
+          - const: google,lazor-rev8-sku4
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook 511 (newest rev)
+        items:
+          - const: google,lazor-sku4
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook 511 without Touchscreen (rev4)
+        items:
+          - const: google,lazor-rev4-sku5
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook 511 without Touchscreen (rev5 - rev8)
+        items:
+          - const: google,lazor-rev5-sku5
+          - const: google,lazor-rev5-sku6
+          - const: google,lazor-rev6-sku6
+          - const: google,lazor-rev7-sku6
+          - const: google,lazor-rev8-sku6
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook 511 without Touchscreen (newest rev)
+        items:
+          - const: google,lazor-sku6
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 (rev1)
+        items:
+          - const: google,pompom-rev1
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 (rev2)
+        items:
+          - const: google,pompom-rev2
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 (newest rev)
+        items:
+          - const: google,pompom
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 with LTE (rev1)
+        items:
+          - const: google,pompom-rev1-sku0
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 with LTE (rev2)
+        items:
+          - const: google,pompom-rev2-sku0
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 with LTE (newest rev)
+        items:
+          - const: google,pompom-sku0
+          - const: qcom,sc7180
+
+      - description: Google Trogdor (newest rev)
+        items:
+          - const: google,trogdor
+          - const: qcom,sc7180
+
+      - description: Google Trogdor with LTE (newest rev)
+        items:
+          - const: google,trogdor-sku0
           - const: qcom,sc7180
 
       - items:
