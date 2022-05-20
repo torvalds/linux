@@ -63,13 +63,11 @@ properties:
 
   mediatek,vpu:
     $ref: /schemas/types.yaml#/definitions/phandle
-    maxItems: 1
     description:
       Describes point to vpu.
 
   mediatek,scp:
     $ref: /schemas/types.yaml#/definitions/phandle
-    maxItems: 1
     description:
       Describes point to scp.
 

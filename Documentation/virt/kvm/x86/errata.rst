@@ -1,3 +1,4 @@
+.. SPDX-License-Identifier: GPL-2.0
 
 =======================================
 Known limitations of CPU virtualization
@@ -36,4 +37,3 @@ Nested virtualization features
 ------------------------------
 
 TBD
-

@@ -260,6 +260,8 @@ static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	INIT_LIST_HEAD(&sev->regions_list);
 	INIT_LIST_HEAD(&sev->mirror_vms);
 
+	kvm_set_apicv_inhibit(kvm, APICV_INHIBIT_REASON_SEV);
+
 	return 0;
 
 e_free:
@@ -465,6 +467,7 @@ static void sev_clflush_pages(struct page *pages[], unsigned long npages)
 		page_virtual = kmap_atomic(pages[i]);
 		clflush_cache_range(page_virtual, PAGE_SIZE);
 		kunmap_atomic(page_virtual);
+		cond_resched();
 	}
 }
 

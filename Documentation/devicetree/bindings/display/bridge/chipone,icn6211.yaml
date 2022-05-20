@@ -51,7 +51,6 @@ properties:
           Video port for MIPI DPI output (panel or connector).
 
     required:
-      - port@0
       - port@1
 
 required:

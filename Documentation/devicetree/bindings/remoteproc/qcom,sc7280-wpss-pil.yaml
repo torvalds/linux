@@ -104,8 +104,7 @@ properties:
   qcom,smem-state-names:
     $ref: /schemas/types.yaml#/definitions/string
     description: The names of the state bits used for SMP2P output
-    items:
-      - const: stop
+    const: stop
 
   glink-edge:
     type: object
@@ -130,7 +129,6 @@ properties:
       qcom,remote-pid:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: ID of the shared memory used by GLINK for communication with WPSS
-        maxItems: 1
 
     required:
       - interrupts

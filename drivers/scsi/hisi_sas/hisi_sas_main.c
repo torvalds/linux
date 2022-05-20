@@ -442,7 +442,6 @@ void hisi_sas_task_deliver(struct hisi_hba *hisi_hba,
 	case SAS_PROTOCOL_INTERNAL_ABORT:
 		hisi_sas_task_prep_abort(hisi_hba, slot);
 		break;
-	fallthrough;
 	default:
 		return;
 	}
