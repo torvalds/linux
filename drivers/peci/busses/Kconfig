@@ -44,4 +44,17 @@ config PECI_MCTP
 	  This support is also available as a module. If so, the module
 	  will be called peci-mctp.
 
+config PECI_I3C
+	tristate "PECI over MCTP over I3C support"
+	depends on I3C
+	depends on PECI
+	depends on I3C_MCTP
+
+	help
+	Say Y here if you want support for the Platform Environment Control
+	  Interface (PECI) over MCTP over I3C bus adapter driver.
+
+	  This support is also available as a module. If so, the module
+	  will be called peci-i3c
+
 endmenu
