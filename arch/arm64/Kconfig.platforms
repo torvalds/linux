@@ -325,4 +325,4 @@ config ARCH_ZYNQMP
 	help
 	  This enables support for Xilinx ZynqMP Family
 
-endmenu
+endmenu # "Platform selection"
