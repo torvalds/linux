@@ -432,7 +432,7 @@ static int hda_dsp_set_D0_state(struct snd_sof_dev *sdev,
 		 * when the DSP enters D0I3 while the system is in S0
 		 * for debug purpose.
 		 */
-		if (!sdev->dtrace_is_supported ||
+		if (!sdev->fw_trace_is_supported ||
 		    !hda_enable_trace_D0I3_S0 ||
 		    sdev->system_suspend_target != SOF_SUSPEND_NONE)
 			flags = HDA_PM_NO_DMA_TRACE;

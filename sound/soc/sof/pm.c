@@ -107,7 +107,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	 */
 	if (!runtime_resume && sof_ops(sdev)->set_power_state &&
 	    old_state == SOF_DSP_PM_D0) {
-		ret = snd_sof_trace_resume(sdev);
+		ret = sof_fw_trace_resume(sdev);
 		if (ret < 0)
 			/* non fatal */
 			dev_warn(sdev->dev,
@@ -143,7 +143,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	}
 
 	/* resume DMA trace */
-	ret = snd_sof_trace_resume(sdev);
+	ret = sof_fw_trace_resume(sdev);
 	if (ret < 0) {
 		/* non fatal */
 		dev_warn(sdev->dev,
@@ -208,7 +208,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 
 	/* Skip to platform-specific suspend if DSP is entering D0 */
 	if (target_state == SOF_DSP_PM_D0) {
-		snd_sof_trace_suspend(sdev, pm_state);
+		sof_fw_trace_suspend(sdev, pm_state);
 		/* Notify clients not managed by pm framework about core suspend */
 		sof_suspend_clients(sdev, pm_state);
 		goto suspend;
@@ -218,7 +218,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 		tplg_ops->tear_down_all_pipelines(sdev, false);
 
 	/* suspend DMA trace */
-	snd_sof_trace_suspend(sdev, pm_state);
+	sof_fw_trace_suspend(sdev, pm_state);
 
 	/* Notify clients not managed by pm framework about core suspend */
 	sof_suspend_clients(sdev, pm_state);

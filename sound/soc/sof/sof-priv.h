@@ -254,8 +254,9 @@ struct snd_sof_dsp_ops {
 				       size_t size, const char *name,
 				       enum sof_debugfs_access_type access_type); /* optional */
 
-	/* host DMA trace initialization */
+	/* host DMA trace (IPC3) */
 	int (*trace_init)(struct snd_sof_dev *sdev,
+			  struct snd_dma_buffer *dmatb,
 			  struct sof_ipc_dma_trace_params_ext *dtrace_params); /* optional */
 	int (*trace_release)(struct snd_sof_dev *sdev); /* optional */
 	int (*trace_trigger)(struct snd_sof_dev *sdev,
@@ -358,6 +359,22 @@ struct snd_sof_ipc_msg {
 };
 
 /**
+ * struct sof_ipc_fw_tracing_ops - IPC-specific firmware tracing ops
+ * @init:	Function pointer for initialization of the tracing
+ * @free:	Optional function pointer for freeing of the tracing
+ * @fw_crashed:	Optional function pointer to notify the tracing of a firmware crash
+ * @suspend:	Function pointer for system/runtime suspend
+ * @resume:	Function pointer for system/runtime resume
+ */
+struct sof_ipc_fw_tracing_ops {
+	int (*init)(struct snd_sof_dev *sdev);
+	void (*free)(struct snd_sof_dev *sdev);
+	void (*fw_crashed)(struct snd_sof_dev *sdev);
+	void (*suspend)(struct snd_sof_dev *sdev, pm_message_t pm_state);
+	int (*resume)(struct snd_sof_dev *sdev);
+};
+
+/**
  * struct sof_ipc_pm_ops - IPC-specific PM ops
  * @ctx_save:		Function pointer for context save
  * @ctx_restore:	Function pointer for context restore
@@ -395,6 +412,7 @@ struct sof_ipc_pcm_ops;
  * @pm:		Pointer to PM ops
  * @pcm:	Pointer to PCM ops
  * @fw_loader:	Pointer to Firmware Loader ops
+ * @fw_tracing:	Pointer to Firmware tracing ops
  *
  * @tx_msg:	Function pointer for sending a 'short' IPC message
  * @set_get_data: Function pointer for set/get data ('large' IPC message). This
@@ -415,6 +433,7 @@ struct sof_ipc_ops {
 	const struct sof_ipc_pm_ops *pm;
 	const struct sof_ipc_pcm_ops *pcm;
 	const struct sof_ipc_fw_loader_ops *fw_loader;
+	const struct sof_ipc_fw_tracing_ops *fw_tracing;
 
 	int (*tx_msg)(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
 		      void *reply_data, size_t reply_bytes, bool no_pm);
@@ -440,12 +459,6 @@ struct snd_sof_ipc {
 
 	/* IPC ops based on version */
 	const struct sof_ipc_ops *ops;
-};
-
-enum sof_dtrace_state {
-	SOF_DTRACE_DISABLED,
-	SOF_DTRACE_STOPPED,
-	SOF_DTRACE_ENABLED,
 };
 
 /*
@@ -528,16 +541,9 @@ struct snd_sof_dev {
 	int ipc_timeout;
 	int boot_timeout;
 
-	/* DMA for Trace */
-	struct snd_dma_buffer dmatb;
-	struct snd_dma_buffer dmatp;
-	int dma_trace_pages;
-	wait_queue_head_t trace_sleep;
-	u32 host_offset;
-	bool dtrace_is_supported; /* set with Kconfig or module parameter */
-	bool dtrace_error;
-	bool dtrace_draining;
-	enum sof_dtrace_state dtrace_state;
+	/* firmwre tracing */
+	bool fw_trace_is_supported; /* set with Kconfig or module parameter */
+	void *fw_trace_data; /* private data used by firmware tracing implementation */
 
 	bool msi_enabled;
 
@@ -640,27 +646,26 @@ static inline void snd_sof_ipc_process_reply(struct snd_sof_dev *sdev, u32 msg_i
 /*
  * Trace/debug
  */
-int snd_sof_init_trace(struct snd_sof_dev *sdev);
-void snd_sof_free_trace(struct snd_sof_dev *sdev);
 int snd_sof_dbg_init(struct snd_sof_dev *sdev);
 void snd_sof_free_debug(struct snd_sof_dev *sdev);
 int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 			     void *base, size_t size,
 			     const char *name, mode_t mode);
-int snd_sof_trace_update_pos(struct snd_sof_dev *sdev,
-			     struct sof_ipc_dma_trace_posn *posn);
-void snd_sof_trace_notify_for_error(struct snd_sof_dev *sdev);
 void sof_print_oops_and_stack(struct snd_sof_dev *sdev, const char *level,
 			      u32 panic_code, u32 tracep_code, void *oops,
 			      struct sof_ipc_panic_info *panic_info,
 			      void *stack, size_t stack_words);
-void snd_sof_trace_suspend(struct snd_sof_dev *sdev, pm_message_t pm_state);
-int snd_sof_trace_resume(struct snd_sof_dev *sdev);
 void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev);
 int snd_sof_dbg_memory_info_init(struct snd_sof_dev *sdev);
 int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
 		enum snd_sof_fw_blk_type blk_type, u32 offset, size_t size,
 		const char *name, enum sof_debugfs_access_type access_type);
+/* Firmware tracing */
+int sof_fw_trace_init(struct snd_sof_dev *sdev);
+void sof_fw_trace_free(struct snd_sof_dev *sdev);
+void sof_fw_trace_fw_crashed(struct snd_sof_dev *sdev);
+void sof_fw_trace_suspend(struct snd_sof_dev *sdev, pm_message_t pm_state);
+int sof_fw_trace_resume(struct snd_sof_dev *sdev);
 
 /*
  * DSP Architectures.
