@@ -303,6 +303,7 @@ static struct atari_floppy_struct {
 	int ref;
 	int type;
 	struct blk_mq_tag_set tag_set;
+	int error_count;
 } unit[FD_MAX_UNITS];
 
 #define	UD	unit[drive]
@@ -705,14 +706,14 @@ static void fd_error( void )
 	if (!fd_request)
 		return;
 
-	fd_request->error_count++;
-	if (fd_request->error_count >= MAX_ERRORS) {
+	unit[SelectedDrive].error_count++;
+	if (unit[SelectedDrive].error_count >= MAX_ERRORS) {
 		printk(KERN_ERR "fd%d: too many errors.\n", SelectedDrive );
 		fd_end_request_cur(BLK_STS_IOERR);
 		finish_fdc();
 		return;
 	}
-	else if (fd_request->error_count == RECALIBRATE_ERRORS) {
+	else if (unit[SelectedDrive].error_count == RECALIBRATE_ERRORS) {
 		printk(KERN_WARNING "fd%d: recalibrating\n", SelectedDrive );
 		if (SelectedDrive != -1)
 			SUD.track = -1;
@@ -1491,7 +1492,7 @@ static void setup_req_params( int drive )
 	ReqData = ReqBuffer + 512 * ReqCnt;
 
 	if (UseTrackbuffer)
-		read_track = (ReqCmd == READ && fd_request->error_count == 0);
+		read_track = (ReqCmd == READ && unit[drive].error_count == 0);
 	else
 		read_track = 0;
 
@@ -1520,6 +1521,7 @@ static blk_status_t ataflop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_RESOURCE;
 	}
 	fd_request = bd->rq;
+	unit[drive].error_count = 0;
 	blk_mq_start_request(fd_request);
 
 	atari_disable_irq( IRQ_MFP_FDC );

@@ -212,6 +212,9 @@ static int __init intel_uncore_init(void)
 	const struct x86_cpu_id *id;
 	int ret;
 
+	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
+		return -ENODEV;
+
 	id = x86_match_cpu(intel_uncore_cpu_ids);
 	if (!id)
 		return -ENODEV;
