@@ -868,6 +868,7 @@ struct mtk_tx_dma_desc_info {
  * @required_pctl		A bool value to show whether the SoC requires
  *				the extra setup for those pins used by GMAC.
  * @txd_size			Tx DMA descriptor size.
+ * @rxd_size			Rx DMA descriptor size.
  */
 struct mtk_soc_data {
 	u32             ana_rgc3;
@@ -878,6 +879,7 @@ struct mtk_soc_data {
 	netdev_features_t hw_features;
 	struct {
 		u32	txd_size;
+		u32	rxd_size;
 	} txrx;
 };
 
