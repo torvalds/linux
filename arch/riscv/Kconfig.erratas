@@ -42,4 +42,4 @@ config ERRATA_SIFIVE_CIP_1200
 
 	  If you don't know what to do here, say "Y".
 
-endmenu
+endmenu # "CPU errata selection"
