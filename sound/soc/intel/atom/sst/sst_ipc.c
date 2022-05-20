@@ -28,7 +28,7 @@
 struct sst_block *sst_create_block(struct intel_sst_drv *ctx,
 					u32 msg_id, u32 drv_id)
 {
-	struct sst_block *msg = NULL;
+	struct sst_block *msg;
 
 	dev_dbg(ctx->dev, "Enter\n");
 	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
@@ -63,7 +63,7 @@ struct sst_block *sst_create_block(struct intel_sst_drv *ctx,
 int sst_wake_up_block(struct intel_sst_drv *ctx, int result,
 		u32 drv_id, u32 ipc, void *data, u32 size)
 {
-	struct sst_block *block = NULL;
+	struct sst_block *block;
 
 	dev_dbg(ctx->dev, "Enter\n");
 
@@ -91,7 +91,7 @@ int sst_wake_up_block(struct intel_sst_drv *ctx, int result,
 
 int sst_free_block(struct intel_sst_drv *ctx, struct sst_block *freed)
 {
-	struct sst_block *block = NULL, *__block;
+	struct sst_block *block, *__block;
 
 	dev_dbg(ctx->dev, "Enter\n");
 	spin_lock_bh(&ctx->block_lock);
