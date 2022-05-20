@@ -180,7 +180,7 @@ static int q6adm_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 			u32 status;
 			u16 copp_id;
 			u16 reserved;
-		} __packed * open = data->payload;
+		} __packed *open = data->payload;
 
 		copp = q6adm_find_copp(adm, port_idx, copp_idx);
 		if (!copp)
