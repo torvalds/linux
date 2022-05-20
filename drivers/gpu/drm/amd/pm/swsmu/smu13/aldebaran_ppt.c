@@ -1884,6 +1884,7 @@ static ssize_t aldebaran_get_ecc_info(struct smu_context *smu,
 			ecc_info_per_channel->mca_ceumc_addr =
 				ecc_table->EccInfo_V2[i].mca_ceumc_addr;
 		}
+		eccinfo->record_ce_addr_supported = 1;
 	}
 
 	return ret;
