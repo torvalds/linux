@@ -942,18 +942,51 @@ static void setup_tx_buf(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf,
 	}
 }
 
+static void mtk_tx_set_dma_desc(struct net_device *dev, struct mtk_tx_dma *desc,
+				struct mtk_tx_dma_desc_info *info)
+{
+	struct mtk_mac *mac = netdev_priv(dev);
+	u32 data;
+
+	WRITE_ONCE(desc->txd1, info->addr);
+
+	data = TX_DMA_SWC | TX_DMA_PLEN0(info->size);
+	if (info->last)
+		data |= TX_DMA_LS0;
+	WRITE_ONCE(desc->txd3, data);
+
+	data = (mac->id + 1) << TX_DMA_FPORT_SHIFT; /* forward port */
+	if (info->first) {
+		if (info->gso)
+			data |= TX_DMA_TSO;
+		/* tx checksum offload */
+		if (info->csum)
+			data |= TX_DMA_CHKSUM;
+		/* vlan header offload */
+		if (info->vlan)
+			data |= TX_DMA_INS_VLAN | info->vlan_tci;
+	}
+	WRITE_ONCE(desc->txd4, data);
+}
+
 static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 		      int tx_num, struct mtk_tx_ring *ring, bool gso)
 {
+	struct mtk_tx_dma_desc_info txd_info = {
+		.size = skb_headlen(skb),
+		.gso = gso,
+		.csum = skb->ip_summed == CHECKSUM_PARTIAL,
+		.vlan = skb_vlan_tag_present(skb),
+		.vlan_tci = skb_vlan_tag_get(skb),
+		.first = true,
+		.last = !skb_is_nonlinear(skb),
+	};
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_tx_dma *itxd, *txd;
 	struct mtk_tx_dma *itxd_pdma, *txd_pdma;
 	struct mtk_tx_buf *itx_buf, *tx_buf;
-	dma_addr_t mapped_addr;
-	unsigned int nr_frags;
 	int i, n_desc = 1;
-	u32 txd4 = 0, fport;
 	int k = 0;
 
 	itxd = ring->next_free;
@@ -961,49 +994,32 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	if (itxd == ring->last_free)
 		return -ENOMEM;
 
-	/* set the forward port */
-	fport = (mac->id + 1) << TX_DMA_FPORT_SHIFT;
-	txd4 |= fport;
-
 	itx_buf = mtk_desc_to_tx_buf(ring, itxd);
 	memset(itx_buf, 0, sizeof(*itx_buf));
 
-	if (gso)
-		txd4 |= TX_DMA_TSO;
-
-	/* TX Checksum offload */
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		txd4 |= TX_DMA_CHKSUM;
-
-	/* VLAN header offload */
-	if (skb_vlan_tag_present(skb))
-		txd4 |= TX_DMA_INS_VLAN | skb_vlan_tag_get(skb);
-
-	mapped_addr = dma_map_single(eth->dma_dev, skb->data,
-				     skb_headlen(skb), DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(eth->dma_dev, mapped_addr)))
+	txd_info.addr = dma_map_single(eth->dma_dev, skb->data, txd_info.size,
+				       DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(eth->dma_dev, txd_info.addr)))
 		return -ENOMEM;
 
-	WRITE_ONCE(itxd->txd1, mapped_addr);
+	mtk_tx_set_dma_desc(dev, itxd, &txd_info);
+
 	itx_buf->flags |= MTK_TX_FLAGS_SINGLE0;
 	itx_buf->flags |= (!mac->id) ? MTK_TX_FLAGS_FPORT0 :
 			  MTK_TX_FLAGS_FPORT1;
-	setup_tx_buf(eth, itx_buf, itxd_pdma, mapped_addr, skb_headlen(skb),
+	setup_tx_buf(eth, itx_buf, itxd_pdma, txd_info.addr, txd_info.size,
 		     k++);
 
 	/* TX SG offload */
 	txd = itxd;
 	txd_pdma = qdma_to_pdma(ring, txd);
-	nr_frags = skb_shinfo(skb)->nr_frags;
 
-	for (i = 0; i < nr_frags; i++) {
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		unsigned int offset = 0;
 		int frag_size = skb_frag_size(frag);
 
 		while (frag_size) {
-			bool last_frag = false;
-			unsigned int frag_map_size;
 			bool new_desc = true;
 
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA) ||
@@ -1018,23 +1034,17 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 				new_desc = false;
 			}
 
-
-			frag_map_size = min(frag_size, MTK_TX_DMA_BUF_LEN);
-			mapped_addr = skb_frag_dma_map(eth->dma_dev, frag, offset,
-						       frag_map_size,
-						       DMA_TO_DEVICE);
-			if (unlikely(dma_mapping_error(eth->dma_dev, mapped_addr)))
+			memset(&txd_info, 0, sizeof(struct mtk_tx_dma_desc_info));
+			txd_info.size = min(frag_size, MTK_TX_DMA_BUF_LEN);
+			txd_info.last = i == skb_shinfo(skb)->nr_frags - 1 &&
+					!(frag_size - txd_info.size);
+			txd_info.addr = skb_frag_dma_map(eth->dma_dev, frag,
+							 offset, txd_info.size,
+							 DMA_TO_DEVICE);
+			if (unlikely(dma_mapping_error(eth->dma_dev, txd_info.addr)))
 				goto err_dma;
 
-			if (i == nr_frags - 1 &&
-			    (frag_size - frag_map_size) == 0)
-				last_frag = true;
-
-			WRITE_ONCE(txd->txd1, mapped_addr);
-			WRITE_ONCE(txd->txd3, (TX_DMA_SWC |
-					       TX_DMA_PLEN0(frag_map_size) |
-					       last_frag * TX_DMA_LS0));
-			WRITE_ONCE(txd->txd4, fport);
+			mtk_tx_set_dma_desc(dev, txd, &txd_info);
 
 			tx_buf = mtk_desc_to_tx_buf(ring, txd);
 			if (new_desc)
@@ -1044,20 +1054,17 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 			tx_buf->flags |= (!mac->id) ? MTK_TX_FLAGS_FPORT0 :
 					 MTK_TX_FLAGS_FPORT1;
 
-			setup_tx_buf(eth, tx_buf, txd_pdma, mapped_addr,
-				     frag_map_size, k++);
+			setup_tx_buf(eth, tx_buf, txd_pdma, txd_info.addr,
+				     txd_info.size, k++);
 
-			frag_size -= frag_map_size;
-			offset += frag_map_size;
+			frag_size -= txd_info.size;
+			offset += txd_info.size;
 		}
 	}
 
 	/* store skb to cleanup */
 	itx_buf->skb = skb;
 
-	WRITE_ONCE(itxd->txd4, txd4);
-	WRITE_ONCE(itxd->txd3, (TX_DMA_SWC | TX_DMA_PLEN0(skb_headlen(skb)) |
-				(!nr_frags * TX_DMA_LS0)));
 	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
 		if (k & 0x1)
 			txd_pdma->txd2 |= TX_DMA_LS0;

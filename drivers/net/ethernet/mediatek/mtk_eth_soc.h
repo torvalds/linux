@@ -846,6 +846,17 @@ enum mkt_eth_capabilities {
 		      MTK_MUX_U3_GMAC2_TO_QPHY | \
 		      MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA)
 
+struct mtk_tx_dma_desc_info {
+	dma_addr_t	addr;
+	u32		size;
+	u16		vlan_tci;
+	u8		gso:1;
+	u8		csum:1;
+	u8		vlan:1;
+	u8		first:1;
+	u8		last:1;
+};
+
 /* struct mtk_eth_data -	This is the structure holding all differences
  *				among various plaforms
  * @ana_rgc3:                   The offset for register ANA_RGC3 related to
