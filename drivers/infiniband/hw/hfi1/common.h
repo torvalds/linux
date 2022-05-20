@@ -155,21 +155,6 @@
 #define HFI1_KERN_SWVERSION ((HFI1_KERN_TYPE << 31) | HFI1_USER_SWVERSION)
 
 /*
- * Define the driver version number.  This is something that refers only
- * to the driver itself, not the software interfaces it supports.
- */
-#ifndef HFI1_DRIVER_VERSION_BASE
-#define HFI1_DRIVER_VERSION_BASE "0.9-294"
-#endif
-
-/* create the final driver version string */
-#ifdef HFI1_IDSTR
-#define HFI1_DRIVER_VERSION HFI1_DRIVER_VERSION_BASE " " HFI1_IDSTR
-#else
-#define HFI1_DRIVER_VERSION HFI1_DRIVER_VERSION_BASE
-#endif
-
-/*
  * Diagnostics can send a packet by writing the following
  * struct to the diag packet special file.
  *
