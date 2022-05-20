@@ -180,6 +180,12 @@
         "BriefDescription": "Bus cycle"
     },
     {
+        "PublicDescription": "Level 1 data cache allocation without refill",
+        "EventCode": "0x1F",
+        "EventName": "L1D_CACHE_ALLOCATE",
+        "BriefDescription": "Level 1 data cache allocation without refill"
+    },
+    {
         "PublicDescription": "Attributable Level 2 data cache allocation without refill",
         "EventCode": "0x20",
         "EventName": "L2D_CACHE_ALLOCATE",
