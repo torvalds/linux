@@ -1081,4 +1081,64 @@
 		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
 		//};
 	};
+
+	pcie0_perst_default: pcie0_perst_default {
+		perst-pins {
+			sf,pins = <PAD_GPIO26>;
+			sf,pinmux = <PAD_GPIO26_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_HIGH>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie0_perst_active: pcie0_perst_active {
+		perst-pins {
+			sf,pins = <PAD_GPIO26>;
+			sf,pinmux = <PAD_GPIO26_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie0_power_active: pcie0_power_active {
+		power-pins {
+			sf,pins = <PAD_GPIO32>;
+			sf,pinmux = <PAD_GPIO32_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_HIGH>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie1_perst_default: pcie1_perst_default {
+		perst-pins {
+			sf,pins = <PAD_GPIO28>;
+			sf,pinmux = <PAD_GPIO28_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_HIGH>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie1_perst_active: pcie1_perst_active {
+		perst-pins {
+			sf,pins = <PAD_GPIO28>;
+			sf,pinmux = <PAD_GPIO28_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie1_power_active: pcie1_power_active {
+		power-pins {
+			sf,pins = <PAD_GPIO21>;
+			sf,pinmux = <PAD_GPIO21_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_HIGH>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
 };

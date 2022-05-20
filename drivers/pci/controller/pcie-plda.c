@@ -16,6 +16,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/mfd/syscon.h>
@@ -25,12 +26,12 @@
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
 #include "../pci.h"
-
 
 #define PCIE_BASIC_STATUS		0x018
 #define PCIE_CFGNUM			0x140
@@ -57,12 +58,17 @@
 #define XR3PCI_ATR_TRSL_ADDR_LOW	0x8
 #define XR3PCI_ATR_TRSL_ADDR_HIGH	0xc
 #define XR3PCI_ATR_TRSL_PARAM		0x10
+#define XR3PCI_ATR_TABLE_OFFSET		0x20
+#define XR3PCI_ATR_MAX_TABLE_NUM	8
+
 #define XR3PCI_ATR_SRC_WIN_SIZE_SHIFT	1
 #define XR3PCI_ATR_SRC_ADDR_MASK	0xfffff000
 #define XR3PCI_ATR_TRSL_ADDR_MASK	0xfffff000
+#define XR3_PCI_ECAM_SIZE		28
+#define XR3PCI_ATR_TRSL_DIR		BIT(22)
 /* IDs used in the XR3PCI_ATR_TRSL_PARAM */
 #define XR3PCI_ATR_TRSLID_PCIE_MEMORY	0x0
-#define XR3PCI_ATR_TRSL_DIR		BIT(22)
+#define XR3PCI_ATR_TRSLID_PCIE_CONFIG	0x1
 
 #define CFGNUM_DEVFN_SHIFT		0
 #define CFGNUM_BUS_SHIFT		8
@@ -95,6 +101,8 @@
 #define INT_PCI_MSI_NR		32
 #define LINK_UP_MASK		0xff
 
+#define PERST_DELAY_US		1000
+
 /* system control */
 #define STG_SYSCON_K_RP_NEP_SHIFT		0x8
 #define STG_SYSCON_K_RP_NEP_MASK		0x100
@@ -102,6 +110,10 @@
 #define STG_SYSCON_AXI4_SLVL_ARFUNC_SHIFT	0x8
 #define STG_SYSCON_AXI4_SLVL_AWFUNC_MASK	0x7FFF
 #define STG_SYSCON_AXI4_SLVL_AWFUNC_SHIFT	0x0
+#define STG_SYSCON_CLKREQ_SHIFT			0x16
+#define STG_SYSCON_CLKREQ_MASK			0x400000
+#define STG_SYSCON_CKREF_SRC_SHIFT		0x12
+#define STG_SYSCON_CKREF_SRC_MASK		0xC0000
 
 #define PCI_DEV(d)		(((d) >> 3) & 0x1f)
 
@@ -118,6 +130,7 @@ struct plda_pcie {
 	struct platform_device	*pdev;
 	void __iomem		*reg_base;
 	void __iomem		*config_base;
+	struct resource *cfg_res;
 	struct regmap *reg_syscon;
 	u32 stg_arfun;
 	u32 stg_awfun;
@@ -129,6 +142,11 @@ struct plda_pcie {
 	struct reset_control *resets;
 	struct clk_bulk_data *clks;
 	int num_clks;
+	int atr_table_num;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *perst_state_def;
+	struct pinctrl_state *perst_state_active;
+	struct pinctrl_state *power_state_active;
 };
 
 static inline void plda_writel(struct plda_pcie *pcie, const u32 value,
@@ -535,7 +553,7 @@ static int plda_pcie_init_irq_domain(struct plda_pcie *pcie)
 
 static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 {
-	struct resource *reg_res, *config_res;
+	struct resource *reg_res;
 	struct platform_device *pdev = pcie->pdev;
 	struct of_phandle_args args;
 	int ret;
@@ -552,13 +570,13 @@ static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 		return PTR_ERR(pcie->reg_base);
 	}
 
-	config_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
-	if (!config_res) {
+	pcie->cfg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
+	if (!pcie->cfg_res) {
 		dev_err(&pdev->dev, "Missing required config address range");
 		return -ENODEV;
 	}
 
-	pcie->config_base = devm_ioremap_resource(&pdev->dev, config_res);
+	pcie->config_base = devm_ioremap_resource(&pdev->dev, pcie->cfg_res);
 	if (IS_ERR(pcie->config_base)){
 		dev_err(&pdev->dev, "Failed to map config memory\n");
 		return PTR_ERR(pcie->config_base);
@@ -598,10 +616,19 @@ static struct pci_ops plda_pcie_ops = {
 	.write          = plda_pcie_config_write,
 };
 
-void plda_set_atr_entry(void __iomem *base, phys_addr_t src_addr,
+void plda_set_atr_entry(struct plda_pcie *pcie, phys_addr_t src_addr,
 			phys_addr_t trsl_addr, size_t window_size,
 			int trsl_param)
 {
+	void __iomem *base =
+		pcie->reg_base + XR3PCI_ATR_AXI4_SLV0;
+
+	/* Support AXI4 Slave 0 Address Translation Tables 0-7. */
+	if (pcie->atr_table_num >= XR3PCI_ATR_MAX_TABLE_NUM)
+		pcie->atr_table_num = XR3PCI_ATR_MAX_TABLE_NUM - 1;
+	base +=  XR3PCI_ATR_TABLE_OFFSET * pcie->atr_table_num;
+	pcie->atr_table_num++;
+
 	/* X3PCI_ATR_SRC_ADDR_LOW:
 	 *   - bit 0: enable entry,
 	 *   - bits 1-6: ATR window size: total size in bytes: 2^(ATR_WSIZE + 1)
@@ -619,12 +646,11 @@ void plda_set_atr_entry(void __iomem *base, phys_addr_t src_addr,
 
 	pr_info("ATR entry: 0x%010llx %s 0x%010llx [0x%010llx] (param: 0x%06x)\n",
 	       src_addr, (trsl_param & XR3PCI_ATR_TRSL_DIR) ? "<-" : "->",
-	       trsl_addr, ((u64)1) << fls(window_size), trsl_param);
+	       trsl_addr, (u64)window_size, trsl_param);
 }
 
 static int plda_pcie_setup_windows(struct plda_pcie *pcie)
 {
-	void __iomem *bridge_base_addr = pcie->reg_base + XR3PCI_ATR_AXI4_SLV0;
 	struct pci_host_bridge *bridge = pcie->bridge;
 	struct resource_entry *entry;
 	u64 pci_addr;
@@ -632,7 +658,7 @@ static int plda_pcie_setup_windows(struct plda_pcie *pcie)
 	resource_list_for_each_entry(entry, &bridge->windows) {
 		if (resource_type(entry->res) == IORESOURCE_MEM) {
 			pci_addr = entry->res->start - entry->offset;
-			plda_set_atr_entry(bridge_base_addr,
+			plda_set_atr_entry(pcie,
 						entry->res->start, pci_addr,
 						resource_size(entry->res),
 						XR3PCI_ATR_TRSLID_PCIE_MEMORY);
@@ -680,10 +706,57 @@ static void plda_clk_rst_deinit(struct plda_pcie *pcie)
 	clk_bulk_disable_unprepare(pcie->num_clks, pcie->clks);
 }
 
+int plda_pinctrl_init(struct plda_pcie *pcie)
+{
+	struct device *dev = &pcie->pdev->dev;
+
+	pcie->pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR_OR_NULL(pcie->pinctrl)) {
+		dev_err(dev, "Getting pinctrl handle failed\n");
+		return -EINVAL;
+	}
+
+	pcie->perst_state_def
+		= pinctrl_lookup_state(pcie->pinctrl, "perst-default");
+	if (IS_ERR_OR_NULL(pcie->perst_state_def)) {
+		dev_err(dev, "Failed to get the perst-default pinctrl handle\n");
+		return -EINVAL;
+	}
+
+	pcie->perst_state_active
+		= pinctrl_lookup_state(pcie->pinctrl, "perst-active");
+	if (IS_ERR_OR_NULL(pcie->perst_state_active)) {
+		dev_err(dev, "Failed to get the perst-active pinctrl handle\n");
+		return -EINVAL;
+	}
+
+	pcie->power_state_active
+		= pinctrl_lookup_state(pcie->pinctrl, "power-active");
+	if (IS_ERR_OR_NULL(pcie->power_state_active)) {
+		dev_err(dev, "Failed to get the power-default pinctrl handle\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static void plda_pcie_hw_init(struct plda_pcie *pcie)
 {
 	unsigned int value;
-	int i;
+	int i, ret;
+	struct device *dev = &pcie->pdev->dev;
+
+	if (pcie->power_state_active) {
+		ret = pinctrl_select_state(pcie->pinctrl, pcie->power_state_active);
+		if (ret)
+			dev_err(dev, "Cannot set power pin to high\n");
+	}
+
+	if (pcie->perst_state_active) {
+		ret = pinctrl_select_state(pcie->pinctrl, pcie->perst_state_active);
+		if (ret)
+			dev_err(dev, "Cannot set reset pin to low\n");
+	}
 
 	/* Disable physical functions except #0 */
 	for (i = 1; i < PLDA_FUNC_NUM; i++) {
@@ -711,13 +784,31 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 				STG_SYSCON_AXI4_SLVL_AWFUNC_MASK,
 				0 << STG_SYSCON_AXI4_SLVL_AWFUNC_SHIFT);
 
-	/* Enable root port, limited to Gen1 at fpga phase */
+	/* Enable root port*/
 	value = readl(pcie->reg_base + GEN_SETTINGS);
 	value |= PLDA_RP_ENABLE;
-	value &= ~PDLA_LINK_SPEED_GEN2;
 	writel(value, pcie->reg_base + GEN_SETTINGS);
 
+	/* As the two host bridges in JH7110 soc have the same default
+	 * address translation table, this cause the second root port can't
+	 * access it's host bridge config space correctly.
+	 * To workaround, config the ATR of host bridge config space by SW.
+	 */
+	plda_set_atr_entry(pcie,
+			pcie->cfg_res->start, 0,
+			1 << XR3_PCI_ECAM_SIZE,
+			XR3PCI_ATR_TRSLID_PCIE_CONFIG);
+
 	plda_pcie_setup_windows(pcie);
+
+	/* Ensure that PERST has been asserted for at least 100 ms */
+	msleep(100);
+	if (pcie->perst_state_def) {
+		ret = pinctrl_select_state(pcie->pinctrl, pcie->perst_state_def);
+		if (ret)
+			dev_err(dev, "Cannot set reset pin to high\n");
+	}
+
 }
 
 static int plda_pcie_probe(struct platform_device *pdev)
@@ -733,6 +824,7 @@ static int plda_pcie_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pcie->pdev = pdev;
+	pcie->atr_table_num = 0;
 
 	ret = plda_pcie_parse_dt(pcie);
 	if (ret) {
@@ -742,10 +834,26 @@ static int plda_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pcie);
 
+	plda_pinctrl_init(pcie);
+	if (ret) {
+		dev_err(&pdev->dev, "Init pinctrl failed\n");
+		return ret;
+	}
+
 	regmap_update_bits(pcie->reg_syscon,
 				pcie->stg_rp_nep,
 				STG_SYSCON_K_RP_NEP_MASK,
 				1 << STG_SYSCON_K_RP_NEP_SHIFT);
+
+	regmap_update_bits(pcie->reg_syscon,
+				pcie->stg_awfun,
+				STG_SYSCON_CKREF_SRC_MASK,
+				2 << STG_SYSCON_CKREF_SRC_SHIFT);
+
+	regmap_update_bits(pcie->reg_syscon,
+				pcie->stg_awfun,
+				STG_SYSCON_CLKREQ_MASK,
+				1 << STG_SYSCON_CLKREQ_SHIFT);
 
 	ret = plda_clk_rst_init(pcie);
 	if (ret < 0) {
@@ -795,6 +903,7 @@ static int plda_pcie_remove(struct platform_device *pdev)
 	plda_pcie_free_irq_domain(pcie);
 	plda_clk_rst_deinit(pcie);
 	platform_set_drvdata(pdev, NULL);
+
 	return 0;
 }
 
