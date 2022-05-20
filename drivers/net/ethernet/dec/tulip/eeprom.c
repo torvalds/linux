@@ -117,7 +117,7 @@ static void tulip_build_fake_mediatable(struct tulip_private *tp)
 			  0x00, 0x06  /* ttm bit map */
 			};
 
-		tp->mtable = devm_kmalloc(&tp->pdev->pdev, sizeof(struct mediatable) +
+		tp->mtable = devm_kmalloc(&tp->pdev->dev, sizeof(struct mediatable) +
 					  sizeof(struct medialeaf), GFP_KERNEL);
 
 		if (tp->mtable == NULL)
