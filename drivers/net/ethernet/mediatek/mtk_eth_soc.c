@@ -893,7 +893,7 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	for (i = 0; i < cnt; i++) {
 		struct mtk_tx_dma_v2 *txd;
 
-		txd = (void *)eth->scratch_ring + i * soc->txrx.txd_size;
+		txd = eth->scratch_ring + i * soc->txrx.txd_size;
 		txd->txd1 = dma_addr + i * MTK_QDMA_PAGE_SIZE;
 		if (i < cnt - 1)
 			txd->txd2 = eth->phy_scratch_ring +
