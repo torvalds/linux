@@ -623,7 +623,10 @@ properties:
       - items:
           - enum:
               - qcom,qrb5165-rb5
+              - qcom,sm8250-hdk
               - qcom,sm8250-mtp
+              - sony,pdx203-generic
+              - sony,pdx206-generic
           - const: qcom,sm8250
 
       - items:
