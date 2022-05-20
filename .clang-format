@@ -67,7 +67,7 @@ ExperimentalAutoDetectBinPacking: false
 # Taken from:
 #   git grep -h '^#define [^[:space:]]*for_each[^[:space:]]*(' include/ \
 #   | sed "s,^#define \([^[:space:]]*for_each[^[:space:]]*\)(.*$,  - '\1'," \
-#   | LC_ALL=C sort | uniq
+#   | LC_ALL=C sort -u
 ForEachMacros:
   - '__ata_qc_for_each'
   - '__bio_for_each_bvec'
