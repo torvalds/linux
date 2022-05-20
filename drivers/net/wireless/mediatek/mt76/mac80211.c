@@ -178,6 +178,12 @@ static const struct cfg80211_sar_freq_ranges mt76_sar_freq_ranges[] = {
 	{ .start_freq = 5350, .end_freq = 5470, },
 	{ .start_freq = 5470, .end_freq = 5725, },
 	{ .start_freq = 5725, .end_freq = 5950, },
+	{ .start_freq = 5945, .end_freq = 6165, },
+	{ .start_freq = 6165, .end_freq = 6405, },
+	{ .start_freq = 6405, .end_freq = 6525, },
+	{ .start_freq = 6525, .end_freq = 6705, },
+	{ .start_freq = 6705, .end_freq = 6865, },
+	{ .start_freq = 6865, .end_freq = 7125, },
 };
 
 static const struct cfg80211_sar_capa mt76_sar_capa = {
