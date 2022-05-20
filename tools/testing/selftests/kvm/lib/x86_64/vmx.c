@@ -198,6 +198,11 @@ bool load_vmcs(struct vmx_pages *vmx)
 	return true;
 }
 
+static bool ept_vpid_cap_supported(uint64_t mask)
+{
+	return rdmsr(MSR_IA32_VMX_EPT_VPID_CAP) & mask;
+}
+
 /*
  * Initialize the control fields to the most basic settings possible.
  */
@@ -215,7 +220,7 @@ static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 		struct eptPageTablePointer eptp = {
 			.memory_type = VMX_BASIC_MEM_TYPE_WB,
 			.page_walk_length = 3, /* + 1 */
-			.ad_enabled = !!(rdmsr(MSR_IA32_VMX_EPT_VPID_CAP) & VMX_EPT_VPID_CAP_AD_BITS),
+			.ad_enabled = ept_vpid_cap_supported(VMX_EPT_VPID_CAP_AD_BITS),
 			.address = vmx->eptp_gpa >> PAGE_SHIFT_4K,
 		};
 
