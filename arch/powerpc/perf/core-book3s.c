@@ -2483,6 +2483,33 @@ static int power_pmu_prepare_cpu(unsigned int cpu)
 	return 0;
 }
 
+static ssize_t pmu_name_show(struct device *cdev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	if (ppmu)
+		return sysfs_emit(buf, "%s", ppmu->name);
+
+	return 0;
+}
+
+static DEVICE_ATTR_RO(pmu_name);
+
+static struct attribute *pmu_caps_attrs[] = {
+	&dev_attr_pmu_name.attr,
+	NULL
+};
+
+static const struct attribute_group pmu_caps_group = {
+	.name  = "caps",
+	.attrs = pmu_caps_attrs,
+};
+
+static const struct attribute_group *pmu_caps_groups[] = {
+	&pmu_caps_group,
+	NULL,
+};
+
 int __init register_power_pmu(struct power_pmu *pmu)
 {
 	if (ppmu)
@@ -2493,6 +2520,10 @@ int __init register_power_pmu(struct power_pmu *pmu)
 		pmu->name);
 
 	power_pmu.attr_groups = ppmu->attr_groups;
+
+	if (ppmu->flags & PPMU_ARCH_207S)
+		power_pmu.attr_update = pmu_caps_groups;
+
 	power_pmu.capabilities |= (ppmu->capabilities & PERF_PMU_CAP_EXTENDED_REGS);
 
 #ifdef MSR_HV
