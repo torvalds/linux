@@ -151,8 +151,6 @@ static int prep_lookup_table(struct err_values *err_vals, int *ref_table)
 		/* 300 milli celsius steps */
 		while (i--)
 			derived_table[i] = derived_table[i + 1] - 300;
-		/* case 0 */
-		derived_table[i] = derived_table[i + 1] - 300;
 	}
 
 	/*
