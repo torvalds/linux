@@ -100,10 +100,11 @@
  * - 3.44.0 - DCN3 supports DCC independent block settings: !64B && 128B, 64B && 128B
  * - 3.45.0 - Add context ioctl stable pstate interface
  * - 3.46.0 - To enable hot plug amdgpu tests in libdrm
- * * 3.47.0 - Add AMDGPU_GEM_CREATE_DISCARDABLE and AMDGPU_VM_NOALLOC flags
+ * - 3.47.0 - Add AMDGPU_GEM_CREATE_DISCARDABLE and AMDGPU_VM_NOALLOC flags
+ * - 3.48.0 - Add IP discovery version info to HW INFO
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	47
+#define KMS_DRIVER_MINOR	48
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit;
