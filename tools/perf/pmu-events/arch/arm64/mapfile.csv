@@ -12,6 +12,7 @@
 #
 #
 #Family-model,Version,Filename,EventType
+0x00000000410fd020,v1,arm/cortex-a34,core
 0x00000000410fd030,v1,arm/cortex-a53,core
 0x00000000420f1000,v1,arm/cortex-a53,core
 0x00000000410fd070,v1,arm/cortex-a57-a72,core

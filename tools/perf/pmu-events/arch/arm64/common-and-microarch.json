@@ -36,6 +36,18 @@
         "BriefDescription": "Attributable Level 1 data TLB refill"
     },
     {
+        "PublicDescription": "Instruction architecturally executed, condition code check pass, load",
+        "EventCode": "0x06",
+        "EventName": "LD_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, condition code check pass, load"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, condition code check pass, store",
+        "EventCode": "0x07",
+        "EventName": "ST_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, condition code check pass, store"
+    },
+    {
         "PublicDescription": "Instruction architecturally executed",
         "EventCode": "0x08",
         "EventName": "INST_RETIRED",
@@ -58,6 +70,30 @@
         "EventCode": "0x0b",
         "EventName": "CID_WRITE_RETIRED",
         "BriefDescription": "Instruction architecturally executed, condition code check pass, write to CONTEXTIDR"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, condition code check pass, software change of the PC",
+        "EventCode": "0x0C",
+        "EventName": "PC_WRITE_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, condition code check pass, software change of the PC"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, immediate branch",
+        "EventCode": "0x0D",
+        "EventName": "BR_IMMED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, immediate branch"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, condition code check pass, procedure return",
+        "EventCode": "0x0E",
+        "EventName": "BR_RETURN_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, condition code check pass, procedure return"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, condition code check pass, unaligned",
+        "EventCode": "0x0F",
+        "EventName": "UNALIGNED_LDST_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, condition code check pass, unaligned"
     },
     {
         "PublicDescription": "Mispredicted or not predicted branch speculatively executed",
