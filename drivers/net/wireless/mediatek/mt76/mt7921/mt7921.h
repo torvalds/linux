@@ -501,4 +501,6 @@ mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default)
 	return 0;
 }
 #endif
+int mt7921_set_tx_sar_pwr(struct ieee80211_hw *hw,
+			  const struct cfg80211_sar_specs *sar);
 #endif
