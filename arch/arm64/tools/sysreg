@@ -212,6 +212,22 @@ Sysreg	SMCR_EL1	3	0	1	2	6
 Fields	SMCR_ELx
 EndSysreg
 
+Sysreg	CLIDR_EL1	3	1	0	0	1
+Res0	63:47
+Field	46:33	Ttypen
+Field	32:30	ICB
+Field	29:27	LoUU
+Field	26:24	LoC
+Field	23:21	LoUIS
+Field	20:18	Ctype7
+Field	17:15	Ctype6
+Field	14:12	Ctype5
+Field	11:9	Ctype4
+Field	8:6	Ctype3
+Field	5:3	Ctype2
+Field	2:0	Ctype1
+EndSysreg
+
 Sysreg	SMIDR_EL1	3	1	0	0	6
 Res0	63:32
 Field	31:24	IMPLEMENTER
