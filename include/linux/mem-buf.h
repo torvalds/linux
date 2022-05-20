@@ -40,6 +40,7 @@ int mem_buf_dma_buf_set_destructor(struct dma_buf *dmabuf,
  * @acl_list: A list of VMID and permission pairs that describe what VMIDs will
  * have access to the memory, and with what permissions
  * @trans_type: One of GH_RM_TRANS_TYPE_DONATE/LEND/SHARE
+ * @sgl_desc: Optional. Requests a specific set of IPA addresses.
  * @src_mem_type: The type of memory that the remote VM should allocate
  * (e.g. ION memory)
  * @src_data: A pointer to memory type specific data that the remote VM may need
@@ -55,6 +56,7 @@ struct mem_buf_allocation_data {
 	int *vmids;
 	int *perms;
 	u32 trans_type;
+	struct gh_sgl_desc *sgl_desc;
 	enum mem_buf_mem_type src_mem_type;
 	void *src_data;
 	enum mem_buf_mem_type dst_mem_type;

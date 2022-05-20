@@ -131,6 +131,24 @@ struct sg_table *dup_gh_sgl_desc_to_sgt(struct gh_sgl_desc *sgl_desc)
 }
 EXPORT_SYMBOL(dup_gh_sgl_desc_to_sgt);
 
+struct gh_sgl_desc *dup_gh_sgl_desc(struct gh_sgl_desc *sgl_desc)
+{
+	size_t size;
+	struct gh_sgl_desc *copy;
+
+	if (!sgl_desc)
+		return NULL;
+
+	size = offsetof(struct gh_sgl_desc, sgl_entries[sgl_desc->n_sgl_entries]);
+	copy = kvmalloc(size, GFP_KERNEL);
+	if (!copy)
+		return ERR_PTR(-ENOMEM);
+
+	memcpy(copy, sgl_desc, size);
+	return copy;
+}
+EXPORT_SYMBOL(dup_gh_sgl_desc);
+
 size_t mem_buf_get_sgl_buf_size(struct gh_sgl_desc *sgl_desc)
 {
 	size_t size = 0;
@@ -176,13 +194,17 @@ static int mem_buf_hyp_assign_table_gh(struct gh_sgl_desc *sgl_desc, int src_vmi
 /*
  * @memparcel_hdl:
  *	GH_RM_TRANS_TYPE_DONATE - memparcel_hdl will be set to MEM_BUF_MEMPARCEL_INVALID
-	on success, and (possibly) set to a different valid memparcel on error. This is
-	because accepting a donated memparcel handle destroys that handle.
-	GH_RM_TRANS_TYPE_LEND - unmodified.
-	GH_RM_TRANS_TYPE_SHARE - unmodified.
+ *	on success, and (possibly) set to a different valid memparcel on error. This is
+ *	because accepting a donated memparcel handle destroys that handle.
+ *	GH_RM_TRANS_TYPE_LEND - unmodified.
+ *	GH_RM_TRANS_TYPE_SHARE - unmodified.
+ * @sgl_desc:
+ *	If *sgl_desc is not NULL, request specific IPA address(es). Otherwise, hypervisor
+ *	will choose the IPA address, and return it here.
  */
-struct gh_sgl_desc *mem_buf_map_mem_s2(u32 op, gh_memparcel_handle_t *__memparcel_hdl,
-					struct gh_acl_desc *acl_desc, int src_vmid)
+int mem_buf_map_mem_s2(u32 op, gh_memparcel_handle_t *__memparcel_hdl,
+			struct gh_acl_desc *acl_desc, struct gh_sgl_desc **__sgl_desc,
+			int src_vmid)
 {
 	int ret, ret2;
 	struct gh_sgl_desc *sgl_desc;
@@ -190,24 +212,24 @@ struct gh_sgl_desc *mem_buf_map_mem_s2(u32 op, gh_memparcel_handle_t *__memparce
 		   GH_RM_MEM_ACCEPT_DONE;
 	gh_memparcel_handle_t memparcel_hdl = *__memparcel_hdl;
 
-	if (!acl_desc)
-		return ERR_PTR(-EINVAL);
+	if (!acl_desc || !__sgl_desc)
+		return -EINVAL;
 
 	/*
 	 * memory returns to its original IPA address when accepted by HLOS. For example,
 	 * scattered memory returns to being scattered memory.
 	 */
-	if (current_vmid != VMID_HLOS)
+	if (current_vmid != VMID_HLOS || (*__sgl_desc && (*__sgl_desc)->n_sgl_entries == 1))
 		flags |= GH_RM_MEM_ACCEPT_MAP_IPA_CONTIGUOUS;
 
 	pr_debug("%s: adding CPU MMU stage 2 mappings\n", __func__);
 	sgl_desc = gh_rm_mem_accept(memparcel_hdl, GH_RM_MEM_TYPE_NORMAL, op,
-				    flags, 0, acl_desc, NULL,
+				    flags, 0, acl_desc, *__sgl_desc,
 				    NULL, 0);
 	if (IS_ERR(sgl_desc)) {
 		pr_err("%s failed to map memory in stage 2 rc: %d\n", __func__,
 		       PTR_ERR(sgl_desc));
-		return sgl_desc;
+		return PTR_ERR(sgl_desc);
 	}
 
 	if (op == GH_RM_TRANS_TYPE_DONATE)
@@ -218,7 +240,8 @@ struct gh_sgl_desc *mem_buf_map_mem_s2(u32 op, gh_memparcel_handle_t *__memparce
 		goto err_relinquish;
 
 	trace_map_mem_s2(memparcel_hdl, sgl_desc);
-	return sgl_desc;
+	*__sgl_desc = sgl_desc;
+	return 0;
 
 err_relinquish:
 	if (op == GH_RM_TRANS_TYPE_DONATE)
@@ -226,12 +249,18 @@ err_relinquish:
 					__memparcel_hdl);
 	else
 		ret2 = mem_buf_unmap_mem_s2(memparcel_hdl);
-	kvfree(sgl_desc);
+
+	/*
+	 * Only free sgl_desc if caller passed NULL in *__sgl_desc to request
+	 * gh_rm_mem_accept to allocate new IPA/sgl_desc.
+	 */
+	if (sgl_desc != *__sgl_desc)
+		kvfree(sgl_desc);
 	if (ret2) {
 		pr_err("%s failed to recover\n", __func__);
-		return ERR_PTR(-EADDRNOTAVAIL);
+		return -EADDRNOTAVAIL;
 	}
-	return ERR_PTR(ret);
+	return ret;
 }
 EXPORT_SYMBOL(mem_buf_map_mem_s2);
 

@@ -396,7 +396,7 @@ static void mem_buf_cleanup_alloc_req(struct mem_buf_xfer_mem *xfer_mem,
 			if (ret < 0)
 				return;
 		} else {
-			struct gh_sgl_desc *sgl_desc;
+			struct gh_sgl_desc *sgl_desc = NULL;
 			struct gh_acl_desc *acl_desc;
 			size_t size;
 
@@ -409,9 +409,9 @@ static void mem_buf_cleanup_alloc_req(struct mem_buf_xfer_mem *xfer_mem,
 			acl_desc->acl_entries[0].vmid = VMID_HLOS;
 			acl_desc->acl_entries[0].perms = GH_RM_ACL_X | GH_RM_ACL_W | GH_RM_ACL_R;
 
-			sgl_desc = mem_buf_map_mem_s2(GH_RM_TRANS_TYPE_DONATE, &memparcel_hdl,
-						      acl_desc, VMID_TUIVM);
-			if (IS_ERR(sgl_desc)) {
+			ret = mem_buf_map_mem_s2(GH_RM_TRANS_TYPE_DONATE, &memparcel_hdl,
+						      acl_desc, &sgl_desc, VMID_TUIVM);
+			if (ret) {
 				kfree(acl_desc);
 				return;
 			}
@@ -879,7 +879,6 @@ static void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
 	int ret;
 	struct file *filp;
 	struct mem_buf_desc *membuf;
-	struct gh_sgl_desc *sgl_desc;
 	int perms = PERM_READ | PERM_WRITE | PERM_EXEC;
 
 	if (!(mem_buf_capability & MEM_BUF_CAP_CONSUMER))
@@ -897,6 +896,8 @@ static void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
 
 	pr_debug("%s: mem buf alloc begin\n", __func__);
 	membuf->size = ALIGN(alloc_data->size, MEM_BUF_MHP_ALIGNMENT);
+
+	/* Create copies of data structures from alloc_data as they may be on-stack */
 	membuf->acl_desc = mem_buf_vmid_perm_list_to_gh_acl(
 				alloc_data->vmids, &perms,
 				alloc_data->nr_acl_entries);
@@ -904,6 +905,15 @@ static void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
 		ret = PTR_ERR(membuf->acl_desc);
 		goto err_alloc_acl_list;
 	}
+
+	if (alloc_data->sgl_desc) {
+		membuf->sgl_desc = dup_gh_sgl_desc(alloc_data->sgl_desc);
+		if (IS_ERR(membuf->sgl_desc)) {
+			ret = PTR_ERR(membuf->sgl_desc);
+			goto err_alloc_sgl_desc;
+		}
+	}
+
 	membuf->trans_type = alloc_data->trans_type;
 	membuf->src_mem_type = alloc_data->src_mem_type;
 	membuf->dst_mem_type = alloc_data->dst_mem_type;
@@ -936,11 +946,10 @@ static void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
 	if (ret)
 		goto err_mem_req;
 
-	sgl_desc = mem_buf_map_mem_s2(membuf->trans_type, &membuf->memparcel_hdl,
-				      membuf->acl_desc, VMID_HLOS);
-	if (IS_ERR(sgl_desc))
+	ret = mem_buf_map_mem_s2(membuf->trans_type, &membuf->memparcel_hdl,
+				 membuf->acl_desc, &membuf->sgl_desc, VMID_HLOS);
+	if (ret)
 		goto err_map_mem_s2;
-	membuf->sgl_desc = sgl_desc;
 
 	ret = mem_buf_map_mem_s1(membuf->sgl_desc);
 	if (ret)
@@ -975,7 +984,6 @@ err_get_file:
 err_map_mem_s1:
 err_map_mem_s2:
 	mem_buf_relinquish_mem(membuf);
-	kvfree(membuf->sgl_desc);
 err_mem_req:
 	mem_buf_destroy_txn(mem_buf_msgq_hdl, membuf->txn);
 err_init_txn:
@@ -983,6 +991,9 @@ err_init_txn:
 err_alloc_dst_data:
 	mem_buf_free_mem_type_data(membuf->src_mem_type, membuf->src_data);
 err_alloc_src_data:
+	if (membuf->sgl_desc)
+		kvfree(membuf->sgl_desc);
+err_alloc_sgl_desc:
 	kfree(membuf->acl_desc);
 err_alloc_acl_list:
 	kfree(membuf);
@@ -1077,7 +1088,8 @@ struct dma_buf *mem_buf_retrieve(struct mem_buf_retrieve_kernel_arg *arg)
 	int ret, op;
 	struct qcom_sg_buffer *buffer;
 	struct gh_acl_desc *acl_desc;
-	struct gh_sgl_desc *sgl_desc;
+	/* Hypervisor picks the IPA address */
+	struct gh_sgl_desc *sgl_desc = NULL;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	struct dma_buf *dmabuf;
 	struct sg_table *sgt;
@@ -1100,11 +1112,10 @@ struct dma_buf *mem_buf_retrieve(struct mem_buf_retrieve_kernel_arg *arg)
 	}
 
 	op = mem_buf_get_mem_xfer_type_gh(acl_desc, arg->sender_vmid);
-	sgl_desc = mem_buf_map_mem_s2(op, &arg->memparcel_hdl, acl_desc, arg->sender_vmid);
-	if (IS_ERR(sgl_desc)) {
-		ret = PTR_ERR(sgl_desc);
+	ret = mem_buf_map_mem_s2(op, &arg->memparcel_hdl, acl_desc, &sgl_desc,
+					arg->sender_vmid);
+	if (ret)
 		goto err_map_s2;
-	}
 
 	ret = mem_buf_map_mem_s1(sgl_desc);
 	if (ret < 0)
@@ -1173,6 +1184,7 @@ static int mem_buf_prep_alloc_data(struct mem_buf_allocation_data *alloc_data,
 		goto err_acl;
 
 	/* alloc_data->trans_type set later according to src&dest_mem_type */
+	alloc_data->sgl_desc = NULL;
 	alloc_data->src_mem_type = allocation_args->src_mem_type;
 	alloc_data->dst_mem_type = allocation_args->dst_mem_type;
 
