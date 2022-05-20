@@ -1608,7 +1608,7 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 
 	if (rtwdev->scanning &&
 	    RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD, &rtwdev->fw)) {
-		u8 chan = hal->current_channel;
+		u8 chan = hal->current_primary_channel;
 		u8 band = hal->current_band_type;
 		enum nl80211_band nl_band;
 
