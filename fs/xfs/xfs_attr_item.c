@@ -349,6 +349,7 @@ xfs_attr_log_item(
 	 */
 	attrp = &attrip->attri_format;
 	attrp->alfi_ino = attr->xattri_da_args->dp->i_ino;
+	ASSERT(!(attr->xattri_op_flags & ~XFS_ATTR_OP_FLAGS_TYPE_MASK));
 	attrp->alfi_op_flags = attr->xattri_op_flags;
 	attrp->alfi_value_len = attr->xattri_da_args->valuelen;
 	attrp->alfi_name_len = attr->xattri_da_args->namelen;
@@ -496,6 +497,9 @@ xfs_attri_validate(
 	if (attrp->__pad != 0)
 		return false;
 
+	if (attrp->alfi_op_flags & ~XFS_ATTR_OP_FLAGS_TYPE_MASK)
+		return false;
+
 	/* alfi_op_flags should be either a set or remove */
 	switch (op) {
 	case XFS_ATTR_OP_FLAGS_SET:
@@ -556,7 +560,8 @@ xfs_attri_item_recover(
 	args = (struct xfs_da_args *)(attr + 1);
 
 	attr->xattri_da_args = args;
-	attr->xattri_op_flags = attrp->alfi_op_flags;
+	attr->xattri_op_flags = attrp->alfi_op_flags &
+						XFS_ATTR_OP_FLAGS_TYPE_MASK;
 
 	args->dp = ip;
 	args->geo = mp->m_attr_geo;
@@ -567,7 +572,7 @@ xfs_attri_item_recover(
 	args->attr_filter = attrp->alfi_attr_flags;
 	args->op_flags = XFS_DA_OP_RECOVERY | XFS_DA_OP_OKNOENT;
 
-	switch (attrp->alfi_op_flags & XFS_ATTR_OP_FLAGS_TYPE_MASK) {
+	switch (attr->xattri_op_flags) {
 	case XFS_ATTR_OP_FLAGS_SET:
 	case XFS_ATTR_OP_FLAGS_REPLACE:
 		args->value = attrip->attri_value;
