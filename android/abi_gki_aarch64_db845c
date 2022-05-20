@@ -319,6 +319,7 @@
   ktime_get
   ktime_get_mono_fast_ns
   ktime_get_real_ts64
+  ktime_get_with_offset
   kvfree
   kvfree_call_rcu
   kvmalloc_node
@@ -605,6 +606,7 @@
   strlen
   strncmp
   strncpy
+  strnlen
   strpbrk
   strsep
   __sw_hweight16
@@ -897,7 +899,9 @@
   dma_buf_put
   dma_buf_unmap_attachment
   dma_get_sgtable_attrs
+  down_read
   find_vma
+  up_read
   wait_for_completion_interruptible
 
 # required by gpio-regulator.ko
@@ -1018,7 +1022,6 @@
   kernel_param_unlock
   kfree_skb_list
   ktime_get_seconds
-  ktime_get_with_offset
   napi_gro_receive
   netdev_set_default_ethtool_ops
   netif_carrier_off
@@ -1413,9 +1416,6 @@
   usb_put_hcd
   usb_remove_hcd
 
-# required by pdr_interface.ko
-  strnlen
-
 # required by phy-qcom-qmp.ko
   of_clk_get_by_name
   __of_reset_control_get
@@ -1647,6 +1647,8 @@
   mmc_regulator_set_vqmmc
   mmc_send_tuning
   regulator_is_supported_voltage
+  __reset_control_get
+  reset_control_put
   __sdhci_add_host
   sdhci_add_host
   sdhci_cleanup_host
