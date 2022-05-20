@@ -8,6 +8,7 @@
 #include "rv1106.dtsi"
 #include "rv1106-evb.dtsi"
 #include "rv1106-thunder-boot-spi-nor.dtsi"
+#include "rv1106-smd-cam.dtsi"
 
 / {
 	model = "Rockchip RV1106G Smart Door Lock RMSL V10 Board";
@@ -48,14 +49,6 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	vcc1v2_dvdd: vcc1v8_dovdd: vcc2v8_avdd: vcc-camera {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_camera";
-		regulator-boot-on;
-		gpio = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-
 	vdd_arm: vdd-arm {
 		compatible = "pwm-regulator";
 		pwms = <&pwm0 0 5000 1>;
@@ -75,42 +68,6 @@
 		regulator-boot-on;
 		gpio = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-	};
-};
-
-&csi2_dphy_hw {
-	status = "okay";
-};
-
-&csi2_dphy0 {
-	status = "okay";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			csi_dphy_input0: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&gc2093_out>;
-				data-lanes = <1 2>;
-			};
-		};
-
-		port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			csi_dphy_output: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&mipi_csi2_input>;
-			};
-		};
 	};
 };
 
@@ -142,67 +99,6 @@
 	status = "disabled";
 };
 
-&i2c4 {
-	status = "okay";
-	clock-frequency = <400000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c4m2_xfer>;
-
-	gc2093: gc2093b@7e{ //RGB
-		status = "okay";
-		compatible = "galaxycore,gc2093";
-		reg = <0x7e>;
-		avdd-supply = <&vcc2v8_avdd>;
-		dovdd-supply = <&vcc1v8_dovdd>;
-		dvdd-supply = <&vcc1v2_dvdd>;
-		clock-names = "xvclk";
-		pinctrl-names = "default";
-		pwdn-gpios = <&gpio3 RK_PD3 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
-		rockchip,camera-module-index = <1>;
-		rockchip,camera-module-facing = "front";
-		rockchip,camera-module-name = "YT-RV1109-2-V1";
-		rockchip,camera-module-lens-name = "40IR-2MP-F20";
-		port {
-			gc2093_out: endpoint {
-					remote-endpoint = <&csi_dphy_input0>;
-					data-lanes = <1 2>;
-			};
-		};
-	};
-};
-
-&mipi0_csi2 {
-	status = "okay";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			mipi_csi2_input: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&csi_dphy_output>;
-			};
-		};
-
-		port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			mipi_csi2_output: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&cif_mipi_in>;
-			};
-		};
-	};
-};
-
 &pinctrl {
 	mcu {
 		/omit-if-no-ref/
@@ -219,48 +115,6 @@
 
 &pwm0 {
 	status = "okay";
-};
-
-&rkcif {
-	status = "okay";
-};
-
-&rkcif_mipi_lvds {
-	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&mipi_pins>;
-	port {
-		/* MIPI CSI-2 endpoint */
-		cif_mipi_in: endpoint {
-			remote-endpoint = <&mipi_csi2_output>;
-		};
-	};
-};
-
-&rkcif_mipi_lvds_sditf {
-	status = "okay";
-
-	port {
-		/* MIPI CSI-2 endpoint */
-		mipi_lvds_sditf: endpoint {
-			remote-endpoint = <&isp_in>;
-		};
-	};
-};
-
-&rkisp {
-	status = "okay";
-};
-
-&rkisp_vir0 {
-	status = "okay";
-
-	port@0 {
-		isp_in: endpoint {
-			remote-endpoint = <&mipi_lvds_sditf>;
-		};
-	};
 };
 
 &sdio {
