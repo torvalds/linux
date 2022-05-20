@@ -45,44 +45,44 @@
 #define ICDMAER	0x3c	/* DMA enable (Gen3) */
 
 /* ICSCR */
-#define SDBS	(1 << 3)	/* slave data buffer select */
-#define SIE	(1 << 2)	/* slave interface enable */
-#define GCAE	(1 << 1)	/* general call address enable */
-#define FNA	(1 << 0)	/* forced non acknowledgment */
+#define SDBS	BIT(3)	/* slave data buffer select */
+#define SIE	BIT(2)	/* slave interface enable */
+#define GCAE	BIT(1)	/* general call address enable */
+#define FNA	BIT(0)	/* forced non acknowledgment */
 
 /* ICMCR */
-#define MDBS	(1 << 7)	/* non-fifo mode switch */
-#define FSCL	(1 << 6)	/* override SCL pin */
-#define FSDA	(1 << 5)	/* override SDA pin */
-#define OBPC	(1 << 4)	/* override pins */
-#define MIE	(1 << 3)	/* master if enable */
-#define TSBE	(1 << 2)
-#define FSB	(1 << 1)	/* force stop bit */
-#define ESG	(1 << 0)	/* enable start bit gen */
+#define MDBS	BIT(7)	/* non-fifo mode switch */
+#define FSCL	BIT(6)	/* override SCL pin */
+#define FSDA	BIT(5)	/* override SDA pin */
+#define OBPC	BIT(4)	/* override pins */
+#define MIE	BIT(3)	/* master if enable */
+#define TSBE	BIT(2)
+#define FSB	BIT(1)	/* force stop bit */
+#define ESG	BIT(0)	/* enable start bit gen */
 
 /* ICSSR (also for ICSIER) */
-#define GCAR	(1 << 6)	/* general call received */
-#define STM	(1 << 5)	/* slave transmit mode */
-#define SSR	(1 << 4)	/* stop received */
-#define SDE	(1 << 3)	/* slave data empty */
-#define SDT	(1 << 2)	/* slave data transmitted */
-#define SDR	(1 << 1)	/* slave data received */
-#define SAR	(1 << 0)	/* slave addr received */
+#define GCAR	BIT(6)	/* general call received */
+#define STM	BIT(5)	/* slave transmit mode */
+#define SSR	BIT(4)	/* stop received */
+#define SDE	BIT(3)	/* slave data empty */
+#define SDT	BIT(2)	/* slave data transmitted */
+#define SDR	BIT(1)	/* slave data received */
+#define SAR	BIT(0)	/* slave addr received */
 
 /* ICMSR (also for ICMIE) */
-#define MNR	(1 << 6)	/* nack received */
-#define MAL	(1 << 5)	/* arbitration lost */
-#define MST	(1 << 4)	/* sent a stop */
-#define MDE	(1 << 3)
-#define MDT	(1 << 2)
-#define MDR	(1 << 1)
-#define MAT	(1 << 0)	/* slave addr xfer done */
+#define MNR	BIT(6)	/* nack received */
+#define MAL	BIT(5)	/* arbitration lost */
+#define MST	BIT(4)	/* sent a stop */
+#define MDE	BIT(3)
+#define MDT	BIT(2)
+#define MDR	BIT(1)
+#define MAT	BIT(0)	/* slave addr xfer done */
 
 /* ICDMAER */
-#define RSDMAE	(1 << 3)	/* DMA Slave Received Enable */
-#define TSDMAE	(1 << 2)	/* DMA Slave Transmitted Enable */
-#define RMDMAE	(1 << 1)	/* DMA Master Received Enable */
-#define TMDMAE	(1 << 0)	/* DMA Master Transmitted Enable */
+#define RSDMAE	BIT(3)	/* DMA Slave Received Enable */
+#define TSDMAE	BIT(2)	/* DMA Slave Transmitted Enable */
+#define RMDMAE	BIT(1)	/* DMA Master Received Enable */
+#define TMDMAE	BIT(0)	/* DMA Master Transmitted Enable */
 
 /* ICFBSCR */
 #define TCYC17	0x0f		/* 17*Tcyc delay 1st bit between SDA and SCL */
@@ -97,11 +97,11 @@
 #define RCAR_IRQ_RECV	(MNR | MAL | MST | MAT | MDR)
 #define RCAR_IRQ_STOP	(MST)
 
-#define ID_LAST_MSG	(1 << 0)
-#define ID_DONE		(1 << 2)
-#define ID_ARBLOST	(1 << 3)
-#define ID_NACK		(1 << 4)
-#define ID_EPROTO	(1 << 5)
+#define ID_LAST_MSG		BIT(0)
+#define ID_DONE			BIT(2)
+#define ID_ARBLOST		BIT(3)
+#define ID_NACK			BIT(4)
+#define ID_EPROTO		BIT(5)
 /* persistent flags */
 #define ID_P_HOST_NOTIFY	BIT(28)
 #define ID_P_REP_AFTER_RD	BIT(29)
