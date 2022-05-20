@@ -1016,12 +1016,9 @@ static enum mapping_status get_mapping_status(struct sock *ssk,
 		pr_debug("infinite mapping received");
 		MPTCP_INC_STATS(sock_net(ssk), MPTCP_MIB_INFINITEMAPRX);
 		subflow->map_data_len = 0;
-		if (sk && inet_sk_state_load(sk) != TCP_CLOSE) {
-			mptcp_data_lock(sk);
-			if (inet_sk_state_load(sk) != TCP_CLOSE)
-				sk_stop_timer(sk, &sk->sk_timer);
-			mptcp_data_unlock(sk);
-		}
+		if (!sock_flag(ssk, SOCK_DEAD))
+			sk_stop_timer(sk, &sk->sk_timer);
+
 		return MAPPING_INVALID;
 	}
 
@@ -1233,8 +1230,7 @@ fallback:
 	if (!__mptcp_check_fallback(msk)) {
 		/* RFC 8684 section 3.7. */
 		if (subflow->send_mp_fail) {
-			if (mptcp_has_another_subflow(ssk) ||
-			    !READ_ONCE(msk->allow_infinite_fallback)) {
+			if (!READ_ONCE(msk->allow_infinite_fallback)) {
 				ssk->sk_err = EBADMSG;
 				tcp_set_state(ssk, TCP_CLOSE);
 				subflow->reset_transient = 0;
@@ -1242,9 +1238,8 @@ fallback:
 				tcp_send_active_reset(ssk, GFP_ATOMIC);
 				while ((skb = skb_peek(&ssk->sk_receive_queue)))
 					sk_eat_skb(ssk, skb);
-			} else {
+			} else if (!sock_flag(ssk, SOCK_DEAD)) {
 				WRITE_ONCE(subflow->mp_fail_response_expect, true);
-				/* The data lock is acquired in __mptcp_move_skbs() */
 				sk_reset_timer((struct sock *)msk,
 					       &((struct sock *)msk)->sk_timer,
 					       jiffies + TCP_RTO_MAX);

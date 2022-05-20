@@ -117,7 +117,6 @@
 #define MPTCP_WORK_EOF		3
 #define MPTCP_FALLBACK_DONE	4
 #define MPTCP_WORK_CLOSE_SUBFLOW 5
-#define MPTCP_FAIL_NO_RESPONSE	6
 
 /* MPTCP socket release cb flags */
 #define MPTCP_PUSH_PENDING	1
@@ -648,19 +647,6 @@ static inline void mptcp_subflow_tcp_fallback(struct sock *sk,
 	sk->sk_error_report = ctx->tcp_error_report;
 
 	inet_csk(sk)->icsk_af_ops = ctx->icsk_af_ops;
-}
-
-static inline bool mptcp_has_another_subflow(struct sock *ssk)
-{
-	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk), *tmp;
-	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
-
-	mptcp_for_each_subflow(msk, tmp) {
-		if (tmp != subflow)
-			return true;
-	}
-
-	return false;
 }
 
 void __init mptcp_proto_init(void);
