@@ -259,9 +259,9 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 	fwhdr = (struct rt_firmware_hdr *)dvobj->firmware.data;
 
 	if (IS_FW_HEADER_EXIST(fwhdr)) {
-		pr_info_once("R8188EU: Firmware Version %d, SubVersion %d, Signature 0x%x\n",
-			     le16_to_cpu(fwhdr->version), fwhdr->subversion,
-			     le16_to_cpu(fwhdr->signature));
+		dev_info_once(device, "Firmware Version %d, SubVersion %d, Signature 0x%x\n",
+			      le16_to_cpu(fwhdr->version), fwhdr->subversion,
+			      le16_to_cpu(fwhdr->signature));
 
 		fw_data = fw_data + sizeof(struct rt_firmware_hdr);
 		fw_size = fw_size - sizeof(struct rt_firmware_hdr);
