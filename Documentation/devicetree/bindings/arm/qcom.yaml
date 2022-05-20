@@ -631,8 +631,11 @@ properties:
 
       - items:
           - enum:
+              - microsoft,surface-duo2
               - qcom,sm8350-hdk
               - qcom,sm8350-mtp
+              - sony,pdx214-generic
+              - sony,pdx215-generic
           - const: qcom,sm8350
 
       - items:
