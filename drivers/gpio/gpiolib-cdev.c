@@ -421,6 +421,10 @@ out_free_lh:
  * @work: the worker that implements software debouncing
  * @sw_debounced: flag indicating if the software debouncer is active
  * @level: the current debounced physical level of the line
+ * @hdesc: the Hardware Timestamp Engine (HTE) descriptor
+ * @raw_level: the line level at the time of event
+ * @total_discard_seq: the running counter of the discarded events
+ * @last_seqno: the last sequence number before debounce period expires
  */
 struct line {
 	struct gpio_desc *desc;
