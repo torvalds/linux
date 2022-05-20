@@ -15,9 +15,6 @@ description: |
   AHB. There is one bridge instance per USB port connected to the internal
   OHCI and EHCI controllers.
 
-allOf:
-  - $ref: /schemas/pci/pci-bus.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -32,6 +29,10 @@ properties:
               - renesas,pci-r8a7793      # R-Car M2-N
               - renesas,pci-r8a7794      # R-Car E2
           - const: renesas,pci-rcar-gen2 # R-Car Gen2 and RZ/G1
+      - items:
+          - enum:
+              - renesas,pci-r9a06g032     # RZ/N1D
+          - const: renesas,pci-rzn1       # RZ/N1
 
   reg:
     items:
@@ -41,13 +42,9 @@ properties:
   interrupts:
     maxItems: 1
 
-  clocks:
-    items:
-      - description: Device clock
+  clocks: true
 
-  clock-names:
-    items:
-      - const: pclk
+  clock-names: true
 
   resets:
     maxItems: 1
@@ -106,12 +103,45 @@ required:
   - interrupt-map
   - interrupt-map-mask
   - clocks
-  - resets
   - power-domains
   - bus-range
   - "#address-cells"
   - "#size-cells"
   - "#interrupt-cells"
+
+allOf:
+  - $ref: /schemas/pci/pci-bus.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,pci-rzn1
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Internal bus clock (AHB) for HOST
+            - description: Internal bus clock (AHB) Power Management
+            - description: PCI clock for USB subsystem
+        clock-names:
+          items:
+            - const: hclkh
+            - const: hclkpm
+            - const: pciclk
+      required:
+        - clock-names
+    else:
+      properties:
+        clocks:
+          items:
+            - description: Device clock
+        clock-names:
+          items:
+            - const: pclk
+      required:
+        - resets
 
 unevaluatedProperties: false
 
