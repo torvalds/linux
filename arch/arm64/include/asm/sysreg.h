@@ -462,8 +462,6 @@
 #define SMIDR_EL1_SMPS_SHIFT	15
 #define SMIDR_EL1_AFFINITY_SHIFT	0
 
-#define SYS_CSSELR_EL1			sys_reg(3, 2, 0, 0, 0)
-
 #define SYS_CTR_EL0			sys_reg(3, 3, 0, 0, 1)
 #define SYS_DCZID_EL0			sys_reg(3, 3, 0, 0, 7)
 
