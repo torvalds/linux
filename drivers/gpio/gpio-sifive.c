@@ -75,10 +75,12 @@ static void sifive_gpio_irq_enable(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct sifive_gpio *chip = gpiochip_get_data(gc);
-	int offset = irqd_to_hwirq(d) % SIFIVE_GPIO_MAX;
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	int offset = hwirq % SIFIVE_GPIO_MAX;
 	u32 bit = BIT(offset);
 	unsigned long flags;
 
+	gpiochip_enable_irq(gc, hwirq);
 	irq_chip_enable_parent(d);
 
 	/* Switch to input */
@@ -101,11 +103,13 @@ static void sifive_gpio_irq_disable(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct sifive_gpio *chip = gpiochip_get_data(gc);
-	int offset = irqd_to_hwirq(d) % SIFIVE_GPIO_MAX;
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	int offset = hwirq % SIFIVE_GPIO_MAX;
 
 	assign_bit(offset, &chip->irq_state, 0);
 	sifive_gpio_set_ie(chip, offset);
 	irq_chip_disable_parent(d);
+	gpiochip_disable_irq(gc, hwirq);
 }
 
 static void sifive_gpio_irq_eoi(struct irq_data *d)
@@ -137,7 +141,7 @@ static int sifive_gpio_irq_set_affinity(struct irq_data *data,
 	return -EINVAL;
 }
 
-static struct irq_chip sifive_gpio_irqchip = {
+static const struct irq_chip sifive_gpio_irqchip = {
 	.name		= "sifive-gpio",
 	.irq_set_type	= sifive_gpio_irq_set_type,
 	.irq_mask	= irq_chip_mask_parent,
@@ -146,6 +150,8 @@ static struct irq_chip sifive_gpio_irqchip = {
 	.irq_disable	= sifive_gpio_irq_disable,
 	.irq_eoi	= sifive_gpio_irq_eoi,
 	.irq_set_affinity = sifive_gpio_irq_set_affinity,
+	.flags		= IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static int sifive_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
@@ -242,7 +248,7 @@ static int sifive_gpio_probe(struct platform_device *pdev)
 	chip->gc.parent = dev;
 	chip->gc.owner = THIS_MODULE;
 	girq = &chip->gc.irq;
-	girq->chip = &sifive_gpio_irqchip;
+	gpio_irq_chip_set_chip(girq, &sifive_gpio_irqchip);
 	girq->fwnode = of_node_to_fwnode(node);
 	girq->parent_domain = parent;
 	girq->child_to_parent_hwirq = sifive_gpio_child_to_parent_hwirq;
