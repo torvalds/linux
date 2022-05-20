@@ -289,6 +289,8 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	if (!mt76_is_mmio(&dev->mt76))
 		hw->extra_tx_headroom += MT_SDIO_TXD_SIZE + MT_SDIO_HDR_SIZE;
 
+	mt7921_init_acpi_sar(dev);
+
 	ret = mt7921_init_wcid(dev);
 	if (ret)
 		return ret;
