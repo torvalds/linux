@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _QCOM_DT_PARSER_H
@@ -33,7 +34,6 @@ struct platform_heap {
 	size_t size;
 	struct device *dev;
 	bool is_uncached;
-	bool is_dynamic;
 	bool is_nomap;
 	u32 token;
 	u32 max_align;

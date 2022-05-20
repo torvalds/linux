@@ -98,32 +98,37 @@ int mem_buf_reclaim(struct dma_buf *dmabuf);
 
 #if IS_ENABLED(CONFIG_QCOM_MEM_BUF)
 
-int mem_buf_get_fd(void *membuf_desc);
-
-void mem_buf_put(void *membuf_desc);
-
-void *mem_buf_get(int fd);
-
+void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data);
+void mem_buf_free(void *membuf);
 struct gh_sgl_desc *mem_buf_get_sgl(void *membuf);
 #else
 
-static inline int mem_buf_get_fd(void *membuf_desc)
-{
-	return -ENODEV;
-}
-
-static inline void mem_buf_put(void *membuf_desc)
-{
-}
-
-static inline void *mem_buf_get(int fd)
+static inline void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
 {
 	return ERR_PTR(-ENODEV);
 }
+
+static inline void mem_buf_free(void *membuf) {}
 
 static inline struct gh_sgl_desc *mem_buf_get_sgl(void *membuf)
 {
 	return ERR_PTR(-EINVAL);
 }
 #endif /* CONFIG_QCOM_MEM_BUF */
+
+
+#ifdef CONFIG_QCOM_MEM_BUF_DEV_GH
+int mem_buf_map_mem_s1(struct gh_sgl_desc *sgl_desc);
+int mem_buf_unmap_mem_s1(struct gh_sgl_desc *sgl_desc);
+#else
+static inline int mem_buf_map_mem_s1(struct gh_sgl_desc *sgl_desc)
+{
+	return -EINVAL;
+}
+
+static inline int mem_buf_unmap_mem_s1(struct gh_sgl_desc *sgl_desc)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_QCOM_MEM_BUF_DEV_GH */
 #endif /* _MEM_BUF_H */

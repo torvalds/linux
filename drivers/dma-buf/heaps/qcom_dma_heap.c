@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -9,6 +10,7 @@
 #include <linux/err.h>
 
 #include <linux/qcom_dma_heap.h>
+#include <linux/qcom_tui_heap.h>
 #include "qcom_cma_heap.h"
 #include "qcom_dt_parser.h"
 #include "qcom_system_heap.h"
@@ -65,6 +67,16 @@ static int qcom_dma_heap_probe(struct platform_device *pdev)
 				pr_info("%s: DMA-BUF Heap: Created %s\n", __func__,
 					heap_data->name);
 			break;
+		case HEAP_TYPE_TUI_CARVEOUT:
+			ret = qcom_tui_carveout_heap_create(heap_data);
+			if (ret)
+				pr_err("%s: DMA-BUF Heap: Failed to create %s, error is %d\n",
+				       __func__, heap_data->name, ret);
+			else
+				pr_info("%s: DMA-BUF Heap: Created %s\n", __func__,
+					heap_data->name);
+			break;
+
 		default:
 			pr_err("%s: Unknown heap type %u\n", __func__, heap_data->type);
 			break;
