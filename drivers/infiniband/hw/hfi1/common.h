@@ -138,29 +138,6 @@
 			     HFI1_USER_SWMINOR)
 
 /*
- * Diagnostics can send a packet by writing the following
- * struct to the diag packet special file.
- *
- * This allows a custom PBC qword, so that special modes and deliberate
- * changes to CRCs can be used.
- */
-#define _DIAG_PKT_VERS 1
-struct diag_pkt {
-	__u16 version;		/* structure version */
-	__u16 unit;		/* which device */
-	__u16 sw_index;		/* send sw index to use */
-	__u16 len;		/* data length, in bytes */
-	__u16 port;		/* port number */
-	__u16 unused;
-	__u32 flags;		/* call flags */
-	__u64 data;		/* user data pointer */
-	__u64 pbc;		/* PBC for the packet */
-};
-
-/* diag_pkt flags */
-#define F_DIAGPKT_WAIT 0x1	/* wait until packet is sent */
-
-/*
  * The next set of defines are for packet headers, and chip register
  * and memory bits that are visible to and/or used by user-mode software.
  */
