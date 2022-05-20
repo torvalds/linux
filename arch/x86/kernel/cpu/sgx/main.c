@@ -292,7 +292,7 @@ static void sgx_reclaimer_write(struct sgx_epc_page *epc_page,
 	sgx_encl_put_backing(backing);
 
 	if (!encl->secs_child_cnt && test_bit(SGX_ENCL_INITIALIZED, &encl->flags)) {
-		ret = sgx_encl_get_backing(encl, PFN_DOWN(encl->size),
+		ret = sgx_encl_alloc_backing(encl, PFN_DOWN(encl->size),
 					   &secs_backing);
 		if (ret)
 			goto out;
@@ -365,7 +365,7 @@ static void sgx_reclaim_pages(void)
 		page_index = PFN_DOWN(encl_page->desc - encl_page->encl->base);
 
 		mutex_lock(&encl_page->encl->lock);
-		ret = sgx_encl_get_backing(encl_page->encl, page_index, &backing[i]);
+		ret = sgx_encl_alloc_backing(encl_page->encl, page_index, &backing[i]);
 		if (ret) {
 			mutex_unlock(&encl_page->encl->lock);
 			goto skip;
@@ -460,6 +460,11 @@ static bool __init sgx_page_reclaimer_init(void)
 	ksgxd_tsk = tsk;
 
 	return true;
+}
+
+bool current_is_ksgxd(void)
+{
+	return current == ksgxd_tsk;
 }
 
 static struct sgx_epc_page *__sgx_alloc_epc_page_from_node(int nid)
