@@ -6176,32 +6176,6 @@ Valid values for 'type' are:
  - KVM_SYSTEM_EVENT_SUSPEND -- the guest has requested a suspension of
    the VM.
 
-For arm/arm64:
---------------
-
-   KVM_SYSTEM_EVENT_SUSPEND exits are enabled with the
-   KVM_CAP_ARM_SYSTEM_SUSPEND VM capability. If a guest invokes the PSCI
-   SYSTEM_SUSPEND function, KVM will exit to userspace with this event
-   type.
-
-   It is the sole responsibility of userspace to implement the PSCI
-   SYSTEM_SUSPEND call according to ARM DEN0022D.b 5.19 "SYSTEM_SUSPEND".
-   KVM does not change the vCPU's state before exiting to userspace, so
-   the call parameters are left in-place in the vCPU registers.
-
-   Userspace is _required_ to take action for such an exit. It must
-   either:
-
-    - Honor the guest request to suspend the VM. Userspace can request
-      in-kernel emulation of suspension by setting the calling vCPU's
-      state to KVM_MP_STATE_SUSPENDED. Userspace must configure the vCPU's
-      state according to the parameters passed to the PSCI function when
-      the calling vCPU is resumed. See ARM DEN0022D.b 5.19.1 "Intended use"
-      for details on the function parameters.
-
-    - Deny the guest request to suspend the VM. See ARM DEN0022D.b 5.19.2
-      "Caller responsibilities" for possible return values.
-
 If KVM_CAP_SYSTEM_EVENT_DATA is present, the 'data' field can contain
 architecture specific information for the system-level event.  Only
 the first `ndata` items (possibly zero) of the data array are valid.
@@ -6216,6 +6190,32 @@ the first `ndata` items (possibly zero) of the data array are valid.
 Previous versions of Linux defined a `flags` member in this struct.  The
 field is now aliased to `data[0]`.  Userspace can assume that it is only
 written if ndata is greater than 0.
+
+For arm/arm64:
+--------------
+
+KVM_SYSTEM_EVENT_SUSPEND exits are enabled with the
+KVM_CAP_ARM_SYSTEM_SUSPEND VM capability. If a guest invokes the PSCI
+SYSTEM_SUSPEND function, KVM will exit to userspace with this event
+type.
+
+It is the sole responsibility of userspace to implement the PSCI
+SYSTEM_SUSPEND call according to ARM DEN0022D.b 5.19 "SYSTEM_SUSPEND".
+KVM does not change the vCPU's state before exiting to userspace, so
+the call parameters are left in-place in the vCPU registers.
+
+Userspace is _required_ to take action for such an exit. It must
+either:
+
+ - Honor the guest request to suspend the VM. Userspace can request
+   in-kernel emulation of suspension by setting the calling vCPU's
+   state to KVM_MP_STATE_SUSPENDED. Userspace must configure the vCPU's
+   state according to the parameters passed to the PSCI function when
+   the calling vCPU is resumed. See ARM DEN0022D.b 5.19.1 "Intended use"
+   for details on the function parameters.
+
+ - Deny the guest request to suspend the VM. See ARM DEN0022D.b 5.19.2
+   "Caller responsibilities" for possible return values.
 
 ::
 
