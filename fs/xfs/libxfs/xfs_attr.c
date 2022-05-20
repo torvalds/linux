@@ -1401,8 +1401,10 @@ xfs_attr_node_hasname(
 	int			retval, error;
 
 	state = xfs_da_state_alloc(args);
-	if (statep != NULL)
+	if (statep != NULL) {
+		ASSERT(*statep == NULL);
 		*statep = state;
+	}
 
 	/*
 	 * Search to see if name exists, and get back a pointer to it.
@@ -1427,6 +1429,10 @@ xfs_attr_node_addname_find_attr(
 {
 	struct xfs_da_args	*args = attr->xattri_da_args;
 	int			error;
+
+	if (attr->xattri_da_state)
+		xfs_da_state_free(attr->xattri_da_state);
+	attr->xattri_da_state = NULL;
 
 	/*
 	 * Search to see if name already exists, and get back a pointer
@@ -1593,7 +1599,7 @@ STATIC int
 xfs_attr_node_get(
 	struct xfs_da_args	*args)
 {
-	struct xfs_da_state	*state;
+	struct xfs_da_state	*state = NULL;
 	struct xfs_da_state_blk	*blk;
 	int			i;
 	int			error;
