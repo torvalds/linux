@@ -212,6 +212,15 @@ Sysreg	SMCR_EL1	3	0	1	2	6
 Fields	SMCR_ELx
 EndSysreg
 
+SysregFields	CONTEXTIDR_ELx
+Res0	63:32
+Field	31:0	PROCID
+EndSysregFields
+
+Sysreg	CONTEXTIDR_EL1	3	0	13	0	1
+Fields	CONTEXTIDR_ELx
+EndSysreg
+
 Sysreg	CLIDR_EL1	3	1	0	0	1
 Res0	63:47
 Field	46:33	Ttypen
@@ -270,12 +279,20 @@ Sysreg	SMCR_EL2	3	4	1	2	6
 Fields	SMCR_ELx
 EndSysreg
 
+Sysreg	CONTEXTIDR_EL2	3	4	13	0	1
+Fields	CONTEXTIDR_ELx
+EndSysreg
+
 Sysreg	ZCR_EL12	3	5	1	2	0
 Fields	ZCR_ELx
 EndSysreg
 
 Sysreg	SMCR_EL12	3	5	1	2	6
 Fields	SMCR_ELx
+EndSysreg
+
+Sysreg	CONTEXTIDR_EL12	3	5	13	0	1
+Fields	CONTEXTIDR_ELx
 EndSysreg
 
 SysregFields TTBRx_EL1
