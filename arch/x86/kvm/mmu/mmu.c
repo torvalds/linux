@@ -3093,7 +3093,7 @@ fast_pf_fix_direct_spte(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 	 *
 	 * Compare with set_spte where instead shadow_dirty_mask is set.
 	 */
-	if (cmpxchg64(sptep, old_spte, new_spte) != old_spte)
+	if (!try_cmpxchg64(sptep, &old_spte, new_spte))
 		return false;
 
 	if (is_writable_pte(new_spte) && !is_writable_pte(old_spte))
