@@ -670,10 +670,12 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 	 * and make a list of them in holdouts.
 	 */
 	set_tasks_gp_state(rtp, RTGS_SCAN_TASKLIST);
-	rcu_read_lock();
-	for_each_process_thread(g, t)
-		rtp->pertask_func(t, &holdouts);
-	rcu_read_unlock();
+	if (rtp->pertask_func) {
+		rcu_read_lock();
+		for_each_process_thread(g, t)
+			rtp->pertask_func(t, &holdouts);
+		rcu_read_unlock();
+	}
 
 	set_tasks_gp_state(rtp, RTGS_POST_SCAN_TASKLIST);
 	rtp->postscan_func(&holdouts);
@@ -1746,7 +1748,6 @@ static int __init rcu_spawn_tasks_trace_kthread(void)
 			rcu_tasks_trace.init_fract = 1;
 	}
 	rcu_tasks_trace.pregp_func = rcu_tasks_trace_pregp_step;
-	rcu_tasks_trace.pertask_func = rcu_tasks_trace_pertask;
 	rcu_tasks_trace.postscan_func = rcu_tasks_trace_postscan;
 	rcu_tasks_trace.holdouts_func = check_all_holdout_tasks_trace;
 	rcu_tasks_trace.postgp_func = rcu_tasks_trace_postgp;
