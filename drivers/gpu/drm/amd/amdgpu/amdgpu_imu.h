@@ -35,6 +35,7 @@ struct amdgpu_imu_funcs {
     void (*setup_imu)(struct amdgpu_device *adev);
     int (*start_imu)(struct amdgpu_device *adev);
     void (*program_rlc_ram)(struct amdgpu_device *adev);
+    int (*wait_for_reset_status)(struct amdgpu_device *adev);
 };
 
 struct imu_rlc_ram_golden {
