@@ -8,6 +8,7 @@
  * V0.0X01.0X03 add enum_frame_interval function.
  * V0.0X01.0X04 add quick stream on/off
  * V0.0X01.0X05 add function g_mbus_config
+ * V0.0X01.0X06 add function reset gpio control
  */
 
 #include <linux/clk.h>
@@ -28,7 +29,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
@@ -103,6 +104,7 @@ struct sc132gs_mode {
 struct sc132gs {
 	struct i2c_client	*client;
 	struct clk		*xvclk;
+	struct gpio_desc	*reset_gpio;
 	struct gpio_desc	*pwdn_gpio;
 	struct regulator_bulk_data supplies[SC132GS_NUM_SUPPLIES];
 	struct pinctrl		*pinctrl;
@@ -533,7 +535,7 @@ static long sc132gs_compat_ioctl32(struct v4l2_subdev *sd,
 {
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
-	long ret;
+	long ret = 0;
 	u32 stream = 0;
 
 	switch (cmd) {
@@ -545,14 +547,18 @@ static long sc132gs_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = sc132gs_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
-		ret = copy_from_user(&stream, up, sizeof(u32));
-		if (!ret)
-			ret = sc132gs_ioctl(sd, cmd, &stream);
+		if (copy_from_user(&stream, up, sizeof(u32)))
+			return -EFAULT;
+
+		ret = sc132gs_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -649,12 +655,21 @@ static int sc132gs_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct sc132gs *sc132gs = to_sc132gs(sd);
 	struct i2c_client *client = sc132gs->client;
+	unsigned int fps;
 	int ret = 0;
 
 	mutex_lock(&sc132gs->mutex);
 	on = !!on;
 	if (on == sc132gs->streaming)
 		goto unlock_and_return;
+
+	fps = DIV_ROUND_CLOSEST(sc132gs->cur_mode->max_fps.denominator,
+				sc132gs->cur_mode->max_fps.numerator);
+
+	dev_info(&sc132gs->client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
+				sc132gs->cur_mode->width,
+				sc132gs->cur_mode->height,
+				fps);
 
 	if (on) {
 		ret = pm_runtime_get_sync(&client->dev);
@@ -761,8 +776,16 @@ static int __sc132gs_power_on(struct sc132gs *sc132gs)
 		goto disable_clk;
 	}
 
+	if (!IS_ERR(sc132gs->reset_gpio))
+		gpiod_set_value_cansleep(sc132gs->reset_gpio, 1);
+
+	usleep_range(1000, 2000);
+
 	if (!IS_ERR(sc132gs->pwdn_gpio))
 		gpiod_set_value_cansleep(sc132gs->pwdn_gpio, 1);
+
+	if (!IS_ERR(sc132gs->reset_gpio))
+		gpiod_set_value_cansleep(sc132gs->reset_gpio, 0);
 
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = sc132gs_cal_delay(8192);
@@ -779,6 +802,9 @@ disable_clk:
 static void __sc132gs_power_off(struct sc132gs *sc132gs)
 {
 	int ret;
+
+	if (!IS_ERR(sc132gs->reset_gpio))
+		gpiod_set_value_cansleep(sc132gs->reset_gpio, 1);
 
 	if (!IS_ERR(sc132gs->pwdn_gpio))
 		gpiod_set_value_cansleep(sc132gs->pwdn_gpio, 0);
@@ -850,7 +876,7 @@ static int sc132gs_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int sc132gs_g_mbus_config(struct v4l2_subdev *sd,
+static int sc132gs_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	u32 val = 0;
@@ -858,7 +884,7 @@ static int sc132gs_g_mbus_config(struct v4l2_subdev *sd,
 	val = 1 << (SC132GS_LANES - 1) |
 	      V4L2_MBUS_CSI2_CHANNEL_0 |
 	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -886,7 +912,6 @@ static const struct v4l2_subdev_core_ops sc132gs_core_ops = {
 static const struct v4l2_subdev_video_ops sc132gs_video_ops = {
 	.s_stream = sc132gs_s_stream,
 	.g_frame_interval = sc132gs_g_frame_interval,
-	.g_mbus_config = sc132gs_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops sc132gs_pad_ops = {
@@ -895,6 +920,7 @@ static const struct v4l2_subdev_pad_ops sc132gs_pad_ops = {
 	.enum_frame_interval = sc132gs_enum_frame_interval,
 	.get_fmt = sc132gs_get_fmt,
 	.set_fmt = sc132gs_set_fmt,
+	.get_mbus_config = sc132gs_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops sc132gs_subdev_ops = {
@@ -1097,6 +1123,10 @@ static int sc132gs_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
+
+	sc132gs->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(sc132gs->reset_gpio))
+		dev_warn(dev, "Failed to get reset-gpios\n");
 
 	sc132gs->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
 	if (IS_ERR(sc132gs->pwdn_gpio))
