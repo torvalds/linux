@@ -368,20 +368,19 @@ rockchip_rk3588_pll_clk_set_by_auto(struct rockchip_clk_pll *pll,
 		}
 		pr_err("CANNOT FIND Fout by auto,fout = %lu\n", fout_hz);
 	} else {
-		fout = (fout_hz / MHZ) * MHZ;
-		ffrac = (fout_hz % MHZ);
 		for (s = 0; s <= 6; s++) {
-			fvco = fout << s;
+			fvco = fout_hz << s;
 			if (fvco < fvco_min || fvco > fvco_max)
 				continue;
 			for (p = 1; p <= 4; p++) {
 				for (m = 64; m <= 1023; m++) {
-					if (fvco == m * fin_hz / p) {
+					if ((fvco >= m * fin_hz / p) && (fvco < (m + 1) * fin_hz / p)) {
 						rate_table->p = p;
 						rate_table->m = m;
 						rate_table->s = s;
 						fref = fin_hz / p;
-						fout = (ffrac << s) * 65535;
+						ffrac = fvco - (m * fref);
+						fout = ffrac * 65536;
 						rate_table->k = fout / fref;
 						return rate_table;
 					}
@@ -1289,6 +1288,15 @@ static int rockchip_rk3588_pll_wait_lock(struct rockchip_clk_pll *pll)
 	return ret;
 }
 
+static long rockchip_rk3588_pll_round_rate(struct clk_hw *hw,
+			    unsigned long drate, unsigned long *prate)
+{
+	if ((drate < 37 * MHZ) || (drate > 4500 * MHZ))
+		return -EINVAL;
+	else
+		return drate;
+}
+
 static void rockchip_rk3588_pll_get_params(struct rockchip_clk_pll *pll,
 					struct rockchip_pll_rate_table *rate)
 {
@@ -1328,7 +1336,7 @@ static unsigned long rockchip_rk3588_pll_recalc_rate(struct clk_hw *hw,
 		/* fractional mode */
 		u64 frac_rate64 = prate * cur.k;
 
-		postdiv = cur.p * 65535;
+		postdiv = cur.p * 65536;
 		do_div(frac_rate64, postdiv);
 		rate64 += frac_rate64;
 	}
@@ -1481,7 +1489,7 @@ static const struct clk_ops rockchip_rk3588_pll_clk_norate_ops = {
 
 static const struct clk_ops rockchip_rk3588_pll_clk_ops = {
 	.recalc_rate = rockchip_rk3588_pll_recalc_rate,
-	.round_rate = rockchip_pll_round_rate,
+	.round_rate = rockchip_rk3588_pll_round_rate,
 	.set_rate = rockchip_rk3588_pll_set_rate,
 	.enable = rockchip_rk3588_pll_enable,
 	.disable = rockchip_rk3588_pll_disable,
