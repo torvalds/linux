@@ -50,6 +50,7 @@ struct perf_inject {
 	bool			in_place_update;
 	bool			in_place_update_dry_run;
 	bool			is_pipe;
+	bool			copy_kcore_dir;
 	const char		*input_name;
 	struct perf_data	output;
 	u64			bytes_written;
@@ -880,6 +881,19 @@ static int feat_copy_cb(struct feat_copier *fc, int feat, struct feat_writer *fw
 	return 1; /* Feature section copied */
 }
 
+static int copy_kcore_dir(struct perf_inject *inject)
+{
+	char *cmd;
+	int ret;
+
+	ret = asprintf(&cmd, "cp -r -n %s/kcore_dir* %s >/dev/null 2>&1",
+		       inject->input_name, inject->output.path);
+	if (ret < 0)
+		return ret;
+	pr_debug("%s\n", cmd);
+	return system(cmd);
+}
+
 static int output_fd(struct perf_inject *inject)
 {
 	return inject->in_place_update ? -1 : perf_data__fd(&inject->output);
@@ -995,6 +1009,12 @@ static int __cmd_inject(struct perf_inject *inject)
 		session->header.data_offset = output_data_offset;
 		session->header.data_size = inject->bytes_written;
 		perf_session__inject_header(session, session->evlist, fd, &inj_fc.fc);
+
+		if (inject->copy_kcore_dir) {
+			ret = copy_kcore_dir(inject);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return ret;
@@ -1131,9 +1151,16 @@ int cmd_inject(int argc, const char **argv)
 		}
 		if (!inject.in_place_update_dry_run)
 			data.in_place_update = true;
-	} else if (perf_data__open(&inject.output)) {
-		perror("failed to create output file");
-		return -1;
+	} else {
+		if (strcmp(inject.output.path, "-") && !inject.strip &&
+		    has_kcore_dir(inject.input_name)) {
+			inject.output.is_dir = true;
+			inject.copy_kcore_dir = true;
+		}
+		if (perf_data__open(&inject.output)) {
+			perror("failed to create output file");
+			return -1;
+		}
 	}
 
 	data.path = inject.input_name;
