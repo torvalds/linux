@@ -233,7 +233,7 @@ STATIC void
 xfs_attrd_item_free(struct xfs_attrd_log_item *attrdp)
 {
 	kmem_free(attrdp->attrd_item.li_lv_shadow);
-	kmem_free(attrdp);
+	kmem_cache_free(xfs_attrd_cache, attrdp);
 }
 
 STATIC void
