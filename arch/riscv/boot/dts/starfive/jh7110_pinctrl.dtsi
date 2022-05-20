@@ -210,6 +210,16 @@
 		};
 	};
 
+	sdcard_pins: sdcard-pins {
+		 sdcard-pins-rest {
+			sf,pins = <PAD_GPIO24>;
+			sf,pinmux = <PAD_GPIO24_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_SDIO1_RST_N>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
 	mmc1_pins: mmc1-pins {
 		 mmc1-pins0 {
 			sf,pins = <PAD_GPIO10>;
