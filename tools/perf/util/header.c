@@ -3686,6 +3686,14 @@ int perf_session__write_header(struct perf_session *session,
 	return perf_session__do_write_header(session, evlist, fd, at_exit, NULL);
 }
 
+int perf_session__inject_header(struct perf_session *session,
+				struct evlist *evlist,
+				int fd,
+				struct feat_copier *fc)
+{
+	return perf_session__do_write_header(session, evlist, fd, true, fc);
+}
+
 static int perf_header__getbuffer64(struct perf_header *header,
 				    int fd, void *buf, size_t size)
 {

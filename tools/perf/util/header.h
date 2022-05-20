@@ -131,6 +131,11 @@ struct feat_copier {
 	int (*copy)(struct feat_copier *fc, int feat, struct feat_writer *fw);
 };
 
+int perf_session__inject_header(struct perf_session *session,
+				struct evlist *evlist,
+				int fd,
+				struct feat_copier *fc);
+
 void perf_header__set_feat(struct perf_header *header, int feat);
 void perf_header__clear_feat(struct perf_header *header, int feat);
 bool perf_header__has_feat(const struct perf_header *header, int feat);
