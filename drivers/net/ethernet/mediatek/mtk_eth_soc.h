@@ -692,7 +692,7 @@ struct mtk_tx_buf {
  *			are present
  */
 struct mtk_tx_ring {
-	struct mtk_tx_dma *dma;
+	void *dma;
 	struct mtk_tx_buf *buf;
 	dma_addr_t phys;
 	struct mtk_tx_dma *next_free;
@@ -722,7 +722,7 @@ enum mtk_rx_flags {
  * @calc_idx:		The current head of ring
  */
 struct mtk_rx_ring {
-	struct mtk_rx_dma *dma;
+	void *dma;
 	u8 **data;
 	dma_addr_t phys;
 	u16 frag_size;

@@ -917,18 +917,15 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	return 0;
 }
 
-static inline void *mtk_qdma_phys_to_virt(struct mtk_tx_ring *ring, u32 desc)
+static void *mtk_qdma_phys_to_virt(struct mtk_tx_ring *ring, u32 desc)
 {
-	void *ret = ring->dma;
-
-	return ret + (desc - ring->phys);
+	return ring->dma + (desc - ring->phys);
 }
 
 static struct mtk_tx_buf *mtk_desc_to_tx_buf(struct mtk_tx_ring *ring,
-					     struct mtk_tx_dma *txd,
-					     u32 txd_size)
+					     void *txd, u32 txd_size)
 {
-	int idx = ((void *)txd - (void *)ring->dma) / txd_size;
+	int idx = (txd - ring->dma) / txd_size;
 
 	return &ring->buf[idx];
 }
@@ -936,13 +933,12 @@ static struct mtk_tx_buf *mtk_desc_to_tx_buf(struct mtk_tx_ring *ring,
 static struct mtk_tx_dma *qdma_to_pdma(struct mtk_tx_ring *ring,
 				       struct mtk_tx_dma *dma)
 {
-	return ring->dma_pdma - ring->dma + dma;
+	return ring->dma_pdma - (struct mtk_tx_dma *)ring->dma + dma;
 }
 
-static int txd_to_idx(struct mtk_tx_ring *ring, struct mtk_tx_dma *dma,
-		      u32 txd_size)
+static int txd_to_idx(struct mtk_tx_ring *ring, void *dma, u32 txd_size)
 {
-	return ((void *)dma - (void *)ring->dma) / txd_size;
+	return (dma - ring->dma) / txd_size;
 }
 
 static void mtk_tx_unmap(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf,
@@ -1359,7 +1355,7 @@ static struct mtk_rx_ring *mtk_get_rx_ring(struct mtk_eth *eth)
 
 		ring = &eth->rx_ring[i];
 		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
-		rxd = (void *)ring->dma + idx * eth->soc->txrx.rxd_size;
+		rxd = ring->dma + idx * eth->soc->txrx.rxd_size;
 		if (rxd->rxd2 & RX_DMA_DONE) {
 			ring->calc_idx_update = true;
 			return ring;
@@ -1411,7 +1407,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			goto rx_done;
 
 		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
-		rxd = (void *)ring->dma + idx * eth->soc->txrx.rxd_size;
+		rxd = ring->dma + idx * eth->soc->txrx.rxd_size;
 		data = ring->data[idx];
 
 		if (!mtk_rx_get_desc(eth, &trxd, rxd))
@@ -1615,7 +1611,7 @@ static int mtk_poll_tx_pdma(struct mtk_eth *eth, int budget,
 
 		mtk_tx_unmap(eth, tx_buf, true);
 
-		desc = (void *)ring->dma + cpu * eth->soc->txrx.txd_size;
+		desc = ring->dma + cpu * eth->soc->txrx.txd_size;
 		ring->last_free = desc;
 		atomic_inc(&ring->free_count);
 
@@ -1760,7 +1756,7 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 		int next = (i + 1) % MTK_DMA_SIZE;
 		u32 next_ptr = ring->phys + next * sz;
 
-		txd = (void *)ring->dma + i * sz;
+		txd = ring->dma + i * sz;
 		txd->txd2 = next_ptr;
 		txd->txd3 = TX_DMA_LS0 | TX_DMA_OWNER_CPU;
 		txd->txd4 = 0;
@@ -1790,7 +1786,7 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 
 	ring->dma_size = MTK_DMA_SIZE;
 	atomic_set(&ring->free_count, MTK_DMA_SIZE - 2);
-	ring->next_free = &ring->dma[0];
+	ring->next_free = ring->dma;
 	ring->last_free = (void *)txd;
 	ring->last_free_ptr = (u32)(ring->phys + ((MTK_DMA_SIZE - 1) * sz));
 	ring->thresh = MAX_SKB_FRAGS;
@@ -1902,7 +1898,7 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 		if (unlikely(dma_mapping_error(eth->dma_dev, dma_addr)))
 			return -ENOMEM;
 
-		rxd = (void *)ring->dma + i * eth->soc->txrx.rxd_size;
+		rxd = ring->dma + i * eth->soc->txrx.rxd_size;
 		rxd->rxd1 = (unsigned int)dma_addr;
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
@@ -1964,7 +1960,7 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 			if (!ring->data[i])
 				continue;
 
-			rxd = (void *)ring->dma + i * eth->soc->txrx.rxd_size;
+			rxd = ring->dma + i * eth->soc->txrx.rxd_size;
 			if (!rxd->rxd1)
 				continue;
 
