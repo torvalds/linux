@@ -181,6 +181,7 @@ struct rk_pcie {
 	raw_spinlock_t			intx_lock;
 	u16				aspm;
 	u32				l1ss_ctl1;
+	struct dentry			*debugfs;
 };
 
 struct rk_pcie_of_data {
@@ -708,7 +709,8 @@ static int rk_pcie_link_up(struct dw_pcie *pci)
 
 static void rk_pcie_enable_debug(struct rk_pcie *rk_pcie)
 {
-#if RK_PCIE_DBG
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
 	if (rk_pcie->is_rk1808 == true)
 		return;
 
@@ -722,7 +724,6 @@ static void rk_pcie_enable_debug(struct rk_pcie *rk_pcie)
 			   PCIE_CLIENT_DBG_TRANSITION_DATA);
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_DBG_FIFO_MODE_CON,
 			   PCIE_CLIENT_DBF_EN);
-#endif
 }
 
 static void rk_pcie_debug_dump(struct rk_pcie *rk_pcie)
@@ -1765,6 +1766,145 @@ static int rk_pcie_disable_power(struct rk_pcie *rk_pcie)
 	return ret;
 }
 
+#define RAS_DES_EVENT(ss, v) \
+do { \
+	dw_pcie_writel_dbi(pcie->pci, cap_base + 8, v); \
+	seq_printf(s, ss "0x%x\n", dw_pcie_readl_dbi(pcie->pci, cap_base + 0xc)); \
+} while (0)
+
+static int rockchip_pcie_rasdes_show(struct seq_file *s, void *unused)
+{
+	struct rk_pcie *pcie = s->private;
+	int cap_base;
+
+	cap_base = dw_pcie_find_ext_capability(pcie->pci, PCI_EXT_CAP_ID_VNDR);
+	if (!cap_base) {
+		dev_err(pcie->pci->dev, "Not able to find RASDES CAP!\n");
+		return 0;
+	}
+
+	RAS_DES_EVENT("EBUF Overflow: ", 0);
+	RAS_DES_EVENT("EBUF Under-run: ", 0x0010000);
+	RAS_DES_EVENT("Decode Error: ", 0x0020000);
+	RAS_DES_EVENT("Running Disparity Error: ", 0x0030000);
+	RAS_DES_EVENT("SKP OS Parity Error: ", 0x0040000);
+	RAS_DES_EVENT("SYNC Header Error: ", 0x0050000);
+	RAS_DES_EVENT("CTL SKP OS Parity Error: ", 0x0060000);
+	RAS_DES_EVENT("Detect EI Infer: ", 0x1050000);
+	RAS_DES_EVENT("Receiver Error: ", 0x1060000);
+	RAS_DES_EVENT("Rx Recovery Request: ", 0x1070000);
+	RAS_DES_EVENT("N_FTS Timeout: ", 0x1080000);
+	RAS_DES_EVENT("Framing Error: ", 0x1090000);
+	RAS_DES_EVENT("Deskew Error: ", 0x10a0000);
+	RAS_DES_EVENT("BAD TLP: ", 0x2000000);
+	RAS_DES_EVENT("LCRC Error: ", 0x2010000);
+	RAS_DES_EVENT("BAD DLLP: ", 0x2020000);
+	RAS_DES_EVENT("Replay Number Rollover: ", 0x2030000);
+	RAS_DES_EVENT("Replay Timeout: ", 0x2040000);
+	RAS_DES_EVENT("Rx Nak DLLP: ", 0x2050000);
+	RAS_DES_EVENT("Tx Nak DLLP: ", 0x2060000);
+	RAS_DES_EVENT("Retry TLP: ", 0x2070000);
+	RAS_DES_EVENT("FC Timeout: ", 0x3000000);
+	RAS_DES_EVENT("Poisoned TLP: ", 0x3010000);
+	RAS_DES_EVENT("ECRC Error: ", 0x3020000);
+	RAS_DES_EVENT("Unsupported Request: ", 0x3030000);
+	RAS_DES_EVENT("Completer Abort: ", 0x3040000);
+	RAS_DES_EVENT("Completion Timeout: ", 0x3050000);
+
+	return 0;
+}
+static int rockchip_pcie_rasdes_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rockchip_pcie_rasdes_show,
+			   inode->i_private);
+}
+
+static ssize_t rockchip_pcie_rasdes_write(struct file *file,
+				       const char __user *ubuf,
+				       size_t count, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct rk_pcie *pcie = s->private;
+	char buf[32];
+	int cap_base;
+
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	cap_base = dw_pcie_find_ext_capability(pcie->pci, PCI_EXT_CAP_ID_VNDR);
+	if (!cap_base) {
+		dev_err(pcie->pci->dev, "Not able to find RASDES CAP!\n");
+		return 0;
+	}
+
+	if (!strncmp(buf, "enable", 6))	{
+		dev_info(pcie->pci->dev, "RAS DES Event: Enable ALL!\n");
+		dw_pcie_writel_dbi(pcie->pci, cap_base + 8, 0x1c);
+		dw_pcie_writel_dbi(pcie->pci, cap_base + 8, 0x3);
+	} else if (!strncmp(buf, "disable", 7)) {
+		dev_info(pcie->pci->dev, "RAS DES Event: disable ALL!\n");
+		dw_pcie_writel_dbi(pcie->pci, cap_base + 8, 0x14);
+	} else if (!strncmp(buf, "clear", 5)) {
+		dev_info(pcie->pci->dev, "RAS DES Event: Clear ALL!\n");
+		dw_pcie_writel_dbi(pcie->pci, cap_base + 8, 0x3);
+	} else {
+		dev_info(pcie->pci->dev, "Not support command!\n");
+	}
+
+	return count;
+}
+
+static const struct file_operations rockchip_pcie_rasdes_ops = {
+	.owner = THIS_MODULE,
+	.open = rockchip_pcie_rasdes_open,
+	.read = seq_read,
+	.write = rockchip_pcie_rasdes_write,
+};
+
+static int rockchip_pcie_fifo_show(struct seq_file *s, void *data)
+{
+	struct rk_pcie *pcie = (struct rk_pcie *)dev_get_drvdata(s->private);
+	u32 loop;
+
+	seq_printf(s, "ltssm = 0x%x\n",
+		   rk_pcie_readl_apb(pcie, PCIE_CLIENT_LTSSM_STATUS));
+	for (loop = 0; loop < 64; loop++)
+		seq_printf(s, "fifo_status = 0x%x\n",
+			   rk_pcie_readl_apb(pcie, PCIE_CLIENT_DBG_FIFO_STATUS));
+
+	return 0;
+}
+
+static void rockchip_pcie_debugfs_exit(struct rk_pcie *pcie)
+{
+	debugfs_remove_recursive(pcie->debugfs);
+	pcie->debugfs = NULL;
+}
+
+static int rockchip_pcie_debugfs_init(struct rk_pcie *pcie)
+{
+	struct dentry *file;
+
+	pcie->debugfs = debugfs_create_dir(dev_name(pcie->pci->dev), NULL);
+	if (!pcie->debugfs)
+		return -ENOMEM;
+
+	debugfs_create_devm_seqfile(pcie->pci->dev, "dumpfifo",
+				    pcie->debugfs,
+				    rockchip_pcie_fifo_show);
+	file = debugfs_create_file("err_event", 0644, pcie->debugfs,
+				   pcie, &rockchip_pcie_rasdes_ops);
+	if (!file)
+		goto remove;
+
+	return 0;
+
+remove:
+	rockchip_pcie_debugfs_exit(pcie);
+
+	return -ENOMEM;
+}
+
 static int rk_pcie_really_probe(void *p)
 {
 	struct platform_device *pdev = p;
@@ -1964,6 +2104,22 @@ retry_regulator:
 
 	/* Enable async system PM for multiports SoC */
 	device_enable_async_suspend(dev);
+
+	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
+		ret = rockchip_pcie_debugfs_init(rk_pcie);
+		if (ret < 0)
+			dev_err(dev, "failed to setup debugfs: %d\n", ret);
+
+		/* Enable RASDES Error event by default */
+		val = dw_pcie_find_ext_capability(rk_pcie->pci, PCI_EXT_CAP_ID_VNDR);
+		if (!val) {
+			dev_err(dev, "Not able to find RASDES CAP!\n");
+			return 0;
+		}
+
+		dw_pcie_writel_dbi(rk_pcie->pci, val + 8, 0x1c);
+		dw_pcie_writel_dbi(rk_pcie->pci, val + 8, 0x3);
+	}
 
 	return 0;
 
