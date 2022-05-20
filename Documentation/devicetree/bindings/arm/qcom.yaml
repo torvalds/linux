@@ -166,8 +166,14 @@ properties:
       - items:
           - enum:
               - alcatel,idol347
+              - asus,z00l
+              - huawei,g7
+              - longcheer,l8910
               - samsung,a3u-eur
               - samsung,a5u-eur
+              - samsung,j5
+              - samsung,serranove
+              - wingtech,wt88047
           - const: qcom,msm8916
 
       - items:
