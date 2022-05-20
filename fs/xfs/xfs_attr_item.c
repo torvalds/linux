@@ -396,6 +396,15 @@ xfs_attr_create_intent(
 	return &attrip->attri_item;
 }
 
+static inline void
+xfs_attr_free_item(
+	struct xfs_attr_item		*attr)
+{
+	if (attr->xattri_da_state)
+		xfs_da_state_free(attr->xattri_da_state);
+	kmem_free(attr);
+}
+
 /* Process an attr. */
 STATIC int
 xfs_attr_finish_item(
@@ -420,7 +429,7 @@ xfs_attr_finish_item(
 
 	error = xfs_xattri_finish_update(attr, done_item);
 	if (error != -EAGAIN)
-		kmem_free(attr);
+		xfs_attr_free_item(attr);
 
 	return error;
 }
@@ -441,7 +450,7 @@ xfs_attr_cancel_item(
 	struct xfs_attr_item		*attr;
 
 	attr = container_of(item, struct xfs_attr_item, xattri_list);
-	kmem_free(attr);
+	xfs_attr_free_item(attr);
 }
 
 STATIC xfs_lsn_t
@@ -613,7 +622,7 @@ out_unlock:
 	xfs_irele(ip);
 out:
 	if (ret != -EAGAIN)
-		kmem_free(attr);
+		xfs_attr_free_item(attr);
 	return error;
 }
 

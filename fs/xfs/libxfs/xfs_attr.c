@@ -604,26 +604,29 @@ int xfs_attr_node_removename_setup(
 	struct xfs_attr_item		*attr)
 {
 	struct xfs_da_args		*args = attr->xattri_da_args;
-	struct xfs_da_state		**state = &attr->xattri_da_state;
+	struct xfs_da_state		*state;
 	int				error;
 
-	error = xfs_attr_node_hasname(args, state);
+	error = xfs_attr_node_hasname(args, &attr->xattri_da_state);
 	if (error != -EEXIST)
 		goto out;
 	error = 0;
 
-	ASSERT((*state)->path.blk[(*state)->path.active - 1].bp != NULL);
-	ASSERT((*state)->path.blk[(*state)->path.active - 1].magic ==
+	state = attr->xattri_da_state;
+	ASSERT(state->path.blk[state->path.active - 1].bp != NULL);
+	ASSERT(state->path.blk[state->path.active - 1].magic ==
 		XFS_ATTR_LEAF_MAGIC);
 
-	error = xfs_attr_leaf_mark_incomplete(args, *state);
+	error = xfs_attr_leaf_mark_incomplete(args, state);
 	if (error)
 		goto out;
 	if (args->rmtblkno > 0)
 		error = xfs_attr_rmtval_invalidate(args);
 out:
-	if (error)
-		xfs_da_state_free(*state);
+	if (error) {
+		xfs_da_state_free(attr->xattri_da_state);
+		attr->xattri_da_state = NULL;
+	}
 
 	return error;
 }
@@ -1456,8 +1459,10 @@ xfs_attr_node_addname_find_attr(
 
 	return 0;
 error:
-	if (attr->xattri_da_state)
+	if (attr->xattri_da_state) {
 		xfs_da_state_free(attr->xattri_da_state);
+		attr->xattri_da_state = NULL;
+	}
 	return error;
 }
 
@@ -1511,6 +1516,7 @@ xfs_attr_node_try_addname(
 
 out:
 	xfs_da_state_free(state);
+	attr->xattri_da_state = NULL;
 	return error;
 }
 
