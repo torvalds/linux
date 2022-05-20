@@ -137,8 +137,13 @@ static int gdsc_update_collapse_bit(struct gdsc *sc, bool val)
 	u32 reg, mask;
 	int ret;
 
-	reg = sc->gdscr;
-	mask = SW_COLLAPSE_MASK;
+	if (sc->collapse_mask) {
+		reg = sc->collapse_ctrl;
+		mask = sc->collapse_mask;
+	} else {
+		reg = sc->gdscr;
+		mask = SW_COLLAPSE_MASK;
+	}
 
 	ret = regmap_update_bits(sc->regmap, reg, mask, val ? mask : 0);
 	if (ret)
