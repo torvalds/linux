@@ -188,6 +188,9 @@ properties:
 
       - items:
           - enum:
+              - huawei,angler
+              - microsoft,cityman
+              - sony,ivy-row
               - sony,karin-row
               - sony,satsuki-row
               - sony,sumire-row
