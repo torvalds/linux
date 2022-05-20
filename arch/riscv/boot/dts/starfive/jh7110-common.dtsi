@@ -211,6 +211,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pins>;
 	status = "okay";
+
+	pmic@50 {
+		compatible = "starfive,pmic";
+		reg = <0x50>;
+	};
 };
 
 &i2c6 {
