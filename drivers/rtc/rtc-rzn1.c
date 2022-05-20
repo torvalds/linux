@@ -272,7 +272,7 @@ static int rzn1_rtc_set_offset(struct device *dev, long offset)
 	struct rzn1_rtc *rtc = dev_get_drvdata(dev);
 	unsigned int steps;
 	int stepsh, stepsl;
-	u32 val;
+	u32 subu = 0, ctl2;
 	int ret;
 
 	/*
@@ -288,7 +288,7 @@ static int rzn1_rtc_set_offset(struct device *dev, long offset)
 	if (stepsh >= -0x3E && stepsh <= 0x3E) {
 		/* 1017 ppb per step */
 		steps = stepsh;
-		val |= RZN1_RTC_SUBU_DEV;
+		subu |= RZN1_RTC_SUBU_DEV;
 	} else if (stepsl >= -0x3E && stepsl <= 0x3E) {
 		/* 3051 ppb per step */
 		steps = stepsl;
@@ -300,18 +300,18 @@ static int rzn1_rtc_set_offset(struct device *dev, long offset)
 		return 0;
 
 	if (steps > 0) {
-		val |= steps + 1;
+		subu |= steps + 1;
 	} else {
-		val |= RZN1_RTC_SUBU_DECR;
-		val |= (~(-steps - 1)) & 0x3F;
+		subu |= RZN1_RTC_SUBU_DECR;
+		subu |= (~(-steps - 1)) & 0x3F;
 	}
 
-	ret = readl_poll_timeout(rtc->base + RZN1_RTC_CTL2, val,
-				 !(val & RZN1_RTC_CTL2_WUST), 100, 2000000);
+	ret = readl_poll_timeout(rtc->base + RZN1_RTC_CTL2, ctl2,
+				 !(ctl2 & RZN1_RTC_CTL2_WUST), 100, 2000000);
 	if (ret)
 		return ret;
 
-	writel(val, rtc->base + RZN1_RTC_SUBU);
+	writel(subu, rtc->base + RZN1_RTC_SUBU);
 
 	return 0;
 }
