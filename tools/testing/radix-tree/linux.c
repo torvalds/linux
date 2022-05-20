@@ -25,7 +25,8 @@ struct kmem_cache {
 	void (*ctor)(void *);
 };
 
-void *kmem_cache_alloc(struct kmem_cache *cachep, int gfp)
+void *kmem_cache_alloc_lru(struct kmem_cache *cachep, struct list_lru *lru,
+		int gfp)
 {
 	void *p;
 

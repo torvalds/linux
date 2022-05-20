@@ -28,7 +28,13 @@ static inline void *kzalloc(size_t size, gfp_t gfp)
 	return kmalloc(size, gfp | __GFP_ZERO);
 }
 
-void *kmem_cache_alloc(struct kmem_cache *cachep, int flags);
+struct list_lru;
+
+void *kmem_cache_alloc_lru(struct kmem_cache *cachep, struct list_lru *, int flags);
+static inline void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
+{
+	return kmem_cache_alloc_lru(cachep, NULL, flags);
+}
 void kmem_cache_free(struct kmem_cache *cachep, void *objp);
 
 struct kmem_cache *kmem_cache_create(const char *name, unsigned int size,

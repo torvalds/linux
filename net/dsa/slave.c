@@ -285,7 +285,7 @@ static void dsa_port_manage_cpu_flood(struct dsa_port *dp)
 		if (other_dp->slave->flags & IFF_ALLMULTI)
 			flags.val |= BR_MCAST_FLOOD;
 		if (other_dp->slave->flags & IFF_PROMISC)
-			flags.val |= BR_FLOOD;
+			flags.val |= BR_FLOOD | BR_MCAST_FLOOD;
 	}
 
 	err = dsa_port_pre_bridge_flags(dp, flags, NULL);

@@ -8,16 +8,9 @@
 #include <asm/cpufeature.h>
 #include <asm/mte.h>
 
-#ifndef VMA_ITERATOR
-#define VMA_ITERATOR(name, mm, addr)	\
-	struct mm_struct *name = mm
-#define for_each_vma(vmi, vma)		\
-	for (vma = vmi->mmap; vma; vma = vma->vm_next)
-#endif
-
-#define for_each_mte_vma(vmi, vma)					\
+#define for_each_mte_vma(tsk, vma)					\
 	if (system_supports_mte())					\
-		for_each_vma(vmi, vma)					\
+		for (vma = tsk->mm->mmap; vma; vma = vma->vm_next)	\
 			if (vma->vm_flags & VM_MTE)
 
 static unsigned long mte_vma_tag_dump_size(struct vm_area_struct *vma)
@@ -32,10 +25,11 @@ static unsigned long mte_vma_tag_dump_size(struct vm_area_struct *vma)
 static int mte_dump_tag_range(struct coredump_params *cprm,
 			      unsigned long start, unsigned long end)
 {
+	int ret = 1;
 	unsigned long addr;
+	void *tags = NULL;
 
 	for (addr = start; addr < end; addr += PAGE_SIZE) {
-		char tags[MTE_PAGE_TAG_STORAGE];
 		struct page *page = get_dump_page(addr);
 
 		/*
@@ -59,22 +53,36 @@ static int mte_dump_tag_range(struct coredump_params *cprm,
 			continue;
 		}
 
+		if (!tags) {
+			tags = mte_allocate_tag_storage();
+			if (!tags) {
+				put_page(page);
+				ret = 0;
+				break;
+			}
+		}
+
 		mte_save_page_tags(page_address(page), tags);
 		put_page(page);
-		if (!dump_emit(cprm, tags, MTE_PAGE_TAG_STORAGE))
-			return 0;
+		if (!dump_emit(cprm, tags, MTE_PAGE_TAG_STORAGE)) {
+			mte_free_tag_storage(tags);
+			ret = 0;
+			break;
+		}
 	}
 
-	return 1;
+	if (tags)
+		mte_free_tag_storage(tags);
+
+	return ret;
 }
 
 Elf_Half elf_core_extra_phdrs(void)
 {
 	struct vm_area_struct *vma;
 	int vma_count = 0;
-	VMA_ITERATOR(vmi, current->mm, 0);
 
-	for_each_mte_vma(vmi, vma)
+	for_each_mte_vma(current, vma)
 		vma_count++;
 
 	return vma_count;
@@ -83,12 +91,11 @@ Elf_Half elf_core_extra_phdrs(void)
 int elf_core_write_extra_phdrs(struct coredump_params *cprm, loff_t offset)
 {
 	struct vm_area_struct *vma;
-	VMA_ITERATOR(vmi, current->mm, 0);
 
-	for_each_mte_vma(vmi, vma) {
+	for_each_mte_vma(current, vma) {
 		struct elf_phdr phdr;
 
-		phdr.p_type = PT_ARM_MEMTAG_MTE;
+		phdr.p_type = PT_AARCH64_MEMTAG_MTE;
 		phdr.p_offset = offset;
 		phdr.p_vaddr = vma->vm_start;
 		phdr.p_paddr = 0;
@@ -109,9 +116,8 @@ size_t elf_core_extra_data_size(void)
 {
 	struct vm_area_struct *vma;
 	size_t data_size = 0;
-	VMA_ITERATOR(vmi, current->mm, 0);
 
-	for_each_mte_vma(vmi, vma)
+	for_each_mte_vma(current, vma)
 		data_size += mte_vma_tag_dump_size(vma);
 
 	return data_size;
@@ -120,9 +126,8 @@ size_t elf_core_extra_data_size(void)
 int elf_core_write_extra_data(struct coredump_params *cprm)
 {
 	struct vm_area_struct *vma;
-	VMA_ITERATOR(vmi, current->mm, 0);
 
-	for_each_mte_vma(vmi, vma) {
+	for_each_mte_vma(current, vma) {
 		if (vma->vm_flags & VM_DONTDUMP)
 			continue;
 

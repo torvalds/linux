@@ -2145,15 +2145,14 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 	 * pmd against. Otherwise we can end up replacing wrong folio.
 	 */
 	VM_BUG_ON(freeze && !folio);
-	if (folio) {
-		VM_WARN_ON_ONCE(!folio_test_locked(folio));
-		if (folio != page_folio(pmd_page(*pmd)))
-			goto out;
-	}
+	VM_WARN_ON_ONCE(folio && !folio_test_locked(folio));
 
 	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd) ||
-	    is_pmd_migration_entry(*pmd))
+	    is_pmd_migration_entry(*pmd)) {
+		if (folio && folio != page_folio(pmd_page(*pmd)))
+			goto out;
 		__split_huge_pmd_locked(vma, pmd, range.start, freeze);
+	}
 
 out:
 	spin_unlock(ptl);

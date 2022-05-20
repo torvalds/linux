@@ -59,6 +59,15 @@ struct crc64_pi_tuple {
 	__u8   ref_tag[6];
 };
 
+/**
+ * lower_48_bits() - return bits 0-47 of a number
+ * @n: the number we're accessing
+ */
+static inline u64 lower_48_bits(u64 n)
+{
+	return n & ((1ull << 48) - 1);
+}
+
 static inline u64 ext_pi_ref_tag(struct request *rq)
 {
 	unsigned int shift = ilog2(queue_logical_block_size(rq->q));
