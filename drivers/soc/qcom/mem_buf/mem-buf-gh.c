@@ -56,7 +56,7 @@ struct mem_buf_rmt_msg {
  * @secure_alloc: Denotes if the memory was assigned to the targeted VMs as part
  * of the allocation step
  * @hdl: The memparcel handle associated with the memory
- * @gh_rm_trans_type: The type of memory transfer associated with the memory (donation,
+ * @trans_type: The type of memory transfer associated with the memory (donation,
  * share, lend).
  * @entry: List entry for maintaining a list of memory buffers that are lent
  * out.
@@ -72,7 +72,7 @@ struct mem_buf_xfer_mem {
 	void *mem_type_data;
 	struct sg_table *mem_sgt;
 	bool secure_alloc;
-	int gh_rm_trans_type;
+	u32 trans_type;
 	gh_memparcel_handle_t hdl;
 	struct list_head entry;
 	u32 nr_acl_entries;
@@ -91,7 +91,7 @@ struct mem_buf_xfer_mem {
  * associated with the memory buffer that was allocated from another VM.
  * @memparcel_hdl: The handle associated with the memparcel that represents the
  * memory buffer.
- * @gh_rm_trans_type: The type of memory transfer associated with the memory (donation,
+ * @trans_type: The type of memory transfer associated with the memory (donation,
  * share, lend).
  * @src_mem_type: The type of memory that was allocated on the remote VM
  * @src_data: Memory type specific data used by the remote VM when performing
@@ -109,7 +109,7 @@ struct mem_buf_desc {
 	struct gh_acl_desc *acl_desc;
 	struct gh_sgl_desc *sgl_desc;
 	gh_memparcel_handle_t memparcel_hdl;
-	int gh_rm_trans_type;
+	u32 trans_type;
 	enum mem_buf_mem_type src_mem_type;
 	void *src_data;
 	enum mem_buf_mem_type dst_mem_type;
@@ -343,7 +343,7 @@ static int mem_buf_get_mem_xfer_type_gh(struct gh_acl_desc *acl_desc, int owner_
  * Check whether donate operation is supported. If not, use
  * lend instead. Share is not supported for remotealloc.
  */
-static int get_alloc_req_xfer_type(struct mem_buf_xfer_mem *xfer_mem)
+static u32 get_alloc_req_xfer_type(struct mem_buf_xfer_mem *xfer_mem)
 {
 	static bool initialized;
 	static int alloc_req_xfer_type;
@@ -378,7 +378,8 @@ static int get_alloc_req_xfer_type(struct mem_buf_xfer_mem *xfer_mem)
 
 static struct mem_buf_xfer_mem *mem_buf_process_alloc_req(void *req)
 {
-	int ret, xfer_type;
+	int ret;
+	u32 xfer_type;
 	struct mem_buf_xfer_mem *xfer_mem;
 	struct mem_buf_lend_kernel_arg arg = {0};
 
@@ -401,7 +402,7 @@ static struct mem_buf_xfer_mem *mem_buf_process_alloc_req(void *req)
 			goto err_assign_mem;
 
 		xfer_mem->hdl = arg.memparcel_hdl;
-		xfer_mem->gh_rm_trans_type = xfer_type;
+		xfer_mem->trans_type = xfer_type;
 	}
 
 	mutex_lock(&mem_buf_xfer_mem_list_lock);
@@ -479,7 +480,7 @@ static void mem_buf_alloc_req_work(struct work_struct *work)
 	} else {
 		ret = 0;
 		hdl = xfer_mem->hdl;
-		trans_type = xfer_mem->gh_rm_trans_type;
+		trans_type = xfer_mem->trans_type;
 	}
 
 	resp_msg = mem_buf_construct_alloc_resp(req_msg, ret, hdl, trans_type);
@@ -557,7 +558,7 @@ static int mem_buf_alloc_resp_hdlr(void *hdlr_data, void *msg_buf, size_t size, 
 		pr_err("%s remote allocation failed rc: %d\n", __func__, ret);
 	} else {
 		membuf->memparcel_hdl = get_alloc_resp_hdl(alloc_resp);
-		membuf->gh_rm_trans_type = get_alloc_resp_trans_type(alloc_resp);
+		membuf->trans_type = get_alloc_resp_trans_type(alloc_resp);
 	}
 
 	kfree(msg_buf);
@@ -676,7 +677,7 @@ static void mem_buf_relinquish_mem(struct mem_buf_desc *membuf)
 	u32 txn_id = mem_buf_retrieve_txn_id(membuf->txn);
 
 	if (membuf->memparcel_hdl != MEM_BUF_MEMPARCEL_INVALID) {
-		if (membuf->gh_rm_trans_type != GH_RM_TRANS_TYPE_DONATE) {
+		if (membuf->trans_type != GH_RM_TRANS_TYPE_DONATE) {
 			ret = mem_buf_unmap_mem_s2(membuf->memparcel_hdl);
 			if (ret)
 				return;
@@ -974,7 +975,7 @@ static void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
 	if (ret)
 		goto err_mem_req;
 
-	op = membuf->gh_rm_trans_type;
+	op = membuf->trans_type;
 	sgl_desc = mem_buf_map_mem_s2(op, &membuf->memparcel_hdl, membuf->acl_desc, VMID_HLOS);
 	if (IS_ERR(sgl_desc))
 		goto err_map_mem_s2;

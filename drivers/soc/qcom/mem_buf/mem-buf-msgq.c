@@ -134,11 +134,11 @@ EXPORT_SYMBOL(mem_buf_construct_alloc_req);
  * @req_msg: The request message that is being replied to.
  * @alloc_ret: The return code of the allocation.
  * @memparcel_hdl: The memparcel handle that corresponds to the memory that was allocated.
- * @gh_rm_trans_type: The type of memory transfer associated with the response (i.e. donation,
+ * @trans_type: The type of memory transfer associated with the response (i.e. donation,
  * sharing, or lending).
  */
 void *mem_buf_construct_alloc_resp(void *req_msg, s32 alloc_ret,
-				   gh_memparcel_handle_t memparcel_hdl, int gh_rm_trans_type)
+				   gh_memparcel_handle_t memparcel_hdl, u32 trans_type)
 {
 	struct mem_buf_alloc_req *req = req_msg;
 	struct mem_buf_alloc_resp *resp_msg = kzalloc(sizeof(*resp_msg), GFP_KERNEL);
@@ -151,7 +151,7 @@ void *mem_buf_construct_alloc_resp(void *req_msg, s32 alloc_ret,
 	resp_msg->hdr.msg_size = sizeof(*resp_msg);
 	resp_msg->ret = alloc_ret;
 	resp_msg->hdl = memparcel_hdl;
-	resp_msg->gh_rm_trans_type = gh_rm_trans_type;
+	resp_msg->trans_type = trans_type;
 
 	return resp_msg;
 }

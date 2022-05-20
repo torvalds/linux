@@ -390,7 +390,7 @@ bool mem_buf_vmperm_can_vmap(struct mem_buf_vmperm *vmperm)
 EXPORT_SYMBOL(mem_buf_vmperm_can_vmap);
 
 static int validate_lend_vmids(struct mem_buf_lend_kernel_arg *arg,
-				int op)
+				u32 op)
 {
 	int i;
 	bool found = false;
@@ -443,7 +443,7 @@ static bool validate_lend_mapcount(struct mem_buf_vmperm *vmperm,
 
 static int mem_buf_lend_internal(struct dma_buf *dmabuf,
 			struct mem_buf_lend_kernel_arg *arg,
-			int op)
+			u32 op)
 {
 	struct mem_buf_vmperm *vmperm;
 	struct sg_table *sgt;

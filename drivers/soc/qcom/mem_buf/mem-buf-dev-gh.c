@@ -181,7 +181,7 @@ static int mem_buf_hyp_assign_table_gh(struct gh_sgl_desc *sgl_desc, int src_vmi
 	GH_RM_TRANS_TYPE_LEND - unmodified.
 	GH_RM_TRANS_TYPE_SHARE - unmodified.
  */
-struct gh_sgl_desc *mem_buf_map_mem_s2(int op, gh_memparcel_handle_t *__memparcel_hdl,
+struct gh_sgl_desc *mem_buf_map_mem_s2(u32 op, gh_memparcel_handle_t *__memparcel_hdl,
 					struct gh_acl_desc *acl_desc, int src_vmid)
 {
 	int ret, ret2;
@@ -328,7 +328,7 @@ err_free_sgt:
 	return ret;
 }
 
-int mem_buf_assign_mem_gunyah(int op, struct sg_table *sgt,
+int mem_buf_assign_mem_gunyah(u32 op, struct sg_table *sgt,
 			      struct mem_buf_lend_kernel_arg *arg)
 {
 	int ret, i;
