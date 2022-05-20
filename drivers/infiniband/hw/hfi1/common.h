@@ -137,23 +137,6 @@
 #define HFI1_USER_SWVERSION ((HFI1_USER_SWMAJOR << HFI1_SWMAJOR_SHIFT) | \
 			     HFI1_USER_SWMINOR)
 
-#ifndef HFI1_KERN_TYPE
-#define HFI1_KERN_TYPE 0
-#endif
-
-/*
- * Similarly, this is the kernel version going back to the user.  It's
- * slightly different, in that we want to tell if the driver was built as
- * part of a Intel release, or from the driver from openfabrics.org,
- * kernel.org, or a standard distribution, for support reasons.
- * The high bit is 0 for non-Intel and 1 for Intel-built/supplied.
- *
- * It's returned by the driver to the user code during initialization in the
- * spi_sw_version field of hfi1_base_info, so the user code can in turn
- * check for compatibility with the kernel.
-*/
-#define HFI1_KERN_SWVERSION ((HFI1_KERN_TYPE << 31) | HFI1_USER_SWVERSION)
-
 /*
  * Diagnostics can send a packet by writing the following
  * struct to the diag packet special file.
