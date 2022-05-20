@@ -125,9 +125,11 @@ static void imu_v11_0_setup(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_ACCESS_CTRL0, 0xffffff);
 	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_ACCESS_CTRL1, 0xffff);
 
-	imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_16);
-	imu_reg_val |= 0x1;
-	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_16, imu_reg_val);
+	if (adev->gfx.imu.mode == DEBUG_MODE) {
+		imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_16);
+		imu_reg_val |= 0x1;
+		WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_16, imu_reg_val);
+	}
 
 	//disble imu Rtavfs, SmsRepair, DfllBTC, and ClkB
 	imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_SCRATCH_10);
@@ -144,16 +146,18 @@ static int imu_v11_0_start(struct amdgpu_device *adev)
 	imu_reg_val &= 0xfffffffe;
 	WREG32_SOC15(GC, 0, regGFX_IMU_CORE_CTRL, imu_reg_val);
 
-	for (i = 0; i < adev->usec_timeout; i++) {
-		imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_GFX_RESET_CTRL);
-		if ((imu_reg_val & 0x1f) == 0x1f)
-			break;
-		udelay(1);
-	}
+	if (adev->gfx.imu.mode == DEBUG_MODE) {
+		for (i = 0; i < adev->usec_timeout; i++) {
+			imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_GFX_RESET_CTRL);
+			if ((imu_reg_val & 0x1f) == 0x1f)
+				break;
+			udelay(1);
+		}
 
-	if (i >= adev->usec_timeout) {
-		dev_err(adev->dev, "init imu: IMU start timeout\n");
-		return -ETIMEDOUT;
+		if (i >= adev->usec_timeout) {
+			dev_err(adev->dev, "init imu: IMU start timeout\n");
+			return -ETIMEDOUT;
+		}
 	}
 
 	return 0;
