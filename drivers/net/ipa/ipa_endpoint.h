@@ -41,6 +41,68 @@ enum ipa_endpoint_name {
 #define IPA_ENDPOINT_MAX		32	/* Max supported by driver */
 
 /**
+ * struct ipa_endpoint_tx - Endpoint configuration for TX endpoints
+ * @seq_type:		primary packet processing sequencer type
+ * @seq_rep_type:	sequencer type for replication processing
+ * @status_endpoint:	endpoint to which status elements are sent
+ *
+ * The @status_endpoint is only valid if the endpoint's @status_enable
+ * flag is set.
+ */
+struct ipa_endpoint_tx {
+	enum ipa_seq_type seq_type;
+	enum ipa_seq_rep_type seq_rep_type;
+	enum ipa_endpoint_name status_endpoint;
+};
+
+/**
+ * struct ipa_endpoint_rx - Endpoint configuration for RX endpoints
+ * @buffer_size:	requested receive buffer size (bytes)
+ * @pad_align:		power-of-2 boundary to which packet payload is aligned
+ * @aggr_close_eof:	whether aggregation closes on end-of-frame
+ *
+ * With each packet it transfers, the IPA hardware can perform certain
+ * transformations of its packet data.  One of these is adding pad bytes
+ * to the end of the packet data so the result ends on a power-of-2 boundary.
+ *
+ * It is also able to aggregate multiple packets into a single receive buffer.
+ * Aggregation is "open" while a buffer is being filled, and "closes" when
+ * certain criteria are met.  One of those criteria is the sender indicating
+ * a "frame" consisting of several transfers has ended.
+ */
+struct ipa_endpoint_rx {
+	u32 buffer_size;
+	u32 pad_align;
+	bool aggr_close_eof;
+};
+
+/**
+ * struct ipa_endpoint_config - IPA endpoint hardware configuration
+ * @resource_group:	resource group to assign endpoint to
+ * @checksum:		whether checksum offload is enabled
+ * @qmap:		whether endpoint uses QMAP protocol
+ * @aggregation:	whether endpoint supports aggregation
+ * @status_enable:	whether endpoint uses status elements
+ * @dma_mode:		whether endpoint operates in DMA mode
+ * @dma_endpoint:	peer endpoint, if operating in DMA mode
+ * @tx:			TX-specific endpoint information (see above)
+ * @rx:			RX-specific endpoint information (see above)
+ */
+struct ipa_endpoint_config {
+	u32 resource_group;
+	bool checksum;
+	bool qmap;
+	bool aggregation;
+	bool status_enable;
+	bool dma_mode;
+	enum ipa_endpoint_name dma_endpoint;
+	union {
+		struct ipa_endpoint_tx tx;
+		struct ipa_endpoint_rx rx;
+	};
+};
+
+/**
  * enum ipa_replenish_flag:	RX buffer replenish flags
  *
  * @IPA_REPLENISH_ENABLED:	Whether receive buffer replenishing is enabled
@@ -60,7 +122,7 @@ enum ipa_replenish_flag {
  * @channel_id:		GSI channel used by the endpoint
  * @endpoint_id:	IPA endpoint number
  * @toward_ipa:		Endpoint direction (true = TX, false = RX)
- * @data:		Endpoint configuration data
+ * @config:		Default endpoint configuration
  * @trans_tre_max:	Maximum number of TRE descriptors per transaction
  * @evt_ring_id:	GSI event ring used by the endpoint
  * @netdev:		Network device pointer, if endpoint uses one
@@ -74,7 +136,7 @@ struct ipa_endpoint {
 	u32 channel_id;
 	u32 endpoint_id;
 	bool toward_ipa;
-	const struct ipa_endpoint_config_data *data;
+	struct ipa_endpoint_config config;
 
 	u32 trans_tre_max;
 	u32 evt_ring_id;
