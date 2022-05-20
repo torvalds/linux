@@ -2257,7 +2257,7 @@ static int rtw89_hw_scan_add_chan_list(struct rtw89_dev *rtwdev,
 		list_add_tail(&ch_info->list, &chan_list);
 		off_chan_time += ch_info->period;
 	}
-	rtw89_fw_h2c_scan_list_offload(rtwdev, list_len, &chan_list);
+	ret = rtw89_fw_h2c_scan_list_offload(rtwdev, list_len, &chan_list);
 
 out:
 	list_for_each_entry_safe(ch_info, tmp, &chan_list, list) {
@@ -2368,7 +2368,7 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 		if (ret)
 			goto out;
 	}
-	rtw89_fw_h2c_scan_offload(rtwdev, &opt, rtwvif);
+	ret = rtw89_fw_h2c_scan_offload(rtwdev, &opt, rtwvif);
 out:
 	return ret;
 }
