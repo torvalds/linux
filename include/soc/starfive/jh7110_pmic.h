@@ -32,12 +32,10 @@ struct pmic_dev {
 };
 
 /**
- * @pmic_dev: pmic device.
  * @reg: see enum pmic_reg.
  * @domian: see enum pmic_power_domian.
  * @on: power swtich, 1 or 0.
  */
-void pmic_set_domain(struct pmic_dev *pmic_dev, u8 reg,
-		u8 domain, u8 on);
+void pmic_set_domain(u8 reg, u8 domain, u8 on);
 
 #endif

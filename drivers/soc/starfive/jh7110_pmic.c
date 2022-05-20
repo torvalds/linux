@@ -11,6 +11,8 @@
 #include <linux/device.h>
 #include <soc/starfive/jh7110_pmic.h>
 
+static struct pmic_dev *pmic_dev;
+
 static int pmic_read_reg(struct pmic_dev *pmic_dev, u8 reg)
 {
 	struct i2c_client *client = pmic_dev->i2c_client;
@@ -43,8 +45,7 @@ static void pmic_set_bit(struct pmic_dev *pmic_dev, u8 reg, u8 mask, u8 val)
 	pmic_write_reg(pmic_dev, reg, val);
 }
 
-void pmic_set_domain(struct pmic_dev *pmic_dev, u8 reg,
-		u8 domain, u8 on)
+void pmic_set_domain(u8 reg, u8 domain, u8 on)
 {
 	pmic_set_bit(pmic_dev, reg, BIT(domain), on<<domain);
 }
@@ -53,7 +54,6 @@ EXPORT_SYMBOL(pmic_set_domain);
 static int pmic_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct pmic_dev *pmic_dev;
 	u8 val = 0;
 
 	pmic_dev = devm_kzalloc(dev, sizeof(*pmic_dev), GFP_KERNEL);
