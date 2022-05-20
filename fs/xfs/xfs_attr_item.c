@@ -353,7 +353,8 @@ xfs_attr_log_item(
 	attrp->alfi_op_flags = attr->xattri_op_flags;
 	attrp->alfi_value_len = attr->xattri_da_args->valuelen;
 	attrp->alfi_name_len = attr->xattri_da_args->namelen;
-	attrp->alfi_attr_flags = attr->xattri_da_args->attr_filter;
+	ASSERT(!(attr->xattri_da_args->attr_filter & ~XFS_ATTRI_FILTER_MASK));
+	attrp->alfi_attr_filter = attr->xattri_da_args->attr_filter;
 
 	memcpy(attrip->attri_name, attr->xattri_da_args->name,
 	       attr->xattri_da_args->namelen);
@@ -500,6 +501,9 @@ xfs_attri_validate(
 	if (attrp->alfi_op_flags & ~XFS_ATTR_OP_FLAGS_TYPE_MASK)
 		return false;
 
+	if (attrp->alfi_attr_filter & ~XFS_ATTRI_FILTER_MASK)
+		return false;
+
 	/* alfi_op_flags should be either a set or remove */
 	switch (op) {
 	case XFS_ATTR_OP_FLAGS_SET:
@@ -569,7 +573,7 @@ xfs_attri_item_recover(
 	args->name = attrip->attri_name;
 	args->namelen = attrp->alfi_name_len;
 	args->hashval = xfs_da_hashname(args->name, args->namelen);
-	args->attr_filter = attrp->alfi_attr_flags;
+	args->attr_filter = attrp->alfi_attr_filter & XFS_ATTRI_FILTER_MASK;
 	args->op_flags = XFS_DA_OP_RECOVERY | XFS_DA_OP_OKNOENT;
 
 	switch (attr->xattri_op_flags) {
@@ -658,7 +662,7 @@ xfs_attri_item_relog(
 	new_attrp->alfi_op_flags = old_attrp->alfi_op_flags;
 	new_attrp->alfi_value_len = old_attrp->alfi_value_len;
 	new_attrp->alfi_name_len = old_attrp->alfi_name_len;
-	new_attrp->alfi_attr_flags = old_attrp->alfi_attr_flags;
+	new_attrp->alfi_attr_filter = old_attrp->alfi_attr_filter;
 
 	memcpy(new_attrip->attri_name, old_attrip->attri_name,
 		new_attrip->attri_name_len);
