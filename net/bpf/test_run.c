@@ -108,6 +108,7 @@ struct xdp_test_data {
 	struct page_pool *pp;
 	struct xdp_frame **frames;
 	struct sk_buff **skbs;
+	struct xdp_mem_info mem;
 	u32 batch_size;
 	u32 frame_cnt;
 };
@@ -147,7 +148,6 @@ static void xdp_test_run_init_page(struct page *page, void *arg)
 
 static int xdp_test_run_setup(struct xdp_test_data *xdp, struct xdp_buff *orig_ctx)
 {
-	struct xdp_mem_info mem = {};
 	struct page_pool *pp;
 	int err = -ENOMEM;
 	struct page_pool_params pp_params = {
@@ -174,7 +174,7 @@ static int xdp_test_run_setup(struct xdp_test_data *xdp, struct xdp_buff *orig_c
 	}
 
 	/* will copy 'mem.id' into pp->xdp_mem_id */
-	err = xdp_reg_mem_model(&mem, MEM_TYPE_PAGE_POOL, pp);
+	err = xdp_reg_mem_model(&xdp->mem, MEM_TYPE_PAGE_POOL, pp);
 	if (err)
 		goto err_mmodel;
 
@@ -202,6 +202,7 @@ err_skbs:
 
 static void xdp_test_run_teardown(struct xdp_test_data *xdp)
 {
+	xdp_unreg_mem_model(&xdp->mem);
 	page_pool_destroy(xdp->pp);
 	kfree(xdp->frames);
 	kfree(xdp->skbs);

@@ -353,6 +353,8 @@ static int br_switchdev_vlan_attr_replay(struct net_device *br_dev,
 	attr.orig_dev = br_dev;
 
 	vg = br_vlan_group(br);
+	if (!vg)
+		return 0;
 
 	list_for_each_entry(v, &vg->vlan_list, vlist) {
 		if (v->msti) {

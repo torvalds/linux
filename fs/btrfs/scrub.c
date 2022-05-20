@@ -3699,6 +3699,31 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		if (!cache)
 			goto skip;
 
+		ASSERT(cache->start <= chunk_offset);
+		/*
+		 * We are using the commit root to search for device extents, so
+		 * that means we could have found a device extent item from a
+		 * block group that was deleted in the current transaction. The
+		 * logical start offset of the deleted block group, stored at
+		 * @chunk_offset, might be part of the logical address range of
+		 * a new block group (which uses different physical extents).
+		 * In this case btrfs_lookup_block_group() has returned the new
+		 * block group, and its start address is less than @chunk_offset.
+		 *
+		 * We skip such new block groups, because it's pointless to
+		 * process them, as we won't find their extents because we search
+		 * for them using the commit root of the extent tree. For a device
+		 * replace it's also fine to skip it, we won't miss copying them
+		 * to the target device because we have the write duplication
+		 * setup through the regular write path (by btrfs_map_block()),
+		 * and we have committed a transaction when we started the device
+		 * replace, right after setting up the device replace state.
+		 */
+		if (cache->start < chunk_offset) {
+			btrfs_put_block_group(cache);
+			goto skip;
+		}
+
 		if (sctx->is_dev_replace && btrfs_is_zoned(fs_info)) {
 			spin_lock(&cache->lock);
 			if (!cache->to_copy) {
@@ -3822,7 +3847,6 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		dev_replace->item_needs_writeback = 1;
 		up_write(&dev_replace->rwsem);
 
-		ASSERT(cache->start == chunk_offset);
 		ret = scrub_chunk(sctx, cache, scrub_dev, found_key.offset,
 				  dev_extent_len);
 

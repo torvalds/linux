@@ -50,7 +50,7 @@ struct imx8m_blk_ctrl_domain_data {
 	u32 mipi_phy_rst_mask;
 };
 
-#define DOMAIN_MAX_CLKS 3
+#define DOMAIN_MAX_CLKS 4
 
 struct imx8m_blk_ctrl_domain {
 	struct generic_pm_domain genpd;
