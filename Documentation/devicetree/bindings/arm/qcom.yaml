@@ -588,6 +588,14 @@ properties:
 
       - items:
           - enum:
+              - sony,discovery-row
+              - sony,kirin-row
+              - sony,pioneer-row
+              - sony,voyager-row
+          - const: qcom,sdm630
+
+      - items:
+          - enum:
               - inforce,ifc6560
           - const: qcom,sda660
 
