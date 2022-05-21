@@ -244,12 +244,12 @@ static void __cxl_decoder_release(struct cxl_decoder *cxld)
 	put_device(&port->dev);
 }
 
-static void cxl_decoder_release(struct device *dev)
+static void cxl_endpoint_decoder_release(struct device *dev)
 {
-	struct cxl_decoder *cxld = to_cxl_decoder(dev);
+	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
 
-	__cxl_decoder_release(cxld);
-	kfree(cxld);
+	__cxl_decoder_release(&cxled->cxld);
+	kfree(cxled);
 }
 
 static void cxl_switch_decoder_release(struct device *dev)
@@ -279,7 +279,7 @@ static void cxl_root_decoder_release(struct device *dev)
 
 static const struct device_type cxl_decoder_endpoint_type = {
 	.name = "cxl_decoder_endpoint",
-	.release = cxl_decoder_release,
+	.release = cxl_endpoint_decoder_release,
 	.groups = cxl_decoder_endpoint_attribute_groups,
 };
 
@@ -320,6 +320,15 @@ struct cxl_decoder *to_cxl_decoder(struct device *dev)
 	return container_of(dev, struct cxl_decoder, dev);
 }
 EXPORT_SYMBOL_NS_GPL(to_cxl_decoder, CXL);
+
+struct cxl_endpoint_decoder *to_cxl_endpoint_decoder(struct device *dev)
+{
+	if (dev_WARN_ONCE(dev, !is_endpoint_decoder(dev),
+			  "not a cxl_endpoint_decoder device\n"))
+		return NULL;
+	return container_of(dev, struct cxl_endpoint_decoder, cxld.dev);
+}
+EXPORT_SYMBOL_NS_GPL(to_cxl_endpoint_decoder, CXL);
 
 static struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev)
 {
@@ -1360,26 +1369,28 @@ EXPORT_SYMBOL_NS_GPL(cxl_switch_decoder_alloc, CXL);
  *
  * Return: A new cxl decoder to be registered by cxl_decoder_add()
  */
-struct cxl_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port)
+struct cxl_endpoint_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port)
 {
+	struct cxl_endpoint_decoder *cxled;
 	struct cxl_decoder *cxld;
 	int rc;
 
 	if (!is_cxl_endpoint(port))
 		return ERR_PTR(-EINVAL);
 
-	cxld = kzalloc(sizeof(*cxld), GFP_KERNEL);
-	if (!cxld)
+	cxled = kzalloc(sizeof(*cxled), GFP_KERNEL);
+	if (!cxled)
 		return ERR_PTR(-ENOMEM);
 
+	cxld = &cxled->cxld;
 	rc = cxl_decoder_init(port, cxld);
 	if (rc)	 {
-		kfree(cxld);
+		kfree(cxled);
 		return ERR_PTR(rc);
 	}
 
 	cxld->dev.type = &cxl_decoder_endpoint_type;
-	return cxld;
+	return cxled;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_endpoint_decoder_alloc, CXL);
 

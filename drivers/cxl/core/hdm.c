@@ -256,12 +256,15 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 		struct cxl_decoder *cxld;
 
 		if (is_cxl_endpoint(port)) {
-			cxld = cxl_endpoint_decoder_alloc(port);
-			if (IS_ERR(cxld)) {
+			struct cxl_endpoint_decoder *cxled;
+
+			cxled = cxl_endpoint_decoder_alloc(port);
+			if (IS_ERR(cxled)) {
 				dev_warn(&port->dev,
 					 "Failed to allocate the decoder\n");
-				return PTR_ERR(cxld);
+				return PTR_ERR(cxled);
 			}
+			cxld = &cxled->cxld;
 		} else {
 			struct cxl_switch_decoder *cxlsd;
 

@@ -240,6 +240,18 @@ struct cxl_decoder {
 };
 
 /**
+ * struct cxl_endpoint_decoder - Endpoint  / SPA to DPA decoder
+ * @cxld: base cxl_decoder_object
+ * @dpa_res: actively claimed DPA span of this decoder
+ * @skip: offset into @dpa_res where @cxld.hpa_range maps
+ */
+struct cxl_endpoint_decoder {
+	struct cxl_decoder cxld;
+	struct resource *dpa_res;
+	resource_size_t skip;
+};
+
+/**
  * struct cxl_switch_decoder - Switch specific CXL HDM Decoder
  * @cxld: base cxl_decoder object
  * @target_lock: coordinate coherent reads of the target list
@@ -394,6 +406,7 @@ struct cxl_dport *cxl_find_dport_by_dev(struct cxl_port *port,
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
 struct cxl_root_decoder *to_cxl_root_decoder(struct device *dev);
+struct cxl_endpoint_decoder *to_cxl_endpoint_decoder(struct device *dev);
 bool is_root_decoder(struct device *dev);
 bool is_endpoint_decoder(struct device *dev);
 struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
@@ -401,7 +414,7 @@ struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 struct cxl_switch_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
 						    unsigned int nr_targets);
 int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map);
-struct cxl_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port);
+struct cxl_endpoint_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port);
 int cxl_decoder_add_locked(struct cxl_decoder *cxld, int *target_map);
 int cxl_decoder_autoremove(struct device *host, struct cxl_decoder *cxld);
 int cxl_endpoint_autoremove(struct cxl_memdev *cxlmd, struct cxl_port *endpoint);
