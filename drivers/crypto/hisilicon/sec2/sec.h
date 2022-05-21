@@ -143,10 +143,10 @@ struct sec_ctx {
 	/* Threshold for fake busy, trigger to return -EBUSY to user */
 	u32 fake_req_limit;
 
-	/* Currrent cyclic index to select a queue for encipher */
+	/* Current cyclic index to select a queue for encipher */
 	atomic_t enc_qcyclic;
 
-	 /* Currrent cyclic index to select a queue for decipher */
+	 /* Current cyclic index to select a queue for decipher */
 	atomic_t dec_qcyclic;
 
 	enum sec_alg_type alg_type;
