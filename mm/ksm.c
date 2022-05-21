@@ -1590,7 +1590,7 @@ again:
 		 * the rbtree instead as a regular stable_node (in
 		 * order to collapse the stable_node chain if a single
 		 * stable_node dup was found in it). In such case the
-		 * stable_node is overwritten by the calleee to point
+		 * stable_node is overwritten by the callee to point
 		 * to the stable_node_dup that was collapsed in the
 		 * stable rbtree and stable_node will be equal to
 		 * stable_node_dup like if the chain never existed.
