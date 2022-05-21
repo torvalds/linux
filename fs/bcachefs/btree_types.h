@@ -292,6 +292,10 @@ struct btree_iter {
 	 * bch2_btree_iter_next_slot() can correctly advance pos.
 	 */
 	struct bkey		k;
+
+	/* BTREE_ITER_WITH_JOURNAL: */
+	size_t			journal_idx;
+	struct bpos		journal_pos;
 };
 
 struct btree_key_cache {
