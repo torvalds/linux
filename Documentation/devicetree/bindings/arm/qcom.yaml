@@ -54,6 +54,7 @@ description: |
         sdm845
         sdx55
         sdx65
+        sm6125
         sm7225
         sm8150
         sm8250
@@ -664,6 +665,11 @@ properties:
               - thundercomm,db845c
               - xiaomi,beryllium
           - const: qcom,sdm845
+
+      - items:
+          - enum:
+              - sony,pdx201
+          - const: qcom,sm6125
 
       - items:
           - enum:
