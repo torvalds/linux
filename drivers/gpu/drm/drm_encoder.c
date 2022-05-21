@@ -226,7 +226,7 @@ void *__drmm_encoder_alloc(struct drm_device *dev, size_t size, size_t offset,
 
 	container = drmm_kzalloc(dev, size, GFP_KERNEL);
 	if (!container)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-ENOMEM);
 
 	encoder = container + offset;
 
