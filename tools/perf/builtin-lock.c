@@ -118,6 +118,7 @@ struct thread_stat {
 static struct rb_root		thread_stats;
 
 static bool combine_locks;
+static bool show_thread_stats;
 
 static struct thread_stat *thread_stat_find(u32 tid)
 {
@@ -542,6 +543,10 @@ static int report_lock_acquire_event(struct evsel *evsel,
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 	int flag = evsel__intval(evsel, sample, "flags");
 
+	/* abuse ls->addr for tid */
+	if (show_thread_stats)
+		addr = sample->tid;
+
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
 		return -ENOMEM;
@@ -611,6 +616,9 @@ static int report_lock_acquired_event(struct evsel *evsel,
 	const char *name = evsel__strval(evsel, sample, "name");
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 
+	if (show_thread_stats)
+		addr = sample->tid;
+
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
 		return -ENOMEM;
@@ -670,6 +678,9 @@ static int report_lock_contended_event(struct evsel *evsel,
 	const char *name = evsel__strval(evsel, sample, "name");
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 
+	if (show_thread_stats)
+		addr = sample->tid;
+
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
 		return -ENOMEM;
@@ -721,6 +732,9 @@ static int report_lock_release_event(struct evsel *evsel,
 	struct lock_seq_stat *seq;
 	const char *name = evsel__strval(evsel, sample, "name");
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
+
+	if (show_thread_stats)
+		addr = sample->tid;
 
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
@@ -848,7 +862,17 @@ static void print_result(void)
 
 		if (strlen(st->name) < 20) {
 			/* output raw name */
-			pr_info("%20s ", st->name);
+			const char *name = st->name;
+
+			if (show_thread_stats) {
+				struct thread *t;
+
+				/* st->addr contains tid of thread */
+				t = perf_session__findnew(session, st->addr);
+				name = thread__comm_str(t);
+			}
+
+			pr_info("%20s ", name);
 		} else {
 			strncpy(cut_name, st->name, 16);
 			cut_name[16] = '.';
@@ -1125,6 +1149,8 @@ int cmd_lock(int argc, const char **argv)
 	/* TODO: type */
 	OPT_BOOLEAN('c', "combine-locks", &combine_locks,
 		    "combine locks in the same class"),
+	OPT_BOOLEAN('t', "threads", &show_thread_stats,
+		    "show per-thread lock stats"),
 	OPT_PARENT(lock_options)
 	};
 
