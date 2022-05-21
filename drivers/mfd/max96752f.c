@@ -105,6 +105,11 @@ void max96752f_regcache_sync(struct max96752f *max96752f)
 
 	client->addr = addr;
 
+	regmap_update_bits(max96752f->regmap, 0x0050, STR_SEL,
+			   FIELD_PREP(STR_SEL, max96752f->stream_id));
+	regmap_update_bits(max96752f->regmap, 0x0073, TX_SRC_ID,
+			   FIELD_PREP(TX_SRC_ID, max96752f->stream_id));
+
 	regcache_sync(max96752f->regmap);
 }
 EXPORT_SYMBOL(max96752f_regcache_sync);
@@ -135,6 +140,11 @@ static int max96752f_i2c_probe(struct i2c_client *client)
 
 	max96752f->dev = dev;
 	max96752f->client = client;
+
+	ret = device_property_read_u32(dev->parent, "reg", &max96752f->stream_id);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to get gmsl id\n");
+
 	i2c_set_clientdata(client, max96752f);
 
 	max96752f->regmap = devm_regmap_init_i2c(client,

@@ -54,6 +54,12 @@
 #define SLEEP			BIT(3)
 #define LINK_CFG		GENMASK(1, 0)
 
+/* 0050h */
+#define STR_SEL			GENMASK(1, 0)
+
+/* 0073h */
+#define TX_SRC_ID		GENMASK(2, 0)
+
 /* 0108h */
 #define VID_LOCK		BIT(6)
 
@@ -99,6 +105,7 @@ struct max96752f {
 	struct regmap *regmap;
 	struct i2c_client *client;
 	struct i2c_mux_core *muxc;
+	u32 stream_id;
 };
 
 void max96752f_regcache_sync(struct max96752f *max96752f);
