@@ -4552,13 +4552,22 @@ rkisp_params_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev,
 			list_del(&cur_buf->queue);
 			if (list_empty(&params_vdev->params))
 				break;
-			else if (new_params->module_en_update) {
+			else if (new_params->module_en_update ||
+				 (new_params->module_cfg_update & ISP3X_MODULE_FORCE)) {
 				/* update en immediately */
+				__isp_isr_meas_config(params_vdev, new_params, type, 0);
+				__isp_isr_other_config(params_vdev, new_params, type, 0);
 				__isp_isr_other_en(params_vdev, new_params, type, 0);
 				__isp_isr_meas_en(params_vdev, new_params, type, 0);
+				new_params->module_cfg_update = 0;
 				if (hw_dev->is_unite) {
-					__isp_isr_other_en(params_vdev, new_params + 1, type, 1);
-					__isp_isr_meas_en(params_vdev, new_params + 1, type, 1);
+					struct isp3x_isp_params_cfg *params = new_params + 1;
+
+					__isp_isr_meas_config(params_vdev, params, type, 1);
+					__isp_isr_other_config(params_vdev, params, type, 1);
+					__isp_isr_other_en(params_vdev, params, type, 1);
+					__isp_isr_meas_en(params_vdev, params, type, 1);
+					params->module_cfg_update = 0;
 				}
 			}
 			if (new_params->module_cfg_update &
@@ -4603,6 +4612,9 @@ rkisp_params_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev,
 		priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
 		priv_val->cur_hdrmge = new_params->others.hdrmge_cfg;
 		priv_val->cur_hdrdrc = new_params->others.drc_cfg;
+		new_params->module_cfg_update = 0;
+		if (hw_dev->is_unite)
+			(new_params++)->module_cfg_update = 0;
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		cur_buf = NULL;
 	}
