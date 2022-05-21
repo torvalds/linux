@@ -534,6 +534,9 @@ static void felix_set_host_flood(struct dsa_switch *ds, unsigned long mask,
 	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MC);
 	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MCIPV4);
 	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MCIPV6);
+
+	val = bc ? mask : 0;
+	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_BC);
 }
 
 static void
