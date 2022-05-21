@@ -509,7 +509,7 @@ static void wait_panel_power_cycle(struct intel_dp *intel_dp)
 
 	drm_dbg_kms(&i915->drm, "Wait for panel power cycle\n");
 
-	/* take the difference of currrent time and panel power off time
+	/* take the difference of current time and panel power off time
 	 * and then make panel wait for t11_t12 if needed. */
 	panel_power_on_time = ktime_get_boottime();
 	panel_power_off_duration = ktime_ms_delta(panel_power_on_time, intel_dp->pps.panel_power_off_time);
