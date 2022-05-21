@@ -20,6 +20,7 @@
 #include <linux/workqueue.h>
 #include <linux/version.h>
 #include <linux/pwm.h>
+#include <linux/compat.h>
 
 #define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x1)
 
@@ -48,7 +49,7 @@ struct rgb13h_led {
 	/* assures led-triggers compatibility */
 	struct work_struct work_brightness_set;
 
-	struct timeval timestamp;
+	struct __kernel_old_timeval timestamp;
 
 	u32 timeout;
 	bool waiting;
@@ -102,7 +103,7 @@ static int rgb13h_set_output(struct rgb13h_led *led, bool on)
 			wake_up(&led->done);
 		}
 	} else {
-		led->timestamp = ns_to_timeval(ktime_get_ns());
+		led->timestamp = ns_to_kernel_old_timeval(ktime_get_ns());
 	}
 	mutex_unlock(&led->lock);
 	return 0;
@@ -448,10 +449,10 @@ static long rgb13h_ioctl(struct v4l2_subdev *sd,
 			 unsigned int cmd, void *arg)
 {
 	struct rgb13h_led *led = sd_to_led(sd);
-	struct timeval *t;
+	struct __kernel_old_timeval *t;
 
 	if (cmd == RK_VIDIOC_FLASH_TIMEINFO) {
-		t = (struct timeval *)arg;
+		t = (struct __kernel_old_timeval *)arg;
 		t->tv_sec = led->timestamp.tv_sec;
 		t->tv_usec = led->timestamp.tv_usec;
 	} else {
@@ -462,14 +463,14 @@ static long rgb13h_ioctl(struct v4l2_subdev *sd,
 
 #ifdef CONFIG_COMPAT
 #define RK_VIDIOC_COMPAT_FLASH_TIMEINFO \
-	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct compat_timeval)
+	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct old_timeval32)
 static long rgb13h_compat_ioctl32(struct v4l2_subdev *sd,
 				  unsigned int cmd,
 				  unsigned long arg)
 {
-	struct timeval t;
-	struct compat_timeval compat_t;
-	struct compat_timeval __user *p32 = compat_ptr(arg);
+	struct __kernel_old_timeval t;
+	struct old_timeval32 compat_t;
+	struct old_timeval32 __user *p32 = compat_ptr(arg);
 
 	if (cmd == RK_VIDIOC_COMPAT_FLASH_TIMEINFO) {
 		rgb13h_ioctl(sd, RK_VIDIOC_FLASH_TIMEINFO, &t);
