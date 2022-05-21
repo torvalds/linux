@@ -284,7 +284,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		}
 
 		/*
-		 * Successfully parsed an interrrupt-map translation; copy new
+		 * Successfully parsed an interrupt-map translation; copy new
 		 * interrupt specifier into the out_irq structure
 		 */
 		match_array = imap - newaddrsize - newintsize;
