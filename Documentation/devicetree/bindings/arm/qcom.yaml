@@ -652,6 +652,21 @@ properties:
 
       - items:
           - enum:
+              - lenovo,yoga-c630
+              - oneplus,enchilada
+              - oneplus,fajita
+              - qcom,sdm845-mtp
+              - shift,axolotl
+              - samsung,w737
+              - sony,akari-row
+              - sony,akatsuki-row
+              - sony,apollo-row
+              - thundercomm,db845c
+              - xiaomi,beryllium
+          - const: qcom,sdm845
+
+      - items:
+          - enum:
               - fairphone,fp4
           - const: qcom,sm7225
 
