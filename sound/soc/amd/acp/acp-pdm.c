@@ -174,7 +174,7 @@ static void acp_dmic_dai_shutdown(struct snd_pcm_substream *substream,
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
 	u32 ext_int_ctrl;
 
-	/* Disable DMIC interrrupts */
+	/* Disable DMIC interrupts */
 	ext_int_ctrl = readl(adata->acp_base + ACP_EXTERNAL_INTR_CNTL);
 	ext_int_ctrl |= ~PDM_DMA_INTR_MASK;
 	writel(ext_int_ctrl, adata->acp_base + ACP_EXTERNAL_INTR_CNTL);
