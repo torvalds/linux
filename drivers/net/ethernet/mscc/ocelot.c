@@ -2195,6 +2195,8 @@ void ocelot_port_set_dsa_8021q_cpu(struct ocelot *ocelot, int port)
 {
 	u16 vid;
 
+	mutex_lock(&ocelot->fwd_domain_lock);
+
 	ocelot->ports[port]->is_dsa_8021q_cpu = true;
 
 	for (vid = OCELOT_RSV_VLAN_RANGE_START; vid < VLAN_N_VID; vid++)
@@ -2203,12 +2205,16 @@ void ocelot_port_set_dsa_8021q_cpu(struct ocelot *ocelot, int port)
 	ocelot_update_pgid_cpu(ocelot);
 
 	ocelot_apply_bridge_fwd_mask(ocelot, true);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 EXPORT_SYMBOL_GPL(ocelot_port_set_dsa_8021q_cpu);
 
 void ocelot_port_unset_dsa_8021q_cpu(struct ocelot *ocelot, int port)
 {
 	u16 vid;
+
+	mutex_lock(&ocelot->fwd_domain_lock);
 
 	ocelot->ports[port]->is_dsa_8021q_cpu = false;
 
@@ -2218,6 +2224,8 @@ void ocelot_port_unset_dsa_8021q_cpu(struct ocelot *ocelot, int port)
 	ocelot_update_pgid_cpu(ocelot);
 
 	ocelot_apply_bridge_fwd_mask(ocelot, true);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 EXPORT_SYMBOL_GPL(ocelot_port_unset_dsa_8021q_cpu);
 

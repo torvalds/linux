@@ -240,31 +240,6 @@ static int felix_tag_8021q_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 	return 0;
 }
 
-/* Alternatively to using the NPI functionality, that same hardware MAC
- * connected internally to the enetc or fman DSA master can be configured to
- * use the software-defined tag_8021q frame format. As far as the hardware is
- * concerned, it thinks it is a "dumb switch" - the queues of the CPU port
- * module are now disconnected from it, but can still be accessed through
- * register-based MMIO.
- */
-static void felix_8021q_cpu_port_init(struct ocelot *ocelot, int port)
-{
-	mutex_lock(&ocelot->fwd_domain_lock);
-
-	ocelot_port_set_dsa_8021q_cpu(ocelot, port);
-
-	mutex_unlock(&ocelot->fwd_domain_lock);
-}
-
-static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
-{
-	mutex_lock(&ocelot->fwd_domain_lock);
-
-	ocelot_port_unset_dsa_8021q_cpu(ocelot, port);
-
-	mutex_unlock(&ocelot->fwd_domain_lock);
-}
-
 static int felix_trap_get_cpu_port(struct dsa_switch *ds,
 				   const struct ocelot_vcap_filter *trap)
 {
@@ -423,6 +398,13 @@ static unsigned long felix_tag_npi_get_host_fwd_mask(struct dsa_switch *ds)
 	return BIT(ocelot->num_phys_ports);
 }
 
+/* Alternatively to using the NPI functionality, that same hardware MAC
+ * connected internally to the enetc or fman DSA master can be configured to
+ * use the software-defined tag_8021q frame format. As far as the hardware is
+ * concerned, it thinks it is a "dumb switch" - the queues of the CPU port
+ * module are now disconnected from it, but can still be accessed through
+ * register-based MMIO.
+ */
 static const struct felix_tag_proto_ops felix_tag_npi_proto_ops = {
 	.setup			= felix_tag_npi_setup,
 	.teardown		= felix_tag_npi_teardown,
@@ -440,7 +422,7 @@ static int felix_tag_8021q_setup(struct dsa_switch *ds)
 		return err;
 
 	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
-		felix_8021q_cpu_port_init(ocelot, cpu_dp->index);
+		ocelot_port_set_dsa_8021q_cpu(ocelot, cpu_dp->index);
 
 		/* TODO we could support multiple CPU ports in tag_8021q mode */
 		break;
@@ -490,7 +472,7 @@ static void felix_tag_8021q_teardown(struct dsa_switch *ds)
 	}
 
 	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
-		felix_8021q_cpu_port_deinit(ocelot, cpu_dp->index);
+		ocelot_port_unset_dsa_8021q_cpu(ocelot, cpu_dp->index);
 
 		/* TODO we could support multiple CPU ports in tag_8021q mode */
 		break;
