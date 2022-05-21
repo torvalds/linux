@@ -257,7 +257,7 @@ struct vdec_pic_info {
  * @param_change: indicate encode parameter type
  * @enc_params: encoding parameters
  * @dec_if: hooked decoder driver interface
- * @enc_if: hoooked encoder driver interface
+ * @enc_if: hooked encoder driver interface
  * @drv_handle: driver handle for specific decode/encode instance
  *
  * @picinfo: store picture info after header parsing
