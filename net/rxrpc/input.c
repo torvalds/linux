@@ -1154,8 +1154,6 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
  */
 static void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 {
-	CHECK_SLAB_OKAY(&local->usage);
-
 	if (rxrpc_get_local_maybe(local)) {
 		skb_queue_tail(&local->reject_queue, skb);
 		rxrpc_queue_local(local);
@@ -1413,7 +1411,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		}
 	}
 
-	if (!call || atomic_read(&call->usage) == 0) {
+	if (!call || refcount_read(&call->ref) == 0) {
 		if (rxrpc_to_client(sp) ||
 		    sp->hdr.type != RXRPC_PACKET_TYPE_DATA)
 			goto bad_message;
