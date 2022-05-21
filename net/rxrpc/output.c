@@ -74,10 +74,17 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 				 u8 reason)
 {
 	rxrpc_serial_t serial;
+	unsigned int tmp;
 	rxrpc_seq_t hard_ack, top, seq;
 	int ix;
 	u32 mtu, jmax;
 	u8 *ackp = pkt->acks;
+
+	tmp = atomic_xchg(&call->ackr_nr_unacked, 0);
+	tmp |= atomic_xchg(&call->ackr_nr_consumed, 0);
+	if (!tmp && (reason == RXRPC_ACK_DELAY ||
+		     reason == RXRPC_ACK_IDLE))
+		return 0;
 
 	/* Barrier against rxrpc_input_data(). */
 	serial = call->ackr_serial;
@@ -223,6 +230,10 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 	n = rxrpc_fill_out_ack(conn, call, pkt, &hard_ack, &top, reason);
 
 	spin_unlock_bh(&call->lock);
+	if (n == 0) {
+		kfree(pkt);
+		return 0;
+	}
 
 	iov[0].iov_base	= pkt;
 	iov[0].iov_len	= sizeof(pkt->whdr) + sizeof(pkt->ack) + n;
@@ -259,13 +270,6 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 					  ntohl(pkt->ack.serial),
 					  false, true,
 					  rxrpc_propose_ack_retry_tx);
-		} else {
-			spin_lock_bh(&call->lock);
-			if (after(hard_ack, call->ackr_consumed))
-				call->ackr_consumed = hard_ack;
-			if (after(top, call->ackr_seen))
-				call->ackr_seen = top;
-			spin_unlock_bh(&call->lock);
 		}
 
 		rxrpc_set_keepalive(call);
