@@ -1976,7 +1976,7 @@ static unsigned long qlge_process_mac_rx_intr(struct qlge_adapter *qdev,
 					 vlan_id);
 	} else {
 		/* Non-TCP/UDP large frames that span multiple buffers
-		 * can be processed corrrectly by the split frame logic.
+		 * can be processed correctly by the split frame logic.
 		 */
 		qlge_process_mac_split_rx_intr(qdev, rx_ring, ib_mac_rsp,
 					       vlan_id);
