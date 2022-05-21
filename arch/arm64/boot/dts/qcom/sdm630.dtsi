@@ -983,12 +983,6 @@
 					bias-pull-up;
 					drive-strength = <10>;
 				};
-
-				sd-cd {
-					pins = "gpio54";
-					bias-pull-up;
-					drive-strength = <2>;
-				};
 			};
 
 			sdc2_state_off: sdc2-off {
@@ -1007,12 +1001,6 @@
 				data {
 					pins = "sdc2_data";
 					bias-pull-up;
-					drive-strength = <2>;
-				};
-
-				sd-cd {
-					pins = "gpio54";
-					bias-disable;
 					drive-strength = <2>;
 				};
 			};
