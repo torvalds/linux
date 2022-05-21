@@ -213,7 +213,7 @@ static int compose_active_planes(void **vaddr_out,
  *
  * Work handler for composing and computing CRCs. work_struct scheduled in
  * an ordered workqueue that's periodically scheduled to run by
- * _vblank_handle() and flushed at vkms_atomic_crtc_destroy_state().
+ * vkms_vblank_simulate() and flushed at vkms_atomic_commit_tail().
  */
 void vkms_composer_worker(struct work_struct *work)
 {
