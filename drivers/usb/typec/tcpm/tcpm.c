@@ -471,7 +471,7 @@ struct tcpm_port {
 
 	/*
 	 * When set, port requests PD_P_SNK_STDBY_MW upon entering SNK_DISCOVERY and
-	 * the actual currrent limit after RX of PD_CTRL_PSRDY for PD link,
+	 * the actual current limit after RX of PD_CTRL_PSRDY for PD link,
 	 * SNK_READY for non-pd link.
 	 */
 	bool slow_charger_loop;
