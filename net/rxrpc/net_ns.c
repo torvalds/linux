@@ -50,7 +50,7 @@ static __net_init int rxrpc_init_net(struct net *net)
 	rxnet->epoch |= RXRPC_RANDOM_EPOCH;
 
 	INIT_LIST_HEAD(&rxnet->calls);
-	rwlock_init(&rxnet->call_lock);
+	spin_lock_init(&rxnet->call_lock);
 	atomic_set(&rxnet->nr_calls, 1);
 
 	atomic_set(&rxnet->nr_conns, 1);

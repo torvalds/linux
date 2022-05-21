@@ -337,9 +337,9 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	write_unlock(&rx->call_lock);
 
 	rxnet = call->rxnet;
-	write_lock(&rxnet->call_lock);
-	list_add_tail(&call->link, &rxnet->calls);
-	write_unlock(&rxnet->call_lock);
+	spin_lock_bh(&rxnet->call_lock);
+	list_add_tail_rcu(&call->link, &rxnet->calls);
+	spin_unlock_bh(&rxnet->call_lock);
 
 	/* From this point on, the call is protected by its own lock. */
 	release_sock(&rx->sk);
@@ -631,9 +631,9 @@ void rxrpc_put_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
 		ASSERTCMP(call->state, ==, RXRPC_CALL_COMPLETE);
 
 		if (!list_empty(&call->link)) {
-			write_lock(&rxnet->call_lock);
+			spin_lock_bh(&rxnet->call_lock);
 			list_del_init(&call->link);
-			write_unlock(&rxnet->call_lock);
+			spin_unlock_bh(&rxnet->call_lock);
 		}
 
 		rxrpc_cleanup_call(call);
@@ -705,7 +705,7 @@ void rxrpc_destroy_all_calls(struct rxrpc_net *rxnet)
 	_enter("");
 
 	if (!list_empty(&rxnet->calls)) {
-		write_lock(&rxnet->call_lock);
+		spin_lock_bh(&rxnet->call_lock);
 
 		while (!list_empty(&rxnet->calls)) {
 			call = list_entry(rxnet->calls.next,
@@ -720,12 +720,12 @@ void rxrpc_destroy_all_calls(struct rxrpc_net *rxnet)
 			       rxrpc_call_states[call->state],
 			       call->flags, call->events);
 
-			write_unlock(&rxnet->call_lock);
+			spin_unlock_bh(&rxnet->call_lock);
 			cond_resched();
-			write_lock(&rxnet->call_lock);
+			spin_lock_bh(&rxnet->call_lock);
 		}
 
-		write_unlock(&rxnet->call_lock);
+		spin_unlock_bh(&rxnet->call_lock);
 	}
 
 	atomic_dec(&rxnet->nr_calls);
