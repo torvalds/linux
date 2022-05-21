@@ -1,0 +1,52 @@
+* AW36518 flash driver support
+
+Required Properties:
+- compatible: Must contain "awinic,aw36518"
+- reg: I2C slave address
+- enable-gpios: Specifier of the GPIO connected to strobe/torch EN pin
+this pin is for hardware flash/torch mode, if not, will using i2c control.
+- tx-gpio: Specifier of the GPIO connected to TX pin
+this pin is synchronization input for RF power Amplifier Pulse Eventr;
+if not, will using assist mode.
+
+A discrete LED element connected to the device must be represented by a child
+node - see Documentation/devicetree/bindings/leds/common.txt.
+
+Required properties of the LED child node:
+- led-max-microamp : see Documentation/devicetree/bindings/leds/common.txt
+- flash-max-microamp : see Documentation/devicetree/bindings/leds/common.txt
+- flash-max-timeout-us : see Documentation/devicetree/bindings/leds/common.txt
+
+Special properties:
+- rockchip,camera-module-index : indicate which camera the flash belongs to.
+- rockchip,camera-module-facing : indicate the camera facing.
+
+Example:
+
+&i2c1 {
+	...
+	aw36518: aw36518@63 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "awinic,aw36518";
+		status = "okay";
+		reg = <0x63>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		enable-gpio = <&gpio3 RK_PC3 GPIO_ACTIVE_HIGH>;
+		tx-gpio = <&gpio3 RK_PC2 GPIO_ACTIVE_HIGH>;
+		aw36518_led0: led@0 {
+			reg = <0x0>;
+			led-max-microamp = <386000>;
+			flash-max-microamp = <1500000>;
+			flash-max-timeout-us = <1600000>;
+		};
+	};
+	...
+	ov13850: ov13850@10 {
+		...
+		flash-leds = <&aw36518_led0>;
+		...
+	};
+	...
+}
