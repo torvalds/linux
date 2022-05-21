@@ -63,6 +63,16 @@ void machine_restart(char *cmd)
 }
 
 /*
+ * This is used if pm_power_off has not been set by a power management
+ * driver, in this case we can assume we are on a simulator.  On
+ * OpenRISC simulators l.nop 1 will trigger the simulator exit.
+ */
+static void default_power_off(void)
+{
+	__asm__("l.nop 1");
+}
+
+/*
  * Similar to machine_power_off, but don't shut off power.  Add code
  * here to freeze the system for e.g. post-mortem debug purpose when
  * possible.  This halt has nothing to do with the idle halt.
@@ -77,7 +87,10 @@ void machine_halt(void)
 void machine_power_off(void)
 {
 	printk(KERN_INFO "*** MACHINE POWER OFF ***\n");
-	__asm__("l.nop 1");
+	if (pm_power_off != NULL)
+		pm_power_off();
+	else
+		default_power_off();
 }
 
 /*
@@ -91,7 +104,7 @@ void arch_cpu_idle(void)
 		mtspr(SPR_PMR, mfspr(SPR_PMR) | SPR_PMR_DME);
 }
 
-void (*pm_power_off) (void) = machine_power_off;
+void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
 /*
