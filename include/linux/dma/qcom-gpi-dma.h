@@ -26,7 +26,7 @@ enum spi_transfer_cmd {
  * @clk_div: source clock divider
  * @clk_src: serial clock
  * @cmd: spi cmd
- * @fragmentation: keep CS assserted at end of sequence
+ * @fragmentation: keep CS asserted at end of sequence
  * @cs: chip select toggle
  * @set_config: set peripheral config
  * @rx_len: receive length for buffer
