@@ -5352,7 +5352,7 @@ static int process_kptr_func(struct bpf_verifier_env *env, int regno,
 		return -EINVAL;
 	}
 	if (!map_value_has_kptrs(map_ptr)) {
-		ret = PTR_ERR(map_ptr->kptr_off_tab);
+		ret = PTR_ERR_OR_ZERO(map_ptr->kptr_off_tab);
 		if (ret == -E2BIG)
 			verbose(env, "map '%s' has more than %d kptr\n", map_ptr->name,
 				BPF_MAP_VALUE_OFF_MAX);
