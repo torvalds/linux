@@ -39,6 +39,7 @@ description: |
         msm8994
         msm8996
         msm8998
+        qcs404
         sa8155p
         sa8540p
         sc7180
@@ -617,6 +618,13 @@ properties:
               - qcom,ipq6018-cp01
               - qcom,ipq6018-cp01-c1
           - const: qcom,ipq6018
+
+      - items:
+          - enum:
+              - qcom,qcs404-evb-1000
+              - qcom,qcs404-evb-4000
+          - const: qcom,qcs404-evb
+          - const: qcom,qcs404
 
       - items:
           - enum:
