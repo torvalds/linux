@@ -443,7 +443,7 @@ void hv_process_channel_removal(struct vmbus_channel *channel)
 	/*
 	 * Upon suspend, an in-use hv_sock channel is removed from the array of
 	 * channels and the relid is invalidated.  After hibernation, when the
-	 * user-space appplication destroys the channel, it's unnecessary and
+	 * user-space application destroys the channel, it's unnecessary and
 	 * unsafe to remove the channel from the array of channels.  See also
 	 * the inline comments before the call of vmbus_release_relid() below.
 	 */
