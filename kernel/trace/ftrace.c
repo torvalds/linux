@@ -119,7 +119,7 @@ struct ftrace_ops __rcu *ftrace_ops_list __read_mostly = &ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
 struct ftrace_ops global_ops;
 
-/* Defined by vmlinux.lds.h see the commment above arch_ftrace_ops_list_func for details */
+/* Defined by vmlinux.lds.h see the comment above arch_ftrace_ops_list_func for details */
 void ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 			  struct ftrace_ops *op, struct ftrace_regs *fregs);
 
