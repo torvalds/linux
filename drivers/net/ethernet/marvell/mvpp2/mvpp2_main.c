@@ -1869,7 +1869,7 @@ static u32 mvpp2_read_index(struct mvpp2 *priv, u32 index, u32 reg)
  * design, incremented at different moments in the chain of packet processing,
  * it is very likely that incoming packets could have been dropped after being
  * counted by hardware but before reaching software statistics (most probably
- * multicast packets), and in the oppposite way, during transmission, FCS bytes
+ * multicast packets), and in the opposite way, during transmission, FCS bytes
  * are added in between as well as TSO skb will be split and header bytes added.
  * Hence, statistics gathered from userspace with ifconfig (software) and
  * ethtool (hardware) cannot be compared.
