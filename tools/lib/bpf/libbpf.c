@@ -6873,7 +6873,7 @@ static int bpf_object_load_prog_instance(struct bpf_object *obj, struct bpf_prog
 	}
 
 retry_load:
-	/* if log_level is zero, we don't request logs initiallly even if
+	/* if log_level is zero, we don't request logs initially even if
 	 * custom log_buf is specified; if the program load fails, then we'll
 	 * bump log_level to 1 and use either custom log_buf or we'll allocate
 	 * our own and retry the load to get details on what failed
