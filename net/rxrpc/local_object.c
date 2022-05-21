@@ -78,7 +78,7 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 
 	local = kzalloc(sizeof(struct rxrpc_local), GFP_KERNEL);
 	if (local) {
-		atomic_set(&local->usage, 1);
+		refcount_set(&local->ref, 1);
 		atomic_set(&local->active_users, 1);
 		local->rxnet = rxnet;
 		INIT_HLIST_NODE(&local->link);
@@ -284,10 +284,10 @@ addr_in_use:
 struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *local)
 {
 	const void *here = __builtin_return_address(0);
-	int n;
+	int r;
 
-	n = atomic_inc_return(&local->usage);
-	trace_rxrpc_local(local->debug_id, rxrpc_local_got, n, here);
+	__refcount_inc(&local->ref, &r);
+	trace_rxrpc_local(local->debug_id, rxrpc_local_got, r + 1, here);
 	return local;
 }
 
@@ -297,12 +297,12 @@ struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *local)
 struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
 {
 	const void *here = __builtin_return_address(0);
+	int r;
 
 	if (local) {
-		int n = atomic_fetch_add_unless(&local->usage, 1, 0);
-		if (n > 0)
+		if (__refcount_inc_not_zero(&local->ref, &r))
 			trace_rxrpc_local(local->debug_id, rxrpc_local_got,
-					  n + 1, here);
+					  r + 1, here);
 		else
 			local = NULL;
 	}
@@ -316,10 +316,10 @@ void rxrpc_queue_local(struct rxrpc_local *local)
 {
 	const void *here = __builtin_return_address(0);
 	unsigned int debug_id = local->debug_id;
-	int n = atomic_read(&local->usage);
+	int r = refcount_read(&local->ref);
 
 	if (rxrpc_queue_work(&local->processor))
-		trace_rxrpc_local(debug_id, rxrpc_local_queued, n, here);
+		trace_rxrpc_local(debug_id, rxrpc_local_queued, r + 1, here);
 	else
 		rxrpc_put_local(local);
 }
@@ -331,15 +331,16 @@ void rxrpc_put_local(struct rxrpc_local *local)
 {
 	const void *here = __builtin_return_address(0);
 	unsigned int debug_id;
-	int n;
+	bool dead;
+	int r;
 
 	if (local) {
 		debug_id = local->debug_id;
 
-		n = atomic_dec_return(&local->usage);
-		trace_rxrpc_local(debug_id, rxrpc_local_put, n, here);
+		dead = __refcount_dec_and_test(&local->ref, &r);
+		trace_rxrpc_local(debug_id, rxrpc_local_put, r, here);
 
-		if (n == 0)
+		if (dead)
 			call_rcu(&local->rcu, rxrpc_local_rcu);
 	}
 }
@@ -427,7 +428,7 @@ static void rxrpc_local_processor(struct work_struct *work)
 		return;
 
 	trace_rxrpc_local(local->debug_id, rxrpc_local_processing,
-			  atomic_read(&local->usage), NULL);
+			  refcount_read(&local->ref), NULL);
 
 	do {
 		again = false;
@@ -483,7 +484,7 @@ void rxrpc_destroy_all_locals(struct rxrpc_net *rxnet)
 		mutex_lock(&rxnet->local_mutex);
 		hlist_for_each_entry(local, &rxnet->local_endpoints, link) {
 			pr_err("AF_RXRPC: Leaked local %p {%d}\n",
-			       local, atomic_read(&local->usage));
+			       local, refcount_read(&local->ref));
 		}
 		mutex_unlock(&rxnet->local_mutex);
 		BUG();

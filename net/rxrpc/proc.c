@@ -107,7 +107,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   call->cid,
 		   call->call_id,
 		   rxrpc_is_service_call(call) ? "Svc" : "Clt",
-		   atomic_read(&call->usage),
+		   refcount_read(&call->ref),
 		   rxrpc_call_states[call->state],
 		   call->abort_code,
 		   call->debug_id,
@@ -189,7 +189,7 @@ print:
 		   conn->service_id,
 		   conn->proto.cid,
 		   rxrpc_conn_is_service(conn) ? "Svc" : "Clt",
-		   atomic_read(&conn->usage),
+		   refcount_read(&conn->ref),
 		   rxrpc_conn_states[conn->state],
 		   key_serial(conn->params.key),
 		   atomic_read(&conn->serial),
@@ -239,7 +239,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 		   " %3u %5u %6llus %8u %8u\n",
 		   lbuff,
 		   rbuff,
-		   atomic_read(&peer->usage),
+		   refcount_read(&peer->ref),
 		   peer->cong_cwnd,
 		   peer->mtu,
 		   now - peer->last_tx_at,
@@ -357,7 +357,7 @@ static int rxrpc_local_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq,
 		   "UDP   %-47.47s %3u %3u\n",
 		   lbuff,
-		   atomic_read(&local->usage),
+		   refcount_read(&local->ref),
 		   atomic_read(&local->active_users));
 
 	return 0;
