@@ -178,8 +178,9 @@ struct cxl_endpoint_dvsec_info {
  * @firmware_version: Firmware version for the memory device.
  * @enabled_cmds: Hardware commands found enabled in CEL.
  * @exclusive_cmds: Commands that are kernel-internal only
- * @pmem_range: Active Persistent memory capacity configuration
- * @ram_range: Active Volatile memory capacity configuration
+ * @dpa_res: Overall DPA resource tree for the device
+ * @pmem_res: Active Persistent memory capacity configuration
+ * @ram_res: Active Volatile memory capacity configuration
  * @total_bytes: sum of all possible capacities
  * @volatile_only_bytes: hard volatile capacity
  * @persistent_only_bytes: hard persistent capacity
@@ -209,8 +210,9 @@ struct cxl_dev_state {
 	DECLARE_BITMAP(enabled_cmds, CXL_MEM_COMMAND_ID_MAX);
 	DECLARE_BITMAP(exclusive_cmds, CXL_MEM_COMMAND_ID_MAX);
 
-	struct range pmem_range;
-	struct range ram_range;
+	struct resource dpa_res;
+	struct resource pmem_res;
+	struct resource ram_res;
 	u64 total_bytes;
 	u64 volatile_only_bytes;
 	u64 persistent_only_bytes;
