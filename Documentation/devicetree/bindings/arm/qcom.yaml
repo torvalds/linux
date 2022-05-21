@@ -184,6 +184,13 @@ properties:
 
       - items:
           - enum:
+              - lg,bullhead
+              - microsoft,talkman
+              - xiaomi,libra
+          - const: qcom,msm8992
+
+      - items:
+          - enum:
               - sony,karin_windy
           - const: qcom,apq8094
 
