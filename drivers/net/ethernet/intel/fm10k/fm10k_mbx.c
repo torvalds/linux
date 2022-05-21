@@ -1825,7 +1825,7 @@ static void fm10k_sm_mbx_process_error(struct fm10k_mbx_info *mbx)
 		fm10k_sm_mbx_connect_reset(mbx);
 		break;
 	case FM10K_STATE_CONNECT:
-		/* try connnecting at lower version */
+		/* try connecting at lower version */
 		if (mbx->remote) {
 			while (mbx->local > 1)
 				mbx->local--;
