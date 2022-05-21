@@ -1139,7 +1139,7 @@ static void cci_pmu_start(struct perf_event *event, int pmu_flags)
 
 	/*
 	 * To handle interrupt latency, we always reprogram the period
-	 * regardlesss of PERF_EF_RELOAD.
+	 * regardless of PERF_EF_RELOAD.
 	 */
 	if (pmu_flags & PERF_EF_RELOAD)
 		WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
