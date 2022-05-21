@@ -1127,7 +1127,7 @@ spi_max_transfer_size(struct spi_device *spi)
 	if (ctlr->max_transfer_size)
 		tr_max = ctlr->max_transfer_size(spi);
 
-	/* transfer size limit must not be greater than messsage size limit */
+	/* transfer size limit must not be greater than message size limit */
 	return min(tr_max, msg_max);
 }
 
