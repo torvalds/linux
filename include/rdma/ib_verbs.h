@@ -578,7 +578,7 @@ struct rdma_stat_desc {
 /**
  * struct rdma_hw_stats
  * @lock - Mutex to protect parallel write access to lifespan and values
- *    of counters, which are 64bits and not guaranteeed to be written
+ *    of counters, which are 64bits and not guaranteed to be written
  *    atomicaly on 32bits systems.
  * @timestamp - Used by the core code to track when the last update was
  * @lifespan - Used by the core code to determine how old the counters
