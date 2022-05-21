@@ -284,7 +284,7 @@ static int read_powermode(struct w1_slave *sl);
  * trigger_bulk_read() - function to trigger a bulk read on the bus
  * @dev_master: the device master of the bus
  *
- * Send a SKIP ROM follow by a CONVERT T commmand on the bus.
+ * Send a SKIP ROM follow by a CONVERT T command on the bus.
  * It also set the status flag in each slave &struct w1_therm_family_data
  * to signal that a conversion is in progress.
  *
