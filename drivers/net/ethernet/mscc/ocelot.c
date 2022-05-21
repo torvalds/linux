@@ -2094,7 +2094,7 @@ u32 ocelot_get_dsa_8021q_cpu_mask(struct ocelot *ocelot)
 }
 EXPORT_SYMBOL_GPL(ocelot_get_dsa_8021q_cpu_mask);
 
-void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
+static void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
 {
 	unsigned long cpu_fwd_mask;
 	int port;
@@ -2163,7 +2163,6 @@ void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
 	if (!joining && ocelot->ops->cut_through_fwd)
 		ocelot->ops->cut_through_fwd(ocelot);
 }
-EXPORT_SYMBOL(ocelot_apply_bridge_fwd_mask);
 
 /* Update PGID_CPU which is the destination port mask used for whitelisting
  * unicast addresses filtered towards the host. In the normal and NPI modes,
@@ -2202,6 +2201,8 @@ void ocelot_port_set_dsa_8021q_cpu(struct ocelot *ocelot, int port)
 		ocelot_vlan_member_add(ocelot, port, vid, true);
 
 	ocelot_update_pgid_cpu(ocelot);
+
+	ocelot_apply_bridge_fwd_mask(ocelot, true);
 }
 EXPORT_SYMBOL_GPL(ocelot_port_set_dsa_8021q_cpu);
 
@@ -2215,6 +2216,8 @@ void ocelot_port_unset_dsa_8021q_cpu(struct ocelot *ocelot, int port)
 		ocelot_vlan_member_del(ocelot, port, vid);
 
 	ocelot_update_pgid_cpu(ocelot);
+
+	ocelot_apply_bridge_fwd_mask(ocelot, true);
 }
 EXPORT_SYMBOL_GPL(ocelot_port_unset_dsa_8021q_cpu);
 

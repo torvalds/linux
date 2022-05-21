@@ -253,8 +253,6 @@ static void felix_8021q_cpu_port_init(struct ocelot *ocelot, int port)
 
 	ocelot_port_set_dsa_8021q_cpu(ocelot, port);
 
-	ocelot_apply_bridge_fwd_mask(ocelot, true);
-
 	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 
@@ -263,8 +261,6 @@ static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
 	mutex_lock(&ocelot->fwd_domain_lock);
 
 	ocelot_port_unset_dsa_8021q_cpu(ocelot, port);
-
-	ocelot_apply_bridge_fwd_mask(ocelot, true);
 
 	mutex_unlock(&ocelot->fwd_domain_lock);
 }

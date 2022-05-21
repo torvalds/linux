@@ -880,7 +880,6 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port, bool enabled,
 void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port, u8 state);
 u32 ocelot_get_dsa_8021q_cpu_mask(struct ocelot *ocelot);
 u32 ocelot_get_bridge_fwd_mask(struct ocelot *ocelot, int src_port);
-void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining);
 int ocelot_port_pre_bridge_flags(struct ocelot *ocelot, int port,
 				 struct switchdev_brport_flags val);
 void ocelot_port_bridge_flags(struct ocelot *ocelot, int port,
