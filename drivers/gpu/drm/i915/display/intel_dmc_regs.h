@@ -10,6 +10,47 @@
 
 #define DMC_PROGRAM(addr, i)	_MMIO((addr) + (i) * 4)
 #define DMC_SSP_BASE_ADDR_GEN9	0x00002FC0
+
+#define _ADLP_PIPEDMC_REG_MMIO_BASE_A	0x5f000
+#define _TGL_PIPEDMC_REG_MMIO_BASE_A	0x92000
+
+#define __PIPEDMC_REG_MMIO_BASE(i915, dmc_id) \
+	((DISPLAY_VER(i915) >= 13 ? _ADLP_PIPEDMC_REG_MMIO_BASE_A : \
+				    _TGL_PIPEDMC_REG_MMIO_BASE_A) + \
+	 0x400 * ((dmc_id) - 1))
+
+#define __DMC_REG_MMIO_BASE		0x8f000
+
+#define _DMC_REG_MMIO_BASE(i915, dmc_id) \
+	((dmc_id) == DMC_FW_MAIN ? __DMC_REG_MMIO_BASE : \
+				   __PIPEDMC_REG_MMIO_BASE(i915, dmc_id))
+
+#define _DMC_REG(i915, dmc_id, reg) \
+	((reg) - __DMC_REG_MMIO_BASE + _DMC_REG_MMIO_BASE(i915, dmc_id))
+
+#define _DMC_EVT_HTP_0			0x8f004
+
+#define DMC_EVT_HTP(i915, dmc_id, handler) \
+	_MMIO(_DMC_REG(i915, dmc_id, _DMC_EVT_HTP_0) + 4 * (handler))
+
+#define _DMC_EVT_CTL_0			0x8f034
+
+#define DMC_EVT_CTL(i915, dmc_id, handler) \
+	_MMIO(_DMC_REG(i915, dmc_id, _DMC_EVT_CTL_0) + 4 * (handler))
+
+#define DMC_EVT_CTL_ENABLE		REG_BIT(31)
+#define DMC_EVT_CTL_RECURRING		REG_BIT(30)
+#define DMC_EVT_CTL_TYPE_MASK		REG_GENMASK(17, 16)
+#define DMC_EVT_CTL_TYPE_LEVEL_0	0
+#define DMC_EVT_CTL_TYPE_LEVEL_1	1
+#define DMC_EVT_CTL_TYPE_EDGE_1_0	2
+#define DMC_EVT_CTL_TYPE_EDGE_0_1	3
+
+#define DMC_EVT_CTL_EVENT_ID_MASK	REG_GENMASK(15, 8)
+#define DMC_EVT_CTL_EVENT_ID_FALSE	0x01
+/* An event handler scheduled to run at a 1 kHz frequency. */
+#define DMC_EVT_CTL_EVENT_ID_CLK_MSEC	0xbf
+
 #define DMC_HTP_ADDR_SKL	0x00500034
 #define DMC_SSP_BASE		_MMIO(0x8F074)
 #define DMC_HTP_SKL		_MMIO(0x8F004)
