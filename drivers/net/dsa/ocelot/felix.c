@@ -253,9 +253,6 @@ static void felix_8021q_cpu_port_init(struct ocelot *ocelot, int port)
 
 	ocelot_port_set_dsa_8021q_cpu(ocelot, port);
 
-	/* Overwrite PGID_CPU with the non-tagging port */
-	ocelot_write_rix(ocelot, BIT(port), ANA_PGID_PGID, PGID_CPU);
-
 	ocelot_apply_bridge_fwd_mask(ocelot, true);
 
 	mutex_unlock(&ocelot->fwd_domain_lock);
@@ -266,10 +263,6 @@ static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
 	mutex_lock(&ocelot->fwd_domain_lock);
 
 	ocelot_port_unset_dsa_8021q_cpu(ocelot, port);
-
-	/* Restore PGID_CPU */
-	ocelot_write_rix(ocelot, BIT(ocelot->num_phys_ports), ANA_PGID_PGID,
-			 PGID_CPU);
 
 	ocelot_apply_bridge_fwd_mask(ocelot, true);
 

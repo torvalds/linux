@@ -2165,6 +2165,33 @@ void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
 }
 EXPORT_SYMBOL(ocelot_apply_bridge_fwd_mask);
 
+/* Update PGID_CPU which is the destination port mask used for whitelisting
+ * unicast addresses filtered towards the host. In the normal and NPI modes,
+ * this points to the analyzer entry for the CPU port module, while in DSA
+ * tag_8021q mode, it is a bit mask of all active CPU ports.
+ * PGID_SRC will take care of forwarding a packet from one user port to
+ * no more than a single CPU port.
+ */
+static void ocelot_update_pgid_cpu(struct ocelot *ocelot)
+{
+	int pgid_cpu = 0;
+	int port;
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+		if (!ocelot_port || !ocelot_port->is_dsa_8021q_cpu)
+			continue;
+
+		pgid_cpu |= BIT(port);
+	}
+
+	if (!pgid_cpu)
+		pgid_cpu = BIT(ocelot->num_phys_ports);
+
+	ocelot_write_rix(ocelot, pgid_cpu, ANA_PGID_PGID, PGID_CPU);
+}
+
 void ocelot_port_set_dsa_8021q_cpu(struct ocelot *ocelot, int port)
 {
 	u16 vid;
@@ -2173,6 +2200,8 @@ void ocelot_port_set_dsa_8021q_cpu(struct ocelot *ocelot, int port)
 
 	for (vid = OCELOT_RSV_VLAN_RANGE_START; vid < VLAN_N_VID; vid++)
 		ocelot_vlan_member_add(ocelot, port, vid, true);
+
+	ocelot_update_pgid_cpu(ocelot);
 }
 EXPORT_SYMBOL_GPL(ocelot_port_set_dsa_8021q_cpu);
 
@@ -2184,6 +2213,8 @@ void ocelot_port_unset_dsa_8021q_cpu(struct ocelot *ocelot, int port)
 
 	for (vid = OCELOT_RSV_VLAN_RANGE_START; vid < VLAN_N_VID; vid++)
 		ocelot_vlan_member_del(ocelot, port, vid);
+
+	ocelot_update_pgid_cpu(ocelot);
 }
 EXPORT_SYMBOL_GPL(ocelot_port_unset_dsa_8021q_cpu);
 
