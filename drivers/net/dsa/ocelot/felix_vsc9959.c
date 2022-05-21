@@ -2162,7 +2162,8 @@ static void vsc9959_cut_through_fwd(struct ocelot *ocelot)
 			if (ocelot->npi >= 0)
 				mask |= BIT(ocelot->npi);
 			else
-				mask |= ocelot_get_dsa_8021q_cpu_mask(ocelot);
+				mask |= ocelot_port_assigned_dsa_8021q_cpu_mask(ocelot,
+										port);
 		}
 
 		/* Calculate the minimum link speed, among the ports that are
