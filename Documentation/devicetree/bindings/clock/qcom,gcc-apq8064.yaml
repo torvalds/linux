@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/qcom,gcc-apq8064.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Global Clock & Reset Controller Binding for APQ8064
+title: Qualcomm Global Clock & Reset Controller Binding for APQ8064/MSM8960
 
 allOf:
   - $ref: qcom,gcc.yaml#
@@ -23,7 +23,9 @@ description: |
 
 properties:
   compatible:
-    const: qcom,gcc-apq8064
+    enum:
+      - qcom,gcc-apq8064
+      - qcom,gcc-msm8960
 
   nvmem-cells:
     minItems: 1
