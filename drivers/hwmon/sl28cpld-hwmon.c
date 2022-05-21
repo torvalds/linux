@@ -54,7 +54,7 @@ static int sl28cpld_hwmon_read(struct device *dev,
 
 		/*
 		 * The counter period is 1000ms and the sysfs specification
-		 * says we should asssume 2 pulses per revolution.
+		 * says we should assume 2 pulses per revolution.
 		 */
 		value *= 60 / 2;
 
