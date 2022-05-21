@@ -44,6 +44,7 @@ description: |
         sc7280
         sc8180x
         sc8280xp
+        sda660
         sdm630
         sdm632
         sdm660
@@ -543,6 +544,11 @@ properties:
           - enum:
               - qcom,sc8280xp-qrd
           - const: qcom,sc8280xp
+
+      - items:
+          - enum:
+              - inforce,ifc6560
+          - const: qcom,sda660
 
       - items:
           - enum:
