@@ -393,10 +393,12 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 		id = 0;
 
 	rgb_data = of_device_get_match_data(dev);
+	if (rgb_data) {
+		rgb->max_dclk_rate = rgb_data->max_dclk_rate;
+		rgb->funcs = rgb_data->funcs;
+	}
 	rgb->id = id;
 	rgb->dev = dev;
-	rgb->max_dclk_rate = rgb_data->max_dclk_rate;
-	rgb->funcs = rgb_data->funcs;
 	platform_set_drvdata(pdev, rgb);
 
 	rgb->data_sync_bypass =
