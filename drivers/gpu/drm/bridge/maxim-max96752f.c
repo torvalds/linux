@@ -23,6 +23,7 @@
 
 struct max96752f_bridge {
 	struct drm_bridge bridge;
+	struct drm_bridge *next_bridge;
 	struct drm_connector connector;
 	struct drm_panel *panel;
 
@@ -163,9 +164,14 @@ static int max96752f_bridge_attach(struct drm_bridge *bridge,
 	int ret;
 
 	ret = drm_of_find_panel_or_bridge(bridge->of_node, 1, -1, &des->panel,
-					  NULL);
+					  &des->next_bridge);
 	if (ret)
 		return ret;
+
+
+	if (des->next_bridge)
+		return drm_bridge_attach(bridge->encoder, des->next_bridge,
+					 bridge, 0);
 
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
 			    DRM_CONNECTOR_POLL_DISCONNECT;
