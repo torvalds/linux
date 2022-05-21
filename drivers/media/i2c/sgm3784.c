@@ -13,6 +13,7 @@
 #include <linux/version.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <linux/compat.h>
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
 #define SGM3784_NAME			"sgm3784"
@@ -63,7 +64,7 @@ struct sgm3784_led {
 	struct v4l2_ctrl_handler ctrls;
 	struct v4l2_ctrl *flash_brt;
 	struct v4l2_ctrl *torch_brt;
-	struct timeval timestamp;
+	struct __kernel_old_timeval timestamp;
 	u32 max_flash_timeout;
 	u32 max_flash_intensity;
 	u32 max_torch_intensity;
@@ -131,7 +132,7 @@ static int sgm3784_led_on(struct sgm3784_flash *flash, bool on)
 
 	val = on ? SGM3784_ON : SGM3784_OFF;
 	ret = sgm3784_i2c_write(flash, SGM3784_REG_ENABLE, val);
-	flash->leds[0].timestamp = ns_to_timeval(ktime_get_ns());
+	flash->leds[0].timestamp = ns_to_kernel_old_timeval(ktime_get_ns());
 	flash->leds[1].timestamp = flash->leds[0].timestamp;
 	return ret;
 }
@@ -452,53 +453,72 @@ static int sgm3784_init_controls(struct sgm3784_flash *flash,
 	return 0;
 }
 
-static long sgm3784_ioctl(struct v4l2_subdev *sd,
-			 unsigned int cmd, void *arg)
+static void sgm3784_get_time_info(struct v4l2_subdev *sd,
+				  struct old_timeval32 *compat_ti)
 {
 	struct sgm3784_led *led =
 		container_of(sd, struct sgm3784_led, sd);
-	struct timeval *t;
 
-	v4l2_dbg(1, debug, sd,
-		 "%s: cmd 0x%x\n", __func__, cmd);
+	memset(compat_ti, 0, sizeof(*compat_ti));
+	compat_ti->tv_sec = led->timestamp.tv_sec;
+	compat_ti->tv_usec = led->timestamp.tv_usec;
+}
 
-	if (cmd == RK_VIDIOC_FLASH_TIMEINFO) {
-		t = (struct timeval *)arg;
-		t->tv_sec = led->timestamp.tv_sec;
-		t->tv_usec = led->timestamp.tv_usec;
-	} else {
-		return -EINVAL;
+static long sgm3784_ioctl(struct v4l2_subdev *sd,
+			 unsigned int cmd, void *arg)
+{
+	long ret = 0;
+
+	switch (cmd) {
+	case RK_VIDIOC_FLASH_TIMEINFO:
+		sgm3784_get_time_info(sd, (struct old_timeval32 *)arg);
+		break;
+
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
 	}
-
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_COMPAT
 #define RK_VIDIOC_COMPAT_FLASH_TIMEINFO \
-	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct compat_timeval)
+	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct old_timeval32)
 
 static long sgm3784_compat_ioctl32(struct v4l2_subdev *sd,
 				  unsigned int cmd,
 				  unsigned long arg)
 {
-	struct timeval t;
-	struct compat_timeval compat_t;
-	struct compat_timeval __user *p32 = compat_ptr(arg);
+	void __user *up = compat_ptr(arg);
+	struct old_timeval32 *compat_t;
+	long ret;
 
 	v4l2_dbg(1, debug, sd,
 		 "%s: cmd 0x%x\n", __func__, cmd);
 
-	if (cmd == RK_VIDIOC_COMPAT_FLASH_TIMEINFO) {
-		sgm3784_ioctl(sd, RK_VIDIOC_FLASH_TIMEINFO, &t);
-		compat_t.tv_sec = t.tv_sec;
-		compat_t.tv_usec = t.tv_usec;
-		put_user(compat_t.tv_sec, &p32->tv_sec);
-		put_user(compat_t.tv_usec, &p32->tv_usec);
-	} else {
-		return -EINVAL;
+	switch (cmd) {
+	case RK_VIDIOC_COMPAT_FLASH_TIMEINFO:
+		compat_t = kzalloc(sizeof(*compat_t), GFP_KERNEL);
+		if (!compat_t) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		ret = sgm3784_ioctl(sd, RK_VIDIOC_FLASH_TIMEINFO, compat_t);
+		if (!ret) {
+			ret = copy_to_user(up, compat_t, sizeof(*compat_t));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(compat_t);
+		break;
+
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
 	}
 
-	return 0;
+	return ret;
+
 }
 #endif
 
