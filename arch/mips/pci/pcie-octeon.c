@@ -895,7 +895,7 @@ retry:
 	mem_access_subid.s.nsw = 0;	/* Enable Snoop for Writes. */
 	mem_access_subid.s.ror = 0;	/* Disable Relaxed Ordering for Reads. */
 	mem_access_subid.s.row = 0;	/* Disable Relaxed Ordering for Writes. */
-	mem_access_subid.s.ba = 0;	/* PCIe Adddress Bits <63:34>. */
+	mem_access_subid.s.ba = 0;	/* PCIe Address Bits <63:34>. */
 
 	/*
 	 * Setup mem access 12-15 for port 0, 16-19 for port 1,
