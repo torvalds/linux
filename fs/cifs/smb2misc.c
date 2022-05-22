@@ -656,6 +656,12 @@ smb2_is_valid_lease_break(char *buffer)
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 	cifs_dbg(FYI, "Can not process lease break - no lease matched\n");
+	trace_smb3_lease_not_found(le32_to_cpu(rsp->CurrentLeaseState),
+				   le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
+				   le64_to_cpu(rsp->hdr.SessionId),
+				   *((u64 *)rsp->LeaseKey),
+				   *((u64 *)&rsp->LeaseKey[8]));
+
 	return false;
 }
 

@@ -814,6 +814,7 @@ DEFINE_EVENT(smb3_lease_done_class, smb3_##name,  \
 	TP_ARGS(lease_state, tid, sesid, lease_key_low, lease_key_high))
 
 DEFINE_SMB3_LEASE_DONE_EVENT(lease_done);
+DEFINE_SMB3_LEASE_DONE_EVENT(lease_not_found);
 
 DECLARE_EVENT_CLASS(smb3_lease_err_class,
 	TP_PROTO(__u32	lease_state,
