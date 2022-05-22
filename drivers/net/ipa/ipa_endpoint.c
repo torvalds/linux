@@ -442,12 +442,10 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 	struct gsi_trans *trans;
 	u32 count;
 
-	/* We need one command per modem TX endpoint.  We can get an upper
-	 * bound on that by assuming all initialized endpoints are modem->IPA.
-	 * That won't happen, and we could be more precise, but this is fine
-	 * for now.  End the transaction with commands to clear the pipeline.
+	/* We need one command per modem TX endpoint, plus the commands
+	 * that clear the pipeline.
 	 */
-	count = hweight32(initialized) + ipa_cmd_pipeline_clear_count();
+	count = ipa->modem_tx_count + ipa_cmd_pipeline_clear_count();
 	trans = ipa_cmd_trans_alloc(ipa, count);
 	if (!trans) {
 		dev_err(&ipa->pdev->dev,
@@ -1924,6 +1922,8 @@ u32 ipa_endpoint_init(struct ipa *ipa, u32 count,
 
 		if (data->endpoint.filter_support)
 			filter_map |= BIT(data->endpoint_id);
+		if (data->ee_id == GSI_EE_MODEM && data->toward_ipa)
+			ipa->modem_tx_count++;
 	}
 
 	if (!ipa_filter_map_valid(ipa, filter_map))
