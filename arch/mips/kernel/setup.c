@@ -554,7 +554,7 @@ static void __init bootcmdline_init(void)
 	 * unmodified.
 	 */
 	if (IS_ENABLED(CONFIG_CMDLINE_OVERRIDE)) {
-		strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
+		strscpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
 		return;
 	}
 
@@ -566,7 +566,7 @@ static void __init bootcmdline_init(void)
 	 * boot_command_line to undo anything early_init_dt_scan_chosen() did.
 	 */
 	if (IS_ENABLED(CONFIG_MIPS_CMDLINE_BUILTIN_EXTEND))
-		strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
+		strscpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
 	else
 		boot_command_line[0] = 0;
 
@@ -628,7 +628,7 @@ static void __init arch_mem_init(char **cmdline_p)
 	memblock_set_bottom_up(true);
 
 	bootcmdline_init();
-	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
+	strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
 	parse_early_param();
