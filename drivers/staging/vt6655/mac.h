@@ -18,7 +18,7 @@
 #ifndef __MAC_H__
 #define __MAC_H__
 
-#include "upc.h"
+#include "device.h"
 
 /*---------------------  Export Definitions -------------------------*/
 /* Registers in the MAC */
