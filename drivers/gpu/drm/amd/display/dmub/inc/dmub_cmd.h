@@ -1427,6 +1427,7 @@ struct dmub_rb_cmd_dp_set_config_reply {
 struct dmub_cmd_hpd_state_query_data {
 	uint8_t instance; /**< HPD instance or DPIA instance */
 	uint8_t result; /**< For returning HPD state */
+	uint16_t pad; /** < Alignment */
 	enum aux_channel_type ch_type; /**< enum aux_channel_type */
 	enum aux_return_code_type status; /**< for returning the status of command */
 };
