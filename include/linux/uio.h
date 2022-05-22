@@ -26,6 +26,7 @@ enum iter_type {
 	ITER_PIPE,
 	ITER_XARRAY,
 	ITER_DISCARD,
+	ITER_UBUF,
 };
 
 struct iov_iter_state {
@@ -38,6 +39,7 @@ struct iov_iter {
 	u8 iter_type;
 	bool nofault;
 	bool data_source;
+	bool user_backed;
 	size_t iov_offset;
 	size_t count;
 	union {
@@ -46,6 +48,7 @@ struct iov_iter {
 		const struct bio_vec *bvec;
 		struct xarray *xarray;
 		struct pipe_inode_info *pipe;
+		void __user *ubuf;
 	};
 	union {
 		unsigned long nr_segs;
@@ -68,6 +71,11 @@ static inline void iov_iter_save_state(struct iov_iter *iter,
 	state->iov_offset = iter->iov_offset;
 	state->count = iter->count;
 	state->nr_segs = iter->nr_segs;
+}
+
+static inline bool iter_is_ubuf(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_UBUF;
 }
 
 static inline bool iter_is_iovec(const struct iov_iter *i)
@@ -103,6 +111,11 @@ static inline bool iov_iter_is_xarray(const struct iov_iter *i)
 static inline unsigned char iov_iter_rw(const struct iov_iter *i)
 {
 	return i->data_source ? WRITE : READ;
+}
+
+static inline bool user_backed_iter(const struct iov_iter *i)
+{
+	return i->user_backed;
 }
 
 /*
@@ -321,5 +334,18 @@ ssize_t __import_iovec(int type, const struct iovec __user *uvec,
 		 struct iov_iter *i, bool compat);
 int import_single_range(int type, void __user *buf, size_t len,
 		 struct iovec *iov, struct iov_iter *i);
+
+static inline void iov_iter_ubuf(struct iov_iter *i, unsigned int direction,
+			void __user *buf, size_t count)
+{
+	WARN_ON(direction & ~(READ | WRITE));
+	*i = (struct iov_iter) {
+		.iter_type = ITER_UBUF,
+		.user_backed = true,
+		.data_source = direction,
+		.ubuf = buf,
+		.count = count
+	};
+}
 
 #endif
