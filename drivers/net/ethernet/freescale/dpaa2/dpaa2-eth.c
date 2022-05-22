@@ -1097,6 +1097,7 @@ static void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
 	u32 fd_len = dpaa2_fd_get_len(fd);
 	struct dpaa2_sg_entry *sgt;
 	int should_free_skb = 1;
+	void *tso_hdr;
 	int i;
 
 	fd_addr = dpaa2_fd_get_addr(fd);
@@ -1136,9 +1137,10 @@ static void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
 							priv->tx_data_offset);
 
 			/* Unmap and free the header */
+			tso_hdr = dpaa2_iova_to_virt(priv->iommu_domain, dpaa2_sg_get_addr(sgt));
 			dma_unmap_single(dev, dpaa2_sg_get_addr(sgt), TSO_HEADER_SIZE,
 					 DMA_TO_DEVICE);
-			kfree(dpaa2_iova_to_virt(priv->iommu_domain, dpaa2_sg_get_addr(sgt)));
+			kfree(tso_hdr);
 
 			/* Unmap the other SG entries for the data */
 			for (i = 1; i < swa->tso.num_sg; i++)
