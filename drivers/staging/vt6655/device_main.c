@@ -1143,7 +1143,7 @@ static irqreturn_t vnt_interrupt(int irq,  void *arg)
 
 	schedule_work(&priv->interrupt_work);
 
-	MACvIntDisable(priv->port_offset);
+	VNSvOutPortD(priv->port_offset + MAC_REG_IMR, 0);
 
 	return IRQ_HANDLED;
 }
