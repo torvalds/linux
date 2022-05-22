@@ -349,7 +349,6 @@ int ipa_cmd_pool_init(struct gsi_channel *channel, u32 tre_max)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 	struct device *dev = channel->gsi->dev;
-	int ret;
 
 	/* This is as good a place as any to validate build constants */
 	ipa_cmd_validate_build();
@@ -358,20 +357,9 @@ int ipa_cmd_pool_init(struct gsi_channel *channel, u32 tre_max)
 	 * a single transaction can require up to tlv_count of them,
 	 * so we treat them as if that many can be allocated at once.
 	 */
-	ret = gsi_trans_pool_init_dma(dev, &trans_info->cmd_pool,
-				      sizeof(union ipa_cmd_payload),
-				      tre_max, channel->tlv_count);
-	if (ret)
-		return ret;
-
-	/* Each TRE needs a command info structure */
-	ret = gsi_trans_pool_init(&trans_info->info_pool,
-				   sizeof(struct ipa_cmd_info),
-				   tre_max, channel->tlv_count);
-	if (ret)
-		gsi_trans_pool_exit_dma(dev, &trans_info->cmd_pool);
-
-	return ret;
+	return gsi_trans_pool_init_dma(dev, &trans_info->cmd_pool,
+				       sizeof(union ipa_cmd_payload),
+				       tre_max, channel->tlv_count);
 }
 
 void ipa_cmd_pool_exit(struct gsi_channel *channel)
@@ -379,7 +367,6 @@ void ipa_cmd_pool_exit(struct gsi_channel *channel)
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 	struct device *dev = channel->gsi->dev;
 
-	gsi_trans_pool_exit(&trans_info->info_pool);
 	gsi_trans_pool_exit_dma(dev, &trans_info->cmd_pool);
 }
 
@@ -652,28 +639,16 @@ void ipa_cmd_pipeline_clear_wait(struct ipa *ipa)
 	wait_for_completion(&ipa->completion);
 }
 
-static struct ipa_cmd_info *
-ipa_cmd_info_alloc(struct ipa_endpoint *endpoint, u32 tre_count)
-{
-	struct gsi_channel *channel;
-
-	channel = &endpoint->ipa->gsi.channel[endpoint->channel_id];
-
-	return gsi_trans_pool_alloc(&channel->trans_info.info_pool, tre_count);
-}
-
 /* Allocate a transaction for the command TX endpoint */
 struct gsi_trans *ipa_cmd_trans_alloc(struct ipa *ipa, u32 tre_count)
 {
 	struct ipa_endpoint *endpoint;
-	struct gsi_trans *trans;
+
+	if (WARN_ON(tre_count > IPA_COMMAND_TRANS_TRE_MAX))
+		return NULL;
 
 	endpoint = ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX];
 
-	trans = gsi_channel_trans_alloc(&ipa->gsi, endpoint->channel_id,
-					tre_count, DMA_NONE);
-	if (trans)
-		trans->info = ipa_cmd_info_alloc(endpoint, tre_count);
-
-	return trans;
+	return gsi_channel_trans_alloc(&ipa->gsi, endpoint->channel_id,
+				       tre_count, DMA_NONE);
 }

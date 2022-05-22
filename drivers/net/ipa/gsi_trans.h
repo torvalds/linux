@@ -22,6 +22,9 @@ struct gsi;
 struct gsi_trans;
 struct gsi_trans_pool;
 
+/* Maximum number of TREs in an IPA immediate command transaction */
+#define IPA_COMMAND_TRANS_TRE_MAX	8
+
 /**
  * struct gsi_trans - a GSI transaction
  *
@@ -34,8 +37,8 @@ struct gsi_trans_pool;
  * @used:	Number of TREs *used* (could be less than tre_count)
  * @len:	Total # of transfer bytes represented in sgl[] (set by core)
  * @data:	Preserved but not touched by the core transaction code
+ * @cmd_opcode:	Array of command opcodes (command channel only)
  * @sgl:	An array of scatter/gather entries managed by core code
- * @info:	Array of command information structures (command channel)
  * @direction:	DMA transfer direction (DMA_NONE for commands)
  * @refcount:	Reference count used for destruction
  * @completion:	Completed when the transaction completes
@@ -58,8 +61,8 @@ struct gsi_trans {
 	u32 len;			/* total # bytes across sgl[] */
 
 	void *data;
+	u8 cmd_opcode[IPA_COMMAND_TRANS_TRE_MAX];
 	struct scatterlist *sgl;
-	struct ipa_cmd_info *info;	/* array of entries, or null */
 	enum dma_data_direction direction;
 
 	refcount_t refcount;

@@ -436,7 +436,7 @@ void gsi_trans_cmd_add(struct gsi_trans *trans, void *buf, u32 size,
 	sg_dma_address(sg) = addr;
 	sg_dma_len(sg) = size;
 
-	trans->info[which].opcode = opcode;
+	trans->cmd_opcode[which] = opcode;
 }
 
 /* Add a page transfer to a transaction.  It will fill the only TRE. */
@@ -552,10 +552,10 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 	struct gsi_ring *ring = &channel->tre_ring;
 	enum ipa_cmd_opcode opcode = IPA_CMD_NONE;
 	bool bei = channel->toward_ipa;
-	struct ipa_cmd_info *info;
 	struct gsi_tre *dest_tre;
 	struct scatterlist *sg;
 	u32 byte_count = 0;
+	u8 *cmd_opcode;
 	u32 avail;
 	u32 i;
 
@@ -566,7 +566,7 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 	 * If there is no info array we're doing a simple data
 	 * transfer request, whose opcode is IPA_CMD_NONE.
 	 */
-	info = trans->info ? &trans->info[0] : NULL;
+	cmd_opcode = channel->command ? &trans->cmd_opcode[0] : NULL;
 	avail = ring->count - ring->index % ring->count;
 	dest_tre = gsi_ring_virt(ring, ring->index);
 	for_each_sg(trans->sgl, sg, trans->used, i) {
@@ -577,8 +577,8 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 		byte_count += len;
 		if (!avail--)
 			dest_tre = gsi_ring_virt(ring, 0);
-		if (info)
-			opcode = info++->opcode;
+		if (cmd_opcode)
+			opcode = *cmd_opcode++;
 
 		gsi_trans_tre_fill(dest_tre, addr, len, last_tre, bei, opcode);
 		dest_tre++;
