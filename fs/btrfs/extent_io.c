@@ -2727,6 +2727,20 @@ static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 		btrfs_subpage_end_reader(fs_info, page, start, len);
 }
 
+static void end_sector_io(struct page *page, u64 offset, bool uptodate)
+{
+	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
+	const u32 sectorsize = inode->root->fs_info->sectorsize;
+	struct extent_state *cached = NULL;
+
+	end_page_read(page, uptodate, offset, sectorsize);
+	if (uptodate)
+		set_extent_uptodate(&inode->io_tree, offset,
+				    offset + sectorsize - 1, &cached, GFP_ATOMIC);
+	unlock_extent_cached_atomic(&inode->io_tree, offset,
+				    offset + sectorsize - 1, &cached);
+}
+
 static void submit_data_read_repair(struct inode *inode, struct bio *failed_bio,
 				    u32 bio_offset, const struct bio_vec *bvec,
 				    int failed_mirror, unsigned int error_bitmap)
@@ -2757,7 +2771,6 @@ static void submit_data_read_repair(struct inode *inode, struct bio *failed_bio,
 	/* Iterate through all the sectors in the range */
 	for (i = 0; i < nr_bits; i++) {
 		const unsigned int offset = i * sectorsize;
-		struct extent_state *cached = NULL;
 		bool uptodate = false;
 		int ret;
 
@@ -2788,16 +2801,7 @@ static void submit_data_read_repair(struct inode *inode, struct bio *failed_bio,
 		 * will not be properly unlocked.
 		 */
 next:
-		end_page_read(page, uptodate, start + offset, sectorsize);
-		if (uptodate)
-			set_extent_uptodate(&BTRFS_I(inode)->io_tree,
-					start + offset,
-					start + offset + sectorsize - 1,
-					&cached, GFP_ATOMIC);
-		unlock_extent_cached_atomic(&BTRFS_I(inode)->io_tree,
-				start + offset,
-				start + offset + sectorsize - 1,
-				&cached);
+		end_sector_io(page, start + offset, uptodate);
 	}
 }
 
