@@ -548,7 +548,7 @@ do {									\
 do {									\
 	unsigned short wData;						\
 	wData = ioread16(iobase + byRegOfs);				\
-	VNSvOutPortW(iobase + byRegOfs, wData | (wBits));		\
+	iowrite16(wData | (wBits), iobase + byRegOfs);			\
 } while (0)
 
 #define MACvRegBitsOff(iobase, byRegOfs, byBits)			\
@@ -562,7 +562,7 @@ do {									\
 do {									\
 	unsigned short wData;						\
 	wData = ioread16(iobase + byRegOfs);				\
-	VNSvOutPortW(iobase + byRegOfs, wData & ~(wBits));		\
+	iowrite16(wData & ~(wBits), iobase + byRegOfs);			\
 } while (0)
 
 /* set the chip with current BCN tx descriptor address */
