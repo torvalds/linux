@@ -245,6 +245,7 @@ static void hpriv_release(struct kref *ref)
 
 	hl_debugfs_remove_file(hpriv);
 
+	mutex_destroy(&hpriv->ctx_lock);
 	mutex_destroy(&hpriv->restore_phase_mutex);
 
 	if ((!hdev->pldm) && (hdev->pdev) &&

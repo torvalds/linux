@@ -137,6 +137,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	mutex_init(&hpriv->notifier_event.lock);
 	mutex_init(&hpriv->restore_phase_mutex);
+	mutex_init(&hpriv->ctx_lock);
 	kref_init(&hpriv->refcount);
 	nonseekable_open(inode, filp);
 
@@ -209,6 +210,7 @@ out_err:
 	hl_mem_mgr_fini(&hpriv->mem_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	filp->private_data = NULL;
+	mutex_destroy(&hpriv->ctx_lock);
 	mutex_destroy(&hpriv->restore_phase_mutex);
 	mutex_destroy(&hpriv->notifier_event.lock);
 	put_pid(hpriv->taskpid);

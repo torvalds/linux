@@ -1638,12 +1638,12 @@ struct hl_ctx {
 
 /**
  * struct hl_ctx_mgr - for handling multiple contexts.
- * @ctx_lock: protects ctx_handles.
- * @ctx_handles: idr to hold all ctx handles.
+ * @lock: protects ctx_handles.
+ * @handles: idr to hold all ctx handles.
  */
 struct hl_ctx_mgr {
-	struct mutex		ctx_lock;
-	struct idr		ctx_handles;
+	struct mutex	lock;
+	struct idr	handles;
 };
 
 
@@ -1998,6 +1998,8 @@ struct hl_notifier_event {
  * @dev_node: node in the device list of file private data
  * @refcount: number of related contexts.
  * @restore_phase_mutex: lock for context switch and restore phase.
+ * @ctx_lock: protects the pointer to current executing context pointer. TODO: remove for multiple
+ *            ctx per process.
  */
 struct hl_fpriv {
 	struct hl_device		*hdev;
@@ -2011,6 +2013,7 @@ struct hl_fpriv {
 	struct list_head		dev_node;
 	struct kref			refcount;
 	struct mutex			restore_phase_mutex;
+	struct mutex			ctx_lock;
 };
 
 
