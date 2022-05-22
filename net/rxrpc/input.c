@@ -903,6 +903,33 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 				  rxrpc_propose_ack_respond_to_ack);
 	}
 
+	/* If we get an EXCEEDS_WINDOW ACK from the server, it probably
+	 * indicates that the client address changed due to NAT.  The server
+	 * lost the call because it switched to a different peer.
+	 */
+	if (unlikely(buf.ack.reason == RXRPC_ACK_EXCEEDS_WINDOW) &&
+	    first_soft_ack == 1 &&
+	    prev_pkt == 0 &&
+	    rxrpc_is_client_call(call)) {
+		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
+					  0, -ENETRESET);
+		return;
+	}
+
+	/* If we get an OUT_OF_SEQUENCE ACK from the server, that can also
+	 * indicate a change of address.  However, we can retransmit the call
+	 * if we still have it buffered to the beginning.
+	 */
+	if (unlikely(buf.ack.reason == RXRPC_ACK_OUT_OF_SEQUENCE) &&
+	    first_soft_ack == 1 &&
+	    prev_pkt == 0 &&
+	    call->tx_hard_ack == 0 &&
+	    rxrpc_is_client_call(call)) {
+		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
+					  0, -ENETRESET);
+		return;
+	}
+
 	/* Discard any out-of-order or duplicate ACKs (outside lock). */
 	if (!rxrpc_is_ack_valid(call, first_soft_ack, prev_pkt)) {
 		trace_rxrpc_rx_discard_ack(call->debug_id, ack_serial,
@@ -1154,8 +1181,6 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
  */
 static void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 {
-	CHECK_SLAB_OKAY(&local->usage);
-
 	if (rxrpc_get_local_maybe(local)) {
 		skb_queue_tail(&local->reject_queue, skb);
 		rxrpc_queue_local(local);
@@ -1413,7 +1438,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		}
 	}
 
-	if (!call || atomic_read(&call->usage) == 0) {
+	if (!call || refcount_read(&call->ref) == 0) {
 		if (rxrpc_to_client(sp) ||
 		    sp->hdr.type != RXRPC_PACKET_TYPE_DATA)
 			goto bad_message;
