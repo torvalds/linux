@@ -39,13 +39,6 @@ STATIC int
 xlog_clear_stale_blocks(
 	struct xlog	*,
 	xfs_lsn_t);
-#if defined(DEBUG)
-STATIC void
-xlog_recover_check_summary(
-	struct xlog *);
-#else
-#define	xlog_recover_check_summary(log)
-#endif
 STATIC int
 xlog_do_recovery_pass(
         struct xlog *, xfs_daddr_t, xfs_daddr_t, int, xfs_daddr_t *);
@@ -3339,8 +3332,6 @@ xlog_do_recover(
 	}
 	mp->m_alloc_set_aside = xfs_alloc_set_aside(mp);
 
-	xlog_recover_check_summary(log);
-
 	/* Normal transactions can now occur */
 	clear_bit(XLOG_ACTIVE_RECOVERY, &log->l_opstate);
 	return 0;
@@ -3483,7 +3474,6 @@ xlog_recover_finish(
 	}
 
 	xlog_recover_process_iunlinks(log);
-	xlog_recover_check_summary(log);
 
 	/*
 	 * Recover any CoW staging blocks that are still referenced by the
@@ -3517,52 +3507,3 @@ xlog_recover_cancel(
 		xlog_recover_cancel_intents(log);
 }
 
-#if defined(DEBUG)
-/*
- * Read all of the agf and agi counters and check that they
- * are consistent with the superblock counters.
- */
-STATIC void
-xlog_recover_check_summary(
-	struct xlog		*log)
-{
-	struct xfs_mount	*mp = log->l_mp;
-	struct xfs_perag	*pag;
-	struct xfs_buf		*agfbp;
-	struct xfs_buf		*agibp;
-	xfs_agnumber_t		agno;
-	uint64_t		freeblks;
-	uint64_t		itotal;
-	uint64_t		ifree;
-	int			error;
-
-	freeblks = 0LL;
-	itotal = 0LL;
-	ifree = 0LL;
-	for_each_perag(mp, agno, pag) {
-		error = xfs_read_agf(mp, NULL, pag->pag_agno, 0, &agfbp);
-		if (error) {
-			xfs_alert(mp, "%s agf read failed agno %d error %d",
-						__func__, pag->pag_agno, error);
-		} else {
-			struct xfs_agf	*agfp = agfbp->b_addr;
-
-			freeblks += be32_to_cpu(agfp->agf_freeblks) +
-				    be32_to_cpu(agfp->agf_flcount);
-			xfs_buf_relse(agfbp);
-		}
-
-		error = xfs_read_agi(mp, NULL, pag->pag_agno, &agibp);
-		if (error) {
-			xfs_alert(mp, "%s agi read failed agno %d error %d",
-						__func__, pag->pag_agno, error);
-		} else {
-			struct xfs_agi	*agi = agibp->b_addr;
-
-			itotal += be32_to_cpu(agi->agi_count);
-			ifree += be32_to_cpu(agi->agi_freecount);
-			xfs_buf_relse(agibp);
-		}
-	}
-}
-#endif /* DEBUG */

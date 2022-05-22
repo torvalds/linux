@@ -22,7 +22,6 @@
 #include "xfs_attr.h"
 #include "xfs_attr_item.h"
 #include "xfs_trace.h"
-#include "xfs_inode.h"
 #include "xfs_trans_space.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
