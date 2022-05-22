@@ -1516,7 +1516,7 @@ xfs_attr_node_remove_attr(
 	struct xfs_attr_item		*attr)
 {
 	struct xfs_da_args		*args = attr->xattri_da_args;
-	struct xfs_da_state		*state = NULL;
+	struct xfs_da_state		*state = xfs_da_state_alloc(args);
 	int				retval = 0;
 	int				error = 0;
 
@@ -1526,8 +1526,6 @@ xfs_attr_node_remove_attr(
 	 * attribute entry after any split ops.
 	 */
 	args->attr_filter |= XFS_ATTR_INCOMPLETE;
-	state = xfs_da_state_alloc(args);
-	state->inleaf = 0;
 	error = xfs_da3_node_lookup_int(state, &retval);
 	if (error)
 		goto out;
@@ -1545,8 +1543,7 @@ xfs_attr_node_remove_attr(
 	retval = error = 0;
 
 out:
-	if (state)
-		xfs_da_state_free(state);
+	xfs_da_state_free(state);
 	if (error)
 		return error;
 	return retval;
