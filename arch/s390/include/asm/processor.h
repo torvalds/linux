@@ -200,13 +200,7 @@ unsigned long __get_wchan(struct task_struct *p);
 /* Has task runtime instrumentation enabled ? */
 #define is_ri_task(tsk) (!!(tsk)->thread.ri_cb)
 
-static __always_inline unsigned long current_stack_pointer(void)
-{
-	unsigned long sp;
-
-	asm volatile("la %0,0(15)" : "=a" (sp));
-	return sp;
-}
+register unsigned long current_stack_pointer asm("r15");
 
 static __always_inline unsigned short stap(void)
 {

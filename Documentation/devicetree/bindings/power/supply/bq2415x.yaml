@@ -17,7 +17,6 @@ properties:
   compatible:
     enum:
       - ti,bq24150
-      - ti,bq24150
       - ti,bq24150a
       - ti,bq24151
       - ti,bq24151a

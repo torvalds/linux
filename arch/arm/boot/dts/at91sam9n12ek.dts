@@ -119,7 +119,7 @@
 			spi0: spi@f0000000 {
 				status = "okay";
 				cs-gpios = <&pioA 14 0>, <0>, <0>, <0>;
-				m25p80@0 {
+				flash@0 {
 					compatible = "atmel,at25df321a";
 					spi-max-frequency = <50000000>;
 					reg = <0>;

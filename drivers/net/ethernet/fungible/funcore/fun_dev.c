@@ -586,8 +586,8 @@ static int fun_get_dev_limits(struct fun_dev *fdev)
 	/* Calculate the max QID based on SQ/CQ/doorbell counts.
 	 * SQ/CQ doorbells alternate.
 	 */
-	num_dbs = (pci_resource_len(pdev, 0) - NVME_REG_DBS) /
-		  (fdev->db_stride * 4);
+	num_dbs = (pci_resource_len(pdev, 0) - NVME_REG_DBS) >>
+		  (2 + NVME_CAP_STRIDE(fdev->cap_reg));
 	fdev->max_qid = min3(cq_count, sq_count, num_dbs / 2) - 1;
 	fdev->kern_end_qid = fdev->max_qid + 1;
 	return 0;

@@ -813,6 +813,7 @@ static int mxic_spi_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "spi_register_master failed\n");
 		pm_runtime_disable(&pdev->dev);
+		mxic_spi_mem_ecc_remove(mxic);
 	}
 
 	return ret;

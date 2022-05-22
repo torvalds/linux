@@ -2126,7 +2126,7 @@ static void kretprobe_rethook_handler(struct rethook_node *rh, void *data,
 	struct kprobe_ctlblk *kcb;
 
 	/* The data must NOT be null. This means rethook data structure is broken. */
-	if (WARN_ON_ONCE(!data))
+	if (WARN_ON_ONCE(!data) || !rp->handler)
 		return;
 
 	__this_cpu_write(current_kprobe, &rp->kp);

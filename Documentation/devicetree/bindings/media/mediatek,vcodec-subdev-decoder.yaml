@@ -61,7 +61,6 @@ properties:
 
   mediatek,scp:
     $ref: /schemas/types.yaml#/definitions/phandle
-    maxItems: 1
     description: |
       The node of system control processor (SCP), using
       the remoteproc & rpmsg framework.

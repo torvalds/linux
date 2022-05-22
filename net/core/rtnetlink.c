@@ -5242,6 +5242,8 @@ static int rtnl_offload_xstats_fill(struct sk_buff *skb, struct net_device *dev,
 		*prividx = attr_id_l3_stats;
 
 		size_l3 = rtnl_offload_xstats_get_size_stats(dev, t_l3);
+		if (!size_l3)
+			goto skip_l3_stats;
 		attr = nla_reserve_64bit(skb, attr_id_l3_stats, size_l3,
 					 IFLA_OFFLOAD_XSTATS_UNSPEC);
 		if (!attr)
@@ -5253,6 +5255,7 @@ static int rtnl_offload_xstats_fill(struct sk_buff *skb, struct net_device *dev,
 			return err;
 
 		have_data = true;
+skip_l3_stats:
 		*prividx = 0;
 	}
 

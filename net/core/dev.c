@@ -10304,7 +10304,7 @@ void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
 }
 EXPORT_SYMBOL(netdev_stats_to_stats64);
 
-struct net_device_core_stats *netdev_core_stats_alloc(struct net_device *dev)
+struct net_device_core_stats __percpu *netdev_core_stats_alloc(struct net_device *dev)
 {
 	struct net_device_core_stats __percpu *p;
 
@@ -10315,11 +10315,7 @@ struct net_device_core_stats *netdev_core_stats_alloc(struct net_device *dev)
 		free_percpu(p);
 
 	/* This READ_ONCE() pairs with the cmpxchg() above */
-	p = READ_ONCE(dev->core_stats);
-	if (!p)
-		return NULL;
-
-	return this_cpu_ptr(p);
+	return READ_ONCE(dev->core_stats);
 }
 EXPORT_SYMBOL(netdev_core_stats_alloc);
 
@@ -10356,9 +10352,9 @@ struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 
 		for_each_possible_cpu(i) {
 			core_stats = per_cpu_ptr(p, i);
-			storage->rx_dropped += local_read(&core_stats->rx_dropped);
-			storage->tx_dropped += local_read(&core_stats->tx_dropped);
-			storage->rx_nohandler += local_read(&core_stats->rx_nohandler);
+			storage->rx_dropped += READ_ONCE(core_stats->rx_dropped);
+			storage->tx_dropped += READ_ONCE(core_stats->tx_dropped);
+			storage->rx_nohandler += READ_ONCE(core_stats->rx_nohandler);
 		}
 	}
 	return storage;
