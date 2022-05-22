@@ -11,6 +11,14 @@
 struct xfs_mount;
 struct kmem_zone;
 
+struct xfs_attri_log_nameval {
+	struct xfs_log_iovec	name;
+	struct xfs_log_iovec	value;
+	refcount_t		refcount;
+
+	/* name and value follow the end of this struct */
+};
+
 /*
  * This is the "attr intention" log item.  It is used to log the fact that some
  * extended attribute operations need to be processed.  An operation is
@@ -26,10 +34,7 @@ struct kmem_zone;
 struct xfs_attri_log_item {
 	struct xfs_log_item		attri_item;
 	atomic_t			attri_refcount;
-	int				attri_name_len;
-	int				attri_value_len;
-	void				*attri_name;
-	void				*attri_value;
+	struct xfs_attri_log_nameval	*attri_nameval;
 	struct xfs_attri_log_format	attri_format;
 };
 
