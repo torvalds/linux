@@ -59,6 +59,7 @@ struct ipa_endpoint_tx {
  * struct ipa_endpoint_rx - Endpoint configuration for RX endpoints
  * @buffer_size:	requested receive buffer size (bytes)
  * @pad_align:		power-of-2 boundary to which packet payload is aligned
+ * @aggr_time_limit:	time before aggregation closes (microseconds)
  * @aggr_hard_limit:	whether aggregation closes before or after boundary
  * @aggr_close_eof:	whether aggregation closes on end-of-frame
  * @holb_drop:		whether to drop packets to avoid head-of-line blocking
@@ -74,6 +75,10 @@ struct ipa_endpoint_tx {
  * Aggregation is "open" while a buffer is being filled, and "closes" when
  * certain criteria are met.
  *
+ * A time limit can be specified to close aggregation.  Aggregation will be
+ * closed if this period passes after data is first written into a receive
+ * buffer.  If not specified, no time limit is imposed.
+ *
  * Insufficient space available in the receive buffer can close aggregation.
  * The aggregation byte limit defines the point (in units of 1024 bytes) in
  * the buffer where aggregation closes.  With a "soft" aggregation limit,
@@ -84,6 +89,7 @@ struct ipa_endpoint_tx {
 struct ipa_endpoint_rx {
 	u32 buffer_size;
 	u32 pad_align;
+	u32 aggr_time_limit;
 	bool aggr_hard_limit;
 	bool aggr_close_eof;
 	bool holb_drop;

@@ -35,7 +35,6 @@
 #define IPA_ENDPOINT_QMAP_METADATA_MASK		0x000000ff /* host byte order */
 
 #define IPA_ENDPOINT_RESET_AGGR_RETRY_MAX	3
-#define IPA_AGGR_TIME_LIMIT			500	/* microseconds */
 
 /** enum ipa_status_opcode - status element opcode hardware values */
 enum ipa_status_opcode {
@@ -142,6 +141,13 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 			bool result = true;
 
 			/* No aggregation; check for bogus aggregation data */
+			if (rx_config->aggr_time_limit) {
+				dev_err(dev,
+					"time limit with no aggregation for RX endpoint %u\n",
+					data->endpoint_id);
+				result = false;
+			}
+
 			if (rx_config->aggr_hard_limit) {
 				dev_err(dev, "hard limit with no aggregation for RX endpoint %u\n",
 					data->endpoint_id);
@@ -722,9 +728,13 @@ static u32 aggr_time_limit_encoded(enum ipa_version version, u32 limit)
 
 	if (version < IPA_VERSION_4_5) {
 		/* We set aggregation granularity in ipa_hardware_config() */
-		limit = DIV_ROUND_CLOSEST(limit, IPA_AGGR_GRANULARITY);
+		fmask = aggr_time_limit_fmask(true);
+		val = DIV_ROUND_CLOSEST(limit, IPA_AGGR_GRANULARITY);
+		WARN(val > field_max(fmask),
+		     "aggr_time_limit too large (%u > %u usec)\n",
+		     val, field_max(fmask) * IPA_AGGR_GRANULARITY);
 
-		return u32_encode_bits(limit, aggr_time_limit_fmask(true));
+		return u32_encode_bits(val, fmask);
 	}
 
 	/* IPA v4.5 expresses the time limit using Qtime.  The AP has
@@ -739,6 +749,9 @@ static u32 aggr_time_limit_encoded(enum ipa_version version, u32 limit)
 		/* Have to use pulse generator 1 (millisecond granularity) */
 		gran_sel = AGGR_GRAN_SEL_FMASK;
 		val = DIV_ROUND_CLOSEST(limit, 1000);
+		WARN(val > field_max(fmask),
+		     "aggr_time_limit too large (%u > %u usec)\n",
+		     limit, field_max(fmask) * 1000);
 	} else {
 		/* We can use pulse generator 0 (100 usec granularity) */
 		gran_sel = 0;
@@ -779,7 +792,7 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 						 rx_config->aggr_hard_limit);
 			val |= aggr_byte_limit_encoded(version, limit);
 
-			limit = IPA_AGGR_TIME_LIMIT;
+			limit = rx_config->aggr_time_limit;
 			val |= aggr_time_limit_encoded(version, limit);
 
 			/* AGGR_PKT_LIMIT is 0 (unlimited) */
