@@ -54,13 +54,14 @@ EXPORT_SYMBOL(pmic_set_domain);
 static int pmic_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	u8 val = 0;
 
 	pmic_dev = devm_kzalloc(dev, sizeof(*pmic_dev), GFP_KERNEL);
 	if (!pmic_dev)
 		return -ENOMEM;
 
 	pmic_dev->i2c_client = client;
+
+	dev_info(dev, "pmic init success!");
 
 	return 0;
 }
@@ -92,7 +93,18 @@ static struct i2c_driver pmic_i2c_driver = {
 	.remove   = pmic_remove,
 };
 
-module_i2c_driver(pmic_i2c_driver);
+static __init int pmic_init(void)
+{
+	return i2c_add_driver(&pmic_i2c_driver);
+}
+
+static __exit void pmic_exit(void)
+{
+	i2c_del_driver(&pmic_i2c_driver);
+}
+
+fs_initcall(pmic_init);
+module_exit(pmic_exit);
 
 MODULE_AUTHOR("changhuang <changhuang.liang@starfivetech.com>");
 MODULE_DESCRIPTION("StarFive JH7110 PMIC Device Driver");
