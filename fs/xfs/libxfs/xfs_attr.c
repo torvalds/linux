@@ -29,6 +29,7 @@
 
 struct kmem_cache		*xfs_attri_cache;
 struct kmem_cache		*xfs_attrd_cache;
+struct kmem_cache		*xfs_attr_intent_cache;
 
 /*
  * xfs_attr.c
@@ -902,7 +903,7 @@ xfs_attr_item_init(
 
 	struct xfs_attr_item	*new;
 
-	new = kmem_zalloc(sizeof(struct xfs_attr_item), KM_NOFS);
+	new = kmem_cache_zalloc(xfs_attr_intent_cache, GFP_NOFS | __GFP_NOFAIL);
 	new->xattri_op_flags = op_flags;
 	new->xattri_da_args = args;
 
@@ -1649,4 +1650,21 @@ xfs_attr_namecheck(
 
 	/* There shouldn't be any nulls here */
 	return !memchr(name, 0, length);
+}
+
+int __init
+xfs_attr_intent_init_cache(void)
+{
+	xfs_attr_intent_cache = kmem_cache_create("xfs_attr_item",
+			sizeof(struct xfs_attr_item),
+			0, 0, NULL);
+
+	return xfs_attr_intent_cache != NULL ? 0 : -ENOMEM;
+}
+
+void
+xfs_attr_intent_destroy_cache(void)
+{
+	kmem_cache_destroy(xfs_attr_intent_cache);
+	xfs_attr_intent_cache = NULL;
 }

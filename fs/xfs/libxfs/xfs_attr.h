@@ -634,4 +634,8 @@ xfs_attr_init_replace_state(struct xfs_da_args *args)
 	return xfs_attr_init_add_state(args);
 }
 
+extern struct kmem_cache *xfs_attr_intent_cache;
+int __init xfs_attr_intent_init_cache(void);
+void xfs_attr_intent_destroy_cache(void);
+
 #endif	/* __XFS_ATTR_H__ */

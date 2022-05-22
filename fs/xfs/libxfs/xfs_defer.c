@@ -879,6 +879,9 @@ xfs_defer_init_item_caches(void)
 	error = xfs_attrd_init_cache();
 	if (error)
 		goto err;
+	error = xfs_attr_intent_init_cache();
+	if (error)
+		goto err;
 	return 0;
 err:
 	xfs_defer_destroy_item_caches();
@@ -889,6 +892,7 @@ err:
 void
 xfs_defer_destroy_item_caches(void)
 {
+	xfs_attr_intent_destroy_cache();
 	xfs_attri_destroy_cache();
 	xfs_attrd_destroy_cache();
 	xfs_extfree_intent_destroy_cache();
