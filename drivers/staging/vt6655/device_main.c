@@ -1529,6 +1529,7 @@ static void vnt_configure(struct ieee80211_hw *hw,
 			} else {
 				MACvSelectPage1(priv->port_offset);
 
+				multicast =  le64_to_cpu(multicast);
 				iowrite32((u32)multicast, priv->port_offset +  MAC_REG_MAR0);
 				iowrite32((u32)(multicast >> 32),
 					  priv->port_offset + MAC_REG_MAR0 + 4);
