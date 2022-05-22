@@ -1136,6 +1136,10 @@ static void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
 			sgt = (struct dpaa2_sg_entry *)(buffer_start +
 							priv->tx_data_offset);
 
+			/* Unmap the SGT buffer */
+			dma_unmap_single(dev, fd_addr, swa->tso.sgt_size,
+					 DMA_BIDIRECTIONAL);
+
 			/* Unmap and free the header */
 			tso_hdr = dpaa2_iova_to_virt(priv->iommu_domain, dpaa2_sg_get_addr(sgt));
 			dma_unmap_single(dev, dpaa2_sg_get_addr(sgt), TSO_HEADER_SIZE,
@@ -1146,10 +1150,6 @@ static void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
 			for (i = 1; i < swa->tso.num_sg; i++)
 				dma_unmap_single(dev, dpaa2_sg_get_addr(&sgt[i]),
 						 dpaa2_sg_get_len(&sgt[i]), DMA_TO_DEVICE);
-
-			/* Unmap the SGT buffer */
-			dma_unmap_single(dev, fd_addr, swa->tso.sgt_size,
-					 DMA_BIDIRECTIONAL);
 
 			if (!swa->tso.is_last_fd)
 				should_free_skb = 0;
