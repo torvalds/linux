@@ -530,7 +530,7 @@ struct xfs_attr_item {
 	enum xfs_delattr_state		xattri_dela_state;
 
 	/*
-	 * Attr operation being performed - XFS_ATTR_OP_FLAGS_*
+	 * Attr operation being performed - XFS_ATTRI_OP_FLAGS_*
 	 */
 	unsigned int			xattri_op_flags;
 

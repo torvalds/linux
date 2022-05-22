@@ -906,10 +906,10 @@ struct xfs_icreate_log {
  * Flags for deferred attribute operations.
  * Upper bits are flags, lower byte is type code
  */
-#define XFS_ATTR_OP_FLAGS_SET		1	/* Set the attribute */
-#define XFS_ATTR_OP_FLAGS_REMOVE	2	/* Remove the attribute */
-#define XFS_ATTR_OP_FLAGS_REPLACE	3	/* Replace the attribute */
-#define XFS_ATTR_OP_FLAGS_TYPE_MASK	0xFF	/* Flags type mask */
+#define XFS_ATTRI_OP_FLAGS_SET		1	/* Set the attribute */
+#define XFS_ATTRI_OP_FLAGS_REMOVE	2	/* Remove the attribute */
+#define XFS_ATTRI_OP_FLAGS_REPLACE	3	/* Replace the attribute */
+#define XFS_ATTRI_OP_FLAGS_TYPE_MASK	0xFF	/* Flags type mask */
 
 /*
  * alfi_attr_filter captures the state of xfs_da_args.attr_filter, so it should
