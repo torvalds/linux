@@ -81,6 +81,24 @@ static u32 aggr_byte_limit_max(enum ipa_version version)
 	return field_max(aggr_byte_limit_fmask(false));
 }
 
+/* Compute the aggregation size value to use for a given buffer size */
+static u32 ipa_aggr_size_kb(u32 rx_buffer_size, bool aggr_hard_limit)
+{
+	/* A hard aggregation limit will not be crossed; aggregation closes
+	 * if saving incoming data would cross the hard byte limit boundary.
+	 *
+	 * With a soft limit, aggregation closes *after* the size boundary
+	 * has been crossed.  In that case the limit must leave enough space
+	 * after that limit to receive a full MTU of data plus overhead.
+	 */
+	if (!aggr_hard_limit)
+		rx_buffer_size -= IPA_MTU + IPA_RX_BUFFER_OVERHEAD;
+
+	/* The byte limit is encoded as a number of kilobytes */
+
+	return rx_buffer_size / SZ_1K;
+}
+
 static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 			    const struct ipa_gsi_endpoint_data *all_data,
 			    const struct ipa_gsi_endpoint_data *data)
@@ -93,7 +111,9 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 		return true;
 
 	if (!data->toward_ipa) {
+		const struct ipa_endpoint_rx *rx_config;
 		u32 buffer_size;
+		u32 aggr_size;
 		u32 limit;
 
 		if (data->endpoint.filter_support) {
@@ -107,8 +127,10 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 		if (data->ee_id != GSI_EE_AP)
 			return true;
 
-		buffer_size = data->endpoint.config.rx.buffer_size;
+		rx_config = &data->endpoint.config.rx;
+
 		/* The buffer size must hold an MTU plus overhead */
+		buffer_size = rx_config->buffer_size;
 		limit = IPA_MTU + IPA_RX_BUFFER_OVERHEAD;
 		if (buffer_size < limit) {
 			dev_err(dev, "RX buffer size too small for RX endpoint %u (%u < %u)\n",
@@ -116,27 +138,39 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 			return false;
 		}
 
-		/* For an endpoint supporting receive aggregation, the
-		 * aggregation byte limit defines the point at which an
-		 * aggregation window will close.  It is programmed into the
-		 * IPA hardware as a number of KB.  We don't use "hard byte
-		 * limit" aggregation, so we need to supply enough space in
-		 * a receive buffer to hold a complete MTU plus normal skb
-		 * overhead *after* that aggregation byte limit has been
-		 * crossed.
-		 *
-		 * This check just ensures the receive buffer size doesn't
-		 * exceed what's representable in the aggregation limit field.
-		 */
-		if (data->endpoint.config.aggregation) {
-			limit += SZ_1K * aggr_byte_limit_max(ipa->version);
-			if (buffer_size - NET_SKB_PAD > limit) {
-				dev_err(dev, "RX buffer size too large for aggregated RX endpoint %u (%u > %u)\n",
-					data->endpoint_id,
-					buffer_size - NET_SKB_PAD, limit);
+		if (!data->endpoint.config.aggregation) {
+			bool result = true;
 
-				return false;
+			/* No aggregation; check for bogus aggregation data */
+			if (rx_config->aggr_hard_limit) {
+				dev_err(dev, "hard limit with no aggregation for RX endpoint %u\n",
+					data->endpoint_id);
+				result = false;
 			}
+
+			if (rx_config->aggr_close_eof) {
+				dev_err(dev, "close EOF with no aggregation for RX endpoint %u\n",
+					data->endpoint_id);
+				result = false;
+			}
+
+			return result;	/* Nothing more to check */
+		}
+
+		/* For an endpoint supporting receive aggregation, the byte
+		 * limit defines the point at which aggregation closes.  This
+		 * check ensures the receive buffer size doesn't result in a
+		 * limit that exceeds what's representable in the aggregation
+		 * byte limit field.
+		 */
+		aggr_size = ipa_aggr_size_kb(buffer_size - NET_SKB_PAD,
+					     rx_config->aggr_hard_limit);
+		limit = aggr_byte_limit_max(ipa->version);
+		if (aggr_size > limit) {
+			dev_err(dev, "aggregated size too large for RX endpoint %u (%u KB > %u KB)\n",
+				data->endpoint_id, aggr_size, limit);
+
+			return false;
 		}
 
 		return true;	/* Nothing more to check for RX */
@@ -670,18 +704,6 @@ static void ipa_endpoint_init_mode(struct ipa_endpoint *endpoint)
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
-/* Compute the aggregation size value to use for a given buffer size */
-static u32 ipa_aggr_size_kb(u32 rx_buffer_size)
-{
-	/* We don't use "hard byte limit" aggregation, so we define the
-	 * aggregation limit such that our buffer has enough space *after*
-	 * that limit to receive a full MTU of data, plus overhead.
-	 */
-	rx_buffer_size -= IPA_MTU + IPA_RX_BUFFER_OVERHEAD;
-
-	return rx_buffer_size / SZ_1K;
-}
-
 /* Encoded values for AGGR endpoint register fields */
 static u32 aggr_byte_limit_encoded(enum ipa_version version, u32 limit)
 {
@@ -753,7 +775,8 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 			val |= u32_encode_bits(IPA_GENERIC, AGGR_TYPE_FMASK);
 
 			buffer_size = rx_config->buffer_size;
-			limit = ipa_aggr_size_kb(buffer_size - NET_SKB_PAD);
+			limit = ipa_aggr_size_kb(buffer_size - NET_SKB_PAD,
+						 rx_config->aggr_hard_limit);
 			val |= aggr_byte_limit_encoded(version, limit);
 
 			limit = IPA_AGGR_TIME_LIMIT;
