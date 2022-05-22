@@ -31,7 +31,8 @@ struct xfs_attr_list_context;
 static inline bool xfs_has_larp(struct xfs_mount *mp)
 {
 #ifdef DEBUG
-	return xfs_globals.larp;
+	/* Logged xattrs require a V5 super for log_incompat */
+	return xfs_has_crc(mp) && xfs_globals.larp;
 #else
 	return false;
 #endif

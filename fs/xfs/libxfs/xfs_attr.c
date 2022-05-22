@@ -982,7 +982,7 @@ xfs_attr_set(
 	int			error, local;
 	int			rmt_blks = 0;
 	unsigned int		total;
-	int			delayed = xfs_has_larp(mp);
+	bool			use_logging = xfs_has_larp(mp);
 
 	if (xfs_is_shutdown(dp->i_mount))
 		return -EIO;
@@ -1027,7 +1027,7 @@ xfs_attr_set(
 		rmt_blks = xfs_attr3_rmt_blocks(mp, XFS_XATTR_SIZE_MAX);
 	}
 
-	if (delayed) {
+	if (use_logging) {
 		error = xfs_attr_use_log_assist(mp);
 		if (error)
 			return error;
@@ -1101,7 +1101,7 @@ xfs_attr_set(
 out_unlock:
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 drop_incompat:
-	if (delayed)
+	if (use_logging)
 		xlog_drop_incompat_feat(mp->m_log);
 	return error;
 
