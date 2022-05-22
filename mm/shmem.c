@@ -1164,7 +1164,6 @@ static int shmem_find_swap_entries(struct address_space *mapping,
 	XA_STATE(xas, &mapping->i_pages, start);
 	struct folio *folio;
 	swp_entry_t entry;
-	unsigned int ret = 0;
 
 	rcu_read_lock();
 	xas_for_each(&xas, folio, ULONG_MAX) {
@@ -1178,7 +1177,7 @@ static int shmem_find_swap_entries(struct address_space *mapping,
 		if (swp_type(entry) != type)
 			continue;
 
-		indices[ret] = xas.xa_index;
+		indices[folio_batch_count(fbatch)] = xas.xa_index;
 		if (!folio_batch_add(fbatch, folio))
 			break;
 
