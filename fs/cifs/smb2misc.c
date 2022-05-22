@@ -732,6 +732,10 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 	cifs_dbg(FYI, "No file id matched, oplock break ignored\n");
+	trace_smb3_oplock_not_found(0 /* no xid */, rsp->PersistentFid,
+				  le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
+				  le64_to_cpu(rsp->hdr.SessionId));
+
 	return true;
 }
 

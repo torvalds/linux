@@ -158,6 +158,7 @@ DEFINE_SMB3_FD_EVENT(flush_enter);
 DEFINE_SMB3_FD_EVENT(flush_done);
 DEFINE_SMB3_FD_EVENT(close_enter);
 DEFINE_SMB3_FD_EVENT(close_done);
+DEFINE_SMB3_FD_EVENT(oplock_not_found);
 
 DECLARE_EVENT_CLASS(smb3_fd_err_class,
 	TP_PROTO(unsigned int xid,
