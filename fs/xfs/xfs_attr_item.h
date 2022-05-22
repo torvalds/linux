@@ -43,4 +43,7 @@ struct xfs_attrd_log_item {
 	struct xfs_attrd_log_format	attrd_format;
 };
 
+extern struct kmem_cache	*xfs_attri_cache;
+extern struct kmem_cache	*xfs_attrd_cache;
+
 #endif	/* __XFS_ATTR_ITEM_H__ */

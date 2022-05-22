@@ -27,8 +27,6 @@
 #include "xfs_attr_item.h"
 #include "xfs_log.h"
 
-struct kmem_cache		*xfs_attri_cache;
-struct kmem_cache		*xfs_attrd_cache;
 struct kmem_cache		*xfs_attr_intent_cache;
 
 /*
@@ -1111,40 +1109,6 @@ out_trans_cancel:
 	if (args->trans)
 		xfs_trans_cancel(args->trans);
 	goto out_unlock;
-}
-
-int __init
-xfs_attri_init_cache(void)
-{
-	xfs_attri_cache = kmem_cache_create("xfs_attri",
-					    sizeof(struct xfs_attri_log_item),
-					    0, 0, NULL);
-
-	return xfs_attri_cache != NULL ? 0 : -ENOMEM;
-}
-
-void
-xfs_attri_destroy_cache(void)
-{
-	kmem_cache_destroy(xfs_attri_cache);
-	xfs_attri_cache = NULL;
-}
-
-int __init
-xfs_attrd_init_cache(void)
-{
-	xfs_attrd_cache = kmem_cache_create("xfs_attrd",
-					    sizeof(struct xfs_attrd_log_item),
-					    0, 0, NULL);
-
-	return xfs_attrd_cache != NULL ? 0 : -ENOMEM;
-}
-
-void
-xfs_attrd_destroy_cache(void)
-{
-	kmem_cache_destroy(xfs_attrd_cache);
-	xfs_attrd_cache = NULL;
 }
 
 /*========================================================================

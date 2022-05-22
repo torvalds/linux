@@ -558,14 +558,6 @@ int xfs_attr_calc_size(struct xfs_da_args *args, int *local);
 void xfs_init_attr_trans(struct xfs_da_args *args, struct xfs_trans_res *tres,
 			 unsigned int *total);
 
-extern struct kmem_cache	*xfs_attri_cache;
-extern struct kmem_cache	*xfs_attrd_cache;
-
-int __init xfs_attri_init_cache(void);
-void xfs_attri_destroy_cache(void);
-int __init xfs_attrd_init_cache(void);
-void xfs_attrd_destroy_cache(void);
-
 /*
  * Check to see if the attr should be upgraded from non-existent or shortform to
  * single-leaf-block attribute list.

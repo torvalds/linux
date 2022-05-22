@@ -29,6 +29,9 @@
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
 
+struct kmem_cache		*xfs_attri_cache;
+struct kmem_cache		*xfs_attrd_cache;
+
 static const struct xfs_item_ops xfs_attri_item_ops;
 static const struct xfs_item_ops xfs_attrd_item_ops;
 static struct xfs_attrd_log_item *xfs_trans_get_attrd(struct xfs_trans *tp,
