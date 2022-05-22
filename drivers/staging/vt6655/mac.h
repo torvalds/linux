@@ -594,9 +594,9 @@ do {									\
 	unsigned long dwData;						\
 	dwData = ioread32(iobase + MAC_REG_RXDMACTL0);			\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(iobase + MAC_REG_RXDMACTL0, DMACTL_WAKE); \
+		iowrite32(DMACTL_WAKE, iobase + MAC_REG_RXDMACTL0);	\
 	else								\
-		VNSvOutPortD(iobase + MAC_REG_RXDMACTL0, DMACTL_RUN); \
+		iowrite32(DMACTL_RUN, iobase + MAC_REG_RXDMACTL0);	\
 } while (0)
 
 #define MACvReceive1(iobase)						\
@@ -604,9 +604,9 @@ do {									\
 	unsigned long dwData;						\
 	dwData = ioread32(iobase + MAC_REG_RXDMACTL1);			\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(iobase + MAC_REG_RXDMACTL1, DMACTL_WAKE); \
+		iowrite32(DMACTL_WAKE, iobase + MAC_REG_RXDMACTL1);	\
 	else								\
-		VNSvOutPortD(iobase + MAC_REG_RXDMACTL1, DMACTL_RUN); \
+		iowrite32(DMACTL_RUN, iobase + MAC_REG_RXDMACTL1);	\
 } while (0)
 
 #define MACvTransmit0(iobase)						\
@@ -614,9 +614,9 @@ do {									\
 	unsigned long dwData;						\
 	dwData = ioread32(iobase + MAC_REG_TXDMACTL0);			\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(iobase + MAC_REG_TXDMACTL0, DMACTL_WAKE); \
+		iowrite32(DMACTL_WAKE, iobase + MAC_REG_TXDMACTL0);	\
 	else								\
-		VNSvOutPortD(iobase + MAC_REG_TXDMACTL0, DMACTL_RUN); \
+		iowrite32(DMACTL_RUN, iobase + MAC_REG_TXDMACTL0);	\
 } while (0)
 
 #define MACvTransmitAC0(iobase)					\
@@ -624,9 +624,9 @@ do {									\
 	unsigned long dwData;						\
 	dwData = ioread32(iobase + MAC_REG_AC0DMACTL);			\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(iobase + MAC_REG_AC0DMACTL, DMACTL_WAKE); \
+		iowrite32(DMACTL_WAKE, iobase + MAC_REG_AC0DMACTL);	\
 	else								\
-		VNSvOutPortD(iobase + MAC_REG_AC0DMACTL, DMACTL_RUN); \
+		iowrite32(DMACTL_RUN, iobase + MAC_REG_AC0DMACTL);	\
 } while (0)
 
 #define MACvClearStckDS(iobase)					\
@@ -648,7 +648,7 @@ do {									\
 	unsigned long dwOrgValue;					\
 	dwOrgValue = ioread32(iobase + MAC_REG_ENCFG);			\
 	dwOrgValue = dwOrgValue | ENCFG_PROTECTMD;			\
-	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
+	iowrite32((u32)dwOrgValue, iobase + MAC_REG_ENCFG);		\
 } while (0)
 
 #define MACvDisableProtectMD(iobase)					\
@@ -656,7 +656,7 @@ do {									\
 	unsigned long dwOrgValue;					\
 	dwOrgValue = ioread32(iobase + MAC_REG_ENCFG);			\
 	dwOrgValue = dwOrgValue & ~ENCFG_PROTECTMD;			\
-	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
+	iowrite32((u32)dwOrgValue, iobase + MAC_REG_ENCFG);		\
 } while (0)
 
 #define MACvEnableBarkerPreambleMd(iobase)				\
@@ -664,7 +664,7 @@ do {									\
 	unsigned long dwOrgValue;					\
 	dwOrgValue = ioread32(iobase + MAC_REG_ENCFG);			\
 	dwOrgValue = dwOrgValue | ENCFG_BARKERPREAM;			\
-	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
+	iowrite32((u32)dwOrgValue, iobase + MAC_REG_ENCFG);		\
 } while (0)
 
 #define MACvDisableBarkerPreambleMd(iobase)				\
@@ -672,7 +672,7 @@ do {									\
 	unsigned long dwOrgValue;					\
 	dwOrgValue = ioread32(iobase + MAC_REG_ENCFG);			\
 	dwOrgValue = dwOrgValue & ~ENCFG_BARKERPREAM;			\
-	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
+	iowrite32((u32)dwOrgValue, iobase + MAC_REG_ENCFG);		\
 } while (0)
 
 #define MACvSetBBType(iobase, byTyp)					\
@@ -681,7 +681,7 @@ do {									\
 	dwOrgValue = ioread32(iobase + MAC_REG_ENCFG);			\
 	dwOrgValue = dwOrgValue & ~ENCFG_BBTYPE_MASK;			\
 	dwOrgValue = dwOrgValue | (unsigned long)byTyp;			\
-	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
+	iowrite32((u32)dwOrgValue, iobase + MAC_REG_ENCFG);		\
 } while (0)
 
 #define MACvSetRFLE_LatchBase(iobase)                                 \

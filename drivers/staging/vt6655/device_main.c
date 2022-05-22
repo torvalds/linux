@@ -1055,7 +1055,7 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 	 * update ISR counter
 	 */
 	while (isr && priv->vif) {
-		VNSvOutPortD(priv->port_offset + MAC_REG_ISR, isr);
+		iowrite32(isr, priv->port_offset + MAC_REG_ISR);
 
 		if (isr & ISR_FETALERR) {
 			pr_debug(" ISR_FETALERR\n");
@@ -1134,7 +1134,7 @@ static void vnt_interrupt_work(struct work_struct *work)
 	if (priv->vif)
 		vnt_interrupt_process(priv);
 
-	VNSvOutPortD(priv->port_offset + MAC_REG_IMR, IMR_MASK_VALUE);
+	iowrite32(IMR_MASK_VALUE, priv->port_offset + MAC_REG_IMR);
 }
 
 static irqreturn_t vnt_interrupt(int irq,  void *arg)
@@ -1143,7 +1143,7 @@ static irqreturn_t vnt_interrupt(int irq,  void *arg)
 
 	schedule_work(&priv->interrupt_work);
 
-	VNSvOutPortD(priv->port_offset + MAC_REG_IMR, 0);
+	iowrite32(0, priv->port_offset + MAC_REG_IMR);
 
 	return IRQ_HANDLED;
 }
@@ -1253,7 +1253,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 	device_init_registers(priv);
 
 	dev_dbg(&priv->pcid->dev, "enable MAC interrupt\n");
-	VNSvOutPortD(priv->port_offset + MAC_REG_IMR, IMR_MASK_VALUE);
+	iowrite32(IMR_MASK_VALUE, priv->port_offset + MAC_REG_IMR);
 
 	ieee80211_wake_queues(hw);
 
@@ -1522,20 +1522,16 @@ static void vnt_configure(struct ieee80211_hw *hw,
 			if (priv->mc_list_count > 2) {
 				MACvSelectPage1(priv->port_offset);
 
-				VNSvOutPortD(priv->port_offset +
-					     MAC_REG_MAR0, 0xffffffff);
-				VNSvOutPortD(priv->port_offset +
-					    MAC_REG_MAR0 + 4, 0xffffffff);
+				iowrite32(0xffffffff, priv->port_offset + MAC_REG_MAR0);
+				iowrite32(0xffffffff, priv->port_offset + MAC_REG_MAR0 + 4);
 
 				MACvSelectPage0(priv->port_offset);
 			} else {
 				MACvSelectPage1(priv->port_offset);
 
-				VNSvOutPortD(priv->port_offset +
-					     MAC_REG_MAR0, (u32)multicast);
-				VNSvOutPortD(priv->port_offset +
-					     MAC_REG_MAR0 + 4,
-					     (u32)(multicast >> 32));
+				iowrite32((u32)multicast, priv->port_offset +  MAC_REG_MAR0);
+				iowrite32((u32)(multicast >> 32),
+					  priv->port_offset + MAC_REG_MAR0 + 4);
 
 				MACvSelectPage0(priv->port_offset);
 			}

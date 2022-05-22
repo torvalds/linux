@@ -293,10 +293,8 @@ bool CARDbUpdateTSF(struct vnt_private *priv, unsigned char byRxRate,
 		qwTSFOffset = CARDqGetTSFOffset(byRxRate, qwBSSTimestamp,
 						local_tsf);
 		/* adjust TSF, HW's TSF add TSF Offset reg */
-		VNSvOutPortD(priv->port_offset + MAC_REG_TSFOFST,
-			     (u32)qwTSFOffset);
-		VNSvOutPortD(priv->port_offset + MAC_REG_TSFOFST + 4,
-			     (u32)(qwTSFOffset >> 32));
+		iowrite32((u32)qwTSFOffset, priv->port_offset + MAC_REG_TSFOFST);
+		iowrite32((u32)(qwTSFOffset >> 32), priv->port_offset + MAC_REG_TSFOFST + 4);
 		MACvRegBitsOn(priv->port_offset, MAC_REG_TFTCTL,
 			      TFTCTL_TSFSYNCEN);
 	}
@@ -329,9 +327,8 @@ bool CARDbSetBeaconPeriod(struct vnt_private *priv,
 	iowrite16(wBeaconInterval, priv->port_offset + MAC_REG_BI);
 	priv->wBeaconInterval = wBeaconInterval;
 	/* Set NextTBTT */
-	VNSvOutPortD(priv->port_offset + MAC_REG_NEXTTBTT, (u32)qwNextTBTT);
-	VNSvOutPortD(priv->port_offset + MAC_REG_NEXTTBTT + 4,
-		     (u32)(qwNextTBTT >> 32));
+	iowrite32((u32)qwNextTBTT, priv->port_offset + MAC_REG_NEXTTBTT);
+	iowrite32((u32)(qwNextTBTT >> 32), priv->port_offset + MAC_REG_NEXTTBTT + 4);
 	MACvRegBitsOn(priv->port_offset, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
 
 	return true;
@@ -411,7 +408,7 @@ void CARDvSafeResetTx(struct vnt_private *priv)
 	MACvSetCurrTXDescAddr(TYPE_AC0DMA, priv, priv->td1_pool_dma);
 
 	/* set MAC Beacon TX pointer */
-	VNSvOutPortD(priv->port_offset + MAC_REG_BCNDMAPTR, priv->tx_beacon_dma);
+	iowrite32((u32)priv->tx_beacon_dma, priv->port_offset + MAC_REG_BCNDMAPTR);
 }
 
 /*
@@ -452,8 +449,8 @@ void CARDvSafeResetRx(struct vnt_private *priv)
 	}
 
 	/* set perPkt mode */
-	VNSvOutPortD(priv->port_offset + MAC_REG_RXDMACTL0, RX_PERPKT);
-	VNSvOutPortD(priv->port_offset + MAC_REG_RXDMACTL1, RX_PERPKT);
+	iowrite32(RX_PERPKT, priv->port_offset + MAC_REG_RXDMACTL0);
+	iowrite32(RX_PERPKT, priv->port_offset + MAC_REG_RXDMACTL1);
 	/* set MAC RD pointer */
 	MACvSetCurrRx0DescAddr(priv, priv->rd0_pool_dma);
 
@@ -552,7 +549,7 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 	 /* swap over to get correct write order */
 	swap(phy.swap[0], phy.swap[1]);
 
-	VNSvOutPortD(priv->port_offset + MAC_REG_RSPINF_B_1, phy.field_write);
+	iowrite32(phy.field_write, priv->port_offset + MAC_REG_RSPINF_B_1);
 
 	/* RSPINF_b_2 */
 	vnt_get_phy_field(priv, 14,
@@ -561,7 +558,7 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 
 	swap(phy.swap[0], phy.swap[1]);
 
-	VNSvOutPortD(priv->port_offset + MAC_REG_RSPINF_B_2, phy.field_write);
+	iowrite32(phy.field_write, priv->port_offset + MAC_REG_RSPINF_B_2);
 
 	/* RSPINF_b_5 */
 	vnt_get_phy_field(priv, 14,
@@ -570,7 +567,7 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 
 	swap(phy.swap[0], phy.swap[1]);
 
-	VNSvOutPortD(priv->port_offset + MAC_REG_RSPINF_B_5, phy.field_write);
+	iowrite32(phy.field_write, priv->port_offset + MAC_REG_RSPINF_B_5);
 
 	/* RSPINF_b_11 */
 	vnt_get_phy_field(priv, 14,
@@ -579,7 +576,7 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 
 	swap(phy.swap[0], phy.swap[1]);
 
-	VNSvOutPortD(priv->port_offset + MAC_REG_RSPINF_B_11, phy.field_write);
+	iowrite32(phy.field_write, priv->port_offset + MAC_REG_RSPINF_B_11);
 
 	/* RSPINF_a_6 */
 	s_vCalculateOFDMRParameter(RATE_6M,
@@ -798,8 +795,8 @@ void CARDvSetFirstNextTBTT(struct vnt_private *priv,
 
 	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, wBeaconInterval);
 	/* Set NextTBTT */
-	VNSvOutPortD(iobase + MAC_REG_NEXTTBTT, (u32)qwNextTBTT);
-	VNSvOutPortD(iobase + MAC_REG_NEXTTBTT + 4, (u32)(qwNextTBTT >> 32));
+	iowrite32((u32)qwNextTBTT, iobase + MAC_REG_NEXTTBTT);
+	iowrite32((u32)(qwNextTBTT >> 32), iobase + MAC_REG_NEXTTBTT + 4);
 	MACvRegBitsOn(iobase, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
 }
 
@@ -824,8 +821,8 @@ void CARDvUpdateNextTBTT(struct vnt_private *priv, u64 qwTSF,
 
 	qwTSF = CARDqGetNextTBTT(qwTSF, wBeaconInterval);
 	/* Set NextTBTT */
-	VNSvOutPortD(iobase + MAC_REG_NEXTTBTT, (u32)qwTSF);
-	VNSvOutPortD(iobase + MAC_REG_NEXTTBTT + 4, (u32)(qwTSF >> 32));
+	iowrite32((u32)qwTSF, iobase + MAC_REG_NEXTTBTT);
+	iowrite32((u32)(qwTSF >> 32), iobase + MAC_REG_NEXTTBTT + 4);
 	MACvRegBitsOn(iobase, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
 	pr_debug("Card:Update Next TBTT[%8llx]\n", qwTSF);
 }

@@ -458,7 +458,7 @@ bool MACbShutdown(struct vnt_private *priv)
 {
 	void __iomem *io_base = priv->port_offset;
 	/* disable MAC IMR */
-	VNSvOutPortD(io_base + MAC_REG_IMR, 0);
+	iowrite32(0, io_base + MAC_REG_IMR);
 	MACvSetLoopbackMode(priv, MAC_LB_INTERNAL);
 	/* stop the adapter */
 	if (!MACbSafeStop(priv)) {
