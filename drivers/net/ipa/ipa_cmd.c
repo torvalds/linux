@@ -26,14 +26,13 @@
  * other than data transfer to another endpoint.
  *
  * Immediate commands are represented by GSI transactions just like other
- * transfer requests, represented by a single GSI TRE.  Each immediate
- * command has a well-defined format, having a payload of a known length.
- * This allows the transfer element's length field to be used to hold an
- * immediate command's opcode.  The payload for a command resides in DRAM
- * and is described by a single scatterlist entry in its transaction.
- * Commands do not require a transaction completion callback.  To commit
- * an immediate command transaction, either gsi_trans_commit_wait() or
- * gsi_trans_commit_wait_timeout() is used.
+ * transfer requests, and use a single GSI TRE.  Each immediate command
+ * has a well-defined format, having a payload of a known length.  This
+ * allows the transfer element's length field to be used to hold an
+ * immediate command's opcode.  The payload for a command resides in AP
+ * memory and is described by a single scatterlist entry in its transaction.
+ * Commands do not require a transaction completion callback, and are
+ * (currently) always issued using gsi_trans_commit_wait().
  */
 
 /* Some commands can wait until indicated pipeline stages are clear */

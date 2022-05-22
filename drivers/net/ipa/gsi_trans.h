@@ -206,15 +206,6 @@ void gsi_trans_commit(struct gsi_trans *trans, bool ring_db);
 void gsi_trans_commit_wait(struct gsi_trans *trans);
 
 /**
- * gsi_trans_commit_wait_timeout() - Commit a GSI transaction and wait for
- *				     it to complete, with timeout
- * @trans:	Transaction to commit
- * @timeout:	Timeout period (in milliseconds)
- */
-int gsi_trans_commit_wait_timeout(struct gsi_trans *trans,
-				  unsigned long timeout);
-
-/**
  * gsi_trans_read_byte() - Issue a single byte read TRE on a channel
  * @gsi:	GSI pointer
  * @channel_id:	Channel on which to read a byte

@@ -637,28 +637,6 @@ out_trans_free:
 	gsi_trans_free(trans);
 }
 
-/* Commit a GSI transaction and wait for it to complete, with timeout */
-int gsi_trans_commit_wait_timeout(struct gsi_trans *trans,
-				  unsigned long timeout)
-{
-	unsigned long timeout_jiffies = msecs_to_jiffies(timeout);
-	unsigned long remaining = 1;	/* In case of empty transaction */
-
-	if (!trans->used)
-		goto out_trans_free;
-
-	refcount_inc(&trans->refcount);
-
-	__gsi_trans_commit(trans, true);
-
-	remaining = wait_for_completion_timeout(&trans->completion,
-						timeout_jiffies);
-out_trans_free:
-	gsi_trans_free(trans);
-
-	return remaining ? 0 : -ETIMEDOUT;
-}
-
 /* Process the completion of a transaction; called while polling */
 void gsi_trans_complete(struct gsi_trans *trans)
 {
