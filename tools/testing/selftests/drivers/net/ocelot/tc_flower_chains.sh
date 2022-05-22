@@ -204,7 +204,7 @@ cleanup()
 
 test_vlan_pop()
 {
-	printf "Testing VLAN pop..			"
+	RET=0
 
 	tcpdump_start $eth2
 
@@ -217,18 +217,17 @@ test_vlan_pop()
 
 	tcpdump_stop $eth2
 
-	if tcpdump_show $eth2 | grep -q "$eth3_mac > $eth2_mac, ethertype IPv4"; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
+	tcpdump_show $eth2 | grep -q "$eth3_mac > $eth2_mac, ethertype IPv4"
+	check_err "$?" "untagged reception"
 
 	tcpdump_cleanup $eth2
+
+	log_test "VLAN pop"
 }
 
 test_vlan_push()
 {
-	printf "Testing VLAN push..			"
+	RET=0
 
 	tcpdump_start $eth3.100
 
@@ -238,18 +237,17 @@ test_vlan_push()
 
 	tcpdump_stop $eth3.100
 
-	if tcpdump_show $eth3.100 | grep -q "$eth2_mac > $eth3_mac"; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
+	tcpdump_show $eth3.100 | grep -q "$eth2_mac > $eth3_mac"
+	check_err "$?" "tagged reception"
 
 	tcpdump_cleanup $eth3.100
+
+	log_test "VLAN push"
 }
 
 test_vlan_ingress_modify()
 {
-	printf "Testing ingress VLAN modification..		"
+	RET=0
 
 	ip link set br0 type bridge vlan_filtering 1
 	bridge vlan add dev $eth0 vid 200
@@ -269,11 +267,8 @@ test_vlan_ingress_modify()
 
 	tcpdump_stop $eth2
 
-	if tcpdump_show $eth2 | grep -q "$eth3_mac > $eth2_mac, .* vlan 300"; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
+	tcpdump_show $eth2 | grep -q "$eth3_mac > $eth2_mac, .* vlan 300"
+	check_err "$?" "tagged reception"
 
 	tcpdump_cleanup $eth2
 
@@ -283,11 +278,13 @@ test_vlan_ingress_modify()
 	bridge vlan del dev $eth0 vid 300
 	bridge vlan del dev $eth1 vid 300
 	ip link set br0 type bridge vlan_filtering 0
+
+	log_test "Ingress VLAN modification"
 }
 
 test_vlan_egress_modify()
 {
-	printf "Testing egress VLAN modification..		"
+	RET=0
 
 	tc qdisc add dev $eth1 clsact
 
@@ -307,11 +304,8 @@ test_vlan_egress_modify()
 
 	tcpdump_stop $eth2
 
-	if tcpdump_show $eth2 | grep -q "$eth3_mac > $eth2_mac, .* vlan 300"; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
+	tcpdump_show $eth2 | grep -q "$eth3_mac > $eth2_mac, .* vlan 300"
+	check_err "$?" "tagged reception"
 
 	tcpdump_cleanup $eth2
 
@@ -321,13 +315,13 @@ test_vlan_egress_modify()
 	bridge vlan del dev $eth0 vid 200
 	bridge vlan del dev $eth1 vid 200
 	ip link set br0 type bridge vlan_filtering 0
+
+	log_test "Egress VLAN modification"
 }
 
 test_skbedit_priority()
 {
 	local num_pkts=100
-
-	printf "Testing frame prioritization..		"
 
 	before=$(ethtool_stats_get $eth0 'rx_green_prio_7')
 
@@ -336,10 +330,12 @@ test_skbedit_priority()
 	after=$(ethtool_stats_get $eth0 'rx_green_prio_7')
 
 	if [ $((after - before)) = $num_pkts ]; then
-		echo "OK"
+		RET=0
 	else
-		echo "FAIL"
+		RET=1
 	fi
+
+	log_test "Frame prioritization"
 }
 
 trap cleanup EXIT
