@@ -165,12 +165,10 @@ void gsi_trans_free(struct gsi_trans *trans);
  * @buf:	Buffer pointer for command payload
  * @size:	Number of bytes in buffer
  * @addr:	DMA address for payload
- * @direction:	Direction of DMA transfer (or DMA_NONE if none required)
  * @opcode:	IPA immediate command opcode
  */
 void gsi_trans_cmd_add(struct gsi_trans *trans, void *buf, u32 size,
-		       dma_addr_t addr, enum dma_data_direction direction,
-		       enum ipa_cmd_opcode opcode);
+		       dma_addr_t addr, enum ipa_cmd_opcode opcode);
 
 /**
  * gsi_trans_page_add() - Add a page transfer to a transaction
