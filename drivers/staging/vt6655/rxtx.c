@@ -1420,7 +1420,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 
 	priv->wBCNBufLen = sizeof(*short_head) + skb->len;
 
-	MACvSetCurrBCNTxDescAddr(priv->port_offset, priv->tx_beacon_dma);
+	VNSvOutPortD(priv->port_offset + MAC_REG_BCNDMAPTR, priv->tx_beacon_dma);
 
 	iowrite16(priv->wBCNBufLen, priv->port_offset + MAC_REG_BCNDMACTL + 2);
 	/* Set auto Transmit on */

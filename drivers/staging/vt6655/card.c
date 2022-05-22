@@ -411,8 +411,7 @@ void CARDvSafeResetTx(struct vnt_private *priv)
 	MACvSetCurrTXDescAddr(TYPE_AC0DMA, priv, priv->td1_pool_dma);
 
 	/* set MAC Beacon TX pointer */
-	MACvSetCurrBCNTxDescAddr(priv->port_offset,
-				 (priv->tx_beacon_dma));
+	VNSvOutPortD(priv->port_offset + MAC_REG_BCNDMAPTR, priv->tx_beacon_dma);
 }
 
 /*
