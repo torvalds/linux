@@ -648,9 +648,6 @@ do {									\
 	iowrite8(byOrgValue, iobase + MAC_REG_STICKHW);			\
 } while (0)
 
-#define MACvWriteISR(iobase, dwValue)				\
-	VNSvOutPortD(iobase + MAC_REG_ISR, dwValue)
-
 #define MACvIntEnable(iobase, dwMask)				\
 	VNSvOutPortD(iobase + MAC_REG_IMR, dwMask)
 

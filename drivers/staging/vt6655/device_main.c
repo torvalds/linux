@@ -1055,7 +1055,7 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 	 * update ISR counter
 	 */
 	while (isr && priv->vif) {
-		MACvWriteISR(priv->port_offset, isr);
+		VNSvOutPortD(priv->port_offset + MAC_REG_ISR, isr);
 
 		if (isr & ISR_FETALERR) {
 			pr_debug(" ISR_FETALERR\n");
