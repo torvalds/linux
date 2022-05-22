@@ -453,7 +453,7 @@ void CARDvSafeResetRx(struct vnt_private *priv)
 
 	/* set perPkt mode */
 	VNSvOutPortD(priv->port_offset + MAC_REG_RXDMACTL0, RX_PERPKT);
-	MACvRx1PerPktMode(priv->port_offset);
+	VNSvOutPortD(priv->port_offset + MAC_REG_RXDMACTL1, RX_PERPKT);
 	/* set MAC RD pointer */
 	MACvSetCurrRx0DescAddr(priv, priv->rd0_pool_dma);
 
