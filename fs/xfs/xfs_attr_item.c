@@ -300,7 +300,7 @@ xfs_attrd_item_intent(
  */
 STATIC int
 xfs_xattri_finish_update(
-	struct xfs_attr_item		*attr,
+	struct xfs_attr_intent		*attr,
 	struct xfs_attrd_log_item	*attrdp)
 {
 	struct xfs_da_args		*args = attr->xattri_da_args;
@@ -338,7 +338,7 @@ STATIC void
 xfs_attr_log_item(
 	struct xfs_trans		*tp,
 	struct xfs_attri_log_item	*attrip,
-	struct xfs_attr_item		*attr)
+	const struct xfs_attr_intent	*attr)
 {
 	struct xfs_attri_log_format	*attrp;
 
@@ -346,9 +346,9 @@ xfs_attr_log_item(
 	set_bit(XFS_LI_DIRTY, &attrip->attri_item.li_flags);
 
 	/*
-	 * At this point the xfs_attr_item has been constructed, and we've
+	 * At this point the xfs_attr_intent has been constructed, and we've
 	 * created the log intent. Fill in the attri log item and log format
-	 * structure with fields from this xfs_attr_item
+	 * structure with fields from this xfs_attr_intent
 	 */
 	attrp = &attrip->attri_format;
 	attrp->alfi_ino = attr->xattri_da_args->dp->i_ino;
@@ -377,7 +377,7 @@ xfs_attr_create_intent(
 {
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_attri_log_item	*attrip;
-	struct xfs_attr_item		*attr;
+	struct xfs_attr_intent		*attr;
 
 	ASSERT(count == 1);
 
@@ -403,7 +403,7 @@ xfs_attr_create_intent(
 
 static inline void
 xfs_attr_free_item(
-	struct xfs_attr_item		*attr)
+	struct xfs_attr_intent		*attr)
 {
 	if (attr->xattri_da_state)
 		xfs_da_state_free(attr->xattri_da_state);
@@ -421,11 +421,11 @@ xfs_attr_finish_item(
 	struct list_head		*item,
 	struct xfs_btree_cur		**state)
 {
-	struct xfs_attr_item		*attr;
+	struct xfs_attr_intent		*attr;
 	struct xfs_attrd_log_item	*done_item = NULL;
 	int				error;
 
-	attr = container_of(item, struct xfs_attr_item, xattri_list);
+	attr = container_of(item, struct xfs_attr_intent, xattri_list);
 	if (done)
 		done_item = ATTRD_ITEM(done);
 
@@ -455,9 +455,9 @@ STATIC void
 xfs_attr_cancel_item(
 	struct list_head		*item)
 {
-	struct xfs_attr_item		*attr;
+	struct xfs_attr_intent		*attr;
 
-	attr = container_of(item, struct xfs_attr_item, xattri_list);
+	attr = container_of(item, struct xfs_attr_intent, xattri_list);
 	xfs_attr_free_item(attr);
 }
 
@@ -540,7 +540,7 @@ xfs_attri_item_recover(
 	struct list_head		*capture_list)
 {
 	struct xfs_attri_log_item	*attrip = ATTRI_ITEM(lip);
-	struct xfs_attr_item		*attr;
+	struct xfs_attr_intent		*attr;
 	struct xfs_mount		*mp = lip->li_log->l_mp;
 	struct xfs_inode		*ip;
 	struct xfs_da_args		*args;
@@ -565,7 +565,7 @@ xfs_attri_item_recover(
 	if (error)
 		return error;
 
-	attr = kmem_zalloc(sizeof(struct xfs_attr_item) +
+	attr = kmem_zalloc(sizeof(struct xfs_attr_intent) +
 			   sizeof(struct xfs_da_args), KM_NOFS);
 	args = (struct xfs_da_args *)(attr + 1);
 

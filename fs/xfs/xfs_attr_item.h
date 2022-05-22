@@ -15,13 +15,13 @@ struct kmem_zone;
  * This is the "attr intention" log item.  It is used to log the fact that some
  * extended attribute operations need to be processed.  An operation is
  * currently either a set or remove.  Set or remove operations are described by
- * the xfs_attr_item which may be logged to this intent.
+ * the xfs_attr_intent which may be logged to this intent.
  *
  * During a normal attr operation, name and value point to the name and value
  * fields of the caller's xfs_da_args structure.  During a recovery, the name
  * and value buffers are copied from the log, and stored in a trailing buffer
- * attached to the xfs_attr_item until they are committed.  They are freed when
- * the xfs_attr_item itself is freed when the work is done.
+ * attached to the xfs_attr_intent until they are committed.  They are freed
+ * when the xfs_attr_intent itself is freed when the work is done.
  */
 struct xfs_attri_log_item {
 	struct xfs_log_item		attri_item;
