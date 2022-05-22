@@ -3371,15 +3371,12 @@ static int check_data_csum(struct inode *inode, struct btrfs_bio *bbio,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	u32 len = fs_info->sectorsize;
-	const u32 csum_size = fs_info->csum_size;
-	unsigned int offset_sectors;
 	u8 *csum_expected;
 	u8 csum[BTRFS_CSUM_SIZE];
 
 	ASSERT(pgoff + len <= PAGE_SIZE);
 
-	offset_sectors = bio_offset >> fs_info->sectorsize_bits;
-	csum_expected = ((u8 *)bbio->csum) + offset_sectors * csum_size;
+	csum_expected = btrfs_csum_ptr(fs_info, bbio->csum, bio_offset);
 
 	if (btrfs_check_sector_csum(fs_info, page, pgoff, csum, csum_expected))
 		goto zeroit;
@@ -8020,12 +8017,8 @@ static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 		if (ret)
 			goto err;
 	} else {
-		u64 csum_offset;
-
-		csum_offset = file_offset - dip->file_offset;
-		csum_offset >>= fs_info->sectorsize_bits;
-		csum_offset *= fs_info->csum_size;
-		btrfs_bio(bio)->csum = dip->csums + csum_offset;
+		btrfs_bio(bio)->csum = btrfs_csum_ptr(fs_info, dip->csums,
+						      file_offset - dip->file_offset);
 	}
 map:
 	ret = btrfs_map_bio(fs_info, bio, 0);
