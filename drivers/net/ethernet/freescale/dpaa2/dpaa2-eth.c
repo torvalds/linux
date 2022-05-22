@@ -1148,7 +1148,7 @@ static void dpaa2_eth_free_tx_fd(struct dpaa2_eth_priv *priv,
 						 dpaa2_sg_get_len(&sgt[i]), DMA_TO_DEVICE);
 
 			/* Unmap the SGT buffer */
-			dma_unmap_single(dev, fd_addr, swa->sg.sgt_size,
+			dma_unmap_single(dev, fd_addr, swa->tso.sgt_size,
 					 DMA_BIDIRECTIONAL);
 
 			if (!swa->tso.is_last_fd)
