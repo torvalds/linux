@@ -5768,6 +5768,9 @@ unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 	struct map_lookup *map;
 	unsigned long len = fs_info->sectorsize;
 
+	if (!btrfs_fs_incompat(fs_info, RAID56))
+		return len;
+
 	em = btrfs_get_chunk_map(fs_info, logical, len);
 
 	if (!WARN_ON(IS_ERR(em))) {
@@ -5784,6 +5787,9 @@ int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 	struct extent_map *em;
 	struct map_lookup *map;
 	int ret = 0;
+
+	if (!btrfs_fs_incompat(fs_info, RAID56))
+		return 0;
 
 	em = btrfs_get_chunk_map(fs_info, logical, len);
 
