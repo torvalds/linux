@@ -570,11 +570,6 @@ do {									\
 	VNSvOutPortD(iobase + MAC_REG_BCNDMAPTR,		\
 		     dwCurrDescAddr)
 
-/* set the chip with current BCN length */
-#define MACvSetCurrBCNLength(iobase, wCurrBCNLength)		\
-	VNSvOutPortW(iobase + MAC_REG_BCNDMACTL + 2,		\
-		     wCurrBCNLength)
-
 #define MACvWriteBSSIDAddress(iobase, pbyEtherAddr)		\
 do {								\
 	iowrite8(1, iobase + MAC_REG_PAGE1SEL);			\
