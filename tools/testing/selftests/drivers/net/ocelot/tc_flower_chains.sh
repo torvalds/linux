@@ -4,35 +4,17 @@
 
 WAIT_TIME=1
 NUM_NETIFS=4
+STABLE_MAC_ADDRS=yes
 lib_dir=$(dirname $0)/../../../net/forwarding
 source $lib_dir/tc_common.sh
 source $lib_dir/lib.sh
 
 require_command tcpdump
 
-#
-#   +---------------------------------------------+
-#   |       DUT ports         Generator ports     |
-#   | +--------+ +--------+ +--------+ +--------+ |
-#   | |        | |        | |        | |        | |
-#   | |  swp1  | |  swp2  | |   h2   | |    h1  | |
-#   | |        | |        | |        | |        | |
-#   +-+--------+-+--------+-+--------+-+--------+-+
-#          |         |           |          |
-#          |         |           |          |
-#          |         +-----------+          |
-#          |                                |
-#          +--------------------------------+
-
-swp1=${NETIFS[p1]}
-swp2=${NETIFS[p2]}
-h2=${NETIFS[p3]}
-h1=${NETIFS[p4]}
-
-swp1_mac="de:ad:be:ef:00:00"
-swp2_mac="de:ad:be:ef:00:01"
-h2_mac="de:ad:be:ef:00:02"
-h1_mac="de:ad:be:ef:00:03"
+h1=${NETIFS[p1]}
+swp1=${NETIFS[p2]}
+swp2=${NETIFS[p3]}
+h2=${NETIFS[p4]}
 
 # Helpers to map a VCAP IS1 and VCAP IS2 lookup and policy to a chain number
 # used by the kernel driver. The numbers are:
@@ -204,6 +186,9 @@ cleanup()
 
 test_vlan_pop()
 {
+	local h1_mac=$(mac_get $h1)
+	local h2_mac=$(mac_get $h2)
+
 	RET=0
 
 	tcpdump_start $h2
@@ -227,6 +212,9 @@ test_vlan_pop()
 
 test_vlan_push()
 {
+	local h1_mac=$(mac_get $h1)
+	local h2_mac=$(mac_get $h2)
+
 	RET=0
 
 	tcpdump_start $h1.100
@@ -247,6 +235,9 @@ test_vlan_push()
 
 test_vlan_ingress_modify()
 {
+	local h1_mac=$(mac_get $h1)
+	local h2_mac=$(mac_get $h2)
+
 	RET=0
 
 	ip link set br0 type bridge vlan_filtering 1
@@ -284,6 +275,9 @@ test_vlan_ingress_modify()
 
 test_vlan_egress_modify()
 {
+	local h1_mac=$(mac_get $h1)
+	local h2_mac=$(mac_get $h2)
+
 	RET=0
 
 	tc qdisc add dev $swp2 clsact
@@ -321,6 +315,8 @@ test_vlan_egress_modify()
 
 test_skbedit_priority()
 {
+	local h1_mac=$(mac_get $h1)
+	local h2_mac=$(mac_get $h2)
 	local num_pkts=100
 
 	before=$(ethtool_stats_get $swp1 'rx_green_prio_7')
