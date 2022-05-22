@@ -502,14 +502,18 @@ enum xfs_delattr_state {
 	{ XFS_DAS_DONE,			"XFS_DAS_DONE" }
 
 /*
- * Defines for xfs_attr_item.xattri_flags
- */
-#define XFS_DAC_LEAF_ADDNAME_INIT	0x01 /* xfs_attr_leaf_addname init*/
-
-/*
  * Context used for keeping track of delayed attribute operations
  */
 struct xfs_attr_item {
+	/*
+	 * used to log this item to an intent containing a list of attrs to
+	 * commit later
+	 */
+	struct list_head		xattri_list;
+
+	/* Used in xfs_attr_node_removename to roll through removing blocks */
+	struct xfs_da_state		*xattri_da_state;
+
 	struct xfs_da_args		*xattri_da_args;
 
 	/*
@@ -517,16 +521,7 @@ struct xfs_attr_item {
 	 */
 	struct xfs_buf			*xattri_leaf_bp;
 
-	/* Used in xfs_attr_rmtval_set_blk to roll through allocating blocks */
-	struct xfs_bmbt_irec		xattri_map;
-	xfs_dablk_t			xattri_lblkno;
-	int				xattri_blkcnt;
-
-	/* Used in xfs_attr_node_removename to roll through removing blocks */
-	struct xfs_da_state		*xattri_da_state;
-
 	/* Used to keep track of current state of delayed operation */
-	unsigned int			xattri_flags;
 	enum xfs_delattr_state		xattri_dela_state;
 
 	/*
@@ -534,11 +529,10 @@ struct xfs_attr_item {
 	 */
 	unsigned int			xattri_op_flags;
 
-	/*
-	 * used to log this item to an intent containing a list of attrs to
-	 * commit later
-	 */
-	struct list_head		xattri_list;
+	/* Used in xfs_attr_rmtval_set_blk to roll through allocating blocks */
+	xfs_dablk_t			xattri_lblkno;
+	int				xattri_blkcnt;
+	struct xfs_bmbt_irec		xattri_map;
 };
 
 
