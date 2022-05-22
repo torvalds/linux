@@ -1134,7 +1134,7 @@ static void vnt_interrupt_work(struct work_struct *work)
 	if (priv->vif)
 		vnt_interrupt_process(priv);
 
-	MACvIntEnable(priv->port_offset, IMR_MASK_VALUE);
+	VNSvOutPortD(priv->port_offset + MAC_REG_IMR, IMR_MASK_VALUE);
 }
 
 static irqreturn_t vnt_interrupt(int irq,  void *arg)
@@ -1252,8 +1252,8 @@ static int vnt_start(struct ieee80211_hw *hw)
 
 	device_init_registers(priv);
 
-	dev_dbg(&priv->pcid->dev, "call MACvIntEnable\n");
-	MACvIntEnable(priv->port_offset, IMR_MASK_VALUE);
+	dev_dbg(&priv->pcid->dev, "enable MAC interrupt\n");
+	VNSvOutPortD(priv->port_offset + MAC_REG_IMR, IMR_MASK_VALUE);
 
 	ieee80211_wake_queues(hw);
 
