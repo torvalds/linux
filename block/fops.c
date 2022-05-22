@@ -37,7 +37,7 @@ static unsigned int dio_bio_write_op(struct kiocb *iocb)
 	unsigned int op = REQ_OP_WRITE | REQ_SYNC | REQ_IDLE;
 
 	/* avoid the need for a I/O completion work item */
-	if (iocb->ki_flags & IOCB_DSYNC)
+	if (iocb_is_dsync(iocb))
 		op |= REQ_FUA;
 	return op;
 }
