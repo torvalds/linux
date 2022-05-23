@@ -227,20 +227,23 @@ static int gfx_v9_4_3_ring_test_ring(struct amdgpu_ring *ring)
 	uint32_t tmp = 0;
 	unsigned i;
 	int r;
+	/* scratch_reg0_offset is 32bit even with full XCD config */
+	uint32_t scratch_reg0_offset;
 
-	WREG32_SOC15(GC, 0, regSCRATCH_REG0, 0xCAFEDEAD);
+	scratch_reg0_offset = SOC15_REG_OFFSET(GC, ring->xcc_id, regSCRATCH_REG0);
+	WREG32(scratch_reg0_offset, 0xCAFEDEAD);
+
 	r = amdgpu_ring_alloc(ring, 3);
 	if (r)
 		return r;
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
-	amdgpu_ring_write(ring, SOC15_REG_OFFSET(GC, 0, regSCRATCH_REG0) -
-			  PACKET3_SET_UCONFIG_REG_START);
+	amdgpu_ring_write(ring, scratch_reg0_offset - PACKET3_SET_UCONFIG_REG_START);
 	amdgpu_ring_write(ring, 0xDEADBEEF);
 	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32_SOC15(GC, 0, regSCRATCH_REG0);
+		tmp = RREG32(scratch_reg0_offset);
 		if (tmp == 0xDEADBEEF)
 			break;
 		udelay(1);
