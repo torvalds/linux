@@ -11,9 +11,16 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/slab.h>
+
+struct keyboard_led {
+	struct led_classdev cdev;
+	struct cros_ec_device *ec;
+};
 
 /**
  * struct keyboard_led_drvdata - keyboard LED driver data.
@@ -40,14 +47,14 @@ struct keyboard_led_drvdata {
 	enum led_brightness max_brightness;
 };
 
+#define KEYBOARD_BACKLIGHT_MAX 100
+
 #ifdef CONFIG_ACPI
 
 /* Keyboard LED ACPI Device must be defined in firmware */
 #define ACPI_KEYBOARD_BACKLIGHT_DEVICE	"\\_SB.KBLT"
 #define ACPI_KEYBOARD_BACKLIGHT_READ	ACPI_KEYBOARD_BACKLIGHT_DEVICE ".KBQC"
 #define ACPI_KEYBOARD_BACKLIGHT_WRITE	ACPI_KEYBOARD_BACKLIGHT_DEVICE ".KBCM"
-
-#define ACPI_KEYBOARD_BACKLIGHT_MAX		100
 
 static void keyboard_led_set_brightness_acpi(struct led_classdev *cdev,
 					     enum led_brightness brightness)
@@ -107,20 +114,99 @@ static const struct keyboard_led_drvdata keyboard_led_drvdata_acpi = {
 	.init = keyboard_led_init_acpi,
 	.brightness_set = keyboard_led_set_brightness_acpi,
 	.brightness_get = keyboard_led_get_brightness_acpi,
-	.max_brightness = ACPI_KEYBOARD_BACKLIGHT_MAX,
+	.max_brightness = KEYBOARD_BACKLIGHT_MAX,
 };
 
 #endif /* CONFIG_ACPI */
 
+#ifdef CONFIG_CROS_EC
+
+static int
+keyboard_led_set_brightness_ec_pwm(struct led_classdev *cdev,
+				   enum led_brightness brightness)
+{
+	struct {
+		struct cros_ec_command msg;
+		struct ec_params_pwm_set_keyboard_backlight params;
+	} __packed buf;
+	struct ec_params_pwm_set_keyboard_backlight *params = &buf.params;
+	struct cros_ec_command *msg = &buf.msg;
+	struct keyboard_led *keyboard_led = container_of(cdev, struct keyboard_led, cdev);
+
+	memset(&buf, 0, sizeof(buf));
+
+	msg->command = EC_CMD_PWM_SET_KEYBOARD_BACKLIGHT;
+	msg->outsize = sizeof(*params);
+
+	params->percent = brightness;
+
+	return cros_ec_cmd_xfer_status(keyboard_led->ec, msg);
+}
+
+static enum led_brightness
+keyboard_led_get_brightness_ec_pwm(struct led_classdev *cdev)
+{
+	struct {
+		struct cros_ec_command msg;
+		struct ec_response_pwm_get_keyboard_backlight resp;
+	} __packed buf;
+	struct ec_response_pwm_get_keyboard_backlight *resp = &buf.resp;
+	struct cros_ec_command *msg = &buf.msg;
+	struct keyboard_led *keyboard_led = container_of(cdev, struct keyboard_led, cdev);
+	int ret;
+
+	memset(&buf, 0, sizeof(buf));
+
+	msg->command = EC_CMD_PWM_GET_KEYBOARD_BACKLIGHT;
+	msg->insize = sizeof(*resp);
+
+	ret = cros_ec_cmd_xfer_status(keyboard_led->ec, msg);
+	if (ret < 0)
+		return ret;
+
+	return resp->percent;
+}
+
+static int keyboard_led_init_ec_pwm(struct platform_device *pdev)
+{
+	struct keyboard_led *keyboard_led = platform_get_drvdata(pdev);
+
+	keyboard_led->ec = dev_get_drvdata(pdev->dev.parent);
+	if (!keyboard_led->ec) {
+		dev_err(&pdev->dev, "no parent EC device\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct keyboard_led_drvdata keyboard_led_drvdata_ec_pwm = {
+	.init = keyboard_led_init_ec_pwm,
+	.brightness_set_blocking = keyboard_led_set_brightness_ec_pwm,
+	.brightness_get = keyboard_led_get_brightness_ec_pwm,
+	.max_brightness = KEYBOARD_BACKLIGHT_MAX,
+};
+
+#else /* CONFIG_CROS_EC */
+
+static const struct keyboard_led_drvdata keyboard_led_drvdata_ec_pwm = {};
+
+#endif /* CONFIG_CROS_EC */
+
 static int keyboard_led_probe(struct platform_device *pdev)
 {
-	struct led_classdev *cdev;
 	const struct keyboard_led_drvdata *drvdata;
+	struct keyboard_led *keyboard_led;
 	int error;
 
 	drvdata = device_get_match_data(&pdev->dev);
 	if (!drvdata)
 		return -EINVAL;
+
+	keyboard_led = devm_kzalloc(&pdev->dev, sizeof(*keyboard_led), GFP_KERNEL);
+	if (!keyboard_led)
+		return -ENOMEM;
+	platform_set_drvdata(pdev, keyboard_led);
 
 	if (drvdata->init) {
 		error = drvdata->init(pdev);
@@ -128,18 +214,14 @@ static int keyboard_led_probe(struct platform_device *pdev)
 			return error;
 	}
 
-	cdev = devm_kzalloc(&pdev->dev, sizeof(*cdev), GFP_KERNEL);
-	if (!cdev)
-		return -ENOMEM;
+	keyboard_led->cdev.name = "chromeos::kbd_backlight";
+	keyboard_led->cdev.flags |= LED_CORE_SUSPENDRESUME;
+	keyboard_led->cdev.max_brightness = drvdata->max_brightness;
+	keyboard_led->cdev.brightness_set = drvdata->brightness_set;
+	keyboard_led->cdev.brightness_set_blocking = drvdata->brightness_set_blocking;
+	keyboard_led->cdev.brightness_get = drvdata->brightness_get;
 
-	cdev->name = "chromeos::kbd_backlight";
-	cdev->flags |= LED_CORE_SUSPENDRESUME;
-	cdev->max_brightness = drvdata->max_brightness;
-	cdev->brightness_set = drvdata->brightness_set;
-	cdev->brightness_set_blocking = drvdata->brightness_set_blocking;
-	cdev->brightness_get = drvdata->brightness_get;
-
-	error = devm_led_classdev_register(&pdev->dev, cdev);
+	error = devm_led_classdev_register(&pdev->dev, &keyboard_led->cdev);
 	if (error)
 		return error;
 
@@ -158,6 +240,7 @@ MODULE_DEVICE_TABLE(acpi, keyboard_led_acpi_match);
 static const struct of_device_id keyboard_led_of_match[] = {
 	{
 		.compatible = "google,cros-kbd-led-backlight",
+		.data = &keyboard_led_drvdata_ec_pwm,
 	},
 	{}
 };
