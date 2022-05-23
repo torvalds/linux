@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/reboot.h>
 #include <linux/serial_core.h>
 #include <clocksource/timer-goldfish.h>
 
@@ -126,5 +127,6 @@ void __init config_virt(void)
 	mach_get_model = virt_get_model;
 	mach_reset = virt_reset;
 	mach_halt = virt_halt;
-	mach_power_off = virt_halt;
+
+	register_platform_power_off(virt_halt);
 }
