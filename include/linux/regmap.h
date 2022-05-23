@@ -1336,6 +1336,22 @@ static inline int regmap_field_update_bits(struct regmap_field *field,
 					     NULL, false, false);
 }
 
+static inline int regmap_field_set_bits(struct regmap_field *field,
+					unsigned int bits)
+{
+	return regmap_field_update_bits_base(field, bits, bits, NULL, false,
+					     false);
+}
+
+static inline int regmap_field_clear_bits(struct regmap_field *field,
+					  unsigned int bits)
+{
+	return regmap_field_update_bits_base(field, bits, 0, NULL, false,
+					     false);
+}
+
+int regmap_field_test_bits(struct regmap_field *field, unsigned int bits);
+
 static inline int
 regmap_field_force_update_bits(struct regmap_field *field,
 			       unsigned int mask, unsigned int val)
@@ -1764,6 +1780,27 @@ static inline int regmap_field_update_bits(struct regmap_field *field,
 static inline int
 regmap_field_force_update_bits(struct regmap_field *field,
 			       unsigned int mask, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_field_set_bits(struct regmap_field *field,
+					unsigned int bits)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_field_clear_bits(struct regmap_field *field,
+					  unsigned int bits)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_field_test_bits(struct regmap_field *field,
+					 unsigned int bits)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return -EINVAL;
