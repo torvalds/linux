@@ -259,7 +259,8 @@ int amdgpu_sync_resv(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	if (resv == NULL)
 		return -EINVAL;
 
-	dma_resv_for_each_fence(&cursor, resv, true, f) {
+	/* TODO: Use DMA_RESV_USAGE_READ here */
+	dma_resv_for_each_fence(&cursor, resv, DMA_RESV_USAGE_BOOKKEEP, f) {
 		dma_fence_chain_for_each(f, f) {
 			struct dma_fence *tmp = dma_fence_chain_contained(f);
 

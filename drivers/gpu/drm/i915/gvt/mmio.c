@@ -139,7 +139,7 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, u64 pa,
 	}
 
 	if (drm_WARN_ON_ONCE(&i915->drm, !reg_is_mmio(gvt, offset))) {
-		ret = intel_gvt_hypervisor_read_gpa(vgpu, pa, p_data, bytes);
+		ret = intel_gvt_read_gpa(vgpu, pa, p_data, bytes);
 		goto out;
 	}
 
@@ -215,7 +215,7 @@ int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, u64 pa,
 	}
 
 	if (drm_WARN_ON_ONCE(&i915->drm, !reg_is_mmio(gvt, offset))) {
-		ret = intel_gvt_hypervisor_write_gpa(vgpu, pa, p_data, bytes);
+		ret = intel_gvt_write_gpa(vgpu, pa, p_data, bytes);
 		goto out;
 	}
 

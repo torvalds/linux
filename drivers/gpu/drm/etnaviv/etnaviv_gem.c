@@ -380,12 +380,14 @@ int etnaviv_gem_cpu_prep(struct drm_gem_object *obj, u32 op,
 	}
 
 	if (op & ETNA_PREP_NOSYNC) {
-		if (!dma_resv_test_signaled(obj->resv, write))
+		if (!dma_resv_test_signaled(obj->resv,
+					    dma_resv_usage_rw(write)))
 			return -EBUSY;
 	} else {
 		unsigned long remain = etnaviv_timeout_to_jiffies(timeout);
 
-		ret = dma_resv_wait_timeout(obj->resv, write, true, remain);
+		ret = dma_resv_wait_timeout(obj->resv, dma_resv_usage_rw(write),
+					    true, remain);
 		if (ret <= 0)
 			return ret == 0 ? -ETIMEDOUT : ret;
 	}

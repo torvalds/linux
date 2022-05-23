@@ -771,7 +771,8 @@ long drm_gem_dma_resv_wait(struct drm_file *filep, u32 handle,
 		return -EINVAL;
 	}
 
-	ret = dma_resv_wait_timeout(obj->resv, wait_all, true, timeout);
+	ret = dma_resv_wait_timeout(obj->resv, dma_resv_usage_rw(wait_all),
+				    true, timeout);
 	if (ret == 0)
 		ret = -ETIME;
 	else if (ret > 0)

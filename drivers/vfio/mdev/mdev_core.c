@@ -89,17 +89,10 @@ void mdev_release_parent(struct kref *kref)
 static void mdev_device_remove_common(struct mdev_device *mdev)
 {
 	struct mdev_parent *parent = mdev->type->parent;
-	int ret;
 
 	mdev_remove_sysfs_files(mdev);
 	device_del(&mdev->dev);
 	lockdep_assert_held(&parent->unreg_sem);
-	if (parent->ops->remove) {
-		ret = parent->ops->remove(mdev);
-		if (ret)
-			dev_err(&mdev->dev, "Remove failed: err=%d\n", ret);
-	}
-
 	/* Balances with device_initialize() */
 	put_device(&mdev->dev);
 }
@@ -116,12 +109,12 @@ static int mdev_device_remove_cb(struct device *dev, void *data)
 /*
  * mdev_register_device : Register a device
  * @dev: device structure representing parent device.
- * @ops: Parent device operation structure to be registered.
+ * @mdev_driver: Device driver to bind to the newly created mdev
  *
  * Add device to list of registered parent devices.
  * Returns a negative value on error, otherwise 0.
  */
-int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops)
+int mdev_register_device(struct device *dev, struct mdev_driver *mdev_driver)
 {
 	int ret;
 	struct mdev_parent *parent;
@@ -129,9 +122,7 @@ int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops)
 	char *envp[] = { env_string, NULL };
 
 	/* check for mandatory ops */
-	if (!ops || !ops->supported_type_groups)
-		return -EINVAL;
-	if (!ops->device_driver && (!ops->create || !ops->remove))
+	if (!mdev_driver->supported_type_groups)
 		return -EINVAL;
 
 	dev = get_device(dev);
@@ -158,7 +149,7 @@ int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops)
 	init_rwsem(&parent->unreg_sem);
 
 	parent->dev = dev;
-	parent->ops = ops;
+	parent->mdev_driver = mdev_driver;
 
 	if (!mdev_bus_compat_class) {
 		mdev_bus_compat_class = class_compat_register("mdev_bus");
@@ -256,7 +247,7 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 	int ret;
 	struct mdev_device *mdev, *tmp;
 	struct mdev_parent *parent = type->parent;
-	struct mdev_driver *drv = parent->ops->device_driver;
+	struct mdev_driver *drv = parent->mdev_driver;
 
 	mutex_lock(&mdev_list_lock);
 
@@ -278,7 +269,7 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 	mdev->dev.parent  = parent->dev;
 	mdev->dev.bus = &mdev_bus_type;
 	mdev->dev.release = mdev_device_release;
-	mdev->dev.groups = parent->ops->mdev_attr_groups;
+	mdev->dev.groups = mdev_device_groups;
 	mdev->type = type;
 	/* Pairs with the put in mdev_device_release() */
 	kobject_get(&type->kobj);
@@ -297,18 +288,10 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 		goto out_put_device;
 	}
 
-	if (parent->ops->create) {
-		ret = parent->ops->create(mdev);
-		if (ret)
-			goto out_unlock;
-	}
-
 	ret = device_add(&mdev->dev);
 	if (ret)
-		goto out_remove;
+		goto out_unlock;
 
-	if (!drv)
-		drv = &vfio_mdev_driver;
 	ret = device_driver_attach(&drv->driver, &mdev->dev);
 	if (ret)
 		goto out_del;
@@ -325,9 +308,6 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 
 out_del:
 	device_del(&mdev->dev);
-out_remove:
-	if (parent->ops->remove)
-		parent->ops->remove(mdev);
 out_unlock:
 	up_read(&parent->unreg_sem);
 out_put_device:
@@ -370,28 +350,14 @@ int mdev_device_remove(struct mdev_device *mdev)
 
 static int __init mdev_init(void)
 {
-	int rc;
-
-	rc = mdev_bus_register();
-	if (rc)
-		return rc;
-	rc = mdev_register_driver(&vfio_mdev_driver);
-	if (rc)
-		goto err_bus;
-	return 0;
-err_bus:
-	mdev_bus_unregister();
-	return rc;
+	return bus_register(&mdev_bus_type);
 }
 
 static void __exit mdev_exit(void)
 {
-	mdev_unregister_driver(&vfio_mdev_driver);
-
 	if (mdev_bus_compat_class)
 		class_compat_unregister(mdev_bus_compat_class);
-
-	mdev_bus_unregister();
+	bus_unregister(&mdev_bus_type);
 }
 
 subsys_initcall(mdev_init)

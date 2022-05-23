@@ -1056,7 +1056,8 @@ static int igt_lmem_write_cpu(void *arg)
 					  obj->mm.pages->sgl, I915_CACHE_NONE,
 					  true, 0xdeadbeaf, &rq);
 	if (rq) {
-		dma_resv_add_excl_fence(obj->base.resv, &rq->fence);
+		dma_resv_add_fence(obj->base.resv, &rq->fence,
+				   DMA_RESV_USAGE_WRITE);
 		i915_request_put(rq);
 	}
 

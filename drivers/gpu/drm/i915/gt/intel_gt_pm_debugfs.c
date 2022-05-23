@@ -138,7 +138,7 @@ static int gen6_drpc(struct seq_file *m)
 	}
 
 	if (GRAPHICS_VER(i915) <= 7)
-		snb_pcode_read(i915, GEN6_PCODE_READ_RC6VIDS, &rc6vids, NULL);
+		snb_pcode_read(gt->uncore, GEN6_PCODE_READ_RC6VIDS, &rc6vids, NULL);
 
 	seq_printf(m, "RC1e Enabled: %s\n",
 		   str_yes_no(rcctl1 & GEN6_RC_CTL_RC1e_ENABLE));
@@ -545,7 +545,7 @@ static int llc_show(struct seq_file *m, void *data)
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 	for (gpu_freq = min_gpu_freq; gpu_freq <= max_gpu_freq; gpu_freq++) {
 		ia_freq = gpu_freq;
-		snb_pcode_read(i915, GEN6_PCODE_READ_MIN_FREQ_TABLE,
+		snb_pcode_read(gt->uncore, GEN6_PCODE_READ_MIN_FREQ_TABLE,
 			       &ia_freq, NULL);
 		seq_printf(m, "%d\t\t%d\t\t\t\t%d\n",
 			   intel_gpu_freq(rps,

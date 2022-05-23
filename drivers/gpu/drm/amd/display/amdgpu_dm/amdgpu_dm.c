@@ -9238,7 +9238,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		 * deadlock during GPU reset when this fence will not signal
 		 * but we hold reservation lock for the BO.
 		 */
-		r = dma_resv_wait_timeout(abo->tbo.base.resv, true, false,
+		r = dma_resv_wait_timeout(abo->tbo.base.resv,
+					  DMA_RESV_USAGE_WRITE, false,
 					  msecs_to_jiffies(5000));
 		if (unlikely(r <= 0))
 			DRM_ERROR("Waiting for fences timed out!");

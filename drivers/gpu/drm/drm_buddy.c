@@ -665,6 +665,9 @@ int drm_buddy_alloc_blocks(struct drm_buddy *mm,
 	if (start + size == end)
 		return __drm_buddy_alloc_range(mm, start, size, blocks);
 
+	if (!IS_ALIGNED(size, min_page_size))
+		return -EINVAL;
+
 	pages = size >> ilog2(mm->chunk_size);
 	order = fls(pages) - 1;
 	min_order = ilog2(min_page_size) - ilog2(mm->chunk_size);

@@ -1381,7 +1381,10 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 
 		work->vm = vma->vm;
 
-		moving = i915_gem_object_get_moving_fence(vma->obj);
+		err = i915_gem_object_get_moving_fence(vma->obj, &moving);
+		if (err)
+			goto err_rpm;
+
 		dma_fence_work_chain(&work->base, moving);
 
 		/* Allocate enough page directories to used PTE */
@@ -1837,7 +1840,8 @@ int _i915_vma_move_to_active(struct i915_vma *vma,
 		}
 
 		if (fence) {
-			dma_resv_add_excl_fence(vma->obj->base.resv, fence);
+			dma_resv_add_fence(vma->obj->base.resv, fence,
+					   DMA_RESV_USAGE_WRITE);
 			obj->write_domain = I915_GEM_DOMAIN_RENDER;
 			obj->read_domains = 0;
 		}
@@ -1849,7 +1853,8 @@ int _i915_vma_move_to_active(struct i915_vma *vma,
 		}
 
 		if (fence) {
-			dma_resv_add_shared_fence(vma->obj->base.resv, fence);
+			dma_resv_add_fence(vma->obj->base.resv, fence,
+					   DMA_RESV_USAGE_READ);
 			obj->write_domain = 0;
 		}
 	}
@@ -2091,7 +2096,7 @@ int i915_vma_unbind_async(struct i915_vma *vma, bool trylock_vm)
 		goto out_rpm;
 	}
 
-	dma_resv_add_shared_fence(obj->base.resv, fence);
+	dma_resv_add_fence(obj->base.resv, fence, DMA_RESV_USAGE_READ);
 	dma_fence_put(fence);
 
 out_rpm:

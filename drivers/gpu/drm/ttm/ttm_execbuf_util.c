@@ -101,7 +101,7 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 			continue;
 		}
 
-		num_fences = min(entry->num_shared, 1u);
+		num_fences = max(entry->num_shared, 1u);
 		if (!ret) {
 			ret = dma_resv_reserve_fences(bo->base.resv,
 						      num_fences);
@@ -154,10 +154,8 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
 
-		if (entry->num_shared)
-			dma_resv_add_shared_fence(bo->base.resv, fence);
-		else
-			dma_resv_add_excl_fence(bo->base.resv, fence);
+		dma_resv_add_fence(bo->base.resv, fence, entry->num_shared ?
+				   DMA_RESV_USAGE_READ : DMA_RESV_USAGE_WRITE);
 		ttm_bo_move_to_lru_tail_unlocked(bo);
 		dma_resv_unlock(bo->base.resv);
 	}

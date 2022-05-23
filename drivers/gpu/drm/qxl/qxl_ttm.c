@@ -222,41 +222,14 @@ void qxl_ttm_fini(struct qxl_device *qdev)
 	DRM_INFO("qxl: ttm finalized\n");
 }
 
-#define QXL_DEBUGFS_MEM_TYPES 2
-
-#if defined(CONFIG_DEBUG_FS)
-static int qxl_mm_dump_table(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct ttm_resource_manager *man = (struct ttm_resource_manager *)node->info_ent->data;
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	ttm_resource_manager_debug(man, &p);
-	return 0;
-}
-#endif
-
 void qxl_ttm_debugfs_init(struct qxl_device *qdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	static struct drm_info_list qxl_mem_types_list[QXL_DEBUGFS_MEM_TYPES];
-	static char qxl_mem_types_names[QXL_DEBUGFS_MEM_TYPES][32];
-	unsigned int i;
-
-	for (i = 0; i < QXL_DEBUGFS_MEM_TYPES; i++) {
-		if (i == 0)
-			sprintf(qxl_mem_types_names[i], "qxl_mem_mm");
-		else
-			sprintf(qxl_mem_types_names[i], "qxl_surf_mm");
-		qxl_mem_types_list[i].name = qxl_mem_types_names[i];
-		qxl_mem_types_list[i].show = &qxl_mm_dump_table;
-		qxl_mem_types_list[i].driver_features = 0;
-		if (i == 0)
-			qxl_mem_types_list[i].data = ttm_manager_type(&qdev->mman.bdev, TTM_PL_VRAM);
-		else
-			qxl_mem_types_list[i].data = ttm_manager_type(&qdev->mman.bdev, TTM_PL_PRIV);
-
-	}
-	qxl_debugfs_add_files(qdev, qxl_mem_types_list, i);
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&qdev->mman.bdev,
+							     TTM_PL_VRAM),
+					    qdev->ddev.primary->debugfs_root, "qxl_mem_mm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&qdev->mman.bdev,
+							     TTM_PL_PRIV),
+					    qdev->ddev.primary->debugfs_root, "qxl_surf_mm");
 #endif
 }

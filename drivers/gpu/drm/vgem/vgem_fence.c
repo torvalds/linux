@@ -130,6 +130,7 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 	struct vgem_file *vfile = file->driver_priv;
 	struct dma_resv *resv;
 	struct drm_gem_object *obj;
+	enum dma_resv_usage usage;
 	struct dma_fence *fence;
 	int ret;
 
@@ -151,7 +152,8 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 
 	/* Check for a conflicting fence */
 	resv = obj->resv;
-	if (!dma_resv_test_signaled(resv, arg->flags & VGEM_FENCE_WRITE)) {
+	usage = dma_resv_usage_rw(arg->flags & VGEM_FENCE_WRITE);
+	if (!dma_resv_test_signaled(resv, usage)) {
 		ret = -EBUSY;
 		goto err_fence;
 	}
@@ -159,12 +161,9 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 	/* Expose the fence via the dma-buf */
 	dma_resv_lock(resv, NULL);
 	ret = dma_resv_reserve_fences(resv, 1);
-	if (!ret) {
-		if (arg->flags & VGEM_FENCE_WRITE)
-			dma_resv_add_excl_fence(resv, fence);
-		else
-			dma_resv_add_shared_fence(resv, fence);
-	}
+	if (!ret)
+		dma_resv_add_fence(resv, fence, arg->flags & VGEM_FENCE_WRITE ?
+				   DMA_RESV_USAGE_WRITE : DMA_RESV_USAGE_READ);
 	dma_resv_unlock(resv);
 
 	/* Record the fence in our idr for later signaling */

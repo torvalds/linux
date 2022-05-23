@@ -143,7 +143,7 @@ gf108_gr = {
 	}
 };
 
-const struct gf100_gr_fwif
+static const struct gf100_gr_fwif
 gf108_gr_fwif[] = {
 	{ -1, gf100_gr_load, &gf108_gr },
 	{ -1, gf100_gr_nofw, &gf108_gr },

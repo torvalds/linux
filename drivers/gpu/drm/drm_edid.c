@@ -1568,6 +1568,38 @@ static const struct drm_display_mode edid_4k_modes[] = {
 
 /*** DDC fetch and block validation ***/
 
+static int edid_extension_block_count(const struct edid *edid)
+{
+	return edid->extensions;
+}
+
+static int edid_block_count(const struct edid *edid)
+{
+	return edid_extension_block_count(edid) + 1;
+}
+
+static int edid_size_by_blocks(int num_blocks)
+{
+	return num_blocks * EDID_LENGTH;
+}
+
+static int edid_size(const struct edid *edid)
+{
+	return edid_size_by_blocks(edid_block_count(edid));
+}
+
+static const void *edid_block_data(const struct edid *edid, int index)
+{
+	BUILD_BUG_ON(sizeof(*edid) != EDID_LENGTH);
+
+	return edid + index;
+}
+
+static const void *edid_extension_block_data(const struct edid *edid, int index)
+{
+	return edid_block_data(edid, index + 1);
+}
+
 static const u8 edid_header[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00
 };
@@ -1632,9 +1664,9 @@ static int edid_block_tag(const void *_block)
 	return block[0];
 }
 
-static bool edid_is_zero(const void *edid, int length)
+static bool edid_block_is_zero(const void *edid)
 {
-	return !memchr_inv(edid, 0, length);
+	return !memchr_inv(edid, 0, EDID_LENGTH);
 }
 
 /**
@@ -1654,8 +1686,8 @@ bool drm_edid_are_equal(const struct edid *edid1, const struct edid *edid2)
 		return false;
 
 	if (edid1) {
-		edid1_len = EDID_LENGTH * (1 + edid1->extensions);
-		edid2_len = EDID_LENGTH * (1 + edid2->extensions);
+		edid1_len = edid_size(edid1);
+		edid2_len = edid_size(edid2);
 
 		if (edid1_len != edid2_len)
 			return false;
@@ -1670,7 +1702,9 @@ EXPORT_SYMBOL(drm_edid_are_equal);
 
 enum edid_block_status {
 	EDID_BLOCK_OK = 0,
+	EDID_BLOCK_READ_FAIL,
 	EDID_BLOCK_NULL,
+	EDID_BLOCK_ZERO,
 	EDID_BLOCK_HEADER_CORRUPT,
 	EDID_BLOCK_HEADER_REPAIR,
 	EDID_BLOCK_HEADER_FIXED,
@@ -1689,15 +1723,23 @@ static enum edid_block_status edid_block_check(const void *_block,
 	if (is_base_block) {
 		int score = drm_edid_header_is_valid(block);
 
-		if (score < clamp(edid_fixup, 0, 8))
-			return EDID_BLOCK_HEADER_CORRUPT;
+		if (score < clamp(edid_fixup, 0, 8)) {
+			if (edid_block_is_zero(block))
+				return EDID_BLOCK_ZERO;
+			else
+				return EDID_BLOCK_HEADER_CORRUPT;
+		}
 
 		if (score < 8)
 			return EDID_BLOCK_HEADER_REPAIR;
 	}
 
-	if (edid_block_compute_checksum(block) != edid_block_get_checksum(block))
-		return EDID_BLOCK_CHECKSUM;
+	if (edid_block_compute_checksum(block) != edid_block_get_checksum(block)) {
+		if (edid_block_is_zero(block))
+			return EDID_BLOCK_ZERO;
+		else
+			return EDID_BLOCK_CHECKSUM;
+	}
 
 	if (is_base_block) {
 		if (block->version != 1)
@@ -1718,6 +1760,70 @@ static bool edid_block_valid(const void *block, bool base)
 {
 	return edid_block_status_valid(edid_block_check(block, base),
 				       edid_block_tag(block));
+}
+
+static void edid_block_status_print(enum edid_block_status status,
+				    const struct edid *block,
+				    int block_num)
+{
+	switch (status) {
+	case EDID_BLOCK_OK:
+		break;
+	case EDID_BLOCK_READ_FAIL:
+		pr_debug("EDID block %d read failed\n", block_num);
+		break;
+	case EDID_BLOCK_NULL:
+		pr_debug("EDID block %d pointer is NULL\n", block_num);
+		break;
+	case EDID_BLOCK_ZERO:
+		pr_notice("EDID block %d is all zeroes\n", block_num);
+		break;
+	case EDID_BLOCK_HEADER_CORRUPT:
+		pr_notice("EDID has corrupt header\n");
+		break;
+	case EDID_BLOCK_HEADER_REPAIR:
+		pr_debug("EDID corrupt header needs repair\n");
+		break;
+	case EDID_BLOCK_HEADER_FIXED:
+		pr_debug("EDID corrupt header fixed\n");
+		break;
+	case EDID_BLOCK_CHECKSUM:
+		if (edid_block_status_valid(status, edid_block_tag(block))) {
+			pr_debug("EDID block %d (tag 0x%02x) checksum is invalid, remainder is %d, ignoring\n",
+				 block_num, edid_block_tag(block),
+				 edid_block_compute_checksum(block));
+		} else {
+			pr_notice("EDID block %d (tag 0x%02x) checksum is invalid, remainder is %d\n",
+				  block_num, edid_block_tag(block),
+				  edid_block_compute_checksum(block));
+		}
+		break;
+	case EDID_BLOCK_VERSION:
+		pr_notice("EDID has major version %d, instead of 1\n",
+			  block->version);
+		break;
+	default:
+		WARN(1, "EDID block %d unknown edid block status code %d\n",
+		     block_num, status);
+		break;
+	}
+}
+
+static void edid_block_dump(const char *level, const void *block, int block_num)
+{
+	enum edid_block_status status;
+	char prefix[20];
+
+	status = edid_block_check(block, block_num == 0);
+	if (status == EDID_BLOCK_ZERO)
+		sprintf(prefix, "\t[%02x] ZERO ", block_num);
+	else if (!edid_block_status_valid(status, edid_block_tag(block)))
+		sprintf(prefix, "\t[%02x] BAD  ", block_num);
+	else
+		sprintf(prefix, "\t[%02x] GOOD ", block_num);
+
+	print_hex_dump(level, prefix, DUMP_PREFIX_NONE, 16, 1,
+		       block, EDID_LENGTH, false);
 }
 
 /**
@@ -1766,33 +1872,14 @@ bool drm_edid_block_valid(u8 *_block, int block_num, bool print_bad_edid,
 			*edid_corrupt = true;
 	}
 
+	edid_block_status_print(status, block, block_num);
+
 	/* Determine whether we can use this block with this status. */
 	valid = edid_block_status_valid(status, edid_block_tag(block));
 
-	/* Some fairly random status printouts. */
-	if (status == EDID_BLOCK_CHECKSUM) {
-		if (valid) {
-			DRM_DEBUG("EDID block checksum is invalid, remainder is %d\n",
-				  edid_block_compute_checksum(block));
-			DRM_DEBUG("Assuming a KVM switch modified the block but left the original checksum\n");
-		} else if (print_bad_edid) {
-			DRM_NOTE("EDID block checksum is invalid, remainder is %d\n",
-				 edid_block_compute_checksum(block));
-		}
-	} else if (status == EDID_BLOCK_VERSION) {
-		DRM_NOTE("EDID has major version %d, instead of 1\n",
-			 block->version);
-	}
-
-	if (!valid && print_bad_edid) {
-		if (edid_is_zero(block, EDID_LENGTH)) {
-			pr_notice("EDID block is all zeroes\n");
-		} else {
-			pr_notice("Raw EDID:\n");
-			print_hex_dump(KERN_NOTICE,
-				       " \t", DUMP_PREFIX_NONE, 16, 1,
-				       block, EDID_LENGTH, false);
-		}
+	if (!valid && print_bad_edid && status != EDID_BLOCK_ZERO) {
+		pr_notice("Raw EDID:\n");
+		edid_block_dump(KERN_NOTICE, block, block_num);
 	}
 
 	return valid;
@@ -1810,14 +1897,16 @@ EXPORT_SYMBOL(drm_edid_block_valid);
 bool drm_edid_is_valid(struct edid *edid)
 {
 	int i;
-	u8 *raw = (u8 *)edid;
 
 	if (!edid)
 		return false;
 
-	for (i = 0; i <= edid->extensions; i++)
-		if (!drm_edid_block_valid(raw + i * EDID_LENGTH, i, true, NULL))
+	for (i = 0; i < edid_block_count(edid); i++) {
+		void *block = (void *)edid_block_data(edid, i);
+
+		if (!drm_edid_block_valid(block, i, true, NULL))
 			return false;
+	}
 
 	return true;
 }
@@ -1830,13 +1919,13 @@ static struct edid *edid_filter_invalid_blocks(const struct edid *edid,
 	int valid_extensions = edid->extensions - invalid_blocks;
 	int i;
 
-	new = kmalloc_array(valid_extensions + 1, EDID_LENGTH, GFP_KERNEL);
+	new = kmalloc(edid_size_by_blocks(valid_extensions + 1), GFP_KERNEL);
 	if (!new)
 		goto out;
 
 	dest_block = new;
-	for (i = 0; i <= edid->extensions; i++) {
-		const void *block = edid + i;
+	for (i = 0; i < edid_block_count(edid); i++) {
+		const void *block = edid_block_data(edid, i);
 
 		if (edid_block_valid(block, i == 0))
 			memcpy(dest_block++, block, EDID_LENGTH);
@@ -1916,7 +2005,7 @@ drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 }
 
 static void connector_bad_edid(struct drm_connector *connector,
-			       u8 *edid, int num_blocks)
+			       const struct edid *edid, int num_blocks)
 {
 	int i;
 	u8 last_block;
@@ -1927,32 +2016,19 @@ static void connector_bad_edid(struct drm_connector *connector,
 	 * of 0x7e in the EDID of the _index_ of the last block in the
 	 * combined chunk of memory.
 	 */
-	last_block = edid[0x7e];
+	last_block = edid->extensions;
 
 	/* Calculate real checksum for the last edid extension block data */
 	if (last_block < num_blocks)
 		connector->real_edid_checksum =
-			edid_block_compute_checksum(edid + last_block * EDID_LENGTH);
+			edid_block_compute_checksum(edid + last_block);
 
 	if (connector->bad_edid_counter++ && !drm_debug_enabled(DRM_UT_KMS))
 		return;
 
 	drm_dbg_kms(connector->dev, "%s: EDID is invalid:\n", connector->name);
-	for (i = 0; i < num_blocks; i++) {
-		u8 *block = edid + i * EDID_LENGTH;
-		char prefix[20];
-
-		if (edid_is_zero(block, EDID_LENGTH))
-			sprintf(prefix, "\t[%02x] ZERO ", i);
-		else if (!drm_edid_block_valid(block, i, false, NULL))
-			sprintf(prefix, "\t[%02x] BAD  ", i);
-		else
-			sprintf(prefix, "\t[%02x] GOOD ", i);
-
-		print_hex_dump(KERN_DEBUG,
-			       prefix, DUMP_PREFIX_NONE, 16, 1,
-			       block, EDID_LENGTH, false);
-	}
+	for (i = 0; i < num_blocks; i++)
+		edid_block_dump(KERN_DEBUG, edid + i, i);
 }
 
 /* Get override or firmware EDID */
@@ -1999,43 +2075,39 @@ int drm_add_override_edid_modes(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_add_override_edid_modes);
 
-static struct edid *drm_do_get_edid_base_block(struct drm_connector *connector,
-	int (*get_edid_block)(void *data, u8 *buf, unsigned int block,
-			      size_t len),
-	void *data)
+typedef int read_block_fn(void *context, u8 *buf, unsigned int block, size_t len);
+
+static enum edid_block_status edid_block_read(void *block, unsigned int block_num,
+					      read_block_fn read_block,
+					      void *context)
 {
-	int *null_edid_counter = connector ? &connector->null_edid_counter : NULL;
-	bool *edid_corrupt = connector ? &connector->edid_corrupt : NULL;
-	void *edid;
+	enum edid_block_status status;
+	bool is_base_block = block_num == 0;
 	int try;
 
-	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
-	if (edid == NULL)
-		return NULL;
-
-	/* base block fetch */
 	for (try = 0; try < 4; try++) {
-		if (get_edid_block(data, edid, 0, EDID_LENGTH))
-			goto out;
-		if (drm_edid_block_valid(edid, 0, false, edid_corrupt))
-			break;
-		if (try == 0 && edid_is_zero(edid, EDID_LENGTH)) {
-			if (null_edid_counter)
-				(*null_edid_counter)++;
-			goto carp;
+		if (read_block(context, block, block_num, EDID_LENGTH))
+			return EDID_BLOCK_READ_FAIL;
+
+		status = edid_block_check(block, is_base_block);
+		if (status == EDID_BLOCK_HEADER_REPAIR) {
+			edid_header_fix(block);
+
+			/* Retry with fixed header, update status if that worked. */
+			status = edid_block_check(block, is_base_block);
+			if (status == EDID_BLOCK_OK)
+				status = EDID_BLOCK_HEADER_FIXED;
 		}
+
+		if (edid_block_status_valid(status, edid_block_tag(block)))
+			break;
+
+		/* Fail early for unrepairable base block all zeros. */
+		if (try == 0 && is_base_block && status == EDID_BLOCK_ZERO)
+			break;
 	}
-	if (try == 4)
-		goto carp;
 
-	return edid;
-
-carp:
-	if (connector)
-		connector_bad_edid(connector, edid, 1);
-out:
-	kfree(edid);
-	return NULL;
+	return status;
 }
 
 /**
@@ -2059,53 +2131,74 @@ out:
  * Return: Pointer to valid EDID or NULL if we couldn't find any.
  */
 struct edid *drm_do_get_edid(struct drm_connector *connector,
-	int (*get_edid_block)(void *data, u8 *buf, unsigned int block,
-			      size_t len),
-	void *data)
+			     read_block_fn read_block,
+			     void *context)
 {
-	int j, invalid_blocks = 0;
-	struct edid *edid, *new, *override;
+	enum edid_block_status status;
+	int i, invalid_blocks = 0;
+	struct edid *edid, *new;
 
-	override = drm_get_override_edid(connector);
-	if (override)
-		return override;
+	edid = drm_get_override_edid(connector);
+	if (edid)
+		goto ok;
 
-	edid = drm_do_get_edid_base_block(connector, get_edid_block, data);
+	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (!edid)
 		return NULL;
 
-	if (edid->extensions == 0)
-		return edid;
+	status = edid_block_read(edid, 0, read_block, context);
 
-	new = krealloc(edid, (edid->extensions + 1) * EDID_LENGTH, GFP_KERNEL);
+	edid_block_status_print(status, edid, 0);
+
+	if (status == EDID_BLOCK_READ_FAIL)
+		goto fail;
+
+	/* FIXME: Clarify what a corrupt EDID actually means. */
+	if (status == EDID_BLOCK_OK || status == EDID_BLOCK_VERSION)
+		connector->edid_corrupt = false;
+	else
+		connector->edid_corrupt = true;
+
+	if (!edid_block_status_valid(status, edid_block_tag(edid))) {
+		if (status == EDID_BLOCK_ZERO)
+			connector->null_edid_counter++;
+
+		connector_bad_edid(connector, edid, 1);
+		goto fail;
+	}
+
+	if (!edid_extension_block_count(edid))
+		goto ok;
+
+	new = krealloc(edid, edid_size(edid), GFP_KERNEL);
 	if (!new)
-		goto out;
+		goto fail;
 	edid = new;
 
-	for (j = 1; j <= edid->extensions; j++) {
-		void *block = edid + j;
-		int try;
+	for (i = 1; i < edid_block_count(edid); i++) {
+		void *block = (void *)edid_block_data(edid, i);
 
-		for (try = 0; try < 4; try++) {
-			if (get_edid_block(data, block, j, EDID_LENGTH))
-				goto out;
-			if (drm_edid_block_valid(block, j, false, NULL))
-				break;
-		}
+		status = edid_block_read(block, i, read_block, context);
 
-		if (try == 4)
+		edid_block_status_print(status, block, i);
+
+		if (!edid_block_status_valid(status, edid_block_tag(block))) {
+			if (status == EDID_BLOCK_READ_FAIL)
+				goto fail;
 			invalid_blocks++;
+		}
 	}
 
 	if (invalid_blocks) {
-		connector_bad_edid(connector, (u8 *)edid, edid->extensions + 1);
+		connector_bad_edid(connector, edid, edid_block_count(edid));
 
 		edid = edid_filter_invalid_blocks(edid, invalid_blocks);
 	}
 
+ok:
 	return edid;
 
-out:
+fail:
 	kfree(edid);
 	return NULL;
 }
@@ -2199,20 +2292,27 @@ static u32 edid_extract_panel_id(const struct edid *edid)
 
 u32 drm_edid_get_panel_id(struct i2c_adapter *adapter)
 {
-	const struct edid *edid;
-	u32 panel_id;
-
-	edid = drm_do_get_edid_base_block(NULL, drm_do_probe_ddc_edid, adapter);
+	enum edid_block_status status;
+	void *base_block;
+	u32 panel_id = 0;
 
 	/*
 	 * There are no manufacturer IDs of 0, so if there is a problem reading
 	 * the EDID then we'll just return 0.
 	 */
-	if (!edid)
+
+	base_block = kmalloc(EDID_LENGTH, GFP_KERNEL);
+	if (!base_block)
 		return 0;
 
-	panel_id = edid_extract_panel_id(edid);
-	kfree(edid);
+	status = edid_block_read(base_block, 0, drm_do_probe_ddc_edid, adapter);
+
+	edid_block_status_print(status, base_block, 0);
+
+	if (edid_block_status_valid(status, edid_block_tag(base_block)))
+		panel_id = edid_extract_panel_id(base_block);
+
+	kfree(base_block);
 
 	return panel_id;
 }
@@ -2255,7 +2355,7 @@ EXPORT_SYMBOL(drm_get_edid_switcheroo);
  */
 struct edid *drm_edid_duplicate(const struct edid *edid)
 {
-	return kmemdup(edid, (edid->extensions + 1) * EDID_LENGTH, GFP_KERNEL);
+	return kmemdup(edid, edid_size(edid), GFP_KERNEL);
 }
 EXPORT_SYMBOL(drm_edid_duplicate);
 
@@ -2439,8 +2539,8 @@ drm_for_each_detailed_block(const struct edid *edid, detailed_cb *cb, void *clos
 	for (i = 0; i < EDID_DETAILED_TIMINGS; i++)
 		cb(&(edid->detailed_timings[i]), closure);
 
-	for (i = 1; i <= edid->extensions; i++) {
-		const u8 *ext = (const u8 *)edid + (i * EDID_LENGTH);
+	for (i = 0; i < edid_extension_block_count(edid); i++) {
+		const u8 *ext = edid_extension_block_data(edid, i);
 
 		switch (*ext) {
 		case CEA_EXT:
@@ -3410,17 +3510,17 @@ const u8 *drm_find_edid_extension(const struct edid *edid,
 	int i;
 
 	/* No EDID or EDID extensions */
-	if (edid == NULL || edid->extensions == 0)
+	if (!edid || !edid_extension_block_count(edid))
 		return NULL;
 
 	/* Find CEA extension */
-	for (i = *ext_index; i < edid->extensions; i++) {
-		edid_ext = (const u8 *)edid + EDID_LENGTH * (i + 1);
+	for (i = *ext_index; i < edid_extension_block_count(edid); i++) {
+		edid_ext = edid_extension_block_data(edid, i);
 		if (edid_block_tag(edid_ext) == ext_id)
 			break;
 	}
 
-	if (i >= edid->extensions)
+	if (i >= edid_extension_block_count(edid))
 		return NULL;
 
 	*ext_index = i + 1;
@@ -3551,8 +3651,10 @@ static u8 drm_match_cea_mode_clock_tolerance(const struct drm_display_mode *to_m
 		match_flags |= DRM_MODE_MATCH_ASPECT_RATIO;
 
 	for (vic = 1; vic < cea_num_vics(); vic = cea_next_vic(vic)) {
-		struct drm_display_mode cea_mode = *cea_mode_for_vic(vic);
+		struct drm_display_mode cea_mode;
 		unsigned int clock1, clock2;
+
+		drm_mode_init(&cea_mode, cea_mode_for_vic(vic));
 
 		/* Check both 60Hz and 59.94Hz */
 		clock1 = cea_mode.clock;
@@ -3590,8 +3692,10 @@ u8 drm_match_cea_mode(const struct drm_display_mode *to_match)
 		match_flags |= DRM_MODE_MATCH_ASPECT_RATIO;
 
 	for (vic = 1; vic < cea_num_vics(); vic = cea_next_vic(vic)) {
-		struct drm_display_mode cea_mode = *cea_mode_for_vic(vic);
+		struct drm_display_mode cea_mode;
 		unsigned int clock1, clock2;
+
+		drm_mode_init(&cea_mode, cea_mode_for_vic(vic));
 
 		/* Check both 60Hz and 59.94Hz */
 		clock1 = cea_mode.clock;

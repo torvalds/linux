@@ -215,8 +215,7 @@ struct ttm_lru_bulk_move_pos {
 /**
  * struct ttm_lru_bulk_move
  *
- * @tt: first/last lru entry for resources in the TT domain
- * @vram: first/last lru entry for resources in the VRAM domain
+ * @pos: first/last lru entry for resources in the each domain/priority
  *
  * Container for the current bulk move state. Should be used with
  * ttm_lru_bulk_move_init() and ttm_bo_set_bulk_move().
@@ -382,4 +381,8 @@ ttm_kmap_iter_linear_io_init(struct ttm_kmap_iter_linear_io *iter_io,
 void ttm_kmap_iter_linear_io_fini(struct ttm_kmap_iter_linear_io *iter_io,
 				  struct ttm_device *bdev,
 				  struct ttm_resource *mem);
+
+void ttm_resource_manager_create_debugfs(struct ttm_resource_manager *man,
+					 struct dentry * parent,
+					 const char *name);
 #endif

@@ -1144,7 +1144,8 @@ static void gen6_rps_init(struct intel_rps *rps)
 
 		if (IS_GEN9_BC(i915) || GRAPHICS_VER(i915) >= 11)
 			mult = GEN9_FREQ_SCALER;
-		if (snb_pcode_read(i915, HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL,
+		if (snb_pcode_read(rps_to_gt(rps)->uncore,
+				   HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL,
 				   &ddcc_status, NULL) == 0)
 			rps->efficient_freq =
 				clamp_t(u32,
@@ -1984,7 +1985,7 @@ void intel_rps_init(struct intel_rps *rps)
 	if (GRAPHICS_VER(i915) == 6 || IS_IVYBRIDGE(i915) || IS_HASWELL(i915)) {
 		u32 params = 0;
 
-		snb_pcode_read(i915, GEN6_READ_OC_PARAMS, &params, NULL);
+		snb_pcode_read(rps_to_gt(rps)->uncore, GEN6_READ_OC_PARAMS, &params, NULL);
 		if (params & BIT(31)) { /* OC supported */
 			drm_dbg(&i915->drm,
 				"Overclocking supported, max: %dMHz, overclock: %dMHz\n",

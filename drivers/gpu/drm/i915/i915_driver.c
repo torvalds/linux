@@ -465,11 +465,6 @@ static void i915_driver_mmio_release(struct drm_i915_private *dev_priv)
 	pci_dev_put(dev_priv->bridge_dev);
 }
 
-static void intel_sanitize_options(struct drm_i915_private *dev_priv)
-{
-	intel_gvt_sanitize_options(dev_priv);
-}
-
 /**
  * i915_set_dma_info - set all relevant PCI dma info as configured for the
  * platform
@@ -563,8 +558,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		}
 	}
 
-	intel_sanitize_options(dev_priv);
-
 	/* needs to be done before ggtt probe */
 	intel_dram_edram_detect(dev_priv);
 
@@ -636,7 +629,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 	intel_opregion_setup(dev_priv);
 
-	ret = intel_pcode_init(dev_priv);
+	ret = intel_pcode_init(&dev_priv->uncore);
 	if (ret)
 		goto err_msi;
 
@@ -1258,7 +1251,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
-	ret = intel_pcode_init(dev_priv);
+	ret = intel_pcode_init(&dev_priv->uncore);
 	if (ret)
 		return ret;
 
@@ -1556,7 +1549,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, !HAS_RUNTIME_PM(dev_priv)))
 		return -ENODEV;
 
-	drm_dbg_kms(&dev_priv->drm, "Suspending device\n");
+	drm_dbg(&dev_priv->drm, "Suspending device\n");
 
 	disable_rpm_wakeref_asserts(rpm);
 
@@ -1632,7 +1625,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		intel_hpd_poll_enable(dev_priv);
 
-	drm_dbg_kms(&dev_priv->drm, "Device suspended\n");
+	drm_dbg(&dev_priv->drm, "Device suspended\n");
 	return 0;
 }
 
@@ -1646,7 +1639,7 @@ static int intel_runtime_resume(struct device *kdev)
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, !HAS_RUNTIME_PM(dev_priv)))
 		return -ENODEV;
 
-	drm_dbg_kms(&dev_priv->drm, "Resuming device\n");
+	drm_dbg(&dev_priv->drm, "Resuming device\n");
 
 	drm_WARN_ON_ONCE(&dev_priv->drm, atomic_read(&rpm->wakeref_count));
 	disable_rpm_wakeref_asserts(rpm);
@@ -1690,7 +1683,7 @@ static int intel_runtime_resume(struct device *kdev)
 		drm_err(&dev_priv->drm,
 			"Runtime resume failed, disabling it (%d)\n", ret);
 	else
-		drm_dbg_kms(&dev_priv->drm, "Device resumed\n");
+		drm_dbg(&dev_priv->drm, "Device resumed\n");
 
 	return ret;
 }
