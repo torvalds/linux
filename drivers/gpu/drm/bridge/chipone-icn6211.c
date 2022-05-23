@@ -9,6 +9,8 @@
 #include <drm/drm_print.h>
 #include <drm/drm_mipi_dsi.h>
 
+#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -26,6 +28,11 @@
 #define PD_CTRL(n)		(0x0a + ((n) & 0x3)) /* 0..3 */
 #define RST_CTRL(n)		(0x0e + ((n) & 0x1)) /* 0..1 */
 #define SYS_CTRL(n)		(0x10 + ((n) & 0x7)) /* 0..4 */
+#define SYS_CTRL_1_CLK_PHASE_MSK	GENMASK(5, 4)
+#define CLK_PHASE_0			0
+#define CLK_PHASE_1_4			1
+#define CLK_PHASE_1_2			2
+#define CLK_PHASE_3_4			3
 #define RGB_DRV(n)		(0x18 + ((n) & 0x3)) /* 0..3 */
 #define RGB_DLY(n)		(0x1c + ((n) & 0x1)) /* 0..1 */
 #define RGB_TEST_CTRL		0x1e
@@ -334,7 +341,7 @@ static void chipone_atomic_enable(struct drm_bridge *bridge,
 	const struct drm_bridge_state *bridge_state;
 	u16 hfp, hbp, hsync;
 	u32 bus_flags;
-	u8 pol, id[4];
+	u8 pol, sys_ctrl_1, id[4];
 
 	chipone_readb(icn, VENDOR_ID, id);
 	chipone_readb(icn, DEVICE_ID_H, id + 1);
@@ -412,7 +419,14 @@ static void chipone_atomic_enable(struct drm_bridge *bridge,
 	chipone_configure_pll(icn, mode);
 
 	chipone_writeb(icn, SYS_CTRL(0), 0x40);
-	chipone_writeb(icn, SYS_CTRL(1), 0x88);
+	sys_ctrl_1 = 0x88;
+
+	if (bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE)
+		sys_ctrl_1 |= FIELD_PREP(SYS_CTRL_1_CLK_PHASE_MSK, CLK_PHASE_0);
+	else
+		sys_ctrl_1 |= FIELD_PREP(SYS_CTRL_1_CLK_PHASE_MSK, CLK_PHASE_1_2);
+
+	chipone_writeb(icn, SYS_CTRL(1), sys_ctrl_1);
 
 	/* icn6211 specific sequence */
 	chipone_writeb(icn, MIPI_FORCE_0, 0x20);
