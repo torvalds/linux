@@ -344,7 +344,7 @@ static const struct of_device_id qcom_ipcc_of_match[] = {
 MODULE_DEVICE_TABLE(of, qcom_ipcc_of_match);
 
 static const struct dev_pm_ops qcom_ipcc_dev_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, qcom_ipcc_pm_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, qcom_ipcc_pm_resume)
 };
 
 static struct platform_driver qcom_ipcc_driver = {
