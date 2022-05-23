@@ -4,7 +4,6 @@
  * Copyright (c) 2022, Oracle and/or its affiliates
  */
 
-#include <linux/blkdev.h>
 #include "nvme.h"
 
 #ifdef CONFIG_NVME_VERBOSE_ERRORS
@@ -92,6 +91,7 @@ static const char * const nvme_statuses[] = {
 	[NVME_SC_NS_WRITE_PROTECTED] = "Namespace is Write Protected",
 	[NVME_SC_CMD_INTERRUPTED] = "Command Interrupted",
 	[NVME_SC_TRANSIENT_TR_ERR] = "Transient Transport Error",
+	[NVME_SC_ADMIN_COMMAND_MEDIA_NOT_READY] = "Admin Command Media Not Ready",
 	[NVME_SC_INVALID_IO_CMD_SET] = "Invalid IO Command Set",
 	[NVME_SC_LBA_RANGE] = "LBA Out of Range",
 	[NVME_SC_CAP_EXCEEDED] = "Capacity Exceeded",
@@ -155,10 +155,13 @@ static const char * const nvme_statuses[] = {
 	[NVME_SC_COMPARE_FAILED] = "Compare Failure",
 	[NVME_SC_ACCESS_DENIED] = "Access Denied",
 	[NVME_SC_UNWRITTEN_BLOCK] = "Deallocated or Unwritten Logical Block",
+	[NVME_SC_INTERNAL_PATH_ERROR] = "Internal Pathing Error",
 	[NVME_SC_ANA_PERSISTENT_LOSS] = "Asymmetric Access Persistent Loss",
 	[NVME_SC_ANA_INACCESSIBLE] = "Asymmetric Access Inaccessible",
 	[NVME_SC_ANA_TRANSITION] = "Asymmetric Access Transition",
+	[NVME_SC_CTRL_PATH_ERROR] = "Controller Pathing Error",
 	[NVME_SC_HOST_PATH_ERROR] = "Host Pathing Error",
+	[NVME_SC_HOST_ABORTED_CMD] = "Host Aborted Command",
 };
 
 const unsigned char *nvme_get_error_status_str(u16 status)

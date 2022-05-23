@@ -968,7 +968,7 @@ ataid_complete(struct aoedev *d, struct aoetgt *t, unsigned char *id)
 		d->flags |= DEVFL_NEWSIZE;
 	else
 		d->flags |= DEVFL_GDALLOC;
-	schedule_work(&d->work);
+	queue_work(aoe_wq, &d->work);
 }
 
 static void
