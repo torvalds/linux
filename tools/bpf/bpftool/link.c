@@ -78,9 +78,11 @@ show_link_header_json(struct bpf_link_info *info, json_writer_t *wtr)
 
 static void show_link_attach_type_json(__u32 attach_type, json_writer_t *wtr)
 {
-	if (attach_type < ARRAY_SIZE(attach_type_name))
-		jsonw_string_field(wtr, "attach_type",
-				   attach_type_name[attach_type]);
+	const char *attach_type_str;
+
+	attach_type_str = libbpf_bpf_attach_type_str(attach_type);
+	if (attach_type_str)
+		jsonw_string_field(wtr, "attach_type", attach_type_str);
 	else
 		jsonw_uint_field(wtr, "attach_type", attach_type);
 }
@@ -196,8 +198,11 @@ static void show_link_header_plain(struct bpf_link_info *info)
 
 static void show_link_attach_type_plain(__u32 attach_type)
 {
-	if (attach_type < ARRAY_SIZE(attach_type_name))
-		printf("attach_type %s  ", attach_type_name[attach_type]);
+	const char *attach_type_str;
+
+	attach_type_str = libbpf_bpf_attach_type_str(attach_type);
+	if (attach_type_str)
+		printf("attach_type %s  ", attach_type_str);
 	else
 		printf("attach_type %u  ", attach_type);
 }

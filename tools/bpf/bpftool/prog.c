@@ -41,12 +41,23 @@ enum dump_mode {
 	DUMP_XLATED,
 };
 
+static const bool attach_types[] = {
+	[BPF_SK_SKB_STREAM_PARSER] = true,
+	[BPF_SK_SKB_STREAM_VERDICT] = true,
+	[BPF_SK_SKB_VERDICT] = true,
+	[BPF_SK_MSG_VERDICT] = true,
+	[BPF_FLOW_DISSECTOR] = true,
+	[__MAX_BPF_ATTACH_TYPE] = false,
+};
+
+/* Textual representations traditionally used by the program and kept around
+ * for the sake of backwards compatibility.
+ */
 static const char * const attach_type_strings[] = {
 	[BPF_SK_SKB_STREAM_PARSER] = "stream_parser",
 	[BPF_SK_SKB_STREAM_VERDICT] = "stream_verdict",
 	[BPF_SK_SKB_VERDICT] = "skb_verdict",
 	[BPF_SK_MSG_VERDICT] = "msg_verdict",
-	[BPF_FLOW_DISSECTOR] = "flow_dissector",
 	[__MAX_BPF_ATTACH_TYPE] = NULL,
 };
 
@@ -57,6 +68,14 @@ static enum bpf_attach_type parse_attach_type(const char *str)
 	enum bpf_attach_type type;
 
 	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++) {
+		if (attach_types[type]) {
+			const char *attach_type_str;
+
+			attach_type_str = libbpf_bpf_attach_type_str(type);
+			if (!strcmp(str, attach_type_str))
+				return type;
+		}
+
 		if (attach_type_strings[type] &&
 		    is_prefix(str, attach_type_strings[type]))
 			return type;
@@ -2341,8 +2360,8 @@ static int do_help(int argc, char **argv)
 		"                 cgroup/sendmsg6 | cgroup/recvmsg4 | cgroup/recvmsg6 |\n"
 		"                 cgroup/getsockopt | cgroup/setsockopt | cgroup/sock_release |\n"
 		"                 struct_ops | fentry | fexit | freplace | sk_lookup }\n"
-		"       ATTACH_TYPE := { msg_verdict | skb_verdict | stream_verdict |\n"
-		"                        stream_parser | flow_dissector }\n"
+		"       ATTACH_TYPE := { sk_msg_verdict | sk_skb_verdict | sk_skb_stream_verdict |\n"
+		"                        sk_skb_stream_parser | flow_dissector }\n"
 		"       METRIC := { cycles | instructions | l1d_loads | llc_misses | itlb_misses | dtlb_misses }\n"
 		"       " HELP_SPEC_OPTIONS " |\n"
 		"                    {-f|--bpffs} | {-m|--mapcompat} | {-n|--nomount} |\n"
