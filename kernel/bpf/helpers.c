@@ -1417,10 +1417,22 @@ const struct bpf_func_proto bpf_kptr_xchg_proto = {
  */
 #define DYNPTR_MAX_SIZE	((1UL << 24) - 1)
 #define DYNPTR_TYPE_SHIFT	28
+#define DYNPTR_SIZE_MASK	0xFFFFFF
+#define DYNPTR_RDONLY_BIT	BIT(31)
+
+static bool bpf_dynptr_is_rdonly(struct bpf_dynptr_kern *ptr)
+{
+	return ptr->size & DYNPTR_RDONLY_BIT;
+}
 
 static void bpf_dynptr_set_type(struct bpf_dynptr_kern *ptr, enum bpf_dynptr_type type)
 {
 	ptr->size |= type << DYNPTR_TYPE_SHIFT;
+}
+
+static u32 bpf_dynptr_get_size(struct bpf_dynptr_kern *ptr)
+{
+	return ptr->size & DYNPTR_SIZE_MASK;
 }
 
 int bpf_dynptr_check_size(u32 size)
@@ -1440,6 +1452,16 @@ void bpf_dynptr_init(struct bpf_dynptr_kern *ptr, void *data,
 void bpf_dynptr_set_null(struct bpf_dynptr_kern *ptr)
 {
 	memset(ptr, 0, sizeof(*ptr));
+}
+
+static int bpf_dynptr_check_off_len(struct bpf_dynptr_kern *ptr, u32 offset, u32 len)
+{
+	u32 size = bpf_dynptr_get_size(ptr);
+
+	if (len > size || offset > size - len)
+		return -E2BIG;
+
+	return 0;
 }
 
 BPF_CALL_4(bpf_dynptr_from_mem, void *, data, u32, size, u64, flags, struct bpf_dynptr_kern *, ptr)
@@ -1473,6 +1495,58 @@ const struct bpf_func_proto bpf_dynptr_from_mem_proto = {
 	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_LOCAL | MEM_UNINIT,
+};
+
+BPF_CALL_4(bpf_dynptr_read, void *, dst, u32, len, struct bpf_dynptr_kern *, src, u32, offset)
+{
+	int err;
+
+	if (!src->data)
+		return -EINVAL;
+
+	err = bpf_dynptr_check_off_len(src, offset, len);
+	if (err)
+		return err;
+
+	memcpy(dst, src->data + src->offset + offset, len);
+
+	return 0;
+}
+
+const struct bpf_func_proto bpf_dynptr_read_proto = {
+	.func		= bpf_dynptr_read,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_PTR_TO_DYNPTR,
+	.arg4_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_4(bpf_dynptr_write, struct bpf_dynptr_kern *, dst, u32, offset, void *, src, u32, len)
+{
+	int err;
+
+	if (!dst->data || bpf_dynptr_is_rdonly(dst))
+		return -EINVAL;
+
+	err = bpf_dynptr_check_off_len(dst, offset, len);
+	if (err)
+		return err;
+
+	memcpy(dst->data + dst->offset + offset, src, len);
+
+	return 0;
+}
+
+const struct bpf_func_proto bpf_dynptr_write_proto = {
+	.func		= bpf_dynptr_write,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_DYNPTR,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
+	.arg4_type	= ARG_CONST_SIZE_OR_ZERO,
 };
 
 const struct bpf_func_proto bpf_get_current_task_proto __weak;
@@ -1537,6 +1611,10 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 		return &bpf_strncmp_proto;
 	case BPF_FUNC_dynptr_from_mem:
 		return &bpf_dynptr_from_mem_proto;
+	case BPF_FUNC_dynptr_read:
+		return &bpf_dynptr_read_proto;
+	case BPF_FUNC_dynptr_write:
+		return &bpf_dynptr_write_proto;
 	default:
 		break;
 	}
