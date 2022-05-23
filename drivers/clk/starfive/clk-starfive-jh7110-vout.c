@@ -17,6 +17,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
+#include <soc/starfive/jh7110_pmu.h>
+#include <linux/reset.h>
 
 #include <dt-bindings/clock/starfive-jh7110-vout.h>
 #include "clk-starfive-jh7110.h"
@@ -85,6 +87,9 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 {
 	struct jh7110_clk_priv *priv;
 	unsigned int idx;
+	struct clk *clk_vout_src;
+	struct clk *clk_vout_top_ahb;
+	struct reset_control *rst_vout_src;
 	int ret = 0;
 
 	priv = devm_kzalloc(&pdev->dev, struct_size(priv,
@@ -97,6 +102,47 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 	priv->vout_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->vout_base))
 		return PTR_ERR(priv->vout_base);
+
+	starfive_power_domain_set(POWER_DOMAIN_VOUT, 1);
+
+	clk_vout_src = devm_clk_get(priv->dev, "vout_src");
+	if (!IS_ERR(clk_vout_src)){
+		ret = clk_prepare_enable(clk_vout_src);
+		if(ret){
+			dev_err(priv->dev, "clk_vout_src enable failed\n");
+			goto clk_src_enable_failed;
+		}
+	}else{
+		dev_err(priv->dev, "clk_vout_src get failed\n");
+		return PTR_ERR(clk_vout_src);
+	}
+
+	rst_vout_src = devm_reset_control_get_exclusive(
+			priv->dev, "vout_src");
+	if (!IS_ERR(rst_vout_src)) {
+		ret = reset_control_deassert(rst_vout_src);
+		if(ret){
+			dev_err(priv->dev, "rst_vout_src deassert failed.\n");
+			goto rst_src_deassert_failed;
+		}
+	}else{
+		dev_err(priv->dev, "rst_vout_src get failed.\n");
+		ret = PTR_ERR(rst_vout_src);
+		goto rst_src_get_failed;
+	}
+
+	clk_vout_top_ahb = devm_clk_get(priv->dev, "vout_top_ahb");
+	if (!IS_ERR(clk_vout_top_ahb)){
+		ret = clk_prepare_enable(clk_vout_top_ahb);
+		if(ret){
+			dev_err(priv->dev, "clk_vout_top_ahb enable failed\n");
+			goto clk_ahb_enable_failed;
+		}
+	}else{
+		dev_err(priv->dev, "clk_vout_top_ahb get failed\n");
+		ret = PTR_ERR(clk_vout_top_ahb);
+		goto clk_ahb_get_failed;
+	}
 
 	//source
 	priv->pll[PLL_OFV(JH7110_DISP_ROOT)] =
@@ -245,9 +291,27 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 	ret = devm_of_clk_add_hw_provider(priv->dev, jh7110_vout_clk_get, priv);
 	if (ret)
 		return ret;
-	
+
+	devm_clk_put(priv->dev, clk_vout_src);
+	reset_control_put(rst_vout_src);
+	devm_clk_put(priv->dev, clk_vout_top_ahb);
+
 	dev_info(&pdev->dev,"starfive JH7110 clk_vout init successfully.");
 	return 0;
+
+clk_ahb_enable_failed:
+	devm_clk_put(priv->dev, clk_vout_top_ahb);
+clk_ahb_get_failed:
+	reset_control_assert(rst_vout_src);
+rst_src_deassert_failed:
+	reset_control_put(rst_vout_src);
+rst_src_get_failed:
+	clk_disable_unprepare(clk_vout_src);
+clk_src_enable_failed:
+	devm_clk_put(priv->dev, clk_vout_src);
+
+	return ret;
+
 }
 
 static const struct of_device_id clk_starfive_jh7110_vout_match[] = {	

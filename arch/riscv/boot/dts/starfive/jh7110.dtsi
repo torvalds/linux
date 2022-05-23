@@ -250,10 +250,16 @@
 			reg-names = "vout";
 			clocks = <&hdmitx0_pixelclk>,
 				 <&mipitx_dphy_rxesc>,
-				 <&mipitx_dphy_txbytehs>;
+				 <&mipitx_dphy_txbytehs>,
+				 <&clkgen JH7110_VOUT_SRC>,
+				 <&clkgen JH7110_VOUT_TOP_CLK_VOUT_AHB>;
 			clock-names = "hdmitx0_pixelclk",
-				"mipitx_dphy_rxesc",
-				"mipitx_dphy_txbytehs";
+				      "mipitx_dphy_rxesc",
+				      "mipitx_dphy_txbytehs",
+				      "vout_src",
+				      "vout_top_ahb";
+			resets = <&rstgen RSTN_U0_DOM_VOUT_TOP_SRC>;
+			reset-names = "vout_src";
 			#clock-cells = <1>;
 			status = "okay";
 		};
