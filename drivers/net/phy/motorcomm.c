@@ -379,7 +379,7 @@ static int yt8521_config_init(struct phy_device *phydev)
 	}
 
 	val &= ~0x3CFF;
-	val |= 0x5f;
+	val |= 0x5b;
 	ret = ytphy_write_ext(phydev, 0xa003, val);
 	if (ret < 0) {
 		printk(KERN_INFO "yt8521_config: set 0xa003 error!\n");
