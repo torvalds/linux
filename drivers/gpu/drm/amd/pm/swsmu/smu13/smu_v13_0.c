@@ -1076,10 +1076,7 @@ int smu_v13_0_set_power_limit(struct smu_context *smu,
 
 int smu_v13_0_enable_thermal_alert(struct smu_context *smu)
 {
-	if (smu->smu_table.thermal_controller_type)
-		return amdgpu_irq_get(smu->adev, &smu->irq_source, 0);
-
-	return 0;
+	return amdgpu_irq_get(smu->adev, &smu->irq_source, 0);
 }
 
 int smu_v13_0_disable_thermal_alert(struct smu_context *smu)
