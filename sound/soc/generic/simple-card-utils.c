@@ -322,7 +322,7 @@ void asoc_simple_shutdown(struct snd_pcm_substream *substream)
 
 		if (props->mclk_fs && !dai->clk_fixed && !snd_soc_dai_active(cpu_dai))
 			snd_soc_dai_set_sysclk(cpu_dai,
-					       0, 0, SND_SOC_CLOCK_IN);
+					       0, 0, SND_SOC_CLOCK_OUT);
 
 		asoc_simple_clk_disable(dai);
 	}
@@ -364,12 +364,14 @@ static int asoc_simple_set_tdm(struct snd_soc_dai *dai,
 				struct snd_pcm_hw_params *params)
 {
 	int sample_bits = params_width(params);
-	int slot_width = simple_dai->slot_width;
-	int slot_count = simple_dai->slots;
+	int slot_width, slot_count;
 	int i, ret;
 
 	if (!simple_dai || !simple_dai->tdm_width_map)
 		return 0;
+
+	slot_width = simple_dai->slot_width;
+	slot_count = simple_dai->slots;
 
 	if (slot_width == 0)
 		slot_width = sample_bits;

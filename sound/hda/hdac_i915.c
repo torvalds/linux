@@ -127,11 +127,10 @@ static int i915_gfx_present(struct pci_dev *hdac_pci)
 		display_dev = pci_get_class(class, display_dev);
 
 		if (display_dev && display_dev->vendor == PCI_VENDOR_ID_INTEL &&
-		    connectivity_check(display_dev, hdac_pci))
+		    connectivity_check(display_dev, hdac_pci)) {
+			pci_dev_put(display_dev);
 			match = true;
-
-		pci_dev_put(display_dev);
-
+		}
 	} while (!match && display_dev);
 
 	return match;
