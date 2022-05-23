@@ -274,7 +274,7 @@
 		};
 
 		mdio0: mdio@1e650000 {
-			compatible = "aspeed,ast2600-mdio", "syscon";
+			compatible = "aspeed,ast2600-mdio";
 			reg = <0x1e650000 0x8>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -285,7 +285,7 @@
 		};
 
 		mdio1: mdio@1e650008 {
-			compatible = "aspeed,ast2600-mdio", "syscon";
+			compatible = "aspeed,ast2600-mdio";
 			reg = <0x1e650008 0x8>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -296,7 +296,7 @@
 		};
 
 		mdio2: mdio@1e650010 {
-			compatible = "aspeed,ast2600-mdio", "syscon";
+			compatible = "aspeed,ast2600-mdio";
 			reg = <0x1e650010 0x8>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -307,7 +307,7 @@
 		};
 
 		mdio3: mdio@1e650018 {
-			compatible = "aspeed,ast2600-mdio", "syscon";
+			compatible = "aspeed,ast2600-mdio";
 			reg = <0x1e650018 0x8>;
 			#address-cells = <1>;
 			#size-cells = <0>;
