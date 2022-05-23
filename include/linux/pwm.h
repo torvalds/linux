@@ -6,8 +6,6 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 
-struct seq_file;
-
 struct pwm_chip;
 
 /**
