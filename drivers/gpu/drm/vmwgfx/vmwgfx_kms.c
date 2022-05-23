@@ -1336,7 +1336,6 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 		ret = vmw_kms_new_framebuffer_surface(dev_priv, surface, &vfb,
 						      mode_cmd,
 						      is_bo_proxy);
-
 		/*
 		 * vmw_create_bo_proxy() adds a reference that is no longer
 		 * needed
@@ -1398,13 +1397,16 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	ret = vmw_user_lookup_handle(dev_priv, tfile,
 				     mode_cmd->handles[0],
 				     &surface, &bo);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("Invalid buffer object handle %u (0x%x).\n",
+			  mode_cmd->handles[0], mode_cmd->handles[0]);
 		goto err_out;
+	}
 
 
 	if (!bo &&
 	    !vmw_kms_srf_ok(dev_priv, mode_cmd->width, mode_cmd->height)) {
-		DRM_ERROR("Surface size cannot exceed %dx%d",
+		DRM_ERROR("Surface size cannot exceed %dx%d\n",
 			dev_priv->texture_max_width,
 			dev_priv->texture_max_height);
 		goto err_out;

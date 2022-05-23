@@ -105,7 +105,7 @@ SYM_FUNC_START(copy_user_generic_unrolled)
 	jnz 21b
 23:	xor %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 
 	.section .fixup,"ax"
 30:	shll $6,%ecx
@@ -173,7 +173,7 @@ SYM_FUNC_START(copy_user_generic_string)
 	movsb
 	xorl %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 
 	.section .fixup,"ax"
 11:	leal (%rdx,%rcx,8),%ecx
@@ -207,7 +207,7 @@ SYM_FUNC_START(copy_user_enhanced_fast_string)
 	movsb
 	xorl %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 
 	.section .fixup,"ax"
 12:	movl %ecx,%edx		/* ecx is zerorest also */
@@ -239,7 +239,7 @@ SYM_CODE_START_LOCAL(.Lcopy_user_handle_tail)
 1:	rep movsb
 2:	mov %ecx,%eax
 	ASM_CLAC
-	ret
+	RET
 
 	/*
 	 * Return zero to pretend that this copy succeeded. This
@@ -250,7 +250,7 @@ SYM_CODE_START_LOCAL(.Lcopy_user_handle_tail)
 	 */
 3:	xorl %eax,%eax
 	ASM_CLAC
-	ret
+	RET
 
 	_ASM_EXTABLE_CPY(1b, 2b)
 SYM_CODE_END(.Lcopy_user_handle_tail)
@@ -361,7 +361,7 @@ SYM_FUNC_START(__copy_user_nocache)
 	xorl %eax,%eax
 	ASM_CLAC
 	sfence
-	ret
+	RET
 
 	.section .fixup,"ax"
 .L_fixup_4x8b_copy:

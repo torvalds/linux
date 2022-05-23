@@ -30,6 +30,8 @@
  */
 
 #define	FM25_SN_LEN	8		/* serial number length */
+#define EE_MAXADDRLEN	3		/* 24 bit addresses, up to 2 MBytes */
+
 struct at25_data {
 	struct spi_device	*spi;
 	struct mutex		lock;
@@ -38,6 +40,7 @@ struct at25_data {
 	struct nvmem_config	nvmem_config;
 	struct nvmem_device	*nvmem;
 	u8 sernum[FM25_SN_LEN];
+	u8 command[EE_MAXADDRLEN + 1];
 };
 
 #define	AT25_WREN	0x06		/* latch the write enable */
@@ -60,8 +63,6 @@ struct at25_data {
 
 #define	FM25_ID_LEN	9		/* ID length */
 
-#define EE_MAXADDRLEN	3		/* 24 bit addresses, up to 2 MBytes */
-
 /* Specs often allow 5 msec for a page write, sometimes 20 msec;
  * it's important to recover from write timeouts.
  */
@@ -79,7 +80,6 @@ static int at25_ee_read(void *priv, unsigned int offset,
 	size_t max_chunk = spi_max_transfer_size(at25->spi);
 	size_t num_msgs = DIV_ROUND_UP(count, max_chunk);
 	size_t			nr_bytes = 0;
-	u8			command[EE_MAXADDRLEN + 1];
 	u8			*cp;
 	ssize_t			status;
 	struct spi_transfer	t[2];
@@ -98,12 +98,15 @@ static int at25_ee_read(void *priv, unsigned int offset,
 	msg_offset = (unsigned int)offset;
 	msg_count = min(count, max_chunk);
 	while (num_msgs) {
-		cp = command;
+		cp = at25->command;
 
 		instr = AT25_READ;
 		if (at25->chip.flags & EE_INSTR_BIT3_IS_ADDR)
 			if (msg_offset >= (1U << (at25->addrlen * 8)))
 				instr |= AT25_INSTR_BIT3;
+
+		mutex_lock(&at25->lock);
+
 		*cp++ = instr;
 
 		/* 8/16/24-bit address is written MSB first */
@@ -122,15 +125,13 @@ static int at25_ee_read(void *priv, unsigned int offset,
 		spi_message_init(&m);
 		memset(t, 0, sizeof(t));
 
-		t[0].tx_buf = command;
+		t[0].tx_buf = at25->command;
 		t[0].len = at25->addrlen + 1;
 		spi_message_add_tail(&t[0], &m);
 
 		t[1].rx_buf = buf + nr_bytes;
 		t[1].len = msg_count;
 		spi_message_add_tail(&t[1], &m);
-
-		mutex_lock(&at25->lock);
 
 		status = spi_sync(at25->spi, &m);
 
@@ -162,7 +163,7 @@ static int fm25_aux_read(struct at25_data *at25, u8 *buf, uint8_t command,
 	spi_message_init(&m);
 	memset(t, 0, sizeof(t));
 
-	t[0].tx_buf = &command;
+	t[0].tx_buf = at25->command;
 	t[0].len = 1;
 	spi_message_add_tail(&t[0], &m);
 
@@ -171,6 +172,8 @@ static int fm25_aux_read(struct at25_data *at25, u8 *buf, uint8_t command,
 	spi_message_add_tail(&t[1], &m);
 
 	mutex_lock(&at25->lock);
+
+	at25->command[0] = command;
 
 	status = spi_sync(at25->spi, &m);
 	dev_dbg(&at25->spi->dev, "read %d aux bytes --> %d\n", len, status);

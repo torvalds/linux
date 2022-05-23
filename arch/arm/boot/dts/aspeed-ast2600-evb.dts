@@ -64,6 +64,7 @@
 			reg = <0x9e770000 0x100>;
 			compatible = "shared-dma-pool";
 		};
+
 		ssp_memory: ssp_memory {
 			size = <0x02000000>;
 			alignment = <0x01000000>;
@@ -1068,4 +1069,9 @@
 
 &rng {
 	status = "okay";
+};
+
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
 };

@@ -249,13 +249,9 @@ void __init time_init(void)
 static int __init init_cr16_clocksource(void)
 {
 	/*
-	 * The cr16 interval timers are not syncronized across CPUs, even if
-	 * they share the same socket.
+	 * The cr16 interval timers are not synchronized across CPUs.
 	 */
 	if (num_online_cpus() > 1 && !running_on_qemu) {
-		/* mark sched_clock unstable */
-		clear_sched_clock_stable();
-
 		clocksource_cr16.name = "cr16_unstable";
 		clocksource_cr16.flags = CLOCK_SOURCE_UNSTABLE;
 		clocksource_cr16.rating = 0;

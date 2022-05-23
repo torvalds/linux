@@ -45,7 +45,7 @@ SYM_FUNC_START(xen_irq_enable_direct)
 	call check_events
 1:
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(xen_irq_enable_direct)
 
 
@@ -55,7 +55,7 @@ SYM_FUNC_END(xen_irq_enable_direct)
  */
 SYM_FUNC_START(xen_irq_disable_direct)
 	movb $1, PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_mask
-	ret
+	RET
 SYM_FUNC_END(xen_irq_disable_direct)
 
 /*
@@ -71,7 +71,7 @@ SYM_FUNC_START(xen_save_fl_direct)
 	testb $0xff, PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_mask
 	setz %ah
 	addb %ah, %ah
-	ret
+	RET
 SYM_FUNC_END(xen_save_fl_direct)
 
 /*
@@ -100,7 +100,7 @@ SYM_FUNC_START(check_events)
 	pop %rcx
 	pop %rax
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(check_events)
 
 SYM_FUNC_START(xen_read_cr2)
@@ -108,14 +108,14 @@ SYM_FUNC_START(xen_read_cr2)
 	_ASM_MOV PER_CPU_VAR(xen_vcpu), %_ASM_AX
 	_ASM_MOV XEN_vcpu_info_arch_cr2(%_ASM_AX), %_ASM_AX
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(xen_read_cr2);
 
 SYM_FUNC_START(xen_read_cr2_direct)
 	FRAME_BEGIN
 	_ASM_MOV PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_arch_cr2, %_ASM_AX
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(xen_read_cr2_direct);
 
 .macro xen_pv_trap name

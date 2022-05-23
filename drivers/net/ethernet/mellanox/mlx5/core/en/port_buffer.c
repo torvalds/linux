@@ -309,8 +309,8 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 		if (err)
 			return err;
 
-		err = update_buffer_lossy(max_mtu, curr_pfc_en, prio2buffer, port_buff_cell_sz,
-					  xoff, &port_buffer, &update_buffer);
+		err = update_buffer_lossy(max_mtu, curr_pfc_en, prio2buffer, xoff,
+					  port_buff_cell_sz, &port_buffer, &update_buffer);
 		if (err)
 			return err;
 	}
