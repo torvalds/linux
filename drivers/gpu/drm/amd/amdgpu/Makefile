@@ -214,6 +214,12 @@ amdgpu-y += \
 	jpeg_v4_0.o \
 	jpeg_v4_0_3.o
 
+# add VPE block
+amdgpu-y += \
+	amdgpu_vpe.o \
+	vpe_v6_1.o
+
+#
 # add ATHUB block
 amdgpu-y += \
 	athub_v1_0.o \
