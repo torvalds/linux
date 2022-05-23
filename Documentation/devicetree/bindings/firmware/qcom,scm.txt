@@ -46,6 +46,7 @@ Required properties:
   clock and "bus" for the bus clock per the requirements of the compatible.
 - qcom,dload-mode: phandle to the TCSR hardware block and offset of the
 		   download mode control register (optional)
+- interconnects: Specifies the bandwidth requirements of the SCM interface (optional)
 
 Example for MSM8916:
 
