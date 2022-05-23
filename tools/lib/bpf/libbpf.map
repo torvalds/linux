@@ -461,5 +461,8 @@ LIBBPF_0.8.0 {
 } LIBBPF_0.7.0;
 
 LIBBPF_1.0.0 {
+	global:
+		libbpf_bpf_prog_type_str;
+
 	local: *;
 };
