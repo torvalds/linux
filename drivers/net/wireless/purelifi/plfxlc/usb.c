@@ -824,7 +824,7 @@ static int suspend(struct usb_interface *interface,
 	struct plfxlc_usb *pl = get_plfxlc_usb(interface);
 	struct plfxlc_mac *mac = plfxlc_usb_to_mac(pl);
 
-	if (!pl || !plfxlc_usb_dev(pl))
+	if (!pl)
 		return -ENODEV;
 	if (pl->initialized == 0)
 		return 0;
@@ -837,7 +837,7 @@ static int resume(struct usb_interface *interface)
 {
 	struct plfxlc_usb *pl = get_plfxlc_usb(interface);
 
-	if (!pl || !plfxlc_usb_dev(pl))
+	if (!pl)
 		return -ENODEV;
 	if (pl->was_running)
 		plfxlc_usb_resume(pl);

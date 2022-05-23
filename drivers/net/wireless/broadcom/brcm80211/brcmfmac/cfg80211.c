@@ -2167,7 +2167,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		offsetof(struct brcmf_assoc_params_le, chanspec_list);
 	if (cfg->channel)
 		join_params_size += sizeof(u16);
-	ext_join_params = kzalloc(join_params_size, GFP_KERNEL);
+	ext_join_params = kzalloc(sizeof(*ext_join_params), GFP_KERNEL);
 	if (ext_join_params == NULL) {
 		err = -ENOMEM;
 		goto done;

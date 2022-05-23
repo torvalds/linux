@@ -1058,7 +1058,7 @@ static bool iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 					 unsigned long *unshare_queues,
 					 unsigned long *changetid_queues)
 {
-	int tid;
+	unsigned int tid;
 
 	lockdep_assert_held(&mvmsta->lock);
 	lockdep_assert_held(&mvm->mutex);
