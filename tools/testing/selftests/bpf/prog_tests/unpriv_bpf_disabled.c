@@ -261,10 +261,10 @@ void test_unpriv_bpf_disabled(void)
 	if (ret == -EPERM) {
 		/* if unprivileged_bpf_disabled=1, we get -EPERM back; that's okay. */
 		if (!ASSERT_OK(strcmp(unprivileged_bpf_disabled_orig, "1"),
-			       "unpriviliged_bpf_disabled_on"))
+			       "unprivileged_bpf_disabled_on"))
 			goto cleanup;
 	} else {
-		if (!ASSERT_OK(ret, "set unpriviliged_bpf_disabled"))
+		if (!ASSERT_OK(ret, "set unprivileged_bpf_disabled"))
 			goto cleanup;
 	}
 
