@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"BATTERY_CHG: %s: " fmt, __func__
@@ -39,6 +39,7 @@
 #define BC_WLS_FW_UPDATE_STATUS_RESP	0x42
 #define BC_WLS_FW_PUSH_BUF_RESP		0x43
 #define BC_WLS_FW_GET_VERSION		0x44
+#define BC_SHUTDOWN_NOTIFY		0x47
 #define BC_GENERIC_NOTIFY		0x80
 
 /* Generic definitions */
@@ -46,6 +47,7 @@
 #define BC_WAIT_TIME_MS			1000
 #define WLS_FW_PREPARE_TIME_MS		300
 #define WLS_FW_WAIT_TIME_MS		500
+#define WLS_FW_UPDATE_TIME_MS		1000
 #define WLS_FW_BUF_SIZE			128
 #define DEFAULT_RESTRICT_FCC_UA		1000000
 
@@ -161,6 +163,7 @@ struct wireless_fw_check_req {
 	struct pmic_glink_hdr	hdr;
 	u32			fw_version;
 	u32			fw_size;
+	u32			fw_crc;
 };
 
 struct wireless_fw_check_resp {
@@ -231,10 +234,15 @@ struct battery_chg_dev {
 	bool				debug_battery_detected;
 	bool				wls_fw_update_reqd;
 	u32				wls_fw_version;
+	u16				wls_fw_crc;
 	struct notifier_block		reboot_notifier;
 	u32				thermal_fcc_ua;
 	u32				restrict_fcc_ua;
+	u32				last_fcc_ua;
+	u32				usb_icl_ua;
 	bool				restrict_chg_en;
+	/* To track the driver initialization status */
+	bool				initialized;
 };
 
 static const int battery_prop_map[BATT_PROP_MAX] = {
@@ -421,14 +429,6 @@ static void battery_chg_notify_enable(struct battery_chg_dev *bcdev)
 		pr_err("Failed to enable notification rc=%d\n", rc);
 }
 
-static void battery_chg_subsys_up_work(struct work_struct *work)
-{
-	struct battery_chg_dev *bcdev = container_of(work,
-					struct battery_chg_dev, subsys_up_work);
-
-	battery_chg_notify_enable(bcdev);
-}
-
 static void battery_chg_state_cb(void *priv, enum pmic_glink_state state)
 {
 	struct battery_chg_dev *bcdev = priv;
@@ -568,6 +568,7 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 
 		break;
 	case BC_SET_NOTIFY_REQ:
+	case BC_SHUTDOWN_NOTIFY:
 		/* Always ACK response for notify request */
 		ack_set = true;
 		break;
@@ -597,6 +598,9 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 			fw_update_msg = data;
 			if (fw_update_msg->fw_update_done == 1)
 				complete(&bcdev->fw_update_ack);
+			else
+				pr_err("Wireless FW update not done %d\n",
+					(int)fw_update_msg->fw_update_done);
 		} else {
 			pr_err("Incorrect response length %zu for wls_fw_update_status_resp\n",
 				len);
@@ -635,6 +639,11 @@ static void battery_chg_update_usb_type_work(struct work_struct *work)
 		pr_err("Failed to read USB_ADAP_TYPE rc=%d\n", rc);
 		return;
 	}
+
+	/* Reset usb_icl_ua whenever USB adapter type changes */
+	if (pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_SDP &&
+	    pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_PD)
+		bcdev->usb_icl_ua = 0;
 
 	pr_debug("usb_adap_type: %u\n", pst->prop[USB_ADAP_TYPE]);
 
@@ -719,6 +728,12 @@ static int battery_chg_callback(void *priv, void *data, size_t len)
 
 	pr_debug("owner: %u type: %u opcode: %#x len: %zu\n", hdr->owner,
 		hdr->type, hdr->opcode, len);
+
+	if (!bcdev->initialized) {
+		pr_debug("Driver initialization failed: Dropping glink callback message: state %d\n",
+			 bcdev->state);
+		return 0;
+	}
 
 	if (hdr->opcode == BC_NOTIFY_IND)
 		handle_notification(bcdev, data, len);
@@ -811,8 +826,10 @@ static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 	int rc;
 
 	rc = read_property_id(bcdev, pst, USB_ADAP_TYPE);
-	if (rc < 0)
+	if (rc < 0) {
+		pr_err("Failed to read prop USB_ADAP_TYPE, rc=%d\n", rc);
 		return rc;
+	}
 
 	/* Allow this only for SDP or USB_PD and not for other charger types */
 	if (pst->prop[USB_ADAP_TYPE] != POWER_SUPPLY_USB_TYPE_SDP &&
@@ -831,8 +848,12 @@ static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 		temp = UINT_MAX;
 
 	rc = write_property_id(bcdev, pst, prop_id, temp);
-	if (!rc)
+	if (rc < 0) {
+		pr_err("Failed to set ICL (%u uA) rc=%d\n", temp, rc);
+	} else {
 		pr_debug("Set ICL to %u\n", temp);
+		bcdev->usb_icl_ua = temp;
+	}
 
 	return rc;
 }
@@ -946,10 +967,12 @@ static int __battery_psy_set_charge_current(struct battery_chg_dev *bcdev,
 
 	rc = write_property_id(bcdev, &bcdev->psy_list[PSY_TYPE_BATTERY],
 				BATT_CHG_CTRL_LIM, fcc_ua);
-	if (rc < 0)
+	if (rc < 0) {
 		pr_err("Failed to set FCC %u, rc=%d\n", fcc_ua, rc);
-	else
+	} else {
 		pr_debug("Set FCC to %u uA\n", fcc_ua);
+		bcdev->last_fcc_ua = fcc_ua;
+	}
 
 	return rc;
 }
@@ -993,6 +1016,13 @@ static int battery_psy_get_prop(struct power_supply *psy,
 	int prop_id, rc;
 
 	pval->intval = -ENODATA;
+
+	/*
+	 * The prop id of TIME_TO_FULL_NOW and TIME_TO_FULL_AVG is same.
+	 * So, map the prop id of TIME_TO_FULL_AVG for TIME_TO_FULL_NOW.
+	 */
+	if (prop == POWER_SUPPLY_PROP_TIME_TO_FULL_NOW)
+		prop = POWER_SUPPLY_PROP_TIME_TO_FULL_AVG;
 
 	prop_id = get_property_id(pst, prop);
 	if (prop_id < 0)
@@ -1078,6 +1108,7 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_TIME_TO_FULL_AVG,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
 	POWER_SUPPLY_PROP_POWER_NOW,
 	POWER_SUPPLY_PROP_POWER_AVG,
@@ -1126,6 +1157,38 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 	}
 
 	return 0;
+}
+
+static void battery_chg_subsys_up_work(struct work_struct *work)
+{
+	struct battery_chg_dev *bcdev = container_of(work,
+					struct battery_chg_dev, subsys_up_work);
+	int rc;
+
+	battery_chg_notify_enable(bcdev);
+
+	/*
+	 * Give some time after enabling notification so that USB adapter type
+	 * information can be obtained properly which is essential for setting
+	 * USB ICL.
+	 */
+	msleep(200);
+
+	if (bcdev->last_fcc_ua) {
+		rc = __battery_psy_set_charge_current(bcdev,
+				bcdev->last_fcc_ua);
+		if (rc < 0)
+			pr_err("Failed to set FCC (%u uA), rc=%d\n",
+				bcdev->last_fcc_ua, rc);
+	}
+
+	if (bcdev->usb_icl_ua) {
+		rc = usb_psy_set_icl(bcdev, USB_INPUT_CURR_LIMIT,
+				bcdev->usb_icl_ua);
+		if (rc < 0)
+			pr_err("Failed to set ICL(%u uA), rc=%d\n",
+				bcdev->usb_icl_ua, rc);
+	}
 }
 
 static int wireless_fw_send_firmware(struct battery_chg_dev *bcdev,
@@ -1185,6 +1248,7 @@ static int wireless_fw_check_for_update(struct battery_chg_dev *bcdev,
 	req_msg.hdr.opcode = BC_WLS_FW_CHECK_UPDATE;
 	req_msg.fw_version = version;
 	req_msg.fw_size = size;
+	req_msg.fw_crc = bcdev->wls_fw_crc;
 
 	return battery_chg_write(bcdev, &req_msg, sizeof(req_msg));
 }
@@ -1272,7 +1336,7 @@ static int wireless_fw_update(struct battery_chg_dev *bcdev, bool force)
 	}
 
 	rc = wait_for_completion_timeout(&bcdev->fw_update_ack,
-				msecs_to_jiffies(WLS_FW_WAIT_TIME_MS));
+				msecs_to_jiffies(WLS_FW_UPDATE_TIME_MS));
 	if (!rc) {
 		pr_err("Error, timed out updating firmware\n");
 		rc = -ETIMEDOUT;
@@ -1284,12 +1348,30 @@ static int wireless_fw_update(struct battery_chg_dev *bcdev, bool force)
 	pr_info("Wireless FW update done\n");
 
 release_fw:
+	bcdev->wls_fw_crc = 0;
 	release_firmware(fw);
 out:
 	pm_relax(bcdev->dev);
 
 	return rc;
 }
+
+static ssize_t wireless_fw_crc_store(struct class *c,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	u16 val;
+
+	if (kstrtou16(buf, 0, &val) || !val)
+		return -EINVAL;
+
+	bcdev->wls_fw_crc = val;
+
+	return count;
+}
+static CLASS_ATTR_WO(wireless_fw_crc);
 
 static ssize_t wireless_fw_version_show(struct class *c,
 					struct class_attribute *attr,
@@ -1636,6 +1718,7 @@ static struct attribute *battery_class_attrs[] = {
 	&class_attr_wireless_fw_update.attr,
 	&class_attr_wireless_fw_force_update.attr,
 	&class_attr_wireless_fw_version.attr,
+	&class_attr_wireless_fw_crc.attr,
 	&class_attr_ship_mode_en.attr,
 	&class_attr_restrict_chg.attr,
 	&class_attr_restrict_cur.attr,
@@ -1695,8 +1778,11 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 	len = rc;
 
 	rc = read_property_id(bcdev, pst, BATT_CHG_CTRL_LIM_MAX);
-	if (rc < 0)
+	if (rc < 0) {
+		pr_err("Failed to read prop BATT_CHG_CTRL_LIM_MAX, rc=%d\n",
+			rc);
 		return rc;
+	}
 
 	prev = pst->prop[BATT_CHG_CTRL_LIM_MAX];
 
@@ -1744,10 +1830,19 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 static int battery_chg_ship_mode(struct notifier_block *nb, unsigned long code,
 		void *unused)
 {
+	struct battery_charger_notify_msg msg_notify = { { 0 } };
 	struct battery_charger_ship_mode_req_msg msg = { { 0 } };
 	struct battery_chg_dev *bcdev = container_of(nb, struct battery_chg_dev,
 						     reboot_notifier);
 	int rc;
+
+	msg_notify.hdr.owner = MSG_OWNER_BC;
+	msg_notify.hdr.type = MSG_TYPE_NOTIFY;
+	msg_notify.hdr.opcode = BC_SHUTDOWN_NOTIFY;
+
+	rc = battery_chg_write(bcdev, &msg_notify, sizeof(msg_notify));
+	if (rc < 0)
+		pr_err("Failed to send shutdown notification rc=%d\n", rc);
 
 	if (!bcdev->ship_mode_en)
 		return NOTIFY_DONE;
@@ -1827,13 +1922,16 @@ static int battery_chg_probe(struct platform_device *pdev)
 		return rc;
 	}
 
+	bcdev->initialized = true;
 	bcdev->reboot_notifier.notifier_call = battery_chg_ship_mode;
 	bcdev->reboot_notifier.priority = 255;
 	register_reboot_notifier(&bcdev->reboot_notifier);
 
 	rc = battery_chg_parse_dt(bcdev);
-	if (rc < 0)
+	if (rc < 0) {
+		dev_err(dev, "Failed to parse dt rc=%d\n", rc);
 		goto error;
+	}
 
 	bcdev->restrict_fcc_ua = DEFAULT_RESTRICT_FCC_UA;
 	platform_set_drvdata(pdev, bcdev);
@@ -1846,16 +1944,19 @@ static int battery_chg_probe(struct platform_device *pdev)
 	bcdev->battery_class.class_groups = battery_class_groups;
 	rc = class_register(&bcdev->battery_class);
 	if (rc < 0) {
-		pr_err("Failed to create battery_class rc=%d\n", rc);
+		dev_err(dev, "Failed to create battery_class rc=%d\n", rc);
 		goto error;
 	}
 
 	battery_chg_add_debugfs(bcdev);
 	battery_chg_notify_enable(bcdev);
 	device_init_wakeup(bcdev->dev, true);
+	schedule_work(&bcdev->usb_type_work);
 
 	return 0;
 error:
+	bcdev->initialized = false;
+	complete(&bcdev->ack);
 	pmic_glink_unregister_client(bcdev->client);
 	unregister_reboot_notifier(&bcdev->reboot_notifier);
 	return rc;
