@@ -57,7 +57,7 @@ static char *type_str[] = {
 	"AMT_MSG_MEMBERSHIP_QUERY",
 	"AMT_MSG_MEMBERSHIP_UPDATE",
 	"AMT_MSG_MULTICAST_DATA",
-	"AMT_MSG_TEARDOWM",
+	"AMT_MSG_TEARDOWN",
 };
 
 static char *action_str[] = {
