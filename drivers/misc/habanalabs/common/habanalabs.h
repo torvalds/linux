@@ -567,10 +567,6 @@ struct hl_hints_range {
  * @tpc_binning_mask: which TPCs are binned. 0 means usable and 1 means binned.
  * @dram_enabled_mask: which DRAMs are enabled.
  * @dram_binning_mask: which DRAMs are binned. 0 means usable, 1 means binned.
- * @cb_va_start_addr: virtual start address of command buffers which are mapped
- *                    to the device's MMU.
- * @cb_va_end_addr: virtual end address of command buffers which are mapped to
- *                  the device's MMU.
  * @dram_hints_align_mask: dram va hint addresses alignment mask which is used
  *                  for hints validity check.
  * @cfg_base_address: config space base address.
@@ -713,8 +709,6 @@ struct asic_fixed_properties {
 	u64				tpc_binning_mask;
 	u64				dram_enabled_mask;
 	u64				dram_binning_mask;
-	u64				cb_va_start_addr;
-	u64				cb_va_end_addr;
 	u64				dram_hints_align_mask;
 	u64				cfg_base_address;
 	u64				mmu_cache_mng_addr;
@@ -1803,6 +1797,7 @@ struct hl_cs_outcome_store {
  * @cb_va_pool: device VA pool for command buffers which are mapped to the
  *              device's MMU.
  * @sig_mgr: encaps signals handle manager.
+ * @cb_va_pool_base: the base address for the device VA pool
  * @cs_sequence: sequence number for CS. Value is assigned to a CS and passed
  *			to user so user could inquire about CS. It is used as
  *			index to cs_pending array.
@@ -1838,6 +1833,7 @@ struct hl_ctx {
 	struct hl_cs_counters_atomic	cs_counters;
 	struct gen_pool			*cb_va_pool;
 	struct hl_encaps_signals_mgr	sig_mgr;
+	u64				cb_va_pool_base;
 	u64				cs_sequence;
 	u64				*dram_default_hops;
 	spinlock_t			cs_lock;
@@ -3600,7 +3596,7 @@ void hl_hw_block_mem_init(struct hl_ctx *ctx);
 void hl_hw_block_mem_fini(struct hl_ctx *ctx);
 
 u64 hl_reserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
-		enum hl_va_range_type type, u32 size, u32 alignment);
+		enum hl_va_range_type type, u64 size, u32 alignment);
 int hl_unreserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
 		u64 start_addr, u64 size);
 int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,

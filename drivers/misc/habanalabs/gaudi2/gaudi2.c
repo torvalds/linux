@@ -2022,9 +2022,6 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 
 	prop->server_type = HL_SERVER_TYPE_UNKNOWN;
 
-	prop->cb_va_start_addr = VA_HOST_SPACE_USER_MAPPED_CB_START;
-	prop->cb_va_end_addr = VA_HOST_SPACE_USER_MAPPED_CB_END;
-
 	prop->max_dec = NUMBER_OF_DEC;
 
 	prop->clk_pll_index = HL_GAUDI2_MME_PLL;

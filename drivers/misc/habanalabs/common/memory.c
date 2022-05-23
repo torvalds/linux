@@ -755,7 +755,7 @@ out:
  * - Return the start address of the virtual block.
  */
 u64 hl_reserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
-		enum hl_va_range_type type, u32 size, u32 alignment)
+		enum hl_va_range_type type, u64 size, u32 alignment)
 {
 	return get_va_block(hdev, ctx->va_range[type], size, 0,
 			max(alignment, ctx->va_range[type]->page_size),

@@ -12,6 +12,8 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
+#define CB_VA_POOL_SIZE		(4UL * SZ_1G)
+
 static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 {
 	struct hl_device *hdev = ctx->hdev;
@@ -25,7 +27,7 @@ static int cb_map_mem(struct hl_ctx *ctx, struct hl_cb *cb)
 
 	if (!hdev->supports_cb_mapping) {
 		dev_err_ratelimited(hdev->dev,
-				"Cannot map CB because no VA range is allocated for CB mapping\n");
+				"Mapping a CB to the device's MMU is not supported\n");
 		return -EINVAL;
 	}
 
@@ -566,16 +568,23 @@ int hl_cb_va_pool_init(struct hl_ctx *ctx)
 		return -ENOMEM;
 	}
 
-	rc = gen_pool_add(ctx->cb_va_pool, prop->cb_va_start_addr,
-			prop->cb_va_end_addr - prop->cb_va_start_addr, -1);
+	ctx->cb_va_pool_base = hl_reserve_va_block(hdev, ctx, HL_VA_RANGE_TYPE_HOST,
+					CB_VA_POOL_SIZE, HL_MMU_VA_ALIGNMENT_NOT_NEEDED);
+	if (!ctx->cb_va_pool_base) {
+		rc = -ENOMEM;
+		goto err_pool_destroy;
+	}
+	rc = gen_pool_add(ctx->cb_va_pool, ctx->cb_va_pool_base, CB_VA_POOL_SIZE, -1);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to add memory to VA gen pool for CB mapping\n");
-		goto err_pool_destroy;
+		goto err_unreserve_va_block;
 	}
 
 	return 0;
 
+err_unreserve_va_block:
+	hl_unreserve_va_block(hdev, ctx, ctx->cb_va_pool_base, CB_VA_POOL_SIZE);
 err_pool_destroy:
 	gen_pool_destroy(ctx->cb_va_pool);
 
@@ -590,4 +599,5 @@ void hl_cb_va_pool_fini(struct hl_ctx *ctx)
 		return;
 
 	gen_pool_destroy(ctx->cb_va_pool);
+	hl_unreserve_va_block(hdev, ctx, ctx->cb_va_pool_base, CB_VA_POOL_SIZE);
 }
