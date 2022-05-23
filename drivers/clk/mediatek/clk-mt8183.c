@@ -1240,7 +1240,8 @@ static int clk_mt8183_infra_probe(struct platform_device *pdev)
 		return r;
 	}
 
-	mtk_register_reset_controller_set_clr(node, 4, INFRA_RST0_SET_OFFSET);
+	mtk_register_reset_controller(node, 4,
+				      INFRA_RST0_SET_OFFSET, MTK_RST_SET_CLR);
 
 	return r;
 }

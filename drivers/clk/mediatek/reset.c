@@ -92,14 +92,26 @@ static const struct reset_control_ops mtk_reset_ops_set_clr = {
 	.reset = mtk_reset_set_clr,
 };
 
-static void mtk_register_reset_controller_common(struct device_node *np,
-						 unsigned int num_regs,
-						 int regofs,
-						 const struct reset_control_ops *reset_ops)
+void mtk_register_reset_controller(struct device_node *np,
+				   u32 rst_bank_nr, u16 reg_ofs,
+				   enum mtk_reset_version version)
 {
 	struct mtk_reset *data;
 	int ret;
 	struct regmap *regmap;
+	const struct reset_control_ops *rcops = NULL;
+
+	switch (version) {
+	case MTK_RST_SIMPLE:
+		rcops = &mtk_reset_ops;
+		break;
+	case MTK_RST_SET_CLR:
+		rcops = &mtk_reset_ops_set_clr;
+		break;
+	default:
+		pr_err("Unknown reset version %d\n", version);
+		return;
+	}
 
 	regmap = device_node_to_regmap(np);
 	if (IS_ERR(regmap)) {
@@ -112,32 +124,17 @@ static void mtk_register_reset_controller_common(struct device_node *np,
 		return;
 
 	data->regmap = regmap;
-	data->regofs = regofs;
+	data->regofs = reg_ofs;
 	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.nr_resets = num_regs * 32;
-	data->rcdev.ops = reset_ops;
+	data->rcdev.nr_resets = rst_bank_nr * 32;
+	data->rcdev.ops = rcops;
 	data->rcdev.of_node = np;
 
 	ret = reset_controller_register(&data->rcdev);
 	if (ret) {
 		pr_err("could not register reset controller: %d\n", ret);
 		kfree(data);
-		return;
 	}
-}
-
-void mtk_register_reset_controller(struct device_node *np,
-				   unsigned int num_regs, int regofs)
-{
-	mtk_register_reset_controller_common(np, num_regs, regofs,
-					     &mtk_reset_ops);
-}
-
-void mtk_register_reset_controller_set_clr(struct device_node *np,
-					   unsigned int num_regs, int regofs)
-{
-	mtk_register_reset_controller_common(np, num_regs, regofs,
-					     &mtk_reset_ops_set_clr);
 }
 
 MODULE_LICENSE("GPL");
