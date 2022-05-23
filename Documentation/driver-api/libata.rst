@@ -424,12 +424,6 @@ How commands are issued
 -----------------------
 
 Internal commands
-    First, qc is allocated and initialized using :c:func:`ata_qc_new_init`.
-    Although :c:func:`ata_qc_new_init` doesn't implement any wait or retry
-    mechanism when qc is not available, internal commands are currently
-    issued only during initialization and error recovery, so no other
-    command is active and allocation is guaranteed to succeed.
-
     Once allocated qc's taskfile is initialized for the command to be
     executed. qc currently has two mechanisms to notify completion. One
     is via ``qc->complete_fn()`` callback and the other is completion
@@ -446,11 +440,6 @@ SCSI commands
     ``hostt->queuecommand`` callback. scmds can either be simulated or
     translated. No qc is involved in processing a simulated scmd. The
     result is computed right away and the scmd is completed.
-
-    For a translated scmd, :c:func:`ata_qc_new_init` is invoked to allocate a
-    qc and the scmd is translated into the qc. SCSI midlayer's
-    completion notification function pointer is stored into
-    ``qc->scsidone``.
 
     ``qc->complete_fn()`` callback is used for completion notification. ATA
     commands use :c:func:`ata_scsi_qc_complete` while ATAPI commands use
