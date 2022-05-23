@@ -128,7 +128,7 @@ static struct i2c_driver scd30_i2c_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = scd30_i2c_of_match,
-		.pm = &scd30_pm_ops,
+		.pm = pm_sleep_ptr(&scd30_pm_ops),
 	},
 	.probe_new = scd30_i2c_probe,
 };
@@ -137,3 +137,4 @@ module_i2c_driver(scd30_i2c_driver);
 MODULE_AUTHOR("Tomasz Duszynski <tomasz.duszynski@octakon.com>");
 MODULE_DESCRIPTION("Sensirion SCD30 carbon dioxide sensor i2c driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_SCD30);
