@@ -76,14 +76,9 @@ examples:
 
         smp2p-modem {
                 compatible = "qcom,smp2p";
-                qcom,smem = <443>, <429>;
-                interrupts-extended = <&ipcc IPCC_CLIENT_LPASS
-                                             IPCC_MPROC_SIGNAL_SMP2P
-                                             IRQ_TYPE_EDGE_RISING>;
-                mboxes = <&ipcc IPCC_CLIENT_LPASS
-                                IPCC_MPROC_SIGNAL_SMP2P>;
+                interrupts-extended = <&ipcc_mproc IPCC_CLIENT_MPSS
+                                IPCC_MPROC_SIGNAL_SMP2P IRQ_TYPE_EDGE_RISING>;
+                mboxes = <&ipcc_mproc IPCC_CLIENT_MPSS IPCC_MPROC_SIGNAL_SMP2P>;
 
-                qcom,local-pid = <0>;
-                qcom,remote-pid = <2>;
                 /* Other SMP2P fields */
         };
