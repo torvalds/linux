@@ -236,7 +236,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 }
 
 static inline bool _walt_can_migrate_task(struct task_struct *p, int dst_cpu,
-					  bool to_lower, bool force)
+					  bool to_lower, bool to_higher, bool force)
 {
 	struct walt_rq *wrq = (struct walt_rq *) task_rq(p)->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
@@ -244,7 +244,6 @@ static inline bool _walt_can_migrate_task(struct task_struct *p, int dst_cpu,
 	/* Don't detach task if it is under active migration */
 	if (wrq->push_task == p)
 		return false;
-
 
 	if (to_lower) {
 		if (wts->iowaited)
@@ -257,6 +256,10 @@ static inline bool _walt_can_migrate_task(struct task_struct *p, int dst_cpu,
 		if (!force && walt_get_rtg_status(p))
 			return false;
 		if (!force && !task_fits_max(p, dst_cpu))
+			return false;
+	} else if (!to_higher) {
+		if (!task_fits_max(p, dst_cpu) &&
+			wrq->walt_stats.nr_big_tasks < 2)
 			return false;
 	}
 
@@ -292,7 +295,7 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 	struct rq *src_rq = cpu_rq(src_cpu);
 	unsigned long flags;
 	struct task_struct *pulled_task = NULL, *p;
-	bool active_balance = false, to_lower;
+	bool active_balance = false, to_lower, to_higher;
 	struct walt_rq *src_wrq = (struct walt_rq *) src_rq->android_vendor_data1;
 	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
 	struct walt_task_struct *wts;
@@ -300,6 +303,8 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 	BUG_ON(src_cpu == dst_cpu);
 
 	to_lower = dst_wrq->cluster->id < src_wrq->cluster->id;
+
+	to_higher = dst_wrq->cluster->id > src_wrq->cluster->id;
 
 	raw_spin_lock_irqsave(&src_rq->__lock, flags);
 
@@ -311,7 +316,8 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 		if (task_running(src_rq, p))
 			continue;
 
-		if (!_walt_can_migrate_task(p, dst_cpu, to_lower, false))
+		if (!_walt_can_migrate_task(p, dst_cpu, to_lower, to_higher,
+					false))
 			continue;
 
 		walt_detach_task(p, src_rq, dst_rq);
@@ -327,7 +333,8 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 		if (task_running(src_rq, p))
 			continue;
 
-		if (!_walt_can_migrate_task(p, dst_cpu, to_lower, true))
+		if (!_walt_can_migrate_task(p, dst_cpu, to_lower, to_higher,
+					true))
 			continue;
 
 		walt_detach_task(p, src_rq, dst_rq);
@@ -1046,15 +1053,17 @@ static void walt_nohz_balancer_kick(void *unused, struct rq *rq,
 static void walt_can_migrate_task(void *unused, struct task_struct *p,
 				  int dst_cpu, int *can_migrate)
 {
-	bool to_lower;
+	bool to_lower, to_higher;
 	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
 	struct walt_rq *task_wrq = (struct walt_rq *) cpu_rq(task_cpu(p))->android_vendor_data1;
 
 	if (unlikely(walt_disabled))
 		return;
 	to_lower = dst_wrq->cluster->id < task_wrq->cluster->id;
+	to_higher = dst_wrq->cluster->id > task_wrq->cluster->id;
 
-	if (_walt_can_migrate_task(p, dst_cpu, to_lower, true))
+	if (_walt_can_migrate_task(p, dst_cpu, to_lower,
+				to_higher, true))
 		return;
 
 	*can_migrate = 0;
