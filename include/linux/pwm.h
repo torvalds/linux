@@ -6,7 +6,6 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 
-struct pwm_capture;
 struct seq_file;
 
 struct pwm_chip;
@@ -252,6 +251,16 @@ pwm_set_relative_duty_cycle(struct pwm_state *state, unsigned int duty_cycle,
 }
 
 /**
+ * struct pwm_capture - PWM capture data
+ * @period: period of the PWM signal (in nanoseconds)
+ * @duty_cycle: duty cycle of the PWM signal (in nanoseconds)
+ */
+struct pwm_capture {
+	unsigned int period;
+	unsigned int duty_cycle;
+};
+
+/**
  * struct pwm_ops - PWM controller operations
  * @request: optional hook for requesting a PWM
  * @free: optional hook for freeing a PWM
@@ -298,16 +307,6 @@ struct pwm_chip {
 	/* only used internally by the PWM framework */
 	struct list_head list;
 	struct pwm_device *pwms;
-};
-
-/**
- * struct pwm_capture - PWM capture data
- * @period: period of the PWM signal (in nanoseconds)
- * @duty_cycle: duty cycle of the PWM signal (in nanoseconds)
- */
-struct pwm_capture {
-	unsigned int period;
-	unsigned int duty_cycle;
 };
 
 #if IS_ENABLED(CONFIG_PWM)
