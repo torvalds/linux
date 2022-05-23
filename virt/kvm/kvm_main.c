@@ -3822,9 +3822,18 @@ static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 	return anon_inode_getfd(name, &kvm_vcpu_fops, vcpu, O_RDWR | O_CLOEXEC);
 }
 
+#ifdef __KVM_HAVE_ARCH_VCPU_DEBUGFS
+static int vcpu_get_pid(void *data, u64 *val)
+{
+	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) data;
+	*val = pid_nr(rcu_access_pointer(vcpu->pid));
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(vcpu_get_pid_fops, vcpu_get_pid, NULL, "%llu\n");
+
 static void kvm_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
 {
-#ifdef __KVM_HAVE_ARCH_VCPU_DEBUGFS
 	struct dentry *debugfs_dentry;
 	char dir_name[ITOA_MAX_LEN * 2];
 
@@ -3834,10 +3843,12 @@ static void kvm_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
 	snprintf(dir_name, sizeof(dir_name), "vcpu%d", vcpu->vcpu_id);
 	debugfs_dentry = debugfs_create_dir(dir_name,
 					    vcpu->kvm->debugfs_dentry);
+	debugfs_create_file("pid", 0444, debugfs_dentry, vcpu,
+			    &vcpu_get_pid_fops);
 
 	kvm_arch_create_vcpu_debugfs(vcpu, debugfs_dentry);
-#endif
 }
+#endif
 
 /*
  * Creates some virtual cpus.  Good luck creating more than one.

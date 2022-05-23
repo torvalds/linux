@@ -1435,6 +1435,8 @@ int kvm_arch_pm_notifier(struct kvm *kvm, unsigned long state);
 
 #ifdef __KVM_HAVE_ARCH_VCPU_DEBUGFS
 void kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu, struct dentry *debugfs_dentry);
+#else
+static inline void kvm_create_vcpu_debugfs(struct kvm_vcpu *vcpu) {}
 #endif
 
 int kvm_arch_hardware_enable(void);
