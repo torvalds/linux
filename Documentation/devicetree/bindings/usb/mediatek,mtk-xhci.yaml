@@ -113,6 +113,9 @@ properties:
   vbus-supply:
     description: Regulator of USB VBUS5v
 
+  resets:
+    maxItems: 1
+
   usb3-lpm-capable: true
 
   usb2-lpm-disable: true
