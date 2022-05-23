@@ -511,7 +511,9 @@
 			compatible = "starfive_jh7110-sys-pinctrl";
 			reg = <0x0 0x13040000 0x0 0x10000>;
 			reg-names = "control";
-			interrupts = <91>;
+			clocks = <&clkgen JH7110_SYS_IOMUX_PCLK>;
+			resets = <&rstgen RSTN_U0_SYS_IOMUX_PRESETN>;
+			interrupts = <86>;
 			interrupt-controller;
 			#gpio-cells = <2>;
 			ngpios = <64>;
@@ -522,7 +524,8 @@
 			compatible = "starfive_jh7110-aon-pinctrl";
 			reg = <0x0 0x17020000 0x0 0x10000>;
 			reg-names = "control";
-			interrupts = <90>;
+			resets = <&rstgen RSTN_U0_AON_IOMUX_PRESETN>;
+			interrupts = <85>;
 			interrupt-controller;
 			#gpio-cells = <2>;
 			ngpios = <4>;
@@ -788,7 +791,7 @@
 				"rst_sys_clk", "rst_axird", "rst_axiwr", "rst_pixel_clk_if0",
 				"rst_pixel_clk_if1", "rst_pixel_clk_if2", "rst_pixel_clk_if3",
 				"rst_m31dphy_hw", "rst_m31dphy_b09_always_on";
-			interrupts = <92 87 86>;
+			interrupts = <92 87>;
 			status = "disabled";
 		};
 
