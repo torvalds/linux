@@ -21,21 +21,36 @@ enum mtk_reset_version {
 	MTK_RST_MAX,
 };
 
-struct mtk_reset {
+/**
+ * struct mtk_clk_rst_desc - Description of MediaTek clock reset.
+ * @version: Reset version which is defined in enum mtk_reset_version.
+ * @reg_ofs: Base offset of the reset register.
+ * @rst_bank_nr: Quantity of reset bank.
+ */
+struct mtk_clk_rst_desc {
+	enum mtk_reset_version version;
+	u16 reg_ofs;
+	u32 rst_bank_nr;
+};
+
+/**
+ * struct mtk_clk_rst_data - Data of MediaTek clock reset controller.
+ * @regmap: Pointer to base address of reset register address.
+ * @rcdev: Reset controller device.
+ * @desc: Pointer to description of the reset controller.
+ */
+struct mtk_clk_rst_data {
 	struct regmap *regmap;
-	int regofs;
 	struct reset_controller_dev rcdev;
+	const struct mtk_clk_rst_desc *desc;
 };
 
 /**
  * mtk_register_reset_controller - Register MediaTek clock reset controller
  * @np: Pointer to device node.
- * @rst_bank_nr: Quantity of reset bank.
- * @reg_ofs: Base offset of the reset register.
- * @version: Version of MediaTek clock reset controller.
+ * @desc: Constant pointer to description of clock reset.
  */
 void mtk_register_reset_controller(struct device_node *np,
-				   u32 rst_bank_nr, u16 reg_ofs,
-				   enum mtk_reset_version version);
+				   const struct mtk_clk_rst_desc *desc);
 
 #endif /* __DRV_CLK_MTK_RESET_H */

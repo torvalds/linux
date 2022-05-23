@@ -12,14 +12,19 @@
 
 #include "reset.h"
 
+static inline struct mtk_clk_rst_data *to_mtk_clk_rst_data(struct reset_controller_dev *rcdev)
+{
+	return container_of(rcdev, struct mtk_clk_rst_data, rcdev);
+}
+
 static int mtk_reset_update(struct reset_controller_dev *rcdev,
 			    unsigned long id, bool deassert)
 {
-	struct mtk_reset *data = container_of(rcdev, struct mtk_reset, rcdev);
+	struct mtk_clk_rst_data *data = to_mtk_clk_rst_data(rcdev);
 	unsigned int val = deassert ? 0 : ~0;
 
 	return regmap_update_bits(data->regmap,
-				  data->regofs + ((id / 32) << 2),
+				  data->desc->reg_ofs + ((id / 32) << 2),
 				  BIT(id % 32), val);
 }
 
@@ -49,11 +54,11 @@ static int mtk_reset(struct reset_controller_dev *rcdev, unsigned long id)
 static int mtk_reset_update_set_clr(struct reset_controller_dev *rcdev,
 				    unsigned long id, bool deassert)
 {
-	struct mtk_reset *data = container_of(rcdev, struct mtk_reset, rcdev);
+	struct mtk_clk_rst_data *data = to_mtk_clk_rst_data(rcdev);
 	unsigned int deassert_ofs = deassert ? 0x4 : 0;
 
 	return regmap_write(data->regmap,
-			    data->regofs + ((id / 32) << 4) + deassert_ofs,
+			    data->desc->reg_ofs + ((id / 32) << 4) + deassert_ofs,
 			    BIT(id % 32));
 }
 
@@ -93,15 +98,19 @@ static const struct reset_control_ops mtk_reset_ops_set_clr = {
 };
 
 void mtk_register_reset_controller(struct device_node *np,
-				   u32 rst_bank_nr, u16 reg_ofs,
-				   enum mtk_reset_version version)
+				   const struct mtk_clk_rst_desc *desc)
 {
-	struct mtk_reset *data;
-	int ret;
 	struct regmap *regmap;
 	const struct reset_control_ops *rcops = NULL;
+	struct mtk_clk_rst_data *data;
+	int ret;
 
-	switch (version) {
+	if (!desc) {
+		pr_err("mtk clock reset desc is NULL\n");
+		return;
+	}
+
+	switch (desc->version) {
 	case MTK_RST_SIMPLE:
 		rcops = &mtk_reset_ops;
 		break;
@@ -109,7 +118,7 @@ void mtk_register_reset_controller(struct device_node *np,
 		rcops = &mtk_reset_ops_set_clr;
 		break;
 	default:
-		pr_err("Unknown reset version %d\n", version);
+		pr_err("Unknown reset version %d\n", desc->version);
 		return;
 	}
 
@@ -123,10 +132,10 @@ void mtk_register_reset_controller(struct device_node *np,
 	if (!data)
 		return;
 
+	data->desc = desc;
 	data->regmap = regmap;
-	data->regofs = reg_ofs;
 	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.nr_resets = rst_bank_nr * 32;
+	data->rcdev.nr_resets = desc->rst_bank_nr * 32;
 	data->rcdev.ops = rcops;
 	data->rcdev.of_node = np;
 
