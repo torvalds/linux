@@ -1183,85 +1183,7 @@ Provides counts of softirq handlers serviced since boot time, for each CPU.
     HRTIMER:         0          0          0          0
 	RCU:      1678       1769       2178       2250
 
-
-1.3 IDE devices in /proc/ide
-----------------------------
-
-The subdirectory /proc/ide contains information about all IDE devices of which
-the kernel  is  aware.  There is one subdirectory for each IDE controller, the
-file drivers  and a link for each IDE device, pointing to the device directory
-in the controller specific subtree.
-
-The file 'drivers' contains general information about the drivers used for the
-IDE devices::
-
-  > cat /proc/ide/drivers
-  ide-cdrom version 4.53
-  ide-disk version 1.08
-
-More detailed  information  can  be  found  in  the  controller  specific
-subdirectories. These  are  named  ide0,  ide1  and  so  on.  Each  of  these
-directories contains the files shown in table 1-6.
-
-
-.. table:: Table 1-6: IDE controller info in  /proc/ide/ide?
-
- ======= =======================================
- File    Content
- ======= =======================================
- channel IDE channel (0 or 1)
- config  Configuration (only for PCI/IDE bridge)
- mate    Mate name
- model   Type/Chipset of IDE controller
- ======= =======================================
-
-Each device  connected  to  a  controller  has  a separate subdirectory in the
-controllers directory.  The  files  listed in table 1-7 are contained in these
-directories.
-
-
-.. table:: Table 1-7: IDE device information
-
- ================ ==========================================
- File             Content
- ================ ==========================================
- cache            The cache
- capacity         Capacity of the medium (in 512Byte blocks)
- driver           driver and version
- geometry         physical and logical geometry
- identify         device identify block
- media            media type
- model            device identifier
- settings         device setup
- smart_thresholds IDE disk management thresholds
- smart_values     IDE disk management values
- ================ ==========================================
-
-The most  interesting  file is ``settings``. This file contains a nice
-overview of the drive parameters::
-
-  # cat /proc/ide/ide0/hda/settings
-  name                    value           min             max             mode
-  ----                    -----           ---             ---             ----
-  bios_cyl                526             0               65535           rw
-  bios_head               255             0               255             rw
-  bios_sect               63              0               63              rw
-  breada_readahead        4               0               127             rw
-  bswap                   0               0               1               r
-  file_readahead          72              0               2097151         rw
-  io_32bit                0               0               3               rw
-  keepsettings            0               0               1               rw
-  max_kb_per_request      122             1               127             rw
-  multcount               0               0               8               rw
-  nice1                   1               0               1               rw
-  nowerr                  0               0               1               rw
-  pio_mode                write-only      0               255             w
-  slow                    0               0               1               rw
-  unmaskirq               0               0               1               rw
-  using_dma               0               0               1               rw
-
-
-1.4 Networking info in /proc/net
+1.3 Networking info in /proc/net
 --------------------------------
 
 The subdirectory  /proc/net  follows  the  usual  pattern. Table 1-8 shows the
@@ -1340,7 +1262,7 @@ It will contain information that is specific to that bond, such as the
 current slaves of the bond, the link status of the slaves, and how
 many times the slaves link has failed.
 
-1.5 SCSI info
+1.4 SCSI info
 -------------
 
 If you  have  a  SCSI  host adapter in your system, you'll find a subdirectory
@@ -1403,7 +1325,7 @@ AHA-2940 SCSI adapter::
     Total transfers 0 (0 reads and 0 writes)
 
 
-1.6 Parallel port info in /proc/parport
+1.5 Parallel port info in /proc/parport
 ---------------------------------------
 
 The directory  /proc/parport  contains information about the parallel ports of
@@ -1428,7 +1350,7 @@ These directories contain the four files shown in Table 1-10.
            number or none).
  ========= ====================================================================
 
-1.7 TTY info in /proc/tty
+1.6 TTY info in /proc/tty
 -------------------------
 
 Information about  the  available  and actually used tty's can be found in the
@@ -1463,7 +1385,7 @@ To see  which  tty's  are  currently in use, you can simply look into the file
   unknown              /dev/tty        4    1-63 console
 
 
-1.8 Miscellaneous kernel statistics in /proc/stat
+1.7 Miscellaneous kernel statistics in /proc/stat
 -------------------------------------------------
 
 Various pieces   of  information about  kernel activity  are  available in the
@@ -1536,7 +1458,7 @@ softirqs serviced; each subsequent column is the total for that particular
 softirq.
 
 
-1.9 Ext4 file system parameters
+1.8 Ext4 file system parameters
 -------------------------------
 
 Information about mounted ext4 file systems can be found in
@@ -1552,7 +1474,7 @@ in Table 1-12, below.
  mb_groups       details of multiblock allocator buddy cache of free blocks
  ==============  ==========================================================
 
-1.10 /proc/consoles
+1.9 /proc/consoles
 -------------------
 Shows registered system console lines.
 
