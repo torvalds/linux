@@ -65,9 +65,6 @@ static inline void *u64_to_ptr(__u64 ptr)
 
 extern const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE];
 
-extern const char * const map_type_name[];
-extern const size_t map_type_name_size;
-
 /* keep in sync with the definition in skeleton/pid_iter.bpf.c */
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,

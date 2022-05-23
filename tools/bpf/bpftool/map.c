@@ -22,42 +22,6 @@
 #include "json_writer.h"
 #include "main.h"
 
-const char * const map_type_name[] = {
-	[BPF_MAP_TYPE_UNSPEC]			= "unspec",
-	[BPF_MAP_TYPE_HASH]			= "hash",
-	[BPF_MAP_TYPE_ARRAY]			= "array",
-	[BPF_MAP_TYPE_PROG_ARRAY]		= "prog_array",
-	[BPF_MAP_TYPE_PERF_EVENT_ARRAY]		= "perf_event_array",
-	[BPF_MAP_TYPE_PERCPU_HASH]		= "percpu_hash",
-	[BPF_MAP_TYPE_PERCPU_ARRAY]		= "percpu_array",
-	[BPF_MAP_TYPE_STACK_TRACE]		= "stack_trace",
-	[BPF_MAP_TYPE_CGROUP_ARRAY]		= "cgroup_array",
-	[BPF_MAP_TYPE_LRU_HASH]			= "lru_hash",
-	[BPF_MAP_TYPE_LRU_PERCPU_HASH]		= "lru_percpu_hash",
-	[BPF_MAP_TYPE_LPM_TRIE]			= "lpm_trie",
-	[BPF_MAP_TYPE_ARRAY_OF_MAPS]		= "array_of_maps",
-	[BPF_MAP_TYPE_HASH_OF_MAPS]		= "hash_of_maps",
-	[BPF_MAP_TYPE_DEVMAP]			= "devmap",
-	[BPF_MAP_TYPE_DEVMAP_HASH]		= "devmap_hash",
-	[BPF_MAP_TYPE_SOCKMAP]			= "sockmap",
-	[BPF_MAP_TYPE_CPUMAP]			= "cpumap",
-	[BPF_MAP_TYPE_XSKMAP]			= "xskmap",
-	[BPF_MAP_TYPE_SOCKHASH]			= "sockhash",
-	[BPF_MAP_TYPE_CGROUP_STORAGE]		= "cgroup_storage",
-	[BPF_MAP_TYPE_REUSEPORT_SOCKARRAY]	= "reuseport_sockarray",
-	[BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE]	= "percpu_cgroup_storage",
-	[BPF_MAP_TYPE_QUEUE]			= "queue",
-	[BPF_MAP_TYPE_STACK]			= "stack",
-	[BPF_MAP_TYPE_SK_STORAGE]		= "sk_storage",
-	[BPF_MAP_TYPE_STRUCT_OPS]		= "struct_ops",
-	[BPF_MAP_TYPE_RINGBUF]			= "ringbuf",
-	[BPF_MAP_TYPE_INODE_STORAGE]		= "inode_storage",
-	[BPF_MAP_TYPE_TASK_STORAGE]		= "task_storage",
-	[BPF_MAP_TYPE_BLOOM_FILTER]		= "bloom_filter",
-};
-
-const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
-
 static struct hashmap *map_table;
 
 static bool map_is_per_cpu(__u32 type)
@@ -81,12 +45,18 @@ static bool map_is_map_of_progs(__u32 type)
 
 static int map_type_from_str(const char *type)
 {
+	const char *map_type_str;
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(map_type_name); i++)
+	for (i = 0; ; i++) {
+		map_type_str = libbpf_bpf_map_type_str(i);
+		if (!map_type_str)
+			break;
+
 		/* Don't allow prefixing in case of possible future shadowing */
-		if (map_type_name[i] && !strcmp(map_type_name[i], type))
+		if (!strcmp(map_type_str, type))
 			return i;
+	}
 	return -1;
 }
 
@@ -472,9 +442,12 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 
 static void show_map_header_json(struct bpf_map_info *info, json_writer_t *wtr)
 {
+	const char *map_type_str;
+
 	jsonw_uint_field(wtr, "id", info->id);
-	if (info->type < ARRAY_SIZE(map_type_name))
-		jsonw_string_field(wtr, "type", map_type_name[info->type]);
+	map_type_str = libbpf_bpf_map_type_str(info->type);
+	if (map_type_str)
+		jsonw_string_field(wtr, "type", map_type_str);
 	else
 		jsonw_uint_field(wtr, "type", info->type);
 
@@ -561,9 +534,13 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 
 static void show_map_header_plain(struct bpf_map_info *info)
 {
+	const char *map_type_str;
+
 	printf("%u: ", info->id);
-	if (info->type < ARRAY_SIZE(map_type_name))
-		printf("%s  ", map_type_name[info->type]);
+
+	map_type_str = libbpf_bpf_map_type_str(info->type);
+	if (map_type_str)
+		printf("%s  ", map_type_str);
 	else
 		printf("type %u  ", info->type);
 
@@ -879,9 +856,13 @@ map_dump(int fd, struct bpf_map_info *info, json_writer_t *wtr,
 	}
 
 	if (info->type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY &&
-	    info->value_size != 8)
+	    info->value_size != 8) {
+		const char *map_type_str;
+
+		map_type_str = libbpf_bpf_map_type_str(info->type);
 		p_info("Warning: cannot read values from %s map with value_size != 8",
-		       map_type_name[info->type]);
+		       map_type_str);
+	}
 	while (true) {
 		err = bpf_map_get_next_key(fd, prev_key, key);
 		if (err) {

@@ -186,6 +186,27 @@ class FileExtractor(object):
         parser.search_block(start_marker)
         return parser.parse(pattern, end_marker)
 
+    def make_enum_map(self, names, enum_prefix):
+        """
+        Search for and parse an enum containing BPF_* members, just as get_enum
+        does. However, instead of just returning a set of the variant names,
+        also generate a textual representation from them by (assuming and)
+        removing a provided prefix and lowercasing the remainder. Then return a
+        dict mapping from name to textual representation.
+
+        @enum_values: a set of enum values; e.g., as retrieved by get_enum
+        @enum_prefix: the prefix to remove from each of the variants to infer
+        textual representation
+        """
+        mapping = {}
+        for name in names:
+            if not name.startswith(enum_prefix):
+                raise Exception(f"enum variant {name} does not start with {enum_prefix}")
+            text = name[len(enum_prefix):].lower()
+            mapping[name] = text
+
+        return mapping
+
     def __get_description_list(self, start_marker, pattern, end_marker):
         parser = InlineListParser(self.reader)
         parser.search_block(start_marker)
@@ -345,9 +366,6 @@ class MapFileExtractor(SourceFileExtractor):
     """
     filename = os.path.join(BPFTOOL_DIR, 'map.c')
 
-    def get_map_types(self):
-        return self.get_types_from_array('map_type_name')
-
     def get_map_help(self):
         return self.get_help_list('TYPE')
 
@@ -403,8 +421,9 @@ class BpfHeaderExtractor(FileExtractor):
     def get_prog_types(self):
         return self.get_enum('bpf_prog_type')
 
-    def get_map_types(self):
-        return self.get_enum('bpf_map_type')
+    def get_map_type_map(self):
+        names = self.get_enum('bpf_map_type')
+        return self.make_enum_map(names, 'BPF_MAP_TYPE_')
 
     def get_attach_types(self):
         return self.get_enum('bpf_attach_type')
@@ -492,21 +511,12 @@ def main():
     """)
     args = argParser.parse_args()
 
-    # Map types (enum)
-
     bpf_info = BpfHeaderExtractor()
-    ref = bpf_info.get_map_types()
-
-    map_info = MapFileExtractor()
-    source_map_items = map_info.get_map_types()
-    map_types_enum = set(source_map_items.keys())
-
-    verify(ref, map_types_enum,
-            f'Comparing BPF header (enum bpf_map_type) and {MapFileExtractor.filename} (map_type_name):')
 
     # Map types (names)
 
-    source_map_types = set(source_map_items.values())
+    map_info = MapFileExtractor()
+    source_map_types = set(bpf_info.get_map_type_map().values())
     source_map_types.discard('unspec')
 
     help_map_types = map_info.get_map_help()
@@ -522,13 +532,13 @@ def main():
     bashcomp_map_types = bashcomp_info.get_map_types()
 
     verify(source_map_types, help_map_types,
-            f'Comparing {MapFileExtractor.filename} (map_type_name) and {MapFileExtractor.filename} (do_help() TYPE):')
+            f'Comparing {BpfHeaderExtractor.filename} (bpf_map_type) and {MapFileExtractor.filename} (do_help() TYPE):')
     verify(source_map_types, man_map_types,
-            f'Comparing {MapFileExtractor.filename} (map_type_name) and {ManMapExtractor.filename} (TYPE):')
+            f'Comparing {BpfHeaderExtractor.filename} (bpf_map_type) and {ManMapExtractor.filename} (TYPE):')
     verify(help_map_options, man_map_options,
             f'Comparing {MapFileExtractor.filename} (do_help() OPTIONS) and {ManMapExtractor.filename} (OPTIONS):')
     verify(source_map_types, bashcomp_map_types,
-            f'Comparing {MapFileExtractor.filename} (map_type_name) and {BashcompExtractor.filename} (BPFTOOL_MAP_CREATE_TYPES):')
+            f'Comparing {BpfHeaderExtractor.filename} (bpf_map_type) and {BashcompExtractor.filename} (BPFTOOL_MAP_CREATE_TYPES):')
 
     # Attach types (enum)
 

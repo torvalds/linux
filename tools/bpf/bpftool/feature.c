@@ -615,8 +615,8 @@ static bool probe_map_type_ifindex(enum bpf_map_type map_type, __u32 ifindex)
 }
 
 static void
-probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
-	       __u32 ifindex)
+probe_map_type(enum bpf_map_type map_type, char const *map_type_str,
+	       const char *define_prefix, __u32 ifindex)
 {
 	char feat_name[128], plain_desc[128], define_name[128];
 	const char *plain_comment = "eBPF map_type ";
@@ -641,20 +641,16 @@ probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
 	 * check required for unprivileged users
 	 */
 
-	if (!map_type_name[map_type]) {
-		p_info("map type name not found (type %d)", map_type);
-		return;
-	}
 	maxlen = sizeof(plain_desc) - strlen(plain_comment) - 1;
-	if (strlen(map_type_name[map_type]) > maxlen) {
+	if (strlen(map_type_str) > maxlen) {
 		p_info("map type name too long");
 		return;
 	}
 
-	sprintf(feat_name, "have_%s_map_type", map_type_name[map_type]);
-	sprintf(define_name, "%s_map_type", map_type_name[map_type]);
+	sprintf(feat_name, "have_%s_map_type", map_type_str);
+	sprintf(define_name, "%s_map_type", map_type_str);
 	uppercase(define_name, sizeof(define_name));
-	sprintf(plain_desc, "%s%s", plain_comment, map_type_name[map_type]);
+	sprintf(plain_desc, "%s%s", plain_comment, map_type_str);
 	print_bool_feature(feat_name, plain_desc, define_name, res,
 			   define_prefix);
 }
@@ -963,15 +959,23 @@ section_program_types(bool *supported_types, const char *define_prefix,
 
 static void section_map_types(const char *define_prefix, __u32 ifindex)
 {
-	unsigned int i;
+	unsigned int map_type = BPF_MAP_TYPE_UNSPEC;
+	const char *map_type_str;
 
 	print_start_section("map_types",
 			    "Scanning eBPF map types...",
 			    "/*** eBPF map types ***/",
 			    define_prefix);
 
-	for (i = BPF_MAP_TYPE_UNSPEC + 1; i < map_type_name_size; i++)
-		probe_map_type(i, define_prefix, ifindex);
+	while (true) {
+		map_type++;
+		map_type_str = libbpf_bpf_map_type_str(map_type);
+		/* libbpf will return NULL for variants unknown to it. */
+		if (!map_type_str)
+			break;
+
+		probe_map_type(map_type, map_type_str, define_prefix, ifindex);
+	}
 
 	print_end_section();
 }
