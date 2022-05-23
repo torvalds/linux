@@ -1590,9 +1590,9 @@ __unwind_incomplete_requests(struct intel_context *ce)
 	spin_unlock_irqrestore(&sched_engine->lock, flags);
 }
 
-static void __guc_reset_context(struct intel_context *ce, bool stalled)
+static void __guc_reset_context(struct intel_context *ce, intel_engine_mask_t stalled)
 {
-	bool local_stalled;
+	bool guilty;
 	struct i915_request *rq;
 	unsigned long flags;
 	u32 head;
@@ -1620,7 +1620,7 @@ static void __guc_reset_context(struct intel_context *ce, bool stalled)
 		if (!intel_context_is_pinned(ce))
 			goto next_context;
 
-		local_stalled = false;
+		guilty = false;
 		rq = intel_context_find_active_request(ce);
 		if (!rq) {
 			head = ce->ring->tail;
@@ -1628,14 +1628,14 @@ static void __guc_reset_context(struct intel_context *ce, bool stalled)
 		}
 
 		if (i915_request_started(rq))
-			local_stalled = true;
+			guilty = stalled & ce->engine->mask;
 
 		GEM_BUG_ON(i915_active_is_idle(&ce->active));
 		head = intel_ring_wrap(ce->ring, rq->head);
 
-		__i915_request_reset(rq, local_stalled && stalled);
+		__i915_request_reset(rq, guilty);
 out_replay:
-		guc_reset_state(ce, head, local_stalled && stalled);
+		guc_reset_state(ce, head, guilty);
 next_context:
 		if (i != number_children)
 			ce = list_next_entry(ce, parallel.child_link);
@@ -1645,7 +1645,7 @@ next_context:
 	intel_context_put(parent);
 }
 
-void intel_guc_submission_reset(struct intel_guc *guc, bool stalled)
+void intel_guc_submission_reset(struct intel_guc *guc, intel_engine_mask_t stalled)
 {
 	struct intel_context *ce;
 	unsigned long index;
@@ -4013,7 +4013,7 @@ static void guc_context_replay(struct intel_context *ce)
 {
 	struct i915_sched_engine *sched_engine = ce->engine->sched_engine;
 
-	__guc_reset_context(ce, true);
+	__guc_reset_context(ce, ce->engine->mask);
 	tasklet_hi_schedule(&sched_engine->tasklet);
 }
 
