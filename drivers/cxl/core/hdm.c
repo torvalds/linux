@@ -128,33 +128,12 @@ struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port)
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_hdm, CXL);
 
-static int to_interleave_granularity(u32 ctrl)
-{
-	int val = FIELD_GET(CXL_HDM_DECODER0_CTRL_IG_MASK, ctrl);
-
-	return 256 << val;
-}
-
-static int to_interleave_ways(u32 ctrl)
-{
-	int val = FIELD_GET(CXL_HDM_DECODER0_CTRL_IW_MASK, ctrl);
-
-	switch (val) {
-	case 0 ... 4:
-		return 1 << val;
-	case 8 ... 10:
-		return 3 << (val - 8);
-	default:
-		return 0;
-	}
-}
-
 static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 			    int *target_map, void __iomem *hdm, int which)
 {
 	u64 size, base;
+	int i, rc;
 	u32 ctrl;
-	int i;
 	union {
 		u64 value;
 		unsigned char target_id[8];
@@ -183,14 +162,18 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		if (ctrl & CXL_HDM_DECODER0_CTRL_LOCK)
 			cxld->flags |= CXL_DECODER_F_LOCK;
 	}
-	cxld->interleave_ways = to_interleave_ways(ctrl);
-	if (!cxld->interleave_ways) {
+	rc = cxl_to_ways(FIELD_GET(CXL_HDM_DECODER0_CTRL_IW_MASK, ctrl),
+			 &cxld->interleave_ways);
+	if (rc) {
 		dev_warn(&port->dev,
 			 "decoder%d.%d: Invalid interleave ways (ctrl: %#x)\n",
 			 port->id, cxld->id, ctrl);
-		return -ENXIO;
+		return rc;
 	}
-	cxld->interleave_granularity = to_interleave_granularity(ctrl);
+	rc = cxl_to_granularity(FIELD_GET(CXL_HDM_DECODER0_CTRL_IG_MASK, ctrl),
+				&cxld->interleave_granularity);
+	if (rc)
+		return rc;
 
 	if (FIELD_GET(CXL_HDM_DECODER0_CTRL_TYPE, ctrl))
 		cxld->target_type = CXL_DECODER_EXPANDER;

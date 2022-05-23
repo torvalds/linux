@@ -9,10 +9,6 @@
 #include "cxlpci.h"
 #include "cxl.h"
 
-/* Encode defined in CXL 2.0 8.2.5.12.7 HDM Decoder Control Register */
-#define CFMWS_INTERLEAVE_WAYS(x)	(1 << (x)->interleave_ways)
-#define CFMWS_INTERLEAVE_GRANULARITY(x)	((x)->granularity + 8)
-
 static unsigned long cfmws_to_decoder_flags(int restrictions)
 {
 	unsigned long flags = CXL_DECODER_F_ENABLE;
@@ -34,7 +30,8 @@ static unsigned long cfmws_to_decoder_flags(int restrictions)
 static int cxl_acpi_cfmws_verify(struct device *dev,
 				 struct acpi_cedt_cfmws *cfmws)
 {
-	int expected_len;
+	int rc, expected_len;
+	unsigned int ways;
 
 	if (cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_MODULO) {
 		dev_err(dev, "CFMWS Unsupported Interleave Arithmetic\n");
@@ -51,14 +48,14 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (CFMWS_INTERLEAVE_WAYS(cfmws) > CXL_DECODER_MAX_INTERLEAVE) {
-		dev_err(dev, "CFMWS Interleave Ways (%d) too large\n",
-			CFMWS_INTERLEAVE_WAYS(cfmws));
+	rc = cxl_to_ways(cfmws->interleave_ways, &ways);
+	if (rc) {
+		dev_err(dev, "CFMWS Interleave Ways (%d) invalid\n",
+			cfmws->interleave_ways);
 		return -EINVAL;
 	}
 
-	expected_len = struct_size((cfmws), interleave_targets,
-				   CFMWS_INTERLEAVE_WAYS(cfmws));
+	expected_len = struct_size(cfmws, interleave_targets, ways);
 
 	if (cfmws->header.length < expected_len) {
 		dev_err(dev, "CFMWS length %d less than expected %d\n",
@@ -87,7 +84,8 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 	struct device *dev = ctx->dev;
 	struct acpi_cedt_cfmws *cfmws;
 	struct cxl_decoder *cxld;
-	int rc, i;
+	unsigned int ways, i, ig;
+	int rc;
 
 	cfmws = (struct acpi_cedt_cfmws *) header;
 
@@ -99,10 +97,16 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 		return 0;
 	}
 
-	for (i = 0; i < CFMWS_INTERLEAVE_WAYS(cfmws); i++)
+	rc = cxl_to_ways(cfmws->interleave_ways, &ways);
+	if (rc)
+		return rc;
+	rc = cxl_to_granularity(cfmws->granularity, &ig);
+	if (rc)
+		return rc;
+	for (i = 0; i < ways; i++)
 		target_map[i] = cfmws->interleave_targets[i];
 
-	cxld = cxl_root_decoder_alloc(root_port, CFMWS_INTERLEAVE_WAYS(cfmws));
+	cxld = cxl_root_decoder_alloc(root_port, ways);
 	if (IS_ERR(cxld))
 		return 0;
 
@@ -112,8 +116,8 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 		.start = cfmws->base_hpa,
 		.end = cfmws->base_hpa + cfmws->window_size - 1,
 	};
-	cxld->interleave_ways = CFMWS_INTERLEAVE_WAYS(cfmws);
-	cxld->interleave_granularity = CFMWS_INTERLEAVE_GRANULARITY(cfmws);
+	cxld->interleave_ways = ways;
+	cxld->interleave_granularity = ig;
 
 	rc = cxl_decoder_add(cxld, target_map);
 	if (rc)

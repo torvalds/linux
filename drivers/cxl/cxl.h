@@ -64,6 +64,32 @@ static inline int cxl_hdm_decoder_count(u32 cap_hdr)
 	return val ? val * 2 : 1;
 }
 
+/* Encode defined in CXL 2.0 8.2.5.12.7 HDM Decoder Control Register */
+static inline int cxl_to_granularity(u16 ig, unsigned int *val)
+{
+	if (ig > 6)
+		return -EINVAL;
+	*val = 256 << ig;
+	return 0;
+}
+
+/* Encode defined in CXL ECN "3, 6, 12 and 16-way memory Interleaving" */
+static inline int cxl_to_ways(u8 eniw, unsigned int *val)
+{
+	switch (eniw) {
+	case 0 ... 4:
+		*val = 1 << eniw;
+		break;
+	case 8 ... 10:
+		*val = 3 << (eniw - 8);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* CXL 2.0 8.2.8.1 Device Capabilities Array Register */
 #define CXLDEV_CAP_ARRAY_OFFSET 0x0
 #define   CXLDEV_CAP_ARRAY_CAP_ID 0
