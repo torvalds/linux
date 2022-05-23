@@ -10,6 +10,7 @@ struct sock *io_uring_get_socket(struct file *file);
 void __io_uring_cancel(bool cancel_all);
 void __io_uring_free(struct task_struct *tsk);
 void io_uring_unreg_ringfd(void);
+const char *io_uring_get_opcode(u8 opcode);
 
 static inline void io_uring_files_cancel(void)
 {
@@ -41,6 +42,10 @@ static inline void io_uring_files_cancel(void)
 }
 static inline void io_uring_free(struct task_struct *tsk)
 {
+}
+static inline const char *io_uring_get_opcode(u8 opcode)
+{
+	return "";
 }
 #endif
 
