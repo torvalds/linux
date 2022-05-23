@@ -813,6 +813,7 @@ static int iscsi_target_do_authentication(
 
 static bool iscsi_conn_auth_required(struct iscsit_conn *conn)
 {
+	struct iscsi_node_acl *nacl;
 	struct se_node_acl *se_nacl;
 
 	if (conn->sess->sess_ops->SessionType) {
@@ -839,7 +840,12 @@ static bool iscsi_conn_auth_required(struct iscsit_conn *conn)
 
 	pr_debug("Known ACL %s is trying to connect\n",
 		 se_nacl->initiatorname);
-	return conn->tpg->tpg_attrib.authentication;
+
+	nacl = to_iscsi_nacl(se_nacl);
+	if (nacl->node_attrib.authentication == NA_AUTHENTICATION_INHERITED)
+		return conn->tpg->tpg_attrib.authentication;
+
+	return nacl->node_attrib.authentication;
 }
 
 static int iscsi_target_handle_csg_zero(
