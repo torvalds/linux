@@ -25,6 +25,9 @@ properties:
       0 means shut down; 1 means power on.
     maxItems: 1
 
+  "#sound-dai-cells":
+    const: 0
+
 required:
   - compatible
 

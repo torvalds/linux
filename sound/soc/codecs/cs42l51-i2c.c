@@ -19,8 +19,7 @@ static struct i2c_device_id cs42l51_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cs42l51_i2c_id);
 
-static int cs42l51_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int cs42l51_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap_config config;
 
@@ -46,7 +45,7 @@ static struct i2c_driver cs42l51_i2c_driver = {
 		.of_match_table = cs42l51_of_match,
 		.pm = &cs42l51_pm_ops,
 	},
-	.probe = cs42l51_i2c_probe,
+	.probe_new = cs42l51_i2c_probe,
 	.remove = cs42l51_i2c_remove,
 	.id_table = cs42l51_i2c_id,
 };

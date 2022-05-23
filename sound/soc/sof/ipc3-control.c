@@ -9,26 +9,85 @@
 
 #include "sof-priv.h"
 #include "sof-audio.h"
-#include "ipc3-ops.h"
+#include "ipc3-priv.h"
 
-static inline u32 mixer_to_ipc(unsigned int value, u32 *volume_map, int size)
+/* IPC set()/get() for kcontrols. */
+static int sof_ipc3_set_get_kcontrol_data(struct snd_sof_control *scontrol, bool set)
 {
-	if (value >= size)
-		return volume_map[size - 1];
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scontrol->scomp);
+	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
+	const struct sof_ipc_ops *iops = sdev->ipc->ops;
+	enum sof_ipc_ctrl_type ctrl_type;
+	struct snd_sof_widget *swidget;
+	bool widget_found = false;
+	u32 ipc_cmd, msg_bytes;
 
-	return volume_map[value];
-}
-
-static inline u32 ipc_to_mixer(u32 value, u32 *volume_map, int size)
-{
-	int i;
-
-	for (i = 0; i < size; i++) {
-		if (volume_map[i] >= value)
-			return i;
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		if (swidget->comp_id == scontrol->comp_id) {
+			widget_found = true;
+			break;
+		}
 	}
 
-	return i - 1;
+	if (!widget_found) {
+		dev_err(sdev->dev, "%s: can't find widget with id %d\n", __func__,
+			scontrol->comp_id);
+		return -EINVAL;
+	}
+
+	/*
+	 * Volatile controls should always be part of static pipelines and the widget use_count
+	 * would always be > 0 in this case. For the others, just return the cached value if the
+	 * widget is not set up.
+	 */
+	if (!swidget->use_count)
+		return 0;
+
+	/*
+	 * Select the IPC cmd and the ctrl_type based on the ctrl_cmd and the
+	 * direction
+	 * Note: SOF_CTRL_TYPE_VALUE_COMP_* is not used and supported currently
+	 *	 for ctrl_type
+	 */
+	if (cdata->cmd == SOF_CTRL_CMD_BINARY) {
+		ipc_cmd = set ? SOF_IPC_COMP_SET_DATA : SOF_IPC_COMP_GET_DATA;
+		ctrl_type = set ? SOF_CTRL_TYPE_DATA_SET : SOF_CTRL_TYPE_DATA_GET;
+	} else {
+		ipc_cmd = set ? SOF_IPC_COMP_SET_VALUE : SOF_IPC_COMP_GET_VALUE;
+		ctrl_type = set ? SOF_CTRL_TYPE_VALUE_CHAN_SET : SOF_CTRL_TYPE_VALUE_CHAN_GET;
+	}
+
+	cdata->rhdr.hdr.cmd = SOF_IPC_GLB_COMP_MSG | ipc_cmd;
+	cdata->type = ctrl_type;
+	cdata->comp_id = scontrol->comp_id;
+	cdata->msg_index = 0;
+
+	/* calculate header and data size */
+	switch (cdata->type) {
+	case SOF_CTRL_TYPE_VALUE_CHAN_GET:
+	case SOF_CTRL_TYPE_VALUE_CHAN_SET:
+		cdata->num_elems = scontrol->num_channels;
+
+		msg_bytes = scontrol->num_channels *
+			    sizeof(struct sof_ipc_ctrl_value_chan);
+		msg_bytes += sizeof(struct sof_ipc_ctrl_data);
+		break;
+	case SOF_CTRL_TYPE_DATA_GET:
+	case SOF_CTRL_TYPE_DATA_SET:
+		cdata->num_elems = cdata->data->size;
+
+		msg_bytes = cdata->data->size;
+		msg_bytes += sizeof(struct sof_ipc_ctrl_data) +
+			     sizeof(struct sof_abi_hdr);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	cdata->rhdr.hdr.size = msg_bytes;
+	cdata->elems_remaining = 0;
+
+	return iops->set_get_data(sdev, cdata, cdata->rhdr.hdr.size, set);
 }
 
 static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
@@ -49,7 +108,7 @@ static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 
 	/* refresh the component data from DSP */
 	scontrol->comp_data_dirty = false;
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, false);
+	ret = sof_ipc3_set_get_kcontrol_data(scontrol, false);
 	if (ret < 0) {
 		dev_err(scomp->dev, "Failed to get control data: %d\n", ret);
 
@@ -97,7 +156,7 @@ static bool sof_ipc3_volume_put(struct snd_sof_control *scontrol,
 
 	/* notify DSP of mixer updates */
 	if (pm_runtime_active(scomp->dev)) {
-		int ret = snd_sof_ipc_set_get_comp_data(scontrol, true);
+		int ret = sof_ipc3_set_get_kcontrol_data(scontrol, true);
 
 		if (ret < 0) {
 			dev_err(scomp->dev, "Failed to set mixer updates for %s\n",
@@ -145,7 +204,7 @@ static bool sof_ipc3_switch_put(struct snd_sof_control *scontrol,
 
 	/* notify DSP of mixer updates */
 	if (pm_runtime_active(scomp->dev)) {
-		int ret = snd_sof_ipc_set_get_comp_data(scontrol, true);
+		int ret = sof_ipc3_set_get_kcontrol_data(scontrol, true);
 
 		if (ret < 0) {
 			dev_err(scomp->dev, "Failed to set mixer updates for %s\n",
@@ -193,7 +252,7 @@ static bool sof_ipc3_enum_put(struct snd_sof_control *scontrol,
 
 	/* notify DSP of enum updates */
 	if (pm_runtime_active(scomp->dev)) {
-		int ret = snd_sof_ipc_set_get_comp_data(scontrol, true);
+		int ret = sof_ipc3_set_get_kcontrol_data(scontrol, true);
 
 		if (ret < 0) {
 			dev_err(scomp->dev, "Failed to set enum updates for %s\n",
@@ -265,7 +324,7 @@ static int sof_ipc3_bytes_put(struct snd_sof_control *scontrol,
 
 	/* notify DSP of byte control updates */
 	if (pm_runtime_active(scomp->dev))
-		return snd_sof_ipc_set_get_comp_data(scontrol, true);
+		return sof_ipc3_set_get_kcontrol_data(scontrol, true);
 
 	return 0;
 }
@@ -379,7 +438,7 @@ static int sof_ipc3_bytes_ext_put(struct snd_sof_control *scontrol,
 
 	/* notify DSP of byte control updates */
 	if (pm_runtime_active(scomp->dev))
-		return snd_sof_ipc_set_get_comp_data(scontrol, true);
+		return sof_ipc3_set_get_kcontrol_data(scontrol, true);
 
 	return 0;
 }
@@ -409,7 +468,7 @@ static int sof_ipc3_bytes_ext_volatile_get(struct snd_sof_control *scontrol,
 	cdata->data->abi = SOF_ABI_VERSION;
 
 	/* get all the component data from DSP */
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, false);
+	ret = sof_ipc3_set_get_kcontrol_data(scontrol, false);
 	if (ret < 0)
 		return ret;
 
@@ -578,6 +637,60 @@ static void sof_ipc3_control_update(struct snd_sof_dev *sdev, void *ipc_control_
 	snd_ctl_notify_one(swidget->scomp->card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, kc, 0);
 }
 
+static int sof_ipc3_widget_kcontrol_setup(struct snd_sof_dev *sdev,
+					  struct snd_sof_widget *swidget)
+{
+	struct snd_sof_control *scontrol;
+	int ret;
+
+	/* set up all controls for the widget */
+	list_for_each_entry(scontrol, &sdev->kcontrol_list, list)
+		if (scontrol->comp_id == swidget->comp_id) {
+			/* set kcontrol data in DSP */
+			ret = sof_ipc3_set_get_kcontrol_data(scontrol, true);
+			if (ret < 0) {
+				dev_err(sdev->dev,
+					"kcontrol %d set up failed for widget %s\n",
+					scontrol->comp_id, swidget->widget->name);
+				return ret;
+			}
+
+			/*
+			 * Read back the data from the DSP for static widgets.
+			 * This is particularly useful for binary kcontrols
+			 * associated with static pipeline widgets to initialize
+			 * the data size to match that in the DSP.
+			 */
+			if (swidget->dynamic_pipeline_widget)
+				continue;
+
+			ret = sof_ipc3_set_get_kcontrol_data(scontrol, false);
+			if (ret < 0)
+				dev_warn(sdev->dev,
+					 "kcontrol %d read failed for widget %s\n",
+					 scontrol->comp_id, swidget->widget->name);
+		}
+
+	return 0;
+}
+
+static int
+sof_ipc3_set_up_volume_table(struct snd_sof_control *scontrol, int tlv[SOF_TLV_ITEMS], int size)
+{
+	int i;
+
+	/* init the volume table */
+	scontrol->volume_table = kcalloc(size, sizeof(u32), GFP_KERNEL);
+	if (!scontrol->volume_table)
+		return -ENOMEM;
+
+	/* populate the volume table */
+	for (i = 0; i < size ; i++)
+		scontrol->volume_table[i] = vol_compute_gain(i, tlv);
+
+	return 0;
+}
+
 const struct sof_ipc_tplg_control_ops tplg_ipc3_control_ops = {
 	.volume_put = sof_ipc3_volume_put,
 	.volume_get = sof_ipc3_volume_get,
@@ -591,4 +704,6 @@ const struct sof_ipc_tplg_control_ops tplg_ipc3_control_ops = {
 	.bytes_ext_get = sof_ipc3_bytes_ext_get,
 	.bytes_ext_volatile_get = sof_ipc3_bytes_ext_volatile_get,
 	.update = sof_ipc3_control_update,
+	.widget_kcontrol_setup = sof_ipc3_widget_kcontrol_setup,
+	.set_up_volume_table = sof_ipc3_set_up_volume_table,
 };

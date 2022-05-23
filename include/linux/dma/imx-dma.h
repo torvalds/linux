@@ -3,8 +3,8 @@
  * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
-#ifndef __ASM_ARCH_MXC_DMA_H__
-#define __ASM_ARCH_MXC_DMA_H__
+#ifndef __LINUX_DMA_IMX_H
+#define __LINUX_DMA_IMX_H
 
 #include <linux/scatterlist.h>
 #include <linux/device.h>
@@ -39,6 +39,7 @@ enum sdma_peripheral_type {
 	IMX_DMATYPE_SSI_DUAL,	/* SSI Dual FIFO */
 	IMX_DMATYPE_ASRC_SP,	/* Shared ASRC */
 	IMX_DMATYPE_SAI,	/* SAI */
+	IMX_DMATYPE_MULTI_SAI,	/* MULTI FIFOs For Audio */
 };
 
 enum imx_dma_prio {
@@ -65,4 +66,23 @@ static inline int imx_dma_is_general_purpose(struct dma_chan *chan)
 		!strcmp(chan->device->dev->driver->name, "imx-dma");
 }
 
-#endif
+/**
+ * struct sdma_peripheral_config - SDMA config for audio
+ * @n_fifos_src: Number of FIFOs for recording
+ * @n_fifos_dst: Number of FIFOs for playback
+ * @sw_done: Use software done. Needed for PDM (micfil)
+ *
+ * Some i.MX Audio devices (SAI, micfil) have multiple successive FIFO
+ * registers. For multichannel recording/playback the SAI/micfil have
+ * one FIFO register per channel and the SDMA engine has to read/write
+ * the next channel from/to the next register and wrap around to the
+ * first register when all channels are handled. The number of active
+ * channels must be communicated to the SDMA engine using this struct.
+ */
+struct sdma_peripheral_config {
+	int n_fifos_src;
+	int n_fifos_dst;
+	bool sw_done;
+};
+
+#endif /* __LINUX_DMA_IMX_H */
