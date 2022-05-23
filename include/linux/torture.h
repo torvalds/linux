@@ -118,7 +118,7 @@ void _torture_stop_kthread(char *m, struct task_struct **tp);
 	_torture_stop_kthread("Stopping " #n " task", &(tp))
 
 #ifdef CONFIG_PREEMPTION
-#define torture_preempt_schedule() preempt_schedule()
+#define torture_preempt_schedule() __preempt_schedule()
 #else
 #define torture_preempt_schedule()	do { } while (0)
 #endif
