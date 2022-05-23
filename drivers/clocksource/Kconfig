@@ -57,7 +57,8 @@ config DIGICOLOR_TIMER
 	  Enables the support for the digicolor timer driver.
 
 config OMAP_DM_TIMER
-	tristate "OMAP dual-mode timer driver" if ARCH_K3 || COMPILE_TEST
+	bool "OMAP dual-mode timer driver" if ARCH_K3 || COMPILE_TEST
+	default y if ARCH_K3
 	select TIMER_OF
 	help
 	  Enables the support for the TI dual-mode timer driver.
