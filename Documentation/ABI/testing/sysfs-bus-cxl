@@ -190,3 +190,19 @@ Description:
 		found to support CDAT data.  If it is present and the length of
 		the data is 0 reading the CDAT data failed.  Otherwise the CDAT
 		data is reported.
+
+
+What:		/sys/bus/cxl/devices/decoderX.Y/mode
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) When a CXL decoder is of devtype "cxl_decoder_endpoint" it
+		translates from a host physical address range, to a device local
+		address range. Device-local address ranges are further split
+		into a 'ram' (volatile memory) range and 'pmem' (persistent
+		memory) range. The 'mode' attribute emits one of 'ram', 'pmem',
+		'mixed', or 'none'. The 'mixed' indication is for error cases
+		when a decoder straddles the volatile/persistent partition
+		boundary, and 'none' indicates the decoder is not actively
+		decoding, or no DPA allocation policy has been set.

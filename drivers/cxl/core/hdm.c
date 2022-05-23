@@ -226,6 +226,16 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	cxled->dpa_res = res;
 	cxled->skip = skipped;
 
+	if (resource_contains(&cxlds->pmem_res, res))
+		cxled->mode = CXL_DECODER_PMEM;
+	else if (resource_contains(&cxlds->ram_res, res))
+		cxled->mode = CXL_DECODER_RAM;
+	else {
+		dev_dbg(dev, "decoder%d.%d: %pr mixed\n", port->id,
+			cxled->cxld.id, cxled->dpa_res);
+		cxled->mode = CXL_DECODER_MIXED;
+	}
+
 	return 0;
 }
 

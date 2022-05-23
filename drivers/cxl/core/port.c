@@ -172,6 +172,25 @@ static ssize_t target_list_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(target_list);
 
+static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
+
+	switch (cxled->mode) {
+	case CXL_DECODER_RAM:
+		return sysfs_emit(buf, "ram\n");
+	case CXL_DECODER_PMEM:
+		return sysfs_emit(buf, "pmem\n");
+	case CXL_DECODER_NONE:
+		return sysfs_emit(buf, "none\n");
+	case CXL_DECODER_MIXED:
+	default:
+		return sysfs_emit(buf, "mixed\n");
+	}
+}
+static DEVICE_ATTR_RO(mode);
+
 static struct attribute *cxl_decoder_base_attrs[] = {
 	&dev_attr_start.attr,
 	&dev_attr_size.attr,
@@ -222,6 +241,7 @@ static const struct attribute_group *cxl_decoder_switch_attribute_groups[] = {
 
 static struct attribute *cxl_decoder_endpoint_attrs[] = {
 	&dev_attr_target_type.attr,
+	&dev_attr_mode.attr,
 	NULL,
 };
 

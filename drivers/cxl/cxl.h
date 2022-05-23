@@ -241,16 +241,25 @@ struct cxl_decoder {
 	unsigned long flags;
 };
 
+enum cxl_decoder_mode {
+	CXL_DECODER_NONE,
+	CXL_DECODER_RAM,
+	CXL_DECODER_PMEM,
+	CXL_DECODER_MIXED,
+};
+
 /**
  * struct cxl_endpoint_decoder - Endpoint  / SPA to DPA decoder
  * @cxld: base cxl_decoder_object
  * @dpa_res: actively claimed DPA span of this decoder
  * @skip: offset into @dpa_res where @cxld.hpa_range maps
+ * @mode: which memory type / access-mode-partition this decoder targets
  */
 struct cxl_endpoint_decoder {
 	struct cxl_decoder cxld;
 	struct resource *dpa_res;
 	resource_size_t skip;
+	enum cxl_decoder_mode mode;
 };
 
 /**
