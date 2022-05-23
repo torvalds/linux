@@ -251,13 +251,10 @@ static struct rve_session *rve_session_init(void)
 
 static int rve_session_deinit(struct rve_session *session)
 {
-	pid_t pid;
 	int ctx_id;
 	struct rve_pending_ctx_manager *ctx_manager;
 	struct rve_internal_ctx_t *ctx;
 	unsigned long flags;
-
-	pid = current->pid;
 
 	ctx_manager = rve_drvdata->pend_ctx_manager;
 
@@ -267,10 +264,8 @@ static int rve_session_deinit(struct rve_session *session)
 
 		spin_unlock_irqrestore(&ctx_manager->lock, flags);
 
-		if (session == ctx->session) {
-			pr_err("[pid:%d] destroy ctx[%d] when the user exits", pid, ctx->id);
+		if (session == ctx->session)
 			kref_put(&ctx->refcount, rve_internal_ctx_kref_release);
-		}
 
 		spin_lock_irqsave(&ctx_manager->lock, flags);
 	}

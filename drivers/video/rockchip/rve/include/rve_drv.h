@@ -72,7 +72,7 @@
 
 #define DRIVER_MAJOR_VERSION		1
 #define DRIVER_MINOR_VERSION		0
-#define DRIVER_REVISION_VERSION		2
+#define DRIVER_REVISION_VERSION		4
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERSION) "." STR(DRIVER_MINOR_VERSION) \
 			"." STR(DRIVER_REVISION_VERSION))
@@ -239,6 +239,9 @@ struct rve_internal_ctx_t {
 	uint32_t running_job_count;
 	uint32_t finished_job_count;
 	bool is_running;
+
+	uint32_t disable_auto_cancel;
+
 	int priority;
 	int32_t out_fence_fd;
 	int32_t in_fence_fd;

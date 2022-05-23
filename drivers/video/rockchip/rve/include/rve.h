@@ -64,8 +64,9 @@ struct rve_user_ctx_t {
 	uint32_t id;
 	uint8_t priority;
 	uint32_t sync_mode;
+	uint32_t disable_auto_cancel;
 
-	uint32_t reserve[32];
+	uint32_t reserve[31];
 };
 
 #endif /*_RVE_DRIVER_H_*/
