@@ -221,11 +221,17 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 		calc_list_sz = (1 + (loop_num_ret - 1) / sizeof(u32)) *
 				sizeof(u32);
 		if (calc_list_sz != real_list_sz) {
-			dev_err(dev,
-				"Malformed reply - real_sz:%zd  calc_sz:%u\n",
-				real_list_sz, calc_list_sz);
-			ret = -EPROTO;
-			break;
+			dev_warn(dev,
+				 "Malformed reply - real_sz:%zd  calc_sz:%u  (loop_num_ret:%d)\n",
+				 real_list_sz, calc_list_sz, loop_num_ret);
+			/*
+			 * Bail out if the expected list size is bigger than the
+			 * total payload size of the received reply.
+			 */
+			if (calc_list_sz > real_list_sz) {
+				ret = -EPROTO;
+				break;
+			}
 		}
 
 		for (loop = 0; loop < loop_num_ret; loop++)
