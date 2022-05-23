@@ -513,10 +513,12 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 
 		if (owner_prog_type) {
 			unsigned int prog_type = atoi(owner_prog_type);
+			const char *prog_type_str;
 
-			if (prog_type < prog_type_name_size)
+			prog_type_str = libbpf_bpf_prog_type_str(prog_type);
+			if (prog_type_str)
 				jsonw_string_field(json_wtr, "owner_prog_type",
-						   prog_type_name[prog_type]);
+						   prog_type_str);
 			else
 				jsonw_uint_field(json_wtr, "owner_prog_type",
 						 prog_type);
@@ -597,10 +599,11 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 			printf("\n\t");
 		if (owner_prog_type) {
 			unsigned int prog_type = atoi(owner_prog_type);
+			const char *prog_type_str;
 
-			if (prog_type < prog_type_name_size)
-				printf("owner_prog_type %s  ",
-				       prog_type_name[prog_type]);
+			prog_type_str = libbpf_bpf_prog_type_str(prog_type);
+			if (prog_type_str)
+				printf("owner_prog_type %s  ", prog_type_str);
 			else
 				printf("owner_prog_type %d  ", prog_type);
 		}

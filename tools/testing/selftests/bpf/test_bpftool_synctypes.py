@@ -333,9 +333,6 @@ class ProgFileExtractor(SourceFileExtractor):
     """
     filename = os.path.join(BPFTOOL_DIR, 'prog.c')
 
-    def get_prog_types(self):
-        return self.get_types_from_array('prog_type_name')
-
     def get_attach_types(self):
         return self.get_types_from_array('attach_type_strings')
 
@@ -533,16 +530,6 @@ def main():
     verify(source_map_types, bashcomp_map_types,
             f'Comparing {MapFileExtractor.filename} (map_type_name) and {BashcompExtractor.filename} (BPFTOOL_MAP_CREATE_TYPES):')
 
-    # Program types (enum)
-
-    ref = bpf_info.get_prog_types()
-
-    prog_info = ProgFileExtractor()
-    prog_types = set(prog_info.get_prog_types().keys())
-
-    verify(ref, prog_types,
-            f'Comparing BPF header (enum bpf_prog_type) and {ProgFileExtractor.filename} (prog_type_name):')
-
     # Attach types (enum)
 
     ref = bpf_info.get_attach_types()
@@ -556,6 +543,7 @@ def main():
 
     # Attach types (names)
 
+    prog_info = ProgFileExtractor()
     source_prog_attach_types = set(prog_info.get_attach_types().values())
 
     help_prog_attach_types = prog_info.get_prog_attach_help()

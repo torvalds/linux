@@ -121,6 +121,7 @@ static int get_prog_info(int prog_id, struct bpf_prog_info *info)
 static int show_link_close_json(int fd, struct bpf_link_info *info)
 {
 	struct bpf_prog_info prog_info;
+	const char *prog_type_str;
 	int err;
 
 	jsonw_start_object(json_wtr);
@@ -137,12 +138,12 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 		if (err)
 			return err;
 
-		if (prog_info.type < prog_type_name_size)
-			jsonw_string_field(json_wtr, "prog_type",
-					   prog_type_name[prog_info.type]);
+		prog_type_str = libbpf_bpf_prog_type_str(prog_info.type);
+		/* libbpf will return NULL for variants unknown to it. */
+		if (prog_type_str)
+			jsonw_string_field(json_wtr, "prog_type", prog_type_str);
 		else
-			jsonw_uint_field(json_wtr, "prog_type",
-					 prog_info.type);
+			jsonw_uint_field(json_wtr, "prog_type", prog_info.type);
 
 		show_link_attach_type_json(info->tracing.attach_type,
 					   json_wtr);
@@ -214,6 +215,7 @@ static void show_iter_plain(struct bpf_link_info *info)
 static int show_link_close_plain(int fd, struct bpf_link_info *info)
 {
 	struct bpf_prog_info prog_info;
+	const char *prog_type_str;
 	int err;
 
 	show_link_header_plain(info);
@@ -228,9 +230,10 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 		if (err)
 			return err;
 
-		if (prog_info.type < prog_type_name_size)
-			printf("\n\tprog_type %s  ",
-			       prog_type_name[prog_info.type]);
+		prog_type_str = libbpf_bpf_prog_type_str(prog_info.type);
+		/* libbpf will return NULL for variants unknown to it. */
+		if (prog_type_str)
+			printf("\n\tprog_type %s  ", prog_type_str);
 		else
 			printf("\n\tprog_type %u  ", prog_info.type);
 
