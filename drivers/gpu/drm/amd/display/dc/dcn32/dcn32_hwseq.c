@@ -630,10 +630,9 @@ bool dcn32_set_input_transfer_func(struct dc *dc,
 			params = &dpp_base->degamma_params;
 	}
 
-	result = dpp_base->funcs->dpp_program_gamcor_lut(dpp_base, params);
+	dpp_base->funcs->dpp_program_gamcor_lut(dpp_base, params);
 
-	if (result &&
-			pipe_ctx->stream_res.opp &&
+	if (pipe_ctx->stream_res.opp &&
 			pipe_ctx->stream_res.opp->ctx &&
 			hws->funcs.set_mcm_luts)
 		result = hws->funcs.set_mcm_luts(pipe_ctx, plane_state);
