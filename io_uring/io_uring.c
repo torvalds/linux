@@ -1098,8 +1098,6 @@ struct io_op_def {
 	unsigned		poll_exclusive : 1;
 	/* op supports buffer selection */
 	unsigned		buffer_select : 1;
-	/* do prep async if is going to be punted */
-	unsigned		needs_async_setup : 1;
 	/* opcode is not supported by this kernel */
 	unsigned		not_supported : 1;
 	/* skip auditing */
@@ -1113,6 +1111,7 @@ struct io_op_def {
 
 	int (*prep)(struct io_kiocb *, const struct io_uring_sqe *);
 	int (*issue)(struct io_kiocb *, unsigned int);
+	int (*prep_async)(struct io_kiocb *);
 };
 
 static const struct io_op_def io_op_defs[];
@@ -3916,7 +3915,7 @@ static inline bool io_alloc_async_data(struct io_kiocb *req)
 static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 			     struct io_rw_state *s, bool force)
 {
-	if (!force && !io_op_defs[req->opcode].needs_async_setup)
+	if (!force && !io_op_defs[req->opcode].prep_async)
 		return 0;
 	if (!req_has_async_data(req)) {
 		struct io_async_rw *iorw;
@@ -7828,31 +7827,14 @@ static int io_req_prep_async(struct io_kiocb *req)
 	/* assign early for deferred execution for non-fixed file */
 	if (def->needs_file && !(req->flags & REQ_F_FIXED_FILE))
 		req->file = io_file_get_normal(req, req->cqe.fd);
-	if (!def->needs_async_setup)
+	if (!def->prep_async)
 		return 0;
 	if (WARN_ON_ONCE(req_has_async_data(req)))
 		return -EFAULT;
 	if (io_alloc_async_data(req))
 		return -EAGAIN;
 
-	switch (req->opcode) {
-	case IORING_OP_READV:
-		return io_readv_prep_async(req);
-	case IORING_OP_WRITEV:
-		return io_writev_prep_async(req);
-	case IORING_OP_SENDMSG:
-		return io_sendmsg_prep_async(req);
-	case IORING_OP_RECVMSG:
-		return io_recvmsg_prep_async(req);
-	case IORING_OP_CONNECT:
-		return io_connect_prep_async(req);
-	case IORING_OP_URING_CMD:
-		return io_uring_cmd_prep_async(req);
-	}
-
-	printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
-			req->opcode);
-	return -EINVAL;
+	return def->prep_async(req);
 }
 
 static u32 io_get_sequence(struct io_kiocb *req)
@@ -12770,7 +12752,6 @@ static const struct io_op_def io_op_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
-		.needs_async_setup	= 1,
 		.plug			= 1,
 		.audit_skip		= 1,
 		.ioprio			= 1,
@@ -12778,13 +12759,13 @@ static const struct io_op_def io_op_defs[] = {
 		.async_size		= sizeof(struct io_async_rw),
 		.prep			= io_prep_rw,
 		.issue			= io_read,
+		.prep_async		= io_readv_prep_async,
 	},
 	[IORING_OP_WRITEV] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
-		.needs_async_setup	= 1,
 		.plug			= 1,
 		.audit_skip		= 1,
 		.ioprio			= 1,
@@ -12792,6 +12773,7 @@ static const struct io_op_def io_op_defs[] = {
 		.async_size		= sizeof(struct io_async_rw),
 		.prep			= io_prep_rw,
 		.issue			= io_write,
+		.prep_async		= io_writev_prep_async,
 	},
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
@@ -12846,22 +12828,22 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
-		.needs_async_setup	= 1,
 		.ioprio			= 1,
 		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_sendmsg_prep,
 		.issue			= io_sendmsg,
+		.prep_async		= io_sendmsg_prep_async,
 	},
 	[IORING_OP_RECVMSG] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
-		.needs_async_setup	= 1,
 		.ioprio			= 1,
 		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_recvmsg_prep,
 		.issue			= io_recvmsg,
+		.prep_async		= io_recvmsg_prep_async,
 	},
 	[IORING_OP_TIMEOUT] = {
 		.audit_skip		= 1,
@@ -12899,10 +12881,10 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
-		.needs_async_setup	= 1,
 		.async_size		= sizeof(struct io_async_connect),
 		.prep			= io_connect_prep,
 		.issue			= io_connect,
+		.prep_async		= io_connect_prep_async,
 	},
 	[IORING_OP_FALLOCATE] = {
 		.needs_file		= 1,
@@ -13078,10 +13060,10 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_URING_CMD] = {
 		.needs_file		= 1,
 		.plug			= 1,
-		.needs_async_setup	= 1,
 		.async_size		= uring_cmd_pdu_size(1),
 		.prep			= io_uring_cmd_prep,
 		.issue			= io_uring_cmd,
+		.prep_async		= io_uring_cmd_prep_async,
 	},
 };
 
