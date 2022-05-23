@@ -17,8 +17,6 @@
 #include <linux/backing-dev-defs.h>
 #include <linux/slab.h>
 
-struct blkcg;
-
 static inline struct backing_dev_info *bdi_get(struct backing_dev_info *bdi)
 {
 	kref_get(&bdi->refcnt);
@@ -154,7 +152,7 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 				    struct cgroup_subsys_state *memcg_css,
 				    gfp_t gfp);
 void wb_memcg_offline(struct mem_cgroup *memcg);
-void wb_blkcg_offline(struct blkcg *blkcg);
+void wb_blkcg_offline(struct cgroup_subsys_state *css);
 
 /**
  * inode_cgwb_enabled - test whether cgroup writeback is enabled on an inode
@@ -378,7 +376,7 @@ static inline void wb_memcg_offline(struct mem_cgroup *memcg)
 {
 }
 
-static inline void wb_blkcg_offline(struct blkcg *blkcg)
+static inline void wb_blkcg_offline(struct cgroup_subsys_state *css)
 {
 }
 

@@ -7242,7 +7242,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	rdev_for_each(rdev, mddev) {
 		if (test_bit(Journal, &rdev->flags))
 			continue;
-		if (blk_queue_nonrot(bdev_get_queue(rdev->bdev))) {
+		if (bdev_nonrot(rdev->bdev)) {
 			conf->batch_bio_dispatch = false;
 			break;
 		}
@@ -7776,14 +7776,10 @@ static int raid5_run(struct mddev *mddev)
 		 * A better idea might be to turn DISCARD into WRITE_ZEROES
 		 * requests, as that is required to be safe.
 		 */
-		if (devices_handle_discard_safely &&
-		    mddev->queue->limits.max_discard_sectors >= (stripe >> 9) &&
-		    mddev->queue->limits.discard_granularity >= stripe)
-			blk_queue_flag_set(QUEUE_FLAG_DISCARD,
-						mddev->queue);
-		else
-			blk_queue_flag_clear(QUEUE_FLAG_DISCARD,
-						mddev->queue);
+		if (!devices_handle_discard_safely ||
+		    mddev->queue->limits.max_discard_sectors < (stripe >> 9) ||
+		    mddev->queue->limits.discard_granularity < stripe)
+			blk_queue_max_discard_sectors(mddev->queue, 0);
 
 		blk_queue_max_hw_sectors(mddev->queue, UINT_MAX);
 	}

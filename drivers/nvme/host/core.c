@@ -1621,7 +1621,7 @@ static void nvme_config_discard(struct gendisk *disk, struct nvme_ns *ns)
 	u32 size = queue_logical_block_size(queue);
 
 	if (ctrl->max_discard_sectors == 0) {
-		blk_queue_flag_clear(QUEUE_FLAG_DISCARD, queue);
+		blk_queue_max_discard_sectors(queue, 0);
 		return;
 	}
 
@@ -1632,7 +1632,7 @@ static void nvme_config_discard(struct gendisk *disk, struct nvme_ns *ns)
 	queue->limits.discard_granularity = size;
 
 	/* If discard is already enabled, don't reset queue limits */
-	if (blk_queue_flag_test_and_set(QUEUE_FLAG_DISCARD, queue))
+	if (queue->limits.max_discard_sectors)
 		return;
 
 	blk_queue_max_discard_sectors(queue, ctrl->max_discard_sectors);

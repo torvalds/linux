@@ -1364,11 +1364,9 @@ static void setup_request_queue(struct rnbd_clt_dev *dev)
 	blk_queue_max_discard_sectors(dev->queue, dev->max_discard_sectors);
 	dev->queue->limits.discard_granularity	= dev->discard_granularity;
 	dev->queue->limits.discard_alignment	= dev->discard_alignment;
-	if (dev->max_discard_sectors)
-		blk_queue_flag_set(QUEUE_FLAG_DISCARD, dev->queue);
 	if (dev->secure_discard)
-		blk_queue_flag_set(QUEUE_FLAG_SECERASE, dev->queue);
-
+		blk_queue_max_secure_erase_sectors(dev->queue,
+				dev->max_discard_sectors);
 	blk_queue_flag_set(QUEUE_FLAG_SAME_COMP, dev->queue);
 	blk_queue_flag_set(QUEUE_FLAG_SAME_FORCE, dev->queue);
 	blk_queue_max_segments(dev->queue, dev->max_segments);

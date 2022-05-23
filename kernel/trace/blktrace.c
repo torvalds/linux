@@ -145,13 +145,14 @@ static void trace_note_time(struct blk_trace *bt)
 	local_irq_restore(flags);
 }
 
-void __trace_note_message(struct blk_trace *bt, struct blkcg *blkcg,
-	const char *fmt, ...)
+void __blk_trace_note_message(struct blk_trace *bt,
+		struct cgroup_subsys_state *css, const char *fmt, ...)
 {
 	int n;
 	va_list args;
 	unsigned long flags;
 	char *buf;
+	u64 cgid = 0;
 
 	if (unlikely(bt->trace_state != Blktrace_running &&
 		     !blk_tracer_enabled))
@@ -170,17 +171,16 @@ void __trace_note_message(struct blk_trace *bt, struct blkcg *blkcg,
 	n = vscnprintf(buf, BLK_TN_MAX_MSG, fmt, args);
 	va_end(args);
 
-	if (!(blk_tracer_flags.val & TRACE_BLK_OPT_CGROUP))
-		blkcg = NULL;
 #ifdef CONFIG_BLK_CGROUP
-	trace_note(bt, current->pid, BLK_TN_MESSAGE, buf, n,
-		   blkcg ? cgroup_id(blkcg->css.cgroup) : 1);
-#else
-	trace_note(bt, current->pid, BLK_TN_MESSAGE, buf, n, 0);
+	if (css && (blk_tracer_flags.val & TRACE_BLK_OPT_CGROUP))
+		cgid = cgroup_id(css->cgroup);
+	else
+		cgid = 1;
 #endif
+	trace_note(bt, current->pid, BLK_TN_MESSAGE, buf, n, cgid);
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL_GPL(__trace_note_message);
+EXPORT_SYMBOL_GPL(__blk_trace_note_message);
 
 static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
 			 pid_t pid)
@@ -411,7 +411,7 @@ static ssize_t blk_msg_write(struct file *filp, const char __user *buffer,
 		return PTR_ERR(msg);
 
 	bt = filp->private_data;
-	__trace_note_message(bt, NULL, "%s", msg);
+	__blk_trace_note_message(bt, NULL, "%s", msg);
 	kfree(msg);
 
 	return count;
@@ -783,6 +783,7 @@ void blk_trace_shutdown(struct request_queue *q)
 #ifdef CONFIG_BLK_CGROUP
 static u64 blk_trace_bio_get_cgid(struct request_queue *q, struct bio *bio)
 {
+	struct cgroup_subsys_state *blkcg_css;
 	struct blk_trace *bt;
 
 	/* We don't use the 'bt' value here except as an optimization... */
@@ -790,9 +791,10 @@ static u64 blk_trace_bio_get_cgid(struct request_queue *q, struct bio *bio)
 	if (!bt || !(blk_tracer_flags.val & TRACE_BLK_OPT_CGROUP))
 		return 0;
 
-	if (!bio->bi_blkg)
+	blkcg_css = bio_blkcg_css(bio);
+	if (!blkcg_css)
 		return 0;
-	return cgroup_id(bio_blkcg(bio)->css.cgroup);
+	return cgroup_id(blkcg_css->cgroup);
 }
 #else
 static u64 blk_trace_bio_get_cgid(struct request_queue *q, struct bio *bio)
