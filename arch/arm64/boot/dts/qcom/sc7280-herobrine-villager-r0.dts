@@ -95,6 +95,10 @@ ts_i2c: &i2c13 {
 	status = "okay";
 };
 
+&pwmleds {
+	status = "okay";
+};
+
 /* For eMMC */
 &sdhc_1 {
 	status = "okay";
