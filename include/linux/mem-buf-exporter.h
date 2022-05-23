@@ -7,6 +7,7 @@
 #define _MEM_BUF_EXPORTER_H
 
 #include <linux/dma-buf.h>
+#include <linux/gunyah/gh_rm_drv.h>
 #include <soc/qcom/secure_buffer.h>
 
 int mem_buf_dma_buf_attach(struct dma_buf *dmabuf,
@@ -53,6 +54,13 @@ struct mem_buf_vmperm *mem_buf_vmperm_alloc(struct sg_table *sgt);
  */
 struct mem_buf_vmperm *mem_buf_vmperm_alloc_staticvm(struct sg_table *sgt, int *vmids, int *perms,
 		u32 nr_acl_entries);
+
+/*
+ * A dmabuf in the "MEMACCEPT" state.
+ */
+struct mem_buf_vmperm *mem_buf_vmperm_alloc_accept(struct sg_table *sgt,
+	gh_memparcel_handle_t memparcel_hdl);
+
 
 /*
  * Performs the expected close step based on whether the dmabuf
