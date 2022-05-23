@@ -41,7 +41,6 @@ Library functionality that is used throughout the kernel.
    rbtree
    generic-radix-tree
    packing
-   bus-virt-phys-mapping
    this_cpu_ops
    timekeeping
    errseq

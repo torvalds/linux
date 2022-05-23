@@ -20,7 +20,7 @@
 #define fd_free_dma()           free_dma(FLOPPY_DMA)
 #define fd_clear_dma_ff()       clear_dma_ff(FLOPPY_DMA)
 #define fd_set_dma_mode(mode)   set_dma_mode(FLOPPY_DMA,mode)
-#define fd_set_dma_addr(addr)   set_dma_addr(FLOPPY_DMA,virt_to_bus(addr))
+#define fd_set_dma_addr(addr)   set_dma_addr(FLOPPY_DMA,isa_virt_to_bus(addr))
 #define fd_set_dma_count(count) set_dma_count(FLOPPY_DMA,count)
 #define fd_enable_irq()         enable_irq(FLOPPY_IRQ)
 #define fd_disable_irq()        disable_irq(FLOPPY_IRQ)

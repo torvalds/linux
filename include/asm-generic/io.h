@@ -1142,20 +1142,6 @@ static inline void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
 }
 #endif
 
-#ifdef CONFIG_VIRT_TO_BUS
-#ifndef virt_to_bus
-static inline unsigned long virt_to_bus(void *address)
-{
-	return (unsigned long)address;
-}
-
-static inline void *bus_to_virt(unsigned long address)
-{
-	return (void *)address;
-}
-#endif
-#endif
-
 #ifndef memset_io
 #define memset_io memset_io
 /**

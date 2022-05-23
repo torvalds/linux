@@ -276,7 +276,6 @@ config PPC
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	select TRACE_IRQFLAGS_SUPPORT
-	select VIRT_TO_BUS			if !PPC64
 	#
 	# Please keep this list sorted alphabetically.
 	#
