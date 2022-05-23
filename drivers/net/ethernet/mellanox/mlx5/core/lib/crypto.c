@@ -4,6 +4,11 @@
 #include "mlx5_core.h"
 #include "lib/crypto.h"
 
+struct mlx5_crypto_dek_priv {
+	struct mlx5_core_dev *mdev;
+	int log_dek_obj_range;
+};
+
 int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
 			       void *key, u32 sz_bytes,
 			       u32 key_type, u32 *p_key_id)
@@ -70,4 +75,35 @@ void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id)
 	MLX5_SET(general_obj_in_cmd_hdr, in, obj_id, key_id);
 
 	mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+}
+
+void mlx5_crypto_dek_cleanup(struct mlx5_crypto_dek_priv *dek_priv)
+{
+	if (!dek_priv)
+		return;
+
+	kfree(dek_priv);
+}
+
+struct mlx5_crypto_dek_priv *mlx5_crypto_dek_init(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_crypto_dek_priv *dek_priv;
+
+	if (!MLX5_CAP_CRYPTO(mdev, log_dek_max_alloc))
+		return NULL;
+
+	dek_priv = kzalloc(sizeof(*dek_priv), GFP_KERNEL);
+	if (!dek_priv)
+		return ERR_PTR(-ENOMEM);
+
+	dek_priv->mdev = mdev;
+	dek_priv->log_dek_obj_range = min_t(int, 12,
+					    MLX5_CAP_CRYPTO(mdev, log_dek_max_alloc));
+
+	mlx5_core_dbg(mdev, "Crypto DEK enabled, %d deks per alloc (max %d), total %d\n",
+		      1 << dek_priv->log_dek_obj_range,
+		      1 << MLX5_CAP_CRYPTO(mdev, log_dek_max_alloc),
+		      1 << MLX5_CAP_CRYPTO(mdev, log_max_num_deks));
+
+	return dek_priv;
 }

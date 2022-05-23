@@ -31,6 +31,7 @@
  */
 
 #include "en.h"
+#include "lib/crypto.h"
 
 /* mlx5e global resources should be placed in this file.
  * Global resources are common to all the netdevices created on the same nic.
@@ -104,6 +105,13 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 	INIT_LIST_HEAD(&res->td.tirs_list);
 	mutex_init(&res->td.list_lock);
 
+	mdev->mlx5e_res.dek_priv = mlx5_crypto_dek_init(mdev);
+	if (IS_ERR(mdev->mlx5e_res.dek_priv)) {
+		mlx5_core_err(mdev, "crypto dek init failed, %ld\n",
+			      PTR_ERR(mdev->mlx5e_res.dek_priv));
+		mdev->mlx5e_res.dek_priv = NULL;
+	}
+
 	return 0;
 
 err_destroy_mkey:
@@ -119,6 +127,8 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 {
 	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
 
+	mlx5_crypto_dek_cleanup(mdev->mlx5e_res.dek_priv);
+	mdev->mlx5e_res.dek_priv = NULL;
 	mlx5_free_bfreg(mdev, &res->bfreg);
 	mlx5_core_destroy_mkey(mdev, res->mkey);
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);

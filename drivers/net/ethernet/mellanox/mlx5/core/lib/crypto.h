@@ -16,4 +16,6 @@ int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
 
 void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id);
 
+struct mlx5_crypto_dek_priv *mlx5_crypto_dek_init(struct mlx5_core_dev *mdev);
+void mlx5_crypto_dek_cleanup(struct mlx5_crypto_dek_priv *dek_priv);
 #endif /* __MLX5_LIB_CRYPTO_H__ */
