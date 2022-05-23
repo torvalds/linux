@@ -117,7 +117,7 @@ static int notrace unwind_next(struct task_struct *tsk,
 		if (fp <= state->prev_fp)
 			return -EINVAL;
 	} else {
-		set_bit(state->prev_type, state->stacks_done);
+		__set_bit(state->prev_type, state->stacks_done);
 	}
 
 	/*
