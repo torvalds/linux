@@ -224,6 +224,9 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 							mb);
 			if (ret < 0)
 				return ret;
+
+			if (device_property_present(&pdev->dev, "wakeup-source"))
+				enable_irq_wake(irq);
 		}
 
 		mb->chans[i].idx = i;
