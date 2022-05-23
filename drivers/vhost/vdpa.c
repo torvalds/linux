@@ -609,11 +609,13 @@ static long vhost_vdpa_unlocked_ioctl(struct file *filep,
 		r = vhost_vdpa_get_vring_num(v, argp);
 		break;
 	case VHOST_VDPA_GET_GROUP_NUM:
-		r = copy_to_user(argp, &v->vdpa->ngroups,
-				 sizeof(v->vdpa->ngroups));
+		if (copy_to_user(argp, &v->vdpa->ngroups,
+				 sizeof(v->vdpa->ngroups)))
+			r = -EFAULT;
 		break;
 	case VHOST_VDPA_GET_AS_NUM:
-		r = copy_to_user(argp, &v->vdpa->nas, sizeof(v->vdpa->nas));
+		if (copy_to_user(argp, &v->vdpa->nas, sizeof(v->vdpa->nas)))
+			r = -EFAULT;
 		break;
 	case VHOST_SET_LOG_BASE:
 	case VHOST_SET_LOG_FD:
