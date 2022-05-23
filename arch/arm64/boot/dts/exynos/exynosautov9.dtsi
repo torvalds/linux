@@ -8,6 +8,7 @@
 
 #include <dt-bindings/clock/samsung,exynosautov9.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/soc/samsung,boot-mode.h>
 #include <dt-bindings/soc/samsung,exynos-usi.h>
 
 / {
@@ -312,6 +313,22 @@
 		pmu_system_controller: system-controller@10460000 {
 			compatible = "samsung,exynos7-pmu", "syscon";
 			reg = <0x10460000 0x10000>;
+
+			reboot: syscon-reboot {
+				compatible = "syscon-reboot";
+				regmap = <&pmu_system_controller>;
+				offset = <0x3a00>; /* SYSTEM_CONFIGURATION */
+				value = <0x2>;
+				mask = <0x2>;
+			};
+
+			reboot-mode {
+				compatible = "syscon-reboot-mode";
+				offset = <0x810>; /* SYSIP_DAT0 */
+				mode-bootloader = <EXYNOSAUTOV9_BOOT_BOOTLOADER>;
+				mode-fastboot = <EXYNOSAUTOV9_BOOT_FASTBOOT>;
+				mode-recovery = <EXYNOSAUTOV9_BOOT_RECOVERY>;
+			};
 		};
 
 		syscon_fsys2: syscon@17c20000 {
