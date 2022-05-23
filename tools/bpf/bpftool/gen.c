@@ -474,6 +474,9 @@ static void codegen_asserts(struct bpf_object *obj, const char *obj_name)
 	const struct btf_type *sec;
 	char map_ident[256], var_ident[256];
 
+	if (!btf)
+		return;
+
 	codegen("\
 		\n\
 		__attribute__((unused)) static void			    \n\
