@@ -704,11 +704,12 @@ static int lpg_blink_mc_set(struct led_classdev *cdev,
 	return ret;
 }
 
-static int lpg_pattern_set(struct lpg_led *led, struct led_pattern *pattern,
+static int lpg_pattern_set(struct lpg_led *led, struct led_pattern *led_pattern,
 			   u32 len, int repeat)
 {
 	struct lpg_channel *chan;
 	struct lpg *lpg = led->lpg;
+	struct led_pattern *pattern;
 	unsigned int brightness_a;
 	unsigned int brightness_b;
 	unsigned int actual_len;
@@ -719,18 +720,48 @@ static int lpg_pattern_set(struct lpg_led *led, struct led_pattern *pattern,
 	unsigned int hi_idx;
 	unsigned int i;
 	bool ping_pong = true;
-	int ret;
+	int ret = -EINVAL;
 
 	/* Hardware only support oneshot or indefinite loops */
 	if (repeat != -1 && repeat != 1)
 		return -EINVAL;
 
 	/*
+	 * The standardized leds-trigger-pattern format defines that the
+	 * brightness of the LED follows a linear transition from one entry
+	 * in the pattern to the next, over the given delta_t time. It
+	 * describes that the way to perform instant transitions a zero-length
+	 * entry should be added following a pattern entry.
+	 *
+	 * The LPG hardware is only able to perform the latter (no linear
+	 * transitions), so require each entry in the pattern to be followed by
+	 * a zero-length transition.
+	 */
+	if (len % 2)
+		return -EINVAL;
+
+	pattern = kcalloc(len / 2, sizeof(*pattern), GFP_KERNEL);
+	if (!pattern)
+		return -ENOMEM;
+
+	for (i = 0; i < len; i += 2) {
+		if (led_pattern[i].brightness != led_pattern[i + 1].brightness)
+			goto out_free_pattern;
+		if (led_pattern[i + 1].delta_t != 0)
+			goto out_free_pattern;
+
+		pattern[i / 2].brightness = led_pattern[i].brightness;
+		pattern[i / 2].delta_t = led_pattern[i].delta_t;
+	}
+
+	len /= 2;
+
+	/*
 	 * Specifying a pattern of length 1 causes the hardware to iterate
 	 * through the entire LUT, so prohibit this.
 	 */
 	if (len < 2)
-		return -EINVAL;
+		goto out_free_pattern;
 
 	/*
 	 * The LPG plays patterns with at a fixed pace, a "low pause" can be
@@ -781,13 +812,13 @@ static int lpg_pattern_set(struct lpg_led *led, struct led_pattern *pattern,
 			 * specify hi pause. Reject other variations.
 			 */
 			if (i != actual_len - 1)
-				return -EINVAL;
+				goto out_free_pattern;
 		}
 	}
 
 	/* LPG_RAMP_DURATION_REG is a 9bit */
 	if (delta_t >= BIT(9))
-		return -EINVAL;
+		goto out_free_pattern;
 
 	/* Find "low pause" and "high pause" in the pattern */
 	lo_pause = pattern[0].delta_t;
@@ -814,6 +845,8 @@ static int lpg_pattern_set(struct lpg_led *led, struct led_pattern *pattern,
 
 out_unlock:
 	mutex_unlock(&lpg->lock);
+out_free_pattern:
+	kfree(pattern);
 
 	return ret;
 }
