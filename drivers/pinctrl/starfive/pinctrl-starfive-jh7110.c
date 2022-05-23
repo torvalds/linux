@@ -29,198 +29,199 @@
 #include "pinctrl-starfive.h"
 
 /***************sys_iomux***************/
-#define SYS_GPO_DOEN_CFG_BASE_REG				0x0
-#define SYS_GPO_DOEN_CFG_END_REG				0x3c
+#define SYS_GPO_DOEN_CFG_BASE_REG			0x0
+#define SYS_GPO_DOEN_CFG_END_REG			0x3c
 
-#define SYS_GPO_DOUT_CFG_BASE_REG				0x40
-#define SYS_GPO_DOUT_CFG_END_REG				0x7c
+#define SYS_GPO_DOUT_CFG_BASE_REG			0x40
+#define SYS_GPO_DOUT_CFG_END_REG			0x7c
 
-#define SYS_GPI_DIN_CFG_BASE_REG				0x80
-#define SYS_GPI_DIN_CFG_END_REG					0xd8
+#define SYS_GPI_DIN_CFG_BASE_REG			0x80
+#define SYS_GPI_DIN_CFG_END_REG				0xd8
 
 /*sys_iomux PIN 0-74 ioconfig reg*/
-#define SYS_GPO_PDA_0_74_CFG_BASE_REG				0x120
-#define SYS_GPO_PDA_0_74_CFG_END_REG				0x248
+#define SYS_GPO_PDA_0_74_CFG_BASE_REG			0x120
+#define SYS_GPO_PDA_0_74_CFG_END_REG			0x248
 
 /*sys_iomux PIN 75-88 gamc1 no ioconfig reg*/
 
 /*sys_iomux PIN 89-94 ioconfig reg*/
-#define SYS_GPO_PDA_89_94_CFG_BASE_REG				0x284
-#define SYS_GPO_PDA_89_94_CFG_END_REG				0x298
+#define SYS_GPO_PDA_89_94_CFG_BASE_REG			0x284
+#define SYS_GPO_PDA_89_94_CFG_END_REG			0x298
 
 //sys_iomux GPIO CTRL
-#define GPIO_EN							0xdc
-#define GPIO_IS_LOW						0xe0
-#define GPIO_IS_HIGH						0xe4
-#define GPIO_IC_LOW						0xe8
-#define GPIO_IC_HIGH						0xec
-#define GPIO_IBE_LOW						0xf0
-#define GPIO_IBE_HIGH						0xf4
-#define GPIO_IEV_LOW						0xf8
-#define GPIO_IEV_HIGH						0xfc
-#define GPIO_IE_LOW						0x100
-#define GPIO_IE_HIGH						0x104
+#define GPIO_EN						0xdc
+#define GPIO_IS_LOW					0xe0
+#define GPIO_IS_HIGH					0xe4
+#define GPIO_IC_LOW					0xe8
+#define GPIO_IC_HIGH					0xec
+#define GPIO_IBE_LOW					0xf0
+#define GPIO_IBE_HIGH					0xf4
+#define GPIO_IEV_LOW					0xf8
+#define GPIO_IEV_HIGH					0xfc
+#define GPIO_IE_LOW					0x100
+#define GPIO_IE_HIGH					0x104
 //read only
-#define GPIO_RIS_LOW						0x108
-#define GPIO_RIS_HIGH						0x10c
-#define GPIO_MIS_LOW						0x110
-#define GPIO_MIS_HIGH						0x114
-#define GPIO_DIN_LOW						0x118
-#define GPIO_DIN_HIGH						0x11c
+#define GPIO_RIS_LOW					0x108
+#define GPIO_RIS_HIGH					0x10c
+#define GPIO_MIS_LOW					0x110
+#define GPIO_MIS_HIGH					0x114
+#define GPIO_DIN_LOW					0x118
+#define GPIO_DIN_HIGH					0x11c
 
-#define GPIO_DOEN_X_REG						0x0
-#define GPIO_DOUT_X_REG						0x40
+#define GPIO_DOEN_X_REG					0x0
+#define GPIO_DOUT_X_REG					0x40
 
-#define GPIO_INPUT_ENABLE_X_REG					0x120
+#define GPIO_INPUT_ENABLE_X_REG				0x120
 
-#define MAX_GPIO						64
+#define MAX_GPIO					64
 /***************sys_iomux***************/
 
 /***************aon_iomux***************/
-#define AON_GPO_DOEN_CFG_BASE_REG				0x0
-#define AON_GPO_DOUT_CFG_BASE_REG				0x4
-#define AON_GPI_DIN_CFG_BASE_REG				0x8
+#define AON_GPO_DOEN_CFG_BASE_REG			0x0
+#define AON_GPO_DOUT_CFG_BASE_REG			0x4
+#define AON_GPI_DIN_CFG_BASE_REG			0x8
+#define AON_GPIO_DIN_REG				0x2c
 
 //aon_iomux GPIO CTRL
-#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_3_ADDR			(0xcU)
-#define AON_GPIOEN_0_REG_SHIFT					0x0U
-#define AON_GPIOEN_0_REG_MASK					0x1U
-#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_4_ADDR			(0x10U)
-#define AON_GPIOIS_0_REG_SHIFT					0x0U
-#define AON_GPIOIS_0_REG_MASK					0xFU
-#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_5_ADDR			(0x14U)
-#define AON_GPIOIC_0_REG_SHIFT					0x0U
-#define AON_GPIOIC_0_REG_MASK					0xFU
-#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_6_ADDR			(0x18U)
-#define AON_GPIOIBE_0_REG_SHIFT					0x0U
-#define AON_GPIOIBE_0_REG_MASK					0xFU
-#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_7_ADDR			(0x1cU)
-#define AON_GPIOIEV_0_REG_SHIFT					0x0U
-#define AON_GPIOIEV_0_REG_MASK					0xFU
-#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_8_ADDR			(0x20U)
-#define AON_GPIOIE_0_REG_SHIFT					0x0U
-#define AON_GPIOIE_0_REG_MASK					0xFU
-#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_9_ADDR			(0x24U)
-#define AON_GPIORIS_0_REG_SHIFT					0x0U
-#define AON_GPIORIS_0_REG_MASK					0xFU
-#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_10_ADDR			(0x28U)
-#define AON_GPIOMIS_0_REG_SHIFT					0x0U
-#define AON_GPIOMIS_0_REG_MASK					0xFU
-#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_11_ADDR			(0x2cU)
-#define AON_GPIO_IN_SYNC2_0_REG_SHIFT				0x0U
-#define AON_GPIO_IN_SYNC2_0_REG_MASK				0xFU
+#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_3_ADDR		0xc
+#define AON_GPIOEN_0_REG_SHIFT				0x0
+#define AON_GPIOEN_0_REG_MASK				0x1
+#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_4_ADDR		0x10
+#define AON_GPIOIS_0_REG_SHIFT				0x0
+#define AON_GPIOIS_0_REG_MASK				0xF
+#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_5_ADDR		0x14
+#define AON_GPIOIC_0_REG_SHIFT				0x0
+#define AON_GPIOIC_0_REG_MASK				0xF
+#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_6_ADDR		0x18
+#define AON_GPIOIBE_0_REG_SHIFT				0x0
+#define AON_GPIOIBE_0_REG_MASK				0xF
+#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_7_ADDR		0x1c
+#define AON_GPIOIEV_0_REG_SHIFT				0x0
+#define AON_GPIOIEV_0_REG_MASK				0xF
+#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_8_ADDR		0x20
+#define AON_GPIOIE_0_REG_SHIFT				0x0
+#define AON_GPIOIE_0_REG_MASK				0xF
+#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_9_ADDR		0x24
+#define AON_GPIORIS_0_REG_SHIFT				0x0
+#define AON_GPIORIS_0_REG_MASK				0xF
+#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_10_ADDR		0x28
+#define AON_GPIOMIS_0_REG_SHIFT				0x0
+#define AON_GPIOMIS_0_REG_MASK				0xF
+#define AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_11_ADDR		0x2c
+#define AON_GPIO_IN_SYNC2_0_REG_SHIFT			0x0
+#define AON_GPIO_IN_SYNC2_0_REG_MASK			0xF
 
 
 /* aon_iomux PIN ioconfig reg*/
-#define AON_IOMUX_CFG__SAIF__SYSCFG_48_ADDR			(0x30U)
-#define PADCFG_PAD_TESTEN_POS_WIDTH				0x1U
-#define PADCFG_PAD_TESTEN_POS_SHIFT				0x0U
-#define PADCFG_PAD_TESTEN_POS_MASK				0x1U
-#define AON_IOMUX_CFG__SAIF__SYSCFG_52_ADDR			(0x34U)
-#define PADCFG_PAD_RGPIO0_IE_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO0_IE_SHIFT				0x0U
-#define PADCFG_PAD_RGPIO0_IE_MASK				0x1U
-#define PADCFG_PAD_RGPIO0_DS_WIDTH				0x2U
-#define PADCFG_PAD_RGPIO0_DS_SHIFT				0x1U
-#define PADCFG_PAD_RGPIO0_DS_MASK				0x6U
-#define PADCFG_PAD_RGPIO0_PU_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO0_PU_SHIFT				0x3U
-#define PADCFG_PAD_RGPIO0_PU_MASK				0x8U
-#define PADCFG_PAD_RGPIO0_PD_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO0_PD_SHIFT				0x4U
-#define PADCFG_PAD_RGPIO0_PD_MASK				0x10U
-#define PADCFG_PAD_RGPIO0_SLEW_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO0_SLEW_SHIFT				0x5U
-#define PADCFG_PAD_RGPIO0_SLEW_MASK				0x20U
-#define PADCFG_PAD_RGPIO0_SMT_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO0_SMT_SHIFT				0x6U
-#define PADCFG_PAD_RGPIO0_SMT_MASK				0x40U
-#define PADCFG_PAD_RGPIO0_POS_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO0_POS_SHIFT				0x7U
-#define PADCFG_PAD_RGPIO0_POS_MASK				0x80U
-#define AON_IOMUX_CFG__SAIF__SYSCFG_56_ADDR			(0x38U)
-#define PADCFG_PAD_RGPIO1_IE_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO1_IE_SHIFT				0x0U
-#define PADCFG_PAD_RGPIO1_IE_MASK				0x1U
-#define PADCFG_PAD_RGPIO1_DS_WIDTH				0x2U
-#define PADCFG_PAD_RGPIO1_DS_SHIFT				0x1U
-#define PADCFG_PAD_RGPIO1_DS_MASK				0x6U
-#define PADCFG_PAD_RGPIO1_PU_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO1_PU_SHIFT				0x3U
-#define PADCFG_PAD_RGPIO1_PU_MASK				0x8U
-#define PADCFG_PAD_RGPIO1_PD_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO1_PD_SHIFT				0x4U
-#define PADCFG_PAD_RGPIO1_PD_MASK				0x10U
-#define PADCFG_PAD_RGPIO1_SLEW_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO1_SLEW_SHIFT				0x5U
-#define PADCFG_PAD_RGPIO1_SLEW_MASK				0x20U
-#define PADCFG_PAD_RGPIO1_SMT_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO1_SMT_SHIFT				0x6U
-#define PADCFG_PAD_RGPIO1_SMT_MASK				0x40U
-#define PADCFG_PAD_RGPIO1_POS_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO1_POS_SHIFT				0x7U
-#define PADCFG_PAD_RGPIO1_POS_MASK				0x80U
-#define AON_IOMUX_CFG__SAIF__SYSCFG_60_ADDR			(0x3cU)
-#define PADCFG_PAD_RGPIO2_IE_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO2_IE_SHIFT				0x0U
-#define PADCFG_PAD_RGPIO2_IE_MASK				0x1U
-#define PADCFG_PAD_RGPIO2_DS_WIDTH				0x2U
-#define PADCFG_PAD_RGPIO2_DS_SHIFT				0x1U
-#define PADCFG_PAD_RGPIO2_DS_MASK				0x6U
-#define PADCFG_PAD_RGPIO2_PU_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO2_PU_SHIFT				0x3U
-#define PADCFG_PAD_RGPIO2_PU_MASK				0x8U
-#define PADCFG_PAD_RGPIO2_PD_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO2_PD_SHIFT				0x4U
-#define PADCFG_PAD_RGPIO2_PD_MASK				0x10U
-#define PADCFG_PAD_RGPIO2_SLEW_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO2_SLEW_SHIFT				0x5U
-#define PADCFG_PAD_RGPIO2_SLEW_MASK				0x20U
-#define PADCFG_PAD_RGPIO2_SMT_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO2_SMT_SHIFT				0x6U
-#define PADCFG_PAD_RGPIO2_SMT_MASK				0x40U
-#define PADCFG_PAD_RGPIO2_POS_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO2_POS_SHIFT				0x7U
-#define PADCFG_PAD_RGPIO2_POS_MASK				0x80U
-#define AON_IOMUX_CFG__SAIF__SYSCFG_64_ADDR			(0x40U)
-#define PADCFG_PAD_RGPIO3_IE_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO3_IE_SHIFT				0x0U
-#define PADCFG_PAD_RGPIO3_IE_MASK				0x1U
-#define PADCFG_PAD_RGPIO3_DS_WIDTH				0x2U
-#define PADCFG_PAD_RGPIO3_DS_SHIFT				0x1U
-#define PADCFG_PAD_RGPIO3_DS_MASK				0x6U
-#define PADCFG_PAD_RGPIO3_PU_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO3_PU_SHIFT				0x3U
-#define PADCFG_PAD_RGPIO3_PU_MASK				0x8U
-#define PADCFG_PAD_RGPIO3_PD_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO3_PD_SHIFT				0x4U
-#define PADCFG_PAD_RGPIO3_PD_MASK				0x10U
-#define PADCFG_PAD_RGPIO3_SLEW_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO3_SLEW_SHIFT				0x5U
-#define PADCFG_PAD_RGPIO3_SLEW_MASK				0x20U
-#define PADCFG_PAD_RGPIO3_SMT_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO3_SMT_SHIFT				0x6U
-#define PADCFG_PAD_RGPIO3_SMT_MASK				0x40U
-#define PADCFG_PAD_RGPIO3_POS_WIDTH				0x1U
-#define PADCFG_PAD_RGPIO3_POS_SHIFT				0x7U
-#define PADCFG_PAD_RGPIO3_POS_MASK				0x80U
-#define AON_IOMUX_CFG__SAIF__SYSCFG_68_ADDR			(0x44U)
-#define PADCFG_PAD_RSTN_SMT_WIDTH				0x1U
-#define PADCFG_PAD_RSTN_SMT_SHIFT				0x0U
-#define PADCFG_PAD_RSTN_SMT_MASK				0x1U
-#define PADCFG_PAD_RSTN_POS_WIDTH				0x1U
-#define PADCFG_PAD_RSTN_POS_SHIFT				0x1U
-#define PADCFG_PAD_RSTN_POS_MASK				0x2U
-#define AON_IOMUX_CFG__SAIF__SYSCFG_72_ADDR			(0x48U)
-#define AON_IOMUX_CFG__SAIF__SYSCFG_76_ADDR			(0x4cU)
-#define PADCFG_PAD_RTC_DS_WIDTH					0x2U
-#define PADCFG_PAD_RTC_DS_SHIFT					0x0U
-#define PADCFG_PAD_RTC_DS_MASK					0x3U
-#define AON_IOMUX_CFG__SAIF__SYSCFG_80_ADDR			(0x50U)
-#define AON_IOMUX_CFG__SAIF__SYSCFG_84_ADDR			(0x54U)
-#define PADCFG_PAD_OSC_DS_WIDTH					0x2U
-#define PADCFG_PAD_OSC_DS_SHIFT					0x0U
-#define PADCFG_PAD_OSC_DS_MASK					0x3U
+#define AON_IOMUX_CFG__SAIF__SYSCFG_48_ADDR		0x30
+#define PADCFG_PAD_TESTEN_POS_WIDTH			0x1
+#define PADCFG_PAD_TESTEN_POS_SHIFT			0x0
+#define PADCFG_PAD_TESTEN_POS_MASK			0x1
+#define AON_IOMUX_CFG__SAIF__SYSCFG_52_ADDR		0x34
+#define PADCFG_PAD_RGPIO0_IE_WIDTH			0x1
+#define PADCFG_PAD_RGPIO0_IE_SHIFT			0x0
+#define PADCFG_PAD_RGPIO0_IE_MASK			0x1
+#define PADCFG_PAD_RGPIO0_DS_WIDTH			0x2
+#define PADCFG_PAD_RGPIO0_DS_SHIFT			0x1
+#define PADCFG_PAD_RGPIO0_DS_MASK			0x6
+#define PADCFG_PAD_RGPIO0_PU_WIDTH			0x1
+#define PADCFG_PAD_RGPIO0_PU_SHIFT			0x3
+#define PADCFG_PAD_RGPIO0_PU_MASK			0x8
+#define PADCFG_PAD_RGPIO0_PD_WIDTH			0x1
+#define PADCFG_PAD_RGPIO0_PD_SHIFT			0x4
+#define PADCFG_PAD_RGPIO0_PD_MASK			0x10
+#define PADCFG_PAD_RGPIO0_SLEW_WIDTH			0x1
+#define PADCFG_PAD_RGPIO0_SLEW_SHIFT			0x5
+#define PADCFG_PAD_RGPIO0_SLEW_MASK			0x20
+#define PADCFG_PAD_RGPIO0_SMT_WIDTH			0x1
+#define PADCFG_PAD_RGPIO0_SMT_SHIFT			0x6
+#define PADCFG_PAD_RGPIO0_SMT_MASK			0x40
+#define PADCFG_PAD_RGPIO0_POS_WIDTH			0x1
+#define PADCFG_PAD_RGPIO0_POS_SHIFT			0x7
+#define PADCFG_PAD_RGPIO0_POS_MASK			0x80
+#define AON_IOMUX_CFG__SAIF__SYSCFG_56_ADDR		0x38
+#define PADCFG_PAD_RGPIO1_IE_WIDTH			0x1
+#define PADCFG_PAD_RGPIO1_IE_SHIFT			0x0
+#define PADCFG_PAD_RGPIO1_IE_MASK			0x1
+#define PADCFG_PAD_RGPIO1_DS_WIDTH			0x2
+#define PADCFG_PAD_RGPIO1_DS_SHIFT			0x1
+#define PADCFG_PAD_RGPIO1_DS_MASK			0x6
+#define PADCFG_PAD_RGPIO1_PU_WIDTH			0x1
+#define PADCFG_PAD_RGPIO1_PU_SHIFT			0x3
+#define PADCFG_PAD_RGPIO1_PU_MASK			0x8
+#define PADCFG_PAD_RGPIO1_PD_WIDTH			0x1
+#define PADCFG_PAD_RGPIO1_PD_SHIFT			0x4
+#define PADCFG_PAD_RGPIO1_PD_MASK			0x10
+#define PADCFG_PAD_RGPIO1_SLEW_WIDTH			0x1
+#define PADCFG_PAD_RGPIO1_SLEW_SHIFT			0x5
+#define PADCFG_PAD_RGPIO1_SLEW_MASK			0x20
+#define PADCFG_PAD_RGPIO1_SMT_WIDTH			0x1
+#define PADCFG_PAD_RGPIO1_SMT_SHIFT			0x6
+#define PADCFG_PAD_RGPIO1_SMT_MASK			0x40
+#define PADCFG_PAD_RGPIO1_POS_WIDTH			0x1
+#define PADCFG_PAD_RGPIO1_POS_SHIFT			0x7
+#define PADCFG_PAD_RGPIO1_POS_MASK			0x80
+#define AON_IOMUX_CFG__SAIF__SYSCFG_60_ADDR		0x3c
+#define PADCFG_PAD_RGPIO2_IE_WIDTH			0x1
+#define PADCFG_PAD_RGPIO2_IE_SHIFT			0x0
+#define PADCFG_PAD_RGPIO2_IE_MASK			0x1
+#define PADCFG_PAD_RGPIO2_DS_WIDTH			0x2
+#define PADCFG_PAD_RGPIO2_DS_SHIFT			0x1
+#define PADCFG_PAD_RGPIO2_DS_MASK			0x6
+#define PADCFG_PAD_RGPIO2_PU_WIDTH			0x1
+#define PADCFG_PAD_RGPIO2_PU_SHIFT			0x3
+#define PADCFG_PAD_RGPIO2_PU_MASK			0x8
+#define PADCFG_PAD_RGPIO2_PD_WIDTH			0x1
+#define PADCFG_PAD_RGPIO2_PD_SHIFT			0x4
+#define PADCFG_PAD_RGPIO2_PD_MASK			0x10
+#define PADCFG_PAD_RGPIO2_SLEW_WIDTH			0x1
+#define PADCFG_PAD_RGPIO2_SLEW_SHIFT			0x5
+#define PADCFG_PAD_RGPIO2_SLEW_MASK			0x20
+#define PADCFG_PAD_RGPIO2_SMT_WIDTH			0x1
+#define PADCFG_PAD_RGPIO2_SMT_SHIFT			0x6
+#define PADCFG_PAD_RGPIO2_SMT_MASK			0x40
+#define PADCFG_PAD_RGPIO2_POS_WIDTH			0x1
+#define PADCFG_PAD_RGPIO2_POS_SHIFT			0x7
+#define PADCFG_PAD_RGPIO2_POS_MASK			0x80
+#define AON_IOMUX_CFG__SAIF__SYSCFG_64_ADDR		0x40
+#define PADCFG_PAD_RGPIO3_IE_WIDTH			0x1
+#define PADCFG_PAD_RGPIO3_IE_SHIFT			0x0
+#define PADCFG_PAD_RGPIO3_IE_MASK			0x1
+#define PADCFG_PAD_RGPIO3_DS_WIDTH			0x2
+#define PADCFG_PAD_RGPIO3_DS_SHIFT			0x1
+#define PADCFG_PAD_RGPIO3_DS_MASK			0x6
+#define PADCFG_PAD_RGPIO3_PU_WIDTH			0x1
+#define PADCFG_PAD_RGPIO3_PU_SHIFT			0x3
+#define PADCFG_PAD_RGPIO3_PU_MASK			0x8
+#define PADCFG_PAD_RGPIO3_PD_WIDTH			0x1
+#define PADCFG_PAD_RGPIO3_PD_SHIFT			0x4
+#define PADCFG_PAD_RGPIO3_PD_MASK			0x10
+#define PADCFG_PAD_RGPIO3_SLEW_WIDTH			0x1
+#define PADCFG_PAD_RGPIO3_SLEW_SHIFT			0x5
+#define PADCFG_PAD_RGPIO3_SLEW_MASK			0x20
+#define PADCFG_PAD_RGPIO3_SMT_WIDTH			0x1
+#define PADCFG_PAD_RGPIO3_SMT_SHIFT			0x6
+#define PADCFG_PAD_RGPIO3_SMT_MASK			0x40
+#define PADCFG_PAD_RGPIO3_POS_WIDTH			0x1
+#define PADCFG_PAD_RGPIO3_POS_SHIFT			0x7
+#define PADCFG_PAD_RGPIO3_POS_MASK			0x80
+#define AON_IOMUX_CFG__SAIF__SYSCFG_68_ADDR		0x44
+#define PADCFG_PAD_RSTN_SMT_WIDTH			0x1
+#define PADCFG_PAD_RSTN_SMT_SHIFT			0x0
+#define PADCFG_PAD_RSTN_SMT_MASK			0x1
+#define PADCFG_PAD_RSTN_POS_WIDTH			0x1
+#define PADCFG_PAD_RSTN_POS_SHIFT			0x1
+#define PADCFG_PAD_RSTN_POS_MASK			0x2
+#define AON_IOMUX_CFG__SAIF__SYSCFG_72_ADDR		0x48
+#define AON_IOMUX_CFG__SAIF__SYSCFG_76_ADDR		0x4c
+#define PADCFG_PAD_RTC_DS_WIDTH				0x2
+#define PADCFG_PAD_RTC_DS_SHIFT				0x0
+#define PADCFG_PAD_RTC_DS_MASK				0x3
+#define AON_IOMUX_CFG__SAIF__SYSCFG_80_ADDR		0x50
+#define AON_IOMUX_CFG__SAIF__SYSCFG_84_ADDR		0x54
+#define PADCFG_PAD_OSC_DS_WIDTH				0x2
+#define PADCFG_PAD_OSC_DS_SHIFT				0x0
+#define PADCFG_PAD_OSC_DS_MASK				0x3
 
 /*aon_iomux PIN 0-5 ioconfig reg*/
 #define AON_GPO_PDA_0_5_CFG_BASE_REG	AON_IOMUX_CFG__SAIF__SYSCFG_48_ADDR
@@ -228,19 +229,35 @@
 #define AON_GPO_PDA_RTC_CFG_REG		AON_IOMUX_CFG__SAIF__SYSCFG_76_ADDR
 /***************aon_iomux***************/
 
-#define PADCFG_PAD_GMAC_SYSCON_WIDTH				0x2U
-#define PADCFG_PAD_GMAC_SYSCON_SHIFT				0x0U
-#define PADCFG_PAD_GMAC_SYSCON_MASK				0x3U
+#define PADCFG_PAD_GMAC_SYSCON_WIDTH			0x2
+#define PADCFG_PAD_GMAC_SYSCON_SHIFT			0x0
+#define PADCFG_PAD_GMAC_SYSCON_MASK			0x3
 
-#define GPO_PDA_CFG_OFFSET					0x4U
+#define GPO_PDA_CFG_OFFSET				0x4
+
+#define AON_GPIO_INPUT_ENABLE_REG			0x34
+
+#define AON_GPIO_EN_REG		AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_3_ADDR
+#define AON_GPIO_IS_REG		AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_4_ADDR
+#define AON_GPIO_IC_REG		AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_5_ADDR
+#define AON_GPIO_IBE_REG	AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_6_ADDR
+#define AON_GPIO_IEV_REG	AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_7_ADDR
+#define AON_GPIO_IE_REG		AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_8_ADDR
+#define AON_GPIO_RIS_REG	AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_9_ADDR
+#define AON_GPIO_MIS_REG	AON_IOMUX_CFGSAIF__SYSCFG_IOIRQ_10_ADDR
 
 /*one dword include 4 gpios*/
-#define GPIO_NUM_SHIFT						2
+#define GPIO_NUM_SHIFT					2
 /*8 bits for each gpio*/
-#define GPIO_BYTE_SHIFT						3
+#define GPIO_BYTE_SHIFT					3
 /*gpio index in dword */
-#define GPIO_INDEX_MASK						0x3
-#define GPIO_VAL_MASK						0x7f
+#define GPIO_INDEX_MASK					0x3
+#define GPIO_VAL_MASK					0x7f
+
+#define GPIO_NUM_PER_REG				32
+#define OFFSET_PER_REG					4
+#define SYS_GPIO_NUM					64
+#define AON_GPIO_NUM					4
 
 enum starfive_jh7110_sys_pads {
 	PAD_GPIO0	= 0,
@@ -515,6 +532,20 @@ void pinctrl_set_reg(void __iomem *addr, u32 data, u32 shift, u32 mask)
 	writel_relaxed(tmp, addr);
 }
 
+static struct starfive_pinctrl *starfive_from_irq_desc(struct irq_desc *desc)
+{
+	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
+
+	return container_of(gc, struct starfive_pinctrl, gc);
+}
+
+static struct starfive_pinctrl *starfive_from_irq_data(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	return container_of(gc, struct starfive_pinctrl, gc);
+}
+
 static int starfive_jh7110_sys_direction_input(struct gpio_chip *gc,
 							unsigned int offset)
 {
@@ -526,18 +557,20 @@ static int starfive_jh7110_sys_direction_input(struct gpio_chip *gc,
 		return -EINVAL;
 
 	raw_spin_lock_irqsave(&chip->lock, flags);
-	v = readl_relaxed(chip->padctl_base + GPIO_DOEN_X_REG + (offset & ~0x3));
+	v = readl_relaxed(chip->padctl_base + GPIO_DOEN_X_REG +
+			(offset & ~0x3));
 	v &= ~(0x3f << ((offset & 0x3) * 8));
 	v |= 1 << ((offset & 0x3) * 8);
-	writel_relaxed(v, chip->padctl_base + GPIO_DOEN_X_REG + (offset & ~0x3));
+	writel_relaxed(v, chip->padctl_base + GPIO_DOEN_X_REG +
+			(offset & ~0x3));
 	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
 
 static int starfive_jh7110_sys_direction_output(struct gpio_chip *gc,
-							unsigned int offset,
-							int value)
+		unsigned int offset,
+		int value)
 {
 	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	unsigned long flags;
@@ -547,21 +580,25 @@ static int starfive_jh7110_sys_direction_output(struct gpio_chip *gc,
 		return -EINVAL;
 
 	raw_spin_lock_irqsave(&chip->lock, flags);
-	v = readl_relaxed(chip->padctl_base + GPIO_DOEN_X_REG + (offset & ~0x3));
+	v = readl_relaxed(chip->padctl_base + GPIO_DOEN_X_REG +
+			(offset & ~0x3));
 	v &= ~(0x3f << ((offset & 0x3) * 8));
-	writel_relaxed(v, chip->padctl_base + GPIO_DOEN_X_REG + (offset & ~0x3));
+	writel_relaxed(v, chip->padctl_base + GPIO_DOEN_X_REG +
+			(offset & ~0x3));
 
-	v = readl_relaxed(chip->padctl_base + GPIO_DOUT_X_REG + (offset & ~0x3));
+	v = readl_relaxed(chip->padctl_base + GPIO_DOUT_X_REG +
+			(offset & ~0x3));
 	v &= ~(0x7f << ((offset & 0x3) * 8));
 	v |= value << ((offset & 0x3) * 8);
-	writel_relaxed(v, chip->padctl_base + GPIO_DOUT_X_REG + (offset & ~0x3));
+	writel_relaxed(v, chip->padctl_base + GPIO_DOUT_X_REG +
+			(offset & ~0x3));
 	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
 
 static int starfive_jh7110_sys_get_direction(struct gpio_chip *gc,
-							unsigned int offset)
+		unsigned int offset)
 {
 	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	unsigned int v;
@@ -569,12 +606,13 @@ static int starfive_jh7110_sys_get_direction(struct gpio_chip *gc,
 	if (offset >= gc->ngpio)
 		return -EINVAL;
 
-	v = readl_relaxed(chip->padctl_base + GPIO_DOEN_X_REG + (offset & ~0x3));
+	v = readl_relaxed(chip->padctl_base + GPIO_DOEN_X_REG +
+			(offset & ~0x3));
 	return !!(v & (0x3f << ((offset & 0x3) * 8)));
 }
 
 static int starfive_jh7110_sys_get_value(struct gpio_chip *gc,
-						unsigned int offset)
+		unsigned int offset)
 {
 	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	int value;
@@ -583,19 +621,19 @@ static int starfive_jh7110_sys_get_value(struct gpio_chip *gc,
 	if (offset >= gc->ngpio)
 		return -EINVAL;
 
-	if (offset < 32) {
+	if (offset < GPIO_NUM_PER_REG) {
 		value = readl_relaxed(chip->padctl_base + GPIO_DIN_LOW);
 		tmp = 0;
 	} else {
 		value = readl_relaxed(chip->padctl_base + GPIO_DIN_HIGH);
-		tmp = 32;
+		tmp = GPIO_NUM_PER_REG;
 	}
 	return (value >> (offset - tmp)) & 0x1;
 }
 
 static void starfive_jh7110_sys_set_value(struct gpio_chip *gc,
-						unsigned int offset,
-						int value)
+		unsigned int offset,
+		int value)
 {
 	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
 	unsigned long flags;
@@ -605,323 +643,286 @@ static void starfive_jh7110_sys_set_value(struct gpio_chip *gc,
 		return;
 
 	raw_spin_lock_irqsave(&chip->lock, flags);
-	v = readl_relaxed(chip->padctl_base + GPIO_DOUT_X_REG + (offset & ~0x3));
+	v = readl_relaxed(chip->padctl_base + GPIO_DOUT_X_REG +
+			(offset & ~0x3));
 	v &= ~(0x7f << ((offset & 0x3) * 8));
 	v |= value << ((offset & 0x3) * 8);
-	writel_relaxed(v, chip->padctl_base + GPIO_DOUT_X_REG + (offset & ~0x3));
-	raw_spin_unlock_irqrestore(&chip->lock, flags);
-}
-
-static void starfive_jh7110_sys_set_ie(struct starfive_pinctrl *chip,
-						int offset)
-{
-	unsigned long flags;
-	int old_value, new_value;
-	int reg_offset, index;
-
-	if (offset < 32) {
-		reg_offset = 0;
-		index = offset;
-	} else {
-		reg_offset = 4;
-		index = offset - 32;
-	}
-	raw_spin_lock_irqsave(&chip->lock, flags);
-	old_value = readl_relaxed(chip->padctl_base + GPIO_IE_LOW + reg_offset);
-	new_value = old_value | (1 << index);
-	writel_relaxed(new_value, chip->padctl_base + GPIO_IE_LOW + reg_offset);
+	writel_relaxed(v, chip->padctl_base + GPIO_DOUT_X_REG +
+			(offset & ~0x3));
 	raw_spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static int starfive_jh7110_sys_irq_set_type(struct irq_data *d,
-							unsigned int trigger)
+		unsigned int trigger)
 {
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
-	int offset = irqd_to_hwirq(d);
-	unsigned int reg_is, reg_ibe, reg_iev;
-	int reg_offset, index;
+	struct starfive_pinctrl *sfp = starfive_from_irq_data(d);
+	irq_hw_number_t gpio = irqd_to_hwirq(d);
+	void __iomem *base = sfp->padctl_base +
+			OFFSET_PER_REG * (gpio / GPIO_NUM_PER_REG);
+	u32 mask = BIT(gpio % GPIO_NUM_PER_REG);
+	u32 irq_type, edge_both, polarity;
+	unsigned long flags;
 
-	if (offset < 0 || offset >= gc->ngpio)
-		return -EINVAL;
-
-	if (offset < 32) {
-		reg_offset = 0;
-		index = offset;
-	} else {
-		reg_offset = 4;
-		index = offset - 32;
-	}
 	switch (trigger) {
 	case IRQ_TYPE_LEVEL_HIGH:
-		reg_is = readl_relaxed(chip->padctl_base + GPIO_IS_LOW + reg_offset);
-		reg_ibe = readl_relaxed(chip->padctl_base + GPIO_IBE_LOW + reg_offset);
-		reg_iev = readl_relaxed(chip->padctl_base + GPIO_IEV_LOW + reg_offset);
-		reg_is  &= (~(0x1 << index));
-		reg_ibe &= (~(0x1 << index));
-		reg_iev |= (~(0x1 << index));
-		writel_relaxed(reg_is, chip->padctl_base + GPIO_IS_LOW + reg_offset);
-		writel_relaxed(reg_ibe, chip->padctl_base + GPIO_IBE_LOW + reg_offset);
-		writel_relaxed(reg_iev, chip->padctl_base + GPIO_IEV_LOW + reg_offset);
+		irq_type  = 0;    /* 0: level triggered */
+		edge_both = 0;    /* 0: ignored */
+		polarity  = 0;    /* 0: high level */
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
-		reg_is = readl_relaxed(chip->padctl_base + GPIO_IS_LOW + reg_offset);
-		reg_ibe = readl_relaxed(chip->padctl_base + GPIO_IBE_LOW + reg_offset);
-		reg_iev = readl_relaxed(chip->padctl_base + GPIO_IEV_LOW + reg_offset);
-		reg_is  &= (~(0x1 << index));
-		reg_ibe &= (~(0x1 << index));
-		reg_iev &= (0x1 << index);
-		writel_relaxed(reg_is, chip->padctl_base + GPIO_IS_LOW + reg_offset);
-		writel_relaxed(reg_ibe, chip->padctl_base + GPIO_IBE_LOW + reg_offset);
-		writel_relaxed(reg_iev, chip->padctl_base + GPIO_IEV_LOW + reg_offset);
+		irq_type  = 0;    /* 0: level triggered */
+		edge_both = 0;    /* 0: ignored */
+		polarity  = 1;    /* 1: low level */
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
-		reg_is = readl_relaxed(chip->padctl_base + GPIO_IS_LOW + reg_offset);
-		reg_ibe = readl_relaxed(chip->padctl_base + GPIO_IBE_LOW + reg_offset);
-		reg_iev = readl_relaxed(chip->padctl_base + GPIO_IEV_LOW + reg_offset);
-		reg_is  |= (0x1 << index);
-		reg_ibe |= (0x1 << index);
-		reg_iev |= (~(0x1 << index));
-		writel_relaxed(reg_is, chip->padctl_base + GPIO_IS_LOW + reg_offset);
-		writel_relaxed(reg_ibe, chip->padctl_base + GPIO_IBE_LOW + reg_offset);
-		writel_relaxed(reg_iev, chip->padctl_base + GPIO_IEV_LOW + reg_offset);
+		irq_type  = mask; /* 1: edge triggered */
+		edge_both = mask; /* 1: both edges */
+		polarity  = 0;    /* 0: ignored */
 		break;
 	case IRQ_TYPE_EDGE_RISING:
-		reg_is = readl_relaxed(chip->padctl_base + GPIO_IS_LOW + reg_offset);
-		reg_ibe = readl_relaxed(chip->padctl_base + GPIO_IBE_LOW + reg_offset);
-		reg_iev = readl_relaxed(chip->padctl_base + GPIO_IEV_LOW + reg_offset);
-		reg_is  |= (0x1 << index);
-		reg_ibe &= (~(0x1 << index));
-		reg_iev |= (0x1 << index);
-		writel_relaxed(reg_is, chip->padctl_base + GPIO_IS_LOW + reg_offset);
-		writel_relaxed(reg_ibe, chip->padctl_base + GPIO_IBE_LOW + reg_offset);
-		writel_relaxed(reg_iev, chip->padctl_base + GPIO_IEV_LOW + reg_offset);
+		irq_type  = mask; /* 1: edge triggered */
+		edge_both = 0;    /* 0: single edge */
+		polarity  = mask; /* 1: rising edge */
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
-		reg_is = readl_relaxed(chip->padctl_base + GPIO_IS_LOW + reg_offset);
-		reg_ibe = readl_relaxed(chip->padctl_base + GPIO_IBE_LOW + reg_offset);
-		reg_iev = readl_relaxed(chip->padctl_base + GPIO_IEV_LOW + reg_offset);
-		reg_is  |= (0x1 << index);
-		reg_ibe &= (~(0x1 << index));
-		reg_iev &= (~(0x1 << index));
-		writel_relaxed(reg_is, chip->padctl_base + GPIO_IS_LOW + reg_offset);
-		writel_relaxed(reg_ibe, chip->padctl_base + GPIO_IBE_LOW + reg_offset);
-		writel_relaxed(reg_iev, chip->padctl_base + GPIO_IEV_LOW + reg_offset);
+		irq_type  = mask; /* 1: edge triggered */
+		edge_both = 0;    /* 0: single edge */
+		polarity  = 0;    /* 0: falling edge */
 		break;
 	}
+	if (trigger & IRQ_TYPE_EDGE_BOTH)
+		irq_set_handler_locked(d, handle_edge_irq);
+	else
+		irq_set_handler_locked(d, handle_level_irq);
 
-	chip->trigger[offset] = trigger;
-	starfive_jh7110_sys_set_ie(chip, offset);
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	irq_type |= readl_relaxed(base + GPIO_IS_LOW) & ~mask;
+	writel_relaxed(irq_type, base + GPIO_IS_LOW);
+	edge_both |= readl_relaxed(base + GPIO_IBE_LOW) & ~mask;
+	writel_relaxed(edge_both, base + GPIO_IBE_LOW);
+	polarity |= readl_relaxed(base + GPIO_IEV_LOW) & ~mask;
+	writel_relaxed(polarity, base + GPIO_IEV_LOW);
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+
+	sfp->trigger[gpio] = trigger;
 	return 0;
 }
 
 /* chained_irq_{enter,exit} already mask the parent */
 static void starfive_jh7110_sys_irq_mask(struct irq_data *d)
 {
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
-	unsigned int value;
-	int offset = irqd_to_hwirq(d);
-	int reg_offset, index;
+	struct starfive_pinctrl *sfp = starfive_from_irq_data(d);
+	irq_hw_number_t gpio = irqd_to_hwirq(d);
+	void __iomem *ie = sfp->padctl_base + GPIO_IE_LOW +
+			OFFSET_PER_REG * (gpio / GPIO_NUM_PER_REG);
+	u32 mask = BIT(gpio % GPIO_NUM_PER_REG);
+	unsigned long flags;
+	u32 value;
 
-	if (offset < 0 || offset >= gc->ngpio)
+	if (gpio < 0 || gpio >= sfp->gc.ngpio)
 		return;
 
-	if (offset < 32) {
-		reg_offset = 0;
-		index = offset;
-	} else {
-		reg_offset = 4;
-		index = offset - 32;
-	}
-
-	value = readl_relaxed(chip->padctl_base + GPIO_IE_LOW + reg_offset);
-	value &= ~(0x1 << index);
-	writel_relaxed(value, chip->padctl_base + GPIO_IE_LOW + reg_offset);
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	value = readl_relaxed(ie) & ~mask;
+	writel_relaxed(value, ie);
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
 }
 
 static void starfive_jh7110_sys_irq_unmask(struct irq_data *d)
 {
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
-	unsigned int value;
-	int offset = irqd_to_hwirq(d);
-	int reg_offset, index;
+	struct starfive_pinctrl *sfp = starfive_from_irq_data(d);
+	irq_hw_number_t gpio = irqd_to_hwirq(d);
+	void __iomem *ie = sfp->padctl_base + GPIO_IE_LOW +
+			OFFSET_PER_REG * (gpio / GPIO_NUM_PER_REG);
+	u32 mask = BIT(gpio % GPIO_NUM_PER_REG);
+	unsigned long flags;
+	u32 value;
 
-	if (offset < 0 || offset >= gc->ngpio)
+	if (gpio < 0 || gpio >= sfp->gc.ngpio)
 		return;
 
-	if (offset < 32) {
-		reg_offset = 0;
-		index = offset;
-	} else {
-		reg_offset = 4;
-		index = offset - 32;
-	}
-
-	value = readl_relaxed(chip->padctl_base + GPIO_IE_LOW + reg_offset);
-	value |= (0x1 << index);
-	writel_relaxed(value, chip->padctl_base + GPIO_IE_LOW + reg_offset);
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	value = readl_relaxed(ie) | mask;
+	writel_relaxed(value, ie);
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
 }
 
-static void starfive_jh7110_sys_irq_enable(struct irq_data *d)
+static void starfive_jh7110_sys_irq_ack(struct irq_data *d)
 {
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
-	int offset = irqd_to_hwirq(d);
+	struct starfive_pinctrl *sfp = starfive_from_irq_data(d);
+	irq_hw_number_t gpio = irqd_to_hwirq(d);
+	void __iomem *ic = sfp->padctl_base + GPIO_IC_LOW +
+			OFFSET_PER_REG * (gpio / GPIO_NUM_PER_REG);
+	u32 mask = BIT(gpio % GPIO_NUM_PER_REG);
+	unsigned long flags;
+	u32 value;
 
-	starfive_jh7110_sys_irq_unmask(d);
-	assign_bit(offset, &chip->enabled, 1);
+	if (gpio < 0 || gpio >= sfp->gc.ngpio)
+		return;
+
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	value = readl_relaxed(ic) & ~mask;
+	writel_relaxed(value, ic);
+	writel_relaxed(value | mask, ic);
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
 }
 
-static void starfive_jh7110_sys_irq_disable(struct irq_data *d)
+static void starfive_jh7110_sys_irq_mask_ack(struct irq_data *d)
 {
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
-	int offset = irqd_to_hwirq(d) % MAX_GPIO; // must not fail
+	struct starfive_pinctrl *sfp = starfive_from_irq_data(d);
+	irq_hw_number_t gpio = irqd_to_hwirq(d);
+	void __iomem *ie = sfp->padctl_base + GPIO_IE_LOW +
+			OFFSET_PER_REG * (gpio / GPIO_NUM_PER_REG);
+	void __iomem *ic = sfp->padctl_base + GPIO_IC_LOW +
+			OFFSET_PER_REG * (gpio / GPIO_NUM_PER_REG);
+	u32 mask = BIT(gpio % GPIO_NUM_PER_REG);
+	unsigned long flags;
+	u32 value;
 
-	assign_bit(offset, &chip->enabled, 0);
-	starfive_jh7110_sys_set_ie(chip, offset);
+	if (gpio < 0 || gpio >= sfp->gc.ngpio)
+		return;
+
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	value = readl_relaxed(ie) & ~mask;
+	writel_relaxed(value, ie);
+
+	value = readl_relaxed(ic) & ~mask;
+	writel_relaxed(value, ic);
+	writel_relaxed(value | mask, ic);
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
 }
 
 static struct irq_chip starfive_jh7110_sys_irqchip = {
 	.name		= "starfive_jh7110_sys-gpio",
+	.irq_ack	= starfive_jh7110_sys_irq_ack,
+	.irq_mask_ack	= starfive_jh7110_sys_irq_mask_ack,
 	.irq_set_type	= starfive_jh7110_sys_irq_set_type,
 	.irq_mask	= starfive_jh7110_sys_irq_mask,
 	.irq_unmask	= starfive_jh7110_sys_irq_unmask,
-	.irq_enable	= starfive_jh7110_sys_irq_enable,
-	.irq_disable	= starfive_jh7110_sys_irq_disable,
 };
 
-static int starfive_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
-					     unsigned int child,
-					     unsigned int child_type,
-					     unsigned int *parent,
-					     unsigned int *parent_type)
+static void starfive_jh7110_sys_irq_handler(struct irq_desc *desc)
 {
+	struct starfive_pinctrl *sfp = starfive_from_irq_desc(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned long mis;
+	unsigned int pin;
+
+	chained_irq_enter(chip, desc);
+
+	mis = readl_relaxed(sfp->padctl_base + GPIO_MIS_LOW);
+	for_each_set_bit(pin, &mis, GPIO_NUM_PER_REG)
+		generic_handle_domain_irq(sfp->gc.irq.domain, pin);
+
+	mis = readl_relaxed(sfp->padctl_base + GPIO_MIS_HIGH);
+	for_each_set_bit(pin, &mis, GPIO_NUM_PER_REG)
+		generic_handle_domain_irq(sfp->gc.irq.domain,
+			pin + GPIO_NUM_PER_REG);
+
+	chained_irq_exit(chip, desc);
+}
+
+static int starfive_jh7110_sys_init_hw(struct gpio_chip *gc)
+{
+	struct starfive_pinctrl *sfp = container_of(gc,
+			struct starfive_pinctrl, gc);
+
+	/* mask all GPIO interrupts */
+	writel_relaxed(0, sfp->padctl_base + GPIO_IE_LOW);
+	writel_relaxed(0, sfp->padctl_base + GPIO_IE_HIGH);
+	/* clear edge interrupt flags */
+	writel_relaxed(0U, sfp->padctl_base + GPIO_IC_LOW);
+	writel_relaxed(0U, sfp->padctl_base + GPIO_IC_HIGH);
+	writel_relaxed(~0U, sfp->padctl_base + GPIO_IC_LOW);
+	writel_relaxed(~0U, sfp->padctl_base + GPIO_IC_HIGH);
+	/* enable GPIO interrupts */
+	writel_relaxed(1, sfp->padctl_base + GPIO_EN);
 	return 0;
 }
 
-static irqreturn_t starfive_jh7110_sys_irq_handler(int irq, void *gc)
+static int starfive_sys_add_pin_ranges(struct gpio_chip *gc)
 {
-	int offset;
-	int reg_offset, index;
-	unsigned int value;
-	unsigned long flags;
-	struct starfive_pinctrl *chip = gc;
+	struct starfive_pinctrl *sfp = container_of(gc,
+			struct starfive_pinctrl, gc);
 
-	for (offset = 0; offset < 64; offset++) {
-		if (offset < 32) {
-			reg_offset = 0;
-			index = offset;
-		} else {
-			reg_offset = 4;
-			index = offset - 32;
-		}
-
-		raw_spin_lock_irqsave(&chip->lock, flags);
-		value = readl_relaxed(chip->padctl_base + GPIO_MIS_LOW + reg_offset);
-		if (value & BIT(index))
-			writel_relaxed(BIT(index), chip->padctl_base + GPIO_IC_LOW +
-						   reg_offset);
-
-		//generic_handle_irq(irq_find_mapping(chip->gc.irq.domain,
-		//				      offset));
-		raw_spin_unlock_irqrestore(&chip->lock, flags);
-	}
-
-	return IRQ_HANDLED;
+	sfp->gpios.name = sfp->gc.label;
+	sfp->gpios.base = sfp->gc.base;
+	/*
+	 * sfp->gpios.pin_base depends on the chosen signal group
+	 * and is set in starfive_probe()
+	 */
+	sfp->gpios.npins = SYS_GPIO_NUM;
+	sfp->gpios.gc = &sfp->gc;
+	pinctrl_add_gpio_range(sfp->pctl_dev, &sfp->gpios);
+	return 0;
 }
 
 static int starfive_jh7110_sys_gpio_register(struct platform_device *pdev,
-						struct starfive_pinctrl *pctl)
+		struct starfive_pinctrl *pctl)
 {
 	struct device *dev = &pdev->dev;
-	int irq, ret, ngpio;
+	int ret, ngpio;
 	int loop;
-	struct gpio_irq_chip *girq;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *irq_parent;
-	struct irq_domain *parent;
 
-	ngpio = 64;
+	ngpio = SYS_GPIO_NUM;
 
 	pctl->gc.direction_input = starfive_jh7110_sys_direction_input;
 	pctl->gc.direction_output = starfive_jh7110_sys_direction_output;
 	pctl->gc.get_direction = starfive_jh7110_sys_get_direction;
 	pctl->gc.get = starfive_jh7110_sys_get_value;
 	pctl->gc.set = starfive_jh7110_sys_set_value;
+	pctl->gc.add_pin_ranges = starfive_sys_add_pin_ranges;
 	pctl->gc.base = 0;
 	pctl->gc.ngpio = ngpio;
 	pctl->gc.label = dev_name(dev);
 	pctl->gc.parent = dev;
 	pctl->gc.owner = THIS_MODULE;
-
-		irq_parent = of_irq_find_parent(node);
-	if (!irq_parent) {
-		dev_err(dev, "no IRQ parent node\n");
-		return -ENODEV;
-	}
-	parent = irq_find_host(irq_parent);
-	if (!parent) {
-		dev_err(dev, "no IRQ parent domain\n");
-		return -ENODEV;
-	}
-
-	girq = &pctl->gc.irq;
-	girq->chip = &starfive_jh7110_sys_irqchip;
-	girq->fwnode = of_node_to_fwnode(node);
-	girq->parent_domain = parent;
-	girq->child_to_parent_hwirq = starfive_gpio_child_to_parent_hwirq;
-	girq->handler = handle_simple_irq;
-	girq->default_type = IRQ_TYPE_NONE;
-
-	/* Disable all GPIO interrupts before enabling parent interrupts */
-	iowrite32(0, pctl->padctl_base + GPIO_IE_HIGH);
-	iowrite32(0, pctl->padctl_base + GPIO_IE_LOW);
 	pctl->enabled = 0;
 
 	platform_set_drvdata(pdev, pctl);
 
-	ret = gpiochip_add_data(&pctl->gc, pctl);
-	if (ret) {
-		dev_err(dev, "gpiochip_add_data ret=%d!\n", ret);
+	starfive_jh7110_sys_irqchip.parent_device = dev;
+	starfive_jh7110_sys_irqchip.name = pctl->gc.label;
+
+	pctl->gc.irq.chip = &starfive_jh7110_sys_irqchip;
+	pctl->gc.irq.parent_handler = starfive_jh7110_sys_irq_handler;
+	pctl->gc.irq.num_parents = 1;
+	pctl->gc.irq.parents = devm_kcalloc(dev, pctl->gc.irq.num_parents,
+			sizeof(*pctl->gc.irq.parents), GFP_KERNEL);
+	if (!pctl->gc.irq.parents)
+		return -ENOMEM;
+	pctl->gc.irq.default_type = IRQ_TYPE_NONE;
+	pctl->gc.irq.handler = handle_bad_irq;
+	pctl->gc.irq.init_hw = starfive_jh7110_sys_init_hw;
+
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
 		return ret;
-	}
+	pctl->gc.irq.parents[0] = ret;
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "Cannot get IRQ resource\n");
-		return irq;
-	}
-
-	ret = devm_request_irq(dev, irq, starfive_jh7110_sys_irq_handler, IRQF_SHARED,
-			       dev_name(dev), pctl);
-	if (ret) {
-		dev_err(dev, "IRQ handler registering failed (%d)\n", ret);
-		return ret;
-	}
-
-	writel_relaxed(1, pctl->padctl_base + GPIO_EN);
+	ret = devm_gpiochip_add_data(dev, &pctl->gc, pctl);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				"could not register gpiochip\n");
 
 	for (loop = 0; loop < MAX_GPIO; loop++) {
 		unsigned int v;
 
-		v = readl_relaxed(pctl->padctl_base + GPIO_INPUT_ENABLE_X_REG + (loop << 2));
+		v = readl_relaxed(pctl->padctl_base +
+				GPIO_INPUT_ENABLE_X_REG + (loop << 2));
 		v |= 0x1;
-		writel_relaxed(v, pctl->padctl_base + GPIO_INPUT_ENABLE_X_REG + (loop << 2));
+		writel_relaxed(v, pctl->padctl_base +
+				GPIO_INPUT_ENABLE_X_REG + (loop << 2));
 	}
 
 	dev_info(dev, "SiFive GPIO chip registered %d GPIOs\n", ngpio);
 
-
 	return 0;
 }
 
-
-
-static int starfive_jh7110_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin_id,
-				unsigned long *config)
+static int starfive_jh7110_pinconf_get(struct pinctrl_dev *pctldev,
+		unsigned int pin_id,
+		unsigned long *config)
 {
 	struct starfive_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct starfive_pinctrl_soc_info *info = pctl->info;
@@ -929,7 +930,8 @@ static int starfive_jh7110_pinconf_get(struct pinctrl_dev *pctldev, unsigned int
 	u32 value;
 
 	if (pin_reg->io_conf_reg == -1) {
-		dev_err(pctl->dev, "Pin(%s) does not support config function\n",
+		dev_err(pctl->dev,
+			"Pin(%s) does not support config function\n",
 			info->pins[pin_id].name);
 		return -EINVAL;
 	}
@@ -940,8 +942,8 @@ static int starfive_jh7110_pinconf_get(struct pinctrl_dev *pctldev, unsigned int
 }
 
 static int starfive_jh7110_pinconf_set(struct pinctrl_dev *pctldev,
-				unsigned int pin_id, unsigned long *configs,
-				unsigned int num_configs)
+		unsigned int pin_id, unsigned long *configs,
+		unsigned int num_configs)
 {
 	struct starfive_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct starfive_pinctrl_soc_info *info = pctl->info;
@@ -951,16 +953,19 @@ static int starfive_jh7110_pinconf_set(struct pinctrl_dev *pctldev,
 	unsigned long flags;
 
 	if (pin_reg->io_conf_reg == -1) {
-		dev_err(pctl->dev, "Pin(%s) does not support config function\n",
+		dev_err(pctl->dev,
+			"Pin(%s) does not support config function\n",
 			info->pins[pin_id].name);
 		return -EINVAL;
 	}
 
 	raw_spin_lock_irqsave(&pctl->lock, flags);
 	for (i = 0; i < num_configs; i++) {
-		value = readl_relaxed(pctl->padctl_base + pin_reg->io_conf_reg);
+		value = readl_relaxed(pctl->padctl_base +
+				pin_reg->io_conf_reg);
 		value = value|(configs[i] & 0xFF);
-		writel_relaxed(value, pctl->padctl_base + pin_reg->io_conf_reg);
+		writel_relaxed(value, pctl->padctl_base +
+				pin_reg->io_conf_reg);
 	}
 	raw_spin_unlock_irqrestore(&pctl->lock, flags);
 
@@ -968,7 +973,7 @@ static int starfive_jh7110_pinconf_set(struct pinctrl_dev *pctldev,
 }
 
 static int starfive_jh7110_sys_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl,
-						struct starfive_pin *pin)
+		struct starfive_pin *pin)
 {
 	const struct starfive_pinctrl_soc_info *info = pctl->info;
 	struct starfive_pin_config *pin_config = &pin->pin_config;
@@ -1024,11 +1029,12 @@ static int starfive_jh7110_sys_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl
 }
 
 
-static void starfive_jh7110_sys_parse_pin_config(struct starfive_pinctrl *pctl,
-						unsigned int *pins_id,
-						struct starfive_pin *pin_data,
-						const __be32 *list_p,
-						struct device_node *np)
+static void starfive_jh7110_sys_parse_pin_config(
+		struct starfive_pinctrl *pctl,
+		unsigned int *pins_id,
+		struct starfive_pin *pin_data,
+		const __be32 *list_p,
+		struct device_node *np)
 {
 	const struct starfive_pinctrl_soc_info *info = pctl->info;
 	struct starfive_pin_reg *pin_reg;
@@ -1053,10 +1059,10 @@ static void starfive_jh7110_sys_parse_pin_config(struct starfive_pinctrl *pctl,
 
 	if (pin_data->pin < PAD_GMAC1_MDC) {
 		pin_reg->io_conf_reg = (pin_data->pin * GPO_PDA_CFG_OFFSET)
-					+ SYS_GPO_PDA_0_74_CFG_BASE_REG;
+			+ SYS_GPO_PDA_0_74_CFG_BASE_REG;
 	} else if (pin_data->pin > PAD_GMAC1_TXC) {
 		pin_reg->io_conf_reg = (pin_data->pin * GPO_PDA_CFG_OFFSET)
-					+ SYS_GPO_PDA_89_94_CFG_BASE_REG;
+			+ SYS_GPO_PDA_89_94_CFG_BASE_REG;
 	}
 
 	if (!of_property_read_u32(np, "sf,pin-ioconfig", &value))
@@ -1108,9 +1114,9 @@ static void starfive_jh7110_sys_parse_pin_config(struct starfive_pinctrl *pctl,
 
 			pin_data->pin_config.gpio_din_num = size_din / pin_size;
 			pin_data->pin_config.gpio_din_reg = devm_kcalloc(pctl->dev,
-								 pin_data->pin_config.gpio_din_num,
-								 sizeof(s32),
-								 GFP_KERNEL);
+					pin_data->pin_config.gpio_din_num,
+					sizeof(s32),
+					GFP_KERNEL);
 
 			for (i = 0; i < pin_data->pin_config.gpio_din_num; i++) {
 				value = be32_to_cpu(*list_din++);
@@ -1134,7 +1140,8 @@ static const struct starfive_pinctrl_soc_info starfive_jh7110_sys_pinctrl_info =
 	.starfive_pinctrl_parse_pin = starfive_jh7110_sys_parse_pin_config,
 };
 
-static int starfive_jh7110_aon_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl,
+static int starfive_jh7110_aon_pmx_set_one_pin_mux(
+					struct starfive_pinctrl *pctl,
 					struct starfive_pin *pin)
 {
 	const struct starfive_pinctrl_soc_info *info = pctl->info;
@@ -1191,11 +1198,10 @@ static int starfive_jh7110_aon_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl
 }
 
 
-static void starfive_jh7110_aon_parse_pin_config(struct starfive_pinctrl *pctl,
-							unsigned int *pins_id,
-							struct starfive_pin *pin_data,
-							const __be32 *list_p,
-							struct device_node *np)
+static void starfive_jh7110_aon_parse_pin_config(
+		struct starfive_pinctrl *pctl, unsigned int *pins_id,
+		struct starfive_pin *pin_data, const __be32 *list_p,
+		struct device_node *np)
 {
 	const struct starfive_pinctrl_soc_info *info = pctl->info;
 	struct starfive_pin_reg *pin_reg;
@@ -1240,7 +1246,7 @@ static void starfive_jh7110_aon_parse_pin_config(struct starfive_pinctrl *pctl,
 	}
 
 	if ((pin_data->pin >= PAD_RGPIO0) && (pin_data->pin <= PAD_RGPIO3)) {
-		pin_data->pin_config.gpio_num = pin_data->pin;
+		pin_data->pin_config.gpio_num = pin_data->pin - 1;
 		pin_reg->gpo_dout_reg = info->dout_reg_base;
 		pin_reg->gpo_doen_reg = info->doen_reg_base;
 
@@ -1259,15 +1265,358 @@ static void starfive_jh7110_aon_parse_pin_config(struct starfive_pinctrl *pctl,
 			}
 			pin_data->pin_config.gpio_din_num = size_din / pin_size;
 			pin_data->pin_config.gpio_din_reg = devm_kcalloc(pctl->dev,
-									pin_data->pin_config.gpio_din_num,
-									sizeof(s32),
-									GFP_KERNEL);
+					pin_data->pin_config.gpio_din_num,
+					sizeof(s32),
+					GFP_KERNEL);
 			for (i = 0; i < pin_data->pin_config.gpio_din_num; i++) {
 				value = be32_to_cpu(*list_din++);
 				pin_data->pin_config.gpio_din_reg[i] = value;
 			}
 		}
 	}
+}
+
+static int starfive_jh7110_aon_direction_input(struct gpio_chip *gc,
+		unsigned int offset)
+{
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
+	unsigned long flags;
+	unsigned int v;
+
+
+	if (offset < 0 || offset >= gc->ngpio)
+		return -EINVAL;
+
+	raw_spin_lock_irqsave(&chip->lock, flags);
+	v = readl_relaxed(chip->padctl_base + AON_GPO_DOEN_CFG_BASE_REG);
+	v &= ~(0x07 << ((offset & 0x3) * 8));
+	v |= 1 << ((offset & 0x3) * 8);
+	writel_relaxed(v, chip->padctl_base + AON_GPO_DOEN_CFG_BASE_REG);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
+
+	return 0;
+}
+
+static int starfive_jh7110_aon_direction_output(struct gpio_chip *gc,
+		unsigned int offset,
+		int value)
+{
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
+	unsigned long flags;
+	unsigned int v;
+
+	if (offset < 0 || offset >= gc->ngpio)
+		return -EINVAL;
+
+	raw_spin_lock_irqsave(&chip->lock, flags);
+	v = readl_relaxed(chip->padctl_base + AON_GPO_DOEN_CFG_BASE_REG);
+	v &= ~(0x07 << ((offset & 0x3) * 8));
+	writel_relaxed(v, chip->padctl_base + AON_GPO_DOEN_CFG_BASE_REG);
+
+	v = readl_relaxed(chip->padctl_base + AON_GPO_DOUT_CFG_BASE_REG);
+	v &= ~(0x0f << ((offset & 0x3) * 8));
+	v |= value << ((offset & 0x3) * 8);
+	writel_relaxed(v, chip->padctl_base + AON_GPO_DOUT_CFG_BASE_REG);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
+
+	return 0;
+}
+
+static int starfive_jh7110_aon_get_direction(struct gpio_chip *gc,
+		unsigned int offset)
+{
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
+	unsigned int v;
+
+	if (offset < 0 || offset >= gc->ngpio)
+		return -EINVAL;
+
+	v = readl_relaxed(chip->padctl_base + AON_GPO_DOEN_CFG_BASE_REG);
+	return !!(v & (0x07 << ((offset & 0x3) * 8)));
+}
+
+static int starfive_jh7110_aon_get_value(struct gpio_chip *gc,
+		unsigned int offset)
+{
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
+	int value;
+
+	if (offset < 0 || offset >= gc->ngpio)
+		return -EINVAL;
+
+	value = readl_relaxed(chip->padctl_base + AON_GPIO_DIN_REG);
+	return (value >> offset) & 0x1;
+}
+
+static void starfive_jh7110_aon_set_value(struct gpio_chip *gc,
+		unsigned int offset, int value)
+{
+	struct starfive_pinctrl *chip = gpiochip_get_data(gc);
+	unsigned long flags;
+	unsigned int v;
+
+	if (offset < 0 || offset >= gc->ngpio)
+		return;
+
+	raw_spin_lock_irqsave(&chip->lock, flags);
+	v = readl_relaxed(chip->padctl_base + AON_GPO_DOUT_CFG_BASE_REG);
+	v &= ~(0x0f << ((offset & 0x3) * 8));
+	v |= value << ((offset & 0x3) * 8);
+	writel_relaxed(v, chip->padctl_base + AON_GPO_DOUT_CFG_BASE_REG);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
+}
+
+static void starfive_jh7110_aon_irq_handler(struct irq_desc *desc)
+{
+	struct starfive_pinctrl *sfp = starfive_from_irq_desc(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned long mis;
+	unsigned int pin;
+
+	chained_irq_enter(chip, desc);
+
+	mis = readl_relaxed(sfp->padctl_base + AON_GPIO_MIS_REG);
+	for_each_set_bit(pin, &mis, 4)
+		generic_handle_domain_irq(sfp->gc.irq.domain, pin);
+
+	chained_irq_exit(chip, desc);
+}
+
+static int starfive_jh7110_aon_init_hw(struct gpio_chip *gc)
+{
+	struct starfive_pinctrl *sfp = container_of(gc,
+			struct starfive_pinctrl, gc);
+
+	/* mask all GPIO interrupts */
+	writel_relaxed(0, sfp->padctl_base + AON_GPIO_IE_REG);
+	/* clear edge interrupt flags */
+	writel_relaxed(0x00U, sfp->padctl_base + AON_GPIO_IC_REG);
+	writel_relaxed(0x0fU, sfp->padctl_base + AON_GPIO_IC_REG);
+	/* enable GPIO interrupts */
+	writel_relaxed(1, sfp->padctl_base + AON_GPIO_EN_REG);
+	return 0;
+}
+
+static int starfive_jh7110_aon_irq_set_type(struct irq_data *d,
+		unsigned int trigger)
+{
+	struct starfive_pinctrl *sfp = starfive_from_irq_data(d);
+	irq_hw_number_t gpio = irqd_to_hwirq(d);
+	void __iomem *base = sfp->padctl_base;
+	u32 mask = BIT(gpio);
+	u32 irq_type, edge_both, polarity;
+	unsigned long flags;
+
+	switch (trigger) {
+	case IRQ_TYPE_LEVEL_HIGH:
+		irq_type  = 0;    /* 0: level triggered */
+		edge_both = 0;    /* 0: ignored */
+		polarity  = 0;    /* 0: high level */
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		irq_type  = 0;    /* 0: level triggered */
+		edge_both = 0;    /* 0: ignored */
+		polarity  = 1;    /* 1: low level */
+		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		irq_type  = mask; /* 1: edge triggered */
+		edge_both = mask; /* 1: both edges */
+		polarity  = 0;    /* 0: ignored */
+		break;
+	case IRQ_TYPE_EDGE_RISING:
+		irq_type  = mask; /* 1: edge triggered */
+		edge_both = 0;    /* 0: single edge */
+		polarity  = mask; /* 1: rising edge */
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		irq_type  = mask; /* 1: edge triggered */
+		edge_both = 0;    /* 0: single edge */
+		polarity  = 0;    /* 0: falling edge */
+		break;
+	}
+	if (trigger & IRQ_TYPE_EDGE_BOTH)
+		irq_set_handler_locked(d, handle_edge_irq);
+	else
+		irq_set_handler_locked(d, handle_level_irq);
+
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	irq_type |= readl_relaxed(base + AON_GPIO_IS_REG) & ~mask;
+	writel_relaxed(irq_type, base + AON_GPIO_IS_REG);
+	edge_both |= readl_relaxed(base + AON_GPIO_IBE_REG) & ~mask;
+	writel_relaxed(edge_both, base + AON_GPIO_IBE_REG);
+	polarity |= readl_relaxed(base + AON_GPIO_IEV_REG) & ~mask;
+	writel_relaxed(polarity, base + AON_GPIO_IEV_REG);
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+
+	sfp->trigger[gpio] = trigger;
+	return 0;
+}
+
+static void starfive_jh7110_aon_irq_mask(struct irq_data *d)
+{
+	struct starfive_pinctrl *sfp = starfive_from_irq_data(d);
+	irq_hw_number_t gpio = irqd_to_hwirq(d);
+	void __iomem *ie = sfp->padctl_base + AON_GPIO_IE_REG;
+	u32 mask = BIT(gpio);
+	unsigned long flags;
+	u32 value;
+
+	if (gpio < 0 || gpio >= sfp->gc.ngpio)
+		return;
+
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	value = readl_relaxed(ie) & ~mask;
+	writel_relaxed(value, ie);
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+}
+
+static void starfive_jh7110_aon_irq_unmask(struct irq_data *d)
+{
+	struct starfive_pinctrl *sfp = starfive_from_irq_data(d);
+	irq_hw_number_t gpio = irqd_to_hwirq(d);
+	void __iomem *ie = sfp->padctl_base + AON_GPIO_IE_REG;
+	u32 mask = BIT(gpio);
+	unsigned long flags;
+	u32 value;
+
+	if (gpio < 0 || gpio >= sfp->gc.ngpio)
+		return;
+
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	value = readl_relaxed(ie) | mask;
+	writel_relaxed(value, ie);
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+}
+
+static void starfive_jh7110_aon_irq_ack(struct irq_data *d)
+{
+	struct starfive_pinctrl *sfp = starfive_from_irq_data(d);
+	irq_hw_number_t gpio = irqd_to_hwirq(d);
+	void __iomem *ic = sfp->padctl_base + AON_GPIO_IC_REG;
+	u32 mask = BIT(gpio);
+	unsigned long flags;
+	u32 value;
+
+	if (gpio < 0 || gpio >= sfp->gc.ngpio)
+		return;
+
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	value = readl_relaxed(ic) & ~mask;
+	writel_relaxed(value, ic);
+	writel_relaxed(value | mask, ic);
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+}
+
+static void starfive_jh7110_aon_irq_mask_ack(struct irq_data *d)
+{
+	struct starfive_pinctrl *sfp = starfive_from_irq_data(d);
+	irq_hw_number_t gpio = irqd_to_hwirq(d);
+	void __iomem *ie = sfp->padctl_base + AON_GPIO_IE_REG;
+	void __iomem *ic = sfp->padctl_base + AON_GPIO_IC_REG;
+	u32 mask = BIT(gpio);
+	unsigned long flags;
+	u32 value;
+
+	if (gpio < 0 || gpio >= sfp->gc.ngpio)
+		return;
+
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	value = readl_relaxed(ie) & ~mask;
+	writel_relaxed(value, ie);
+
+	value = readl_relaxed(ic) & ~mask;
+	writel_relaxed(value, ic);
+	writel_relaxed(value | mask, ic);
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+}
+
+static struct irq_chip starfive_jh7110_aon_irqchip = {
+	.name		= "starfive_jh7110_aon-gpio",
+	.irq_ack	= starfive_jh7110_aon_irq_ack,
+	.irq_mask_ack	= starfive_jh7110_aon_irq_mask_ack,
+	.irq_set_type	= starfive_jh7110_aon_irq_set_type,
+	.irq_mask	= starfive_jh7110_aon_irq_mask,
+	.irq_unmask	= starfive_jh7110_aon_irq_unmask,
+};
+
+static int starfive_aon_add_pin_ranges(struct gpio_chip *gc)
+{
+	struct starfive_pinctrl *sfp = container_of(gc,
+			struct starfive_pinctrl, gc);
+
+	sfp->gpios.name = sfp->gc.label;
+	sfp->gpios.base = sfp->gc.base;
+	/*
+	 * sfp->gpios.pin_base depends on the chosen signal group
+	 * and is set in starfive_probe()
+	 */
+	sfp->gpios.npins = AON_GPIO_NUM;
+	sfp->gpios.gc = &sfp->gc;
+	pinctrl_add_gpio_range(sfp->pctl_dev, &sfp->gpios);
+	return 0;
+}
+
+static int starfive_jh7110_aon_gpio_register(struct platform_device *pdev,
+		struct starfive_pinctrl *pctl)
+{
+	struct device *dev = &pdev->dev;
+	int ret, ngpio;
+	int loop;
+
+	ngpio = AON_GPIO_NUM;
+
+	pctl->gc.direction_input = starfive_jh7110_aon_direction_input;
+	pctl->gc.direction_output = starfive_jh7110_aon_direction_output;
+	pctl->gc.get_direction = starfive_jh7110_aon_get_direction;
+	pctl->gc.get = starfive_jh7110_aon_get_value;
+	pctl->gc.set = starfive_jh7110_aon_set_value;
+	pctl->gc.add_pin_ranges = starfive_aon_add_pin_ranges;
+	pctl->gc.base = 64;
+	pctl->gc.ngpio = ngpio;
+	pctl->gc.label = dev_name(dev);
+	pctl->gc.parent = dev;
+	pctl->gc.owner = THIS_MODULE;
+
+	pctl->enabled = 0;
+
+	platform_set_drvdata(pdev, pctl);
+
+	starfive_jh7110_aon_irqchip.parent_device = dev;
+	starfive_jh7110_aon_irqchip.name = pctl->gc.label;
+
+	pctl->gc.irq.chip = &starfive_jh7110_aon_irqchip;
+	pctl->gc.irq.parent_handler = starfive_jh7110_aon_irq_handler;
+	pctl->gc.irq.num_parents = 1;
+	pctl->gc.irq.parents = devm_kcalloc(dev, pctl->gc.irq.num_parents,
+			sizeof(*pctl->gc.irq.parents), GFP_KERNEL);
+	if (!pctl->gc.irq.parents)
+		return -ENOMEM;
+	pctl->gc.irq.default_type = IRQ_TYPE_NONE;
+	pctl->gc.irq.handler = handle_bad_irq;
+	pctl->gc.irq.init_hw = starfive_jh7110_aon_init_hw;
+
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+	pctl->gc.irq.parents[0] = ret;
+
+	ret = devm_gpiochip_add_data(dev, &pctl->gc, pctl);
+	if (ret)
+		return dev_err_probe(dev, ret, "could not register gpiochip\n");
+
+	for (loop = 0; loop < ngpio; loop++) {
+		unsigned int v;
+
+		v = readl_relaxed(pctl->padctl_base +
+				AON_GPIO_INPUT_ENABLE_REG + (loop << 2));
+		v |= 0x1;
+		writel_relaxed(v, pctl->padctl_base +
+				AON_GPIO_INPUT_ENABLE_REG + (loop << 2));
+	}
+
+	dev_info(dev, "SiFive GPIO chip registered %d GPIOs\n", ngpio);
+
+	return 0;
 }
 
 static const struct starfive_pinctrl_soc_info starfive_jh7110_aon_pinctrl_info = {
@@ -1280,6 +1629,7 @@ static const struct starfive_pinctrl_soc_info starfive_jh7110_aon_pinctrl_info =
 	.starfive_pinconf_get = starfive_jh7110_pinconf_get,
 	.starfive_pinconf_set = starfive_jh7110_pinconf_set,
 	.starfive_pmx_set_one_pin_mux = starfive_jh7110_aon_pmx_set_one_pin_mux,
+	.starfive_gpio_register = starfive_jh7110_aon_gpio_register,
 	.starfive_pinctrl_parse_pin = starfive_jh7110_aon_parse_pin_config,
 };
 

@@ -5,6 +5,7 @@
  * Copyright (C) 2022 Shanghai StarFive Technology Co., Ltd.
  */
 
+#include <linux/clk.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -19,7 +20,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-
+#include <linux/reset.h>
 
 #include "../core.h"
 #include "../pinconf.h"
@@ -399,6 +400,11 @@ static int starfive_pinctrl_probe_dt(struct platform_device *pdev,
 	return 0;
 }
 
+static void starfive_disable_clock(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 int starfive_pinctrl_probe(struct platform_device *pdev,
 		      const struct starfive_pinctrl_soc_info *info)
 {
@@ -406,6 +412,8 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 	struct pinctrl_desc *starfive_pinctrl_desc;
 	struct starfive_pinctrl *pctl;
 	struct resource *res;
+	struct reset_control *rst;
+	struct clk *clk;
 	int ret, i;
 	u32 value;
 
@@ -443,6 +451,33 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 		if (IS_ERR(pctl->gpio_base))
 			return PTR_ERR(pctl->gpio_base);
 	}
+
+	clk = devm_clk_get_optional(dev, NULL);
+	if (IS_ERR(clk))
+		return dev_err_probe(dev, PTR_ERR(clk), "could not get clock\n");
+
+	rst = devm_reset_control_get_exclusive(dev, NULL);
+	if (IS_ERR(rst))
+		return dev_err_probe(dev, PTR_ERR(rst), "could not get reset\n");
+
+	if (clk) {
+		ret = clk_prepare_enable(clk);
+		if (ret)
+			return dev_err_probe(dev, ret, "could not enable clock\n");
+
+		ret = devm_add_action_or_reset(dev, starfive_disable_clock, clk);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * We don't want to assert reset and risk undoing pin muxing for the
+	 * early boot serial console, but let's make sure the reset line is
+	 * deasserted in case someone runs a really minimal bootloader.
+	 */
+	ret = reset_control_deassert(rst);
+	if (ret)
+		return dev_err_probe(dev, ret, "could not deassert reset\n");
 
 	if (info->starfive_iopad_sel_func) {
 		ret = info->starfive_iopad_sel_func(pdev, pctl, value);
