@@ -7,9 +7,6 @@
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 
-__PT_R0 = __PT_GPRS
-__PT_R8 = __PT_GPRS + 64
-
 ENTRY(early_pgm_check_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	aghi	%r15,-(STACK_FRAME_OVERHEAD+__PT_SIZE)

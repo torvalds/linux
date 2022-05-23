@@ -32,6 +32,22 @@ int main(void)
 	/* pt_regs offsets */
 	OFFSET(__PT_PSW, pt_regs, psw);
 	OFFSET(__PT_GPRS, pt_regs, gprs);
+	OFFSET(__PT_R0, pt_regs, gprs[0]);
+	OFFSET(__PT_R1, pt_regs, gprs[1]);
+	OFFSET(__PT_R2, pt_regs, gprs[2]);
+	OFFSET(__PT_R3, pt_regs, gprs[3]);
+	OFFSET(__PT_R4, pt_regs, gprs[4]);
+	OFFSET(__PT_R5, pt_regs, gprs[5]);
+	OFFSET(__PT_R6, pt_regs, gprs[6]);
+	OFFSET(__PT_R7, pt_regs, gprs[7]);
+	OFFSET(__PT_R8, pt_regs, gprs[8]);
+	OFFSET(__PT_R9, pt_regs, gprs[9]);
+	OFFSET(__PT_R10, pt_regs, gprs[10]);
+	OFFSET(__PT_R11, pt_regs, gprs[11]);
+	OFFSET(__PT_R12, pt_regs, gprs[12]);
+	OFFSET(__PT_R13, pt_regs, gprs[13]);
+	OFFSET(__PT_R14, pt_regs, gprs[14]);
+	OFFSET(__PT_R15, pt_regs, gprs[15]);
 	OFFSET(__PT_ORIG_GPR2, pt_regs, orig_gpr2);
 	OFFSET(__PT_FLAGS, pt_regs, flags);
 	OFFSET(__PT_CR1, pt_regs, cr1);

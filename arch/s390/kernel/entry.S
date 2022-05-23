@@ -29,23 +29,6 @@
 #include <asm/export.h>
 #include <asm/nospec-insn.h>
 
-__PT_R0      =	__PT_GPRS
-__PT_R1      =	__PT_GPRS + 8
-__PT_R2      =	__PT_GPRS + 16
-__PT_R3      =	__PT_GPRS + 24
-__PT_R4      =	__PT_GPRS + 32
-__PT_R5      =	__PT_GPRS + 40
-__PT_R6      =	__PT_GPRS + 48
-__PT_R7      =	__PT_GPRS + 56
-__PT_R8      =	__PT_GPRS + 64
-__PT_R9      =	__PT_GPRS + 72
-__PT_R10     =	__PT_GPRS + 80
-__PT_R11     =	__PT_GPRS + 88
-__PT_R12     =	__PT_GPRS + 96
-__PT_R13     =	__PT_GPRS + 104
-__PT_R14     =	__PT_GPRS + 112
-__PT_R15     =	__PT_GPRS + 120
-
 STACK_SHIFT = PAGE_SHIFT + THREAD_SIZE_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
 STACK_INIT = STACK_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE
