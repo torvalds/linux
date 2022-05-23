@@ -13,6 +13,7 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
+#include <linux/reset.h>
 
 #include "mtu3.h"
 #include "mtu3_dr.h"
@@ -343,6 +344,12 @@ static int mtu3_probe(struct platform_device *pdev)
 			goto comm_exit;
 		}
 		dev_info(dev, "wakeup irq %d\n", ssusb->wakeup_irq);
+	}
+
+	ret = device_reset_optional(dev);
+	if (ret) {
+		dev_err_probe(dev, ret, "failed to reset controller\n");
+		goto comm_exit;
 	}
 
 	ssusb_ip_sw_reset(ssusb);
