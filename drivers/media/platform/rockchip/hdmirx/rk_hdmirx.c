@@ -932,7 +932,7 @@ static int hdmirx_set_edid(struct file *file, void *fh,
 	sip_fiq_control(RK_SIP_FIQ_CTRL_FIQ_EN, RK_IRQ_HDMIRX_HDMI, 0);
 	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
 				 &hdmirx_dev->delayed_work_hotplug,
-				 msecs_to_jiffies(200));
+				 msecs_to_jiffies(500));
 
 	return 0;
 }
@@ -2359,6 +2359,8 @@ static void hdmirx_interrupts_setup(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 
 static void hdmirx_plugin(struct rk_hdmirx_dev *hdmirx_dev)
 {
+	int ret;
+
 	cpu_latency_qos_update_request(&hdmirx_dev->pm_qos, 0);
 	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
 		&hdmirx_dev->delayed_work_heartbeat, msecs_to_jiffies(10));
@@ -2370,7 +2372,14 @@ static void hdmirx_plugin(struct rk_hdmirx_dev *hdmirx_dev)
 	hdmirx_hpd_ctrl(hdmirx_dev, true);
 	hdmirx_phy_config(hdmirx_dev);
 	hdmirx_audio_setup(hdmirx_dev);
-	hdmirx_wait_lock_and_get_timing(hdmirx_dev);
+	ret = hdmirx_wait_lock_and_get_timing(hdmirx_dev);
+	if (ret) {
+		hdmirx_plugout(hdmirx_dev);
+		schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+					 &hdmirx_dev->delayed_work_hotplug,
+					 msecs_to_jiffies(200));
+		return;
+	}
 	hdmirx_dma_config(hdmirx_dev);
 	hdmirx_interrupts_setup(hdmirx_dev, true);
 	hdmirx_audio_handle_plugged_change(hdmirx_dev, 1);
@@ -2749,6 +2758,7 @@ static void hdmirx_delayed_work_res_change(struct work_struct *work)
 			struct rk_hdmirx_dev, delayed_work_res_change);
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 	bool plugin;
+	int ret;
 
 	mutex_lock(&hdmirx_dev->work_lock);
 	plugin = tx_5v_power_present(hdmirx_dev);
@@ -2761,10 +2771,17 @@ static void hdmirx_delayed_work_res_change(struct work_struct *work)
 		hdmirx_hpd_ctrl(hdmirx_dev, true);
 		hdmirx_phy_config(hdmirx_dev);
 		hdmirx_audio_setup(hdmirx_dev);
-		hdmirx_wait_lock_and_get_timing(hdmirx_dev);
-		hdmirx_dma_config(hdmirx_dev);
-		hdmirx_interrupts_setup(hdmirx_dev, true);
-		hdmirx_audio_handle_plugged_change(hdmirx_dev, 1);
+		ret = hdmirx_wait_lock_and_get_timing(hdmirx_dev);
+		if (ret) {
+			hdmirx_plugout(hdmirx_dev);
+			schedule_delayed_work_on(hdmirx_dev->bound_cpu,
+						 &hdmirx_dev->delayed_work_hotplug,
+						 msecs_to_jiffies(200));
+		} else {
+			hdmirx_dma_config(hdmirx_dev);
+			hdmirx_interrupts_setup(hdmirx_dev, true);
+			hdmirx_audio_handle_plugged_change(hdmirx_dev, 1);
+		}
 	}
 	mutex_unlock(&hdmirx_dev->work_lock);
 }
@@ -3094,7 +3111,7 @@ static ssize_t edid_store(struct device *dev,
 		sip_fiq_control(RK_SIP_FIQ_CTRL_FIQ_EN, RK_IRQ_HDMIRX_HDMI, 0);
 		schedule_delayed_work_on(hdmirx_dev->bound_cpu,
 					 &hdmirx_dev->delayed_work_hotplug,
-					 msecs_to_jiffies(200));
+					 msecs_to_jiffies(500));
 	}
 
 	return count;
