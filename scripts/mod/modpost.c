@@ -1884,8 +1884,7 @@ static void section_rel(const char *modname, struct elf_info *elf,
  * to find all references to a section that reference a section that will
  * be discarded and warns about it.
  **/
-static void check_sec_ref(struct module *mod, const char *modname,
-			  struct elf_info *elf)
+static void check_sec_ref(const char *modname, struct elf_info *elf)
 {
 	int i;
 	Elf_Shdr *sechdrs = elf->sechdrs;
@@ -2091,7 +2090,7 @@ static void read_symbols(const char *modname)
 		}
 	}
 
-	check_sec_ref(mod, modname, &info);
+	check_sec_ref(modname, &info);
 
 	if (!mod->is_vmlinux) {
 		version = get_modinfo(&info, "version");
