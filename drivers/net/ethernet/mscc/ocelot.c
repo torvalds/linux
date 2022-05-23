@@ -2046,6 +2046,37 @@ static int ocelot_bond_get_id(struct ocelot *ocelot, struct net_device *bond)
 	return __ffs(bond_mask);
 }
 
+static u32 ocelot_dsa_8021q_cpu_assigned_ports(struct ocelot *ocelot,
+					       struct ocelot_port *cpu)
+{
+	u32 mask = 0;
+	int port;
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+		if (!ocelot_port)
+			continue;
+
+		if (ocelot_port->dsa_8021q_cpu == cpu)
+			mask |= BIT(port);
+	}
+
+	return mask;
+}
+
+u32 ocelot_port_assigned_dsa_8021q_cpu_mask(struct ocelot *ocelot, int port)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct ocelot_port *cpu_port = ocelot_port->dsa_8021q_cpu;
+
+	if (!cpu_port)
+		return 0;
+
+	return BIT(cpu_port->index);
+}
+EXPORT_SYMBOL_GPL(ocelot_port_assigned_dsa_8021q_cpu_mask);
+
 u32 ocelot_get_bridge_fwd_mask(struct ocelot *ocelot, int src_port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[src_port];
@@ -2075,28 +2106,8 @@ u32 ocelot_get_bridge_fwd_mask(struct ocelot *ocelot, int src_port)
 }
 EXPORT_SYMBOL_GPL(ocelot_get_bridge_fwd_mask);
 
-u32 ocelot_get_dsa_8021q_cpu_mask(struct ocelot *ocelot)
+static void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
 {
-	u32 mask = 0;
-	int port;
-
-	for (port = 0; port < ocelot->num_phys_ports; port++) {
-		struct ocelot_port *ocelot_port = ocelot->ports[port];
-
-		if (!ocelot_port)
-			continue;
-
-		if (ocelot_port->is_dsa_8021q_cpu)
-			mask |= BIT(port);
-	}
-
-	return mask;
-}
-EXPORT_SYMBOL_GPL(ocelot_get_dsa_8021q_cpu_mask);
-
-void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
-{
-	unsigned long cpu_fwd_mask;
 	int port;
 
 	lockdep_assert_held(&ocelot->fwd_domain_lock);
@@ -2107,15 +2118,6 @@ void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
 	 */
 	if (joining && ocelot->ops->cut_through_fwd)
 		ocelot->ops->cut_through_fwd(ocelot);
-
-	/* If a DSA tag_8021q CPU exists, it needs to be included in the
-	 * regular forwarding path of the front ports regardless of whether
-	 * those are bridged or standalone.
-	 * If DSA tag_8021q is not used, this returns 0, which is fine because
-	 * the hardware-based CPU port module can be a destination for packets
-	 * even if it isn't part of PGID_SRC.
-	 */
-	cpu_fwd_mask = ocelot_get_dsa_8021q_cpu_mask(ocelot);
 
 	/* Apply FWD mask. The loop is needed to add/remove the current port as
 	 * a source for the other ports.
@@ -2129,17 +2131,19 @@ void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
 			mask = 0;
 		} else if (ocelot_port->is_dsa_8021q_cpu) {
 			/* The DSA tag_8021q CPU ports need to be able to
-			 * forward packets to all other ports except for
-			 * themselves
+			 * forward packets to all ports assigned to them.
 			 */
-			mask = GENMASK(ocelot->num_phys_ports - 1, 0);
-			mask &= ~cpu_fwd_mask;
+			mask = ocelot_dsa_8021q_cpu_assigned_ports(ocelot,
+								   ocelot_port);
 		} else if (ocelot_port->bridge) {
 			struct net_device *bond = ocelot_port->bond;
 
 			mask = ocelot_get_bridge_fwd_mask(ocelot, port);
-			mask |= cpu_fwd_mask;
 			mask &= ~BIT(port);
+
+			mask |= ocelot_port_assigned_dsa_8021q_cpu_mask(ocelot,
+									port);
+
 			if (bond)
 				mask &= ~ocelot_get_bond_mask(ocelot, bond);
 		} else {
@@ -2147,7 +2151,8 @@ void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
 			 * ports (if those exist), or to the hardware CPU port
 			 * module otherwise.
 			 */
-			mask = cpu_fwd_mask;
+			mask = ocelot_port_assigned_dsa_8021q_cpu_mask(ocelot,
+								       port);
 		}
 
 		ocelot_write_rix(ocelot, mask, ANA_PGID_PGID, PGID_SRC + port);
@@ -2163,29 +2168,94 @@ void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining)
 	if (!joining && ocelot->ops->cut_through_fwd)
 		ocelot->ops->cut_through_fwd(ocelot);
 }
-EXPORT_SYMBOL(ocelot_apply_bridge_fwd_mask);
 
-void ocelot_port_set_dsa_8021q_cpu(struct ocelot *ocelot, int port)
+/* Update PGID_CPU which is the destination port mask used for whitelisting
+ * unicast addresses filtered towards the host. In the normal and NPI modes,
+ * this points to the analyzer entry for the CPU port module, while in DSA
+ * tag_8021q mode, it is a bit mask of all active CPU ports.
+ * PGID_SRC will take care of forwarding a packet from one user port to
+ * no more than a single CPU port.
+ */
+static void ocelot_update_pgid_cpu(struct ocelot *ocelot)
 {
+	int pgid_cpu = 0;
+	int port;
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+		if (!ocelot_port || !ocelot_port->is_dsa_8021q_cpu)
+			continue;
+
+		pgid_cpu |= BIT(port);
+	}
+
+	if (!pgid_cpu)
+		pgid_cpu = BIT(ocelot->num_phys_ports);
+
+	ocelot_write_rix(ocelot, pgid_cpu, ANA_PGID_PGID, PGID_CPU);
+}
+
+void ocelot_port_assign_dsa_8021q_cpu(struct ocelot *ocelot, int port,
+				      int cpu)
+{
+	struct ocelot_port *cpu_port = ocelot->ports[cpu];
 	u16 vid;
 
-	ocelot->ports[port]->is_dsa_8021q_cpu = true;
+	mutex_lock(&ocelot->fwd_domain_lock);
 
-	for (vid = OCELOT_RSV_VLAN_RANGE_START; vid < VLAN_N_VID; vid++)
-		ocelot_vlan_member_add(ocelot, port, vid, true);
+	ocelot->ports[port]->dsa_8021q_cpu = cpu_port;
+
+	if (!cpu_port->is_dsa_8021q_cpu) {
+		cpu_port->is_dsa_8021q_cpu = true;
+
+		for (vid = OCELOT_RSV_VLAN_RANGE_START; vid < VLAN_N_VID; vid++)
+			ocelot_vlan_member_add(ocelot, cpu, vid, true);
+
+		ocelot_update_pgid_cpu(ocelot);
+	}
+
+	ocelot_apply_bridge_fwd_mask(ocelot, true);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
-EXPORT_SYMBOL_GPL(ocelot_port_set_dsa_8021q_cpu);
+EXPORT_SYMBOL_GPL(ocelot_port_assign_dsa_8021q_cpu);
 
-void ocelot_port_unset_dsa_8021q_cpu(struct ocelot *ocelot, int port)
+void ocelot_port_unassign_dsa_8021q_cpu(struct ocelot *ocelot, int port)
 {
+	struct ocelot_port *cpu_port = ocelot->ports[port]->dsa_8021q_cpu;
+	bool keep = false;
 	u16 vid;
+	int p;
 
-	ocelot->ports[port]->is_dsa_8021q_cpu = false;
+	mutex_lock(&ocelot->fwd_domain_lock);
 
-	for (vid = OCELOT_RSV_VLAN_RANGE_START; vid < VLAN_N_VID; vid++)
-		ocelot_vlan_member_del(ocelot, port, vid);
+	ocelot->ports[port]->dsa_8021q_cpu = NULL;
+
+	for (p = 0; p < ocelot->num_phys_ports; p++) {
+		if (!ocelot->ports[p])
+			continue;
+
+		if (ocelot->ports[p]->dsa_8021q_cpu == cpu_port) {
+			keep = true;
+			break;
+		}
+	}
+
+	if (!keep) {
+		cpu_port->is_dsa_8021q_cpu = false;
+
+		for (vid = OCELOT_RSV_VLAN_RANGE_START; vid < VLAN_N_VID; vid++)
+			ocelot_vlan_member_del(ocelot, cpu_port->index, vid);
+
+		ocelot_update_pgid_cpu(ocelot);
+	}
+
+	ocelot_apply_bridge_fwd_mask(ocelot, true);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
-EXPORT_SYMBOL_GPL(ocelot_port_unset_dsa_8021q_cpu);
+EXPORT_SYMBOL_GPL(ocelot_port_unassign_dsa_8021q_cpu);
 
 void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port, u8 state)
 {

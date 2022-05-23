@@ -45,24 +45,26 @@ static struct net_device *felix_classify_db(struct dsa_db db)
 /* Set up VCAP ES0 rules for pushing a tag_8021q VLAN towards the CPU such that
  * the tagger can perform RX source port identification.
  */
-static int felix_tag_8021q_vlan_add_rx(struct felix *felix, int port, u16 vid)
+static int felix_tag_8021q_vlan_add_rx(struct dsa_switch *ds, int port,
+				       int upstream, u16 vid)
 {
 	struct ocelot_vcap_filter *outer_tagging_rule;
-	struct ocelot *ocelot = &felix->ocelot;
-	struct dsa_switch *ds = felix->ds;
-	int key_length, upstream, err;
+	struct ocelot *ocelot = ds->priv;
+	unsigned long cookie;
+	int key_length, err;
 
 	key_length = ocelot->vcap[VCAP_ES0].keys[VCAP_ES0_IGR_PORT].length;
-	upstream = dsa_upstream_port(ds, port);
 
 	outer_tagging_rule = kzalloc(sizeof(struct ocelot_vcap_filter),
 				     GFP_KERNEL);
 	if (!outer_tagging_rule)
 		return -ENOMEM;
 
+	cookie = OCELOT_VCAP_ES0_TAG_8021Q_RXVLAN(ocelot, port, upstream);
+
 	outer_tagging_rule->key_type = OCELOT_VCAP_KEY_ANY;
 	outer_tagging_rule->prio = 1;
-	outer_tagging_rule->id.cookie = OCELOT_VCAP_ES0_TAG_8021Q_RXVLAN(ocelot, port);
+	outer_tagging_rule->id.cookie = cookie;
 	outer_tagging_rule->id.tc_offload = false;
 	outer_tagging_rule->block_id = VCAP_ES0;
 	outer_tagging_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -83,16 +85,19 @@ static int felix_tag_8021q_vlan_add_rx(struct felix *felix, int port, u16 vid)
 	return err;
 }
 
-static int felix_tag_8021q_vlan_del_rx(struct felix *felix, int port, u16 vid)
+static int felix_tag_8021q_vlan_del_rx(struct dsa_switch *ds, int port,
+				       int upstream, u16 vid)
 {
 	struct ocelot_vcap_filter *outer_tagging_rule;
 	struct ocelot_vcap_block *block_vcap_es0;
-	struct ocelot *ocelot = &felix->ocelot;
+	struct ocelot *ocelot = ds->priv;
+	unsigned long cookie;
 
 	block_vcap_es0 = &ocelot->block[VCAP_ES0];
+	cookie = OCELOT_VCAP_ES0_TAG_8021Q_RXVLAN(ocelot, port, upstream);
 
 	outer_tagging_rule = ocelot_vcap_block_find_filter_by_id(block_vcap_es0,
-								 port, false);
+								 cookie, false);
 	if (!outer_tagging_rule)
 		return -ENOENT;
 
@@ -102,12 +107,14 @@ static int felix_tag_8021q_vlan_del_rx(struct felix *felix, int port, u16 vid)
 /* Set up VCAP IS1 rules for stripping the tag_8021q VLAN on TX and VCAP IS2
  * rules for steering those tagged packets towards the correct destination port
  */
-static int felix_tag_8021q_vlan_add_tx(struct felix *felix, int port, u16 vid)
+static int felix_tag_8021q_vlan_add_tx(struct dsa_switch *ds, int port,
+				       u16 vid)
 {
 	struct ocelot_vcap_filter *untagging_rule, *redirect_rule;
-	struct ocelot *ocelot = &felix->ocelot;
-	struct dsa_switch *ds = felix->ds;
-	int upstream, err;
+	unsigned long cpu_ports = dsa_cpu_ports(ds);
+	struct ocelot *ocelot = ds->priv;
+	unsigned long cookie;
+	int err;
 
 	untagging_rule = kzalloc(sizeof(struct ocelot_vcap_filter), GFP_KERNEL);
 	if (!untagging_rule)
@@ -119,14 +126,14 @@ static int felix_tag_8021q_vlan_add_tx(struct felix *felix, int port, u16 vid)
 		return -ENOMEM;
 	}
 
-	upstream = dsa_upstream_port(ds, port);
+	cookie = OCELOT_VCAP_IS1_TAG_8021Q_TXVLAN(ocelot, port);
 
 	untagging_rule->key_type = OCELOT_VCAP_KEY_ANY;
-	untagging_rule->ingress_port_mask = BIT(upstream);
+	untagging_rule->ingress_port_mask = cpu_ports;
 	untagging_rule->vlan.vid.value = vid;
 	untagging_rule->vlan.vid.mask = VLAN_VID_MASK;
 	untagging_rule->prio = 1;
-	untagging_rule->id.cookie = OCELOT_VCAP_IS1_TAG_8021Q_TXVLAN(ocelot, port);
+	untagging_rule->id.cookie = cookie;
 	untagging_rule->id.tc_offload = false;
 	untagging_rule->block_id = VCAP_IS1;
 	untagging_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -143,11 +150,13 @@ static int felix_tag_8021q_vlan_add_tx(struct felix *felix, int port, u16 vid)
 		return err;
 	}
 
+	cookie = OCELOT_VCAP_IS2_TAG_8021Q_TXVLAN(ocelot, port);
+
 	redirect_rule->key_type = OCELOT_VCAP_KEY_ANY;
-	redirect_rule->ingress_port_mask = BIT(upstream);
+	redirect_rule->ingress_port_mask = cpu_ports;
 	redirect_rule->pag = port;
 	redirect_rule->prio = 1;
-	redirect_rule->id.cookie = OCELOT_VCAP_IS2_TAG_8021Q_TXVLAN(ocelot, port);
+	redirect_rule->id.cookie = cookie;
 	redirect_rule->id.tc_offload = false;
 	redirect_rule->block_id = VCAP_IS2;
 	redirect_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -165,19 +174,21 @@ static int felix_tag_8021q_vlan_add_tx(struct felix *felix, int port, u16 vid)
 	return 0;
 }
 
-static int felix_tag_8021q_vlan_del_tx(struct felix *felix, int port, u16 vid)
+static int felix_tag_8021q_vlan_del_tx(struct dsa_switch *ds, int port, u16 vid)
 {
 	struct ocelot_vcap_filter *untagging_rule, *redirect_rule;
 	struct ocelot_vcap_block *block_vcap_is1;
 	struct ocelot_vcap_block *block_vcap_is2;
-	struct ocelot *ocelot = &felix->ocelot;
+	struct ocelot *ocelot = ds->priv;
+	unsigned long cookie;
 	int err;
 
 	block_vcap_is1 = &ocelot->block[VCAP_IS1];
 	block_vcap_is2 = &ocelot->block[VCAP_IS2];
 
+	cookie = OCELOT_VCAP_IS1_TAG_8021Q_TXVLAN(ocelot, port);
 	untagging_rule = ocelot_vcap_block_find_filter_by_id(block_vcap_is1,
-							     port, false);
+							     cookie, false);
 	if (!untagging_rule)
 		return -ENOENT;
 
@@ -185,8 +196,9 @@ static int felix_tag_8021q_vlan_del_tx(struct felix *felix, int port, u16 vid)
 	if (err)
 		return err;
 
+	cookie = OCELOT_VCAP_IS2_TAG_8021Q_TXVLAN(ocelot, port);
 	redirect_rule = ocelot_vcap_block_find_filter_by_id(block_vcap_is2,
-							    port, false);
+							    cookie, false);
 	if (!redirect_rule)
 		return -ENOENT;
 
@@ -196,7 +208,7 @@ static int felix_tag_8021q_vlan_del_tx(struct felix *felix, int port, u16 vid)
 static int felix_tag_8021q_vlan_add(struct dsa_switch *ds, int port, u16 vid,
 				    u16 flags)
 {
-	struct ocelot *ocelot = ds->priv;
+	struct dsa_port *cpu_dp;
 	int err;
 
 	/* tag_8021q.c assumes we are implementing this via port VLAN
@@ -206,74 +218,50 @@ static int felix_tag_8021q_vlan_add(struct dsa_switch *ds, int port, u16 vid,
 	if (!dsa_is_user_port(ds, port))
 		return 0;
 
-	err = felix_tag_8021q_vlan_add_rx(ocelot_to_felix(ocelot), port, vid);
-	if (err)
-		return err;
-
-	err = felix_tag_8021q_vlan_add_tx(ocelot_to_felix(ocelot), port, vid);
-	if (err) {
-		felix_tag_8021q_vlan_del_rx(ocelot_to_felix(ocelot), port, vid);
-		return err;
+	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
+		err = felix_tag_8021q_vlan_add_rx(ds, port, cpu_dp->index, vid);
+		if (err)
+			return err;
 	}
 
+	err = felix_tag_8021q_vlan_add_tx(ds, port, vid);
+	if (err)
+		goto add_tx_failed;
+
 	return 0;
+
+add_tx_failed:
+	dsa_switch_for_each_cpu_port(cpu_dp, ds)
+		felix_tag_8021q_vlan_del_rx(ds, port, cpu_dp->index, vid);
+
+	return err;
 }
 
 static int felix_tag_8021q_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 {
-	struct ocelot *ocelot = ds->priv;
+	struct dsa_port *cpu_dp;
 	int err;
 
 	if (!dsa_is_user_port(ds, port))
 		return 0;
 
-	err = felix_tag_8021q_vlan_del_rx(ocelot_to_felix(ocelot), port, vid);
-	if (err)
-		return err;
-
-	err = felix_tag_8021q_vlan_del_tx(ocelot_to_felix(ocelot), port, vid);
-	if (err) {
-		felix_tag_8021q_vlan_add_rx(ocelot_to_felix(ocelot), port, vid);
-		return err;
+	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
+		err = felix_tag_8021q_vlan_del_rx(ds, port, cpu_dp->index, vid);
+		if (err)
+			return err;
 	}
 
+	err = felix_tag_8021q_vlan_del_tx(ds, port, vid);
+	if (err)
+		goto del_tx_failed;
+
 	return 0;
-}
 
-/* Alternatively to using the NPI functionality, that same hardware MAC
- * connected internally to the enetc or fman DSA master can be configured to
- * use the software-defined tag_8021q frame format. As far as the hardware is
- * concerned, it thinks it is a "dumb switch" - the queues of the CPU port
- * module are now disconnected from it, but can still be accessed through
- * register-based MMIO.
- */
-static void felix_8021q_cpu_port_init(struct ocelot *ocelot, int port)
-{
-	mutex_lock(&ocelot->fwd_domain_lock);
+del_tx_failed:
+	dsa_switch_for_each_cpu_port(cpu_dp, ds)
+		felix_tag_8021q_vlan_add_rx(ds, port, cpu_dp->index, vid);
 
-	ocelot_port_set_dsa_8021q_cpu(ocelot, port);
-
-	/* Overwrite PGID_CPU with the non-tagging port */
-	ocelot_write_rix(ocelot, BIT(port), ANA_PGID_PGID, PGID_CPU);
-
-	ocelot_apply_bridge_fwd_mask(ocelot, true);
-
-	mutex_unlock(&ocelot->fwd_domain_lock);
-}
-
-static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
-{
-	mutex_lock(&ocelot->fwd_domain_lock);
-
-	ocelot_port_unset_dsa_8021q_cpu(ocelot, port);
-
-	/* Restore PGID_CPU */
-	ocelot_write_rix(ocelot, BIT(ocelot->num_phys_ports), ANA_PGID_PGID,
-			 PGID_CPU);
-
-	ocelot_apply_bridge_fwd_mask(ocelot, true);
-
-	mutex_unlock(&ocelot->fwd_domain_lock);
+	return err;
 }
 
 static int felix_trap_get_cpu_port(struct dsa_switch *ds,
@@ -434,6 +422,13 @@ static unsigned long felix_tag_npi_get_host_fwd_mask(struct dsa_switch *ds)
 	return BIT(ocelot->num_phys_ports);
 }
 
+/* Alternatively to using the NPI functionality, that same hardware MAC
+ * connected internally to the enetc or fman DSA master can be configured to
+ * use the software-defined tag_8021q frame format. As far as the hardware is
+ * concerned, it thinks it is a "dumb switch" - the queues of the CPU port
+ * module are now disconnected from it, but can still be accessed through
+ * register-based MMIO.
+ */
 static const struct felix_tag_proto_ops felix_tag_npi_proto_ops = {
 	.setup			= felix_tag_npi_setup,
 	.teardown		= felix_tag_npi_teardown,
@@ -443,21 +438,18 @@ static const struct felix_tag_proto_ops felix_tag_npi_proto_ops = {
 static int felix_tag_8021q_setup(struct dsa_switch *ds)
 {
 	struct ocelot *ocelot = ds->priv;
-	struct dsa_port *dp, *cpu_dp;
+	struct dsa_port *dp;
 	int err;
 
 	err = dsa_tag_8021q_register(ds, htons(ETH_P_8021AD));
 	if (err)
 		return err;
 
-	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
-		felix_8021q_cpu_port_init(ocelot, cpu_dp->index);
+	dsa_switch_for_each_user_port(dp, ds)
+		ocelot_port_assign_dsa_8021q_cpu(ocelot, dp->index,
+						 dp->cpu_dp->index);
 
-		/* TODO we could support multiple CPU ports in tag_8021q mode */
-		break;
-	}
-
-	dsa_switch_for_each_available_port(dp, ds) {
+	dsa_switch_for_each_available_port(dp, ds)
 		/* This overwrites ocelot_init():
 		 * Do not forward BPDU frames to the CPU port module,
 		 * for 2 reasons:
@@ -471,7 +463,6 @@ static int felix_tag_8021q_setup(struct dsa_switch *ds)
 		ocelot_write_gix(ocelot,
 				 ANA_PORT_CPU_FWD_BPDU_CFG_BPDU_REDIR_ENA(0),
 				 ANA_PORT_CPU_FWD_BPDU_CFG, dp->index);
-	}
 
 	/* The ownership of the CPU port module's queues might have just been
 	 * transferred to the tag_8021q tagger from the NPI-based tagger.
@@ -488,9 +479,9 @@ static int felix_tag_8021q_setup(struct dsa_switch *ds)
 static void felix_tag_8021q_teardown(struct dsa_switch *ds)
 {
 	struct ocelot *ocelot = ds->priv;
-	struct dsa_port *dp, *cpu_dp;
+	struct dsa_port *dp;
 
-	dsa_switch_for_each_available_port(dp, ds) {
+	dsa_switch_for_each_available_port(dp, ds)
 		/* Restore the logic from ocelot_init:
 		 * do not forward BPDU frames to the front ports.
 		 */
@@ -498,14 +489,9 @@ static void felix_tag_8021q_teardown(struct dsa_switch *ds)
 				 ANA_PORT_CPU_FWD_BPDU_CFG_BPDU_REDIR_ENA(0xffff),
 				 ANA_PORT_CPU_FWD_BPDU_CFG,
 				 dp->index);
-	}
 
-	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
-		felix_8021q_cpu_port_deinit(ocelot, cpu_dp->index);
-
-		/* TODO we could support multiple CPU ports in tag_8021q mode */
-		break;
-	}
+	dsa_switch_for_each_user_port(dp, ds)
+		ocelot_port_unassign_dsa_8021q_cpu(ocelot, dp->index);
 
 	dsa_tag_8021q_unregister(ds);
 }
@@ -534,6 +520,9 @@ static void felix_set_host_flood(struct dsa_switch *ds, unsigned long mask,
 	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MC);
 	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MCIPV4);
 	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MCIPV6);
+
+	val = bc ? mask : 0;
+	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_BC);
 }
 
 static void
