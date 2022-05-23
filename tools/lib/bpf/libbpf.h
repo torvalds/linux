@@ -52,6 +52,15 @@ enum libbpf_errno {
 LIBBPF_API int libbpf_strerror(int err, char *buf, size_t size);
 
 /**
+ * @brief **libbpf_bpf_attach_type_str()** converts the provided attach type
+ * value into a textual representation.
+ * @param t The attach type.
+ * @return Pointer to a static string identifying the attach type. NULL is
+ * returned for unknown **bpf_attach_type** values.
+ */
+LIBBPF_API const char *libbpf_bpf_attach_type_str(enum bpf_attach_type t);
+
+/**
  * @brief **libbpf_bpf_map_type_str()** converts the provided map type value
  * into a textual representation.
  * @param t The map type.
