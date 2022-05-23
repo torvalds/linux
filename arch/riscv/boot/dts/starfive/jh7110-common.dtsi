@@ -181,6 +181,27 @@
 	pinctrl-0 = <&i2c4_pins>;
 	status = "okay";
 
+	ov5640: ov5640@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		clocks = <&clk_ext_camera>;
+		clock-names = "xclk";
+		//DOVDD-supply = <&v2v8>;
+		rotation = <180>;
+		port {
+			// Parallel bus endpoint
+			ov5640_to_parallel: endpoint {
+				remote-endpoint = <&parallel_from_ov5640>;
+				bus-type = <5>;		/* Parallel */
+				bus-width = <8>;
+				data-shift = <2>;	/* lines 13:6 are used */
+				hsync-active = <0>;
+				vsync-active = <1>;
+				pclk-sample = <1>;
+			};
+		};
+	};
+
 	sc2235: sc2235@30 {
 		compatible = "sc2235";
 		reg = <0x30>;
@@ -233,7 +254,7 @@
 		reg = <0x36>;
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";
-		reset-gpio = <&gpio 18 0>;
+		//reset-gpio = <&gpio 18 0>;
 		rotation = <180>;
 
 		port {
@@ -310,13 +331,29 @@
 
 		port@2 {
 			reg = <2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			/* Parallel bus endpoint */
-			parallel_from_sc2235: endpoint {
-				remote-endpoint = <&sc2235_to_parallel>;
-				bus-type = <5>;      /* Parallel */
+			parallel_from_ov5640: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&ov5640_to_parallel>;
+				bus-type = <5>;		/* Parallel */
 				bus-width = <8>;
-				data-shift = <2>; /* lines 9:2 are used */
+				data-shift = <2>;	/* lines 9:2 are used */
+				hsync-active = <1>;
+				vsync-active = <0>;
+				pclk-sample = <1>;
+				status = "okay";
+			};
+
+			/* Parallel bus endpoint */
+			parallel_from_sc2235: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&sc2235_to_parallel>;
+				bus-type = <5>;		/* Parallel */
+				bus-width = <8>;
+				data-shift = <2>;	/* lines 9:2 are used */
 				hsync-active = <1>;
 				vsync-active = <0>;
 				pclk-sample = <1>;
@@ -334,8 +371,8 @@
 				reg = <0>;
 				remote-endpoint = <&ov13850_to_csi2rx0>;
 				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
-				clock-lanes = <2>;
-				data-lanes = <0 1>;
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
 				status = "okay";
 			};
 
