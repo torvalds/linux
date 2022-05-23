@@ -35,4 +35,30 @@ int bad_relo_subprog(const void *ctx)
 	return bad_subprog() + bpf_core_field_size(t->pid);
 }
 
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, int);
+} existing_map SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, int);
+} missing_map SEC(".maps");
+
+SEC("?raw_tp/sys_enter")
+int use_missing_map(const void *ctx)
+{
+	int zero = 0, *value;
+
+	value = bpf_map_lookup_elem(&existing_map, &zero);
+
+	value = bpf_map_lookup_elem(&missing_map, &zero);
+
+	return value != NULL;
+}
+
 char _license[] SEC("license") = "GPL";

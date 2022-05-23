@@ -190,9 +190,7 @@ __weak void trigger_300_usdts(void)
 
 static void __always_inline f400(int x __attribute__((unused)))
 {
-	static int y;
-
-	STAP_PROBE1(test, usdt_400, y++);
+	STAP_PROBE1(test, usdt_400, 400);
 }
 
 /* this time we have 400 different USDT call sites, but they have uniform
@@ -299,7 +297,7 @@ static void subtest_multispec_usdt(void)
 	trigger_400_usdts();
 
 	ASSERT_EQ(bss->usdt_100_called, 400, "usdt_400_called");
-	ASSERT_EQ(bss->usdt_100_sum, 399 * 400 / 2, "usdt_400_sum");
+	ASSERT_EQ(bss->usdt_100_sum, 400 * 400, "usdt_400_sum");
 
 cleanup:
 	test_usdt__destroy(skel);

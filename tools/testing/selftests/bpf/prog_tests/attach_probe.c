@@ -55,6 +55,7 @@ void test_attach_probe(void)
 	if (!ASSERT_OK_PTR(skel->bss, "check_bss"))
 		goto cleanup;
 
+	/* manual-attach kprobe/kretprobe */
 	kprobe_link = bpf_program__attach_kprobe(skel->progs.handle_kprobe,
 						 false /* retprobe */,
 						 SYS_NANOSLEEP_KPROBE_NAME);
@@ -68,6 +69,13 @@ void test_attach_probe(void)
 	if (!ASSERT_OK_PTR(kretprobe_link, "attach_kretprobe"))
 		goto cleanup;
 	skel->links.handle_kretprobe = kretprobe_link;
+
+	/* auto-attachable kprobe and kretprobe */
+	skel->links.handle_kprobe_auto = bpf_program__attach(skel->progs.handle_kprobe_auto);
+	ASSERT_OK_PTR(skel->links.handle_kprobe_auto, "attach_kprobe_auto");
+
+	skel->links.handle_kretprobe_auto = bpf_program__attach(skel->progs.handle_kretprobe_auto);
+	ASSERT_OK_PTR(skel->links.handle_kretprobe_auto, "attach_kretprobe_auto");
 
 	if (!legacy)
 		ASSERT_EQ(uprobe_ref_ctr, 0, "uprobe_ref_ctr_before");
@@ -157,7 +165,9 @@ void test_attach_probe(void)
 	trigger_func2();
 
 	ASSERT_EQ(skel->bss->kprobe_res, 1, "check_kprobe_res");
+	ASSERT_EQ(skel->bss->kprobe2_res, 11, "check_kprobe_auto_res");
 	ASSERT_EQ(skel->bss->kretprobe_res, 2, "check_kretprobe_res");
+	ASSERT_EQ(skel->bss->kretprobe2_res, 22, "check_kretprobe_auto_res");
 	ASSERT_EQ(skel->bss->uprobe_res, 3, "check_uprobe_res");
 	ASSERT_EQ(skel->bss->uretprobe_res, 4, "check_uretprobe_res");
 	ASSERT_EQ(skel->bss->uprobe_byname_res, 5, "check_uprobe_byname_res");

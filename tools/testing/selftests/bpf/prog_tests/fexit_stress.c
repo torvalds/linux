@@ -5,7 +5,7 @@
 /* that's kernel internal BPF_MAX_TRAMP_PROGS define */
 #define CNT 38
 
-void test_fexit_stress(void)
+void serial_test_fexit_stress(void)
 {
 	char test_skb[128] = {};
 	int fexit_fd[CNT] = {};

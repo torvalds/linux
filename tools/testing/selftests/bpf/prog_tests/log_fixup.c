@@ -85,13 +85,46 @@ static void bad_core_relo_subprog(void)
 	if (!ASSERT_ERR(err, "load_fail"))
 		goto cleanup;
 
-	/* there should be no prog loading log because we specified per-prog log buf */
 	ASSERT_HAS_SUBSTR(log_buf,
 			  ": <invalid CO-RE relocation>\n"
 			  "failed to resolve CO-RE relocation <byte_off> ",
 			  "log_buf");
 	ASSERT_HAS_SUBSTR(log_buf,
 			  "struct task_struct___bad.fake_field_subprog (0:2 @ offset 8)\n",
+			  "log_buf");
+
+	if (env.verbosity > VERBOSE_NONE)
+		printf("LOG:   \n=================\n%s=================\n", log_buf);
+
+cleanup:
+	test_log_fixup__destroy(skel);
+}
+
+static void missing_map(void)
+{
+	char log_buf[8 * 1024];
+	struct test_log_fixup* skel;
+	int err;
+
+	skel = test_log_fixup__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	bpf_map__set_autocreate(skel->maps.missing_map, false);
+
+	bpf_program__set_autoload(skel->progs.use_missing_map, true);
+	bpf_program__set_log_buf(skel->progs.use_missing_map, log_buf, sizeof(log_buf));
+
+	err = test_log_fixup__load(skel);
+	if (!ASSERT_ERR(err, "load_fail"))
+		goto cleanup;
+
+	ASSERT_TRUE(bpf_map__autocreate(skel->maps.existing_map), "existing_map_autocreate");
+	ASSERT_FALSE(bpf_map__autocreate(skel->maps.missing_map), "missing_map_autocreate");
+
+	ASSERT_HAS_SUBSTR(log_buf,
+			  "8: <invalid BPF map reference>\n"
+			  "BPF map 'missing_map' is referenced but wasn't created\n",
 			  "log_buf");
 
 	if (env.verbosity > VERBOSE_NONE)
@@ -111,4 +144,6 @@ void test_log_fixup(void)
 		bad_core_relo(250, TRUNC_FULL  /* truncate also libbpf's message patch */);
 	if (test__start_subtest("bad_core_relo_subprog"))
 		bad_core_relo_subprog();
+	if (test__start_subtest("missing_map"))
+		missing_map();
 }

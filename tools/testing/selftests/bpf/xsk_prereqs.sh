@@ -8,7 +8,6 @@ ksft_xfail=2
 ksft_xpass=3
 ksft_skip=4
 
-SPECFILE=veth.spec
 XSKOBJ=xdpxceiver
 
 validate_root_exec()
@@ -16,7 +15,7 @@ validate_root_exec()
 	msg="skip all tests:"
 	if [ $UID != 0 ]; then
 		echo $msg must be run as root >&2
-		test_exit $ksft_fail 2
+		test_exit $ksft_fail
 	else
 		return $ksft_pass
 	fi
@@ -27,39 +26,31 @@ validate_veth_support()
 	msg="skip all tests:"
 	if [ $(ip link add $1 type veth 2>/dev/null; echo $?;) != 0 ]; then
 		echo $msg veth kernel support not available >&2
-		test_exit $ksft_skip 1
+		test_exit $ksft_skip
 	else
 		ip link del $1
 		return $ksft_pass
 	fi
 }
 
-validate_veth_spec_file()
-{
-	if [ ! -f ${SPECFILE} ]; then
-		test_exit $ksft_skip 1
-	fi
-}
-
 test_status()
 {
 	statusval=$1
-	if [ $statusval -eq 2 ]; then
-		echo -e "$2: [ FAIL ]"
-	elif [ $statusval -eq 1 ]; then
-		echo -e "$2: [ SKIPPED ]"
-	elif [ $statusval -eq 0 ]; then
-		echo -e "$2: [ PASS ]"
+	if [ $statusval -eq $ksft_fail ]; then
+		echo "$2: [ FAIL ]"
+	elif [ $statusval -eq $ksft_skip ]; then
+		echo "$2: [ SKIPPED ]"
+	elif [ $statusval -eq $ksft_pass ]; then
+		echo "$2: [ PASS ]"
 	fi
 }
 
 test_exit()
 {
-	retval=$1
-	if [ $2 -ne 0 ]; then
-		test_status $2 $(basename $0)
+	if [ $1 -ne 0 ]; then
+		test_status $1 $(basename $0)
 	fi
-	exit $retval
+	exit 1
 }
 
 clear_configs()
@@ -74,9 +65,6 @@ clear_configs()
 	#veth node inside NS won't get removed so we explicitly remove it
 	[ $(ip link show $1 &>/dev/null; echo $?;) == 0 ] &&
 		{ ip link del $1; }
-	if [ -f ${SPECFILE} ]; then
-		rm -f ${SPECFILE}
-	fi
 }
 
 cleanup_exit()
@@ -86,10 +74,19 @@ cleanup_exit()
 
 validate_ip_utility()
 {
-	[ ! $(type -P ip) ] && { echo "'ip' not found. Skipping tests."; test_exit $ksft_skip 1; }
+	[ ! $(type -P ip) ] && { echo "'ip' not found. Skipping tests."; test_exit $ksft_skip; }
 }
 
 execxdpxceiver()
 {
-	./${XSKOBJ} -i ${VETH0} -i ${VETH1},${NS1} ${VERBOSE_ARG} ${DUMP_PKTS_ARG}
+        if [[ $busy_poll -eq 1 ]]; then
+	        ARGS+="-b "
+	fi
+
+	./${XSKOBJ} -i ${VETH0} -i ${VETH1},${NS1} ${ARGS}
+
+	retval=$?
+	test_status $retval "${TEST_NAME}"
+	statusList+=($retval)
+	nameList+=(${TEST_NAME})
 }

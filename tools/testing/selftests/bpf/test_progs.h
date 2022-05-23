@@ -64,23 +64,32 @@ struct test_selector {
 	int num_set_len;
 };
 
+struct subtest_state {
+	char *name;
+	size_t log_cnt;
+	char *log_buf;
+	int error_cnt;
+	bool skipped;
+	bool filtered;
+
+	FILE *stdout;
+};
+
 struct test_state {
 	bool tested;
 	bool force_log;
 
 	int error_cnt;
 	int skip_cnt;
-	int subtest_skip_cnt;
 	int sub_succ_cnt;
 
-	char *subtest_name;
+	struct subtest_state *subtest_states;
 	int subtest_num;
-
-	/* store counts before subtest started */
-	int old_error_cnt;
 
 	size_t log_cnt;
 	char *log_buf;
+
+	FILE *stdout;
 };
 
 struct test_env {
@@ -96,7 +105,8 @@ struct test_env {
 	bool list_test_names;
 
 	struct prog_test_def *test; /* current running test */
-	struct test_state *test_state; /* current running test result */
+	struct test_state *test_state; /* current running test state */
+	struct subtest_state *subtest_state; /* current running subtest state */
 
 	FILE *stdout;
 	FILE *stderr;
@@ -116,29 +126,40 @@ struct test_env {
 };
 
 #define MAX_LOG_TRUNK_SIZE 8192
+#define MAX_SUBTEST_NAME 1024
 enum msg_type {
 	MSG_DO_TEST = 0,
 	MSG_TEST_DONE = 1,
 	MSG_TEST_LOG = 2,
+	MSG_SUBTEST_DONE = 3,
 	MSG_EXIT = 255,
 };
 struct msg {
 	enum msg_type type;
 	union {
 		struct {
-			int test_num;
+			int num;
 		} do_test;
 		struct {
-			int test_num;
+			int num;
 			int sub_succ_cnt;
 			int error_cnt;
 			int skip_cnt;
 			bool have_log;
+			int subtest_num;
 		} test_done;
 		struct {
 			char log_buf[MAX_LOG_TRUNK_SIZE + 1];
 			bool is_last;
 		} test_log;
+		struct {
+			int num;
+			char name[MAX_SUBTEST_NAME + 1];
+			int error_cnt;
+			bool skipped;
+			bool filtered;
+			bool have_log;
+		} subtest_done;
 	};
 };
 

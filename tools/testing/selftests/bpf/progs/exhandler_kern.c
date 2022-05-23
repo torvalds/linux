@@ -7,8 +7,6 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 
-#define barrier_var(var) asm volatile("" : "=r"(var) : "0"(var))
-
 char _license[] SEC("license") = "GPL";
 
 unsigned int exception_triggered;

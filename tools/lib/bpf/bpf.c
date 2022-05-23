@@ -208,86 +208,6 @@ int bpf_map_create(enum bpf_map_type map_type,
 	return libbpf_err_errno(fd);
 }
 
-int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
-{
-	LIBBPF_OPTS(bpf_map_create_opts, p);
-
-	p.map_flags = create_attr->map_flags;
-	p.numa_node = create_attr->numa_node;
-	p.btf_fd = create_attr->btf_fd;
-	p.btf_key_type_id = create_attr->btf_key_type_id;
-	p.btf_value_type_id = create_attr->btf_value_type_id;
-	p.map_ifindex = create_attr->map_ifindex;
-	if (create_attr->map_type == BPF_MAP_TYPE_STRUCT_OPS)
-		p.btf_vmlinux_value_type_id = create_attr->btf_vmlinux_value_type_id;
-	else
-		p.inner_map_fd = create_attr->inner_map_fd;
-
-	return bpf_map_create(create_attr->map_type, create_attr->name,
-			      create_attr->key_size, create_attr->value_size,
-			      create_attr->max_entries, &p);
-}
-
-int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
-			int key_size, int value_size, int max_entries,
-			__u32 map_flags, int node)
-{
-	LIBBPF_OPTS(bpf_map_create_opts, opts);
-
-	opts.map_flags = map_flags;
-	if (node >= 0) {
-		opts.numa_node = node;
-		opts.map_flags |= BPF_F_NUMA_NODE;
-	}
-
-	return bpf_map_create(map_type, name, key_size, value_size, max_entries, &opts);
-}
-
-int bpf_create_map(enum bpf_map_type map_type, int key_size,
-		   int value_size, int max_entries, __u32 map_flags)
-{
-	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = map_flags);
-
-	return bpf_map_create(map_type, NULL, key_size, value_size, max_entries, &opts);
-}
-
-int bpf_create_map_name(enum bpf_map_type map_type, const char *name,
-			int key_size, int value_size, int max_entries,
-			__u32 map_flags)
-{
-	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = map_flags);
-
-	return bpf_map_create(map_type, name, key_size, value_size, max_entries, &opts);
-}
-
-int bpf_create_map_in_map_node(enum bpf_map_type map_type, const char *name,
-			       int key_size, int inner_map_fd, int max_entries,
-			       __u32 map_flags, int node)
-{
-	LIBBPF_OPTS(bpf_map_create_opts, opts);
-
-	opts.inner_map_fd = inner_map_fd;
-	opts.map_flags = map_flags;
-	if (node >= 0) {
-		opts.map_flags |= BPF_F_NUMA_NODE;
-		opts.numa_node = node;
-	}
-
-	return bpf_map_create(map_type, name, key_size, 4, max_entries, &opts);
-}
-
-int bpf_create_map_in_map(enum bpf_map_type map_type, const char *name,
-			  int key_size, int inner_map_fd, int max_entries,
-			  __u32 map_flags)
-{
-	LIBBPF_OPTS(bpf_map_create_opts, opts,
-		.inner_map_fd = inner_map_fd,
-		.map_flags = map_flags,
-	);
-
-	return bpf_map_create(map_type, name, key_size, 4, max_entries, &opts);
-}
-
 static void *
 alloc_zero_tailing_info(const void *orecord, __u32 cnt,
 			__u32 actual_rec_size, __u32 expected_rec_size)
@@ -639,6 +559,20 @@ int bpf_map_delete_elem(int fd, const void *key)
 	return libbpf_err_errno(ret);
 }
 
+int bpf_map_delete_elem_flags(int fd, const void *key, __u64 flags)
+{
+	union bpf_attr attr;
+	int ret;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.map_fd = fd;
+	attr.key = ptr_to_u64(key);
+	attr.flags = flags;
+
+	ret = sys_bpf(BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
+	return libbpf_err_errno(ret);
+}
+
 int bpf_map_get_next_key(int fd, const void *key, void *next_key)
 {
 	union bpf_attr attr;
@@ -861,6 +795,14 @@ int bpf_link_create(int prog_fd, int target_fd,
 		attr.link_create.kprobe_multi.addrs = ptr_to_u64(OPTS_GET(opts, kprobe_multi.addrs, 0));
 		attr.link_create.kprobe_multi.cookies = ptr_to_u64(OPTS_GET(opts, kprobe_multi.cookies, 0));
 		if (!OPTS_ZEROED(opts, kprobe_multi))
+			return libbpf_err(-EINVAL);
+		break;
+	case BPF_TRACE_FENTRY:
+	case BPF_TRACE_FEXIT:
+	case BPF_MODIFY_RETURN:
+	case BPF_LSM_MAC:
+		attr.link_create.tracing.cookie = OPTS_GET(opts, tracing.cookie, 0);
+		if (!OPTS_ZEROED(opts, tracing))
 			return libbpf_err(-EINVAL);
 		break;
 	default:
