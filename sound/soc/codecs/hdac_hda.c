@@ -571,13 +571,14 @@ static const struct snd_soc_dapm_widget hdac_hda_dapm_widgets[] = {
 };
 
 static const struct snd_soc_component_driver hdac_hda_codec = {
-	.probe		= hdac_hda_codec_probe,
-	.remove		= hdac_hda_codec_remove,
-	.idle_bias_on	= false,
-	.dapm_widgets           = hdac_hda_dapm_widgets,
-	.num_dapm_widgets       = ARRAY_SIZE(hdac_hda_dapm_widgets),
-	.dapm_routes            = hdac_hda_dapm_routes,
-	.num_dapm_routes        = ARRAY_SIZE(hdac_hda_dapm_routes),
+	.probe			= hdac_hda_codec_probe,
+	.remove			= hdac_hda_codec_remove,
+	.dapm_widgets		= hdac_hda_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(hdac_hda_dapm_widgets),
+	.dapm_routes		= hdac_hda_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(hdac_hda_dapm_routes),
+	.idle_bias_on		= false,
+	.endianness		= 1,
 };
 
 static int hdac_hda_dev_probe(struct hdac_device *hdev)

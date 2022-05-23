@@ -1113,8 +1113,7 @@ static void rt1015_parse_dt(struct rt1015_priv *rt1015, struct device *dev)
 		&rt1015->pdata.power_up_delay_ms);
 }
 
-static int rt1015_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int rt1015_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt1015_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt1015_priv *rt1015;
@@ -1172,7 +1171,7 @@ static struct i2c_driver rt1015_i2c_driver = {
 		.of_match_table = of_match_ptr(rt1015_of_match),
 		.acpi_match_table = ACPI_PTR(rt1015_acpi_match),
 	},
-	.probe = rt1015_i2c_probe,
+	.probe_new = rt1015_i2c_probe,
 	.shutdown = rt1015_i2c_shutdown,
 	.id_table = rt1015_i2c_id,
 };

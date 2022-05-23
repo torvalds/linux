@@ -130,7 +130,7 @@ static const struct snd_kcontrol_new controls[] = {
 	SOC_DAPM_PIN_SWITCH("DMIC"),
 };
 
-static struct snd_soc_dapm_widget widgets[] = {
+static const struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 
@@ -140,7 +140,7 @@ static struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_SPK("Main Speaker", NULL),
 };
 
-static struct snd_soc_dapm_route audio_paths[] = {
+static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "Headphone", NULL, "HPOUTL" },
 	{ "Headphone", NULL, "HPOUTR" },
 
@@ -189,10 +189,10 @@ static int tobermory_late_probe(struct snd_soc_card *card)
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_card_jack_new(card, "Headset", SND_JACK_HEADSET |
-				    SND_JACK_BTN_0, &tobermory_headset,
-				    tobermory_headset_pins,
-				    ARRAY_SIZE(tobermory_headset_pins));
+	ret = snd_soc_card_jack_new_pins(card, "Headset", SND_JACK_HEADSET |
+					 SND_JACK_BTN_0, &tobermory_headset,
+					 tobermory_headset_pins,
+					 ARRAY_SIZE(tobermory_headset_pins));
 	if (ret)
 		return ret;
 

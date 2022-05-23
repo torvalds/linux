@@ -282,8 +282,7 @@ static int ts3a227e_parse_device_property(struct ts3a227e *ts3a227e,
 	return 0;
 }
 
-static int ts3a227e_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int ts3a227e_i2c_probe(struct i2c_client *i2c)
 {
 	struct ts3a227e *ts3a227e;
 	struct device *dev = &i2c->dev;
@@ -389,7 +388,7 @@ static struct i2c_driver ts3a227e_driver = {
 		.of_match_table = of_match_ptr(ts3a227e_of_match),
 		.acpi_match_table = ACPI_PTR(ts3a227e_acpi_match),
 	},
-	.probe = ts3a227e_i2c_probe,
+	.probe_new = ts3a227e_i2c_probe,
 	.id_table = ts3a227e_i2c_ids,
 };
 module_i2c_driver(ts3a227e_driver);

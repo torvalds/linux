@@ -1981,8 +1981,7 @@ static int wm8903_set_pdata_from_of(struct i2c_client *i2c,
 	return 0;
 }
 
-static int wm8903_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8903_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8903_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8903_priv *wm8903;
@@ -2132,7 +2131,7 @@ static int wm8903_i2c_probe(struct i2c_client *i2c,
 		if (ret != 0) {
 			dev_err(wm8903->dev, "Failed to request IRQ: %d\n",
 				ret);
-			return ret;
+			goto err;
 		}
 
 		/* Enable write sequencer interrupts */
@@ -2214,7 +2213,7 @@ static struct i2c_driver wm8903_i2c_driver = {
 		.name = "wm8903",
 		.of_match_table = wm8903_of_match,
 	},
-	.probe =    wm8903_i2c_probe,
+	.probe_new = wm8903_i2c_probe,
 	.remove =   wm8903_i2c_remove,
 	.id_table = wm8903_i2c_id,
 };

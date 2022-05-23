@@ -68,36 +68,36 @@ struct cs_dsp_alg_region {
 
 /**
  * struct cs_dsp_coeff_ctl - Describes a coefficient control
+ * @list:		List node for internal use
+ * @dsp:		DSP instance associated with this control
+ * @cache:		Cached value of the control
  * @fw_name:		Name of the firmware
  * @subname:		Name of the control parsed from the WMFW
  * @subname_len:	Length of subname
- * @alg_region:		Logical region associated with this control
- * @dsp:		DSP instance associated with this control
- * @enabled:		Flag indicating whether control is enabled
- * @list:		List node for internal use
- * @cache:		Cached value of the control
  * @offset:		Offset of control within alg_region in words
  * @len:		Length of the cached value in bytes
- * @set:		Flag indicating the value has been written by the user
- * @flags:		Bitfield of WMFW_CTL_FLAG_ control flags defined in wmfw.h
  * @type:		One of the WMFW_CTL_TYPE_ control types defined in wmfw.h
+ * @flags:		Bitfield of WMFW_CTL_FLAG_ control flags defined in wmfw.h
+ * @set:		Flag indicating the value has been written by the user
+ * @enabled:		Flag indicating whether control is enabled
+ * @alg_region:		Logical region associated with this control
  * @priv:		For use by the client
  */
 struct cs_dsp_coeff_ctl {
+	struct list_head list;
+	struct cs_dsp *dsp;
+	void *cache;
 	const char *fw_name;
 	/* Subname is needed to match with firmware */
 	const char *subname;
 	unsigned int subname_len;
-	struct cs_dsp_alg_region alg_region;
-	struct cs_dsp *dsp;
-	unsigned int enabled:1;
-	struct list_head list;
-	void *cache;
 	unsigned int offset;
 	size_t len;
-	unsigned int set:1;
-	unsigned int flags;
 	unsigned int type;
+	unsigned int flags;
+	unsigned int set:1;
+	unsigned int enabled:1;
+	struct cs_dsp_alg_region alg_region;
 
 	void *priv;
 };

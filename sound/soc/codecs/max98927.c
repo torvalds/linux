@@ -863,8 +863,7 @@ static void max98927_slot_config(struct i2c_client *i2c,
 		max98927->i_l_slot = 1;
 }
 
-static int max98927_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int max98927_i2c_probe(struct i2c_client *i2c)
 {
 
 	int ret = 0, value;
@@ -977,7 +976,7 @@ static struct i2c_driver max98927_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(max98927_acpi_match),
 		.pm = &max98927_pm,
 	},
-	.probe  = max98927_i2c_probe,
+	.probe_new = max98927_i2c_probe,
 	.remove = max98927_i2c_remove,
 	.id_table = max98927_i2c_id,
 };

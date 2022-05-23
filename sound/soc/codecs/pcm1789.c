@@ -259,13 +259,11 @@ int pcm1789_common_init(struct device *dev, struct regmap *regmap)
 }
 EXPORT_SYMBOL_GPL(pcm1789_common_init);
 
-int pcm1789_common_exit(struct device *dev)
+void pcm1789_common_exit(struct device *dev)
 {
 	struct pcm1789_private *priv = dev_get_drvdata(dev);
 
 	flush_work(&priv->work);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(pcm1789_common_exit);
 
