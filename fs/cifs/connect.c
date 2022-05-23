@@ -3433,7 +3433,9 @@ static int is_path_remote(struct mount_ctx *mnt_ctx)
 	struct cifs_tcon *tcon = mnt_ctx->tcon;
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	char *full_path;
+#ifdef CONFIG_CIFS_DFS_UPCALL
 	bool nodfs = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS;
+#endif
 
 	if (!server->ops->is_path_accessible)
 		return -EOPNOTSUPP;
