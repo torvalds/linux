@@ -758,6 +758,12 @@ struct iscsi_node_acl {
 	struct iscsi_node_stat_grps node_stat_grps;
 };
 
+static inline struct iscsi_node_acl *
+to_iscsi_nacl(struct se_node_acl *se_nacl)
+{
+	return container_of(se_nacl, struct iscsi_node_acl, se_node_acl);
+}
+
 struct iscsi_tpg_attrib {
 	u32			authentication;
 	u32			login_timeout;
@@ -838,6 +844,12 @@ struct iscsi_portal_group {
 	struct list_head	tpg_gnp_list;
 	struct list_head	tpg_list;
 } ____cacheline_aligned;
+
+static inline struct iscsi_portal_group *
+to_iscsi_tpg(struct se_portal_group *se_tpg)
+{
+	return container_of(se_tpg, struct iscsi_portal_group, tpg_se_tpg);
+}
 
 struct iscsi_wwn_stat_grps {
 	struct config_group	iscsi_stat_group;

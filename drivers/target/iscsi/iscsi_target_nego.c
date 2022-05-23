@@ -104,8 +104,8 @@ static u32 iscsi_handle_authentication(
 {
 	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_auth *auth;
-	struct iscsi_node_acl *iscsi_nacl;
-	struct iscsi_portal_group *iscsi_tpg;
+	struct iscsi_node_acl *nacl;
+	struct iscsi_portal_group *tpg;
 	struct se_node_acl *se_nacl;
 
 	if (!sess->sess_ops->SessionType) {
@@ -120,15 +120,13 @@ static u32 iscsi_handle_authentication(
 		}
 
 		if (se_nacl->dynamic_node_acl) {
-			iscsi_tpg = container_of(se_nacl->se_tpg,
-					struct iscsi_portal_group, tpg_se_tpg);
+			tpg = to_iscsi_tpg(se_nacl->se_tpg);
 
-			auth = &iscsi_tpg->tpg_demo_auth;
+			auth = &tpg->tpg_demo_auth;
 		} else {
-			iscsi_nacl = container_of(se_nacl, struct iscsi_node_acl,
-						  se_node_acl);
+			nacl = to_iscsi_nacl(se_nacl);
 
-			auth = &iscsi_nacl->node_auth;
+			auth = &nacl->node_auth;
 		}
 	} else {
 		/*
