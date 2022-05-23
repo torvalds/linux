@@ -6115,6 +6115,7 @@ static int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_async_msghdr iomsg, *kmsg;
 	struct io_sr_msg *sr = &req->sr_msg;
 	struct socket *sock;
+	unsigned int cflags;
 	unsigned flags;
 	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
@@ -6154,6 +6155,7 @@ static int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
 
+	kmsg->msg.msg_get_inq = 1;
 	ret = __sys_recvmsg_sock(sock, &kmsg->msg, sr->umsg, kmsg->uaddr, flags);
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && force_nonblock)
@@ -6178,7 +6180,10 @@ static int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 		ret += sr->done_io;
 	else if (sr->done_io)
 		ret = sr->done_io;
-	__io_req_complete(req, issue_flags, ret, io_put_kbuf(req, issue_flags));
+	cflags = io_put_kbuf(req, issue_flags);
+	if (kmsg->msg.msg_inq)
+		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
+	__io_req_complete(req, issue_flags, ret, cflags);
 	return 0;
 }
 
@@ -6188,6 +6193,7 @@ static int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 	struct msghdr msg;
 	struct socket *sock;
 	struct iovec iov;
+	unsigned int cflags;
 	unsigned flags;
 	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
@@ -6214,11 +6220,12 @@ static int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 		goto out_free;
 
 	msg.msg_name = NULL;
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
 	msg.msg_namelen = 0;
-	msg.msg_iocb = NULL;
+	msg.msg_control = NULL;
+	msg.msg_get_inq = 1;
 	msg.msg_flags = 0;
+	msg.msg_controllen = 0;
+	msg.msg_iocb = NULL;
 
 	flags = sr->msg_flags;
 	if (force_nonblock)
@@ -6249,7 +6256,10 @@ out_free:
 		ret += sr->done_io;
 	else if (sr->done_io)
 		ret = sr->done_io;
-	__io_req_complete(req, issue_flags, ret, io_put_kbuf(req, issue_flags));
+	cflags = io_put_kbuf(req, issue_flags);
+	if (msg.msg_inq)
+		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
+	__io_req_complete(req, issue_flags, ret, cflags);
 	return 0;
 }
 

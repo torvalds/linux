@@ -258,9 +258,11 @@ struct io_uring_cqe {
  *
  * IORING_CQE_F_BUFFER	If set, the upper 16 bits are the buffer ID
  * IORING_CQE_F_MORE	If set, parent SQE will generate more CQE entries
+ * IORING_CQE_F_SOCK_NONEMPTY	If set, more data to read after socket recv
  */
 #define IORING_CQE_F_BUFFER		(1U << 0)
 #define IORING_CQE_F_MORE		(1U << 1)
+#define IORING_CQE_F_SOCK_NONEMPTY	(1U << 2)
 
 enum {
 	IORING_CQE_BUFFER_SHIFT		= 16,
