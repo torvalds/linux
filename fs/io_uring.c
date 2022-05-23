@@ -8301,6 +8301,7 @@ static bool io_assign_file(struct io_kiocb *req, unsigned int issue_flags)
 
 static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 {
+	const struct io_op_def *def = &io_op_defs[req->opcode];
 	const struct cred *creds = NULL;
 	int ret;
 
@@ -8310,7 +8311,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely((req->flags & REQ_F_CREDS) && req->creds != current_cred()))
 		creds = override_creds(req->creds);
 
-	if (!io_op_defs[req->opcode].audit_skip)
+	if (!def->audit_skip)
 		audit_uring_entry(req->opcode);
 
 	switch (req->opcode) {
@@ -8449,7 +8450,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 		break;
 	}
 
-	if (!io_op_defs[req->opcode].audit_skip)
+	if (!def->audit_skip)
 		audit_uring_exit(!ret, ret);
 
 	if (creds)
@@ -8801,6 +8802,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		       const struct io_uring_sqe *sqe)
 	__must_hold(&ctx->uring_lock)
 {
+	const struct io_op_def *def;
 	unsigned int sqe_flags;
 	int personality;
 	u8 opcode;
@@ -8818,12 +8820,13 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		req->opcode = 0;
 		return -EINVAL;
 	}
+	def = &io_op_defs[opcode];
 	if (unlikely(sqe_flags & ~SQE_COMMON_FLAGS)) {
 		/* enforce forwards compatibility on users */
 		if (sqe_flags & ~SQE_VALID_FLAGS)
 			return -EINVAL;
 		if (sqe_flags & IOSQE_BUFFER_SELECT) {
-			if (!io_op_defs[opcode].buffer_select)
+			if (!def->buffer_select)
 				return -EOPNOTSUPP;
 			req->buf_index = READ_ONCE(sqe->buf_group);
 		}
@@ -8849,12 +8852,12 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		}
 	}
 
-	if (!io_op_defs[opcode].ioprio && sqe->ioprio)
+	if (!def->ioprio && sqe->ioprio)
 		return -EINVAL;
-	if (!io_op_defs[opcode].iopoll && (ctx->flags & IORING_SETUP_IOPOLL))
+	if (!def->iopoll && (ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 
-	if (io_op_defs[opcode].needs_file) {
+	if (def->needs_file) {
 		struct io_submit_state *state = &ctx->submit_state;
 
 		req->cqe.fd = READ_ONCE(sqe->fd);
@@ -8863,7 +8866,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		 * Plug now if we have more than 2 IO left after this, and the
 		 * target is potentially a read/write to block based storage.
 		 */
-		if (state->need_plug && io_op_defs[opcode].plug) {
+		if (state->need_plug && def->plug) {
 			state->plug_started = true;
 			state->need_plug = false;
 			blk_start_plug_nr_ios(&state->plug, state->submit_nr);
