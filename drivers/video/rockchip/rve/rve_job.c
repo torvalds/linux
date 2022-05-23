@@ -451,7 +451,7 @@ static inline int rve_job_wait(struct rve_job *job)
 
 	scheduler = rve_job_get_scheduler(job);
 
-	left_time = wait_event_interruptible_timeout(scheduler->job_done_wq,
+	left_time = wait_event_timeout(scheduler->job_done_wq,
 		job->flags & RVE_JOB_DONE, RVE_SYNC_TIMEOUT_DELAY);
 
 	switch (left_time) {
