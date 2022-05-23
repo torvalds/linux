@@ -153,6 +153,7 @@ static int max96752f_i2c_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(max96752f->regmap),
 				     "failed to initialize regmap\n");
 
+	regcache_mark_dirty(max96752f->regmap);
 	regcache_cache_only(max96752f->regmap, true);
 
 	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, max96752f_devs,
