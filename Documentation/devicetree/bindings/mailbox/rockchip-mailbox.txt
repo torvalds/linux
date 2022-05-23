@@ -17,6 +17,10 @@ Required properties:
  - #mbox-cells: Common mailbox binding property to identify the number
 	of cells required for the mailbox specifier. Should be 1
 
+Optional properties :
+
+ - wakeup-source: Mailbox irq can be used as a wakeup source.
+
 Example:
 --------
 
