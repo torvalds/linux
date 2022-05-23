@@ -1573,17 +1573,12 @@ static struct device *irq_get_parent_device(struct irq_data *data)
 int irq_chip_pm_get(struct irq_data *data)
 {
 	struct device *dev = irq_get_parent_device(data);
-	int retval;
+	int retval = 0;
 
-	if (IS_ENABLED(CONFIG_PM) && dev) {
-		retval = pm_runtime_get_sync(dev);
-		if (retval < 0) {
-			pm_runtime_put_noidle(dev);
-			return retval;
-		}
-	}
+	if (IS_ENABLED(CONFIG_PM) && dev)
+		retval = pm_runtime_resume_and_get(dev);
 
-	return 0;
+	return retval;
 }
 
 /**

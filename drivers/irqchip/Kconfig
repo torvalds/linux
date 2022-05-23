@@ -257,6 +257,18 @@ config ST_IRQCHIP
 	help
 	  Enables SysCfg Controlled IRQs on STi based platforms.
 
+config SUN4I_INTC
+	bool
+
+config SUN6I_R_INTC
+	bool
+	select IRQ_DOMAIN_HIERARCHY
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
+
+config SUNXI_NMI_INTC
+	bool
+	select GENERIC_IRQ_CHIP
+
 config TB10X_IRQC
 	bool
 	select IRQ_DOMAIN
