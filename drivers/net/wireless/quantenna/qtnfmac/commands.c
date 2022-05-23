@@ -241,6 +241,7 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	struct qlink_auth_encr *aen;
 	int ret;
 	int i;
+	int n;
 
 	if (!qtnf_cmd_start_ap_can_fit(vif, s))
 		return -E2BIG;
@@ -280,8 +281,9 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	for (i = 0; i < QLINK_MAX_NR_CIPHER_SUITES; i++)
 		aen->ciphers_pairwise[i] =
 				cpu_to_le32(s->crypto.ciphers_pairwise[i]);
-	aen->n_akm_suites = cpu_to_le32(s->crypto.n_akm_suites);
-	for (i = 0; i < QLINK_MAX_NR_AKM_SUITES; i++)
+	n = min(QLINK_MAX_NR_AKM_SUITES, s->crypto.n_akm_suites);
+	aen->n_akm_suites = cpu_to_le32(n);
+	for (i = 0; i < n; i++)
 		aen->akm_suites[i] = cpu_to_le32(s->crypto.akm_suites[i]);
 	aen->control_port = s->crypto.control_port;
 	aen->control_port_no_encrypt = s->crypto.control_port_no_encrypt;
@@ -2076,6 +2078,7 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 	struct qlink_auth_encr *aen;
 	int ret;
 	int i;
+	int n;
 	u32 connect_flags = 0;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
@@ -2132,9 +2135,10 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 		aen->ciphers_pairwise[i] =
 			cpu_to_le32(sme->crypto.ciphers_pairwise[i]);
 
-	aen->n_akm_suites = cpu_to_le32(sme->crypto.n_akm_suites);
+	n = min(QLINK_MAX_NR_AKM_SUITES, sme->crypto.n_akm_suites);
+	aen->n_akm_suites = cpu_to_le32(n);
 
-	for (i = 0; i < QLINK_MAX_NR_AKM_SUITES; i++)
+	for (i = 0; i < n; i++)
 		aen->akm_suites[i] = cpu_to_le32(sme->crypto.akm_suites[i]);
 
 	aen->control_port = sme->crypto.control_port;
