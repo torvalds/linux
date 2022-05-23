@@ -1412,6 +1412,69 @@ const struct bpf_func_proto bpf_kptr_xchg_proto = {
 	.arg2_btf_id  = BPF_PTR_POISON,
 };
 
+/* Since the upper 8 bits of dynptr->size is reserved, the
+ * maximum supported size is 2^24 - 1.
+ */
+#define DYNPTR_MAX_SIZE	((1UL << 24) - 1)
+#define DYNPTR_TYPE_SHIFT	28
+
+static void bpf_dynptr_set_type(struct bpf_dynptr_kern *ptr, enum bpf_dynptr_type type)
+{
+	ptr->size |= type << DYNPTR_TYPE_SHIFT;
+}
+
+static int bpf_dynptr_check_size(u32 size)
+{
+	return size > DYNPTR_MAX_SIZE ? -E2BIG : 0;
+}
+
+static void bpf_dynptr_init(struct bpf_dynptr_kern *ptr, void *data,
+			    enum bpf_dynptr_type type, u32 offset, u32 size)
+{
+	ptr->data = data;
+	ptr->offset = offset;
+	ptr->size = size;
+	bpf_dynptr_set_type(ptr, type);
+}
+
+static void bpf_dynptr_set_null(struct bpf_dynptr_kern *ptr)
+{
+	memset(ptr, 0, sizeof(*ptr));
+}
+
+BPF_CALL_4(bpf_dynptr_from_mem, void *, data, u32, size, u64, flags, struct bpf_dynptr_kern *, ptr)
+{
+	int err;
+
+	err = bpf_dynptr_check_size(size);
+	if (err)
+		goto error;
+
+	/* flags is currently unsupported */
+	if (flags) {
+		err = -EINVAL;
+		goto error;
+	}
+
+	bpf_dynptr_init(ptr, data, BPF_DYNPTR_TYPE_LOCAL, 0, size);
+
+	return 0;
+
+error:
+	bpf_dynptr_set_null(ptr);
+	return err;
+}
+
+const struct bpf_func_proto bpf_dynptr_from_mem_proto = {
+	.func		= bpf_dynptr_from_mem,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_LOCAL | MEM_UNINIT,
+};
+
 const struct bpf_func_proto bpf_get_current_task_proto __weak;
 const struct bpf_func_proto bpf_get_current_task_btf_proto __weak;
 const struct bpf_func_proto bpf_probe_read_user_proto __weak;
@@ -1466,6 +1529,8 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 		return &bpf_loop_proto;
 	case BPF_FUNC_strncmp:
 		return &bpf_strncmp_proto;
+	case BPF_FUNC_dynptr_from_mem:
+		return &bpf_dynptr_from_mem_proto;
 	default:
 		break;
 	}

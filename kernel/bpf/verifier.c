@@ -7204,6 +7204,12 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 		err = __check_func_call(env, insn, insn_idx_p, meta.subprogno,
 					set_loop_callback_state);
 		break;
+	case BPF_FUNC_dynptr_from_mem:
+		if (regs[BPF_REG_1].type != PTR_TO_MAP_VALUE) {
+			verbose(env, "Unsupported reg type %s for bpf_dynptr_from_mem data\n",
+				reg_type_str(env, regs[BPF_REG_1].type));
+			return -EACCES;
+		}
 	}
 
 	if (err)

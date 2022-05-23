@@ -5178,6 +5178,17 @@ union bpf_attr {
  *		Dynamically cast a *sk* pointer to a *mptcp_sock* pointer.
  *	Return
  *		*sk* if casting is valid, or **NULL** otherwise.
+ *
+ * long bpf_dynptr_from_mem(void *data, u32 size, u64 flags, struct bpf_dynptr *ptr)
+ *	Description
+ *		Get a dynptr to local memory *data*.
+ *
+ *		*data* must be a ptr to a map value.
+ *		The maximum *size* supported is DYNPTR_MAX_SIZE.
+ *		*flags* is currently unused.
+ *	Return
+ *		0 on success, -E2BIG if the size exceeds DYNPTR_MAX_SIZE,
+ *		-EINVAL if flags is not 0.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5377,6 +5388,7 @@ union bpf_attr {
 	FN(kptr_xchg),			\
 	FN(map_lookup_percpu_elem),     \
 	FN(skc_to_mptcp_sock),		\
+	FN(dynptr_from_mem),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
