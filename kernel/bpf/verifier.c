@@ -187,6 +187,9 @@ struct bpf_verifier_stack_elem {
 					  POISON_POINTER_DELTA))
 #define BPF_MAP_PTR(X)		((struct bpf_map *)((X) & ~BPF_MAP_PTR_UNPRIV))
 
+static int acquire_reference_state(struct bpf_verifier_env *env, int insn_idx);
+static int release_reference(struct bpf_verifier_env *env, int ref_obj_id);
+
 static bool bpf_map_ptr_poisoned(const struct bpf_insn_aux_data *aux)
 {
 	return BPF_MAP_PTR(aux->map_ptr_state) == BPF_MAP_PTR_POISON;
@@ -673,9 +676,16 @@ static enum bpf_dynptr_type arg_to_dynptr_type(enum bpf_arg_type arg_type)
 	switch (arg_type & DYNPTR_TYPE_FLAG_MASK) {
 	case DYNPTR_TYPE_LOCAL:
 		return BPF_DYNPTR_TYPE_LOCAL;
+	case DYNPTR_TYPE_RINGBUF:
+		return BPF_DYNPTR_TYPE_RINGBUF;
 	default:
 		return BPF_DYNPTR_TYPE_INVALID;
 	}
+}
+
+static bool dynptr_type_refcounted(enum bpf_dynptr_type type)
+{
+	return type == BPF_DYNPTR_TYPE_RINGBUF;
 }
 
 static int mark_stack_slots_dynptr(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
@@ -683,7 +693,7 @@ static int mark_stack_slots_dynptr(struct bpf_verifier_env *env, struct bpf_reg_
 {
 	struct bpf_func_state *state = func(env, reg);
 	enum bpf_dynptr_type type;
-	int spi, i;
+	int spi, i, id;
 
 	spi = get_spi(reg->off);
 
@@ -703,6 +713,16 @@ static int mark_stack_slots_dynptr(struct bpf_verifier_env *env, struct bpf_reg_
 	state->stack[spi].spilled_ptr.dynptr.type = type;
 	state->stack[spi - 1].spilled_ptr.dynptr.type = type;
 
+	if (dynptr_type_refcounted(type)) {
+		/* The id is used to track proper releasing */
+		id = acquire_reference_state(env, insn_idx);
+		if (id < 0)
+			return id;
+
+		state->stack[spi].spilled_ptr.id = id;
+		state->stack[spi - 1].spilled_ptr.id = id;
+	}
+
 	return 0;
 }
 
@@ -719,6 +739,13 @@ static int unmark_stack_slots_dynptr(struct bpf_verifier_env *env, struct bpf_re
 	for (i = 0; i < BPF_REG_SIZE; i++) {
 		state->stack[spi].slot_type[i] = STACK_INVALID;
 		state->stack[spi - 1].slot_type[i] = STACK_INVALID;
+	}
+
+	/* Invalidate any slices associated with this dynptr */
+	if (dynptr_type_refcounted(state->stack[spi].spilled_ptr.dynptr.type)) {
+		release_reference(env, state->stack[spi].spilled_ptr.id);
+		state->stack[spi].spilled_ptr.id = 0;
+		state->stack[spi - 1].spilled_ptr.id = 0;
 	}
 
 	state->stack[spi].spilled_ptr.dynptr.first_slot = false;
@@ -5859,7 +5886,16 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
 
 skip_type_check:
 	if (arg_type_is_release(arg_type)) {
-		if (!reg->ref_obj_id && !register_is_null(reg)) {
+		if (arg_type_is_dynptr(arg_type)) {
+			struct bpf_func_state *state = func(env, reg);
+			int spi = get_spi(reg->off);
+
+			if (!is_spi_bounds_valid(state, spi, BPF_DYNPTR_NR_SLOTS) ||
+			    !state->stack[spi].spilled_ptr.id) {
+				verbose(env, "arg %d is an unacquired reference\n", regno);
+				return -EINVAL;
+			}
+		} else if (!reg->ref_obj_id && !register_is_null(reg)) {
 			verbose(env, "R%d must be referenced when passed to release function\n",
 				regno);
 			return -EINVAL;
@@ -5994,9 +6030,13 @@ skip_type_check:
 			case DYNPTR_TYPE_LOCAL:
 				err_extra = "local ";
 				break;
+			case DYNPTR_TYPE_RINGBUF:
+				err_extra = "ringbuf ";
+				break;
 			default:
 				break;
 			}
+
 			verbose(env, "Expected an initialized %sdynptr as arg #%d\n",
 				err_extra, arg + 1);
 			return -EINVAL;
@@ -6122,7 +6162,10 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 	case BPF_MAP_TYPE_RINGBUF:
 		if (func_id != BPF_FUNC_ringbuf_output &&
 		    func_id != BPF_FUNC_ringbuf_reserve &&
-		    func_id != BPF_FUNC_ringbuf_query)
+		    func_id != BPF_FUNC_ringbuf_query &&
+		    func_id != BPF_FUNC_ringbuf_reserve_dynptr &&
+		    func_id != BPF_FUNC_ringbuf_submit_dynptr &&
+		    func_id != BPF_FUNC_ringbuf_discard_dynptr)
 			goto error;
 		break;
 	case BPF_MAP_TYPE_STACK_TRACE:
@@ -6238,6 +6281,9 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 	case BPF_FUNC_ringbuf_output:
 	case BPF_FUNC_ringbuf_reserve:
 	case BPF_FUNC_ringbuf_query:
+	case BPF_FUNC_ringbuf_reserve_dynptr:
+	case BPF_FUNC_ringbuf_submit_dynptr:
+	case BPF_FUNC_ringbuf_discard_dynptr:
 		if (map->map_type != BPF_MAP_TYPE_RINGBUF)
 			goto error;
 		break;

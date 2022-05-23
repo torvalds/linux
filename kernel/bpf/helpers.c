@@ -1423,13 +1423,13 @@ static void bpf_dynptr_set_type(struct bpf_dynptr_kern *ptr, enum bpf_dynptr_typ
 	ptr->size |= type << DYNPTR_TYPE_SHIFT;
 }
 
-static int bpf_dynptr_check_size(u32 size)
+int bpf_dynptr_check_size(u32 size)
 {
 	return size > DYNPTR_MAX_SIZE ? -E2BIG : 0;
 }
 
-static void bpf_dynptr_init(struct bpf_dynptr_kern *ptr, void *data,
-			    enum bpf_dynptr_type type, u32 offset, u32 size)
+void bpf_dynptr_init(struct bpf_dynptr_kern *ptr, void *data,
+		     enum bpf_dynptr_type type, u32 offset, u32 size)
 {
 	ptr->data = data;
 	ptr->offset = offset;
@@ -1437,7 +1437,7 @@ static void bpf_dynptr_init(struct bpf_dynptr_kern *ptr, void *data,
 	bpf_dynptr_set_type(ptr, type);
 }
 
-static void bpf_dynptr_set_null(struct bpf_dynptr_kern *ptr)
+void bpf_dynptr_set_null(struct bpf_dynptr_kern *ptr)
 {
 	memset(ptr, 0, sizeof(*ptr));
 }
@@ -1523,6 +1523,12 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 		return &bpf_ringbuf_discard_proto;
 	case BPF_FUNC_ringbuf_query:
 		return &bpf_ringbuf_query_proto;
+	case BPF_FUNC_ringbuf_reserve_dynptr:
+		return &bpf_ringbuf_reserve_dynptr_proto;
+	case BPF_FUNC_ringbuf_submit_dynptr:
+		return &bpf_ringbuf_submit_dynptr_proto;
+	case BPF_FUNC_ringbuf_discard_dynptr:
+		return &bpf_ringbuf_discard_dynptr_proto;
 	case BPF_FUNC_for_each_map_elem:
 		return &bpf_for_each_map_elem_proto;
 	case BPF_FUNC_loop:
