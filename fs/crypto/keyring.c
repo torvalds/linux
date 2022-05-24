@@ -688,28 +688,68 @@ out_wipe_secret:
 }
 EXPORT_SYMBOL_GPL(fscrypt_ioctl_add_key);
 
-/*
- * Add the key for '-o test_dummy_encryption' to the filesystem keyring.
- *
- * Use a per-boot random key to prevent people from misusing this option.
- */
-int fscrypt_add_test_dummy_key(struct super_block *sb,
-			       struct fscrypt_key_specifier *key_spec)
+static void
+fscrypt_get_test_dummy_secret(struct fscrypt_master_key_secret *secret)
 {
 	static u8 test_key[FSCRYPT_MAX_KEY_SIZE];
-	struct fscrypt_master_key_secret secret;
-	int err;
 
 	get_random_once(test_key, FSCRYPT_MAX_KEY_SIZE);
 
-	memset(&secret, 0, sizeof(secret));
-	secret.size = FSCRYPT_MAX_KEY_SIZE;
-	memcpy(secret.raw, test_key, FSCRYPT_MAX_KEY_SIZE);
+	memset(secret, 0, sizeof(*secret));
+	secret->size = FSCRYPT_MAX_KEY_SIZE;
+	memcpy(secret->raw, test_key, FSCRYPT_MAX_KEY_SIZE);
+}
 
-	err = add_master_key(sb, &secret, key_spec);
+int fscrypt_get_test_dummy_key_identifier(
+				u8 key_identifier[FSCRYPT_KEY_IDENTIFIER_SIZE])
+{
+	struct fscrypt_master_key_secret secret;
+	int err;
+
+	fscrypt_get_test_dummy_secret(&secret);
+
+	err = fscrypt_init_hkdf(&secret.hkdf, secret.raw, secret.size);
+	if (err)
+		goto out;
+	err = fscrypt_hkdf_expand(&secret.hkdf, HKDF_CONTEXT_KEY_IDENTIFIER,
+				  NULL, 0, key_identifier,
+				  FSCRYPT_KEY_IDENTIFIER_SIZE);
+out:
 	wipe_master_key_secret(&secret);
 	return err;
 }
+
+/**
+ * fscrypt_add_test_dummy_key() - add the test dummy encryption key
+ * @sb: the filesystem instance to add the key to
+ * @dummy_policy: the encryption policy for test_dummy_encryption
+ *
+ * If needed, add the key for the test_dummy_encryption mount option to the
+ * filesystem.  To prevent misuse of this mount option, a per-boot random key is
+ * used instead of a hardcoded one.  This makes it so that any encrypted files
+ * created using this option won't be accessible after a reboot.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+int fscrypt_add_test_dummy_key(struct super_block *sb,
+			       const struct fscrypt_dummy_policy *dummy_policy)
+{
+	const union fscrypt_policy *policy = dummy_policy->policy;
+	struct fscrypt_key_specifier key_spec;
+	struct fscrypt_master_key_secret secret;
+	int err;
+
+	if (!policy)
+		return 0;
+	err = fscrypt_policy_to_key_spec(policy, &key_spec);
+	if (err)
+		return err;
+	fscrypt_get_test_dummy_secret(&secret);
+	err = add_master_key(sb, &secret, &key_spec);
+	wipe_master_key_secret(&secret);
+	return err;
+}
+EXPORT_SYMBOL_GPL(fscrypt_add_test_dummy_key);
 
 /*
  * Verify that the current user has added a master key with the given identifier
