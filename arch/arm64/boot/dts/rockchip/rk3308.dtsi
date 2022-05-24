@@ -49,7 +49,7 @@
 			clocks = <&cru ARMCLK>;
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <83>;
-			operating-points-v2 = <&cpu0_opp_table>;
+			operating-points-v2 = <&cpu0_opp_table>, <&rk3308bs_cpu0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 			next-level-cache = <&l2>;
 			power-model {
@@ -67,7 +67,7 @@
 			compatible = "arm,cortex-a35";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
-			operating-points-v2 = <&cpu0_opp_table>;
+			operating-points-v2 = <&cpu0_opp_table>, <&rk3308bs_cpu0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 			next-level-cache = <&l2>;
 		};
@@ -77,7 +77,7 @@
 			compatible = "arm,cortex-a35";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
-			operating-points-v2 = <&cpu0_opp_table>;
+			operating-points-v2 = <&cpu0_opp_table>, <&rk3308bs_cpu0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 			next-level-cache = <&l2>;
 		};
@@ -87,7 +87,7 @@
 			compatible = "arm,cortex-a35";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
-			operating-points-v2 = <&cpu0_opp_table>;
+			operating-points-v2 = <&cpu0_opp_table>, <&rk3308bs_cpu0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 			next-level-cache = <&l2>;
 		};
@@ -288,7 +288,7 @@
 		compatible = "rockchip,rk3308-dmc";
 		clocks = <&cru SCLK_DDRCLK>;
 		clock-names = "dmc_clk";
-		operating-points-v2 = <&dmc_opp_table>;
+		operating-points-v2 = <&dmc_opp_table>, <&rk3308bs_dmc_opp_table>;
 		status = "disabled";
 	};
 
