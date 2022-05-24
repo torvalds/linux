@@ -197,7 +197,7 @@ Date:		May, 2022
 KernelVersion:	v5.20
 Contact:	linux-cxl@vger.kernel.org
 Description:
-		(RO) When a CXL decoder is of devtype "cxl_decoder_endpoint" it
+		(RW) When a CXL decoder is of devtype "cxl_decoder_endpoint" it
 		translates from a host physical address range, to a device local
 		address range. Device-local address ranges are further split
 		into a 'ram' (volatile memory) range and 'pmem' (persistent
@@ -206,3 +206,38 @@ Description:
 		when a decoder straddles the volatile/persistent partition
 		boundary, and 'none' indicates the decoder is not actively
 		decoding, or no DPA allocation policy has been set.
+
+		'mode' can be written, when the decoder is in the 'disabled'
+		state, with either 'ram' or 'pmem' to set the boundaries for the
+		next allocation.
+
+
+What:		/sys/bus/cxl/devices/decoderX.Y/dpa_resource
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) When a CXL decoder is of devtype "cxl_decoder_endpoint",
+		and its 'dpa_size' attribute is non-zero, this attribute
+		indicates the device physical address (DPA) base address of the
+		allocation.
+
+
+What:		/sys/bus/cxl/devices/decoderX.Y/dpa_size
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RW) When a CXL decoder is of devtype "cxl_decoder_endpoint" it
+		translates from a host physical address range, to a device local
+		address range. The range, base address plus length in bytes, of
+		DPA allocated to this decoder is conveyed in these 2 attributes.
+		Allocations can be mutated as long as the decoder is in the
+		disabled state. A write to 'dpa_size' releases the previous DPA
+		allocation and then attempts to allocate from the free capacity
+		in the device partition referred to by 'decoderX.Y/mode'.
+		Allocate and free requests can only be performed on the highest
+		instance number disabled decoder with non-zero size. I.e.
+		allocations are enforced to occur in increasing 'decoderX.Y/id'
+		order and frees are enforced to occur in decreasing
+		'decoderX.Y/id' order.

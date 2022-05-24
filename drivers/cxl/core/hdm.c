@@ -184,6 +184,19 @@ static void cxl_dpa_release(void *cxled)
 	up_write(&cxl_dpa_rwsem);
 }
 
+/*
+ * Must be called from context that will not race port device
+ * unregistration, like decoder sysfs attribute methods
+ */
+static void devm_cxl_dpa_release(struct cxl_endpoint_decoder *cxled)
+{
+	struct cxl_port *port = cxled_to_port(cxled);
+
+	lockdep_assert_held_write(&cxl_dpa_rwsem);
+	devm_remove_action(&port->dev, cxl_dpa_release, cxled);
+	__cxl_dpa_release(cxled);
+}
+
 static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 			     resource_size_t base, resource_size_t len,
 			     resource_size_t skipped)
@@ -263,6 +276,173 @@ static int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 
 	down_write(&cxl_dpa_rwsem);
 	rc = __cxl_dpa_reserve(cxled, base, len, skipped);
+	up_write(&cxl_dpa_rwsem);
+
+	if (rc)
+		return rc;
+
+	return devm_add_action_or_reset(&port->dev, cxl_dpa_release, cxled);
+}
+
+resource_size_t cxl_dpa_size(struct cxl_endpoint_decoder *cxled)
+{
+	resource_size_t size = 0;
+
+	down_read(&cxl_dpa_rwsem);
+	if (cxled->dpa_res)
+		size = resource_size(cxled->dpa_res);
+	up_read(&cxl_dpa_rwsem);
+
+	return size;
+}
+
+resource_size_t cxl_dpa_resource_start(struct cxl_endpoint_decoder *cxled)
+{
+	resource_size_t base = -1;
+
+	down_read(&cxl_dpa_rwsem);
+	if (cxled->dpa_res)
+		base = cxled->dpa_res->start;
+	up_read(&cxl_dpa_rwsem);
+
+	return base;
+}
+
+int cxl_dpa_free(struct cxl_endpoint_decoder *cxled)
+{
+	struct cxl_port *port = cxled_to_port(cxled);
+	struct device *dev = &cxled->cxld.dev;
+	int rc;
+
+	down_write(&cxl_dpa_rwsem);
+	if (!cxled->dpa_res) {
+		rc = 0;
+		goto out;
+	}
+	if (cxled->cxld.flags & CXL_DECODER_F_ENABLE) {
+		dev_dbg(dev, "decoder enabled\n");
+		rc = -EBUSY;
+		goto out;
+	}
+	if (cxled->cxld.id != port->hdm_end) {
+		dev_dbg(dev, "expected decoder%d.%d\n", port->id,
+			port->hdm_end);
+		rc = -EBUSY;
+		goto out;
+	}
+	devm_cxl_dpa_release(cxled);
+	rc = 0;
+out:
+	up_write(&cxl_dpa_rwsem);
+	return rc;
+}
+
+int cxl_dpa_set_mode(struct cxl_endpoint_decoder *cxled,
+		     enum cxl_decoder_mode mode)
+{
+	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct device *dev = &cxled->cxld.dev;
+	int rc;
+
+	switch (mode) {
+	case CXL_DECODER_RAM:
+	case CXL_DECODER_PMEM:
+		break;
+	default:
+		dev_dbg(dev, "unsupported mode: %d\n", mode);
+		return -EINVAL;
+	}
+
+	down_write(&cxl_dpa_rwsem);
+	if (cxled->cxld.flags & CXL_DECODER_F_ENABLE) {
+		rc = -EBUSY;
+		goto out;
+	}
+
+	/*
+	 * Only allow modes that are supported by the current partition
+	 * configuration
+	 */
+	if (mode == CXL_DECODER_PMEM && !resource_size(&cxlds->pmem_res)) {
+		dev_dbg(dev, "no available pmem capacity\n");
+		rc = -ENXIO;
+		goto out;
+	}
+	if (mode == CXL_DECODER_RAM && !resource_size(&cxlds->ram_res)) {
+		dev_dbg(dev, "no available ram capacity\n");
+		rc = -ENXIO;
+		goto out;
+	}
+
+	cxled->mode = mode;
+	rc = 0;
+out:
+	up_write(&cxl_dpa_rwsem);
+
+	return rc;
+}
+
+int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size)
+{
+	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+	resource_size_t free_ram_start, free_pmem_start;
+	struct cxl_port *port = cxled_to_port(cxled);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct device *dev = &cxled->cxld.dev;
+	resource_size_t start, avail, skip;
+	struct resource *p, *last;
+	int rc;
+
+	down_write(&cxl_dpa_rwsem);
+	if (cxled->cxld.flags & CXL_DECODER_F_ENABLE) {
+		dev_dbg(dev, "decoder enabled\n");
+		rc = -EBUSY;
+		goto out;
+	}
+
+	for (p = cxlds->ram_res.child, last = NULL; p; p = p->sibling)
+		last = p;
+	if (last)
+		free_ram_start = last->end + 1;
+	else
+		free_ram_start = cxlds->ram_res.start;
+
+	for (p = cxlds->pmem_res.child, last = NULL; p; p = p->sibling)
+		last = p;
+	if (last)
+		free_pmem_start = last->end + 1;
+	else
+		free_pmem_start = cxlds->pmem_res.start;
+
+	if (cxled->mode == CXL_DECODER_RAM) {
+		start = free_ram_start;
+		avail = cxlds->ram_res.end - start + 1;
+		skip = 0;
+	} else if (cxled->mode == CXL_DECODER_PMEM) {
+		resource_size_t skip_start, skip_end;
+
+		start = free_pmem_start;
+		avail = cxlds->pmem_res.end - start + 1;
+		skip_start = free_ram_start;
+		skip_end = start - 1;
+		skip = skip_end - skip_start + 1;
+	} else {
+		dev_dbg(dev, "mode not set\n");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (size > avail) {
+		dev_dbg(dev, "%pa exceeds available %s capacity: %pa\n", &size,
+			cxled->mode == CXL_DECODER_RAM ? "ram" : "pmem",
+			&avail);
+		rc = -ENOSPC;
+		goto out;
+	}
+
+	rc = __cxl_dpa_reserve(cxled, start, size, skip);
+out:
 	up_write(&cxl_dpa_rwsem);
 
 	if (rc)

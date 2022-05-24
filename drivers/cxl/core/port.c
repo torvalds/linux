@@ -189,7 +189,76 @@ static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
 		return sysfs_emit(buf, "mixed\n");
 	}
 }
-static DEVICE_ATTR_RO(mode);
+
+static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t len)
+{
+	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
+	enum cxl_decoder_mode mode;
+	ssize_t rc;
+
+	if (sysfs_streq(buf, "pmem"))
+		mode = CXL_DECODER_PMEM;
+	else if (sysfs_streq(buf, "ram"))
+		mode = CXL_DECODER_RAM;
+	else
+		return -EINVAL;
+
+	rc = cxl_dpa_set_mode(cxled, mode);
+	if (rc)
+		return rc;
+
+	return len;
+}
+static DEVICE_ATTR_RW(mode);
+
+static ssize_t dpa_resource_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
+	u64 base = cxl_dpa_resource_start(cxled);
+
+	return sysfs_emit(buf, "%#llx\n", base);
+}
+static DEVICE_ATTR_RO(dpa_resource);
+
+static ssize_t dpa_size_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
+	resource_size_t size = cxl_dpa_size(cxled);
+
+	return sysfs_emit(buf, "%pa\n", &size);
+}
+
+static ssize_t dpa_size_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t len)
+{
+	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
+	unsigned long long size;
+	ssize_t rc;
+
+	rc = kstrtoull(buf, 0, &size);
+	if (rc)
+		return rc;
+
+	if (!IS_ALIGNED(size, SZ_256M))
+		return -EINVAL;
+
+	rc = cxl_dpa_free(cxled);
+	if (rc)
+		return rc;
+
+	if (size == 0)
+		return len;
+
+	rc = cxl_dpa_alloc(cxled, size);
+	if (rc)
+		return rc;
+
+	return len;
+}
+static DEVICE_ATTR_RW(dpa_size);
 
 static struct attribute *cxl_decoder_base_attrs[] = {
 	&dev_attr_start.attr,
@@ -242,6 +311,8 @@ static const struct attribute_group *cxl_decoder_switch_attribute_groups[] = {
 static struct attribute *cxl_decoder_endpoint_attrs[] = {
 	&dev_attr_target_type.attr,
 	&dev_attr_mode.attr,
+	&dev_attr_dpa_size.attr,
+	&dev_attr_dpa_resource.attr,
 	NULL,
 };
 
