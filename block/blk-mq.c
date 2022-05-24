@@ -1151,24 +1151,6 @@ void blk_mq_start_request(struct request *rq)
 }
 EXPORT_SYMBOL(blk_mq_start_request);
 
-/**
- * blk_end_sync_rq - executes a completion event on a request
- * @rq: request to complete
- * @error: end I/O status of the request
- */
-static void blk_end_sync_rq(struct request *rq, blk_status_t error)
-{
-	struct completion *waiting = rq->end_io_data;
-
-	rq->end_io_data = (void *)(uintptr_t)error;
-
-	/*
-	 * complete last, if this is a stack request the process (and thus
-	 * the rq pointer) could be invalid right after this complete()
-	 */
-	complete(waiting);
-}
-
 /*
  * Allow 2x BLK_MAX_REQUEST_COUNT requests on plug queue for multiple
  * queues. This is important for md arrays to benefit from merging
@@ -1231,6 +1213,19 @@ void blk_execute_rq_nowait(struct request *rq, bool at_head, rq_end_io_fn *done)
 }
 EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
 
+struct blk_rq_wait {
+	struct completion done;
+	blk_status_t ret;
+};
+
+static void blk_end_sync_rq(struct request *rq, blk_status_t ret)
+{
+	struct blk_rq_wait *wait = rq->end_io_data;
+
+	wait->ret = ret;
+	complete(&wait->done);
+}
+
 static bool blk_rq_is_poll(struct request *rq)
 {
 	if (!rq->mq_hctx)
@@ -1262,7 +1257,9 @@ static void blk_rq_poll_completion(struct request *rq, struct completion *wait)
  */
 blk_status_t blk_execute_rq(struct request *rq, bool at_head)
 {
-	DECLARE_COMPLETION_ONSTACK(wait);
+	struct blk_rq_wait wait = {
+		.done = COMPLETION_INITIALIZER_ONSTACK(wait.done),
+	};
 
 	WARN_ON(irqs_disabled());
 	WARN_ON(!blk_rq_is_passthrough(rq));
@@ -1274,7 +1271,7 @@ blk_status_t blk_execute_rq(struct request *rq, bool at_head)
 	blk_mq_sched_insert_request(rq, at_head, true, false);
 
 	if (blk_rq_is_poll(rq)) {
-		blk_rq_poll_completion(rq, &wait);
+		blk_rq_poll_completion(rq, &wait.done);
 	} else {
 		/*
 		 * Prevent hang_check timer from firing at us during very long
@@ -1283,14 +1280,14 @@ blk_status_t blk_execute_rq(struct request *rq, bool at_head)
 		unsigned long hang_check = sysctl_hung_task_timeout_secs;
 
 		if (hang_check)
-			while (!wait_for_completion_io_timeout(&wait,
+			while (!wait_for_completion_io_timeout(&wait.done,
 					hang_check * (HZ/2)))
 				;
 		else
-			wait_for_completion_io(&wait);
+			wait_for_completion_io(&wait.done);
 	}
 
-	return (blk_status_t)(uintptr_t)rq->end_io_data;
+	return wait.ret;
 }
 EXPORT_SYMBOL(blk_execute_rq);
 
