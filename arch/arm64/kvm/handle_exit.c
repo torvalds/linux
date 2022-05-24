@@ -26,7 +26,7 @@
 
 typedef int (*exit_handle_fn)(struct kvm_vcpu *);
 
-static void kvm_handle_guest_serror(struct kvm_vcpu *vcpu, u32 esr)
+static void kvm_handle_guest_serror(struct kvm_vcpu *vcpu, u64 esr)
 {
 	if (!arm64_is_ras_serror(esr) || arm64_is_fatal_ras_serror(NULL, esr))
 		kvm_inject_vabt(vcpu);
@@ -117,10 +117,12 @@ static int kvm_handle_wfx(struct kvm_vcpu *vcpu)
 static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
-	u32 esr = kvm_vcpu_get_esr(vcpu);
+	u64 esr = kvm_vcpu_get_esr(vcpu);
 
 	run->exit_reason = KVM_EXIT_DEBUG;
-	run->debug.arch.hsr = esr;
+	run->debug.arch.hsr = lower_32_bits(esr);
+	run->debug.arch.hsr_high = upper_32_bits(esr);
+	run->flags = KVM_DEBUG_ARCH_HSR_HIGH_VALID;
 
 	if (ESR_ELx_EC(esr) == ESR_ELx_EC_WATCHPT_LOW)
 		run->debug.arch.far = vcpu->arch.fault.far_el2;
@@ -130,9 +132,9 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu)
 
 static int kvm_handle_unknown_ec(struct kvm_vcpu *vcpu)
 {
-	u32 esr = kvm_vcpu_get_esr(vcpu);
+	u64 esr = kvm_vcpu_get_esr(vcpu);
 
-	kvm_pr_unimpl("Unknown exception class: esr: %#08x -- %s\n",
+	kvm_pr_unimpl("Unknown exception class: esr: %#016llx -- %s\n",
 		      esr, esr_get_class_string(esr));
 
 	kvm_inject_undefined(vcpu);
@@ -187,7 +189,7 @@ static exit_handle_fn arm_exit_handlers[] = {
 
 static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)
 {
-	u32 esr = kvm_vcpu_get_esr(vcpu);
+	u64 esr = kvm_vcpu_get_esr(vcpu);
 	u8 esr_ec = ESR_ELx_EC(esr);
 
 	return arm_exit_handlers[esr_ec];
@@ -334,6 +336,6 @@ void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr,
 	 */
 	kvm_err("Hyp Offset: 0x%llx\n", hyp_offset);
 
-	panic("HYP panic:\nPS:%08llx PC:%016llx ESR:%08llx\nFAR:%016llx HPFAR:%016llx PAR:%016llx\nVCPU:%016lx\n",
+	panic("HYP panic:\nPS:%08llx PC:%016llx ESR:%016llx\nFAR:%016llx HPFAR:%016llx PAR:%016llx\nVCPU:%016lx\n",
 	      spsr, elr_virt, esr, far, hpfar, par, vcpu);
 }

@@ -262,31 +262,31 @@ config ARM64_CONT_PMD_SHIFT
 	default 4
 
 config ARCH_MMAP_RND_BITS_MIN
-       default 14 if ARM64_64K_PAGES
-       default 16 if ARM64_16K_PAGES
-       default 18
+	default 14 if ARM64_64K_PAGES
+	default 16 if ARM64_16K_PAGES
+	default 18
 
 # max bits determined by the following formula:
 #  VA_BITS - PAGE_SHIFT - 3
 config ARCH_MMAP_RND_BITS_MAX
-       default 19 if ARM64_VA_BITS=36
-       default 24 if ARM64_VA_BITS=39
-       default 27 if ARM64_VA_BITS=42
-       default 30 if ARM64_VA_BITS=47
-       default 29 if ARM64_VA_BITS=48 && ARM64_64K_PAGES
-       default 31 if ARM64_VA_BITS=48 && ARM64_16K_PAGES
-       default 33 if ARM64_VA_BITS=48
-       default 14 if ARM64_64K_PAGES
-       default 16 if ARM64_16K_PAGES
-       default 18
+	default 19 if ARM64_VA_BITS=36
+	default 24 if ARM64_VA_BITS=39
+	default 27 if ARM64_VA_BITS=42
+	default 30 if ARM64_VA_BITS=47
+	default 29 if ARM64_VA_BITS=48 && ARM64_64K_PAGES
+	default 31 if ARM64_VA_BITS=48 && ARM64_16K_PAGES
+	default 33 if ARM64_VA_BITS=48
+	default 14 if ARM64_64K_PAGES
+	default 16 if ARM64_16K_PAGES
+	default 18
 
 config ARCH_MMAP_RND_COMPAT_BITS_MIN
-       default 7 if ARM64_64K_PAGES
-       default 9 if ARM64_16K_PAGES
-       default 11
+	default 7 if ARM64_64K_PAGES
+	default 9 if ARM64_16K_PAGES
+	default 11
 
 config ARCH_MMAP_RND_COMPAT_BITS_MAX
-       default 16
+	default 16
 
 config NO_IOPORT_MAP
 	def_bool y if !PCI
@@ -313,7 +313,7 @@ config GENERIC_HWEIGHT
 	def_bool y
 
 config GENERIC_CSUM
-        def_bool y
+	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
@@ -1046,8 +1046,7 @@ config SOCIONEXT_SYNQUACER_PREITS
 
 	  If unsure, say Y.
 
-endmenu
-
+endmenu # "ARM errata workarounds via the alternatives framework"
 
 choice
 	prompt "Page size"
@@ -1575,9 +1574,9 @@ config SETEND_EMULATION
 	  be unexpected results in the applications.
 
 	  If unsure, say Y
-endif
+endif # ARMV8_DEPRECATED
 
-endif
+endif # COMPAT
 
 menu "ARMv8.1 architectural features"
 
@@ -1602,15 +1601,15 @@ config ARM64_PAN
 	bool "Enable support for Privileged Access Never (PAN)"
 	default y
 	help
-	 Privileged Access Never (PAN; part of the ARMv8.1 Extensions)
-	 prevents the kernel or hypervisor from accessing user-space (EL0)
-	 memory directly.
+	  Privileged Access Never (PAN; part of the ARMv8.1 Extensions)
+	  prevents the kernel or hypervisor from accessing user-space (EL0)
+	  memory directly.
 
-	 Choosing this option will cause any unprotected (not using
-	 copy_to_user et al) memory access to fail with a permission fault.
+	  Choosing this option will cause any unprotected (not using
+	  copy_to_user et al) memory access to fail with a permission fault.
 
-	 The feature is detected at runtime, and will remain as a 'nop'
-	 instruction if the cpu does not implement the feature.
+	  The feature is detected at runtime, and will remain as a 'nop'
+	  instruction if the cpu does not implement the feature.
 
 config AS_HAS_LDAPR
 	def_bool $(as-instr,.arch_extension rcpc)
@@ -1638,15 +1637,15 @@ config ARM64_USE_LSE_ATOMICS
 	  built with binutils >= 2.25 in order for the new instructions
 	  to be used.
 
-endmenu
+endmenu # "ARMv8.1 architectural features"
 
 menu "ARMv8.2 architectural features"
 
 config AS_HAS_ARMV8_2
-       def_bool $(cc-option,-Wa$(comma)-march=armv8.2-a)
+	def_bool $(cc-option,-Wa$(comma)-march=armv8.2-a)
 
 config AS_HAS_SHA3
-       def_bool $(as-instr,.arch armv8.2-a+sha3)
+	def_bool $(as-instr,.arch armv8.2-a+sha3)
 
 config ARM64_PMEM
 	bool "Enable support for persistent memory"
@@ -1690,7 +1689,7 @@ config ARM64_CNP
 	  at runtime, and does not affect PEs that do not implement
 	  this feature.
 
-endmenu
+endmenu # "ARMv8.2 architectural features"
 
 menu "ARMv8.3 architectural features"
 
@@ -1753,7 +1752,7 @@ config AS_HAS_PAC
 config AS_HAS_CFI_NEGATE_RA_STATE
 	def_bool $(as-instr,.cfi_startproc\n.cfi_negate_ra_state\n.cfi_endproc\n)
 
-endmenu
+endmenu # "ARMv8.3 architectural features"
 
 menu "ARMv8.4 architectural features"
 
@@ -1794,7 +1793,7 @@ config ARM64_TLB_RANGE
 	  The feature introduces new assembly instructions, and they were
 	  support when binutils >= 2.30.
 
-endmenu
+endmenu # "ARMv8.4 architectural features"
 
 menu "ARMv8.5 architectural features"
 
@@ -1880,6 +1879,7 @@ config ARM64_MTE
 	depends on AS_HAS_LSE_ATOMICS
 	# Required for tag checking in the uaccess routines
 	depends on ARM64_PAN
+	select ARCH_HAS_SUBPAGE_FAULTS
 	select ARCH_USES_HIGH_VMA_FLAGS
 	help
 	  Memory Tagging (part of the ARMv8.5 Extensions) provides
@@ -1901,7 +1901,7 @@ config ARM64_MTE
 
 	  Documentation/arm64/memory-tagging-extension.rst.
 
-endmenu
+endmenu # "ARMv8.5 architectural features"
 
 menu "ARMv8.7 architectural features"
 
@@ -1910,12 +1910,12 @@ config ARM64_EPAN
 	default y
 	depends on ARM64_PAN
 	help
-	 Enhanced Privileged Access Never (EPAN) allows Privileged
-	 Access Never to be used with Execute-only mappings.
+	  Enhanced Privileged Access Never (EPAN) allows Privileged
+	  Access Never to be used with Execute-only mappings.
 
-	 The feature is detected at runtime, and will remain disabled
-	 if the cpu does not implement the feature.
-endmenu
+	  The feature is detected at runtime, and will remain disabled
+	  if the cpu does not implement the feature.
+endmenu # "ARMv8.7 architectural features"
 
 config ARM64_SVE
 	bool "ARM Scalable Vector Extension support"
@@ -1947,6 +1947,17 @@ config ARM64_SVE
 	  fixed.  Otherwise, you may experience firmware panics or lockups when
 	  booting the kernel.  If unsure and you are not observing these
 	  symptoms, you should assume that it is safe to say Y.
+
+config ARM64_SME
+	bool "ARM Scalable Matrix Extension support"
+	default y
+	depends on ARM64_SVE
+	help
+	  The Scalable Matrix Extension (SME) is an extension to the AArch64
+	  execution state which utilises a substantial subset of the SVE
+	  instruction set, together with the addition of new architectural
+	  register state capable of holding two dimensional matrix tiles to
+	  enable various matrix operations.
 
 config ARM64_MODULE_PLTS
 	bool "Use PLTs to allow module memory to spill over into vmalloc area"
@@ -1991,7 +2002,7 @@ config ARM64_DEBUG_PRIORITY_MASKING
 	  the validity of ICC_PMR_EL1 when calling concerned functions.
 
 	  If unsure, say N
-endif
+endif # ARM64_PSEUDO_NMI
 
 config RELOCATABLE
 	bool "Build a relocatable kernel image" if EXPERT
@@ -2050,7 +2061,19 @@ config STACKPROTECTOR_PER_TASK
 	def_bool y
 	depends on STACKPROTECTOR && CC_HAVE_STACKPROTECTOR_SYSREG
 
-endmenu
+# The GPIO number here must be sorted by descending number. In case of
+# a multiplatform kernel, we just want the highest value required by the
+# selected platforms.
+config ARCH_NR_GPIO
+        int
+        default 2048 if ARCH_APPLE
+        default 0
+        help
+          Maximum number of GPIOs in the system.
+
+          If unsure, leave the default value.
+
+endmenu # "Kernel Features"
 
 menu "Boot options"
 
@@ -2114,7 +2137,7 @@ config EFI
 	help
 	  This option provides support for runtime services provided
 	  by UEFI firmware (such as non-volatile variables, realtime
-          clock, and platform reset). A UEFI stub is also provided to
+	  clock, and platform reset). A UEFI stub is also provided to
 	  allow the kernel to be booted as an EFI application. This
 	  is only useful on systems that have UEFI firmware.
 
@@ -2129,7 +2152,7 @@ config DMI
 	  However, even with this option, the resultant kernel should
 	  continue to boot on existing non-UEFI platforms.
 
-endmenu
+endmenu # "Boot options"
 
 config SYSVIPC_COMPAT
 	def_bool y
@@ -2150,7 +2173,7 @@ config ARCH_HIBERNATION_HEADER
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
 
-endmenu
+endmenu # "Power management options"
 
 menu "CPU Power Management"
 
@@ -2158,7 +2181,7 @@ source "drivers/cpuidle/Kconfig"
 
 source "drivers/cpufreq/Kconfig"
 
-endmenu
+endmenu # "CPU Power Management"
 
 source "drivers/acpi/Kconfig"
 
@@ -2166,4 +2189,4 @@ source "arch/arm64/kvm/Kconfig"
 
 if CRYPTO
 source "arch/arm64/crypto/Kconfig"
-endif
+endif # CRYPTO
