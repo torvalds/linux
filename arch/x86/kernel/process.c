@@ -161,6 +161,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	savesegment(ds, p->thread.ds);
 #else
 	p->thread.sp0 = (unsigned long) (childregs + 1);
+	savesegment(gs, p->thread.gs);
 	/*
 	 * Clear all status flags including IF and set fixed bit. 64bit
 	 * does not have this initialization as the frame does not contain
@@ -191,10 +192,6 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	childregs->ax = 0;
 	if (sp)
 		childregs->sp = sp;
-
-#ifdef CONFIG_X86_32
-	task_user_gs(p) = get_user_gs(current_pt_regs());
-#endif
 
 	if (unlikely(p->flags & PF_IO_WORKER)) {
 		/*
