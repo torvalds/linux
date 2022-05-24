@@ -400,7 +400,16 @@ ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,  u32 *value,
 	if (!rc) {
 		out = (struct tpm2_get_cap_out *)
 			&buf.data[TPM_HEADER_SIZE];
-		*value = be32_to_cpu(out->value);
+		/*
+		 * To prevent failing boot up of some systems, Infineon TPM2.0
+		 * returns SUCCESS on TPM2_Startup in field upgrade mode. Also
+		 * the TPM2_Getcapability command returns a zero length list
+		 * in field upgrade mode.
+		 */
+		if (be32_to_cpu(out->property_cnt) > 0)
+			*value = be32_to_cpu(out->value);
+		else
+			rc = -ENODATA;
 	}
 	tpm_buf_destroy(&buf);
 	return rc;
@@ -745,7 +754,11 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 	rc = tpm2_get_cc_attrs_tbl(chip);
 
 out:
-	if (rc == TPM2_RC_UPGRADE) {
+	/*
+	 * Infineon TPM in field upgrade mode will return no data for the number
+	 * of supported commands.
+	 */
+	if (rc == TPM2_RC_UPGRADE || rc == -ENODATA) {
 		dev_info(&chip->dev, "TPM in field upgrade mode, requires firmware upgrade\n");
 		chip->flags |= TPM_CHIP_FLAG_FIRMWARE_UPGRADE;
 		rc = 0;

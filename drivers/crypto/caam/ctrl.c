@@ -820,12 +820,25 @@ static int caam_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (ctrlpriv->era < 10)
+	comp_params = rd_reg32(&ctrl->perfmon.comp_parms_ls);
+	ctrlpriv->blob_present = !!(comp_params & CTPR_LS_BLOB);
+
+	/*
+	 * Some SoCs like the LS1028A (non-E) indicate CTPR_LS_BLOB support,
+	 * but fail when actually using it due to missing AES support, so
+	 * check both here.
+	 */
+	if (ctrlpriv->era < 10) {
 		rng_vid = (rd_reg32(&ctrl->perfmon.cha_id_ls) &
 			   CHA_ID_LS_RNG_MASK) >> CHA_ID_LS_RNG_SHIFT;
-	else
+		ctrlpriv->blob_present = ctrlpriv->blob_present &&
+			(rd_reg32(&ctrl->perfmon.cha_num_ls) & CHA_ID_LS_AES_MASK);
+	} else {
 		rng_vid = (rd_reg32(&ctrl->vreg.rng) & CHA_VER_VID_MASK) >>
 			   CHA_VER_VID_SHIFT;
+		ctrlpriv->blob_present = ctrlpriv->blob_present &&
+			(rd_reg32(&ctrl->vreg.aesa) & CHA_VER_MISC_AES_NUM_MASK);
+	}
 
 	/*
 	 * If SEC has RNG version >= 4 and RNG state handle has not been
