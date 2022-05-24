@@ -54,6 +54,14 @@ struct wilc_ap_wpa_ptk {
 	u8 key[];
 } __packed;
 
+struct wilc_wpa_igtk {
+	u8 index;
+	u8 pn_len;
+	u8 pn[6];
+	u8 key_len;
+	u8 key[];
+} __packed;
+
 struct wilc_gtk_key {
 	u8 mac_addr[ETH_ALEN];
 	u8 rsc[8];

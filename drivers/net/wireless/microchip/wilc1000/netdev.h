@@ -129,6 +129,7 @@ struct wilc_priv {
 	struct net_device *real_ndev;
 	struct wilc_wfi_key *wilc_gtk[WILC_MAX_NUM_STA];
 	struct wilc_wfi_key *wilc_ptk[WILC_MAX_NUM_STA];
+	struct wilc_wfi_key *wilc_igtk[2];
 	u8 wilc_groupkey;
 
 	/* mutexes */

@@ -271,11 +271,18 @@ error:
 static int wilc_send_connect_wid(struct wilc_vif *vif)
 {
 	int result = 0;
-	struct wid wid_list[4];
+	struct wid wid_list[5];
 	u32 wid_cnt = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	struct wilc_conn_info *conn_attr = &hif_drv->conn_info;
 	struct wilc_join_bss_param *bss_param = conn_attr->param;
+
+
+        wid_list[wid_cnt].id = WID_SET_MFP;
+        wid_list[wid_cnt].type = WID_CHAR;
+        wid_list[wid_cnt].size = sizeof(char);
+        wid_list[wid_cnt].val = (s8 *)&conn_attr->mfp_type;
+        wid_cnt++;
 
 	wid_list[wid_cnt].id = WID_INFO_ELEMENT_ASSOCIATE;
 	wid_list[wid_cnt].type = WID_BIN_DATA;
@@ -1143,6 +1150,36 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 	return result;
 }
 
+int wilc_add_igtk(struct wilc_vif *vif, const u8 *igtk, u8 igtk_key_len,
+		  const u8 *pn, u8 pn_len, const u8 *mac_addr, u8 mode, u8 index)
+{
+	int result = 0;
+	u8 t_key_len = igtk_key_len;
+	struct wid wid;
+	struct wilc_wpa_igtk *key_buf;
+
+	key_buf = kzalloc(sizeof(*key_buf) + t_key_len, GFP_KERNEL);
+	if (!key_buf)
+		return -ENOMEM;
+
+	key_buf->index = index;
+
+	memcpy(&key_buf->pn[0], pn, pn_len);
+	key_buf->pn_len = pn_len;
+
+	memcpy(&key_buf->key[0], igtk, igtk_key_len);
+	key_buf->key_len = t_key_len;
+
+	wid.id = WID_ADD_IGTK;
+	wid.type = WID_STR;
+	wid.size = sizeof(*key_buf) + t_key_len;
+	wid.val = (s8 *)key_buf;
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
+	kfree(key_buf);
+
+	return result;
+}
+
 int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 		    u8 index, u32 key_rsc_len, const u8 *key_rsc,
 		    const u8 *rx_mic, const u8 *tx_mic, u8 mode,
@@ -1931,4 +1968,21 @@ int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power)
 	wid.size = sizeof(char);
 
 	return wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1);
+}
+
+int wilc_set_default_mgmt_key_index(struct wilc_vif *vif, u8 index)
+{
+        struct wid wid;
+        int result;
+
+        wid.id = WID_DEFAULT_MGMT_KEY_ID;
+        wid.type = WID_CHAR;
+        wid.size = sizeof(char);
+        wid.val = &index;
+        result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
+        if (result)
+                netdev_err(vif->ndev,
+                           "Failed to send default mgmt key index\n");
+
+        return result;
 }

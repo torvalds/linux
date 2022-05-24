@@ -307,6 +307,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	int ret;
 	u32 i;
 	u8 security = WILC_FW_SEC_NO;
+	enum mfptype mfp_type = WILC_FW_MFP_NONE;
 	enum authtype auth_type = WILC_FW_AUTH_ANY;
 	u32 cipher_group;
 	struct cfg80211_bss *bss;
@@ -416,6 +417,13 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	wfi_drv->conn_info.arg = priv;
 	wfi_drv->conn_info.param = join_params;
 
+	if (sme->mfp == NL80211_MFP_OPTIONAL)
+		mfp_type = WILC_FW_MFP_OPTIONAL;
+	else if (sme->mfp == NL80211_MFP_REQUIRED)
+		mfp_type = WILC_FW_MFP_REQUIRED;
+
+	wfi_drv->conn_info.mfp_type = mfp_type;
+
 	ret = wilc_set_join_req(vif, bss->bssid, sme->ie, sme->ie_len);
 	if (ret) {
 		netdev_err(dev, "wilc_set_join_req(): Error\n");
@@ -495,6 +503,18 @@ static int wilc_wfi_cfg_allocate_wpa_entry(struct wilc_priv *priv, u8 idx)
 	return 0;
 }
 
+static int wilc_wfi_cfg_allocate_wpa_igtk_entry(struct wilc_priv *priv, u8 idx)
+{
+	idx -= 4;
+	if (!priv->wilc_igtk[idx]) {
+		priv->wilc_igtk[idx] = kzalloc(sizeof(*priv->wilc_igtk[idx]),
+					       GFP_KERNEL);
+		if (!priv->wilc_igtk[idx])
+			return -ENOMEM;
+	}
+	return 0;
+}
+
 static int wilc_wfi_cfg_copy_wpa_info(struct wilc_wfi_key *key_info,
 				      struct key_params *params)
 {
@@ -531,6 +551,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	u8 op_mode;
 	struct wilc_vif *vif = netdev_priv(netdev);
 	struct wilc_priv *priv = &vif->priv;
+	struct wilc_wfi_key *key;
 
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -594,6 +615,26 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 					   key_index);
 
 		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		ret = wilc_wfi_cfg_allocate_wpa_igtk_entry(priv, key_index);
+		if (ret)
+			return -ENOMEM;
+
+		key = priv->wilc_igtk[key_index - 4];
+		ret = wilc_wfi_cfg_copy_wpa_info(key, params);
+		if (ret)
+			return -ENOMEM;
+
+		if (priv->wdev.iftype == NL80211_IFTYPE_AP ||
+		    priv->wdev.iftype == NL80211_IFTYPE_P2P_GO)
+			op_mode = WILC_AP_MODE;
+		else
+			op_mode = WILC_STATION_MODE;
+
+		ret = wilc_add_igtk(vif, params->key, keylen, params->seq,
+				    params->seq_len, mac_addr, op_mode,
+				    key_index);
+		break;
 
 	default:
 		netdev_err(netdev, "%s: Unsupported cipher\n", __func__);
@@ -611,23 +652,34 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 	struct wilc_vif *vif = netdev_priv(netdev);
 	struct wilc_priv *priv = &vif->priv;
 
-	if (priv->wilc_gtk[key_index]) {
-		kfree(priv->wilc_gtk[key_index]->key);
-		priv->wilc_gtk[key_index]->key = NULL;
-		kfree(priv->wilc_gtk[key_index]->seq);
-		priv->wilc_gtk[key_index]->seq = NULL;
+	if (!pairwise && (key_index == 4 || key_index == 5)) {
+		key_index -= 4;
+		if (priv->wilc_igtk[key_index]) {
+			kfree(priv->wilc_igtk[key_index]->key);
+			priv->wilc_igtk[key_index]->key = NULL;
+			kfree(priv->wilc_igtk[key_index]->seq);
+			priv->wilc_igtk[key_index]->seq = NULL;
+			kfree(priv->wilc_igtk[key_index]);
+			priv->wilc_igtk[key_index] = NULL;
+		}
+	} else {
+		if (priv->wilc_gtk[key_index]) {
+			kfree(priv->wilc_gtk[key_index]->key);
+			priv->wilc_gtk[key_index]->key = NULL;
+			kfree(priv->wilc_gtk[key_index]->seq);
+			priv->wilc_gtk[key_index]->seq = NULL;
 
-		kfree(priv->wilc_gtk[key_index]);
-		priv->wilc_gtk[key_index] = NULL;
-	}
-
-	if (priv->wilc_ptk[key_index]) {
-		kfree(priv->wilc_ptk[key_index]->key);
-		priv->wilc_ptk[key_index]->key = NULL;
-		kfree(priv->wilc_ptk[key_index]->seq);
-		priv->wilc_ptk[key_index]->seq = NULL;
-		kfree(priv->wilc_ptk[key_index]);
-		priv->wilc_ptk[key_index] = NULL;
+			kfree(priv->wilc_gtk[key_index]);
+			priv->wilc_gtk[key_index] = NULL;
+		}
+		if (priv->wilc_ptk[key_index]) {
+			kfree(priv->wilc_ptk[key_index]->key);
+			priv->wilc_ptk[key_index]->key = NULL;
+			kfree(priv->wilc_ptk[key_index]->seq);
+			priv->wilc_ptk[key_index]->seq = NULL;
+			kfree(priv->wilc_ptk[key_index]);
+			priv->wilc_ptk[key_index] = NULL;
+		}
 	}
 
 	return 0;
@@ -642,11 +694,20 @@ static int get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	struct  key_params key_params;
 
 	if (!pairwise) {
-		key_params.key = priv->wilc_gtk[key_index]->key;
-		key_params.cipher = priv->wilc_gtk[key_index]->cipher;
-		key_params.key_len = priv->wilc_gtk[key_index]->key_len;
-		key_params.seq = priv->wilc_gtk[key_index]->seq;
-		key_params.seq_len = priv->wilc_gtk[key_index]->seq_len;
+		if (key_index == 4 || key_index == 5) {
+			key_index -= 4;
+			key_params.key = priv->wilc_igtk[key_index]->key;
+			key_params.cipher = priv->wilc_igtk[key_index]->cipher;
+			key_params.key_len = priv->wilc_igtk[key_index]->key_len;
+			key_params.seq = priv->wilc_igtk[key_index]->seq;
+			key_params.seq_len = priv->wilc_igtk[key_index]->seq_len;
+		} else {
+			key_params.key = priv->wilc_gtk[key_index]->key;
+			key_params.cipher = priv->wilc_gtk[key_index]->cipher;
+			key_params.key_len = priv->wilc_gtk[key_index]->key_len;
+			key_params.seq = priv->wilc_gtk[key_index]->seq;
+			key_params.seq_len = priv->wilc_gtk[key_index]->seq_len;
+		}
 	} else {
 		key_params.key = priv->wilc_ptk[key_index]->key;
 		key_params.cipher = priv->wilc_ptk[key_index]->cipher;
@@ -665,6 +726,14 @@ static int set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 			   u8 key_index, bool unicast, bool multicast)
 {
 	return 0;
+}
+
+static int set_default_mgmt_key(struct wiphy *wiphy, struct net_device *netdev,
+				u8 key_index)
+{
+	struct wilc_vif *vif = netdev_priv(netdev);
+
+	return wilc_set_default_mgmt_key_index(vif, key_index);
 }
 
 static int get_station(struct wiphy *wiphy, struct net_device *dev,
@@ -1626,6 +1695,7 @@ static const struct cfg80211_ops wilc_cfg80211_ops = {
 	.del_key = del_key,
 	.get_key = get_key,
 	.set_default_key = set_default_key,
+	.set_default_mgmt_key = set_default_mgmt_key,
 	.add_virtual_intf = add_virtual_intf,
 	.del_virtual_intf = del_virtual_intf,
 	.change_virtual_intf = change_virtual_intf,
