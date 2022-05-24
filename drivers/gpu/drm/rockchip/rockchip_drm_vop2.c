@@ -3810,13 +3810,15 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	vop2_disable(crtc);
 
+	vop2->active_vp_mask &= ~BIT(vp->id);
+	if (vcstate->splice_mode)
+		vop2->active_vp_mask &= ~BIT(splice_vp->id);
 	vcstate->splice_mode = false;
 	vp->splice_mode_right = false;
 	vp->loader_protect = false;
 	splice_vp->splice_mode_right = false;
 	vop2_unlock(vop2);
 
-	vop2->active_vp_mask &= ~BIT(vp->id);
 	vop2_set_system_status(vop2);
 
 out:
@@ -6391,6 +6393,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		splice_vp->splice_mode_right = true;
 		splice_vp->left_vp = vp;
 		splice_en = 1;
+		vop2->active_vp_mask |= BIT(splice_vp->id);
 	}
 
 	if (vcstate->dsc_enable) {
