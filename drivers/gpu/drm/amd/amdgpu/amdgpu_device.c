@@ -3322,32 +3322,6 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 		 * cause regressions.
 		 */
 		return amdgpu_dc > 0;
-	case CHIP_HAWAII:
-	case CHIP_CARRIZO:
-	case CHIP_STONEY:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS12:
-	case CHIP_VEGAM:
-	case CHIP_TONGA:
-	case CHIP_FIJI:
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	case CHIP_RAVEN:
-	case CHIP_NAVI10:
-	case CHIP_NAVI14:
-	case CHIP_NAVI12:
-	case CHIP_RENOIR:
-	case CHIP_CYAN_SKILLFISH:
-	case CHIP_SIENNA_CICHLID:
-	case CHIP_NAVY_FLOUNDER:
-	case CHIP_DIMGREY_CAVEFISH:
-	case CHIP_BEIGE_GOBY:
-	case CHIP_VANGOGH:
-	case CHIP_YELLOW_CARP:
-#endif
 	default:
 		return amdgpu_dc != 0;
 #else
