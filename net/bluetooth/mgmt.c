@@ -1082,11 +1082,11 @@ static u16 append_eir_data_to_buf(struct hci_dev *hdev, u8 *eir)
 		eir_len = eir_append_le16(eir, eir_len, EIR_APPEARANCE,
 					  hdev->appearance);
 
-	name_len = strlen(hdev->dev_name);
+	name_len = strnlen(hdev->dev_name, sizeof(hdev->dev_name));
 	eir_len = eir_append_data(eir, eir_len, EIR_NAME_COMPLETE,
 				  hdev->dev_name, name_len);
 
-	name_len = strlen(hdev->short_name);
+	name_len = strnlen(hdev->short_name, sizeof(hdev->short_name));
 	eir_len = eir_append_data(eir, eir_len, EIR_NAME_SHORT,
 				  hdev->short_name, name_len);
 
