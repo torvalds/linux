@@ -9,6 +9,7 @@
  * V0.0X01.0X04 add quick stream on/off
  * V0.0X01.0X05 add function g_mbus_config
  * V0.0X01.0X06 add function reset gpio control
+ * V0.0X01.0X06 add 2-lane mode as default
  */
 
 #include <linux/clk.h>
@@ -29,12 +30,17 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
 
-#define SC132GS_PIXEL_RATE		(72 * 1000 * 1000)
+#define MIPI_FREQ_180M			180000000
+#define MIPI_FREQ_360M			360000000
+
+#define PIXEL_RATE_WITH_180M		(MIPI_FREQ_180M * 2 / 10 * 2)
+#define PIXEL_RATE_WITH_360M		(MIPI_FREQ_360M * 2 / 8 * 1)
+
 #define SC132GS_XVCLK_FREQ		24000000
 
 #define CHIP_ID				0x0132
@@ -70,13 +76,8 @@
 
 #define SC132GS_NAME			"sc132gs"
 
-#define PIX_FORMAT MEDIA_BUS_FMT_Y8_1X8
-
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
-
-#define SC132GS_LANES			1
-#define SC132GS_BITS_PER_SAMPLE		8
 
 static const char * const sc132gs_supply_names[] = {
 	"avdd",		/* Analog power */
@@ -85,6 +86,11 @@ static const char * const sc132gs_supply_names[] = {
 };
 
 #define SC132GS_NUM_SUPPLIES ARRAY_SIZE(sc132gs_supply_names)
+
+enum {
+	LINK_FREQ_180M_INDEX,
+	LINK_FREQ_360M_INDEX,
+};
 
 struct regval {
 	u16 addr;
@@ -98,7 +104,11 @@ struct sc132gs_mode {
 	u32 hts_def;
 	u32 vts_def;
 	u32 exp_def;
+	u32 link_freq_index;
+	u64 pixel_rate;
 	const struct regval *reg_list;
+	u32 lanes;
+	u32 bus_fmt;
 };
 
 struct sc132gs {
@@ -119,6 +129,8 @@ struct sc132gs {
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
+	struct v4l2_ctrl	*pixel_rate;
+	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
 	bool			streaming;
 	bool			power_on;
@@ -133,7 +145,7 @@ struct sc132gs {
 
 /*
  * Xclk 24Mhz
- * Pclk 72Mhz
+ * Pclk 90Mhz
  * linelength 1696(0x06a0)
  * framelength 2122(0x084a)
  * grabwindow_width 1080
@@ -142,7 +154,7 @@ struct sc132gs {
  * max_framerate 30fps
  * mipi_datarate per lane 720Mbps
  */
-static const struct regval sc132gs_global_regs[] = {
+static const struct regval sc132gs_1lane_8bit_regs[] = {
 	{0x0103, 0x01},
 	{0x0100, 0x00},
 
@@ -249,6 +261,125 @@ static const struct regval sc132gs_global_regs[] = {
 	{REG_NULL, 0x00},
 };
 
+/*
+ * Xclk 24Mhz
+ * Pclk 72Mhz
+ * linelength 1696(0x06a0)
+ * framelength 2122(0x084a)
+ * grabwindow_width 1080
+ * grabwindow_height 1280
+ * mipi 2 lane
+ * max_framerate 30fps
+ * mipi_datarate per lane 360Mbps
+ */
+static const struct regval sc132gs_2lane_10bit_regs[] = {
+	{0x0103, 0x01},
+	{0x0100, 0x00},
+
+	//PLL bypass
+	{0x36e9, 0x80},
+	{0x36f9, 0x80},
+
+	{0x3018, 0x32},
+	{0x3019, 0x0c},
+	{0x301a, 0xb4},
+	{0x3031, 0x0a},
+	{0x3032, 0x60},
+	{0x3038, 0x44},
+	{0x3207, 0x17},
+	{0x320c, 0x05},
+	{0x320d, 0xdc},
+	{0x320e, 0x09},
+	{0x320f, 0x60},
+	{0x3250, 0xcc},
+	{0x3251, 0x02},
+	{0x3252, 0x09},
+	{0x3253, 0x5b},
+	{0x3254, 0x05},
+	{0x3255, 0x3b},
+	{0x3306, 0x78},
+	{0x330a, 0x00},
+	{0x330b, 0xc8},
+	{0x330f, 0x24},
+	{0x3314, 0x80},
+	{0x3315, 0x40},
+	{0x3317, 0xf0},
+	{0x331f, 0x12},
+	{0x3364, 0x00},
+	{0x3385, 0x41},
+	{0x3387, 0x41},
+	{0x3389, 0x09},
+	{0x33ab, 0x00},
+	{0x33ac, 0x00},
+	{0x33b1, 0x03},
+	{0x33b2, 0x12},
+	{0x33f8, 0x02},
+	{0x33fa, 0x01},
+	{0x3409, 0x08},
+	{0x34f0, 0xc0},
+	{0x34f1, 0x20},
+	{0x34f2, 0x03},
+	{0x3622, 0xf5},
+	{0x3630, 0x5c},
+	{0x3631, 0x80},
+	{0x3632, 0xc8},
+	{0x3633, 0x32},
+	{0x3638, 0x2a},
+	{0x3639, 0x07},
+	{0x363b, 0x48},
+	{0x363c, 0x83},
+	{0x363d, 0x10},
+	{0x36ea, 0x38},
+	{0x36fa, 0x25},
+	{0x36fb, 0x05},
+	{0x36fd, 0x04},
+	{0x3900, 0x11},
+	{0x3901, 0x05},
+	{0x3902, 0xc5},
+	{0x3904, 0x04},
+	{0x3908, 0x91},
+	{0x391e, 0x00},
+	{0x3e01, 0x11},
+	{0x3e02, 0x20},
+	{0x3e09, 0x20},
+	{0x3e0e, 0xd2},
+	{0x3e14, 0xb0},
+	{0x3e1e, 0x7c},
+	{0x3e26, 0x20},
+	{0x4418, 0x38},
+	{0x4503, 0x10},
+	{0x4837, 0x21},
+	{0x5000, 0x0e},
+	{0x540c, 0x51},
+	{0x550f, 0x38},
+	{0x5780, 0x67},
+	{0x5784, 0x10},
+	{0x5785, 0x06},
+	{0x5787, 0x02},
+	{0x5788, 0x00},
+	{0x5789, 0x00},
+	{0x578a, 0x02},
+	{0x578b, 0x00},
+	{0x578c, 0x00},
+	{0x5790, 0x00},
+	{0x5791, 0x00},
+	{0x5792, 0x00},
+	{0x5793, 0x00},
+	{0x5794, 0x00},
+	{0x5795, 0x00},
+	{0x5799, 0x04},
+
+	{0x3221, (0x3 << 5)},
+	{0x3221, (0x3 << 1)},
+	{0x3221, ((0x3 << 1)|(0x3 << 5))},
+
+	//PLL set
+	{0x36e9, 0x20},
+	{0x36f9, 0x24},
+
+	{REG_NULL, 0x00},
+};
+
 static const struct sc132gs_mode supported_modes[] = {
 	{
 		.width = 1080,
@@ -260,7 +391,28 @@ static const struct sc132gs_mode supported_modes[] = {
 		.exp_def = 0x0148,
 		.hts_def = 0x06a0,
 		.vts_def = 0x084a,
-		.reg_list = sc132gs_global_regs,
+		.link_freq_index = LINK_FREQ_180M_INDEX,
+		.pixel_rate      = PIXEL_RATE_WITH_180M,
+		.reg_list = sc132gs_2lane_10bit_regs,
+		.lanes    = 2,
+		.bus_fmt  = MEDIA_BUS_FMT_Y10_1X10,
+	},
+
+	{
+		.width = 1080,
+		.height = 1280,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x0148,
+		.hts_def = 0x06a0,
+		.vts_def = 0x084a,
+		.link_freq_index = LINK_FREQ_360M_INDEX,
+		.pixel_rate      = PIXEL_RATE_WITH_360M,
+		.reg_list = sc132gs_1lane_8bit_regs,
+		.lanes    = 1,
+		.bus_fmt  = MEDIA_BUS_FMT_Y8_1X8,
 	},
 };
 
@@ -272,10 +424,9 @@ static const char * const sc132gs_test_pattern_menu[] = {
 	"Vertical Color Bar Type 4"
 };
 
-#define SC132GS_LINK_FREQ_360MHZ	(360 * 1000 * 1000)
-
 static const s64 link_freq_menu_items[] = {
-	SC132GS_LINK_FREQ_360MHZ
+	MIPI_FREQ_180M,
+	MIPI_FREQ_360M,
 };
 
 /* Write registers up to 4 at a time */
@@ -376,7 +527,8 @@ static const struct sc132gs_mode *
 
 	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 		dist = sc132gs_get_reso_dist(&supported_modes[i], framefmt);
-		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
+		if ((cur_best_fit_dist == -1 || dist < cur_best_fit_dist) &&
+		    (supported_modes[i].bus_fmt == framefmt->code)) {
 			cur_best_fit_dist = dist;
 			cur_best_fit = i;
 		}
@@ -395,7 +547,7 @@ static int sc132gs_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sc132gs->mutex);
 
 	mode = sc132gs_find_best_fit(fmt);
-	fmt->format.code = PIX_FORMAT;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -415,6 +567,8 @@ static int sc132gs_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(sc132gs->vblank, vblank_def,
 					 SC132GS_VTS_MAX - mode->height,
 					 1, vblank_def);
+		__v4l2_ctrl_s_ctrl_int64(sc132gs->pixel_rate, mode->pixel_rate);
+		__v4l2_ctrl_s_ctrl(sc132gs->link_freq, mode->link_freq_index);
 	}
 
 	mutex_unlock(&sc132gs->mutex);
@@ -440,7 +594,7 @@ static int sc132gs_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = PIX_FORMAT;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&sc132gs->mutex);
@@ -452,9 +606,11 @@ static int sc132gs_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
+	struct sc132gs *sc132gs = to_sc132gs(sd);
+
 	if (code->index != 0)
 		return -EINVAL;
-	code->code = PIX_FORMAT;
+	code->code = sc132gs->cur_mode->bus_fmt;
 
 	return 0;
 }
@@ -466,7 +622,7 @@ static int sc132gs_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != PIX_FORMAT)
+	if (fse->code != supported_modes[fse->index].bus_fmt)
 		return -EINVAL;
 
 	fse->min_width = supported_modes[fse->index].width;
@@ -850,7 +1006,7 @@ static int sc132gs_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = PIX_FORMAT;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&sc132gs->mutex);
@@ -867,9 +1023,7 @@ static int sc132gs_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fie->code != PIX_FORMAT)
-		return -EINVAL;
-
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
@@ -880,8 +1034,9 @@ static int sc132gs_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	u32 val = 0;
+	struct sc132gs *sc132gs = to_sc132gs(sd);
 
-	val = 1 << (SC132GS_LANES - 1) |
+	val = 1 << (sc132gs->cur_mode->lanes - 1) |
 	      V4L2_MBUS_CSI2_CHANNEL_0 |
 	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	config->type = V4L2_MBUS_CSI2_DPHY;
@@ -988,7 +1143,6 @@ static int sc132gs_initialize_controls(struct sc132gs *sc132gs)
 {
 	const struct sc132gs_mode *mode;
 	struct v4l2_ctrl_handler *handler;
-	struct v4l2_ctrl *ctrl;
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
@@ -1000,13 +1154,16 @@ static int sc132gs_initialize_controls(struct sc132gs *sc132gs)
 		return ret;
 	handler->lock = &sc132gs->mutex;
 
-	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
-				      0, 0, link_freq_menu_items);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	sc132gs->link_freq = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
+						    ARRAY_SIZE(link_freq_menu_items) - 1, 0,
+						    link_freq_menu_items);
 
-	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-			  0, SC132GS_PIXEL_RATE, 1, SC132GS_PIXEL_RATE);
+	sc132gs->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
+						V4L2_CID_PIXEL_RATE,
+						0, PIXEL_RATE_WITH_360M,
+						1, mode->pixel_rate);
+
+	__v4l2_ctrl_s_ctrl(sc132gs->link_freq, mode->pixel_rate);
 
 	h_blank = mode->hts_def - mode->width;
 	sc132gs->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
