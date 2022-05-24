@@ -760,8 +760,8 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		struct cifs_sb_info *cifs_sb,
 		struct cached_fid **cfid)
 {
-	struct cifs_ses *ses = tcon->ses;
-	struct TCP_Server_Info *server = ses->server;
+	struct cifs_ses *ses;
+	struct TCP_Server_Info *server;
 	struct cifs_open_parms oparms;
 	struct smb2_create_rsp *o_rsp = NULL;
 	struct smb2_query_info_rsp *qi_rsp = NULL;
@@ -779,6 +779,9 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	if (tcon == NULL || tcon->nohandlecache ||
 	    is_smb1_server(tcon->ses->server))
 		return -ENOTSUPP;
+
+	ses = tcon->ses;
+	server = ses->server;
 
 	if (cifs_sb->root == NULL)
 		return -ENOENT;
