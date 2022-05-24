@@ -408,19 +408,19 @@ void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se,
 
 int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 			     struct amdgpu_ring *ring,
-			     struct amdgpu_irq_src *irq);
+			     struct amdgpu_irq_src *irq, int xcc_id);
 
 void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring);
 
-void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev);
+void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev, int xcc_id);
 int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
-			unsigned hpd_size);
+			unsigned hpd_size, int xcc_id);
 
 int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
-			   unsigned mqd_size);
-void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev);
-int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev);
-int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev);
+			   unsigned mqd_size, int xcc_id);
+void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev, int xcc_id);
+int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id);
+int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id);
 
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev);
 void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev);
@@ -429,7 +429,7 @@ int amdgpu_gfx_mec_queue_to_bit(struct amdgpu_device *adev, int mec,
 				int pipe, int queue);
 void amdgpu_queue_mask_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
 				 int *mec, int *pipe, int *queue);
-bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev, int inst,
+bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev, int xcc_id,
 				     int mec, int pipe, int queue);
 bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
 					       struct amdgpu_ring *ring);

@@ -1389,19 +1389,19 @@ static int gfx_v11_0_sw_init(void *handle)
 	}
 
 	if (!adev->enable_mes_kiq) {
-		r = amdgpu_gfx_kiq_init(adev, GFX11_MEC_HPD_SIZE);
+		r = amdgpu_gfx_kiq_init(adev, GFX11_MEC_HPD_SIZE, 0);
 		if (r) {
 			DRM_ERROR("Failed to init KIQ BOs!\n");
 			return r;
 		}
 
 		kiq = &adev->gfx.kiq[0];
-		r = amdgpu_gfx_kiq_init_ring(adev, &kiq->ring, &kiq->irq);
+		r = amdgpu_gfx_kiq_init_ring(adev, &kiq->ring, &kiq->irq, 0);
 		if (r)
 			return r;
 	}
 
-	r = amdgpu_gfx_mqd_sw_init(adev, sizeof(struct v11_compute_mqd));
+	r = amdgpu_gfx_mqd_sw_init(adev, sizeof(struct v11_compute_mqd), 0);
 	if (r)
 		return r;
 
@@ -1463,11 +1463,11 @@ static int gfx_v11_0_sw_fini(void *handle)
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
-	amdgpu_gfx_mqd_sw_fini(adev);
+	amdgpu_gfx_mqd_sw_fini(adev, 0);
 
 	if (!adev->enable_mes_kiq) {
 		amdgpu_gfx_kiq_free_ring(&adev->gfx.kiq[0].ring);
-		amdgpu_gfx_kiq_fini(adev);
+		amdgpu_gfx_kiq_fini(adev, 0);
 	}
 
 	gfx_v11_0_pfp_fini(adev);
@@ -4035,14 +4035,13 @@ static int gfx_v11_0_kiq_init_queue(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct v11_compute_mqd *mqd = ring->mqd_ptr;
-	int mqd_idx = AMDGPU_MAX_COMPUTE_RINGS;
 
 	gfx_v11_0_kiq_setting(ring);
 
 	if (amdgpu_in_reset(adev)) { /* for GPU_RESET case */
 		/* reset MQD to a clean status */
-		if (adev->gfx.mec.mqd_backup[mqd_idx])
-			memcpy(mqd, adev->gfx.mec.mqd_backup[mqd_idx], sizeof(*mqd));
+		if (adev->gfx.kiq[0].mqd_backup)
+			memcpy(mqd, adev->gfx.kiq[0].mqd_backup, sizeof(*mqd));
 
 		/* reset ring buffer */
 		ring->wptr = 0;
@@ -4064,8 +4063,8 @@ static int gfx_v11_0_kiq_init_queue(struct amdgpu_ring *ring)
 		soc21_grbm_select(adev, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
 
-		if (adev->gfx.mec.mqd_backup[mqd_idx])
-			memcpy(adev->gfx.mec.mqd_backup[mqd_idx], mqd, sizeof(*mqd));
+		if (adev->gfx.kiq[0].mqd_backup)
+			memcpy(adev->gfx.kiq[0].mqd_backup, mqd, sizeof(*mqd));
 	}
 
 	return 0;
@@ -4153,7 +4152,7 @@ static int gfx_v11_0_kcq_resume(struct amdgpu_device *adev)
 			goto done;
 	}
 
-	r = amdgpu_gfx_enable_kcq(adev);
+	r = amdgpu_gfx_enable_kcq(adev, 0);
 done:
 	return r;
 }
@@ -4456,7 +4455,7 @@ static int gfx_v11_0_hw_fini(void *handle)
 				DRM_ERROR("KGQ disable failed\n");
 		}
 #endif
-		if (amdgpu_gfx_disable_kcq(adev))
+		if (amdgpu_gfx_disable_kcq(adev, 0))
 			DRM_ERROR("KCQ disable failed\n");
 
 		amdgpu_mes_kiq_hw_fini(adev);

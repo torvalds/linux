@@ -267,7 +267,7 @@ void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)
 }
 
 static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
-				  struct amdgpu_ring *ring)
+				  struct amdgpu_ring *ring, int xcc_id)
 {
 	int queue_bit;
 	int mec, pipe, queue;
@@ -277,7 +277,7 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 		    * adev->gfx.mec.num_queue_per_pipe;
 
 	while (--queue_bit >= 0) {
-		if (test_bit(queue_bit, adev->gfx.mec_bitmap[0].queue_bitmap))
+		if (test_bit(queue_bit, adev->gfx.mec_bitmap[xcc_id].queue_bitmap))
 			continue;
 
 		amdgpu_queue_mask_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
@@ -303,9 +303,9 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 
 int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 			     struct amdgpu_ring *ring,
-			     struct amdgpu_irq_src *irq)
+			     struct amdgpu_irq_src *irq, int xcc_id)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
 	int r = 0;
 
 	spin_lock_init(&kiq->ring_lock);
@@ -314,15 +314,16 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 	ring->ring_obj = NULL;
 	ring->use_doorbell = true;
 	ring->doorbell_index = adev->doorbell_index.kiq;
+	ring->xcc_id = xcc_id;
 	ring->vm_hub = AMDGPU_GFXHUB_0;
 
-	r = amdgpu_gfx_kiq_acquire(adev, ring);
+	r = amdgpu_gfx_kiq_acquire(adev, ring, xcc_id);
 	if (r)
 		return r;
 
 	ring->eop_gpu_addr = kiq->eop_gpu_addr;
 	ring->no_scheduler = true;
-	sprintf(ring->name, "kiq_%d.%d.%d", ring->me, ring->pipe, ring->queue);
+	sprintf(ring->name, "kiq_%d.%d.%d.%d", xcc_id, ring->me, ring->pipe, ring->queue);
 	r = amdgpu_ring_init(adev, ring, 1024, irq, AMDGPU_CP_KIQ_IRQ_DRIVER0,
 			     AMDGPU_RING_PRIO_DEFAULT, NULL);
 	if (r)
@@ -336,19 +337,19 @@ void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring)
 	amdgpu_ring_fini(ring);
 }
 
-void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev)
+void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev, int xcc_id)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
 
 	amdgpu_bo_free_kernel(&kiq->eop_obj, &kiq->eop_gpu_addr, NULL);
 }
 
 int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
-			unsigned hpd_size)
+			unsigned hpd_size, int xcc_id)
 {
 	int r;
 	u32 *hpd;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
 
 	r = amdgpu_bo_create_kernel(adev, hpd_size, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_GTT, &kiq->eop_obj,
@@ -371,13 +372,13 @@ int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
 
 /* create MQD for each compute/gfx queue */
 int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
-			   unsigned mqd_size)
+			   unsigned mqd_size, int xcc_id)
 {
-	struct amdgpu_ring *ring = NULL;
 	int r, i;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+	struct amdgpu_ring *ring = &kiq->ring;
 
 	/* create MQD for KIQ */
-	ring = &adev->gfx.kiq[0].ring;
 	if (!adev->enable_mes_kiq && !ring->mqd_obj) {
 		/* originaly the KIQ MQD is put in GTT domain, but for SRIOV VRAM domain is a must
 		 * otherwise hypervisor trigger SAVE_VF fail after driver unloaded which mean MQD
@@ -396,8 +397,8 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		}
 
 		/* prepare MQD backup */
-		adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS] = kmalloc(mqd_size, GFP_KERNEL);
-		if (!adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS])
+		kiq->mqd_backup = kmalloc(mqd_size, GFP_KERNEL);
+		if (!kiq->mqd_backup)
 				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 	}
 
@@ -424,7 +425,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 
 	/* create MQD for each KCQ */
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-		ring = &adev->gfx.compute_ring[i];
+		ring = &adev->gfx.compute_ring[i + xcc_id * adev->gfx.num_compute_rings];
 		if (!ring->mqd_obj) {
 			r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
 						    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
@@ -435,7 +436,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 			}
 
 			/* prepare MQD backup */
-			adev->gfx.mec.mqd_backup[i] = kmalloc(mqd_size, GFP_KERNEL);
+			adev->gfx.mec.mqd_backup[i + xcc_id * adev->gfx.num_compute_rings] = kmalloc(mqd_size, GFP_KERNEL);
 			if (!adev->gfx.mec.mqd_backup[i])
 				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 		}
@@ -444,10 +445,11 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 	return 0;
 }
 
-void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev)
+void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev, int xcc_id)
 {
 	struct amdgpu_ring *ring = NULL;
-	int i;
+	int i, j;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
 
 	if (adev->asic_type >= CHIP_NAVI10 && amdgpu_async_gfx_ring) {
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
@@ -460,6 +462,7 @@ void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev)
 	}
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		j = i + xcc_id * adev->gfx.num_compute_rings;
 		ring = &adev->gfx.compute_ring[i];
 		kfree(adev->gfx.mec.mqd_backup[i]);
 		amdgpu_bo_free_kernel(&ring->mqd_obj,
@@ -467,36 +470,40 @@ void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev)
 				      &ring->mqd_ptr);
 	}
 
-	ring = &adev->gfx.kiq[0].ring;
+	ring = &kiq->ring;
+	kfree(kiq->mqd_backup);
 	kfree(adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS]);
 	amdgpu_bo_free_kernel(&ring->mqd_obj,
 			      &ring->mqd_gpu_addr,
 			      &ring->mqd_ptr);
 }
 
-int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
+int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
 	struct amdgpu_ring *kiq_ring = &kiq->ring;
 	int i, r = 0;
+	int j;
 
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
 
-	spin_lock(&adev->gfx.kiq[0].ring_lock);
+	spin_lock(&kiq->ring_lock);
 	if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
 					adev->gfx.num_compute_rings)) {
 		spin_unlock(&adev->gfx.kiq[0].ring_lock);
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < adev->gfx.num_compute_rings; i++)
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		j = i + xcc_id * adev->gfx.num_compute_rings;
 		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.compute_ring[i],
 					   RESET_QUEUES, 0, 0);
+	}
 
 	if (adev->gfx.kiq[0].ring.sched.ready && !adev->job_hang)
 		r = amdgpu_ring_test_helper(kiq_ring);
-	spin_unlock(&adev->gfx.kiq[0].ring_lock);
+	spin_unlock(&kiq->ring_lock);
 
 	return r;
 }
@@ -514,18 +521,18 @@ int amdgpu_queue_mask_bit_to_set_resource_bit(struct amdgpu_device *adev,
 	return set_resource_bit;
 }
 
-int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
+int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
-	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq[0].ring;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+	struct amdgpu_ring *kiq_ring = &kiq->ring;
 	uint64_t queue_mask = 0;
-	int r, i;
+	int r, i, j;
 
 	if (!kiq->pmf || !kiq->pmf->kiq_map_queues || !kiq->pmf->kiq_set_resources)
 		return -EINVAL;
 
 	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
-		if (!test_bit(i, adev->gfx.mec_bitmap[0].queue_bitmap))
+		if (!test_bit(i, adev->gfx.mec_bitmap[xcc_id].queue_bitmap))
 			continue;
 
 		/* This situation may be hit in the future if a new HW
@@ -541,7 +548,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 
 	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
 							kiq_ring->queue);
-	spin_lock(&adev->gfx.kiq[0].ring_lock);
+	spin_lock(&kiq->ring_lock);
 	r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
 					adev->gfx.num_compute_rings +
 					kiq->pmf->set_resources_size);
@@ -555,11 +562,13 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 		queue_mask = ~0ULL;
 
 	kiq->pmf->kiq_set_resources(kiq_ring, queue_mask);
-	for (i = 0; i < adev->gfx.num_compute_rings; i++)
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		j = i + xcc_id * adev->gfx.num_compute_rings;
 		kiq->pmf->kiq_map_queues(kiq_ring, &adev->gfx.compute_ring[i]);
+	}
 
 	r = amdgpu_ring_test_helper(kiq_ring);
-	spin_unlock(&adev->gfx.kiq[0].ring_lock);
+	spin_unlock(&kiq->ring_lock);
 	if (r)
 		DRM_ERROR("KCQ enable failed\n");
 
