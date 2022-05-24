@@ -6,8 +6,8 @@
 /dts-v1/;
 
 #include "rv1106.dtsi"
-#include "rv1106-evb-v10.dtsi"
-#include "rv1106-evb-cam.dtsi"
+#include "rv1106-evb.dtsi"
+#include "rv1106-ipc.dtsi"
 
 / {
 	model = "Rockchip RV1106G IPC38 V10 SPI NAND Board";
