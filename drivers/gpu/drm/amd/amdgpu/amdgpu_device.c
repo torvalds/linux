@@ -3287,7 +3287,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_MULLINS:
 		/*
 		 * We have systems in the wild with these ASICs that require
-		 * LVDS and VGA support which is not supported with DC.
+		 * VGA support which is not supported with DC.
 		 *
 		 * Fallback to the non-DC driver here by default so as not to
 		 * cause regressions.
