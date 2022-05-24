@@ -846,6 +846,7 @@ enum {
 	REQ_F_PARTIAL_IO_BIT,
 	REQ_F_CQE32_INIT_BIT,
 	REQ_F_APOLL_MULTISHOT_BIT,
+	REQ_F_CLEAR_POLLIN_BIT,
 	/* keep async read/write and isreg together and in order */
 	REQ_F_SUPPORT_NOWAIT_BIT,
 	REQ_F_ISREG_BIT,
@@ -916,6 +917,8 @@ enum {
 	REQ_F_APOLL_MULTISHOT	= BIT(REQ_F_APOLL_MULTISHOT_BIT),
 	/* ->extra1 and ->extra2 are initialised */
 	REQ_F_CQE32_INIT	= BIT(REQ_F_CQE32_INIT_BIT),
+	/* recvmsg special flag, clear EPOLLIN */
+	REQ_F_CLEAR_POLLIN	= BIT(REQ_F_CLEAR_POLLIN_BIT),
 };
 
 struct async_poll {
@@ -6145,6 +6148,8 @@ static int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	sr->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL;
 	if (sr->msg_flags & MSG_DONTWAIT)
 		req->flags |= REQ_F_NOWAIT;
+	if (sr->msg_flags & MSG_ERRQUEUE)
+		req->flags |= REQ_F_CLEAR_POLLIN;
 
 #ifdef CONFIG_COMPAT
 	if (req->ctx->compat)
@@ -7023,8 +7028,7 @@ static int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 		/* If reading from MSG_ERRQUEUE using recvmsg, ignore POLLIN */
-		if ((req->opcode == IORING_OP_RECVMSG) &&
-		    (req->sr_msg.msg_flags & MSG_ERRQUEUE))
+		if (req->flags & REQ_F_CLEAR_POLLIN)
 			mask &= ~EPOLLIN;
 	} else {
 		mask |= EPOLLOUT | EPOLLWRNORM;
