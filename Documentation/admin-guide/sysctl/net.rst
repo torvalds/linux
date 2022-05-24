@@ -382,6 +382,15 @@ option is set to SOCK_TXREHASH_DEFAULT (i. e. not overridden by setsockopt).
 If set to 1 (default), hash rethink is performed on listening socket.
 If set to 0, hash rethink is not performed.
 
+gro_normal_batch
+----------------
+
+Maximum number of the segments to batch up on output of GRO. When a packet
+exits GRO, either as a coalesced superframe or as an original packet which
+GRO has decided not to coalesce, it is placed on a per-NAPI list. This
+list is then passed to the stack when the number of segments reaches the
+gro_normal_batch limit.
+
 2. /proc/sys/net/unix - Parameters for Unix domain sockets
 ----------------------------------------------------------
 
