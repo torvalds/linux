@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"BATTERY_CHG: %s: " fmt, __func__
@@ -17,6 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/pm_wakeup.h>
 #include <linux/power_supply.h>
+#include <linux/reboot.h>
 #include <linux/soc/qcom/pmic_glink.h>
 #include <linux/soc/qcom/battery_charger.h>
 
@@ -45,7 +47,7 @@
 /* Generic definitions */
 #define MAX_STR_LEN			128
 #define BC_WAIT_TIME_MS			1000
-#define WLS_FW_PREPARE_TIME_MS		300
+#define WLS_FW_PREPARE_TIME_MS		1000
 #define WLS_FW_WAIT_TIME_MS		500
 #define WLS_FW_UPDATE_TIME_MS		1000
 #define WLS_FW_BUF_SIZE			128
@@ -225,9 +227,11 @@ struct battery_chg_dev {
 	const char			*wls_fw_name;
 	int				curr_thermal_level;
 	int				num_thermal_levels;
+	int				shutdown_volt_mv;
 	atomic_t			state;
 	struct work_struct		subsys_up_work;
 	struct work_struct		usb_type_work;
+	struct work_struct		battery_check_work;
 	int				fake_soc;
 	bool				block_tx;
 	bool				ship_mode_en;
@@ -235,6 +239,7 @@ struct battery_chg_dev {
 	bool				wls_fw_update_reqd;
 	u32				wls_fw_version;
 	u16				wls_fw_crc;
+	u32				wls_fw_update_time_ms;
 	struct notifier_block		reboot_notifier;
 	u32				thermal_fcc_ua;
 	u32				restrict_fcc_ua;
@@ -569,7 +574,8 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 		break;
 	case BC_SET_NOTIFY_REQ:
 	case BC_SHUTDOWN_NOTIFY:
-		/* Always ACK response for notify request */
+	case BC_SHIP_MODE_REQ_SET:
+		/* Always ACK response for notify or ship_mode request */
 		ack_set = true;
 		break;
 	case BC_WLS_FW_CHECK_UPDATE:
@@ -678,6 +684,60 @@ static void battery_chg_update_usb_type_work(struct work_struct *work)
 	}
 }
 
+static void battery_chg_check_status_work(struct work_struct *work)
+{
+	struct battery_chg_dev *bcdev = container_of(work,
+					struct battery_chg_dev,
+					battery_check_work);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+	int rc;
+
+	rc = read_property_id(bcdev, pst, BATT_STATUS);
+	if (rc < 0) {
+		pr_err("Failed to read BATT_STATUS, rc=%d\n", rc);
+		return;
+	}
+
+	if (pst->prop[BATT_STATUS] == POWER_SUPPLY_STATUS_CHARGING) {
+		pr_debug("Battery is charging\n");
+		return;
+	}
+
+	rc = read_property_id(bcdev, pst, BATT_CAPACITY);
+	if (rc < 0) {
+		pr_err("Failed to read BATT_CAPACITY, rc=%d\n", rc);
+		return;
+	}
+
+	if (DIV_ROUND_CLOSEST(pst->prop[BATT_CAPACITY], 100) > 0) {
+		pr_debug("Battery SOC is > 0\n");
+		return;
+	}
+
+	/*
+	 * If we are here, then battery is not charging and SOC is 0.
+	 * Check the battery voltage and if it's lower than shutdown voltage,
+	 * then initiate an emergency shutdown.
+	 */
+
+	rc = read_property_id(bcdev, pst, BATT_VOLT_NOW);
+	if (rc < 0) {
+		pr_err("Failed to read BATT_VOLT_NOW, rc=%d\n", rc);
+		return;
+	}
+
+	if (pst->prop[BATT_VOLT_NOW] / 1000 > bcdev->shutdown_volt_mv) {
+		pr_debug("Battery voltage is > %d mV\n",
+			bcdev->shutdown_volt_mv);
+		return;
+	}
+
+	pr_emerg("Initiating a shutdown in 100 ms\n");
+	msleep(100);
+	pr_emerg("Attempting kernel_power_off: Battery voltage low\n");
+	kernel_power_off();
+}
+
 static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 				size_t len)
 {
@@ -695,6 +755,8 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 	case BC_BATTERY_STATUS_GET:
 	case BC_GENERIC_NOTIFY:
 		pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+		if (bcdev->shutdown_volt_mv > 0)
+			schedule_work(&bcdev->battery_check_work);
 		break;
 	case BC_USB_STATUS_GET:
 		pst = &bcdev->psy_list[PSY_TYPE_USB];
@@ -1131,15 +1193,6 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 
 	psy_cfg.drv_data = bcdev;
 	psy_cfg.of_node = bcdev->dev->of_node;
-	bcdev->psy_list[PSY_TYPE_BATTERY].psy =
-		devm_power_supply_register(bcdev->dev, &batt_psy_desc,
-						&psy_cfg);
-	if (IS_ERR(bcdev->psy_list[PSY_TYPE_BATTERY].psy)) {
-		rc = PTR_ERR(bcdev->psy_list[PSY_TYPE_BATTERY].psy);
-		pr_err("Failed to register battery power supply, rc=%d\n", rc);
-		return rc;
-	}
-
 	bcdev->psy_list[PSY_TYPE_USB].psy =
 		devm_power_supply_register(bcdev->dev, &usb_psy_desc, &psy_cfg);
 	if (IS_ERR(bcdev->psy_list[PSY_TYPE_USB].psy)) {
@@ -1153,6 +1206,15 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 	if (IS_ERR(bcdev->psy_list[PSY_TYPE_WLS].psy)) {
 		rc = PTR_ERR(bcdev->psy_list[PSY_TYPE_WLS].psy);
 		pr_err("Failed to register wireless power supply, rc=%d\n", rc);
+		return rc;
+	}
+
+	bcdev->psy_list[PSY_TYPE_BATTERY].psy =
+		devm_power_supply_register(bcdev->dev, &batt_psy_desc,
+						&psy_cfg);
+	if (IS_ERR(bcdev->psy_list[PSY_TYPE_BATTERY].psy)) {
+		rc = PTR_ERR(bcdev->psy_list[PSY_TYPE_BATTERY].psy);
+		pr_err("Failed to register battery power supply, rc=%d\n", rc);
 		return rc;
 	}
 
@@ -1335,13 +1397,16 @@ static int wireless_fw_update(struct battery_chg_dev *bcdev, bool force)
 		goto release_fw;
 	}
 
+	pr_debug("Waiting for fw_update_ack\n");
 	rc = wait_for_completion_timeout(&bcdev->fw_update_ack,
-				msecs_to_jiffies(WLS_FW_UPDATE_TIME_MS));
+				msecs_to_jiffies(bcdev->wls_fw_update_time_ms));
 	if (!rc) {
 		pr_err("Error, timed out updating firmware\n");
 		rc = -ETIMEDOUT;
 		goto release_fw;
 	} else {
+		pr_debug("Waited for %d ms\n",
+			bcdev->wls_fw_update_time_ms - jiffies_to_msecs(rc));
 		rc = 0;
 	}
 
@@ -1355,6 +1420,29 @@ out:
 
 	return rc;
 }
+
+static ssize_t wireless_fw_update_time_ms_store(struct class *c,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+
+	if (kstrtou32(buf, 0, &bcdev->wls_fw_update_time_ms))
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t wireless_fw_update_time_ms_show(struct class *c,
+				struct class_attribute *attr, char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", bcdev->wls_fw_update_time_ms);
+}
+static CLASS_ATTR_RW(wireless_fw_update_time_ms);
 
 static ssize_t wireless_fw_crc_store(struct class *c,
 					struct class_attribute *attr,
@@ -1719,6 +1807,7 @@ static struct attribute *battery_class_attrs[] = {
 	&class_attr_wireless_fw_force_update.attr,
 	&class_attr_wireless_fw_version.attr,
 	&class_attr_wireless_fw_crc.attr,
+	&class_attr_wireless_fw_update_time_ms.attr,
 	&class_attr_ship_mode_en.attr,
 	&class_attr_restrict_chg.attr,
 	&class_attr_restrict_cur.attr,
@@ -1732,7 +1821,7 @@ ATTRIBUTE_GROUPS(battery_class);
 static void battery_chg_add_debugfs(struct battery_chg_dev *bcdev)
 {
 	int rc;
-	struct dentry *dir, *file;
+	struct dentry *dir;
 
 	dir = debugfs_create_dir("battery_charger", NULL);
 	if (IS_ERR(dir)) {
@@ -1742,19 +1831,8 @@ static void battery_chg_add_debugfs(struct battery_chg_dev *bcdev)
 		return;
 	}
 
-	file = debugfs_create_bool("block_tx", 0600, dir, &bcdev->block_tx);
-	if (IS_ERR(file)) {
-		rc = PTR_ERR(file);
-		pr_err("Failed to create block_tx debugfs file, rc=%d\n",
-			rc);
-		goto error;
-	}
-
 	bcdev->debugfs_dir = dir;
-
-	return;
-error:
-	debugfs_remove_recursive(dir);
+	debugfs_create_bool("block_tx", 0600, dir, &bcdev->block_tx);
 }
 #else
 static void battery_chg_add_debugfs(struct battery_chg_dev *bcdev) { }
@@ -1769,6 +1847,9 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 
 	of_property_read_string(node, "qcom,wireless-fw-name",
 				&bcdev->wls_fw_name);
+
+	of_property_read_u32(node, "qcom,shutdown-voltage",
+				&bcdev->shutdown_volt_mv);
 
 	rc = of_property_count_elems_of_size(node, "qcom,thermal-mitigation",
 						sizeof(u32));
@@ -1904,6 +1985,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 	init_completion(&bcdev->fw_update_ack);
 	INIT_WORK(&bcdev->subsys_up_work, battery_chg_subsys_up_work);
 	INIT_WORK(&bcdev->usb_type_work, battery_chg_update_usb_type_work);
+	INIT_WORK(&bcdev->battery_check_work, battery_chg_check_status_work);
 	atomic_set(&bcdev->state, PMIC_GLINK_STATE_UP);
 	bcdev->dev = dev;
 
@@ -1948,6 +2030,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 		goto error;
 	}
 
+	bcdev->wls_fw_update_time_ms = WLS_FW_UPDATE_TIME_MS;
 	battery_chg_add_debugfs(bcdev);
 	battery_chg_notify_enable(bcdev);
 	device_init_wakeup(bcdev->dev, true);
