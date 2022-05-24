@@ -853,6 +853,28 @@ static const struct amdgpu_asic_funcs vega20_asic_funcs =
 	.query_video_codecs = &soc15_query_video_codecs,
 };
 
+static const struct amdgpu_asic_funcs aqua_vanjaram_asic_funcs =
+{
+	.read_disabled_bios = &soc15_read_disabled_bios,
+	.read_bios_from_rom = &amdgpu_soc15_read_bios_from_rom,
+	.read_register = &soc15_read_register,
+	.reset = &soc15_asic_reset,
+	.reset_method = &soc15_asic_reset_method,
+	.set_vga_state = &soc15_vga_set_state,
+	.get_xclk = &soc15_get_xclk,
+	.set_uvd_clocks = &soc15_set_uvd_clocks,
+	.set_vce_clocks = &soc15_set_vce_clocks,
+	.get_config_memsize = &soc15_get_config_memsize,
+	.need_full_reset = &soc15_need_full_reset,
+	.init_doorbell_index = &aqua_vanjaram_doorbell_index_init,
+	.get_pcie_usage = &vega20_get_pcie_usage,
+	.need_reset_on_init = &soc15_need_reset_on_init,
+	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
+	.supports_baco = &soc15_supports_baco,
+	.pre_asic_init = &soc15_pre_asic_init,
+	.query_video_codecs = &soc15_query_video_codecs,
+};
+
 static int soc15_common_early_init(void *handle)
 {
 #define MMIO_REG_HOLE_OFFSET (0x80000 - PAGE_SIZE)
@@ -1096,7 +1118,7 @@ static int soc15_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x3c;
 		break;
 	case IP_VERSION(9, 4, 3):
-		adev->asic_funcs = &vega20_asic_funcs;
+		adev->asic_funcs = &aqua_vanjaram_asic_funcs;
 		adev->cg_flags =
 			AMD_CG_SUPPORT_VCN_MGCG |
 			AMD_CG_SUPPORT_JPEG_MGCG;
