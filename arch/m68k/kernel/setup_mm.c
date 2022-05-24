@@ -181,6 +181,8 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 				unknown = hp300_parse_bootinfo(record);
 			else if (MACH_IS_APOLLO)
 				unknown = apollo_parse_bootinfo(record);
+			else if (MACH_IS_VIRT)
+				unknown = virt_parse_bootinfo(record);
 			else
 				unknown = 1;
 		}
@@ -310,6 +312,11 @@ void __init setup_arch(char **cmdline_p)
 		cf_bootmem_alloc();
 		cf_mmu_context_init();
 		config_BSP(NULL, 0);
+		break;
+#endif
+#ifdef CONFIG_VIRT
+	case MACH_VIRT:
+		config_virt();
 		break;
 #endif
 	default:
