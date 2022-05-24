@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sysfs.h>
+#include <linux/of.h>
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/slab.h>
