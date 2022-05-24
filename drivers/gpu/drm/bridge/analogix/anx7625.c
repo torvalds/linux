@@ -1637,16 +1637,16 @@ static int anx7625_parse_dt(struct device *dev,
 		if (of_property_read_u32(ep0, "bus-type", &bus_type))
 			bus_type = 0;
 
-		mipi_lanes = of_property_count_u32_elems(ep0, "data-lanes");
+		mipi_lanes = drm_of_get_data_lanes_count(ep0, 1, MAX_LANES_SUPPORT);
 		of_node_put(ep0);
 	}
 
 	if (bus_type == V4L2_FWNODE_BUS_TYPE_PARALLEL) /* bus type is Parallel(DSI) */
 		pdata->is_dpi = 0;
 
-	pdata->mipi_lanes = mipi_lanes;
-	if (pdata->mipi_lanes > MAX_LANES_SUPPORT || pdata->mipi_lanes <= 0)
-		pdata->mipi_lanes = MAX_LANES_SUPPORT;
+	pdata->mipi_lanes = MAX_LANES_SUPPORT;
+	if (mipi_lanes > 0)
+		pdata->mipi_lanes = mipi_lanes;
 
 	if (pdata->is_dpi)
 		DRM_DEV_DEBUG_DRIVER(dev, "found MIPI DPI host node.\n");
