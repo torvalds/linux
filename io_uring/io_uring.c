@@ -954,14 +954,27 @@ enum {
 };
 
 /*
- * NOTE! Each of the iocb union members has the file pointer
- * as the first entry in their struct definition. So you can
- * access the file pointer through any of the sub-structs,
- * or directly as just 'file' in this struct.
+ * Each request type overlays its private data structure on top of this one.
+ * They must not exceed this one in size.
  */
+struct io_cmd_data {
+	struct file		*file;
+	/* each command gets 56 bytes of data */
+	__u8			data[56];
+};
+
+#define io_kiocb_to_cmd(req)	((void *) &(req)->cmd)
+
 struct io_kiocb {
 	union {
+		/*
+		 * NOTE! Each of the io_kiocb union members has the file pointer
+		 * as the first entry in their struct definition. So you can
+		 * access the file pointer through any of the sub-structs,
+		 * or directly as just 'file' in this struct.
+		 */
 		struct file		*file;
+		struct io_cmd_data	cmd;
 		struct io_rw		rw;
 		struct io_poll_iocb	poll;
 		struct io_poll_update	poll_update;
