@@ -288,7 +288,7 @@ void dw_edma_v0_debugfs_on(struct dw_edma *_dw)
 	if (!dw)
 		return;
 
-	regs = dw->chip->rg_region.vaddr;
+	regs = dw->chip->reg_base;
 	if (!regs)
 		return;
 
