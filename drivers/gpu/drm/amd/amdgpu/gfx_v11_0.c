@@ -112,7 +112,7 @@ static int gfx_v11_0_get_cu_info(struct amdgpu_device *adev,
                                  struct amdgpu_cu_info *cu_info);
 static uint64_t gfx_v11_0_get_gpu_clock_counter(struct amdgpu_device *adev);
 static void gfx_v11_0_select_se_sh(struct amdgpu_device *adev, u32 se_num,
-				   u32 sh_num, u32 instance);
+				   u32 sh_num, u32 instance, int xcc_id);
 static u32 gfx_v11_0_get_wgp_active_bitmap_per_sh(struct amdgpu_device *adev);
 
 static void gfx_v11_0_ring_emit_de_meta(struct amdgpu_ring *ring, bool resume);
@@ -1484,7 +1484,7 @@ static int gfx_v11_0_sw_fini(void *handle)
 }
 
 static void gfx_v11_0_select_se_sh(struct amdgpu_device *adev, u32 se_num,
-				   u32 sh_num, u32 instance)
+				   u32 sh_num, u32 instance, int xcc_id)
 {
 	u32 data;
 
@@ -6473,7 +6473,7 @@ static int gfx_v11_0_get_cu_info(struct amdgpu_device *adev,
 		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
 			mask = 1;
 			counter = 0;
-			gfx_v11_0_select_se_sh(adev, i, j, 0xffffffff);
+			gfx_v11_0_select_se_sh(adev, i, j, 0xffffffff, 0);
 			if (i < 8 && j < 2)
 				gfx_v11_0_set_user_wgp_inactive_bitmap_per_sh(
 					adev, disable_masks[i * 2 + j]);
@@ -6505,7 +6505,7 @@ static int gfx_v11_0_get_cu_info(struct amdgpu_device *adev,
 			active_cu_number += counter;
 		}
 	}
-	gfx_v11_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	gfx_v11_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	cu_info->number = active_cu_number;

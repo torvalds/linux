@@ -136,7 +136,7 @@ static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 		}
 		mutex_lock(&adev->grbm_idx_mutex);
 		amdgpu_gfx_select_se_sh(adev, se_bank,
-					sh_bank, instance_bank);
+					sh_bank, instance_bank, 0);
 	} else if (use_ring) {
 		mutex_lock(&adev->srbm_mutex);
 		amdgpu_gfx_select_me_pipe_q(adev, me, pipe, queue, vmid);
@@ -169,7 +169,7 @@ static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 
 end:
 	if (use_bank) {
-		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
 		mutex_unlock(&adev->grbm_idx_mutex);
 	} else if (use_ring) {
 		amdgpu_gfx_select_me_pipe_q(adev, 0, 0, 0, 0);
@@ -263,7 +263,7 @@ static ssize_t amdgpu_debugfs_regs2_op(struct file *f, char __user *buf, u32 off
 		mutex_lock(&adev->grbm_idx_mutex);
 		amdgpu_gfx_select_se_sh(adev, rd->id.grbm.se,
 								rd->id.grbm.sh,
-								rd->id.grbm.instance);
+								rd->id.grbm.instance, 0);
 	}
 
 	if (rd->id.use_srbm) {
@@ -295,7 +295,7 @@ static ssize_t amdgpu_debugfs_regs2_op(struct file *f, char __user *buf, u32 off
 	}
 end:
 	if (rd->id.use_grbm) {
-		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
 		mutex_unlock(&adev->grbm_idx_mutex);
 	}
 
@@ -907,13 +907,13 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 
 	/* switch to the specific se/sh/cu */
 	mutex_lock(&adev->grbm_idx_mutex);
-	amdgpu_gfx_select_se_sh(adev, se, sh, cu);
+	amdgpu_gfx_select_se_sh(adev, se, sh, cu, 0);
 
 	x = 0;
 	if (adev->gfx.funcs->read_wave_data)
 		adev->gfx.funcs->read_wave_data(adev, simd, wave, data, &x);
 
-	amdgpu_gfx_select_se_sh(adev, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+	amdgpu_gfx_select_se_sh(adev, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
@@ -1001,7 +1001,7 @@ static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
 
 	/* switch to the specific se/sh/cu */
 	mutex_lock(&adev->grbm_idx_mutex);
-	amdgpu_gfx_select_se_sh(adev, se, sh, cu);
+	amdgpu_gfx_select_se_sh(adev, se, sh, cu, 0);
 
 	if (bank == 0) {
 		if (adev->gfx.funcs->read_wave_vgprs)
@@ -1011,7 +1011,7 @@ static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
 			adev->gfx.funcs->read_wave_sgprs(adev, simd, wave, offset, size>>2, data);
 	}
 
-	amdgpu_gfx_select_se_sh(adev, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+	amdgpu_gfx_select_se_sh(adev, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);

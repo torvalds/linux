@@ -777,7 +777,7 @@ void gfx_v9_4_2_set_power_brake_sequence(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
-	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
 
 	tmp = 0;
 	tmp = REG_SET_FIELD(tmp, GC_THROTTLE_CTRL, PATTERN_MODE, 1);

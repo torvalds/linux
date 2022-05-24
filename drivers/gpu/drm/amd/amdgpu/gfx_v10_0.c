@@ -3490,7 +3490,7 @@ static int gfx_v10_0_get_cu_info(struct amdgpu_device *adev,
 				 struct amdgpu_cu_info *cu_info);
 static uint64_t gfx_v10_0_get_gpu_clock_counter(struct amdgpu_device *adev);
 static void gfx_v10_0_select_se_sh(struct amdgpu_device *adev, u32 se_num,
-				   u32 sh_num, u32 instance);
+				   u32 sh_num, u32 instance, int xcc_id);
 static u32 gfx_v10_0_get_wgp_active_bitmap_per_sh(struct amdgpu_device *adev);
 
 static int gfx_v10_0_rlc_backdoor_autoload_buffer_init(struct amdgpu_device *adev);
@@ -4712,7 +4712,7 @@ static int gfx_v10_0_sw_fini(void *handle)
 }
 
 static void gfx_v10_0_select_se_sh(struct amdgpu_device *adev, u32 se_num,
-				   u32 sh_num, u32 instance)
+				   u32 sh_num, u32 instance, int xcc_id)
 {
 	u32 data;
 
@@ -4772,13 +4772,13 @@ static void gfx_v10_0_setup_rb(struct amdgpu_device *adev)
 				(adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 3, 6))) &&
 			    ((gfx_v10_3_get_disabled_sa(adev) >> bitmap) & 1))
 				continue;
-			gfx_v10_0_select_se_sh(adev, i, j, 0xffffffff);
+			gfx_v10_0_select_se_sh(adev, i, j, 0xffffffff, 0);
 			data = gfx_v10_0_get_rb_active_bitmap(adev);
 			active_rbs |= data << ((i * adev->gfx.config.max_sh_per_se + j) *
 					       rb_bitmap_width_per_sh);
 		}
 	}
-	gfx_v10_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	gfx_v10_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	adev->gfx.config.backend_enable_mask = active_rbs;
@@ -4907,7 +4907,7 @@ static void gfx_v10_0_tcp_harvest(struct amdgpu_device *adev)
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
 		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
-			gfx_v10_0_select_se_sh(adev, i, j, 0xffffffff);
+			gfx_v10_0_select_se_sh(adev, i, j, 0xffffffff, 0);
 			wgp_active_bitmap = gfx_v10_0_get_wgp_active_bitmap_per_sh(adev);
 			/*
 			 * Set corresponding TCP bits for the inactive WGPs in
@@ -4940,7 +4940,7 @@ static void gfx_v10_0_tcp_harvest(struct amdgpu_device *adev)
 		}
 	}
 
-	gfx_v10_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	gfx_v10_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
@@ -9540,7 +9540,7 @@ static int gfx_v10_0_get_cu_info(struct amdgpu_device *adev,
 			mask = 1;
 			ao_bitmap = 0;
 			counter = 0;
-			gfx_v10_0_select_se_sh(adev, i, j, 0xffffffff);
+			gfx_v10_0_select_se_sh(adev, i, j, 0xffffffff, 0);
 			if (i < 4 && j < 2)
 				gfx_v10_0_set_user_wgp_inactive_bitmap_per_sh(
 					adev, disable_masks[i * 2 + j]);
@@ -9561,7 +9561,7 @@ static int gfx_v10_0_get_cu_info(struct amdgpu_device *adev,
 			cu_info->ao_cu_bitmap[i][j] = ao_bitmap;
 		}
 	}
-	gfx_v10_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	gfx_v10_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	cu_info->number = active_cu_number;
