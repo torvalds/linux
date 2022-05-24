@@ -145,12 +145,13 @@ int aa_af_perm(struct aa_label *label, const char *op, u32 request, u16 family,
 static int aa_label_sk_perm(struct aa_label *label, const char *op, u32 request,
 			    struct sock *sk)
 {
+	struct aa_sk_ctx *ctx = SK_CTX(sk);
 	int error = 0;
 
 	AA_BUG(!label);
 	AA_BUG(!sk);
 
-	if (!unconfined(label)) {
+	if (ctx->label != kernel_t && !unconfined(label)) {
 		struct aa_profile *profile;
 		DEFINE_AUDIT_SK(sa, op, sk);
 

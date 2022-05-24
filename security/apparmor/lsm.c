@@ -886,10 +886,7 @@ static int apparmor_socket_post_create(struct socket *sock, int family,
 	struct aa_label *label;
 
 	if (kern) {
-		struct aa_ns *ns = aa_get_current_ns();
-
-		label = aa_get_label(ns_unconfined(ns));
-		aa_put_ns(ns);
+		label = aa_get_label(kernel_t);
 	} else
 		label = aa_get_current_label();
 

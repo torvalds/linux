@@ -22,6 +22,9 @@
 #include "include/label.h"
 #include "include/policy.h"
 
+/* kernel label */
+struct aa_label *kernel_t;
+
 /* root profile namespace */
 struct aa_ns *root_ns;
 const char *aa_hidden_ns_name = "---";
@@ -77,6 +80,23 @@ const char *aa_ns_name(struct aa_ns *curr, struct aa_ns *view, bool subns)
 	return aa_hidden_ns_name;
 }
 
+struct aa_profile *alloc_unconfined(const char *name)
+{
+	struct aa_profile *profile;
+
+	profile = aa_alloc_profile(name, NULL, GFP_KERNEL);
+	if (!profile)
+		return NULL;
+
+	profile->label.flags |= FLAG_IX_ON_NAME_ERROR |
+		FLAG_IMMUTIBLE | FLAG_NS_COUNT | FLAG_UNCONFINED;
+	profile->mode = APPARMOR_UNCONFINED;
+	profile->file.dfa = aa_get_dfa(nulldfa);
+	profile->policy.dfa = aa_get_dfa(nulldfa);
+
+	return profile;
+}
+
 /**
  * alloc_ns - allocate, initialize and return a new namespace
  * @prefix: parent namespace name (MAYBE NULL)
@@ -101,16 +121,9 @@ static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 	init_waitqueue_head(&ns->wait);
 
 	/* released by aa_free_ns() */
-	ns->unconfined = aa_alloc_profile("unconfined", NULL, GFP_KERNEL);
+	ns->unconfined = alloc_unconfined("unconfined");
 	if (!ns->unconfined)
 		goto fail_unconfined;
-
-	ns->unconfined->label.flags |= FLAG_IX_ON_NAME_ERROR |
-		FLAG_IMMUTIBLE | FLAG_NS_COUNT | FLAG_UNCONFINED;
-	ns->unconfined->mode = APPARMOR_UNCONFINED;
-	ns->unconfined->file.dfa = aa_get_dfa(nulldfa);
-	ns->unconfined->policy.dfa = aa_get_dfa(nulldfa);
-
 	/* ns and ns->unconfined share ns->unconfined refcount */
 	ns->unconfined->ns = ns;
 
@@ -388,10 +401,21 @@ static void __ns_list_release(struct list_head *head)
  */
 int __init aa_alloc_root_ns(void)
 {
+	struct aa_profile *kernel_p;
+
 	/* released by aa_free_root_ns - used as list ref*/
 	root_ns = alloc_ns(NULL, "root");
 	if (!root_ns)
 		return -ENOMEM;
+
+	kernel_p = alloc_unconfined("kernel_t");
+	if (!kernel_p) {
+		destroy_ns(root_ns);
+		aa_free_ns(root_ns);
+		return -ENOMEM;
+	}
+	kernel_t = &kernel_p->label;
+	root_ns->unconfined->ns = aa_get_ns(root_ns);
 
 	return 0;
 }
@@ -405,6 +429,7 @@ void __init aa_free_root_ns(void)
 
 	 root_ns = NULL;
 
+	 aa_label_free(kernel_t);
 	 destroy_ns(ns);
 	 aa_put_ns(ns);
 }
