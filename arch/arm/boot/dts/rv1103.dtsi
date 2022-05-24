@@ -21,6 +21,23 @@
 	/delete-node/ opp-1608000000;
 };
 
+&cru {
+	assigned-clocks =
+		<&cru PLL_GPLL>, <&cru PLL_CPLL>,
+		<&cru ARMCLK>,
+		<&cru ACLK_PERI_ROOT>, <&cru HCLK_PERI_ROOT>,
+		<&cru PCLK_PERI_ROOT>, <&cru ACLK_BUS_ROOT>,
+		<&cru PCLK_TOP_ROOT>, <&cru PCLK_PMU_ROOT>,
+		<&cru HCLK_PMU_ROOT>, <&cru CLK_339M_SRC>;
+	assigned-clock-rates =
+		<1188000000>, <1000000000>,
+		<1104000000>,
+		<400000000>, <200000000>,
+		<100000000>, <300000000>,
+		<100000000>, <100000000>,
+		<200000000>, <264000000>;
+};
+
 &u2phy_otg {
 	rockchip,vbus-always-on;
 };
