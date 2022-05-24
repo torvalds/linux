@@ -1,14 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config SPI_ASPEED_SMC
-	tristate "Aspeed flash controllers in SPI mode"
-	depends on ARCH_ASPEED || COMPILE_TEST
-	depends on HAS_IOMEM && OF
-	help
-	  This enables support for the Firmware Memory controller (FMC)
-	  in the Aspeed AST2500/AST2400 SoCs when attached to SPI NOR chips,
-	  and support for the SPI flash memory controller (SPI) for
-	  the host firmware. The implementation only supports SPI NOR.
-
 config SPI_HISI_SFC
 	tristate "Hisilicon FMC SPI NOR Flash Controller(SFC)"
 	depends on ARCH_HISI || COMPILE_TEST
