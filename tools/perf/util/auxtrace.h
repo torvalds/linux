@@ -496,8 +496,7 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 				bool auxtrace_overwrite);
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 				   struct evlist *evlist,
-				   struct evsel *evsel, int idx,
-				   bool per_cpu);
+				   struct evsel *evsel, int idx);
 
 typedef int (*process_auxtrace_t)(struct perf_tool *tool,
 				  struct mmap *map,
@@ -870,8 +869,7 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 				bool auxtrace_overwrite);
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 				   struct evlist *evlist,
-				   struct evsel *evsel, int idx,
-				   bool per_cpu);
+				   struct evsel *evsel, int idx);
 
 #define ITRACE_HELP ""
 
