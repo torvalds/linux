@@ -350,6 +350,23 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	if (is_polling(sdd))
 		return 0;
 
+	/* Requests DMA channels */
+	sdd->rx_dma.ch = dma_request_chan(&sdd->pdev->dev, "rx");
+	if (IS_ERR(sdd->rx_dma.ch)) {
+		dev_err(&sdd->pdev->dev, "Failed to get RX DMA channel\n");
+		sdd->rx_dma.ch = 0;
+		return 0;
+	}
+
+	sdd->tx_dma.ch = dma_request_chan(&sdd->pdev->dev, "tx");
+	if (IS_ERR(sdd->tx_dma.ch)) {
+		dev_err(&sdd->pdev->dev, "Failed to get TX DMA hannel\n");
+		dma_release_channel(sdd->rx_dma.ch);
+		sdd->tx_dma.ch = 0;
+		sdd->rx_dma.ch = 0;
+		return 0;
+	}
+
 	spi->dma_rx = sdd->rx_dma.ch;
 	spi->dma_tx = sdd->tx_dma.ch;
 
@@ -362,7 +379,12 @@ static bool s3c64xx_spi_can_dma(struct spi_master *master,
 {
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
 
-	return xfer->len > (FIFO_LVL_MASK(sdd) >> 1) + 1;
+	if (sdd->rx_dma.ch && sdd->tx_dma.ch) {
+		return xfer->len > (FIFO_LVL_MASK(sdd) >> 1) + 1;
+	} else {
+		return 0;
+	}
+
 }
 
 static int s3c64xx_enable_datapath(struct s3c64xx_spi_driver_data *sdd,
@@ -697,7 +719,7 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 	    sdd->rx_dma.ch && sdd->tx_dma.ch) {
 		use_dma = 1;
 
-	} else if (is_polling(sdd) && xfer->len > fifo_len) {
+	} else if (xfer->len > fifo_len) {
 		tx_buf = xfer->tx_buf;
 		rx_buf = xfer->rx_buf;
 		origin_len = xfer->len;
@@ -780,6 +802,14 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 		xfer->tx_buf = tx_buf;
 		xfer->rx_buf = rx_buf;
 		xfer->len = origin_len;
+	}
+
+	/* Releases DMA channels after data transfer is completed */
+	if (sdd->rx_dma.ch && sdd->tx_dma.ch) {
+		dma_release_channel(sdd->rx_dma.ch);
+		dma_release_channel(sdd->tx_dma.ch);
+		sdd->rx_dma.ch = 0;
+		sdd->tx_dma.ch = 0;
 	}
 
 	return status;
@@ -1167,22 +1197,6 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (!is_polling(sdd)) {
-		/* Acquire DMA channels */
-		sdd->rx_dma.ch = dma_request_chan(&pdev->dev, "rx");
-		if (IS_ERR(sdd->rx_dma.ch)) {
-			dev_err(&pdev->dev, "Failed to get RX DMA channel\n");
-			ret = PTR_ERR(sdd->rx_dma.ch);
-			goto err_disable_io_clk;
-		}
-		sdd->tx_dma.ch = dma_request_chan(&pdev->dev, "tx");
-		if (IS_ERR(sdd->tx_dma.ch)) {
-			dev_err(&pdev->dev, "Failed to get TX DMA channel\n");
-			ret = PTR_ERR(sdd->tx_dma.ch);
-			goto err_release_rx_dma;
-		}
-	}
-
 	pm_runtime_set_autosuspend_delay(&pdev->dev, AUTOSUSPEND_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
@@ -1228,12 +1242,6 @@ err_pm_put:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
-	if (!is_polling(sdd))
-		dma_release_channel(sdd->tx_dma.ch);
-err_release_rx_dma:
-	if (!is_polling(sdd))
-		dma_release_channel(sdd->rx_dma.ch);
-err_disable_io_clk:
 	clk_disable_unprepare(sdd->ioclk);
 err_disable_src_clk:
 	clk_disable_unprepare(sdd->src_clk);
