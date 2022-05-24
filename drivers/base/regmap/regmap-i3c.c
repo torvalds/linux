@@ -40,7 +40,7 @@ static int regmap_i3c_read(void *context,
 	return i3c_device_do_priv_xfers(i3c, xfers, 2);
 }
 
-static struct regmap_bus regmap_i3c = {
+static const struct regmap_bus regmap_i3c = {
 	.write = regmap_i3c_write,
 	.read = regmap_i3c_read,
 };
