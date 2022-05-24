@@ -526,13 +526,12 @@ static int vdec_vp9_slice_init_default_frame_ctx(struct vdec_vp9_slice_instance 
 	if (vdec_vp9_slice_default_frame_ctx)
 		goto out;
 
-	frame_ctx = kmalloc(sizeof(*frame_ctx), GFP_KERNEL);
+	frame_ctx = kmemdup(remote_frame_ctx, sizeof(*frame_ctx), GFP_KERNEL);
 	if (!frame_ctx) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	memcpy(frame_ctx, remote_frame_ctx, sizeof(*frame_ctx));
 	vdec_vp9_slice_default_frame_ctx = frame_ctx;
 
 out:
