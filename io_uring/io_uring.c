@@ -979,7 +979,6 @@ struct io_kiocb {
 		 */
 		struct file		*file;
 		struct io_cmd_data	cmd;
-		struct io_sync		sync;
 		struct io_cancel	cancel;
 		struct io_timeout	timeout;
 		struct io_timeout_rem	timeout_rem;
@@ -5085,30 +5084,32 @@ done:
 
 static int io_fsync_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
+	struct io_sync *sync = io_kiocb_to_cmd(req);
+
 	if (unlikely(sqe->addr || sqe->buf_index || sqe->splice_fd_in))
 		return -EINVAL;
 
-	req->sync.flags = READ_ONCE(sqe->fsync_flags);
-	if (unlikely(req->sync.flags & ~IORING_FSYNC_DATASYNC))
+	sync->flags = READ_ONCE(sqe->fsync_flags);
+	if (unlikely(sync->flags & ~IORING_FSYNC_DATASYNC))
 		return -EINVAL;
 
-	req->sync.off = READ_ONCE(sqe->off);
-	req->sync.len = READ_ONCE(sqe->len);
+	sync->off = READ_ONCE(sqe->off);
+	sync->len = READ_ONCE(sqe->len);
 	return 0;
 }
 
 static int io_fsync(struct io_kiocb *req, unsigned int issue_flags)
 {
-	loff_t end = req->sync.off + req->sync.len;
+	struct io_sync *sync = io_kiocb_to_cmd(req);
+	loff_t end = sync->off + sync->len;
 	int ret;
 
 	/* fsync always requires a blocking context */
 	if (issue_flags & IO_URING_F_NONBLOCK)
 		return -EAGAIN;
 
-	ret = vfs_fsync_range(req->file, req->sync.off,
-				end > 0 ? end : LLONG_MAX,
-				req->sync.flags & IORING_FSYNC_DATASYNC);
+	ret = vfs_fsync_range(req->file, sync->off, end > 0 ? end : LLONG_MAX,
+				sync->flags & IORING_FSYNC_DATASYNC);
 	io_req_complete(req, ret);
 	return 0;
 }
@@ -5116,24 +5117,26 @@ static int io_fsync(struct io_kiocb *req, unsigned int issue_flags)
 static int io_fallocate_prep(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe)
 {
+	struct io_sync *sync = io_kiocb_to_cmd(req);
+
 	if (sqe->buf_index || sqe->rw_flags || sqe->splice_fd_in)
 		return -EINVAL;
 
-	req->sync.off = READ_ONCE(sqe->off);
-	req->sync.len = READ_ONCE(sqe->addr);
-	req->sync.mode = READ_ONCE(sqe->len);
+	sync->off = READ_ONCE(sqe->off);
+	sync->len = READ_ONCE(sqe->addr);
+	sync->mode = READ_ONCE(sqe->len);
 	return 0;
 }
 
 static int io_fallocate(struct io_kiocb *req, unsigned int issue_flags)
 {
+	struct io_sync *sync = io_kiocb_to_cmd(req);
 	int ret;
 
 	/* fallocate always requiring blocking context */
 	if (issue_flags & IO_URING_F_NONBLOCK)
 		return -EAGAIN;
-	ret = vfs_fallocate(req->file, req->sync.mode, req->sync.off,
-				req->sync.len);
+	ret = vfs_fallocate(req->file, sync->mode, sync->off, sync->len);
 	if (ret >= 0)
 		fsnotify_modify(req->file);
 	io_req_complete(req, ret);
@@ -5792,25 +5795,27 @@ err:
 
 static int io_sfr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
+	struct io_sync *sync = io_kiocb_to_cmd(req);
+
 	if (unlikely(sqe->addr || sqe->buf_index || sqe->splice_fd_in))
 		return -EINVAL;
 
-	req->sync.off = READ_ONCE(sqe->off);
-	req->sync.len = READ_ONCE(sqe->len);
-	req->sync.flags = READ_ONCE(sqe->sync_range_flags);
+	sync->off = READ_ONCE(sqe->off);
+	sync->len = READ_ONCE(sqe->len);
+	sync->flags = READ_ONCE(sqe->sync_range_flags);
 	return 0;
 }
 
 static int io_sync_file_range(struct io_kiocb *req, unsigned int issue_flags)
 {
+	struct io_sync *sync = io_kiocb_to_cmd(req);
 	int ret;
 
 	/* sync_file_range always requires a blocking context */
 	if (issue_flags & IO_URING_F_NONBLOCK)
 		return -EAGAIN;
 
-	ret = sync_file_range(req->file, req->sync.off, req->sync.len,
-				req->sync.flags);
+	ret = sync_file_range(req->file, sync->off, sync->len, sync->flags);
 	io_req_complete(req, ret);
 	return 0;
 }
