@@ -980,8 +980,6 @@ struct io_kiocb {
 		struct file		*file;
 		struct io_cmd_data	cmd;
 		struct io_rsrc_update	rsrc_update;
-		struct io_fadvise	fadvise;
-		struct io_madvise	madvise;
 		struct io_epoll		epoll;
 		struct io_splice	splice;
 		struct io_provide_buf	pbuf;
@@ -5629,12 +5627,14 @@ static int io_epoll_ctl(struct io_kiocb *req, unsigned int issue_flags)
 static int io_madvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 #if defined(CONFIG_ADVISE_SYSCALLS) && defined(CONFIG_MMU)
+	struct io_madvise *ma = io_kiocb_to_cmd(req);
+
 	if (sqe->buf_index || sqe->off || sqe->splice_fd_in)
 		return -EINVAL;
 
-	req->madvise.addr = READ_ONCE(sqe->addr);
-	req->madvise.len = READ_ONCE(sqe->len);
-	req->madvise.advice = READ_ONCE(sqe->fadvise_advice);
+	ma->addr = READ_ONCE(sqe->addr);
+	ma->len = READ_ONCE(sqe->len);
+	ma->advice = READ_ONCE(sqe->fadvise_advice);
 	return 0;
 #else
 	return -EOPNOTSUPP;
@@ -5644,7 +5644,7 @@ static int io_madvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 static int io_madvise(struct io_kiocb *req, unsigned int issue_flags)
 {
 #if defined(CONFIG_ADVISE_SYSCALLS) && defined(CONFIG_MMU)
-	struct io_madvise *ma = &req->madvise;
+	struct io_madvise *ma = io_kiocb_to_cmd(req);
 	int ret;
 
 	if (issue_flags & IO_URING_F_NONBLOCK)
@@ -5660,18 +5660,20 @@ static int io_madvise(struct io_kiocb *req, unsigned int issue_flags)
 
 static int io_fadvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
+	struct io_fadvise *fa = io_kiocb_to_cmd(req);
+
 	if (sqe->buf_index || sqe->addr || sqe->splice_fd_in)
 		return -EINVAL;
 
-	req->fadvise.offset = READ_ONCE(sqe->off);
-	req->fadvise.len = READ_ONCE(sqe->len);
-	req->fadvise.advice = READ_ONCE(sqe->fadvise_advice);
+	fa->offset = READ_ONCE(sqe->off);
+	fa->len = READ_ONCE(sqe->len);
+	fa->advice = READ_ONCE(sqe->fadvise_advice);
 	return 0;
 }
 
 static int io_fadvise(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_fadvise *fa = &req->fadvise;
+	struct io_fadvise *fa = io_kiocb_to_cmd(req);
 	int ret;
 
 	if (issue_flags & IO_URING_F_NONBLOCK) {
