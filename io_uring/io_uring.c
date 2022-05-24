@@ -979,8 +979,6 @@ struct io_kiocb {
 		 */
 		struct file		*file;
 		struct io_cmd_data	cmd;
-		struct io_open		open;
-		struct io_close		close;
 		struct io_rsrc_update	rsrc_update;
 		struct io_fadvise	fadvise;
 		struct io_madvise	madvise;
@@ -5148,6 +5146,7 @@ static int io_fallocate(struct io_kiocb *req, unsigned int issue_flags)
 
 static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
+	struct io_open *open = io_kiocb_to_cmd(req);
 	const char __user *fname;
 	int ret;
 
@@ -5157,38 +5156,40 @@ static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 		return -EBADF;
 
 	/* open.how should be already initialised */
-	if (!(req->open.how.flags & O_PATH) && force_o_largefile())
-		req->open.how.flags |= O_LARGEFILE;
+	if (!(open->how.flags & O_PATH) && force_o_largefile())
+		open->how.flags |= O_LARGEFILE;
 
-	req->open.dfd = READ_ONCE(sqe->fd);
+	open->dfd = READ_ONCE(sqe->fd);
 	fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
-	req->open.filename = getname(fname);
-	if (IS_ERR(req->open.filename)) {
-		ret = PTR_ERR(req->open.filename);
-		req->open.filename = NULL;
+	open->filename = getname(fname);
+	if (IS_ERR(open->filename)) {
+		ret = PTR_ERR(open->filename);
+		open->filename = NULL;
 		return ret;
 	}
 
-	req->open.file_slot = READ_ONCE(sqe->file_index);
-	if (req->open.file_slot && (req->open.how.flags & O_CLOEXEC))
+	open->file_slot = READ_ONCE(sqe->file_index);
+	if (open->file_slot && (open->how.flags & O_CLOEXEC))
 		return -EINVAL;
 
-	req->open.nofile = rlimit(RLIMIT_NOFILE);
+	open->nofile = rlimit(RLIMIT_NOFILE);
 	req->flags |= REQ_F_NEED_CLEANUP;
 	return 0;
 }
 
 static int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
+	struct io_open *open = io_kiocb_to_cmd(req);
 	u64 mode = READ_ONCE(sqe->len);
 	u64 flags = READ_ONCE(sqe->open_flags);
 
-	req->open.how = build_open_how(flags, mode);
+	open->how = build_open_how(flags, mode);
 	return __io_openat_prep(req, sqe);
 }
 
 static int io_openat2_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
+	struct io_open *open = io_kiocb_to_cmd(req);
 	struct open_how __user *how;
 	size_t len;
 	int ret;
@@ -5198,8 +5199,7 @@ static int io_openat2_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (len < OPEN_HOW_SIZE_VER0)
 		return -EINVAL;
 
-	ret = copy_struct_from_user(&req->open.how, sizeof(req->open.how), how,
-					len);
+	ret = copy_struct_from_user(&open->how, sizeof(open->how), how, len);
 	if (ret)
 		return ret;
 
@@ -5261,35 +5261,36 @@ err:
 
 static int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 {
+	struct io_open *open = io_kiocb_to_cmd(req);
 	struct open_flags op;
 	struct file *file;
 	bool resolve_nonblock, nonblock_set;
-	bool fixed = !!req->open.file_slot;
+	bool fixed = !!open->file_slot;
 	int ret;
 
-	ret = build_open_flags(&req->open.how, &op);
+	ret = build_open_flags(&open->how, &op);
 	if (ret)
 		goto err;
 	nonblock_set = op.open_flag & O_NONBLOCK;
-	resolve_nonblock = req->open.how.resolve & RESOLVE_CACHED;
+	resolve_nonblock = open->how.resolve & RESOLVE_CACHED;
 	if (issue_flags & IO_URING_F_NONBLOCK) {
 		/*
 		 * Don't bother trying for O_TRUNC, O_CREAT, or O_TMPFILE open,
 		 * it'll always -EAGAIN
 		 */
-		if (req->open.how.flags & (O_TRUNC | O_CREAT | O_TMPFILE))
+		if (open->how.flags & (O_TRUNC | O_CREAT | O_TMPFILE))
 			return -EAGAIN;
 		op.lookup_flags |= LOOKUP_CACHED;
 		op.open_flag |= O_NONBLOCK;
 	}
 
 	if (!fixed) {
-		ret = __get_unused_fd_flags(req->open.how.flags, req->open.nofile);
+		ret = __get_unused_fd_flags(open->how.flags, open->nofile);
 		if (ret < 0)
 			goto err;
 	}
 
-	file = do_filp_open(req->open.dfd, req->open.filename, &op);
+	file = do_filp_open(open->dfd, open->filename, &op);
 	if (IS_ERR(file)) {
 		/*
 		 * We could hang on to this 'fd' on retrying, but seems like
@@ -5315,9 +5316,9 @@ static int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 		fd_install(ret, file);
 	else
 		ret = io_fixed_fd_install(req, issue_flags, file,
-						req->open.file_slot);
+						open->file_slot);
 err:
-	putname(req->open.filename);
+	putname(open->filename);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	if (ret < 0)
 		req_set_fail(req);
@@ -5737,14 +5738,16 @@ static int io_statx(struct io_kiocb *req, unsigned int issue_flags)
 
 static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
+	struct io_close *close = io_kiocb_to_cmd(req);
+
 	if (sqe->off || sqe->addr || sqe->len || sqe->rw_flags || sqe->buf_index)
 		return -EINVAL;
 	if (req->flags & REQ_F_FIXED_FILE)
 		return -EBADF;
 
-	req->close.fd = READ_ONCE(sqe->fd);
-	req->close.file_slot = READ_ONCE(sqe->file_index);
-	if (req->close.file_slot && req->close.fd)
+	close->fd = READ_ONCE(sqe->fd);
+	close->file_slot = READ_ONCE(sqe->file_index);
+	if (close->file_slot && close->fd)
 		return -EINVAL;
 
 	return 0;
@@ -5753,12 +5756,12 @@ static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 static int io_close(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct files_struct *files = current->files;
-	struct io_close *close = &req->close;
+	struct io_close *close = io_kiocb_to_cmd(req);
 	struct fdtable *fdt;
 	struct file *file;
 	int ret = -EBADF;
 
-	if (req->close.file_slot) {
+	if (close->file_slot) {
 		ret = io_close_fixed(req, issue_flags);
 		goto err;
 	}
@@ -7982,10 +7985,13 @@ static void io_clean_op(struct io_kiocb *req)
 			break;
 			}
 		case IORING_OP_OPENAT:
-		case IORING_OP_OPENAT2:
-			if (req->open.filename)
-				putname(req->open.filename);
+		case IORING_OP_OPENAT2: {
+			struct io_open *open = io_kiocb_to_cmd(req);
+
+			if (open->filename)
+				putname(open->filename);
 			break;
+			}
 		case IORING_OP_RENAMEAT:
 			putname(req->rename.oldpath);
 			putname(req->rename.newpath);
@@ -9831,7 +9837,9 @@ out:
 
 static inline int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags)
 {
-	return __io_close_fixed(req, issue_flags, req->close.file_slot - 1);
+	struct io_close *close = io_kiocb_to_cmd(req);
+
+	return __io_close_fixed(req, issue_flags, close->file_slot - 1);
 }
 
 static int __io_sqe_files_update(struct io_ring_ctx *ctx,
