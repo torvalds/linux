@@ -1833,8 +1833,6 @@ void update_process_times(int user_tick)
 {
 	struct task_struct *p = current;
 
-	PRANDOM_ADD_NOISE(jiffies, user_tick, p, 0);
-
 	/* Note: this timer irq context must be accounted for as well. */
 	account_process_tick(p, user_tick);
 	run_local_timers();

@@ -3972,8 +3972,6 @@ static void addrconf_dad_begin(struct inet6_ifaddr *ifp)
 
 	addrconf_join_solict(dev, &ifp->addr);
 
-	prandom_seed((__force u32) ifp->addr.s6_addr32[3]);
-
 	read_lock_bh(&idev->lock);
 	spin_lock(&ifp->lock);
 	if (ifp->state == INET6_IFADDR_STATE_DEAD)
