@@ -482,8 +482,12 @@ unsigned long __get_pfnblock_flags_mask(const struct page *page,
 	bitidx = pfn_to_bitidx(page, pfn);
 	word_bitidx = bitidx / BITS_PER_LONG;
 	bitidx &= (BITS_PER_LONG-1);
-
-	word = bitmap[word_bitidx];
+	/*
+	 * This races, without locks, with set_pfnblock_flags_mask(). Ensure
+	 * a consistent read of the memory array, so that results, even though
+	 * racy, are not corrupted.
+	 */
+	word = READ_ONCE(bitmap[word_bitidx]);
 	return (word >> bitidx) & mask;
 }
 
