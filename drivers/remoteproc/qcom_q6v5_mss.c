@@ -1623,11 +1623,19 @@ static int qcom_q6v5_register_dump_segments(struct rproc *rproc,
 	return ret;
 }
 
+static unsigned long q6v5_panic(struct rproc *rproc)
+{
+	struct q6v5 *qproc = (struct q6v5 *)rproc->priv;
+
+	return qcom_q6v5_panic(&qproc->q6v5);
+}
+
 static const struct rproc_ops q6v5_ops = {
 	.start = q6v5_start,
 	.stop = q6v5_stop,
 	.parse_fw = qcom_q6v5_register_dump_segments,
 	.load = q6v5_load,
+	.panic = q6v5_panic,
 };
 
 static void qcom_msa_handover(struct qcom_q6v5 *q6v5)
